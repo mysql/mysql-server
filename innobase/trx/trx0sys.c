@@ -472,9 +472,9 @@ trx_sys_update_mysql_binlog_offset(
 	if (0 != ut_memcmp(sys_header + field + TRX_SYS_MYSQL_LOG_NAME,
 			file_name, 1 + ut_strlen(file_name))) {
 
-		mlog_write_string((byte*) (sys_header + field
-					+ TRX_SYS_MYSQL_LOG_NAME),
-			(byte*) file_name, 1 + ut_strlen(file_name), mtr);
+		mlog_write_string(sys_header + field
+					+ TRX_SYS_MYSQL_LOG_NAME,
+			file_name, 1 + ut_strlen(file_name), mtr);
 	}
 
 	if (mach_read_from_4(sys_header + field

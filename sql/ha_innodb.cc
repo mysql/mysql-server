@@ -82,7 +82,8 @@ are declared in mysqld.cc: */
 
 long innobase_mirrored_log_groups, innobase_log_files_in_group,
      innobase_log_file_size, innobase_log_buffer_size,
-     innobase_buffer_pool_size, innobase_additional_mem_pool_size,
+     innobase_buffer_pool_size, innobase_buffer_pool_awe_mem_mb,
+     innobase_additional_mem_pool_size,
      innobase_file_io_threads, innobase_lock_wait_timeout,
      innobase_thread_concurrency, innobase_force_recovery;
 
@@ -753,7 +754,25 @@ innobase_init(void)
 	srv_log_buffer_size = (ulint) innobase_log_buffer_size;
 	srv_flush_log_at_trx_commit = (ulint) innobase_flush_log_at_trx_commit;
 
-	srv_pool_size = (ulint) innobase_buffer_pool_size;
+	/* We set srv_pool_size here in units of 1 kB. InnoDB internally
+	changes the value so that it becomes the number of database pages. */
+
+        if (innobase_buffer_pool_awe_mem_mb == 0) {
+	        /* Careful here: we first convert the signed long int to ulint
+	        and only after that divide */
+
+	        srv_pool_size = ((ulint) innobase_buffer_pool_size) / 1024;
+	} else {
+	        srv_use_awe = TRUE;
+	        srv_pool_size = (ulint)
+		                (1024 * innobase_buffer_pool_awe_mem_mb);
+	        srv_awe_window_size = (ulint) innobase_buffer_pool_size;
+
+		/* Note that what the user specified as
+		innodb_buffer_pool_size is actually the AWE memory window
+		size in this case, and the real buffer pool size is
+		determined by .._awe_mem_mb. */
+	}
 
 	srv_mem_pool_size = (ulint) innobase_additional_mem_pool_size;
 

@@ -24,6 +24,7 @@ Created 11/11/1995 Heikki Tuuri
 #include "log0log.h"
 #include "os0file.h"
 #include "trx0sys.h"
+#include "srv0srv.h"
 
 /* When flushed, dirty blocks are searched in neigborhoods of this size, and
 flushed along with the original page. */
@@ -103,7 +104,7 @@ buf_flush_ready_for_replace(
 /*========================*/
 				/* out: TRUE if can replace immediately */
 	buf_block_t*	block)	/* in: buffer control block, must be in state
-				BUF_BLOCK_FILE_PAGE and in the LRU list*/
+				BUF_BLOCK_FILE_PAGE and in the LRU list */
 {
 	ut_ad(mutex_own(&(buf_pool->mutex)));
 	ut_ad(block->state == BUF_BLOCK_FILE_PAGE);
@@ -134,7 +135,6 @@ buf_flush_ready_for_flush(
 
 	if ((ut_dulint_cmp(block->oldest_modification, ut_dulint_zero) > 0)
 	    					&& (block->io_fix == 0)) {
-
 	    	if (flush_type != BUF_FLUSH_LRU) {
 
 			return(TRUE);
@@ -436,6 +436,20 @@ buf_flush_try_page(
 	    && block && buf_flush_ready_for_flush(block, flush_type)) {
 	
 		block->io_fix = BUF_IO_WRITE;
+
+		/* If AWE is enabled and the page is not mapped to a frame,
+		then map it */
+
+		if (block->frame == NULL) {
+			ut_a(srv_use_awe);
+
+			/* We set second parameter TRUE because the block is
+			in the LRU list and we must put it to
+			awe_LRU_free_mapped list once mapped to a frame */
+		
+			buf_awe_map_page_to_frame(block, TRUE);
+		}
+
 		block->flush_type = flush_type;
 
 		if (buf_pool->n_flush[flush_type] == 0) {
@@ -486,6 +500,20 @@ buf_flush_try_page(
 		..._ready_for_flush). */
 
 		block->io_fix = BUF_IO_WRITE;
+
+		/* If AWE is enabled and the page is not mapped to a frame,
+		then map it */
+
+		if (block->frame == NULL) {
+			ut_a(srv_use_awe);
+
+			/* We set second parameter TRUE because the block is
+			in the LRU list and we must put it to
+			awe_LRU_free_mapped list once mapped to a frame */
+		
+			buf_awe_map_page_to_frame(block, TRUE);
+		}
+
 		block->flush_type = flush_type;
 
 		if (buf_pool->n_flush[flush_type] == 0) {
@@ -511,6 +539,20 @@ buf_flush_try_page(
 			&& buf_flush_ready_for_flush(block, flush_type)) {
 	
 		block->io_fix = BUF_IO_WRITE;
+
+		/* If AWE is enabled and the page is not mapped to a frame,
+		then map it */
+
+		if (block->frame == NULL) {
+			ut_a(srv_use_awe);
+
+			/* We set second parameter TRUE because the block is
+			in the LRU list and we must put it to
+			awe_LRU_free_mapped list once mapped to a frame */
+		
+			buf_awe_map_page_to_frame(block, TRUE);
+		}
+
 		block->flush_type = flush_type;
 
 		if (buf_pool->n_flush[block->flush_type] == 0) {

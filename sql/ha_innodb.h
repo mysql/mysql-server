@@ -178,7 +178,8 @@ extern char *innobase_home, *innobase_tmpdir, *innobase_logdir;
 extern long innobase_lock_scan_time;
 extern long innobase_mirrored_log_groups, innobase_log_files_in_group;
 extern long innobase_log_file_size, innobase_log_buffer_size;
-extern long innobase_buffer_pool_size, innobase_additional_mem_pool_size;
+extern long innobase_buffer_pool_size, innobase_buffer_pool_awe_mem_mb,
+  innobase_additional_mem_pool_size;
 extern long innobase_file_io_threads, innobase_lock_wait_timeout;
 extern long innobase_force_recovery, innobase_thread_concurrency;
 extern char *innobase_data_home_dir, *innobase_data_file_path;

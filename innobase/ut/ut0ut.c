@@ -197,6 +197,7 @@ ut_get_year_month_day(
   	*month = (ulint)cal_tm.wMonth;
   	*day = (ulint)cal_tm.wDay;
 #else
+  	struct tm  cal_tm;
   	struct tm* cal_tm_ptr;
   	time_t     tm;
 
