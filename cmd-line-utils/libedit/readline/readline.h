@@ -41,7 +41,7 @@
 #include <sys/types.h>
 #if HAVE_SYS_CDEFS_H
 #include <sys/cdefs.h>
-#else
+#endif
 #ifndef __BEGIN_DECLS
 #if defined(__cplusplus)
 #define __BEGIN_DECLS   extern "C" {
@@ -49,7 +49,6 @@
 #else
 #define __BEGIN_DECLS
 #define __END_DECLS
-#endif
 #endif
 #endif
 

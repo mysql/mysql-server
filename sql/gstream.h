@@ -26,7 +26,7 @@ public:
     numeric,
     l_bra,
     r_bra,
-    comma,
+    comma
   };
 
   GTextReadStream(const char *buffer, int size)

@@ -549,6 +549,8 @@ public:
   const char *func_name() const { return "greatest"; }
 };
 
+
+#ifdef HAVE_COMPRESS
 class Item_func_crc32 :public Item_int_func
 {
   String value;
@@ -558,7 +560,7 @@ public:
   const char *func_name() const { return "crc32"; }
   void fix_length_and_dec() { max_length=10; }
 };
-
+#endif
 
 class Item_func_length :public Item_int_func
 {

@@ -52,6 +52,9 @@
 #include "sys.h"
 #include "el.h"
 #include "fcns.h"		/* for EL_NUM_FCNS */
+#ifdef HAVE_ALLOCA_H
+#include <alloca.h>
+#endif
 
 /* for rl_complete() */
 #define	TAB		'\r'
@@ -389,7 +392,7 @@ _history_expand_command(const char *command, size_t cmdlen, char **result)
 
 	*result = NULL;
 
-	cmd = alloca(cmdlen + 1);
+	cmd = (char*) alloca(cmdlen + 1);
 	(void) strncpy(cmd, command, cmdlen);
 	cmd[cmdlen] = 0;
 
@@ -422,7 +425,7 @@ _history_expand_command(const char *command, size_t cmdlen, char **result)
 					return (-1);
 				prefix = 0;
 			}
-			search = alloca(len + 1);
+			search = (char*) alloca(len + 1);
 			(void) strncpy(search, &cmd[idx], len);
 			search[len] = '\0';
 
@@ -662,7 +665,7 @@ history_expand(char *str, char **output)
 
 	if (str[0] == history_subst_char) {
 		/* ^foo^foo2^ is equivalent to !!:s^foo^foo2^ */
-		temp = alloca(4 + strlen(str) + 1);
+		temp = (char*) alloca(4 + strlen(str) + 1);
 		temp[0] = temp[1] = history_expansion_char;
 		temp[2] = ':';
 		temp[3] = 's';
@@ -1456,7 +1459,7 @@ rl_complete_internal(int what_to_do)
 		ctemp--;
 
 	len = li->cursor - ctemp;
-	temp = alloca(len + 1);
+	temp = (char*) alloca(len + 1);
 	(void) strncpy(temp, ctemp, len);
 	temp[len] = '\0';
 

@@ -43,13 +43,19 @@
  *	   We have to declare a static variable here, since the
  *	   termcap putchar routine does not take an argument!
  */
+
 #include "sys.h"
 #include <stdio.h>
 #include <signal.h>
 #include <string.h>
 #include <stdlib.h>
 #include <unistd.h>
+#if defined(HAVE_TERMCAP_H)
 #include <termcap.h>
+#elif defined(HAVE_CURSES_H) && defined(HAVE_TERM_H) /* For HPUX11 */
+#include <curses.h>
+#include <term.h>
+#endif
 #include <sys/types.h>
 #include <sys/ioctl.h>
 
@@ -891,7 +897,7 @@ term_set(EditLine *el, const char *term)
 
 	memset(el->el_term.t_cap, 0, TC_BUFSIZE);
 
-	i = tgetent(el->el_term.t_cap, term);
+	i = tgetent(el->el_term.t_cap, (char*) term);
 
 	if (i <= 0) {
 		if (i == -1)
@@ -921,7 +927,7 @@ term_set(EditLine *el, const char *term)
 		Val(T_co) = tgetnum("co");
 		Val(T_li) = tgetnum("li");
 		for (t = tstr; t->name != NULL; t++)
-			term_alloc(el, t, tgetstr(t->name, &area));
+			term_alloc(el, t, tgetstr((char*) t->name, &area));
 	}
 
 	if (Val(T_co) < 2)
@@ -1060,6 +1066,8 @@ term_reset_arrow(EditLine *el)
 	static const char stOD[] = {033, 'O', 'D', '\0'};
 	static const char stOH[] = {033, 'O', 'H', '\0'};
 	static const char stOF[] = {033, 'O', 'F', '\0'};
+
+	term_init_arrow(el);			/* Init arrow struct */
 
 	key_add(el, strA, &arrow[A_K_UP].fun, arrow[A_K_UP].type);
 	key_add(el, strB, &arrow[A_K_DN].fun, arrow[A_K_DN].type);
@@ -1421,7 +1429,7 @@ term_echotc(EditLine *el, int argc __attribute__((unused)), const char **argv)
 			break;
 		}
 	if (t->name == NULL)
-		scap = tgetstr(*argv, &area);
+		scap = tgetstr((char*) *argv, &area);
 	if (!scap || scap[0] == '\0') {
 		if (!silent)
 			(void) fprintf(el->el_errfile,

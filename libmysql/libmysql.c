@@ -4293,7 +4293,7 @@ static void store_param_str(NET *net, MYSQL_BIND *param)
 static void store_param_null(NET *net, MYSQL_BIND *param)
 {
   uint pos= param->param_number;
-  (uchar) net->buff[pos/8]|=  (1 << pos & 7);
+  net->buff[pos/8]|=  (uchar) (1 << (pos & 7));
 }
 
 

@@ -62,6 +62,10 @@ typedef struct el_key_t {
 #define	XK_NOD	2
 #define	XK_EXE	3
 
+#undef key_end
+#undef key_clear
+#undef key_print
+
 protected int		 key_init(EditLine *);
 protected void		 key_end(EditLine *);
 protected key_value_t	*key_map_cmd(EditLine *, int);
