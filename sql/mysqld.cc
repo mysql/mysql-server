@@ -29,6 +29,9 @@
 #include "ha_innodb.h"
 #endif
 #include "ha_myisam.h"
+#ifdef HAVE_ISAM
+#include "ha_isam.h"
+#endif
 #include <nisam.h>
 #include <thr_alarm.h>
 #include <ft_global.h>
@@ -5048,12 +5051,12 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     if (opt_isam)
     {
       isam_skip=0;
-      isam_innodb=SHOW_OPTION_YES;
+      have_isam= SHOW_OPTION_YES;
     }
     else
     {
       isam_skip=1;
-      isam_innodb=SHOW_OPTION_DISABLED;
+      have_isam= SHOW_OPTION_DISABLED;
     }
 #endif
     break;
