@@ -2135,7 +2135,7 @@ mysql_execute_command(THD *thd)
     create_table->next= 0;
     if (&lex->select_lex != lex->all_selects_list &&
 	lex->unit.create_total_list(thd, lex, &tables, 0))
-      DBUG_VOID_RETURN;
+      DBUG_RETURN(-1);
 
     ulong want_priv= ((lex->create_info.options & HA_LEX_CREATE_TMP_TABLE) ?
 		      CREATE_TMP_ACL : CREATE_ACL);
