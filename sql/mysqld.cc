@@ -494,6 +494,7 @@ static void start_signal_handler(void);
 extern "C" pthread_handler_decl(signal_hand, arg);
 static void set_options(void);
 static void get_options(int argc,char **argv);
+static int init_thread_environment();
 static char *get_relative_path(const char *path);
 static void fix_paths(void);
 extern "C" pthread_handler_decl(handle_connections_sockets,arg);
@@ -504,11 +505,9 @@ static bool read_init_file(char *file_name);
 #ifdef __NT__
 extern "C" pthread_handler_decl(handle_connections_namedpipes,arg);
 #endif
-#if !defined(EMBEDDED_LIBRARY)
 #ifdef HAVE_SMEM
 static pthread_handler_decl(handle_connections_shared_memory,arg);
 #endif
-#endif /* EMBEDDED_LIBRARY */
 extern "C" pthread_handler_decl(handle_slave,arg);
 #ifdef SET_RLIMIT_NOFILE
 static uint set_maximum_open_files(uint max_file_limit);
@@ -2033,6 +2032,8 @@ static int init_common_variables(const char *conf_file_name, int argc,
   defaults_argv=argv;
   set_options();
   get_options(argc,argv);
+  if (init_thread_environment())
+    return 1;
   if (opt_log || opt_update_log || opt_slow_log || opt_bin_log)
     strcat(server_version,"-log");
   DBUG_PRINT("info",("%s  Ver %s for %s on %s\n",my_progname,
@@ -2300,7 +2301,6 @@ static void handle_connections_methods()
       handler_count--;
     }
   }
-#if !defined(EMBEDDED_LIBRARY)
 #ifdef HAVE_SMEM
   if (opt_enable_shared_memory)
   {
@@ -2313,7 +2313,6 @@ static void handle_connections_methods()
     }
   }
 #endif 
-#endif // EMBEDDED_LIBRARY
 
   while (handler_count > 0)
     pthread_cond_wait(&COND_handler_count,&LOCK_thread_count);
@@ -2349,8 +2348,6 @@ int main(int argc, char **argv)
   init_signals();
   if (!(opt_specialflag & SPECIAL_NO_PRIOR))
     my_pthread_setprio(pthread_self(),CONNECT_PRIOR);
-  if (init_thread_environment())
-    unireg_abort(1);
   pthread_attr_setstacksize(&connection_attrib,thread_stack);
 #ifdef HAVE_PTHREAD_ATTR_GETSTACKSIZE
   {
@@ -2683,6 +2680,7 @@ static int bootstrap(FILE *file)
   int error= 0;
   DBUG_ENTER("bootstrap");
 #ifndef EMBEDDED_LIBRARY			// TODO:  Enable this
+
   THD *thd= new THD;
   thd->bootstrap=1;
   thd->client_capabilities=0;
