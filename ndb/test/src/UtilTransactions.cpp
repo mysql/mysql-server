@@ -394,8 +394,7 @@ UtilTransactions::clearTable3(Ndb* pNdb,
       goto failed;
     }
     
-    NdbResultSet * rs = pOp->readTuplesExclusive(par);
-    if( rs == 0 ) {
+    if( pOp->readTuplesExclusive(par) ) {
       err = pTrans->getNdbError();
       goto failed;
     }
@@ -411,13 +410,13 @@ UtilTransactions::clearTable3(Ndb* pNdb,
       goto failed;
     }
     
-    while((check = rs->nextResult(true)) == 0){
+    while((check = pOp->nextResult(true)) == 0){
       do {
-	if (rs->deleteTuple() != 0){
+	if (pOp->deleteCurrentTuple() != 0){
 	  goto failed;
 	}
 	deletedRows++;
-      } while((check = rs->nextResult(false)) == 0);
+      } while((check = pOp->nextResult(false)) == 0);
       
       if(check != -1){
 	check = pTrans->execute(Commit);   
@@ -502,9 +501,7 @@ UtilTransactions::copyTableData(Ndb* pNdb,
       return NDBT_FAILED;
     }
 
-    NdbResultSet* rs = pOp->readTuples(NdbScanOperation::LM_Read, 
-				       parallelism);
-    if( check == -1 ) {
+    if( pOp->readTuples(NdbScanOperation::LM_Read, parallelism) ) {
       ERR(pTrans->getNdbError());
       pNdb->closeTransaction(pTrans);
       return NDBT_FAILED;
@@ -535,14 +532,14 @@ UtilTransactions::copyTableData(Ndb* pNdb,
     }
   
     int eof;
-    while((eof = rs->nextResult(true)) == 0){
+    while((eof = pOp->nextResult(true)) == 0){
       do {
 	insertedRows++;
 	if (addRowToInsert(pNdb, pTrans, row, destName) != 0){
 	  pNdb->closeTransaction(pTrans);
 	  return NDBT_FAILED;
 	}
-      } while((eof = rs->nextResult(false)) == 0);
+      } while((eof = pOp->nextResult(false)) == 0);
       
       check = pTrans->execute(Commit);   
       pTrans->restart();
@@ -669,8 +666,7 @@ UtilTransactions::scanReadRecords(Ndb* pNdb,
       return NDBT_FAILED;
     }
 
-    NdbResultSet * rs = pOp->readTuples(lm, 0, parallelism);
-    if( rs == 0 ) {
+    if( pOp->readTuples(lm, 0, parallelism) ) {
       ERR(pTrans->getNdbError());
       pNdb->closeTransaction(pTrans);
       return NDBT_FAILED;
@@ -718,7 +714,7 @@ UtilTransactions::scanReadRecords(Ndb* pNdb,
     int rows = 0;
     
     
-    while((eof = rs->nextResult()) == 0){
+    while((eof = pOp->nextResult()) == 0){
       rows++;
       
       // Call callback for each record returned
@@ -782,8 +778,7 @@ UtilTransactions::selectCount(Ndb* pNdb,
       return NDBT_FAILED;
     }
 
-    NdbResultSet * rs = pOp->readTuples(lm);
-    if( rs == 0) {
+    if( pOp->readTuples(lm) ) {
       ERR(pTrans->getNdbError());
       pNdb->closeTransaction(pTrans);
       return NDBT_FAILED;
@@ -815,7 +810,7 @@ UtilTransactions::selectCount(Ndb* pNdb,
     int rows = 0;
     
 
-    while((eof = rs->nextResult()) == 0){
+    while((eof = pOp->nextResult()) == 0){
       rows++;
     }
     if (eof == -1) {
@@ -948,14 +943,14 @@ UtilTransactions::scanAndCompareUniqueIndex(Ndb* pNdb,
       return NDBT_FAILED;
     }
 
-    NdbResultSet* rs;
+    int rs;
     if(transactional){
       rs = pOp->readTuples(NdbScanOperation::LM_Read, 0, parallelism);
     } else {
       rs = pOp->readTuples(NdbScanOperation::LM_CommittedRead, 0, parallelism);
     }
     
-    if( rs == 0 ) {
+    if( rs != 0 ) {
       ERR(pTrans->getNdbError());
       pNdb->closeTransaction(pTrans);
       return NDBT_FAILED;
@@ -998,7 +993,7 @@ UtilTransactions::scanAndCompareUniqueIndex(Ndb* pNdb,
     int rows = 0;
     
     
-    while((eof = rs->nextResult()) == 0){
+    while((eof = pOp->nextResult()) == 0){
       rows++;
       
       // ndbout << row.c_str().c_str() << endl;
@@ -1046,7 +1041,6 @@ UtilTransactions::readRowFromTableAndIndex(Ndb* pNdb,
   const int            retryMax = 100;
   int                  check, a;
   NdbConnection	       *pTrans1=NULL;
-  NdbResultSet         *cursor= NULL;
   NdbOperation	       *pOp;
 
   int return_code= NDBT_FAILED;
@@ -1174,7 +1168,7 @@ UtilTransactions::readRowFromTableAndIndex(Ndb* pNdb,
 	if (pIndexOp) {
 	  not_ok = pIndexOp->readTuple() == -1;
 	} else {
-	  not_ok = (cursor= pScanOp->readTuples()) == 0;
+	  not_ok = pScanOp->readTuples();
 	}
 	
 	if( not_ok ) {
@@ -1251,7 +1245,7 @@ UtilTransactions::readRowFromTableAndIndex(Ndb* pNdb,
      */ 
     if(!null_found){
       if (pScanOp) {
-	if (cursor->nextResult() != 0){
+	if (pScanOp->nextResult() != 0){
 	  const NdbError err = pTrans1->getNdbError();
 	  ERR(err);
 	  ndbout << "Error when comparing records - index op next_result missing" << endl;
@@ -1266,7 +1260,7 @@ UtilTransactions::readRowFromTableAndIndex(Ndb* pNdb,
 	goto close_all;
       }
       if (pScanOp) {
-	if (cursor->nextResult() == 0){
+	if (pScanOp->nextResult() == 0){
 	  ndbout << "Error when comparing records - index op next_result to many" << endl;
 	  ndbout << "row: " << row.c_str().c_str() << endl;
 	  goto close_all;
@@ -1278,8 +1272,6 @@ UtilTransactions::readRowFromTableAndIndex(Ndb* pNdb,
   }
   
 close_all:
-  if (cursor)
-    cursor->close();
   if (pTrans1)
     pNdb->closeTransaction(pTrans1);
   
@@ -1298,7 +1290,6 @@ UtilTransactions::verifyOrderedIndex(Ndb* pNdb,
   NdbConnection	       *pTrans;
   NdbScanOperation     *pOp;
   NdbIndexScanOperation * iop = 0;
-  NdbResultSet* cursor= 0;
 
   NDBT_ResultRow       scanRow(tab);
   NDBT_ResultRow       pkRow(tab);
@@ -1337,10 +1328,7 @@ UtilTransactions::verifyOrderedIndex(Ndb* pNdb,
       return NDBT_FAILED;
     }
 
-    NdbResultSet* 
-      rs = pOp->readTuples(NdbScanOperation::LM_Read, 0, parallelism);
-    
-    if( rs == 0 ) {
+    if( pOp->readTuples(NdbScanOperation::LM_Read, 0, parallelism) ) {
       ERR(pTrans->getNdbError());
       pNdb->closeTransaction(pTrans);
       return NDBT_FAILED;
@@ -1376,7 +1364,7 @@ UtilTransactions::verifyOrderedIndex(Ndb* pNdb,
         
     int eof;
     int rows = 0;
-    while(check == 0 && (eof = rs->nextResult()) == 0){
+    while(check == 0 && (eof = pOp->nextResult()) == 0){
       rows++;
 
       bool null_found= false;
@@ -1401,10 +1389,11 @@ UtilTransactions::verifyOrderedIndex(Ndb* pNdb,
 	if(!iop && (iop= pTrans->getNdbIndexScanOperation(indexName, 
 							  tab.getName())))
 	{
-	  cursor= iop->readTuples(NdbScanOperation::LM_CommittedRead, 
-				  parallelism);
+	  if(iop->readTuples(NdbScanOperation::LM_CommittedRead, 
+			     parallelism))
+	    goto error;
 	  iop->interpret_exit_ok();
-	  if(!cursor || get_values(iop, indexRow))
+	  if(get_values(iop, indexRow))
 	    goto error;
 	}
 	else if(!iop || iop->reset_bounds())
@@ -1431,7 +1420,7 @@ UtilTransactions::verifyOrderedIndex(Ndb* pNdb,
       if(!null_found)
       {
 	
-	if((res= cursor->nextResult()) != 0){
+	if((res= iop->nextResult()) != 0){
 	  g_err << "Failed to find row using index: " << res << endl;
 	  ERR(pTrans->getNdbError());
 	  pNdb->closeTransaction(pTrans);
@@ -1446,7 +1435,7 @@ UtilTransactions::verifyOrderedIndex(Ndb* pNdb,
 	  return NDBT_FAILED;
 	}
 	
-	if(cursor->nextResult() == 0){
+	if(iop->nextResult() == 0){
 	  g_err << "Found extra row!!" << endl;
 	  g_err << " indexRow: \n" << indexRow.c_str().c_str() << endl;
 	  pNdb->closeTransaction(pTrans);

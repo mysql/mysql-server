@@ -266,7 +266,6 @@ run_read(){
   NdbScanOperation * pSp;
   NdbIndexOperation * pUp;
   NdbIndexScanOperation * pIp;
-  NdbResultSet * rs = (NdbResultSet*)~0;
   
   Uint32 start_row = rand() % (rows - range);
   Uint32 stop_row = start_row + range;
@@ -319,27 +318,27 @@ run_read(){
       }
       break;
     case 4:
-      pOp = pIp = pTrans->getNdbIndexScanOperation(g_ordered,g_table);
-      rs = pIp->readTuples(NdbScanOperation::LM_CommittedRead, 0, 0);
+      pOp = pSp = pIp = pTrans->getNdbIndexScanOperation(g_ordered,g_table);
+      pIp->readTuples(NdbScanOperation::LM_CommittedRead, 0, 0);
       check = pIp->setBound(pk, NdbIndexScanOperation::BoundEQ, &start_row);
       break;
     case 5:
-      pOp = pIp = pTrans->getNdbIndexScanOperation(g_ordered,g_table);
-      rs = pIp->readTuples(NdbScanOperation::LM_CommittedRead, 0, 0);
+      pOp = pSp = pIp = pTrans->getNdbIndexScanOperation(g_ordered,g_table);
+      pIp->readTuples(NdbScanOperation::LM_CommittedRead, 0, 0);
       check = pIp->setBound(pk, NdbIndexScanOperation::BoundLE, &start_row);
       check = pIp->setBound(pk, NdbIndexScanOperation::BoundGT, &stop_row);
       start_row = stop_row;
       break;
     case 6:
-      pOp = pIp = pTrans->getNdbIndexScanOperation(g_ordered,g_table);
-      rs = pIp->readTuples(NdbScanOperation::LM_CommittedRead, 0, 0, true);
+      pOp = pSp = pIp = pTrans->getNdbIndexScanOperation(g_ordered,g_table);
+      pIp->readTuples(NdbScanOperation::LM_CommittedRead, 0, 0, true);
       check = pIp->setBound(pk, NdbIndexScanOperation::BoundLE, &start_row);
       check = pIp->setBound(pk, NdbIndexScanOperation::BoundGT, &stop_row);
       start_row = stop_row;
       break;
     case 7:
       pOp = pSp = pTrans->getNdbScanOperation(g_table);
-      rs = pSp->readTuples(NdbScanOperation::LM_CommittedRead, 0, 0);
+      pSp->readTuples(NdbScanOperation::LM_CommittedRead, 0, 0);
       NdbScanFilter filter(pOp) ;   
       filter.begin(NdbScanFilter::AND);
       filter.ge(pk, start_row);
@@ -355,7 +354,6 @@ run_read(){
       ndbout << pTrans->getNdbError() << endl;
     }
     assert(check == 0);
-    assert(rs);
 
     for(int j = 0; j<g_tab->getNoOfColumns(); j++){
       res = pOp->getValue(j);
@@ -368,7 +366,7 @@ run_read(){
     }
     assert(check == 0);
     if(g_paramters[P_OPER].value >= 4){
-      while((check = rs->nextResult(true)) == 0){
+      while((check = pSp->nextResult(true)) == 0){
 	cnt++;
       }
 	
@@ -377,13 +375,13 @@ run_read(){
 	return -1;
       }
       assert(check == 1);
-      rs->close();
+      pSp->close();
     }
   }
   assert(g_paramters[P_OPER].value < 4 || (cnt == range));
-    
+  
   pTrans->close();
-    
+  
   stop = NdbTick_CurrentMillisecond();
   g_times[g_paramters[P_OPER].value] += (stop - start1);
   return 0;

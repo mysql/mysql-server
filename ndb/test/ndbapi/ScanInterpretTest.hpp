@@ -227,10 +227,7 @@ ScanInterpretTest::scanRead(Ndb* pNdb,
       return NDBT_FAILED;
     }
    
-    NdbResultSet * rs = pOp->readTuples(NdbScanOperation::LM_Read, 
-                                        0, parallelism);
- 
-    if( rs == 0 ) {
+    if( pOp->readTuples(NdbScanOperation::LM_Read, 0, parallelism) ) {
       ERR(pTrans->getNdbError());
       pNdb->closeTransaction(pTrans);
       return NDBT_FAILED;
@@ -262,14 +259,14 @@ ScanInterpretTest::scanRead(Ndb* pNdb,
     int rows = 0;
     NdbConnection* pInsTrans;
 
-    while((eof = rs->nextResult(true)) == 0){
+    while((eof = pOp->nextResult(true)) == 0){
       do {
 	rows++;
 	if (addRowToInsert(pNdb, pTrans) != 0){
 	  pNdb->closeTransaction(pTrans);
 	  return NDBT_FAILED;
 	}
-      } while((eof = rs->nextResult(false)) == 0);
+      } while((eof = pOp->nextResult(false)) == 0);
       
       check = pTrans->execute(Commit);   
       if( check == -1 ) {
@@ -349,9 +346,7 @@ ScanInterpretTest::scanReadVerify(Ndb* pNdb,
       return NDBT_FAILED;
     }
    
-    NdbResultSet * rs = pOp->readTuples(NdbScanOperation::LM_Read,
-                                        0, parallelism); 
-    if( rs == 0 ) {
+    if( pOp->readTuples(NdbScanOperation::LM_Read, 0, parallelism) ) {
       ERR(pTrans->getNdbError());
       pNdb->closeTransaction(pTrans);
       return NDBT_FAILED;
@@ -392,7 +387,7 @@ ScanInterpretTest::scanReadVerify(Ndb* pNdb,
     NdbConnection* pExistTrans;
     NdbConnection* pNoExistTrans;
     
-    while((eof = rs->nextResult(true)) == 0){
+    while((eof = pOp->nextResult(true)) == 0){
       pExistTrans = pNdb->startTransaction();
       if (pExistTrans == NULL) {
 	const NdbError err = pNdb->getNdbError();
@@ -424,7 +419,7 @@ ScanInterpretTest::scanReadVerify(Ndb* pNdb,
 	    return NDBT_FAILED;
 	  }
 	}
-      } while((eof = rs->nextResult(false)) == 0);
+      } while((eof = pOp->nextResult(false)) == 0);
 
 
       // Execute the transaction containing reads of 

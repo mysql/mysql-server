@@ -164,8 +164,7 @@ select_count(Ndb* pNdb, const NdbDictionary::Table* pTab,
       return NDBT_FAILED;
     }
 
-    NdbResultSet * rs = pOp->readTuples(NdbScanOperation::LM_Dirty); 
-    if( rs == 0 ) {
+    if( pOp->readTuples(NdbScanOperation::LM_Dirty) ) {
       ERR(pTrans->getNdbError());
       pNdb->closeTransaction(pTrans);
       return NDBT_FAILED;
@@ -191,7 +190,7 @@ select_count(Ndb* pNdb, const NdbDictionary::Table* pTab,
     
     Uint64 row_count = 0;
     int eof;
-    while((eof = rs->nextResult(true)) == 0){
+    while((eof = pOp->nextResult(true)) == 0){
       row_count += tmp;
     }
     

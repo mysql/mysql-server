@@ -443,9 +443,9 @@ testcase(int flag)
 	if ((con = ndb->startTransaction()) == 0)
 	    return ndberror("startTransaction key=%d", key);
 	if ((op = sop = con->getNdbScanOperation(tab)) == 0)
-	    return ndberror("getNdbOperation key=%d", key);
-	if ((rs = sop->readTuples(1)) == 0)
-	    return ndberror("openScanRead key=%d", key);
+	  return ndberror("getNdbOperation key=%d", key);
+	if (sop->readTuples(1))
+	  return ndberror("openScanRead key=%d", key);
 	{
 	    col& c = ccol[0];
 	    if (op->load_const_u32(1, key) < 0)
@@ -488,7 +488,7 @@ testcase(int flag)
 	if (con->execute(NoCommit) < 0)
 	    return ndberror("executeScan key=%d", key);
 	int ret, cnt = 0;
-	while ((ret = rs->nextResult()) == 0) {
+	while ((ret = sop->nextResult()) == 0) {
 	    if (key != newkey)
 		return ndberror("unexpected key=%d newkey=%d", key, newkey);
 	    for (i = 1; i < attrcnt; i++) {

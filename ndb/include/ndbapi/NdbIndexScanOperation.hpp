@@ -42,20 +42,20 @@ public:
    * @returns NdbResultSet.
    * @see NdbScanOperation::readTuples
    */ 
-  NdbResultSet* readTuples(LockMode = LM_Read,
-			   Uint32 batch = 0, 
-			   Uint32 parallel = 0,
-			   bool order_by = false,
-			   bool read_range_no = false);
+  int readTuples(LockMode = LM_Read,
+		 Uint32 batch = 0, 
+		 Uint32 parallel = 0,
+		 bool order_by = false,
+		 bool read_range_no = false);
   
-  inline NdbResultSet* readTuples(int parallell){
+  inline int readTuples(int parallell){
     return readTuples(LM_Read, 0, parallell, false);
   }
   
-  inline NdbResultSet* readTuplesExclusive(int parallell = 0){
+  inline int readTuplesExclusive(int parallell = 0){
     return readTuples(LM_Exclusive, 0, parallell, false);
   }
-
+  
   /**
    * Type of ordered index key bound.  The values (0-4) will not change
    * and can be used explicitly (e.g. they could be computed).
@@ -125,7 +125,7 @@ public:
   /**
    * Return range no for current row
    */
-  Uint32 get_range_no();
+  int get_range_no();
   
   bool getSorted() const { return m_ordered; }
 private:

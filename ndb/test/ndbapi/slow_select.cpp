@@ -8,18 +8,17 @@ S_Scan {
   const char * m_table;
   const char * m_index;
   NdbIndexScanOperation * m_scan;
-  NdbResultSet * m_result;
   Uint32 metaid;
   Uint32 match_count;
   Uint32 row_count;
 };
 
 static S_Scan g_scans[] = {
-  { "affiliatestometa", "ind_affiliatestometa", 0, 0, 0, 0, 0 },
-  { "media", "metaid", 0, 0, 0, 0, 0 },
-  { "meta", "PRIMARY", 0, 0, 0, 0, 0 },
-  { "artiststometamap", "PRIMARY", 0, 0, 0, 0, 0 },
-  { "subgenrestometamap", "metaid", 0, 0, 0, 0, 0 }
+  { "affiliatestometa", "ind_affiliatestometa", 0, 0, 0, 0 },
+  { "media", "metaid", 0, 0, 0, 0 },
+  { "meta", "PRIMARY", 0, 0, 0, 0 },
+  { "artiststometamap", "PRIMARY", 0, 0, 0, 0 },
+  { "subgenrestometamap", "metaid", 0, 0, 0, 0 }
 };
 
 #define require(x) if(!(x)) { ndbout << "LINE: " << __LINE__ << endl;abort(); }
@@ -58,9 +57,8 @@ main(void){
 							    g_scans[i].m_table);
       NdbIndexScanOperation* scan = g_scans[i].m_scan;
       require(scan);
-      g_scans[i].m_result = scan->readTuples(NdbScanOperation::LM_CommittedRead, 
-					     0, 0, true);
-      require(g_scans[i].m_result);
+      require(scan->readTuples(NdbScanOperation::LM_CommittedRead, 
+			       0, 0, true) == 0);
     }
   
     require(!g_scans[0].m_scan->setBound((Uint32)0, 
@@ -125,7 +123,7 @@ main(void){
       //ndbout_c("%s - %d", g_scans[i].m_table, g_scans[i].metaid);
     
       for(i = 0; i<prev_F_sz; i++){
-	int res = F[i]->m_result->nextResult();
+	int res = F[i]->m_scan->nextResult();
 	if(res == -1)
 	  abort();
 

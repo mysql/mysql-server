@@ -215,7 +215,7 @@ int scanReadRecords(Ndb* pNdb,
       return -1;
     }
 
-    NdbResultSet * rs;
+    int rs;
     switch(_lock + (3 * order)){
     case 1:
       rs = pOp->readTuples(NdbScanOperation::LM_Read, 0, parallel);
@@ -238,7 +238,7 @@ int scanReadRecords(Ndb* pNdb,
       rs = pOp->readTuples(NdbScanOperation::LM_CommittedRead, 0, parallel);
       break;
     }
-    if( rs == 0 ){
+    if( rs != 0 ){
       ERR(pTrans->getNdbError());
       pNdb->closeTransaction(pTrans);
       return -1;
@@ -324,7 +324,7 @@ int scanReadRecords(Ndb* pNdb,
     
     int eof;
     int rows = 0;
-    eof = rs->nextResult();
+    eof = pOp->nextResult();
     
     while(eof == 0){
       rows++;
@@ -335,7 +335,7 @@ int scanReadRecords(Ndb* pNdb,
 	ndbout << (*row) << endl;
       }
 
-      eof = rs->nextResult();
+      eof = pOp->nextResult();
     }
     if (eof == -1) {
       const NdbError err = pTrans->getNdbError();

@@ -739,10 +739,9 @@ verifyBlobTable(const Bcol& b, const Bval& v, Uint32 pk1, bool exists)
   NdbRecAttr* ra_pk;
   NdbRecAttr* ra_part;
   NdbRecAttr* ra_data;
-  NdbResultSet* rs;
   CHK((g_con = g_ndb->startTransaction()) != 0);
   CHK((g_ops = g_con->getNdbScanOperation(b.m_btname)) != 0);
-  CHK((rs = g_ops->readTuples()) != 0);
+  CHK(g_ops->readTuples() == 0);
   CHK((ra_pk = g_ops->getValue("PK")) != 0);
   CHK((ra_part = g_ops->getValue("PART")) != 0);
   CHK((ra_data = g_ops->getValue("DATA")) != 0);
@@ -756,7 +755,7 @@ verifyBlobTable(const Bcol& b, const Bval& v, Uint32 pk1, bool exists)
   memset(seen, 0, partcount);
   while (1) {
     int ret;
-    CHK((ret = rs->nextResult()) == 0 || ret == 1);
+    CHK((ret = g_ops->nextResult()) == 0 || ret == 1);
     if (ret == 1)
       break;
     if (pk1 != ra_pk->u_32_value())
@@ -1104,14 +1103,13 @@ readScan(int style, bool idx)
   DBG("--- " << "readScan" << (idx ? "Idx" : "") << " " << stylename[style] << " ---");
   Tup tup;
   tup.alloc();  // allocate buffers
-  NdbResultSet* rs;
   CHK((g_con = g_ndb->startTransaction()) != 0);
   if (! idx) {
     CHK((g_ops = g_con->getNdbScanOperation(g_opt.m_tname)) != 0);
   } else {
     CHK((g_ops = g_con->getNdbIndexScanOperation(g_opt.m_x2name, g_opt.m_tname)) != 0);
   }
-  CHK((rs = g_ops->readTuples(NdbScanOperation::LM_Read)) != 0);
+  CHK(g_ops->readTuples(NdbScanOperation::LM_Read) == 0);
   CHK(g_ops->getValue("PK1", (char*)&tup.m_pk1) != 0);
   if (g_opt.m_pk2len != 0)
     CHK(g_ops->getValue("PK2", tup.m_pk2) != 0);
@@ -1127,7 +1125,7 @@ readScan(int style, bool idx)
     int ret;
     tup.m_pk1 = (Uint32)-1;
     memset(tup.m_pk2, 'x', g_opt.m_pk2len);
-    CHK((ret = rs->nextResult(true)) == 0 || ret == 1);
+    CHK((ret = g_ops->nextResult(true)) == 0 || ret == 1);
     if (ret == 1)
       break;
     DBG("readScan" << (idx ? "Idx" : "") << " pk1=" << hex << tup.m_pk1);
@@ -1157,14 +1155,13 @@ updateScan(int style, bool idx)
   DBG("--- " << "updateScan" << (idx ? "Idx" : "") << " " << stylename[style] << " ---");
   Tup tup;
   tup.alloc();  // allocate buffers
-  NdbResultSet* rs;
   CHK((g_con = g_ndb->startTransaction()) != 0);
   if (! idx) {
     CHK((g_ops = g_con->getNdbScanOperation(g_opt.m_tname)) != 0);
   } else {
     CHK((g_ops = g_con->getNdbIndexScanOperation(g_opt.m_x2name, g_opt.m_tname)) != 0);
   }
-  CHK((rs = g_ops->readTuples(NdbScanOperation::LM_Exclusive)) != 0);
+  CHK(g_ops->readTuples(NdbScanOperation::LM_Exclusive) == 0);
   CHK(g_ops->getValue("PK1", (char*)&tup.m_pk1) != 0);
   if (g_opt.m_pk2len != 0)
     CHK(g_ops->getValue("PK2", tup.m_pk2) != 0);
@@ -1174,7 +1171,7 @@ updateScan(int style, bool idx)
     int ret;
     tup.m_pk1 = (Uint32)-1;
     memset(tup.m_pk2, 'x', g_opt.m_pk2len);
-    CHK((ret = rs->nextResult(true)) == 0 || ret == 1);
+    CHK((ret = g_ops->nextResult(true)) == 0 || ret == 1);
     if (ret == 1)
       break;
     DBG("updateScan" << (idx ? "Idx" : "") << " pk1=" << hex << tup.m_pk1);
@@ -1183,7 +1180,7 @@ updateScan(int style, bool idx)
     // calculate new blob values
     calcBval(g_tups[k], false);
     tup.copyfrom(g_tups[k]);
-    CHK((g_opr = rs->updateTuple()) != 0);
+    CHK((g_opr = g_ops->updateCurrentTuple()) != 0);
     CHK(getBlobHandles(g_opr) == 0);
     if (style == 0) {
       CHK(setBlobValue(tup) == 0);
@@ -1210,14 +1207,13 @@ deleteScan(bool idx)
 {
   DBG("--- " << "deleteScan" << (idx ? "Idx" : "") << " ---");
   Tup tup;
-  NdbResultSet* rs;
   CHK((g_con = g_ndb->startTransaction()) != 0);
   if (! idx) {
     CHK((g_ops = g_con->getNdbScanOperation(g_opt.m_tname)) != 0);
   } else {
     CHK((g_ops = g_con->getNdbIndexScanOperation(g_opt.m_x2name, g_opt.m_tname)) != 0);
   }
-  CHK((rs = g_ops->readTuples(NdbScanOperation::LM_Exclusive)) != 0);
+  CHK(g_ops->readTuples(NdbScanOperation::LM_Exclusive) == 0);
   CHK(g_ops->getValue("PK1", (char*)&tup.m_pk1) != 0);
   if (g_opt.m_pk2len != 0)
     CHK(g_ops->getValue("PK2", tup.m_pk2) != 0);
@@ -1227,11 +1223,11 @@ deleteScan(bool idx)
     int ret;
     tup.m_pk1 = (Uint32)-1;
     memset(tup.m_pk2, 'x', g_opt.m_pk2len);
-    CHK((ret = rs->nextResult()) == 0 || ret == 1);
+    CHK((ret = g_ops->nextResult()) == 0 || ret == 1);
     if (ret == 1)
       break;
     DBG("deleteScan" << (idx ? "Idx" : "") << " pk1=" << hex << tup.m_pk1);
-    CHK(rs->deleteTuple() == 0);
+    CHK(g_ops->deleteCurrentTuple() == 0);
     CHK(g_con->execute(NoCommit) == 0);
     Uint32 k = tup.m_pk1 - g_opt.m_pk1off;
     CHK(k < g_opt.m_rows && g_tups[k].m_exists);
@@ -1608,12 +1604,11 @@ testperf()
   // scan read char
   {
     DBG("--- scan read char ---");
-    NdbResultSet* rs;
     Uint32 a;
     char b[20];
     CHK((g_con = g_ndb->startTransaction()) != 0);
     CHK((g_ops = g_con->getNdbScanOperation(tab.getName())) != 0);
-    CHK((rs = g_ops->readTuples(NdbScanOperation::LM_Read)) != 0);
+    CHK(g_ops->readTuples(NdbScanOperation::LM_Read) == 0);
     CHK(g_ops->getValue(cA, (char*)&a) != 0);
     CHK(g_ops->getValue(cB, b) != 0);
     CHK(g_con->execute(NoCommit) == 0);
@@ -1623,7 +1618,7 @@ testperf()
       a = (Uint32)-1;
       b[0] = 0;
       int ret;
-      CHK((ret = rs->nextResult(true)) == 0 || ret == 1);
+      CHK((ret = g_ops->nextResult(true)) == 0 || ret == 1);
       if (ret == 1)
         break;
       CHK(a < g_opt.m_rowsperf && strcmp(b, "b") == 0);
@@ -1638,12 +1633,11 @@ testperf()
   // scan read text
   {
     DBG("--- read text ---");
-    NdbResultSet* rs;
     Uint32 a;
     char c[20];
     CHK((g_con = g_ndb->startTransaction()) != 0);
     CHK((g_ops = g_con->getNdbScanOperation(tab.getName())) != 0);
-    CHK((rs = g_ops->readTuples(NdbScanOperation::LM_Read)) != 0);
+    CHK(g_ops->readTuples(NdbScanOperation::LM_Read) == 0);
     CHK(g_ops->getValue(cA, (char*)&a) != 0);
     CHK((g_bh1 = g_ops->getBlobHandle(cC)) != 0);
     CHK(g_con->execute(NoCommit) == 0);
@@ -1653,7 +1647,7 @@ testperf()
       a = (Uint32)-1;
       c[0] = 0;
       int ret;
-      CHK((ret = rs->nextResult(true)) == 0 || ret == 1);
+      CHK((ret = g_ops->nextResult(true)) == 0 || ret == 1);
       if (ret == 1)
         break;
       Uint32 m = 20;
