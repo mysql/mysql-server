@@ -2266,7 +2266,7 @@ void ha_ndbcluster::print_results()
     char buf[2000];
     Field *field;
     void* ptr;
-    const NDBCOL *col;
+    const NDBCOL *col= NULL;
     NdbValue value;
     NdbBlob *ndb_blob;
 
@@ -4008,7 +4008,6 @@ ha_ndbcluster::ha_ndbcluster(TABLE *table_arg):
   handler(table_arg),
   m_active_trans(NULL),
   m_active_cursor(NULL),
-  m_multi_cursor(NULL),
   m_table(NULL),
   m_table_info(NULL),
   m_table_flags(HA_REC_NOT_IN_SEQ |
@@ -4037,7 +4036,8 @@ ha_ndbcluster::ha_ndbcluster(TABLE *table_arg):
   m_force_send(TRUE),
   m_autoincrement_prefetch(32),
   m_transaction_on(TRUE),
-  m_use_local_query_cache(FALSE)
+  m_use_local_query_cache(FALSE),
+  m_multi_cursor(NULL)
 { 
   int i;
   
@@ -5059,8 +5059,9 @@ ha_ndbcluster::read_multi_range_first(KEY_MULTI_RANGE **found_range_p,
    * pk-op 4  pk-op 4
    * range 5
    * pk-op 6  pk-ok 6
-   
-   /**
+   */
+  
+  /**
    * Variables for loop
    */
   byte *curr= (byte*)buffer->buffer;
@@ -5117,7 +5118,7 @@ ha_ndbcluster::read_multi_range_first(KEY_MULTI_RANGE **found_range_p,
 			     multi_range_curr->start_key.length))
 	goto sk;
       goto range;
-    case ORDERED_INDEX:
+    case ORDERED_INDEX: {
   range:
       multi_range_curr->range_flag &= ~(uint)UNIQUE_RANGE;
       if (scanOp == 0)
@@ -5150,6 +5151,11 @@ ha_ndbcluster::read_multi_range_first(KEY_MULTI_RANGE **found_range_p,
 				  &multi_range_curr->end_key };
       if ((res= set_bounds(scanOp, keys, multi_range_curr-ranges)))
 	DBUG_RETURN(res);
+      break;
+    }
+    case(UNDEFINED_INDEX):
+      DBUG_ASSERT(FALSE);
+      DBUG_RETURN(1);
       break;
     }
   }
@@ -5238,7 +5244,7 @@ ha_ndbcluster::read_multi_range_next(KEY_MULTI_RANGE ** multi_range_found_p)
       
       range_no= m_multi_cursor->get_range_no();
       uint current_range_no= multi_range_curr - m_multi_ranges;
-      if (range_no == current_range_no)
+      if ((uint) range_no == current_range_no)
       {
 	DBUG_MULTI_RANGE(4);
         // return current row
