@@ -522,8 +522,22 @@ insert into federated.t1 (code, fileguts, creation_date) values ('ASDFWERQWETWET
 insert into federated.t1 (code, fileguts, creation_date) values ('DEUEUEUEUEUEUEUEUEU', '*()w*09*$()*#)(*09*^90*d)(*s()d8g)(s*ned)(*)(s*d)(*hn(d*)(*sbn)D((#$*(#*%%&#&^$#&#&#&#&^&#*&*#$*&^*(&#(&Q*&&(*!&!(*&*(#&*(%&#<S-F8>*<S-F8><S-F8><S-F8>#<S-F8>#<S-F8>#<S-F8>[[', '2004-04-04 04:04:04');
 insert into federated.t1 (code, fileguts, creation_date) values ('DEUEUEUEUEUEUEUEUEU', 'jimbob', '2004-04-04 04:04:04');
 select * from federated.t1;
-select * from federated.t1 where fileguts = 'jimbob';
 # test blob indexes
+select * from federated.t1 where fileguts = 'jimbob';
+
+# test blob with binary
+connection slave;
+drop table if exists federated.t1;
+CREATE TABLE federated.t1 (a BLOB);
+
+connection master;
+drop table if exists federated.t1;
+CREATE TABLE federated.t1 (a BLOB) ENGINE="FEDERATED" COMMENT='mysql://root@127.0.0.1:9308/federated/t1';
+INSERT INTO federated.t1 VALUES (0x00);
+INSERT INTO federated.t1 VALUES (0x0001);
+INSERT INTO federated.t1 VALUES (0x0100);
+SELECT HEX(a) FROM federated.t1;
+
 
 # TODO
 # 
@@ -559,15 +573,6 @@ drop table if exists federated.t1;
 CREATE TABLE federated.t1 ( `id` int(20) NOT NULL auto_increment, `country_id` int(20) NOT NULL DEFAULT 0, `name` varchar(32), `other` varchar(20), PRIMARY KEY  (`id`), key (country_id));
 
 connection master;
-drop table if exists federated.t1;
-CREATE TABLE federated.t1 ( `id` int(20) NOT NULL auto_increment, `country_id` int(20) NOT NULL DEFAULT 0, `name` varchar(32), `other` varchar(20), PRIMARY KEY  (`id`), key (country_id) ) ENGINE="FEDERATED" DEFAULT CHARSET=latin1 COMMENT='mysql://root@127.0.0.1:9308/federated/t1';
-insert into federated.t1 (name, country_id, other) values ('Kumar', 1, 11111);
-insert into federated.t1 (name, country_id, other) values ('Lenz', 2, 22222);
-insert into federated.t1 (name, country_id, other) values ('Marizio', 3, 33333);
-insert into federated.t1 (name, country_id, other) values ('Monty', 4, 33333);
-insert into federated.t1 (name, country_id, other) values ('Sanja', 5, 33333);
-
-
 drop table if exists federated.countries;
 CREATE TABLE federated.countries ( `id` int(20) NOT NULL auto_increment, `country` varchar(32), primary key (id));
 insert into federated.countries (country) values ('India');
@@ -575,6 +580,14 @@ insert into federated.countries (country) values ('Germany');
 insert into federated.countries (country) values ('Italy');
 insert into federated.countries (country) values ('Finland');
 insert into federated.countries (country) values ('Ukraine');
+
+drop table if exists federated.t1;
+CREATE TABLE federated.t1 ( `id` int(20) NOT NULL auto_increment, `country_id` int(20) NOT NULL DEFAULT 0, `name` varchar(32), `other` varchar(20), PRIMARY KEY  (`id`), key (country_id) ) ENGINE="FEDERATED" DEFAULT CHARSET=latin1 COMMENT='mysql://root@127.0.0.1:9308/federated/t1';
+insert into federated.t1 (name, country_id, other) values ('Kumar', 1, 11111);
+insert into federated.t1 (name, country_id, other) values ('Lenz', 2, 22222);
+insert into federated.t1 (name, country_id, other) values ('Marizio', 3, 33333);
+insert into federated.t1 (name, country_id, other) values ('Monty', 4, 33333);
+insert into federated.t1 (name, country_id, other) values ('Sanja', 5, 33333);
 
 select federated.t1.*, federated.countries.country from federated.t1 left join federated.countries on federated.t1.country_id = federated.countries.id;
 
