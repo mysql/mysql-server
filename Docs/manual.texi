@@ -45645,7 +45645,7 @@ starting the client with @code{mysql --set-variable=max_allowed_packet=8M}.
 
 If you are using other clients that do not allow you to specify the maximum
 packet size (such as @code{DBI}), you need to set the packet size when you
-start the server.  You cau use a command-line option to @code{mysqld} to set
+start the server.  You can use a command-line option to @code{mysqld} to set
 @code{max_allowed_packet} to a larger size.  For example, if you are
 expecting to store the full length of a @code{BLOB} into a table, you'll need
 to start the server with the @code{--set-variable=max_allowed_packet=16M}
