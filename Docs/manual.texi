@@ -229,15 +229,19 @@ MySQL, see @ref{MySQL-Books}.
 
 @menu
 * MySQL and MySQL AB::          MySQL, MySQL AB, and Open Source
+* MySQL AB Logos and Trademarks::  
+* MySQL 4.0 In A Nutshell::     
 * MySQL Information Sources::   MySQL Information Sources
 * Licensing and Support::       MySQL Support and Licensing
+* MySQL AB business model and services::  
+* MySQL server licenses::       
 * Compatibility::               How Standards-compatible Is MySQL?
 * Comparisons::                 How MySQL Compares to Other Databases
 * TODO::                        MySQL and the future (The TODO)
 @end menu
 
 
-@node MySQL and MySQL AB, MySQL Information Sources, Introduction, Introduction
+@node MySQL and MySQL AB, MySQL AB Logos and Trademarks, Introduction, Introduction
 @section MySQL, MySQL AB, and Open Source
 
 @menu
@@ -1157,7 +1161,330 @@ for dealing with ambiguous date input data (data containing 2-digit year
 values).
 
 
-@node MySQL Information Sources, Licensing and Support, MySQL and MySQL AB, Introduction
+
+@c FIX: Start new by AGL - Erik's text on logos and trademarks
+
+@node MySQL AB Logos and Trademarks, MySQL 4.0 In A Nutshell, MySQL and MySQL AB, Introduction
+@section MySQL AB Logos and Trademarks
+
+Many users of the MySQL database want to display the MySQL AB dolphin logo
+on their websites, on their books or boxed products. We welcome and
+encourage this although it should be noted that the word @code{MySQL} and the
+MySQL dolphin logo are trademarks of MySQL AB and may only be used as
+stated in our trademark policy at
+@uref{@uref{http://www.mysql.com/company/trademark.html}.
+
+@menu
+* The Original MySQL logo::     The Original MySQL logo
+* MySQL logos that may be used without written permission::  MySQL logos that may be used without written permission
+* When need MySQL logo permission::  When do you need a written permission to use MySQL logos?
+* MySQL AB partnership logos::  MySQL AB partnership logos
+* Using MySQL word in presentations::  Using the word @code{MySQL} in printed text or presentations
+* Using MySQL word in company and product names::  Using the word @code{MySQL} in company and product names
+@end menu
+
+
+@node The Original MySQL logo, MySQL logos that may be used without written permission, MySQL AB Logos and Trademarks, MySQL AB Logos and Trademarks
+@subsection The Original MySQL logo
+
+@c FIX: picture: MySQL logo
+
+The MySQL dolphin logo was designed by the Finnish advertising agency
+Priority in 2001.  The dolphin was chosen as a suitable symbol for the
+MySQL database since it is a smart, fast and lean animal, effortlessly
+navigating oceans of data. We also happen to like dolphins.
+
+The original MySQL logo may only be used by representatives of MySQL AB
+and by those having a written agreement allowing them to do so.
+
+
+@node MySQL logos that may be used without written permission, When need MySQL logo permission, The Original MySQL logo, MySQL AB Logos and Trademarks
+@subsection MySQL logos that may be used without written permission
+
+@c FIX: pictures: powered by, works with, included - logos
+
+We have designed a set of special @emph{Conditional Use} logos that may be
+downloaded from our website at
+@uref{http://www.mysql.com/downloads/logos.html}
+and used on third party websites without written permission from MySQL AB.
+The use of these logos is not entirely unrestricted but as the name
+implies subject to our trademark policy that is also available on our
+website. You should read through the trademark policy if you plan to use
+them. The requirements are basically:
+
+@itemize @bullet
+@item
+Use the logo you need as displayed on the @uref{http://www.mysql.com/}
+site. You may scale it to fit your needs, but not change colours or design,
+or alter the graphics in any way.
+
+@item
+Make it evident that you, and not MySQL AB, are the creator and owner of
+the site that displays the MySQL trademark.
+
+@item
+Don't use the trademark in a way that is detrimental to MySQL AB or to the
+value of MySQL AB trademarks. We reserve the right to revoke the right to
+use the MySQL AB trademark.
+
+@item
+If you use the trademark on a website, make it clickable, leading directly
+to @uref{http://www.mysql.com/}
+
+@item
+If you are using the MySQL database under GPL in an application, your
+application must (i) be Open Source, (ii) be able to connect to a MySQL
+server.
+@end itemize
+
+Contact us at email{trademark@@mysql.com} to inquire about special
+arrangements to fit your needs.
+
+
+@node When need MySQL logo permission, MySQL AB partnership logos, MySQL logos that may be used without written permission, MySQL AB Logos and Trademarks
+@subsection When do you need a written permission to use MySQL logos?
+
+In the following cases you need a written permission from MySQL AB before
+using MySQL logos:
+
+@itemize @bullet
+@item
+When displaying any MySQL AB logo anywhere except on your website.
+
+@item
+When displaying any MySQL AB logo except the @emph{Conditional Use} logos
+above on websites or elsewhere.
+@end itemize
+
+Out of legal and commercial reasons we have to monitor the use of MySQL
+trademarks on products, books etc. We will usually require a fee for
+displaying MySQL AB logos on commercial products, since we think it is
+reasonable that some of the revenue is returned to fund further
+development of the MySQL database.
+
+
+@node MySQL AB partnership logos, Using MySQL word in presentations, When need MySQL logo permission, MySQL AB Logos and Trademarks
+@subsection MySQL AB partnership logos
+
+@c FIX: pictures: partnership logos - Bertrand?
+
+MySQL partnership logos may only be used by companies and persons having
+a written partnership agreement with MySQL AB. Partnerships include
+certification as a MySQL trainer or consultant. If you are interested in
+entering our partnership programmes, please visit our website for details
+or mail to email{partner@@mysql.com}.
+
+
+@node Using MySQL word in presentations, Using MySQL word in company and product names, MySQL AB partnership logos, MySQL AB Logos and Trademarks
+@subsection Using the word @code{MySQL} in printed text or presentations
+
+MySQL AB welcomes references to the MySQL database, but note that the
+word @code{MySQL} is a trademark of MySQL AB. Because of this, you should
+append the trademark symbol @code{TM} to the first or most prominent use
+of the word MySQL in a text and where appropriate use a statement that
+@code{MySQL} is a trademark of MySQL AB. Please refer to our trademark
+policy at @uref{http://www.mysql.com/company/trademark.html} for
+details.
+
+
+@node Using MySQL word in company and product names,  , Using MySQL word in presentations, MySQL AB Logos and Trademarks
+@subsection Using the word @code{MySQL} in company and product names
+
+Use of the word @code{MySQL} in product or company names or in Internet
+domain names is not allowed without written permission from MySQL AB.
+
+@c FIX: End new by AGL - Erik's text on logos and trademarks
+
+
+
+@c FIX: Start new by AGL - Kaj's text MySQL 4.0 in a Nutshell
+
+
+@node MySQL 4.0 In A Nutshell, MySQL Information Sources, MySQL AB Logos and Trademarks, Introduction
+@section MySQL 4.0 In A Nutshell
+
+Dateline 16 October 2001, Uppsala, Sweden
+
+Long promised by MySQL AB and long awaited by our users,
+MySQL 4.0 is now available in alpha version for download from
+@uref{http://www.mysql.com/} and our mirrors.
+
+Main new features of MySQL 4.0 are geared towards our existing
+business and community users, enhancing MySQL (TM) as the
+solution for mission-critical, heavy load database systems.
+Other new features target the users of embedded databases.
+
+@menu
+* 4.0 NutShell Stepwise Rollout::  Stepwise Rollout
+* 4.0 Nutshell Development use possible immediately::  Development use possible immediately
+* 4.0 Nutshell Embedded MySQL::  Embedded MySQL
+* 4.0 Nutshell Other features::  Other features available from MySQL 4.0.0
+* 4.0 Nutshell Future features::  Future MySQL 4.0 features
+* 4.0 Nutshell 4.1 development release::  MySQL 4.1, the following development release
+@end menu
+
+
+@node 4.0 NutShell Stepwise Rollout, 4.0 Nutshell Development use possible immediately, MySQL 4.0 In A Nutshell, MySQL 4.0 In A Nutshell
+@subsection Stepwise Rollout
+
+The rollout of MySQL 4.0 will come in several steps, with
+the first version labelled 4.0.0 already containing most of the
+new features. Additional features will be incorporated into
+MySQL 4.0.1, 4.0.2 onwards; very probably within two months,
+MySQL 4.0 will be labelled beta. Further new features will then
+be added in MySQL 4.1, which is targetted for alpha release
+in December/January.
+
+
+@node 4.0 Nutshell Development use possible immediately, 4.0 Nutshell Embedded MySQL, 4.0 NutShell Stepwise Rollout, MySQL 4.0 In A Nutshell
+@subsection Development use possible immediately
+
+Users are not recommended to switch their production systems
+to MySQL 4.0 until it is released in beta version later Q4/2001.
+However, even the initial release has passed our extensive
+test suite without any errors on any of the platforms we test on.
+Due to the large number of new features, we thus recommend
+MySQL 4.0 even in alpha form for development use, with
+the release schedule of MySQL 4.0 being such that it will
+reach stable state before the deployment of user applications
+now under development.
+
+
+@node 4.0 Nutshell Embedded MySQL, 4.0 Nutshell Other features, 4.0 Nutshell Development use possible immediately, MySQL 4.0 In A Nutshell
+@subsection Embedded MySQL
+
+With @code{libmysqld}, the realm of applications suitable for MySQL
+expands vastly. Using the embedded MySQL server library, one can
+embed MySQL into various applications and electronics devices, where
+the end user has no knowledge of there actually being an underlying
+database. Embedded MySQL is ideal for use behind
+the scenes in internet appliances, public kiosks, turn-key
+hardware/ software combination units, high performance internet
+servers, self-contained databases distributed on CD-ROM etc.
+
+Many embedded MySQL users will benefit from the
+@emph{dual licensing scheme} of MySQL, where besides the GPL license
+also commercial licensing is available for those not wishing to be bound
+by the GPL. The embedded MySQL library uses the same interface as the normal
+client library, so it is convenient and easy to use.
+
+
+@node 4.0 Nutshell Other features, 4.0 Nutshell Future features, 4.0 Nutshell Embedded MySQL, MySQL 4.0 In A Nutshell
+@subsection Other features available from MySQL 4.0.0
+
+@itemize @bullet
+@item
+MySQL 4.0 further increases @emph{the speed of MySQL} in a number of areas,
+such as bulk @code{INSERT}s, searching on packed indices, creation of
+@code{FULLTEXT} indices as well as @code{COUNT(DISTINCT)}.
+
+@item
+The table handler @code{InnoDB} is now offered as a feature of the
+standard MySQL server, including full support for @code{transactions}
+and @code{row-level locking}.
+
+@item
+MySQL 4.0 will support secure traffic between the client and the server,
+greatly increasing security against malicious intrusion and unauthorised
+access. Web applications being a cornerstone of MySQL use, web developers
+have been able to use SSL to secure the traffic between the
+the end user browser and the Web application, be it written in
+PHP, Perl, ASP or using any other web development tool. However,
+the traffic between the development tool and the mysqld server
+process has been protected only by virtue of them being processes
+residing on computers within the same firewall. In MySQL 4.0,
+the @emph{mysqld} server daemon process can itself use
+@code{Secure Sockets Layer} (@code{SSL}),
+thus enabling secure traffic to MySQL databases from, say, a Windows
+application residing outside the firewall.
+
+@item
+Our German, Austrian and Swiss users will note that we have a new character
+set latin_de which corrects the @emph{German sorting order}, placing German
+Umlauts in the same order as German telephone books.
+
+@item
+Features to simplify @code{migration} from other database systems to MySQL
+include @code{TRUNCATE TABLE} (like in Oracle) and @code{IDENTITY} as a
+synonym for automatically incremented keys (like in Sybase). Many users will
+also be happy to learn that MySQL now supports the @code{UNION} statement,
+a long awaited standard SQL feature.
+
+@item
+In the process of building features for new users, we have not forgotten
+requests by the community of loyal users.
+We have multi-table @code{DELETE} statements.
+By adding support for @code{symbolic linking} to @code{MyISAM} on the table
+level (and not just database level as before), as well as by enabling symlink
+handling by default on Windows, we hope to show that we take enhancement
+requests seriously.
+Functions like @code{SQL_CALC_FOUND_ROWS} and @code{FOUND_ROWS()} makes it
+possible to know how many rows a query would have returned without a
+@code{LIMIT} clause.
+@end itemize
+
+
+@node 4.0 Nutshell Future features, 4.0 Nutshell 4.1 development release, 4.0 Nutshell Other features, MySQL 4.0 In A Nutshell
+@subsection Future MySQL 4.0 features
+
+For the upcoming MySQL 4.0 releases (4.0.1, 4.0.2 and onwards), expect
+the following features now still under development:
+
+@itemize @bullet
+@item
+Mission-critical, heavy-load users of MySQL will appreciate
+the additions to our replication system and our online hot backup.
+Later versions of 4.0 will include @code{fail-safe replication};
+already in existing 4.0.0, the @code{LOAD DATA FROM MASTER} command
+will soon automate slave setup. The @code{online backup} will make
+it easy to add a new replication slave without taking down
+the master, and have a very low performance penalty on
+update-heavy systems.
+
+@item
+A convenience feature for Database Administrators is that
+mysqld parameters (startup options) can soon be set without
+taking down the servers.
+
+@item
+The new @code{FULLTEXT} search properties of MySQL 4.0 enables the use
+of @code{FULLTEXT} indexing of large text masses with both binary and
+natural language searching logic. Users can customise minimal word
+length and define their own stop word lists in any human language,
+enabling a new set of applications to be built on MySQL.
+
+@item
+Many read-heavy applications will benefit from
+further increased speed through the rewritten @code{key cache}.
+
+@item
+Many developers will also be happy to see the @code{MySQL command help}
+in the client.
+
+
+@node 4.0 Nutshell 4.1 development release,  , 4.0 Nutshell Future features, MySQL 4.0 In A Nutshell
+@subsection MySQL 4.1, the following development release
+
+Internally, through a new .frm file format for table definitions,
+MySQL 4.0 lays the foundation for the new features of MySQL 4.1,
+such as @code{nested subqueries}, @code{stored procedures}, and
+@code{foreign key integrity rules}, which form the top of the
+wish list for many of our customers. Along with those, we will
+also include simpler additions, such as
+multi-table @code{UPDATE} statements.
+
+After those additions, critics of MySQL have to be more imaginative
+than ever in pointing out deficiencies in the MySQL Database
+Management System. For long already known for its stability,
+speed, and ease of use, MySQL will then match the requirement
+checklist of very demanding buyers.
+
+
+@c FIX: End new by AGL - Kaj's text MySQL 4.0 in a Nutshell
+
+
+
+@node MySQL Information Sources, Licensing and Support, MySQL 4.0 In A Nutshell, Introduction
 @section MySQL Information Sources
 
 @cindex manuals, about MySQL
@@ -2581,7 +2908,7 @@ Please don't post mail messages from your browser with HTML mode turned on!
 Many users don't read mail with a browser!
 
 
-@node Licensing and Support, Compatibility, MySQL Information Sources, Introduction
+@node Licensing and Support, MySQL AB business model and services, MySQL Information Sources, Introduction
 @section MySQL Support and Licensing
 
 @cindex licensing terms
@@ -2899,7 +3226,194 @@ version yourself.  However, in this case we would like you to purchase
 MySQL support, because MySQL is helping your enterprise.
 
 
-@node Compatibility, Comparisons, Licensing and Support, Introduction
+
+@c FIX: Start new by AGL - Erik's text on business model and services
+
+@node MySQL AB business model and services, MySQL server licenses, Licensing and Support, Introduction
+@section The business model and services of MySQL AB
+
+MySQL AB is the company of the MySQL founders and main developers behind
+the MySQL database and this manual. One of the most common questions we
+encounter is:
+@emph{How can you make a living from something you give away for free?}
+This is how.
+
+@menu
+* Business Services Support::   Support
+* Business Services Training::  Training
+* Business Services Consulting::  Consulting
+* Business Services Commercial licenses::  Commercial licenses
+* Business Services Royalties::  Royalties
+@end menu
+
+
+@node Business Services Support, Business Services Training, MySQL AB business model and services, MySQL AB business model and services
+@subsection Support
+MySQL AB is run and owned by the founders and main developers of the MySQL
+database. The developers are committed to giving support to customers and
+other users in order to stay in touch with their needs and problems. All
+our support is given by qualified developers, not through call centers or
+dedicated support staff. Really tricky questions are even answered by
+Michael @code{Monty} Widenius himself, the author of the MySQL server.
+
+To order support at different levels, please visit the order section at
+@uref{http://www.mysql.com/support/}. If you have restricted access to the
+Internet, please contact our sales staff at email{sales@@mysql.com}.
+
+
+@node Business Services Training, Business Services Consulting, Business Services Support, MySQL AB business model and services
+@subsection Training
+MySQL AB offers training on different levels all over the world.
+The trainers are backed by the development team to guarantee quality and
+continous development and also that no questions raised during the courses
+remain unanswered.
+
+If you're interested in participating in our courses, please visit the
+training section at @uref{http://www.mysql.com/training/}. If you have
+restricted access to the Internet, please contact our sales staff at
+@email{training@@mysql.com}.
+
+
+@node Business Services Consulting, Business Services Commercial licenses, Business Services Training, MySQL AB business model and services
+@subsection Consulting
+MySQL AB offers consulting all over the world on different levels.
+Consulting covers all questions affecting database performance such as
+database design, table design, query constructions, parameter tuning,
+hardware tuning, migration issues, replication, transactions etc.
+Our consultants are backed by the development team to guarantee quality
+work.
+
+If you're interested in consulting, please visit the consulting section
+at @uref{http://www.mysql.com/consulting/}. If you have restricted access
+to the Internet, please contact our sales staff at
+email{consulting@@mysql.com}.
+
+
+@node Business Services Commercial licenses, Business Services Royalties, Business Services Consulting, MySQL AB business model and services
+@subsection Commercial licenses
+The MySQL database is released under the GNU General Public License (GPL).
+This means that anybody can use it for free under the GPL rules. However
+if a company wishes to embed the database in a product, they have to buy
+commercial licenses of MySQL or else release their product under GPL too.
+Since MySQL AB owns the copyright of the MySQL server, we are able to sell
+commercial licenses. This does not in any way affect the Open Source
+commitment of MySQL AB. We also aim to offer commercial license packages
+covering both the MySQL database and closely connected third party
+software. Currently we have such an arrangement with the author of the
+InnoDB transaction handler.
+
+To buy commercial licenses, please visit the order section of
+@uref{https://order.mysql.com/}.
+
+
+@node Business Services Royalties,  , Business Services Commercial licenses, MySQL AB business model and services
+@subsection Royalties
+The word @code{MySQL} and the MySQL dolphin logo are trademarks of
+MySQL AB. These trademarks represent a significant value that the MySQL
+founders have built over the years. We think it's fair that companies
+wanting to get the benefit of these trademarks in their marketing
+contributes to the development of the MySQL database by paying some
+royalty. Also special versions of the trademarks are used as proofs
+of certification in our partner programmes.
+
+If you are interested in becoming a MySQL AB partner, please mail to
+email{partner@@mysql.com}.
+
+
+@c FIX: End new by AGL - Erik's text on business model and services
+
+
+
+@c FIX: Start new by AGL - Erik's text on MySQL server licenses
+
+
+@node MySQL server licenses, Compatibility, MySQL AB business model and services, Introduction
+@section MySQL server licenses
+
+The MySQL server is released under the GNU General Public License (GPL),
+which probably is the best known Open Source license. Please visit
+@uref{http://www.gnu.org} to read the terms of this license.
+
+Since the MySQL server is released under the GPL, it may often be used
+for free, but for certain uses you need to buy commercial licenses from
+MySQL AB at @uref{http://www.mysql.com/}.
+
+
+@menu
+* Using the MySQL server under a commercial license::  
+* Using the MySQL server for free under GPL::  
+@end menu
+
+@node Using the MySQL server under a commercial license, Using the MySQL server for free under GPL, MySQL server licenses, MySQL server licenses
+@subsection Using the MySQL server under a commercial license
+
+The GPL license is contagious in the sense that when a program is linked
+to a GPL program the resulting product must also be released under GPL
+lest you break the license terms and forfeit your right to use the GPL
+program altogether.
+
+You need a commercial license:
+
+@itemize @bullet
+@item
+When you link a program with code from the MySQL server or from GPL
+released clients and don't want the resulting product to be GPL, maybe
+because you want to build a commercial product or keep the added non-GPL
+code closed source for other reasons. When purchasing commercial licenses,
+you are not using the MySQL server under GPL even though it's the same
+code. You need one license per installation of the MySQL server.
+
+@item
+When you distribute a non-GPL application that ONLY works with the MySQL
+server and ships it with MySQL. This type of solution is actually
+considered to be linking even if it's done over a network.
+
+@item
+When you distribute copies of the MySQL server without providing the
+source code as required under the GPL license.
+
+@item
+When you want to support the further development of the MySQL database
+even if you don't formally need a commercial license. Another good way
+of contributing to the MySQL development while getting something useful
+ in return, is to purchase support directly from MySQL AB.
+@end itemize
+
+For examples of situations when a commercial license is needed, please
+visit the online manual at @uref{http://www.mysql.com/doc/}.
+
+For buying commercial licenses and support, please visit the order section
+at @uref{https://order.mysql.com/}.
+
+
+@node Using the MySQL server for free under GPL,  , Using the MySQL server under a commercial license, MySQL server licenses
+@subsection Using the MySQL server for free under GPL
+
+You can use the MySQL server for free under GPL:
+
+@itemize @bullet
+@item
+When you link a program with code from the MYSQL server and releases the
+resulting product under GPL
+
+@item
+When you distribute the MySQL server source code bundled with other
+programs that are not linked to or dependant on MySQL for their
+functionality even if you sell the distribution commercially
+
+@item
+When using the MySQL server internally in your company.
+@end itemize
+
+Please note that use of the MySQL server under commercial license or GPL
+does not automatically give you the right to use MySQL AB trademarks.
+
+
+@c FIX: End new by AGL - Erik's text on MySQL server licenses
+
+
+
+@node Compatibility, Comparisons, MySQL server licenses, Introduction
 @section How Standards-compatible Is MySQL?
 
 @cindex compatibility, with ANSI SQL
