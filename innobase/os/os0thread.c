@@ -137,8 +137,8 @@ os_thread_yield(void)
 {
 #if defined(__WIN__)
 	Sleep(0);
-#elif defined(HAVE_PTHREAD_YIELD)
-	pthread_yield();
+#elif (defined(HAVE_SCHED_YIELD) && defined(HAVE_SCHED_H))
+	sched_yield();
 #else
         os_thread_sleep(0);
 #endif
