@@ -112,20 +112,14 @@ static int search_files(const char *conf_file, int *argc, char ***argv,
   DBUG_ENTER("search_files");
 
   /* Check if we want to force the use a specific default file */
-  forced_default_file= 0;
-  if (*argc >= 2)
-  {
-    if (is_prefix(argv[0][1],"--defaults-file="))
-    {
-      forced_default_file= strchr(argv[0][1],'=') + 1;
-      (*args_used)++;
-    }
-    else if (is_prefix(argv[0][1],"--defaults-extra-file="))
-    {
-      defaults_extra_file= strchr(argv[0][1],'=') + 1;
-      (*args_used)++;
-    }
-  }
+  get_defaults_files(*argc, *argv,
+                     (char **)&forced_default_file, &defaults_extra_file);
+  if (forced_default_file)
+    forced_default_file= strchr(forced_default_file,'=')+1;
+  if (defaults_extra_file)
+    defaults_extra_file= strchr(defaults_extra_file,'=')+1;
+
+  args_used+= (forced_default_file ? 1 : 0) + (defaults_extra_file ? 1 : 0);
 
   if (forced_default_file)
   {
@@ -354,15 +348,6 @@ int load_defaults(const char *conf_file, const char **groups,
     *(MEM_ROOT*) ptr= alloc;			/* Save alloc root for free */
     DBUG_RETURN(0);
   }
-
-  get_defaults_files(*argc, *argv,
-                      (char **)&forced_default_file, &defaults_extra_file);
-  if (forced_default_file)
-    forced_default_file= strchr(forced_default_file,'=')+1;
-  if (defaults_extra_file)
-    defaults_extra_file= strchr(defaults_extra_file,'=')+1;
-
-  args_used+= (forced_default_file ? 1 : 0) + (defaults_extra_file ? 1 : 0);
 
   group.count=0;
   group.name= "defaults";
