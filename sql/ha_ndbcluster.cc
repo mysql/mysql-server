@@ -415,7 +415,7 @@ int ha_ndbcluster::set_ndb_value(NdbOperation *ndb_op, Field *field,
       // Looks like NULL ptr signals length 0 blob
       if (blob_ptr == NULL) {
         DBUG_ASSERT(blob_len == 0);
-        blob_ptr= "";
+        blob_ptr= (char*)"";
       }
 
       DBUG_PRINT("value", ("set blob ptr=%x len=%u",
@@ -3357,7 +3357,8 @@ ha_ndbcluster::ha_ndbcluster(TABLE *table_arg):
   m_table_info(NULL),
   m_table_flags(HA_REC_NOT_IN_SEQ |
 		HA_NULL_IN_KEY |
-                HA_NO_PREFIX_CHAR_KEYS),
+		HA_AUTO_PART_KEY |
+		HA_NO_PREFIX_CHAR_KEYS),
   m_share(0),
   m_use_write(false),
   retrieve_all_fields(FALSE),
