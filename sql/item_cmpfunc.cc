@@ -892,7 +892,7 @@ Item *Item_func_case::find_item(String *str)
       }
       if ((tmp=args[i]->val_str(str)))		// If not null
       {
-	if (sortcmp(tmp,first_expr_str,&my_charset_bin)==0)
+	if (sortcmp(tmp,first_expr_str,cmp_collation.collation)==0)
 	  return args[i+1];
       }
       break;
@@ -1027,7 +1027,7 @@ void Item_func_case::fix_length_and_dec()
   {
     agg[0]= args[first_expr_num];
     for (nagg= 0; nagg < ncases/2 ; nagg++)
-      agg[nagg+1]= args[nagg];
+      agg[nagg+1]= args[nagg*2];
     nagg++;
     agg_cmp_type(&cmp_type, agg, nagg);
     if ((cmp_type == STRING_RESULT) &&
@@ -1040,7 +1040,6 @@ void Item_func_case::fix_length_and_dec()
   
   max_length=0;
   decimals=0;
-  cached_result_type = args[1]->result_type();
   for (uint i=0 ; i < ncases ; i+=2)
   {
     set_if_bigger(max_length,args[i+1]->max_length);
