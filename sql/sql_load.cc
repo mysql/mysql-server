@@ -91,7 +91,7 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
   int error;
   String *field_term=ex->field_term,*escaped=ex->escaped;
   String *enclosed=ex->enclosed;
-  Item *unused_conds;
+  Item *unused_conds= 0;
   bool is_fifo=0;
 #ifndef EMBEDDED_LIBRARY
   LOAD_FILE_INFO lf_info;

@@ -120,6 +120,7 @@ class ha_innobase: public handler
   	int write_row(byte * buf);
   	int update_row(const byte * old_data, byte * new_data);
   	int delete_row(const byte * buf);
+	void unlock_row();
 
   	int index_init(uint index);
   	int index_end();
