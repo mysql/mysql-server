@@ -1855,7 +1855,7 @@ static void test_ps_conj_select()
 	
   strmov(query, "select id1,value1 from t1 where id1=? or value1=?");
   stmt= mysql_simple_prepare(mysql, query);
-  mystmt_init(stmt);
+  check_stmt(stmt);
 
   verify_param_count(stmt,2);
 
@@ -1871,14 +1871,14 @@ static void test_ps_conj_select()
   bind[1].length= &str_length;
 		
   rc = mysql_bind_param(stmt,bind);
-  mystmt(stmt, rc);
+  check_execute(stmt, rc);
 
   int_data= 1;
   strcpy(str_data, "hh"); 
   str_length= strlen(str_data);
 
   rc = mysql_execute(stmt);
-  mystmt(stmt, rc);
+  check_execute(stmt, rc);
 
   assert(my_process_stmt_result(stmt) == 3);
 
