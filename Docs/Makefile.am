@@ -139,3 +139,6 @@ INSTALL-BINARY:	mysql.info $(GT)
 
 ../MIRRORS:		manual.texi $(srcdir)/Support/generate-mirror-listing.pl
 	perl -w $(srcdir)/Support/generate-mirror-listing.pl manual.texi > $@
+
+# Don't update the files from bitkeeper
+%::SCCS/s.%

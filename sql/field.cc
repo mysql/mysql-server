@@ -3439,6 +3439,23 @@ int Field_string::pack_cmp(const char *a, const char *b, uint length)
 }
 
 
+int Field_string::pack_cmp(const char *b, uint length)
+{
+  uint b_length= (uint) (uchar) *b++;
+  char *end= ptr + field_length;
+  while (end > ptr && end[-1] == ' ')
+    end--;
+  uint a_length = (uint) (end - ptr);
+
+  if (binary_flag)
+  {
+    int cmp= memcmp(ptr,b,min(a_length,b_length));
+    return cmp ? cmp : (int) (a_length - b_length);
+  }
+  return my_sortncmp(ptr,a_length, b, b_length);
+}
+
+
 uint Field_string::packed_col_length(const char *ptr)
 {
   if (field_length > 255)
@@ -3627,6 +3644,27 @@ int Field_varstring::pack_cmp(const char *a, const char *b, uint key_length)
   else
   {
     a_length= (uint) (uchar) *a++;
+    b_length= (uint) (uchar) *b++;
+  }
+  if (binary_flag)
+  {
+    int cmp= memcmp(a,b,min(a_length,b_length));
+    return cmp ? cmp : (int) (a_length - b_length);
+  }
+  return my_sortncmp(a,a_length, b,b_length);
+}
+
+int Field_varstring::pack_cmp(const char *b, uint key_length)
+{
+  char *a=ptr+2;
+  uint a_length=uint2korr(ptr);
+  uint b_length;
+  if (key_length > 255)
+  {
+    b_length=uint2korr(b); b+=2;
+  }
+  else
+  {
     b_length= (uint) (uchar) *b++;
   }
   if (binary_flag)
@@ -4018,6 +4056,33 @@ int Field_blob::pack_cmp(const char *a, const char *b, uint key_length)
   }
   return my_sortncmp(a,a_length, b,b_length);
 }
+
+
+int Field_blob::pack_cmp(const char *b, uint key_length)
+{
+  char *a;
+  memcpy_fixed(&a,ptr+packlength,sizeof(char*));
+  if (!a)
+    return key_length > 0 ? -1 : 0;
+  uint a_length=get_length(ptr);
+  uint b_length;
+
+  if (key_length > 255)
+  {
+    b_length=uint2korr(b); b+=2;
+  }
+  else
+  {
+    b_length= (uint) (uchar) *b++;
+  }
+  if (binary_flag)
+  {
+    int cmp= memcmp(a,b,min(a_length,b_length));
+    return cmp ? cmp : (int) (a_length - b_length);
+  }
+  return my_sortncmp(a,a_length, b,b_length);
+}
+
 
 char *Field_blob::pack_key(char *to, const char *from, uint max_length)
 {

@@ -177,6 +177,8 @@ public:
 
   virtual int pack_cmp(const char *a,const char *b, uint key_length_arg)
   { return cmp(a,b); }
+  virtual int pack_cmp(const char *b, uint key_length_arg)
+  { return cmp(ptr,b); }
   uint offset();				// Should be inline ...
   void copy_from_tmp(int offset);
   uint fill_cache_field(struct st_cache_field *copy);
@@ -726,6 +728,7 @@ public:
   char *pack(char *to, const char *from, uint max_length=~(uint) 0);
   const char *unpack(char* to, const char *from);
   int pack_cmp(const char *a,const char *b,uint key_length);
+  int pack_cmp(const char *b,uint key_length);
   uint packed_col_length(const char *to);
   uint max_packed_col_length(uint max_length);
   uint size_of() const { return sizeof(*this); }
@@ -777,6 +780,7 @@ public:
   char *pack(char *to, const char *from, uint max_length=~(uint) 0);
   const char *unpack(char* to, const char *from);
   int pack_cmp(const char *a, const char *b, uint key_length);
+  int pack_cmp(const char *b, uint key_length);
   uint packed_col_length(const char *to);
   uint max_packed_col_length(uint max_length);
   uint size_of() const { return sizeof(*this); }
@@ -891,6 +895,7 @@ public:
   }
   char *pack_key(char *to, const char *from, uint max_length=~(uint) 0);
   int pack_cmp(const char *a, const char *b, uint key_length);
+  int pack_cmp(const char *b, uint key_length);
   uint packed_col_length(const char *col_ptr)
   { return get_length(col_ptr)+packlength;}
   virtual uint max_packed_col_length(uint max_length)
