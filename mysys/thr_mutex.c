@@ -67,6 +67,7 @@ int safe_mutex_lock(safe_mutex_t *mp,const char *file, uint line)
   {
     fprintf(stderr,"safe_mutex: Trying to lock mutex at %s, line %d, when the mutex was already locked at %s, line %d\n",
 	    file,line,mp->file,mp->line);
+    fflush(stderr);
     abort();
   }
   pthread_mutex_unlock(&mp->global);
@@ -75,11 +76,13 @@ int safe_mutex_lock(safe_mutex_t *mp,const char *file, uint line)
   {
     fprintf(stderr,"Got error %d when trying to lock mutex at %s, line %d\n",
 	    error, file, line);
+    fflush(stderr);
     abort();
   }
   if (mp->count++)
   {
     fprintf(stderr,"safe_mutex: Error in thread libray: Got mutex at %s, line %d more than 1 time\n", file,line);
+    fflush(stderr);
     abort();
   }
   mp->thread=pthread_self();
@@ -98,12 +101,14 @@ int safe_mutex_unlock(safe_mutex_t *mp,const char *file, uint line)
   {
     fprintf(stderr,"safe_mutex: Trying to unlock mutex that wasn't locked at %s, line %d\n            Last used at %s, line: %d\n",
 	    file,line,mp->file ? mp->file : "",mp->line);
+    fflush(stderr);
     abort();
   }
   if (!pthread_equal(pthread_self(),mp->thread))
   {
     fprintf(stderr,"safe_mutex: Trying to unlock mutex at %s, line %d  that was locked by another thread at: %s, line: %d\n",
 	    file,line,mp->file,mp->line);
+    fflush(stderr);
     abort();
   }
   mp->count--;
@@ -115,6 +120,7 @@ int safe_mutex_unlock(safe_mutex_t *mp,const char *file, uint line)
   if (error)
   {
     fprintf(stderr,"safe_mutex: Got error: %d when trying to unlock mutex at %s, line %d\n", error, file, line);
+    fflush(stderr);
     abort();
   }
 #endif /* __WIN__ */
@@ -131,12 +137,14 @@ int safe_cond_wait(pthread_cond_t *cond, safe_mutex_t *mp, const char *file,
   if (mp->count == 0)
   {
     fprintf(stderr,"safe_mutex: Trying to cond_wait on a unlocked mutex at %s, line %d\n",file,line);
+    fflush(stderr);
     abort();
   }
   if (!pthread_equal(pthread_self(),mp->thread))
   {
     fprintf(stderr,"safe_mutex: Trying to cond_wait on a mutex at %s, line %d  that was locked by another thread at: %s, line: %d\n",
 	    file,line,mp->file,mp->line);
+    fflush(stderr);
     abort();
   }
 
@@ -144,6 +152,7 @@ int safe_cond_wait(pthread_cond_t *cond, safe_mutex_t *mp, const char *file,
   {
     fprintf(stderr,"safe_mutex:  Count was %d on locked mutex at %s, line %d\n",
 	    mp->count+1, file, line);
+    fflush(stderr);
     abort();
   }
   pthread_mutex_unlock(&mp->global);
@@ -152,6 +161,7 @@ int safe_cond_wait(pthread_cond_t *cond, safe_mutex_t *mp, const char *file,
   if (error)
   {
     fprintf(stderr,"safe_mutex: Got error: %d when doing a safe_mutex_wait at %s, line %d\n", error, file, line);
+    fflush(stderr);
     abort();
   }
   if (mp->count++)
@@ -159,6 +169,7 @@ int safe_cond_wait(pthread_cond_t *cond, safe_mutex_t *mp, const char *file,
     fprintf(stderr,
 	    "safe_mutex:  Count was %d in thread %lx when locking mutex at %s, line %d\n",
 	    mp->count-1, my_thread_id(), file, line);
+    fflush(stderr);
     abort();
   }
   mp->thread=pthread_self();
@@ -178,6 +189,7 @@ int safe_cond_timedwait(pthread_cond_t *cond, safe_mutex_t *mp,
   if (mp->count != 1 || !pthread_equal(pthread_self(),mp->thread))
   {
     fprintf(stderr,"safe_mutex: Trying to cond_wait at %s, line %d on a not hold mutex\n",file,line);
+    fflush(stderr);
     abort();
   }
   mp->count--;					/* Mutex will be released */
@@ -195,6 +207,7 @@ int safe_cond_timedwait(pthread_cond_t *cond, safe_mutex_t *mp,
     fprintf(stderr,
 	    "safe_mutex:  Count was %d in thread %lx when locking mutex at %s, line %d (error: %d)\n",
 	    mp->count-1, my_thread_id(), file, line, error);
+    fflush(stderr);
     abort();
   }
   mp->thread=pthread_self();
@@ -211,6 +224,7 @@ int safe_mutex_destroy(safe_mutex_t *mp, const char *file, uint line)
   {
     fprintf(stderr,"safe_mutex: Trying to destroy a mutex that was locked at %s, line %d at %s, line %d\n",
 	    mp->file,mp->line, file, line);
+    fflush(stderr);
     abort();
   }
 #ifdef __WIN__ 

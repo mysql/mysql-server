@@ -48,7 +48,7 @@ int ha_myisammrg::open(const char *name, int mode, int test_if_locked)
   info(HA_STATUS_NO_LOCK | HA_STATUS_VARIABLE | HA_STATUS_CONST);
   if (!(test_if_locked & HA_OPEN_WAIT_IF_LOCKED))
     myrg_extra(file,HA_EXTRA_WAIT_LOCK);
-  if (table->reclength != mean_rec_length)
+  if (table->reclength != mean_rec_length && mean_rec_length)
   {
     DBUG_PRINT("error",("reclength: %d  mean_rec_length: %d",
 			table->reclength, mean_rec_length));

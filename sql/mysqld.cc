@@ -2400,7 +2400,7 @@ struct show_var_st init_vars[]= {
   {"interactive_timeout",     (char*) &net_interactive_timeout,     SHOW_LONG},
   {"key_buffer_size",         (char*) &keybuff_size,                SHOW_LONG},
   {"language",                language,                             SHOW_CHAR},
-#ifdef HAVE_MEMLOCKALL
+#ifdef HAVE_MLOCKALL
   {"locked_in_memory",	      (char*) &locked_in_memory,	    SHOW_BOOL},
 #endif
   {"log",                     (char*) &opt_log,                     SHOW_BOOL},

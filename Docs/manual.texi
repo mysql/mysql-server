@@ -40860,6 +40860,9 @@ Fixed @code{DISTINCT} with calculated columns.
 
 @itemize @bullet
 @item
+@code{mysqldump} on a @code{MERGE} table doesn't include the current
+mapped tables.
+@item
 For the moment @code{MATCH} only works with @code{SELECT} statements.
 @item
 You cannot build in another directory when using

@@ -86,6 +86,7 @@ int handle_locking;
   *m_info=info;
   m_info->open_tables=(MYRG_TABLE *) (m_info+1);
   m_info->tables=files;
+  errpos=2;
  
   for (i=files ; i-- > 0 ; )
   {
@@ -104,16 +105,21 @@ int handle_locking;
     m_info->open_tables[i].file_offset=(my_off_t) file_offset;
     file_offset+=m_info->open_tables[i].table->state->data_file_length;
   }
-  errpos=2;
   if (sizeof(my_off_t) == 4 && file_offset > (ulonglong) (ulong) ~0L)
   {
     my_errno=HA_ERR_RECORD_FILE_FULL;
     goto err;
   }
   /* Allocate memory for queue */
-  if (m_info->open_tables->table->s->base.keys &&
-      _myrg_init_queue(m_info,0,HA_READ_KEY_EXACT))
-    goto err;
+  m_info->keys=0;
+  if (files)
+  {
+    if ((m_info->keys=m_info->open_tables->table->s->base.keys) &&
+	_myrg_init_queue(m_info,0,HA_READ_KEY_EXACT))
+      goto err;
+  }
+  else
+    bzero((char*) &m_info->by_key,sizeof(m_info->by_key));
 
   m_info->end_table=m_info->open_tables+files;
   m_info->last_used_table=m_info->open_tables;
