@@ -816,6 +816,41 @@ drop table t3|
 drop procedure cur2|
 
 
+# Check mode settings
+insert into t1 values ("foo", 1), ("bar", 2), ("zip", 3)|
+
+set @@sql_mode = 'ANSI'|
+delimiter $|
+create procedure modes(out c1 int, out c2 int)
+begin
+  declare done int default 0;
+  declare x int;
+  declare continue handler for sqlstate '02000' set done = 1;
+  declare c cursor for select data from t1;
+
+  select 1 || 2 into c1;
+  set c2 = 0;
+  open c;
+  repeat
+    fetch c into x;
+    if not done then
+      set c2 = c2 + 1;
+    end if;
+  until done end repeat;
+  close c;
+end$
+delimiter |$
+set @@sql_mode = ''|
+
+set sql_select_limit = 1|
+call modes(@c1, @c2)|
+set sql_select_limit = default|
+
+select @c1, @c2|
+delete from t1|
+drop procedure modes|
+
+
 #
 # Test cases for old bugs
 #
