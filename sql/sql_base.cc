@@ -1955,7 +1955,6 @@ Field *find_field_in_table(THD *thd, TABLE_LIST *table_list,
     {
       if (strcmp(trans[i]->name, name) == 0)
       {
-	*ref= trans[i];
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
 	if (check_grants_view &&
 	    check_grant_column(thd, &table_list->grant,
@@ -1964,6 +1963,21 @@ Field *find_field_in_table(THD *thd, TABLE_LIST *table_list,
 			       name, length))
 	  return WRONG_GRANT;
 #endif
+        if (thd->lex->current_select->no_wrap_view_item)
+          *ref= trans[i];
+        else
+        {
+          Item_arena *arena= thd->current_arena, backup;
+          if (arena)
+            thd->set_n_backup_item_arena(arena, &backup);
+          *ref= new Item_ref(trans + i, 0, table_list->view_name.str,
+                             name);
+          if (arena)
+            thd->restore_backup_item_arena(arena, &backup);
+          /* as far as Item_ref have defined refernce it do not need tables */
+          if (*ref)
+            (*ref)->fix_fields(thd, 0, ref);
+        }
 	return (Field*) view_ref_found;
       }
     }
@@ -2441,6 +2455,7 @@ int setup_fields(THD *thd, Item **ref_pointer_array, TABLE_LIST *tables,
 {
   reg2 Item *item;
   List_iterator<Item> it(fields);
+  SELECT_LEX *select_lex= thd->lex->current_select;
   DBUG_ENTER("setup_fields");
 
   thd->set_query_id=set_query_id;
@@ -2452,7 +2467,10 @@ int setup_fields(THD *thd, Item **ref_pointer_array, TABLE_LIST *tables,
   {
     if (!item->fixed && item->fix_fields(thd, tables, it.ref()) ||
 	(item= *(it.ref()))->check_cols(1))
+    {
+      select_lex->no_wrap_view_item= 0;
       DBUG_RETURN(-1); /* purecov: inspected */
+    }
     if (ref)
       *(ref++)= item;
     if (item->with_sum_func && item->type() != Item::SUM_FUNC_ITEM &&

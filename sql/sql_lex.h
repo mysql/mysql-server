@@ -478,6 +478,8 @@ public:
   bool subquery_in_having;
   bool first_execution; /* first execution in SP or PS */
   bool first_cond_optimization;
+  /* do not wrap view fields with Item_ref */
+  bool no_wrap_view_item;
 
   /* 
      SELECT for SELECT command st_select_lex. Used to privent scaning

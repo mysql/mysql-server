@@ -53,6 +53,7 @@ static bool compare_record(TABLE *table, ulong query_id)
 
   SYNOPSIS
     check_fields()
+    thd             thread handler
     items           Items for check
 
   RETURN
@@ -60,9 +61,9 @@ static bool compare_record(TABLE *table, ulong query_id)
     FALSE Items are OK
 */
 
-static bool check_fields(List<Item> &items)
+static bool check_fields(THD *thd, List<Item> &items)
 {
-  List_iterator_fast<Item> it(items);
+  List_iterator<Item> it(items);
   Item *item;
   while ((item= it++))
   {
@@ -72,6 +73,13 @@ static bool check_fields(List<Item> &items)
       my_error(ER_NONUPDATEABLE_COLUMN, MYF(0), item->name);
       return TRUE;
     }
+    /*
+      we make temporary copy of Item_field, to avoid influence of changing
+      result_field on Item_ref which refer on this field
+    */
+    Item_field *field= new Item_field(thd, (Item_field *)item);
+    it.replace(field);
+    ((Item_field *)item)->register_item_tree_changing(it.ref());
   }
   return FALSE;
 }
@@ -139,9 +147,14 @@ int mysql_update(THD *thd,
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   table_list->grant.want_privilege= table->grant.want_privilege= want_privilege;
 #endif
-  if (setup_fields(thd, 0, table_list, fields, 1, 0, 0))
-    DBUG_RETURN(-1);				/* purecov: inspected */
-  if (check_fields(fields))
+  {
+    thd->lex->select_lex.no_wrap_view_item= 1;
+    int res= setup_fields(thd, 0, table_list, fields, 1, 0, 0);
+    thd->lex->select_lex.no_wrap_view_item= 0;
+    if (res)
+      DBUG_RETURN(-1);				/* purecov: inspected */
+  }
+  if (table_list->view && check_fields(thd, fields))
   {
     DBUG_RETURN(-1);
   }
@@ -521,6 +534,8 @@ int mysql_multi_update_prepare(THD *thd)
   List<Item> *fields= &lex->select_lex.item_list;
   TABLE_LIST *tl;
   table_map tables_for_update= 0, readonly_tables= 0;
+  int res;
+  bool update_view= 0;
   DBUG_ENTER("mysql_multi_update_prepare");
   /*
     Ensure that we have update privilege for all tables and columns in the
@@ -545,9 +560,22 @@ int mysql_multi_update_prepare(THD *thd)
     time.
   */
   if (setup_tables(thd, table_list, &lex->select_lex.where) ||
-      setup_fields(thd, 0, table_list, *fields, 1, 0, 0))
+      (thd->lex->select_lex.no_wrap_view_item= 1,
+       res= setup_fields(thd, 0, table_list, *fields, 1, 0, 0),
+       thd->lex->select_lex.no_wrap_view_item= 0,
+       res))
     DBUG_RETURN(-1);
-  if (check_fields(*fields))
+
+  for (tl= table_list; tl ; tl= tl->next_local)
+  {
+    if (tl->view)
+    {
+      update_view= 1;
+      break;
+    }
+  }
+
+  if (update_view && check_fields(thd, *fields))
   {
     DBUG_RETURN(-1);
   }
