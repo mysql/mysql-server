@@ -41,8 +41,13 @@ int mysql_derived(THD *thd, LEX *lex, SELECT_LEX_UNIT *unit, TABLE_LIST *t)
   select_union *derived_result;
   TABLE_LIST *tables= (TABLE_LIST *)sl->table_list.first;
   TMP_TABLE_PARAM tmp_table_param;
+  bool is_union=sl->next_select() && sl->next_select()->linkage == UNION_TYPE;
   DBUG_ENTER("mysql_derived");
   
+
+  if (is_union && unit->create_total_list(thd, lex, &tables))
+    DBUG_RETURN(-1);
+
   if (tables)
     res= check_table_access(thd,SELECT_ACL, tables);
   else
@@ -58,6 +63,19 @@ int mysql_derived(THD *thd, LEX *lex, SELECT_LEX_UNIT *unit, TABLE_LIST *t)
     
   if (!(res=open_and_lock_tables(thd,tables)))
   {
+    if (is_union)
+    {
+      for (SELECT_LEX *sel= sl;
+	   sel;
+	   sel= sel->next_select())
+      {
+	for (TABLE_LIST *cursor= (TABLE_LIST *)sel->table_list.first;
+	     cursor;
+	     cursor=cursor->next)
+	  cursor->table= cursor->table_list->table;
+      }
+    }
+
     if (setup_fields(thd,tables,item_list,0,0,1))
     {
       res=-1;
@@ -66,7 +84,7 @@ int mysql_derived(THD *thd, LEX *lex, SELECT_LEX_UNIT *unit, TABLE_LIST *t)
     bzero((char*) &tmp_table_param,sizeof(tmp_table_param));
     tmp_table_param.field_count=item_list.elements;
     if (!(table=create_tmp_table(thd, &tmp_table_param, item_list,
-			         (ORDER*) 0, 0, 1,
+			         (ORDER*) 0, is_union && !unit->union_option, 1,
 			         (sl->options | thd->options |
 				  TMP_TABLE_ALL_COLUMNS),
                                  HA_POS_ERROR)))
@@ -87,11 +105,14 @@ int mysql_derived(THD *thd, LEX *lex, SELECT_LEX_UNIT *unit, TABLE_LIST *t)
 
       SELECT_LEX_NODE *save_current_select= lex->current_select;
       lex->current_select= sl;
-      res= mysql_select(thd, tables,  sl->item_list,
+      if (is_union)
+	res=mysql_union(thd,lex,derived_result,unit);
+      else
+	res= mysql_select(thd, tables,  sl->item_list,
 			sl->where, (ORDER *) sl->order_list.first,
 			(ORDER*) sl->group_list.first,
 			sl->having, (ORDER*) NULL,
-			sl->options | thd->options | SELECT_NO_UNLOCK,
+			sl->options | thd->options  | SELECT_NO_UNLOCK,
 			derived_result, unit, sl, 0);
       lex->current_select= save_current_select;
 
@@ -112,7 +133,12 @@ int mysql_derived(THD *thd, LEX *lex, SELECT_LEX_UNIT *unit, TABLE_LIST *t)
 	      tables->table_list->table=tables->table; // to fix a problem in EXPLAIN
 	  }
 	  else
-	    sl->exclude();
+	  {
+	    if (is_union)
+	      unit->exclude();
+	    else
+	      sl->exclude();
+	  }
 	  t->db=(char *)"";
 	  t->derived=(SELECT_LEX *)0; // just in case ...
 	  table->file->info(HA_STATUS_VARIABLE);

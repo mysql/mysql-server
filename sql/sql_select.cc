@@ -162,7 +162,7 @@ int handle_select(THD *thd, LEX *lex, select_result *result)
   register SELECT_LEX *select_lex = &lex->select_lex;
   fix_tables_pointers(lex->all_selects_list);
   if (select_lex->next_select())
-    res=mysql_union(thd,lex,result);
+    res=mysql_union(thd,lex,result,&lex->unit);
   else
     res=mysql_select(thd,(TABLE_LIST*) select_lex->table_list.first,
 		     select_lex->item_list,

@@ -63,6 +63,31 @@ a
 select 1 from (select 1) as a;
 1
 1
+select * from (select * from t1 union select * from t1) a;
+a	b
+1	a
+2	b
+3	c
+select * from (select * from t1 union all select * from t1) a;
+a	b
+1	a
+2	b
+3	c
+3	c
+1	a
+2	b
+3	c
+3	c
+explain select * from (select * from t1 union select * from t1) a;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	3	
+2	DERIVED	t1	ALL	NULL	NULL	NULL	NULL	4	
+3	UNION	t1	ALL	NULL	NULL	NULL	NULL	4	
+explain select * from (select * from t1 union all select * from t1) a;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	8	
+2	DERIVED	t1	ALL	NULL	NULL	NULL	NULL	4	
+3	UNION	t1	ALL	NULL	NULL	NULL	NULL	4	
 drop table if exists t1;
 create table t1(a int not null, t char(8), index(a));
 SELECT * FROM (SELECT * FROM t1) as b ORDER BY a  ASC LIMIT 0,20;

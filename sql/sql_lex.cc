@@ -995,7 +995,8 @@ void st_select_lex::init_select()
   use_index.empty();
   ftfunc_list_alloc.empty();
   ftfunc_list= &ftfunc_list_alloc;
-  linkage= UNSPECIFIED_TYPE;
+  if (linkage != UNION_TYPE)
+    linkage= UNSPECIFIED_TYPE;
 }
 
 /*
@@ -1206,7 +1207,7 @@ bool st_select_lex_unit::create_total_list_n_last_return(THD *thd, st_lex *lex,
       net_printf(thd,ER_WRONG_USAGE,"UNION","ORDER BY");
       return 1;
     }
-    if (sl->linkage == DERIVED_TABLE_TYPE)
+    if (sl->linkage == DERIVED_TABLE_TYPE && !sl->next_select())
       continue;
     for (SELECT_LEX_UNIT *inner=  sl->first_inner_unit();
 	 inner;
