@@ -8189,10 +8189,6 @@ static void test_ts()
 
 /*
   Test for bug #1500.
-  XXX: despite that this bug is fixed, it spots mysqld code which is not
-  working correctly yet: to fix all things  properly we need to implement
-  Item::cleanup() method for all items (as described in bugs #1663 and
-  #1749). So don't be surprised in case valgrind barks on it.
 */
 
 static void test_bug1500()
@@ -8238,7 +8234,6 @@ static void test_bug1500()
   
   assert(1 == my_process_stmt_result(stmt));
 
-  /* FIXME If we comment out next string server will crash :( */
   mysql_stmt_close(stmt);
 
   rc= mysql_query(mysql,"DROP TABLE test_bg1500");
@@ -9351,16 +9346,17 @@ static void test_bug3035()
   int64_val= int64_max;
   uint64_val= uint64_max;
 
-  mysql_stmt_execute(stmt);
+  rc= mysql_stmt_execute(stmt);
   check_execute(stmt, rc);
 
-  stmt_text= "SELECT i8, ui8, i16, ui16, i32, ui32, i64, ui64, ui64, cast(ui64 as signed),ui64, cast(ui64 as signed)"
+  stmt_text= "SELECT i8, ui8, i16, ui16, i32, ui32, i64, ui64, ui64, "
+             "cast(ui64 as signed),ui64, cast(ui64 as signed)"
              "FROM t1 ORDER BY id ASC";
 
-  mysql_stmt_prepare(stmt, stmt_text, strlen(stmt_text));
+  rc= mysql_stmt_prepare(stmt, stmt_text, strlen(stmt_text));
   check_execute(stmt, rc);
 
-  mysql_stmt_execute(stmt);
+  rc= mysql_stmt_execute(stmt);
   check_execute(stmt, rc);
 
   bind_array[8].buffer_type= MYSQL_TYPE_DOUBLE;
