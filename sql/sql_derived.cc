@@ -172,7 +172,7 @@ int mysql_derived(THD *thd, LEX *lex, SELECT_LEX_UNIT *unit,
 			  (ORDER *) select_cursor->group_list.first,
 			  select_cursor->having, (ORDER*) NULL,
 			  select_cursor->options | thd->options  | SELECT_NO_UNLOCK,
-			  derived_result, unit, select_cursor, 0, 1);
+			  derived_result, unit, select_cursor, 1);
 
       if (!res)
       {
