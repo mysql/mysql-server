@@ -64,3 +64,18 @@ a	rel
 4	1
 7	1
 drop table t1;
+CREATE TABLE t1 (
+a INT AUTO_INCREMENT PRIMARY KEY,
+message CHAR(20),
+FULLTEXT(message)
+);
+INSERT INTO t1 (message) VALUES ("testbug"),("testbug foobar");
+SELECT a, MATCH (message) AGAINST ('t* f*' IN BOOLEAN MODE) as rel FROM t1;
+a	rel
+1	1
+2	2
+SELECT a, MATCH (message) AGAINST ('t* f*' IN BOOLEAN MODE) as rel FROM t1 ORDER BY rel,a;
+a	rel
+1	1
+2	2
+drop table t1;

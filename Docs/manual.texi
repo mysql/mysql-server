@@ -50396,6 +50396,9 @@ each individual 4.0.x release.
 
 @itemize @bullet
 @item
+Fixed bug in @code{MATCH ... AGAINST( ... IN BOOLEAN MODE)}
+used with @code{ORDER BY}.
+@item
 @code{SELECT @@@@[global|session].var_name} didn't report
 @code{global | session} in the result column name.
 @item
