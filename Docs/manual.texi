@@ -40137,7 +40137,7 @@ though, so Version 3.23 is not released as a stable version yet.
 @appendixsubsec Changes in release 3.23.31
 @itemize @bullet
 @item
-Fixed bug in @@code{MyISAM} when deleting keys with possible @code{NULL}
+Fixed bug in @code{MyISAM} when deleting keys with possible @code{NULL}
 values, but the first key-column was not a prefix-compressed text column.
 @item
 Fixed that @code{mysql.server} reads the @code{mysql.server} option section
