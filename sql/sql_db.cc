@@ -246,7 +246,7 @@ static long mysql_rm_known_files(THD *thd, MY_DIR *dirp, const char *db,
       /* Drop the table nicely */
       *fn_ext(file->name)=0;			// Remove extension
       TABLE_LIST *table_list=(TABLE_LIST*)
-	thd->calloc(sizeof(*table_list)+ strlen(db)+strlen(file->name)+1);
+	thd->calloc(sizeof(*table_list)+ strlen(db)+strlen(file->name)+2);
       if (!table_list)
       {
 	my_dirend(dirp);
