@@ -373,6 +373,7 @@ static CHARSET_INFO *add_charset(uint cs_number, myf flags)
 	 sizeof(tmp_sort_order));
   memcpy((char*) cs->tab_to_uni, (char*) tmp_to_uni, sizeof(tmp_to_uni));
 
+  cs->strnncoll   = my_strnncoll_simple;
   cs->caseup_str  = my_caseup_str_8bit;
   cs->casedn_str  = my_casedn_str_8bit;
   cs->caseup      = my_caseup_8bit;

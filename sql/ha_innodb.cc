@@ -1366,9 +1366,9 @@ innobase_mysql_cmp(
 	case FIELD_TYPE_VAR_STRING:
 		// BAR TODO: Discuss with heikki.tuuri@innodb.com
 		// so that he sends CHARSET_INFO for the field to this function.
-  		ret = my_sortncmp(default_charset_info,
-				  (const char*) a, a_length,
-				  (const char*) b, b_length);
+  		ret = my_strnncoll(default_charset_info,
+				  a, a_length,
+				  b, b_length);
 		if (ret < 0) {
 		        return(-1);
 		} else if (ret > 0) {
