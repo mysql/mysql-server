@@ -116,6 +116,25 @@ then
 fi
 ])
 
+AC_DEFUN(MYSQL_CHECK_ZLIB_WITH_COMPRESS, [
+save_LIBS="$LIBS"
+LIBS="-l$1 $LIBS"
+AC_CACHE_CHECK([if libz with compress], mysql_cv_compress,
+[AC_TRY_LINK([#include <zlib.h>
+#ifdef __cplusplus
+extern "C"
+#endif
+],
+[ return compress(0, (unsigned long*) 0, "", 0);
+], mysql_cv_compress=yes, mysql_cv_compress=no)])
+if test "$mysql_cv_compress" = "yes"
+then
+  AC_DEFINE(HAVE_COMPRESS)
+else
+  LIBS="$save_LIBS"
+fi
+])
+
 #---START: Used in for client configure
 AC_DEFUN(MYSQL_CHECK_ULONG,
 [AC_MSG_CHECKING(for type ulong)
