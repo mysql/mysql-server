@@ -40812,7 +40812,9 @@ not yet 100 % confident in this code.
 
 @node News-3.23.33, News-3.23.32, News-3.23.x, News-3.23.x
 @appendixsubsec Changes in release 3.23.33
-@itemize bullet
+@itemize @bullet
+@item
+Changed clients to use TCP/IP when -P or --port option is specified.
 @item
 Fixed bug in replication that broke slave server start with existing
 @code{master.info}. This fixes a bug introduced in 3.23.32.
@@ -40839,7 +40841,6 @@ Fixed several timing bugs in the test suite.
 Extended @code{mysqltest} to take care of the timing issues in the test
 suite.
 @end itemize
-
 
 @node News-3.23.32, News-3.23.31, News-3.23.33, News-3.23.x
 @appendixsubsec Changes in release 3.23.32
