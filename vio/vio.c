@@ -66,38 +66,40 @@ void vio_reset(Vio* vio, enum enum_vio_type type,
 		      my_socket sd, HANDLE hPipe,
 		      my_bool localhost)
 {
-  bzero((char*) vio, sizeof(Vio));
+  bzero((char*) vio, sizeof(*vio));
   vio->type	= type;
   vio->sd	= sd;
   vio->hPipe	= hPipe;
   vio->localhost= localhost;
 #ifdef HAVE_VIO
-if(type == VIO_TYPE_SSL){
-	vio->viodelete	=vio_ssl_delete;
-	vio->vioerrno	=vio_ssl_errno;
-	vio->read	=vio_ssl_read;
-	vio->write	=vio_ssl_write;
-	vio->fastsend	=vio_ssl_fastsend;
-	vio->viokeepalive=vio_ssl_keepalive;
-	vio->should_retry=vio_ssl_should_retry;
-	vio->vioclose	=vio_ssl_close;
-	vio->peer_addr	=vio_ssl_peer_addr;
-	vio->in_addr	=vio_ssl_in_addr;
-	vio->poll_read	=vio_ssl_poll_read;
-} else { /* default is VIO_TYPE_TCPIP */
-	vio->viodelete	=vio_delete;
-	vio->vioerrno	=vio_errno;
-	vio->read	=vio_read;
-	vio->write	=vio_write;
-	vio->fastsend	=vio_fastsend;
-	vio->viokeepalive=vio_keepalive;
-	vio->should_retry=vio_should_retry;
-	vio->vioclose	=vio_close;
-	vio->peer_addr	=vio_peer_addr;
-	vio->in_addr	=vio_in_addr;
-	vio->poll_read	=vio_poll_read;
-}
-
+  if (type == VIO_TYPE_SSL)
+  {
+    vio->viodelete	=vio_ssl_delete;
+    vio->vioerrno	=vio_ssl_errno;
+    vio->read		=vio_ssl_read;
+    vio->write		=vio_ssl_write;
+    vio->fastsend	=vio_ssl_fastsend;
+    vio->viokeepalive	=vio_ssl_keepalive;
+    vio->should_retry	=vio_ssl_should_retry;
+    vio->vioclose	=vio_ssl_close;
+    vio->peer_addr	=vio_ssl_peer_addr;
+    vio->in_addr	=vio_ssl_in_addr;
+    vio->poll_read	=vio_ssl_poll_read;
+  }
+  else					/* default is VIO_TYPE_TCPIP */
+  {
+    vio->viodelete	=vio_delete;
+    vio->vioerrno	=vio_errno;
+    vio->read		=vio_read;
+    vio->write		=vio_write;
+    vio->fastsend	=vio_fastsend;
+    vio->viokeepalive	=vio_keepalive;
+    vio->should_retry	=vio_should_retry;
+    vio->vioclose	=vio_close;
+    vio->peer_addr	=vio_peer_addr;
+    vio->in_addr	=vio_in_addr;
+    vio->poll_read	=vio_poll_read;
+  }
 #endif /* HAVE_VIO */
 }
 
@@ -148,5 +150,3 @@ Vio *vio_new_win32pipe(HANDLE hPipe)
 }
 
 #endif
-
-

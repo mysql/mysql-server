@@ -352,7 +352,9 @@ static void abort_not_supported_test()
 static void verbose_msg(const char* fmt, ...)
 {
   va_list args;
-  if (!verbose) return;
+  DBUG_ENTER("verbose_msg");
+  if (!verbose)
+    DBUG_VOID_RETURN;
 
   va_start(args, fmt);
 
@@ -360,6 +362,7 @@ static void verbose_msg(const char* fmt, ...)
   vfprintf(stderr, fmt, args);
   fprintf(stderr, "\n");
   va_end(args);
+  DBUG_VOID_RETURN;
 }
 
 
@@ -446,12 +449,12 @@ VAR* var_get(const char* var_name, const char** var_name_end, int raw)
   {
     const char* save_var_name = var_name, *end;
     end = (var_name_end) ? *var_name_end : 0;
-    while(isalnum(*var_name) || *var_name == '_')
-      {
-	if(end && var_name == end)
-	  break;
-        ++var_name;
-      }
+    while (isvar(*var_name))
+    {
+      if(end && var_name == end)
+	break;
+      ++var_name;
+    }
     if(var_name == save_var_name)
       die("Empty variable");
     
@@ -1522,10 +1525,12 @@ void reject_dump(const char* record_file, char* buf, int size)
   str_to_file(fn_format(reject_file, record_file,"",".reject",2), buf, size);
 }
 
-/* flags control the phased/stages of query execution to be performed 
+/*
+* flags control the phased/stages of query execution to be performed 
 * if QUERY_SEND bit is on, the query will be sent. If QUERY_REAP is on
 * the result will be read - for regular query, both bits must be on
 */
+
 int run_query(MYSQL* mysql, struct st_query* q, int flags)
 {
   MYSQL_RES* res = 0;
@@ -1576,8 +1581,6 @@ int run_query(MYSQL* mysql, struct st_query* q, int flags)
     if (q->abort_on_error)
       die("At line %u: query '%s' failed: %d: %s", start_lineno, query,
 	  mysql_errno(mysql), mysql_error(mysql));
-      /*die("At line %u: Failed in mysql_store_result for query '%s' (%d)",
-	  start_lineno, query, mysql_errno(mysql));*/
     else
     {
       for (i=0 ; q->expected_errno[i] ; i++)
@@ -1587,13 +1590,15 @@ int run_query(MYSQL* mysql, struct st_query* q, int flags)
       }
       if (i)
       {
-	verbose_msg("query '%s' failed with wrong errno\
- %d instead of %d...", q->query, mysql_errno(mysql), q->expected_errno[0]);
+	verbose_msg("query '%s' failed with wrong errno %d instead of %d...",
+		    q->query, mysql_errno(mysql), q->expected_errno[0]);
+	error=1;
 	goto end;
       }
       verbose_msg("query '%s' failed: %d: %s", q->query, mysql_errno(mysql),
 		  mysql_error(mysql));
-      /* if we do not abort on error, failure to run the query does
+      /* 
+	 if we do not abort on error, failure to run the query does
 	 not fail the whole test case
       */
       goto end;
@@ -1754,11 +1759,11 @@ static void var_from_env(const char* name, const char* def_val)
 
 static void init_var_hash()
 {
-  if(hash_init(&var_hash, 1024, 0, 0, get_var_key, var_free, MYF(0)))
+  if (hash_init(&var_hash, 1024, 0, 0, get_var_key, var_free, MYF(0)))
     die("Variable hash initialization failed");
   var_from_env("MASTER_MYPORT", "9306");
   var_from_env("SLAVE_MYPORT", "9307");
-  var_from_env("MYSQL_TEST_DIR", "");
+  var_from_env("MYSQL_TEST_DIR", "/tmp");
 }
 
 int main(int argc, char** argv)

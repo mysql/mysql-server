@@ -1102,6 +1102,10 @@ int mi_repair(MI_CHECK *param, register MI_INFO *info,
     share->pack.header_length;
   got_error=1;
   new_file= -1;
+  sort_info->buff=0;
+  sort_info->buff_length=0;
+  sort_info->record=0;
+
   if (!(param->testflag & T_SILENT))
   {
     printf("- recovering (with keycache) MyISAM-table '%s'\n",name);
@@ -1114,7 +1118,10 @@ int mi_repair(MI_CHECK *param, register MI_INFO *info,
   if (init_io_cache(&param->read_cache,info->dfile,
 		    (uint) param->read_buffer_length,
 		    READ_CACHE,share->pack.header_length,1,MYF(MY_WME)))
+  {
+    bzero(&info->rec_cache,sizeof(info->rec_cache));
     goto err;
+  }
   if (!rep_quick)
     if (init_io_cache(&info->rec_cache,-1,(uint) param->write_buffer_length,
 		      WRITE_CACHE, new_header_length, 1,
@@ -1122,7 +1129,6 @@ int mi_repair(MI_CHECK *param, register MI_INFO *info,
       goto err;
   info->opt_flag|=WRITE_CACHE_USED;
   sort_info->start_recpos=0;
-  sort_info->buff=0; sort_info->buff_length=0;
   if (!(sort_info->record=(byte*) my_malloc((uint) share->base.pack_reclength,
 					   MYF(0))))
   {

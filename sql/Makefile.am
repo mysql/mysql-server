@@ -36,11 +36,11 @@ LDADD =			../isam/libnisam.a \
 			../myisam/libmyisam.a \
 			../myisammrg/libmyisammrg.a \
 			../heap/libheap.a \
+			../vio/libvio.a \
 			../mysys/libmysys.a \
 			../dbug/libdbug.a \
 			../regex/libregex.a \
-			../strings/libmystrings.a \
-			../vio/libvio.a
+			../strings/libmystrings.a
 
 mysqld_LDADD =		@MYSQLD_EXTRA_LDFLAGS@ \
 			@bdb_libs@ @innodb_libs@ @pstack_libs@ \

@@ -6,7 +6,7 @@ show status like 'Table_lock%';
 connection con1;
 SET SQL_LOG_BIN=0;
 drop table if exists t1;
-create table t1(n int);
+create table t1(n int) type=myisam;
 insert into t1 values(1);
 connection con2;
 lock tables t1 read;

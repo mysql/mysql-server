@@ -642,7 +642,7 @@ static TABLE *delayed_get_table(THD *thd,TABLE_LIST *table_list)
 	  /* Copy error message and abort */
 	  thd->fatal_error=1;
 	  strmov(thd->net.last_error,tmp->thd.net.last_error);
-	  thd->net.last_errno=thd->net.last_errno;
+	  thd->net.last_errno=tmp->thd.net.last_errno;
 	}
 	tmp->unlock();
 	pthread_mutex_unlock(&LOCK_delayed_create);

@@ -2903,11 +2903,9 @@ static bool append_file_to_dir(char **filename_ptr, char *table_name)
   /* Fix is using unix filename format on dos */
   strmov(buff,*filename_ptr);
   convert_dirname(buff);
-  if (!(ptr=sql_alloc(strlen(buff)+strlen(table_name+1))))
+  if (!(ptr=sql_alloc(strlen(buff)+strlen(table_name)+1)))
     return 1;					// End of memory
   *filename_ptr=ptr;
-  ptr=strmov(ptr,buff);
-  *ptr=FN_LIBCHAR;
-  strmov(ptr+1,table_name);
+  strxmov(ptr,buff,table_name,NullS);
   return 0;
 }
