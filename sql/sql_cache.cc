@@ -983,7 +983,7 @@ Query_cache::send_result_to_client(THD *thd, char *sql, uint query_length)
     */
     for (tmptable= thd->temporary_tables; tmptable ; tmptable= tmptable->next)
     {
-      if (tmptable->key_length - 8 == table->key_len() &&
+      if (tmptable->key_length - TMP_TABLE_KEY_EXTRA == table->key_len() &&
           !memcmp(tmptable->table_cache_key, table->data(),
                   table->key_len()))
       {
@@ -993,7 +993,7 @@ Query_cache::send_result_to_client(THD *thd, char *sql, uint query_length)
         STRUCT_UNLOCK(&structure_guard_mutex);
         /*
           We should not store result of this query because it contain
-          temporary tables => assign following wariable to make check
+          temporary tables => assign following variable to make check
           faster.
         */
         thd->safe_to_cache_query=0;
