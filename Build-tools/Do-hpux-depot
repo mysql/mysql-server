@@ -1,0 +1,85 @@
+#!/usr/bin/perl
+
+#
+# By Matt Wagner <matt@mysql.com> 2005
+#
+# This script generates HP Depot packages for MySQL Server.
+# It basically repackages a binary tarball as a depot.
+#
+# Usage: ./Do-hpux-depot <untarred-binary-tarball>
+#
+
+$fullname = shift @ARGV;
+$fullname or die "No package name was specified";
+-d $fullname or die "That directory is not present!";
+
+$fullname =~ s,/+$,,;             # Remove ending slash if any
+
+chomp($pwd= `pwd`);
+
+%title= (
+  "mysql-standard" => "MySQL Community Edition - Standard (GPL)",
+  "mysql-debug" => "MySQL Community Edition - Debug (GPL)",
+  "mysql-max" => "MySQL Community Edition - Experimental (GPL)",
+  "mysql-pro" => "MySQL Pro (Commercial)",
+  "mysql-classic" => "MySQL Classic (Commercial)",
+  "mysql-cluster" => "MySQL Cluster (Commercial)",
+);
+
+%architecture= (
+  "hpux11.23" => "HP-UX_B.11.23",
+  "hpux11.11" => "HP-UX_B.11.11",
+  "hpux11.00" => "HP-UX_B.11.00",
+);
+
+%os_release= (
+  "hpux11.23" => "?.11.2?",
+  "hpux11.11" => "?.11.1?",
+  "hpux11.00" => "?.11.0?",
+);
+
+%machine_type= (
+  "ia64" => "ia64*",
+  "hppa2.0w" => "9000/*",
+);
+
+$fullname =~ m/^(mysql-\w+)-([\d\.]+)-hp-(hpux11\.\d\d)-(hppa2\.0w|(ia64))-?(64bit)?$/;
+
+# print "title: $1\n";
+# print "version: $2\n";
+# print "os: $3\n";
+# print "cpu: $4\n";
+# print "64: $6\n";
+
+$cpu64= ($6 ne "") ? "_64" : "";
+
+open (PSF,">${fullname}.psf") or die "Unable to write PSF file ($!)\n";
+
+print PSF <<EOF;
+product
+        tag $1 
+        vendor_tag "MySQL_AB"
+        title "$title{$1}"
+        description "MySQL Database Server and Clients"
+        revision $2
+
+        architecture $architecture{$3}$cpu64
+        machine_type $machine_type{$4}
+        os_name HP-UX
+        os_release $os_release{$3}
+        directory /usr/local
+
+        fileset
+                tag all
+                revision $2
+		directory $fullname=/usr/local/$fullname
+                file_permissions -u 222 -g bin -o bin
+                file *
+        end
+end
+EOF
+
+close(PSF);
+
+system("/usr/sbin/swpackage -v -d \"|gzip -c > $fullname.depot.gz\" -x target_type=tape -s ${pwd}/${fullname}.psf");
+
