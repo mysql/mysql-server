@@ -107,8 +107,6 @@ void Ndb::setup(Ndb_cluster_connection *ndb_cluster_connection,
   theOpIdleList= NULL;
   theScanOpIdleList= NULL;
   theIndexOpIdleList= NULL;
-//  theSchemaConIdleList= NULL;
-//  theSchemaConToNdbList= NULL;
   theTransactionList= NULL;
   theConnectionArray= NULL;
   theRecAttrIdleList= NULL;
@@ -134,10 +132,13 @@ void Ndb::setup(Ndb_cluster_connection *ndb_cluster_connection,
 
   fullyQualifiedNames = true;
 
+#ifdef POORMANSPURIFY
   cgetSignals =0;
   cfreeSignals = 0;
   cnewSignals = 0;
   creleaseSignals = 0;
+#endif
+
   theError.code = 0;
 
   theNdbObjectIdMap  = new NdbObjectIdMap(1024,1024);
@@ -159,12 +160,12 @@ void Ndb::setup(Ndb_cluster_connection *ndb_cluster_connection,
     theLastTupleId[i] = 0;
   }//for
   
-  snprintf(theDataBase, sizeof(theDataBase), "%s",
+  BaseString::snprintf(theDataBase, sizeof(theDataBase), "%s",
            aDataBase ? aDataBase : "");
-  snprintf(theDataBaseSchema, sizeof(theDataBaseSchema), "%s",
+  BaseString::snprintf(theDataBaseSchema, sizeof(theDataBaseSchema), "%s",
 	   aSchema ? aSchema : "");
 
-  int len = snprintf(prefixName, sizeof(prefixName), "%s%c%s%c",
+  int len = BaseString::snprintf(prefixName, sizeof(prefixName), "%s%c%s%c",
                      theDataBase, table_name_separator,
                      theDataBaseSchema, table_name_separator);
   prefixEnd = prefixName + (len < (int) sizeof(prefixName) ? len : 

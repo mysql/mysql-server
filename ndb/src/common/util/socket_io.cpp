@@ -175,13 +175,13 @@ vprint_socket(NDB_SOCKET_TYPE socket, int timeout_millis,
   size_t size = sizeof(buf);
 
   if (fmt != 0) {
-    size = vsnprintf(buf, sizeof(buf), fmt, ap);
+    size = BaseString::vsnprintf(buf, sizeof(buf), fmt, ap);
     /* Check if the output was truncated */
     if(size >= sizeof(buf)) {
       buf2 = (char *)malloc(size+1);
       if(buf2 == NULL)
 	return -1;
-      vsnprintf(buf2, size, fmt, ap);
+      BaseString::vsnprintf(buf2, size, fmt, ap);
     } else
       size = sizeof(buf);
   } else
@@ -202,13 +202,13 @@ vprintln_socket(NDB_SOCKET_TYPE socket, int timeout_millis,
   size_t size = sizeof(buf);
 
   if (fmt != 0) {
-    size = vsnprintf(buf, sizeof(buf), fmt, ap);
+    size = BaseString::vsnprintf(buf, sizeof(buf), fmt, ap);
     /* Check if the output was truncated */
     if(size >= sizeof(buf)-1) {
       buf2 = (char *)malloc(size+2);
       if(buf2 == NULL)
 	return -1;
-      vsnprintf(buf2, size+1, fmt, ap);
+      BaseString::vsnprintf(buf2, size+1, fmt, ap);
     } else
       size = sizeof(buf);
   } else

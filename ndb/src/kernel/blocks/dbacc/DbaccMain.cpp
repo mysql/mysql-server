@@ -2369,7 +2369,7 @@ void Dbacc::execACC_COMMITREQ(Signal* signal)
       ptrCheckGuard(rootfragrecptr, crootfragmentsize, rootfragmentrec);
       rootfragrecptr.p->noOfElements++;
       fragrecptr.p->slack -= operationRecPtr.p->insertDeleteLen;
-      if (fragrecptr.p->slack >= (Uint32)(1 << 31)) { 
+      if (fragrecptr.p->slack >= (1u << 31)) { 
 	/* IT MEANS THAT IF SLACK < ZERO */
 	if (fragrecptr.p->expandFlag == 0) {
 	  jam();
@@ -2479,7 +2479,7 @@ void Dbacc::execACC_LOCKREQ(Signal* signal)
       Uint32 opCode = ZSCAN_OP;
       signal->theData[0] = operationRecPtr.i;
       signal->theData[1] = fragrecptr.i;
-      signal->theData[2] = opCode | (lockMode << 4) | (1 << 31);
+      signal->theData[2] = opCode | (lockMode << 4) | (1u << 31);
       signal->theData[3] = req->hashValue;
       signal->theData[4] = 1;   // fake primKeyLen
       signal->theData[5] = req->transId1;
@@ -4051,7 +4051,7 @@ void Dbacc::deleteLongKey(Signal* signal)
 }//Dbacc::deleteLongKey()
 
 
-void Dbacc::checkIndexInLongKeyPage(Uint32 pageId, char *calledFrom) {
+void Dbacc::checkIndexInLongKeyPage(Uint32 pageId, const char *calledFrom) {
   Page8Ptr pagePtr;
   LongKeyPage *page;
   Uint32 indexNo;
@@ -4206,7 +4206,7 @@ void Dbacc::insertPageArrayList(Signal* signal)
 // --------------------------------------------------------------------------------- */
 //       Check the page array list.
 // --------------------------------------------------------------------------------- */
-void Dbacc::checkPageArrayList(Signal* signal, char *calledFrom) 
+void Dbacc::checkPageArrayList(Signal* signal, const char *calledFrom) 
 {
   Page8Ptr pagePtr;
   Uint32 pageArrayIndex;
@@ -4251,7 +4251,7 @@ void Dbacc::checkPageArrayList(Signal* signal, char *calledFrom)
 // --------------------------------------------------------------------------------- */
 //       Check the page to put into the pageArrayList.
 // --------------------------------------------------------------------------------- */
-void Dbacc::checkPageB4Insert(Uint32 pageId, char *calledFrom) {
+void Dbacc::checkPageB4Insert(Uint32 pageId, const char *calledFrom) {
   Page8Ptr pagePtr;
   Uint32 pageArrayIndex;
   LongKeyPage *page;
@@ -4318,7 +4318,7 @@ void Dbacc::checkPageB4Insert(Uint32 pageId, char *calledFrom) {
 // --------------------------------------------------------------------------------- */
 //       Check the page to remove from the pageArrayList.
 // --------------------------------------------------------------------------------- */
-void Dbacc::checkPageB4Remove(Uint32 pageId, char *calledFrom) {
+void Dbacc::checkPageB4Remove(Uint32 pageId, const char *calledFrom) {
   Page8Ptr pagePtr;
   Uint32 pageArrayIndex;
   Uint32 noOfOccurrence = 0;
@@ -6510,7 +6510,7 @@ void Dbacc::endofexpLab(Signal* signal)
   Uint32 noOfBuckets = (fragrecptr.p->maxp + 1) + fragrecptr.p->p;
   Uint32 Thysteres = fragrecptr.p->maxloadfactor - fragrecptr.p->minloadfactor;
   fragrecptr.p->slackCheck = noOfBuckets * Thysteres;
-  if (fragrecptr.p->slack > (Uint32)(1 << 31)) {
+  if (fragrecptr.p->slack > (1u << 31)) {
     jam();
     /* IT MEANS THAT IF SLACK < ZERO */
     /* --------------------------------------------------------------------------------- */
@@ -6974,7 +6974,7 @@ void Dbacc::execSHRINKCHECK2(Signal* signal)
     /*--------------------------------------------------------------*/
     return;
   }//if
-  if (fragrecptr.p->slack > (Uint32)(1 << 31)) {
+  if (fragrecptr.p->slack > (1u << 31)) {
     jam();
     /*--------------------------------------------------------------*/
     /* THE SLACK IS NEGATIVE, IN THIS CASE WE WILL NOT NEED ANY     */
@@ -7213,7 +7213,7 @@ void Dbacc::endofshrinkbucketLab(Signal* signal)
       expDirRangePtr.p->dirArray[fragrecptr.p->expSenderDirIndex >> 8] = RNIL;
     }//if
   }//if
-  if (fragrecptr.p->slack < (Uint32)(1 << 31)) {
+  if (fragrecptr.p->slack < (1u << 31)) {
     jam();
     /*--------------------------------------------------------------*/
     /* THE SLACK IS POSITIVE, IN THIS CASE WE WILL CHECK WHETHER    */
@@ -13411,8 +13411,12 @@ Dbacc::execREAD_PSUEDO_REQ(Signal* signal){
   default:
     tmp = 0;
   }
-  Uint32 * src = (Uint32*)&tmp;
-  signal->theData[0] = src[0];
-  signal->theData[1] = src[1];
+  memcpy(signal->theData, &tmp, 8); /* must be memcpy, gives strange results on
+				     * ithanium gcc (GCC) 3.4.1 smp linux 2.4
+				     * otherwise
+				     */
+  //  Uint32 * src = (Uint32*)&tmp;
+  //  signal->theData[0] = src[0];
+  //  signal->theData[1] = src[1];
 }
 

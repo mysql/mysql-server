@@ -42,6 +42,7 @@ void* NdbMem_Allocate(size_t size)
 
 void* NdbMem_AllocateAlign(size_t size, size_t alignment)
 {
+  (void)alignment; /* remove warning for unused parameter */
   /*
     return (void*)memalign(alignment, size);
     TEMP fix

@@ -52,26 +52,30 @@ args: -n SR4 T6
 #
 max-time: 1500
 cmd: testSystemRestart
-args: -n SR_FULLDB T1 
+args: -n SR_FULLDB T6 
 
 #
 # NODE RESTARTS
 #
 max-time: 2500
 cmd: testNodeRestart
-args: -n NoLoad T6 T8 T13 
+args: -n NoLoad T6
 
 max-time: 2500
 cmd: testNodeRestart
-args: -n PkRead T6 T8 T13 
+args: -n MixedPkRead T6 T8 T13 
 
 max-time: 2500
 cmd: testNodeRestart
-args: -l 1 -n PkReadPkUpdate 
+args: -l 1 -n MixedPkReadPkUpdate 
 
 max-time: 2500
 cmd: testNodeRestart
-args: -l 1 -n ReadUpdateScan 
+args: -l 1 -n MixedReadUpdateScan 
+
+max-time: 2500
+cmd: testNodeRestart
+args: -n CommittedRead T1
 
 max-time: 2500
 cmd: testNodeRestart
@@ -186,10 +190,6 @@ max-time: 2500
 cmd: testDict
 args: -n NF1 T1 T6 T13 
 
-max-time: 2500
-cmd: test_event
-args: -n BasicEventOperation T1 T6 
-
 #
 max-time: 1500
 cmd: testSystemRestart
@@ -206,3 +206,9 @@ args: -l 1 -n SR8 T1
 max-time: 1500
 cmd: testSystemRestart
 args: -l 1 -n SR9 T1 
+
+#
+max-time: 2500
+cmd: test_event
+args: -n BasicEventOperation T1 T6 
+

@@ -86,7 +86,7 @@ NDB_COMMAND(loggertest, "loggertest", "loggertest -console | -file",
   {
     ndbout << "-- " << " Test " << i + 1 
          << " [" << testCases[i].name << "] --" << endl;
-    ::snprintf(str, 256, "%s %s %s %d", "Logging ", 
+    BaseString::snprintf(str, 256, "%s %s %s %d", "Logging ", 
 	       testCases[i].name, " message ", i);  
     if (testCases[i].test(str))
     {

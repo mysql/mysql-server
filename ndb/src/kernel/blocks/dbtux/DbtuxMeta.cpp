@@ -211,11 +211,7 @@ Dbtux::execTUX_ADD_ATTRREQ(Signal* signal)
       // make these configurable later
       tree.m_nodeSize = MAX_TTREE_NODE_SIZE;
       tree.m_prefSize = MAX_TTREE_PREF_SIZE;
-#ifdef dbtux_min_occup_less_max_occup
       const unsigned maxSlack = MAX_TTREE_NODE_SLACK;
-#else
-      const unsigned maxSlack = 0;
-#endif
       // size up to and including first 2 entries
       const unsigned pref = tree.getSize(AccPref);
       if (! (pref <= tree.m_nodeSize)) {
@@ -235,6 +231,20 @@ Dbtux::execTUX_ADD_ATTRREQ(Signal* signal)
       tree.m_minOccup = tree.m_maxOccup - maxSlack;
       // root node does not exist (also set by ctor)
       tree.m_root = NullTupLoc;
+#ifdef VM_TRACE
+      if (debugFlags & DebugMeta) {
+        if (fragOpPtr.p->m_fragNo == 0) {
+          debugOut << "Index id=" << indexPtr.i;
+          debugOut << " nodeSize=" << tree.m_nodeSize;
+          debugOut << " headSize=" << NodeHeadSize;
+          debugOut << " prefSize=" << tree.m_prefSize;
+          debugOut << " entrySize=" << TreeEntSize;
+          debugOut << " minOccup=" << tree.m_minOccup;
+          debugOut << " maxOccup=" << tree.m_maxOccup;
+          debugOut << endl;
+        }
+      }
+#endif
       // fragment is defined
       c_fragOpPool.release(fragOpPtr);
     }

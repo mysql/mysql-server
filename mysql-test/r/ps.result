@@ -375,3 +375,38 @@ rand()	cast(rand(10)*@precision as unsigned integer)	cast(rand(a)*@precision as 
 -	9647622201	3845601374	6211931236
 drop table t1;
 deallocate prepare stmt;
+create database mysqltest1;
+create table t1 (a int);
+create table mysqltest1.t1 (a int);
+select * from t1, mysqltest1.t1;
+a	a
+prepare stmt from "select * from t1, mysqltest1.t1";
+execute stmt;
+a	a
+execute stmt;
+a	a
+execute stmt;
+a	a
+drop table t1;
+drop table mysqltest1.t1;
+drop database mysqltest1;
+deallocate prepare stmt;
+select '1.1' as a, '1.2' as a UNION SELECT '2.1', '2.2';
+a	a
+1.1	1.2
+2.1	2.2
+prepare stmt from
+"select '1.1' as a, '1.2' as a UNION SELECT '2.1', '2.2'";
+execute stmt;
+a	a
+1.1	1.2
+2.1	2.2
+execute stmt;
+a	a
+1.1	1.2
+2.1	2.2
+execute stmt;
+a	a
+1.1	1.2
+2.1	2.2
+deallocate prepare stmt;

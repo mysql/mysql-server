@@ -95,6 +95,19 @@ static char*	srv_monitor_file_name;
 #define SRV_N_PENDING_IOS_PER_THREAD 	OS_AIO_N_PENDING_IOS_PER_THREAD
 #define SRV_MAX_N_PENDING_SYNC_IOS	100
 
+
+/* Avoid warnings when using purify */
+
+#ifdef HAVE_purify
+static int inno_bcmp(register const char *s1, register const char *s2,
+                     register uint len)
+{
+  while (len-- != 0 && *s1++ == *s2++) ;
+  return len+1;
+}
+#define memcmp(A,B,C) inno_bcmp((A),(B),(C))
+#endif
+
 /*************************************************************************
 Reads the data files and their sizes from a character string given in
 the .cnf file. */

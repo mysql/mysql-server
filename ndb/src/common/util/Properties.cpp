@@ -371,7 +371,7 @@ Properties::print(FILE * out, const char * prefix) const{
       break;
     case PropertiesType_Properties:
       char buf2 [1024];
-      snprintf(buf2, sizeof(buf2), "%s%s%c",buf, impl->content[i]->name, 
+      BaseString::snprintf(buf2, sizeof(buf2), "%s%s%c",buf, impl->content[i]->name, 
 	      Properties::delimiter);
       ((Properties *)impl->content[i]->value)->print(out, buf2);
       break;
@@ -994,7 +994,7 @@ bool
 Properties::put(const char * name, Uint32 no, Uint32 val, bool replace){
   size_t tmp_len = strlen(name)+20;
   char * tmp = (char*)malloc(tmp_len);
-  snprintf(tmp, tmp_len, "%s_%d", name, no);
+  BaseString::snprintf(tmp, tmp_len, "%s_%d", name, no);
   bool res = put(tmp, val, replace);
   free(tmp);
   return res;
@@ -1004,7 +1004,7 @@ bool
 Properties::put64(const char * name, Uint32 no, Uint64 val, bool replace){
   size_t tmp_len = strlen(name)+20;
   char * tmp = (char*)malloc(tmp_len);
-  snprintf(tmp, tmp_len, "%s_%d", name, no);
+  BaseString::snprintf(tmp, tmp_len, "%s_%d", name, no);
   bool res = put(tmp, val, replace);
   free(tmp);
   return res;
@@ -1015,7 +1015,7 @@ bool
 Properties::put(const char * name, Uint32 no, const char * val, bool replace){
   size_t tmp_len = strlen(name)+20;
   char * tmp = (char*)malloc(tmp_len);
-  snprintf(tmp, tmp_len, "%s_%d", name, no);
+  BaseString::snprintf(tmp, tmp_len, "%s_%d", name, no);
   bool res = put(tmp, val, replace);
   free(tmp);
   return res;
@@ -1027,7 +1027,7 @@ Properties::put(const char * name, Uint32 no, const Properties * val,
 		bool replace){
   size_t tmp_len = strlen(name)+20;
   char * tmp = (char*)malloc(tmp_len);
-  snprintf(tmp, tmp_len, "%s_%d", name, no);
+  BaseString::snprintf(tmp, tmp_len, "%s_%d", name, no);
   bool res = put(tmp, val, replace);
   free(tmp);
   return res;
@@ -1039,7 +1039,7 @@ Properties::getTypeOf(const char * name, Uint32 no,
 		      PropertiesType * type) const {
   size_t tmp_len = strlen(name)+20;
   char * tmp = (char*)malloc(tmp_len);
-  snprintf(tmp, tmp_len, "%s_%d", name, no);
+  BaseString::snprintf(tmp, tmp_len, "%s_%d", name, no);
   bool res = getTypeOf(tmp, type);
   free(tmp);
   return res;
@@ -1049,7 +1049,7 @@ bool
 Properties::contains(const char * name, Uint32 no) const {
   size_t tmp_len = strlen(name)+20;
   char * tmp = (char*)malloc(tmp_len);
-  snprintf(tmp, tmp_len, "%s_%d", name, no);
+  BaseString::snprintf(tmp, tmp_len, "%s_%d", name, no);
   bool res = contains(tmp);
   free(tmp);
   return res;
@@ -1059,7 +1059,7 @@ bool
 Properties::get(const char * name, Uint32 no, Uint32 * value) const{
   size_t tmp_len = strlen(name)+20;
   char * tmp = (char*)malloc(tmp_len);
-  snprintf(tmp, tmp_len, "%s_%d", name, no);
+  BaseString::snprintf(tmp, tmp_len, "%s_%d", name, no);
   bool res = get(tmp, value);
   free(tmp);
   return res;
@@ -1069,7 +1069,7 @@ bool
 Properties::get(const char * name, Uint32 no, Uint64 * value) const{
   size_t tmp_len = strlen(name)+20;
   char * tmp = (char*)malloc(tmp_len);
-  snprintf(tmp, tmp_len, "%s_%d", name, no);
+  BaseString::snprintf(tmp, tmp_len, "%s_%d", name, no);
   bool res = get(tmp, value);
   free(tmp);
   return res;
@@ -1080,7 +1080,7 @@ bool
 Properties::get(const char * name, Uint32 no, const char ** value) const {
   size_t tmp_len = strlen(name)+20;
   char * tmp = (char*)malloc(tmp_len);
-  snprintf(tmp, tmp_len, "%s_%d", name, no);
+  BaseString::snprintf(tmp, tmp_len, "%s_%d", name, no);
   bool res = get(tmp, value);
   free(tmp);
   return res;
@@ -1091,7 +1091,7 @@ bool
 Properties::get(const char * name, Uint32 no, const Properties ** value) const{
   size_t tmp_len = strlen(name)+20;
   char * tmp = (char*)malloc(tmp_len);
-  snprintf(tmp, tmp_len, "%s_%d", name, no);
+  BaseString::snprintf(tmp, tmp_len, "%s_%d", name, no);
   bool res = get(tmp, value);
   free(tmp);
   return res;
@@ -1102,7 +1102,7 @@ bool
 Properties::getCopy(const char * name, Uint32 no, char ** value) const {
   size_t tmp_len = strlen(name)+20;
   char * tmp = (char*)malloc(tmp_len);
-  snprintf(tmp, tmp_len, "%s_%d", name, no);
+  BaseString::snprintf(tmp, tmp_len, "%s_%d", name, no);
   bool res = getCopy(tmp, value);
   free(tmp);
   return res;
@@ -1113,7 +1113,7 @@ bool
 Properties::getCopy(const char * name, Uint32 no, Properties ** value) const {
   size_t tmp_len = strlen(name)+20;
   char * tmp = (char*)malloc(tmp_len);
-  snprintf(tmp, tmp_len, "%s_%d", name, no);
+  BaseString::snprintf(tmp, tmp_len, "%s_%d", name, no);
   bool res = getCopy(tmp, value);
   free(tmp);
   return res;

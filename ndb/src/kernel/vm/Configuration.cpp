@@ -203,7 +203,7 @@ Configuration::fetch_configuration(LocalConfig &local_config){
     /* Set stop on error to true otherwise NDB will
        go into an restart loop...
     */
-    ERROR_SET(fatal, ERR_INVALID_CONFIG, "Could connect to ndb_mgmd", s);
+    ERROR_SET(fatal, ERR_INVALID_CONFIG, "Could not connect to ndb_mgmd", s);
   }
   
   m_mgmd_port= m_config_retriever->get_mgmd_port();
@@ -487,7 +487,7 @@ Configuration::calcSizeAlt(ConfigValues * ownConfig){
       if (tmp[i].computable) {
         *tmp[i].storage = 0;
       } else {
-        snprintf(buf, sizeof(buf),"ConfigParam: %d not found", tmp[i].paramId);
+        BaseString::snprintf(buf, sizeof(buf),"ConfigParam: %d not found", tmp[i].paramId);
         ERROR_SET(fatal, ERR_INVALID_CONFIG, msg, buf);
       }
     }
@@ -497,12 +497,12 @@ Configuration::calcSizeAlt(ConfigValues * ownConfig){
   ndb_mgm_get_int64_parameter(&db, CFG_DB_DATA_MEM, &dataMem);
   ndb_mgm_get_int64_parameter(&db, CFG_DB_INDEX_MEM, &indexMem);
   if(dataMem == 0){
-    snprintf(buf, sizeof(buf), "ConfigParam: %d not found", CFG_DB_DATA_MEM);
+    BaseString::snprintf(buf, sizeof(buf), "ConfigParam: %d not found", CFG_DB_DATA_MEM);
     ERROR_SET(fatal, ERR_INVALID_CONFIG, msg, buf);
   }
 
   if(indexMem == 0){
-    snprintf(buf, sizeof(buf), "ConfigParam: %d not found", CFG_DB_INDEX_MEM);
+    BaseString::snprintf(buf, sizeof(buf), "ConfigParam: %d not found", CFG_DB_INDEX_MEM);
     ERROR_SET(fatal, ERR_INVALID_CONFIG, msg, buf);
   }
 
@@ -535,13 +535,13 @@ Configuration::calcSizeAlt(ConfigValues * ownConfig){
     }
     
     if(nodeId > MAX_NODES || nodeId == 0){
-      snprintf(buf, sizeof(buf),
+      BaseString::snprintf(buf, sizeof(buf),
 	       "Invalid node id: %d", nodeId);
       ERROR_SET(fatal, ERR_INVALID_CONFIG, msg, buf);
     }
     
     if(nodes.get(nodeId)){
-      snprintf(buf, sizeof(buf), "Two node can not have the same node id: %d",
+      BaseString::snprintf(buf, sizeof(buf), "Two node can not have the same node id: %d",
 	       nodeId);
       ERROR_SET(fatal, ERR_INVALID_CONFIG, msg, buf);
     }
@@ -568,7 +568,7 @@ Configuration::calcSizeAlt(ConfigValues * ownConfig){
     case NODE_TYPE_EXT_REP:
       break;
     default:
-      snprintf(buf, sizeof(buf), "Unknown node type: %d", nodeType);
+      BaseString::snprintf(buf, sizeof(buf), "Unknown node type: %d", nodeType);
       ERROR_SET(fatal, ERR_INVALID_CONFIG, msg, buf);
     }
   }

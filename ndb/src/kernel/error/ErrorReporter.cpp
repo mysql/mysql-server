@@ -60,7 +60,7 @@ ErrorReporter::formatTimeStampString(){
 
   DateTime.setTimeStamp();
   
-  snprintf(theDateTimeString, 39, "%s %d %s %d - %s:%s:%s", 
+  BaseString::snprintf(theDateTimeString, 39, "%s %d %s %d - %s:%s:%s", 
 	   DateTime.getDayName(), DateTime.getDayOfMonth(),
 	   DateTime.getMonthName(), DateTime.getYear(), DateTime.getHour(),
 	   DateTime.getMinute(), DateTime.getSecond());
@@ -126,7 +126,7 @@ ErrorReporter::formatMessage(ErrorCategory type,
   
   processId = NdbHost_GetProcessId();
   
-  snprintf(messptr, MESSAGE_LENGTH,
+  BaseString::snprintf(messptr, MESSAGE_LENGTH,
 	   "Date/Time: %s\nType of error: %s\n"
 	   "Message: %s\nFault ID: %d\nProblem data: %s"
 	   "\nObject of reference: %s\nProgramName: %s\n"
@@ -157,13 +157,13 @@ ErrorReporter::handleAssert(const char* message, const char* file, int line)
   char refMessage[100];
 
 #ifdef NO_EMULATED_JAM
-  snprintf(refMessage, 100, "file: %s lineNo: %d",
+  BaseString::snprintf(refMessage, 100, "file: %s lineNo: %d",
 	   file, line);
 #else
   const Uint32 blockNumber = theEmulatedJamBlockNumber;
   const char *blockName = getBlockName(blockNumber);
 
-  snprintf(refMessage, 100, "%s line: %d (block: %s)",
+  BaseString::snprintf(refMessage, 100, "%s line: %d (block: %s)",
 	   file, line, blockName);
 #endif
   WriteMessage(assert, ERR_ERROR_PRGERR, message, refMessage,
@@ -178,7 +178,7 @@ ErrorReporter::handleThreadAssert(const char* message,
                                   int line)
 {
   char refMessage[100];
-  snprintf(refMessage, 100, "file: %s lineNo: %d - %s",
+  BaseString::snprintf(refMessage, 100, "file: %s lineNo: %d - %s",
 	   file, line, message);
   
   NdbShutdown(NST_ErrorHandler);

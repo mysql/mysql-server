@@ -304,14 +304,11 @@ bool Field::field_cast_compatible(Field::field_cast_enum type)
 {
   DBUG_ASSERT(type != FIELD_CAST_STOP);
   Field::field_cast_enum *array= field_cast_array[field_cast_type()];
-  uint i= 0;
-  Field::field_cast_enum tp;
-  do
+  while (*array != FIELD_CAST_STOP)
   {
-    tp=  array[i++];
-    if (tp == type)
+    if (*(array++) == type)
       return 1;
-  } while (tp != FIELD_CAST_STOP);
+  }
   return 0;
 }
 
@@ -455,11 +452,9 @@ bool Field::get_time(TIME *ltime)
 
 void Field::store_time(TIME *ltime,timestamp_type type)
 {
-  char buff[MAX_DATE_REP_LENGTH];
-  String tmp;
-  tmp.set(buff, sizeof(buff), &my_charset_bin);
-  TIME_to_string(ltime, &tmp);
-  store(buff, tmp.length(), &my_charset_bin);
+  char buff[MAX_DATE_STRING_REP_LENGTH];
+  uint length= (uint) my_TIME_to_str(ltime, buff);
+  store(buff, length, &my_charset_bin);
 }
 
 
@@ -4438,13 +4433,9 @@ char *Field_string::pack(char *to, const char *from, uint max_length)
   while (end > from && end[-1] == ' ')
     end--;
   length= (end-from);
+  *to++= (char) (uchar) length;
   if (field_length > 255)
-  {
-    int2store(to, length);
-    to+= 2;
-  }
-  else
-    *to++= (char) (uchar) length;
+    *to++= (char) (uchar) (length >> 8);
   memcpy(to, from, (int) length);
   return to+length;
 }
@@ -4459,13 +4450,9 @@ char *Field_string::pack_key(char *to, const char *from, uint max_length)
   set_if_smaller(length, char_length);
   while (length && from[length-1] == ' ')
     length--;
+  *to++= (char) (uchar) length;
   if (field_length > 255)
-  {
-    int2store(to, length);
-    to+= 2;
-  }
-  else
-    *to++= (char) (uchar) length;
+    *to++= (char) (uchar) (length >> 8);
   memcpy(to, from, length);
   return to+length;
 }

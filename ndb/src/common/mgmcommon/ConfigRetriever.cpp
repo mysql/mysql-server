@@ -186,7 +186,7 @@ ConfigRetriever::getConfig(const char * filename){
   const int res = stat(filename, &sbuf);
   if(res != 0){
     char buf[255];
-    snprintf(buf, sizeof(buf), "Could not find file: \"%s\"", filename);
+    BaseString::snprintf(buf, sizeof(buf), "Could not find file: \"%s\"", filename);
     setError(CR_ERROR, buf);
     return 0;
   }
@@ -211,7 +211,7 @@ ConfigRetriever::getConfig(const char * filename){
   ConfigValuesFactory cvf;
   if(!cvf.unpack(buf2, bytes)){
     char buf[255];
-    snprintf(buf, sizeof(buf), "Error while unpacking"); 
+    BaseString::snprintf(buf, sizeof(buf), "Error while unpacking"); 
     setError(CR_ERROR, buf);
     delete []buf2;
     return 0;
@@ -241,7 +241,7 @@ ConfigRetriever::verifyConfig(const struct ndb_mgm_configuration * conf, Uint32 
   it = ndb_mgm_create_configuration_iterator((struct ndb_mgm_configuration *)conf, CFG_SECTION_NODE);
 
   if(it == 0){
-    snprintf(buf, 255, "Unable to create config iterator");
+    BaseString::snprintf(buf, 255, "Unable to create config iterator");
     setError(CR_ERROR, buf);
     return false;
     
@@ -249,14 +249,14 @@ ConfigRetriever::verifyConfig(const struct ndb_mgm_configuration * conf, Uint32 
   NdbAutoPtr<ndb_mgm_configuration_iterator> ptr(it);
   
   if(ndb_mgm_find(it, CFG_NODE_ID, nodeid) != 0){
-    snprintf(buf, 255, "Unable to find node with id: %d", nodeid);
+    BaseString::snprintf(buf, 255, "Unable to find node with id: %d", nodeid);
     setError(CR_ERROR, buf);
     return false;
   }
      
   const char * hostname;
   if(ndb_mgm_get_string_parameter(it, CFG_NODE_HOST, &hostname)){
-    snprintf(buf, 255, "Unable to get hostname(%d) from config",CFG_NODE_HOST);
+    BaseString::snprintf(buf, 255, "Unable to get hostname(%d) from config",CFG_NODE_HOST);
     setError(CR_ERROR, buf);
     return false;
   }
@@ -268,7 +268,7 @@ ConfigRetriever::verifyConfig(const struct ndb_mgm_configuration * conf, Uint32 
 
   if (hostname && hostname[0] != 0 &&
       !SocketServer::tryBind(0,hostname)) {
-    snprintf(buf, 255, "Config hostname(%s) don't match a local interface,"
+    BaseString::snprintf(buf, 255, "Config hostname(%s) don't match a local interface,"
 	     " tried to bind, error = %d - %s",
 	     hostname, errno, strerror(errno));
     setError(CR_ERROR, buf);
@@ -277,14 +277,14 @@ ConfigRetriever::verifyConfig(const struct ndb_mgm_configuration * conf, Uint32 
 
   unsigned int _type;
   if(ndb_mgm_get_int_parameter(it, CFG_TYPE_OF_SECTION, &_type)){
-    snprintf(buf, 255, "Unable to get type of node(%d) from config",
+    BaseString::snprintf(buf, 255, "Unable to get type of node(%d) from config",
 	     CFG_TYPE_OF_SECTION);
     setError(CR_ERROR, buf);
     return false;
   }
   
   if(_type != m_node_type){
-    snprintf(buf, 255, "Supplied node type(%d) and config node type(%d) "
+    BaseString::snprintf(buf, 255, "Supplied node type(%d) and config node type(%d) "
 	     " don't match", m_node_type, _type);
     setError(CR_ERROR, buf);
     return false;

@@ -98,7 +98,7 @@ Dbtux::printTree(Signal* signal, Frag& frag, NdbOut& out)
   strcpy(par.m_path, ".");
   par.m_side = 2;
   par.m_parent = NullTupLoc;
-  printNode(signal, frag, out, tree.m_root, par);
+  printNode(frag, out, tree.m_root, par);
   out.m_out->flush();
   if (! par.m_ok) {
     if (debugFile == 0) {
@@ -114,7 +114,7 @@ Dbtux::printTree(Signal* signal, Frag& frag, NdbOut& out)
 }
 
 void
-Dbtux::printNode(Signal* signal, Frag& frag, NdbOut& out, TupLoc loc, PrintPar& par)
+Dbtux::printNode(Frag& frag, NdbOut& out, TupLoc loc, PrintPar& par)
 {
   if (loc == NullTupLoc) {
     par.m_depth = 0;
@@ -122,7 +122,7 @@ Dbtux::printNode(Signal* signal, Frag& frag, NdbOut& out, TupLoc loc, PrintPar& 
   }
   TreeHead& tree = frag.m_tree;
   NodeHandle node(frag);
-  selectNode(signal, node, loc, AccFull);
+  selectNode(node, loc);
   out << par.m_path << " " << node << endl;
   // check children
   PrintPar cpar[2];
@@ -132,7 +132,7 @@ Dbtux::printNode(Signal* signal, Frag& frag, NdbOut& out, TupLoc loc, PrintPar& 
     cpar[i].m_side = i;
     cpar[i].m_depth = 0;
     cpar[i].m_parent = loc;
-    printNode(signal, frag, out, node.getLink(i), cpar[i]);
+    printNode(frag, out, node.getLink(i), cpar[i]);
     if (! cpar[i].m_ok) {
       par.m_ok = false;
     }
@@ -178,16 +178,19 @@ Dbtux::printNode(Signal* signal, Frag& frag, NdbOut& out, TupLoc loc, PrintPar& 
     out << "occupancy " << node.getOccup() << " of interior node";
     out << " less than min " << tree.m_minOccup << endl;
   }
-  // check missed half-leaf/leaf merge
+#ifdef dbtux_totally_groks_t_trees
+  // check missed semi-leaf/leaf merge
   for (unsigned i = 0; i <= 1; i++) {
     if (node.getLink(i) != NullTupLoc &&
         node.getLink(1 - i) == NullTupLoc &&
-        node.getOccup() + cpar[i].m_occup <= tree.m_maxOccup) {
+        // our semi-leaf seems to satify interior minOccup condition
+        node.getOccup() < tree.m_minOccup) {
       par.m_ok = false;
       out << par.m_path << sep;
       out << "missed merge with child " << i << endl;
     }
   }
+#endif
   // check inline prefix
   { ConstData data1 = node.getPref();
     Uint32 data2[MaxPrefSize];
@@ -256,8 +259,8 @@ operator<<(NdbOut& out, const Dbtux::TupLoc& loc)
   if (loc == Dbtux::NullTupLoc) {
     out << "null";
   } else {
-    out << dec << loc.m_pageId;
-    out << "." << dec << loc.m_pageOffset;
+    out << dec << loc.getPageId();
+    out << "." << dec << loc.getPageOffset();
   }
   return out;
 }
@@ -274,16 +277,13 @@ operator<<(NdbOut& out, const Dbtux::TreeEnt& ent)
 NdbOut&
 operator<<(NdbOut& out, const Dbtux::TreeNode& node)
 {
-  Dbtux::TupLoc link0(node.m_linkPI[0], node.m_linkPO[0]);
-  Dbtux::TupLoc link1(node.m_linkPI[1], node.m_linkPO[1]);
-  Dbtux::TupLoc link2(node.m_linkPI[2], node.m_linkPO[2]);
   out << "[TreeNode " << hex << &node;
-  out << " [left " << link0 << "]";
-  out << " [right " << link1 << "]";
-  out << " [up " << link2 << "]";
+  out << " [left " << node.m_link[0] << "]";
+  out << " [right " << node.m_link[1] << "]";
+  out << " [up " << node.m_link[2] << "]";
   out << " [side " << dec << node.m_side << "]";
   out << " [occup " << dec << node.m_occup << "]";
-  out << " [balance " << dec << (int)node.m_balance << "]";
+  out << " [balance " << dec << (int)node.m_balance - 1 << "]";
   out << " [nodeScan " << hex << node.m_nodeScan << "]";
   out << "]";
   return out;
@@ -313,7 +313,6 @@ operator<<(NdbOut& out, const Dbtux::TreePos& pos)
   out << " [pos " << dec << pos.m_pos << "]";
   out << " [match " << dec << pos.m_match << "]";
   out << " [dir " << dec << pos.m_dir << "]";
-  out << " [ent " << pos.m_ent << "]";
   out << "]";
   return out;
 }
@@ -350,6 +349,7 @@ operator<<(NdbOut& out, const Dbtux::ScanOp& scan)
   out << " [lockMode " << dec << scan.m_lockMode << "]";
   out << " [keyInfo " << dec << scan.m_keyInfo << "]";
   out << " [pos " << scan.m_scanPos << "]";
+  out << " [ent " << scan.m_scanEnt << "]";
   for (unsigned i = 0; i <= 1; i++) {
     out << " [bound " << dec << i;
     Dbtux::ScanBound& bound = *scan.m_bound[i];
@@ -410,27 +410,21 @@ operator<<(NdbOut& out, const Dbtux::NodeHandle& node)
   const Dbtux::TreeHead& tree = frag.m_tree;
   out << "[NodeHandle " << hex << &node;
   out << " [loc " << node.m_loc << "]";
-  out << " [acc " << dec << node.m_acc << "]";
   out << " [node " << *node.m_node << "]";
-  if (node.m_acc >= Dbtux::AccPref) {
-    const Uint32* data;
-    out << " [pref";
-    data = (const Uint32*)node.m_node + Dbtux::NodeHeadSize;
-    for (unsigned j = 0; j < tree.m_prefSize; j++)
-      out << " " << hex << data[j];
-    out << "]";
-    out << " [entList";
-    unsigned numpos = node.m_node->m_occup;
-    if (node.m_acc < Dbtux::AccFull && numpos > 2) {
-      numpos = 2;
-      out << "(" << dec << numpos << ")";
-    }
-    data = (const Uint32*)node.m_node + Dbtux::NodeHeadSize + tree.m_prefSize;
-    const Dbtux::TreeEnt* entList = (const Dbtux::TreeEnt*)data;
-    for (unsigned pos = 0; pos < numpos; pos++)
-      out << " " << entList[pos];
-    out << "]";
-  }
+  const Uint32* data;
+  out << " [pref";
+  data = (const Uint32*)node.m_node + Dbtux::NodeHeadSize;
+  for (unsigned j = 0; j < tree.m_prefSize; j++)
+    out << " " << hex << data[j];
+  out << "]";
+  out << " [entList";
+  unsigned numpos = node.m_node->m_occup;
+  data = (const Uint32*)node.m_node + Dbtux::NodeHeadSize + tree.m_prefSize;
+  const Dbtux::TreeEnt* entList = (const Dbtux::TreeEnt*)data;
+  // print entries in logical order
+  for (unsigned pos = 1; pos <= numpos; pos++)
+    out << " " << entList[pos % numpos];
+  out << "]";
   out << "]";
   return out;
 }

@@ -216,10 +216,6 @@ int
 NdbOperation::initial_interpreterCheck()
 {
   if ((theInterpretIndicator == 1)) {
-    if (theStatus == SetBound) {
-      ((NdbIndexScanOperation*)this)->saveBoundATTRINFO();
-      theStatus = GetValue;
-    }
     if (theStatus == ExecInterpretedValue) {
        return 0; // Simply continue with interpretation
     } else if (theStatus == GetValue) {

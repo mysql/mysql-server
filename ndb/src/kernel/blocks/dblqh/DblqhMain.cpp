@@ -2803,8 +2803,10 @@ void Dblqh::execKEYINFO(Signal* signal)
     return;
   }//if
   TcConnectionrec * const regTcPtr = tcConnectptr.p;
-  if (regTcPtr->transactionState !=
-      TcConnectionrec::WAIT_TUPKEYINFO) {
+  TcConnectionrec::TransactionState state = regTcPtr->transactionState;
+  if (state != TcConnectionrec::WAIT_TUPKEYINFO &&
+      state != TcConnectionrec::WAIT_SCAN_AI)
+  {
     jam();
 /*****************************************************************************/
 /* TRANSACTION WAS ABORTED, THIS IS MOST LIKELY A SIGNAL BELONGING TO THE    */
@@ -2823,14 +2825,20 @@ void Dblqh::execKEYINFO(Signal* signal)
     }//if
     jam();
     terrorCode = errorCode;
-    abortErrorLab(signal);
+    if(state == TcConnectionrec::WAIT_TUPKEYINFO)
+      abortErrorLab(signal);
+    else
+      abort_scan(signal, regTcPtr->tcScanRec, errorCode);
     return;
   }//if
-  FragrecordPtr regFragptr;
-  regFragptr.i = regTcPtr->fragmentptr;
-  ptrCheckGuard(regFragptr, cfragrecFileSize, fragrecord);
-  fragptr = regFragptr;
-  endgettupkeyLab(signal);
+  if(state == TcConnectionrec::WAIT_TUPKEYINFO)
+  {
+    FragrecordPtr regFragptr;
+    regFragptr.i = regTcPtr->fragmentptr;
+    ptrCheckGuard(regFragptr, cfragrecFileSize, fragrecord);
+    fragptr = regFragptr;
+    endgettupkeyLab(signal);
+  }
   return;
 }//Dblqh::execKEYINFO()
 
@@ -2838,9 +2846,9 @@ void Dblqh::execKEYINFO(Signal* signal)
 /* FILL IN KEY DATA INTO DATA BUFFERS.                                       */
 /* ------------------------------------------------------------------------- */
 Uint32 Dblqh::handleLongTupKey(Signal* signal,
-                             Uint32 keyLength,
-                             Uint32 primKeyLength,
-                             Uint32* dataPtr) 
+			       Uint32 keyLength,
+			       Uint32 primKeyLength,
+			       Uint32* dataPtr) 
 {
   TcConnectionrec * const regTcPtr = tcConnectptr.p;
   Uint32 dataPos = 0;
@@ -3293,11 +3301,14 @@ void Dblqh::execLQHKEYREQ(Signal* signal)
   regTcPtr->dirtyOp       = LqhKeyReq::getDirtyFlag(Treqinfo);
   regTcPtr->opExec        = LqhKeyReq::getInterpretedFlag(Treqinfo);
   regTcPtr->opSimple      = LqhKeyReq::getSimpleFlag(Treqinfo);
-  regTcPtr->simpleRead    = ((Treqinfo >> 18) & 15);
   regTcPtr->operation     = LqhKeyReq::getOperation(Treqinfo);
+  regTcPtr->simpleRead    = regTcPtr->operation == ZREAD && regTcPtr->opSimple;
   regTcPtr->seqNoReplica  = LqhKeyReq::getSeqNoReplica(Treqinfo);
   UintR TreclenAiLqhkey   = LqhKeyReq::getAIInLqhKeyReq(Treqinfo);
   regTcPtr->apiVersionNo  = 0; 
+  
+  CRASH_INSERTION2(5041, regTcPtr->simpleRead && 
+		   refToNode(signal->senderBlockRef()) != cownNodeid);
   
   regTcPtr->reclenAiLqhkey = TreclenAiLqhkey;
   regTcPtr->currReclenAi = TreclenAiLqhkey;
@@ -3425,7 +3436,7 @@ void Dblqh::execLQHKEYREQ(Signal* signal)
   if ((tfragDistKey != TdistKey) &&
       (regTcPtr->seqNoReplica == 0) &&
       (regTcPtr->dirtyOp == ZFALSE) &&
-      (regTcPtr->simpleRead != ZSIMPLE_READ)) {
+      (regTcPtr->simpleRead == ZFALSE)) {
     /* ----------------------------------------------------------------------
      * WE HAVE DIFFERENT OPINION THAN THE DIH THAT STARTED THE TRANSACTION. 
      * THE REASON COULD BE THAT THIS IS AN OLD DISTRIBUTION WHICH IS NO LONGER
@@ -3433,7 +3444,7 @@ void Dblqh::execLQHKEYREQ(Signal* signal)
      * ONE IS ADDED TO THE DISTRIBUTION KEY EVERY TIME WE ADD A NEW REPLICA.
      * FAILED REPLICAS DO NOT AFFECT THE DISTRIBUTION KEY. THIS MEANS THAT THE 
      * MAXIMUM DEVIATION CAN BE ONE BETWEEN THOSE TWO VALUES.              
-     * ---------------------------------------------------------------------- */
+     * --------------------------------------------------------------------- */
     Int32 tmp = TdistKey - tfragDistKey;
     tmp = (tmp < 0 ? - tmp : tmp);
     if ((tmp <= 1) || (tfragDistKey == 0)) {
@@ -3686,7 +3697,7 @@ void Dblqh::prepareContinueAfterBlockedLab(Signal* signal)
   signal->theData[9] = sig3;
   signal->theData[10] = sig4;
   if (regTcPtr->primKeyLen > 4) {
-    sendKeyinfoAcc(signal);
+    sendKeyinfoAcc(signal, 11);
   }//if
   EXECUTE_DIRECT(refToBlock(regTcPtr->tcAccBlockref), GSN_ACCKEYREQ, 
 		 signal, 7 + regTcPtr->primKeyLen);
@@ -3708,9 +3719,8 @@ void Dblqh::prepareContinueAfterBlockedLab(Signal* signal)
 /* =======                  SEND KEYINFO TO ACC                       ======= */
 /*                                                                            */
 /* ========================================================================== */
-void Dblqh::sendKeyinfoAcc(Signal* signal) 
+void Dblqh::sendKeyinfoAcc(Signal* signal, Uint32 Ti) 
 {
-  UintR Ti = 11;
   DatabufPtr regDatabufptr;
   regDatabufptr.i = tcConnectptr.p->firstTupkeybuf;
   
@@ -3874,7 +3884,7 @@ void Dblqh::tupkeyConfLab(Signal* signal)
 /* ---- GET OPERATION TYPE AND CHECK WHAT KIND OF OPERATION IS REQUESTED ---- */
   const TupKeyConf * const tupKeyConf = (TupKeyConf *)&signal->theData[0];
   TcConnectionrec * const regTcPtr = tcConnectptr.p;
-  if (regTcPtr->simpleRead == ZSIMPLE_READ) {
+  if (regTcPtr->simpleRead) {
     jam();
     /* ----------------------------------------------------------------------
      * THE OPERATION IS A SIMPLE READ. WE WILL IMMEDIATELY COMMIT THE OPERATION.
@@ -5462,6 +5472,8 @@ void Dblqh::commitContinueAfterBlockedLab(Signal* signal)
   TcConnectionrec * const regTcPtr = tcConnectptr.p;
   Fragrecord * const regFragptr = fragptr.p;
   Uint32 operation = regTcPtr->operation;
+  Uint32 simpleRead = regTcPtr->simpleRead;
+  Uint32 dirtyOp = regTcPtr->dirtyOp;
   if (regTcPtr->activeCreat == ZFALSE) {
     if ((cCommitBlocked == true) &&
         (regFragptr->fragActiveStatus == ZTRUE)) {
@@ -5499,13 +5511,18 @@ void Dblqh::commitContinueAfterBlockedLab(Signal* signal)
       tupCommitReq->hashValue = regTcPtr->hashValue;
       EXECUTE_DIRECT(tup, GSN_TUP_COMMITREQ, signal, 
 		     TupCommitReq::SignalLength);
-    }//if
-    Uint32 acc = refToBlock(regTcPtr->tcAccBlockref);
-    signal->theData[0] = regTcPtr->accConnectrec;
-    EXECUTE_DIRECT(acc, GSN_ACC_COMMITREQ, signal, 1);
-    Uint32 simpleRead = regTcPtr->simpleRead;
+      Uint32 acc = refToBlock(regTcPtr->tcAccBlockref);
+      signal->theData[0] = regTcPtr->accConnectrec;
+      EXECUTE_DIRECT(acc, GSN_ACC_COMMITREQ, signal, 1);
+    } else {
+      if(!dirtyOp){
+	Uint32 acc = refToBlock(regTcPtr->tcAccBlockref);
+	signal->theData[0] = regTcPtr->accConnectrec;
+	EXECUTE_DIRECT(acc, GSN_ACC_COMMITREQ, signal, 1);
+      }
+    }
     jamEntry();
-    if (simpleRead == ZSIMPLE_READ) {
+    if (simpleRead) {
       jam();
 /* ------------------------------------------------------------------------- */
 /*THE OPERATION WAS A SIMPLE READ THUS THE COMMIT PHASE IS ONLY NEEDED TO    */
@@ -5518,7 +5535,6 @@ void Dblqh::commitContinueAfterBlockedLab(Signal* signal)
       return;
     }//if
   }//if
-  Uint32 dirtyOp = regTcPtr->dirtyOp;
   Uint32 seqNoReplica = regTcPtr->seqNoReplica;
   if (regTcPtr->gci > regFragptr->newestGci) {
     jam();
@@ -6087,7 +6103,7 @@ void Dblqh::abortStateHandlerLab(Signal* signal)
 /* ------------------------------------------------------------------------- */
       return;
     }//if
-    if (regTcPtr->simpleRead == ZSIMPLE_READ) {
+    if (regTcPtr->simpleRead) {
       jam();
 /* ------------------------------------------------------------------------- */
 /*A SIMPLE READ IS CURRENTLY RELEASING THE LOCKS OR WAITING FOR ACCESS TO    */
@@ -6373,7 +6389,7 @@ void Dblqh::continueAbortLab(Signal* signal)
 void Dblqh::continueAfterLogAbortWriteLab(Signal* signal) 
 {
   TcConnectionrec * const regTcPtr = tcConnectptr.p;
-  if (regTcPtr->simpleRead == ZSIMPLE_READ) {
+  if (regTcPtr->simpleRead) {
     jam();
     TcKeyRef * const tcKeyRef = (TcKeyRef *) signal->getDataPtrSend();
     
@@ -7409,7 +7425,8 @@ void Dblqh::execSCAN_FRAGREQ(Signal* signal)
 
   jamEntry();
   const Uint32 reqinfo = scanFragReq->requestInfo;
-  const Uint32 fragId = scanFragReq->fragmentNo;
+  const Uint32 fragId = (scanFragReq->fragmentNoKeyLen & 0xFFFF);
+  const Uint32 keyLen = (scanFragReq->fragmentNoKeyLen >> 16);
   tabptr.i = scanFragReq->tableId;
   const Uint32 max_rows = scanFragReq->batch_size_rows;
   const Uint32 scanLockMode = ScanFragReq::getLockMode(reqinfo);
@@ -7473,6 +7490,8 @@ void Dblqh::execSCAN_FRAGREQ(Signal* signal)
              transid2,
              fragId,
              ZNIL);
+  tcConnectptr.p->save1 = 4;
+  tcConnectptr.p->primKeyLen = keyLen + 4; // hard coded in execKEYINFO
   errorCode = initScanrec(scanFragReq);
   if (errorCode != ZOK) {
     jam();
@@ -7585,23 +7604,29 @@ void Dblqh::scanAttrinfoLab(Signal* signal, Uint32* dataPtr, Uint32 length)
     }//if
     return;
   }//if
-  terrorCode = ZGET_ATTRINBUF_ERROR;
+  abort_scan(signal, scanptr.i, ZGET_ATTRINBUF_ERROR);
+}
+
+void Dblqh::abort_scan(Signal* signal, Uint32 scan_ptr_i, Uint32 errcode){
+  jam();
+  scanptr.i = scan_ptr_i;
+  c_scanRecordPool.getPtr(scanptr);
   finishScanrec(signal);
   releaseScanrec(signal);
   tcConnectptr.p->transactionState = TcConnectionrec::IDLE;
   tcConnectptr.p->abortState = TcConnectionrec::ABORT_ACTIVE;
-
+  
   ScanFragRef * ref = (ScanFragRef*)&signal->theData[0];
   ref->senderData = tcConnectptr.p->clientConnectrec;
   ref->transId1 = tcConnectptr.p->transid[0];
   ref->transId2 = tcConnectptr.p->transid[1];
-  ref->errorCode = terrorCode;
+  ref->errorCode = errcode;
   sendSignal(tcConnectptr.p->clientBlockref, GSN_SCAN_FRAGREF, signal, 
 	     ScanFragRef::SignalLength, JBB);
   deleteTransidHash(signal);
   releaseOprec(signal);
   releaseTcrec(signal, tcConnectptr);
-}//Dblqh::scanAttrinfoLab()
+}
 
 /*---------------------------------------------------------------------*/
 /* Send this 'I am alive' signal to TC when it is received from ACC    */
@@ -7672,34 +7697,17 @@ void Dblqh::accScanConfScanLab(Signal* signal)
     return;
   }//if
   scanptr.p->scanAccPtr = accScanConf->accPtr;
-  AttrbufPtr regAttrinbufptr;
-  regAttrinbufptr.i = tcConnectptr.p->firstAttrinbuf;
-  Uint32 boundAiLength = 0;
+  Uint32 boundAiLength = tcConnectptr.p->primKeyLen - 4;
   if (scanptr.p->rangeScan) {
     jam();
-    // bound info length is in first of the 5 header words
-    ptrCheckGuard(regAttrinbufptr, cattrinbufFileSize, attrbuf);
-    boundAiLength = regAttrinbufptr.p->attrbuf[0];
     TuxBoundInfo* const req = (TuxBoundInfo*)signal->getDataPtrSend();
     req->errorCode = RNIL;
     req->tuxScanPtrI = scanptr.p->scanAccPtr;
     req->boundAiLength = boundAiLength;
-    Uint32* out = (Uint32*)req + TuxBoundInfo::SignalLength;
-    Uint32 sz = 0;
-    while (sz < boundAiLength) {
-      jam();
-      ptrCheckGuard(regAttrinbufptr, cattrinbufFileSize, attrbuf);
-      Uint32 dataLen = regAttrinbufptr.p->attrbuf[ZINBUF_DATA_LEN];
-      MEMCOPY_NO_WORDS(&out[sz],
-                       &regAttrinbufptr.p->attrbuf[0],
-                       dataLen);
-      sz += dataLen;
-      regAttrinbufptr.i = regAttrinbufptr.p->attrbuf[ZINBUF_NEXT];
-      ptrCheckGuard(regAttrinbufptr, cattrinbufFileSize, attrbuf);
-    }
-    ndbrequire(sz == boundAiLength);
+    if(boundAiLength > 0)
+      sendKeyinfoAcc(signal, TuxBoundInfo::SignalLength);
     EXECUTE_DIRECT(DBTUX, GSN_TUX_BOUND_INFO,
-        signal, TuxBoundInfo::SignalLength + boundAiLength);
+		   signal, TuxBoundInfo::SignalLength + boundAiLength);
     jamEntry();
     if (req->errorCode != 0) {
       jam();
@@ -7716,12 +7724,14 @@ void Dblqh::accScanConfScanLab(Signal* signal)
   signal->theData[1] = tcConnectptr.p->tableref;
   signal->theData[2] = scanptr.p->scanSchemaVersion;
   signal->theData[3] = ZSTORED_PROC_SCAN;
-  ndbrequire(boundAiLength <= scanptr.p->scanAiLength);
-  signal->theData[4] = scanptr.p->scanAiLength - boundAiLength;
+
+  signal->theData[4] = scanptr.p->scanAiLength;
   sendSignal(tcConnectptr.p->tcTupBlockref,
              GSN_STORED_PROCREQ, signal, 5, JBB);
 
   signal->theData[0] = tcConnectptr.p->tupConnectrec;
+  AttrbufPtr regAttrinbufptr;
+  regAttrinbufptr.i = tcConnectptr.p->firstAttrinbuf;
   while (regAttrinbufptr.i != RNIL) {
     ptrCheckGuard(regAttrinbufptr, cattrinbufFileSize, attrbuf);
     jam();
@@ -14797,7 +14807,7 @@ void Dblqh::execDEBUG_SIG(Signal* signal)
   tdebug = logPagePtr.p->logPageWord[0];
 
   char buf[100];
-  snprintf(buf, 100, 
+  BaseString::snprintf(buf, 100, 
 	   "Error while reading REDO log.\n"
 	   "D=%d, F=%d Mb=%d FP=%d W1=%d W2=%d",
 	   signal->theData[2], signal->theData[3], signal->theData[4],

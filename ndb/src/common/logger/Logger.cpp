@@ -340,7 +340,7 @@ Logger::log(LoggerLevel logLevel, const char* pMsg, va_list ap) const
     while ( (pHandler = m_pHandlerList->next()) != NULL)
     {
       char buf[1024];
-      vsnprintf(buf, sizeof(buf), pMsg, ap);
+      BaseString::vsnprintf(buf, sizeof(buf), pMsg, ap);
       pHandler->append(m_pCategory, logLevel, buf);
     }
   } 

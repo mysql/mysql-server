@@ -365,6 +365,11 @@ uint my_instr_mb(struct charset_info_st *,
                  const char *s, uint s_length,
                  my_match_t *match, uint nmatch);
 
+int my_wildcmp_unicode(CHARSET_INFO *cs,
+                       const char *str, const char *str_end,
+                       const char *wildstr, const char *wildend,
+                       int escape, int w_one, int w_many,
+                       MY_UNICASE_INFO **weights);
 
 extern my_bool my_parse_charset_xml(const char *bug, uint len,
 				    int (*add)(CHARSET_INFO *cs));

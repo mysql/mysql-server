@@ -8,7 +8,7 @@ use File::Path;
 use DBI;
 use Sys::Hostname;
 use File::Copy;
-use File::Temp;
+use File::Temp qw(tempfile);
 
 =head1 NAME
 
@@ -39,7 +39,7 @@ WARNING: THIS PROGRAM IS STILL IN BETA. Comments/patches welcome.
 
 # Documentation continued at end of file
 
-my $VERSION = "1.21";
+my $VERSION = "1.22";
 
 my $opt_tmpdir = $ENV{TMPDIR} || "/tmp";
 
@@ -655,8 +655,8 @@ sub copy_index
     }
     elsif ($opt{method} =~ /^scp\b/)
     {
-      my ($fh, $tmp)=tempfile('mysqlhotcopy-XXXXXX', DIR => $opt_tmpdir);
-      die "Can\'t create/open file in $opt_tmpdir\n";
+      my ($fh, $tmp)= tempfile('mysqlhotcopy-XXXXXX', DIR => $opt_tmpdir) or
+	die "Can\'t create/open file in $opt_tmpdir\n";
       if (syswrite($fh,$buff) != length($buff))
       {
 	die "Error when writing data to $tmp: $!\n";

@@ -284,14 +284,6 @@ void debug_sync_point(const char* lock_name, uint lock_timeout);
 #define WEEK_MONDAY_FIRST    1
 #define WEEK_YEAR            2
 #define WEEK_FIRST_WEEKDAY   4
-/*
-  Required buffer length for make_date, make_time, make_datetime
-  and TIME_to_string functions. Note, that the caller is still
-  responsible to check that given TIME structure has values
-  in valid ranges, otherwise size of the buffer could be not 
-  enough.
-*/
-#define MAX_DATE_REP_LENGTH 30
 
 enum enum_parsing_place
 {
@@ -374,7 +366,7 @@ int multi_delete_precheck(THD *thd, TABLE_LIST *tables, uint *table_count);
 int insert_select_precheck(THD *thd, TABLE_LIST *tables);
 int update_precheck(THD *thd, TABLE_LIST *tables);
 int delete_precheck(THD *thd, TABLE_LIST *tables);
-int insert_precheck(THD *thd, TABLE_LIST *tables, bool update);
+int insert_precheck(THD *thd, TABLE_LIST *tables);
 int create_table_precheck(THD *thd, TABLE_LIST *tables,
 			  TABLE_LIST *create_table);
 Item *negate_expression(THD *thd, Item *expr);
@@ -897,7 +889,7 @@ extern uint test_flags,select_errors,ha_open_options;
 extern uint protocol_version, mysqld_port, dropping_tables;
 extern uint delay_key_write_options, lower_case_table_names;
 extern bool opt_endinfo, using_udf_functions, locked_in_memory;
-extern bool opt_using_transactions, mysql_embedded;
+extern bool opt_using_transactions, mysqld_embedded;
 extern bool using_update_log, opt_large_files, server_id_supplied;
 extern bool opt_log, opt_update_log, opt_bin_log, opt_slow_log, opt_error_log;
 extern bool opt_disable_networking, opt_skip_show_db;
@@ -1046,7 +1038,6 @@ void make_date(const DATE_TIME_FORMAT *format, const TIME *l_time,
                String *str);
 void make_time(const DATE_TIME_FORMAT *format, const TIME *l_time,
                String *str);
-void TIME_to_string(const TIME *time, String *str);
 ulonglong TIME_to_ulonglong_datetime(const TIME *time);
 ulonglong TIME_to_ulonglong_date(const TIME *time);
 ulonglong TIME_to_ulonglong_time(const TIME *time);

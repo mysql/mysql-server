@@ -15,6 +15,9 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 #include <ndb_global.h>
+#include <my_sys.h>
+
+#include <NdbAutoPtr.hpp>
 
 #include <NdbTCP.h>
 #include "mgmapi.h"
@@ -107,7 +110,7 @@ setError(NdbMgmHandle h, int error, int error_line, const char * msg, ...){
 
   va_list ap;
   va_start(ap, msg);
-  vsnprintf(h->last_error_desc, sizeof(h->last_error_desc), msg, ap);
+  BaseString::vsnprintf(h->last_error_desc, sizeof(h->last_error_desc), msg, ap);
   va_end(ap);
 }
 
@@ -137,7 +140,8 @@ extern "C"
 NdbMgmHandle
 ndb_mgm_create_handle()
 {
-  NdbMgmHandle h     = (NdbMgmHandle)malloc(sizeof(ndb_mgm_handle));
+  NdbMgmHandle h     =
+    (NdbMgmHandle)my_malloc(sizeof(ndb_mgm_handle),MYF(MY_WME));
   h->connected       = 0;
   h->last_error      = 0;
   h->last_error_line = 0;
@@ -166,16 +170,14 @@ ndb_mgm_destroy_handle(NdbMgmHandle * handle)
   if((* handle)->connected){
     ndb_mgm_disconnect(* handle);
   }
-  if((* handle)->hostname != 0){
-    free((* handle)->hostname);
-  }
+  my_free((* handle)->hostname,MYF(MY_ALLOW_ZERO_PTR));
 #ifdef MGMAPI_LOG
   if ((* handle)->logfile != 0){
     fclose((* handle)->logfile);
     (* handle)->logfile = 0;
   }
 #endif
-  free(* handle);
+  my_free((char*)* handle,MYF(MY_ALLOW_ZERO_PTR));
   * handle = 0;
 }
 
@@ -228,7 +230,8 @@ parse_connect_string(const char * connect_string,
     return -1;
   }
   
-  char * line = strdup(connect_string);
+  char * line = my_strdup(connect_string,MYF(MY_WME));
+  My_auto_ptr<char> ap1(line);
   if(line == 0){
     SET_ERROR(handle, NDB_MGM_OUT_OF_MEMORY, "");
     return -1;
@@ -236,7 +239,6 @@ parse_connect_string(const char * connect_string,
   
   char * tmp = strchr(line, ':');
   if(tmp == 0){
-    free(line);
     SET_ERROR(handle, NDB_MGM_OUT_OF_MEMORY, "");
     return -1;
   }
@@ -244,17 +246,13 @@ parse_connect_string(const char * connect_string,
   
   int port = 0;
   if(sscanf(tmp, "%d", &port) != 1){
-    free(line);
     SET_ERROR(handle, NDB_MGM_ILLEGAL_PORT_NUMBER, "");
     return -1;
   }
   
-  if(handle->hostname != 0)
-    free(handle->hostname);
-
-  handle->hostname = strdup(line);
+  my_free(handle->hostname,MYF(MY_ALLOW_ZERO_PTR));
+  handle->hostname = my_strdup(line,MYF(MY_WME));
   handle->port = port;
-  free(line);
   return 0;
 }
 
@@ -361,7 +359,7 @@ ndb_mgm_connect(NdbMgmHandle handle, const char * mgmsrv)
   * Open the log file
   */
   char logname[64];
-  snprintf(logname, 64, "mgmapi.log");
+  BaseString::snprintf(logname, 64, "mgmapi.log");
   handle->logfile = fopen(logname, "w");
 #endif
 
@@ -1153,11 +1151,14 @@ ndb_mgm_dump_state(NdbMgmHandle handle, int nodeId, int* _args,
   CHECK_CONNECTED(handle, -1);
 
   char buf[256];
-  char buf2[6];
   buf[0] = 0;
   for (int i = 0; i < _num_args; i++){
-    snprintf(buf2, 6, "%d ",  _args[i]);
-    strncat(buf, buf2, 256);
+    unsigned n = strlen(buf);
+    if (n + 20 > sizeof(buf)) {
+      SET_ERROR(handle, NDB_MGM_USAGE_ERROR, "arguments too long");
+      return -1;
+    }
+    sprintf(buf + n, "%s%d", i ? " " : "", _args[i]);
   }
 
   Properties args;
@@ -1653,8 +1654,11 @@ ndb_mgm_alloc_nodeid(NdbMgmHandle handle, unsigned int version, unsigned *pnodei
   do {
     const char * buf;
     if(!prop->get("result", &buf) || strcmp(buf, "Ok") != 0){
+      BaseString err;
+      err.assfmt("Could not alloc node id at %s port %d: %s",
+		 handle->hostname, handle->port, buf);
       setError(handle, NDB_MGM_COULD_NOT_CONNECT_TO_SOCKET, __LINE__,
-	       "Could not alloc node id: %s",buf);
+	       err.c_str());
       break;
     }
     if(!prop->get("nodeid", pnodeid) != 0){

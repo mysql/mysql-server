@@ -363,6 +363,6 @@ handler_error(int signum){
   g_eventLogger.info("Received signal %d. Running error handler.", signum);
   // restart the system
   char errorData[40];
-  snprintf(errorData, 40, "Signal %d received", signum);
+  BaseString::snprintf(errorData, 40, "Signal %d received", signum);
   ERROR_SET_SIGNAL(fatal, 0, errorData, __FILE__);
 }

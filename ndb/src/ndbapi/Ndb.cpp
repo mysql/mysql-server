@@ -330,7 +330,7 @@ Ndb::startTransaction(Uint32 aPriority, const char * keyData, Uint32 keyLen)
     {
       NdbConnection *trans= startTransactionLocal(aPriority, nodeId);
       DBUG_PRINT("exit",("start trans: 0x%x transid: 0x%llx",
-			 trans, trans->getTransactionId()));
+			 trans, trans ? trans->getTransactionId() : 0));
       DBUG_RETURN(trans);
     }
   } else {
@@ -371,6 +371,7 @@ Ndb::hupp(NdbConnection* pBuddyTrans)
       // We could not get a connection to the desired node
       // release the connection and return NULL
       closeTransaction(pCon);
+      theError.code = 4006;
       DBUG_RETURN(NULL);
     }
     pCon->setTransactionId(pBuddyTrans->getTransactionId());
@@ -1157,10 +1158,10 @@ const char * Ndb::getCatalogName() const
 void Ndb::setCatalogName(const char * a_catalog_name)
 {
   if (a_catalog_name) {
-    snprintf(theDataBase, sizeof(theDataBase), "%s",
+    BaseString::snprintf(theDataBase, sizeof(theDataBase), "%s",
              a_catalog_name ? a_catalog_name : "");
     
-    int len = snprintf(prefixName, sizeof(prefixName), "%s%c%s%c",
+    int len = BaseString::snprintf(prefixName, sizeof(prefixName), "%s%c%s%c",
                        theDataBase, table_name_separator,
                        theDataBaseSchema, table_name_separator);
     prefixEnd = prefixName + (len < (int) sizeof(prefixName) ? len : 
@@ -1176,10 +1177,10 @@ const char * Ndb::getSchemaName() const
 void Ndb::setSchemaName(const char * a_schema_name)
 {
   if (a_schema_name) {
-    snprintf(theDataBaseSchema, sizeof(theDataBase), "%s",
+    BaseString::snprintf(theDataBaseSchema, sizeof(theDataBase), "%s",
              a_schema_name ? a_schema_name : "");
 
-    int len = snprintf(prefixName, sizeof(prefixName), "%s%c%s%c",
+    int len = BaseString::snprintf(prefixName, sizeof(prefixName), "%s%c%s%c",
                        theDataBase, table_name_separator,
                        theDataBaseSchema, table_name_separator);
     prefixEnd = prefixName + (len < (int) sizeof(prefixName) ? len : 

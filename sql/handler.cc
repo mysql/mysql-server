@@ -1105,6 +1105,11 @@ void handler::print_error(int error, myf errflag)
     break;
   case HA_ERR_NO_SUCH_TABLE:
   {
+    /*
+      We have to use path to find database name instead of using
+      table->table_cache_key because if the table didn't exist, then
+      table_cache_key was not set up
+    */
     char *db;
     char buff[FN_REFLEN];
     uint length=dirname_part(buff,table->path);
@@ -1276,23 +1281,26 @@ int ha_create_table_from_engine(THD* thd,
 				const char *name,
 				bool create_if_found)
 {
-  int error= 0;  
-  const void* frmblob = NULL;
-  uint frmlen = 0;
+  int error;
+  const void *frmblob;
+  uint frmlen;
   char path[FN_REFLEN];
   HA_CREATE_INFO create_info;
   TABLE table;
   DBUG_ENTER("ha_create_table_from_engine");
-  DBUG_PRINT("enter", ("db: %s, name: %s", db, name));
-  DBUG_PRINT("enter", ("create_if_found: %d", create_if_found));
+  DBUG_PRINT("enter", ("name '%s'.'%s'  create_if_found: %d",
+                       db, name, create_if_found));
 
   bzero((char*) &create_info,sizeof(create_info));
 
   if ((error= ha_discover(thd, db, name, &frmblob, &frmlen)))
     DBUG_RETURN(error); 
+  /*
+    Table exists in handler
+    frmblob and frmlen are set
+  */
 
-  // Table exists in handler  
-  if  (create_if_found)
+  if (create_if_found)
   {
     (void)strxnmov(path,FN_REFLEN,mysql_data_home,"/",db,"/",name,NullS);
     // Save the frm file    
@@ -1309,9 +1317,7 @@ int ha_create_table_from_engine(THD* thd,
 	!(table.file->table_flags() & HA_FILE_BASED))
     {
       /* Ensure that handler gets name in lower case */
-      strmov(path, name);
       my_casedn_str(files_charset_info, path);
-      name= path;
     }
     
     error=table.file->create(path,&table,&create_info);
@@ -1319,8 +1325,7 @@ int ha_create_table_from_engine(THD* thd,
   }
 
 err_end:
-  if (frmblob)
-    my_free((char*) frmblob,MYF(0));
+  my_free((char*) frmblob, MYF(MY_ALLOW_ZERO_PTR));
   DBUG_RETURN(error);  
 }
 
@@ -1429,10 +1434,14 @@ int ha_change_key_cache(KEY_CACHE *old_key_cache,
 
 /*
   Try to discover one table from handler(s)
+
+  RETURN
+    0  ok. In this case *frmblob and *frmlen are set
+    1  error.  frmblob and frmlen may not be set
 */
 
-int ha_discover(THD* thd, const char* db, const char* name,
-		const void** frmblob, uint* frmlen)
+int ha_discover(THD *thd, const char *db, const char *name,
+		const void **frmblob, uint *frmlen)
 {
   int error= 1; // Table does not exist in any handler
   DBUG_ENTER("ha_discover");
@@ -1470,6 +1479,8 @@ ha_find_files(THD *thd,const char *db,const char *path,
   
 }
 
+#ifdef NOT_YET_USED
+
 /*
   Ask handler if the table exists in engine
 
@@ -1491,6 +1502,7 @@ int ha_table_exists(THD* thd, const char* db, const char* name)
   DBUG_RETURN(error);
 }
 
+#endif
 
 
 /*

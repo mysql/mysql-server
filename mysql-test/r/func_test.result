@@ -174,3 +174,12 @@ SELECT GREATEST(d,d) FROM t1 WHERE k=2;
 GREATEST(d,d)
 NULL
 DROP TABLE t1;
+select 1197.90 mod 50;
+1197.90 mod 50
+47.90
+select 5.1 mod 3, 5.1 mod -3, -5.1 mod 3, -5.1 mod -3;
+5.1 mod 3	5.1 mod -3	-5.1 mod 3	-5.1 mod -3
+2.1	2.1	-2.1	-2.1
+select 5 mod 3, 5 mod -3, -5 mod 3, -5 mod -3;
+5 mod 3	5 mod -3	-5 mod 3	-5 mod -3
+2	2	-2	-2

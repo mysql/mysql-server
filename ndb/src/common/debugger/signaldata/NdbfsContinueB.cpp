@@ -18,7 +18,10 @@
 #include <signaldata/NdbfsContinueB.hpp>
 
 bool
-printCONTINUEB_NDBFS(FILE * output, const Uint32 * theData, Uint32 len){
+printCONTINUEB_NDBFS(FILE * output, const Uint32 * theData,
+		     Uint32 len, Uint16 not_used){
+
+  (void)not_used;
 
   switch (theData[0]) {
   case NdbfsContinueB::ZSCAN_MEMORYCHANNEL_10MS_DELAY:

@@ -1516,6 +1516,16 @@ uint STDCALL mysql_thread_safe(void)
 #endif
 }
 
+
+my_bool STDCALL mysql_embedded(void)
+{
+#ifdef EMBEDDED_LIBRARY
+  return 1;
+#else
+  return 0;
+#endif
+}
+
 /****************************************************************************
   Some support functions
 ****************************************************************************/
@@ -1531,6 +1541,40 @@ void my_net_local_init(NET *net)
   net->write_timeout=(uint) net_write_timeout;
   net->retry_count=  1;
   net->max_packet_size= max(net_buffer_length, max_allowed_packet);
+}
+
+/*
+  This function is used to create HEX string that you
+  can use in a SQL statement in of the either ways:
+    INSERT INTO blob_column VALUES (0xAABBCC);  (any MySQL version)
+    INSERT INTO blob_column VALUES (X'AABBCC'); (4.1 and higher)
+  
+  The string in "from" is encoded to a HEX string.
+  The result is placed in "to" and a terminating null byte is appended.
+  
+  The string pointed to by "from" must be "length" bytes long.
+  You must allocate the "to" buffer to be at least length*2+1 bytes long.
+  Each character needs two bytes, and you need room for the terminating
+  null byte. When mysql_hex_string() returns, the contents of "to" will
+  be a null-terminated string. The return value is the length of the
+  encoded string, not including the terminating null character.
+
+  The return value does not contain any leading 0x or a leading X' and
+  trailing '. The caller must supply whichever of those is desired.
+*/
+
+ulong mysql_hex_string(char *to, const char *from, ulong length)
+{
+  char *to0= to;
+  const char *end;
+            
+  for (end= from + length; from < end; from++)
+  {
+    *to++= _dig_vec_upper[((unsigned char) *from) >> 4];
+    *to++= _dig_vec_upper[((unsigned char) *from) & 0x0F];
+  }
+  *to= '\0';
+  return (ulong) (to-to0);
 }
 
 /*
@@ -3221,12 +3265,12 @@ static void read_binary_time(MYSQL_TIME *tm, uchar **pos)
     tm->second_part= (length > 8) ? (ulong) sint4korr(to+8) : 0;
 
     tm->year= tm->month= 0;
-    tm->time_type= MYSQL_TIMESTAMP_TIME;
 
     *pos+= length;
   }
   else
     set_zero_time(tm);
+  tm->time_type= MYSQL_TIMESTAMP_TIME;
 }
 
 static void read_binary_datetime(MYSQL_TIME *tm, uchar **pos)
@@ -3251,12 +3295,12 @@ static void read_binary_datetime(MYSQL_TIME *tm, uchar **pos)
     else
       tm->hour= tm->minute= tm->second= 0;
     tm->second_part= (length > 7) ? (ulong) sint4korr(to+7) : 0;
-    tm->time_type= MYSQL_TIMESTAMP_DATETIME;
 
     *pos+= length;
   }
   else
     set_zero_time(tm);
+  tm->time_type= MYSQL_TIMESTAMP_DATETIME;
 }
 
 static void read_binary_date(MYSQL_TIME *tm, uchar **pos)
@@ -3273,12 +3317,12 @@ static void read_binary_date(MYSQL_TIME *tm, uchar **pos)
     tm->hour= tm->minute= tm->second= 0;
     tm->second_part= 0;
     tm->neg= 0;
-    tm->time_type= MYSQL_TIMESTAMP_DATE;
 
     *pos+= length;
   }
   else
     set_zero_time(tm);
+  tm->time_type= MYSQL_TIMESTAMP_DATE;
 }
 
 
@@ -3556,28 +3600,8 @@ static void fetch_datetime_with_conversion(MYSQL_BIND *param,
       Convert time value  to string and delegate the rest to
       fetch_string_with_conversion:
     */
-    char buff[25];
-    uint length;
-
-    switch (time->time_type) {
-    case MYSQL_TIMESTAMP_DATE:
-      length= my_sprintf(buff,(buff, "%04d-%02d-%02d",
-                               time->year, time->month, time->day));
-      break;
-    case MYSQL_TIMESTAMP_DATETIME:
-      length= my_sprintf(buff,(buff, "%04d-%02d-%02d %02d:%02d:%02d",
-                               time->year, time->month, time->day,
-                               time->hour, time->minute, time->second));
-      break;
-    case MYSQL_TIMESTAMP_TIME:
-      length= my_sprintf(buff, (buff, "%02d:%02d:%02d",
-                                time->hour, time->minute, time->second));
-      break;
-    default:
-      length= 0;
-      buff[0]='\0';
-      break;
-    }
+    char buff[MAX_DATE_STRING_REP_LENGTH];
+    uint length= my_TIME_to_str(time, buff);
     /* Resort to string conversion */
     fetch_string_with_conversion(param, (char *)buff, length);
     break;

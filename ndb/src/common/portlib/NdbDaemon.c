@@ -28,6 +28,8 @@ NdbDaemon_Make(const char* lockfile, const char* logfile, unsigned flags)
   int lockfd = -1, logfd = -1, n;
   char buf[64];
 
+  (void)flags; /* remove warning for unused parameter */
+
   /* Check that we have write access to lock file */
   assert(lockfile != NULL);
   lockfd = open(lockfile, O_CREAT|O_RDWR, 0644);
