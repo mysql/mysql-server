@@ -37,7 +37,7 @@
 ** 10 Jun 2003: SET NAMES and --no-set-names by Alexander Barkov
 */
 
-#define DUMP_VERSION "10.4"
+#define DUMP_VERSION "10.5"
 
 #include <my_global.h>
 #include <my_sys.h>
@@ -107,7 +107,8 @@ static CHARSET_INFO *charset_info= &my_charset_latin1;
 const char *compatible_mode_names[]=
 {
   "MYSQL323", "MYSQL40", "POSTGRESQL", "ORACLE", "MSSQL", "DB2",
-  "SAPDB", "NO_KEY_OPTIONS", "NO_TABLE_OPTIONS", "NO_FIELD_OPTIONS",
+  "MAXDB", "NO_KEY_OPTIONS", "NO_TABLE_OPTIONS", "NO_FIELD_OPTIONS",
+  "ANSI",
   NullS
 };
 TYPELIB compatible_mode_typelib= {array_elements(compatible_mode_names) - 1,
@@ -136,7 +137,7 @@ static struct my_option my_long_options[] =
    "Directory where character sets are.", (gptr*) &charsets_dir,
    (gptr*) &charsets_dir, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"compatible", OPT_COMPATIBLE,
-   "Change the dump to be compatible with a given mode. By default tables are dumped without any restrictions. Legal modes are: mysql323, mysql40, postgresql, oracle, mssql, db2, sapdb, no_key_options, no_table_options, no_field_options. One can use several modes separated by commas. Note: Requires MySQL server version 4.1.0 or higher. This option does a no operation on earlier server versions.",
+   "Change the dump to be compatible with a given mode. By default tables are dumped without any restrictions. Legal modes are: ansi, mysql323, mysql40, postgresql, oracle, mssql, db2, maxdb, no_key_options, no_table_options, no_field_options. One can use several modes separated by commas. Note: Requires MySQL server version 4.1.0 or higher. This option does a no operation on earlier server versions.",
    (gptr*) &opt_compatible_mode_str, (gptr*) &opt_compatible_mode_str, 0,
    GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"complete-insert", 'c', "Use complete insert statements.", (gptr*) &cFlag,
@@ -239,7 +240,7 @@ static struct my_option my_long_options[] =
   {"quick", 'q', "Don't buffer query, dump directly to stdout.",
    (gptr*) &quick, (gptr*) &quick, 0, GET_BOOL, NO_ARG, 1, 0, 0, 0, 0, 0},
   {"quote-names",'Q', "Quote table and column names with backticks (`).",
-   (gptr*) &opt_quoted, (gptr*) &opt_quoted, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0,
+   (gptr*) &opt_quoted, (gptr*) &opt_quoted, 0, GET_BOOL, NO_ARG, 1, 0, 0, 0,
    0, 0},
   {"result-file", 'r',
    "Direct output to a given file. This option should be used in MSDOS, because it prevents new line '\\n' from being converted to '\\r\\n' (carriage return + line feed).",
@@ -830,7 +831,7 @@ static uint getTableStructure(char *table, char* db)
 	char *end;
 	uint i;
 
-	sprintf(buff, "/*!41000 SET @@sql_mode=\"");
+	sprintf(buff, "/*!40100 SET @@sql_mode=\"");
 	end= strend(buff);
 	for (i= 0; opt_compatible_mode; opt_compatible_mode>>= 1, i++)
 	{
