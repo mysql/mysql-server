@@ -1488,6 +1488,7 @@ void end_thread(THD *thd, bool put_in_cache)
       thd=thread_cache.get();
       thd->real_id=pthread_self();
       (void) thd->store_globals();
+      thd->thr_create_time= time(NULL);
       threads.append(thd);
       pthread_mutex_unlock(&LOCK_thread_count);
       DBUG_VOID_RETURN;
