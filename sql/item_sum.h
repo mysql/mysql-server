@@ -351,6 +351,7 @@ class Item_sum_variance : public Item_sum_num
   void update_field();
   Item *result_item(Field *field)
   { return new Item_variance_field(this); }
+  void no_rows_in_result() {}
   const char *func_name() const { return "variance"; }
   Item *copy_or_same(THD* thd);
 };

@@ -1029,14 +1029,15 @@ bool reopen_table(TABLE *table,bool locked)
   *table=tmp;
   table->file->change_table_ptr(table);
 
+  DBUG_ASSERT(table->table_name);
   for (field=table->field ; *field ; field++)
   {
-    (*field)->table=table;
+    (*field)->table= (*field)->orig_table= table;
     (*field)->table_name=table->table_name;
   }
   for (key=0 ; key < table->keys ; key++)
     for (part=0 ; part < table->key_info[key].usable_key_parts ; part++)
-      table->key_info[key].key_part[part].field->table=table;
+      table->key_info[key].key_part[part].field->table= table;
   VOID(pthread_cond_broadcast(&COND_refresh));
   error=0;
 

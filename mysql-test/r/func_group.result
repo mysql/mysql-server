@@ -648,3 +648,11 @@ select a from t1 having a=1;
 a
 1
 drop table t1;
+create table t1 (a int);
+select variance(2) from t1;
+variance(2)
+NULL
+select stddev(2) from t1;
+stddev(2)
+NULL
+drop table t1;

@@ -387,3 +387,12 @@ insert into t1 values (1);
 select max(a) as b from t1 having b=1;
 select a from t1 having a=1;
 drop table t1;
+
+#
+# Bug #3435: variance(const), stddev(const) and an empty table
+#
+
+create table t1 (a int);
+select variance(2) from t1;
+select stddev(2) from t1;
+drop table t1;
