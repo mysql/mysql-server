@@ -1938,8 +1938,8 @@ ha_innobase::write_row(
 		build_template(prebuilt, NULL, table, ROW_MYSQL_WHOLE_ROW);
 	}
 
-	if (user_thd->lex.sql_command == SQLCOM_INSERT
-	    && user_thd->lex.duplicates == DUP_IGNORE) {
+	if (user_thd->lex->sql_command == SQLCOM_INSERT
+	    && user_thd->lex->duplicates == DUP_IGNORE) {
 	        prebuilt->trx->ignore_duplicates_in_insert = TRUE;
         } else {
 	        prebuilt->trx->ignore_duplicates_in_insert = FALSE;
@@ -1967,8 +1967,8 @@ ha_innobase::write_row(
 	        skip_auto_inc_decr = FALSE;
 
 	        if (error == DB_DUPLICATE_KEY
-		    && (user_thd->lex.sql_command == SQLCOM_REPLACE
-			|| user_thd->lex.sql_command
+		    && (user_thd->lex->sql_command == SQLCOM_REPLACE
+			|| user_thd->lex->sql_command
 			                 == SQLCOM_REPLACE_SELECT)) {
 
 		        skip_auto_inc_decr= TRUE;

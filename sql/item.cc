@@ -779,7 +779,7 @@ bool Item_field::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
       Item **refer= (Item **)not_found_item;
       uint counter;
       // Prevent using outer fields in subselects, that is not supported now
-      SELECT_LEX *cursel=(SELECT_LEX *) thd->lex.current_select;
+      SELECT_LEX *cursel=(SELECT_LEX *) thd->lex->current_select;
       if (outer_resolving ||
 	  cursel->master_unit()->first_select()->linkage != DERIVED_TABLE_TYPE)
 	for (SELECT_LEX *sl=(outer_resolving?cursel:cursel->outer_select());
@@ -839,7 +839,7 @@ bool Item_field::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
 	  Mark all selects from resolved to 1 before select where was 
 	  found table as depended (of select where was found table)
 	*/
-	thd->lex.current_select->mark_as_dependent(last);
+	thd->lex->current_select->mark_as_dependent(last);
 	if (depended_from->having_fix_field)
 	{
 	  Item_ref *rf;
@@ -1242,8 +1242,8 @@ bool Item_ref::fix_fields(THD *thd,TABLE_LIST *tables, Item **reference)
   {
     TABLE_LIST *where= 0;
     SELECT_LEX *sl= (outer_resolving?
-		     thd->lex.current_select->select_lex():
-		     thd->lex.current_select->outer_select());
+		     thd->lex->current_select->select_lex():
+		     thd->lex->current_select->outer_select());
     /*
       Finding only in current select will be performed for selects that have 
       not outer one and for derived tables (which not support using outer 
@@ -1251,10 +1251,10 @@ bool Item_ref::fix_fields(THD *thd,TABLE_LIST *tables, Item **reference)
     */
     if (outer_resolving ||
 	(ref= find_item_in_list(this, 
-				*(thd->lex.current_select->get_item_list()),
+				*(thd->lex->current_select->get_item_list()),
 				&counter,
 				((sl && 
-				  thd->lex.current_select->master_unit()->
+				  thd->lex->current_select->master_unit()->
 				  first_select()->linkage !=
 				  DERIVED_TABLE_TYPE) ? 
 				  REPORT_EXCEPT_NOT_FOUND :
@@ -1296,7 +1296,7 @@ bool Item_ref::fix_fields(THD *thd,TABLE_LIST *tables, Item **reference)
       {
 	// Call to report error
 	find_item_in_list(this,
-			  *(thd->lex.current_select->get_item_list()),
+			  *(thd->lex->current_select->get_item_list()),
 			  &counter,
 			  REPORT_ALL_ERRORS);
         ref= 0;
@@ -1310,7 +1310,7 @@ bool Item_ref::fix_fields(THD *thd,TABLE_LIST *tables, Item **reference)
 	  return 1;
 	// store pointer on SELECT_LEX from wich item is dependent
 	f->depended_from= last;
-	thd->lex.current_select->mark_as_dependent(last);
+	thd->lex->current_select->mark_as_dependent(last);
 	return 0;
       }
       else
@@ -1325,7 +1325,7 @@ bool Item_ref::fix_fields(THD *thd,TABLE_LIST *tables, Item **reference)
 	  depended_from: pointer on SELECT_LEX from wich item is dependent
 	*/
 	ref= (depended_from= last)->ref_pointer_array + counter;
-	thd->lex.current_select->mark_as_dependent(last);
+	thd->lex->current_select->mark_as_dependent(last);
       }
     }
     else if (!ref)
@@ -1338,7 +1338,7 @@ bool Item_ref::fix_fields(THD *thd,TABLE_LIST *tables, Item **reference)
 		 "forward reference in item list");
 	return -1;
       }
-      ref= thd->lex.current_select->ref_pointer_array + counter;
+      ref= thd->lex->current_select->ref_pointer_array + counter;
     }
   }
 
@@ -1353,8 +1353,8 @@ bool Item_ref::fix_fields(THD *thd,TABLE_LIST *tables, Item **reference)
  
   if (((*ref)->with_sum_func && name &&
        (depended_from || 
-	!(thd->lex.current_select->linkage != GLOBAL_OPTIONS_TYPE &&
-	  thd->lex.current_select->select_lex()->having_fix_field))) ||
+	!(thd->lex->current_select->linkage != GLOBAL_OPTIONS_TYPE &&
+	  thd->lex->current_select->select_lex()->having_fix_field))) ||
       !(*ref)->fixed)
   {
     my_error(ER_ILLEGAL_REFERENCE, MYF(0), name, 

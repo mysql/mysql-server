@@ -83,7 +83,7 @@ Item *create_func_ceiling(Item* a)
 Item *create_func_connection_id(void)
 {
   THD *thd=current_thd;
-  thd->lex.safe_to_cache_query=0;
+  thd->lex->safe_to_cache_query=0;
   return new Item_int(NullS,(longlong) thd->thread_id,10);
 }
 
@@ -159,7 +159,7 @@ Item *create_func_floor(Item* a)
 Item *create_func_found_rows(void)
 {
   THD *thd=current_thd;
-  thd->lex.safe_to_cache_query=0;
+  thd->lex->safe_to_cache_query=0;
   return new Item_int(NullS,(longlong) thd->found_rows(),21);
 }
 
@@ -170,7 +170,7 @@ Item *create_func_from_days(Item* a)
 
 Item *create_func_get_lock(Item* a, Item *b)
 {
-  current_thd->lex.uncacheable();
+  current_thd->lex->uncacheable();
   return new Item_func_get_lock(a, b);
 }
 
@@ -340,7 +340,7 @@ Item *create_func_radians(Item *a)
 
 Item *create_func_release_lock(Item* a)
 {
-  current_thd->lex.uncacheable();
+  current_thd->lex->uncacheable();
   return new Item_func_release_lock(a);
 }
 
@@ -448,7 +448,7 @@ Item *create_func_year(Item* a)
 
 Item *create_load_file(Item* a)
 {
-  current_thd->lex.uncacheable();
+  current_thd->lex->uncacheable();
   return new Item_load_file(a);
 }
 
@@ -471,13 +471,13 @@ Item *create_func_cast(Item *a, Item_cast cast_type)
 
 Item *create_func_is_free_lock(Item* a)
 {
-  current_thd->lex.uncacheable();
+  current_thd->lex->uncacheable();
   return new Item_func_is_free_lock(a);
 }
 
 Item *create_func_is_used_lock(Item* a)
 {
-  current_thd->lex.uncacheable();
+  current_thd->lex->uncacheable();
   return new Item_func_is_used_lock(a);
 }
 

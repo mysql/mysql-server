@@ -351,35 +351,35 @@ sp_head::execute_procedure(THD *thd, List<Item> *args)
 void
 sp_head::reset_lex(THD *thd)
 {
-  memcpy(&m_lex, &thd->lex, sizeof(LEX)); // Save old one
+  memcpy(&m_lex, thd->lex, sizeof(LEX)); // Save old one
   /* Reset most stuff. The length arguments doesn't matter here. */
   lex_start(thd, m_lex.buf, m_lex.end_of_query - m_lex.ptr);
   /* We must reset ptr and end_of_query again */
-  thd->lex.ptr= m_lex.ptr;
-  thd->lex.end_of_query= m_lex.end_of_query;
+  thd->lex->ptr= m_lex.ptr;
+  thd->lex->end_of_query= m_lex.end_of_query;
   /* And keep the SP stuff too */
-  thd->lex.sphead = m_lex.sphead;
-  thd->lex.spcont = m_lex.spcont;
+  thd->lex->sphead = m_lex.sphead;
+  thd->lex->spcont = m_lex.spcont;
   /* Clear all lists. (QQ Why isn't this reset by lex_start()?).
      We may be overdoing this, but we know for sure that value_list must
      be cleared at least. */
-  thd->lex.col_list.empty();
-  thd->lex.ref_list.empty();
-  thd->lex.drop_list.empty();
-  thd->lex.alter_list.empty();
-  thd->lex.interval_list.empty();
-  thd->lex.users_list.empty();
-  thd->lex.columns.empty();
-  thd->lex.key_list.empty();
-  thd->lex.create_list.empty();
-  thd->lex.insert_list= NULL;
-  thd->lex.field_list.empty();
-  thd->lex.value_list.empty();
-  thd->lex.many_values.empty();
-  thd->lex.var_list.empty();
-  thd->lex.param_list.empty();
-  thd->lex.proc_list.empty();
-  thd->lex.auxilliary_table_list.empty();
+  thd->lex->col_list.empty();
+  thd->lex->ref_list.empty();
+  thd->lex->drop_list.empty();
+  thd->lex->alter_list.empty();
+  thd->lex->interval_list.empty();
+  thd->lex->users_list.empty();
+  thd->lex->columns.empty();
+  thd->lex->key_list.empty();
+  thd->lex->create_list.empty();
+  thd->lex->insert_list= NULL;
+  thd->lex->field_list.empty();
+  thd->lex->value_list.empty();
+  thd->lex->many_values.empty();
+  thd->lex->var_list.empty();
+  thd->lex->param_list.empty();
+  thd->lex->proc_list.empty();
+  thd->lex->auxilliary_table_list.empty();
 }
 
 // Restore lex during parsing, after we have parsed a sub statement.
@@ -387,11 +387,11 @@ void
 sp_head::restore_lex(THD *thd)
 {
   // Update some state in the old one first
-  m_lex.ptr= thd->lex.ptr;
-  m_lex.next_state= thd->lex.next_state;
+  m_lex.ptr= thd->lex->ptr;
+  m_lex.next_state= thd->lex->next_state;
 
   // Collect some data from the sub statement lex.
-  sp_merge_funs(&m_lex, &thd->lex);
+  sp_merge_funs(&m_lex, thd->lex);
 #if 0
   // QQ We're not using this at the moment.
   if (thd->lex.sql_command == SQLCOM_CALL)
@@ -434,7 +434,7 @@ sp_head::restore_lex(THD *thd)
   }
 #endif
 
-  memcpy(&thd->lex, &m_lex, sizeof(LEX)); // Restore lex
+  memcpy(thd->lex, &m_lex, sizeof(LEX)); // Restore lex
 }
 
 void
@@ -480,10 +480,10 @@ sp_instr_stmt::execute(THD *thd, uint *nextp)
   LEX olex;			// The other lex
   int res;
 
-  memcpy(&olex, &thd->lex, sizeof(LEX)); // Save the other lex
+  memcpy(&olex, thd->lex, sizeof(LEX)); // Save the other lex
 
-  memcpy(&thd->lex, &m_lex, sizeof(LEX)); // Use my own lex
-  thd->lex.thd = thd;
+  memcpy(thd->lex, &m_lex, sizeof(LEX)); // Use my own lex
+  thd->lex->thd = thd;
 
   res= mysql_execute_command(thd);
   if (thd->lock || thd->open_tables || thd->derived_tables)
@@ -492,7 +492,7 @@ sp_instr_stmt::execute(THD *thd, uint *nextp)
     close_thread_tables(thd);			/* Free tables */
   }
 
-  memcpy(&thd->lex, &olex, sizeof(LEX)); // Restore the other lex
+  memcpy(thd->lex, &olex, sizeof(LEX)); // Restore the other lex
 
   *nextp = m_ip+1;
   DBUG_RETURN(res);

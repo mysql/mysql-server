@@ -67,14 +67,14 @@ int mysql_update(THD *thd,
   SQL_SELECT	*select;
   READ_RECORD	info;
   TABLE_LIST    *update_table_list= (TABLE_LIST*) 
-    thd->lex.select_lex.table_list.first;
+    thd->lex->select_lex.table_list.first;
   DBUG_ENTER("mysql_update");
   LINT_INIT(used_index);
   LINT_INIT(timestamp_query_id);
 
   if ((open_and_lock_tables(thd, table_list)))
     DBUG_RETURN(-1);
-  fix_tables_pointers(thd->lex.all_selects_list);
+  fix_tables_pointers(thd->lex->all_selects_list);
   table= table_list->table;
 
   table->file->info(HA_STATUS_VARIABLE | HA_STATUS_NO_LOCK);
@@ -87,7 +87,7 @@ int mysql_update(THD *thd,
   table->grant.want_privilege=(SELECT_ACL & ~table->grant.privilege);
   if (setup_tables(update_table_list) || 
       setup_conds(thd,update_table_list,&conds)
-      || setup_ftfuncs(&thd->lex.select_lex))
+      || setup_ftfuncs(&thd->lex->select_lex))
     DBUG_RETURN(-1);				/* purecov: inspected */
   if (find_real_table_in_list(table_list->next, 
 			      table_list->db, table_list->real_name))
@@ -126,7 +126,7 @@ int mysql_update(THD *thd,
   table->grant.want_privilege=(SELECT_ACL & ~table->grant.privilege);
   if (setup_fields(thd, 0, update_table_list, values, 0, 0, 0))
   {
-    free_underlaid_joins(thd, &thd->lex.select_lex);
+    free_underlaid_joins(thd, &thd->lex->select_lex);
     DBUG_RETURN(-1);				/* purecov: inspected */
   }
 
@@ -137,7 +137,7 @@ int mysql_update(THD *thd,
       (select && select->check_quick(safe_update, limit)) || !limit)
   {
     delete select;
-    free_underlaid_joins(thd, &thd->lex.select_lex);
+    free_underlaid_joins(thd, &thd->lex->select_lex);
     if (error)
     {
       DBUG_RETURN(-1);				// Error in where
@@ -148,16 +148,16 @@ int mysql_update(THD *thd,
   /* If running in safe sql mode, don't allow updates without keys */
   if (!table->quick_keys)
   {
-    thd->lex.select_lex.options|=QUERY_NO_INDEX_USED;
+    thd->lex->select_lex.options|=QUERY_NO_INDEX_USED;
     if (safe_update && !using_limit)
     {
       delete select;
-      free_underlaid_joins(thd, &thd->lex.select_lex);
+      free_underlaid_joins(thd, &thd->lex->select_lex);
       send_error(thd,ER_UPDATE_WITHOUT_KEY_IN_SAFE_MODE);
       DBUG_RETURN(1);
     }
   }
-  init_ftfuncs(thd, &thd->lex.select_lex, 1);
+  init_ftfuncs(thd, &thd->lex->select_lex, 1);
   /* Check if we are modifying a key that we are used to search with */
   if (select && select->quick)
     used_key_is_modified= (!select->quick->unique_key_range() &&
@@ -180,7 +180,7 @@ int mysql_update(THD *thd,
 			  DISK_BUFFER_SIZE, MYF(MY_WME)))
     {
       delete select; /* purecov: inspected */
-      free_underlaid_joins(thd, &thd->lex.select_lex);
+      free_underlaid_joins(thd, &thd->lex->select_lex);
       DBUG_RETURN(-1);
     }
     if (old_used_keys & ((key_map) 1 << used_index))
@@ -203,9 +203,9 @@ int mysql_update(THD *thd,
 
       table->sort.io_cache = (IO_CACHE *) my_malloc(sizeof(IO_CACHE),
                                                MYF(MY_FAE | MY_ZEROFILL));
-      if (setup_ref_array(thd, &thd->lex.select_lex.ref_pointer_array,
+      if (setup_ref_array(thd, &thd->lex->select_lex.ref_pointer_array,
 			order_num)||
-	  setup_order(thd, thd->lex.select_lex.ref_pointer_array,
+	  setup_order(thd, thd->lex->select_lex.ref_pointer_array,
 		      &tables, fields, all_fields, order) ||
           !(sortorder=make_unireg_sortorder(order, &length)) ||
           (table->sort.found_records = filesort(thd, table, sortorder, length,
@@ -214,7 +214,7 @@ int mysql_update(THD *thd,
           == HA_POS_ERROR)
       {
 	delete select;
-	free_underlaid_joins(thd, &thd->lex.select_lex);
+	free_underlaid_joins(thd, &thd->lex->select_lex);
 	DBUG_RETURN(-1);
       }
     }
@@ -269,7 +269,7 @@ int mysql_update(THD *thd,
     if (error >= 0)
     {
       delete select;
-      free_underlaid_joins(thd, &thd->lex.select_lex);
+      free_underlaid_joins(thd, &thd->lex->select_lex);
       DBUG_RETURN(-1);
     }
   }
@@ -354,7 +354,7 @@ int mysql_update(THD *thd,
   }
 
   delete select;
-  free_underlaid_joins(thd, &thd->lex.select_lex);
+  free_underlaid_joins(thd, &thd->lex->select_lex);
   if (error >= 0)
     send_error(thd,thd->killed_errno()); /* purecov: inspected */
   else
@@ -399,7 +399,7 @@ int mysql_multi_update(THD *thd,
   table_list->grant.want_privilege=(SELECT_ACL & ~table_list->grant.privilege);
   if ((res=open_and_lock_tables(thd,table_list)))
     DBUG_RETURN(res);
-  fix_tables_pointers(thd->lex.all_selects_list);
+  fix_tables_pointers(thd->lex->all_selects_list);
 
   thd->select_limit=HA_POS_ERROR;
   if (setup_fields(thd, 0, table_list, *fields, 1, 0, 0))

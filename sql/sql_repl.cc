@@ -650,8 +650,8 @@ int start_slave(THD* thd , MASTER_INFO* mi,  bool net_report)
     was running (as we don't wan't to touch the other thread), so set the
     bit to 0 for the other thread
   */
-  if (thd->lex.slave_thd_opt)
-    thread_mask &= thd->lex.slave_thd_opt;
+  if (thd->lex->slave_thd_opt)
+    thread_mask &= thd->lex->slave_thd_opt;
   if (thread_mask) //some threads are stopped, start them
   {
     if (init_master_info(mi,master_info_file,relay_log_info_file, 0))
@@ -707,8 +707,8 @@ int stop_slave(THD* thd, MASTER_INFO* mi, bool net_report )
     was stopped (as we don't wan't to touch the other thread), so set the
     bit to 0 for the other thread
   */
-  if (thd->lex.slave_thd_opt)
-    thread_mask &= thd->lex.slave_thd_opt;
+  if (thd->lex->slave_thd_opt)
+    thread_mask &= thd->lex->slave_thd_opt;
 
   if (thread_mask)
   {
@@ -856,7 +856,7 @@ int change_master(THD* thd, MASTER_INFO* mi)
   }
 
   thd->proc_info = "changing master";
-  LEX_MASTER_INFO* lex_mi = &thd->lex.mi;
+  LEX_MASTER_INFO* lex_mi = &thd->lex->mi;
   // TODO: see if needs re-write
   if (init_master_info(mi, master_info_file, relay_log_info_file, 0))
   {
@@ -1003,7 +1003,7 @@ int show_binlog_events(THD* thd)
 
   if (mysql_bin_log.is_open())
   {
-    LEX_MASTER_INFO *lex_mi = &thd->lex.mi;
+    LEX_MASTER_INFO *lex_mi = &thd->lex->mi;
     ha_rows event_count, limit_start, limit_end;
     my_off_t pos = lex_mi->pos;
     char search_file_name[FN_REFLEN], *name;
@@ -1012,8 +1012,8 @@ int show_binlog_events(THD* thd)
     LOG_INFO linfo;
     Log_event* ev;
   
-    limit_start = thd->lex.current_select->offset_limit;
-    limit_end = thd->lex.current_select->select_limit + limit_start;
+    limit_start = thd->lex->current_select->offset_limit;
+    limit_end = thd->lex->current_select->select_limit + limit_start;
 
     name= search_file_name;
     if (log_file_name)
