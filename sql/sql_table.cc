@@ -1206,7 +1206,7 @@ int mysql_create_table(THD *thd,const char *db, const char *table_name,
     my_error(ER_TABLE_EXISTS_ERROR, MYF(0), alias);
     DBUG_RETURN(-1);
   }
-  if (wait_if_global_read_lock(thd, 0))
+  if (wait_if_global_read_lock(thd, 0, 1))
     DBUG_RETURN(error);
   VOID(pthread_mutex_lock(&LOCK_open));
   if (!tmp_table && !(create_info->options & HA_LEX_CREATE_TMP_TABLE))
