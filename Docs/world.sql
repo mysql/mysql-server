@@ -4334,7 +4334,7 @@ INSERT INTO Country VALUES ('SWZ','Swaziland','Africa','Southern Africa',17364.0
 INSERT INTO Country VALUES ('CHE','Switzerland','Europe','Western Europe',41284.00,1499,7160400,79.6,264478.00,256092.00,'Schweiz/Suisse/Svizzera/Svizra','Federation','Adolf Ogi',3248,'CH');
 INSERT INTO Country VALUES ('SYR','Syria','Asia','Middle East',185180.00,1941,16125000,68.5,65984.00,64926.00,'Suriya','Republic','Bashar al-Assad',3250,'SY');
 INSERT INTO Country VALUES ('TJK','Tajikistan','Asia','Southern and Central Asia',143100.00,1991,6188000,64.1,1990.00,1056.00,'Toçikiston','Republic','Emomali Rahmonov',3261,'TJ');
-INSERT INTO Country VALUES ('TWN','Taiwan, Province of China','Asia','Eastern Asia',36188.00,1945,22256000,76.4,256254.00,263451.00,'T’ai-wan','Republic','Chen Shui-bian',3263,'TW');
+INSERT INTO Country VALUES ('TWN','Taiwan','Asia','Eastern Asia',36188.00,1945,22256000,76.4,256254.00,263451.00,'T’ai-wan','Republic','Chen Shui-bian',3263,'TW');
 INSERT INTO Country VALUES ('TZA','Tanzania','Africa','Eastern Africa',883749.00,1961,33517000,52.3,8005.00,7388.00,'Tanzania','Republic','Benjamin William Mkapa',3306,'TZ');
 INSERT INTO Country VALUES ('DNK','Denmark','Europe','Nordic Countries',43094.00,800,5330000,76.5,174099.00,169264.00,'Danmark','Constitutional Monarchy','Margrethe II',3315,'DK');
 INSERT INTO Country VALUES ('THA','Thailand','Asia','Southeast Asia',513115.00,1350,61399000,68.6,116416.00,153907.00,'Prathet Thai','Constitutional Monarchy','Bhumibol Adulyadej',3320,'TH');
