@@ -388,6 +388,7 @@ public:
     static const Column * FRAGMENT;
     static const Column * ROW_COUNT;
     static const Column * COMMIT_COUNT;
+    static const Column * ROW_SIZE;
 #endif
     
   private:
