@@ -1151,7 +1151,7 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
   thd->proc_info="init";
   table_name=table_list->real_name;
   db=table_list->db;
-  if (!new_db)
+  if (!new_db || !strcmp(new_db, db))
     new_db=db;
 
   if (!(table=open_ltable(thd,table_list,TL_WRITE_ALLOW_READ)))
@@ -1161,14 +1161,20 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
   if (new_name)
   {
     strmov(new_name_buff,new_name);
-    fn_same(new_name_buff,table_name,3);
     if (lower_case_table_names)
       casedn_str(new_name);
-    if ((lower_case_table_names &&
-	 !my_strcasecmp(new_name_buff,table_name)) ||
-	(!lower_case_table_names &&
+    if (new_db == db &&
+        (lower_case_table_names &&
+	 !my_strcasecmp(new_name_buff,table_name) ||
+	 !lower_case_table_names &&
 	 !strcmp(new_name_buff,table_name)))
-      new_name=table_name;			// No. Make later check easier
+    {
+      /*
+        Source and destination table names are equal: make later check
+        easier.
+      */
+      new_name= table_name;
+    }
     else
     {
       if (table->tmp_table)
