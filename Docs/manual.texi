@@ -23412,10 +23412,10 @@ this, the thread will open a temporary file to handle the bigger cache.
 The temporary file will be deleted when the thread ends.
 
 The @code{max_binlog_cache_size} can be used to restrict the total size used
-to cache a multi-transaction query.
+to cache a multi-query transaction.
 
 If you are using the update or binary log, concurrent inserts will
-not work together with @code{CREATE ... INSERT} and @code{INSERT ... SELECT}.
+not work together with @code{CREATE ... SELECT} and @code{INSERT ... SELECT}.
 This is to ensure that you can recreate an exact copy of your tables by
 applying the log on a backup.
 
@@ -51451,7 +51451,7 @@ rows to be updated.
 @item
 Fixed a bug in @code{CONCAT_WS()} where it returned incorrect results.
 @item
-Changed @code{CREATE ... INSERT} and @code{INSERT ... SELECT} to not
+Changed @code{CREATE ... SELECT} and @code{INSERT ... SELECT} to not
 allow concurrent inserts as this could make the binary log hard to repeat.
 (Concurrent inserts are enabled if you are not using the binary or update log.)
 @item
