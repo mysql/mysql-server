@@ -2784,6 +2784,10 @@ row_search_for_mysql(
 				}    	
 				
 				trx->op_info = (char *) "";
+				
+				/* NOTE that we do NOT store the cursor
+				position */
+
 				return(DB_SUCCESS);
 			
 			} else if (shortcut == SEL_EXHAUSTED) {
@@ -2803,6 +2807,10 @@ row_search_for_mysql(
 				}
 
 				trx->op_info = (char *) "";
+
+				/* NOTE that we do NOT store the cursor
+				position */
+
 				return(DB_RECORD_NOT_FOUND);
 			}
 
@@ -3183,6 +3191,7 @@ rec_loop:
 			&& prebuilt->select_lock_type == LOCK_NONE
 			&& !prebuilt->templ_contains_blob
 			&& !prebuilt->clust_index_was_generated
+			&& !prebuilt->used_in_HANDLER
 	                && prebuilt->template_type
 	                                 != ROW_MYSQL_DUMMY_TEMPLATE) {
 
@@ -3191,7 +3200,9 @@ rec_loop:
 		update, that is why we require ...lock_type == LOCK_NONE.
 		Since we keep space in prebuilt only for the BLOBs of
 		a single row, we cannot cache rows in the case there
-		are BLOBs in the fields to be fetched. */
+		are BLOBs in the fields to be fetched. In HANDLER we do
+		not cache rows because there the cursor is a scrollable
+		cursor. */
 
 		row_sel_push_cache_row_for_mysql(prebuilt, rec);
 
@@ -3224,8 +3235,8 @@ got_row:
 	a unique search. */
 
 	if (!unique_search_from_clust_index
-				|| prebuilt->select_lock_type == LOCK_X
-				|| prebuilt->used_in_HANDLER) {
+	    || prebuilt->select_lock_type == LOCK_X
+	    || prebuilt->used_in_HANDLER) {
 
 		/* Inside an update always store the cursor position */
 
