@@ -29,10 +29,6 @@
 #include "my_base.h"				/* Includes errno.h */
 #include "m_ctype.h"
 
-#ifndef EOVERFLOW
-#define EOVERFLOW 84
-#endif
-
 static double scaler10[] = {
   1.0, 1e10, 1e20, 1e30, 1e40, 1e50, 1e60, 1e70, 1e80, 1e90
 };

@@ -964,6 +964,7 @@ void Item_func_rand::fix_length_and_dec()
 {
   decimals=NOT_FIXED_DEC; 
   max_length=float_length(decimals);
+  used_tables_cache|= RAND_TABLE_BIT;
   if (arg_count)
   {					// Only use argument once in query
     uint32 tmp= (uint32) (args[0]->val_int());
@@ -987,6 +988,12 @@ void Item_func_rand::fix_length_and_dec()
     thd->rand_saved_seed2=thd->rand.seed2;
     rand= &thd->rand;
   }
+}
+
+void Item_func_rand::update_used_tables()
+{
+  Item_real_func::update_used_tables();
+  used_tables_cache|= RAND_TABLE_BIT;
 }
 
 
@@ -2966,12 +2973,6 @@ Item *get_system_var(THD *thd, enum_var_type var_type, LEX_STRING name,
     return new Item_string("@@VERSION", server_version,
 			   (uint) strlen(server_version),
 			   system_charset_info);
-
-  if (name.str && component.str && check_reserved_words(&name))
-  {
-    net_printf(thd, ER_SYNTAX_ERROR);
-    return 0;
-  }
 
   Item *item;
   sys_var *var;

@@ -512,7 +512,7 @@ public:
   double val();
   const char *func_name() const { return "rand"; }
   bool const_item() const { return 0; }
-  table_map used_tables() const { return RAND_TABLE_BIT; }
+  void update_used_tables();
   void fix_length_and_dec();
 };
 

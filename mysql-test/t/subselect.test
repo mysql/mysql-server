@@ -1089,3 +1089,11 @@ insert into t2 (id, text) values (1, 'text1'), (2, 'text2'), (3, 'text3'), (4, '
 select * from t1 a left join t2 b on (a.id=b.id or b.id is null) join t1 c on (if(isnull(b.id), 1000, b.id)=c.id);
 explain extended select * from t1 a left join t2 b on (a.id=b.id or b.id is null) join t1 c on (if(isnull(b.id), 1000, b.id)=c.id);
 drop table t1,t2;
+
+#
+# Static tables & rund() in subqueries
+#
+create table t1 (a int);
+insert into t1 values (1);
+explain select benchmark(1000, (select a from t1 where a=sha(rand())));
+drop table t1;

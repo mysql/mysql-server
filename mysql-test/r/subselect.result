@@ -1686,3 +1686,10 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 Warnings:
 Note	1003	select high_priority test.a.id AS `id`,test.a.text AS `text`,test.b.id AS `id`,test.b.text AS `text`,test.c.id AS `id`,test.c.text AS `text` from test.t1 a left join test.t2 b on(((test.a.id = test.b.id) or isnull(test.b.id))) join test.t1 c where (if(isnull(test.b.id),1000,test.b.id) = test.c.id)
 drop table t1,t2;
+create table t1 (a int);
+insert into t1 values (1);
+explain select benchmark(1000, (select a from t1 where a=sha(rand())));
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+2	UNCACHEABLE SUBQUERY	t1	system	NULL	NULL	NULL	NULL	1	
+drop table t1;
