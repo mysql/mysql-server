@@ -31,16 +31,16 @@
 #include <winsock.h>
 #endif
 #include <my_global.h>
-#include "mysql_embed.h"
+#include <mysql.h>
+#include <mysql_embed.h>
 #include <mysql_com.h>
-#include <violite.h>
+#include <mysqld_error.h>
 #include <my_sys.h>
 #include <m_string.h>
-#include "mysql.h"
-#include "mysqld_error.h"
+#include <my_net.h>
+#include <violite.h>
 #include <signal.h>
 #include <errno.h>
-#include <sys/types.h>
 
 #ifdef MYSQL_SERVER
 ulong max_allowed_packet=65536;
@@ -60,20 +60,9 @@ ulong net_write_timeout= NET_WRITE_TIMEOUT;
 #endif
 ulong net_buffer_length=8192;	/* Default length. Enlarged if necessary */
 
-#if !defined(__WIN__) && !defined(MSDOS)
-#include <sys/socket.h>
-#else
+#if defined(__WIN__) || defined(MSDOS)
 #undef MYSQL_SERVER			/* Win32 can't handle interrupts */
 #endif
-#if !defined(MSDOS) && !defined(__WIN__) && !defined(HAVE_BROKEN_NETINET_INCLUDES) && !defined(__BEOS__)
-#include <netinet/in_systm.h>
-#include <netinet/in.h>
-#include <netinet/ip.h>
-#if !defined(alpha_linux_port)
-#include <netinet/tcp.h>
-#endif
-#endif
-#include "mysqld_error.h"
 #ifdef MYSQL_SERVER
 #include "my_pthread.h"
 #include "thr_alarm.h"

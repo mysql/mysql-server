@@ -203,7 +203,7 @@ typedef struct st_udf_init
 {
   my_bool maybe_null;			/* 1 if function can return NULL */
   unsigned int decimals;		/* for real functions */
-  unsigned int max_length;		/* For string functions */
+  unsigned long max_length;		/* For string functions */
   char	  *ptr;				/* free pointer for function data */
   my_bool const_item;			/* 0 if result is independent of arguments */
 } UDF_INIT;

@@ -8903,7 +8903,13 @@ version 4.0;
 @item
 The old C API functions @code{mysql_drop_db}, @code{mysql_create_db} and
 @code{mysql_connect} are not supported anymore, unless one compiles
-MySQL with @code{USE_OLD_FUNCTIONS}.
+MySQL with @code{USE_OLD_FUNCTIONS}.   Instead of doing this, one should
+change the client to use the new 4.0 API.
+@item
+In the @code{MYSQL_FIELD} structure, @code{length} and @code{max_length} has
+changed from @code{unsigned int} to @code{unsigned long}. This should not
+cause any other problems than some warnings if you use these to
+@code{printf()} type function.
 @item
 You should use @code{TRUNCATE TABLE} when you want to delete all rows
 from a table and you don't care of how many rows where deleted.

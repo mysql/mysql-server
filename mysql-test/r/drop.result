@@ -27,7 +27,7 @@ drop database foo;
 drop database if exists foo;
 flush tables with read lock;
 create database foo;
-Can't execute the query because you have a conflicting read lock
+Got one of the listed errors
 unlock tables;
 create database foo;
 show databases;
@@ -37,7 +37,7 @@ mysql
 test
 flush tables with read lock;
 drop database foo;
-Can't execute the query because you have a conflicting read lock
+Got one of the listed errors
 unlock tables;
 drop database foo;
 show databases;

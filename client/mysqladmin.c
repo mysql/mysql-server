@@ -928,7 +928,7 @@ static void print_header(MYSQL_RES *result)
   putchar('|');
   while ((field = mysql_fetch_field(result)))
   {
-    printf(" %-*s|",field->max_length+1,field->name);
+    printf(" %-*s|",(int) field->max_length+1,field->name);
   }
   putchar('\n');
   print_top(result);
@@ -983,11 +983,11 @@ static void print_relative_row(MYSQL_RES *result, MYSQL_ROW cur, uint row)
 
   mysql_field_seek(result, 0);
   field = mysql_fetch_field(result);
-  printf("| %-*s|", field->max_length + 1, cur[0]);
+  printf("| %-*s|", (int) field->max_length + 1, cur[0]);
 
   field = mysql_fetch_field(result);
   tmp = cur[1] ? strtoull(cur[1], NULL, 0) : (ulonglong) 0;
-  printf(" %-*s|\n", field->max_length + 1,
+  printf(" %-*s|\n", (int) field->max_length + 1,
 	 llstr((tmp - last_values[row]), buff));
   last_values[row] = tmp;
 }
