@@ -325,47 +325,6 @@ delete from t1|
 drop procedure h|
 
 
-# A "real" procedure example
-
---disable_warnings
-drop table if exists fac|
---enable_warnings
-create table fac (n int unsigned not null primary key, f bigint unsigned)|
-
-create procedure ifac(n int unsigned)
-begin
-  declare i int unsigned;
-  set i = 1;
-  if n > 20 then
-    set n = 20;
-  end if;
-  while i <= n do
-    begin
-      declare f bigint unsigned;
-      set f = 0;       # Temp. fix, this should not be needed in the future.
-      call fac(i, f);
-      insert into test.fac values (i, f);
-      set i = i + 1;
-    end;
-  end while;
-end|
-
-create procedure fac(n int unsigned, out f bigint unsigned)
-begin
-  set f = 1;
-  while n > 1 do
-    set f = f * n;
-    set n = n - 1;
-  end while;
-end|
-
-call ifac(20)|
-select * from fac|
-drop table fac|
-drop procedure ifac|
-drop procedure fac|
-
-
 # SELECT INTO local variables
 create procedure into_test(x char(16), y int)
 begin
@@ -510,8 +469,36 @@ drop function e|
 drop function inc|
 drop function mul|
 drop function append|
-drop function fac|
 drop function fun|
+
+
+# A "real" procedure and function example
+
+--disable_warnings
+drop table if exists fac|
+--enable_warnings
+create table fac (n int unsigned not null primary key, f bigint unsigned)|
+
+create procedure ifac(n int unsigned)
+begin
+  declare i int unsigned;
+  set i = 1;
+  if n > 20 then
+    set n = 20;		# bigint overflow otherwise
+  end if;
+  while i <= n do
+    begin
+      insert into test.fac values (i, fac(i));
+      set i = i + 1;
+    end;
+  end while;
+end|
+
+call ifac(20)|
+select * from fac|
+drop table fac|
+drop procedure ifac|
+drop function fac|
 
 delimiter ;|
 drop table t1;
