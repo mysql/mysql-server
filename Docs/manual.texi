@@ -31688,13 +31688,30 @@ mysql> UPDATE tbl_name
            SET blob_column=LOAD_FILE("/tmp/picture")
            WHERE id=1;
 @end example
-@end table
 
 If you are not using MySQL Version 3.23, you have to do the reading
 of the file inside your application and create an @code{INSERT} statement
 to update the database with the file information. One way to do this, if
 you are using the MySQL++ library, can be found at
 @uref{http://www.mysql.com/documentation/mysql++/mysql++-examples.html}.
+
+@findex QUOTE()
+@item QUOTE(str)
+Quotes a string to produce a result that can be used as a properly-escaped
+data value in a SQL statement.  The string is returned surrounded by single
+quotes and with each instance of single quote (@samp{'}), backslash (@samp{\}),
+ASCII NUL, and Control-Z preceded by a backslash.  If the argument is
+@code{NULL}, the return value is the word ``NULL'' without surrounding
+single quotes.
+
+@example
+mysql> SELECT QUOTE("Don't");
+        -> 'Don\'t!'
+mysql> SELECT QUOTE(NULL);
+        -> NULL
+@end example
+
+@end table
 
 MySQL automatically converts numbers to strings as necessary, and
 vice-versa:
@@ -50225,6 +50242,9 @@ each individual 4.0.x release.
 @appendixsubsec Changes in release 4.0.3 (Aug 2002: Beta)
 
 @itemize @bullet
+@item
+Added @code{QUOTE()} function that performs SQL quoting to produce values
+that can be used as data values in queries.
 @item
 Fixed security bug in database hash
 Made @code{safe_mysqld} a symlink to @code{mysqld_safe} in binary distribution.
