@@ -129,18 +129,18 @@ drop table t3,t1,t2;
 
 drop table if exists t6, t5, t4, t3, t2, t1;
 # first testing of common stuff with new parameters
-create table t1 (a int not null, b int not null, key(a,b));
-create table t2 (a int not null, b int not null, key(a,b));
+create table t1 (a int not null, b int not null auto_increment, primary key(a,b));
+create table t2 (a int not null, b int not null auto_increment, primary key(a,b));
 create table t3 (a int not null, b int not null, key(a,b)) UNION=(t1,t2) INSERT_METHOD=NO;
 create table t4 (a int not null, b int not null, key(a,b)) TYPE=MERGE UNION=(t1,t2) INSERT_METHOD=NO;
-create table t5 (a int not null, b int not null, key(a,b)) TYPE=MERGE UNION=(t1,t2) INSERT_METHOD=FIRST;
-create table t6 (a int not null, b int not null, key(a,b)) TYPE=MERGE UNION=(t1,t2) INSERT_METHOD=LAST;
+create table t5 (a int not null, b int not null auto_increment, primary key(a,b)) TYPE=MERGE UNION=(t1,t2) INSERT_METHOD=FIRST;
+create table t6 (a int not null, b int not null auto_increment, primary key(a,b)) TYPE=MERGE UNION=(t1,t2) INSERT_METHOD=LAST;
 show create table t3;
 show create table t4;
 show create table t5;
 show create table t6;
-insert into t1 values (1,1),(1,2),(1,3),(1,4);
-insert into t2 values (2,1),(2,2),(2,3),(2,4);
+insert into t1 values (1,NULL),(1,NULL),(1,NULL),(1,NULL);
+insert into t2 values (2,NULL),(2,NULL),(2,NULL),(2,NULL);
 select * from t3 order by b,a limit 3;
 select * from t4 order by b,a limit 3;
 select * from t5 order by b,a limit 3,3;
@@ -167,7 +167,16 @@ select * from t2 order by a,b;
 select * from t3 order by a,b;
 select * from t4 order by a,b;
 select * from t5 order by a,b;
+# auto_increment
+select 1;
+insert into t5 values (1,NULL),(5,NULL);
+insert into t6 values (2,NULL),(6,NULL);
+select * from t1 order by a,b;
+select * from t2 order by a,b;
+select * from t5 order by a,b;
+select * from t6 order by a,b;
 drop table if exists t6, t5, t4, t3, t2, t1;
+
 CREATE TABLE t1 (  a int(11) NOT NULL default '0',  b int(11) NOT NULL default '0',  PRIMARY KEY  (a,b)) TYPE=MyISAM;
 INSERT INTO t1 VALUES (1,1), (2,1);
 CREATE TABLE t2 (  a int(11) NOT NULL default '0',  b int(11) NOT NULL default '0',  PRIMARY KEY  (a,b)) TYPE=MyISAM;
