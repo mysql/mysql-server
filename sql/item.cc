@@ -117,6 +117,11 @@ bool Item::get_time(TIME *ltime)
   return 0;
 }
 
+CHARSET_INFO * Item::thd_charset() const
+{
+  return current_thd->thd_charset;
+}
+
 Item_field::Item_field(Field *f) :Item_ident(NullS,f->table_name,f->field_name)
 {
   set_field(f);
@@ -234,7 +239,7 @@ table_map Item_field::used_tables() const
 
 String *Item_int::val_str(String *str)
 {
-  str->set(value, my_thd_charset);
+  str->set(value, thd_charset());
   return str;
 }
 
@@ -242,7 +247,7 @@ void Item_int::print(String *str)
 {
   if (!name)
   {
-    str_value.set(value, my_thd_charset);
+    str_value.set(value, thd_charset());
     name=str_value.c_ptr();
   }
   str->append(name);
@@ -250,7 +255,7 @@ void Item_int::print(String *str)
 
 String *Item_uint::val_str(String *str)
 {
-  str->set((ulonglong) value, my_thd_charset);
+  str->set((ulonglong) value, thd_charset());
   return str;
 }
 
@@ -258,7 +263,7 @@ void Item_uint::print(String *str)
 {
   if (!name)
   {
-    str_value.set((ulonglong) value, my_thd_charset);
+    str_value.set((ulonglong) value, thd_charset());
     name=str_value.c_ptr();
   }
   str->append(name);
@@ -267,7 +272,7 @@ void Item_uint::print(String *str)
 
 String *Item_real::val_str(String *str)
 {
-  str->set(value,decimals,my_thd_charset);
+  str->set(value,decimals,thd_charset());
   return str;
 }
 
@@ -308,15 +313,15 @@ void Item_param::set_double(double value)
 }
 
 
-void Item_param::set_value(const char *str, uint length)
+void Item_param::set_value(const char *str, uint length, CHARSET_INFO *cs)
 {  
-  str_value.set(str,length,default_charset_info);  
+  str_value.set(str,length,cs);
   item_result_type = STRING_RESULT;
   item_type = STRING_ITEM;
 }
 
 
-void Item_param::set_longdata(const char *str, ulong length)
+void Item_param::set_longdata(const char *str, ulong length, CHARSET_INFO *cs)
 {
   /* TODO: Fix this for binary handling by making use of 
      buffer_type.. 
@@ -341,10 +346,8 @@ int Item_param::save_in_field(Field *field)
     double nr=val();    
     return (field->store(nr)) ? -1 : 0; 
   }
-  String *result;
-  CHARSET_INFO *cs=default_charset_info;	//fix this
-  result=val_str(&str_value);
-  return (field->store(result->ptr(),result->length(),cs)) ? -1 : 0;
+  String *result=val_str(&str_value);
+  return (field->store(result->ptr(),result->length(),field->charset())) ? -1 : 0;
 }
 
 
@@ -384,10 +387,10 @@ String *Item_param::val_str(String* str)
 { 
   switch (item_result_type) {
   case INT_RESULT:
-    str->set(int_value, my_thd_charset);
+    str->set(int_value, thd_charset());
     return str;
   case REAL_RESULT:
-    str->set(real_value, 2, my_thd_charset);
+    str->set(real_value, 2, thd_charset());
     return str;
   default:
     return (String*) &str_value;
@@ -653,7 +656,7 @@ int Item::save_in_field(Field *field)
       field->result_type() == STRING_RESULT)
   {
     String *result;
-    CHARSET_INFO *cs=field->binary()?my_charset_bin:((Field_str*)field)->charset();
+    CHARSET_INFO *cs=field->charset();
     char buff[MAX_FIELD_WIDTH];		// Alloc buffer for small columns
     str_value.set_quick(buff,sizeof(buff),cs);
     result=val_str(&str_value);
@@ -685,7 +688,7 @@ int Item::save_in_field(Field *field)
 int Item_string::save_in_field(Field *field)
 {
   String *result;
-  CHARSET_INFO *cs=field->binary()?my_charset_bin:((Field_str*)field)->charset();
+  CHARSET_INFO *cs=field->charset();
   result=val_str(&str_value);
   if (null_value)
     return set_field_to_null(field);
@@ -758,7 +761,7 @@ longlong Item_varbinary::val_int()
 int Item_varbinary::save_in_field(Field *field)
 {
   int error;
-  CHARSET_INFO *cs=field->binary()?default_charset_info:((Field_str*)field)->charset();
+  CHARSET_INFO *cs=field->charset();
   field->set_notnull();
   if (field->result_type() == STRING_RESULT)
   {
