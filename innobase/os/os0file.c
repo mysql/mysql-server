@@ -413,8 +413,6 @@ os_file_lock(
 "InnoDB: using the same InnoDB data or log files.\n");
 		}
 
-		close(fd);
-
 		return(-1);
 	}
 
@@ -989,6 +987,7 @@ try_again:
 	} else if (access_type == OS_FILE_READ_WRITE
 			&& os_file_lock(file, name)) {
 		*success = FALSE;
+		close(file);
 		file = -1;
 #endif
 	} else {
@@ -1101,6 +1100,7 @@ os_file_create_simple_no_error_handling(
 	} else if (access_type == OS_FILE_READ_WRITE
 			&& os_file_lock(file, name)) {
 		*success = FALSE;
+		close(file);
 		file = -1;
 #endif
 	} else {
@@ -1152,7 +1152,8 @@ try_again:
 	if (create_mode == OS_FILE_OPEN_RAW) {
 		create_flag = OPEN_EXISTING;
 		share_mode = FILE_SHARE_WRITE;
-	} else if (create_mode == OS_FILE_OPEN) {
+	} else if (create_mode == OS_FILE_OPEN
+			|| create_mode == OS_FILE_OPEN_RETRY) {
 		create_flag = OPEN_EXISTING;
 	} else if (create_mode == OS_FILE_CREATE) {
 		create_flag = CREATE_NEW;
@@ -1243,7 +1244,8 @@ try_again:
 try_again:	
 	ut_a(name);
 
-	if (create_mode == OS_FILE_OPEN || create_mode == OS_FILE_OPEN_RAW) {
+	if (create_mode == OS_FILE_OPEN || create_mode == OS_FILE_OPEN_RAW
+			|| create_mode == OS_FILE_OPEN_RETRY) {
 		mode_str = "OPEN";
 		create_flag = O_RDWR;
 	} else if (create_mode == OS_FILE_CREATE) {
@@ -1316,6 +1318,23 @@ try_again:
 	} else if (create_mode != OS_FILE_OPEN_RAW
 			&& os_file_lock(file, name)) {
 		*success = FALSE;
+		if (create_mode == OS_FILE_OPEN_RETRY) {
+			int i;
+			ut_print_timestamp(stderr);
+			fputs("  InnoDB: Retrying to lock the first data file\n",
+				stderr);
+			for (i = 0; i < 100; i++) {
+				os_thread_sleep(1000000);
+				if (!os_file_lock(file, name)) {
+					*success = TRUE;
+					return(file);
+				}
+			}
+			ut_print_timestamp(stderr);
+			fputs("  InnoDB: Unable to open the first data file\n",
+				stderr);
+		}
+		close(file);
 		file = -1;
 #endif
 	} else {

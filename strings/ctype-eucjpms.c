@@ -8380,17 +8380,18 @@ my_jisx0212_uni_onechar(int code){
 
 /*
   EUC-JP encoding subcomponents:
-  [x00-x7F]			# ASCII/JIS-Roman (one-byte/character)  
-  [x8E][xA0-xDF]		# half-width katakana (two bytes/char)  
-  [x8F][xA1-xFE][xA1-xFE]	# JIS X 0212-1990 (three bytes/char)  
+  [x00-x7F]			# ASCII/JIS-Roman (one-byte/character)
+  [x8E][xA0-xDF]		# half-width katakana (two bytes/char)
+  [x8F][xA1-xFE][xA1-xFE]	# JIS X 0212-1990 (three bytes/char)
   [xA1-xFE][xA1-xFE]		# JIS X 0208:1997 (two bytes/char)
 */
 
 static
 uint my_well_formed_len_eucjpms(CHARSET_INFO *cs __attribute__((unused)),
-                             const char *beg, const char *end, uint pos)
+                             const char *beg, const char *end, uint pos, int *error)
 {
   const uchar *b= (uchar *) beg;
+  *error=0;
 
   for ( ; pos && b < (uchar*) end; pos--, b++)
   {
@@ -8408,6 +8409,7 @@ uint my_well_formed_len_eucjpms(CHARSET_INFO *cs __attribute__((unused)),
     {
       if (*b >= 0xA0 && *b <= 0xDF)
         continue;
+      *error=1;
       return chbeg - beg;           /* invalid sequence */
     }
 
@@ -8421,6 +8423,7 @@ uint my_well_formed_len_eucjpms(CHARSET_INFO *cs __attribute__((unused)),
     if (ch >= 0xA1 && ch <= 0xFE &&
         *b >= 0xA1 && *b <= 0xFE)   /* [xA1-xFE][xA1-xFE] */
       continue;
+    *error=1;
     return chbeg - beg;             /* invalid sequence */
   }
   return b - (uchar *) beg;
