@@ -124,11 +124,11 @@ create table t1 (id int unsigned not null, primary key  using BTREE (id)) type=H
 insert into t1 values(1);
 select max(id) from t1;
 max(id)
-NULL
+1
 insert into t1 values(2);
 select max(id) from t1;
 max(id)
-NULL
+2
 replace into t1 values(1);
 drop table t1;
 create table t1 (n int) type=heap;

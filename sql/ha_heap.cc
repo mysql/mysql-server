@@ -189,7 +189,7 @@ int ha_heap::index_prev(byte * buf)
 int ha_heap::index_first(byte * buf)
 {
   statistic_increment(ha_read_first_count,&LOCK_status);
-  int error=heap_rfirst(file, buf);
+  int error=heap_rfirst(file, buf, active_index);
   table->status=error ? STATUS_NOT_FOUND: 0;
   return error;
 }
@@ -197,7 +197,7 @@ int ha_heap::index_first(byte * buf)
 int ha_heap::index_last(byte * buf)
 {
   statistic_increment(ha_read_last_count,&LOCK_status);
-  int error=heap_rlast(file, buf);
+  int error=heap_rlast(file, buf, active_index);
   table->status=error ? STATUS_NOT_FOUND: 0;
   return error;
 }

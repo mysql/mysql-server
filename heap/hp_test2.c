@@ -306,7 +306,7 @@ int main(int argc, char *argv[])
     if (!silent)
       printf("- Read last key - delete - prev - prev - opt_delete - prev -> first\n");
 
-    if (heap_rlast(file,record3)) goto err;
+    if (heap_rlast(file,record3,0)) goto err;
     if (heap_delete(file,record3)) goto err;
     key_check-=atoi(record3);
     key1[atoi(record+keyinfo[0].seg[0].start)]--;
@@ -513,7 +513,7 @@ int main(int argc, char *argv[])
   }
 
   ant=0;
-  for (error=heap_rlast(file,record) ;
+  for (error=heap_rlast(file,record,0) ;
       ! error ;
       error=heap_rprev(file,record))
   {

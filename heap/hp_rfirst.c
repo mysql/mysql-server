@@ -18,10 +18,10 @@
 
 /* Read first record with the current key */
 
-int heap_rfirst(HP_INFO *info, byte *record)
+int heap_rfirst(HP_INFO *info, byte *record, int inx)
 {
   HP_SHARE *share = info->s;
-  HP_KEYDEF *keyinfo = share->keydef + info->lastinx;
+  HP_KEYDEF *keyinfo = share->keydef + inx;
   
   DBUG_ENTER("heap_rfirst");
   if (keyinfo->algorithm == HA_KEY_ALG_BTREE)
