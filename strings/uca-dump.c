@@ -218,7 +218,6 @@ int main(int ac, char **av)
       */
       if (ndefs == MY_UCA_NCHARS)
       {
-        printf("/* Don't dump w=%d pg=%3X: ndefs=%d */\n",w, page, ndefs);
         continue;
       }
       switch (maxnum)
@@ -263,7 +262,17 @@ int main(int ac, char **av)
         
         for (i=0; i < maxnum; i++)
         {
-          printf("0x%04X",(int)weight[i]);
+          /* 
+            Invert weights for secondary level to
+            sort upper case letters before their
+            lower case counter part.
+          */
+          int tmp= weight[i];
+          if (w == 2 && tmp)
+            tmp= (int)(0x100 - weight[i]);
+          
+          
+          printf("0x%04X", tmp);
           if ((offs+1 != MY_UCA_NCHARS) || (i+1!=maxnum))
             printf(",");
           nchars++;
@@ -281,7 +290,7 @@ int main(int ac, char **av)
       printf("};\n\n");
     }
 
-    printf("uchar ucal%s[%d]={\n", pname[w], MY_UCA_NPAGES);
+    printf("uchar uca_length%s[%d]={\n", pname[w], MY_UCA_NPAGES);
     for (page=0; page < MY_UCA_NPAGES; page++)
     {
       printf("%d%s%s",pagemaxlen[page],page<MY_UCA_NPAGES-1?",":"",(page+1) % 16 ? "":"\n");
@@ -289,7 +298,7 @@ int main(int ac, char **av)
     printf("};\n");
 
 
-    printf("uint16 *ucaw%s[%d]={\n", pname[w], MY_UCA_NPAGES);
+    printf("uint16 *uca_weight%s[%d]={\n", pname[w], MY_UCA_NPAGES);
     for (page=0; page < MY_UCA_NPAGES; page++)
     {
       const char *comma= page < MY_UCA_NPAGES-1 ? "," : "";
