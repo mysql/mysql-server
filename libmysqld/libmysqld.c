@@ -451,6 +451,27 @@ static const char *default_options[]=
 static TYPELIB option_types={array_elements(default_options)-1,
 			     "options",default_options};
 
+static int add_init_command(struct st_mysql_options *options, const char *cmd)
+{
+  char **ptr, *tmp;
+
+  if (!options->init_commands)
+  {
+    options->init_commands= (DYNAMIC_ARRAY*)my_malloc(sizeof(DYNAMIC_ARRAY),
+						      MYF(MY_WME));
+    init_dynamic_array(options->init_commands,sizeof(char*),0,5 CALLER_INFO);
+  }
+
+  if (!(tmp= my_strdup(cmd,MYF(MY_WME))) ||
+      insert_dynamic(options->init_commands, &tmp))
+  {
+    my_free(tmp, MYF(MY_ALLOW_ZERO_PTR));
+    return 1;
+  }
+
+  return 0;
+}
+
 static void mysql_read_default_options(struct st_mysql_options *options,
 				       const char *filename,const char *group)
 {
@@ -520,11 +541,7 @@ static void mysql_read_default_options(struct st_mysql_options *options,
 	  }
 	  break;
 	case 8:				/* init-command */
-	  if (opt_arg)
-	  {
-	    my_free(options->init_command,MYF(MY_ALLOW_ZERO_PTR));
-	    options->init_command=my_strdup(opt_arg,MYF(MY_WME));
-	  }
+	  add_init_command(options,opt_arg);
 	  break;
 	case 9:				/* host */
 	  if (opt_arg)
@@ -1005,13 +1022,29 @@ mysql_real_connect(MYSQL *mysql,const char *host, const char *user,
     goto error;
   if (db && mysql_select_db(mysql,db))
     goto error;
-  if (mysql->options.init_command)
+
+  if (mysql->options.init_commands)
   {
+    DYNAMIC_ARRAY *init_commands= mysql->options.init_commands;
+    char **ptr= (char**)init_commands->buffer;
+    char **end= ptr + init_commands->elements;
+
     my_bool reconnect=mysql->reconnect;
     mysql->reconnect=0;
-    if (mysql_query(mysql,mysql->options.init_command))
-      goto error;
-    mysql_free_result(mysql_use_result(mysql));
+
+    for (; ptr<end; ptr++)
+    {
+      MYSQL_RES *res;
+      if (mysql_query(mysql,*ptr))
+	goto error;
+      if (mysql->fields)
+      {
+	if (!(res= mysql_use_result(mysql)))
+	  goto error;
+	mysql_free_result(res);
+      }
+    }
+
     mysql->reconnect=reconnect;
   }
 
@@ -1108,7 +1141,6 @@ mysql_close(MYSQL *mysql)
     my_free(mysql->user,MYF(MY_ALLOW_ZERO_PTR));
     my_free(mysql->passwd,MYF(MY_ALLOW_ZERO_PTR));
     my_free(mysql->db,MYF(MY_ALLOW_ZERO_PTR));
-    my_free(mysql->options.init_command,MYF(MY_ALLOW_ZERO_PTR));
     my_free(mysql->options.user,MYF(MY_ALLOW_ZERO_PTR));
     my_free(mysql->options.host,MYF(MY_ALLOW_ZERO_PTR));
     my_free(mysql->options.password,MYF(MY_ALLOW_ZERO_PTR));
@@ -1118,6 +1150,11 @@ mysql_close(MYSQL *mysql)
     my_free(mysql->options.my_cnf_group,MYF(MY_ALLOW_ZERO_PTR));
     my_free(mysql->options.charset_dir,MYF(MY_ALLOW_ZERO_PTR));
     my_free(mysql->options.charset_name,MYF(MY_ALLOW_ZERO_PTR));
+    if (mysql->options.init_commands)
+    {
+      delete_dynamic(mysql->options.init_commands);
+      my_free((char*)mysql->options.init_commands,MYF(MY_WME));
+    }
     /* Clear pointers for better safety */
     mysql->host_info=mysql->user=mysql->passwd=mysql->db=0;
     bzero((char*) &mysql->options,sizeof(mysql->options));
@@ -1820,8 +1857,7 @@ mysql_options(MYSQL *mysql,enum mysql_option option, const char *arg)
       mysql->options.client_flag&= ~CLIENT_LOCAL_FILES;
     break;
   case MYSQL_INIT_COMMAND:
-    my_free(mysql->options.init_command,MYF(MY_ALLOW_ZERO_PTR));
-    mysql->options.init_command=my_strdup(arg,MYF(MY_WME));
+    add_init_command(&mysql->options,arg);
     break;
   case MYSQL_READ_DEFAULT_FILE:
     my_free(mysql->options.my_cnf_file,MYF(MY_ALLOW_ZERO_PTR));
