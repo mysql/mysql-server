@@ -48,30 +48,37 @@ HP_INFO *heap_open(const char *name, int mode, uint keys, HP_KEYDEF *keydef,
   pthread_mutex_lock(&THR_LOCK_heap);
   if (!(share = hp_find_named_heap(name)))
   {
+    HP_KEYDEF *keyinfo;
     DBUG_PRINT("info",("Initializing new table"));
-    for (i=key_segs=max_length=0 ; i < keys ; i++)
+    for (i=key_segs=max_length=0, keyinfo= keydef; i < keys; i++, keyinfo++)
     {
-      key_segs+= keydef[i].keysegs;
-      if (keydef[i].algorithm == HA_KEY_ALG_BTREE)
-        key_segs++;
-      bzero((char*) &keydef[i].block,sizeof(keydef[i].block));
-      bzero((char*) &keydef[i].rb_tree ,sizeof(keydef[i].rb_tree));
-      for (j=length=0 ; j < keydef[i].keysegs; j++)
+      bzero((char*) &keyinfo->block,sizeof(keyinfo->block));
+      bzero((char*) &keyinfo->rb_tree ,sizeof(keyinfo->rb_tree));
+      for (j=length=0 ; j < keyinfo->keysegs; j++)
       {
-	length+=keydef[i].seg[j].length;
-	if (keydef[i].seg[j].null_bit)
+	length+=keyinfo->seg[j].length;
+	if (keyinfo->seg[j].null_bit)
 	{
-	  if (!(keydef[i].flag & HA_NULL_ARE_EQUAL))
-	    keydef[i].flag |= HA_NULL_PART_KEY;
-	  if (keydef[i].algorithm == HA_KEY_ALG_BTREE)
-	    keydef[i].rb_tree.size_of_element++;
+	  if (!(keyinfo->flag & HA_NULL_ARE_EQUAL))
+	    keyinfo->flag |= HA_NULL_PART_KEY;
+	  if (keyinfo->algorithm == HA_KEY_ALG_BTREE)
+	    keyinfo->rb_tree.size_of_element++;
 	}
       }
-      keydef[i].length= length;
-      length+= keydef[i].rb_tree.size_of_element + 
-	       ((keydef[i].algorithm == HA_KEY_ALG_BTREE) ? sizeof(byte*) : 0);
+      keyinfo->length= length;
+      length+= keyinfo->rb_tree.size_of_element + 
+	       ((keyinfo->algorithm == HA_KEY_ALG_BTREE) ? sizeof(byte*) : 0);
       if (length > max_length)
 	max_length= length;
+      key_segs+= keyinfo->keysegs;
+      if (keyinfo->algorithm == HA_KEY_ALG_BTREE)
+      {
+        key_segs++; /* additional HA_KEYTYPE_END segment */
+        if (keyinfo->flag & HA_NULL_PART_KEY)
+          keyinfo->get_key_length = hp_rb_null_key_length;
+        else
+          keyinfo->get_key_length = hp_rb_key_length;
+      }
     }
     if (!(share= (HP_SHARE*) my_malloc((uint) sizeof(HP_SHARE)+
 				       keys*sizeof(HP_KEYDEF)+
@@ -86,9 +93,8 @@ HP_INFO *heap_open(const char *name, int mode, uint keys, HP_KEYDEF *keydef,
     init_block(&share->block, reclength + 1, min_records, max_records);
 	/* Fix keys */
     memcpy(share->keydef, keydef, (size_t) (sizeof(keydef[0]) * keys));
-    for (i= 0; i < keys; i++)
+    for (i= 0, keyinfo= share->keydef; i < keys; i++, keyinfo++)
     {
-      HP_KEYDEF *keyinfo= share->keydef + i;
       uint nsegs= keydef[i].keysegs;
 
       if (keydef[i].algorithm == HA_KEY_ALG_BTREE)
