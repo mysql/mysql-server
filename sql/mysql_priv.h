@@ -791,6 +791,7 @@ extern ulonglong log_10_int[20];
 extern ulonglong keybuff_size;
 extern ulong refresh_version,flush_version, thread_id,query_id,opened_tables;
 extern ulong created_tmp_tables, created_tmp_disk_tables, bytes_sent;
+extern ulong binlog_cache_use, binlog_cache_disk_use;
 extern ulong aborted_threads,aborted_connects;
 extern ulong delayed_insert_timeout;
 extern ulong delayed_insert_limit, delayed_queue_size;

@@ -405,6 +405,16 @@ int ha_commit_trans(THD *thd, THD_TRANS* trans)
 	my_b_tell(&thd->transaction.trans_log))
     {
       mysql_bin_log.write(thd, &thd->transaction.trans_log, 1);
+      statistic_increment(binlog_cache_use, &LOCK_status);
+      if (thd->transaction.trans_log.disk_writes != 0)
+      {
+        /* 
+          We have to do this after addition of trans_log to main binlog since
+          this operation can cause flushing of end of trans_log to disk. 
+        */
+        statistic_increment(binlog_cache_disk_use, &LOCK_status);
+        thd->transaction.trans_log.disk_writes= 0;
+      }
       reinit_io_cache(&thd->transaction.trans_log,
 		      WRITE_CACHE, (my_off_t) 0, 0, 1);
       thd->transaction.trans_log.end_of_file= max_binlog_cache_size;
@@ -492,10 +502,23 @@ int ha_rollback_trans(THD *thd, THD_TRANS *trans)
          Update the binary log with a BEGIN/ROLLBACK block if we have cached some
          queries and we updated some non-transactional table. Such cases should
          be rare (updating a non-transactional table inside a transaction...).
+         Count disk writes to trans_log in any case.
       */
-      if (unlikely((thd->options & OPTION_STATUS_NO_TRANS_UPDATE) &&
-                   my_b_tell(&thd->transaction.trans_log)))
-        mysql_bin_log.write(thd, &thd->transaction.trans_log, 0);
+      if (my_b_tell(&thd->transaction.trans_log))
+      {
+        if (unlikely(thd->options & OPTION_STATUS_NO_TRANS_UPDATE))
+          mysql_bin_log.write(thd, &thd->transaction.trans_log, 0);
+        statistic_increment(binlog_cache_use, &LOCK_status);
+        if (thd->transaction.trans_log.disk_writes != 0)
+        {
+          /* 
+            We have to do this after addition of trans_log to main binlog since
+            this operation can cause flushing of end of trans_log to disk. 
+          */
+          statistic_increment(binlog_cache_disk_use, &LOCK_status);
+          thd->transaction.trans_log.disk_writes= 0;
+        }
+      }
       /* Flushed or not, empty the binlog cache */
       reinit_io_cache(&thd->transaction.trans_log,
                       WRITE_CACHE, (my_off_t) 0, 0, 1);
