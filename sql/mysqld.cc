@@ -429,7 +429,7 @@ static void close_connections(void)
     if (error != 0 && !count++)
       sql_print_error("Got error %d from pthread_cond_timedwait",error);
 #endif
-#if defined(AIX_3_2) || defined(HAVE_DEC_3_2_THREADS)
+#if defined(HAVE_DEC_3_2_THREADS) || defined(SIGNALS_DONT_BREAK_READ)
     if (ip_sock != INVALID_SOCKET)
     {
       DBUG_PRINT("error",("closing TCP/IP and socket files"));
@@ -544,9 +544,9 @@ static void close_connections(void)
   (void) pthread_mutex_unlock(&LOCK_thread_count);
 
   mysql_log.close(1);
+  mysql_slow_log.close(1);
   mysql_update_log.close(1);
   mysql_bin_log.close(1);
-  my_free(charsets_list, MYF(0));
   DBUG_PRINT("quit",("close_connections thread"));
   DBUG_VOID_RETURN;
 }
@@ -680,6 +680,7 @@ void clean_up(bool print_message)
   end_raid();
 #endif
   free_defaults(defaults_argv);
+  my_free(charsets_list, MYF(MY_ALLOW_ZERO_PTR));
   my_free(mysql_tmpdir,MYF(0));
   x_free(opt_bin_logname);
   bitmap_free(&temp_pool);
@@ -2487,9 +2488,7 @@ static struct option long_options[] = {
   {"chroot",                required_argument, 0, 'r'},
   {"character-sets-dir",    required_argument, 0, (int) OPT_CHARSETS_DIR},
   {"datadir",               required_argument, 0, 'h'},
-#ifndef DBUG_OFF
   {"debug",                 optional_argument, 0, '#'},
-#endif
   {"default-character-set", required_argument, 0, 'C'},
   {"default-table-type",    required_argument, 0, (int) OPT_TABLE_TYPE},
   {"delay-key-write-for-all-tables",
@@ -2544,10 +2543,8 @@ static struct option long_options[] = {
      (int) OPT_DISCONNECT_SLAVE_EVENT_COUNT},
   {"abort-slave-event-count",      required_argument, 0,
      (int) OPT_ABORT_SLAVE_EVENT_COUNT},
-#if !defined(DBUG_OFF) && defined(SAFEMALLOC)
   {"safemalloc-mem-limit",  required_argument, 0, (int)
      OPT_SAFEMALLOC_MEM_LIMIT},
-#endif    
   {"new",                   no_argument,       0, 'n'},
   {"old-protocol",          no_argument,       0, 'o'},
 #ifdef ONE_THREAD
@@ -3165,12 +3162,12 @@ static void get_options(int argc,char **argv)
 			long_options, &option_index)) != EOF)
   {
     switch(c) {
-#ifndef DBUG_OFF
     case '#':
+#ifndef DBUG_OFF
       DBUG_PUSH(optarg ? optarg : default_dbug_option);
+#endif
       opt_endinfo=1;				/* unireg: memory allocation */
       break;
-#endif
     case 'a':
       opt_ansi_mode=1;
       thd_startup_options|=OPTION_ANSI_MODE;
@@ -3205,11 +3202,11 @@ static void get_options(int argc,char **argv)
     case 'P':
       mysql_port= (unsigned int) atoi(optarg);
       break;
-#if !defined(DBUG_OFF) && defined(SAFEMALLOC)      
     case OPT_SAFEMALLOC_MEM_LIMIT:
+#if !defined(DBUG_OFF) && defined(SAFEMALLOC)      
       safemalloc_mem_limit = atoi(optarg);
-      break;
 #endif      
+      break;
     case OPT_SOCKET:
       mysql_unix_port= optarg;
       break;
