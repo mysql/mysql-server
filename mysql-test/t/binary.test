@@ -2,6 +2,7 @@
 # test sort,min and max on binary fields
 #
 
+drop table if exists t1,t2;
 create table t1 (name char(20) not null, primary key (name));
 create table t2 (name char(20) binary not null, primary key (name));
 insert into t1 values ("å");

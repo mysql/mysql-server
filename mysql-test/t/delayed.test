@@ -3,6 +3,7 @@
 # (Can't be tested with purify :( )
 #
 
+drop table if exists t1;
 create table t1 (a char(10), tmsp timestamp);
 insert into t1 set a = 1;
 insert delayed into t1 set a = 2;

@@ -2,6 +2,7 @@
 # test of IN (NULL)
 #
 
+drop table if exists t1;
 CREATE TABLE t1 (field char(1));
 INSERT INTO t1 VALUES ('A'),(NULL);
 SELECT * from t1 WHERE field IN (NULL);

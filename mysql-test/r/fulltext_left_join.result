@@ -1,3 +1,4 @@
+drop table if exists t1, t2;
 CREATE TABLE t1 (
 id           VARCHAR(255) NOT NULL PRIMARY KEY,
 sujet        VARCHAR(255),
