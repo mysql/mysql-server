@@ -84,26 +84,71 @@ bool key_part_spec::operator==(const key_part_spec& other) const
   return length == other.length && !strcmp(field_name, other.field_name);
 }
 
-/* Equality comparison of keys (ignoring name) */
-bool Key::operator==(Key& other)
+
+/*
+  Test if a foreign key is a prefix of the given key
+  (ignoring key name, key type and order of columns)
+
+  NOTES:
+    This is only used to test if an index for a FOREIGN KEY exists
+
+  IMPLEMENTATION
+    We only compare field names
+
+  RETURN
+    0	Generated key is a prefix of other key
+    1	Not equal
+*/
+
+bool foreign_key_prefix(Key *a, Key *b)
 {
-  if (type == other.type &&
-      algorithm == other.algorithm &&
-      columns.elements == other.columns.elements)
+  /* Ensure that 'a' is the generated key */
+  if (a->generated)
   {
-    List_iterator<key_part_spec> col_it1(columns);
-    List_iterator<key_part_spec> col_it2(other.columns);
-    const key_part_spec *col1, *col2;
-    while ((col1 = col_it1++))
-    {
-      col2 = col_it2++;
-      DBUG_ASSERT(col2 != NULL);
-      if (!(*col1 == *col2))
-	return false;
-    }
-    return true;
+    if (b->generated && a->columns.elements > b->columns.elements)
+      swap(Key*, a, b);                          // Put shorter key in 'a'
   }
-  return false;
+  else
+  {
+    if (!b->generated)
+      return TRUE;                              // No foreign key
+    swap(Key*, a, b);                           // Put generated key in 'a'
+  }
+
+  /* Test if 'a' is a prefix of 'b' */
+  if (a->columns.elements > b->columns.elements)
+    return TRUE;                                // Can't be prefix
+
+  List_iterator<key_part_spec> col_it1(a->columns);
+  List_iterator<key_part_spec> col_it2(b->columns);
+  const key_part_spec *col1, *col2;
+
+#ifdef ENABLE_WHEN_INNODB_CAN_HANDLE_SWAPED_FOREIGN_KEY_COLUMNS
+  while ((col1= col_it1++))
+  {
+    bool found= 0;
+    col_it2.rewind();
+    while ((col2= col_it2++))
+    {
+      if (*col1 == *col2)
+      {
+        found= TRUE;
+	break;
+      }
+    }
+    if (!found)
+      return TRUE;                              // Error
+  }
+  return FALSE;                                 // Is prefix
+#else
+  while ((col1= col_it1++))
+  {
+    col2= col_it2++;
+    if (!(*col1 == *col2))
+      return TRUE;
+  }
+  return FALSE;                                 // Is prefix
+#endif
 }
 
 

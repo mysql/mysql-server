@@ -955,7 +955,7 @@ create:
 	  {
 	    LEX *lex=Lex;
 
-	    lex->key_list.push_back(new Key($2,$4.str, $5, lex->col_list));
+	    lex->key_list.push_back(new Key($2,$4.str, $5, 0, lex->col_list));
 	    lex->col_list.empty();
 	  }
 	| CREATE DATABASE opt_if_not_exists ident
@@ -1187,14 +1187,15 @@ key_def:
 	key_type opt_ident key_alg '(' key_list ')'
 	  {
 	    LEX *lex=Lex;
-	    lex->key_list.push_back(new Key($1,$2, $3, lex->col_list));
+	    lex->key_list.push_back(new Key($1,$2, $3, 0, lex->col_list));
 	    lex->col_list.empty();		/* Alloced by sql_alloc */
 	  }
 	| opt_constraint constraint_key_type opt_ident key_alg '(' key_list ')'
 	  {
 	    LEX *lex=Lex;
 	    const char *key_name= $3 ? $3:$1;
-	    lex->key_list.push_back(new Key($2, key_name, $4, lex->col_list));
+	    lex->key_list.push_back(new Key($2, key_name, $4, 0,
+				    lex->col_list));
 	    lex->col_list.empty();		/* Alloced by sql_alloc */
 	  }
 	| opt_constraint FOREIGN KEY_SYM opt_ident '(' key_list ')' references
@@ -1206,8 +1207,9 @@ key_def:
 				    lex->fk_delete_opt,
 				    lex->fk_update_opt,
 				    lex->fk_match_option));
-	    lex->key_list.push_back(new Key(Key::MULTIPLE, $4 ? $4:$1,
-					    HA_KEY_ALG_UNDEF, lex->col_list));
+	    lex->key_list.push_back(new Key(Key::MULTIPLE, $4 ? $4 : $1,
+					    HA_KEY_ALG_UNDEF, 1,
+					    lex->col_list));
 	    lex->col_list.empty();		/* Alloced by sql_alloc */
 	  }
 	| constraint opt_check_constraint

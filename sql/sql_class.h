@@ -240,14 +240,16 @@ public:
   enum ha_key_alg algorithm;
   List<key_part_spec> columns;
   const char *name;
+  bool generated;
 
   Key(enum Keytype type_par, const char *name_arg, enum ha_key_alg alg_par,
-      List<key_part_spec> &cols)
-    :type(type_par), algorithm(alg_par), columns(cols), name(name_arg)
+      bool generated_arg, List<key_part_spec> &cols)
+    :type(type_par), algorithm(alg_par), columns(cols), name(name_arg),
+    generated(generated_arg)
   {}
   ~Key() {}
   /* Equality comparison of keys (ignoring name) */
-  bool operator==(Key& other);
+  friend bool foreign_key_prefix(Key *a, Key *b);
 };
 
 class Table_ident;
@@ -265,7 +267,7 @@ public:
   foreign_key(const char *name_arg, List<key_part_spec> &cols,
 	      Table_ident *table,   List<key_part_spec> &ref_cols,
 	      uint delete_opt_arg, uint update_opt_arg, uint match_opt_arg)
-    :Key(FOREIGN_KEY, name_arg, HA_KEY_ALG_UNDEF, cols),
+    :Key(FOREIGN_KEY, name_arg, HA_KEY_ALG_UNDEF, 0, cols),
     ref_table(table), ref_columns(cols),
     delete_opt(delete_opt_arg), update_opt(update_opt_arg),
     match_opt(match_opt_arg)
