@@ -131,3 +131,25 @@ create table t1 (a char(10) character set koi8r, b text character set koi8r);
 insert into t1 values ('test','test');
 insert into t1 values ('йцук','йцук');
 drop table t1;
+
+#
+# Try to  apply an automatic conversion in some cases:
+# E.g. when mixing a column to a string, the string
+# is converted into the column character set.
+# If conversion loses data, then error. Otherwise,
+# the string is replaced by its converted representation
+#
+set names koi8r;
+create table t1 (a char(10) character set cp1251);
+insert into t1 values (_koi8r'вася');
+# this is possible:
+select * from t1 where a=_koi8r'вася';
+# this is not possible, because we have a function, not just a constant:
+--error 1267
+select * from t1 where a=concat(_koi8r'вася');
+# this is not posible, cannot convert _latin1'вася' into cp1251:
+--error 1267
+select * from t1 where a=_latin1'вася';
+drop table t1;
+set names latin1;
+
