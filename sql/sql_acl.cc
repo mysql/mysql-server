@@ -2125,7 +2125,7 @@ static GRANT_NAME *name_hash_search(HASH *name_hash,
 
 inline GRANT_NAME *
 proc_hash_search(const char *host, const char *ip, const char *db,
-		  const char *user, const char *tname, bool exact)
+                 const char *user, const char *tname, bool exact)
 {
   return (GRANT_TABLE*) name_hash_search(&proc_priv_hash, host, ip, db,
 					 user, tname, exact);
@@ -3594,11 +3594,11 @@ err:
    name         Routine name
 
   RETURN
-   1            error
    0            Ok 
+   1            error
 */
 
-bool check_routine_level_acl(THD *thd, char *db, char *name)
+bool check_routine_level_acl(THD *thd, const char *db, const char *name)
 {
   bool no_routine_acl= 1;
   if (grant_option)
@@ -5570,4 +5570,16 @@ void fill_effective_table_privileges(THD *thd, GRANT_INFO *grant,
     grant->privilege|= grant->grant_table->privs;
   }
 }
+
+#else /* NO_EMBEDDED_ACCESS_CHECKS */
+
+/****************************************************************************
+ Dummy wrappers when we don't have any access checks
+****************************************************************************/
+
+bool check_routine_level_acl(THD *thd, const char *db, const char *name)
+{
+  return FALSE;
+}
+
 #endif
