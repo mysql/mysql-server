@@ -21,18 +21,18 @@ INCLUDES =		@MT_INCLUDES@ -I$(srcdir)/../include -I../include
 LDADD =			@CLIENT_EXTRA_LDFLAGS@ libmyisam.a ../mysys/libmysys.a \
 			../dbug/libdbug.a ../strings/libmystrings.a
 pkglib_LIBRARIES =	libmyisam.a
-bin_PROGRAMS =		myisamchk myisamlog myisampack
+bin_PROGRAMS =		myisamchk myisamlog myisampack myisam_ftdump
 myisamchk_DEPENDENCIES=	$(LIBRARIES)
 myisamlog_DEPENDENCIES=	$(LIBRARIES)
 myisampack_DEPENDENCIES=$(LIBRARIES)
-noinst_PROGRAMS =	mi_test1 mi_test2 mi_test3 ft_dump #ft_test1 ft_eval
+noinst_PROGRAMS =	mi_test1 mi_test2 mi_test3 #ft_test1 ft_eval
 noinst_HEADERS =	myisamdef.h fulltext.h ftdefs.h ft_test1.h ft_eval.h
 mi_test1_DEPENDENCIES=	$(LIBRARIES)
 mi_test2_DEPENDENCIES=	$(LIBRARIES)
 mi_test3_DEPENDENCIES=	$(LIBRARIES)
 #ft_test1_DEPENDENCIES=	$(LIBRARIES)
 #ft_eval_DEPENDENCIES=	$(LIBRARIES)
-ft_dump_DEPENDENCIES=	$(LIBRARIES)
+myisam_ftdump_DEPENDENCIES=	$(LIBRARIES)
 libmyisam_a_SOURCES =	mi_open.c mi_extra.c mi_info.c mi_rkey.c \
 			mi_rnext.c mi_rnext_same.c \
 			mi_search.c mi_page.c mi_key.c mi_locking.c \

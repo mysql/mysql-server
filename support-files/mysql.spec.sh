@@ -467,6 +467,7 @@ fi
 %attr(755, root, root) %{_bindir}/isamlog
 %attr(755, root, root) %{_bindir}/my_print_defaults
 %attr(755, root, root) %{_bindir}/myisamchk
+%attr(755, root, root) %{_bindir}/myisam_ftdump
 %attr(755, root, root) %{_bindir}/myisamlog
 %attr(755, root, root) %{_bindir}/myisampack
 %attr(755, root, root) %{_bindir}/mysql_convert_table_format
@@ -572,6 +573,10 @@ fi
 # The spec file changelog only includes changes made to the spec file
 # itself
 %changelog 
+* Tue Feb 03 2004 Lenz Grimmer <lenz@mysql.com>
+
+- added myisam_ftdump to the Server package
+
 * Mon Dec 22 2003 Lenz Grimmer <lenz@mysql.com>
 
 - marked /etc/logrotate.d/mysql as a config file (BUG 2156)
