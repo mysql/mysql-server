@@ -30,7 +30,7 @@
    0, 0, \
    0, \
    (desc), \
-   (void *)(value) }
+   (value) }
 
 #define CPC_ARG(name, type, opt, desc) \
  { (name), \
@@ -351,17 +351,12 @@ SimpleCpcClient::define_process(Process & p, Properties& reply){
 
 int
 SimpleCpcClient::list_processes(Vector<Process> &procs, Properties& reply) {
-  enum Proclist {
-    Proclist_Start,
-    Proclist_End,
-    Proclist_Entry
-  };
+  int start, end, entry; 
   const ParserRow_t list_reply[] = {
-    CPC_CMD("start processes", Proclist_Start, ""),
+    CPC_CMD("start processes", &start, ""),
+    CPC_CMD("end processes", &end, ""),
 
-    CPC_CMD("end processes", Proclist_End, ""),
-
-    CPC_CMD("process", Proclist_Entry, ""),
+    CPC_CMD("process", &entry, ""),
     CPC_ARG("id",    Int,    Mandatory, "Id of process."),
     CPC_ARG("name",  String, Mandatory, "Name of process"),
     CPC_ARG("group", String, Mandatory, "Group of process"),
@@ -390,26 +385,29 @@ SimpleCpcClient::list_processes(Vector<Process> &procs, Properties& reply) {
   bool done = false;
   while(!done) {
     const Properties *proc;
-    enum Proclist p;
-    cpc_recv(list_reply, &proc, (void **)&p);
+    void *p;
+    cpc_recv(list_reply, &proc, &p);
 
-    switch(p) {
-    case Proclist_Start:
+    if(p == &start)
+    {
       /* do nothing */
-      break;
-    case Proclist_End:
+    }
+    else if(p == &end)
+    {
       done = true;
-      break;
-    case Proclist_Entry:
+    }
+    else if(p == &entry)
+    {
       if(proc != NULL){
 	Process p;
 	convert(* proc, p);
 	procs.push_back(p);
       }
-      break;
-    default:
-      /* ignore */
-      break;
+    }
+    else
+    {
+      ndbout_c("internal error: %d", __LINE__);
+      return -1;
     }
   }
   return 0;
