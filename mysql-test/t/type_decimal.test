@@ -147,3 +147,67 @@ INSERT INTO t1 VALUES ( '146', '16', '0.0000000000', '1.9000000000', '', '0', '1
 select * from t1 where minvalue<=1 and maxvalue>=-1 and datatype_id=16;
 select * from t1 where minvalue<=-1 and maxvalue>=-1 and datatype_id=16;
 drop table t1;
+
+#
+# Test of correct handling leading zero and  +/- signs
+# then values are passed as strings
+# Also test overflow handling in this case
+#
+
+create table t1 (a decimal(10,2));
+insert into t1 values ("0.0"),("-0.0"),("+0.0"),("01.0"),("+01.0"),("-01.0");
+insert into t1 values ("-.1"),("+.1"),(".1");
+insert into t1 values ("00000000000001"),("+0000000000001"),("-0000000000001");
+insert into t1 values ("+111111111.11"),("111111111.11"),("-11111111.11");
+insert into t1 values ("-111111111.11"),("+1111111111.11"),("1111111111.11");
+select * from t1;
+drop  table t1;
+
+create table t1 (a decimal(10,2) unsigned);
+insert into t1 values ("0.0"),("-0.0"),("+0.0"),("01.0"),("+01.0"),("-01.0");
+insert into t1 values ("-.1"),("+.1"),(".1");
+insert into t1 values ("00000000000001"),("+0000000000001"),("-0000000000001");
+insert into t1 values ("+111111111.11"),("111111111.11"),("-11111111.11");
+insert into t1 values ("-111111111.11"),("+1111111111.11"),("1111111111.11");
+select * from t1;
+drop  table t1;
+
+create table t1 (a decimal(10,2) zerofill);
+insert into t1 values ("0.0"),("-0.0"),("+0.0"),("01.0"),("+01.0"),("-01.0");
+insert into t1 values ("-.1"),("+.1"),(".1");
+insert into t1 values ("00000000000001"),("+0000000000001"),("-0000000000001");
+insert into t1 values ("+111111111.11"),("111111111.11"),("-11111111.11");
+insert into t1 values ("-111111111.11"),("+1111111111.11"),("1111111111.11");
+select * from t1;
+drop  table t1;
+
+
+create table t1 (a decimal(10,2));
+insert into t1 values (0.0),(-0.0),(+0.0),(01.0),(+01.0),(-01.0);
+insert into t1 values (-.1),(+.1),(.1);
+insert into t1 values (00000000000001),(+0000000000001),(-0000000000001);
+insert into t1 values (+111111111.11),(111111111.11),(-11111111.11);
+insert into t1 values (-111111111.11),(+1111111111.11),(1111111111.11);
+select * from t1;
+drop  table t1;
+
+#
+# Test correct handling of overflowed decimal values
+#
+
+create table t1 (a decimal);
+insert into t1 values (-99999999999999),(-1),('+1'),('01'),('+00000000000001'),('+12345678901'),(99999999999999);
+select * from t1;
+drop  table t1;
+create table t1 (a decimal unsigned);
+insert into t1 values (-99999999999999),(-1),('+1'),('01'),('+00000000000001'),('+1234567890'),(99999999999999);
+select * from t1;
+drop  table t1;
+create table t1 (a decimal zerofill);
+insert into t1 values (-99999999999999),(-1),('+1'),('01'),('+00000000000001'),('+1234567890'),(99999999999999);
+select * from t1;
+drop  table t1;
+create table t1 (a decimal unsigned zerofill);
+insert into t1 values (-99999999999999),(-1),('+1'),('01'),('+00000000000001'),('+1234567890'),(99999999999999);
+select * from t1;
+drop  table t1;

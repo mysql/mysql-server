@@ -46921,6 +46921,13 @@ Fixed the @code{FLOAT(X+1,X)} is not converted to @code{FLOAT(X+2,X)}.
 @item
 Fixed the result from @code{IF()} is case in-sensitive if the 2 and
 third arguments are case sensitive.
+@item
+Fixed core dump problem on OSF in @code{gethostbyname_r}.
+@item
+Fixed that underflowed decimal fields is not zero filled.
+@item
+@code{'+11111'} in overflow for @code{decimal(5,0) unsigned} columns,
+Just sign will be dropped.
 @end itemize
 
 @node News-3.23.50, News-3.23.49, News-3.23.51, News-3.23.x
