@@ -2387,7 +2387,8 @@ mysql_execute_command(void)
       send_error(&thd->net,ER_LOCK_OR_ACTIVE_TRANSACTION);
       goto error;
     }
-    res=mysql_rm_db(thd,alias,lex->drop_if_exists,0);
+    res=mysql_rm_db(thd,(lower_case_table_names == 2 ? alias : lex->name),
+                    lex->drop_if_exists,0);
     break;
   }
   case SQLCOM_CREATE_FUNCTION:
