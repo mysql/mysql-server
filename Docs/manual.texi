@@ -1257,7 +1257,7 @@ For more information on the @code{MySQL} trademark policy, refer to
 @xref{MySQL AB Logos and Trademarks}.
 
 If you are interested in any of the @code{MySQL AB} jobs listed in our
-jobs section (@uref{http://www.mysql.com/development/jobs/}),
+jobs section (@uref{http://www.mysql.com/company/jobs/}),
 please send an e-mail message to @email{jobs@@mysql.com}.
 Please do not send your CV as an attachment, but rather as plain text
 at the end of your e-mail message.
