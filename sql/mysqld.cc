@@ -702,26 +702,12 @@ void clean_up(bool print_message)
   end_raid();
 #endif
 #ifdef HAVE_OPENSSL
-  if(opt_ssl_key) {
-    my_free(opt_ssl_key,MYF(0));
-    opt_ssl_key=0;
-  }
-  if(opt_ssl_cert) {
-    my_free(opt_ssl_cert,MYF(0));
-    opt_ssl_cert=0;
-  }
-  if(opt_ssl_ca) {
-    my_free(opt_ssl_ca,MYF(0));
-    opt_ssl_ca=0;
-  }
-  if(opt_ssl_capath) {
-    my_free(opt_ssl_capath,MYF(0));
-    opt_ssl_capath=0;
-  }
-  if(ssl_acceptor_fd) {
-    my_free((gptr)ssl_acceptor_fd,MYF(0));
-    ssl_acceptor_fd=0;
-  }
+  my_free(opt_ssl_key,MYF(MYF_ALLOW_ZERO_PTR));
+  my_free(opt_ssl_cert,MYF(MYF_ALLOW_ZERO_PTR));
+  my_free(opt_ssl_ca,MYF(MYF_ALLOW_ZERO_PTR));
+  my_free(opt_ssl_capath,MYF(MYF_ALLOW_ZERO_PTR));
+  my_free(opt_ssl_accceptor,MYF(MYF_ALLOW_ZERO_PTR));
+  opt_ssl_key=opt_ssl_cert=opt_ssl_ca=opt_ssl_capath=opt_ssl_acceptor=0;
 #endif /* HAVE_OPENSSL */
   free_defaults(defaults_argv);
   my_free(charsets_list, MYF(MY_ALLOW_ZERO_PTR));

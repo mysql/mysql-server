@@ -664,9 +664,9 @@ int show_master_info(THD* thd)
   net_store_data(packet, (longlong) glob_mi.pos);
   last_log_seq = glob_mi.last_log_seq;
   pthread_mutex_unlock(&glob_mi.lock);
-  pthread_mutex_lock(&LOCK_slave);
+  pthread_mutex_lock(&LOCK_slave);		// QQ; This is not needed
   net_store_data(packet, slave_running ? "Yes":"No");
-  pthread_mutex_unlock(&LOCK_slave);
+  pthread_mutex_unlock(&LOCK_slave);		// QQ; This is not needed
   net_store_data(packet, &replicate_do_db);
   net_store_data(packet, &replicate_ignore_db);
   net_store_data(packet, (uint32)last_slave_errno);
