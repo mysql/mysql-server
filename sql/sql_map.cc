@@ -19,10 +19,11 @@
 #pragma implementation				// gcc: Class implementation
 #endif
 
+#include <sys/stat.h>
+
 #include "mysql_priv.h"
 #ifdef HAVE_SYS_MMAN_H
 #include <sys/mman.h>
-#include <sys/stat.h>
 #endif
 
 #ifndef MAP_NORESERVE
@@ -71,7 +72,7 @@ mapped_files::~mapped_files()
 #ifdef HAVE_MMAP
   if (file >= 0)
   {
-    VOID(my_munmap((caddr_t) map,size));
+    VOID(my_munmap(map,size));
     VOID(my_close(file,MYF(0)));
     file= -1; map=0;
   }

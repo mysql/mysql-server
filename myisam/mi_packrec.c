@@ -1231,7 +1231,7 @@ my_bool _mi_memmap_file(MI_INFO *info)
 
 void _mi_unmap_file(MI_INFO *info)
 {
-  VOID(my_munmap((caddr_t) info->s->file_map,
+  VOID(my_munmap(info->s->file_map,
 	      (size_t) info->s->state.state.data_file_length+
 	      MEMMAP_EXTRA_MARGIN));
 }
