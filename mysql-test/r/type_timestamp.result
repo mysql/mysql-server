@@ -167,3 +167,15 @@ ts1	ts2
 2001-09-09 04:46:40	0000-00-00 00:00:00
 2001-09-09 04:46:40	0000-00-00 00:00:00
 drop table t1;
+create table t1 (ts timestamp(19));
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `ts` timestamp(19) NOT NULL
+) TYPE=MyISAM
+set TIMESTAMP=1000000000;
+insert into t1 values ();
+select * from t1;
+ts
+2001-09-09 04:46:40
+drop table t1;
