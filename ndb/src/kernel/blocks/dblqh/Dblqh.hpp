@@ -2764,6 +2764,11 @@ private:
 /* ------------------------------------------------------------------------- */
   UintR cfirstCompletedFragSr;
 
+  /**
+   * List of fragment that the log execution is completed for
+   */
+  Uint32 c_redo_log_complete_frags;
+  
 /* ------------------------------------------------------------------------- */
 /*USED DURING SYSTEM RESTART, INDICATES THE OLDEST GCI THAT CAN BE RESTARTED */
 /*FROM AFTER THIS SYSTEM RESTART. USED TO FIND THE LOG TAIL.                 */
