@@ -135,7 +135,7 @@ fi
 
 $CP -r $SOURCE/VC++Files $BASE
 (
-find $BASE \( -name "*.dsp" -o -name "*.dsw" -o -name "*.txt" \) -and -not -path \*SCCS\* -print
+find $BASE \( -name "*.dsp" -o -name "*.dsw" \) -and -not -path \*SCCS\* -print
 )|(
   while read v
   do
