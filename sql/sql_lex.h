@@ -294,6 +294,7 @@ public:
   int cleanup();
   
   friend void mysql_init_query(THD *thd);
+  friend int subselect_union_engine::exec();
 private:
   bool create_total_list_n_last_return(THD *thd, st_lex *lex,
 				       TABLE_LIST ***result);

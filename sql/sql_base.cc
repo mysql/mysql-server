@@ -1861,7 +1861,7 @@ const Field *not_found_field= (Field*) 0x1;
 */
 
 Field *
-find_field_in_tables(THD *thd, Item_field *item, TABLE_LIST *tables,
+find_field_in_tables(THD *thd, Item_ident *item, TABLE_LIST *tables,
 		     bool report_error)
 {
   Field *found=0;

@@ -468,7 +468,7 @@ bool Item_field::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
 					 (last= sl)->get_table_list(),
 					 0)) != not_found_field)
 	    break;
-	  if((refer= find_item_in_list(this, (last= sl)->item_list,
+	  if ((refer= find_item_in_list(this, sl->item_list,
 				       REPORT_EXCEPT_NOT_FOUND)) !=
 	     (Item **)not_found_item)
 	    break;
@@ -867,6 +867,7 @@ bool Item_ref::fix_fields(THD *thd,TABLE_LIST *tables, Item **reference)
 				  REPORT_ALL_ERRORS))) ==
 	(Item **)not_found_item)
     {
+      Field *tmp= (Field*) not_found_field;
       /*
 	We can't find table field in table list of current select,
 	consequently we have to find it in outer subselect(s).
@@ -878,16 +879,21 @@ bool Item_ref::fix_fields(THD *thd,TABLE_LIST *tables, Item **reference)
       */
       SELECT_LEX *last=0;
       for ( ; sl ; sl= sl->outer_select())
-	if((ref= find_item_in_list(this, (last= sl)->item_list,
+      {
+	if ((ref= find_item_in_list(this, (last= sl)->item_list,
 				   REPORT_EXCEPT_NOT_FOUND)) !=
 	   (Item **)not_found_item)
 	  break;
+	if ((tmp= find_field_in_tables(thd, this,
+				       sl->get_table_list(),
+				       0)) != not_found_field);
+      }
 
       if (!ref)
-      {
 	return 1;
-      }
-      else if (ref == (Item **)not_found_item)
+      else if (!tmp)
+	return -1;
+      else if (ref == (Item **)not_found_item && tmp == not_found_field)
       {
 	// Call to report error
 	find_item_in_list(this,
@@ -895,6 +901,16 @@ bool Item_ref::fix_fields(THD *thd,TABLE_LIST *tables, Item **reference)
 			  REPORT_ALL_ERRORS);
         ref= 0;
 	return 1;
+      }
+      else if (tmp != not_found_field)
+      {
+	ref= 0; // To prevent "delete *ref;" on ~Item_erf() of this item
+	Item_field* f;
+	if (!((*reference)= f= new Item_field(tmp)))
+	  return 1;
+	f->depended_from= last;
+	thd->lex.current_select->mark_as_dependent(last);
+	return 0;
       }
       else
       {
