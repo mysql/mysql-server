@@ -210,9 +210,9 @@ while test $# -gt 0; do
       ;;
     --debug)
       EXTRA_MASTER_MYSQLD_OPT="$EXTRA_MASTER_MYSQLD_OPT \
-       --debug=d:t:O,$MYSQL_TMP_DIR/master.trace"
+       --debug=d:t:O,$MYSQL_TEST_DIR/var/log/master.trace"
       EXTRA_SLAVE_MYSQLD_OPT="$EXTRA_SLAVE_MYSQLD_OPT \
-       --debug=d:t:O,$MYSQL_TMP_DIR/slave.trace"
+       --debug=d:t:O,$MYSQL_TEST_DIR/var/log/slave.trace"
       EXTRA_MYSQL_TEST_OPT="$EXTRA_MYSQL_TEST_OPT --debug"
       ;;
     -- )  shift; break ;;
@@ -589,7 +589,7 @@ start_slave()
     then
       $ECHO "set args $master_args" > $GDB_SLAVE_INIT
       ddd --debugger "gdb -x $GDB_SLAVE_INIT" $SLAVE_MYSQLD &
-      prompt_user "Hit enter to continue after you've started the master"
+      prompt_user "Hit enter to continue after you've started the slave"
     elif [ x$DO_GDB = x1 ]
     then
       $ECHO "set args $slave_args" > $GDB_SLAVE_INIT
