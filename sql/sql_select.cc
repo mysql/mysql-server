@@ -4740,7 +4740,7 @@ static Field* create_tmp_field_from_item(THD *thd,
     copy_func		If set and item is a function, store copy of item
 			in this array
     from_field          if field will be created using other field as example,
-                        pointer example field will be written here 
+                        pointer example field will be written here
     group		1 if we are going to do a relative group by on result
     modify_item		1 if item->result_field should point to new item.
 			This is relevent for how fill_record() is going to
@@ -4749,7 +4749,7 @@ static Field* create_tmp_field_from_item(THD *thd,
 			the record in the original table.
 			If modify_item is 0 then fill_record() will update
 			the temporary table
-		       
+
   RETURN
     0			on error
     new_created field
@@ -4773,13 +4773,13 @@ Field *create_tmp_field(THD *thd, TABLE *table,Item *item, Item::Type type,
 	return new Field_double(item_sum->max_length,maybe_null,
 				item->name, table, item_sum->decimals);
     case Item_sum::VARIANCE_FUNC:		/* Place for sum & count */
-    case Item_sum::STD_FUNC:	
+    case Item_sum::STD_FUNC:
       if (group)
 	return	new Field_string(sizeof(double)*2+sizeof(longlong),
 				 0, item->name,table,&my_charset_bin);
       else
 	return new Field_double(item_sum->max_length, maybe_null,
-				item->name,table,item_sum->decimals);				
+				item->name,table,item_sum->decimals);
     case Item_sum::UNIQUE_USERS_FUNC:
       return new Field_long(9,maybe_null,item->name,table,1);
     default:
@@ -4887,7 +4887,7 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
   else // if we run out of slots or we are not using tempool
     sprintf(path,"%s%s%lx_%lx_%x",mysql_tmpdir,tmp_file_prefix,current_pid,
             thd->thread_id, thd->tmp_table++);
-  
+
   if (lower_case_table_names)
     my_casedn_str(files_charset_info, path);
 
@@ -5003,16 +5003,21 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
 	  tmp_from_field++;
 	  *(reg_field++)= new_field;
 	  reclength+=new_field->pack_length();
-	  if (!(new_field->flags & NOT_NULL_FLAG))
-	    null_count++;
 	  if (new_field->flags & BLOB_FLAG)
 	  {
 	    *blob_field++= new_field;
 	    blob_count++;
 	  }
 	  ((Item_sum*) item)->args[i]= new Item_field(new_field);
-          if (((Item_sum*) item)->arg_count == 1)
-            ((Item_sum*) item)->result_field= new_field;
+	  if (!(new_field->flags & NOT_NULL_FLAG))
+          {
+	    null_count++;
+            /*
+              new_field->maybe_null() is still false, it will be
+              changed below. But we have to setup Item_field correctly
+            */
+            ((Item_sum*) item)->args[i]->maybe_null=1;
+          }
 	}
       }
     }
