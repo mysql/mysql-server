@@ -700,12 +700,12 @@ http://www.mysql.com/doc/en/Windows_symbolic_links.html */
 		} else if (lpFindFileData->dwFileAttributes
 						& FILE_ATTRIBUTE_DIRECTORY) {
 		        info->type = OS_FILE_TYPE_DIR;
-		} else if (lpFindFileData->dwFileAttributes
-						& FILE_ATTRIBUTE_NORMAL) {
-/* TODO: are FILE_ATTRIBUTE_NORMAL files really all normal files? */	
-			info->type = OS_FILE_TYPE_FILE;
 		} else {
-			info->type = OS_FILE_TYPE_UNKNOWN;
+			/* It is probably safest to assume that all other
+			file types are normal. Better to check them rather
+			than blindly skip them. */
+
+			info->type = OS_FILE_TYPE_FILE;
 		}
 	}
 
