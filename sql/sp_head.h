@@ -49,7 +49,7 @@ public:
   my_bool m_multi_query;	// TRUE if a procedure with SELECT(s)
   uint m_old_cmq;		// Old CLIENT_MULTI_QUERIES value
 #if 0
-  // We're not using this at the moment.
+  // QQ We're not using this at the moment.
   List<char *> m_calls;		// Called procedures.
   List<char *> m_tables;	// Used tables.
 #endif

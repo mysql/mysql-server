@@ -105,7 +105,7 @@ db_find_routine(THD *thd, int type, char *name, uint namelen, sp_head **sphp)
   }
   if (opened)
   {
-    close_thread_tables(thd);
+    close_thread_tables(thd, 0, 1);
     table= NULL;
   }
 
@@ -286,7 +286,7 @@ sp_function_exists(THD *thd, LEX_STRING *name)
     ret= TRUE;
   }
   if (opened)
-    close_thread_tables(thd);
+    close_thread_tables(thd, 0, 1);
   return ret;
 }
 

@@ -80,7 +80,7 @@ eval_func_item(THD *thd, Item *it, enum enum_field_types type)
 	String tmp(buffer, sizeof(buffer), it->charset());
 	String *s= it->val_str(&tmp);
 
-	DBUG_PRINT("info", ("default result: %*s", s->length(), s->c_ptr_quick()))
+	DBUG_PRINT("info",("default result: %*s",s->length(),s->c_ptr_quick()));
 	it= new Item_string(sql_strmake(s->c_ptr_quick(), s->length()),
 			    s->length(), it->charset());
 	break;
@@ -393,7 +393,7 @@ sp_head::restore_lex(THD *thd)
   // Collect some data from the sub statement lex.
   sp_merge_funs(&m_lex, &thd->lex);
 #if 0
-  // We're not using this at the moment.
+  // QQ We're not using this at the moment.
   if (thd->lex.sql_command == SQLCOM_CALL)
   {
     // It would be slightly faster to keep the list sorted, but we need

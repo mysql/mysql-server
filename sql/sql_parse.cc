@@ -3060,9 +3060,13 @@ mysql_execute_command(THD *thd)
 	uint smrx;
 	LINT_INIT(smrx);
 
+	// In case the arguments are subselects...
 	if (tables && ((res= check_table_access(thd, SELECT_ACL, tables)) ||
-		       (res= open_and_lock_tables(thd,tables))))
+		       (res= open_and_lock_tables(thd, tables))))
+	{
+	  sp->destroy();	// QQ Free memory. Remove this when caching!!!
 	  break;
+	}
 	fix_tables_pointers(lex->all_selects_list);
 
 #ifndef EMBEDDED_LIBRARY
