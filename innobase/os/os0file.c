@@ -1186,7 +1186,7 @@ os_file_pread(
 	os_file_n_pending_preads++;
         os_mutex_exit(os_file_count_mutex);
 
-        n_bytes = pread(file, buf, n, offs);
+        n_bytes = pread(file, buf, (ssize_t)n, offs);
 
         os_mutex_enter(os_file_count_mutex);
 	os_file_n_pending_preads--;
@@ -1211,7 +1211,7 @@ os_file_pread(
 		return(ret);
 	}
 	
-	ret = read(file, buf, n);
+	ret = read(file, buf, (ssize_t)n);
 
 	os_mutex_exit(os_file_seek_mutexes[i]);
 
@@ -1261,7 +1261,7 @@ os_file_pwrite(
 	os_file_n_pending_pwrites++;
         os_mutex_exit(os_file_count_mutex);
 
-	ret = pwrite(file, buf, n, offs);
+	ret = pwrite(file, buf, (ssize_t)n, offs);
 
         os_mutex_enter(os_file_count_mutex);
 	os_file_n_pending_pwrites--;
@@ -1296,7 +1296,7 @@ os_file_pwrite(
 		return(ret);
 	}
 	
-	ret = write(file, buf, n);
+	ret = write(file, buf, (ssize_t)n);
 
 	if (srv_unix_file_flush_method != SRV_UNIX_LITTLESYNC
 	    && srv_unix_file_flush_method != SRV_UNIX_NOSYNC
