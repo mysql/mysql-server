@@ -909,3 +909,16 @@ vio/test-ssl
 vio/test-sslclient
 vio/test-sslserver
 vio/viotest-ssl
+Docs/Images/myaccess-odbc.txt
+Docs/Images/myaccess.txt
+Docs/Images/myarchitecture.txt
+Docs/Images/mydll-properties.txt
+Docs/Images/mydsn-example.txt
+Docs/Images/mydsn-icon.txt
+Docs/Images/mydsn-options.txt
+Docs/Images/mydsn-setup.txt
+Docs/Images/mydsn-test-fail.txt
+Docs/Images/mydsn-test-success.txt
+Docs/Images/mydsn-trace.txt
+Docs/Images/mydsn.txt
+Docs/Images/myflowchart.txt
