@@ -1290,7 +1290,6 @@ int ha_ndbcluster::set_bounds(NdbIndexScanOperation *op,
     Field *field= key_part->field;
     uint part_len= key_part->length;
     uint part_store_len= key_part->store_length;
-    bool part_nullable= (bool) key_part->null_bit;
     // Info about each key part
     struct part_st {
       bool part_last;
@@ -1312,9 +1311,9 @@ int ha_ndbcluster::set_bounds(NdbIndexScanOperation *op,
         p.part_last= (tot_len + part_store_len >= key_tot_len[j]);
         p.key= keys[j];
         p.part_ptr= &p.key->key[tot_len];
-        p.part_null= (field->maybe_null() && *p.part_ptr);
+        p.part_null= key_part->null_bit && *p.part_ptr;
         p.bound_ptr= (const char *)
-          p.part_null ? 0 : part_nullable ? p.part_ptr + 1 : p.part_ptr;
+          p.part_null ? 0 : key_part->null_bit ? p.part_ptr + 1 : p.part_ptr;
 
         if (j == 0)
         {
@@ -3322,7 +3321,7 @@ int ha_ndbcluster::create(const char *name,
 {
   NDBTAB tab;
   NDBCOL col;
-  uint pack_length, length, i;
+  uint pack_length, length, i, pk_length= 0;
   const void *data, *pack_data;
   const char **key_names= form->keynames.type_names;
   char name2[FN_HEADLEN];
@@ -3369,6 +3368,8 @@ int ha_ndbcluster::create(const char *name,
     if ((my_errno= create_ndb_column(col, field, info)))
       DBUG_RETURN(my_errno);
     tab.addColumn(col);
+    if(col.getPrimaryKey())
+      pk_length += (field->pack_length() + 3) / 4;
   }
   
   // No primary key, create shadow key as 64 bit, auto increment  
@@ -3382,6 +3383,39 @@ int ha_ndbcluster::create(const char *name,
     col.setPrimaryKey(TRUE);
     col.setAutoIncrement(TRUE);
     tab.addColumn(col);
+    pk_length += 2;
+  }
+  
+  // Make sure that blob tables don't have to big part size
+  for (i= 0; i < form->fields; i++) 
+  {
+    /**
+     * The extra +7 concists
+     * 2 - words from pk in blob table
+     * 5 - from extra words added by tup/dict??
+     */
+    switch (form->field[i]->real_type()) {
+    case MYSQL_TYPE_BLOB:    
+    case MYSQL_TYPE_MEDIUM_BLOB:   
+    case MYSQL_TYPE_LONG_BLOB: 
+    {
+      NdbDictionary::Column * col = tab.getColumn(i);
+      int size = pk_length + (col->getPartSize()+3)/4 + 7;
+      if(size > NDB_MAX_TUPLE_SIZE_IN_WORDS && 
+	 (pk_length+7) < NDB_MAX_TUPLE_SIZE_IN_WORDS)
+      {
+	size = NDB_MAX_TUPLE_SIZE_IN_WORDS - pk_length - 7;
+	col->setPartSize(4*size);
+      }
+      /**
+       * If size > NDB_MAX and pk_length+7 >= NDB_MAX
+       *   then the table can't be created anyway, so skip
+       *   changing part size, and have error later
+       */ 
+    }
+    default:
+      break;
+    }
   }
   
   if ((my_errno= check_ndb_connection()))
