@@ -635,7 +635,7 @@ NdbScanOperation::execCLOSE_SCAN_REP(){
   m_api_receivers_count = 0;
   m_conf_receivers_count = 0;
   m_sent_receivers_count = 0;
-  m_current_api_receiver = theParallelism;
+  m_current_api_receiver = m_ordered ? theParallelism : 0;
 }
 
 void NdbScanOperation::release()
