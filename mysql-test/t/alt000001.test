@@ -1,6 +1,0 @@
-use test;
-drop table if exists x;
-create table x (n int);
-insert into x values(9),(3),(12),(10);
-alter table x order by n;
-@r/alt000001.result select * from x;

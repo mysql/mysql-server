@@ -1,0 +1,210 @@
+#
+# Test of group (Failed for Lars Hoss <lh@pbm.de>)
+#
+
+CREATE TABLE t1 (
+  spID int(10) unsigned,
+  userID int(10) unsigned,
+  score smallint(5) unsigned,
+  lsg char(40),
+  date date
+);
+
+INSERT INTO t1 VALUES (1,1,1,'','0000-00-00');
+INSERT INTO t1 VALUES (2,2,2,'','0000-00-00');
+INSERT INTO t1 VALUES (2,1,1,'','0000-00-00');
+INSERT INTO t1 VALUES (3,3,3,'','0000-00-00');
+
+CREATE TABLE t2 (
+  userID int(10) unsigned DEFAULT '0' NOT NULL auto_increment,
+  niName char(15),
+  passwd char(8),
+  mail char(50),
+  isAukt enum('N','Y') DEFAULT 'N',
+  vName char(30),
+  nName char(40),
+  adr char(60),
+  plz char(5),
+  ort char(35),
+  land char(20),
+  PRIMARY KEY (userID)
+);
+
+INSERT INTO t2 VALUES (1,'name','pass','mail','Y','v','n','adr','1','1','1');
+INSERT INTO t2 VALUES (2,'name','pass','mail','Y','v','n','adr','1','1','1');
+INSERT INTO t2 VALUES (3,'name','pass','mail','Y','v','n','adr','1','1','1');
+
+SELECT t2.userid, MIN(t1.score) FROM t1, t2 WHERE t1.userID=t2.userID GROUP BY t2.userid;
+SELECT t2.userid, MIN(t1.score) FROM t1, t2 WHERE t1.userID=t2.userID AND t1.spID=2  GROUP BY t2.userid;
+SELECT t2.userid, MIN(t1.score+0.0) FROM t1, t2 WHERE t1.userID=t2.userID AND t1.spID=2  GROUP BY t2.userid;
+
+drop table test.t1,test.t2;
+
+#
+# Bug in GROUP BY, by Nikki Chumakov <nikki@saddam.cityline.ru>
+#
+
+CREATE TABLE t1 (
+  PID int(10) unsigned DEFAULT '0' NOT NULL auto_increment,
+  payDate date DEFAULT '0000-00-00' NOT NULL,
+  recDate datetime DEFAULT '0000-00-00 00:00:00' NOT NULL,
+  URID int(10) unsigned DEFAULT '0' NOT NULL,
+  CRID int(10) unsigned DEFAULT '0' NOT NULL,
+  amount int(10) unsigned DEFAULT '0' NOT NULL,
+  operator int(10) unsigned,
+  method enum('unknown','cash','dealer','check','card','lazy','delayed','test') DEFAULT 'unknown' NOT NULL,
+  DIID int(10) unsigned,
+  reason char(1) binary DEFAULT '' NOT NULL,
+  code_id int(10) unsigned,
+  qty mediumint(8) unsigned DEFAULT '0' NOT NULL,
+  PRIMARY KEY (PID),
+  KEY URID (URID),
+  KEY reason (reason),
+  KEY method (method),
+  KEY payDate (payDate)
+);
+
+INSERT INTO t1 VALUES (1,'1970-01-01','1997-10-17 00:00:00',2529,1,21000,11886,'check',0,'F',16200,6);
+
+!$1056 SELECT COUNT(P.URID),SUM(P.amount),P.method, MIN(PP.recdate+0) > 19980501000000   AS IsNew FROM t1 AS P JOIN t1 as PP WHERE P.URID = PP.URID GROUP BY method,IsNew;
+
+drop table t1;
+
+#
+# Problem with GROUP BY + ORDER BY when no match
+# Tested with locking
+#
+
+CREATE TABLE t1 (
+  cid mediumint(9) DEFAULT '0' NOT NULL auto_increment,
+  firstname varchar(32) DEFAULT '' NOT NULL,
+  surname varchar(32) DEFAULT '' NOT NULL,
+  PRIMARY KEY (cid)
+);
+INSERT INTO t1 VALUES (1,'That','Guy');
+INSERT INTO t1 VALUES (2,'Another','Gent');
+
+CREATE TABLE t2 (
+  call_id mediumint(8) DEFAULT '0' NOT NULL auto_increment,
+  contact_id mediumint(8) DEFAULT '0' NOT NULL,
+  PRIMARY KEY (call_id),
+  KEY contact_id (contact_id)
+);
+
+lock tables t1 read,t2 write;
+
+INSERT INTO t2 VALUES (10,2);
+INSERT INTO t2 VALUES (18,2);
+INSERT INTO t2 VALUES (62,2);
+INSERT INTO t2 VALUES (91,2);
+INSERT INTO t2 VALUES (92,2);
+
+SELECT cid, CONCAT(firstname, ' ', surname), COUNT(call_id) FROM t1 LEFT JOIN t2 ON cid=contact_id WHERE firstname like '%foo%' GROUP BY cid;
+SELECT HIGH_PRIORITY cid, CONCAT(firstname, ' ', surname), COUNT(call_id) FROM t1 LEFT JOIN t2 ON cid=contact_id WHERE firstname like '%foo%' GROUP BY cid ORDER BY surname, firstname;
+
+drop table t1,t2;
+unlock tables;
+
+#
+# Test of group by bug in bugzilla
+#
+
+CREATE TABLE t1 (
+  bug_id mediumint(9) DEFAULT '0' NOT NULL auto_increment,
+  groupset bigint(20) DEFAULT '0' NOT NULL,
+  assigned_to mediumint(9) DEFAULT '0' NOT NULL,
+  bug_file_loc text,
+  bug_severity enum('blocker','critical','major','normal','minor','trivial','enhancement') DEFAULT 'blocker' NOT NULL,
+  bug_status enum('NEW','ASSIGNED','REOPENED','RESOLVED','VERIFIED','CLOSED') DEFAULT 'NEW' NOT NULL,
+  creation_ts datetime DEFAULT '0000-00-00 00:00:00' NOT NULL,
+  delta_ts timestamp(14),
+  short_desc mediumtext,
+  long_desc mediumtext,
+  op_sys enum('All','Windows 3.1','Windows 95','Windows 98','Windows NT','Windows 2000','Linux','other') DEFAULT 'All' NOT NULL,
+  priority enum('P1','P2','P3','P4','P5') DEFAULT 'P1' NOT NULL,
+  product varchar(64) DEFAULT '' NOT NULL,
+  rep_platform enum('All','PC','VTD-8','Other'),
+  reporter mediumint(9) DEFAULT '0' NOT NULL,
+  version varchar(16) DEFAULT '' NOT NULL,
+  component varchar(50) DEFAULT '' NOT NULL,
+  resolution enum('','FIXED','INVALID','WONTFIX','LATER','REMIND','DUPLICATE','WORKSFORME') DEFAULT '' NOT NULL,
+  target_milestone varchar(20) DEFAULT '' NOT NULL,
+  qa_contact mediumint(9) DEFAULT '0' NOT NULL,
+  status_whiteboard mediumtext NOT NULL,
+  votes mediumint(9) DEFAULT '0' NOT NULL,
+  PRIMARY KEY (bug_id),
+  KEY assigned_to (assigned_to),
+  KEY creation_ts (creation_ts),
+  KEY delta_ts (delta_ts),
+  KEY bug_severity (bug_severity),
+  KEY bug_status (bug_status),
+  KEY op_sys (op_sys),
+  KEY priority (priority),
+  KEY product (product),
+  KEY reporter (reporter),
+  KEY version (version),
+  KEY component (component),
+  KEY resolution (resolution),
+  KEY target_milestone (target_milestone),
+  KEY qa_contact (qa_contact),
+  KEY votes (votes)
+);
+
+INSERT INTO t1 VALUES (1,0,0,'','normal','','2000-02-10 09:25:12',20000321114747,'','','Linux','P1','TestProduct','PC',3,'other','TestComponent','','M1',0,'',0);
+INSERT INTO t1 VALUES (9,0,0,'','enhancement','','2000-03-10 11:49:36',20000321114747,'','','All','P5','AAAAA','PC',3,'2.00 CD - Pre','BBBBBBBBBBBBB - conversion','','',0,'',0);
+INSERT INTO t1 VALUES (10,0,0,'','enhancement','','2000-03-10 18:10:16',20000321114747,'','','All','P4','AAAAA','PC',3,'2.00 CD - Pre','BBBBBBBBBBBBB - conversion','','',0,'',0);
+INSERT INTO t1 VALUES (7,0,0,'','critical','','2000-03-09 10:50:21',20000321114747,'','','All','P1','AAAAA','PC',3,'2.00 CD - Pre','BBBBBBBBBBBBB - generic','','',0,'',0);
+INSERT INTO t1 VALUES (6,0,0,'','normal','','2000-03-09 10:42:44',20000321114747,'','','All','P2','AAAAA','PC',3,'2.00 CD - Pre','kkkkkkkkkkk lllllllllll','','',0,'',0);
+INSERT INTO t1 VALUES (8,0,0,'','major','','2000-03-09 11:32:14',20000321114747,'','','All','P3','AAAAA','PC',3,'2.00 CD - Pre','kkkkkkkkkkk lllllllllll','','',0,'',0);
+INSERT INTO t1 VALUES (5,0,0,'','enhancement','','2000-03-09 10:38:59',20000321114747,'','','All','P5','CCC/CCCCCC','PC',5,'7.00','Administration','','',0,'',0);
+INSERT INTO t1 VALUES (4,0,0,'','normal','','2000-03-08 18:32:14',20000321114747,'','','other','P2','TestProduct','Other',3,'other','TestComponent2','','',0,'',0);
+INSERT INTO t1 VALUES (3,0,0,'','normal','','2000-03-08 18:30:52',20000321114747,'','','other','P2','TestProduct','Other',3,'other','TestComponent','','',0,'',0);
+INSERT INTO t1 VALUES (2,0,0,'','enhancement','','2000-03-08 18:24:51',20000321114747,'','','All','P2','TestProduct','Other',4,'other','TestComponent2','','',0,'',0);
+INSERT INTO t1 VALUES (11,0,0,'','blocker','','2000-03-13 09:43:41',20000321114747,'','','All','P2','CCC/CCCCCC','PC',5,'7.00','DDDDDDDDD','','',0,'',0);
+INSERT INTO t1 VALUES (12,0,0,'','normal','','2000-03-13 16:14:31',20000321114747,'','','All','P2','AAAAA','PC',3,'2.00 CD - Pre','kkkkkkkkkkk lllllllllll','','',0,'',0);
+INSERT INTO t1 VALUES (13,0,0,'','normal','','2000-03-15 16:20:44',20000321114747,'','','other','P2','TestProduct','Other',3,'other','TestComponent','','',0,'',0);
+INSERT INTO t1 VALUES (14,0,0,'','blocker','','2000-03-15 18:13:47',20000321114747,'','','All','P1','AAAAA','PC',3,'2.00 CD - Pre','BBBBBBBBBBBBB - generic','','',0,'',0);
+INSERT INTO t1 VALUES (15,0,0,'','minor','','2000-03-16 18:03:28',20000321114747,'','','All','P2','CCC/CCCCCC','Other',5,'7.00','DDDDDDDDD','','',0,'',0);
+INSERT INTO t1 VALUES (16,0,0,'','normal','','2000-03-16 18:33:41',20000321114747,'','','All','P2','CCC/CCCCCC','Other',5,'7.00','Administration','','',0,'',0);
+INSERT INTO t1 VALUES (17,0,0,'','normal','','2000-03-16 18:34:18',20000321114747,'','','All','P2','CCC/CCCCCC','Other',5,'7.00','Administration','','',0,'',0);
+INSERT INTO t1 VALUES (18,0,0,'','normal','','2000-03-16 18:34:56',20000321114747,'','','All','P2','CCC/CCCCCC','Other',5,'7.00','Administration','','',0,'',0);
+INSERT INTO t1 VALUES (19,0,0,'','enhancement','','2000-03-16 18:35:34',20000321114747,'','','All','P2','CCC/CCCCCC','Other',5,'7.00','Administration','','',0,'',0);
+INSERT INTO t1 VALUES (20,0,0,'','enhancement','','2000-03-16 18:36:23',20000321114747,'','','All','P2','CCC/CCCCCC','Other',5,'7.00','Administration','','',0,'',0);
+INSERT INTO t1 VALUES (21,0,0,'','enhancement','','2000-03-16 18:37:23',20000321114747,'','','All','P2','CCC/CCCCCC','Other',5,'7.00','Administration','','',0,'',0);
+INSERT INTO t1 VALUES (22,0,0,'','enhancement','','2000-03-16 18:38:16',20000321114747,'','','All','P2','CCC/CCCCCC','Other',5,'7.00','Administration','','',0,'',0);
+INSERT INTO t1 VALUES (23,0,0,'','normal','','2000-03-16 18:58:12',20000321114747,'','','All','P2','CCC/CCCCCC','Other',5,'7.00','DDDDDDDDD','','',0,'',0);
+INSERT INTO t1 VALUES (24,0,0,'','normal','','2000-03-17 11:08:10',20000321114747,'','','All','P2','AAAAAAAA-AAA','PC',3,'2.8','Web Interface','','',0,'',0);
+INSERT INTO t1 VALUES (25,0,0,'','normal','','2000-03-17 11:10:45',20000321114747,'','','All','P2','AAAAAAAA-AAA','PC',3,'2.8','Web Interface','','',0,'',0);
+INSERT INTO t1 VALUES (26,0,0,'','normal','','2000-03-17 11:15:47',20000321114747,'','','All','P2','AAAAAAAA-AAA','PC',3,'2.8','Web Interface','','',0,'',0);
+INSERT INTO t1 VALUES (27,0,0,'','normal','','2000-03-17 17:45:41',20000321114747,'','','All','P2','CCC/CCCCCC','PC',5,'7.00','DDDDDDDDD','','',0,'',0);
+INSERT INTO t1 VALUES (28,0,0,'','normal','','2000-03-20 09:51:45',20000321114747,'','','Windows NT','P2','TestProduct','PC',8,'other','TestComponent','','',0,'',0);
+INSERT INTO t1 VALUES (29,0,0,'','normal','','2000-03-20 11:15:09',20000321114747,'','','All','P5','AAAAAAAA-AAA','PC',3,'2.8','Web Interface','','',0,'',0);
+CREATE TABLE t2 (
+  value tinytext,
+  program varchar(64),
+  initialowner tinytext NOT NULL,
+  initialqacontact tinytext NOT NULL,
+  description mediumtext NOT NULL
+);
+
+INSERT INTO t2 VALUES ('TestComponent','TestProduct','id0001','','');
+INSERT INTO t2 VALUES ('BBBBBBBBBBBBB - conversion','AAAAA','id0001','','');
+INSERT INTO t2 VALUES ('BBBBBBBBBBBBB - generic','AAAAA','id0001','','');
+INSERT INTO t2 VALUES ('TestComponent2','TestProduct','id0001','','');
+INSERT INTO t2 VALUES ('BBBBBBBBBBBBB - eeeeeeeee','AAAAA','id0001','','');
+INSERT INTO t2 VALUES ('kkkkkkkkkkk lllllllllll','AAAAA','id0001','','');
+INSERT INTO t2 VALUES ('Test Procedures','AAAAA','id0001','','');
+INSERT INTO t2 VALUES ('Documentation','AAAAA','id0003','','');
+INSERT INTO t2 VALUES ('DDDDDDDDD','CCC/CCCCCC','id0002','','');
+INSERT INTO t2 VALUES ('Eeeeeeee Lite','CCC/CCCCCC','id0002','','');
+INSERT INTO t2 VALUES ('Eeeeeeee Full','CCC/CCCCCC','id0002','','');
+INSERT INTO t2 VALUES ('Administration','CCC/CCCCCC','id0002','','');
+INSERT INTO t2 VALUES ('Distribution','CCC/CCCCCC','id0002','','');
+INSERT INTO t2 VALUES ('Setup','CCC/CCCCCC','id0002','','');
+INSERT INTO t2 VALUES ('Unspecified','CCC/CCCCCC','id0002','','');
+INSERT INTO t2 VALUES ('Web Interface','AAAAAAAA-AAA','id0001','','');
+INSERT INTO t2 VALUES ('Host communication','AAAAA','id0001','','');
+select value,description,bug_id from t2 left join t1 on t2.program=t1.product and t2.value=t1.component where program="AAAAA";
+select value,description,COUNT(bug_id) from t2 left join t1 on t2.program=t1.product and t2.value=t1.component where program="AAAAA" group by value;
+
+drop table t1,t2;

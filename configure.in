@@ -4,7 +4,7 @@ dnl Process this file with autoconf to produce a configure script.
 AC_INIT(sql/mysqld.cc)
 AC_CANONICAL_SYSTEM
 # The Docs Makefile.am parses this line!
-AM_INIT_AUTOMAKE(mysql, 3.23.29a-gamma)
+AM_INIT_AUTOMAKE(mysql, 3.23.30-gamma)
 AM_CONFIG_HEADER(config.h)
 
 PROTOCOL_VERSION=10
@@ -436,10 +436,16 @@ AM_CONDITIONAL(ASSEMBLER, test ASSEMBLER_x86 = "" -o ASSEMBLER_x86 = "")
 AC_MSG_CHECKING(whether to use RAID)
 AC_ARG_WITH(raid,
     [  --with-raid             Enable RAID Support],
-    [   AC_DEFINE(USE_RAID)
-        AC_MSG_RESULT(yes) ],
-    [   AC_MSG_RESULT(no) ]
+    [   USE_RAID=$withval ],
+    [   USE_RAID=no ]
     )
+if test "$USE_RAID" = "yes"
+then
+  AC_MSG_RESULT([yes])
+  AC_DEFINE([USE_RAID])
+else
+  AC_MSG_RESULT([no])
+fi
 
 # Use this to set the place used for unix socket used to local communication.
 AC_ARG_WITH(unix-socket-path,

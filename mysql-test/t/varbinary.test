@@ -1,0 +1,16 @@
+#
+# varbinary as string and number
+#
+
+select 0x41,0x41+0,0x41 | 0x7fffffffffffffff | 0,0xffffffffffffffff | 0 ;
+select 0x31+1,concat(0x31)+1,-0xf;
+
+#
+# Test of hex constants in WHERE:
+#
+
+create table t1 (ID int(8) unsigned zerofill not null auto_increment,UNIQ bigint(21) unsigned zerofill not null,primary key (ID),unique (UNIQ) );
+insert into t1 set UNIQ=0x38afba1d73e6a18a;
+insert into t1 set UNIQ=123; 
+explain select * from t1 where UNIQ=0x38afba1d73e6a18a;
+drop table t1;

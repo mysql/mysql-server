@@ -122,7 +122,6 @@ static struct option long_options[] = {
   {"socket",             required_argument, 0, 'S'},
   {"sleep",              required_argument, 0, 'i'},
 #include "sslopt-longopts.h"
-  {"connect-timeout",    required_argument, 0, 't'},
 #ifndef DONT_ALLOW_USER_CHANGE
   {"user",               required_argument, 0, 'u'},
 #endif

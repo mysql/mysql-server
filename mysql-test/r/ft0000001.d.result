@@ -1,2 +1,2 @@
-a	MATCH (message) AGAINST ('steve')	
-7	0.89568988462614	
+a	MATCH (message) AGAINST ('steve')
+7	0.89568988462614

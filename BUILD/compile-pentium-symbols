@@ -1,0 +1,15 @@
+#! /bin/sh
+
+path=`dirname $0`
+. "$path/SETUP.sh"
+
+extra_flags="$pentium_cflags $fast_cflags -g"
+extra_configs="$pentium_configs"
+
+# Use the optimized version if it exists
+if test -d /usr/local/BerkeleyDB-opt/
+then
+ extra_configs="$extra_configs --with-berkeley-db=/usr/local/BerkeleyDB-opt/"
+fi
+
+. "$path/FINISH.sh"

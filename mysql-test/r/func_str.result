@@ -1,0 +1,99 @@
+hello	'hello'	""hello""	'h'e'l'l'o'	hel"lo	hel'lo
+hello	'hello'	""hello""	'h'e'l'l'o'	hel"lo	hel'lo
+hello
+hellomonty
+length('\n\t\r\b\0\_\%\\')
+10
+concat('monty',' was here ','again')	length('hello')	char(ascii('h'))
+monty was here again	5	h
+locate('he','hello')	locate('he','hello',2)	locate('lo','hello',2)
+1	0	4
+instr('hello','he')
+1
+position('ll' in 'hello')	position('a' in 'hello')
+3	0
+left('hello',2)	right('hello',2)	substring('hello',2,2)	mid('hello',1,5)
+he	lo	el	hello
+concat('',left(right(concat('what ',concat('is ','happening')),9),4),'',substring('monty',5,1))
+happy
+substring_index('www.tcx.se','.',-2)	substring_index('www.tcx.se','.',1)
+tcx.se	www
+substring_index('www.tcx.se','tcx',1)	substring_index('www.tcx.se','tcx',-1)
+www.	.se
+substring_index('.tcx.se','.',-2)	substring_index('.tcx.se','.tcx',-1)
+tcx.se	.se
+concat(':',ltrim('  left  '),':',rtrim('  right  '),':')
+:left  :  right:
+concat(':',trim(LEADING FROM ' left'),':',trim(TRAILING FROM ' right '),':')
+:left: right:
+concat(':',trim(' m '),':',trim(BOTH FROM ' y '),':',trim('*' FROM '*s*'),':')
+:m:y:s:
+concat(':',trim(BOTH 'ab' FROM 'ababmyabab'),':',trim(BOTH '*' FROM '***sql'),':')
+:my:sql:
+concat(':',trim(LEADING '.*' FROM '.*my'),':',trim(TRAILING '.*' FROM 'sql.*.*'),':')
+:my:sql:
+insert('txs',2,1,'hi')	insert('is ',4,0,'a')	insert('txxxxt',2,4,'es')
+this	is a	test
+replace('aaaa','a','b')	replace('aaaa','aa','b')	replace('aaaa','a','bb')	replace('aaaa','','b')	replace('bbbb','a','c')
+bbbb	bb	bbbbbbbb	aaaa	bbbb
+replace(concat(lcase(concat('THIS',' ','IS',' ','A',' ')),ucase('false'),' ','test'),'FALSE','REAL')
+this is a REAL test
+soundex('')	soundex('he')	soundex('hello all folks')
+	H000	H4142
+password('test')	length(encrypt('test'))	encrypt('test','aa')
+378b243e220ca493	13	aaqPiZY5xR5l.
+md5('hello')
+5d41402abc4b2a76b9719d911017c592
+repeat('monty',5)	concat('*',space(5),'*')
+montymontymontymontymonty	*     *
+reverse('abc')	reverse('abcd')
+cba	dcba
+rpad('a',4,'1')	rpad('a',4,'12')	rpad('abcd',3,'12')
+a111	a121	abc
+lpad('a',4,'1')	lpad('a',4,'12')	lpad('abcd',3,'12')
+111a	121a	abc
+rpad(741653838,17,'0')	lpad(741653838,17,'0')
+74165383800000000	00000000741653838
+rpad('abcd',7,'ab')	lpad('abcd',7,'ab')
+abcdaba	abaabcd
+rpad('abcd',1,'ab')	lpad('abcd',1,'ab')
+a	a
+LEAST(NULL,'HARRY','HARRIOT',NULL,'HAROLD')	GREATEST(NULL,'HARRY','HARRIOT',NULL,'HAROLD')
+HAROLD	HARRY
+least(1,2,3) | greatest(16,32,8)	least(5,4)*1	greatest(-1.0,1.0)*1	least(3,2,1)*1.0	greatest(1,1.1,1.0)	least("10",9)	greatest("A","B","0")
+33	4	1.0	1.0	1.1	9	B
+decode(encode(repeat("a",100000),"monty"),"monty")=repeat("a",100000)
+1
+decode(encode("abcdef","monty"),"monty")="abcdef"
+1
+reverse("")
+
+insert("aa",100,1,"b")	insert("aa",1,3,"b")	left("aa",-1)	substring("a",1,2)
+aa	b		a
+elt(2,1)	field(NULL,"a","b","c")	reverse("")
+NULL	0	
+locate("a","b",2)	locate("","a",1)
+0	1
+ltrim("a")	rtrim("a")	trim(BOTH "" from "a")	trim(BOTH " " from "a")
+a	a	a	a
+concat("1","2")|0	concat("1",".5")+0.0
+12	1.5
+substring_index("www.tcx.se","",3)
+
+length(repeat("a",100000000))	length(repeat("a",1000*64))
+NULL	64000
+position("0" in "baaa" in (1))	position("0" in "1" in (1,2,3))	position("sql" in ("mysql"))
+1	0	3
+position(("1" in (1,2,3)) in "01")
+2
+length(repeat("a",65500))	length(concat(repeat("a",32000),repeat("a",32000)))	length(replace("aaaaa","a",concat(repeat("a",10000))))	length(insert(repeat("a",40000),1,30000,repeat("b",50000)))
+65500	64000	50000	60000
+length(repeat("a",1000000))	length(concat(repeat("a",32000),repeat("a",32000),repeat("a",32000)))	length(replace("aaaaa","a",concat(repeat("a",32000))))	length(insert(repeat("a",48000),1,1000,repeat("a",48000)))
+1000000	96000	160000	95000
+Date	Unix
+1998-9-16 09:26:00	905927160
+1998-9-16 09:26:00	905927160
+domain
+hello.de
+domain
+test.de

@@ -1,0 +1,48 @@
+# Description
+# -----------
+# Numeric floating point.
+
+SELECT 10,10.0,10.,.1e+2,100.0e-1;
+select 6e-05, -6e-05, --6e-05, -6e-05+1.000000;
+
+drop table if exists t1;
+create table t1 (f1 float(24),f2 float(52));
+show columns from t1;
+insert into t1 values(10,10),(1e+5,1e+5),(1234567890,1234567890),(1e+10,1e+10),(1e+15,1e+15),(1e+20,1e+20),(1e+50,1e+50),(1e+150,1e+150);
+insert into t1 values(-10,-10),(1e-5,1e-5),(1e-10,1e-10),(1e-15,1e-15),(1e-20,1e-20),(1e-50,1e-50),(1e-150,1e-150);
+select * from t1;
+drop table t1;
+
+create table t1 (datum double);
+insert into t1 values (0.5),(1.0),(1.5),(2.0),(2.5);
+select * from t1;
+select * from t1 where datum < 1.5;
+select * from t1 where datum > 1.5;
+select * from t1 where datum = 1.5;
+drop table t1;
+
+create table t1 (a  decimal(7,3) not null, key (a));
+insert into t1 values ("0"),("-0.00"),("-0.01"),("-0.002"),("1");
+select a from t1 order by a;
+select min(a) from t1;
+drop table t1;
+
+#
+# FLOAT/DOUBLE/DECIMAL handling
+#
+
+create table t1 (f float, f2 float(24), f3 float(6,2), d double, d2 float(53), d3 double(10,3), de decimal, de2 decimal(6), de3 decimal(5,2), n numeric, n2 numeric(8), n3 numeric(5,6));
+show columns from t1;
+drop table t1;
+
+create table t1 (a  decimal(7,3) not null, key (a));
+insert into t1 values ("0"),("-0.00"),("-0.01"),("-0.002"),("1");
+select a from t1 order by a;
+select min(a) from t1;
+drop table t1;
+
+# Errors
+
+!$1063 create table t1 (f float(54));	# Should give an error
+drop table if exists t1;
+

@@ -1,0 +1,315 @@
+grp	a	c	id	a	c	d
+1	1	a	1	1	a	1
+3	4	E	3	4	A	4
+3	5	C	3	5	B	5
+3	6	D	3	6	C	6
+grp	a	c	id	a	c	d
+NULL	NULL		NULL	NULL	NULL	NULL
+1	1	a	1	1	a	1
+2	2	b	NULL	NULL	NULL	NULL
+2	3	c	NULL	NULL	NULL	NULL
+3	4	E	3	4	A	4
+3	5	C	3	5	B	5
+3	6	D	3	6	C	6
+grp	a	c	id	a	c	d
+1	1	a	1	1	a	1
+3	4	E	3	4	A	4
+3	5	C	3	5	B	5
+3	6	D	3	6	C	6
+NULL	NULL	NULL	4	7	D	7
+grp	a	c	id	a	c	d
+1	1	a	1	1	a	1
+3	4	E	3	4	A	4
+3	5	C	3	5	B	5
+3	6	D	3	6	C	6
+NULL	NULL	NULL	4	7	D	7
+grp	a	c	id	a	c	d
+1	1	a	1	1	a	1
+2	2	b	NULL	NULL	NULL	NULL
+2	3	c	NULL	NULL	NULL	NULL
+3	4	E	3	4	A	4
+3	5	C	3	5	B	5
+3	6	D	3	6	C	6
+NULL	NULL		NULL	NULL	NULL	NULL
+grp	a	c	id	a	c	d
+1	1	a	1	1	a	1
+2	2	b	NULL	NULL	NULL	NULL
+2	3	c	NULL	NULL	NULL	NULL
+3	4	E	NULL	NULL	NULL	NULL
+3	5	C	NULL	NULL	NULL	NULL
+3	6	D	NULL	NULL	NULL	NULL
+NULL	NULL		NULL	NULL	NULL	NULL
+grp	a	c	id	a	c	d
+1	1	a	1	1	a	1
+1	1	a	3	4	A	4
+2	2	b	3	5	B	5
+2	3	c	3	6	C	6
+3	4	E	NULL	NULL	NULL	NULL
+3	5	C	3	6	C	6
+3	6	D	4	7	D	7
+NULL	NULL		NULL	NULL	NULL	NULL
+grp	a	c	id	a	c	d
+1	1	a	1	1	a	1
+2	2	b	NULL	NULL	NULL	NULL
+2	3	c	NULL	NULL	NULL	NULL
+3	4	E	NULL	NULL	NULL	NULL
+3	5	C	NULL	NULL	NULL	NULL
+3	6	D	NULL	NULL	NULL	NULL
+NULL	NULL		NULL	NULL	NULL	NULL
+grp	a	c	id	a	c	d
+3	4	E	3	4	A	4
+3	5	C	3	5	B	5
+3	6	D	3	6	C	6
+grp	a	c	id	a	c	d
+2	2	b	NULL	NULL	NULL	NULL
+2	3	c	NULL	NULL	NULL	NULL
+NULL	NULL		NULL	NULL	NULL	NULL
+Comment
+Impossible WHERE noticed after reading const tables
+table	type	possible_keys	key	key_len	ref	rows	Extra
+t1	ALL	NULL	NULL	NULL	NULL	7	
+t2	eq_ref	PRIMARY	PRIMARY	8	t1.a	1	where used
+grp	a	c	id	a	c	d	a
+1	1	a	1	1	a	1	1
+2	2	b	NULL	NULL	NULL	NULL	NULL
+2	3	c	NULL	NULL	NULL	NULL	NULL
+3	4	E	3	4	A	4	4
+3	5	C	3	5	B	5	5
+3	6	D	3	6	C	6	6
+NULL	NULL		NULL	NULL	NULL	NULL	NULL
+grp	a	c	id	a	c	d
+1	1	a	1	1	a	1
+3	4	E	3	4	A	4
+3	5	C	3	5	B	5
+3	6	D	3	6	C	6
+grp	a	c	id	a	c	d
+1	1	a	1	1	a	1
+3	4	E	3	4	A	4
+3	5	C	3	5	B	5
+3	6	D	3	6	C	6
+grp	a	c	id	a	c	d
+1	1	a	1	1	a	1
+usr_id	uniq_id	increment	usr2_id	c_amount	max
+3	4	84676	NULL	NULL	NULL
+usr_id	uniq_id	increment	usr2_id	c_amount	max
+3	4	84676	NULL	NULL	NULL
+usr_id	uniq_id	increment	usr2_id	c_amount	max
+3	4	84676	NULL	NULL	NULL
+usr_id	uniq_id	increment	usr2_id	c_amount	max
+3	4	84676	NULL	NULL	NULL
+usr_id	uniq_id	increment	usr2_id	c_amount	max
+3	4	84676	NULL	NULL	NULL
+fill	desc_larga_cat	cred_total	Grup	Places	PlacesOcupades
+10360	asdfggfg	6.0	0	55	0
+10360	asdfggfg	6.0	12	333	0
+10360	asdfggfg	6.0	33	8	0
+10360	asdfggfg	6.0	45	10	0
+10360	asdfggfg	6.0	55	2	0
+10360	asdfggfg	6.0	7887	85	0
+10360	asdfggfg	6.0	32767	7	0
+10361	Components i Circuits Electronics I	6.0	30	2	0
+10361	Components i Circuits Electronics I	6.0	40	3	0
+10362	Laboratori d`Ordinadors	4.5	10	12	0
+10362	Laboratori d`Ordinadors	4.5	11	111	0
+fill	idPla
+10360	NULL
+10361	NULL
+10362	NULL
+fill	idPla
+10360	1
+10361	NULL
+10362	NULL
+name	name	id
+Antonio Paz	El Gato	1
+Antonio Paz	Perrito	2
+Lilliana Angelovska	NULL	NULL
+Thimble Smith	Happy	3
+name	name	id
+Lilliana Angelovska	NULL	NULL
+table	type	possible_keys	key	key_len	ref	rows	Extra
+t1	ALL	NULL	NULL	NULL	NULL	3	
+t2	ALL	NULL	NULL	NULL	NULL	3	where used; Not exists
+table	type	possible_keys	key	key_len	ref	rows	Extra
+t1	ALL	NULL	NULL	NULL	NULL	3	
+t2	ALL	NULL	NULL	NULL	NULL	3	where used
+count(*)
+4
+name	name	id
+Antonio Paz	El Gato	1
+Antonio Paz	Perrito	2
+Lilliana Angelovska	NULL	NULL
+Thimble Smith	Happy	3
+name	name	id
+Lilliana Angelovska	NULL	NULL
+table	type	possible_keys	key	key_len	ref	rows	Extra
+t1	ALL	NULL	NULL	NULL	NULL	3	
+t2	ALL	NULL	NULL	NULL	NULL	3	where used; Not exists
+table	type	possible_keys	key	key_len	ref	rows	Extra
+t1	ALL	NULL	NULL	NULL	NULL	3	
+t2	ALL	NULL	NULL	NULL	NULL	3	where used
+count(*)
+4
+name	name	id	id
+Antonio Paz	El Gato	1	1
+Antonio Paz	Perrito	2	1
+Lilliana Angelovska	NULL	NULL	NULL
+Thimble Smith	Happy	3	3
+name	name	id	id
+Antonio Paz	El Gato	1	1
+Antonio Paz	Perrito	2	1
+NULL	Happy	3	1
+NULL	El Gato	1	2
+NULL	Perrito	2	2
+NULL	Happy	3	2
+NULL	El Gato	1	3
+NULL	Perrito	2	3
+Thimble Smith	Happy	3	3
+name	name	id	owner	id
+Antonio Paz	El Gato	1	1	1
+Antonio Paz	Perrito	2	1	1
+Lilliana Angelovska	NULL	NULL	NULL	1
+Thimble Smith	NULL	NULL	NULL	1
+Antonio Paz	NULL	NULL	NULL	2
+Lilliana Angelovska	NULL	NULL	NULL	2
+Thimble Smith	NULL	NULL	NULL	2
+Antonio Paz	NULL	NULL	NULL	3
+Lilliana Angelovska	NULL	NULL	NULL	3
+Thimble Smith	Happy	3	3	3
+id	str
+4	bar
+3	foo
+id	str
+1	NULL
+2	NULL
+n	m	o	n	m	o
+1	2	11	1	2	3
+1	2	7	1	2	3
+1	2	9	1	2	3
+1	3	9	NULL	NULL	NULL
+n	m	o	n	m	o
+1	2	7	1	2	3
+1	2	9	1	2	3
+1	3	9	NULL	NULL	NULL
+1	2	11	1	2	3
+id2
+3
+id2
+3
+color	name
+red	apple
+yellow	banana
+green	lime
+black	grape
+blue	blueberry
+count	color
+10	green
+5	black
+15	white
+7	green
+count	color	color	name
+10	green	green	lime
+7	green	green	lime
+5	black	black	grape
+count	name
+10	lime
+7	lime
+5	grape
+count	name
+10	lime
+7	lime
+5	grape
+pcode	count
+kld2000	1
+klw1000	0
+klw1020	0
+klw1500	0
+klw2000	0
+klw2001	0
+klw2002	0
+klw2500	0
+kmw1000	0
+kmw1500	0
+kmw2000	0
+kmw2001	0
+kmw2100	0
+kmw3000	0
+kmw3200	0
+kvw2000	26
+kvw2001	0
+kvw3000	36
+kvw3001	0
+kvw3002	0
+kvw3500	26
+kvw3501	0
+kvw3502	0
+kvw3800	0
+kvw3801	0
+kvw3802	0
+kvw3900	0
+kvw3901	0
+kvw3902	0
+kvw4000	0
+kvw4001	0
+kvw4002	0
+kvw4200	0
+kvw4500	0
+kvw5000	0
+kvw5001	0
+kvw5500	0
+kvw5510	0
+kvw5600	0
+kvw5601	0
+kvw6000	2
+pcode	count
+kld2000	1
+klw1000	0
+klw1020	0
+klw1500	0
+klw2000	0
+klw2001	0
+klw2002	0
+klw2500	0
+kmw1000	0
+kmw1500	0
+kmw2000	0
+kmw2001	0
+kmw2100	0
+kmw3000	0
+kmw3200	0
+kvw2000	26
+kvw2001	0
+kvw3000	36
+kvw3001	0
+kvw3002	0
+kvw3500	26
+kvw3501	0
+kvw3502	0
+kvw3800	0
+kvw3801	0
+kvw3802	0
+kvw3900	0
+kvw3901	0
+kvw3902	0
+kvw4000	0
+kvw4001	0
+kvw4002	0
+kvw4200	0
+kvw4500	0
+kvw5000	0
+kvw5001	0
+kvw5500	0
+kvw5510	0
+kvw5600	0
+kvw5601	0
+kvw6000	2
+id	pid	rep_del	id	pid	rep_del
+1	NULL	NULL	2	1	NULL
+2	1	NULL	NULL	NULL	NULL
+id	pid	rep_del	id	pid	rep_del
+1	NULL	NULL	2	1	NULL
+2	1	NULL	NULL	NULL	NULL
+table	type	possible_keys	key	key_len	ref	rows	Extra
+t1	ALL	NULL	NULL	NULL	NULL	2	
+t2	index	id	id	8	NULL	1	where used; Using index; Not exists
+id	name	id	idx
+2	no	NULL	NULL

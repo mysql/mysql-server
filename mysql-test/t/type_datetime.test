@@ -1,0 +1,29 @@
+#
+# testing different DATETIME ranges
+#
+create table t1 (t datetime);
+insert into t1 values(101),(691231),(700101),(991231),(10000101),(99991231),(101000000),(691231000000),(700101000000),(991231235959),(10000101000000),(99991231235959);
+select * from t1;
+delete from t1 where t > 0;
+optimize table t1;
+insert into t1 values("000101"),("691231"),("700101"),("991231"),("00000101"),("00010101"),("99991231"),("00101000000"),("691231000000"),("700101000000"),("991231235959"),("10000101000000"),("99991231235959");
+select * from t1;
+drop table t1;
+
+#
+# Test insert of now() and curtime()
+#
+
+CREATE TABLE t1 (a timestamp, b date, c time, d datetime);
+insert into t1 (b,c,d) values(now(),curtime(),now());
+select date_format(a,"%Y-%m-%d")=b,right(a,6)=c+0,a=d+0 from t1;
+drop table t1;
+
+#
+# Test of datetime and not null
+#
+
+CREATE TABLE t1 (a datetime not null);
+insert into t1 values (0);
+select * from t1 where a is null;
+drop table t1;

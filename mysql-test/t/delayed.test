@@ -1,0 +1,17 @@
+#
+# test of DELAYED insert and timestamps
+# (Can't be tested with purify :( )
+#
+
+create table t1 (a char(10), tmsp timestamp);
+insert into t1 set a = 1;
+insert delayed into t1 set a = 2;
+insert into t1 set a = 3, tmsp=NULL;
+insert delayed into t1 set a = 4;
+insert delayed into t1 set a = 5, tmsp = 19711006010203;
+insert delayed into t1 (a, tmsp) values (6, 19711006010203);
+insert delayed into t1 (a, tmsp) values (7, NULL);
+insert into t1 set a = 8,tmsp=19711006010203;
+select * from t1 where tmsp=0;
+select * from t1 where tmsp=19711006010203;
+drop table t1;

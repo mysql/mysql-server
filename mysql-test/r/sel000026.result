@@ -1,2 +1,0 @@
-'abc' LIKE '%c'	'abcabc' LIKE '%c'	"ab" LIKE ""	"ab" LIKE "a"	"ab" LIKE "ab"	
-1	1	0	0	1	
