@@ -128,8 +128,8 @@ int _create_index_by_sort(MI_SORT_PARAM *info,my_bool no_messages,
   }
   if (memavl < MIN_SORT_MEMORY)
   {
-    mi_check_print_error(info->sort_info->param,"Sort buffer to small");
-    goto err;
+    mi_check_print_error(info->sort_info->param,"Sort buffer to small"); /* purecov: tested */
+    goto err; /* purecov: tested */
   }
   (*info->lock_in_memory)(info->sort_info->param);/* Everything is allocated */
 
@@ -138,13 +138,13 @@ int _create_index_by_sort(MI_SORT_PARAM *info,my_bool no_messages,
 
   if ((records=find_all_keys(info,keys,sort_keys,buffpek,&maxbuffer,&tempfile))
       == HA_POS_ERROR)
-    goto err;
+    goto err; /* purecov: tested */
   if (maxbuffer == 0)
   {
     if (!no_messages)
       printf("  - Dumping %lu keys\n",records);
     if (write_index(info,sort_keys,(uint) records))
-      goto err;
+      goto err; /* purecov: inspected */
   }
   else
   {
@@ -152,17 +152,17 @@ int _create_index_by_sort(MI_SORT_PARAM *info,my_bool no_messages,
     if (maxbuffer >= MERGEBUFF2)
     {
       if (!no_messages)
-	printf("  - Merging %lu keys\n",records);
+	printf("  - Merging %lu keys\n",records); /* purecov: tested */
       if (merge_many_buff(info,keys,sort_keys,buffpek,&maxbuffer,&tempfile))
-	goto err;
+	goto err; /* purecov: inspected */
     }
     if (flush_io_cache(&tempfile) ||
 	reinit_io_cache(&tempfile,READ_CACHE,0L,0,0))
-      goto err;
+      goto err; /* purecov: inspected */
     if (!no_messages)
-      puts("  - Last merge and dumping keys");
+      puts("  - Last merge and dumping keys"); /* purecov: tested */
     if (merge_index(info,keys,sort_keys,buffpek,maxbuffer,&tempfile))
-      goto err;
+      goto err; /* purecov: inspected */
   }
   error =0;
 
@@ -195,17 +195,17 @@ static ha_rows NEAR_F find_all_keys(MI_SORT_PARAM *info, uint keys,
     {
       if (indexpos >= (uint) *maxbuffer ||
 	  write_keys(info,sort_keys,idx-1,buffpek+indexpos,tempfile))
-	DBUG_RETURN((ha_rows) -1);
+	DBUG_RETURN(HA_POS_ERROR); /* purecov: inspected */
       memcpy(sort_keys[0],sort_keys[idx-1],(size_t) info->key_length);
       idx=1; indexpos++;
     }
   }
   if (error > 0)
-    DBUG_RETURN(HA_POS_ERROR);		/* Aborted by get_key */
+    DBUG_RETURN(HA_POS_ERROR);		/* Aborted by get_key */ /* purecov: inspected */
   if (indexpos)
     if (indexpos >= (uint) *maxbuffer ||
 	write_keys(info,sort_keys,idx,buffpek+indexpos,tempfile))
-      DBUG_RETURN(HA_POS_ERROR);
+      DBUG_RETURN(HA_POS_ERROR); /* purecov: inspected */
   *maxbuffer=(int) indexpos;
   DBUG_RETURN(indexpos*(keys-1)+idx);
 } /* find_all_keys */
@@ -226,13 +226,13 @@ static int NEAR_F write_keys(MI_SORT_PARAM *info, register uchar **sort_keys,
   if (!my_b_inited(tempfile) &&
       open_cached_file(tempfile, info->tmpdir, "ST", DISK_BUFFER_SIZE,
 		       info->myf_rw))
-    DBUG_RETURN(1);
+    DBUG_RETURN(1); /* purecov: inspected */
   buffpek->file_pos=my_b_tell(tempfile);
   buffpek->count=count;
 
   for (end=sort_keys+count ; sort_keys != end ; sort_keys++)
     if (my_b_write(tempfile,(byte*) *sort_keys,(uint) sort_length))
-      DBUG_RETURN(1);
+      DBUG_RETURN(1); /* purecov: inspected */
   DBUG_RETURN(0);
 } /* write_keys */
 
@@ -248,7 +248,7 @@ static int NEAR_F write_index(MI_SORT_PARAM *info, register uchar **sort_keys,
 	(qsort2_cmp) info->key_cmp,info->sort_info);
   while (count--)
     if ((*info->key_write)(info->sort_info,*sort_keys++))
-      DBUG_RETURN(-1);
+      DBUG_RETURN(-1); /* purecov: inspected */
   DBUG_RETURN(0);
 } /* write_index */
 
@@ -281,11 +281,11 @@ static int NEAR_F merge_many_buff(MI_SORT_PARAM *info, uint keys,
     {
       if (merge_buffers(info,keys,from_file,to_file,sort_keys,lastbuff++,
 			buffpek+i,buffpek+i+MERGEBUFF-1))
-	break;
+	break; /* purecov: inspected */
     }
     if (merge_buffers(info,keys,from_file,to_file,sort_keys,lastbuff++,
 		      buffpek+i,buffpek+ *maxbuffer))
-      break;
+      break; /* purecov: inspected */
     if (flush_io_cache(to_file))
       break;					/* purecov: inspected */
     temp=from_file; from_file=to_file; to_file=temp;
@@ -350,19 +350,19 @@ merge_buffers(MI_SORT_PARAM *info, uint keys, IO_CACHE *from_file,
   if (init_queue(&queue,(uint) (Tb-Fb)+1,offsetof(BUFFPEK,key),0,
 		 (int (*)(void*, byte *,byte*)) info->key_cmp,
 		 (void*) info->sort_info))
-    DBUG_RETURN(1);
+    DBUG_RETURN(1); /* purecov: inspected */
 
-  for (buffpek= Fb ; buffpek <= Tb && error != -1 ; buffpek++)
+  for (buffpek= Fb ; buffpek <= Tb ; buffpek++)
   {
     count+= buffpek->count;
     buffpek->base= strpos;
     buffpek->max_keys=maxcount;
     strpos+= (uint) (error=(int) read_to_buffer(from_file,buffpek,
 						sort_length));
+    if (error == -1)
+      goto err; /* purecov: inspected */
     queue_insert(&queue,(void*) buffpek);
   }
-  if (error == -1)
-    goto err;
 
   while (queue.elements > 1)
   {
@@ -373,14 +373,14 @@ merge_buffers(MI_SORT_PARAM *info, uint keys, IO_CACHE *from_file,
       {
 	if (my_b_write(to_file,(byte*) buffpek->key,(uint) sort_length))
 	{
-	  error=1; goto err;
+	  error=1; goto err; /* purecov: inspected */
 	}
       }
       else
       {
 	if ((*info->key_write)(info->sort_info,(void*) buffpek->key))
 	{
-	  error=1; goto err;
+	  error=1; goto err; /* purecov: inspected */
 	}
       }
       buffpek->key+=sort_length;
@@ -429,7 +429,7 @@ merge_buffers(MI_SORT_PARAM *info, uint keys, IO_CACHE *from_file,
       if (my_b_write(to_file,(byte*) buffpek->key,
 		     (sort_length*buffpek->mem_count)))
       {
-	error=1; goto err;
+	error=1; goto err; /* purecov: inspected */
       }
     }
     else
@@ -442,7 +442,7 @@ merge_buffers(MI_SORT_PARAM *info, uint keys, IO_CACHE *from_file,
       {
 	if ((*info->key_write)(info->sort_info,(void*) strpos))
 	{
-	  error=1; goto err;
+	  error=1; goto err; /* purecov: inspected */
 	}
       }
     }
@@ -468,7 +468,7 @@ merge_index(MI_SORT_PARAM *info, uint keys, uchar **sort_keys,
   DBUG_ENTER("merge_index");
   if (merge_buffers(info,keys,tempfile,(IO_CACHE*) 0,sort_keys,buffpek,buffpek,
 		    buffpek+maxbuffer))
-    DBUG_RETURN(1);
+    DBUG_RETURN(1); /* purecov: inspected */
   DBUG_RETURN(0);
 } /* merge_index */
 

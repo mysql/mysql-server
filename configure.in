@@ -4,7 +4,7 @@ dnl Process this file with autoconf to produce a configure script.
 AC_INIT(sql/mysqld.cc)
 AC_CANONICAL_SYSTEM
 # The Docs Makefile.am parses this line!
-AM_INIT_AUTOMAKE(mysql, 3.23.25-beta)
+AM_INIT_AUTOMAKE(mysql, 3.23.26-beta)
 AM_CONFIG_HEADER(config.h)
 
 PROTOCOL_VERSION=10
@@ -662,7 +662,7 @@ case $SYSTEM_TYPE in
     ;;
   *hpux11.*)
     echo "Enabling pread/pwrite workaround for hpux 11"
-    CFLAGS="$CFLAGS -DHAVE_BROKEN_PREAD -DDONT_USE_FINITE"
+    CFLAGS="$CFLAGS -DHAVE_BROKEN_PREAD -DDONT_USE_FINITE -DHAVE_BROKEN_GETPASS"
     CXXFLAGS="$CXXFLAGS -DHAVE_BROKEN_PREAD -DDONT_USE_FINITE -D_INCLUDE_LONGLONG"
     if test "$with_named_thread" = "no"
     then 

@@ -578,7 +578,7 @@ void MYSQL_LOG::write(THD *thd,const char *query, uint query_length,
 	/* For slow query log */
 	if (!(specialflag & SPECIAL_LONG_LOG_FORMAT))
 	  current_time=time(NULL);
-	fprintf(file,"# Time: %lu  Lock_time: %lu  Rows_sent %lu\n",
+	fprintf(file,"# Time: %lu  Lock_time: %lu  Rows_sent: %lu\n",
 		(ulong) (current_time - query_start),
 		(ulong) (thd->time_after_lock - query_start),
 		(ulong) thd->sent_row_count);

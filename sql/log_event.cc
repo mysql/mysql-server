@@ -264,22 +264,22 @@ void Log_event::print_header(FILE* file)
   fprintf(file, " server id  %ld ", server_id); 
 }
 
-void Log_event::print_timestamp(FILE* file, time_t* ts = 0)
+void Log_event::print_timestamp(FILE* file, time_t* ts)
 {
-    struct tm tm_tmp;
-    if(!ts)
-      {
-        ts = &when;
-      }
-    localtime_r(ts,&tm_tmp);
+  struct tm tm_tmp;
+  if (!ts)
+  {
+    ts = &when;
+  }
+  localtime_r(ts,&tm_tmp);
 
-    fprintf(file,"%02d%02d%02d %2d:%02d:%02d",
-	    tm_tmp.tm_year % 100,
-	    tm_tmp.tm_mon+1,
-	    tm_tmp.tm_mday,
-	    tm_tmp.tm_hour,
-	    tm_tmp.tm_min,
-	    tm_tmp.tm_sec);
+  fprintf(file,"%02d%02d%02d %2d:%02d:%02d",
+	  tm_tmp.tm_year % 100,
+	  tm_tmp.tm_mon+1,
+	  tm_tmp.tm_mday,
+	  tm_tmp.tm_hour,
+	  tm_tmp.tm_min,
+	  tm_tmp.tm_sec);
 }
 
 

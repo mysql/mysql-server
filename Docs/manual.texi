@@ -333,7 +333,7 @@ Functionality Missing from MySQL
 
 Foreign Keys
 
-* Broken Foreign KEY::          Reasons NOT to use foreign keys
+* Broken Foreign KEY::          Reasons NOT to use foreign keys constraints
 
 The MySQL Access Privilege System
 
@@ -837,7 +837,7 @@ Changes in release 3.23.x  (Recommended; beta)
 * News-3.23.4::                 Changes in release 3.23.4
 * News-3.23.3::                 Changes in release 3.23.3
 * News-3.23.2::                 Changes in release 3.23.2
-* News-3.23.1::                 Changes in release 3.23.1
+* News-3.23.1::                 
 * News-3.23.0::                 Changes in release 3.23.0
 
 Changes in release 3.22.x
@@ -10171,9 +10171,9 @@ To see when @strong{MySQL} might get stored procedures, see @ref{TODO}.
 @cindex keys, foreign
 
 Note that foreign keys in SQL are not used to join tables, but are used
-mostly for checking referential integrity.  If you want to get results from
-multiple tables from a @code{SELECT} statement, you do this by joining
-tables:
+mostly for checking referential integrity (foreign key constraints).  If
+you want to get results from multiple tables from a @code{SELECT}
+statement, you do this by joining tables:
 
 @example
 SELECT * from table1,table2 where table1.id = table2.id;
@@ -10200,29 +10200,33 @@ than using foreign keys.
 
 In the near future we will extend the @code{FOREIGN KEY} implementation so
 that at least the information will be saved in the table specification file
-and may be retrieved by @code{mysqldump} and ODBC.
+and may be retrieved by @code{mysqldump} and ODBC. At a later stage we will
+implement the foreign key constraints for application that can't easily be
+coded to avoid them.
 
 @menu
-* Broken Foreign KEY::          Reasons NOT to use foreign keys
+* Broken Foreign KEY::          Reasons NOT to use foreign keys constraints
 @end menu
 
 @node Broken Foreign KEY,  , Missing Foreign Keys, Missing Foreign Keys
-@subsubsection Reasons NOT to Use Foreign Keys
+@subsubsection Reasons NOT to Use Foreign Keys constraints
 @cindex foreign keys, reasons not to use
 
-There are so many problems with foreign keys that we don't
+There are so many problems with foreign key constraints that we don't
 know where to start:
 
 @itemize @bullet
 @item
-Foreign keys make life very complicated, because the foreign key definitions
-must be stored in a database and implementing them would destroy the whole
-``nice approach'' of using files that can be moved, copied, and removed.
+Foreign key constraints make life very complicated, because the foreign
+key definitions must be stored in a database and implementing them would
+destroy the whole ``nice approach'' of using files that can be moved,
+copied, and removed.
 
 @item
-The speed impact is terrible for @code{INSERT} and @code{UPDATE} statements,
-and in this case almost all @code{FOREIGN KEY} checks are useless because you
-usually insert records in the right tables in the right order, anyway.
+The speed impact is terrible for @code{INSERT} and @code{UPDATE}
+statements, and in this case almost all @code{FOREIGN KEY} constraint
+checks are useless because you usually insert records in the right
+tables in the right order, anyway.
 
 @item
 There is also a need to hold locks on many more tables when updating one
@@ -10231,12 +10235,12 @@ MUCH faster to delete records from one table first and subsequently delete
 them from the other tables.
 
 @item
-You can no longer restore a table by doing a full delete from
-the table and then restoring all records (from a new source or from a backup).
+You can no longer restore a table by doing a full delete from the table
+and then restoring all records (from a new source or from a backup).
 
 @item
-If you have foreign keys you can't dump and restore tables unless you do so
-in a very specific order.
+If you use foreign key constraints you can't dump and restore tables
+unless you do so in a very specific order.
 
 @item
 It's very easy to do ``allowed'' circular definitions that make the
@@ -10248,9 +10252,11 @@ The only nice aspect of @code{FOREIGN KEY} is that it gives ODBC and some
 other client programs the ability to see how a table is connected and to use
 this to show connection diagrams and to help in building applicatons.
 
-@strong{MySQL} will soon store @code{FOREIGN KEY} definitions so that
-a client can ask for and receive an answer about how the original connection 
-was made. The current @file{.frm} file format does not have any place for it.
+@strong{MySQL} will soon store @code{FOREIGN KEY} definitions so that a
+client can ask for and receive an answer about how the original
+connection was made. The current @file{.frm} file format does not have
+any place for it.  At a later stage we will implement the foreign key
+constraints for application that can't easily be coded to avoid them.
 
 @node Missing Views, Missing comments, Missing Foreign Keys, Missing functions
 @subsection Views
@@ -32254,10 +32260,12 @@ this program!
 
 When started with the @code{--log-slow-queries[=file_name]} option,
 @code{mysqld} writes a log file containing all SQL commands that took
-more than @code{long_query_time} to execute. If no file name is
-given, it defaults to the name of the host machine suffixed with
-@code{-slow.log}. If a file name is given, but doesn't contain a path,
-the file is written in the data directory.
+more than @code{long_query_time} to execute. The time to get the initial
+table locks are not counted as execution time.
+
+If no file name is given, it defaults to the name of the host machine
+suffixed with @code{-slow.log}. If a file name is given, but doesn't
+contain a path, the file is written in the data directory.
 
 The slow query log can be used to find queries that takes a long time to
 execute and are thus candidates for optimization.
@@ -37068,7 +37076,7 @@ Python module with caching. By @email{gandalf@@rosmail.com}.
 @item @uref{http://www.mysql.com/Downloads/Contrib/MySQLmodule-1.4.tar.gz, MySQLmodule-1.4.tar.gz}
 Python interface for @strong{MySQL}. By Joseph Skinner @email{joe@@earthlight.co.nz};  Modified by Joerg Senekowitsch @email{senekow@@ibm.net}
 
-@item @uref{http://www.mysql.com/Downloads/Contrib/mysql_mex_1_1b.tar.gz, mysql_mex_1_1b.tar.gz}
+@item @uref{http://www.mysql.com/Downloads/Contrib/mysql_mex_11.tar.gz, mysql_mex_1_11.tar.gz}
 An interface program for the Matlab program by MathWorks.  The interface
 is done by Kimmo Uutela and John Fisher (not by Mathworks).
 Check @uref{http://boojum.hut.fi/~kuutela/mysqlmex.html,mysqlmex.html}
@@ -37341,10 +37349,10 @@ Accounting. By Jose de Leon, @email{jdl@@thevision.net}
 Apache authentication module for @strong{MySQL}. By Zeev Suraski,
 @email{bourbon@@netvision.net.il}.
 
-@strong{Please} register this module at:
-@url{http://bourbon.netvision.net.il/mysql/mod_auth_mysql/register.html}. The
-registering information is only used for statistical purposes and will
-encourage further development of this module!
+@c @strong{Please} register this module at:
+@c @url{http://bourbon.netvision.net.il/mysql/mod_auth_mysql/register.html}. The
+@c registering information is only used for statistical purposes and will
+@c encourage further development of this module!
 
 @item @uref{http://www.mysql.com/Downloads/Contrib/mod_log_mysql-1.05.tar.gz, mod_log_mysql-1.05.tar.gz}
 @strong{MySQL} logging module for Apache. By Zeev Suraski,
@@ -37495,6 +37503,7 @@ Prints the structure of every table in a database. By Thomas Wana.
 @item @uref{http://www.mysql.com/Downloads/Contrib/mysqlsync, mysqlsync-1.0-alpha.tar.gz}.
 A perl script to keep remote copies of a @strong{MySQL} database in sync with a
 central master copy. By Mark Jeftovic.  @email{markjr@@easydns.com}
+
 @item @uref{http://www.mysql.com/Downloads/Contrib/MySQLTutor-0.2.tar.gz, MySQLTutor}.
 MySQLTutor. A tutor of @strong{MySQL} for beginners
 
@@ -37516,6 +37525,9 @@ By Elizabeth.
 @item @uref{http://www.mysql.com/Downloads/Contrib/mybackup}
 @item @uref{http://www.mswanson.com/mybackup, mybackup home page}
 Wrapper for mysqldump to backup all databases. By Marc Swanson.
+
+@item @uref{http://www.mysql.com/Downloads/Contrib/mdu.pl.gz,mdu.pl.gz}
+Prints the storage usage of a @strong{MySQL} database.
 @end itemize
 
 @cindex RPMs, for common tools
@@ -37918,12 +37930,21 @@ though, so 3.23 is not released as a stable version yet.
 * News-3.23.4::                 Changes in release 3.23.4
 * News-3.23.3::                 Changes in release 3.23.3
 * News-3.23.2::                 Changes in release 3.23.2
+* News-3.23.1::                 Changes in release 3.23.1
 * News-3.23.0::                 Changes in release 3.23.0
 @end menu
 
 @node News-3.23.26, News-3.23.25, News-3.23.x, News-3.23.x
 @appendixsubsec Changes in release 3.23.26
 @itemize @bullet
+@item
+@code{LEFT JOIN} did in some case prefer a full table scan when one
+didn't have a @code{WHERE} clause.
+@item
+When using @code{--log-slow-queries}, don't count the time waiting for a lock.
+@item
+Fixed bug in lock code on @code{windows} which could cause the key cache
+to report that the key file was crashed even if it was ok.
 @item
 Automatic repair of @code{MyISAM} tables if you start @code{mysqld} with
 @code{--myisam-recover}.
@@ -42286,11 +42307,19 @@ Allow users to change startup options.
 @item
 Subqueries. @code{select id from t where grp in (select grp from g where u > 100)}
 @item
+@code{INSERT SQL_CONCURRENT ...};  This will force the insert to happen at the
+end of the data file if the table is in use by an select to allow
+concurrent inserts.
+@item
+Change @code{INSERT ... SELECT} to use concurrent inserts.
+@item
 Add range checking to @code{MERGE} tables.
 @item
 @code{SHOW OPEN TABLES}
 @item
 Port of @strong{MySQL} to BeOS.
+@item
+Link the @code{myisampack} code into the server.
 @item
 Add a temporary key buffer cache during @code{insert/delete/update} so that we
 can gracefully recover if the index file gets full.

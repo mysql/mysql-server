@@ -109,10 +109,17 @@ int my_lock(File fd, int locktype, my_off_t start, my_off_t length,
     printf("Error: DosSetFileLocks() == %d\n",rc);
   }
 #elif defined(HAVE_LOCKING)
-  if (MyFlags & MY_SEEK_NOT_DONE)
-    VOID(my_seek(fd,start,MY_SEEK_SET,MYF(MyFlags & ~MY_SEEK_NOT_DONE)));
-  if (!locking(fd,locktype,(ulong) length) || errno == EINVAL)
-    DBUG_RETURN(0);
+  /* Windows */
+  {
+    my_bool error;
+    pthread_mutex_lock(&my_file_info[fd].mutex);
+    if (MyFlags & MY_SEEK_NOT_DONE)
+      VOID(my_seek(fd,start,MY_SEEK_SET,MYF(MyFlags & ~MY_SEEK_NOT_DONE)));
+    error= locking(fd,locktype,(ulong) length) && errno != EINVAL;
+    pthread_mutex_unlock(&my_file_info[fd].mutex);
+    if (!error)
+      DBUG_RETURN(0);
+  }
 #else
 #if defined(HAVE_FCNTL)
   lock.l_type= (short) locktype;

@@ -131,7 +131,7 @@ void mysql_binlog_send(THD* thd, char* log_ident, ulong pos, ushort flags)
       goto err;
     }
   
-  if(my_fread(log, magic, sizeof(magic), MYF(MY_NABP|MY_WME)))
+  if(my_fread(log, (byte*) magic, sizeof(magic), MYF(MY_NABP|MY_WME)))
     {
       errmsg = "I/O error reading binlog magic number";
       goto err;
@@ -321,7 +321,7 @@ sweepstakes if you report the bug";
 	    }
 
 	  //check the magic
-	  if(my_fread(log, magic, sizeof(magic), MYF(MY_NABP|MY_WME)))
+	  if(my_fread(log, (byte*) magic, sizeof(magic), MYF(MY_NABP|MY_WME)))
 	    {
 	      errmsg = "I/O error reading binlog magic number";
 	      goto err;

@@ -2915,12 +2915,11 @@ static void get_options(int argc,char **argv)
       default_table_type=DB_TYPE_ISAM;
       myisam_delay_key_write=0;
       myisam_concurrent_insert=0;
-      myisam_recover_options= 0;
+      myisam_recover_options= HA_RECOVER_NONE;
       break;
     case (int) OPT_SAFE:
       opt_specialflag|= SPECIAL_SAFE_MODE;
       myisam_delay_key_write=0;
-      myisam_concurrent_insert=0;
       myisam_recover_options= HA_RECOVER_NONE;	// To be changed
       break;
     case (int) OPT_SKIP_CONCURRENT_INSERT:

@@ -327,7 +327,7 @@ static void dump_local_log_entries(const char* logname)
  if(!position)
    {
      char magic[4];
-     if(my_fread(file, magic, sizeof(magic), MYF(MY_NABP|MY_WME)))
+     if(my_fread(file, (byte*) magic, sizeof(magic), MYF(MY_NABP|MY_WME)))
 	die("I/O error reading binlog magic number");
      if(memcmp(magic, BINLOG_MAGIC, 4))
        die("Bad magic number");
