@@ -205,7 +205,7 @@ character-set=latin1
 "Esta operação não pode ser realizada com um 'slave' em execução. Execute STOP SLAVE primeiro",
 "Esta operação requer um 'slave' em execução. Configure  o 'slave' e execute START SLAVE",
 "O servidor não está configurado como 'slave'. Acerte o arquivo de configuração ou use CHANGE MASTER TO",
-"Não pode inicializar a estrutura de informação do 'master'. Verifique as permissões em 'master.info'",
+"Could not initialize master info structure, more error messages can be found in the MySQL error log",
 "Não conseguiu criar 'thread' de 'slave'. Verifique os recursos do sistema",
 "Usuário '%-.64s' já possui mais que o valor máximo de conexões (max_user_connections) ativas",
 "Você pode usar apenas expressões constantes com SET",
@@ -232,7 +232,7 @@ character-set=latin1
 "Opção '%s' usada duas vezes no comando",
 "Usuário '%-.64s' tem excedido o '%s' recurso (atual valor: %ld)",
 "Acesso negado. Você precisa o privilégio %-.128s para essa operação",
-"Variável '%-.64s' é uma LOCAL variável e não pode ser usada com SET GLOBAL",
+"Variável '%-.64s' é uma SESSION variável e não pode ser usada com SET GLOBAL",
 "Variável '%-.64s' é uma GLOBAL variável e deve ser configurada com SET GLOBAL",
 "Variável '%-.64s' não tem um valor padrão",
 "Variável '%-.64s' não pode ser configurada para o valor de '%-.64s'",
@@ -242,6 +242,7 @@ character-set=latin1
 "Esta versão de MySQL não suporta ainda '%s'",
 "Obteve fatal erro %d: '%-.128s' do master quando lendo dados do binary log",
 "Slave SQL thread ignorado a consulta devido às normas de replicação-*-tabela",
+"Variable '%-.64s' is a %s variable",
 "Definição errada da chave estrangeira para '%-.64s': %s",
 "Referência da chave e referência da tabela não coincidem",
 "Operand should contain %d column(s)",
@@ -278,7 +279,7 @@ character-set=latin1
 "Variável '%-.64s' não é uma variável componente (Não pode ser usada como XXXX.variável_nome)",
 "Collation desconhecida: '%-.64s'",
 "SSL parâmetros em CHANGE MASTER são ignorados porque este escravo MySQL foi compilado sem o SSL suporte. Os mesmos podem ser usados mais tarde quando o escravo MySQL com SSL seja iniciado.",
-"Servidor está rodando em --secure-auth modo, porêm '%s@%s' tem senha no formato antigo; por favor troque a senha para o novo formato",
+"Servidor está rodando em --secure-auth modo, porêm '%s'@'%s' tem senha no formato antigo; por favor troque a senha para o novo formato",
 "Campo ou referência '%-.64s%s%-.64s%s%-.64s' de SELECT #%d foi resolvido em SELECT #%d",
 "Parâmetro ou combinação de parâmetros errado para START SLAVE UNTIL",
 "É recomendado para rodar com --skip-slave-start quando fazendo replicação passo-por-passo com START SLAVE UNTIL, de outra forma você não está seguro em caso de inesperada reinicialição do mysqld escravo",
@@ -290,10 +291,14 @@ character-set=latin1
 "Key cache desconhecida '%-.100s'",
 "MySQL foi inicializado em modo --skip-name-resolve. Você necesita reincializá-lo sem esta opção para este grant funcionar",
 "Motor de tabela desconhecido '%s'",
-"'%s' é desatualizado. Use '%s' em seu lugar.",
-"The target table %-.100s of the %s is not updatable.",
-"The '%s' feature was disabled. You need MySQL built with '%s' define to have it working"
-"MySQL is started in --skip-grant-tables mode. You can't use this command"
+"'%s' é desatualizado. Use '%s' em seu lugar",
+"A tabela destino %-.100s do %s não é atualizável",
+"O recurso '%s' foi desativado; você necessita MySQL construído com '%s' para ter isto funcionando",
+"O servidor MySQL está rodando com a opção %s razão pela qual não pode executar esse commando",
+"Coluna '%-.100s' tem valor duplicado '%-.64s' em %s"
+"Truncado errado %-.32s valor: '%-.128s'"
+"Incorreta definição de tabela; Pode ter somente uma coluna TIMESTAMP com CURRENT_TIMESTAMP em DEFAULT ou ON UPDATE cláusula"
+"Inválida cláusula ON UPDATE para campo '%-.64s'",
 "Can't create a %s from within another stored routine"
 "%s %s already exists"
 "%s %s does not exist"

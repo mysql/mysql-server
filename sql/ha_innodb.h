@@ -95,7 +95,6 @@ class ha_innobase: public handler
 			  HA_NOT_EXACT_COUNT |
 			  HA_NO_WRITE_DELAYED |
 			  HA_PRIMARY_KEY_IN_READ_INDEX |
-			  HA_DROP_BEFORE_CREATE |
 			  HA_TABLE_SCAN_ON_INDEX),
 	  last_dup_key((uint) -1),
 	  start_of_scan(0)
@@ -181,6 +180,7 @@ class ha_innobase: public handler
 	int check(THD* thd, HA_CHECK_OPT* check_opt);
         char* update_table_comment(const char* comment);
 	char* get_foreign_key_create_info();
+  	uint referenced_by_foreign_key();
 	void free_foreign_key_create_info(char* str);	
   	THR_LOCK_DATA **store_lock(THD *thd, THR_LOCK_DATA **to,
 			     		enum thr_lock_type lock_type);
@@ -190,7 +190,6 @@ class ha_innobase: public handler
         bool primary_key_is_clustered() { return true; }
 };
 
-extern bool innodb_skip;
 extern uint innobase_init_flags, innobase_lock_type;
 extern uint innobase_flush_log_at_trx_commit;
 extern ulong innobase_cache_size;

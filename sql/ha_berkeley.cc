@@ -72,7 +72,7 @@
 #define STATUS_BDB_ANALYZE	4
 
 const char *ha_berkeley_ext=".db";
-bool berkeley_skip=0,berkeley_shared_data=0;
+bool berkeley_shared_data=0;
 u_int32_t berkeley_init_flags= DB_PRIVATE | DB_RECOVER, berkeley_env_flags=0,
           berkeley_lock_type=DB_LOCK_DEFAULT;
 ulong berkeley_cache_size, berkeley_log_buffer_size, berkeley_log_file_size=0;
@@ -547,7 +547,10 @@ int ha_berkeley::open(const char *name, int mode, uint test_if_locked)
 	(*ptr)->set_bt_compare(*ptr, berkeley_cmp_packed_key);
 	(*ptr)->app_private= (void*) (table->key_info+i);
 	if (!(table->key_info[i].flags & HA_NOSAME))
+	{
+	  DBUG_PRINT("bdb",("Setting DB_DUP for key %u", i));
 	  (*ptr)->set_flags(*ptr, DB_DUP);
+	}
 	if ((error= txn_begin(db_env, 0, (DB_TXN**) &transaction, 0)) ||
 	    (error=((*ptr)->open(*ptr, transaction, name_buff, part, DB_BTREE,
 				 open_mode, 0))) ||
@@ -823,8 +826,8 @@ int ha_berkeley::write_row(byte * record)
   DBUG_ENTER("write_row");
 
   statistic_increment(ha_write_count,&LOCK_status);
-  if (table->time_stamp)
-    update_timestamp(record+table->time_stamp-1);
+  if (table->timestamp_default_now)
+    update_timestamp(record+table->timestamp_default_now-1);
   if (table->next_number_field && record == table->record[0])
     update_auto_increment();
   if ((error=pack_row(&row, record,1)))
@@ -1070,8 +1073,8 @@ int ha_berkeley::update_row(const byte * old_row, byte * new_row)
   LINT_INIT(error);
 
   statistic_increment(ha_update_count,&LOCK_status);
-  if (table->time_stamp)
-    update_timestamp(new_row+table->time_stamp-1);
+  if (table->timestamp_on_update_now)
+    update_timestamp(new_row+table->timestamp_on_update_now-1);
 
   if (hidden_primary_key)
   {
@@ -1340,7 +1343,7 @@ int ha_berkeley::index_init(uint keynr)
 int ha_berkeley::index_end()
 {
   int error=0;
-  DBUG_ENTER("index_end");
+  DBUG_ENTER("ha_berkely::index_end");
   if (cursor)
   {
     DBUG_PRINT("enter",("table: '%s'", table->real_name));
@@ -1661,8 +1664,9 @@ void ha_berkeley::info(uint flag)
 	share->rec_per_key[i];
     }
   }
-  else if (flag & HA_STATUS_ERRKEY)
-    errkey=last_dup_key;
+  /* Don't return key if we got an error for the internal primary key */
+  if (flag & HA_STATUS_ERRKEY && last_dup_key < table->keys)
+    errkey= last_dup_key;
   DBUG_VOID_RETURN;
 }
 
@@ -1860,7 +1864,7 @@ static int create_sub_table(const char *table_name, const char *sub_name,
   int error;
   DB *file;
   DBUG_ENTER("create_sub_table");
-  DBUG_PRINT("enter",("sub_name: %s",sub_name));
+  DBUG_PRINT("enter",("sub_name: %s  flags: %d",sub_name, flags));
 
   if (!(error=db_create(&file, db_env, 0)))
   {
@@ -1892,14 +1896,14 @@ int ha_berkeley::create(const char *name, register TABLE *form,
   char name_buff[FN_REFLEN];
   char part[7];
   uint index=1;
-  int error=1;
+  int error;
   DBUG_ENTER("ha_berkeley::create");
 
   fn_format(name_buff,name,"", ha_berkeley_ext,2 | 4);
 
   /* Create the main table that will hold the real rows */
-  if (create_sub_table(name_buff,"main",DB_BTREE,0))
-    DBUG_RETURN(1); /* purecov: inspected */
+  if ((error= create_sub_table(name_buff,"main",DB_BTREE,0)))
+    DBUG_RETURN(error); /* purecov: inspected */
 
   primary_key=table->primary_key;
   /* Create the keys */
@@ -1908,10 +1912,10 @@ int ha_berkeley::create(const char *name, register TABLE *form,
     if (i != primary_key)
     {
       sprintf(part,"key%02d",index++);
-      if (create_sub_table(name_buff, part, DB_BTREE,
-			   (table->key_info[i].flags & HA_NOSAME) ? 0 :
-			   DB_DUP))
-	DBUG_RETURN(1); /* purecov: inspected */
+      if ((error= create_sub_table(name_buff, part, DB_BTREE,
+				   (table->key_info[i].flags & HA_NOSAME) ? 0 :
+				   DB_DUP)))
+	DBUG_RETURN(error); /* purecov: inspected */
     }
   }
 
@@ -1919,21 +1923,21 @@ int ha_berkeley::create(const char *name, register TABLE *form,
   /* Is DB_BTREE the best option here ? (QUEUE can't be used in sub tables) */
 
   DB *status_block;
-  if (!db_create(&status_block, db_env, 0))
+  if (!(error=(db_create(&status_block, db_env, 0))))
   {
-    if (!status_block->open(status_block, NULL, name_buff,
-			    "status", DB_BTREE, DB_CREATE, 0))
+    if (!(error=(status_block->open(status_block, NULL, name_buff,
+				    "status", DB_BTREE, DB_CREATE, 0))))
     {
       char rec_buff[4+MAX_KEY*4];
       uint length= 4+ table->keys*4;
       bzero(rec_buff, length);
-      if (!write_status(status_block, rec_buff, length))
-	error=0;
+      error= write_status(status_block, rec_buff, length);
       status_block->close(status_block,0);
     }
   }
   DBUG_RETURN(error);
 }
+
 
 
 int ha_berkeley::delete_table(const char *name)
@@ -2119,8 +2123,46 @@ static void print_msg(THD *thd, const char *table_name, const char *op_name,
 
 int ha_berkeley::analyze(THD* thd, HA_CHECK_OPT* check_opt)
 {
-  DB_BTREE_STAT *stat=0;
   uint i;
+  DB_BTREE_STAT *stat=0;
+  DB_TXN_STAT *txn_stat_ptr= 0;
+
+  /*
+   Original bdb documentation says:
+   "The DB->stat method cannot be transaction-protected.
+   For this reason, it should be called in a thread of
+   control that has no open cursors or active transactions."
+   So, let's check if there are any changes have been done since
+   the beginning of the transaction..
+  */
+
+  if (!db_env->txn_stat(db_env, &txn_stat_ptr, 0) &&
+      txn_stat_ptr && txn_stat_ptr->st_nactive>=2)
+  {
+    DB_TXN_ACTIVE *atxn_stmt= 0, *atxn_all= 0;
+    
+    DB_TXN *txn_all= (DB_TXN*) thd->transaction.all.bdb_tid;
+    u_int32_t all_id= txn_all->id(txn_all);
+    
+    DB_TXN *txn_stmt= (DB_TXN*) thd->transaction.stmt.bdb_tid;
+    u_int32_t stmt_id= txn_stmt->id(txn_stmt);
+    
+    DB_TXN_ACTIVE *cur= txn_stat_ptr->st_txnarray;
+    DB_TXN_ACTIVE *end= cur + txn_stat_ptr->st_nactive;
+    for (; cur!=end && (!atxn_stmt || !atxn_all); cur++)
+    {
+      if (cur->txnid==all_id) atxn_all= cur;
+      if (cur->txnid==stmt_id) atxn_stmt= cur;
+    }
+    
+    if (atxn_stmt && atxn_all &&
+	log_compare(&atxn_stmt->lsn,&atxn_all->lsn))
+    {
+      free(txn_stat_ptr);
+      return HA_ADMIN_REJECT;
+    }
+    free(txn_stat_ptr);
+  }
 
   for (i=0 ; i < table->keys ; i++)
   {

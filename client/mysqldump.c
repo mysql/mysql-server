@@ -37,12 +37,13 @@
 ** 10 Jun 2003: SET NAMES and --no-set-names by Alexander Barkov
 */
 
-#define DUMP_VERSION "10.5"
+#define DUMP_VERSION "10.6"
 
 #include <my_global.h>
 #include <my_sys.h>
 #include <m_string.h>
 #include <m_ctype.h>
+#include <assert.h>
 
 #include "client_priv.h"
 #include "mysql.h"
@@ -63,7 +64,6 @@
 #define SHOW_NULL  2
 #define SHOW_DEFAULT  4
 #define SHOW_EXTRA  5
-#define QUOTE_CHAR	'`'
 
 /* Size of buffer for dump's select query */
 #define QUERY_LENGTH 1536
@@ -78,17 +78,19 @@ static my_bool  verbose=0,tFlag=0,cFlag=0,dFlag=0,quick= 1, extended_insert= 1,
 		lock_tables=1,ignore_errors=0,flush_logs=0,replace=0,
 		ignore=0,opt_drop=1,opt_keywords=0,opt_lock=1,opt_compress=0,
                 opt_delayed=0,create_options=1,opt_quoted=0,opt_databases=0,
-	        opt_alldbs=0,opt_create_db=0,opt_first_slave=0,opt_set_names=0,
-                opt_autocommit=0,opt_master_data,opt_disable_keys=1,opt_xml=0,
-	        opt_delete_master_logs=0, tty_password=0,
+                opt_alldbs=0,opt_create_db=0,opt_first_slave=0,opt_set_charset,
+		opt_autocommit=0,opt_master_data,opt_disable_keys=1,opt_xml=0,
+		opt_delete_master_logs=0, tty_password=0,
 		opt_single_transaction=0, opt_comments= 0, opt_compact= 0;
-static MYSQL  mysql_connection,*sock=0;
+
+static MYSQL mysql_connection,*sock=0;
 static char  insert_pat[12 * 1024],*opt_password=0,*current_user=0,
              *current_host=0,*path=0,*fields_terminated=0,
              *lines_terminated=0, *enclosed=0, *opt_enclosed=0, *escaped=0,
              *where=0,
              *opt_compatible_mode_str= 0,
              *err_ptr= 0;
+static char compatible_mode_normal_str[255];
 static char *default_charset= (char*) MYSQL_UNIVERSAL_CLIENT_CHARSET;
 static ulong opt_compatible_mode= 0;
 static uint     opt_mysql_port= 0, err_len= 0;
@@ -111,6 +113,15 @@ const char *compatible_mode_names[]=
   "ANSI",
   NullS
 };
+#define MASK_ANSI_QUOTES \
+(\
+ (1<<2)  | /* POSTGRESQL */\
+ (1<<3)  | /* ORACLE     */\
+ (1<<4)  | /* MSSQL      */\
+ (1<<5)  | /* DB2        */\
+ (1<<6)  | /* MAXDB      */\
+ (1<<10)   /* ANSI       */\
+)
 TYPELIB compatible_mode_typelib= {array_elements(compatible_mode_names) - 1,
 				  "", compatible_mode_names};
 
@@ -162,7 +173,7 @@ static struct my_option my_long_options[] =
    (gptr*) &opt_delayed, (gptr*) &opt_delayed, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0,
    0, 0},
   {"delete-master-logs", OPT_DELETE_MASTER_LOGS,
-   "Delete logs on master after backup. This will automagically enable --first-slave.",
+   "Delete logs on master after backup. This automatically enables --first-slave.",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"disable-keys", 'K',
    "'/*!40000 ALTER TABLE tb_name DISABLE KEYS */; and '/*!40000 ALTER TABLE tb_name ENABLE KEYS */; will be put in the output.", (gptr*) &opt_disable_keys,
@@ -181,11 +192,14 @@ static struct my_option my_long_options[] =
    "Fields in the i.file are opt. enclosed by ...", (gptr*) &opt_enclosed,
    (gptr*) &opt_enclosed, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0 ,0, 0},
   {"fields-escaped-by", OPT_ESC, "Fields in the i.file are escaped by ...",
-   (gptr*) &escaped, (gptr*) &escaped, 0, GET_STR, NO_ARG, 0, 0, 0, 0, 0, 0},
+   (gptr*) &escaped, (gptr*) &escaped, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"first-slave", 'x', "Locks all tables across all databases.",
    (gptr*) &opt_first_slave, (gptr*) &opt_first_slave, 0, GET_BOOL, NO_ARG,
    0, 0, 0, 0, 0, 0},
-  {"flush-logs", 'F', "Flush logs file in server before starting dump.",
+  {"flush-logs", 'F', "Flush logs file in server before starting dump. "
+    "Note that if you dump many databases at once (using the option "
+    "--databases= or --all-databases), the logs will be flushed for "
+    "each database dumped.",
    (gptr*) &flush_logs, (gptr*) &flush_logs, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0,
    0, 0},
   {"force", 'f', "Continue even if we get an sql-error.",
@@ -201,7 +215,7 @@ static struct my_option my_long_options[] =
   {"lock-tables", 'l', "Lock all tables for read.", (gptr*) &lock_tables,
    (gptr*) &lock_tables, 0, GET_BOOL, NO_ARG, 1, 0, 0, 0, 0, 0},
   {"master-data", OPT_MASTER_DATA,
-   "This will cause the master position and filename to be appended to your output. This will automagically enable --first-slave.",
+   "This causes the master position and filename to be appended to your output. This automatically enables --first-slave.",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"no-autocommit", OPT_AUTOCOMMIT,
    "Wrap tables with autocommit/commit statements.",
@@ -220,9 +234,12 @@ static struct my_option my_long_options[] =
   {"no-data", 'd', "No row information.", (gptr*) &dFlag, (gptr*) &dFlag, 0,
    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"no-set-names", 'N',
-   "'SET NAMES charset_name' will not be put in the output.",
-   (gptr*) &opt_set_names, (gptr*) &opt_set_names, 0, GET_BOOL, NO_ARG, 0, 0,
-   0, 0, 0, 0},
+   "'SET NAMES charset_name' will not be put in the output. Deprecated, use --set-charset or --skip-set-charset to enable/disable charset settings instead",
+   0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"set-charset", OPT_SET_CHARSET,
+   "'SET NAMES charset_name' will be put in the output",
+   (gptr*) &opt_set_charset, (gptr*) &opt_set_charset, 0, GET_BOOL, NO_ARG, 1,
+   0, 0, 0, 0, 0},
   {"set-variable", 'O',
    "Change the value of a variable. Please note that this option is deprecated; you can set variables directly with --variable-name=value.",
    0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
@@ -364,15 +381,20 @@ static void write_header(FILE *sql_file, char *db_name)
       fprintf(sql_file, "-- Server version\t%s\n",
 	      mysql_get_server_info(&mysql_connection));
     }
-    if (!opt_set_names)
+    if (opt_set_charset)
       fprintf(sql_file,"\n/*!40101 SET @OLD_CHARACTER_SET_CLIENT=@@CHARACTER_SET_CLIENT, CHARACTER_SET_CLIENT=%s */;\n",default_charset);
-    fprintf(md_result_file,"\
+    if (!path)
+    {
+      fprintf(md_result_file,"\
 /*!40014 SET @OLD_UNIQUE_CHECKS=@@UNIQUE_CHECKS, UNIQUE_CHECKS=0 */;\n\
 /*!40014 SET @OLD_FOREIGN_KEY_CHECKS=@@FOREIGN_KEY_CHECKS, FOREIGN_KEY_CHECKS=0 */;\n\
-/*!40101 SET @OLD_SQL_MODE=@@SQL_MODE, SQL_MODE=NO_AUTO_VALUE_ON_ZERO */;\n\
 ");
+    }
+    fprintf(sql_file,
+	    "/*!40101 SET @OLD_SQL_MODE=@@SQL_MODE, SQL_MODE=\"%s%s%s\" */;\n",
+	    path?"":"NO_AUTO_VALUE_ON_ZERO",compatible_mode_normal_str[0]==0?"":",",
+	    compatible_mode_normal_str);
   }
-  return;
 } /* write_header */
 
 
@@ -382,12 +404,15 @@ static void write_footer(FILE *sql_file)
     fputs("</mysqldump>\n", sql_file);
   else if (!opt_compact)
   {
-    fprintf(md_result_file,"\n\
-/*!40101 SET SQL_MODE=@OLD_SQL_MODE */;\n\
+    fprintf(sql_file,"\n/*!40101 SET SQL_MODE=@OLD_SQL_MODE */;\n");
+    if (!path)
+    {
+      fprintf(md_result_file,"\
 /*!40014 SET FOREIGN_KEY_CHECKS=@OLD_FOREIGN_KEY_CHECKS */;\n\
 /*!40014 SET UNIQUE_CHECKS=@OLD_UNIQUE_CHECKS */;\n");
-    if (!opt_set_names)
-      fprintf(md_result_file,
+    }
+    if (opt_set_charset)
+      fprintf(sql_file,
 	      "/*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;\n");
     fputs("\n", sql_file);
   }
@@ -431,6 +456,9 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     opt_protocol = MYSQL_PROTOCOL_PIPE;
 #endif
     break;
+  case 'N':
+    opt_set_charset= 0;
+    break;
   case 'T':
     opt_disable_keys=0;
     break;
@@ -450,7 +478,7 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     exit(0);
   case (int) OPT_OPTIMIZE:
     extended_insert= opt_drop= opt_lock= quick= create_options=
-      opt_disable_keys= lock_tables= 1;
+      opt_disable_keys= lock_tables= opt_set_charset= 1;
     if (opt_single_transaction) lock_tables=0;
     break;
   case (int) OPT_SKIP_OPTIMIZATION:
@@ -461,7 +489,7 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
   if (opt_compact)
   {
     opt_comments= opt_drop= opt_disable_keys= opt_lock= 0;
-    opt_set_names= 1;
+    opt_set_charset= 0;
   }
   case (int) OPT_TABLES:
     opt_databases=0;
@@ -469,9 +497,12 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
   case (int) OPT_COMPATIBLE:
     {  
       char buff[255];
+      char *end= compatible_mode_normal_str;
+      int i;
+      ulong mode;
 
       opt_quoted= 1;
-      opt_set_names= 1;
+      opt_set_charset= 0;
       opt_compatible_mode_str= argument;
       opt_compatible_mode= find_set(&compatible_mode_typelib,
 				    argument, strlen(argument),
@@ -482,6 +513,27 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
 	fprintf(stderr, "Invalid mode to --compatible: %s\n", buff);
 	exit(1);
       }
+#if !defined(DBUG_OFF)
+      {
+	uint size_for_sql_mode= 0;
+	const char **ptr;
+	for (ptr= compatible_mode_names; *ptr; ptr++)
+	  size_for_sql_mode+= strlen(*ptr);
+	size_for_sql_mode+= sizeof(compatible_mode_names)-1;
+	DBUG_ASSERT(sizeof(compatible_mode_normal_str)>=size_for_sql_mode);
+      }
+#endif
+      mode= opt_compatible_mode;
+      for (i= 0, mode= opt_compatible_mode; mode; mode>>= 1, i++)
+      {
+	if (mode & 1)
+	{
+	  end= strmov(end, compatible_mode_names[i]);
+	  end= strmov(end, ",");
+	}
+      }
+      if (end!=compatible_mode_normal_str)
+	end[-1]= 0;
       break;
     }
   case (int) OPT_MYSQL_PROTOCOL:
@@ -583,6 +635,7 @@ static void safe_exit(int error)
 */
 static int dbConnect(char *host, char *user,char *passwd)
 {
+  char buff[20+FN_REFLEN];
   DBUG_ENTER("dbConnect");
   if (verbose)
   {
@@ -602,13 +655,23 @@ static int dbConnect(char *host, char *user,char *passwd)
   if (shared_memory_base_name)
     mysql_options(&mysql_connection,MYSQL_SHARED_MEMORY_BASE_NAME,shared_memory_base_name);
 #endif
-  if (!opt_set_names)
+  if (opt_set_charset)
     mysql_options(&mysql_connection, MYSQL_SET_CHARSET_NAME, default_charset);
   if (!(sock= mysql_real_connect(&mysql_connection,host,user,passwd,
          NULL,opt_mysql_port,opt_mysql_unix_port,
          0)))
   {
     DBerror(&mysql_connection, "when trying to connect");
+    return 1;
+  }
+  sprintf(buff, "/*!40100 SET @@SQL_MODE=\"%s\" */",
+	  compatible_mode_normal_str);
+  if (mysql_query(sock, buff))
+  {
+    fprintf(stderr, "%s: Can't set the compatible mode %s (error %s)\n",
+	    my_progname, compatible_mode_normal_str, mysql_error(sock));
+    mysql_close(sock);
+    safe_exit(EX_MYSQLERR);
     return 1;
   }
   return 0;
@@ -659,17 +722,19 @@ static my_bool test_if_special_chars(const char *str)
 static char *quote_name(const char *name, char *buff, my_bool force)
 {
   char *to= buff;
+  char qtype= (opt_compatible_mode & MASK_ANSI_QUOTES) ? '\"' : '`';
+
   if (!force && !opt_quoted && !test_if_special_chars(name))
     return (char*) name;
-  *to++= QUOTE_CHAR;
+  *to++= qtype;
   while (*name)
   {
-    if (*name == QUOTE_CHAR)
-      *to++= QUOTE_CHAR;
+    if (*name == qtype)
+      *to++= qtype;
     *to++= *name++;
   }
-  to[0]=QUOTE_CHAR;
-  to[1]=0;
+  to[0]= qtype;
+  to[1]= 0;
   return buff;
 } /* quote_name */
 
@@ -841,31 +906,6 @@ static uint getTableStructure(char *table, char* db)
     {
       /* Make an sql-file, if path was given iow. option -T was given */
       char buff[20+FN_REFLEN];
-
-      if (opt_compatible_mode)
-      {
-	char *end;
-	uint i;
-
-	sprintf(buff, "/*!40100 SET @@sql_mode=\"");
-	end= strend(buff);
-	for (i= 0; opt_compatible_mode; opt_compatible_mode>>= 1, i++)
-	{
-	  if (opt_compatible_mode & 1)
-	  {
-	    end= strmov(end, compatible_mode_names[i]);
-	    end= strmov(end, ",");
-	  }
-	}
-	end= strmov(end-1, "\" */");
-	if (mysql_query(sock, buff))
-	{
-	  fprintf(stderr, "%s: Can't set the compatible mode '%s' (%s)\n",
-		  my_progname, table, mysql_error(sock));
-	  safe_exit(EX_MYSQLERR);
-        DBUG_RETURN(0);
-	}
-      }
 
       sprintf(buff,"show create table %s", result_table);
       if (mysql_query(sock, buff))
@@ -1153,7 +1193,11 @@ static uint getTableStructure(char *table, char* db)
       strpos=strmov(strpos,"(");
   }
   if (sql_file != md_result_file)
+  {
+    fputs("\n", sql_file);
+    write_footer(sql_file);
     my_fclose(sql_file, MYF(MY_WME));
+  }
   DBUG_RETURN(numFields);
 } /* getTableStructure */
 
@@ -1709,7 +1753,7 @@ static int dump_selected_tables(char *db, char **table_names, int tables)
   if (opt_xml)
     fputs("</database>\n", md_result_file);
   if (lock_tables)
-    mysql_query(sock,"UNLOCK_TABLES");
+    mysql_query(sock,"UNLOCK TABLES");
   return 0;
 } /* dump_selected_tables */
 
@@ -1843,6 +1887,7 @@ int main(int argc, char **argv)
 {
   MYSQL_ROW row;
   MYSQL_RES *master;
+  compatible_mode_normal_str[0]= 0;
 
   MY_INIT(argv[0]);
   if (get_options(&argc, &argv))
@@ -1940,7 +1985,8 @@ MASTER_LOG_POS=%s ;\n",row[0],row[1]);
     }
   }
   dbDisconnect(current_host);
-  write_footer(md_result_file);
+  if (!path)
+    write_footer(md_result_file);
   if (md_result_file != stdout)
     my_fclose(md_result_file, MYF(0));
   my_free(opt_password, MYF(MY_ALLOW_ZERO_PTR));

@@ -21,6 +21,10 @@
 
 #include "heapdef.h"
 
+static void heap_extra_keyflag(register HP_INFO *info,
+                               enum ha_extra_function function);
+
+
 	/* set extra flags for database */
 
 int heap_extra(register HP_INFO *info, enum ha_extra_function function)
@@ -41,8 +45,37 @@ int heap_extra(register HP_INFO *info, enum ha_extra_function function)
   case HA_EXTRA_READCHECK:
     info->opt_flag|= READ_CHECK_USED;
     break;
+  case HA_EXTRA_CHANGE_KEY_TO_UNIQUE:
+  case HA_EXTRA_CHANGE_KEY_TO_DUP:
+    heap_extra_keyflag(info, function);
+    break;
   default:
     break;
   }
   DBUG_RETURN(0);
 } /* heap_extra */
+
+
+/*
+    Start/Stop Inserting Duplicates Into a Table, WL#1648.
+ */
+static void heap_extra_keyflag(register HP_INFO *info,
+                               enum ha_extra_function function)
+{
+  uint  idx;
+
+  for (idx= 0; idx< info->s->keys; idx++)
+  {
+    switch (function) {
+    case HA_EXTRA_CHANGE_KEY_TO_UNIQUE:
+      info->s->keydef[idx].flag|= HA_NOSAME;
+      break;
+    case HA_EXTRA_CHANGE_KEY_TO_DUP:
+      info->s->keydef[idx].flag&= ~(HA_NOSAME);
+      break;
+    default:
+      break;
+    }
+  }
+}
+

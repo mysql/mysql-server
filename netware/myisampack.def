@@ -2,6 +2,7 @@
 # MyISAM Pack
 #------------------------------------------------------------------------------
 MODULE	libc.nlm
+SCREENNAME "MySQL MyISAM Table Pack Tool"
 COPYRIGHT "(c) 2003 Novell, Inc. Portions (c) 2003 MySQL AB. All Rights Reserved."
 DESCRIPTION "MySQL MyISAM Table Pack Tool"
 VERSION 4, 0

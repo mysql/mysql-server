@@ -217,6 +217,7 @@ public:
 typedef struct st_copy_info {
   ha_rows records;
   ha_rows deleted;
+  ha_rows updated;
   ha_rows copied;
   ha_rows error_count;
   enum enum_duplicates handle_duplicates;
@@ -374,6 +375,7 @@ struct system_variables
   ulong max_length_for_sort_data;
   ulong max_sort_length;
   ulong max_tmp_tables;
+  ulong max_insert_delayed_threads;
   ulong myisam_repair_threads;
   ulong myisam_sort_buff_size;
   ulong net_buffer_length;
@@ -409,6 +411,7 @@ struct system_variables
   my_bool log_warnings;
   my_bool low_priority_updates;
   my_bool new_mode;
+  my_bool query_cache_wlock_invalidate;
   my_bool old_passwords;
   
   /* Only charset part of these variables is sensible */
@@ -450,22 +453,13 @@ class Statement
 public:
   /* FIXME: must be private */
   LEX     main_lex;
-public:
+
   /*
     Uniquely identifies each statement object in thread scope; change during
     statement lifetime. FIXME: must be const
   */
    ulong id;
 
-  /*
-    Id of current query. Statement can be reused to execute several queries
-    query_id is global in context of the whole MySQL server.
-    ID is automatically generated from mutex-protected counter.
-    It's used in handler code for various purposes: to check which columns
-    from table are necessary for this select, to check if it's necessary to
-    update auto-updatable fields (like auto_increment and timestamp).
-  */
-  ulong query_id;
   /*
     - if set_query_id=1, we set field->query_id for all fields. In that case 
     field list can not contain duplicates.
@@ -484,11 +478,6 @@ public:
     See item_sum.cc for details.
   */
   bool allow_sum_func;
-  /*
-    Type of current query: COM_PREPARE, COM_QUERY, etc. Set from 
-    first byte of the packet in do_command()
-  */
-  enum enum_server_command command;
 
   LEX *lex;                                     // parse tree descriptor
   /*
@@ -499,7 +488,7 @@ public:
   char *query;
   uint32 query_length;                          // current query length
   /*
-    List of items created in the parser for this query. Every item puts 
+    List of items created in the parser for this query. Every item puts
     itself to the list on creation (see Item::Item() for details))
   */
   Item *free_list;
@@ -526,6 +515,32 @@ public:
   void set_statement(Statement *stmt);
   /* return class type */
   virtual Type type() const;
+
+  inline gptr alloc(unsigned int size) { return alloc_root(&mem_root,size); }
+  inline gptr calloc(unsigned int size)
+  {
+    gptr ptr;
+    if ((ptr=alloc_root(&mem_root,size)))
+      bzero((char*) ptr,size);
+    return ptr;
+  }
+  inline char *strdup(const char *str)
+  { return strdup_root(&mem_root,str); }
+  inline char *strmake(const char *str, uint size)
+  { return strmake_root(&mem_root,str,size); }
+  inline char *memdup(const char *str, uint size)
+  { return memdup_root(&mem_root,str,size); }
+  inline char *memdup_w_gap(const char *str, uint size, uint gap)
+  {
+    gptr ptr;
+    if ((ptr=alloc_root(&mem_root,size+gap)))
+      memcpy(ptr,str,size);
+    return ptr;
+  }
+
+  void set_n_backup_item_arena(Statement *set, Statement *backup);
+  void restore_backup_item_arena(Statement *set, Statement *backup);
+  void set_item_arena(Statement *set);
 };
 
 
@@ -676,11 +691,16 @@ public:
     points to a lock object if the lock is present. See item_func.cc and
     chapter 'Miscellaneous functions', for functions GET_LOCK, RELEASE_LOCK. 
   */
-  ULL		*ull;
+  User_level_lock *ull;
 #ifndef DBUG_OFF
   uint dbug_sentry; // watch out for memory corruption
 #endif
   struct st_my_thread_var *mysys_var;
+  /*
+    Type of current query: COM_PREPARE, COM_QUERY, etc. Set from 
+    first byte of the packet in do_command()
+  */
+  enum enum_server_command command;
   uint32     server_id;
   uint32     file_id;			// for LOAD DATA INFILE
   /*
@@ -695,7 +715,7 @@ public:
   delayed_insert *di;
   my_bool    tablespace_op;	/* This is TRUE in DISCARD/IMPORT TABLESPACE */
   struct st_transactions {
-    IO_CACHE trans_log;
+    IO_CACHE trans_log;                 // Inited ONLY if binlog is open !
     THD_TRANS all;			// Trans since BEGIN WORK
     THD_TRANS stmt;			// Trans for current statement
     uint bdb_lock_count;
@@ -720,6 +740,10 @@ public:
 #ifdef SIGNAL_WITH_VIO_CLOSE
   Vio* active_vio;
 #endif
+  /*
+    Current prepared Statement if there one, or 0
+  */
+  Statement *current_statement;
   /*
     next_insert_id is set on SET INSERT_ID= #. This is used as the next
     generated auto_increment value in handler.cc
@@ -752,6 +776,15 @@ public:
   List	     <MYSQL_ERROR> warn_list;
   uint	     warn_count[(uint) MYSQL_ERROR::WARN_LEVEL_END];
   uint	     total_warn_count;
+  /*
+    Id of current query. Statement can be reused to execute several queries
+    query_id is global in context of the whole MySQL server.
+    ID is automatically generated from mutex-protected counter.
+    It's used in handler code for various purposes: to check which columns
+    from table are necessary for this select, to check if it's necessary to
+    update auto-updatable fields (like auto_increment and timestamp).
+  */
+  ulong	     query_id;
   ulong	     warn_id, version, options, thread_id, col_access;
 
   /* Statement id is thread-wide. This counter is used to generate ids */
@@ -796,6 +829,7 @@ public:
   bool	     charset_is_system_charset, charset_is_collation_connection;
   bool       slow_command;
 
+  longlong   row_count_func;	/* For the ROW_COUNT() function */
   sp_rcontext *spcont;		// SP runtime context
   sp_cache   *sp_proc_cache;
   sp_cache   *sp_func_cache;
@@ -896,34 +930,14 @@ public:
     return 0;
 #endif
   }
-  inline gptr alloc(unsigned int size) { return alloc_root(&mem_root,size); }
-  inline gptr calloc(unsigned int size)
-  {
-    gptr ptr;
-    if ((ptr=alloc_root(&mem_root,size)))
-      bzero((char*) ptr,size);
-    return ptr;
-  }
-  inline char *strdup(const char *str)
-  { return strdup_root(&mem_root,str); }
-  inline char *strmake(const char *str, uint size)
-  { return strmake_root(&mem_root,str,size); }
-  inline char *memdup(const char *str, uint size)
-  { return memdup_root(&mem_root,str,size); }
-  inline char *memdup_w_gap(const char *str, uint size, uint gap)
-  {
-    gptr ptr;
-    if ((ptr=alloc_root(&mem_root,size+gap)))
-      memcpy(ptr,str,size);
-    return ptr;
-  }
-  bool convert_string(LEX_STRING *to, CHARSET_INFO *to_cs,
-		      const char *from, uint from_length,
-		      CHARSET_INFO *from_cs);
   inline gptr trans_alloc(unsigned int size) 
   { 
     return alloc_root(&transaction.mem_root,size);
   }
+
+  bool convert_string(LEX_STRING *to, CHARSET_INFO *to_cs,
+		      const char *from, uint from_length,
+		      CHARSET_INFO *from_cs);
   void add_changed_table(TABLE *table);
   void add_changed_table(const char *key, long key_length);
   CHANGED_TABLE_LIST * changed_table_dup(const char *key, long key_length);
@@ -946,6 +960,33 @@ public:
   }
   inline CHARSET_INFO *charset() { return variables.character_set_client; }
   void update_charset();
+
+  inline void allocate_temporary_memory_pool_for_ps_preparing()
+  {
+    DBUG_ASSERT(current_statement!=0);
+    /*
+      We do not want to have in PS memory all that junk,
+      which will be created by preparation => substitute memory
+      from original thread pool.
+
+      We know that PS memory pool is now copied to THD, we move it back
+      to allow some code use it.
+    */
+    current_statement->set_item_arena(this);
+    init_sql_alloc(&mem_root,
+		   variables.query_alloc_block_size,
+		   variables.query_prealloc_size);
+    free_list= 0;
+  }
+  inline void free_temporary_memory_pool_for_ps_preparing()
+  {
+    DBUG_ASSERT(current_statement!=0);
+    cleanup_items(current_statement->free_list);
+    free_items(free_list);
+    close_thread_tables(this); // to close derived tables
+    free_root(&mem_root, MYF(0));
+    set_item_arena(current_statement);
+  }
 };
 
 /* Flags for the THD::system_thread (bitmap) variable */
@@ -1055,8 +1096,9 @@ class select_insert :public select_result {
   ulonglong last_insert_id;
   COPY_INFO info;
 
-  select_insert(TABLE *table_par,List<Item> *fields_par,enum_duplicates duplic)
-    :table(table_par),fields(fields_par), last_insert_id(0)
+  select_insert(TABLE *table_par, List<Item> *fields_par,
+		enum_duplicates duplic)
+    :table(table_par), fields(fields_par), last_insert_id(0)
   {
     bzero((char*) &info,sizeof(info));
     info.handle_duplicates=duplic;
@@ -1081,11 +1123,11 @@ class select_create: public select_insert {
   MYSQL_LOCK *lock;
   Field **field;
 public:
-  select_create (const char *db_name, const char *table_name,
-		 HA_CREATE_INFO *create_info_par,
-		 List<create_field> &fields_par,
-		 List<Key> &keys_par,
-		 List<Item> &select_fields,enum_duplicates duplic)
+  select_create(const char *db_name, const char *table_name,
+		HA_CREATE_INFO *create_info_par,
+		List<create_field> &fields_par,
+		List<Key> &keys_par,
+		List<Item> &select_fields,enum_duplicates duplic)
     :select_insert (NULL, &select_fields, duplic), db(db_name),
     name(table_name), extra_fields(&fields_par),keys(&keys_par),
     create_info(create_info_par), lock(0)

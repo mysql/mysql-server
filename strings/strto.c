@@ -95,7 +95,7 @@ function (const char *nptr,char **endptr,int base)
   s = nptr;
 
   /* Skip white space.	*/
-  while (my_isspace (&my_charset_latin1, *s))
+  while (my_isspace(&my_charset_latin1, *s))
     ++s;
   if (*s == '\0')
   {

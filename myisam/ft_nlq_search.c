@@ -64,8 +64,8 @@ static int FT_SUPERDOC_cmp(void* cmp_arg __attribute__((unused)),
 
 static int walk_and_match(FT_WORD *word, uint32 count, ALL_IN_ONE *aio)
 {
-  int	       subkeys;
-  uint	       keylen, r, doc_cnt;
+  int	       subkeys, r;
+  uint	       keylen, doc_cnt;
   FT_SUPERDOC  sdoc, *sptr;
   TREE_ELEMENT *selem;
   double       gweight=1;
@@ -73,7 +73,7 @@ static int walk_and_match(FT_WORD *word, uint32 count, ALL_IN_ONE *aio)
   uchar        *keybuff=aio->keybuff;
   MI_KEYDEF    *keyinfo=info->s->keyinfo+aio->keynr;
   my_off_t     key_root=info->s->state.key_root[aio->keynr];
-  uint         extra=HA_FT_WLEN+info->s->base.rec_reflength+1;
+  uint         extra=HA_FT_WLEN+info->s->base.rec_reflength;
 #if HA_FT_WTYPE == HA_KEYTYPE_FLOAT
   float tmp_weight;
 #else
@@ -96,10 +96,10 @@ static int walk_and_match(FT_WORD *word, uint32 count, ALL_IN_ONE *aio)
 
     if (keylen &&
         mi_compare_text(aio->charset,info->lastkey+1,
-                        info->lastkey_length-extra, keybuff+1,keylen-1,0))
+                        info->lastkey_length-extra-1, keybuff+1,keylen-1,0,0))
      break;
 
-    subkeys=ft_sintXkorr(info->lastkey+keylen);
+    subkeys=ft_sintXkorr(info->lastkey+info->lastkey_length-extra);
     if (subkeys<0)
     {
       if (doc_cnt)
@@ -174,7 +174,7 @@ static int walk_and_push(FT_SUPERDOC *from,
 {
   DBUG_ENTER("walk_and_copy");
   from->doc.weight+=from->tmp_weight*from->word_ptr->weight;
-  set_if_smaller(best->elements, ft_query_expansion_limit-1)
+  set_if_smaller(best->elements, ft_query_expansion_limit-1);
   queue_insert(best, (byte *)& from->doc);
   DBUG_RETURN(0);
 }

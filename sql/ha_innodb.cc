@@ -80,7 +80,6 @@ extern "C" {
 #define HA_INNOBASE_ROWS_IN_TABLE 10000 /* to get optimization right */
 #define HA_INNOBASE_RANGE_COUNT	  100
 
-bool 	innodb_skip 		= 0;
 uint 	innobase_init_flags 	= 0;
 ulong 	innobase_cache_size 	= 0;
 
@@ -135,7 +134,6 @@ static mysql_byte* innobase_get_key(INNOBASE_SHARE *share,uint *length,
 			      my_bool not_used __attribute__((unused)));
 static INNOBASE_SHARE *get_share(const char *table_name);
 static void free_share(INNOBASE_SHARE *share);
-static void innobase_print_error(const char* db_errpfx, char* buffer);
 
 /* General functions */
 
@@ -290,7 +288,7 @@ convert_error_code_to_mysql(
 
         } else if (error == (int) DB_CANNOT_DROP_CONSTRAINT) {
 
-		return(HA_WRONG_CREATE_OPTION);
+		return(HA_ERR_ROW_IS_REFERENCED);
 
         } else if (error == (int) DB_COL_APPEARS_TWICE_IN_INDEX) {
 
@@ -552,7 +550,7 @@ innobase_query_caching_of_table_permitted(
 
 	if (thd->variables.tx_isolation == ISO_SERIALIZABLE) {
 		/* In the SERIALIZABLE mode we add LOCK IN SHARE MODE to every
-		plain SELECT */
+		plain SELECT if AUTOCOMMIT is not on. */
 	
 		return((my_bool)FALSE);
 	}
@@ -703,7 +701,7 @@ ha_innobase::init_table_handle_for_HANDLER(void)
 
         /* Always fetch all columns in the index record */
 
-        prebuilt->hint_no_need_to_fetch_extra_cols = FALSE;
+        prebuilt->hint_need_to_fetch_extra_cols = ROW_RETRIEVE_ALL_COLS;
 
         /* We want always to fetch all columns in the whole row? Or do
 	we???? */
@@ -755,7 +753,7 @@ innobase_init(void)
 	        srv_set_thread_priorities = TRUE;
 	        srv_query_thread_priority = QUERY_PRIOR;
 	}
-	
+
 	/* Set InnoDB initialization parameters according to the values
 	read from MySQL .cnf file */
 
@@ -870,16 +868,22 @@ innobase_init(void)
 
 	srv_print_verbose_log = mysql_embedded ? 0 : 1;
 
-	if (strcmp(default_charset_info->name, "latin1") == 0) {
+		/* Store the default charset-collation number of this MySQL
+	installation */
 
-		/* Store the character ordering table to InnoDB.
-		For non-latin1 charsets we use the MySQL comparison
-		functions, and consequently we do not need to know
-		the ordering internally in InnoDB. */
+	data_mysql_default_charset_coll = (ulint)default_charset_info->number;
 
-		memcpy(srv_latin1_ordering,
-				default_charset_info->sort_order, 256);
-	}
+	data_mysql_latin1_swedish_charset_coll =
+					(ulint)my_charset_latin1.number;
+
+	/* Store the latin1_swedish_ci character ordering table to InnoDB. For
+	non-latin1_swedish_ci charsets we use the MySQL comparison functions,
+	and consequently we do not need to know the ordering internally in
+	InnoDB. */
+
+	ut_a(0 == strcmp((char*)my_charset_latin1.name,
+						(char*)"latin1_swedish_ci"));
+	memcpy(srv_latin1_ordering, my_charset_latin1.sort_order, 256);
 
 	/* Since we in this module access directly the fields of a trx
         struct, and due to different headers and flags it might happen that
@@ -976,28 +980,13 @@ innobase_commit_low(
         }
 
 #ifdef HAVE_REPLICATION
-        /* TODO: Guilhem should check if master_log_name, pending
-        etc. are right if the master log gets rotated! Possible bug here.
-        Comment by Heikki March 4, 2003. */
-
         if (current_thd->slave_thread) {
                 /* Update the replication position info inside InnoDB */
 
                 trx->mysql_master_log_file_name
                                         = active_mi->rli.group_master_log_name;
-                /*
-                  Guilhem to Heikki: in 5.0 we don't need to do a computation
-                  (old_pos+len) to get the end_pos, because we already have the
-                  end_pos under hand in the replication code
-                  (Query_log_event::exec_event()).
-                  I tested the code change below (simulated a crash with kill
-                  -9) and got the good (binlog, position) displayed by InnoDB at
-                  crash recovery, so this code change is ok.
-                */
-                trx->mysql_master_log_pos = ((ib_longlong)
-                                             (active_mi->rli.future_group_master_log_pos 
-                                              ));
-                
+                trx->mysql_master_log_pos= ((ib_longlong)
+                   			    active_mi->rli.future_group_master_log_pos);
         }
 #endif /* HAVE_REPLICATION */
 
@@ -1300,18 +1289,6 @@ innobase_close_connection(
 	}
 
 	return(0);
-}
-
-/**********************************************************************
-Prints an error message. */
-static
-void
-innobase_print_error(
-/*=================*/
-	const char*	db_errpfx,	/* in: error prefix text */
-	char*		buffer)		/* in: error text */
-{
-  	sql_print_error("%s:  %s", db_errpfx, buffer);
 }
 
 
@@ -1670,10 +1647,10 @@ reset_null_bits(
 
 extern "C" {
 /*****************************************************************
-InnoDB uses this function is to compare two data fields for which the
-data type is such that we must use MySQL code to compare them. NOTE that the
-prototype of this function is in rem0cmp.c in InnoDB source code!
-If you change this function, remember to update the prototype there! */
+InnoDB uses this function to compare two data fields for which the data type
+is such that we must use MySQL code to compare them. NOTE that the prototype
+of this function is in rem0cmp.c in InnoDB source code! If you change this
+function, remember to update the prototype there! */
 
 int
 innobase_mysql_cmp(
@@ -1681,6 +1658,7 @@ innobase_mysql_cmp(
 					/* out: 1, 0, -1, if a is greater,
 					equal, less than b, respectively */
 	int		mysql_type,	/* in: MySQL type */
+	uint		charset_number,	/* in: number of the charset */
 	unsigned char*	a,		/* in: data field */
 	unsigned int	a_length,	/* in: data field length,
 					not UNIV_SQL_NULL */
@@ -1688,6 +1666,7 @@ innobase_mysql_cmp(
 	unsigned int	b_length)	/* in: data field length,
 					not UNIV_SQL_NULL */
 {
+	CHARSET_INFO*		charset;
 	enum_field_types	mysql_tp;
 	int                     ret;
 
@@ -1704,9 +1683,27 @@ innobase_mysql_cmp(
 	case FIELD_TYPE_MEDIUM_BLOB:
 	case FIELD_TYPE_BLOB:
 	case FIELD_TYPE_LONG_BLOB:
-               // BAR TODO: Discuss with heikki.tuuri@innodb.com
-               // so that he sends CHARSET_INFO for the field to this function.
-                ret = my_strnncoll(default_charset_info,
+		/* Use the charset number to pick the right charset struct for
+		the comparison. Since the MySQL function get_charset may be
+		slow before Bar removes the mutex operation there, we first
+		look at 2 common charsets directly. */
+
+		if (charset_number == default_charset_info->number) {
+			charset = default_charset_info;
+		} else if (charset_number == my_charset_latin1.number) {
+			charset = &my_charset_latin1;
+		} else {
+			charset = get_charset(charset_number, MYF(MY_WME));
+
+			if (charset == NULL) {
+				fprintf(stderr,
+"InnoDB: fatal error: InnoDB needs charset %lu for doing a comparison,\n"
+"InnoDB: but MySQL cannot find that charset.\n", (ulong)charset_number);
+				ut_a(0);
+			}
+		}
+
+                ret = my_strnncoll(charset,
                                   a, a_length,
                                   b, b_length);
 		if (ret < 0) {
@@ -1733,9 +1730,9 @@ get_innobase_type_from_mysql_type(
 			/* out: DATA_BINARY, DATA_VARCHAR, ... */
 	Field*	field)	/* in: MySQL field */
 {
-	/* The following asserts check that the MySQL type code fits in
-	8 bits: this is used in ibuf and also when DATA_NOT_NULL is
-	ORed to the type */
+	/* The following asserts try to check that the MySQL type code fits in
+	8 bits: this is used in ibuf and also when DATA_NOT_NULL is ORed to
+	the type */
 
 	DBUG_ASSERT((ulint)FIELD_TYPE_STRING < 256);
 	DBUG_ASSERT((ulint)FIELD_TYPE_VAR_STRING < 256);
@@ -1750,8 +1747,8 @@ get_innobase_type_from_mysql_type(
 
 						return(DATA_BINARY);
 					} else if (strcmp(
-						   default_charset_info->name,
-							"latin1") == 0) {
+						  field->charset()->name,
+						 "latin1_swedish_ci") == 0) {
 						return(DATA_VARCHAR);
 					} else {
 						return(DATA_VARMYSQL);
@@ -1760,8 +1757,8 @@ get_innobase_type_from_mysql_type(
 
 						return(DATA_FIXBINARY);
 					} else if (strcmp(
-						   default_charset_info->name,
-							"latin1") == 0) {
+						   field->charset()->name,
+						   "latin1_swedish_ci") == 0) {
 						return(DATA_CHAR);
 					} else {
 						return(DATA_MYSQL);
@@ -1935,6 +1932,7 @@ build_template(
 	ulint		n_fields;
 	ulint		n_requested_fields	= 0;
 	ibool		fetch_all_in_key	= FALSE;
+	ibool		fetch_primary_key_cols	= FALSE;
 	ulint		i;
 
 	if (prebuilt->select_lock_type == LOCK_X) {
@@ -1945,8 +1943,9 @@ build_template(
 	        templ_type = ROW_MYSQL_WHOLE_ROW;
 	}
 
-	if (templ_type == ROW_MYSQL_REC_FIELDS
-	    && !prebuilt->hint_no_need_to_fetch_extra_cols) {
+	if (templ_type == ROW_MYSQL_REC_FIELDS) {
+	     if (prebuilt->hint_need_to_fetch_extra_cols
+						== ROW_RETRIEVE_ALL_COLS) {
 
 		/* We know we must at least fetch all columns in the key, or
 		all columns in the table */
@@ -1961,15 +1960,18 @@ build_template(
 
 			fetch_all_in_key = TRUE;
 		} else {
-			/* We are building a temporary table: fetch all
- 			columns; the reason is that MySQL may use the
-			clustered index key to store rows, but the mechanism
-			we use below to detect required columns does not
-			reveal that. Actually, it might be enough to
-			fetch only all in the key also in this case! */
-
 			templ_type = ROW_MYSQL_WHOLE_ROW;
 		}
+	    } else if (prebuilt->hint_need_to_fetch_extra_cols
+						== ROW_RETRIEVE_PRIMARY_KEY) {
+		/* We must at least fetch all primary key cols. Note that if
+		the clustered index was internally generated by InnoDB on the
+		row id (no primary key was defined), then
+		row_search_for_mysql() will always retrieve the row id to a
+		special buffer in the prebuilt struct. */
+
+		fetch_primary_key_cols = TRUE;
+	    }
 	}
 
 	clust_index = dict_table_get_first_index_noninline(prebuilt->table);
@@ -1988,7 +1990,7 @@ build_template(
 		the clustered index */
 	}
 
-	n_fields = (ulint)table->fields;
+	n_fields = (ulint)table->fields; /* number of columns */
 
 	if (!prebuilt->mysql_template) {
 		prebuilt->mysql_template = (mysql_row_templ_t*)
@@ -2001,6 +2003,8 @@ build_template(
 
 	prebuilt->templ_contains_blob = FALSE;
 
+	/* Note that in InnoDB, i is the column number. MySQL calls columns
+	'fields'. */
 	for (i = 0; i < n_fields; i++) {
 		templ = prebuilt->mysql_template + n_requested_fields;
 		field = table->field[i];
@@ -2015,8 +2019,10 @@ build_template(
 
 		if (templ_type == ROW_MYSQL_REC_FIELDS && 
                     ((prebuilt->read_just_key && !index_contains_field) ||
-		    (!(fetch_all_in_key && index_contains_field)
-		     && thd->query_id != field->query_id))) {
+		     (!(fetch_all_in_key && index_contains_field) &&
+		      !(fetch_primary_key_cols &&
+			dict_table_col_in_clustered_key(index->table, i)) &&
+		      thd->query_id != field->query_id))) {
 
 			/* This field is not needed in the query, skip it */
 
@@ -2097,14 +2103,32 @@ ha_innobase::write_row(
 
   	DBUG_ENTER("ha_innobase::write_row");
 
-	ut_ad(prebuilt->trx ==
-		(trx_t*) current_thd->transaction.all.innobase_tid);
+	if (prebuilt->trx !=
+			(trx_t*) current_thd->transaction.all.innobase_tid) {
+		char	err_buf[2000];
+		
+		fprintf(stderr,
+"InnoDB: Error: the transaction object for the table handle is at\n"
+"InnoDB: %lx, but for the current thread it is at %lx\n",
+			(ulong)prebuilt->trx,
+			(ulong)current_thd->transaction.all.innobase_tid);
+		
+		ut_sprintf_buf(err_buf, ((byte*)prebuilt) - 100, 200);
+		fprintf(stderr,
+"InnoDB: Dump of 200 bytes around prebuilt: %.1000s\n", err_buf);
+
+		ut_sprintf_buf(err_buf,
+			((byte*)(&(current_thd->transaction.all))) - 100, 200);
+		fprintf(stderr,
+"InnoDB: Dump of 200 bytes around transaction.all: %.1000s\n", err_buf);
+
+		ut_a(0);
+	}
 
   	statistic_increment(ha_write_count, &LOCK_status);
 
-  	if (table->time_stamp) {
-    		update_timestamp(record + table->time_stamp - 1);
-    	}
+        if (table->timestamp_default_now)
+                update_timestamp(record + table->timestamp_default_now - 1);
 
 	if (last_query_id != user_thd->query_id) {
 	        prebuilt->sql_stat_start = TRUE;
@@ -2475,9 +2499,8 @@ ha_innobase::update_row(
 	ut_ad(prebuilt->trx ==
 		(trx_t*) current_thd->transaction.all.innobase_tid);
 
-        if (table->time_stamp) {
-                update_timestamp(new_row + table->time_stamp - 1);
-	}
+        if (table->timestamp_on_update_now)
+                update_timestamp(new_row + table->timestamp_on_update_now - 1);
 
 	if (last_query_id != user_thd->query_id) {
 	        prebuilt->sql_stat_start = TRUE;
@@ -3249,7 +3272,7 @@ create_table_def(
   	ulint		nulls_allowed;
 	ulint		unsigned_type;
 	ulint		binary_type;
-	ulint		nonlatin1_type;
+	ulint		charset_no;
   	ulint		i;
 
   	DBUG_ENTER("create_table_def");
@@ -3278,24 +3301,28 @@ create_table_def(
 			unsigned_type = 0;
 		}
 
-		if (col_type == DATA_BLOB
-		    && strcmp(default_charset_info->name, "latin1") != 0) {
-			nonlatin1_type = DATA_NONLATIN1;
-		} else {
-		        nonlatin1_type = 0;
-		}
-
 		if (field->binary()) {
 			binary_type = DATA_BINARY_TYPE;
-		        nonlatin1_type = 0;
 		} else {
 			binary_type = 0;
 		}
 
+		charset_no = 0;	
+
+		if (dtype_is_string_type(col_type)) {
+
+			charset_no = (ulint)field->charset()->number;
+
+			ut_a(charset_no < 256); /* in ut0type.h we assume that
+						the number fits in one byte */
+		}
+
 		dict_mem_table_add_col(table, (char*) field->field_name,
-					col_type, (ulint)field->type()
+					col_type, dtype_form_prtype( 
+					(ulint)field->type()
 					| nulls_allowed | unsigned_type
-					| nonlatin1_type | binary_type,
+					| binary_type,
+					+ charset_no),
 					field->pack_length(), 0);
 	}
 
@@ -3479,7 +3506,7 @@ ha_innobase::create(
 		/* The limit probably should be REC_MAX_N_FIELDS - 3 = 1020,
 		but we play safe here */
 
-	        return(HA_ERR_TO_BIG_ROW);
+	        DBUG_RETURN(HA_ERR_TO_BIG_ROW);
 	} 
 
 	/* Get the transaction associated with the current thd, or create one
@@ -3693,6 +3720,7 @@ ha_innobase::delete_table(
 	int	error;
 	trx_t*	parent_trx;
 	trx_t*	trx;
+	THD     *thd= current_thd;
 	char	norm_name[1000];
 
  	DBUG_ENTER("ha_innobase::delete_table");
@@ -3717,6 +3745,14 @@ ha_innobase::delete_table(
 
 	trx->mysql_thd = current_thd;
 	trx->mysql_query_str = &((*current_thd).query);
+
+	if (thd->options & OPTION_NO_FOREIGN_KEY_CHECKS) {
+		trx->check_foreigns = FALSE;
+	}
+
+	if (thd->options & OPTION_RELAXED_UNIQUE_CHECKS) {
+		trx->check_unique_secondary = FALSE;
+	}
 
 	name_len = strlen(name);
 
@@ -3798,6 +3834,10 @@ innobase_drop_database(
 	trx = trx_allocate_for_mysql();
 	trx->mysql_thd = current_thd;
 	trx->mysql_query_str = &((*current_thd).query);
+
+	if (current_thd->options & OPTION_NO_FOREIGN_KEY_CHECKS) {
+		trx->check_foreigns = FALSE;
+	}
 
   	error = row_drop_database_for_mysql(namebuf, trx);
 
@@ -4414,6 +4454,27 @@ ha_innobase::get_foreign_key_create_info(void)
 }			
 
 /***********************************************************************
+Checks if a table is referenced by a foreign key. The MySQL manual states that
+a REPLACE is either equivalent to an INSERT, or DELETE(s) + INSERT. Only a
+delete is then allowed internally to resolve a duplicate key conflict in
+REPLACE, not an update. */
+
+uint
+ha_innobase::referenced_by_foreign_key(void)
+/*========================================*/
+			/* out: > 0 if referenced by a FOREIGN KEY */
+{
+	row_prebuilt_t* prebuilt = (row_prebuilt_t*)innobase_prebuilt;
+
+	if (dict_table_referenced_by_foreign_key(prebuilt->table)) {
+
+		return(1);
+	}
+
+	return(0);
+}
+
+/***********************************************************************
 Frees the foreign key create info for a table stored in InnoDB, if it is
 non-NULL. */
 
@@ -4463,7 +4524,14 @@ ha_innobase::extra(
     			prebuilt->read_just_key = 0;
     			break;
 	        case HA_EXTRA_RETRIEVE_ALL_COLS:
-			prebuilt->hint_no_need_to_fetch_extra_cols = FALSE;
+			prebuilt->hint_need_to_fetch_extra_cols
+					= ROW_RETRIEVE_ALL_COLS;
+			break;
+	        case HA_EXTRA_RETRIEVE_PRIMARY_KEY:
+			if (prebuilt->hint_need_to_fetch_extra_cols == 0) {
+				prebuilt->hint_need_to_fetch_extra_cols
+					= ROW_RETRIEVE_PRIMARY_KEY;
+			}
 			break;
 	        case HA_EXTRA_KEYREAD:
 	        	prebuilt->read_just_key = 1;
@@ -4524,7 +4592,7 @@ ha_innobase::start_stmt(
 
 	auto_inc_counter_for_this_stat = 0;
 	prebuilt->sql_stat_start = TRUE;
-	prebuilt->hint_no_need_to_fetch_extra_cols = TRUE;
+	prebuilt->hint_need_to_fetch_extra_cols = 0;
 	prebuilt->read_just_key = 0;
 
 	if (!prebuilt->mysql_has_locked) {
@@ -4601,7 +4669,7 @@ ha_innobase::external_lock(
 	trx = prebuilt->trx;
 
 	prebuilt->sql_stat_start = TRUE;
-	prebuilt->hint_no_need_to_fetch_extra_cols = TRUE;
+	prebuilt->hint_need_to_fetch_extra_cols = 0;
 
 	prebuilt->read_just_key = 0;
 
@@ -4629,11 +4697,17 @@ ha_innobase::external_lock(
 		}
 
 		if (trx->isolation_level == TRX_ISO_SERIALIZABLE
-		    && prebuilt->select_lock_type == LOCK_NONE) {
+		    && prebuilt->select_lock_type == LOCK_NONE
+		    && (thd->options
+				& (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN))) {
 
-		    	/* To get serializable execution we let InnoDB
-		    	conceptually add 'LOCK IN SHARE MODE' to all SELECTs
-			which otherwise would have been consistent reads */
+			/* To get serializable execution, we let InnoDB
+			conceptually add 'LOCK IN SHARE MODE' to all SELECTs
+			which otherwise would have been consistent reads. An
+			exception is consistent reads in the AUTOCOMMIT=1 mode:
+			we know that they are read-only transactions, and they
+			can be serialized also if performed as consistent
+			reads. */
 
 			prebuilt->select_lock_type = LOCK_S;
 		}
@@ -4700,7 +4774,7 @@ innodb_show_status(
 
         DBUG_ENTER("innodb_show_status");
 
-        if (innodb_skip) {
+        if (have_innodb != SHOW_OPTION_YES) {
                 my_message(ER_NOT_SUPPORTED_YET,
           "Cannot call SHOW INNODB STATUS because skip-innodb is defined",
                            MYF(0));
@@ -4939,7 +5013,7 @@ ha_innobase::innobase_read_and_init_auto_inc(
   	/* Play safe and also give in another way the hint to fetch
   	all columns in the key: */
   	
-	prebuilt->hint_no_need_to_fetch_extra_cols = FALSE;
+	prebuilt->hint_need_to_fetch_extra_cols = ROW_RETRIEVE_ALL_COLS;
 
 	prebuilt->trx->mysql_n_tables_locked += 1;
   

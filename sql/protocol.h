@@ -176,8 +176,3 @@ char *net_store_data(char *to,const char *from, uint length);
 char *net_store_data(char *to,int32 from);
 char *net_store_data(char *to,longlong from);
 
-#ifdef EMBEDDED_LIBRARY
-bool setup_params_data(struct st_prep_stmt *stmt);
-bool setup_params_data_withlog(struct st_prep_stmt *stmt);
-#endif
-

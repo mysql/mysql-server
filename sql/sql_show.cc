@@ -31,9 +31,11 @@ static const char *grant_names[]={
   "select","insert","update","delete","create","drop","reload","shutdown",
   "process","file","grant","references","index","alter"};
 
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
 static TYPELIB grant_types = { sizeof(grant_names)/sizeof(char **),
                                "grant_types",
                                grant_names};
+#endif
 
 static int mysql_find_files(THD *thd,List<char> *files, const char *db,
                             const char *path, const char *wild, bool dir);
@@ -219,29 +221,31 @@ struct show_privileges_st {
   const char *comment;
 };
 
-
-/*
-  TODO:  Update with new privileges
-*/
 static struct show_privileges_st sys_privileges[]=
 {
-  {"Select", "Tables",  "To retrieve rows from table"},
-  {"Insert", "Tables",  "To insert data into tables"},
-  {"Update", "Tables",  "To update existing rows "},
-  {"Delete", "Tables",  "To delete existing rows"},
-  {"Index",  "Tables",  "To create or drop indexes"},
-  {"Alter",  "Tables",  "To alter the table"},
+  {"Alter", "Tables",  "To alter the table"},
+  {"Create temporary tables","Databases","To use CREATE TEMPORARY TABLE"},
   {"Create", "Databases,Tables,Indexes",  "To create new databases and tables"},
-  {"Drop",   "Databases,Tables", "To drop databases and tables"},
-  {"Grant",  "Databases,Tables", "To give to other users those privileges you possess"},
-  {"References", "Databases,Tables", "To have references on tables"},
-  {"Reload",  "Server Admin", "To reload or refresh tables, logs and privileges"},
-  {"Shutdown","Server Admin", "To shutdown the server"},
+  {"Delete", "Tables",  "To delete existing rows"},
+  {"Drop", "Databases,Tables", "To drop databases and tables"},
+  {"File", "File access on server",   "To read and write files on the server"},
+  {"Grant option",  "Databases,Tables", "To give to other users those privileges you possess"},
+  {"Index", "Tables",  "To create or drop indexes"},
+  {"Insert", "Tables",  "To insert data into tables"},
+  {"Lock tables","Databases","To use LOCK TABLES (together with SELECT privilege)"},
   {"Process", "Server Admin", "To view the plain text of currently executing queries"},
-  {"File",    "File access on server",   "To read and write files on the server"},
+  {"References", "Databases,Tables", "To have references on tables"},
+  {"Reload", "Server Admin", "To reload or refresh tables, logs and privileges"},
+  {"Replication client","Server Admin","To ask where the slave or master servers are"},
+  {"Replication slave","Server Admin","To read binary log events from the master"},
+  {"Select", "Tables",  "To retrieve rows from table"},
+  {"Show databases","Server Admin","To see all databases with SHOW DATABASES"},
+  {"Shutdown","Server Admin", "To shutdown the server"},
+  {"Super","Server Admin","To use KILL thread, SET GLOBAL, CHANGE MASTER, etc."},
+  {"Update", "Tables",  "To update existing rows"},
+  {"Usage","Server Admin","No privileges - allow connect only"},
   {NullS, NullS, NullS}
 };
-
 
 int mysqld_show_privileges(THD *thd)
 {
@@ -299,11 +303,11 @@ static struct show_column_type_st sys_column_types[]=
 {
   {"tinyint",
     1,  "-128",  "127",  0,  0,  "YES",  "YES",
-    "NO",   "YES", "YES",  "NO",  "NULL,0",  
-    "A very small integer"}, 
+    "NO",   "YES", "YES",  "NO",  "NULL,0",
+    "A very small integer"},
   {"tinyint unsigned",
-    1,  "0"   ,  "255",  0,  0,  "YES",  "YES",  
-    "YES",  "YES",  "YES",  "NO",  "NULL,0", 
+    1,  "0"   ,  "255",  0,  0,  "YES",  "YES",
+    "YES",  "YES",  "YES",  "NO",  "NULL,0",
     "A very small integer"},
 };
 
@@ -365,7 +369,9 @@ mysql_find_files(THD *thd,List<char> *files, const char *db,const char *path,
   char *ext;
   MY_DIR *dirp;
   FILEINFO *file;
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
   uint col_access=thd->col_access;
+#endif
   TABLE_LIST table_list;
   DBUG_ENTER("mysql_find_files");
 
@@ -692,17 +698,11 @@ mysqld_show_fields(THD *thd, TABLE_LIST *table_list,const char *wild,
     if (!wild || !wild[0] || 
         !wild_case_compare(system_charset_info, field->field_name,wild))
     {
-#ifdef NOT_USED
-      if (thd->col_access & TABLE_ACLS ||
-          ! check_grant_column(thd,table,field->field_name,
-                               (uint) strlen(field->field_name),1))
-#endif
       {
         byte *pos;
         uint flags=field->flags;
         String type(tmp,sizeof(tmp), system_charset_info);
         uint col_access;
-        bool null_default_value=0;
 
 	protocol->prepare_for_resend();
         protocol->store(field->field_name, system_charset_info);
@@ -711,6 +711,12 @@ mysqld_show_fields(THD *thd, TABLE_LIST *table_list,const char *wild,
 	if (verbose)
 	  protocol->store(field->has_charset() ? field->charset()->name : "NULL",
 			system_charset_info);
+        /*
+          Altough TIMESTAMP fields can't contain NULL as its value they
+          will accept NULL if you will try to insert such value and will
+          convert it to current TIMESTAMP. So YES here means that NULL 
+          is allowed for assignment but can't be returned.
+        */
         pos=(byte*) ((flags & NOT_NULL_FLAG) &&
                      field->type() != FIELD_TYPE_TIMESTAMP ?
                      "" : "YES");
@@ -720,16 +726,24 @@ mysqld_show_fields(THD *thd, TABLE_LIST *table_list,const char *wild,
                      (field->flags & MULTIPLE_KEY_FLAG) ? "MUL":"");
         protocol->store((char*) pos, system_charset_info);
 
-        if (field->type() == FIELD_TYPE_TIMESTAMP ||
-            field->unireg_check == Field::NEXT_NUMBER)
-          null_default_value=1;
-        if (!null_default_value && !field->is_null())
+        if (table->timestamp_field == field &&
+            field->unireg_check != Field::TIMESTAMP_UN_FIELD)
+        {
+          /*
+            We have NOW() as default value but we use CURRENT_TIMESTAMP form
+            because it is more SQL standard comatible
+          */
+          protocol->store("CURRENT_TIMESTAMP", system_charset_info);
+        }
+        else if (field->unireg_check != Field::NEXT_NUMBER && 
+                 !field->is_null())
         {                                               // Not null by default
           type.set(tmp, sizeof(tmp), field->charset());
           field->val_str(&type,&type);
           protocol->store(type.ptr(),type.length(),type.charset());
         }
-        else if (field->maybe_null() || null_default_value)
+        else if (field->unireg_check == Field::NEXT_NUMBER ||
+                 field->maybe_null())
           protocol->store_null();                       // Null as default
         else
           protocol->store("",0, system_charset_info);	// empty string
@@ -819,7 +833,9 @@ int mysqld_show_create_db(THD *thd, char *dbname,
   char	path[FN_REFLEN];
   char buff[2048];
   String buffer(buff, sizeof(buff), system_charset_info);
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
   uint db_access;
+#endif
   bool found_libchar;
   HA_CREATE_INFO create;
   uint create_options = create_info ? create_info->options : 0;
@@ -916,7 +932,7 @@ mysqld_show_logs(THD *thd)
     DBUG_RETURN(1);
 
 #ifdef HAVE_BERKELEY_DB
-  if (!berkeley_skip && berkeley_show_logs(protocol))
+  if ((have_berkeley_db == SHOW_OPTION_YES) && berkeley_show_logs(protocol))
     DBUG_RETURN(-1);
 #endif
 
@@ -995,9 +1011,8 @@ mysqld_show_keys(THD *thd, TABLE_LIST *table_list)
         protocol->store_null();
 
       /* Check if we have a key part that only uses part of the field */
-      if (!key_part->field ||
-          key_part->length !=
-          table->field[key_part->fieldnr-1]->key_length())
+      if (!(key_info->flags & HA_FULLTEXT) && (!key_part->field ||
+          key_part->length != table->field[key_part->fieldnr-1]->key_length()))
         protocol->store_tiny((longlong) key_part->length);
       else
         protocol->store_null();
@@ -1085,100 +1100,85 @@ mysqld_dump_create_info(THD *thd, TABLE *table, int fd)
   DBUG_RETURN(0);
 }
 
-static inline const char *require_quotes(const char *name, uint length)
-{
-  uint i, d, c;
-  for (i=0; i<length; i+=d)
-  {
-    c=((uchar *)name)[i];
-    d=my_mbcharlen(system_charset_info, c);
-    if (d==1 && !system_charset_info->ident_map[c])
-      return name+i;
-  }
-  return 0;
-}
-
 /*
-  Looking for char in multibyte string
+  Go through all character combinations and ensure that sql_lex.cc can
+  parse it as an identifer.
 
   SYNOPSIS
-    look_for_char()
-    name      string for looking at
-    length    length of name
-    q         '\'' or '\"' for looking for
+  require_quotes()
+  name			attribute name
+  name_length		length of name
 
-  RETURN VALUES
-    # pointer to found char in string
-    0 string doesn't contain required char
+  RETURN
+    #	Pointer to conflicting character
+    0	No conflicting character
 */
 
-static inline const char *look_for_char(const char *name, 
-					uint length, char q)
+static const char *require_quotes(const char *name, uint name_length)
 {
-  const char *cur= name;
-  const char *end= cur+length;
-  uint symbol_length;
-  for (; cur<end; cur+= symbol_length)
+  uint length;
+  const char *end= name + name_length;
+
+  for ( ; name < end ; name++)
   {
-    char c= *cur;
-    symbol_length= my_mbcharlen(system_charset_info, c);
-    if (symbol_length==1 && c==q)
-      return cur;
+    uchar chr= (uchar) *name;
+    length= my_mbcharlen(system_charset_info, chr);
+    if (length == 1 && !system_charset_info->ident_map[chr])
+      return name;
   }
   return 0;
 }
+
+
+static void append_quoted_simple_identifier(String *packet, char quote_char,
+					    const char *name, uint length)
+{
+  packet->append(&quote_char, 1, system_charset_info);
+  packet->append(name, length, system_charset_info);
+  packet->append(&quote_char, 1, system_charset_info);
+}  
+
 
 void
 append_identifier(THD *thd, String *packet, const char *name, uint length)
 {
-  char qtype;
-  uint part_len;
-  const char *qplace;
+  const char *name_end;
+  char quote_char;
+
   if (thd->variables.sql_mode & MODE_ANSI_QUOTES)
-    qtype= '\"';
+    quote_char= '\"';
   else
-    qtype= '`';
+    quote_char= '`';
 
   if (is_keyword(name,length))
   {
-    packet->append(&qtype, 1, system_charset_info);
-    packet->append(name, length, system_charset_info);
-    packet->append(&qtype, 1, system_charset_info);
+    append_quoted_simple_identifier(packet, quote_char, name, length);
+    return;
   }
-  else
+
+  if (!require_quotes(name, length))
   {
-    if (!(qplace= require_quotes(name, length)))
-    {
-      if (!(thd->options & OPTION_QUOTE_SHOW_CREATE))
-	packet->append(name, length, system_charset_info);
-      else
-      {
-	packet->append(&qtype, 1, system_charset_info);
-	packet->append(name, length, system_charset_info);
-	packet->append(&qtype, 1, system_charset_info);
-      }
-    }
-    else
-    {
-      packet->shrink(packet->length()+length+2);
-      packet->append(&qtype, 1, system_charset_info);
-      if (*qplace != qtype)
-	qplace= look_for_char(qplace+1,length-(qplace-name)-1,qtype);
-      while (qplace)
-      {
-	if ((part_len= qplace-name))
-	{
-	  packet->append(name, part_len, system_charset_info);
-	  length-= part_len;
-	}
-	packet->append(qplace, 1, system_charset_info);
-	name= qplace;
-	qplace= look_for_char(name+1,length-1,qtype);
-      }
+    if (!(thd->options & OPTION_QUOTE_SHOW_CREATE))
       packet->append(name, length, system_charset_info);
-      packet->append(&qtype, 1, system_charset_info);
-    }
+    else
+      append_quoted_simple_identifier(packet, quote_char, name, length);
+    return;
   }
+
+  /* The identifier must be quoted as it includes a quote character */
+
+  packet->reserve(length*2 + 2);
+  packet->append(&quote_char, 1, system_charset_info);
+
+  for (name_end= name+length ; name < name_end ; name+= length)
+  {
+    char chr= *name;
+    length= my_mbcharlen(system_charset_info, chr);
+    if (length == 1 && chr == quote_char)
+      packet->append(&quote_char, 1, system_charset_info);
+    packet->append(name, length, packet->charset());
+  }
+  packet->append(&quote_char, 1, system_charset_info);
 }
 
 
@@ -1206,7 +1206,7 @@ static int
 store_create_info(THD *thd, TABLE *table, String *packet)
 {
   List<Item> field_list;
-  char tmp[MAX_FIELD_WIDTH], *for_str, buff[128], *end;
+  char tmp[MAX_FIELD_WIDTH], *for_str, buff[128], *end, *alias;
   String type(tmp, sizeof(tmp),&my_charset_bin);
   Field **ptr,*field;
   uint primary_key;
@@ -1232,12 +1232,15 @@ store_create_info(THD *thd, TABLE *table, String *packet)
     packet->append("CREATE TEMPORARY TABLE ", 23);
   else
     packet->append("CREATE TABLE ", 13);
-  append_identifier(thd,packet, table->real_name, strlen(table->real_name));
+  alias= (lower_case_table_names == 2 ? table->table_name :
+	  table->real_name);
+  append_identifier(thd, packet, alias, strlen(alias));
   packet->append(" (\n", 3);
 
   for (ptr=table->field ; (field= *ptr); ptr++)
   {
     bool has_default;
+    bool has_now_default;
     uint flags = field->flags;
 
     if (ptr != table->field)
@@ -1253,40 +1256,46 @@ store_create_info(THD *thd, TABLE *table, String *packet)
     field->sql_type(type);
     packet->append(type.ptr(),type.length());
 
-    if (field->has_charset())
+    if (field->has_charset() && !limited_mysql_mode && !foreign_db_mode)
     {
-      if (field->charset() == &my_charset_bin)
-        packet->append(" binary", 7);
-      else if (!limited_mysql_mode && !foreign_db_mode)
+      if (field->charset() != table->table_charset)
       {
-	if (field->charset() != table->table_charset)
-	{
-	  packet->append(" character set ", 15);
-	  packet->append(field->charset()->csname);
-	}
-	/* 
-	  For string types dump collation name only if 
-	  collation is not primary for the given charset
-	*/
-	if (!(field->charset()->state & MY_CS_PRIMARY))
-	{
-	  packet->append(" collate ", 9);
-	  packet->append(field->charset()->name);
-	}
+	packet->append(" character set ", 15);
+	packet->append(field->charset()->csname);
+      }
+      /* 
+	For string types dump collation name only if 
+	collation is not primary for the given charset
+      */
+      if (!(field->charset()->state & MY_CS_PRIMARY))
+      {
+	packet->append(" collate ", 9);
+	packet->append(field->charset()->name);
       }
     }
 
     if (flags & NOT_NULL_FLAG)
       packet->append(" NOT NULL", 9);
 
+
+    /* 
+      Again we are using CURRENT_TIMESTAMP instead of NOW because it is
+      more standard 
+    */
+    has_now_default= table->timestamp_field == field && 
+                     field->unireg_check != Field::TIMESTAMP_UN_FIELD;
+    
     has_default= (field->type() != FIELD_TYPE_BLOB &&
-		  field->type() != FIELD_TYPE_TIMESTAMP &&
-		  field->unireg_check != Field::NEXT_NUMBER);
+		  field->unireg_check != Field::NEXT_NUMBER &&
+                  !((foreign_db_mode || limited_mysql_mode) &&
+                    has_now_default));
 
     if (has_default)
     {
       packet->append(" default ", 9);
-      if (!field->is_null())
+      if (has_now_default)
+        packet->append("CURRENT_TIMESTAMP",17);
+      else if (!field->is_null())
       {                                             // Not null by default
         type.set(tmp, sizeof(tmp), field->charset());
         field->val_str(&type,&type);
@@ -1306,6 +1315,11 @@ store_create_info(THD *thd, TABLE *table, String *packet)
       else
         packet->append(tmp,0);
     }
+
+    if (!foreign_db_mode && !limited_mysql_mode &&
+        table->timestamp_field == field && 
+        field->unireg_check != Field::TIMESTAMP_DN_FIELD)
+      packet->append(" on update CURRENT_TIMESTAMP",28);
 
     if (field->unireg_check == Field::NEXT_NUMBER && !foreign_db_mode)
       packet->append(" auto_increment", 15 );
@@ -1814,10 +1828,10 @@ int mysqld_show(THD *thd, const char *wild, show_var_st *variables,
 	break;
       case SHOW_SLAVE_RUNNING:
       {
-	LOCK_ACTIVE_MI;
+	pthread_mutex_lock(&LOCK_active_mi);
 	end= strmov(buff, (active_mi->slave_running &&
 			   active_mi->rli.slave_running) ? "ON" : "OFF");
-	UNLOCK_ACTIVE_MI;
+	pthread_mutex_unlock(&LOCK_active_mi);
 	break;
       }
 #endif /* HAVE_REPLICATION */

@@ -15,7 +15,7 @@ select row('b',1.5,3) IN (row(3,NULL,3), row('a',1.5,3), row(1,3,3));
 select row('b',1.5,3) IN (row('b',NULL,3), row('a',1.5,3), row(1,3,3));
 select row('b',1.5,3) IN (row('b',NULL,4), row('a',1.5,3), row(1,3,3));
 select (1,2,(3,4)) IN ((3,2,(3,4)), (1,2,(3,4)));
--- error 1240
+-- error 1241
 select row(1,2,row(3,4)) IN (row(3,2,row(3,4)), row(1,2,4));
 select row(1,2,row(3,4)) IN (row(3,2,row(3,4)), row(1,2,row(3,NULL)));
 explain extended select row(1,2,row(3,4)) IN (row(3,2,row(3,4)), row(1,2,row(3,NULL)));
@@ -37,12 +37,12 @@ SELECT ROW(NULL,2,3)=ROW(NULL,2,3);
 SELECT ROW(NULL,2,3)<=>ROW(NULL,2,3);
 SELECT ROW(1,2,ROW(3,4,5))=ROW(1,2,ROW(3,4,5));
 SELECT ROW('test',2,3.33)=ROW('test',2,3.33);
--- error 1240
+-- error 1241
 SELECT ROW('test',2,3.33)=ROW('test',2,3.33,4);
 SELECT ROW('test',2,ROW(3,33))=ROW('test',2,ROW(3,33));
 SELECT ROW('test',2,ROW(3,33))=ROW('test',2,ROW(3,3));
 SELECT ROW('test',2,ROW(3,33))=ROW('test',2,ROW(3,NULL));
--- error 1240
+-- error 1241
 SELECT ROW('test',2,ROW(3,33))=ROW('test',2,4);
 
 create table t1 ( a int, b int, c int);
@@ -56,15 +56,15 @@ select ROW(a,b,c) IN(row(1,2,3), row(3,2,1)) from t1;
 select ROW(1,2,3) IN(row(a,b,c), row(1,2,3)) from t1;
 drop table t1;
 
--- error 1240
+-- error 1241
 select ROW(1,1);
 
 create table t1 (i int);
--- error 1240
+-- error 1241
 select 1 from t1 where ROW(1,1);
--- error 1240
+-- error 1241
 select count(*) from t1 order by ROW(1,1);
--- error 1240
+-- error 1241
 select count(*) from t1 having (1,1) order by i;
 drop table t1;
 

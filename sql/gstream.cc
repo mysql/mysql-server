@@ -1,139 +1,120 @@
+/* Copyright (C) 2004 MySQL AB
+
+   This program is free software; you can redistribute it and/or modify
+   it under the terms of the GNU General Public License as published by
+   the Free Software Foundation; either version 2 of the License, or
+   (at your option) any later version.
+
+   This program is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License for more details.
+
+   You should have received a copy of the GNU General Public License
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+
+/*
+  Functions to read and parse geometrical data.
+  NOTE: These functions assumes that the string is end \0 terminated!
+*/
+
 #include "mysql_priv.h"
 
-int GTextReadStream::get_next_toc_type() const
+enum Gis_read_stream::enum_tok_types Gis_read_stream::get_next_toc_type()
 {
-  const char *cur = m_cur;
-  while ((*cur)&&(strchr(" \t\r\n",*cur)))
-  {
-    cur++;
-  }
-  if (!(*cur))
-  {
+  skip_space();
+  if (m_cur >= m_limit)
     return eostream;
-  }
-
-  if (((*cur>='a') && (*cur<='z')) || ((*cur>='A') && (*cur<='Z')) ||
-      (*cur=='_'))
-  {
+  if (my_isvar_start(&my_charset_bin, *m_cur))
     return word;
-  }
-
-  if (((*cur>='0') && (*cur<='9')) || (*cur=='-') || (*cur=='+') ||
-      (*cur=='.'))
-  {
+  if ((*m_cur >= '0' && *m_cur <= '9') || *m_cur == '-' || *m_cur == '+')
     return numeric;
-  }
-
-  if (*cur == '(')
-  {
+  if (*m_cur == '(')
     return l_bra;
-  }
-  
-  if (*cur == ')')
-  {
+  if (*m_cur == ')')
     return r_bra;
-  }
-
-  if (*cur == ',')
-  {
+  if (*m_cur == ',')
     return comma;
-  }
-
   return unknown;
 }
 
-const char *GTextReadStream::get_next_word(int *word_len)
+
+bool Gis_read_stream::get_next_word(LEX_STRING *res)
 {
-  const char *cur = m_cur;
-  while ((*cur)&&(strchr(" \t\r\n",*cur)))
-  {
-    cur++;
-  }
-  m_last_text_position = cur;
-
-  if (!(*cur))
-  {
-    return 0;
-  }
-
-  const char *wd_start = cur;
-
-  if (((*cur<'a') || (*cur>'z')) && ((*cur<'A') || (*cur>'Z')) && (*cur!='_'))
-  {
-    return NULL;
-  }
-
-  ++cur;
-
-  while (((*cur>='a') && (*cur<='z')) || ((*cur>='A') && (*cur<='Z')) ||
-	 (*cur=='_') || ((*cur>='0') && (*cur<='9')))
-  {
-    ++cur;
-  }
-
-  *word_len = cur - wd_start;
-
-  m_cur = cur;
-
-  return wd_start;
-}
-
-int GTextReadStream::get_next_number(double *d)
-{
-  const char *cur = m_cur;
-  while ((*cur)&&(strchr(" \t\r\n",*cur)))
-  {
-    cur++;
-  }
-
-  m_last_text_position = cur;
-  if (!(*cur))
-  {
-    set_error_msg("Numeric constant expected");
+  skip_space();
+  res->str= (char*) m_cur;
+  /* The following will also test for \0 */
+  if (!my_isvar_start(&my_charset_bin, *m_cur))
     return 1;
-  }
 
-  if (((*cur<'0') || (*cur>'9')) && (*cur!='-') && (*cur!='+') && (*cur!='.'))
-  {
-    set_error_msg("Numeric constant expected");
-    return 1;
-  }
+  /*
+    We can't combine the following increment with my_isvar() because
+    my_isvar() is a macro that would cause side effects
+  */
+  m_cur++;
+  while ((m_cur < m_limit) && my_isvar(&my_charset_bin, *m_cur))
+    m_cur++;
 
-  char *endptr;
-
-  *d = strtod(cur, &endptr);
-
-  if (endptr)
-  {
-    m_cur = endptr;
-  }
-
+  res->length= (uint32) (m_cur - res->str);
   return 0;
 }
 
-char GTextReadStream::get_next_symbol()
+
+/*
+  Read a floating point number
+
+  NOTE: Number must start with a digit or sign. It can't start with a decimal
+  point
+*/
+
+bool Gis_read_stream::get_next_number(double *d)
 {
-  const char *cur = m_cur;
-  while ((*cur)&&(strchr(" \t\r\n",*cur)))
+  char *endptr;
+  int err;
+
+  skip_space();
+
+  if ((m_cur >= m_limit) ||
+      (*m_cur < '0' || *m_cur > '9') && *m_cur != '-' && *m_cur != '+')
   {
-    cur++;
-  }
-  if (!(*cur))
-  {
-    return 0;
+    set_error_msg("Numeric constant expected");
+    return 1;
   }
 
-  m_cur = cur + 1;
-  m_last_text_position = cur;
-
-  return *cur;
+  *d = my_strntod(m_charset, (char *)m_cur,
+		  m_limit-m_cur, &endptr, &err);
+  if (err)
+    return 1;
+  if (endptr)
+    m_cur = endptr;
+  return 0;
 }
 
-void GTextReadStream::set_error_msg(const char *msg)
+
+bool Gis_read_stream::check_next_symbol(char symbol)
 {
-  size_t len = strlen(msg);
-  m_err_msg = (char *)my_realloc(m_err_msg, len + 1, MYF(MY_ALLOW_ZERO_PTR));
+  skip_space();
+  if ((m_cur >= m_limit) || (*m_cur != symbol))
+  {
+    char buff[32];
+    strmov(buff, "'?' expected");
+    buff[2]= symbol;
+    set_error_msg(buff);
+    return 1;
+  }
+  m_cur++;
+  return 0;
+}
+
+
+/*
+  Remember error message.
+*/
+
+void Gis_read_stream::set_error_msg(const char *msg)
+{
+  size_t len= strlen(msg);			// ok in this context
+  m_err_msg= (char *) my_realloc(m_err_msg, len + 1, MYF(MY_ALLOW_ZERO_PTR));
   memcpy(m_err_msg, msg, len + 1);
 }
-
-

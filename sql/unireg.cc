@@ -29,6 +29,7 @@
 #include <m_ctype.h>
 
 #define FCOMP			17		/* Bytes for a packed field */
+#define FCOMP			17		/* Bytes for a packed field */
 
 static uchar * pack_screens(List<create_field> &create_fields,
 			    uint *info_length, uint *screens, bool small_file);
@@ -150,7 +151,9 @@ int rea_create_table(THD *thd, my_string file_name,
 
   my_free((gptr) screen_buff,MYF(0));
   my_free((gptr) keybuff, MYF(0));
-  if (my_sync(file, MYF(MY_WME)))
+
+  if (opt_sync_frm && !(create_info->options & HA_LEX_CREATE_TMP_TABLE) &&
+      my_sync(file, MYF(MY_WME)))
     goto err2;
   if (my_close(file,MYF(MY_WME)) ||
       ha_create_table(file_name,create_info,0))
@@ -351,8 +354,12 @@ static bool pack_header(uchar *forminfo, enum db_type table_type,
 					   MTYP_NOEMPTY_BIT);
       no_empty++;
     }
-    if ((MTYP_TYPENR(field->unireg_check) == Field::TIMESTAMP_FIELD ||
-	 f_packtype(field->pack_flag) == (int) FIELD_TYPE_TIMESTAMP) &&
+    /* 
+      We mark first TIMESTAMP field with NOW() in DEFAULT or ON UPDATE 
+      as auto-update field.
+    */
+    if (field->sql_type == FIELD_TYPE_TIMESTAMP &&
+        MTYP_TYPENR(field->unireg_check) != Field::NONE &&
 	!time_stamp_pos)
       time_stamp_pos=(int) field->offset+1;
     length=field->pack_length;

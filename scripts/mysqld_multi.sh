@@ -4,12 +4,12 @@ use Getopt::Long;
 use POSIX qw(strftime);
 
 $|=1;
-$VER="2.5";
+$VER="2.6";
 
 $opt_config_file   = undef();
 $opt_example       = 0;
 $opt_help          = 0;
-$opt_log           = "/tmp/mysqld_multi.log";
+$opt_log           = "";
 $opt_mysqladmin    = "@bindir@/mysqladmin";
 $opt_mysqld        = "@libexecdir@/mysqld";
 $opt_no_log        = 0;
@@ -17,6 +17,9 @@ $opt_password      = undef();
 $opt_tcp_ip        = 0;
 $opt_user          = "root";
 $opt_version       = 0;
+
+my $my_print_defaults_exists= 1;
+my $logdir= undef();
 
 my ($mysqld, $mysqladmin, $groupids, $homedir, $my_progname);
 
@@ -42,7 +45,9 @@ sub main
     print "Please make sure you have this command available and\n";
     print "in your path. The command is available from the latest\n";
     print "MySQL distribution.\n";
+    $my_print_defaults_exists= 0;
   }
+  init_log();
   my @defops = `my_print_defaults mysqld_multi`;
   chop @defops;
   splice @ARGV, 0, 0, @defops;
@@ -109,6 +114,56 @@ sub main
   else
   {
     stop_mysqlds();
+  }
+}
+
+####
+#### Init log file. Check for appropriate place for log file, in the following
+#### order my_print_defaults mysqld datadir, @datadir@, /var/log, /tmp
+####
+
+sub init_log
+{
+  if ($my_print_defaults_exists)
+  {
+    @mysqld_opts= `my_print_defaults mysqld`;
+    chomp @mysqld_opts;
+    foreach my $opt (@mysqld_opts)
+    {
+      if ($opt =~ m/^\-\-datadir[=](.*)/)
+      {
+        if (-d "$1" && -w "$1")
+        {
+	  $logdir= $1;
+        }
+      }
+    }
+  }
+  if (!defined($logdir))
+  {
+    $logdir= "@datadir@" if (-d "@datadir@" && -w "@datadir@");
+  }
+  if (!defined($logdir))
+  {
+    $logdir= "/var/log" if (-d "/var/log" && -w "/var/log");
+  }
+  if (!defined($logdir))
+  {  
+    if (-d "/tmp" && -w "/tmp" && ! -e "/tmp/mysqld_multi.log")
+    {
+      $logdir= "/tmp";
+    }
+  }
+  if (!defined($logdir))
+  {
+    # We still couldn't get a default log file in place. Log file
+    # will be disabled unless user sets it with an option
+
+    $opt_no_log= 1;
+  }
+  else
+  {
+    $opt_log= "$logdir/mysqld_multi.log";
   }
 }
 

@@ -88,10 +88,11 @@ class ha_berkeley: public handler
  public:
   ha_berkeley(TABLE *table): handler(table), alloc_ptr(0),rec_buff(0), file(0),
     int_table_flags(HA_REC_NOT_IN_SEQ |
-		     HA_KEYPOS_TO_RNDPOS | HA_LASTKEY_ORDER |
-		     HA_NULL_KEY | HA_BLOB_KEY | HA_NOT_EXACT_COUNT |
-		     HA_PRIMARY_KEY_IN_READ_INDEX | HA_DROP_BEFORE_CREATE |
-		     HA_AUTO_PART_KEY | HA_TABLE_SCAN_ON_INDEX),
+		    HA_KEYPOS_TO_RNDPOS | HA_LASTKEY_ORDER |
+		    HA_NULL_KEY | HA_BLOB_KEY | HA_NOT_EXACT_COUNT |
+		    HA_PRIMARY_KEY_IN_READ_INDEX | HA_DROP_BEFORE_CREATE |
+		    HA_AUTO_PART_KEY | HA_TABLE_SCAN_ON_INDEX |
+		    HA_KEY_READ_WRONG_STR | HA_FILE_BASED),
     changed_rows(0),last_dup_key((uint) -1),version(0),using_ignore(0)
   {
   }
@@ -170,7 +171,7 @@ class ha_berkeley: public handler
   bool primary_key_is_clustered() { return true; }
 };
 
-extern bool berkeley_skip, berkeley_shared_data;
+extern bool berkeley_shared_data;
 extern u_int32_t berkeley_init_flags,berkeley_env_flags, berkeley_lock_type,
                  berkeley_lock_types[];
 extern ulong berkeley_cache_size, berkeley_max_lock, berkeley_log_buffer_size;

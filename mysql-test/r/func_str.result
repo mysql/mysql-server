@@ -192,6 +192,15 @@ length(quote(concat(char(0),"test")))
 select hex(quote(concat(char(224),char(227),char(230),char(231),char(232),char(234),char(235))));
 hex(quote(concat(char(224),char(227),char(230),char(231),char(232),char(234),char(235))))
 27E0E3E6E7E8EAEB27
+select unhex(hex("foobar")), hex(unhex("1234567890ABCDEF")), unhex("345678");
+unhex(hex("foobar"))	hex(unhex("1234567890ABCDEF"))	unhex("345678")
+foobar	1234567890ABCDEF	4Vx
+select hex(unhex("1")), hex(unhex("12")), hex(unhex("123")), hex(unhex("1234")), hex(unhex("12345")), hex(unhex("123456"));
+hex(unhex("1"))	hex(unhex("12"))	hex(unhex("123"))	hex(unhex("1234"))	hex(unhex("12345"))	hex(unhex("123456"))
+01	12	0123	1234	012345	123456
+select length(unhex(md5("abrakadabra")));
+length(unhex(md5("abrakadabra")))
+16
 select reverse("");
 reverse("")
 
@@ -268,6 +277,34 @@ INSERT INTO t1 VALUES (1, 'a545f661efdd1fb66fdee3aab79945bf');
 SELECT 1 FROM t1 WHERE tmp=AES_DECRYPT(tmp,"password");
 1
 DROP TABLE t1;
+CREATE TABLE t1 (
+wid int(10) unsigned NOT NULL auto_increment,
+data_podp date default NULL,
+status_wnio enum('nowy','podp','real','arch') NOT NULL default 'nowy',
+PRIMARY KEY(wid),
+);
+INSERT INTO t1 VALUES (8,NULL,'real');
+INSERT INTO t1 VALUES (9,NULL,'nowy');
+SELECT elt(status_wnio,data_podp) FROM t1 GROUP BY wid;
+elt(status_wnio,data_podp)
+NULL
+NULL
+DROP TABLE t1;
+CREATE TABLE t1 (title text) ENGINE=MyISAM;
+INSERT INTO t1 VALUES ('Congress reconvenes in September to debate welfare and adult education');
+INSERT INTO t1 VALUES ('House passes the CAREERS bill');
+SELECT CONCAT("</a>",RPAD("",(55 - LENGTH(title)),".")) from t1;
+CONCAT("</a>",RPAD("",(55 - LENGTH(title)),"."))
+NULL
+</a>..........................
+DROP TABLE t1;
+CREATE TABLE t1 (i int, j int);
+INSERT INTO t1 VALUES (1,1),(2,2);
+SELECT DISTINCT i, ELT(j, '345', '34') FROM t1;
+i	ELT(j, '345', '34')
+1	345
+2	34
+DROP TABLE t1;
 select 1=_latin1'1';
 1=_latin1'1'
 1
@@ -302,6 +339,8 @@ select concat(_latin1'a',_latin2'a',_latin5'a');
 ERROR HY000: Illegal mix of collations (latin1_swedish_ci,COERCIBLE), (latin2_general_ci,COERCIBLE), (latin5_turkish_ci,COERCIBLE) for operation 'concat'
 select concat(_latin1'a',_latin2'a',_latin5'a',_latin7'a');
 ERROR HY000: Illegal mix of collations for operation 'concat'
+select concat_ws(_latin1'a',_latin2'a');
+ERROR HY000: Illegal mix of collations (latin1_swedish_ci,COERCIBLE) and (latin2_general_ci,COERCIBLE) for operation 'concat_ws'
 select FIELD('b','A','B');
 FIELD('b','A','B')
 2
@@ -514,7 +553,7 @@ insert(_latin2'abcd',2,3,_latin2'ef'),
 replace(_latin2'abcd',_latin2'b',_latin2'B')
 ;
 Warnings:
-Warning	1264	Data truncated for column 'format(130,10)' at row 1
+Warning	1265	Data truncated for column 'format(130,10)' at row 1
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -576,27 +615,6 @@ select * from t7
 where concat(s1 collate latin1_general_ci,s1 collate latin1_swedish_ci) = 'AA';
 ERROR HY000: Illegal mix of collations (latin1_general_ci,EXPLICIT) and (latin1_swedish_ci,EXPLICIT) for operation 'concat'
 drop table t7;
-CREATE TABLE t1 (
-wid int(10) unsigned NOT NULL auto_increment,
-data_podp date default NULL,
-status_wnio enum('nowy','podp','real','arch') NOT NULL default 'nowy',
-PRIMARY KEY(wid),
-);
-INSERT INTO t1 VALUES (8,NULL,'real');
-INSERT INTO t1 VALUES (9,NULL,'nowy');
-SELECT elt(status_wnio,data_podp) FROM t1 GROUP BY wid;
-elt(status_wnio,data_podp)
-NULL
-NULL
-DROP TABLE t1;
-CREATE TABLE t1 (title text) ENGINE=MyISAM;
-INSERT INTO t1 VALUES ('Congress reconvenes in September to debate welfare and adult education');
-INSERT INTO t1 VALUES ('House passes the CAREERS bill');
-SELECT CONCAT("</a>",RPAD("",(55 - LENGTH(title)),".")) from t1;
-CONCAT("</a>",RPAD("",(55 - LENGTH(title)),"."))
-NULL
-</a>..........................
-DROP TABLE t1;
 select substring_index("1abcd;2abcd;3abcd;4abcd", ';', 2),substring_index("1abcd;2abcd;3abcd;4abcd", ';', -2);
 substring_index("1abcd;2abcd;3abcd;4abcd", ';', 2)	substring_index("1abcd;2abcd;3abcd;4abcd", ';', -2)
 1abcd;2abcd	3abcd;4abcd
@@ -608,3 +626,16 @@ Note	1003	select high_priority md5(_latin1'hello') AS `md5('hello')`,sha(_latin1
 SELECT lpad(12345, 5, "#");
 lpad(12345, 5, "#")
 12345
+SELECT conv(71, 10, 36), conv('1Z', 36, 10);
+conv(71, 10, 36)	conv('1Z', 36, 10)
+1Z	71
+create table t1 (id int(1), str varchar(10)) DEFAULT CHARSET=utf8;
+insert into t1 values (1,'aaaaaaaaaa'), (2,'bbbbbbbbbb');
+create table t2 (id int(1), str varchar(10)) DEFAULT CHARSET=utf8;
+insert into t2 values (1,'cccccccccc'), (2,'dddddddddd');
+select substring(concat(t1.str, t2.str), 1, 15) "name" from t1, t2 
+where t2.id=t1.id order by name;
+name
+aaaaaaaaaaccccc
+bbbbbbbbbbddddd
+drop table t1, t2;

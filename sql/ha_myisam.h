@@ -37,7 +37,7 @@ extern ulong myisam_recover_options;
 class ha_myisam: public handler
 {
   MI_INFO *file;
-  uint    int_table_flags;
+  ulong   int_table_flags;
   char    *data_file_name, *index_file_name;
   bool enable_activate_all_index;
   int repair(THD *thd, MI_CHECK &param, bool optimize);
@@ -46,7 +46,8 @@ class ha_myisam: public handler
   ha_myisam(TABLE *table): handler(table), file(0),
     int_table_flags(HA_READ_RND_SAME | HA_KEYPOS_TO_RNDPOS | HA_LASTKEY_ORDER |
 		    HA_NULL_KEY | HA_CAN_FULLTEXT | HA_CAN_SQL_HANDLER |
-		    HA_DUPP_POS | HA_BLOB_KEY | HA_AUTO_PART_KEY | HA_HAS_GEOMETRY),
+		    HA_DUPP_POS | HA_BLOB_KEY | HA_AUTO_PART_KEY |
+		    HA_FILE_BASED | HA_HAS_GEOMETRY),
     enable_activate_all_index(1)
   {}
   ~ha_myisam() {}
@@ -64,6 +65,7 @@ class ha_myisam: public handler
   uint max_keys()          const { return MI_MAX_KEY; }
   uint max_key_parts()     const { return MAX_REF_PARTS; }
   uint max_key_length()    const { return MI_MAX_KEY_LENGTH; }
+  uint max_key_part_length() { return MI_MAX_KEY_LENGTH; }
   uint checksum() const;
 
   int open(const char *name, int mode, uint test_if_locked);

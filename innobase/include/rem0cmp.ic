@@ -9,24 +9,6 @@ Created 7/1/1994 Heikki Tuuri
 /*****************************************************************
 This function is used to compare two data fields for which we know the
 data type. */
-
-int
-cmp_data_data_slow(
-/*===============*/	
-				/* out: 1, 0, -1, if data1 is greater, equal, 
-				less than data2, respectively */
-	dtype_t*	cur_type,/* in: data type of the fields */
-	byte*		data1,	/* in: data field (== a pointer to a memory
-				buffer) */
-	ulint		len1,	/* in: data field length or UNIV_SQL_NULL */
-	byte*		data2,	/* in: data field (== a pointer to a memory
-				buffer) */
-	ulint		len2);	/* in: data field length or UNIV_SQL_NULL */
-
-
-/*****************************************************************
-This function is used to compare two data fields for which we know the
-data type. */
 UNIV_INLINE
 int
 cmp_data_data(

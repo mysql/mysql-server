@@ -333,10 +333,10 @@ a	b	c
 1	NULL	NULL
 alter table t1 modify b int not null, modify c varchar(10) not null;
 Warnings:
-Warning	1264	Data truncated for column 'b' at row 1
-Warning	1264	Data truncated for column 'c' at row 1
-Warning	1264	Data truncated for column 'b' at row 2
-Warning	1264	Data truncated for column 'c' at row 3
+Warning	1265	Data truncated for column 'b' at row 1
+Warning	1265	Data truncated for column 'c' at row 1
+Warning	1265	Data truncated for column 'b' at row 2
+Warning	1265	Data truncated for column 'c' at row 3
 explain select * from t1 order by a, b, c;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	index	NULL	a	18	NULL	11	Using index
@@ -546,6 +546,14 @@ a	b
 1	2
 5	NULL
 DROP TABLE t1;
+create table t1(id int not null auto_increment primary key, t char(12));
+explain select id,t from t1 order by id;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	1000	Using filesort
+explain select id,t from t1 force index (primary) order by id;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	index	NULL	PRIMARY	4	NULL	1000	
+drop table t1;
 CREATE TABLE t1 (
 FieldKey varchar(36) NOT NULL default '',
 LongVal bigint(20) default NULL,
@@ -611,3 +619,35 @@ a	b
 5	2
 6	2
 drop table t1;
+create table t1 (a int not null auto_increment, b int not null, c int not null, d int not null,
+key(a,b,d), key(c,b,a));
+create table t2 like t1;
+insert into t1 values (NULL, 1, 2, 0), (NULL, 2, 1, 1), (NULL, 3, 4, 2), (NULL, 4, 3, 3);
+insert into t2 select null, b, c, d from t1;
+insert into t1 select null, b, c, d from t2;
+insert into t2 select null, b, c, d from t1;
+insert into t1 select null, b, c, d from t2;
+insert into t2 select null, b, c, d from t1;
+insert into t1 select null, b, c, d from t2;
+insert into t2 select null, b, c, d from t1;
+insert into t1 select null, b, c, d from t2;
+insert into t2 select null, b, c, d from t1;
+insert into t1 select null, b, c, d from t2;
+optimize table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	optimize	status	OK
+set @row=10;
+insert into t1 select 1, b, c + (@row:=@row - 1) * 10, d - @row from t2 limit 10;
+select * from t1 where a=1 and b in (1) order by c, b, a;
+a	b	c	d
+1	1	2	0
+1	1	12	-1
+1	1	52	-5
+1	1	92	-9
+select * from t1 where a=1 and b in (1);
+a	b	c	d
+1	1	92	-9
+1	1	52	-5
+1	1	12	-1
+1	1	2	0
+drop table t1, t2;
