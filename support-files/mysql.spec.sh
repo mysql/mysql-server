@@ -327,7 +327,7 @@ install -m755 $MBD/support-files/mysql.server $RBR/etc/init.d/mysql
 
 # Create a symlink "rcmysql", pointing to the init.script. SuSE users
 # will appreciate that, as all services usually offer this.
-ln -s ../../sbin/init.d/mysql $RPM_BUILD_ROOT/usr/sbin/rcmysql
+ln -s ../../etc/init.d/mysql $RPM_BUILD_ROOT/usr/sbin/rcmysql
 
 # Create symbolic compatibility link safe_mysqld -> mysqld_safe
 # (safe_mysqld will be gone in MySQL 4.1)

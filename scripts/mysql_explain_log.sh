@@ -14,12 +14,14 @@ $Param->{host}='';
 $Param->{user}='';
 $Param->{password}='';
 $Param->{PrintError}=0;
+$Param->{socket}='';
 
 if (!GetOptions ('date|d:i' => \$Param->{ViewDate},
 		 'host|h:s' => \$Param->{host},
 		 'user|u:s' => \$Param->{user},
 		 'password|p:s' => \$Param->{password},
 		 'printerror|e:s' => \$Param->{PrintError},
+		 'socket|s:s' => \$Param->{socket},
 		)) {
   ShowOptions();
 }
@@ -50,7 +52,7 @@ else {
 
   #print "Date=$Param->{ViewDate}, host=$Param->{host}, user=$Param->{user}, password=$Param->{password}\n";
 
-  $Param->{dbh}=DBI->connect("DBI:mysql:host=$Param->{host}",$Param->{user},$Param->{password},{PrintError=>0});
+  $Param->{dbh}=DBI->connect("DBI:mysql:host=$Param->{host}".($Param->{socket}?";mysql_socket=$Param->{socket}":""),$Param->{user},$Param->{password},{PrintError=>0});
   if (DBI::err()) {
     print "Error: " . DBI::errstr() . "\n";
   }
@@ -313,6 +315,8 @@ Usage: $0 [OPTIONS] < LOGFILE
 -u=USERNAME
 --password=PASSWORD password of db-user
 -p=PASSWORD
+--socket=SOCKET     mysqld socket file to connect
+-s=SOCKET
 
 Read logfile from STDIN an try to EXPLAIN all SELECT statements. All UPDATE statements are rewritten to an EXPLAIN SELECT statement. The results of the EXPLAIN statement are collected and counted. All results with type=ALL are collected in an separete list. Results are printed to STDOUT.
 
@@ -344,7 +348,7 @@ Then add indices to avoid table scans and remove those which aren't used.
 
 =head1 USAGE
 
-explain_log.pl [--date=YYMMDD] --host=dbhost] [--user=dbuser] [--password=dbpw] < logfile
+explain_log.pl [--date=YYMMDD] --host=dbhost] [--user=dbuser] [--password=dbpw] [--socket=/path/to/socket] < logfile
 
 --date=YYMMDD       select only entrys of date
 
@@ -362,14 +366,19 @@ explain_log.pl [--date=YYMMDD] --host=dbhost] [--user=dbuser] [--password=dbpw] 
 
 -p=PASSWORD
 
+--socket=SOCKET     change path to the socket
+
+-s=SOCKET
+
 =head1 EXAMPLE
 
 explain_log.pl --host=localhost --user=foo --password=bar < /var/lib/mysql/mobile.log
 
-=head1 AUTHOR
+=head1 AUTHORS
 
   Stefan Nitz
   Jan Willamowius <jan@mobile.de>, http://www.mobile.de
+  Dennis Haney <davh@davh.dk> (Added socket support)
 
 =head1 RECRUITING
 
