@@ -822,7 +822,7 @@ extern pthread_mutex_t LOCK_mysql_create_db,LOCK_Acl,LOCK_open,
        LOCK_delayed_status, LOCK_delayed_create, LOCK_crypt, LOCK_timezone,
        LOCK_slave_list, LOCK_active_mi, LOCK_manager,
        LOCK_global_system_variables, LOCK_user_conn;
-extern rw_lock_t	LOCK_grant;
+extern rw_lock_t      LOCK_grant;
 extern pthread_cond_t COND_refresh, COND_thread_count, COND_manager;
 extern pthread_attr_t connection_attrib;
 extern I_List<THD> threads;
@@ -839,6 +839,14 @@ extern SHOW_COMP_OPTION have_berkeley_db;
 extern struct system_variables global_system_variables;
 extern struct system_variables max_system_variables;
 extern struct rand_struct sql_rand;
+
+#define g_datetime_frm(a) (global_system_variables.datetime_formats[(a)])
+#define t_datetime_frm(a, b) ((a)->variables.datetime_formats[(b)])
+
+extern const char *datetime_formats[4][5];
+extern const char *opt_datetime_format_names[3];
+extern const char *opt_datetime_formats[3];
+
 extern String null_string;
 extern HASH open_cache;
 extern TABLE *unused_tables;
@@ -909,13 +917,23 @@ void get_date_from_daynr(long daynr,uint *year, uint *month,
 			 uint *day);
 void init_time(void);
 long my_gmt_sec(TIME *, long *current_timezone);
-time_t str_to_timestamp(const char *str,uint length);
-bool str_to_time(const char *str,uint length,TIME *l_time);
-longlong str_to_datetime(const char *str,uint length,bool fuzzy_date);
+time_t str_to_timestamp(const char *str,uint length, THD *thd);
+bool str_to_time(const char *str,uint length,TIME *l_time, THD *thd);
+longlong str_to_datetime(const char *str,uint length,bool fuzzy_date, THD *thd);
 timestamp_type str_to_TIME(const char *str, uint length, TIME *l_time,
-			   bool fuzzy_date);
+			   bool fuzzy_date, THD *thd);
 void localtime_to_TIME(TIME *to, struct tm *from);
 void calc_time_from_sec(TIME *to, long seconds, long microseconds);
+
+extern DATETIME_FORMAT *make_format(DATETIME_FORMAT *datetime_format,
+				    datetime_format_types format_type,
+				    const char *format_str, 
+				    uint format_length, bool is_alloc);
+extern String *make_datetime(String *str, TIME *l_time,
+			     const bool is_time_only,
+			     const bool add_second_frac,
+			     const char *ptr, uint format_length,
+			     bool set_len_to_zero);
 
 int test_if_number(char *str,int *res,bool allow_wildcards);
 void change_byte(byte *,uint,char,char);

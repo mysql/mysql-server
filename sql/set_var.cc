@@ -403,6 +403,9 @@ sys_var *sys_variables[]=
   &sys_collation_server,
   &sys_concurrent_insert,
   &sys_connect_timeout,
+  &g_datetime_frm(DATE_FORMAT_TYPE),
+  &g_datetime_frm(DATETIME_FORMAT_TYPE),
+  &g_datetime_frm(TIME_FORMAT_TYPE),
   &sys_default_week_format,
   &sys_delay_key_write,
   &sys_delayed_insert_limit,
@@ -540,6 +543,8 @@ struct show_var_st init_vars[]= {
   {sys_concurrent_insert.name,(char*) &sys_concurrent_insert,       SHOW_SYS},
   {sys_connect_timeout.name,  (char*) &sys_connect_timeout,         SHOW_SYS},
   {"datadir",                 mysql_real_data_home,                 SHOW_CHAR},
+  {"date_format",             (char*) &g_datetime_frm(DATE_FORMAT_TYPE), SHOW_SYS},
+  {"datetime_format",         (char*) &g_datetime_frm(DATETIME_FORMAT_TYPE), SHOW_SYS},
   {"default_week_format",     (char*) &sys_default_week_format,     SHOW_SYS},
   {sys_delay_key_write.name,  (char*) &sys_delay_key_write,         SHOW_SYS},
   {sys_delayed_insert_limit.name, (char*) &sys_delayed_insert_limit,SHOW_SYS},
@@ -696,6 +701,7 @@ struct show_var_st init_vars[]= {
 #endif
   {"thread_stack",            (char*) &thread_stack,                SHOW_LONG},
   {sys_tx_isolation.name,     (char*) &sys_tx_isolation,	    SHOW_SYS},
+  {"time_format",             (char*) &g_datetime_frm(TIME_FORMAT_TYPE), SHOW_SYS},
 #ifdef HAVE_TZNAME
   {"timezone",                time_zone,                            SHOW_CHAR},
 #endif
@@ -709,9 +715,75 @@ struct show_var_st init_vars[]= {
   {NullS, NullS, SHOW_LONG}
 };
 
+
 /*
   Functions to check and update variables
 */
+char *update_datetime_format(THD *thd, enum enum_var_type type,
+			     enum datetime_format_types format_type,
+			     DATETIME_FORMAT *tmp_format)
+{
+  char *old_value;
+  if (type == OPT_GLOBAL)
+  {
+    pthread_mutex_lock(&LOCK_global_system_variables);    
+    old_value= g_datetime_frm(format_type).datetime_format.format;
+    g_datetime_frm(format_type).datetime_format= *tmp_format;
+    pthread_mutex_unlock(&LOCK_global_system_variables);
+  }
+  else
+  {
+    old_value= t_datetime_frm(thd,format_type).datetime_format.format;
+    t_datetime_frm(thd, format_type).datetime_format= *tmp_format;
+  }
+  return old_value;
+}
+
+
+bool sys_var_datetime_format::update(THD *thd, set_var *var)
+{
+  DATETIME_FORMAT tmp_format;
+  char *old_value;
+  uint new_length;
+
+  if ((new_length= var->value->str_value.length()))
+  {
+    if (!make_format(&tmp_format, format_type,
+		     var->value->str_value.ptr(),
+		     new_length, 1))
+    return 1;
+  }
+
+  old_value= update_datetime_format(thd, var->type, format_type, &tmp_format);
+  my_free(old_value, MYF(MY_ALLOW_ZERO_PTR));
+  return 0;
+}
+
+byte *sys_var_datetime_format::value_ptr(THD *thd, enum_var_type type,
+				       LEX_STRING *base)
+{
+ if (type == OPT_GLOBAL)
+   return (byte*) g_datetime_frm(format_type).datetime_format.format;
+ return (byte*) t_datetime_frm(thd, format_type).datetime_format.format;
+}
+
+void sys_var_datetime_format::set_default(THD *thd, enum_var_type type)
+{
+  DATETIME_FORMAT tmp_format;
+  char *old_value;
+  uint new_length;
+
+  if ((new_length= strlen(opt_datetime_formats[format_type])))
+  {
+    if (!make_format(&tmp_format, format_type,
+		     opt_datetime_formats[format_type],
+		     new_length, 1))
+    return;
+  }
+
+  old_value= update_datetime_format(thd, type, format_type, &tmp_format);
+  my_free(old_value, MYF(MY_ALLOW_ZERO_PTR));
+}
 
 /*
   The following 3 functions need to be changed in 4.1 when we allow

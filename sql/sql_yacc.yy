@@ -78,6 +78,7 @@ inline Item *or_or_concat(THD *thd, Item* A, Item* B)
   CHARSET_INFO *charset;
   thr_lock_type lock_type;
   interval_type interval;
+  datetime_format_types datetime_format_type;
   st_select_lex *select_lex;
   chooser_compare_func_creator boolfunc2creator;
 }
@@ -482,6 +483,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %token  GEOMETRYCOLLECTION
 %token  GROUP_CONCAT_SYM
 %token	GROUP_UNIQUE_USERS
+%token  GET_FORMAT
 %token	HOUR_MICROSECOND_SYM
 %token	HOUR_MINUTE_SYM
 %token	HOUR_SECOND_SYM
@@ -644,6 +646,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 	UDF_CHAR_FUNC UDF_FLOAT_FUNC UDF_INT_FUNC
 	UDA_CHAR_SUM UDA_FLOAT_SUM UDA_INT_SUM
 
+%type <datetime_format_type> datetime_format_type;
 %type <interval> interval
 
 %type <db_type> table_types
@@ -2581,6 +2584,8 @@ simple_expr:
 	  { $$= new Item_func_spatial_collection(* $3,
                        Geometry::wkbGeometryCollection,
                        Geometry::wkbPoint); }
+	| GET_FORMAT '(' datetime_format_type  ',' expr ')'
+	  { $$= new Item_func_get_format($3, $5); }
 	| HOUR_SYM '(' expr ')'
 	  { $$= new Item_func_hour($3); }
 	| IF '(' expr ',' expr ',' expr ')'
@@ -3193,6 +3198,11 @@ interval:
 	| SECOND_SYM		{ $$=INTERVAL_SECOND; }
 	| YEAR_MONTH_SYM	{ $$=INTERVAL_YEAR_MONTH; }
 	| YEAR_SYM		{ $$=INTERVAL_YEAR; };
+
+datetime_format_type:
+	DATE_SYM		{$$=DATE_FORMAT_TYPE;}
+	| TIME_SYM		{$$=TIME_FORMAT_TYPE;}
+	| DATETIME		{$$=DATETIME_FORMAT_TYPE;};
 
 table_alias:
 	/* empty */
@@ -4541,6 +4551,7 @@ keyword:
 	| FLUSH_SYM		{}
 	| GEOMETRY_SYM		{}
 	| GEOMETRYCOLLECTION	{}
+	| GET_FORMAT		{}
 	| GRANTS		{}
 	| GLOBAL_SYM		{}
 	| HANDLER_SYM		{}

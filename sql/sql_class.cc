@@ -279,6 +279,9 @@ void THD::cleanup(void)
     close_thread_tables(this);
   }
   close_temporary_tables(this);
+  variables.datetime_formats[DATE_FORMAT_TYPE].clean();
+  variables.datetime_formats[TIME_FORMAT_TYPE].clean();
+  variables.datetime_formats[DATETIME_FORMAT_TYPE].clean();
   delete_dynamic(&user_var_events);
   hash_free(&user_vars);
   if (global_read_lock)

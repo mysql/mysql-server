@@ -49,6 +49,8 @@ public:
   const char *name;
   
   sys_after_update_func after_update;
+  sys_var()
+  {}
   sys_var(const char *name_arg) :name(name_arg),after_update(0)
   {}
   sys_var(const char *name_arg,sys_after_update_func func)
@@ -188,6 +190,9 @@ public:
 class sys_var_thd :public sys_var
 {
 public:
+  sys_var_thd()
+    :sys_var()
+  {}
   sys_var_thd(const char *name_arg)
     :sys_var(name_arg)
   {}
@@ -552,6 +557,51 @@ public:
   byte *value_ptr(THD *thd, enum_var_type type, LEX_STRING *base);
   bool check_default(enum_var_type type) { return 1; }
   bool is_struct() { return 1; }
+};
+
+
+class sys_var_datetime_format :public sys_var_thd
+{
+public:
+  enum datetime_format_types format_type;
+  DATETIME_FORMAT datetime_format;
+  sys_var_datetime_format(): sys_var_thd()
+  {}
+
+  void clean()
+  {
+    my_free(datetime_format.format, MYF(MY_ALLOW_ZERO_PTR));
+    datetime_format.format=0;
+  }
+
+  /*
+    It's for copying of global_system_variables structure
+    in THD constructor.
+  */
+  inline sys_var_datetime_format& operator= (sys_var_datetime_format& s)
+  {
+    if (&s != this)
+    {
+      name= s.name; name_length= s.name_length;
+      datetime_format= s.datetime_format;
+      datetime_format.format= (my_strdup_with_length
+			       (s.datetime_format.format,
+				s.datetime_format.
+				format_length, MYF(0)));
+      format_type= s.format_type;
+    }
+    return *this;
+  }
+
+  SHOW_TYPE type() { return SHOW_CHAR; }
+  bool check_update_type(Item_result type)
+  {
+    return type != STRING_RESULT;		/* Only accept strings */
+  }
+  bool check_default(enum_var_type type) { return 0; }
+  bool update(THD *thd, set_var *var);
+  byte *value_ptr(THD *thd, enum_var_type type, LEX_STRING *base);
+  void set_default(THD *thd, enum_var_type type);
 };
 
 

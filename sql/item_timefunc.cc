@@ -57,81 +57,543 @@ static String day_names[] =
   String("Sunday",	&my_charset_latin1)
 };
 
-enum date_time_format_types 
-{ 
-  TIME_ONLY= 0, TIME_MICROSECOND,
-  DATE_ONLY, DATE_TIME, DATE_TIME_MICROSECOND
-};
-
-typedef struct date_time_format 
+uint check_names(String *arr,int item_count,const char *val_ptr,
+		 const char *val_end, uint *val, bool check_part)
 {
-  const char* format_str;
-  uint length;
-};
+  for (int i= 0; i < item_count; i++)
+  {
+    String *tmp=&arr[i];
+    if (!my_strnncoll(&my_charset_latin1, 
+		      (const uchar *) val_ptr, 3, 
+		      (const uchar *) tmp->ptr(), 3))
+    {
+      if (check_part)
+      {
+	*val= i+1;
+	return 3;
+      }
 
-static struct date_time_format date_time_formats[]=
+      int part_len= tmp->length() - 3;
+      int val_len= val_end - val_ptr - 3;
+      if (val_len < part_len)
+	return 0;
+      val_ptr+=3;
+      if (!my_strnncoll(&my_charset_latin1, 
+			(const uchar *) val_ptr, part_len, 
+			(const uchar *) tmp->ptr() + 3, part_len))
+      {
+	*val= i+1;
+	return tmp->length();
+      }
+      return 0;
+    }	    
+  }
+  return 0;
+}
+
+uint check_val_is_digit(const char *ptr, uint val_len, uint digit_count)
 {
-  {"%s%02d:%02d:%02d", 10},
-  {"%s%02d:%02d:%02d.%06d", 17},
-  {"%04d-%02d-%02d", 10},
-  {"%04d-%02d-%02d %02d:%02d:%02d", 19},
-  {"%04d-%02d-%02d %02d:%02d:%02d.%06d", 26}
-};
+  uint i;
+  uint verify_count= (val_len < digit_count ? val_len : digit_count);
+  uint digit_found= 0;
+  for (i= 0; i < verify_count; i++)
+  {
+    if (!my_isdigit(&my_charset_latin1, *(ptr+i)))
+      break;
+    digit_found++;
+  }
+  return digit_found;
+}
 
 
 /*
-  OPTIMIZATION TODO:
-   - Replace the switch with a function that should be called for each
-     date type.
-   - Remove sprintf and opencode the conversion, like we do in
-     Field_datetime.
+  Extract datetime value to TIME struct from string value
+  according to format string. 
 */
-
-String *make_datetime(String *str, TIME *ltime, 
-		      enum date_time_format_types format)
+bool extract_datetime(const char *str_val, uint str_val_len,
+		      const char *str_format, uint str_format_len,
+		      TIME *l_time)
 {
-  char *buff;
+  char intbuff[15];
+  int weekday= 0, yearday= 0, daypart= 0, len;
+  int val_len= 0;
+  int week_number= -1;
+  ulong length;
   CHARSET_INFO *cs= &my_charset_bin;
-  uint length= date_time_formats[format].length + 32;
-  const char* format_str= date_time_formats[format].format_str;
+  int err= 0;
+  bool usa_time= 0;
+  bool sunday_first= 0;
+  const char *rT_format= "%H:%i:%s";
+  uint part_len= 0;
+  const char *val_ptr=str_val;
+  const char *val_end= str_val + str_val_len;
+  const char *ptr=str_format;
+  const char *end=ptr+ str_format_len;
 
-  if (str->alloc(length))
-    return 0;
-
-  buff= (char*) str->ptr();
-  switch (format) {
-  case TIME_ONLY:
-    length= cs->cset->snprintf(cs, buff, length, format_str, ltime->neg ? "-" : "",
-			       ltime->hour, ltime->minute, ltime->second);
-    break;
-  case TIME_MICROSECOND:
-    length= cs->cset->snprintf(cs, buff, length, format_str, ltime->neg ? "-" : "",
-			       ltime->hour, ltime->minute, ltime->second,
-			       ltime->second_part);
-    break;
-  case DATE_ONLY:
-    length= cs->cset->snprintf(cs, buff, length, format_str,
-			       ltime->year, ltime->month, ltime->day);
-    break;
-  case DATE_TIME:
-    length= cs->cset->snprintf(cs, buff, length, format_str,
-			       ltime->year, ltime->month, ltime->day,
-			       ltime->hour, ltime->minute, ltime->second);
-    break;
-  case DATE_TIME_MICROSECOND:
-    length= cs->cset->snprintf(cs, buff, length, format_str,
-			       ltime->year, ltime->month, ltime->day,
-			       ltime->hour, ltime->minute, ltime->second,
-			       ltime->second_part);
-    break;
-  default:
-    return 0;
+  DBUG_ENTER("extract_datetime");
+  for (; ptr != end && val_ptr != val_end; ptr++)
+  {
+    if (*ptr == '%' && ptr+1 != end)
+    {
+      val_len= val_end - val_ptr;
+      char *val_end1= (char *) val_end;
+      switch (*++ptr) {
+      case 'h':
+      case 'I':
+      case 'H':
+	l_time->hour= my_strntoll(cs, val_ptr, 
+				  2, 10, &val_end1, &err);
+	if (err || (val_end1 - val_ptr != 2))
+	  return 1;
+	usa_time= (*ptr == 'I' || *ptr == 'h');
+	val_ptr+=2;
+	break;
+      case 'k':
+      case 'l':
+	l_time->hour= my_strntoll(cs, val_ptr, 
+				  2, 10, &val_end1, &err);
+	if (err)
+	  return 1;
+	usa_time= (*ptr == 'l');
+	val_ptr= val_end1;
+	break;
+      case 'e':
+	l_time->day= my_strntoll(cs, val_ptr, 
+				 2, 10, &val_end1, &err);
+	if (err)
+	  return 1;
+	val_ptr= val_end1;
+	break;
+      case 'c':
+	l_time->month= my_strntoll(cs, val_ptr, 
+				   2, 10, &val_end1, &err);
+	if (err)
+	  return 1;
+	val_ptr= val_end1;
+	break;
+      case 'Y':
+	l_time->year= my_strntoll(cs, val_ptr, 
+				  4, 10, &val_end1, &err);
+	if (err || (val_end1 - val_ptr != 4))
+	  return 1;
+	val_ptr+=4;
+	break;
+      case 'y':
+	l_time->year= my_strntoll(cs, val_ptr, 
+				  2, 10, &val_end1, &err);
+	if (err || (val_end1 - val_ptr != 2))
+	  return 1;
+	l_time->year+= (l_time->year < YY_PART_YEAR ? 2000 : 1900);
+	val_ptr+=2;
+	break;
+      case 'm':
+	l_time->month= my_strntoll(cs, val_ptr, 
+				   2, 10, &val_end1, &err);
+	if (err || (val_end1 - val_ptr != 2))
+	  return 1;
+	val_ptr+=2;
+	break;
+      case 'd':
+	l_time->day= my_strntoll(cs, val_ptr, 
+				 2, 10, &val_end1, &err);
+	if (err || (val_end1 - val_ptr != 2))
+	  return 1;
+	val_ptr+=2;
+	break;
+      case 'D':
+	l_time->day= my_strntoll(cs, val_ptr, 
+				 2, 10, &val_end1, &err);
+	if (err || (val_len < val_end1 - val_ptr + 2))
+	  return 1;
+	val_ptr= val_end1 + 2;
+	break;
+      case 'i':
+	l_time->minute=my_strntoll(cs, val_ptr, 
+				   2, 10, &val_end1, &err);
+	if (err || (val_end1 - val_ptr != 2))
+	  return 1;
+	val_ptr+=2;
+	break;
+      case 's':
+      case 'S':
+	l_time->second= my_strntoll(cs, val_ptr, 
+				    2, 10, &val_end1, &err);
+	if (err || (val_end1 - val_ptr != 2))
+	  return 1;
+	val_ptr+=2;
+	break;
+      case 'M':
+	if (val_len < 3 ||
+	    !(part_len= check_names(month_names, 12 , val_ptr,
+				    val_end, &l_time->month, 0)))
+	  return 1;
+	val_ptr+= part_len;
+	break;
+      case 'b':
+	if (val_len < 3 ||
+	    !(part_len= check_names(month_names, 12 , val_ptr,
+				    val_end,(uint *) &l_time->month, 1)))
+	  return 1;
+	val_ptr+= part_len;
+	break;
+      case 'W':
+	if (val_len < 3 || 
+	    !(part_len= check_names(day_names, 7 , val_ptr,
+				    val_end,(uint *) &weekday, 0)))
+	  return 1;
+	val_ptr+= part_len;
+	break;
+      case 'a':
+	if (val_len < 3 || 
+	    !(part_len= check_names(day_names, 7 , val_ptr,
+				    val_end,(uint *) &weekday, 1)))
+	  return 1;
+	val_ptr+= part_len;
+	break;
+      case 'w':
+	weekday= my_strntoll(cs, val_ptr, 1, 10, &val_end1, &err);
+	if (err)
+	  return 1;
+	val_ptr++;
+	break;
+      case 'j':
+	yearday= my_strntoll(cs, val_ptr, 3, 10, &val_end1, &err);
+	if (err || (val_end1 - val_ptr != 3))
+	  return 1;
+	val_ptr+=3;
+	break;
+      case 'f':
+	l_time->second_part= my_strntoll(cs, val_ptr, 3, 10, &val_end1, &err);
+	if (err)
+	  return 1;
+	val_ptr= val_end1;
+	break;
+      case 'p':
+	if (val_len < 2)
+	  return 1;
+	if (!my_strnncoll(&my_charset_latin1, 
+			  (const uchar *) val_ptr, 2, 
+			  (const uchar *) "PM", 2))
+	{
+	  daypart= 12;
+	  val_ptr+= 2;
+	}
+	break;
+      case 'U':
+	week_number= my_strntoll(cs, val_ptr, 2, 10, &val_end1, &err);
+	if (err || (val_end1 - val_ptr != 2))
+	  return 1;
+	sunday_first= 1;
+	val_ptr+=2;
+	break;
+      case 'u':
+	week_number= my_strntoll(cs, val_ptr, 2, 10, &val_end1, &err);
+	if (err || (val_end1 - val_ptr != 2))
+	  return 1;
+	sunday_first=0;
+	val_ptr+=2;
+	break;
+      case 'r':
+      case 'T':
+	usa_time= (*ptr == 'r');
+	if (extract_datetime(val_ptr, val_end-val_ptr,
+			     rT_format, strlen(rT_format),
+			     l_time))
+	  return 1;
+	val_ptr+=8;
+	break;
+      default:
+	if (*val_ptr != *ptr)
+	  return 1;
+	val_ptr++;
+      }
+    }
+    else
+    {
+      if (*val_ptr != *ptr)
+	return 1;
+      val_ptr++;
+    }
+  }
+  if (usa_time)
+  {
+    if (l_time->hour > 12 || l_time->hour < 1)
+      return 1;
+    l_time->hour= l_time->hour%12+daypart;
   }
 
-  str->length(length);
-  str->set_charset(cs);
+  if (yearday > 0)
+  {
+    uint days= calc_daynr(l_time->year,1,1) +  yearday - 1;
+    if (days > 0 || days < MAX_DAY_NUMBER)
+    {
+      get_date_from_daynr(days,&l_time->year,&l_time->month,&l_time->day);
+    }
+  }
+
+  if (week_number >= 0 && weekday)
+  {
+    int days= calc_daynr(l_time->year,1,1);
+    uint weekday_b;
+    
+    if (weekday > 7 || weekday < 0)
+	return 1;
+    if (sunday_first)
+      weekday = weekday%7;
+
+    if (week_number == 53)
+    {
+      days+= (week_number - 1)*7;
+      weekday_b= calc_weekday(days, sunday_first);
+      weekday = weekday - weekday_b - !sunday_first;
+      days+= weekday;
+    }
+    else if (week_number == 0)
+    {
+      weekday_b= calc_weekday(days, sunday_first);
+      weekday = weekday - weekday_b - !sunday_first;
+      days+= weekday;
+    }
+    else
+    {
+      days+= (week_number - !sunday_first)*7;
+      weekday_b= calc_weekday(days, sunday_first);
+      weekday =weekday - weekday_b - !sunday_first;
+      days+= weekday;
+    }
+    if (days > 0 || days < MAX_DAY_NUMBER)
+    {
+      get_date_from_daynr(days,&l_time->year,&l_time->month,&l_time->day);
+    }
+  }
+
+  if (l_time->month > 12 || l_time->day > 31 || l_time->hour > 23 || 
+      l_time->minute > 59 || l_time->second > 59)
+    return 1;
+
+  DBUG_RETURN(0);
+}
+
+
+
+/*
+  Print datetime string from TIME struct
+  according to format string. 
+*/
+
+
+String *make_datetime(String *str, TIME *l_time,
+		      const bool is_time_only,
+		      const bool add_second_frac,
+		      const char *ptr, uint format_length,
+		      bool set_len_to_zero)
+{
+  char intbuff[15];
+  uint days_i;
+  uint hours_i;
+  uint weekday;
+  ulong length;
+  if (set_len_to_zero)
+    str->length(0);
+  if (l_time->neg)
+    str->append("-", 1);
+  const char *end=ptr+format_length;
+  for (; ptr != end ; ptr++)
+  {
+    if (*ptr != '%' || ptr+1 == end)
+      str->append(*ptr);
+    else
+    {
+      switch (*++ptr) {
+      case 'M':
+	if (!l_time->month)
+	  return 0;
+	str->append(month_names[l_time->month-1]);
+	break;
+      case 'b':
+	if (!l_time->month)
+	  return 0;
+	str->append(month_names[l_time->month-1].ptr(),3);
+	break;
+      case 'W':
+	if (is_time_only)
+	  return 0;
+	weekday=calc_weekday(calc_daynr(l_time->year,l_time->month,l_time->day),0);
+	str->append(day_names[weekday]);
+	break;
+      case 'a':
+	if (is_time_only)
+	  return 0;
+	weekday=calc_weekday(calc_daynr(l_time->year,l_time->month,l_time->day),0);
+	str->append(day_names[weekday].ptr(),3);
+	break;
+      case 'D':
+	if (is_time_only)
+	  return 0;
+	length= int10_to_str(l_time->day, intbuff, 10) - intbuff;
+	str->append_with_prefill(intbuff, length, 1, '0');
+	if (l_time->day >= 10 &&  l_time->day <= 19)
+	  str->append("th");
+	else
+	{
+	  switch (l_time->day %10) {
+	  case 1:
+	    str->append("st",2);
+	    break;
+	  case 2:
+	    str->append("nd",2);
+	    break;
+	  case 3:
+	    str->append("rd",2);
+	    break;
+	  default:
+	    str->append("th",2);
+	    break;
+	  }
+	}
+	break;
+      case 'Y':
+	length= int10_to_str(l_time->year, intbuff, 10) - intbuff;
+	str->append_with_prefill(intbuff, length, 4, '0');
+	break;
+      case 'y':
+	length= int10_to_str(l_time->year%100, intbuff, 10) - intbuff;
+	str->append_with_prefill(intbuff, length, 2, '0');
+	break;
+      case 'm':
+	length= int10_to_str(l_time->month, intbuff, 10) - intbuff;
+	str->append_with_prefill(intbuff, length, 2, '0');
+	break;
+      case 'c':
+	length= int10_to_str(l_time->month, intbuff, 10) - intbuff;
+	str->append_with_prefill(intbuff, length, 1, '0');
+	break;
+      case 'd':
+	length= int10_to_str(l_time->day, intbuff, 10) - intbuff;
+	str->append_with_prefill(intbuff, length, 2, '0');
+	break;
+      case 'e':
+	length= int10_to_str(l_time->day, intbuff, 10) - intbuff;
+	str->append_with_prefill(intbuff, length, 1, '0');
+	break;
+      case 'f':
+	length= int10_to_str(l_time->second_part, intbuff, 10) - intbuff;
+	str->append_with_prefill(intbuff, length, 6, '0');
+	break;
+      case 'H':
+	length= int10_to_str(l_time->hour, intbuff, 10) - intbuff;
+	str->append_with_prefill(intbuff, length, 2, '0');
+	break;
+      case 'h':
+      case 'I':
+	days_i= l_time->hour/24;
+	hours_i= (l_time->hour%24 + 11)%12+1 + 24*days_i;
+	length= int10_to_str(hours_i, intbuff, 10) - intbuff;
+	str->append_with_prefill(intbuff, length, 2, '0');
+	break;
+      case 'i':					/* minutes */
+	length= int10_to_str(l_time->minute, intbuff, 10) - intbuff;
+	str->append_with_prefill(intbuff, length, 2, '0');
+	break;
+      case 'j':
+	if (is_time_only)
+	  return 0;
+	length= int10_to_str(calc_daynr(l_time->year,l_time->month,l_time->day) - 
+		     calc_daynr(l_time->year,1,1) + 1, intbuff, 10) - intbuff;
+	str->append_with_prefill(intbuff, length, 3, '0');
+	break;
+      case 'k':
+	length= int10_to_str(l_time->hour, intbuff, 10) - intbuff;
+	str->append_with_prefill(intbuff, length, 1, '0');
+	break;
+      case 'l':
+	days_i= l_time->hour/24;
+	hours_i= (l_time->hour%24 + 11)%12+1 + 24*days_i;
+	length= int10_to_str(hours_i, intbuff, 10) - intbuff;
+	str->append_with_prefill(intbuff, length, 1, '0');
+	break;
+      case 'p':
+	hours_i= l_time->hour%24;
+	str->append(hours_i < 12 ? "AM" : "PM",2);
+	break;
+      case 'r':
+	length= my_sprintf(intbuff, 
+		   (intbuff, 
+		    (l_time->hour < 12) ? "%02d:%02d:%02d AM" : "%02d:%02d:%02d PM",
+		    (l_time->hour+11)%12+1,
+		    l_time->minute,
+		    l_time->second));
+	str->append(intbuff, length);
+	break;
+      case 'S':
+      case 's':
+	length= int10_to_str(l_time->second, intbuff, 10) - intbuff;
+	str->append_with_prefill(intbuff, length, 2, '0');
+	if (add_second_frac)
+	{
+	  str->append(".", 1);
+	  length= int10_to_str(l_time->second_part, intbuff, 10) - intbuff;
+	  str->append_with_prefill(intbuff, length, 6, '0');
+	}
+	break;
+      case 'T':
+	length= my_sprintf(intbuff, 
+		   (intbuff, 
+		    "%02d:%02d:%02d", 
+		    l_time->hour, 
+		    l_time->minute,
+		    l_time->second));
+	str->append(intbuff, length);
+	break;
+      case 'U':
+      case 'u':
+      {
+	uint year;
+	if (is_time_only)
+	  return 0;
+	length= int10_to_str(calc_week(l_time, 0, (*ptr) == 'U', &year),
+		     intbuff, 10) - intbuff;
+	str->append_with_prefill(intbuff, length, 2, '0');
+      }
+      break;
+      case 'v':
+      case 'V':
+      {
+	uint year;
+	if (is_time_only)
+	  return 0;
+	length= int10_to_str(calc_week(l_time, 1, (*ptr) == 'V', &year),
+		     intbuff, 10) - intbuff;
+	str->append_with_prefill(intbuff, length, 2, '0');
+      }
+      break;
+      case 'x':
+      case 'X':
+      {
+	uint year;
+	if (is_time_only)
+	  return 0;
+	(void) calc_week(l_time, 1, (*ptr) == 'X', &year);
+	length= int10_to_str(year, intbuff, 10) - intbuff;
+	str->append_with_prefill(intbuff, length, 4, '0');
+      }
+      break;
+      case 'w':
+	if (is_time_only)
+	  return 0;
+	weekday=calc_weekday(calc_daynr(l_time->year,l_time->month,l_time->day),1);
+	length= int10_to_str(weekday, intbuff, 10) - intbuff;
+	str->append_with_prefill(intbuff, length, 1, '0');
+	break;
+      default:
+	str->append(*ptr);
+	break;
+      }
+    }
+  }
   return str;
 }
+
 
 /*
 ** Get a array of positive numbers from a string object.
@@ -346,7 +808,7 @@ longlong Item_func_year::val_int()
 longlong Item_func_unix_timestamp::val_int()
 {
   if (arg_count == 0)
-    return (longlong) current_thd->query_start();
+    return (longlong) thd->query_start();
   if (args[0]->type() == FIELD_ITEM)
   {						// Optimize timestamp field
     Field *field=((Item_field*) args[0])->field;
@@ -358,7 +820,7 @@ longlong Item_func_unix_timestamp::val_int()
   {
     return 0; /* purecov: inspected */
   }
-  return (longlong) str_to_timestamp(str->ptr(),str->length());
+  return (longlong) str_to_timestamp(str->ptr(),str->length(), thd);
 }
 
 
@@ -522,22 +984,26 @@ static bool get_interval_value(Item *args,interval_type int_type,
 
 String *Item_date::val_str(String *str)
 {
+  DATETIME_FORMAT *tmp_format;
+  TIME ltime;
   ulong value=(ulong) val_int();
   if (null_value)
-    return (String*) 0;
-  if (!value)					// zero daynr
-  {
-    str->copy("0000-00-00",10,&my_charset_latin1,default_charset());
+    goto null_date;
+
+  ltime.year=	(value/10000L) % 10000;
+  ltime.month=	(value/100)%100;
+  ltime.day=	(value%100);
+  ltime.neg=0;
+  ltime.time_type=TIMESTAMP_DATE;
+
+  tmp_format= &t_datetime_frm(thd, DATE_FORMAT_TYPE).datetime_format;
+  if (make_datetime(str, &ltime, 0, 0,
+		    tmp_format->format, tmp_format->format_length, 1))
     return str;
-  }
-  
-  char tmpbuff[11];
-  sprintf(tmpbuff,"%04d-%02d-%02d",
-	  (int) (value/10000L) % 10000,
-	  (int) (value/100)%100,
-	  (int) (value%100));
-  str->copy(tmpbuff,10,&my_charset_latin1,default_charset());
-  return str;
+
+  null_value= 1;
+null_date:
+  return 0;
 }
 
 
@@ -577,7 +1043,7 @@ void Item_func_curdate::fix_length_and_dec()
   decimals=0; 
   max_length=10*default_charset()->mbmaxlen;
 
-  store_now_in_tm(current_thd->query_start(),&start);
+  store_now_in_tm(thd->query_start(),&start);
   
   value=(longlong) ((ulong) ((uint) start.tm_year+1900)*10000L+
 		    ((uint) start.tm_mon+1)*100+
@@ -632,22 +1098,27 @@ String *Item_func_curtime::val_str(String *str)
 void Item_func_curtime::fix_length_and_dec()
 {
   struct tm start;
-  CHARSET_INFO *cs= default_charset();
+  DATETIME_FORMAT *tmp_format;
+  String tmp((char*) buff,sizeof(buff),default_charset());
+  TIME ltime;
 
   decimals=0; 
-  max_length=8*cs->mbmaxlen;
-  collation.set(cs);
-  
-  store_now_in_tm(current_thd->query_start(),&start);
-  
+  store_now_in_tm(thd->query_start(),&start);
   value=(longlong) ((ulong) ((uint) start.tm_hour)*10000L+
 		    (ulong) (((uint) start.tm_min)*100L+
 			     (uint) start.tm_sec));
-
-  buff_length=cs->cset->snprintf(cs,buff,sizeof(buff),"%02d:%02d:%02d",
-				 (int) start.tm_hour,
-				 (int) start.tm_min,
-				 (int) start.tm_sec);
+  ltime.day=	0;
+  ltime.hour=	start.tm_hour;
+  ltime.minute=	start.tm_min;
+  ltime.second=	start.tm_sec;
+  ltime.second_part= 0;
+  ltime.neg= 0;
+  ltime.time_type= TIMESTAMP_TIME;
+  tmp_format= &t_datetime_frm(thd, TIME_FORMAT_TYPE).datetime_format;
+  make_datetime(&tmp, &ltime, 0, 0,
+		tmp_format->format, tmp_format->format_length, 1);
+  buff_length= tmp.length();
+  max_length= buff_length; 
 }
 
 
@@ -681,14 +1152,11 @@ String *Item_func_now::val_str(String *str)
 void Item_func_now::fix_length_and_dec()
 {
   struct tm start;
-  CHARSET_INFO *cs= &my_charset_bin;
+  DATETIME_FORMAT *tmp_format;
+  String tmp((char*) buff,sizeof(buff),&my_charset_bin);
   
   decimals=0;
-  max_length=19*cs->mbmaxlen;
-  collation.set(cs);
-
-  store_now_in_tm(current_thd->query_start(),&start);
-  
+  store_now_in_tm(thd->query_start(),&start);
   value=((longlong) ((ulong) ((uint) start.tm_year+1900)*10000L+
 		     (((uint) start.tm_mon+1)*100+
 		      (uint) start.tm_mday))*(longlong) 1000000L+
@@ -696,14 +1164,6 @@ void Item_func_now::fix_length_and_dec()
 		     (ulong) (((uint) start.tm_min)*100L+
 			    (uint) start.tm_sec)));
   
-  buff_length= (uint) cs->cset->snprintf(cs,buff, sizeof(buff),
-				   "%04d-%02d-%02d %02d:%02d:%02d",
-				   ((int) (start.tm_year+1900)) % 10000,
-				   (int) start.tm_mon+1,
-				   (int) start.tm_mday,
-				   (int) start.tm_hour,
-				   (int) start.tm_min,
-				   (int) start.tm_sec);
   /* For getdate */
   ltime.year=	start.tm_year+1900;
   ltime.month=	start.tm_mon+1;
@@ -711,9 +1171,15 @@ void Item_func_now::fix_length_and_dec()
   ltime.hour=	start.tm_hour;
   ltime.minute=	start.tm_min;
   ltime.second=	start.tm_sec;
-  ltime.second_part=0;
-  ltime.neg=0;
-  ltime.time_type=TIMESTAMP_FULL;
+  ltime.second_part= 0;
+  ltime.neg= 0;
+  ltime.time_type= TIMESTAMP_FULL;
+
+  tmp_format= &t_datetime_frm(thd, DATETIME_FORMAT_TYPE).datetime_format;
+  make_datetime(&tmp, &ltime, 0, 0,
+		tmp_format->format, tmp_format->format_length, 1);
+  buff_length= tmp.length();
+  max_length= buff_length;
 }
 
 bool Item_func_now::get_date(TIME *res,
@@ -754,22 +1220,36 @@ void Item_func_now_utc::store_now_in_tm(time_t now, struct tm *now_tm)
 
 String *Item_func_sec_to_time::val_str(String *str)
 {
-  char buff[23*2];
-  const char *sign="";
   longlong seconds=(longlong) args[0]->val_int();
-  ulong length;
+  uint sec;
+
+  DATETIME_FORMAT *tmp_format;
+  TIME ltime;
+
   if ((null_value=args[0]->null_value))
-    return (String*) 0;
+    goto null_date;
+
+  ltime.neg= 0;
   if (seconds < 0)
   {
     seconds= -seconds;
-    sign= "-";
+    ltime.neg= 1;
   }
-  uint sec= (uint) ((ulonglong) seconds % 3600);
-  length= my_sprintf(buff,(buff,"%s%02lu:%02u:%02u",sign,(long) (seconds/3600),
-			   sec/60, sec % 60));
-  str->copy(buff, length, &my_charset_latin1, default_charset());
-  return str;
+
+  sec= (uint) ((ulonglong) seconds % 3600);
+  ltime.day= 0;
+  ltime.hour= seconds/3600;
+  ltime.minute= sec/60;
+  ltime.second= sec % 60;
+
+  tmp_format= &t_datetime_frm(thd, TIME_FORMAT_TYPE).datetime_format;
+  if (make_datetime(str, &ltime, 0, 0,
+		    tmp_format->format, tmp_format->format_length, 1))
+    return str;
+
+  null_value= 1;
+null_date:
+  return (String*) 0;
 }
 
 
@@ -879,9 +1359,7 @@ String *Item_func_date_format::val_str(String *str)
 {
   String *format;
   TIME l_time;
-  char intbuff[15];
   uint size,weekday;
-  ulong length;
 
   if (!date_or_time)
   {
@@ -892,24 +1370,17 @@ String *Item_func_date_format::val_str(String *str)
   {
     String *res;
     if (!(res=args[0]->val_str(str)))
-    {
-      null_value=1;
-      return 0;
-    }
-    if (str_to_time(res->ptr(),res->length(),&l_time))
-    {
-      null_value=1;
-      return 0;
-    }
+      goto null_date;
+
+    if (str_to_time(res->ptr(),res->length(),&l_time, thd))
+      goto null_date;
+
     l_time.year=l_time.month=l_time.day=0;
     null_value=0;
   }
 
   if (!(format = args[1]->val_str(str)) || !format->length())
-  {
-    null_value=1;
-    return 0;
-  }
+    goto null_date;
 
   if (fixed_length)
     size=max_length;
@@ -918,237 +1389,53 @@ String *Item_func_date_format::val_str(String *str)
   if (format == str)
     str= &value;				// Save result here
   if (str->alloc(size))
-  {
-    null_value=1;
-    return 0;
-  }
-  str->length(0);
+    goto null_date;
+
 
   /* Create the result string */
-  const char *ptr=format->ptr();
-  const char *end=ptr+format->length();
-  for (; ptr != end ; ptr++)
-  {
-    if (*ptr != '%' || ptr+1 == end)
-      str->append(*ptr);
-    else
-    {
-      switch (*++ptr) {
-      case 'M':
-	if (!l_time.month)
-	{
-	  null_value=1;
-	  return 0;
-	}
-	str->append(month_names[l_time.month-1]);
-	break;
-      case 'b':
-	if (!l_time.month)
-	{
-	  null_value=1;
-	  return 0;
-	}
-	str->append(month_names[l_time.month-1].ptr(),3);
-	break;
-      case 'W':
-	if (date_or_time)
-	{
-	  null_value=1;
-	  return 0;
-	}
-	weekday=calc_weekday(calc_daynr(l_time.year,l_time.month,l_time.day),0);
-	str->append(day_names[weekday]);
-	break;
-      case 'a':
-	if (date_or_time)
-	{
-	  null_value=1;
-	  return 0;
-	}
-	weekday=calc_weekday(calc_daynr(l_time.year,l_time.month,l_time.day),0);
-	str->append(day_names[weekday].ptr(),3);
-	break;
-      case 'D':
-	if (date_or_time)
-	{
-	  null_value=1;
-	  return 0;
-	}
-	length= int10_to_str(l_time.day, intbuff, 10) - intbuff;
-	str->append_with_prefill(intbuff, length, 1, '0');
-	if (l_time.day >= 10 &&  l_time.day <= 19)
-	  str->append("th");
-	else
-	{
-	  switch (l_time.day %10) {
-	  case 1:
-	    str->append("st",2);
-	    break;
-	  case 2:
-	    str->append("nd",2);
-	    break;
-	  case 3:
-	    str->append("rd",2);
-	    break;
-	  default:
-	    str->append("th",2);
-	    break;
-	  }
-	}
-	break;
-      case 'Y':
-	length= int10_to_str(l_time.year, intbuff, 10) - intbuff;
-	str->append_with_prefill(intbuff, length, 4, '0');
-	break;
-      case 'y':
-	length= int10_to_str(l_time.year%100, intbuff, 10) - intbuff;
-	str->append_with_prefill(intbuff, length, 2, '0');
-	break;
-      case 'm':
-	length= int10_to_str(l_time.month, intbuff, 10) - intbuff;
-	str->append_with_prefill(intbuff, length, 2, '0');
-	break;
-      case 'c':
-	length= int10_to_str(l_time.month, intbuff, 10) - intbuff;
-	str->append_with_prefill(intbuff, length, 1, '0');
-	break;
-      case 'd':
-	length= int10_to_str(l_time.day, intbuff, 10) - intbuff;
-	str->append_with_prefill(intbuff, length, 2, '0');
-	break;
-      case 'e':
-	length= int10_to_str(l_time.day, intbuff, 10) - intbuff;
-	str->append_with_prefill(intbuff, length, 1, '0');
-	break;
-      case 'f':
-	length= int10_to_str(l_time.second_part, intbuff, 10) - intbuff;
-	str->append_with_prefill(intbuff, length, 6, '0');
-	break;
-      case 'H':
-	length= int10_to_str(l_time.hour, intbuff, 10) - intbuff;
-	str->append_with_prefill(intbuff, length, 2, '0');
-	break;
-      case 'h':
-      case 'I':
-	length= int10_to_str((l_time.hour+11)%12+1, intbuff, 10) - intbuff;
-	str->append_with_prefill(intbuff, length, 2, '0');
-	break;
-      case 'i':					/* minutes */
-	length= int10_to_str(l_time.minute, intbuff, 10) - intbuff;
-	str->append_with_prefill(intbuff, length, 2, '0');
-	break;
-      case 'j':
-	if (date_or_time)
-	{
-	  null_value=1;
-	  return 0;
-	}
-	length= int10_to_str(calc_daynr(l_time.year,l_time.month,l_time.day) - 
-		     calc_daynr(l_time.year,1,1) + 1, intbuff, 10) - intbuff;
-	str->append_with_prefill(intbuff, length, 3, '0');
-	break;
-      case 'k':
-	length= int10_to_str(l_time.hour, intbuff, 10) - intbuff;
-	str->append_with_prefill(intbuff, length, 1, '0');
-	break;
-      case 'l':
-	length= int10_to_str((l_time.hour+11)%12+1, intbuff, 10) - intbuff;
-	str->append_with_prefill(intbuff, length, 1, '0');
-	break;
-      case 'p':
-	str->append(l_time.hour < 12 ? "AM" : "PM",2);
-	break;
-      case 'r':
-	length= my_sprintf(intbuff, 
-		   (intbuff, 
-		    (l_time.hour < 12) ? "%02d:%02d:%02d AM" : "%02d:%02d:%02d PM",
-		    (l_time.hour+11)%12+1,
-		    l_time.minute,
-		    l_time.second));
-	str->append(intbuff, length);
-	break;
-      case 'S':
-      case 's':
-	length= int10_to_str(l_time.second, intbuff, 10) - intbuff;
-	str->append_with_prefill(intbuff, length, 2, '0');
-	break;
-      case 'T':
-	length= my_sprintf(intbuff, 
-		   (intbuff, 
-		    "%02d:%02d:%02d", 
-		    l_time.hour, 
-		    l_time.minute,
-		    l_time.second));
-	str->append(intbuff, length);
-	break;
-      case 'U':
-      case 'u':
-      {
-	uint year;
-	length= int10_to_str(calc_week(&l_time, 0, (*ptr) == 'U', &year),
-		     intbuff, 10) - intbuff;
-	str->append_with_prefill(intbuff, length, 2, '0');
-      }
-      break;
-      case 'v':
-      case 'V':
-      {
-	uint year;
-	length= int10_to_str(calc_week(&l_time, 1, (*ptr) == 'V', &year),
-		     intbuff, 10) - intbuff;
-	str->append_with_prefill(intbuff, length, 2, '0');
-      }
-      break;
-      case 'x':
-      case 'X':
-      {
-	uint year;
-	(void) calc_week(&l_time, 1, (*ptr) == 'X', &year);
-	length= int10_to_str(year, intbuff, 10) - intbuff;
-	str->append_with_prefill(intbuff, length, 4, '0');
-      }
-      break;
-      case 'w':
-	weekday=calc_weekday(calc_daynr(l_time.year,l_time.month,l_time.day),1);
-	length= int10_to_str(weekday, intbuff, 10) - intbuff;
-	str->append_with_prefill(intbuff, length, 1, '0');
+  if (make_datetime(str, &l_time, 0, 0,
+		    format->ptr(), format->length(), 1))
+    return str;
 
-	break;
-      default:
-	str->append(*ptr);
-	break;
-      }
-    }
-  }
-  return str;
+null_date:
+  null_value=1;
+  return 0;
 }
 
 
 String *Item_func_from_unixtime::val_str(String *str)
 {
   struct tm tm_tmp,*start;
+  DATETIME_FORMAT *tmp_format;
   time_t tmp=(time_t) args[0]->val_int();
   uint32 l;
   CHARSET_INFO *cs=default_charset();
+  TIME ltime;
   
   if ((null_value=args[0]->null_value))
-    return 0;
+    goto null_date;
+
   localtime_r(&tmp,&tm_tmp);
   start=&tm_tmp;
-  
+
+  ltime.year= start->tm_year+1900;
+  ltime.month= start->tm_mon+1;
+  ltime.day= start->tm_mday;
+  ltime.hour= start->tm_hour;
+  ltime.minute= start->tm_min;
+  ltime.second= start->tm_sec;
+  ltime.second_part= 0;
+  ltime.neg=0;
+
   l=20*cs->mbmaxlen+32;
-  if (str->alloc(l))
-    return str;					/* purecov: inspected */
-  l=cs->cset->snprintf(cs,(char*) str->ptr(),l,"%04d-%02d-%02d %02d:%02d:%02d",
-	  (int) start->tm_year+1900,
-	  (int) start->tm_mon+1,
-	  (int) start->tm_mday,
-	  (int) start->tm_hour,
-	  (int) start->tm_min,
-	  (int) start->tm_sec);
-  str->length(l);
-  str->set_charset(cs);
-  return str;
+  tmp_format= &t_datetime_frm(thd, DATETIME_FORMAT_TYPE).datetime_format;
+  if (str->alloc(l) && make_datetime(str, &ltime, 1, 0,
+				     tmp_format->format,
+				     tmp_format->format_length, 1))
+    return str;
+  null_value= 1;
+null_date:
+  return 0;
 }
 
 
@@ -1229,7 +1516,7 @@ bool Item_date_add_interval::get_date(TIME *ltime, bool fuzzy_date)
 {
   long period,sign;
   INTERVAL interval;
-
+  ltime->neg= 0;
   if (args[0]->get_date(ltime,0) ||
       get_interval_value(args[1],int_type,&value,&interval))
     goto null_date;
@@ -1329,19 +1616,17 @@ bool Item_date_add_interval::get_date(TIME *ltime, bool fuzzy_date)
 String *Item_date_add_interval::val_str(String *str)
 {
   TIME ltime;
-  enum date_time_format_types format;
+  DATETIME_FORMAT *tmp_format;
 
   if (Item_date_add_interval::get_date(&ltime,0))
     return 0;
 
   if (ltime.time_type == TIMESTAMP_DATE)
-    format= DATE_ONLY;
-  else if (ltime.second_part)
-    format= DATE_TIME_MICROSECOND;
-  else
-    format= DATE_TIME;
-
-  if (make_datetime(str, &ltime, format))
+    tmp_format= &t_datetime_frm(thd, DATE_FORMAT_TYPE).datetime_format;
+  else 
+    tmp_format= &t_datetime_frm(thd, DATETIME_FORMAT_TYPE).datetime_format;
+  if (make_datetime(str, &ltime, 1, ltime.second_part,
+		    tmp_format->format, tmp_format->format_length, 1))
     return str;
 
   null_value=1;
@@ -1400,7 +1685,7 @@ longlong Item_extract::val_int()
   else
   {
     String *res= args[0]->val_str(&value);
-    if (!res || str_to_time(res->ptr(),res->length(),&ltime))
+    if (!res || str_to_time(res->ptr(),res->length(),&ltime, thd))
     {
       null_value=1;
       return 0;
@@ -1408,7 +1693,6 @@ longlong Item_extract::val_int()
     neg= ltime.neg ? -1 : 1;
     null_value=0;
   }
-
   switch (int_type) {
   case INTERVAL_YEAR:		return ltime.year;
   case INTERVAL_YEAR_MONTH:	return ltime.year*100L+ltime.month;
@@ -1530,10 +1814,12 @@ void Item_char_typecast::fix_length_and_dec()
 String *Item_datetime_typecast::val_str(String *str)
 {
   TIME ltime;
+  DATETIME_FORMAT *tmp_format= (&t_datetime_frm
+				(thd, DATETIME_FORMAT_TYPE).datetime_format);
 
   if (!get_arg0_date(&ltime,1) &&
-      make_datetime(str, &ltime, ltime.second_part ?
-	    DATE_TIME_MICROSECOND : DATE_TIME))
+      make_datetime(str, &ltime, 1, ltime.second_part,
+		    tmp_format->format, tmp_format->format_length, 1))
   return str;
 
 null_date:
@@ -1553,9 +1839,12 @@ bool Item_time_typecast::get_time(TIME *ltime)
 String *Item_time_typecast::val_str(String *str)
 {
   TIME ltime;
+  DATETIME_FORMAT *tmp_format= (&t_datetime_frm
+				(thd, TIME_FORMAT_TYPE).datetime_format);
 
   if (!get_arg0_time(&ltime) &&
-      make_datetime(str, &ltime, ltime.second_part ? TIME_MICROSECOND : TIME_ONLY))
+      make_datetime(str, &ltime, 0, ltime.second_part,
+		    tmp_format->format, tmp_format->format_length, 1))
     return str;
 
   null_value=1;
@@ -1574,9 +1863,12 @@ bool Item_date_typecast::get_date(TIME *ltime, bool fuzzy_date)
 String *Item_date_typecast::val_str(String *str)
 {
   TIME ltime;
+  DATETIME_FORMAT *tmp_format= (&t_datetime_frm
+				(thd, DATE_FORMAT_TYPE).datetime_format);
 
   if (!get_arg0_date(&ltime,1) &&
-      make_datetime(str, &ltime, DATE_ONLY))
+      make_datetime(str, &ltime, 1, 0,
+		    tmp_format->format, tmp_format->format_length, 1))
   return str;
 
 null_date:
@@ -1605,7 +1897,11 @@ String *Item_func_makedate::val_str(String *str)
   {
     null_value=0;
     get_date_from_daynr(days,&l_time.year,&l_time.month,&l_time.day);
-    if (make_datetime(str, &l_time, DATE_ONLY))
+
+    DATETIME_FORMAT *tmp_format= (&t_datetime_frm
+				  (thd, DATE_FORMAT_TYPE).datetime_format);
+    if (make_datetime(str, &l_time, 1, 0,
+		      tmp_format->format, tmp_format->format_length, 1))
       return str;
   }
 
@@ -1656,6 +1952,7 @@ String *Item_func_add_time::val_str(String *str)
   bool is_time= 0;
   long microseconds, seconds, days= 0;
   int l_sign= sign;
+  DATETIME_FORMAT *tmp_format;
 
   null_value=0;
   l_time3.neg= 0;
@@ -1720,19 +2017,21 @@ String *Item_func_add_time::val_str(String *str)
   calc_time_from_sec(&l_time3, seconds, microseconds);
   if (!is_time)
   {
+    tmp_format= &t_datetime_frm(thd, DATETIME_FORMAT_TYPE).datetime_format;
     get_date_from_daynr(days,&l_time3.year,&l_time3.month,&l_time3.day);
     if (l_time3.day &&
-	make_datetime(str, &l_time3,
-	              l_time1.second_part || l_time2.second_part ?
-	              DATE_TIME_MICROSECOND : DATE_TIME))
+	make_datetime(str, &l_time3, 1,
+		      l_time1.second_part || l_time2.second_part,
+		      tmp_format->format, tmp_format->format_length, 1))
       return str;
     goto null_date;
   }
-
+  
+  tmp_format= &t_datetime_frm(thd, TIME_FORMAT_TYPE).datetime_format;
   l_time3.hour+= days*24;
-  if (make_datetime(str, &l_time3,
-	    l_time1.second_part || l_time2.second_part ?
-	    TIME_MICROSECOND : TIME_ONLY))
+  if (make_datetime(str, &l_time3, 0,
+		    l_time1.second_part || l_time2.second_part,
+		    tmp_format->format, tmp_format->format_length, 1))
     return str;
 
 null_date:
@@ -1755,6 +2054,7 @@ String *Item_func_timediff::val_str(String *str)
   long days;
   int l_sign= 1;
   TIME l_time1 ,l_time2, l_time3;
+  DATETIME_FORMAT *tmp_format;
 
   null_value= 0;  
   if (args[0]->get_time(&l_time1) ||
@@ -1800,9 +2100,11 @@ String *Item_func_timediff::val_str(String *str)
     l_time3.neg= l_time3.neg ? 0 : 1;
 
   calc_time_from_sec(&l_time3, seconds, microseconds);
-  if (make_datetime(str, &l_time3, 
-	    l_time1.second_part || l_time2.second_part ?
-	    TIME_MICROSECOND : TIME_ONLY))
+
+  tmp_format= &t_datetime_frm(thd, TIME_FORMAT_TYPE).datetime_format;
+  if (make_datetime(str, &l_time3, 0,
+		    l_time1.second_part || l_time2.second_part,
+		    tmp_format->format, tmp_format->format_length, 1))
     return str;
 
 null_date:
@@ -1819,6 +2121,7 @@ null_date:
 String *Item_func_maketime::val_str(String *str)
 {
   TIME ltime;
+  DATETIME_FORMAT *tmp_format;
 
   long hour= args[0]->val_int();
   long minute= args[1]->val_int();
@@ -1840,7 +2143,9 @@ String *Item_func_maketime::val_str(String *str)
   ltime.hour= (ulong)hour;
   ltime.minute= (ulong)minute;
   ltime.second= (ulong)second;
-  if (make_datetime(str, &ltime, TIME_ONLY))
+  tmp_format= &t_datetime_frm(thd, TIME_FORMAT_TYPE).datetime_format;
+  if (make_datetime(str, &ltime, 0, 0,
+		    tmp_format->format, tmp_format->format_length, 1))
     return str;
 
 null_date:
@@ -1858,5 +2163,81 @@ longlong Item_func_microsecond::val_int()
   TIME ltime;
   if (!get_arg0_time(&ltime))
     return ltime.second_part;
+  return 0;
+}
+
+/*
+   Array of MySQL date/time/datetime formats
+   Firts element is date format
+   Second element is time format
+   Third element is datetime format
+   Fourth is format name.
+*/
+
+const char *datetime_formats[4][5]=
+{
+  {"%m.%d.%Y", "%Y-%m-%d", "%Y-%m-%d", "%d.%m.%Y", "%Y%m%d"},
+  {"%h:%i:%s %p", "%H:%i:%s", "%H:%i:%s", "%H.%i.%S", "%H%i%s"},
+  {"%Y-%m-%d-%H.%i.%s", "%Y-%m-%d %H:%i:%s", "%Y-%m-%d %H:%i:%s", "%Y-%m-%d-%H.%i.%s", "%Y%m%d%H%i%s"},
+  {"USA", "JIS", "ISO", "EUR", "INTERNAL"}
+};
+
+
+/*
+   Return format string according format name.
+   If name is unknown, result is ISO format string
+*/
+
+String *Item_func_get_format::val_str(String *str)
+{
+  String *val=args[0]->val_str(str);
+  const char *format_str= datetime_formats[tm_format][ISO_FORMAT]; 
+
+  if (!args[0]->null_value)
+  {
+    const char *val_ptr= val->ptr();
+    uint val_len= val->length();
+    for (int i= 0; i < 5; i++)
+    {
+      const char *name_format_str= datetime_formats[3][i];
+      uint format_str_len= strlen(name_format_str);
+      if ( val_len == format_str_len &&
+	   !my_strnncoll(&my_charset_latin1, 
+			 (const uchar *) val_ptr, val_len, 
+			 (const uchar *) name_format_str, format_str_len))
+      {
+	format_str= datetime_formats[tm_format][i];
+	break;
+      }	    
+    }
+  }
+
+  null_value= 0;
+  str->length(0);
+  str->append(format_str);
+  return str;
+}
+
+
+String *Item_func_str_to_date::val_str(String *str)
+{
+  TIME ltime;
+  bzero((char*) &ltime, sizeof(ltime));
+  DATETIME_FORMAT *tmp_format;
+  String *val=args[0]->val_str(str);
+  String *format=args[1]->val_str(str);
+  if (args[0]->null_value || args[1]->null_value ||
+      extract_datetime(val->ptr(), val->length(),
+		       format->ptr(), val->length(),
+		       &ltime))
+    goto null_date;
+
+  tmp_format= &t_datetime_frm(thd, DATETIME_FORMAT_TYPE).datetime_format;
+  if (make_datetime(str, &ltime, 0, 0, tmp_format->format,
+		    tmp_format->format_length, 1))
+    return str;
+
+null_date:
+  null_value=1;
   return 0;
 }
