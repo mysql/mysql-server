@@ -2509,10 +2509,19 @@ String *Item_func_geometry_from_text::val_str(String *str)
 {
   Geometry geom;
   String arg_val;
-  String *wkt = args[0]->val_str(&arg_val);
+  String *wkt= args[0]->val_str(&arg_val);
   GTextReadStream trs(wkt->ptr(), wkt->length());
+  uint32 srid;
 
+  if ((arg_count == 2) && !args[1]->null_value)
+    srid= args[1]->val_int();
+  else
+    srid= 0;
+
+  if (str->reserve(SRID_SIZE, 512))
+    return 0;
   str->length(0);
+  str->q_append(srid);
   if ((null_value=(args[0]->null_value || geom.create_from_wkt(&trs, str, 0))))
     return 0;
   return str;
@@ -2525,19 +2534,51 @@ void Item_func_geometry_from_text::fix_length_and_dec()
 }
 
 
+String *Item_func_geometry_from_wkb::val_str(String *str)
+{
+  String arg_val;
+  String *wkb= args[0]->val_str(&arg_val);
+  Geometry geom;
+  uint32 srid;
+
+  if ((arg_count == 2) && !args[1]->null_value)
+    srid= args[1]->val_int();
+  else
+    srid= 0;
+
+  if (str->reserve(SRID_SIZE, 512))
+    return 0;
+  str->length(0);
+  str->q_append(srid);
+  if ((null_value= (args[0]->null_value ||
+		    geom.create_from_wkb(wkb->ptr(), wkb->length()))))
+    return 0;
+
+  str->append(*wkb);
+  return str;
+}
+
+
+void Item_func_geometry_from_wkb::fix_length_and_dec()
+{
+  max_length=MAX_BLOB_WIDTH;
+}
+
+
 String *Item_func_as_text::val_str(String *str)
 {
   String arg_val;
-  String *wkt = args[0]->val_str(&arg_val);
+  String *swkb= args[0]->val_str(&arg_val);
   Geometry geom;
 
-  if ((null_value=(args[0]->null_value ||
-                   geom.create_from_wkb(wkt->ptr(),wkt->length()))))
+  if ((null_value= (args[0]->null_value ||
+		    geom.create_from_wkb(swkb->ptr() + SRID_SIZE,
+					 swkb->length() - SRID_SIZE))))
     return 0;
 
   str->length(0);
 
-  if ((null_value=geom.as_wkt(str)))
+  if ((null_value= geom.as_wkt(str)))
     return 0;
 
   return str;
@@ -2550,11 +2591,12 @@ void Item_func_as_text::fix_length_and_dec()
 
 String *Item_func_geometry_type::val_str(String *str)
 {
-  String *wkt = args[0]->val_str(str);
+  String *swkb= args[0]->val_str(str);
   Geometry geom;
 
-  if ((null_value=(args[0]->null_value ||
-                   geom.create_from_wkb(wkt->ptr(),wkt->length()))))
+  if ((null_value= (args[0]->null_value ||
+		    geom.create_from_wkb(swkb->ptr() + SRID_SIZE,
+					 swkb->length() - SRID_SIZE))))
     return 0;
   str->copy(geom.get_class_info()->m_name,
 	    strlen(geom.get_class_info()->m_name),
@@ -2565,14 +2607,19 @@ String *Item_func_geometry_type::val_str(String *str)
 
 String *Item_func_envelope::val_str(String *str)
 {
-  String *res = args[0]->val_str(str);
+  String *res= args[0]->val_str(str);
   Geometry geom;
   
-  if ((null_value = args[0]->null_value ||
-               geom.create_from_wkb(res->ptr(),res->length())))
+  if ((null_value= args[0]->null_value ||
+		   geom.create_from_wkb(res->ptr() + SRID_SIZE,
+					res->length() - SRID_SIZE)))
     return 0;
   
+  uint32 srid= uint4korr(res->ptr());
+  if (res->reserve(SRID_SIZE, 512))
+    return 0;
   res->length(0);
+  res->q_append(srid);
   return (null_value= geom.envelope(res)) ? 0 : res;
 }
 
@@ -2580,15 +2627,22 @@ String *Item_func_envelope::val_str(String *str)
 String *Item_func_centroid::val_str(String *str)
 {
   String arg_val;
-  String *wkb = args[0]->val_str(&arg_val);
+  String *swkb= args[0]->val_str(&arg_val);
   Geometry geom;
 
-  null_value = args[0]->null_value ||
-               geom.create_from_wkb(wkb->ptr(),wkb->length()) ||
-               !GEOM_METHOD_PRESENT(geom,centroid) ||
-               geom.centroid(str);
+  if ((null_value= args[0]->null_value ||
+		   geom.create_from_wkb(swkb->ptr() + SRID_SIZE,
+					swkb->length() - SRID_SIZE) ||
+		   !GEOM_METHOD_PRESENT(geom, centroid)))
+    return 0;
 
-  return null_value ? 0: str;
+  if (str->reserve(SRID_SIZE, 512))
+    return 0;
+  str->length(0);
+  uint32 srid= uint4korr(swkb->ptr());
+  str->q_append(srid);
+
+  return (null_value= geom.centroid(str)) ? 0 : str;
 }
 
 
@@ -2599,15 +2653,20 @@ String *Item_func_centroid::val_str(String *str)
 String *Item_func_spatial_decomp::val_str(String *str)
 {
   String arg_val;
-  String *wkb = args[0]->val_str(&arg_val);
+  String *swkb= args[0]->val_str(&arg_val);
   Geometry geom;
 
-  if ((null_value = (args[0]->null_value ||
-                     geom.create_from_wkb(wkb->ptr(),wkb->length()))))
+  if ((null_value= (args[0]->null_value ||
+		    geom.create_from_wkb(swkb->ptr() + SRID_SIZE,
+					 swkb->length() - SRID_SIZE))))
     return 0;
 
-  null_value=1;
+  null_value= 1;
+  if (str->reserve(SRID_SIZE, 512))
+    return 0;
   str->length(0);
+  uint32 srid= uint4korr(swkb->ptr());
+  str->q_append(srid);
   switch(decomp_func)
   {
     case SP_STARTPOINT:
@@ -2628,7 +2687,7 @@ String *Item_func_spatial_decomp::val_str(String *str)
     default:
       goto ret;
   }
-  null_value=0;
+  null_value= 0;
 
 ret:
   return null_value ? 0 : str;
@@ -2638,28 +2697,30 @@ ret:
 String *Item_func_spatial_decomp_n::val_str(String *str)
 {
   String arg_val;
-  String *wkb  =        args[0]->val_str(&arg_val);
-  long n       = (long) args[1]->val_int();
+  String *swkb= args[0]->val_str(&arg_val);
+  long n= (long) args[1]->val_int();
   Geometry geom;
 
-  if ((null_value = (args[0]->null_value ||
-                     args[1]->null_value ||
-                     geom.create_from_wkb(wkb->ptr(),wkb->length()) )))
+  if ((null_value= (args[0]->null_value || args[1]->null_value ||
+		    geom.create_from_wkb(swkb->ptr() + SRID_SIZE,
+					 swkb->length() - SRID_SIZE))))
     return 0;
 
-  null_value=1;
-
+  null_value= 1;
+  if (str->reserve(SRID_SIZE, 512))
+    return 0;
+  str->length(0);
+  uint32 srid= uint4korr(swkb->ptr());
+  str->q_append(srid);
   switch(decomp_func_n)
   {
     case SP_POINTN:
-      if (!GEOM_METHOD_PRESENT(geom,point_n) ||
-          geom.point_n(n,str))
+      if (!GEOM_METHOD_PRESENT(geom,point_n) || geom.point_n(n,str))
         goto ret;
       break;
 
     case SP_GEOMETRYN:
-      if (!GEOM_METHOD_PRESENT(geom,geometry_n) ||
-          geom.geometry_n(n,str))
+      if (!GEOM_METHOD_PRESENT(geom,geometry_n) || geom.geometry_n(n,str))
         goto ret;
       break;
 
@@ -2672,7 +2733,7 @@ String *Item_func_spatial_decomp_n::val_str(String *str)
     default:
       goto ret;
   }
-  null_value=0;
+  null_value= 0;
 
 ret:
   return null_value ? 0 : str;
@@ -2695,9 +2756,9 @@ String *Item_func_point::val_str(String *str)
   double x= args[0]->val();
   double y= args[1]->val();
 
-  if ( (null_value = (args[0]->null_value ||
-                     args[1]->null_value ||
-                     str->realloc(1+4+8+8))))
+  if ( (null_value= (args[0]->null_value ||
+		     args[1]->null_value ||
+		     str->realloc(1 + 4 + 8 + 8))))
     return 0;
 
   str->length(0);
@@ -2724,19 +2785,19 @@ String *Item_func_spatial_collection::val_str(String *str)
   String arg_value;
   uint i;
 
-  null_value=1;
+  null_value= 1;
 
   str->length(0);
-  if (str->reserve(9,512))
+  if (str->reserve(1 + 4 + 4, 512))
     return 0;
 
-  str->q_append((char)Geometry::wkbNDR);
-  str->q_append((uint32)coll_type);
-  str->q_append((uint32)arg_count);
+  str->q_append((char) Geometry::wkbNDR);
+  str->q_append((uint32) coll_type);
+  str->q_append((uint32) arg_count);
 
-  for (i = 0; i < arg_count; ++i)
+  for (i= 0; i < arg_count; ++i)
   {
-    String *res = args[i]->val_str(&arg_value);
+    String *res= args[i]->val_str(&arg_value);
     if (args[i]->null_value)
       goto ret;
 
@@ -2747,16 +2808,16 @@ String *Item_func_spatial_collection::val_str(String *str)
          any checkings for item types, so just copy them
          into target collection
       */
-      if ((null_value=(str->reserve(res->length(),512))))
+      if ((null_value= str->reserve(res->length(), 512)))
         goto ret;
 
-      str->q_append(res->ptr(),res->length());
+      str->q_append(res->ptr(), res->length());
     }
     else
     {
       enum Geometry::wkbType wkb_type;
       uint32 len=res->length();
-      const char *data=res->ptr()+1;
+      const char *data= res->ptr() + 1;
 
       /*
          In the case of named collection we must to
@@ -2767,8 +2828,8 @@ String *Item_func_spatial_collection::val_str(String *str)
       if (len < 5)
         goto ret;
       wkb_type= (Geometry::wkbType) uint4korr(data);
-      data+=4;
-      len-=5;
+      data+= 4;
+      len-= 5;
       if (wkb_type != item_type)
         goto ret;
 
@@ -2779,17 +2840,17 @@ String *Item_func_spatial_collection::val_str(String *str)
 	if (len < WKB_HEADER_SIZE)
 	  goto ret;
 
-	data-=WKB_HEADER_SIZE;
-	len+=WKB_HEADER_SIZE;
-	if (str->reserve(len,512))
+	data-= WKB_HEADER_SIZE;
+	len+= WKB_HEADER_SIZE;
+	if (str->reserve(len, 512))
 	  goto ret;
-	str->q_append(data,len);
+	str->q_append(data, len);
 	break;
 
       case Geometry::wkbLineString:
-	if (str->reserve(POINT_DATA_SIZE,512))
+	if (str->reserve(POINT_DATA_SIZE, 512))
 	  goto ret;
-	str->q_append(data,POINT_DATA_SIZE);
+	str->q_append(data, POINT_DATA_SIZE);
 	break;
 
       case Geometry::wkbPolygon:
@@ -2800,25 +2861,25 @@ String *Item_func_spatial_collection::val_str(String *str)
 	if (len < 4 + 2 * POINT_DATA_SIZE)
 	  goto ret;
 
-	uint32 llen=len;
-	const char *ldata=data;
+	uint32 llen= len;
+	const char *ldata= data;
 
-	n_points=uint4korr(data);
-	data+=4;
-	float8get(x1,data);
-	data+=8;
-	float8get(y1,data);
-	data+=8;
+	n_points= uint4korr(data);
+	data+= 4;
+	float8get(x1, data);
+	data+= 8;
+	float8get(y1, data);
+	data+= 8;
 
-	data+=(n_points-2) * POINT_DATA_SIZE;
+	data+= (n_points - 2) * POINT_DATA_SIZE;
 
-	float8get(x2,data);
-	float8get(y2,data+8);
+	float8get(x2, data);
+	float8get(y2, data + 8);
 
 	if ((x1 != x2) || (y1 != y2))
 	  goto ret;
 
-	if (str->reserve(llen,512))
+	if (str->reserve(llen, 512))
 	  goto ret;
 	str->q_append(ldata, llen);
       }

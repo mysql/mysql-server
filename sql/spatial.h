@@ -225,7 +225,6 @@ public:
     wkbNDR = 1     /* Little Endian */
   };                                    
 
-
   class GClassInfo
   {
   public:
