@@ -42,6 +42,7 @@ struct Opt {
   bool m_core;
   bool m_dbg;
   bool m_dbgall;
+  const char* m_dbug;
   bool m_full;
   unsigned m_loop;
   unsigned m_parts;
@@ -66,6 +67,7 @@ struct Opt {
     m_core(false),
     m_dbg(false),
     m_dbgall(false),
+    m_dbug(0),
     m_full(false),
     m_loop(1),
     m_parts(10),
@@ -100,6 +102,7 @@ printusage()
     << "  -core       dump core on error" << endl
     << "  -dbg        print debug" << endl
     << "  -dbgall     print also NDB API debug (if compiled in)" << endl
+    << "  -dbug opt   dbug options" << endl
     << "  -full       read/write only full blob values" << endl
     << "  -loop N     loop N times 0=forever [" << d.m_loop << "]" << endl
     << "  -parts N    max parts in blob value [" << d.m_parts << "]" << endl
@@ -1046,8 +1049,12 @@ writeIdx(int style)
     if (style == 0) {
       CHK(setBlobValue(tup) == 0);
     } else if (style == 1) {
+      // non-nullable must be set
+      CHK(g_bh1->setValue("", 0) == 0);
       CHK(setBlobWriteHook(tup) == 0);
     } else {
+      // non-nullable must be set
+      CHK(g_bh1->setValue("", 0) == 0);
       CHK(g_con->execute(NoCommit) == 0);
       CHK(writeBlobData(tup) == 0);
     }
@@ -1463,6 +1470,12 @@ NDB_COMMAND(testOdbcDriver, "testBlobs", "testBlobs", "testBlobs", 65535)
       putenv(strdup("NDB_BLOB_DEBUG=1"));
       continue;
     }
+    if (strcmp(arg, "-dbug") == 0) {
+      if (++argv, --argc > 0) {
+        g_opt.m_dbug = strdup(argv[0]);
+	continue;
+      }
+    }
     if (strcmp(arg, "-full") == 0) {
       g_opt.m_full = true;
       continue;
@@ -1532,6 +1545,9 @@ NDB_COMMAND(testOdbcDriver, "testBlobs", "testBlobs", "testBlobs", 65535)
     ndbout << "testOIBasic: unknown option " << arg << endl;
     printusage();
     return NDBT_ProgramExit(NDBT_WRONGARGS);
+  }
+  if (g_opt.m_dbug != 0) {
+    DBUG_PUSH(g_opt.m_dbug);
   }
   if (g_opt.m_pk2len == 0) {
     char b[100];

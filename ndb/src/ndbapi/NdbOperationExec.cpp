@@ -552,7 +552,7 @@ NdbOperation::receiveTCKEYREF( NdbApiSignal* aSignal)
     theNdbCon->theReturnStatus = NdbConnection::ReturnFailure;
 
   theError.code = aSignal->readData(4);
-  theNdbCon->setOperationErrorCodeAbort(aSignal->readData(4), ao);
+  theNdbCon->setOperationErrorCodeAbort(aSignal->readData(4), m_abortOption);
 
   if(theOperationType != ReadRequest || !theSimpleIndicator) // not simple read
     return theNdbCon->OpCompleteFailure(ao, m_abortOption != IgnoreError);

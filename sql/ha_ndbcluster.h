@@ -243,18 +243,19 @@ class ha_ndbcluster: public handler
   NdbValue m_value[NDB_MAX_ATTRIBUTES_IN_TABLE];
   bool m_use_write;
   bool m_ignore_dup_key_not_supported;
-  bool retrieve_all_fields;
-  ha_rows rows_to_insert;
-  ha_rows rows_inserted;
-  ha_rows bulk_insert_rows;
-  bool bulk_insert_not_flushed;
-  ha_rows ops_pending;
-  bool skip_auto_increment;
-  bool blobs_pending;
+  bool m_primary_key_update;
+  bool m_retrieve_all_fields;
+  ha_rows m_rows_to_insert;
+  ha_rows m_rows_inserted;
+  ha_rows m_bulk_insert_rows;
+  bool m_bulk_insert_not_flushed;
+  ha_rows m_ops_pending;
+  bool m_skip_auto_increment;
+  bool m_blobs_pending;
   // memory for blobs in one tuple
-  char *blobs_buffer;
-  uint32 blobs_buffer_size;
-  uint dupkey;
+  char *m_blobs_buffer;
+  uint32 m_blobs_buffer_size;
+  uint m_dupkey;
 
   void set_rec_per_key();
   void records_update();

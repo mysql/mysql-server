@@ -2340,6 +2340,7 @@ static user_var_entry *get_variable(HASH *hash, LEX_STRING &name,
     entry->value=0;
     entry->length=0;
     entry->update_query_id=0;
+    entry->collation.set(NULL, DERIVATION_NONE);
     /*
       If we are here, we were called from a SET or a query which sets a
       variable. Imagine it is this:
@@ -2381,7 +2382,24 @@ bool Item_func_set_user_var::fix_fields(THD *thd, TABLE_LIST *tables,
      is different from query_id).
   */
   entry->update_query_id= thd->query_id;
-  entry->collation.set(args[0]->collation);
+  /*
+    As it is wrong and confusing to associate any 
+    character set with NULL, @a should be latin2
+    after this query sequence:
+
+      SET @a=_latin2'string';
+      SET @a=NULL;
+
+    I.e. the second query should not change the charset
+    to the current default value, but should keep the 
+    original value assigned during the first query.
+    In order to do it, we don't copy charset
+    from the argument if the argument is NULL
+    and the variable has previously been initialized.
+  */
+  if (!entry->collation.collation || !args[0]->null_value)
+    entry->collation.set(args[0]->collation);
+  collation.set(entry->collation);
   cached_result_type= args[0]->result_type();
   return 0;
 }
@@ -2409,7 +2427,6 @@ bool Item_func_set_user_var::update_hash(void *ptr, uint length,
       my_free(entry->value,MYF(0));
     entry->value=0;
     entry->length=0;
-    entry->collation.set(cs, dv);
   }
   else
   {
