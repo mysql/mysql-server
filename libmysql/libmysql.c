@@ -85,6 +85,7 @@ my_bool	net_flush(NET *net);
 #define MAX_LONG_DATA_LENGTH 8192
 #define unsigned_field(A) ((A)->flags & UNSIGNED_FLAG)
 
+static void stmt_update_metadata(MYSQL_STMT *stmt, MYSQL_ROWS *data);
 static void append_wild(char *to,char *end,const char *wild);
 sig_handler pipe_sig_handler(int sig);
 static ulong mysql_sub_escape_string(CHARSET_INFO *charset_info, char *to,
@@ -3299,12 +3300,50 @@ static void fetch_result_str(MYSQL_BIND *param, uchar **row)
 
 
 /*
+  functions to calculate max lengths for strings during
+  mysql_stmt_store_result()
+*/
+
+static void skip_result_fixed(MYSQL_BIND *param,
+			      MYSQL_FIELD *field __attribute__((unused)),
+			      uchar **row)
+
+{
+  (*row)+= param->pack_length;
+}
+
+
+static void skip_result_with_length(MYSQL_BIND *param __attribute__((unused)),
+				    MYSQL_FIELD *field __attribute__((unused)),
+				    uchar **row)
+
+{
+  ulong length= net_field_length(row);
+  (*row)+= length;
+}
+
+
+static void skip_result_string(MYSQL_BIND *param __attribute__((unused)),
+			       MYSQL_FIELD *field,
+			       uchar **row)
+
+{
+  ulong length= net_field_length(row);
+  (*row)+= length;
+  if (field->max_length < length)
+    field->max_length= length;
+}
+
+
+
+/*
   Setup the bind buffers for resultset processing
 */
 
 my_bool STDCALL mysql_stmt_bind_result(MYSQL_STMT *stmt, MYSQL_BIND *bind)
 {
   MYSQL_BIND *param, *end;
+  MYSQL_FIELD *field;
   ulong       bind_count;
   uint        param_count= 0;
   DBUG_ENTER("mysql_stmt_bind_result");
@@ -3328,7 +3367,9 @@ my_bool STDCALL mysql_stmt_bind_result(MYSQL_STMT *stmt, MYSQL_BIND *bind)
   memcpy((char*) stmt->bind, (char*) bind,
 	 sizeof(MYSQL_BIND)*bind_count);
 
-  for (param= stmt->bind, end= param+bind_count; param < end ; param++)
+  for (param= stmt->bind, end= param + bind_count, field= stmt->fields ;
+       param < end ;
+       param++, field++)
   {
     /*
       Set param->is_null to point to a dummy variable if it's not set.
@@ -3346,15 +3387,18 @@ my_bool STDCALL mysql_stmt_bind_result(MYSQL_STMT *stmt, MYSQL_BIND *bind)
     /* Setup data copy functions for the different supported types */
     switch (param->buffer_type) {
     case MYSQL_TYPE_NULL: /* for dummy binds */
+      *param->length= 0;
       break;
     case MYSQL_TYPE_TINY:
       param->fetch_result= fetch_result_tinyint;
       *param->length= 1;
       break;
     case MYSQL_TYPE_SHORT:
+    case MYSQL_TYPE_YEAR:
       param->fetch_result= fetch_result_short;
       *param->length= 2;
       break;
+    case MYSQL_TYPE_INT24:
     case MYSQL_TYPE_LONG:
       param->fetch_result= fetch_result_int32;
       *param->length= 4;
@@ -3403,6 +3447,58 @@ my_bool STDCALL mysql_stmt_bind_result(MYSQL_STMT *stmt, MYSQL_BIND *bind)
 	      param->buffer_type, param_count);
       DBUG_RETURN(1);
     }
+
+    /* Setup skip_result functions (to calculate max_length) */
+    param->skip_result= skip_result_fixed;
+    switch (field->type) {
+    case MYSQL_TYPE_NULL: /* for dummy binds */
+      param->pack_length= 0;
+      break;
+    case MYSQL_TYPE_TINY:
+      param->pack_length= 1;
+      break;
+    case MYSQL_TYPE_YEAR:
+    case MYSQL_TYPE_SHORT:
+      param->pack_length= 2;
+      break;
+    case MYSQL_TYPE_INT24:
+    case MYSQL_TYPE_LONG:
+      param->pack_length= 4;
+      break;
+    case MYSQL_TYPE_LONGLONG:
+      param->pack_length= 8;
+      break;
+    case MYSQL_TYPE_FLOAT:
+      param->pack_length= 4;
+      break;
+    case MYSQL_TYPE_DOUBLE:
+      param->pack_length= 8;
+      break;
+    case MYSQL_TYPE_TIME:
+    case MYSQL_TYPE_DATE:
+    case MYSQL_TYPE_DATETIME:
+    case MYSQL_TYPE_TIMESTAMP:
+      param->skip_result= skip_result_with_length;
+      break;
+    case MYSQL_TYPE_DECIMAL:
+    case MYSQL_TYPE_ENUM:
+    case MYSQL_TYPE_SET:
+    case MYSQL_TYPE_GEOMETRY:
+    case MYSQL_TYPE_TINY_BLOB:
+    case MYSQL_TYPE_MEDIUM_BLOB:
+    case MYSQL_TYPE_LONG_BLOB:
+    case MYSQL_TYPE_BLOB:
+    case MYSQL_TYPE_VAR_STRING:
+    case MYSQL_TYPE_STRING:
+      param->skip_result= skip_result_string;
+      break;
+    default:
+      strmov(stmt->sqlstate, unknown_sqlstate);
+      sprintf(stmt->last_error,
+	      ER(stmt->last_errno= CR_UNSUPPORTED_PARAM_TYPE),
+	      field->type, param_count);
+      DBUG_RETURN(1);
+    }
   }
   stmt->bind_result_done= TRUE;
   DBUG_RETURN(0);
@@ -3416,7 +3512,7 @@ my_bool STDCALL mysql_stmt_bind_result(MYSQL_STMT *stmt, MYSQL_BIND *bind)
 static int stmt_fetch_row(MYSQL_STMT *stmt, uchar *row)
 {
   MYSQL_BIND  *bind, *end;
-  MYSQL_FIELD *field, *field_end;
+  MYSQL_FIELD *field;
   uchar *null_ptr, bit;
   /*
     Precondition: if stmt->field_count is zero or row is NULL, read_row_*
@@ -3436,10 +3532,8 @@ static int stmt_fetch_row(MYSQL_STMT *stmt, uchar *row)
   bit= 4;					/* first 2 bits are reserved */
   
   /* Copy complete row to application buffers */
-  for (bind= stmt->bind, end= (MYSQL_BIND *) bind + stmt->field_count, 
-	 field= stmt->fields, 
-	 field_end= (MYSQL_FIELD *)stmt->fields+stmt->field_count;
-       bind < end && field < field_end;
+  for (bind= stmt->bind, end= bind + stmt->field_count, field= stmt->fields ;
+       bind < end ;
        bind++, field++)
   {         
     if (*null_ptr & bit)
@@ -3462,6 +3556,7 @@ static int stmt_fetch_row(MYSQL_STMT *stmt, uchar *row)
   return 0;
 }
 
+
 int cli_unbuffered_fetch(MYSQL *mysql, char **row)
 {
   if (packet_error == net_safe_read(mysql))
@@ -3471,6 +3566,7 @@ int cli_unbuffered_fetch(MYSQL *mysql, char **row)
 	 (char*) (mysql->net.read_pos+1));
   return 0;
 }
+
 
 /*
   Fetch and return row data to bound buffers, if any
@@ -3569,6 +3665,28 @@ int cli_read_binary_rows(MYSQL_STMT *stmt)
 
   mysql= mysql->last_used_con;
 
+  if (!stmt->bind_result_done)
+  {
+    /*
+      We must initalize the bind structure to be able to calculate
+      max_length
+    */
+    MYSQL_BIND  *bind, *end;
+    MYSQL_FIELD *field;
+    bzero((char*) stmt->bind, sizeof(*stmt->bind)* stmt->field_count);
+
+    for (bind= stmt->bind, end= bind + stmt->field_count, field= stmt->fields;
+	 bind < end ;
+	 bind++, field++)
+    {
+      bind->buffer_type= field->type;
+      bind->buffer_length=1;
+    }
+
+    mysql_stmt_bind_result(stmt, stmt->bind);
+    stmt->bind_result_done= 0;			/* No normal bind done */
+  }
+
   while ((pkt_len= net_safe_read(mysql)) != packet_error)
   {
     cp= net->read_pos;
@@ -3578,13 +3696,15 @@ int cli_read_binary_rows(MYSQL_STMT *stmt)
                                           sizeof(MYSQL_ROWS) + pkt_len - 1)))
       {
         set_stmt_error(stmt, CR_OUT_OF_MEMORY, unknown_sqlstate);
-        DBUG_RETURN(1);
+        goto err;
       }
       cur->data= (MYSQL_ROW) (cur+1);
       *prev_ptr= cur;
       prev_ptr= &cur->next;
       memcpy((char *) cur->data, (char *) cp+1, pkt_len-1);
-      ++result->rows;
+      cur->length= pkt_len;		/* To allow us to do sanity checks */
+      result->rows++;
+      stmt_update_metadata(stmt, cur);
     }
     else
     {
@@ -3596,6 +3716,8 @@ int cli_read_binary_rows(MYSQL_STMT *stmt)
     }
   }
   set_stmt_errmsg(stmt, net->last_error, net->last_errno, net->sqlstate);
+
+err:
   DBUG_RETURN(1);
 }
 
@@ -3857,6 +3979,49 @@ const char *STDCALL mysql_stmt_error(MYSQL_STMT * stmt)
   DBUG_ENTER("mysql_stmt_error");
   DBUG_RETURN(stmt->last_error);
 }
+
+
+/*
+  Update meta data for statement
+
+  SYNOPSIS
+    stmt_update_metadata()
+    stmt			Statement handler
+    row				Binary data
+
+  NOTES
+    Only updates MYSQL_FIELD->max_length for strings
+
+*/
+
+static void stmt_update_metadata(MYSQL_STMT *stmt, MYSQL_ROWS *data)
+{
+  MYSQL_BIND  *bind, *end;
+  MYSQL_FIELD *field;
+  uchar *null_ptr, bit;
+  uchar *row= (uchar*) data->data;
+  uchar *row_end= row + data->length;
+
+  null_ptr= row; 
+  row+= (stmt->field_count+9)/8;		/* skip null bits */
+  bit= 4;					/* first 2 bits are reserved */
+  
+  /* Go throw all fields and calculate metadata */
+  for (bind= stmt->bind, end= bind + stmt->field_count, field= stmt->fields ;
+       bind < end ;
+       bind++, field++)
+  {
+    if (!(*null_ptr & bit))
+      (*bind->skip_result)(bind, field, &row);
+    DBUG_ASSERT(row <= row_end);
+    if (!((bit<<=1) & 255))
+    {
+      bit= 1;					/* To next byte */
+      null_ptr++;
+    }
+  }
+}
+
 
 /********************************************************************
  Transactional APIs
