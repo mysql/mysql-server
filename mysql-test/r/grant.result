@@ -248,6 +248,12 @@ GRANT SELECT ON `ab%`.* TO 'test11'@'localhost'
 GRANT SELECT ON `a%`.* TO 'test11'@'localhost'
 delete from mysql.user where user='test11';
 delete from mysql.db where user='test11';
+create database db6123;
+grant usage on db6123.* to test6123 identified by 'magic123';
+select host,db,user,select_priv,insert_priv from mysql.db where db="db6123";
+host	db	user	select_priv	insert_priv
+delete from mysql.user where user='test6123';
+drop database db6123;
 USE test;
 CREATE TABLE t1 (a int );
 CREATE TABLE t2 LIKE t1;
