@@ -249,14 +249,66 @@ typedef struct xid_t XID;
 #define MIN_XID_LIST_SIZE  128
 #define MAX_XID_LIST_SIZE  (1024*128)
 
+/*
+  handlerton is a singleton structure - one instance per storage engine -
+  to provide access to storage engine functionality that works on
+  "global" level (unlike handler class that works on per-table basis)
+
+  usually handlerton instance is defined statically in ha_xxx.cc as
+
+  static handlerton { ... } xxx_hton;
+
+  savepoint_*, prepare, recover, and *_by_xid pointers can be 0.
+*/
 typedef struct
 {
+  /*
+    each storage engine has it's own memory area (actually a pointer)
+    in the thd, for storing per-connection information.
+    It is accessed as
+
+      thd->ha_data[xxx_hton.slot]
+
+   slot number is initialized by MySQL after xxx_init() is called.
+   */
    uint slot;
+   /*
+     to store per-savepoint data storage engine is provided with an area
+     of a requested size (0 is ok here).
+     savepoint_offset must be initialized statically to the size of
+     the needed memory to store per-savepoint information.
+     After xxx_init it is changed to be an offset to savepoint storage
+     area and need not be used by storage engine.
+     see binlog_hton and binlog_savepoint_set/rollback for an example.
+   */
    uint savepoint_offset;
+   /*
+     handlerton methods:
+
+     close_connection is only called if
+     thd->ha_data[xxx_hton.slot] is non-zero, so even if you don't need
+     this storage area - set it to something, so that MySQL would know
+     this storage engine was accessed in this connection
+   */
    int  (*close_connection)(THD *thd);
+   /*
+     sv points to an uninitialized storage area of requested size
+     (see savepoint_offset description)
+   */
    int  (*savepoint_set)(THD *thd, void *sv);
+   /*
+     sv points to a storage area, that was earlier passed
+     to the savepoint_set call
+   */
    int  (*savepoint_rollback)(THD *thd, void *sv);
    int  (*savepoint_release)(THD *thd, void *sv);
+   /*
+     'all' is true if it's a real commit, that makes persistent changes
+     'all' is false if it's not in fact a commit but an end of the
+     statement that is part of the transaction.
+     NOTE 'all' is also false in auto-commit mode where 'end of statement'
+     and 'real commit' mean the same event.
+   */
    int  (*commit)(THD *thd, bool all);
    int  (*rollback)(THD *thd, bool all);
    int  (*prepare)(THD *thd, bool all);
