@@ -106,6 +106,14 @@ int main()
     exit(-1);
   }
 
+  const NdbDictionary::Dictionary* myDict= myNdb->getDictionary();
+  const NdbDictionary::Table *myTable= myDict->getTable("MYTABLENAME");
+  if (myTable == NULL)
+    APIERROR(myDict->getNdbError());
+  const NdbDictionary::Index *myIndex= myDict->getIndex("MYINDEXNAME","MYTABLENAME");
+  if (myIndex == NULL)
+    APIERROR(myDict->getNdbError());
+
   /**************************************************************************
    * Using 5 transactions, insert 10 tuples in table: (0,0),(1,1),...,(9,9) *
    **************************************************************************/
@@ -113,14 +121,14 @@ int main()
     NdbTransaction *myTransaction= myNdb->startTransaction();
     if (myTransaction == NULL) APIERROR(myNdb->getNdbError());
     
-    NdbOperation *myOperation= myTransaction->getNdbOperation("MYTABLENAME");
+    NdbOperation *myOperation= myTransaction->getNdbOperation(myTable);
     if (myOperation == NULL) APIERROR(myTransaction->getNdbError());
     
     myOperation->insertTuple();
     myOperation->equal("ATTR1", i);
     myOperation->setValue("ATTR2", i);
 
-    myOperation = myTransaction->getNdbOperation("MYTABLENAME");	
+    myOperation = myTransaction->getNdbOperation(myTable);	
     if (myOperation == NULL) APIERROR(myTransaction->getNdbError());
 
     myOperation->insertTuple();
@@ -143,7 +151,7 @@ int main()
     if (myTransaction == NULL) APIERROR(myNdb->getNdbError());
     
     NdbIndexOperation *myIndexOperation=
-      myTransaction->getNdbIndexOperation("MYINDEXNAME","MYTABLENAME");
+      myTransaction->getNdbIndexOperation(myIndex);
     if (myIndexOperation == NULL) APIERROR(myTransaction->getNdbError());
     
     myIndexOperation->readTuple(NdbOperation::LM_Read);
@@ -166,7 +174,7 @@ int main()
     if (myTransaction == NULL) APIERROR(myNdb->getNdbError());
     
     NdbIndexOperation *myIndexOperation=
-      myTransaction->getNdbIndexOperation("MYINDEXNAME", "MYTABLENAME");
+      myTransaction->getNdbIndexOperation(myIndex);
     if (myIndexOperation == NULL) APIERROR(myTransaction->getNdbError());
     
     myIndexOperation->updateTuple();
@@ -187,7 +195,7 @@ int main()
     if (myTransaction == NULL) APIERROR(myNdb->getNdbError());
   
     NdbIndexOperation *myIndexOperation=
-      myTransaction->getNdbIndexOperation("MYINDEXNAME", "MYTABLENAME");
+      myTransaction->getNdbIndexOperation(myIndex);
     if (myIndexOperation == NULL) APIERROR(myTransaction->getNdbError());
   
     myIndexOperation->deleteTuple();
@@ -209,7 +217,7 @@ int main()
       NdbTransaction *myTransaction= myNdb->startTransaction();
       if (myTransaction == NULL) APIERROR(myNdb->getNdbError());
       
-      NdbOperation *myOperation= myTransaction->getNdbOperation("MYTABLENAME");
+      NdbOperation *myOperation= myTransaction->getNdbOperation(myTable);
       if (myOperation == NULL) APIERROR(myTransaction->getNdbError());
     
       myOperation->readTuple(NdbOperation::LM_Read);
