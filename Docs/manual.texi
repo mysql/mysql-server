@@ -36790,12 +36790,19 @@ In the source distribution of MySQL, InnoDB appears as a subdirectory.
 @node InnoDB start, InnoDB init, InnoDB overview, InnoDB
 @subsection InnoDB Startup Options
 
-To use InnoDB tables you @strong{MUST} specify configuration parameters
+To use InnoDB tables in MySQL-Max-3.23
+you @strong{MUST} specify configuration parameters
 in the MySQL configuration file in the @code{[mysqld]} section of
 the configuration file @file{my.cnf}. @xref{Option files}.
 
-The only required parameter to use InnoDB is @code{innodb_data_file_path},
-but you should set others if you want to get a better performance.
+The only required parameter to use InnoDB in MySQL-Max-3.23
+is @code{innodb_data_file_path}.
+In MySQL-4.0 you do not need to specify even
+@code{innodb_data_file_path}. The default is to create a 64 MB
+data file @file{ibdata1} to the @code{datadir} of MySQL.
+
+But to get good performance you MUST explicitly set the InnoDB parameters
+listed below in examples.
 
 The default value for @code{innodb_data_home_dir} is the @code{datadir}
 of MySQL. If you do not specify @code{innodb_data_home_dir}, then
@@ -36841,9 +36848,9 @@ some file systems! The total size of data files has
 to be >= 10 MB. The combined size of log files MUST be < 4G
 in 32-bit computers.
 
-InnoDB does not create directories:
-you have to create them yourself.
-Check that the MySQL server
+@strong{InnoDB does not create directories:
+you have to create them yourself.}
+Check also that the MySQL server
 has the rights to create files in the directories you specify.
  
 When you the first time create an InnoDB database, it
@@ -36914,6 +36921,7 @@ The meanings of the configuration parameters are the following:
 @item @strong{Option} @tab @strong{Description}
 @item @code{innodb_data_home_dir} @tab 
 The common part of the directory path for all InnoDB data files.
+The default for this parameter is the @code{datadir} of MySQL.
 @item @code{innodb_data_file_path} @tab 
 Paths to individual data files and their sizes. The full directory path
 to each data file is acquired by concatenating innodb_data_home_dir to
