@@ -82,7 +82,8 @@ class ha_innobase: public handler
 			  HA_PRIMARY_KEY_IN_READ_INDEX |
 			  HA_DROP_BEFORE_CREATE |
 			  HA_NO_PREFIX_CHAR_KEYS |
-			  HA_TABLE_SCAN_ON_INDEX),
+			  HA_TABLE_SCAN_ON_INDEX | 
+			  HA_NOT_MULTI_UPDATE),
 	  last_dup_key((uint) -1),
 	  start_of_scan(0)
   	{
@@ -209,3 +210,4 @@ int innodb_show_status(THD* thd);
 
 my_bool innobase_query_caching_of_table_permitted(THD* thd, char* full_name,
 						uint full_name_len);
+void innobase_release_temporary_latches(void* innobase_tid);

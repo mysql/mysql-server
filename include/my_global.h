@@ -286,6 +286,7 @@ C_MODE_END
 #define CONFIG_SMP
 #include <asm/atomic.h>
 #endif
+#include <errno.h>				/* Recommended by debian */
 
 /* Go around some bugs in different OS and compilers */
 #if defined(_HPUX_SOURCE) && defined(HAVE_SYS_STREAM_H)

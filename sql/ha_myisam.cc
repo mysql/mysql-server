@@ -420,7 +420,7 @@ int ha_myisam::restore(THD* thd, HA_CHECK_OPT *check_opt)
     param.db_name    = table->table_cache_key;
     param.table_name = table->table_name;
     param.testflag = 0;
-    mi_check_print_error(&param,errmsg, my_errno);
+    mi_check_print_error(&param, errmsg, my_errno);
     DBUG_RETURN(error);
   }
 }
@@ -438,17 +438,17 @@ int ha_myisam::backup(THD* thd, HA_CHECK_OPT *check_opt)
   if (fn_format_relative_to_data_home(dst_path, table_name, backup_dir,
 				      reg_ext))
   {
-    errmsg = "Failed in fn_format() for .frm file: errno = %d";
+    errmsg = "Failed in fn_format() for .frm file (errno: %d)";
     error = HA_ADMIN_INVALID;
     goto err;
   }
 
   if (my_copy(fn_format(src_path, table->path,"", reg_ext, MY_UNPACK_FILENAME),
 	      dst_path,
-	      MYF(MY_WME | MY_HOLD_ORIGINAL_MODES)))
+	      MYF(MY_WME | MY_HOLD_ORIGINAL_MODES | MY_DONT_OVERWRITE_FILE)))
   {
     error = HA_ADMIN_FAILED;
-    errmsg = "Failed copying .frm file: errno = %d";
+    errmsg = "Failed copying .frm file (errno: %d)";
     goto err;
   }
 
@@ -456,7 +456,7 @@ int ha_myisam::backup(THD* thd, HA_CHECK_OPT *check_opt)
   if (!fn_format(dst_path, dst_path, "", MI_NAME_DEXT,
 		 MY_REPLACE_EXT | MY_UNPACK_FILENAME | MY_SAFE_PATH))
   {
-    errmsg = "Failed in fn_format() for .MYD file: errno = %d";
+    errmsg = "Failed in fn_format() for .MYD file (errno: %d)";
     error = HA_ADMIN_INVALID;
     goto err;
   }
@@ -464,9 +464,9 @@ int ha_myisam::backup(THD* thd, HA_CHECK_OPT *check_opt)
   if (my_copy(fn_format(src_path, table->path,"", MI_NAME_DEXT,
 			MY_UNPACK_FILENAME),
 	      dst_path,
-	      MYF(MY_WME | MY_HOLD_ORIGINAL_MODES)))
+	      MYF(MY_WME | MY_HOLD_ORIGINAL_MODES | MY_DONT_OVERWRITE_FILE)))
   {
-    errmsg = "Failed copying .MYD file: errno = %d";
+    errmsg = "Failed copying .MYD file (errno: %d)";
     error= HA_ADMIN_FAILED;
     goto err;
   }
@@ -1034,7 +1034,7 @@ int ha_myisam::create(const char *name, register TABLE *table_arg,
 {
   int error;
   uint i,j,recpos,minpos,fieldpos,temp_length,length;
-  bool found_auto_increment=0;
+  bool found_real_auto_increment=0;
   enum ha_base_keytype type;
   char buff[FN_REFLEN];
   KEY *pos;
@@ -1107,12 +1107,6 @@ int ha_myisam::create(const char *name, register TABLE *table_arg,
 	keydef[i].seg[j].null_bit=0;
 	keydef[i].seg[j].null_pos=0;
       }
-      if (j == 0 && field->flags & AUTO_INCREMENT_FLAG &&
-	  !found_auto_increment)
-      {
-	keydef[i].flag|=HA_AUTO_KEY;
-	found_auto_increment=1;
-      }
       if ((field->type() == FIELD_TYPE_BLOB) || (field->type() == FIELD_TYPE_GEOMETRY))
       {
 	keydef[i].seg[j].flag|=HA_BLOB_PART;
@@ -1122,6 +1116,12 @@ int ha_myisam::create(const char *name, register TABLE *table_arg,
       }
     }
     keyseg+=pos->key_parts;
+  }
+
+  if (table_arg->found_next_number_field)
+  {
+    keydef[table_arg->next_number_index].flag|= HA_AUTO_KEY;
+    found_real_auto_increment= table_arg->next_number_key_offset == 0;
   }
 
   recpos=0; recinfo_pos=recinfo;
@@ -1193,6 +1193,7 @@ int ha_myisam::create(const char *name, register TABLE *table_arg,
   bzero((char*) &create_info,sizeof(create_info));
   create_info.max_rows=table_arg->max_rows;
   create_info.reloc_rows=table_arg->min_rows;
+  create_info.with_auto_increment=found_real_auto_increment;
   create_info.auto_increment=(info->auto_increment_value ?
 			      info->auto_increment_value -1 :
 			      (ulonglong) 0);

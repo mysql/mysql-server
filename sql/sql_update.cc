@@ -565,12 +565,13 @@ multi_update::initialize_tables(JOIN *join)
   main_table=join->join_tab->table;
   trans_safe= transactional_tables= main_table->file->has_transactions();
   log_delayed= trans_safe || main_table->tmp_table != NO_TMP_TABLE;
-
+  table_to_update= (main_table->file->table_flags() & HA_NOT_MULTI_UPDATE) ? 
+    (TABLE *) 0 : main_table;
   /* Create a temporary table for all tables after except main table */
   for (table_ref= update_tables; table_ref; table_ref=table_ref->next)
   {
     TABLE *table=table_ref->table;
-    if (table != main_table)
+    if (table != table_to_update)
     {
       uint cnt= table_ref->shared;
       ORDER     group;
@@ -645,13 +646,24 @@ bool multi_update::send_data(List<Item> &not_used_values)
   for (cur_table= update_tables; cur_table ; cur_table= cur_table->next)
   {
     TABLE *table= cur_table->table;
-    /* Check if we are using outer join and we didn't find the row */
+    /*
+      Check if we are using outer join and we didn't find the row
+      or if we have already updated this row in the previous call to this
+      function.
+
+      The same row may be presented here several times in a join of type
+      UPDATE t1 FROM t1,t2 SET t1.a=t2.a
+
+      In this case we will do the update for the first found row combination.
+      The join algorithm guarantees that we will not find the a row in
+      t1 several times.
+    */
     if (table->status & (STATUS_NULL_ROW | STATUS_UPDATED))
       continue;
 
     uint offset= cur_table->shared;
     table->file->position(table->record[0]);
-    if (table == main_table)
+    if (table == table_to_update)
     {
       table->status|= STATUS_UPDATED;
       store_record(table,1);
@@ -745,7 +757,7 @@ int multi_update::do_updates(bool from_send_error)
   for (cur_table= update_tables; cur_table ; cur_table= cur_table->next)
   {
     table = cur_table->table;
-    if (table == main_table)
+    if (table == table_to_update)
       continue;					// Already updated
 
     org_updated= updated;

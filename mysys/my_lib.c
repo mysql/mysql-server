@@ -103,7 +103,7 @@ MY_DIR	*my_dir(const char *path, myf MyFlags)
   char	dirent_tmp[sizeof(struct dirent)+_POSIX_PATH_MAX+1];
 #endif
   DBUG_ENTER("my_dir");
-  DBUG_PRINT("my",("path: '%s' stat: %d  MyFlags: %d",path,MyFlags));
+  DBUG_PRINT("my",("path: '%s' MyFlags: %d",path,MyFlags));
 
 #if defined(THREAD) && !defined(HAVE_READDIR_R)
   pthread_mutex_lock(&THR_LOCK_open);

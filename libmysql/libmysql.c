@@ -192,9 +192,10 @@ my_bool my_connect(my_socket s, const struct sockaddr *name,
   struct timeval tv;
   time_t start_time, now_time;
 
-  /* If they passed us a timeout of zero, we should behave
-   * exactly like the normal connect() call does.
-   */
+  /*
+    If they passed us a timeout of zero, we should behave
+    exactly like the normal connect() call does.
+  */
 
   if (timeout == 0)
     return connect(s, (struct sockaddr*) name, namelen) != 0;
@@ -247,12 +248,14 @@ my_bool my_connect(my_socket s, const struct sockaddr *name,
     tv.tv_sec = (long) timeout;
     tv.tv_usec = 0;
 #if defined(HPUX10) && defined(THREAD)
-    if ((res = select(s+1, NULL, (int*) &sfds, NULL, &tv)) >= 0)
+    if ((res = select(s+1, NULL, (int*) &sfds, NULL, &tv)) > 0)
       break;
 #else
-    if ((res = select(s+1, NULL, &sfds, NULL, &tv)) >= 0)
+    if ((res = select(s+1, NULL, &sfds, NULL, &tv)) > 0)
       break;
 #endif
+    if (res == 0)					/* timeout */
+      return -1;
     now_time=time(NULL);
     timeout-= (uint) (now_time - start_time);
     if (errno != EINTR || (int) timeout <= 0)
@@ -274,7 +277,8 @@ my_bool my_connect(my_socket s, const struct sockaddr *name,
     errno = s_err;
     return(1);					/* but return an error... */
   }
-  return(0);					/* It's all good! */
+  return (0);					/* ok */
+
 #endif
 }
 

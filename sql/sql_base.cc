@@ -1239,25 +1239,44 @@ bool drop_locked_tables(THD *thd,const char *db, const char *table_name)
 }
 
 
-/* lock table to force abort of any threads trying to use table */
+/*
+  If we have the table open, which only happens when a LOCK TABLE has been
+  done on the table, change the lock type to a lock that will abort all
+  other threads trying to get the lock.
+*/
 
 void abort_locked_tables(THD *thd,const char *db, const char *table_name)
 {
   TABLE *table;
-  for (table=thd->open_tables; table ; table=table->next)
+  for (table= thd->open_tables; table ; table= table->next)
   {
     if (!strcmp(table->real_name,table_name) &&
 	!strcmp(table->table_cache_key,db))
+    {
       mysql_lock_abort(thd,table);
+      break;
+    }
   }
 }
 
-/****************************************************************************
-**	open_unireg_entry
-**	Purpose : Load a table definition from file and open unireg table
-**	Args	: entry with DB and table given
-**	Returns : 0 if ok
-**	Note that the extra argument for open is taken from thd->open_options
+
+/*
+  Load a table definition from file and open unireg table
+
+  SYNOPSIS
+    open_unireg_entry()
+    thd			Thread handle
+    entry		Store open table definition here
+    db			Database name
+    name		Table name
+    alias		Alias name
+
+  NOTES
+   Extra argument for open is taken from thd->open_options
+
+  RETURN
+    0	ok
+    #	Error
 */
 
 static int open_unireg_entry(THD *thd, TABLE *entry, const char *db,
@@ -1677,8 +1696,7 @@ Field *find_field_in_table(THD *thd,TABLE *table,const char *name,uint length,
     else
       thd->dupp_field=field;
   }
-  if (check_grants && !thd->master_access &&
-      check_grant_column(thd,table,name,length))
+  if (check_grants  && check_grant_column(thd,table,name,length))
     return WRONG_GRANT;
   return field;
 }
@@ -1728,7 +1746,9 @@ find_field_in_tables(THD *thd, Item_ident *item, TABLE_LIST *tables,
       {
 	found_table=1;
 	Field *find=find_field_in_table(thd,tables->table,name,length,
-					grant_option && !thd->master_access,1);
+					grant_option && 
+					tables->table->grant.want_privilege,
+					1);
 	if (find)
 	{
 	  (*where)= tables;
@@ -1785,7 +1805,8 @@ find_field_in_tables(THD *thd, Item_ident *item, TABLE_LIST *tables,
 
     Field *field=find_field_in_table(thd,tables->table,name,length,
 				     grant_option &&
-				     !thd->master_access, allow_rowid);
+				     tables->table->grant.want_privilege,
+				     allow_rowid);
     if (field)
     {
       if (field == WRONG_GRANT)
@@ -2399,6 +2420,17 @@ bool remove_table_from_cache(THD *thd, const char *db, const char *table_name,
 	  pthread_mutex_unlock(in_use->mysys_var->current_mutex);
 	}
 	pthread_mutex_unlock(&in_use->mysys_var->mutex);
+      }
+      /*
+	Now we must abort all tables locks used by this thread
+	as the thread may be waiting to get a lock for another table
+      */
+      for (TABLE *thd_table= in_use->open_tables;
+	   thd_table ;
+	   thd_table= thd_table->next)
+      {
+	if (thd_table->db_stat)			// If table is open
+	  mysql_lock_abort_for_thread(thd, thd_table);
       }
     }
     else

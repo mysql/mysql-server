@@ -194,6 +194,7 @@ sys_var_thd_ulong	sys_net_write_timeout("net_write_timeout",
 sys_var_thd_ulong	sys_net_retry_count("net_retry_count",
 					    &SV::net_retry_count,
 					    fix_net_retry_count);
+sys_var_thd_bool	sys_new_mode("new", &SV::new_mode);
 sys_var_thd_ulong	sys_read_buff_size("read_buffer_size",
 					   &SV::read_buff_size);
 sys_var_thd_ulong	sys_read_rnd_buff_size("read_rnd_buffer_size",
@@ -383,6 +384,7 @@ sys_var *sys_variables[]=
   &sys_net_retry_count,
   &sys_net_wait_timeout,
   &sys_net_write_timeout,
+  &sys_new_mode,
   &sys_pseudo_thread_id,
   &sys_query_cache_size,
 #ifdef HAVE_QUERY_CACHE
@@ -539,6 +541,7 @@ struct show_var_st init_vars[]= {
   {sys_net_read_timeout.name, (char*) &sys_net_read_timeout,        SHOW_SYS},
   {sys_net_retry_count.name,  (char*) &sys_net_retry_count,	    SHOW_SYS},
   {sys_net_write_timeout.name,(char*) &sys_net_write_timeout,       SHOW_SYS},
+  {sys_new_mode.name,         (char*) &sys_new_mode,                SHOW_SYS},
   {"open_files_limit",	      (char*) &open_files_limit,	    SHOW_LONG},
   {"pid_file",                (char*) pidfile_name,                 SHOW_CHAR},
   {"log_error",               (char*) log_error_file,               SHOW_CHAR},

@@ -31,7 +31,7 @@ n
 2
 select sum(length(word)) from t1;
 sum(length(word))
-1021
+1022
 drop table t1,t3;
 reset master;
 stop slave;

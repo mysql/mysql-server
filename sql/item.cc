@@ -257,6 +257,17 @@ bool Item_field::get_date(TIME *ltime,bool fuzzydate)
   return 0;
 }
 
+bool Item_field::get_date_result(TIME *ltime,bool fuzzydate)
+{
+  if ((null_value=result_field->is_null()) ||
+      result_field->get_date(ltime,fuzzydate))
+  {
+    bzero((char*) ltime,sizeof(*ltime));
+    return 1;
+  }
+  return 0;
+}
+
 bool Item_field::get_time(TIME *ltime)
 {
   if ((null_value=field->is_null()) || field->get_time(ltime))

@@ -1,93 +1,95 @@
 drop table if exists t1;
-create table t1 (a char (20) not null, b int not null auto_increment, index (a,b),index(b));
+create table t1 (a char (20) not null, b int not null auto_increment, index (a,b));
 insert into t1 (a) values ('ä'),('ac'),('ae'),('ad'),('Äc'),('aeb');
 insert into t1 (a) values ('üc'),('uc'),('ue'),('ud'),('Ü'),('ueb'),('uf');
 insert into t1 (a) values ('ö'),('oc'),('Öa'),('oe'),('od'),('Öc'),('oeb');
 insert into t1 (a) values ('s'),('ss'),('ß'),('ßb'),('ssa'),('ssc'),('ßa');
 insert into t1 (a) values ('eä'),('uü'),('öo'),('ää'),('ääa'),('aeae');
-insert into t1 (a) values ('q'),('a'),('u'),('o'),('é'),('É');
+insert into t1 (a) values ('q'),('a'),('u'),('o'),('é'),('É'),('a');
 select a,b from t1 order by a,b;
 a	b
-a	35
-ac	2
-ad	4
+a	1
+a	2
+ac	1
+ad	1
 ä	1
-ae	3
-ää	31
-aeae	33
-ääa	32
-aeb	6
-Äc	5
-é	38
-É	39
-eä	28
-o	37
-oc	15
-od	18
-ö	14
-oe	17
-Öa	16
-oeb	20
-Öc	19
-öo	30
-q	34
-s	21
-ss	22
-ß	23
-ssa	25
-ßa	27
-ßb	24
-ssc	26
-u	36
-uc	8
-ud	10
-ue	9
-Ü	11
-ueb	12
-üc	7
-uf	13
-uü	29
+ae	2
+ää	1
+aeae	2
+ääa	1
+aeb	1
+Äc	1
+é	1
+É	2
+eä	1
+o	1
+oc	1
+od	1
+ö	1
+oe	2
+Öa	1
+oeb	1
+Öc	1
+öo	1
+q	1
+s	1
+ss	1
+ß	2
+ssa	1
+ßa	2
+ßb	1
+ssc	1
+u	1
+uc	1
+ud	1
+ue	1
+Ü	2
+ueb	1
+üc	1
+uf	1
+uü	1
 select a,b from t1 order by upper(a),b;
 a	b
-a	35
-ac	2
-ad	4
+a	1
+a	2
+ac	1
+ad	1
 ä	1
-ae	3
-ää	31
-aeae	33
-ääa	32
-aeb	6
-Äc	5
-é	38
-É	39
-eä	28
-o	37
-oc	15
-od	18
-ö	14
-oe	17
-Öa	16
-oeb	20
-Öc	19
-öo	30
-q	34
-s	21
-ss	22
-ß	23
-ssa	25
-ßa	27
-ßb	24
-ssc	26
-u	36
-uc	8
-ud	10
-ue	9
-Ü	11
-ueb	12
-üc	7
-uf	13
-uü	29
+ae	2
+ää	1
+aeae	2
+ääa	1
+aeb	1
+Äc	1
+é	1
+É	2
+eä	1
+o	1
+oc	1
+od	1
+ö	1
+oe	2
+Öa	1
+oeb	1
+Öc	1
+öo	1
+q	1
+s	1
+ss	1
+ß	2
+ssa	1
+ßa	2
+ßb	1
+ssc	1
+u	1
+uc	1
+ud	1
+ue	1
+Ü	2
+ueb	1
+üc	1
+uf	1
+uü	1
 select a from t1 order by a desc;
 a
 uü
@@ -129,44 +131,46 @@ ae
 ad
 ac
 a
+a
 check table t1;
 Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
 select * from t1 where a like "ö%";
 a	b
-ö	14
-Öa	16
-Öc	19
-öo	30
+ö	1
+Öa	1
+Öc	1
+öo	1
 select * from t1 where a like binary "%É%";
 a	b
-É	39
+É	2
 select * from t1 where a like "%Á%";
 a	b
-a	35
-ac	2
-ad	4
-ae	3
-aeae	33
-ääa	32
-aeb	6
-Öa	16
-ssa	25
-ßa	27
+a	1
+a	2
+ac	1
+ad	1
+ae	2
+aeae	2
+ääa	1
+aeb	1
+Öa	1
+ssa	1
+ßa	2
 select * from t1 where a like "%U%";
 a	b
-u	36
-uc	8
-ud	10
-ue	9
-ueb	12
-uf	13
-uü	29
+u	1
+uc	1
+ud	1
+ue	1
+ueb	1
+uf	1
+uü	1
 select * from t1 where a like "%ss%";
 a	b
-ss	22
-ssa	25
-ssc	26
+ss	1
+ssa	1
+ssc	1
 drop table t1;
 select strcmp('ä','ae'),strcmp('ae','ä'),strcmp('aeq','äq'),strcmp('äq','aeq');
 strcmp('ä','ae')	strcmp('ae','ä')	strcmp('aeq','äq')	strcmp('äq','aeq')

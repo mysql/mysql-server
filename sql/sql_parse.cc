@@ -550,7 +550,7 @@ check_connections(THD *thd)
   {
     char ip[30];
 
-    if (vio_peer_addr(net->vio,ip))
+    if (vio_peer_addr(net->vio, ip, &thd->peer_port))
       return (ER_BAD_HOST_ERROR);
     if (!(thd->ip = my_strdup(ip,MYF(0))))
       return (ER_OUT_OF_RESOURCES);
@@ -582,8 +582,9 @@ check_connections(THD *thd)
   else /* Hostname given means that the connection was on a socket */
   {
     DBUG_PRINT("info",("Host: %s",thd->host));
-    thd->host_or_ip=thd->host;
-    thd->ip=0;
+    thd->host_or_ip= thd->host;
+    thd->ip= 0;
+    thd->peer_port= 0;
     bzero((char*) &thd->remote,sizeof(struct sockaddr));
   }
   /* Ensure that wrong hostnames doesn't cause buffer overflows */
@@ -1959,6 +1960,7 @@ mysql_execute_command(THD *thd)
 	if (check_table_access(thd, SELECT_ACL, tables->next))
 	  goto error;				// Error message is given
       }
+      select_lex->options|= SELECT_NO_UNLOCK;
       unit->offset_limit_cnt= select_lex->offset_limit;
       unit->select_limit_cnt= select_lex->select_limit+
 	select_lex->offset_limit;
@@ -2216,8 +2218,14 @@ mysql_execute_command(THD *thd)
     break;
   }
   case SQLCOM_UPDATE:
-    if (check_access(thd,UPDATE_ACL,tables->db,&tables->grant.privilege))
+    TABLE_LIST *table;
+    if (check_db_used(thd,tables))
       goto error;
+    for (table=tables ; table ; table=table->next)
+    {
+      if (check_access(thd,UPDATE_ACL,table->db,&table->grant.privilege))
+	goto error;
+    }
     if (grant_option && check_grant(thd,UPDATE_ACL,tables))
       goto error;
     if (select_lex->item_list.elements != lex->value_list.elements)
@@ -2310,6 +2318,8 @@ mysql_execute_command(THD *thd)
       if ((res=check_table_access(thd, SELECT_ACL, save_next)))
 	goto error;
     }
+    /* Don't unlock tables until command is written to binary log */
+    select_lex->options|= SELECT_NO_UNLOCK;
 
     select_result *result;
     unit->offset_limit_cnt= select_lex->offset_limit;
@@ -2341,6 +2351,8 @@ mysql_execute_command(THD *thd)
   case SQLCOM_TRUNCATE:
     if (check_access(thd,DELETE_ACL,tables->db,&tables->grant.privilege))
       goto error; /* purecov: inspected */
+    if (grant_option && check_grant(thd,DELETE_ACL,tables))
+      goto error;
     /*
       Don't allow this within a transaction because we want to use
       re-generate table
@@ -3793,9 +3805,7 @@ TABLE_LIST *st_select_lex::add_table_to_list(THD *thd,
   if (!table)
     DBUG_RETURN(0);				// End of memory
   alias_str= alias ? alias->str : table->table.str;
-  if (table->table.length > NAME_LEN ||
-      (table->table.length &&
-       check_table_name(table->table.str,table->table.length)) ||
+  if (check_table_name(table->table.str,table->table.length) ||
       table->db.str && check_db_name(table->db.str))
   {
     net_printf(thd,ER_WRONG_TABLE_NAME,table->table.str);

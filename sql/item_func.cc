@@ -791,20 +791,28 @@ double Item_func_round::val()
   double value=args[0]->val();
   int dec=(int) args[1]->val_int();
   uint abs_dec=abs(dec);
+  double tmp;
+  /*
+    tmp2 is here to avoid return the value with 80 bit precision
+    This will fix that the test round(0.1,1) = round(0.1,1) is true
+  */
+  volatile double tmp2;
 
   if ((null_value=args[0]->null_value || args[1]->null_value))
     return 0.0;
-  double tmp=(abs_dec < array_elements(log_10) ?
-	      log_10[abs_dec] : pow(10.0,(double) abs_dec));
+  tmp=(abs_dec < array_elements(log_10) ?
+       log_10[abs_dec] : pow(10.0,(double) abs_dec));
 
   if (truncate)
   {
     if (value >= 0)
-      return dec < 0 ? floor(value/tmp)*tmp : floor(value*tmp)/tmp;
+      tmp2= dec < 0 ? floor(value/tmp)*tmp : floor(value*tmp)/tmp;
     else
-      return dec < 0 ? ceil(value/tmp)*tmp : ceil(value*tmp)/tmp;
+      tmp2= dec < 0 ? ceil(value/tmp)*tmp : ceil(value*tmp)/tmp;
   }
-  return dec < 0 ? rint(value/tmp)*tmp : rint(value*tmp)/tmp;
+  else
+    tmp2=dec < 0 ? rint(value/tmp)*tmp : rint(value*tmp)/tmp;
+  return tmp2;
 }
 
 
