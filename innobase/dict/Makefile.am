@@ -17,7 +17,7 @@
 
 include ../include/Makefile.i
 
-libs_LIBRARIES =	libdict.a
+noinst_LIBRARIES =	libdict.a
 
 libdict_a_SOURCES =	dict0boot.c dict0crea.c dict0dict.c dict0load.c\
 			dict0mem.c

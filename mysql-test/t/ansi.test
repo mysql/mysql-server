@@ -1,0 +1,17 @@
+#
+# Test of ansi mode
+#
+
+drop table if exists t1;
+
+# Test some functions that works different in ansi mode
+
+SELECT 'A' || 'B';
+
+# Test GROUP BY behaviour
+
+CREATE TABLE t1 (id INT, id2 int);
+SELECT id,NULL,1,1.1,'a' FROM t1 GROUP BY id;
+--error 1055
+SELECT id FROM t1 GROUP BY id2;
+drop table t1;

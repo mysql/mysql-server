@@ -69,8 +69,10 @@ static int maxmin_in_range(bool max_fl, Field* field, COND *cond);
 
   RETURN VALUES
     0 No errors
-    1 if all items was resolved
-   -1 on impossible  conditions
+    1 if all items were resolved
+   -1 on impossible conditions
+    OR an error number from my_base.h HA_ERR_... if a deadlock or a lock
+       wait timeout happens, for example
 */
 
 int opt_sum_query(TABLE_LIST *tables, List<Item> &all_fields,COND *conds)
@@ -82,6 +84,7 @@ int opt_sum_query(TABLE_LIST *tables, List<Item> &all_fields,COND *conds)
   table_map where_tables= 0;
   Item *item;
   COND *org_conds= conds;
+  int error;
 
   if (conds)
     where_tables= conds->used_tables();
@@ -131,7 +134,7 @@ int opt_sum_query(TABLE_LIST *tables, List<Item> &all_fields,COND *conds)
             if (outer_tables || (table->table->file->table_flags() &
                                  HA_NOT_EXACT_COUNT))
             {
-              const_result= 0;                        // Can't optimize left join
+              const_result= 0;			// Can't optimize left join
               break;
             }
             tables->table->file->info(HA_STATUS_VARIABLE | HA_STATUS_NO_LOCK);
@@ -164,6 +167,11 @@ int opt_sum_query(TABLE_LIST *tables, List<Item> &all_fields,COND *conds)
           Item_field *item_field= ((Item_field*) expr);
           TABLE *table= item_field->field->table;
 
+	  if ((table->file->table_flags() & HA_NOT_READ_AFTER_KEY))
+	  {
+	    const_result=0;
+	    break;
+	  }
           /* 
             Look for a partial key that can be used for optimization.
             If we succeed, ref.key_length will contain the length of
@@ -179,18 +187,21 @@ int opt_sum_query(TABLE_LIST *tables, List<Item> &all_fields,COND *conds)
             const_result= 0;
             break;
           }
-          bool error= table->file->index_init((uint) ref.key);
+          error= table->file->index_init((uint) ref.key);
 
           if (!ref.key_length)
-            error= table->file->index_first(table->record[0]) != 0;
+            error= table->file->index_first(table->record[0]);
           else
-	        error= table->file->index_read(table->record[0],key_buff,
-					                       ref.key_length,
-					                       range_fl & NEAR_MIN ?
-					                       HA_READ_AFTER_KEY :
-					                       HA_READ_KEY_OR_NEXT) ||
-                   reckey_in_range(0, &ref, item_field->field, 
-                                   conds, range_fl, prefix_len); 
+	  {
+	    error= table->file->index_read(table->record[0],key_buff,
+					   ref.key_length,
+					   range_fl & NEAR_MIN ?
+					   HA_READ_AFTER_KEY :
+					   HA_READ_KEY_OR_NEXT);
+	    if (!error && reckey_in_range(0, &ref, item_field->field, 
+					  conds, range_fl, prefix_len))
+	      error= HA_ERR_KEY_NOT_FOUND;
+	  }
           if (table->key_read)
           {
             table->key_read= 0;
@@ -198,10 +209,16 @@ int opt_sum_query(TABLE_LIST *tables, List<Item> &all_fields,COND *conds)
           }
           table->file->index_end();
           if (error)
-            return -1;                                // No rows matching where
+	  {
+	    if (error == HA_ERR_KEY_NOT_FOUND || error == HA_ERR_END_OF_FILE)
+	      return -1;		       // No rows matching WHERE
+	    /* HA_ERR_LOCK_DEADLOCK or some other error */
+ 	    table->file->print_error(error, MYF(0));
+            return(error);
+	  }
           removed_tables|= table->map;
         }
-        else if (!expr->const_item())                // This is VERY seldom false
+        else if (!expr->const_item())		// This is VERY seldom false
         {
           const_result= 0;
           break;
@@ -249,18 +266,20 @@ int opt_sum_query(TABLE_LIST *tables, List<Item> &all_fields,COND *conds)
             const_result= 0;
             break;
           }
-          bool error= table->file->index_init((uint) ref.key);
+          error= table->file->index_init((uint) ref.key);
 
           if (!ref.key_length)
-            error=table->file->index_last(table->record[0]) != 0;
+            error= table->file->index_last(table->record[0]);
           else
-	        error= table->file->index_read(table->record[0], key_buff,
-					                       ref.key_length,
-					                       range_fl & NEAR_MAX ?
-					                       HA_READ_BEFORE_KEY :
-					                       HA_READ_PREFIX_LAST_OR_PREV) ||
-                   reckey_in_range(1, &ref, item_field->field, 
-                                   conds, range_fl, prefix_len); 
+	  {
+	    error= table->file->index_read(table->record[0], key_buff,
+					   ref.key_length,
+					   range_fl & NEAR_MAX ?
+					   HA_READ_BEFORE_KEY :
+					   HA_READ_PREFIX_LAST_OR_PREV);
+	    if (!error && reckey_in_range(1, &ref, item_field->field, 
+					  conds, range_fl, prefix_len))
+	      error= HA_ERR_KEY_NOT_FOUND;
           if (table->key_read)
           {
             table->key_read=0;
@@ -268,10 +287,16 @@ int opt_sum_query(TABLE_LIST *tables, List<Item> &all_fields,COND *conds)
           }
           table->file->index_end();
           if (error)
-            return -1;                                // Impossible query
+          {
+	    if (error == HA_ERR_KEY_NOT_FOUND || error == HA_ERR_END_OF_FILE)
+	      return -1;		       // No rows matching WHERE
+	    /* HA_ERR_LOCK_DEADLOCK or some other error */
+ 	    table->file->print_error(error, MYF(0));
+            return(error);
+	  }
           removed_tables|= table->map;
         }
-        else if (!expr->const_item())                // This is VERY seldom false
+        else if (!expr->const_item())		// This is VERY seldom false
         {
           const_result= 0;
           break;
@@ -596,6 +621,10 @@ static bool matching_cond(bool max_fl, TABLE_REF *ref, KEY *keyinfo,
      how to apply the key for the search max/min value.
      (if we have a condition field = const, prefix_len contains the length
       of the whole search key)
+
+  NOTE
+   This function may set table->key_read to 1, which must be reset after
+   index is used! (This can only happen when function returns 1)
 
   RETURN
     0   Index can not be used to optimize MIN(field)/MAX(field)

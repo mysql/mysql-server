@@ -46,7 +46,7 @@
 #define MAIN_THD
 #define SIGNAL_THD
 
-#ifdef PURIFY
+#ifdef HAVE_purify
 #define IF_PURIFY(A,B) (A)
 #else
 #define IF_PURIFY(A,B) (B)
@@ -208,12 +208,12 @@ static char **opt_argv;
 #ifdef __WIN__
 #undef MYSQL_SERVER_SUFFIX
 #ifdef __NT__
-#if defined(HAVE_INNOBASE_DB) || defined(HAVE_BERKELEY_DB)
+#if defined(HAVE_BERKELEY_DB)
 #define MYSQL_SERVER_SUFFIX "-max-nt"
 #else
 #define MYSQL_SERVER_SUFFIX "-nt"
 #endif /* ...DB */
-#elif defined(HAVE_INNOBASE_DB) || defined(HAVE_BERKELEY_DB)
+#elif defined(HAVE_BERKELEY_DB)
 #define MYSQL_SERVER_SUFFIX "-max"
 #else
 #define MYSQL_SERVER_SUFFIX ""
@@ -300,7 +300,7 @@ my_bool opt_enable_named_pipe= 0;
 my_bool opt_local_infile, opt_external_locking, opt_slave_compressed_protocol;
 uint delay_key_write_options= (uint) DELAY_KEY_WRITE_ON;
 
-static bool opt_do_pstack = 0;
+static my_bool opt_do_pstack = 0;
 static ulong opt_specialflag=SPECIAL_ENGLISH;
 
 static ulong opt_myisam_block_size;
@@ -392,7 +392,7 @@ const char *localhost=LOCAL_HOST;
 const char *delayed_user="DELAYED";
 uint master_port = MYSQL_PORT, master_connect_retry = 60;
 uint report_port = MYSQL_PORT;
-bool master_ssl = 0;
+my_bool master_ssl = 0;
 
 ulong master_retry_count=0;
 ulong bytes_sent = 0L, bytes_received = 0L;
@@ -421,8 +421,7 @@ ulong expire_logs_days = 0;
 char mysql_real_data_home[FN_REFLEN],
      language[LIBLEN],reg_ext[FN_EXTLEN],
      mysql_charsets_dir[FN_REFLEN], *charsets_list,
-     blob_newline,f_fyllchar,max_sort_char,*mysqld_user,*mysqld_chroot,
-     *opt_init_file;
+     max_sort_char,*mysqld_user,*mysqld_chroot, *opt_init_file;
 char *language_ptr= language;
 char mysql_data_home_buff[2], *mysql_data_home=mysql_real_data_home;
 #ifndef EMBEDDED_LIBRARY
@@ -823,9 +822,9 @@ static void __cdecl kill_server(int sig_ptr)
     unireg_end();
 #ifdef __NETWARE__
   pthread_join(select_thread, NULL);		// wait for main thread
-#else
-  pthread_exit(0);				/* purecov: deadcode */
 #endif /* __NETWARE__ */
+  
+  pthread_exit(0);				/* purecov: deadcode */
 
 #endif /* EMBEDDED_LIBRARY */
   RETURN_FROM_KILL_SERVER;
@@ -883,13 +882,11 @@ void unireg_end(void)
 {
   clean_up(1);
   my_thread_end();
-#ifndef __NETWARE__
-#ifdef SIGNALS_DONT_BREAK_READ
+#if defined(SIGNALS_DONT_BREAK_READ) && !defined(__NETWARE__)
   exit(0);
 #else
   pthread_exit(0);				// Exit is in main thread
 #endif
-#endif /* __NETWARE__ */
 }
 
 
@@ -954,6 +951,8 @@ void clean_up(bool print_message)
   end_slave_list();
 #endif
 #ifdef HAVE_OPENSSL
+  if (ssl_acceptor_fd)
+    my_free((gptr) ssl_acceptor_fd, MYF(MY_ALLOW_ZERO_PTR));
   free_des_key_file();
 #endif /* HAVE_OPENSSL */
 #ifdef USE_REGEX
@@ -1647,6 +1646,7 @@ static void init_signals(void)
     sa.sa_handler=handle_segfault;
 #endif
     sigaction(SIGSEGV, &sa, NULL);
+    sigaction(SIGABRT, &sa, NULL);
 #ifdef SIGBUS
     sigaction(SIGBUS, &sa, NULL);
 #endif
@@ -1732,9 +1732,10 @@ extern "C" void *signal_hand(void *arg __attribute__((unused)))
 
   /*
     Setup alarm handler
-    The two extra handlers are for slave threads
+    This should actually be '+ max_number_of_slaves' instead of +10,
+    but the +10 should be quite safe.
   */
-  init_thr_alarm(max_connections+max_insert_delayed_threads+2);
+  init_thr_alarm(max_connections+max_insert_delayed_threads+10);
 #if SIGINT != THR_KILL_SIGNAL
   (void) sigemptyset(&set);			// Setup up SIGINT for debug
   (void) sigaddset(&set,SIGINT);		// For debugging
@@ -3468,10 +3469,11 @@ enum options
   OPT_QUERY_CACHE_TYPE, OPT_RECORD_BUFFER,
   OPT_RECORD_RND_BUFFER, OPT_RELAY_LOG_SPACE_LIMIT, OPT_RELAY_LOG_PURGE,
   OPT_SLAVE_NET_TIMEOUT, OPT_SLAVE_COMPRESSED_PROTOCOL, OPT_SLOW_LAUNCH_TIME,
+  OPT_READONLY,
   OPT_SORT_BUFFER, OPT_TABLE_CACHE,
   OPT_THREAD_CONCURRENCY, OPT_THREAD_CACHE_SIZE,
   OPT_TMP_TABLE_SIZE, OPT_THREAD_STACK,
-  OPT_WAIT_TIMEOUT,
+  OPT_WAIT_TIMEOUT, OPT_MYISAM_REPAIR_THREADS,
   OPT_INNODB_MIRRORED_LOG_GROUPS,
   OPT_INNODB_LOG_FILES_IN_GROUP,
   OPT_INNODB_LOG_FILE_SIZE,
@@ -3483,6 +3485,7 @@ enum options
   OPT_INNODB_LOCK_WAIT_TIMEOUT,
   OPT_INNODB_THREAD_CONCURRENCY,
   OPT_INNODB_FORCE_RECOVERY,
+  OPT_INNODB_MAX_DIRTY_PAGES_PCT,
   OPT_BDB_CACHE_SIZE,
   OPT_BDB_LOG_BUFFER_SIZE,
   OPT_BDB_MAX_LOCK,
@@ -3649,6 +3652,10 @@ Disable with --skip-bdb (will save memory)",
   {"innodb_fast_shutdown", OPT_INNODB_FAST_SHUTDOWN,
    "Speeds up server shutdown process", (gptr*) &innobase_fast_shutdown,
    (gptr*) &innobase_fast_shutdown, 0, GET_BOOL, NO_ARG, 1, 0, 0, 0, 0, 0},
+  {"innodb_max_dirty_pages_pct", OPT_INNODB_MAX_DIRTY_PAGES_PCT,
+   "Percentage of dirty pages allowed in bufferpool", (gptr*) &srv_max_buf_pool_modified_pct,
+   (gptr*) &srv_max_buf_pool_modified_pct, 0, GET_ULONG, REQUIRED_ARG, 90, 0, 100, 0, 0, 0},
+   
 #endif /* End HAVE_INNOBASE_DB */
   {"help", '?', "Display this help and exit", 0, 0, 0, GET_NO_ARG, NO_ARG, 0,
    0, 0, 0, 0, 0},
@@ -3667,7 +3674,7 @@ Disable with --skip-bdb (will save memory)",
    (gptr*) &opt_local_infile, 0, GET_BOOL, OPT_ARG,
    1, 0, 0, 0, 0, 0},
   {"log-bin", OPT_BIN_LOG,
-   "Log queries in new binary format (for replication)",
+   "Log update queries in binary format",
    (gptr*) &opt_bin_logname, (gptr*) &opt_bin_logname, 0, GET_STR_ALLOC,
    OPT_ARG, 0, 0, 0, 0, 0, 0},
   {"log-bin-index", OPT_BIN_LOG_INDEX,
@@ -3721,27 +3728,32 @@ Disable with --skip-bdb (will save memory)",
    (gptr*) &master_retry_count, (gptr*) &master_retry_count, 0, GET_ULONG,
    REQUIRED_ARG, 3600*24, 0, 0, 0, 0, 0},
   {"master-info-file", OPT_MASTER_INFO_FILE,
-   "The location of the file that remembers where we left off on the master during the replication process. The default is `master.info' in the data directory. You should not need to change this.",
+   "The location and name of the file that remembers the master and where the I/O replication \
+thread is in the master's binlogs.",
    (gptr*) &master_info_file, (gptr*) &master_info_file, 0, GET_STR,
    REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"master-ssl", OPT_MASTER_SSL,
-   "Turn SSL on for replication. Be warned that is this is a relatively new feature.",
+   "Planned to enable the slave to connect to the master using SSL. Does nothing yet.",
    (gptr*) &master_ssl, (gptr*) &master_ssl, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0,
    0, 0},
   {"master-ssl-key", OPT_MASTER_SSL_KEY,
-   "Master SSL keyfile name. Only applies if you have enabled master-ssl.",
+   "Master SSL keyfile name. Only applies if you have enabled master-ssl. Does \
+nothing yet.",
    (gptr*) &master_ssl_key, (gptr*) &master_ssl_key, 0, GET_STR, OPT_ARG,
    0, 0, 0, 0, 0, 0},
   {"master-ssl-cert", OPT_MASTER_SSL_CERT,
-   "Master SSL certificate file name. Only applies if you have enabled master-ssl.",
+   "Master SSL certificate file name. Only applies if you have enabled \
+master-ssl. Does nothing yet.",
    (gptr*) &master_ssl_cert, (gptr*) &master_ssl_cert, 0, GET_STR, OPT_ARG,
    0, 0, 0, 0, 0, 0},
   {"master-ssl-capath", OPT_MASTER_SSL_CAPATH,
-   "Master SSL CA path. Only applies if you have enabled master-ssl.",
+   "Master SSL CA path. Only applies if you have enabled master-ssl. \
+Does nothing yet.",
    (gptr*) &master_ssl_capath, (gptr*) &master_ssl_capath, 0, GET_STR, OPT_ARG,
    0, 0, 0, 0, 0, 0},
   {"master-ssl-cipher", OPT_MASTER_SSL_CIPHER,
-   "Master SSL cipher. Only applies if you have enabled master-ssl.",
+   "Master SSL cipher. Only applies if you have enabled master-ssl. \
+Does nothing yet.",
    (gptr*) &master_ssl_cipher, (gptr*) &master_ssl_capath, 0, GET_STR, OPT_ARG,
    0, 0, 0, 0, 0, 0},
   {"myisam-recover", OPT_MYISAM_RECOVER,
@@ -3842,10 +3854,13 @@ Disable with --skip-bdb (will save memory)",
   {"rpl-recovery-rank", OPT_RPL_RECOVERY_RANK, "Undocumented",
    (gptr*) &rpl_recovery_rank, (gptr*) &rpl_recovery_rank, 0, GET_ULONG,
    REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-  {"relay-log", OPT_RELAY_LOG, "Undocumented",
+  {"relay-log", OPT_RELAY_LOG, 
+   "The location and name to use for relay logs",
    (gptr*) &opt_relay_logname, (gptr*) &opt_relay_logname, 0,
    GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-  {"relay-log-index", OPT_RELAY_LOG_INDEX, "Undocumented",
+  {"relay-log-index", OPT_RELAY_LOG_INDEX, 
+   "The location and name to use for the file that keeps a list of the last \
+relay logs",
    (gptr*) &opt_relaylog_index_name, (gptr*) &opt_relaylog_index_name, 0,
    GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"safe-mode", OPT_SAFE, "Skip some optimize stages (for testing).",
@@ -3915,16 +3930,20 @@ Disable with --skip-isam",
   {"skip-stack-trace", OPT_SKIP_STACK_TRACE,
    "Don't print a stack trace on failure", 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0,
    0, 0, 0, 0},
-  {"skip-symlink", OPT_SKIP_SYMLINKS, "Don't allow symlinking of tables",
+  {"skip-symlink", OPT_SKIP_SYMLINKS, "Don't allow symlinking of tables. Depricated option.  Use --skip-symbolic-links instead",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"skip-thread-priority", OPT_SKIP_PRIOR,
    "Don't give threads different priorities.", 0, 0, 0, GET_NO_ARG, NO_ARG, 0,
    0, 0, 0, 0, 0},
-  {"relay-log-info-file", OPT_RELAY_LOG_INFO_FILE, "Undocumented",
+  {"relay-log-info-file", OPT_RELAY_LOG_INFO_FILE, 
+   "The location and name of the file that remembers where the SQL replication \
+thread is in the relay logs",
    (gptr*) &relay_log_info_file, (gptr*) &relay_log_info_file, 0, GET_STR,
    REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
 #ifdef HAVE_REPLICATION
-  {"slave-load-tmpdir", OPT_SLAVE_LOAD_TMPDIR, "Undocumented",
+  {"slave-load-tmpdir", OPT_SLAVE_LOAD_TMPDIR, 
+   "The location where the slave should put its temporary files when \
+replicating a LOAD DATA INFILE command",
    (gptr*) &slave_load_tmpdir, (gptr*) &slave_load_tmpdir, 0, GET_STR_ALLOC,
    REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"slave-skip-errors", OPT_SLAVE_SKIP_ERRORS,
@@ -3965,11 +3984,12 @@ Disable with --skip-isam",
   {"external-locking", OPT_USE_LOCKING, "Use system (external) locking.  With this option enabled you can run myisamchk to test (not repair) tables while the MySQL server is running",
    (gptr*) &opt_external_locking, (gptr*) &opt_external_locking,
    0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
-#ifdef USE_SYMDIR
-  {"use-symbolic-links", 's', "Enable symbolic link support",
+  {"use-symbolic-links", 's', "Enable symbolic link support. Depricated option; Use --symbolic-links instead",
    (gptr*) &my_use_symdir, (gptr*) &my_use_symdir, 0, GET_BOOL, NO_ARG,
    IF_PURIFY(0,1), 0, 0, 0, 0, 0},
-#endif
+  {"--symbolic-links", 's', "Enable symbolic link support",
+   (gptr*) &my_use_symdir, (gptr*) &my_use_symdir, 0, GET_BOOL, NO_ARG,
+   IF_PURIFY(0,1), 0, 0, 0, 0, 0},
   {"user", 'u', "Run mysqld daemon as user", 0, 0, 0, GET_STR, REQUIRED_ARG,
    0, 0, 0, 0, 0, 0},
   {"version", 'V', "Output version information and exit", 0, 0, 0, GET_NO_ARG,
@@ -4147,7 +4167,7 @@ Disable with --skip-isam",
    (gptr*) &max_connect_errors, (gptr*) &max_connect_errors, 0, GET_ULONG,
     REQUIRED_ARG, MAX_CONNECT_ERRORS, 1, ~0L, 0, 1, 0},
   {"max_delayed_threads", OPT_MAX_DELAYED_THREADS,
-   "Don't start more than this number of threads to handle INSERT DELAYED statements. This option does not yet have effect (on TODO), unless it is set to zero, which means INSERT DELAYED is not used.",
+   "Don't start more than this number of threads to handle INSERT DELAYED statements. If set to zero, which means INSERT DELAYED is not used.",
    (gptr*) &max_insert_delayed_threads, (gptr*) &max_insert_delayed_threads,
    0, GET_ULONG, REQUIRED_ARG, 20, 0, 16384, 0, 1, 0},
   {"max_error_count", OPT_MAX_ERROR_COUNT,
@@ -4209,12 +4229,18 @@ Disable with --skip-isam",
    (gptr*) &global_system_variables.myisam_max_extra_sort_file_size,
    (gptr*) &max_system_variables.myisam_max_extra_sort_file_size,
    0, GET_ULL, REQUIRED_ARG, (ulonglong) MI_MAX_TEMP_LENGTH,
-   0, ~0L, 0, 1, 0},
+   0, (ulonglong) MAX_FILE_SIZE, 0, 1, 0},
   {"myisam_max_sort_file_size", OPT_MYISAM_MAX_SORT_FILE_SIZE,
    "Don't use the fast sort index method to created index if the temporary file would get bigger than this!",
    (gptr*) &global_system_variables.myisam_max_sort_file_size,
    (gptr*) &max_system_variables.myisam_max_sort_file_size, 0,
-   GET_ULL, REQUIRED_ARG, (longlong) LONG_MAX, 0, ~0L, 0, 1024*1024, 0},
+   GET_ULL, REQUIRED_ARG, (longlong) LONG_MAX, 0, (ulonglong) MAX_FILE_SIZE,
+   0, 1024*1024, 0},
+  {"myisam_repair_threads", OPT_MYISAM_REPAIR_THREADS,
+   "Number of threads to use when repairing MyISAM tables. The value of 1 disables parallel repair.",
+   (gptr*) &global_system_variables.myisam_repair_threads,
+   (gptr*) &max_system_variables.myisam_repair_threads, 0,
+   GET_ULONG, REQUIRED_ARG, 1, 1, ~0L, 0, 1, 0},
   {"myisam_sort_buffer_size", OPT_MYISAM_SORT_BUFFER_SIZE,
    "The buffer that is allocated when sorting the index when doing a REPAIR or when creating indexes with CREATE INDEX or ALTER TABLE.",
    (gptr*) &global_system_variables.myisam_sort_buff_size,
@@ -4289,7 +4315,7 @@ Disable with --skip-isam",
    (gptr*) &relay_log_purge, 0, GET_BOOL, NO_ARG,
    1, 0, 1, 0, 1, 0},
   {"relay_log_space_limit", OPT_RELAY_LOG_SPACE_LIMIT,
-   "Max space to use for all relay logs",
+   "Maximum space to use for all relay logs",
    (gptr*) &relay_log_space_limit,
    (gptr*) &relay_log_space_limit, 0, GET_ULL, REQUIRED_ARG, 0L, 0L,
    (longlong) ULONG_MAX, 0, 1, 0},
@@ -4303,6 +4329,11 @@ Disable with --skip-isam",
    (gptr*) &slave_net_timeout, (gptr*) &slave_net_timeout, 0,
    GET_ULONG, REQUIRED_ARG, SLAVE_NET_TIMEOUT, 1, LONG_TIMEOUT, 0, 1, 0},
 #endif /* HAVE_REPLICATION */
+  {"read-only", OPT_READONLY,
+   "Make all tables readonly, with the expections for replications (slave) threads and users with the SUPER privilege",
+   (gptr*) &opt_readonly,
+   (gptr*) &opt_readonly,
+   0, GET_BOOL, NO_ARG, 0, 0, 1, 0, 1, 0},
   {"slow_launch_time", OPT_SLOW_LAUNCH_TIME,
    "If creating the thread takes longer than this value (in seconds), the Slow_launch_threads counter will be incremented.",
    (gptr*) &slow_launch_time, (gptr*) &slow_launch_time, 0, GET_ULONG,
@@ -4844,9 +4875,7 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     delay_key_write_options= (uint) DELAY_KEY_WRITE_NONE;
     myisam_concurrent_insert=0;
     myisam_recover_options= HA_RECOVER_NONE;
-    my_disable_symlinks=1;
     my_use_symdir=0;
-    have_symlink=SHOW_OPTION_DISABLED;
     ha_open_options&= ~(HA_OPEN_ABORT_IF_CRASHED | HA_OPEN_DELAY_KEY_WRITE);
 #ifdef HAVE_QUERY_CACHE
     query_cache_size=0;
@@ -4893,9 +4922,7 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     test_flags|=TEST_NO_STACKTRACE;
     break;
   case (int) OPT_SKIP_SYMLINKS:
-    my_disable_symlinks=1;
     my_use_symdir=0;
-    have_symlink=SHOW_OPTION_DISABLED;
     break;
   case (int) OPT_BIND_ADDRESS:
     if (argument && my_isdigit(mysqld_charset, argument[0]))
@@ -5167,11 +5194,9 @@ static void get_options(int argc,char **argv)
   my_disable_locking= myisam_single_user= test(opt_external_locking == 0);
   my_default_record_cache_size=global_system_variables.read_buff_size;
   myisam_max_temp_length=
-    (my_off_t) min(global_system_variables.myisam_max_sort_file_size,
-		   (ulonglong) MAX_FILE_SIZE);
+    (my_off_t) global_system_variables.myisam_max_sort_file_size;
   myisam_max_extra_temp_length=
-    (my_off_t) min(global_system_variables.myisam_max_extra_sort_file_size,
-		   (ulonglong) MAX_FILE_SIZE);
+    (my_off_t) global_system_variables.myisam_max_extra_sort_file_size;
 
   /* Set global variables based on startup options */
   myisam_block_size=(uint) 1 << my_bit_log2(opt_myisam_block_size);

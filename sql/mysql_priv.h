@@ -368,7 +368,12 @@ void mysql_execute_command(THD *thd);
 bool do_command(THD *thd);
 bool dispatch_command(enum enum_server_command command, THD *thd,
 		      char* packet, uint packet_length);
+#ifndef EMBEDDED_LIBRARY
 bool check_stack_overrun(THD *thd,char *dummy);
+#else
+#define check_stack_overrun(A, B) 0
+#endif
+
 bool reload_acl_and_cache(THD *thd, ulong options, TABLE_LIST *tables, 
                           bool *write_to_binlog);
 void table_cache_init(void);
@@ -624,8 +629,8 @@ bool remove_table_from_cache(THD *thd, const char *db, const char *table,
 			     bool return_if_owned_by_thd=0);
 bool close_cached_tables(THD *thd, bool wait_for_refresh, TABLE_LIST *tables);
 void copy_field_from_tmp_record(Field *field,int offset);
-int fill_record(List<Item> &fields,List<Item> &values);
-int fill_record(Field **field,List<Item> &values);
+int fill_record(List<Item> &fields,List<Item> &values, bool ignore_errors);
+int fill_record(Field **field,List<Item> &values, bool ignore_errors);
 OPEN_TABLE_LIST *list_open_tables(THD *thd, const char *wild);
 
 /* sql_calc.cc */
@@ -690,7 +695,6 @@ extern char language[LIBLEN],reg_ext[FN_EXTLEN];
 extern char glob_hostname[FN_REFLEN], mysql_home[FN_REFLEN];
 extern char pidfile_name[FN_REFLEN], time_zone[30], *opt_init_file;
 extern char log_error_file[FN_REFLEN];
-extern char blob_newline;
 extern double log_10[32];
 extern ulonglong keybuff_size;
 extern ulong refresh_version,flush_version, thread_id,query_id,opened_tables;
@@ -736,11 +740,11 @@ extern uint volatile thread_count, thread_running, global_read_lock;
 extern my_bool opt_sql_bin_update, opt_safe_user_create, opt_no_mix_types;
 extern my_bool opt_safe_show_db, opt_local_infile, lower_case_table_names;
 extern my_bool opt_slave_compressed_protocol, use_temp_pool;
+extern my_bool opt_readonly;
 extern my_bool opt_enable_named_pipe;
 extern my_bool opt_old_passwords, use_old_passwords;
 extern char *shared_memory_base_name;
 extern bool opt_enable_shared_memory;
-extern char f_fyllchar;
 
 extern MYSQL_LOG mysql_log,mysql_update_log,mysql_slow_log,mysql_bin_log;
 extern FILE *bootstrap_file;

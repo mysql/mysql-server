@@ -334,9 +334,21 @@ SELECT titre,t1.numeropost,auteur,icone,nbrep,'0',date,vue,ouvert,lastauteur,des
 drop table t1,t2;
 
 #
+# Test order by with NULL values
+#
+CREATE TABLE t1 (a int, b int);
+INSERT INTO t1 VALUES (1, 2);
+INSERT INTO t1 VALUES (3, 4);
+INSERT INTO t1 VALUES (5, NULL);
+SELECT * FROM t1 ORDER BY b;
+SELECT * FROM t1 ORDER BY b DESC;
+SELECT * FROM t1 ORDER BY (a + b);
+SELECT * FROM t1 ORDER BY (a + b) DESC;
+DROP TABLE t1;
+
+#
 # Test of test_if_subkey() function
 #
-
 CREATE TABLE t1 (
   FieldKey varchar(36) NOT NULL default '',
   LongVal bigint(20) default NULL,

@@ -1,4 +1,4 @@
-drop table if exists t1,t2,t3;
+drop table if exists t1,t2,t3,t4,t5,t6;
 CREATE TABLE t1 (a int not null, b char (10) not null);
 insert into t1 values(1,'a'),(2,'b'),(3,'c'),(3,'c');
 CREATE TABLE t2 (a int not null, b char (10) not null);
@@ -198,12 +198,68 @@ a
 11
 set SQL_SELECT_LIMIT=DEFAULT;
 drop table t1,t2;
+CREATE TABLE t1 (
+cid smallint(5) unsigned NOT NULL default '0',
+cv varchar(250) NOT NULL default '',
+PRIMARY KEY  (cid),
+UNIQUE KEY cv (cv)
+) ;
+INSERT INTO t1 VALUES (8,'dummy');
+CREATE TABLE t2 (
+cid bigint(20) unsigned NOT NULL auto_increment,
+cap varchar(255) NOT NULL default '',
+PRIMARY KEY  (cid),
+KEY cap (cap)
+) ;
+CREATE TABLE t3 (
+gid bigint(20) unsigned NOT NULL auto_increment,
+gn varchar(255) NOT NULL default '',
+must tinyint(4) default NULL,
+PRIMARY KEY  (gid),
+KEY gn (gn)
+) ;
+INSERT INTO t3 VALUES (1,'V1',NULL);
+CREATE TABLE t4 (
+uid bigint(20) unsigned NOT NULL default '0',
+gid bigint(20) unsigned default NULL,
+rid bigint(20) unsigned default NULL,
+cid bigint(20) unsigned default NULL,
+UNIQUE KEY m (uid,gid,rid,cid),
+KEY uid (uid),
+KEY rid (rid),
+KEY cid (cid),
+KEY container (gid,rid,cid)
+) ;
+INSERT INTO t4 VALUES (1,1,NULL,NULL);
+CREATE TABLE t5 (
+rid bigint(20) unsigned NOT NULL auto_increment,
+rl varchar(255) NOT NULL default '',
+PRIMARY KEY  (rid),
+KEY rl (rl)
+) ;
+CREATE TABLE t6 (
+uid bigint(20) unsigned NOT NULL auto_increment,
+un varchar(250) NOT NULL default '',
+uc smallint(5) unsigned NOT NULL default '0',
+PRIMARY KEY  (uid),
+UNIQUE KEY nc (un,uc),
+KEY un (un)
+) ;
+INSERT INTO t6 VALUES (1,'test',8);
+SELECT t4.uid, t5.rl, t3.gn as g1, t4.cid, t4.gid as gg FROM t3, t6, t1, t4 left join t5 on t5.rid = t4.rid left join t2 on t2.cid = t4.cid WHERE t3.gid=t4.gid AND t6.uid = t4.uid AND t6.uc  = t1.cid AND t1.cv = "dummy" AND t6.un = "test";
+uid	rl	g1	cid	gg
+1	NULL	V1	NULL	1
+SELECT t4.uid, t5.rl, t3.gn as g1, t4.cid, t4.gid as gg FROM t3, t6, t1, t4 left join t5 on t5.rid = t4.rid left join t2 on t2.cid = t4.cid WHERE t3.gid=t4.gid AND t6.uid = t4.uid AND t3.must IS NOT NULL AND t6.uc  = t1.cid AND t1.cv = "dummy" AND t6.un = "test";
+uid	rl	g1	cid	gg
+(SELECT t4.uid, t5.rl, t3.gn as g1, t4.cid, t4.gid as gg FROM t3, t6, t1, t4 left join t5 on t5.rid = t4.rid left join t2 on t2.cid = t4.cid WHERE t3.gid=t4.gid AND t6.uid = t4.uid AND t3.must IS NOT NULL AND t6.uc  = t1.cid AND t1.cv = "dummy" AND t6.un = "test") UNION (SELECT t4.uid, t5.rl, t3.gn as g1, t4.cid, t4.gid as gg FROM t3, t6, t1, t4 left join t5 on t5.rid = t4.rid left join t2 on t2.cid = t4.cid WHERE t3.gid=t4.gid AND t6.uid = t4.uid AND t6.uc  = t1.cid AND t1.cv = "dummy" AND t6.un = "test");
+uid	rl	g1	cid	gg
+1	NULL	V1	NULL	1
+drop table t1,t2,t3,t4,t5,t6;
 select * union select 1;
 No tables used
 select 1 as a,(select a union select a);
 a	(select a union select a)
 1	1
-drop table if exists t1,t2;
 CREATE TABLE t1 (  id int(3) unsigned default '0') TYPE=MyISAM;
 INSERT INTO t1 (id) VALUES("1");
 CREATE TABLE t2 ( id int(3) unsigned default '0',  id_master int(5) default '0',  text1 varchar(5) default NULL,  text2 varchar(5) default NULL) TYPE=MyISAM;

@@ -153,6 +153,9 @@ typedef uint rf_SetTimer;
 #define USE_MB_IDENT 1
 #define USE_STRCOLL 1
 
+/* If LOAD DATA LOCAL INFILE should be enabled by default */
+#define ENABLED_LOCAL_INFILE 1
+
 /* Convert some simple functions to Posix */
 
 #define sigset(A,B) signal((A),(B))

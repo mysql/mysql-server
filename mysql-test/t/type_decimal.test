@@ -233,3 +233,13 @@ insert into t1 values("1e4294967297");
 select * from t1;
 drop table t1;
 
+#
+# Test of wrong decimal type
+#
+
+--error 1074
+CREATE TABLE t1 (a_dec DECIMAL(-1,0));
+--error 1074
+CREATE TABLE t1 (a_dec DECIMAL(-2,1));
+--error 1074
+CREATE TABLE t1 (a_dec DECIMAL(-1,1));

@@ -249,7 +249,7 @@ drop table t1,t2;
 
 create table t1 (id int not null, str char(10), index(str));
 insert into t1 values (1, null), (2, null), (3, "foo"), (4, "bar");
-select * from t1 where str is not null;
+select * from t1 where str is not null order by id;
 select * from t1 where str is null;
 drop table t1;
 
@@ -417,3 +417,12 @@ explain select * from t2 left join t1 on t1.fooID = t2.fooID and t1.fooID = 30;
 select * from t2 left join t1 on t1.fooID = t2.fooID and t1.fooID = 30;
 select * from t2 left join t1 ignore index(primary) on t1.fooID = t2.fooID and t1.fooID = 30;
 drop table t1,t2;
+drop table if exists t3;
+create table t1 (i int);
+create table t2 (i int);
+create table t3 (i int);
+insert into t1 values(1),(2);
+insert into t2 values(2),(3);
+insert into t3 values(2),(4);
+select * from t1 natural left join t2 natural left join t3;
+drop table t1,t2,t3;

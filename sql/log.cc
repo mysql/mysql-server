@@ -317,7 +317,10 @@ bool MYSQL_LOG::open(const char *log_name, enum_log_type log_type_arg,
   DBUG_RETURN(0);
 
 err:
-  sql_print_error("Could not use %s for logging (error %d)", log_name, errno);
+  sql_print_error("Could not use %s for logging (error %d). \
+Turning logging off for the whole duration of the MySQL server process. \
+To turn it on again: fix the cause, \
+shutdown the MySQL server and restart it.", log_name, errno);
   if (file >= 0)
     my_close(file,MYF(0));
   if (index_file_nr >= 0)
@@ -1157,6 +1160,8 @@ bool MYSQL_LOG::write(THD *thd,enum enum_server_command command,
 
 bool MYSQL_LOG::write(Log_event* event_info)
 {
+  THD *thd=event_info->thd;
+  bool called_handler_commit=0;
   bool error=0;
   bool should_rotate = 0;
   DBUG_ENTER("MYSQL_LOG::write(event)");
@@ -1171,7 +1176,6 @@ bool MYSQL_LOG::write(Log_event* event_info)
   /* In most cases this is only called if 'is_open()' is true */
   if (is_open())
   {
-    THD *thd=event_info->thd;
     const char *local_db = event_info->get_db();
 #ifdef USING_TRANSACTIONS    
     IO_CACHE *file = ((event_info->get_cache_stmt()) ?
@@ -1268,24 +1272,35 @@ bool MYSQL_LOG::write(Log_event* event_info)
       the table handler commit here, protected by the LOCK_log mutex,
       because otherwise the transactions may end up in a different order
       in the table handler log!
+
+      Note that we will NOT call ha_report_binlog_offset_and_commit() if
+      there are binlog events cached in the transaction cache. That is
+      because then the log event which we write to the binlog here is
+      not a transactional event. In versions < 4.0.13 before this fix this
+      caused an InnoDB transaction to be committed if in the middle there
+      was a MyISAM event!
     */
 
-    if (file == &log_file)
+    if (file == &log_file) // we are writing to the real log (disk)
     {
-      /*
-	LOAD DATA INFILE in AUTOCOMMIT=1 mode writes to the binlog
-	chunks also before it is successfully completed. We only report
-	the binlog write and do the commit inside the transactional table
-	handler if the log event type is appropriate.
-      */
-
-      if (event_info->get_type_code() == QUERY_EVENT
-          || event_info->get_type_code() == EXEC_LOAD_EVENT)
+      if (opt_using_transactions && !my_b_tell(&thd->transaction.trans_log))
       {
-	error = ha_report_binlog_offset_and_commit(thd, log_file_name,
-                                                 file->pos_in_file);
+        /*
+          LOAD DATA INFILE in AUTOCOMMIT=1 mode writes to the binlog
+          chunks also before it is successfully completed. We only report
+          the binlog write and do the commit inside the transactional table
+          handler if the log event type is appropriate.
+        */
+        
+        if (event_info->get_type_code() == QUERY_EVENT
+            || event_info->get_type_code() == EXEC_LOAD_EVENT)
+        {
+          error = ha_report_binlog_offset_and_commit(thd, log_file_name,
+                                                     file->pos_in_file);
+          called_handler_commit=1;
+        }
       }
-
+      /* we wrote to the real log, check automatic rotation */
       should_rotate= (my_b_tell(file) >= (my_off_t) max_binlog_size); 
     }
 
@@ -1309,6 +1324,16 @@ err:
   }
 
   pthread_mutex_unlock(&LOCK_log);
+
+  /*
+    Flush the transactional handler log file now that we have released
+    LOCK_log; the flush is placed here to eliminate the bottleneck on the
+    group commit
+  */  
+
+  if (called_handler_commit)
+    ha_commit_complete(thd);
+
 #ifdef HAVE_REPLICATION
   if (should_rotate && expire_logs_days)
   {
@@ -1316,7 +1341,6 @@ err:
     if (purge_time >= 0)
       error= purge_logs_before_date(purge_time);
   }
-
 #endif
   DBUG_RETURN(error);
 }
@@ -1423,6 +1447,13 @@ bool MYSQL_LOG::write(THD *thd, IO_CACHE *cache)
 
   }
   VOID(pthread_mutex_unlock(&LOCK_log));
+
+  /* Flush the transactional handler log file now that we have released
+  LOCK_log; the flush is placed here to eliminate the bottleneck on the
+  group commit */  
+
+  ha_commit_complete(thd);
+
   DBUG_RETURN(0);
 
 err:

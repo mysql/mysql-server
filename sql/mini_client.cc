@@ -247,7 +247,7 @@ static void mc_free_old_query(MYSQL *mysql)
 static int mc_sock_connect(my_socket s, const struct sockaddr *name,
 			   uint namelen, uint to)
 {
-#if defined(__WIN__) || defined(OS2)
+#if defined(__WIN__) || defined(OS2) || defined(__NETWARE__)
   return connect(s, (struct sockaddr*) name, namelen);
 #else
   int flags, res, s_err;

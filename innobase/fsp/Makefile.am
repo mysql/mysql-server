@@ -18,7 +18,7 @@
 
 include ../include/Makefile.i
 
-libs_LIBRARIES =	libfsp.a
+noinst_LIBRARIES =	libfsp.a
 
 libfsp_a_SOURCES =	fsp0fsp.c
 

@@ -157,10 +157,10 @@ extern "C" {
     DBUG_PRINT("enter",("Fd: %d  pos: %lu whence: %d  MyFlags: %d",
 			fd, (ulong) pos, whence, MyFlags));
 
-    assert(pos != MY_FILEPOS_ERROR);
-
     if (is_raid(fd))
     {
+      assert(pos != MY_FILEPOS_ERROR);
+
       RaidFd *raid= (*dynamic_element(&RaidFd::_raid_map,fd,RaidFd**));
       DBUG_RETURN(raid->Seek(pos,whence,MyFlags));
     }

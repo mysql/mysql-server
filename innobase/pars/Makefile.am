@@ -17,7 +17,7 @@
 
 include ../include/Makefile.i
 
-libs_LIBRARIES =	libpars.a
+noinst_LIBRARIES =	libpars.a
 
 noinst_HEADERS =	pars0grm.h
 
