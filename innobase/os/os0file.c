@@ -1850,6 +1850,7 @@ os_file_pread(
 	return(n_bytes);
 #else
 	{
+	off_t	ret_offset;
 	ssize_t	ret;
 	ulint	i;
 
@@ -1858,12 +1859,12 @@ os_file_pread(
 	
 	os_mutex_enter(os_file_seek_mutexes[i]);
 
-	ret = lseek(file, offs, 0);
+	ret_offset = lseek(file, offs, SEEK_SET);
 
-	if (ret < 0) {
+	if (ret_offset < 0) {
 		os_mutex_exit(os_file_seek_mutexes[i]);
 
-		return(ret);
+		return(-1);
 	}
 	
 	ret = read(file, buf, (ssize_t)n);
@@ -1936,6 +1937,7 @@ os_file_pwrite(
         return(ret);
 #else
 	{
+	off_t	ret_offset;
 	ulint	i;
 
 	/* Protect the seek / write operation with a mutex */
@@ -1943,12 +1945,12 @@ os_file_pwrite(
 	
 	os_mutex_enter(os_file_seek_mutexes[i]);
 
-	ret = lseek(file, offs, 0);
+	ret_offset = lseek(file, offs, SEEK_SET);
 
-	if (ret < 0) {
+	if (ret_offset < 0) {
 		os_mutex_exit(os_file_seek_mutexes[i]);
 
-		return(ret);
+		return(-1);
 	}
 	
 	ret = write(file, buf, (ssize_t)n);
