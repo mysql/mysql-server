@@ -1428,6 +1428,13 @@ int ha_myisam::create(const char *name, register TABLE *table_arg,
 	keydef[i].seg[j].bit_start= (uint) (field->pack_length() -
 					    table_arg->blob_ptr_size);
       }
+      else if (field->type() == FIELD_TYPE_BIT)
+      {
+        keydef[i].seg[j].bit_length= ((Field_bit *) field)->bit_len;
+        keydef[i].seg[j].bit_start= ((Field_bit *) field)->bit_ofs;
+        keydef[i].seg[j].bit_pos= (uint) (((Field_bit *) field)->bit_ptr -
+                                          (uchar*) table_arg->record[0]);
+      }
     }
     keyseg+=pos->key_parts;
   }

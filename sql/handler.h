@@ -75,6 +75,7 @@
 /* Table data are stored in separate files (for lower_case_table_names) */
 #define HA_FILE_BASED	       (1 << 26)
 #define HA_NO_VARCHAR	       (1 << 27)
+#define HA_CAN_BIT_FIELD       (1 << 28) /* supports bit fields */
 
 
 /* bits in index_flags(index_number) for what you can do with index */
@@ -152,6 +153,7 @@ enum db_type
   DB_TYPE_BERKELEY_DB, DB_TYPE_INNODB,
   DB_TYPE_GEMINI, DB_TYPE_NDBCLUSTER,
   DB_TYPE_EXAMPLE_DB, DB_TYPE_ARCHIVE_DB, DB_TYPE_CSV_DB,
+  DB_TYPE_FEDERATED_DB,
 
   DB_TYPE_DEFAULT // Must be last
 };
