@@ -6800,7 +6800,9 @@ shell> CC=gcc CXX=gcc ./configure
 @end example
 
 When you use @code{gcc} as your C++ compiler, it will not attempt to link in
-@code{libg++} or @code{libstdc++}.
+@code{libg++} or @code{libstdc++}.  This may be a good idea to do even if you
+have the above libraries installed, as some versions of these libraries have
+caused strange problems for MySQL users in the past.
 
 Here is some common environment variables to set depending on
 the compiler you are using:
@@ -7154,7 +7156,11 @@ This works because @code{gcc} compiles C++ sources as well as @code{g++}
 does, but does not link in @code{libg++} or @code{libstdc++} by default.
 
 Another way to fix these problems, of course, is to install @code{g++},
-@code{libg++} and @code{libstdc++}.
+@code{libg++} and @code{libstdc++}.  We would however like to recommend
+you to not use @code{libg++} or @code{libstdc++} with MySQL as this will
+only increase the binary size of mysqld without giving you any benefits.
+Some versions of these libraries have also caused strange problems for
+MySQL users in the past.
 
 @item
 If your compile fails with errors, such as any of the following,
@@ -8955,9 +8961,6 @@ You can avoid using @file{libg++.a} by running @code{configure} like this:
 @example
 shell> CXX=gcc ./configure
 @end example
-
-If you are running gcc 3.0 and above, you can't use the above trick with
-setting to CXX=gcc.
 
 @node Linux-SPARC, Linux-Alpha, Linux-x86, Linux
 @subsubsection Linux SPARC Notes
@@ -19637,12 +19640,12 @@ very little resources.
 @item @code{ft_min_word_len}
 The minimum length of the word to be included in a @code{FULLTEXT} index.
 @strong{Note: @code{FULLTEXT} index have to be rebuilt after changing
-this variable.}
+this variable.} (This option is new for MySQL 4.0).
 
 @item @code{ft_max_word_len}
 The maximum length of the word to be included in a @code{FULLTEXT} index.
 @strong{Note: @code{FULLTEXT} index have to be rebuilt after changing
-this variable.}
+this variable.} (This option is new for MySQL 4.0).
 
 @item @code{ft_max_word_len_sort}
 The maximum length of the word in a @code{FULLTEXT} index
@@ -36224,8 +36227,8 @@ unless you know what you are doing!
 @item
 The minimum length of words to be indexed is defined by the MySQL
 variable @code{ft_min_word_length}. @xref{SHOW VARIABLES}.
-Change it to the value you prefer, and rebuild
-your @code{FULLTEXT} indexes.
+Change it to the value you prefer, and rebuild your @code{FULLTEXT} indexes.
+(This is only available for MySQL 4.0)
 
 @item
 The stopword list is defined in @file{myisam/ft_static.c}
