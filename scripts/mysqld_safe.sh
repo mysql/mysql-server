@@ -204,7 +204,7 @@ else
 fi
 
 USER_OPTION=""
-if test -w /
+if test "x$USER" = "xroot"
 then
   if test "$user" != "root" -o $SET_USER = 1
   then

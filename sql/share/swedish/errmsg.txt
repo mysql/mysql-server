@@ -179,7 +179,7 @@
 "Du använder 'säker uppdaterings mod' och försökte uppdatera en table utan en WHERE sats som använder sig av en nyckel",
 "Nyckel '%-.64s' finns inte in tabell '%-.64s'",
 "Kan inte öppna tabellen",
-"Tabellhanteraren för denna tabell kan inte göra check/repair",
+"Tabellhanteraren för denna tabell kan inte göra %s",
 "Du får inte utföra detta kommando i en transaktion",
 "Fick fel %d vid COMMIT",
 "Fick fel %d vid ROLLBACK",

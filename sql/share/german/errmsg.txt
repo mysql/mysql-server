@@ -182,7 +182,7 @@
 "Unter Verwendung des Sicheren Updatemodes wurde versucht eine Tabelle zu updaten ohne eine KEY-Spalte in der WHERE-Klausel",
 "Schlüssel '%-.64s' existiert nicht in der Tabelle '%-.64s'",
 "Kann Tabelle nicht öffnen",
-"Der Tabellen-Handler für diese Tabelle unterstützt kein check/repair",
+"Der Tabellen-Handler für diese Tabelle unterstützt kein %s",
 "Keine Berechtigung dieses Kommando in einer Transaktion auszuführen",
 "Fehler %d wärend COMMIT",
 "Fehler %d wärend ROLLBACK",
