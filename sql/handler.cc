@@ -735,7 +735,7 @@ int ha_commit_or_rollback_by_xid(LEX_STRING *ident, bool commit)
 */
 int ha_recover(HASH *commit_list)
 {
-  int error= 0, len, got;
+  int len, got;
   handlerton **ht= handlertons, **end_ht=ht+total_ha;
   XID *list=0;
   DBUG_ENTER("ha_recover");
@@ -907,7 +907,7 @@ int ha_rollback_to_savepoint(THD *thd, SAVEPOINT *sv)
   for (; ht < end_ht; ht++)
   {
     int err;
-    DBUG_ASSERT((*ht)->savepoint_set);
+    DBUG_ASSERT((*ht)->savepoint_set != 0);
     if ((err= (*(*ht)->savepoint_rollback)(thd, (byte *)(sv+1)+(*ht)->savepoint_offset)))
     { // cannot happen
       my_error(ER_ERROR_DURING_ROLLBACK, MYF(0), err);
@@ -2219,7 +2219,7 @@ TYPELIB *ha_known_exts(void)
                                        (found_exts.elements+1),
                                        MYF(MY_WME | MY_FAE));
     
-    DBUG_ASSERT(ext);
+    DBUG_ASSERT(ext != 0);
     known_extensions.count= found_exts.elements;
     known_extensions.type_names= ext;
 

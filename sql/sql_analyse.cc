@@ -467,7 +467,7 @@ void field_real::add()
 void field_decimal::add()
 {
   my_decimal dec_buf, *dec= item->val_decimal(&dec_buf);
-  uint length, zero_count, decs;
+  uint length;
   TREE_ELEMENT *element;
 
   if (item->null_value)

@@ -950,7 +950,7 @@ try_again:
 		if (progress_pct != trx_roll_progress_printed_pct) {
 			if (trx_roll_progress_printed_pct == 0) {
 				fprintf(stderr,
-"\nInnoDB: Progress in percents: %lu\n", (ulong) progress_pct);
+"\nInnoDB: Progress in percents: %lu", (ulong) progress_pct);
 			} else {
 				fprintf(stderr,
 				" %lu", (ulong) progress_pct);

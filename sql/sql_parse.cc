@@ -622,7 +622,6 @@ bool is_update_query(enum enum_sql_command command)
 
 static void time_out_user_resource_limits(THD *thd, USER_CONN *uc)
 {
-  bool error= 0;
   time_t check_time = thd->start_time ?  thd->start_time : time(NULL);
   DBUG_ENTER("time_out_user_resource_limits");
 
@@ -1330,7 +1329,6 @@ int end_trans(THD *thd, enum enum_mysql_completiontype completion)
 {
   bool do_release= 0;
   int res= 0;
-  LEX *lex= thd->lex;
   DBUG_ENTER("end_trans");
 
   switch (completion) {
@@ -1905,9 +1903,9 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     {
       statistic_increment(thd->status_var.com_stat[SQLCOM_DROP_DB],
 			  &LOCK_status);
-      char *db=thd->strdup(packet), *alias;
+      char *db=thd->strdup(packet);
       /*  null test to handle EOM */
-      if (!db || !(alias= thd->strdup(db)) || check_db_name(db))
+      if (!db || check_db_name(db))
       {
 	my_error(ER_WRONG_DB_NAME, MYF(0), db ? db : "NULL");
 	break;
@@ -2369,7 +2367,10 @@ mysql_execute_command(THD *thd)
       lex->sql_command != SQLCOM_LOCK_TABLES &&
       lex->sql_command != SQLCOM_UNLOCK_TABLES)
   {
-    if (process_nested_sp(thd, lex, &locked_tables))
+    thd->no_warnings_for_error= 1;
+    res= process_nested_sp(thd, lex, &locked_tables);
+    thd->no_warnings_for_error= 0;
+    if (res)
       DBUG_RETURN(TRUE);
   }
 
@@ -3577,8 +3578,7 @@ unsent_create_error:
   }
   case SQLCOM_DROP_DB:
   {
-    char *alias;
-    if (!(alias=thd->strdup(lex->name)) || check_db_name(lex->name))
+    if (check_db_name(lex->name))
     {
       my_error(ER_WRONG_DB_NAME, MYF(0), lex->name);
       break;
@@ -3826,9 +3826,9 @@ unsent_create_error:
   }
 #endif /*!NO_EMBEDDED_ACCESS_CHECKS*/
   case SQLCOM_RESET:
-    /* 
-       RESET commands are never written to the binary log, so we have to
-       initialize this variable because RESET shares the same code as FLUSH
+    /*
+      RESET commands are never written to the binary log, so we have to
+      initialize this variable because RESET shares the same code as FLUSH
     */
     lex->no_write_to_binlog= 1;
   case SQLCOM_FLUSH:
@@ -4027,7 +4027,7 @@ unsent_create_error:
     char *name, *db;
     int result;
 
-    DBUG_ASSERT(lex->sphead);
+    DBUG_ASSERT(lex->sphead != 0);
 
     if (check_access(thd, CREATE_PROC_ACL, lex->sphead->m_db.str, 0, 0, 0))
     {
@@ -4187,8 +4187,9 @@ unsent_create_error:
 	thd->row_count_func= 0;
 	res= sp->execute_procedure(thd, &lex->value_list);
 
-	/* If warnings have been cleared, we have to clear total_warn_count
-	 * too, otherwise the clients get confused.
+	/*
+          If warnings have been cleared, we have to clear total_warn_count
+          too, otherwise the clients get confused.
 	 */
 	if (thd->warn_list.is_empty())
 	  thd->total_warn_count= 0;

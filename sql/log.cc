@@ -608,7 +608,7 @@ bool MYSQL_LOG::open(const char *log_name,
       write_file_name_to_index_file= 1;
     }
 
-    DBUG_ASSERT(my_b_inited(&index_file));
+    DBUG_ASSERT(my_b_inited(&index_file) != 0);
     reinit_io_cache(&index_file, WRITE_CACHE,
                     my_b_filelength(&index_file), 0, 0);
     if (need_start_event && !no_auto_events)
@@ -2461,7 +2461,7 @@ void sql_print_information(const char *format, ...)
 */
 #define TC_LOG_HEADER_SIZE (sizeof(tc_log_magic)+1)
 
-static const char tc_log_magic[]={254, 0x23, 0x05, 0x74};
+static const char tc_log_magic[]={(char) 254, 0x23, 0x05, 0x74};
 
 uint opt_tc_log_size=TC_LOG_MIN_SIZE;
 ulong tc_log_max_pages_used=0, tc_log_page_size=0,
@@ -2928,7 +2928,6 @@ int TC_LOG_BINLOG::open(const char *opt_name)
 
   {
     const char *errmsg;
-    char        last_event_type=UNKNOWN_EVENT;
     IO_CACHE    log;
     File        file;
     Log_event  *ev=0;
