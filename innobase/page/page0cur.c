@@ -121,6 +121,53 @@ page_cur_try_search_shortcut(
 #endif
 
 /********************************************************************
+Checks if the nth field in a record is a character type field which extends
+the nth field in tuple, i.e., the field is longer or equal in length and has
+common first characters. */
+static
+ibool
+page_cur_rec_field_extends(
+/*=======================*/
+			   /* out: TRUE if rec field extends tuple
+			   field */
+	dtuple_t* tuple,   /* in: data tuple */
+	rec_t*    rec,     /* in: record */
+        ulint     n)       /* in: compare nth field */
+{
+        dtype_t* type;
+        dfield_t* dfield;
+        byte*     rec_f;
+        ulint     rec_f_len;
+
+        dfield = dtuple_get_nth_field(tuple, n);
+
+        type = dfield_get_type(dfield);
+
+        rec_f = rec_get_nth_field(rec, n, &rec_f_len);
+
+        if (type->mtype == DATA_VARCHAR
+           || type->mtype == DATA_CHAR
+           || type->mtype == DATA_FIXBINARY
+           || type->mtype == DATA_BINARY
+           || type->mtype == DATA_BLOB
+           || type->mtype == DATA_VARMYSQL
+           || type->mtype == DATA_MYSQL) {
+
+                if (dfield_get_len(dfield) != UNIV_SQL_NULL
+                    && rec_f_len != UNIV_SQL_NULL
+                    && rec_f_len >= dfield_get_len(dfield)
+                    && 0 == cmp_data_data_slow(type, dfield_get_data(dfield),
+                                      dfield_get_len(dfield),
+       				       rec_f, dfield_get_len(dfield))) {
+
+	                return(TRUE);
+		}
+	}
+
+        return(FALSE);
+}
+
+/********************************************************************
 Searches the right position for a page cursor. */
 
 void
@@ -239,16 +286,8 @@ page_cur_search_with_match(
 		} else if (cmp == -1) {
 
 			if (mode == PAGE_CUR_LE_OR_EXTENDS
-			    && dfield_get_len(dtuple_get_nth_field(tuple,
-			    				cur_matched_fields))
-			    	== cur_matched_bytes
-			    && rec_get_nth_field_len(mid_rec,
-							cur_matched_fields)
-				!= UNIV_SQL_NULL) {
-
-				/* This means current dfield is not SQL
-			    	NULL, and the current rec field extends it */
-
+			    && page_cur_rec_field_extends(tuple, mid_rec,
+						     cur_matched_fields)) {
 				low = mid;
 				low_matched_fields = cur_matched_fields;
 				low_matched_bytes = cur_matched_bytes;
@@ -296,16 +335,8 @@ page_cur_search_with_match(
 
 		} else if (cmp == -1) {
 			if (mode == PAGE_CUR_LE_OR_EXTENDS
-			    && dfield_get_len(dtuple_get_nth_field(tuple,
-			    				cur_matched_fields))
-			    	== cur_matched_bytes
-			    && rec_get_nth_field_len(mid_rec,
-							cur_matched_fields)
-				!= UNIV_SQL_NULL) {
-
-				/* This means current dfield is not SQL
-			    	NULL, and the current rec field extends it */
-
+			    && page_cur_rec_field_extends(tuple, mid_rec,
+						     cur_matched_fields)) {
 				low_rec = mid_rec;
 				low_matched_fields = cur_matched_fields;
 				low_matched_bytes = cur_matched_bytes;
