@@ -663,6 +663,8 @@ ha_innobase::init_table_handle_for_HANDLER(void)
 
         prebuilt = (row_prebuilt_t*)innobase_prebuilt;
 
+	innobase_release_stat_resources(prebuilt->trx);
+
         /* If the transaction is not started yet, start it */
 
         trx_start_if_not_started_noninline(prebuilt->trx);
@@ -1206,6 +1208,12 @@ innobase_savepoint(
 
 	trx = check_trx_exists(thd);
 
+	/* Release a possible FIFO ticket and search latch. Since we will
+	reserve the kernel mutex, we have to release the search system latch
+	first to obey the latching order. */
+
+	innobase_release_stat_resources(trx);
+
 	/* Setting a savepoint starts a transaction inside InnoDB since
 	it allocates resources for it (memory to store the savepoint name,
 	for example) */
@@ -1219,26 +1227,28 @@ innobase_savepoint(
 }
 
 /*********************************************************************
-Frees a possible InnoDB trx object associated with the current
-THD. */
+Frees a possible InnoDB trx object associated with the current THD. */
 
 int
 innobase_close_connection(
 /*======================*/
-			/* out: 0 or error number */
-	THD*	thd)	/* in: handle to the MySQL thread of the user
-			whose transaction should be rolled back */
+                        /* out: 0 or error number */
+        THD*    thd)    /* in: handle to the MySQL thread of the user
+                        whose transaction should be rolled back */
 {
-	if (NULL != thd->transaction.all.innobase_tid) {
+        trx_t*  trx;
 
-	        trx_rollback_for_mysql((trx_t*)
-				(thd->transaction.all.innobase_tid));
-		trx_free_for_mysql((trx_t*)
-				(thd->transaction.all.innobase_tid));
-		thd->transaction.all.innobase_tid = NULL;
-	}
+        trx = (trx_t*)thd->transaction.all.innobase_tid;
 
-	return(0);
+        if (NULL != trx) {
+                innobase_rollback(thd, (void*)trx);
+
+                trx_free_for_mysql(trx);
+
+                thd->transaction.all.innobase_tid = NULL;
+        }
+
+        return(0);
 }
 
 /**********************************************************************
@@ -1497,6 +1507,8 @@ ha_innobase::close(void)
 /*====================*/
 				/* out: error number */
 {
+	trx_t*	trx;
+
   	DBUG_ENTER("ha_innobase::close");
 
 	row_prebuilt_free((row_prebuilt_t*) innobase_prebuilt);
