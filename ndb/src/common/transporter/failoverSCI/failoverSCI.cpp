@@ -14,17 +14,14 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-#include <stdio.h>
-#include <string.h>
-#include <stdlib.h>
+#include <ndb_global.h>
+
 #include "sisci_types.h"
 #include "sisci_api.h"
 #include "sisci_error.h"
 //#include "sisci_demolib.h"
-#include <strings.h> 
-#include <ndb_types.h>
 #include <NdbTick.h>
-#include "NdbSleep.h"
+#include <NdbSleep.h>
 #define NO_CALLBACK         NULL
 #define NO_FLAGS            0
 #define DATA_TRANSFER_READY 8

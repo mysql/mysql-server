@@ -2090,6 +2090,7 @@ CHARSET_INFO my_charset_utf8_general_ci=
     to_upper_utf8,	/* sort_order   */
     NULL,		/* tab_to_uni   */
     NULL,		/* tab_from_uni */
+    NULL,		/* sort_order_big*/
     "",
     "",
     1,			/* strxfrm_multiply */
@@ -2115,6 +2116,7 @@ CHARSET_INFO my_charset_utf8_bin=
     to_upper_utf8,	/* sort_order   */
     NULL,		/* tab_to_uni   */
     NULL,		/* tab_from_uni */
+    NULL,		/* sort_order_big*/
     "",
     "",
     1,			/* strxfrm_multiply */

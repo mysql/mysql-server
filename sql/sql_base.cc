@@ -2096,7 +2096,16 @@ find_item_in_list(Item *find, List<Item> &items, uint *counter,
     if (field_name && item->type() == Item::FIELD_ITEM)
     {
       Item_field *item_field= (Item_field*) item;
-      if (!my_strcasecmp(system_charset_info, item_field->name, field_name))
+      /*
+	In case of group_concat() with ORDER BY condition in the QUERY
+	item_field can be field of temporary table without item name 
+	(if this field created from expression argument of group_concat()),
+	=> we have to check presence of name before compare
+      */ 
+      if (item_field->name &&
+	  (!my_strcasecmp(system_charset_info, item_field->name, field_name) ||
+           !my_strcasecmp(system_charset_info,
+                          item_field->field_name, field_name)))
       {
 	if (!table_name)
 	{
@@ -2158,14 +2167,14 @@ int setup_wild(THD *thd, TABLE_LIST *tables, List<Item> &fields,
 {
   if (!wild_num)
     return 0;
-  Statement *stmt= thd->current_statement, backup;
+  Item_arena *arena= thd->current_arena, backup;
 
   /*
     If we are in preparing prepared statement phase then we have change
     temporary mem_root to statement mem root to save changes of SELECT list
   */
-  if (stmt)
-    thd->set_n_backup_item_arena(stmt, &backup);
+  if (arena)
+    thd->set_n_backup_item_arena(arena, &backup);
   reg2 Item *item;
   List_iterator<Item> it(fields);
   while ( wild_num && (item= it++))
@@ -2178,8 +2187,8 @@ int setup_wild(THD *thd, TABLE_LIST *tables, List<Item> &fields,
       if (insert_fields(thd,tables,((Item_field*) item)->db_name,
 			((Item_field*) item)->table_name, &it))
       {
-	if (stmt)
-	  thd->restore_backup_item_arena(stmt, &backup);
+	if (arena)
+	  thd->restore_backup_item_arena(arena, &backup);
 	return (-1);
       }
       if (sum_func_list)
@@ -2194,8 +2203,15 @@ int setup_wild(THD *thd, TABLE_LIST *tables, List<Item> &fields,
       wild_num--;
     }
   }
-  if (stmt)
-      thd->restore_backup_item_arena(stmt, &backup);
+  if (arena)
+  {
+    /* make * substituting permanent */
+    SELECT_LEX *select_lex= thd->lex->current_select;
+    select_lex->with_wild= 0;
+    select_lex->item_list= fields;
+
+    thd->restore_backup_item_arena(arena, &backup);
+  }
   return 0;
 }
 
@@ -2408,12 +2424,17 @@ insert_fields(THD *thd,TABLE_LIST *tables, const char *db_name,
 int setup_conds(THD *thd,TABLE_LIST *tables,COND **conds)
 {
   table_map not_null_tables= 0;
-  Statement *stmt= thd->current_statement, backup;
-
+  SELECT_LEX *select_lex= thd->lex->current_select;
+  Item_arena *arena= ((thd->current_arena && 
+                       !select_lex->conds_processed_with_permanent_arena) ?
+                      thd->current_arena :
+                      0);
+  Item_arena backup;
   DBUG_ENTER("setup_conds");
+
   thd->set_query_id=1;
   
-  thd->lex->current_select->cond_count= 0;
+  select_lex->cond_count= 0;
   if (*conds)
   {
     thd->where="where clause";
@@ -2436,7 +2457,7 @@ int setup_conds(THD *thd,TABLE_LIST *tables,COND **conds)
 	  table->on_expr->fix_fields(thd, tables, &table->on_expr) ||
 	  table->on_expr->check_cols(1))
 	DBUG_RETURN(1);
-      thd->lex->current_select->cond_count++;
+      select_lex->cond_count++;
 
       /*
 	If it's a normal join or a LEFT JOIN which can be optimized away
@@ -2447,12 +2468,12 @@ int setup_conds(THD *thd,TABLE_LIST *tables,COND **conds)
 	   !(specialflag & SPECIAL_NO_NEW_FUNC)))
       {
 	table->outer_join= 0;
-	if (stmt)
-	  thd->set_n_backup_item_arena(stmt, &backup);
+	if (arena)
+	  thd->set_n_backup_item_arena(arena, &backup);
 	*conds= and_conds(*conds, table->on_expr);
 	table->on_expr=0;
-	if (stmt)
-	  thd->restore_backup_item_arena(stmt, &backup);
+	if (arena)
+	  thd->restore_backup_item_arena(arena, &backup);
 	if ((*conds) && !(*conds)->fixed &&
 	    (*conds)->fix_fields(thd, tables, conds))
 	  DBUG_RETURN(1);
@@ -2460,8 +2481,8 @@ int setup_conds(THD *thd,TABLE_LIST *tables,COND **conds)
     }
     if (table->natural_join)
     {
-      if (stmt)
-	thd->set_n_backup_item_arena(stmt, &backup);
+      if (arena)
+	thd->set_n_backup_item_arena(arena, &backup);
       /* Make a join of all fields with have the same name */
       TABLE *t1= table->table;
       TABLE *t2= table->natural_join->table;
@@ -2491,7 +2512,7 @@ int setup_conds(THD *thd,TABLE_LIST *tables,COND **conds)
           t2->used_keys.intersect(t2_field->part_of_key);
         }
       }
-      thd->lex->current_select->cond_count+= cond_and->list.elements;
+      select_lex->cond_count+= cond_and->list.elements;
 
       // to prevent natural join processing during PS re-execution
       table->natural_join= 0;
@@ -2500,8 +2521,8 @@ int setup_conds(THD *thd,TABLE_LIST *tables,COND **conds)
       {
 	*conds= and_conds(*conds, cond_and);
 	// fix_fields() should be made with temporary memory pool
-	if (stmt)
-	  thd->restore_backup_item_arena(stmt, &backup);
+	if (arena)
+	  thd->restore_backup_item_arena(arena, &backup);
 	if (*conds && !(*conds)->fixed)
 	{
 	  if ((*conds)->fix_fields(thd, tables, conds))
@@ -2512,8 +2533,8 @@ int setup_conds(THD *thd,TABLE_LIST *tables,COND **conds)
       {
 	table->on_expr= and_conds(table->on_expr, cond_and);
 	// fix_fields() should be made with temporary memory pool
-	if (stmt)
-	  thd->restore_backup_item_arena(stmt, &backup);
+	if (arena)
+	  thd->restore_backup_item_arena(arena, &backup);
 	if (table->on_expr && !table->on_expr->fixed)
 	{
 	  if (table->on_expr->fix_fields(thd, tables, &table->on_expr))
@@ -2523,21 +2544,22 @@ int setup_conds(THD *thd,TABLE_LIST *tables,COND **conds)
     }
   }
 
-  if (stmt)
+  if (arena)
   {
     /*
       We are in prepared statement preparation code => we should store
       WHERE clause changing for next executions.
 
-      We do this ON -> WHERE transformation only once per PS statement.
+      We do this ON -> WHERE transformation only once per PS/SP statement.
     */
-    thd->lex->current_select->where= *conds;
+    select_lex->where= *conds;
+    select_lex->conds_processed_with_permanent_arena= 1;
   }
   DBUG_RETURN(test(thd->net.report_error));
 
 err:
-  if (stmt)
-      thd->restore_backup_item_arena(stmt, &backup);
+  if (arena)
+      thd->restore_backup_item_arena(arena, &backup);
   DBUG_RETURN(1);
 }
 

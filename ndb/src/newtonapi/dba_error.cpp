@@ -15,9 +15,9 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 
+#include <ndb_global.h>
+
 #include "dba_internal.hpp"
-#include <NdbStdio.h>
-#include <stdarg.h>
 
 static DBA_Error_t latestError = DBA_NO_ERROR;
 static DBA_ErrorCode_t latestNdbError = 0;

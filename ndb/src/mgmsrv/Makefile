@@ -6,8 +6,6 @@ BIN_TARGET := mgmtsrvr
 BIN_TARGET_LIBS := 
 BIN_TARGET_ARCHIVES := mgmapi NDB_API mgmsrvcommon
 
-LDFLAGS_LOC = -lpthread
-
 ifneq ($(USE_EDITLINE), N)
 BIN_TARGET_ARCHIVES += editline
 DIRS := mkconfig

@@ -82,11 +82,84 @@ extern "C" void free_user_var(user_var_entry *entry)
 }
 
 
+bool key_part_spec::operator==(const key_part_spec& other) const
+{
+  return length == other.length && !strcmp(field_name, other.field_name);
+}
+
+
+/*
+  Test if a foreign key (= generated key) is a prefix of the given key
+  (ignoring key name, key type and order of columns)
+
+  NOTES:
+    This is only used to test if an index for a FOREIGN KEY exists
+
+  IMPLEMENTATION
+    We only compare field names
+
+  RETURN
+    0	Generated key is a prefix of other key
+    1	Not equal
+*/
+
+bool foreign_key_prefix(Key *a, Key *b)
+{
+  /* Ensure that 'a' is the generated key */
+  if (a->generated)
+  {
+    if (b->generated && a->columns.elements > b->columns.elements)
+      swap_variables(Key*, a, b);               // Put shorter key in 'a'
+  }
+  else
+  {
+    if (!b->generated)
+      return TRUE;                              // No foreign key
+    swap_variables(Key*, a, b);                 // Put generated key in 'a'
+  }
+
+  /* Test if 'a' is a prefix of 'b' */
+  if (a->columns.elements > b->columns.elements)
+    return TRUE;                                // Can't be prefix
+
+  List_iterator<key_part_spec> col_it1(a->columns);
+  List_iterator<key_part_spec> col_it2(b->columns);
+  const key_part_spec *col1, *col2;
+
+#ifdef ENABLE_WHEN_INNODB_CAN_HANDLE_SWAPED_FOREIGN_KEY_COLUMNS
+  while ((col1= col_it1++))
+  {
+    bool found= 0;
+    col_it2.rewind();
+    while ((col2= col_it2++))
+    {
+      if (*col1 == *col2)
+      {
+        found= TRUE;
+	break;
+      }
+    }
+    if (!found)
+      return TRUE;                              // Error
+  }
+  return FALSE;                                 // Is prefix
+#else
+  while ((col1= col_it1++))
+  {
+    col2= col_it2++;
+    if (!(*col1 == *col2))
+      return TRUE;
+  }
+  return FALSE;                                 // Is prefix
+#endif
+}
+
+
 /****************************************************************************
 ** Thread specific functions
 ****************************************************************************/
 
-THD::THD():user_time(0), current_statement(0), is_fatal_error(0),
+THD::THD():user_time(0), current_arena(0), is_fatal_error(0),
 	   last_insert_id_used(0),
 	   insert_id_used(0), rand_used(0), in_lock_tables(0),
 	   global_read_lock(0), bootstrap(0), spcont(NULL)
@@ -445,6 +518,35 @@ bool THD::convert_string(LEX_STRING *to, CHARSET_INFO *to_cs,
   DBUG_RETURN(0);
 }
 
+
+/*
+  Convert string from source character set to target character set inplace.
+
+  SYNOPSIS
+    THD::convert_string
+
+  DESCRIPTION
+    Convert string using convert_buffer - buffer for character set 
+    conversion shared between all protocols.
+
+  RETURN
+    0   ok
+   !0   out of memory
+*/
+
+bool THD::convert_string(String *s, CHARSET_INFO *from_cs, CHARSET_INFO *to_cs)
+{
+  if (convert_buffer.copy(s->ptr(), s->length(), from_cs, to_cs))
+    return TRUE;
+  /* If convert_buffer >> s copying is more efficient long term */
+  if (convert_buffer.alloced_length() >= convert_buffer.length() * 2 ||
+      !s->is_alloced())
+  {
+    return s->copy(convert_buffer);
+  }
+  s->swap(convert_buffer);
+  return FALSE;
+}
 
 /*
   Update some cache variables when character set changes
@@ -1210,23 +1312,47 @@ int select_dumpvar::prepare(List<Item> &list, SELECT_LEX_UNIT *u)
 }
 
 
-/*
-  Statement functions 
-*/
-
-Statement::Statement(THD *thd)
-  :id(++thd->statement_id_counter),
-  set_query_id(1),
-  allow_sum_func(0),
-  lex(&main_lex),
-  query(0),
-  query_length(0),
-  free_list(0)
+Item_arena::Item_arena(THD* thd)
+  :free_list(0)
 {
   init_sql_alloc(&mem_root,
                  thd->variables.query_alloc_block_size,
                  thd->variables.query_prealloc_size);
 }
+
+
+Item_arena::Item_arena()
+  :free_list(0)
+{
+  bzero((char *) &mem_root, sizeof(mem_root));
+}
+
+
+Item_arena::Item_arena(bool init_mem_root)
+  :free_list(0)
+{
+  if (init_mem_root)
+    bzero((char *) &mem_root, sizeof(mem_root));
+}
+
+
+Item_arena::~Item_arena()
+{}
+
+
+/*
+  Statement functions 
+*/
+
+Statement::Statement(THD *thd)
+  :Item_arena(thd),
+  id(++thd->statement_id_counter),
+  set_query_id(1),
+  allow_sum_func(0),
+  lex(&main_lex),
+  query(0),
+  query_length(0)
+{}
 
 /*
   This constructor is called when statement is a subobject of THD:
@@ -1235,15 +1361,14 @@ Statement::Statement(THD *thd)
 */
 
 Statement::Statement()
-  :id(0),
+  :Item_arena(),
+  id(0),
   set_query_id(1),
   allow_sum_func(0),                            /* initialized later */
   lex(&main_lex),
   query(0),                                     /* these two are set */ 
-  query_length(0),                              /* in alloc_query() */
-  free_list(0)
+  query_length(0)                               /* in alloc_query() */
 {
-  bzero((char *) &mem_root, sizeof(mem_root));
 }
 
 
@@ -1264,14 +1389,14 @@ void Statement::set_statement(Statement *stmt)
 }
 
 
-void Statement::set_n_backup_item_arena(Statement *set, Statement *backup)
+void Item_arena::set_n_backup_item_arena(Item_arena *set, Item_arena *backup)
 {
   backup->set_item_arena(this);
   set_item_arena(set);
 }
 
 
-void Statement::restore_backup_item_arena(Statement *set, Statement *backup)
+void Item_arena::restore_backup_item_arena(Item_arena *set, Item_arena *backup)
 {
   set->set_item_arena(this);
   set_item_arena(backup);
@@ -1279,7 +1404,7 @@ void Statement::restore_backup_item_arena(Statement *set, Statement *backup)
   init_alloc_root(&backup->mem_root, 0, 0);
 }
 
-void Statement::set_item_arena(Statement *set)
+void Item_arena::set_item_arena(Item_arena *set)
 {
   mem_root= set->mem_root;
   free_list= set->free_list;

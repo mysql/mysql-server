@@ -23,7 +23,6 @@
 #include "APIService.hpp"
 #include "CPCD.hpp"
 #include <NdbMutex.h>
-#include <NdbStdio.h>
 #include <OutputStream.hpp>
 
 /**

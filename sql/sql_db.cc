@@ -18,6 +18,7 @@
 /* create and drop of databases */
 
 #include "mysql_priv.h"
+#include <mysys_err.h>
 #include "sql_acl.h"
 #include "sp.h"
 #include <my_dir.h>
@@ -186,7 +187,7 @@ int mysql_create_db(THD *thd, char *db, HA_CREATE_INFO *create_info,
   strxmov(path, mysql_data_home, "/", db, NullS);
   unpack_dirname(path,path);			// Convert if not unix
 
-  if (my_stat(path,&stat_info,MYF(MY_WME)))
+  if (my_stat(path,&stat_info,MYF(0)))
   {
    if (!(create_options & HA_LEX_CREATE_IF_NOT_EXISTS))
     {
@@ -198,6 +199,11 @@ int mysql_create_db(THD *thd, char *db, HA_CREATE_INFO *create_info,
   }
   else
   {
+    if (my_errno != ENOENT)
+    {
+      my_error(EE_STAT, MYF(0),path,my_errno);
+      goto exit;
+    }
     strend(path)[-1]=0;				// Remove last '/' from path
     if (my_mkdir(path,0777,MYF(0)) < 0)
     {
@@ -365,7 +371,7 @@ int mysql_rm_db(THD *thd,char *db,bool if_exists, bool silent)
   {
     /* Convert database to lower case */
     strmov(tmp_db, db);
-    my_casedn_str(system_charset_info, tmp_db);
+    my_casedn_str(files_charset_info, tmp_db);
     db= tmp_db;
   }
 

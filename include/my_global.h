@@ -73,11 +73,10 @@
 #endif
 #endif /* _WIN32... */
 
-/* extra protection against CPU Hogs on NetWare */
-#ifdef __NETWARE__
-  #define NETWARE_YIELD { kYieldIfTimeSliceUp(); }
-#else
-  #define NETWARE_YIELD { }
+/* Some defines to avoid ifdefs in the code */
+#ifndef NETWARE_YIELD
+#define NETWARE_YIELD
+#define NETWARE_SET_SCREEN_MODE(A)
 #endif
 
 /*
@@ -345,6 +344,9 @@ C_MODE_END
 #define USE_BMOVE512 1		/* Use this unless system bmove is faster */
 #endif
 
+#define QUOTE_ARG(x)		#x	/* Quote argument (before cpp) */
+#define STRINGIFY_ARG(x) QUOTE_ARG(x)	/* Quote argument, after cpp */
+
 /* Paranoid settings. Define I_AM_PARANOID if you are paranoid */
 #ifdef I_AM_PARANOID
 #define DONT_ALLOW_USER_CHANGE 1
@@ -389,7 +391,7 @@ typedef unsigned short ushort;
 
 #define CMP_NUM(a,b)    (((a) < (b)) ? -1 : ((a) == (b)) ? 0 : 1)
 #define sgn(a)		(((a) < 0) ? -1 : ((a) > 0) ? 1 : 0)
-#define swap(t,a,b)	{ register t dummy; dummy = a; a = b; b = dummy; }
+#define swap_variables(t, a, b) { register t dummy; dummy= a; a= b; b= dummy; }
 #define test(a)		((a) ? 1 : 0)
 #define set_if_bigger(a,b)  do { if ((a) < (b)) (a)=(b); } while(0)
 #define set_if_smaller(a,b) do { if ((a) > (b)) (a)=(b); } while(0)

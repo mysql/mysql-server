@@ -14,8 +14,9 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
+#include <ndb_global.h>
+
 #include <signal.h>
-#include <sys/ioctl.h>
 
 #include "MgmtSrvr.hpp"
 #include "EventLogger.hpp"
@@ -41,6 +42,7 @@
 #include "CommandInterpreter.hpp"
 #endif
 
+#undef DEBUG
 #define DEBUG(x) ndbout << x << endl;
 
 const char progname[] = "mgmtsrvr";
@@ -197,7 +199,6 @@ NDB_MAIN(mgmsrv){
     goto error_end;
   }
 
-#if defined (NDB_LINUX) || defined (NDB_SOLARIS)
   if (glob.daemon) {
     // Become a daemon
     char homePath[255],lockfile[255], logfile[255];
@@ -209,7 +210,6 @@ NDB_MAIN(mgmsrv){
       return 1;
     }
   }
-#endif
 
   if(!glob.mgmObject->start()){
     ndbout_c("Unable to start management server.");

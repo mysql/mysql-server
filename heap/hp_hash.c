@@ -29,19 +29,15 @@
     hp_rb_records_in_range()
     info		HEAP handler
     inx			Index to use
-    start_key		Start of range.  Null pointer if from first key
-    start_key_len	Length of start key
-    start_search_flag	Flag if start key should be included or not
-    end_key		End of range. Null pointer if to last key
-    end_key_len		Length of end key
-    end_search_flag	Flag if start key should be included or not
+    min_key		Min key. Is = 0 if no min range
+    max_key		Max key. Is = 0 if no max range
 
   NOTES
-    start_search_flag can have one of the following values:
+    min_key.flag can have one of the following values:
       HA_READ_KEY_EXACT		Include the key in the range
       HA_READ_AFTER_KEY		Don't include key in range
 
-    end_search_flag can have one of the following values:  
+    max_key.flag can have one of the following values:  
       HA_READ_BEFORE_KEY	Don't include key in range
       HA_READ_AFTER_KEY		Include all 'end_key' values in the range
 
@@ -52,11 +48,8 @@
 			the range.
 */
 
-ha_rows hp_rb_records_in_range(HP_INFO *info, int inx, const byte *start_key,
-			       uint start_key_len,
-			       enum ha_rkey_function start_search_flag,
-			       const byte *end_key, uint end_key_len,
-			       enum ha_rkey_function end_search_flag)
+ha_rows hp_rb_records_in_range(HP_INFO *info, int inx,  key_range *min_key,
+                               key_range *max_key)
 {
   ha_rows start_pos, end_pos;
   HP_KEYDEF *keyinfo= info->s->keydef + inx;
@@ -67,12 +60,12 @@ ha_rows hp_rb_records_in_range(HP_INFO *info, int inx, const byte *start_key,
   info->lastinx= inx;
   custom_arg.keyseg= keyinfo->seg;
   custom_arg.search_flag= SEARCH_FIND | SEARCH_SAME;
-  if (start_key)
+  if (min_key)
   {
     custom_arg.key_length= hp_rb_pack_key(keyinfo, (uchar*) info->recbuf,
-					  (uchar*) start_key, 
-					  start_key_len);
-    start_pos= tree_record_pos(rb_tree, info->recbuf, start_search_flag, 
+					  (uchar*) min_key->key,
+					  min_key->length);
+    start_pos= tree_record_pos(rb_tree, info->recbuf, min_key->flag,
 			       &custom_arg);
   }
   else
@@ -80,11 +73,12 @@ ha_rows hp_rb_records_in_range(HP_INFO *info, int inx, const byte *start_key,
     start_pos= 0;
   }
   
-  if (end_key)
+  if (max_key)
   {
     custom_arg.key_length= hp_rb_pack_key(keyinfo, (uchar*) info->recbuf,
-					  (uchar*) end_key, end_key_len);
-    end_pos= tree_record_pos(rb_tree, info->recbuf, end_search_flag, 
+					  (uchar*) max_key->key,
+                                          max_key->length);
+    end_pos= tree_record_pos(rb_tree, info->recbuf, max_key->flag,
 			     &custom_arg);
   }
   else
@@ -100,12 +94,13 @@ ha_rows hp_rb_records_in_range(HP_INFO *info, int inx, const byte *start_key,
 	      (end_pos == start_pos ? (ha_rows) 1 : end_pos - start_pos));
 }
 
+
 	/* Search after a record based on a key */
 	/* Sets info->current_ptr to found record */
 	/* next_flag:  Search=0, next=1, prev =2, same =3 */
 
 byte *hp_search(HP_INFO *info, HP_KEYDEF *keyinfo, const byte *key,
-		 uint nextflag)
+                uint nextflag)
 {
   reg1 HASH_INFO *pos,*prev_ptr;
   int flag;

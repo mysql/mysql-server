@@ -180,7 +180,7 @@ int sleep_until_file_exists(char *pid_file)
 	Wait for the server on the given port to start.
 
 ******************************************************************************/
-int wait_for_server_start(char *bin_dir, char *user, char *password, int port)
+int wait_for_server_start(char *bin_dir, char *user, char *password, int port,char *tmp_dir)
 {
   arg_list_t al;
   int err, i;
@@ -189,7 +189,7 @@ int wait_for_server_start(char *bin_dir, char *user, char *password, int port)
   
 	// mysqladmin file
   snprintf(mysqladmin_file, PATH_MAX, "%s/mysqladmin", bin_dir);
-  snprintf(trash, PATH_MAX, "/tmp/trash.out");
+  snprintf(trash, PATH_MAX, "%s/trash.out",tmp_dir);
 	
   // args
   init_args(&al);
@@ -283,7 +283,7 @@ int spawn(char *path, arg_list_t *al, int join, char *input,
 
 ******************************************************************************/
 int stop_server(char *bin_dir, char *user, char *password, int port,
-                char *pid_file)
+                char *pid_file,char *tmp_dir)
 {
 	arg_list_t al;
 	int err, i, argc = 0;
@@ -292,7 +292,7 @@ int stop_server(char *bin_dir, char *user, char *password, int port,
   
 	// mysqladmin file
   snprintf(mysqladmin_file, PATH_MAX, "%s/mysqladmin", bin_dir);
-  snprintf(trash, PATH_MAX, "/tmp/trash.out");
+  snprintf(trash, PATH_MAX, "%s/trash.out",tmp_dir);
 	
   // args
   init_args(&al);

@@ -17,9 +17,7 @@
 #ifndef __UTIL_BASESTRING_HPP_INCLUDED__
 #define __UTIL_BASESTRING_HPP_INCLUDED__
 
-#include <ctype.h>
-#include <stdlib.h>
-
+#include <ndb_global.h>
 #include <Vector.hpp>
 
 /**

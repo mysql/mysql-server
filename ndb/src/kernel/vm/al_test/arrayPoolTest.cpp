@@ -16,12 +16,11 @@
 
 
 
+#include <ndb_global.h>
+
 #include <ArrayList.hpp>
-#include <stdlib.h>
 #include <NdbOut.hpp>
 #include <NdbTick.h>
-#include <assert.h>
-#include <string.h>
 
 struct A_Poolable_Object {
   Uint32 next;

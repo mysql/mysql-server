@@ -20,7 +20,7 @@
  *  TODO - Add tests for NdbMem
  */
 
-
+#include <ndb_global.h>
 
 #include "NdbOut.hpp"
 #include "NdbThread.h"
@@ -31,11 +31,6 @@
 #include "NdbEnv.h"
 #include "NdbHost.h"
 #include "NdbMain.h"
-
-#include <stdio.h>
-#include <stdlib.h>
-#include <unistd.h>
-#include <string.h>
 
 int TestHasFailed;
 int verbose = 0;

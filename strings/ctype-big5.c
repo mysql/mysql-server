@@ -223,7 +223,7 @@ static uint16 big5strokexfrm(uint16 i)
 static int my_strnncoll_big5_internal(const uchar **a_res,
 				      const uchar **b_res, uint length)
 {
-  const char *a= *a_res, *b= *b_res;
+  const uchar *a= *a_res, *b= *b_res;
 
   while (length--)
   {
@@ -236,10 +236,10 @@ static int my_strnncoll_big5_internal(const uchar **a_res,
       b+= 2;
       length--;
     }
-    else if (sort_order_big5[(uchar) *a++] !=
-	     sort_order_big5[(uchar) *b++])
-      return ((int) sort_order_big5[(uchar) a[-1]] -
-	      (int) sort_order_big5[(uchar) b[-1]]);
+    else if (sort_order_big5[*a++] !=
+	     sort_order_big5[*b++])
+      return ((int) sort_order_big5[a[-1]] -
+	      (int) sort_order_big5[b[-1]]);
   }
   *a_res= a;
   *b_res= b;
@@ -6317,6 +6317,7 @@ CHARSET_INFO my_charset_big5_chinese_ci=
     to_lower_big5,
     to_upper_big5,
     sort_order_big5,
+    NULL,		/* sort_order_big*/
     NULL,		/* tab_to_uni   */
     NULL,		/* tab_from_uni */
     "",
@@ -6342,6 +6343,7 @@ CHARSET_INFO my_charset_big5_bin=
     to_lower_big5,
     to_upper_big5,
     sort_order_big5,
+    NULL,		/* sort_order_big*/
     NULL,		/* tab_to_uni   */
     NULL,		/* tab_from_uni */
     "",

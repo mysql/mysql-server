@@ -17,8 +17,8 @@
 #ifndef Logger_H
 #define Logger_H
 
+#include <ndb_global.h>
 #include <BaseString.hpp>
-#include <stdarg.h>
 
 class LogHandler;
 class LogHandlerList;

@@ -53,7 +53,7 @@ struct sync_cell_struct {
 	rw_lock_t*	old_wait_rw_lock;/* the latest wait rw-lock in cell */
         ulint		request_type;	/* lock type requested on the
         				object */
-	char*		file;		/* in debug version file where
+	const char*	file;		/* in debug version file where
 					requested */
 	ulint		line;		/* in debug version line where
 					requested */
@@ -329,7 +329,7 @@ sync_array_reserve_cell(
         sync_array_t*	arr,	/* in: wait array */
         void*   	object, /* in: pointer to the object to wait for */
         ulint		type,	/* in: lock request type */
-        char*		file,	/* in: file where requested */
+	const char*	file,	/* in: file where requested */
         ulint		line,	/* in: line where requested */
         ulint*   	index)  /* out: index of the reserved cell */
 {
@@ -449,7 +449,6 @@ sync_array_cell_print(
 {
 	mutex_t*	mutex;
 	rw_lock_t*	rwlock;
-	char*		str __attribute__((unused)) = NULL;
 	ulint		type;
 
 	type = cell->request_type;

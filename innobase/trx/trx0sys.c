@@ -569,7 +569,7 @@ replication has proceeded. */
 void
 trx_sys_update_mysql_binlog_offset(
 /*===============================*/
-	char*		file_name,/* in: MySQL log file name */
+	const char*	file_name,/* in: MySQL log file name */
 	ib_longlong	offset,	/* in: position in that log file */
 	ulint		field,	/* in: offset of the MySQL log info field in
 				the trx sys header */
@@ -596,7 +596,7 @@ trx_sys_update_mysql_binlog_offset(
 				MLOG_4BYTES, mtr);
 	}
 
-	if (0 != strcmp(sys_header + field + TRX_SYS_MYSQL_LOG_NAME, file_name)) {
+	if (0 != strcmp((char*) (sys_header + field + TRX_SYS_MYSQL_LOG_NAME), file_name)) {
 
 		mlog_write_string(sys_header + field
 					+ TRX_SYS_MYSQL_LOG_NAME,

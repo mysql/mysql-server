@@ -144,11 +144,11 @@ consistent read result, or store it to the query cache. */
 ibool
 row_search_check_if_query_cache_permitted(
 /*======================================*/
-				/* out: TRUE if storing or retrieving from
-				the query cache is permitted */
-	trx_t*	trx,		/* in: transaction object */
-	char*	norm_name);	/* in: concatenation of database name, '/'
-				char, table name */
+					/* out: TRUE if storing or retrieving
+					from the query cache is permitted */
+	trx_t*		trx,		/* in: transaction object */
+	const char*	norm_name);	/* in: concatenation of database name,
+					'/' char, table name */
 
 
 /* A structure for caching column values for prefetched rows */

@@ -17,7 +17,7 @@
 #ifndef UUCODE_H
 #define UUCODE_H
 
-#include <stdio.h>
+#include <ndb_global.h>
 
 #ifdef	__cplusplus
 extern "C" {

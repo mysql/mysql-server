@@ -15,16 +15,9 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 
-#include "NdbThread.h"
+#include <ndb_global.h>
+#include <NdbThread.h>
 #include <pthread.h>
-#ifdef NDB_MACOSX
-#include <stdlib.h>
-#else
-#include <malloc.h>
-#endif
-#include <assert.h>
-#include <string.h>
-#include <NdbStdio.h>
 
 #define MAX_THREAD_NAME 16
 
@@ -94,7 +87,7 @@ int NdbThread_WaitFor(struct NdbThread* p_wait_thread, void** status)
   if (p_wait_thread == NULL)
     return 0;
 
-  if (p_wait_thread->thread == NULL)
+  if (p_wait_thread->thread == 0)
     return 0;
 
   result = pthread_join(p_wait_thread->thread, status);

@@ -15,10 +15,11 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 
+#include <ndb_global.h>
+
 #include <NdbMain.h>
 #include <ConfigRetriever.hpp>
 #include <Properties.hpp>
-#include <stdlib.h>
 #include <NdbOut.hpp>
 
 void usage(const char * prg){

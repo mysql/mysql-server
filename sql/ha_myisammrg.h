@@ -70,11 +70,7 @@ class ha_myisammrg: public handler
   int rnd_next(byte *buf);
   int rnd_pos(byte * buf, byte *pos);
   void position(const byte *record);
-  ha_rows records_in_range(int inx,
-                           const byte *start_key,uint start_key_len,
-                           enum ha_rkey_function start_search_flag,
-                           const byte *end_key,uint end_key_len,
-                           enum ha_rkey_function end_search_flag);
+  ha_rows records_in_range(uint inx, key_range *min_key, key_range *max_key);
   my_off_t row_position() { return myrg_position(file); }
   void info(uint);
   int extra(enum ha_extra_function operation);

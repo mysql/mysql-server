@@ -17,7 +17,6 @@
 #ifndef NDBTIMER_H
 #define NDBTIMER_H
 
-#include <NdbStdio.h>
 #include <NdbTick.h>
 #include <NdbOut.hpp>
 

@@ -1493,9 +1493,9 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
         packet++;
         length--;
       }
+      VOID(pthread_mutex_lock(&LOCK_thread_count));
       thd->query_length= length;
       thd->query= packet;
-      VOID(pthread_mutex_lock(&LOCK_thread_count));
       thd->query_id= query_id++;
       VOID(pthread_mutex_unlock(&LOCK_thread_count));
 #ifndef EMBEDDED_LIBRARY
@@ -1511,7 +1511,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
 	thd->query_rest.length(length);
       }
       else
-	thd->query_rest.copy(length);
+	thd->query_rest.copy(packet, length, thd->query_rest.charset());
       break;
 #endif /*EMBEDDED_LIBRARY*/
     }
@@ -1784,6 +1784,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
   thd->proc_info=0;
   thd->command=COM_SLEEP;
   thd->query=0;
+  thd->query_length=0;
   thread_running--;
   VOID(pthread_mutex_unlock(&LOCK_thread_count));
   thd->packet.shrink(thd->variables.net_buffer_length);	// Reclaim some memory
@@ -1824,6 +1825,7 @@ bool alloc_query(THD *thd, char *packet, ulong packet_length)
     packet_length--;
   }
   /* We must allocate some extra memory for query cache */
+  thd->query_length= 0;                        // Extra safety: Avoid races
   if (!(thd->query= (char*) thd->memdup_w_gap((gptr) (packet),
 					      packet_length,
 					      thd->db_length+ 1 +
@@ -1831,7 +1833,10 @@ bool alloc_query(THD *thd, char *packet, ulong packet_length)
     return 1;
   thd->query[packet_length]=0;
   thd->query_length= packet_length;
-  thd->packet.shrink(thd->variables.net_buffer_length);// Reclaim some memory
+
+  /* Reclaim some memory */
+  thd->packet.shrink(thd->variables.net_buffer_length);
+  thd->convert_buffer.shrink(thd->variables.net_buffer_length);
 
   if (!(specialflag & SPECIAL_NO_PRIOR))
     my_pthread_setprio(pthread_self(),QUERY_PRIOR);
@@ -2374,14 +2379,10 @@ unsent_create_error:
 	res= mysql_alter_table(thd, select_lex->db, lex->name,
 			       &lex->create_info,
 			       tables, lex->create_list,
-			       lex->key_list, lex->drop_list, lex->alter_list,
+			       lex->key_list,
 			       select_lex->order_list.elements,
                                (ORDER *) select_lex->order_list.first,
-			       lex->alter_flags,
-			       lex->duplicates,
-			       lex->alter_keys_onoff,
-                               lex->tablespace_op,
-			       lex->simple_alter);
+			       lex->duplicates, &lex->alter_info);
       }
       break;
     }
@@ -2518,17 +2519,15 @@ unsent_create_error:
       lex->create_list.empty();
       lex->key_list.empty();
       lex->col_list.empty();
-      lex->drop_list.empty();
-      lex->alter_list.empty();
+      lex->alter_info.reset();
       bzero((char*) &create_info,sizeof(create_info));
       create_info.db_type=DB_TYPE_DEFAULT;
       create_info.row_type=ROW_TYPE_DEFAULT;
       create_info.default_table_charset=default_charset_info;
       res= mysql_alter_table(thd, NullS, NullS, &create_info,
 			     tables, lex->create_list,
-			     lex->key_list, lex->drop_list, lex->alter_list,
-                             0, (ORDER *) 0, 0,
-			     DUP_ERROR);
+			     lex->key_list, 0, (ORDER *) 0,
+			     DUP_ERROR, &lex->alter_info);
     }
     else
       res = mysql_optimize_table(thd, tables, &lex->check_opt);
@@ -2754,7 +2753,7 @@ unsent_create_error:
     if (end_active_trans(thd))
       res= -1;
     else
-      res = mysql_drop_index(thd, tables, lex->drop_list);
+      res = mysql_drop_index(thd, tables, &lex->alter_info);
     break;
   case SQLCOM_SHOW_DATABASES:
 #if defined(DONT_ALLOW_SHOW_COMMANDS)
@@ -3411,6 +3410,11 @@ unsent_create_error:
       delete lex->sphead;
       lex->sphead= 0;
       goto error;
+    case SP_NO_DB_ERROR:
+      net_printf(thd, ER_BAD_DB_ERROR, lex->sphead->m_db);
+      delete lex->sphead;
+      lex->sphead= 0;
+      goto error;
     default:
       net_printf(thd, ER_SP_STORE_FAILED, SP_TYPE_STRING(lex), name);
       delete lex->sphead;
@@ -3426,7 +3430,7 @@ unsent_create_error:
       if (!(sp= sp_find_procedure(thd, lex->spname)))
       {
 	net_printf(thd, ER_SP_DOES_NOT_EXIST, "PROCEDURE",
-		   lex->spname->m_name.str);
+		   lex->spname->m_qname.str);
 	goto error;
       }
       else
@@ -3489,7 +3493,7 @@ unsent_create_error:
 	}
 
 	if (res == 0)
-	  send_ok(thd, thd->row_count_func);
+	  send_ok(thd, (thd->row_count_func < 0 ? 0 : thd->row_count_func));
 	else
 	  goto error;		// Substatement should already have sent error
       }
@@ -3520,11 +3524,11 @@ unsent_create_error:
 	break;
       case SP_KEY_NOT_FOUND:
 	net_printf(thd, ER_SP_DOES_NOT_EXIST, SP_COM_STRING(lex),
-		   lex->spname->m_name.str);
+		   lex->spname->m_qname.str);
 	goto error;
       default:
 	net_printf(thd, ER_SP_CANT_ALTER, SP_COM_STRING(lex),
-		   lex->spname->m_name.str);
+		   lex->spname->m_qname.str);
 	goto error;
       }
       break;
@@ -3571,11 +3575,11 @@ unsent_create_error:
 	  break;
 	}
 	net_printf(thd, ER_SP_DOES_NOT_EXIST, SP_COM_STRING(lex),
-		   lex->spname->m_name.str);
+		   lex->spname->m_qname.str);
 	goto error;
       default:
 	net_printf(thd, ER_SP_DROP_FAILED, SP_COM_STRING(lex),
-		   lex->spname->m_name.str);
+		   lex->spname->m_qname.str);
 	goto error;
       }
       break;
@@ -4182,12 +4186,14 @@ void mysql_parse(THD *thd, char *inBuf, uint length)
 	  query_cache_end_of_result(thd);
 	}
       }
+      lex->unit.cleanup();
     }
     else
     {
       DBUG_PRINT("info",("Command aborted. Fatal_error: %d",
 			 thd->is_fatal_error));
       query_cache_abort(&thd->net);
+      lex->unit.cleanup();
       if (thd->lex->sphead)
       {
 	/* Clean up after failed stored procedure/function */
@@ -4260,13 +4266,13 @@ bool add_field_to_list(THD *thd, char *field_name, enum_field_types type,
   {
     lex->col_list.push_back(new key_part_spec(field_name,0));
     lex->key_list.push_back(new Key(Key::PRIMARY, NullS, HA_KEY_ALG_UNDEF,
-				    lex->col_list));
+				    0, lex->col_list));
     lex->col_list.empty();
   }
   if (type_modifier & (UNIQUE_FLAG | UNIQUE_KEY_FLAG))
   {
     lex->col_list.push_back(new key_part_spec(field_name,0));
-    lex->key_list.push_back(new Key(Key::UNIQUE, NullS, HA_KEY_ALG_UNDEF,
+    lex->key_list.push_back(new Key(Key::UNIQUE, NullS, HA_KEY_ALG_UNDEF, 0,
 				    lex->col_list));
     lex->col_list.empty();
   }
@@ -4912,7 +4918,7 @@ bool reload_acl_and_cache(THD *thd, ulong options, TABLE_LIST *tables,
     mysql_bin_log.new_file(1);
     mysql_slow_log.new_file(1);
 #ifdef HAVE_REPLICATION
-    if (expire_logs_days)
+    if (mysql_bin_log.is_open() && expire_logs_days)
     {
       long purge_time= time(0) - expire_logs_days*24*60*60;
       if (purge_time >= 0)
@@ -5202,8 +5208,9 @@ Item * all_any_subquery_creator(Item *left_expr,
 int mysql_create_index(THD *thd, TABLE_LIST *table_list, List<Key> &keys)
 {
   List<create_field> fields;
-  List<Alter_drop> drop;
-  List<Alter_column> alter;
+  ALTER_INFO alter_info;
+  alter_info.flags= ALTER_ADD_INDEX;
+  alter_info.is_simple= 0;
   HA_CREATE_INFO create_info;
   DBUG_ENTER("mysql_create_index");
   bzero((char*) &create_info,sizeof(create_info));
@@ -5211,25 +5218,27 @@ int mysql_create_index(THD *thd, TABLE_LIST *table_list, List<Key> &keys)
   create_info.default_table_charset= thd->variables.collation_database;
   DBUG_RETURN(mysql_alter_table(thd,table_list->db,table_list->real_name,
 				&create_info, table_list,
-				fields, keys, drop, alter, 0, (ORDER*)0,
-				ALTER_ADD_INDEX, DUP_ERROR));
+				fields, keys, 0, (ORDER*)0,
+				DUP_ERROR, &alter_info));
 }
 
 
-int mysql_drop_index(THD *thd, TABLE_LIST *table_list, List<Alter_drop> &drop)
+int mysql_drop_index(THD *thd, TABLE_LIST *table_list, ALTER_INFO *alter_info)
 {
   List<create_field> fields;
   List<Key> keys;
-  List<Alter_column> alter;
   HA_CREATE_INFO create_info;
   DBUG_ENTER("mysql_drop_index");
   bzero((char*) &create_info,sizeof(create_info));
   create_info.db_type=DB_TYPE_DEFAULT;
   create_info.default_table_charset= thd->variables.collation_database;
+  alter_info->clear();
+  alter_info->flags= ALTER_DROP_INDEX;
+  alter_info->is_simple= 0;
   DBUG_RETURN(mysql_alter_table(thd,table_list->db,table_list->real_name,
 				&create_info, table_list,
-				fields, keys, drop, alter, 0, (ORDER*)0,
-				ALTER_DROP_INDEX, DUP_ERROR));
+				fields, keys, 0, (ORDER*)0,
+				DUP_ERROR, alter_info));
 }
 
 

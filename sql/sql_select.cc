@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2003 MySQL AB & MySQL Finland AB & TCX DataKonsult AB
+/* Copyright (C) 2000-2004 MySQL AB & MySQL Finland AB & TCX DataKonsult AB
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -55,12 +55,12 @@ static void best_access_path(JOIN *join, JOIN_TAB *s, THD *thd,
                              double record_count, double read_time);
 static void optimize_straight_join(JOIN *join, table_map join_tables);
 static void greedy_search(JOIN *join, table_map remaining_tables,
-                             uint depth, uint heuristic);
+                             uint depth, uint prune_level);
 static void best_extension_by_limited_search(JOIN *join,
                                              table_map remaining_tables,
                                              uint idx, double record_count,
                                              double read_time, uint depth,
-                                             uint heuristic);
+                                             uint prune_level);
 static uint determine_search_depth(JOIN* join);
 static int join_tab_cmp(const void* ptr1, const void* ptr2);
 /*
@@ -367,7 +367,14 @@ JOIN::prepare(Item ***rref_pointer_array,
       Item_subselect::trans_res res;
       if ((res= subselect->select_transformer(this)) !=
 	  Item_subselect::RES_OK)
+      {
+        if (thd->current_arena && select_lex->first_execution)
+        {
+          select_lex->prep_where= select_lex->where;
+          select_lex->first_execution= 0;
+        }
 	DBUG_RETURN((res == Item_subselect::RES_ERROR));
+      }
     }
   }
 
@@ -391,7 +398,7 @@ JOIN::prepare(Item ***rref_pointer_array,
       {
 	if (item->with_sum_func)
 	  flag|=1;
-	else if (!(flag & 2) && !item->const_item())
+	else if (!(flag & 2) && !item->const_during_execution())
 	  flag|=2;
       }
       if (flag == 3)
@@ -470,6 +477,11 @@ JOIN::prepare(Item ***rref_pointer_array,
   if (alloc_func_list())
     goto err;
 
+  if (thd->current_arena && select_lex->first_execution)
+  {
+    select_lex->prep_where= select_lex->where;
+    select_lex->first_execution= 0;
+  }
   DBUG_RETURN(0); // All OK
 
 err:
@@ -689,7 +701,6 @@ JOIN::optimize()
     if (!order && org_order)
       skip_sort_order= 1;
   }
-  order= remove_const(this, order, conds, &simple_order);
   if (group_list || tmp_table_param.sum_func_count)
   {
     if (! hidden_group_fields)
@@ -1604,8 +1615,7 @@ mysql_select(THD *thd, Item ***rref_pointer_array,
       if (select_lex->linkage != GLOBAL_OPTIONS_TYPE)
       {
 	//here is EXPLAIN of subselect or derived table
-	join->result= result;
-	if (!join->procedure && result->prepare(join->fields_list, unit))
+	if (join->change_result(result))
 	{
 	  DBUG_RETURN(-1);
 	}
@@ -3063,8 +3073,8 @@ best_access_path(JOIN      *join,
 static void
 choose_plan(JOIN *join, table_map join_tables)
 {
-  uint search_depth= join->thd->variables.plan_search_depth;
-  uint heuristic=    join->thd->variables.heuristic;
+  uint search_depth= join->thd->variables.optimizer_search_depth;
+  uint prune_level=  join->thd->variables.optimizer_prune_level;
 
   DBUG_ENTER("choose_plan");
 
@@ -3094,7 +3104,7 @@ choose_plan(JOIN *join, table_map join_tables)
       if (search_depth == 0)
         /* Automatically determine a reasonable value for 'search_depth' */
         search_depth= determine_search_depth(join);
-      greedy_search(join, join_tables, search_depth, heuristic);
+      greedy_search(join, join_tables, search_depth, prune_level);
     }
   }
 
@@ -3245,7 +3255,7 @@ optimize_straight_join(JOIN *join, table_map join_tables)
                      for the query
     remaining_tables set of tables not included into the partial plan yet
     search_depth     controlls the exhaustiveness of the search
-    heuristic        the pruning heuristics that should be applied during
+    prune_level      the pruning heuristics that should be applied during
                      search
 
   DESCRIPTION
@@ -3315,7 +3325,7 @@ static void
 greedy_search(JOIN      *join,
               table_map remaining_tables,
               uint      search_depth,
-              uint      heuristic)
+              uint      prune_level)
 {
   double    record_count= 1.0;
   double    read_time=    0.0;
@@ -3334,7 +3344,7 @@ greedy_search(JOIN      *join,
     /* Find the extension of the current QEP with the lowest cost */
     join->best_read= DBL_MAX;
     best_extension_by_limited_search(join, remaining_tables, idx, record_count,
-                                     read_time, search_depth, heuristic);
+                                     read_time, search_depth, prune_level);
 
     if (rem_size <= search_depth)
     {
@@ -3364,7 +3374,7 @@ greedy_search(JOIN      *join,
       pos= join->best_ref[++best_idx];
     DBUG_ASSERT((pos != NULL)); // should always find 'best_table'
     /* move 'best_table' at the first free position in the array of joins */
-    swap(JOIN_TAB*, join->best_ref[idx], join->best_ref[best_idx]);
+    swap_variables(JOIN_TAB*, join->best_ref[idx], join->best_ref[best_idx]);
 
     /* compute the cost of the new plan extended with 'best_table' */
     record_count*= join->positions[idx].records_read;
@@ -3398,7 +3408,7 @@ greedy_search(JOIN      *join,
     read_time        the cost of the best partial plan
     search_depth     maximum depth of the recursion and thus size of the found
                      optimal plan (0 < search_depth <= join->tables+1).
-    heuristic        pruning heuristics that should be applied during optimization
+    prune_level      pruning heuristics that should be applied during optimization
                      (values: 0 = EXHAUSTIVE, 1 = PRUNE_BY_TIME_OR_ROWS)
 
   DESCRIPTION
@@ -3482,7 +3492,7 @@ greedy_search(JOIN      *join,
     When 'best_extension_by_limited_search' is called for the first time,
     'join->best_read' must be set to the largest possible value (e.g. DBL_MAX).
     The actual implementation provides a way to optionally use pruning
-    heuristics (controlled by the parameter 'heuristic') to reduce the search
+    heuristic (controlled by the parameter 'prune_level') to reduce the search
     space by skipping some partial plans.
     The parameter 'search_depth' provides control over the recursion
     depth, and thus the size of the resulting optimal plan.
@@ -3498,7 +3508,7 @@ best_extension_by_limited_search(JOIN      *join,
                                  double    record_count,
                                  double    read_time,
                                  uint      search_depth,
-                                 uint      heuristic)
+                                 uint      prune_level)
 {
   THD *thd= join->thd;
   if (thd->killed)  // Abort
@@ -3543,7 +3553,7 @@ best_extension_by_limited_search(JOIN      *join,
         Prune some less promising partial plans. This heuristic may miss
         the optimal QEPs, thus it results in a non-exhaustive search.
       */
-      if (heuristic == 1)
+      if (prune_level == 1)
       {
         if (best_record_count > current_record_count ||
             best_read_time > current_read_time ||
@@ -3563,24 +3573,24 @@ best_extension_by_limited_search(JOIN      *join,
         else
         {
           DBUG_EXECUTE("opt", print_plan(join, read_time, record_count, idx,
-                                         "prune_by_heuristic"););
+                                         "pruned_by_heuristic"););
           continue;
         }
       }
 
       if ( (search_depth > 1) && (remaining_tables & ~real_table_bit) )
       { /* Recursively expand the current partial plan */
-        swap(JOIN_TAB*, join->best_ref[idx], *pos);
+        swap_variables(JOIN_TAB*, join->best_ref[idx], *pos);
         best_extension_by_limited_search(join,
                                          remaining_tables & ~real_table_bit,
                                          idx + 1,
                                          current_record_count,
                                          current_read_time,
                                          search_depth - 1,
-                                         heuristic);
+                                         prune_level);
         if (thd->killed)
           DBUG_VOID_RETURN;
-        swap(JOIN_TAB*, join->best_ref[idx], *pos);
+        swap_variables(JOIN_TAB*, join->best_ref[idx], *pos);
       }
       else
       { /*
@@ -4001,12 +4011,12 @@ find_best(JOIN *join,table_map rest_tables,uint idx,double record_count,
 	  best_record_count=current_record_count;
 	  best_read_time=current_read_time;
 	}
-	swap(JOIN_TAB*,join->best_ref[idx],*pos);
+	swap_variables(JOIN_TAB*, join->best_ref[idx], *pos);
 	find_best(join,rest_tables & ~real_table_bit,idx+1,
 		  current_record_count,current_read_time);
         if (thd->killed)
           return;
-	swap(JOIN_TAB*,join->best_ref[idx],*pos);
+	swap_variables(JOIN_TAB*, join->best_ref[idx], *pos);
       }
       if (join->select_options & SELECT_STRAIGHT_JOIN)
 	break;				// Don't test all combinations
@@ -5866,6 +5876,9 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
   else // if we run out of slots or we are not using tempool
     sprintf(path,"%s%s%lx_%lx_%x",mysql_tmpdir,tmp_file_prefix,current_pid,
             thd->thread_id, thd->tmp_table++);
+  
+  if (lower_case_table_names)
+    my_casedn_str(files_charset_info, path);
 
   if (group)
   {
@@ -6504,6 +6517,8 @@ bool create_myisam_from_heap(THD *thd, TABLE *table, TMP_TABLE_PARAM *param,
     goto err2;
   if (open_tmp_table(&new_table))
     goto err1;
+  if (table->file->indexes_are_disabled())
+    new_table.file->disable_indexes(HA_KEY_SWITCH_ALL);
   table->file->index_end();
   table->file->rnd_init();
   if (table->no_rows)
@@ -7115,8 +7130,8 @@ join_read_prev_same(READ_RECORD *info)
 
   if ((error=table->file->index_prev(table->record[0])))
     return report_error(table, error);
-  if (key_cmp(table, tab->ref.key_buff, tab->ref.key,
-	      tab->ref.key_length))
+  if (key_cmp_if_same(table, tab->ref.key_buff, tab->ref.key,
+                      tab->ref.key_length))
   {
     table->status=STATUS_NOT_FOUND;
     error= -1;
@@ -8046,8 +8061,16 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
   }
   else if (select && select->quick)		// Range found by opt_range
   {
-    /* assume results are not ordered when index merge is used */
-    if (select->quick->get_type() == QUICK_SELECT_I::QS_TYPE_INDEX_MERGE)
+    int quick_type= select->quick->get_type();
+    /* 
+      assume results are not ordered when index merge is used 
+      TODO: sergeyp: Results of all index merge selects actually are ordered 
+      by clustered PK values.
+    */
+  
+    if (quick_type == QUICK_SELECT_I::QS_TYPE_INDEX_MERGE || 
+        quick_type == QUICK_SELECT_I::QS_TYPE_ROR_UNION || 
+        quick_type == QUICK_SELECT_I::QS_TYPE_ROR_INTERSECT)
       DBUG_RETURN(0);
     ref_key=	   select->quick->index;
     ref_key_parts= select->quick->used_key_parts;
@@ -8108,9 +8131,11 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
 	  */
 	  if (!select->quick->reverse_sorted())
 	  {
+            int quick_type= select->quick->get_type();
             if (table->file->index_flags(ref_key) & HA_NOT_READ_PREFIX_LAST ||
-                (select->quick->get_type() == 
-                QUICK_SELECT_I::QS_TYPE_INDEX_MERGE))
+                quick_type == QUICK_SELECT_I::QS_TYPE_INDEX_MERGE ||
+                quick_type == QUICK_SELECT_I::QS_TYPE_ROR_INTERSECT ||
+                quick_type == QUICK_SELECT_I::QS_TYPE_ROR_UNION)
               DBUG_RETURN(0);			// Use filesort
             
             // ORDER BY range_key DESC
@@ -10089,7 +10114,8 @@ static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
   THD *thd=join->thd;
   select_result *result=join->result;
   Item *item_null= new Item_null();
-  CHARSET_INFO *cs= &my_charset_latin1;
+  CHARSET_INFO *cs= system_charset_info;
+  int quick_type;
   DBUG_ENTER("select_describe");
   DBUG_PRINT("info", ("Select 0x%lx, type %s, message %s",
 		      (ulong)join->select_lex, join->select_lex->type,
@@ -10100,12 +10126,77 @@ static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
 
   if (message)
   {
-    item_list.push_back(new Item_int((int32) join->select_lex->select_number));
+    item_list.push_back(new Item_int((int32)
+				     join->select_lex->select_number));
     item_list.push_back(new Item_string(join->select_lex->type,
 					strlen(join->select_lex->type), cs));
     for (uint i=0 ; i < 7; i++)
       item_list.push_back(item_null);
     item_list.push_back(new Item_string(message,strlen(message),cs));
+    if (result->send_data(item_list))
+      join->error= 1;
+  }
+  else if (join->select_lex == join->unit->fake_select_lex)
+  {
+    /* 
+      here we assume that the query will return at least two rows, so we
+      show "filesort" in EXPLAIN. Of course, sometimes we'll be wrong
+      and no filesort will be actually done, but executing all selects in
+      the UNION to provide precise EXPLAIN information will hardly be
+      appreciated :)
+    */
+    char table_name_buffer[NAME_LEN];
+    item_list.empty();
+    /* id */
+    item_list.push_back(new Item_null);
+    /* select_type */
+    item_list.push_back(new Item_string(join->select_lex->type,
+					strlen(join->select_lex->type),
+					cs));
+    /* table */
+    {
+      SELECT_LEX *sl= join->unit->first_select();
+      uint len= 6, lastop= 0;
+      memcpy(table_name_buffer, "<union", 6);
+      for (; sl && len + lastop + 5 < NAME_LEN; sl= sl->next_select())
+      {
+        len+= lastop;
+        lastop= my_snprintf(table_name_buffer + len, NAME_LEN - len,
+                            "%u,", sl->select_number);
+      }
+      if (sl || len + lastop >= NAME_LEN)
+      {
+        memcpy(table_name_buffer + len, "...>", 5);
+        len+= 4;
+      }
+      else
+      {
+        len+= lastop;
+        table_name_buffer[len - 1]= '>';  // change ',' to '>'
+      }
+      item_list.push_back(new Item_string(table_name_buffer, len, cs));
+    }
+    /* type */
+    item_list.push_back(new Item_string(join_type_str[JT_ALL],
+					  strlen(join_type_str[JT_ALL]),
+					  cs));
+    /* possible_keys */
+    item_list.push_back(item_null);
+    /* key*/
+    item_list.push_back(item_null);
+    /* key_len */
+    item_list.push_back(item_null);
+    /* ref */
+    item_list.push_back(item_null);
+    /* rows */
+    item_list.push_back(item_null);
+    /* extra */
+    if (join->unit->global_parameters->order_list.first)
+      item_list.push_back(new Item_string("Using filesort",
+					  14, cs));
+    else
+      item_list.push_back(new Item_string("", 0, cs));
+
     if (result->send_data(item_list))
       join->error= 1;
   }
@@ -10116,47 +10207,57 @@ static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
     {
       JOIN_TAB *tab=join->join_tab+i;
       TABLE *table=tab->table;
-      char buff[512],*buff_ptr=buff;
+      char buff[512]; 
       char buff1[512], buff2[512], buff3[512];
       char keylen_str_buf[64];
-      char derived_name[64];
+      String extra(buff, sizeof(buff),cs);
+      char table_name_buffer[NAME_LEN];
       String tmp1(buff1,sizeof(buff1),cs);
       String tmp2(buff2,sizeof(buff2),cs);
       String tmp3(buff3,sizeof(buff3),cs);
+      extra.length(0);
       tmp1.length(0);
       tmp2.length(0);
       tmp3.length(0);
 
+      quick_type= -1;
       item_list.empty();
-      item_list.push_back(new Item_int((int32)
+      /* id */
+      item_list.push_back(new Item_uint((uint32)
 				       join->select_lex->select_number));
+      /* select_type */
       item_list.push_back(new Item_string(join->select_lex->type,
 					  strlen(join->select_lex->type),
 					  cs));
       if (tab->type == JT_ALL && tab->select && tab->select->quick)
       {
-        if (tab->select->quick->get_type() == 
-            QUICK_SELECT_I::QS_TYPE_INDEX_MERGE)
+        quick_type= tab->select->quick->get_type();
+        if ((quick_type == QUICK_SELECT_I::QS_TYPE_INDEX_MERGE) ||
+            (quick_type == QUICK_SELECT_I::QS_TYPE_ROR_INTERSECT) ||
+            (quick_type == QUICK_SELECT_I::QS_TYPE_ROR_UNION))
           tab->type = JT_INDEX_MERGE;
         else
 	  tab->type = JT_RANGE;
       }
+      /* table */
       if (table->derived_select_number)
       {
 	/* Derived table name generation */
-	int len= my_snprintf(derived_name, sizeof(derived_name)-1,
+	int len= my_snprintf(table_name_buffer, sizeof(table_name_buffer)-1,
 			     "<derived%u>",
 			     table->derived_select_number);
-	item_list.push_back(new Item_string(derived_name, len, cs));
+	item_list.push_back(new Item_string(table_name_buffer, len, cs));
       }
       else
 	item_list.push_back(new Item_string(table->table_name,
 					    strlen(table->table_name),
 					    cs));
+      /* type */
       item_list.push_back(new Item_string(join_type_str[tab->type],
 					  strlen(join_type_str[tab->type]),
 					  cs));
       uint j;
+      /* Build "possible_keys" value and add it to item_list */
       if (!tab->keys.is_clear_all())
       {
         for (j=0 ; j < table->keys ; j++)
@@ -10165,7 +10266,9 @@ static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
           {
             if (tmp1.length())
               tmp1.append(',');
-            tmp1.append(table->key_info[j].name);
+            tmp1.append(table->key_info[j].name, 
+			strlen(table->key_info[j].name),
+			system_charset_info);
           }
         }
       }
@@ -10173,6 +10276,8 @@ static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
 	item_list.push_back(new Item_string(tmp1.ptr(),tmp1.length(),cs));
       else
 	item_list.push_back(item_null);
+
+      /* Build "key", "key_len", and "ref" values and add them to item_list */
       if (tab->ref.key_parts)
       {
 	KEY *key_info=table->key_info+ tab->ref.key;
@@ -10188,7 +10293,8 @@ static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
 	{
 	  if (tmp2.length())
 	    tmp2.append(',');
-	  tmp2.append((*ref)->name());
+	  tmp2.append((*ref)->name(), strlen((*ref)->name()),
+		      system_charset_info);
 	}
 	item_list.push_back(new Item_string(tmp2.ptr(),tmp2.length(),cs));
       }
@@ -10207,48 +10313,9 @@ static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
       }
       else if (tab->select && tab->select->quick)
       {
-        if (tab->select->quick->get_type() == 
-            QUICK_SELECT_I::QS_TYPE_INDEX_MERGE)
-        {
-          QUICK_INDEX_MERGE_SELECT *quick_imerge=
-            (QUICK_INDEX_MERGE_SELECT*)tab->select->quick;
-          QUICK_RANGE_SELECT *quick;
-
-          List_iterator_fast<QUICK_RANGE_SELECT> it(quick_imerge->
-                                                    quick_selects);
-          while ((quick= it++))
-          {
-	    KEY *key_info= table->key_info + quick->index;
-            register uint length;
-            if (tmp3.length())
-	      tmp3.append(',');
-	    
-            tmp3.append(key_info->name);
-
-	    if (tmp2.length())
-	      tmp2.append(',');
-
-            length= longlong2str(quick->max_used_key_length, keylen_str_buf,
-                                 10) - 
-                    keylen_str_buf;
-
-            tmp2.append(keylen_str_buf, length);
-          }
-        }
-        else
-        {
-	  KEY *key_info= table->key_info + tab->select->quick->index;
-          register uint length;
-          tmp3.append(key_info->name);
-          
-          length= longlong2str(tab->select->quick->max_used_key_length, 
-                               keylen_str_buf, 10) -
-                  keylen_str_buf;
-          tmp2.append(keylen_str_buf, length);
-        }
-
-	item_list.push_back(new Item_string(tmp3.ptr(),tmp3.length(),cs));
+        tab->select->quick->add_keys_and_lengths(&tmp2, &tmp3);
 	item_list.push_back(new Item_string(tmp2.ptr(),tmp2.length(),cs));
+	item_list.push_back(new Item_string(tmp3.ptr(),tmp3.length(),cs));
 	item_list.push_back(item_null);
       }
       else
@@ -10257,50 +10324,68 @@ static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
 	item_list.push_back(item_null);
 	item_list.push_back(item_null);
       }
+      /* Add "rows" field to item_list. */
       item_list.push_back(new Item_int((longlong) (ulonglong)
 				       join->best_positions[i]. records_read,
 				       21));
+      /* Build "Extra" field and add it to item_list. */
       my_bool key_read=table->key_read;
       if ((tab->type == JT_NEXT || tab->type == JT_CONST) &&
           table->used_keys.is_set(tab->index))
 	key_read=1;
-
+      if (quick_type == QUICK_SELECT_I::QS_TYPE_ROR_INTERSECT &&
+          !((QUICK_ROR_INTERSECT_SELECT*)tab->select->quick)->need_to_fetch_row)
+        key_read=1;
+        
       if (tab->info)
 	item_list.push_back(new Item_string(tab->info,strlen(tab->info),cs));
       else
       {
+        if (quick_type == QUICK_SELECT_I::QS_TYPE_ROR_UNION || 
+            quick_type == QUICK_SELECT_I::QS_TYPE_ROR_INTERSECT ||
+            quick_type == QUICK_SELECT_I::QS_TYPE_INDEX_MERGE)
+        {
+          extra.append("; Using ");
+          tab->select->quick->add_info_string(&extra);
+        }
 	if (tab->select)
 	{
 	  if (tab->use_quick == 2)
 	  {
             char buf[MAX_KEY/8+1];
-	    sprintf(buff_ptr,"; Range checked for each record (index map: 0x%s)",
-                tab->keys.print(buf));
-	    buff_ptr=strend(buff_ptr);
+            extra.append("; Range checked for each record (index map: 0x");
+            extra.append(tab->keys.print(buf));
+            extra.append(')');
 	  }
 	  else
-	    buff_ptr=strmov(buff_ptr,"; Using where");
+            extra.append("; Using where");
 	}
 	if (key_read)
-	  buff_ptr= strmov(buff_ptr,"; Using index");
+	  extra.append("; Using index");
 	if (table->reginfo.not_exists_optimize)
-	  buff_ptr= strmov(buff_ptr,"; Not exists");
+	  extra.append("; Not exists");
 	if (need_tmp_table)
 	{
 	  need_tmp_table=0;
-	  buff_ptr= strmov(buff_ptr,"; Using temporary");
+	  extra.append("; Using temporary");
 	}
 	if (need_order)
 	{
 	  need_order=0;
-	  buff_ptr= strmov(buff_ptr,"; Using filesort");
+	  extra.append("; Using filesort");
 	}
 	if (distinct & test_all_bits(used_tables,thd->used_tables))
-	  buff_ptr= strmov(buff_ptr,"; Distinct");
-	if (buff_ptr == buff)
-	  buff_ptr+= 2;				// Skip inital "; "
-	item_list.push_back(new Item_string(buff+2,(uint) (buff_ptr - buff)-2,
-					    cs));
+	  extra.append("; Distinct");
+        
+        /* Skip initial "; "*/
+        const char *str= extra.ptr();
+        uint32 len= extra.length();
+        if (len)
+        {
+          str += 2;
+          len -= 2;
+        }
+	item_list.push_back(new Item_string(str, len, cs));
       }
       // For next iteration
       used_tables|=table->map;
@@ -10324,67 +10409,57 @@ int mysql_explain_union(THD *thd, SELECT_LEX_UNIT *unit, select_result *result)
   DBUG_ENTER("mysql_explain_union");
   int res= 0;
   SELECT_LEX *first= unit->first_select();
+
   for (SELECT_LEX *sl= first;
        sl;
        sl= sl->next_select())
   {
     // drop UNCACHEABLE_EXPLAIN, because it is for internal usage only
     uint8 uncacheable= (sl->uncacheable & ~UNCACHEABLE_EXPLAIN);
-
-    res= mysql_explain_select(thd, sl,
-			      (((&thd->lex->select_lex)==sl)?
-			       ((thd->lex->all_selects_list != sl) ? 
-				primary_key_name : "SIMPLE"):
-			       ((sl == first)?
-				((sl->linkage == DERIVED_TABLE_TYPE) ?
-				 "DERIVED":
-				((uncacheable & UNCACHEABLE_DEPENDENT) ?
-				 "DEPENDENT SUBQUERY":
-				 (uncacheable?"UNCACHEABLE SUBQUERY":
-				   "SUBQUERY"))):
-				((uncacheable & UNCACHEABLE_DEPENDENT) ?
-				 "DEPENDENT UNION":
-				 uncacheable?"UNCACHEABLE UNION":
-				  "UNION"))),
-			      result);
-    if (res)
-      break;
-
+    sl->type= (((&thd->lex->select_lex)==sl)?
+	       ((thd->lex->all_selects_list != sl) ? 
+		primary_key_name : "SIMPLE"):
+	       ((sl == first)?
+		((sl->linkage == DERIVED_TABLE_TYPE) ?
+		 "DERIVED":
+		 ((uncacheable & UNCACHEABLE_DEPENDENT) ?
+		  "DEPENDENT SUBQUERY":
+		  (uncacheable?"UNCACHEABLE SUBQUERY":
+		   "SUBQUERY"))):
+		((uncacheable & UNCACHEABLE_DEPENDENT) ?
+		 "DEPENDENT UNION":
+		 uncacheable?"UNCACHEABLE UNION":
+		 "UNION")));
+    sl->options|= SELECT_DESCRIBE;
+  }
+  if (first->next_select())
+  {
+    unit->fake_select_lex->select_number= UINT_MAX; // jost for initialization
+    unit->fake_select_lex->type= "UNION RESULT";
+    unit->fake_select_lex->options|= SELECT_DESCRIBE;
+    if (!(res= unit->prepare(thd, result, SELECT_NO_UNLOCK | SELECT_DESCRIBE)))
+      res= unit->exec();
+    res|= unit->cleanup();
+  }
+  else
+  {
+    thd->lex->current_select= first;
+    unit->set_limit(unit->global_parameters, first);
+    res= mysql_select(thd, &first->ref_pointer_array,
+			(TABLE_LIST*) first->table_list.first,
+			first->with_wild, first->item_list,
+			first->where,
+			first->order_list.elements +
+			first->group_list.elements,
+			(ORDER*) first->order_list.first,
+			(ORDER*) first->group_list.first,
+			first->having,
+			(ORDER*) thd->lex->proc_list.first,
+			first->options | thd->options | SELECT_DESCRIBE,
+			result, unit, first);
   }
   if (res > 0 || thd->net.report_error)
     res= -1; // mysql_explain_select do not report error
-  DBUG_RETURN(res);
-}
-
-
-int mysql_explain_select(THD *thd, SELECT_LEX *select_lex, char const *type, 
-			 select_result *result)
-{
-  DBUG_ENTER("mysql_explain_select");
-  DBUG_PRINT("info", ("Select 0x%lx, type %s", (ulong)select_lex, type))
-  select_lex->type= type;
-  thd->lex->current_select= select_lex;
-  SELECT_LEX_UNIT *unit=  select_lex->master_unit();
-  if (select_lex == unit->global_parameters &&
-      unit->first_select()->next_select())
-  {
-    unit->offset_limit_cnt= 0;
-    unit->select_limit_cnt= HA_POS_ERROR;
-  }
-  else
-    unit->set_limit(select_lex, select_lex);
-  int res= mysql_select(thd, &select_lex->ref_pointer_array,
-			(TABLE_LIST*) select_lex->table_list.first,
-			select_lex->with_wild, select_lex->item_list,
-			select_lex->where,
-			select_lex->order_list.elements +
-			select_lex->group_list.elements,
-			(ORDER*) select_lex->order_list.first,
-			(ORDER*) select_lex->group_list.first,
-			select_lex->having,
-			(ORDER*) thd->lex->proc_list.first,
-			select_lex->options | thd->options | SELECT_DESCRIBE,
-			result, unit, select_lex);
   DBUG_RETURN(res);
 }
 
@@ -10399,23 +10474,23 @@ void st_select_lex::print(THD *thd, String *str)
   //options
   if (options & SELECT_STRAIGHT_JOIN)
     str->append("straight_join ", 14);
-  if ((thd->lex->lock_option & TL_READ_HIGH_PRIORITY) &&
+  if ((thd->lex->lock_option == TL_READ_HIGH_PRIORITY) &&
       (this == &thd->lex->select_lex))
     str->append("high_priority ", 14);
   if (options & SELECT_DISTINCT)
     str->append("distinct ", 9);
   if (options & SELECT_SMALL_RESULT)
-    str->append("small_result ", 13);
+    str->append("sql_small_result ", 17);
   if (options & SELECT_BIG_RESULT)
-    str->append("big_result ", 11);
+    str->append("sql_big_result ", 15);
   if (options & OPTION_BUFFER_RESULT)
-    str->append("buffer_result ", 14);
+    str->append("sql_buffer_result ", 18);
   if (options & OPTION_FOUND_ROWS)
-    str->append("calc_found_rows ", 16);
+    str->append("sql_calc_found_rows ", 20);
   if (!thd->lex->safe_to_cache_query)
-    str->append("no_cache ", 9);
+    str->append("sql_no_cache ", 13);
   if (options & OPTION_TO_QUERY_CACHE)
-    str->append("cache ", 6);
+    str->append("sql_cache ", 10);
 
   //Item List
   bool first= 1;
@@ -10542,4 +10617,28 @@ void st_select_lex::print(THD *thd, String *str)
   print_limit(thd, str);
 
   // PROCEDURE unsupported here
+}
+
+
+/*
+  change select_result object of JOIN
+
+  SYNOPSIS
+    JOIN::change_result()
+    res		new select_result object
+
+  RETURN
+    0 - OK
+    -1 - error
+*/
+
+int JOIN::change_result(select_result *res)
+{
+  DBUG_ENTER("JOIN::change_result");
+  result= res;
+  if (!procedure && result->prepare(fields_list, select_lex->master_unit()))
+  {
+    DBUG_RETURN(-1);
+  }
+  DBUG_RETURN(0);
 }

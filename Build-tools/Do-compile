@@ -11,7 +11,7 @@ $opt_distribution=$opt_user=$opt_config_env="";
 $opt_dbd_options=$opt_perl_options=$opt_config_options=$opt_make_options=$opt_suffix="";
 $opt_tmp=$opt_version_suffix="";
 $opt_help=$opt_delete=$opt_debug=$opt_stage=$opt_no_test=$opt_no_perl=$opt_with_low_memory=$opt_fast_benchmark=$opt_static_client=$opt_static_server=$opt_static_perl=$opt_sur=$opt_with_small_disk=$opt_local_perl=$opt_tcpip=$opt_build_thread=$opt_use_old_distribution=$opt_enable_shared=$opt_no_crash_me=$opt_no_strip=$opt_with_cluster=$opt_with_debug=$opt_no_benchmark=$opt_no_mysqltest=$opt_without_embedded=$opt_readline=0;
-$opt_innodb=$opt_bdb=$opt_raid=$opt_libwrap=0;
+$opt_innodb=$opt_bdb=$opt_raid=$opt_libwrap=$opt_clearlogs=$opt_without_ndbcluster=0;
 
 GetOptions(
 	"bdb",
@@ -56,6 +56,8 @@ GetOptions(
 	"with-other-libc=s",
 	"with-small-disk",
 	"without-embedded",
+        "clearlogs",
+        "without-ndbcluster",
 ) || usage();
 
 usage() if ($opt_help);
@@ -140,7 +142,7 @@ $slave_port=$mysql_tcp_port+16;
 $manager_port=$mysql_tcp_port+1;
 $mysqladmin_args="--no-defaults -u root --connect_timeout=5 --shutdown_timeout=20";
 
-if ($opt_stage == 0)
+if ($opt_stage == 0 || $opt_clearlogs)
 {
   system("mkdir Logs") if (! -d "Logs");
   system("mv $log ${log}-old") if (-f $log);
@@ -237,18 +239,19 @@ if ($opt_stage <= 1)
   $opt_config_options.= " --with-raid" if ($opt_raid);
   $opt_config_options.= " --with-readline" if ($opt_readline);
   $opt_config_options.= " --with-embedded-server" unless ($opt_without_embedded);
+  $opt_config_options.= " --without-ndbcluster" if ($opt_without_ndbcluster);
   $opt_config_options.= " --with-ndbcluster" if ($opt_with_cluster);
 
   # Only enable InnoDB when requested (required to be able to
   # build the "Classic" packages that do not include InnoDB)
-	if ($opt_innodb)
-	{
-		$opt_config_options.= " --with-innodb";
-	}
-	else
-	{
-		$opt_config_options.= " --without-innodb";
-	}
+  if ($opt_innodb)
+  {
+    $opt_config_options.= " --with-innodb";
+  }
+  else
+  {
+    $opt_config_options.= " --without-innodb";
+  }
 
   if ($opt_with_other_libc)
   {

@@ -5,6 +5,15 @@ create procedure syntaxerror(t int)|
 ERROR 42000: You have an error in your SQL syntax.  Check the manual that corresponds to your MySQL server version for the right syntax to use near '' at line 1
 create procedure syntaxerror(t int)|
 ERROR 42000: You have an error in your SQL syntax.  Check the manual that corresponds to your MySQL server version for the right syntax to use near '' at line 1
+drop table if exists t3|
+create table t3 ( x int )|
+insert into t3 values (2), (3)|
+create procedure bad_into(out param int)
+select x from t3 into param|
+call bad_into(@x)|
+ERROR 42000: Result consisted of more than one row
+drop procedure bad_into|
+drop table t3|
 create procedure proc1()
 set @x = 42|
 create function func1() returns int
@@ -24,15 +33,15 @@ ERROR 42000: FUNCTION func1 already exists
 drop procedure proc1|
 drop function func1|
 alter procedure foo|
-ERROR 42000: PROCEDURE foo does not exist
+ERROR 42000: PROCEDURE test.foo does not exist
 alter function foo|
-ERROR 42000: FUNCTION foo does not exist
+ERROR 42000: FUNCTION test.foo does not exist
 drop procedure foo|
-ERROR 42000: PROCEDURE foo does not exist
+ERROR 42000: PROCEDURE test.foo does not exist
 drop function foo|
-ERROR 42000: FUNCTION foo does not exist
+ERROR 42000: FUNCTION test.foo does not exist
 call foo()|
-ERROR 42000: PROCEDURE foo does not exist
+ERROR 42000: PROCEDURE test.foo does not exist
 drop procedure if exists foo|
 Warnings:
 Warning	1298	PROCEDURE foo does not exist
@@ -88,13 +97,13 @@ insert into test.t1 values (x)|
 create function f(x int) returns int
 return x+42|
 call p()|
-ERROR 42000: Wrong number of arguments for PROCEDURE p, expected 1, got 0
+ERROR 42000: Incorrect number of arguments for PROCEDURE p; expected 1, got 0
 call p(1, 2)|
-ERROR 42000: Wrong number of arguments for PROCEDURE p, expected 1, got 2
+ERROR 42000: Incorrect number of arguments for PROCEDURE p; expected 1, got 2
 select f()|
-ERROR 42000: Wrong number of arguments for FUNCTION f, expected 1, got 0
+ERROR 42000: Incorrect number of arguments for FUNCTION f; expected 1, got 0
 select f(1, 2)|
-ERROR 42000: Wrong number of arguments for FUNCTION f, expected 1, got 2
+ERROR 42000: Incorrect number of arguments for FUNCTION f; expected 1, got 2
 drop procedure p|
 drop function f|
 create procedure p(val int, out res int)
@@ -184,7 +193,7 @@ call p()|
 ERROR 24000: Cursor is not open
 drop procedure p|
 alter procedure bar3 sql security invoker|
-ERROR 42000: PROCEDURE bar3 does not exist
+ERROR 42000: PROCEDURE test.bar3 does not exist
 alter procedure bar3 name
 AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA|
 ERROR 42000: Identifier name 'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA' is too long
@@ -210,7 +219,7 @@ fetch c into x;
 close c;
 end|
 call p()|
-ERROR HY000: Wrong number of FETCH variables
+ERROR HY000: Incorrect number of FETCH variables
 drop procedure p|
 create procedure p()
 begin
@@ -223,7 +232,7 @@ fetch c into x, y, z;
 close c;
 end|
 call p()|
-ERROR HY000: Wrong number of FETCH variables
+ERROR HY000: Incorrect number of FETCH variables
 drop procedure p|
 create procedure p(in x int, x char(10))
 begin
@@ -386,4 +395,6 @@ select @x|
 0
 drop procedure bug3279|
 drop table t3|
+create procedure nodb.bug3339() begin end|
+ERROR 42000: Unknown database 'nodb'
 drop table t1|

@@ -52,7 +52,7 @@
 #ifndef __GETARG_H__
 #define __GETARG_H__
 
-#include <stddef.h>
+#include <ndb_global.h>
 
 #ifdef __cplusplus
 extern "C" {
