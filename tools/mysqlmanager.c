@@ -41,10 +41,10 @@
 #include <errno.h>
 #include <violite.h>
 #include <my_pthread.h>
+#include <md5.h>
 
 #define MANAGER_VERSION "1.0"
-#define MANAGER_GREETING "MySQL Server Management Daemon v." ## \
- MANAGER_VERSION
+#define MANAGER_GREETING "MySQL Server Management Daemon v. 1.0" 
 
 #define LOG_ERR  1
 #define LOG_WARN 2
@@ -121,15 +121,9 @@ int one_thread = 0; /* for debugging */
 
 #define MAX_CLIENT_MSG_LEN  256
 #define NET_BLOCK    2048
-#define MD5_LEN      32
+#define MD5_LEN      16
 #define ESCAPE_CHAR '\\'
 #define EOL_CHAR '\n'
-
-#define MSG_OK           200
-#define MSG_INFO         250
-#define MSG_ACCESS       401
-#define MSG_CLIENT_ERR   450
-#define MSG_INTERNAL_ERR 500
 
 /* access flags */
 
@@ -138,7 +132,7 @@ int one_thread = 0; /* for debugging */
 struct manager_thd
 {
   Vio* vio;
-  char user[MAX_USER_NAME];
+  char user[MAX_USER_NAME+1];
   int priv_flags;
   char* cmd_buf;
   int fatal,finished;
@@ -146,7 +140,7 @@ struct manager_thd
 
 struct manager_user
 {
-  char user[MAX_USER_NAME];
+  char user[MAX_USER_NAME+1];
   char md5_pass[MD5_LEN];
   int user_len;
   const char* error;
@@ -175,6 +169,7 @@ static byte* get_user_key(const byte* u, uint* len,
 			  my_bool __attribute__((unused)) t);
 static uint tokenize_args(char* arg_start,char** arg_end);
 static void init_arg_array(char* arg_str,char** args,uint arg_count);
+static int hex_val(char c);
 
 typedef int (*manager_cmd_handler)(struct manager_thd*,char*,char*);
 
@@ -359,7 +354,7 @@ static int exec_line(struct manager_thd* thd,char* buf,char* buf_end)
     *p=tolower(*p);
   if (!(cmd=lookup_cmd(buf,(int)(p-buf))))
   {
-    client_msg(thd->vio,MSG_CLIENT_ERR,
+    client_msg(thd->vio,MANAGER_CLIENT_ERR,
 	       "Unrecognized command, type help to see list of supported\
  commands");
     return 1;
@@ -381,13 +376,13 @@ static struct manager_cmd* lookup_cmd(char* s,int len)
 
 HANDLE_NOARG_DECL(ping)
 {
-  client_msg(thd->vio,MSG_OK,"Server management daemon is alive");
+  client_msg(thd->vio,MANAGER_OK,"Server management daemon is alive");
   return 0;
 }
 
 HANDLE_NOARG_DECL(quit)
 {
-  client_msg(thd->vio,MSG_OK,"Goodbye");
+  client_msg(thd->vio,MANAGER_OK,"Goodbye");
   thd->finished=1;
   return 0;
 }
@@ -396,18 +391,18 @@ HANDLE_NOARG_DECL(help)
 {
   struct manager_cmd* cmd = commands;
   Vio* vio = thd->vio;
-  client_msg_pre(vio,MSG_INFO,"Available commands:");
+  client_msg_pre(vio,MANAGER_INFO,"Available commands:");
   for (;cmd->name;cmd++)
   {
-    client_msg_pre(vio,MSG_INFO,"%s - %s", cmd->name, cmd->help);
+    client_msg_pre(vio,MANAGER_INFO,"%s - %s", cmd->name, cmd->help);
   }
-  client_msg_pre(vio,MSG_INFO,"End of help");
+  client_msg_pre(vio,MANAGER_INFO,"End of help");
   return 0;
 }
 
 HANDLE_NOARG_DECL(shutdown)
 {
-  client_msg(thd->vio,MSG_OK,"Shutdown started, goodbye");
+  client_msg(thd->vio,MANAGER_OK,"Shutdown started, goodbye");
   thd->finished=1;
   shutdown_requested = 1;
   if (!one_thread)
@@ -458,10 +453,10 @@ HANDLE_DECL(set_exec_con)
     }
   }
   pthread_mutex_unlock(&lock_exec_hash);
-  client_msg(thd->vio,MSG_OK,"Entry updated");
+  client_msg(thd->vio,MANAGER_OK,"Entry updated");
   return 0;
 err:
-  client_msg(thd->vio,MSG_CLIENT_ERR,error);
+  client_msg(thd->vio,MANAGER_CLIENT_ERR,error);
   return 1;
 }
 
@@ -506,10 +501,10 @@ HANDLE_DECL(start_exec)
   pthread_mutex_unlock(&e->lock);
   if (error)
     goto err;
-  client_msg(thd->vio,MSG_OK,"'%s' started",e->ident);
+  client_msg(thd->vio,MANAGER_OK,"'%s' started",e->ident);
   return 0;
 err:
-  client_msg(thd->vio,MSG_CLIENT_ERR,error);
+  client_msg(thd->vio,MANAGER_CLIENT_ERR,error);
   return 1;
 }
 
@@ -560,11 +555,11 @@ HANDLE_DECL(stop_exec)
   pthread_mutex_unlock(&e->lock);
   if (!error)
   {
-    client_msg(thd->vio,MSG_OK,"'%s' terminated",e->ident);
+    client_msg(thd->vio,MANAGER_OK,"'%s' terminated",e->ident);
     return 0;
   }
 err:
-  client_msg(thd->vio,MSG_CLIENT_ERR,error);
+  client_msg(thd->vio,MANAGER_CLIENT_ERR,error);
   return 1;
 }
 
@@ -592,10 +587,10 @@ HANDLE_DECL(def_exec)
   }
   hash_insert(&exec_hash,(byte*)e);
   pthread_mutex_unlock(&lock_exec_hash);
-  client_msg(thd->vio,MSG_OK,"Exec definition created");
+  client_msg(thd->vio,MANAGER_OK,"Exec definition created");
   return 0;
 err:
-  client_msg(thd->vio,MSG_CLIENT_ERR,error);
+  client_msg(thd->vio,MANAGER_CLIENT_ERR,error);
   if (e)
     manager_exec_free(e);
   return 1;
@@ -604,7 +599,7 @@ err:
 HANDLE_NOARG_DECL(show_exec)
 {
   uint i;
-  client_msg_pre(thd->vio,MSG_INFO,"Exec_def\tPid\tExit_status\tCon_info\
+  client_msg_pre(thd->vio,MANAGER_INFO,"Exec_def\tPid\tExit_status\tCon_info\
 \tArguments");
   pthread_mutex_lock(&lock_exec_hash);
   for (i=0;i<exec_hash.records;i++)
@@ -613,7 +608,7 @@ HANDLE_NOARG_DECL(show_exec)
     manager_exec_print(thd->vio,e);
   }
   pthread_mutex_unlock(&lock_exec_hash);
-  client_msg(thd->vio,MSG_INFO,"End");
+  client_msg(thd->vio,MANAGER_INFO,"End");
   return 0;
 }
 
@@ -699,7 +694,7 @@ static char* arg_strmov(char* dest, const char* src, int n)
 
 static void manager_exec_print(Vio* vio,struct manager_exec* e)
 {
-  char buf[MAX_CLIENT_MSG_LEN];
+  char buf[MAX_MYSQL_MANAGER_MSG];
   char* p=buf,*buf_end=buf+sizeof(buf)-1;
   char** args=e->args;
   
@@ -737,17 +732,45 @@ static void manager_exec_print(Vio* vio,struct manager_exec* e)
   }
 end:  
   *p=0;
-  client_msg_pre(vio,MSG_INFO,buf);
+  client_msg_pre(vio,MANAGER_INFO,buf);
   return;
 }
 
 static int authenticate(struct manager_thd* thd)
 {
-  char* buf_end;
-  client_msg(thd->vio,MSG_INFO, manager_greeting);
+  char* buf_end,*buf,*p,*p_end;
+  my_MD5_CTX context;
+  uchar digest[MD5_LEN];
+  struct manager_user* u;
+  char c;
+  
+  client_msg(thd->vio,MANAGER_INFO, manager_greeting);
   if (!(buf_end=read_line(thd)))
     return -1;
-  client_msg(thd->vio,MSG_OK,"OK");
+  for (buf=thd->cmd_buf,p=thd->user,p_end=p+MAX_USER_NAME;
+       buf<buf_end && (c=*buf) && p<p_end; buf++,p++)
+  {
+    if (isspace(c))
+    {
+      *p=0;
+      break;
+    }
+    else
+      *p=c;
+  }
+  if (p==p_end || buf==buf_end)
+    return 1;
+  if (!(u=(struct manager_user*)hash_search(&user_hash,thd->user,
+					    (uint)(p-thd->user))))
+    return 1;
+  for (;isspace(*buf) && buf<buf_end;buf++) /* empty */;
+  
+  my_MD5Init(&context);
+  my_MD5Update(&context,buf,(uint)(buf_end-buf));
+  my_MD5Final(digest,&context);
+  if (memcmp(u->md5_pass,digest,MD5_LEN))
+    return 1;
+  client_msg(thd->vio,MANAGER_OK,"OK");
   return 0;
 }
 
@@ -923,7 +946,7 @@ static void client_msg_raw(Vio* vio, int err_code, int pre, const char* fmt,
   *p++='\r';
   *p++='\n';
   if (vio_write(vio,buf,(uint)(p-buf))<=0)
-    log_err("Failed writing to client: errno=%d");
+    log_err("Failed writing to client: errno=%d",errno);
 }
 
 static void client_msg(Vio* vio, int err_code, const char* fmt, ...)
@@ -953,6 +976,7 @@ static char* read_line(struct manager_thd* thd)
     if ((len=vio_read(thd->vio,p,read_len))<=0)
     {
       log_err("Error reading command from client");
+      thd->fatal=1;
       return 0;
     }
     block_end=p+len;
@@ -981,7 +1005,7 @@ static char* read_line(struct manager_thd* thd)
       return p_back;
     }
   }
-  client_msg(thd->vio,MSG_CLIENT_ERR,"Command line too long");
+  client_msg(thd->vio,MANAGER_CLIENT_ERR,"Command line too long");
   return 0;
 }
 
@@ -1092,7 +1116,7 @@ static int parse_args(int argc, char **argv)
 	one_thread=1;
 	break;
       case 'p':
-	manager_pw_file=MANAGER_PW_FILE;
+	manager_pw_file=optarg;
 	break;
       case 'C':
         manager_connect_retries=atoi(optarg);
@@ -1185,7 +1209,7 @@ static int run_server_loop()
     
     if (authenticate(thd))
     {
-      client_msg(vio,MSG_ACCESS, "Access denied");
+      client_msg(vio,MANAGER_ACCESS, "Access denied");
       manager_thd_free(thd);
       continue;
     }
@@ -1199,7 +1223,7 @@ static int run_server_loop()
     }
     else if (pthread_create(&th,0,process_connection,(void*)thd))
     {
-      client_msg(vio,MSG_INTERNAL_ERR,"Could not create thread, errno=%d",
+      client_msg(vio,MANAGER_INTERNAL_ERR,"Could not create thread, errno=%d",
 		 errno);
       manager_thd_free(thd);
       continue;
@@ -1352,15 +1376,24 @@ static void manager_exec_free(void* e)
   my_free(e,MYF(0));
 }
 
+static int hex_val(char c)
+{
+  if (isdigit(c))
+    return c-'0';
+  c=tolower(c);
+  return c-'a'+10;
+}
+
 static struct manager_user* manager_user_new(char* buf)
 {
   struct manager_user* tmp;
-  char* p,*user_end;
+  char* p,*user_end,*p_end;
   char c;
   if (!(tmp=(struct manager_user*)my_malloc(sizeof(*tmp),MYF(0))))
     return 0;
   p=tmp->user;
-  user_end=p+MAX_USER_NAME-1;
+  tmp->error=0;
+  user_end=p+MAX_USER_NAME;
   for (;(c=*buf) && p<user_end;buf++)
   {
     if (c == ':')
@@ -1379,13 +1412,18 @@ static struct manager_user* manager_user_new(char* buf)
     tmp->error="Username too long";
   if (tmp->error)
     return tmp;
-  if (strlen(buf) < MD5_LEN)
+  if (strlen(buf) < 2*MD5_LEN)
   {
     tmp->error="Invalid MD5 sum, too short";
     return tmp;
   }
-  memcpy(tmp->md5_pass,buf,MD5_LEN);
-  tmp->error=0;
+  p=tmp->md5_pass;
+  p_end=p+MD5_LEN;
+  for (; p<p_end;p++,buf+=2)
+  {
+    *p=hex_val(*buf)*16+hex_val(buf[1]);
+  }
+  
   return tmp;
 }
 

@@ -23,7 +23,7 @@ noinst_HEADERS =		client_priv.h
 LIBS =				@CLIENT_LIBS@
 LDADD =				@CLIENT_EXTRA_LDFLAGS@ ../libmysql/libmysqlclient.la
 bin_PROGRAMS =			mysql mysqladmin mysqlcheck mysqlshow \
- mysqldump mysqlimport mysqltest mysqlbinlog
+ mysqldump mysqlimport mysqltest mysqlbinlog mysqlmanagerc
 noinst_PROGRAMS =		insert_test select_test thread_test
 noinst_HEADERS =		sql_string.h completion_hash.h my_readline.h
 mysql_SOURCES =			mysql.cc readline.cc sql_string.cc completion_hash.cc
@@ -40,6 +40,8 @@ mysqltest_SOURCES=			mysqltest.c
 mysqltest_DEPENDENCIES=   	$(LIBRARIES) $(pkglib_LTLIBRARIES)
 mysqlbinlog_SOURCES =   mysqlbinlog.cc 
 mysqlbinlog_DEPENDENCIES=   	$(LIBRARIES) $(pkglib_LTLIBRARIES)
+mysqlmanagerc_SOURCES =   mysqlmanagerc.c 
+mysqlmanagerc_DEPENDENCIES=   	$(LIBRARIES) $(pkglib_LTLIBRARIES)
 sql_src=log_event.h log_event.cc
 
 # Fix for mit-threads

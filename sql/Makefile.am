@@ -55,7 +55,7 @@ noinst_HEADERS =	item.h item_func.h item_sum.h item_cmpfunc.h \
 			ha_heap.h ha_myisam.h ha_berkeley.h ha_innobase.h \
 			ha_gemini.h opt_range.h opt_ft.h \
 			sql_select.h structs.h table.h sql_udf.h hash_filo.h\
-			lex.h lex_symbol.h sql_acl.h sql_crypt.h md5.h \
+			lex.h lex_symbol.h sql_acl.h sql_crypt.h  \
                         log_event.h mini_client.h sql_repl.h slave.h \
 			stacktrace.h sql_sort.h
 mysqld_SOURCES =	sql_lex.cc sql_handler.cc \
@@ -82,7 +82,7 @@ mysqld_SOURCES =	sql_lex.cc sql_handler.cc \
 			sql_udf.cc sql_analyse.cc sql_analyse.h sql_cache.cc \
 			slave.cc sql_repl.cc sql_union.cc \
 			mini_client.cc mini_client_errors.c \
-			md5.c stacktrace.c 
+			stacktrace.c 
 gen_lex_hash_SOURCES =	gen_lex_hash.cc
 gen_lex_hash_LDADD =	$(LDADD) $(CXXLDFLAGS)
 

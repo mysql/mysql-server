@@ -138,12 +138,12 @@ static MYSQL* spawn_init(MYSQL* parent, const char* host,
 * A modified version of connect().  connect2() allows you to specify
 * a timeout value, in seconds, that we should wait until we
 * derermine we can't connect to a particular host.  If timeout is 0,
-* connect2() will behave exactly like connect().
+* my_connect() will behave exactly like connect().
 *
 * Base version coded by Steve Bernacki, Jr. <steve@navinet.net>
 *****************************************************************************/
 
-static int connect2(my_socket s, const struct sockaddr *name, uint namelen,
+int my_connect(my_socket s, const struct sockaddr *name, uint namelen,
 		    uint timeout)
 {
 #if defined(__WIN__) || defined(OS2)
@@ -1521,7 +1521,7 @@ mysql_real_connect(MYSQL *mysql,const char *host, const char *user,
     bzero((char*) &UNIXaddr,sizeof(UNIXaddr));
     UNIXaddr.sun_family = AF_UNIX;
     strmov(UNIXaddr.sun_path, unix_socket);
-    if (connect2(sock,(struct sockaddr *) &UNIXaddr, sizeof(UNIXaddr),
+    if (my_connect(sock,(struct sockaddr *) &UNIXaddr, sizeof(UNIXaddr),
 		 mysql->options.connect_timeout) <0)
     {
       DBUG_PRINT("error",("Got error %d on connect to local server",socket_errno));
@@ -1621,7 +1621,7 @@ mysql_real_connect(MYSQL *mysql,const char *host, const char *user,
     }
 #endif
     sock_addr.sin_port = (ushort) htons((ushort) port);
-    if (connect2(sock,(struct sockaddr *) &sock_addr, sizeof(sock_addr),
+    if (my_connect(sock,(struct sockaddr *) &sock_addr, sizeof(sock_addr),
 		 mysql->options.connect_timeout) <0)
     {
       DBUG_PRINT("error",("Got error %d on connect to '%s'",socket_errno,host));
