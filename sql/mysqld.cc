@@ -1519,6 +1519,7 @@ void end_thread(THD *thd, bool put_in_cache)
       thd=thread_cache.get();
       thd->real_id=pthread_self();
       (void) thd->store_globals();
+      thd->thr_create_time= time(NULL);
       threads.append(thd);
       pthread_mutex_unlock(&LOCK_thread_count);
       DBUG_VOID_RETURN;
@@ -5180,7 +5181,7 @@ log and this option does nothing anymore.",
    (gptr*) &dflt_key_cache_var.param_buff_size,
    (gptr*) 0,
    0, (GET_ULL | GET_ASK_ADDR),
-   REQUIRED_ARG, KEY_CACHE_SIZE, MALLOC_OVERHEAD, UINT_MAX32, MALLOC_OVERHEAD,
+   REQUIRED_ARG, KEY_CACHE_SIZE, MALLOC_OVERHEAD, ~(ulong) 0, MALLOC_OVERHEAD,
    IO_SIZE, 0},
   {"key_cache_age_threshold", OPT_KEY_CACHE_AGE_THRESHOLD,
    "This characterizes the number of hits a hot block has to be untouched until it is considered aged enough to be downgraded to a warm block. This specifies the percentage ratio of that number of hits to the total number of blocks in key cache",
