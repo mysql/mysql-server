@@ -1333,7 +1333,6 @@ byte *sys_var_thd_enum::value_ptr(THD *thd, enum_var_type type,
 bool sys_var_thd_bit::update(THD *thd, set_var *var)
 {
   int res= (*update_func)(thd, var);
-  thd->lex.select_lex.options=thd->options;
   return res;
 }
 
