@@ -2133,33 +2133,31 @@ find_best(JOIN *join,table_map rest_tables,uint idx,double record_count,
 	    s->table->used_keys && best_key) &&
 	  !(s->table->force_index && best_key))
       {						// Check full join
-	ha_rows rnd_records= s->found_records;
-	if (s->on_expr)
-	{
-	  tmp=rows2double(rnd_records);		// Can't use read cache
-	}
-	else
-	{
-	  tmp=(double) s->read_time;
-	  /* Calculate time to read previous rows through cache */
-	  tmp*=(1.0+floor((double) cache_record_length(join,idx)*
-			  record_count /
-			  (double) thd->variables.join_buff_size));
-	}
-
-	/*
-	  If there is a restriction on the table, assume that 25% of the
-	  rows can be skipped on next part.
-	  This is to force tables that this table depends on before this
-	  table
-	*/
-	if (found_constrain)
-	  rnd_records-= rnd_records/4;
-
+        /*
+          Estimate cost of reading table. Note, that we don't read a table
+          on each iteration as in most cases join buffer is in use. 
+        */
+        tmp= (double) s->read_time;
+        /*
+          In case of full scan we check every row in the table: 
+          here we take into account rows read and skipped, as well as rows
+          passed to next select
+         */
+        
 	if (best == DBL_MAX ||
-	    (tmp  + record_count/(double) TIME_FOR_COMPARE*rnd_records <
+	    (tmp  + record_count/(double) TIME_FOR_COMPARE*s->records <
 	     best + record_count/(double) TIME_FOR_COMPARE*records))
 	{
+          /*
+            If there is a restriction on the table, assume that 25% of the
+            rows can be skipped on next part.
+            This is to force tables that this table depends on before this
+            table
+          */
+          ha_rows rnd_records= s->found_records;
+          if (found_constrain)
+            rnd_records-= rnd_records/4;
+          
 	  /*
 	    If the table has a range (s->quick is set) make_join_select()
 	    will ensure that this will be used
