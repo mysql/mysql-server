@@ -845,6 +845,30 @@ int GMultiPoint::get_mbr(MBR *mbr) const
   return 0;
 }
 
+int GMultiPoint::num_geometries(uint32 *num) const
+{
+  *num = uint4korr(m_data);
+  return 0;
+}
+
+int GMultiPoint::geometry_n(uint32 num, String *result) const
+{
+  const char *data= m_data;
+  uint32 n_points;
+  if (no_data(data, 4))
+    return 1;
+  n_points= uint4korr(data);
+  data+= 4;
+  if ((num > n_points) || (num < 1))
+    return -1;
+  data+= (num - 1) * (WKB_HEADER_SIZE + POINT_DATA_SIZE);
+  if (result->reserve(WKB_HEADER_SIZE + POINT_DATA_SIZE))
+    return 1;
+  result->q_append(data, WKB_HEADER_SIZE + POINT_DATA_SIZE);
+
+  return 0;
+}
+
 /***************************** MultiLineString *******************************/
 
 size_t GMultiLineString::get_data_size() const 
@@ -965,6 +989,44 @@ int GMultiLineString::get_mbr(MBR *mbr) const
     {
       mbr->add_xy(data, data + 8);
       data += 8+8;
+    }
+  }
+  return 0;
+}
+
+int GMultiLineString::num_geometries(uint32 *num) const
+{
+  *num = uint4korr(m_data);
+  return 0;
+}
+
+int GMultiLineString::geometry_n(uint32 num, String *result) const
+{
+  uint32 n_line_strings;
+  const char *data= m_data;
+  if (no_data(data, 4))
+    return 1;
+  n_line_strings= uint4korr(data);
+  data+= 4;
+
+  if ((num > n_line_strings) || (num < 1))
+    return -1;
+ 
+  for (; num > 0; --num)
+  {
+    if (no_data(data, WKB_HEADER_SIZE + 4))
+      return 1;
+    uint32 n_points= uint4korr(data + WKB_HEADER_SIZE);
+    if (num == 1)
+    {
+      if (result->reserve(WKB_HEADER_SIZE + 4 + POINT_DATA_SIZE * n_points))
+	return 1;
+      result->q_append(data, WKB_HEADER_SIZE + 4 + POINT_DATA_SIZE *n_points);
+      break;
+    }
+    else
+    {
+      data+= WKB_HEADER_SIZE + 4 + POINT_DATA_SIZE * n_points;
     }
   }
   return 0;
@@ -1164,6 +1226,51 @@ int GMultiPolygon::get_mbr(MBR *mbr) const
   return 0;
 }
 
+int GMultiPolygon::num_geometries(uint32 *num) const
+{
+  *num = uint4korr(m_data);
+  return 0;
+}
+
+int GMultiPolygon::geometry_n(uint32 num, String *result) const
+{
+  uint32 n_polygons;
+  const char *data= m_data, *polygon_n;
+  LINT_INIT(polygon_n);
+  if (no_data(data, 4))
+    return 1;
+  n_polygons= uint4korr(data);
+  data+= 4;
+
+  if ((num > n_polygons) || (num < 1))
+    return -1;
+
+  for (; num > 0; --num)
+  {
+    if (no_data(data, WKB_HEADER_SIZE + 4))
+      return 1;
+    uint32 n_linear_rings= uint4korr(data + WKB_HEADER_SIZE);
+
+    if (num == 1)
+      polygon_n= data;
+    data+= WKB_HEADER_SIZE + 4;
+    for (; n_linear_rings > 0; --n_linear_rings)
+    {
+      if (no_data(data, 4))
+	return 1;
+      uint32 n_points= uint4korr(data);
+      data+= 4 + POINT_DATA_SIZE * n_points;
+    }
+    if (num == 1)
+    {
+      if (result->reserve(data - polygon_n))
+	return -1;
+       result->q_append(polygon_n, data - polygon_n);
+      break;
+    }
+  }
+  return 0;
+}
 
 int GMultiPolygon::area(double *ar) const
 {

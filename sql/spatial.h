@@ -413,7 +413,6 @@ public:
   int end_point(String *point) const;
   int point_n(uint32 n, String *result) const;
   int dimension(uint32 *dim) const { *dim = 1; return 0; }
-//  IsRing
 };
 
 /***************************** Polygon *******************************/
@@ -433,7 +432,6 @@ public:
   int centroid_xy(double *x, double *y) const;
   int centroid(String *result) const;
   int dimension(uint32 *dim) const { *dim = 2; return 0; }
-//  PointOnSurface
 };
 
 /***************************** MultiPoint *******************************/
@@ -445,6 +443,9 @@ public:
   int init_from_text(GTextReadStream *trs, String *wkb);
   int get_data_as_text(String *txt) const;
   int get_mbr(MBR *mbr) const;
+
+  int num_geometries(uint32 *num) const;
+  int geometry_n(uint32 num, String *result) const;
   int dimension(uint32 *dim) const { *dim = 0; return 0; }
 };
 
@@ -458,6 +459,8 @@ public:
   int get_data_as_text(String *txt) const;
   int get_mbr(MBR *mbr) const;
 
+  int num_geometries(uint32 *num) const;
+  int geometry_n(uint32 num, String *result) const;
   int length(double *len) const;
   int is_closed(int *closed) const;
   int dimension(uint32 *dim) const { *dim = 1; return 0; }
@@ -473,10 +476,11 @@ public:
   int get_data_as_text(String *txt) const;
   int get_mbr(MBR *mbr) const;
 
+  int num_geometries(uint32 *num) const;
+  int geometry_n(uint32 num, String *result) const;
   int area(double *ar) const;
   int centroid(String *result) const;
   int dimension(uint32 *dim) const { *dim = 2; return 0; }
-//  PointOnSurface
 };
 
 /***************************** GeometryCollection *******************************/
