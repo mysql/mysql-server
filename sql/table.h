@@ -143,3 +143,10 @@ typedef struct st_table_list {
   bool		straight;			/* optimize with prev table */
   bool          updating;     /* for replicate-do/ignore table */
 } TABLE_LIST;
+
+typedef struct st_open_table_list
+{
+  struct st_open_table_list *next;
+  char	*db,*table;
+  uint32 in_use,locked;
+} OPEN_TABLE_LIST;

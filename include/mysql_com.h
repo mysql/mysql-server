@@ -165,7 +165,7 @@ int	my_net_write(NET *net,const char *packet,unsigned long len);
 int	net_write_command(NET *net,unsigned char command,const char *packet,
 			  unsigned long len);
 int	net_real_write(NET *net,const char *packet,unsigned long len);
-unsigned int	my_net_read(NET *net);
+unsigned long my_net_read(NET *net);
 
 struct rand_struct {
   unsigned long seed1,seed2,max_value;

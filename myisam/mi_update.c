@@ -98,9 +98,7 @@ int mi_update(register MI_INFO *info, const byte *oldrec, byte *newrec)
 	  if ((int) i == info->lastinx)
 	    key_changed|=HA_STATE_WRITTEN;
 	  changed|=((ulonglong) 1 << i);
-	  if (_mi_ft_del(info,i,(char*) old_key,oldrec,pos))
-	    goto err;
-	  if (_mi_ft_add(info,i,(char*) new_key,newrec,pos))
+	  if (_mi_ft_update(info,i,(char*) old_key,oldrec,newrec,pos))
 	    goto err;
 	}
       }

@@ -605,6 +605,53 @@ fi
 AC_MSG_RESULT($ac_cv_conv_longlong_to_float)
 ])
 
+AC_DEFUN(MYSQL_CHECK_MYSQLFS, [
+  AC_ARG_WITH([mysqlfs],
+              [\
+  --with-mysqlfs          Include the corba-based MySQL file system],
+              [mysqlfs="$withval"],
+              [mysqlfs=no])
+
+dnl Call MYSQL_CHECK_ORBIT even if mysqlfs == no, so that @orbit_*@
+dnl get substituted.
+  MYSQL_CHECK_ORBIT
+
+  if test "$mysqlfs" = "yes"
+  then
+    if test -n "$orbit_exec_prefix"
+    then
+      fs_dirs=fs
+    else
+      AC_MSG_ERROR([mysqlfs requires ORBit, the CORBA ORB])
+    fi
+  else
+    fs_dirs=
+  fi
+  AC_SUBST([fs_dirs])
+])
+
+AC_DEFUN(MYSQL_CHECK_ORBIT, [
+AC_MSG_CHECKING(for ORBit)
+if test `which orbit-config`
+then
+  orbit_exec_prefix=`orbit-config --exec-prefix`
+  orbit_includes=`orbit-config --cflags server`
+  orbit_libs=`orbit-config --libs server`
+  orbit_idl="$orbit_exec_prefix/bin/orbit-idl"
+  AC_MSG_RESULT(found!)
+  AC_DEFINE(HAVE_ORBIT)
+else
+  orbit_exec_prefix=
+  orbit_includes=
+  orbit_libs=
+  orbit_idl=
+  AC_MSG_RESULT(not found)
+fi
+AC_SUBST(orbit_includes)
+AC_SUBST(orbit_libs)
+AC_SUBST(orbit_idl)
+])
+
 dnl ---------------------------------------------------------------------------
 dnl Macro: MYSQL_CHECK_BDB
 dnl Sets HAVE_BERKELEY_DB if inst library is found

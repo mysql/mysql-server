@@ -14,6 +14,10 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
+#ifdef EMBEDDED_LIBRARY
+#define net_read_timeout net_read_timeout1
+#define net_write_timeout net_write_timeout1
+#endif
 
 #include "mysql_priv.h"
 #include "sql_acl.h"
@@ -26,7 +30,6 @@
 
 #define SCRAMBLE_LENGTH 8
 
-
 extern int yyparse(void);
 extern "C" pthread_mutex_t THR_LOCK_keycache;
 #ifdef SOLARIS
@@ -36,7 +39,6 @@ extern "C" int gethostname(char *name, int namelen);
 static int check_for_max_user_connections(const char *user, int u_length,
 					  const char *host);
 static void decrease_user_connections(const char *user, const char *host);
-static bool check_table_access(THD *thd,uint want_access, TABLE_LIST *tables);
 static bool check_db_used(THD *thd,TABLE_LIST *tables);
 static bool check_merge_table_access(THD *thd, char *db, TABLE_LIST *tables);
 static bool check_dup(THD *thd,const char *db,const char *name,
@@ -701,19 +703,14 @@ err:
 }
 
 
-
 	/* Execute one command from socket (query or simple command) */
 
 bool do_command(THD *thd)
 {
   char *packet;
   uint old_timeout,packet_length;
-  bool	error=0;
   NET *net;
   enum enum_server_command command;
-  // commands which will always take a long time should be marked with
-  // this so that they will not get logged to the slow query log
-  bool slow_command=FALSE;
   DBUG_ENTER("do_command");
 
   net= &thd->net;
@@ -740,7 +737,21 @@ bool do_command(THD *thd)
 			  vio_description(net->vio), command,
 			  command_name[command]));
   }
-  net->timeout=old_timeout;			/* Timeout */
+  net->timeout=old_timeout;			// Timeout for writing
+  DBUG_RETURN(dispatch_command(command,thd, packet+1, packet_length));
+}
+
+
+bool dispatch_command(enum enum_server_command command, THD *thd,
+		      char* packet, uint packet_length)
+{
+  NET *net= &thd->net;
+  bool	error=0;
+  // commands which will always take a long time should be marked with
+  // this so that they will not get logged to the slow query log
+  bool slow_command=FALSE;
+  DBUG_ENTER("dispatch_command");
+
   thd->command=command;
   VOID(pthread_mutex_lock(&LOCK_thread_count));
   thd->query_id=query_id;
@@ -750,22 +761,21 @@ bool do_command(THD *thd)
   VOID(pthread_mutex_unlock(&LOCK_thread_count));
   thd->set_time();
   thd->lex.options=0;				// We store status here
-  switch(command) {
+  switch (command) {
   case COM_INIT_DB:
-    if (!mysql_change_db(thd,packet+1))
+    if (!mysql_change_db(thd,packet))
       mysql_log.write(thd,command,"%s",thd->db);
     break;
   case COM_TABLE_DUMP:
     {
       slow_command = TRUE;
-      char* data = packet + 1;
-      uint db_len = *data;
-      uint tbl_len = *(data + db_len + 1);
+      uint db_len = *(uchar*)packet;
+      uint tbl_len = *(uchar*)(packet + db_len + 1);
       char* db = sql_alloc(db_len + tbl_len + 2);
-      memcpy(db, data + 1, db_len);
+      memcpy(db, packet + 1, db_len);
       char* tbl_name = db + db_len;
       *tbl_name++ = 0;
-      memcpy(tbl_name, data + db_len + 2, tbl_len);
+      memcpy(tbl_name, packet + db_len + 2, tbl_len);
       tbl_name[tbl_len] = 0;
       if(mysql_table_dump(thd, db, tbl_name, -1))
 	send_error(&thd->net); // dump to NET
@@ -774,7 +784,7 @@ bool do_command(THD *thd)
     }
   case COM_CHANGE_USER:
   {
-    char *user=   (char*) packet+1;
+    char *user=   (char*) packet;
     char *passwd= strend(user)+1;
     char *db=     strend(passwd)+1;
 
@@ -810,7 +820,7 @@ bool do_command(THD *thd)
 
   case COM_QUERY:
   {
-    char *pos=packet+packet_length;		// Point at end null
+    char *pos=packet-1+packet_length;		// Point at end null
     /* Remove garage at end of query */
     while (packet_length > 0 && pos[-1] == ';')
     {
@@ -818,7 +828,7 @@ bool do_command(THD *thd)
       packet_length--;
     }
     *pos=0;
-    if (!(thd->query= (char*) thd->memdup((gptr) (packet+1),packet_length)))
+    if (!(thd->query= (char*) thd->memdup((gptr) (packet),packet_length)))
       break;
     thd->packet.shrink(net_buffer_length);	// Reclaim some memory
     if (!(specialflag & SPECIAL_NO_PRIOR))
@@ -846,8 +856,8 @@ bool do_command(THD *thd)
       break;
     }
     thd->free_list=0;
-    table_list.name=table_list.real_name=thd->strdup(packet+1);
-    thd->query=fields=thd->strdup(strend(packet+1)+1);
+    table_list.name=table_list.real_name=thd->strdup(packet);
+    thd->query=fields=thd->strdup(strend(packet)+1);
     mysql_log.write(thd,command,"%s %s",table_list.real_name,fields);
     remove_escape(table_list.real_name);	// This can't have wildcards
 
@@ -869,7 +879,7 @@ bool do_command(THD *thd)
 
   case COM_CREATE_DB:
     {
-      char *db=thd->strdup(packet+1);
+      char *db=thd->strdup(packet);
       // null test to handle EOM
       if (!db || !stripp_sp(db) || check_db_name(db))
       {
@@ -878,13 +888,13 @@ bool do_command(THD *thd)
       }
       if (check_access(thd,CREATE_ACL,db,0,1))
 	break;
-      mysql_log.write(thd,command,packet+1);
+      mysql_log.write(thd,command,packet);
       mysql_create_db(thd,db,0);
       break;
     }
   case COM_DROP_DB:
     {
-      char *db=thd->strdup(packet+1);
+      char *db=thd->strdup(packet);
       // null test to handle EOM
       if (!db || !stripp_sp(db) || check_db_name(db))
       {
@@ -907,13 +917,13 @@ bool do_command(THD *thd)
       ulong pos;
       ushort flags;
       uint32 slave_server_id;
-      pos = uint4korr(packet + 1);
-      flags = uint2korr(packet + 5);
+      pos = uint4korr(packet);
+      flags = uint2korr(packet + 4);
       pthread_mutex_lock(&LOCK_server_id);
-      kill_zombie_dump_threads(slave_server_id = uint4korr(packet+7));
+      kill_zombie_dump_threads(slave_server_id = uint4korr(packet+6));
       thd->server_id = slave_server_id;
       pthread_mutex_unlock(&LOCK_server_id);
-      mysql_binlog_send(thd, thd->strdup(packet + 11), pos, flags);
+      mysql_binlog_send(thd, thd->strdup(packet + 10), pos, flags);
       // fake COM_QUIT -- if we get here, the thread needs to terminate
       error = TRUE;
       net->error = 0;
@@ -921,7 +931,7 @@ bool do_command(THD *thd)
     }
   case COM_REFRESH:
     {
-      uint options=(uchar) packet[1];
+      uint options=(uchar) packet[0];
       if (check_access(thd,RELOAD_ACL,any_db))
 	break;
       mysql_log.write(thd,command,NullS);
@@ -980,7 +990,7 @@ bool do_command(THD *thd)
     break;
   case COM_PROCESS_KILL:
   {
-    ulong id=(ulong) uint4korr(packet+1);
+    ulong id=(ulong) uint4korr(packet);
     kill_one_thread(thd,id);
     break;
   }
@@ -1508,6 +1518,7 @@ mysql_execute_command(void)
 		       lex->item_list,
 		       lex->value_list,
 		       lex->where,
+                       (ORDER *) lex->order_list.first,
 		       lex->select_limit,
 		       lex->duplicates,
 		       lex->lock_option);
@@ -1615,8 +1626,8 @@ mysql_execute_command(void)
     if (lex->sql_command == SQLCOM_TRUNCATE && end_active_trans(thd))
       res= -1;
     else
-      res = mysql_delete(thd,tables,lex->where,lex->select_limit,
-			 lex->lock_option, lex->options);
+      res = mysql_delete(thd,tables, lex->where, (ORDER*)lex->order_list.first,
+                         lex->select_limit, lex->lock_option, lex->options);
     break;
   }
   case SQLCOM_DROP_TABLE:
@@ -1679,7 +1690,6 @@ mysql_execute_command(void)
 #endif
   case SQLCOM_SHOW_TABLES:
     /* FALL THROUGH */
-  case SQLCOM_SHOW_OPEN_TABLES:
 #ifdef DONT_ALLOW_SHOW_COMMANDS
     send_error(&thd->net,ER_NOT_ALLOWED_COMMAND);	/* purecov: inspected */
     DBUG_VOID_RETURN;
@@ -1700,18 +1710,18 @@ mysql_execute_command(void)
       if (check_access(thd,SELECT_ACL,db,&thd->col_access))
 	goto error;				/* purecov: inspected */
       /* grant is checked in mysqld_show_tables */
-      if (lex->sql_command == SQLCOM_SHOW_OPEN_TABLES)
-        res= mysqld_show_open_tables(thd,db,
-				     (lex->wild ? lex->wild->ptr() : NullS));
-      else if (lex->options & SELECT_DESCRIBE)
+      if (lex->options & SELECT_DESCRIBE)
         res= mysqld_extend_show_tables(thd,db,
-				     (lex->wild ? lex->wild->ptr() : NullS));
+				       (lex->wild ? lex->wild->ptr() : NullS));
       else
 	res= mysqld_show_tables(thd,db,
 				(lex->wild ? lex->wild->ptr() : NullS));
       break;
     }
 #endif
+  case SQLCOM_SHOW_OPEN_TABLES:
+    res= mysqld_show_open_tables(thd,(lex->wild ? lex->wild->ptr() : NullS));
+    break;
   case SQLCOM_SHOW_FIELDS:
 #ifdef DONT_ALLOW_SHOW_COMMANDS
     send_error(&thd->net,ER_NOT_ALLOWED_COMMAND);	/* purecov: inspected */
@@ -2124,7 +2134,7 @@ bool check_process_priv(THD *thd)
 ** in the table list for GRANT checking
 */
 
-static bool
+bool
 check_table_access(THD *thd,uint want_access,TABLE_LIST *tables)
 {
   uint found=0,found_access=0;
@@ -2150,10 +2160,8 @@ check_table_access(THD *thd,uint want_access,TABLE_LIST *tables)
       return TRUE;				// Access denied
   }
   if (grant_option)
-  {
-    want_access &= ~EXTRA_ACL;			// Remove SHOW attribute
-    return check_grant(thd,want_access,org_tables);
-  }
+    return check_grant(thd,want_access & ~EXTRA_ACL,org_tables,
+		       test(want_access & EXTRA_ACL));
   return FALSE;
 }
 

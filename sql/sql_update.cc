@@ -1,15 +1,15 @@
 /* Copyright (C) 2000 MySQL AB & MySQL Finland AB & TCX DataKonsult AB
-   
+
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
    the Free Software Foundation; either version 2 of the License, or
    (at your option) any later version.
-   
+
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
    GNU General Public License for more details.
-   
+
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
@@ -40,8 +40,12 @@ static bool compare_record(TABLE *table, ulong query_id)
 }
 
 
-int mysql_update(THD *thd,TABLE_LIST *table_list,List<Item> &fields,
-		 List<Item> &values, COND *conds,
+int mysql_update(THD *thd,
+                 TABLE_LIST *table_list,
+                 List<Item> &fields,
+		 List<Item> &values,
+                 COND *conds,
+                 ORDER *order,
 		 ha_rows limit,
 		 enum enum_duplicates handle_duplicates,
 		 thr_lock_type lock_type)
@@ -163,6 +167,32 @@ int mysql_update(THD *thd,TABLE_LIST *table_list,List<Item> &fields,
       table->key_read=1;
       table->file->extra(HA_EXTRA_KEYREAD);
     }
+
+    if (order)
+    {
+      uint         length;
+      SORT_FIELD  *sortorder;
+      TABLE_LIST   tables;
+      List<Item>   fields;
+      List<Item>   all_fields;
+
+      bzero((char*) &tables,sizeof(tables));
+      tables.table = table;
+
+      table->io_cache = (IO_CACHE *) my_malloc(sizeof(IO_CACHE),
+                                               MYF(MY_FAE | MY_ZEROFILL));
+      if (setup_order(thd, &tables, fields, all_fields, order) ||
+          !(sortorder=make_unireg_sortorder(order, &length)) ||
+          (table->found_records = filesort(&table, sortorder, length,
+                                           (SQL_SELECT *) 0, 0L, HA_POS_ERROR))
+          == HA_POS_ERROR)
+      {
+	delete select;
+	table->time_stamp=save_time_stamp;	// Restore timestamp pointer
+	DBUG_RETURN(-1);
+      }
+    }
+
     init_read_record(&info,thd,table,select,0,1);
     thd->proc_info="searching";
 
@@ -180,7 +210,7 @@ int mysql_update(THD *thd,TABLE_LIST *table_list,List<Item> &fields,
       }
       else
       {
-	if (!(test_flags & 512))		/* For debugging */	  
+	if (!(test_flags & 512))		/* For debugging */
 	{
 	  DBUG_DUMP("record",(char*) table->record[0],table->reclength);
 	}
@@ -202,7 +232,7 @@ int mysql_update(THD *thd,TABLE_LIST *table_list,List<Item> &fields,
       select->cond=0;
     }
     else
-    {      
+    {
       select= new SQL_SELECT;
       select->head=table;
     }
@@ -213,7 +243,7 @@ int mysql_update(THD *thd,TABLE_LIST *table_list,List<Item> &fields,
     {
       delete select;
       table->time_stamp=save_time_stamp;	// Restore timestamp pointer
-      DBUG_RETURN(-1);	
+      DBUG_RETURN(-1);
     }
   }
 

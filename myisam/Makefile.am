@@ -1,15 +1,15 @@
 # Copyright (C) 2000 MySQL AB & MySQL Finland AB & TCX DataKonsult AB
-# 
+#
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
 # the Free Software Foundation; either version 2 of the License, or
 # (at your option) any later version.
-# 
+#
 # This program is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
-# 
+#
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
@@ -17,7 +17,7 @@
 EXTRA_DIST =		mi_test_all.sh mi_test_all.res
 pkgdata_DATA =		mi_test_all mi_test_all.res
 
-INCLUDES =		@MT_INCLUDES@ -I$(srcdir)/../include -I../include 
+INCLUDES =		@MT_INCLUDES@ -I$(srcdir)/../include -I../include
 LDADD =			@CLIENT_EXTRA_LDFLAGS@ libmyisam.a ../mysys/libmysys.a \
 			../dbug/libdbug.a ../strings/libmystrings.a
 pkglib_LIBRARIES =	libmyisam.a
@@ -25,13 +25,14 @@ bin_PROGRAMS =		myisamchk myisamlog myisampack
 myisamchk_DEPENDENCIES=	$(LIBRARIES)
 myisamlog_DEPENDENCIES=	$(LIBRARIES)
 myisampack_DEPENDENCIES=$(LIBRARIES)
-noinst_PROGRAMS =	mi_test1 mi_test2 mi_test3 ft_test1 ft_eval
+noinst_PROGRAMS =	mi_test1 mi_test2 mi_test3 ft_test1 ft_eval ft_dump
 noinst_HEADERS =	myisamdef.h fulltext.h ftdefs.h ft_test1.h ft_eval.h
 mi_test1_DEPENDENCIES=	$(LIBRARIES)
 mi_test2_DEPENDENCIES=	$(LIBRARIES)
 mi_test3_DEPENDENCIES=	$(LIBRARIES)
 ft_test1_DEPENDENCIES=	$(LIBRARIES)
 ft_eval_DEPENDENCIES=	$(LIBRARIES)
+ft_dump_DEPENDENCIES=	$(LIBRARIES)
 libmyisam_a_SOURCES =	mi_open.c mi_extra.c mi_info.c mi_rkey.c \
 			mi_rnext.c mi_rnext_same.c \
 			mi_search.c mi_page.c mi_key.c mi_locking.c \
@@ -45,7 +46,7 @@ libmyisam_a_SOURCES =	mi_open.c mi_extra.c mi_info.c mi_rkey.c \
 			mi_changed.c mi_static.c mi_delete_all.c \
 			mi_delete_table.c mi_rename.c  mi_check.c \
 			ft_parser.c ft_search.c ft_stopwords.c ft_static.c \
-			ft_update.c sort.c
+			ft_update.c ft_boolean_search.c ft_nlq_search.c sort.c
 CLEANFILES =		test?.MY? FT?.MY? isam.log mi_test_all
 DEFS =			-DMAP_TO_USE_RAID
 # Omit dependency for ../mit-pthreads/include/sys that only exits if

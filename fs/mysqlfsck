@@ -1,0 +1,11 @@
+#!/bin/sh
+
+mountpoint=$*
+
+if [#($mountpoint) -eq "0"];
+then
+   exit; 
+fi
+
+
+
