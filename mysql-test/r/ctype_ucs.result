@@ -77,6 +77,9 @@ a
 test
 select * from t1 where a like "%a%";
 a
+a
+abc
+abcd
 select * from t1 where a like "%abcd%";
 a
 abcd
@@ -84,6 +87,78 @@ select * from t1 where a like "%abc\d%";
 a
 abcd
 drop table t1;
+select 'AA' like 'AA';
+'AA' like 'AA'
+1
+select 'AA' like 'A%A';
+'AA' like 'A%A'
+1
+select 'AA' like 'A%%A';
+'AA' like 'A%%A'
+1
+select 'AA' like 'AA%';
+'AA' like 'AA%'
+1
+select 'AA' like '%AA%';
+'AA' like '%AA%'
+1
+select 'AA' like '%A';
+'AA' like '%A'
+1
+select 'AA' like '%AA';
+'AA' like '%AA'
+1
+select 'AA' like 'A%A%';
+'AA' like 'A%A%'
+1
+select 'AA' like '_%_%';
+'AA' like '_%_%'
+1
+select 'AA' like '%A%A';
+'AA' like '%A%A'
+1
+select 'AAA'like 'A%A%A';
+'AAA'like 'A%A%A'
+1
+select 'AZ' like 'AZ';
+'AZ' like 'AZ'
+1
+select 'AZ' like 'A%Z';
+'AZ' like 'A%Z'
+1
+select 'AZ' like 'A%%Z';
+'AZ' like 'A%%Z'
+1
+select 'AZ' like 'AZ%';
+'AZ' like 'AZ%'
+1
+select 'AZ' like '%AZ%';
+'AZ' like '%AZ%'
+1
+select 'AZ' like '%Z';
+'AZ' like '%Z'
+1
+select 'AZ' like '%AZ';
+'AZ' like '%AZ'
+1
+select 'AZ' like 'A%Z%';
+'AZ' like 'A%Z%'
+1
+select 'AZ' like '_%_%';
+'AZ' like '_%_%'
+1
+select 'AZ' like '%A%Z';
+'AZ' like '%A%Z'
+1
+select 'AZ' like 'A_';
+'AZ' like 'A_'
+1
+select 'AZ' like '_Z';
+'AZ' like '_Z'
+1
+select 'AMZ'like 'A%M%Z';
+'AMZ'like 'A%M%Z'
+1
 CREATE TABLE t1 (a VARCHAR(10) CHARACTER SET ucs2);
 INSERT INTO t1 VALUES ('фыва'),('Фыва'),('фЫва'),('фыВа'),('фывА'),('ФЫВА');
 INSERT INTO t1 VALUES ('фывапролдж'),('Фывапролдж'),('фЫвапролдж'),('фыВапролдж');
