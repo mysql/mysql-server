@@ -174,30 +174,34 @@ handler t1 open;
 # Check accesibility of all the tables.
 #
 use test;
---error 1109;
+--error 1064
 handler test.t1 read first limit 9;
+--error 1064
 handler test_test.t1 read first limit 9;
 handler t1 read first limit 9;
+--error 1064
 handler test_test.t2 read first limit 9;
 handler t2 read first limit 9;
+
 #
 # Cleanup.
 #
 
+--error 1064
 handler test_test.t1 close;
---error 1109;
 handler t1 close;
 drop table test_test.t1;
+--error 1064
 handler test_test.t2 close;
---error 1109;
 handler t2 close;
 drop table test_test.t2;
 drop database test_test;
+
 #
 use test;
---error 1109;
+--error 1064
 handler test.t1 close;
---error 1109;
+--error 1109
 handler t1 close;
 drop table test.t1;
 
@@ -234,7 +238,7 @@ handler t2 open t1;
 --error 1066
 handler t3 open t1;
 handler t1 read first limit 9;
---error 1109
+--error 1064
 handler test.t1 close;
 --error 1066
 handler test.t1 open h1;
@@ -246,11 +250,11 @@ handler t1 read first limit 9;
 handler h1 read first limit 9;
 handler h2 read first limit 9;
 handler h3 read first limit 9;
-handler test.h2 read first limit 9;
---error 1109
+handler h2 read first limit 9;
+--error 1064
 handler test.h1 close;
-handler test_test.t1 close;
-handler test_test.h1 close;
+handler t1 close;
+handler h1 close;
 handler h2 close;
 --error 1109
 handler t1 read first limit 9;
@@ -259,12 +263,12 @@ handler h1 read first limit 9;
 --error 1109
 handler h2 read first limit 9;
 handler h3 read first limit 9;
-handler test_test.h3 read first limit 9;
+handler h3 read first limit 9;
 use test_test;
 handler h3 read first limit 9;
---error 1109
+--error 1064
 handler test.h3 read first limit 9;
-handler test_test.h3 close;
+handler h3 close;
 use test;
 drop table t3;
 drop table t2;

@@ -5,6 +5,11 @@
 --disable_warnings
 drop table if exists t1,t2,t3;
 drop database if exists mysqltest;
+--error 0,1141
+revoke all privileges on mysqltest.t1 from mysqltest_1@localhost;
+--error 0,1141
+revoke all privileges on mysqltest.* from mysqltest_1@localhost;
+delete from mysql.user where user=_binary'mysqltest_1';
 --enable_warnings
 
 create table t1(id1 int not null auto_increment primary key, t char(12));
@@ -383,10 +388,10 @@ select * from t2;
 drop table t1, t2;
 
 #
-# prevelege chexk for multiupdate with other tables
+# privilege check for multiupdate with other tables
 #
 
-connect (root,localhost,root,,test,$MASTER_MYPORT,master.sock);
+connect (root,localhost,root,,test,$MASTER_MYPORT,$MASTER_MYSOCK);
 connection root;
 --disable_warnings
 create database mysqltest;
@@ -396,7 +401,7 @@ create table mysqltest.t2 (a int, b int, primary key (a));
 create table mysqltest.t3 (a int, b int, primary key (a));
 grant select on mysqltest.* to mysqltest_1@localhost;
 grant update on mysqltest.t1 to mysqltest_1@localhost;
-connect (user1,localhost,mysqltest_1,,mysqltest,$MASTER_MYPORT,master.sock);
+connect (user1,localhost,mysqltest_1,,mysqltest,$MASTER_MYPORT,$MASTER_MYSOCK);
 connection user1;
 update t1, t2 set t1.b=1 where t1.a=t2.a;
 update t1, t2 set t1.b=(select t3.b from t3 where t1.a=t3.a) where t1.a=t2.a;

@@ -1,5 +1,4 @@
-/* Copyright (C) 2000 MySQL AB
-/* Copyright (C) 2000 MySQL AB
+/* Copyright (C) 2000-2004 MySQL AB
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by

@@ -2265,31 +2265,32 @@ int mysql_check_table(THD* thd, TABLE_LIST* tables,HA_CHECK_OPT* check_opt)
 				&handler::check));
 }
 
+
 /* table_list should contain just one table */
-int mysql_discard_or_import_tablespace(THD *thd,
-		      TABLE_LIST *table_list,
-		      enum tablespace_op_type tablespace_op)
+static int
+mysql_discard_or_import_tablespace(THD *thd,
+                                   TABLE_LIST *table_list,
+                                   enum tablespace_op_type tablespace_op)
 {
   TABLE *table;
   my_bool discard;
   int error;
   DBUG_ENTER("mysql_discard_or_import_tablespace");
 
-  /* Note that DISCARD/IMPORT TABLESPACE always is the only operation in an
-  ALTER TABLE */
+  /*
+    Note that DISCARD/IMPORT TABLESPACE always is the only operation in an
+    ALTER TABLE
+  */
 
   thd->proc_info="discard_or_import_tablespace";
 
-  if (tablespace_op == DISCARD_TABLESPACE)
-    discard = TRUE;
-  else
-    discard = FALSE;
+  discard= test(tablespace_op == DISCARD_TABLESPACE);
 
-  thd->tablespace_op=TRUE; /* we set this flag so that ha_innobase::open
-			   and ::external_lock() do not complain when we
-			   lock the table */
-  mysql_ha_close(thd, table_list, /*dont_send_ok*/ 1, /*dont_lock*/ 1);
-
+ /*
+   We set this flag so that ha_innobase::open and ::external_lock() do
+   not complain when we lock the table
+ */
+  thd->tablespace_op= TRUE;
   if (!(table=open_ltable(thd,table_list,TL_WRITE)))
   {
     thd->tablespace_op=FALSE;
@@ -2303,8 +2304,10 @@ int mysql_discard_or_import_tablespace(THD *thd,
   if (error)
     goto err;
 
-  /* The 0 in the call below means 'not in a transaction', which means
-  immediate invalidation; that is probably what we wish here */
+  /*
+    The 0 in the call below means 'not in a transaction', which means
+    immediate invalidation; that is probably what we wish here
+  */
   query_cache_invalidate3(thd, table_list, 0);
 
   /* The ALTER TABLE is always in its own transaction */

@@ -4169,7 +4169,7 @@ update:
           if (lex->select_lex.table_list.elements > 1)
 	  {
             lex->sql_command= SQLCOM_UPDATE_MULTI;
-	    lex->lock_option= $3;
+	    lex->multi_lock_option= $3;
 	  }
 	  else if (lex->select_lex.get_table_list()->derived)
 	  {
