@@ -2321,3 +2321,16 @@ select `foo` ();
 `foo` ()
 5
 drop function `foo`;
+drop procedure if exists p1;
+create table t1(id int);
+insert into t1 values(1);
+create procedure p1()
+begin
+declare i int;
+select max(id)+1 into i from t1;
+end
+//
+call p1()//
+call p1()//
+drop procedure p1;
+drop table t1;

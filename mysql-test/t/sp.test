@@ -2739,3 +2739,24 @@ drop function if exists foo;
 create function `foo` () returns int return 5;
 select `foo` ();
 drop function `foo`;
+
+#
+# rolling back temporary Item tree changes in SP
+#
+--disable_warnings
+drop procedure if exists p1;
+--enable_warnings
+create table t1(id int);
+insert into t1 values(1);
+delimiter //;
+create procedure p1()
+begin
+  declare i int;
+  select max(id)+1 into i from t1;
+end
+//
+call p1()//
+call p1()//
+delimiter ;//
+drop procedure p1;
+drop table t1;
