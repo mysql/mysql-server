@@ -1742,13 +1742,13 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	index	NULL	idx_t1_1	163	NULL	128	Using where; Using index
 explain select count(distinct a1,a2,b) from t1 where (a1 > 'a') and (a2 > 'a') and (b = 'c');
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	idx_t1_0,idx_t1_1,idx_t1_2	idx_t1_2	65	NULL	106	Using where; Using index
+1	SIMPLE	t1	index	idx_t1_0,idx_t1_1,idx_t1_2	idx_t1_2	147	NULL	128	Using where; Using index
 explain select count(distinct b) from t1 where (a2 >= 'b') and (b = 'a');
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	index	NULL	idx_t1_2	147	NULL	128	Using where; Using index
 explain select ord(a1) + count(distinct a1,a2,b) from t1 where (a1 > 'a') and (a2 > 'a');
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	idx_t1_0,idx_t1_1,idx_t1_2	idx_t1_2	65	NULL	106	Using where; Using index
+1	SIMPLE	t1	index	idx_t1_0,idx_t1_1,idx_t1_2	idx_t1_2	147	NULL	128	Using where; Using index
 select count(distinct a1,a2,b) from t1 where (a2 >= 'b') and (b = 'a');
 count(distinct a1,a2,b)
 4
@@ -1890,10 +1890,10 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	index	NULL	idx_t1_1	163	NULL	128	Using index
 explain select a1,a2,count(a2) from t1 where (a1 > 'a') group by a1,a2,b;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	idx_t1_0,idx_t1_1,idx_t1_2	idx_t1_2	65	NULL	106	Using where; Using index
+1	SIMPLE	t1	index	idx_t1_0,idx_t1_1,idx_t1_2	idx_t1_1	163	NULL	128	Using where; Using index
 explain select sum(ord(a1)) from t1 where (a1 > 'a') group by a1,a2,b;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	idx_t1_0,idx_t1_1,idx_t1_2	idx_t1_2	65	NULL	106	Using where; Using index
+1	SIMPLE	t1	index	idx_t1_0,idx_t1_1,idx_t1_2	idx_t1_1	163	NULL	128	Using where; Using index
 drop table t1;
 drop table t2;
 drop table t3;
