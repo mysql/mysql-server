@@ -1310,7 +1310,7 @@ AC_DEFUN([MYSQL_CHECK_EXAMPLEDB], [
   AC_ARG_WITH([example-storage-engine],
               [
   --with-example-storage-engine
-                          Enable the Example Storge Engine],
+                          Enable the Example Storage Engine],
               [exampledb="$withval"],
               [exampledb=no])
   AC_MSG_CHECKING([for example storage engine])
@@ -1340,7 +1340,7 @@ AC_DEFUN([MYSQL_CHECK_ARCHIVEDB], [
   AC_ARG_WITH([archive-storage-engine],
               [
   --with-archive-storage-engine
-                          Enable the Archive Storge Engine],
+                          Enable the Archive Storage Engine],
               [archivedb="$withval"],
               [archivedb=no])
   AC_MSG_CHECKING([for archive storage engine])
