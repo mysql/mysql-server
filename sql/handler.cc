@@ -558,7 +558,7 @@ int ha_commit_trans(THD *thd, THD_TRANS* trans)
       query_cache.invalidate(thd->transaction.changed_tables);
 #endif /*HAVE_QUERY_CACHE*/
     if (error && trans == &thd->transaction.all && mysql_bin_log.is_open())
-      sql_print_error("Error: Got error during commit;  Binlog is not up to date!");
+      sql_print_error("Got error during commit;  Binlog is not up to date!");
     thd->variables.tx_isolation=thd->session_tx_isolation;
     if (operation_done)
     {
