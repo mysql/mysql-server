@@ -13,8 +13,8 @@ C_WARNINGS="$GLOBAL_WARNINGS -Wunused"
 CC_WARNINGS="$GLOBAL_WARNINGS -Woverloaded-virtual -Wextern-inline -Wsign-promo -Wreorder -Wctor-dtor-privacy -Wnon-virtual-dtor"
 
 
-CFLAGS="-DFORCE_INIT_OF_VARS  -O2 -mpentiumpro $C_WARNINGS" CXX=gcc \
-CXXFLAGS="-DFORCE_INIT_OF_VARS -O2 -mpentiumpro -felide-constructors -fno-exceptions -fno-rtti $CC_WARNINGS" \
+CFLAGS="-DEXTRA_DEBUG -DFORCE_INIT_OF_VARS  -O2 -mpentiumpro $C_WARNINGS" CXX=gcc \
+CXXFLAGS="-DEXTRA_DEBUG -DFORCE_INIT_OF_VARS -O2 -mpentiumpro -felide-constructors -fno-exceptions -fno-rtti $CC_WARNINGS" \
 ./configure --prefix=/usr/local/mysql --enable-assembler --with-mysqld-ldflags=-all-static --disable-shared --with-extra-charsets=complex --with-debug=full \
 --with-berkeley-db=/usr/local/BerkeleyDB
 make

@@ -50,52 +50,6 @@ typedef struct st_log_info
   ~st_log_info() { pthread_mutex_destroy(&lock);}
 } LOG_INFO;
 
-typedef struct st_master_info
-{
-  char log_file_name[FN_REFLEN];
-  ulonglong pos,pending;
-  FILE* file; // we keep the file open, so we need to remember the file pointer
-
-  // the variables below are needed because we can change masters on the fly
-  char host[HOSTNAME_LENGTH+1];
-  char user[USERNAME_LENGTH+1];
-  char password[HASH_PASSWORD_LENGTH+1];
-  uint port;
-  uint connect_retry;
-  pthread_mutex_t lock;
-  bool inited;
-  
-  st_master_info():inited(0),pending(0)
-  {
-    host[0] = 0; user[0] = 0; password[0] = 0;
-    pthread_mutex_init(&lock, NULL);
-  }
-
-  ~st_master_info()
-  {
-    pthread_mutex_destroy(&lock);
-  }
-  
-  inline void inc_pending(ulonglong val)
-  {
-    pending += val;
-  }
-  inline void inc_pos(ulonglong val)
-  {
-    pthread_mutex_lock(&lock);
-    pos += val + pending;
-    pending = 0;
-    pthread_mutex_unlock(&lock);
-  }
-  // thread safe read of position - not needed if we are in the slave thread,
-  // but required otherwise
-  inline void read_pos(ulonglong& var)
-  {
-    pthread_mutex_lock(&lock);
-    var = pos;
-    pthread_mutex_unlock(&lock);
-  }
-} MASTER_INFO;
 
 class MYSQL_LOG {
  public:
