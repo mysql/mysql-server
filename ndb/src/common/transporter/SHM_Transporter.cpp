@@ -214,7 +214,8 @@ SHM_Transporter::connect_server_impl(NDB_SOCKET_TYPE sockfd)
   }
 
   // Send ok to client
-  s_output.println("shm server 1 ok: %d", g_shm_pid);
+  s_output.println("shm server 1 ok: %d", 
+		   m_transporter_registry.m_shm_own_pid);
   
   // Wait for ok from client
   if (s_input.gets(buf, 256) == 0) 
@@ -293,7 +294,8 @@ SHM_Transporter::connect_client_impl(NDB_SOCKET_TYPE sockfd)
   }
 
   // Send ok to server
-  s_output.println("shm client 1 ok: %d", g_shm_pid);
+  s_output.println("shm client 1 ok: %d", 
+		   m_transporter_registry.m_shm_own_pid);
   
   int r= connect_common(sockfd);
   
