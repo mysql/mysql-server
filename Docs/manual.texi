@@ -1006,9 +1006,6 @@ Work against software patents.
 The MySQL web site (@uref{http://www.mysql.com/})
 provides the latest information about MySQL and MySQL AB.
 
-For an upto-date list of the people at @code{MySQL AB},
-see @uref{http://www.mysql.com/company/people/}.
-
 
 @node MySQL AB business model and services, Contact information, What is MySQL AB, What is MySQL AB
 @subsection The Business Model and Services of MySQL AB
@@ -46052,9 +46049,6 @@ These are the developers that are or have been employed by @code{MySQL AB}
 to work on @code{MySQL}, roughly in the order they started to work with us.
 Following each developer is a small list of the tasks that the developer is
 responsible for, or the accomplishments they have made.
-
-For an upto-date list of the people at @code{MySQL AB},
-see @uref{http://www.mysql.com/company/people/}.
 
 @table @asis
 @item Michael (Monty) Widenius
