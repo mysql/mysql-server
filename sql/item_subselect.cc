@@ -684,7 +684,7 @@ int subselect_single_select_engine::prepare()
 		    (ORDER*) select_lex->group_list.first,
 		    select_lex->having,
 		    (ORDER*) 0, select_lex, 
-		    select_lex->master_unit(), 0, 0))
+		    select_lex->master_unit(), 0))
     return 1;
   thd->lex.current_select= save_select;
   return 0;
