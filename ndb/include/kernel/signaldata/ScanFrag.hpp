@@ -33,7 +33,7 @@ class ScanFragReq {
    */
   friend class Dblqh;
 public:
-  STATIC_CONST( SignalLength = 25 );
+  STATIC_CONST( SignalLength = 13 );
 
 public:
   Uint32 senderData;
@@ -45,9 +45,11 @@ public:
   Uint32 schemaVersion;
   Uint32 transId1;
   Uint32 transId2;
-  Uint32 clientOpPtr[MAX_PARALLEL_OP_PER_SCAN];
+  Uint32 clientOpPtr;
+  Uint32 concurrency;
+  Uint32 batch_byte_size;
+  Uint32 first_batch_size;
 
-  static Uint32 getConcurrency(const Uint32 & requestInfo);
   static Uint32 getLockMode(const Uint32 & requestInfo);
   static Uint32 getHoldLockFlag(const Uint32 & requestInfo);
   static Uint32 getKeyinfoFlag(const Uint32 & requestInfo);
@@ -56,7 +58,6 @@ public:
   static Uint32 getAttrLen(const Uint32 & requestInfo);
   static Uint32 getScanPrio(const Uint32 & requestInfo);
   
-  static void setConcurrency(Uint32 & requestInfo, Uint32 concurrency);
   static void setLockMode(Uint32 & requestInfo, Uint32 lockMode);
   static void setHoldLockFlag(Uint32 & requestInfo, Uint32 holdLock);
   static void setKeyinfoFlag(Uint32 & requestInfo, Uint32 keyinfo);
@@ -79,7 +80,6 @@ class KeyInfo20 {
   friend class NdbOperation;
   friend class NdbScanReceiver;
 public:
-  //STATIC_CONST( SignalLength = 21 );
   STATIC_CONST( HeaderLength = 5);
   STATIC_CONST( DataLength = 20 );
 
@@ -110,15 +110,15 @@ class ScanFragConf {
   friend class Backup;
   friend class Suma;
 public:
-  STATIC_CONST( SignalLength = 21 );
+  STATIC_CONST( SignalLength = 6 );
   
 public:
   Uint32 senderData;
   Uint32 completedOps;
   Uint32 fragmentCompleted;
-  Uint32 opReturnDataLen[16];
   Uint32 transId1;
   Uint32 transId2;
+  Uint32 total_len;
 };
 
 class ScanFragRef {
@@ -188,7 +188,6 @@ public:
  * Request Info
  *
  * a = Length of attrinfo    - 16 Bits (16-31)
- * c = Concurrency           - 5  Bits (0-4) -> Max 31
  * l = Lock Mode             - 1  Bit 5
  * h = Hold lock             - 1  Bit 7
  * k = Keyinfo               - 1  Bit 8
@@ -198,11 +197,8 @@ public:
  *
  *           1111111111222222222233
  * 01234567890123456789012345678901
- * ccccclxhkr  ppppaaaaaaaaaaaaaaaa 
+ *      lxhkr  ppppaaaaaaaaaaaaaaaa 
  */
-#define SF_CONCURRENCY_SHIFT (0)
-#define SF_CONCURRENCY_MASK  (31)
-
 #define SF_LOCK_MODE_SHIFT   (5)
 #define SF_LOCK_MODE_MASK    (1)
 
@@ -216,12 +212,6 @@ public:
 
 #define SF_PRIO_SHIFT 12
 #define SF_PRIO_MASK 15
-
-inline 
-Uint32
-ScanFragReq::getConcurrency(const Uint32 & requestInfo){
-  return (requestInfo >> SF_CONCURRENCY_SHIFT) & SF_CONCURRENCY_MASK;
-}
 
 inline 
 Uint32
@@ -274,13 +264,6 @@ ScanFragReq::setScanPrio(UintR & requestInfo, UintR val){
 
 inline
 void
-ScanFragReq::setConcurrency(UintR & requestInfo, UintR val){
-  ASSERT_MAX(val, SF_CONCURRENCY_MASK, "ScanFragReq::setConcurrency");
-  requestInfo |= (val << SF_CONCURRENCY_SHIFT);
-}
-
-inline
-void
 ScanFragReq::setLockMode(UintR & requestInfo, UintR val){
   ASSERT_MAX(val, SF_LOCK_MODE_MASK, "ScanFragReq::setLockMode");
   requestInfo |= (val << SF_LOCK_MODE_SHIFT);
@@ -324,7 +307,7 @@ ScanFragReq::setAttrLen(UintR & requestInfo, UintR val){
 inline
 Uint32
 KeyInfo20::setScanInfo(Uint32 opNo, Uint32 scanNo){
-  ASSERT_MAX(opNo, 15, "KeyInfo20::setScanInfo");
+  ASSERT_MAX(opNo, 1023, "KeyInfo20::setScanInfo");
   ASSERT_MAX(scanNo, 255, "KeyInfo20::setScanInfo");
   return (opNo << 8) + scanNo;
 }
@@ -338,7 +321,7 @@ KeyInfo20::getScanNo(Uint32 scanInfo){
 inline
 Uint32
 KeyInfo20::getScanOp(Uint32 scanInfo){
-  return (scanInfo >> 8) & 0xF;
+  return (scanInfo >> 8) & 0x1023;
 }
 
 #endif
