@@ -41,6 +41,7 @@ fi
 # On IRIX hostname is in /usr/bsd so add this to the path
 PATH=$PATH:/usr/bsd
 hostname=`hostname`		# Install this too in the user table
+hostname="$hostname%"		# Fix if not fully qualified hostname
 
 resolved=127.0.0.1
 

@@ -23,7 +23,7 @@
  *   Monty
  **/
 
-#define MTEST_VERSION "1.2"
+#define MTEST_VERSION "1.4"
 
 #include "global.h"
 #include "my_sys.h"
@@ -50,7 +50,7 @@
 #define MIN_VAR_ALLOC	  32
 #define BLOCK_STACK_DEPTH  32
 
-int record = 0, verbose = 0, silent = 0;
+int record = 0, verbose = 0, silent = 0, opt_sleep=0;
 static char *db = 0, *pass=0;
 const char* user = 0, *host = 0, *unix_sock = 0;
 int port = 0;
@@ -62,6 +62,7 @@ FILE* file_stack[MAX_INCLUDE_DEPTH];
 FILE** cur_file;
 FILE** file_stack_end;
 uint lineno_stack[MAX_INCLUDE_DEPTH];
+char TMPDIR[FN_REFLEN];
 
 int block_stack[BLOCK_STACK_DEPTH];
 int *cur_block, *block_stack_end;
@@ -494,38 +495,41 @@ int do_let(struct query* q)
 
 int do_sleep(struct query* q)
 {
-  char* p, *arg;
+  char *p;
   struct timeval t;
   int dec_mul = 1000000;
   p = (char*)q->q + q->first_word_len;
   while(*p && isspace(*p)) p++;
   if (!*p)
     die("Missing argument in sleep\n");
-  arg = p;
-  t.tv_sec = atoi(arg);
   t.tv_usec = 0;
-  while(*p && *p != '.' && !isspace(*p))
-    p++;
-  if (*p == '.')
+  if (opt_sleep)
+    t.tv_sec = opt_sleep;
+  else
   {
-    char c;
-    char *p_end;
-    p++;
-    p_end = p + 6;
-
-    for(;p <= p_end; ++p)
+    t.tv_sec = atoi(p);
+    while(*p && *p != '.' && !isspace(*p))
+      p++;
+    if (*p == '.')
     {
-      c = *p - '0';
-      if (c < 10 && c >= 0)
+      char c;
+      char *p_end;
+      p++;
+      p_end = p + 6;
+
+      for(;p <= p_end; ++p)
       {
-	t.tv_usec = t.tv_usec * 10 + c;
-	dec_mul /= 10;
+	c = *p - '0';
+	if (c < 10 && c >= 0)
+	{
+	  t.tv_usec = t.tv_usec * 10 + c;
+	  dec_mul /= 10;
+	}
+	else
+	  break;
       }
-      else
-	break;
     }
   }
-  *p = 0;
   t.tv_usec *= dec_mul;
   return select(0,0,0,0, &t);
 }
@@ -617,6 +621,7 @@ int do_connect(struct query* q)
   char* con_name, *con_user,*con_pass, *con_host, *con_port_str,
     *con_db, *con_sock;
   char* p;
+  char buff[FN_REFLEN];
 
   p = q->q + q->first_word_len;
 
@@ -636,6 +641,7 @@ int do_connect(struct query* q)
 
   if (!mysql_init(&next_con->mysql))
     die("Failed on mysql_init()");
+  con_sock=fn_format(buff, con_sock, TMPDIR,"",0);
   if (!mysql_real_connect(&next_con->mysql, con_host, con_user, con_pass,
 			 con_db, atoi(con_port_str), con_sock, 0))
     die("Could not open connection '%s': %s", con_name,
@@ -952,19 +958,21 @@ int read_query(struct query** q_ptr)
 
 struct option long_options[] =
 {
-  {"verbose", no_argument, 0, 'v'},
-  {"version", no_argument, 0, 'V'},
-  {"silent", no_argument, 0, 'q'},
+  {"database", required_argument, 0, 'D'},
+  {"help", no_argument, 0, '?'},
+  {"host", required_argument, 0, 'h'},
+  {"password", optional_argument, 0, 'p'},
+  {"port", required_argument, 0, 'P'},
   {"quiet", no_argument, 0, 'q'},
   {"record", no_argument, 0, 'r'},
   {"result-file", required_argument, 0, 'R'},
-  {"help", no_argument, 0, '?'},
-  {"user", required_argument, 0, 'u'},
-  {"password", optional_argument, 0, 'p'},
-  {"host", required_argument, 0, 'h'},
+  {"silent", no_argument, 0, 'q'},
+  {"sleep",  required_argument, 0, 'T'},
   {"socket", required_argument, 0, 'S'},
-  {"database", required_argument, 0, 'D'},
-  {"port", required_argument, 0, 'P'},
+  {"tmpdir", required_argument, 0, 't'},
+  {"user", required_argument, 0, 'u'},
+  {"verbose", no_argument, 0, 'v'},
+  {"version", no_argument, 0, 'V'},
   {0, 0,0,0}
 };
 
@@ -991,6 +999,8 @@ void usage()
   -D, --database=...       Database to use.\n\
   -P, --port=...           Port number to use for connection.\n\
   -S, --socket=...         Socket file to use for connection.\n\
+  -t, --tmpdir=...	   Temporary directory where sockets are put\n\
+  -T, --sleep=#		   Sleep always this many seconds on sleep commands\n\
   -r, --record             Record output of test_file into result file.\n\
   -R, --result-file=...    Read/Store result from/in this file.\n\
   -v, --verbose            Write more.\n\
@@ -1006,7 +1016,7 @@ int parse_args(int argc, char **argv)
 
   load_defaults("my",load_default_groups,&argc,&argv);
 
-  while((c = getopt_long(argc, argv, "h:p::u:P:D:S:R:?rvVq",
+  while((c = getopt_long(argc, argv, "h:p::u:P:D:S:R:t:T:?rvVq",
 			 long_options, &option_index)) != EOF)
     {
       switch(c)
@@ -1047,6 +1057,12 @@ int parse_args(int argc, char **argv)
 	  break;
 	case 'q':
 	  silent = 1;
+	  break;
+	case 't':
+	  strnmov(TMPDIR,optarg,sizeof(TMPDIR));
+	  break;
+	case 'T':
+	  opt_sleep=atoi(optarg);
 	  break;
 	case 'V':
 	  print_version();
@@ -1255,6 +1271,7 @@ int main(int argc, char** argv)
   my_bool require_file=0;
   char save_file[FN_REFLEN];
   save_file[0]=0;
+  TMPDIR[0]=0;
 
   MY_INIT(argv[0]);
   memset(cons, 0, sizeof(cons));
