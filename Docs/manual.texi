@@ -38089,7 +38089,7 @@ If @code{ON DELETE CASCADE} is specified, and a row in the parent
 table is deleted, then InnoDB automatically deletes also all those rows
 in the child table whose foreign key values are equal to
 the referenced key value in the parent row. If @code{ON DELETE SET NULL}
-is specified, the child rows are automatiaclly updated so that the
+is specified, the child rows are automatically updated so that the
 columns in the foreign key are set to the SQL NULL value.
 
 Starting from version 3.23.50, InnoDB does not check foreign key
