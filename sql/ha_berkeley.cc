@@ -724,8 +724,8 @@ void ha_berkeley::unpack_key(char *record, DBT *key, uint index)
       }
       record[key_part->null_offset]&= ~key_part->null_bit;
     }
-    pos= (char*) key_part->field->unpack(record + key_part->field->offset(),
-					 pos);
+    pos= (char*) key_part->field->unpack_key(record + key_part->field->offset(),
+                                             pos, key_part->length);
   }
 }
 
@@ -1583,14 +1583,18 @@ int ha_berkeley::index_last(byte * buf)
 int ha_berkeley::rnd_init(bool scan)
 {
   DBUG_ENTER("rnd_init");
-  //DBUG_ASSERT(active_index==MAX_KEY);
+#ifdef NOT_YET
+  DBUG_ASSERT(active_index == MAX_KEY);
+#endif
   current_row.flags=DB_DBT_REALLOC;
   DBUG_RETURN(index_init(primary_key));
 }
 
 int ha_berkeley::rnd_end()
 {
-  active_index= MAX_KEY;
+#ifdef NOT_YET
+  DBUG_ASSERT(active_index == MAX_KEY);
+#endif
   return index_end();
 }
 
@@ -1639,13 +1643,44 @@ int ha_berkeley::rnd_pos(byte * buf, byte *pos)
 		       (char*) buf, primary_key, &current_row, (DBT*) 0, 0));
 }
 
+/*
+  Set a reference to the current record in (ref,ref_length).
+
+  SYNOPSIS
+    ha_berkeley::position()
+    record                      The current record buffer
+
+  DESCRIPTION
+    The BDB handler stores the primary key in (ref,ref_length).
+    There is either an explicit primary key, or an implicit (hidden)
+    primary key.
+    During open(), 'ref_length' is calculated as the maximum primary
+    key length. When an actual key is shorter than that, the rest of
+    the buffer must be cleared out. The row cannot be identified, if
+    garbage follows behind the end of the key. There is no length
+    field for the current key, so that the whole ref_length is used
+    for comparison.
+
+  RETURN
+    nothing
+*/
+
 void ha_berkeley::position(const byte *record)
 {
   DBT key;
+  DBUG_ENTER("ha_berkeley::position");
   if (hidden_primary_key)
+  {
+    DBUG_ASSERT(ref_length == BDB_HIDDEN_PRIMARY_KEY_LENGTH);
     memcpy_fixed(ref, (char*) current_ident, BDB_HIDDEN_PRIMARY_KEY_LENGTH);
+  }
   else
+  {
     create_key(&key, primary_key, (char*) ref, record);
+    if (key.size < ref_length)
+      bzero(ref + key.size, ref_length - key.size);
+  }
+  DBUG_VOID_RETURN;
 }
 
 

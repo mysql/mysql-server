@@ -2283,7 +2283,7 @@ add_key_fields(JOIN_TAB *stat,KEY_FIELD **key_fields,uint *and_level,
 	!(cond_func->used_tables() & OUTER_REF_TABLE_BIT))
       add_key_field(key_fields,*and_level,cond_func,
 		    ((Item_field*) (cond_func->key_item()->real_item()))->
-		    field, 0,
+		    field, cond_func->argument_count() == 2,
                     cond_func->arguments()+1, cond_func->argument_count()-1,
                     usable_tables);
     break;
@@ -5552,7 +5552,7 @@ bool create_myisam_from_heap(THD *thd, TABLE *table, TMP_TABLE_PARAM *param,
   if (table->file->indexes_are_disabled())
     new_table.file->disable_indexes(HA_KEY_SWITCH_ALL);
   table->file->ha_index_or_rnd_end();
-  table->file->ha_rnd_init();
+  table->file->ha_rnd_init(1);
   if (table->no_rows)
   {
     new_table.file->extra(HA_EXTRA_NO_ROWS);
@@ -7504,7 +7504,7 @@ static int remove_dup_with_compare(THD *thd, TABLE *table, Field **first_field,
   org_record=(char*) (record=table->record[0])+offset;
   new_record=(char*) table->record[1]+offset;
 
-  file->ha_rnd_init();
+  file->ha_rnd_init(1);
   error=file->rnd_next(record);
   for (;;)
   {
@@ -7616,7 +7616,7 @@ static int remove_dup_with_hash_index(THD *thd, TABLE *table,
       (*field_length++)= (*ptr)->pack_length();
   }
 
-  file->ha_rnd_init();
+  file->ha_rnd_init(1);
   key_pos=key_buffer;
   for (;;)
   {
