@@ -411,7 +411,6 @@ int mysql_preload_keys(THD* thd, TABLE_LIST* table_list);
 bool check_simple_select();
 
 SORT_FIELD * make_unireg_sortorder(ORDER *order, uint *length);
-int setup_ref_array(THD *thd, Item ***rref_pointer_array, uint elements);
 int setup_order(THD *thd, Item **ref_pointer_array, TABLE_LIST *tables,
 		List<Item> &fields, List <Item> &all_fields, ORDER *order);
 int setup_group(THD *thd, Item **ref_pointer_array, TABLE_LIST *tables,

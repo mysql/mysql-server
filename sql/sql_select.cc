@@ -294,10 +294,7 @@ JOIN::prepare(Item ***rref_pointer_array,
 					setup_wild(thd, tables_list, 
 						   fields_list,
 						   &all_fields, wild_num))) ||
-      setup_ref_array(thd, rref_pointer_array, (fields_list.elements +
-						select_lex->
-						select_n_having_items +
-						og_num)) ||
+      select_lex->setup_ref_array(thd, og_num) ||
       setup_fields(thd, (*rref_pointer_array), tables_list, fields_list, 1,
 		   &all_fields, 1) ||
       setup_without_group(thd, (*rref_pointer_array), tables_list, fields_list,
@@ -7481,19 +7478,6 @@ find_order_in_list(THD *thd, Item **ref_pointer_array,
   ref_pointer_array[el]= it;
   order->item= ref_pointer_array + el;
   return 0;
-}
-
-/*
-  Allocate array of references to address all_fileds list elements
-*/
-
-int setup_ref_array(THD* thd, Item ***rref_pointer_array, uint elements)
-{
-  if (*rref_pointer_array)
-    return 0;
-
-  return (*rref_pointer_array= 
-	  (Item **)thd->alloc(sizeof(Item*) * elements * 5)) == 0;
 }
 
 /*
