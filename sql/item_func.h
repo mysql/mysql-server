@@ -1107,7 +1107,10 @@ public:
     Item *it;
 
     if (execute(&it))
+    {
+      null_value= 1;
       return 0.0;
+    }
     return it->val();
   }
 
@@ -1116,7 +1119,10 @@ public:
     Item *it;
 
     if (execute(&it))
+    {
+      null_value= 1;
       return NULL;
+    }
     return it->val_str(str);
   }
 

@@ -389,12 +389,13 @@ sp_head::execute(THD *thd)
 	continue;
       }
     }
-  } while (ret == 0 && !thd->killed && !thd->query_error);
+  } while (ret == 0 && !thd->killed && !thd->query_error &&
+	   !thd->net.report_error);
 
  done:
   DBUG_PRINT("info", ("ret=%d killed=%d query_error=%d",
 		      ret, thd->killed, thd->query_error));
-  if (thd->killed || thd->query_error)
+  if (thd->killed || thd->query_error || thd->net.report_error)
     ret= -1;
   /* If the DB has changed, the pointer has changed too, but the
      original thd->db will then have been freed */
@@ -553,7 +554,12 @@ sp_head::execute_procedure(THD *thd, List<Item> *args)
   ret= execute(thd);
 
   // Don't copy back OUT values if we got an error
-  if (ret == 0 && csize > 0)
+  if (ret)
+  {
+    if (thd->net.report_error)
+      send_error(thd, 0, NullS);
+  }
+  else if (csize > 0)
   {
     List_iterator_fast<Item> li(*args);
     Item *it;

@@ -3120,7 +3120,11 @@ Item_func_sp::execute(Item **itp)
   if (! m_sp)
     m_sp= sp_find_function(thd, m_name);
   if (! m_sp)
+  {
+    my_printf_error(ER_SP_DOES_NOT_EXIST, ER(ER_SP_DOES_NOT_EXIST), MYF(0),
+		    "FUNCTION", m_name->m_qname);
     DBUG_RETURN(-1);
+  }
 
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   sp_change_security_context(thd, m_sp, &save_ctx);
@@ -3147,6 +3151,8 @@ Item_func_sp::field_type() const
     DBUG_PRINT("info", ("m_returns = %d", m_sp->m_returns));
     DBUG_RETURN(m_sp->m_returns);
   }
+  my_printf_error(ER_SP_DOES_NOT_EXIST, ER(ER_SP_DOES_NOT_EXIST), MYF(0),
+		  "FUNCTION", m_name->m_qname);
   DBUG_RETURN(MYSQL_TYPE_STRING);
 }
 
@@ -3162,6 +3168,8 @@ Item_func_sp::result_type() const
   {
     DBUG_RETURN(m_sp->result());
   }
+  my_printf_error(ER_SP_DOES_NOT_EXIST, ER(ER_SP_DOES_NOT_EXIST), MYF(0),
+		  "FUNCTION", m_name->m_qname);
   DBUG_RETURN(STRING_RESULT);
 }
 
@@ -3172,7 +3180,12 @@ Item_func_sp::fix_length_and_dec()
 
   if (! m_sp)
     m_sp= sp_find_function(current_thd, m_name);
-  if (m_sp)
+  if (! m_sp)
+  {
+    my_printf_error(ER_SP_DOES_NOT_EXIST, ER(ER_SP_DOES_NOT_EXIST), MYF(0),
+		    "FUNCTION", m_name->m_qname);
+  }
+  else
   {
     switch (m_sp->result()) {
     case STRING_RESULT:

@@ -595,8 +595,7 @@ static long mysql_rm_known_files(THD *thd, MY_DIR *dirp, const char *db,
     1	error
 */
 
-bool mysql_change_db(THD *thd, const char *name,
-		     bool empty_is_ok, bool no_access_check)
+bool mysql_change_db(THD *thd, const char *name)
 {
   int length, db_length;
   char *dbname=my_strdup((char*) name,MYF(MY_WME));
@@ -605,76 +604,62 @@ bool mysql_change_db(THD *thd, const char *name,
   HA_CREATE_INFO create;
   DBUG_ENTER("mysql_change_db");
 
-  if ((!dbname || !(db_length=strip_sp(dbname))) && !empty_is_ok)
+  if (!dbname || !(db_length=strip_sp(dbname)))
   {
     x_free(dbname);				/* purecov: inspected */
     send_error(thd,ER_NO_DB_ERROR);	/* purecov: inspected */
     DBUG_RETURN(1);				/* purecov: inspected */
   }
-  if (!empty_is_ok || (dbname && db_length))
+  if ((db_length > NAME_LEN) || check_db_name(dbname))
   {
-    if ((db_length > NAME_LEN) || check_db_name(dbname))
-    {
-      net_printf(thd, ER_WRONG_DB_NAME, dbname);
-      x_free(dbname);
-      DBUG_RETURN(1);
-    }
+    net_printf(thd, ER_WRONG_DB_NAME, dbname);
+    x_free(dbname);
+    DBUG_RETURN(1);
   }
   DBUG_PRINT("info",("Use database: %s", dbname));
-  if (!empty_is_ok || (dbname && db_length))
-  {
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
-    if (! no_access_check)
-    {
-      if (test_all_bits(thd->master_access,DB_ACLS))
-	db_access=DB_ACLS;
-      else
-	db_access= (acl_get(thd->host,thd->ip, thd->priv_user,dbname,0) |
-		    thd->master_access);  
-      if (!(db_access & DB_ACLS) &&
-	  (!grant_option || check_grant_db(thd,dbname)))
-      {
-	net_printf(thd,ER_DBACCESS_DENIED_ERROR,
-		   thd->priv_user,
-		   thd->priv_host,
-		   dbname);
-	mysql_log.write(thd,COM_INIT_DB,ER(ER_DBACCESS_DENIED_ERROR),
-			thd->priv_user,
-			thd->priv_host,
-			dbname);
-	my_free(dbname,MYF(0));
-	DBUG_RETURN(1);
-      }
-    }
+  if (test_all_bits(thd->master_access,DB_ACLS))
+    db_access=DB_ACLS;
+  else
+    db_access= (acl_get(thd->host,thd->ip, thd->priv_user,dbname,0) |
+		thd->master_access);
+  if (!(db_access & DB_ACLS) && (!grant_option || check_grant_db(thd,dbname)))
+  {
+    net_printf(thd,ER_DBACCESS_DENIED_ERROR,
+	       thd->priv_user,
+	       thd->priv_host,
+	       dbname);
+    mysql_log.write(thd,COM_INIT_DB,ER(ER_DBACCESS_DENIED_ERROR),
+		    thd->priv_user,
+		    thd->priv_host,
+		    dbname);
+    my_free(dbname,MYF(0));
+    DBUG_RETURN(1);
+  }
 #endif
-    (void) sprintf(path,"%s/%s",mysql_data_home,dbname);
-    length=unpack_dirname(path,path);		// Convert if not unix
-    if (length && path[length-1] == FN_LIBCHAR)
-      path[length-1]=0;				// remove ending '\'
-    if (access(path,F_OK))
-    {
-      net_printf(thd,ER_BAD_DB_ERROR,dbname);
-      my_free(dbname,MYF(0));
-      DBUG_RETURN(1);
-    }
+  (void) sprintf(path,"%s/%s",mysql_data_home,dbname);
+  length=unpack_dirname(path,path);		// Convert if not unix
+  if (length && path[length-1] == FN_LIBCHAR)
+    path[length-1]=0;				// remove ending '\'
+  if (access(path,F_OK))
+  {
+    net_printf(thd,ER_BAD_DB_ERROR,dbname);
+    my_free(dbname,MYF(0));
+    DBUG_RETURN(1);
   }
   send_ok(thd);
   x_free(thd->db);
   thd->db=dbname;				// THD::~THD will free this
   thd->db_length=db_length;
-  if (!empty_is_ok || (dbname && db_length))
-  {
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
-    if (! no_access_check)
-      thd->db_access=db_access;
+  thd->db_access=db_access;
 #endif
-    strmov(path+unpack_dirname(path,path), MY_DB_OPT_FILE);
-    load_db_opt(thd, path, &create);
-    thd->db_charset= create.default_table_charset ?
-      create.default_table_charset :
-      thd->variables.collation_server;
-    thd->variables.collation_database= thd->db_charset;
-  }
+  strmov(path+unpack_dirname(path,path), MY_DB_OPT_FILE);
+  load_db_opt(thd, path, &create);
+  thd->db_charset= create.default_table_charset ?
+		   create.default_table_charset :
+		   thd->variables.collation_server;
+  thd->variables.collation_database= thd->db_charset;
   DBUG_RETURN(0);
 }
 
