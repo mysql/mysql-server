@@ -212,7 +212,7 @@ subselect_single_select_engine::subselect_single_select_engine(THD *thd,
 							       select_subselect *result,
 							       Item_subselect *item):
   subselect_engine(thd, item, result),
-   executed(0), optimized(0)
+    prepared(0), optimized(0), executed(0)
 {
   select_lex= select;
   SELECT_LEX_UNIT *unit= select_lex->master_unit();
@@ -251,6 +251,9 @@ subselect_union_engine::subselect_union_engine(THD *thd,
 
 int subselect_single_select_engine::prepare()
 {
+  if (prepared)
+    return 0;
+  prepared= 1;
   SELECT_LEX *save_select= thd->lex.select;
   thd->lex.select= select_lex;
   if(join->prepare((TABLE_LIST*) select_lex->table_list.first,
