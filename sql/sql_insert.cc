@@ -501,7 +501,6 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
     ::send_ok(thd, (ulong) thd->row_count_func, id, buff);
   }
   free_underlaid_joins(thd, &thd->lex->select_lex);
-  table_list->clear_insert_values();
   thd->abort_on_warning= 0;
   DBUG_RETURN(FALSE);
 
@@ -511,7 +510,6 @@ abort:
     end_delayed_insert(thd);
 #endif
   free_underlaid_joins(thd, &thd->lex->select_lex);
-  table_list->clear_insert_values();
   thd->abort_on_warning= 0;
   DBUG_RETURN(TRUE);
 }
