@@ -977,7 +977,8 @@ void Query_log_event::print(FILE* file, bool short_form, char* last_db)
 int Query_log_event::exec_event(struct st_relay_log_info* rli)
 {
   int expected_error,actual_error= 0;
-  thd->db= (char*) rewrite_db(db); // thd->db_length is set later if needed
+  thd->db_length= db_len;
+  thd->db= (char*) rewrite_db(db, &thd->db_length);
 
   /*
     InnoDB internally stores the master log position it has processed so far;
@@ -995,11 +996,6 @@ int Query_log_event::exec_event(struct st_relay_log_info* rli)
   if (db_ok(thd->db, replicate_do_db, replicate_ignore_db))
   {
     thd->set_time((time_t)when);
-    /*
-      We cannot use db_len from event to fill thd->db_length, because
-      rewrite_db() may have changed db.
-    */ 
-    thd->db_length= thd->db ? strlen(thd->db) : 0;
     thd->query_length= q_len;
     thd->query = (char*)query;
     VOID(pthread_mutex_lock(&LOCK_thread_count));
@@ -1057,7 +1053,7 @@ Default database: '%s'. Query: '%s'",
 			expected_error,
 			actual_error ? thd->net.last_error: "no error",
 			actual_error,
-			print_slave_db_safe(db), query);
+			print_slave_db_safe(thd->db), query);
       thd->query_error= 1;
     }
     /*
@@ -1078,7 +1074,7 @@ Default database: '%s'. Query: '%s'",
 			"Error '%s' on query. Default database: '%s'. Query: '%s'",
 			(actual_error ? thd->net.last_error :
 			 "unexpected success or fatal error"),
-			print_slave_db_safe(db), query);
+			print_slave_db_safe(thd->db), query);
       thd->query_error= 1;
     }
   } /* End of if (db_ok(... */
@@ -1706,7 +1702,8 @@ int Load_log_event::exec_event(NET* net, struct st_relay_log_info* rli,
 			       bool use_rli_only_for_errors)
 {
   char *load_data_query= 0;
-  thd->db= (char*) rewrite_db(db); // thd->db_length is set later if needed
+  thd->db_length= db_len;
+  thd->db= (char*) rewrite_db(db, &thd->db_length);
   DBUG_ASSERT(thd->query == 0);
   thd->query_length= 0;                         // Should not be needed
   thd->query_error= 0;
@@ -1741,7 +1738,6 @@ int Load_log_event::exec_event(NET* net, struct st_relay_log_info* rli,
   if (db_ok(thd->db, replicate_do_db, replicate_ignore_db))
   {
     thd->set_time((time_t)when);
-    thd->db_length= thd->db ? strlen(thd->db) : 0;
     VOID(pthread_mutex_lock(&LOCK_thread_count));
     thd->query_id = query_id++;
     VOID(pthread_mutex_unlock(&LOCK_thread_count));
@@ -1847,7 +1843,7 @@ Slave: load data infile on table '%s' at log position %s in log \
                         (char*) table_name,
                         llstr(log_pos,llbuff), RPL_LOG_NAME, 
 			(ulong) thd->cuted_fields,
-                        print_slave_db_safe(db));
+                        print_slave_db_safe(thd->db));
       }
       if (net)
         net->pkt_nr= thd->net.pkt_nr;
@@ -1865,6 +1861,7 @@ Slave: load data infile on table '%s' at log position %s in log \
   }
 	    
   thd->net.vio = 0; 
+  char *save_db= thd->db;
   VOID(pthread_mutex_lock(&LOCK_thread_count));
   thd->db= 0;
   thd->query= 0;
@@ -1887,7 +1884,7 @@ Slave: load data infile on table '%s' at log position %s in log \
     }
     slave_print_error(rli,sql_errno,"\
 Error '%s' running LOAD DATA INFILE on table '%s'. Default database: '%s'",
-		      err, (char*)table_name, print_slave_db_safe(db));
+		      err, (char*)table_name, print_slave_db_safe(save_db));
     free_root(thd->mem_root,MYF(MY_KEEP_PREALLOC));
     return 1;
   }
@@ -1897,7 +1894,7 @@ Error '%s' running LOAD DATA INFILE on table '%s'. Default database: '%s'",
   {
     slave_print_error(rli,ER_UNKNOWN_ERROR, "\
 Fatal error running LOAD DATA INFILE on table '%s'. Default database: '%s'",
-		      (char*)table_name, print_slave_db_safe(db));
+		      (char*)table_name, print_slave_db_safe(save_db));
     return 1;
   }
 

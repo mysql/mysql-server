@@ -90,7 +90,7 @@ LocalConfig::init(const char *connectString,
   //7. Check
   {
     char buf[256];
-    BaseString::snprintf(buf, sizeof(buf), "host=localhost:%s", NDB_BASE_PORT);
+    BaseString::snprintf(buf, sizeof(buf), "host=localhost:%s", NDB_PORT);
     if(readConnectString(buf, "default connect string"))
       return true;
   }
@@ -124,12 +124,12 @@ void LocalConfig::printUsage() const {
   ndbout << "1. Put a Ndb.cfg file in the directory where you start"<<endl 
 	 << "   the node. "<< endl
 	 << "   Ex: Ndb.cfg" << endl
-	 << "   | host=localhost:"<<NDB_BASE_PORT<<endl;
+	 << "   | host=localhost:"<<NDB_PORT<<endl;
     
   ndbout << "2. Use the environment variable NDB_CONNECTSTRING to "<<endl
 	 << "   provide this information." <<endl
 	 << "   Ex: " << endl
-	 << "   >export NDB_CONNECTSTRING=\"host=localhost:"<<NDB_BASE_PORT<<"\""
+	 << "   >export NDB_CONNECTSTRING=\"host=localhost:"<<NDB_PORT<<"\""
 	 <<endl<<endl;
 }
   
