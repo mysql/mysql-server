@@ -9,14 +9,16 @@ ndbtools_PROGRAMS = \
   ndb_select_all \
   ndb_select_count
 
-ndb_waiter_SOURCES = waiter.cpp
-ndb_delete_all_SOURCES = delete_all.cpp
-ndb_desc_SOURCES = desc.cpp
-ndb_drop_index_SOURCES = drop_index.cpp
-ndb_drop_table_SOURCES = drop_tab.cpp
-ndb_show_tables_SOURCES = listTables.cpp
-ndb_select_all_SOURCES = select_all.cpp
-ndb_select_count_SOURCES = select_count.cpp
+tools_common_sources = ../test/src/NDBT_ReturnCodes.cpp ../test/src/NDBT_Table.cpp ../test/src/NDBT_Output.cpp
+
+ndb_waiter_SOURCES = waiter.cpp $(tools_common_sources)
+ndb_delete_all_SOURCES = delete_all.cpp $(tools_common_sources)
+ndb_desc_SOURCES = desc.cpp $(tools_common_sources)
+ndb_drop_index_SOURCES = drop_index.cpp $(tools_common_sources)
+ndb_drop_table_SOURCES = drop_tab.cpp $(tools_common_sources)
+ndb_show_tables_SOURCES = listTables.cpp $(tools_common_sources)
+ndb_select_all_SOURCES = select_all.cpp ../test/src/NDBT_ResultRow.cpp $(tools_common_sources)
+ndb_select_count_SOURCES = select_count.cpp $(tools_common_sources)
 
 include $(top_srcdir)/ndb/config/common.mk.am
 include $(top_srcdir)/ndb/config/type_ndbapitools.mk.am
