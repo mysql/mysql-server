@@ -1868,6 +1868,10 @@ try_again:
 
 	if (success) {
 		success = os_file_delete(path);
+
+		if (!success) {
+			success = os_file_delete_if_exists(path);
+		}
 	}
 
 	if (success) {
