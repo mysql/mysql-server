@@ -348,7 +348,7 @@ static int my_strnxfrm_latin1_de(CHARSET_INFO *cs __attribute__((unused)),
 
 CHARSET_INFO my_charset_latin1_de =
 {
-    31,			/* number    */
+    31,0,0,		/* number    */
     MY_CS_COMPILED|MY_CS_STRNXFRM,	/* state     */
     "latin1",		/* cs name    */
     "latin1_de",	/* name      */

@@ -642,7 +642,7 @@ static my_bool my_like_range_win1250ch(CHARSET_INFO *cs __attribute__((unused)),
 
 CHARSET_INFO my_charset_win1250ch =
 {
-    34,				/* number    */
+    34,0,0,			/* number    */
     MY_CS_COMPILED|MY_CS_STRNXFRM,		/* state     */
     "cp1250",			/* cs name    */
     "cp1250_czech",		/* name      */

@@ -52,6 +52,8 @@ struct my_cs_file_section_st
 #define _CS_UNIMAP	12
 #define _CS_COLLMAP	13
 #define _CS_CTYPEMAP	14
+#define _CS_PRIMARY_ID	15
+#define _CS_BINARY_ID	16
 
 static struct my_cs_file_section_st sec[] =
 {
@@ -62,6 +64,8 @@ static struct my_cs_file_section_st sec[] =
   {_CS_MISC,		"charsets.max-id"},
   {_CS_MISC,		"charsets.description"},
   {_CS_CHARSET,		"charsets.charset"},
+  {_CS_PRIMARY_ID,	"charsets.charset.primary-id"},
+  {_CS_BINARY_ID,	"charsets.charset.binary-id"},
   {_CS_CSNAME,		"charsets.charset.name"},
   {_CS_FAMILY,		"charsets.charset.family"},
   {_CS_MISC,		"charsets.charset.alias"},
@@ -191,6 +195,12 @@ static int cs_value(MY_XML_PARSER *st,const char *attr, uint len)
   switch (state) {
   case _CS_ID:
     i->cs.number= strtol(attr,(char**)NULL,10);
+    break;
+  case _CS_BINARY_ID:
+    i->cs.binary_number= strtol(attr,(char**)NULL,10);
+    break;
+  case _CS_PRIMARY_ID:
+    i->cs.primary_number= strtol(attr,(char**)NULL,10);
     break;
   case _CS_COLNAME:
     i->cs.name=mstr(i->name,attr,len,MY_CS_NAME_SIZE-1);
