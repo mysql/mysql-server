@@ -629,7 +629,7 @@ int SQL_SELECT::test_quick_select(THD *thd, key_map keys_to_use,
   if (!records)
     records++;					/* purecov: inspected */
   scan_time=(double) records / TIME_FOR_COMPARE+1;
-  read_time=(double) head->file->scan_time()+ scan_time + 1.0;
+  read_time=(double) head->file->scan_time()+ scan_time + 1.01;
   if (head->force_index)
     scan_time= read_time= DBL_MAX;
   if (limit < records)
@@ -716,9 +716,6 @@ int SQL_SELECT::test_quick_select(THD *thd, key_map keys_to_use,
 	     key++,idx++)
 	{
 	  ha_rows found_records;
-#if defined(__GNUC__) && (__GNUC__ == 2 && __GNUC_MINOR__ == 95) && defined(__OPTIMIZE__)
-          volatile // gcc 2.95.3 bug in -O3 mode
-#endif
 	  double found_read_time;
 	  if (*key)
 	  {
