@@ -38,6 +38,18 @@
 
 Command *parse_command(Command_factory * factory, const char *text);
 
+Mysql_connection_thread_args::Mysql_connection_thread_args(
+                             struct st_vio *vio_arg,
+                             Thread_registry &thread_registry_arg,
+                             const User_map &user_map_arg,
+                             ulong connection_id_arg,
+                             Instance_map &instance_map_arg) :
+    vio(vio_arg)
+    ,thread_registry(thread_registry_arg)
+    ,user_map(user_map_arg)
+    ,connection_id(connection_id_arg)
+    ,instance_map(instance_map_arg)
+  {}
 
 /*
   MySQL connection - handle one connection with mysql command line client
