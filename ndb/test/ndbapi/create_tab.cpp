@@ -63,9 +63,10 @@ int main(int argc, const char** argv){
     /**
      * Print instead of creating
      */
-    if(argv[optind] != NULL){
-      for(int i = optind; i<argc; i++)
+    if(optind < argc){
+      for(int i = optind; i<argc; i++){
 	NDBT_Tables::print(argv[i]);
+      }
     } else {
       NDBT_Tables::printAll();
     }
