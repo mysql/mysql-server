@@ -213,14 +213,13 @@ ulong hp_hashnr(register HP_KEYDEF *keydef, register const byte *key)
     }
     if (seg->type == HA_KEYTYPE_TEXT)
     {
-      if (default_charset_info->hash_sort)
-        default_charset_info->hash_sort(default_charset_info,
-        				pos,((uchar*)key)-pos,&nr,&nr2);
+      if (seg->charset->hash_sort)
+        seg->charset->hash_sort(seg->charset,pos,((uchar*)key)-pos,&nr,&nr2);
       else
       for (; pos < (uchar*) key ; pos++)
       {
 	nr^=(ulong) ((((uint) nr & 63)+nr2) * 
-		     ((uint) default_charset_info->sort_order[(uint) *pos])) + (nr << 8);
+		     ((uint) seg->charset->sort_order[(uint) *pos])) + (nr << 8);
 	nr2+=3;
       }
     }
@@ -257,14 +256,13 @@ ulong hp_rec_hashnr(register HP_KEYDEF *keydef, register const byte *rec)
     }
     if (seg->type == HA_KEYTYPE_TEXT)
     {
-      if (default_charset_info->hash_sort)
-        default_charset_info->hash_sort(default_charset_info,
-        				pos,end-pos,&nr,&nr2);
+      if (seg->charset->hash_sort)
+        seg->charset->hash_sort(seg->charset,pos,end-pos,&nr,&nr2);
       else
       for (; pos < end ; pos++)
       {
 	nr^=(ulong) ((((uint) nr & 63)+nr2)*
-		     ((uint) default_charset_info->sort_order[(uint) *pos]))+ (nr << 8);
+		     ((uint) seg->charset->sort_order[(uint) *pos]))+ (nr << 8);
 	nr2+=3;
       }
     }
@@ -397,7 +395,7 @@ int hp_rec_key_cmp(HP_KEYDEF *keydef, const byte *rec1, const byte *rec2)
     case HA_KEYTYPE_END:
       return 0;
     case HA_KEYTYPE_TEXT:
-      if (my_sortcmp(default_charset_info,rec1+seg->start,rec2+seg->start,seg->length))
+      if (my_sortcmp(seg->charset,rec1+seg->start,rec2+seg->start,seg->length))
 	return 1;
       break;
     default:
@@ -428,12 +426,7 @@ int hp_key_cmp(HP_KEYDEF *keydef, const byte *rec, const byte *key)
     }
     if (seg->type == HA_KEYTYPE_TEXT)
     {
-      /* 
-         BAR TODO: this will not use default_charset_info
-         I need Ram to apply his HEAP patches with
-         CHARSET_INFO field in HP segments
-      */
-      if (my_sortcmp(default_charset_info,rec+seg->start,key,seg->length))
+      if (my_sortcmp(seg->charset,rec+seg->start,key,seg->length))
 	return 1;
     }
     else
