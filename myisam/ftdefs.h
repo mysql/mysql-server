@@ -22,8 +22,9 @@
 #include <m_ctype.h>
 #include <my_tree.h>
 
-#define HYPHEN_IS_DELIM
-#define HYPHEN_IS_CONCAT     /* not used for now */
+#define true_word_char(X)       (isalnum(X) || (X)=='_')
+#define misc_word_char(X)       ((X)=='\'')
+#define word_char(X)            (true_word_char(X) || misc_word_char(X))
 
 #define COMPILE_STOPWORDS_IN
 

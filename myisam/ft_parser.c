@@ -105,15 +105,6 @@ FT_WORD * ft_linearize(TREE *wtree)
   DBUG_RETURN(wlist);
 }
 
-#define true_word_char(X)	(isalnum(X) || (X)=='_')
-#ifdef HYPHEN_IS_DELIM
-#define misc_word_char(X)	((X)=='\'')
-#else
-#define misc_word_char(X)	((X)=='\'' || (X)=='-')
-#endif
-#define word_char(X)		(true_word_char(X) || misc_word_char(X))
-
-
 /* returns:
  * 0 - eof
  * 1 - word found
