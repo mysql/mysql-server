@@ -22,12 +22,12 @@
 #include <NdbMain.h>
 #include <NdbOut.hpp>
 #include <random.h>
+#include <NDBT.hpp>
 
 #ifdef	__cplusplus
 extern "C" {
 #endif
 int useTableLogging;
-int useIndexTables;
 #ifdef	__cplusplus
 }
 #endif
@@ -44,7 +44,6 @@ void usage(const char *prog)
   ndbout_c(
 	   "Usage: %s [-l]\n"
 	   "  -l                  Use logging and checkpointing on tables\n",
-	   "  -i                  Use index tables\n",
 	   prog);
   
   exit(1);
@@ -57,28 +56,26 @@ NDB_COMMAND(DbCreate, "DbCreate", "DbCreate", "DbCreate", 16384)
   int i;
   UserHandle *uh;
   
-  useTableLogging = useIndexTables = 0;
+  useTableLogging = 0;
   NDB_INIT(argv[0]);
   
   for(i = 1; i<argc; i++){
     if(strcmp(argv[i], "-l") == 0){
       useTableLogging = 1;
-    } else if(strcmp(argv[i], "-i") == 0){
-      useIndexTables = 1;
     } else {
       usage(argv[0]);
       return 0;
     }
   }
 
-  ndbout_c("Using %s tables and %s key storage",
-	   useTableLogging ? "logging" : "temporary",
-	   useIndexTables  ? "index" : "normal");
+  ndbout_c("Using %s tables",
+	   useTableLogging ? "logging" : "temporary");
   
   myRandom48Init(0x3e6f);
   
   uh = userDbConnect(1, "TEST_DB");
   dbPopulate(uh);
   userDbDisconnect(uh);
-  return(0);
+  
+  return NDBT_ProgramExit(NDBT_OK);
 }
