@@ -30,6 +30,7 @@ public:
   virtual void endOfTuples(){}
   virtual void logEntry(const LogEntry &){}
   virtual void endOfLogEntrys(){}
+  virtual bool finalize_table(const TableS &){return true;}
 };
 
 #endif
