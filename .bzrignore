@@ -497,3 +497,12 @@ vio/test-ssl
 vio/test-sslclient
 vio/test-sslserver
 vio/viotest-ssl
+autom4te.cache/output.0
+autom4te.cache/requests
+autom4te.cache/traces.0
+bdb/dist/autom4te.cache/output.0
+bdb/dist/autom4te.cache/requests
+bdb/dist/autom4te.cache/traces.0
+innobase/autom4te.cache/output.0
+innobase/autom4te.cache/requests
+innobase/autom4te.cache/traces.0
