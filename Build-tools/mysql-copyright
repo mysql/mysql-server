@@ -162,7 +162,23 @@ sub trim_the_fat
                 undef $/;
                 my $configure= <CONFIGURE>;
                 close(CONFIGURE);
-                $configure=~ s|${the_fat}/Makefile dnl\n?||g;
+
+                #
+                # If $the_fat Makefile line closes the parenthesis, then
+                # replace that line with just the closing parenthesis.
+                #
+                if ($configure=~ m|${the_fat}/Makefile\)\n?|)
+                {
+                        $configure=~ s|${the_fat}/Makefile(\)\n?)|$1|;
+                }
+                #
+                # Else just delete the line
+                #
+                else
+                {
+                        $configure=~ s|${the_fat}/Makefile dnl\n?||;
+                }
+
                 open(CONFIGURE,">configure.in") or die "Unable to open configure.in for write: $!\n";
                 print CONFIGURE $configure;
                 close(CONFIGURE);
