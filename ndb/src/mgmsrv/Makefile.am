@@ -1,7 +1,7 @@
 
-ndbbin_PROGRAMS = mgmtsrvr
+ndbbin_PROGRAMS = ndb_mgmd
 
-mgmtsrvr_SOURCES = \
+ndb_mgmd_SOURCES = \
 	MgmtSrvr.cpp \
 	MgmtSrvrGeneralSignalHandling.cpp \
 	main.cpp \
