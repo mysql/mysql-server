@@ -200,20 +200,21 @@ to disk (but of course not as optimally as simple calling a sync on
 all tables)!
 
 @item
-When one does a @code{FLUSH TABLES}, the variable @code{refresh_version} 
+When one does a @code{FLUSH TABLES}, the variable @code{refresh_version}
 will be incremented. Every time a thread releases a table it checks if
-the refresh version of the table (updated at open) is the same as
-the current @code{refresh_version}.  If not it will close it and broadcast
-a signal on @code{COND_refresh} (to wait any thread that is waiting for
-all instanses of a table to be closed).
+the refresh version of the table (TABLE->version), which is updated at
+open, is the same as the current @code{refresh_version}.  If not it will
+close it and broadcast a signal on @code{COND_refresh} (to wake up any
+thread that is waiting for all instanses of a table to be closed).
 
 @item
-The current @code{refresh_version} is also compared to the open 
-@code{refresh_version} after a thread gets a lock on a table.  If the 
-refresh version is different the thread will free all locks, reopen the
-table and try to get the locks again;  This is just to quickly get all 
-tables to use the newest version.  This is handled by
-@file{sql/lock.cc::mysql_lock_tables()} and 
+The current @code{refresh_version} is also compared to the open
+@code{refresh_version} after a thread gets a lock on a table.  If the
+refresh version is different the thread will free all locks, wait for
+all 'old' tables to be closed (in wait_for_refresh() ) reopen the table
+and try to get the locks again; This is just to quickly get all tables
+to use the newest version.  This is handled by
+@file{sql/lock.cc::mysql_lock_tables()} and
 @file{sql/sql_base.cc::wait_for_tables()}.
 
 @item
