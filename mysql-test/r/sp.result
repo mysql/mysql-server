@@ -660,12 +660,12 @@ drop table t3|
 drop procedure hndlr4|
 create procedure cur1()
 begin
-declare done int default 0;
-declare continue handler for sqlstate '02000' set done = 1;
-declare c cursor for select * from test.t2;
 declare a char(16);
 declare b int;
 declare c double;
+declare done int default 0;
+declare c cursor for select * from test.t2;
+declare continue handler for sqlstate '02000' set done = 1;
 open c;
 repeat
 fetch c into a, b, c;
@@ -688,9 +688,9 @@ create table t3 ( s char(16), i int )|
 create procedure cur2()
 begin
 declare done int default 0;
-declare continue handler for sqlstate '02000' set done = 1;
 declare c1 cursor for select id,data from test.t1;
 declare c2 cursor for select i from test.t2;
+declare continue handler for sqlstate '02000' set done = 1;
 open c1;
 open c2;
 repeat
@@ -764,8 +764,8 @@ create procedure modes(out c1 int, out c2 int)
 begin
 declare done int default 0;
 declare x int;
-declare continue handler for sqlstate '02000' set done = 1;
 declare c cursor for select data from t1;
+declare continue handler for sqlstate '02000' set done = 1;
 select 1 || 2 into c1;
 set c2 = 0;
 open c;
@@ -915,8 +915,8 @@ drop procedure bug1874|
 create procedure bug2260()
 begin
 declare v1 int;
-declare continue handler for not found set @x2 = 1;
 declare c1 cursor for select data from t1;
+declare continue handler for not found set @x2 = 1;
 open c1;
 fetch c1 into v1;
 set @x2 = 2;
@@ -996,10 +996,13 @@ drop table t3|
 drop procedure bug2614|
 create function bug2674 () returns int
 return @@sort_buffer_size|
+set @osbs = @@sort_buffer_size|
+set @@sort_buffer_size = 262000|
 select bug2674()|
 bug2674()
-262136
+262000
 drop function bug2674|
+set @@sort_buffer_size = @osbs|
 create procedure bug3259_1 () begin end|
 create procedure BUG3259_2 () begin end|
 create procedure Bug3259_3 () begin end|

@@ -698,6 +698,20 @@ void String::qs_append(const char &c)
   str_length += sizeof(c);
 }
 
+void String::qs_append(int i)
+{
+  char *buff = Ptr + str_length;
+  sprintf(buff,"%d", i);
+  str_length += strlen(buff);
+}
+
+void String::qs_append(uint i)
+{
+  char *buff = Ptr + str_length;
+  sprintf(buff,"%u", i);
+  str_length += strlen(buff);
+}
+
 
 int sortcmp(const String *x,const String *y, CHARSET_INFO *cs)
 {
