@@ -1403,15 +1403,15 @@ mysql_ssl_free(MYSQL *mysql __attribute__((unused)))
   before calling mysql_real_connect !
 */
 
-static my_bool cli_mysql_read_query_result(MYSQL *mysql);
-static MYSQL_RES *cli_mysql_use_result(MYSQL *mysql);
+static my_bool cli_read_query_result(MYSQL *mysql);
+static MYSQL_RES *cli_use_result(MYSQL *mysql);
 
 static MYSQL_METHODS client_methods=
 {
-  cli_mysql_read_query_result,
+  cli_read_query_result,
   cli_advanced_command,
   cli_read_rows,
-  cli_mysql_use_result,
+  cli_use_result,
   cli_fetch_lengths
 #ifndef MYSQL_SERVER
   ,cli_list_fields,
@@ -2022,7 +2022,7 @@ CLI_MYSQL_REAL_CONNECT(MYSQL *mysql,const char *host, const char *user,
 	goto error;
       if (mysql->fields)
       {
-	if (!(res= cli_mysql_use_result(mysql)))
+	if (!(res= cli_use_result(mysql)))
 	  goto error;
 	mysql_free_result(res);
       }
@@ -2240,13 +2240,13 @@ void STDCALL mysql_close(MYSQL *mysql)
   DBUG_VOID_RETURN;
 }
 
-static my_bool cli_mysql_read_query_result(MYSQL *mysql)
+static my_bool cli_read_query_result(MYSQL *mysql)
 {
   uchar *pos;
   ulong field_count;
   MYSQL_DATA *fields;
   ulong length;
-  DBUG_ENTER("cli_mysql_read_query_result");
+  DBUG_ENTER("cli_read_query_result");
 
   /*
     Read from the connection which we actually used, which
@@ -2419,10 +2419,10 @@ MYSQL_RES * STDCALL mysql_store_result(MYSQL *mysql)
   have to wait for the client (and will not wait more than 30 sec/packet).
 **************************************************************************/
 
-static MYSQL_RES * cli_mysql_use_result(MYSQL *mysql)
+static MYSQL_RES * cli_use_result(MYSQL *mysql)
 {
   MYSQL_RES *result;
-  DBUG_ENTER("cli_mysql_use_result");
+  DBUG_ENTER("cli_use_result");
 
   mysql = mysql->last_used_con;
 
