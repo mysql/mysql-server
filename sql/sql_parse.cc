@@ -2155,7 +2155,7 @@ check_access(THD *thd,uint want_access,const char *db, uint *save_priv,
 
   if ((thd->master_access & want_access) == want_access)
   {
-    *save_priv=thd->master_access;
+    *save_priv=thd->master_access | thd->db_access;
     return FALSE;
   }
   if ((want_access & ~thd->master_access) & ~(DB_ACLS | EXTRA_ACL) ||
