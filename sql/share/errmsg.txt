@@ -5330,3 +5330,5 @@ ER_SP_BAD_SQLSTATE 42000
 	eng "Bad SQLSTATE: '%s'"
 ER_STARTUP
 	eng "%s: ready for connections.\nVersion: '%s'  socket: '%s'  port: %d  %s"
+ER_LOAD_FROM_FIXED_SIZE_ROWS_TO_VAR
+        eng "Can't load value from file with fixed size rows to variable"
