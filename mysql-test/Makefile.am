@@ -18,7 +18,7 @@
 ## Process this file with automake to create Makefile.in
 
 EXTRA_SCRIPTS = mysql-test-run.sh install_test_db.sh
-EXTRA_DIST = $EXTRA_SCRIPTS 
+EXTRA_DIST = $(EXTRA_SCRIPTS) 
 testdir = $(prefix)/mysql-test
 test_SCRIPTS = mysql-test-run install_test_db
 CLEANFILES = $(test_SCRIPTS)
