@@ -10142,7 +10142,7 @@ static void get_options(int argc, char **argv)
   int ho_error;
 
   if ((ho_error= handle_options(&argc, &argv, client_test_long_options,
-                                get_one_option)))
+                                get_one_option, 0)))
     exit(ho_error);
 
   if (tty_password)
