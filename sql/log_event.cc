@@ -1823,6 +1823,8 @@ int Query_log_event::exec_event(struct st_relay_log_info* rli)
     since we must store the pos of the END of the current log event
   */
   rli->event_len= get_event_len();
+  thd->query_error= 0;			// clear error
+  thd->clear_error();
 
   if (db_ok(thd->db, replicate_do_db, replicate_ignore_db))
   {
@@ -1833,9 +1835,6 @@ int Query_log_event::exec_event(struct st_relay_log_info* rli)
     VOID(pthread_mutex_lock(&LOCK_thread_count));
     thd->query_id = query_id++;
     VOID(pthread_mutex_unlock(&LOCK_thread_count));
-    thd->query_error = 0;			// clear error
-    thd->net.last_errno = 0;
-    thd->net.last_error[0] = 0;
     thd->slave_proxy_id = thread_id;		// for temp tables
 	
     /*
@@ -1890,6 +1889,7 @@ Default database: '%s'",
 	       ignored_error_code(actual_error))
       {
 	thd->query_error = 0;
+        thd->clear_error();
 	*rli->last_slave_error = 0;
 	rli->last_slave_errno = 0;
       }
@@ -1960,6 +1960,7 @@ int Load_log_event::exec_event(NET* net, struct st_relay_log_info* rli,
   DBUG_ASSERT(thd->query == 0);
   thd->query = 0;				// Should not be needed
   thd->query_error = 0;
+  thd->clear_error();
 
   /*
     We test replicate_*_db rules. Note that we have already prepared the file to
