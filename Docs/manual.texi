@@ -39070,6 +39070,11 @@ An ADA95 interface to the MySQL API. By Francois Fabien.
 @item @uref{http://www.mysql.com/Downloads/Contrib/MyTool-DLL_for_VB_and_MySQL.zip, MyTool-DLL_for_VB_and_MySQL.zip}
 A DLL with MySQL C API for Visual Basic. By Ken Menzel @email{kenm@@icarz.com}.
 
+@item @uref{http://www.mysql.com/Downloads/Contrib/MYSQLX.EXE, MYSQL.EXE}
+MySQL ActiveX Object for directly accessing your MySQL servers from IIS/ASP,
+VB, VC++ skipping the slower ODBC methods. Fully updateble, multithreaded with full support
+for all MySQL fieldtypes (version 2001.1.1). By SciBit @uref{http://www.scibit.com/}.
+
 @end itemize
 
 @appendixsec  Clients
