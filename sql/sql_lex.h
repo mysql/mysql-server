@@ -55,8 +55,8 @@ enum enum_sql_command {
   SQLCOM_RESET, SQLCOM_PURGE, SQLCOM_SHOW_BINLOGS,
   SQLCOM_SHOW_OPEN_TABLES, SQLCOM_LOAD_MASTER_DATA,
   SQLCOM_HA_OPEN, SQLCOM_HA_CLOSE, SQLCOM_HA_READ,
-  SQLCOM_SHOW_SLAVE_HOSTS, SQLCOM_MULTI_DELETE, SQLCOM_UNION_SELECT,
-  SQLCOM_SHOW_BINLOG_EVENTS, SQLCOM_SHOW_NEW_MASTER, SQLCOM_NONE
+  SQLCOM_SHOW_SLAVE_HOSTS, SQLCOM_MULTI_DELETE,
+  SQLCOM_SHOW_BINLOG_EVENTS, SQLCOM_SHOW_NEW_MASTER,
 };
 
 enum lex_states { STATE_START, STATE_CHAR, STATE_IDENT,
@@ -106,7 +106,6 @@ enum sub_select_type {UNSPECIFIED_TYPE,UNION_TYPE, INTERSECT_TYPE, EXCEPT_TYPE};
 
 typedef struct st_select_lex {
   enum sub_select_type linkage;
-  uint select_number;                           /* For Item_select         */
   char *db,*db1,*table1,*db2,*table2;		/* For outer join using .. */
   Item *where,*having;
   ha_rows select_limit,offset_limit;

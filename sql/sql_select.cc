@@ -143,6 +143,34 @@ static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
 			    bool distinct);
 static void describe_info(THD *thd, const char *info);
 
+/*
+  This handles SELECT with and without UNION
+*/
+
+int handle_select(THD *thd, LEX *lex, select_result *result)
+{
+  int res;
+  register SELECT_LEX *select_lex = &lex->select_lex;
+  if (select_lex->next)
+    res=mysql_union(thd,lex,result);
+  else
+    res=mysql_select(thd,(TABLE_LIST*) select_lex->table_list.first,
+		     select_lex->item_list,
+		     select_lex->where,
+		     select_lex->ftfunc_list,
+		     (ORDER*) select_lex->order_list.first,
+		     (ORDER*) select_lex->group_list.first,
+		     select_lex->having,
+		     (ORDER*) lex->proc_list.first,
+		     select_lex->options | thd->options,
+		     result);
+  if (res && result)
+    result->abort();
+  delete result;
+  return res;
+}
+
+
 /*****************************************************************************
 ** check fields, find best join, do the select and output fields.
 ** mysql_select assumes that all tables are allready opened
@@ -2985,7 +3013,9 @@ propagate_cond_constants(I_List<COND_CMP> *save_list,COND *and_level,
       Item_func_eq *func=(Item_func_eq*) cond;
       bool left_const= func->arguments()[0]->const_item();
       bool right_const=func->arguments()[1]->const_item();
-      if (!(left_const && right_const))
+      if (!(left_const && right_const) &&
+	  (func->arguments()[0]->result_type() ==
+	   (func->arguments()[1]->result_type())))
       {
 	if (right_const)
 	{

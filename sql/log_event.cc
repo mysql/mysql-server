@@ -1054,8 +1054,7 @@ Slave_log_event::~Slave_log_event()
 
 #ifdef MYSQL_CLIENT
 
-void Slave_log_event::print(FILE* file, bool short_form = 0,
-			    char* last_db = 0)
+void Slave_log_event::print(FILE* file, bool short_form, char* last_db)
 {
   char llbuff[22];
   if(short_form)
@@ -1167,8 +1166,8 @@ Create_file_log_event::Create_file_log_event(const char* buf, int len):
   block_len = len - block_offset;
 }
 #ifdef MYSQL_CLIENT
-void Create_file_log_event::print(FILE* file, bool short_form = 0,
-				  char* last_db = 0)
+void Create_file_log_event::print(FILE* file, bool short_form,
+				  char* last_db)
 {
   if (short_form)
     return;
@@ -1224,8 +1223,8 @@ int Append_block_log_event::write_data(IO_CACHE* file)
 }
 
 #ifdef MYSQL_CLIENT  
-void Append_block_log_event::print(FILE* file, bool short_form = 0,
-				   char* last_db = 0)
+void Append_block_log_event::print(FILE* file, bool short_form,
+				   char* last_db)
 {
   if (short_form)
     return;
@@ -1273,8 +1272,8 @@ int Delete_file_log_event::write_data(IO_CACHE* file)
 }
 
 #ifdef MYSQL_CLIENT  
-void Delete_file_log_event::print(FILE* file, bool short_form = 0,
-				  char* last_db = 0)
+void Delete_file_log_event::print(FILE* file, bool short_form,
+				  char* last_db)
 {
   if (short_form)
     return;
@@ -1320,8 +1319,8 @@ int Execute_load_log_event::write_data(IO_CACHE* file)
 }
 
 #ifdef MYSQL_CLIENT  
-void Execute_load_log_event::print(FILE* file, bool short_form = 0,
-				   char* last_db = 0)
+void Execute_load_log_event::print(FILE* file, bool short_form,
+				   char* last_db)
 {
   if (short_form)
     return;
@@ -1757,7 +1756,7 @@ int Execute_load_log_event::exec_event(struct st_master_info* mi)
   // can preserve ascending order of log sequence numbers - needed
   // to handle failover 
   save_options = thd->options;
-  thd->options &= ~OPTION_BIN_LOG;
+  thd->options &= ~ (ulong) OPTION_BIN_LOG;
   lev->thd = thd;
   if (lev->exec_event(0,0))
   {

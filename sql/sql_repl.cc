@@ -84,7 +84,9 @@ static int fake_rotate_event(NET* net, String* packet, char* log_file_name,
   int2store(header + FLAGS_OFFSET, 0);
   int4store(header + LOG_SEQ_OFFSET, 0);
   packet->append(header, sizeof(header));
-  int8store(buf, 4); // tell slave to skip magic number
+  /* We need to split the next statement because of problem with cxx */
+  int4store(buf,4); // tell slave to skip magic number
+  int4store(buf+4,0);
   packet->append(buf, ROTATE_HEADER_LEN);
   packet->append(p,ident_len);
   if (my_net_write(net, (char*)packet->ptr(), packet->length()))
@@ -1059,26 +1061,26 @@ static Slave_log_event* find_slave_event(IO_CACHE* log,
   Log_event* ev;
   if (!(ev = Log_event::read_log_event(log, 0)))
   {
-    my_vsnprintf(errmsg, SLAVE_ERRMSG_SIZE,
-		 "Error reading start event in log '%s'",
-		 (char*)log_file_name);
+    my_snprintf(errmsg, SLAVE_ERRMSG_SIZE,
+		"Error reading start event in log '%s'",
+		(char*)log_file_name);
     return 0;
   }
   delete ev;
 
   if (!(ev = Log_event::read_log_event(log, 0)))
   {
-    my_vsnprintf(errmsg, SLAVE_ERRMSG_SIZE,
-		 "Error reading slave event in log '%s'",
-		 (char*)log_file_name);
+    my_snprintf(errmsg, SLAVE_ERRMSG_SIZE,
+		"Error reading slave event in log '%s'",
+		(char*)log_file_name);
     return 0;
   }
 
   if (ev->get_type_code() != SLAVE_EVENT)
   {
-    my_vsnprintf(errmsg, SLAVE_ERRMSG_SIZE,
-		 "Second event in log '%s' is not slave event",
-		 (char*)log_file_name);
+    my_snprintf(errmsg, SLAVE_ERRMSG_SIZE,
+		"Second event in log '%s' is not slave event",
+		(char*)log_file_name);
     delete ev;
     return 0;
   }

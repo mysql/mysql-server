@@ -218,3 +218,4 @@
 "Fick fel vid utförande av %s: %-.128s",
 "Felaktig använding av %s and %s",
 "SELECT kommandona har olika antal kolumner"
+"Kan inte utföra kommandot emedan du har ett READ lås",

@@ -1318,10 +1318,15 @@ table_to_table:
 select:
 	SELECT_SYM
 	{
+	  Lex->sql_command= SQLCOM_SELECT;
+	}
+	select_part2;
+
+select_part2:
+	{
 	  LEX *lex=Lex;
-	  if (lex->sql_command == SQLCOM_NONE) lex->sql_command= SQLCOM_SELECT;
 	  lex->lock_option=TL_READ;
-	  mysql_init_select(lex);
+	   mysql_init_select(lex);
 	}
 	select_options select_item_list select_into select_lock_type union
 
@@ -2504,7 +2509,7 @@ describe:
 	    YYABORT;
 	}
 	opt_describe_column
-	| describe_command select { Select->options|= SELECT_DESCRIBE };
+	| describe_command select { Lex->select_lex.options|= SELECT_DESCRIBE };
 
 
 describe_command:
@@ -3416,13 +3421,7 @@ union_list:
     mysql_new_select(lex);
     lex->select->linkage=UNION_TYPE;
   } 
-  select
-  {
-		LEX *lex=Lex;			
-    if (lex->sql_command == SQLCOM_SELECT)
-			lex->sql_command=SQLCOM_UNION_SELECT;
-  }
-
+  SELECT_SYM select_part2
 
 union_option:
   /* empty */ {}

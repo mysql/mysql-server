@@ -1323,7 +1323,7 @@ int open_tables(THD *thd,TABLE_LIST *start)
   {
     if (!tables->table &&
 	!(tables->table=open_table(thd,
-				   tables->db ? tables->db : thd->db,
+				   tables->db,
 				   tables->real_name,
 				   tables->name, &refresh)))
     {
@@ -1380,7 +1380,7 @@ TABLE *open_ltable(THD *thd, TABLE_LIST *table_list, thr_lock_type lock_type)
   DBUG_ENTER("open_ltable");
 
   thd->proc_info="Opening table";
-  while (!(table=open_table(thd,table_list->db ? table_list->db : thd->db,
+  while (!(table=open_table(thd,table_list->db,
 			    table_list->real_name,table_list->name,
 			    &refresh)) && refresh) ;
   if (table)
@@ -1612,9 +1612,7 @@ find_field_in_tables(THD *thd,Item_field *item,TABLE_LIST *tables)
     for (; tables ; tables=tables->next)
     {
       if (!strcmp(tables->name,table_name) &&
-	  (!db ||
-	   (tables->db && !strcmp(db,tables->db)) ||
-	   (!tables->db && !strcmp(db,thd->db))))
+	  (!db || !strcmp(db,tables->db)))
       {
 	found_table=1;
 	Field *find=find_field_in_table(thd,tables->table,name,length,
@@ -1854,8 +1852,7 @@ insert_fields(THD *thd,TABLE_LIST *tables, const char *db_name,
 	check_grant_all_columns(thd,SELECT_ACL,table) )
       DBUG_RETURN(-1);
     if (!table_name || (!strcmp(table_name,tables->name) &&
-			(!db_name || !tables->db ||
-			 !strcmp(tables->db,db_name))))
+			(!db_name || !strcmp(tables->db,db_name))))
     {
       Field **ptr=table->field,*field;
       thd->used_tables|=table->map;
@@ -2079,7 +2076,8 @@ int mysql_create_index(THD *thd, TABLE_LIST *table_list, List<Key> &keys)
   create_info.db_type=DB_TYPE_DEFAULT;
   DBUG_RETURN(mysql_alter_table(thd,table_list->db,table_list->real_name,
 				&create_info, table_list,
-				fields, keys, drop, alter, (ORDER*)0, FALSE, DUP_ERROR));
+				fields, keys, drop, alter, (ORDER*)0, FALSE,
+				DUP_ERROR));
 }
 
 
@@ -2094,7 +2092,8 @@ int mysql_drop_index(THD *thd, TABLE_LIST *table_list, List<Alter_drop> &drop)
   create_info.db_type=DB_TYPE_DEFAULT;
   DBUG_RETURN(mysql_alter_table(thd,table_list->db,table_list->real_name,
 				&create_info, table_list,
-				fields, keys, drop, alter, (ORDER*)0, FALSE, DUP_ERROR));
+				fields, keys, drop, alter, (ORDER*)0, FALSE,
+				DUP_ERROR));
 }
 
 /*****************************************************************************
