@@ -1,4 +1,4 @@
-This is a release of MySQL, a basically free SQL database server (more
+This is a release of MySQL, a GPL (free) SQL database server (more
 licence information in the PUBLIC file and in the reference manual).
 
 Please read the Upgrading section in the manual if emigration from
@@ -30,10 +30,10 @@ Docs/mysql.info and as PostScript in Docs/manual.ps.
 
 For a contributed user manual see http://www.turbolift.com/mysql.
 
-MySQL is brought to you by: Michael (Monty) Widenius at TcX
-DataKonsult AB.
+MySQL is brought to you by  the MySQL team at MySQL AB
 
-For the other contributors see the Credits appendix in the manual.
+For a list of developers and other contributors, see the Credits appendix
+in the manual.
 
 ************************************************************
 

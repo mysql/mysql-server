@@ -45,18 +45,19 @@ static const char* default_dbug_option = "d:t:o,/tmp/mysqlbinlog.trace";
 
 static struct option long_options[] =
 {
-  {"short-form", no_argument, 0, 's'},
-  {"table", required_argument, 0, 't'},
-  {"offset", required_argument,0, 'o'},
-  {"help", no_argument, 0, '?'},
-  {"host", required_argument,0, 'h'},
-  {"port", required_argument,0, 'P'},
-  {"user", required_argument,0, 'u'},
-  {"password", required_argument,0, 'p'},
-  {"position", required_argument,0, 'j'},
 #ifndef DBUG_OFF
-  {"debug", optional_argument, 0, '#'}
+  {"debug", 	optional_argument, 	0, '#'},
 #endif
+  {"help", 	no_argument, 		0, '?'},
+  {"host", 	required_argument,	0, 'h'},
+  {"offset", 	required_argument,	0, 'o'},
+  {"password",	required_argument,	0, 'p'},
+  {"port", 	required_argument,	0, 'P'},
+  {"position",	required_argument,	0, 'j'},
+  {"short-form", no_argument,		0, 's'},
+  {"table", 	required_argument, 	0, 't'},
+  {"user",	required_argument,	0, 'u'},
+  {"version",	 no_argument, 		0, 'V'},
 };
 
 void sql_print_error(const char *format,...);
@@ -81,15 +82,16 @@ static void dump_remote_table(NET* net, const char* db, const char* table);
 static void die(const char* fmt, ...);
 static MYSQL* safe_connect();
 
- void sql_print_error(const char *format,...)
- {
+
+void sql_print_error(const char *format,...)
+{
   va_list args;
   va_start(args, format);
   fprintf(stderr, "ERROR: ");
   vfprintf(stderr, format, args);
   fprintf(stderr, "\n");
   va_end(args);
- }
+}
 
 static void die(const char* fmt, ...)
 {
@@ -102,19 +104,39 @@ static void die(const char* fmt, ...)
   exit(1);
 }
 
+static void print_version()
+{
+  printf("%s  Ver 1.1 for %s at %s\n",my_progname,SYSTEM_TYPE, MACHINE_TYPE);
+}
+
+
 static void usage()
 {
+  print_version();
+  puts("By Sasha, for your professional use\n\
+This software comes with NO WARRANTY: see the file PUBLIC for details\n");
+
+  printf("\
+Dumps a MySQL binary log in a format usable for viewing or for pipeing to\n\
+the mysql command line client\n\n");
   printf("Usage: %s [options] log-files\n",my_progname);
-  printf("Options:\n\
--s,--short-form		just show the queries, no extra info\n\
--o,--offset=N		skip the first N entries\n\
--h,--host=server	get the binlog from server\n\
--P,--port=port          use port to connect to the remove server\n\
--u,--user=username      connect to the remove server as username\n\
--p,--password=password  use this password to connect to remote server\n\
--j,--position=N		start reading the binlog at postion N\n\
--t,--table=name         get raw table dump using COM_TABLE_DUMB \n\
--?,--help		this message\n");
+  puts("Options:");
+#ifndef DBUG_OFF
+  printf("-#, --debug[=...]       Output debug log.  (%s)\n",
+	 default_dbug_option);
+#endif
+  printf("\
+-?, --help		Display this help and exit\n\
+-s, --short-form	Just show the queries, no extra info\n\
+-o, --offset=N		Skip the first N entries\n\
+-h, --host=server	Get the binlog from server\n\
+-P, --port=port         Use port to connect to the remove server\n\
+-u, --user=username     Connect to the remove server as username\n\
+-p, --password=password Password to connect to remote server\n\
+-j, --position=N	Start reading the binlog at position N\n\
+-t, --table=name        Get raw table dump using COM_TABLE_DUMB\n\
+-V, --version		Print version and exit.\n\
+");
 }
 
 static void dump_remote_file(NET* net, const char* fname)
@@ -151,7 +173,7 @@ static int parse_args(int *argc, char*** argv)
 {
   int c, opt_index = 0;
 
-  while((c = getopt_long(*argc, *argv, "so:#::h:j:u:p:P:t:?", long_options,
+  while((c = getopt_long(*argc, *argv, "so:#::h:j:u:p:P:t:?V", long_options,
 			 &opt_index)) != EOF)
   {
     switch(c)
@@ -197,6 +219,10 @@ static int parse_args(int *argc, char*** argv)
       table = my_strdup(optarg, MYF(0));
       break;
 
+    case 'V':
+      print_version();
+      exit(0);
+
     case '?':
     default:
       usage();
@@ -207,7 +233,6 @@ static int parse_args(int *argc, char*** argv)
 
   (*argc)-=optind;
   (*argv)+=optind;
-
 
   return 0;
 }
@@ -349,24 +374,31 @@ static void dump_local_log_entries(const char* logname)
     if (my_b_read(file, (byte*) magic, sizeof(magic)))
       die("I/O error reading binlog magic number");
     if(memcmp(magic, BINLOG_MAGIC, 4))
-      die("Bad magic number");
+      die("Bad magic number;  The file is probably not a MySQL binary log");
   }
  
   while(1)
   {
     char llbuff[21];
+    my_off_t old_off = my_b_tell(file);
+
     Log_event* ev = Log_event::read_log_event(file, 0);
     if (!ev)
     {
       if (file->error)
 	die("\
 Could not read entry at offset %s : Error in log format or read error",
-	    llstr(my_b_tell(file),llbuff));
+	    llstr(old_off,llbuff));
       // file->error == 0 means EOF, that's OK, we break in this case
       break;
     }
     if (rec_count >= offset)
+    {
+      if (!short_form)
+        printf("# at %s\n",llstr(old_off,llbuff));
+
       ev->print(stdout, short_form);
+    }
     rec_count++;
     delete ev;
   }
