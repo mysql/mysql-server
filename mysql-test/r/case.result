@@ -10,10 +10,10 @@ CASE "c" when "a" then 1 when "b" then 2 ELSE 3 END
 3
 select CASE BINARY "b" when "a" then 1 when "B" then 2 WHEN "b" then "ok" END;
 CASE BINARY "b" when "a" then 1 when "B" then 2 WHEN "b" then "ok" END
-0
+ok
 select CASE "b" when "a" then 1 when binary "B" then 2 WHEN "b" then "ok" END;
 CASE "b" when "a" then 1 when binary "B" then 2 WHEN "b" then "ok" END
-0
+ok
 select CASE concat("a","b") when concat("ab","") then "a" when "b" then "b" end;
 CASE concat("a","b") when concat("ab","") then "a" when "b" then "b" end
 a
@@ -72,6 +72,48 @@ yellow
 green
 drop table t1;
 SET NAMES latin1;
+CREATE TABLE t1 SELECT 
+CASE WHEN 1 THEN _latin1'a' COLLATE latin1_danish_ci ELSE _latin1'a' END AS c1,
+CASE WHEN 1 THEN _latin1'a' ELSE _latin1'a' COLLATE latin1_danish_ci END AS c2,
+CASE WHEN 1 THEN 'a' ELSE  1  END AS c3,
+CASE WHEN 1 THEN  1  ELSE 'a' END AS c4,
+CASE WHEN 1 THEN 'a' ELSE 1.0 END AS c5,
+CASE WHEN 1 THEN 1.0 ELSE 'a' END AS c6,
+CASE WHEN 1 THEN  1  ELSE 1.0 END AS c7,
+CASE WHEN 1 THEN 1.0 ELSE  1  END AS c8
+;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` char(1) character set latin1 collate latin1_danish_ci default NULL,
+  `c2` char(1) character set latin1 collate latin1_danish_ci default NULL,
+  `c3` char(1) default NULL,
+  `c4` char(1) default NULL,
+  `c5` char(3) default NULL,
+  `c6` char(3) default NULL,
+  `c7` double(3,1) default NULL,
+  `c8` double(3,1) default NULL
+) TYPE=MyISAM CHARSET=latin1
+DROP TABLE t1;
+SELECT CASE 
+WHEN 1 
+THEN _latin1'a' COLLATE latin1_danish_ci 
+ELSE _latin1'a' COLLATE latin1_swedish_ci
+END;
+ERROR HY000: Illegal mix of collations (latin1_danish_ci,EXPLICIT) and (latin1_swedish_ci,EXPLICIT) for operation 'case'
+SELECT CASE _latin1'a' COLLATE latin1_general_ci
+WHEN _latin1'a' COLLATE latin1_danish_ci  THEN 1
+WHEN _latin1'a' COLLATE latin1_swedish_ci THEN 2
+END;
+ERROR HY000: Illegal mix of collations (latin1_general_ci,EXPLICIT), (latin1_danish_ci,EXPLICIT), (latin1_swedish_ci,EXPLICIT) for operation 'case'
+SELECT 
+CASE _latin1'a' COLLATE latin1_general_ci  WHEN _latin1'A' THEN '1' ELSE 2 END,
+CASE _latin1'a' COLLATE latin1_bin         WHEN _latin1'A' THEN '1' ELSE 2 END,
+CASE _latin1'a' WHEN _latin1'A' COLLATE latin1_swedish_ci THEN '1' ELSE 2 END,
+CASE _latin1'a' WHEN _latin1'A' COLLATE latin1_bin        THEN '1' ELSE 2 END
+;
+CASE _latin1'a' COLLATE latin1_general_ci  WHEN _latin1'A' THEN '1' ELSE 2 END	CASE _latin1'a' COLLATE latin1_bin         WHEN _latin1'A' THEN '1' ELSE 2 END	CASE _latin1'a' WHEN _latin1'A' COLLATE latin1_swedish_ci THEN '1' ELSE 2 END	CASE _latin1'a' WHEN _latin1'A' COLLATE latin1_bin        THEN '1' ELSE 2 END
+1	2	1	2
 CREATE TABLE t1 SELECT COALESCE(_latin1'a',_latin2'a');
 ERROR HY000: Illegal mix of collations (latin1_swedish_ci,COERCIBLE) and (latin2_general_ci,COERCIBLE) for operation 'coalesce'
 CREATE TABLE t1 SELECT COALESCE('a' COLLATE latin1_swedish_ci,'b' COLLATE latin1_bin);
