@@ -252,6 +252,9 @@ systemInfo(const Configuration & config, const LogLevel & logLevel){
   if(logLevel.getLogLevel(LogLevel::llStartUp) > 0){
     g_eventLogger.info("NDB Cluster -- DB node %d", globalData.ownId);
     g_eventLogger.info("%s --", NDB_VERSION_STRING);
+    if (config.get_mgmd_host())
+      g_eventLogger.info("Configuration fetched at %s port %d",
+			 config.get_mgmd_host(), config.get_mgmd_port());
 #ifdef NDB_SOLARIS // ok
     g_eventLogger.info("NDB is running on a machine with %d processor(s) at %d MHz",
 		       processor, speed);

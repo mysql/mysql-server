@@ -45,7 +45,7 @@ status_ndb=
 ndb_diskless=0
 
 ndb_no_ord=512
-ndb_con_op=10000
+ndb_con_op=105000
 ndb_dmem=80M
 ndb_imem=24M
 

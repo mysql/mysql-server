@@ -193,6 +193,8 @@ Configuration::fetch_configuration(LocalConfig &local_config){
     delete m_config_retriever;
   }
 
+  m_mgmd_port= 0;
+  m_mgmd_host= 0;
   m_config_retriever= new ConfigRetriever(local_config, NDB_VERSION, NODE_TYPE_DB);
   if(m_config_retriever->init() == -1 ||
      m_config_retriever->do_connect() == -1){
@@ -207,6 +209,9 @@ Configuration::fetch_configuration(LocalConfig &local_config){
     ERROR_SET(fatal, ERR_INVALID_CONFIG, "Could connect to ndb_mgmd", s);
   }
   
+  m_mgmd_port= m_config_retriever->get_mgmd_port();
+  m_mgmd_host= m_config_retriever->get_mgmd_host();
+
   ConfigRetriever &cr= *m_config_retriever;
   
   if((globalData.ownId = cr.allocNodeId()) == 0){
