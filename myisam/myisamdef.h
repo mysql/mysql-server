@@ -370,8 +370,10 @@ struct st_myisam_info {
 
 #define MI_MAX_KEY_BLOCK_SIZE	(MI_MAX_KEY_BLOCK_LENGTH/MI_MIN_KEY_BLOCK_LENGTH)
 #define MI_BLOCK_SIZE(key_length,data_pointer,key_pointer) ((((key_length+data_pointer+key_pointer)*4+key_pointer+2)/myisam_block_size+1)*myisam_block_size)
-#define MI_MAX_KEYPTR_SIZE	5	/* For calculating block lengths */
-#define MI_MIN_KEYBLOCK_LENGTH	50	/* When to split delete blocks */
+#define MI_MAX_KEYPTR_SIZE	5        /* For calculating block lengths */
+#define MI_MIN_KEYBLOCK_LENGTH	50         /* When to split delete blocks */
+
+#define MI_MIN_SIZE_BULK_INSERT_TREE 16384             /* this is per key */
 
 /* The UNIQUE check is done with a hashed long key */
 
