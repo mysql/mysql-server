@@ -264,10 +264,8 @@ int mysql_update(THD *thd,
   else if ((used_index=table->file->key_used_on_scan) < MAX_KEY)
     used_key_is_modified=check_if_key_used(table, used_index, fields);
   else
-  {
     used_key_is_modified=0;
-    used_index= MAX_KEY;
-  }
+
   if (used_key_is_modified || order)
   {
     /*
