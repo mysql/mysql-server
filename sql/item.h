@@ -137,6 +137,8 @@ public:
   */
   String str_value;
   my_string name;			/* Name from select */
+  /* Original item name (if it was renamed)*/
+  my_string orig_name;
   Item *next;
   uint32 max_length;
   uint name_length;                     /* Length of name */
@@ -164,6 +166,7 @@ public:
     name=0;
   }		/*lint -e1509 */
   void set_name(const char *str,uint length, CHARSET_INFO *cs);
+  void rename(char *new_name);
   void init_make_field(Send_field *tmp_field,enum enum_field_types type);
   virtual void cleanup();
   virtual void make_field(Send_field *field);

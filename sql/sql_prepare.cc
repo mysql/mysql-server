@@ -959,6 +959,7 @@ error:
 
   RETURN VALUE
     0   success
+    2   convert to multi_update
     1   error, sent to client
    -1   error, not sent to client
 */
@@ -975,6 +976,15 @@ static int mysql_test_update(Prepared_statement *stmt,
 
   if (!(res=open_and_lock_tables(thd, table_list)))
   {
+    if (table_list->table == 0)
+    {
+      DBUG_ASSERT(table_list->view &&
+                  table_list->ancestor && table_list->ancestor->next_local);
+      stmt->lex->sql_command= SQLCOM_UPDATE_MULTI;
+      DBUG_PRINT("info", ("Switch to multi-update (command replaced)"));
+      /* convert to multiupdate */
+      return 2;
+    }
     if (!(res= mysql_prepare_update(thd, table_list,
 				    &select->where,
 				    select->order_list.elements,
@@ -1027,6 +1037,15 @@ static int mysql_test_delete(Prepared_statement *stmt,
 
   if (!(res=open_and_lock_tables(thd, table_list)))
   {
+    if (!table_list->table)
+    {
+      DBUG_ASSERT(table_list->view &&
+                  table_list->ancestor && table_list->ancestor->next_local);
+      my_error(ER_VIEW_DELETE_MERGE_VIEW, MYF(0),
+               table_list->view_db.str, table_list->view_name.str);
+      DBUG_RETURN(-1);
+    }
+
     res= mysql_prepare_delete(thd, table_list, &lex->select_lex.where);
     lex->unit.cleanup();
   }
@@ -1233,7 +1252,10 @@ static int select_like_statement_test(Prepared_statement *stmt,
   LEX *lex= stmt->lex;
   int res= 0;
 
-  if (tables && (res= open_and_lock_tables(thd, tables)))
+  /* check that tables was not opened during conversion from usual update */
+  if (tables &&
+      (!tables->table && !tables->view) &&
+      (res= open_and_lock_tables(thd, tables)))
     goto end;
 
   if (specific_prepare && (res= (*specific_prepare)(thd)))
@@ -1299,6 +1321,7 @@ static int mysql_test_create_table(Prepared_statement *stmt)
     mysql_test_multiupdate()
     stmt	prepared statemen handler
     tables	list of tables queries
+    converted   converted to multi-update from usual update
 
   RETURN VALUE
     0   success
@@ -1306,10 +1329,11 @@ static int mysql_test_create_table(Prepared_statement *stmt)
    -1   error, not sent to client
 */
 static int mysql_test_multiupdate(Prepared_statement *stmt,
-				  TABLE_LIST *tables)
+				  TABLE_LIST *tables,
+                                  bool converted)
 {
   int res;
-  if ((res= multi_update_precheck(stmt->thd, tables)))
+  if (!converted && (res= multi_update_precheck(stmt->thd, tables)))
     return res;
   /*
     here we do not pass tables for opening, tables will be opened and locked
@@ -1343,7 +1367,19 @@ static int mysql_test_multidelete(Prepared_statement *stmt,
   uint fake_counter;
   if ((res= multi_delete_precheck(stmt->thd, tables, &fake_counter)))
     return res;
-  return select_like_statement_test(stmt, tables, &mysql_multi_delete_prepare);
+  if ((res= select_like_statement_test(stmt, tables,
+                                       &mysql_multi_delete_prepare)))
+    return res;
+  if (!tables->table)
+  {
+    DBUG_ASSERT(tables->view &&
+		tables->ancestor && tables->ancestor->next_local);
+    my_error(ER_VIEW_DELETE_MERGE_VIEW, MYF(0),
+	     tables->view_db.str, tables->view_name.str);
+    return -1;
+  }
+  return 0;
+
 }
 
 
@@ -1434,6 +1470,11 @@ static int send_prepare_results(Prepared_statement *stmt, bool text_protocol)
 
   case SQLCOM_UPDATE:
     res= mysql_test_update(stmt, tables);
+    if (res != 2)
+      break;
+
+  case SQLCOM_UPDATE_MULTI:
+    res= mysql_test_multiupdate(stmt, tables, res == 2);
     break;
 
   case SQLCOM_DELETE:
@@ -1460,10 +1501,6 @@ static int send_prepare_results(Prepared_statement *stmt, bool text_protocol)
 
   case SQLCOM_DELETE_MULTI:
     res= mysql_test_multidelete(stmt, tables);
-    break;
-  
-  case SQLCOM_UPDATE_MULTI:
-    res= mysql_test_multiupdate(stmt, tables);
     break;
 
   case SQLCOM_INSERT_SELECT:
@@ -1763,8 +1800,15 @@ void reset_stmt_for_execute(THD *thd, LEX *lex)
       were closed in the end of previous prepare or execute call.
     */
     tables->table= 0;
+    if (tables->nested_join)
+      tables->nested_join->counter= 0;
   }
   lex->current_select= &lex->select_lex;
+
+  /* restore original list used in INSERT ... SELECT */
+  if (lex->leaf_tables_insert)
+    lex->select_lex.leaf_tables= lex->leaf_tables_insert;
+
   if (lex->result)
     lex->result->cleanup();
 
