@@ -352,21 +352,25 @@ static int process_selected_tables(char *db, char **table_names, int tables)
     return 1;
   if (opt_all_in_1)
   {
+    /* 
+      We need table list in form `a`, `b`, `c`
+      that's why we need 4 more chars added to to each table name
+      space is for more readable output in logs and in case of error
+    */	  
     char *table_names_comma_sep, *end;
     int i, tot_length = 0;
 
     for (i = 0; i < tables; i++)
-      tot_length += strlen(*(table_names + i)) + 1;
+      tot_length += strlen(*(table_names + i)) + 4;
 
     if (!(table_names_comma_sep = (char *)
-	  my_malloc((sizeof(char) * tot_length) + 1, MYF(MY_WME))))
+	  my_malloc((sizeof(char) * tot_length) + 4, MYF(MY_WME))))
       return 1;
 
     for (end = table_names_comma_sep + 1; tables > 0;
 	 tables--, table_names++)
     {
-      end = strmov(end, *table_names);
-      *end++= ',';
+      end = strxmov(end, " `", *table_names, "`,", NullS);
     }
     *--end = 0;
     handle_request_for_tables(table_names_comma_sep + 1, tot_length - 1);
@@ -393,22 +397,27 @@ static int process_all_tables_in_db(char *database)
 
   if (opt_all_in_1)
   {
+    /* 
+      We need table list in form `a`, `b`, `c`
+      that's why we need 4 more chars added to to each table name
+      space is for more readable output in logs and in case of error
+     */
+	  
     char *tables, *end;
     uint tot_length = 0;
 
     while ((row = mysql_fetch_row(res)))
-      tot_length += strlen(row[0]) + 1;
+      tot_length += strlen(row[0]) + 4;
     mysql_data_seek(res, 0);
 
-    if (!(tables=(char *) my_malloc(sizeof(char)*tot_length+1, MYF(MY_WME))))
+    if (!(tables=(char *) my_malloc(sizeof(char)*tot_length+4, MYF(MY_WME))))
     {
       mysql_free_result(res);
       return 1;
     }
     for (end = tables + 1; (row = mysql_fetch_row(res)) ;)
     {
-      end = strmov(end, row[0]);
-      *end++= ',';
+      end = strxmov(end, " `", row[0], "`,", NullS);	    
     }
     *--end = 0;
     if (tot_length)
@@ -468,10 +477,14 @@ static int handle_request_for_tables(char *tables, uint length)
 
   if (!(query =(char *) my_malloc((sizeof(char)*(length+110)), MYF(MY_WME))))
     return 1;
-  sprintf(query, "%s TABLE %s %s", op, tables, options);
+  if (opt_all_in_1)
+    /* No backticks here as we added them before */
+    sprintf(query, "%s TABLE %s %s", op, tables, options);
+  else
+    sprintf(query, "%s TABLE `%s` %s", op, tables, options);
   if (mysql_query(sock, query))
   {
-    sprintf(message, "when executing '%s TABLE `%s` %s", op, tables,options);
+    sprintf(message, "when executing '%s TABLE ... %s'", op, options);
     DBerror(sock, message);
     return 1;
   }
