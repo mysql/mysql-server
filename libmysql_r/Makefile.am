@@ -19,7 +19,7 @@
 
 target = libmysqlclient_r.la
 target_defs = -DDONT_USE_RAID @LIB_EXTRA_CCFLAGS@
-## LIBS = @LIBS@
+LIBS = @LIBS@ @openssl_libs@
 
 INCLUDES =	@MT_INCLUDES@ -I$(srcdir)/../include -I../include \
 		-I$(srcdir)/.. -I$(top_srcdir) -I.. $(openssl_includes)
