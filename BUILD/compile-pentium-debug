@@ -11,7 +11,8 @@ extra_configs="$pentium_configs $debug_configs"
 # Use the debug version if it exists
 if test -d /usr/local/BerkeleyDB-dbug/
 then
- extra_configs="$extra_configs --with-berkeley-db=/usr/local/BerkeleyDB-dbug/ --with-innobase"
+ extra_configs="$extra_configs --with-berkeley-db=/usr/local/BerkeleyDB-dbug/"
 fi
+extra_configs="$extra_configs --with-innobase"
 
 . "$path/FINISH.sh"
