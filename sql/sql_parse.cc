@@ -1723,6 +1723,10 @@ mysql_execute_command(THD *thd)
       break;					// Error message is given
     }
 
+    /* 
+       In case of single SELECT unit->global_parameters points on first SELECT
+       TODO: move counters to SELECT_LEX
+    */
     unit->offset_limit_cnt= (ha_rows) unit->global_parameters->offset_limit;
     unit->select_limit_cnt= (ha_rows) (unit->global_parameters->select_limit+
       unit->global_parameters->offset_limit);
