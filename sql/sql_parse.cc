@@ -3183,6 +3183,19 @@ mysql_execute_command(THD *thd)
 	}
       }
     }
+    if (specialflag & SPECIAL_NO_RESOLVE)
+    {
+      LEX_USER *user;
+      List_iterator <LEX_USER> user_list(lex->users_list);
+      while ((user=user_list++))
+      {
+	if (hostname_requires_resolving(user->host.str))
+	  push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+			      ER_WARN_HOSTNAME_WONT_WORK,
+			      ER(ER_WARN_HOSTNAME_WONT_WORK),
+			      user->host.str);
+      }
+    }
     if (tables)
     {
       if (grant_option && check_grant(thd,
