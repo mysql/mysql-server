@@ -491,11 +491,6 @@ mysqld_show_fields(THD *thd, TABLE_LIST *table_list,const char *wild,
   {
     if (!wild || !wild[0] || !wild_case_compare(field->field_name,wild))
     {
-#ifdef NOT_USED
-      if (thd->col_access & TABLE_ACLS ||
-          ! check_grant_column(thd,table,field->field_name,
-                               (uint) strlen(field->field_name),1))
-#endif
       {
         byte *pos;
         uint flags=field->flags;
