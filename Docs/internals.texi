@@ -51,6 +51,7 @@ This is a manual about @strong{MySQL} internals.
 
 @menu
 * caching::                     How MySQL Handles Caching
+* join_buffer_size::
 * flush tables::                How MySQL Handles @code{FLUSH TABLES}
 * filesort::                    How MySQL Does Sorting (@code{filesort})
 * coding guidelines::           Coding Guidelines
@@ -61,12 +62,12 @@ This is a manual about @strong{MySQL} internals.
 * MyISAM Record Structure::     MyISAM Record Structure
 * InnoDB Record Structure::     InnoDB Record Structure
 * InnoDB Page Structure::       InnoDB Page Structure
-* Annotated List Of Files in the MySQL Source Code Distribution:: MySQL Source
-* Annotated List Of Files in the InnoDB Source Code Distribution:: InnoDB Source
+* Files in MySQL Sources::      Annotated List Of Files in the MySQL Source Code Distribution
+* Files in InnoDB Sources::     Annotated List Of Files in the InnoDB Source Code Distribution
 @end menu
 
 
-@node caching, flush tables, Top, Top
+@node caching, join_buffer_size, Top, Top
 @chapter How MySQL Handles Caching
 
 @strong{MySQL} has the following caches:
@@ -109,7 +110,7 @@ use many join caches in the worst case.
 @end table
 
 @node join_buffer_size, flush tables, caching, Top
-@subchapter How MySQL uses the join_buffer cache
+@chapter How MySQL uses the join_buffer cache
 
 Basic information about @code{join_buffer_size}:
 
@@ -180,7 +181,7 @@ same algorithm described above to handle it.  (In other words, we store
 the same row combination several times into different buffers)
 @end itemize
 
-@node flush tables, filesort, caching, Top
+@node flush tables, filesort, join_buffer_size, Top
 @chapter How MySQL Handles @code{FLUSH TABLES}
 
 @itemize @bullet
@@ -1655,8 +1656,8 @@ fe 00                       . .
 
 @c @printindex fn
 
-@node 4.1 protocol,,,
-@subchapter MySQL 4.1 protocol
+@c @node 4.1 protocol,,,
+@c @chapter MySQL 4.1 protocol
 
 @node 4.1 protocol changes,,,
 @section Changes to 4.0 protocol in 4.1
@@ -1699,7 +1700,7 @@ results will sent as binary (low-byte-first).
 The field description packet is sent as a response to a query that
 contains a result set.  It can be distinguished from a ok packet by
 the fact that the first byte can't be 0 for a field packet.
-@xref {4.1 ok packet}.
+@xref{4.1 ok packet}.
 
 The header packet has the following structure:
 
@@ -1825,7 +1826,7 @@ parameter in the query:
 @item 2 @tab 2 byte column flags (NOT_NULL_FLAG etc)
 @item 1 @tab Number of decimals
 @item 4 @tab Max column length.
-@end itemize
+@end multitable
 
 Note that the above is not yet in 4.1 but will be added this month.
 
@@ -1834,7 +1835,7 @@ able to provide the optimal information for all parameters.
 
 If number of columns, in the header packet, is not 0 then the
 prepared statement will contain a result set. In this case the packet
-is followed by a field description result set. @xref{4.1 field descr}.
+is followed by a field description result set. @xref{4.1 field desc}.
 
 
 @node 4.1 long data,,,
@@ -1858,7 +1859,7 @@ This packet is sent from client -> server:
 @item 2 @tab Parameter number
 @item 2 @tab Type of parameter  (not used at this point)
 @item # @tab data (Rest of packet)
-@end itemize
+@end multitable
 
 The server will NOT send an @code{ok} or @code{error} packet in
 responce for this.  If there is any errors (like to big string), one
@@ -1880,7 +1881,7 @@ execute or if one has rebound the parameters.
 @item 2*param_count     @tab Type of parameters (only given if new_parameter_bound flag is 1)
 @item #    @tab Parameter data, repeated for each parameter that are
 NOT NULL and not used with mysql_send_long_data().
-@end itemize
+@end multitable
 
 The null-bit-map is for all parameters (including parameters sent with
 'mysql_send_long_data). If parameter 0 is NULL, then bit 0 in the
@@ -1938,7 +1939,7 @@ DATETIME, DATE and TIME are sent to the server in a binary format as follows:
 The first byte is a length byte and then comes all parameters that are
 not 0. (Always counted from the beginning).
 
-@node Fulltext Search,  , protocol, Top
+@node Fulltext Search, MyISAM Record Structure, protocol, Top
 @chapter Fulltext Search in MySQL
 
 Hopefully, sometime there will be complete description of
@@ -1981,6 +1982,7 @@ higher weights to individual B's. Also the first expression in
 much simplier. So it is the first one, that is implemented in MySQL.
 
 
+@node MyISAM Record Structure, InnoDB Record Structure, Fulltext Search, Top
 @chapter MyISAM Record Structure
 
 @section Introduction
@@ -2365,6 +2367,7 @@ Most of the formatting work for MyISAM columns is visible
 in the program /sql/field.cc in the source code directory.
 @*
 
+@node InnoDB Record Structure,InnoDB Page Structure,MyISAM Record Structure,Top
 @chapter InnoDB Record Structure
 
 This page contains:
@@ -2516,7 +2519,7 @@ Bytes is 1byte_offs_flag -- you need to know if 1byte_offs_flag is 1
 @*
 
 Given a pointer to the Origin, InnoDB finds the start of the record as follows:
-@enumerate @bullet
+@itemize @bullet
 @item
 Let X = n_fields (the number of fields is by definition equal to the
 number of entries in the Field Start Offsets Table).
@@ -2527,7 +2530,7 @@ two bytes for each entry instead of just one.
 Let X = X + 6, because the fixed size of Extra Bytes is 6.
 @item
 The start of the record is at (pointer value minus X).
-@end enumerate
+@end itemize
 
 @subsection FIELD CONTENTS
 
@@ -2540,7 +2543,7 @@ at the end of a record.
 @*
 
 Here's an example.
-@enumerate @bullet
+@itemize @bullet
 @item
 I made a table with this definition:
 @*@*
@@ -2575,7 +2578,7 @@ I put some rows in the table. My last three INSERTs were:
 I ran Borland's TDUMP to get a hexadecimal dump of
 the contents of \mysql\data\ibdata1, which (in my case) is the
 MySQL/InnoDB data file (on Windows).
-@end enumerate
+@end itemize
 
 Here is an extract of the dump:
 
@@ -2670,6 +2673,7 @@ shorter because the NULLs take no space.
 The most relevant InnoDB source-code files are rem0rec.c, rem0rec.ic,
 and rem0rec.h in the rem ("Record Manager") directory.
 
+@node InnoDB Page Structure,Files in MySQL Sources,InnoDB Record Structure,Top
 @chapter InnoDB Page Structure
 
 InnoDB stores all records inside a fixed-size unit which is commonly called a
@@ -2751,6 +2755,7 @@ The Fil Header has eight parts, as follows:
 @tab the latest archived log file number at the time that FIL_PAGE_FILE_FLUSH_LSN was written (in the log)
 @end multitable
 
+@itemize
 @item
 FIL_PAGE_SPACE is a necessary identifier because different pages might belong to
 different (table) spaces within the same file. The word
@@ -2796,6 +2801,7 @@ Work With MySQL And InnoDB" on devarticles.com.
 @item
 FIL_PAGE_FILE_FLUSH_LSN and FIL_PAGE_ARCH_LOG_NO are only valid for
 the first page of a data file.
+@end itemize
 
 @subsection Page Header
 
@@ -3098,6 +3104,7 @@ header.
 The most relevant InnoDB source-code files are page0page.c,
 page0page.ic, and page0page.h in \page directory.
 
+@node Files in MySQL Sources,Files in InnoDB Sources,InnoDB Page Structure,Top
 @chapter Annotated List Of Files in the MySQL Source Code Distribution
 
 This is a description of the files that you get when you download the
@@ -3153,7 +3160,8 @@ libmysqld  --  The MySQL Library
 man  --  Manual pages 
 @item
 merge  --  The MERGE table handler (see Reference Manual section 7.2)
-* myisam  --  The MyISAM table handler 
+@item
+myisam  --  The MyISAM table handler 
 @item
 myisammrg  --  The MyISAM Merge table handler 
 @item
@@ -3269,6 +3277,7 @@ server.
 @*@*
 
 The C program files in the directory are:
+@itemize @bullet
 @item
 connect_test.c  --  test that a connect is possible 
 @item
@@ -3306,6 +3315,7 @@ showdb_test.c  --  test that a show-databases is possible
 ssl_test.c  --  test that SSL is possible 
 @item
 thread_test.c  --  test that threading is possible 
+@end itemize
 @*@*
 
 @subsection cmd-line-utils
@@ -3330,6 +3340,7 @@ Software Foundation.
 The \libedit (library of edit functions) subdirectory has files
 written by Christos Zoulas. They are for editing the line contents.
 These are the program files in the \libedit subdirectory:
+@itemize @bullet
 @item
 chared.c  --  character editor 
 @item
@@ -3372,6 +3383,7 @@ tokenizer.c  --  Bourne shell line tokenizer
 tty.c  --  for a tty interface 
 @item
 vi.c  --  commands used when in the vi (editor) mode 
+@end itemize
 @*@*
 
 @subsection dbug
@@ -3394,6 +3406,7 @@ Features of the dbug library include profiling and state pushing.
 @*@*
 
 The C programs in this directory are:
+@itemize @bullet
 @item
 dbug.c  --  The main module 
 @item
@@ -3410,6 +3423,7 @@ factorial.c  --  A tiny example
 main.c  --  A tiny example 
 @item
 sanity.c  --   Declaration of a variable 
+@end itemize
 @*@*
 
 @subsection div
@@ -3432,6 +3446,7 @@ documentation from developers themselves, will be placed here.
 @*@*
 
 These sub-directories are part of this directory:
+@itemize @bullet
 @item
 books  --  .gif images and empty .txt files; no real information 
 @item
@@ -3449,6 +3464,7 @@ documentation
 to-be-included...  --  an empty subdirectory 
 @item
 translations  --  some Portuguese myodbc documentation 
+@end itemize
 @*@*
 
 In the main directory, you'll find some .txt files related to the
@@ -3474,6 +3490,7 @@ These eight programs are all standalone utilities, that is, they have
 a main() function and their main role is to show information that the
 MySQL server needs or produces. Most are unimportant. They are as
 follows:
+@itemize @bullet
 @item
 my_print_defaults.c  --  print all parameters in a default file 
 @item
@@ -3488,6 +3505,7 @@ replace.c  --  replace strings in text files
 resolve_stack_dump.c  --  show symbolic info from a stack dump 
 @item
 resolveip.c  --  convert an IP address to a hostname, or vice versa 
+@end itemize
 @*@*
 
 @subsection fs
@@ -3512,6 +3530,7 @@ The descriptions imply that this is a development project.
 @*@*
 
 There are four program files in the directory:
+@itemize @bullet
 @item
 database.c  --  "emulate filesystem behaviour on top of SQL database" 
 @item
@@ -3587,6 +3606,7 @@ hp_test2.c  --  * testing database and storing results
 hp_update.c  --  * update an existing row 
 @item
 hp_write.c  --  * insert a new row 
+@end itemize
 @*@*
 
 There are fewer files in the heap directory than in the myisam
@@ -3638,6 +3658,7 @@ The ISAM table handler.
 @*@*
 
 The C files in this directory are:
+@itemize @bullet
 @item
 _cache.c  --  for reading records from a cache 
 @item
@@ -3709,6 +3730,7 @@ write.c  --  insert a new row
 @item
 pack_isam.c  --  pack isam file (NOTE TO SELF ?? equivalent to
 \myisam\myisampack.c)
+@end itemize
 @*@*
 
 Except for one minor C file (pack_isam.c) every program in the ISAM
@@ -3743,6 +3765,7 @@ directory would hold the "server part" files.
 @*@*
 
 The program files on this directory are:
+@itemize @bullet
 @item
 conf_to_src.c  --  has to do with charsets 
 @item
@@ -3755,6 +3778,7 @@ get_password.c  --  get password
 libmysql.c  --  the main "packet-sending emulation" program 
 @item
 manager.c  --  initialize/connect/fetch with MySQL manager 
+@end itemize
 @*@*
 
 @subsection libmysql_r
@@ -3764,8 +3788,10 @@ The MySQL Library, Part 2.
 
 This is a continuation of the libmysql directory. There is only one
 file here:
+@itemize @bullet
 @item
 makefile.am
+@end itemize
 @*@*
 
 @subsection libmysqld
@@ -3775,10 +3801,12 @@ The MySQL library, Part 3.
 
 This is a continuation of the libmysql directory. The program files on
 this directory are:
+@itemize @bullet
 @item
 libmysqld.c  --  The called side, compare the mysqld.exe source 
 @item
 lib_vio.c --  Emulate the vio directory's communication buffer 
+@end itemize
 @*@*
 
 @subsection man
@@ -3805,6 +3833,7 @@ table handlers are all quite similar.
 @*@*
 
 The related directories are:
+@itemize @bullet
 @item
 \isam  --  for ISAM 
 @item
@@ -3814,12 +3843,14 @@ The related directories are:
 @item
 \myisammrg  --  for MyISAM MERGE (mostly call functions in \myisam
 programs)
+@end itemize
 @*@*
 
 To avoid duplication, only the \myisam program versions are discussed.
 @*@*
 
 The C programs in this (merge) directory are:
+@itemize @bullet
 @item
 mrg_close.c  --  compare \isam's close.c 
 @item
@@ -3844,6 +3875,7 @@ mrg_rsame.c  --  "" rsame.c
 mrg_static.c  --  "" static.c 
 @item
 mrg_update.c  --  "" update.c 
+@end itemize
 @*@*
 
 @subsection myisam
@@ -3852,6 +3884,7 @@ The MyISAM table handler.
 @*@*
 
 The C files in this subdirectory come in six main groups:
+@itemize @bullet
 @item
 ft*.c files  --  ft stands for "Full Text", code contributed by Sergei
 Golubchik 
@@ -3870,11 +3903,13 @@ Ramil Kalimullin
 @item
 sort.c  --  this is a single file that sorts keys for index-create
 purposes 
+@end itemize
 @*@*
 
 The "full text" and "rtree" and "spatial" program sets are for special
 purposes, so this document focuses only on the mi*.c "myisam" C
 programs. They are:
+@itemize @bullet
 @item
 mi_cache.c  --  for reading records from a cache 
 @item
@@ -3962,6 +3997,7 @@ mi_unique.c  --  functions to check if a row is unique
 mi_update.c  --  update an existing row 
 @item
 mi_write.c  --  insert a new row 
+@end itemize
 @*@*
 
 @subsection myisammrg
@@ -3980,6 +4016,7 @@ myisam function, the myisammrg function returns.
 
 These are the 21 files in the myisammrg directory, with notes about
 the myisam functions or programs they're connected with:
+@itemize @bullet
 @item
 myrg_close.c  --  mi_close.c 
 @item
@@ -4028,6 +4065,7 @@ myrg_update.c  --  mi_update.c / call mi_update function, see
 @item
 myrg_write.c  --  mi_write.c / call mi_write function, see
 \myisam\mi_write.c 
+@end itemize
 @*@*
 
 @subsection mysql-test
@@ -4041,6 +4079,7 @@ and how to report errors.
 @*@*
 
 There are four subdirectories:
+@itemize @bullet
 @item
 \misc  --  contains one minor Perl program
 @item
@@ -4050,6 +4089,7 @@ There are four subdirectories:
 \std_data  --  contains standard data for input to tests
 @item
 \t  --  contains tests
+@end itemize
 @*@*
 
 There are 186 *.test files in the \t subdirectory. Primarily these are
@@ -4075,6 +4115,7 @@ MySQL system library (Low level routines for file access etc.).
 @*@*
 
 There are 115 *.c programs in this directory:
+@itemize @bullet
 @item
 array.c  --  Dynamic array handling 
 @item
@@ -4334,6 +4375,7 @@ writer's lock
 tree.c  --  Initialize/search/free binary trees 
 @item
 typelib.c  --  Determine what type a field has 
+@end itemize
 @*@*
 
 You can find documentation for the main functions in these files
@@ -4380,9 +4422,11 @@ mysqld_safe.c  --  Compare \scripts\mysqld_safe.sh
 @end itemize
 
 Perhaps the most important file is:
+@itemize @bullet
 @item
 netware.patch  --  NetWare-specific build instructions and switches
 (compare \mysql-4.1\ltmain.sh)
+@end itemize
 @*@*
 
 For instructions about basic installation, see "Deployment Guide For
@@ -4411,6 +4455,7 @@ Alfredsson. There are no .C program files in this directory.
 @*@*
 
 The contents of \os2 are: 
+@itemize @bullet
 @item
 A Readme.Txt file 
 @item
@@ -4418,6 +4463,7 @@ An \include subdirectory containing .h files which are for OS/2 only
 @item
 Files used in the build process (configuration, switches, and one
 .obj)
+@end itemize
 @*@*
 
 The README file refers to MySQL version 3.23, which suggests that
@@ -4474,6 +4520,7 @@ Test cases for replication.
 @*@*
 
 There are six short and trivial-looking tests in these subdirectories:
+@itemize @bullet
 @item
 \test-auto-inc  --  Do auto-Increment columns work? 
 @item
@@ -4486,6 +4533,7 @@ There are six short and trivial-looking tests in these subdirectories:
 \test-repl-alter  --  Does ALTER TABLE work? 
 @item
 \test-repl-ts  --  Does TIMESTAMP column work? 
+@end itemize
 @*@*
 
 @subsection SCCS
@@ -4509,6 +4557,7 @@ Linux programmers use it where Windows programmers would use a *.bat
 @*@*
 
 The *.sh files on this directory are:
+@itemize @bullet
 @item
 fill_help_tables.sh  --  Create help-information tables and insert 
 @item
@@ -4556,6 +4605,7 @@ privileges
 mysql_tableinfo.sh  --  Puts info re MySQL tables into a MySQL table
 @item
 mysql_zap.sh  --  Kill processes which match pattern 
+@end itemize
 @*@*
 
 @subsection sql
@@ -4564,6 +4614,7 @@ Programs for handling SQL commands. The "core" of MySQL.
 @*@*
 
 These are the .c and .cc files in the sql directory:
+@itemize @bullet
 @item
 cache_manager.cc  --  manages a number of blocks 
 @item
@@ -4755,8 +4806,8 @@ udf_example.cc  --  Example file of user-defined functions
 @item
 uniques.cc  --  Function to handle quick removal of duplicates 
 @item
-unireg.cc  --  Create a unireg form file from a FIELD and field-info
-struct 
+unireg.cc  --  Create a unireg form file from a FIELD and field-info struct 
+@end itemize
 @*@*
 
 @subsection sql-bench
@@ -4771,6 +4822,7 @@ available all the material necessary to reproduce all the tests.
 @*@*
 
 There are five subdirectories and sub-subdirectories:
+@itemize @bullet
 @item
 \Comments  --  Comments about results from tests of Access, Adabas,
 etc. 
@@ -4783,6 +4835,7 @@ etc.
 \Results  --  old test results 
 @item
 \Results-win32  --  old test results from Windows 32-bit tests 
+@end itemize
 @*@*
 
 There are twenty-four *.sh (shell script) files, which involve Perl
@@ -4824,6 +4877,7 @@ recent Pentium class processors, though.
 @*@*
 
 The .C files are:
+@itemize @bullet
 @item
 atof.c  --  ascii-to-float, MySQL version 
 @item
@@ -4925,6 +4979,7 @@ str_test.c  --  test of all the string functions encoded in assembler
 udiv.c  --  unsigned long divide 
 @item
 xml.c  --  read and parse XML strings 
+@end itemize
 @*@*
 
 There are also four .ASM files -- macros.asm, ptr_cmp.asm,
@@ -4958,8 +5013,10 @@ Tools -- well, actually, one tool.
 @*@*
 
 The only file is:
+@itemize @bullet
 @item
 mysqlmanager.c  --  A "server management daemon" by Sasha Pachev 
+@end itemize
 @*@*
 
 @subsection VC++Files
@@ -4983,6 +5040,7 @@ Windows environments.
 In addition to the "subdirectories which are duplicates of
 directories", VC++Files contains these subdirectories, which are not
 duplicates:
+@itemize @bullet
 @item
 comp_err  --  (nearly empty) 
 @item
@@ -5029,6 +5087,7 @@ thr_insert_test  --  (nearly empty)
 thr_test  --  one short program used to test for memory-allocation bug
 @item
 winmysqladmin  --  the winmysqladmin.exe source. machine-generated? 
+@end itemize
 @*@*
 
 @subsection vio
@@ -5048,6 +5107,7 @@ WindowsNT), Shared Memory, and Secure Sockets (SSL).
 @*@*
 
 The C programs are:
+@itemize @bullet
 @item
 test-ssl.c  --  Short standalone test program: SSL 
 @item
@@ -5068,6 +5128,7 @@ viotest.cc  --  Short standalone test program: general
 viotest-ssl.c  --  Short standalone test program: SSL 
 @item
 viotest-sslconnect.cc  --  Short standalone test program: SSL connect 
+@end itemize
 @*@*
 
 The older functions -- raw_net_read, raw_net_write -- are now
@@ -5103,6 +5164,7 @@ The MySQL program that uses zlib is \mysys\my_compress.c. The use is
 for packet compression. The client sends messages to the server which
 are compressed by zlib. See also: \sql\net_serv.cc.
 
+@node Files in InnoDB Sources,,Files in MySQL Sources,Top
 @chapter Annotated List Of Files in the InnoDB Source Code Distribution
 
 ERRATUM BY HEIKKI TUURI (START)
@@ -5207,6 +5269,7 @@ Now let's begin.
 @*@*
 
 @example
+
 @strong{\ha (HASHING)}
   File Name   What Name Stands For  Size     Comment Inside File
   ---------   --------------------  ------   -------------------
@@ -5529,6 +5592,7 @@ perhaps because they're not portable enough.
 
 InnoDB's transaction management is supposedly "in the style of Oracle"
 and that's close to true but can mislead you. 
+@itemize
 @item
 First: InnoDB uses rollback segments like Oracle8i does -- but
 Oracle9i uses a different name 
@@ -5546,6 +5610,7 @@ Finally: InnoDB's documentation says it has to lock "the gaps before
 index keys" to prevent phantoms -- but any Oracle user will tell you that
 phantoms are impossible anyway at the SERIALIZABLE isolation level, so 
 key-locks are unnecessary.
+@end itemize
 
 The main idea, though, is that InnoDB has multi-versioning. So does
 Oracle. This is very different from the way that DB2 and SQL Server do
@@ -5737,7 +5802,7 @@ creation dates were between 1994 and 1998.
 Ryan Bannon, Alvin Chin, Faryaaz Kassam and Andrew Roszko @*
 "InnoDB Concrete Architecture" @*
 @url{http://www.swen.uwaterloo.ca/~mrbannon/cs798/assignment_02/innodb.pdf}
-@item
+
 A student paper. It's an interesting attempt to figure out InnoDB's
 architecture using tools, but I didn't end up using it for the specific 
 purposes of this article.
@@ -5752,7 +5817,7 @@ Heikki Tuuri @*
 "InnoDB Engine in MySQL-Max-3.23.54 / MySQL-4.0.9: The Up-to-Date
 Reference Manual of InnoDB" @*
 @url{http://www.innodb.com/ibman.html}
-@item
+
 This is the natural starting point for all InnoDB information. Mr
 Tuuri also appears frequently on MySQL forums.
 @*@*
