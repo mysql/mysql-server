@@ -639,8 +639,10 @@ int mysqld_show_column_types(THD *thd);
 int mysqld_help (THD *thd, const char *text);
 
 /* sql_prepare.cc */
-void mysql_stmt_prepare(THD *thd, char *packet, uint packet_length);
+int mysql_stmt_prepare(THD *thd, char *packet, uint packet_length, 
+                       LEX_STRING *name=NULL);
 void mysql_stmt_execute(THD *thd, char *packet, uint packet_length);
+void mysql_sql_stmt_execute(THD *thd, LEX_STRING *stmt_name);
 void mysql_stmt_free(THD *thd, char *packet);
 void mysql_stmt_reset(THD *thd, char *packet);
 void mysql_stmt_get_longdata(THD *thd, char *pos, ulong packet_length);
@@ -1068,6 +1070,9 @@ Item *get_system_var(THD *thd, enum_var_type var_type, LEX_STRING name,
 		     LEX_STRING component);
 Item *get_system_var(THD *thd, enum_var_type var_type, const char *var_name,
 		     uint length, const char *item_name);
+/* item_func.cc */
+int get_var_with_binlog(THD *thd, LEX_STRING &name,
+                        user_var_entry **out_entry);
 /* log.cc */
 bool flush_error_log(void);
 
