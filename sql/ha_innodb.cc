@@ -413,6 +413,7 @@ innobase_mysql_print_thd(
 	putc('\n', f);
 }
 
+#ifndef __NETWARE__
 /*************************************************************************
 Creates a temporary file. */
 extern "C"
@@ -456,6 +457,7 @@ innobase_mysql_tmpfile(void)
 	}
 	return(fd2);
 }
+#endif /* !__NETWARE__ */
 
 /*************************************************************************
 Gets the InnoDB transaction handle for a MySQL handler object, creates
