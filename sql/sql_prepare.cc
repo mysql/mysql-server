@@ -20,32 +20,47 @@ This file contains the implementation of prepare and executes.
 
 Prepare:
 
-  - Server gets the query from client with command 'COM_PREPARE'
+  - Server gets the query from client with command 'COM_PREPARE'; 
+    in the following format:
+    [COM_PREPARE:1] [query]
   - Parse the query and recognize any parameter markers '?' and 
-    store its information list lex->param_list
+    store its information list in lex->param_list
+  - Allocate a new statement for this prepare; and keep this in 
+    'thd->prepared_statements' pool.
   - Without executing the query, return back to client the total 
     number of parameters along with result-set metadata information
-    (if any)
+    (if any) in the following format:
+    [STMT_ID:4][Columns:2][Param_count:2][Columns meta info][Params meta info]
      
 Prepare-execute:
 
   - Server gets the command 'COM_EXECUTE' to execute the 
     previously prepared query. If there is any param markers; then client
     will send the data in the following format:    
-    [null_bits][types_specified(0/1)][[length][data]][[length][data] .. [length][data]. 
+    [COM_EXECUTE:1]
+    [STMT_ID:4]
+    [NULL_BITS:(param_count+7)/8)]
+    [TYPES_SUPPLIED_BY_CLIENT(0/1):1]
+    [[length]data]
+    [[length]data] .. [[length]data]. 
+    (Note: Except for string/binary types; all other types will not be 
+    supplied with length field)
   - Replace the param items with this new data. If it is a first execute 
     or types altered by client; then setup the conversion routines.
   - Execute the query without re-parsing and send back the results 
     to client
 
 Long data handling:
+
   - Server gets the long data in pieces with command type 'COM_LONG_DATA'.
   - The packet recieved will have the format as:
-    [COM_LONG_DATA:1][parameter_number:2][type:2][data]
+    [COM_LONG_DATA:1][STMT_ID:4][parameter_number:2][type:2][data]
   - Checks if the type is specified by client, and if yes reads the type, 
     and stores the data in that format.
   - It's up to the client to check for read data ended. The server doesn't
-    care.
+    care; and also server doesn't notify to the client that it got the 
+    data or not; if there is any error; then during execute; the error 
+    will be returned
 
 ***********************************************************************/
 
@@ -56,7 +71,7 @@ Long data handling:
 
 #define IS_PARAM_NULL(pos, param_no) pos[param_no/8] & (1 << param_no & 7)
 
-extern int yyparse(void);
+extern int yyparse(void *thd);
 
 /*
   Find prepared statement in thd
@@ -238,9 +253,9 @@ static void setup_param_str(Item_param *param, uchar **pos)
   *pos+=len;        
 }
 
-static void setup_param_functions(Item_param *param, uchar read_pos)
+static void setup_param_functions(Item_param *param, uchar param_type)
 {
-  switch (read_pos) {
+  switch (param_type) {
   case FIELD_TYPE_TINY:
     param->setup_param_func= setup_param_tiny;
     param->item_result_type = INT_RESULT;
@@ -286,7 +301,6 @@ static bool setup_params_data(PREP_STMT *stmt)
 
   uchar *pos=(uchar*) thd->net.read_pos+1+MYSQL_STMT_HEADER; //skip header
   uchar *read_pos= pos+(stmt->param_count+7) / 8; //skip null bits   
-  ulong param_no;
 
   if (*read_pos++) //types supplied / first execute
   {              
@@ -304,7 +318,7 @@ static bool setup_params_data(PREP_STMT *stmt)
     }
     param_iterator.rewind();
   }    
-  param_no= 0;
+  ulong param_no= 0;
   while ((param= (Item_param *)param_iterator++))
   {
     if (!param->long_data_supplied)
@@ -318,7 +332,6 @@ static bool setup_params_data(PREP_STMT *stmt)
   }
   DBUG_RETURN(0);
 }
-
 
 /*
   Validates insert fields                                    
@@ -473,7 +486,7 @@ static bool mysql_test_select_fields(PREP_STMT *stmt, TABLE_LIST *tables,
   List<Item>  all_fields(fields);
   DBUG_ENTER("mysql_test_select_fields");
 
-  if (!(table = open_ltable(thd,tables,tables->lock_type)))
+  if (!(table = open_ltable(thd,tables,TL_READ)))
     DBUG_RETURN(1);
   
   thd->used_tables=0;	// Updated by setup_fields
@@ -605,7 +618,7 @@ static bool parse_prepare_query(PREP_STMT *stmt,
 
   LEX *lex=lex_start(thd, (uchar*) packet, length);
   lex->safe_to_cache_query= 0;
-  if (!yyparse() && !thd->fatal_error) 
+  if (!yyparse((void *)thd) && !thd->fatal_error) 
     error= send_prepare_results(stmt);
   lex_end(lex);
   DBUG_RETURN(error);
@@ -627,8 +640,8 @@ static bool init_param_items(THD *thd, PREP_STMT *stmt)
   {
     DBUG_PRINT("info",("param: %lx", to));
   }
-  return 0;
 #endif
+  return 0;
 }
 
 /*
@@ -671,7 +684,6 @@ bool mysql_stmt_prepare(THD *thd, char *packet, uint packet_length)
   stmt.mem_root= thd->mem_root;  
   tree_insert(&thd->prepared_statements, (void *)&stmt, 0, (void *)0);
   thd->mem_root= thd_root; // restore main mem_root
-  thd->last_prepared_stmt= &stmt;
   DBUG_RETURN(0);
 
 err:
@@ -722,7 +734,6 @@ void mysql_stmt_execute(THD *thd, char *packet)
     have re-check on setup_* and other things ..
   */  
   mysql_execute_command(stmt->thd);
-  thd->last_prepared_stmt= stmt;
 
   if (!(specialflag & SPECIAL_NO_PRIOR))
     my_pthread_setprio(pthread_self(), WAIT_PRIOR);
@@ -775,11 +786,11 @@ void mysql_stmt_reset(THD *thd, char *packet)
   Delete a prepared statement from memory
 */
 
-void mysql_stmt_close(THD *thd, char *packet)
+void mysql_stmt_free(THD *thd, char *packet)
 {
   ulong stmt_id= uint4korr(packet);
   PREP_STMT *stmt;
-  DBUG_ENTER("mysql_stmt_close");
+  DBUG_ENTER("mysql_stmt_free");
 
   if (!(stmt=find_prepared_statement(thd, stmt_id, "close")))
   {

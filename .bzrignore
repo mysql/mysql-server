@@ -562,3 +562,8 @@ bkpull.log.2
 bkpull.log.3
 build.log
 sql/safe_to_cache_query.txt
+bkpull.log.4
+bkpull.log.5
+bkpull.log.6
+bkpush.log
+sql/sql_yacc.output
