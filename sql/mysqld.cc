@@ -40,6 +40,11 @@
 #define ONE_THREAD
 #endif
 
+#if defined(HAVE_DEC_3_2_THREADS) || defined(SIGNALS_DONT_BREAK_READ)
+#define HAVE_CLOSE_SERVER_SOCK 1
+void close_server_sock();
+#endif
+
 extern "C" {					// Because of SCO 3.2V4.2
 #include <errno.h>
 #include <sys/stat.h>
@@ -442,16 +447,7 @@ static void close_connections(void)
       sql_print_error("Got error %d from pthread_cond_timedwait",error);
 #endif
 #if defined(HAVE_DEC_3_2_THREADS) || defined(SIGNALS_DONT_BREAK_READ)
-    if (ip_sock != INVALID_SOCKET)
-    {
-      DBUG_PRINT("error",("closing TCP/IP and socket files"));
-      VOID(shutdown(ip_sock,2));
-      VOID(closesocket(ip_sock));
-      VOID(shutdown(unix_sock,2));
-      VOID(closesocket(unix_sock));
-      VOID(unlink(mysql_unix_port));
-      ip_sock=unix_sock= INVALID_SOCKET;
-    }
+    close_server_sock();
 #endif
   }
   (void) pthread_mutex_unlock(&LOCK_thread_count);
@@ -566,10 +562,35 @@ static void close_connections(void)
   DBUG_VOID_RETURN;
 }
 
+#ifdef HAVE_CLOSE_SERVER_SOCK
+void close_server_sock()
+{
+  DBUG_ENTER("close_server_sock");
+  if (ip_sock != INVALID_SOCKET)
+  {
+    DBUG_PRINT("info",("closing TCP/IP socket"));
+    VOID(shutdown(ip_sock,2));
+    VOID(closesocket(ip_sock));
+    ip_sock=INVALID_SOCKET;
+  }
+  if (unix_sock != INVALID_SOCKET)
+  {
+    DBUG_PRINT("info",("closing Unix socket"));
+    VOID(shutdown(unix_sock,2));
+    VOID(closesocket(unix_sock));
+    VOID(unlink(mysql_unix_port));
+    unix_sock=INVALID_SOCKET;
+  }
+  DBUG_VOID_RETURN;
+}
+#endif
+
 void kill_mysql(void)
 {
   DBUG_ENTER("kill_mysql");
-
+#ifdef SIGNALS_DONT_BREAK_READ
+  close_server_sock(); /* force accept to wake up */
+#endif 
 #if defined(__WIN__)
   {
     if (!SetEvent(hEventShutdown))
@@ -593,6 +614,9 @@ void kill_mysql(void)
 #endif
   DBUG_PRINT("quit",("After pthread_kill"));
   shutdown_in_progress=1;			// Safety if kill didn't work
+#ifdef SIGNALS_DONT_BREAK_READ    
+    abort_loop=1;
+#endif    
   DBUG_VOID_RETURN;
 }
 
@@ -1049,6 +1073,20 @@ void end_thread(THD *thd, bool put_in_cache)
   DBUG_VOID_RETURN;
 }
 
+#ifdef SIGNALS_DONT_BREAK_READ
+inline void kill_broken_server()
+{
+  /* hack to get around signals ignored in syscalls for problem OS's */
+  if (unix_sock == INVALID_SOCKET || ip_sock ==INVALID_SOCKET)
+  {
+    select_thread_in_use = 0;
+    kill_server((void*)MYSQL_KILL_SIGNAL); /* never returns */
+  }
+}
+#define MAYBE_BROKEN_SYSCALL kill_broken_server();
+#else
+#define MAYBE_BROKEN_SYSCALL
+#endif
 
 /* Start a cached thread. LOCK_thread_count is locked on entry */
 
@@ -2254,6 +2292,7 @@ pthread_handler_decl(handle_connections_sockets,arg __attribute__((unused)))
 #endif
 
   DBUG_PRINT("general",("Waiting for connections."));
+  MAYBE_BROKEN_SYSCALL;
   while (!abort_loop)
   {
     readFDs=clientFDs;
@@ -2268,6 +2307,7 @@ pthread_handler_decl(handle_connections_sockets,arg __attribute__((unused)))
 	if (!select_errors++ && !abort_loop)	/* purecov: inspected */
 	  sql_print_error("mysqld: Got error %d from select",socket_errno); /* purecov: inspected */
       }
+      MAYBE_BROKEN_SYSCALL;
       continue;
     }
 #endif	/* HPUX */
@@ -2309,6 +2349,7 @@ pthread_handler_decl(handle_connections_sockets,arg __attribute__((unused)))
       if (new_sock != INVALID_SOCKET ||
 	  (socket_errno != SOCKET_EINTR && socket_errno != SOCKET_EAGAIN))
 	break;
+      MAYBE_BROKEN_SYSCALL;
 #if !defined(NO_FCNTL_NONBLOCK)
       if (!(test_flags & TEST_BLOCKING))
       {
@@ -2325,6 +2366,7 @@ pthread_handler_decl(handle_connections_sockets,arg __attribute__((unused)))
     {
       if ((error_count++ & 255) == 0)		// This can happen often
 	sql_perror("Error in accept");
+      MAYBE_BROKEN_SYSCALL;
       if (socket_errno == SOCKET_ENFILE || socket_errno == SOCKET_EMFILE)
 	sleep(1);				// Give other threads some time
       continue;
