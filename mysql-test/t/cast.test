@@ -95,3 +95,16 @@ select cast("2001-1-1" as datetime) = "2001-01-01 00:00:00";
 select cast("1:2:3" as TIME) = "1:02:03";
 select cast(NULL as DATE);
 select cast(NULL as BINARY);
+
+#
+# Bug #5228 ORDER BY CAST(enumcol) sorts incorrectly under certain conditions
+#
+CREATE TABLE t1 (a enum ('aac','aab','aaa') not null);
+INSERT INTO t1 VALUES ('aaa'),('aab'),('aac');
+# these two should be in enum order
+SELECT a, CAST(a AS CHAR) FROM t1 ORDER BY CAST(a AS UNSIGNED) ;
+SELECT a, CAST(a AS CHAR(3)) FROM t1 ORDER BY CAST(a AS CHAR(2)), a;
+# these two should be in alphabetic order
+SELECT a, CAST(a AS UNSIGNED) FROM t1 ORDER BY CAST(a AS CHAR) ;
+SELECT a, CAST(a AS CHAR(2)) FROM t1 ORDER BY CAST(a AS CHAR(3)), a;
+DROP TABLE t1;
