@@ -101,6 +101,9 @@ void init_read_record(READ_RECORD *info,THD *thd, TABLE *table,
   else if (select && select->quick)
   {
     DBUG_PRINT("info",("using rr_quick"));
+
+    if (!table->file->inited)
+      table->file->ha_index_init(select->quick->index);
     info->read_record=rr_quick;
   }
   else if (table->sort.record_pointers)
