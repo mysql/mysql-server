@@ -4,15 +4,9 @@
 #                                                            #
 ##############################################################
 
-
-# Please do not 
-#     - modify (INSERT/UPDATE/DELETE) the content of the tables
-#       t1 and t_many_col_types. Such tests should be done in 
-#           include/ps_modify.inc
-#     - insert test cases where the results depend on the 
-#       table type. Such tests should be done in the files
-#           include/ps_query.inc, include/ps_modify ...
-#
+#    
+# NOTE: PLEASE SEE THE DETAILED DESCRIPTION AT THE BOTTOM OF THIS FILE
+#       BEFORE ADDING NEW TEST CASES HERE !!!
 
 use test;
 --disable_query_log
@@ -737,3 +731,101 @@ execute stmt1 using
 @arg60, @arg61 ;
 
 drop table t1 ;
+
+##### RULES OF THUMB TO PRESERVE THE SYSTEMATICS OF THE PS TEST CASES #####
+#
+# 0. You  don't have the time to 
+#    - read and pay attention to these rules of thumb
+#    - accept that QA may move your test case to a different place
+#      (I will not change your code!!) .
+#    Please append your test case to
+#        t/ps.test
+#
+# 1. You have more time and want to get as much value from you test case as
+#    possible. Please try to make the following decisions:
+#
+#    Will the execution or result of the sub test case depend on the
+#    properties of a storage engine ?
+#
+#      NO   --> alter t/ps_1general.test (Example: Command with syntax error)
+#               If you need a table, please try to use
+#               t1               - very simple table
+#               t_many_col_types - table with nearly all available column types
+#               whenever possible.
+#
+#               The structure and the content of these tables can be found in
+#               include/ps_create.inc  CREATE TABLE ...
+#               include/ps_renew.inc   DELETE all rows and INSERT some rows
+#
+#               Both tables are managed by the same storage engine.
+#               The type of the storage engine is stored in the variable 
+#               '$type' .  In ps_1general.test $type is set to 'MYISAM'.
+#    
+#               Please feel free to source ps_create.inc or ps_renew.inc
+#               whenever you think it helps. But please restore the original
+#               state of these tables after your tests, because the following
+#               statements may depend on it.
+#
+#      YES
+#       |
+#       |
+#    Is it possible to apply the sub test case to all table types ?
+#      YES  --> alter include/ps_query.inc   (for SELECTs)
+#                     include/ps_modify.inc  (for INSERT/UPDATE/DELETE)
+#                     include/ps_modify1.inc (also for INSERT/UPDATE/DELETE,
+#                                but t/ps_5merge.test will not source that file)
+#               Please try to find an appropriate place within the file.
+#               It would be nice if we have some systematics in the
+#               order of the sub test cases (if possible).
+#
+#               Please be aware, that
+#                  include: ps_query.inc, ps_modify.inc, ps_modify1.inc
+#               will be sourced by several test case files stored within the 
+#               subdirectory 't'. So every change here will affect several test
+#               cases.
+#
+#      NO
+#       |
+#       |
+#    Append the sub test case to the appropriate 
+#                  ps_<number><table type>.test  .
+#
+# 2. The current structure of the PS tests
+#
+#    t/ps_1general.test     Check of basic PS features, SHOW commands and DDL
+#                           The tests should not depend on the table type.
+#
+#    t/ps_2myisam           Check of PS on tables of type MYISAM .
+#    t/ps_3innodb           Check of PS on tables of type InnoDB .
+#    ...
+#    t/ps_6bdb              Check of PS on tables of type BDB .
+#         All storage engine related tests use the variable $type to hold the
+#         name of the storage engine.        
+#
+#    include/ps_query.inc   test cases with SELECT/... 
+#                           These test cases should not modify the content or
+#                           the structure (DROP/ALTER..) of the tables
+#                           't1' and 't_many_col_types'.
+#    include/ps_modify.inc  test cases with INSERT/UPDATE/... 
+#                           These test cases should not modify the structure 
+#                           (DROP/ALTER..) of the tables
+#                           't1' and 't_many_col_types'.
+#         These two test sequences will be applied to all table types .
+#
+#    include/ps_modify1.inc test cases with INSERT/UPDATE/...
+#         This test sequences will be applied to all table types 
+#         except MERGE tables.
+#
+#    include/ps_create.inc  DROP and CREATE of the tables 
+#                             't1' and 't_many_col_types' .
+#    include/ps_renew.inc   DELETE all rows and INSERT some rows, that means
+#                           recreate the original content of these tables.
+#         Please do not alter the commands concerning these two tables.
+#
+#  Please feel free and encouraged to exploit the current code sharing
+#  mechanism of the 'ps_<number><table type>' test cases. It is an convenient
+#  way to check all storage engines.
+#
+#  Thank you for reading these rules of thumb.
+#
+#     Matthias
