@@ -13024,13 +13024,13 @@ definition. If you use your keys like normal, it'll work just fine:
 
 
 @example
-CREATE TABLE persons (
+CREATE TABLE person (
     id SMALLINT UNSIGNED NOT NULL AUTO_INCREMENT,
     name CHAR(60) NOT NULL,
     PRIMARY KEY (id)
 );
 
-CREATE TABLE shirts (
+CREATE TABLE shirt (
     id SMALLINT UNSIGNED NOT NULL AUTO_INCREMENT,
     style ENUM('t-shirt', 'polo', 'dress') NOT NULL,
     color ENUM('red', 'blue', 'orange', 'white', 'black') NOT NULL,
@@ -13039,24 +13039,24 @@ CREATE TABLE shirts (
 );
 
 
-INSERT INTO persons VALUES (NULL, 'Antonio Paz');
+INSERT INTO person VALUES (NULL, 'Antonio Paz');
 
-INSERT INTO shirts VALUES
+INSERT INTO shirt VALUES
 (NULL, 'polo', 'blue', LAST_INSERT_ID()),
 (NULL, 'dress', 'white', LAST_INSERT_ID()),
 (NULL, 't-shirt', 'blue', LAST_INSERT_ID());
 
 
-INSERT INTO persons VALUES (NULL, 'Lilliana Angelovska');
+INSERT INTO person VALUES (NULL, 'Lilliana Angelovska');
 
-INSERT INTO shirts VALUES
+INSERT INTO shirt VALUES
 (NULL, 'dress', 'orange', LAST_INSERT_ID()),
 (NULL, 'polo', 'red', LAST_INSERT_ID()),
 (NULL, 'dress', 'blue', LAST_INSERT_ID()),
 (NULL, 't-shirt', 'white', LAST_INSERT_ID());
 
 
-SELECT * FROM persons;
+SELECT * FROM person;
 +----+---------------------+
 | id | name                |
 +----+---------------------+
@@ -13064,7 +13064,7 @@ SELECT * FROM persons;
 |  2 | Lilliana Angelovska |
 +----+---------------------+
 
-SELECT * FROM shirts;
+SELECT * FROM shirt;
 +----+---------+--------+-------+
 | id | style   | color  | owner |
 +----+---------+--------+-------+
@@ -13078,7 +13078,7 @@ SELECT * FROM shirts;
 +----+---------+--------+-------+
 
 
-SELECT s.* FROM persons p, shirts s
+SELECT s.* FROM person p, shirt s
  WHERE p.name LIKE 'Lilliana%'
    AND s.owner = p.id
    AND s.color <> 'white';
