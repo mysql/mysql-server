@@ -1700,5 +1700,20 @@ Innodb_rows_read	80161
 show status like "Innodb_rows_updated";
 Variable_name	Value
 Innodb_rows_updated	29530
+show status like "Innodb_row_lock_waits";
+Variable_name	Value
+Innodb_row_lock_waits	0
+show status like "Innodb_row_lock_current_waits";
+Variable_name	Value
+Innodb_row_lock_current_waits	0
+show status like "Innodb_row_lock_time";
+Variable_name	Value
+Innodb_row_lock_time	0
+show status like "Innodb_row_lock_time_max";
+Variable_name	Value
+Innodb_row_lock_time_max	0
+show status like "Innodb_row_lock_time_avg";
+Variable_name	Value
+Innodb_row_lock_time_avg	0
 create table t1 (v varchar(16384)) engine=innodb;
 ERROR 42000: Column length too big for column 'v' (max = 255); use BLOB instead
