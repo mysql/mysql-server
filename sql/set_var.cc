@@ -154,11 +154,11 @@ sys_var_thd_ulong	sys_max_error_count("max_error_count",
 					    &SV::max_error_count);
 sys_var_thd_ulong	sys_max_heap_table_size("max_heap_table_size",
 						&SV::max_heap_table_size);
-sys_var_thd_ulong	sys_max_join_size("max_join_size",
+sys_var_thd_ulonglong	sys_max_join_size("max_join_size",
 					  &SV::max_join_size,
 					  fix_max_join_size);
 #ifndef TO_BE_DELETED	/* Alias for max_join_size */
-sys_var_thd_ulong	sys_sql_max_join_size("sql_max_join_size",
+sys_var_thd_ulonglong	sys_sql_max_join_size("sql_max_join_size",
 					      &SV::max_join_size,
 					      fix_max_join_size);
 #endif
@@ -282,7 +282,7 @@ static sys_var_thd_bit	sys_unique_checks("unique_checks",
 
 /* Local state variables */
 
-static sys_var_thd_ulong	sys_select_limit("sql_select_limit",
+static sys_var_thd_ulonglong	sys_select_limit("sql_select_limit",
 						 &SV::select_limit);
 static sys_var_timestamp	sys_timestamp("timestamp");
 static sys_var_last_insert_id	sys_last_insert_id("last_insert_id");
@@ -594,7 +594,7 @@ static void fix_max_join_size(THD *thd, enum_var_type type)
 {
   if (type != OPT_GLOBAL)
   {
-    if (thd->variables.max_join_size == (ulong) HA_POS_ERROR)
+    if (thd->variables.max_join_size == (ulonglong) HA_POS_ERROR)
       thd->options|= OPTION_BIG_SELECTS;
     else
       thd->options&= ~OPTION_BIG_SELECTS;
@@ -769,7 +769,7 @@ bool sys_var_thd_ulonglong::update(THD *thd,  set_var *var)
 void sys_var_thd_ulonglong::set_default(THD *thd, enum_var_type type)
 {
   if (type == OPT_GLOBAL)
-    global_system_variables.*offset= (ulong) option_limits->def_value;
+    global_system_variables.*offset= (ulonglong) option_limits->def_value;
   else
     thd->variables.*offset= global_system_variables.*offset;
 }

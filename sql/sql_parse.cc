@@ -660,7 +660,7 @@ pthread_handler_decl(handle_one_connection,arg)
       goto end_thread;
     }
 
-    if ((ulong) thd->variables.max_join_size == (ulong) HA_POS_ERROR)
+    if ((ulong) thd->variables.max_join_size == (ulonglong) HA_POS_ERROR)
       thd->options |= OPTION_BIG_SELECTS;
     if (thd->client_capabilities & CLIENT_COMPRESS)
       net->compress=1;				// Use compression
@@ -736,7 +736,7 @@ pthread_handler_decl(handle_bootstrap,arg)
 
 #endif
 
-  if ((ulong) thd->variables.max_join_size == (ulong) HA_POS_ERROR)
+  if ((ulong) thd->variables.max_join_size == (ulonglong) HA_POS_ERROR)
     thd->options |= OPTION_BIG_SELECTS;
 
   thd->proc_info=0;
@@ -1373,10 +1373,11 @@ if (lex->derived_tables)
       break;					// Error message is given
     }
 
-    unit->offset_limit_cnt= unit->global_parameters->offset_limit;
-    unit->select_limit_cnt= unit->global_parameters->select_limit+
-      unit->global_parameters->offset_limit;
-    if (unit->select_limit_cnt < unit->global_parameters->select_limit)
+    unit->offset_limit_cnt= (ha_rows) unit->global_parameters->offset_limit;
+    unit->select_limit_cnt= (ha_rows) (unit->global_parameters->select_limit+
+      unit->global_parameters->offset_limit);
+    if (unit->select_limit_cnt < 
+	(ha_rows) unit->global_parameters->select_limit)
       unit->select_limit_cnt= HA_POS_ERROR;		// no limit
     if (unit->select_limit_cnt == HA_POS_ERROR)
       select_lex->options&= ~OPTION_FOUND_ROWS;
