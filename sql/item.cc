@@ -994,6 +994,28 @@ bool Item_field::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
   return 0;
 }
 
+
+/*
+  Find a field among specified multiple equalities 
+
+  SYNOPSIS
+    find_item_equal()
+    cond_equal   reference to list of multiple equalities where
+                 the field (this object) is to be looked for
+  
+  DESCRIPTION
+    The function first searches the field among multiple equalities
+    of the current level (in the cond_equal->current_level list).
+    If it fails, it continues searching in upper levels accessed
+    through a pointer cond_equal->upper_levels.
+    The search terminates as soon as a multiple equality containing 
+    the field is found. 
+
+  RETURN VALUES
+    First Item_equal containing the field, if success
+    0, otherwise
+*/
+
 Item_equal *Item_field::find_item_equal(COND_EQUAL *cond_equal)
 {
   Item_equal *item= 0;
@@ -1005,31 +1027,82 @@ Item_equal *Item_field::find_item_equal(COND_EQUAL *cond_equal)
       if (item->contains(field))
         return item;
     }
-    cond_equal= cond_equal->parent_level;
+    /* 
+      The field is not found in any of the multiple equalities
+      of the current level. Look for it in upper levels
+    */
+    cond_equal= cond_equal->upper_levels;
   }
-  return item;
+  return 0;
 }
+
+
+/*
+  Set a pointer to the multiple equality the field reference belongs to (if any)
+   
+  SYNOPSIS
+    equal_fields_propagator()
+    arg - reference to list of multiple equalities where
+          the field (this object) is to be looked for
+  
+  DESCRIPTION
+    The function looks for a multiple equality containing the field item
+    among those referenced by arg.
+    In the case such equality exists the function does the following.
+    If the found multiple equality contains a constant, then the field
+    reference is substituted for this constant, otherwise it sets a pointer
+    to the multiple equality in the field item.
+
+  NOTES
+    This function is supposed to be called as a callback parameter in calls
+    of the transform method.  
+
+  RETURN VALUES
+    pointer to the replacing constant item, if the field item was substituted 
+    pointer to the field item, otherwise.
+*/
 
 Item *Item_field::equal_fields_propagator(byte *arg)
 {
-  COND_EQUAL *cond_equal= (COND_EQUAL *) arg;
-  item_equal= find_item_equal(cond_equal);
+  item_equal= find_item_equal((COND_EQUAL *) arg);
   Item *item= 0;
   if (item_equal)
     item= item_equal->get_const();
-  if (item)
-    item->fixed= 0;
-  else
+  if (!item)
     item= this;
   return item;
 }
+
+
+/*
+  Set a pointer to the multiple equality the field reference belongs to (if any)
+   
+  SYNOPSIS
+    replace_equal_field_processor()
+    arg - a dummy parameter, is not used here
+  
+  DESCRIPTION
+    The function replaces a pointer to a field in the Item_field object
+    by a pointer to another field.
+    The replacement field is taken from the very beginning of
+    the item_equal list which the Item_field object refers to (belongs to)  
+    If the Item_field object does not refer any Item_equal object,
+    nothing is done.
+
+  NOTES
+    This function is supposed to be called as a callback parameter in calls
+    of the walk method.  
+
+  RETURN VALUES
+    0 
+*/
 
 bool Item_field::replace_equal_field_processor(byte *arg)
 {
   if (item_equal)
   {
     Item_field *subst= item_equal->get_first();
-    if (subst && !field->eq(subst->field))
+    if (!field->eq(subst->field))
     {
       field= subst->field;
       return 0;

@@ -242,37 +242,42 @@ bool Item_func::walk (Item_processor processor, byte *argument)
   return (this->*processor)(argument);
 }
 
-Item *Item_func::traverse(Item_calculator calculator, byte *argument)
+
+/*
+  Transform an Item_func object with a transformer callback function
+   
+  SYNOPSIS
+    transform()
+    transformer   the transformer callback function to be applied to the nodes
+                  of the tree of the object
+    argument      parameter to be passed to the transformer
+  
+  DESCRIPTION
+    The function recursively applies the transform method with the
+    same transformer to each argument the function.
+    If the call of the method for a member item returns a new item
+    the old item is substituted for a new one.
+    After this the transform method is applied to the root node
+    of the Item_func object. 
+     
+  RETURN VALUES
+    Item returned as the result of transformation of the root node 
+*/
+
+Item *Item_func::transform(Item_transformer transformer, byte *argument)
 {
   if (arg_count)
   {
     Item **arg,**arg_end;
     for (arg= args, arg_end= args+arg_count; arg != arg_end; arg++)
     {
-      Item *new_item= (*arg)->traverse(calculator, argument);
+      Item *new_item= (*arg)->transform(transformer, argument);
       if (!new_item)
 	return 0;
       *arg= new_item;
     }
   }
-  return (this->*calculator)(argument);
-}
-
-Item *Item_func::equal_fields_propagator(byte *argument)
-{
-  if (arg_count)
-  {
-    Item **arg,**arg_end;
-    for (arg= args, arg_end= args+arg_count; arg != arg_end; arg++)
-    {
-      if (!(*arg)->fixed)
-      {
-        fix_fields(current_thd, 0, 0);
-        break;
-      }
-    }
-  }
-  return this;
+  return (this->*transformer)(argument);
 }
 
 

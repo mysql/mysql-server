@@ -161,6 +161,15 @@ public:
     *prev= *last;
     last= prev;
   }
+  inline void prepand(base_list *list)
+  {
+    if (!list->is_empty())
+    {
+      *list->last= first;
+      first= list->first;
+      elements+= list->elements;
+    }
+  }
   inline list_node* last_node() { return *last; }
   inline list_node* first_node() { return first;}
   inline void *head() { return first->info; }
@@ -273,6 +282,7 @@ public:
   inline T* pop()  {return (T*) base_list::pop(); }
   inline void concat(List<T> *list) { base_list::concat(list); }
   inline void disjoin(List<T> *list) { base_list::disjoin(list); }
+  inline void prepand(List<T> *list) { base_list::prepand(list); }
   void delete_elements(void)
   {
     list_node *element,*next;

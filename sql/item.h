@@ -83,7 +83,7 @@ public:
 };
 
 typedef bool (Item::*Item_processor)(byte *arg);
-typedef Item* (Item::*Item_calculator) (byte *arg);
+typedef Item* (Item::*Item_transformer) (byte *arg);
 
 class Item {
   Item(const Item &);			/* Prevent use of these */
@@ -212,9 +212,9 @@ public:
     return (this->*processor)(arg);
   }
 
-   virtual Item* traverse(Item_calculator calculator, byte *arg)
+   virtual Item* transform(Item_transformer transformer, byte *arg)
   {
-    return (this->*calculator)(arg);
+    return (this->*transformer)(arg);
   }
  
   virtual bool remove_dependence_processor(byte * arg) { return 0; }
@@ -949,13 +949,17 @@ public:
       (this->*processor)(args);
   }
 
-  Item *traverse(Item_calculator calculator, byte *args)
+  /* 
+     This method like the walk method traverses the item tree, but
+     at the same time it can replace some nodes in the tree
+  */ 
+  Item *transform(Item_transformer transformer, byte *args)
   {
-    Item *new_item= arg->traverse(calculator, args);
+    Item *new_item= arg->transform(transformer, args);
     if (!new_item)
       return 0;
     arg= new_item;
-    return (this->*calculator)(args);
+    return (this->*transformer)(args);
   }
 };
 

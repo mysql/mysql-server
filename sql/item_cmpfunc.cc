@@ -225,7 +225,7 @@ void Item_bool_func2::fix_length_and_dec()
   }
   
   // Make a special case of compare with fields to get nicer DATE comparisons
-  if (args[0]->type() == FIELD_ITEM && !args[0]->const_item())
+  if (args[0]->type() == FIELD_ITEM /* && !args[0]->const_item() */ )
   {
     Field *field=((Item_field*) args[0])->field;
     if (field->store_for_compare())
@@ -238,7 +238,7 @@ void Item_bool_func2::fix_length_and_dec()
       }
     }
   }
-  if (args[1]->type() == FIELD_ITEM && !args[1]->const_item())
+  if (args[1]->type() == FIELD_ITEM /* && !args[1]->const_item() */)
   {
     Field *field=((Item_field*) args[1])->field;
     if (field->store_for_compare())
@@ -1739,20 +1739,43 @@ bool Item_cond::walk(Item_processor processor, byte *arg)
   return Item_func::walk(processor, arg);
 }
 
-Item *Item_cond::traverse(Item_calculator calculator, byte *arg)
+
+/*
+  Transform an Item_cond object with a transformer callback function
+   
+  SYNOPSIS
+    transform()
+    transformer   the transformer callback function to be applied to the nodes
+                  of the tree of the object
+    arg           parameter to be passed to the transformer
+  
+  DESCRIPTION
+    The function recursively applies the transform method with the
+    same transformer to each member item of the codition list.
+    If the call of the method for a member item returns a new item
+    the old item is substituted for a new one.
+    After this the transform method is applied to the root node
+    of the Item_cond object. 
+     
+  RETURN VALUES
+    Item returned as the result of transformation of the root node 
+*/
+
+Item *Item_cond::transform(Item_transformer transformer, byte *arg)
 {
   List_iterator<Item> li(list);
   Item *item;
   while ((item= li++))
   {
-    Item *new_item= item->traverse(calculator, arg);
+    Item *new_item= item->transform(transformer, arg);
     if (!new_item)
       return 0;
     if (new_item != item)
       li.replace(new_item);
   }
-  return Item_func::traverse(calculator, arg);
+  return Item_func::transform(transformer, arg);
 }
+
 
 void Item_cond::split_sum_func(Item **ref_pointer_array, List<Item> &fields)
 {
@@ -2591,6 +2614,32 @@ void Item_equal::add(Item_field *f)
   fields.push_back(f);
 }
 
+uint Item_equal::members()
+{
+  uint count= 0;
+  List_iterator_fast<Item_field> li(fields);
+  Item_field *item;
+  while ((item= li++))
+    count++;
+  return count;
+}
+
+
+/*
+  Check whether a field is referred in the multiple equality 
+
+  SYNOPSIS
+    contains()
+    field   field whose occurence is to be checked
+  
+  DESCRIPTION
+    The function checks whether field is occured in the Item_equal object 
+    
+  RETURN VALUES
+    1       if nultiple equality contains a reference to field
+    0       otherwise    
+*/
+
 bool Item_equal::contains(Field *field)
 {
   List_iterator_fast<Item_field> it(fields);
@@ -2602,6 +2651,25 @@ bool Item_equal::contains(Field *field)
   }
   return 0;
 }
+
+
+/*
+  Join members of another Item_equal object  
+
+  SYNOPSIS
+    merge()
+    item    multiple equality whose members are to be joined
+  
+  DESCRIPTION
+    The function actually merges two multiple equalitis.
+    After this operation the Item_equal object additionally contains
+    the field items of another item of the type Item_equal.
+    If the optional constant items are not equal the cond_false flag is
+    set to 1.  
+       
+  RETURN VALUES
+    none    
+*/
 
 void Item_equal::merge(Item_equal *item)
 {
@@ -2619,26 +2687,46 @@ void Item_equal::merge(Item_equal *item)
   cond_false|= item->cond_false;
 } 
 
-void Item_equal::sort(void *table_join_idx)
+
+/*
+  Order field items in multiple equality according to a sorting criteria 
+
+  SYNOPSIS
+    sort()
+    cmp          function to compare field item 
+    arg          context extra parameter for the cmp function
+  
+  DESCRIPTION
+    The function perform ordering of the field items in the Item_equal
+    object according to the criteria determined by the cmp callback parameter.
+    If cmp(item_field1,item_field2,arg)<0 than item_field1 must be
+    placed after item_fiel2.
+
+  IMPLEMENTATION
+    The function sorts field items by the exchange sort algorithm.
+    The list of field items is looked through and whenever two neighboring
+    members follow in a wrong order they are swapped. This is performed
+    again and again until we get all members in a right order.
+         
+  RETURN VALUES
+    None    
+*/
+
+void Item_equal::sort(Item_field_cmpfunc cmp, void *arg)
 {
   bool swap;
-  void **idx= (void **) table_join_idx;
   List_iterator<Item_field> it(fields);
   do
   {
     Item_field *item1= it++;
     Item_field **ref1= it.ref();
     Item_field *item2;
-    Item_field **ref2;
 
-    if (!item1)
-      break; 
     swap= FALSE;
     while ((item2= it++))
     {
-      ref2= it.ref();
-      if (idx[item1->field->table->tablenr] >
-          idx[item2->field->table->tablenr])
+      Item_field **ref2= it.ref();
+      if (cmp(item1, item2, arg) < 0)
       {
         Item_field *item= *ref1;
         *ref1= *ref2;
@@ -2680,6 +2768,8 @@ void Item_equal::update_used_tables()
   List_iterator_fast<Item_field> li(fields);
   Item *item;
   not_null_tables_cache= used_tables_cache= 0;
+  if ((const_item_cache= cond_false))
+    return;
   while ((item=li++))
   {
     item->update_used_tables();
@@ -2697,7 +2787,7 @@ longlong Item_equal::val_int()
   if ((null_value= item->null_value))
     return 0;
   eval_item->store_value(item);
-  while((item= it++))
+  while ((item= it++))
   {
     if ((null_value= item->null_value) || eval_item->cmp(item))
       return 0;
@@ -2723,19 +2813,19 @@ bool Item_equal::walk(Item_processor processor, byte *arg)
   return Item_func::walk(processor, arg);
 }
 
-Item *Item_equal::traverse(Item_calculator calculator, byte *arg)
+Item *Item_equal::transform(Item_transformer transformer, byte *arg)
 {
   List_iterator<Item_field> it(fields);
   Item *item;
   while ((item= it++))
   {
-    Item *new_item= item->traverse(calculator, arg);
+    Item *new_item= item->transform(transformer, arg);
     if (!new_item)
       return 0;
     if (new_item != item)
       it.replace((Item_field *) new_item);
   }
-  return Item_func::traverse(calculator, arg);
+  return Item_func::transform(transformer, arg);
 }
 
 void Item_equal::print(String *str)
@@ -2744,8 +2834,13 @@ void Item_equal::print(String *str)
   str->append('(');
   List_iterator_fast<Item_field> it(fields);
   Item *item;
-  if ((item= it++))
+  if (const_item)
+    const_item->print(str);
+  else
+  {
+    item= it++;
     item->print(str);
+  }
   while ((item= it++))
   {
     str->append(',');
