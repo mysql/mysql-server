@@ -97,7 +97,7 @@
   Note: the following includes binlog and closing 0.
   so: innodb+bdb+ndb+binlog+0
 */
-#define MAX_HA 5
+#define MAX_HA 6
 
 /*
   Bits in index_ddl_flags(KEY *wanted_index)
