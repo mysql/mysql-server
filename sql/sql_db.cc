@@ -331,8 +331,12 @@ int mysql_rm_db(THD *thd,char *db,bool if_exists, bool silent)
       error= -1;
       my_error(ER_DB_DROP_EXISTS,MYF(0),db);
     }
-    else if (!silent)
-      send_ok(thd,0);
+    else
+    {
+      store_warning(thd,ER_DB_DROP_EXISTS,db);
+      if (!silent)
+        send_ok(thd,0);
+    }
     goto exit;
   }
   pthread_mutex_lock(&LOCK_open);
