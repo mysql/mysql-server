@@ -40,6 +40,8 @@ typedef struct st_ft_doclist {
   FT_DOC    doc[1];
 } FT_DOCLIST;
 
+extern const char *ft_precompiled_stopwords[];
+
 int ft_init_stopwords(const char **);
 
 FT_DOCLIST * ft_init_search(void *, uint, byte *, uint, my_bool);
