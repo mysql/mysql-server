@@ -730,7 +730,17 @@ sel_set_rec_lock(
 	ulint		type, 	/* in: LOCK_ORDINARY, LOCK_GAP, or LOC_REC_NOT_GAP */
 	que_thr_t*	thr)	/* in: query thread */	
 {
+	trx_t*	trx;
 	ulint	err;
+
+	trx = thr_get_trx(thr);	
+
+	if (UT_LIST_GET_LEN(trx->trx_locks) > 10000) {
+		if (buf_LRU_buf_pool_running_out()) {
+			
+			return(DB_LOCK_TABLE_FULL);
+		}
+	}
 
 	if (index->type & DICT_CLUSTERED) {
 		err = lock_clust_rec_read_check_and_lock(0, rec, index, mode,
@@ -2765,6 +2775,7 @@ row_search_for_mysql(
 					/* out: DB_SUCCESS,
 					DB_RECORD_NOT_FOUND, 
 					DB_END_OF_INDEX, DB_DEADLOCK,
+					DB_LOCK_TABLE_FULL,
 					or DB_TOO_BIG_RECORD */
 	byte*		buf,		/* in/out: buffer for the fetched
 					row in the MySQL format */
