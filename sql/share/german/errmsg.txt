@@ -80,7 +80,7 @@
 "BLOB-Feld '%-.64s' kann nicht als Schlüssel verwendet werden.",
 "Feldlänge für Feld '%-.64s' zu groß (max = %d). BLOB-Feld verwenden!",
 "Nur ein Auto-Feld möglich, welches als Schlüssel definiert werden muß.",
-"%-.64s: Warten auf Verbindungen.\n",
+"%-.64s: Warten auf Verbindungen",
 "%-.64s: Normal beendet.\n",
 "%-.64s: Signal %d erhalten. Abbruch!\n",
 "%-.64s: Shutdown ausgeführt.\n",
