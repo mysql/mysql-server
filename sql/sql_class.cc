@@ -431,29 +431,6 @@ void THD::close_active_vio()
 #endif
 
 /*****************************************************************************
-  Table Ident
-****************************************************************************/
-  
-
-Table_ident::Table_ident(LEX_STRING db_arg,LEX_STRING table_arg,bool force)
-  :table(table_arg)
-{
-  if (!force && (current_thd->client_capabilities & CLIENT_NO_SCHEMA))
-    db.str=0;
-  else
-    db= db_arg;
-  if (db.str)
-    table_case_convert(db.str,db.length);
-  table_case_convert(table.str,table.length);
-}
-
-Table_ident::Table_ident(LEX_STRING table_arg) :table(table_arg) 
-{
-  db.str=0;
-  table_case_convert(table.str,table.length);
-}
-
-/*****************************************************************************
 ** Functions to provide a interface to select results
 *****************************************************************************/
 
