@@ -378,6 +378,7 @@ CHARSET_INFO *national_charset_info, *table_alias_charset;
 SHOW_COMP_OPTION have_berkeley_db, have_innodb, have_isam, 
  have_ndbcluster, have_example_db;
 SHOW_COMP_OPTION have_raid, have_openssl, have_symlink, have_query_cache;
+SHOW_COMP_OPTION have_geometry, have_rtree_keys;
 SHOW_COMP_OPTION have_crypt, have_compress;
 
 /* Thread specific variables */
@@ -5361,6 +5362,16 @@ static void mysql_init_variables(void)
   have_query_cache=SHOW_OPTION_YES;
 #else
   have_query_cache=SHOW_OPTION_NO;
+#endif
+#ifdef HAVE_SPATIAL
+  have_geometry=SHOW_OPTION_YES;
+#else
+  have_geometry=SHOW_OPTION_NO;
+#endif
+#ifdef HAVE_RTREE_KEYS
+  have_rtree_keys=SHOW_OPTION_YES;
+#else
+  have_rtree_keys=SHOW_OPTION_NO;
 #endif
 #ifdef HAVE_CRYPT
   have_crypt=SHOW_OPTION_YES;
