@@ -60,16 +60,45 @@ sync_with_master;
 
 # This should show that the slave is empty at this point
 show databases;
+# Create foo and foo2 on slave; we expect that LOAD DATA FROM MASTER will
+# neither touch database foo nor foo2.
+create database foo;
+create table foo.t1(n int, s char(20));
+insert into foo.t1 values (1, 'original foo.t1');
+create table foo.t3(n int, s char(20));
+insert into foo.t3 values (1, 'original foo.t3');
+create database foo2;
+create table foo2.t1(n int, s char(20));
+insert into foo2.t1 values (1, 'original foo2.t1');
+# Create bar, and bar.t1, to check that it gets replaced,
+# and bar.t3 to check that it is not touched (there is no bar.t3 on master)
+create database bar;
+create table bar.t1(n int, s char(20));
+insert into bar.t1 values (1, 'original bar.t1');
+create table bar.t3(n int, s char(20));
+insert into bar.t3 values (1, 'original bar.t3');
+
 load data from master;
 
 # Now let's check if we have the right tables and the right data in them
 show databases;
 use mysqltest2;
-show tables;
+# LOAD DATA FROM MASTER uses only replicate_*_db rules to decide which databases
+# have to be copied. So it thinks "foo" has to be copied. Before 4.0.16 it would
+# first drop "foo", then create "foo". This "drop" is a bug; in that case t3
+# would disappear.
+# So here the effect of this bug (BUG#1248) would be to leave an empty "foo" on
+# the slave.
+show tables; # should be t1 & t3
+select * from t1; # should be slave's original
+use foo2;
+show tables; # should be t1
+select * from t1; # should be slave's original
 use mysqltest;
-show tables;
+show tables; # should contain master's copied t1&t2, slave's original t3
 select * from mysqltest.t1;
 select * from mysqltest.t2;
+select * from mysqltest.t3;
 
 # Now let's see if replication works
 connection master;
@@ -79,6 +108,28 @@ connection slave;
 sync_with_master;
 select * from mysqltest.t1;
 
+# Check that LOAD DATA FROM MASTER reports the error if it can't drop a
+# table to be overwritten.
+# DISABLED FOR NOW AS chmod IS NOT PORTABLE ON NON-UNIX
+# insert into bar.t1 values(10, 'should be there');
+# flush tables;
+# system chmod 500 var/slave-data/bar/;
+# --error 6
+# load data from master;  # should fail (errno 13)
+# system chmod 700 var/slave-data/bar/;
+# select * from bar.t1; # should contain the row (10, ...)
+
+
+# Check that LOAD TABLE FROM MASTER fails if the table exists on slave
+--error 1050
+load table bar.t1 from master;
+drop table bar.t1;
+load table bar.t1 from master;
+
+# as LOAD DATA FROM MASTER failed it did not restart slave threads
+# DISABLED FOR NOW
+# start slave;
+
 # Now time for cleanup
 connection master;
 drop database mysqltest;
@@ -86,3 +137,5 @@ drop database mysqltest2;
 save_master_pos;
 connection slave;
 sync_with_master;
+drop database mysqltest;
+drop database mysqltest2;

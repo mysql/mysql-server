@@ -308,22 +308,31 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
 #ifndef EMBEDDED_LIBRARY
     if (!opt_old_rpl_compat && mysql_bin_log.is_open())
     {
+      /*
+        Make sure last block (the one which caused the error) gets logged.
+        This is needed because otherwise after write of
+        (to the binlog, not to read_info (which is a cache))
+        Delete_file_log_event the bad block will remain in read_info (because
+        pre_read is not called at the end of the last block; remember pre_read
+        is called whenever a new block is read from disk).
+        At the end of mysql_load(), the destructor of read_info will call
+        end_io_cache() which will flush read_info, so we will finally have
+        this in the binlog:
+        Append_block # The last successfull block
+        Delete_file
+        Append_block # The failing block
+        which is nonsense.
+        Or could also be (for a small file)
+        Create_file  # The failing block
+        which is nonsense (Delete_file is not written in this case, because:
+        Create_file has not been written, so Delete_file is not written, then
+        when read_info is destroyed end_io_cache() is called which writes
+        Create_file.
+      */
+      read_info.end_io_cache();
+      /* If the file was not empty, wrote_create_file is true */
       if (lf_info.wrote_create_file)
       {
-        /*
-	  Make sure last block (the one which caused the error) gets logged.
-	  This is needed because otherwise after write of
-	  (to the binlog, not to read_info (which is a cache))
-	  Delete_file_log_event the bad block will remain in read_info.
-	  At the end of mysql_load(), the destructor of read_info will call
-	  end_io_cache() which will flush read_info, so we will finally have
-	  this in the binlog:
-          	Append_block # The last successfull block
-          	Delete_file
-          	Append_block # The failing block
-	  which is nonsense.
-	*/
-	read_info.end_io_cache();
         Delete_file_log_event d(thd, db, log_delayed);
         mysql_bin_log.write(&d);
       }
@@ -355,7 +364,12 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
     }
     else
     {
-      read_info.end_io_cache(); // make sure last block gets logged
+      /*
+        As already explained above, we need to call end_io_cache() or the last
+        block will be logged only after Execute_load_log_event (which is wrong),
+        when read_info is destroyed.
+      */
+      read_info.end_io_cache(); 
       if (lf_info.wrote_create_file)
       {
         Execute_load_log_event e(thd, db, log_delayed);

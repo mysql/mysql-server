@@ -2895,6 +2895,8 @@ row_search_for_mysql(
 
 	mtr_start(&mtr);
 
+	mtr_start(&mtr);
+
 	/*-------------------------------------------------------------*/
 	/* PHASE 2: Try fast adaptive hash index search if possible */
 
@@ -2904,8 +2906,9 @@ row_search_for_mysql(
 	cannot use the adaptive hash index in a search in the case the row
 	may be long and there may be externally stored fields */
 
-	if (unique_search	
+	if (unique_search
 	    && index->type & DICT_CLUSTERED
+	    && direction == 0
 	    && !prebuilt->templ_contains_blob
 	    && !prebuilt->used_in_HANDLER
 	    && (prebuilt->mysql_row_len < UNIV_PAGE_SIZE / 8)) {

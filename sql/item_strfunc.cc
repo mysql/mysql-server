@@ -350,7 +350,7 @@ void Item_func_concat::fix_length_and_dec()
 String *Item_func_des_encrypt::val_str(String *str)
 {
 #ifdef HAVE_OPENSSL
-  des_cblock ivec;
+  DES_cblock ivec;
   struct st_des_keyblock keyblock;
   struct st_des_keyschedule keyschedule;
   const char *append_str="********";
@@ -390,9 +390,9 @@ String *Item_func_des_encrypt::val_str(String *str)
     EVP_BytesToKey(EVP_des_ede3_cbc(),EVP_md5(),NULL,
 		   (uchar*) keystr->ptr(), (int) keystr->length(),
 		   1, (uchar*) &keyblock,ivec);
-    des_set_key_unchecked(&keyblock.key1,keyschedule.ks1);
-    des_set_key_unchecked(&keyblock.key2,keyschedule.ks2);
-    des_set_key_unchecked(&keyblock.key3,keyschedule.ks3);
+    DES_set_key_unchecked(&keyblock.key1,&keyschedule.ks1);
+    DES_set_key_unchecked(&keyblock.key2,&keyschedule.ks2);
+    DES_set_key_unchecked(&keyblock.key3,&keyschedule.ks3);
   }
 
   /*
@@ -413,12 +413,12 @@ String *Item_func_des_encrypt::val_str(String *str)
   tmp_value[0]=(char) (128 | key_number);
   // Real encryption
   bzero((char*) &ivec,sizeof(ivec));
-  des_ede3_cbc_encrypt((const uchar*) (res->ptr()),
+  DES_ede3_cbc_encrypt((const uchar*) (res->ptr()),
 		       (uchar*) (tmp_value.ptr()+1),
 		       res_length,
-		       keyschedule.ks1,
-		       keyschedule.ks2,
-		       keyschedule.ks3,
+		       &keyschedule.ks1,
+		       &keyschedule.ks2,
+		       &keyschedule.ks3,
 		       &ivec, TRUE);
   return &tmp_value;
 
@@ -432,8 +432,8 @@ error:
 String *Item_func_des_decrypt::val_str(String *str)
 {
 #ifdef HAVE_OPENSSL
-  des_key_schedule ks1, ks2, ks3;
-  des_cblock ivec;
+  DES_key_schedule ks1, ks2, ks3;
+  DES_cblock ivec;
   struct st_des_keyblock keyblock;
   struct st_des_keyschedule keyschedule;
   String *res= args[0]->val_str(str);
@@ -467,20 +467,20 @@ String *Item_func_des_decrypt::val_str(String *str)
 		   (uchar*) keystr->ptr(),(int) keystr->length(),
 		   1,(uchar*) &keyblock,ivec);
     // Here we set all 64-bit keys (56 effective) one by one
-    des_set_key_unchecked(&keyblock.key1,keyschedule.ks1);
-    des_set_key_unchecked(&keyblock.key2,keyschedule.ks2);
-    des_set_key_unchecked(&keyblock.key3,keyschedule.ks3);
+    DES_set_key_unchecked(&keyblock.key1,&keyschedule.ks1);
+    DES_set_key_unchecked(&keyblock.key2,&keyschedule.ks2);
+    DES_set_key_unchecked(&keyblock.key3,&keyschedule.ks3);
   }
   if (tmp_value.alloc(length-1))
     goto error;
 
   bzero((char*) &ivec,sizeof(ivec));
-  des_ede3_cbc_encrypt((const uchar*) res->ptr()+1,
+  DES_ede3_cbc_encrypt((const uchar*) res->ptr()+1,
 		       (uchar*) (tmp_value.ptr()),
 		       length-1,
-		       keyschedule.ks1,
-		       keyschedule.ks2,
-		       keyschedule.ks3,
+		       &keyschedule.ks1,
+		       &keyschedule.ks2,
+		       &keyschedule.ks3,
 		       &ivec, FALSE);
   /* Restore old length of key */
   if ((tail=(uint) (uchar) tmp_value[length-2]) > 8)

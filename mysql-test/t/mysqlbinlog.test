@@ -1,0 +1,103 @@
+# We are using .opt file since we need small binlog size
+--disable_warnings
+drop table if exists t1,t2;
+--enable_warnings
+
+# we need this for getting fixed timestamps inside of this test
+set timestamp=1000000000;
+
+create table t1 (word varchar(20));
+create table t2 (id int auto_increment not null primary key);
+
+# simple test for simple statement and various events
+insert into t1 values ("abirvalg");
+insert into t2 values ();
+# Should be uncommented in 4.1
+# set @a:=1
+# insert into t2 values (@a);
+
+# test for load data and load data distributed among the several 
+# files (we need to fill up first binlog)
+load data infile '../../std_data/words.dat' into table t1;
+load data infile '../../std_data/words.dat' into table t1;
+load data infile '../../std_data/words.dat' into table t1;
+load data infile '../../std_data/words.dat' into table t1;
+load data infile '../../std_data/words.dat' into table t1;
+load data infile '../../std_data/words.dat' into table t1;
+# simple query to show more in second binlog
+insert into t1 values ("Alas");
+flush logs;
+
+# delimiters are for easier debugging in future
+--disable_query_log
+select "--- Local --" as "";
+--enable_query_log
+
+#
+# We should use --short-form everywhere because in other case output will
+# be time dependend. Better than nothing.
+#
+
+--replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR
+--exec $MYSQL_BINLOG --short-form $MYSQL_TEST_DIR/var/log/master-bin.001 
+
+# this should not fail but shouldn't produce any working statements
+--disable_query_log
+select "--- Broken LOAD DATA --" as "";
+--enable_query_log
+--replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR
+--exec $MYSQL_BINLOG --short-form $MYSQL_TEST_DIR/var/log/master-bin.002
+
+# this should show almost nothing
+--disable_query_log
+select "--- --database --" as "";
+--enable_query_log
+--replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR
+--exec $MYSQL_BINLOG --short-form --database=nottest $MYSQL_TEST_DIR/var/log/master-bin.001
+
+# this test for position option
+--disable_query_log
+select "--- --position --" as "";
+--enable_query_log
+--replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR
+--exec $MYSQL_BINLOG --short-form --position=27 $MYSQL_TEST_DIR/var/log/master-bin.002
+
+# These are tests for remote binlog.
+# They should return the same as previous test.
+# But now they are not. V. Vagin should fix this.
+# We test all the same options second time since code for remote case is
+# essentially different. If code for both cases will be unified we'll be 
+# able to throw out most of this.
+
+--disable_query_log
+select "--- Remote --" as "";
+--enable_query_log
+
+# This is broken now
+# By the way it seems that remote version fetches all events with name >= master-bin.001
+--replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR
+--exec $MYSQL_BINLOG --short-form --user=root --host=127.0.0.1 --port=$MASTER_MYPORT master-bin.001
+
+# This is broken too
+--disable_query_log
+select "--- Broken LOAD DATA --" as "";
+--enable_query_log
+--replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR
+--exec $MYSQL_BINLOG --short-form --user=root --host=127.0.0.1 --port=$MASTER_MYPORT master-bin.002
+
+# And this too ! (altough it is documented)
+--disable_query_log
+select "--- --database --" as "";
+--enable_query_log
+--replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR
+--exec $MYSQL_BINLOG --short-form --user=root --host=127.0.0.1 --port=$MASTER_MYPORT --database=nottest master-bin.001
+
+# Strangely but this works
+--disable_query_log
+select "--- --position --" as "";
+--enable_query_log
+--replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR
+--exec $MYSQL_BINLOG --short-form --position=27 --user=root --host=127.0.0.1 --port=$MASTER_MYPORT master-bin.002
+
+# clean up
+drop table t1;

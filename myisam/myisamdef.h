@@ -212,7 +212,7 @@ typedef uint mi_bit_type;
 typedef struct st_mi_bit_buff {		/* Used for packing of record */
   mi_bit_type current_byte;
   uint bits;
-  uchar *pos,*end,*blob_pos;
+  uchar *pos,*end,*blob_pos,*blob_end;
   uint error;
 } MI_BIT_BUFF;
 

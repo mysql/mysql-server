@@ -30,13 +30,14 @@
 
 ##################### Standard benchmark inits ##############################
 
+use Cwd;
 use DBI;
 use Benchmark;
 
 $opt_loop_count=10000; # Change this to make test harder/easier
 # This is the default value for the amount of tables used in this test.
 
-chomp($pwd = `pwd`); $pwd = "." if ($pwd eq '');
+$pwd = cwd(); $pwd = "." if ($pwd eq '');
 require "$pwd/bench-init.pl" || die "Can't read Configuration file: $!\n";
 
 $create_loop_count=$opt_loop_count;

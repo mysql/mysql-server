@@ -34,11 +34,12 @@
 # --log	     ==> puts output in output/RUN-server-machine-cmp-$opt_cmp
 
 use DBI;
+use Cwd;
 
 $opt_silent=1;			# Don't write header
 
 @ORG_ARGV=@ARGV;
-chomp($pwd = `pwd`); $pwd = "." if ($pwd eq '');
+$pwd = cwd(); $pwd = "." if ($pwd eq '');
 require "$pwd/bench-init.pl" || die "Can't read Configuration file: $!\n";
 $opt_silent=0;
 $perl=$^X;

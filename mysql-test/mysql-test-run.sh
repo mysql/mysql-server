@@ -429,10 +429,14 @@ if [ x$SOURCE_DIST = x1 ] ; then
    MYSQL_TEST="$BASEDIR/client/mysqltest"
  fi
  if [ -f "$BASEDIR/client/.libs/mysqldump" ] ; then
-   MYSQL_DUMP="$BASEDIR/client/.libs/mysqldump --no-defaults -uroot --socket=$MASTER_MYSOCK"
+   MYSQL_DUMP="$BASEDIR/client/.libs/mysqldump"
  else
-   MYSQL_DUMP="$BASEDIR/client/mysqldump --no-defaults -uroot --socket=$MASTER_MYSOCK"
+   MYSQL_DUMP="$BASEDIR/client/mysqldump"
  fi
+ if [ -f "$BASEDIR/client/.libs/mysqlbinlog" ] ; then
+   MYSQL_BINLOG="$BASEDIR/client/.libs/mysqlbinlog"
+ else
+   MYSQL_BINLOG="$BASEDIR/client/mysqlbinlog"
  if [ -n "$STRACE_CLIENT" ]; then
   MYSQL_TEST="strace -o $MYSQL_TEST_DIR/var/log/mysqltest.strace $MYSQL_TEST"
  fi
@@ -454,7 +458,8 @@ else
    MYSQLD="$VALGRIND $BASEDIR/bin/mysqld"
  fi
  MYSQL_TEST="$BASEDIR/bin/mysqltest"
- MYSQL_DUMP="$BASEDIR/bin/mysqldump --no-defaults -uroot --socket=$MASTER_MYSOCK"
+ MYSQL_DUMP="$BASEDIR/bin/mysqldump"
+ MYSQL_BINLOG="$BASEDIR/bin/mysqlbinlog"
  MYSQLADMIN="$BASEDIR/bin/mysqladmin"
  WAIT_PID="$BASEDIR/bin/mysql_waitpid"
  MYSQL_MANAGER="$BASEDIR/bin/mysqlmanager"
@@ -472,7 +477,10 @@ else
   fi
 fi
 
+MYSQL_DUMP="$MYSQL_DUMP --no-defaults -uroot --socket=$MASTER_MYSOCK"
+MYSQL_BINLOG="$MYSQL_BINLOG --no-defaults --local-load=$MYSQL_TMP_DIR"
 export MYSQL_DUMP
+export MYSQL_BINLOG
 
 if [ -z "$MASTER_MYSQLD" ]
 then
@@ -1034,8 +1042,8 @@ EOF
 
 mysql_start ()
 {
-# We should not start the deamon here as we don't know the argumens
-# for the test.  Better to let the test start the deamon
+# We should not start the daemon here as we don't know the arguments
+# for the test.  Better to let the test start the daemon
 
 #  $ECHO "Starting MySQL daemon"
 #  start_master
@@ -1360,7 +1368,7 @@ then
   mysql_install_db
   start_manager
 
-# Do not automagically start deamons if we are in gdb or running only one test
+# Do not automagically start daemons if we are in gdb or running only one test
 # case
   if [ -z "$DO_GDB" ] && [ -z "$DO_DDD" ]
   then

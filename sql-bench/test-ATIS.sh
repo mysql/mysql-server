@@ -24,12 +24,13 @@
 # - skip a couple of the tests in Q4 that Oracle doesn't understand
 ################### Standard benchmark inits ##############################
 
+use Cwd;
 use DBI;
 use Benchmark;
 
 $opt_loop_count=100;		# Run selects this many times
 
-chomp($pwd = `pwd`); $pwd = "." if ($pwd eq '');
+$pwd = cwd(); $pwd = "." if ($pwd eq '');
 require "$pwd/bench-init.pl" || die "Can't read Configuration file: $!\n";
 
 if ($opt_small_test)
