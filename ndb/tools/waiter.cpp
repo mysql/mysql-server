@@ -15,8 +15,8 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 
+#include <ndb_global.h>
 #include <mgmapi.h>
-#include <string.h>
 #include <NdbMain.h>
 #include <NdbOut.hpp>
 #include <NdbSleep.h>
