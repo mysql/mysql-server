@@ -147,7 +147,7 @@ static int run_test(const char *filename)
 	    i,query[i],result->ndocs);
     for(j=0;j<5;j++) { double w; int err;
 	err=ft_read_next(result, read_record);
-	if(err==HA_ERR_KEY_NOT_FOUND) {
+	if(err==HA_ERR_END_OF_FILE) {
 	    printf("No more matches!\n");
 	    break;
 	} else if (err) {

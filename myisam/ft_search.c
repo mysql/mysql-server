@@ -210,7 +210,10 @@ int ft_read_next(FT_DOCLIST *handler, char *record)
   MI_INFO *info=handler->info;
 
   if (++handler->curdoc >= handler->ndocs)
+  {
+    --handler->curdoc;
     return HA_ERR_END_OF_FILE;
+  }
 
   info->update&= (HA_STATE_CHANGED | HA_STATE_ROW_CHANGED);
 
