@@ -236,7 +236,6 @@ int openfrm(const char *name, const char *alias, uint db_stat, uint prgflag,
 #ifdef HAVE_CRYPTED_FRM
   else if (*(head+26) == 2)
   {
-    extern SQL_CRYPT *get_crypt_for_frm(void);
     my_pthread_setspecific_ptr(THR_MALLOC,old_root);
     crypted=get_crypt_for_frm();
     my_pthread_setspecific_ptr(THR_MALLOC,&outparam->mem_root);
