@@ -401,6 +401,7 @@ static bool find_range_key(TABLE_REF *ref, Field* field, COND *cond)
       /* Can't use this key, for looking up min() or max(), end if last one */
       if (key == 1)
 	return 0;
+      key>>=1; idx++;
     }
     ref->key_length=0;
     ref->key=idx;
