@@ -271,6 +271,7 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
     if (handle_duplicates == DUP_IGNORE ||
 	handle_duplicates == DUP_REPLACE)
       table->file->extra(HA_EXTRA_IGNORE_DUP_KEY);
+    ha_enable_transaction(thd, FALSE); 
     table->file->start_bulk_insert((ha_rows) 0);
     table->copy_blobs=1;
     if (!field_term->length() && !enclosed->length())
@@ -281,6 +282,7 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
 			   skip_lines);
     if (table->file->end_bulk_insert())
       error=1;					/* purecov: inspected */
+    ha_enable_transaction(thd, TRUE);
     table->file->extra(HA_EXTRA_NO_IGNORE_DUP_KEY);
     table->next_number_field=0;
   }
