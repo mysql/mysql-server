@@ -107,13 +107,20 @@ s1
 0
 2
 2
+alter procedure p modifies sql data;
+drop procedure p;
+alter procedure q modifies sql data;
+ERROR 42000: Access denied; you are not the procedure/function definer of 'db2.q'
+drop procedure q;
+ERROR 42000: Access denied; you are not the procedure/function definer of 'db2.q'
+use db2;
+alter procedure q modifies sql data;
+drop procedure q;
 use test;
 select type,db,name from mysql.proc;
 type	db	name
 FUNCTION	db1_secret	db
 PROCEDURE	db1_secret	stamp
-PROCEDURE	db2	p
-PROCEDURE	db2	q
 drop database db1_secret;
 drop database db2;
 select type,db,name from mysql.proc;

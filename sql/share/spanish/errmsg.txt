@@ -390,3 +390,4 @@ character-set=latin1
 "Illegal %s '%-.64s' value found during parsing",
 "CHECK OPTION on non-updatable view '%-.64s.%-.64s'"
 "CHECK OPTION failed '%-.64s.%-.64s'"
+"Access denied; you are not the procedure/function definer of '%s'"

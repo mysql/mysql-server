@@ -1843,13 +1843,9 @@ begin
 declare v char;
 return v;
 end|
-Warnings:
-Warning	1311	Referring to uninitialized variable v
 select bug4487()|
 bug4487()
 NULL
-Warnings:
-Warning	1311	Referring to uninitialized variable v
 drop function bug4487|
 drop procedure if exists bug4941|
 create procedure bug4941(out x int)
