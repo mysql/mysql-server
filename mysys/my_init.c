@@ -20,9 +20,6 @@
 #include "m_ctype.h"
 #include <m_string.h>
 #include <m_ctype.h>
-#ifdef THREAD
-#include <my_pthread.h>
-#endif
 #ifdef HAVE_GETRUSAGE
 #include <sys/resource.h>
 /* extern int     getrusage(int, struct rusage *); */

@@ -34,7 +34,7 @@ char* dlerror( void);
 void* dlsym( void* hmod, char* fn);
 void  dlclose( void* hmod);
 
-char    fail[ 256];
+char	fail[ 256];
 
 void* dlopen( char* path, int flag)
 {
@@ -56,7 +56,7 @@ char* dlerror( void)
 void* dlsym( void* hmod, char* fn)
 {
    APIRET  rc;
-   PFN     addr;
+   PFN	   addr;
 
    rc = DosQueryProcAddr( (HMODULE) hmod, 0l, fn, &addr);
    if (rc)

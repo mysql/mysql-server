@@ -345,7 +345,7 @@ int mysql_insert(THD *thd,TABLE_LIST *table_list, List<Item> &fields,
     else
       sprintf(buff,ER(ER_INSERT_INFO),info.records,info.deleted,
 	      thd->cuted_fields);
-    ::send_ok(&thd->net,info.copied+info.deleted,0L,buff);
+    ::send_ok(&thd->net,info.copied+info.deleted,(ulonglong)id,buff);
   }
   DBUG_RETURN(0);
 

@@ -97,17 +97,20 @@ os_thread_create(
 						function */
 	os_thread_id_t*		thread_id __attribute__((unused)))	
                                                 /* out: id of created
-						thread */	
+						thread; currently this is
+						identical to the handle to
+						the thread */
 {
 #ifdef __WIN__
 	os_thread_t	thread;
+	ulint           win_thread_id;
 
 	thread = CreateThread(NULL,	/* no security attributes */
 				0,	/* default size stack */
 				(LPTHREAD_START_ROUTINE)start_f,
 				arg,
 				0,	/* thread runs immediately */
-				thread_id);
+				&win_thread_id);
 
 	if (srv_set_thread_priorities) {
 
@@ -117,6 +120,8 @@ os_thread_create(
 
 	        ut_a(SetThreadPriority(thread, srv_query_thread_priority));
 	}
+
+	*thread_id = thread;
 
 	return(thread);
 #else
@@ -134,6 +139,8 @@ os_thread_create(
 	
 	        my_pthread_setprio(pthread, srv_query_thread_priority);
 	}
+
+	*thread_id = pthread;
 
 	return(pthread);
 #endif

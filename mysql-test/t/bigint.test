@@ -5,6 +5,12 @@ select 0,256,00000000000000065536,2147483647,-2147483648,2147483648,+4294967296;
 select 9223372036854775807,-009223372036854775808;
 select +9999999999999999999,-9999999999999999999;
 
+#
+# In 3.23 we have to disable the test of column to bigint as
+# this fails on AIX powerpc (the resolution for double is not good enough)
+# This will work on 4.0 as we then have internal handling of bigint variables.
+#
+
 drop table if exists t1;
 create table t1 (a bigint unsigned not null, primary key(a));
 insert into t1 values (18446744073709551615), (0xFFFFFFFFFFFFFFFE);

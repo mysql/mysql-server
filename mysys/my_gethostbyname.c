@@ -18,9 +18,6 @@
 /* Thread safe version of gethostbyname_r() */
 
 #include "mysys_priv.h"
-#ifdef THREAD
-#include "my_pthread.h"
-#endif
 #include <assert.h>
 #if !defined(MSDOS) && !defined(__WIN__)
 #include <netdb.h>

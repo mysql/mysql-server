@@ -646,29 +646,45 @@ static void close_server_sock()
   if (tmp_sock != INVALID_SOCKET)
   {
     ip_sock=INVALID_SOCKET;
-    DBUG_PRINT("info",("closing TCP/IP socket"));
+    DBUG_PRINT("info",("calling shutdown on TCP/IP socket"));
     VOID(shutdown(tmp_sock,2));
+#ifdef NOT_USED
+    /*
+      The following code is disabled as it causes MySQL to hang on
+      AIX 4.3 during shutdown
+    */
+    DBUG_PRINT("info",("calling closesocket on TCP/IP socket"));    
     VOID(closesocket(tmp_sock));
+#endif
   }
   tmp_sock=unix_sock;
   if (tmp_sock != INVALID_SOCKET)
   {
     unix_sock=INVALID_SOCKET;
-    DBUG_PRINT("info",("closing Unix socket"));
+    DBUG_PRINT("info",("calling shutdown on unix socket"));
     VOID(shutdown(tmp_sock,2));
+#ifdef NOT_USED
+    /*
+      The following code is disabled as it may cause MySQL to hang on
+      AIX 4.3 during shutdown (not tested, but likely)
+    */
+    DBUG_PRINT("info",("calling closesocket on unix/IP socket"));
     VOID(closesocket(tmp_sock));
+#endif
     VOID(unlink(mysql_unix_port));
   }
   DBUG_VOID_RETURN;
 #endif
 }
 
+
 void kill_mysql(void)
 {
   DBUG_ENTER("kill_mysql");
 
 #ifdef SIGNALS_DONT_BREAK_READ
-  close_server_sock(); /* force accept to wake up */
+  abort_loop=1;					// Break connection loops
+  close_server_sock();				// Force accept to wake up
 #endif  
 
 #if defined(__WIN__)
@@ -699,7 +715,7 @@ void kill_mysql(void)
   DBUG_PRINT("quit",("After pthread_kill"));
   shutdown_in_progress=1;			// Safety if kill didn't work
 #ifdef SIGNALS_DONT_BREAK_READ
-  if (!abort_loop)
+  if (!kill_in_progress)
   {
     pthread_t tmp;
     abort_loop=1;
@@ -1273,7 +1289,7 @@ static void sig_reload(int signo)
 
 static void sig_kill(int signo)
 {
-  if (!abort_loop)
+  if (!kill_in_progress)
   {
     abort_loop=1;				// mark abort for threads
     kill_server((void*) signo);
