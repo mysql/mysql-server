@@ -201,10 +201,12 @@ teststring
 select text1, length(text1) from t1 where text1='teststring' or text1 like 'teststring_%';
 text1	length(text1)
 teststring		11
+teststring	10
 teststring 	11
 select text1, length(text1) from t1 where text1='teststring' or text1 >= 'teststring\t';
 text1	length(text1)
 teststring		11
+teststring	10
 teststring 	11
 select concat('|', text1, '|') from t1 order by text1;
 concat('|', text1, '|')
