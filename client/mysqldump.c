@@ -1384,18 +1384,17 @@ int main(int argc, char **argv)
       return(first_error);
     }
   }
-  /* There is no sense to start transaction if all tables are locked */
   else if (opt_single_transaction)
+  {
+    /* There is no sense to start transaction if all tables are locked */ 
+    if (mysql_query(sock, "BEGIN"))
     {
-      if (mysql_query(sock, "BEGIN"))
-      {
-        my_printf_error(0, "Error: Couldn't execute 'BEGIN': %s",
+      my_printf_error(0, "Error: Couldn't execute 'BEGIN': %s",
                         MYF(0), mysql_error(sock));
-        my_end(0);
-        return(first_error);
-      }
-    
-    }
+      my_end(0);
+      return(first_error);
+    }    
+  }
   if (opt_alldbs)
     dump_all_databases();
   /* Only one database and selected table(s) */
@@ -1440,12 +1439,13 @@ int main(int argc, char **argv)
 		      MYF(0), mysql_error(sock));
    }
   }
-  /*
-   In case we were locking all tables, we did not start transaction
-   so there is no need to commit it.
-  */
   else if (opt_single_transaction) /* Just to make it beautiful enough */
   {
+    /*
+    In case we were locking all tables, we did not start transaction
+    so there is no need to commit it.
+    */
+
     /* This should just free locks as we did not change anything */
     if (mysql_query(sock, "COMMIT"))
     {
