@@ -81,15 +81,17 @@ void Item_subselect::make_field (Send_field *tmp_field)
 
 bool Item_subselect::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
 {
-  // Is it one field subselect?
-  if (engine->cols() > max_columns)
-  {  
-    my_message(ER_SUBSELECT_NO_1_COL, ER(ER_SUBSELECT_NO_1_COL), MYF(0));
-    return 1;
-  }
   int res= engine->prepare();
   if (!res)
+  {
+    // Is it one field subselect?
+    if (engine->cols() > max_columns)
+    {  
+      my_message(ER_SUBSELECT_NO_1_COL, ER(ER_SUBSELECT_NO_1_COL), MYF(0));
+      return 1;
+    }
     fix_length_and_dec();
+  }
   return res;
 }
 
@@ -150,6 +152,8 @@ String *Item_singleval_subselect::val_str (String *str)
     assign_null();
     return 0;
   }
+  // Assign temporary buffer with stored value
+  str_value.set(string_value, 0, string_value.length());
   return &str_value;
 }
 
@@ -208,7 +212,7 @@ subselect_single_select_engine::subselect_single_select_engine(THD *thd,
 							       select_subselect *result,
 							       Item_subselect *item):
   subselect_engine(thd, item, result),
-   executed(0), optimized(0)
+    prepared(0), optimized(0), executed(0)
 {
   select_lex= select;
   SELECT_LEX_UNIT *unit= select_lex->master_unit();
@@ -247,6 +251,9 @@ subselect_union_engine::subselect_union_engine(THD *thd,
 
 int subselect_single_select_engine::prepare()
 {
+  if (prepared)
+    return 0;
+  prepared= 1;
   SELECT_LEX *save_select= thd->lex.select;
   thd->lex.select= select_lex;
   if(join->prepare((TABLE_LIST*) select_lex->table_list.first,

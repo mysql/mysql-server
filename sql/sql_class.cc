@@ -884,9 +884,14 @@ bool select_singleval_subselect::send_data(List<Item> &items)
     it->decimals= val_item->decimals;
     it->binary= val_item->binary;
     it->int_value= val_item->val_int();
-    String *s= val_item->val_str(&it->str_value);
-    if (s != &it->str_value)
-      it->str_value.set(*s, 0, s->length());
+    String *s= val_item->val_str(&it->string_value);
+    if (s != &it->string_value)
+    {
+      it->string_value.set(*s, 0, s->length());
+    }
+    // TODO: remove when correct charset handling appeared for Item
+    it->str_value.set(*s, 0, s->length()); // store charset
+
     it->res_type= val_item->result_type();
   }
   it->assigned(1);
