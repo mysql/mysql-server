@@ -1082,8 +1082,9 @@ int dump_leaf(byte* key, uint32 count __attribute__((unused)),
 }
 
 
-Item_sum_count_distinct::~Item_sum_count_distinct()
+void Item_sum_count_distinct::cleanup()
 {
+  Item_sum_int::cleanup();
   /*
     Free table and tree if they belong to this item (if item have not pointer
     to original item from which was made copy => it own its objects )
@@ -1095,6 +1096,7 @@ Item_sum_count_distinct::~Item_sum_count_distinct()
     delete tmp_table_param;
     if (use_tree)
       delete_tree(tree);
+    table= 0;
   }
 }
 
@@ -1661,6 +1663,23 @@ Item_func_group_concat::Item_func_group_concat(bool is_distinct,
 }
 
 
+void Item_func_group_concat::cleanup()
+{
+  /*
+    Free table and tree if they belong to this item (if item have not pointer
+    to original item from which was made copy => it own its objects )
+  */
+  if (!original)
+  {
+    THD *thd= current_thd;
+    if (table)
+      free_tmp_table(thd, table);
+    delete tmp_table_param;
+    if (tree_mode)
+      delete_tree(tree); 
+  }
+}
+
 Item_func_group_concat::~Item_func_group_concat()
 {
   /*
@@ -1676,11 +1695,6 @@ Item_func_group_concat::~Item_func_group_concat()
       sprintf(warn_buff, ER(ER_CUT_VALUE_GROUP_CONCAT), count_cut_values);
       warning->set_msg(thd, warn_buff);
     }
-    if (table)
-      free_tmp_table(thd, table);
-    delete tmp_table_param;
-    if (tree_mode)
-      delete_tree(tree); 
   }
 }
 
