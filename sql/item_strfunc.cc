@@ -267,8 +267,7 @@ String *Item_func_concat::val_str(String *str)
 			    current_thd->variables.max_allowed_packet);
 	goto null;
       }
-      if (!args[0]->const_item() && 
-          res->alloced_length() >= res->length()+res2->length())
+      if (res->alloced_length() >= res->length()+res2->length())
       {						// Use old buffer
 	res->append(*res2);
       }
@@ -2308,12 +2307,11 @@ void Item_func_set_collation::print(String *str)
 String *Item_func_charset::val_str(String *str)
 {
   DBUG_ASSERT(fixed == 1);
-  String *res = args[0]->val_str(str);
   uint dummy_errors;
 
-  if ((null_value=(args[0]->null_value || !res->charset())))
-    return 0;
-  str->copy(res->charset()->csname,strlen(res->charset()->csname),
+  CHARSET_INFO *cs= args[0]->collation.collation; 
+  null_value= 0;
+  str->copy(cs->csname, strlen(cs->csname),
 	    &my_charset_latin1, collation.collation, &dummy_errors);
   return str;
 }
@@ -2321,12 +2319,11 @@ String *Item_func_charset::val_str(String *str)
 String *Item_func_collation::val_str(String *str)
 {
   DBUG_ASSERT(fixed == 1);
-  String *res = args[0]->val_str(str);
   uint dummy_errors;
+  CHARSET_INFO *cs= args[0]->collation.collation; 
 
-  if ((null_value=(args[0]->null_value || !res->charset())))
-    return 0;
-  str->copy(res->charset()->name,strlen(res->charset()->name),
+  null_value= 0;
+  str->copy(cs->name, strlen(cs->name),
 	    &my_charset_latin1, collation.collation, &dummy_errors);
   return str;
 }
@@ -2490,6 +2487,7 @@ String* Item_func_export_set::val_str(String* str)
   uint num_set_values = 64;
   ulonglong mask = 0x1;
   str->length(0);
+  str->set_charset(collation.collation);
 
   /* Check if some argument is a NULL value */
   if (args[0]->null_value || args[1]->null_value || args[2]->null_value)
