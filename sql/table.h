@@ -160,6 +160,7 @@ struct st_table {
   my_bool no_keyread, no_cache;
   my_bool clear_query_id;               /* To reset query_id for tables and cols */
   my_bool auto_increment_field_not_null;
+  my_bool alias_name_used; /* true if table_name is alias */
   Field *next_number_field,		/* Set if next_number is activated */
 	*found_next_number_field,	/* Set on open */
         *rowid_field;
@@ -243,7 +244,7 @@ typedef struct st_schema_table
   const char* table_name;
   ST_FIELD_INFO *fields_info;
   /* Create information_schema table */
-  TABLE *(*create_table)  (THD *thd, struct st_schema_table *schema_table);
+  TABLE *(*create_table)  (THD *thd, struct st_table_list *table_list);
   /* Fill table with data */
   int (*fill_table) (THD *thd, struct st_table_list *tables, COND *cond);
   /* Handle fileds for old SHOW */
@@ -274,6 +275,11 @@ typedef struct st_schema_table
 
 struct st_lex;
 class select_union;
+struct Field_translator
+{
+  Item *item;
+  const char *name;
+};
 
 typedef struct st_table_list
 {
@@ -308,11 +314,13 @@ typedef struct st_table_list
   /* link to select_lex where this table was used */
   st_select_lex	*select_lex;
   st_lex	*view;			/* link on VIEW lex for merging */
-  Item		**field_translation;	/* array of VIEW fields */
+  Field_translator *field_translation;	/* array of VIEW fields */
   /* ancestor of this table (VIEW merge algorithm) */
   st_table_list	*ancestor;
   /* most upper view this table belongs to */
   st_table_list	*belong_to_view;
+  /* list of join table tree leaves */
+  st_table_list	*next_leaf;
   Item          *where;                 /* VIEW WHERE clause condition */
   Item          *check_option;          /* WITH CHECK OPTION condition */
   LEX_STRING	query;			/* text of (CRETE/SELECT) statement */
@@ -332,6 +340,7 @@ typedef struct st_table_list
   */
   uint8         effective_with_check;
   uint          effective_algorithm;    /* which algorithm was really used */
+  uint		privilege_backup;       /* place for saving privileges */
   GRANT_INFO	grant;
   thr_lock_type lock_type;
   uint		outer_join;		/* Which join type */
@@ -366,6 +375,11 @@ typedef struct st_table_list
   void cleanup_items();
   bool placeholder() {return derived || view; }
   void print(THD *thd, String *str);
+  void save_and_clear_want_privilege();
+  void restore_want_privilege();
+  bool check_single_table(st_table_list **table, table_map map);
+  bool set_insert_values(MEM_ROOT *mem_root);
+  void clear_insert_values();
 } TABLE_LIST;
 
 class Item;
@@ -400,14 +414,14 @@ public:
 
 class Field_iterator_view: public Field_iterator
 {
-  Item **ptr, **array_end;
+  Field_translator *ptr, *array_end;
 public:
   Field_iterator_view() :ptr(0), array_end(0) {}
   void set(TABLE_LIST *table);
   void next() { ptr++; }
   bool end_of_fields() { return ptr == array_end; }
   const char *name();
-  Item *item(THD *thd) { return *ptr; }
+  Item *item(THD *thd) { return ptr->item; }
   Field *field() { return 0; }
 };
 

@@ -150,7 +150,7 @@ void lex_start(THD *thd, uchar *buf,uint length)
   lex->found_colon= 0;
   lex->safe_to_cache_query= 1;
   lex->time_zone_tables_used= 0;
-  lex->proc_table= lex->query_tables= 0;
+  lex->leaf_tables_insert= lex->proc_table= lex->query_tables= 0;
   lex->query_tables_last= &lex->query_tables;
   lex->variables_used= 0;
   lex->select_lex.parent_lex= lex;
@@ -1048,7 +1048,7 @@ void st_select_lex::init_query()
   table_list.empty();
   top_join_list.empty();
   join_list= &top_join_list;
-  embedding= 0;
+  embedding= leaf_tables= 0;
   item_list.empty();
   join= 0;
   where= prep_where= 0;
@@ -1643,7 +1643,7 @@ bool st_lex::can_be_merged()
 	  select_lex.group_list.elements == 0 &&
 	  select_lex.having == 0 &&
           select_lex.with_sum_func == 0 &&
-	  select_lex.table_list.elements == 1 &&
+	  select_lex.table_list.elements >= 1 &&
 	  !(select_lex.options & SELECT_DISTINCT) &&
           select_lex.select_limit == HA_POS_ERROR);
 }
@@ -1723,6 +1723,7 @@ bool st_lex::can_not_use_merged()
     TRUE yes, we need only structure
     FALSE no, we need data
 */
+
 bool st_lex::only_view_structure()
 {
   switch(sql_command)
@@ -1733,6 +1734,32 @@ bool st_lex::only_view_structure()
   case SQLCOM_REVOKE_ALL:
   case SQLCOM_REVOKE:
   case SQLCOM_GRANT:
+  case SQLCOM_CREATE_VIEW:
+    return TRUE;
+  default:
+    return FALSE;
+  }
+}
+
+
+/*
+  Should Items_ident be printed correctly
+
+  SYNOPSIS
+    need_correct_ident()
+
+  RETURN
+    TRUE yes, we need only structure
+    FALSE no, we need data
+*/
+
+
+bool st_lex::need_correct_ident()
+{
+  switch(sql_command)
+  {
+  case SQLCOM_SHOW_CREATE:
+  case SQLCOM_SHOW_TABLES:
   case SQLCOM_CREATE_VIEW:
     return TRUE;
   default:

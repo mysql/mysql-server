@@ -143,7 +143,7 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
 bool
 readArguments(int *pargc, char*** pargv) 
 {
-  const char *load_default_groups[]= { "ndb_tools","ndb_restore",0 };
+  const char *load_default_groups[]= { "mysql_cluster","ndb_restore",0 };
   load_defaults("my",load_default_groups,pargc,pargv);
   if (handle_options(pargc, pargv, my_long_options, get_one_option))
   {

@@ -30,9 +30,10 @@ extern "C" int add_history(const char *command); /* From readline directory */
 
 #include <NdbMain.h>
 #include <NdbHost.h>
+#include <BaseString.hpp>
+#include <NdbOut.hpp>
 #include <mgmapi.h>
 #include <ndb_version.h>
-#include <LocalConfig.hpp>
 
 #include "ndb_mgmclient.hpp"
 
@@ -138,7 +139,7 @@ int main(int argc, char** argv){
   NDB_INIT(argv[0]);
   const char *_host = 0;
   int _port = 0;
-  const char *load_default_groups[]= { "ndb_mgm",0 };
+  const char *load_default_groups[]= { "mysql_cluster","ndb_mgm",0 };
 
   load_defaults("my",load_default_groups,&argc,&argv);
   int ho_error;
