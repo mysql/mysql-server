@@ -963,7 +963,7 @@ void clean_up(bool print_message)
 
   if (print_message && errmesg)
     sql_print_information(ER(ER_SHUTDOWN_COMPLETE),my_progname);
-#if !defined(__WIN__) && !defined(EMBEDDED_LIBRARY)
+#if !defined(EMBEDDED_LIBRARY)
   if (!opt_bootstrap)
     (void) my_delete(pidfile_name,MYF(0));	// This may not always exist
 #endif
@@ -1500,7 +1500,11 @@ static void init_signals(void)
 }
 
 static void start_signal_handler(void)
-{}
+{
+  // Save vm id of this process
+  if (!opt_bootstrap)
+    create_pid_file();
+}
 
 static void check_data_home(const char *path)
 {}
@@ -2934,10 +2938,10 @@ we force server id to 2, but this MySQL server will not act as a slave.");
 #ifndef __NETWARE__
     (void) pthread_kill(signal_thread, MYSQL_KILL_SIGNAL);
 #endif /* __NETWARE__ */
-#ifndef __WIN__
+    
     if (!opt_bootstrap)
       (void) my_delete(pidfile_name,MYF(MY_WME));	// Not needed anymore
-#endif
+
     if (unix_sock != INVALID_SOCKET)
       unlink(mysqld_unix_port);
     exit(1);
