@@ -35,86 +35,86 @@ const char *name,
 int mode,
 int handle_locking)
 {
-  int save_errno,i,errpos;
+  int save_errno,errpos;
   uint files,dir_length,length;
   ulonglong file_offset;
   char name_buff[FN_REFLEN*2],buff[FN_REFLEN],*end;
-  MYRG_INFO info,*m_info;
+  MYRG_INFO *m_info;
   File fd;
   IO_CACHE file;
-  MI_INFO *isam,*last_isam;
+  MI_INFO *isam;
   DBUG_ENTER("myrg_open");
 
-  LINT_INIT(last_isam);
   LINT_INIT(m_info);
   isam=0;
   errpos=files=0;
-  bzero((gptr) &info,sizeof(info));
   bzero((char*) &file,sizeof(file));
   if ((fd=my_open(fn_format(name_buff,name,"",MYRG_NAME_EXT,4),
-		  O_RDONLY | O_SHARE,MYF(0))) < 0 ||
-      init_io_cache(&file, fd, IO_SIZE, READ_CACHE, 0, 0,
-		    MYF(MY_WME | MY_NABP)))
+		  O_RDONLY | O_SHARE,MYF(0))) < 0)
     goto err;
   errpos=1;
+  if (init_io_cache(&file, fd, 4*IO_SIZE, READ_CACHE, 0, 0,
+		    MYF(MY_WME | MY_NABP)))
+    goto err;
+  errpos=2;
   dir_length=dirname_part(name_buff,name);
-  info.reclength=0;
   while ((length=my_b_gets(&file,buff,FN_REFLEN-1)))
   {
     if ((end=buff+length)[-1] == '\n')
       end[-1]='\0';
     if (buff[0] && buff[0] != '#')	/* Skipp empty lines and comments */
     {
-      if (!test_if_hard_path(buff))
-      {
-	VOID(strmake(name_buff+dir_length,buff,
-		     sizeof(name_buff)-1-dir_length));
-	VOID(cleanup_dirname(buff,name_buff));
-      }
-      if (!(isam=mi_open(buff,mode,test(handle_locking))))
-	goto err;
       files++;
-      last_isam=isam;
-      if (info.reclength && info.reclength != isam->s->base.reclength)
-      {
-	my_errno=HA_ERR_WRONG_IN_RECORD;
-	goto err;
-      }
-      info.reclength=isam->s->base.reclength;
     }
   }
+
   if (!(m_info= (MYRG_INFO*) my_malloc(sizeof(MYRG_INFO)+
 				       files*sizeof(MYRG_TABLE),
-				       MYF(MY_WME))))
+				       MYF(MY_WME|MY_ZEROFILL))))
     goto err;
-  *m_info=info;
+  errpos=3;
   m_info->open_tables=(files) ? (MYRG_TABLE *) (m_info+1) : 0;
   m_info->tables=files;
-  errpos=2;
-
-  for (i=files ; i-- > 0 ; )
-  {
-    m_info->open_tables[i].table=isam;
-    m_info->options|=isam->s->options;
-    m_info->records+=isam->state->records;
-    m_info->del+=isam->state->del;
-    m_info->data_file_length+=isam->state->data_file_length;
-    if (i)
-      isam=(MI_INFO*) (isam->open_list.next->data);
-  }
-  /* Fix fileinfo for easyer debugging (actually set by rrnd) */
+  files=0;
   file_offset=0;
-  for (i=0 ; (uint) i < files ; i++)
+
+  my_b_seek(&file, 0);
+  while ((length=my_b_gets(&file,buff,FN_REFLEN-1)))
   {
-    m_info->open_tables[i].file_offset=(my_off_t) file_offset;
-    file_offset+=m_info->open_tables[i].table->state->data_file_length;
+    if ((end=buff+length)[-1] == '\n')
+      end[-1]='\0';
+    if (buff[0] && buff[0] == '#')	/* Skipp empty lines and comments */
+      continue;
+    if (!test_if_hard_path(buff))
+    {
+      VOID(strmake(name_buff+dir_length,buff,
+                   sizeof(name_buff)-1-dir_length));
+      VOID(cleanup_dirname(buff,name_buff));
+    }
+    if (!(isam=mi_open(buff,mode,test(handle_locking))))
+      goto err;
+    m_info->open_tables[files].table= isam;
+    m_info->open_tables[files].file_offset=(my_off_t) file_offset;
+    file_offset+=isam->state->data_file_length;
+    files++;
+    if (m_info->reclength && (m_info->reclength != isam->s->base.reclength))
+    {
+      my_errno=HA_ERR_WRONG_IN_RECORD;
+      goto err;
+    }
+    m_info->reclength=isam->s->base.reclength;
+    m_info->options|= isam->s->options;
+    m_info->records+= isam->state->records;
+    m_info->del+= isam->state->del;
+    m_info->data_file_length+= isam->state->data_file_length;
   }
+
   if (sizeof(my_off_t) == 4 && file_offset > (ulonglong) (ulong) ~0L)
   {
     my_errno=HA_ERR_RECORD_FILE_FULL;
     goto err;
   }
-  m_info->keys=(files) ? m_info->open_tables->table->s->base.keys : 0;
+  m_info->keys=(files) ? isam->s->base.keys : 0;
   bzero((char*) &m_info->by_key,sizeof(m_info->by_key));
 
   /* this works ok if the table list is empty */
@@ -132,19 +132,16 @@ int handle_locking)
 err:
   save_errno=my_errno;
   switch (errpos) {
-  case 2:
+  case 3:
+    while (files)
+      mi_close(m_info->open_tables[--files].table);
     my_free((char*) m_info,MYF(0));
+    /* Fall through */
+  case 2:
+    end_io_cache(&file);
     /* Fall through */
   case 1:
     VOID(my_close(fd,MYF(0)));
-    end_io_cache(&file);
-    for (i=files ; i-- > 0 ; )
-    {
-      isam=last_isam;
-      if (i)
-	last_isam=(MI_INFO*) (isam->open_list.next->data);
-      mi_close(isam);
-    }
   }
   my_errno=save_errno;
   DBUG_RETURN (NULL);
