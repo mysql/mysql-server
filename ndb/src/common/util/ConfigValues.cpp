@@ -1,9 +1,6 @@
+
+#include <ndb_global.h>
 #include <ConfigValues.hpp>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <assert.h>
-#include <new>
 #include <NdbOut.hpp>
 #include <NdbTCP.h>
 

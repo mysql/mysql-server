@@ -1182,7 +1182,7 @@ NdbIndexScanOperation::insertBOUNDS(Uint32 * data, Uint32 sz){
       len = (KeyInfo::DataLength - remaining) + len;
       break;
     }
-  } while(sz >= 0);   
+  } while(true);   
   theTotalNrOfKeyWordInSignal = len;
   return 0;
 

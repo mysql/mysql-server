@@ -271,7 +271,10 @@ extern "C" {
    *   Log categories
    */
   enum ndb_mgm_event_category {
-    NDB_MGM_ILLEGAL_EVENT_CATEGORY = -1,     /*< Invalid
+    /**
+     * Invalid
+     */
+    NDB_MGM_ILLEGAL_EVENT_CATEGORY = -1,
     /**
      * Events during all kinds of startups
      */

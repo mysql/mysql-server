@@ -22,6 +22,8 @@
 #include <ndb_global.h>
 
 class Ndb;
+class NdbConnection;
+
 class NdbReceiver
 {
   friend class Ndb;

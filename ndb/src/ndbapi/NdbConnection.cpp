@@ -313,8 +313,8 @@ NdbConnection::execute(ExecType aTypeOfExec,
       tPrepOp = tPrepOp->next();
     }
     // save rest of prepared ops if batch
-    NdbOperation* tRestOp;
-    NdbOperation* tLastOp;
+    NdbOperation* tRestOp= 0;
+    NdbOperation* tLastOp= 0;
     if (tPrepOp != NULL) {
       tRestOp = tPrepOp->next();
       tPrepOp->next(NULL);
