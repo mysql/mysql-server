@@ -1134,8 +1134,9 @@ row_ins_check_foreign_constraint(
 	mtr_t		mtr;
 	trx_t*		trx		= thr_get_trx(thr);
 	mem_heap_t*	heap		= NULL;
-	ulint		offsets_[100]	= { 100, };
+	ulint		offsets_[REC_OFFS_NORMAL_SIZE];
 	ulint*		offsets		= offsets_;
+	*offsets_ = (sizeof offsets_) / sizeof *offsets_;
 
 run_again:
 #ifdef UNIV_SYNC_DEBUG
@@ -1558,8 +1559,9 @@ row_ins_scan_sec_index_for_duplicate(
 	mtr_t		mtr;
 	trx_t*		trx;
 	mem_heap_t*	heap		= NULL;
-	ulint		offsets_[100]	= { 100, };
+	ulint		offsets_[REC_OFFS_NORMAL_SIZE];
 	ulint*		offsets		= offsets_;
+	*offsets_ = (sizeof offsets_) / sizeof *offsets_;
 
 	n_unique = dict_index_get_n_unique(index);
 
@@ -1695,9 +1697,9 @@ row_ins_duplicate_error_in_clust(
 	ulint	n_unique;
 	trx_t*	trx		= thr_get_trx(thr);
 	mem_heap_t*heap		= NULL;
-	ulint	offsets_[100]	= { 100, };
+	ulint	offsets_[REC_OFFS_NORMAL_SIZE];
 	ulint*	offsets		= offsets_;
-
+	*offsets_ = (sizeof offsets_) / sizeof *offsets_;
 
 	UT_NOT_USED(mtr);
 	
@@ -1897,9 +1899,10 @@ row_ins_index_entry_low(
 	big_rec_t*	big_rec			= NULL;
 	mtr_t		mtr;
 	mem_heap_t*	heap			= NULL;
-	ulint		offsets_[100]		= { 100, };
+	ulint		offsets_[REC_OFFS_NORMAL_SIZE];
 	ulint*		offsets			= offsets_;
-	
+	*offsets_ = (sizeof offsets_) / sizeof *offsets_;
+
 	log_free_check();
 
 	mtr_start(&mtr);

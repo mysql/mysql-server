@@ -275,8 +275,9 @@ btr_cur_search_to_nth_level(
 	btr_search_t*	info;
 #endif
 	mem_heap_t*	heap		= NULL;
-	ulint		offsets_[100]	= { 100, };
+	ulint		offsets_[REC_OFFS_NORMAL_SIZE];
 	ulint*		offsets		= offsets_;
+	*offsets_ = (sizeof offsets_) / sizeof *offsets_;
 	/* Currently, PAGE_CUR_LE is the only search mode used for searches
 	ending to upper levels */
 
@@ -578,8 +579,9 @@ btr_cur_open_at_index_side(
 	ulint		estimate;
 	ulint           savepoint;
 	mem_heap_t*	heap		= NULL;
-	ulint		offsets_[100]	= { 100, };
+	ulint		offsets_[REC_OFFS_NORMAL_SIZE];
 	ulint*		offsets		= offsets_;
+	*offsets_ = (sizeof offsets_) / sizeof *offsets_;
 
 	estimate = latch_mode & BTR_ESTIMATE;
 	latch_mode = latch_mode & ~BTR_ESTIMATE;
@@ -703,8 +705,9 @@ btr_cur_open_at_rnd_pos(
 	ulint		height;
 	rec_t*		node_ptr;
 	mem_heap_t*	heap		= NULL;
-	ulint		offsets_[100]	= { 100, };
+	ulint		offsets_[REC_OFFS_NORMAL_SIZE];
 	ulint*		offsets		= offsets_;
+	*offsets_ = (sizeof offsets_) / sizeof *offsets_;
 
 	tree = index->tree;
 	
@@ -1252,7 +1255,9 @@ btr_cur_upd_lock_and_undo(
 
 	if (!(flags & BTR_NO_LOCKING_FLAG)) {
 		mem_heap_t*	heap		= NULL;
-		ulint		offsets_[100]	= { 100, };
+		ulint		offsets_[REC_OFFS_NORMAL_SIZE];
+		*offsets_ = (sizeof offsets_) / sizeof *offsets_;
+
 		err = lock_clust_rec_modify_check_and_lock(flags, rec, index,
 			rec_get_offsets(rec, index, offsets_,
 				ULINT_UNDEFINED, &heap), thr);
@@ -1426,8 +1431,9 @@ btr_cur_update_in_place(
 	trx_t*		trx;
 	ibool		was_delete_marked;
 	mem_heap_t*	heap		= NULL;
-	ulint		offsets_[100]	= { 100, };
+	ulint		offsets_[REC_OFFS_NORMAL_SIZE];
 	ulint*		offsets		= offsets_;
+	*offsets_ = (sizeof offsets_) / sizeof *offsets_;
 
 	rec = btr_cur_get_rec(cursor);
 	index = cursor->index;
@@ -2065,7 +2071,9 @@ btr_cur_parse_del_mark_set_clust_rec(
 	
 		if (!(flags & BTR_KEEP_SYS_FLAG)) {
 			mem_heap_t*	heap		= NULL;
-			ulint		offsets_[100]	= { 100, };
+			ulint		offsets_[REC_OFFS_NORMAL_SIZE];
+			*offsets_ = (sizeof offsets_) / sizeof *offsets_;
+
 			row_upd_rec_sys_fields_in_recovery(rec,
 					rec_get_offsets(rec, index, offsets_,
 					ULINT_UNDEFINED, &heap),
@@ -2109,8 +2117,9 @@ btr_cur_del_mark_set_clust_rec(
 	rec_t*		rec;
 	trx_t*		trx;
 	mem_heap_t*	heap		= NULL;
-	ulint		offsets_[100]	= { 100, };
+	ulint		offsets_[REC_OFFS_NORMAL_SIZE];
 	ulint*		offsets		= offsets_;
+	*offsets_ = (sizeof offsets_) / sizeof *offsets_;
 
 	rec = btr_cur_get_rec(cursor);
 	index = cursor->index;
@@ -2399,9 +2408,10 @@ btr_cur_optimistic_delete(
 	ulint		max_ins_size;
 	rec_t*		rec;
 	mem_heap_t*	heap		= NULL;
-	ulint		offsets_[100]	= { 100, };
+	ulint		offsets_[REC_OFFS_NORMAL_SIZE];
 	ulint*		offsets		= offsets_;
 	ibool		no_compress_needed;
+	*offsets_ = (sizeof offsets_) / sizeof *offsets_;
 
 	ut_ad(mtr_memo_contains(mtr, buf_block_align(btr_cur_get_page(cursor)),
 							MTR_MEMO_PAGE_X_FIX));
@@ -2803,10 +2813,12 @@ btr_estimate_number_of_different_key_vals(
 	ulint		add_on;
 	mtr_t		mtr;
 	mem_heap_t*	heap		= NULL;
-	ulint		offsets1_[100]	= { 100, };
-	ulint		offsets2_[100]	= { 100, };
+	ulint		offsets1_[REC_OFFS_NORMAL_SIZE];
+	ulint		offsets2_[REC_OFFS_NORMAL_SIZE];
 	ulint*		offsets1	= offsets1_;
 	ulint*		offsets2	= offsets2_;
+	*offsets1_ = (sizeof offsets1_) / sizeof *offsets1_;
+	*offsets2_ = (sizeof offsets2_) / sizeof *offsets2_;
 
 	n_cols = dict_index_get_n_unique(index);
 
