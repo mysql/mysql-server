@@ -755,7 +755,10 @@ bool setup_params_data(st_prep_stmt *stmt)
       {
 	uchar *buff= (uchar*)client_param->buffer;
         param->maybe_null= param->null_value= 0;
-        param->setup_param_func(param,&buff);
+        param->setup_param_func(param,&buff, 
+				client_param->length ? 
+				*client_param->length : 
+				client_param->buffer_length);
       }
     }
     param_no++;
@@ -796,7 +799,10 @@ bool setup_params_data_withlog(st_prep_stmt *stmt)
       {
 	uchar *buff= (uchar*)client_param->buffer;
         param->maybe_null= param->null_value= 0;
-        param->setup_param_func(param,&buff);
+        param->setup_param_func(param,&buff,
+				client_param->length ? 
+				*client_param->length : 
+				client_param->buffer_length);
         res= param->query_val_str(&str);
       }
     }
