@@ -1102,13 +1102,25 @@ extern "C" pthread_handler_decl(handle_bootstrap,arg)
   thd->init_for_queries();
   while (fgets(buff, thd->net.max_packet, file))
   {
-    uint length=(uint) strlen(buff);
-    if (buff[length-1]!='\n' && !feof(file))
+    ulong length= (ulong) strlen(buff);
+    while (buff[length-1] != '\n' && !feof(file))
     {
-      send_error(thd,ER_NET_PACKET_TOO_LARGE, NullS);
-      thd->fatal_error();
-      break;
+      /*
+        We got only a part of the current string. Will try to increase
+        net buffer then read the rest of the current string.
+      */
+      if (net_realloc(&(thd->net), 2 * thd->net.max_packet))
+      {
+        send_error(thd, thd->net.last_errno, NullS);
+        thd->is_fatal_error= 1;
+        break;
+      }
+      buff= (char*) thd->net.buff;
+      fgets(buff + length, thd->net.max_packet - length, file);
+      length+= (ulong) strlen(buff + length);
     }
+    if (thd->is_fatal_error)
+      break;
     while (length && (my_isspace(thd->charset(), buff[length-1]) ||
            buff[length-1] == ';'))
       length--;
