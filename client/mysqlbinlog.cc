@@ -138,7 +138,7 @@ This software comes with NO WARRANTY:  This is free software,\n\
 and you are welcome to modify and redistribute it under the GPL license\n");
 
   printf("\
-Dumps a MySQL binary log in a format usable for viewing or for pipeing to\n\
+Dumps a MySQL binary log in a format usable for viewing or for piping to\n\
 the mysql command line client\n\n");
   printf("Usage: %s [options] log-files\n", my_progname);
   my_print_help(my_long_options);
