@@ -37,7 +37,7 @@
 **   Tõnu Samuel  <tonu@please.do.not.remove.this.spam.ee>
 **/
 
-#define DUMP_VERSION "8.13"
+#define DUMP_VERSION "8.14"
 
 #include <global.h>
 #include <my_sys.h>
@@ -73,7 +73,8 @@ static my_bool  verbose=0,tFlag=0,cFlag=0,dFlag=0,quick=0, extended_insert = 0,
 		lock_tables=0,ignore_errors=0,flush_logs=0,replace=0,
 		ignore=0,opt_drop=0,opt_keywords=0,opt_lock=0,opt_compress=0,
                 opt_delayed=0,create_options=0,opt_quoted=0,opt_databases=0,
-                opt_alldbs=0,opt_create_db=0,opt_first_slave=0;
+                opt_alldbs=0,opt_create_db=0,opt_first_slave=0,
+                opt_resultfile=0;
 static MYSQL  mysql_connection,*sock=0;
 static char  insert_pat[12 * 1024],*opt_password=0,*current_user=0,
              *current_host=0,*path=0,*fields_terminated=0,
@@ -127,6 +128,7 @@ static struct option long_options[] =
   {"port",    		required_argument,	0, 'P'},
   {"quick",    		no_argument,		0, 'q'},
   {"quote-names",	no_argument,		0, 'Q'},
+  {"result-file",       required_argument,      0, 'r'},
   {"set-variable",	required_argument,	0, 'O'},
   {"socket",   		required_argument,	0, 'S'},
 #include "sslopt-longopts.h"
@@ -227,6 +229,10 @@ puts("\
   -P, --port=...	Port number to use for connection.\n\
   -q, --quick		Don't buffer query, dump directly to stdout.\n\
   -Q, --quote-names	Quote table and column names with `\n\
+  -r, --result-file=... Direct output to a given file. This option should be\n\
+                        used in MSDOS, because it prevents new line '\\n'\n\
+                        from being converted to '\\n\\r' (newline + carriage\n\
+                        return).\n\
   -S, --socket=...	Socket file to use for connection.\n\
   --tables              Overrides option --databases (-B).\n");
 #include "sslopt-usage.h"
@@ -283,10 +289,12 @@ static int get_options(int *argc,char ***argv)
 {
   int c,option_index;
   my_bool tty_password=0;
+  FILE *resultfile;
 
   load_defaults("my",load_default_groups,argc,argv);
   set_all_changeable_vars(changeable_vars);
-  while ((c=getopt_long(*argc,*argv,"#::p::h:u:O:P:S:T:EBaAcCdefFlnqtvVw:?Ix",
+  while ((c=getopt_long(*argc,*argv,
+			"#::p::h:u:O:P:r:S:T:EBaAcCdefFlnqtvVw:?Ix",
 			long_options, &option_index)) != EOF)
   {
     switch(c) {
@@ -345,6 +353,15 @@ static int get_options(int *argc,char ***argv)
       break;
     case 'P':
       opt_mysql_port= (unsigned int) atoi(optarg);
+      break;
+    case 'r':
+      if (!(resultfile = my_fopen(optarg, O_WRONLY, MYF(MY_WME))))
+      {
+	printf("Couldn't open result-file %s, aborting!\n", optarg);
+	exit(1);
+      }
+      opt_resultfile = 1;
+      stdout = resultfile;
       break;
     case 'S':
       opt_mysql_unix_port= optarg;
@@ -625,8 +642,8 @@ static uint getTableStructure(char *table, char* db)
   				 O_WRONLY, MYF(MY_WME));
         if (!sql_file)			/* If file couldn't be opened */
         {
-  		safe_exit(EX_MYSQLERR);
-  		DBUG_RETURN(0);
+	  safe_exit(EX_MYSQLERR);
+	  DBUG_RETURN(0);
         }
         write_heder(sql_file, db);
       }
@@ -734,20 +751,20 @@ static uint getTableStructure(char *table, char* db)
       if (!tFlag)
       {
         if (opt_keywords)
-		fprintf(sql_file, "  %s.%s %s", table_name,
-			quote_name(row[SHOW_FIELDNAME],name_buff), row[SHOW_TYPE]);
+	  fprintf(sql_file, "  %s.%s %s", table_name,
+		  quote_name(row[SHOW_FIELDNAME],name_buff), row[SHOW_TYPE]);
         else
-		fprintf(sql_file, "  %s %s", quote_name(row[SHOW_FIELDNAME],name_buff),
-			row[SHOW_TYPE]);
+	  fprintf(sql_file, "  %s %s", quote_name(row[SHOW_FIELDNAME],
+						  name_buff), row[SHOW_TYPE]);
         if (row[SHOW_DEFAULT])
         {
-		fputs(" DEFAULT ", sql_file);
-		unescape(sql_file,row[SHOW_DEFAULT],lengths[SHOW_DEFAULT]);
+	  fputs(" DEFAULT ", sql_file);
+	  unescape(sql_file,row[SHOW_DEFAULT],lengths[SHOW_DEFAULT]);
         }
         if (!row[SHOW_NULL][0])
-		fputs(" NOT NULL", sql_file);
+	  fputs(" NOT NULL", sql_file);
         if (row[SHOW_EXTRA][0])
-		fprintf(sql_file, " %s",row[SHOW_EXTRA]);
+	  fprintf(sql_file, " %s",row[SHOW_EXTRA]);
       }
     }
     numFields = (uint) mysql_num_rows(tableRes);
@@ -761,9 +778,9 @@ static uint getTableStructure(char *table, char* db)
       if (mysql_query(sock, buff))
       {
         fprintf(stderr, "%s: Can't get keys for table '%s' (%s)\n",
-		      my_progname, table, mysql_error(sock));
+		my_progname, table, mysql_error(sock));
         if (sql_file != stdout)
-		my_fclose(sql_file, MYF(MY_WME));
+	  my_fclose(sql_file, MYF(MY_WME));
         safe_exit(EX_MYSQLERR);
         DBUG_RETURN(0);
       }
@@ -776,16 +793,16 @@ static uint getTableStructure(char *table, char* db)
       {
         if (atoi(row[3]) == 1)
         {
-		keynr++;
-    #ifdef FORCE_PRIMARY_KEY
-		if (atoi(row[1]) == 0 && primary_key == INT_MAX)
-		  primary_key=keynr;
-    #endif
-		if (!strcmp(row[2],"PRIMARY"))
-		{
-		  primary_key=keynr;
-		  break;
-		}
+	  keynr++;
+#ifdef FORCE_PRIMARY_KEY
+	  if (atoi(row[1]) == 0 && primary_key == INT_MAX)
+	    primary_key=keynr;
+#endif
+	  if (!strcmp(row[2],"PRIMARY"))
+	  {
+	    primary_key=keynr;
+	    break;
+	  }
         }
       }
       mysql_data_seek(tableRes,0);
@@ -794,21 +811,21 @@ static uint getTableStructure(char *table, char* db)
       {
         if (atoi(row[3]) == 1)
         {
-		if (keynr++)
-		  putc(')', sql_file);
-		if (atoi(row[1]))       /* Test if duplicate key */
-		  /* Duplicate allowed */
-		  fprintf(sql_file, ",\n  KEY %s (",quote_name(row[2],name_buff));
-		else if (keynr == primary_key)
-		  fputs(",\n  PRIMARY KEY (",sql_file); /* First UNIQUE is primary */
-		else
-		  fprintf(sql_file, ",\n  UNIQUE %s (",quote_name(row[2],name_buff));
+	  if (keynr++)
+	    putc(')', sql_file);
+	  if (atoi(row[1]))       /* Test if duplicate key */
+	    /* Duplicate allowed */
+	    fprintf(sql_file, ",\n  KEY %s (",quote_name(row[2],name_buff));
+	  else if (keynr == primary_key)
+	    fputs(",\n  PRIMARY KEY (",sql_file); /* First UNIQUE is primary */
+	  else
+	    fprintf(sql_file, ",\n  UNIQUE %s (",quote_name(row[2],name_buff));
         }
         else
-		putc(',', sql_file);
+	  putc(',', sql_file);
         fputs(quote_name(row[4],name_buff), sql_file);
         if (row[7])
-		fprintf(sql_file, " (%s)",row[7]);      /* Sub key */
+	  fprintf(sql_file, " (%s)",row[7]);      /* Sub key */
       }
       if (keynr)
         putc(')', sql_file);
@@ -820,28 +837,28 @@ static uint getTableStructure(char *table, char* db)
         sprintf(buff,"show table status like '%s'",table);
         if (mysql_query(sock, buff))
         {
-		if (mysql_errno(sock) != ER_PARSE_ERROR)
-		{					/* If old MySQL version */
-		  if (verbose)
-		    fprintf(stderr,
-			    "# Warning: Couldn't get status information for table '%s' (%s)\n",
-			    table,mysql_error(sock));
-		}
+	  if (mysql_errno(sock) != ER_PARSE_ERROR)
+	  {					/* If old MySQL version */
+	    if (verbose)
+	      fprintf(stderr,
+		      "# Warning: Couldn't get status information for table '%s' (%s)\n",
+		      table,mysql_error(sock));
+	  }
         }
         else if (!(tableRes=mysql_store_result(sock)) ||
-		       !(row=mysql_fetch_row(tableRes)))
+		 !(row=mysql_fetch_row(tableRes)))
         {
-		fprintf(stderr,
-			"Error: Couldn't read status information for table '%s' (%s)\n",
-			table,mysql_error(sock));
+	  fprintf(stderr,
+		  "Error: Couldn't read status information for table '%s' (%s)\n",
+		  table,mysql_error(sock));
         }
         else
         {
-		fputs("/*!",sql_file);
-		print_value(sql_file,tableRes,row,"type=","Type",0);
-		print_value(sql_file,tableRes,row,"","Create_options",0);
-		print_value(sql_file,tableRes,row,"comment=","Comment",1);
-		fputs(" */",sql_file);
+	  fputs("/*!",sql_file);
+	  print_value(sql_file,tableRes,row,"type=","Type",0);
+	  print_value(sql_file,tableRes,row,"","Create_options",0);
+	  print_value(sql_file,tableRes,row,"comment=","Comment",1);
+	  fputs(" */",sql_file);
         }
         mysql_free_result(tableRes);		/* Is always safe to free */
       }
@@ -967,7 +984,7 @@ static void dumpTable(uint numFields, char *table)
       printf("# WHERE:  %s\n",where);
       strxmov(strend(query), " WHERE ",where,NullS);
     }
-    puts("#\n");
+    fputs("#\n\n", stdout);
 
     if (mysql_query(sock, query))
     {
@@ -1090,7 +1107,7 @@ static void dumpTable(uint numFields, char *table)
         else
         {
 	  if (row_break)
-	    puts(";");
+	    fputs(";\n", stdout);
 	  row_break=1;				/* This is first row */
 	  fputs(insert_pat,stdout);
 	  fputs(extended_row.str,stdout);
@@ -1098,12 +1115,10 @@ static void dumpTable(uint numFields, char *table)
         }
       }
       else
-      {
-	puts(");");
-      }
+	fputs(");\n", stdout);
     }
     if (extended_insert && row_break)
-      puts(";");				/* If not empty table */
+      fputs(";\n", stdout);			/* If not empty table */
     fflush(stdout);
     if (mysql_errno(sock))
     {
@@ -1118,7 +1133,7 @@ static void dumpTable(uint numFields, char *table)
       return;
     }
     if (opt_lock)
-      puts("UNLOCK TABLES;");
+      fputs("UNLOCK TABLES;\n", stdout);
     mysql_free_result(res);
   }
 } /* dumpTable */
@@ -1365,7 +1380,9 @@ int main(int argc, char **argv)
    }
   }
   dbDisconnect(current_host);
-  puts("");
+  fputs("\n", stdout);
+  if (opt_resultfile)
+    my_fclose(stdout, MYF(0));
   my_free(opt_password, MYF(MY_ALLOW_ZERO_PTR));
   if (extended_insert)
     dynstr_free(&extended_row);

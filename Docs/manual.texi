@@ -32515,6 +32515,10 @@ used.)
 @item  -q, --quick
 Don't buffer query, dump directly to stdout. Uses @code{mysql_use_result()}
 to do this.
+@item -r, --result-file=...
+Direct output to a given file. This option should be used in MSDOS,
+because it prevents new line '\n' from being converted to '\n\r' (new
+line + carriage return).
 @item -S /path/to/socket, --socket=/path/to/socket
 The socket file to use when connecting to @code{localhost} (which is the
 default host).
