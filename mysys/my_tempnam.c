@@ -106,7 +106,7 @@ my_string my_tempnam(const char *dir, const char *pfx,
 #ifdef OS2
   /* changing environ variable doesn't work with VACPP */
   char  buffer[256];
-  sprintf( buffer, "TMP=%s", dir);
+  strxnmov(buffer, sizeof(buffer), "TMP=", dir);
   /* remove ending backslash */
   if (buffer[strlen(buffer)-1] == '\\')
      buffer[strlen(buffer)-1] = '\0';
