@@ -130,6 +130,7 @@ static SYMBOL symbols[] = {
   { "DESCRIBE",		SYM(DESCRIBE),0,0},
   { "DIRECTORY",	SYM(DIRECTORY_SYM),0,0},
   { "DISABLE",		SYM(DISABLE_SYM),0,0},
+  { "DISCARD",		SYM(DISCARD),0,0},
   { "DISTINCT",		SYM(DISTINCT),0,0},
   { "DISTINCTROW",	SYM(DISTINCT),0,0},	/* Access likes this */
   { "DIV",		SYM(DIV_SYM),0,0},
@@ -200,6 +201,7 @@ static SYMBOL symbols[] = {
   { "INNER",		SYM(INNER_SYM),0,0},
   { "INNOBASE",		SYM(INNOBASE_SYM),0,0},
   { "INNODB",		SYM(INNOBASE_SYM),0,0},
+  { "IMPORT",		SYM(IMPORT),0,0},
   { "INSERT",		SYM(INSERT),0,0},
   { "INSERT_METHOD",    SYM(INSERT_METHOD),0,0},
   { "INT",		SYM(INT_SYM),0,0},
@@ -387,6 +389,7 @@ static SYMBOL symbols[] = {
   { "SUPER",		SYM(SUPER_SYM),0,0},
   { "TABLE",		SYM(TABLE_SYM),0,0},
   { "TABLES",		SYM(TABLES),0,0},
+  { "TABLESPACE",	SYM(TABLESPACE),0,0},
   { "TEMPORARY",	SYM(TEMPORARY),0,0},
   { "TERMINATED",	SYM(TERMINATED),0,0},
   { "TEXT",		SYM(TEXT_SYM),0,0},

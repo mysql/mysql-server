@@ -620,6 +620,13 @@ row_undo_mod_parse_undo_rec(
 	        return;
 	}
 
+	if (node->table->ibd_file_missing) {
+		/* We skip undo operations to missing .ibd files */
+		node->table = NULL;
+
+		return;
+	}
+
 	clust_index = dict_table_get_first_index(node->table);
 
 	ptr = trx_undo_update_rec_get_sys_cols(ptr, &trx_id, &roll_ptr,

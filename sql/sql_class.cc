@@ -173,6 +173,7 @@ THD::THD():user_time(0), is_fatal_error(0),
   protocol_simple.init(this);
   protocol_prep.init(this);
 
+  tablespace_op=FALSE;
 #ifdef USING_TRANSACTIONS
   bzero((char*) &transaction,sizeof(transaction));
   if (opt_using_transactions)

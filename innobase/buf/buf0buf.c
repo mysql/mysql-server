@@ -468,6 +468,11 @@ buf_block_init(
 
 	block->check_index_page_at_flush = FALSE;
 
+	block->in_free_list = FALSE;
+	block->in_LRU_list = FALSE;
+
+	block->n_pointers = 0;
+
 	rw_lock_create(&(block->lock));
 	ut_ad(rw_lock_validate(&(block->lock)));
 	
@@ -687,6 +692,7 @@ buf_pool_init(
 		}
 
 		UT_LIST_ADD_LAST(free, buf_pool->free, block);
+		block->in_free_list = TRUE;
 	}
 
 	mutex_exit(&(buf_pool->mutex));
@@ -830,7 +836,7 @@ buf_page_make_young(
 
 	block = buf_block_align(frame);
 
-	ut_ad(block->state == BUF_BLOCK_FILE_PAGE);
+	ut_a(block->state == BUF_BLOCK_FILE_PAGE);
 
 	buf_LRU_make_block_young(block);
 
@@ -845,7 +851,7 @@ buf_block_free(
 /*===========*/
 	buf_block_t*	block)	/* in, own: block to be freed */
 {
-	ut_ad(block->state != BUF_BLOCK_FILE_PAGE);
+	ut_a(block->state != BUF_BLOCK_FILE_PAGE);
 
 	mutex_enter(&(buf_pool->mutex));
 
@@ -1108,6 +1114,8 @@ loop:
 		#endif
 		goto loop;
 	}
+
+	ut_a(block->state == BUF_BLOCK_FILE_PAGE);
 
 	must_read = FALSE;
 	
@@ -1407,6 +1415,8 @@ buf_page_get_known_nowait(
 		return(FALSE);
 	}
 
+	ut_a(block->state == BUF_BLOCK_FILE_PAGE);
+
 #ifdef UNIV_SYNC_DEBUG
 	buf_block_buf_fix_inc_debug(block, file, line);
 #else
@@ -1517,7 +1527,7 @@ buf_page_init(
 	buf_block_t*	block)	/* in: block to init */
 {
 	ut_ad(mutex_own(&(buf_pool->mutex)));
-	ut_ad(block->state == BUF_BLOCK_READY_FOR_USE);
+	ut_a(block->state != BUF_BLOCK_FILE_PAGE);
 
 	/* Set the state of the block */
 	block->magic_n		= BUF_BLOCK_MAGIC_N;
@@ -1532,6 +1542,18 @@ buf_page_init(
 	block->lock_mutex	= NULL;
 	
 	/* Insert into the hash table of file pages */
+
+        if (buf_page_hash_get(space, offset)) {
+                fprintf(stderr,
+"InnoDB: Error: page %lu %lu already found from the hash table\n", space,
+							offset);
+                buf_print();
+                buf_LRU_print();
+                buf_validate();
+                buf_LRU_validate();
+
+                ut_a(0);
+        }
 
 	HASH_INSERT(buf_block_t, hash, buf_pool->page_hash,
 				buf_page_address_fold(space, offset), block);
@@ -1605,7 +1627,7 @@ buf_page_init_for_read(
 	
 	block = buf_block_alloc();
 
-	ut_ad(block);
+	ut_a(block);
 
 	mutex_enter(&(buf_pool->mutex));
 
@@ -1768,6 +1790,8 @@ buf_page_io_complete(
 	ulint		read_page_no;
 	
 	ut_ad(block);
+
+	ut_a(block->state == BUF_BLOCK_FILE_PAGE);
 
 	io_type = block->io_fix;
 

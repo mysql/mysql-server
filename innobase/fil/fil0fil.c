@@ -1517,8 +1517,8 @@ try_again:
 	if (space == NULL) {
 		ut_print_timestamp(stderr);
 		fprintf(stderr,
-"  InnoDB: Error: cannot delete tablespace %lu because it is not found\n"
-"InnoDB: in the tablespace memory cache.\n", id);
+"  InnoDB: Error: cannot delete tablespace %lu\n"
+"InnoDB: because it is not found in the tablespace memory cache.\n", id);
 
 		mutex_exit(&(system->mutex));
 	
@@ -2426,19 +2426,24 @@ fil_space_for_table_exists_in_mem(
 		if (namespace == NULL) {
 		        ut_print_timestamp(stderr);
 			fprintf(stderr,
-"  InnoDB: Error: table %s in InnoDB data dictionary has tablespace\n"
-"InnoDB: id %lu, but tablespace with that id or name does not exist. Have\n"
-"InnoDB: you deleted or moved .ibd files? We cannot open table %s now.\n",
-			       name, id, name);
+"  InnoDB: Error: table %s\n"
+"InnoDB: in InnoDB data dictionary has tablespace id %lu,\n"
+"InnoDB: but tablespace with that id or name does not exist. Have\n"
+"InnoDB: you deleted or moved .ibd files?\n",
+			       name, id);
 		} else {
 		        ut_print_timestamp(stderr);
 			fprintf(stderr,
-"  InnoDB: Error: table %s in InnoDB data dictionary has tablespace\n"
-"InnoDB: id %lu, but tablespace with that id does not exist. There is\n"
+"  InnoDB: Error: table %s\n"
+"InnoDB: in InnoDB data dictionary has tablespace id %lu,\n"
+"InnoDB: but tablespace with that id does not exist. There is\n"
 "InnoDB: a tablespace of name %s and id %lu, though. Have\n"
-"InnoDB: you deleted or moved .ibd files? We cannot open table %s now.\n",
-			       name, id, namespace->name, namespace->id, name);
+"InnoDB: you deleted or moved .ibd files?\n",
+			       name, id, namespace->name, namespace->id);
 		}
+		fprintf(stderr,
+"InnoDB: You can look from section 15.1 of http://www.innodb.com/ibman.html\n"
+"InnoDB: how to resolve the issue.\n");
 
 		mutex_exit(&(system->mutex));
 
@@ -2448,15 +2453,19 @@ fil_space_for_table_exists_in_mem(
 	if (0 != strcmp(space->name, path)) {
 		ut_print_timestamp(stderr);
 		fprintf(stderr,
-"  InnoDB: Error: table %s in InnoDB data dictionary has tablespace\n"
-"InnoDB: id %lu, but tablespace with that id has name %s. Have you\n"
-"InnoDB: deleted or moved .ibd files? We cannot open table %s now.\n",
-					name, id, space->name, name);
+"  InnoDB: Error: table %s\n"
+"InnoDB: in InnoDB data dictionary has tablespace id %lu,\n"
+"InnoDB: but tablespace with that id has name %s.\n"
+"InnoDB: Have you deleted or moved .ibd files?", name, id, space->name);
 		if (namespace != NULL) {
 			fprintf(stderr,
-"InnoDB: There is a tablespace with the right name %s, but its id is %lu.\n",
-					namespace->name, namespace->id);
+"InnoDB: There is a tablespace with the right name\n"
+"InnoDB: %s, but its id is %lu.\n", namespace->name, namespace->id);
 		}
+
+		fprintf(stderr,
+"InnoDB: You can look from section 15.1 of http://www.innodb.com/ibman.html\n"
+"InnoDB: how to resolve the issue.\n");
 
 		mutex_exit(&(system->mutex));
 

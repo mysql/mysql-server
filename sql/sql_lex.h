@@ -110,6 +110,11 @@ enum olap_type
   UNSPECIFIED_OLAP_TYPE, CUBE_TYPE, ROLLUP_TYPE
 };
 
+enum tablespace_op_type
+{
+  NO_TABLESPACE_OP, DISCARD_TABLESPACE, IMPORT_TABLESPACE
+};
+
 /* 
   The state of the lex parsing for selects 
    
@@ -530,6 +535,7 @@ typedef struct st_lex
   enum ha_rkey_function ha_rkey_mode;
   enum enum_enable_or_disable alter_keys_onoff;
   enum enum_var_type option_type;
+  enum tablespace_op_type tablespace_op;
   uint uint_geom_type;
   uint grant, grant_tot_col, which_columns;
   uint fk_delete_opt, fk_update_opt, fk_match_option;
