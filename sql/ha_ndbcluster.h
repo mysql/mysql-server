@@ -157,11 +157,11 @@ class ha_ndbcluster: public handler
   static Thd_ndb* seize_thd_ndb();
   static void release_thd_ndb(Thd_ndb* thd_ndb);
   uint8 table_cache_type();
-  my_bool cached_table_registration(THD *thd, char *table_key,
-				    uint key_length,
-				    qc_engine_callback *engine_callback,
-				    ulonglong *engine_data);
- private:
+  my_bool register_query_cache_table(THD *thd, char *table_key,
+				     uint key_length,
+				     qc_engine_callback *engine_callback,
+				     ulonglong *engine_data);
+private:
   int alter_table_name(const char *to);
   int drop_table();
   int create_index(const char *name, KEY *key_info, bool unique);

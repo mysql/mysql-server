@@ -2770,10 +2770,11 @@ my_bool Query_cache::ask_handler_allowance(THD *thd,
   for (; tables_used; tables_used= tables_used->next_global)
   {
     TABLE *table= tables_used->table;
-    if (!handler->cached_table_registration(thd, table->s->table_cache_key,
-                                            table->s->key_length,
-                                            &tables_used->callback_func,
-                                            &tables_used->engine_data))
+    handler *handler= table->file;
+    if (!handler->register_query_cache_table(thd, table->s->table_cache_key,
+					     table->s->key_length,
+					     &tables_used->callback_func,
+					     &tables_used->engine_data))
     {
       DBUG_PRINT("qcache", ("Handler does not allow caching for %s.%s",
 			    tables_used->db, tables_used->alias));

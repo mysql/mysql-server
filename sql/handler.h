@@ -592,11 +592,12 @@ public:
 
   /* Type of table for caching query */
   virtual uint8 table_cache_type() { return HA_CACHE_TBL_NONTRANSACT; }
-  /* ask handler about permission to cache table during query registration */
-  virtual my_bool cached_table_registration(THD *thd, char *table_key,
-                                            uint key_length,
-                                            qc_engine_callback *engine_callback,
-                                            ulonglong *engine_data)
+  /* ask handler about permission to cache table when query is to be cached */
+  virtual my_bool register_query_cache_table(THD *thd, char *table_key,
+					     uint key_length,
+					     qc_engine_callback 
+					     *engine_callback,
+					     ulonglong *engine_data)
   {
     *engine_callback= 0;
     return 1;
