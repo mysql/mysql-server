@@ -498,7 +498,6 @@ static int myisamchk(MI_CHECK *param, my_string filename)
   uint raid_chunks;
   MI_INFO *info;
   File datafile;
-  char fixed_name[FN_REFLEN];
   char llbuff[22],llbuff2[22];
   my_bool state_updated=0;
   MYISAM_SHARE *share;
@@ -675,9 +674,6 @@ static int myisamchk(MI_CHECK *param, my_string filename)
 	if (tmp != share->state.key_map)
 	  info->update|=HA_STATE_CHANGED;
       }
-      VOID(fn_format(fixed_name,filename,"",MI_NAME_IEXT,
-		     4+ (param->opt_follow_links ? 32 : 0)));
-
       if (rep_quick && chk_del(&check_param, info,
 			       param->testflag & ~T_VERBOSE))
       {
@@ -702,11 +698,11 @@ static int myisamchk(MI_CHECK *param, my_string filename)
 				info->s->state.key_map,
 				check_param.force_sort))
 	{
-	  error=mi_repair_by_sort(&check_param,info,fixed_name,rep_quick);
+	  error=mi_repair_by_sort(&check_param,info,filename,rep_quick);
 	  state_updated=1;
 	}
 	else if (param->testflag & (T_REP | T_REP_BY_SORT))
-	  error=mi_repair(&check_param, info,fixed_name,rep_quick);
+	  error=mi_repair(&check_param, info,filename,rep_quick);
       }
       if (!error && param->testflag & T_SORT_RECORDS)
       {
@@ -718,7 +714,7 @@ static int myisamchk(MI_CHECK *param, my_string filename)
 	if (param->out_flag & O_NEW_DATA)
 	{			/* Change temp file to org file */
 	  VOID(my_close(info->dfile,MYF(MY_WME))); /* Close new file */
-	  error|=change_to_newfile(fixed_name,MI_NAME_DEXT,DATA_TMP_EXT,
+	  error|=change_to_newfile(filename,MI_NAME_DEXT,DATA_TMP_EXT,
 				   raid_chunks,
 				   MYF(0));
 	  if (mi_open_datafile(info,info->s))
@@ -739,7 +735,7 @@ static int myisamchk(MI_CHECK *param, my_string filename)
 	    if (share->keyinfo[key].flag & HA_BINARY_PACK_KEY)
 	      update_index=0;
 
-	  error=mi_sort_records(param,info,fixed_name,param->opt_sort_key,
+	  error=mi_sort_records(param,info,filename,param->opt_sort_key,
 				(my_bool) !(param->testflag & T_REP),
 				update_index);
 	  datafile=info->dfile;	/* This is now locked */
@@ -747,12 +743,12 @@ static int myisamchk(MI_CHECK *param, my_string filename)
 	  {
 	    if (check_param.verbose)
 	      puts("Table had a compressed index;  We must now recreate the index");
-	    error=mi_repair_by_sort(&check_param,info,fixed_name,1);
+	    error=mi_repair_by_sort(&check_param,info,filename,1);
 	  }
 	}
       }
       if (!error && param->testflag & T_SORT_INDEX)
-	error=mi_sort_index(param,info,fixed_name);
+	error=mi_sort_index(param,info,filename);
       if (!error)
 	share->state.changed&= ~(STATE_CHANGED | STATE_CRASHED |
 				 STATE_CRASHED_ON_REPAIR);
@@ -849,12 +845,12 @@ end2:
   if (error == 0)
   {
     if (param->out_flag & O_NEW_DATA)
-      error|=change_to_newfile(fixed_name,MI_NAME_DEXT,DATA_TMP_EXT,
+      error|=change_to_newfile(filename,MI_NAME_DEXT,DATA_TMP_EXT,
 			       raid_chunks,
 			       ((param->testflag & T_BACKUP_DATA) ?
 				MYF(MY_REDEL_MAKE_BACKUP) : MYF(0)));
     if (param->out_flag & O_NEW_INDEX)
-      error|=change_to_newfile(fixed_name,MI_NAME_IEXT,INDEX_TMP_EXT,0,
+      error|=change_to_newfile(filename,MI_NAME_IEXT,INDEX_TMP_EXT,0,
 			       MYF(0));
   }
   VOID(fflush(stdout)); VOID(fflush(stderr));
@@ -1212,7 +1208,9 @@ static int mi_sort_records(MI_CHECK *param,
     mi_check_print_error(param,"Not enough memory for record");
     goto err;
   }
-  new_file=my_raid_create(fn_format(param->temp_filename,name,"",
+  fn_format(param->temp_filename,name,"", MI_NAME_DEXT,2+4+32);
+  new_file=my_raid_create(fn_format(param->temp_filename,
+				    param->temp_filename,"",
 				    DATA_TMP_EXT,2+4),
 			  0,param->tmpfile_createflag,
 			  share->base.raid_type,

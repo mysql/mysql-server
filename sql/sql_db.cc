@@ -212,7 +212,7 @@ static long mysql_rm_known_files(THD *thd, MY_DIR *dirp, const char *org_path,
     }
     strxmov(filePath,org_path,"/",file->name,NullS);
     unpack_filename(filePath,filePath);
-    if (my_delete(filePath,MYF(MY_WME)))
+    if (my_delete_with_symlink(filePath,MYF(MY_WME)))
     {
       if(thd)
         net_printf(&thd->net,ER_DB_DROP_DELETE,filePath,my_error);

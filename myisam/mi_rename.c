@@ -51,7 +51,7 @@ int mi_rename(const char *old_name, const char *new_name)
 
   fn_format(from,old_name,"",MI_NAME_IEXT,4);
   fn_format(to,new_name,"",MI_NAME_IEXT,4);
-  if (my_rename(from, to, MYF(MY_WME)))
+  if (my_rename_with_symlink(from, to, MYF(MY_WME)))
     DBUG_RETURN(my_errno);
   fn_format(from,old_name,"",MI_NAME_DEXT,4);
   fn_format(to,new_name,"",MI_NAME_DEXT,4);
@@ -60,5 +60,5 @@ int mi_rename(const char *old_name, const char *new_name)
     DBUG_RETURN(my_raid_rename(from, to, raid_chunks, MYF(MY_WME)) ? my_errno :
 		0);
 #endif
-  DBUG_RETURN(my_rename(from, to,MYF(MY_WME)) ? my_errno : 0);
+  DBUG_RETURN(my_rename_with_symlink(from, to,MYF(MY_WME)) ? my_errno : 0);
 }

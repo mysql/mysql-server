@@ -1130,7 +1130,10 @@ int mi_repair(MI_CHECK *param, register MI_INFO *info,
 
   if (!rep_quick)
   {
-    if ((new_file=my_raid_create(fn_format(param->temp_filename,name,"",
+    /* Get real path for data file */
+    fn_format(param->temp_filename,name,"", MI_NAME_DEXT,2+4+32);
+    if ((new_file=my_raid_create(fn_format(param->temp_filename,
+					   param->temp_filename,"",
 					   DATA_TMP_EXT,
 					   2+4),
 				 0,param->tmpfile_createflag,
@@ -1476,8 +1479,10 @@ int mi_sort_index(MI_CHECK *param, register MI_INFO *info, my_string name)
   if (!(param->testflag & T_SILENT))
     printf("- Sorting index for MyISAM-table '%s'\n",name);
 
-  if ((new_file=my_create(fn_format(param->temp_filename,name,"",
-				    INDEX_TMP_EXT,2+4),
+  /* Get real path for index file */
+  fn_format(param->temp_filename,name,"", MI_NAME_IEXT,2+4+32);
+  if ((new_file=my_create(fn_format(param->temp_filename,param->temp_filename,
+				    "", INDEX_TMP_EXT,2+4),
 			  0,param->tmpfile_createflag,MYF(0))) <= 0)
   {
     mi_check_print_error(param,"Can't create new tempfile: '%s'",
@@ -1497,7 +1502,7 @@ int mi_sort_index(MI_CHECK *param, register MI_INFO *info, my_string name)
 
     if (share->state.key_root[key] != HA_OFFSET_ERROR)
     {
-      index_pos[key]=param->new_file_pos;		/* Write first block here */
+      index_pos[key]=param->new_file_pos;	/* Write first block here */
       if (sort_one_index(param,info,keyinfo,share->state.key_root[key],
 			 new_file))
 	goto err;
@@ -1618,9 +1623,14 @@ err:
 } /* sort_one_index */
 
 
-	/* Change to use new file */
-	/* Copy stats from old file to new file, deletes orginal and */
-	/* changes new file name to old file name */
+	/*
+	  Let temporary file replace old file.
+	  This assumes that the new file was created in the same
+	  directory as given by realpath(filename).
+	  This will ensure that any symlinks that are used will still work.
+	  Copy stats from old file to new file, deletes orignal and
+	  changes new file name to old file name
+	*/
 
 int change_to_newfile(const char * filename, const char * old_ext,
 		      const char * new_ext,
@@ -1635,8 +1645,10 @@ int change_to_newfile(const char * filename, const char * old_ext,
 			 raid_chunks,
 			 MYF(MY_WME | MY_LINK_WARNING | MyFlags));
 #endif
-  return my_redel(fn_format(old_filename,filename,"",old_ext,2+4),
-		  fn_format(new_filename,filename,"",new_ext,2+4),
+  /* Get real path to filename */
+  (void) fn_format(old_filename,filename,"",old_ext,2+4+32);
+  return my_redel(old_filename,
+		  fn_format(new_filename,old_filename,"",new_ext,2+4),
 		  MYF(MY_WME | MY_LINK_WARNING | MyFlags));
 } /* change_to_newfile */
 
@@ -1753,7 +1765,10 @@ int mi_repair_by_sort(MI_CHECK *param, register MI_INFO *info,
   }
   if (!rep_quick)
   {
-    if ((new_file=my_raid_create(fn_format(param->temp_filename,name,"",
+    /* Get real path for data file */
+    fn_format(param->temp_filename,name,"", MI_NAME_DEXT,2+4+32);
+    if ((new_file=my_raid_create(fn_format(param->temp_filename,
+					   param->temp_filename, "",
 					   DATA_TMP_EXT,
 					   2+4),
 				 0,param->tmpfile_createflag,

@@ -161,6 +161,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %token	DELAY_KEY_WRITE_SYM
 %token	DESC
 %token	DESCRIBE
+%token  DIRECTORY_SYM
 %token	DISTINCT
 %token	DISABLE_SYM
 %token	DYNAMIC_SYM
@@ -771,6 +772,8 @@ create_table_option:
 	    table_list->next=0;
 	    lex->create_info.used_fields|= HA_CREATE_USED_UNION;
 	  }
+	| DATA_SYM DIRECTORY_SYM EQ TEXT_STRING	{ Lex->create_info.data_file_name= $4.str; }
+	| INDEX DIRECTORY_SYM EQ TEXT_STRING	{ Lex->create_info.index_file_name= $4.str; }
 
 table_types:
 	ISAM_SYM	{ $$= DB_TYPE_ISAM; }
@@ -2383,7 +2386,7 @@ use:	USE_SYM ident
 
 /* import, export of files */
 
-load:	LOAD DATA_SYM opt_low_priority opt_local INFILE TEXT_STRING
+load:	LOAD DATA_SYM load_data_lock opt_local INFILE TEXT_STRING
 	{
 	  Lex->sql_command= SQLCOM_LOAD;
 	  Lex->local_file= $4;
@@ -2584,6 +2587,7 @@ keyword:
 	| DATETIME		{}
 	| DATE_SYM		{}
 	| DAY_SYM		{}
+	| DIRECTORY_SYM		{}
 	| DELAY_KEY_WRITE_SYM	{}
         | DISABLE_SYM           {}
 	| DUMPFILE		{}
