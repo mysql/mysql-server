@@ -42,7 +42,7 @@ cfgfile=Ndb.cfg
 stop_ndb=
 initial_ndb=
 status_ndb=
-ndb_discless=0
+ndb_diskless=0
 
 ndb_con_op=100000
 ndb_dmem=80M
@@ -65,8 +65,8 @@ while test $# -gt 0; do
      ndb_dmem=40M
      ndb_imem=12M
      ;;
-    --discless)
-     ndb_discless=1
+    --diskless)
+     ndb_diskless=1
      ;;
     --data-dir=*)
      fsdir=`echo "$1" | sed -e "s;--data-dir=;;"`
@@ -131,7 +131,7 @@ sed \
     -e s,"CHOOSE_MaxNoOfConcurrentOperations",$ndb_con_op,g \
     -e s,"CHOOSE_DataMemory",$ndb_dmem,g \
     -e s,"CHOOSE_IndexMemory",$ndb_imem,g \
-    -e s,"CHOOSE_Discless",$ndb_discless,g \
+    -e s,"CHOOSE_Diskless",$ndb_diskless,g \
     -e s,"CHOOSE_HOSTNAME_".*,"$ndb_host",g \
     -e s,"CHOOSE_FILESYSTEM_NODE_1","$fs_name_1",g \
     -e s,"CHOOSE_FILESYSTEM_NODE_2","$fs_name_2",g \
