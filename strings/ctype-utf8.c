@@ -19,7 +19,10 @@
 /* Written by Alexander Barkov <bar@udm.net> */
 
 #include <my_global.h>
-#include <m_ctype.h>
+#include "m_string.h"
+#include "m_ctype.h"
+#include "my_sys.h"			/* defines errno */
+
 
 #ifdef HAVE_CHARSET_utf8
 #define HAVE_UNIDATA
@@ -1986,11 +1989,11 @@ CHARSET_INFO my_charset_utf8 =
     my_hash_sort_utf8,	/* hash_sort    */
     0,
     my_snprintf_8bit,
-    my_strtol_8bit,
-    my_strtoul_8bit,
-    my_strtoll_8bit,
-    my_strtoull_8bit,
-    my_strtod_8bit
+    my_strntol_8bit,
+    my_strntoul_8bit,
+    my_strntoll_8bit,
+    my_strntoull_8bit,
+    my_strntod_8bit
 };
 
 
@@ -2438,35 +2441,459 @@ static int my_snprintf_ucs2(CHARSET_INFO *cs __attribute__((unused))
   return my_vsnprintf_ucs2(to, n, fmt, args);
 }
 
+#define MY_ERRNO(x)
 
-static long my_strtol_ucs2(CHARSET_INFO *cs __attribute__((unused)),
-			   const char *s, char **e, int base)
+long        my_strntol_ucs2(CHARSET_INFO *cs,
+			   const char *nptr, uint l, char **endptr, int base)
 {
-  return strtol(s,e,base);
+  int negative;
+  register ulong cutoff;
+  register unsigned int cutlim;
+  register ulong i;
+  register const char *s;
+  register unsigned char c;
+  const char *save, *e;
+  int overflow;
+  
+  if (base < 0 || base == 1 || base > 36)
+    base = 10;
+  
+  s = nptr;
+  e = nptr+l;
+  
+  for ( ; s<e && my_isspace(cs, *s) ; s++);
+  
+  if (s == e)
+  {
+    goto noconv;
+  }
+  
+  /* Check for a sign.	*/
+  if (*s == '-')
+  {
+    negative = 1;
+    ++s;
+  }
+  else if (*s == '+')
+  {
+    negative = 0;
+    ++s;
+  }
+  else
+    negative = 0;
+
+  if (base == 16 && s[0] == '0' && my_toupper(cs,s[1]) == 'X')
+    s += 2;
+
+  if (base == 0)
+  {
+    if (*s == '0')
+    {
+      if (my_toupper(cs,s[1]) == 'X')
+      {
+	s += 2;
+	base = 16;
+      }
+      else
+	base = 8;
+    }
+    else
+      base = 10;
+  }
+
+  save = s;
+  cutoff = ((ulong)~0L) / (unsigned long int) base;
+  cutlim = (uint) (((ulong)~0L) % (unsigned long int) base);
+
+  overflow = 0;
+  i = 0;
+  for (c = *s; s != e; c = *++s)
+  {
+    if (my_isdigit(cs,c))
+      c -= '0';
+    else if (my_isalpha(cs,c))
+      c = my_toupper(cs,c) - 'A' + 10;
+    else
+      break;
+    if (c >= base)
+      break;
+    if (i > cutoff || (i == cutoff && c > cutlim))
+      overflow = 1;
+    else
+    {
+      i *= (ulong) base;
+      i += c;
+    }
+  }
+  
+  if (s == save)
+    goto noconv;
+  
+  if (endptr != NULL)
+    *endptr = (char *) s;
+  
+  if (negative)
+  {
+    if (i  > (ulong) LONG_MIN)
+      overflow = 1;
+  }
+  else if (i > (ulong) LONG_MAX)
+    overflow = 1;
+  
+  if (overflow)
+  {
+    MY_ERRNO(ERANGE);
+    return negative ? LONG_MIN : LONG_MAX;
+  }
+  
+  return (negative ? -((long) i) : (long) i);
+
+noconv:
+  MY_ERRNO(EDOM);
+  if (endptr != NULL)
+    *endptr = (char *) nptr;
+  return 0L;
 }
 
-static ulong my_strtoul_ucs2(CHARSET_INFO *cs __attribute__((unused)),
-			   const char *s, char **e, int base)
+
+ulong      my_strntoul_ucs2(CHARSET_INFO *cs,
+			   const char *nptr, uint l, char **endptr, int base)
 {
-  return strtoul(s,e,base);
+  int negative;
+  register ulong cutoff;
+  register unsigned int cutlim;
+  register ulong i;
+  register const char *s;
+  register unsigned char c;
+  const char *save, *e;
+  int overflow;
+
+  if (base < 0 || base == 1 || base > 36)
+    base = 10;
+  
+  s = nptr;
+  e = nptr+l;
+  
+  for( ; s<e && my_isspace(cs, *s); s++);
+  
+  if (s==e)
+  {
+    goto noconv;
+  }
+
+  if (*s == '-')
+  {
+    negative = 1;
+    ++s;
+  }
+  else if (*s == '+')
+  {
+    negative = 0;
+    ++s;
+  }
+  else
+    negative = 0;
+
+  if (base == 16 && s[0] == '0' && my_toupper(cs,s[1]) == 'X')
+    s += 2;
+
+  if (base == 0)
+  {
+    if (*s == '0')
+    {
+      if (my_toupper(cs,s[1]) == 'X')
+      {
+	s += 2;
+	base = 16;
+      }
+      else
+	base = 8;
+    }
+    else
+      base = 10;
+  }
+
+  save = s;
+  cutoff = ((ulong)~0L) / (unsigned long int) base;
+  cutlim = (uint) (((ulong)~0L) % (unsigned long int) base);
+  overflow = 0;
+  i = 0;
+  
+  for (c = *s; s != e; c = *++s)
+  {
+    if (my_isdigit(cs,c))
+      c -= '0';
+    else if (my_isalpha(cs,c))
+      c = my_toupper(cs,c) - 'A' + 10;
+    else
+      break;
+    if (c >= base)
+      break;
+    if (i > cutoff || (i == cutoff && c > cutlim))
+      overflow = 1;
+    else
+    {
+      i *= (ulong) base;
+      i += c;
+    }
+  }
+
+  if (s == save)
+    goto noconv;
+
+  if (endptr != NULL)
+    *endptr = (char *) s;
+
+  if (overflow)
+  {
+    MY_ERRNO(ERANGE);
+    return ((ulong)~0L);
+  }
+  
+  return (negative ? -((long) i) : (long) i);
+  
+noconv:
+  MY_ERRNO(EDOM);
+  if (endptr != NULL)
+    *endptr = (char *) nptr;
+  return 0L;
 }
 
-static longlong my_strtoll_ucs2(CHARSET_INFO *cs __attribute__((unused)),
-			   const char *s, char **e, int base)
+
+longlong   my_strntoll_ucs2(CHARSET_INFO *cs __attribute__((unused)),
+			   const char *nptr, uint l, char **endptr, int base)
 {
-  return strtoll(s,e,base);
+  int negative;
+  register ulonglong cutoff;
+  register unsigned int cutlim;
+  register ulonglong i;
+  register const char *s, *e;
+  register unsigned char c;
+  const char *save;
+  int overflow;
+
+  if (base < 0 || base == 1 || base > 36)
+    base = 10;
+
+  s = nptr;
+  e = nptr+l;
+
+  for(; s<e && my_isspace(cs,*s); s++);
+
+  if (s == e)
+  {
+    goto noconv;
+  }
+
+  if (*s == '-')
+  {
+    negative = 1;
+    ++s;
+  }
+  else if (*s == '+')
+  {
+    negative = 0;
+    ++s;
+  }
+  else
+    negative = 0;
+
+  if (base == 16 && s[0] == '0' && my_toupper(cs,s[1]) == 'X')
+    s += 2;
+
+  if (base == 0)
+  {
+    if (*s == '0')
+    {
+      if (my_toupper(cs,s[1]) == 'X')
+      {
+	s += 2;
+	base = 16;
+      }
+      else
+	base = 8;
+    }
+    else
+      base = 10;
+  }
+
+  save = s;
+
+  cutoff = (~(ulonglong) 0) / (unsigned long int) base;
+  cutlim = (uint) ((~(ulonglong) 0) % (unsigned long int) base);
+
+  overflow = 0;
+  i = 0;
+  for (c = *s; s != e; c = *++s)
+  {
+    if (my_isdigit(cs,c))
+      c -= '0';
+    else if (my_isalpha(cs,c))
+      c = my_toupper(cs,c) - 'A' + 10;
+    else
+      break;
+    if (c >= base)
+      break;
+    if (i > cutoff || (i == cutoff && c > cutlim))
+      overflow = 1;
+    else
+    {
+      i *= (ulonglong) base;
+      i += c;
+    }
+  }
+
+  if (s == save)
+    goto noconv;
+
+  if (endptr != NULL)
+    *endptr = (char *) s;
+
+  if (negative)
+  {
+    if (i  > (ulonglong) LONGLONG_MIN)
+      overflow = 1;
+  }
+  else if (i > (ulonglong) LONGLONG_MAX)
+    overflow = 1;
+
+  if (overflow)
+  {
+    MY_ERRNO(ERANGE);
+    return negative ? LONGLONG_MIN : LONGLONG_MAX;
+  }
+
+  return (negative ? -((longlong) i) : (longlong) i);
+
+noconv:
+  MY_ERRNO(EDOM);
+  if (endptr != NULL)
+    *endptr = (char *) nptr;
+  return 0L;
 }
 
-static ulonglong my_strtoull_ucs2(CHARSET_INFO *cs __attribute__((unused)),
-			   const char *s, char **e, int base)
+
+ulonglong my_strntoull_ucs2(CHARSET_INFO *cs,
+			   const char *nptr, uint l, char **endptr, int base)
 {
-  return strtoul(s,e,base);
+  int negative;
+  register ulonglong cutoff;
+  register unsigned int cutlim;
+  register ulonglong i;
+  register const char *s, *e;
+  register unsigned char c;
+  const char *save;
+  int overflow;
+
+  if (base < 0 || base == 1 || base > 36)
+    base = 10;
+
+  s = nptr;
+  e = nptr+l;
+
+  for(; s<e && my_isspace(cs,*s); s++);
+
+  if (s == e)
+  {
+    goto noconv;
+  }
+
+  if (*s == '-')
+  {
+    negative = 1;
+    ++s;
+  }
+  else if (*s == '+')
+  {
+    negative = 0;
+    ++s;
+  }
+  else
+    negative = 0;
+
+  if (base == 16 && s[0] == '0' && my_toupper(cs,s[1]) == 'X')
+    s += 2;
+
+  if (base == 0)
+  {
+    if (*s == '0')
+    {
+      if (my_toupper(cs,s[1]) == 'X')
+      {
+	s += 2;
+	base = 16;
+      }
+      else
+	base = 8;
+    }
+    else
+      base = 10;
+  }
+
+  save = s;
+
+  cutoff = (~(ulonglong) 0) / (unsigned long int) base;
+  cutlim = (uint) ((~(ulonglong) 0) % (unsigned long int) base);
+
+  overflow = 0;
+  i = 0;
+  for (c = *s; s != e; c = *++s)
+  {
+    if (my_isdigit(cs,c))
+      c -= '0';
+    else if (my_isalpha(cs,c))
+      c = my_toupper(cs,c) - 'A' + 10;
+    else
+      break;
+    if (c >= base)
+      break;
+    if (i > cutoff || (i == cutoff && c > cutlim))
+      overflow = 1;
+    else
+    {
+      i *= (ulonglong) base;
+      i += c;
+    }
+  }
+
+  if (s == save)
+    goto noconv;
+
+  if (endptr != NULL)
+    *endptr = (char *) s;
+
+  if (overflow)
+  {
+    MY_ERRNO(ERANGE);
+    return (~(ulonglong) 0);
+  }
+
+  return (negative ? -((longlong) i) : (longlong) i);
+
+noconv:
+  MY_ERRNO(EDOM);
+  if (endptr != NULL)
+    *endptr = (char *) nptr;
+  return 0L;
 }
 
-double my_strtod_ucs2(CHARSET_INFO *cs __attribute__((unused)),
-			   const char *s, char **e)
+double      my_strntod_ucs2(CHARSET_INFO *cs __attribute__((unused)),
+			   const char *s, uint l, char **e)
 {
-  return strtod(s,e);
+  char   buf[256];
+  double res;
+  if((l+1)>sizeof(buf))
+  {
+    if (e)
+      memcpy(*e,s,sizeof(s));
+    return 0;
+  }
+  strncpy(buf,s,l);
+  buf[l]='\0';
+  res=strtod(buf,e);
+  if (e)
+    memcpy(*e,*e-buf+s,sizeof(s));
+  return res;
 }
 
 
@@ -2504,11 +2931,11 @@ CHARSET_INFO my_charset_ucs2 =
     my_hash_sort_ucs2,	/* hash_sort    */
     0,
     my_snprintf_ucs2,
-    my_strtol_ucs2,
-    my_strtoul_ucs2,
-    my_strtoll_ucs2,
-    my_strtoull_ucs2,
-    my_strtod_ucs2
+    my_strntol_ucs2,
+    my_strntoul_ucs2,
+    my_strntoll_ucs2,
+    my_strntoull_ucs2,
+    my_strntod_ucs2
 };
 
 

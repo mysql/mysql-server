@@ -157,7 +157,7 @@ int mysql_insert(THD *thd,TABLE_LIST *table_list, List<Item> &fields,
     res= open_and_lock_tables(thd, table_list);
   if (res)
     DBUG_RETURN(-1);
-  fix_tables_pointers(&thd->lex.select_lex);
+  fix_tables_pointers(thd->lex.all_selects_list);
 
   table= table_list->table;
   thd->proc_info="init";

@@ -70,7 +70,7 @@ int mysql_update(THD *thd,
 
   if ((open_and_lock_tables(thd, table_list)))
     DBUG_RETURN(-1);
-  fix_tables_pointers(&thd->lex.select_lex);
+  fix_tables_pointers(thd->lex.all_selects_list);
   table= table_list->table;
 
   save_time_stamp=table->time_stamp;

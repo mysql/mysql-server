@@ -22,6 +22,26 @@
 #include "m_string.h"
 #include "m_ctype.h"
 
+static uchar ctype_bin[] = {
+    0,
+   32, 32, 32, 32, 32, 32, 32, 32, 32, 40, 40, 40, 40, 40, 32, 32,
+   32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32,
+   72, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16,
+  132,132,132,132,132,132,132,132,132,132, 16, 16, 16, 16, 16, 16,
+   16,129,129,129,129,129,129,  1,  1,  1,  1,  1,  1,  1,  1,  1,
+    1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1, 16, 16, 16, 16, 16,
+   16,130,130,130,130,130,130,  2,  2,  2,  2,  2,  2,  2,  2,  2,
+    2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2, 16, 16, 16, 16, 32,
+    0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,
+    0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,
+   72, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16,
+   16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16,
+    1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,
+    1,  1,  1,  1,  1,  1,  1, 16,  1,  1,  1,  1,  1,  1,  1,  2,
+    2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,
+    2,  2,  2,  2,  2,  2,  2, 16,  2,  2,  2,  2,  2,  2,  2,  2
+};
+
 
 static int my_strnncoll_binary(CHARSET_INFO * cs __attribute__((unused)),
 				const uchar *s, uint slen,
@@ -242,7 +262,7 @@ static CHARSET_INFO my_charset_bin_st =
     MY_CS_COMPILED|MY_CS_BINSORT,/* state        */
     "binary",			/* name          */
     "",				/* comment       */
-    NULL,			/* ctype         */
+    ctype_bin,			/* ctype         */
     NULL,			/* to_lower      */
     NULL,			/* to_upper      */
     NULL,			/* sort_order    */
@@ -270,11 +290,11 @@ static CHARSET_INFO my_charset_bin_st =
     my_hash_sort_bin,		/* hash_sort     */
     255,			/* max_sort_char */
     my_snprintf_8bit,		/* snprintf      */
-    my_strtol_8bit,
-    my_strtoul_8bit,
-    my_strtoll_8bit,
-    my_strtoull_8bit,
-    my_strtod_8bit
+    my_strntol_8bit,
+    my_strntoul_8bit,
+    my_strntoll_8bit,
+    my_strntoull_8bit,
+    my_strntod_8bit
 
 };
 

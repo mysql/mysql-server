@@ -158,7 +158,7 @@ int handle_select(THD *thd, LEX *lex, select_result *result)
 {
   int res;
   register SELECT_LEX *select_lex = &lex->select_lex;
-  fix_tables_pointers(select_lex);
+  fix_tables_pointers(lex->all_selects_list);
   if (select_lex->next_select())
     res=mysql_union(thd,lex,result);
   else
@@ -7514,7 +7514,7 @@ int mysql_explain_union(THD *thd, SELECT_LEX_UNIT *unit, select_result *result)
   {
     res= mysql_explain_select(thd, sl,
 			      (((&thd->lex.select_lex)==sl)?
-			       ((sl->next_select_in_list())?"PRIMARY":
+			       ((thd->lex.all_selects_list != sl)?"PRIMARY":
 				"SIMPLE"):
 			       ((sl == first)?
 				((sl->linkage == DERIVED_TABLE_TYPE) ?
