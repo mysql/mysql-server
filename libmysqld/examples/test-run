@@ -78,6 +78,7 @@ if test $clean = 1
 then
   rm -f $datadir/ib_* $datadir/ibdata*
   rm -f $datadir/log.00*
+  rm -f $datadir/test/*.db
 fi
 rm -f $datadir/../tmp/*
 rm -f test-gdbinit

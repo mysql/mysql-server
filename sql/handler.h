@@ -231,6 +231,7 @@ public:
     { return ulonglong2double(data_file_length) / IO_SIZE + 1; }
   virtual double read_time(ha_rows rows) { return rows; }
   virtual bool fast_key_read() { return 0;}
+  virtual key_map keys_to_use_for_scanning() { return 0; }
   virtual bool has_transactions(){ return 0;}
   virtual uint extra_rec_buf_length() { return 0; }
   virtual ha_rows estimate_number_of_rows() { return records+EXTRA_RECORDS; }

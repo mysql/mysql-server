@@ -169,6 +169,7 @@ void end_key_cache(void)
     }
   }
   key_cache_inited=0;
+  _my_hash_blocks=my_blocks_used=0;
   DBUG_PRINT("status",
 	     ("used: %d  changed: %d  w_requests: %ld  writes: %ld  r_requests: %ld  reads: %ld",
 	      _my_blocks_used,_my_blocks_changed,_my_cache_w_requests,
