@@ -2470,9 +2470,9 @@ int mysql_show_grants(THD *thd,LEX_USER *lex_user)
 	    }
 	  }
 	}
-	db.append (" ON '",5);
+	db.append (" ON `",5);
 	db.append(acl_db->db);
-	db.append ("'.* TO '",8);
+	db.append ("`.* TO '",8);
 	db.append(lex_user->user.str,lex_user->user.length); 
 	db.append ("'@'",3);
 	db.append(lex_user->host.str, lex_user->host.length);
