@@ -264,8 +264,8 @@ insert into t1 values (42, 3.1), (19, 1.2)|
 --error 1314
 create procedure p()
 begin
-  declare c cursor for select * from t1;
   declare x int;
+  declare c cursor for select * from t1;
 
   open c;
   fetch c into x, y;
@@ -274,8 +274,8 @@ end|
 
 create procedure p()
 begin
-  declare c cursor for select * from t1;
   declare x int;
+  declare c cursor for select * from t1;
 
   open c;
   fetch c into x;
@@ -287,10 +287,10 @@ drop procedure p|
 
 create procedure p()
 begin
-  declare c cursor for select * from t1;
   declare x int;
   declare y float;
   declare z int;
+  declare c cursor for select * from t1;
 
   open c;
   fetch c into x, y, z;
@@ -333,8 +333,30 @@ end|
 # USE is not allowed
 --error 1323
 create procedure u()
-  use sptmp;
+  use sptmp|
 
+# Enforced standard order of declarations
+--error 1324
+create procedure p()
+begin
+  declare c cursor for select * from t1;
+  declare x int;
+end|
+--error 1324
+create procedure p()
+begin
+  declare x int;
+  declare continue handler for sqlstate '42S99' set x = 1;
+  declare foo condition for sqlstate '42S99';
+end|
+
+--error 1325
+create procedure p()
+begin
+  declare x int;
+  declare continue handler for sqlstate '42S99' set x = 1;
+  declare c cursor for select * from t1;
+end|
 
 #
 # BUG#1965
@@ -378,7 +400,7 @@ return (select sum(t.data) from test.t2 t)|
 # BUG#1653
 #
 --disable_warnings
-drop table if exists table_1|
+drop table if exists t3|
 --enable_warnings
 create table t3 (column_1_0 int)|
 
@@ -450,6 +472,64 @@ call bug2329_1()|
 call bug2329_2()|
 drop procedure bug2329_1|
 drop procedure bug2329_2|
+
+#
+# BUG#3287
+#
+create function bug3287() returns int
+begin
+  declare v int default null;
+
+  case
+    when v is not null then return 1;
+  end case;
+  return 2;
+end|
+--error 1326
+select bug3287()|
+drop function bug3287|
+
+create procedure bug3287(x int)
+case x
+when 0 then
+  insert into test.t1 values (x, 0.1);
+when 1 then
+  insert into test.t1 values (x, 1.1);
+end case|
+--error 1326
+call bug3287(2)|
+drop procedure bug3287|
+
+
+#
+# BUG#3297
+#
+--disable_warnings
+drop table if exists t3|
+--enable_warnings
+create table t3 (s1 int, primary key (s1))|
+insert into t3 values (5),(6)|
+
+create procedure bug3279(out y int) 
+begin
+  declare x int default 0;
+  begin
+    declare exit handler for sqlexception set x = x+1;
+    insert into t3 values (5);
+  end;
+  if x < 2 then
+    set x = x+1;
+    insert into t3 values (6);
+  end if;
+  set y = x;
+end|
+
+set @x = 0|
+--error 1062
+call bug3279(@x)|
+select @x|
+drop procedure bug3279|
+drop table t3|
 
 drop table t1|
 

@@ -1001,6 +1001,7 @@ void st_select_lex_unit::init_query()
   table= 0;
   fake_select_lex= 0;
   cleaned= 0;
+  found_rows_for_union= 0;
 }
 
 void st_select_lex::init_query()
@@ -1632,6 +1633,25 @@ void st_select_lex::print_limit(THD *thd, String *str)
       str->append(st);
     }
   }
+}
+
+/*
+  initialize limit counters
+
+  SYNOPSIS
+    st_select_lex_unit::set_limit()
+    values	- SELECT_LEX with initial values for counters
+    sl		- SELECT_LEX for options set
+*/
+void st_select_lex_unit::set_limit(SELECT_LEX *values,
+				   SELECT_LEX *sl)
+{
+  offset_limit_cnt= values->offset_limit;
+  select_limit_cnt= values->select_limit+values->offset_limit;
+  if (select_limit_cnt < values->select_limit)
+    select_limit_cnt= HA_POS_ERROR;		// no limit
+  if (select_limit_cnt == HA_POS_ERROR)
+    sl->options&= ~OPTION_FOUND_ROWS;
 }
 
 /*

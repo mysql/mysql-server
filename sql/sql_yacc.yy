@@ -1145,14 +1145,20 @@ create_function_tail:
 	  }
 	  RETURNS_SYM
 	  {
-	    Lex->sphead->m_returns_begin= Lex->tok_start;
+	    LEX *lex= Lex;
+	    sp_head *sp= lex->sphead;
+
+	    sp->m_returns_begin= lex->tok_start;
+	    sp->m_returns_cs= lex->charset= NULL;
 	  }
 	  type
 	  {
 	    LEX *lex= Lex;
+	    sp_head *sp= lex->sphead;
 
-	    lex->sphead->m_returns_end= lex->tok_start;
-	    lex->sphead->m_returns= (enum enum_field_types)$8;
+	    sp->m_returns_end= lex->tok_start;
+	    sp->m_returns= (enum enum_field_types)$8;
+	    sp->m_returns_cs= lex->charset;
 	    bzero((char *)&lex->sp_chistics, sizeof(st_sp_chistics));
 	  }
 	  sp_c_chistics
@@ -1318,6 +1324,20 @@ sp_decls:
 	  }
 	| sp_decls sp_decl ';'
 	  {
+	    /* We check for declarations out of (standard) order this way
+	       because letting the grammar rules reflect it caused tricky
+	       shift/reduce conflicts with the wrong result. (And we get
+	       better error handling this way.) */
+	    if (($2.vars || $2.conds) && ($1.curs || $1.hndlrs))
+	    { /* Variable or condition following cursor or handler */
+	      send_error(YYTHD, ER_SP_VARCOND_AFTER_CURSHNDLR);
+	      YYABORT;
+	    }
+	    if ($2.curs && $1.hndlrs)
+	    { /* Cursor following handler */
+	      send_error(YYTHD, ER_SP_CURSOR_AFTER_HANDLER);
+	      YYABORT;
+	    }
 	    $$.vars= $1.vars + $2.vars;
 	    $$.conds= $1.conds + $2.conds;
 	    $$.hndlrs= $1.hndlrs + $2.hndlrs;
@@ -1345,6 +1365,7 @@ sp_decl:
 
 	        lex->sphead->add_instr(in);
 	        lex->spcont->set_isset(i, TRUE);
+		lex->spcont->set_default(i, it);
 	      }
 	    }
 	    $$.vars= $2;
@@ -1894,9 +1915,16 @@ sp_case:
 	;
 
 sp_whens:
-	  /* Empty */ {}
-	| WHEN_SYM sp_case {}
+	  /* Empty */
+	  {
+	    sp_head *sp= Lex->sphead;
+	    uint ip= sp->instructions();
+	    sp_instr_error *i= new sp_instr_error(ip, ER_SP_CASE_NOT_FOUND);
+
+	    sp->add_instr(i);
+	  }
 	| ELSE sp_proc_stmts {}
+	| WHEN_SYM sp_case {}
 	;
 
 sp_labeled_control:
@@ -6219,15 +6247,25 @@ option_value:
 	    }
             else
 	    { /* An SP local variable */
+	      sp_pvar_t *spv;
+              sp_instr_set *i;
+	      Item *it;
+
 	      if ($3 && $3->type() == Item::SUBSELECT_ITEM)
 	      {  /* QQ For now, just disallow subselects as values */
 	        send_error(lex->thd, ER_SP_SUBSELECT_NYI);
 	        YYABORT;
 	      }
-	      sp_pvar_t *spv= lex->spcont->find_pvar(&$1.base_name);
-              sp_instr_set *i= new sp_instr_set(lex->sphead->instructions(),
-	                                        spv->offset, $3, spv->type);
+	      spv= lex->spcont->find_pvar(&$1.base_name);
 
+	      if ($3)
+	        it= $3;
+	      else if (spv->dflt)
+	        it= spv->dflt;
+	      else
+	        it= new Item_null();
+              i= new sp_instr_set(lex->sphead->instructions(),
+	                          spv->offset, it, spv->type);
 	      lex->sphead->add_instr(i);
 	      spv->isset= TRUE;
 	    }

@@ -36,6 +36,7 @@ typedef struct sp_pvar
   sp_param_mode_t mode;
   uint offset;			// Offset in current frame
   my_bool isset;
+  Item *dflt;
 } sp_pvar_t;
 
 typedef struct sp_label
@@ -128,6 +129,15 @@ class sp_pcontext : public Sql_alloc
 
     if (p)
       p->isset= val;
+  }
+
+  inline void
+  set_default(uint i, Item *it)
+  {
+    sp_pvar_t *p= find_pvar(i);
+
+    if (p)
+      p->dflt= it;
   }
 
   void

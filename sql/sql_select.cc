@@ -175,8 +175,11 @@ int handle_select(THD *thd, LEX *lex, select_result *result)
   DBUG_ENTER("handle_select");
 
   if (select_lex->next_select())
-    res=mysql_union(thd, lex, result, &lex->unit);
+    res= mysql_union(thd, lex, result, &lex->unit);
   else
+  {
+    SELECT_LEX_UNIT *unit= &lex->unit;
+    unit->set_limit(unit->global_parameters, select_lex);
     res= mysql_select(thd, &select_lex->ref_pointer_array,
 		      (TABLE_LIST*) select_lex->table_list.first,
 		      select_lex->with_wild, select_lex->item_list,
@@ -188,7 +191,8 @@ int handle_select(THD *thd, LEX *lex, select_result *result)
 		      select_lex->having,
 		      (ORDER*) lex->proc_list.first,
 		      select_lex->options | thd->options,
-		      result, &(lex->unit), &(lex->select_lex));
+		      result, unit, select_lex);
+  }
 
   /* Don't set res if it's -1 as we may want this later */
   DBUG_PRINT("info",("res: %d  report_error: %d", res,
@@ -1009,12 +1013,7 @@ JOIN::reinit()
 {
   DBUG_ENTER("JOIN::reinit");
   /* TODO move to unit reinit */
-  unit->offset_limit_cnt =select_lex->offset_limit;
-  unit->select_limit_cnt =select_lex->select_limit+select_lex->offset_limit;
-  if (unit->select_limit_cnt < select_lex->select_limit)
-    unit->select_limit_cnt= HA_POS_ERROR;		// no limit
-  if (unit->select_limit_cnt == HA_POS_ERROR)
-    select_lex->options&= ~OPTION_FOUND_ROWS;
+  unit->set_limit(select_lex, select_lex);
   
   if (setup_tables(tables_list, 1))
     DBUG_RETURN(1);
@@ -9258,6 +9257,14 @@ int mysql_explain_select(THD *thd, SELECT_LEX *select_lex, char const *type,
   select_lex->type= type;
   thd->lex->current_select= select_lex;
   SELECT_LEX_UNIT *unit=  select_lex->master_unit();
+  if (select_lex == unit->global_parameters &&
+      unit->first_select()->next_select())
+  {
+    unit->offset_limit_cnt= 0;
+    unit->select_limit_cnt= HA_POS_ERROR;
+  }
+  else
+    unit->set_limit(select_lex, select_lex);
   int res= mysql_select(thd, &select_lex->ref_pointer_array,
 			(TABLE_LIST*) select_lex->table_list.first,
 			select_lex->with_wild, select_lex->item_list,

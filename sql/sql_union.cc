@@ -151,11 +151,8 @@ int st_select_lex_unit::prepare(THD *thd_arg, select_result *sel_result,
 			 sl->options | thd_arg->options | additional_options,
 			 tmp_result);
     thd_arg->lex->current_select= sl;
-    offset_limit_cnt= sl->offset_limit;
-    select_limit_cnt= sl->select_limit+sl->offset_limit;
-    if (select_limit_cnt < sl->select_limit)
-      select_limit_cnt= HA_POS_ERROR;		// no limit
-    if (select_limit_cnt == HA_POS_ERROR || sl->braces)
+    set_limit(sl, sl);
+    if (sl->braces)
       sl->options&= ~OPTION_FOUND_ROWS;
     
     res= join->prepare(&sl->ref_pointer_array,
@@ -376,18 +373,13 @@ int st_select_lex_unit::exec()
 
     if (!thd->is_fatal_error)				// Check if EOM
     {
-      ulong options_tmp= thd->options;
       thd->lex->current_select= fake_select_lex;
-      offset_limit_cnt= global_parameters->offset_limit;
-      select_limit_cnt= global_parameters->select_limit +
-	global_parameters->offset_limit;
+      fake_select_lex->options= thd->options;
+      set_limit(global_parameters, fake_select_lex); 
 
-      if (select_limit_cnt < global_parameters->select_limit)
-	select_limit_cnt= HA_POS_ERROR;		// no limit
-      if (select_limit_cnt == HA_POS_ERROR)
-	options_tmp&= ~OPTION_FOUND_ROWS;
-      else if (found_rows_for_union && !thd->lex->describe)
-	options_tmp|= OPTION_FOUND_ROWS;
+      if (found_rows_for_union && !thd->lex->describe &&
+	  select_limit_cnt != HA_POS_ERROR)
+	fake_select_lex->options|= OPTION_FOUND_ROWS;
       fake_select_lex->ftfunc_list= &empty_list;
       fake_select_lex->table_list.link_in_list((byte *)&result_table_list,
 					       (byte **)
@@ -399,7 +391,8 @@ int st_select_lex_unit::exec()
 	  allocate JOIN for fake select only once (privent
 	  mysql_select automatic allocation)
 	*/
-	fake_select_lex->join= new JOIN(thd, item_list, thd->options, result);
+	fake_select_lex->join= new JOIN(thd, item_list,
+					fake_select_lex->options, result);
 	/*
 	  Fake st_select_lex should have item list for correctref_array
 	  allocation.
@@ -414,7 +407,7 @@ int st_select_lex_unit::exec()
 	  delete tab->select;
 	  delete tab->quick;
 	}
-	join->init(thd, item_list, thd->options, result);
+	join->init(thd, item_list, fake_select_lex->options, result);
       }
       res= mysql_select(thd, &fake_select_lex->ref_pointer_array,
 			&result_table_list,
@@ -422,7 +415,7 @@ int st_select_lex_unit::exec()
 			global_parameters->order_list.elements,
 			(ORDER*)global_parameters->order_list.first,
 			(ORDER*) NULL, NULL, (ORDER*) NULL,
-			options_tmp | SELECT_NO_UNLOCK,
+			fake_select_lex->options | SELECT_NO_UNLOCK,
 			result, this, fake_select_lex);
       if (!res)
 	thd->limit_found_rows = (ulonglong)table->file->records + add_rows;
