@@ -50,11 +50,11 @@ libnet_a_LIBADD= $(top_builddir)/sql/password.$(OBJEXT) \
 
 CLEANFILES= net_serv.cc client_settings.h
 
-net_serv.cc: Makefile
+net_serv.cc:
 	rm -f $(srcdir)/net_serv.cc
 	@LN_CP_F@ $(top_srcdir)/sql/net_serv.cc $(srcdir)/net_serv.cc
 
-client_settings.h: Makefile
+client_settings.h:
 	rm -f $(srcdir)/client_settings.h
 	@LN_CP_F@ $(top_srcdir)/sql/client_settings.h $(srcdir)/client_settings.h
 
