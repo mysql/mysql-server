@@ -3400,7 +3400,12 @@ int ndbcluster_commit(THD *thd, bool all)
       ndbcluster_print_error(res, error_op);
   }
   ndb->closeTransaction(trans);
-  thd_ndb->all= thd_ndb->stmt= NULL;
+  
+  if(all)
+    thd_ndb->all= NULL;
+  else
+    thd_ndb->stmt= NULL;
+  
   DBUG_RETURN(res);
 }
 
@@ -3432,7 +3437,12 @@ int ndbcluster_rollback(THD *thd, bool all)
       ndbcluster_print_error(res, error_op);
   }
   ndb->closeTransaction(trans);
-  thd_ndb->all= thd_ndb->stmt= NULL;
+
+  if(all)
+    thd_ndb->all= NULL;
+  else
+    thd_ndb->stmt= NULL;
+
   DBUG_RETURN(res);
 }
 
