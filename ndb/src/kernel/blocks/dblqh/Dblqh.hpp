@@ -572,6 +572,7 @@ public:
     Uint8 scanLockMode;
     Uint8 readCommitted;
     Uint8 rangeScan;
+    Uint8 descending;
     Uint8 scanTcWaiting;
     Uint8 scanKeyinfoFlag;
     Uint8 m_last_row;

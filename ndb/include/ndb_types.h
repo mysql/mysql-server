@@ -40,15 +40,21 @@ typedef __SIZE_TYPE__ UintPtr;
 #ifdef HAVE_INTTYPES_H
 #include <inttypes.h>
 #endif
+#if defined(WIN32) || defined(NDB_WIN32)
+typedef Uint32 UintPtr;
+#else
 typedef uintptr_t UintPtr;
+#endif
 #endif
 
 #if defined(WIN32) || defined(NDB_WIN32)
 typedef unsigned __int64 Uint64;
 typedef   signed __int64 Int64;
+typedef UintPtr ssize_t;
 #else
 typedef unsigned long long Uint64;
 typedef   signed long long Int64;
 #endif
+
 
 #endif

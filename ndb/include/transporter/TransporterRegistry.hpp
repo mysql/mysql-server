@@ -226,8 +226,8 @@ public:
     const char *m_interface;
   };
   Vector<Transporter_interface> m_transporter_interface;
-  void add_transporter_interface(NodeId remoteNodeId, 
-				 const char *interface, unsigned short port);
+  void add_transporter_interface(NodeId remoteNodeId, const char *interf,
+		  		 unsigned short port);
   Transporter* get_transporter(NodeId nodeId);
   NodeId get_localNodeId() { return localNodeId; };
 

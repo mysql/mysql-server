@@ -406,6 +406,7 @@ private:
     Uint32 m_accLockOp;
     Uint8 m_readCommitted;      // no locking
     Uint8 m_lockMode;
+    Uint8 m_descending;
     ScanBound m_boundMin;
     ScanBound m_boundMax;
     ScanBound* m_bound[2];      // pointers to above 2
@@ -638,7 +639,7 @@ private:
   void execACCKEYREF(Signal* signal);
   void execACC_ABORTCONF(Signal* signal);
   void scanFirst(ScanOpPtr scanPtr);
-  void scanNext(ScanOpPtr scanPtr);
+  void scanNext(ScanOpPtr scanPtr, bool fromMaintReq);
   bool scanVisible(ScanOpPtr scanPtr, TreeEnt ent);
   void scanClose(Signal* signal, ScanOpPtr scanPtr);
   void addAccLockOp(ScanOp& scan, Uint32 accLockOp);
@@ -650,7 +651,9 @@ private:
    */
   void searchToAdd(Frag& frag, ConstData searchKey, TreeEnt searchEnt, TreePos& treePos);
   void searchToRemove(Frag& frag, ConstData searchKey, TreeEnt searchEnt, TreePos& treePos);
-  void searchToScan(Frag& frag, ConstData boundInfo, unsigned boundCount, TreePos& treePos);
+  void searchToScan(Frag& frag, ConstData boundInfo, unsigned boundCount, bool descending, TreePos& treePos);
+  void searchToScanAscending(Frag& frag, ConstData boundInfo, unsigned boundCount, TreePos& treePos);
+  void searchToScanDescending(Frag& frag, ConstData boundInfo, unsigned boundCount, TreePos& treePos);
 
   /*
    * DbtuxCmp.cpp
@@ -1029,6 +1032,7 @@ Dbtux::ScanOp::ScanOp(ScanBoundPool& scanBoundPool) :
   m_accLockOp(RNIL),
   m_readCommitted(0),
   m_lockMode(0),
+  m_descending(0),
   m_boundMin(scanBoundPool),
   m_boundMax(scanBoundPool),
   m_scanPos(),

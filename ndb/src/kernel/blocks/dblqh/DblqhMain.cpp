@@ -7637,6 +7637,7 @@ void Dblqh::continueAfterReceivingAllAiLab(Signal* signal)
   req->requestInfo = 0;
   AccScanReq::setLockMode(req->requestInfo, scanptr.p->scanLockMode);
   AccScanReq::setReadCommittedFlag(req->requestInfo, scanptr.p->readCommitted);
+  AccScanReq::setDescendingFlag(req->requestInfo, scanptr.p->descending);
   req->transId1 = tcConnectptr.p->transid[0];
   req->transId2 = tcConnectptr.p->transid[1];
   req->savePointId = tcConnectptr.p->savePointId;
@@ -8628,6 +8629,7 @@ Uint32 Dblqh::initScanrec(const ScanFragReq* scanFragReq)
   const Uint32 keyinfo = ScanFragReq::getKeyinfoFlag(reqinfo);
   const Uint32 readCommitted = ScanFragReq::getReadCommittedFlag(reqinfo);
   const Uint32 idx = ScanFragReq::getRangeScanFlag(reqinfo);
+  const Uint32 descending = ScanFragReq::getDescendingFlag(reqinfo);
   const Uint32 attrLen = ScanFragReq::getAttrLen(reqinfo);
   const Uint32 scanPrio = ScanFragReq::getScanPrio(reqinfo);
 
@@ -8649,6 +8651,7 @@ Uint32 Dblqh::initScanrec(const ScanFragReq* scanFragReq)
   scanptr.p->scanLockMode = scanLockMode;
   scanptr.p->readCommitted = readCommitted;
   scanptr.p->rangeScan = idx;
+  scanptr.p->descending = descending;
   scanptr.p->scanState = ScanRecord::SCAN_FREE;
   scanptr.p->scanFlag = ZFALSE;
   scanptr.p->scanLocalref[0] = 0;

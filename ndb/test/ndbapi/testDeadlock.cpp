@@ -464,7 +464,7 @@ wl1822_main(char scantx)
   // run the steps
   for (unsigned i = 0; i < wl1822_stepcount; i++) {
     DBG("step " << i << " start");
-    for (int n = 0; n < thrcount; n++) {
+    for (n = 0; n < thrcount; n++) {
       Thr& thr = *thrlist[n];
       Runstep runstep = wl1822_step[i][n];
       if (runstep != 0)

@@ -206,9 +206,9 @@ FileLogHandler::setMaxSize(const BaseString &size) {
   long val = strtol(size.c_str(), &end, 0); /* XXX */
   if(size.c_str() == end)
     return false;
-  if(strncasecmp("M", end, 1) == 0)
+  if(end[0] == 'M')
     val *= 1024*1024;
-  if(strncasecmp("k", end, 1) == 0)
+  if(end[0] == 'k')
     val *= 1024;
 
   m_maxFileSize = val;

@@ -34,13 +34,14 @@ int scanReadRecords(Ndb*,
 		    bool headers,
 		    bool useHexFormat,
 		    char delim,
-		    bool orderby);
+		    bool orderby,
+                    bool descending);
 
 static const char* opt_connect_str= 0;
 static const char* _dbname = "TEST_DB";
 static const char* _delimiter = "\t";
 static int _unqualified, _header, _parallelism, _useHexFormat, _lock,
-  _order;
+  _order, _descending;
 
 static struct my_option my_long_options[] =
 {
@@ -56,6 +57,9 @@ static struct my_option my_long_options[] =
     GET_INT, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 }, 
   { "order", 'o', "Sort resultset according to index",
     (gptr*) &_order, (gptr*) &_order, 0,
+    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 }, 
+  { "descending", 'z', "Sort descending (requires order flag)",
+    (gptr*) &_descending, (gptr*) &_descending, 0,
     GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 }, 
   { "header", 'h', "Print header",
     (gptr*) &_header, (gptr*) &_header, 0,
@@ -151,6 +155,11 @@ int main(int argc, char** argv){
     return NDBT_ProgramExit(NDBT_WRONGARGS);
   }
 
+  if (_descending && ! _order) {
+    ndbout << " Descending flag given without order flag" << endl;
+    return NDBT_ProgramExit(NDBT_WRONGARGS);
+  }
+
   if (scanReadRecords(&MyNdb, 
 		      pTab, 
 		      pIdx,
@@ -158,7 +167,7 @@ int main(int argc, char** argv){
 		      _lock,
 		      _header, 
 		      _useHexFormat, 
-		      (char)*_delimiter, _order) != 0){
+		      (char)*_delimiter, _order, _descending) != 0){
     return NDBT_ProgramExit(NDBT_FAILED);
   }
 
@@ -173,7 +182,7 @@ int scanReadRecords(Ndb* pNdb,
 		    int _lock,
 		    bool headers,
 		    bool useHexFormat,
-		    char delimiter, bool order){
+		    char delimiter, bool order, bool descending){
 
   int                  retryAttempt = 0;
   const int            retryMax = 100;
@@ -225,13 +234,13 @@ int scanReadRecords(Ndb* pNdb,
       break;
     case 3:
       rs = pIOp->readTuples(NdbScanOperation::LM_CommittedRead, 0, parallel, 
-			    true);
+			    true, descending);
       break;
     case 4:
-      rs = pIOp->readTuples(NdbScanOperation::LM_Read, 0, parallel, true);
+      rs = pIOp->readTuples(NdbScanOperation::LM_Read, 0, parallel, true, descending);
       break;
     case 5:
-      rs = pIOp->readTuples(NdbScanOperation::LM_Exclusive, 0, parallel, true);
+      rs = pIOp->readTuples(NdbScanOperation::LM_Exclusive, 0, parallel, true, descending);
       break;
     case 0:
     default:

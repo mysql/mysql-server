@@ -213,7 +213,9 @@ public:
       IL_CREATED_TC = 1 << 0    // created in TC
     };
     Uint32 indexLocal;
-
+    
+    Uint32 noOfNullBits;
+    
     inline bool equal(TableRecord & rec) const {
       return strcmp(tableName, rec.tableName) == 0;
     }
@@ -639,7 +641,7 @@ private:
       WRITE_ADD_TABLE_SLAVE = 2,
       WRITE_RESTART_FROM_MASTER = 3,
       WRITE_RESTART_FROM_OWN = 4,
-      CALLBACK = 5
+      TWR_CALLBACK = 5
     };
     TableWriteState tableWriteState;
     Callback m_callback;

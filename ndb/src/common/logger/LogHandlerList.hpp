@@ -18,6 +18,7 @@
 #define LOGHANDLERLIST_H
 
 class LogHandler;
+#include <ndb_global.h>
 
 /**
  * Provides a simple linked list of log handlers.
