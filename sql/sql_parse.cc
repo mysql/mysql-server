@@ -157,7 +157,7 @@ static int get_or_create_user_conn(THD *thd, const char *user,
     uc->user_len= user_len;
     uc->host=uc->user + uc->user_len +  1;
     uc->len = temp_len;
-    uc->connections = 1;
+    uc->connections = 0;	/* BUG FIX by Heikki Oct 25, 2003 */
     uc->questions=uc->updates=uc->conn_per_hour=0;
     uc->user_resources=*mqh;
     if (max_user_connections && mqh->connections > max_user_connections)
@@ -314,11 +314,29 @@ int check_user(THD *thd, enum enum_server_command command,
       thd->db_access=0;
 
       /* Don't allow user to connect if he has done too many queries */
-      if ((ur.questions || ur.updates ||
-           ur.connections || max_user_connections) &&
+
+      /*
+      BUG FIX by Heikki Oct 25, 2003: since get_or_create_user_conn()
+      creates or finds the user object and does NOT check anything about ur,
+      we should call it always.
+      */
+
+      if ( /* (ur.questions || ur.updates ||
+           ur.connections || max_user_connections) && */
           get_or_create_user_conn(thd,thd->user,thd->host_or_ip,&ur))
         DBUG_RETURN(1);
-      if (thd->user_connect && thd->user_connect->user_resources.connections &&
+
+      /*
+      BUG FIX by Heikki Oct 25, 2003: since
+      check_for_max_user_connections() keeps the count of user connections,
+      and we delete the user object when the number of connections drops to
+      zero, we must call it always to keep the count right! Otherwise the
+      user object can get deleted too early, which caused memory corruption
+      to a user in Oct 2003.
+      */
+
+      if (thd->user_connect &&
+		/* thd->user_connect->user_resources.connections && */
           check_for_max_user_connections(thd, thd->user_connect))
         DBUG_RETURN(1);
 
@@ -390,6 +408,13 @@ static int check_for_max_user_connections(THD *thd, USER_CONN *uc)
   int error=0;
   DBUG_ENTER("check_for_max_user_connections");
 
+  /*
+  FIX by Heikki Oct 25, 2003: protect the operation with a mutex: is there
+  a race condition here otherwise?
+  */  
+
+  (void) pthread_mutex_lock(&LOCK_user_conn);
+
   if (max_user_connections &&
       (max_user_connections <  (uint) uc->connections))
   {
@@ -397,7 +422,9 @@ static int check_for_max_user_connections(THD *thd, USER_CONN *uc)
     error=1;
     goto end;
   }
+
   uc->connections++;
+
   if (uc->user_resources.connections &&
       uc->conn_per_hour++ >= uc->user_resources.connections)
   {
@@ -407,6 +434,9 @@ static int check_for_max_user_connections(THD *thd, USER_CONN *uc)
     error=1;
   }
 end:
+
+  (void) pthread_mutex_unlock(&LOCK_user_conn);
+
   DBUG_RETURN(error);
 }
 
@@ -414,13 +444,23 @@ end:
 static void decrease_user_connections(USER_CONN *uc)
 {
   DBUG_ENTER("decrease_user_connections");
+  
+  /*
+  FIX by Heikki Oct 25, 2003: protect the operation with a mutex: is there
+  a race condition here otherwise?
+  */  
+
+  (void) pthread_mutex_lock(&LOCK_user_conn);
+
   if ((uc->connections && !--uc->connections) && !mqh_used)
   {
     /* Last connection for user; Delete it */
-    (void) pthread_mutex_lock(&LOCK_user_conn);
+
     (void) hash_delete(&hash_user_connections,(byte*) uc);
-    (void) pthread_mutex_unlock(&LOCK_user_conn);
   }
+
+  (void) pthread_mutex_unlock(&LOCK_user_conn);
+
   DBUG_VOID_RETURN;
 }
 
@@ -4673,10 +4713,10 @@ Item * all_any_subquery_creator(Item *left_expr,
 				bool all,
 				SELECT_LEX *select_lex)
 {
-  if ((cmp == &comp_eq_creator) and !all)       //  = ANY <=> IN
+  if ((cmp == &comp_eq_creator) && !all)       //  = ANY <=> IN
     return new Item_in_subselect(left_expr, select_lex);
   
-  if ((cmp == &comp_ne_creator) and all)	// <> ALL <=> NOT IN
+  if ((cmp == &comp_ne_creator) && all)	// <> ALL <=> NOT IN
     return new Item_func_not(new Item_in_subselect(left_expr, select_lex));
 
   Item_allany_subselect *it=
