@@ -31,3 +31,37 @@ load data infile '../../std_data/loaddata4.dat' into table t1 fields terminated 
 select * from t1;
 drop table t1;
 
+#
+# Let us test extended LOAD DATA features
+#
+create table t1 (a int default 100, b int, c varchar(60));
+# we can do something like this
+load data infile '../../std_data/rpl_loaddata.dat' into table t1 (a, @b) set b=@b+10, c=concat("b=",@b);
+select * from t1;
+truncate table t1;
+# we can use filled fields in expressions 
+# we also assigning NULL value to field with non-NULL default here
+load data infile '../../std_data/rpl_loaddata.dat' into table t1 (a, @b) set c= if(a is null,"oops",a);
+select * from t1;
+truncate table t1;
+# we even can use variables in set clause, and missed columns will be set
+# with default values
+set @c:=123;
+load data infile '../../std_data/rpl_loaddata.dat' into table t1 (@a, b) set c= if(@a is null,@c,b);
+select * from t1;
+# let us test side-effect of such load
+load data infile '../../std_data/rpl_loaddata.dat' into table t1 (@a, @b);
+select * from t1;
+select @a, @b;
+truncate table t1;
+# now going to test fixed field-row file format
+load data infile '../../std_data/loaddata5.dat' into table t1 fields terminated by '' enclosed by '' (a, b) set c="Wow";
+select * from t1;
+truncate table t1;
+# this also should work
+load data infile '../../std_data/loaddata5.dat' into table t1 fields terminated by '' enclosed by '' (a, b) set c=concat(a,"+",b,"+",@c,"+",b,"+",if(c is null,"NIL",c));
+select * from t1;
+# and this should bark
+--error 1409 
+load data infile '../../std_data/loaddata5.dat' into table t1 fields terminated by '' enclosed by '' (a, @b);
+drop table t1;

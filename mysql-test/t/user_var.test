@@ -108,7 +108,8 @@ INSERT INTO t1 VALUES(@`a b`);
 set @var1= "';aaa";
 SET @var2=char(ascii('a'));
 insert into t1 values (@var1),(@var2);
-show binlog events from 96;
+--replace_column 2 # 5 #
+show binlog events from 98;
 # more important than SHOW BINLOG EVENTS, mysqlbinlog (where we
 # absolutely need variables names to be quoted and strings to be
 # escaped).

@@ -63,12 +63,7 @@ typedef struct st_load_file_info
 {
   THD* thd;
   my_off_t last_pos_in_file;
-  sql_exchange* ex;
-  List <Item> *fields;
-  enum enum_duplicates handle_dup;
-  char* db;
-  char* table_name;
-  bool wrote_create_file, log_delayed, ignore;
+  bool wrote_create_file, log_delayed;
 } LOAD_FILE_INFO;
 
 int log_loaded_block(IO_CACHE* file);
