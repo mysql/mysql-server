@@ -1821,7 +1821,12 @@ then
       sql_server_dirs="$have_berkeley_db/build_unix $sql_server_dirs"
 
       echo "CONFIGURING FOR BERKELEY DB" 
-      (cd $bdb && cd build_unix && sh ../dist/configure) \
+      bdb_conf_flags=
+      if test $with_debug = "yes"
+      then
+        bdb_conf_flags="$bdb_conf_flags --enable-debug --enable-diagnostic"
+      fi
+      (cd $bdb && cd build_unix && sh ../dist/configure $bdb_conf_flags) \
       || AC_MSG_ERROR([could not configure Berkeley DB])
 
       echo "Modifying Berkeley DB install target"
