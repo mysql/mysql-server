@@ -1,15 +1,15 @@
 /* Copyright (C) 2000 MySQL AB & MySQL Finland AB & TCX DataKonsult AB
-   
+
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
    the Free Software Foundation; either version 2 of the License, or
    (at your option) any later version.
-   
+
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
    GNU General Public License for more details.
-   
+
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
@@ -57,7 +57,7 @@ void kill_one_thread(THD *thd, ulong id);
 #endif
 
 /***************************************************************************
-  Configuration parameters 
+  Configuration parameters
 ****************************************************************************/
 
 #define ACL_CACHE_SIZE		256
@@ -83,7 +83,7 @@ void kill_one_thread(THD *thd, ulong id);
 // Number of rows in a reference table when refereed through a not unique key.
 // This value is only used when we don't know anything about the key
 // distribution.
-#define MATCHING_ROWS_IN_OTHER_TABLE 10	
+#define MATCHING_ROWS_IN_OTHER_TABLE 10
 
 /* Don't pack string keys shorter than this (if PACK_KEYS=1 isn't used) */
 #define KEY_DEFAULT_PACK_LENGTH 8
@@ -158,6 +158,7 @@ void kill_one_thread(THD *thd, ulong id);
 #define OPTION_AUTO_COMMIT	OPTION_BIN_LOG*2
 #define OPTION_BEGIN		OPTION_AUTO_COMMIT*2
 #define OPTION_QUICK		OPTION_BEGIN*2
+#define OPTION_QUOTE_SHOW_CREATE OPTION_QUICK*2
 
 #define RAID_BLOCK_SIZE 1024
 
