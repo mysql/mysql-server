@@ -50147,6 +50147,8 @@ each individual 4.0.x release.
 
 @itemize @bullet
 @item
+Fixed bug in query cache after temporary table creation.
+@item
 Fixed bug in multi-table @code{UPDATE}: when updating a table,
 @code{do_select()} became confused about reading records from a cache.
 @item

@@ -506,3 +506,23 @@ set GLOBAL query_cache_size=1900;
 show global variables like "query_cache_size";
 Variable_name	Value
 query_cache_size	1024
+set GLOBAL query_cache_size=1048576;
+create table t1 (i int not null);
+create table t2 (i int not null);
+select * from t1;
+i
+show status like "Qcache_queries_in_cache";
+Variable_name	Value
+Qcache_queries_in_cache	1
+create temporary table t3 (i int not null);
+select * from t2;
+i
+show status like "Qcache_queries_in_cache";
+Variable_name	Value
+Qcache_queries_in_cache	2
+select * from t3;
+i
+show status like "Qcache_queries_in_cache";
+Variable_name	Value
+Qcache_queries_in_cache	2
+drop table t1, t2, t3;
