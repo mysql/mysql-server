@@ -1362,7 +1362,8 @@ int Query_log_event::exec_event(struct st_relay_log_info* rli)
     Thank you.
   */
   thd->catalog= (char*) catalog;
-  thd->db= (char*) rewrite_db(db); // thd->db_length is set later if needed
+  thd->db_length= db_len;
+  thd->db= (char*) rewrite_db(db, &thd->db_length);
   thd->variables.auto_increment_increment= auto_increment_increment;
   thd->variables.auto_increment_offset=    auto_increment_offset;
 
