@@ -1,0 +1,7 @@
+
+LDADD += \
+              $(top_srcdir)/ndb/src/common/logger/liblogger.la       \
+              $(top_srcdir)/ndb/src/common/util/libgeneral.la \
+              $(top_srcdir)/ndb/src/common/portlib/unix/libportlib.la
+
+INCLUDES += @NDB_UTIL_INCLUDES@
