@@ -762,8 +762,16 @@ static bool parse_prepare_query(PREP_STMT *stmt,
   thd->lex->param_count= 0;
   if (!yyparse((void *)thd) && !thd->is_fatal_error) 
     error= send_prepare_results(stmt);
-  if (thd->lex->sphead && lex != thd->lex)
-    thd->lex->sphead->restore_lex(thd);
+  else
+  {
+    if (thd->lex->sphead)
+    {
+      if (lex != thd->lex)
+	thd->lex->sphead->restore_lex(thd);
+      delete thd->lex->sphead;
+      thd->lex->sphead= NULL;
+    }
+  }
   lex_end(lex);
   DBUG_RETURN(error);
 }

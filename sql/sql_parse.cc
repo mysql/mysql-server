@@ -2829,7 +2829,7 @@ mysql_execute_command(THD *thd)
       sp_head *sph= sp_find_function(thd, &lex->udf.name);
       if (sph)
       {
-	sph->destroy();		// QQ Free memory. Remove this when caching!!!
+	delete sph;		// QQ Free memory. Remove this when caching!!!
 	net_printf(thd, ER_UDF_EXISTS, lex->udf.name.str);
 	goto error;
       }
@@ -3029,18 +3029,22 @@ mysql_execute_command(THD *thd)
 #endif
       res= lex->sphead->create(thd);
 
-      lex->sphead->destroy();	// QQ Free memory. Remove this when caching!!!
-
       switch (res)
       {
       case SP_OK:
 	send_ok(thd);
+	delete lex->sphead;	// QQ Free memory. Remove this when caching!!!
+	lex->sphead= NULL;
 	break;
       case SP_WRITE_ROW_FAILED:
 	net_printf(thd, ER_SP_ALREADY_EXISTS, SP_TYPE_STRING(lex), name);
+	delete lex->sphead;	// QQ Free memory. Remove this when caching!!!
+	lex->sphead= NULL;
 	goto error;
       default:
 	net_printf(thd, ER_SP_STORE_FAILED, SP_TYPE_STRING(lex), name);
+	delete lex->sphead;	// QQ Free memory. Remove this when caching!!!
+	lex->sphead= NULL;
 	goto error;
       }
       break;
@@ -3064,7 +3068,7 @@ mysql_execute_command(THD *thd)
 	if (tables && ((res= check_table_access(thd, SELECT_ACL, tables)) ||
 		       (res= open_and_lock_tables(thd, tables))))
 	{
-	  sp->destroy();	// QQ Free memory. Remove this when caching!!!
+	  delete sp;		// Free memory. Remove this when caching!!!
 	  break;
 	}
 	fix_tables_pointers(lex->all_selects_list);
@@ -3083,7 +3087,7 @@ mysql_execute_command(THD *thd)
 #ifndef EMBEDDED_LIBRARY
 	    thd->net.no_send_ok= nsok;
 #endif
-	    sp->destroy();	// QQ Free memory. Remove this when caching!!!
+	    delete sp;		// QQ Free memory. Remove this when caching!!!
 	    goto error;
 	  }
 	  smrx= thd->server_status & SERVER_MORE_RESULTS_EXISTS;
@@ -3101,7 +3105,7 @@ mysql_execute_command(THD *thd)
 	    thd->server_status &= ~SERVER_MORE_RESULTS_EXISTS;
 	}
 
-	sp->destroy();		// QQ Free memory. Remove this when caching!!!
+	delete sp;		// QQ Free memory. Remove this when caching!!!
 
 	if (res == 0)
 	  send_ok(thd);
@@ -3128,7 +3132,7 @@ mysql_execute_command(THD *thd)
       {
 	/* QQ This is an no-op right now, since we haven't
 	      put the characteristics in yet. */
-	sp->destroy();		// QQ Free memory. Remove this when caching!!!
+	delete sp;		// QQ Free memory. Remove this when caching!!!
 	send_ok(thd);
       }
       break;
@@ -3588,7 +3592,12 @@ mysql_parse(THD *thd, char *inBuf, uint length)
 	{
 	  send_error(thd, 0, NullS);
 	  if (thd->lex->sphead)
-	    thd->lex->sphead->destroy();
+	  {
+	    if (lex != thd->lex)
+	      thd->lex->sphead->restore_lex(thd);
+	    delete thd->lex->sphead;
+	    thd->lex->sphead= NULL;
+	  }
 	}
 	else
 	{
@@ -3606,11 +3615,14 @@ mysql_parse(THD *thd, char *inBuf, uint length)
 #ifndef EMBEDDED_LIBRARY   /* TODO query cache in embedded library*/
       query_cache_abort(&thd->net);
       if (thd->lex->sphead)
-	thd->lex->sphead->destroy();
+      {
+	if (lex != thd->lex)
+	  thd->lex->sphead->restore_lex(thd);
+	delete thd->lex->sphead;
+	thd->lex->sphead= NULL;
+      }
 #endif
     }
-    if (thd->lex->sphead && lex != thd->lex)
-      thd->lex->sphead->restore_lex(thd);
     thd->proc_info="freeing items";
     free_items(thd->free_list);  /* Free strings used by items */
     lex_end(lex);

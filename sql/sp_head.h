@@ -54,11 +54,19 @@ public:
   List<char *> m_tables;	// Used tables.
 #endif
 
+  static void *
+  operator new(size_t size);
+
+  static void 
+  operator delete(void *ptr, size_t size);
+
   sp_head(LEX_STRING *name, LEX *lex, LEX_STRING *comment, char suid);
 
   int
   create(THD *thd);
   
+  virtual ~sp_head();
+
   // Free memory
   void
   destroy();
@@ -87,6 +95,7 @@ public:
 
   // Restores lex in 'thd' from our copy, but keeps some status from the
   // one in 'thd', like ptr, tables, fields, etc.
+  // If 'delete_lex' is true, we delete the current lex.
   void
   restore_lex(THD *thd);
 
@@ -122,10 +131,33 @@ public:
     m_comment.length= commentlen;
     m_comment.str= comment;
     m_suid= suid;
-   }
+  }
+
+  inline void reset_thd_mem_root(THD *thd)
+  {
+    m_thd_root= thd->mem_root;
+    thd->mem_root= m_mem_root;
+    m_free_list= thd->free_list; // Keep the old list
+    thd->free_list= NULL;	// Start a new one
+    m_thd= thd;
+  }
+
+  inline void restore_thd_mem_root(THD *thd)
+  {
+    Item *flist= m_free_list;	// The old list
+    m_free_list= thd->free_list; // Get the new one
+    thd->free_list= flist;	// Restore the old one
+    m_mem_root= thd->mem_root;
+    thd->mem_root= m_thd_root;
+    m_thd= NULL;
+  }
 
 private:
 
+  MEM_ROOT m_mem_root;		// My own mem_root
+  MEM_ROOT m_thd_root;		// Temp. store for thd's mem_root
+  Item *m_free_list;		// Where the items go
+  THD *m_thd;			// Set if we have reset mem_root
   LEX_STRING m_name;
   LEX_STRING m_defstr;
   LEX_STRING m_comment;
@@ -136,7 +168,7 @@ private:
   bool m_suid;
 
   sp_pcontext *m_pcont;		// Parse context
-  LEX *m_lex;			// Temp. store for the other lex
+  List<LEX> m_lex;		// Temp. store for the other lex
   DYNAMIC_ARRAY m_instr;	// The "instructions"
   typedef struct
   {
@@ -211,11 +243,10 @@ class sp_instr_stmt : public sp_instr
 public:
 
   sp_instr_stmt(uint ip)
-    : sp_instr(ip)
+    : sp_instr(ip), m_lex(NULL)
   {}
 
-  virtual ~sp_instr_stmt()
-  {}
+  virtual ~sp_instr_stmt();
 
   virtual int execute(THD *thd, uint *nextp);
 

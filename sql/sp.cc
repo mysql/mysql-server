@@ -151,7 +151,8 @@ db_find_routine(THD *thd, int type, char *name, uint namelen, sp_head **sphp)
       {
 	if (oldlex != thd->lex)
 	  thd->lex->sphead->restore_lex(thd);
-	thd->lex->sphead->destroy();
+	delete thd->lex->sphead;
+	thd->lex= NULL;
       }
       ret= SP_PARSE_ERROR;
     }
@@ -444,7 +445,7 @@ sp_clear_function_cache(THD *thd)
   sp_head *sp;
 
   while ((sp= li++))
-    sp->destroy();
+    delete sp;
   thd->spfuns.empty();
 }
 
