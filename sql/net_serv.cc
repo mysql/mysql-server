@@ -42,8 +42,6 @@
 #include <sys/types.h>
 #include <assert.h>
 
-extern "C" {
-
 #ifdef MYSQL_SERVER
 ulong max_allowed_packet=65536;
 extern ulong net_read_timeout,net_write_timeout;
@@ -831,6 +829,4 @@ my_net_read(NET *net)
   }
 #endif /* HAVE_COMPRESS */
   return len;
-}
-
 }

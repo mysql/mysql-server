@@ -593,7 +593,6 @@ error:
 int register_slave_on_master(MYSQL* mysql)
 {
   String packet;
-  uint len;
   char buf[4];
 
   if(!report_host)
@@ -937,8 +936,6 @@ static int exec_event(THD* thd, NET* net, MASTER_INFO* mi, int event_len)
 {
   Log_event * ev = Log_event::read_log_event((const char*)net->read_pos + 1,
 					     event_len);
-  char llbuff[22];
-  
   if (ev)
   {
     int type_code = ev->get_type_code();

@@ -75,7 +75,8 @@ bool Unique::flush()
 
 int unique_write_to_file(gptr key, element_count count, Unique *unique)
 {
-  return my_b_write(&unique->file, key, unique->tree.size_of_element) ? 1 : 0;
+  return my_b_write(&unique->file, (byte*) key,
+		    unique->tree.size_of_element) ? 1 : 0;
 }
 
 int unique_write_to_ptrs(gptr key, element_count count, Unique *unique)

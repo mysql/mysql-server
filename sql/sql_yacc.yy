@@ -2053,14 +2053,14 @@ delete_limit_clause:
 
 ULONG_NUM:
 	NUM	    { $$= strtoul($1.str,NULL,10); }
-	| ULONGLONG_NUM { $$= (ulonglong) strtoul($1.str,NULL,10); }
+	| ULONGLONG_NUM { $$= (ulong) strtoull($1.str,NULL,10); }
 	| REAL_NUM  { $$= strtoul($1.str,NULL,10); }
 	| FLOAT_NUM { $$= strtoul($1.str,NULL,10); }
 
 ulonglong_num:
 	NUM	    { $$= (ulonglong) strtoul($1.str,NULL,10); }
-	| ULONGLONG_NUM { $$= (ulonglong) strtoul($1.str,NULL,10); }
-	| LONG_NUM  { $$= strtoull($1.str,NULL,10); }
+	| ULONGLONG_NUM { $$= strtoull($1.str,NULL,10); }
+	| LONG_NUM  { $$= (ulonglong) strtoul($1.str,NULL,10); }
 	| REAL_NUM  { $$= strtoull($1.str,NULL,10); }
 	| FLOAT_NUM { $$= strtoull($1.str,NULL,10); }
 

@@ -1018,7 +1018,7 @@ read_one_row(MYSQL *mysql,uint fields,MYSQL_ROW row, ulong *lengths)
 int STDCALL mysql_master_query(MYSQL *mysql, const char *q,
 					unsigned int length)
 {
-  if(mysql_master_send_query(mysql, q, length))
+  if (mysql_master_send_query(mysql, q, length))
     return 1;
   return mysql_read_query_result(mysql);
 }
@@ -1040,7 +1040,7 @@ int STDCALL mysql_master_send_query(MYSQL *mysql, const char *q,
 int STDCALL mysql_slave_query(MYSQL *mysql, const char *q,
 					unsigned int length)
 {
-  if(mysql_slave_send_query(mysql, q, length))
+  if (mysql_slave_send_query(mysql, q, length))
     return 1;
   return mysql_read_query_result(mysql);
 }
@@ -1050,7 +1050,7 @@ int STDCALL mysql_slave_send_query(MYSQL *mysql, const char *q,
 {
   MYSQL* last_used_slave, *slave_to_use = 0;
   
-  if((last_used_slave = mysql->last_used_slave))
+  if ((last_used_slave = mysql->last_used_slave))
     slave_to_use = last_used_slave->next_slave;
   else
     slave_to_use = mysql->next_slave;
@@ -1058,9 +1058,9 @@ int STDCALL mysql_slave_send_query(MYSQL *mysql, const char *q,
      if there are no slaves, mysql->next_slave == mysql
   */
   mysql->last_used_con = mysql->last_used_slave = slave_to_use;
-  if(!length)
+  if (!length)
     length = strlen(q);
-  if(!slave_to_use->net.vio && !mysql_real_connect(slave_to_use, 0,0,0,
+  if (!slave_to_use->net.vio && !mysql_real_connect(slave_to_use, 0,0,0,
 						   0,0,0,0))
     return 1;
   return simple_command(slave_to_use, COM_QUERY, q, length, 1);
@@ -1122,11 +1122,11 @@ static inline void expand_error(MYSQL* mysql, int error)
 static inline int get_master(MYSQL* mysql, MYSQL_RES* res, MYSQL_ROW row)
 {
   MYSQL* master;
-  if(mysql_num_fields(res) < 3)
+  if (mysql_num_fields(res) < 3)
     return 1; /* safety */
   
   /* use the same username and password as the original connection */
-  if(!(master = spawn_init(mysql, row[0], atoi(row[2]), 0, 0)))
+  if (!(master = spawn_init(mysql, row[0], atoi(row[2]), 0, 0)))
     return 1;
   mysql->master = master;
   return 0;
@@ -1178,7 +1178,7 @@ static inline int get_slaves_from_master(MYSQL* mysql)
       tmp_pass = mysql->passwd;
     }
 
-    if(!(slave = spawn_init(mysql, row[1], atoi(row[2]),
+    if (!(slave = spawn_init(mysql, row[1], atoi(row[2]),
 			    tmp_user, tmp_pass)))
       goto err;
       
@@ -1188,7 +1188,7 @@ static inline int get_slaves_from_master(MYSQL* mysql)
   }
   error = 0;
 err:
-  if(res)
+  if (res)
    mysql_free_result(res);
   return error;
 }
@@ -1231,7 +1231,7 @@ int STDCALL mysql_rpl_probe(MYSQL* mysql)
 
   error = 0;
 err:
-  if(res)
+  if (res)
     mysql_free_result(res);
   return error;
 }
@@ -1255,7 +1255,7 @@ STDCALL mysql_rpl_query_type(const char* q, int len)
   for(; q < q_end; ++q)
   {
     char c;
-    if(isalpha(c=*q))
+    if (isalpha(c=*q))
       switch(tolower(c))
        {
        case 'i':  /* insert */
@@ -2013,7 +2013,7 @@ mysql_close(MYSQL *mysql)
 	tmp = tmp1;
       }
     }
-    if(mysql != mysql->master)
+    if (mysql != mysql->master)
       mysql_close(mysql->master);
     if (mysql->free_me)
       my_free((gptr) mysql,MYF(0));
@@ -2033,10 +2033,10 @@ mysql_query(MYSQL *mysql, const char *query)
   return mysql_real_query(mysql,query, (uint) strlen(query));
 }
 
+
 static MYSQL* spawn_init(MYSQL* parent, const char* host,
-					   unsigned int port,
-					   const char* user,
-					   const char* passwd)
+			 unsigned int port, const char* user,
+			 const char* passwd)
 {
   MYSQL* child;
   if (!(child = mysql_init(0)))
@@ -2044,17 +2044,19 @@ static MYSQL* spawn_init(MYSQL* parent, const char* host,
   
   child->options.user = my_strdup((user) ? user :
 				  (parent->user ? parent->user :
-				       parent->options.user), MYF(0));
-  child->options.password = my_strdup((passwd) ? passwd : (parent->passwd ?
-						    parent->passwd :
+				   parent->options.user), MYF(0));
+  child->options.password = my_strdup((passwd) ? passwd :
+				      (parent->passwd ?
+				       parent->passwd :
 				       parent->options.password), MYF(0));
   child->options.port = port;
-  child->options.host = my_strdup((host) ? host : (parent->host ?
-						    parent->host :
-				       parent->options.host), MYF(0));
-  if(parent->db)
+  child->options.host = my_strdup((host) ? host :
+				  (parent->host ?
+				   parent->host :
+				   parent->options.host), MYF(0));
+  if (parent->db)
     child->options.db = my_strdup(parent->db, MYF(0));
-  else if(parent->options.db)
+  else if (parent->options.db)
     child->options.db = my_strdup(parent->options.db, MYF(0));
 
   child->options.rpl_parse = child->options.rpl_probe = child->rpl_pivot = 0;
@@ -2065,13 +2067,12 @@ static MYSQL* spawn_init(MYSQL* parent, const char* host,
 
 int
 STDCALL mysql_set_master(MYSQL* mysql, const char* host,
-					   unsigned int port,
-					   const char* user,
-					   const char* passwd)
+			 unsigned int port, const char* user,
+			 const char* passwd)
 {
   if (mysql->master != mysql && !mysql->master->rpl_pivot)
     mysql_close(mysql->master);
-  if(!(mysql->master = spawn_init(mysql, host, port, user, passwd)))
+  if (!(mysql->master = spawn_init(mysql, host, port, user, passwd)))
     return 1;
   mysql->master->rpl_pivot = 0;
   mysql->master->options.rpl_parse = 0;
@@ -2086,7 +2087,7 @@ STDCALL mysql_add_slave(MYSQL* mysql, const char* host,
 					   const char* passwd)
 {
   MYSQL* slave;
-  if(!(slave = spawn_init(mysql, host, port, user, passwd)))
+  if (!(slave = spawn_init(mysql, host, port, user, passwd)))
     return 1;
   slave->next_slave = mysql->next_slave;
   mysql->next_slave = slave;
@@ -2105,20 +2106,20 @@ mysql_send_query(MYSQL* mysql, const char* query, uint length)
 {
   if (mysql->options.rpl_parse && mysql->rpl_pivot)
   {
-    switch (mysql_rpl_query_type(query, length))
-    {
+    switch (mysql_rpl_query_type(query, length)) {
     case MYSQL_RPL_MASTER:
       return mysql_master_send_query(mysql, query, length);
     case MYSQL_RPL_SLAVE:
       return mysql_slave_send_query(mysql, query, length);
-    case MYSQL_RPL_ADMIN: /*fall through */
+    case MYSQL_RPL_ADMIN:
+      break;					/* fall through */
     }
   }
 
   mysql->last_used_con = mysql;
-
   return simple_command(mysql, COM_QUERY, query, length, 1);
 }
+
 
 int STDCALL mysql_read_query_result(MYSQL *mysql)
 {
@@ -2173,6 +2174,7 @@ get_info:
   DBUG_RETURN(0);
 }
 
+
 int STDCALL
 mysql_real_query(MYSQL *mysql, const char *query, uint length)
 {
@@ -2184,6 +2186,7 @@ mysql_real_query(MYSQL *mysql, const char *query, uint length)
     DBUG_RETURN(-1);
   DBUG_RETURN(mysql_read_query_result(mysql));
 }
+
 
 static int
 send_file_to_server(MYSQL *mysql, const char *filename)

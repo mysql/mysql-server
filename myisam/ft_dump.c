@@ -17,6 +17,7 @@
 /* Written by Sergei A. Golubchik, who has a shared copyright to this code */
 
 #include "ftdefs.h"
+#include <getopt.h>
 
 static void get_options(int argc,char *argv[]);
 static void usage(char *argv[]);

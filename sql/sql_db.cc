@@ -241,7 +241,7 @@ static long mysql_rm_known_files(THD *thd, MY_DIR *dirp, const char *db,
       continue;
     }
     strxmov(filePath,org_path,"/",file->name,NullS);
-    if (db && !strcasecmp(fn_ext(file->name), reg_ext))
+    if (db && !my_strcasecmp(fn_ext(file->name), reg_ext))
     {
       /* Drop the table nicely */
       *fn_ext(file->name)=0;			// Remove extension
