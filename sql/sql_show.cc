@@ -2628,7 +2628,7 @@ static int get_schema_stat_record(THD *thd, struct st_table_list *tables,
 {
   CHARSET_INFO *cs= system_charset_info;
   DBUG_ENTER("get_schema_stat_record");
-  if (!res)
+  if (!res && !tables->view)
   {
     TABLE *show_table= tables->table;
     KEY *key_info=show_table->key_info;
@@ -2737,7 +2737,7 @@ static int get_schema_constarints_record(THD *thd, struct st_table_list *tables,
 {
   CHARSET_INFO *cs= system_charset_info;
   DBUG_ENTER("get_schema_constarints_record");
-  if (!res)
+  if (!res && !tables->view)
   {
     List<FOREIGN_KEY_INFO> f_key_list;
     TABLE *show_table= tables->table;
@@ -2792,7 +2792,7 @@ static int get_schema_key_column_usage_record(THD *thd,
 {
   DBUG_ENTER("get_schema_key_column_usage_record");
   CHARSET_INFO *cs= system_charset_info;
-  if (!res)
+  if (!res && !tables->view)
   {
     List<FOREIGN_KEY_INFO> f_key_list;
     TABLE *show_table= tables->table;
@@ -2960,7 +2960,7 @@ TABLE *create_schema_table(THD *thd, TABLE_LIST *table_list)
                                 field_list, (ORDER*) 0, 0, 0, 
                                 (select_lex->options | thd->options |
                                  TMP_TABLE_ALL_COLUMNS),
-                                HA_POS_ERROR, table_list->real_name)))
+                                HA_POS_ERROR, table_list->alias)))
     DBUG_RETURN(0);
   DBUG_RETURN(table);
 }
@@ -3136,6 +3136,9 @@ int mysql_schema_table(THD *thd, LEX *lex, TABLE_LIST *table_list)
   }
   table->tmp_table= TMP_TABLE;
   table->grant.privilege= SELECT_ACL;
+  table->alias_name_used= my_strcasecmp(table_alias_charset,
+                                        table_list->real_name,
+                                        table_list->alias);
   table_list->schema_table_name= table_list->real_name;
   table_list->real_name= table->real_name;
   table_list->table= table;

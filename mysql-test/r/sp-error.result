@@ -460,4 +460,17 @@ end|
 call bug3294()|
 ERROR 42S02: Unknown table 't5'
 drop procedure bug3294|
+drop procedure if exists bug6807|
+create procedure bug6807()
+begin
+declare id int;
+set id = connection_id();
+kill query id;
+select 'Not reached';
+end|
+call bug6807()|
+ERROR 70100: Query execution was interrupted
+call bug6807()|
+ERROR 70100: Query execution was interrupted
+drop procedure bug6807|
 drop table t1|
