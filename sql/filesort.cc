@@ -22,41 +22,17 @@
 #include <stddef.h>			/* for macro offsetof */
 #endif
 #include <m_ctype.h>
+#include "sql_sort.h"
+
 #ifndef THREAD
 #define SKIPP_DBUG_IN_FILESORT
 #endif
-	/* static variabels */
-
-#define MERGEBUFF  7
-#define MERGEBUFF2 15
 
 	/* How to write record_ref. */
 
 #define WRITE_REF(file,from) \
 if (my_b_write((file),(byte*) (from),param->ref_length)) \
   DBUG_RETURN(1);
-
-typedef struct st_buffpek {		/* Struktur om sorteringsbuffrarna */
-  my_off_t file_pos;			/* Where we are in the sort file */
-  uchar *base,*key;			/* key pointers */
-  ha_rows count;			/* Number of rows in table */
-  ulong mem_count;			/* numbers of keys in memory */
-  ulong max_keys;			/* Max keys in buffert */
-} BUFFPEK;
-
-
-typedef struct st_sort_param {
-  uint sort_length;			/* Length of sortarg */
-  uint keys;				/* Max antal nycklar / buffert */
-  uint ref_length;			/* Length of record ref. */
-  ha_rows max_rows,examined_rows;
-  TABLE *sort_form;			/* For quicker make_sortkey */
-  SORT_FIELD *local_sortorder;
-  SORT_FIELD *end;
-#ifdef USE_STRCOLL
-  char* tmp_buffer;
-#endif
-} SORTPARAM;
 
 	/* functions defined in this file */
 
@@ -70,20 +46,11 @@ static int write_keys(SORTPARAM *param,uchar * *sort_keys,
 		      IO_CACHE *tempfile);
 static void make_sortkey(SORTPARAM *param,uchar *to,
 			 byte *ref_pos);
-static bool save_index(SORTPARAM *param,uchar **sort_keys, uint count);
-static int merge_many_buff(SORTPARAM *param,uchar * *sort_keys,
-			   BUFFPEK *buffpek,
-			   uint *maxbuffer, IO_CACHE *t_file);
-static uint read_to_buffer(IO_CACHE *fromfile,BUFFPEK *buffpek,
-			   uint sort_length);
-static int merge_buffers(SORTPARAM *param,IO_CACHE *from_file,
-			 IO_CACHE *to_file,uchar * *sort_keys,
-			 BUFFPEK *lastbuff,BUFFPEK *Fb,
-			 BUFFPEK *Tb,int flag);
-static int merge_index(SORTPARAM *param,uchar * *sort_keys,
+static int merge_index(SORTPARAM *param,uchar *sort_buffer,
 		       BUFFPEK *buffpek,
 		       uint maxbuffer,IO_CACHE *tempfile,
 		       IO_CACHE *outfile);
+static bool save_index(SORTPARAM *param,uchar **sort_keys, uint count);
 static uint sortlength(SORT_FIELD *sortorder,uint length);
 
 	/* Makes a indexfil of recordnumbers of a sorted database */
@@ -225,12 +192,14 @@ ha_rows filesort(TABLE **table, SORT_FIELD *sortorder, uint s_length,
 
     param.keys=((param.keys*(param.sort_length+sizeof(char*))) /
 		param.sort_length-1);
-    if (merge_many_buff(&param,sort_keys,buffpek,&maxbuffer,&tempfile))
+    if (merge_many_buff(&param,(uchar*) sort_keys,buffpek,&maxbuffer,
+			&tempfile))
       goto err;
     if (flush_io_cache(&tempfile) ||
 	reinit_io_cache(&tempfile,READ_CACHE,0L,0,0))
       goto err;
-    if (merge_index(&param,sort_keys,buffpek,maxbuffer,&tempfile,outfile))
+    if (merge_index(&param,(uchar*) sort_keys,buffpek,maxbuffer,&tempfile,
+		    outfile))
       goto err;
   }
   if (records > param.max_rows)
@@ -629,8 +598,8 @@ static bool save_index(SORTPARAM *param, uchar **sort_keys, uint count)
 
 	/* Merge buffers to make < MERGEBUFF2 buffers */
 
-static int merge_many_buff(SORTPARAM *param, uchar **sort_keys,
-			   BUFFPEK *buffpek, uint *maxbuffer, IO_CACHE *t_file)
+int merge_many_buff(SORTPARAM *param, uchar *sort_buffer,
+		    BUFFPEK *buffpek, uint *maxbuffer, IO_CACHE *t_file)
 {
   register int i;
   IO_CACHE t_file2,*from_file,*to_file,*temp;
@@ -652,11 +621,11 @@ static int merge_many_buff(SORTPARAM *param, uchar **sort_keys,
     lastbuff=buffpek;
     for (i=0 ; i <= (int) *maxbuffer-MERGEBUFF*3/2 ; i+=MERGEBUFF)
     {
-      if (merge_buffers(param,from_file,to_file,sort_keys,lastbuff++,
+      if (merge_buffers(param,from_file,to_file,sort_buffer,lastbuff++,
 			buffpek+i,buffpek+i+MERGEBUFF-1,0))
 	break;					/* purecov: inspected */
     }
-    if (merge_buffers(param,from_file,to_file,sort_keys,lastbuff++,
+    if (merge_buffers(param,from_file,to_file,sort_buffer,lastbuff++,
 		      buffpek+i,buffpek+ *maxbuffer,0))
       break;					/* purecov: inspected */
     if (flush_io_cache(to_file))
@@ -675,8 +644,8 @@ static int merge_many_buff(SORTPARAM *param, uchar **sort_keys,
 	/* Read data to buffer */
 	/* This returns (uint) -1 if something goes wrong */
 
-static uint read_to_buffer(IO_CACHE *fromfile, BUFFPEK *buffpek,
-			   uint sort_length)
+uint read_to_buffer(IO_CACHE *fromfile, BUFFPEK *buffpek,
+		    uint sort_length)
 {
   register uint count;
   uint length;
@@ -697,10 +666,10 @@ static uint read_to_buffer(IO_CACHE *fromfile, BUFFPEK *buffpek,
 
 	/* Merge buffers to one buffer */
 
-static int merge_buffers(SORTPARAM *param, IO_CACHE *from_file,
-			 IO_CACHE *to_file, uchar **sort_keys,
-			 BUFFPEK *lastbuff, BUFFPEK *Fb, BUFFPEK *Tb,
-			 int flag)
+int merge_buffers(SORTPARAM *param, IO_CACHE *from_file,
+		  IO_CACHE *to_file, uchar *sort_buffer,
+		  BUFFPEK *lastbuff, BUFFPEK *Fb, BUFFPEK *Tb,
+		  int flag)
 {
   int error;
   uint sort_length,offset;
@@ -711,21 +680,21 @@ static int merge_buffers(SORTPARAM *param, IO_CACHE *from_file,
   BUFFPEK *buffpek,**refpek;
   QUEUE queue;
   volatile bool *killed= &current_thd->killed;
+  qsort2_cmp    cmp;
   DBUG_ENTER("merge_buffers");
 
   statistic_increment(filesort_merge_passes, &LOCK_status);
 
   count=error=0;
-  offset=param->sort_length-param->ref_length;
+  offset=(sort_length=param->sort_length)-param->ref_length;
   maxcount=(ulong) (param->keys/((uint) (Tb-Fb) +1));
   to_start_filepos=my_b_tell(to_file);
-  strpos=(uchar*) sort_keys;
-  sort_length=param->sort_length;
+  strpos=(uchar*) sort_buffer;
   max_rows=param->max_rows;
 
   if (init_queue(&queue,(uint) (Tb-Fb)+1,offsetof(BUFFPEK,key),0,
 		 (int (*) (void *, byte *,byte*))
-		 get_ptr_compare(sort_length),(void*) &sort_length))
+		 (cmp=get_ptr_compare(sort_length)),(void*) &sort_length))
     DBUG_RETURN(1);				/* purecov: inspected */
   for (buffpek= Fb ; buffpek <= Tb ; buffpek++)
   {
@@ -739,6 +708,26 @@ static int merge_buffers(SORTPARAM *param, IO_CACHE *from_file,
     queue_insert(&queue,(byte*) buffpek);
   }
 
+  if (param->unique_buff)
+  {
+    /* 
+       Called by Unique::get()
+       Copy the first argument to param->unique_buff for unique removal.
+       Store it also in 'to_file'.
+
+       This is safe as we know that there is always more than one element
+       in each block to merge (This is guaranteed by the Unique:: algorithm
+    */
+    buffpek=(BUFFPEK*) queue_top(&queue);
+    memcpy(param->unique_buff, buffpek->key, sort_length);
+    if (my_b_write(to_file,(byte*) buffpek->key, sort_length))
+    {
+      error=1; goto err;			/* purecov: inspected */
+    }
+  }
+  else
+    cmp=0;					// Not unique
+
   while (queue.elements > 1)
   {
     if (*killed)
@@ -748,6 +737,12 @@ static int merge_buffers(SORTPARAM *param, IO_CACHE *from_file,
     for (;;)
     {
       buffpek=(BUFFPEK*) queue_top(&queue);
+      if (cmp)					// Remove duplicates
+      {
+	if (!cmp(&sort_length, param->unique_buff, (uchar*) buffpek->key))
+	  goto skip_duplicate;
+	memcpy(param->unique_buff, (uchar*) buffpek->key,sort_length);
+      }
       if (flag == 0)
       {
 	if (my_b_write(to_file,(byte*) buffpek->key, sort_length))
@@ -764,6 +759,8 @@ static int merge_buffers(SORTPARAM *param, IO_CACHE *from_file,
 	error=0;				/* purecov: inspected */
 	goto end;				/* purecov: inspected */
       }
+
+    skip_duplicate:
       buffpek->key+=sort_length;
       if (! --buffpek->mem_count)
       {
@@ -802,7 +799,7 @@ static int merge_buffers(SORTPARAM *param, IO_CACHE *from_file,
     }
   }
   buffpek=(BUFFPEK*) queue_top(&queue);
-  buffpek->base=(uchar *) sort_keys;
+  buffpek->base= sort_buffer;
   buffpek->max_keys=param->keys;
   do
   {
@@ -845,12 +842,12 @@ err:
 
 	/* Do a merge to output-file (save only positions) */
 
-static int merge_index(SORTPARAM *param, uchar **sort_keys,
+static int merge_index(SORTPARAM *param, uchar *sort_buffer,
 		       BUFFPEK *buffpek, uint maxbuffer,
 		       IO_CACHE *tempfile, IO_CACHE *outfile)
 {
   DBUG_ENTER("merge_index");
-  if (merge_buffers(param,tempfile,outfile,sort_keys,buffpek,buffpek,
+  if (merge_buffers(param,tempfile,outfile,sort_buffer,buffpek,buffpek,
 		    buffpek+maxbuffer,1))
     DBUG_RETURN(1);				/* purecov: inspected */
   DBUG_RETURN(0);
