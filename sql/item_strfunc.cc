@@ -982,6 +982,8 @@ String *Item_func_right::val_str(String *str)
     never return a value more than "length".
   */
   uint start=res->numchars()-(uint) length;
+  if (!start)
+    return res;
   start=res->charpos(start);
   tmp_value.set(*res,start,res->length()-start);
   return &tmp_value;
