@@ -356,6 +356,8 @@ typedef struct st_mi_sort_param
 #define mi_mark_crashed_on_repair(x) { (x)->s->state.changed|=STATE_CRASHED|STATE_CRASHED_ON_REPAIR ; (x)->update|= HA_STATE_CHANGED; }
 #define mi_is_crashed(x) ((x)->s->state.changed & STATE_CRASHED)
 #define mi_is_crashed_on_repair(x) ((x)->s->state.changed & STATE_CRASHED_ON_REPAIR)
+#define mi_print_error(INFO, ERRNO)                     \
+        mi_report_error((ERRNO), (INFO)->s->index_file_name)
 
 /* Functions to store length of space packed keys, VARCHAR or BLOB keys */
 
@@ -667,6 +669,7 @@ extern void _myisam_log_command(enum myisam_log_commands command,
 extern void _myisam_log_record(enum myisam_log_commands command,MI_INFO *info,
 			      const byte *record,my_off_t filepos,
 			      int result);
+extern void mi_report_error(int errcode, const char *file_name);
 extern my_bool _mi_memmap_file(MI_INFO *info);
 extern void _mi_unmap_file(MI_INFO *info);
 extern uint save_pack_length(byte *block_buff,ulong length);
