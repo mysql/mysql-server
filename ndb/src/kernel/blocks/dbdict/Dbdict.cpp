@@ -4318,7 +4318,28 @@ Dbdict::execTAB_COMMITCONF(Signal* signal){
     signal->theData[3] = reference();
     signal->theData[4] = (Uint32)tabPtr.p->tableType;
     signal->theData[5] = createTabPtr.p->key;
-    sendSignal(DBTC_REF, GSN_TC_SCHVERREQ, signal, 6, JBB);
+    signal->theData[6] = (Uint32)tabPtr.p->noOfPrimkey;
+
+    Uint32 buf[2 * MAX_ATTRIBUTES_IN_INDEX];
+    Uint32 sz = 0;
+    Uint32 tAttr = tabPtr.p->firstAttribute;
+    while (tAttr != RNIL) {
+      jam();
+      AttributeRecord* aRec = c_attributeRecordPool.getPtr(tAttr);
+      if (aRec->tupleKey) {
+        buf[sz++] = aRec->attributeDescriptor;
+        buf[sz++] = (aRec->extPrecision >> 16); // charset number
+      }
+      tAttr = aRec->nextAttrInTable;
+    }
+    ndbrequire(sz == 2 * tabPtr.p->noOfPrimkey);
+
+    LinearSectionPtr lsPtr[3];
+    lsPtr[0].p = buf;
+    lsPtr[0].sz = sz;
+    // note: ACC does not reply
+    sendSignal(DBACC_REF, GSN_TC_SCHVERREQ, signal, 7, JBB, lsPtr, 1);
+    sendSignal(DBTC_REF, GSN_TC_SCHVERREQ, signal, 7, JBB, lsPtr, 1);
     return;
   }
 
@@ -4785,12 +4806,18 @@ void Dbdict::handleTabInfo(SimpleProperties::Reader & it,
     // charset in upper half of precision
     unsigned csNumber = (attrPtr.p->extPrecision >> 16);
     if (csNumber != 0) {
+      /*
+       * A new charset is first accessed here on this node.
+       * TODO use separate thread (e.g. via NDBFS) if need to load from file
+       */
       CHARSET_INFO* cs = get_charset(csNumber, MYF(0));
       if (cs == NULL) {
         parseP->errorCode = CreateTableRef::InvalidCharset;
         parseP->errorLine = __LINE__;
         return;
       }
+      // XXX should be done somewhere in mysql
+      all_charsets[cs->number] = cs;
       unsigned i = 0;
       while (i < noOfCharsets) {
         if (charsets[i] == csNumber)
