@@ -701,18 +701,12 @@ static void client_use_result()
 void fill_tables(const char **query_list, unsigned query_count)
 {
   int rc;
-  for (const char **query= query_list; query < query_list + query_count;
+  const char **query;
+  for (query= query_list; query < query_list + query_count;
        ++query)
   {
     rc= mysql_query(mysql, *query);
-    if (rc)
-    {
-      fprintf(stderr,
-              "fill_tables failed: query is\n"
-              "%s,\n"
-              "error: %s\n", *query, mysql_error(mysql));
-      exit(1);
-    }
+    myquery(rc);
   }
 }
 
@@ -722,33 +716,29 @@ void fill_tables(const char **query_list, unsigned query_count)
   See fetch_n for for the only use case.
 */
 
-struct Stmt_fetch
+enum { MAX_COLUMN_LENGTH= 255 };
+
+typedef struct st_stmt_fetch
 {
-  enum { MAX_COLUMN_LENGTH= 255 };
-
-  Stmt_fetch() {}
-  ~Stmt_fetch();
-
-  void init(unsigned stmt_no_arg, const char *query_arg);
-  int fetch_row();
-
   const char *query;
   unsigned stmt_no;
-  MYSQL_STMT *stmt;
-  bool is_open;
+  MYSQL_STMT *handle;
+  my_bool is_open;
   MYSQL_BIND *bind_array;
   char **out_data;
   unsigned long *out_data_length;
   unsigned column_count;
   unsigned row_count;
-};
+} Stmt_fetch;
+
 
 /*
   Create statement handle, prepare it with statement, execute and allocate
   fetch buffers.
 */
 
-void Stmt_fetch::init(unsigned stmt_no_arg, const char *query_arg)
+void stmt_fetch_init(Stmt_fetch *fetch, unsigned stmt_no_arg,
+                     const char *query_arg)
 {
   unsigned long type= CURSOR_TYPE_READ_ONLY;
   int rc;
@@ -756,42 +746,27 @@ void Stmt_fetch::init(unsigned stmt_no_arg, const char *query_arg)
   MYSQL_RES *metadata;
 
   /* Save query and statement number for error messages */
-  stmt_no= stmt_no_arg;
-  query= query_arg;
+  fetch->stmt_no= stmt_no_arg;
+  fetch->query= query_arg;
 
-  stmt= mysql_stmt_init(mysql);
+  fetch->handle= mysql_stmt_init(mysql);
 
-  rc= mysql_stmt_prepare(stmt, query, strlen(query));
-  if (rc)
-  {
-    fprintf(stderr,
-            "mysql_stmt_prepare of stmt %d failed:\n"
-            "query: %s\n"
-            "error: %s\n",
-            stmt_no, query, mysql_stmt_error(stmt));
-    exit(1);
-  }
+  rc= mysql_stmt_prepare(fetch->handle, fetch->query, strlen(fetch->query));
+  check_execute(fetch->handle, rc);
 
   /*
     The attribute is sent to server on execute and asks to open read-only
     for result set
   */
-  mysql_stmt_attr_set(stmt, STMT_ATTR_CURSOR_TYPE, (const void *) &type);
+  mysql_stmt_attr_set(fetch->handle, STMT_ATTR_CURSOR_TYPE,
+                      (const void*) &type);
 
-  rc= mysql_stmt_execute(stmt);
-  if (rc)
-  {
-    fprintf(stderr,
-            "mysql_stmt_execute of stmt %d failed:\n"
-            "query: %s\n"
-            "error: %s\n",
-            stmt_no, query, mysql_stmt_error(stmt));
-    exit(1);
-  }
+  rc= mysql_stmt_execute(fetch->handle);
+  check_execute(fetch->handle, rc);
 
   /* Find out total number of columns in result set */
-  metadata= mysql_stmt_result_metadata(stmt);
-  column_count= mysql_num_fields(metadata);
+  metadata= mysql_stmt_result_metadata(fetch->handle);
+  fetch->column_count= mysql_num_fields(metadata);
   mysql_free_result(metadata);
 
   /*
@@ -800,24 +775,24 @@ void Stmt_fetch::init(unsigned stmt_no_arg, const char *query_arg)
     set up.
   */
 
-  bind_array= (MYSQL_BIND *) calloc(1, sizeof(MYSQL_BIND) * column_count);
-  out_data= (char **) calloc(1, sizeof(*out_data) * column_count);
-  out_data_length= (unsigned long *) calloc(1,
-                                       sizeof(*out_data_length) * column_count);
-
-  for (i= 0; i < column_count; ++i)
+  fetch->bind_array= (MYSQL_BIND *) calloc(1, sizeof(MYSQL_BIND) *
+                                              fetch->column_count);
+  fetch->out_data= (char**) calloc(1, sizeof(char*) * fetch->column_count);
+  fetch->out_data_length= (ulong*) calloc(1, sizeof(ulong) *
+                                             fetch->column_count);
+  for (i= 0; i < fetch->column_count; ++i)
   {
-    out_data[i]= (char *) calloc(1, MAX_COLUMN_LENGTH);
-    bind_array[i].buffer_type= MYSQL_TYPE_STRING;
-    bind_array[i].buffer= out_data[i];
-    bind_array[i].buffer_length= MAX_COLUMN_LENGTH;
-    bind_array[i].length= out_data_length + i;
+    fetch->out_data[i]= (char*) calloc(1, MAX_COLUMN_LENGTH);
+    fetch->bind_array[i].buffer_type= MYSQL_TYPE_STRING;
+    fetch->bind_array[i].buffer= fetch->out_data[i];
+    fetch->bind_array[i].buffer_length= MAX_COLUMN_LENGTH;
+    fetch->bind_array[i].length= fetch->out_data_length + i;
   }
 
-  mysql_stmt_bind_result(stmt, bind_array);
+  mysql_stmt_bind_result(fetch->handle, fetch->bind_array);
 
-  row_count= 0;
-  is_open= true;
+  fetch->row_count= 0;
+  fetch->is_open= TRUE;
 
   /* Ready for reading rows */
 }
@@ -825,36 +800,37 @@ void Stmt_fetch::init(unsigned stmt_no_arg, const char *query_arg)
 
 /* Fetch and print one row from cursor */
 
-int Stmt_fetch::fetch_row()
+int stmt_fetch_fetch_row(Stmt_fetch *fetch)
 {
   int rc;
   unsigned i;
 
-  if ((rc= mysql_stmt_fetch(stmt)) == 0)
+  if ((rc= mysql_stmt_fetch(fetch->handle)) == 0)
   {
-    ++row_count;
-    printf("Stmt %d fetched row %d:\n", stmt_no, row_count);
-    for (i= 0; i < column_count; ++i)
+    ++fetch->row_count;
+    printf("Stmt %d fetched row %d:\n", fetch->stmt_no, fetch->row_count);
+    for (i= 0; i < fetch->column_count; ++i)
     {
-      out_data[i][out_data_length[i]]= '\0';
-      printf("column %d: %s\n", i+1, out_data[i]);
+      fetch->out_data[i][fetch->out_data_length[i]]= '\0';
+      printf("column %d: %s\n", i+1, fetch->out_data[i]);
     }
   }
   else
-    is_open= false;
+    fetch->is_open= FALSE;
   return rc;
 }
 
 
-Stmt_fetch::~Stmt_fetch()
+void stmt_fetch_close(Stmt_fetch *fetch)
 {
   unsigned i;
 
-  for (i= 0; i < column_count; ++i)
-    free(out_data[i]);
-  free(out_data);
-  free(bind_array);
-  mysql_stmt_close(stmt);
+  for (i= 0; i < fetch->column_count; ++i)
+    free(fetch->out_data[i]);
+  free(fetch->out_data);
+  free(fetch->out_data_length);
+  free(fetch->bind_array);
+  mysql_stmt_close(fetch->handle);
 }
 
 /*
@@ -867,22 +843,23 @@ Stmt_fetch::~Stmt_fetch()
 bool fetch_n(const char **query_list, unsigned query_count)
 {
   unsigned open_statements= query_count;
-  unsigned i;
   int rc, error_count= 0;
-  Stmt_fetch *stmt_array= new Stmt_fetch[query_count];
-  Stmt_fetch *stmt;
+  Stmt_fetch *fetch_array= (Stmt_fetch*) calloc(1, sizeof(Stmt_fetch) *
+                                                  query_count);
+  Stmt_fetch *fetch;
 
-  for (i= 0; i < query_count; ++i)
+  for (fetch= fetch_array; fetch < fetch_array + query_count; ++fetch)
   {
     /* Init will exit(1) in case of error */
-    stmt_array[i].init(i, query_list[i]);
+    stmt_fetch_init(fetch, fetch - fetch_array,
+                    query_list[fetch - fetch_array]);
   }
 
   while (open_statements)
   {
-    for (stmt= stmt_array; stmt < stmt_array + query_count; ++stmt)
+    for (fetch= fetch_array; fetch < fetch_array + query_count; ++fetch)
     {
-      if (stmt->is_open && (rc= stmt->fetch_row()))
+      if (fetch->is_open && (rc= stmt_fetch_fetch_row(fetch)))
       {
         --open_statements;
         /*
@@ -894,8 +871,8 @@ bool fetch_n(const char **query_list, unsigned query_count)
           fprintf(stderr,
                   "Got error reading rows from statement %d,\n"
                   "query is: %s,\n"
-                  "error message: %s", stmt - stmt_array, stmt->query,
-                  mysql_stmt_error(stmt->stmt));
+                  "error message: %s", fetch - fetch_array, fetch->query,
+                  mysql_stmt_error(fetch->handle));
           ++error_count;
         }
       }
@@ -906,11 +883,13 @@ bool fetch_n(const char **query_list, unsigned query_count)
   else
   {
     unsigned total_row_count= 0;
-    for (stmt= stmt_array; stmt < stmt_array + query_count; ++stmt)
-      total_row_count+= stmt->row_count;
+    for (fetch= fetch_array; fetch < fetch_array + query_count; ++fetch)
+      total_row_count+= fetch->row_count;
     printf("Success, total rows fetched: %d\n", total_row_count);
   }
-  delete [] stmt_array;
+  for (fetch= fetch_array; fetch < fetch_array + query_count; ++fetch)
+    stmt_fetch_close(fetch);
+  free(fetch_array);
   return error_count != 0;
 }
 
