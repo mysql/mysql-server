@@ -54,16 +54,16 @@ void NdbMem_Free(void* ptr)
 
  
 int NdbMem_MemLockAll(){
-#if defined NDB_MACOSX
-  return 0;
+#ifdef HAVE_MLOCKALL
+  return -1;
 #else
   return mlockall(MCL_CURRENT);
 #endif
 }
 
 int NdbMem_MemUnlockAll(){
-#if defined NDB_MACOSX
-  return 0;
+#ifdef HAVE_MLOCKALL
+  return -1;
 #else
   return munlockall();
 #endif

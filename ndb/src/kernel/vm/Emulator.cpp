@@ -39,12 +39,6 @@ extern "C" {
   extern void (* ndb_new_handler)();
 }
 
-
-#if defined (NDB_LINUX) || defined (NDB_SOLARIS)
-#include <sys/types.h>
-#include <sys/wait.h>
-#endif
-
 /**
  * Declare the global variables 
  */
