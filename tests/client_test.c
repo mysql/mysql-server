@@ -1923,6 +1923,110 @@ static void test_bug1180()
   mysql_stmt_close(stmt);
 }
 
+/*
+  test BUG#1644 (Insertion of more than 3 NULL columns with
+                 parameter binding fails)
+*/
+static void test_bug1644()
+{
+  MYSQL_STMT *stmt;
+  MYSQL_RES *result;
+  MYSQL_ROW row;
+  MYSQL_BIND bind[4];
+  int num;
+  my_bool isnull;
+  int rc, i;
+
+  myheader("test_bug1644");
+
+  rc= mysql_query(mysql, "DROP TABLE IF EXISTS foo_dfr");
+  myquery(rc);
+
+  rc= mysql_query(mysql,
+	   "CREATE TABLE foo_dfr(col1 int, col2 int, col3 int, col4 int);");
+  myquery(rc);
+
+  strmov(query, "INSERT INTO foo_dfr VALUES (?,?,?,? )");
+  stmt = mysql_prepare(mysql, query, strlen(query));
+  mystmt_init(stmt);
+
+  verify_param_count(stmt, 4);
+
+  num= 22;
+  isnull= 0;
+  for (i = 0 ; i < 4 ; i++)
+  {
+    bind[i].buffer_type= FIELD_TYPE_LONG;
+    bind[i].buffer= (char *)&num;
+    bind[i].buffer_length= 0;
+    bind[i].length= 0;
+    bind[i].is_null= &isnull;
+  }
+
+  rc= mysql_bind_param(stmt, bind);
+  mystmt(stmt, rc);
+
+  rc= mysql_execute(stmt);
+  mystmt(stmt, rc);
+
+  isnull= 1;
+  for (i = 0 ; i < 4 ; i++)
+    bind[i].is_null= &isnull;
+
+  rc= mysql_bind_param(stmt, bind);
+  mystmt(stmt, rc);
+
+  rc= mysql_execute(stmt);
+  mystmt(stmt, rc);
+
+  isnull= 0;
+  num= 88;
+  for (i = 0 ; i < 4 ; i++)
+    bind[i].is_null= &isnull;
+
+  rc= mysql_bind_param(stmt, bind);
+  mystmt(stmt, rc);
+
+  rc= mysql_execute(stmt);
+  mystmt(stmt, rc);
+
+  mysql_stmt_close(stmt);
+
+  rc= mysql_query(mysql, "SELECT * FROM foo_dfr");
+  myquery(rc);
+
+  result= mysql_store_result(mysql);
+  mytest(result);
+
+  myassert(3 == my_process_result_set(result));
+
+  mysql_data_seek(result, 0);
+
+  row= mysql_fetch_row(result);
+  mytest(row);
+  for (i = 0 ; i < 4 ; i++)
+  {
+    myassert(strcmp(row[i], "22") == 0);
+  }
+  row= mysql_fetch_row(result);
+  mytest(row);
+  for (i = 0 ; i < 4 ; i++)
+  {
+    myassert(row[i] == 0);
+  }
+  row= mysql_fetch_row(result);
+  mytest(row);
+  for (i = 0 ; i < 4 ; i++)
+  {
+    myassert(strcmp(row[i], "88") == 0);
+  }
+  row= mysql_fetch_row(result);
+  mytest_r(row);
+
+  mysql_free_result(result);
+}
+
+
 /********************************************************
 * to test simple select show                            *
 *********************************************************/
@@ -5551,6 +5655,8 @@ static void test_buffers()
   rc = mysql_execute(stmt);
   mystmt(stmt, rc);
 
+  bzero(buffer, 20);		/* Avoid overruns in printf() */
+
   bind[0].length= &length;
   bind[0].is_null= &is_null;
   bind[0].buffer_length= 1;
@@ -6397,8 +6503,8 @@ static void test_frm_bug()
   row= mysql_fetch_row(result);
   mytest(row);
 
-  fprintf(stdout,"\n Comment: %s", row[15]);
-  myassert(row[17] != 0);
+  fprintf(stdout,"\n Comment: %s", row[16]);
+  myassert(row[16] != 0);
 
   mysql_free_result(result);
   mysql_stmt_close(stmt);
@@ -8039,6 +8145,9 @@ int main(int argc, char **argv)
     test_ts();              /* test for timestamp BR#819 */
     test_bug1115();         /* BUG#1115 */
     test_bug1180();         /* BUG#1180 */
+#if NOT_YET_FIXED
+    test_bug1644();	    /* BUG#1644 */
+#endif
     end_time= time((time_t *)0);
     total_time+= difftime(end_time, start_time);
     
