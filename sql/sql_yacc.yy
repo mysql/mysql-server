@@ -2508,7 +2508,7 @@ simple_expr:
 	    $$= new Item_func_set_collation($1,
 					    new Item_string($3.str,
 							    $3.length,
-					    		    YYTHD->charset()));
+                                                            YYTHD->charset()));
 	  }
 	| literal
 	| param_marker
@@ -2524,6 +2524,12 @@ simple_expr:
 	  }
 	| '@' '@' opt_var_ident_type ident_or_text opt_component
 	  {
+
+            if ($4.str && $5.str && check_reserved_words(&$4))
+            {
+              yyerror(ER(ER_SYNTAX_ERROR));
+              YYABORT;
+            }
 	    if (!($$= get_system_var(YYTHD, (enum_var_type) $3, $4, $5)))
 	      YYABORT;
 	  }
@@ -5041,7 +5047,7 @@ internal_variable_name:
 	  {
             if (check_reserved_words(&$1))
             {
-              net_printf(YYTHD, ER_SYNTAX_ERROR);
+	      yyerror(ER(ER_SYNTAX_ERROR));
               YYABORT;
             }
 	    sys_var *tmp=find_sys_var($3.str, $3.length);

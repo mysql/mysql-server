@@ -19,6 +19,9 @@ hex(inet_aton('127.1'))
 select hex(inet_aton('127.1.1'));
 hex(inet_aton('127.1.1'))
 7F010001
+select length(uuid()), charset(uuid()), length(unhex(replace(uuid(),_utf8'-',_utf8'')));
+length(uuid())	charset(uuid())	length(unhex(replace(uuid(),_utf8'-',_utf8'')))
+36	utf8	16
 select length(format('nan', 2)) > 0;
 length(format('nan', 2)) > 0
 1
