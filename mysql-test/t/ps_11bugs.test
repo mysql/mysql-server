@@ -97,7 +97,7 @@ drop table t1;
 # end of bug#1644
 
 
-# bug#1677: Prepared statement two-table join returns no rows when one is expected
+# bug#1676: Prepared statement two-table join returns no rows when one is expected
 
 create table t1(
    cola varchar(50) not null,
