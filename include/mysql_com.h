@@ -238,17 +238,17 @@ enum mysql_enum_shutdown_level {
     comparisons). Note that DEFAULT does not respect the growing property, but
     it's ok.
   */
-  DEFAULT= 0,
+  SHUTDOWN_DEFAULT = 0,
   /* wait for existing connections to finish */
-  WAIT_CONNECTIONS= MYSQL_SHUTDOWN_KILLABLE_CONNECT,
+  SHUTDOWN_WAIT_CONNECTIONS= MYSQL_SHUTDOWN_KILLABLE_CONNECT,
   /* wait for existing trans to finish */
-  WAIT_TRANSACTIONS= MYSQL_SHUTDOWN_KILLABLE_TRANS,
+  SHUTDOWN_WAIT_TRANSACTIONS= MYSQL_SHUTDOWN_KILLABLE_TRANS,
   /* wait for existing updates to finish (=> no partial MyISAM update) */
-  WAIT_UPDATES= MYSQL_SHUTDOWN_KILLABLE_UPDATE,
+  SHUTDOWN_WAIT_UPDATES= MYSQL_SHUTDOWN_KILLABLE_UPDATE,
   /* flush InnoDB buffers and other storage engines' buffers*/
-  WAIT_ALL_BUFFERS= (MYSQL_SHUTDOWN_KILLABLE_UPDATE << 1),
+  SHUTDOWN_WAIT_ALL_BUFFERS= (MYSQL_SHUTDOWN_KILLABLE_UPDATE << 1),
   /* don't flush InnoDB buffers, flush other storage engines' buffers*/
-  WAIT_CRITICAL_BUFFERS= (MYSQL_SHUTDOWN_KILLABLE_UPDATE << 1) + 1,
+  SHUTDOWN_WAIT_CRITICAL_BUFFERS= (MYSQL_SHUTDOWN_KILLABLE_UPDATE << 1) + 1,
   /* Now the 2 levels of the KILL command */
 #if MYSQL_VERSION_ID >= 50000
   KILL_QUERY= 254,
