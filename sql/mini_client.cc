@@ -815,7 +815,6 @@ mc_mysql_connect(MYSQL *mysql,const char *host, const char *user,
       bfill(end, SCRAMBLE_LENGTH, 'x');
       end+=SCRAMBLE_LENGTH;
       *end=0;
-      end++;
     }
     else  /* For empty password*/
     {

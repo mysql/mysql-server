@@ -2233,7 +2233,6 @@ Try also with PIPE or TCP/IP
       bfill(end, SCRAMBLE_LENGTH, 'x');
       end+=SCRAMBLE_LENGTH;
       *end=0;
-      end++;
     }
     else  /* For empty password*/
     {
