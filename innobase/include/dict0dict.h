@@ -88,6 +88,32 @@ ulint
 dict_col_get_clust_pos(
 /*===================*/
 	dict_col_t*	col);
+/************************************************************************
+Initializes the autoinc counter. It is not an error to initialize already
+initialized counter. */
+
+void
+dict_table_autoinc_initialize(
+/*==========================*/
+	dict_table_t*	table,	/* in: table */
+	ib_longlong	value);	/* in: value which was assigned to a row */
+/************************************************************************
+Gets the next autoinc value, 0 if not yet initialized. */
+
+ib_longlong
+dict_table_autoinc_get(
+/*===================*/
+				/* out: value for a new row, or 0 */
+	dict_table_t*	table);	/* in: table */
+/************************************************************************
+Updates the autoinc counter if the value supplied is bigger than the
+current value. If not inited, does nothing. */
+
+void
+dict_table_autoinc_update(
+/*======================*/
+	dict_table_t*	table,	/* in: table */
+	ib_longlong	value);	/* in: value which was assigned to a row */
 /**************************************************************************
 Adds a table object to the dictionary cache. */
 
