@@ -1601,7 +1601,7 @@ then
 fi
 AC_TRY_COMPILE(
 [#undef inline
-#if !defined(SCO) && !defined(__osf__)
+#if !defined(SCO) && !defined(__osf__) && !defined(_REENTRANT)
 #define _REENTRANT
 #endif
 #include <pthread.h>
@@ -1634,7 +1634,7 @@ then
 fi
 AC_TRY_COMPILE(
 [#undef inline
-#if !defined(SCO) && !defined(__osf__)
+#if !defined(SCO) && !defined(__osf__) && !defined(_REENTRANT)
 #define _REENTRANT
 #endif
 #include <pthread.h>
@@ -1666,7 +1666,7 @@ then
 fi
 AC_TRY_COMPILE(
 [#undef inline
-#if !defined(SCO) && !defined(__osf__)
+#if !defined(SCO) && !defined(__osf__) && !defined(_REENTRANT)
 #define _REENTRANT
 #endif
 #include <pthread.h>
@@ -1692,7 +1692,7 @@ then
   # Check definition of pthread_getspecific
   AC_CACHE_CHECK("args to pthread_getspecific", mysql_cv_getspecific_args,
   AC_TRY_COMPILE(
-[#if !defined(SCO) && !defined(__osf__)
+[#if !defined(SCO) && !defined(__osf__) && !defined(_REENTRANT)
 #define _REENTRANT
 #endif
 #define _POSIX_PTHREAD_SEMANTICS 

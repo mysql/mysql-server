@@ -20,10 +20,10 @@
 #include "mysys_priv.h"
 #include "my_pthread.h"
 #include <assert.h>
-#include <my_net.h>
 #if !defined(MSDOS) && !defined(__WIN__)
 #include <netdb.h>
 #endif
+#include <my_net.h>
 
 /* This file is not needed if my_gethostbyname_r is a macro */
 #if !defined(my_gethostbyname_r)

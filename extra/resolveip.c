@@ -20,7 +20,6 @@
 
 #include <my_global.h>
 #include <m_ctype.h>
-#include <my_net.h>
 #include <my_sys.h>
 #include <m_string.h>
 #include <sys/types.h>
@@ -30,6 +29,7 @@
 #endif
 #include <arpa/inet.h>
 #include <netdb.h>
+#include <my_net.h>
 #include <my_getopt.h>
 
 #if !defined(_AIX) && !defined(HAVE_UNIXWARE7_THREADS) && !defined(HAVE_UNIXWARE7_POSIX) && !defined(h_errno)

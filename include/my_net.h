@@ -84,7 +84,7 @@ struct hostent *my_gethostbyname_r(const char *name,
 				   struct hostent *result, char *buffer,
 				   int buflen, int *h_errnop);
 #define my_gethostbyname_r_free()
-#if !defined(HAVE_GETHOSTBYNAME_R_GLIBC2_STYLE)
+#if !defined(HAVE_GETHOSTBYNAME_R_GLIBC2_STYLE) && !defined(HPUX)
 #define GETHOSTBYNAME_BUFF_SIZE sizeof(struct hostent_data)
 #endif /* !defined(HAVE_GETHOSTBYNAME_R_GLIBC2_STYLE) */
 
