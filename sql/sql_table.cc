@@ -679,14 +679,27 @@ int mysql_prepare_table(THD *thd, HA_CREATE_INFO *create_info,
       DBUG_RETURN(-1);
     }
     key_iterator2.rewind ();
-    while ((key2 = key_iterator2++) != key)
+    if (key->type != Key::FOREIGN_KEY)
     {
-      if (*key == *key2)
+      while ((key2 = key_iterator2++) != key)
       {
-	/* TO DO: issue warning message */
-	/* mark that the key should be ignored */
-	key->name=ignore_key;
-	break;
+        if ((key2->type != Key::FOREIGN_KEY && !foreign_key_prefix(key, key2)))
+        {
+          /* TO DO: issue warning message */
+          /* mark that the generated key should be ignored */
+          if (!key2->generated ||
+              (key->generated && key->columns.elements <
+               key2->columns.elements))
+            key->name= ignore_key;
+          else
+          {
+            /* Remove the previous, generated key */
+            key2->name= ignore_key;
+            key_parts-= key2->columns.elements;
+            (*key_count)--;
+          }
+          break;
+        }
       }
     }
     if (key->name != ignore_key)
@@ -731,14 +744,14 @@ int mysql_prepare_table(THD *thd, HA_CREATE_INFO *create_info,
 
     switch(key->type){
     case Key::MULTIPLE:
-	key_info->flags = 0;
+	key_info->flags= 0;
 	break;
     case Key::FULLTEXT:
-	key_info->flags = HA_FULLTEXT;
+	key_info->flags= HA_FULLTEXT;
 	break;
     case Key::SPATIAL:
 #ifdef HAVE_SPATIAL
-	key_info->flags = HA_SPATIAL;
+	key_info->flags= HA_SPATIAL;
 	break;
 #else
 	my_printf_error(ER_FEATURE_DISABLED,ER(ER_FEATURE_DISABLED),MYF(0),
@@ -749,8 +762,11 @@ int mysql_prepare_table(THD *thd, HA_CREATE_INFO *create_info,
       key_number--;				// Skip this key
       continue;
     default:
-	key_info->flags = HA_NOSAME;
+      key_info->flags = HA_NOSAME;
+      break;
     }
+    if (key->generated)
+      key_info->flags|= HA_GENERATED_KEY;
 
     key_info->key_parts=(uint8) key->columns.elements;
     key_info->key_part=key_part_info;
@@ -774,7 +790,7 @@ int mysql_prepare_table(THD *thd, HA_CREATE_INFO *create_info,
     */
 
     /* TODO: Add proper checks if handler supports key_type and algorithm */
-    if (key_info->flags == HA_SPATIAL)
+    if (key_info->flags & HA_SPATIAL)
     {
       if (key_info->key_parts != 1)
       {
@@ -2824,6 +2840,7 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
 				   Key::FULLTEXT : Key::MULTIPLE)),
 				 key_name,
 				 key_info->algorithm,
+                                 test(key_info->flags & HA_GENERATED_KEY),
 				 key_parts));
   }
   {

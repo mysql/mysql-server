@@ -18,17 +18,12 @@
  * testOIBasic - ordered index test
  */
 
-#include <stdlib.h>
-#include <unistd.h>
-#include <string.h>
-#include <stdarg.h>
-#include <assert.h>
-#include <new>
+#include <ndb_global.h>
+
 #include <NdbMain.h>
 #include <NdbOut.hpp>
 #include <NdbApi.hpp>
 #include <NdbTest.hpp>
-#include <NdbStdio.h>
 #include <NdbMutex.h>
 #include <NdbCondition.h>
 #include <NdbThread.h>

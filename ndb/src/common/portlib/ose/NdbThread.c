@@ -18,7 +18,6 @@
 #include "NdbThread.h"
 #include <pthread.h>
 #include <malloc.h>
-#include <assert.h>
 #include <string.h>
 #include <NdbOut.hpp>
 

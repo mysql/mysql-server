@@ -21,8 +21,9 @@
  *
  */
 
-#include <stdarg.h>
+#include <ndb_global.h>
 #include <getarg.h>
+
 #include <NdbApi.hpp>
 #include <NDBT.hpp>
 

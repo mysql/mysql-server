@@ -18,6 +18,9 @@
 
 /****** THIS LINE IS 80 CHARACTERS WIDE - DO *NOT* EXCEED 80 CHARACTERS! ****/
 
+#include <ndb_global.h>
+#include <NdbOut.hpp>
+
 //#include <cfg/cfg_db.h>
 //#include <init/init_start_restart.h>
 //#include "pcn_types.h"
@@ -26,13 +29,6 @@
 extern "C" {
 #include <cfg_db.h>
 }
-
-#include <stdio.h>
-#include <string.h>
-#include <stdlib.h>
-#include <NdbOut.hpp>
-
-
 
 typedef struct Employee {
 

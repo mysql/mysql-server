@@ -14,13 +14,10 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-#include <sys/types.h>
+#include <ndb_global.h>
 #include <signal.h>
 
-#include <assert.h>
-#include <stdlib.h>
 
-#include <NdbUnistd.h>
 #include <BaseString.hpp>
 #include <InputStream.hpp>
 
@@ -28,10 +25,9 @@
 #include "CPCD.hpp"
 
 #include <pwd.h>
-#include <sys/types.h>
-#include <unistd.h>
-#include <sys/stat.h>
+#ifdef HAVE_GETRLIMIT
 #include <sys/resource.h>
+#endif
 
 void
 CPCD::Process::print(FILE * f){
@@ -108,12 +104,12 @@ bool
 CPCD::Process::isRunning() {
 
   if(m_pid <= 1){
-    logger.critical("isRunning(%d) invalid pid: %d", m_id, m_pid);
+    //logger.critical("isRunning(%d) invalid pid: %d", m_id, m_pid);
     return false;
   }
   /* Check if there actually exists a process with such a pid */
   errno = 0;
-  int s = kill((pid_t) m_pid, 0); /* Sending "signal" 0 to a process only
+  int s = kill((pid_t)-m_pid, 0); /* Sending "signal" 0 to a process only
 				   * checkes if the process actually exists */
   if(s != 0) {
     switch(errno) {
@@ -130,7 +126,6 @@ CPCD::Process::isRunning() {
     }
     return false;
   } 
-  
   return true;
 }
 
@@ -152,7 +147,6 @@ CPCD::Process::readPid() {
   f = fopen(filename, "r");
   
   if(f == NULL){
-    logger.debug("readPid - %s not found", filename);
     return -1; /* File didn't exist */
   }
   
@@ -213,6 +207,7 @@ setup_environment(const char *env) {
 static
 int
 set_ulimit(const BaseString & pair){
+#ifdef HAVE_GETRLIMIT
   errno = 0;
   do {
     Vector<BaseString> list;
@@ -220,42 +215,43 @@ set_ulimit(const BaseString & pair){
     if(list.size() != 2){
       break;
     }
-    
-    int resource = 0;
+
+    int res;
     rlim_t value = RLIM_INFINITY;
     if(!(list[1].trim() == "unlimited")){
       value = atoi(list[1].c_str());
     }
+
+    struct rlimit rlp;
+#define _RLIMIT_FIX(x) { res = getrlimit(x,&rlp); if(!res){ rlp.rlim_cur = value; res = setrlimit(x, &rlp); }}
+
     if(list[0].trim() == "c"){
-      resource = RLIMIT_CORE;
+      _RLIMIT_FIX(RLIMIT_CORE);
     } else if(list[0] == "d"){
-      resource = RLIMIT_DATA;
+      _RLIMIT_FIX(RLIMIT_DATA);
     } else if(list[0] == "f"){
-      resource = RLIMIT_FSIZE;
+      _RLIMIT_FIX(RLIMIT_FSIZE);
     } else if(list[0] == "n"){
-      resource = RLIMIT_NOFILE;
+      _RLIMIT_FIX(RLIMIT_NOFILE);
     } else if(list[0] == "s"){
-      resource = RLIMIT_STACK;
+      _RLIMIT_FIX(RLIMIT_STACK);
     } else if(list[0] == "t"){
-      resource = RLIMIT_CPU;
+      _RLIMIT_FIX(RLIMIT_CPU);
     } else {
       errno = EINVAL;
       break;
     }
-    struct rlimit rlp;
-    if(getrlimit(resource, &rlp) != 0){
+    if(!res)
       break;
-    }
-
-    rlp.rlim_cur = value;
-    if(setrlimit(resource, &rlp) != 0){
-      break;
-    }
+    
     return 0;
   } while(false);
   logger.error("Unable to process ulimit: %s(%s)", 
 	       pair.c_str(), strerror(errno));
   return -1;
+#else
+  return 0; // Maybe it's ok anyway...
+#endif
 }
 
 void
@@ -360,8 +356,8 @@ CPCD::Process::start() {
      */
     switch(pid = fork()) {
     case 0: /* Child */
-      
-      writePid(getpid());
+      setsid();
+      writePid(getpgrp());
       if(runas(m_runas.c_str()) == 0){
 	do_exec();
       }
@@ -386,14 +382,13 @@ CPCD::Process::start() {
     switch(fork()) {
     case 0: /* Child */
       signal(SIGCHLD, SIG_IGN);
-      pid_t pid;
       switch(pid = fork()) {
       case 0: /* Child */
-	writePid(getpid());
+	setsid();
+	writePid(getpgrp());
 	if(runas(m_runas.c_str()) != 0){
 	  _exit(1);
 	}
-	setsid();
 	do_exec();
 	_exit(1);
 	/* NOTREACHED */
@@ -424,15 +419,18 @@ CPCD::Process::start() {
     logger.critical("Unknown process type");
     return -1;
   }
-  
+
   while(readPid() < 0){
     sched_yield();
   }
-
-  if(pid != -1 && pid != m_pid){
-    logger.error("pid and m_pid don't match: %d %d", pid, m_pid);
+  
+  errno = 0;
+  pid_t pgid = getpgid(pid);
+  
+  if(pgid != -1 && pgid != m_pid){
+    logger.error("pgid and m_pid don't match: %d %d (%d)", pgid, m_pid, pid);
   }
-
+  
   if(isRunning()){
     m_status = RUNNING;
     return 0;
@@ -449,33 +447,36 @@ CPCD::Process::stop() {
   unlink(filename);
   
   if(m_pid <= 1){
-    logger.critical("Stopping process with bogus pid: %d", m_pid);
+    logger.critical("Stopping process with bogus pid: %d id: %d", 
+		    m_pid, m_id);
     return;
   }
   m_status = STOPPING;
-
-  int ret = kill((pid_t)m_pid, SIGTERM);
+  
+  errno = 0;
+  int ret = kill(-m_pid, SIGTERM);
   switch(ret) {
   case 0:
-    logger.debug("Sent SIGTERM to pid %d", (int)m_pid);
+    logger.debug("Sent SIGTERM to pid %d", (int)-m_pid);
     break;
   default:
-    logger.debug("kill pid: %d : %s", (int)m_pid, strerror(errno));
+    logger.debug("kill pid: %d : %s", (int)-m_pid, strerror(errno));
     break;
   }
-
+  
   if(isRunning()){
-    ret = kill((pid_t)m_pid, SIGKILL);
+    errno = 0;
+    ret = kill(-m_pid, SIGKILL);
     switch(ret) {
     case 0:
-      logger.debug("Sent SIGKILL to pid %d", (int)m_pid);
+      logger.debug("Sent SIGKILL to pid %d", (int)-m_pid);
       break;
     default:
-      logger.debug("kill pid: %d : %s\n", (int)m_pid, strerror(errno));
+      logger.debug("kill pid: %d : %s\n", (int)-m_pid, strerror(errno));
       break;
     }
-  }
-
+  } 
+  
   m_pid = -1;
   m_status = STOPPED;
 }

@@ -22,6 +22,7 @@
 #include "LogRecord.hpp"
 #include "GCIBuffer.hpp"
 
+#undef swap
 #include <list>
 #include <iterator>
 

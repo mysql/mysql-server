@@ -6,6 +6,13 @@ DIRS := src test tools examples
 replace-targets := all clean
 NDB_RELEASE := $(shell ../scripts/mysql_config --version)
 
+all:
+	$(MAKE) -C src
+	$(MAKE) -C test/src
+	$(MAKE) -C tools
+	$(MAKE) -C test/ndbapi/flexBench
+	$(MAKE) -C test/tools/waiter
+
 include $(NDB_TOP)/Epilogue.mk
 
 _libs_test : _bins_src
@@ -15,7 +22,7 @@ _bins_src : _libs_src
 _bins_tools : _bins_src
 
 # always release compile except for ndbapi static lib
-all:
+old-all:
 	$(MAKE) -C src/ndbapi libs
 	$(MAKE) libs NDB_VERSION=RELEASE
 	$(MAKE) bins NDB_VERSION=RELEASE

@@ -15,11 +15,8 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 
-#include <string.h>
+#include <ndb_global.h>
 #include <NdbOut.hpp>
-#include <NdbUnistd.h>
-#include <NdbStdio.h>
-#include <errno.h>
 
 #include "APIService.hpp"
 #include "CPCD.hpp"

@@ -14,9 +14,7 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-#include <stdio.h>
-#include <string.h>
-#include <ndb_types.h>
+#include <ndb_global.h>
 #include <ndb_version.h>
 #include <version.h>
 
@@ -61,7 +59,7 @@ struct NdbUpGradeCompatible {
   UG_MatchType matchType;
 };
 
-//#define TEST_VERSION
+/*#define TEST_VERSION*/
 
 #ifndef TEST_VERSION
 struct NdbUpGradeCompatible ndbCompatibleTable_full[] = {
@@ -74,7 +72,7 @@ struct NdbUpGradeCompatible ndbCompatibleTable_upgrade[] = {
 
 void ndbSetOwnVersion() {}
 
-#else // testing purposes
+#else /* testing purposes */
 
 struct NdbUpGradeCompatible ndbCompatibleTable_full[] = {
   { MAKE_VERSION(4,1,5), MAKE_VERSION(4,1,0), UG_Range },
@@ -122,7 +120,7 @@ ndbGetOwnVersion()
 {
 #ifndef TEST_VERSION
   return NDB_VERSION_D;
-#else // testing purposes
+#else /* testing purposes */
   if (ndbOwnVersionTesting == 0)
     return NDB_VERSION_D;
   else

@@ -20,7 +20,6 @@
 #include <kernel_types.h>
 #include "Config.hpp"
 #include <NdbCondition.h>
-#include <NdbConstant.hpp>
 #include <mgmapi.h>
 
 

@@ -21,14 +21,16 @@
 Name:          Ndb.cpp
 ******************************************************************************/
 
+#include <ndb_global.h>
+
 #include "NdbApiSignal.hpp"
 #include "NdbImpl.hpp"
 #include "NdbSchemaOp.hpp"
 #include "NdbSchemaCon.hpp" 
-#include "NdbOperation.hpp"
-#include "NdbConnection.hpp"
-#include "NdbEventOperation.hpp"
-#include "NdbRecAttr.hpp"
+#include <NdbOperation.hpp>
+#include <NdbConnection.hpp>
+#include <NdbEventOperation.hpp>
+#include <NdbRecAttr.hpp>
 #include <md5_hash.hpp>
 #include <NdbSleep.h>
 #include <NdbOut.hpp>
@@ -1221,7 +1223,6 @@ Ndb::pollEvents(int aMillisecondNumber)
 
 #ifdef VM_TRACE
 #include <NdbMutex.h>
-#include <stdarg.h>
 static NdbMutex print_state_mutex = NDB_MUTEX_INITIALIZER;
 static bool
 checkdups(NdbConnection** list, unsigned no)

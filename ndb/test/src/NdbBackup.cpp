@@ -18,7 +18,6 @@
 #include <NdbBackup.hpp>
 #include <NdbOut.hpp>
 #include <NDBT_Output.hpp>
-#include <assert.h>
 #include <NdbConfig.h>
 #include <ConfigRetriever.hpp>
 #include <ndb_version.h>
@@ -67,7 +66,6 @@ NdbBackup::getFileSystemPathForNode(int _node_id){
   /**
    * Fetch configuration from management server
    */
-  char buf[255];
   ConfigRetriever cr;
 
 

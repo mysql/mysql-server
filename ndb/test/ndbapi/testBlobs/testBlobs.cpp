@@ -18,13 +18,8 @@
  * testBlobs
  */
 
-#include <new>
-#include <stdlib.h>
-#include <stdarg.h>
-#include <assert.h>
-#include <NdbUnistd.h>
-#include <NdbString.h>
-#include <NdbStdio.h>
+#include <ndb_global.h>
+
 #include <NdbMain.h>
 #include <NdbOut.hpp>
 #include <NdbThread.h>

@@ -15,17 +15,16 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 
+#include <ndb_global.h>
+
 #include "Error.hpp"
 #include "ErrorReporter.hpp"
 #include "ErrorMessages.hpp"
 
 #include <FastScheduler.hpp>
 #include <DebuggerNames.hpp>
-#include <NdbUnistd.h>
-#include <NdbStdio.h>
 #include <NdbHost.h>
 #include <NdbConfig.h>
-#include <string.h>
 #include <Configuration.hpp>
 
 #define MESSAGE_LENGTH 400

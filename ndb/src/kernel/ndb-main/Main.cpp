@@ -14,6 +14,8 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
+#include <ndb_global.h>
+
 #include <ndb_version.h>
 #include "Configuration.hpp"
 #include <TransporterRegistry.hpp>
@@ -32,7 +34,6 @@
 #include <NodeState.hpp>
 
 #if defined NDB_SOLARIS
-#include <sys/types.h>     // For system information
 #include <sys/processor.h> // For system informatio
 #endif
 
@@ -41,10 +42,6 @@
 #endif
 
 extern EventLogger g_eventLogger;
-#if defined (NDB_LINUX) || defined (NDB_SOLARIS)
-#include <sys/types.h>
-#include <sys/wait.h>
-#endif
 
 void catchsigs(bool ignore); // for process signal handling
 extern "C" void handler(int signo);  // for process signal handling
@@ -188,9 +185,9 @@ NDB_MAIN(ndb_kernel){
 
 void 
 systemInfo(const Configuration & config, const LogLevel & logLevel){
+#ifdef NDB_WIN32
   int processors = 0;
   int speed;
-#ifdef NDB_WIN32
   SYSTEM_INFO sinfo;
   GetSystemInfo(&sinfo);
   processors = sinfo.dwNumberOfProcessors;
@@ -260,8 +257,10 @@ handler(int sig){
   case SIGINT:   /*  2 - Interrupt  */
   case SIGQUIT:  /*  3 - Quit       */
   case SIGTERM:  /* 15 - Terminate  */
-#ifndef NDB_MACOSX
+#ifdef SIGPWR
   case SIGPWR:   /* 19 - Power fail */
+#endif
+#ifdef SIGPOLL
   case SIGPOLL:  /* 22              */
 #endif
   case SIGSTOP:  /* 23              */

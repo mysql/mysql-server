@@ -17,9 +17,6 @@
 #include "LogHandler.hpp"
 
 #include <NdbTick.h>
-#include <NdbString.h>
-
-#include <time.h>
 
 //
 // PUBLIC

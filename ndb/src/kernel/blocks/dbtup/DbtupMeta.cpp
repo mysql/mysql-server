@@ -49,7 +49,7 @@ void Dbtup::execTUPFRAGREQ(Signal* signal)
   Uint32 noOfAttributes = signal->theData[4];
   Uint32 fragId = signal->theData[5];
   Uint32 noOfNullAttr = signal->theData[7];
-  Uint32 schemaVersion = signal->theData[8];
+  /*  Uint32 schemaVersion = signal->theData[8];*/
   Uint32 noOfKeyAttr = signal->theData[9];
 
   Uint32 noOfNewAttr = signal->theData[10];

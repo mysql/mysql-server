@@ -16,10 +16,8 @@
 
 //#define TESTDEBUG 1
 
-#include <sys/stat.h>
-#include <fcntl.h>
+#include <ndb_global.h>
 
-#include <string.h>
 #include <kernel_types.h>
 #include <Pool.hpp>
 #include "AsyncFile.hpp"
