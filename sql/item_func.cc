@@ -2873,10 +2873,10 @@ void Item_func_match::init_search(bool no_order)
   if (key == NO_SUCH_KEY)
   {
     List<Item> fields;
+    fields.push_back(new Item_string(" ",1, cmp_collation.collation));
     for (uint i=1; i < arg_count; i++)
       fields.push_back(args[i]);
-    concat=new Item_func_concat_ws(new Item_string(" ",1,
-                                   cmp_collation.collation), fields);
+    concat=new Item_func_concat_ws(fields);
     /*
       Above function used only to get value and do not need fix_fields for it:
       Item_string - basic constant
