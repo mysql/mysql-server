@@ -5750,9 +5750,10 @@ Solaris 2.5 and above with native threads on SPARC and x86.  @xref{Solaris}.
 @item
 SunOS 4.x with the included MIT-pthreads package.  @xref{Solaris}.
 @item
-SCO OpenServer with a recent port of the FSU Pthreads package.  @xref{SCO}.
+Caldera (SCO) OpenServer with a recent port of the FSU Pthreads package. 
+@xref{Caldera}.
 @item
-SCO UnixWare 7.0.1.  @xref{SCO Unixware}.
+Caldera (SCO) UnixWare 7.0.1.  @xref{Caldera Unixware}.
 @item
 Tru64 Unix
 @item
@@ -10276,8 +10277,8 @@ alias mysqladmin '/usr/local/mysql/bin/mysqladmin'
 * Alpha-DEC-UNIX::              Alpha-DEC-UNIX Notes (Tru64)
 * Alpha-DEC-OSF1::              Alpha-DEC-OSF1 Notes
 * SGI-Irix::                    SGI Irix Notes
-* SCO::                         SCO Notes
-* SCO Unixware::                SCO Unixware Version 7.0 Notes
+* Caldera::                     Caldera Notes
+* Caldera Unixware::            Caldera Unixware Version 7.0 Notes
 @end menu
 
 
@@ -10815,7 +10816,7 @@ can just change back to the top-level directly and run @code{make}
 again.
 
 
-@node SGI-Irix, SCO, Alpha-DEC-OSF1, Other Unix Notes
+@node SGI-Irix, Caldera, Alpha-DEC-OSF1, Other Unix Notes
 @subsubsection SGI Irix Notes
 
 If you are using Irix Version 6.5.3 or newer @code{mysqld} will only be able to
@@ -10891,8 +10892,8 @@ CC=cc CXX=CC CFLAGS='-O3 -n32 -TARG:platform=IP22 -I/usr/local/include \
 @end example
 
 
-@node SCO, SCO Unixware, SGI-Irix, Other Unix Notes
-@subsubsection SCO Notes
+@node Caldera, Caldera Unixware, SGI-Irix, Other Unix Notes
+@subsubsection Caldera (SCO) Notes
 
 The current port is tested only on a ``sco3.2v5.0.4'' and
 ``sco3.2v5.0.5'' system.  There has also been a lot of progress on a
@@ -10920,7 +10921,7 @@ shell> cp -p /usr/include/pthread/stdtypes.h \
 
 @item
 You need the port of GCC 2.5.x for this product and the Development
-system.  They are required on this version of SCO Unix.  You cannot
+system.  They are required on this version of Caldera (SCO) Unix.  You cannot
 just use the GCC Dev system.
 
 @item
@@ -10931,8 +10932,8 @@ You can also get a precompiled package from
 @uref{http://www.mysql.com/Downloads/SCO/FSU-threads-3.5c.tar.gz}.
 
 @item
-FSU Pthreads can be compiled with SCO Unix 4.2 with tcpip.  Or
-OpenServer 3.0 or Open Desktop 3.0 (OS 3.0 ODT 3.0), with the SCO
+FSU Pthreads can be compiled with Caldera (SCO) Unix 4.2 with tcpip.  Or
+OpenServer 3.0 or Open Desktop 3.0 (OS 3.0 ODT 3.0), with the Caldera (SCO)
 Development System installed using a good port of GCC 2.5.x ODT or OS
 3.0 you will need a good port of GCC 2.5.x There are a lot of problems
 without a good port.  The port for this product requires the SCO Unix
@@ -10994,7 +10995,7 @@ You should unpack this file in the @file{include} directory of your
 MySQL source tree.
 @end enumerate
 
-SCO development notes:
+Caldera (SCO) development notes:
 
 @itemize @bullet
 @item
@@ -11002,10 +11003,11 @@ MySQL should automatically detect FSU Pthreads and link @code{mysqld}
 with @code{-lgthreads -lsocket -lgthreads}.
 
 @item
-The SCO development libraries are re-entrant in FSU Pthreads.  SCO claims
-that its libraries' functions are re-entrant, so they must be reentrant with
-FSU Pthreads.  FSU Pthreads on OpenServer tries to use the SCO scheme to
-make re-entrant libraries.
+
+The Caldera (SCO) development libraries are re-entrant in FSU Pthreads.
+Caldera claim sthat its libraries' functions are re-entrant, so they must
+be reentrant with FSU Pthreads.  FSU Pthreads on OpenServer tries to use
+the SCO scheme to make re-entrant libraries.
 
 @item
 FSU Pthreads (at least the version at @uref{http://www.mysql.com/}) comes
@@ -11025,8 +11027,8 @@ makes mysqld instable.  You have to remove this one if you want to run
 mysqld on an OpenServer 5.0.6 machine.
 @end itemize
 
-If you want to install DBI on SCO, you have to edit the @file{Makefile} in
-DBI-xxx and each subdirectory.
+If you want to install DBI on Caldera (SCO), you have to edit the
+@file{Makefile} in DBI-xxx and each subdirectory.
 
 Note that the following assumes gcc 2.95.2 or newer:
 
@@ -11056,8 +11058,8 @@ if they were compiled with @code{icc} or @code{cc}.
 Perl works best when compiled with @code{cc}.
 
 
-@node SCO Unixware,  , SCO, Other Unix Notes
-@subsubsection SCO Unixware Version 7.0 Notes
+@node Caldera Unixware,  , Caldera, Other Unix Notes
+@subsubsection Caldera (SCO) Unixware Version 7.0 Notes
 
 You must use a version of MySQL at least as recent as Version 3.22.13
 because that version fixes some portability problems under Unixware.
@@ -11406,14 +11408,15 @@ $sysliblist .= " -lm -lz";
 After this, you @strong{must} run 'make realclean' and then proceed with the
 installation from the beginning.
 
-If you want to use the Perl module on a system that doesn't support dynamic
-linking (like SCO) you can generate a static version of Perl that includes
-@code{DBI} and @code{DBD-mysql}.  The way this works is that you generate a
-version of Perl with the @code{DBI} code linked in and install it on top of
-your current Perl.  Then you use that to build a version of Perl that
-additionally has the @code{DBD} code linked in, and install that.
+If you want to use the Perl module on a system that doesn't support
+dynamic linking (like Caldera/SCO) you can generate a static version of
+Perl that includes @code{DBI} and @code{DBD-mysql}.  The way this works
+is that you generate a version of Perl with the @code{DBI} code linked
+in and install it on top of your current Perl.  Then you use that to
+build a version of Perl that additionally has the @code{DBD} code linked
+in, and install that.
 
-On SCO, you must have the following environment variables set:
+On Caldera (SCO), you must have the following environment variables set:
 
 @example
 shell> LD_LIBRARY_PATH=/lib:/usr/lib:/usr/local/lib:/usr/progressive/lib
@@ -11439,8 +11442,8 @@ shell> make perl
 
 Then you must install the new Perl. The output of @code{make perl} will
 indicate the exact @code{make} command you will need to execute to perform
-the installation.  On SCO, this is @code{make -f Makefile.aperl inst_perl
-MAP_TARGET=perl}.
+the installation.  On Caldera (SCO), this is
+@code{make -f Makefile.aperl inst_perl MAP_TARGET=perl}.
 
 Next, use the just-created Perl to create another Perl that also includes a
 statically-linked @code{DBD::mysql} by running these commands in the
@@ -21518,7 +21521,7 @@ binaries includes:
 @item Linux-Ia64 @tab N @tab Y
 @item Solaris-intel @tab N @tab Y
 @item Solaris-sparc @tab Y @tab Y
-@item SCO OSR5 @tab Y @tab Y
+@item Caldera (SCO) OSR5 @tab Y @tab Y
 @item UnixWare @tab Y @tab Y
 @item Windows/NT @tab Y @tab Y
 @end multitable
@@ -39430,9 +39433,9 @@ Linux 2.x intel
 @item
 Solaris sparc
 @item
-SCO OpenServer
+Caldera (SCO) OpenServer
 @item
-SCO UnixWare 7.0.1
+Caldera (SCO) UnixWare 7.0.1
 @end itemize
 
 It doesn't work with the following operating systems:
@@ -53814,7 +53817,7 @@ Fixed bug in range calculation that could return empty
 set when searching on multiple key with only one entry (very rare).
 @item
 Most things ported to FSU Pthreads, which should allow MySQL to
-run on SCO. @xref{SCO}.
+run on Caldera (SCO). @xref{Caldera}.
 @end itemize
 
 
