@@ -6,7 +6,7 @@
 # to start mysqld yourself and run mysqltest -r
 
 RESULT_DIR=r
-if [ -z $EDITOR] ; then
+if [ -z "$EDITOR" ] ; then
  EDITOR=vi
 fi
 
@@ -24,7 +24,7 @@ function usage()
 
 test_name=$1
 
-[ -z $test_name ] && usage
+[ -z "$test_name" ] && usage
 
 result_file=$RESULT_DIR/$test_name.result
 reject_file=$RESULT_DIR/$test_name.reject

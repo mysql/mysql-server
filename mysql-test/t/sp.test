@@ -3,6 +3,10 @@
 #
 #
 
+# Let us reset binary logs in order to make show master status 
+# in test for bug 4902 repeatable.
+reset master;
+
 use test;
 
 --disable_warnings
@@ -1701,7 +1705,6 @@ begin
   show master status;
   show open tables like 'foo';
   show privileges;
-  show processlist;
   show slave hosts;
   show slave status;
   show status like 'foo';
@@ -1716,6 +1719,17 @@ call bug4902()|
 call bug4902()|
 
 drop procedure bug4902|
+
+# We need separate SP for SHOW PROCESSLIST  since we want use replace_column
+create procedure bug4902_2()
+begin
+  show processlist;
+end|
+--replace_column 1 #
+call bug4902_2()|
+--replace_column 1 #
+call bug4902_2()|
+drop procedure bug4902_2|
 
 #
 # BUG#4904
