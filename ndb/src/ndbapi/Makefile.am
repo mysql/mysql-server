@@ -41,6 +41,9 @@ libndbapi_la_SOURCES = \
 
 INCLUDES_LOC = -I$(top_srcdir)/ndb/src/mgmapi
 
+# Ndbapi cannot handle -O3
+NDB_CXXFLAGS_RELEASE_LOC = -O2
+
 include $(top_srcdir)/ndb/config/common.mk.am
 include $(top_srcdir)/ndb/config/type_ndbapi.mk.am
 
