@@ -19933,7 +19933,7 @@ If this is 0, the query cache is disabled (default).
 
 @item @code{query_cache_startup_type}
 This may be set (only numeric) to
-@multitable @columnfractions .9 .14 .72
+@multitable @columnfractions .09 .14 .72
 @item @strong{Value} @tab @strong{Alias} @tab @strong{Comment}
 @item 0 @tab OFF @tab Don't cache or retrieve results.
 @item 1 @tab ON @tab Cache all results except @code{SELECT SQL_NO_CACHE ...} queries.
