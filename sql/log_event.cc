@@ -1999,7 +1999,7 @@ int Rand_log_event::exec_event(struct st_relay_log_info* rli)
   User_var_log_event::pack_info()
 
  ****************************************************************************/
-#ifndef MYSQL_CLIENT
+#if defined(HAVE_REPLICATION) && !defined(MYSQL_CLIENT)
 void User_var_log_event::pack_info(Protocol* protocol)
 {
   char *buf= 0;
@@ -2112,9 +2112,7 @@ int User_var_log_event::write_data(IO_CACHE* file)
       pos= val;
       break;
     case ROW_RESULT:
-#ifndef MYSQL_CLIENT
       DBUG_ASSERT(1);
-#endif
       return 0;
     }
     return (my_b_safe_write(file, (byte*) buf, sizeof(buf))   ||
@@ -2166,6 +2164,7 @@ void User_var_log_event::print(FILE* file, bool short_form, char* last_db)
       fprintf(file, ":='%s';\n", val);
       break;
     case ROW_RESULT:
+      DBUG_ASSERT(1);
       return;
     }
   }
@@ -2178,7 +2177,7 @@ void User_var_log_event::print(FILE* file, bool short_form, char* last_db)
   User_var_log_event::exec_event()
 
  ****************************************************************************/
-#ifndef MYSQL_CLIENT
+#if defined(HAVE_REPLICATION) && !defined(MYSQL_CLIENT)
 int User_var_log_event::exec_event(struct st_relay_log_info* rli)
 {
   Item *it= 0;

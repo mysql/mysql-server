@@ -18,6 +18,7 @@
 #undef MYSQL_SERVER
 #include "client_priv.h"
 #include <time.h>
+#include <assert.h>
 #include "log_event.h"
 
 #define BIN_LOG_HEADER_SIZE	4
