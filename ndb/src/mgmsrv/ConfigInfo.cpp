@@ -3150,15 +3150,50 @@ fixPortNumber(InitConfigFileParser::Context & ctx, const char * data){
   ctx.m_config->get("Node", id2, &node2);
   node2->get("Type", &type2);
 
+  bool is_mgm_connection= true;
   if(strcmp(type1, MGM_TOKEN)==0)
     node->get("PortNumber",&port);
   else if(strcmp(type2, MGM_TOKEN)==0)
     node2->get("PortNumber",&port);
+  else
+    is_mgm_connection= false;
 
-  if (!node->get("ServerPort", &port) &&
-      !ctx.m_userProperties.get("ServerPort_", id1, &port)) {
-    ctx.m_currentSection->put("PortNumber", port);
+  if (!is_mgm_connection && 
+      !node->get("ServerPort", &port) &&
+      !ctx.m_userProperties.get("ServerPort_", id1, &port))
+  {
+    Uint32 base= 0;
+    /*
+     * If the connection doesn't involve an mgm server,
+     * and a default port number has been set, behave the old
+     * way of allocating port numbers for transporters.
+     */
+    if(ctx.m_userDefaults && ctx.m_userDefaults->get("PortNumber", &base))
+    {
+      Uint32 adder= 0;
+      {
+	BaseString server_port_adder(hostname);
+	server_port_adder.append("_ServerPortAdder");
+	ctx.m_userProperties.get(server_port_adder.c_str(), &adder);
+	ctx.m_userProperties.put(server_port_adder.c_str(), adder+1, true);
+      }
+      
+      if (!ctx.m_userProperties.get("ServerPortBase", &base)){
+	if(!(ctx.m_userDefaults &&
+	   ctx.m_userDefaults->get("PortNumber", &base)) &&
+	   !ctx.m_systemDefaults->get("PortNumber", &base)) {
+	  base= strtoll(NDB_TCP_BASE_PORT,0,0);
+	}
+	ctx.m_userProperties.put("ServerPortBase", base);
+      }
+
+      port= base + adder;
+      ctx.m_userProperties.put("ServerPort_", id1, port);
+    }
   }
+
+  ctx.m_currentSection->put("PortNumber", port);
+
   DBUG_PRINT("info", ("connection %d-%d port %d host %s",
 		      id1, id2, port, hostname.c_str()));
 
