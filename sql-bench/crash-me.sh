@@ -1,4 +1,5 @@
 #!@PERL@
+# -*- perl -*-
 # Copyright (C) 2000 MySQL AB & MySQL Finland AB & TCX DataKonsult AB
 #
 # This library is free software; you can redistribute it and/or
@@ -68,6 +69,10 @@ usage() if ($opt_help || $opt_Information);
 
 $opt_suffix = '-'.$opt_suffix if (length($opt_suffix) != 0);
 $opt_config_file = "$pwd/$opt_dir/$opt_server$opt_suffix.cfg"  if (length($opt_config_file) == 0);
+$log_prefix='   ###';  # prefix for log lines in result file
+$safe_query_log='';
+$safe_query_result_log='';
+$log{"crash-me"}="";
 
 #!!!
 
@@ -167,11 +172,11 @@ $prompt="drop table require cascade/restrict";
 $drop_attr="";
 $dbh->do("drop table crash_me");
 $dbh->do("drop table crash_me cascade");
-if (!safe_query(["create table crash_me (a integer not null)",
+if (!safe_query_l('drop_requires_cascade',["create table crash_me (a integer not null)",
 		 "drop table crash_me"]))
 {
   $dbh->do("drop table crash_me cascade");  
-  if (safe_query(["create table crash_me (a integer not null)",
+  if (safe_query_l('drop_requires_cascade',["create table crash_me (a integer not null)",
 		  "drop table crash_me cascade"]))
   {
     save_config_data('drop_requires_cascade',"yes","$prompt");
@@ -196,10 +201,10 @@ $dbh->do("drop table crash_q $drop_attr");
 $dbh->do("drop table crash_q1 $drop_attr");
 
 $prompt="Tables without primary key";
-if (!safe_query(["create table crash_me (a integer not null,b char(10) not null)",
+if (!safe_query_l('no_primary_key',["create table crash_me (a integer not null,b char(10) not null)",
 		 "insert into crash_me (a,b) values (1,'a')"]))
 {
-  if (!safe_query(["create table crash_me (a integer not null,b char(10) not null, primary key (a))",
+  if (!safe_query_l('no_primary_key',["create table crash_me (a integer not null,b char(10) not null, primary key (a))",
 		   "insert into crash_me (a,b) values (1,'a')"]))
   {
     die "Can't create table 'crash_me' with one record: $DBI::errstr\n";
@@ -421,9 +426,9 @@ check_and_report("Group on column with null values",'group_by_null',
 $prompt="Having";
 if (!defined($limits{'having'}))
 {                               # Complicated because of postgreSQL
-  if (!safe_query_result("select a from crash_me group by a having a > 0",1,0))
+  if (!safe_query_result_l("having","select a from crash_me group by a having a > 0",1,0))
   {
-    if (!safe_query_result("select a from crash_me group by a having a < 0",
+    if (!safe_query_result_l("having","select a from crash_me group by a having a < 0",
 			   1,0))
     { save_config_data("having","error",$prompt); }
     else
@@ -465,7 +470,7 @@ $logical_value= $limits{'logical_value'};
 
 $false=0;
 $result="no";
-if ($res=safe_query("select (1=1)=true $end_query")) {
+if ($res=safe_query_l('has_true_false',"select (1=1)=true $end_query")) {
   $false="false";
   $result="yes";
 }
@@ -730,33 +735,33 @@ if (($limits{'type_extra_float(2_arg)'} eq "yes" ||
   my $type=$limits{'type_extra_float(2_arg)'} eq "yes" ? "float(4,1)" :
     "decimal(4,1)";
   my $result="undefined";
-  if (execute_and_check(["create table crash_q (q1 $type)",
+  if (execute_and_check("storage_of_float",["create table crash_q (q1 $type)",
 			 "insert into crash_q values(1.14)"],
 			"select q1 from crash_q",
 			["drop table crash_q $drop_attr"],1.1,0) &&
-      execute_and_check(["create table crash_q (q1 $type)",
+      execute_and_check("storage_of_float",["create table crash_q (q1 $type)",
 			 "insert into crash_q values(1.16)"],
 			"select q1 from crash_q",
 			["drop table crash_q $drop_attr"],1.1,0))
   {
     $result="truncate";
   }
-  elsif (execute_and_check(["create table crash_q (q1 $type)",
+  elsif (execute_and_check("storage_of_float",["create table crash_q (q1 $type)",
 			    "insert into crash_q values(1.14)"],
 			   "select q1 from crash_q",
 			   ["drop table crash_q $drop_attr"],1.1,0) &&
-	 execute_and_check(["create table crash_q (q1 $type)",
+	 execute_and_check("storage_of_float",["create table crash_q (q1 $type)",
 			    "insert into crash_q values(1.16)"],
 			   "select q1 from crash_q",
 			   ["drop table crash_q $drop_attr"],1.2,0))
   {
     $result="round";
   }
-  elsif (execute_and_check(["create table crash_q (q1 $type)",
+  elsif (execute_and_check("storage_of_float",["create table crash_q (q1 $type)",
 			    "insert into crash_q values(1.14)"],
 			   "select q1 from crash_q",
 			   ["drop table crash_q $drop_attr"],1.14,0) &&
-	 execute_and_check(["create table crash_q (q1 $type)",
+	 execute_and_check("storage_of_float",["create table crash_q (q1 $type)",
 			    "insert into crash_q values(1.16)"],
 			   "select q1 from crash_q",
 			   ["drop table crash_q $drop_attr"],1.16,0))
@@ -1202,6 +1207,7 @@ if ($limits{'functions'} eq 'yes')
 		     "select $tmp $end_query",[], undef(),4);
   }
   $prompt="Need to cast NULL for arithmetic";
+  add_log("Need_cast_for_null"," Check if numeric_null ($numeric_null) is 'NULL'");
   save_config_data("Need_cast_for_null",
 		   ($numeric_null eq "NULL") ? "no" : "yes",
 		   $prompt);
@@ -1220,15 +1226,15 @@ else
  save_incomplete('func_extra_noround','Function NOROUND');
 
 # 1) check if noround() function is supported
- $error = safe_query("select noround(22.6) $end_query");
+ $error = safe_query_l('func_extra_noround',"select noround(22.6) $end_query");
  if ($error ne 1)         # syntax error -- noround is not supported 
  {
    $resultat = 'no'
  } else                   # Ok, now check if it really works
  {   
-   $error=safe_query(  "create table crash_me_nr (a int)",
+   $error=safe_query_l('func_extra_noround', [ "create table crash_me_nr (a int)",
     "insert into crash_me_nr values(noround(10.2))",
-    "drop table crash_me_nr $drop_attr");
+    "drop table crash_me_nr $drop_attr"]);
   if ($error eq 1) {
        $resultat = "syntax only";
     } else {
@@ -1246,26 +1252,23 @@ check_parenthesis("func_sql_","USER");
 
 # Test: WEEK()
 {
- my $explain="";
  my $resultat="no";
  my $error;
  print "WEEK:";
  save_incomplete('func_odbc_week','WEEK');
- $error = safe_query_result("select week(DATE '1997-02-01') $end_query",5,0);
+ $error = safe_query_result_l('func_odbc_week',"select week(DATE '1997-02-01') $end_query",5,0);
  # actually this query must return 4 or 5 in the $last_result,
  # $error can be 1 (not supported at all) , -1 ( probably USA weeks)
  # and 0 - EURO weeks
  if ($error == -1) { 
      if ($last_result == 4) {
        $resultat = 'USA';
-       $explain = ' started from Sunday';
      } else {
        $resultat='error';
-       $explain = " must return 4 or 5, but $last_error";
+       add_log('func_odbc_week'," must return 4 or 5, but $last_result");
      }
  } elsif ($error == 0) {
        $resultat = 'EURO';
-       $explain = ' started from Monday'; 
  }
  print " $resultat\n";
  save_config_data('func_odbc_week',$resultat,"WEEK $explain");
@@ -1486,27 +1489,27 @@ report("index in create table",'index_in_create',
 # later
 if (!(defined($limits{'create_index'}) && defined($limits{'drop_index'})))
 {
-  if ($res=safe_query("create index crash_q on crash_me (a)"))
+  if ($res=safe_query_l('create_index',"create index crash_q on crash_me (a)"))
   {
     $res="yes";
     $drop_res="yes";
     $end_drop_keyword="";
-    if (!safe_query("drop index crash_q"))
+    if (!safe_query_l('drop_index',"drop index crash_q"))
     {
       # Can't drop the standard way; Check if mSQL
-      if (safe_query("drop index crash_q from crash_me"))
+      if (safe_query_l('drop_index',"drop index crash_q from crash_me"))
       {
         $drop_res="with 'FROM'";	# Drop is not ANSI SQL
         $end_drop_keyword="drop index %i from %t";
       }
       # else check if Access or MySQL
-      elsif (safe_query("drop index crash_q on crash_me"))
+      elsif (safe_query_l('drop_index',"drop index crash_q on crash_me"))
       {
         $drop_res="with 'ON'";	# Drop is not ANSI SQL
         $end_drop_keyword="drop index %i on %t";
       }
       # else check if MS-SQL
-      elsif (safe_query("drop index crash_me.crash_q"))
+      elsif (safe_query_l('drop_index',"drop index crash_me.crash_q"))
       {
         $drop_res="with 'table.index'"; # Drop is not ANSI SQL
         $end_drop_keyword="drop index %t.%i";
@@ -1516,7 +1519,7 @@ if (!(defined($limits{'create_index'}) && defined($limits{'drop_index'})))
     {
       # Old MySQL 3.21 supports only the create index syntax
       # This means that the second create doesn't give an error.
-      $res=safe_query(["create index crash_q on crash_me (a)",
+      $res=safe_query_l('create_index',["create index crash_q on crash_me (a)",
       		     "create index crash_q on crash_me (a)",
       		     "drop index crash_q"]);
       $res= $res ? 'ignored' : 'yes';
@@ -1760,17 +1763,17 @@ report("views","views",
  save_incomplete('foreign_key','foreign keys');
 
 # 1) check if foreign keys are supported
- safe_query(create_table("crash_me_qf",["a integer not null"],
+ safe_query_l('foreign_key',create_table("crash_me_qf",["a integer not null"],
          ["primary key (a)"]));
- $error = safe_query( create_table("crash_me_qf2",["a integer not null",
+ $error = safe_query_l('foreign_key', create_table("crash_me_qf2",["a integer not null",
 	 "foreign key (a) references crash_me_qf (a)"], []));
  			   
  if ($error eq 1)         # OK  -- syntax is supported 
  {
    $resultat = 'error';
    # now check if foreign key really works
-   safe_query( "insert into crash_me_qf values (1)");
-   if (safe_query( "insert into crash_me_qf2 values (2)") eq 1) {
+   safe_query_l('foreign_key', "insert into crash_me_qf values (1)");
+   if (safe_query_l('foreign_key', "insert into crash_me_qf2 values (2)") eq 1) {
      $resultat = 'syntax only';
    } else {
      $resultat = 'yes';
@@ -1779,7 +1782,7 @@ report("views","views",
  } else  { 
    $resultat = "no";
  } 
- safe_query( "drop table crash_me_qf2 $drop_attr","drop table crash_me_qf $drop_attr");
+ safe_query_l('foreign_key', "drop table crash_me_qf2 $drop_attr","drop table crash_me_qf $drop_attr");
  print "$resultat\n";
  save_config_data('foreign_key',$resultat,"foreign keys");
 }
@@ -2056,6 +2059,7 @@ if ($limits{'create_index'} ne 'no')
   if ($limits{'create_index'} eq 'ignored' ||
       $limits{'unique_in_create'} eq 'yes')
   {                                     # This should be true
+    add_log('max_index'," max_unique_index=$limits{'max_unique_index'} ,so max_index must be same");
     save_config_data('max_index',$limits{'max_unique_index'},"max index");
     print "indexes: $limits{'max_index'}\n";
   }
@@ -2063,10 +2067,10 @@ if ($limits{'create_index'} ne 'no')
   {
     if (!defined($limits{'max_index'}))
     {
-      assert("create table crash_q ($key_definitions)");
+      safe_query_l('max_index',"create table crash_q ($key_definitions)");
       for ($i=1; $i <= min($limits{'max_columns'},$max_keys) ; $i++)
       {
-	last if (!safe_query("create index crash_q$i on crash_q (q$i)"));
+	last if (!safe_query_l('max_index',"create index crash_q$i on crash_q (q$i)"));
       }
       save_config_data('max_index',$i == $max_keys ? $max_keys : $i,
 		       "max index");
@@ -2082,10 +2086,10 @@ if ($limits{'create_index'} ne 'no')
     print "indexs: $limits{'max_index'}\n";
     if (!defined($limits{'max_unique_index'}))
     {
-      assert("create table crash_q ($key_definitions)");
+      safe_query_l('max_unique_index',"create table crash_q ($key_definitions)");
       for ($i=0; $i < min($limits{'max_columns'},$max_keys) ; $i++)
       {
-	last if (!safe_query("create unique index crash_q$i on crash_q (q$i)"));
+	last if (!safe_query_l('max_unique_index',"create unique index crash_q$i on crash_q (q$i)"));
       }
       save_config_data('max_unique_index',$i == $max_keys ? $max_keys : $i,
 		       "max unique index");
@@ -2101,7 +2105,7 @@ if ($limits{'create_index'} ne 'no')
     print "unique indexes: $limits{'max_unique_index'}\n";
     if (!defined($limits{'max_index_parts'}))
     {
-      assert("create table crash_q ($key_definitions)");
+      safe_query_l('max_index_parts',"create table crash_q ($key_definitions)");
       $end_drop=$end_drop_keyword;
       $end_drop =~ s/%i/crash_q1%d/;
       $end_drop =~ s/%t/crash_q/;
@@ -2182,23 +2186,23 @@ if (!defined($limits{$key}))
 {
    print "$prompt=";
    save_incomplete($key,$prompt);	
-   if (!safe_query($server->create("crash_me_a",["a decimal(10,2)","b decimal(10,2)"]))) 
+   if (!safe_query_l($key,$server->create("crash_me_a",["a decimal(10,2)","b decimal(10,2)"]))) 
      {
        print DBI->errstr();
        die "Can't create table 'crash_me_a' $DBI::errstr\n";
      };
    
-   if (!safe_query(["insert into crash_me_a (a,b) values (11.4,18.9)"]))
+   if (!safe_query_l($key,["insert into crash_me_a (a,b) values (11.4,18.9)"]))
      {
        die "Can't insert into table 'crash_me_a' a  record: $DBI::errstr\n";
      };
      
    $arithmetic_safe = 'no'; 
    $arithmetic_safe = 'yes' 
-   if ( (safe_query_result('select count(*) from crash_me_a where a+b=30.3',1,0) == 0) 
-      and (safe_query_result('select count(*) from crash_me_a where a+b-30.3 = 0',1,0) == 0)  
-      and (safe_query_result('select count(*) from crash_me_a where a+b-30.3 < 0',0,0) == 0)
-      and (safe_query_result('select count(*) from crash_me_a where a+b-30.3 > 0',0,0) == 0) );
+   if ( (safe_query_result_l($key,'select count(*) from crash_me_a where a+b=30.3',1,0) == 0) 
+      and (safe_query_result_l($key,'select count(*) from crash_me_a where a+b-30.3 = 0',1,0) == 0)  
+      and (safe_query_result_l($key,'select count(*) from crash_me_a where a+b-30.3 < 0',0,0) == 0)
+      and (safe_query_result_l($key,'select count(*) from crash_me_a where a+b-30.3 > 0',0,0) == 0) );
    save_config_data($key,$arithmetic_safe,$prompt);
    print "$arithmetic_safe\n";
    assert("drop table crash_me_a $drop_attr");
@@ -2214,11 +2218,12 @@ if (!safe_query($server->create("crash_me_n",["i integer","r integer"])))
    print DBI->errstr();
    die "Can't create table 'crash_me_n' $DBI::errstr\n";
  };
-assert("insert into crash_me_n (i) values(1)");
-assert("insert into crash_me_n values(2,2)");
-assert("insert into crash_me_n values(3,3)");
-assert("insert into crash_me_n values(4,4)");
-assert("insert into crash_me_n (i) values(5)");
+ 
+safe_query_l("position_of_null",["insert into crash_me_n (i) values(1)",
+"insert into crash_me_n values(2,2)",
+"insert into crash_me_n values(3,3)",
+"insert into crash_me_n values(4,4)",
+"insert into crash_me_n (i) values(5)"]);
 
 $key = "position_of_null";
 $prompt ="Where is null values in sorted recordset";
@@ -2228,7 +2233,8 @@ if (!defined($limits{$key}))
  print "$prompt=";
  $sth=$dbh->prepare("select r from crash_me_n order by r ");
  $sth->execute;
- $limit= detect_null_position($sth);
+ add_log($key,"< select r from crash_me_n order by r ");
+ $limit= detect_null_position($key,$sth);
  $sth->finish;
  print "$limit\n";
  save_config_data($key,$limit,$prompt);
@@ -2244,7 +2250,8 @@ if (!defined($limits{$key}))
  print "$prompt=";
  $sth=$dbh->prepare("select r from crash_me_n order by r desc");
  $sth->execute;
- $limit= detect_null_position($sth);
+ add_log($key,"< select r from crash_me_n order by r  desc");
+ $limit= detect_null_position($key,$sth);
  $sth->finish;
  print "$limit\n";
  save_config_data($key,$limit,$prompt);
@@ -2269,18 +2276,31 @@ $dbh->disconnect || warn $dbh->errstr;
 save_all_config_data();
 exit 0;
 
+# End of test
+#
+
+$dbh->do("drop table crash_me $drop_attr");        # Remove temporary table
+
+print "crash-me safe: $limits{'crash_me_safe'}\n";
+print "reconnected $reconnect_count times\n";
+
+$dbh->disconnect || warn $dbh->errstr;
+save_all_config_data();
+exit 0;
+
 # Check where is nulls in the sorted result (for)
 # it expects exactly 5 rows in the result
 
 sub detect_null_position
 {
+  my $key = shift;
   my $sth = shift;
   my ($z,$r1,$r2,$r3,$r4,$r5);
- $r1 = $sth->fetchrow_array;
- $r2 = $sth->fetchrow_array;
- $r3 = $sth->fetchrow_array;
- $r4 = $sth->fetchrow_array;
- $r5 = $sth->fetchrow_array;
+ $r1 = $sth->fetchrow_array; add_log($key,"> $r1");
+ $r2 = $sth->fetchrow_array; add_log($key,"> $r2");
+ $r3 = $sth->fetchrow_array; add_log($key,"> $r3");
+ $r4 = $sth->fetchrow_array; add_log($key,"> $r4");
+ $r5 = $sth->fetchrow_array; add_log($key,"> $r5");
  return "first" if ( !defined($r1) && !defined($r2) && defined($r3));
  return "last" if ( !defined($r5) && !defined($r4) && defined($r3));
  return "random";
@@ -2291,16 +2311,24 @@ sub check_parenthesis {
  my $fn=shift;
  my $resultat='no';
  my $param_name=$prefix.lc($fn);
+ my $r;
  
  save_incomplete($param_name,$fn);
- if (safe_query("select $fn $end_query") == 1)
+ $r = safe_query("select $fn $end_query"); 
+ add_log($param_name,$safe_query_log);
+ if ($r == 1)
   {
     $resultat="yes";
   } 
-  elsif ( safe_query("select $fn() $end_query") == 1)   
-  {    
-    $resultat="with_parenthesis";
+  else{
+   $r = safe_query("select $fn() $end_query");
+   add_log($param_name,$safe_query_log);
+   if ( $r  == 1)   
+    {    
+       $resultat="with_parenthesis";
+    }
   }
+
   save_config_data($param_name,$resultat,$fn);
 }
 
@@ -2313,16 +2341,22 @@ sub check_constraint {
  save_incomplete($key,$prompt);
  print "$prompt=";
  my $res = 'no';
-
- if ( ($t=safe_query($create)) == 1)
+ my $t;
+ $t=safe_query($create);
+ add_log($key,$safe_query_log);
+ if ( $t == 1)
  {
    $res='yes';
-   if (safe_query($check) == 1)
+   $t= safe_query($check);
+   add_log($key,$safe_query_log);
+   if ($t == 1)
    {
      $res='syntax only';
    }
  }        
  safe_query($drop);
+ add_log($key,$safe_query_log);
+ 
  save_config_data($key,$res,$prompt);
  print "$res\n";
 }
@@ -2633,6 +2667,15 @@ sub check_connect
 #
 # print query if debugging
 #
+sub repr_query {
+  my $query=shift;
+ if (length($query) > 130)
+ {
+   $query=substr($query,0,120) . "...(" . (length($query)-120) . ")";
+ }
+ return $query;
+}  
+
 sub print_query
 {
   my ($query)=@_;
@@ -2652,10 +2695,19 @@ sub print_query
 # Note that all rows are executed (to ensure that we execute drop table commands)
 #
 
+sub safe_query_l {
+  my $key = shift;
+  my $q = shift;
+  my $r = safe_query($q);
+  add_log($key,$safe_query_log);
+  return $r;
+}  
+
 sub safe_query
 {
   my($queries)=@_;
   my($query,$ok,$retry_ok,$retry,@tmp,$sth);
+  $safe_query_log="";
   $ok=1;
   if (ref($queries) ne "ARRAY")
   {
@@ -2666,9 +2718,11 @@ sub safe_query
   {
     printf "query1: %-80.80s ...(%d - %d)\n",$query,length($query),$retry_limit  if ($opt_log_all_queries);
     print LOG "$query;\n" if ($opt_log);
+    $safe_query_log .= "< $query\n";
     if (length($query) > $query_size)
     {
       $ok=0;
+      $safe_query_log .= "Query is too long\n";
       next;
     }
 
@@ -2678,6 +2732,7 @@ sub safe_query
       if (! ($sth=$dbh->prepare($query)))
       {
 	print_query($query);
+        $safe_query_log .= "> couldn't prepare:". $dbh->errstr. "\n";
 	$retry=100 if (!$server->abort_if_fatal_error());
 	# Force a reconnect because of Access drop table bug!
 	if ($retry == $retry_limit-2)
@@ -2692,6 +2747,7 @@ sub safe_query
         if (!$sth->execute())
         {
  	  print_query($query);
+          $safe_query_log .= "> execute error:". $dbh->errstr. "\n";
 	  $retry=100 if (!$server->abort_if_fatal_error());
 	  # Force a reconnect because of Access drop table bug!
 	  if ($retry == $retry_limit-2)
@@ -2705,6 +2761,8 @@ sub safe_query
         {
 	  $retry = $retry_limit;
 	  $retry_ok = 1;
+          $safe_query_log .= "> OK\n";
+	  
         }
         $sth->finish;
       }
@@ -2912,7 +2970,7 @@ sub check_reserved_words
 );
 
 
-  $dbh->do("drop table crash_me10");
+  safe_query("drop table crash_me10 $drop_attr");
 
   foreach my $keyword (sort {$a cmp $b} keys %reserved_words)
   {
@@ -2921,28 +2979,14 @@ sub check_reserved_words
     $prompt= "Keyword ".$keyword;
     $config= "reserved_word_".$keywords_ext[$keyword_type]."_".lc($keyword);
 
-    $dbh->{RaiseError}= 1;
-
-    $answer= "yes";
-
-    eval {
-      $dbh->do("create table crash_me10 ($keyword int not null)"); 
-    };
-
-    $dbh->{RaiseError}= 0;
-
-    if (!$@) 
-    { 
-      $answer= "no";
-      $dbh->do("drop table crash_me10");
-    }
-
-    save_config_data($config,$answer,$prompt);
-
+    report_fail($prompt,$config,
+      "create table crash_me10 ($keyword int not null)",
+      "drop table crash_me10 $drop_attr"
+    );
     print "$prompt: ",$limits{$config},"\n";
   }
 }
- 
+
 #
 # Do a query on a query package object.
 #
@@ -3002,7 +3046,17 @@ sub report
   print "$prompt: ";
   if (!defined($limits{$limit}))
   {
-    save_config_data($limit,safe_query(\@queries) ? "yes" : "no",$prompt);
+    my $queries_result = safe_query(\@queries);
+    add_log($limit, $safe_query_log);
+    my $report_result;
+    if ( $queries_result) {
+      $report_result= "yes";
+      add_log($limit,"As far as all queries returned OK, result is YES");
+    } else {
+      $report_result= "no";
+      add_log($limit,"As far as some queries didnt return OK, result is NO");
+    } 
+    save_config_data($limit,$report_result,$prompt);
   }
   print "$limits{$limit}\n";
   return $limits{$limit} ne "no";
@@ -3014,7 +3068,17 @@ sub report_fail
   print "$prompt: ";
   if (!defined($limits{$limit}))
   {
-    save_config_data($limit,safe_query(\@queries) ? "no" : "yes",$prompt);
+    my $queries_result = safe_query(\@queries);
+    add_log($limit, $safe_query_log);
+    my $report_result;
+    if ( $queries_result) {
+      $report_result= "no";
+      add_log($limit,"As far as all queries returned OK, result is NO");
+    } else {
+      $report_result= "yes";
+      add_log($limit,"As far as some queries didnt return OK, result is YES");
+    } 
+    save_config_data($limit,$report_result,$prompt);
   }
   print "$limits{$limit}\n";
   return $limits{$limit} ne "no";
@@ -3034,7 +3098,7 @@ sub report_one
     $result="no";
     foreach $query (@$queries)
     {
-      if (safe_query($query->[0]))
+      if (safe_query_l($limit,$query->[0]))
       {
 	$result= $query->[1];
 	last;
@@ -3058,6 +3122,7 @@ sub report_result
   {
     save_incomplete($limit,$prompt);
     $error=safe_query_result($query,"1",2);
+    add_log($limit,$safe_query_result_log);
     save_config_data($limit,$error ? "not supported" :$last_result,$prompt);
   }
   print "$limits{$limit}\n";
@@ -3078,16 +3143,19 @@ sub report_trans
 	  $dbh->rollback;
           $dbh->{AutoCommit} = 1;
 	    if (safe_query_result($check,"","")) {
+              add_log($limit,$safe_query_result_log);	    
 	      save_config_data($limit,"yes",$limit);
 	    }
 	    safe_query($clear);
       } else {
+        add_log($limit,$safe_query_log);
         save_config_data($limit,"error",$limit);
       }
       $dbh->{AutoCommit} = 1;
     }
     else
     {
+      add_log($limit,"Couldnt undef autocommit ?? ");
       save_config_data($limit,"no",$limit);
     }
     safe_query($clear);
@@ -3106,20 +3174,26 @@ sub report_rollback
     {
       if (safe_query(\@$queries))
       {
+          add_log($limit,$safe_query_log);
+
 	  $dbh->rollback;
            $dbh->{AutoCommit} = 1;
            if (safe_query($check)) {
+	      add_log($limit,$safe_query_log);
 	      save_config_data($limit,"no",$limit);
 	    }  else  {
+	      add_log($limit,$safe_query_log);
 	      save_config_data($limit,"yes",$limit);
 	    };
 	    safe_query($clear);
       } else {
+        add_log($limit,$safe_query_log);
         save_config_data($limit,"error",$limit);
       }
     }
     else
     {
+      add_log($limit,'Couldnt undef Autocommit??');
       save_config_data($limit,"error",$limit);
     }
     safe_query($clear);
@@ -3141,8 +3215,14 @@ sub check_and_report
   {
     save_incomplete($limit,$prompt);
     $tmp=1-safe_query(\@$pre);
-    $tmp=safe_query_result($query,$answer,$string_type) if (!$tmp);
+    add_log($limit,$safe_query_log);
+    if (!$tmp) 
+    {
+        $tmp=safe_query_result($query,$answer,$string_type) ;
+        add_log($limit,$safe_query_result_log);
+    };	
     safe_query(\@$post);
+    add_log($limit,$safe_query_log);
     delete $limits{$limit};
     if ($function == 3)		# Report error as 'no'.
     {
@@ -3180,7 +3260,7 @@ sub try_and_report
     foreach $test (@tests)
     {
       my $tmp_type= shift(@$test);
-      if (safe_query(\@$test))
+      if (safe_query_l($limit,\@$test))
       {
 	$type=$tmp_type;
 	goto outer;
@@ -3199,32 +3279,44 @@ sub try_and_report
 
 sub execute_and_check
 {
-  my ($pre,$query,$post,$answer,$string_type)=@_;
+  my ($key,$pre,$query,$post,$answer,$string_type)=@_;
   my ($tmp);
 
-  $tmp=safe_query(\@$pre);
-  $tmp=safe_query_result($query,$answer,$string_type) == 0 if ($tmp);
-  safe_query(\@$post);
+  $tmp=safe_query_l($key,\@$pre);
+
+  $tmp=safe_query_result_l($key,$query,$answer,$string_type) == 0 if ($tmp);
+  safe_query_l($key,\@$post);
   return $tmp;
 }
 
 
 # returns 0 if ok, 1 if error, -1 if wrong answer
 # Sets $last_result to value of query
+sub safe_query_result_l{
+  my ($key,$query,$answer,$result_type)=@_;
+  my $r = safe_query_result($query,$answer,$result_type);
+  add_log($key,$safe_query_result_log);
+  return $r;
+}  
 
 sub safe_query_result
 {
   my ($query,$answer,$result_type)=@_;
   my ($sth,$row,$result,$retry);
   undef($last_result);
-
+  $safe_query_result_log="";
+  
   printf "\nquery3: %-80.80s\n",$query  if ($opt_log_all_queries);
   print LOG "$query;\n" if ($opt_log);
+  $safe_query_result_log="<".$query."\n";
+
   for ($retry=0; $retry < $retry_limit ; $retry++)
   {
     if (!($sth=$dbh->prepare($query)))
     {
       print_query($query);
+      $safe_query_result_log .= "> prepare failed:".$dbh->errstr."\n";
+      
       if ($server->abort_if_fatal_error())
       {
 	check_connect();	# Check that server is still up
@@ -3236,6 +3328,7 @@ sub safe_query_result
     if (!$sth->execute)
     {
       print_query($query);
+      $safe_query_result_log .= "> execute failed:".$dbh->errstr."\n";
       if ($server->abort_if_fatal_error())
       {
 	check_connect();	# Check that server is still up
@@ -3252,6 +3345,7 @@ sub safe_query_result
   if (!($row=$sth->fetchrow_arrayref))
   {
     print "\nquery: $query didn't return any result\n" if ($opt_debug);
+    $safe_query_result_log .= "> didn't return any result:".$dbh->errstr."\n";    
     $sth->finish;
     return ($result_type == 8) ? 0 : 1;
   }
@@ -3262,7 +3356,7 @@ sub safe_query_result
   }
   $result=0;                  	# Ok
   $last_result= $row->[0];	# Save for report_result;
-
+  $safe_query_result_log .= ">".$last_result."\n";    
   # Note:
   # if ($result_type == 2)        We accept any return value as answer
 
@@ -3273,34 +3367,55 @@ sub safe_query_result
 				 (abs($row->[0]) + abs($answer))) > 0.01)
     {
       $result=-1;
+      $safe_query_result_log .= "We expected '$answer' but got '$last_result' \n";    
     }
   }
   elsif ($result_type == 1)	# Compare where end space may differ
   {
     $row->[0] =~ s/\s+$//;
-    $result=-1 if ($row->[0] ne $answer);
+    if ($row->[0] ne $answer)
+    {
+     $result=-1;
+     $safe_query_result_log .= "We expected '$answer' but got '$last_result' \n";    
+    } ;
   }
   elsif ($result_type == 3)	# This should be a exact match
   {
-    $result= -1 if ($row->[0] ne $answer);
+     if ($row->[0] ne $answer)
+     { 
+      $result= -1; 
+      $safe_query_result_log .= "we expected '$answer' but got '$last_result' \n";    
+    };
   }
   elsif ($result_type == 4)	# If results should be NULL
   {
-    $result= -1 if (defined($row->[0]));
+    if (defined($row->[0]))
+    { 
+     $result= -1; 
+     $safe_query_result_log .= "We expected NULL but got '$last_result' \n";    
+    };
   }
   elsif ($result_type == 5)	# Result should have given prefix
   {
-    $result= -1 if (length($row->[0]) < length($answer) &&
-		    substr($row->[0],1,length($answer)) ne $answer);
+     if (length($row->[0]) < length($answer) &&
+		    substr($row->[0],1,length($answer)) ne $answer)
+     { 
+      $result= -1 ;
+      $safe_query_result_log .= "result must have prefix '$answer', but  '$last_result' \n";    
+     };
   }
   elsif ($result_type == 6)	# Exact match but ignore errors
   {
-    $result= 1 if ($row->[0] ne $answer);
+    if ($row->[0] ne $answer)    
+    { $result= 1;
+      $safe_query_result_log .= "We expected '$answer' but got '$last_result' \n";    
+    } ;
   }
   elsif ($result_type == 7)	# Compare against array of numbers
   {
     if ($row->[0] != $answer->[0])
     {
+      $safe_query_result_log .= "must be '$answer->[0]' \n";    
       $result= -1;
     }
     else
@@ -3309,16 +3424,20 @@ sub safe_query_result
       shift @$answer;
       while (($row=$sth->fetchrow_arrayref))
       {
+       $safe_query_result_log .= ">$row\n";    
+
 	$value=shift(@$answer);
 	if (!defined($value))
 	{
 	  print "\nquery: $query returned to many results\n"
 	    if ($opt_debug);
+          $safe_query_result_log .= "It returned to many results \n";    	    
 	  $result= 1;
 	  last;
 	}
 	if ($row->[0] != $value)
 	{
+          $safe_query_result_log .= "Must return $value here \n";    	    
 	  $result= -1;
 	  last;
 	}
@@ -3327,6 +3446,7 @@ sub safe_query_result
       {
 	print "\nquery: $query returned too few results\n"
 	  if ($opt_debug);
+        $safe_query_result_log .= "It returned too few results \n";    	    
 	$result= 1;
       }
     }
@@ -3345,7 +3465,7 @@ sub safe_query_result
 sub find_limit()
 {
   my ($prompt,$limit,$query)=@_;
-  my ($first,$end,$i,$tmp);
+  my ($first,$end,$i,$tmp,@tmp_array, $queries);
   print "$prompt: ";
   if (defined($end=$limits{$limit}))
   {
@@ -3353,10 +3473,30 @@ sub find_limit()
     return $end;
   }
   save_incomplete($limit,$prompt);
+  add_log($limit,"We are trying (example with N=5):");
+  $queries = $query->query(5);
+  if (ref($queries) ne "ARRAY")
+  {
+    push(@tmp_array,$queries);
+    $queries= \@tmp_array;
+  }
+  foreach $tmp (@$queries)
+  {   add_log($limit,repr_query($tmp));  }    
 
+  if (defined($queries = $query->check_query()))
+  { 
+    if (ref($queries) ne "ARRAY")
+    {
+      @tmp_array=();
+      push(@tmp_array,$queries); 
+      $queries= \@tmp_array;
+    }
+    foreach $tmp (@$queries)
+      {   add_log($limit,repr_query($tmp));  }    
+  }
   if (defined($query->{'init'}) && !defined($end=$limits{'restart'}{'tohigh'}))
   {
-    if (!safe_query($query->{'init'}))
+    if (!safe_query_l($limit,$query->{'init'}))
     {
       $query->cleanup();
       return "error";
@@ -3384,7 +3524,7 @@ sub find_limit()
     $end= $query->max_limit();
     $i=int(($end+$first)/2);
   }
-
+  my $log_str = "";
   unless(limit_query($query,0+$end)) {
     while ($first < $end)
     {
@@ -3393,11 +3533,13 @@ sub find_limit()
       if (limit_query($query,$i))
       {
         $first=$i;
+	$log_str .= " $i:OK";
         $i=$first+int(($end-$first+1)/2); # to be a bit faster to go up
       }
       else
-      {
+      { 
         $end=$i-1;
+	$log_str .= " $i:FAIL";
         $i=$first+int(($end-$first+4)/5); # Prefere lower on errors
       }
     }
@@ -3409,6 +3551,7 @@ sub find_limit()
     $end= $query->{'max_limit'};
   }
   print "$end\n";
+  add_log($limit,$log_str);
   save_config_data($limit,$end,$prompt);
   delete $limits{'restart'};
   return $end;
@@ -3460,6 +3603,7 @@ sub read_config_data
 	{
 	  $limits{$key}=$limit eq "null"? undef : $limit;
 	  $prompts{$key}=length($prompt) ? substr($prompt,2) : "";
+	  $last_read=$key;
 	  delete $limits{'restart'};
 	}
 	else
@@ -3472,6 +3616,11 @@ sub read_config_data
 	  $limits{'restart'}{'tohigh'} = $limit;
 	}
       }
+    }
+    elsif (/\s*###(.*)$/)    # log line
+    {
+       # add log line for previously read key
+       $log{$last_read} .= "$1\n";
     }
     elsif (!/^\s*$/ && !/^\#/)
     {
@@ -3494,6 +3643,18 @@ sub save_config_data
   print CONFIG_FILE "$key=$limit\t# $prompt\n";
   $limits{$key}=$limit;
   $limit_changed=1;
+# now write log lines (immediatelly after limits)
+  my $line;
+  my $last_line_was_empty=0;
+  foreach $line (split /\n/, $log{$key})
+  {
+     print CONFIG_FILE "   ###$line\n"
+     	unless ( ($last_line_was_empty eq 1)  
+	         && ($line =~ /^\s+$/)  );
+    $last_line_was_empty= ($line =~ /^\s+$/)?1:0;
+
+  };     
+
   if (($opt_restart && $limits{'operating_system'} =~ /windows/i) ||
 		       ($limits{'operating_system'} =~ /NT/))
   {
@@ -3504,6 +3665,12 @@ sub save_config_data
   }
 }
 
+sub add_log
+{
+  my $key = shift;
+  my $line = shift;
+  $log{$key} .= $line . "\n";  
+}
 
 sub save_all_config_data
 {
@@ -3523,6 +3690,16 @@ sub save_all_config_data
     $tmp="$key=$limits{$key}";
     print CONFIG_FILE $tmp . ("\t" x (int((32-min(length($tmp),32)+7)/8)+1)) .
       "# $prompts{$key}\n";
+     my $line;
+     my $last_line_was_empty=0;
+     foreach $line (split /\n/, $log{$key})
+     {
+        print CONFIG_FILE "   ###$line\n"
+		unless ( ($last_line_was_empty eq 1)  
+	         && ($line =~ /^\s+$/)  );
+    $last_line_was_empty= ($line =~ /^\s+$/)?1:0;
+
+     };     
   }
   close CONFIG_FILE;
 }
@@ -3799,7 +3976,6 @@ sub new
   $self->{'check'}=$check;
   bless $self;
 }
-
 
 sub query
 {
