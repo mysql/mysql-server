@@ -1516,7 +1516,7 @@ static MY_UNICASE_INFO *uni_plane[256]={
 
 /* These arrays are taken from usa7 implementation */
 
-uchar ctype_utf8[] = {
+static uchar ctype_utf8[] = {
     0,
    32, 32, 32, 32, 32, 32, 32, 32, 32, 40, 40, 40, 40, 40, 32, 32,
    32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32,
@@ -1536,7 +1536,7 @@ uchar ctype_utf8[] = {
     0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0
 };
 
-uchar to_lower_utf8[] = {
+static uchar to_lower_utf8[] = {
     0,  1,  2,  3,  4,  5,  6,  7,  8,  9, 10, 11, 12, 13, 14, 15,
    16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31,
    32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47,
@@ -1555,7 +1555,7 @@ uchar to_lower_utf8[] = {
   240,241,242,243,244,245,246,247,248,249,250,251,252,253,254,255
 };
 
-uchar to_upper_utf8[] = {
+static uchar to_upper_utf8[] = {
     0,  1,  2,  3,  4,  5,  6,  7,  8,  9, 10, 11, 12, 13, 14, 15,
    16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31,
    32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47,
@@ -1575,7 +1575,7 @@ uchar to_upper_utf8[] = {
 };
 
 
-int my_utf8_uni (CHARSET_INFO *cs __attribute__((unused)) , 
+static int my_utf8_uni (CHARSET_INFO *cs __attribute__((unused)) , 
                  my_wc_t * pwc, const uchar *s, const uchar *e)
 {
   unsigned char c = s[0];
@@ -1677,7 +1677,7 @@ int my_utf8_uni (CHARSET_INFO *cs __attribute__((unused)) ,
     return MY_CS_ILSEQ;
 }
 
-int my_uni_utf8 (CHARSET_INFO *cs __attribute__((unused)) ,
+static int my_uni_utf8 (CHARSET_INFO *cs __attribute__((unused)) ,
                  my_wc_t wc, uchar *r, uchar *e)
 {
   int count;
@@ -1720,7 +1720,7 @@ int my_uni_utf8 (CHARSET_INFO *cs __attribute__((unused)) ,
 }
 
 
-void my_caseup_utf8(CHARSET_INFO *cs, char *s, uint slen)
+static void my_caseup_utf8(CHARSET_INFO *cs, char *s, uint slen)
 {
   my_wc_t wc;
   int res;
@@ -1736,7 +1736,7 @@ void my_caseup_utf8(CHARSET_INFO *cs, char *s, uint slen)
   }
 }
 
-uint my_hash_caseup_utf8(CHARSET_INFO *cs, const byte *s, uint slen)
+static uint my_hash_caseup_utf8(CHARSET_INFO *cs, const byte *s, uint slen)
 {
   my_wc_t wc;
   register uint nr=1, nr2=4;
@@ -1759,7 +1759,7 @@ uint my_hash_caseup_utf8(CHARSET_INFO *cs, const byte *s, uint slen)
 }
 
 
-void my_hash_sort_utf8(CHARSET_INFO *cs, const uchar *s, uint slen, ulong *n1, ulong *n2)
+static void my_hash_sort_utf8(CHARSET_INFO *cs, const uchar *s, uint slen, ulong *n1, ulong *n2)
 {
   my_wc_t wc;
   int res;
@@ -1778,13 +1778,13 @@ void my_hash_sort_utf8(CHARSET_INFO *cs, const uchar *s, uint slen, ulong *n1, u
 }
 
 
-void my_caseup_str_utf8(CHARSET_INFO * cs, char * s)
+static void my_caseup_str_utf8(CHARSET_INFO * cs, char * s)
 {
   my_caseup_utf8(cs, s, strlen(s));
 }
 
 
-void my_casedn_utf8(CHARSET_INFO *cs, char *s, uint slen)
+static void my_casedn_utf8(CHARSET_INFO *cs, char *s, uint slen)
 {
   my_wc_t wc;
   int res;
@@ -1802,13 +1802,13 @@ void my_casedn_utf8(CHARSET_INFO *cs, char *s, uint slen)
   }
 }
 
-void my_casedn_str_utf8(CHARSET_INFO *cs, char * s)
+static void my_casedn_str_utf8(CHARSET_INFO *cs, char * s)
 {
   my_casedn_utf8(cs, s, strlen(s));
 }
 
 
-int my_strnncoll_utf8(CHARSET_INFO *cs, 
+static int my_strnncoll_utf8(CHARSET_INFO *cs, 
 		const uchar *s, uint slen, const uchar *t, uint tlen)
 {
   int s_res,t_res;
@@ -1843,7 +1843,7 @@ int my_strnncoll_utf8(CHARSET_INFO *cs,
   return ( (se-s) - (te-t) );
 }
 
-int my_strncasecmp_utf8(CHARSET_INFO *cs,
+static int my_strncasecmp_utf8(CHARSET_INFO *cs,
 		const char *s, const char *t,  uint len)
 {
   int s_res,t_res;
@@ -1879,7 +1879,7 @@ int my_strncasecmp_utf8(CHARSET_INFO *cs,
   return ( (se-s) - (te-t) );
 }
 
-int my_strcasecmp_utf8(CHARSET_INFO *cs, const char *s, const char *t)
+static int my_strcasecmp_utf8(CHARSET_INFO *cs, const char *s, const char *t)
 {
   uint s_len=strlen(s);
   uint t_len=strlen(t);
@@ -1887,8 +1887,9 @@ int my_strcasecmp_utf8(CHARSET_INFO *cs, const char *s, const char *t)
   return  my_strncasecmp_utf8(cs, s, t, len);
 }
 
-int my_strnxfrm_utf8(CHARSET_INFO *cs, 
-	uchar *dst, uint dstlen, const uchar *src, uint srclen)
+static int my_strnxfrm_utf8(CHARSET_INFO *cs, 
+			    uchar *dst, uint dstlen, 
+			    const uchar *src, uint srclen)
 {
   my_wc_t wc;
   int res;
@@ -1918,19 +1919,19 @@ int my_strnxfrm_utf8(CHARSET_INFO *cs,
   return dst - dst_orig;
 }
 
-int my_ismbchar_utf8(CHARSET_INFO *cs,const char *b, const char *e)
+static int my_ismbchar_utf8(CHARSET_INFO *cs,const char *b, const char *e)
 {
   my_wc_t wc;
   int  res=my_utf8_uni(cs,&wc, (const uchar*)b, (const uchar*)e);
   return (res>1) ? res : 0;
 }
 
-my_bool my_ismbhead_utf8(CHARSET_INFO *cs __attribute__((unused)) , uint ch)
+static my_bool my_ismbhead_utf8(CHARSET_INFO *cs __attribute__((unused)) , uint ch)
 {
   return ( ch >= 0xc2 );
 }
 
-int my_mbcharlen_utf8(CHARSET_INFO *cs  __attribute__((unused)) , uint c)
+static int my_mbcharlen_utf8(CHARSET_INFO *cs  __attribute__((unused)) , uint c)
 {
   if (c < 0x80)
     return 1;
@@ -1950,6 +1951,41 @@ int my_mbcharlen_utf8(CHARSET_INFO *cs  __attribute__((unused)) , uint c)
 #endif
   return 0; /* Illegal mb head */;
 }
+
+CHARSET_INFO my_charset_utf8 =
+{
+    33,			/* number       */
+    MY_CS_COMPILED,	/* state      */
+    "utf8",		/* name         */
+    "",			/* comment    */
+    ctype_utf8,		/* ctype        */
+    to_lower_utf8,	/* to_lower     */
+    to_upper_utf8,	/* to_upper     */
+    to_upper_utf8,	/* sort_order   */
+    NULL,		/* tab_to_uni   */
+    NULL,		/* tab_from_uni */
+    1,			/* strxfrm_multiply */
+    my_strnncoll_utf8,	/* strnncoll    */
+    my_strnxfrm_utf8,	/* strnxfrm     */
+    NULL,		/* like_range   */
+    3,			/* mbmaxlen     */
+    my_ismbchar_utf8,	/* ismbchar     */
+    my_ismbhead_utf8,	/* ismbhead     */
+    my_mbcharlen_utf8,	/* mbcharlen    */
+    my_utf8_uni,	/* mb_wc        */
+    my_uni_utf8,	/* wc_mb        */
+    my_caseup_str_utf8,
+    my_casedn_str_utf8,
+    my_caseup_utf8,
+    my_casedn_utf8,
+    NULL,		/* tosort      */
+    my_strcasecmp_utf8,
+    my_strncasecmp_utf8,
+    my_hash_caseup_utf8,/* hash_caseup */
+    my_hash_sort_utf8,	/* hash_sort   */
+    0
+};
+
 
 #ifdef MY_TEST_UTF8
 
@@ -2009,7 +2045,7 @@ int main()
 
 #ifdef HAVE_CHARSET_ucs2
 
-uchar ctype_ucs2[] = {
+static uchar ctype_ucs2[] = {
     0,
    32, 32, 32, 32, 32, 32, 32, 32, 32, 40, 40, 40, 40, 40, 32, 32,
    32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32,
@@ -2029,7 +2065,7 @@ uchar ctype_ucs2[] = {
     0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0
 };
 
-uchar to_lower_ucs2[] = {
+static uchar to_lower_ucs2[] = {
     0,  1,  2,  3,  4,  5,  6,  7,  8,  9, 10, 11, 12, 13, 14, 15,
    16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31,
    32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47,
@@ -2048,7 +2084,7 @@ uchar to_lower_ucs2[] = {
   240,241,242,243,244,245,246,247,248,249,250,251,252,253,254,255
 };
 
-uchar to_upper_ucs2[] = {
+static uchar to_upper_ucs2[] = {
     0,  1,  2,  3,  4,  5,  6,  7,  8,  9, 10, 11, 12, 13, 14, 15,
    16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31,
    32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47,
@@ -2068,7 +2104,7 @@ uchar to_upper_ucs2[] = {
 };
 
 
-int my_ucs2_uni (CHARSET_INFO *cs __attribute__((unused)) , 
+static int my_ucs2_uni (CHARSET_INFO *cs __attribute__((unused)) , 
                  my_wc_t * pwc, const uchar *s, const uchar *e)
 {
   if (s+2 > e) /* Need 2 characters */
@@ -2078,7 +2114,7 @@ int my_ucs2_uni (CHARSET_INFO *cs __attribute__((unused)) ,
   return 2;
 }
 
-int my_uni_ucs2 (CHARSET_INFO *cs __attribute__((unused)) ,
+static int my_uni_ucs2 (CHARSET_INFO *cs __attribute__((unused)) ,
                  my_wc_t wc, uchar *r, uchar *e)
 {
   if ( r+2 > e ) 
@@ -2090,7 +2126,7 @@ int my_uni_ucs2 (CHARSET_INFO *cs __attribute__((unused)) ,
 }
 
 
-void my_caseup_ucs2(CHARSET_INFO *cs, char *s, uint slen)
+static void my_caseup_ucs2(CHARSET_INFO *cs, char *s, uint slen)
 {
   my_wc_t wc;
   int res;
@@ -2106,7 +2142,7 @@ void my_caseup_ucs2(CHARSET_INFO *cs, char *s, uint slen)
   }
 }
 
-uint my_hash_caseup_ucs2(CHARSET_INFO *cs, const byte *s, uint slen)
+static uint my_hash_caseup_ucs2(CHARSET_INFO *cs, const byte *s, uint slen)
 {
   my_wc_t wc;
   register uint nr=1, nr2=4;
@@ -2129,7 +2165,7 @@ uint my_hash_caseup_ucs2(CHARSET_INFO *cs, const byte *s, uint slen)
 }
 
 
-void my_hash_sort_ucs2(CHARSET_INFO *cs, const uchar *s, uint slen, ulong *n1, ulong *n2)
+static void my_hash_sort_ucs2(CHARSET_INFO *cs, const uchar *s, uint slen, ulong *n1, ulong *n2)
 {
   my_wc_t wc;
   int res;
@@ -2148,14 +2184,14 @@ void my_hash_sort_ucs2(CHARSET_INFO *cs, const uchar *s, uint slen, ulong *n1, u
 }
 
 
-void my_caseup_str_ucs2(CHARSET_INFO * cs  __attribute__((unused)), 
+static void my_caseup_str_ucs2(CHARSET_INFO * cs  __attribute__((unused)), 
                         char * s __attribute__((unused)))
 {
 }
 
 
 
-void my_casedn_ucs2(CHARSET_INFO *cs, char *s, uint slen)
+static void my_casedn_ucs2(CHARSET_INFO *cs, char *s, uint slen)
 {
   my_wc_t wc;
   int res;
@@ -2173,13 +2209,13 @@ void my_casedn_ucs2(CHARSET_INFO *cs, char *s, uint slen)
   }
 }
 
-void my_casedn_str_ucs2(CHARSET_INFO *cs __attribute__((unused)), 
+static void my_casedn_str_ucs2(CHARSET_INFO *cs __attribute__((unused)), 
                         char * s __attribute__((unused)))
 {
 }
 
 
-int my_strnncoll_ucs2(CHARSET_INFO *cs, 
+static int my_strnncoll_ucs2(CHARSET_INFO *cs, 
 		const uchar *s, uint slen, const uchar *t, uint tlen)
 {
   int s_res,t_res;
@@ -2214,7 +2250,7 @@ int my_strnncoll_ucs2(CHARSET_INFO *cs,
   return ( (se-s) - (te-t) );
 }
 
-int my_strncasecmp_ucs2(CHARSET_INFO *cs,
+static int my_strncasecmp_ucs2(CHARSET_INFO *cs,
 		const char *s, const char *t,  uint len)
 {
   int s_res,t_res;
@@ -2250,7 +2286,7 @@ int my_strncasecmp_ucs2(CHARSET_INFO *cs,
   return ( (se-s) - (te-t) );
 }
 
-int my_strcasecmp_ucs2(CHARSET_INFO *cs, const char *s, const char *t)
+static int my_strcasecmp_ucs2(CHARSET_INFO *cs, const char *s, const char *t)
 {
   uint s_len=strlen(s);
   uint t_len=strlen(t);
@@ -2258,7 +2294,7 @@ int my_strcasecmp_ucs2(CHARSET_INFO *cs, const char *s, const char *t)
   return  my_strncasecmp_ucs2(cs, s, t, len);
 }
 
-int my_strnxfrm_ucs2(CHARSET_INFO *cs, 
+static int my_strnxfrm_ucs2(CHARSET_INFO *cs, 
 	uchar *dst, uint dstlen, const uchar *src, uint srclen)
 {
   my_wc_t wc;
@@ -2289,23 +2325,59 @@ int my_strnxfrm_ucs2(CHARSET_INFO *cs,
   return dst - dst_orig;
 }
 
-int my_ismbchar_ucs2(CHARSET_INFO *cs __attribute__((unused)),
+static int my_ismbchar_ucs2(CHARSET_INFO *cs __attribute__((unused)),
                      const char *b __attribute__((unused)),
                      const char *e __attribute__((unused)))
 {
   return 2;
 }
 
-my_bool my_ismbhead_ucs2(CHARSET_INFO *cs __attribute__((unused)) , 
+static my_bool my_ismbhead_ucs2(CHARSET_INFO *cs __attribute__((unused)) , 
                          uint ch __attribute__((unused)))
 {
   return 1;
 }
 
-int my_mbcharlen_ucs2(CHARSET_INFO *cs  __attribute__((unused)) , 
+static int my_mbcharlen_ucs2(CHARSET_INFO *cs  __attribute__((unused)) , 
                       uint c __attribute__((unused)))
 {
   return 2;
 }
+
+
+CHARSET_INFO my_charset_ucs2 =
+{
+    35,			/* number       */
+    MY_CS_COMPILED,	/* state      */
+    "ucs2",		/* name         */
+    "",			/* comment    */
+    ctype_ucs2,		/* ctype        */
+    to_lower_ucs2,	/* to_lower     */
+    to_upper_ucs2,	/* to_upper     */
+    to_upper_ucs2,	/* sort_order   */
+    NULL,		/* tab_to_uni   */
+    NULL,		/* tab_from_uni */
+    1,			/* strxfrm_multiply */
+    my_strnncoll_ucs2,	/* strnncoll    */
+    my_strnxfrm_ucs2,	/* strnxfrm     */
+    NULL,		/* like_range   */
+    2,			/* mbmaxlen     */
+    my_ismbchar_ucs2,	/* ismbchar     */
+    my_ismbhead_ucs2,	/* ismbhead     */
+    my_mbcharlen_ucs2,	/* mbcharlen    */
+    my_ucs2_uni,	/* mb_wc        */
+    my_uni_ucs2,	/* wc_mb        */
+    my_caseup_str_ucs2,
+    my_casedn_str_ucs2,
+    my_caseup_ucs2,
+    my_casedn_ucs2,
+    NULL,		/* tosort      */
+    my_strcasecmp_ucs2,
+    my_strncasecmp_ucs2,
+    my_hash_caseup_ucs2,/* hash_caseup */
+    my_hash_sort_ucs2,	/* hash_sort   */
+    0
+};
+
 
 #endif

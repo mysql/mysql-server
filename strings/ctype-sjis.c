@@ -32,7 +32,7 @@
  * .configure. mbmaxlen_sjis=2
  */
 
-uchar NEAR ctype_sjis[257] =
+static uchar NEAR ctype_sjis[257] =
 {
     0,				/* For standard library */
     0040, 0040, 0040, 0040, 0040, 0040, 0040, 0040,	/* NUL ^A - ^G */
@@ -69,7 +69,7 @@ uchar NEAR ctype_sjis[257] =
     0020, 0020, 0020, 0020, 0020, 0000, 0000, 0000
 };
 
-uchar NEAR to_lower_sjis[]=
+static uchar NEAR to_lower_sjis[]=
 {
   '\000','\001','\002','\003','\004','\005','\006','\007',
   '\010','\011','\012','\013','\014','\015','\016','\017',
@@ -105,7 +105,7 @@ uchar NEAR to_lower_sjis[]=
   (uchar) '\370',(uchar) '\371',(uchar) '\372',(uchar) '\373',(uchar) '\374',(uchar) '\375',(uchar) '\376',(uchar) '\377'
 };
 
-uchar NEAR to_upper_sjis[]=
+static uchar NEAR to_upper_sjis[]=
 {
   '\000','\001','\002','\003','\004','\005','\006','\007',
   '\010','\011','\012','\013','\014','\015','\016','\017',
@@ -141,7 +141,7 @@ uchar NEAR to_upper_sjis[]=
   (uchar) '\370',(uchar) '\371',(uchar) '\372',(uchar) '\373',(uchar) '\374',(uchar) '\375',(uchar) '\376',(uchar) '\377'
 };
 
-uchar NEAR sort_order_sjis[]=
+static uchar NEAR sort_order_sjis[]=
 {
   '\000','\001','\002','\003','\004','\005','\006','\007',
   '\010','\011','\012','\013','\014','\015','\016','\017',
@@ -183,18 +183,18 @@ uchar NEAR sort_order_sjis[]=
                        (0x80<=(c) && (c)<=0xfc))
 
 
-int ismbchar_sjis(CHARSET_INFO *cs __attribute__((unused)),
+static int ismbchar_sjis(CHARSET_INFO *cs __attribute__((unused)),
 		  const char* p, const char *e)
 {
   return (issjishead((uchar) *p) && (e-p)>1 && issjistail((uchar)p[1]) ? 2: 0);
 }
 
-my_bool ismbhead_sjis(CHARSET_INFO *cs __attribute__((unused)),uint c)
+static my_bool ismbhead_sjis(CHARSET_INFO *cs __attribute__((unused)),uint c)
 {
   return issjishead((uchar) c);
 }
 
-int mbcharlen_sjis(CHARSET_INFO *cs __attribute__((unused)),uint c)
+static int mbcharlen_sjis(CHARSET_INFO *cs __attribute__((unused)),uint c)
 {
   return (issjishead((uchar) c) ? 2: 0);
 }
@@ -202,7 +202,7 @@ int mbcharlen_sjis(CHARSET_INFO *cs __attribute__((unused)),uint c)
 
 #define sjiscode(c,d)	((((uint) (uchar)(c)) << 8) | (uint) (uchar) (d))
 
-int my_strnncoll_sjis(CHARSET_INFO *cs __attribute__((unused)),
+static int my_strnncoll_sjis(CHARSET_INFO *cs __attribute__((unused)),
                       const uchar *s1, uint len1,
                       const uchar *s2, uint len2)
 {
@@ -227,7 +227,7 @@ int my_strnncoll_sjis(CHARSET_INFO *cs __attribute__((unused)),
   return len1 - len2;
 }
 
-int my_strnxfrm_sjis(CHARSET_INFO *cs __attribute__((unused)),
+static int my_strnxfrm_sjis(CHARSET_INFO *cs __attribute__((unused)),
                      uchar *dest, uint len,
                      const uchar *src, uint srclen)
 {
@@ -266,7 +266,7 @@ int my_strnxfrm_sjis(CHARSET_INFO *cs __attribute__((unused)),
 #define wild_one '_'
 #define wild_many '%'
 
-my_bool my_like_range_sjis(CHARSET_INFO *cs __attribute__((unused)),
+static my_bool my_like_range_sjis(CHARSET_INFO *cs __attribute__((unused)),
                            const char *ptr,uint ptr_length,pchar escape,
                            uint res_length, char *min_str,char *max_str,
                            uint *min_length,uint *max_length)
@@ -4415,7 +4415,7 @@ static int func_uni_sjis_onechar(int code){
 }
 
 
-int
+static int
 my_wc_mb_sjis(CHARSET_INFO *cs  __attribute__((unused)),
 	      my_wc_t wc, uchar *s, uchar *e)
 {
@@ -4438,7 +4438,7 @@ my_wc_mb_sjis(CHARSET_INFO *cs  __attribute__((unused)),
   return 2;
 }
 
-int 
+static int 
 my_mb_wc_sjis(CHARSET_INFO *cs  __attribute__((unused)),
 	      my_wc_t *pwc, const uchar *s, const uchar *e){
   int hi=s[0];
@@ -4458,5 +4458,38 @@ my_mb_wc_sjis(CHARSET_INFO *cs  __attribute__((unused)),
   return 2;
 }
 
+CHARSET_INFO my_charset_sjis =
+{
+    13,			/* number */
+    MY_CS_COMPILED,	/* state      */
+    "sjis",		/* name */
+    "",			/* comment    */
+    ctype_sjis,
+    to_lower_sjis,
+    to_upper_sjis,
+    sort_order_sjis,
+    NULL,		/* tab_to_uni   */
+    NULL,		/* tab_from_uni */
+    1,			/* strxfrm_multiply */
+    my_strnncoll_sjis,
+    my_strnxfrm_sjis,
+    my_like_range_sjis,
+    2,			/* mbmaxlen */
+    ismbchar_sjis,
+    ismbhead_sjis,
+    mbcharlen_sjis,
+    my_mb_wc_sjis,	/* mb_wc */
+    my_wc_mb_sjis,	/* wc_mb */
+    my_caseup_str_8bit,
+    my_casedn_str_8bit,
+    my_caseup_8bit,
+    my_casedn_8bit,
+    NULL,		/* tosort      */
+    my_strcasecmp_8bit,
+    my_strncasecmp_8bit,
+    NULL,		/* hash_caseup */
+    NULL,		/* hash_sort   */
+    0
+};
 
 #endif
