@@ -1015,7 +1015,8 @@ int do_connect(struct st_query* q)
 
   if (!mysql_init(&next_con->mysql))
     die("Failed on mysql_init()");
-  con_sock=fn_format(buff, con_sock, TMPDIR, "",0);
+  if (con_sock)
+    con_sock=fn_format(buff, con_sock, TMPDIR, "",0);
   if (!con_db[0])
     con_db=db;
   con_error = 1;
@@ -1366,6 +1367,7 @@ struct option long_options[] =
   {"silent",      no_argument,       0, 'q'},
   {"sleep",       required_argument, 0, 'T'},
   {"socket",      required_argument, 0, 'S'},
+  {"test-file",   required_argument, 0, 'x'},
   {"tmpdir",      required_argument, 0, 't'},
   {"user",        required_argument, 0, 'u'},
   {"verbose",     no_argument,       0, 'v'},
@@ -1405,6 +1407,7 @@ void usage()
   -T, --sleep=#		   Sleep always this many seconds on sleep commands\n\
   -r, --record             Record output of test_file into result file.\n\
   -R, --result-file=...    Read/Store result from/in this file.\n\
+  -x, --test-file=...      Read test from/in this file (default stdin).\n\
   -v, --verbose            Write more.\n\
   -q, --quiet, --silent    Suppress all normal output.\n\
   -V, --version            Output version information and exit.\n\
@@ -1419,7 +1422,7 @@ int parse_args(int argc, char **argv)
   load_defaults("my",load_default_groups,&argc,&argv);
   default_argv= argv;
 
-  while((c = getopt_long(argc, argv, "h:p::u:P:D:S:R:t:T:#:?rvVq",
+  while((c = getopt_long(argc, argv, "h:p::u:P:D:S:R:x:t:T:#:?rvVq",
 			 long_options, &option_index)) != EOF)
     {
       switch(c)	{
@@ -1437,6 +1440,10 @@ int parse_args(int argc, char **argv)
 	break;
       case 'R':
 	result_file = optarg;
+	break;
+      case 'x':
+      if (!(*cur_file = my_fopen(optarg, O_RDONLY, MYF(MY_WME))))
+	  die("Could not open %s: errno = %d", optarg, errno);
 	break;
       case 'p':
 	if (optarg)
