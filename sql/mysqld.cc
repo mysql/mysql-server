@@ -4004,6 +4004,7 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     exit(0);
   case 'T':
     test_flags= argument ? (uint) atoi(argument) : 0;
+    test_flags&= ~TEST_NO_THREADS;
     opt_endinfo=1;
     break;
   case (int) OPT_BIG_TABLES:
@@ -4192,8 +4193,10 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     opt_specialflag|=SPECIAL_SKIP_SHOW_DB;
     mysql_port=0;
     break;
+#ifdef ONE_THREAD
   case (int) OPT_ONE_THREAD:
     test_flags |= TEST_NO_THREADS;
+#endif
     break;
   case (int) OPT_WANT_CORE:
     test_flags |= TEST_CORE_ON_SIGNAL;
