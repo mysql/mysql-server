@@ -361,6 +361,7 @@ int terminate_slave_thread(THD* thd, pthread_mutex_t* term_lock,
     abstime.tv_sec=tv.tv_sec+2;
     abstime.tv_nsec=tv.tv_usec*1000;
 #endif
+    DBUG_ASSERT(cond_lock->count > 0 && cond_lock->thread == pthread_self());
     pthread_cond_timedwait(term_cond, cond_lock, &abstime);
     if (*slave_running)
       KICK_SLAVE(thd);
@@ -947,7 +948,6 @@ int init_relay_log_info(RELAY_LOG_INFO* rli, const char* info_fname)
   int info_fd;
   const char* msg = 0;
   int error = 0;
-  
   fn_format(fname, info_fname,
 	    mysql_data_home, "", 4+32);
   pthread_mutex_lock(&rli->data_lock);
