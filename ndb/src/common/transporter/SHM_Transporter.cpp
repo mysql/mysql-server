@@ -15,18 +15,15 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 
+#include <ndb_global.h>
+
 #include "SHM_Transporter.hpp"
 #include "TransporterInternalDefinitions.hpp"
 #include <TransporterCallback.hpp>
 #include <NdbSleep.h>
 #include <NdbOut.hpp>
 
-#include <stdio.h>
-#include <stdlib.h>
-
-#ifdef NDB_WIN32
-#include <windows.h>
-#else
+#ifndef NDB_WIN32
 #include <sys/ipc.h>
 #include <sys/shm.h>
 #endif

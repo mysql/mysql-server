@@ -17,11 +17,9 @@
 /* NDBT_Error.cpp                         */
 /* This program deals with error handling */
 
-#include <string.h>
-#include <assert.h>
+#include <ndb_global.h>
 #include <NdbMain.h>
 #include <NdbOut.hpp>
-#include <NdbStdio.h>
 #include <NdbTest.hpp>
 #include <NDBT_Error.hpp>
 #include <NdbSleep.h>

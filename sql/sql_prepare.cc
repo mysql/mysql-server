@@ -57,9 +57,9 @@ Long data handling:
 
   - Server gets the long data in pieces with command type 'COM_LONG_DATA'.
   - The packet recieved will have the format as:
-    [COM_LONG_DATA:1][STMT_ID:4][parameter_number:2][type:2][data]
-  - Checks if the type is specified by client, and if yes reads the type, 
-    and stores the data in that format.
+    [COM_LONG_DATA:1][STMT_ID:4][parameter_number:2][data]
+  - data from the packet is appended to long data value buffer for this
+    placeholder.
   - It's up to the client to check for read data ended. The server doesn't
     care; and also server doesn't notify to the client that it got the 
     data or not; if there is any error; then during execute; the error 
@@ -77,8 +77,6 @@ Long data handling:
 #include <mysql.h>
 #endif
 
-const String my_null_string("NULL", 4, default_charset_info);
-
 /******************************************************************************
   Prepared_statement: statement which can contain placeholders
 ******************************************************************************/
@@ -92,7 +90,6 @@ public:
   uint last_errno;
   char last_error[MYSQL_ERRMSG_SIZE];
   bool get_longdata_error;
-  bool log_full_query;
 #ifndef EMBEDDED_LIBRARY
   bool (*set_params)(Prepared_statement *st, uchar *data, uchar *data_end,
                      uchar *read_pos);
@@ -240,7 +237,7 @@ static ulong get_param_length(uchar **packet, ulong len)
     none
 */
 
-void set_param_tiny(Item_param *param, uchar **pos, ulong len)
+static void set_param_tiny(Item_param *param, uchar **pos, ulong len)
 {
 #ifndef EMBEDDED_LIBRARY
   if (len < 1)
@@ -248,45 +245,55 @@ void set_param_tiny(Item_param *param, uchar **pos, ulong len)
 #endif
   int8 value= (int8) **pos;
   param->set_int(param->unsigned_flag ? (longlong) ((uint8) value) : 
-                                        (longlong) value); 
+                                        (longlong) value, 4);
   *pos+= 1;
 }
 
-void set_param_short(Item_param *param, uchar **pos, ulong len)
+static void set_param_short(Item_param *param, uchar **pos, ulong len)
 {
+  int16 value;
 #ifndef EMBEDDED_LIBRARY
   if (len < 2)
     return;
+  value= sint2korr(*pos);
+#else
+  shortget(value, *pos);
 #endif
-  int16 value= sint2korr(*pos);
   param->set_int(param->unsigned_flag ? (longlong) ((uint16) value) :
-                                        (longlong) value);
+                                        (longlong) value, 6);
   *pos+= 2;
 }
 
-void set_param_int32(Item_param *param, uchar **pos, ulong len)
+static void set_param_int32(Item_param *param, uchar **pos, ulong len)
 {
+  int32 value;
 #ifndef EMBEDDED_LIBRARY
   if (len < 4)
     return;
+  value= sint4korr(*pos);
+#else
+  longget(value, *pos);
 #endif
-  int32 value= sint4korr(*pos);
   param->set_int(param->unsigned_flag ? (longlong) ((uint32) value) :
-                                        (longlong) value);
+                                        (longlong) value, 11);
   *pos+= 4;
 }
 
-void set_param_int64(Item_param *param, uchar **pos, ulong len)
+static void set_param_int64(Item_param *param, uchar **pos, ulong len)
 {
+  longlong value;
 #ifndef EMBEDDED_LIBRARY
   if (len < 8)
     return;
+  value= (longlong) sint8korr(*pos);
+#else
+  longlongget(value, *pos);
 #endif
-  param->set_int((longlong)sint8korr(*pos));
+  param->set_int(value, 21);
   *pos+= 8;
 }
 
-void set_param_float(Item_param *param, uchar **pos, ulong len)
+static void set_param_float(Item_param *param, uchar **pos, ulong len)
 {
 #ifndef EMBEDDED_LIBRARY
   if (len < 4)
@@ -298,7 +305,7 @@ void set_param_float(Item_param *param, uchar **pos, ulong len)
   *pos+= 4;
 }
 
-void set_param_double(Item_param *param, uchar **pos, ulong len)
+static void set_param_double(Item_param *param, uchar **pos, ulong len)
 {
 #ifndef EMBEDDED_LIBRARY
   if (len < 8)
@@ -310,9 +317,11 @@ void set_param_double(Item_param *param, uchar **pos, ulong len)
   *pos+= 8;
 }
 
-void set_param_time(Item_param *param, uchar **pos, ulong len)
+#ifndef EMBEDDED_LIBRARY
+static void set_param_time(Item_param *param, uchar **pos, ulong len)
 {
   ulong length;
+  uint day;
 
   if ((length= get_param_length(pos, len)) >= 8)
   {
@@ -322,20 +331,33 @@ void set_param_time(Item_param *param, uchar **pos, ulong len)
     /* TODO: why length is compared with 8 here? */
     tm.second_part= (length > 8 ) ? (ulong) sint4korr(to+7): 0;
 
-    tm.day=    (ulong) sint4korr(to+1);
-    tm.hour=   (uint) to[5];
+    /*
+      Note, that though ranges of hour, minute and second are not checked
+      here we rely on them being < 256: otherwise
+      we'll get buffer overflow in make_{date,time} functions,
+      which are called when time value is converted to string.
+    */
+    day= (uint) sint4korr(to+1);
+    tm.hour=   (uint) to[5] + day * 24;
     tm.minute= (uint) to[6];
     tm.second= (uint) to[7];
-
-    tm.year= tm.month= 0;
+    if (tm.hour > 838)
+    {
+      /* TODO: add warning 'Data truncated' here */
+      tm.hour= 838;
+      tm.minute= 59;
+      tm.second= 59;
+    }
+    tm.day= tm.year= tm.month= 0;
     tm.neg= (bool)to[0];
 
-    param->set_time(&tm, TIMESTAMP_TIME);
+    param->set_time(&tm, TIMESTAMP_TIME,
+                    MAX_TIME_WIDTH * MY_CHARSET_BIN_MB_MAXLEN);
   }
   *pos+= length;
 }
 
-void set_param_datetime(Item_param *param, uchar **pos, ulong len)
+static void set_param_datetime(Item_param *param, uchar **pos, ulong len)
 {
   uint length;
  
@@ -346,6 +368,11 @@ void set_param_datetime(Item_param *param, uchar **pos, ulong len)
     
     tm.second_part= (length > 7 ) ? (ulong) sint4korr(to+7): 0;
     
+    /*
+      Note, that though ranges of hour, minute and second are not checked
+      here we rely on them being < 256: otherwise
+      we'll get buffer overflow in make_{date,time} functions.
+    */
     if (length > 4)
     {
       tm.hour=   (uint) to[4];
@@ -360,12 +387,13 @@ void set_param_datetime(Item_param *param, uchar **pos, ulong len)
     tm.day=    (uint) to[3];
     tm.neg=    0;
 
-    param->set_time(&tm, TIMESTAMP_DATETIME);
+    param->set_time(&tm, TIMESTAMP_DATETIME, 
+                    MAX_DATETIME_WIDTH * MY_CHARSET_BIN_MB_MAXLEN);
   }
   *pos+= length;
 }
 
-void set_param_date(Item_param *param, uchar **pos, ulong len)
+static void set_param_date(Item_param *param, uchar **pos, ulong len)
 {
   ulong length;
  
@@ -373,7 +401,11 @@ void set_param_date(Item_param *param, uchar **pos, ulong len)
   {
     uchar *to= *pos;
     TIME tm;
-
+    /*
+      Note, that though ranges of hour, minute and second are not checked
+      here we rely on them being < 256: otherwise
+      we'll get buffer overflow in make_{date,time} functions.
+    */
     tm.year=  (uint) sint2korr(to);
     tm.month=  (uint) to[2];
     tm.day= (uint) to[3];
@@ -382,61 +414,171 @@ void set_param_date(Item_param *param, uchar **pos, ulong len)
     tm.second_part= 0;
     tm.neg= 0;
 
-    param->set_time(&tm, TIMESTAMP_DATE);
+    param->set_time(&tm, TIMESTAMP_DATE,
+                    MAX_DATE_WIDTH * MY_CHARSET_BIN_MB_MAXLEN);
   }
   *pos+= length;
 }
 
-void set_param_str(Item_param *param, uchar **pos, ulong len)
+#else/*!EMBEDDED_LIBRARY*/
+void set_param_time(Item_param *param, uchar **pos, ulong len)
+{
+  TIME  tm;
+  MYSQL_TIME *to= (MYSQL_TIME*)*pos;
+    
+  tm.second_part= to->second_part;
+
+  tm.day=    to->day;
+  tm.hour=   to->hour;
+  tm.minute= to->minute;
+  tm.second= to->second;
+
+  tm.year= tm.month= 0;
+  tm.neg= to->neg;
+  param->set_time(&tm, TIMESTAMP_TIME,
+                  MAX_TIME_WIDTH * MY_CHARSET_BIN_MB_MAXLEN);
+
+}
+
+void set_param_datetime(Item_param *param, uchar **pos, ulong len)
+{
+  TIME  tm;
+  MYSQL_TIME *to= (MYSQL_TIME*)*pos;
+
+  tm.second_part= to->second_part;
+
+  tm.day=    to->day;
+  tm.hour=   to->hour;
+  tm.minute= to->minute;
+  tm.second= to->second;
+  tm.year=   to->year;
+  tm.month=  to->month;
+  tm.neg=    0;
+
+  param->set_time(&tm, TIMESTAMP_DATETIME, 
+                  MAX_DATETIME_WIDTH * MY_CHARSET_BIN_MB_MAXLEN);
+}
+
+void set_param_date(Item_param *param, uchar **pos, ulong len)
+{
+  TIME  tm;
+  MYSQL_TIME *to= (MYSQL_TIME*)*pos;
+    
+  tm.second_part= to->second_part;
+
+  tm.day=    to->day;
+  tm.year=   to->year;
+  tm.month=  to->month;
+  tm.neg=    0;
+  tm.hour= tm.minute= tm.second= 0;
+  tm.second_part= 0;
+  tm.neg= 0;
+
+  param->set_time(&tm, TIMESTAMP_DATE, 
+                  MAX_DATE_WIDTH * MY_CHARSET_BIN_MB_MAXLEN);
+}
+#endif /*!EMBEDDED_LIBRARY*/
+
+
+static void set_param_str(Item_param *param, uchar **pos, ulong len)
 {
   ulong length= get_param_length(pos, len);
-  param->set_value((const char *)*pos, length);
+  param->set_str((const char *)*pos, length);
   *pos+= length;
 }
 
-static void setup_one_conversion_function(Item_param *param, uchar param_type)
+
+#undef get_param_length 
+
+static void setup_one_conversion_function(THD *thd, Item_param *param,
+                                          uchar param_type)
 {
   switch (param_type) {
-  case FIELD_TYPE_TINY:
+  case MYSQL_TYPE_TINY:
     param->set_param_func= set_param_tiny;
+    param->item_type= Item::INT_ITEM;
     param->item_result_type= INT_RESULT;
     break;
-  case FIELD_TYPE_SHORT:
+  case MYSQL_TYPE_SHORT:
     param->set_param_func= set_param_short;
+    param->item_type= Item::INT_ITEM;
     param->item_result_type= INT_RESULT;
     break;
-  case FIELD_TYPE_LONG:
+  case MYSQL_TYPE_LONG:
     param->set_param_func= set_param_int32;
+    param->item_type= Item::INT_ITEM;
     param->item_result_type= INT_RESULT;
     break;
-  case FIELD_TYPE_LONGLONG:
+  case MYSQL_TYPE_LONGLONG:
     param->set_param_func= set_param_int64;
+    param->item_type= Item::INT_ITEM;
     param->item_result_type= INT_RESULT;
     break;
-  case FIELD_TYPE_FLOAT:
+  case MYSQL_TYPE_FLOAT:
     param->set_param_func= set_param_float;
+    param->item_type= Item::REAL_ITEM;
     param->item_result_type= REAL_RESULT;
     break;
-  case FIELD_TYPE_DOUBLE:
+  case MYSQL_TYPE_DOUBLE:
     param->set_param_func= set_param_double;
+    param->item_type= Item::REAL_ITEM;
     param->item_result_type= REAL_RESULT;
     break;
-  case FIELD_TYPE_TIME:
+  case MYSQL_TYPE_TIME:
     param->set_param_func= set_param_time;
+    param->item_type= Item::STRING_ITEM;
     param->item_result_type= STRING_RESULT;
     break;
-  case FIELD_TYPE_DATE:
+  case MYSQL_TYPE_DATE:
     param->set_param_func= set_param_date;
+    param->item_type= Item::STRING_ITEM;
     param->item_result_type= STRING_RESULT;
     break;
   case MYSQL_TYPE_DATETIME:
   case MYSQL_TYPE_TIMESTAMP:
     param->set_param_func= set_param_datetime;
+    param->item_type= Item::STRING_ITEM;
+    param->item_result_type= STRING_RESULT;
+    break;
+  case MYSQL_TYPE_TINY_BLOB:
+  case MYSQL_TYPE_MEDIUM_BLOB:
+  case MYSQL_TYPE_LONG_BLOB:
+  case MYSQL_TYPE_BLOB:
+    param->set_param_func= set_param_str;
+    param->value.cs_info.character_set_client= &my_charset_bin;
+    param->value.cs_info.final_character_set_of_str_value= &my_charset_bin;
+    param->item_type= Item::STRING_ITEM;
     param->item_result_type= STRING_RESULT;
     break;
   default:
-    param->set_param_func= set_param_str;
-    param->item_result_type= STRING_RESULT;
+    /*
+      The client library ensures that we won't get any other typecodes
+      except typecodes above and typecodes for string types. Marking
+      label as 'default' lets us to handle malformed packets as well.
+    */
+    {
+      CHARSET_INFO *fromcs= thd->variables.character_set_client;
+      CHARSET_INFO *tocs= thd->variables.collation_connection;
+      uint32 dummy_offset;
+
+      param->value.cs_info.character_set_client= fromcs;
+
+      /*
+        Setup source and destination character sets so that they
+        are different only if conversion is necessary: this will
+        make later checks easier.
+      */
+      param->value.cs_info.final_character_set_of_str_value=
+        String::needs_conversion(0, fromcs, tocs, &dummy_offset) ?
+        tocs : fromcs;
+      param->set_param_func= set_param_str;
+      /*
+        Exact value of max_length is not known unless data is converted to
+        charset of connection, so we have to set it later.
+      */
+      param->item_type= Item::STRING_ITEM;
+      param->item_result_type= STRING_RESULT;
+    }
   }
 }
 
@@ -465,23 +607,21 @@ static bool insert_params_withlog(Prepared_statement *stmt, uchar *null_array,
   for (Item_param **it= begin; it < end; ++it)
   {
     Item_param *param= *it;
-    if (param->long_data_supplied)
-      res= param->query_val_str(&str);
-    else
+    if (param->state != Item_param::LONG_DATA_VALUE)
     {
       if (is_param_null(null_array, it - begin))
-      {
         param->set_null();
-        res= &my_null_string;
-      }
       else
       {
         if (read_pos >= data_end)
           DBUG_RETURN(1);
         param->set_param_func(param, &read_pos, data_end - read_pos);
-        res= param->query_val_str(&str);
       }
     }
+    res= param->query_val_str(&str);
+    if (param->convert_str_value(thd))
+      DBUG_RETURN(1);                           /* out of memory */
+
     if (query.replace(param->pos_in_query+length, 1, *res))
       DBUG_RETURN(1);
     
@@ -505,7 +645,7 @@ static bool insert_params(Prepared_statement *stmt, uchar *null_array,
   for (Item_param **it= begin; it < end; ++it)
   {
     Item_param *param= *it;
-    if (!param->long_data_supplied)
+    if (param->state != Item_param::LONG_DATA_VALUE)
     {
       if (is_param_null(null_array, it - begin))
         param->set_null();
@@ -516,6 +656,8 @@ static bool insert_params(Prepared_statement *stmt, uchar *null_array,
         param->set_param_func(param, &read_pos, data_end - read_pos);
       }
     }
+    if (param->convert_str_value(stmt->thd))
+      DBUG_RETURN(1);                           /* out of memory */
   }
   DBUG_RETURN(0);
 }
@@ -537,6 +679,7 @@ static bool setup_conversion_functions(Prepared_statement *stmt,
     */
     Item_param **it= stmt->param_array;
     Item_param **end= it + stmt->param_count;
+    THD *thd= stmt->thd;
     for (; it < end; ++it)
     {
       ushort typecode;
@@ -548,7 +691,7 @@ static bool setup_conversion_functions(Prepared_statement *stmt,
       typecode= sint2korr(read_pos);
       read_pos+= 2;
       (**it).unsigned_flag= test(typecode & signed_bit);
-      setup_one_conversion_function(*it, (uchar) (typecode & ~signed_bit));
+      setup_one_conversion_function(thd, *it, (uchar) (typecode & ~signed_bit));
     }
   }
   *data= read_pos;
@@ -559,6 +702,7 @@ static bool setup_conversion_functions(Prepared_statement *stmt,
 
 static bool emb_insert_params(Prepared_statement *stmt)
 {
+  THD *thd= stmt->thd;
   Item_param **it= stmt->param_array;
   Item_param **end= it + stmt->param_count;
   MYSQL_BIND *client_param= stmt->thd->client_params;
@@ -568,20 +712,22 @@ static bool emb_insert_params(Prepared_statement *stmt)
   for (; it < end; ++it, ++client_param)
   {
     Item_param *param= *it;
-    setup_one_conversion_function(param, client_param->buffer_type);
-    if (!param->long_data_supplied)
+    setup_one_conversion_function(thd, param, client_param->buffer_type);
+    if (param->state != Item_param::LONG_DATA_VALUE)
     {
       if (*client_param->is_null)
         param->set_null();
       else
       {
-	uchar *buff= (uchar*)client_param->buffer;
+        uchar *buff= (uchar*) client_param->buffer;
         param->set_param_func(param, &buff,
                               client_param->length ? 
                               *client_param->length : 
                               client_param->buffer_length);
       }
     }
+    if (param->convert_str_value(thd))
+      DBUG_RETURN(1);                           /* out of memory */
   }
   DBUG_RETURN(0);
 }
@@ -606,25 +752,22 @@ static bool emb_insert_params_withlog(Prepared_statement *stmt)
   for (; it < end; ++it, ++client_param)
   {
     Item_param *param= *it;
-    setup_one_conversion_function(param, client_param->buffer_type);
-    if (param->long_data_supplied)
-      res= param->query_val_str(&str);
-    else
+    setup_one_conversion_function(thd, param, client_param->buffer_type);
+    if (param->state != Item_param::LONG_DATA_VALUE)
     {
       if (*client_param->is_null)
-      {
         param->set_null();
-        res= &my_null_string;
-      }
       else
       {
-	uchar *buff= (uchar*)client_param->buffer;
+        uchar *buff= (uchar*)client_param->buffer;
         param->set_param_func(param, &buff,
                               client_param->length ? 
                               *client_param->length : 
                               client_param->buffer_length);
-        res= param->query_val_str(&str);
       }
+      res= param->query_val_str(&str);
+      if (param->convert_str_value(thd))
+        DBUG_RETURN(1);                         /* out of memory */
     }
     if (query.replace(param->pos_in_query+length, 1, *res))
       DBUG_RETURN(1);
@@ -669,7 +812,7 @@ static int mysql_test_insert(Prepared_statement *stmt,
   TABLE_LIST *insert_table_list=
     (TABLE_LIST*) lex->select_lex.table_list.first;
   my_bool update= (lex->value_list.elements ? UPDATE_ACL : 0);
-  DBUG_ENTER("mysql_test_insert_fields");
+  DBUG_ENTER("mysql_test_insert");
 
   if ((res= insert_precheck(thd, table_list, update)))
     DBUG_RETURN(res);
@@ -725,7 +868,7 @@ error:
   Validate UPDATE statement
 
   SYNOPSIS
-    mysql_test_delete()
+    mysql_test_update()
     stmt	prepared statemen handler
     tables	list of tables queries
 
@@ -1038,7 +1181,7 @@ end:
 
 
 /*
-  Validate and prepare for execution CRETE TABLE statement
+  Validate and prepare for execution CREATE TABLE statement
 
   SYNOPSIS
     mysql_test_create_table()
@@ -1075,7 +1218,7 @@ static int mysql_test_create_table(Prepared_statement *stmt,
 
 
 /*
-  Validate and prepare for execution multy update statement
+  Validate and prepare for execution multi update statement
 
   SYNOPSIS
     mysql_test_multiupdate()
@@ -1098,7 +1241,7 @@ static int mysql_test_multiupdate(Prepared_statement *stmt,
 
 
 /*
-  Validate and prepare for execution multy delete statement
+  Validate and prepare for execution multi delete statement
 
   SYNOPSIS
     mysql_test_multidelete()
@@ -1270,8 +1413,8 @@ error:
 }
 
 /*
-  Initialize array of parametes in statement from LEX.
-  (We need to have quick access to items by number in mysql_send_longdata).
+  Initialize array of parameters in statement from LEX.
+  (We need to have quick access to items by number in mysql_stmt_get_longdata).
   This is to avoid using malloc/realloc in the parser.
 */
 
@@ -1469,7 +1612,6 @@ static void reset_stmt_params(Prepared_statement *stmt)
     mysql_stmt_execute()
 */
 
-
 void mysql_stmt_execute(THD *thd, char *packet, uint packet_length)
 {
   ulong stmt_id= uint4korr(packet);
@@ -1481,7 +1623,8 @@ void mysql_stmt_execute(THD *thd, char *packet, uint packet_length)
 
   packet+= 9;                               /* stmt_id + 5 bytes of flags */
   
-  if (!(stmt= find_prepared_statement(thd, stmt_id, "execute", SEND_ERROR)))
+  if (!(stmt= find_prepared_statement(thd, stmt_id, "mysql_stmt_execute",
+                                      SEND_ERROR)))
     DBUG_VOID_RETURN;
 
   DBUG_PRINT("exec_query:", ("%s", stmt->query));
@@ -1535,7 +1678,7 @@ void mysql_stmt_execute(THD *thd, char *packet, uint packet_length)
   reset_stmt_params(stmt);
   close_thread_tables(thd); // to close derived tables
   thd->set_statement(&thd->stmt_backup);
-  /* 
+  /*
     Free Items that were created during this execution of the PS by query
     optimizer.
   */
@@ -1545,7 +1688,7 @@ void mysql_stmt_execute(THD *thd, char *packet, uint packet_length)
 set_params_data_err:
   reset_stmt_params(stmt);
   thd->set_statement(&thd->stmt_backup);
-  my_error(ER_WRONG_ARGUMENTS, MYF(0), "mysql_execute");
+  my_error(ER_WRONG_ARGUMENTS, MYF(0), "mysql_stmt_execute");
   send_error(thd);
   DBUG_VOID_RETURN;
 }
@@ -1576,7 +1719,8 @@ void mysql_stmt_reset(THD *thd, char *packet)
   
   DBUG_ENTER("mysql_stmt_reset");
 
-  if (!(stmt= find_prepared_statement(thd, stmt_id, "reset", SEND_ERROR)))
+  if (!(stmt= find_prepared_statement(thd, stmt_id, "mysql_stmt_reset",
+                                      SEND_ERROR)))
     DBUG_VOID_RETURN;
 
   stmt->get_longdata_error= 0;
@@ -1606,7 +1750,8 @@ void mysql_stmt_free(THD *thd, char *packet)
 
   DBUG_ENTER("mysql_stmt_free");
 
-  if (!(stmt= find_prepared_statement(thd, stmt_id, "close", DONT_SEND_ERROR)))
+  if (!(stmt= find_prepared_statement(thd, stmt_id, "mysql_stmt_close",
+                                      DONT_SEND_ERROR)))
     DBUG_VOID_RETURN;
 
   /* Statement map deletes statement on erase */
@@ -1634,43 +1779,50 @@ void mysql_stmt_free(THD *thd, char *packet)
     to the server. (No checking that we get a 'end of column' in the server)
 */
 
-void mysql_stmt_get_longdata(THD *thd, char *pos, ulong packet_length)
+void mysql_stmt_get_longdata(THD *thd, char *packet, ulong packet_length)
 {
+  ulong stmt_id;
+  uint param_number;
   Prepared_statement *stmt;
+  Item_param *param;
+  char *packet_end= packet + packet_length - 1;
   
   DBUG_ENTER("mysql_stmt_get_longdata");
 
 #ifndef EMBEDDED_LIBRARY
-  /* The following should never happen */
-  if (packet_length < MYSQL_LONG_DATA_HEADER+1)
+  /* Minimal size of long data packet is 6 bytes */
+  if ((ulong) (packet_end - packet) < MYSQL_LONG_DATA_HEADER)
   {
-    my_error(ER_WRONG_ARGUMENTS, MYF(0), "get_longdata");
+    my_error(ER_WRONG_ARGUMENTS, MYF(0), "mysql_stmt_send_long_data");
     DBUG_VOID_RETURN;
   }
 #endif
 
-  ulong stmt_id=     uint4korr(pos);
-  uint param_number= uint2korr(pos+4);
+  stmt_id= uint4korr(packet);
+  packet+= 4;
 
-  if (!(stmt=find_prepared_statement(thd, stmt_id, "get_longdata",
+  if (!(stmt=find_prepared_statement(thd, stmt_id, "mysql_stmt_send_long_data",
                                      DONT_SEND_ERROR)))
     DBUG_VOID_RETURN;
 
+  param_number= uint2korr(packet);
+  packet+= 2;
 #ifndef EMBEDDED_LIBRARY
   if (param_number >= stmt->param_count)
   {
     /* Error will be sent in execute call */
     stmt->get_longdata_error= 1;
     stmt->last_errno= ER_WRONG_ARGUMENTS;
-    sprintf(stmt->last_error, ER(ER_WRONG_ARGUMENTS), "get_longdata");
+    sprintf(stmt->last_error, ER(ER_WRONG_ARGUMENTS),
+            "mysql_stmt_send_long_data");
     DBUG_VOID_RETURN;
   }
-  pos+= MYSQL_LONG_DATA_HEADER;	// Point to data
 #endif
 
-  Item_param *param= stmt->param_array[param_number];
+  param= stmt->param_array[param_number];
+
 #ifndef EMBEDDED_LIBRARY
-  param->set_longdata(pos, packet_length-MYSQL_LONG_DATA_HEADER-1);
+  param->set_longdata(packet, (ulong) (packet_end - packet));
 #else
   param->set_longdata(thd->extra_data, thd->extra_length);
 #endif
@@ -1684,13 +1836,11 @@ Prepared_statement::Prepared_statement(THD *thd_arg)
   param_array(0),
   param_count(0),
   last_errno(0),
-  get_longdata_error(0),
-  log_full_query(0)
+  get_longdata_error(0)
 {
   *last_error= '\0';
   if (mysql_bin_log.is_open())
   {
-    log_full_query= 1;
 #ifndef EMBEDDED_LIBRARY
     set_params= insert_params_withlog;
 #else

@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2003 MySQL AB
+/* Copyright (C) 2000-2004 MySQL AB
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -635,12 +635,13 @@ int mysql_prepare_table(THD *thd, HA_CREATE_INFO *create_info,
 
   /* Create keys */
 
-  List_iterator<Key> key_iterator(keys);
+  List_iterator<Key> key_iterator(keys), key_iterator2(keys);
   uint key_parts=0, fk_key_count=0;
-  List<Key> keys_in_order;			// Add new keys here
   bool primary_key=0,unique_key=0;
-  Key *key;
+  Key *key, *key2;
   uint tmp, key_number;
+  /* special marker for keys to be ignored */
+  static char ignore_key[1];
 
   /* Calculate number of key segements */
   *key_count= 0;
@@ -673,7 +674,40 @@ int mysql_prepare_table(THD *thd, HA_CREATE_INFO *create_info,
       my_error(ER_TOO_LONG_IDENT, MYF(0), key->name);
       DBUG_RETURN(-1);
     }
-    key_parts+=key->columns.elements;
+    key_iterator2.rewind ();
+    if (key->type != Key::FOREIGN_KEY)
+    {
+      while ((key2 = key_iterator2++) != key)
+      {
+	/*
+          foreign_key_prefix(key, key2) returns 0 if key or key2, or both, is
+          'generated', and a generated key is a prefix of the other key.
+          Then we do not need the generated shorter key.
+        */
+        if ((key2->type != Key::FOREIGN_KEY &&
+             key2->name != ignore_key &&
+             !foreign_key_prefix(key, key2)))
+        {
+          /* TODO: issue warning message */
+          /* mark that the generated key should be ignored */
+          if (!key2->generated ||
+              (key->generated && key->columns.elements <
+               key2->columns.elements))
+            key->name= ignore_key;
+          else
+          {
+            key2->name= ignore_key;
+            key_parts-= key2->columns.elements;
+            (*key_count)--;
+          }
+          break;
+        }
+      }
+    }
+    if (key->name != ignore_key)
+      key_parts+=key->columns.elements;
+    else
+      (*key_count)--;
     if (key->name && !tmp_table &&
 	!my_strcasecmp(system_charset_info,key->name,primary_key_name))
     {
@@ -700,16 +734,26 @@ int mysql_prepare_table(THD *thd, HA_CREATE_INFO *create_info,
     uint key_length=0;
     key_part_spec *column;
 
+    if (key->name == ignore_key)
+    {
+      /* ignore redundant keys */
+      do
+	key=key_iterator++;
+      while (key && key->name == ignore_key);
+      if (!key)
+	break;
+    }
+
     switch(key->type){
     case Key::MULTIPLE:
-	key_info->flags = 0;
+	key_info->flags= 0;
 	break;
     case Key::FULLTEXT:
-	key_info->flags = HA_FULLTEXT;
+	key_info->flags= HA_FULLTEXT;
 	break;
     case Key::SPATIAL:
 #ifdef HAVE_SPATIAL
-	key_info->flags = HA_SPATIAL;
+	key_info->flags= HA_SPATIAL;
 	break;
 #else
 	my_printf_error(ER_FEATURE_DISABLED,ER(ER_FEATURE_DISABLED),MYF(0),
@@ -720,8 +764,11 @@ int mysql_prepare_table(THD *thd, HA_CREATE_INFO *create_info,
       key_number--;				// Skip this key
       continue;
     default:
-	key_info->flags = HA_NOSAME;
+      key_info->flags = HA_NOSAME;
+      break;
     }
+    if (key->generated)
+      key_info->flags|= HA_GENERATED_KEY;
 
     key_info->key_parts=(uint8) key->columns.elements;
     key_info->key_part=key_part_info;
@@ -745,7 +792,7 @@ int mysql_prepare_table(THD *thd, HA_CREATE_INFO *create_info,
     */
 
     /* TODO: Add proper checks if handler supports key_type and algorithm */
-    if (key_info->flags == HA_SPATIAL)
+    if (key_info->flags & HA_SPATIAL)
     {
       if (key_info->key_parts != 1)
       {
@@ -1108,6 +1155,8 @@ int mysql_create_table(THD *thd,const char *db, const char *table_name,
     my_snprintf(path, sizeof(path), "%s%s%lx_%lx_%x%s",
 		mysql_tmpdir, tmp_file_prefix, current_pid, thd->thread_id,
 		thd->tmp_table++, reg_ext);
+    if (lower_case_table_names)
+      my_casedn_str(files_charset_info, path);
     create_info->table_options|=HA_CREATE_DELAY_KEY_WRITE;
   }
   else
@@ -1339,11 +1388,11 @@ mysql_rename_table(enum db_type base,
   {
     /* Table handler expects to get all file names as lower case */
     strmov(tmp_from, old_name);
-    my_casedn_str(system_charset_info, tmp_from);
+    my_casedn_str(files_charset_info, tmp_from);
     old_name= tmp_from;
 
     strmov(tmp_to, new_name);
-    my_casedn_str(system_charset_info, tmp_to);
+    my_casedn_str(files_charset_info, tmp_to);
     new_name= tmp_to;
   }
   my_snprintf(from, sizeof(from), "%s/%s/%s",
@@ -2030,6 +2079,8 @@ int mysql_create_like_table(THD* thd, TABLE_LIST* table,
     my_snprintf(dst_path, sizeof(dst_path), "%s%s%lx_%lx_%x%s",
 		mysql_tmpdir, tmp_file_prefix, current_pid,
 		thd->thread_id, thd->tmp_table++, reg_ext);
+    if (lower_case_table_names)
+      my_casedn_str(files_charset_info, dst_path);
     create_info->table_options|= HA_CREATE_DELAY_KEY_WRITE;
   }
   else
@@ -2409,14 +2460,10 @@ int mysql_drop_indexes(THD *thd, TABLE_LIST *table_list,
 int mysql_alter_table(THD *thd,char *new_db, char *new_name,
 		      HA_CREATE_INFO *create_info,
 		      TABLE_LIST *table_list,
-		      List<create_field> &fields,
-		      List<Key> &keys,List<Alter_drop> &drop_list,
-		      List<Alter_column> &alter_list,
-		      uint order_num, ORDER *order, uint alter_flags,
+		      List<create_field> &fields, List<Key> &keys,
+		      uint order_num, ORDER *order,
 		      enum enum_duplicates handle_duplicates,
-		      enum enum_enable_or_disable keys_onoff,
-		      enum tablespace_op_type tablespace_op,
-		      bool simple_alter)
+		      ALTER_INFO *alter_info)
 {
   TABLE *table,*new_table;
   int error;
@@ -2441,9 +2488,9 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
   mysql_ha_closeall(thd, table_list);
 
   /* DISCARD/IMPORT TABLESPACE is always alone in an ALTER TABLE */
-  if (tablespace_op != NO_TABLESPACE_OP)
+  if (alter_info->tablespace_op != NO_TABLESPACE_OP)
     DBUG_RETURN(mysql_discard_or_import_tablespace(thd,table_list,
-						   tablespace_op));
+						   alter_info->tablespace_op));
   if (!(table=open_ltable(thd,table_list,TL_WRITE_ALLOW_READ)))
     DBUG_RETURN(-1);
 
@@ -2456,10 +2503,10 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
     {
       if (lower_case_table_names != 2)
       {
-	my_casedn_str(system_charset_info, new_name_buff);
+	my_casedn_str(files_charset_info, new_name_buff);
 	new_alias= new_name;			// Create lower case table name
       }
-      my_casedn_str(system_charset_info, new_name);
+      my_casedn_str(files_charset_info, new_name);
     }
     if (new_db == db &&
 	!my_strcasecmp(table_alias_charset, new_name_buff, table_name))
@@ -2512,7 +2559,7 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
     create_info->row_type=table->row_type;
 
   thd->proc_info="setup";
-  if (simple_alter && !table->tmp_table)
+  if (alter_info->is_simple && !table->tmp_table)
   {
     error=0;
     if (new_name != table_name || new_db != db)
@@ -2538,21 +2585,21 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
 
     if (!error)
     {
-      switch (keys_onoff) {
+      switch (alter_info->keys_onoff) {
       case LEAVE_AS_IS:
 	break;
       case ENABLE:
 	VOID(pthread_mutex_lock(&LOCK_open));
 	wait_while_table_is_used(thd, table, HA_EXTRA_FORCE_REOPEN);
 	VOID(pthread_mutex_unlock(&LOCK_open));
-	error= table->file->enable_indexes();
+	error= table->file->enable_indexes(HA_KEY_SWITCH_NONUNIQ_SAVE);
 	/* COND_refresh will be signaled in close_thread_tables() */
 	break;
       case DISABLE:
 	VOID(pthread_mutex_lock(&LOCK_open));
 	wait_while_table_is_used(thd, table, HA_EXTRA_FORCE_REOPEN);
 	VOID(pthread_mutex_unlock(&LOCK_open));
-	error=table->file->disable_indexes(0, 1);
+	error=table->file->disable_indexes(HA_KEY_SWITCH_NONUNIQ_SAVE);
 	/* COND_refresh will be signaled in close_thread_tables() */
 	break;
       }
@@ -2597,9 +2644,9 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
     create_info->default_table_charset= table->table_charset;
 
   restore_record(table,default_values);		// Empty record for DEFAULT
-  List_iterator<Alter_drop> drop_it(drop_list);
+  List_iterator<Alter_drop> drop_it(alter_info->drop_list);
   List_iterator<create_field> def_it(fields);
-  List_iterator<Alter_column> alter_it(alter_list);
+  List_iterator<Alter_column> alter_it(alter_info->alter_list);
   List<create_field> create_list;		// Add new fields here
   List<Key> key_list;				// Add new keys here
   create_field *def;
@@ -2703,9 +2750,10 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
       find_it.after(def);			// Put element after this
     }
   }
-  if (alter_list.elements)
+  if (alter_info->alter_list.elements)
   {
-    my_error(ER_BAD_FIELD_ERROR,MYF(0),alter_list.head()->name,table_name);
+    my_error(ER_BAD_FIELD_ERROR,MYF(0),alter_info->alter_list.head()->name,
+	     table_name);
     DBUG_RETURN(-1);
   }
   if (!create_list.elements)
@@ -2787,6 +2835,7 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
 				   Key::FULLTEXT : Key::MULTIPLE)),
 				 key_name,
 				 key_info->algorithm,
+                                 test(key_info->flags & HA_GENERATED_KEY),
 				 key_parts));
   }
   {
@@ -2804,14 +2853,16 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
     }
   }
 
-  if (drop_list.elements)
+  if (alter_info->drop_list.elements)
   {
-    my_error(ER_CANT_DROP_FIELD_OR_KEY,MYF(0),drop_list.head()->name);
+    my_error(ER_CANT_DROP_FIELD_OR_KEY,MYF(0),
+	     alter_info->drop_list.head()->name);
     goto err;
   }
-  if (alter_list.elements)
+  if (alter_info->alter_list.elements)
   {
-    my_error(ER_CANT_DROP_FIELD_OR_KEY,MYF(0),alter_list.head()->name);
+    my_error(ER_CANT_DROP_FIELD_OR_KEY,MYF(0),
+	     alter_info->alter_list.head()->name);
     goto err;
   }
 
@@ -2820,7 +2871,7 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
 	      current_pid, thd->thread_id);
   /* Safety fix for innodb */
   if (lower_case_table_names)
-    my_casedn_str(system_charset_info, tmp_name);
+    my_casedn_str(files_charset_info, tmp_name);
   create_info->db_type=new_db_type;
   if (!create_info->comment)
     create_info->comment=table->comment;
@@ -2984,6 +3035,8 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
   thd->proc_info="rename result table";
   my_snprintf(old_name, sizeof(old_name), "%s2-%lx-%lx", tmp_file_prefix,
 	      current_pid, thd->thread_id);
+  if (lower_case_table_names)
+    my_casedn_str(files_charset_info, old_name);
   if (new_name != table_name || new_db != db)
   {
     if (!access(new_name_buff,F_OK))

@@ -298,6 +298,14 @@ set ft_boolean_syntax = @@init_connect;
 --error 1231
 set global ft_boolean_syntax = @@init_connect;
 
+# Bug#3754 SET GLOBAL myisam_max_sort_file_size doesn't work as
+# expected: check that there is no overflow when 64-bit unsigned
+# variables are set
+
+set global myisam_max_sort_file_size=4294967296;
+show global variables like 'myisam_max_sort_file_size';
+set global myisam_max_sort_file_size=default;
+
 #
 # swap
 #

@@ -65,7 +65,6 @@
 #include "NdbMutex.h"
 #include "NdbCondition.h"
 
-#include <assert.h>
 
 
 

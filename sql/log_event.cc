@@ -1507,7 +1507,9 @@ end:
     TEMPORARY TABLE don't suffer from these assignments to 0 as DROP TEMPORARY
     TABLE uses the db.table syntax).
   */
-  thd->db= thd->query= thd->catalog =0;	
+  thd->db= 0;	                        // prevent db from being freed
+  thd->query= 0;			// just to be sure
+  thd->query_length= 0;
   VOID(pthread_mutex_unlock(&LOCK_thread_count));
   // assume no convert for next query unless set explictly
 #ifdef TO_BE_REMOVED
@@ -2399,6 +2401,7 @@ int Load_log_event::exec_event(NET* net, struct st_relay_log_info* rli,
   thd->db= (char*) rewrite_db(db);
   DBUG_ASSERT(thd->query == 0);
   thd->query= 0;				// Should not be needed
+  thd->query_length= 0;                         // Should not be needed
   thd->query_error= 0;
   clear_all_errors(thd, rli);
   if (!use_rli_only_for_errors)

@@ -148,6 +148,7 @@ protected:
   QUICK_RANGE *range;
   MEM_ROOT alloc;
   KEY_PART *key_parts;  
+  KEY_PART_INFO *key_part_info;
   int cmp_next(QUICK_RANGE *range);
   int cmp_prev(QUICK_RANGE *range);
   bool row_in_ranges();

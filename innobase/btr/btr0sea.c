@@ -764,7 +764,7 @@ btr_search_guess_on_hash(
 
 		success = buf_page_get_known_nowait(latch_mode, page,
 						BUF_MAKE_YOUNG,
-						IB__FILE__, __LINE__,
+						__FILE__, __LINE__,
 						mtr);
 
 		rw_lock_s_unlock(&btr_search_latch);
@@ -1048,7 +1048,7 @@ btr_search_drop_page_hash_when_freed(
 	having to fear a deadlock. */
 	
 	page = buf_page_get_gen(space, page_no, RW_S_LATCH, NULL,
-				BUF_GET_IF_IN_POOL, IB__FILE__, __LINE__,
+				BUF_GET_IF_IN_POOL, __FILE__, __LINE__,
 				&mtr);
 
 #ifdef UNIV_SYNC_DEBUG

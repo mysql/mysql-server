@@ -286,7 +286,6 @@ NdbSqlUtil::cmpTimespec(const Uint32* p1, const Uint32* p2, Uint32 full, Uint32 
 
 #ifdef NDB_SQL_UTIL_TEST
 
-#include <assert.h>
 #include <NdbTick.h>
 #include <NdbOut.hpp>
 

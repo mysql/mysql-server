@@ -48,15 +48,12 @@
 #include <afxtempl.h>
 
 // C RunTime Header Files
-#include <stdlib.h>
-#include <malloc.h>
+#include <ndb_global.h>
 #include <memory.h>
 #include <tchar.h>
 #include <commctrl.h>
 #include <shlwapi.h>
 #include <crtdbg.h>
-#include <string.h>
-#include <stdio.h>
 
 // Local Header Files
 #include "resource.h"

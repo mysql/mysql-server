@@ -15,10 +15,36 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 
+#include <NdbMutex.h>
 #include "NdbTCP.h"
 
+#ifdef NDB_WIN32
+static NdbMutex & LOCK_gethostbyname = * NdbMutex_Create();
+#else
+static NdbMutex LOCK_gethostbyname = NDB_MUTEX_INITIALIZER;
+#endif
 
-#ifdef NDB_SOLARIS
+int 
+Ndb_getInAddr(struct in_addr * dst, const char *address) {
+  struct hostent * hostPtr;
+  NdbMutex_Lock(&LOCK_gethostbyname);
+  hostPtr = gethostbyname(address);
+  if (hostPtr != NULL) {
+    dst->s_addr = ((struct in_addr *) *hostPtr->h_addr_list)->s_addr;
+    NdbMutex_Unlock(&LOCK_gethostbyname);
+    return 0;
+  }
+  NdbMutex_Unlock(&LOCK_gethostbyname);
+  
+  /* Try it as aaa.bbb.ccc.ddd. */
+  dst->s_addr = inet_addr(address);
+  if (dst->s_addr != -1) {
+    return 0;
+  }
+  return -1;
+}
+
+#if 0
 int 
 Ndb_getInAddr(struct in_addr * dst, const char *address) {
   struct hostent host, * hostPtr;
@@ -38,23 +64,3 @@ Ndb_getInAddr(struct in_addr * dst, const char *address) {
   return -1;
 }
 #endif
-
-#if defined NDB_LINUX || defined NDB_HPUX || defined NDB_MACOSX
-int 
-Ndb_getInAddr(struct in_addr * dst, const char *address) {
-  struct hostent * hostPtr;
-  hostPtr = gethostbyname(address);
-  if (hostPtr != NULL) {
-    dst->s_addr = ((struct in_addr *) *hostPtr->h_addr_list)->s_addr;
-    return 0;
-  }
-  
-  /* Try it as aaa.bbb.ccc.ddd. */
-  dst->s_addr = inet_addr(address);
-  if (dst->s_addr != -1) {
-    return 0;
-  }
-  return -1;
-}
-#endif
-

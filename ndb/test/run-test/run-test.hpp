@@ -24,6 +24,8 @@
 #include <mgmapi.h>
 #include <CpcClient.hpp>
 
+#undef MYSQL_CLIENT
+
 enum ErrorCodes {
   ERR_OK = 0,
   ERR_NDB_FAILED = 101,

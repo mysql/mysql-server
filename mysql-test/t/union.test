@@ -39,8 +39,11 @@ explain select a,b from t1 union all select a,b from t2;
 
 --error  1054
 explain select xx from t1 union select 1;
+--error 1222
 explain select a,b from t1 union select 1;
+--error 1222
 explain select 1 union select a,b from t1 union select 1;
+--error 1222
 explain select a,b from t1 union select 1 limit 0;
 
 --error 1221
@@ -515,3 +518,12 @@ SET SQL_SELECT_LIMIT=1;
 select a from t1 union select a from t2 order by a;
 drop table t1, t2;
 set sql_select_limit=default;
+
+#
+# nonexisting column in global ORDER BY
+#
+CREATE TABLE t1 (i int(11) default NULL,c char(1) default NULL,KEY i (i));
+CREATE TABLE t2 (i int(11) default NULL,c char(1) default NULL,KEY i (i));
+--error 1054
+explain (select * from t1) union (select * from t2) order by not_existing_column;
+drop table t1, t2;

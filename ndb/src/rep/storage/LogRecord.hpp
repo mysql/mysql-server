@@ -17,8 +17,7 @@
 #ifndef LOG_RECORD_HPP
 #define LOG_RECORD_HPP
 
-#include <ndb_types.h>
-#include <stdlib.h>
+#include <ndb_global.h>
 #include <portlib/NdbMem.h>
 
 /**

@@ -652,7 +652,7 @@ void HugoOperations::deallocRows(){
 
 int HugoOperations::saveCopyOfRecord(int numRecords ){
 
-  if (numRecords > rows.size())
+  if (numRecords > (int)rows.size())
     return NDBT_FAILED;
 
   for (int i = 0; i < numRecords; i++){
@@ -662,7 +662,7 @@ int HugoOperations::saveCopyOfRecord(int numRecords ){
 }
 
 BaseString HugoOperations::getRecordStr(int recordNum){
-  if (recordNum > rows.size())
+  if (recordNum > (int)rows.size())
     return NULL;
   return rows[recordNum]->c_str();
 }
@@ -673,7 +673,7 @@ int HugoOperations::getRecordGci(int recordNum){
 
 
 int HugoOperations::compareRecordToCopy(int numRecords ){
-  if (numRecords > rows.size())
+  if (numRecords > (int)rows.size())
     return NDBT_FAILED;
   if ((unsigned)numRecords > savedRecords.size())
     return NDBT_FAILED;

@@ -19,7 +19,6 @@
 
 #include "Logger.hpp"
 
-#include <NdbStdio.h> // Defines NULL
 
 /**
  * This class is the base class for all log handlers. A log handler is 

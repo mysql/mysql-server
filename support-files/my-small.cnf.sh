@@ -31,6 +31,8 @@ key_buffer = 16K
 max_allowed_packet = 1M
 table_cache = 4
 sort_buffer_size = 64K
+read_buffer_size = 256K
+read_rnd_buffer_size = 256K
 net_buffer_length = 2K
 thread_stack = 64K
 

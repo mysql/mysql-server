@@ -606,13 +606,20 @@ int main(int argc, char *argv[])
   mi_status(file,&info,HA_STATUS_VARIABLE);
   for (i=0 ; i < info.keys ; i++)
   {
+    key_range min_key, max_key;
     if (mi_rfirst(file,read_record,(int) i) ||
 	mi_rlast(file,read_record2,(int) i))
       goto err;
     copy_key(file,(uint) i,(uchar*) read_record,(uchar*) key);
     copy_key(file,(uint) i,(uchar*) read_record2,(uchar*) key2);
-    range_records=mi_records_in_range(file,(int) i,key,0,HA_READ_KEY_EXACT,
-				      key2,0,HA_READ_AFTER_KEY);
+    min_key.key= key;
+    min_key.length= USE_WHOLE_KEY;
+    min_key.flag= HA_READ_KEY_EXACT;
+    max_key.key= key2;
+    max_key.length= USE_WHOLE_KEY;
+    max_key.flag= HA_READ_AFTER_KEY;
+
+    range_records= mi_records_in_range(file,(int) i, &min_key, &max_key);
     if (range_records < info.records*8/10 ||
 	range_records > info.records*12/10)
     {
@@ -634,12 +641,19 @@ int main(int argc, char *argv[])
     for (k=rnd(1000)+1 ; k>0 && key1[k] == 0 ; k--) ;
     if (j != 0 && k != 0)
     {
+      key_range min_key, max_key;
       if (j > k)
-	swap(int,j,k);
+	swap_variables(int, j, k);
       sprintf(key,"%6d",j);
       sprintf(key2,"%6d",k);
-      range_records=mi_records_in_range(file,0,key,0,HA_READ_AFTER_KEY,
-					key2,0,HA_READ_BEFORE_KEY);
+
+      min_key.key= key;
+      min_key.length= USE_WHOLE_KEY;
+      min_key.flag= HA_READ_AFTER_KEY;
+      max_key.key= key2;
+      max_key.length= USE_WHOLE_KEY;
+      max_key.flag= HA_READ_BEFORE_KEY;
+      range_records= mi_records_in_range(file, 0, &min_key, &max_key);
       records=0;
       for (j++ ; j < k ; j++)
 	records+=key1[j];

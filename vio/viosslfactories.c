@@ -172,6 +172,35 @@ vio_verify_callback(int ok, X509_STORE_CTX *ctx)
 }
 
 
+#ifdef __NETWARE__
+
+/* NetWare SSL cleanup */
+void netware_ssl_cleanup()
+{
+  /* free memory from SSL_library_init() */
+  EVP_cleanup();
+
+  /* free global X509 method */
+  X509_STORE_method_cleanup();
+
+  /* free the thread_hash error table */
+  ERR_free_state_table();
+}
+
+
+/* NetWare SSL initialization */
+static void netware_ssl_init()
+{
+  /* initialize OpenSSL library */
+  SSL_library_init();
+
+  /* cleanup OpenSSL library */
+  NXVmRegisterExitHandler(netware_ssl_cleanup, NULL);
+}
+
+#endif /* __NETWARE__ */
+
+
 /************************ VioSSLConnectorFd **********************************/
 /*
   TODO:
@@ -188,7 +217,7 @@ new_VioSSLConnectorFd(const char* key_file,
   int	verify = SSL_VERIFY_NONE;
   struct st_VioSSLConnectorFd* ptr;
   int result;
-  DH *dh=NULL; 
+  DH *dh;
   DBUG_ENTER("new_VioSSLConnectorFd");
   DBUG_PRINT("enter",
 	     ("key_file=%s, cert_file=%s, ca_path=%s, ca_file=%s, cipher=%s",
@@ -201,6 +230,10 @@ new_VioSSLConnectorFd(const char* key_file,
   ptr->ssl_context= 0;
   ptr->ssl_method=  0;
   /* FIXME: constants! */
+
+#ifdef __NETWARE__
+  netware_ssl_init();
+#endif
 
   if (!ssl_algorithms_added)
   {
@@ -279,7 +312,7 @@ new_VioSSLAcceptorFd(const char *key_file,
 		SSL_VERIFY_CLIENT_ONCE);
   struct st_VioSSLAcceptorFd* ptr;
   int result;
-  DH *dh=NULL; 
+  DH *dh;
   DBUG_ENTER("new_VioSSLAcceptorFd");
   DBUG_PRINT("enter",
 	     ("key_file=%s, cert_file=%s, ca_path=%s, ca_file=%s, cipher=%s",
@@ -291,6 +324,10 @@ new_VioSSLAcceptorFd(const char *key_file,
   ptr->ssl_method=0;
   /* FIXME: constants! */
   ptr->session_id_context= ptr;
+
+#ifdef __NETWARE__
+  netware_ssl_init();
+#endif
 
   if (!ssl_algorithms_added)
   {

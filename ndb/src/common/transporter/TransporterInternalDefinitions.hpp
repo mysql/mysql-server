@@ -21,39 +21,18 @@
 #include <NdbOut.hpp>
 #endif
 
-#ifdef NDB_SOLARIS
 #define NDB_TCP_TRANSPORTER
-//#define NDB_SCI_TRANSPORTER
+
+#ifdef HAVE_NDB_SHM
 #define NDB_SHM_TRANSPORTER
-#elif defined NDB_OSE || defined NDB_SOFTOSE
-#define NDB_TCP_TRANSPORTER
-#define NDB_OSE_TRANSPORTER
-#elif defined NDB_LINUX
-#define NDB_TCP_TRANSPORTER
-#define NDB_SCI_TRANSPORTER
-#define NDB_SHM_TRANSPORTER
-#elif defined NDB_WIN32
-#define NDB_TCP_TRANSPORTER
-#elif defined NDB_HPUX
-#define NDB_TCP_TRANSPORTER
-#define NDB_SHM_TRANSPORTER
-#elif defined NDB_MACOSX
-#define NDB_TCP_TRANSPORTER
-#define NDB_SHM_TRANSPORTER
-#elif defined NDB_IBMAIX
-#define NDB_TCP_TRANSPORTER
-#define NDB_SHM_TRANSPORTER
-#elif defined NDB_TRU64X
-#define NDB_TCP_TRANSPORTER
-#define NDB_SHM_TRANSPORTER
-#else
-#error unsupported platform
 #endif
 
-#ifndef HAVE_SCI
-#ifdef NDB_SCI_TRANSPORTER
-#undef NDB_SCI_TRANSPORTER
+#ifdef HAVE_NDB_SCI
+#define NDB_SCI_TRANSPORTER
 #endif
+
+#ifdef HAVE_NDB_OSE
+#define NDB_OSE_TRANSPORTER
 #endif
 
 #ifdef DEBUG_TRANSPORTER

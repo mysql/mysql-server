@@ -2585,7 +2585,7 @@ static uint16 gbksortorder(uint16 i)
 int my_strnncoll_gbk_internal(const uchar **a_res, const uchar **b_res,
 			      uint length)
 {
-  const char *a= *a_res, *b= *b_res;
+  const uchar *a= *a_res, *b= *b_res;
   uint a_char,b_char; 
 
   while (length--)
@@ -2601,9 +2601,9 @@ int my_strnncoll_gbk_internal(const uchar **a_res, const uchar **b_res,
       b+= 2;
       length--;
     }
-    else if (sort_order_gbk[(uchar) *a++] != sort_order_gbk[(uchar) *b++])
-      return ((int) sort_order_gbk[(uchar) a[-1]] -
-	      (int) sort_order_gbk[(uchar) b[-1]]);
+    else if (sort_order_gbk[*a++] != sort_order_gbk[*b++])
+      return ((int) sort_order_gbk[a[-1]] -
+	      (int) sort_order_gbk[b[-1]]);
   }
   *a_res= a;
   *b_res= b;
@@ -9968,6 +9968,7 @@ CHARSET_INFO my_charset_gbk_chinese_ci=
     sort_order_gbk,
     NULL,		/* tab_to_uni   */
     NULL,		/* tab_from_uni */
+    NULL,		/* sort_order_big*/
     "",
     "",
     1,			/* strxfrm_multiply */
@@ -9992,6 +9993,7 @@ CHARSET_INFO my_charset_gbk_bin=
     sort_order_gbk,
     NULL,		/* tab_to_uni   */
     NULL,		/* tab_from_uni */
+    NULL,		/* sort_order_big*/
     "",
     "",
     1,			/* strxfrm_multiply */

@@ -55,14 +55,8 @@ int	vio_close_pipe(Vio * vio);
 
 void	vio_delete(Vio* vio);
 int	vio_close(Vio* vio);
-
-#ifdef EMBEDDED_LIBRARY
-void vio_reset(Vio *vio);
-#else
-void vio_reset(Vio* vio, enum enum_vio_type type,
-	       my_socket sd, HANDLE hPipe, my_bool localhost);
-#endif
-
+void    vio_reset(Vio* vio, enum enum_vio_type type,
+                  my_socket sd, HANDLE hPipe, my_bool localhost);
 int	vio_read(Vio *vio, gptr	buf, int size);
 int	vio_write(Vio *vio, const gptr buf, int size);
 int	vio_blocking(Vio *vio, my_bool onoff, my_bool *old_mode);

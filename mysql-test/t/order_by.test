@@ -80,6 +80,16 @@ select distinct i from t1 order by mod(i,2),i;
 drop table t1;
 
 #
+# bug#3681
+#
+
+create table t1 ( pk     int primary key, name   varchar(255) not null, number varchar(255) not null);
+insert into t1 values (1, 'Gamma',     '123'), (2, 'Gamma Ext', '123a'), (3, 'Alpha',     '001'), (4, 'Beta',      '200c');
+select distinct t1.name as 'Building Name',t1.number as 'Building Number' from t1 order by t1.name asc;
+drop table t1;
+
+
+#
 # Order by on first index part
 #
 

@@ -17,7 +17,6 @@
 #ifndef NDB_ERROR_H
 #define NDB_ERROR_H
 
-#include <stdio.h>
 #include <NdbOut.hpp>
 
 #define error_handler(x,y, z) { \

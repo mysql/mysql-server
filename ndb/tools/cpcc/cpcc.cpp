@@ -15,7 +15,7 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 
-#include <stdarg.h>
+#include <ndb_global.h>
 #include <getarg.h>
 #include "CpcClient.hpp"
 #include <NdbEnv.h>
@@ -116,7 +116,7 @@ public:
   }
 
   virtual bool evaluate(SimpleCpcClient* c,const SimpleCpcClient::Process & p){
-    return p.m_id == id && c == host;
+    return p.m_id == (int)id && c == host;
   }
 };
 

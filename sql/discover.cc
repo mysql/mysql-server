@@ -159,7 +159,6 @@ int create_table_from_handler(const char *db,
     error = writefrm(path, frmblob, frmlen);
   }
     
- err:
   if (frmblob)
     my_free((char*) frmblob,MYF(0));
   DBUG_RETURN(error);  
