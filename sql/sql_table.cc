@@ -249,6 +249,21 @@ int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
 	if (!(error=my_delete(path,MYF(MY_WME))))
 	  some_tables_deleted=1;
       }
+      if (error == HA_ERR_NO_SUCH_TABLE)
+      {
+        /* The table did not exist in engine */
+        if (if_exists)
+        {
+          push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_NOTE,
+                              ER_BAD_TABLE_ERROR, ER(ER_BAD_TABLE_ERROR),
+                              table->table_name);
+          error= 0;
+        }
+        /* Delete the table definition file */
+        strmov(end,reg_ext);
+        if (!(my_delete(path,MYF(MY_WME))))
+          some_tables_deleted=1;
+      }
     }
     if (error)
     {
