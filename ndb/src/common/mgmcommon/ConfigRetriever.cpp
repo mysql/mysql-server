@@ -37,6 +37,7 @@
  
 #include <mgmapi.h>
 #include <mgmapi_config_parameters.h>
+#include <mgmapi_configuration.hpp>
 #include <ConfigValues.hpp>
 #include <NdbHost.h>
 
@@ -267,7 +268,7 @@ ConfigRetriever::verifyConfig(const struct ndb_mgm_configuration * conf){
 
   char localhost[MAXHOSTNAMELEN];
   if(NdbHost_GetHostName(localhost) != 0){
-    snprintf(buf, 255, "Unable to own hostname");
+    snprintf(buf, 255, "Unable to get own hostname");
     setError(CR_ERROR, buf);
     return false;
   }
@@ -317,6 +318,46 @@ ConfigRetriever::verifyConfig(const struct ndb_mgm_configuration * conf){
     return false;
   }
 
+  /**
+   * Check hostnames
+   */
+  ndb_mgm_configuration_iterator iter(* conf, CFG_SECTION_CONNECTION);
+  for(iter.first(); iter.valid(); iter.next()){
+
+    Uint32 type = CONNECTION_TYPE_TCP + 1;
+    if(iter.get(CFG_TYPE_OF_SECTION, &type)) continue;
+    if(type != CONNECTION_TYPE_TCP) continue;
+    
+    Uint32 nodeId1, nodeId2, remoteNodeId;
+    if(iter.get(CFG_CONNECTION_NODE_1, &nodeId1)) continue;
+    if(iter.get(CFG_CONNECTION_NODE_2, &nodeId2)) continue;
+    
+    if(nodeId1 != _ownNodeId && nodeId2 != _ownNodeId) continue;
+    remoteNodeId = (_ownNodeId == nodeId1 ? nodeId2 : nodeId1);
+
+    const char * name;
+    struct in_addr addr;
+    BaseString tmp;
+    if(!iter.get(CFG_TCP_HOSTNAME_1, &name) && strlen(name)){
+      if(Ndb_getInAddr(&addr, name) != 0){
+	tmp.assfmt("Unable to lookup/illegal hostname %s, "
+		   "connection from node %d to node %d",
+		   name, _ownNodeId, remoteNodeId);
+	setError(CR_ERROR, tmp.c_str());
+	return false;
+      }
+    }
+
+    if(!iter.get(CFG_TCP_HOSTNAME_2, &name) && strlen(name)){
+      if(Ndb_getInAddr(&addr, name) != 0){
+	tmp.assfmt("Unable to lookup/illegal hostname %s, "
+		   "connection from node %d to node %d",
+		   name, _ownNodeId, remoteNodeId);
+	setError(CR_ERROR, tmp.c_str());
+	return false;
+      }
+    }
+  }
   return true;
 }
 
