@@ -69,7 +69,7 @@ typedef struct st_mi_isaminfo		/* Struct from h_info */
   ulonglong auto_increment;
   ulonglong key_map;			/* Which keys are used */
   uint  keys;				/* Number of keys in use */
-  uint	options;			/* HA_OPTIONS_... used */
+  uint	options;			/* HA_OPTION_... used */
   int	errkey,				/* With key was dupplicated on err */
 	sortkey;			/* clustered by this key */
   File	filenr;				/* (uniq) filenr for datafile */

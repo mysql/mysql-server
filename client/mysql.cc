@@ -25,17 +25,12 @@
  *
  **/
 
-#include <global.h>
-#include <my_sys.h> 
-#include <m_string.h>
+#include "client_priv.h"
 #include <m_ctype.h>
-#include "mysql.h"
-#include "errmsg.h"
 #include <my_dir.h>
 #ifndef __GNU_LIBRARY__
 #define __GNU_LIBRARY__		      // Skip warnings in getopt.h
 #endif
-#include <getopt.h>
 #include "my_readline.h"
 #include <signal.h>
 
@@ -379,10 +374,6 @@ sig_handler mysql_end(int sig)
   my_end(info_flag ? MY_CHECK_ERROR | MY_GIVE_INFO : 0);
   exit(status.exit_status);
 }
-
-enum options {OPT_CHARSETS_DIR=256, OPT_DEFAULT_CHARSET,
-	      OPT_PAGER, OPT_NOPAGER, OPT_TEE, OPT_NOTEE} ;
-
 
 static struct option long_options[] =
 {

@@ -19,6 +19,7 @@
 INCLUDES =			-I$(srcdir)/../include \
 				-I../include -I$(srcdir)/.. -I$(top_srcdir) \
 				-I..
+noinst_HEADERS =		client_priv.h
 LIBS =				@CLIENT_LIBS@
 LDADD =				@CLIENT_EXTRA_LDFLAGS@ ../libmysql/libmysqlclient.la
 bin_PROGRAMS =			mysql mysqladmin mysqlcheck mysqlshow \

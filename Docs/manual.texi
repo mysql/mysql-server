@@ -1,4 +1,4 @@
-\input texinfo  @c -*-texinfo-*-
+input texinfo  @c -*-texinfo-*-
 @c Copyright 1997-2001 TcX AB, Detron HB and MySQL Finland AB
 @c
 @c *********************************************************
@@ -1566,6 +1566,10 @@ Hands on tutorial for MySQL.
 @subheading Porting MySQL/Using MySQL on Different Systems
 
 @table @asis
+@item @uref{http://www.entropy.ch/software/macosx/mysql/}
+Binary of MySQL for Mac OS X Client.  Includes information of how to
+build and use MySQL on Mac OS X.
+
 @item @uref{http://xclave.macnn.com/MySQL/}
 The Mac OS Xclave.  Running MySQL on Mac OS X.
 
@@ -5187,9 +5191,6 @@ for MySQL from the day it was released, whereas until recently
 PostgreSQL was unsupported.
 
 @item
-MySQL works on more platforms than PostgreSQL. @xref{Which OS}.
-
-@item
 MySQL works better on Windows than PostgreSQL does.  MySQL runs as a
 native Windows application (a service on NT/Win2000/WinXP), while
 PostgreSQL is run under the cygwin emulation.  We have heard that
@@ -8074,6 +8075,8 @@ shell> ./configure --with-unix-socket-path=/usr/local/mysql/tmp/mysql.sock
 @end example
 
 Note that the given file must be an absolute pathname!
+You can also later change the location @file{mysql.sock} by using the MySQL 
+option files. @xref{Problems with mysql.sock}.
 
 @cindex compiling, statically
 @cindex statically, compiling
@@ -8086,6 +8089,8 @@ RedHat Linux distributions), run @code{configure} like this:
 shell> ./configure --with-client-ldflags=-all-static \
            --with-mysqld-ldflags=-all-static
 @end example
+
+
 
 @tindex @code{CC} environment variable
 @tindex environment variable, @code{CC}
@@ -8993,6 +8998,8 @@ shell> MYSQL_UNIX_PORT=/some_tmp_dir/mysqld.sock
 shell> export TMPDIR MYSQL_UNIX_PORT
 @end example
 
+@xref{Problems with mysql.sock}.
+
 @file{some_tmp_dir} should be the path to some directory for which you
 have write permission. @xref{Environment variables}.
 
@@ -9233,6 +9240,7 @@ should append the following to it:
 /bin/sh -c 'cd /usr/local/mysql ; ./bin/safe_mysqld --user=mysql &'
 @end example
 
+@cindex changing socket location
 You can also add options for @code{mysql.server} in a global
 @file{/etc/my.cnf} file.  A typical @file{/etc/my.cnf} file might look like
 this:
@@ -9240,7 +9248,7 @@ this:
 @example
 [mysqld]
 datadir=/usr/local/mysql/var
-socket=/tmp/mysqld.sock
+socket=/var/tmp/mysql.sock
 port=3306
 user=mysql
 
@@ -28268,18 +28276,22 @@ example:
 @end example
 
 In this example, @code{9} (@code{precision}) represents the number of
-significant decimal digits that will be stored for values, and
-@code{2} (@code{scale}) represents the number of digits that will be
-stored following the decimal point.  In this case, therefore, the range
-of values that can be stored in the @code{salary} column is from
-@code{-999999.99} to @code{9999999.99}.  In ANSI/ISO SQL92, the syntax
-@code{DECIMAL(p)} is equivalent to @code{DECIMAL(p,0)}.  Similarly, the
-syntax @code{DECIMAL} is equivalent to @code{DECIMAL(p,0)}, where the
-implementation is allowed to decide the value of @code{p}.
-MySQL does not currently support either of these variant forms
-of the @code{DECIMAL}/@code{NUMERIC} data types.  This is not generally
-a serious problem, as the principal benefits of these types derive from
-the ability to control both precision and scale explicitly.
+significant decimal digits that will be stored for values, and @code{2}
+(@code{scale}) represents the number of digits that will be stored
+following the decimal point.  In this case, therefore, the range of
+values that can be stored in the @code{salary} column is from
+@code{-9999999.99} to @code{9999999.99}. 
+(MySQL can actually store numbers up to @code{9999999.99} in this column
+because it doesn't have to store the sign for positive numbers)
+
+In ANSI/ISO SQL92, the syntax @code{DECIMAL(p)} is equivalent to
+@code{DECIMAL(p,0)}.  Similarly, the syntax @code{DECIMAL} is equivalent
+to @code{DECIMAL(p,0)}, where the implementation is allowed to decide
+the value of @code{p}.  MySQL does not currently support either of these
+variant forms of the @code{DECIMAL}/@code{NUMERIC} data types.  This is
+not generally a serious problem, as the principal benefits of these
+types derive from the ability to control both precision and scale
+explicitly.
 
 @code{DECIMAL} and @code{NUMERIC} values are stored as strings, rather
 than as binary floating-point numbers, in order to preserve the decimal
@@ -31891,8 +31903,8 @@ can also be used to get the value.
 
 Note that as @code{mysql_insert_id()} is only updated after
 @code{INSERT} and @code{UPDATE} statements, you can't use this function
-to retrieve the value used @code{LAST_INSERT_ID(expr)} for other SQL
-statements.
+to retrieve the value for @code{LAST_INSERT_ID(expr)} after executing
+other SQL statements like @code{SELECT} or @code{SET}.
 
 
 @findex FORMAT()
@@ -40640,8 +40652,9 @@ does not generate an @code{AUTO_INCREMENT} value.  If you need to save
 the value for later, be sure to call @code{mysql_insert_id()} immediately
 after the query that generates the value.
 
-@code{mysql_insert_id()} is only updated after @code{INSERT} and
-@code{UPDATE} statements, not after using @code{LAST_INSERT_ID(expr)}.
+@code{mysql_insert_id()} is updated after @code{INSERT} and
+@code{UPDATE} statements that generate an @code{AUTO_INCREMENT} value or
+that set a column value to @code{LAST_INSERT_ID(expr)}.
 @xref{Miscellaneous functions}.
 
 Also note that the value of the SQL @code{LAST_INSERT_ID()} function always
@@ -43402,27 +43415,14 @@ the MySQL socket (for example, a job that removes old files
 from the @file{/tmp} directory).  You can always run @code{mysqladmin
 version} and check that the socket @code{mysqladmin} is trying to use
 really exists.  The fix in this case is to change the @code{cron} job to
-not remove @file{mysqld.sock} or to place the socket somewhere else. You
-can specify a different socket location at MySQL configuration
-time with this command:
-@example
-shell> ./configure --with-unix-socket-path=/path/to/socket
-@end example
-You can also start @code{safe_mysqld} with the
-@code{--socket=/path/to/socket} option and set the environment variable
-@code{MYSQL_UNIX_PORT} to the socket pathname before starting your
-MySQL clients.
+not remove @file{mysqld.sock} or to place the socket somewhere else.
+@xref{Problems with mysql.sock}.
 @item
 You have started the @code{mysqld} server with
 the @code{--socket=/path/to/socket} option.  If you change the socket
 pathname for the server, you must also notify the MySQL clients
-about the new path. You can do this by setting the environment variable
-@code{MYSQL_UNIX_PORT} to the socket pathname or by providing the socket path
-as an argument to the clients. You can test the socket with this command:
-
-@example
-shell> mysqladmin --socket=/path/to/socket version
-@end example
+about the new path. You can do this by providing the socket path
+as an argument to the client. @xref{Problems with mysql.sock}.
 @item
 You are using Linux and one thread has died (core dumped).  In this case
 you must kill the other @code{mysqld} threads (for example, with the
@@ -44409,8 +44409,8 @@ tables. These are not hidden and have names of the form @file{SQL_*}.
 the original table.
 
 
-@node  Problems with mysql.sock, Timezone problems, Temporary files, Administration Issues
-@appendixsubsec How to Protect @file{/tmp/mysql.sock} from Being Deleted
+@node Problems with mysql.sock, Timezone problems, Temporary files, Administration Issues
+@appendixsubsec How to Protect or change the MySQL socket file @file{/tmp/mysql.sock}
 
 @cindex @code{mysql.sock}, protection
 @cindex deletion, @code{mysql.sock}
@@ -44430,6 +44430,40 @@ only by their owners or the superuser (@code{root}).
 You can check if the @code{sticky} bit is set by executing @code{ls -ld /tmp}.
 If the last permission bit is @code{t}, the bit is set.
 
+@cindex changing socket location
+
+You can change the place where MySQL uses / puts the socket file the
+following ways:
+
+@itemize @bullet
+@item
+Specify the path in a global or local option file.
+For example, put in @code{/etc/my.cnf}:
+
+@example
+[client]
+socket=path-for-socket-file
+
+[mysqld]
+socket=path-for-socket-file
+@end example
+@xref{Option files}.
+@item
+Specifying this on the command line to @code{safe_mysqld} and most
+clients with the @code{--socket=path-for-socket-file} option.
+@item
+Specify the path to the socket in the @code{MYSQL_UNIX_PORT} environment
+variable.
+@item
+Defining the path with the @code{configure} option
+@code{--with-unix-socket-path=path-for-socket-file}. @xref{configure options}.
+@end itemize
+
+You can test that the socket works with this command:
+
+@example
+shell> mysqladmin --socket=/path/to/socket version
+@end example
 
 @node Timezone problems,  , Problems with mysql.sock, Administration Issues
 @appendixsubsec Time Zone Problems
@@ -46768,6 +46802,7 @@ users use this code as the rest of the code and because of this we are
 not yet 100% confident in this code.
 
 @menu
+* News-3.23.43::                Changes in release 3.23.43
 * News-3.23.42::                Changes in release 3.23.42
 * News-3.23.41::                Changes in release 3.23.41
 * News-3.23.40::                Changes in release 3.23.40
@@ -46814,7 +46849,16 @@ not yet 100% confident in this code.
 * News-3.23.0::                 Changes in release 3.23.0
 @end menu
 
-@node News-3.23.42, News-3.23.41, News-3.23.x, News-3.23.x
+@node News-3.23.43, News-3.23.42, News-3.23.x, News-3.23.x
+@appendixsubsec Changes in release 3.23.43
+@itemize @bullet
+@item
+Fixed problem with @code{myisampack} when using pre-space filled CHAR columns.
+@item
+Applied patch from Yuri Dario for OS2.
+@end itemize
+
+@node News-3.23.42, News-3.23.41, News-3.23.43, News-3.23.x
 @appendixsubsec Changes in release 3.23.42
 @itemize @bullet
 @item

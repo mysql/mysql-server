@@ -44,18 +44,10 @@
 #endif	/* defined(__EMX__) */
 
 #if defined(MSDOS) || defined(__WIN__)
-#ifdef __WIN__
-#undef errno
-#undef EINTR
-#undef EAGAIN
-#define errno WSAGetLastError()
-#define EINTR  WSAEINTR
-#define EAGAIN WSAEINPROGRESS
-#endif /* __WIN__ */
 #define O_NONBLOCK 1    /* For emulation of fcntl() */
 #endif
 #ifndef EWOULDBLOCK
-#define EWOULDBLOCK EAGAIN
+#define SOCKET_EWOULDBLOCK SOCKET_EAGAIN
 #endif
 
 #ifndef __WIN__
@@ -327,8 +319,8 @@ int vio_keepalive(Vio* vio, my_bool set_keep_alive)
 my_bool
 vio_should_retry(Vio * vio __attribute__((unused)))
 {
-  int en = errno;
-  return en == EAGAIN || en == EINTR || en == EWOULDBLOCK;
+  int en = socket_errno;
+  return en == SOCKET_EAGAIN || en == SOCKET_EINTR || en == SOCKET_EWOULDBLOCK;
 }
 
 

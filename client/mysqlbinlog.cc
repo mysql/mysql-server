@@ -17,23 +17,20 @@
 
 #define MYSQL_CLIENT
 #undef MYSQL_SERVER
-#include <global.h>
-#include <m_string.h>
-#include <my_sys.h>
-#include <getopt.h>
-#include <mysql.h>
+#include "client_priv.h"
 #include <time.h>
 #include "log_event.h"
 
 #define CLIENT_CAPABILITIES	(CLIENT_LONG_PASSWORD | CLIENT_LONG_FLAG | CLIENT_LOCAL_FILES)
 
+#ifndef OS2
 extern "C"
 {
  int simple_command(MYSQL *mysql,enum enum_server_command command,
-			      const char *arg,
-		  uint length, my_bool skipp_check);
- int net_safe_read(MYSQL* mysql);
+		    const char *arg, uint length, my_bool skipp_check);
+  uint net_safe_read(MYSQL* mysql);
 }
+#endif
 
 char server_version[SERVER_VERSION_LENGTH];
 uint32 server_id = 0;
@@ -42,7 +39,8 @@ uint32 server_id = 0;
 ulong bytes_sent = 0L, bytes_received = 0L;
 ulong mysqld_net_retry_count = 10L;
 uint test_flags = 0; 
-FILE *result_file;
+
+static FILE *result_file;
 
 #ifndef DBUG_OFF
 static const char* default_dbug_option = "d:t:o,/tmp/mysqlbinlog.trace";

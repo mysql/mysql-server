@@ -1455,10 +1455,6 @@ static int my_message_sql(uint error, const char *str,
 }
 
 #ifdef __WIN__
-#undef errno
-#undef EINTR
-#define errno WSAGetLastError()
-#define EINTR WSAEINTR
 
 struct utsname
 {
@@ -1571,18 +1567,26 @@ int main(int argc, char **argv)
   tzset();			// Set tzname
 
   start_time=time((time_t*) 0);
+#ifdef OS2
+  {
+    // fix timezone for daylight saving
+    struct tm *ts = localtime(&start_time);
+    if (ts->tm_isdst > 0)
+      _timezone -= 3600;
+  }
+#endif
 #ifdef HAVE_TZNAME
 #if defined(HAVE_LOCALTIME_R) && defined(_REENTRANT)
   {
     struct tm tm_tmp;
     localtime_r(&start_time,&tm_tmp);
-    strmov(time_zone,tzname[tm_tmp.tm_isdst == 1 ? 1 : 0]);
+    strmov(time_zone,tzname[tm_tmp.tm_isdst != 0 ? 1 : 0]);
   }
 #else
   {
     struct tm *start_tm;
     start_tm=localtime(&start_time);
-    strmov(time_zone,tzname[start_tm->tm_isdst == 1 ? 1 : 0]);
+    strmov(time_zone,tzname[start_tm->tm_isdst != 0 ? 1 : 0]);
   }
 #endif
 #endif
@@ -2263,7 +2267,7 @@ pthread_handler_decl(handle_connections_sockets,arg __attribute__((unused)))
 #else
     if (select((int) max_used_connection,&readFDs,0,0,0) < 0)
     {
-      if (socket_errno != EINTR)
+      if (socket_errno != SOCKET_EINTR)
       {
 	if (!select_errors++ && !abort_loop)	/* purecov: inspected */
 	  sql_print_error("mysqld: Got error %d from select",socket_errno); /* purecov: inspected */
@@ -2306,7 +2310,8 @@ pthread_handler_decl(handle_connections_sockets,arg __attribute__((unused)))
       size_socket length=sizeof(struct sockaddr_in);
       new_sock = accept(sock, my_reinterpret_cast(struct sockaddr *) (&cAddr),
 			&length);
-      if (new_sock != INVALID_SOCKET || (errno != EINTR && errno != EAGAIN))
+      if (new_sock != INVALID_SOCKET ||
+	  (socket_errno != SOCKET_EINTR && socket_errno != SOCKET_EAGAIN))
 	break;
 #if !defined(NO_FCNTL_NONBLOCK)
       if (!(test_flags & TEST_BLOCKING))
@@ -2324,7 +2329,7 @@ pthread_handler_decl(handle_connections_sockets,arg __attribute__((unused)))
     {
       if ((error_count++ & 255) == 0)		// This can happen often
 	sql_perror("Error in accept");
-      if (errno == ENFILE || errno == EMFILE)
+      if (socket_errno == SOCKET_ENFILE || socket_errno == SOCKET_EMFILE)
 	sleep(1);				// Give other threads some time
       continue;
     }
