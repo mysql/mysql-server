@@ -15,22 +15,10 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 
-/*****************************************************************************
- * Name:          NdbConnectionScan.cpp
- * Include:
- * Link:
- * Author:        UABRONM MikaelRonström UAB/M/MT       
- *                QABJKAM Jonas Kamf UAB/M/MT                  
- * Date:          2000-06-12
- * Version:       0.1
- * Description:   Interface between Application and NDB
- * Documentation:
- * Adjust:  2000-06-12  UABRONM   First version.
- ****************************************************************************/
 #include <ndb_global.h>
 
 #include <Ndb.hpp>
-#include <NdbConnection.hpp>
+#include <NdbTransaction.hpp>
 #include <NdbOperation.hpp>
 #include <NdbScanOperation.hpp>
 #include "NdbApiSignal.hpp"
@@ -52,7 +40,7 @@
  *
  ****************************************************************************/
 int			
-NdbConnection::receiveSCAN_TABREF(NdbApiSignal* aSignal){
+NdbTransaction::receiveSCAN_TABREF(NdbApiSignal* aSignal){
   const ScanTabRef * ref = CAST_CONSTPTR(ScanTabRef, aSignal->getDataPtr());
   
   if(checkState_TransId(&ref->transId1)){
@@ -93,7 +81,7 @@ NdbConnection::receiveSCAN_TABREF(NdbApiSignal* aSignal){
  * 
  *****************************************************************************/
 int			
-NdbConnection::receiveSCAN_TABCONF(NdbApiSignal* aSignal, 
+NdbTransaction::receiveSCAN_TABCONF(NdbApiSignal* aSignal, 
 				   const Uint32 * ops, Uint32 len)
 {
   const ScanTabConf * conf = CAST_CONSTPTR(ScanTabConf, aSignal->getDataPtr());
