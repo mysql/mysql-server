@@ -19,7 +19,6 @@
 #include "client_priv.h"
 #include <time.h>
 #include "log_event.h"
-#include <my_getopt.h>
 
 #define PROBE_HEADER_LEN (4+EVENT_LEN_OFFSET+4)
 
@@ -125,7 +124,7 @@ static void die(const char* fmt, ...)
 
 static void print_version()
 {
-  printf("%s Ver 2.1 for %s at %s\n", my_progname, SYSTEM_TYPE, MACHINE_TYPE);
+  printf("%s Ver 2.2 for %s at %s\n", my_progname, SYSTEM_TYPE, MACHINE_TYPE);
 }
 
 

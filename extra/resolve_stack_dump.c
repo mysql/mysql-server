@@ -25,12 +25,12 @@
 #include <m_string.h>
 #include <mysql_version.h>
 #include <errno.h>
-#include <getopt.h>
+#include <my_getopt.h>
 
 #define INIT_SYM_TABLE  4096
 #define INC_SYM_TABLE  4096
 #define MAX_SYM_SIZE   128
-#define DUMP_VERSION "1.2"
+#define DUMP_VERSION "1.3"
 #define HEX_INVALID  (uchar)255
 
 typedef ulong my_long_addr_t ; /* at some point, we need to fix configure
@@ -48,14 +48,20 @@ static char* dump_fname = 0, *sym_fname = 0;
 static DYNAMIC_ARRAY sym_table; /* how do you like this , static DYNAMIC ? */
 static FILE* fp_dump, *fp_sym = 0, *fp_out; 
 
-struct option long_options[] =
+static struct my_option my_long_options[] =
 {
-  {"help", no_argument, 0, 'h'},
-  {"version", no_argument, 0, 'V'},
-  {"symbols-file", required_argument, 0, 's'},
-  {"numeric-dump-file", required_argument, 0, 'n'},
-  {0, 0,0,0}
+  {"help", 'h', "Display this help and exit.",
+   0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"version", 'V', "Output version information and exit.",
+   0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"symbols-file", 's', "Use specified symbols file.", (gptr*) &sym_fname,
+   (gptr*) &sym_fname, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"numeric-dump-file", 'n', "Read the dump from specified file.",
+   (gptr*) &dump_fname, (gptr*) &dump_fname, 0, GET_STR, REQUIRED_ARG,
+   0, 0, 0, 0, 0, 0},
+  { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
+
 
 static void verify_sort();
 
@@ -72,11 +78,8 @@ static void usage()
   printf("This software comes with ABSOLUTELY NO WARRANTY\n\n");
   printf("Resolve numeric stack strace dump into symbols.\n\n");
   printf("Usage: %s [OPTIONS] symbols-file [numeric-dump-file]\n", my_progname);
-  printf("\n\
-  -?, --help               Display this help and exit.\n\
-  -s, --symbols-file=...   Use specified symbols file.\n\
-  -n, --numeric-dump-file=...  Read the dump from specified file.\n\
-  -V, --version            Output version information and exit.\n");
+  my_print_help(my_long_options);
+  my_print_variables(my_long_options);
   printf("\n\
 The symbols-file should include the output from:  'nm --numeric-sort mysqld'.\n\
 The numeric-dump-file should contain a numeric stack trace from mysqld.\n\
@@ -97,40 +100,36 @@ static void die(const char* fmt, ...)
 }
 
 
+static my_bool
+get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
+	       char *argument __attribute__((unused)))
+{
+  switch(optid) {
+  case 'V':
+    print_version();
+    exit(0);
+  case '?':
+    usage();
+    exit(0);
+  }
+  return 0;
+}
+
+
 static int parse_args(int argc, char **argv)
 {
-  int c, option_index = 0;
+  int ho_error;
 
-  while((c = getopt_long(argc, argv, "?Vn:s:",
-			 long_options, &option_index)) != EOF)
-    {
-      switch(c)
-	{
-	case 'n':
-	  dump_fname = optarg;
-	  break;
-	case 's':
-	  sym_fname = optarg;
-	  break;
-	case 'V':
-	  print_version();
-	  exit(0);
-	case '?':
-	  usage();
-	  exit(0);
-	default:
-	  usage();
-	  exit(1);
-	}
-    }
-
-  argc-=optind;
-  argv+=optind;
-
+  if ((ho_error=handle_options(&argc, &argv, my_long_options, get_one_option)))
+  {
+    printf("%s: handle_options() failed with error %d\n", my_progname,
+	   ho_error);
+    exit(1);
+  }
   /*
     The following code is to make the command compatible with the old
     version that required one to use the -n and -s options
- */
+  */
 
   if (argc == 2)
   {

@@ -16,7 +16,7 @@
 
 /* Show databases, tables or columns */
 
-#define SHOW_VERSION "9.2"
+#define SHOW_VERSION "9.3"
 
 #include <my_global.h>
 #include "client_priv.h"
@@ -27,7 +27,6 @@
 #include "mysqld_error.h"
 #include <signal.h>
 #include <stdarg.h>
-#include <my_getopt.h>
 #include "sslopt-vars.h"
 
 static my_string host=0,opt_password=0,user=0;
