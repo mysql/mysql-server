@@ -46167,6 +46167,9 @@ Our TODO section contains what we plan to have in 4.0. @xref{TODO MySQL 4.0}.
 
 @itemize @bullet
 @item
+Changed @code{SELECT ... IN SHARE MODE} to
+@code{SELECT .. LOCK IN SHARE MODE} (as in MySQL 3.23).
+@item
 A new query cache to cache results from identical @code{SELECT} queries.
 @item
 Fixed core dump bug on 64 bit machines when it got a wrong communication
