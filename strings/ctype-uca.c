@@ -36,10 +36,13 @@
 #include "m_ctype.h"
 
 
+#ifdef HAVE_CHARSET_ucs2
+
 #define MY_UCA_NPAGES 256
 #define MY_UCA_NCHARS 256
 #define MY_UCA_CMASK  255
 #define MY_UCA_PSHIFT 8
+
 uint16 page000data[]= { /* 0000 (4 weights per char) */
 0x0000,0x0000,0x0000,0x0000, 0x0000,0x0000,0x0000,0x0000,
 0x0000,0x0000,0x0000,0x0000, 0x0000,0x0000,0x0000,0x0000,
@@ -7035,3 +7038,5 @@ MY_COLLATION_HANDLER my_collation_ucs2_uca_handler =
     my_instr_mb,
     my_hash_sort_uca
 };
+
+#endif
