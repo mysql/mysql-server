@@ -523,7 +523,6 @@ extern bool low_priority_updates;
 extern bool opt_sql_bin_update, opt_safe_show_db;
 extern char language[LIBLEN],reg_ext[FN_EXTLEN],blob_newline;
 extern const char **errmesg;			/* Error messages */
-extern byte last_ref[MAX_REFLENGTH];		/* Index ref of keys */
 extern String empty_string;
 extern struct show_var_st init_vars[];
 extern struct show_var_st status_vars[];

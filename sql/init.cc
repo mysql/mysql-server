@@ -39,7 +39,6 @@ void unireg_init(ulong options)
 #endif
   my_abort_hook=unireg_abort;		/* Abort with close of databases */
   f_fyllchar=' ';			/* Input fill char */
-  bfill(last_ref,MAX_REFLENGTH,(uchar) 255);  /* This is indexfile-last-ref */
 
   VOID(strmov(reg_ext,".frm"));
   for (i=0 ; i < 6 ; i++)		// YYMMDDHHMMSS

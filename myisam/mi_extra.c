@@ -151,6 +151,7 @@ int mi_extra(MI_INFO *info, enum ha_extra_function function)
     {
       info->opt_flag&= ~(READ_CACHE_USED | WRITE_CACHE_USED);
       error=end_io_cache(&info->rec_cache);
+      /* Sergei will insert full text index caching here */
     }
 #if defined(HAVE_MMAP) && defined(HAVE_MADVICE)
     if (info->opt_flag & MEMMAP_USED)

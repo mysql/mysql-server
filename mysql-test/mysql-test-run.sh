@@ -10,7 +10,6 @@
 # Access Definitions
 #--
 DB=test
-DBUSER=test
 DBPASSWD=
 VERBOSE=""
 TZ=GMT-3; export TZ # for UNIX_TIMESTAMP tests to work
@@ -209,6 +208,9 @@ fi
 if [ -n "$USE_RUNNING_SERVER" ]
 then
    MASTER_MYSOCK="/tmp/mysql.sock"
+   DBUSER=test
+else
+   DBUSER=root		# We want to do FLUSH xxx commands
 fi
 
 if [ -w / ]

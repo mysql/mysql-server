@@ -200,13 +200,13 @@ bool berkeley_flush_logs()
   DBUG_ENTER("berkeley_flush_logs");
   if ((error=log_flush(db_env,0)))
   {
-    my_error(ER_ERROR_DURING_FLUSH_LOGS,MYF(0),error);
-    result=1;
+    my_error(ER_ERROR_DURING_FLUSH_LOGS,MYF(0),error); /* purecov: inspected */
+    result=1; /* purecov: inspected */
   }
   if ((error=txn_checkpoint(db_env,0,0,0)))
   {
-    my_error(ER_ERROR_DURING_CHECKPOINT,MYF(0),error);
-    result=1;
+    my_error(ER_ERROR_DURING_CHECKPOINT,MYF(0),error); /* purecov: inspected */
+    result=1; /* purecov: inspected */
   }
   DBUG_RETURN(result);
 }
@@ -220,7 +220,7 @@ int berkeley_commit(THD *thd, void *trans)
   int error=txn_commit((DB_TXN*) trans,0);
 #ifndef DBUG_OFF
   if (error)
-    DBUG_PRINT("error",("error: %d",error));
+    DBUG_PRINT("error",("error: %d",error)); /* purecov: inspected */
 #endif
   DBUG_RETURN(error);
 }
@@ -283,7 +283,7 @@ err:
 
 static void berkeley_print_error(const char *db_errpfx, char *buffer)
 {
-  sql_print_error("%s:  %s",db_errpfx,buffer);
+  sql_print_error("%s:  %s",db_errpfx,buffer); /* purecov: tested */
 }
 
 static void berkeley_noticecall(DB_ENV *db_env, db_notices notice)
@@ -308,22 +308,22 @@ void berkeley_cleanup_log_files(void)
   /* XXX: Probably this should be done somewhere else, and
    * should be tunable by the user. */
   if ((error = txn_checkpoint(db_env, 0, 0, 0)))
-    my_error(ER_ERROR_DURING_CHECKPOINT, MYF(0), error);
+    my_error(ER_ERROR_DURING_CHECKPOINT, MYF(0), error); /* purecov: inspected */
 
   if ((error = log_archive(db_env, &names, DB_ARCH_ABS, NULL)) != 0)
   {
-    DBUG_PRINT("error", ("log_archive failed (error %d)", error));
-    db_env->err(db_env, error, "log_archive: DB_ARCH_ABS");
-    DBUG_VOID_RETURN;
+    DBUG_PRINT("error", ("log_archive failed (error %d)", error)); /* purecov: inspected */
+    db_env->err(db_env, error, "log_archive: DB_ARCH_ABS"); /* purecov: inspected */
+    DBUG_VOID_RETURN; /* purecov: inspected */
   }
 
   if (names)
-  {
-    char **np;
-    for (np = names; *np; ++np)
-      my_delete(*np, MYF(MY_WME));
+  { /* purecov: tested */
+    char **np; /* purecov: tested */
+    for (np = names; *np; ++np) /* purecov: tested */
+      my_delete(*np, MYF(MY_WME)); /* purecov: tested */
 
-    free(names);
+    free(names); /* purecov: tested */
   }
 
   DBUG_VOID_RETURN;
@@ -460,20 +460,20 @@ int ha_berkeley::open(const char *name, int mode, uint test_if_locked)
 			(hidden_primary_key ? 0 :
 			 table->key_info[table->primary_key].key_length),
 			NullS)))
-    DBUG_RETURN(1);
+    DBUG_RETURN(1); /* purecov: inspected */
   if (!(rec_buff=my_malloc((alloced_rec_buff_length=table->rec_buff_length),
 			   MYF(MY_WME))))
   {
-    my_free(alloc_ptr,MYF(0));
-    DBUG_RETURN(1);
+    my_free(alloc_ptr,MYF(0)); /* purecov: inspected */
+    DBUG_RETURN(1); /* purecov: inspected */
   }
 
   /* Init shared structure */
   if (!(share=get_share(name,table)))
   {
-    my_free(rec_buff,MYF(0));
-    my_free(alloc_ptr,MYF(0));
-    DBUG_RETURN(1);
+    my_free(rec_buff,MYF(0)); /* purecov: inspected */
+    my_free(alloc_ptr,MYF(0)); /* purecov: inspected */
+    DBUG_RETURN(1); /* purecov: inspected */
   }
   thr_lock_data_init(&share->lock,&lock,(void*) 0);
   key_file = share->key_file;
@@ -487,11 +487,11 @@ int ha_berkeley::open(const char *name, int mode, uint test_if_locked)
   {
     if ((error=db_create(&file, db_env, 0)))
     {
-      free_share(share,table, hidden_primary_key,1);
-      my_free(rec_buff,MYF(0));
-      my_free(alloc_ptr,MYF(0));
-      my_errno=error;
-      DBUG_RETURN(1);
+      free_share(share,table, hidden_primary_key,1); /* purecov: inspected */
+      my_free(rec_buff,MYF(0)); /* purecov: inspected */
+      my_free(alloc_ptr,MYF(0)); /* purecov: inspected */
+      my_errno=error; /* purecov: inspected */
+      DBUG_RETURN(1); /* purecov: inspected */
     }
     share->file = file;
 
@@ -504,11 +504,11 @@ int ha_berkeley::open(const char *name, int mode, uint test_if_locked)
 					   2 | 4),
 			   "main", DB_BTREE, open_mode,0))))
     {
-      free_share(share,table, hidden_primary_key,1);
-      my_free(rec_buff,MYF(0));
-      my_free(alloc_ptr,MYF(0));
-      my_errno=error;
-      DBUG_RETURN(1);
+      free_share(share,table, hidden_primary_key,1); /* purecov: inspected */
+      my_free(rec_buff,MYF(0)); /* purecov: inspected */
+      my_free(alloc_ptr,MYF(0)); /* purecov: inspected */
+      my_errno=error; /* purecov: inspected */
+      DBUG_RETURN(1); /* purecov: inspected */
     }
 
     /* Open other keys;  These are part of the share structure */
@@ -523,9 +523,9 @@ int ha_berkeley::open(const char *name, int mode, uint test_if_locked)
       {
 	if ((error=db_create(ptr, db_env, 0)))
 	{
-	  close();
-	  my_errno=error;
-	  DBUG_RETURN(1);
+	  close(); /* purecov: inspected */
+	  my_errno=error; /* purecov: inspected */
+	  DBUG_RETURN(1); /* purecov: inspected */
 	}
 	sprintf(part,"key%02d",++used_keys);
 	key_type[i]=table->key_info[i].flags & HA_NOSAME ? DB_NOOVERWRITE : 0;
@@ -536,9 +536,9 @@ int ha_berkeley::open(const char *name, int mode, uint test_if_locked)
 	if ((error=((*ptr)->open(*ptr, name_buff, part, DB_BTREE,
 				 open_mode, 0))))
 	{
-	  close();
-	  my_errno=error;
-	  DBUG_RETURN(1);
+	  close(); /* purecov: inspected */
+	  my_errno=error; /* purecov: inspected */
+	  DBUG_RETURN(1); /* purecov: inspected */
 	}
       }
     }
@@ -590,7 +590,7 @@ bool ha_berkeley::fix_rec_buff_for_blob(ulong length)
     byte *newptr;
     if (!(newptr=(byte*) my_realloc((gptr) rec_buff, length,
 				    MYF(MY_ALLOW_ZERO_PTR))))
-      return 1;
+      return 1; /* purecov: inspected */
     rec_buff=newptr;
     alloced_rec_buff_length=length;
   }
@@ -637,7 +637,7 @@ int ha_berkeley::pack_row(DBT *row, const byte *record, bool new_row)
   if (table->blob_fields)
   {
     if (fix_rec_buff_for_blob(max_row_length(record)))
-      return HA_ERR_OUT_OF_MEM;
+      return HA_ERR_OUT_OF_MEM; /* purecov: inspected */
   }
 
   /* Copy null bits */
@@ -805,7 +805,7 @@ int ha_berkeley::write_row(byte * record)
   if (table->next_number_field && record == table->record[0])
     update_auto_increment();
   if ((error=pack_row(&row, record,1)))
-    DBUG_RETURN(error);
+    DBUG_RETURN(error); /* purecov: inspected */
 
   if (table->keys == 1)
   {
@@ -824,9 +824,9 @@ int ha_berkeley::write_row(byte * record)
       key_map changed_keys = 0;
       if (using_ignore && (thd_options & OPTION_INTERNAL_SUBTRANSACTIONS))
       {
-	if ((error=txn_begin(db_env, transaction, &sub_trans, 0)))
-	  break;
-	DBUG_PRINT("trans",("starting subtransaction"));
+	if ((error=txn_begin(db_env, transaction, &sub_trans, 0))) /* purecov: deadcode */
+	  break; /* purecov: deadcode */
+	DBUG_PRINT("trans",("starting subtransaction")); /* purecov: deadcode */
       }
       if (!(error=file->put(file, sub_trans, create_key(&prim_key, primary_key,
 							key_buff, record),
@@ -884,8 +884,8 @@ int ha_berkeley::write_row(byte * record)
       }
       else if (using_ignore && (thd_options & OPTION_INTERNAL_SUBTRANSACTIONS))
       {
-	DBUG_PRINT("trans",("committing subtransaction"));
-	error=txn_commit(sub_trans, 0);
+	DBUG_PRINT("trans",("committing subtransaction")); /* purecov: deadcode */
+	error=txn_commit(sub_trans, 0); /* purecov: deadcode */
       }
       if (error != DB_LOCK_DEADLOCK)
 	break;
@@ -968,7 +968,7 @@ int ha_berkeley::update_primary_key(DB_TXN *trans, bool primary_key_changed,
 	    if ((new_error=pack_row(&row, old_row, 0)) ||
 		(new_error=file->put(file, trans, old_key, &row,
 				     key_type[primary_key])))
-	      error=new_error;                  // fatal error
+	      error=new_error;                  // fatal error /* purecov: inspected */
 	  }
 	}
       }
@@ -1003,7 +1003,7 @@ int ha_berkeley::restore_keys(DB_TXN *trans, key_map changed_keys,
      duplicate key failure */
   if ((error=update_primary_key(trans, TRUE, new_row, new_key,
 				old_row, old_key, thd_options, FALSE)))
-    goto err;
+    goto err; /* purecov: inspected */
 
   /* Remove the new key, and put back the old key
      changed_keys is a map of all non-primary keys that need to be
@@ -1016,12 +1016,12 @@ int ha_berkeley::restore_keys(DB_TXN *trans, key_map changed_keys,
     {
       if (changed_keys != 1 &&
 	  (error = remove_key(trans, keynr, new_row, (DBT*) 0, new_key)))
-	break;
+	break; /* purecov: inspected */
       if ((error = key_file[keynr]->put(key_file[keynr], trans,
 					create_key(&tmp_key, keynr, key_buff2,
 						   old_row),
 					old_key, key_type[keynr])))
-	break;
+	break; /* purecov: inspected */
     }
   }
   
@@ -1069,9 +1069,9 @@ int ha_berkeley::update_row(const byte * old_row, byte * new_row)
     key_map changed_keys = 0;
     if (using_ignore &&	(thd_options & OPTION_INTERNAL_SUBTRANSACTIONS))
     {
-      if ((error=txn_begin(db_env, transaction, &sub_trans, 0)))
-	break;
-      DBUG_PRINT("trans",("starting subtransaction"));
+      if ((error=txn_begin(db_env, transaction, &sub_trans, 0))) /* purecov: deadcode */
+	break; /* purecov: deadcode */
+      DBUG_PRINT("trans",("starting subtransaction")); /* purecov: deadcode */
     }
     /* Start by updating the primary key */
     if (!(error=update_primary_key(sub_trans, primary_key_changed,
@@ -1089,7 +1089,7 @@ int ha_berkeley::update_row(const byte * old_row, byte * new_row)
 	  if ((error=remove_key(sub_trans, keynr, old_row, (DBT*) 0,
 				&old_prim_key)))
 	  {
-	    if (using_ignore &&
+	    if (using_ignore && /* purecov: inspected */
 		(thd_options & OPTION_INTERNAL_SUBTRANSACTIONS))
             {
 	      int new_error;
@@ -1098,7 +1098,7 @@ int ha_berkeley::update_row(const byte * old_row, byte * new_row)
 	      if (new_error)
 		error = new_error;
 	    }
-	    DBUG_RETURN(error);			// Fatal error
+	    DBUG_RETURN(error);			// Fatal error /* purecov: inspected */
 	  }
 	  changed_keys |= (key_map)1 << keynr;
 	  if ((error=key_file[keynr]->put(key_file[keynr], sub_trans,
@@ -1121,8 +1121,8 @@ int ha_berkeley::update_row(const byte * old_row, byte * new_row)
 	int new_error = 0;
 	if (thd_options & OPTION_INTERNAL_SUBTRANSACTIONS)
 	{
-	  DBUG_PRINT("trans",("aborting subtransaction"));
-	  new_error=txn_abort(sub_trans);
+	  DBUG_PRINT("trans",("aborting subtransaction")); /* purecov: deadcode */
+	  new_error=txn_abort(sub_trans); /* purecov: deadcode */
 	}
 	else if (changed_keys)
 	  new_error=restore_keys(transaction, changed_keys, primary_key,
@@ -1130,15 +1130,15 @@ int ha_berkeley::update_row(const byte * old_row, byte * new_row)
 				 thd_options);
 	if (new_error)
 	{
-	  error=new_error;			// This shouldn't happen
-	  break;
+	  error=new_error;			// This shouldn't happen /* purecov: inspected */
+	  break; /* purecov: inspected */
 	}
       }
     }
     else if (using_ignore && (thd_options & OPTION_INTERNAL_SUBTRANSACTIONS))
     {
-      DBUG_PRINT("trans",("committing subtransaction"));
-      error=txn_commit(sub_trans, 0);
+      DBUG_PRINT("trans",("committing subtransaction")); /* purecov: deadcode */
+      error=txn_commit(sub_trans, 0); /* purecov: deadcode */
     }
     if (error != DB_LOCK_DEADLOCK)
       break;
@@ -1219,8 +1219,8 @@ int ha_berkeley::remove_keys(DB_TXN *trans, const byte *record,
       int new_error=remove_key(trans, keynr, record, new_record, prim_key);
       if (new_error)
       {
-	result=new_error;			// Return last error
-	break;					// Let rollback correct things
+	result=new_error;			// Return last error /* purecov: inspected */
+	break;					// Let rollback correct things /* purecov: inspected */
       }
     }
   }
@@ -1238,7 +1238,7 @@ int ha_berkeley::delete_row(const byte * record)
   statistic_increment(ha_delete_count,&LOCK_status);
 
   if ((error=pack_row(&row, record, 0)))
-    DBUG_RETURN((error));
+    DBUG_RETURN((error)); /* purecov: inspected */
   create_key(&prim_key, primary_key, key_buff, record);
   if (hidden_primary_key)
     keys|= (key_map) 1 << primary_key;
@@ -1250,18 +1250,18 @@ int ha_berkeley::delete_row(const byte * record)
   {
     if (thd_options & OPTION_INTERNAL_SUBTRANSACTIONS)
     {
-      if ((error=txn_begin(db_env, transaction, &sub_trans, 0)))
-	break;
-      DBUG_PRINT("trans",("starting sub transaction"));
+      if ((error=txn_begin(db_env, transaction, &sub_trans, 0))) /* purecov: deadcode */
+	break; /* purecov: deadcode */
+      DBUG_PRINT("trans",("starting sub transaction")); /* purecov: deadcode */
     }
     error=remove_keys(sub_trans, record, &row, &prim_key, keys);
     if (!error && (thd_options & OPTION_INTERNAL_SUBTRANSACTIONS))
     {
-      DBUG_PRINT("trans",("ending sub transaction"));
-      error=txn_commit(sub_trans, 0);
+      DBUG_PRINT("trans",("ending sub transaction")); /* purecov: deadcode */
+      error=txn_commit(sub_trans, 0); /* purecov: deadcode */
     }
     if (error)
-    {
+    { /* purecov: inspected */
       DBUG_PRINT("error",("Got error %d",error));
       if (thd_options & OPTION_INTERNAL_SUBTRANSACTIONS)
       {
@@ -1297,7 +1297,7 @@ int ha_berkeley::index_init(uint keynr)
   if ((error=file->cursor(key_file[keynr], transaction, &cursor,
 			  table->reginfo.lock_type > TL_WRITE_ALLOW_READ ?
 			  0 : 0)))
-    cursor=0;					// Safety
+    cursor=0;					// Safety /* purecov: inspected */
   bzero((char*) &last_key,sizeof(last_key));
   DBUG_RETURN(error);
 }
@@ -1346,9 +1346,9 @@ int ha_berkeley::read_row(int error, char *buf, uint keynr, DBT *row,
     }
     DBT key;
     bzero((char*) &key,sizeof(key));
-    key.data=key_buff2;
+    key.data=key_buff;
     key.size=row->size;
-    memcpy(key_buff2,row->data,row->size);
+    memcpy(key_buff,row->data,row->size);
     /* Read the data into current_row */
     current_row.flags=DB_DBT_REALLOC;
     if ((error=file->get(file, transaction, &key, &current_row, 0)))
@@ -1628,8 +1628,8 @@ int ha_berkeley::external_lock(THD *thd, int lock_type)
 			     (DB_TXN**) &thd->transaction.all.bdb_tid,
 			     0)))
 	{
-	  thd->transaction.bdb_lock_count--;	// We didn't get the lock
-	  DBUG_RETURN(error);
+	  thd->transaction.bdb_lock_count--;	// We didn't get the lock /* purecov: inspected */
+	  DBUG_RETURN(error); /* purecov: inspected */
 	}
       }
       DBUG_PRINT("trans",("starting transaction for statement"));
@@ -1639,8 +1639,8 @@ int ha_berkeley::external_lock(THD *thd, int lock_type)
 			   0)))
       {
 	/* We leave the possible master transaction open */
-	thd->transaction.bdb_lock_count--;	// We didn't get the lock
-	DBUG_RETURN(error);
+	thd->transaction.bdb_lock_count--;	// We didn't get the lock /* purecov: inspected */
+	DBUG_RETURN(error); /* purecov: inspected */
       }
     }
     transaction= (DB_TXN*) thd->transaction.stmt.bdb_tid;
@@ -1741,19 +1741,19 @@ static int create_sub_table(const char *table_name, const char *sub_name,
 		      DB_THREAD | DB_CREATE, my_umask));
     if (error)
     {
-      DBUG_PRINT("error",("Got error: %d when opening table '%s'",error,
-			  table_name));
-      (void) file->remove(file,table_name,NULL,0);
+      DBUG_PRINT("error",("Got error: %d when opening table '%s'",error, /* purecov: inspected */
+			  table_name)); /* purecov: inspected */
+      (void) file->remove(file,table_name,NULL,0); /* purecov: inspected */
     }
     else
       (void) file->close(file,0);
   }
   else
   {
-    DBUG_PRINT("error",("Got error: %d when creting table",error));
+    DBUG_PRINT("error",("Got error: %d when creting table",error)); /* purecov: inspected */
   }
   if (error)
-    my_errno=error;
+    my_errno=error; /* purecov: inspected */
   DBUG_RETURN(error);
 }
 
@@ -1771,7 +1771,7 @@ int ha_berkeley::create(const char *name, register TABLE *form,
 
   /* Create the main table that will hold the real rows */
   if (create_sub_table(name_buff,"main",DB_BTREE,0))
-    DBUG_RETURN(1);
+    DBUG_RETURN(1); /* purecov: inspected */
 
   primary_key=table->primary_key;
   /* Create the keys */
@@ -1783,7 +1783,7 @@ int ha_berkeley::create(const char *name, register TABLE *form,
       if (create_sub_table(name_buff, part, DB_BTREE,
 			   (table->key_info[i].flags & HA_NOSAME) ? 0 :
 			   DB_DUP))
-	DBUG_RETURN(1);
+	DBUG_RETURN(1); /* purecov: inspected */
     }
   }
 
@@ -1813,7 +1813,7 @@ int ha_berkeley::delete_table(const char *name)
   int error;
   char name_buff[FN_REFLEN];
   if ((error=db_create(&file, db_env, 0)))
-    my_errno=error;
+    my_errno=error; /* purecov: inspected */
   else
     error=file->remove(file,fn_format(name_buff,name,"",ha_berkeley_ext,2 | 4),
 		       NULL,0);
@@ -1850,7 +1850,7 @@ ha_rows ha_berkeley::records_in_range(int keynr,
 				  pack_key(&key, keynr, key_buff, end_key,
 					   end_key_len),
 				  &end_range,0)))
-    DBUG_RETURN(HA_BERKELEY_RANGE_COUNT); // Better than returning an error
+    DBUG_RETURN(HA_BERKELEY_RANGE_COUNT); // Better than returning an error /* purecov: inspected */
 
   if (!start_key)
     start_pos=0.0;
@@ -2114,9 +2114,9 @@ static BDB_SHARE *get_share(const char *table_name, TABLE *table)
       share->key_type = key_type;
       if (hash_insert(&bdb_open_tables, (char*) share))
       {
-	pthread_mutex_unlock(&bdb_mutex);
-	my_free((gptr) share,0);
-	return 0;
+	pthread_mutex_unlock(&bdb_mutex); /* purecov: inspected */
+	my_free((gptr) share,0); /* purecov: inspected */
+	return 0; /* purecov: inspected */
       }
       thr_lock_init(&share->lock);
       pthread_mutex_init(&share->mutex,NULL);
@@ -2133,7 +2133,7 @@ static int free_share(BDB_SHARE *share, TABLE *table, uint hidden_primary_key,
   uint keys=table->keys + test(hidden_primary_key);
   pthread_mutex_lock(&bdb_mutex);
   if (mutex_is_locked)
-    pthread_mutex_unlock(&share->mutex);
+    pthread_mutex_unlock(&share->mutex); /* purecov: inspected */
   if (!--share->use_count)
   {
     DB **key_file = share->key_file;
@@ -2142,11 +2142,11 @@ static int free_share(BDB_SHARE *share, TABLE *table, uint hidden_primary_key,
     for (uint i=0; i < keys; i++)
     {
       if (key_file[i] && (error=key_file[i]->close(key_file[i],0)))
-	result=error;
+	result=error; /* purecov: inspected */
     }
     if (share->status_block &&
 	(error = share->status_block->close(share->status_block,0)))
-      result = error;
+      result = error; /* purecov: inspected */
     hash_delete(&bdb_open_tables, (gptr) share);
     thr_lock_delete(&share->lock);
     pthread_mutex_destroy(&share->mutex);
@@ -2187,8 +2187,8 @@ void ha_berkeley::get_status()
 	if (share->status_block->open(share->status_block, name_buff,
 				      "status", DB_BTREE, open_mode, 0))
 	{
-	  share->status_block->close(share->status_block, 0);
-	  share->status_block=0;
+	  share->status_block->close(share->status_block, 0); /* purecov: inspected */
+	  share->status_block=0; /* purecov: inspected */
 	}
       }
     }
@@ -2257,16 +2257,16 @@ static void update_status(BDB_SHARE *share, TABLE *table)
 	(This '*should*' always exist for table created with MySQL)
       */
 
-      char name_buff[FN_REFLEN];
-      if (db_create(&share->status_block, db_env, 0))
-	goto end;
-      share->status_block->set_flags(share->status_block,0);
+      char name_buff[FN_REFLEN]; /* purecov: inspected */
+      if (db_create(&share->status_block, db_env, 0)) /* purecov: inspected */
+	goto end; /* purecov: inspected */
+      share->status_block->set_flags(share->status_block,0); /* purecov: inspected */
       if (share->status_block->open(share->status_block,
 				    fn_format(name_buff,share->table_name,"",
 					      ha_berkeley_ext,2 | 4),
 				    "status", DB_BTREE,
-				    DB_THREAD | DB_CREATE, my_umask))
-	goto end;
+				    DB_THREAD | DB_CREATE, my_umask)) /* purecov: inspected */
+	goto end; /* purecov: inspected */
     }
     {
       char rec_buff[4+MAX_KEY*4], *pos=rec_buff;

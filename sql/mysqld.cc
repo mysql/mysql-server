@@ -279,7 +279,6 @@ char server_version[50]=MYSQL_SERVER_VERSION;
 const char *first_keyword="first";
 const char **errmesg;			/* Error messages */
 const char *myisam_recover_options_str="OFF";
-byte last_ref[MAX_REFLENGTH];		/* Index ref of keys */
 my_string mysql_unix_port=NULL,mysql_tmpdir=NULL;
 ulong my_bind_addr;			/* the address we bind to */
 DATE_FORMAT dayord;

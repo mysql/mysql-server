@@ -164,8 +164,6 @@ static int rr_from_tempfile(READ_RECORD *info)
 {
   if (my_b_read(info->io_cache,info->ref_pos,info->ref_length))
     return -1;					/* End of file */
-  if (TEST_IF_LASTREF(info->ref_pos,info->ref_length))
-    return -1;					/* File ends with this */
   int tmp=info->file->rnd_pos(info->record,info->ref_pos);
   if (tmp)
   {
@@ -271,16 +269,6 @@ static int rr_from_cache(READ_RECORD *info)
     ref_position=info->read_positions;
     for (i=0 ; i < length ; i++,position+=info->ref_length)
     {
-      if (memcmp(position,last_ref,(size_s) info->ref_length) == 0)
-      {					/* End of file */
-	if (!i)
-	{
-	  DBUG_PRINT("info",("Found end of file"));
-	  return -1;			/* Last record and no in buffert */
-	}
-	length=i;				// rows in buffer
-	break;
-      }
       memcpy(ref_position,position,(size_s) info->ref_length);
       ref_position+=MAX_REFLENGTH;
       int3store(ref_position,(long) i);
