@@ -333,10 +333,8 @@ ARCHIVE_SHARE *ha_archive::get_share(const char *table_name, TABLE *table)
     if ((share->archive_write= gzopen(share->data_file_name, "ab")) == NULL)
       goto error2;
     if (my_hash_insert(&archive_open_tables, (byte*) share))
-      goto error2;
-    thr_lock_init(&share->lock);
-    if (pthread_mutex_init(&share->mutex,MY_MUTEX_INIT_FAST))
       goto error3;
+    thr_lock_init(&share->lock);
   }
   share->use_count++;
   pthread_mutex_unlock(&archive_mutex);
@@ -344,14 +342,13 @@ ARCHIVE_SHARE *ha_archive::get_share(const char *table_name, TABLE *table)
   return share;
 
 error3:
-  VOID(pthread_mutex_destroy(&share->mutex));
-  thr_lock_delete(&share->lock);
   /* We close, but ignore errors since we already have errors */
   (void)gzclose(share->archive_write);
 error2:
   my_close(share->meta_file,MYF(0));
 error:
   pthread_mutex_unlock(&archive_mutex);
+  VOID(pthread_mutex_destroy(&share->mutex));
   my_free((gptr) share, MYF(0));
 
   return NULL;
@@ -485,23 +482,30 @@ int ha_archive::create(const char *name, TABLE *table_arg,
   if ((archive= gzdopen(create_file, "ab")) == NULL)
   {
     error= errno;
-    delete_table(name);
-    goto error;
+    goto error2;
   }
   if (write_data_header(archive))
   {
-    gzclose(archive);
-    goto error2;
+    error= errno;
+    goto error3;
   }
 
   if (gzclose(archive))
+  {
+    error= errno;
     goto error2;
+  }
+
+  my_close(create_file, MYF(0));
 
   DBUG_RETURN(0);
 
+error3:
+  /* We already have an error, so ignore results of gzclose. */
+  (void)gzclose(archive);
 error2:
-    error= errno;
-    delete_table(name);
+  my_close(create_file, MYF(0));
+  delete_table(name);
 error:
   /* Return error number, if we got one */
   DBUG_RETURN(error ? error : -1);
@@ -751,7 +755,7 @@ int ha_archive::repair(THD* thd, HA_CHECK_OPT* check_opt)
   if ((rebuild_file= gzopen(data_file_name, "rb")) == NULL)
     DBUG_RETURN(errno ? errno : -1);
 
-  if (rc= read_data_header(rebuild_file))
+  if ((rc= read_data_header(rebuild_file)))
     goto error;
 
   /*
@@ -823,7 +827,7 @@ int ha_archive::optimize(THD* thd, HA_CHECK_OPT* check_opt)
     DBUG_RETURN(-1); 
   }
 
-  while (read= gzread(reader, block, IO_SIZE))
+  while ((read= gzread(reader, block, IO_SIZE)))
     gzwrite(writer, block, read);
 
   gzclose(reader);
