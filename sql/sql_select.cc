@@ -1579,8 +1579,8 @@ mysql_select(THD *thd, Item ***rref_pointer_array,
 	  goto err;
 	}
       }
-      free_join= 0;
     }
+    free_join= 0;
     join->select_options= select_options;
   }
   else
@@ -3769,11 +3769,6 @@ JOIN::join_free(bool full)
       {
 	if (tab->table)
 	{
-	  if (tab->table->key_read)
-	  {
-	    tab->table->key_read= 0;
-	    tab->table->file->extra(HA_EXTRA_NO_KEYREAD);
-	  }
 	  /* Don't free index if we are using read_record */
 	  if (!tab->read_record.table)
 	    tab->table->file->index_end();
@@ -9128,6 +9123,9 @@ int mysql_explain_union(THD *thd, SELECT_LEX_UNIT *unit, select_result *result)
        sl;
        sl= sl->next_select())
   {
+    // drop UNCACHEABLE_EXPLAIN, because it is for internal usage only
+    uint8 uncacheable= (sl->uncacheable & ~UNCACHEABLE_EXPLAIN);
+
     res= mysql_explain_select(thd, sl,
 			      (((&thd->lex->select_lex)==sl)?
 			       ((thd->lex->all_selects_list != sl) ? 
@@ -9135,13 +9133,13 @@ int mysql_explain_union(THD *thd, SELECT_LEX_UNIT *unit, select_result *result)
 			       ((sl == first)?
 				((sl->linkage == DERIVED_TABLE_TYPE) ?
 				 "DERIVED":
-				((sl->uncacheable & UNCACHEABLE_DEPENDENT) ?
+				((uncacheable & UNCACHEABLE_DEPENDENT) ?
 				 "DEPENDENT SUBQUERY":
-				 (sl->uncacheable?"UNCACHEABLE SUBQUERY":
+				 (uncacheable?"UNCACHEABLE SUBQUERY":
 				   "SUBQUERY"))):
-				((sl->uncacheable & UNCACHEABLE_DEPENDENT) ?
+				((uncacheable & UNCACHEABLE_DEPENDENT) ?
 				 "DEPENDENT UNION":
-				 sl->uncacheable?"UNCACHEABLE UNION":
+				 uncacheable?"UNCACHEABLE UNION":
 				  "UNION"))),
 			      result);
     if (res)
