@@ -25,6 +25,7 @@ USE d1;
 CREATE TABLE t1 (c CHAR(10), KEY(c));
 --enable_warnings
 # check the column was created with the expected charset/collation
+--replace_result select,insert,update,references ""
 SHOW FULL COLUMNS FROM t1;
 INSERT INTO t1 VALUES ('aaa'),('aaaa'),('aaaaa');
 SELECT c as want3results FROM t1 WHERE c LIKE 'aaa%';
@@ -37,6 +38,7 @@ DROP TABLE t1;
 CREATE TABLE t1 (c1 varchar(15), KEY c1 (c1(2)));
 --enable_warnings
 # check the column was created with the expected charset/collation
+--replace_result select,insert,update,references ""
 SHOW FULL COLUMNS FROM t1;
 INSERT INTO t1 VALUES ('location'),('loberge'),('lotre'),('boabab');
 SELECT c1 as want3results from t1 where c1 like 'l%';
