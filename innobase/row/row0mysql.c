@@ -2422,6 +2422,285 @@ funct_exit:
 }
 
 /*************************************************************************
+Truncates a table for MySQL. */
+
+int
+row_truncate_table_for_mysql(
+/*=========================*/
+				/* out: error code or DB_SUCCESS */
+	dict_table_t*	table,	/* in: table handle */
+	trx_t*		trx)	/* in: transaction handle */
+{
+	dict_foreign_t*	foreign;
+	ulint		err;
+	ibool		locked_dictionary	= FALSE;
+	mem_heap_t*	heap;
+	byte*		buf;
+	dtuple_t*	tuple;
+	dfield_t*	dfield;
+	dict_index_t*	sys_index;
+	btr_pcur_t	pcur;
+	mtr_t		mtr;
+	dulint		new_id;
+	char*		sql;
+	que_thr_t*	thr;
+	que_t*		graph			= NULL;
+
+/* How do we prevent crashes caused by ongoing operations on the table? Old
+operations could try to access non-existent pages.
+
+1) SQL queries, INSERT, SELECT, ...: we must get an exclusive MySQL table lock
+on the table before we can do TRUNCATE TABLE. Then there are no running
+queries on the table.
+2) Purge and rollback: we assign a new table id for the table. Since purge and
+rollback look for the table based on the table id, they see the table as
+'dropped' and discard their operations.
+3) Insert buffer: we remove all entries for the table in the insert
+buffer tree; ... TODO
+4) Linear readahead and random readahead: we use the same method as in 3) to
+discard ongoing operations.
+5) FOREIGN KEY operations: if table->n_foreign_key_checks_running > 0, we
+do not allow the discard. We also reserve the data dictionary latch. */
+
+	static const char renumber_tablespace_proc[] =
+	"PROCEDURE RENUMBER_TABLESPACE_PROC () IS\n"
+	"old_id CHAR;\n"
+	"new_id CHAR;\n"
+	"old_id_low INT;\n"
+	"old_id_high INT;\n"
+	"new_id_low INT;\n"
+	"new_id_high INT;\n"
+	"BEGIN\n"
+	"old_id_high := %lu;\n"
+	"old_id_low := %lu;\n"
+	"new_id_high := %lu;\n"
+	"new_id_low := %lu;\n"
+   "old_id := CONCAT(TO_BINARY(old_id_high, 4), TO_BINARY(old_id_low, 4));\n"
+   "new_id := CONCAT(TO_BINARY(new_id_high, 4), TO_BINARY(new_id_low, 4));\n"
+	"UPDATE SYS_TABLES SET ID = new_id\n"
+	"WHERE ID = old_id;\n"
+	"UPDATE SYS_COLUMNS SET TABLE_ID = new_id\n"
+	"WHERE TABLE_ID = old_id;\n"
+	"UPDATE SYS_INDEXES SET TABLE_ID = new_id\n"
+	"WHERE TABLE_ID = old_id;\n"
+	"COMMIT WORK;\n"
+	"END;\n";
+
+	ut_ad(trx->mysql_thread_id == os_thread_get_curr_id());
+	ut_ad(table);
+
+	if (srv_created_new_raw) {
+		fputs(
+		"InnoDB: A new raw disk partition was initialized or\n"
+		"InnoDB: innodb_force_recovery is on: we do not allow\n"
+		"InnoDB: database modifications by the user. Shut down\n"
+		"InnoDB: mysqld and edit my.cnf so that newraw is replaced\n"
+		"InnoDB: with raw, and innodb_force_... is removed.\n",
+                stderr);
+
+		return(DB_ERROR);
+	}
+
+	trx->op_info = "truncating table";
+
+	trx_start_if_not_started(trx);
+
+	/* Serialize data dictionary operations with dictionary mutex:
+	no deadlocks can occur then in these operations */
+
+	if (trx->dict_operation_lock_mode != RW_X_LATCH) {
+		/* Prevent foreign key checks etc. while we are truncating the
+		table */
+
+		row_mysql_lock_data_dictionary(trx);
+
+		locked_dictionary = TRUE;
+	}
+
+#ifdef UNIV_SYNC_DEBUG
+	ut_ad(mutex_own(&(dict_sys->mutex)));
+	ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_EX));
+#endif /* UNIV_SYNC_DEBUG */
+
+	/* Check if the table is referenced by foreign key constraints from
+	some other table (not the table itself) */
+
+	foreign = UT_LIST_GET_FIRST(table->referenced_list);
+
+	while (foreign && foreign->foreign_table == table) {
+		foreign = UT_LIST_GET_NEXT(referenced_list, foreign);
+	}
+
+	if (foreign && trx->check_foreigns) {
+		FILE*	ef	= dict_foreign_err_file;
+
+		/* We only allow truncating a referenced table if
+		FOREIGN_KEY_CHECKS is set to 0 */
+
+		mutex_enter(&dict_foreign_err_mutex);
+		rewind(ef);
+		ut_print_timestamp(ef);
+
+		fputs("  Cannot truncate table ", ef);
+		ut_print_name(ef, trx, table->name);
+		fputs("\n"
+			"because it is referenced by ", ef);
+		ut_print_name(ef, trx, foreign->foreign_table_name);
+		putc('\n', ef);
+		mutex_exit(&dict_foreign_err_mutex);
+
+		err = DB_ERROR;
+		goto funct_exit;
+	}
+
+	if (table->n_mysql_handles_opened > 1) {
+		ut_print_timestamp(stderr);
+fputs("	 InnoDB: Warning: MySQL is trying to truncate table ", stderr);
+		ut_print_name(stderr, trx, table->name);
+		fputs("\n"
+"InnoDB: though there are still open handles to it.\n", stderr);
+		err = DB_ERROR;
+
+		goto funct_exit;
+	}
+
+	/* TODO: could we replace the counter n_foreign_key_checks_running
+	with lock checks on the table? Acquire here an exclusive lock on the
+	table, and rewrite lock0lock.c and the lock wait in srv0srv.c so that
+	they can cope with the table having been truncated here? Foreign key
+	checks take an IS or IX lock on the table. */
+
+	if (table->n_foreign_key_checks_running > 0) {
+		ut_print_timestamp(stderr);
+		fputs("	 InnoDB: You are trying to truncate table ", stderr);
+		ut_print_name(stderr, trx, table->name);
+		fputs("\n"
+"InnoDB: though there is a foreign key check running on it.\n",
+			stderr);
+		err = DB_ERROR;
+
+		goto funct_exit;
+	}
+
+	/* Remove any locks there are on the table or its records */
+
+	lock_reset_all_on_table(table);
+
+	trx->dict_operation = TRUE;
+	trx->table_id = table->id;
+
+	/* scan SYS_INDEXES for all indexes of the table */
+	heap = mem_heap_create(800);
+
+	tuple = dtuple_create(heap, 1);
+	dfield = dtuple_get_nth_field(tuple, 0);
+
+	buf = mem_heap_alloc(heap, 8);
+	mach_write_to_8(buf, table->id);
+
+	dfield_set_data(dfield, buf, 8);
+	sys_index = dict_table_get_first_index(dict_sys->sys_indexes);
+	dict_index_copy_types(tuple, sys_index, 1);
+
+	mtr_start(&mtr);
+	btr_pcur_open_on_user_rec(sys_index, tuple, PAGE_CUR_GE,
+						BTR_MODIFY_LEAF, &pcur, &mtr);
+	for (;;) {
+		rec_t*		rec;
+		const byte*	field;
+		ulint		len;
+
+		if (!btr_pcur_is_on_user_rec(&pcur, &mtr)) {
+			/* The end of SYS_INDEXES has been reached. */
+			break;
+		}
+
+		rec = btr_pcur_get_rec(&pcur);
+
+		field = rec_get_nth_field_old(rec, 0, &len);
+		ut_ad(len == 8);
+
+		if (memcmp(buf, field, len) != 0) {
+			/* End of indexes for the table (TABLE_ID mismatch). */
+			break;
+		}
+
+		if (rec_get_deleted_flag(rec, FALSE)) {
+			/* The index has been dropped. */
+			continue;
+		}
+
+		dict_truncate_index_tree(table, rec, &mtr);
+
+		btr_pcur_move_to_next_user_rec(&pcur, &mtr);
+	}
+
+	btr_pcur_close(&pcur);
+	mtr_commit(&mtr);
+
+	new_id = dict_hdr_get_new_id(DICT_HDR_TABLE_ID);
+
+	mem_heap_empty(heap);
+	sql = mem_heap_alloc(heap, (sizeof renumber_tablespace_proc) + 40);
+	sprintf(sql, renumber_tablespace_proc,
+		(ulong) ut_dulint_get_high(table->id),
+		(ulong) ut_dulint_get_low(table->id),
+		(ulong) ut_dulint_get_high(new_id),
+		(ulong) ut_dulint_get_low(new_id));
+
+	graph = pars_sql(sql);
+
+	ut_a(graph);
+
+	mem_heap_free(heap);
+
+	graph->trx = trx;
+	trx->graph = NULL;
+
+	graph->fork_type = QUE_FORK_MYSQL_INTERFACE;
+
+	thr = que_fork_start_command(graph);
+	ut_a(thr);
+
+	que_run_threads(thr);
+
+	que_graph_free(graph);
+
+	err = trx->error_state;
+
+	if (err != DB_SUCCESS) {
+		trx->error_state = DB_SUCCESS;
+		trx_general_rollback_for_mysql(trx, FALSE, NULL);
+		trx->error_state = DB_SUCCESS;
+		ut_print_timestamp(stderr);
+fputs("	 InnoDB: Unable to assign a new identifier to table ", stderr);
+		ut_print_name(stderr, trx, table->name);
+		fputs("\n"
+"InnoDB: after truncating it.  Background processes may corrupt the table!\n",
+			stderr);
+		err = DB_ERROR;
+	} else {
+		dict_table_change_id_in_cache(table, new_id);
+	}
+
+	dict_update_statistics(table);
+
+  	trx_commit_for_mysql(trx);
+
+funct_exit:
+
+	if (locked_dictionary) {
+		row_mysql_unlock_data_dictionary(trx);
+	}
+
+	trx->op_info = "";
+
+	srv_wake_master_thread();
+
+	return((int) err);
+}
+
+/*************************************************************************
 Drops a table for MySQL. If the name of the table to be dropped is equal
 with one of the predefined magic table names, then this also stops printing
 the corresponding monitor output by the master thread. */
