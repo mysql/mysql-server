@@ -32,7 +32,7 @@ MYSQL_UNIX_ADDR_DEFAULT="/tmp/mysql.sock"
 # Remember to add a directory sql/share/LANGUAGE
 AVAILABLE_LANGUAGES="\
 czech danish dutch english estonian french german greek hungarian \
-italian japanese korean norwegian norwegian-ny polish portuguese \
+italian japanese japanese-sjis korean norwegian norwegian-ny polish portuguese \
 romanian russian serbian slovak spanish swedish ukrainian"
 
 # Generate make rules for all error messages
