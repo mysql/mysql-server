@@ -31,13 +31,15 @@ static long mysql_rm_known_files(THD *thd, MY_DIR *dirp,
 
 /* db-name is already validated when we come here */
 
-int mysql_create_db(THD *thd, char *db, uint create_options, bool silent)
+int mysql_create_db(THD *thd, char *db, HA_CREATE_INFO *create_info, bool silent)
 {
   char	 path[FN_REFLEN+16];
   MY_DIR *dirp;
   long result=1;
   int error = 0;
   DBUG_ENTER("mysql_create_db");
+  register File file;
+  uint create_options = create_info ? create_info->options : 0;
 
   VOID(pthread_mutex_lock(&LOCK_mysql_create_db));
 
@@ -73,6 +75,37 @@ int mysql_create_db(THD *thd, char *db, uint create_options, bool silent)
     }
   }
 
+  /* 
+    Create database options file:
+    Currently databse default charset is only stored there.
+  */
+
+  strcat(path,"/");
+  unpack_dirname(path,path);
+  strcat(path,"db.opt");
+  if ((file=my_create(path,CREATE_MODE,O_RDWR | O_TRUNC,MYF(MY_WME))) >= 0)
+  {
+    sprintf(path,"CREATE DATABASE %s DEFAULT CHARACTER SET=%s\n",db,
+		  (create_info && create_info->table_charset) 
+		  ? create_info->table_charset->name : "DEFAULT");
+    
+    if (my_write(file,(byte*) path,strlen(path),MYF(MY_NABP+MY_WME)))
+    {
+      // QQ : should we send more suitable error message?
+      my_error(ER_CANT_CREATE_DB,MYF(0),db,my_errno);
+      error = -1;
+      goto exit;
+    }
+    my_close(file,MYF(0));
+  }
+  else
+  {
+    // QQ : should we send more suitable error message?
+    my_error(ER_CANT_CREATE_DB,MYF(0),db,my_errno);
+    error = -1;
+    goto exit;
+  }
+
   if (!silent)
   {
     if (!thd->query)
@@ -104,7 +137,7 @@ exit2:
   DBUG_RETURN(error);
 }
 
-const char *del_exts[]= {".frm", ".BAK", ".TMD", NullS};
+const char *del_exts[]= {".frm", ".BAK", ".TMD",".opt", NullS};
 static TYPELIB deletable_extentions=
 {array_elements(del_exts)-1,"del_exts", del_exts};
 
@@ -333,6 +366,7 @@ bool mysql_change_db(THD *thd,const char *name)
   char	path[FN_REFLEN];
   uint db_access;
   DBUG_ENTER("mysql_change_db");
+  register File file;
 
   if (!dbname || !(db_length=strip_sp(dbname)))
   {
@@ -382,5 +416,25 @@ bool mysql_change_db(THD *thd,const char *name)
   thd->db=dbname;
   thd->db_length=db_length;
   thd->db_access=db_access;
+
+  /* 
+    Load database options file:
+  */
+
+  strcat(path,"/");
+  unpack_dirname(path,path);
+  strcat(path,"db.opt");
+  if ((file=my_open(path,O_RDWR|O_BINARY,MYF(MY_WME))) >= 0)
+  {
+    int nbytes=my_read(file,(byte*) path,sizeof(path),MYF(0));
+    if ( nbytes >= 0 )
+    {
+      path[nbytes]='\0';
+      // BAR TODO: parse create options 
+      // and extract database default charset
+    }
+    my_close(file,MYF(0));
+  }
+
   DBUG_RETURN(0);
 }

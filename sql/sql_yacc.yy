@@ -798,6 +798,7 @@ create:
 	    lex->sql_command=SQLCOM_CREATE_DB;
 	    lex->name=$4.str;
             lex->create_info.options=$3;
+	    lex->create_info.table_charset=lex->charset;
 	  }
 	| CREATE udf_func_type UDF_SYM ident
 	  {

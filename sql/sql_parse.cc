@@ -2308,7 +2308,7 @@ mysql_execute_command(void)
     }
     if (check_access(thd,CREATE_ACL,lex->name,0,1))
       break;
-    res=mysql_create_db(thd,lex->name,lex->create_info.options,0);
+    res=mysql_create_db(thd,lex->name,&lex->create_info,0);
     break;
   }
   case SQLCOM_DROP_DB:
