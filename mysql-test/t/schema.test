@@ -1,0 +1,8 @@
+#
+# Just a couple of tests to make sure that schema works.
+#
+
+create schema foo;
+show create schema foo;
+show schemas;
+drop schema foo;
