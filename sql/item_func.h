@@ -348,6 +348,7 @@ class Item_dec_func :public Item_real_func
 #ifndef HAVE_FINITE
     return value;
 #else
+    /* The following should be safe, even if we compare doubles */
     if (finite(value) && value != POSTFIX_ERROR)
       return value;
     null_value=1;
@@ -1032,6 +1033,7 @@ public:
   table_map not_null_tables() const { return 0; }
   bool fix_fields(THD *thd, struct st_table_list *tlist, Item **ref);
   bool eq(const Item *, bool binary_cmp) const;
+  /* The following should be safe, even if we compare doubles */
   longlong val_int() { DBUG_ASSERT(fixed == 1); return val()!=0.0; }
   double val();
   void print(String *str);
