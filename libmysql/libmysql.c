@@ -115,7 +115,6 @@ static sig_handler pipe_sig_handler(int sig);
 static ulong mysql_sub_escape_string(CHARSET_INFO *charset_info, char *to,
 				     const char *from, ulong length);
 static my_bool stmt_close(MYSQL_STMT *stmt, my_bool skip_list);
-static unsigned int get_binary_length(uint type);
 
 static my_bool org_my_init_done=0;
 
@@ -4056,6 +4055,71 @@ static void store_param_double(NET *net, MYSQL_BIND *param)
   net->write_pos+= 8;
 }
 
+static void store_param_time(NET *net, MYSQL_BIND *param)
+{
+  MYSQL_TIME *tm= (MYSQL_TIME *) param->buffer;
+  char buff[15], *pos;
+  uint length;
+
+  pos= buff+1;
+  pos[0]= tm->neg ? 1: 0;
+  int4store(pos+1, tm->day);
+  pos[5]= (uchar) tm->hour;
+  pos[6]= (uchar) tm->minute;
+  pos[7]= (uchar) tm->second;
+  int4store(pos+8, tm->second_part);
+  if (tm->second_part)
+    length= 11;
+  else if (tm->hour || tm->minute || tm->second || tm->day)
+    length= 8;
+  else
+    length= 0;
+  buff[0]= (char) length++;  
+  memcpy((char *)net->write_pos, buff, length);
+  net->write_pos+= length;
+}
+
+static void net_store_datetime(NET *net, MYSQL_TIME *tm)
+{
+  char buff[12], *pos;
+  uint length;
+
+  pos= buff+1;
+
+  int2store(pos, tm->year);
+  pos[2]= (uchar) tm->month;
+  pos[3]= (uchar) tm->day;
+  pos[4]= (uchar) tm->hour;
+  pos[5]= (uchar) tm->minute;
+  pos[6]= (uchar) tm->second;
+  int4store(pos+7, tm->second_part);
+  if (tm->second_part)
+    length= 11;
+  else if (tm->hour || tm->minute || tm->second)
+    length= 7;
+  else if (tm->year || tm->month || tm->day)
+    length= 4;
+  else
+    length= 0;
+  buff[0]= (char) length++;  
+  memcpy((char *)net->write_pos, buff, length);
+  net->write_pos+= length;
+}
+
+static void store_param_date(NET *net, MYSQL_BIND *param)
+{
+  MYSQL_TIME *tm= (MYSQL_TIME *) param->buffer;
+  tm->hour= tm->minute= tm->second= 0;
+  tm->second_part= 0;
+  net_store_datetime(net, tm);
+}
+
+static void store_param_datetime(NET *net, MYSQL_BIND *param)
+{
+  MYSQL_TIME *tm= (MYSQL_TIME *) param->buffer;
+  net_store_datetime(net, tm);
+}
+    
 static void store_param_str(NET *net, MYSQL_BIND *param)
 {
   ulong length= min(*param->length, param->buffer_length);
@@ -4110,7 +4174,10 @@ static my_bool store_param(MYSQL_STMT *stmt, MYSQL_BIND *param)
       Either to the length pointer given by the user or param->buffer_length
     */
     if ((my_realloc_str(net, 9 + *param->length)))
+    {
+      set_stmt_error(stmt, CR_OUT_OF_MEMORY);
       DBUG_RETURN(1);
+    }
     (*param->store_param_func)(net, param);
   }
   DBUG_RETURN(0);
@@ -4326,6 +4393,17 @@ my_bool STDCALL mysql_bind_param(MYSQL_STMT *stmt, MYSQL_BIND * bind)
       param->buffer_length= 8;
       param->store_param_func= store_param_double;
       break;
+    case MYSQL_TYPE_TIME:
+      /* Buffer length ignored for DATE, TIME and DATETIME */
+      param->store_param_func= store_param_time;
+      break;
+    case MYSQL_TYPE_DATE:
+      param->store_param_func= store_param_date;
+      break;
+    case MYSQL_TYPE_DATETIME:
+    case MYSQL_TYPE_TIMESTAMP:
+      param->store_param_func= store_param_datetime;
+      break;
     case MYSQL_TYPE_TINY_BLOB:
     case MYSQL_TYPE_MEDIUM_BLOB:
     case MYSQL_TYPE_LONG_BLOB:
@@ -4441,24 +4519,91 @@ mysql_send_long_data(MYSQL_STMT *stmt, uint param_number,
     1	Error	(Can't alloc net->buffer)
 ****************************************************************************/
 
-/* Return the default binary data length for the common types */
-static unsigned int get_binary_length(uint type)
+static void set_zero_time(MYSQL_TIME *tm)
 {
-  switch(type) {
-  case MYSQL_TYPE_TINY:
-    return 1;
-  case MYSQL_TYPE_SHORT:
-  case MYSQL_TYPE_YEAR:
-    return 2;
-  case MYSQL_TYPE_LONG:
-  case MYSQL_TYPE_FLOAT:
-    return 4;
-  case MYSQL_TYPE_LONGLONG:
-  case MYSQL_TYPE_DOUBLE:
-    return 8;
-  default:
+  tm->year= tm->month= tm->day= 0;
+  tm->hour= tm->minute= tm->second= 0;
+  tm->second_part= 0;
+  tm->neg= (bool)0;
+}
+
+/* Read TIME from binary packet and return it to MYSQL_TIME */
+static uint read_binary_time(MYSQL_TIME *tm, uchar **pos)
+{
+  uchar *to;
+  uint  length;
+ 
+  if (!(length= net_field_length(pos)))
+  {
+    set_zero_time(tm);
     return 0;
   }
+  
+  to= *pos;     
+  tm->second_part= (length > 8 ) ? (ulong) sint4korr(to+7): 0;
+
+  tm->day=    (ulong) sint4korr(to+1);
+  tm->hour=   (uint) to[5];
+  tm->minute= (uint) to[6];
+  tm->second= (uint) to[7];
+
+  tm->year= tm->month= 0;
+  tm->neg= (bool)to[0];
+  return length;
+}
+
+/* Read DATETIME from binary packet and return it to MYSQL_TIME */
+static uint read_binary_datetime(MYSQL_TIME *tm, uchar **pos)
+{
+  uchar *to;
+  uint  length;
+ 
+  if (!(length= net_field_length(pos)))
+  {
+    set_zero_time(tm);
+    return 0;
+  }
+  
+  to= *pos;     
+  tm->second_part= (length > 7 ) ? (ulong) sint4korr(to+7): 0;
+    
+  if (length > 4)
+  {
+    tm->hour=   (uint) to[4];
+    tm->minute= (uint) to[5];
+    tm->second= (uint) to[6];
+  }
+  else
+    tm->hour= tm->minute= tm->second= 0;
+    
+  tm->year=   (uint) sint2korr(to);
+  tm->month=  (uint) to[2];
+  tm->day=    (uint) to[3];
+  tm->neg=    0;
+  return length;
+}
+
+/* Read DATE from binary packet and return it to MYSQL_TIME */
+static uint read_binary_date(MYSQL_TIME *tm, uchar **pos)
+{
+  uchar *to;
+  uint  length;
+ 
+  if (!(length= net_field_length(pos)))
+  {
+    set_zero_time(tm);
+    return 0;
+  }
+  
+  to= *pos;     
+  tm->year =  (uint) sint2korr(to);
+  tm->month=  (uint) to[2];
+  tm->day= (uint) to[3];
+
+  tm->hour= tm->minute= tm->second= 0;
+  tm->second_part= 0;
+  tm->neg= 0;
+  return length;
 }
 
 /* Convert Numeric to buffer types */
@@ -4595,20 +4740,72 @@ static void send_data_str(MYSQL_BIND *param, char *value, uint length)
   } 
 }
 
+static void send_data_time(MYSQL_BIND *param, MYSQL_TIME ltime, 
+                           uint length)
+{
+  switch (param->buffer_type) {
+
+  case MYSQL_TYPE_DATE:
+  case MYSQL_TYPE_TIME:
+  case MYSQL_TYPE_DATETIME:
+  case MYSQL_TYPE_TIMESTAMP:
+  {
+    MYSQL_TIME *tm= (MYSQL_TIME *)param->buffer;
+    
+    tm->year= ltime.year;
+    tm->month= ltime.month;
+    tm->day= ltime.day;
+
+    tm->hour= ltime.hour;
+    tm->minute= ltime.minute;
+    tm->second= ltime.second;
+
+    tm->second_part= ltime.second_part;
+    tm->neg= ltime.neg;
+    break;   
+  }
+  default:
+  {
+    char buff[25];
+    
+    if (!length)
+      ltime.time_type= MYSQL_TIMESTAMP_NONE;
+    switch (ltime.time_type) {
+    case MYSQL_TIMESTAMP_DATE:
+      length= my_sprintf(buff,(buff, "%04d-%02d-%02d", ltime.year,
+                         ltime.month,ltime.day));      
+      break;
+    case MYSQL_TIMESTAMP_FULL:
+      length= my_sprintf(buff,(buff, "%04d-%02d-%02d %02d:%02d:%02d",
+	                       ltime.year,ltime.month,ltime.day,
+	                       ltime.hour,ltime.minute,ltime.second));
+      break;
+    case MYSQL_TIMESTAMP_TIME:
+      length= my_sprintf(buff, (buff, "%02d:%02d:%02d",
+	                 	     ltime.hour,ltime.minute,ltime.second));
+      break;
+    default:
+      length= 0;
+      buff[0]='\0';
+    }
+    send_data_str(param, (char *)buff, length); 
+  }
+  }
+}
+                              
+
 
 /* Fetch data to buffers */
-static my_bool fetch_results(MYSQL_STMT *stmt, MYSQL_BIND *param,
-                             uint field_type, uchar **row)
+static void fetch_results(MYSQL_BIND *param, uint field_type, uchar **row)
 {
   ulong length;
-  
-  length= (ulong)get_binary_length(field_type);
   
   switch (field_type) {
   case MYSQL_TYPE_TINY:
   {
     uchar value= (uchar) **row;
     send_data_long(param,(longlong)value);
+    length= 1;
     break;
   }
   case MYSQL_TYPE_SHORT:
@@ -4616,18 +4813,21 @@ static my_bool fetch_results(MYSQL_STMT *stmt, MYSQL_BIND *param,
   {
     short value= (short)sint2korr(*row);
     send_data_long(param,(longlong)value);
+    length= 2;
     break;
   }
   case MYSQL_TYPE_LONG:
   {
     int32 value= (int32)sint4korr(*row);
     send_data_long(param,(int32)value);
+    length= 4;
     break;
   }
   case MYSQL_TYPE_LONGLONG:
   {
     longlong value= (longlong)sint8korr(*row);
     send_data_long(param,value);
+    length= 8;
     break;
   }
   case MYSQL_TYPE_FLOAT:
@@ -4635,6 +4835,7 @@ static my_bool fetch_results(MYSQL_STMT *stmt, MYSQL_BIND *param,
     float value;
     float4get(value,*row);
     send_data_double(param,(double)value);
+    length= 4;
     break;
   }
   case MYSQL_TYPE_DOUBLE:
@@ -4642,115 +4843,35 @@ static my_bool fetch_results(MYSQL_STMT *stmt, MYSQL_BIND *param,
     double value;
     float8get(value,*row);
     send_data_double(param,(double)value);
+    length= 8;
     break;
   }
   case MYSQL_TYPE_DATE:
-  case MYSQL_TYPE_DATETIME:
-  case MYSQL_TYPE_TIMESTAMP:
   {
-    uchar month,day;
-    short year;
-    int   arg_length;
-    char  ts[50],frac[10],time[20],date[20];
-    
-    if (!(length= net_field_length(row)))
-    {
-      *param->length= 0;
-      break;
-    }
-    if (param->buffer_type < MYSQL_TYPE_VAR_STRING ||
-	param->buffer_type > MYSQL_TYPE_STRING)
-    {
-      /*
-        Don't allow fetching of date/time/ts to non-string types 
-        TODO: Allow fetching of date or time to long types.              
-      */
-      sprintf(stmt->last_error, 
-              ER(stmt->last_errno= CR_UNSUPPORTED_PARAM_TYPE),
-	            param->buffer_type, param->param_number);
-      return 1;
-    }
-    
-    arg_length= 0;
-    if (length > 7)
-    {
-      int sec_part= sint4korr(*row+7);
-      sprintf(frac,".%04d", sec_part);      
-      arg_length+= 5;
-    }
-    if (length == 7)
-    { 
-      uchar hour, minute, sec;
-      hour= *(*row+4);
-      minute= *(*row+5);
-      sec= *(*row+6);
-      sprintf((char *)time," %02d:%02d:%02d",hour,minute,sec);
-      arg_length+= 9;
-    }
-    
-    year= sint2korr(*row);
-    month= *(*row+2);
-    day= *(*row+3);
-    sprintf((char*) date,"%04d-%02d-%02d",year,month,day);
-    arg_length+= 10;
-
-    if (arg_length != 19)
-      time[0]='\0';
-    if (arg_length != 24)
-      frac[0]='\0';    
-    
-    strxmov(ts,date,time,frac,NullS);
-    send_data_str(param,ts,arg_length);    
+    MYSQL_TIME tm;
+ 
+    length= read_binary_date(&tm,row);
+    tm.time_type= MYSQL_TIMESTAMP_DATE;
+    send_data_time(param, tm, length);
     break;
   }
   case MYSQL_TYPE_TIME:
   {
-    int day, arg_length;
-    uchar hour, minute, sec;
-    char ts[255], frac[20], time[20];
-    const char *sign= "";
-    
-    if (!(length= net_field_length(row)))
-    {
-      *param->length= 0;
-      break;
-    }
-    if (param->buffer_type < MYSQL_TYPE_VAR_STRING ||
-	      param->buffer_type > MYSQL_TYPE_STRING)
-    {
-      /*
-        Don't allow fetching of date/time/ts to non-string types 
-
-        TODO: Allow fetching of time to long types without 
-              any conversion.
-      */      
-      sprintf(stmt->last_error, 
-              ER(stmt->last_errno= CR_UNSUPPORTED_PARAM_TYPE),
-	      param->buffer_type, param->param_number);
-      return 1;
-    }
-    arg_length= 0;
-    if (length > 8)
-    {
-      int sec_part= sint4korr(*row+8);
-      sprintf(frac,".%04d", sec_part);      
-      arg_length+= 5;
-    }
-
-    if (**row)
-      sign="-";
-
-    day= sint4korr(*row); /* TODO: how to handle this case */
-    hour= *(*row+5);
-    minute= *(*row+6);
-    sec= *(*row+7);
-    arg_length+= sprintf((char *)time,"%s%02d:%02d:%02d",sign,hour,minute,sec);
-
-    if (arg_length <= 9)
-      frac[0]='\0';    
-    
-    strxmov(ts,time,frac,NullS);
-    send_data_str(param,ts,arg_length);    
+    MYSQL_TIME tm;
+ 
+    length= read_binary_time(&tm, row);
+    tm.time_type= MYSQL_TIMESTAMP_TIME;
+    send_data_time(param, tm, length);
+    break;
+  }
+  case MYSQL_TYPE_DATETIME:
+  case MYSQL_TYPE_TIMESTAMP:
+  {
+    MYSQL_TIME tm;
+ 
+    length= read_binary_datetime(&tm, row);
+    tm.time_type= MYSQL_TIMESTAMP_FULL;
+    send_data_time(param, tm, length);
     break;
   }
   default:      
@@ -4759,7 +4880,6 @@ static my_bool fetch_results(MYSQL_STMT *stmt, MYSQL_BIND *param,
     break;
   }
   *row+= length;
-  return 0;
 }
 
 static void fetch_result_tinyint(MYSQL_BIND *param, uchar **row)
@@ -4803,6 +4923,24 @@ static void fetch_result_double(MYSQL_BIND *param, uchar **row)
   float8get(value,*row);
   float8store(param->buffer, value);
   *row+= 8;
+}
+
+static void fetch_result_time(MYSQL_BIND *param, uchar **row)
+{
+  MYSQL_TIME *tm= (MYSQL_TIME *)param->buffer;
+  *row+= read_binary_time(tm, row);
+}
+
+static void fetch_result_date(MYSQL_BIND *param, uchar **row)
+{
+  MYSQL_TIME *tm= (MYSQL_TIME *)param->buffer;
+  *row+= read_binary_date(tm, row);
+}
+
+static void fetch_result_datetime(MYSQL_BIND *param, uchar **row)
+{
+  MYSQL_TIME *tm= (MYSQL_TIME *)param->buffer;
+  *row+= read_binary_datetime(tm, row);
 }
 
 static void fetch_result_str(MYSQL_BIND *param, uchar **row)
@@ -4853,25 +4991,47 @@ my_bool STDCALL mysql_bind_result(MYSQL_STMT *stmt, MYSQL_BIND *bind)
     if (!param->is_null)
       param->is_null= &int_is_null_dummy;
 
+    if (!param->length)
+      param->length= &param->buffer_length;
+
     /* Setup data copy functions for the different supported types */
     switch (param->buffer_type) {
     case MYSQL_TYPE_TINY:
       param->fetch_result= fetch_result_tinyint;
+      *param->length= 1;
       break;
     case MYSQL_TYPE_SHORT:
       param->fetch_result= fetch_result_short;
+      *param->length= 2;
       break;
     case MYSQL_TYPE_LONG:
       param->fetch_result= fetch_result_int32;
+      *param->length= 4;
       break;
     case MYSQL_TYPE_LONGLONG:
       param->fetch_result= fetch_result_int64;
+      *param->length= 8;
       break;
     case MYSQL_TYPE_FLOAT:
       param->fetch_result= fetch_result_float;
+      *param->length= 4;
       break;
     case MYSQL_TYPE_DOUBLE:
       param->fetch_result= fetch_result_double;
+      *param->length= 8;
+      break;
+    case MYSQL_TYPE_TIME:
+      param->fetch_result= fetch_result_time;
+      *param->length= sizeof(MYSQL_TIME);
+      break;
+    case MYSQL_TYPE_DATE:
+      param->fetch_result= fetch_result_date;
+      *param->length= sizeof(MYSQL_TIME);
+      break;
+    case MYSQL_TYPE_DATETIME:
+    case MYSQL_TYPE_TIMESTAMP:
+      param->fetch_result= fetch_result_datetime;
+      *param->length= sizeof(MYSQL_TIME);
       break;
     case MYSQL_TYPE_TINY_BLOB:
     case MYSQL_TYPE_MEDIUM_BLOB:
@@ -4888,9 +5048,6 @@ my_bool STDCALL mysql_bind_result(MYSQL_STMT *stmt, MYSQL_BIND *bind)
 	      param->buffer_type, param->param_number);
       DBUG_RETURN(1);
     }
-    if (!param->length)
-      param->length= &param->buffer_length;
-    *param->length= (long)get_binary_length(param->buffer_type);
   }
   stmt->res_buffers= 1;
   DBUG_RETURN(0);
@@ -4927,8 +5084,8 @@ static int stmt_fetch_row(MYSQL_STMT *stmt, uchar *row)
       *bind->is_null= 0;
       if (field->type == bind->buffer_type)
         (*bind->fetch_result)(bind, &row);
-      else if (fetch_results(stmt, bind, field->type, &row))
-        return 1;
+      else 
+        fetch_results(bind, field->type, &row);
     }
     if (! ((bit<<=1) & 255))
     {

@@ -470,6 +470,24 @@ int             STDCALL mysql_manager_fetch_line(MYSQL_MANAGER* con,
 /* statement state */
 enum PREP_STMT_STATE { MY_ST_UNKNOWN, MY_ST_PREPARE, MY_ST_EXECUTE };
 
+/* 
+  client TIME structure to handle TIME, DATE and TIMESTAMP directly in 
+  binary protocol 
+*/
+enum mysql_st_timestamp_type { MYSQL_TIMESTAMP_NONE, MYSQL_TIMESTAMP_DATE, 
+                               MYSQL_TIMESTAMP_FULL, MYSQL_TIMESTAMP_TIME };
+
+typedef struct mysql_st_time 
+{
+  unsigned int  year,month,day,hour,minute,second;
+  unsigned long second_part;
+  my_bool       neg;
+
+  enum mysql_st_timestamp_type time_type;
+  
+} MYSQL_TIME;
+
+
 /* bind structure */
 typedef struct st_mysql_bind
 {
