@@ -798,4 +798,8 @@ insert into t1 values(1,'foo'),(2,'foobar');
 select * from t1 where b like 'foob%';
 a	b
 2	foobar
+alter table t1 engine=bdb;
+select * from t1 where b like 'foob%';
+a	b
+2	foobar
 drop table t1;
