@@ -96,9 +96,10 @@ sp_head::sp_head(LEX_STRING *name, LEX *lex)
 {
   const char *dstr = (const char*)lex->buf;
 
-  m_name= new Item_string(name->str, name->length, system_charset_info);
-  m_defstr= new Item_string(dstr, lex->end_of_query - lex->buf,
-			    system_charset_info);
+  m_name.length= name->length;
+  m_name.str= name->str;
+  m_defstr.length= lex->end_of_query - lex->buf;
+  m_defstr.str= sql_strmake(dstr, m_defstr.length);
   m_pcont= lex->spcont;
   my_init_dynamic_array(&m_instr, sizeof(sp_instr *), 16, 8);
   m_backpatch.empty();
@@ -108,20 +109,18 @@ int
 sp_head::create(THD *thd)
 {
   DBUG_ENTER("sp_head::create");
-  String *name= m_name->const_string();
-  String *def= m_defstr->const_string();
   int ret;
 
   DBUG_PRINT("info", ("type: %d name: %s def: %s",
-		      m_type, name->c_ptr(), def->c_ptr()));
+		      m_type, m_name.str, m_defstr.str));
   if (m_type == TYPE_ENUM_FUNCTION)
     ret= sp_create_function(thd,
-			    name->c_ptr(), name->length(),
-			    def->c_ptr(), def->length());
+			    m_name.str, m_name.length,
+			    m_defstr.str, m_defstr.length);
   else
     ret= sp_create_procedure(thd,
-			     name->c_ptr(), name->length(),
-			     def->c_ptr(), def->length());
+			     m_name.str, m_name.length,
+			     m_defstr.str, m_defstr.length);
 
   DBUG_RETURN(ret);
 }
@@ -186,7 +185,7 @@ int
 sp_head::execute_function(THD *thd, Item **argp, uint argcount, Item **resp)
 {
   DBUG_ENTER("sp_head::execute_function");
-  DBUG_PRINT("info", ("function %s", ((String *)m_name->const_string())->c_ptr()));
+  DBUG_PRINT("info", ("function %s", m_name.str));
   uint csize = m_pcont->max_framesize();
   uint params = m_pcont->params();
   sp_rcontext *octx = thd->spcont;
@@ -220,7 +219,7 @@ int
 sp_head::execute_procedure(THD *thd, List<Item> *args)
 {
   DBUG_ENTER("sp_head::execute_procedure");
-  DBUG_PRINT("info", ("procedure %s", ((String *)m_name->const_string())->c_ptr()));
+  DBUG_PRINT("info", ("procedure %s", m_name.str));
   int ret;
   sp_instr *p;
   uint csize = m_pcont->max_framesize();
