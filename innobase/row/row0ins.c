@@ -1999,6 +1999,7 @@ row_ins_index_entry_set_vals(
 	dfield_t*	row_field;
 	ulint		n_fields;
 	ulint		i;
+	dtype_t*        cur_type;
 
 	ut_ad(entry && row);
 
@@ -2012,10 +2013,18 @@ row_ins_index_entry_set_vals(
 
 		/* Check column prefix indexes */
 		if (ind_field->prefix_len > 0
-		    && dfield_get_len(row_field) != UNIV_SQL_NULL
-		    && dfield_get_len(row_field) > ind_field->prefix_len) {
-		    
-		        field->len = ind_field->prefix_len;
+		    && dfield_get_len(row_field) != UNIV_SQL_NULL) {
+
+			/* For prefix keys get the storage length
+			for the prefix_len characters. */
+
+			cur_type = dict_col_get_type(
+				dict_field_get_col(ind_field));
+
+			field->len = innobase_get_at_most_n_mbchars(
+				dtype_get_charset_coll(cur_type->prtype),
+				ind_field->prefix_len,
+				dfield_get_len(field),row_field->data);
 		} else {
 		        field->len = row_field->len;
 		}
