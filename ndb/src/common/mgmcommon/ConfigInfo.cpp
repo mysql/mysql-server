@@ -888,6 +888,19 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     1,
     0x7FFFFFFF },
   
+
+  {
+    CFG_DB_DISCLESS,
+    "Discless",
+    "DB",
+    "Run wo/ disk",
+    ConfigInfo::USED,
+    true,
+    ConfigInfo::BOOL,
+    0,
+    0,
+    1},
+  
   {
     CFG_DB_ARBIT_TIMEOUT,
     "ArbitrationTimeout",

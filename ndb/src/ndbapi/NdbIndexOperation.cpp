@@ -372,6 +372,17 @@ int NdbIndexOperation::equal_impl(const NdbColumnImpl* tAttrInfo,
 	} else if ((tOpType == ReadRequest) || (tOpType == DeleteRequest) ||
 		   (tOpType == ReadExclusive)) {
 	  theStatus = GetValue;
+          // create blob handles automatically
+          if (tOpType == DeleteRequest && m_currentTable->m_noOfBlobs != 0) {
+            for (unsigned i = 0; i < m_currentTable->m_columns.size(); i++) {
+              NdbColumnImpl* c = m_currentTable->m_columns[i];
+              assert(c != 0);
+              if (c->getBlobType()) {
+                if (getBlobHandle(theNdbCon, c) == NULL)
+                  return -1;
+              }
+            }
+          }
 	  return 0;
 	} else if ((tOpType == InsertRequest) || (tOpType == WriteRequest)) {
 	  theStatus = SetValue;

@@ -14,6 +14,7 @@ flexTT \
 testBackup \
 testBasic \
 testBasicAsynch \
+testBlobs \
 testDataBuffers \
 testDict \
 testIndex \
@@ -47,7 +48,7 @@ flexTT_SOURCES = flexTT.cpp
 testBackup_SOURCES = testBackup.cpp
 testBasic_SOURCES = testBasic.cpp
 testBasicAsynch_SOURCES = testBasicAsynch.cpp
-#testBlobs_SOURCES = testBlobs.cpp
+testBlobs_SOURCES = testBlobs.cpp
 testDataBuffers_SOURCES = testDataBuffers.cpp
 testDict_SOURCES = testDict.cpp
 testIndex_SOURCES = testIndex.cpp
@@ -77,3 +78,4 @@ testBackup_LDADD = $(LDADD) bank/libbank.a
 
 # Don't update the files from bitkeeper
 %::SCCS/s.%
+

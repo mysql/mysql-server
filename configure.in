@@ -2919,16 +2919,23 @@ then
 fi
 AC_SUBST([ndb_transporter_opt_objs])
 
+ndb_opt_subdirs=
 ndb_bin_am_ldflags="-static"
 if test X"$have_ndb_test" = Xyes
 then
-  ndb_opt_test_subdirs="test"
+  ndb_opt_subdirs="test"
+  ndb_bin_am_ldflags=""
+fi
+if test X"$have_ndb_docs" = Xyes
+then
+  ndb_opt_subdirs="$ndb_opt_subdirs docs"
   ndb_bin_am_ldflags=""
 fi
 AC_SUBST([ndb_bin_am_ldflags])
-AC_SUBST([ndb_opt_test_subdirs])
+AC_SUBST([ndb_opt_subdirs])
 AC_CONFIG_FILES(ndb/Makefile ndb/include/Makefile dnl
    ndb/src/Makefile ndb/src/common/Makefile dnl
+   ndb/docs/Makefile dnl
    ndb/tools/Makefile dnl
    ndb/src/common/debugger/Makefile ndb/src/common/debugger/signaldata/Makefile dnl
    ndb/src/common/portlib/Makefile dnl

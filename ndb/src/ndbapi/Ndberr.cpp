@@ -20,6 +20,7 @@
 #include "NdbDictionaryImpl.hpp"
 #include <NdbOperation.hpp>
 #include <NdbConnection.hpp>
+#include <NdbBlob.hpp>
 
 
 static void
@@ -62,6 +63,13 @@ NdbConnection::getNdbError() const {
 const 
 NdbError & 
 NdbOperation::getNdbError() const {
+  update(theError);
+  return theError;
+}
+
+const
+NdbError &
+NdbBlob::getNdbError() const {
   update(theError);
   return theError;
 }

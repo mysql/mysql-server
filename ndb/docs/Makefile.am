@@ -1,7 +1,8 @@
+DOXYDIR = doxygen
+noinst_HEADERS = $(DOXYDIR)/predoxy.pl $(DOXYDIR)/postdoxy.pl $(DOXYDIR)/Doxyfile.ndbapi $(DOXYDIR)/Doxyfile.mgmapi $(DOXYDIR)/header.ndbapi.tex $(DOXYDIR)/header.mgmapi.tex
 
 all: 	do-check ndbapidoc mgmapidoc
 
-DOXYDIR =	doxygen
 DOXYTMP =	.doxytmp
 DOXYOUT =	.doxyout
 
@@ -35,7 +36,7 @@ do-check:
 #
 ndbapidoc: ndbapi.pdf
 
-ndbapi.pdf: $(top_srcdir)/ndb/include/ndb_version.h
+ndbapi.pdf: $(noinst_HEADERS)
 	@set -x; \
 	export NDB_RELEASE=$(NDB_RELEASE) \
 	@RM@ -f ndbapi.pdf ndbapi.html; \
@@ -59,7 +60,7 @@ ndbapi.pdf: $(top_srcdir)/ndb/include/ndb_version.h
 #
 mgmapidoc: mgmapi.pdf
 
-mgmapi.pdf: $(top_srcdir)/ndb/include/ndb_version.h
+mgmapi.pdf: $(noinst_HEADERS)
 	@set -x; \
 	export NDB_RELEASE=$(NDB_RELEASE) \
 	@RM@ -f mgmapi.pdf mgmapi.html; \
