@@ -38,10 +38,10 @@ rm -f $AVAILABLE_LANGUAGES_ERRORS_RULES
 for i in $AVAILABLE_LANGUAGES
 do
   AVAILABLE_LANGUAGES_ERRORS="$AVAILABLE_LANGUAGES_ERRORS $i/errmsg.sys"
-  case $SYSTEM_TYPE in
-    *netware* | *modesto*)
+  case $host_os in
+    netware* | modesto*)
       echo "$i/errmsg.sys: $i/errmsg.txt
-	\$(top_builddir)/extra/comp_err.cyg \$^ $i/errmsg.sys" \
+	\$(top_builddir)/extra/comp_err.linux \$^ $i/errmsg.sys" \
       >> $AVAILABLE_LANGUAGES_ERRORS_RULES
       ;;
     *)
@@ -1067,7 +1067,10 @@ dnl Is this the right match for DEC OSF on alpha?
   *netware*)
     # No need for curses library so set it to null
     with_named_curses=""
-    PLATFORM_NETWARE=yes
+
+    # No thread library - in LibC
+    with_named_thread=""
+    
     #
     # Edit Makefile.in files.
     #
@@ -1089,36 +1092,36 @@ dnl Is this the right match for DEC OSF on alpha?
       fi
       case $file in
         sql/Makefile.in)
-          # Use gen_lex_hash.cyg instead of gen_lex_hash
+          # Use gen_lex_hash.linux instead of gen_lex_hash
           # Add library dependencies to mysqld_DEPENDENCIES
           lib_DEPENDENCIES="\$(bdb_libs_with_path) \$(innodb_libs) \$(pstack_libs) \$(innodb_system_libs) \$(openssl_libs)"
           cat > $filesed << EOF
 s,\(^.*\$(MAKE) gen_lex_hash\),#\1,
-s,\(\./gen_lex_hash\),\1.cyg,
+s,\(\./gen_lex_hash\),\1.linux,
 s%\(mysqld_DEPENDENCIES = \) %\1$lib_DEPENDENCIES %
 EOF
           ;;
         sql/share/Makefile.in)
           cat > $filesed << EOF
-s,\(extra/comp_err\),\1.cyg,
+s,\(extra/comp_err\),\1.linux,
 EOF
           ;;
         libmysql/Makefile.in)
           cat > $filesed << EOF
-s,\(\./conf_to_src\)\( \$(top_srcdir)\),\1.cyg\2,
-s,\(: conf_to_src\),\1.cyg,
+s,\(\./conf_to_src\)\( \$(top_srcdir)\),\1.linux\2,
+s,\(: conf_to_src\),\1.linux,
 EOF
           ;;
         libmysql_r/Makefile.in)
           cat > $filesed << EOF
-s,\(\./conf_to_src\)\( \$(top_srcdir)\),\1.cyg\2,
-s,\(: conf_to_src\),\1.cyg,
+s,\(\./conf_to_src\)\( \$(top_srcdir)\),\1.linux\2,
+s,\(: conf_to_src\),\1.linux,
 EOF
           ;;
         strings/Makefile.in)
           cat > $filesed << EOF
-s,\(\./conf_to_src\)\( \$(top_srcdir)\),\1.cyg\2,
-s,\(: conf_to_src\),\1.cyg,
+s,\(\./conf_to_src\)\( \$(top_srcdir)\),\1.linux\2,
+s,\(: conf_to_src\),\1.linux,
 EOF
           ;;
         client/Makefile.in)
@@ -1167,7 +1170,6 @@ EOF
     ;;
 esac
 
-AM_CONDITIONAL(PLATFORM_NETWARE, test "$PLATFORM_NETWARE" = "yes")
 
 #---START: Used in for client configure
 # Check if we threads are in libc or if we should use
@@ -2195,13 +2197,6 @@ AC_ARG_WITH(extra-charsets,
   [extra_charsets="$withval"],
   [extra_charsets="none"])
 
-AC_ARG_WITH(platform-dir,
-    [  --with-platform-dir=DIR
-                          Add specified directory to list of SUBDIRS to build.],
-    [ with_platform_dir=$withval ],
-    [ with_platform_dir=no ]
-    )
-
 AC_MSG_CHECKING("character sets")
 
 if test "$extra_charsets" = none; then
@@ -2440,12 +2435,15 @@ AC_SUBST(CLIENT_LIBS)
 AC_SUBST(sql_client_dirs)
 AC_SUBST(linked_client_targets)
 
-platform_dir=
-if test "$with_platform_dir" != "no"
-then
-  platform_dir="$with_platform_dir"
+# If configuring for NetWare, set up to link sources from and build the netware directory
+netware_dir=
+linked_netware_sources=
+if expr "$SYSTEM_TYPE" : ".*netware.*" > /dev/null; then
+  netware_dir="netware"
+  linked_netware_sources="linked_netware_sources"
 fi
-AC_SUBST(platform_dir)
+AC_SUBST(netware_dir)
+AC_SUBST(linked_netware_sources)
 
 if test "$with_server" = "yes" -o "$THREAD_SAFE_CLIENT" != "no"
 then
@@ -2611,6 +2609,17 @@ AC_SUBST(CC)
 AC_SUBST(GXX)
 #Remove TOOLS_LIBS, because this is included in LIBRARIES
 #AC_SUBST(TOOLS_LIBS)
+
+# Set configuration options for make_binary_distribution
+case $SYSTEM_TYPE in
+  *netware*)
+    MAKE_BINARY_DISTRIBUTION_OPTIONS=--no-strip
+    ;;
+  *)
+    MAKE_BINARY_DISTRIBUTION_OPTIONS=
+    ;;
+esac
+AC_SUBST(MAKE_BINARY_DISTRIBUTION_OPTIONS)
 
 # Output results
 AC_OUTPUT(Makefile extra/Makefile mysys/Makefile isam/Makefile dnl

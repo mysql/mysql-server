@@ -45,7 +45,8 @@ void init_read_record(READ_RECORD *info,THD *thd, TABLE *table,
   info->ref_length=table->file->ref_length;
   info->select=select;
   info->print_error=print_error;
-  table->status=0;			/* And it's allways found */
+  info->ignore_not_found_rows= 0;
+  table->status=0;			/* And it's always found */
 
   if (select && my_b_inited(&select->file))
     tempfile= &select->file;
@@ -184,7 +185,8 @@ tryNext:
   {
     if (tmp == HA_ERR_END_OF_FILE)
       tmp= -1;
-    else if (tmp == HA_ERR_RECORD_DELETED)
+    else if (tmp == HA_ERR_RECORD_DELETED ||
+	     (tmp == HA_ERR_KEY_NOT_FOUND && info->ignore_not_found_rows))
       goto tryNext;
     else
     {
@@ -212,7 +214,8 @@ tryNext:
   {
     if (tmp == HA_ERR_END_OF_FILE)
       tmp= -1;
-    else if (tmp == HA_ERR_RECORD_DELETED)
+    else if (tmp == HA_ERR_RECORD_DELETED ||
+	     (tmp == HA_ERR_KEY_NOT_FOUND && info->ignore_not_found_rows))
       goto tryNext;
     else
     {

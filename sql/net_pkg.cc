@@ -1,4 +1,4 @@
-/* Copyright (C) 2000 MySQL AB & MySQL Finland AB & TCX DataKonsult AB
+/* Copyright (C) 2000-2003 MySQL AB
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -283,11 +283,6 @@ bool
 net_store_data(String *packet,const char *from,uint length)
 {
   ulong packet_length=packet->length();
-/* 
-   We have added net5store in net_store_length. 
-   Before that largest size was int3store.
-   Therefore +5 is changed to +9
-*/
   if (packet_length+9+length > packet->alloced_length() &&
       packet->realloc(packet_length+9+length))
     return 1;
@@ -305,8 +300,12 @@ net_store_data(String *packet,const char *from)
 {
   uint length=(uint) strlen(from);
   uint packet_length=packet->length();
-  if (packet_length+9+length > packet->alloced_length() &&
-      packet->realloc(packet_length+9+length))
+  /*
+    3 is the longest coding for storing a string with the used
+    net_store_length() function. We use 5 here 'just in case'
+  */
+  if (packet_length+5+length > packet->alloced_length() &&
+      packet->realloc(packet_length+5+length))
     return 1;
   char *to=(char*) net_store_length((char*) packet->ptr()+packet_length,
 				    length);
