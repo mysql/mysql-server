@@ -1775,7 +1775,8 @@ select_part2:
 	  SELECT_LEX * sel= lex->current_select->select_lex();
 	  if (lex->current_select == &lex->select_lex)
 	    lex->lock_option= TL_READ; /* Only for global SELECT */
-	  mysql_init_select(lex);
+	  if (sel->linkage != UNION_TYPE)
+	    mysql_init_select(lex);
 	}
 	select_options select_item_list select_into select_lock_type;
 
@@ -4656,6 +4657,7 @@ union_list:
 	  }
 	  if (mysql_new_select(lex, 0))
 	    YYABORT;
+          mysql_init_select(lex);
 	  lex->current_select->linkage=UNION_TYPE;
 	}
 	select_init {}

@@ -120,6 +120,7 @@ int st_select_lex_unit::prepare(THD *thd, select_result *result,
   found_rows_for_union= 0;
   TMP_TABLE_PARAM tmp_table_param;
   this->result= result;
+  t_and_f=tables_and_fields_initied;
   SELECT_LEX_NODE *lex_select_save= thd->lex.current_select;
   SELECT_LEX *sl;
 
@@ -132,7 +133,7 @@ int st_select_lex_unit::prepare(THD *thd, select_result *result,
     if (found_rows_for_union)
       first_select()->options ^=  OPTION_FOUND_ROWS;
   }
-  if (tables_and_fields_initied)
+  if (t_and_f)
   {
     // Item list and tables will be initialized by mysql_derived
     item_list= sl->item_list;
@@ -154,7 +155,7 @@ int st_select_lex_unit::prepare(THD *thd, select_result *result,
 	setup_fields(thd, sl->ref_pointer_array, first_table, item_list,
 		     0, 0, 1))
       goto err;
-    tables_and_fields_initied= 1;
+    t_and_f= 1;
   }
 
   bzero((char*) &tmp_table_param,sizeof(tmp_table_param));
@@ -177,35 +178,36 @@ int st_select_lex_unit::prepare(THD *thd, select_result *result,
 
   union_result->not_describe=1;
   union_result->tmp_table_param=&tmp_table_param;
-
-  // prepare selects
-  for (sl= first_select(); sl; sl= sl->next_select())
+  if (thd->lex.describe)
   {
-    JOIN *join= new JOIN(thd, sl->item_list, 
-			 sl->options | thd->options | SELECT_NO_UNLOCK,
-			 union_result);
-    thd->lex.current_select= sl;
-    offset_limit_cnt= sl->offset_limit;
-    select_limit_cnt= sl->select_limit+sl->offset_limit;
-    if (select_limit_cnt < sl->select_limit)
-      select_limit_cnt= HA_POS_ERROR;		// no limit
-    if (select_limit_cnt == HA_POS_ERROR)
-      sl->options&= ~OPTION_FOUND_ROWS;
-
-    res= join->prepare(&sl->ref_pointer_array,
-		       (TABLE_LIST*) sl->table_list.first, sl->with_wild,
-		       sl->where,
-		       ((sl->braces) ? sl->order_list.elements : 0) +
-		       sl->group_list.elements,
-		       (sl->braces) ? 
-		       (ORDER *)sl->order_list.first : (ORDER *) 0,
-		       (ORDER*) sl->group_list.first,
-		       sl->having,
-		       (ORDER*) NULL,
-		       sl, this, 0, tables_and_fields_initied);
-    tables_and_fields_initied= 0;
-    if (res | thd->is_fatal_error)
-      goto err;
+    for (SELECT_LEX *sl= first_select(); sl; sl= sl->next_select())
+    {
+      JOIN *join= new JOIN(thd, sl->item_list, 
+			   sl->options | thd->options | SELECT_NO_UNLOCK,
+			   union_result);
+      thd->lex.current_select= sl;
+      offset_limit_cnt= sl->offset_limit;
+      select_limit_cnt= sl->select_limit+sl->offset_limit;
+      if (select_limit_cnt < sl->select_limit)
+	select_limit_cnt= HA_POS_ERROR;		// no limit
+      if (select_limit_cnt == HA_POS_ERROR)
+	sl->options&= ~OPTION_FOUND_ROWS;
+      
+      res= join->prepare(&sl->ref_pointer_array,
+			 (TABLE_LIST*) sl->table_list.first, sl->with_wild,
+			 sl->where,
+			 ((sl->braces) ? sl->order_list.elements : 0) +
+			 sl->group_list.elements,
+			 (sl->braces) ? 
+			 (ORDER *)sl->order_list.first : (ORDER *) 0,
+			 (ORDER*) sl->group_list.first,
+			 sl->having,
+			 (ORDER*) NULL,
+			 sl, this, 0, t_and_f);
+      t_and_f=0;
+      if (res | thd->is_fatal_error)
+	goto err;
+    }
   }
   item_list.empty();
   thd->lex.current_select= lex_select_save;
@@ -246,23 +248,49 @@ int st_select_lex_unit::exec()
     }
     for (SELECT_LEX *sl= first_select(); sl; sl= sl->next_select())
     {
-      thd->lex.current_select= sl;
-      offset_limit_cnt= sl->offset_limit;
-      select_limit_cnt= sl->select_limit+sl->offset_limit;
-      if (select_limit_cnt < sl->select_limit)
-	select_limit_cnt= HA_POS_ERROR;		// no limit
-      if (select_limit_cnt == HA_POS_ERROR)
-	sl->options&= ~OPTION_FOUND_ROWS;
-
-      if (!optimized)
-	res= sl->join->optimize();
-      else
+      if (optimized)
 	res= sl->join->reinit();
-
+      else
+      {
+	JOIN *join= new JOIN(thd, sl->item_list, 
+			     sl->options | thd->options | SELECT_NO_UNLOCK,
+			     union_result);
+	thd->lex.current_select= sl;
+	offset_limit_cnt= sl->offset_limit;
+	select_limit_cnt= sl->select_limit+sl->offset_limit;
+	if (select_limit_cnt < sl->select_limit)
+	  select_limit_cnt= HA_POS_ERROR;		// no limit
+	if (select_limit_cnt == HA_POS_ERROR)
+	  sl->options&= ~OPTION_FOUND_ROWS;
+	
+	res= join->prepare(&sl->ref_pointer_array,
+			   (TABLE_LIST*) sl->table_list.first, sl->with_wild,
+			   sl->where,
+			   ((sl->braces) ? sl->order_list.elements : 0) +
+			   sl->group_list.elements,
+			   (sl->braces) ? 
+			   (ORDER *)sl->order_list.first : (ORDER *) 0,
+			   (ORDER*) sl->group_list.first,
+			   sl->having,
+			   (ORDER*) NULL,
+			   sl, this, 0, t_and_f);
+	t_and_f=0;
+	if (res | thd->is_fatal_error)
+	{
+	  thd->lex.current_select= lex_select_save;
+	  DBUG_RETURN(res);
+	}
+	res= sl->join->optimize();
+      }
       if (!res)
       {
 	sl->join->exec();
 	res= sl->join->error;
+	if (!res && union_result->flush())
+	{
+	  thd->lex.current_select= lex_select_save;
+	  DBUG_RETURN(1);
+	}
       }
       if (res)
       {
@@ -270,14 +298,8 @@ int st_select_lex_unit::exec()
 	DBUG_RETURN(res);
       }
     }
-    optimized= 1;
   }
-
-  if (union_result->flush())
-  {
-    thd->lex.current_select= lex_select_save;
-    DBUG_RETURN(1);
-  }
+  optimized= 1;
 
   /* Send result to 'result' */
 
