@@ -49211,6 +49211,9 @@ Our TODO section contains what we plan to have in 4.0. @xref{TODO MySQL 4.0}.
 
 @itemize @bullet
 @item
+Fixed bug in truncation operator of boolean fulltext search (wrong results
+when there are only @code{+word*}'s in the query).
+@item
 Fixed bug in phrase operator @code{"..."} in boolean full-text search.
 @item
 Fixed bug that caused duplicated rows when using truncation operator
