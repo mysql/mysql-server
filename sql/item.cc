@@ -419,7 +419,7 @@ void Item_field::save_org_in_field(Field *to)
   if (field->is_null())
   {
     null_value=1;
-    set_field_to_null_with_conversions(to);
+    set_field_to_null_with_conversions(to, 1);
   }
   else
   {
@@ -429,12 +429,12 @@ void Item_field::save_org_in_field(Field *to)
   }
 }
 
-bool Item_field::save_in_field(Field *to)
+bool Item_field::save_in_field(Field *to, bool no_conversions)
 {
   if (result_field->is_null())
   {
     null_value=1;
-    return set_field_to_null_with_conversions(to);
+    return set_field_to_null_with_conversions(to, no_conversions);
   }
   else
   {
@@ -461,9 +461,9 @@ bool Item_field::save_in_field(Field *to)
     1	 Field doesn't support NULL values and can't handle 'field = NULL'
 */   
 
-bool Item_null::save_in_field(Field *field)
+bool Item_null::save_in_field(Field *field, bool no_conversions)
 {
-  return set_field_to_null_with_conversions(field);
+  return set_field_to_null_with_conversions(field, no_conversions);
 }
 
 
@@ -485,7 +485,7 @@ bool Item_null::save_safe_in_field(Field *field)
 }
 
 
-bool Item::save_in_field(Field *field)
+bool Item::save_in_field(Field *field, bool no_conversions)
 {
   if (result_type() == STRING_RESULT ||
       result_type() == REAL_RESULT &&
@@ -496,7 +496,7 @@ bool Item::save_in_field(Field *field)
     str_value.set_quick(buff,sizeof(buff));
     result=val_str(&str_value);
     if (null_value)
-      return set_field_to_null_with_conversions(field);
+      return set_field_to_null_with_conversions(field, no_conversions);
     field->set_notnull();
     field->store(result->ptr(),result->length());
     str_value.set_quick(0, 0);
@@ -513,7 +513,7 @@ bool Item::save_in_field(Field *field)
   {
     longlong nr=val_int();
     if (null_value)
-      return set_field_to_null_with_conversions(field);
+      return set_field_to_null_with_conversions(field, no_conversions);
     field->set_notnull();
     field->store(nr);
   }
@@ -521,7 +521,7 @@ bool Item::save_in_field(Field *field)
 }
 
 
-bool Item_string::save_in_field(Field *field)
+bool Item_string::save_in_field(Field *field, bool no_conversions)
 {
   String *result;
   result=val_str(&str_value);
@@ -532,7 +532,7 @@ bool Item_string::save_in_field(Field *field)
   return 0;
 }
 
-bool Item_int::save_in_field(Field *field)
+bool Item_int::save_in_field(Field *field, bool no_conversions)
 {
   longlong nr=val_int();
   if (null_value)
@@ -542,7 +542,7 @@ bool Item_int::save_in_field(Field *field)
   return 0;
 }
 
-bool Item_real::save_in_field(Field *field)
+bool Item_real::save_in_field(Field *field, bool no_conversions)
 {
   double nr=val();
   if (null_value)
@@ -597,7 +597,7 @@ longlong Item_varbinary::val_int()
 }
 
 
-bool Item_varbinary::save_in_field(Field *field)
+bool Item_varbinary::save_in_field(Field *field, bool no_conversions)
 {
   field->set_notnull();
   if (field->result_type() == STRING_RESULT)
@@ -658,9 +658,10 @@ bool Item_ref::fix_fields(THD *thd,TABLE_LIST *tables)
   return 0;
 }
 
+
 /*
-** If item is a const function, calculate it and return a const item
-** The original item is freed if not returned
+  If item is a const function, calculate it and return a const item
+  The original item is freed if not returned
 */
 
 Item_result item_cmp_type(Item_result a,Item_result b)

@@ -130,7 +130,9 @@ static int setup_group(THD *thd,TABLE_LIST *tables,List<Item> &fields,
 		       List<Item> &all_fields, ORDER *order, bool *hidden);
 static bool setup_new_fields(THD *thd,TABLE_LIST *tables,List<Item> &fields,
 			     List<Item> &all_fields,ORDER *new_order);
-static ORDER *create_distinct_group(ORDER *order, List<Item> &fields);
+static ORDER *create_distinct_group(THD *thd, ORDER *order,
+				    List<Item> &fields,
+				    bool *all_order_by_fields_used);
 static bool test_if_subpart(ORDER *a,ORDER *b);
 static TABLE *get_sort_by_table(ORDER *a,ORDER *b,TABLE_LIST *tables);
 static void calc_group_buffer(JOIN *join,ORDER *group);
@@ -228,6 +230,10 @@ mysql_select(THD *thd,TABLE_LIST *tables,List<Item> &fields,COND *conds,
   bzero((char*) &keyuse,sizeof(keyuse));
   thd->proc_info="init";
   thd->used_tables=0;				// Updated by setup_fields
+  /* select_limit is used to decide if we are likely to scan the whole table */
+  select_limit= thd->select_limit;
+  if (having || (select_options & OPTION_FOUND_ROWS))
+    select_limit= HA_POS_ERROR;
 
   if (setup_tables(tables) ||
       setup_fields(thd,tables,fields,1,&all_fields,1) ||
@@ -436,6 +442,7 @@ mysql_select(THD *thd,TABLE_LIST *tables,List<Item> &fields,COND *conds,
   thd->proc_info="statistics";
   if (make_join_statistics(&join,tables,conds,&keyuse) || thd->fatal_error)
     goto err;
+
   thd->proc_info="preparing";
   if (result->initialize_tables(&join))
     goto err;
@@ -444,7 +451,8 @@ mysql_select(THD *thd,TABLE_LIST *tables,List<Item> &fields,COND *conds,
   {
     error=return_zero_rows(&join,result,tables,fields,
 			   join.tmp_table_param.sum_func_count != 0 &&
-			   !group,0,"",having,procedure);
+			   !group,0,"no matching row in const table",having,
+			   procedure);
     goto err;
   }
   if (!(thd->options & OPTION_BIG_SELECTS) &&
@@ -504,21 +512,47 @@ mysql_select(THD *thd,TABLE_LIST *tables,List<Item> &fields,COND *conds,
     if (! hidden_group_fields)
       select_distinct=0;
   }
-  else if (select_distinct && join.tables - join.const_tables == 1 &&
-	   (thd->select_limit == HA_POS_ERROR ||
-	    (join.select_options & OPTION_FOUND_ROWS) ||
-	    order &&
-	    !(skip_sort_order=
-	      test_if_skip_sort_order(&join.join_tab[join.const_tables],
-				      order, thd->select_limit,1))))
+  else if (select_distinct && join.tables - join.const_tables == 1)
   {
-    if ((group=create_distinct_group(order,fields)))
+    /*
+      We are only using one table. In this case we change DISTINCT to a
+      GROUP BY query if:
+      - The GROUP BY can be done through indexes (no sort) and the ORDER
+        BY only uses selected fields.
+	(In this case we can later optimize away GROUP BY and ORDER BY)
+      - We are scanning the whole table without LIMIT
+        This can happen if:
+        - We are using CALC_FOUND_ROWS
+        - We are using an ORDER BY that can't be optimized away.
+
+      We don't want to use this optimization when we are using LIMIT
+      because in this case we can just create a temporary table that
+      holds LIMIT rows and stop when this table is full.
+    */
+    JOIN_TAB *tab= &join.join_tab[join.const_tables];
+    bool all_order_fields_used;
+    if (order)
+      skip_sort_order= test_if_skip_sort_order(tab, order, select_limit, 1);
+    if ((group=create_distinct_group(thd, order, fields,
+				     &all_order_fields_used)))
     {
-      select_distinct=0;
-      no_order= !order;
-      join.group=1;				// For end_write_group
-    }
-    else if (thd->fatal_error)			// End of memory
+      bool skip_group= (skip_sort_order &&
+			test_if_skip_sort_order(tab, group, select_limit,
+						1) != 0);
+      if ((skip_group && all_order_fields_used) ||
+	  select_limit == HA_POS_ERROR ||
+	  (order && !skip_sort_order))
+      {
+	/*  Change DISTINCT to GROUP BY */
+	select_distinct= 0;
+	no_order= !order;
+	if (all_order_fields_used)
+	  order=0;
+	join.group=1;				// For end_write_group
+      }
+      else
+	group= 0;
+    } else if (thd->fatal_error)			// End of memory
       goto err;
   }
   group=remove_const(&join,group,conds,&simple_group);
@@ -622,10 +656,9 @@ mysql_select(THD *thd,TABLE_LIST *tables,List<Item> &fields,COND *conds,
       order=group;
     if (order &&
 	(join.const_tables == join.tables ||
-	 (simple_order &&
+	 ((simple_order || skip_sort_order) &&
 	  test_if_skip_sort_order(&join.join_tab[join.const_tables], order,
-				  (join.select_options & OPTION_FOUND_ROWS) ?
-				  HA_POS_ERROR : thd->select_limit,0))))
+				  select_limit, 0))))
       order=0;
     select_describe(&join,need_tmp,
 		    order != 0 && !skip_sort_order,
@@ -653,7 +686,7 @@ mysql_select(THD *thd,TABLE_LIST *tables,List<Item> &fields,COND *conds,
 			   group ? 0 : select_distinct,
 			   group && simple_group,
 			   (order == 0 || skip_sort_order) &&
-			   !(join.select_options & OPTION_FOUND_ROWS),
+			   select_limit != HA_POS_ERROR,
 			   join.select_options)))
       goto err;					/* purecov: inspected */
 
@@ -706,9 +739,10 @@ mysql_select(THD *thd,TABLE_LIST *tables,List<Item> &fields,COND *conds,
       /* Optimize "select distinct b from t1 order by key_part_1 limit #" */
       if (order && skip_sort_order)
       {
-	(void) test_if_skip_sort_order(&join.join_tab[join.const_tables],
-				       order, thd->select_limit,0);
-	order=0;
+	/* Should always succeed */
+	if (test_if_skip_sort_order(&join.join_tab[join.const_tables],
+				    order, thd->select_limit,0))
+	  order=0;
       }
     }
 
@@ -877,8 +911,7 @@ mysql_select(THD *thd,TABLE_LIST *tables,List<Item> &fields,COND *conds,
 	DBUG_EXECUTE("where",print_where(conds,"having after sort"););
       }
     }
-    select_limit= thd->select_limit;
-    if (having || group || (join.select_options & OPTION_FOUND_ROWS))
+    if (group)
       select_limit= HA_POS_ERROR;
     else
     {
@@ -953,13 +986,21 @@ static ha_rows get_quick_record_count(SQL_SELECT *select,TABLE *table,
 }
 
 
+/*
+  Calculate the best possible join and initialize the join structure
+
+  RETURN VALUES
+  0	ok
+  1	Fatal error
+*/
+  
 static bool
 make_join_statistics(JOIN *join,TABLE_LIST *tables,COND *conds,
 		     DYNAMIC_ARRAY *keyuse_array)
 {
   int error;
   uint i,table_count,const_count,found_ref,refs,key,const_ref,eq_part;
-  table_map const_table_map,found_const_table_map,all_table_map;
+  table_map found_const_table_map,all_table_map;
   TABLE **table_vector;
   JOIN_TAB *stat,*stat_end,*s,**stat_ref;
   SQL_SELECT *select;
@@ -979,7 +1020,7 @@ make_join_statistics(JOIN *join,TABLE_LIST *tables,COND *conds,
   join->best_ref=stat_vector;
 
   stat_end=stat+table_count;
-  const_table_map=found_const_table_map=all_table_map=0;
+  found_const_table_map=all_table_map=0;
   const_count=0;
 
   for (s=stat,i=0 ; tables ; s++,tables=tables->next,i++)
@@ -1070,7 +1111,7 @@ make_join_statistics(JOIN *join,TABLE_LIST *tables,COND *conds,
       DBUG_RETURN(1);
 
   /* Read tables with 0 or 1 rows (system tables) */
-  join->const_table_map=const_table_map;
+  join->const_table_map= 0;
 
   for (POSITION *p_pos=join->positions, *p_end=p_pos+const_count;
        p_pos < p_end ;
@@ -1107,16 +1148,16 @@ make_join_statistics(JOIN *join,TABLE_LIST *tables,COND *conds,
       if (s->dependent)				// If dependent on some table
       {
 	// All dep. must be constants
-	if (s->dependent & ~(join->const_table_map))
+	if (s->dependent & ~(found_const_table_map))
 	  continue;
 	if (table->file->records <= 1L &&
 	    !(table->file->table_flags() & HA_NOT_EXACT_COUNT))
 	{					// system table
-	  int tmp;
+	  int tmp= 0;
 	  s->type=JT_SYSTEM;
 	  join->const_table_map|=table->map;
 	  set_position(join,const_count++,s,(KEYUSE*) 0);
-	  if ((tmp=join_read_const_table(s,join->positions+const_count-1)))
+	  if ((tmp= join_read_const_table(s,join->positions+const_count-1)))
 	  {
 	    if (tmp > 0)
 	      DBUG_RETURN(1);			// Fatal error
@@ -1141,7 +1182,7 @@ make_join_statistics(JOIN *join,TABLE_LIST *tables,COND *conds,
 	  {
 	    if (keyuse->val->type() != Item::NULL_ITEM)
 	    {
-	      if (!((~join->const_table_map) & keyuse->used_tables))
+	      if (!((~found_const_table_map) & keyuse->used_tables))
 		const_ref|= (key_map) 1 << keyuse->keypart;
 	      else
 		refs|=keyuse->used_tables;
@@ -1162,7 +1203,7 @@ make_join_statistics(JOIN *join,TABLE_LIST *tables,COND *conds,
 	      join->const_table_map|=table->map;
 	      set_position(join,const_count++,s,start_keyuse);
 	      if (create_ref_for_key(join, s, start_keyuse,
-				     join->const_table_map))
+				     found_const_table_map))
 		DBUG_RETURN(1);
 	      if ((tmp=join_read_const_table(s,
 					     join->positions+const_count-1)))
@@ -1210,8 +1251,8 @@ make_join_statistics(JOIN *join,TABLE_LIST *tables,COND *conds,
     {
       ha_rows records;
       if (!select)
-	select=make_select(s->table, join->const_table_map,
-			   join->const_table_map,
+	select=make_select(s->table, found_const_table_map,
+			   found_const_table_map,
 			   and_conds(conds,s->on_expr),&error);
       records=get_quick_record_count(select,s->table, s->const_keys,
 				     join->row_limit);
@@ -2373,12 +2414,13 @@ get_store_key(THD *thd, KEYUSE *keyuse, table_map used_tables,
 bool
 store_val_in_field(Field *field,Item *item)
 {
+  bool error;
   THD *thd=current_thd;
   ha_rows cuted_fields=thd->cuted_fields;
   thd->count_cuted_fields=1;
-  item->save_in_field(field);
+  error= item->save_in_field(field, 1);
   thd->count_cuted_fields=0;
-  return cuted_fields != thd->cuted_fields;
+  return error || cuted_fields != thd->cuted_fields;
 }
 
 
@@ -6577,12 +6619,14 @@ setup_new_fields(THD *thd,TABLE_LIST *tables,List<Item> &fields,
 */
 
 static ORDER *
-create_distinct_group(ORDER *order_list,List<Item> &fields)
+create_distinct_group(THD *thd, ORDER *order_list, List<Item> &fields, 
+		      bool *all_order_by_fields_used)
 {
   List_iterator<Item> li(fields);
   Item *item;
   ORDER *order,*group,**prev;
 
+  *all_order_by_fields_used= 1;
   while ((item=li++))
     item->marker=0;			/* Marker that field is not used */
 
@@ -6591,13 +6635,15 @@ create_distinct_group(ORDER *order_list,List<Item> &fields)
   {
     if (order->in_field_list)
     {
-      ORDER *ord=(ORDER*) sql_memdup(order,sizeof(ORDER));
+      ORDER *ord=(ORDER*) thd->memdup((char*) order,sizeof(ORDER));
       if (!ord)
 	return 0;
       *prev=ord;
       prev= &ord->next;
       (*ord->item)->marker=1;
     }
+    else
+      *all_order_by_fields_used= 0;
   }
 
   li.rewind();
@@ -6607,7 +6653,7 @@ create_distinct_group(ORDER *order_list,List<Item> &fields)
       continue;
     if (!item->marker)
     {
-      ORDER *ord=(ORDER*) sql_calloc(sizeof(ORDER));
+      ORDER *ord=(ORDER*) thd->calloc(sizeof(ORDER));
       if (!ord)
 	return 0;
       ord->item=li.ref();
@@ -7059,7 +7105,7 @@ copy_sum_funcs(Item_sum **func_ptr)
 {
   Item_sum *func;
   for (; (func = *func_ptr) ; func_ptr++)
-    (void) func->save_in_field(func->result_field);
+    (void) func->save_in_field(func->result_field, 1);
   return;
 }
 
@@ -7090,7 +7136,7 @@ copy_funcs(Item_result_field **func_ptr)
 {
   Item_result_field *func;
   for (; (func = *func_ptr) ; func_ptr++)
-    (void) func->save_in_field(func->result_field);
+    (void) func->save_in_field(func->result_field, 1);
   return;
 }
 

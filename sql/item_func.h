@@ -459,20 +459,20 @@ public:
   const char *func_name() const { return truncate ? "truncate" : "round"; }
   double val();
   void fix_length_and_dec();
-  unsigned int size_of() { return sizeof(*this);}  
 };
 
 
 class Item_func_rand :public Item_real_func
 {
+  struct rand_struct *rand;
 public:
   Item_func_rand(Item *a) :Item_real_func(a) {}
   Item_func_rand()	  :Item_real_func()  {}
   double val();
   const char *func_name() const { return "rand"; }
-  void fix_length_and_dec() { decimals=NOT_FIXED_DEC; max_length=float_length(decimals); }
   bool const_item() const { return 0; }
   table_map used_tables() const { return RAND_TABLE_BIT; }
+  void fix_length_and_dec();
 };
 
 
