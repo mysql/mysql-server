@@ -1,9 +1,21 @@
 -- source include/have_crypt.inc
 
+--disable_warnings
+drop table if exists t1;
+--enable_warnings
+
 select length(encrypt('foo', 'ff')) <> 0;
 --replace_result $1$aa$4OSUA5cjdx0RUQ08opV27/ aaqPiZY5xR5l.
 
+create table t1 (name varchar(50), pw varchar(16));
+insert into t1 values ('tom', password('my_pass'));
+set @pass='my_pass';
+select name from t1 where name='tom' and pw=password(@pass);
+select name from t1 where name='tom' and pw=password(@undefined);
+drop table t1;
+
 # Test new and old password handling functions 
+
 select password('abc');
 select password('');
 select old_password('abc');

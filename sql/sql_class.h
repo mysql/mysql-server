@@ -481,7 +481,11 @@ public:
   char	  priv_host[MAX_HOSTNAME];
   /* remote (peer) port */
   uint16 peer_port;
-  /* Points to info-string that will show in SHOW PROCESSLIST */
+  /*
+    Points to info-string that we show in SHOW PROCESSLIST
+    You are supposed to update thd->proc_info only if you have coded
+    a time-consuming piece that MySQL can get stuck in for a long time.
+  */
   const char *proc_info;
   /* points to host if host is available, otherwise points to ip */
   const char *host_or_ip;
@@ -510,6 +514,11 @@ public:
   enum enum_server_command command;
   uint32     server_id;
   uint32     file_id;			// for LOAD DATA INFILE
+  /*
+    Used in error messages to tell user in what part of MySQL we found an
+    error. E. g. when where= "having clause", if fix_fields() fails, user
+    will know that the error was in having clause.
+  */
   const char *where;
   time_t     start_time,time_after_lock,user_time;
   time_t     connect_time,thr_create_time; // track down slow pthread_create

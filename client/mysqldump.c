@@ -632,6 +632,7 @@ static my_bool test_if_special_chars(const char *str)
 } /* test_if_special_chars */
 
 
+
 static char *quote_name(const char *name, char *buff, my_bool force)
 {
   char *to= buff;
@@ -789,7 +790,8 @@ static uint getTableStructure(char *table, char* db)
   if (verbose)
     fprintf(stderr, "-- Retrieving table structure for table %s...\n", table);
 
-  sprintf(insert_pat,"SET OPTION SQL_QUOTE_SHOW_CREATE=%d", (opt_quoted || opt_keywords));
+  sprintf(insert_pat,"SET OPTION SQL_QUOTE_SHOW_CREATE=%d",
+	  (opt_quoted || opt_keywords));
   result_table=     quote_name(table, table_buff, 1);
   opt_quoted_table= quote_name(table, table_buff2, 0);
   if (!opt_xml && !mysql_query(sock,insert_pat))
@@ -1041,7 +1043,8 @@ static uint getTableStructure(char *table, char* db)
 	  else if (keynr == primary_key)
 	    fputs(",\n  PRIMARY KEY (",sql_file); /* First UNIQUE is primary */
 	  else
-	    fprintf(sql_file, ",\n  UNIQUE %s (",quote_name(row[2],name_buff,0));
+	    fprintf(sql_file, ",\n  UNIQUE %s (",quote_name(row[2],name_buff,
+							    0));
         }
         else
 	  putc(',', sql_file);
@@ -1520,23 +1523,28 @@ static int init_dumping(char *database)
   {
     if (opt_databases || opt_alldbs)
     {
-      fprintf(md_result_file,"\n--\n-- Current Database: %s\n--\n", database);
+      /*
+	length of table name * 2 (if name contain quotas), 2 quotas and 0
+      */
+      char quoted_database_buf[64*2+3];
+      char *qdatabase= quote_name(database,quoted_database_buf,opt_quoted);
+
+      fprintf(md_result_file,"\n--\n-- Current Database: %s\n--\n", qdatabase);
       if (!opt_create_db)
       {
-        char qbuf[128];
+        char qbuf[256];
         MYSQL_ROW row;
         MYSQL_RES *dbinfo;
 
-        sprintf(qbuf,"SHOW CREATE DATABASE WITH IF NOT EXISTS %s",database);
+        sprintf(qbuf,"SHOW CREATE DATABASE WITH IF NOT EXISTS %s",
+		qdatabase);
 
         if (mysql_query(sock, qbuf) || !(dbinfo = mysql_store_result(sock)))
         {
           /* Old server version, dump generic CREATE DATABASE */
 	  fprintf(md_result_file,
-		  "\nCREATE DATABASE /*!32312 IF NOT EXISTS*/ %s%s%s;\n",
-		  (opt_quoted ? "`" : ""),
-		  database,
-		  (opt_quoted ? "`" : ""));
+		  "\nCREATE DATABASE /*!32312 IF NOT EXISTS*/ %s;\n",
+		  qdatabase);
 	}
 	else
         {
@@ -1547,16 +1555,14 @@ static int init_dumping(char *database)
           }
 	}
       }
-      fprintf(md_result_file,"\nUSE %s%s%s;\n", (opt_quoted ? "`" : ""),
-	                                         database,
-	                                        (opt_quoted ? "`" : ""));
+      fprintf(md_result_file,"\nUSE %s;\n", qdatabase);
     }
   }
-  if (extended_insert)
-    if (init_dynamic_string(&extended_row, "", 1024, 1024))
-      exit(EX_EOM);
+  if (extended_insert && init_dynamic_string(&extended_row, "", 1024, 1024))
+    exit(EX_EOM);
   return 0;
 } /* init_dumping */
+
 
 
 static int dump_all_tables_in_db(char *database)

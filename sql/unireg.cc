@@ -150,16 +150,19 @@ int rea_create_table(THD *thd, my_string file_name,
 
   my_free((gptr) screen_buff,MYF(0));
   my_free((gptr) keybuff, MYF(0));
-  VOID(my_close(file,MYF(MY_WME)));
-  if (ha_create_table(file_name,create_info,0))
+  if (my_sync(file, MYF(MY_WME)))
     goto err2;
+  if (my_close(file,MYF(MY_WME)) ||
+      ha_create_table(file_name,create_info,0))
+    goto err3;
   DBUG_RETURN(0);
 
 err:
   my_free((gptr) screen_buff,MYF(0));
   my_free((gptr) keybuff, MYF(0));
+err2:
   VOID(my_close(file,MYF(MY_WME)));
- err2:
+err3:
   my_delete(file_name,MYF(0));
   DBUG_RETURN(1);
 } /* rea_create_table */

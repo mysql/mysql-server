@@ -645,6 +645,7 @@ struct st_my_thread_var
   long id;
   int cmp_length;
   int volatile abort;
+  my_bool init;
   struct st_my_thread_var *next,**prev;
   void *opt_info;
 #ifndef DBUG_OFF

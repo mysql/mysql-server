@@ -1,6 +1,16 @@
+drop table if exists t1;
 select length(encrypt('foo', 'ff')) <> 0;
 length(encrypt('foo', 'ff')) <> 0
 1
+create table t1 (name varchar(50), pw varchar(16));
+insert into t1 values ('tom', password('my_pass'));
+set @pass='my_pass';
+select name from t1 where name='tom' and pw=password(@pass);
+name
+tom
+select name from t1 where name='tom' and pw=password(@undefined);
+name
+drop table t1;
 select password('abc');
 password('abc')
 *0D3CED9BEC10A777AEC23CCC353A8C08A633045E

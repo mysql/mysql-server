@@ -1717,7 +1717,7 @@ srv_init(void)
 	os_fast_mutex_init(&srv_conc_mutex);
 	
 	UT_LIST_INIT(srv_conc_queue);
-	
+
 	srv_conc_slots = mem_alloc(OS_THREAD_MAX_N * sizeof(srv_conc_slot_t));
 
 	for (i = 0; i < OS_THREAD_MAX_N; i++) {
