@@ -28753,7 +28753,7 @@ must read the whole table.
 This is like @code{-eis}, but tells you what is being done.
 @end table
 
-@cindex examples, @ciode{myisamchk} output
+@cindex examples, @code{myisamchk} output
 @cindex @code{myisamchk}, example output
 Example of @code{myisamchk -d} output:
 @example
