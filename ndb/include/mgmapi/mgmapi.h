@@ -464,6 +464,15 @@ extern "C" {
    * @param   connect_string Connect string to the management server,
    *
    * @return                -1 on error.
+   *
+   * @code
+   * <connectstring> := [<nodeid-specification>,]<host-specification>[,<host-specification>]
+   * <nodeid-specification> := nodeid=<id>
+   * <host-specification> := <host>[:<port>]
+   * <id> is an integer larger than 1 identifying a node in config.ini
+   * <port> is an integer referring to a regular unix port
+   * <host> is a string which is a valid Internet host address
+   * @endcode
    */
   int ndb_mgm_set_connectstring(NdbMgmHandle handle,
 				const char *connect_string);
@@ -471,8 +480,8 @@ extern "C" {
   /**
    * Get connectstring used for connection
    *
-   * @note returns what the connectstring defaults to if the above call has
-   *       not been performed
+   * @note returns what the connectstring defaults to if the 
+   *       ndb_mgm_set_connectstring() call has not been performed
    *
    * @param   handle         Management handle
    *
@@ -481,7 +490,8 @@ extern "C" {
   const char *ndb_mgm_get_connectstring(NdbMgmHandle handle, char *buf, int buf_sz);
 
   /**
-   * Connect to a management server
+   * Connect to a management server. Coonect string is set by
+   * ndb_mgm_set_connectstring().
    *
    * @param   handle        Management handle.
    * @return                -1 on error.
@@ -502,7 +512,8 @@ extern "C" {
    *
    * @param   handle         Management handle
    *
-   * @return                 node id
+   * @return                 node id, 0 indicated that no nodeid has been
+   *                         specified
    */
   int ndb_mgm_get_configuration_nodeid(NdbMgmHandle handle);
 
@@ -524,6 +535,7 @@ extern "C" {
    */
   const char *ndb_mgm_get_connected_host(NdbMgmHandle handle);
 
+#ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
   /** @} *********************************************************************/
   /**
    * @name Functions: Convert between different data formats
@@ -572,7 +584,6 @@ extern "C" {
   const char * ndb_mgm_get_node_status_string(enum ndb_mgm_node_status status);
 
   const char * ndb_mgm_get_clusterlog_level_string(enum ndb_mgm_clusterlog_level);
-#ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
   ndb_mgm_event_category ndb_mgm_match_event_category(const char *);
   const char * ndb_mgm_get_event_category_string(enum ndb_mgm_event_category);
 #endif
@@ -799,9 +810,9 @@ extern "C" {
    * Start backup
    *
    * @param   handle        NDB management handle.
-   * @param   wait_completed 0=don't wait for confirmation
-                             1=wait for backup started
-                             2=wait for backup completed
+   * @param   wait_completed 0=don't wait for confirmation,
+   *                         1=wait for backup started,
+   *                         2=wait for backup completed
    * @param   backup_id     Backup id is returned from function.
    * @param   reply         Reply message.
    * @return                -1 on error.
@@ -861,7 +872,7 @@ extern "C" {
    * Get configuration
    * @param   handle     NDB management handle.
    * @param   version    Version of configuration, 0 means latest
-   *                     @see MAKE_VERSION
+   *                     (which is the only supported input at this point)
    *
    * @return configuration
    *
