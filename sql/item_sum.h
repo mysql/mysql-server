@@ -640,13 +640,28 @@ class Item_func_group_concat : public Item_sum
   uint max_elements_in_tree;
   MYSQL_ERROR *warning;
   bool warning_available;
+  uint key_length;
+  int rec_offset;
+  bool tree_mode;
+  bool distinct;
+  bool warning_for_row;
+  bool always_null;
+
+  friend int group_concat_key_cmp_with_distinct(void* arg, byte* key1,
+					      byte* key2);
+  friend int group_concat_key_cmp_with_order(void* arg, byte* key1, byte* key2);
+  friend int group_concat_key_cmp_with_distinct_and_order(void* arg,
+							byte* key1,
+							byte* key2);
+  friend int dump_leaf_key(byte* key, uint32 count __attribute__((unused)),
+                  Item_func_group_concat *group_concat_item);
+
  public:
   String result;
   String *separator;
   TREE tree_base;
   TREE *tree;
   TABLE *table;
-  Item **expr;
   ORDER **order;
   TABLE_LIST *tables_list;
   ulong group_concat_max_len;
@@ -655,9 +670,6 @@ class Item_func_group_concat : public Item_sum
   uint arg_count_field;
   uint arg_show_fields;
   uint count_cut_values;
-  bool tree_mode, distinct;
-  bool warning_for_row;
-  bool always_null;
   /*
     Following is 0 normal object and pointer to original one for copy 
     (to correctly free resources)
@@ -673,10 +685,14 @@ class Item_func_group_concat : public Item_sum
      max_elements_in_tree(item.max_elements_in_tree),
      warning(item.warning),
      warning_available(item.warning_available),
+     key_length(item.key_length), 
+     rec_offset(item.rec_offset), 
+     tree_mode(0),
+     distinct(item.distinct),
+     warning_for_row(item.warning_for_row),
      separator(item.separator),
      tree(item.tree),      
      table(item.table),
-     expr(item.expr),
      order(item.order),
      tables_list(item.tables_list),
      group_concat_max_len(item.group_concat_max_len),
@@ -685,9 +701,6 @@ class Item_func_group_concat : public Item_sum
      arg_count_field(item.arg_count_field),
      arg_show_fields(item.arg_show_fields),
      count_cut_values(item.count_cut_values),
-     tree_mode(0),
-     distinct(item.distinct),
-     warning_for_row(item.warning_for_row),
      original(&item)
     {
      quick_group = 0;
