@@ -9887,6 +9887,7 @@ CHARSET_INFO my_charset_gbk =
     my_strnncoll_gbk,
     my_strnxfrm_gbk,
     my_like_range_gbk,
+    my_wildcmp_mb,	/* wildcmp  */
     2,			/* mbmaxlen */
     ismbchar_gbk,
     ismbhead_gbk,
@@ -9902,7 +9903,13 @@ CHARSET_INFO my_charset_gbk =
     my_strncasecmp_mb,
     my_hash_caseup_simple,
     my_hash_sort_simple,
-    0
+    0,
+    my_snprintf_8bit,
+    my_strtol_8bit,
+    my_strtoul_8bit,
+    my_strtoll_8bit,
+    my_strtoull_8bit,
+    my_strtod_8bit
 };
 
 

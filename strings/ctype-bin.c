@@ -145,11 +145,101 @@ void my_hash_sort_bin(CHARSET_INFO *cs __attribute__((unused)),
 }
 
 
+static int my_wildcmp_bin(CHARSET_INFO *cs,
+			   const char *str,const char *str_end,
+			   const char *wildstr,const char *wildend,
+			   int escape, int w_one, int w_many)
+{
+  int result= -1;				// Not found, using wildcards
+  
+  while (wildstr != wildend)
+  {
+    while (*wildstr != w_many && *wildstr != w_one)
+    {
+      if (*wildstr == escape && wildstr+1 != wildend)
+	wildstr++;
+      if (str == str_end || *wildstr++ != *str++)
+      {
+	return(1);
+      }
+      if (wildstr == wildend)
+      {
+	return(str != str_end);			// Match if both are at end
+      }
+      result=1;					// Found an anchor char
+    }
+    if (*wildstr == w_one)
+    {
+      do
+      {
+	if (str == str_end)			// Skip one char if possible
+	  return(result);
+	str++;
+      } while (*++wildstr == w_one && wildstr != wildend);
+      if (wildstr == wildend)
+	break;
+    }
+    if (*wildstr == w_many)
+    {						// Found w_many
+      char cmp;
+      
+      wildstr++;
+      /* Remove any '%' and '_' from the wild search string */
+      for (; wildstr != wildend ; wildstr++)
+      {
+	if (*wildstr == w_many)
+	  continue;
+	if (*wildstr == w_one)
+	{
+	  if (str == str_end)
+	  {
+	    return(-1);
+	  }
+	  str++;
+	  continue;
+	}
+	break;					// Not a wild character
+      }
+      if (wildstr == wildend)
+      {
+	return(0);				// Ok if w_many is last
+      }
+      if (str == str_end)
+      {
+	return(-1);
+      }
+      
+      if ((cmp= *wildstr) == escape && wildstr+1 != wildend)
+	cmp= *++wildstr;
+      wildstr++;				// This is compared trough cmp
+      do
+      {
+	while (str != str_end && *str != cmp)
+	  str++;
+	if (str++ == str_end)
+	{ 
+	  return(-1);
+	}
+	{
+	  int tmp=my_wildcmp_bin(cs,str,str_end,wildstr,wildend,escape,w_one,w_many);
+	  if (tmp <= 0)
+	  {
+	    return(tmp);
+	  }
+	}
+      } while (str != str_end && wildstr[0] != w_many);
+      return(-1);
+    }
+  }
+  return(str != str_end ? 1 : 0);
+}
+
+
 
 static CHARSET_INFO my_charset_bin_st =
 {
-    63,				/* number       */
-    MY_CS_COMPILED|MY_CS_BINSORT,/* state         */
+    63,				/* number        */
+    MY_CS_COMPILED|MY_CS_BINSORT,/* state        */
     "binary",			/* name          */
     "",				/* comment       */
     NULL,			/* ctype         */
@@ -161,8 +251,9 @@ static CHARSET_INFO my_charset_bin_st =
     0,				/* strxfrm_multiply */
     my_strnncoll_binary,	/* strnncoll     */
     NULL,			/* strxnfrm      */
-    NULL,			/* like_rabge    */
-    0,				/* mbmaxlen      */
+    NULL,			/* like_range    */
+    my_wildcmp_bin,		/* wildcmp       */
+    1,				/* mbmaxlen      */
     NULL,			/* ismbchar      */
     NULL,			/* ismbhead      */
     NULL,			/* mbcharlen     */
@@ -177,7 +268,14 @@ static CHARSET_INFO my_charset_bin_st =
     my_strncasecmp_bin,		/* strncasecmp   */
     my_hash_caseup_bin,		/* hash_caseup   */
     my_hash_sort_bin,		/* hash_sort     */
-    255				/* max_sort_char */
+    255,			/* max_sort_char */
+    my_snprintf_8bit,		/* snprintf      */
+    my_strtol_8bit,
+    my_strtoul_8bit,
+    my_strtoll_8bit,
+    my_strtoull_8bit,
+    my_strtod_8bit
+
 };
 
 

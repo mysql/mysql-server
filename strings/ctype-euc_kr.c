@@ -8649,7 +8649,8 @@ CHARSET_INFO my_charset_euc_kr =
     my_strnncoll_simple,/* strnncoll  */
     NULL,		/* strnxfrm   */
     NULL,		/* like_range */
-    2,			/* mbmaxlen */
+    my_wildcmp_mb,	/* wildcmp    */
+    2,			/* mbmaxlen   */
     ismbchar_euc_kr,
     ismbhead_euc_kr,
     mbcharlen_euc_kr,
@@ -8664,7 +8665,13 @@ CHARSET_INFO my_charset_euc_kr =
     my_strncasecmp_mb,
     my_hash_caseup_simple,
     my_hash_sort_simple,
-    0
+    0,
+    my_snprintf_8bit,
+    my_strtol_8bit,
+    my_strtoul_8bit,
+    my_strtoll_8bit,
+    my_strtoull_8bit,
+    my_strtod_8bit
 };
 
 #endif

@@ -4474,6 +4474,7 @@ CHARSET_INFO my_charset_sjis =
     my_strnncoll_sjis,
     my_strnxfrm_sjis,
     my_like_range_sjis,
+    my_wildcmp_mb,	/* wildcmp  */
     2,			/* mbmaxlen */
     ismbchar_sjis,
     ismbhead_sjis,
@@ -4489,7 +4490,13 @@ CHARSET_INFO my_charset_sjis =
     my_strncasecmp_8bit,
     my_hash_caseup_simple,
     my_hash_sort_simple,
-    0
+    0,
+    my_snprintf_8bit,
+    my_strtol_8bit,
+    my_strtoul_8bit,
+    my_strtoll_8bit,
+    my_strtoull_8bit,
+    my_strtod_8bit
 };
 
 #endif

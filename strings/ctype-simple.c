@@ -15,8 +15,10 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 #include <my_global.h>
+#include "my_sys.h"
 #include "m_ctype.h"
-#include "dbug.h"
+#include "m_string.h"
+#include "stdarg.h"
 #include "assert.h"
 
 int my_strnxfrm_simple(CHARSET_INFO * cs, 
@@ -120,6 +122,76 @@ int my_wc_mb_8bit(CHARSET_INFO *cs,my_wc_t wc,
 }
 
 
+#ifdef NOT_USED
+static int my_vsnprintf_8bit(char *to, size_t n, const char* fmt, va_list ap)
+{
+  char *start=to, *end=to+n-1;
+  for (; *fmt ; fmt++)
+  {
+    if (fmt[0] != '%')
+    {
+      if (to == end)			/* End of buffer */
+	break;
+      *to++= *fmt;			/* Copy ordinary char */
+      continue;
+    }
+    /* Skip if max size is used (to be compatible with printf) */
+    fmt++;
+    while (my_isdigit(system_charset_info,*fmt) || *fmt == '.' || *fmt == '-')
+      fmt++;
+    if (*fmt == 'l')
+      fmt++;
+    if (*fmt == 's')				/* String parameter */
+    {
+      reg2 char	*par = va_arg(ap, char *);
+      uint plen,left_len = (uint)(end-to);
+      if (!par) par = (char*)"(null)";
+      plen = (uint) strlen(par);
+      if (left_len <= plen)
+	plen = left_len - 1;
+      to=strnmov(to,par,plen);
+      continue;
+    }
+    else if (*fmt == 'd' || *fmt == 'u')	/* Integer parameter */
+    {
+      register int iarg;
+      if ((uint) (end-to) < 16)
+	break;
+      iarg = va_arg(ap, int);
+      if (*fmt == 'd')
+	to=int10_to_str((long) iarg,to, -10);
+      else
+	to=int10_to_str((long) (uint) iarg,to,10);
+      continue;
+    }
+    /* We come here on '%%', unknown code or too long parameter */
+    if (to == end)
+      break;
+    *to++='%';				/* % used as % or unknown code */
+  }
+  DBUG_ASSERT(to <= end);
+  *to='\0';				/* End of errmessage */
+  return (uint) (to - start);
+}
+#endif
+
+int my_snprintf_8bit(CHARSET_INFO *cs  __attribute__((unused)),
+		     char* to, uint n  __attribute__((unused)),
+		     const char* fmt, ...)
+{
+  va_list args;
+  va_start(args,fmt);
+#ifdef NOT_USED
+  return my_vsnprintf_8bit(to, n, fmt, args);
+#endif
+  /* 
+     FIXME: generally not safe, but it is OK for now
+     FIXME: as far as it's not called unsafely in the current code
+  */
+  return vsprintf(to,fmt,args); /* FIXME */
+}
+
+
 
 #ifndef NEW_HASH_FUNCTION
 
@@ -170,4 +242,128 @@ void my_hash_sort_simple(CHARSET_INFO *cs,
 	     ((uint) sort_order[(uint) *pos])) + (nr1[0] << 8);
     nr2[0]+=3;
   }
+}
+
+long        my_strtol_8bit(CHARSET_INFO *cs __attribute__((unused)),
+			   const char *s, char **e, int base)
+{
+  return strtol(s,e,base);
+}
+
+ulong      my_strtoul_8bit(CHARSET_INFO *cs __attribute__((unused)),
+			   const char *s, char **e, int base)
+{
+  return strtoul(s,e,base);
+}
+
+longlong   my_strtoll_8bit(CHARSET_INFO *cs __attribute__((unused)),
+			   const char *s, char **e, int base)
+{
+  return strtoll(s,e,base);
+}
+
+ulonglong my_strtoull_8bit(CHARSET_INFO *cs __attribute__((unused)),
+			   const char *s, char **e, int base)
+{
+  return strtoul(s,e,base);
+}
+
+double      my_strtod_8bit(CHARSET_INFO *cs __attribute__((unused)),
+			   const char *s, char **e)
+{
+  return strtod(s,e);
+}
+
+
+/*
+** Compare string against string with wildcard
+**	0 if matched
+**	-1 if not matched with wildcard
+**	 1 if matched with wildcard
+*/
+
+#ifdef LIKE_CMP_TOUPPER
+#define likeconv(s,A) (uchar) my_toupper(s,A)
+#else
+#define likeconv(s,A) (uchar) (s)->sort_order[(uchar) (A)]
+#endif
+
+#define INC_PTR(cs,A,B) A++
+
+
+int my_wildcmp_8bit(CHARSET_INFO *cs,
+		    const char *str,const char *str_end,
+		    const char *wildstr,const char *wildend,
+		    int escape, int w_one, int w_many)
+{
+  int result= -1;				// Not found, using wildcards
+
+  while (wildstr != wildend)
+  {
+    while (*wildstr != w_many && *wildstr != w_one)
+    {
+      if (*wildstr == escape && wildstr+1 != wildend)
+	wildstr++;
+
+      if (str == str_end || likeconv(cs,*wildstr++) != likeconv(cs,*str++))
+	return(1);				// No match
+      if (wildstr == wildend)
+	return (str != str_end);		// Match if both are at end
+      result=1;					// Found an anchor char
+    }
+    if (*wildstr == w_one)
+    {
+      do
+      {
+	if (str == str_end)			// Skip one char if possible
+	  return (result);
+	INC_PTR(cs,str,str_end);
+      } while (++wildstr < wildend && *wildstr == w_one);
+      if (wildstr == wildend)
+	break;
+    }
+    if (*wildstr == w_many)
+    {						// Found w_many
+      uchar cmp;
+      
+      wildstr++;
+      /* Remove any '%' and '_' from the wild search string */
+      for (; wildstr != wildend ; wildstr++)
+      {
+	if (*wildstr == w_many)
+	  continue;
+	if (*wildstr == w_one)
+	{
+	  if (str == str_end)
+	    return (-1);
+	  INC_PTR(cs,str,str_end);
+	  continue;
+	}
+	break;					// Not a wild character
+      }
+      if (wildstr == wildend)
+	return(0);				// Ok if w_many is last
+      if (str == str_end)
+	return -1;
+      
+      if ((cmp= *wildstr) == escape && wildstr+1 != wildend)
+	cmp= *++wildstr;
+
+      INC_PTR(cs,wildstr,wildend);		// This is compared trough cmp
+      cmp=likeconv(cs,cmp);   
+      do
+      {
+          while (str != str_end && likeconv(cs,*str) != cmp)
+            str++;
+          if (str++ == str_end) return (-1);
+	{
+	  int tmp=my_wildcmp_8bit(cs,str,str_end,wildstr,wildend,escape,w_one,w_many);
+	  if (tmp <= 0)
+	    return (tmp);
+	}
+      } while (str != str_end && wildstr[0] != w_many);
+      return(-1);
+    }
+  }
+  return (str != str_end ? 1 : 0);
 }

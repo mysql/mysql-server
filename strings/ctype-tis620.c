@@ -688,10 +688,10 @@ void ThNormalize(uchar* ptr, uint field_length, const uchar* from, uint length)
 
 CHARSET_INFO my_charset_tis620 =
 {
-    18,			/* number */
-    MY_CS_COMPILED,	/* state      */
-    "tis620",		/* name */
-    "",			/* comment    */
+    18,			/* number    */
+    MY_CS_COMPILED,	/* state     */
+    "tis620",		/* name      */
+    "",			/* comment   */
     ctype_tis620,
     to_lower_tis620,
     to_upper_tis620,
@@ -702,22 +702,29 @@ CHARSET_INFO my_charset_tis620 =
     my_strnncoll_tis620,
     my_strnxfrm_tis620,
     my_like_range_tis620,
-    0,			/* mbmaxlen  */
+    my_wildcmp_8bit,	/* wildcmp   */
+    1,			/* mbmaxlen  */
     NULL,		/* ismbchar  */
     NULL,		/* ismbhead  */
     NULL,		/* mbcharlen */
-    my_mb_wc_8bit,	/* mb_wc   */
-    my_wc_mb_8bit,	/* wc_mb   */
+    my_mb_wc_8bit,	/* mb_wc     */
+    my_wc_mb_8bit,	/* wc_mb     */
     my_caseup_str_8bit,
     my_casedn_str_8bit,
     my_caseup_8bit,
     my_casedn_8bit,
-    NULL,		/* tosort      */
+    NULL,		/* tosort    */
     my_strcasecmp_8bit,
     my_strncasecmp_8bit,
     my_hash_caseup_simple,
     my_hash_sort_simple,
-    0
+    0,
+    my_snprintf_8bit,
+    my_strtol_8bit,
+    my_strtoul_8bit,
+    my_strtoll_8bit,
+    my_strtoull_8bit,
+    my_strtod_8bit
 };
 
 
