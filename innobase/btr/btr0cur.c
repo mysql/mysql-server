@@ -808,7 +808,7 @@ btr_cur_optimistic_insert(
 
 	if (!dtuple_check_typed_no_assert(entry)) {
 		fprintf(stderr,
-"InnoDB: Error in a tuple to insert into table %lu index %lu\n",
+"InnoDB: Error in a tuple to insert into table %s index %s\n",
 					index->table_name, index->name);
 	}
 	

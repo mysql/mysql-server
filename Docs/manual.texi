@@ -46937,7 +46937,7 @@ Don't write slave-timeout reconnects to the error log.
 @item
 Fixed bug with slave net read timeouting
 @item
-Fixed a core-dump bug with @code{MERGE] tables and @code{MAX()} function.
+Fixed a core-dump bug with @code{MERGE} tables and @code{MAX()} function.
 @item
 Fixed bug in @code{ALTER TABLE} with BDB tables.
 @item
