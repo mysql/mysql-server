@@ -173,7 +173,7 @@ fi
 if test ! -f $mdata/func.frm
 then
   c_f="$c_f CREATE TABLE func ("
-  c_f="$c_f   name char(64) DEFAULT '' NOT NULL,"
+  c_f="$c_f   name char(64) binary DEFAULT '' NOT NULL,"
   c_f="$c_f   ret tinyint(1) DEFAULT '0' NOT NULL,"
   c_f="$c_f   dl char(128) DEFAULT '' NOT NULL,"
   c_f="$c_f   type enum ('function','aggregate') NOT NULL,"
