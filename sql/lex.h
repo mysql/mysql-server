@@ -397,6 +397,7 @@ static SYMBOL sql_functions[] = {
   { "BIT_OR",		SYM(BIT_OR),0,0},
   { "BIT_AND",		SYM(BIT_AND),0,0},
   { "CEILING",		SYM(FUNC_ARG1),0,CREATE_FUNC(create_func_ceiling)},
+  { "BIT_LENGTH",	SYM(FUNC_ARG1),0,CREATE_FUNC(create_func_bit_length)},
   { "CHAR_LENGTH",	SYM(FUNC_ARG1),0,CREATE_FUNC(create_func_char_length)},
   { "CHARACTER_LENGTH", SYM(FUNC_ARG1),0,CREATE_FUNC(create_func_char_length)},
   { "COALESCE",		SYM(COALESCE),0,0},

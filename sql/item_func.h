@@ -501,6 +501,14 @@ public:
   void fix_length_and_dec() { max_length=10; }
 };
 
+class Item_func_bit_length :public Item_func_length
+{
+public:
+  Item_func_bit_length(Item *a) :Item_func_length(a) {}
+  longlong val_int() { return Item_func_length::val_int()*8; }
+  const char *func_name() const { return "bit_length"; }
+};
+
 class Item_func_char_length :public Item_int_func
 {
   String value;
