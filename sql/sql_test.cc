@@ -189,7 +189,10 @@ TEST_join(JOIN *join)
 
 void mysql_print_status(THD *thd)
 {
+  char current_dir[FN_REFLEN];
   printf("\nStatus information:\n\n");
+  my_getwd(current_dir, sizeof(current_dir),MYF(0));
+  printf("Current dir: %s\n", current_dir);
   if (thd)
     thd->proc_info="locks";
   thr_print_locks();				// Write some debug info
