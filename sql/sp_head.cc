@@ -199,7 +199,16 @@ sp_head::execute_function(THD *thd, Item **argp, uint argcount, Item **resp)
   uint i;
   int ret;
 
-  // QQ Should have some error checking here? (no. of args, types, etc...)
+  if (argcount != params)
+  {
+    // Need to use my_printf_error here, or it will not terminate the
+    // invoking query properly.
+    my_printf_error(ER_SP_WRONG_NO_OF_ARGS, ER(ER_SP_WRONG_NO_OF_ARGS), MYF(0),
+		    "FUNCTION", m_name.str, params, argcount);
+    DBUG_RETURN(-1);
+  }
+
+  // QQ Should have some error checking here? (types, etc...)
   nctx= new sp_rcontext(csize);
   for (i= 0 ; i < params && i < argcount ; i++)
   {
@@ -234,6 +243,13 @@ sp_head::execute_procedure(THD *thd, List<Item> *args)
   sp_rcontext *nctx = NULL;
   my_bool tmp_octx = FALSE;	// True if we have allocated a temporary octx
 
+  if (args->elements != params)
+  {
+    net_printf(thd, ER_SP_WRONG_NO_OF_ARGS, "PROCEDURE", m_name.str,
+	       params, args->elements);
+    DBUG_RETURN(-1);
+  }
+
   if (csize > 0)
   {
     uint i;
@@ -246,7 +262,7 @@ sp_head::execute_procedure(THD *thd, List<Item> *args)
       octx = new sp_rcontext(csize);
       tmp_octx = TRUE;
     }
-    // QQ: No error checking whatsoever right now. Should do type checking?
+    // QQ: Should do type checking?
     for (i = 0 ; (it= li++) && i < params ; i++)
     {
       sp_pvar_t *pvar = m_pcont->find_pvar(i);

@@ -284,3 +284,4 @@
 "The update log is deprecated and replaced by the binary log. SET SQL_LOG_UPDATE has been ignored."
 "The update log is deprecated and replaced by the binary log. SET SQL_LOG_UPDATE has been translated to SET SQL_LOG_BIN."
 "Query execution was interrupted"
+"Wrong number of arguments for %s %s, expected %u, got %u"
