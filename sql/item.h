@@ -465,6 +465,16 @@ public:
   /* Cached values for virtual methods to save us one switch.  */
   enum Item_result item_result_type;
   enum Type item_type;
+
+  /*
+    Used when this item is used in a temporary table.
+    This is NOT placeholder metadata sent to client, as this value
+    is assigned after sending metadata (in setup_one_conversion_function).
+    For example in case of 'SELECT ?' you'll get MYSQL_TYPE_STRING both
+    in result set and placeholders metadata, no matter what type you will
+    supply for this placeholder in mysql_stmt_execute.
+  */
+  enum enum_field_types param_type;
   /*         
     Offset of placeholder inside statement text. Used to create
     no-placeholders version of this statement for the binary log.
@@ -475,12 +485,13 @@ public:
 
   enum Item_result result_type () const { return item_result_type; }
   enum Type type() const { return item_type; }
-  enum_field_types field_type() const { return MYSQL_TYPE_STRING; }
+  enum_field_types field_type() const { return param_type; }
 
   double val();
   longlong val_int();
   String *val_str(String*);
   bool get_time(TIME *tm);
+  bool get_date(TIME *tm, uint fuzzydate);
   int  save_in_field(Field *field, bool no_conversions);
 
   void set_null();

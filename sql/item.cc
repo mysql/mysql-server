@@ -629,6 +629,7 @@ Item_param::Item_param(unsigned pos_in_query_arg) :
   state(NO_VALUE),
   item_result_type(STRING_RESULT),
   item_type(STRING_ITEM),
+  param_type(MYSQL_TYPE_STRING),
   pos_in_query(pos_in_query_arg),
   set_param_func(default_set_param_func)
 {
@@ -805,6 +806,17 @@ bool Item_param::get_time(TIME *res)
     which is called from Item::get_time().
   */
   return Item::get_time(res);
+}
+
+
+bool Item_param::get_date(TIME *res, uint fuzzydate)
+{
+  if (state == TIME_VALUE)
+  {
+    *res= value.time;
+    return 0;
+  }
+  return Item::get_date(res, fuzzydate);
 }
 
 
