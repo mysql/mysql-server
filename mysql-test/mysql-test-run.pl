@@ -1261,6 +1261,7 @@ sub install_db ($$) {
 
   mtr_add_arg($args, "--no-defaults");
   mtr_add_arg($args, "--bootstrap");
+  mtr_add_arg($args, "--console");
   mtr_add_arg($args, "--skip-grant-tables");
   mtr_add_arg($args, "--basedir=%s", $path_my_basedir);
   mtr_add_arg($args, "--datadir=%s", $data_dir);
@@ -1604,6 +1605,7 @@ sub mysqld_arguments ($$$$$) {
     mtr_add_arg($args, "%s--no-defaults", $prefix);
   }
 
+  mtr_add_arg($args, "%s--console", $prefix);
   mtr_add_arg($args, "%s--basedir=%s", $prefix, $path_my_basedir);
   mtr_add_arg($args, "%s--character-sets-dir=%s", $prefix, $path_charsetsdir);
   mtr_add_arg($args, "%s--core", $prefix);
