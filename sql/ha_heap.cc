@@ -243,11 +243,7 @@ int ha_heap::create(const char *name, TABLE *table, HA_CREATE_INFO *create_info)
   int error;
 
   for (key= parts= 0; key < table->keys; key++)
-  {
     parts+= table->key_info[key].key_parts;
-    if (table->key_info[key].algorithm == HA_KEY_ALG_BTREE)
-      parts++; /* additional HA_KEYTYPE_END keyseg */
-  }
 
   if (!(keydef= (HP_KEYDEF*) my_malloc(table->keys * sizeof(HP_KEYDEF) +
 				       parts * sizeof(HA_KEYSEG), MYF(MY_WME))))
@@ -298,15 +294,6 @@ int ha_heap::create(const char *name, TABLE *table, HA_CREATE_INFO *create_info)
 	seg->null_bit= 0;
 	seg->null_pos= 0;
       }
-    }
-    if (pos->algorithm == HA_KEY_ALG_BTREE)
-    {
-      /* additional HA_KEYTYPE_END keyseg */
-      seg->type=     HA_KEYTYPE_END;
-      seg->length=   sizeof(byte*);
-      seg->flag=     0;
-      seg->null_bit= 0;
-      seg++;
     }
   }
   mem_per_row+= MY_ALIGN(table->reclength + 1, sizeof(char*));

@@ -85,15 +85,24 @@ int heap_create(const char *name, uint keys, HP_KEYDEF *keydef,
     memcpy(share->keydef, keydef, (size_t) (sizeof(keydef[0]) * keys));
     for (i= 0, keyinfo= share->keydef; i < keys; i++, keyinfo++)
     {
-      uint nsegs= keydef[i].keysegs;
+      keyinfo->seg= keyseg;
+      memcpy(keyseg, keydef[i].seg,
+	     (size_t) (sizeof(keyseg[0]) * keydef[i].keysegs));
+      keyseg+= keydef[i].keysegs;
 
       if (keydef[i].algorithm == HA_KEY_ALG_BTREE)
       {
+	/* additional HA_KEYTYPE_END keyseg */
+	keyseg->type=     HA_KEYTYPE_END;
+	keyseg->length=   sizeof(byte*);
+	keyseg->flag=     0;
+	keyseg->null_bit= 0;
+	keyseg++;
+	
 	init_tree(&keyinfo->rb_tree, 0, 0, sizeof(byte*), 
 		  (qsort_cmp2)keys_compare, 1, NULL, NULL);
 	keyinfo->delete_key= hp_rb_delete_key;
 	keyinfo->write_key= hp_rb_write_key;
-	nsegs++;
       }
       else
       {
@@ -102,12 +111,7 @@ int heap_create(const char *name, uint keys, HP_KEYDEF *keydef,
 	keyinfo->delete_key= hp_delete_key;
 	keyinfo->write_key= hp_write_key;
       }
-      keyinfo->seg= keyseg;
-      memcpy(keyseg, keydef[i].seg,
-	     (size_t) (sizeof(keyseg[0]) * nsegs));
-      keyseg+= nsegs;
     }
-
     share->min_records= min_records;
     share->max_records= max_records;
     share->data_length= share->index_length= 0;
