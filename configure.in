@@ -285,8 +285,10 @@ export CC CFLAGS LD LDFLAGS
 
 if test "$GXX" = "yes"
 then
-  # mysqld requires this when compiled with gcc
-  CXXFLAGS="$CXXFLAGS -fno-implicit-templates"
+  # mysqld requires -fno-implicit-templates.
+  # Disable exceptions as they seams to create problems with gcc and threads.
+  # mysqld doesn't use run-time-type-checking, so we disable it.
+  CXXFLAGS="$CXXFLAGS -fno-implicit-templates -fno-exceptions -fno-rtti"
 fi
 
 # Avoid bug in fcntl on some versions of linux

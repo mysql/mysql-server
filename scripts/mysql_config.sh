@@ -45,7 +45,7 @@ EOF
         exit 1
 }
 
-if ! test $# -gt 0; then usage; fi
+if test $# -le 0; then usage; fi
 
 while test $# -gt 0; do
         case $1 in
