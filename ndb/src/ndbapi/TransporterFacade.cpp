@@ -37,6 +37,16 @@
 //#define REPORT_TRANSPORTER
 //#define API_TRACE;
 
+static int numberToIndex(int number)
+{
+  return number - MIN_API_BLOCK_NO;
+}
+
+static int indexToNumber(int index)
+{
+  return index + MIN_API_BLOCK_NO;
+}
+
 #if defined DEBUG_TRANSPORTER
 #define TRP_DEBUG(t) ndbout << __FILE__ << ":" << __LINE__ << ":" << t << endl;
 #else
@@ -44,8 +54,6 @@
 #endif
 
 TransporterFacade* TransporterFacade::theFacadeInstance = NULL;
-ConfigRetriever *TransporterFacade::s_config_retriever= 0;
-
 
 /*****************************************************************************
  * Call back functions
@@ -324,7 +332,9 @@ copy(Uint32 * & insertPtr,
 extern "C"
 void 
 atexit_stop_instance(){
+  DBUG_ENTER("atexit_stop_instance");
   TransporterFacade::stop_instance();
+  DBUG_VOID_RETURN;
 }
 
 /**
@@ -334,57 +344,12 @@ atexit_stop_instance(){
  * Which is protected by a mutex
  */
 
-
-TransporterFacade* 
-TransporterFacade::start_instance(const char * connectString){
-
-  // TransporterFacade used from API get config from mgmt srvr
-  s_config_retriever= new ConfigRetriever(NDB_VERSION, NODE_TYPE_API);
-
-  s_config_retriever->setConnectString(connectString);
-  const char* error = 0;
-  do {
-    if(s_config_retriever->init() == -1)
-      break;
-    
-    if(s_config_retriever->do_connect() == -1)
-      break;
-
-    Uint32 nodeId = s_config_retriever->allocNodeId();
-    for(Uint32 i = 0; nodeId == 0 && i<5; i++){
-      NdbSleep_SecSleep(3);
-      nodeId = s_config_retriever->allocNodeId();
-    }
-    if(nodeId == 0)
-      break;
-
-    ndb_mgm_configuration * props = s_config_retriever->getConfig();
-    if(props == 0)
-      break;
-    
-    TransporterFacade * tf = start_instance(nodeId, props);
-    
-    free(props);
-    return tf;
-  } while(0);
-  
-  ndbout << "Configuration error: ";
-  const char* erString = s_config_retriever->getErrorString();
-  if (erString == 0) {
-    erString = "No error specified!";
-  }
-  ndbout << erString << endl;
-  return 0;
-}
-
-TransporterFacade* 
+int
 TransporterFacade::start_instance(int nodeId, 
 				  const ndb_mgm_configuration* props)
 {
-  TransporterFacade* tf = new TransporterFacade(); 
-  if (! tf->init(nodeId, props)) {
-    delete tf;
-    return NULL;
+  if (! theFacadeInstance->init(nodeId, props)) {
+    return -1;
   }
   
   /**
@@ -402,19 +367,7 @@ TransporterFacade::start_instance(int nodeId,
   signal(SIGPIPE, SIG_IGN);
 #endif
 
-  if(theFacadeInstance == NULL){
-    theFacadeInstance = tf;
-  }
-  
-  return tf;
-}
-
-void
-TransporterFacade::close_configuration(){
-  if (s_config_retriever) {
-    delete s_config_retriever;
-    s_config_retriever= 0;
-  }
+  return 0;
 }
 
 /**
@@ -425,23 +378,21 @@ TransporterFacade::close_configuration(){
  */
 void
 TransporterFacade::stop_instance(){
-
-  close_configuration();
-
+  DBUG_ENTER("TransporterFacade::stop_instance");
   if(theFacadeInstance == NULL){
     /**
      * We are called from atexit function
      */
-    return;
+    DBUG_VOID_RETURN;
   }
 
   theFacadeInstance->doStop();
-  
-  delete theFacadeInstance; theFacadeInstance = NULL;
+  DBUG_VOID_RETURN;
 }
 
 void
 TransporterFacade::doStop(){
+  DBUG_ENTER("TransporterFacade::doStop");
   /**
    * First stop the ClusterMgr because it needs to send one more signal
    * and also uses theFacadeInstance to lock/unlock theMutexPtr
@@ -458,6 +409,7 @@ TransporterFacade::doStop(){
   NdbThread_WaitFor(theSendThread, &status);
   NdbThread_Destroy(&theReceiveThread);
   NdbThread_Destroy(&theSendThread);
+  DBUG_VOID_RETURN;
 }
 
 extern "C" 
@@ -540,6 +492,8 @@ TransporterFacade::TransporterFacade() :
   theSendThread(NULL),
   theReceiveThread(NULL)
 {
+  theOwnId = 0;
+
   theMutexPtr = NdbMutex_Create();
   sendPerformedLastInterval = 0;
 
@@ -549,6 +503,8 @@ TransporterFacade::TransporterFacade() :
   theArbitMgr = NULL;
   theStartNodeId = 1;
   m_max_trans_id = 0;
+
+  theClusterMgr = new ClusterMgr(* this);
 }
 
 bool
@@ -567,7 +523,6 @@ TransporterFacade::init(Uint32 nodeId, const ndb_mgm_configuration* props)
   
   ndb_mgm_configuration_iterator iter(* props, CFG_SECTION_NODE);
   iter.first();
-  theClusterMgr = new ClusterMgr(* this);
   theClusterMgr->init(iter);
   
   /**
@@ -608,7 +563,6 @@ TransporterFacade::init(Uint32 nodeId, const ndb_mgm_configuration* props)
                                    32768,
                                    "ndb_send",
                                    NDB_THREAD_PRIO_LOW);
-
   theClusterMgr->startThread();
   
 #ifdef API_TRACE
@@ -618,6 +572,21 @@ TransporterFacade::init(Uint32 nodeId, const ndb_mgm_configuration* props)
   return true;
 }
 
+
+void
+TransporterFacade::connected()
+{
+  DBUG_ENTER("TransporterFacade::connected");
+  Uint32 sz = m_threads.m_statusNext.size();
+  for (Uint32 i = 0; i < sz ; i ++) {
+    if (m_threads.getInUse(i)){
+      void * obj = m_threads.m_objectExecute[i].m_object;
+      NodeStatusFunction RegPC = m_threads.m_statusFunction[i];
+      (*RegPC) (obj, numberToRef(indexToNumber(i), theOwnId), true, true);
+    }
+  }
+  DBUG_VOID_RETURN;
+}
 
 void
 TransporterFacade::ReportNodeDead(NodeId tNodeId)
@@ -705,7 +674,16 @@ TransporterFacade::open(void* objRef,
                         ExecuteFunction fun, 
                         NodeStatusFunction statusFun)
 {
-  return m_threads.open(objRef, fun, statusFun);
+  DBUG_ENTER("TransporterFacade::open");
+  int r= m_threads.open(objRef, fun, statusFun);
+  if (r < 0)
+    DBUG_RETURN(r);
+#if 1
+  if (theOwnId > 0) {
+    (*statusFun)(objRef, numberToRef(r, theOwnId), true, true);
+  }
+#endif
+  DBUG_RETURN(r);
 }
 
 TransporterFacade::~TransporterFacade(){
@@ -748,7 +726,7 @@ TransporterFacade::calculateSendLimit()
 //-------------------------------------------------
 void TransporterFacade::forceSend(Uint32 block_number) {
   checkCounter--;
-  m_threads.m_statusNext[block_number - MIN_API_BLOCK_NO] = ThreadData::ACTIVE;
+  m_threads.m_statusNext[numberToIndex(block_number)] = ThreadData::ACTIVE;
   sendPerformedLastInterval = 1;
   if (checkCounter < 0) {
     calculateSendLimit();
@@ -761,7 +739,7 @@ void TransporterFacade::forceSend(Uint32 block_number) {
 //-------------------------------------------------
 void
 TransporterFacade::checkForceSend(Uint32 block_number) {  
-  m_threads.m_statusNext[block_number - MIN_API_BLOCK_NO] = ThreadData::ACTIVE;
+  m_threads.m_statusNext[numberToIndex(block_number)] = ThreadData::ACTIVE;
   //-------------------------------------------------
   // This code is an adaptive algorithm to discover when
   // the API should actually send its buffers. The reason
@@ -1002,11 +980,12 @@ TransporterFacade::ThreadData::expand(Uint32 size){
   m_firstFree = m_statusNext.size() - size;
 }
 
+
 int
 TransporterFacade::ThreadData::open(void* objRef, 
-					   ExecuteFunction fun, 
-					   NodeStatusFunction fun2){
-
+				    ExecuteFunction fun, 
+				    NodeStatusFunction fun2)
+{
   Uint32 nextFree = m_firstFree;
 
   if(m_statusNext.size() >= MAX_NO_THREADS && nextFree == END_OF_LIST){
@@ -1026,12 +1005,12 @@ TransporterFacade::ThreadData::open(void* objRef,
   m_objectExecute[nextFree] = oe;
   m_statusFunction[nextFree] = fun2;
 
-  return nextFree + MIN_API_BLOCK_NO;
+  return indexToNumber(nextFree);
 }
 
 int
 TransporterFacade::ThreadData::close(int number){
-  number -= MIN_API_BLOCK_NO;
+  number= numberToIndex(number);
   assert(getInUse(number));
   m_statusNext[number] = m_firstFree;
   m_firstFree = number;

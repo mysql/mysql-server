@@ -42,6 +42,7 @@ void NdbGlobalEventBuffer_drop(NdbGlobalEventBufferHandle *);
 static int theNoOfNdbObjects = 0;
 
 static char *ndbConnectString = 0;
+static Ndb_cluster_connection *global_ndb_cluster_connection= 0;
 
 #if defined NDB_WIN32 || defined SCO
 static NdbMutex & createNdbMutex = * NdbMutex_Create();
@@ -56,45 +57,74 @@ Ndb(const char* aDataBase);
 Parameters:    aDataBase : Name of the database.
 Remark:        Connect to the database.
 ***************************************************************************/
-Ndb::Ndb( const char* aDataBase , const char* aSchema) :
-  theNdbObjectIdMap(0),
-  thePreparedTransactionsArray(NULL),
-  theSentTransactionsArray(NULL),
-  theCompletedTransactionsArray(NULL),
-  theNoOfPreparedTransactions(0),
-  theNoOfSentTransactions(0),
-  theNoOfCompletedTransactions(0),
-  theNoOfAllocatedTransactions(0),
-  theMaxNoOfTransactions(0),
-  theMinNoOfEventsToWakeUp(0),
-  prefixEnd(NULL),
-  theImpl(NULL),
-  theDictionary(NULL),
-  theConIdleList(NULL),
-  theOpIdleList(NULL),
-  theScanOpIdleList(NULL),
-  theIndexOpIdleList(NULL),
-//  theSchemaConIdleList(NULL),
-//  theSchemaConToNdbList(NULL),
-  theTransactionList(NULL),
-  theConnectionArray(NULL),
-  theRecAttrIdleList(NULL),
-  theSignalIdleList(NULL),
-  theLabelList(NULL),
-  theBranchList(NULL),
-  theSubroutineList(NULL),
-  theCallList(NULL),
-  theScanList(NULL),
-  theNdbBlobIdleList(NULL),
-  theNoOfDBnodes(0),
-  theDBnodes(NULL),
-  the_release_ind(NULL),
-  the_last_check_time(0),
-  theFirstTransId(0),
-  theRestartGCI(0),
-  theNdbBlockNumber(-1),
-  theInitState(NotConstructed)
+Ndb::Ndb( const char* aDataBase , const char* aSchema) {
+  if (global_ndb_cluster_connection == 0) {
+    if (theNoOfNdbObjects > 0)
+      abort(); // old and new Ndb constructor used mixed
+    global_ndb_cluster_connection= new Ndb_cluster_connection(ndbConnectString);
+    global_ndb_cluster_connection->connect();
+  }
+  setup(global_ndb_cluster_connection, aDataBase, aSchema);
+}
+
+Ndb::Ndb( Ndb_cluster_connection *ndb_cluster_connection,
+	  const char* aDataBase , const char* aSchema)
 {
+  if (global_ndb_cluster_connection != 0 &&
+      global_ndb_cluster_connection != ndb_cluster_connection)
+    abort(); // old and new Ndb constructor used mixed
+  setup(ndb_cluster_connection, aDataBase, aSchema);
+}
+
+void Ndb::setup(Ndb_cluster_connection *ndb_cluster_connection,
+	  const char* aDataBase , const char* aSchema)
+{
+  DBUG_ENTER("Ndb::setup");
+
+  theNdbObjectIdMap= 0;
+  m_ndb_cluster_connection= ndb_cluster_connection;
+  thePreparedTransactionsArray= NULL;
+  theSentTransactionsArray= NULL;
+  theCompletedTransactionsArray= NULL;
+  theNoOfPreparedTransactions= 0;
+  theNoOfSentTransactions= 0;
+  theNoOfCompletedTransactions= 0;
+  theNoOfAllocatedTransactions= 0;
+  theMaxNoOfTransactions= 0;
+  theMinNoOfEventsToWakeUp= 0;
+  prefixEnd= NULL;
+  theImpl= NULL;
+  theDictionary= NULL;
+  theConIdleList= NULL;
+  theOpIdleList= NULL;
+  theScanOpIdleList= NULL;
+  theIndexOpIdleList= NULL;
+//  theSchemaConIdleList= NULL;
+//  theSchemaConToNdbList= NULL;
+  theTransactionList= NULL;
+  theConnectionArray= NULL;
+  theRecAttrIdleList= NULL;
+  theSignalIdleList= NULL;
+  theLabelList= NULL;
+  theBranchList= NULL;
+  theSubroutineList= NULL;
+  theCallList= NULL;
+  theScanList= NULL;
+  theNdbBlobIdleList= NULL;
+  theNoOfDBnodes= 0;
+  theDBnodes= NULL;
+  the_release_ind= NULL;
+  the_last_check_time= 0;
+  theFirstTransId= 0;
+  theRestartGCI= 0;
+  theNdbBlockNumber= -1;
+  theInitState= NotConstructed;
+
+  theNode= 0;
+  theFirstTransId= 0;
+  theMyRef= 0;
+  theNoOfDBnodes= 0;
+
   fullyQualifiedNames = true;
 
   cgetSignals =0;
@@ -135,18 +165,8 @@ Ndb::Ndb( const char* aDataBase , const char* aSchema) :
 
   NdbMutex_Lock(&createNdbMutex);
   
-  TransporterFacade * m_facade = 0;
-  if(theNoOfNdbObjects == 0){
-    if ((m_facade = TransporterFacade::start_instance(ndbConnectString)) == 0)
-      theInitState = InitConfigError;
-  } else {
-    m_facade = TransporterFacade::instance();
-  }
-  
-  if(m_facade != 0){
-    theWaiter.m_mutex = m_facade->theMutexPtr;
-  } 
-  
+  theWaiter.m_mutex =  TransporterFacade::instance()->theMutexPtr;
+
   // For keeping track of how many Ndb objects that exists.
   theNoOfNdbObjects += 1;
   
@@ -167,6 +187,13 @@ Ndb::Ndb( const char* aDataBase , const char* aSchema) :
   }
 
   NdbMutex_Unlock(&createNdbMutex);
+
+  theDictionary = new NdbDictionaryImpl(*this);
+  if (theDictionary == NULL) {
+    ndbout_c("Ndb cailed to allocate dictionary");
+    exit(-1);
+  }
+  DBUG_VOID_RETURN;
 }
 
 
@@ -187,6 +214,7 @@ void Ndb::setConnectString(const char * connectString)
  *****************************************************************************/
 Ndb::~Ndb()
 { 
+  DBUG_ENTER("Ndb::~Ndb()");
   doDisconnect();
 
   delete theDictionary;  
@@ -203,6 +231,10 @@ Ndb::~Ndb()
   theNoOfNdbObjects -= 1;
   if(theNoOfNdbObjects == 0){
     TransporterFacade::stop_instance();
+    if (global_ndb_cluster_connection != 0) {
+      delete global_ndb_cluster_connection;
+      global_ndb_cluster_connection= 0;
+    }
   }//if
 
   NdbMutex_Unlock(&createNdbMutex);
@@ -271,6 +303,7 @@ Ndb::~Ndb()
   assert(cnewSignals == cfreeSignals);
   assert(cgetSignals == creleaseSignals);
 #endif
+  DBUG_VOID_RETURN;
 }
 
 NdbWaiter::NdbWaiter(){

@@ -14,19 +14,7 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-
-
-/*****************************************************************************
-Name:          NdbConnection.C
-Include:
-Link:
-Author:        UABMNST Mona Natterkvist UAB/B/UL                         
-Date:          970829
-Version:       0.1
-Description:   Interface between TIS and NDB
-Documentation:
-Adjust:  971022  UABMNST   First version.
-*****************************************************************************/
+#include <ndb_global.h>
 #include <NdbOut.hpp>
 #include <NdbConnection.hpp>
 #include <NdbOperation.hpp>
@@ -104,7 +92,9 @@ Remark:        Deletes the connection object.
 *****************************************************************************/
 NdbConnection::~NdbConnection()
 {
+  DBUG_ENTER("NdbConnection::~NdbConnection");
   theNdb->theNdbObjectIdMap->unmap(theId, this);
+  DBUG_VOID_RETURN;
 }//NdbConnection::~NdbConnection()
 
 /*****************************************************************************
