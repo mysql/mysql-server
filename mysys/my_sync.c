@@ -27,7 +27,14 @@
     my_flags		Flags (now only MY_WME is supported)
 
   NOTE
-    If file system supports its, only file data is synced, not inode date
+    If file system supports its, only file data is synced, not inode data.
+
+    MY_IGNORE_BADFD is useful when fd is "volatile" - not protected by a
+    mutex. In this case by the time of fsync(), fd may be already closed by
+    another thread, or even reassigned to a different file. With this flag -
+    MY_IGNORE_BADFD - such a situation will not be considered an error.
+    (which is correct behaviour, if we know that the other thread synced the
+    file before closing)
 
   RETURN
     0 ok
@@ -55,10 +62,15 @@ int my_sync(File fd, myf my_flags)
 
   if (res)
   {
-    if (!(my_errno= errno))
-      my_errno= -1;				/* Unknown error */
-    if (my_flags & MY_WME)
+    int er= errno;
+    if (!(my_errno= er))
+      my_errno= -1;                             /* Unknown error */
+    if (my_flags & MY_IGNORE_BADFD &&
+        (er == EBADF || er == EINVAL || er == EROFS))
+      res= 0;
+    else if (my_flags & MY_WME)
       my_error(EE_SYNC, MYF(ME_BELL+ME_WAITTANG), my_filename(fd), my_errno);
   }
   DBUG_RETURN(res);
-} /* my_read */
+} /* my_sync */
+
