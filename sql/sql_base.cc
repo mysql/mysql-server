@@ -149,7 +149,7 @@ OPEN_TABLE_LIST *list_open_tables(THD *thd, const char *wild)
     TABLE *entry=(TABLE*) hash_element(&open_cache,idx);
     TABLE_SHARE *share= entry->s;
 
-    DBUG_ASSERT(share->table_name);
+    DBUG_ASSERT(share->table_name != 0);
     if ((!share->table_name))			// To be removed
       continue;					// Shouldn't happen
     if (wild)
@@ -962,7 +962,7 @@ TABLE *open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
         }
         else
         {
-          DBUG_ASSERT(table_list->view);
+          DBUG_ASSERT(table_list->view != 0);
           VOID(pthread_mutex_unlock(&LOCK_open));
           DBUG_RETURN(0); // VIEW
         }
@@ -1188,7 +1188,7 @@ bool reopen_table(TABLE *table,bool locked)
   table->s= &table->share_not_to_be_used;
   table->file->change_table_ptr(table);
 
-  DBUG_ASSERT(table->alias);
+  DBUG_ASSERT(table->alias != 0);
   for (field=table->field ; *field ; field++)
   {
     (*field)->table= (*field)->orig_table= table;
@@ -2781,7 +2781,6 @@ bool setup_fields(THD *thd, Item **ref_pointer_array, TABLE_LIST *tables,
 {
   reg2 Item *item;
   List_iterator<Item> it(fields);
-  SELECT_LEX *select_lex= thd->lex->current_select;
   DBUG_ENTER("setup_fields");
 
   thd->set_query_id=set_query_id;
@@ -2839,7 +2838,7 @@ TABLE_LIST **make_leaves_list(TABLE_LIST **list, TABLE_LIST *tables)
     if (table->view && !table->table)
     {
       /* it is for multi table views only, check it */
-      DBUG_ASSERT(table->ancestor->next_local);
+      DBUG_ASSERT(table->ancestor->next_local != 0);
       list= make_leaves_list(list, table->ancestor);
     }
     else
@@ -3255,7 +3254,6 @@ err:
 
 int setup_conds(THD *thd, TABLE_LIST *tables, TABLE_LIST *leaves, COND **conds)
 {
-  table_map not_null_tables= 0;
   SELECT_LEX *select_lex= thd->lex->current_select;
   Item_arena *arena= thd->current_arena, backup;
   bool save_wrapper= thd->lex->current_select->no_wrap_view_item;

@@ -622,7 +622,6 @@ bool is_update_query(enum enum_sql_command command)
 
 static void time_out_user_resource_limits(THD *thd, USER_CONN *uc)
 {
-  bool error= 0;
   time_t check_time = thd->start_time ?  thd->start_time : time(NULL);
   DBUG_ENTER("time_out_user_resource_limits");
 
@@ -1327,7 +1326,6 @@ int end_trans(THD *thd, enum enum_mysql_completiontype completion)
 {
   bool do_release= 0;
   int res= 0;
-  LEX *lex= thd->lex;
   DBUG_ENTER("end_trans");
 
   switch (completion) {
@@ -1788,9 +1786,9 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     {
       statistic_increment(thd->status_var.com_stat[SQLCOM_DROP_DB],
 			  &LOCK_status);
-      char *db=thd->strdup(packet), *alias;
+      char *db=thd->strdup(packet);
       /*  null test to handle EOM */
-      if (!db || !(alias= thd->strdup(db)) || check_db_name(db))
+      if (!db || check_db_name(db))
       {
 	my_error(ER_WRONG_DB_NAME, MYF(0), db ? db : "NULL");
 	break;
@@ -3539,8 +3537,7 @@ unsent_create_error:
   }
   case SQLCOM_DROP_DB:
   {
-    char *alias;
-    if (!(alias=thd->strdup(lex->name)) || check_db_name(lex->name))
+    if (check_db_name(lex->name))
     {
       my_error(ER_WRONG_DB_NAME, MYF(0), lex->name);
       break;
@@ -3989,7 +3986,7 @@ unsent_create_error:
     char *name, *db;
     int result;
 
-    DBUG_ASSERT(lex->sphead);
+    DBUG_ASSERT(lex->sphead != 0);
 
     if (check_access(thd, CREATE_PROC_ACL, lex->sphead->m_db.str, 0, 0, 0))
     {
