@@ -1421,7 +1421,8 @@ not always make sense; please check the manual before using it).";
     We don't do it for <3.23.57 because masters <3.23.50 hang on
     SELECT @@unknown_var (BUG#7965 - see changelog of 3.23.50).
   */
-  if (mi->old_format == BINLOG_FORMAT_323_LESS_57)
+  if (strncmp(mi->rli.relay_log.description_event_for_queue->server_version,
+              "3.23.57",7) < 0)
     goto err;
   if (!mysql_real_query(mysql, "SELECT @@GLOBAL.COLLATION_SERVER", 32) &&
       (master_res= mysql_store_result(mysql)))
