@@ -484,7 +484,8 @@ int ha_myisam::repair(THD* thd, HA_CHECK_OPT *check_opt)
     }
     break;
   }
-  if (!error && start_records != file->state->records)
+  if (!error && start_records != file->state->records &&
+      !(check_opt->flags & T_VERY_SILENT))
   {
     char llbuff[22],llbuff2[22];
     sql_print_error("Warning: Found %s of %s rows when repairing '%s'",

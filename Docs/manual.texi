@@ -23588,7 +23588,7 @@ The @code{GEMINI} table type is developed and supported by NuSphere Corporation
 (@uref{http://www.nusphere.com}).  It features row-level locking, transaction
 support (@code{COMMIT} and @code{ROLLBACK}), and automatic crash recovery.
 
-@code{GEMINI} tables will be included in the @strong{MySQL} 4.0 source
+@code{GEMINI} tables will be included in the @strong{MySQL} 3.23.35 source
 distribution.
 
 @node GEMINI start, GEMINI features, GEMINI overview, GEMINI
@@ -23669,7 +23669,7 @@ Innobase is included in the @strong{MySQL} source distribution starting
 from 3.23.34 and will be activated in the @strong{MySQL}-max binary.
 
 If you have downloaded a binary version of @strong{MySQL} that includes
-support for Berkeley DB, simply follow the instructions for
+support for Innobase, simply follow the instructions for
 installing a binary version of @strong{MySQL}. @xref{Installing binary}.
 
 To compile @strong{MySQL} with Innobase support, download @strong{MySQL}
@@ -23678,7 +23678,7 @@ To compile @strong{MySQL} with Innobase support, download @strong{MySQL}
 
 @example
 cd /path/to/source/of/mysql-3.23.34
-./configure --with-berkeley-db
+./configure --with-innobase
 @end example
 
 Innobase provides MySQL with a transaction safe table handler with
@@ -47192,6 +47192,11 @@ characters in database, table and column names.
 @item
 Add a portable interface over @code{gethostbyaddr_r()} so that we can change
 @code{ip_to_hostname()} to not block other threads while doing DNS lookups.
+@item
+Add @code{record_in_range()} method to @code{MERGE} tables to be
+able to choose the right index when there is many to choose from. We should
+also extend the info interface to get the key distribution for each index,
+of @code{analyze} is run on all sub tables.
 @end itemize
 
 @node TODO future, TODO sometime, TODO MySQL 4.0, TODO
