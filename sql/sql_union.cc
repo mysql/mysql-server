@@ -117,7 +117,6 @@ int st_select_lex_unit::prepare(THD *thd, select_result *sel_result,
 {
   SELECT_LEX_NODE *lex_select_save= thd->lex.current_select;
   SELECT_LEX *select_cursor;
-  TMP_TABLE_PARAM tmp_table_param;
   DBUG_ENTER("st_select_lex_unit::prepare");
 
   if (prepared)
