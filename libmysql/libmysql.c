@@ -1116,25 +1116,6 @@ mysql_fetch_field(MYSQL_RES *result)
 
 
 /**************************************************************************
-  Get column lengths of the current row
-  If one uses mysql_use_result, res->lengths contains the length information,
-  else the lengths are calculated from the offset between pointers.
-**************************************************************************/
-
-ulong * STDCALL
-mysql_fetch_lengths(MYSQL_RES *res)
-{
-  MYSQL_ROW column;
-
-  if (!(column=res->current_row))
-    return 0;					/* Something is wrong */
-  if (res->data)
-    (*res->methods->fetch_lengths)(res->lengths, column, res->field_count);
-  return res->lengths;
-}
-
-
-/**************************************************************************
   Move to a specific row and column
 **************************************************************************/
 
