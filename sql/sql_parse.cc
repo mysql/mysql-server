@@ -800,11 +800,10 @@ check_connection(THD *thd)
   /* Since 4.1 all database names are stored in utf8 */
   if (db)
   {
-    uint32 length= copy_and_convert(db_buff, sizeof(db_buff)-1,
-				    system_charset_info,
-				    db, strlen(db),
-				    thd->charset());
-    db_buff[length]= 0;
+    db_buff[copy_and_convert(db_buff, sizeof(db_buff)-1,
+                             system_charset_info,
+                             db, strlen(db),
+                             thd->charset())]= 0;
     db= db_buff;
   }
 
@@ -1191,6 +1190,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
       password.  New clients send the size (1 byte) + string (not null
       terminated, so also '\0' for empty string).
     */
+    char db_buff[NAME_LEN+1];                 // buffer to store db in utf8 
     char *db= passwd;
     uint passwd_len= thd->client_capabilities & CLIENT_SECURE_CONNECTION ? 
       *passwd++ : strlen(passwd);
@@ -1203,10 +1203,10 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     }
 
     /* Convert database name to utf8 */
-    String convdb;
-    convdb.copy(db, strlen(db), thd->variables.character_set_client,
-                system_charset_info);
-    db= convdb.c_ptr();
+    db_buff[copy_and_convert(db_buff, sizeof(db_buff)-1,
+                             system_charset_info, db, strlen(db),
+                             thd->charset())]= 0;
+    db= db_buff;
 
     /* Save user and privileges */
     uint save_master_access= thd->master_access;
