@@ -546,23 +546,22 @@ void NdbEventImpl::setName(const char * name)
   m_externalName.assign(name);
 }
 
+const char *NdbEventImpl::getName() const
+{
+  return m_externalName.c_str();
+}
+
 void 
 NdbEventImpl::setTable(const char * table)
 {
   m_tableName.assign(table);
 }
 
-const char * 
-NdbEventImpl::getTable() const
+const char *
+NdbEventImpl::getTableName() const
 {
   return m_tableName.c_str();
 }
-
-const char * 
-NdbEventImpl::getName() const
-{
-  return m_externalName.c_str();
-} 
 
 void
 NdbEventImpl::addTableEvent(const NdbDictionary::Event::TableEvent t =  NdbDictionary::Event::TE_ALL)
@@ -579,6 +578,17 @@ void
 NdbEventImpl::setDurability(const NdbDictionary::Event::EventDurability d)
 {
   m_dur = d;
+}
+
+NdbDictionary::Event::EventDurability
+NdbEventImpl::getDurability() const
+{
+  return m_dur;
+}
+
+int NdbEventImpl::getNoOfEventColumns() const
+{
+  return m_attrIds.size() + m_columns.size();
 }
 
 /**
@@ -2233,12 +2243,12 @@ int
 NdbDictionaryImpl::createEvent(NdbEventImpl & evnt)
 {
   int i;
-  NdbTableImpl* tab = getTable(evnt.getTable());
+  NdbTableImpl* tab = getTable(evnt.getTableName());
 
   if(tab == 0){
 #ifdef EVENT_DEBUG
     ndbout_c("NdbDictionaryImpl::createEvent: table not found: %s",
-	     evnt.getTable());
+	     evnt.getTableName());
 #endif
     return -1;
   }
@@ -2260,7 +2270,8 @@ NdbDictionaryImpl::createEvent(NdbEventImpl & evnt)
       evnt.m_facade->addColumn(*(col_impl->m_facade));
     } else {
       ndbout_c("Attr id %u in table %s not found", evnt.m_attrIds[i],
-	       evnt.getTable());
+	       evnt.getTableName());
+      m_error.code= 4713;
       return -1;
     }
   }
@@ -2518,8 +2529,8 @@ NdbDictionaryImpl::getEvent(const char * eventName)
   }
 
   // We only have the table name with internal name
-  ev->setTable(m_ndb.externalizeTableName(ev->getTable()));
-  ev->m_tableImpl = getTable(ev->getTable());
+  ev->setTable(m_ndb.externalizeTableName(ev->getTableName()));
+  ev->m_tableImpl = getTable(ev->getTableName());
 
   // get the columns from the attrListBitmask
 
