@@ -18274,6 +18274,9 @@ exist.
 @code{RESTRICT} and @code{CASCADE} are allowed to make porting easier.
 For the moment they don't do anything.
 
+@strong{NOTE}: @code{DROP TABLE} is not transaction safe and will
+automaticly commit any active transactions.
+
 @cindex tables, defragment
 @cindex tables, fragmentation
 @findex OPTIMIZE TABLE
@@ -21276,6 +21279,9 @@ You can also lock all tables in all databases with read locks with the
 convinient way to get backups if you have a file system, like Veritas,
 that can take snapshots in time.
 
+@strong{NOTE}: @code{LOCK TABLES} is not transaction safe and will
+automaticly commit any active transactions before attempting to lock the
+tables.
 
 @findex SET OPTION
 @node SET OPTION, GRANT, LOCK TABLES, Reference
@@ -40017,6 +40023,8 @@ though, so Version 3.23 is not released as a stable version yet.
 @node News-3.23.30, News-3.23.29, News-3.23.x, News-3.23.x
 @appendixsubsec Changes in release 3.23.30
 @itemize @bullet
+@item
+@code{LOCK TABLES} will now automaticly start a new transaction.
 @item
 Changed BDB tables to not use internal subtransactions and reuse open files to
 get more speed.

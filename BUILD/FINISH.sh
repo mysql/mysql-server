@@ -14,7 +14,8 @@ fi
 
 $make $AM_MAKEFLAGS
 if [ "x$strip" = "xyes" ]; then
-  nm --numeric-sort sql/mysqld  > mysqld.sym
-  objdump -d sql/mysqld > mysqld.S 
+  mkdir -p tmp
+  nm --numeric-sort sql/mysqld  > tmp/mysqld.sym
+  objdump -d sql/mysqld > tmp/mysqld.S
   strip sql/mysqld
 fi  

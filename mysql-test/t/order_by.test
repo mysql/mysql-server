@@ -74,7 +74,7 @@ select distinct i from t1;
 select distinct i from t1 order by rand(5);
 select distinct i from t1 order by i desc;
 select distinct i from t1 order by 1-i;
-select distinct i from t1 order by mod(i,2);
+select distinct i from t1 order by mod(i,2),i;
 drop table t1;
 
 #

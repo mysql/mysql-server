@@ -728,11 +728,6 @@ case $SYSTEM_TYPE in
     fi
     CXXFLAGS="-D_BOOL"
     ;;
-    *dec-osf4*)
-      echo "Adding fix to not use gethostbyname_r"
-      CFLAGS="$CFLAGS -DUNDEF_HAVE_GETHOSTBYNAME_R"
-      CXXFLAGS="$CXXFLAGS -DUNDEF_HAVE_GETHOSTBYNAME_R"
-    ;;
     *aix4.3*)
       echo "Adding defines for AIX"
       CFLAGS="$CFLAGS -Wa,-many -DUNDEF_HAVE_INITGROUPS"
@@ -1341,7 +1336,7 @@ AC_LANG_RESTORE
 CXXFLAGS="$ac_save_CXXFLAGS"
 if test "$mysql_cv_gethostname_style" = "glibc2"
 then
-  AC_DEFINE(HAVE_GLIBC2_STYLE_GETHOSTBYNAME_R)
+  AC_DEFINE(HAVE_GETHOSTBYNAME_R_GLIBC2_STYLE)
 fi
 
 # Check 3rd argument of getthostbyname_r
@@ -1371,7 +1366,7 @@ AC_LANG_RESTORE
 CXXFLAGS="$ac_save_CXXFLAGS"
 if test "$mysql_cv_gethostname_arg" = "hostent_data"
 then
-  AC_DEFINE(HAVE_GETHOSTBYNAME_R_WITH_HOSTENT_DATA)
+  AC_DEFINE(HAVE_GETHOSTBYNAME_R_RETURN_INT)
 fi
 
 
