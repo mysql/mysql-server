@@ -253,15 +253,15 @@ typedef struct st_mysql_manager
 /* Set up and bring down the server; to ensure that applications will
  * work when linked against either the standard client library or the
  * embedded server library, these functions should be called. */
-int mysql_server_init(int argc, char **argv, char **groups);
-void mysql_server_end(void);
+int STDCALL mysql_server_init(int argc, char **argv, char **groups);
+void STDCALL mysql_server_end(void);
 
 /* Set up and bring down a thread; these function should be called
  * for each thread in an application which opens at least one MySQL
  * connection.  All uses of the connection(s) should be between these
  * function calls. */
-my_bool mysql_thread_init(void);
-void mysql_thread_end(void);
+my_bool STDCALL mysql_thread_init(void);
+void STDCALL mysql_thread_end(void);
 
 /* Functions to get information from the MYSQL and MYSQL_RES structures */
 /* Should definitely be used if one uses shared libraries */
@@ -414,8 +414,8 @@ MYSQL *		STDCALL mysql_connect(MYSQL *mysql, const char *host,
 int		STDCALL mysql_create_db(MYSQL *mysql, const char *DB);
 int		STDCALL mysql_drop_db(MYSQL *mysql, const char *DB);
 #define	 mysql_reload(mysql) mysql_refresh((mysql),REFRESH_GRANT)
-#define HAVE_MYSQL_REAL_CONNECT
 #endif
+#define HAVE_MYSQL_REAL_CONNECT
 
 /*
   The following functions are mainly exported because of mysqlbinlog;

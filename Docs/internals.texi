@@ -183,22 +183,26 @@ and then we read the rows in the sorted order into a row buffer
 We are using @uref{http://www.bitkeeper.com/, BitKeeper} for source management.
 
 @item
-You should use the @strong{MySQL} 3.23 or 4.0 source for all developments.
+You should use the @strong{MySQL} 4.0 source for all developments.
 
 @item
 If you have any questions about the @strong{MySQL} source, you can post these
-to @email{developers@@mysql.com} and we will answer them.
-Note that we will shortly change the name of this list to
-@email{internals@@mysql.com}, to more accurately reflect what should be
-posted to this list.
+to @email{dev-public@@mysql.com} and we will answer them.  Please
+remember to not use this internal email list in public!
 
 @item
-Try to write code in a lot of black boxes that can be reused or at
-least have a clean interface.
+Try to write code in a lot of black boxes that can be reused or use at
+least a clean, easy to change interface.
 
 @item
 Reuse code;  There is already a lot of algorithms in MySQL for list handling,
 queues, dynamic and hashed arrays, sorting, etc. that can be reused.
+
+@item
+Use the @code{my_*} functions like @code{my_read()}/@code{my_write()}/
+@code{my_malloc()} that you can find in the @code{mysys} library instead 
+of the direct system calls;  This will make your code easier to debug and 
+more portable.
 
 @item
 Try to always write optimized code, so that you don't have to
@@ -222,7 +226,11 @@ Do not check the same pointer for @code{NULL} more than once.
 
 @item
 Use long function and variable names in English; This makes your code
-easier to read.  Use the 'varible_name' style instead of 'VariableName'.
+easier to read. 
+
+@item
+Use my_var as opposed to myVar or MyVar (@samp{_} rather than dancing SHIFT
+to seperate words in identifiers).
 
 @item
 Think assembly - make it easier for the compiler to optimize your code.
@@ -232,14 +240,8 @@ Comment your code when you do something that someone else may think
 is not ''trivial''.
 
 @item
-Use the @code{my_*} functions like @code{my_read()}/@code{my_write()}/
-@code{my_malloc()} that you can find in the @code{mysys} library instead 
-of the direct system calls;  This will make your code easier to debug and 
-more portable.
-
-@item
-Use @code{libstring} functions instead of standard libc string functions
-whenever possible.
+Use @code{libstring} functions (in the strings directory)
+instead of standard libc string functions whenever possible.
 
 @item
 Avoid using @code{malloc()} (its REAL slow);  For memory allocations 
@@ -252,10 +254,6 @@ what you want to do, why you want to do it, and how you plan to do
 it.  This way we can easily provide you with feedback and also
 easily discuss it thoroughly if some other developer thinks there is better
 way to do the same thing!
-
-@item
-Use my_var as opposed to myVar or MyVar (@samp{_} rather than dancing SHIFT
-to seperate words in identifiers).
 
 @item
 Class names start with a capital letter.

@@ -296,7 +296,7 @@ extern "C"
 
 static my_bool inited, org_my_init_done;
 
-int mysql_server_init(int argc, char **argv, char **groups)
+int STDCALL mysql_server_init(int argc, char **argv, char **groups)
 {
   char glob_hostname[FN_REFLEN];
 
@@ -561,7 +561,7 @@ int mysql_server_init(int argc, char **argv, char **groups)
 }
 
 
-void mysql_server_end()
+void STDCALL mysql_server_end()
 {
   clean_up(0);
 #ifdef THREAD
@@ -571,7 +571,7 @@ void mysql_server_end()
 #endif
 }
 
-my_bool mysql_thread_init()
+my_bool STDCALL mysql_thread_init()
 {
 #ifdef THREAD
   return my_thread_init();
@@ -580,7 +580,7 @@ my_bool mysql_thread_init()
 #endif
 }
 
-void mysql_thread_end()
+void STDCALL mysql_thread_end()
 {
 #ifdef THREAD
   my_thread_end();
