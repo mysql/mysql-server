@@ -115,12 +115,12 @@ check_insert_fields(THD *thd, TABLE_LIST *table_list, List<Item> &fields,
 }
 
 
-int mysql_insert(THD *thd,TABLE_LIST *table_list,
-                 List<Item> &fields,
-                 List<List_item> &values_list,
-                 List<Item> &update_fields,
-                 List<Item> &update_values,
-                 enum_duplicates duplic)
+bool mysql_insert(THD *thd,TABLE_LIST *table_list,
+                  List<Item> &fields,
+                  List<List_item> &values_list,
+                  List<Item> &update_fields,
+                  List<Item> &update_values,
+                  enum_duplicates duplic)
 {
   int error, res;
   /*
@@ -174,7 +174,7 @@ int mysql_insert(THD *thd,TABLE_LIST *table_list,
 	my_printf_error(ER_DELAYED_INSERT_TABLE_LOCKED,
 			ER(ER_DELAYED_INSERT_TABLE_LOCKED),
 			MYF(0), table_list->real_name);
-	DBUG_RETURN(-1);
+	DBUG_RETURN(TRUE);
       }
     }
     if ((table= delayed_get_table(thd,table_list)) && !thd->is_fatal_error)
@@ -200,7 +200,7 @@ int mysql_insert(THD *thd,TABLE_LIST *table_list,
 #endif /* EMBEDDED_LIBRARY */
     res= open_and_lock_tables(thd, table_list);
   if (res || thd->is_fatal_error)
-    DBUG_RETURN(-1);
+    DBUG_RETURN(TRUE);
 
   table= table_list->table;
   thd->proc_info="init";
@@ -298,6 +298,15 @@ int mysql_insert(THD *thd,TABLE_LIST *table_list,
 	  info.records++;
 	  continue;
 	}
+	/*
+	  Field::store methods can't send errors
+
+	  TODO: set thd->abort_on_warning if values_list.elements == 1
+	  and check that all items return warning in case of problem with
+	  storing field.
+        */
+	if (!thd->net.report_error)
+	  my_error(ER_UNKNOWN_ERROR, MYF(0));
 	error=1;
 	break;
       }
@@ -315,6 +324,9 @@ int mysql_insert(THD *thd,TABLE_LIST *table_list,
 	  info.records++;
 	  continue;
 	}
+	/* Field::store methods can't send errors */
+	if (!thd->net.report_error)
+	  my_error(ER_UNKNOWN_ERROR, MYF(0));
 	error=1;
 	break;
       }
@@ -465,7 +477,7 @@ int mysql_insert(THD *thd,TABLE_LIST *table_list,
   free_underlaid_joins(thd, &thd->lex->select_lex);
   table->insert_values=0;
   thd->abort_on_warning= 0;
-  DBUG_RETURN(0);
+  DBUG_RETURN(FALSE);
 
 abort:
 #ifndef EMBEDDED_LIBRARY
@@ -475,7 +487,7 @@ abort:
   free_underlaid_joins(thd, &thd->lex->select_lex);
   table->insert_values=0;
   thd->abort_on_warning= 0;
-  DBUG_RETURN(-1);
+  DBUG_RETURN(TRUE);
 }
 
 
@@ -609,11 +621,11 @@ static bool mysql_prepare_insert_check_table(THD *thd, TABLE_LIST *table_list,
     table_list	        Global/local table list
 
   RETURN VALUE
-    0   OK
-    -1  error (message is not sent to user)
+    FALSE OK
+    TRUE  error
 */
 
-int mysql_prepare_insert(THD *thd, TABLE_LIST *table_list, TABLE *table,
+bool mysql_prepare_insert(THD *thd, TABLE_LIST *table_list, TABLE *table,
 			 List<Item> &fields, List_item *values,
 			 List<Item> &update_fields, List<Item> &update_values,
 			 enum_duplicates duplic)
@@ -621,7 +633,7 @@ int mysql_prepare_insert(THD *thd, TABLE_LIST *table_list, TABLE *table,
   bool insert_into_view= (table_list->view != 0);
   /* TODO: use this condition for 'WITH CHECK OPTION' */
   Item *unused_conds= 0;
-  int res;
+  bool res;
   DBUG_ENTER("mysql_prepare_insert");
 
   if (mysql_prepare_insert_check_table(thd, table_list, fields, &unused_conds))
@@ -636,15 +648,15 @@ int mysql_prepare_insert(THD *thd, TABLE_LIST *table_list, TABLE *table,
          thd->lex->select_lex.no_wrap_view_item= 0,
          res) ||
         setup_fields(thd, 0, table_list, update_values, 0, 0, 0))))
-    DBUG_RETURN(-1);
+    DBUG_RETURN(TRUE);
 
   if (unique_table(table_list, table_list->next_independent()))
   {
     my_error(ER_UPDATE_TABLE_USED, MYF(0), table_list->real_name);
-    DBUG_RETURN(-1);
+    DBUG_RETURN(TRUE);
   }
   thd->lex->select_lex.first_execution= 0;
-  DBUG_RETURN(0);
+  DBUG_RETURN(FALSE);
 }
 
 
@@ -737,7 +749,12 @@ int write_record(THD *thd, TABLE *table,COPY_INFO *info)
         store_record(table,insert_values);
         restore_record(table,record[1]);
         if (fill_record(*info->update_fields, *info->update_values, 0))
+	{
+	  /* Field::store methods can't send errors */
+	  if (!thd->net.report_error)
+	    my_error(ER_UNKNOWN_ERROR, MYF(0));
           goto err;
+	}
 
         /* CHECK OPTION for VIEW ... ON DUPLICATE KEY UPDATE ... */
         if (info->view &&
@@ -1018,7 +1035,7 @@ static TABLE *delayed_get_table(THD *thd,TABLE_LIST *table_list)
 	delete tmp;
 	thd->fatal_error();
 	pthread_mutex_unlock(&LOCK_delayed_create);
-	net_printf(thd,ER_CANT_CREATE_THREAD,error);
+	my_error(ER_CANT_CREATE_THREAD, MYF(0), error);
 	DBUG_RETURN(0);
       }
 
@@ -1648,11 +1665,11 @@ bool delayed_insert::handle_inserts(void)
     thd         thread handler
 
   RETURN
-    0   OK
-    -1  Error
+    FALSE OK
+    TRUE  Error
 */
 
-int mysql_insert_select_prepare(THD *thd)
+bool mysql_insert_select_prepare(THD *thd)
 {
   LEX *lex= thd->lex;
   DBUG_ENTER("mysql_insert_select_prepare");
@@ -1664,8 +1681,8 @@ int mysql_insert_select_prepare(THD *thd)
   if (mysql_prepare_insert_check_table(thd, lex->query_tables,
                                        lex->field_list,
                                        &lex->select_lex.where))
-    DBUG_RETURN(-1);
-  DBUG_RETURN(0);
+    DBUG_RETURN(TRUE);
+  DBUG_RETURN(FALSE);
 }
 
 
@@ -1768,8 +1785,7 @@ void select_insert::send_error(uint errcode,const char *err)
 {
   DBUG_ENTER("select_insert::send_error");
 
-  /* TODO error should be sent at the query processing end */
-  ::send_error(thd,errcode,err);
+  my_message(errcode, err, MYF(0));
 
   if (!table)
   {
@@ -1845,8 +1861,6 @@ bool select_insert::send_eof()
   if (error)
   {
     table->file->print_error(error,MYF(0));
-    //TODO error should be sent at the query processing end
-    ::send_error(thd);
     DBUG_RETURN(1);
   }
   char buff[160];

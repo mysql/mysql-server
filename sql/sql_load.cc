@@ -78,7 +78,7 @@ static int read_sep_field(THD *thd,COPY_INFO &info,TABLE *table,
 			  List<Item> &fields, READ_INFO &read_info,
 			  String &enclosed, ulong skip_lines);
 
-int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
+bool mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
 	       List<Item> &fields, enum enum_duplicates handle_duplicates,
 	       bool read_file_from_client,thr_lock_type lock_type)
 {
@@ -112,16 +112,16 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
   {
     my_message(ER_WRONG_FIELD_TERMINATORS,ER(ER_WRONG_FIELD_TERMINATORS),
 	       MYF(0));
-    DBUG_RETURN(-1);
+    DBUG_RETURN(TRUE);
   }
   table_list->lock_type= lock_type;
-  if ((res= open_and_lock_tables(thd, table_list)))
-    DBUG_RETURN(res);
+  if (open_and_lock_tables(thd, table_list))
+    DBUG_RETURN(TRUE);
   /* TODO: add key check when we will support VIEWs in LOAD */
   if (!table_list->updatable)
   {
     my_error(ER_NON_UPDATABLE_TABLE, MYF(0), table_list->alias, "LOAD");
-    DBUG_RETURN(-1);
+    DBUG_RETURN(TRUE);
   }
   table= table_list->table;
   transactional_table= table->file->has_transactions();
@@ -140,14 +140,14 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
     Item *unused_conds= 0;
     if (setup_tables(thd, table_list, &unused_conds) ||
 	setup_fields(thd, 0, table_list, fields, 1, 0, 0))
-      DBUG_RETURN(-1);
+      DBUG_RETURN(TRUE);
     if (thd->dupp_field)
     {
       my_error(ER_FIELD_SPECIFIED_TWICE, MYF(0), thd->dupp_field->field_name);
-      DBUG_RETURN(-1);
+      DBUG_RETURN(TRUE);
     }
     if (check_that_all_fields_are_given_values(thd, table))
-      DBUG_RETURN(1);
+      DBUG_RETURN(TRUE);
   }
 
   uint tot_length=0;
@@ -173,7 +173,7 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
   {
     my_message(ER_BLOBS_AND_NO_TERMINATED,ER(ER_BLOBS_AND_NO_TERMINATED),
 	       MYF(0));
-    DBUG_RETURN(-1);
+    DBUG_RETURN(TRUE);
   }
 
   /* We can't give an error in the middle when using LOCAL files */
@@ -206,7 +206,7 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
 #if !defined(__WIN__) && !defined(OS2) && ! defined(__NETWARE__)
       MY_STAT stat_info;
       if (!my_stat(name,&stat_info,MYF(MY_WME)))
-	DBUG_RETURN(-1);
+	DBUG_RETURN(TRUE);
 
       // if we are not in slave thread, the file must be:
       if (!thd->slave_thread &&
@@ -218,14 +218,14 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
 	     (stat_info.st_mode & S_IFIFO) == S_IFIFO)))
       {
 	my_error(ER_TEXTFILE_NOT_READABLE,MYF(0),name);
-	DBUG_RETURN(-1);
+	DBUG_RETURN(TRUE);
       }
       if ((stat_info.st_mode & S_IFIFO) == S_IFIFO)
 	is_fifo = 1;
 #endif
     }
     if ((file=my_open(name,O_RDONLY,MYF(MY_WME))) < 0)
-      DBUG_RETURN(-1);
+      DBUG_RETURN(TRUE);
   }
 
   COPY_INFO info;
@@ -240,7 +240,7 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
   {
     if	(file >= 0)
       my_close(file,MYF(0));			// no files in net reading
-    DBUG_RETURN(-1);				// Can't allocate buffers
+    DBUG_RETURN(TRUE);				// Can't allocate buffers
   }
 
 #ifndef EMBEDDED_LIBRARY

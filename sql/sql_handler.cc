@@ -47,7 +47,7 @@ static TABLE **find_table_ptr_by_name(THD *thd,const char *db,
                                       bool is_alias, bool dont_lock,
                                       bool *was_flushed);
 
-int mysql_ha_open(THD *thd, TABLE_LIST *tables)
+bool mysql_ha_open(THD *thd, TABLE_LIST *tables)
 {
   HANDLER_TABLES_HACK(thd);
   uint counter;
@@ -58,18 +58,18 @@ int mysql_ha_open(THD *thd, TABLE_LIST *tables)
 
   HANDLER_TABLES_HACK(thd);
   if (err)
-    return -1;
+    return TRUE;
 
   // there can be only one table in *tables
   if (!(tables->table->file->table_flags() & HA_CAN_SQL_HANDLER))
   {
     my_printf_error(ER_ILLEGAL_HA,ER(ER_ILLEGAL_HA),MYF(0), tables->alias);
     mysql_ha_close(thd, tables,1);
-    return -1;
+    return TRUE;
   }
 
   send_ok(thd);
-  return 0;
+  return FALSE;
 }
 
 
@@ -98,11 +98,11 @@ int mysql_ha_open(THD *thd, TABLE_LIST *tables)
     is suppressed.
 
   RETURN
-    0  ok
-    -1 error
+    FALSE OK
+    TRUE  Error
 */
 
-int mysql_ha_close(THD *thd, TABLE_LIST *tables,
+bool mysql_ha_close(THD *thd, TABLE_LIST *tables,
                    bool dont_send_ok, bool dont_lock, bool no_alias)
 {
   TABLE         **table_ptr;
@@ -127,11 +127,11 @@ int mysql_ha_close(THD *thd, TABLE_LIST *tables,
   {
     my_printf_error(ER_UNKNOWN_TABLE, ER(ER_UNKNOWN_TABLE), MYF(0),
                     tables->alias, "HANDLER");
-    return -1;
+    return TRUE;
   }
   if (!dont_send_ok)
     send_ok(thd);
-  return 0;
+  return FALSE;
 }
 
 
@@ -201,11 +201,11 @@ static enum enum_ha_read_modes rkey_to_rnext[]=
 { RNEXT_SAME, RNEXT, RPREV, RNEXT, RPREV, RNEXT, RPREV, RPREV };
 
 
-int mysql_ha_read(THD *thd, TABLE_LIST *tables,
-                  enum enum_ha_read_modes mode, char *keyname,
-                  List<Item> *key_expr,
-                  enum ha_rkey_function ha_rkey_mode, Item *cond,
-                  ha_rows select_limit,ha_rows offset_limit)
+bool mysql_ha_read(THD *thd, TABLE_LIST *tables,
+                   enum enum_ha_read_modes mode, char *keyname,
+                   List<Item> *key_expr,
+                   enum ha_rkey_function ha_rkey_mode, Item *cond,
+                   ha_rows select_limit,ha_rows offset_limit)
 {
   int err, keyno=-1;
   bool was_flushed;
@@ -216,12 +216,12 @@ int mysql_ha_read(THD *thd, TABLE_LIST *tables,
   {
     my_printf_error(ER_UNKNOWN_TABLE,ER(ER_UNKNOWN_TABLE),MYF(0),
 		    tables->alias,"HANDLER");
-    return -1;
+    return TRUE;
   }
   tables->table=table;
 
   if (cond && (cond->fix_fields(thd, tables, &cond) || cond->check_cols(1)))
-    return -1;
+    return TRUE;
 
   /* InnoDB needs to know that this table handle is used in the HANDLER */
 
@@ -233,7 +233,7 @@ int mysql_ha_read(THD *thd, TABLE_LIST *tables,
     {
       my_printf_error(ER_KEY_DOES_NOT_EXITS,ER(ER_KEY_DOES_NOT_EXITS),MYF(0),
                       keyname,tables->alias);
-      return -1;
+      return TRUE;
     }
     table->file->ha_index_or_rnd_end();
     table->file->ha_index_init(keyno);
@@ -333,10 +333,7 @@ int mysql_ha_read(THD *thd, TABLE_LIST *tables,
 	key_len+=key_part->store_length;
       }
       if (!(key= (byte*) thd->calloc(ALIGN_SIZE(key_len))))
-      {
-	send_error(thd,ER_OUTOFMEMORY);
 	goto err;
-      }
       key_copy(key, table, keyno, key_len);
       err=table->file->index_read(table->record[0],
 				  key,key_len,ha_rkey_mode);
@@ -344,7 +341,7 @@ int mysql_ha_read(THD *thd, TABLE_LIST *tables,
       break;
     }
     default:
-      send_error(thd,ER_ILLEGAL_HA);
+      my_error(ER_ILLEGAL_HA, MYF(0));
       goto err;
     }
 
@@ -384,11 +381,11 @@ int mysql_ha_read(THD *thd, TABLE_LIST *tables,
 ok:
   mysql_unlock_tables(thd,lock);
   send_eof(thd);
-  return 0;
+  return FALSE;
 err:
   mysql_unlock_tables(thd,lock);
 err0:
-  return -1;
+  return TRUE;
 }
 
 
