@@ -127,7 +127,7 @@ foreach $table (@ARGV)
 
   $columns=$sth->{NUM_OF_FIELDS};
   $columns_to_quote=get_columns_to_quote($sth);
-  $multi_value_insert=$sth->{'multi_value_insert'};
+  $insert_multi_value=$sth->{'insert_multi_value'};
   $query="insert into $table values"; $result="";
 
   print "- copying $table\n" if ($opt_verbose);
@@ -146,7 +146,7 @@ foreach $table (@ARGV)
       }
     }
     substr($tmp,-1)=")";		# Remove last ','
-    if ($multi_value_insert)
+    if ($insert_multi_value)
     {
       $to_dbh->do($query . $tmp) || die "Can't insert row: $DBI::errstr";
     }

@@ -483,6 +483,7 @@ int ha_myisam::repair(THD *thd, MI_CHECK &param, bool optimize)
   char fixed_name[FN_REFLEN];
   const char *old_proc_info=thd->proc_info;
   MYISAM_SHARE* share = file->s;
+  ha_rows rows= file->state->records;
   DBUG_ENTER("ha_myisam::repair");
 
   param.table_name = table->table_name;
@@ -559,6 +560,13 @@ int ha_myisam::repair(THD *thd, MI_CHECK &param, bool optimize)
 			       T_STATISTICS ? UPDATE_STAT : 0));
     info(HA_STATUS_NO_LOCK | HA_STATUS_TIME | HA_STATUS_VARIABLE |
 	 HA_STATUS_CONST);
+    if (rows != file->state->records)
+    {
+      char llbuff[22],llbuff2[22];
+      mi_check_print_warning(&param,"Number of rows changed from %s to %s",
+			     llstr(rows,llbuff),
+			     llstr(file->state->records,llbuff2));
+    }
   }
   else
   {

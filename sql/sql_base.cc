@@ -669,12 +669,11 @@ TABLE *open_table(THD *thd,const char *db,const char *table_name,
     DBUG_RETURN(0);
   key_length= (uint) (strmov(strmov(key,db)+1,table_name)-key)+1;
   int4store(key + key_length, thd->slave_proxy_id);
-  key_length += 4;
   
   for (table=thd->temporary_tables; table ; table=table->next)
   {
-    if (table->key_length == key_length &&
-	!memcmp(table->table_cache_key,key,key_length))
+    if (table->key_length == key_length+4 &&
+	!memcmp(table->table_cache_key,key,key_length+4))
     {
       if (table->query_id == thd->query_id)
       {

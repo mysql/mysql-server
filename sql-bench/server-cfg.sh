@@ -151,7 +151,7 @@ sub new
   $limits{'alter_table'}	= 1; # Have ALTER TABLE
   $limits{'alter_add_multi_col'}= 1; #Have ALTER TABLE t add a int,add b int;
   $limits{'alter_table_dropcol'}= 1; # Have ALTER TABLE DROP column
-  $limits{'multi_value_insert'} = 1; # Have INSERT ... values (1,2),(3,4)
+  $limits{'insert_multi_value'} = 1; # Have INSERT ... values (1,2),(3,4)
 
   $limits{'group_func_extra_std'} = 1; # Have group function std().
 
@@ -2775,7 +2775,7 @@ sub new
   $limits{'alter_table'}	= 1; # Have ALTER TABLE
   $limits{'alter_add_multi_col'}= 0; # Have ALTER TABLE t add a int,add b int;
   $limits{'alter_table_dropcol'}= 1; # Have ALTER TABLE DROP column
-  $limits{'multi_value_insert'} = 0; # Does not have INSERT ... values (1,2),(3,4)
+  $limits{'insert_multi_value'} = 0; # Does not have INSERT ... values (1,2),(3,4)
 
   $limits{'group_func_extra_std'} = 0; # Does not have group function std().
 
@@ -2975,7 +2975,7 @@ sub new
   $limits{'alter_table'}	= 1; # Have ALTER TABLE
   $limits{'alter_add_multi_col'}= 1; # Have ALTER TABLE t add a int,add b int;
   $limits{'alter_table_dropcol'}= 1; # Have ALTER TABLE DROP column
-  $limits{'multi_value_insert'} = 0; # Does not have INSERT ... values (1,2),(3,4)
+  $limits{'insert_multi_value'} = 0; # Does not have INSERT ... values (1,2),(3,4)
 
   $limits{'group_func_extra_std'} = 0; # Does not have group function std().
 
@@ -3186,7 +3186,7 @@ sub new
   $limits{'alter_table'}	= 1; # Have ALTER TABLE
   $limits{'alter_add_multi_col'}= 0; # Have ALTER TABLE t add a int,add b int;
   $limits{'alter_table_dropcol'}= 0; # Have ALTER TABLE DROP column
-  $limits{'multi_value_insert'} = 1;
+  $limits{'insert_multi_value'} = 1;
 
   $limits{'group_func_extra_std'} = 0; # Does not have group function std().
 
@@ -3227,7 +3227,7 @@ sub version
 #  Pick up SQLGetInfo option SQL_DBMS_VER (18)
 #
   #$version = $dbh->func(18, GetInfo);
-  $version="2.1";
+  $version="FrontBase 2.1";
   $dbh->disconnect;
   return $version;
 }

@@ -388,7 +388,9 @@ int main(int argc, char** argv)
 
   if(use_remote)
   {
+#ifndef __WIN__
     init_thr_alarm(10); // need to do this manually 
+#endif
     mysql = safe_connect();
   }
 

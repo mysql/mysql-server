@@ -1,0 +1,18 @@
+Virtual IO library.
+IO wrappers for sockets, fd-s, SSL.
+Languages:C++
+
+This library is based on work of many others.
+They have different policies and I haven't thought up
+about resulting licence - GPL, L(essen)GPL, BSD-style, whatever.
+The licences are here for reference:
+COPYING.mysql:	MySQL licence. Some socket functions.
+COPYING.dbug:	Fred Fish's dbug library. I use it extensively ;=)
+COPYING.openssl:OpenSSL licence. SSL wrappers.
+
+At the moment there is no real 'Makefile', just config.mk/targets.mk
+and Makefile.am to build it as a module in MySQL. Therefore, there
+is currently no possibility to build it as a separate library, but
+with MySQL-s root Makefile it should just a matter of leaving
+everything else out.
+

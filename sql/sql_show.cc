@@ -23,7 +23,8 @@
 #include "sql_select.h"                         // For select_describe
 #include "sql_acl.h"
 #include <my_dir.h>
-extern "C" pthread_mutex_t THR_LOCK_keycache;
+
+/* extern "C" pthread_mutex_t THR_LOCK_keycache; */
 
 static const char *grant_names[]={
   "select","insert","update","delete","create","drop","reload","shutdown",
@@ -988,7 +989,7 @@ int mysqld_show(THD *thd, const char *wild, show_var_st *variables)
   if (send_fields(thd,field_list,1))
     DBUG_RETURN(1); /* purecov: inspected */
 
-  pthread_mutex_lock(&THR_LOCK_keycache);
+  /* pthread_mutex_lock(&THR_LOCK_keycache); */
   pthread_mutex_lock(&LOCK_status);
   for (i=0; variables[i].name; i++)
   {
@@ -1037,13 +1038,13 @@ int mysqld_show(THD *thd, const char *wild, show_var_st *variables)
     }
   }
   pthread_mutex_unlock(&LOCK_status);
-  pthread_mutex_unlock(&THR_LOCK_keycache);
+  /* pthread_mutex_unlock(&THR_LOCK_keycache); */
   send_eof(&thd->net);
   DBUG_RETURN(0);
 
  err:
   pthread_mutex_unlock(&LOCK_status);
-  pthread_mutex_unlock(&THR_LOCK_keycache);
+  /* pthread_mutex_unlock(&THR_LOCK_keycache); */
   DBUG_RETURN(1);
 }
 

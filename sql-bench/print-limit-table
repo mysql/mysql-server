@@ -163,10 +163,14 @@ print_match("String handling","string|select_constant|quote_with|double_quotes|e
 print_match("Quoting","quote");
 print_match("Name limits","name","alter");
 print_match("Index limits",'index|primary|unique');
-print_match("Type limits",'char|float|binary|text_size|date|end_space');
-print_match("Expression limits",'expression|conditions|select_limit');
+print_match("Type limits",'char|float|text_size|date|end_space','atomic');
+print_match("Expressions",'expression|conditions|select_limit|binary|hex|cast|logical|true_false');
 print_match("Comments",'comment');
 print_match("ALTER TABLE",'alter');
+print_match("CREATE and DROP",'create|drop|rowid|temporary|domains|truncate');
+print_match("SELECT",'alias|compute|select|table_wildcard');
+print_match("Sets",'intersect|minus|union|except');
+print_match("INSERT",'insert');
 print_options("Other features");
 print_match("Other limits",'\S');
 

@@ -1,0 +1,3 @@
+* Consistent error handling. May be the initialization should
+  be taken out of constructors and be put into virtual method open().
+* The open() method is named very misleadingly().

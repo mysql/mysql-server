@@ -1404,8 +1404,11 @@ mysql_execute_command(void)
 #endif
     break;
   }
-  case SQLCOM_DELETE:
   case SQLCOM_TRUNCATE:
+    lex->where=0;
+    lex->select_limit=HA_POS_ERROR;
+    /* Fall through */
+  case SQLCOM_DELETE:
   {
     if (check_access(thd,DELETE_ACL,tables->db,&tables->grant.privilege))
       goto error; /* purecov: inspected */
@@ -1589,7 +1592,10 @@ mysql_execute_command(void)
 	}
       }
       else
+      {
+	thd->options&= ~(ulong) (OPTION_STATUS_NO_TRANS_UPDATE);
 	thd->server_status&= ~SERVER_STATUS_AUTOCOMMIT;
+      }
     }
     send_ok(&thd->net);
     break;
@@ -1755,9 +1761,17 @@ mysql_execute_command(void)
     }
     break;
   case SQLCOM_BEGIN:
-    thd->options|= OPTION_BEGIN;
-    thd->server_status|= SERVER_STATUS_IN_TRANS;
-    send_ok(&thd->net);
+    if (end_active_trans(thd))
+    {
+      res= -1;
+    }
+    else
+    {
+      thd->options= ((thd->options & (ulong) (OPTION_STATUS_NO_TRANS_UPDATE)) |
+		     OPTION_BEGIN);
+      thd->server_status|= SERVER_STATUS_IN_TRANS;
+      send_ok(&thd->net);
+    }
     break;
   case SQLCOM_COMMIT:
     /*
