@@ -16,7 +16,7 @@
 
 /* By Jani Tolonen, 2001-04-20, MySQL Development Team */
 
-#define CHECK_VERSION "2.4.1"
+#define CHECK_VERSION "2.4.2"
 
 #include "client_priv.h"
 #include <m_ctype.h>
@@ -463,7 +463,7 @@ static int handle_request_for_tables(char *tables, uint length)
 
   if (!(query =(char *) my_malloc((sizeof(char)*(length+110)), MYF(MY_WME))))
     return 1;
-  sprintf(query, "%s TABLE `%s` %s", op, tables, options);
+  sprintf(query, "%s TABLE %s %s", op, tables, options);
   if (mysql_query(sock, query))
   {
     sprintf(message, "when executing '%s TABLE `%s` %s", op, tables,options);
@@ -493,12 +493,9 @@ static void print_result()
 
     if (status)
     {
-      if (found_error)
-      {
-	if (what_to_do != DO_REPAIR && opt_auto_repair &&
-	    (!opt_fast || strcmp(row[3],"OK")))
-	  insert_dynamic(&tables4repair, row[0]);
-      }
+      if (found_error && opt_auto_repair && what_to_do != DO_REPAIR &&
+	  (!opt_fast || strcmp(row[3],"OK")))
+	insert_dynamic(&tables4repair, prev);
       found_error=0;
       if (opt_silent)
 	continue;
@@ -515,6 +512,9 @@ static void print_result()
     strmov(prev, row[0]);
     putchar('\n');
   }
+  if (found_error && opt_auto_repair && what_to_do != DO_REPAIR &&
+      (!opt_fast || strcmp(row[3],"OK")))
+    insert_dynamic(&tables4repair, prev);
   mysql_free_result(res);
 }
 
