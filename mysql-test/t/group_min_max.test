@@ -475,11 +475,15 @@ select distinct a1,a2,b,c from t2 where (a2 >= 'b') and (b = 'a') and (c = 'i121
 select distinct a1,a2,b from t2 where (a1 > 'a') and (a2 > 'a') and (b = 'c');
 select distinct b from t2 where (a2 >= 'b') and (b = 'a');
 
--- BUG 6303
+-- BUG #6303
 select distinct t_00.a1
 from t1 t_00
 where exists ( select * from t2 where a1 = t_00.a1 );
 
+-- BUG #8532 - SELECT DISTINCT a, a causes server to crash
+select distinct a1,a1 from t1;
+select distinct a2,a1,a2,a1 from t1;
+select distinct t1.a1,t2.a1 from t1,t2;
 
 --
 -- DISTINCT queries with GROUP-BY
