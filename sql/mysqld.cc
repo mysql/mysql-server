@@ -2669,6 +2669,13 @@ server.");
     pthread_mutex_unlock(&LOCK_thread_count);
   }
 #else
+#ifdef __WIN__
+  if ( !have_tcpip || opt_disable_networking)
+  {
+    sql_print_error("Without TCP/IP or use of --skip-networking results in no available interfaces");
+    unireg_abort(1);
+  }
+#endif
   handle_connections_sockets(0);
 #ifdef EXTRA_DEBUG2
   sql_print_error("Exiting main thread");
