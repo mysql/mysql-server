@@ -1283,6 +1283,12 @@ static my_bool my_coll_init_simple(CHARSET_INFO *cs,
 }
 
 
+longlong my_strtoll10_8bit(CHARSET_INFO *cs __attribute__((unused)),
+                           const char *nptr, char **endptr, int *error)
+{
+  return my_strtoll10(nptr, endptr, error);
+}
+
 
 MY_CHARSET_HANDLER my_charset_8bit_handler=
 {
@@ -1309,6 +1315,7 @@ MY_CHARSET_HANDLER my_charset_8bit_handler=
     my_strntoll_8bit,
     my_strntoull_8bit,
     my_strntod_8bit,
+    my_strtoll10_8bit,
     my_scan_8bit
 };
 
