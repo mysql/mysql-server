@@ -377,12 +377,21 @@ int st_select_lex_unit::exec()
     if (!thd->is_fatal_error)				// Check if EOM
     {
       ulong options_tmp= thd->options;
+      /*
+	We have to take into the account a case when:
+	SET SQL_SELECT_LIMIT was set.
+	In mysql_new_select() function this value was copied to 
+	the fake_select_lex node of the top-level unit.
+	Here below, we just take this value if global LIMIT was not applied
+	to the entire UNION.
+      */
+      ha_rows select_limit= ((global_parameters->select_limit != HA_POS_ERROR) ? 
+			     global_parameters->select_limit : fake_select_lex->select_limit);
       thd->lex->current_select= fake_select_lex;
       offset_limit_cnt= global_parameters->offset_limit;
-      select_limit_cnt= global_parameters->select_limit +
-	global_parameters->offset_limit;
+      select_limit_cnt= select_limit + 	global_parameters->offset_limit;
 
-      if (select_limit_cnt < global_parameters->select_limit)
+      if (select_limit_cnt < select_limit)
 	select_limit_cnt= HA_POS_ERROR;		// no limit
       if (select_limit_cnt == HA_POS_ERROR)
 	options_tmp&= ~OPTION_FOUND_ROWS;

@@ -498,4 +498,8 @@ select * from t1 UNION ALL select * from t1;
 select * from t1 UNION select * from t1 UNION ALL select * from t1;
 drop table t1;
 select 1 as a union all select 1 union all select 2 union select 1 union all select 2;
+set sql_select_limit=1;
+select 1 union select 2;
+(select 1) union (select 2);
+(select 1) union (select 2) union (select 3) limit 2;
 
