@@ -14,8 +14,8 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-/* Error messages for mysql clients */
-/* error messages for the demon is in share/language/errmsg.sys */
+/* Error messages for MySQL clients */
+/* (Error messages for the daemon are in share/language/errmsg.sys) */
 
 #ifdef	__cplusplus
 extern "C" {
@@ -83,10 +83,10 @@ extern const char *client_errors[];	/* Error messages */
 #define CR_SHARED_MEMORY_FILE_MAP_ERROR         2042
 #define CR_SHARED_MEMORY_MAP_ERROR              2043
 #define CR_SHARED_MEMORY_EVENT_ERROR     	2044
-#define CR_SHARED_MEMORY_CONNECT_ABANDODED_ERROR 2045
+#define CR_SHARED_MEMORY_CONNECT_ABANDONED_ERROR 2045
 #define CR_SHARED_MEMORY_CONNECT_SET_ERROR      2046
 #define CR_CONN_UNKNOW_PROTOCOL 		2047
 #define CR_INVALID_CONN_HANDLE			2048
 #define CR_SECURE_AUTH                          2049
-#define CR_FETCH_CANCELLED                      2050
+#define CR_FETCH_CANCELED                       2050
 #define CR_NO_DATA                              2051
