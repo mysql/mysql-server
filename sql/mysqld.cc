@@ -3969,7 +3969,6 @@ enum options_mysqld
   OPT_INNODB, OPT_ISAM,
   OPT_NDBCLUSTER, OPT_NDB_CONNECTSTRING, OPT_NDB_USE_EXACT_COUNT,
   OPT_NDB_FORCE_SEND, OPT_NDB_AUTOINCREMENT_PREFETCH_SZ,
-  OPT_NDB_QUERY_CACHE_TYPE,
   OPT_SKIP_SAFEMALLOC,
   OPT_TEMP_POOL, OPT_TX_ISOLATION,
   OPT_SKIP_STACK_TRACE, OPT_SKIP_SYMLINKS,
@@ -4429,16 +4428,6 @@ Disable with --skip-ndbcluster (will save memory).",
    (gptr*) &global_system_variables.ndb_use_exact_count,
    (gptr*) &global_system_variables.ndb_use_exact_count,
    0, GET_BOOL, OPT_ARG, 1, 0, 0, 0, 0, 0},
-#ifdef HAVE_QUERY_CACHE
-  {"ndb_query_cache_type", OPT_NDB_QUERY_CACHE_TYPE,
-   "0 = OFF = Don't cache or retrieve results. 1 = ON = Cache as query_cache_type states and "
-   "invalidate cache if tables are updated by other mysql servers. "
-   "2 = LOCAL = Cache as query_cache_type states and don't bother about what's happening on other "
-   "mysql servers.",
-   (gptr*) &global_system_variables.ndb_query_cache_type,
-   (gptr*) &global_system_variables.ndb_query_cache_type,
-   0, GET_ULONG, REQUIRED_ARG, 0, 0, 2, 0, 0, 0},
-#endif
 #endif
   {"new", 'n', "Use very new possible 'unsafe' functions.",
    (gptr*) &global_system_variables.new_mode,
