@@ -697,6 +697,13 @@ quote(ltrim(concat('    ', 'a')))
 select quote(trim(concat('    ', 'a')));
 quote(trim(concat('    ', 'a')))
 'a'
+CREATE TABLE t1 SELECT 1 UNION SELECT 2 UNION SELECT 3;
+SELECT QUOTE('A') FROM t1;
+QUOTE('A')
+'A'
+'A'
+'A'
+DROP TABLE t1;
 select trim(null from 'kate') as "must_be_null";
 must_be_null
 NULL
