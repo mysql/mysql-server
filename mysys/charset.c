@@ -62,7 +62,7 @@ static void set_max_sort_char(CHARSET_INFO *cs)
     if ((uchar) cs->sort_order[i] > max_char)
     {
       max_char=(uchar) cs->sort_order[i];
-      cs->max_sort_char= (char) i;
+      cs->max_sort_char= i;
     }
   }
 }
