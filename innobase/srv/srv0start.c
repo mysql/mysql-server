@@ -479,7 +479,6 @@ srv_normalize_path_for_win(
 Adds a slash or a backslash to the end of a string if it is missing
 and the string is not empty. */
 
-static
 char*
 srv_add_path_separator_if_needed(
 /*=============================*/
@@ -531,6 +530,7 @@ srv_calc_high32(
 	return(file_size >> (32 - UNIV_PAGE_SIZE_SHIFT));
 }
 
+#ifndef UNIV_HOTBACKUP
 /*************************************************************************
 Creates or opens the log files and closes them. */
 static
@@ -1834,4 +1834,5 @@ void set_panic_flag_for_netware()
 	extern ibool panic_shutdown;
 	panic_shutdown = TRUE;
 }
-#endif
+#endif /* __NETWARE__ */
+#endif /* !UNIV_HOTBACKUP */

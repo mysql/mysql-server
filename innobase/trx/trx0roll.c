@@ -52,6 +52,7 @@ trx_general_rollback_for_mysql(
 	trx_savept_t*	savept)	/* in: pointer to savepoint undo number, if
 				partial rollback requested */
 {
+#ifndef UNIV_HOTBACKUP
 	mem_heap_t*	heap;
 	que_thr_t*	thr;
 	roll_node_t*	roll_node;
@@ -103,6 +104,12 @@ trx_general_rollback_for_mysql(
 	srv_active_wake_master_thread();
 
 	return((int) trx->error_state);
+#else /* UNIV_HOTBACKUP */
+	/* This function depends on MySQL code that is not included in
+	InnoDB Hot Backup builds.  Besides, this function should never
+	be called in InnoDB Hot Backup. */
+	ut_error;
+#endif /* UNIV_HOTBACKUP */
 }
 
 /***********************************************************************
@@ -322,7 +329,7 @@ were set after this savepoint are deleted. */
 
 ulint
 trx_release_savepoint_for_mysql(
-/*================================*/
+/*============================*/
 						/* out: if no savepoint
 						of the name found then
 						DB_NO_SAVEPOINT,
