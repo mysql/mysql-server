@@ -1255,6 +1255,12 @@ AC_ARG_WITH(client-ldflags,
     [CLIENT_EXTRA_LDFLAGS=])
 AC_SUBST(CLIENT_EXTRA_LDFLAGS)
 
+AC_ARG_WITH(lib-ccflags,
+    [  --with-lib-ccflags      Extra CC options for libraries],
+    [LIB_EXTRA_CCFLAGS=$withval],
+    [LIB_EXTRA_CCFLAGS=])
+AC_SUBST(LIB_EXTRA_CCFLAGS)
+
 # Avoid stupid bug on some OS 
 AC_ARG_WITH(low-memory,
     [  --with-low-memory       Try to use less memory to compile to avoid 
