@@ -501,12 +501,17 @@ void free_max_user_conn(void)
 /*
   Mark all commands that somehow changes a table
   This is used to check number of updates / hour
+
+  sql_command is actually set to SQLCOM_END sometimes
+  so we need the +1 to include it in the array.
 */
 
-char  uc_update_queries[SQLCOM_END];
+char  uc_update_queries[SQLCOM_END+1];
 
 void init_update_queries(void)
 {
+  bzero((gptr) &uc_update_queries, sizeof(uc_update_queries));
+
   uc_update_queries[SQLCOM_CREATE_TABLE]=1;
   uc_update_queries[SQLCOM_CREATE_INDEX]=1;
   uc_update_queries[SQLCOM_ALTER_TABLE]=1;
@@ -531,6 +536,7 @@ void init_update_queries(void)
 
 bool is_update_query(enum enum_sql_command command)
 {
+  DBUG_ASSERT(command >= 0 && command <= SQLCOM_END);
   return uc_update_queries[command];
 }
 
