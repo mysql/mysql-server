@@ -210,6 +210,7 @@ public:
   const char *field_name;
   uint length;
   key_part_spec(const char *name,uint len=0) :field_name(name), length(len) {}
+  bool operator==(const key_part_spec& other) const;
 };
 
 
@@ -245,6 +246,8 @@ public:
     :type(type_par), algorithm(alg_par), columns(cols), name(name_arg)
   {}
   ~Key() {}
+  /* Equality comparison of keys (ignoring name) */
+  bool operator==(Key& other);
 };
 
 class Table_ident;

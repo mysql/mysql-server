@@ -639,12 +639,13 @@ int mysql_prepare_table(THD *thd, HA_CREATE_INFO *create_info,
 
   /* Create keys */
 
-  List_iterator<Key> key_iterator(keys);
+  List_iterator<Key> key_iterator(keys), key_iterator2(keys);
   uint key_parts=0, fk_key_count=0;
-  List<Key> keys_in_order;			// Add new keys here
   bool primary_key=0,unique_key=0;
-  Key *key;
+  Key *key, *key2;
   uint tmp, key_number;
+  /* special marker for keys to be ignored */
+  static char ignore_key[1];
 
   /* Calculate number of key segements */
   *key_count= 0;
@@ -677,7 +678,21 @@ int mysql_prepare_table(THD *thd, HA_CREATE_INFO *create_info,
       my_error(ER_TOO_LONG_IDENT, MYF(0), key->name);
       DBUG_RETURN(-1);
     }
-    key_parts+=key->columns.elements;
+    key_iterator2.rewind ();
+    while ((key2 = key_iterator2++) != key)
+    {
+      if (*key == *key2)
+      {
+	/* TO DO: issue warning message */
+	/* mark that the key should be ignored */
+	key->name=ignore_key;
+	break;
+      }
+    }
+    if (key->name != ignore_key)
+      key_parts+=key->columns.elements;
+    else
+      (*key_count)--;
     if (key->name && !tmp_table &&
 	!my_strcasecmp(system_charset_info,key->name,primary_key_name))
     {
@@ -703,6 +718,16 @@ int mysql_prepare_table(THD *thd, HA_CREATE_INFO *create_info,
   {
     uint key_length=0;
     key_part_spec *column;
+
+    if (key->name == ignore_key)
+    {
+      /* ignore redundant keys */
+      do
+	key=key_iterator++;
+      while (key && key->name == ignore_key);
+      if (!key)
+	break;
+    }
 
     switch(key->type){
     case Key::MULTIPLE:
