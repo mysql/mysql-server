@@ -1114,6 +1114,7 @@ bool Item_func_from_days::get_date(TIME *ltime, uint fuzzy_date)
   longlong value=args[0]->val_int();
   if ((null_value=args[0]->null_value))
     return 1;
+  bzero(ltime, sizeof(TIME));
   get_date_from_daynr((long) value, &ltime->year, &ltime->month, &ltime->day);
   ltime->time_type= TIMESTAMP_DATE;
   return 0;
