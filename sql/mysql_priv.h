@@ -613,11 +613,10 @@ int mysqld_show_column_types(THD *thd);
 int mysqld_help (THD *thd, const char *text);
 
 /* sql_prepare.cc */
-class Prepared_statement;
-Prepared_statement *mysql_stmt_prepare(THD *thd, char *packet, 
-                                       uint packet_length, bool text_protocol=false);
+int mysql_stmt_prepare(THD *thd, char *packet, uint packet_length, 
+                       LEX_STRING *name=NULL);
 void mysql_stmt_execute(THD *thd, char *packet, uint packet_length);
-void mysql_sql_stmt_execute(THD *thd, Prepared_statement *stmt);
+void mysql_sql_stmt_execute(THD *thd, LEX_STRING *stmt_name);
 void mysql_stmt_free(THD *thd, char *packet);
 void mysql_stmt_reset(THD *thd, char *packet);
 void mysql_stmt_get_longdata(THD *thd, char *pos, ulong packet_length);

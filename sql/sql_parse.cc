@@ -1960,88 +1960,41 @@ mysql_execute_command(THD *thd)
     break;
   }
   case SQLCOM_PREPARE:
-  {    
-    char *stmt_name= lex->prepared_stmt_name.str;
-    uint name_len=   lex->prepared_stmt_name.length;
-    Prepared_statement *stmt;
-    SQL_PREP_STMT_ENTRY *entry;
-    DBUG_PRINT("info", ("PREPARE: %.*s FROM '%.*s' \n", name_len, stmt_name,
+  {   
+    DBUG_PRINT("info", ("PREPARE: %.*s FROM '%.*s' \n", 
+                        lex->prepared_stmt_name.length,
+                        lex->prepared_stmt_name.str,
                         lex->prepared_stmt_code.length,
                         lex->prepared_stmt_code.str));
-    if ((entry=(SQL_PREP_STMT_ENTRY*)hash_search(&thd->sql_prepared_stmts,
-                                                 (byte*)stmt_name, name_len)))
-    {
-      /* Free the statement with the same name and reuse hash entry */
-      thd->stmt_map.erase((Statement*)entry->stmt);
-    }
-    else
-    {
-      uint size=ALIGN_SIZE(sizeof(SQL_PREP_STMT_ENTRY))+name_len+1;
-      if (!hash_inited(&thd->sql_prepared_stmts) || 
-          !(entry= (SQL_PREP_STMT_ENTRY*)my_malloc(size,MYF(MY_WME))))
-      {
-        send_error(thd, ER_OUT_OF_RESOURCES);
-        break;
-      }
-      entry->name.str= (char*)entry + ALIGN_SIZE(sizeof(SQL_PREP_STMT_ENTRY));
-      entry->name.length= name_len;
-      memcpy(entry->name.str, stmt_name, name_len+1);
-      if (my_hash_insert(&thd->sql_prepared_stmts, (byte*)entry))
-      {
-        my_free((char*)entry,MYF(0));
-        send_error(thd, ER_OUT_OF_RESOURCES);
-        break;
-      }
-    }
-    /* Pretend this is a COM_PREPARE query so parser allows placeholders etc*/
     thd->command= COM_PREPARE;
-    /* 'length+1' is for alloc_query that strips the last character */
-    stmt= mysql_stmt_prepare(thd, lex->prepared_stmt_code.str,
-                             lex->prepared_stmt_code.length + 1, true);
-    if (stmt)
-    {
-      entry->stmt= stmt;
+    if (!mysql_stmt_prepare(thd, lex->prepared_stmt_code.str,
+                            lex->prepared_stmt_code.length + 1, 
+                            &lex->prepared_stmt_name))    
       send_ok(thd, 0L, 0L, "Statement prepared");
-    }
-    else
-      hash_delete(&thd->sql_prepared_stmts, (byte*)entry);
     break;
   }
   case SQLCOM_EXECUTE:
   {
-    char *stmt_name= lex->prepared_stmt_name.str;
-    uint name_len=   lex->prepared_stmt_name.length;
-    SQL_PREP_STMT_ENTRY *entry;
-    DBUG_PRINT("info", ("EXECUTE: %.*s\n", name_len, stmt_name));
-    
-    if (!(entry= (SQL_PREP_STMT_ENTRY*)hash_search(&thd->sql_prepared_stmts,
-                                                   (byte*)stmt_name, 
-                                                   name_len)))
-    {
-      send_error(thd, ER_UNKNOWN_STMT_HANDLER, "Undefined prepared statement");
-      lex->prepared_stmt_params.empty();
-      break;
-    }
-    mysql_sql_stmt_execute(thd, entry->stmt);
+    DBUG_PRINT("info", ("EXECUTE: %.*s\n", 
+                        lex->prepared_stmt_name.length,
+                        lex->prepared_stmt_name.str));
+    mysql_sql_stmt_execute(thd, &lex->prepared_stmt_name);
     lex->prepared_stmt_params.empty();
     break;
   }
   case SQLCOM_DEALLOCATE_PREPARE:
   {
-    char *stmt_name= lex->prepared_stmt_name.str;
-    uint name_len=   lex->prepared_stmt_name.length;
-    SQL_PREP_STMT_ENTRY *entry;
-    DBUG_PRINT("info", ("DEALLOCATE PREPARE: %.*s\n", name_len, stmt_name));
-    if (!(entry= (SQL_PREP_STMT_ENTRY*)hash_search(&thd->sql_prepared_stmts,
-                                                   (byte*)stmt_name, 
-                                                   name_len)))
+    Statement* stmt;
+    DBUG_PRINT("info", ("DEALLOCATE PREPARE: %.*s\n", 
+                        lex->prepared_stmt_name.length,
+                        lex->prepared_stmt_name.str));
+    if ((stmt= thd->stmt_map.find_by_name(&lex->prepared_stmt_name)))
     {
-      send_error(thd, ER_UNKNOWN_STMT_HANDLER, "Undefined prepared statement");
-      break;
+      thd->stmt_map.erase(stmt);
+      send_ok(thd);
     }
-    thd->stmt_map.erase((Statement*)entry->stmt);
-    hash_delete(&thd->sql_prepared_stmts, (byte*)entry);
-    send_ok(thd);
+    else
+      send_error(thd,ER_UNKNOWN_STMT_HANDLER,"Undefined prepared statement");
     break;
   }
   case SQLCOM_DO:
@@ -2259,9 +2212,9 @@ mysql_execute_command(THD *thd)
     tables= tables->next;
     // and from local list if it is not the same
     if (&lex->select_lex != lex->all_selects_list)
-      lex->select_lex.table_list.first= (gptr)create_table_local->next;
+      lex->select_lex.table_list.first= (gptr)create_table_local->next; 
     else
-      lex->select_lex.table_list.first= (gptr)tables;
+      lex->select_lex.table_list.first= (gptr)tables; 
     create_table->next= 0;
 
     ulong want_priv= ((lex->create_info.options & HA_LEX_CREATE_TMP_TABLE) ?
