@@ -189,6 +189,7 @@ typedef struct st_lex {
   bool	drop_primary,drop_if_exists,local_file;
   bool  in_comment,ignore_space,verbose,simple_alter, option_type, derived_tables;
   uint slave_thd_opt;
+  CHARSET_INFO *charset;
 } LEX;
 
 

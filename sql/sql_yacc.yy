@@ -777,7 +777,7 @@ create:
 	    lex->key_list.push_back(new Key($2,$5,$4.str,lex->col_list));
 	    lex->col_list.empty();
 	  }
-	| CREATE DATABASE opt_if_not_exists ident
+	| CREATE DATABASE opt_if_not_exists ident default_charset
 	  {
 	    LEX *lex=Lex;
 	    lex->sql_command=SQLCOM_CREATE_DB;
@@ -1095,8 +1095,31 @@ attribute:
 	| UNIQUE_SYM KEY_SYM { Lex->type|= UNIQUE_KEY_FLAG; }
 
 opt_binary:
-	/* empty */	{}
-	| BINARY	{ Lex->type|=BINARY_FLAG; }
+	/* empty */		{ Lex->charset=default_charset_info; }
+	| BINARY		{ Lex->type|=BINARY_FLAG; Lex->charset=default_charset_info; }
+	| CHAR_SYM SET ident
+	  {
+	    CHARSET_INFO *cs=get_charset_by_name($3.str,MYF(MY_WME));
+	    if (!cs)
+	    {
+	      net_printf(&current_thd->net,ER_UNKNOWN_CHARACTER_SET,$3);
+	      YYABORT;
+	    }
+	    Lex->charset=cs;
+	  }
+
+default_charset:
+	/* empty */			{ Lex->charset-default_charset_info; }
+	| DEFAULT CHAR_SYM SET ident
+	  {
+	    CHARSET_INFO *cs=get_charset_by_name($4.str,MYF(MY_WME));
+	    if (!cs)
+	    {
+	      net_printf(&current_thd->net,ER_UNKNOWN_CHARACTER_SET,$4);
+	      YYABORT;
+	    }
+	    Lex->charset=cs;
+	  }
 
 references:
 	REFERENCES table_ident opt_on_delete {}
