@@ -146,6 +146,37 @@ Grants for drop_user@localhost
 GRANT ALL PRIVILEGES ON *.* TO 'drop_user'@'localhost' WITH GRANT OPTION
 GRANT ALL PRIVILEGES ON `test`.* TO 'drop_user'@'localhost' WITH GRANT OPTION
 GRANT SELECT (a) ON `test`.`t1` TO 'drop_user'@'localhost'
+set sql_mode=ansi_quotes;
+show grants for drop_user@localhost;
+Grants for drop_user@localhost
+GRANT ALL PRIVILEGES ON *.* TO 'drop_user'@'localhost' WITH GRANT OPTION
+GRANT ALL PRIVILEGES ON "test".* TO 'drop_user'@'localhost' WITH GRANT OPTION
+GRANT SELECT (a) ON "test"."t1" TO 'drop_user'@'localhost'
+set sql_mode=default;
+set sql_quote_show_create=0;
+show grants for drop_user@localhost;
+Grants for drop_user@localhost
+GRANT ALL PRIVILEGES ON *.* TO 'drop_user'@'localhost' WITH GRANT OPTION
+GRANT ALL PRIVILEGES ON test.* TO 'drop_user'@'localhost' WITH GRANT OPTION
+GRANT SELECT (a) ON test.t1 TO 'drop_user'@'localhost'
+set sql_mode="ansi_quotes";
+show grants for drop_user@localhost;
+Grants for drop_user@localhost
+GRANT ALL PRIVILEGES ON *.* TO 'drop_user'@'localhost' WITH GRANT OPTION
+GRANT ALL PRIVILEGES ON test.* TO 'drop_user'@'localhost' WITH GRANT OPTION
+GRANT SELECT (a) ON test.t1 TO 'drop_user'@'localhost'
+set sql_quote_show_create=1;
+show grants for drop_user@localhost;
+Grants for drop_user@localhost
+GRANT ALL PRIVILEGES ON *.* TO 'drop_user'@'localhost' WITH GRANT OPTION
+GRANT ALL PRIVILEGES ON "test".* TO 'drop_user'@'localhost' WITH GRANT OPTION
+GRANT SELECT (a) ON "test"."t1" TO 'drop_user'@'localhost'
+set sql_mode="";
+show grants for drop_user@localhost;
+Grants for drop_user@localhost
+GRANT ALL PRIVILEGES ON *.* TO 'drop_user'@'localhost' WITH GRANT OPTION
+GRANT ALL PRIVILEGES ON `test`.* TO 'drop_user'@'localhost' WITH GRANT OPTION
+GRANT SELECT (a) ON `test`.`t1` TO 'drop_user'@'localhost'
 revoke all privileges, grant option from drop_user@localhost;
 show grants for drop_user@localhost;
 Grants for drop_user@localhost
