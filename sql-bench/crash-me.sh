@@ -2524,21 +2524,21 @@ sub report_trans
 	  if ($rc) {
 	    $dbh->{AutoCommit} = 1;
 	    if (safe_query_result($check,"","")) {
-	      save_config_data($limit,"yes",$prompt);
+	      save_config_data($limit,"yes",$limit);
 	    }
 	    safe_query($clear);
 	  } else {
 	    $dbh->{AutoCommit} = 1;
-	    save_config_data($limit,"error",$prompt);
+	    save_config_data($limit,"error",$limit);
 	  }
       } else {
-        save_config_data($limit,"error",$prompt);
+        save_config_data($limit,"error",$limit);
       }
       $dbh->{AutoCommit} = 1;
     }
     else
     {
-      save_config_data($limit,"no",$prompt);
+      save_config_data($limit,"no",$limit);
     }
     safe_query($clear);
   }
