@@ -88,3 +88,40 @@ INSERT INTO t2 VALUES (100),(200);
 SELECT i, COUNT(*) FROM t1 GROUP BY i WITH ROLLUP;
 SELECT t1.i, t2.i, COUNT(*) FROM t1,t2 GROUP BY t1.i,t2.i WITH ROLLUP;
 drop table t1,t2;
+
+#bug #4767: ROLLUP with LEFT JOIN 
+
+CREATE TABLE user_day(
+  user_id INT NOT NULL,
+  date DATE NOT NULL,
+  UNIQUE INDEX user_date (user_id, date)
+);
+
+INSERT INTO user_day VALUES
+  (1, '2004-06-06' ),
+  (1, '2004-06-07' ),
+  (2, '2004-06-06' );
+
+SELECT
+       d.date AS day,
+       COUNT(d.user_id) as sample,
+       COUNT(next_day.user_id) AS not_cancelled
+  FROM user_day d
+       LEFT JOIN user_day next_day 
+       ON next_day.user_id=d.user_id AND 
+          next_day.date= DATE_ADD( d.date, interval 1 day )
+  GROUP BY day;
+
+SELECT
+       d.date AS day,
+       COUNT(d.user_id) as sample,
+       COUNT(next_day.user_id) AS not_cancelled
+  FROM user_day d
+       LEFT JOIN user_day next_day 
+       ON next_day.user_id=d.user_id AND 
+          next_day.date= DATE_ADD( d.date, interval 1 day )
+  GROUP BY day
+    WITH ROLLUP;
+
+DROP TABLE user_day;
+
