@@ -160,7 +160,8 @@ static DATE_TIME_FORMAT time_24hrs_format= {{0}, '\0', 0,
 static bool extract_date_time(DATE_TIME_FORMAT *format,
 			      const char *val, uint length, TIME *l_time,
                               timestamp_type cached_timestamp_type,
-                              const char **sub_pattern_end)
+                              const char **sub_pattern_end,
+                              const char *date_time_type)
 {
   int weekday= 0, yearday= 0, daypart= 0;
   int week_number= -1;
@@ -188,12 +189,12 @@ static bool extract_date_time(DATE_TIME_FORMAT *format,
 
   for (; ptr != end && val != val_end; ptr++)
   {
-
     if (*ptr == '%' && ptr+1 != end)
     {
       int val_len;
       char *tmp;
 
+      error= 0;
       /* Skip pre-space between each argument */
       while (val != val_end && my_isspace(cs, *val))
 	val++;
@@ -343,16 +344,22 @@ static bool extract_date_time(DATE_TIME_FORMAT *format,
 
         /* Time in AM/PM notation */
       case 'r':
-        error= extract_date_time(&time_ampm_format, val,
-                                 (uint)(val_end - val), l_time,
-                                 cached_timestamp_type, &val);
+        /*
+          We can't just set error here, as we don't want to generate two
+          warnings in case of errors
+        */
+        if (extract_date_time(&time_ampm_format, val,
+                              (uint)(val_end - val), l_time,
+                              cached_timestamp_type, &val, "time"))
+          DBUG_RETURN(1);
         break;
 
         /* Time in 24-hour notation */
       case 'T':
-        error= extract_date_time(&time_24hrs_format, val,
-                                 (uint)(val_end - val), l_time,
-                                 cached_timestamp_type, &val);
+        if (extract_date_time(&time_24hrs_format, val,
+                              (uint)(val_end - val), l_time,
+                              cached_timestamp_type, &val, "time"))
+          DBUG_RETURN(1);
         break;
 
         /* Conversion specifiers that match classes of characters */
@@ -471,6 +478,13 @@ static bool extract_date_time(DATE_TIME_FORMAT *format,
   DBUG_RETURN(0);
 
 err:
+  {
+    char buff[128];
+    strmake(buff, val_begin, min(length, sizeof(buff)-1));
+    push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_ERROR,
+                        ER_WRONG_VALUE_FOR_TYPE, ER(ER_WRONG_VALUE_FOR_TYPE),
+                        date_time_type, buff, "str_to_time");
+  }
   DBUG_RETURN(1);
 }
 
@@ -2972,7 +2986,7 @@ bool Item_func_str_to_date::get_date(TIME *ltime, uint fuzzy_date)
   date_time_format.format.str=    (char*) format->ptr();
   date_time_format.format.length= format->length();
   if (extract_date_time(&date_time_format, val->ptr(), val->length(),
-			ltime, cached_timestamp_type, 0))
+			ltime, cached_timestamp_type, 0, "datetime"))
     goto null_date;
   if (cached_timestamp_type == MYSQL_TIMESTAMP_TIME && ltime->day)
   {
