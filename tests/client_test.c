@@ -655,10 +655,12 @@ static void verify_prepare_field(MYSQL_RES *result,
     fprintf(stdout, "\n    org_name :`%s`\t(expected: `%s`)",
             field->org_name, org_name);
     fprintf(stdout, "\n    type     :`%d`\t(expected: `%d`)", field->type, type);
-    fprintf(stdout, "\n    table    :`%s`\t(expected: `%s`)",
-            field->table, table);
-    fprintf(stdout, "\n    org_table:`%s`\t(expected: `%s`)",
-            field->org_table, org_table);
+    if (table)
+      fprintf(stdout, "\n    table    :`%s`\t(expected: `%s`)",
+              field->table, table);
+    if (org_table)	      
+      fprintf(stdout, "\n    org_table:`%s`\t(expected: `%s`)",
+              field->org_table, org_table);
     fprintf(stdout, "\n    database :`%s`\t(expected: `%s`)", field->db, db);
     fprintf(stdout, "\n    length   :`%ld`\t(expected: `%ld`)",
             field->length, length);
@@ -671,8 +673,10 @@ static void verify_prepare_field(MYSQL_RES *result,
   DIE_UNLESS(strcmp(field->name, name) == 0);
   DIE_UNLESS(strcmp(field->org_name, org_name) == 0);
   DIE_UNLESS(field->type == type);
-  DIE_UNLESS(strcmp(field->table, table) == 0);
-  DIE_UNLESS(strcmp(field->org_table, org_table) == 0);
+  if (table)
+    DIE_UNLESS(strcmp(field->table, table) == 0);
+  if (org_table)
+    DIE_UNLESS(strcmp(field->org_table, org_table) == 0);
   DIE_UNLESS(strcmp(field->db, db) == 0);
   DIE_UNLESS(field->length == length);
   if (def)
@@ -7256,23 +7260,23 @@ static void test_explain_bug()
             mysql_num_fields(result));
   DIE_UNLESS(6 == mysql_num_fields(result));
 
-  verify_prepare_field(result, 0, "Field", "", MYSQL_TYPE_VAR_STRING,
-                       "", "", "", NAME_LEN, 0);
+  verify_prepare_field(result, 0, "Field", "COLUMN_NAME",
+                       MYSQL_TYPE_STRING, 0, 0, "", NAME_LEN, 0);
 
-  verify_prepare_field(result, 1, "Type", "", MYSQL_TYPE_VAR_STRING,
-                       "", "", "", 40, 0);
+  verify_prepare_field(result, 1, "Type", "TYPE",
+                       MYSQL_TYPE_STRING, 0, 0, "", 40, 0);
 
-  verify_prepare_field(result, 2, "Null", "", MYSQL_TYPE_VAR_STRING,
-                       "", "", "", 1, 0);
+  verify_prepare_field(result, 2, "Null", "IS_NULLABLE",
+                       MYSQL_TYPE_STRING, 0, 0, "", 3, 0);
 
-  verify_prepare_field(result, 3, "Key", "", MYSQL_TYPE_VAR_STRING,
-                       "", "", "", 3, 0);
+  verify_prepare_field(result, 3, "Key", "KEY",
+                       MYSQL_TYPE_STRING, 0, 0, "", 3, 0);
 
-  verify_prepare_field(result, 4, "Default", "", MYSQL_TYPE_VAR_STRING,
-                       "", "", "", NAME_LEN, 0);
+  verify_prepare_field(result, 4, "Default", "COLUMN_DEFAULT",
+                       MYSQL_TYPE_STRING, 0, 0, "", NAME_LEN, 0);
 
-  verify_prepare_field(result, 5, "Extra", "", MYSQL_TYPE_VAR_STRING,
-                       "", "", "", 20, 0);
+  verify_prepare_field(result, 5, "Extra", "EXTRA",
+                       MYSQL_TYPE_STRING, 0, 0, "", 20, 0);
 
   mysql_free_result(result);
   mysql_stmt_close(stmt);

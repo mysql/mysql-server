@@ -223,6 +223,8 @@ typedef struct st_ha_create_information
 
 struct st_table;
 typedef struct st_table TABLE;
+struct st_foreign_key_info;
+typedef struct st_foreign_key_info FOREIGN_KEY_INFO;
 
 typedef struct st_ha_check_opt
 {
@@ -465,6 +467,8 @@ public:
   virtual char* get_foreign_key_create_info()
   { return(NULL);}  /* gets foreign key create string from InnoDB */
   /* used in REPLACE; is > 0 if table is referred by a FOREIGN KEY */
+  virtual int get_foreign_key_list(THD *thd, List<FOREIGN_KEY_INFO> *f_key_list)
+  { return 0; }
   virtual uint referenced_by_foreign_key() { return 0;}
   virtual void init_table_handle_for_HANDLER()
   { return; }       /* prepare InnoDB for HANDLER */

@@ -1520,6 +1520,7 @@ void st_table_list::set_ancestor()
   if (ancestor->ancestor)
     ancestor->set_ancestor();
   table= ancestor->table;
+  schema_table= ancestor->schema_table;
   ancestor->table->grant= grant;
 }
 

@@ -247,6 +247,7 @@ extern CHARSET_INFO *national_charset_info, *table_alias_charset;
    key checks in some cases */
 #define OPTION_RELAXED_UNIQUE_CHECKS    (1L << 27)
 #define SELECT_NO_UNLOCK                (1L << 28)
+#define OPTION_SCHEMA_TABLE             (1L << 29)
 
 /* The rest of the file is included in the server only */
 #ifndef MYSQL_CLIENT
@@ -405,7 +406,8 @@ typedef Comp_creator* (*chooser_compare_func_creator)(bool invert);
 void free_items(Item *item);
 void cleanup_items(Item *item);
 class THD;
-void close_thread_tables(THD *thd, bool locked=0, bool skip_derived=0);
+void close_thread_tables(THD *thd, bool locked=0, bool skip_derived=0,
+                         TABLE *stopper= 0);
 bool check_one_table_access(THD *thd, ulong privilege,
 			   TABLE_LIST *tables);
 bool check_some_access(THD *thd, ulong want_access, TABLE_LIST *table);
@@ -692,14 +694,7 @@ void free_des_key_file();
 int mysql_do(THD *thd, List<Item> &values);
 
 /* sql_show.cc */
-int mysqld_show_dbs(THD *thd,const char *wild);
 int mysqld_show_open_tables(THD *thd,const char *wild);
-int mysqld_show_tables(THD *thd, const char *db, const char *wild,
-		       bool verbose);
-int mysqld_extend_show_tables(THD *thd,const char *db,const char *wild);
-int mysqld_show_fields(THD *thd,TABLE_LIST *table, const char *wild,
-		       bool verbose);
-int mysqld_show_keys(THD *thd, TABLE_LIST *table);
 int mysqld_show_logs(THD *thd);
 void append_identifier(THD *thd, String *packet, const char *name,
 		       uint length);
@@ -718,13 +713,31 @@ int mysqld_show(THD *thd, const char *wild, show_var_st *variables,
 		struct system_status_var *status_var);
 int mysql_find_files(THD *thd,List<char> *files, const char *db,
                 const char *path, const char *wild, bool dir);
-int mysqld_show_charsets(THD *thd,const char *wild);
-int mysqld_show_collations(THD *thd,const char *wild);
 int mysqld_show_storage_engines(THD *thd);
 int mysqld_show_privileges(THD *thd);
 int mysqld_show_column_types(THD *thd);
 int mysqld_help (THD *thd, const char *text);
 void calc_sum_of_all_status(STATUS_VAR *to);
+
+
+
+/* information schema */
+extern LEX_STRING information_schema_name;
+LEX_STRING *make_lex_string(THD *thd, LEX_STRING *lex_str,
+                            const char* str, uint length,
+                            bool allocate_lex_string= 0);
+ST_SCHEMA_TABLE *find_schema_table(THD *thd, const char* table_name);
+ST_SCHEMA_TABLE *get_schema_table(enum enum_schema_tables schema_table_idx);
+int prepare_schema_table(THD *thd, LEX *lex, Table_ident *table_ident,
+                         enum enum_schema_tables schema_table_idx);
+int make_schema_select(THD *thd,  SELECT_LEX *sel,
+                       enum enum_schema_tables schema_table_idx);
+int mysql_schema_table(THD *thd, LEX *lex, TABLE_LIST *table_list);
+int fill_schema_user_privileges(THD *thd, TABLE_LIST *tables, COND *cond);
+int fill_schema_schema_privileges(THD *thd, TABLE_LIST *tables, COND *cond);
+int fill_schema_table_privileges(THD *thd, TABLE_LIST *tables, COND *cond);
+int fill_schema_column_privileges(THD *thd, TABLE_LIST *tables, COND *cond);
+int get_schema_tables_result(JOIN *join);
 
 /* sql_prepare.cc */
 int mysql_stmt_prepare(THD *thd, char *packet, uint packet_length, 

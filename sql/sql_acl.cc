@@ -2851,7 +2851,8 @@ bool check_grant(THD *thd, ulong want_access, TABLE_LIST *tables,
   for (table= tables; table && number--; table= table->next_global)
   {
     GRANT_TABLE *grant_table;
-    if (!(~table->grant.privilege & want_access) || table->derived)
+    if (!(~table->grant.privilege & want_access) || 
+        table->derived || table->schema_table)
     {
       /*
         It is subquery in the FROM clause. VIEW set table->derived after
@@ -3927,6 +3928,221 @@ int wild_case_compare(CHARSET_INFO *cs, const char *str,const char *wildstr)
   }
   DBUG_RETURN (*str != '\0');
 }
+
+
+void update_schema_privilege(TABLE *table, char *buff, const char* db,
+                             const char* t_name, const char* column,
+                             uint col_length, const char *priv, 
+                             uint priv_length, const char* is_grantable)
+{
+  int i= 2;
+  CHARSET_INFO *cs= system_charset_info;
+  restore_record(table, default_values);
+  table->field[0]->store(buff, strlen(buff), cs);
+  if (db)
+    table->field[i++]->store(db, strlen(db), cs);
+  if (t_name)
+    table->field[i++]->store(t_name, strlen(t_name), cs);
+  if (column)
+    table->field[i++]->store(column, col_length, cs);
+  table->field[i++]->store(priv, priv_length, cs);
+  table->field[i]->store(is_grantable, strlen(is_grantable), cs);
+  table->file->write_row(table->record[0]);
+}
+
+
+int fill_schema_user_privileges(THD *thd, TABLE_LIST *tables, COND *cond)
+{
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
+  uint counter;
+  ACL_USER *acl_user;
+  ulong want_access;
+
+  char buff[100];
+  TABLE *table= tables->table;
+  DBUG_ENTER("fill_schema_user_privileges");
+  for (counter=0 ; counter < acl_users.elements ; counter++)
+  {
+    const char *user,*host, *is_grantable="YES";
+    acl_user=dynamic_element(&acl_users,counter,ACL_USER*);
+    if (!(user=acl_user->user))
+      user= "";
+    if (!(host=acl_user->host.hostname))
+      host= "";
+    want_access= acl_user->access;
+    if (!(want_access & GRANT_ACL))
+      is_grantable= "NO";
+
+    strxmov(buff,"'",user,"'@'",host,"'",NullS);
+    if (!(want_access & ~GRANT_ACL))
+      update_schema_privilege(table, buff, 0, 0, 0, 0, "USAGE", 5, is_grantable);
+    else
+    {
+      uint priv_id;
+      ulong j,test_access= want_access & ~GRANT_ACL;
+      for (priv_id=0, j = SELECT_ACL;j <= GLOBAL_ACLS; priv_id++,j <<= 1)
+      {
+	if (test_access & j)
+          update_schema_privilege(table, buff, 0, 0, 0, 0, 
+                                  command_array[priv_id],
+                                  command_lengths[priv_id], is_grantable);
+      }
+    }
+  }
+#endif
+  DBUG_RETURN(0);
+}
+
+
+int fill_schema_schema_privileges(THD *thd, TABLE_LIST *tables, COND *cond)
+{
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
+  uint counter;
+  ACL_DB *acl_db;
+  ulong want_access;
+  char buff[100];
+  TABLE *table= tables->table;
+  DBUG_ENTER("fill_schema_schema_privileges");
+
+  for (counter=0 ; counter < acl_dbs.elements ; counter++)
+  {
+    const char *user, *host, *is_grantable="YES";
+
+    acl_db=dynamic_element(&acl_dbs,counter,ACL_DB*);
+    if (!(user=acl_db->user))
+      user= "";
+    if (!(host=acl_db->host.hostname))
+      host= "";
+
+    want_access=acl_db->access;
+    if (want_access)
+    {
+      if (!(want_access & GRANT_ACL))
+      {
+        is_grantable= "NO";
+      }
+      strxmov(buff,"'",user,"'@'",host,"'",NullS);
+      if (!(want_access & ~GRANT_ACL))
+        update_schema_privilege(table, buff, acl_db->db, 0, 0,
+                                0, "USAGE", 5, is_grantable);
+      else
+      {
+        int cnt;
+        ulong j,test_access= want_access & ~GRANT_ACL;
+        for (cnt=0, j = SELECT_ACL; j <= DB_ACLS; cnt++,j <<= 1)
+          if (test_access & j)
+            update_schema_privilege(table, buff, acl_db->db, 0, 0, 0,
+                                    command_array[cnt], command_lengths[cnt],
+                                    is_grantable);
+      }
+    }
+  }
+#endif
+  DBUG_RETURN(0);
+}
+
+
+int fill_schema_table_privileges(THD *thd, TABLE_LIST *tables, COND *cond)
+{
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
+  uint index;
+  char buff[100];
+  TABLE *table= tables->table;
+  DBUG_ENTER("fill_schema_table_privileges");
+
+  for (index=0 ; index < column_priv_hash.records ; index++)
+  {
+    const char *user, *is_grantable= "YES";
+    GRANT_TABLE *grant_table= (GRANT_TABLE*) hash_element(&column_priv_hash,
+							  index);
+    if (!(user=grant_table->user))
+      user= "";
+    ulong table_access= grant_table->privs;
+    if (table_access != 0)
+    {
+      ulong test_access= table_access & ~GRANT_ACL;
+      if (!(table_access & GRANT_ACL))
+        is_grantable= "NO";
+
+      strxmov(buff,"'",user,"'@'",grant_table->orig_host,"'",NullS);
+      if (!test_access)
+        update_schema_privilege(table, buff, grant_table->db, grant_table->tname,
+                                0, 0, "USAGE", 5, is_grantable);
+      else
+      {
+        ulong j;
+        int cnt;
+        for (cnt= 0, j= SELECT_ACL; j <= TABLE_ACLS; cnt++, j<<= 1)
+        {
+          if (test_access & j)
+            update_schema_privilege(table, buff, grant_table->db, 
+                                    grant_table->tname, 0, 0, command_array[cnt],
+                                    command_lengths[cnt], is_grantable);
+        }
+      }
+    }
+  }
+#endif
+  DBUG_RETURN(0);
+}
+
+
+int fill_schema_column_privileges(THD *thd, TABLE_LIST *tables, COND *cond)
+{
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
+  uint index;
+  char buff[100];
+  TABLE *table= tables->table;
+  DBUG_ENTER("fill_schema_table_privileges");
+
+  for (index=0 ; index < column_priv_hash.records ; index++)
+  {
+    const char *user, *is_grantable= "YES";
+    GRANT_TABLE *grant_table= (GRANT_TABLE*) hash_element(&column_priv_hash,
+							  index);
+    if (!(user=grant_table->user))
+      user= "";
+    ulong table_access= grant_table->cols;
+    if (table_access != 0)
+    {
+      ulong test_access= grant_table->cols & ~GRANT_ACL;
+      if (!(table_access & GRANT_ACL))
+        is_grantable= "NO";
+
+      strxmov(buff,"'",user,"'@'",grant_table->orig_host,"'",NullS);
+      if (!test_access)
+        continue;
+      else
+      {
+        ulong j;
+        int cnt;
+        for (cnt= 0, j= SELECT_ACL; j <= TABLE_ACLS; cnt++, j<<= 1)
+        {
+          if (test_access & j)
+          {
+            for (uint col_index=0 ;
+                 col_index < grant_table->hash_columns.records ;
+                 col_index++)
+            {
+              GRANT_COLUMN *grant_column = (GRANT_COLUMN*)
+                hash_element(&grant_table->hash_columns,col_index);
+              if ((grant_column->rights & j) && (table_access & j))
+                  update_schema_privilege(table, buff, grant_table->db,
+                                          grant_table->tname,
+                                          grant_column->column,
+                                          grant_column->key_length,
+                                          command_array[cnt],
+                                          command_lengths[cnt], is_grantable);
+            }
+          }
+        }
+      }
+    }
+  }
+#endif
+  DBUG_RETURN(0);
+}
+
 
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
 /*
