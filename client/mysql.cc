@@ -330,6 +330,16 @@ static sig_handler mysql_end(int sig);
 int main(int argc,char *argv[])
 {
   char buff[80];
+  char *defaults, *extra_defaults;
+  char *emb_argv[3];
+  int emb_argc= 1;
+
+  emb_argv[0]= argv[0];
+  get_defaults_files(argc, argv, &defaults, &extra_defaults);
+  if (defaults)
+    emb_argv[emb_argc++]= defaults;
+  if (extra_defaults)
+    emb_argv[emb_argc++]= extra_defaults;
 
   MY_INIT(argv[0]);
   DBUG_ENTER("main");
@@ -375,7 +385,7 @@ int main(int argc,char *argv[])
     my_end(0);
     exit(1);
   }
-  if (mysql_server_init(0, NULL, (char**) server_default_groups))
+  if (mysql_server_init(emb_argc, emb_argv, (char**) server_default_groups))
   {
     free_defaults(defaults_argv);
     my_end(0);
