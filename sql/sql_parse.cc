@@ -1754,10 +1754,8 @@ mysql_execute_command(void)
       break;
     }
     if (!(res=open_and_lock_tables(thd,(TABLE_LIST *)total->first)))
-    {
       res=mysql_union(thd,lex, select_lex->select_number+1);
-      if (res==-1) res=0;
-    }
+    close_thread_tables(thd);
     break;
   }
   case SQLCOM_DROP_TABLE:

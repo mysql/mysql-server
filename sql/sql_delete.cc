@@ -295,12 +295,10 @@ int mysql_delete(THD *thd,
 
 #define MEM_STRIP_BUF_SIZE sortbuff_size
 
-#ifndef SINISAS_STRIP
 int refposcmp2(void* arg, const void *a,const void *b)
 {
   return memcmp(a,b,(int) arg);
 }
-#endif
 
 multi_delete::multi_delete(THD *thd_arg, TABLE_LIST *dt,
 			   thr_lock_type lock_option_arg,
@@ -310,12 +308,7 @@ multi_delete::multi_delete(THD *thd_arg, TABLE_LIST *dt,
     do_delete(false)
 {
   uint counter=0;
-#ifdef SINISAS_STRIP
-  tempfiles = (IO_CACHE **) sql_calloc(sizeof(IO_CACHE *)* num_of_tables);
-  memory_lane = (byte *)sql_alloc(MAX_REFLENGTH*MEM_STRIP_BUF_SIZE);
-#else
   tempfiles = (Unique **) sql_calloc(sizeof(Unique *) * (num_of_tables-1));
-#endif
 
   (void) dt->table->file->extra(HA_EXTRA_NO_READCHECK);
   /* Don't use key read with MULTI-TABLE-DELETE */
@@ -326,21 +319,10 @@ multi_delete::multi_delete(THD *thd_arg, TABLE_LIST *dt,
     TABLE *table=dt->table;
     (void) dt->table->file->extra(HA_EXTRA_NO_READCHECK);
     (void) dt->table->file->extra(HA_EXTRA_NO_KEYREAD);
-#ifdef SINISAS_STRIP
-    tempfiles[counter]=(IO_CACHE *) sql_alloc(sizeof(IO_CACHE));
-    if (open_cached_file(tempfiles[counter], mysql_tmpdir,TEMP_PREFIX,
-			 DISK_BUFFER_SIZE, MYF(MY_WME)))
-    {
-      my_error(ER_CANT_OPEN_FILE,MYF(0),(tempfiles[counter])->file_name,errno);
-      thd->fatal_error=1;
-      return;
-    }
-#else
     tempfiles[counter] = new Unique (refposcmp2,
 				     (void *) table->file->ref_length,
 				     table->file->ref_length,
 				     MEM_STRIP_BUF_SIZE);
-#endif
   }
 }
 
@@ -403,13 +385,7 @@ multi_delete::~multi_delete()
   for (uint counter = 0; counter < num_of_tables-1; counter++)
   {
     if (tempfiles[counter])
-    {
-#ifdef SINISAS_STRIP
-      end_io_cache(tempfiles[counter]);
-#else
       delete tempfiles[counter];
-#endif
-    }
   }
 }
 
@@ -443,11 +419,7 @@ bool multi_delete::send_data(List<Item> &values)
     }
     else
     {
-#ifdef SINISAS_STRIP
-      error=my_b_write(tempfiles[secure_counter],table->file->ref,rl);
-#else
       error=tempfiles[secure_counter]->unique_add(table->file->ref);
-#endif
       if (error)
       {
 	error=-1;
@@ -459,330 +431,6 @@ bool multi_delete::send_data(List<Item> &values)
 }
 
 
-#ifdef SINISAS_STRIP
-static inline int COMP (byte *ml,uint len,unsigned int left, unsigned int right)
-{
-  return memcmp(ml + left*len,ml + right*len,len);
-}
-
-#define EX(ML,LEN,LLLEFT,RRRIGHT) \
-ptr1 = ML + LLLEFT*LEN;\
-ptr2 = ML + RRRIGHT*LEN;\
-memcpy(tmp,ptr1,LEN);\
-memcpy(ptr1,ptr2,LEN);\
-memcpy(ptr2,tmp,LEN);\
-
-
-
-static void  qsort_mem_pieces(byte *ml, uint length,  unsigned short pivotP, unsigned int nElem) 
-{
-  unsigned int     leftP, rightP, pivotEnd, pivotTemp, leftTemp;
-  unsigned  int  lNum; byte tmp [MAX_REFLENGTH], *ptr1, *ptr2;
-  int       retval;
-tailRecursion:
-  if (nElem <= 1) return;
-  if (nElem == 2) 
-  {
-    if (COMP(ml,length,pivotP, rightP = pivotP + 1) > 0)
-    {
-      EX(ml,length,pivotP, rightP);
-    }
-    return;
-  }
-
-  rightP = (nElem - 1) + pivotP;
-  leftP  = (nElem >> 1) + pivotP;
-
-/*  sort the pivot, left, and right elements for "median of 3" */
-
-  if (COMP (ml,length,leftP, rightP) > 0)
-  {	
-    EX (ml,length,leftP, rightP);
-  }
-  if (COMP (ml,length,leftP, pivotP) > 0)
-  {
-    EX (ml,length,leftP, pivotP);
-  }
-  else if (COMP (ml,length, pivotP, rightP) > 0)
-  {
-    EX (ml,length,pivotP, rightP);
-  }
-	
-  if (nElem == 3) {
-    EX (ml,length,pivotP, leftP);
-    return;
-  }
-
-/*  now for the classic Hoare algorithm */
-  
-  leftP = pivotEnd = pivotP + 1;
-
-  do {
-    while ((retval = COMP (ml,length, leftP, pivotP)) <= 0) 
-    {
-      if (retval == 0) {
-	EX(ml,length,leftP, pivotEnd);
-	pivotEnd++;
-      }
-      if (leftP < rightP)
-	leftP++;
-      else
-	goto qBreak;
-    }
-    while (leftP < rightP) {
-      if ((retval = COMP(ml,length,pivotP, rightP)) < 0)
-	rightP--;
-      else 
-      {
-	EX (ml,length,leftP, rightP);
-	if (retval != 0) {
-	  leftP++;
-	  rightP--;
-	}
-	break;
-      }
-    }
-  }   while (leftP < rightP);
-
-qBreak:
-
-  if (COMP(ml,length,leftP, pivotP) <= 0)
-    leftP++;
-
-  leftTemp = leftP - 1;    pivotTemp = pivotP;
-
-  while ((pivotTemp < pivotEnd) && (leftTemp >= pivotEnd)) 
-  {
-    EX(ml,length,pivotTemp, leftTemp);
-    pivotTemp++;  leftTemp--;
-  }
-
-  lNum = leftP - pivotEnd;   nElem = (nElem + pivotP) - leftP;
-
-  /* Sort smaller partition first to reduce stack usage */
-  if (nElem < lNum) 
-  {
-    qsort_mem_pieces(ml,length,leftP, nElem); nElem = lNum;
-  }
-  else 
-  {
-    qsort_mem_pieces(ml,length,pivotP, lNum);
-    pivotP = leftP;
-  }
-  goto tailRecursion;
-}
-
-static byte * btree_search(byte *lane, byte *key,register int last, uint length)
-{
-  register int first = 0;
-  if (last == first)
-  {
-    if (!memcmp(lane,key,length)) return lane;
-    return (byte *)0;
-  }
-Recursion_is_too_slow:
-  if (last - first < 3)
-  {
-    if (!memcmp(lane + first*length,key,length)) return lane + first * length;
-    if (last == first + 1) return (byte *)0;
-    if (!memcmp(lane +  last*length,key,length)) return lane + last * length;
-    return (byte *)0;
-  }
-  else 
-  {
-    int half = first + (last - first)/2;
-    int result = memcmp(lane + half*length,key,length);
-    if (!result) return lane + half*length;
-    if (result < 0)
-    {
-      first = half + 1; goto Recursion_is_too_slow;
-    }
-    else
-    {	
-      last = half + 1; goto Recursion_is_too_slow;
-    }
-  }
-}
-
-struct written_block {
-  byte first[MAX_REFLENGTH], last[MAX_REFLENGTH];
-  my_off_t offset;
-  uint how_many;
-};
-
-static IO_CACHE *strip_duplicates_from_temp (byte *memory_lane, IO_CACHE *ptr, uint ref_length,  int *written)
-{
-  byte *mem_ptr; my_off_t off = 0;
-  int read_error, write_error, how_many_to_read, total_to_read = *written, pieces_in_memory = 0, mem_count,written_rows;
-  int offset = written_rows=*written=0;
-  int  mem_pool_size = MEM_STRIP_BUF_SIZE * MAX_REFLENGTH / ref_length;
-  byte dup_record[MAX_REFLENGTH]; memset(dup_record,'\xFF',MAX_REFLENGTH);
-  if (reinit_io_cache(ptr,READ_CACHE,0L,0,0))
-    return ptr;
-  IO_CACHE *tempptr =  (IO_CACHE *) my_malloc(sizeof(IO_CACHE), MYF(MY_FAE | MY_ZEROFILL));
-  if (open_cached_file(tempptr, mysql_tmpdir,TEMP_PREFIX, DISK_BUFFER_SIZE, MYF(MY_WME)))
-  {
-    my_free((gptr) tempptr, MYF (0));
-    return ptr;
-  }
-  DYNAMIC_ARRAY written_blocks;
-  VOID(init_dynamic_array(&written_blocks,sizeof(struct written_block),20,50));
-  for (;pieces_in_memory < total_to_read;)
-  {
-    how_many_to_read = total_to_read - pieces_in_memory;  read_error=write_error=0;
-    if (how_many_to_read > mem_pool_size) 
-      how_many_to_read = mem_pool_size;
-    if (my_b_read(ptr, memory_lane, (uint) how_many_to_read * ref_length))
-    {
-      read_error = 1;
-      break;
-    }
-    pieces_in_memory += how_many_to_read;
-    qsort_mem_pieces(memory_lane,0, how_many_to_read, ref_length);
-    byte *checking = dup_record,  *cursor=NULL, *mem_end = memory_lane + how_many_to_read * ref_length;
-    int opt_unique_pieces, unique_pieces_in_memory=0; write_error=0;
-    for (mem_ptr=memory_lane; mem_ptr < mem_end ; mem_ptr += ref_length)
-    {
-      if (memcmp(mem_ptr,checking, ref_length))
-      {
-	if (cursor)
-	{
-	  memmove(cursor,mem_ptr,mem_end - mem_ptr);
-	  mem_end -= mem_ptr - cursor;
-	  mem_ptr = cursor; cursor = NULL;
-	}
-	unique_pieces_in_memory++;
-	checking = mem_ptr;
-      }
-      else if (!cursor) cursor = mem_ptr;
-    }
-    opt_unique_pieces=unique_pieces_in_memory;
-    if (written_rows) 
-    {
-      if (reinit_io_cache(tempptr,READ_CACHE,0L,0,0))  {write_error = -1; break;}
-      for (uint i=0 ; i < written_blocks.elements ; i++)
-      {
-	struct written_block *wbp=dynamic_element(&written_blocks,i,struct written_block*);
-	if ((memcmp(memory_lane,wbp->last,ref_length) == 1) || (memcmp(memory_lane + (unique_pieces_in_memory - 1) * ref_length, wbp->first, ref_length) == -1))
-	  continue;
-	else
-	{
-	  if (wbp->how_many < 3)
-	  {
-	    if ((mem_ptr=btree_search(memory_lane,wbp->first,unique_pieces_in_memory-1, ref_length)))
-	    {
-	      if (!--opt_unique_pieces) goto skip_writting; // nice little optimization
-	      memcpy(mem_ptr,dup_record,ref_length);
-	    }
-	    if (wbp->how_many == 2 && (mem_ptr=btree_search(memory_lane,wbp->last,unique_pieces_in_memory-1, ref_length)))
-	    {
-	      if (!--opt_unique_pieces) goto skip_writting; // nice little optimization
-	      memcpy(mem_ptr,dup_record,ref_length);
-	    }
-	  }
-	  else
-	  {
-	    byte block[MAX_REFLENGTH * MEM_STRIP_BUF_SIZE]; // 16 K maximum and only temporary !!
-	    if (my_b_read(tempptr, block, (uint) wbp->how_many * ref_length))
-	    {
-	      read_error = 1; goto skip_writting;
-	    }
-	    if (unique_pieces_in_memory < 3)
-	    {
-	      if ((mem_ptr=btree_search(block,memory_lane,wbp->how_many - 1, ref_length)))
-	      {
-		if (!--opt_unique_pieces) goto skip_writting; // nice little optimization
-		memcpy(memory_lane,dup_record,ref_length);
-	      }
-	      if (unique_pieces_in_memory == 2 && (mem_ptr=btree_search(block,memory_lane + ref_length,wbp->how_many - 1, ref_length)))
-	      {
-		if (!--opt_unique_pieces) goto skip_writting; // nice little optimization
-		memcpy(mem_ptr,dup_record,ref_length);
-	      }
-	    }
-	    else
-	    {
-	      byte *cursor; bool do_check_past;
-	      if (unique_pieces_in_memory < wbp->how_many)
-	      {
-		do_check_past = (memcmp(memory_lane + (unique_pieces_in_memory - 1)*ref_length,wbp->last,ref_length) == 1);
-		for (cursor=memory_lane; cursor < memory_lane + unique_pieces_in_memory*ref_length; cursor += ref_length)
-		{
-		  if ((mem_ptr=btree_search(block,cursor,wbp->how_many - 1, ref_length)))
-		  {
-		    if (!--opt_unique_pieces) goto skip_writting; // nice little optimization
-		    memcpy(cursor,dup_record,ref_length);
-		  }
-		  else if (do_check_past && (memcmp(cursor,wbp->last,ref_length) == 1)) break;
-		}
-	      }
-	      else
-	      {
-		do_check_past = (memcmp(memory_lane + (unique_pieces_in_memory - 1)*ref_length,wbp->last,ref_length) == -1);
-		for (cursor=block; cursor < block + wbp->how_many*ref_length;cursor += ref_length)
-		{
-		  if ((mem_ptr=btree_search(memory_lane,cursor,unique_pieces_in_memory-1, ref_length)))
-		  {
-		    if (!--opt_unique_pieces) goto skip_writting; // nice little optimization
-		    memcpy(mem_ptr,dup_record,ref_length);
-		  }
-		  else if (do_check_past && (memcmp(cursor,memory_lane + (unique_pieces_in_memory - 1)*ref_length,ref_length) == 1)) break;
-		}
-	      }
-	    }
-	  }
-	}
-      }
-    }
-    reinit_io_cache(tempptr, WRITE_CACHE,off,0,0);
-    struct written_block wb; wb.offset = off; wb.how_many=opt_unique_pieces; byte *last;
-    if (opt_unique_pieces < unique_pieces_in_memory)
-    {
-      for (mem_count=0, mem_ptr=memory_lane; mem_count<unique_pieces_in_memory;mem_count++, mem_ptr += ref_length)
-      {
-	if (memcmp(mem_ptr,dup_record,ref_length)) 
-	{
-	  if (my_b_write(tempptr,mem_ptr,ref_length))
-	  {
-	    if (write_error == 9 || write_error == -1) write_error = 0;
-	    if (write_error) break;
-	  }
-	  if (!mem_count) memcpy(wb.first,mem_ptr,ref_length);
-	  last = mem_ptr;
-	  written_rows++;
-	}
-      }
-      memcpy(wb.last,last,ref_length);
-    }
-    else
-    {
-      memcpy(wb.first,memory_lane,ref_length); memcpy(wb.last,memory_lane + (unique_pieces_in_memory -1)*ref_length,ref_length);
-      if (my_b_write(tempptr, memory_lane,unique_pieces_in_memory * ref_length))
-      {
-	write_error = 1; break;
-      }
-      written_rows += unique_pieces_in_memory;
-    }
-    off = my_b_tell(tempptr);
-    VOID(push_dynamic(&written_blocks,(gptr) &wb));
-  skip_writting:
-    if (write_error || read_error) break;
-  }
-  delete_dynamic(&written_blocks);
-  if (read_error || write_error)
-  {
-    close_cached_file(tempptr); end_io_cache(tempptr);
-    return ptr;
-  }
-  else
-  {
-    close_cached_file(ptr); *written=written_rows; end_io_cache(ptr);
-    reinit_io_cache(tempptr,READ_CACHE,0L,0,0); 
-    return tempptr;
-  }
-}
-
-#endif /* SINISAS_STRIP */
 
 /* Return true if some table is not transaction safe */
 
@@ -845,21 +493,11 @@ int multi_delete::do_deletes (bool from_send_error)
   { 
     TABLE *table = table_being_deleted->table;
     int rl = table->file->ref_length;
-#ifdef SINISAS_STRIP
-    int num_of_positions =  (int)my_b_tell(tempfiles[counter])/rl;
-    if (!num_of_positions) continue;
-    tempfiles[counter] = strip_duplicates_from_temp(memory_lane, tempfiles[counter],rl,&num_of_positions);
-    if (!num_of_positions)
-    {
-      error=1; break;
-    }
-#else
     if (tempfiles[counter]->get(table))
     {
       error=1;
       break;
     }
-#endif
 
 #if USE_REGENERATE_TABLE
     // nice little optimization ....
@@ -883,14 +521,7 @@ int multi_delete::do_deletes (bool from_send_error)
 
     READ_RECORD	info;
     error=0;
-#ifdef SINISAS_STRIP
-    SQL_SELECT	*select= new SQL_SELECT;
-    select->head=table;
-    select->file=*tempfiles[counter];
-    init_read_record(&info,thd,table,select,0,0);
-#else
     init_read_record(&info,thd,table,NULL,0,0);
-#endif
     bool not_trans_safe = some_table_is_not_transaction_safe(delete_tables);
     while (!(error=info.read_record(&info)) &&
 	   (!thd->killed ||  from_send_error || not_trans_safe))
@@ -905,9 +536,6 @@ int multi_delete::do_deletes (bool from_send_error)
 	deleted++;
     }
     end_read_record(&info);
-#ifdef SINISAS_STRIP
-    delete select;
-#endif
     if (error == -1)
       error = 0;
   }
