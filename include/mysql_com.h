@@ -327,7 +327,7 @@ void get_salt_from_password_323(unsigned long *res, const char *password);
 void make_password_from_salt_323(char *to, const unsigned long *salt);
 
 void make_scrambled_password(char *to, const char *password);
-char *scramble(char *to, const char *message, const char *password);
+void scramble(char *to, const char *message, const char *password);
 my_bool check_scramble(const char *reply, const char *message,
                        const unsigned char *hash_stage2);
 void get_salt_from_password(unsigned char *res, const char *password);

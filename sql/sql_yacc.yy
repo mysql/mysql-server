@@ -493,6 +493,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %token  MULTIPOINT
 %token  MULTIPOLYGON
 %token	NOW_SYM
+%token	OLD_PASSWORD
 %token	PASSWORD
 %token	POINTFROMTEXT
 %token	POINT_SYM
@@ -2516,9 +2517,11 @@ simple_expr:
 	  { $$= new Item_func_now($3); Lex->safe_to_cache_query=0;}
 	| PASSWORD '(' expr ')'
 	  {
-            $$= use_old_passwords ?  (Item *) new Item_func_old_password($3) :
-              (Item *) new Item_func_password($3);
-          }
+	    $$= use_old_passwords ?  (Item *) new Item_func_old_password($3) :
+	      (Item *) new Item_func_password($3);
+	  }
+	| OLD_PASSWORD '(' expr ')'
+	  { $$=  new Item_func_old_password($3); }
 	| POINT_SYM '(' expr ',' expr ')'
 	  { $$= new Item_func_point($3,$5); }
  	| POINTFROMTEXT '(' expr ')'
@@ -4412,6 +4415,7 @@ keyword:
 	| NO_SYM		{}
 	| NONE_SYM		{}
 	| OFFSET_SYM		{}
+	| OLD_PASSWORD		{}
 	| OPEN_SYM		{}
 	| PACK_KEYS_SYM		{}
 	| PARTIAL		{}
@@ -4603,24 +4607,15 @@ text_or_password:
 	TEXT_STRING { $$=$1.str;}
 	| PASSWORD '(' TEXT_STRING ')'
 	  {
-	    if (!$3.length)
-	      $$=$3.str;
-	    else if (use_old_passwords)
-	    {
-	      char *buff= (char *)
-                YYTHD->alloc(SCRAMBLED_PASSWORD_CHAR_LENGTH_323+1);
-              if (buff)
-                make_scrambled_password_323(buff, $3.str);
-	      $$=buff;
-	    }
-            else
-            {
-	      char *buff= (char *)
-                YYTHD->alloc(SCRAMBLED_PASSWORD_CHAR_LENGTH+1);
-              if (buff)
-                make_scrambled_password(buff, $3.str);
-	      $$=buff;
-            }
+	    $$= $3.length ? use_old_passwords ?
+	        Item_func_old_password::alloc(YYTHD, $3.str) :
+	        Item_func_password::alloc(YYTHD, $3.str) :
+	      $3.str;
+	  }
+	| OLD_PASSWORD '(' TEXT_STRING ')'
+	  {
+	    $$= $3.length ? Item_func_old_password::alloc(YYTHD, $3.str) :
+	      $3.str;
 	  }
           ;
 

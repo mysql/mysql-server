@@ -446,22 +446,20 @@ make_scrambled_password(char *to, const char *password)
     Produce an obscure octet sequence from password and random
     string, recieved from the server. This sequence corresponds to the
     password, but password can not be easily restored from it. The sequence
-    is then sent to the server for validation. Trailing zero is stored in
-    the buf.
+    is then sent to the server for validation. Trailing zero is not stored
+    in the buf as it is not needed.
     This function is used by client to create authenticated reply to the
     server's greeting.
   SYNOPSIS
     scramble()
     buf       OUT store scrambled string here. The buf must be at least 
-                  SHA1_HASH_SIZE+1 bytes long. 
+                  SHA1_HASH_SIZE bytes long. 
     message   IN  random message, must be exactly SCRAMBLE_LENGTH long and 
                   NULL-terminated.
     password  IN  users' password 
-  RETURN VALUE
-    end of scrambled string
 */
 
-char *
+void
 scramble(char *to, const char *message, const char *password)
 {
   SHA1_CONTEXT sha1_context;
@@ -483,8 +481,6 @@ scramble(char *to, const char *message, const char *password)
   /* xor allows 'from' and 'to' overlap: lets take advantage of it */
   sha1_result(&sha1_context, (uint8 *) to);
   my_crypt(to, (const uint8 *) to, hash_stage1, SCRAMBLE_LENGTH);
-  to[SHA1_HASH_SIZE]= '\0';
-  return to + SHA1_HASH_SIZE;
 }
 
 

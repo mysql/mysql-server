@@ -624,3 +624,8 @@ vio/test-sslserver
 vio/viotest-ssl
 start_mysqld.sh
 mysys/main.cc
+BitKeeper/post-commit
+BitKeeper/post-commit-manual
+build_tags.sh
+tests/connect_test
+BUILD/compile-pentium-maintainer
