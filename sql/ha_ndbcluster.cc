@@ -3331,7 +3331,10 @@ static int create_ndb_column(NDBCOL &col,
       col.setCharset(cs);
     }
     if (field->pack_length() == 0)
-      col.setLength(1); // currently ndb does not support size 0
+    {
+      col.setType(NDBCOL::Bit);
+      col.setLength(1);
+    }
     else
       col.setLength(field->pack_length());
     break;
