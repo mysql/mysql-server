@@ -128,7 +128,7 @@ LogHandlerListUnitTest::testTraverseNext(const char* msg)
   {
     char* str = new char[3];
     pHandlers[i] = new ConsoleLogHandler();
-    ::snprintf(str, 3, "%d", i);
+    BaseString::snprintf(str, 3, "%d", i);
     pHandlers[i]->setDateTimeFormat(str);   
     list.add(pHandlers[i]);
   }

@@ -3405,9 +3405,9 @@ add_node_connections(Vector<ConfigInfo::ConfigRuleSection>&sections,
 	s.m_sectionType= BaseString("TCP");
 	s.m_sectionData= new Properties(true);
 	char buf[16];
-	snprintf(buf, sizeof(buf), "%u", nodeId1);
+	BaseString::snprintf(buf, sizeof(buf), "%u", nodeId1);
 	s.m_sectionData->put("NodeId1", buf);
-	snprintf(buf, sizeof(buf), "%u", nodeId2);
+	BaseString::snprintf(buf, sizeof(buf), "%u", nodeId2);
 	s.m_sectionData->put("NodeId2", buf);
 	sections.push_back(s);
       }
@@ -3422,9 +3422,9 @@ add_node_connections(Vector<ConfigInfo::ConfigRuleSection>&sections,
 	s.m_sectionType= BaseString("TCP");
 	s.m_sectionData= new Properties(true);
 	char buf[16];
-	snprintf(buf, sizeof(buf), "%u", nodeId1);
+	BaseString::snprintf(buf, sizeof(buf), "%u", nodeId1);
 	s.m_sectionData->put("NodeId1", buf);
-	snprintf(buf, sizeof(buf), "%u", nodeId2);
+	BaseString::snprintf(buf, sizeof(buf), "%u", nodeId2);
 	s.m_sectionData->put("NodeId2", buf);
 	sections.push_back(s);
       }

@@ -346,15 +346,15 @@ extern "C" OSBOOLEAN ndb_err_hnd(bool user_called,
     file_name =       "ose_err.h";
   }
 
-  snprintf (error_message.header1,
+  BaseString::snprintf(error_message.header1,
             BUFSIZE,
             "This is the OSE Example System Error handler\r\n");
   
-  snprintf (error_message.err_hnd_file,
+  BaseString::snprintf(error_message.err_hnd_file,
             BUFSIZE,
             "located in: " __FILE__ "\r\n");
   
-  snprintf (error_message.header2,
+  BaseString::snprintf(error_message.header2,
             BUFSIZE,
             "An Error has been reported:\r\n");
   
@@ -371,28 +371,28 @@ extern "C" OSBOOLEAN ndb_err_hnd(bool user_called,
              user_called);
   }
   
-  snprintf (error_message.error_code_line,
+  BaseString::snprintf(error_message.error_code_line,
             BUFSIZE,
             "error code:       0x%08x\r\n",
             error_code);
   
-  snprintf (error_message.subcode_line,
+  BaseString::snprintf(error_message.subcode_line,
             BUFSIZE,
             "   subcode:       %s (0x%08x)\r\n",
             subcode_mnemonic,
             ( subcode << 16));
   
-  snprintf (error_message.product_line,
+  BaseString::snprintf(error_message.product_line,
             BUFSIZE,
             "   product:       %s\r\n",
             product_name);
   
-  snprintf (error_message.header_file_line,
+  BaseString::snprintf(error_message.header_file_line,
             BUFSIZE,
             "   header file:   %s\r\n",
             file_name);
   
-  snprintf (error_message.extra_line,
+  BaseString::snprintf(error_message.extra_line,
             BUFSIZE,
             "extra:            0x%08x\r\n",
             extra);
