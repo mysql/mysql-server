@@ -441,7 +441,7 @@ class Item_real :public Item
 public:
   const double value;
   // Item_real() :value(0) {}
-  Item_real(const char *str_arg,uint length) :value(atof(str_arg))
+  Item_real(const char *str_arg,uint length) :value(my_atof(str_arg))
   {
     name=(char*) str_arg;
     decimals=(uint8) nr_of_decimals(str_arg);

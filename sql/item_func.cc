@@ -2255,7 +2255,7 @@ double user_var_entry::val(my_bool *null_value)
   case INT_RESULT:
     return (double) *(longlong*) value;
   case STRING_RESULT:
-    return atof(value);				// This is null terminated
+    return my_atof(value);                      // This is null terminated
   case ROW_RESULT:
     DBUG_ASSERT(1);				// Impossible
     break;
