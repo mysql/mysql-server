@@ -2115,19 +2115,14 @@ row_sel_store_mysql_rec(
 				extern_field_heap = NULL;
  			}
 		} else {
-			/* MySQL sometimes seems to copy the 'data'
-			pointed to by a BLOB field even if the field
-			has been marked to contain the SQL NULL value.
-			This caused seg faults reported by two users.
-			Set the BLOB length to 0 and the data pointer
-			to NULL to avoid a seg fault. */
+		        /* MySQL seems to assume the field for an SQL NULL
+		        value is set to zero. Not taking this into account
+		        caused seg faults with NULL BLOB fields, and
+		        bug number 154 in the MySQL bug database: GROUP BY
+		        and DISTINCT could treat NULL values inequal. */
 
-			if (templ->type == DATA_BLOB) {
-				row_sel_field_store_in_mysql_format(
-				mysql_rec + templ->mysql_col_offset,
-				templ->mysql_col_len, NULL,
-				0, templ->type, templ->is_unsigned);
-			}
+		        memset(mysql_rec + templ->mysql_col_offset, '\0',
+			       templ->mysql_col_len);
 
 			if (!templ->mysql_null_bit_mask) {
 				fprintf(stderr,
