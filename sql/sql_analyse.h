@@ -312,8 +312,10 @@ public:
   ~analyse()
   {
     if (f_info)
+    {
       for (field_info **f=f_info; f != f_end; f++)
 	delete (*f);
+    }
   }
   virtual void add() {}
   virtual bool change_columns(List<Item> &fields);

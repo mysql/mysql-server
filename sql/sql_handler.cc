@@ -163,10 +163,13 @@ int mysql_ha_read(THD *thd, TABLE_LIST *tables,
   {
     switch (mode) {
     case RFIRST:
-      err=keyname ?
-	table->file->index_first(table->record[0]) :
-	table->file->rnd_init(1) ||
-	table->file->rnd_next(table->record[0]);
+      if (keyname)
+        err=table->file->index_first(table->record[0]);
+      else
+      {
+	if (!(err=table->file->rnd_init(1)))
+          err=table->file->rnd_next(table->record[0]);
+      }
       mode=RNEXT;
       break;
     case RLAST:

@@ -65,15 +65,15 @@ handler t2 read a=(19) where b="yyy";
 
 handler t2 read first;
 handler t2 read next;
-#
-# We alter the table even if it's still in use by to test the Innodb
-# delayed-drop code.  This will generate a warning in the master.err log.
-#
-alter table t1 type=innodb;
-handler t2 read next;
 --error 1064
 handler t2 read last;
-
 handler t2 close;
+
+handler t1 open as t2;
+handler t2 read first;
+alter table t1 type=innodb;
+--error 1109
+handler t2 read first;
+
 drop table if exists t1;
 

@@ -1,0 +1,5 @@
+#! /bin/sh
+
+args=" $*"
+
+wine --debugmsg -all -- mwldnlm $args

@@ -341,6 +341,7 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
   }
   if (transactional_table)
     error=ha_autocommit_or_rollback(thd,error); 
+  query_cache_invalidate3(thd, table_list, 0);
 
 err:
   if (thd->lock)

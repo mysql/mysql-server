@@ -138,7 +138,7 @@
 "Linhas que combinaram: %ld - Alteradas: %ld - Avisos: %ld",
 "Não pode criar uma nova 'thread' (erro no. %d). Se você não estiver sem memória disponível, você pode consultar o manual sobre um possível 'bug' dependente do sistema operacional",
 "Contagem de colunas não confere com a contagem de valores na linha %ld",
-"Não pode reabrir a tabela '%-.64s',
+"Não pode reabrir a tabela '%-.64s",
 "Uso inválido do valor NULL",
 "Obteve erro '%-.64s' em regexp",
 "Mistura de colunas agrupadas (com MIN(), MAX(), COUNT(), ...) com colunas não agrupadas é ilegal, se não existir uma cláusula de agrupamento (cláusula GROUP BY)",

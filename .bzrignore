@@ -486,6 +486,8 @@ repl-tests/test-repl/sum-wlen-slave.master.re
 repl-tests/test-repl/sum-wlen-slave.master.reje
 scripts/fill_func_tables
 scripts/fill_func_tables.sql
+scripts/fill_help_tables
+scripts/fill_help_tables.sql
 scripts/make_binary_distribution
 scripts/msql2mysql
 scripts/mysql_config
@@ -570,6 +572,9 @@ strings/ctype_autoconf.c
 strings/ctype_extra_sources.c
 support-files/MacOSX/Description.plist
 support-files/MacOSX/Info.plist
+support-files/MacOSX/StartupParameters.plist
+support-files/MacOSX/postinstall
+support-files/MacOSX/preinstall
 support-files/binary-configure
 support-files/my-huge.cnf
 support-files/my-large.cnf
@@ -596,5 +601,3 @@ vio/test-ssl
 vio/test-sslclient
 vio/test-sslserver
 vio/viotest-ssl
-scripts/fill_help_tables.sql
-scripts/fill_help_tables
