@@ -79,3 +79,5 @@ insert into t1 values (10, 43);
 insert into t1 values (1, 4);
 select a, MAX(b), (1, MAX(b)) = (1, 4) from t1 group by a;
 drop table t1;
+SELECT ROW(2,10) <=> ROW(3,4);
+SELECT ROW(NULL,10) <=> ROW(3,NULL);
