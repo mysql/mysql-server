@@ -1,4 +1,5 @@
 drop table if exists t1;
+drop table if exists t2;
 set names utf8;
 select left(_utf8 0xD0B0D0B1D0B2,1);
 left(_utf8 0xD0B0D0B1D0B2,1)
@@ -93,6 +94,9 @@ this	is a	test
 select insert("aa",100,1,"b"),insert("aa",1,3,"b");
 insert("aa",100,1,"b")	insert("aa",1,3,"b")
 aa	b
+select char_length(left(@a:='тест',5)), length(@a), @a;
+char_length(left(@a:='тест',5))	length(@a)	@a
+4	8	тест
 create table t1 select date_format("2004-01-19 10:10:10", "%Y-%m-%d");
 show create table t1;
 Table	Create Table
@@ -243,6 +247,28 @@ select 'zвасяz' rlike '[[:<:]]вася[[:>:]]';
 CREATE TABLE t1 (a enum ('Y', 'N') DEFAULT 'N' COLLATE utf8_unicode_ci);
 ALTER TABLE t1 ADD COLUMN b CHAR(20);
 DROP TABLE t1;
+set names utf8;
+create table t1 (a enum('aaaa','проба') character set utf8);
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` enum('aaaa','проба') character set utf8 default NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+insert into t1 values ('проба');
+select * from t1;
+a
+проба
+create table t2 select ifnull(a,a) from t1;
+show create table t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `ifnull(a,a)` char(5) character set utf8 default NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+select * from t2;
+ifnull(a,a)
+проба
+drop table t1;
+drop table t2;
 create table t1 (c varchar(30) character set utf8, unique(c(10)));
 insert into t1 values ('1'),('2'),('3'),('x'),('y'),('z');
 insert into t1 values ('aaaaaaaaaa');
@@ -275,4 +301,27 @@ aaaaaaaaaa
 select c cb20 from t1 where c=repeat('b',20);
 cb20
 bbbbbbbbbbbbbbbbbbbb
+drop table t1;
+create table t1 (c char(3) character set utf8, unique (c(2)));
+insert into t1 values ('1'),('2'),('3'),('4'),('x'),('y'),('z');
+insert into t1 values ('a');
+insert into t1 values ('aa');
+insert into t1 values ('aaa');
+ERROR 23000: Duplicate entry 'aaa' for key 1
+insert into t1 values ('b');
+insert into t1 values ('bb');
+insert into t1 values ('bbb');
+ERROR 23000: Duplicate entry 'bbb' for key 1
+insert into t1 values ('а');
+insert into t1 values ('аа');
+insert into t1 values ('ааа');
+ERROR 23000: Duplicate entry 'ааа' for key 1
+insert into t1 values ('б');
+insert into t1 values ('бб');
+insert into t1 values ('ббб');
+ERROR 23000: Duplicate entry 'ббб' for key 1
+insert into t1 values ('ꪪ');
+insert into t1 values ('ꪪꪪ');
+insert into t1 values ('ꪪꪪꪪ');
+ERROR 23000: Duplicate entry 'ꪪꪪ' for key 1
 drop table t1;
