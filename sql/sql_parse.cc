@@ -206,7 +206,21 @@ int check_user(THD *thd, enum enum_server_command command,
   
 #ifdef NO_EMBEDDED_ACCESS_CHECKS
   thd->master_access= GLOBAL_ACLS;			// Full rights
-  return 0;
+  /* Change database if necessary: OK or FAIL is sent in mysql_change_db */
+  if (db && db[0])
+  {
+    thd->db= 0;
+    thd->db_length= 0;
+    if (mysql_change_db(thd, db))
+    {
+      if (thd->user_connect)
+	decrease_user_connections(thd->user_connect);
+      DBUG_RETURN(-1);
+    }
+  }
+  else
+    send_ok(thd);
+  DBUG_RETURN(0);
 #else
 
   my_bool opt_secure_auth_local;
@@ -1282,7 +1296,6 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
       send_error(thd); // dump to NET
     break;
   }
-#ifndef EMBEDDED_LIBRARY
   case COM_CHANGE_USER:
   {
     thd->change_user();
@@ -1301,13 +1314,14 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     uint passwd_len= thd->client_capabilities & CLIENT_SECURE_CONNECTION ? 
       *passwd++ : strlen(passwd);
     db+= passwd_len + 1;
+#ifndef EMBEDDED_LIBRARY
     /* Small check for incomming packet */
     if ((uint) ((uchar*) db - net->read_pos) > packet_length)
     {
       send_error(thd, ER_UNKNOWN_COM_ERROR);
       break;
     }
-
+#endif
     /* Convert database name to utf8 */
     db_buff[copy_and_convert(db_buff, sizeof(db_buff)-1,
                              system_charset_info, db, strlen(db),
@@ -1358,7 +1372,6 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     }
     break;
   }
-#endif /* EMBEDDED_LIBRARY */
   case COM_EXECUTE:
   {
     mysql_stmt_execute(thd, packet);

@@ -575,6 +575,7 @@ typedef struct st_mysql_methods
   void (*free_embedded_thd)(MYSQL *mysql);
   const char *(*read_statistic)(MYSQL *mysql);
   int (*next_result)(MYSQL *mysql);
+  int (*read_change_user_result)(MYSQL *mysql, char *buff, const char *passwd);
 #endif
 } MYSQL_METHODS;
 

@@ -258,6 +258,13 @@ int emb_next_result(MYSQL *mysql)
   DBUG_RETURN(0);				/* No more results */
 }
 
+int emb_read_change_user_result(MYSQL *mysql, 
+				char *buff __attribute__((unused)),
+				const char *passwd __attribute__((unused)))
+{
+  return mysql_errno(mysql);
+}
+
 MYSQL_METHODS embedded_methods= 
 {
   emb_mysql_read_query_result,
@@ -272,7 +279,8 @@ MYSQL_METHODS embedded_methods=
   emb_unbuffered_fetch,
   emb_free_embedded_thd,
   emb_read_statistic,
-  emb_next_result
+  emb_next_result,
+  emb_read_change_user_result
 };
 
 C_MODE_END
@@ -612,8 +620,8 @@ bool Protocol::send_fields(List<Item> *list, uint flag)
       }
       else
       {
-	client_field->def= strdup_root(field_alloc, tmp.ptr());
-	client_field->def_length= tmp.length();
+	client_field->def= strdup_root(field_alloc, res->ptr());
+	client_field->def_length= res->length();
       }
     }
     else
