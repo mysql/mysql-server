@@ -351,12 +351,7 @@ select t1.name, t2.name, t2.id,t3.id from t1 right join t2 on (t1.id = t2.owner)
 name	name	id	id
 Antonio Paz	El Gato	1	1
 Antonio Paz	Perrito	2	1
-NULL	Happy	3	1
-NULL	El Gato	1	2
-NULL	Perrito	2	2
-NULL	Happy	3	2
-NULL	El Gato	1	3
-NULL	Perrito	2	3
+NULL	NULL	NULL	2
 Thimble Smith	Happy	3	3
 select t1.name, t2.name, t2.id, t2.owner, t3.id from t1 left join t2 on (t1.id = t2.owner) right join t1 as t3 on t3.id=t2.owner;
 name	name	id	owner	id

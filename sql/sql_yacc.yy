@@ -492,12 +492,6 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %right	NOT
 %right	BINARY
 
-/* These don't actually affect the way the query is really evaluated, but
-   they silence a few warnings for shift/reduce conflicts. */
-%left	','
-%left	STRAIGHT_JOIN JOIN_SYM
-%nonassoc	CROSS INNER_SYM NATURAL LEFT RIGHT
-
 %type <lex_str>
 	IDENT TEXT_STRING REAL_NUM FLOAT_NUM NUM LONG_NUM HEX_NUM LEX_HOSTNAME
 	ULONGLONG_NUM field_ident select_alias ident ident_or_text
@@ -2116,7 +2110,7 @@ join_table_list:
 	| join_table_list ',' join_table_list { $$=$3; }
 	| join_table_list normal_join join_table_list { $$=$3; }
 	| join_table_list STRAIGHT_JOIN join_table_list
-	  { $$=$3 ; $$->straight=1; }
+	  { $$=$3 ; $1->next->straight=1; }
 	| join_table_list normal_join join_table_list ON expr
 	  { add_join_on($3,$5); $$=$3; }
 	| join_table_list normal_join join_table_list
@@ -2140,9 +2134,13 @@ join_table_list:
 	  USING '(' using_list ')'
 	  { add_join_on($5,$9); $5->outer_join|=JOIN_TYPE_LEFT; $$=$5; }
 	| join_table_list NATURAL LEFT opt_outer JOIN_SYM join_table_list
-	  { add_join_natural($1,$6); $6->outer_join|=JOIN_TYPE_LEFT; $$=$6; }
+	  {
+	    add_join_natural($1,$1->next);
+	    $1->next->outer_join|=JOIN_TYPE_LEFT;
+	    $$=$6;
+	  }
 	| join_table_list RIGHT opt_outer JOIN_SYM join_table_list ON expr
-	  { add_join_on($1,$7); $1->outer_join|=JOIN_TYPE_RIGHT; $$=$1; }
+	  { add_join_on($1,$7); $1->outer_join|=JOIN_TYPE_RIGHT; $$=$5; }
 	| join_table_list RIGHT opt_outer JOIN_SYM join_table_list
 	  {
 	    SELECT_LEX *sel=Select;
@@ -2150,11 +2148,15 @@ join_table_list:
 	    sel->db2=$5->db; sel->table2=$5->alias;
 	  }
 	  USING '(' using_list ')'
-	  { add_join_on($1,$9); $1->outer_join|=JOIN_TYPE_RIGHT; $$=$1; }
+	  { add_join_on($1,$9); $1->outer_join|=JOIN_TYPE_RIGHT; $$=$5; }
 	| join_table_list NATURAL RIGHT opt_outer JOIN_SYM join_table_list
-	  { add_join_natural($6,$1); $1->outer_join|=JOIN_TYPE_RIGHT; $$=$1; }
+	  {
+	    add_join_natural($1->next,$1);
+	    $1->outer_join|=JOIN_TYPE_RIGHT;
+	    $$=$6;
+	  }
 	| join_table_list NATURAL JOIN_SYM join_table_list
-	  { add_join_natural($1,$4); $$=$4; };
+	  { add_join_natural($1,$1->next); $$=$4; };
 
 normal_join:
 	JOIN_SYM		{}

@@ -210,9 +210,9 @@ static bool check_user(THD *thd,enum_server_command command, const char *user,
 				 !(thd->client_capabilities &
 				   CLIENT_LONG_PASSWORD),&ur);
   DBUG_PRINT("info",
-	     ("Capabilities: %d  packet_length: %ld  Host: '%s'  User: '%s'  Using password: %s  Access: %u  db: '%s'",
+	     ("Capabilities: %d  packet_length: %ld  Host: '%s'  Login user: '%s'  Priv_user: '%s'  Using password: %s  Access: %u  db: '%s'",
 	      thd->client_capabilities, thd->max_client_packet_length,
-	      thd->host_or_ip, thd->priv_user,
+	      thd->host_or_ip, thd->user, thd->priv_user,
 	      passwd[0] ? "yes": "no",
 	      thd->master_access, thd->db ? thd->db : "*none*"));
   if (thd->master_access & NO_ACCESS)
@@ -517,7 +517,6 @@ check_connections(THD *thd)
     DBUG_PRINT("info",("Host: %s",thd->host));
     thd->host_or_ip= thd->host;
     thd->ip= 0;
-    thd->peer_port= 0;
     bzero((char*) &thd->remote,sizeof(struct sockaddr));
   }
   /* Ensure that wrong hostnames doesn't cause buffer overflows */
@@ -3418,6 +3417,24 @@ void add_join_on(TABLE_LIST *b,Item *expr)
   }
 }
 
+
+/*
+  Mark that we have a NATURAL JOIN between two tables
+
+  SYNOPSIS
+    add_join_natural()
+    a			Table to do normal join with
+    b			Do normal join with this table
+  
+  IMPLEMENTATION
+    This function just marks that table b should be joined with a.
+    The function setup_cond() will create in b->on_expr a list
+    of equal condition between all fields of the same name.
+
+    SELECT * FROM t1 NATURAL LEFT JOIN t2
+     <=>
+    SELECT * FROM t1 LEFT JOIN t2 ON (t1.i=t2.i and t1.j=t2.j ... )
+*/
 
 void add_join_natural(TABLE_LIST *a,TABLE_LIST *b)
 {

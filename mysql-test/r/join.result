@@ -274,3 +274,90 @@ SELECT emp.rate_code, lr.base_rate FROM t1 AS emp LEFT JOIN t2 AS lr USING (site
 rate_code	base_rate
 cust	20
 drop table t1,t2;
+create table t1 (i int);
+create table t2 (i int);
+create table t3 (i int);
+insert into t1 values(1),(2);
+insert into t2 values(2),(3);
+insert into t3 values (2),(4);
+select * from t1 natural left join t2;
+i	i
+1	NULL
+2	2
+select * from t1 left join t2 on (t1.i=t2.i);
+i	i
+1	NULL
+2	2
+select * from t1 natural left join t2 natural left join t3;
+i	i	i
+1	NULL	NULL
+2	2	2
+select * from t1 left join t2 on (t1.i=t2.i) left join t3 on (t2.i=t3.i);
+i	i	i
+1	NULL	NULL
+2	2	2
+select * from t3 natural right join t2;
+i	i
+2	2
+NULL	3
+select * from t3 right join t2 on (t3.i=t2.i);
+i	i
+2	2
+NULL	3
+select * from t3 natural right join t2 natural right join t1;
+i	i	i
+NULL	NULL	1
+2	2	2
+select * from t3 right join t2 on (t3.i=t2.i) right join t1 on (t2.i=t1.i);
+i	i	i
+NULL	NULL	1
+2	2	2
+select * from t1,t2 natural left join t3 order by t1.i,t2.i,t3.i;
+i	i	i
+1	2	2
+1	3	NULL
+2	2	2
+2	3	NULL
+select * from t1,t2 left join t3 on (t2.i=t3.i) order by t1.i,t2.i,t3.i;
+i	i	i
+1	2	2
+1	3	NULL
+2	2	2
+2	3	NULL
+select t1.i,t2.i,t3.i from t2 natural left join t3,t1 order by t1.i,t2.i,t3.i;
+i	i	i
+1	2	2
+1	3	NULL
+2	2	2
+2	3	NULL
+select t1.i,t2.i,t3.i from t2 left join t3 on (t2.i=t3.i),t1 order by t1.i,t2.i,t3.i;
+i	i	i
+1	2	2
+1	3	NULL
+2	2	2
+2	3	NULL
+select * from t1,t2 natural right join t3 order by t1.i,t2.i,t3.i;
+i	i	i
+1	NULL	4
+1	2	2
+2	NULL	4
+2	2	2
+select * from t1,t2 right join t3 on (t2.i=t3.i) order by t1.i,t2.i,t3.i;
+i	i	i
+1	NULL	4
+1	2	2
+2	NULL	4
+2	2	2
+select t1.i,t2.i,t3.i from t2 natural right join t3,t1 order by t1.i,t2.i,t3.i;
+i	i	i
+1	NULL	4
+1	2	2
+2	NULL	4
+2	2	2
+select t1.i,t2.i,t3.i from t2 right join t3 on (t2.i=t3.i),t1 order by t1.i,t2.i,t3.i;
+i	i	i
+1	NULL	4
+1	2	2
+2	NULL	4
+2	2	2
+drop table t1,t2,t3;
