@@ -390,7 +390,7 @@ int mysqld_extend_show_tables(THD *thd,const char *db,const char *wild)
         if (table->db_create_options & HA_OPTION_DELAY_KEY_WRITE)
           ptr=strmov(ptr," delay_key_write=1");
         if (table->row_type != ROW_TYPE_DEFAULT)
-          ptr=strxmov(ptr, " format=", ha_row_type[(uint) table->row_type],
+          ptr=strxmov(ptr, " row_format=", ha_row_type[(uint) table->row_type],
                       NullS);
         if (file->raid_type)
         {
@@ -919,6 +919,12 @@ store_create_info(THD *thd, TABLE *table, String *packet)
     p = longlong10_to_str(table->max_rows, buff, 10);
     packet->append(buff, (uint) (p - buff));
   }
+  if (table->avg_row_length)
+  {
+    packet->append(" AVG_ROW_LENGTH=");
+    p=longlong10_to_str(table->avg_row_length, buff,10);
+    packet->append(buff, (uint) (p - buff));
+  }
 
   if (table->db_create_options & HA_OPTION_PACK_KEYS)
     packet->append(" PACK_KEYS=1", 12);
@@ -928,6 +934,11 @@ store_create_info(THD *thd, TABLE *table, String *packet)
     packet->append(" CHECKSUM=1", 11);
   if (table->db_create_options & HA_OPTION_DELAY_KEY_WRITE)
     packet->append(" DELAY_KEY_WRITE=1",18);
+  if (table->row_type != ROW_TYPE_DEFAULT)
+  {
+    packet->append(" ROW_FORMAT=",12);
+    packet->append(ha_row_type[(uint) table->row_type]);
+  }
   table->file->append_create_info(packet);
   if (table->comment && table->comment[0])
   {

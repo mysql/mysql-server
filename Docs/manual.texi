@@ -33982,14 +33982,14 @@ reference_option:
         RESTRICT | CASCADE | SET NULL | NO ACTION | SET DEFAULT
 
 table_options:
-	TYPE = @{BDB | HEAP | ISAM | InnoDB | MERGE | MYISAM @}
+	TYPE = @{BDB | HEAP | ISAM | InnoDB | MERGE | MRG_MYISAM | MYISAM @}
 or	AUTO_INCREMENT = #
 or	AVG_ROW_LENGTH = #
 or	CHECKSUM = @{0 | 1@}
 or	COMMENT = "string"
 or	MAX_ROWS = #
 or	MIN_ROWS = #
-or	PACK_KEYS = @{0 | 1@}
+or	PACK_KEYS = @{0 | 1 | DEFAULT@}
 or	PASSWORD = "string"
 or	DELAY_KEY_WRITE = @{0 | 1@}
 or      ROW_FORMAT= @{ default | dynamic | fixed | compressed @}
@@ -34229,6 +34229,7 @@ The different table types are:
 @item ISAM @tab The original table handler. @xref{ISAM}.
 @item InnoDB @tab Transaction-safe tables with row locking. @xref{InnoDB}.
 @item MERGE @tab A collection of MyISAM tables used as one table. @xref{MERGE}.
+@item MRG_MERGE @tab An alias for MERGE tables
 @item MyISAM @tab The new binary portable table handler that is replacing ISAM. @xref{MyISAM}.
 @end multitable
 @xref{Table types}.
@@ -34250,7 +34251,7 @@ The options work for all table types, if not otherwise indicated:
 @item @code{COMMENT} @tab A 60-character comment for your table.
 @item @code{MAX_ROWS} @tab Max number of rows you plan to store in the table.
 @item @code{MIN_ROWS} @tab Minimum number of rows you plan to store in the table.
-@item @code{PACK_KEYS} @tab Set this to 1 if you want to have a smaller index. This usually makes updates slower and reads faster (MyISAM, ISAM).
+@item @code{PACK_KEYS} @tab Set this to 1 if you want to have a smaller index. This usually makes updates slower and reads faster (MyISAM, ISAM). Setting this to 0 will disable all packing of keys. Setting this to @code{DEFAULT} (MySQL 4.0) will tell the table handler to only pack long @code{CHAR}/@code{VARCHAR} columns.
 @item @code{PASSWORD} @tab Encrypt the @code{.frm} file with a password.  This option doesn't do anything in the standard MySQL version.
 @item @code{DELAY_KEY_WRITE} @tab Set this to 1 if want to delay key table updates until the table is closed (MyISAM).
 @item @code{ROW_FORMAT} @tab Defines how the rows should be stored. Currently this option only works with MyISAM tables, which supports the @code{DYNAMIC} and @code{FIXED} row formats. @xref{MyISAM table formats}.
@@ -36070,11 +36071,11 @@ is not signaled to the other servers.
 @code{MERGE} tables are new in MySQL Version 3.23.25. The code
 is still in gamma, but should be resonable stable.
 
-A @code{MERGE} table is a collection of identical @code{MyISAM} tables
-that can be used as one.  You can only @code{SELECT}, @code{DELETE}, and
-@code{UPDATE} from the collection of tables.  If you @code{DROP} the
-@code{MERGE} table, you are only dropping the @code{MERGE}
-specification.
+A @code{MERGE} table (also known as a @code{MRG_MyISAM} table) is a
+collection of identical @code{MyISAM} tables that can be used as one.
+You can only @code{SELECT}, @code{DELETE}, and @code{UPDATE} from the
+collection of tables.  If you @code{DROP} the @code{MERGE} table, you
+are only dropping the @code{MERGE} specification.
 
 Note that @code{DELETE FROM merge_table} used without a @code{WHERE}
 will only clear the mapping for the table, not delete everything in the
@@ -47708,6 +47709,8 @@ Searching on packed (@code{CHAR}/@code{VARCHAR}) keys are now much faster.
 @item
 Optimized queries of type:
 @code{SELECT DISTINCT * from table_name ORDER by key_part1 LIMIT #}
+@item
+@code{SHOW CREATE TABLE} now shows all table attributes.
 @item
 @code{ORDER BY ... DESC} can now use keys.
 @item
