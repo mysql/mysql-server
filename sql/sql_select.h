@@ -196,6 +196,8 @@ class JOIN :public Sql_alloc{
 
   my_bool test_function_query; // need to return select items 1 row
   const char *zero_result_cause; // not 0 if exec must return zero result
+  
+  my_bool union_part; // this subselect is part of union 
 
   JOIN(THD *thd, List<Item> &fields,
        ulong select_options, select_result *result):
@@ -236,6 +238,7 @@ class JOIN :public Sql_alloc{
 	      ORDER *proc_param, SELECT_LEX *select, SELECT_LEX_UNIT *unit);
   int optimize();
   int global_optimize();
+  int reinit();
   void exec();
   int cleanup(THD *thd);  
 };

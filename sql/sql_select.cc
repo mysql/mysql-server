@@ -213,7 +213,8 @@ JOIN::prepare(TABLE_LIST *tables_init,
   proc_param= proc_param_init;
   tables_list= tables_init;
   select_lex= select;
-
+  union_part= (unit->first_select()->next_select() != 0);
+  
   /* Check that all tables, fields, conds and order are ok */
 
   if (setup_tables(tables_list) ||
@@ -334,7 +335,6 @@ int
 JOIN::optimize()
 {
   DBUG_ENTER("JOIN::optimize");
-  SELECT_LEX *select_lex = &(thd->lex.select_lex);
 
 #ifdef HAVE_REF_TO_FIELDS			// Not done yet
   /* Add HAVING to WHERE if possible */
@@ -380,7 +380,7 @@ JOIN::optimize()
       }
       if (select_options & SELECT_DESCRIBE)
       {
-	if (select_lex->next)
+	if (union_part)
 	  select_describe(this, false, false, false,
 			  "Select tables optimized away");
 	else
@@ -406,6 +406,17 @@ JOIN::optimize()
   if (make_join_statistics(this, tables_list, conds, &keyuse) ||
       thd->fatal_error)
     DBUG_RETURN(-1);
+
+  if (select_lex->depended)
+  {
+    /*
+      Just remove all const-table optimization in case of depended query
+      TODO: optimize
+    */
+    const_table_map= 0;
+    const_tables= 0;
+    found_const_table_map= 0;
+  }
   thd->proc_info= "preparing";
   result->initialize_tables(this);
   if (const_table_map != found_const_table_map &&
@@ -576,7 +587,7 @@ JOIN::optimize()
 }
 
 /*
-  global uptimisation (with subselect) must be here (TODO)
+  Global optimization (with subselect) must be here (TODO)
 */
 
 int
@@ -585,8 +596,25 @@ JOIN::global_optimize()
   return 0;
 }
 
+int
+JOIN::reinit()
+{
+  DBUG_ENTER("JOIN::reinit");
+  //TODO move to unit reinit
+  unit->offset_limit_cnt =select_lex->offset_limit;
+  unit->select_limit_cnt =select_lex->select_limit+select_lex->offset_limit;
+  if (unit->select_limit_cnt < select_lex->select_limit)
+    unit->select_limit_cnt= HA_POS_ERROR;		// no limit
+  if (unit->select_limit_cnt == HA_POS_ERROR)
+    select_lex->options&= ~OPTION_FOUND_ROWS;
+
+  if (setup_tables(tables_list))
+    DBUG_RETURN(1);
+  DBUG_RETURN(0);
+}
+
 /*
-  exec select
+  Exec select
 */
 void
 JOIN::exec()
@@ -600,7 +628,7 @@ JOIN::exec()
     error=0;
     if (select_options & SELECT_DESCRIBE)
     {
-      if (select_lex->next)
+      if (union_part)
 	select_describe(this, false, false, false, "No tables used");
       else
 	describe_info(thd, "No tables used");
@@ -627,7 +655,7 @@ JOIN::exec()
 
   if (zero_result_cause)
   {
-    if (select_options & SELECT_DESCRIBE && select_lex->next)
+    if (select_options & SELECT_DESCRIBE && union_part)
       select_describe(this, false, false, false, zero_result_cause);
     else
       error=return_zero_rows(result, tables_list, fields_list,

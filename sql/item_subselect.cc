@@ -36,7 +36,7 @@ SUBSELECT TODO:
 #include "sql_select.h"
 
 Item_subselect::Item_subselect(THD *thd, st_select_lex *select_lex):
-  executed(0)
+  executed(0), optimized(0), error(0)
 {
   DBUG_ENTER("Item_subselect::Item_subselect");
   DBUG_PRINT("subs", ("select_lex 0x%xl", (long) select_lex));
@@ -48,7 +48,7 @@ Item_subselect::Item_subselect(THD *thd, st_select_lex *select_lex):
     item value is NULL if select_subselect not changed this value 
     (i.e. some rows will be found returned)
   */
-  assign_null(); 
+  assign_null();
   DBUG_VOID_RETURN;
 }
 
@@ -110,17 +110,31 @@ bool Item_subselect::fix_fields(THD *thd,TABLE_LIST *tables)
 		   (ORDER*) 0, select_lex, 
 		   (SELECT_LEX_UNIT*) select_lex->master))
     return 1;
-  if (join->optimize())
-  {
-    executed= 1;
-    return 1;
-  }
   thd->lex.select= save_select;
   return 0;
 }
 
 int Item_subselect::exec()
 {
+  if (!optimized)
+  {
+    optimized=1;
+    if (join->optimize())
+    {
+      executed= 1;
+      return (join->error?join->error:1);
+    }
+  }
+  if (join->select_lex->depended && executed)
+  {
+    if (join->reinit())
+    {
+      error= 1;
+      return 1;
+    }
+    assign_null();
+    executed= 0;
+  }
   if (!executed)
   {
     SELECT_LEX *save_select= join->thd->lex.select;

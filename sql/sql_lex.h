@@ -208,6 +208,7 @@ private:
    SELECT_LEXs
 */
 struct st_lex;
+struct st_select_lex;
 struct st_select_lex_unit: public st_select_lex_node {
   /*
     Pointer to 'last' select or pointer to unit where stored
@@ -218,6 +219,8 @@ struct st_select_lex_unit: public st_select_lex_node {
   ha_rows select_limit_cnt, offset_limit_cnt;
   void init_query();
   bool create_total_list(THD *thd, st_lex *lex, TABLE_LIST **result);
+  st_select_lex* first_select() { return (st_select_lex*) slave; }
+  st_select_lex_unit* next_unit() { return (st_select_lex_unit*) next; }
 private:
   bool create_total_list_n_last_return(THD *thd, st_lex *lex,
 				       TABLE_LIST ***result);
@@ -240,9 +243,12 @@ struct st_select_lex: public st_select_lex_node {
   List<Item_func_match> ftfunc_list;
   uint in_sum_expr, sort_default;
   bool	create_refs, 
-    braces; /* SELECT ... UNION (SELECT ... ) <- this braces */
+    braces,   /* SELECT ... UNION (SELECT ... ) <- this braces */
+    depended; /* depended from outer select subselect */
   void init_query();
   void init_select();
+  st_select_lex* outer_select() { return (st_select_lex*) master->master; }
+  st_select_lex* next_select() { return (st_select_lex*) next; }
 };
 typedef struct st_select_lex SELECT_LEX;
 

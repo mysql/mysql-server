@@ -320,7 +320,34 @@ bool Item_field::fix_fields(THD *thd,TABLE_LIST *tables)
   {
     Field *tmp;
     if (!(tmp=find_field_in_tables(thd,this,tables)))
-      return 1;
+    {
+      /*
+	We can't find table field in table list of current select, 
+	consequently we have to find it in outer subselect(s).
+	We can't join lists of outer & current select, because of scope 
+	of view rules. For example if both tables (outer & current) have 
+	field 'field' it is not mistake to refer to this field without 
+	mention of table name, but if we join tables in one list it will
+	cause error ER_NON_UNIQ_ERROR in find_field_in_tables.
+      */
+      for (SELECT_LEX *sl= thd->lex.select->outer_select();
+	   sl && !tmp;
+	   sl= sl->outer_select())
+	tmp=find_field_in_tables(thd, this,
+				 (TABLE_LIST*)sl->table_list.first);
+      if (!tmp)
+	return 1;
+      else
+	if( !thd->lex.select->depended )
+	{
+	  thd->lex.select->depended= 1; //Select is depended of outer select(s)
+	  //Tables will be reopened many times
+	  for (TABLE_LIST *tbl= (TABLE_LIST*)thd->lex.select->table_list.first;
+	       tbl;
+	       tbl= tbl->next)
+	    tbl->shared= 1;
+	}
+    }
     set_field(tmp);
   }
   else if (thd && thd->set_query_id && field->query_id != thd->query_id)

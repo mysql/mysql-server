@@ -29,9 +29,11 @@ class select_subselect;
 class Item_subselect :public Item
 {
 protected:
-  my_bool executed; /* simple subselect is executed */
   longlong int_value;
   double real_value;
+  my_bool executed; /* simple subselect is executed */
+  my_bool optimized; /* simple subselect is optimized */
+  my_bool error; /* error in query */
   enum Item_result res_type;
 
   int exec();
@@ -62,6 +64,7 @@ public:
     join= item->join;
     result= item->result;
     name= item->name;
+    error= item->error;
   }
   enum Type type() const;
   double val ();
