@@ -186,3 +186,57 @@ select * from t1 where a=_latin1'×ÁÓÑ';
 ERROR HY000: Illegal mix of collations (cp1251_general_ci,IMPLICIT) and (latin1_swedish_ci,COERCIBLE) for operation '='
 drop table t1;
 set names latin1;
+set names koi8r;
+create table t1 (c1 char(10) character set cp1251);
+insert into t1 values ('ß');
+select c1 from t1 where c1 between 'ß' and 'ß';
+c1
+ß
+select ifnull(c1,'ß'), ifnull(null,c1) from t1;
+ifnull(c1,'ß')	ifnull(null,c1)
+ß	ß
+select if(1,c1,'ö'), if(0,c1,'ö') from t1;
+if(1,c1,'ö')	if(0,c1,'ö')
+ß	ö
+select coalesce('ö',c1), coalesce(null,c1) from t1;
+coalesce('ö',c1)	coalesce(null,c1)
+ö	ß
+select least(c1,'ö'), greatest(c1,'ö') from t1;
+least(c1,'ö')	greatest(c1,'ö')
+ö	ß
+select locate(c1,'ß'), locate('ß',c1) from t1;
+locate(c1,'ß')	locate('ß',c1)
+1	1
+select field(c1,'ß'),field('ß',c1) from t1;
+field(c1,'ß')	field('ß',c1)
+1	1
+select concat(c1,'ö'), concat('ö',c1) from t1;
+concat(c1,'ö')	concat('ö',c1)
+ßö	öß
+select concat_ws(c1,'ö','ß'), concat_ws('ö',c1,'ß') from t1;
+concat_ws(c1,'ö','ß')	concat_ws('ö',c1,'ß')
+ößß	ßöß
+select replace(c1,'ß','ö'), replace('ß',c1,'ö') from t1;
+replace(c1,'ß','ö')	replace('ß',c1,'ö')
+ö	ö
+select substring_index(c1,'öößß',2) from t1;
+substring_index(c1,'öößß',2)
+ß
+select elt(1,c1,'ö'),elt(1,'ö',c1) from t1;
+elt(1,c1,'ö')	elt(1,'ö',c1)
+ß	ö
+select make_set(3,c1,'ö'), make_set(3,'ö',c1) from t1;
+make_set(3,c1,'ö')	make_set(3,'ö',c1)
+ß,ö	ö,ß
+select insert(c1,1,2,'ö'),insert('ö',1,2,c1) from t1;
+insert(c1,1,2,'ö')	insert('ö',1,2,c1)
+ö	ß
+select trim(c1 from 'ß'),trim('ß' from c1) from t1;
+trim(c1 from 'ß')	trim('ß' from c1)
+	
+select lpad(c1,3,'ö'), lpad('ö',3,c1) from t1;
+lpad(c1,3,'ö')	lpad('ö',3,c1)
+ööß	ßßö
+select rpad(c1,3,'ö'), rpad('ö',3,c1) from t1;
+rpad(c1,3,'ö')	rpad('ö',3,c1)
+ßöö	ößß
