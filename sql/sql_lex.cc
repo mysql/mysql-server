@@ -250,7 +250,8 @@ static char *get_text(LEX *lex)
 	continue;
     }
 #endif
-    if (c == '\\')
+    if (c == '\\' &&
+	!(lex->thd->variables.sql_mode & MODE_NO_BACKSLASH_ESCAPES))
     {					// Escaped character
       found_escape=1;
       if (lex->ptr == lex->end_of_query)
