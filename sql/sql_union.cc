@@ -34,6 +34,7 @@ int mysql_union(THD *thd, LEX *lex,select_result *result)
   int describe=(lex->select_lex.options & SELECT_DESCRIBE) ? 1 : 0;
   int res;
   TABLE_LIST result_table_list;
+  TABLE_LIST *first_table=(TABLE_LIST *)lex->select_lex.table_list.first;
   TMP_TABLE_PARAM tmp_table_param;
   select_union *union_result;
   DBUG_ENTER("mysql_union");
@@ -58,8 +59,9 @@ int mysql_union(THD *thd, LEX *lex,select_result *result)
       the ORDER BY and LIMIT parameter for the whole UNION
     */
     lex_sl= sl;
-    last_sl->next=0;				// Remove this extra element
     order=  (ORDER *) lex_sl->order_list.first;
+    if (!order || !describe) 
+      last_sl->next=0;				// Remove this extra element
   }
   else if (!last_sl->braces)
   {
@@ -136,7 +138,7 @@ int mysql_union(THD *thd, LEX *lex,select_result *result)
     if (thd->select_limit == HA_POS_ERROR)
       sl->options&= ~OPTION_FOUND_ROWS;
 
-    res=mysql_select(thd, (TABLE_LIST*) sl->table_list.first,
+    res=mysql_select(thd, (describe && sl->linkage==NOT_A_SELECT) ? first_table :  (TABLE_LIST*) sl->table_list.first,
 		     sl->item_list,
 		     sl->where,
 		     (sl->braces) ? (ORDER *)sl->order_list.first : (ORDER *) 0,
@@ -193,7 +195,7 @@ int mysql_union(THD *thd, LEX *lex,select_result *result)
       if (describe)
 	thd->select_limit= HA_POS_ERROR;		// no limit
       res=mysql_select(thd,&result_table_list,
-		       item_list, NULL, /*ftfunc_list,*/ order,
+		       item_list, NULL, (describe) ? 0 : order,
 		       (ORDER*) NULL, NULL, (ORDER*) NULL,
 		       thd->options, result);
     }
