@@ -65,7 +65,9 @@ void manager(const Options &options)
   */
 
   User_map user_map;
-  Instance_map instance_map;
+  Instance_map instance_map(options.default_mysqld_path,
+                            options.default_admin_user,
+                            options.default_admin_password);
   Guardian_thread guardian_thread(thread_registry,
                                   &instance_map,
                                   options.monitoring_interval);
@@ -73,16 +75,10 @@ void manager(const Options &options)
   Listener_thread_args listener_args(thread_registry, options, user_map,
                                      instance_map);
 
-  instance_map.mysqld_path= options.default_mysqld_path;
-  instance_map.user= options.default_admin_user;
-  instance_map.password= options.default_admin_password;
   instance_map.guardian= &guardian_thread;
 
-
-  if (instance_map.load())
-    return;
-
-  if (user_map.load(options.password_file_name))
+  if (instance_map.init() || user_map.init() || instance_map.load() ||
+      user_map.load(options.password_file_name))
     return;
 
   /* write pid file */

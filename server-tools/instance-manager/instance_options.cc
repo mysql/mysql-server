@@ -86,89 +86,57 @@ err:
 
 int Instance_options::add_option(const char* option)
 {
-  uint elements_count=0;
-  static const char socket[]= "--socket=";
-  static const char port[]= "--port=";
-  static const char datadir[]= "--datadir=";
-  static const char language[]= "--bind-address=";
-  static const char pid_file[]= "--pid-file=";
-  static const char path[]= "--mysqld_path=";
-  static const char user[]= "--admin_user=";
-  static const char password[]= "--admin_password=";
-  static const char guarded[]= "--guarded";
   char *tmp;
+  enum { SAVE_VALUE= 1, SAVE_WHOLE, SAVE_WHOLE_AND_ADD };
+  struct selected_options_st
+  {
+    const char *name;
+    uint length;
+    const char **value;
+    uint type;
+  } options[]=
+  {
+    {"--socket=", 9, &mysqld_socket, SAVE_WHOLE_AND_ADD},
+    {"--port=", 7, &mysqld_port, SAVE_WHOLE_AND_ADD},
+    {"--datadir=", 10, &mysqld_datadir, SAVE_WHOLE_AND_ADD},
+    {"--bind-address=", 15, &mysqld_bind_address, SAVE_WHOLE_AND_ADD},
+    {"--pid-file=", 11, &mysqld_pid_file, SAVE_WHOLE_AND_ADD},
+    {"--mysqld_path=", 14, &mysqld_path, SAVE_VALUE},
+    {"--admin_user=", 13, &mysqld_user, SAVE_VALUE},
+    {"--admin_password=", 17, &mysqld_password, SAVE_VALUE},
+    {"--guarded", 9, &is_guarded, SAVE_WHOLE},
+    {NULL, 0, NULL, 0}
+  };
+  struct selected_options_st *selected_options;
 
   if (!(tmp= strdup_root(&alloc, option)))
     goto err;
 
- /* To get rid the final zero in a string we subtract 1 from sizeof value */
-  if (strncmp(tmp, socket, sizeof socket - 1) == 0)
-  {
-    mysqld_socket= tmp;
-    goto add_options;
-  }
+   for (selected_options= options; selected_options->name; selected_options++)
+   {
+     if (!strncmp(tmp, selected_options->name, selected_options->length))
+       switch(selected_options->type){
+       case SAVE_WHOLE_AND_ADD:
+         *(selected_options->value)= tmp;
+         insert_dynamic(&options_array,(gptr) &tmp);
+         return 0;
+       case SAVE_VALUE:
+         *(selected_options->value)= strchr(tmp, '=') + 1;
+         return 0;
+       case SAVE_WHOLE:
+         *(selected_options->value)= tmp;
+         return 0;
+       defaut:
+         break;
+       }
+   }
 
-  if (strncmp(tmp, port, sizeof port - 1) == 0)
-  {
-    mysqld_port= tmp;
-    goto add_options;
-  }
-
-  if (strncmp(tmp, datadir, sizeof datadir - 1) == 0)
-  {
-    mysqld_datadir= tmp;
-    goto add_options;
-  }
-
-  if (strncmp(tmp, language, sizeof language - 1) == 0)
-  {
-    mysqld_bind_address= tmp;
-    goto add_options;
-  }
-
-  if (strncmp(tmp, pid_file, sizeof pid_file - 1) == 0)
-  {
-    mysqld_pid_file= tmp;
-    goto add_options;
-  }
-
-  /*
-    We don't need a prefix in the next three optios.
-    We also don't need to add them to argv array =>
-    return instead of goto.
-  */
-
-  if (strncmp(tmp, path, sizeof path - 1) == 0)
-  {
-    mysqld_path= strchr(tmp, '=') + 1;
-    return 0;
-  }
-
-  if (strncmp(tmp, user, sizeof user - 1) == 0)
-  {
-    mysqld_user= strchr(tmp, '=') + 1;
-    return 0;
-  }
-
-  if (strncmp(tmp, password, sizeof password - 1) == 0)
-  {
-    mysqld_password= strchr(tmp, '=') + 1;
-    return 0;
-  }
-
-  if (strncmp(tmp, guarded, sizeof guarded - 1) == 0)
-  {
-    is_guarded= tmp;
-    return 0;
-  }
-
-add_options:
-  insert_dynamic(&options_array,(gptr) &tmp);
   return 0;
 
 err:
   return 1;
 }
+
 
 int Instance_options::add_to_argv(const char* option)
 {
@@ -191,7 +159,8 @@ int Instance_options::init(const char *instance_name_arg)
 
   init_alloc_root(&alloc, MEM_ROOT_BLOCK_SIZE, 0);
 
-  my_init_dynamic_array(&options_array, sizeof(char *), 0, 32);
+  if (my_init_dynamic_array(&options_array, sizeof(char *), 0, 32))
+      goto err;
 
   if (!(instance_name= strmake_root(&alloc, (char *) instance_name_arg,
                                   instance_name_len)))

@@ -24,7 +24,7 @@
 #include <my_sys.h>
 #include <signal.h>
 #include <m_string.h>
-
+#include <sys/wait.h>
 
 /*
   The method starts an instance.
@@ -41,11 +41,12 @@
 
 int Instance::start()
 {
+  pid_t pid;
 
   if (!is_running())
   {
     log_info("trying to start instance %s", options.instance_name);
-    switch (fork()) {
+    switch (pid= fork()) {
     case 0:
        if (fork()) /* zombie protection */
          exit(0); /* parent goes bye-bye */
@@ -57,6 +58,7 @@ int Instance::start()
     case -1:
       return ER_CANNOT_START_INSTANCE;
     default:
+      waitpid(pid, NULL, 0);
       return 0;
     }
   }
@@ -77,21 +79,32 @@ int Instance::cleanup()
   return 0;
 }
 
+
 Instance::~Instance()
 {
   pthread_mutex_destroy(&LOCK_instance);
 }
 
+
 bool Instance::is_running()
 {
+  uint port;
+  const char *socket;
+
+  if (options.mysqld_port)
+    port= atoi(strchr(options.mysqld_port, '=') + 1);
+
+  if (options.mysqld_socket)
+    socket= strchr(options.mysqld_socket, '=') + 1;
+
   pthread_mutex_lock(&LOCK_instance);
   if (!is_connected)
   {
     mysql_init(&mysql);
     if (mysql_real_connect(&mysql, LOCAL_HOST, options.mysqld_user,
                            options.mysqld_password,
-                           NullS, atoi(strchr(options.mysqld_port, '=') + 1),
-                           strchr(options.mysqld_socket, '=') + 1, 0))
+                           NullS, port,
+                           socket, 0))
     {
       is_connected= TRUE;
       pthread_mutex_unlock(&LOCK_instance);

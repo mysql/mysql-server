@@ -132,7 +132,7 @@ void Listener_thread::run()
       /* set the socket nonblocking */
   flags= fcntl(ip_socket, F_GETFL, 0);
   fcntl(ip_socket, F_SETFL, flags | O_NONBLOCK);
-    /* make shure that instances won't be listening our sockets */
+    /* make sure that instances won't be listening our sockets */
   flags= fcntl(ip_socket, F_GETFD, 0);
   fcntl(ip_socket, F_SETFD, flags | FD_CLOEXEC);
 
@@ -184,7 +184,7 @@ void Listener_thread::run()
       /* set the socket nonblocking */
     flags= fcntl(unix_socket, F_GETFL, 0);
     fcntl(unix_socket, F_SETFL, flags | O_NONBLOCK);
-      /* make shure that instances won't be listening our sockets */
+      /* make sure that instances won't be listening our sockets */
     flags= fcntl(unix_socket, F_GETFD, 0);
     fcntl(unix_socket, F_SETFD, flags | FD_CLOEXEC);
   }
@@ -253,6 +253,7 @@ void Listener_thread::run()
   log_info("Listener_thread::run(): shutdown requested, exiting...");
 
   close(unix_socket);
+  close(ip_socket);
   unlink(unix_socket_address.sun_path);
 }
 

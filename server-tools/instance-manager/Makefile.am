@@ -80,8 +80,7 @@ mysqlmanager_SOURCES=	mysqlmanager.cc manager.h manager.cc log.h log.cc \
 			instance_map.h instance_map.cc\
 			instance_options.h instance_options.cc \
 			buffer.h buffer.cc parse.cc parse.h \
-			guardian.cc guardian.h common_structures.h \
-                        mysql_manager_error.h
+			guardian.cc guardian.h mysql_manager_error.h
 
 mysqlmanager_LDADD=	liboptions.a \
 			libnet.a \
