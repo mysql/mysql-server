@@ -2,24 +2,35 @@ drop table if exists t1,t2,t3;
 create table t1(id1 int not null auto_increment primary key, t char(12));
 create table t2(id2 int not null, t char(12), index(id2));
 create table t3(id3 int not null, t char(12), index(id3));
-let $1 = 3;
+let $1 = 10000;
 while ($1)
  {
-  let $2 = 3;
+  let $2 = 5;
   eval insert into t1(t) values ('$1'); 
   while ($2)
    {
      eval insert into t2(id2,t) values ($1,'$2'); 
-     eval insert into t3(id3,t) values ($1,'$2'); 
+     let $3 = 10;
+     while ($3)
+     {
+       eval insert into t3(id3,t) values ($1,'$2'); 
+       dec $3;
+     }
      dec $2; 
    }
   dec $1;
  }
 
-select * from t1;
-select * from t2;
-select * from t3;
 
-delete from t1,t2 where t1.id = t2.id and t1.id = 3;
-select * from t1;
-select * from t2;
+delete t1.*, t2.*, t3.*  from t1,t2,t3 where t1.id1 = t2.id2 and t2.id2 = t3.id3  and t1.id1 > 9500;
+
+check table t1, t2, t3;
+
+select * from t1 where id1 > 9500;
+select * from t2 where id2 > 9500;
+select * from t3 where id3 > 9500;
+
+delete t1, t2, t3  from t1,t2,t3 where t1.id1 = t2.id2 and t2.id2 = t3.id3  and t1.id1 > 500;
+select * from t1 where id1 > 500;
+select * from t2 where id2 > 500;
+select * from t3 where id3 > 500;
