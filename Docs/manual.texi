@@ -46442,6 +46442,7 @@ users use this code as the rest of the code and because of this we are
 not yet 100% confident in this code.
 
 @menu
+* News-3.23.47::                Changes in release 3.23.47
 * News-3.23.46::                Changes in release 3.23.46
 * News-3.23.45::                Changes in release 3.23.45
 * News-3.23.44::                Changes in release 3.23.44
@@ -46492,9 +46493,21 @@ not yet 100% confident in this code.
 * News-3.23.0::                 Changes in release 3.23.0
 @end menu
 
-@node News-3.23.46, News-3.23.45, News-3.23.x, News-3.23.x
+@node News-3.23.47, News-3.23.46, News-3.23.x, News-3.23.x
+@appendixsubsec Changes in release 3.23.47
+@itemize @bullet
+@item
+Fixed bug when using @code{t1 LEFT JOIN t2 ON t2.key=constant}.
+@item
+@code{mysqlconfig} now also work with binary (relocated) distributions.
+@end itemize
+
+@node News-3.23.46, News-3.23.45, News-3.23.47, News-3.23.x
 @appendixsubsec Changes in release 3.23.46
 @itemize @bullet
+@item
+InnoDB and BDB tables will now use index when doing an @code{ORDER BY}
+on the whole table.
 @item
 Fixed bug where one got an empty set instead of a DEADLOCK error when using
 BDB tables.

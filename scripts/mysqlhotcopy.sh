@@ -37,7 +37,7 @@ WARNING: THIS PROGRAM IS STILL IN BETA. Comments/patches welcome.
 
 # Documentation continued at end of file
 
-my $VERSION = "1.13";
+my $VERSION = "1.14";
 
 my $opt_tmpdir = $ENV{TMPDIR} || "/tmp";
 
@@ -120,6 +120,7 @@ GetOptions( \%opt,
 #   'target'  - destination directory of the copy
 #   'tables'  - array-ref to list of tables in the db
 #   'files'   - array-ref to list of files to be copied
+#               (RAID files look like 'nn/name.MYD')
 #   'index'   - array-ref to list of indexes to be copied
 #
 
@@ -265,11 +266,23 @@ foreach my $rdb ( @db_desc ) {
       or die "Cannot open dir '$db_dir': $!";
 
     my %db_files;
-    map { ( /(.+)\.\w+$/ ? ( $db_files{$_} = $1 ) : () ) } readdir(DBDIR);
+    my @raid_dir = ();
+
+    while ( defined( my $name = readdir DBDIR ) ) {
+	if ( $name =~ /^\d\d$/ && -d "$db_dir/$name" ) {
+	    push @raid_dir, $name;
+	}
+	else {
+	    $db_files{$name} = $1 if ( $name =~ /(.+)\.\w+$/ );
+        }
+    }
+    closedir( DBDIR );
+
+    scan_raid_dir( \%db_files, $db_dir, @raid_dir );
+
     unless( keys %db_files ) {
 	warn "'$db' is an empty database\n";
     }
-    closedir( DBDIR );
 
     ## filter (out) files specified in t_regex
     my @db_files;
@@ -296,6 +309,8 @@ foreach my $rdb ( @db_desc ) {
     $rdb->{index}  = [ @index_files ];
     my @hc_tables = map { "$db.$_" } @dbh_tables;
     $rdb->{tables} = [ @hc_tables ];
+
+    $rdb->{raid_dirs} = [ get_raid_dirs( $rdb->{files} ) ];
 
     $hc_locks .= ", "  if ( length $hc_locks && @hc_tables );
     $hc_locks .= join ", ", map { "$_ READ" } @hc_tables;
@@ -370,17 +385,20 @@ if ($opt{method} =~ /^cp\b/)
 retire_directory( @existing ) if ( @existing );
 
 foreach my $rdb ( @db_desc ) {
-    my $tgt_dirpath = $rdb->{target};
-    if ( $opt{dryrun} ) {
-	print "mkdir $tgt_dirpath, 0750\n";
-    }
-    elsif ($opt{method} =~ /^scp\b/) {
-	## assume it's there?
-	## ...
-    }
-    else {
-	mkdir($tgt_dirpath, 0750)
-	  or die "Can't create '$tgt_dirpath': $!\n";
+    foreach my $td ( '', @{$rdb->{raid_dirs}} ) {
+
+	my $tgt_dirpath = "$rdb->{target}/$td";
+	if ( $opt{dryrun} ) {
+	    print "mkdir $tgt_dirpath, 0750\n";
+	}
+	elsif ($opt{method} =~ /^scp\b/) {
+	    ## assume it's there?
+	    ## ...
+	}
+	else {
+	    mkdir($tgt_dirpath, 0750)
+		or die "Can't create '$tgt_dirpath': $!\n";
+	}
     }
 }
 
@@ -438,7 +456,7 @@ foreach my $rdb ( @db_desc )
   my @files = map { "$datadir/$rdb->{src}/$_" } @{$rdb->{files}};
   next unless @files;
   
-  eval { copy_files($opt{method}, \@files, $rdb->{target} ); };
+  eval { copy_files($opt{method}, \@files, $rdb->{target}, $rdb->{raid_dirs} ); };
   push @failed, "$rdb->{src} -> $rdb->{target} failed: $@"
     if ( $@ );
   
@@ -531,27 +549,33 @@ exit 0;
 # ---
 
 sub copy_files {
-    my ($method, $files, $target) = @_;
+    my ($method, $files, $target, $raid_dirs) = @_;
     my @cmd;
     print "Copying ".@$files." files...\n" unless $opt{quiet};
 
     if ($method =~ /^s?cp\b/) { # cp or scp with optional flags
-	@cmd = ($method);
+	my @cp = ($method);
 	# add option to preserve mod time etc of copied files
 	# not critical, but nice to have
-	push @cmd, "-p" if $^O =~ m/^(solaris|linux|freebsd)$/;
+	push @cp, "-p" if $^O =~ m/^(solaris|linux|freebsd)$/;
 
 	# add recursive option for scp
-	push @cmd, "-r" if $^O =~ /m^(solaris|linux|freebsd)$/ && $method =~ /^scp\b/;
+	push @cp, "-r" if $^O =~ /m^(solaris|linux|freebsd)$/ && $method =~ /^scp\b/;
+
+	my @non_raid = grep { $_ !~ m:\d\d/: } @$files;
 
 	# add files to copy and the destination directory
-	push @cmd, @$files, $target;
+	safe_system( @cp, @non_raid, $target );
+	
+	foreach my $rd ( @$raid_dirs ) {
+	    my @raid = grep { m:$rd/: } @$files;
+	    safe_system( @cp, @raid, "$target/$rd" ) if ( @raid );
+	}
     }
     else
     {
 	die "Can't use unsupported method '$method'\n";
     }
-    safe_system (@cmd);
 }
 
 #
@@ -680,6 +704,35 @@ sub get_row {
   my $sth = $dbh->prepare($sql);
   $sth->execute;
   return $sth->fetchrow_array();
+}
+
+sub scan_raid_dir {
+    my ( $r_db_files, $data_dir, @raid_dir ) = @_;
+
+    local(*RAID_DIR);
+    
+    foreach my $rd ( @raid_dir ) {
+
+	opendir(RAID_DIR, "$data_dir/$rd" ) 
+	    or die "Cannot open dir '$data_dir/$rd': $!";
+
+	while ( defined( my $name = readdir RAID_DIR ) ) {
+	    $r_db_files->{"$rd/$name"} = $1 if ( $name =~ /(.+)\.\w+$/ );
+	}
+	closedir( RAID_DIR );
+    }
+}
+
+sub get_raid_dirs {
+    my ( $r_files ) = @_;
+
+    my %dirs = ();
+    foreach my $f ( @$r_files ) {
+	if ( $f =~ m:^(\d\d)/: ) {
+	    $dirs{$1} = 1;
+	}
+    }
+    return sort keys %dirs;
 }
 
 __END__
@@ -905,6 +958,7 @@ Tim Bunce
 Martin Waite - added checkpoint, flushlog, regexp and dryrun options
                Fixed cleanup of targets when hotcopy fails. 
 	       Added --record_log_pos.
+               RAID tables are now copied (don't know if this works over scp).
 
 Ralph Corderoy - added synonyms for commands
 
