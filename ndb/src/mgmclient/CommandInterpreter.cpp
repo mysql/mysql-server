@@ -384,8 +384,10 @@ CommandInterpreter::CommandInterpreter(const char *_host)
 
   connected = false;
   try_reconnect = 0;
-
-  host = my_strdup(_host,MYF(MY_WME));
+  if (_host)
+    host= my_strdup(_host,MYF(MY_WME));
+  else
+    host= 0;
 #ifdef HAVE_GLOBAL_REPLICATION
   rep_host = NULL;
   m_repserver = NULL;
@@ -400,7 +402,7 @@ CommandInterpreter::~CommandInterpreter()
 {
   connected = false;
   ndb_mgm_destroy_handle(&m_mgmsrv);
-  my_free((char *)host,MYF(0));
+  my_free((char *)host,MYF(MY_ALLOW_ZERO_PTR));
   host = NULL;
 }
 
