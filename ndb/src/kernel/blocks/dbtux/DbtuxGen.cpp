@@ -26,7 +26,12 @@ Dbtux::Dbtux(const Configuration& conf) :
 #ifdef VM_TRACE
   debugFile(0),
   debugOut(*new NullOutputStream()),
+  // until ndb_mgm supports dump
+#ifdef DBTUX_DEBUG_TREE
+  debugFlags(DebugTree),
+#else
   debugFlags(0),
+#endif
 #endif
   c_internalStartPhase(0),
   c_typeOfStart(NodeState::ST_ILLEGAL_TYPE),
@@ -314,6 +319,9 @@ Dbtux::copyAttrs(const Frag& frag, TableData data1, Data data2, unsigned maxlen2
     keyAttrs += 1;
     data1 += 1;
   }
+#ifdef VM_TRACE
+  memset(data2, DataFillByte, len2 << 2);
+#endif
 }
 
 BLOCK_FUNCTIONS(Dbtux);
