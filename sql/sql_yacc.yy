@@ -622,7 +622,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 	table_wild opt_pad no_in_expr expr_expr simple_expr no_and_expr
 	using_list expr_or_default set_expr_or_default interval_expr
 	param_marker singlerow_subselect singlerow_subselect_init
-	exists_subselect exists_subselect_init
+	exists_subselect exists_subselect_init sp_opt_default
 
 %type <item_list>
 	expr_list udf_expr_list when_list ident_list ident_list_arg
@@ -1082,15 +1082,26 @@ sp_decls:
 	;
 
 sp_decl:
-	  DECLARE_SYM sp_decl_idents type
+	  DECLARE_SYM sp_decl_idents type sp_opt_default
 	  {
 	    LEX *lex= Lex;
 	    uint max= lex->spcont->current_framesize();
+	    enum enum_field_types type= (enum enum_field_types)$3;
+	    Item *it= $4;
 
 	    for (uint i = max-$2 ; i < max ; i++)
 	    {
-	      lex->spcont->set_type(i, (enum enum_field_types)$3);
-	      lex->spcont->set_isset(i, FALSE);
+	      lex->spcont->set_type(i, type);
+	      if (! it)
+	        lex->spcont->set_isset(i, FALSE);
+	      else
+	      {
+	        sp_instr_set *in= new sp_instr_set(lex->sphead->instructions(),
+	                                           i, it, type);
+
+	        lex->sphead->add_instr(in);
+	        lex->spcont->set_isset(i, TRUE);
+	      }
 	    }
 	    $$= $2;
 	  }
@@ -1107,6 +1118,11 @@ sp_decl_idents:
 	    Lex->spcont->push(&$3, (enum_field_types)0, sp_param_in);
 	    $$= $1 + 1;
 	  }
+	;
+
+sp_opt_default:
+	  /* Empty */ { $$ = NULL; }
+        | DEFAULT expr { $$ = $2; }
 	;
 
 sp_proc_stmt:
