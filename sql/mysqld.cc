@@ -384,7 +384,7 @@ bool mysql_embedded=0;
 bool mysql_embedded=1;
 #endif
 
-char *opt_bin_logname = 0; // this one needs to be seen in sql_parse.cc
+static char *opt_bin_logname = 0;
 char *opt_relay_logname = 0, *opt_relaylog_index_name=0;
 char server_version[SERVER_VERSION_LENGTH]=MYSQL_SERVER_VERSION;
 const char *first_keyword="first";
@@ -395,6 +395,7 @@ ulong rpl_recovery_rank=0;
 
 my_string mysql_unix_port=NULL, opt_mysql_tmpdir=NULL, mysql_tmpdir=NULL;
 ulong my_bind_addr;			/* the address we bind to */
+char *my_bind_addr_str;
 DATE_FORMAT dayord;
 double log_10[32];			/* 10 potences */
 I_List<THD> threads,thread_cache;
@@ -1744,10 +1745,10 @@ bool open_log(MYSQL_LOG *log, const char *hostname,
       first change fn_format() to cut the file name if it's too long.
     */
     strmake(tmp,hostname,FN_REFLEN-5);
-    strmov(strcend(tmp,'.'),extension);
+    strmov(fn_ext(tmp),extension);
     opt_name=tmp;
   }
-  // get rid of extention if the log is binary to avoid problems
+  // get rid of extension if the log is binary to avoid problems
   if (type == LOG_BIN)
   {
     char *p = fn_ext(opt_name);
@@ -1814,7 +1815,7 @@ int main(int argc, char **argv)
   if (gethostname(glob_hostname,sizeof(glob_hostname)-4) < 0)
     strmov(glob_hostname,"mysql");
   strmake(pidfile_name, glob_hostname, sizeof(pidfile_name)-5);
-  strmov(strcend(pidfile_name,'.'),".pid");	// Add extension
+  strmov(fn_ext(pidfile_name),".pid");		// Add proper extension
 #ifndef DBUG_OFF
   strxmov(strend(server_version),MYSQL_SERVER_SUFFIX,"-debug",NullS);
 #else
@@ -2077,16 +2078,6 @@ The server will not act as a slave.");
   }
   if (opt_bin_log)
   {
-    if (!opt_bin_logname)
-    {
-      char tmp[FN_REFLEN];
-      /* TODO: The following should be using fn_format();  We just need to
-	 first change fn_format() to cut the file name if it's too long.
-      */
-      strmake(tmp,glob_hostname,FN_REFLEN-5);
-      strmov(strcend(tmp,'.'),"-bin");
-      opt_bin_logname=my_strdup(tmp,MYF(MY_WME));
-    }
     open_log(&mysql_bin_log, glob_hostname, opt_bin_logname, "-bin",
 	     opt_binlog_index_name,LOG_BIN);
     using_update_log=1;
@@ -2957,9 +2948,9 @@ struct my_option my_long_options[] =
   {"binlog-ignore-db", OPT_BINLOG_IGNORE_DB, 
    "Tells the master that updates to the given database should not be logged tothe binary log",
    0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-  {"bind-address", OPT_BIND_ADDRESS, "Ip address to bind to",
-   (gptr*) &my_bind_addr, (gptr*) &my_bind_addr, 0, GET_STR, REQUIRED_ARG, 0,
-   0, 0, 0, 0, 0},
+  {"bind-address", OPT_BIND_ADDRESS, "IP address to bind to",
+   (gptr*) &my_bind_addr_str, (gptr*) &my_bind_addr_str, 0, GET_STR,
+   REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"bootstrap", OPT_BOOTSTRAP, "Used by mysql installation scripts", 0, 0, 0,
    GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
 #ifdef __WIN__
@@ -3276,9 +3267,6 @@ struct my_option my_long_options[] =
   {"skip-locking", OPT_SKIP_LOCK,
    "Deprecated option, use --skip-external-locking instead",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
-  {"skip-external-locking", OPT_SKIP_LOCK, "Do not use system (external) locking",
-   (gptr*) &opt_external_locking, (gptr*) &opt_external_locking,
-   0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"skip-host-cache", OPT_SKIP_HOST_CACHE, "Don't cache host names", 0, 0, 0,
    GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"skip-name-resolve", OPT_SKIP_RESOLVE,

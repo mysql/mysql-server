@@ -130,6 +130,11 @@ lex_hash.h:	lex.h gen_lex_hash.cc sql_yacc.h
 # Hack to ensure that lex_hash.h is built early
 sql_lex.o:	lex_hash.h
 
+# For testing of udf_example.so;  Works on platforms with gcc
+# (This is not part of our build process but only provided as an example)
+udf_example.so:	udf_example.cc
+		$(CXXCOMPILE) -shared -o $@ $<
+
 #distclean:
 #		rm -f lex_hash.h
 

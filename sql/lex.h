@@ -251,6 +251,7 @@ static SYMBOL symbols[] = {
   { "NEW",              SYM(NEW_SYM),0,0},
   { "NCHAR",		SYM(NCHAR_SYM),0,0},
   { "NO",		SYM(NO_SYM),0,0},
+  { "NONE",		SYM(NONE_SYM),0,0},
   { "NOT",		SYM(NOT),0,0},
   { "NULL",		SYM(NULL_SYM),0,0},
   { "NUMERIC",		SYM(NUMERIC_SYM),0,0},

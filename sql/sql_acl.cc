@@ -64,10 +64,8 @@ public:
   USER_RESOURCES user_resource;
   char *user,*password;
   ulong salt[2];
-#ifdef HAVE_OPENSSL  
   enum SSL_type ssl_type;
   const char *ssl_cipher, *x509_issuer, *x509_subject;
-#endif /* HAVE_OPENSSL */ 
 };
 
 
@@ -142,12 +140,27 @@ static void init_update_queries(void)
   uc_update_queries[SQLCOM_MULTI_UPDATE]=1;
 }
 
-int acl_init(bool dont_read_acl_tables)
+/*
+  Read grant privileges from the privilege tables in the 'mysql' database.
+
+  SYNOPSIS
+    acl_init()
+    dont_read_acl_tables	Set to 1 if run with --skip-grant
+
+  RETURN VALUES
+    0	ok
+    1	Could not initialize grant's
+*/
+
+
+my_bool acl_init(bool dont_read_acl_tables)
 {
-  THD  *thd;
+  THD  *thd, *org_thd;
   TABLE_LIST tables[3];
   TABLE *table;
   READ_RECORD read_record_info;
+  MYSQL_LOCK *lock;
+  my_bool return_val=1;
   DBUG_ENTER("acl_init");
 
   if (!acl_cache)
@@ -157,13 +170,15 @@ int acl_init(bool dont_read_acl_tables)
   if (dont_read_acl_tables)
     DBUG_RETURN(0); /* purecov: tested */
 
+  /*
+    To be able to run this from boot, we allocate a temporary THD
+  */
+  org_thd=current_thd;				// Save for restore
   if (!(thd=new THD))
     DBUG_RETURN(1); /* purecov: inspected */
+  thd->store_globals();
+
   acl_cache->clear(1);				// Clear locked hostname cache
-  thd->version=refresh_version;
-  thd->mysys_var=my_thread_var;
-  thd->current_tablenr=0;
-  thd->open_tables=0;
   thd->db= my_strdup("mysql",MYF(0));
   thd->db_length=5;				// Safety
   bzero((char*) &tables,sizeof(tables));
@@ -176,22 +191,13 @@ int acl_init(bool dont_read_acl_tables)
   tables[0].db=tables[1].db=tables[2].db=thd->db;
 
   if (open_tables(thd,tables))
-  {
-    close_thread_tables(thd); /* purecov: inspected */
-    delete thd; /* purecov: inspected */
-    DBUG_RETURN(1); /* purecov: inspected */
-  }
+    goto end;
   TABLE *ptr[3];				// Lock tables for quick update
   ptr[0]= tables[0].table;
   ptr[1]= tables[1].table;
   ptr[2]= tables[2].table;
-  MYSQL_LOCK *lock=mysql_lock_tables(thd,ptr,3);
-  if (!lock)
-  {
-    close_thread_tables(thd); /* purecov: inspected */
-    delete thd; /* purecov: inspected */
-    DBUG_RETURN(1); /* purecov: inspected */
-  }
+  if (!(lock=mysql_lock_tables(thd,ptr,3)))
+    goto end;
 
   init_sql_alloc(&mem,1024,0);
   init_read_record(&read_record_info,thd,table= tables[0].table,NULL,1,0);
@@ -259,7 +265,6 @@ int acl_init(bool dont_read_acl_tables)
 			   (uint) strlen(user.host.hostname) : 0);
     if (table->fields >= 31)     /* Starting from 4.0.2 we have more fields */
     {
-#ifdef HAVE_OPENSSL
       char *ssl_type=get_field(&mem, table, 24);
       if (!ssl_type)
 	user.ssl_type=SSL_TYPE_NONE;
@@ -273,7 +278,7 @@ int acl_init(bool dont_read_acl_tables)
       user.ssl_cipher=   get_field(&mem, table, 25);
       user.x509_issuer=  get_field(&mem, table, 26);
       user.x509_subject= get_field(&mem, table, 27);
-#endif
+
       char *ptr = get_field(&mem, table, 28);
       user.user_resource.questions=atoi(ptr);
       ptr = get_field(&mem, table, 29);
@@ -286,9 +291,7 @@ int acl_init(bool dont_read_acl_tables)
     }
     else
     {
-#ifdef HAVE_OPENSSL
       user.ssl_type=SSL_TYPE_NONE;
-#endif
       bzero(&(user.user_resource),sizeof(user.user_resource));
 #ifndef TO_BE_REMOVED
       if (table->fields <= 13)
@@ -346,12 +349,17 @@ int acl_init(bool dont_read_acl_tables)
   init_check_host();
 
   mysql_unlock_tables(thd, lock);
+  initialized=1;
   init_update_queries();
   thd->version--;				// Force close to free memory
+  return_val=0;
+
+end:
   close_thread_tables(thd);
   delete thd;
-  initialized=1;
-  DBUG_RETURN(0);
+  if (org_thd)
+    org_thd->store_globals();			/* purecov: inspected */
+  DBUG_RETURN(return_val);
 }
 
 
@@ -374,18 +382,18 @@ void acl_free(bool end)
 
 	/* Reload acl list if possible */
 
-void acl_reload(void)
+void acl_reload(THD *thd)
 {
   DYNAMIC_ARRAY old_acl_hosts,old_acl_users,old_acl_dbs;
   MEM_ROOT old_mem;
   bool old_initialized;
   DBUG_ENTER("acl_reload");
 
-  if (current_thd && current_thd->locked_tables)
+  if (thd && thd->locked_tables)
   {					// Can't have locked tables here
-    current_thd->lock=current_thd->locked_tables;
-    current_thd->locked_tables=0;
-    close_thread_tables(current_thd);
+    thd->lock=thd->locked_tables;
+    thd->locked_tables=0;
+    close_thread_tables(thd);
   }
   if ((old_initialized=initialized))
     VOID(pthread_mutex_lock(&acl_cache->lock));
@@ -399,7 +407,7 @@ void acl_reload(void)
 
   if (acl_init(0))
   {					// Error. Revert to old list
-    acl_free();					/* purecov: inspected */
+    acl_free();				/* purecov: inspected */
     acl_hosts=old_acl_hosts;
     acl_users=old_acl_users;
     acl_dbs=old_acl_dbs;
@@ -536,6 +544,7 @@ ulong acl_getroot(THD *thd, const char *host, const char *ip, const char *user,
 	    if X509 certificate attributes are OK 
 	  */
           switch (acl_user->ssl_type) {
+	  case SSL_TYPE_NOT_SPECIFIED:		// Impossible
           case SSL_TYPE_NONE: /* SSL is not required to connect */
 	    user_access=acl_user->access;
 	    break;
@@ -559,15 +568,17 @@ ulong acl_getroot(THD *thd, const char *host, const char *ip, const char *user,
 	      use.
 	    */
 	    if (acl_user->ssl_cipher)
+	    {
 	      DBUG_PRINT("info",("comparing ciphers: '%s' and '%s'",
 				 acl_user->ssl_cipher,
 				 SSL_get_cipher(vio->ssl_)));
-	    if (!strcmp(acl_user->ssl_cipher,SSL_get_cipher(vio->ssl_)))
-	      user_access=acl_user->access;
-	    else
-	    {
-	      user_access=NO_ACCESS;
-	      break;
+	      if (!strcmp(acl_user->ssl_cipher,SSL_get_cipher(vio->ssl_)))
+		user_access=acl_user->access;
+	      else
+	      {
+		user_access=NO_ACCESS;
+		break;
+	      }
 	    }
 	    /* Prepare certificate (if exists) */
 	    DBUG_PRINT("info",("checkpoint 1"));
@@ -661,12 +672,16 @@ static void acl_update_user(const char *user, const char *host,
 	  acl_user->user_resource.updates=mqh->updates;
 	if (mqh->bits & 4)
 	  acl_user->user_resource.connections=mqh->connections;
-#ifdef HAVE_OPENSSL  
-	acl_user->ssl_type=ssl_type;
-        acl_user->ssl_cipher=ssl_cipher;
-	acl_user->x509_issuer=x509_issuer;
-	acl_user->x509_subject=x509_subject;
-#endif /* HAVE_OPENSSL */
+	if (ssl_type != SSL_TYPE_NOT_SPECIFIED)
+	{
+	  acl_user->ssl_type= ssl_type;
+	  acl_user->ssl_cipher= (ssl_cipher ? strdup_root(&mem,ssl_cipher) :
+				 0);
+	  acl_user->x509_issuer= (x509_issuer ? strdup_root(&mem,x509_issuer) :
+				  0);
+	  acl_user->x509_subject= (x509_subject ?
+				   strdup_root(&mem,x509_subject) : 0);
+	}
 	if (password)
 	{
 	  if (!password[0])
@@ -701,12 +716,11 @@ static void acl_insert_user(const char *user, const char *host,
   acl_user.user_resource = *mqh;
   acl_user.sort=get_sort(2,acl_user.host.hostname,acl_user.user);
   acl_user.hostname_length=(uint) strlen(acl_user.host.hostname);
-#ifdef HAVE_OPENSSL
-  acl_user.ssl_type=ssl_type;
-  acl_user.ssl_cipher=ssl_cipher;
-  acl_user.x509_issuer=x509_issuer;
-  acl_user.x509_subject=x509_subject;
-#endif /* HAVE_OPENSSL */
+  acl_user.ssl_type= (ssl_type != SSL_TYPE_NOT_SPECIFIED ?
+		      ssl_type : SSL_TYPE_NONE);
+  acl_user.ssl_cipher=	ssl_cipher   ? strdup_root(&mem,ssl_cipher) : 0;
+  acl_user.x509_issuer= x509_issuer  ? strdup_root(&mem,x509_issuer) : 0;
+  acl_user.x509_subject=x509_subject ? strdup_root(&mem,x509_subject) : 0;
   if (password)
   {
     acl_user.password=(char*) "";		// Just point at something
@@ -1295,7 +1309,6 @@ static int replace_user_table(THD *thd, TABLE *table, const LEX_USER &combo,
   DBUG_PRINT("info",("table->fields: %d",table->fields));
   if (table->fields >= 31)		/* From 4.0.0 we have more fields */
   {
-#ifdef HAVE_OPENSSL
     /* We write down SSL related ACL stuff */
     table->field[25]->store("",0);
     table->field[26]->store("",0);
@@ -1322,7 +1335,6 @@ static int replace_user_table(THD *thd, TABLE *table, const LEX_USER &combo,
     default:
       table->field[24]->store("",0);
     }
-#endif /* HAVE_OPENSSL */
 
     USER_RESOURCES mqh = thd->lex.mqh;
     if (mqh.bits & 1)
@@ -2234,11 +2246,12 @@ void  grant_free(void)
 
 /* Init grant array if possible */
 
-int  grant_init (void)
+my_bool grant_init(void)
 {
-  THD  *thd;
+  THD  *thd, *org_thd;
   TABLE_LIST tables[2];
-  int error = 0;
+  MYSQL_LOCK *lock;
+  my_bool return_val= 1;
   TABLE *t_table, *c_table;
   DBUG_ENTER("grant_init");
 
@@ -2247,15 +2260,14 @@ int  grant_init (void)
 		   (hash_free_key) free_grant_table,0);
   init_sql_alloc(&memex,1024,0);
 
+  /* Don't do anything if running with --skip-grant */
   if (!initialized)
     DBUG_RETURN(0);				/* purecov: tested */
+
+  org_thd=current_thd;
   if (!(thd=new THD))
     DBUG_RETURN(1);				/* purecov: deadcode */
-
-  thd->version=refresh_version;
-  thd->mysys_var=my_thread_var;
-  thd->current_tablenr=0;
-  thd->open_tables=0;
+  thd->store_globals();
   thd->db= my_strdup("mysql",MYF(0));
   thd->db_length=5;				// Safety
   bzero((char*) &tables,sizeof(tables));
@@ -2266,60 +2278,51 @@ int  grant_init (void)
   tables[0].db=tables[1].db=thd->db;
 
   if (open_tables(thd,tables))
-  {						// No grant tables
-    close_thread_tables(thd);			/* purecov: deadcode */
-    delete thd;					/* purecov: deadcode */
-    DBUG_RETURN(1);				/* purecov: deadcode */
-  }
+    goto end;
+
   TABLE *ptr[2];				// Lock tables for quick update
   ptr[0]= tables[0].table;
   ptr[1]= tables[1].table;
-  MYSQL_LOCK *lock=mysql_lock_tables(thd,ptr,2);
-  if (!lock)
-  {
-    close_thread_tables(thd);			/* purecov: deadcode */
-    delete thd;					/* purecov: deadcode */
-    DBUG_RETURN(1);				/* purecov: deadcode */
-  }
+  if (!(lock=mysql_lock_tables(thd,ptr,2)))
+    goto end;
 
   t_table = tables[0].table; c_table = tables[1].table;
   t_table->file->index_init(0);
   if (t_table->file->index_first(t_table->record[0]))
   {
     t_table->file->index_end();
-    mysql_unlock_tables(thd, lock);
-    thd->version--;				// Force close to free memory
-    close_thread_tables(thd);
-    delete thd;
-    DBUG_RETURN(0);				// Empty table is ok!
+    goto end_unlock;
   }
   grant_option= TRUE;
   t_table->file->index_end();
 
-  MEM_ROOT *old_root=my_pthread_getspecific_ptr(MEM_ROOT*,THR_MALLOC);
+  /* Will be restored by org_thd->store_globals() */
   my_pthread_setspecific_ptr(THR_MALLOC,&memex);
-  while (!error)
+  do
   {
     GRANT_TABLE *mem_check;
     if (!(mem_check=new GRANT_TABLE(t_table,c_table)) ||
 	mem_check->ok() && hash_insert(&hash_tables,(byte*) mem_check))
     {
       /* This could only happen if we are out memory */
-      my_pthread_setspecific_ptr(THR_MALLOC,old_root); /* purecov: deadcode */
       grant_option = FALSE;			/* purecov: deadcode */
-      mysql_unlock_tables(thd, lock);		/* purecov: deadcode */
-      close_thread_tables(thd);			/* purecov: deadcode */
-      delete thd;				/* purecov: deadcode */
-      DBUG_RETURN(1);				/* purecov: deadcode */
+      goto end_unlock;
     }
-    error = t_table->file->index_next(t_table->record[0]);
   }
-  my_pthread_setspecific_ptr(THR_MALLOC,old_root);
+  while (!t_table->file->index_next(t_table->record[0]));
+
+  return_val=0;					// Return ok
+
+end_unlock:
   mysql_unlock_tables(thd, lock);
   thd->version--;				// Force close to free memory
+
+end:
   close_thread_tables(thd);
   delete thd;
-  DBUG_RETURN(0);
+  if (org_thd)
+    org_thd->store_globals();
+  DBUG_RETURN(return_val);
 }
 
 
@@ -2720,7 +2723,8 @@ int mysql_show_grants(THD *thd,LEX_USER *lex_user)
   VOID(pthread_mutex_lock(&acl_cache->lock));
 
   /* Add first global access grants */
-  if (acl_user->access || acl_user->password)
+  if (acl_user->access || acl_user->password ||
+      acl_user->ssl_type != SSL_TYPE_NONE)
   {
     want_access=acl_user->access;
     String global(buff,sizeof(buff));
@@ -2759,7 +2763,6 @@ int mysql_show_grants(THD *thd,LEX_USER *lex_user)
       global.append(passd_buff);
       global.append('\'');
     }
-#ifdef HAVE_OPENSSL    
     /* "show grants" SSL related stuff */
     if (acl_user->ssl_type == SSL_TYPE_ANY)
       global.append(" REQUIRE SSL",12);
@@ -2772,28 +2775,27 @@ int mysql_show_grants(THD *thd,LEX_USER *lex_user)
       if (acl_user->x509_issuer)
       {
         ssl_options++;
-        global.append("ISSUER \"",8);
+        global.append("ISSUER \'",8);
         global.append(acl_user->x509_issuer,strlen(acl_user->x509_issuer));
 	global.append('\'');
       }
       if (acl_user->x509_subject)
       {
         if (ssl_options++)
-          global.append(" AND ",5);
-        global.append("SUBJECT \"",9);
+          global.append(' ');
+        global.append("SUBJECT \'",9);
         global.append(acl_user->x509_subject,strlen(acl_user->x509_subject));
 	global.append('\'');
       }
       if (acl_user->ssl_cipher)
       {
         if (ssl_options++)
-          global.append(" AND ",5);
+          global.append(' ');
         global.append("CIPHER '",8);
         global.append(acl_user->ssl_cipher,strlen(acl_user->ssl_cipher));
 	global.append('\'');
       }
     }
-#endif /* HAVE_OPENSSL */
     if ((want_access & GRANT_ACL) ||
 	(acl_user->user_resource.questions | acl_user->user_resource.updates |
 	 acl_user->user_resource.connections))

@@ -180,15 +180,14 @@ static int find_keyword(LEX *lex, uint len, bool function)
   udf_func *udf;
   if (function && using_udf_functions && (udf=find_udf((char*) tok, len)))
   {
+    lex->thd->safe_to_cache_query=0;
+    lex->yylval->udf=udf;
     switch (udf->returns) {
     case STRING_RESULT:
-      lex->yylval->udf=udf;
       return (udf->type == UDFTYPE_FUNCTION) ? UDF_CHAR_FUNC : UDA_CHAR_SUM;
     case REAL_RESULT:
-      lex->yylval->udf=udf;
       return (udf->type == UDFTYPE_FUNCTION) ? UDF_FLOAT_FUNC : UDA_FLOAT_SUM;
     case INT_RESULT:
-      lex->yylval->udf=udf;
       return (udf->type == UDFTYPE_FUNCTION) ? UDF_INT_FUNC : UDA_INT_SUM;
     }
   }

@@ -19,10 +19,19 @@
 #include <m_string.h>
 
 /*
-  Return a pointerto the extension of the filename
-  The pointer points at the extension character (normally '.'))
-  If there isn't any extension, the pointer points at the end
-  ASCII(0) of the filename.
+  Return a pointer to the extension of the filename.
+
+  SYNOPSIS
+    fn_ext()
+    name		Name of file
+
+  DESCRIPTION
+    The extension is defined as everything after the first extension character
+    (normally '.') after the directory name.
+
+  RETURN VALUES
+    Pointer to to the extension character. If there isn't any extension,
+    points at the end ASCII(0) of the filename.
 */
 
 my_string fn_ext(const char *name)
@@ -40,6 +49,6 @@ my_string fn_ext(const char *name)
   if (!(gpos=strrchr(name,FNLIBCHAR)))
     gpos=name;
 #endif
-  pos=strrchr(gpos,FN_EXTCHAR);
+  pos=strchr(gpos,FN_EXTCHAR);
   DBUG_RETURN (pos ? pos : strend(gpos));
 } /* fn_ext */
