@@ -1988,9 +1988,7 @@ bool store_schema_shemata(THD* thd, TABLE *table, const char *db_name,
   restore_record(table, s->default_values);
   table->field[1]->store(db_name, strlen(db_name), system_charset_info);
   table->field[2]->store(cs_name, strlen(cs_name), system_charset_info);
-  if (schema_table_store_record(thd, table))
-    return 1;
-  return 0;
+  return schema_table_store_record(thd, table);
 }
 
 
@@ -2231,9 +2229,7 @@ static int get_schema_tables_record(THD *thd, struct st_table_list *tables,
       }
     }
   }
-  if (schema_table_store_record(thd, table))
-    DBUG_RETURN(1);
-  DBUG_RETURN(0);
+  DBUG_RETURN(schema_table_store_record(thd, table));
 }
 
 
@@ -2582,8 +2578,7 @@ bool store_schema_proc(THD *thd, TABLE *table, TABLE *proc_table,
       get_field(thd->mem_root, proc_table->field[15], &tmp_string);
       table->field[18]->store(tmp_string.ptr(), tmp_string.length(), cs);
       table->field[19]->store(definer, strlen(definer), cs);
-      if (schema_table_store_record(thd, table))
-        return 1;
+      return schema_table_store_record(thd, table);
     }
   }
   return 0;
@@ -2761,8 +2756,7 @@ static int get_schema_views_record(THD *thd, struct st_table_list *tables,
         table->field[5]->store("YES", 3, cs);
       else
         table->field[5]->store("NO", 2, cs);
-      if (schema_table_store_record(thd, table))
-        DBUG_RETURN(1);
+      DBUG_RETURN(schema_table_store_record(thd, table));
     }
   }
   else
@@ -2787,9 +2781,7 @@ bool store_constraints(THD *thd, TABLE *table, const char *db,
   table->field[3]->store(db, strlen(db), cs);
   table->field[4]->store(tname, strlen(tname), cs);
   table->field[5]->store(con_type, con_len, cs);
-  if (schema_table_store_record(thd, table))
-    return 1;
-  return 0;
+  return schema_table_store_record(thd, table);
 }
 
 
