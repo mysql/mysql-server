@@ -180,7 +180,7 @@ uint calc_hashnr_caseup(const byte *key, uint len)
 #endif
 
 
-#ifndef _FORTREC_
+#ifndef __SUNPRO_C				/* SUNPRO can't handle this */
 inline
 #endif
 uint rec_hashnr(HASH *hash,const byte *record)
