@@ -80,10 +80,6 @@ const char *command_name[]={
 
 bool volatile abort_slave = 0;
 
-#ifdef HAVE_OPENSSL
-extern struct st_VioSSLAcceptorFd * ssl_acceptor_fd;
-#endif /* HAVE_OPENSSL */
-
 #ifdef __WIN__
 static void  test_signal(int sig_ptr)
 {
@@ -331,6 +327,38 @@ void free_max_user_conn(void)
 
 
 /*
+  Mark all commands that somehow changes a table
+  This is used to check number of updates / hour
+*/
+
+char  uc_update_queries[SQLCOM_END];
+
+void init_update_queries(void)
+{
+  uc_update_queries[SQLCOM_CREATE_TABLE]=1;
+  uc_update_queries[SQLCOM_CREATE_INDEX]=1;
+  uc_update_queries[SQLCOM_ALTER_TABLE]=1;
+  uc_update_queries[SQLCOM_UPDATE]=1;
+  uc_update_queries[SQLCOM_INSERT]=1;
+  uc_update_queries[SQLCOM_INSERT_SELECT]=1;
+  uc_update_queries[SQLCOM_DELETE]=1;
+  uc_update_queries[SQLCOM_TRUNCATE]=1;
+  uc_update_queries[SQLCOM_DROP_TABLE]=1;
+  uc_update_queries[SQLCOM_LOAD]=1;
+  uc_update_queries[SQLCOM_CREATE_DB]=1;
+  uc_update_queries[SQLCOM_DROP_DB]=1;
+  uc_update_queries[SQLCOM_REPLACE]=1;
+  uc_update_queries[SQLCOM_REPLACE_SELECT]=1;
+  uc_update_queries[SQLCOM_RENAME_TABLE]=1;
+  uc_update_queries[SQLCOM_BACKUP_TABLE]=1;
+  uc_update_queries[SQLCOM_RESTORE_TABLE]=1;
+  uc_update_queries[SQLCOM_DELETE_MULTI]=1;
+  uc_update_queries[SQLCOM_DROP_INDEX]=1;
+  uc_update_queries[SQLCOM_MULTI_UPDATE]=1;
+}
+
+
+/*
   Check if maximum queries per hour limit has been reached
   returns 0 if OK.
 
@@ -339,7 +367,6 @@ void free_max_user_conn(void)
   a couple of queries, this isn't critical.
 */
 
-char  uc_update_queries[SQLCOM_END];
 
 static bool check_mqh(THD *thd, uint check_command)
 {

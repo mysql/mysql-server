@@ -1,0 +1,14 @@
+#
+# Test of --lower-case-table-names
+#
+
+drop table if exists t1,t2,t3;
+create table T1 (id int primary key, Word varchar(40) not null, Index(Word));
+INSERT INTO T1 VALUES (1, 'a'), (2, 'b'), (3, 'c');
+SELECT * FROM t1;
+RENAME TABLE T1 TO T2;
+ALTER TABLE T2 ADD new_col int not null;
+ALTER TABLE T2 RENAME T3;
+show tables like 't_';
+drop table t3;
+

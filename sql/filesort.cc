@@ -370,13 +370,18 @@ static ha_rows find_all_keys(SORTPARAM *param, SQL_SELECT *select,
       {
 	if (write_keys(param,sort_keys,idx,buffpek_pointers,tempfile))
 	  DBUG_RETURN(HA_POS_ERROR);
-	idx=0; indexpos++;
+	idx=0;
 	if (param->ref_length == param->sort_length &&
 	    my_b_tell(tempfile)/param->sort_length >= param->max_rows)
 	{
+	  /*
+	    We are writing the result index file and have found all
+	    rows that we need.  Abort the sort and return the result.
+	  */
 	  error=HA_ERR_END_OF_FILE;
 	  break;			/* Found enough records */
 	}
+	indexpos++;
       }
       make_sortkey(param,sort_keys[idx++],ref_pos);
     }
@@ -391,7 +396,7 @@ static ha_rows find_all_keys(SORTPARAM *param, SQL_SELECT *select,
     file->print_error(error,MYF(ME_ERROR | ME_WAITTANG)); /* purecov: inspected */
     DBUG_RETURN(HA_POS_ERROR);			/* purecov: inspected */
   }
-  if (indexpos &&
+  if (indexpos && idx &&
       write_keys(param,sort_keys,idx,buffpek_pointers,tempfile))
     DBUG_RETURN(HA_POS_ERROR);			/* purecov: inspected */
   DBUG_RETURN(my_b_inited(tempfile) ?
@@ -759,7 +764,11 @@ int merge_buffers(SORTPARAM *param, IO_CACHE *from_file,
     }
     buffpek->key+=sort_length;
     buffpek->mem_count--;
-    max_rows--;
+    if (!--max_rows)
+    {
+      error=0;					/* purecov: inspected */
+      goto end;					/* purecov: inspected */
+    }
     queue_replaced(&queue);			// Top element has been used
   }
   else

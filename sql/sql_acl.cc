@@ -114,32 +114,6 @@ static void update_hostname(acl_host_and_ip *host, const char *hostname);
 static bool compare_hostname(const acl_host_and_ip *host, const char *hostname,
 			     const char *ip);
 
-extern   char uc_update_queries[SQLCOM_END];
-
-static void init_update_queries(void)
-{
-  uc_update_queries[SQLCOM_CREATE_TABLE]=1;
-  uc_update_queries[SQLCOM_CREATE_INDEX]=1;
-  uc_update_queries[SQLCOM_ALTER_TABLE]=1;
-  uc_update_queries[SQLCOM_UPDATE]=1;
-  uc_update_queries[SQLCOM_INSERT]=1;
-  uc_update_queries[SQLCOM_INSERT_SELECT]=1;
-  uc_update_queries[SQLCOM_DELETE]=1;
-  uc_update_queries[SQLCOM_TRUNCATE]=1;
-  uc_update_queries[SQLCOM_DROP_TABLE]=1;
-  uc_update_queries[SQLCOM_LOAD]=1;
-  uc_update_queries[SQLCOM_CREATE_DB]=1;
-  uc_update_queries[SQLCOM_DROP_DB]=1;
-  uc_update_queries[SQLCOM_REPLACE]=1;
-  uc_update_queries[SQLCOM_REPLACE_SELECT]=1;
-  uc_update_queries[SQLCOM_RENAME_TABLE]=1;
-  uc_update_queries[SQLCOM_BACKUP_TABLE]=1;
-  uc_update_queries[SQLCOM_RESTORE_TABLE]=1;
-  uc_update_queries[SQLCOM_DELETE_MULTI]=1;
-  uc_update_queries[SQLCOM_DROP_INDEX]=1;
-  uc_update_queries[SQLCOM_MULTI_UPDATE]=1;
-}
-
 /*
   Read grant privileges from the privilege tables in the 'mysql' database.
 
@@ -214,7 +188,7 @@ my_bool acl_init(bool dont_read_acl_tables)
     if (table->fields ==  8)
     {						// Without grant
       if (host.access & CREATE_ACL)
-	host.access|=REFERENCES_ACL | INDEX_ACL | ALTER_ACL;
+	host.access|=REFERENCES_ACL | INDEX_ACL | ALTER_ACL | CREATE_TMP_ACL;
     }
 #endif
     VOID(push_dynamic(&acl_hosts,(gptr) &host));
@@ -350,7 +324,6 @@ my_bool acl_init(bool dont_read_acl_tables)
 
   mysql_unlock_tables(thd, lock);
   initialized=1;
-  init_update_queries();
   thd->version--;				// Force close to free memory
   return_val=0;
 
@@ -1339,6 +1312,7 @@ static int replace_user_table(THD *thd, TABLE *table, const LEX_USER &combo,
 				strlen(thd->lex.x509_subject));
       break;
     case SSL_TYPE_NOT_SPECIFIED:
+    case SSL_TYPE_NONE:				// Impossible
       break;					// Nothing to do
     }
 
