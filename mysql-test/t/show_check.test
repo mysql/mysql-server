@@ -131,3 +131,19 @@ drop table t1;
 create table t1 (c decimal(3,3), d double(3,3), f float(3,3));
 show columns from t1;
 drop table t1;
+
+# Fix for BUG#7519: For temporary tables, SHOW INDEX doesn't display index 
+# cardinality after ANALYZE.
+CREATE TABLE t1 ( a VARCHAR(20) );
+INSERT INTO t1 VALUES ('one'),('two'),('three'),('four'),('five');
+CREATE TEMPORARY TABLE t2 ( index (a(20)) ) SELECT a FROM t1 GROUP BY a;
+--replace_column 2 X 4 X 5 X 6 X 8 X 9 X 10 X 
+SHOW INDEX FROM t2;
+ANALYZE TABLE t2;
+--replace_column 2 X 4 X 5 X 6 X 8 X 9 X 10 X 
+SHOW INDEX FROM t2;
+SHOW CREATE TABLE t2;
+--replace_column 2 X 4 X 5 X 6 X 8 X 9 X 10 X 
+SHOW INDEX FROM t2;
+DROP TEMPORARY TABLE t2;
+
