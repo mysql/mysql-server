@@ -71,7 +71,7 @@ int mysql_derived(THD *thd, LEX *lex,SELECT_LEX *s, TABLE_LIST *t)
     }
     bzero((char*) &tmp_table_param,sizeof(tmp_table_param));
     tmp_table_param.field_count=item_list.elements;
-    if (!(table=create_tmp_table(thd, &tmp_table_param, sl->item_list,
+    if (!(table=create_tmp_table(thd, &tmp_table_param, item_list,
 			       (ORDER*) 0, 0, 1, 0,
 			       (sl->options | thd->options | TMP_TABLE_ALL_COLUMNS))))
     {
