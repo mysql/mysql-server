@@ -683,8 +683,8 @@ innobase_start_or_create_for_mysql(void)
 	}
 
 	if (srv_measure_contention) {
-		os_thread_create(&test_measure_cont, NULL, thread_ids +
-							SRV_MAX_N_IO_THREADS);
+	  /* os_thread_create(&test_measure_cont, NULL, thread_ids +
+                             	     SRV_MAX_N_IO_THREADS); */
 	}
 
 	/* Create the master thread which monitors the database
