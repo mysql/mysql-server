@@ -72,3 +72,11 @@ show status like "Qcache_hits";
 Variable_name	Value
 Qcache_hits	0
 drop table t1, t2;
+set GLOBAL query_cache_size=0;
+set GLOBAL ndb_cache_check_time=0;
+reset query cache;
+flush status;
+set GLOBAL query_cache_size=0;
+set GLOBAL ndb_cache_check_time=0;
+reset query cache;
+flush status;
