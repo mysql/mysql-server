@@ -1,0 +1,1 @@
+--init-file=$MYSQL_TEST_DIR/t/init_file.sql
