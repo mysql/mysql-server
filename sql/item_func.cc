@@ -280,6 +280,21 @@ longlong Item_func_plus::val_int()
   return (longlong) Item_func_plus::val();
 }
 
+
+/*
+  The following function is here to allow the user to force
+  subtraction of UNSIGNED BIGINT to return negative values.
+*/
+
+void Item_func_minus::fix_length_and_dec()
+{
+  Item_num_op::fix_length_and_dec();
+  if (unsigned_flag &&
+      (current_thd->sql_mode & MODE_NO_UNSIGNED_SUBTRACTION))
+    unsigned_flag=0;
+}
+
+
 double Item_func_minus::val()
 {
   double value=args[0]->val() - args[1]->val();

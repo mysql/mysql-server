@@ -1541,7 +1541,7 @@ static int exec_relay_log_event(THD* thd, RELAY_LOG_INFO* rli)
       */
       /* TODO: I/O thread should not even log events with the same server id */
       rli->inc_pos(ev->get_event_len(),
-		   type_code != STOP_EVENT ? ev->log_pos : 0,
+		   type_code != STOP_EVENT ? ev->log_pos : LL(0),
 		   1/* skip lock*/);
       flush_relay_log_info(rli);
       if (rli->slave_skip_counter && /* protect against common user error of
@@ -2297,7 +2297,6 @@ Log_event* next_event(RELAY_LOG_INFO* rli)
 	DBUG_ASSERT(rli->cur_log_fd >= 0);
 	my_close(rli->cur_log_fd, MYF(MY_WME));
 	rli->cur_log_fd = -1; 
-	int error;
 	
 	// purge_first_log will properly set up relay log coordinates in rli 
 	if (rli->relay_log.purge_first_log(rli))
