@@ -6336,63 +6336,6 @@ void QUICK_ROR_UNION_SELECT::add_keys_and_lengths(String *key_names,
   }
 }
 
-#ifndef DBUG_OFF
-
-static void print_sel_tree(PARAM *param, SEL_TREE *tree, key_map *tree_map,
-                           const char *msg)
-{
-  SEL_ARG **key,**end;
-  int idx;
-  char buff[1024];
-  DBUG_ENTER("print_sel_tree");
-  if (! _db_on_)
-    DBUG_VOID_RETURN;
-
-  String tmp(buff,sizeof(buff),&my_charset_bin);
-  tmp.length(0);
-  for (idx= 0,key=tree->keys, end=key+param->keys ;
-       key != end ;
-       key++,idx++)
-  {
-    if (tree_map->is_set(idx))
-    {
-      uint keynr= param->real_keynr[idx];
-      if (tmp.length())
-        tmp.append(',');
-      tmp.append(param->table->key_info[keynr].name);
-    }
-  }
-  if (!tmp.length())
-    tmp.append("(empty)");
-
-  DBUG_PRINT("info", ("SEL_TREE %p (%s) scans:%s", tree, msg, tmp.ptr()));
-
-  DBUG_VOID_RETURN;
-}
-
-static void print_ror_scans_arr(TABLE *table, const char *msg,
-                                struct st_ror_scan_info **start,
-                                struct st_ror_scan_info **end)
-{
-  DBUG_ENTER("print_ror_scans");
-  if (! _db_on_)
-    DBUG_VOID_RETURN;
-
-  char buff[1024];
-  String tmp(buff,sizeof(buff),&my_charset_bin);
-  tmp.length(0);
-  for(;start != end; start++)
-  {
-    if (tmp.length())
-      tmp.append(',');
-    tmp.append(table->key_info[(*start)->keynr].name);
-  }
-  if (!tmp.length())
-    tmp.append("(empty)");
-  DBUG_PRINT("info", ("ROR key scans (%s): %s", msg, tmp.ptr()));
-  DBUG_VOID_RETURN;
-}
-
 
 /*******************************************************************************
 * Implementation of QUICK_GROUP_MIN_MAX_SELECT
@@ -8281,46 +8224,62 @@ void QUICK_GROUP_MIN_MAX_SELECT::add_keys_and_lengths(String *key_names,
 }
 
 
-/*
-  Print quick select information to DBUG_FILE.
+#ifndef DBUG_OFF
 
-  SYNOPSIS
-    QUICK_GROUP_MIN_MAX_SELECT::dbug_dump()
-    indent  Indentation offset
-    verbose If TRUE show more detailed output.
-
-  DESCRIPTION
-    Print the contents of this quick select to DBUG_FILE. The method also
-    calls dbug_dump() for the used quick select if any.
-
-  IMPLEMENTATION
-    Caller is responsible for locking DBUG_FILE before this call and unlocking
-    it afterwards.
-
-  RETURN
-    None
-*/
-
-void QUICK_GROUP_MIN_MAX_SELECT::dbug_dump(int indent, bool verbose)
+static void print_sel_tree(PARAM *param, SEL_TREE *tree, key_map *tree_map,
+                           const char *msg)
 {
-  fprintf(DBUG_FILE,
-          "%*squick_group_min_max_select: index %s (%d), length: %d\n",
-	  indent, "", index_info->name, index, max_used_key_length);
-  if (key_infix_len > 0)
+  SEL_ARG **key,**end;
+  int idx;
+  char buff[1024];
+  DBUG_ENTER("print_sel_tree");
+  if (! _db_on_)
+    DBUG_VOID_RETURN;
+
+  String tmp(buff,sizeof(buff),&my_charset_bin);
+  tmp.length(0);
+  for (idx= 0,key=tree->keys, end=key+param->keys ;
+       key != end ;
+       key++,idx++)
   {
-    fprintf(DBUG_FILE, "%*susing key_infix with length %d:\n",
-            indent, "", key_infix_len);
+    if (tree_map->is_set(idx))
+    {
+      uint keynr= param->real_keynr[idx];
+      if (tmp.length())
+        tmp.append(',');
+      tmp.append(param->table->key_info[keynr].name);
+    }
   }
-  if (quick_prefix_select)
+  if (!tmp.length())
+    tmp.append("(empty)");
+
+  DBUG_PRINT("info", ("SEL_TREE %p (%s) scans:%s", tree, msg, tmp.ptr()));
+
+  DBUG_VOID_RETURN;
+}
+
+
+static void print_ror_scans_arr(TABLE *table, const char *msg,
+                                struct st_ror_scan_info **start,
+                                struct st_ror_scan_info **end)
+{
+  DBUG_ENTER("print_ror_scans");
+  if (! _db_on_)
+    DBUG_VOID_RETURN;
+
+  char buff[1024];
+  String tmp(buff,sizeof(buff),&my_charset_bin);
+  tmp.length(0);
+  for(;start != end; start++)
   {
-    fprintf(DBUG_FILE, "%*susing quick_range_select:\n", indent, "");
-    quick_prefix_select->dbug_dump(indent + 2, verbose);
+    if (tmp.length())
+      tmp.append(',');
+    tmp.append(table->key_info[(*start)->keynr].name);
   }
-  if (min_max_ranges.elements > 0)
-  {
-    fprintf(DBUG_FILE, "%*susing %d quick_ranges for MIN/MAX:\n",
-            indent, "", min_max_ranges.elements);
-  }
+  if (!tmp.length())
+    tmp.append("(empty)");
+  DBUG_PRINT("info", ("ROR key scans (%s): %s", msg, tmp.ptr()));
+  DBUG_VOID_RETURN;
 }
 
 
@@ -8474,6 +8433,50 @@ void QUICK_ROR_UNION_SELECT::dbug_dump(int indent, bool verbose)
     quick->dbug_dump(indent+2, verbose);
   fprintf(DBUG_FILE, "%*s}\n", indent, "");
 }
+
+
+/*
+  Print quick select information to DBUG_FILE.
+
+  SYNOPSIS
+    QUICK_GROUP_MIN_MAX_SELECT::dbug_dump()
+    indent  Indentation offset
+    verbose If TRUE show more detailed output.
+
+  DESCRIPTION
+    Print the contents of this quick select to DBUG_FILE. The method also
+    calls dbug_dump() for the used quick select if any.
+
+  IMPLEMENTATION
+    Caller is responsible for locking DBUG_FILE before this call and unlocking
+    it afterwards.
+
+  RETURN
+    None
+*/
+
+void QUICK_GROUP_MIN_MAX_SELECT::dbug_dump(int indent, bool verbose)
+{
+  fprintf(DBUG_FILE,
+          "%*squick_group_min_max_select: index %s (%d), length: %d\n",
+	  indent, "", index_info->name, index, max_used_key_length);
+  if (key_infix_len > 0)
+  {
+    fprintf(DBUG_FILE, "%*susing key_infix with length %d:\n",
+            indent, "", key_infix_len);
+  }
+  if (quick_prefix_select)
+  {
+    fprintf(DBUG_FILE, "%*susing quick_range_select:\n", indent, "");
+    quick_prefix_select->dbug_dump(indent + 2, verbose);
+  }
+  if (min_max_ranges.elements > 0)
+  {
+    fprintf(DBUG_FILE, "%*susing %d quick_ranges for MIN/MAX:\n",
+            indent, "", min_max_ranges.elements);
+  }
+}
+
 
 #endif
 
