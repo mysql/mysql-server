@@ -7,12 +7,15 @@ load data infile '../../std_data/words.dat' into table t1;
 drop table if exists foo;
 create table foo(n int);
 insert into foo values(1),(2);
+save_master_pos;
 connection slave;
-sleep 2;
+sync_with_master;
 use test;
-@r/rpl000001.a.result select * from foo;
-@r/rpl000001.b.result select sum(length(word)) from t1;
+select * from foo;
+select sum(length(word)) from t1;
 connection master;
 drop table t1;
-
+save_master_pos;
+connection slave;
+sync_with_master;
 

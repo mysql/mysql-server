@@ -14,13 +14,18 @@ disconnect master;
 connection master1;
 insert into t2 values(6);
 disconnect master1;
+connect (master2,localhost,root,,test,0,mysql-master.sock);
+connection master2;
+save_master_pos;
 connection slave;
-sleep 1;
+sync_with_master;
 @r/rpl000012.result select * from t2;
 @r/rpl000012.status.result show status like 'Slave_open_temp_tables';
 #
 # Clean up
 #
-connect (master2,localhost,root,,test,0,mysql-master.sock);
 connection master2;
 drop table if exists t1,t2;
+save_master_pos;
+connection slave;
+sync_with_master;

@@ -4,16 +4,21 @@ use test;
 drop table if exists t1;
 create table t1 (n int);
 insert into t1 values(1);
+save_master_pos;
 connection slave;
 #give slave some breathing room to get started
-sleep 2; 
+sync_with_master; 
 slave stop;
 slave start;
 connection master;
 insert into t1 values(2);
+save_master_pos;
 connection slave;
 #let slave catch up
-sleep 2;
+sync_with_master;
 @r/rpl000011.result select * from t1;
 connection master;
 drop table t1;
+save_master_pos;
+connection slave;
+sync_with_master;

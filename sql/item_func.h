@@ -778,6 +778,18 @@ class Item_func_release_lock :public Item_int_func
   void fix_length_and_dec() { decimals=0; max_length=1; maybe_null=1;}
 };
 
+/* replication functions */
+
+class Item_master_pos_wait :public Item_int_func
+{
+  String value;
+ public:
+  Item_master_pos_wait(Item *a,Item *b) :Item_int_func(a,b) {}
+  longlong val_int();
+  const char *func_name() const { return "master_pos_wait"; }
+  void fix_length_and_dec() { decimals=0; max_length=1; maybe_null=1;}
+};
+
 
 /* Handling of user definiable variables */
 

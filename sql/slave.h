@@ -14,17 +14,20 @@ typedef struct st_master_info
   uint port;
   uint connect_retry;
   pthread_mutex_t lock;
+  pthread_cond_t cond;
   bool inited;
   
   st_master_info():pending(0),fd(-1),inited(0)
   {
     host[0] = 0; user[0] = 0; password[0] = 0;
     pthread_mutex_init(&lock, NULL);
+    pthread_cond_init(&cond, NULL);
   }
 
   ~st_master_info()
   {
     pthread_mutex_destroy(&lock);
+    pthread_cond_destroy(&cond);
   }
   inline void inc_pending(ulonglong val)
   {
@@ -35,6 +38,7 @@ typedef struct st_master_info
     pthread_mutex_lock(&lock);
     pos += val + pending;
     pending = 0;
+    pthread_cond_broadcast(&cond);
     pthread_mutex_unlock(&lock);
   }
   // thread safe read of position - not needed if we are in the slave thread,
@@ -45,6 +49,8 @@ typedef struct st_master_info
     var = pos;
     pthread_mutex_unlock(&lock);
   }
+
+  int wait_for_pos(THD* thd, String* log_name, ulong log_pos);
 } MASTER_INFO;
 
 typedef struct st_table_rule_ent
