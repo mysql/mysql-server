@@ -377,7 +377,6 @@ static TRP_RANGE *get_key_scans_params(PARAM *param, SEL_TREE *tree,
                                        double read_time);
 static
 TRP_ROR_INTERSECT *get_best_ror_intersect(const PARAM *param, SEL_TREE *tree,
-                                          bool force_index_only, 
                                           double read_time,
                                           bool *are_all_covering);
 static
@@ -1517,7 +1516,7 @@ int SQL_SELECT::test_quick_select(THD *thd, key_map keys_to_use,
   uint idx;
   double scan_time;
   DBUG_ENTER("test_quick_select");
-  printf("\nQUERY: %s\n", thd->query);
+  //printf("\nQUERY: %s\n", thd->query);
   DBUG_PRINT("enter",("keys_to_use: %lu  prev_tables: %lu  const_tables: %lu",
 		      keys_to_use.to_ulonglong(), (ulong) prev_tables,
 		      (ulong) const_tables));
@@ -1651,8 +1650,7 @@ int SQL_SELECT::test_quick_select(THD *thd, key_map keys_to_use,
               Get best non-covering ROR-intersection plan and prepare data for 
               building covering ROR-intersection.
             */
-            if ((new_trp= get_best_ror_intersect(&param, tree, false, 
-                                                 best_read_time, 
+            if ((new_trp= get_best_ror_intersect(&param, tree, best_read_time,
                                                  &can_build_covering)))
             {
               best_trp= new_trp;
@@ -1750,7 +1748,7 @@ double get_sweep_read_cost(const PARAM *param, ha_rows records)
   else
   {    
     double n_blocks=
-      ceil((double)(longlong)param->table->file->data_file_length / IO_SIZE);
+      ceil((double)((longlong)param->table->file->data_file_length / IO_SIZE));
     double busy_blocks=
       n_blocks * (1.0 - pow(1.0 - 1.0/n_blocks, rows2double(records)));
     if (busy_blocks < 1.0)
@@ -2026,7 +2024,7 @@ skip_to_ror_scan:
       cost= read_time;
 
     TABLE_READ_PLAN *prev_plan= *cur_child;
-    if (!(*cur_roru_plan= get_best_ror_intersect(param, *ptree, false, cost,
+    if (!(*cur_roru_plan= get_best_ror_intersect(param, *ptree, cost, 
                                                  &dummy)))
     {
       if (prev_plan->is_ror)
@@ -2476,7 +2474,6 @@ bool ror_intersect_add(const PARAM *param, ROR_INTERSECT_INFO *info,
       {
         /* uncovered -> covered */
         double tmp= rows2double(records)/rows2double(prev_records);
-        printf("  Selectivity multiplier: %g\n", tmp);
         DBUG_PRINT("info", ("Selectivity multiplier: %g", tmp));
         selectivity_mult *= tmp;
         prev_records= HA_POS_ERROR;
@@ -2487,7 +2484,6 @@ bool ror_intersect_add(const PARAM *param, ROR_INTERSECT_INFO *info,
         prev_records= records; 
       }
     }
-    else printf("no change, skipping\n");
     prev_covered= cur_covered;
   }
   if (!prev_covered)
@@ -2526,8 +2522,6 @@ bool ror_intersect_add(const PARAM *param, ROR_INTERSECT_INFO *info,
     info->is_covering= true;
   }
   
-  printf("  records: %g\n", rows2double(param->table->file->records) *
-        info->records_fract);
   info->total_cost= info->index_scan_costs;
   if (!info->is_covering)
   {
@@ -2552,7 +2546,6 @@ bool ror_intersect_add(const PARAM *param, ROR_INTERSECT_INFO *info,
       param            Parameter from test_quick_select function.
       tree             Transformed restriction condition to be used to look
                        for ROR scans.
-      force_index_only If true, don't calculate costs of full rows retrieval.
       read_time        Do not return read plans with cost > read_time.
       are_all_covering [out] set to true if union of all scans covers all 
                        fields needed by the query (and it is possible to build
@@ -2606,7 +2599,6 @@ bool ror_intersect_add(const PARAM *param, ROR_INTERSECT_INFO *info,
 
 static
 TRP_ROR_INTERSECT *get_best_ror_intersect(const PARAM *param, SEL_TREE *tree,
-                                          bool force_index_only, 
                                           double read_time,
                                           bool *are_all_covering)
 {
@@ -2676,7 +2668,7 @@ TRP_ROR_INTERSECT *get_best_ror_intersect(const PARAM *param, SEL_TREE *tree,
     return NULL;
   
   /* [intersect_scans, intersect_scans_best) will hold the best combination */
-  ROR_SCAN_INFO **intersect_scans_best= NULL; 
+  ROR_SCAN_INFO **intersect_scans_best; 
   ha_rows       best_rows;
   bool          is_best_covering;
   double        best_index_scan_costs;
@@ -2730,17 +2722,24 @@ TRP_ROR_INTERSECT *get_best_ror_intersect(const PARAM *param, SEL_TREE *tree,
     */
     if (best_num == 0)
     { 
+      cur_ror_scan= tree->ror_scans;
+      intersect_scans_end= intersect_scans;
       ror_intersect_reinit(intersect);
-      if (!ror_intersect_add(param, intersect, cpk_scan))
+      if (!ror_intersect_add(param, intersect, *cur_ror_scan))
         DBUG_RETURN(NULL); /* shouldn't happen actually actually */
       *(intersect_scans_end++)= *cur_ror_scan;
       best_num++;
     }
 
     if (ror_intersect_add(param, intersect, cpk_scan))
+    {
       cpk_scan_used= true;
-    best_rows= (ha_rows)(intersect->records_fract* 
-                         rows2double(param->table->file->records));
+      min_cost= intersect->total_cost;
+      best_rows= (ha_rows)(intersect->records_fract* 
+                           rows2double(param->table->file->records));
+      is_best_covering= intersect->is_covering;
+      best_index_scan_costs= intersect->index_scan_costs;
+    }
   }
 
   /* Ok, return ROR-intersect plan if we have found one */
@@ -2910,7 +2909,7 @@ TRP_ROR_INTERSECT *get_best_covering_ror_intersect(PARAM *param,
   Get best "range" table read plan for given SEL_TREE. 
   Also update PARAM members and store ROR scans info in the SEL_TREE.
   SYNOPSIS
-    get_quick_select_params
+    get_key_scans_params
       param        parameters from test_quick_select
       tree         make range select for this SEL_TREE 
       index_read_must_be_used if true, assume 'index only' option will be set
@@ -4649,7 +4648,9 @@ check_quick_select(PARAM *param,uint idx,SEL_ARG *tree)
   bool    cpk_scan;
   uint key;
   DBUG_ENTER("check_quick_select");
-
+  
+  param->is_ror_scan= false;
+  
   if (!tree)
     DBUG_RETURN(HA_POS_ERROR);			// Can't use it
   param->max_key_part=0;
@@ -4665,7 +4666,6 @@ check_quick_select(PARAM *param,uint idx,SEL_ARG *tree)
   if ((key_alg != HA_KEY_ALG_BTREE) && (key_alg!= HA_KEY_ALG_UNDEF))
   {
     /* Records are not ordered by rowid for other types of indexes. */
-    param->is_ror_scan= false;
     cpk_scan= false;
   }
   else
@@ -4765,12 +4765,12 @@ check_quick_keys(PARAM *param,uint idx,SEL_ARG *key_tree,
   {
     /* 
       If the index doesn't cover entire key, mark the scan as non-ROR scan.
-      (TODO sergeyp: investigate if we could do better here)
+      Actually we're cutting off some ROR scans here.
     */
     uint16 fieldnr= param->table->key_info[param->real_keynr[idx]].
                     key_part[key_tree->part].fieldnr - 1;
     if (param->table->field[fieldnr]->key_length() != 
-        param->key[idx][key_tree->part].part_length)
+        param->key[idx][key_tree->part].length)
       param->is_ror_scan= false;
   }
 

@@ -155,15 +155,18 @@ public:
     function is called.
     SYNOPSIS
       init_ror_merged_scan()
-        reuse_handler quick select may use (q: psergey??)
-        (q: is this natural that we do it this way)
-    NOTES 
-      psergey?  
+        reuse_handler If true, the quick select may use table->handler, otherwise
+                      it must create and use a separate handler object.
+    RETURN
+      0     Ok
+      other Error 
   */
   virtual int init_ror_merged_scan(bool reuse_handler)
   { DBUG_ASSERT(0); return 1; }
   
-  /* Save ROWID of last retrieved row in file->ref. (psergey: or table->ref?) */
+  /*
+    Save ROWID of last retrieved row in file->ref. This used in ROR-merging.
+  */
   virtual void save_last_pos(){};
 
   /* 
@@ -196,7 +199,6 @@ public:
 
   /*
     Table record buffer used by this quick select. 
-    Currently this is always the same as  head->record[0]. psergey: check that!
   */
   byte    *record;
 #ifndef DBUG_OFF
