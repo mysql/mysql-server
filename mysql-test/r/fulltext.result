@@ -5,9 +5,6 @@ INSERT INTO t1 VALUES('MySQL has now support', 'for full-text search'),
 ('Only MyISAM tables','support collections'),
 ('Function MATCH ... AGAINST()','is used to do a search'),
 ('Full-text search in MySQL', 'implements vector space model');
-explain select * from t1 where MATCH(a,b) AGAINST ("collections");
-table	type	possible_keys	key	key_len	ref	rows	Extra
-t1	fulltext	a	a	0		1	Using where
 select * from t1 where MATCH(a,b) AGAINST ("collections");
 a	b
 Only MyISAM tables	support collections
@@ -19,11 +16,36 @@ select * from t1 where MATCH(a,b) AGAINST ("indexes collections");
 a	b
 Full-text indexes	are called collections
 Only MyISAM tables	support collections
-select * from t1 where MATCH(a,b) AGAINST ("collections") UNION ALL select * from t1 where MATCH(a,b) AGAINST ("indexes");
-a	b
-Only MyISAM tables	support collections
-Full-text indexes	are called collections
-Full-text indexes	are called collections
+explain select * from t1 where MATCH(a,b) AGAINST ("collections");
+table	type	possible_keys	key	key_len	ref	rows	Extra
+t1	fulltext	a	a	0		1	Using where
+explain select * from t1 where MATCH(a,b) AGAINST ("collections")>0;
+table	type	possible_keys	key	key_len	ref	rows	Extra
+t1	fulltext	a	a	0		1	Using where
+explain select * from t1 where MATCH(a,b) AGAINST ("collections")>1;
+table	type	possible_keys	key	key_len	ref	rows	Extra
+t1	fulltext	a	a	0		1	Using where
+explain select * from t1 where MATCH(a,b) AGAINST ("collections")>=0;
+table	type	possible_keys	key	key_len	ref	rows	Extra
+t1	ALL	NULL	NULL	NULL	NULL	5	Using where
+explain select * from t1 where MATCH(a,b) AGAINST ("collections")>=1;
+table	type	possible_keys	key	key_len	ref	rows	Extra
+t1	fulltext	a	a	0		1	Using where
+explain select * from t1 where 0<MATCH(a,b) AGAINST ("collections");
+table	type	possible_keys	key	key_len	ref	rows	Extra
+t1	fulltext	a	a	0		1	Using where
+explain select * from t1 where 1<MATCH(a,b) AGAINST ("collections");
+table	type	possible_keys	key	key_len	ref	rows	Extra
+t1	fulltext	a	a	0		1	Using where
+explain select * from t1 where 0<=MATCH(a,b) AGAINST ("collections");
+table	type	possible_keys	key	key_len	ref	rows	Extra
+t1	ALL	NULL	NULL	NULL	NULL	5	Using where
+explain select * from t1 where 1<=MATCH(a,b) AGAINST ("collections");
+table	type	possible_keys	key	key_len	ref	rows	Extra
+t1	fulltext	a	a	0		1	Using where
+explain select * from t1 where MATCH(a,b) AGAINST ("collections")>0 and a like '%ll%';
+table	type	possible_keys	key	key_len	ref	rows	Extra
+t1	fulltext	a	a	0		1	Using where
 select * from t1 where MATCH(a,b) AGAINST("support -collections" IN BOOLEAN MODE);
 a	b
 MySQL has now support	for full-text search
@@ -98,6 +120,11 @@ select * from t1 where MATCH b AGAINST ("sear*" IN BOOLEAN MODE);
 a	b
 MySQL has now support	for full-text search
 Function MATCH ... AGAINST()	is used to do a search
+select * from t1 where MATCH(a,b) AGAINST ("collections") UNION ALL select * from t1 where MATCH(a,b) AGAINST ("indexes");
+a	b
+Only MyISAM tables	support collections
+Full-text indexes	are called collections
+Full-text indexes	are called collections
 delete from t1 where a like "MySQL%";
 update t1 set a='some test foobar' where MATCH a,b AGAINST ('model');
 delete from t1 where MATCH(a,b) AGAINST ("indexes");
