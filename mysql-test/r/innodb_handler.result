@@ -49,7 +49,7 @@ handler t2 read a=(16);
 a	b
 16	ccc
 handler t2 read a=(19,"fff");
-ERROR 42000: Too many key parts specified. Max 1 parts allowed
+ERROR 42000: Too many key parts specified; max 1 parts allowed
 handler t2 read b=(19,"fff");
 a	b
 19	fff

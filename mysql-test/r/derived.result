@@ -27,7 +27,7 @@ a	y
 SELECT a FROM (SELECT 1 FROM (SELECT 1) a HAVING a=1) b;
 ERROR 42S22: Unknown column 'a' in 'having clause'
 SELECT a,b as a FROM (SELECT '1' as a,'2' as b) b  HAVING a=1;
-ERROR 23000: Column: 'a' in having clause is ambiguous
+ERROR 23000: Column 'a' in having clause is ambiguous
 SELECT a,2 as a FROM (SELECT '1' as a) b HAVING a=2;
 a	a
 1	2
@@ -204,7 +204,7 @@ x
 1
 create table t1 select 1 as a;
 select 2 as a from (select * from t1) b;
-ERROR 3D000: No Database Selected
+ERROR 3D000: No database selected
 use test;
 select 2 as a from (select * from t1) b;
 a

@@ -129,15 +129,15 @@ t2	t4	t6	t8	t10	t12	t14
 1997-12-31 23:47:59	1997-12-31 23:47:59	1997-12-31 23:47:59	1997-12-31 23:47:59	1997-12-31 23:47:59	1997-12-31 23:47:59	1997-12-31 23:47:59
 drop table t1;
 create table t1 (t1 timestamp, t2 timestamp default now());
-ERROR HY000: Incorrect table definition; There can only be one TIMESTAMP column with CURRENT_TIMESTAMP in DEFAULT or ON UPDATE clause
+ERROR HY000: Incorrect table definition; there can be only one TIMESTAMP column with CURRENT_TIMESTAMP in DEFAULT or ON UPDATE clause
 create table t1 (t1 timestamp, t2 timestamp on update now());
-ERROR HY000: Incorrect table definition; There can only be one TIMESTAMP column with CURRENT_TIMESTAMP in DEFAULT or ON UPDATE clause
+ERROR HY000: Incorrect table definition; there can be only one TIMESTAMP column with CURRENT_TIMESTAMP in DEFAULT or ON UPDATE clause
 create table t1 (t1 timestamp, t2 timestamp default now() on update now());
-ERROR HY000: Incorrect table definition; There can only be one TIMESTAMP column with CURRENT_TIMESTAMP in DEFAULT or ON UPDATE clause
+ERROR HY000: Incorrect table definition; there can be only one TIMESTAMP column with CURRENT_TIMESTAMP in DEFAULT or ON UPDATE clause
 create table t1 (t1 timestamp default now(), t2 timestamp on update now());
-ERROR HY000: Incorrect table definition; There can only be one TIMESTAMP column with CURRENT_TIMESTAMP in DEFAULT or ON UPDATE clause
+ERROR HY000: Incorrect table definition; there can be only one TIMESTAMP column with CURRENT_TIMESTAMP in DEFAULT or ON UPDATE clause
 create table t1 (t1 timestamp on update now(), t2 timestamp default now() on update now());
-ERROR HY000: Incorrect table definition; There can only be one TIMESTAMP column with CURRENT_TIMESTAMP in DEFAULT or ON UPDATE clause
+ERROR HY000: Incorrect table definition; there can be only one TIMESTAMP column with CURRENT_TIMESTAMP in DEFAULT or ON UPDATE clause
 create table t1 (t1 timestamp default '2003-01-01 00:00:00', t2 datetime, t3 timestamp);
 SET TIMESTAMP=1000000000;
 insert into t1 values ();
