@@ -96,7 +96,7 @@ int main(int argc,char *argv[])
       w=ft_get_relevance(result);
       printf("%d %.*s %f\n",i,t,read_record+2,w);
     }
-    if(err != HA_ERR_KEY_NOT_FOUND) {
+    if(err != HA_ERR_END_OF_FILE) {
       printf("ft_read_next %d failed with errno %3d\n",j,my_errno);
       goto err;
     }
