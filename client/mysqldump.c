@@ -137,7 +137,6 @@ typedef struct st_table_rule_ent
   uint key_len;
 } TABLE_RULE_ENT;
 
-my_bool ignore_table_inited;
 HASH ignore_table;
 
 static struct my_option my_long_options[] =
@@ -532,16 +531,12 @@ static byte* get_table_key(TABLE_RULE_ENT* e, uint* len,
 }
 
 
-void init_table_rule_hash(HASH* h, bool* h_inited)
+void init_table_rule_hash(HASH* h)
 {
   if(hash_init(h, charset_info, TABLE_RULE_HASH_SIZE, 0, 0,
 	       (hash_get_key) get_table_key,
 	       (hash_free_key) free_table_ent, 0))
-  {
-    fprintf(stderr, "Internal hash initialization error\n");
-    exit(1);
-  }
-  *h_inited= 1;
+    exit(EX_EOM);
 }
 
 
@@ -617,37 +612,30 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     break;
   case (int) OPT_IGNORE_TABLE:
   {
-    const char* dot = strchr(argument, '.');
-    if (!dot) 
+    uint len= (uint)strlen(argument);
+    TABLE_RULE_ENT* e;
+    if (!strchr(argument, '.'))
     {
       fprintf(stderr, "Illegal use of option --ignore-table=<database>.<table>\n");
       exit(1);
     }
-    // len is always > 0 because we know the there exists a '.'
-    uint len= (uint)strlen(argument);
-    TABLE_RULE_ENT* e= (TABLE_RULE_ENT*)my_malloc(sizeof(TABLE_RULE_ENT)
-						  + len, MYF(MY_WME));
-    if (!e) 
-    {
-      fprintf(stderr, "Internal memory allocation error\n");
-      exit(1);
-    }
+    /* len is always > 0 because we know the there exists a '.' */
+    e= (TABLE_RULE_ENT*)my_malloc(sizeof(TABLE_RULE_ENT) + len, MYF(MY_WME));
+    if (!e)
+      exit(EX_EOM);
     e->key= (char*)e + sizeof(TABLE_RULE_ENT);
     e->key_len= len;
     memcpy(e->key, argument, len);
 
-    if (!ignore_table_inited)
-      init_table_rule_hash(&ignore_table, &ignore_table_inited);
-    
+    if (!hash_inited(&ignore_table))
+      init_table_rule_hash(&ignore_table);
+
     if(my_hash_insert(&ignore_table, (byte*)e))
-    {
-      fprintf(stderr, "Internal hash insert error\n");
-      exit(1);
-    }
+      exit(EX_EOM);
     break;
   }
   case (int) OPT_COMPATIBLE:
-    {  
+    {
       char buff[255];
       char *end= compatible_mode_normal_str;
       int i;
@@ -2021,8 +2009,7 @@ static int init_dumping(char *database)
 
 my_bool include_table(byte* hash_key, uint len)
 {
-  if (ignore_table_inited &&
-      hash_search(&ignore_table, (byte*) hash_key, len))
+  if (hash_search(&ignore_table, (byte*) hash_key, len))
     return FALSE;
 
   return TRUE;
