@@ -689,12 +689,22 @@ my_bool check_scramble(const char *scrambled, const char *message,
 {
   struct rand_struct rand_st;
   ulong hash_message[2];
-  char buff[16],*to,extra;			/* Big enough for check */
+  char buff[16],*to,extra;		   /* Big enough for check */
   const char *pos;
-  char message_buffer[9];                      /* Copy of message */
+  char message_buffer[SCRAMBLE_LENGTH+1];  /* Copy of message */
+  
+  /* We need to copy the message as this function can be called for MySQL 4.1
+     scramble which is not zero ended and can have zeroes inside
+     We could just write zero to proper place in original message but
+     this would make it harder to understand code for next generations
+  */      
 
-  memcpy(message_buffer,message,8); /* Old auth uses 8 bytes at maximum */
-  message_buffer[8]=0;
+  memcpy(message_buffer,message,SCRAMBLE_LENGTH); /* Ignore the rest */
+  message_buffer[SCRAMBLE_LENGTH]=0;
+  
+  /* Check if this exactly N bytes. Overwise this is something fishy */
+  if (strlen(message_buffer)!=SCRAMBLE_LENGTH)
+    return 1; /* Wrong password */
 
   hash_password(hash_message,message_buffer);
   if (old_ver)
