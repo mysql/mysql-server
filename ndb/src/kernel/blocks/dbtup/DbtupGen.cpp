@@ -27,10 +27,8 @@
 #include <signaldata/FsConf.hpp>
 #include <signaldata/FsRef.hpp>
 #include <signaldata/FsRemoveReq.hpp>
-#include <signaldata/SetVarReq.hpp>
 #include <signaldata/TupCommit.hpp>
 #include <signaldata/TupKey.hpp>
-#include <signaldata/TupSizeAltReq.hpp>
 
 #include <signaldata/DropTab.hpp>
 #include <new>
@@ -118,7 +116,7 @@ Dbtup::Dbtup(const class Configuration & conf)
   addRecSignal(GSN_FSREADCONF, &Dbtup::execFSREADCONF);
   addRecSignal(GSN_FSREADREF, &Dbtup::execFSREADREF);
   addRecSignal(GSN_NDB_STTOR, &Dbtup::execNDB_STTOR);
-  addRecSignal(GSN_SIZEALT_REP, &Dbtup::execSIZEALT_REP);
+  addRecSignal(GSN_READ_CONFIG_REQ, &Dbtup::execREAD_CONFIG_REQ, true);
   addRecSignal(GSN_SET_VAR_REQ,  &Dbtup::execSET_VAR_REQ);
 
   // Trigger Signals
@@ -538,7 +536,8 @@ void Dbtup::execCONTINUEB(Signal* signal)
     break;
   case ZINITIALISE_RECORDS:
     ljam();
-    initialiseRecordsLab(signal, dataPtr);
+    initialiseRecordsLab(signal, dataPtr, 
+			 signal->theData[2], signal->theData[3]);
     break;
   case ZREL_FRAG:
     ljam();
@@ -610,22 +609,37 @@ void Dbtup::execSTTOR(Signal* signal)
 // SIZE_ALTREP INITIALIZE DATA STRUCTURES, FILES AND DS VARIABLES, GET READY FOR EXTERNAL 
 // CONNECTIONS.
 /************************************************************************************************/
-void Dbtup::execSIZEALT_REP(Signal* signal) 
+void Dbtup::execREAD_CONFIG_REQ(Signal* signal) 
 {
-  BlockReference tsizealtBlockRef;
-
+  const ReadConfigReq * req = (ReadConfigReq*)signal->getDataPtr();
+  Uint32 ref = req->senderRef;
+  Uint32 senderData = req->senderData;
+  ndbrequire(req->noOfParameters == 0);
+  
   ljamEntry();
-  tsizealtBlockRef      = signal->theData[TupSizeAltReq::IND_BLOCK_REF];
-  cnoOfFragrec          = signal->theData[TupSizeAltReq::IND_FRAG];
-  cnoOfOprec            = signal->theData[TupSizeAltReq::IND_OP_RECS];
+
+  const ndb_mgm_configuration_iterator * p = 
+    theConfiguration.getOwnConfigIterator();
+  ndbrequire(p != 0);
+  
+  ndbrequire(!ndb_mgm_get_int_parameter(p, CFG_TUP_FRAG, &cnoOfFragrec));
+
+  ndbrequire(!ndb_mgm_get_int_parameter(p, CFG_TUP_OP_RECS, &cnoOfOprec));
+
   // MemorySpaceTuples is specified in 8k pages, divide by 4 for 32k pages
-  Uint64 noOfWords      = (signal->theData[TupSizeAltReq::IND_PAGE] * 2048) + (ZWORDS_ON_PAGE - 1);
-  Uint64 noOfPages      = noOfWords / (Uint64)ZWORDS_ON_PAGE;
-  cnoOfPage	        = (Uint32)noOfPages;
-  initPageRangeSize(signal->theData[TupSizeAltReq::IND_PAGE_RANGE]);
-  cnoOfTablerec         = signal->theData[TupSizeAltReq::IND_TABLE];
-  cnoOfTabDescrRec      = signal->theData[TupSizeAltReq::IND_TABLE_DESC];
-  Uint32 noOfStoredProc = signal->theData[TupSizeAltReq::IND_STORED_PROC];
+  Uint32 tmp;
+  ndbrequire(!ndb_mgm_get_int_parameter(p, CFG_TUP_PAGE, &tmp));
+  Uint64 pages = (tmp * 2048 + (ZWORDS_ON_PAGE - 1))/ (Uint64)ZWORDS_ON_PAGE;
+  cnoOfPage = (Uint32)pages;
+  
+  ndbrequire(!ndb_mgm_get_int_parameter(p, CFG_TUP_PAGE_RANGE, &tmp));
+  initPageRangeSize(tmp);
+  ndbrequire(!ndb_mgm_get_int_parameter(p, CFG_TUP_TABLE, &cnoOfTablerec));
+  ndbrequire(!ndb_mgm_get_int_parameter(p, CFG_TUP_TABLE_DESC, 
+					&cnoOfTabDescrRec));
+  Uint32 noOfStoredProc;
+  ndbrequire(!ndb_mgm_get_int_parameter(p, CFG_TUP_STORED_PROC, 
+					&noOfStoredProc));
 
   cnoOfTabDescrRec = (cnoOfTabDescrRec & 0xFFFFFFF0) + 16;
   c_storedProcPool.setSize(noOfStoredProc);
@@ -639,7 +653,14 @@ void Dbtup::execSIZEALT_REP(Signal* signal)
   cnoOfLocalLogInfo = 0;
   cnoFreeUndoSeg = 0;
 
-  initialiseRecordsLab(signal, 0);
+  initialiseRecordsLab(signal, 0, ref, senderData);
+
+  clblPagesPerTick = 50;
+  //ndb_mgm_get_int_parameter(p, CFG_DB_, &clblPagesPerTick);
+
+  clblPagesPerTickAfterSr = 50;
+  //ndb_mgm_get_int_parameter(p, CFG_DB_, &clblPagesPerTickAfterSr);
+
 }//Dbtup::execSIZEALT_REP()
 
 void Dbtup::initRecords() 
@@ -732,7 +753,8 @@ void Dbtup::initRecords()
   bat[2].bits.v = 5;
 }//Dbtup::initRecords()
 
-void Dbtup::initialiseRecordsLab(Signal* signal, Uint32 switchData) 
+void Dbtup::initialiseRecordsLab(Signal* signal, Uint32 switchData,
+				 Uint32 retRef, Uint32 retData) 
 {
   switch (switchData) {
   case 0:
@@ -794,19 +816,24 @@ void Dbtup::initialiseRecordsLab(Signal* signal, Uint32 switchData)
   case 14:
     ljam();
     initializeRestartInfoRec();
-    signal->theData[0] = cownref;
-    sendSignal(CMVMI_REF, GSN_SIZEALT_ACK, signal, 1, JBB);
+
+    {
+      ReadConfigConf * conf = (ReadConfigConf*)signal->getDataPtrSend();
+      conf->senderRef = reference();
+      conf->senderData = retData;
+      sendSignal(retRef, GSN_READ_CONFIG_CONF, signal, 
+		 ReadConfigConf::SignalLength, JBB);
+    }
     return;
   default:
     ndbrequire(false);
     break;
   }//switch
-/******************************************************************************/
-/*  SEND REAL-TIME BREAK DURING INITIALISATION OF VARIABLES IN SYSTEM RESTART */
-/******************************************************************************/
   signal->theData[0] = ZINITIALISE_RECORDS;
   signal->theData[1] = switchData + 1;
-  sendSignal(cownref, GSN_CONTINUEB, signal, 2, JBB);
+  signal->theData[2] = retRef;
+  signal->theData[3] = retData;
+  sendSignal(reference(), GSN_CONTINUEB, signal, 4, JBB);
   return;
 }//Dbtup::initialiseRecordsLab()
 
@@ -816,8 +843,6 @@ void Dbtup::execNDB_STTOR(Signal* signal)
   cndbcntrRef = signal->theData[0];
   Uint32 ownNodeId = signal->theData[1];
   Uint32 startPhase = signal->theData[2];
-  Uint32 data1 = signal->theData[14];
-  Uint32 data2 = signal->theData[15];
   switch (startPhase) {
   case ZSTARTPHASE1:
     ljam();
@@ -829,7 +854,7 @@ void Dbtup::execNDB_STTOR(Signal* signal)
     break;
   case ZSTARTPHASE3:
     ljam();
-    startphase3Lab(signal, data1, data2);
+    startphase3Lab(signal, ~0, ~0);
     break;
   case ZSTARTPHASE4:
     ljam();
@@ -856,20 +881,6 @@ void Dbtup::execNDB_STTOR(Signal* signal)
 
 void Dbtup::startphase3Lab(Signal* signal, Uint32 config1, Uint32 config2) 
 {
-  if (config1 > 0) {
-    ljam();
-    clblPagesPerTick = config1;
-  } else {
-    ljam();
-    clblPagesPerTick = 1;
-  }//if
-  if (config2 > 0) {
-    ljam();
-    clblPagesPerTickAfterSr = config2;
-  } else {
-    ljam();
-    clblPagesPerTickAfterSr = 1;
-  }//if
   clblPageCounter = clblPagesPerTick;
   signal->theData[0] = ZLOAD_BAL_LCP_TIMER;
   sendSignalWithDelay(cownref, GSN_CONTINUEB, signal, 100, 1);
@@ -1291,6 +1302,7 @@ void Dbtup::seizePendingFileOpenInfoRecord(PendingFileOpenInfoPtr& pfoiPtr)
 
 void Dbtup::execSET_VAR_REQ(Signal* signal) 
 {
+#if 0
   SetVarReq* const setVarReq = (SetVarReq*)signal->getDataPtrSend();
   ConfigParamId var = setVarReq->variable();
   int val = setVarReq->value();
@@ -1310,7 +1322,7 @@ void Dbtup::execSET_VAR_REQ(Signal* signal)
   default:
     sendSignal(CMVMI_REF, GSN_SET_VAR_REF, signal, 1, JBB);
   } // switch
-
+#endif
 
 }//execSET_VAR_REQ()
 

@@ -36,7 +36,8 @@ NdbRestarter::NdbRestarter(const char* _addr):
   addr(_addr), 
   host(NULL),
   port(-1),
-  handle(NULL)
+  handle(NULL),
+  m_config(0)
 {
   if (addr == NULL){
     LocalConfig lcfg;
@@ -660,4 +661,14 @@ int NdbRestarter::exitSingleUserMode(){
     g_err << "Error: " << reply.message << endl;
   }
   return reply.return_code;  
+}
+
+ndb_mgm_configuration*
+NdbRestarter::getConfig(){
+  if(m_config) return m_config;
+
+  if (!isConnected())
+    return 0;
+  m_config = ndb_mgm_get_configuration(handle, 0);
+  return m_config;
 }

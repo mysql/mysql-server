@@ -101,40 +101,23 @@ const GsnName SignalNames [] = {
   ,{ GSN_ADD_FRAGREQ,            "ADD_FRAGREQ" }
   ,{ GSN_API_FAILCONF,           "API_FAILCONF" }
   ,{ GSN_API_FAILREQ,            "API_FAILREQ" }
-  ,{ GSN_APPL_CHANGEREP,         "APPL_CHANGEREP" }
-  //  ,{ GSN_APPL_ERROR,             "APPL_ERROR" }
-  ,{ GSN_APPL_HB,                "APPL_HB" }
-  ,{ GSN_APPL_HBREQ,             "APPL_HBREQ" }
-  ,{ GSN_APPL_REGCONF,           "APPL_REGCONF" }
-  ,{ GSN_APPL_REGREF,            "APPL_REGREF" }
-  ,{ GSN_APPL_REGREQ,            "APPL_REGREQ" }
-  ,{ GSN_APPL_RUN,               "APPL_RUN" }
-  ,{ GSN_APPL_STARTCONF,         "APPL_STARTCONF" }
-  ,{ GSN_APPL_STARTREG,          "APPL_STARTREG" }
   ,{ GSN_CHECK_LCP_STOP,         "CHECK_LCP_STOP" }
   ,{ GSN_CLOSE_COMCONF,          "CLOSE_COMCONF" }
   ,{ GSN_CLOSE_COMREQ,           "CLOSE_COMREQ" }
   ,{ GSN_CM_ACKADD,              "CM_ACKADD" }
-  ,{ GSN_CM_ACKALARM,            "CM_ACKALARM" }
   ,{ GSN_CM_ADD,                 "CM_ADD" }
-  ,{ GSN_CM_APPCHG,              "CM_APPCHG" }
+  ,{ GSN_CM_ADD_REP,             "CM_ADD_REP" }  
   ,{ GSN_CM_HEARTBEAT,           "CM_HEARTBEAT" }
-  ,{ GSN_CM_INFOCONF,            "CM_INFOCONF" }
-  ,{ GSN_CM_INFOREQ,             "CM_INFOREQ" }
-  ,{ GSN_CM_INIT,                "CM_INIT" }
   ,{ GSN_CM_NODEINFOCONF,        "CM_NODEINFOCONF" }
   ,{ GSN_CM_NODEINFOREF,         "CM_NODEINFOREF" }
   ,{ GSN_CM_NODEINFOREQ,         "CM_NODEINFOREQ" }
   ,{ GSN_CM_REGCONF,             "CM_REGCONF" }
   ,{ GSN_CM_REGREF,              "CM_REGREF" }
   ,{ GSN_CM_REGREQ,              "CM_REGREQ" }
-  ,{ GSN_CM_RUN,                 "CM_RUN" }
-  ,{ GSN_CMVMI_CFGCONF,          "CMVMI_CFGCONF" }
-  ,{ GSN_CMVMI_CFGREQ,           "CMVMI_CFGREQ" }
-  ,{ GSN_CNTR_CHANGEREP,         "CNTR_CHANGEREP" }
-  ,{ GSN_CNTR_MASTERCONF,        "CNTR_MASTERCONF" }
-  ,{ GSN_CNTR_MASTERREF,         "CNTR_MASTERREF" }
-  ,{ GSN_CNTR_MASTERREQ,         "CNTR_MASTERREQ" }
+  ,{ GSN_CNTR_START_REQ,         "CNTR_START_REQ" }
+  ,{ GSN_CNTR_START_REF,         "CNTR_START_REF" }
+  ,{ GSN_CNTR_START_CONF,        "CNTR_START_CONF" }
+  ,{ GSN_CNTR_START_REP,         "CNTR_START_REP" }
   ,{ GSN_CNTR_WAITREP,           "CNTR_WAITREP" }
   ,{ GSN_COMMIT,                 "COMMIT" }
   ,{ GSN_COMMIT_FAILCONF,        "COMMIT_FAILCONF" }
@@ -294,9 +277,6 @@ const GsnName SignalNames [] = {
   ,{ GSN_NEXT_SCANREQ,           "NEXT_SCANREQ" }
   ,{ GSN_NEXTOPERATION,          "NEXTOPERATION" }
   ,{ GSN_NF_COMPLETEREP,         "NF_COMPLETEREP" }
-  ,{ GSN_NODE_STATESCONF,        "NODE_STATESCONF" }
-  ,{ GSN_NODE_STATESREF,         "NODE_STATESREF" }
-  ,{ GSN_NODE_STATESREQ,         "NODE_STATESREQ" }
   ,{ GSN_OPEN_COMCONF,           "OPEN_COMCONF" }
   ,{ GSN_OPEN_COMREF,            "OPEN_COMREF" }
   ,{ GSN_OPEN_COMREQ,            "OPEN_COMREQ" }
@@ -318,8 +298,8 @@ const GsnName SignalNames [] = {
   ,{ GSN_SEND_PACKED,            "SEND_PACKED" }
   ,{ GSN_SET_LOGLEVELORD,        "SET_LOGLEVELORD" }
   ,{ GSN_SHRINKCHECK2,           "SHRINKCHECK2" }
-  ,{ GSN_SIZEALT_ACK,            "SIZEALT_ACK" }
-  ,{ GSN_SIZEALT_REP,            "SIZEALT_REP" }
+  ,{ GSN_READ_CONFIG_REQ,        "READ_CONFIG_REQ" }
+  ,{ GSN_READ_CONFIG_CONF,       "READ_CONFIG_CONF" }
   ,{ GSN_SR_FRAGIDCONF,          "SR_FRAGIDCONF" }
   ,{ GSN_SR_FRAGIDREF,           "SR_FRAGIDREF" }
   ,{ GSN_SR_FRAGIDREQ,           "SR_FRAGIDREQ" }
@@ -396,7 +376,6 @@ const GsnName SignalNames [] = {
   ,{ GSN_UPDATE_TOCONF,          "UPDATE_TOCONF" }
   ,{ GSN_UPDATE_TOREF,           "UPDATE_TOREF" }
   ,{ GSN_UPDATE_TOREQ,           "UPDATE_TOREQ" }
-  ,{ GSN_VOTE_MASTERORD,         "VOTE_MASTERORD" }
   ,{ GSN_TUP_ALLOCREQ,           "TUP_ALLOCREQ" }
   ,{ GSN_LQH_ALLOCREQ,           "LQH_ALLOCREQ" }
   ,{ GSN_TUP_DEALLOCREQ,         "TUP_DEALLOCREQ" }
@@ -428,7 +407,6 @@ const GsnName SignalNames [] = {
   ,{ GSN_CHECKNODEGROUPSREQ,     "CHECKNODEGROUPSREQ" }
   ,{ GSN_CHECKNODEGROUPSCONF,    "CHECKNODEGROUPSCONF" }
 
-  ,{ GSN_ARBIT_CFG,              "ARBIT_CFG" }
   ,{ GSN_ARBIT_PREPREQ,          "ARBIT_PREPREQ" }
   ,{ GSN_ARBIT_PREPCONF,         "ARBIT_PREPCONF" }
   ,{ GSN_ARBIT_PREPREF,          "ARBIT_PREPREF" }

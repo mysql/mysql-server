@@ -1003,9 +1003,9 @@ int runGetPrimaryKey(NDBT_Context* ctx, NDBT_Step* step){
 
 int
 NF_codes[] = {
-  14000
-  ,14001
-  //,14002
+  6003
+  ,6004
+  //,6005
 };
 
 int

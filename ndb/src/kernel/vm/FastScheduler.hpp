@@ -43,7 +43,7 @@ class BufferEntry
 {
 public:
   SignalHeader header;
-  Uint32 theDataRegister[28];
+  Uint32 theDataRegister[25];
 };
 
 class APZJobBuffer
@@ -68,7 +68,6 @@ public:
   void retrieveDump(Signal *signal, Uint32 myRptr);
   
   void clear();
-  bool isEmpty() const;
   Uint32 getOccupancy() const;
   
   Uint32 getReadPtr() const;
@@ -313,13 +312,13 @@ void
 APZJobBuffer::insert(Signal* signal,
 		     BlockNumber bnr, GlobalSignalNumber gsn)
 {
-  Uint32 tOccupancy = theOccupancy;
+  Uint32 tOccupancy = theOccupancy + 1;
   Uint32 myWPtr = wPtr;
   if (tOccupancy < bufSize) {
     register BufferEntry& buf = buffer[myWPtr];
     Uint32 cond =  (++myWPtr == bufSize) - 1;
     wPtr = myWPtr & cond;
-    theOccupancy = tOccupancy + 1;
+    theOccupancy = tOccupancy;
     signal2buffer(signal, bnr, gsn, buf);
     //---------------------------------------------------------
     // Prefetch of buffer[wPtr] is done here. We prefetch for
@@ -341,13 +340,6 @@ APZJobBuffer::insert(Signal* signal, BlockNumber bnr,
 {
   register BufferEntry& buf = buffer[myWPtr];
   signal2buffer(signal, bnr, gsn, buf);
-}
-
-inline 
-bool
-APZJobBuffer::isEmpty() const
-{
-  return (theOccupancy == 0);
 }
 
 #endif

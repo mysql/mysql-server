@@ -58,6 +58,10 @@ public:
 
   void print() const { props->print(); }
 
+  static Uint32 configureTransporters(Uint32 nodeId,
+				      const class ndb_mgm_configuration &,
+				      class TransporterRegistry &);
+  
 private:
   NodeId        the_ownId;
   Properties *  props;

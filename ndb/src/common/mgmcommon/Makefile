@@ -5,6 +5,7 @@ TYPE := ndbapi mgmapiclient
 PIC_ARCHIVE    := Y
 ARCHIVE_TARGET := mgmsrvcommon
 
+# Removed temporary
 DIRS := printConfig
 
 SOURCES = \
@@ -16,6 +17,8 @@ SOURCES = \
 	IPCConfig.cpp
 
 SOURCES.c = NdbConfig.c
+
+CFLAGS_IPCConfig.cpp := -I$(call fixpath,$(NDB_TOP)/src/mgmapi)
 
 include $(NDB_TOP)/Epilogue.mk
 

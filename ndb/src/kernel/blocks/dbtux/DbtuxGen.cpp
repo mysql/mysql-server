@@ -16,6 +16,8 @@
 
 #define DBTUX_GEN_CPP
 #include "Dbtux.hpp"
+#include <signaldata/TuxContinueB.hpp>
+#include <signaldata/TuxContinueB.hpp>
 
 Dbtux::Dbtux(const Configuration& conf) :
   SimulatedBlock(DBTUX, conf),
@@ -42,7 +44,7 @@ Dbtux::Dbtux(const Configuration& conf) :
    */
   addRecSignal(GSN_CONTINUEB, &Dbtux::execCONTINUEB);
   addRecSignal(GSN_STTOR, &Dbtux::execSTTOR);
-  addRecSignal(GSN_SIZEALT_REP, &Dbtux::execSIZEALT_REP);
+  addRecSignal(GSN_READ_CONFIG_REQ, &Dbtux::execREAD_CONFIG_REQ, true);
   /*
    * DbtuxMeta.cpp
    */
@@ -143,18 +145,32 @@ Dbtux::execSTTOR(Signal* signal)
 }
 
 void
-Dbtux::execSIZEALT_REP(Signal* signal)
+Dbtux::execREAD_CONFIG_REQ(Signal* signal)
 {
   jamEntry();
-  const Uint32* data = signal->getDataPtr();
-  BlockReference sender = data[TuxSizeAltReq::IND_BLOCK_REF];
-  const Uint32 nIndex = data[TuxSizeAltReq::IND_INDEX];
-  const Uint32 nFragment = data[TuxSizeAltReq::IND_FRAGMENT];
-  const Uint32 nAttribute = data[TuxSizeAltReq::IND_ATTRIBUTE];
+ 
+  const ReadConfigReq * req = (ReadConfigReq*)signal->getDataPtr();
+  Uint32 ref = req->senderRef;
+  Uint32 senderData = req->senderData;
+  ndbrequire(req->noOfParameters == 0);
+
+  Uint32 nIndex;
+  Uint32 nFragment;
+  Uint32 nAttribute;
+  Uint32 nScanOp; 
+
+  const ndb_mgm_configuration_iterator * p = 
+    theConfiguration.getOwnConfigIterator();
+  ndbrequire(p != 0);
+
+  ndbrequire(!ndb_mgm_get_int_parameter(p, CFG_TUX_INDEX, &nIndex));
+  ndbrequire(!ndb_mgm_get_int_parameter(p, CFG_TUX_FRAGMENT, &nFragment));
+  ndbrequire(!ndb_mgm_get_int_parameter(p, CFG_TUX_ATTRIBUTE, &nAttribute));
+  ndbrequire(!ndb_mgm_get_int_parameter(p, CFG_TUX_SCAN_OP, &nScanOp));
+
   const Uint32 nDescPage = (nIndex + nAttribute + DescPageSize - 1) / DescPageSize;
-  const Uint32 nScanOp = data[TuxSizeAltReq::IND_SCAN];
   const Uint32 nScanBoundWords = nScanOp * ScanBoundSegmentSize * 4;
-  // allocate records
+  
   c_indexPool.setSize(nIndex);
   c_fragPool.setSize(nFragment);
   c_descPagePool.setSize(nDescPage);
@@ -179,7 +195,11 @@ Dbtux::execSIZEALT_REP(Signal* signal)
   // allocate buffers
   c_keyBuffer = (Uint32*)allocRecord("c_keyBuffer", sizeof(Uint64), (MaxAttrDataSize + 1) >> 1);
   // ack
-  sendSignal(sender, GSN_SIZEALT_ACK, signal, 1, JBB);
+  ReadConfigConf * conf = (ReadConfigConf*)signal->getDataPtrSend();
+  conf->senderRef = reference();
+  conf->senderData = senderData;
+  sendSignal(ref, GSN_READ_CONFIG_CONF, signal, 
+	     ReadConfigConf::SignalLength, JBB);
 }
 
 // utils
