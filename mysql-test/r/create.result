@@ -200,17 +200,16 @@ t1	CREATE TABLE `t1` (
 ) TYPE=HEAP DEFAULT CHARSET=latin1
 drop table t1;
 SET SESSION table_type="gemini";
+ERROR 42000: Unknown table engine 'gemini'
 SELECT @@table_type;
 @@table_type
-GEMINI
+HEAP
 CREATE TABLE t1 (a int not null);
-Warnings:
-Warning	1265	Using storage engine MYISAM for table 't1'
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) NOT NULL default '0'
-) TYPE=MyISAM DEFAULT CHARSET=latin1
+) TYPE=HEAP DEFAULT CHARSET=latin1
 SET SESSION table_type=default;
 drop table t1;
 create table t1 ( k1 varchar(2), k2 int, primary key(k1,k2));
@@ -349,17 +348,16 @@ t1	CREATE TABLE `t1` (
 ) TYPE=HEAP DEFAULT CHARSET=latin1
 drop table t1;
 SET SESSION table_type="gemini";
+ERROR 42000: Unknown table engine 'gemini'
 SELECT @@table_type;
 @@table_type
-GEMINI
+HEAP
 CREATE TABLE t1 (a int not null);
-Warnings:
-Warning	1265	Using storage engine MYISAM for table 't1'
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) NOT NULL default '0'
-) TYPE=MyISAM DEFAULT CHARSET=latin1
+) TYPE=HEAP DEFAULT CHARSET=latin1
 SET SESSION table_type=default;
 drop table t1;
 create table t1(a int,b int,c int unsigned,d date,e char,f datetime,g time,h blob);

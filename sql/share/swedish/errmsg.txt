@@ -287,3 +287,4 @@ character-set=latin1
 "Storleken av "Query cache" kunde inte sättas till %lu, ny storlek är %lu",
 "Kolumn '%-.64s' kan inte vara del av ett FULLTEXT index",
 "Unknown key cache '%-.100s'",
+"Unknown table engine '%s'",

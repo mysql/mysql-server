@@ -50,14 +50,33 @@ ulong ha_read_count, ha_write_count, ha_delete_count, ha_update_count,
       ha_commit_count, ha_rollback_count,
       ha_read_rnd_count, ha_read_rnd_next_count;
 
-const char *ha_table_type[] = {
-  "", "DIAB_ISAM","HASH","MISAM","PISAM","RMS_ISAM","HEAP", "ISAM",
-  "MRG_ISAM","MYISAM", "MRG_MYISAM", "BDB", "INNODB", "GEMINI", "?", "?",NullS
-};
+static SHOW_COMP_OPTION have_yes= SHOW_OPTION_YES;
 
-TYPELIB ha_table_typelib=
+struct show_table_type_st sys_table_types[]=
 {
-  array_elements(ha_table_type)-3, "", ha_table_type
+  {"MyISAM",	&have_yes,
+   "Default type from 3.23 with great performance", DB_TYPE_MYISAM},
+  {"HEAP",	&have_yes,
+   "Hash based, stored in memory, useful for temporary tables", DB_TYPE_HEAP},
+  {"MEMORY",	&have_yes,
+   "Alias for HEAP", DB_TYPE_HEAP},
+  {"MERGE",	&have_yes,
+   "Collection of identical MyISAM tables", DB_TYPE_MRG_MYISAM},
+  {"MRG_MYISAM",&have_yes,
+   "Alias for MERGE", DB_TYPE_MRG_MYISAM},
+  {"ISAM",	&have_isam,
+   "Obsolete table type; Is replaced by MyISAM", DB_TYPE_ISAM},
+  {"MRG_ISAM",  &have_isam,
+   "Obsolete table type; Is replaced by MRG_MYISAM", DB_TYPE_MRG_ISAM},
+  {"InnoDB",	&have_innodb,
+   "Supports transactions, row-level locking and foreign keys", DB_TYPE_INNODB},
+  {"INNOBASE",	&have_innodb,
+   "Alias for INNODB", DB_TYPE_INNODB},
+  {"BDB",	&have_berkeley_db,
+   "Supports transactions and page-level locking", DB_TYPE_BERKELEY_DB},
+  {"BERKELEYDB",&have_berkeley_db,
+   "Alias for BDB", DB_TYPE_BERKELEY_DB},
+  {NullS, NULL, NullS, DB_TYPE_UNKNOWN}
 };
 
 const char *ha_row_type[] = {
@@ -70,6 +89,33 @@ const char *tx_isolation_names[] =
 TYPELIB tx_isolation_typelib= {array_elements(tx_isolation_names)-1,"",
 			       tx_isolation_names};
 
+enum db_type ha_resolve_by_name(const char *name, uint namelen)
+{
+  if (!my_strcasecmp(&my_charset_latin1, name, "DEFAULT")) {
+    return(enum db_type) current_thd->variables.table_type;
+  }
+  
+  show_table_type_st *types;
+  for (types= sys_table_types; types->type; types++)
+  {
+    if (!my_strcasecmp(&my_charset_latin1, name, types->type))
+      return(enum db_type)types->db_type;
+  }
+  return DB_TYPE_UNKNOWN;
+}
+
+const char *ha_get_table_type(enum db_type db_type)
+{
+  show_table_type_st *types;
+  for (types= sys_table_types; types->type; types++)
+  {
+    if (db_type == types->db_type)
+      return types->type;
+  }
+  
+  return "none";
+}
+
 	/* Use other database handler if databasehandler is not incompiled */
 
 enum db_type ha_checktype(enum db_type database_type)
@@ -77,18 +123,21 @@ enum db_type ha_checktype(enum db_type database_type)
   switch (database_type) {
 #ifdef HAVE_BERKELEY_DB
   case DB_TYPE_BERKELEY_DB:
-    return(berkeley_skip ? DB_TYPE_MYISAM : database_type);
+    if (berkeley_skip) break;
+    return (database_type);
 #endif
 #ifdef HAVE_INNOBASE_DB
   case DB_TYPE_INNODB:
-    return(innodb_skip ? DB_TYPE_MYISAM : database_type);
+    if (innodb_skip) break;
+    return (database_type);
 #endif
 #ifndef NO_HASH
   case DB_TYPE_HASH:
 #endif
 #ifdef HAVE_ISAM
   case DB_TYPE_ISAM:
-    return (isam_skip ? DB_TYPE_MYISAM : database_type);
+    if (isam_skip) break;
+    return (database_type);
   case DB_TYPE_MRG_ISAM:
     return (isam_skip ? DB_TYPE_MRG_MYISAM : database_type);
 #else
@@ -102,7 +151,13 @@ enum db_type ha_checktype(enum db_type database_type)
   default:
     break;
   }
-  return(DB_TYPE_MYISAM);			/* Use this as default */
+  
+  return 
+    DB_TYPE_UNKNOWN != (enum db_type) current_thd->variables.table_type ?
+    (enum db_type) current_thd->variables.table_type :
+    DB_TYPE_UNKNOWN != (enum db_type) global_system_variables.table_type ?
+    (enum db_type) global_system_variables.table_type :
+    DB_TYPE_MYISAM;
 } /* ha_checktype */
 
 

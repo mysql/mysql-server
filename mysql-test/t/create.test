@@ -155,7 +155,7 @@ SELECT @@table_type;
 CREATE TABLE t1 (a int not null);
 show create table t1;
 drop table t1;
-# Test what happens when using a non existing table type
+--error 1284
 SET SESSION table_type="gemini";
 SELECT @@table_type;
 CREATE TABLE t1 (a int not null);
@@ -276,7 +276,7 @@ SELECT @@table_type;
 CREATE TABLE t1 (a int not null);
 show create table t1;
 drop table t1;
-# Test what happens when using a non existing table type
+--error 1284
 SET SESSION table_type="gemini";
 SELECT @@table_type;
 CREATE TABLE t1 (a int not null);
