@@ -1110,8 +1110,6 @@ bool MYSQL_LOG::write(Log_event* event_info)
 	Intvar_log_event e(thd,(uchar) LAST_INSERT_ID_EVENT,
 			   thd->current_insert_id);
 	e.set_log_pos(this);
-	if (thd->server_id)
-	  e.server_id = thd->server_id;
 	if (e.write(file))
 	  goto err;
       }
@@ -1119,8 +1117,6 @@ bool MYSQL_LOG::write(Log_event* event_info)
       {
 	Intvar_log_event e(thd,(uchar) INSERT_ID_EVENT,thd->last_insert_id);
 	e.set_log_pos(this);
-	if (thd->server_id)
-	  e.server_id = thd->server_id;
 	if (e.write(file))
 	  goto err;
       }
