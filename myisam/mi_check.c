@@ -339,7 +339,14 @@ int chk_key(MI_CHECK *param, register MI_INFO *info)
   {
     param->key_crc[key]=0;
     if (!(((ulonglong) 1 << key) & share->state.key_map))
+    {
+      /* Remember old statistics for key */
+      memcpy((char*) rec_per_key_part,
+	     (char*) share->state.rec_per_key_part+
+	     (uint) (rec_per_key_part - param->rec_per_key_part),
+	     keyinfo->keysegs*sizeof(*rec_per_key_part));
       continue;
+    }
     found_keys++;
 
     param->record_checksum=init_checksum;
@@ -1730,7 +1737,14 @@ int mi_repair_by_sort(MI_CHECK *param, register MI_INFO *info,
   {
     sort_info->keyinfo=share->keyinfo+sort_info->key;
     if (!(((ulonglong) 1 << sort_info->key) & key_map))
+    {
+      /* Remember old statistics for key */
+      memcpy((char*) rec_per_key_part,
+	     (char*) share->state.rec_per_key_part+
+	     (uint) (rec_per_key_part - param->rec_per_key_part),
+	     sort_info->keyinfo->keysegs*sizeof(*rec_per_key_part));
       continue;
+    }
 
     if ((!(param->testflag & T_SILENT)))
       printf ("- Fixing index %d\n",sort_info->key+1);
