@@ -262,7 +262,8 @@ enum cache_type
 
 enum flush_type
 {
-  FLUSH_KEEP, FLUSH_RELEASE, FLUSH_IGNORE_CHANGED, FLUSH_FORCE_WRITE
+  FLUSH_KEEP, FLUSH_RELEASE, FLUSH_IGNORE_CHANGED, FLUSH_FORCE_WRITE, 
+  FLUSH_REMOVE
 };
 
 typedef struct st_record_cache	/* Used when cacheing records */
@@ -527,6 +528,9 @@ typedef struct st_key_cache_var
   ulong cache_read;              /* number of reads from files to the cache  */
   int blocks;                    /* max number of blocks in the cache        */
   struct st_key_cache_asmt *assign_list; /* list of assignments to the cache */
+  int assignments;               /* number of not completed assignments      */
+  void (*action)(void *);        /* optional call back function              */
+  void *extra_info;              /* ptr to extra info                        */
 } KEY_CACHE_VAR;
 
 #define DEFAULT_KEY_CACHE_NAME "default"

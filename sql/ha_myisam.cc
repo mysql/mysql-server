@@ -761,7 +761,7 @@ int ha_myisam::assign_to_keycache(THD* thd, HA_CHECK_OPT *check_opt)
   reassign_key_cache(key_cache_asmt, new_key_cache);
        
   VOID(pthread_mutex_unlock(&LOCK_assign));
-  error= mi_assign_to_keycache(file, map, &new_key_cache->cache);
+  error= mi_assign_to_keycache(file, map, new_key_cache, &LOCK_assign);
   VOID(pthread_mutex_lock(&LOCK_assign));
 
   if (error && !key_cache_asmt->triggered)

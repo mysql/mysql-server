@@ -62,17 +62,12 @@ int mi_lock_database(MI_INFO *info, int lock_type)
       /*
          During a key cache reassignment the current and registered
          key caches for the table are different.
-         Although at present key cache ressignment is always
-         performed with a shared cache for the table acquired,
-         for future possible optimizations we still
-         handle this situation as if we could come to this point 
-         during the ressignment (in non-reassignment thread).
       */ 
       if (info->lock_type == F_WRLCK && !share->w_locks &&
 	  ((switch_fl= share->keycache != share->reg_keycache) ||
            !share->delay_key_write) && 
            flush_key_blocks(*share->keycache, share->kfile,
-                            switch_fl ? FLUSH_RELEASE : FLUSH_KEEP))
+                            switch_fl ? FLUSH_REMOVE : FLUSH_KEEP))
       {
 	error=my_errno;
 	mi_mark_crashed(info);		/* Mark that table must be checked */
