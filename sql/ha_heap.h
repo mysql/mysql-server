@@ -67,6 +67,7 @@ class ha_heap: public handler
 		 uint key_len, enum ha_rkey_function find_flag);
   int index_read_idx(byte * buf, uint idx, const byte * key,
 		     uint key_len, enum ha_rkey_function find_flag);
+  int index_read_last(byte * buf, const byte * key, uint key_len);
   int index_next(byte * buf);
   int index_prev(byte * buf);
   int index_first(byte * buf);
