@@ -329,7 +329,7 @@ int main(int argc,char *argv[])
   put_info((char*) glob_buffer.ptr(),INFO_INFO);
 
 #ifdef HAVE_OPENSSL
-  if(SSL_get_cipher(mysql.net.vio->ssl_)) {
+  if(mysql.net.vio->ssl_ && SSL_get_cipher(mysql.net.vio->ssl_)) {
     sprintf((char*) glob_buffer.ptr(),
   	  "SSL cipher in use is %s\n", SSL_get_cipher(mysql.net.vio->ssl_));
     put_info((char*) glob_buffer.ptr(),INFO_INFO);
