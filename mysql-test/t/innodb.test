@@ -1054,8 +1054,8 @@ insert t1 values (1, "aaa", "bbb"), (NULL, "", "ccccc"), (0, NULL, "");
 insert t2 select * from t1;
 insert t3 select * from t1;
 checksum table t1, t2, t3, t4 quick;
-checksum table t1, t2, t3, t4;
-checksum table t1, t2, t3, t4 extended;
+checksum table t1, t2, t3;
+checksum table t1, t2, t3 extended;
 #show table status;
 drop table t1,t2,t3;
 

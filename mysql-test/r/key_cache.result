@@ -193,6 +193,8 @@ cache index t1 key (unknown_key) in keycache1;
 Table	Op	Msg_type	Msg_text
 test.t1	assign_to_keycache	error	Key column 'unknown_key' doesn't exist in table
 test.t1	assign_to_keycache	status	Operation failed
+Warnings:
+Error	1072	Key column 'unknown_key' doesn't exist in table
 select @@keycache2.key_buffer_size;
 @@keycache2.key_buffer_size
 4194304
