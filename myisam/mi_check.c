@@ -1302,10 +1302,7 @@ int mi_repair(MI_CHECK *param, register MI_INFO *info,
   {
     info->state->data_file_length=sort_info->max_pos;
     if (param->testflag & T_CALC_CHECKSUM)
-    {
-      DBUG_PRINT("QQ",("set_checksum"));
       share->state.checksum=param->glob_crc;
-    }
   }
 
   if (!(param->testflag & T_SILENT))
@@ -2198,10 +2195,7 @@ static int sort_get_next_record(SORT_INFO *sort_info)
       if (*sort_info->record)
       {
 	if (param->calc_checksum)
-	{
-	  DBUG_PRINT("QQ",("calc_checksum"));
 	  param->glob_crc+= mi_static_checksum(info,sort_info->record);
-	}
 	DBUG_RETURN(0);
       }
       if (!sort_info->fix_datafile)

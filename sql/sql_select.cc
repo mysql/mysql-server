@@ -570,8 +570,9 @@ mysql_select(THD *thd,TABLE_LIST *tables,List<Item> &fields,COND *conds,
 
   if (!(select_options & SELECT_BIG_RESULT) &&
       ((group && join.const_tables != join.tables &&
-	!test_if_skip_sort_order(&join.join_tab[join.const_tables], group,
-				 thd->select_limit,0)) ||
+	(!simple_group ||
+	 !test_if_skip_sort_order(&join.join_tab[join.const_tables], group,
+				  thd->select_limit,0))) ||
        select_distinct) &&
       join.tmp_table_param.quick_group && !procedure)
   {
@@ -584,10 +585,11 @@ mysql_select(THD *thd,TABLE_LIST *tables,List<Item> &fields,COND *conds,
       order=group;
     if (order &&
 	(join.const_tables == join.tables ||
-	 test_if_skip_sort_order(&join.join_tab[join.const_tables], order,
-				 (join.const_tables != join.tables - 1 ||
-				  (join.select_options & OPTION_FOUND_ROWS)) ?
-				 HA_POS_ERROR : thd->select_limit,0)))
+	 (simple_order &&
+	  test_if_skip_sort_order(&join.join_tab[join.const_tables], order,
+				  (join.const_tables != join.tables - 1 ||
+				   (join.select_options & OPTION_FOUND_ROWS)) ?
+				  HA_POS_ERROR : thd->select_limit,0))))
       order=0;
     select_describe(&join,need_tmp,
 		    (order != 0 &&
