@@ -829,6 +829,7 @@ struct Rootfragmentrec {
   Uint32 nextroot;
   Uint32 roothashcheck;
   Uint32 noOfElements;
+  Uint32 m_commit_count;
   State rootState;
 }; /* p2c: size = 72 bytes */
 
@@ -925,7 +926,7 @@ private:
   void execACC_OVER_REC(Signal* signal);
   void execACC_SAVE_PAGES(Signal* signal);
   void execNEXTOPERATION(Signal* signal);
-  void execREAD_ROWCOUNTREQ(Signal* signal);
+  void execREAD_PSUEDO_REQ(Signal* signal);
 
   // Received signals
   void execSTTOR(Signal* signal);
