@@ -627,7 +627,7 @@ int mysql_create_table(THD *thd,const char *db, const char *table_name,
     if (!(key_info->flags & HA_NULL_PART_KEY))
       unique_key=1;
     key_info->key_length=(uint16) key_length;
-    uint max_key_length= max(file->max_key_length(), MAX_KEY_LENGTH);
+    uint max_key_length= min(file->max_key_length(), MAX_KEY_LENGTH);
     if (key_length > max_key_length && key->type != Key::FULLTEXT)
     {
       my_error(ER_TOO_LONG_KEY,MYF(0),max_key_length);
