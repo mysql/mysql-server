@@ -32,7 +32,7 @@ noinst_HEADERS = btr0btr.h btr0btr.ic btr0cur.h btr0cur.ic \
         mem0dbg.h mem0dbg.ic mem0mem.h mem0mem.ic mem0pool.h \
         mem0pool.ic mtr0log.h mtr0log.ic mtr0mtr.h mtr0mtr.ic \
         mtr0types.h os0file.h os0proc.h os0proc.ic \
-        os0shm.h os0shm.ic os0sync.h os0sync.ic os0thread.h \
+        os0sync.h os0sync.ic os0thread.h \
         os0thread.ic page0cur.h page0cur.ic page0page.h \
         page0page.ic page0types.h pars0grm.h pars0opt.h \
         pars0opt.ic pars0pars.h pars0pars.ic pars0sym.h \
