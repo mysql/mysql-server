@@ -46890,6 +46890,9 @@ not yet 100% confident in this code.
 @appendixsubsec Changes in release 3.23.49
 @itemize @bullet
 @item
+Don't give warning for statement that is only a comment;  This is needed for
+@code{mysqldump --disable-keys} to work.
+@item
 Fixed unlikely caching bug when doing a join without keys. In this case
 the last used field for a table always returned @code{NULL}.
 @item
