@@ -122,6 +122,10 @@ WWW (@uref{http://mysql.tzone.it/})
 FTP (@uref{ftp://ftp.linux.lv/pub/software/mysql/})
 
 @item
+@image{Flags/netherlands} Netherlands [Compukos] @@
+WWW (@uref{http://mysql.compukos.nl/})
+
+@item
 @image{Flags/netherlands} Netherlands [OMS-Net] @@
 WWW (@uref{http://mysql.oms-net.nl/})
 
@@ -133,6 +137,10 @@ WWW (@uref{http://mysql.proserve.nl/})
 @image{Flags/netherlands} Netherlands [WideXS BV] @@
 WWW (@uref{http://mysql.mirror.widexs.nl/})
 FTP (@uref{ftp://mirror.widexs.nl/pub/mysql/})
+
+@item
+@image{Flags/norway} Norway [Brainpeddlers AS] @@
+WWW (@uref{http://mysql.brainpeddlers.com/})
 
 @item
 @image{Flags/poland} Poland [ncservice.com/Gdansk] @@
@@ -261,6 +269,11 @@ FTP (@uref{ftp://ftp.orst.edu/pub/mysql/})
 @image{Flags/usa} USA [University of Wisconsin / Wisconsin] @@
 WWW (@uref{http://mirror.sit.wisc.edu/mysql/})
 FTP (@uref{ftp://mirror.sit.wisc.edu/mirrors/mysql/})
+
+@item
+@image{Flags/usa} USA [UUNet] @@
+WWW (@uref{http://mysql.secsup.org/})
+FTP (@uref{ftp://mysql.secsup.org/pub/software/mysql/})
 
 @item
 @image{Flags/usa} USA [ValueClick / Los Angeles, CA] @@
