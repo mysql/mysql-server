@@ -391,3 +391,4 @@ character-set=koi8r
 "Illegal %s '%-.64s' value found during parsing",
 "CHECK OPTION для необновляемого VIEW '%-.64s.%-.64s'"
 "проверка CHECK OPTION для VIEW '%-.64s.%-.64s' провалилась"
+"Access denied; you are not the procedure/function definer of '%s'"
