@@ -250,6 +250,10 @@ convert_error_code_to_mysql(
   	} else if (error == (int) DB_TOO_BIG_RECORD) {
 
     		return(HA_ERR_TO_BIG_ROW);
+
+  	} else if (error == (int) DB_CORRUPTION) {
+
+    		return(HA_ERR_CRASHED);
     	} else {
     		return(-1);			// Unknown error
     	}
@@ -3874,7 +3878,7 @@ innodb_show_status(
 	
 	if (innodb_skip) {
 	        my_message(ER_NOT_SUPPORTED_YET,
-			   "Cannot call SHOW INNODB STATUS because skip-innodb is defined",
+	  "Cannot call SHOW INNODB STATUS because skip-innodb is defined",
 			   MYF(0));
                 DBUG_RETURN(-1);
         }
