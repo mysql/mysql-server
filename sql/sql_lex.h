@@ -750,6 +750,18 @@ typedef struct st_lex
   bool only_view_structure();
 } LEX;
 
+struct st_lex_local: public st_lex
+{
+  static void *operator new(size_t size)
+  {
+    return (void*) sql_alloc((uint) size);
+  }
+  static void *operator new(size_t size, MEM_ROOT *mem_root)
+  {
+    return (void*) alloc_root(mem_root, (uint) size);
+  }
+  static void operator delete(void *ptr,size_t size) {}
+};
 
 void lex_init(void);
 void lex_free(void);
