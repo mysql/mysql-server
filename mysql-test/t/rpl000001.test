@@ -1,22 +1,21 @@
 source include/master-slave.inc;
 connection master;
 use test;
-drop table if exists t1;
+drop table if exists t1,t3;
 create table t1 (word char(20) not null);
 load data infile '../../std_data/words.dat' into table t1;
-drop table if exists foo;
 set password = password('foo');
 set password = password('');
-create table foo(n int);
-insert into foo values(1),(2);
+create table t3(n int);
+insert into t3 values(1),(2);
 save_master_pos;
 connection slave;
 sync_with_master;
 use test;
-select * from foo;
+select * from t3;
 select sum(length(word)) from t1;
 connection master;
-drop table t1;
+drop table t1,t3;
 save_master_pos;
 connection slave;
 sync_with_master;
@@ -59,8 +58,12 @@ connection slave;
 sync_with_master ;
 #give the slave a chance to exit
 sleep 0.5;
---replace_result 9306 9999 3334 9999 3335 9999
-show slave status;
+
+# The following test can't be done because the result of Pos will differ
+# on different computes
+# --replace_result 9306 9999 3334 9999 3335 9999
+# show slave status;
+
 set sql_slave_skip_counter=1;
 slave start;
 select count(*) from t1;
