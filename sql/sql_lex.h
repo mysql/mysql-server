@@ -296,7 +296,7 @@ protected:
 
   select_result *result;
   int res;
-  ulong describe, found_rows_for_union;
+  ulong found_rows_for_union;
   bool  prepared, // prepare phase already performed for UNION (unit)
     optimized, // optimize phase already performed for UNION (unit)
     executed, // already executed
