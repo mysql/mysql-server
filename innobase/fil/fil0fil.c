@@ -477,28 +477,33 @@ fil_node_open_file(
 	ut_a(node->n_pending == 0);
 	ut_a(node->open == FALSE);
 
-	/* printf("Opening file %s\n", node->name); */
-
-	if (space->purpose == FIL_LOG) {	
-		node->handle = os_file_create(node->name, OS_FILE_OPEN,
-					OS_FILE_AIO, OS_LOG_FILE, &ret);
-	} else if (node->is_raw_disk) {
-		node->handle = os_file_create(node->name,
-				        OS_FILE_OPEN_RAW,
-					OS_FILE_AIO, OS_DATA_FILE, &ret);
-	} else {
-		node->handle = os_file_create(node->name, OS_FILE_OPEN,
-					OS_FILE_AIO, OS_DATA_FILE, &ret);
-	}
-		
-	ut_a(ret);
-		
-	node->open = TRUE;
-
-	system->n_open++;
-
 	if (node->size == 0) {
+		/* It must be a single-table tablespace and we do not know the
+		size of the file yet. First we open the file in the normal
+		mode, no async I/O here, for simplicity. Then do some checks,
+		and close the file again.
+		NOTE that we could not use the simple file read function
+		os_file_read() in Windows to read from a file opened for
+		async I/O! */
+
+		node->handle = os_file_create_simple_no_error_handling(
+						node->name, OS_FILE_OPEN,
+						OS_FILE_READ_ONLY, &success);
+		if (!success) {
+			/* The following call prints an error message */
+			os_file_get_last_error(TRUE);
+
+			ut_print_timestamp(stderr);
+
+			fprintf(stderr,
+"  InnoDB: Fatal error: cannot open %s\n."
+"InnoDB: Have you deleted .ibd files under a running mysqld server?\n",
+				node->name);
+			ut_a(0);
+		}
+
 		ut_a(space->purpose != FIL_LOG);
+		ut_a(space->id != 0);
 
 		os_file_get_size(node->handle, &size_low, &size_high);
 
@@ -508,11 +513,6 @@ fil_node_open_file(
 		node->size = (ulint) (size_bytes / UNIV_PAGE_SIZE);
 
 #else
-		/* It must be a single-table tablespace and we do not know the
-		size of the file yet */
-
-		ut_a(space->id != 0);
-
 		if (size_bytes < FIL_IBD_FILE_INITIAL_SIZE * UNIV_PAGE_SIZE) {
 	        	fprintf(stderr,
 "InnoDB: Error: the size of single-table tablespace file %s\n"
@@ -536,6 +536,10 @@ fil_node_open_file(
 
 		ut_free(buf2);
 		
+		/* Close the file now that we have read the space id from it */
+
+		os_file_close(node->handle);
+
 		if (space_id == ULINT_UNDEFINED || space_id == 0) {
 	        	fprintf(stderr,
 "InnoDB: Error: tablespace id %lu in file %s is not sensible\n",
@@ -562,6 +566,30 @@ fil_node_open_file(
 #endif
 		space->size += node->size;
 	}
+
+	/* printf("Opening file %s\n", node->name); */
+
+	/* Open the file for reading and writing, in Windows normally in the
+	unbuffered async I/O mode, though global variables may make
+	os_file_create() to fall back to the normal file I/O mode. */
+
+	if (space->purpose == FIL_LOG) {	
+		node->handle = os_file_create(node->name, OS_FILE_OPEN,
+					OS_FILE_AIO, OS_LOG_FILE, &ret);
+	} else if (node->is_raw_disk) {
+		node->handle = os_file_create(node->name,
+				        OS_FILE_OPEN_RAW,
+					OS_FILE_AIO, OS_DATA_FILE, &ret);
+	} else {
+		node->handle = os_file_create(node->name, OS_FILE_OPEN,
+					OS_FILE_AIO, OS_DATA_FILE, &ret);
+	}
+		
+	ut_a(ret);
+		
+	node->open = TRUE;
+
+	system->n_open++;
 
 	if (space->purpose == FIL_TABLESPACE && space->id != 0) {
 		/* Put the node to the LRU list */
@@ -4111,7 +4139,8 @@ fil_flush_file_spaces(
 	space = UT_LIST_GET_FIRST(system->space_list);
 
 	while (space) {
-		if (space->purpose == purpose) {
+		if (space->purpose == purpose && !space->is_being_deleted) {
+
 			space->n_pending_flushes++; /* prevent dropping of the
 						    space while we are
 						    flushing */

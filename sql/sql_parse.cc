@@ -4946,6 +4946,7 @@ void kill_one_thread(THD *thd, ulong id)
     net_printf(thd,error,id);
 }
 
+
 /* Clear most status variables */
 
 static void refresh_status(void)
@@ -4955,18 +4956,9 @@ static void refresh_status(void)
   {
     if (ptr->type == SHOW_LONG)
       *(ulong*) ptr->value= 0;
-    else if (ptr->type == SHOW_KEY_CACHE_LONG)
-    {
-      /*
-	Reset value in 'default' key cache.
-	This needs to be recoded when we have thread specific key values
-      */
-      char *value= (((char*) sql_key_cache) +
-		    (uint) ((char*) (ptr->value) -
-			    (char*) &dflt_key_cache_var));
-      *(ulong*) value= 0;
-    }
   }
+  /* Reset the counters of all key caches (default and named). */
+  process_key_caches(reset_key_cache_counters);
   pthread_mutex_unlock(&LOCK_status);
 }
 
