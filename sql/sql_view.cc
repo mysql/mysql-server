@@ -302,7 +302,6 @@ static const int required_view_parameters= 7;
   Note that one should NOT change the order for this, as it's used by
   parse()
 */
-
 static File_option view_parameters[]=
 {{{(char*) "query", 5},		offsetof(TABLE_LIST, query),
   FILE_OPTIONS_STRING},
@@ -312,6 +311,8 @@ static File_option view_parameters[]=
   FILE_OPTIONS_ULONGLONG},
  {{(char*) "algorithm", 9},	offsetof(TABLE_LIST, algorithm),
   FILE_OPTIONS_ULONGLONG},
+ {{"with_check_option", 17},    offsetof(TABLE_LIST, with_check),
+   FILE_OPTIONS_ULONGLONG},
  {{(char*) "revision", 8},	offsetof(TABLE_LIST, revision),
   FILE_OPTIONS_REV},
  {{(char*) "timestamp", 9},	offsetof(TABLE_LIST, timestamp),
@@ -383,7 +384,7 @@ static int mysql_register_view(THD *thd, TABLE_LIST *view,
     char path_buff[FN_REFLEN];
     LEX_STRING path;
     File_parser *parser;
- 
+
     path.str= path_buff;
     fn_format(path_buff, file.str, dir.str, 0, MY_UNPACK_FILENAME);
     path.length= strlen(path_buff);
@@ -393,7 +394,7 @@ static int mysql_register_view(THD *thd, TABLE_LIST *view,
       if (mode == VIEW_CREATE_NEW)
       {
 	my_error(ER_TABLE_EXISTS_ERROR, MYF(0), view->alias);
-	DBUG_RETURN(1);
+	DBUG_RETURN(-1);
       }
 
       if (!(parser= sql_parse_prepare(&path, &thd->mem_root, 0)))
@@ -404,7 +405,7 @@ static int mysql_register_view(THD *thd, TABLE_LIST *view,
       {
         my_error(ER_WRONG_OBJECT, MYF(0), (view->db ? view->db : thd->db),
                  view->real_name, "VIEW");
-        DBUG_RETURN(1);
+        DBUG_RETURN(-1);
       }
 
       /*
@@ -416,7 +417,7 @@ static int mysql_register_view(THD *thd, TABLE_LIST *view,
       if (parser->parse((gptr)view, &thd->mem_root,
                         view_parameters + revision_number_position, 1))
       {
-        DBUG_RETURN(1);
+        DBUG_RETURN(thd->net.report_error? -1 : 0);
       }
     }
     else
@@ -424,7 +425,7 @@ static int mysql_register_view(THD *thd, TABLE_LIST *view,
       if (mode == VIEW_ALTER)
       {
 	my_error(ER_NO_SUCH_TABLE, MYF(0), view->db, view->alias);
-	DBUG_RETURN(1);
+	DBUG_RETURN(-1);
       }
     }
   }
@@ -446,6 +447,7 @@ static int mysql_register_view(THD *thd, TABLE_LIST *view,
     thd->lex->create_view_algorithm= VIEW_ALGORITHM_UNDEFINED;
   }
   view->algorithm= thd->lex->create_view_algorithm;
+  view->with_check= thd->lex->create_view_check;
   if ((view->updatable_view= (can_be_merged &&
                               view->algorithm != VIEW_ALGORITHM_TMPTABLE)))
   {
@@ -461,10 +463,18 @@ static int mysql_register_view(THD *thd, TABLE_LIST *view,
       }
     }
   }
+
+  if (view->with_check != VIEW_CHECK_NONE &&
+      !view->updatable_view)
+  {
+    my_error(ER_VIEW_NONUPD_CHECK, MYF(0), view->db, view->real_name);
+    DBUG_RETURN(-1);
+  }
+
   if (sql_create_definition_file(&dir, &file, view_file_type,
 				 (gptr)view, view_parameters, 3))
   {
-    DBUG_RETURN(1);
+    DBUG_RETURN(thd->net.report_error? -1 : 1);
   }
   DBUG_RETURN(0);
 }
@@ -720,6 +730,7 @@ mysql_make_view(File_parser *parser, TABLE_LIST *table)
     DBUG_PRINT("info", ("algorithm: TEMPORARY TABLE"));
     lex->select_lex.linkage= DERIVED_TABLE_TYPE;
     table->updatable= 0;
+    table->with_check= VIEW_CHECK_NONE;
 
     /* SELECT tree link */
     lex->unit.include_down(table->select_lex);
