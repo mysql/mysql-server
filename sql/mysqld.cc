@@ -1209,8 +1209,8 @@ bad corruption, the above values may be invalid\n\n",
 	  thd->thread_id);
   }
   fprintf(stderr, "\
-Please use the information above to create a repeatable test case for the\n\
-crash, and send it to bugs@lists.mysql.com\n");
+The manual page at http://www.mysql.com/doc/C/r/Crashing.html contains\n\
+information that should help you find out what is causing the crash\n");
   fflush(stderr);
 #endif /* HAVE_STACKTRACE */
 

@@ -1,0 +1,22 @@
+Testing server 'PostgreSQL version 7.1.2' at 2001-06-12  1:11:23
+
+Wisconsin benchmark test
+
+Time for create_table (3):  0 wallclock secs ( 0.00 usr  0.00 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
+
+Time for book-keeping (1):  1 wallclock secs ( 0.00 usr  0.00 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
+
+Inserting data
+Time to insert (31000): 39 wallclock secs ( 9.47 usr  3.11 sys +  0.00 cusr  0.00 csys = 12.58 CPU)
+Time for book-keeping (1):  2 wallclock secs ( 0.00 usr  0.00 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
+
+Time to delete_big (1):  2 wallclock secs ( 0.01 usr  0.00 sys +  0.00 cusr  0.00 csys =  0.01 CPU)
+
+Time for book-keeping (1):  2 wallclock secs ( 0.00 usr  0.00 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
+
+Running actual benchmark
+Time for wisc_benchmark (114): 18 wallclock secs ( 3.58 usr  0.20 sys +  0.00 cusr  0.00 csys =  3.78 CPU)
+
+Time for book-keeping (1):  1 wallclock secs ( 0.00 usr  0.00 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
+
+Total time: 64 wallclock secs (13.06 usr  3.32 sys +  0.00 cusr  0.00 csys = 16.38 CPU)
