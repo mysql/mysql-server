@@ -38808,6 +38808,12 @@ though, so Version 3.23 is not released as a stable version yet.
 @appendixsubsec Changes in release 3.23.28
 @itemize @bullet
 @item
+Fixed a major performance bug in the table locking code when you
+constantly had a LOT of @code{SELECT} running on a table on which you
+also did a lot of @code{UPDATE} and @code{INSERT}.  The symptom was that
+the @code{UPDATE} and @code{INSERT} queries was locked a long time
+while @code{SELECT} statements where executed without locks.
+@item
 One can now specify @code{interactive-timeout} in the option file that
 is read by @code{mysql_options()}. This makes it possible to force
 programs that runs for a long time (like @code{mysqlhotcopy}) to use
@@ -43353,6 +43359,8 @@ Secure connections (with SSL).
 @item
 Extend the optimizer to be able to optimize some
 @code{ORDER BY key_name DESC} queries.
+@item
+New key cache
 @end itemize
 
 @node TODO future, TODO sometime, TODO MySQL 4.0, TODO
