@@ -235,6 +235,20 @@ Dbtux::execTUX_ADD_ATTRREQ(Signal* signal)
       tree.m_minOccup = tree.m_maxOccup - maxSlack;
       // root node does not exist (also set by ctor)
       tree.m_root = NullTupLoc;
+#ifdef VM_TRACE
+      if (debugFlags & DebugMeta) {
+        if (fragOpPtr.p->m_fragNo == 0) {
+          debugOut << "Index id=" << indexPtr.i;
+          debugOut << " nodeSize=" << tree.m_nodeSize;
+          debugOut << " headSize=" << NodeHeadSize;
+          debugOut << " prefSize=" << tree.m_prefSize;
+          debugOut << " entrySize=" << TreeEntSize;
+          debugOut << " minOccup=" << tree.m_minOccup;
+          debugOut << " maxOccup=" << tree.m_maxOccup;
+          debugOut << endl;
+        }
+      }
+#endif
       // fragment is defined
       c_fragOpPool.release(fragOpPtr);
     }

@@ -256,8 +256,8 @@ operator<<(NdbOut& out, const Dbtux::TupLoc& loc)
   if (loc == Dbtux::NullTupLoc) {
     out << "null";
   } else {
-    out << dec << loc.m_pageId;
-    out << "." << dec << loc.m_pageOffset;
+    out << dec << loc.getPageId();
+    out << "." << dec << loc.getPageOffset();
   }
   return out;
 }
@@ -274,13 +274,10 @@ operator<<(NdbOut& out, const Dbtux::TreeEnt& ent)
 NdbOut&
 operator<<(NdbOut& out, const Dbtux::TreeNode& node)
 {
-  Dbtux::TupLoc link0(node.m_linkPI[0], node.m_linkPO[0]);
-  Dbtux::TupLoc link1(node.m_linkPI[1], node.m_linkPO[1]);
-  Dbtux::TupLoc link2(node.m_linkPI[2], node.m_linkPO[2]);
   out << "[TreeNode " << hex << &node;
-  out << " [left " << link0 << "]";
-  out << " [right " << link1 << "]";
-  out << " [up " << link2 << "]";
+  out << " [left " << node.m_link[0] << "]";
+  out << " [right " << node.m_link[1] << "]";
+  out << " [up " << node.m_link[2] << "]";
   out << " [side " << dec << node.m_side << "]";
   out << " [occup " << dec << node.m_occup << "]";
   out << " [balance " << dec << (int)node.m_balance << "]";
