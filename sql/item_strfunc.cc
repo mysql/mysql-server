@@ -2070,3 +2070,56 @@ String* Item_func_inet_ntoa::val_str(String* str)
   str->length(str->length()-1);			// Remove last '.';
   return str;
 }
+
+String *Item_func_quote::val_str(String *str)
+{
+  String *arg= args[0]->val_str(str);
+  char *strptr, *argptr, *end, *arglast;
+  uint delta= 2; /* for beginning and ending ' signs */
+
+  for (argptr= (char*) arg->ptr(), end= argptr + arg->length(); argptr < end;
+       argptr++)
+  {
+    switch (*argptr) {
+    case '\'':
+    case '\\':
+    case 0:
+    case '\032':
+      delta++;
+    }
+  }
+  if (str->alloc(arg->length() + delta))
+  {
+    null_value= 1;
+    return 0;
+  }
+  strptr= (char*) str->ptr() + arg->length() + delta - 1;
+  *strptr= '\'';
+  for (end= (char*) arg->ptr(), arglast= end + arg->length(),
+       argptr= arglast - 1; argptr >= end; argptr--)
+  {
+    switch (*argptr) {
+    case '\'':
+    case '\\':
+    case 0:
+    case '\032':
+      strptr-= arglast - argptr;
+      memmove(strptr, argptr, arglast - argptr);
+      arglast= argptr;
+      *--strptr= '\\';
+    }
+  }
+  if (arglast != end)
+  {
+    strptr-= arglast - end;
+    memmove(strptr, end, arglast - end);
+  }
+  *--strptr= '\'';
+  str->length(arg->length() + delta);
+  return str;
+}
+
+void Item_func_quote::fix_length_and_dec()
+{
+  max_length= args[0]->max_length * 2 + 2;
+}
