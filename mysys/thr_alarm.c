@@ -689,7 +689,7 @@ static void *test_thread(void *arg)
   fd_set fd;
   FD_ZERO(&fd);
   my_thread_init();
-  printf("Tread %d (%s) started\n",param,my_thread_name()); fflush(stdout);
+  printf("Thread %d (%s) started\n",param,my_thread_name()); fflush(stdout);
   for (i=1 ; i <= 10 ; i++)
   {
     wait_time=param ? 11-i : i;

@@ -23514,7 +23514,7 @@ INSERT INTO shop VALUES
 Okay, so the example data is:
 
 @example
-SELECT * FROM shop
+mysql> SELECT * FROM shop;
 
 +---------+--------+-------+
 | article | dealer | price |
@@ -23650,7 +23650,7 @@ LOCK TABLES shop read;
 
 INSERT INTO tmp SELECT article, MAX(price) FROM shop GROUP BY article;
 
-SELECT shop.article, dealer, price FROM shop, tmp
+SELECT shop.article, dealer, shop.price FROM shop, tmp
 WHERE shop.article=tmp.article AND shop.price=tmp.price;
 
 UNLOCK TABLES;
@@ -27260,7 +27260,7 @@ shell> safe_mysqld -O key_buffer=512k -O sort_buffer=16k \
            -O table_cache=32 -O record_buffer=8k -O net_buffer=1K &
 @end example
 
-When you have installed @strong{MySQL}, the @file{Docs} directory will
+When you have installed @strong{MySQL}, the @file{support-files} directory will
 contain some different @code{my.cnf} example files, @file{my-huge.cnf},
 @file{my-large.cnf}, @file{my-medium.cnf}, and @file{my-small.cnf}, you can
 use as a base to optimize your system.
@@ -27738,7 +27738,7 @@ can be used to find the relevant rows when scanning the table.
 
 Indexes are used to find rows with a specific value of one column
 fast. Without an index @strong{MySQL} has to start with the first record
-and then read through the whole table until it finds the relevent
+and then read through the whole table until it finds the relevant
 rows. The bigger the table, the more this costs. If the table has an index
 for the colums in question, @strong{MySQL} can quickly get a position to
 seek to in the middle of the data file without having to look at all the
@@ -37673,7 +37673,7 @@ from other threads and set timeouts when talking with the MySQL server,
 you should use the @code{-lmysys}, @code{-lstring}, and @code{-ldbug}
 libraries and the @code{net_serv.o} code that the server uses.
 
-If you don't need interrupts or timeouts, you can just compile a tread
+If you don't need interrupts or timeouts, you can just compile a thread
 safe client library @code{(mysqlclient_r)} and use this.  @xref{C,,
 MySQL C API}.  In this case you don't have to worry about the
 @code{net_serv.o} object file or the other @strong{MySQL} libraries.
@@ -41142,6 +41142,8 @@ Added @code{Threads_created} status variable to @code{mysqld}.
 @node News-3.23.30, News-3.23.29, News-3.23.31, News-3.23.x
 @appendixsubsec Changes in release 3.23.30
 @itemize @bullet
+@item
+Added SHOW OPEN TABLES.
 @item
 Fixed that @code{myisamdump} works against old @code{mysqld} servers.
 @item
@@ -46000,8 +46002,6 @@ Change @code{INSERT ... SELECT} to use concurrent inserts.
 @item
 Add range checking to @code{MERGE} tables.
 @item
-@code{SHOW OPEN TABLES}
-@item
 Port of @strong{MySQL} to BeOS.
 @item
 Link the @code{myisampack} code into the server.
@@ -46682,7 +46682,7 @@ but in this case one shouldn't investigate the @code{Checking table...}
 messages but instead try to find out why @code{mysqld} died.
 
 @node Reproducable test case,  , Using log files, Debugging server
-@appendixsubsec Makeing a test case when you get crashed tables
+@appendixsubsec Making a test case when you experience table corruption
 
 If you get corrupted tables or if @code{mysqld} always fails after some
 update commands, you can test if this bug is reproducible by doing the
@@ -46998,10 +46998,10 @@ messages, you are on the right track. Here is a successful run on
 Solaris:
 @example
 Main thread: 1
-Tread 0 (5) started
+Thread 0 (5) started
 Thread: 5  Waiting
 process_alarm
-Tread 1 (6) started
+Thread 1 (6) started
 Thread: 6  Waiting
 process_alarm
 process_alarm

@@ -1189,7 +1189,7 @@ static void *test_thread(void *arg)
     thr_multi_unlock(multi_locks,lock_counts[param]);
   }
 
-  printf("Tread %s (%d) ended\n",my_thread_name(),param); fflush(stdout);
+  printf("Thread %s (%d) ended\n",my_thread_name(),param); fflush(stdout);
   thr_print_locks();
   pthread_mutex_lock(&LOCK_thread_count);
   thread_count--;
