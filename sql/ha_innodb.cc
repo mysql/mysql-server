@@ -539,7 +539,7 @@ innobase_query_caching_of_table_permitted(
 
 	if (thd->variables.tx_isolation == ISO_SERIALIZABLE) {
 		/* In the SERIALIZABLE mode we add LOCK IN SHARE MODE to every
-		plain SELECT */
+		plain SELECT if AUTOCOMMIT is not on. */
 	
 		return((my_bool)FALSE);
 	}
@@ -4483,11 +4483,17 @@ ha_innobase::external_lock(
 		}
 
 		if (trx->isolation_level == TRX_ISO_SERIALIZABLE
-		    && prebuilt->select_lock_type == LOCK_NONE) {
+		    && prebuilt->select_lock_type == LOCK_NONE
+		    && (thd->options
+				 & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN))) {
 
-		    	/* To get serializable execution we let InnoDB
+		    	/* To get serializable execution, we let InnoDB
 		    	conceptually add 'LOCK IN SHARE MODE' to all SELECTs
-			which otherwise would have been consistent reads */
+			which otherwise would have been consistent reads. An
+			exception is consistent reads in the AUTOCOMMIT=1 mode:
+			we know that they are read-only transactions, and they
+			can be serialized also if performed as consistent
+			reads. */
 
 			prebuilt->select_lock_type = LOCK_S;
 		}
