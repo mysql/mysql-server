@@ -43164,7 +43164,7 @@ An authentication module for the Cyrus IMAP server. By Aaron Newsome.
 @appendixsec Converters
 
 @itemize @bullet
-item @uref{http://www.mysql.com/Downloads/Contrib/mssql2mysql.txt, mssql2mysql.txt}
+@item @uref{http://www.mysql.com/Downloads/Contrib/mssql2mysql.txt, mssql2mysql.txt}
 Converter from MS-SQL to MySQL. By Michael Kofler.
 @uref{http://www.kofler.cc/mysql/mssql2mysql.html, mssql2mysql home page}.
 
