@@ -7,7 +7,7 @@ use test;
 drop table if exists t1,t3;
 create table t1 (word char(20) not null);
 load data infile '../../std_data/words.dat' into table t1;
-load data local infile '/home/sasha/bk/mysql-4.0/mysql-test/std_data/words.dat' into table t1;
+load data local infile 'MYSQL_TEST_DIR/std_data/words.dat' into table t1;
 select * from t1;
 word
 Aarhus

@@ -28,3 +28,5 @@ delete from t1 limit 0;
 update t1 set i=3 limit 0;
 select * from t1;
 drop table t1;
+
+select 0 limit 0;
