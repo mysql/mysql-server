@@ -291,8 +291,9 @@ ulong keybuff_size,sortbuff_size,max_item_sort_length,table_cache_size,
 ulong com_stat[(uint) SQLCOM_END], com_other;
 ulong slave_net_timeout;
 ulong thread_cache_size=0, binlog_cache_size=0, max_binlog_cache_size=0;
+ulong query_cache_size=0;
 #ifdef HAVE_QUERY_CACHE
-ulong query_cache_size=0, query_cache_limit=0, query_cache_startup_type=1;
+ulong query_cache_limit=0, query_cache_startup_type=1;
 Query_cache query_cache;
 #endif
 
@@ -3048,8 +3049,10 @@ CHANGEABLE_VAR changeable_vars[] = {
 #ifdef HAVE_QUERY_CACHE
   { "query_cache_limit",       (long*) &query_cache_limit,
      1024*1024L, 0, ULONG_MAX, 0, 1},
+#endif /*HAVE_QUERY_CACHE*/
   { "query_cache_size",        (long*) &query_cache_size,
       0, 0, ULONG_MAX, 0, 1},
+#ifdef HAVE_QUERY_CACHE
   { "query_cache_startup_type",(long*) &query_cache_startup_type,
       1, 0, 2, 0, 1},
 #endif /*HAVE_QUERY_CACHE*/
