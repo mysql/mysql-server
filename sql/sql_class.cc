@@ -38,6 +38,8 @@
 
 #include <sp_rcontext.h>
 
+byte *hash_get_key_for_sp_head(const byte*,uint*,my_bool);
+
 /*
   The following is used to initialise Table_ident with a internal
   table name
@@ -155,6 +157,11 @@ THD::THD():user_time(0), is_fatal_error(0),
   hash_init(&user_vars, system_charset_info, USER_VARS_HASH_SIZE, 0, 0,
 	    (hash_get_key) get_var_key,
 	    (hash_free_key) free_user_var, 0);
+	    
+  hash_init(sp_hash,system_charset_info,0,0,0,
+	    hash_get_key_for_sp_head,0,0);
+  hash_init(sp_hash+1,system_charset_info,0,0,0,
+	    hash_get_key_for_sp_head,0,0);
 
   /* For user vars replication*/
   if (opt_bin_log)
@@ -200,9 +207,6 @@ THD::THD():user_time(0), is_fatal_error(0),
     pthread_mutex_unlock(&LOCK_thread_count);
     randominit(&rand, tmp + (ulong) &rand, tmp + (ulong) ::query_id);
   }
-
-  /* QQ init the temporary function cache */
-  spfuns.empty();
 }
 
 
@@ -261,6 +265,10 @@ void THD::change_user(void)
   hash_init(&user_vars, system_charset_info, USER_VARS_HASH_SIZE, 0, 0,
 	    (hash_get_key) get_var_key,
 	    (hash_free_key) free_user_var, 0);
+  hash_init(sp_hash,system_charset_info,0,0,0,
+	    hash_get_key_for_sp_head,0,0);
+  hash_init(sp_hash+1,system_charset_info,0,0,0,
+	    hash_get_key_for_sp_head,0,0);
 }
 
 
@@ -284,6 +292,8 @@ void THD::cleanup(void)
   close_temporary_tables(this);
   delete_dynamic(&user_var_events);
   hash_free(&user_vars);
+  hash_free(sp_hash);
+  hash_free(sp_hash+1);
   if (global_read_lock)
     unlock_global_read_lock(this);
   if (ull)
@@ -293,9 +303,6 @@ void THD::cleanup(void)
     pthread_mutex_unlock(&LOCK_user_locks);
     ull= 0;
   }
-
-  //  extern void sp_clear_function_cache(THD *);
-  //  sp_clear_function_cache(this);
 
   cleanup_done=1;
   DBUG_VOID_RETURN;

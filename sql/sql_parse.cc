@@ -1527,13 +1527,6 @@ restore_user:
   VOID(pthread_mutex_unlock(&LOCK_thread_count));
   thd->packet.shrink(thd->variables.net_buffer_length);	// Reclaim some memory
 
-  /*
-    Clear the SP function cache after each statement (QQ this is a temporary
-    solution; caching will be rehacked later).
-    Note: Must do this before we free_root.
-  */
-  sp_clear_function_cache(thd);
-
   free_root(&thd->mem_root,MYF(MY_KEEP_PREALLOC));
   DBUG_RETURN(error);
 }
@@ -2829,7 +2822,6 @@ mysql_execute_command(THD *thd)
       sp_head *sph= sp_find_function(thd, &lex->udf.name);
       if (sph)
       {
-	delete sph;		// QQ Free memory. Remove this when caching!!!
 	net_printf(thd, ER_UDF_EXISTS, lex->udf.name.str);
 	goto error;
       }
@@ -3033,18 +3025,12 @@ mysql_execute_command(THD *thd)
       {
       case SP_OK:
 	send_ok(thd);
-	delete lex->sphead;	// QQ Free memory. Remove this when caching!!!
-	lex->sphead= NULL;
 	break;
       case SP_WRITE_ROW_FAILED:
 	net_printf(thd, ER_SP_ALREADY_EXISTS, SP_TYPE_STRING(lex), name);
-	delete lex->sphead;	// QQ Free memory. Remove this when caching!!!
-	lex->sphead= NULL;
 	goto error;
       default:
 	net_printf(thd, ER_SP_STORE_FAILED, SP_TYPE_STRING(lex), name);
-	delete lex->sphead;	// QQ Free memory. Remove this when caching!!!
-	lex->sphead= NULL;
 	goto error;
       }
       break;
@@ -3068,7 +3054,6 @@ mysql_execute_command(THD *thd)
 	if (tables && ((res= check_table_access(thd, SELECT_ACL, tables)) ||
 		       (res= open_and_lock_tables(thd, tables))))
 	{
-	  delete sp;		// Free memory. Remove this when caching!!!
 	  break;
 	}
 	fix_tables_pointers(lex->all_selects_list);
@@ -3087,7 +3072,6 @@ mysql_execute_command(THD *thd)
 #ifndef EMBEDDED_LIBRARY
 	    thd->net.no_send_ok= nsok;
 #endif
-	    delete sp;		// QQ Free memory. Remove this when caching!!!
 	    goto error;
 	  }
 	  smrx= thd->server_status & SERVER_MORE_RESULTS_EXISTS;
@@ -3104,8 +3088,6 @@ mysql_execute_command(THD *thd)
 	  if (! smrx)
 	    thd->server_status &= ~SERVER_MORE_RESULTS_EXISTS;
 	}
-
-	delete sp;		// QQ Free memory. Remove this when caching!!!
 
 	if (res == 0)
 	  send_ok(thd);
@@ -3132,7 +3114,6 @@ mysql_execute_command(THD *thd)
       {
 	/* QQ This is an no-op right now, since we haven't
 	      put the characteristics in yet. */
-	delete sp;		// QQ Free memory. Remove this when caching!!!
 	send_ok(thd);
       }
       break;
