@@ -3905,12 +3905,16 @@ do_select(JOIN *join,List<Item> *fields,TABLE *table,Procedure *procedure)
     if (error == -3)
       error=0;					/* select_limit used */
   }
-  if (!table)
+  if (!table)					/* If sending data to client */
   {
     if (error < 0)
-      join->result->send_error(0,NullS); /* purecov: inspected */
-    else if (join->result->send_eof())
-      error= -1;
+      join->result->send_error(0,NullS);	/* purecov: inspected */
+    else
+    {
+      join_free(join);				// Unlock all cursors
+      if (join->result->send_eof())
+	error= -1;
+    }
   }
   else if (error < 0)
     join->result->send_error(0,NullS); /* purecov: inspected */

@@ -7589,7 +7589,7 @@ the DCE libraries while you compile @code{gcc} 2.95!
 
 For HPUX Version 11.x we recommend @strong{MySQL} 3.23.15 or later.
 
-If you are using @code{gcc} 2.95.1 on a unpatched HPUX Versiib 11.x system,
+If you are using @code{gcc} 2.95.1 on a unpatched HPUX 11.x system,
 you will get the error:
 
 @example
@@ -28666,6 +28666,22 @@ shell> myisamchk /path/to/datadir/*/*.MYI
 * myisamchk other options::     
 @end menu
 
+Note that if you get an error like:
+
+@example
+myisamchk: warning: 1 clients is using or hasn't closed the table properly
+@end example
+
+This means that you are trying to check a table that has been updated by
+the another program (like the mysqld server) that hasn't yet closed
+the file or that has died without closing the file properly.
+
+If you @code{mysqld} is running, you must force a sync/close of all
+tables with @code{FLUSH TABLES} and ensure that no one is using the
+tables while you are running @code{myisamchk}.  In MySQL 3.23 the easiest
+way to avoid this problem is to use @code{CHECK TABLE} instead of
+@code{myisamchk} to check tables.
+
 @cindex options, @code{myisamchk}
 @cindex @code{myisamchk}, options
 @node myisamchk general options, myisamchk check options, myisamchk syntax, myisamchk syntax
@@ -38156,6 +38172,8 @@ though, so 3.23 is not released as a stable version yet.
 @item
 Fixed bug where the automatic repair of MyISAM tables failed sometimes
 when the data file was corrupt.
+@item
+Changed BDB tables to use new compare function in Berkeley DB 3.2.3
 @item
 You can now use Unix sockets with @code{mit-pthreads}
 Added the latin5 (turkish) character set

@@ -203,7 +203,7 @@ const char **ha_berkeley::bas_ext() const
 
 
 static int
-berkeley_cmp_hidden_key(const DBT *new_key, const DBT *saved_key)
+berkeley_cmp_hidden_key(DB* file, const DBT *new_key, const DBT *saved_key)
 {
   ulonglong a=uint5korr((char*) new_key->data);
   ulonglong b=uint5korr((char*) saved_key->data);
@@ -211,9 +211,9 @@ berkeley_cmp_hidden_key(const DBT *new_key, const DBT *saved_key)
 }
 
 static int
-berkeley_cmp_packed_key(const DBT *new_key, const DBT *saved_key)
+berkeley_cmp_packed_key(DB *file, const DBT *new_key, const DBT *saved_key)
 {
-  KEY *key=	      (KEY*) new_key->app_private;
+  KEY *key=	      (KEY*) BT_APP_PRIVATE(file);
   char *new_key_ptr=  (char*) new_key->data;
   char *saved_key_ptr=(char*) saved_key->data;
   KEY_PART_INFO *key_part= key->key_part, *end=key_part+key->key_parts;
@@ -242,9 +242,9 @@ berkeley_cmp_packed_key(const DBT *new_key, const DBT *saved_key)
 /* The following is not yet used; Should be used for fixed length keys */
 
 static int
-berkeley_cmp_fix_length_key(const DBT *new_key, const DBT *saved_key)
+berkeley_cmp_fix_length_key(DB *file, const DBT *new_key, const DBT *saved_key)
 {
-  KEY *key=(KEY*) (new_key->app_private);
+  KEY *key=(KEY*) BT_APP_PRIVATE(file);
   char *new_key_ptr=  (char*) new_key->data;
   char *saved_key_ptr=(char*) saved_key->data;
   KEY_PART_INFO *key_part= key->key_part, *end=key_part+key->key_parts;
@@ -321,6 +321,8 @@ int ha_berkeley::open(const char *name, int mode, uint test_if_locked)
   file->set_bt_compare(file,
 		       (hidden_primary_key ? berkeley_cmp_hidden_key :
 			berkeley_cmp_packed_key));
+  if (!hidden_primary_key)
+    file->set_bt_app_private(file,table->key_info+table->primary_key);
   if ((error=(file->open(file, fn_format(name_buff,name,"", ha_berkeley_ext,
 					 2 | 4),
 			 "main", DB_BTREE, open_mode,0))))
@@ -359,6 +361,7 @@ int ha_berkeley::open(const char *name, int mode, uint test_if_locked)
       sprintf(part,"key%02d",++used_keys);
       key_type[i]=table->key_info[i].flags & HA_NOSAME ? DB_NOOVERWRITE : 0;
       (*ptr)->set_bt_compare(*ptr, berkeley_cmp_packed_key);
+      (*ptr)->set_bt_app_private(*ptr,table->key_info+i);
       if (!(table->key_info[i].flags & HA_NOSAME))
 	(*ptr)->set_flags(*ptr, DB_DUP);
       if ((error=((*ptr)->open(*ptr, name_buff, part, DB_BTREE,
@@ -561,7 +564,6 @@ DBT *ha_berkeley::pack_key(DBT *key, uint keynr, char *buff,
   DBUG_ENTER("pack_key");
 
   key->data=buff;
-  key->app_private= key_info;
 
   for ( ; key_part != end ; key_part++)
   {
@@ -599,7 +601,6 @@ DBT *ha_berkeley::pack_key(DBT *key, uint keynr, char *buff,
 
   bzero((char*) key,sizeof(*key));
   key->data=buff;
-  key->app_private= key_info;
 
   for (; key_part != end && (int) key_length > 0 ; key_part++)
   {
@@ -1055,7 +1056,6 @@ int ha_berkeley::read_row(int error, char *buf, uint keynr, DBT *row,
     bzero((char*) &key,sizeof(key));
     key.data=key_buff2;
     key.size=row->size;
-    key.app_private=table->key_info+primary_key;
     memcpy(key_buff2,row->data,row->size);
     /* Read the data into current_row */
     current_row.flags=DB_DBT_REALLOC;
@@ -1092,10 +1092,12 @@ int ha_berkeley::index_read(byte * buf, const byte * key,
 {
   DBT row;
   int error;
+  KEY *key_info= &table->key_info[active_index];
   DBUG_ENTER("index_read");
+
   statistic_increment(ha_read_key_count,&LOCK_status);
   bzero((char*) &row,sizeof(row));
-  if (key_len == table->key_info[active_index].key_length)
+  if (key_len == key_info->key_length)
   {
     error=read_row(cursor->c_get(cursor, pack_key(&last_key,
 						  active_index,
@@ -1110,10 +1112,10 @@ int ha_berkeley::index_read(byte * buf, const byte * key,
     pack_key(&last_key, active_index, key_buff, key, key_len);
     /* Store for compare */
     memcpy(key_buff2, key_buff, last_key.size);
-    ((KEY*) last_key.app_private)->handler.bdb_return_if_eq= -1;
+    key_info->handler.bdb_return_if_eq= -1;
     error=read_row(cursor->c_get(cursor, &last_key, &row, DB_SET_RANGE),
 		   buf, active_index, &row, (DBT*) 0, 0);
-    ((KEY*) last_key.app_private)->handler.bdb_return_if_eq=0;
+    key_info->handler.bdb_return_if_eq= 0;
     if (!error && find_flag == HA_READ_KEY_EXACT)
     {
       /* Check that we didn't find a key that wasn't equal to the current
@@ -1215,7 +1217,6 @@ DBT *ha_berkeley::get_pos(DBT *to, byte *pos)
   bzero((char*) to,sizeof(*to));
 
   to->data=pos;
-  to->app_private=table->key_info+primary_key;
   if (fixed_length_primary_key)
     to->size=ref_length;
   else

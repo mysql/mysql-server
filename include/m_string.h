@@ -140,7 +140,7 @@ extern	void bmove512(gptr dst,const gptr src,uint len);
 #endif
 
 #if !defined(HAVE_BMOVE) && !defined(bmove)
-extern	void bmove(gptr dst,const char *src,uint len);
+extern	void bmove(char *dst, const char *src,uint len);
 #endif
 
 extern	void bmove_upp(char *dst,const char *src,uint len);
