@@ -1686,6 +1686,131 @@ int ha_table_exists(THD* thd, const char* db, const char* name)
 
 
 /*
+  Read the first row of a multi-range set.
+
+  SYNOPSIS
+    read_multi_range_first()
+    found_range_p       Returns a pointer to the element in 'ranges' that
+                        corresponds to the returned row.
+    ranges              An array of KEY_MULTI_RANGE range descriptions.
+    range_count         Number of ranges in 'ranges'.
+    sorted		If result should be sorted per key.
+    buffer              A HANDLER_BUFFER for internal handler usage.
+
+  NOTES
+    Record is read into table->record[0].
+    *found_range_p returns a valid value only if read_multi_range_first()
+    returns 0.
+    Sorting is done within each range. If you want an overall sort, enter
+    'ranges' with sorted ranges.
+
+  RETURN
+    0			OK, found a row
+    HA_ERR_END_OF_FILE	No rows in range
+    #			Error code
+*/
+
+int handler::read_multi_range_first(KEY_MULTI_RANGE **found_range_p,
+                                    KEY_MULTI_RANGE *ranges, uint range_count,
+                                    bool sorted, HANDLER_BUFFER *buffer)
+{
+  int result= HA_ERR_END_OF_FILE;
+  DBUG_ENTER("handler::read_multi_range_first");
+  multi_range_sorted= sorted;
+  multi_range_buffer= buffer;
+
+  for (multi_range_curr= ranges, multi_range_end= ranges + range_count;
+       multi_range_curr < multi_range_end;
+       multi_range_curr++)
+  {
+    result= read_range_first(multi_range_curr->start_key.length ?
+                             &multi_range_curr->start_key : 0,
+                             multi_range_curr->end_key.length ?
+                             &multi_range_curr->end_key : 0,
+                             test(multi_range_curr->range_flag & EQ_RANGE),
+                             multi_range_sorted);
+    if (result != HA_ERR_END_OF_FILE)
+      break;
+  }
+
+  *found_range_p= multi_range_curr;
+  DBUG_PRINT("exit",("result %d", result));
+  DBUG_RETURN(result);
+}
+
+
+/*
+  Read the next row of a multi-range set.
+
+  SYNOPSIS
+    read_multi_range_next()
+    found_range_p       Returns a pointer to the element in 'ranges' that
+                        corresponds to the returned row.
+
+  NOTES
+    Record is read into table->record[0].
+    *found_range_p returns a valid value only if read_multi_range_next()
+    returns 0.
+
+  RETURN
+    0			OK, found a row
+    HA_ERR_END_OF_FILE	No (more) rows in range
+    #			Error code
+*/
+
+int handler::read_multi_range_next(KEY_MULTI_RANGE **found_range_p)
+{
+  int result;
+  DBUG_ENTER("handler::read_multi_range_next");
+
+  /* We should not be called after the last call returned EOF. */
+  DBUG_ASSERT(multi_range_curr < multi_range_end);
+
+  do
+  {
+    /* Save a call if there can be only one row in range. */
+    if (multi_range_curr->range_flag != (UNIQUE_RANGE | EQ_RANGE))
+    {
+      result= read_range_next();
+
+      /* On success or non-EOF errors jump to the end. */
+      if (result != HA_ERR_END_OF_FILE)
+        break;
+    }
+    else
+    {
+      /*
+        We need to set this for the last range only, but checking this
+        condition is more expensive than just setting the result code.
+      */
+      result= HA_ERR_END_OF_FILE;
+    }
+
+    /* Try the next range(s) until one matches a record. */
+    for (multi_range_curr++;
+         multi_range_curr < multi_range_end;
+         multi_range_curr++)
+    {
+      result= read_range_first(multi_range_curr->start_key.length ?
+                               &multi_range_curr->start_key : 0,
+                               multi_range_curr->end_key.length ?
+                               &multi_range_curr->end_key : 0,
+                               test(multi_range_curr->range_flag & EQ_RANGE),
+                               multi_range_sorted);
+      if (result != HA_ERR_END_OF_FILE)
+        break;
+    }
+  }
+  while ((result == HA_ERR_END_OF_FILE) &&
+         (multi_range_curr < multi_range_end));
+
+  *found_range_p= multi_range_curr;
+  DBUG_PRINT("exit",("handler::read_multi_range_next: result %d", result));
+  DBUG_RETURN(result);
+}
+
+
+/*
   Read first row between two ranges.
   Store ranges for future calls to read_range_next
 
