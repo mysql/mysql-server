@@ -917,7 +917,7 @@ Dbtux::scanClose(Signal* signal, ScanOpPtr scanPtr)
   ScanOp& scan = *scanPtr.p;
   ndbrequire(! scan.m_lockwait && scan.m_accLockOp == RNIL);
   // unlock all not unlocked by LQH
-  for (unsigned i = 0; i < MaxAccLockOps; i++) {
+  for (unsigned i = 0; i < scan.m_maxAccLockOps; i++) {
     if (scan.m_accLockOps[i] != RNIL) {
       jam();
       AccLockReq* const lockReq = (AccLockReq*)signal->getDataPtrSend();
@@ -947,12 +947,20 @@ Dbtux::addAccLockOp(ScanOp& scan, Uint32 accLockOp)
   ndbrequire(accLockOp != RNIL);
   Uint32* list = scan.m_accLockOps;
   bool ok = false;
-  for (unsigned i = 0; i < MaxAccLockOps; i++) {
+  for (unsigned i = 0; i < scan.m_maxAccLockOps; i++) {
     ndbrequire(list[i] != accLockOp);
     if (! ok && list[i] == RNIL) {
       list[i] = accLockOp;
       ok = true;
       // continue check for duplicates
+    }
+  }
+  if (! ok) {
+    unsigned i = scan.m_maxAccLockOps;
+    if (i < MaxAccLockOps) {
+      list[i] = accLockOp;
+      ok = true;
+      scan.m_maxAccLockOps = i + 1;
     }
   }
   ndbrequire(ok);
@@ -964,7 +972,7 @@ Dbtux::removeAccLockOp(ScanOp& scan, Uint32 accLockOp)
   ndbrequire(accLockOp != RNIL);
   Uint32* list = scan.m_accLockOps;
   bool ok = false;
-  for (unsigned i = 0; i < MaxAccLockOps; i++) {
+  for (unsigned i = 0; i < scan.m_maxAccLockOps; i++) {
     if (list[i] == accLockOp) {
       list[i] = RNIL;
       ok = true;
