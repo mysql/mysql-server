@@ -1999,7 +1999,7 @@ bool Item_ref::fix_fields(THD *thd,TABLE_LIST *tables, Item **reference)
       }
       else if (tmp != not_found_field)
       {
-	ref= 0; // To prevent "delete *ref;" on ~Item_erf() of this item
+	ref= 0; // To prevent "delete *ref;" on ~Item_ref() of this item
 	Item_field* fld;
 	if (!((*reference)= fld= new Item_field(tmp)))
 	  return 1;
