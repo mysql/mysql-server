@@ -574,7 +574,7 @@ end:
   heap_clear(file);
   if (heap_close(file) || (file2 && heap_close(file2)))
     goto err;
-  heap_delete_all(filename2);
+  heap_delete_table(filename2);
   heap_panic(HA_PANIC_CLOSE);
   my_end(MY_GIVE_INFO);
   return(0);

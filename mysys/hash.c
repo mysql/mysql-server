@@ -148,9 +148,7 @@ static uint calc_hashnr_caseup(const byte *key,uint length)
  *
  * The magic is in the interesting relationship between the special prime
  * 16777619 (2^24 + 403) and 2^32 and 2^8.
- *
- * This hash produces the fewest collisions of any function that we've seen so
- * far, and works well on both numbers and strings.
+ * This works well on both numbers and strings.
  */
 
 uint calc_hashnr(const byte *key, uint len)
@@ -514,8 +512,8 @@ my_bool hash_update(HASH *hash,byte *record,byte *old_key,uint old_key_length)
   /* Search after record with key */
 
   idx=hash_mask((*hash->calc_hashnr)(old_key,(old_key_length ?
-						old_key_length :
-						hash->key_length)),
+					      old_key_length :
+					      hash->key_length)),
 		  blength,records);
   new_index=hash_mask(rec_hashnr(hash,record),blength,records);
   if (idx == new_index)
@@ -572,6 +570,17 @@ byte *hash_element(HASH *hash,uint idx)
   if (idx < hash->records)
     return dynamic_element(&hash->array,idx,HASH_LINK*)->data;
   return 0;
+}
+
+
+/*
+  Replace old row with new row.  This should only be used when key
+  isn't changed
+*/
+
+void hash_replace(HASH *hash, uint idx, byte *new_row)
+{
+  dynamic_element(&hash->array,idx,HASH_LINK*)->data=new_row;
 }
 
 

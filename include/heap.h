@@ -109,6 +109,7 @@ typedef struct st_heap_share
   THR_LOCK lock;
   pthread_mutex_t intern_lock;		/* Locking for use with _locking */
 #endif
+  my_bool delete_on_close;
   LIST open_list;
 } HP_SHARE;
 
@@ -144,7 +145,7 @@ extern int heap_scan(register HP_INFO *info, byte *record);
 extern int heap_delete(HP_INFO *info,const byte *buff);
 extern int heap_info(HP_INFO *info,HEAPINFO *x,int flag);
 extern int heap_create(const char *name);
-extern int heap_delete_all(const char *name);
+extern int heap_delete_table(const char *name);
 extern int heap_extra(HP_INFO *info,enum ha_extra_function function);
 extern int heap_rename(const char *old_name,const char *new_name);
 extern int heap_panic(enum ha_panic_function flag);

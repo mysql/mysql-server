@@ -19,7 +19,7 @@
 #include "heapdef.h"
 
 	/* Close a database open by hp_open() */
-	/* Data is not deallocated */
+	/* Data is normally not deallocated */
 
 int heap_close(HP_INFO *info)
 {
@@ -43,8 +43,9 @@ int _hp_close(register HP_INFO *info)
   }
 #endif
   info->s->changed=0;
-  info->s->open_count--;
   heap_open_list=list_delete(heap_open_list,&info->open_list);
+  if (!--info->s->open_count && info->s->delete_on_close)
+    _hp_free(info->s);				/* Table was deleted */
   my_free((gptr) info,MYF(0));
   DBUG_RETURN(error);
 }
