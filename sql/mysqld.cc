@@ -3182,7 +3182,7 @@ struct show_var_st status_vars[]= {
   {"Created_tmp_disk_tables",  (char*) &created_tmp_disk_tables,SHOW_LONG},
   {"Created_tmp_tables",       (char*) &created_tmp_tables,     SHOW_LONG},
   {"Created_tmp_files",	       (char*) &my_tmp_file_created,	SHOW_LONG},
-  {"Delayed_insert_threads",   (char*) &delayed_insert_threads, SHOW_LONG},
+  {"Delayed_insert_threads",   (char*) &delayed_insert_threads, SHOW_LONG_CONST},
   {"Delayed_writes",           (char*) &delayed_insert_writes,  SHOW_LONG},
   {"Delayed_errors",           (char*) &delayed_insert_errors,  SHOW_LONG},
   {"Flush_commands",           (char*) &refresh_version,        SHOW_LONG_CONST},
