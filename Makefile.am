@@ -17,7 +17,7 @@
 # Process this file with automake to create Makefile.in
 
 AUTOMAKE_OPTIONS =	foreign
-TAR =			gtar
+
 # These are built from source in the Docs directory
 EXTRA_DIST =		INSTALL-SOURCE README \
 			COPYING COPYING.LIB MIRRORS
