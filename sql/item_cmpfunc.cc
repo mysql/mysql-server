@@ -1029,13 +1029,17 @@ void Item_func_in::update_used_tables()
   used_tables_cache|=item->used_tables();
   const_item_cache&=item->const_item();
 }
+
 void Item_func_in::split_sum_func(List<Item> &fields)
 {
-  if (item->used_tables() || item->type() == SUM_FUNC_ITEM)
+  if (item->with_sum_func && item->type() != SUM_FUNC_ITEM)
+    item->split_sum_func(fields);
+  else if (item->used_tables() || item->type() == SUM_FUNC_ITEM)
   {
     fields.push_front(item);
     item=new Item_ref((Item**) fields.head_ref(),0,item->name);
   }  
+  Item_func::split_sum_func(fields);
 }
 
 
