@@ -890,6 +890,10 @@ innobase_commit_low(
 /*================*/
 	trx_t*	trx)	/* in: transaction handle */
 {
+        /* TODO: Guilhem should check if master_log_name, pending
+        etc. are right if the master log gets rotated! Possible bug here.
+	Comment by Heikki March 4, 2003. */
+
         if (current_thd->slave_thread) {
                 /* Update the replication position info inside InnoDB */
 
