@@ -489,8 +489,6 @@ int ha_heap::create(const char *name, TABLE *table_arg,
     default:
       DBUG_ASSERT(0); // cannot happen
     }
-    keydef[key].algorithm= ((pos->algorithm == HA_KEY_ALG_UNDEF) ?
-			    HA_KEY_ALG_HASH : pos->algorithm);
 
     for (; key_part != key_part_end; key_part++, seg++)
     {

@@ -414,7 +414,7 @@ pars_complete_graph_for_exec(
 
 /* Struct used to denote a reserved word in a parsing tree */
 struct pars_res_word_struct{
-	ulint	code;	/* the token code for the reserved word from
+	int	code;	/* the token code for the reserved word from
 			pars0grm.h */
 };
 

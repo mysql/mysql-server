@@ -1815,7 +1815,13 @@ AC_PROG_GCC_TRADITIONAL
 AC_TYPE_SIGNAL
 AC_CHECK_FUNCS(re_comp regcomp strdup)
 
-AC_CHECK_HEADERS(vis.h)
+dnl Sun compilers have their own vis.h that is about something
+dnl totally different. So, not to change the libedit source, we
+dnl do some additional checks before we define HAVE_VIS_H.
+AC_CHECK_HEADER(vis.h,
+  [AC_CHECK_FUNC(strvis,
+    [AC_DEFINE([HAVE_VIS_H], [1],[Found vis.h and the strvis() function])])])
+
 AC_CHECK_FUNCS(strlcat strlcpy)
 AC_CHECK_FUNCS(issetugid)
 AC_CHECK_FUNCS(fgetln)
