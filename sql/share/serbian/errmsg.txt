@@ -3,7 +3,9 @@
 
 /* Serbian Translation, version 1.0:
    Copyright 2002 Vladimir Kraljevic, vladimir_kraljevic@yahoo.com
-   This file is public domain and comes with NO WARRANTY of any kind */
+   This file is public domain and comes with NO WARRANTY of any kind.
+   Charset: cp1250
+*/
 
 "hashchk",
 "isamchk",
