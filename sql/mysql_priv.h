@@ -248,6 +248,8 @@ extern CHARSET_INFO *national_charset_info, *table_alias_charset;
 #define OPTION_RELAXED_UNIQUE_CHECKS    (1L << 27)
 #define SELECT_NO_UNLOCK                (1L << 28)
 #define OPTION_SCHEMA_TABLE             (1L << 29)
+/* Flag set if setup_tables already done */
+#define OPTION_SETUP_TABLES_DONE        (1L << 30)
 
 /* The rest of the file is included in the server only */
 #ifndef MYSQL_CLIENT
@@ -565,7 +567,8 @@ int setup_group(THD *thd, Item **ref_pointer_array, TABLE_LIST *tables,
 		List<Item> &fields, List<Item> &all_fields, ORDER *order,
 		bool *hidden_group_fields);
 
-bool handle_select(THD *thd, LEX *lex, select_result *result);
+bool handle_select(THD *thd, LEX *lex, select_result *result,
+                   ulong setup_tables_done_option);
 bool mysql_select(THD *thd, Item ***rref_pointer_array,
                   TABLE_LIST *tables, uint wild_num,  List<Item> &list,
                   COND *conds, uint og_num, ORDER *order, ORDER *group,
@@ -578,7 +581,7 @@ bool mysql_explain_union(THD *thd, SELECT_LEX_UNIT *unit,
 int mysql_explain_select(THD *thd, SELECT_LEX *sl, char const *type,
 			 select_result *result);
 bool mysql_union(THD *thd, LEX *lex, select_result *result,
-                 SELECT_LEX_UNIT *unit);
+                 SELECT_LEX_UNIT *unit, ulong setup_tables_done_option);
 int mysql_handle_derived(LEX *lex, int (*processor)(THD *thd,
                                                     LEX *lex,
                                                     TABLE_LIST *table));

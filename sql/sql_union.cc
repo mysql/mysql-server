@@ -25,11 +25,12 @@
 #include "sql_select.h"
 
 bool mysql_union(THD *thd, LEX *lex, select_result *result,
-                 SELECT_LEX_UNIT *unit)
+                 SELECT_LEX_UNIT *unit, ulong setup_tables_done_option)
 {
   DBUG_ENTER("mysql_union");
   bool res;
-  if (!(res= unit->prepare(thd, result, SELECT_NO_UNLOCK)))
+  if (!(res= unit->prepare(thd, result, SELECT_NO_UNLOCK |
+                           setup_tables_done_option)))
     res= unit->exec();
   if (!res && thd->cursor && thd->cursor->is_open())
   {
@@ -210,6 +211,13 @@ bool st_select_lex_unit::prepare(THD *thd_arg, select_result *sel_result,
     JOIN *join= new JOIN(thd_arg, sl->item_list, 
 			 sl->options | thd_arg->options | additional_options,
 			 tmp_result);
+    /*
+      setup_tables_done_option should be set only for very first SELECT,
+      because it protect from secont setup_tables call for select-like non
+      select commands (DELETE/INSERT/...) and they use only very first
+      SELECT (for union it can be only INSERT ... SELECT).
+    */
+    additional_options&= ~OPTION_SETUP_TABLES_DONE;
     if (!join)
       goto err;
 
