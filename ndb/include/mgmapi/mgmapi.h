@@ -666,11 +666,15 @@ extern "C" {
    * Start backup
    *
    * @param   handle        NDB management handle.
+   * @param   wait_completed 0=don't wait for confirmation
+                             1=wait for backup started
+                             2=wait for backup completed
    * @param   backup_id     Backup id is returned from function.
    * @param   reply         Reply message.
    * @return                -1 on error.
    */
-  int ndb_mgm_start_backup(NdbMgmHandle handle, unsigned int* backup_id,
+  int ndb_mgm_start_backup(NdbMgmHandle handle, int wait_completed,
+			   unsigned int* backup_id,
 			   struct ndb_mgm_reply* reply);
 
   /**

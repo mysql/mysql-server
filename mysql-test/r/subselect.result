@@ -1490,9 +1490,6 @@ Warnings:
 Note	1003	select test.t3.a AS `a` from test.t3 where <not>((test.t3.a < (select max(test.t2.b) from test.t2)))
 select * from t3 where a >= some (select b from t2);
 a
-6
-7
-3
 explain extended select * from t3 where a >= some (select b from t2);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	3	Using where
@@ -1512,9 +1509,6 @@ Warnings:
 Note	1003	select test.t3.a AS `a` from test.t3 where <not>((test.t3.a < <max>(select test.t2.b AS `b` from test.t2 group by test.t2.b)))
 select * from t3 where a >= some (select b from t2 group by 1);
 a
-6
-7
-3
 explain extended select * from t3 where a >= some (select b from t2 group by 1);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	3	Using where
@@ -2104,4 +2098,32 @@ select s1, s1 < all (select s1 from t1) from t1;
 s1	s1 < all (select s1 from t1)
 1	0
 NULL	NULL
+drop table t1;
+CREATE TABLE t1 (
+Code char(3) NOT NULL default '',
+Name char(52) NOT NULL default '',
+Continent enum('Asia','Europe','North America','Africa','Oceania','Antarctica','South America') NOT NULL default 'Asia',
+Region char(26) NOT NULL default '',
+SurfaceArea float(10,2) NOT NULL default '0.00',
+IndepYear smallint(6) default NULL,
+Population int(11) NOT NULL default '0',
+LifeExpectancy float(3,1) default NULL,
+GNP float(10,2) default NULL,
+GNPOld float(10,2) default NULL,
+LocalName char(45) NOT NULL default '',
+GovernmentForm char(45) NOT NULL default '',
+HeadOfState char(60) default NULL,
+Capital int(11) default NULL,
+Code2 char(2) NOT NULL default ''
+) TYPE=MyISAM;
+Warnings:
+Warning	1287	'TYPE=storage_engine' is deprecated; use 'ENGINE=storage_engine' instead
+INSERT INTO t1 VALUES ('XXX','Xxxxx','Oceania','Xxxxxx',26.00,0,0,0,0,0,'Xxxxx','Xxxxx','Xxxxx',NULL,'XX');
+INSERT INTO t1 VALUES ('ASM','American Samoa','Oceania','Polynesia',199.00,0,68000,75.1,334.00,NULL,'Amerika Samoa','US Territory','George W. Bush',54,'AS');
+INSERT INTO t1 VALUES ('ATF','French Southern territories','Antarctica','Antarctica',7780.00,0,0,NULL,0.00,NULL,'Terres australes françaises','Nonmetropolitan Territory of France','Jacques Chirac',NULL,'TF');
+INSERT INTO t1 VALUES ('UMI','United States Minor Outlying Islands','Oceania','Micronesia/Caribbean',16.00,0,0,NULL,0.00,NULL,'United States Minor Outlying Islands','Dependent Territory of the US','George W. Bush',NULL,'UM');
+/*!40000 ALTER TABLE t1 ENABLE KEYS */;
+SELECT DISTINCT Continent AS c FROM t1 WHERE Code <> SOME ( SELECT Code FROM t1 WHERE Continent = c AND Population < 200);
+c
+Oceania
 drop table t1;
