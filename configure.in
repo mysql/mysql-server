@@ -4,7 +4,7 @@ dnl Process this file with autoconf to produce a configure script.
 AC_INIT(sql/mysqld.cc)
 AC_CANONICAL_SYSTEM
 # The Docs Makefile.am parses this line!
-AM_INIT_AUTOMAKE(mysql, 3.23.48)
+AM_INIT_AUTOMAKE(mysql, 3.23.49)
 AM_CONFIG_HEADER(config.h)
 
 PROTOCOL_VERSION=10
@@ -518,7 +518,7 @@ AC_ARG_ENABLE(thread-safe-client,
     [ THREAD_SAFE_CLIENT=no ]
     )
 
-# Make thread safe client
+# compile with strings functions in assembler
 AC_ARG_ENABLE(assembler,
     [  --enable-assembler      Use assembler versions of some string 
                           functions if available.],
@@ -582,6 +582,14 @@ AC_ARG_WITH(mysqld-user,
     [ MYSQLD_USER=mysql ]
     )
 AC_SUBST(MYSQLD_USER)
+
+# compile with strings functions in assembler
+AC_ARG_ENABLE(local-infile,
+    [  --enable-local-infile
+                          If LOAD DATA LOCAL INFILE is enabled by default.],
+    [ ENABLED_LOCAL_INFILE=$enablewal ],
+    [ ENABLED_LOCAL_INFILE=no ]
+    )
 
 # Use Paul Eggerts macros from GNU tar to check for large file support.
 MYSQL_SYS_LARGEFILE
