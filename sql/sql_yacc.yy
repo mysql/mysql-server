@@ -1936,7 +1936,7 @@ alter_list_item:
             if (check_table_name($3->table.str,$3->table.length) ||
                 $3->db.str && check_db_name($3->db.str))
             {
-              net_printf(&lex->thd->net,ER_WRONG_TABLE_NAME,$3->table.str);
+              net_printf(lex->thd,ER_WRONG_TABLE_NAME,$3->table.str);
               YYABORT;
             }
 	    lex->alter_info.flags|= ALTER_RENAME;

@@ -222,7 +222,7 @@ CREATE TABLE `job_titles` (
 `job_title` char(18) NOT NULL default '',
 PRIMARY KEY  (`job_title_id`),
 UNIQUE KEY `job_title_id` (`job_title_id`,`job_title`)
-) TYPE=HEAP;
+) ENGINE=HEAP;
 SELECT MAX(job_title_id) FROM job_titles;
 MAX(job_title_id)
 NULL

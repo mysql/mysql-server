@@ -1037,7 +1037,7 @@ void mysql_read_default_options(struct st_mysql_options *options,
 	    options->client_flag&= ~CLIENT_LOCAL_FILES;
 	  break;
 	case 22:
-	  options->client_flag&= CLIENT_LOCAL_FILES;
+	  options->client_flag&= ~CLIENT_LOCAL_FILES;
           break;
 	case 23:  /* replication probe */
 #ifndef TO_BE_DELETED

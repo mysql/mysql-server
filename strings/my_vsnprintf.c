@@ -27,7 +27,7 @@
     %#[l]d
     %#[l]u
     %#[l]x
-    %#.#s	Note #.# is skiped
+    %#.#s	Note first # is ignored
 
   RETURN
     length of result string
@@ -47,7 +47,7 @@ int my_snprintf(char* to, size_t n, const char* fmt, ...)
 int my_vsnprintf(char *to, size_t n, const char* fmt, va_list ap)
 {
   char *start=to, *end=to+n-1;
-  uint length, num_state, pre_zero, have_long;
+  uint length, width, pre_zero, have_long;
 
   for (; *fmt ; fmt++)
   {
@@ -62,23 +62,18 @@ int my_vsnprintf(char *to, size_t n, const char* fmt, va_list ap)
     /* Read max fill size (only used with %d and %u) */
     if (*fmt == '-')
       fmt++;
-    length= num_state= pre_zero= have_long= 0;
-    for (;; fmt++)
+    length= width= pre_zero= have_long= 0;
+    for (;my_isdigit(&my_charset_latin1,*fmt); fmt++)
     {
-      if (my_isdigit(&my_charset_latin1,*fmt))
-      {
-	if (!num_state)
-	{
-	  length=length*10+ (uint) (*fmt-'0');
-	  if (!length)
-	    pre_zero= 1;			/* first digit was 0 */
-	}
-	continue;
-      }
-      if (*fmt != '.' || num_state)
-	break;
-      num_state= 1;
+      length=length*10+ (uint) (*fmt-'0');
+      if (!length)
+        pre_zero= 1;			/* first digit was 0 */
     }
+    if (*fmt == '.')
+      for (fmt++;my_isdigit(&my_charset_latin1,*fmt); fmt++)
+        width=width*10+ (uint) (*fmt-'0');
+    else
+      width= ~0;
     if (*fmt == 'l')
     {
       fmt++;
@@ -90,6 +85,7 @@ int my_vsnprintf(char *to, size_t n, const char* fmt, va_list ap)
       uint plen,left_len = (uint)(end-to)+1;
       if (!par) par = (char*)"(null)";
       plen = (uint) strlen(par);
+      set_if_smaller(plen,width);
       if (left_len <= plen)
 	plen = left_len - 1;
       to=strnmov(to,par,plen);
