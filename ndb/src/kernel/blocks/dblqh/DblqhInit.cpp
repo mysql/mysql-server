@@ -27,6 +27,7 @@ void Dblqh::initData()
 {
   caddfragrecFileSize = ZADDFRAGREC_FILE_SIZE;
   cattrinbufFileSize = ZATTRINBUF_FILE_SIZE;
+  c_no_attrinbuf_recs= ZATTRINBUF_FILE_SIZE;
   cdatabufFileSize = ZDATABUF_FILE_SIZE;
   cfragrecFileSize = 0;
   cgcprecFileSize = ZGCPREC_FILE_SIZE;
