@@ -20,7 +20,7 @@ Protected by mem_hash_mutex above. */
 static ulint	mem_n_created_heaps 		= 0;
 static ulint	mem_n_allocations	  	= 0;
 static ulint	mem_total_allocated_memory	= 0;
-static ulint	mem_current_allocated_memory	= 0;
+ulint		mem_current_allocated_memory	= 0;
 static ulint	mem_max_allocated_memory	= 0;
 
 /* Size of the hash table for memory management tracking */
