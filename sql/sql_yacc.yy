@@ -3654,7 +3654,8 @@ column_list_id:
 	  LEX *lex=Lex;
 	  while ((point=iter++))
 	  {
-	    if (!my_strcasecmp(point->column.ptr(),new_str->ptr()))
+	    if (!my_strcasecmp(system_charset_info,
+                               point->column.ptr(), new_str->ptr()))
 		break;
 	  }
 	  lex->grant_tot_col|= lex->which_columns;

@@ -108,11 +108,5 @@ char *convert_dirname(char *to, const char *from, const char *from_end)
     *to++=FN_LIBCHAR;
     *to=0;
   }
-#ifdef FN_UPPER_CASE
-  caseup_str(to_org);
-#endif
-#ifdef FN_LOWER_CASE
-  casedn_str(to_org);
-#endif
   return to;					/* Pointer to end of dir */
 } /* convert_dirname */

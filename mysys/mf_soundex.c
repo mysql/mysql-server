@@ -34,12 +34,12 @@
 #include <m_ctype.h>
 #include "my_static.h"
 
-static char get_scode(char **ptr,pbool remove_garbage);
+static char get_scode(CHARSET_INFO * cs, char **ptr,pbool remove_garbage);
 
 		/* outputed string is 4 byte long */
 		/* out_pntr can be == in_pntr */
 
-void soundex(register my_string out_pntr, my_string in_pntr,
+void soundex(CHARSET_INFO * cs,register my_string out_pntr, my_string in_pntr,
 	     pbool remove_garbage)
 {
   char ch,last_ch;
@@ -47,11 +47,11 @@ void soundex(register my_string out_pntr, my_string in_pntr,
 
   if (remove_garbage)
   {
-    while (*in_pntr && isspace(*in_pntr))	/* Skipp pre-space */
+    while (*in_pntr && my_isspace(cs,*in_pntr))	/* Skipp pre-space */
       in_pntr++;
   }
-  *out_pntr++ = toupper(*in_pntr);	/* Copy first letter		 */
-  last_ch = get_scode(&in_pntr,0);	/* code of the first letter	 */
+  *out_pntr++ = my_toupper(cs,*in_pntr);/* Copy first letter		 */
+  last_ch = get_scode(cs,&in_pntr,0);	/* code of the first letter	 */
 					/* for the first 'double-letter  */
 					/* check.			 */
   end=out_pntr+3;			/* Loop on input letters until	 */
@@ -59,7 +59,7 @@ void soundex(register my_string out_pntr, my_string in_pntr,
 					/* letter code count = 3	 */
 
   in_pntr++;
-  while (out_pntr < end && (ch = get_scode(&in_pntr,remove_garbage)) != 0)
+  while (out_pntr < end && (ch = get_scode(cs,&in_pntr,remove_garbage)) != 0)
   {
     in_pntr++;
     if ((ch != '0') && (ch != last_ch)) /* if not skipped or double */
@@ -81,19 +81,19 @@ void soundex(register my_string out_pntr, my_string in_pntr,
     else return 0
     */
 
-static char get_scode(char **ptr, pbool remove_garbage)
+static char get_scode(CHARSET_INFO * cs,char **ptr, pbool remove_garbage)
 {
   uchar ch;
 
   if (remove_garbage)
   {
-    while (**ptr && !isalpha(**ptr))
+    while (**ptr && !my_isalpha(cs,**ptr))
       (*ptr)++;
   }
-  ch=toupper(**ptr);
+  ch=my_toupper(cs,**ptr);
   if (ch < 'A' || ch > 'Z')
   {
-    if (isalpha(ch))			/* If exetended alfa (country spec) */
+    if (my_isalpha(cs,ch))		/* If exetended alfa (country spec) */
       return '0';			/* threat as vokal */
     return 0;				/* Can't map */
   }

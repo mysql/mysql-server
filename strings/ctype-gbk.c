@@ -2579,7 +2579,9 @@ static uint16 gbksortorder(uint16 i)
 }
 
 
-int my_strnncoll_gbk(const uchar * s1, int len1, const uchar * s2, int len2)
+int my_strnncoll_gbk(CHARSET_INFO *cs,
+                     const uchar * s1, uint len1, 
+                     const uchar * s2, uint len2)
 {
   uint len,c1,c2; 
 
@@ -2603,13 +2605,10 @@ int my_strnncoll_gbk(const uchar * s1, int len1, const uchar * s2, int len2)
   return (int) (len1-len2);
 }
 
-int my_strcoll_gbk(const uchar * s1, const uchar * s2)
-{
-  return my_strnncoll_gbk(s1, (uint) strlen((char*) s1),
-			  s2, (uint) strlen((char*) s2));
-}
 
-int my_strnxfrm_gbk(uchar * dest, const uchar * src, int len, int srclen)
+int my_strnxfrm_gbk(CHARSET_INFO *cs, 
+                    uchar * dest, uint len,
+                    const uchar * src, uint srclen)
 {
   uint16 e;
 
@@ -2629,10 +2628,6 @@ int my_strnxfrm_gbk(uchar * dest, const uchar * src, int len, int srclen)
   return srclen;
 }
 
-int my_strxfrm_gbk(uchar * dest, const uchar * src, int len)
-{
-  return my_strnxfrm_gbk(dest,src,len,(uint) strlen((char*) src));
-}
 
 /*
 ** Calculate min_str and max_str that ranges a LIKE string.
@@ -2655,7 +2650,8 @@ int my_strxfrm_gbk(uchar * dest, const uchar * src, int len)
 #define wild_one '_'
 #define wild_many '%'
 
-extern my_bool my_like_range_gbk(const char *ptr,uint ptr_length,pchar escape,
+extern my_bool my_like_range_gbk(CHARSET_INFO *cs,
+                                 const char *ptr,uint ptr_length,pchar escape,
                                  uint res_length, char *min_str,char *max_str,
                                  uint *min_length,uint *max_length)
 {

@@ -302,7 +302,9 @@ int mysql_create_table(THD *thd,const char *db, const char *table_name,
       null_fields++;
     while ((dup_field=it2++) != sql_field)
     {
-      if (my_strcasecmp(sql_field->field_name, dup_field->field_name) == 0)
+      if (my_strcasecmp(system_charset_info, 
+                        sql_field->field_name, 
+                        dup_field->field_name) == 0)
       {
 	my_error(ER_DUP_FIELDNAME,MYF(0),sql_field->field_name);
 	DBUG_RETURN(-1);
@@ -496,7 +498,9 @@ int mysql_create_table(THD *thd,const char *db, const char *table_name,
       it.rewind();
       field=0;
       while ((sql_field=it++) &&
-	     my_strcasecmp(column->field_name,sql_field->field_name))
+	     my_strcasecmp(system_charset_info,
+                           column->field_name,
+                           sql_field->field_name))
 	field++;
       if (!sql_field)
       {
@@ -727,7 +731,7 @@ static bool
 check_if_keyname_exists(const char *name, KEY *start, KEY *end)
 {
   for (KEY *key=start ; key != end ; key++)
-    if (!my_strcasecmp(name,key->name))
+    if (!my_strcasecmp(system_charset_info,name,key->name))
       return 1;
   return 0;
 }
@@ -1235,9 +1239,9 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
     strmov(new_name_buff,new_name);
     fn_same(new_name_buff,table_name,3);
     if (lower_case_table_names)
-      casedn_str(new_name);
+      my_casedn_str(system_charset_info,new_name);
     if ((lower_case_table_names &&
-	 !my_strcasecmp(new_name_buff,table_name)) ||
+	 !my_strcasecmp(system_charset_info, new_name_buff,table_name)) ||
 	(!lower_case_table_names &&
 	 !strcmp(new_name_buff,table_name)))
       new_name=table_name;			// No. Make later check easier
@@ -1348,7 +1352,7 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
     while ((drop=drop_it++))
     {
       if (drop->type == Alter_drop::COLUMN &&
-	  !my_strcasecmp(field->field_name, drop->name))
+	  !my_strcasecmp(system_charset_info,field->field_name, drop->name))
       {
 	/* Reset auto_increment value if it was dropped */
 	if (MTYP_TYPENR(field->unireg_check) == Field::NEXT_NUMBER &&
@@ -1369,7 +1373,8 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
     def_it.rewind();
     while ((def=def_it++))
     {
-      if (def->change && !my_strcasecmp(field->field_name, def->change))
+      if (def->change && 
+          !my_strcasecmp(system_charset_info,field->field_name, def->change))
 	break;
     }
     if (def)
@@ -1393,7 +1398,7 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
       Alter_column *alter;
       while ((alter=alter_it++))
       {
-	if (!my_strcasecmp(field->field_name, alter->name))
+	if (!my_strcasecmp(system_charset_info,field->field_name, alter->name))
 	  break;
       }
       if (alter)
@@ -1427,7 +1432,7 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
       find_it.rewind();
       while ((find=find_it++))			// Add new columns
       {
-	if (!my_strcasecmp(def->after, find->field_name))
+	if (!my_strcasecmp(system_charset_info,def->after, find->field_name))
 	  break;
       }
       if (!find)
@@ -1473,7 +1478,7 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
     while ((drop=drop_it++))
     {
       if (drop->type == Alter_drop::KEY &&
-	  !my_strcasecmp(key_name, drop->name))
+	  !my_strcasecmp(system_charset_info,key_name, drop->name))
 	break;
     }
     if (drop)
@@ -1495,10 +1500,11 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
       {
 	if (cfield->change)
 	{
-	  if (!my_strcasecmp(key_part_name, cfield->change))
+	  if (!my_strcasecmp(system_charset_info,key_part_name, cfield->change))
 	    break;
 	}
-	else if (!my_strcasecmp(key_part_name, cfield->field_name))
+	else if (!my_strcasecmp(system_charset_info,
+                                key_part_name, cfield->field_name))
 	    break;
       }
       if (!cfield)
@@ -1518,7 +1524,8 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
     if (key_parts.elements)
       key_list.push_back(new Key(key_info->flags & HA_SPATIAL ? Key::SPATIAL :
                                  (key_info->flags & HA_NOSAME ?
-				 (!my_strcasecmp(key_name, "PRIMARY") ?
+				 (!my_strcasecmp(system_charset_info,
+                                                 key_name, "PRIMARY") ?
 				  Key::PRIMARY  : Key::UNIQUE) :
                                  (key_info->flags & HA_FULLTEXT ?
                                  Key::FULLTEXT : Key::MULTIPLE)),

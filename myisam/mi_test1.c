@@ -458,19 +458,19 @@ static void update_record(char *record)
     ptr=blob_key;
     memcpy_fixed(pos+4,&ptr,sizeof(char*));	/* Store pointer to new key */
     if (keyinfo[0].seg[0].type != HA_KEYTYPE_NUM)
-      casedn(blob_key,length);
+      my_casedn(default_charset_info,blob_key,length);
     pos+=recinfo[1].length;
   }
   else if (recinfo[1].type == FIELD_VARCHAR)
   {
     uint length=uint2korr(pos);
-    casedn(pos+2,length);
+    my_casedn(default_charset_info,pos+2,length);
     pos+=recinfo[1].length;
   }
   else
   {
     if (keyinfo[0].seg[0].type != HA_KEYTYPE_NUM)
-      casedn(pos,keyinfo[0].seg[0].length);
+      my_casedn(default_charset_info,pos,keyinfo[0].seg[0].length);
     pos+=recinfo[1].length;
   }
 

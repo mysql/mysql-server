@@ -515,11 +515,13 @@ int _nisam_key_cmp(register N_KEYSEG *keyseg, register uchar *a, register uchar 
 	  if (*a++ !=  *b++)
 	  {
 	    a--; b--;
-	    if (isdigit((char) *a) && isdigit((char) *b))
+	    if (my_isdigit(default_charset_info, (char) *a) && 
+	        my_isdigit(default_charset_info, (char) *b))
 	      return ((int) *a - (int) *b);
-	    if (*a == '-' || isdigit((char) *b))
+	    if (*a == '-' || my_isdigit(default_charset_info,(char) *b))
 	      return (-1);
-	    if (*b == '-' || *b++ == ' ' || isdigit((char) *a))
+	    if (*b == '-' || *b++ == ' ' || 
+	        my_isdigit(default_charset_info,(char) *a))
 	      return (1);
 	    if (*a++ == ' ')
 	      return (-1);
@@ -539,11 +541,13 @@ int _nisam_key_cmp(register N_KEYSEG *keyseg, register uchar *a, register uchar 
 	  if (*a++ != *b++)
 	  {
 	    a--; b--;
-	    if (isdigit((char) *a) && isdigit((char) *b))
+	    if (my_isdigit(default_charset_info,(char) *a) && 
+	        my_isdigit(default_charset_info,(char) *b))
 	      return ((int) *a - (int) *b);
-	    if (*a == '-' || isdigit((char) *b))
+	    if (*a == '-' || my_isdigit(default_charset_info,(char) *b))
 	      return (-1);
-	    if (*b == '-' || *b++ == ' ' || isdigit((char) *a))
+	    if (*b == '-' || *b++ == ' ' || 
+	        my_isdigit(default_charset_info,(char) *a))
 	      return (1);
 	    if (*a++ == ' ')
 	      return -1;

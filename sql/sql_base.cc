@@ -50,7 +50,8 @@ static byte *cache_key(const byte *record,uint *length,
 
 void table_cache_init(void)
 {
-  VOID(hash_init(&open_cache,table_cache_size+16,0,0,cache_key,
+  VOID(hash_init(&open_cache,
+		 table_cache_size+16,0,0,cache_key,
 		 (void (*)(void*)) free_cache_entry,0));
   mysql_rm_tmp_tables();
 }
@@ -780,7 +781,7 @@ TABLE *open_table(THD *thd,const char *db,const char *table_name,
     {
       if (table->key_length == key_length &&
 	  !memcmp(table->table_cache_key,key,key_length) &&
-	  !my_strcasecmp(table->table_name,alias))
+	  !my_strcasecmp(system_charset_info,table->table_name,alias))
 	goto reset;
     }
     my_printf_error(ER_TABLE_NOT_LOCKED,ER(ER_TABLE_NOT_LOCKED),MYF(0),alias);
@@ -1559,11 +1560,12 @@ Field *find_field_in_table(THD *thd,TABLE *table,const char *name,uint length,
     Field **ptr=table->field;
     while ((field = *ptr++))
     {
-      if (!my_strcasecmp(field->field_name, name))
+      if (!my_strcasecmp(system_charset_info, field->field_name, name))
 	goto found;
     }
   }
-  if (allow_rowid && !my_strcasecmp(name,"_rowid") &&
+  if (allow_rowid && 
+      !my_strcasecmp(system_charset_info, name, "_rowid") &&
       (field=table->rowid_field))
     goto found;
   return (Field*) 0;
@@ -1686,7 +1688,8 @@ find_item_in_list(Item *find,List<Item> &items)
   {
     if (field_name && item->type() == Item::FIELD_ITEM)
     {
-      if (!my_strcasecmp(((Item_field*) item)->name,field_name))
+      if (!my_strcasecmp(system_charset_info,
+                         ((Item_field*) item)->name,field_name))
       {
 	if (!table_name)
 	{
@@ -1709,8 +1712,9 @@ find_item_in_list(Item *find,List<Item> &items)
       }
     }
     else if (!table_name && (item->eq(find) ||
-			     find->name &&
-			     !my_strcasecmp(item->name,find->name)))
+		     find->name &&
+		     !my_strcasecmp(system_charset_info, 
+                                    item->name,find->name)))
     {
       found=li.ref();
       break;
@@ -1938,7 +1942,8 @@ int setup_conds(THD *thd,TABLE_LIST *tables,COND **conds)
 	// TODO: This could be optimized to use hashed names if t2 had a hash
 	for (j=0 ; j < t2->fields ; j++)
 	{
-	  if (!my_strcasecmp(t1->field[i]->field_name,
+	  if (!my_strcasecmp(system_charset_info,
+			     t1->field[i]->field_name,
 			     t2->field[j]->field_name))
 	  {
 	    Item_func_eq *tmp=new Item_func_eq(new Item_field(t1->field[i]),

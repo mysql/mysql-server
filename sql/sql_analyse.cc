@@ -163,7 +163,7 @@ bool test_if_number(NUM_INFO *info, const char *str, uint str_len)
 
   // MySQL removes any endspaces of a string, so we must take care only of
   // spaces in front of a string
-  for (; str != end && isspace(*str); str++) ;
+  for (; str != end && my_isspace(system_charset_info, *str); str++) ;
   if (str == end)
     return 0;
 
@@ -176,10 +176,10 @@ bool test_if_number(NUM_INFO *info, const char *str, uint str_len)
   else
     info->negative = 0;
   begin = str;
-  for (; str != end && isdigit(*str); str++)
+  for (; str != end && my_isdigit(system_charset_info,*str); str++)
   {
     if (!info->integers && *str == '0' && (str + 1) != end &&
-	isdigit(*(str + 1)))
+	my_isdigit(system_charset_info,*(str + 1)))
       info->zerofill = 1;	     // could be a postnumber for example
     info->integers++;
   }
@@ -205,7 +205,7 @@ bool test_if_number(NUM_INFO *info, const char *str, uint str_len)
       str++;
       if (*str != '-' && *str != '+')
 	return	0;
-      for (str++; str != end && isdigit(*str); str++) ;
+      for (str++; str != end && my_isdigit(system_charset_info,*str); str++) ;
       if (str == end)
       {
 	info->is_float = 1;	     // we can't use variable decimals here
@@ -220,7 +220,7 @@ bool test_if_number(NUM_INFO *info, const char *str, uint str_len)
       info->ullval = (ulonglong) strtoull(begin, NULL, 10);
       return 1;
     }
-    for (; str != end && isdigit(*str); str++)
+    for (; str != end && my_isdigit(system_charset_info,*str); str++)
       info->decimals++;
     if (str == end)
     {

@@ -985,7 +985,8 @@ get_mm_leaf(PARAM *param, Field *field, KEY_PART *key_part,
         like_error=like_range(res->ptr(),res->length(),wild_prefix,
 			      field_length,
                               min_str+offset,max_str+offset,
-                              max_sort_char,&min_length,&max_length);
+                              default_charset_info->max_sort_char,
+                              &min_length,&max_length);
     }
     if (like_error)				// Can't optimize with LIKE
       DBUG_RETURN(0);

@@ -896,8 +896,9 @@ Query_cache::send_result_to_client(THD *thd, char *sql, uint query_length)
     Test if the query is a SELECT
     (pre-space is removed in dispatch_command)
   */
-  if (toupper(sql[0]) != 'S' || toupper(sql[1]) != 'E' ||
-      toupper(sql[2]) !='L')
+  if (my_toupper(system_charset_info, sql[0]) != 'S' || 
+      my_toupper(system_charset_info, sql[1]) != 'E' ||
+      my_toupper(system_charset_info,sql[2]) !='L')
   {
     DBUG_PRINT("qcache", ("The statement is not a SELECT; Not cached"));
     goto err;

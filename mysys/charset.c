@@ -68,7 +68,7 @@ static my_bool get_word(struct simpleconfig_buf_st *fb, char *buf)
 
   for (;;)
   {
-    while (isspace(*endptr))
+    while (my_isspace(system_charset_info, *endptr))
       ++endptr;
     if (*endptr && *endptr != '#')		/* Not comment */
       break;					/* Found something */
@@ -77,7 +77,7 @@ static my_bool get_word(struct simpleconfig_buf_st *fb, char *buf)
     endptr = fb->buf;
   }
 
-  while (!isspace(*endptr))
+  while (!my_isspace(system_charset_info, *endptr))
     *buf++= *endptr++;
   *buf=0;
   fb->p = endptr;
@@ -540,11 +540,9 @@ void _print_csinfo(CHARSET_INFO *cs)
   printf("to_lower:\n"); _print_array(cs->to_lower, 256);
   printf("to_upper:\n"); _print_array(cs->to_upper, 256);
   printf("sort_order:\n"); _print_array(cs->sort_order, 256);
-  printf("collate:    %3s (%d, %p, %p, %p, %p, %p)\n",
+  printf("collate:    %3s (%d, %p, %p, %p)\n",
          cs->strxfrm_multiply ? "yes" : "no",
          cs->strxfrm_multiply,
-         cs->strcoll,
-         cs->strxfrm,
          cs->strnncoll,
          cs->strnxfrm,
          cs->like_range);

@@ -864,7 +864,8 @@ static int simple_raw_key_cmp(void* arg, byte* key1, byte* key2)
 
 static int simple_str_key_cmp(void* arg, byte* key1, byte* key2)
 {
-  return my_sortcmp((char*) key1, (char*) key2, *(uint*) arg);
+  /* BAR TODO: remove default_charset_info */
+  return my_sortcmp(default_charset_info,(char*) key1, (char*) key2, *(uint*) arg);
 }
 
 /*

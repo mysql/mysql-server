@@ -456,9 +456,9 @@ void init_parser()
 
 int hex_val(int c)
 {
-  if (isdigit(c))
+  if (my_isdigit(system_charset_info,c))
     return c - '0';
-  else if ((c = tolower(c)) >= 'a' && c <= 'f')
+  else if ((c = my_tolower(system_charset_info,c)) >= 'a' && c <= 'f')
     return c - 'a' + 10;
   else
     return -1;
@@ -569,7 +569,7 @@ VAR* var_get(const char* var_name, const char** var_name_end, my_bool raw,
   {
     const char* save_var_name = var_name, *end;
     end = (var_name_end) ? *var_name_end : 0;
-    while (isvar(*var_name) && var_name != end)
+    while (my_isvar(system_charset_info,*var_name) && var_name != end)
       ++var_name;
     if (var_name == save_var_name)
     {
@@ -729,7 +729,7 @@ int do_server_op(struct st_query* q,const char* op)
   com_p=strmov(com_p,"_exec ");
   if (!*p)
     die("Missing server name in server_%s\n",op);
-  while (*p && !isspace(*p))
+  while (*p && !my_isspace(system_charset_info,*p))
   {
    *com_p++=*p++;
   }
@@ -762,7 +762,7 @@ int do_require_version(struct st_query* q)
   if (!*p)
     die("Missing version argument in require_version\n");
   ver_arg = p;
-  while (*p && !isspace(*p))
+  while (*p && !my_isspace(system_charset_info,*p))
     p++;
   *p = 0;
   ver_arg_len = p - ver_arg;
@@ -792,7 +792,7 @@ int do_source(struct st_query* q)
   if (!*p)
     die("Missing file name in source\n");
   name = p;
-  while (*p && !isspace(*p))
+  while (*p && !my_isspace(system_charset_info,*p))
     p++;
   *p = 0;
 
@@ -1012,11 +1012,11 @@ int do_let(struct st_query* q)
   if (!*p)
     die("Missing variable name in let\n");
   var_name = p;
-  while(*p && (*p != '=' || isspace(*p)))
+  while(*p && (*p != '=' || my_isspace(system_charset_info,*p)))
     p++;
   var_name_end = p;
   if (*p == '=') p++;
-  while(*p && isspace(*p))
+  while(*p && my_isspace(system_charset_info,*p))
     p++;
   var_val_start = p;
   return var_set(var_name, var_name_end, var_val_start, q->end);
@@ -1047,7 +1047,7 @@ int do_sleep(struct st_query* q)
   char* p=q->first_argument;
   struct timeval t;
   int dec_mul = 1000000;
-  while(*p && isspace(*p)) p++;
+  while(*p && my_isspace(system_charset_info,*p)) p++;
   if (!*p)
     die("Missing argument in sleep\n");
   t.tv_usec = 0;
@@ -1067,7 +1067,7 @@ int do_sleep(struct st_query* q)
   else
   {
     t.tv_sec = atoi(p);
-    while(*p && *p != '.' && !isspace(*p))
+    while(*p && *p != '.' && !my_isspace(system_charset_info,*p))
       p++;
     if (*p == '.')
     {
@@ -1099,7 +1099,7 @@ static void get_file_name(char *filename, struct st_query* q)
   char* p=q->first_argument;
   strnmov(filename, p, FN_REFLEN);
   /* Remove end space */
-  while (p > filename && isspace(p[-1]))
+  while (p > filename && my_isspace(system_charset_info,p[-1]))
     p--;
   p[0]=0;
 }
@@ -1185,7 +1185,7 @@ static char *get_string(char **to_ptr, char **from_ptr,
   if (*from != ' ' && *from)
     die("Wrong string argument in %s\n", q->query);
 
-  while (isspace(*from))		/* Point to next string */
+  while (my_isspace(system_charset_info,*from))	/* Point to next string */
     from++;
 
   *to =0;				/* End of string marker */
@@ -1243,7 +1243,7 @@ static void get_replace(struct st_query *q)
     insert_pointer_name(&to_array,to);
   }
   for (i=1,pos=word_end_chars ; i < 256 ; i++)
-    if (isspace(i))
+    if (my_isspace(system_charset_info,i))
       *pos++=i;
   *pos=0;					/* End pointer */
   if (!(glob_replace=init_replace((char**) from_array.typelib.type_names,
@@ -1278,7 +1278,7 @@ int select_connection(struct st_query* q)
   if (!*p)
     die("Missing connection name in connect\n");
   name = p;
-  while(*p && !isspace(*p))
+  while(*p && !my_isspace(system_charset_info,*p))
     p++;
   *p = 0;
 
@@ -1304,7 +1304,7 @@ int close_connection(struct st_query* q)
   if (!*p)
     die("Missing connection name in connect\n");
   name = p;
-  while(*p && !isspace(*p))
+  while(*p && !my_isspace(system_charset_info,*p))
     p++;
   *p = 0;
 
@@ -1340,11 +1340,11 @@ int close_connection(struct st_query* q)
 char* safe_get_param(char* str, char** arg, const char* msg)
 {
   DBUG_ENTER("safe_get_param");
-  while (*str && isspace(*str)) str++;
+  while (*str && my_isspace(system_charset_info,*str)) str++;
   *arg = str;
   for (; *str && *str != ',' && *str != ')' ; str++)
   {
-    if (isspace(*str)) *str = 0;
+    if (my_isspace(system_charset_info,*str)) *str = 0;
   }
   if (!*str)
     die(msg);
@@ -1626,7 +1626,7 @@ int read_line(char* buf, int size)
       {
 	state = R_COMMENT;
       }
-      else if (isspace(c))
+      else if (my_isspace(system_charset_info,c))
       {
 	if (c == '\n')
 	  start_lineno= ++*lineno;		/* Query hasn't started yet */
@@ -1752,7 +1752,7 @@ int read_query(struct st_query** q_ptr)
       {
 	expected_errno = 0;
 	p++;
-	for (;isdigit(*p);p++)
+	for (;my_isdigit(system_charset_info,*p);p++)
 	  expected_errno = expected_errno * 10 + *p - '0';
 	q->expected_errno[0] = expected_errno;
 	q->expected_errno[1] = 0;
@@ -1760,25 +1760,25 @@ int read_query(struct st_query** q_ptr)
       }
     }
 
-    while(*p && isspace(*p)) p++ ;
+    while(*p && my_isspace(system_charset_info,*p)) p++ ;
     if (*p == '@')
     {
       p++;
       p1 = q->record_file;
-      while (!isspace(*p) &&
+      while (!my_isspace(system_charset_info,*p) &&
 	     p1 < q->record_file + sizeof(q->record_file) - 1)
 	*p1++ = *p++;
       *p1 = 0;
     }
   }
-  while (*p && isspace(*p)) p++;
+  while (*p && my_isspace(system_charset_info,*p)) p++;
   if (!(q->query_buf=q->query=my_strdup(p,MYF(MY_WME))))
     die(NullS);
 
   /* Calculate first word and first argument */
-  for (p=q->query; *p && !isspace(*p) ; p++) ;
+  for (p=q->query; *p && !my_isspace(system_charset_info,*p) ; p++) ;
   q->first_word_len = (uint) (p - q->query);
-  while (*p && isspace(*p)) p++;
+  while (*p && my_isspace(system_charset_info,*p)) p++;
   q->first_argument=p;
   q->end = strend(q->query);
   parser.read_lines++;

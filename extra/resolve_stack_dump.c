@@ -178,9 +178,9 @@ trace dump and specify the path to it with -s or --symbols-file");
 static uchar hex_val(char c)
 {
   uchar l;
-  if(isdigit(c))
+  if(my_isdigit(system_charset_info,c))
     return c - '0';
-  l = tolower(c);
+  l = my_tolower(system_charset_info,c);
   if(l < 'a' || l > 'f')
     return HEX_INVALID; 
   return (uchar)10 + ((uchar)c - (uchar)'a');
@@ -206,10 +206,10 @@ static int init_sym_entry(SYM_ENTRY* se, char* buf)
 
   if(!se->addr)
     return -1;
-  while(isspace(*buf++))
+  while ( my_isspace(system_charset_info,*buf++))
     /* empty */;
 
-  while(isspace(*buf++))
+  while (my_isspace(system_charset_info,*buf++))
     /* empty - skip more space */;
   --buf;
   /* now we are on the symbol */
@@ -293,7 +293,7 @@ static void do_resolve()
   while(fgets(buf, sizeof(buf), fp_dump))
     {
       p = buf;
-      while(isspace(*p))
+      while(my_isspace(system_charset_info,*p))
 	++p;
 	/* skip space */;
 

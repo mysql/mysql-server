@@ -107,13 +107,13 @@ FT_WORD * ft_linearize(TREE *wtree)
   DBUG_RETURN(wlist);
 }
 
-#define true_word_char(X)	(isalnum(X) || (X)=='_')
+#define true_word_char(s,X)	(my_isalnum(s,X) || (X)=='_')
 #ifdef HYPHEN_IS_DELIM
 #define misc_word_char(X)	((X)=='\'')
 #else
 #define misc_word_char(X)	((X)=='\'' || (X)=='-')
 #endif
-#define word_char(X)		(true_word_char(X) || misc_word_char(X))
+#define word_char(s,X)		(true_word_char(s,X) || misc_word_char(s,X))
 
 
 /* returns:
@@ -134,7 +134,11 @@ byte ft_get_word(byte **start, byte *end, FT_WORD *word, FTB_PARAM *param)
   {
     for (;doc<end;doc++)
     {
-      if (true_word_char(*doc)) break;
+      /* 
+        BAR TODO: discuss with Serge how to remove 
+        default_charset_info correctly
+      */
+      if (true_word_char(default_charset_info,*doc)) break;
       if (*doc == FTB_LBR || *doc == FTB_RBR)
       {
         /* param->prev=' '; */
@@ -156,7 +160,7 @@ byte ft_get_word(byte **start, byte *end, FT_WORD *word, FTB_PARAM *param)
 
     mwc=0;
     for (word->pos=doc; doc<end; doc++)
-      if (true_word_char(*doc))
+      if (true_word_char(default_charset_info,*doc))
         mwc=0;
       else if (!misc_word_char(*doc) || mwc++)
         break;
@@ -185,12 +189,12 @@ byte ft_simple_get_word(byte **start, byte *end, FT_WORD *word)
   {
     for (;doc<end;doc++)
     {
-      if (true_word_char(*doc)) break;
+      if (true_word_char(default_charset_info,*doc)) break;
     }
 
     mwc=0;
     for(word->pos=doc; doc<end; doc++)
-      if (true_word_char(*doc))
+      if (true_word_char(default_charset_info,*doc))
         mwc=0;
       else if (!misc_word_char(*doc) || mwc++)
         break;

@@ -280,7 +280,9 @@ int my_strxfrm_czech(uchar * dest, const uchar * src, int len)
 
 /* Function strnncoll, actually strcoll, with Czech sorting, which expect
    the length of the strings being specified */
-int my_strnncoll_czech(const uchar * s1, int len1, const uchar * s2, int len2)
+int my_strnncoll_czech(CHARSET_INFO *cs,
+                       const uchar * s1, uint len1, 
+                       const uchar * s2, uint len2)
 	{
 	int v1, v2;
 	const uchar * p1, * p2, * store1, * store2;
@@ -292,8 +294,8 @@ int my_strnncoll_czech(const uchar * s1, int len1, const uchar * s2, int len2)
 
 	do
 		{
-		NEXT_CMP_VALUE(s1, p1, store1, pass1, v1, len1);
-		NEXT_CMP_VALUE(s2, p2, store2, pass2, v2, len2);
+		NEXT_CMP_VALUE(s1, p1, store1, pass1, v1, (int)len1);
+		NEXT_CMP_VALUE(s2, p2, store2, pass2, v2, (int)len2);
 		diff = v1 - v2;
 
 		if (diff != 0)		return diff;
@@ -304,7 +306,9 @@ int my_strnncoll_czech(const uchar * s1, int len1, const uchar * s2, int len2)
 
 /* Function strnxfrm, actually strxfrm, with Czech sorting, which expect
    the length of the strings being specified */
-int my_strnxfrm_czech(uchar * dest, const uchar * src, int len, int srclen)
+int my_strnxfrm_czech(CHARSET_INFO *cs, 
+                      uchar * dest, uint len,
+                      const uchar * src, uint srclen)
 	{
 	int value;
 	const uchar * p, * store;
@@ -314,8 +318,8 @@ int my_strnxfrm_czech(uchar * dest, const uchar * src, int len, int srclen)
 
 	do
 		{
-		NEXT_CMP_VALUE(src, p, store, pass, value, srclen);
-		ADD_TO_RESULT(dest, len, totlen, value);
+		NEXT_CMP_VALUE(src, p, store, pass, value, (int)srclen);
+		ADD_TO_RESULT(dest, (int)len, totlen, value);
 		}
 	while (value);
 	return totlen;
@@ -372,7 +376,8 @@ int my_strnxfrm_czech(uchar * dest, const uchar * src, int len, int srclen)
 
 #define EXAMPLE
 
-my_bool my_like_range_czech(const char *ptr,uint ptr_length,pchar escape,
+my_bool my_like_range_czech(CHARSET_INFO *cs,
+                            const char *ptr,uint ptr_length,pchar escape,
 		            uint res_length, char *min_str,char *max_str,
 		            uint *min_length,uint *max_length)
 {
