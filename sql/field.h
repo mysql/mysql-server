@@ -211,6 +211,7 @@ public:
   virtual bool get_date(TIME *ltime,bool fuzzydate);
   virtual bool get_time(TIME *ltime);
   virtual CHARSET_INFO *charset(void) const { return &my_charset_bin; }
+  virtual bool has_charset(void) const { return FALSE; }
   virtual void set_charset(CHARSET_INFO *charset) { }
   virtual void set_warning(const unsigned int level, 
                            const unsigned int code);
@@ -277,12 +278,10 @@ public:
         flags|=BINARY_FLAG;
     }
   Item_result result_type () const { return STRING_RESULT; }
-  void add_binary_or_charset(String &res) const;
   uint decimals() const { return NOT_FIXED_DEC; }
   void make_field(Send_field *);
   uint size_of() const { return sizeof(*this); }
   CHARSET_INFO *charset(void) const { return field_charset; }
-
   void set_charset(CHARSET_INFO *charset) { field_charset=charset; }
   bool binary() const { return field_charset->state & MY_CS_BINSORT ? 1 : 0; }
   friend class create_field;
@@ -807,6 +806,7 @@ public:
   uint max_packed_col_length(uint max_length);
   uint size_of() const { return sizeof(*this); }
   enum_field_types real_type() const { return FIELD_TYPE_STRING; }
+  bool has_charset(void) const { return TRUE; }
 };
 
 
@@ -849,6 +849,7 @@ public:
   uint max_packed_col_length(uint max_length);
   uint size_of() const { return sizeof(*this); }
   enum_field_types real_type() const { return FIELD_TYPE_VAR_STRING; }
+  bool has_charset(void) const { return TRUE; }
 };
 
 
@@ -936,6 +937,8 @@ public:
   inline void clear_temporary() { bzero((char*) &value,sizeof(value)); }
   friend void field_conv(Field *to,Field *from);
   uint size_of() const { return sizeof(*this); }
+  bool has_charset(void) const 
+  { return charset() == &my_charset_bin ? FALSE : TRUE; }
 };
 
 
@@ -1004,6 +1007,7 @@ public:
   virtual bool zero_pack() const { return 0; }
   bool optimize_range(uint idx) { return 0; }
   bool eq_def(Field *field);
+  bool has_charset(void) const { return TRUE; }
 };
 
 
@@ -1028,6 +1032,7 @@ public:
   String *val_str(String*,String *);
   void sql_type(String &str) const;
   enum_field_types real_type() const { return FIELD_TYPE_SET; }
+  bool has_charset(void) const { return TRUE; }
 };
 
 

@@ -719,8 +719,8 @@ mysqld_show_fields(THD *thd, TABLE_LIST *table_list,const char *wild,
         protocol->store(field->field_name, system_charset_info);
         field->sql_type(type);
         protocol->store(type.ptr(), type.length(), system_charset_info);
-	protocol->store(field->charset()->name, system_charset_info);
-
+	protocol->store(field->has_charset() ? field->charset()->name : "NULL",
+			system_charset_info);
         pos=(byte*) ((flags & NOT_NULL_FLAG) &&
                      field->type() != FIELD_TYPE_TIMESTAMP ?
                      "" : "YES");
@@ -1073,22 +1073,35 @@ store_create_info(THD *thd, TABLE *table, String *packet)
     field->sql_type(type);
     packet->append(type.ptr(),type.length());
 
+    if (field->has_charset())
+    {
+      if (field->charset() == &my_charset_bin)
+        packet->append(" binary");
+      else if (!limited_mysql_mode && !foreign_db_mode)
+      {
+	if (field->charset() != table->table_charset)
+	{
+	  packet->append(" character set ");
+	  packet->append(field->charset()->csname);
+	}
+	/* 
+	  For string types dump collation name only if 
+	  collation is not primary for the given charset
+	*/
+	if (!(field->charset()->state & MY_CS_PRIMARY))
+	{
+	  packet->append(" collate ", 9);
+	  packet->append(field->charset()->name);
+	}
+      }
+    }
+
+    if (flags & NOT_NULL_FLAG)
+      packet->append(" NOT NULL", 9);
+
     bool has_default = (field->type() != FIELD_TYPE_BLOB &&
 			field->type() != FIELD_TYPE_TIMESTAMP &&
 			field->unireg_check != Field::NEXT_NUMBER);
-    
-    /* 
-      For string types dump collation name only if 
-      collation is not primary for the given charset
-    */
-    if (!(field->charset()->state & MY_CS_PRIMARY) &&
-	!limited_mysql_mode && !foreign_db_mode)
-    {
-      packet->append(" collate ", 9);
-      packet->append(field->charset()->name);
-    }
-    if (flags & NOT_NULL_FLAG)
-      packet->append(" NOT NULL", 9);
 
     if (has_default)
     {

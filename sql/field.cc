@@ -254,26 +254,6 @@ void Field_str::make_field(Send_field *field)
 }
 
 
-void Field_str::add_binary_or_charset(String &res) const
-{
-  if (charset() == &my_charset_bin)
-    res.append(" binary");
-  else  if (field_charset != table->table_charset &&
-	    !(current_thd->variables.sql_mode & MODE_NO_FIELD_OPTIONS) &&
-	    !(current_thd->variables.sql_mode & MODE_MYSQL323) &&
-	    !(current_thd->variables.sql_mode & MODE_MYSQL40) &&
-	    !(current_thd->variables.sql_mode & MODE_POSTGRESQL) &&
-	    !(current_thd->variables.sql_mode & MODE_ORACLE) &&
-	    !(current_thd->variables.sql_mode & MODE_MSSQL) &&
-	    !(current_thd->variables.sql_mode & MODE_DB2) &&
-	    !(current_thd->variables.sql_mode & MODE_SAPDB))
-  {
-    res.append(" character set ");
-    res.append(field_charset->csname);
-  }
-}
-
-
 uint Field::fill_cache_field(CACHE_FIELD *copy)
 {
   copy->str=ptr;
@@ -4027,7 +4007,6 @@ void Field_string::sql_type(String &res) const
 			     "varchar" : "char"),
 			    (int) field_length);
   res.length(length);
-  add_binary_or_charset(res);
 }
 
 
@@ -4194,7 +4173,6 @@ void Field_varstring::sql_type(String &res) const
 			     res.alloced_length(),"varchar(%u)",
 			     field_length);
   res.length(length);
-  add_binary_or_charset(res);
 }
 
 char *Field_varstring::pack(char *to, const char *from, uint max_length)
@@ -4640,11 +4618,6 @@ void Field_blob::sql_type(String &res) const
   else
   {
     res.append("text");
-    if (field_charset != table->table_charset)
-    {
-      res.append(" character set ");
-      res.append(field_charset->csname);
-    }
   }
 }
 
@@ -5098,7 +5071,6 @@ void Field_enum::sql_type(String &res) const
     flag=1;
   }
   res.append(')');
-  add_binary_or_charset(res);
 }
 
 
@@ -5243,7 +5215,6 @@ void Field_set::sql_type(String &res) const
     flag=1;
   }
   res.append(')');
-  add_binary_or_charset(res);
 }
 
 /* returns 1 if the fields are equally defined */
