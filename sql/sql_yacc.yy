@@ -1532,7 +1532,10 @@ select_option:
 	    Select->options|= OPTION_FOUND_ROWS;
 	  }
 	| SQL_NO_CACHE_SYM { current_thd->safe_to_cache_query=0; }
-	| SQL_CACHE_SYM    { Select->options|= OPTION_TO_QUERY_CACHE; }
+	| SQL_CACHE_SYM
+	  {
+	    Lex->select_lex.options|= OPTION_TO_QUERY_CACHE;
+	  }
 	| ALL		{}
 	;
 
