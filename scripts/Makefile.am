@@ -20,6 +20,7 @@ bin_SCRIPTS =		@server_scripts@ \
 			msql2mysql \
 			mysql_config \
 			mysql_fix_privilege_tables \
+                        mysql_fix_extensions \
 			mysql_setpermission \
 			mysql_zap \
 			mysqlaccess \
@@ -35,6 +36,7 @@ EXTRA_SCRIPTS =		make_binary_distribution.sh \
 			msql2mysql.sh \
 			mysql_config.sh \
 			mysql_fix_privilege_tables.sh \
+                        mysql_fix_extensions.sh \
 			mysql_install_db.sh \
 			mysql_setpermission.sh \
 			mysql_zap.sh \
@@ -61,6 +63,7 @@ CLEANFILES =		@server_scripts@ \
 			msql2mysql \
 			mysql_config \
 			mysql_fix_privilege_tables \
+                        mysql_fix_extensions \
 			mysql_setpermission \
 			mysql_zap \
 			mysqlaccess \

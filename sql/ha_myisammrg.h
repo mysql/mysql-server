@@ -35,7 +35,7 @@ class ha_myisammrg: public handler
   ulong option_flag() const
     { return (HA_REC_NOT_IN_SEQ | HA_READ_NEXT |
 	      HA_READ_PREV | HA_READ_RND_SAME |
-	      HA_HAVE_KEY_READ_ONLY | HA_NO_FULLTEXT_KEY |
+	      HA_HAVE_KEY_READ_ONLY |
 	      HA_KEYPOS_TO_RNDPOS | HA_READ_ORDER |
 	      HA_LASTKEY_ORDER | HA_READ_NOT_EXACT_KEY |
 	      HA_LONGLONG_KEYS | HA_NULL_KEY | HA_BLOB_KEY); }
