@@ -1,0 +1,7 @@
+#! /bin/sh
+
+# mwccnlm is having a hard time understanding "-I./../include"
+# convert it to "-I../include"
+args=" "`echo $* | sed -e 's/-I.\/../-I../g'`
+
+wine --debugmsg -all -- mwccnlm $args

@@ -1649,6 +1649,7 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
     new_db=db;
   used_fields=create_info->used_fields;
 
+  mysql_ha_closeall(thd, table_list);
   if (!(table=open_ltable(thd,table_list,TL_WRITE_ALLOW_READ)))
     DBUG_RETURN(-1);
 

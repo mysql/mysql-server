@@ -5,7 +5,7 @@
 	<key>IFPkgDescriptionDeleteWarning</key>
 	<string></string>
 	<key>IFPkgDescriptionDescription</key>
-	<string>This package provides a binary installation of MySQL @VERSION@@MYSQL_SERVER_SUFFIX@ for Mac OS X.</string>
+	<string>MySQL @VERSION@@MYSQL_SERVER_SUFFIX@ for Mac OS X</string>
 	<key>IFPkgDescriptionTitle</key>
 	<string>MySQL @VERSION@@MYSQL_SERVER_SUFFIX@ for Mac OS X</string>
 	<key>IFPkgDescriptionVersion</key>
