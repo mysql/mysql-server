@@ -14,11 +14,11 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-#include "NDBT_Test.hpp"
-#include "NDBT_ReturnCodes.h"
-#include "HugoTransactions.hpp"
-#include "UtilTransactions.hpp"
-#include "TestNdbEventOperation.hpp"
+#include <NDBT_Test.hpp>
+#include <NDBT_ReturnCodes.h>
+#include <HugoTransactions.hpp>
+#include <UtilTransactions.hpp>
+#include <TestNdbEventOperation.hpp>
 
 #define GETNDB(ps) ((NDBT_NdbApiStep*)ps)->getNdb()
 
@@ -263,7 +263,10 @@ int runEventApplier(NDBT_Context* ctx, NDBT_Step* step)
     //printf("now waiting for event...\n");
     res= GETNDB(step)->pollEvents(1000); // wait for event or 1000 ms
     if (res <= 0)
+    {
+      ndbout_c("********************");
       continue;
+    }
 
     //printf("got data! %d\n", r);
     int overrun= 0;
