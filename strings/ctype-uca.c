@@ -6653,6 +6653,9 @@ static const char spanish2[]=	/* Also good for Asturian and Galician */
     "&N < \\u00F1 <<< \\u00D1"
     "&R << rr <<< Rr <<< RR";
 
+static const char roman[]= /* i.e. Classical Latin */
+    "& I << j <<< J "
+    "& U << v <<< V ";
 
 /*
   Unicode Collation Algorithm:
@@ -8328,6 +8331,34 @@ CHARSET_INFO my_charset_ucs2_spanish2_uca_ci=
     &my_collation_ucs2_uca_handler
 };
 
+
+CHARSET_INFO my_charset_ucs2_roman_uca_ci=
+{
+    143,0,0,		/* number       */
+    MY_CS_COMPILED|MY_CS_STRNXFRM|MY_CS_UNICODE,
+    "ucs2",		/* cs name    */
+    "ucs2_roman_ci",	/* name         */
+    "",			/* comment      */
+    roman,		/* tailoring    */
+    NULL,		/* ctype        */
+    NULL,		/* to_lower     */
+    NULL,		/* to_upper     */
+    NULL,		/* sort_order   */
+    NULL,		/* contractions */
+    NULL,		/* sort_order_big*/
+    NULL,		/* tab_to_uni   */
+    NULL,		/* tab_from_uni */
+    NULL,		/* state_map    */
+    NULL,		/* ident_map    */
+    8,			/* strxfrm_multiply */
+    2,			/* mbminlen     */
+    2,			/* mbmaxlen     */
+    9,			/* min_sort_char */
+    0xFFFF,		/* max_sort_char */
+    &my_charset_ucs2_handler,
+    &my_collation_ucs2_uca_handler
+};
+
 #endif
 
 
@@ -8761,6 +8792,33 @@ CHARSET_INFO my_charset_utf8_spanish2_uca_ci=
     "utf8_spanish2_ci",	/* name         */
     "",			/* comment      */
     spanish2,		/* tailoring    */
+    ctype_utf8,		/* ctype        */
+    NULL,		/* to_lower     */
+    NULL,		/* to_upper     */
+    NULL,		/* sort_order   */
+    NULL,		/* contractions */
+    NULL,		/* sort_order_big*/
+    NULL,		/* tab_to_uni   */
+    NULL,		/* tab_from_uni */
+    NULL,		/* state_map    */
+    NULL,		/* ident_map    */
+    8,			/* strxfrm_multiply */
+    1,			/* mbminlen     */
+    2,			/* mbmaxlen     */
+    9,			/* min_sort_char */
+    0xFFFF,		/* max_sort_char */
+    &my_charset_utf8_handler,
+    &my_collation_any_uca_handler
+};
+
+CHARSET_INFO my_charset_utf8_roman_uca_ci=
+{
+    207,0,0,		/* number       */
+    MY_CS_COMPILED|MY_CS_STRNXFRM|MY_CS_UNICODE,
+    "utf8",		/* cs name    */
+    "utf8_roman_ci",	/* name         */
+    "",			/* comment      */
+    roman,		/* tailoring    */
     ctype_utf8,		/* ctype        */
     NULL,		/* to_lower     */
     NULL,		/* to_upper     */
