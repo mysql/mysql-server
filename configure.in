@@ -3114,7 +3114,6 @@ AC_CONFIG_FILES(ndb/Makefile ndb/include/Makefile dnl
    ndb/src/kernel/blocks/qmgr/Makefile dnl
    ndb/src/kernel/blocks/trix/Makefile dnl
    ndb/src/kernel/blocks/backup/Makefile dnl
-   ndb/src/kernel/blocks/backup/restore/Makefile dnl
    ndb/src/kernel/blocks/dbutil/Makefile dnl
    ndb/src/kernel/blocks/suma/Makefile dnl
    ndb/src/kernel/blocks/grep/Makefile dnl

@@ -23,12 +23,13 @@
 #include <NdbOut.hpp>
 #include <NdbSleep.h>
 #include <kernel/ndb_limits.h>
-#include "../include/mgmcommon/LocalConfig.hpp"
+#include <LocalConfig.hpp>
 
 #include <NDBT.hpp>
 
 int 
-waitClusterStatus(const char* _addr, ndb_mgm_node_status _status, unsigned int _timeout);
+waitClusterStatus(const char* _addr, ndb_mgm_node_status _status,
+		  unsigned int _timeout);
 
 static const char* opt_connect_str= 0;
 static int _no_contact = 0;
