@@ -219,7 +219,7 @@ main(int argc, const char ** argv){
       fflush(g_report_file);
     }    
 
-    if(g_mode_bench || (g_mode_regression && result)){
+    if(test_case.m_report || g_mode_bench || (g_mode_regression && result)){
       BaseString tmp;
       tmp.assfmt("result.%d", test_no);
       if(rename("result", tmp.c_str()) != 0){
@@ -228,7 +228,7 @@ main(int argc, const char ** argv){
 	goto end;
       }
     }
-
+    
     if(g_mode_interactive && result){
       g_logger.info
 	("Encountered failed test in interactive mode - terminating");
@@ -908,6 +908,11 @@ read_test_case(FILE * file, atrt_testcase& tc, int& line){
     tc.m_max_time = 60000;
   else
     tc.m_max_time = atoi(mt);
+
+  if(p.get("type", &mt) && strcmp(mt, "bench") == 0)
+    tc.m_report= true;
+  else
+    tc.m_report= false;
   
   return true;
 }
