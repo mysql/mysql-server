@@ -27,6 +27,11 @@
 extern const char* any_db;
 extern pthread_handler_decl(handle_slave,arg);
 
+#ifndef DBUG_OFF
+int max_binlog_dump_events = 0; // unlimited
+bool opt_sporadic_binlog_dump_fail = 0;
+static int binlog_dump_count = 0;
+#endif
 
 static int fake_rotate_event(NET* net, String* packet, char* log_file_name,
 			     const char**errmsg)
@@ -265,7 +270,18 @@ void mysql_binlog_send(THD* thd, char* log_ident, ulong pos, ushort flags)
   int error;
   const char *errmsg = "Unknown error";
   NET* net = &thd->net;
+#ifndef DBUG_OFF
+  int left_events = max_binlog_dump_events;
+#endif  
   DBUG_ENTER("mysql_binlog_send");
+
+#ifndef DBUG_OFF
+  if (opt_sporadic_binlog_dump_fail && (binlog_dump_count++ % 2))
+  {
+    errmsg = "Master failed COM_BINLOG_DUMP to test if slave can recover";
+    goto err;
+  }
+#endif  
 
   bzero((char*) &log,sizeof(log));
 
@@ -325,6 +341,14 @@ void mysql_binlog_send(THD* thd, char* log_ident, ulong pos, ushort flags)
       
     while (!(error = Log_event::read_log_event(&log, packet, log_lock)))
     {
+#ifndef DBUG_OFF
+      if(max_binlog_dump_events && !left_events--)
+      {
+	net_flush(net);
+	errmsg = "Debugging binlog dump abort";
+	goto err;
+      }
+#endif      
       if (my_net_write(net, (char*)packet->ptr(), packet->length()) )
       {
 	errmsg = "Failed on my_net_write()";
@@ -398,6 +422,15 @@ void mysql_binlog_send(THD* thd, char* log_ident, ulong pos, ushort flags)
 	pthread_mutex_unlock(&thd->mysys_var->mutex);
 
 	bool read_packet = 0, fatal_error = 0;
+
+#ifndef DBUG_OFF
+	if(max_binlog_dump_events && !left_events--)
+	{
+	  net_flush(net);
+	  errmsg = "Debugging binlog dump abort";
+	  goto err;
+	}
+#endif      
 
 	// no one will update the log while we are reading
 	// now, but we'll be quick and just read one record

@@ -37,9 +37,12 @@ From: $FROM
 To: $INTERNALS
 Subject: bk commit into 3.23 tree
 
-Below is the list of changes that have just been pushed into main
-3.23. repository. For information on how to access the repository
-see http://www.mysql.com/doc/I/n/Installing_source_tree.html
+Below is the list of changes that have just been commited into a local
+3.23. repository of $USER. When $USER does a push, they will be
+propogaged to the main repository and within 24 hours after the push into
+the public repository. For information on how to access
+the public repository see
+http://www.mysql.com/doc/I/n/Installing_source_tree.html
 
 EOF
   bk changes -v -r+
