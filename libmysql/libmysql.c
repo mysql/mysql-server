@@ -1845,6 +1845,23 @@ error:
   DBUG_RETURN(0);
 }
 
+/* needed when we move MYSQL structure to a different address */
+static void mysql_fix_pointers(MYSQL* mysql, MYSQL* old_mysql)
+{
+  MYSQL *tmp, *tmp_prev;
+  if (mysql->master == old_mysql)
+    mysql->master = mysql;
+  if (mysql->last_used_con == old_mysql)
+    mysql->last_used_con = mysql;
+  if (mysql->last_used_slave == old_mysql)
+    mysql->last_used_slave = mysql;
+  for (tmp_prev = mysql, tmp = mysql->next_slave;
+       tmp != old_mysql;tmp = tmp->next_slave)
+  {
+    tmp_prev = tmp;
+  }
+  tmp_prev->next_slave = mysql;
+}
 
 static my_bool mysql_reconnect(MYSQL *mysql)
 {
@@ -1860,6 +1877,7 @@ static my_bool mysql_reconnect(MYSQL *mysql)
   }
   mysql_init(&tmp_mysql);
   tmp_mysql.options=mysql->options;
+  tmp_mysql.rpl_pivot = mysql->rpl_pivot;
   if (!mysql_real_connect(&tmp_mysql,mysql->host,mysql->user,mysql->passwd,
 			  mysql->db, mysql->port, mysql->unix_socket,
 			  mysql->client_flag))
@@ -1869,6 +1887,7 @@ static my_bool mysql_reconnect(MYSQL *mysql)
   bzero((char*) &mysql->options,sizeof(mysql->options));
   mysql_close(mysql);
   *mysql=tmp_mysql;
+  mysql_fix_pointers(mysql, &tmp_mysql); /* adjust connection pointers */  
   net_clear(&mysql->net);
   mysql->affected_rows= ~(my_ulonglong) 0;
   DBUG_RETURN(0);
