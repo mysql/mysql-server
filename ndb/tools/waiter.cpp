@@ -31,17 +31,22 @@ waitClusterStatus(const char* _addr, ndb_mgm_node_status _status,
 		  unsigned int _timeout);
 
 enum ndb_waiter_options {
-  NDB_STD_OPTS_OPTIONS
+  NDB_STD_OPTS_OPTIONS,
+  OPT_WAIT_STATUS_NOT_STARTED
 };
 NDB_STD_OPTS_VARS;
 
 static int _no_contact = 0;
+static int _not_started = 0;
 static int _timeout = 120;
 static struct my_option my_long_options[] =
 {
   NDB_STD_OPTS("ndb_desc"),
   { "no-contact", 'n', "Wait for cluster no contact",
     (gptr*) &_no_contact, (gptr*) &_no_contact, 0,
+    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 }, 
+  { "not-started", OPT_WAIT_STATUS_NOT_STARTED, "Wait for cluster not started",
+    (gptr*) &_not_started, (gptr*) &_not_started, 0,
     GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 }, 
   { "timeout", 't', "Timeout to wait",
     (gptr*) &_timeout, (gptr*) &_timeout, 0,
@@ -91,12 +96,22 @@ int main(int argc, char** argv){
   if (_hostName == 0)
     _hostName= opt_connect_str;
 
-  if (_no_contact) {
-    if (waitClusterStatus(_hostName, NDB_MGM_NODE_STATUS_NO_CONTACT, _timeout) != 0)
-      return NDBT_ProgramExit(NDBT_FAILED);
-  } else if (waitClusterStatus(_hostName, NDB_MGM_NODE_STATUS_STARTED, _timeout) != 0)
-    return NDBT_ProgramExit(NDBT_FAILED);
+  enum ndb_mgm_node_status wait_status;
+  if (_no_contact)
+  {
+    wait_status= NDB_MGM_NODE_STATUS_NO_CONTACT;
+  }
+  else if (_not_started)
+  {
+    wait_status= NDB_MGM_NODE_STATUS_NOT_STARTED;
+  }
+  else 
+  {
+    wait_status= NDB_MGM_NODE_STATUS_STARTED;
+  }
 
+  if (waitClusterStatus(_hostName, wait_status, _timeout) != 0)
+    return NDBT_ProgramExit(NDBT_FAILED);
   return NDBT_ProgramExit(NDBT_OK);
 }
 

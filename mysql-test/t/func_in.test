@@ -80,6 +80,11 @@ create table t1 (a char(10) character set utf8 not null);
 insert into t1 values ('bbbb'),(_koi8r'ÃÃÃÃ'),(_latin1'ÄÄÄÄ');
 select a from t1 where a in ('bbbb',_koi8r'ÃÃÃÃ',_latin1'ÄÄÄÄ') order by a;
 drop table t1;
+# Bug#7834 Illegal mix of collations in IN operator
+create table t1 (a char(10) character set latin1 not null);
+insert into t1 values ('a'),('b'),('c');
+select a from t1 where a IN ('a','b','c') order by a;
+drop table t1;
 set names latin1;
 
 select '1.0' in (1,2);
