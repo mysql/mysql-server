@@ -2794,7 +2794,7 @@ row_search_for_mysql(
 	rec_t*		index_rec;
 	rec_t*		clust_rec;
 	rec_t*		old_vers;
-	ulint		err;
+	ulint		err             = DB_SUCCESS;
 	ibool		moved;
 	ibool		cons_read_requires_clust_rec;
 	ibool		was_lock_wait;
@@ -3203,26 +3203,20 @@ rec_loop:
 		if (prebuilt->select_lock_type != LOCK_NONE
 		    && set_also_gap_locks) {
 
-			/* Try to place a lock on the index record */	
+			/* Try to place a lock on the index record */
 
-                        /* If innodb_locks_unsafe_for_binlog option is used, 
-                           we lock only the record, i.e. next-key locking is
-                           not used.
-	                */
-	                if ( srv_locks_unsafe_for_binlog )
-	                {
-			    err = sel_set_rec_lock(rec, index,
-						prebuilt->select_lock_type,
-						LOCK_REC_NOT_GAP, thr);
-			}
-			else
+			/* If innodb_locks_unsafe_for_binlog option is used,
+			we do not lock gaps. Supremum record is really
+			a gap and therefore we do not set locks there. */
+			
+			if ( srv_locks_unsafe_for_binlog == FALSE )
 			{
-			    err = sel_set_rec_lock(rec, index,
+				err = sel_set_rec_lock(rec, index,
 						prebuilt->select_lock_type,
 						LOCK_ORDINARY, thr);
 			}
-			
-                        if (err != DB_SUCCESS) {
+
+			if (err != DB_SUCCESS) {
 
 				goto lock_wait_or_error;
 			}
