@@ -1012,7 +1012,7 @@ bool Item::send(Protocol *protocol, String *buffer)
   {
     String *res;
     if ((res=val_str(buffer)))
-      result= protocol->store(res->ptr(),res->length());
+      result= protocol->store(res->ptr(),res->length(),res->charset());
     break;
   }
   case MYSQL_TYPE_TINY:

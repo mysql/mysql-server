@@ -77,10 +77,10 @@ static void mi_check_print_msg(MI_CHECK *param,	const char* msg_type,
   length=(uint) (strxmov(name, param->db_name,".",param->table_name,NullS) -
 		 name);
   protocol->prepare_for_resend();
-  protocol->store(name, length);
-  protocol->store(param->op_name);
-  protocol->store(msg_type);
-  protocol->store(msgbuf, msg_length);
+  protocol->store(name, length, system_charset_info);
+  protocol->store(param->op_name, system_charset_info);
+  protocol->store(msg_type, system_charset_info);
+  protocol->store(msgbuf, msg_length, system_charset_info);
   if (protocol->write())
     sql_print_error("Failed on my_net_write, writing to stderr instead: %s\n",
 		    msgbuf);
