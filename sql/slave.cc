@@ -1191,7 +1191,7 @@ pthread_handler_decl(handle_slave,arg __attribute__((unused)))
   pthread_cond_broadcast(&COND_slave_start);
   pthread_mutex_unlock(&LOCK_slave);
   
-  int error = 1;
+  // int error = 1;
   bool retried_once = 0;
   ulonglong last_failed_pos = 0;
   
@@ -1369,7 +1369,7 @@ the slave thread with \"mysqladmin start-slave\". We stopped at log \
 	}
     }
 
-  error = 0;
+  // error = 0;
  err:
   // print the current replication position 
   sql_print_error("Slave thread exiting, replication stopped in log '%s' at \

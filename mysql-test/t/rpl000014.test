@@ -4,14 +4,18 @@ show master status;
 save_master_pos;
 connection slave;
 sync_with_master;
+--replace_result 9306 9999 3334 9999 3335 9999
 show slave status;
 change master to master_log_pos=73;
 slave stop;
 change master to master_log_pos=73;
+--replace_result 9306 9999 3334 9999 3335 9999
 show slave status;
 slave start;
+--replace_result 9306 9999 3334 9999 3335 9999
 show slave status;
 change master to master_log_pos=173;
+--replace_result 9306 9999 3334 9999 3335 9999
 show slave status;
 connection master;
 show master status;

@@ -97,9 +97,8 @@ que_node_t */
 #define YYSTYPE que_node_t*
 #define alloca	mem_alloc
 
-#include <math.h>
-
 #include "univ.i"
+#include <math.h>
 #include "pars0pars.h"
 #include "mem0mem.h"
 #include "que0types.h"
