@@ -268,8 +268,6 @@ protected:
 			      Query_cache_block *query_block);
   void invalidate_table(TABLE_LIST *table);
   void invalidate_table(TABLE *table);
-  void invalidate_table_in_db(Query_cache_block *table_block,
-			      char *db);
   void invalidate_table(Query_cache_block *table_block);
   my_bool register_all_tables(Query_cache_block *block,
 			      TABLE_LIST *tables_used,

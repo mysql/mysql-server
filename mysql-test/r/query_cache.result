@@ -2,7 +2,7 @@ flush query cache;
 flush query cache;
 reset query cache;
 flush status;
-drop table if exists t1,t2,t3;
+drop table if exists t1,t2,t3,t11,t21;
 create table t1 (a int not null);
 insert into t1 values (1),(2),(3);
 select * from t1;
@@ -173,6 +173,59 @@ show status like "Qcache_free_blocks";
 Variable_name	Value
 Qcache_free_blocks	1
 drop table t1, t2;
+create table t1 (a text not null);
+create table t11 (a text not null);
+create table t2 (a text not null);
+create table t21 (a text not null);
+create table t3 (a text not null);
+insert into t1 values("1111111111111111111111111111111111111111111111111111");
+insert into t11 select * from t1;
+insert into t21 select * from t1;
+insert into t2 select * from t1;
+insert into t1 select * from t2;
+insert into t2 select * from t1;
+insert into t1 select * from t2;
+insert into t2 select * from t1;
+insert into t1 select * from t2;
+insert into t2 select * from t1;
+insert into t1 select * from t2;
+insert into t2 select * from t1;
+insert into t1 select * from t2;
+insert into t2 select * from t1;
+insert into t1 select * from t2;
+insert into t2 select * from t1;
+insert into t1 select * from t2;
+insert into t2 select * from t1;
+insert into t1 select * from t2;
+insert into t2 select * from t1;
+insert into t1 select * from t2;
+insert into t3 select * from t1;
+insert into t3 select * from t2;
+insert into t3 select * from t1;
+select * from t11;
+select * from t21;
+show status like "Qcache_total_blocks";
+Variable_name	Value
+Qcache_total_blocks	7
+show status like "Qcache_free_blocks";
+Variable_name	Value
+Qcache_free_blocks	1
+insert into t11 values("");
+select * from t3;
+show status like "Qcache_total_blocks";
+Variable_name	Value
+Qcache_total_blocks	8
+show status like "Qcache_free_blocks";
+Variable_name	Value
+Qcache_free_blocks	1
+flush query cache;
+show status like "Qcache_total_blocks";
+Variable_name	Value
+Qcache_total_blocks	7
+show status like "Qcache_free_blocks";
+Variable_name	Value
+Qcache_free_blocks	1
+drop table t1, t2, t3, t11, t21;
 set sql_query_cache_type=demand;
 create table t1 (a int not null);
 insert into t1 values (1),(2),(3);
@@ -264,7 +317,6 @@ insert into t2 select * from t1;
 insert into t1 select * from t2;
 insert into t2 select * from t1;
 insert into t1 select * from t2;
-drop table t2;
 show status like "Qcache_hits";
 Variable_name	Value
 Qcache_hits	4
@@ -279,4 +331,48 @@ show status like "Qcache_queries_in_cache";
 Variable_name	Value
 Qcache_queries_in_cache	2
 reset query cache;
+insert into t2 select * from t1;
+insert into t1 select * from t2;
+insert into t2 select * from t1;
+insert into t1 select * from t2;
+insert into t2 select * from t1;
+insert into t1 select * from t2;
+insert into t2 select * from t1;
+insert into t1 select * from t2;
+insert into t2 select * from t1;
+insert into t1 select * from t2;
+select * from t1;
+show status like "Qcache_queries_in_cache";
+Variable_name	Value
+Qcache_queries_in_cache	0
+drop table t1,t2;
+create database foo;
+create table foo.t1 (i int not null auto_increment, a int, primary key (i));
+insert into foo.t1 (a) values (1);
+select * from foo.t1 where i is null;
+i	a
+1	1
+select * from foo.t1;
+i	a
+1	1
+show status like "Qcache_queries_in_cache";
+Variable_name	Value
+Qcache_queries_in_cache	1
+drop database foo;
+show status like "Qcache_queries_in_cache";
+Variable_name	Value
+Qcache_queries_in_cache	0
+create table t1 (a char(1) not null);
+insert into t1 values("á");
+select * from t1;
+a
+á
+set CHARACTER SET cp1251_koi8;
+select * from t1;
+a
+À
+set CHARACTER SET DEFAULT;
+show status like "Qcache_queries_in_cache";
+Variable_name	Value
+Qcache_queries_in_cache	2
 drop table t1;

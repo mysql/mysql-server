@@ -8,7 +8,7 @@ flush query cache; # This crashed in some versions
 flush query cache; # This crashed in some versions
 reset query cache;
 flush status;
-drop table if exists t1,t2,t3;
+drop table if exists t1,t2,t3,t11,t21;
 
 #
 # First simple test
@@ -86,6 +86,53 @@ show status like "Qcache_free_blocks";
 flush query cache;
 show status like "Qcache_free_blocks";
 drop table t1, t2;
+# With join results...
+create table t1 (a text not null);
+create table t11 (a text not null);
+create table t2 (a text not null);
+create table t21 (a text not null);
+create table t3 (a text not null);
+insert into t1 values("1111111111111111111111111111111111111111111111111111");
+insert into t11 select * from t1;
+insert into t21 select * from t1;
+insert into t2 select * from t1;
+insert into t1 select * from t2;
+insert into t2 select * from t1;
+insert into t1 select * from t2;
+insert into t2 select * from t1;
+insert into t1 select * from t2;
+insert into t2 select * from t1;
+insert into t1 select * from t2;
+insert into t2 select * from t1;
+insert into t1 select * from t2;
+insert into t2 select * from t1;
+insert into t1 select * from t2;
+insert into t2 select * from t1;
+insert into t1 select * from t2;
+insert into t2 select * from t1;
+insert into t1 select * from t2;
+insert into t2 select * from t1;
+insert into t1 select * from t2;
+#results of t3 must  be > 0.5Mb
+insert into t3 select * from t1;
+insert into t3 select * from t2;
+insert into t3 select * from t1;
+disable_result_log;
+select * from t11;
+select * from t21;
+enable_result_log;
+show status like "Qcache_total_blocks";
+show status like "Qcache_free_blocks";
+disable_result_log;
+insert into t11 values("");
+select * from t3;
+enable_result_log;
+show status like "Qcache_total_blocks";
+show status like "Qcache_free_blocks";
+flush query cache;
+show status like "Qcache_total_blocks";
+show status like "Qcache_free_blocks";
+drop table t1, t2, t3, t11, t21;
 #
 # SELECT SQL_CACHE ...
 #
@@ -154,7 +201,6 @@ insert into t2 select * from t1; # 987
 insert into t1 select * from t2; # 1597
 insert into t2 select * from t1; # 2584
 insert into t1 select * from t2; # 4181
-drop table t2;
 
 show status like "Qcache_hits";
 disable_result_log;
@@ -167,6 +213,50 @@ enable_result_log;
 show status like "Qcache_hits";
 show status like "Qcache_queries_in_cache";
 reset query cache;
+#
+# Query bigger then query_cache_limit
+#
+insert into t2 select * from t1;
+insert into t1 select * from t2;
+insert into t2 select * from t1;
+insert into t1 select * from t2;
+insert into t2 select * from t1;
+insert into t1 select * from t2;
+insert into t2 select * from t1;
+insert into t1 select * from t2;
+insert into t2 select * from t1;
+insert into t1 select * from t2;
+disable_result_log;
+select * from t1;
+enable_result_log;
+show status like "Qcache_queries_in_cache";
+drop table t1,t2;
+
+#
+# noncachable ODBC work around (and prepare cache for drop database)
+#
+create database foo;
+create table foo.t1 (i int not null auto_increment, a int, primary key (i));
+insert into foo.t1 (a) values (1);
+select * from foo.t1 where i is null;
+
+#
+# drop db
+#
+select * from foo.t1;
+show status like "Qcache_queries_in_cache";
+drop database foo;
+show status like "Qcache_queries_in_cache";
+#
+# Charset convertion (cp1251_koi8 always present)
+#
+create table t1 (a char(1) not null);
+insert into t1 values("á");
+select * from t1;
+set CHARACTER SET cp1251_koi8;
+select * from t1;
+set CHARACTER SET DEFAULT;
+show status like "Qcache_queries_in_cache";
 drop table t1;
 
 # The following tests can't be done as the values differen on 32 and 64 bit

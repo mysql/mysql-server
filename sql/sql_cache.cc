@@ -1737,18 +1737,6 @@ void Query_cache::invalidate_table(TABLE *table)
     invalidate_table(table_block);
 }
 
-void Query_cache::invalidate_table_in_db(Query_cache_block *table_block,
-					 char *db)
-{
-  /*
-    table key consist of data_base_name + '\0' + table_name +'\0'...
-    => we may use strcmp to compare database names.
-  */
-  if (strcmp(db, (char*)(table_block->table()->db())) == 0)
-    invalidate_table(table_block);
-}
-
-
 void Query_cache::invalidate_table(Query_cache_block *table_block)
 {
   Query_cache_block_table *list_root =	table_block->table(0);
