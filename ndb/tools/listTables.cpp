@@ -216,7 +216,6 @@ int main(int argc, const char** argv){
 
   ndb_cluster_connection = new Ndb_cluster_connection(_connect_str);
   ndb = new Ndb(ndb_cluster_connection, _dbname);
-  ndb->useFullyQualifiedNames(!_unqualified);
   if (ndb->init() != 0)
     fatal("init");
   ndb_cluster_connection->connect();
