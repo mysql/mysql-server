@@ -205,17 +205,6 @@ int main(int argc, char** argv)
   
   socket_server.startServer();
 
-  struct ndb_mgm_reply mgm_reply;
-  for(unsigned int i=0;i<globalTransporterRegistry.m_transporter_interface.size();i++)
-    ndb_mgm_set_connection_int_parameter(theConfig->get_config_retriever()->get_mgmHandle(),
-					 globalTransporterRegistry.get_localNodeId(),
-					 globalTransporterRegistry.m_transporter_interface[i].m_remote_nodeId,
-					 CFG_CONNECTION_SERVER_PORT,
-					 globalTransporterRegistry.m_transporter_interface[i].m_s_service_port,
-					 &mgm_reply);
-
-
-
   //  theConfig->closeConfiguration();
 
   globalEmulatorData.theThreadConfig->ipControlLoop();
