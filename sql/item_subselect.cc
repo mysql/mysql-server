@@ -96,7 +96,7 @@ bool Item_subselect::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
     // Is it one field subselect?
     if (engine->cols() > max_columns)
     {  
-      my_message(ER_SUBSELECT_NO_1_COL, ER(ER_SUBSELECT_NO_1_COL), MYF(0));
+      my_error(ER_CARDINALITY_COL, MYF(0), 1);
       return 1;
     }
     fix_length_and_dec();

@@ -32,6 +32,7 @@ class Item_func :public Item_result_field
 {
 protected:
   Item **args,*tmp_arg[2];
+  uint allowed_arg_cols;
 public:
   uint arg_count;
   table_map used_tables_cache;
@@ -49,25 +50,27 @@ public:
   enum optimize_type { OPTIMIZE_NONE,OPTIMIZE_KEY,OPTIMIZE_OP, OPTIMIZE_NULL };
   enum Type type() const { return FUNC_ITEM; }
   virtual enum Functype functype() const   { return UNKNOWN_FUNC; }
-  Item_func(void)
+  Item_func(void):
+    allowed_arg_cols(1), arg_count(0)
   {
-    arg_count=0; with_sum_func=0;
+    with_sum_func=0;
   }
-  Item_func(Item *a)
+  Item_func(Item *a):
+    allowed_arg_cols(1), arg_count(1)
   {
-    arg_count=1;
     args=tmp_arg;
     args[0]=a;
     with_sum_func=a->with_sum_func;
   }
-  Item_func(Item *a,Item *b)
+  Item_func(Item *a,Item *b):
+    allowed_arg_cols(1), arg_count(2)
   {
-    arg_count=2;
     args=tmp_arg;
     args[0]=a; args[1]=b;
     with_sum_func=a->with_sum_func || b->with_sum_func;
   }
-  Item_func(Item *a,Item *b,Item *c)
+  Item_func(Item *a,Item *b,Item *c):
+    allowed_arg_cols(1)
   {
     arg_count=0;
     if ((args=(Item**) sql_alloc(sizeof(Item*)*3)))
@@ -77,7 +80,8 @@ public:
       with_sum_func=a->with_sum_func || b->with_sum_func || c->with_sum_func;
     }
   }
-  Item_func(Item *a,Item *b,Item *c,Item *d)
+  Item_func(Item *a,Item *b,Item *c,Item *d):
+    allowed_arg_cols(1)
   {
     arg_count=0;
     if ((args=(Item**) sql_alloc(sizeof(Item*)*4)))
@@ -88,7 +92,8 @@ public:
 	d->with_sum_func;
     }
   }
-  Item_func(Item *a,Item *b,Item *c,Item *d,Item* e)
+  Item_func(Item *a,Item *b,Item *c,Item *d,Item* e):
+    allowed_arg_cols(1)
   {
     arg_count=5;
     if ((args=(Item**) sql_alloc(sizeof(Item*)*5)))
@@ -602,7 +607,8 @@ public:
   longlong val_int();
   bool fix_fields(THD *thd,struct st_table_list *tlist, Item **ref)
   {
-    return (item->fix_fields(thd, tlist, &item) ||
+    return (item->check_cols(1) ||
+	    item->fix_fields(thd, tlist, &item) ||
 	    Item_func::fix_fields(thd, tlist, ref));
   }
   void update_used_tables()

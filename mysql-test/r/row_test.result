@@ -1,0 +1,45 @@
+SELECT (1,2,3)=(1,2,3);
+(1,2,3)=(1,2,3)
+1
+SELECT (2,2,3)=(1+1,2,3);
+(2,2,3)=(1+1,2,3)
+1
+SELECT (1,2,3)=(1+1,2,3);
+(1,2,3)=(1+1,2,3)
+0
+SELECT (1,2,3)<(1+1,2,3);
+(1,2,3)<(1+1,2,3)
+1
+SELECT (1,2,3)>(1+1,2,3);
+(1,2,3)>(1+1,2,3)
+0
+SELECT (1,2,3)<=(1+1,2,3);
+(1,2,3)<=(1+1,2,3)
+1
+SELECT (1,2,3)>=(1+1,2,3);
+(1,2,3)>=(1+1,2,3)
+0
+SELECT (1,2,3)<>(1+1,2,3);
+(1,2,3)<>(1+1,2,3)
+1
+SELECT (1,2,(3,4,5))=(1,2,(3,4,5));
+(1,2,(3,4,5))=(1,2,(3,4,5))
+1
+SELECT ('test',2,3.33)=('test',2,3.33);
+('test',2,3.33)=('test',2,3.33)
+1
+SELECT ('test',2,3.33)=('test',2,3.33,4);
+Cardinality error (more/less than 4 columns)
+drop table if exists t1;
+create table t1 ( a int, b int, c int);
+insert into t1 values (1,2,3), (2,3,1), (3,2,1);
+select * from t1 where (1,2,3)=(a,b,c);
+a	b	c
+1	2	3
+select * from t1 where (0,2,3)=(a,b,c);
+a	b	c
+select * from t1 where (1,2,3)<(a,b,c);
+a	b	c
+2	3	1
+3	2	1
+drop table t1;

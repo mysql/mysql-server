@@ -59,6 +59,16 @@ bool Item::check_loop(uint id)
   DBUG_RETURN(0);
 }
 
+bool Item::check_cols(uint c)
+{
+  if (c != 1)
+  {
+    my_error(ER_CARDINALITY_COL, MYF(0), 1);
+    return 1;
+  }
+  return 0;
+}
+
 void Item::set_name(const char *str,uint length)
 {
   if (!length)
@@ -1010,6 +1020,8 @@ bool Item_ref::fix_fields(THD *thd,TABLE_LIST *tables, Item **reference)
     return 1;
   }
   fixed= 1;
+  if (ref && (*ref)->check_cols(1))
+    return 1;
   return 0;
 }
 
@@ -1032,6 +1044,8 @@ Item_result item_cmp_type(Item_result a,Item_result b)
     return STRING_RESULT;
   else if (a == INT_RESULT && b == INT_RESULT)
     return INT_RESULT;
+  else if (a == ROW_RESULT || b == ROW_RESULT)
+    return ROW_RESULT;
   else
     return REAL_RESULT;
 }
