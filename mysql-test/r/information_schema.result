@@ -571,8 +571,11 @@ where table_schema='information_schema' limit 2;
 TABLE_NAME	TABLE_TYPE	ENGINE
 SCHEMATA	TEMPORARY	MyISAM
 TABLES	TEMPORARY	MyISAM
-show tables from information_schema like "t%";
-Tables_in_information_schema (t%)
+show tables from information_schema like "T%";
+Tables_in_information_schema (T%)
+TABLES
+TABLE_PRIVILEGES
+TABLE_CONSTRAINTS
 create database information_schema;
 ERROR HY000: Can't create database 'information_schema'; database exists
 use information_schema;

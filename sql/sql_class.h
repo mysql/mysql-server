@@ -1280,6 +1280,7 @@ public:
     unit= u;
     return 0;
   }
+  virtual int prepare2(void) { return 0; }
   /*
     Because of peculiarities of prepared statements protocol
     we need to know number of columns in the result set (if
@@ -1379,6 +1380,7 @@ class select_insert :public select_result_interceptor {
 		enum_duplicates duplic, bool ignore);
   ~select_insert();
   int prepare(List<Item> &list, SELECT_LEX_UNIT *u);
+  int prepare2(void);
   bool send_data(List<Item> &items);
   virtual void store_values(List<Item> &values);
   void send_error(uint errcode,const char *err);

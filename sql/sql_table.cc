@@ -1977,10 +1977,10 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
   for (table= tables; table; table= table->next_local)
   {
     char table_name[NAME_LEN*2+2];
-    char* db = (table->db) ? table->db : thd->db;
+    char* db = table->db;
     bool fatal_error=0;
-    strxmov(table_name,db ? db : "",".",table->table_name,NullS);
 
+    strxmov(table_name, db, ".", table->table_name, NullS);
     thd->open_options|= extra_open_options;
     table->lock_type= lock_type;
     /* open only one table from local list of command */
@@ -3375,7 +3375,8 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
     }
     /* Remove link to old table and rename the new one */
     close_temporary_table(thd, table->s->db, table_name);
-    if (rename_temporary_table(thd, new_table, new_db, new_alias))
+    /* Should pass the 'new_name' as we store table name in the cache */
+    if (rename_temporary_table(thd, new_table, new_db, new_name))
     {						// Fatal error
       close_temporary_table(thd,new_db,tmp_name);
       my_free((gptr) new_table,MYF(0));

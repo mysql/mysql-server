@@ -228,10 +228,6 @@ SOURCE=..\sql\ha_innodb.cpp
 # End Source File
 # Begin Source File
 
-SOURCE=..\sql\ha_isammrg.cpp
-# End Source File
-# Begin Source File
-
 SOURCE=..\sql\ha_myisam.cpp
 # End Source File
 # Begin Source File

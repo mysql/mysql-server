@@ -21,8 +21,8 @@
 char *
 strdup(const char *s){
   void *p2;
-  p2 = malloc(strlen(s)+1);
-  strcpy(p2, s);
+  if ((p2 = malloc(strlen(s)+1)))
+    strcpy(p2, s);
   return p2;
 }
 #endif

@@ -305,7 +305,7 @@ int openfrm(THD *thd, const char *name, const char *alias, uint db_stat,
   if (!(record= (char *) alloc_root(&outparam->mem_root,
                                     rec_buff_length * records)))
     goto err;                                   /* purecov: inspected */
-  share->default_values= record;
+  share->default_values= (byte *) record;
   if (my_pread(file,(byte*) record, (uint) share->reclength,
 	       (ulong) (uint2korr(head+6)+
                         ((uint2korr(head+14) == 0xffff ?
@@ -320,9 +320,9 @@ int openfrm(THD *thd, const char *name, const char *alias, uint db_stat,
   }
   else
   {
-    outparam->record[0]= record+ rec_buff_length;
+    outparam->record[0]= (byte *) record+ rec_buff_length;
     if (records > 2)
-      outparam->record[1]= record+ rec_buff_length*2;
+      outparam->record[1]= (byte *) record+ rec_buff_length*2;
     else
       outparam->record[1]= outparam->record[0];   // Safety
   }
@@ -342,12 +342,14 @@ int openfrm(THD *thd, const char *name, const char *alias, uint db_stat,
   VOID(my_seek(file,pos,MY_SEEK_SET,MYF(0)));
   if (my_read(file,(byte*) head,288,MYF(MY_NABP)))
     goto err;
+#ifdef HAVE_CRYPTED_FRM
   if (crypted)
   {
     crypted->decode((char*) head+256,288-256);
     if (sint2korr(head+284) != 0)		// Should be 0
       goto err;                                 // Wrong password
   }
+#endif
 
   share->fields= uint2korr(head+258);
   pos= uint2korr(head+260);			/* Length of all screens */
@@ -375,12 +377,14 @@ int openfrm(THD *thd, const char *name, const char *alias, uint db_stat,
 		      pos+ (uint) (n_length+int_length+com_length));
   if (read_string(file,(gptr*) &disk_buff,read_length))
     goto err;                                   /* purecov: inspected */
+#ifdef HAVE_CRYPTED_FRM
   if (crypted)
   {
     crypted->decode((char*) disk_buff,read_length);
     delete crypted;
     crypted=0;
   }
+#endif
   strpos= disk_buff+pos;
 
   share->intervals= (TYPELIB*) (field_ptr+share->fields+1);

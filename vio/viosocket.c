@@ -142,23 +142,29 @@ int vio_fastsend(Vio * vio __attribute__((unused)))
   int r=0;
   DBUG_ENTER("vio_fastsend");
 
-#ifdef IPTOS_THROUGHPUT
+#if defined(IPTOS_THROUGHPUT) && !defined(__EMX__)
   {
-#ifndef __EMX__
     int tos = IPTOS_THROUGHPUT;
-    if (!setsockopt(vio->sd, IPPROTO_IP, IP_TOS, (void *) &tos, sizeof(tos)))
-#endif				/* !__EMX__ */
-    {
-      int nodelay = 1;
-      if (setsockopt(vio->sd, IPPROTO_TCP, TCP_NODELAY, (void *) &nodelay,
-		     sizeof(nodelay))) {
-	DBUG_PRINT("warning",
-		   ("Couldn't set socket option for fast send"));
-	r= -1;
-      }
-    }
+    r= setsockopt(vio->sd, IPPROTO_IP, IP_TOS, (void *) &tos, sizeof(tos));
   }
-#endif	/* IPTOS_THROUGHPUT */
+#endif                                    /* IPTOS_THROUGHPUT && !__EMX__ */
+  if (!r)
+  {
+#ifdef __WIN__
+    BOOL nodelay= 1;
+    r= setsockopt(vio->sd, IPPROTO_TCP, TCP_NODELAY, (const char*) &nodelay,
+                  sizeof(nodelay));
+#else
+    int nodelay = 1;
+    r= setsockopt(vio->sd, IPPROTO_TCP, TCP_NODELAY, (void*) &nodelay,
+                  sizeof(nodelay));
+#endif                                          /* __WIN__ */
+  }
+  if (r)
+  {
+    DBUG_PRINT("warning", ("Couldn't set socket option for fast send"));
+    r= -1;
+  }
   DBUG_PRINT("exit", ("%d", r));
   DBUG_RETURN(r);
 }
