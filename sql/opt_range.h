@@ -118,7 +118,7 @@ public:
   byte    *record;
 protected:
   friend void print_quick_sel_range(QUICK_RANGE_SELECT *quick,
-                                    key_map needed_reg);
+                                    const key_map* needed_reg);
   friend QUICK_RANGE_SELECT *get_quick_select_for_ref(THD *thd, TABLE *table, 
                                                       struct st_table_ref *ref);
   friend bool get_quick_keys(struct st_qsel_param *param,

@@ -274,7 +274,7 @@ class SEL_TREE :public Sql_alloc
 public:
   enum Type { IMPOSSIBLE, ALWAYS, MAYBE, KEY, KEY_SMALLER } type;
   SEL_TREE(enum Type type_arg) :type(type_arg) {}
-  SEL_TREE() :type(KEY), keys_map(0) { bzero((char*) keys,sizeof(keys));}
+  SEL_TREE() :type(KEY) { keys_map.clear_all(); bzero((char*) keys,sizeof(keys));}
   SEL_ARG *keys[MAX_KEY];
   key_map keys_map;        /* bitmask of non-NULL elements in keys         */
   List<SEL_IMERGE> merges; /* possible ways to read rows using index_merge */
@@ -314,9 +314,10 @@ static int get_quick_select_params(SEL_TREE *tree, PARAM& param,
                                    ha_rows* records,
                                    SEL_ARG*** key_to_read);
 #ifndef DBUG_OFF
-void print_quick_sel_imerge(QUICK_INDEX_MERGE_SELECT *quick,
-                            const key_map *needed_reg);
-void print_quick_sel_range(QUICK_RANGE_SELECT *quick, const key_map *needed_reg);
+static void print_quick_sel_imerge(QUICK_INDEX_MERGE_SELECT *quick,
+                                   const key_map *needed_reg);
+void print_quick_sel_range(QUICK_RANGE_SELECT *quick, 
+                                  const key_map *needed_reg);
 
 #endif
 static SEL_TREE *tree_and(PARAM *param,SEL_TREE *tree1,SEL_TREE *tree2);
@@ -661,7 +662,7 @@ int QUICK_INDEX_MERGE_SELECT::init()
   int error;
   cur_quick_it.rewind();
   cur_quick_select= cur_quick_it++;
-  if (error= index_merge.init(head))
+  if ((error= index_merge.init(head)))
     return error;
   return cur_quick_select->init();
 }
@@ -876,7 +877,7 @@ int SQL_SELECT::test_quick_select(THD *thd, key_map keys_to_use,
   uint basflag;
   uint idx;
   double scan_time;
-  QUICK_INDEX_MERGE_SELECT *quick_imerge;
+  QUICK_INDEX_MERGE_SELECT *quick_imerge= NULL;
   DBUG_ENTER("test_quick_select");
   DBUG_PRINT("enter",("keys_to_use: %lu  prev_tables: %lu  const_tables: %lu",
 		      keys_to_use.to_ulonglong(), (ulong) prev_tables,
@@ -1058,10 +1059,10 @@ imerge_fail:;
           records= min_imerge_records;
           /* ok, got minimal imerge, *min_imerge, with cost min_imerge_cost */
           
-          if (head->used_keys)
+          if (!head->used_keys.is_clear_all())
           {
             /* check if "ALL" +"using index" read would be faster */
-            int key_for_use= find_shortest_key(head, head->used_keys);
+            int key_for_use= find_shortest_key(head, &head->used_keys);
             ha_rows total_table_records= (0 == head->file->records)? 1 : 
                                           head->file->records;
             uint keys_per_block= (head->file->block_size/2/
@@ -1216,12 +1217,10 @@ static int get_quick_select_params(SEL_TREE *tree, PARAM& param,
           (*key)->maybe_flag)
         needed_reg.set_bit(keynr);
       
-      key_map usable_keys = index_read_can_be_used? 
-                            (head->used_keys & ((key_map) 1 << keynr)) : 0;
-
+      bool read_index_only= index_read_can_be_used? head->used_keys.is_set(keynr): false;
       found_records=check_quick_select(&param, idx, *key);
       if (found_records != HA_POS_ERROR && found_records > 2 &&
-          usable_keys &&
+          read_index_only &&
           (head->file->index_flags(keynr) & HA_KEY_READ_ONLY))
       {
         /*
@@ -1439,7 +1438,7 @@ get_mm_parts(PARAM *param, Field *field, Item_func::Functype type,
       }
       sel_arg->part=(uchar) key_part->part;
       tree->keys[key_part->key]=sel_add(tree->keys[key_part->key],sel_arg);
-      tree->keys_map |= 1 << key_part->key;
+      tree->keys_map.set_bit(key_part->key);
     }
   }
 
@@ -1712,8 +1711,8 @@ tree_and(PARAM *param,SEL_TREE *tree1,SEL_TREE *tree2)
     DBUG_RETURN(tree1);
   }
 
-  bool trees_have_key = false;
-  key_map  result_keys= 0;
+  key_map  result_keys;
+  result_keys.clear_all();
   /* Join the trees key per key */
   SEL_ARG **key1,**key2,**end;
   for (key1= tree1->keys,key2= tree2->keys,end=key1+param->keys ;
@@ -1722,7 +1721,6 @@ tree_and(PARAM *param,SEL_TREE *tree1,SEL_TREE *tree2)
     uint flag=0;
     if (*key1 || *key2)
     {
-      trees_have_key = true;
       if (*key1 && !(*key1)->simple_key())
 	flag|=CLONE_KEY1_MAYBE;
       if (*key2 && !(*key2)->simple_key())
@@ -1733,7 +1731,7 @@ tree_and(PARAM *param,SEL_TREE *tree1,SEL_TREE *tree2)
 	tree1->type= SEL_TREE::IMPOSSIBLE;
         DBUG_RETURN(tree1);
       }
-      result_keys |= 1 << (key1 - tree1->keys);
+      result_keys.set_bit(key1 - tree1->keys);
 #ifdef EXTRA_DEBUG
       (*key1)->test_use_count(*key1);
 #endif
@@ -1741,7 +1739,7 @@ tree_and(PARAM *param,SEL_TREE *tree1,SEL_TREE *tree2)
   }
   tree1->keys_map= result_keys;
   /* dispose index_merge if there is a "range" option */
-  if (trees_have_key)
+  if (!result_keys.is_clear_all())
   {
     tree1->merges.empty();
     DBUG_RETURN(tree1);
@@ -1749,7 +1747,6 @@ tree_and(PARAM *param,SEL_TREE *tree1,SEL_TREE *tree2)
 
   /* ok, both trees are index_merge trees */
   imerge_list_and_list(&tree1->merges, &tree2->merges);
-  
   DBUG_RETURN(tree1);
 }
 
@@ -1760,17 +1757,18 @@ tree_and(PARAM *param,SEL_TREE *tree1,SEL_TREE *tree2)
 
 bool sel_trees_can_be_ored(SEL_TREE *tree1, SEL_TREE *tree2, PARAM* param)
 {
-  key_map common_keys= tree1->keys_map & tree2->keys_map;
+  key_map common_keys= tree1->keys_map;
+  common_keys.intersect(tree2->keys_map);
   DBUG_ENTER("sel_trees_can_be_ored");
 
-  if (!common_keys)
+  if (common_keys.is_clear_all())
     DBUG_RETURN(false);
   
   /* trees have a common key, check if they refer to same key part */  
   SEL_ARG **key1,**key2;
-  for (uint key_no=0; key_no < param->keys; key_no++, common_keys= common_keys >> 1)
+  for (uint key_no=0; key_no < param->keys; key_no++)
   {
-    if (common_keys & 1)
+    if (common_keys.is_set(key_no))
     {
       key1= tree1->keys + key_no;
       key2= tree2->keys + key_no;
@@ -1799,7 +1797,8 @@ tree_or(PARAM *param,SEL_TREE *tree1,SEL_TREE *tree2)
     DBUG_RETURN(tree2);
 
   SEL_TREE *result= 0;
-  key_map  result_keys= 0;
+  key_map  result_keys;
+  result_keys.clear_all();
   if (sel_trees_can_be_ored(tree1, tree2, param))
   {
     /* Join the trees key per key */
@@ -1811,7 +1810,7 @@ tree_or(PARAM *param,SEL_TREE *tree1,SEL_TREE *tree2)
       if (*key1)
       {
         result=tree1;				// Added to tree1
-        result_keys |= 1 << (key1 - tree1->keys);
+        result_keys.set_bit(key1 - tree1->keys);
 #ifdef EXTRA_DEBUG
         (*key1)->test_use_count(*key1);
 #endif
@@ -1899,7 +1898,6 @@ and_all_keys(SEL_ARG *key1,SEL_ARG *key2,uint clone_flag)
   key1->use_count++;
   return key1;
 }
-
 
 
 static SEL_ARG *
@@ -3675,7 +3673,7 @@ print_key(KEY_PART *key_part,const char *key,uint used_length)
   }
 }
 
-void print_quick_sel_imerge(QUICK_INDEX_MERGE_SELECT *quick, 
+static void print_quick_sel_imerge(QUICK_INDEX_MERGE_SELECT *quick, 
                             const key_map *needed_reg)
 {
   DBUG_ENTER("print_param");
@@ -3691,7 +3689,7 @@ void print_quick_sel_imerge(QUICK_INDEX_MERGE_SELECT *quick,
   DBUG_VOID_RETURN;
 }
 
-static void print_quick_sel_range(QUICK_RANGE_SELECT *quick,const key_map *needed_reg)
+void print_quick_sel_range(QUICK_RANGE_SELECT *quick,const key_map *needed_reg)
 {
   QUICK_RANGE *range;
   char buf[MAX_KEY/8+1];
