@@ -1653,6 +1653,28 @@ call bug4726()|
 drop procedure bug4726|
 drop table t3|
 
+#
+# BUG#4318
+#
+--disable_warnings
+drop table if exists t3|
+--enable_warnings
+ 
+create table t3 (s1 int)|
+insert into t3 values (3), (4)|
+
+create procedure bug4318()
+  handler t3 read next|
+
+handler t3 open|
+# Expect no results, as tables are closed, but there shouldn't be any errors
+call bug4318()|
+call bug4318()|
+handler t3 close|
+
+drop procedure bug4318|
+drop table t3|
+
 
 #
 # Some "real" examples
