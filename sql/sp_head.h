@@ -201,6 +201,20 @@ public:
 
   void restore_thd_mem_root(THD *thd);
 
+  void optimize();
+  void opt_mark(uint ip);
+
+  inline sp_instr *
+  get_instr(uint i)
+  {
+    sp_instr *ip;
+
+    if (i < m_instr.elements)
+      get_dynamic(&m_instr, (gptr)&ip, i);
+    else
+      ip= NULL;
+    return ip;
+  }
 
 private:
 
@@ -217,18 +231,6 @@ private:
     sp_instr *instr;
   } bp_t;
   List<bp_t> m_backpatch;	// Instructions needing backpatching
-
-  inline sp_instr *
-  get_instr(uint i)
-  {
-    sp_instr *ip;
-
-    if (i < m_instr.elements)
-      get_dynamic(&m_instr, (gptr)&ip, i);
-    else
-      ip= NULL;
-    return ip;
-  }
 
   int
   execute(THD *thd);
@@ -247,11 +249,13 @@ class sp_instr : public Sql_alloc
 
 public:
 
+  uint marked;
   Item *free_list;              // My Items
+  uint m_ip;			// My index
 
   // Should give each a name or type code for debugging purposes?
   sp_instr(uint ip)
-    :Sql_alloc(), free_list(0), m_ip(ip)
+    :Sql_alloc(), marked(0), free_list(0), m_ip(ip)
   {}
 
   virtual ~sp_instr()
@@ -265,9 +269,24 @@ public:
 
   virtual void print(String *str) = 0;
 
-protected:
+  virtual void set_destination(uint dest)
+  {}
 
-  uint m_ip;			// My index
+  virtual uint opt_mark(sp_head *sp)
+  {
+    marked= 1;
+    return m_ip+1;
+  }
+
+  virtual uint opt_shortcut_jump(sp_head *sp)
+  {
+    return m_ip;
+  }
+
+  virtual void opt_move(uint dst, List<sp_instr> *ibp)
+  {
+    m_ip= dst;
+  }
 
 }; // class sp_instr : public Sql_alloc
 
@@ -349,12 +368,14 @@ class sp_instr_jump : public sp_instr
 
 public:
 
+  uint m_dest;			// Where we will go
+
   sp_instr_jump(uint ip)
-    : sp_instr(ip), m_dest(0)
+    : sp_instr(ip), m_dest(0), m_optdest(0)
   {}
 
   sp_instr_jump(uint ip, uint dest)
-    : sp_instr(ip), m_dest(dest)
+    : sp_instr(ip), m_dest(dest), m_optdest(0)
   {}
 
   virtual ~sp_instr_jump()
@@ -363,6 +384,12 @@ public:
   virtual int execute(THD *thd, uint *nextp);
 
   virtual void print(String *str);
+
+  virtual uint opt_mark(sp_head *sp);
+
+  virtual uint opt_shortcut_jump(sp_head *sp);
+
+  virtual void opt_move(uint dst, List<sp_instr> *ibp);
 
   virtual void
   set_destination(uint dest)
@@ -373,7 +400,7 @@ public:
 
 protected:
 
-  int m_dest;			// Where we will go
+  sp_instr *m_optdest;		// Used during optimization
 
 }; // class sp_instr_jump : public sp_instr
 
@@ -399,6 +426,13 @@ public:
   virtual int execute(THD *thd, uint *nextp);
 
   virtual void print(String *str);
+
+  virtual uint opt_mark(sp_head *sp);
+
+  virtual uint opt_shortcut_jump(sp_head *sp)
+  {
+    return m_ip;
+  }
 
 private:
 
@@ -429,6 +463,13 @@ public:
 
   virtual void print(String *str);
 
+  virtual uint opt_mark(sp_head *sp);
+
+  virtual uint opt_shortcut_jump(sp_head *sp)
+  {
+    return m_ip;
+  }
+
 private:
 
   Item *m_expr;			// The condition
@@ -453,6 +494,12 @@ public:
   virtual int execute(THD *thd, uint *nextp);
 
   virtual void print(String *str);
+
+  virtual uint opt_mark(sp_head *sp)
+  {
+    marked= 1;
+    return UINT_MAX;
+  }
 
 protected:
 
@@ -484,6 +531,13 @@ public:
   virtual int execute(THD *thd, uint *nextp);
 
   virtual void print(String *str);
+
+  virtual uint opt_mark(sp_head *sp);
+
+  virtual uint opt_shortcut_jump(sp_head *sp)
+  {
+    return m_ip;
+  }
 
   inline void add_condition(struct sp_cond_type *cond)
   {
@@ -542,6 +596,12 @@ public:
   virtual int execute(THD *thd, uint *nextp);
 
   virtual void print(String *str);
+
+  virtual uint opt_mark(sp_head *sp)
+  {
+    marked= 1;
+    return UINT_MAX;
+  }
 
 private:
 
@@ -699,6 +759,12 @@ public:
   virtual int execute(THD *thd, uint *nextp);
 
   virtual void print(String *str);
+
+  virtual uint opt_mark(sp_head *sp)
+  {
+    marked= 1;
+    return UINT_MAX;
+  }
 
 private:
 

@@ -292,6 +292,7 @@ db_find_routine(THD *thd, int type, sp_name *name, sp_head **sphp)
       *sphp= thd->lex->sphead;
       (*sphp)->set_info((char *)definer, (uint)strlen(definer),
 			created, modified, &chistics, sql_mode);
+      (*sphp)->optimize();
     }
     thd->lex->sql_command= oldcmd;
     thd->variables.sql_mode= old_sql_mode;
