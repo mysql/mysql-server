@@ -2,16 +2,7 @@
 
 path=`dirname $0`
 . "$path/SETUP.sh"
-amd64_cflags="-DBIG_TABLES"
-amd64_cxx_flags="-DBIG_TABLES"
-amd64_configs=""
-base_cxxflags="$amd64_cxx_flags $base_cxxflags"
-extra_flags="$amd64_cflags $fast_cflags -g"
-extra_configs="$amd64_configs"
-#strip=yes
-
-extra_configs="$extra_configs --with-innodb --with-berkeley-db \
-        --with-embedded-server --enable-thread-safe-client \
-        --with-openssl --with-vio --with-raid --with-ndbcluster"
+extra_flags="$amd64_cflags $fast_cflags $max_cflags -g"
+extra_configs="$amd64_configs $max_configs"
 
 . "$path/FINISH.sh"
