@@ -623,7 +623,7 @@ main()
   FILE *file=fopen("conftestval", "w");
   f = (float) ll;
   fprintf(file,"%g\n",f);
-  close(file);
+  fclose(file);
   exit (0);
 }], ac_cv_conv_longlong_to_float=`cat conftestval`, ac_cv_conv_longlong_to_float=0, ifelse([$2], , , ac_cv_conv_longlong_to_float=$2))])dnl
 if test "$ac_cv_conv_longlong_to_float" = "1" -o "$ac_cv_conv_longlong_to_float" = "yes"
