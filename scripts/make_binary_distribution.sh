@@ -48,7 +48,7 @@ rm $BASE/include/Makefile*; rm $BASE/include/*.in
 
 cp -p tests/*.res tests/*.tst tests/*.pl $BASE/tests
 cp -p support-files/* $BASE/support-files
-cp -p libmysql/.libs/libmysqlclient.a libmysql/.libs/libmysqlclient.so* libmysql/libmysqlclient.* libmysql_r/.libs/libmysqlclient_a.a libmysql_r/.libs/libmysqlclient.so* libmysql_r/libmysqlclient.* mysys/libmysys.a strings/libmystrings.a dbug/libdbug.a $BASE/lib
+cp -p libmysql/.libs/libmysqlclient.a libmysql/.libs/libmysqlclient.so* libmysql/libmysqlclient.* libmysql_r/.libs/libmysqlclient_r.a libmysql_r/.libs/libmysqlclient_r.so* libmysql_r/libmysqlclient_r.* mysys/libmysys.a strings/libmystrings.a dbug/libdbug.a $BASE/lib
 cp -r -p sql/share/* $BASE/share/mysql; rm -f $BASE/share/mysql/Makefile* $BASE/share/mysql/*/*.OLD $BASE/share/CVS $BASE/share/*/CVS 
 
 cp -p scripts/* $BASE/bin

@@ -145,7 +145,7 @@ if ($opt_stage <= 5 && !$opt_no_test)
   log_system("./bin/mysqladmin --no-defaults -u root -S $mysql_unix_port -s shutdown") || info("There was no mysqld running\n");
   sleep(2);
   log_system("rm -f  ./data/mysql/*");
-  check_system("scripts/mysql_install_db --skip-locking","com/license");
+  check_system("scripts/mysql_install_db --no-defaults --skip-locking","https://order");
   safe_system("./bin/mysqld --no-defaults --basedir . --datadir ./data --skip-locking >> $log 2>&1 &");
   sleep(2);
 }

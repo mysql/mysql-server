@@ -26,7 +26,7 @@ cd "$WD"
 # Create a build directory tree
 bk export $BD
 cd "$BD"
-chmod -R a+rw,g+rw .
+chmod -R u+rw,g+rw .
 
 #Make it easy to remove an old build
 umask 002
