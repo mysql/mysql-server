@@ -377,7 +377,7 @@ static my_bool my_like_range_big5(CHARSET_INFO *cs __attribute__((unused)),
       *min_length= (uint) (min_str-min_org);
       *max_length= res_length;
       do {
-	*min_str++ = '\0';		/* Because if key compression */
+	*min_str++ = ' ';		/* Because if key compression */
 	*max_str++ = max_sort_char;
       } while (min_str != min_end);
       return 0;
@@ -6245,6 +6245,7 @@ static MY_CHARSET_HANDLER my_charset_big5_handler=
   mbcharlen_big5,
   my_numchars_mb,
   my_charpos_mb,
+  my_wellformedlen_mb,
   my_lengthsp_8bit,
   my_mb_wc_big5,	/* mb_wc       */
   my_wc_mb_big5,	/* wc_mb       */
@@ -6281,6 +6282,7 @@ CHARSET_INFO my_charset_big5_chinese_ci=
     "",
     "",
     1,			/* strxfrm_multiply */
+    1,			/* mbminlen   */
     2,			/* mbmaxlen   */
     0,
     &my_charset_big5_handler,
@@ -6304,6 +6306,7 @@ CHARSET_INFO my_charset_big5_bin=
     "",
     "",
     1,			/* strxfrm_multiply */
+    1,			/* mbminlen   */
     2,			/* mbmaxlen   */
     0,
     &my_charset_big5_handler,

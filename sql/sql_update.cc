@@ -79,7 +79,6 @@ int mysql_update(THD *thd,
   if ((open_and_lock_tables(thd, table_list)))
     DBUG_RETURN(-1);
   thd->proc_info="init";
-  fix_tables_pointers(thd->lex->all_selects_list);
   table= table_list->table;
   table->file->info(HA_STATUS_VARIABLE | HA_STATUS_NO_LOCK);
 
@@ -95,7 +94,7 @@ int mysql_update(THD *thd,
   tables.table= table;
   tables.alias= table_list->alias;
 
-  if (setup_tables(update_table_list) ||
+  if (setup_tables(update_table_list, 0) ||
       setup_conds(thd,update_table_list,&conds) ||
       thd->lex->select_lex.setup_ref_array(thd, order_num) ||
       setup_order(thd, thd->lex->select_lex.ref_pointer_array,
@@ -253,7 +252,7 @@ int mysql_update(THD *thd,
 
       while (!(error=info.read_record(&info)) && !thd->killed)
       {
-	if (!(select && select->skipp_record()))
+	if (!(select && select->skip_record()))
 	{
 	  table->file->position(table->record[0]);
 	  if (my_b_write(&tempfile,table->file->ref,
@@ -310,7 +309,7 @@ int mysql_update(THD *thd,
 
   while (!(error=info.read_record(&info)) && !thd->killed)
   {
-    if (!(select && select->skipp_record()))
+    if (!(select && select->skip_record()))
     {
       store_record(table,record[1]);
       if (fill_record(fields,values, 0) || thd->net.report_error)
@@ -440,16 +439,38 @@ int mysql_multi_update(THD *thd,
 #endif
   if ((res=open_and_lock_tables(thd,table_list)))
     DBUG_RETURN(res);
-  fix_tables_pointers(thd->lex->all_selects_list);
 
   select_lex->select_limit= HA_POS_ERROR;
+
+  table_map item_tables= 0, derived_tables= 0;
+  if (thd->lex->derived_tables)
+  {
+    // Assign table map values to check updatability of derived tables
+    uint tablenr=0;
+    for (TABLE_LIST *table_list= (TABLE_LIST*) select_lex->table_list.first;
+	 table_list;
+	 table_list= table_list->next, tablenr++)
+    {
+      table_list->table->map= (table_map) 1 << tablenr;
+    }
+  }
   if (setup_fields(thd, 0, table_list, *fields, 1, 0, 0))
     DBUG_RETURN(-1);
+  if (thd->lex->derived_tables)
+  {
+    // Find tables used in items
+    List_iterator_fast<Item> it(*fields);
+    Item *item;
+    while ((item= it++))
+    {
+      item_tables|= item->used_tables();
+    }
+  }
 
   /*
     Count tables and setup timestamp handling
   */
-  for (tl= select_lex->get_table_list() ; tl ; tl=tl->next)
+  for (tl= select_lex->get_table_list() ; tl ; tl= tl->next)
   {
     TABLE *table= tl->table;
     if (table->timestamp_field)
@@ -458,6 +479,21 @@ int mysql_multi_update(THD *thd,
       // Only set timestamp column if this is not modified
       if (table->timestamp_field->query_id != thd->query_id)
 	table->time_stamp= table->timestamp_field->offset() +1;
+    }
+    if (tl->derived)
+      derived_tables|= table->map;
+  }
+  if (thd->lex->derived_tables && (item_tables & derived_tables))
+  {
+    // find derived table which cause error
+    for (tl= select_lex->get_table_list() ; tl ; tl= tl->next)
+    {
+      if (tl->derived && (item_tables & tl->table->map))
+      {
+	my_printf_error(ER_NON_UPDATABLE_TABLE, ER(ER_NON_UPDATABLE_TABLE),
+			MYF(0), tl->alias, "UPDATE");
+	DBUG_RETURN(-1);
+      }
     }
   }
 

@@ -72,18 +72,18 @@ Item::Item():
   Used for duplicating lists in processing queries with temporary
   tables
 */
-Item::Item(THD *thd, Item &item):
-  str_value(item.str_value),
-  name(item.name),
-  max_length(item.max_length),
-  marker(item.marker),
-  decimals(item.decimals),
-  maybe_null(item.maybe_null),
-  null_value(item.null_value),
-  unsigned_flag(item.unsigned_flag),
-  with_sum_func(item.with_sum_func),
-  fixed(item.fixed),
-  collation(item.collation)
+Item::Item(THD *thd, Item *item):
+  str_value(item->str_value),
+  name(item->name),
+  max_length(item->max_length),
+  marker(item->marker),
+  decimals(item->decimals),
+  maybe_null(item->maybe_null),
+  null_value(item->null_value),
+  unsigned_flag(item->unsigned_flag),
+  with_sum_func(item->with_sum_func),
+  fixed(item->fixed),
+  collation(item->collation)
 {
   next= thd->free_list;				// Put in free list
   thd->free_list= this;
@@ -111,12 +111,12 @@ Item_ident::Item_ident(const char *db_name_par,const char *table_name_par,
 }
 
 // Constructor used by Item_field & Item_ref (see Item comment)
-Item_ident::Item_ident(THD *thd, Item_ident &item):
+Item_ident::Item_ident(THD *thd, Item_ident *item):
   Item(thd, item),
-  db_name(item.db_name),
-  table_name(item.table_name),
-  field_name(item.field_name),
-  depended_from(item.depended_from)
+  db_name(item->db_name),
+  table_name(item->table_name),
+  field_name(item->field_name),
+  depended_from(item->depended_from)
 {}
 
 bool Item_ident::remove_dependence_processor(byte * arg)
@@ -327,10 +327,10 @@ Item_field::Item_field(Field *f)
 }
 
 // Constructor need to process subselect with temporary tables (see Item)
-Item_field::Item_field(THD *thd, Item_field &item)
+Item_field::Item_field(THD *thd, Item_field *item)
   :Item_ident(thd, item),
-   field(item.field),
-   result_field(item.result_field)
+   field(item->field),
+   result_field(item->result_field)
 {
   collation.set(DERIVATION_IMPLICIT);
   item_equal= item.item_equal;
@@ -487,7 +487,7 @@ table_map Item_field::used_tables() const
 
 Item *Item_field::get_tmp_table_item(THD *thd)
 {
-  Item_field *new_item= new Item_field(thd, *this);
+  Item_field *new_item= new Item_field(thd, this);
   if (new_item)
     new_item->field= new_item->result_field;
   return new_item;
@@ -599,6 +599,8 @@ void Item_param::set_time(TIME *tm, timestamp_type type)
   ltime.second= tm->second; 
 
   ltime.second_part= tm->second_part;
+
+  ltime.neg= tm->neg;
 
   ltime.time_type= type;
   
@@ -952,6 +954,7 @@ bool Item_field::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
 
 	Item_ref *rf;
 	*ref= rf= new Item_ref(last->ref_pointer_array + counter,
+			       ref,
 			       (char *)table_name,
 			       (char *)field_name);
 	if (!rf)
@@ -968,7 +971,8 @@ bool Item_field::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
 	if (last->having_fix_field)
 	{
 	  Item_ref *rf;
-	  *ref= rf= new Item_ref((where->db[0]?where->db:0), 
+	  *ref= rf= new Item_ref(ref, *ref,
+				 (where->db[0]?where->db:0), 
 				 (char *)where->alias,
 				 (char *)field_name);
 	  if (!rf)
@@ -994,6 +998,10 @@ bool Item_field::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
   return 0;
 }
 
+void Item_field::cleanup()
+{
+  Item_ident::cleanup();
+  field= result_field= 0;
 
 /*
   Find a field among specified multiple equalities 
@@ -1749,6 +1757,14 @@ bool Item_ref::fix_fields(THD *thd,TABLE_LIST *tables, Item **reference)
 }
 
 
+void Item_ref::cleanup()
+{
+  Item_ident::cleanup();
+  if (hook_ptr)
+    *hook_ptr= orig_item;
+}
+
+
 void Item_ref::print(String *str)
 {
   if (ref && *ref)
@@ -1912,17 +1928,9 @@ Item *resolve_const_item(Item *item,Item *comp_item)
     String tmp(buff,sizeof(buff),&my_charset_bin),*result;
     result=item->val_str(&tmp);
     if (item->null_value)
-    {
-#ifdef DELETE_ITEMS
-      delete item;
-#endif
       return new Item_null(name);
-    }
     uint length=result->length();
     char *tmp_str=sql_strmake(result->ptr(),length);
-#ifdef DELETE_ITEMS
-    delete item;
-#endif
     return new Item_string(name,tmp_str,length,result->charset());
   }
   if (res_type == INT_RESULT)
@@ -1930,9 +1938,6 @@ Item *resolve_const_item(Item *item,Item *comp_item)
     longlong result=item->val_int();
     uint length=item->max_length;
     bool null_value=item->null_value;
-#ifdef DELETE_ITEMS
-    delete item;
-#endif
     return (null_value ? (Item*) new Item_null(name) :
 	    (Item*) new Item_int(name,result,length));
   }
@@ -1941,9 +1946,6 @@ Item *resolve_const_item(Item *item,Item *comp_item)
     double result=item->val();
     uint length=item->max_length,decimals=item->decimals;
     bool null_value=item->null_value;
-#ifdef DELETE_ITEMS
-    delete item;
-#endif
     return (null_value ? (Item*) new Item_null(name) :
 	    (Item*) new Item_real(name,result,decimals,length));
   }
@@ -2015,7 +2017,6 @@ void Item_cache_int::store(Item *item)
 {
   value= item->val_int_result();
   null_value= item->null_value;
-  collation.set(item->collation);
 }
 
 
@@ -2023,7 +2024,6 @@ void Item_cache_real::store(Item *item)
 {
   value= item->val_result();
   null_value= item->null_value;
-  collation.set(item->collation);
 }
 
 
@@ -2046,7 +2046,6 @@ void Item_cache_str::store(Item *item)
     value_buff.copy(*value);
     value= &value_buff;
   }
-  collation.set(item->collation);
 }
 
 
@@ -2160,7 +2159,8 @@ void Item_cache_row::bring_value()
 
 
 Item_type_holder::Item_type_holder(THD *thd, Item *item)
-  :Item(thd, *item), item_type(item->result_type())
+  :Item(thd, item), item_type(item->result_type()),
+   orig_type(item_type)
 {
   DBUG_ASSERT(item->fixed);
 

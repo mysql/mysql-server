@@ -47,6 +47,7 @@ typedef ulong key_part_map;           /* Used for finding key parts */
 /* useful constants */
 extern const key_map key_map_empty;
 extern const key_map key_map_full;
+extern const char *primary_key_name;
 
 #include "mysql_com.h"
 #include <violite.h>
@@ -286,7 +287,9 @@ extern CHARSET_INFO *national_charset_info, *table_alias_charset;
 // uncachable cause
 #define UNCACHEABLE_DEPENDENT   1
 #define UNCACHEABLE_RAND        2
-#define UNCACHEABLE_SIDEEFFECT 4
+#define UNCACHEABLE_SIDEEFFECT	4
+// forcing to save JOIN for explain
+#define UNCACHEABLE_EXPLAIN     8
 
 #ifdef EXTRA_DEBUG
 /*
@@ -520,14 +523,13 @@ int mysql_select(THD *thd, Item ***rref_pointer_array,
 		 SELECT_LEX *select_lex);
 void free_underlaid_joins(THD *thd, SELECT_LEX *select);
 void fix_tables_pointers(SELECT_LEX *select_lex);
-void fix_tables_pointers(SELECT_LEX_UNIT *select_lex);
 int mysql_explain_union(THD *thd, SELECT_LEX_UNIT *unit,
 			select_result *result);
 int mysql_explain_select(THD *thd, SELECT_LEX *sl, char const *type,
 			 select_result *result);
 int mysql_union(THD *thd, LEX *lex, select_result *result,
 		SELECT_LEX_UNIT *unit);
-int mysql_derived(THD *thd, LEX *lex, SELECT_LEX_UNIT *s, TABLE_LIST *t);
+int mysql_handle_derived(LEX *lex);
 Field *create_tmp_field(THD *thd, TABLE *table,Item *item, Item::Type type,
 			Item ***copy_func, Field **from_field,
 			bool group,bool modify_item);
@@ -548,7 +550,6 @@ int mysql_alter_table(THD *thd, char *new_db, char *new_name,
 		      List<Key> &keys,List<Alter_drop> &drop_list,
 		      List<Alter_column> &alter_list,
                       uint order_num, ORDER *order,
-		      bool drop_primary,
 		      enum enum_duplicates handle_duplicates,
 		      enum enum_enable_or_disable keys_onoff=LEAVE_AS_IS,
 		      enum tablespace_op_type tablespace_op=NO_TABLESPACE_OP,
@@ -704,7 +705,7 @@ bool get_key_map_from_key_list(key_map *map, TABLE *table,
 bool insert_fields(THD *thd,TABLE_LIST *tables,
 		   const char *db_name, const char *table_name,
 		   List_iterator<Item> *it);
-bool setup_tables(TABLE_LIST *tables);
+bool setup_tables(TABLE_LIST *tables, my_bool reinit);
 int setup_wild(THD *thd, TABLE_LIST *tables, List<Item> &fields,
 	       List<Item> *sum_func_list, uint wild_num);
 int setup_fields(THD *thd, Item** ref_pointer_array, TABLE_LIST *tables,
@@ -714,9 +715,10 @@ int setup_conds(THD *thd,TABLE_LIST *tables,COND **conds);
 int setup_ftfuncs(SELECT_LEX* select);
 int init_ftfuncs(THD *thd, SELECT_LEX* select, bool no_order);
 void wait_for_refresh(THD *thd);
-int open_tables(THD *thd,TABLE_LIST *tables);
+int open_tables(THD *thd, TABLE_LIST *tables, uint *counter);
+int simple_open_n_lock_tables(THD *thd,TABLE_LIST *tables);
 int open_and_lock_tables(THD *thd,TABLE_LIST *tables);
-int lock_tables(THD *thd,TABLE_LIST *tables);
+int lock_tables(THD *thd, TABLE_LIST *tables, uint counter);
 TABLE *open_temporary_table(THD *thd, const char *path, const char *db,
 			    const char *table_name, bool link_in_list);
 bool rm_temporary_table(enum db_type base, char *path);
@@ -798,6 +800,15 @@ ulonglong find_set(TYPELIB *typelib,const char *x, uint length,
 uint find_type(TYPELIB *lib, const char *find, uint length, bool part_match);
 uint check_word(TYPELIB *lib, const char *val, const char *end,
 		const char **end_of_word);
+
+bool is_keyword(const char *name, uint len);
+
+/* sql_parse.cc */
+void free_items(Item *item);
+void cleanup_items(Item *item);
+
+#define MY_DB_OPT_FILE "db.opt"
+bool load_db_opt(THD *thd, const char *path, HA_CREATE_INFO *create);
 
 /*
   External variables
@@ -1139,5 +1150,14 @@ inline void setup_table_map(TABLE *table, TABLE_LIST *table_list, uint tablenr)
   table->map= (table_map) 1 << tablenr;
   table->force_index= table_list->force_index;
 }
+
+typedef struct st_sym_group {
+  const char *name;
+  const char *needed_define;
+} SYM_GROUP;
+
+extern SYM_GROUP sym_group_common;
+extern SYM_GROUP sym_group_geom;
+extern SYM_GROUP sym_group_rtree;
 
 #endif /* MYSQL_CLIENT */

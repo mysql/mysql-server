@@ -5704,6 +5704,7 @@ static MY_CHARSET_HANDLER my_charset_handler=
   mbcharlen_gb2312,
   my_numchars_mb,
   my_charpos_mb,
+  my_wellformedlen_mb,
   my_lengthsp_8bit,
   my_mb_wc_gb2312,	/* mb_wc      */
   my_wc_mb_gb2312,	/* wc_mb      */
@@ -5740,6 +5741,7 @@ CHARSET_INFO my_charset_gb2312_chinese_ci=
     "",
     "",
     1,			/* strxfrm_multiply */
+    1,			/* mbminlen   */
     2,			/* mbmaxlen   */
     0,
     &my_charset_handler,
@@ -5762,6 +5764,7 @@ CHARSET_INFO my_charset_gb2312_bin=
     "",
     "",
     1,			/* strxfrm_multiply */
+    1,			/* mbminlen   */
     2,			/* mbmaxlen   */
     0,
     &my_charset_handler,

@@ -53,9 +53,14 @@ drop table t2;
 create table t1 (
   test_set set( 'val1', 'val2', 'val3' ) not null default '',
   name char(20) default 'O''Brien' comment 'O''Brien as default',
-  c int not null comment 'int column'
+  c int not null comment 'int column',
+  `c-b` int comment 'name with a space',
+  `space ` int comment 'name with a space',
   ) comment = 'it\'s a table' ;
-show create table t1 ;
+show create table t1;
+set sql_quote_show_create=0;
+show create table t1;
+set sql_quote_show_create=1;
 show full columns from t1;
 drop table t1;
 
@@ -137,3 +142,43 @@ drop table t1;
 create table t1 (c decimal(3,3), d double(3,3), f float(3,3));
 show columns from t1;
 drop table t1;
+
+#
+# Test for Bug #2593 "SHOW CREATE TABLE doesn't properly double quotes"
+#
+
+SET sql_mode='';
+SET sql_quote_show_create=OFF;
+
+CREATE TABLE ```ab``cd``` (i INT);
+SHOW CREATE TABLE ```ab``cd```;
+DROP TABLE ```ab``cd```;
+
+CREATE TABLE ```ab````cd``` (i INT);
+SHOW CREATE TABLE ```ab````cd```;
+DROP TABLE ```ab````cd```;
+
+CREATE TABLE ```a` (i INT);
+SHOW CREATE TABLE ```a`;
+DROP TABLE ```a`;
+
+SET sql_mode='ANSI_QUOTES';
+
+CREATE TABLE """a" (i INT);
+SHOW CREATE TABLE """a";
+DROP TABLE """a";
+
+# to test quotes around keywords.. :
+
+SET sql_mode='';
+SET sql_quote_show_create=OFF;
+
+CREATE TABLE t1 (i INT);
+SHOW CREATE TABLE t1;
+DROP TABLE t1;
+
+CREATE TABLE `table` (i INT);
+SHOW CREATE TABLE `table`;
+DROP TABLE `table`;
+
+SET sql_quote_show_create=ON;

@@ -98,6 +98,8 @@ Item *create_func_is_free_lock(Item* a);
 Item *create_func_is_used_lock(Item* a);
 Item *create_func_quote(Item* a);
 
+#ifdef HAVE_SPATIAL
+
 Item *create_func_geometry_from_text(Item *a);
 Item *create_func_as_wkt(Item *a);
 Item *create_func_as_wkb(Item *a);
@@ -136,6 +138,8 @@ Item *create_func_numinteriorring(Item *a);
 Item *create_func_numgeometries(Item *a);
 
 Item *create_func_point(Item *a, Item *b);
+
+#endif /*HAVE_SPATIAL*/
 
 Item *create_func_compress(Item *a);
 Item *create_func_uncompress(Item *a);

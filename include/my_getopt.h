@@ -17,11 +17,12 @@
 C_MODE_START
 
 enum get_opt_var_type { GET_NO_ARG, GET_BOOL, GET_INT, GET_UINT, GET_LONG,
-			GET_ULONG, GET_LL, GET_ULL, GET_STR, GET_STR_ALLOC
+			GET_ULONG, GET_LL, GET_ULL, GET_STR, GET_STR_ALLOC,
+			GET_DISABLED
                       };
 
-#define GET_ASK_ADDR	128
-#define GET_TYPE_MASK	127
+#define GET_ASK_ADDR	 128
+#define GET_TYPE_MASK	 127
 
 enum get_opt_arg_type { NO_ARG, OPT_ARG, REQUIRED_ARG };
 

@@ -109,8 +109,7 @@ public:
   }
   Item_func(List<Item> &list);
   // Constructor used for Item_cond_and/or (see Item comment)
-  Item_func(THD *thd, Item_func &item);
-  ~Item_func() {} /* Nothing to do; Items are freed automaticly */
+  Item_func(THD *thd, Item_func *item);
   bool fix_fields(THD *,struct st_table_list *, Item **ref);
   table_map used_tables() const;
   table_map not_null_tables() const;
@@ -204,7 +203,7 @@ public:
   Item_int_func(Item *a,Item *b) :Item_func(a,b) { max_length=21; }
   Item_int_func(Item *a,Item *b,Item *c) :Item_func(a,b,c) { max_length=21; }
   Item_int_func(List<Item> &list) :Item_func(list) { max_length=21; }
-  Item_int_func(THD *thd, Item_int_func &item) :Item_func(thd, item) {}
+  Item_int_func(THD *thd, Item_int_func *item) :Item_func(thd, item) {}
   double val() { return (double) val_int(); }
   String *val_str(String*str);
   enum Item_result result_type () const { return INT_RESULT; }
@@ -216,20 +215,28 @@ class Item_func_signed :public Item_int_func
 {
 public:
   Item_func_signed(Item *a) :Item_int_func(a) {}
-  double val() { return args[0]->val(); }
-  longlong val_int() { return args[0]->val_int(); }
+  double val()
+  {
+    double tmp= args[0]->val();
+    null_value= args[0]->null_value;
+    return tmp;
+  }
+  longlong val_int()
+  {
+    longlong tmp= args[0]->val_int();
+    null_value= args[0]->null_value; 
+    return tmp;
+  }
   void fix_length_and_dec()
   { max_length=args[0]->max_length; unsigned_flag=0; }
   void print(String *str);
 };
 
 
-class Item_func_unsigned :public Item_int_func
+class Item_func_unsigned :public Item_func_signed
 {
 public:
-  Item_func_unsigned(Item *a) :Item_int_func(a) {}
-  double val() { return args[0]->val(); }
-  longlong val_int() { return args[0]->val_int(); }
+  Item_func_unsigned(Item *a) :Item_func_signed(a) {}
   void fix_length_and_dec()
   { max_length=args[0]->max_length; unsigned_flag=1; }
   void print(String *str);
@@ -759,7 +766,6 @@ public:
   Item_udf_func(udf_func *udf_arg) :Item_func(), udf(udf_arg) {}
   Item_udf_func(udf_func *udf_arg, List<Item> &list)
     :Item_func(list), udf(udf_arg) {}
-  ~Item_udf_func() {}
   const char *func_name() const { return udf.name(); }
   bool fix_fields(THD *thd, struct st_table_list *tables, Item **ref)
   {
@@ -780,7 +786,6 @@ class Item_func_udf_float :public Item_udf_func
   Item_func_udf_float(udf_func *udf_arg) :Item_udf_func(udf_arg) {}
   Item_func_udf_float(udf_func *udf_arg, List<Item> &list)
     :Item_udf_func(udf_arg,list) {}
-  ~Item_func_udf_float() {}
   longlong val_int() { return (longlong) Item_func_udf_float::val(); }
   double val();
   String *val_str(String *str);
@@ -794,7 +799,6 @@ public:
   Item_func_udf_int(udf_func *udf_arg) :Item_udf_func(udf_arg) {}
   Item_func_udf_int(udf_func *udf_arg, List<Item> &list)
     :Item_udf_func(udf_arg,list) {}
-  ~Item_func_udf_int() {}
   longlong val_int();
   double val() { return (double) Item_func_udf_int::val_int(); }
   String *val_str(String *str);
@@ -809,7 +813,6 @@ public:
   Item_func_udf_str(udf_func *udf_arg) :Item_udf_func(udf_arg) {}
   Item_func_udf_str(udf_func *udf_arg, List<Item> &list)
     :Item_udf_func(udf_arg,list) {}
-  ~Item_func_udf_str() {}
   String *val_str(String *);
   double val()
   {
@@ -834,7 +837,6 @@ class Item_func_udf_float :public Item_real_func
  public:
   Item_func_udf_float(udf_func *udf_arg) :Item_real_func() {}
   Item_func_udf_float(udf_func *udf_arg, List<Item> &list) :Item_real_func(list) {}
-  ~Item_func_udf_float() {}
   double val() { return 0.0; }
 };
 
@@ -844,7 +846,6 @@ class Item_func_udf_int :public Item_int_func
 public:
   Item_func_udf_int(udf_func *udf_arg) :Item_int_func() {}
   Item_func_udf_int(udf_func *udf_arg, List<Item> &list) :Item_int_func(list) {}
-  ~Item_func_udf_int() {}
   longlong val_int() { return 0; }
 };
 
@@ -854,7 +855,6 @@ class Item_func_udf_str :public Item_func
 public:
   Item_func_udf_str(udf_func *udf_arg) :Item_func() {}
   Item_func_udf_str(udf_func *udf_arg, List<Item> &list)  :Item_func(list) {}
-  ~Item_func_udf_str() {}
   String *val_str(String *) { null_value=1; return 0; }
   double val() { null_value=1; return 0.0; }
   longlong val_int() { null_value=1; return 0; }
@@ -1003,7 +1003,7 @@ public:
 
   Item_func_match(List<Item> &a, uint b): Item_real_func(a), key(0), flags(b),
        join_key(0), ft_handler(0), table(0), master(0), concat(0) { }
-  ~Item_func_match()
+  void cleanup()
   {
     if (!master && ft_handler)
     {

@@ -15,6 +15,8 @@ Created 9/20/1997 Heikki Tuuri
 #include "hash0hash.h"
 #include "log0log.h"
 
+extern ibool	recv_replay_file_ops;
+
 /***********************************************************************
 Reads the checkpoint info needed in hot backup. */
 

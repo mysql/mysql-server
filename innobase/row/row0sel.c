@@ -2773,6 +2773,18 @@ row_search_for_mysql(
 		ut_a(0);
 	}
 
+	if (trx->n_mysql_tables_in_use == 0) {
+		char	err_buf[1000];
+
+		trx_print(err_buf, trx);
+
+		fprintf(stderr,
+"InnoDB: Error: MySQL is trying to perform a SELECT\n"
+"InnoDB: but it has not locked any tables in ::external_lock()!\n%s\n",
+			err_buf);
+		ut_a(0);
+	}
+
 /*	printf("Match mode %lu\n search tuple ", match_mode);
 	dtuple_print(search_tuple);
 	
@@ -2888,8 +2900,6 @@ row_search_for_mysql(
 			return(DB_RECORD_NOT_FOUND);
 		}
 	}
-
-	mtr_start(&mtr);
 
 	mtr_start(&mtr);
 
@@ -3072,6 +3082,18 @@ shortcut_fails_too_big_rec:
 	if (!prebuilt->sql_stat_start) {
 		/* No need to set an intention lock or assign a read view */
 
+		if (trx->read_view == NULL
+		    && prebuilt->select_lock_type == LOCK_NONE) {
+			char	err_buf[1000];
+
+			trx_print(err_buf, trx);
+
+			fprintf(stderr,
+"InnoDB: Error: MySQL is trying to perform a consistent read\n"
+"InnoDB: but the read view is not assigned!\n%s\n", err_buf);
+			
+			ut_a(0);
+		}
 	} else if (prebuilt->select_lock_type == LOCK_NONE) {
 		/* This is a consistent read */	
 		/* Assign a read view for the query */

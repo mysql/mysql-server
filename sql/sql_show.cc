@@ -519,7 +519,7 @@ int mysqld_extend_show_tables(THD *thd,const char *db,const char *wild)
         protocol->store_null();
       // Send error to Comment field
       protocol->store(thd->net.last_error, system_charset_info);
-      thd->net.last_error[0]=0;
+      thd->clear_error();
     }
     else
     {
@@ -812,6 +812,94 @@ mysqld_show_create(THD *thd, TABLE_LIST *table_list)
   DBUG_RETURN(0);
 }
 
+int mysqld_show_create_db(THD *thd, char *dbname,
+			  HA_CREATE_INFO *create_info)
+{
+  int length;
+  char	path[FN_REFLEN];
+  char buff[2048];
+  String buffer(buff, sizeof(buff), system_charset_info);
+  uint db_access;
+  bool found_libchar;
+  HA_CREATE_INFO create;
+  uint create_options = create_info ? create_info->options : 0;
+  Protocol *protocol=thd->protocol;
+  DBUG_ENTER("mysql_show_create_db");
+
+  if (check_db_name(dbname))
+  {
+    net_printf(thd,ER_WRONG_DB_NAME, dbname);
+    DBUG_RETURN(1);
+  }
+
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
+  if (test_all_bits(thd->master_access,DB_ACLS))
+    db_access=DB_ACLS;
+  else
+    db_access= (acl_get(thd->host,thd->ip, thd->priv_user,dbname,0) |
+		thd->master_access);
+  if (!(db_access & DB_ACLS) && (!grant_option || check_grant_db(thd,dbname)))
+  {
+    net_printf(thd,ER_DBACCESS_DENIED_ERROR,
+	       thd->priv_user, thd->host_or_ip, dbname);
+    mysql_log.write(thd,COM_INIT_DB,ER(ER_DBACCESS_DENIED_ERROR),
+		    thd->priv_user, thd->host_or_ip, dbname);
+    DBUG_RETURN(1);
+  }
+#endif
+
+  (void) sprintf(path,"%s/%s",mysql_data_home, dbname);
+  length=unpack_dirname(path,path);		// Convert if not unix
+  found_libchar= 0;
+  if (length && path[length-1] == FN_LIBCHAR)
+  {
+    found_libchar= 1;
+    path[length-1]=0;				// remove ending '\'
+  }
+  if (access(path,F_OK))
+  {
+    net_printf(thd,ER_BAD_DB_ERROR,dbname);
+    DBUG_RETURN(1);
+  }
+  if (found_libchar)
+    path[length-1]= FN_LIBCHAR;
+  strmov(path+length, MY_DB_OPT_FILE);
+  load_db_opt(thd, path, &create);
+
+  List<Item> field_list;
+  field_list.push_back(new Item_empty_string("Database",NAME_LEN));
+  field_list.push_back(new Item_empty_string("Create Database",1024));
+
+  if (protocol->send_fields(&field_list,1))
+    DBUG_RETURN(1);
+
+  protocol->prepare_for_resend();
+  protocol->store(dbname, strlen(dbname), system_charset_info);
+  buffer.length(0);
+  buffer.append("CREATE DATABASE ", 16);
+  if (create_options & HA_LEX_CREATE_IF_NOT_EXISTS)
+    buffer.append("/*!32312 IF NOT EXISTS*/ ", 25);
+  append_identifier(thd, &buffer, dbname, strlen(dbname));
+
+  if (create.default_table_charset)
+  {
+    buffer.append(" /*!40100", 9);
+    buffer.append(" DEFAULT CHARACTER SET ", 23);
+    buffer.append(create.default_table_charset->csname);
+    if (!(create.default_table_charset->state & MY_CS_PRIMARY))
+    {
+      buffer.append(" COLLATE ", 9);
+      buffer.append(create.default_table_charset->name);
+    }
+    buffer.append(" */", 3);
+  }
+  protocol->store(buffer.ptr(), buffer.length(), buffer.charset());
+
+  if (protocol->write())
+    DBUG_RETURN(1);
+  send_eof(thd);
+  DBUG_RETURN(0);
+}
 
 int
 mysqld_show_logs(THD *thd)
@@ -997,25 +1085,99 @@ mysqld_dump_create_info(THD *thd, TABLE *table, int fd)
   DBUG_RETURN(0);
 }
 
+static inline const char *require_quotes(const char *name, uint length)
+{
+  uint i, d, c;
+  for (i=0; i<length; i+=d)
+  {
+    c=((uchar *)name)[i];
+    d=my_mbcharlen(system_charset_info, c);
+    if (d==1 && !system_charset_info->ident_map[c])
+      return name+i;
+  }
+  return 0;
+}
+
+/*
+  Looking for char in multibyte string
+
+  SYNOPSIS
+    look_for_char()
+    name      string for looking at
+    length    length of name
+    q         '\'' or '\"' for looking for
+
+  RETURN VALUES
+    # pointer to found char in string
+    0 string doesn't contain required char
+*/
+
+static inline const char *look_for_char(const char *name, 
+					uint length, char q)
+{
+  const char *cur= name;
+  const char *end= cur+length;
+  uint symbol_length;
+  for (; cur<end; cur+= symbol_length)
+  {
+    char c= *cur;
+    symbol_length= my_mbcharlen(system_charset_info, c);
+    if (symbol_length==1 && c==q)
+      return cur;
+  }
+  return 0;
+}
 
 void
 append_identifier(THD *thd, String *packet, const char *name, uint length)
 {
   char qtype;
+  uint part_len;
+  const char *qplace;
   if (thd->variables.sql_mode & MODE_ANSI_QUOTES)
     qtype= '\"';
   else
     qtype= '`';
 
-  if (thd->options & OPTION_QUOTE_SHOW_CREATE)
+  if (is_keyword(name,length))
   {
-    packet->append(&qtype, 1);
+    packet->append(&qtype, 1, system_charset_info);
     packet->append(name, length, system_charset_info);
-    packet->append(&qtype, 1);
+    packet->append(&qtype, 1, system_charset_info);
   }
   else
   {
-    packet->append(name, length, system_charset_info);
+    if (!(qplace= require_quotes(name, length)))
+    {
+      if (!(thd->options & OPTION_QUOTE_SHOW_CREATE))
+	packet->append(name, length, system_charset_info);
+      else
+      {
+	packet->append(&qtype, 1, system_charset_info);
+	packet->append(name, length, system_charset_info);
+	packet->append(&qtype, 1, system_charset_info);
+      }
+    }
+    else
+    {
+      packet->shrink(packet->length()+length+2);
+      packet->append(&qtype, 1, system_charset_info);
+      if (*qplace != qtype)
+	qplace= look_for_char(qplace+1,length-(qplace-name)-1,qtype);
+      while (qplace)
+      {
+	if ((part_len= qplace-name))
+	{
+	  packet->append(name, part_len, system_charset_info);
+	  length-= part_len;
+	}
+	packet->append(qplace, 1, system_charset_info);
+	name= qplace;
+	qplace= look_for_char(name+1,length-1,qtype);
+      }
+      packet->append(name, length, system_charset_info);
+      packet->append(&qtype, 1, system_charset_info);
+    }
   }
 }
 
@@ -1167,7 +1329,7 @@ store_create_info(THD *thd, TABLE *table, String *packet)
     bool found_primary=0;
     packet->append(",\n  ", 4);
 
-    if (i == primary_key && !strcmp(key_info->name,"PRIMARY"))
+    if (i == primary_key && !strcmp(key_info->name, primary_key_name))
     {
       found_primary=1;
       packet->append("PRIMARY ", 8);
@@ -1235,7 +1397,10 @@ store_create_info(THD *thd, TABLE *table, String *packet)
   packet->append("\n)", 2);
   if (!(thd->variables.sql_mode & MODE_NO_TABLE_OPTIONS) && !foreign_db_mode)
   {
-    packet->append(" ENGINE=", 8);
+    if (thd->variables.sql_mode & (MODE_MYSQL323 | MODE_MYSQL40))
+      packet->append(" TYPE=", 6);
+    else
+      packet->append(" ENGINE=", 8);
     packet->append(file->table_type());
     
     if (table->table_charset &&

@@ -94,8 +94,14 @@ sp_eval_func_item(THD *thd, Item *it, enum enum_field_types type)
 	}
 	else
 	{
+	  /* There's some difference between Item::new_item() and the
+	   * constructor; the former crashes, the latter works... weird. */
+	  uint8 decimals= it->decimals;
+	  uint32 max_length= it->max_length;
 	  DBUG_PRINT("info", ("REAL_RESULT: %g", d));
 	  it= new Item_real(it->val());
+	  it->decimals= decimals;
+	  it->max_length= max_length;
 	}
 	break;
       }
@@ -271,6 +277,12 @@ sp_head::execute(THD *thd)
   int ret= 0;
   uint ip= 0;
 
+#ifndef EMBEDDED_LIBRARY
+  if (check_stack_overrun(thd, olddbptr))
+  {
+    DBUG_RETURN(-1);
+  }
+#endif
   if (olddbptr)
   {
     uint i= 0;
@@ -840,17 +852,17 @@ sp_instr_stmt::exec_stmt(THD *thd, LEX *lex)
   {
     TABLE_LIST *tabs;
 
+    if (lex->sql_command == SQLCOM_CREATE_TABLE ||
+	lex->sql_command == SQLCOM_INSERT_SELECT)
+    {				// Restore sl->table_list.first
+      sl->table_list.first= sl->table_list_first_copy;
+    }
     // We have closed all tables, get rid of pointers to them
     for (tabs=(TABLE_LIST *)sl->table_list.first ;
 	 tabs ;
 	 tabs= tabs->next)
     {
       tabs->table= NULL;
-    }
-    if (lex->sql_command == SQLCOM_CREATE_TABLE ||
-	lex->sql_command == SQLCOM_INSERT_SELECT)
-    {				// Restore sl->table_list.first
-      sl->table_list.first= sl->table_list_first_copy;
     }
     for (ORDER *order= (ORDER *)sl->order_list.first ;
 	 order ;

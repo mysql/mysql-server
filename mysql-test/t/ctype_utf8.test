@@ -2,6 +2,9 @@
 # Tests with the utf8 character set
 #
 
+--disable_warnings
+drop table if exists t1;
+--enable_warnings
 set names utf8;
 
 select left(_utf8 0xD0B0D0B1D0B2,1);
@@ -35,3 +38,70 @@ select _utf8 0xD0B0D0B1D0B2 like concat(_utf8'%',_utf8 0xD0B1,_utf8 '%');
 #
 #select _utf8 0xD0B0D0B1D0B2 like concat(_utf8'%',_utf8 0xD091,_utf8 '%');
 #
+
+#
+# Bug 2367: INSERT() behaviour is different for different charsets.
+#
+select insert('txs',2,1,'hi'),insert('is ',4,0,'a'),insert('txxxxt',2,4,'es');
+select insert("aa",100,1,"b"),insert("aa",1,3,"b");
+
+#
+# CREATE ... SELECT
+#
+create table t1 select date_format("2004-01-19 10:10:10", "%Y-%m-%d");
+show create table t1;
+select * from t1;
+drop table t1;
+
+#
+# Bug #2366  	Wrong utf8 behaviour when data is trancated
+#
+set names koi8r;
+create table t1 (s1 char(1) character set utf8);
+insert into t1 values (_koi8r'ÁÂ');
+select s1,hex(s1),char_length(s1),octet_length(s1) from t1;
+drop table t1;
+
+create table t1 (s1 tinytext character set utf8);
+insert into t1 select repeat('a',300);
+insert into t1 select repeat('Ñ',300);
+insert into t1 select repeat('aÑ',300);
+insert into t1 select repeat('Ña',300);
+insert into t1 select repeat('ÑÑ',300);
+select hex(s1) from t1;
+select length(s1),char_length(s1) from t1;
+drop table t1;
+
+create table t1 (s1 text character set utf8);
+insert into t1 select repeat('a',66000);
+insert into t1 select repeat('Ñ',66000);
+insert into t1 select repeat('aÑ',66000);
+insert into t1 select repeat('Ña',66000);
+insert into t1 select repeat('ÑÑ',66000);
+select length(s1),char_length(s1) from t1;
+drop table t1;
+
+#
+# Bug #2368 Multibyte charsets do not check that incoming data is well-formed
+#
+create table t1 (s1 char(10) character set utf8);
+insert into t1 values (0x41FF);
+select hex(s1) from t1;
+drop table t1;
+
+create table t1 (s1 varchar(10) character set utf8);
+insert into t1 values (0x41FF);
+select hex(s1) from t1;
+drop table t1;
+
+create table t1 (s1 text character set utf8);
+insert into t1 values (0x41FF);
+select hex(s1) from t1;
+drop table t1;
+
+#
+# Bug 2699
+# UTF8 breaks primary keys for cols > 85 characters
+#
+--error 1089
+create table t1 (a char(160) character set utf8, primary key(a));

@@ -149,9 +149,6 @@ THD::THD():user_time(0), is_fatal_error(0),
   *scramble= '\0';
 
   init();
-  init_sql_alloc(&mem_root,                    // must be after init()
-                 variables.query_alloc_block_size,
-                 variables.query_prealloc_size);
   /* Initialize sub structures */
   init_alloc_root(&warn_root, WARN_ALLOC_BLOCK_SIZE, WARN_ALLOC_PREALLOC_SIZE);
   user_connect=(USER_CONN *)0;
@@ -188,9 +185,6 @@ THD::THD():user_time(0), is_fatal_error(0),
     transaction.trans_log.end_of_file= max_binlog_cache_size;
   }
 #endif
-  init_sql_alloc(&transaction.mem_root,         
-		 variables.trans_alloc_block_size, 
-		 variables.trans_prealloc_size);
   /*
     We need good random number initialization for new thread
     Just coping global one will not work
@@ -230,6 +224,23 @@ void THD::init(void)
   bzero((char*) warn_count, sizeof(warn_count));
   total_warn_count= 0;
   update_charset();
+}
+
+
+/*
+  Init THD for query processing.
+  This has to be called once before we call mysql_parse.
+  See also comments in sql_class.h.
+*/
+
+void THD::init_for_queries()
+{
+  init_sql_alloc(&mem_root,
+                 variables.query_alloc_block_size,
+                 variables.query_prealloc_size);
+  init_sql_alloc(&transaction.mem_root,         
+		 variables.trans_alloc_block_size, 
+		 variables.trans_prealloc_size);
 }
 
 
@@ -330,8 +341,8 @@ THD::~THD()
     safeFree(host);
   if (user != delayed_user)
     safeFree(user);
-  safeFree(db);
   safeFree(ip);
+  safeFree(db);
   free_root(&warn_root,MYF(0));
   free_root(&transaction.mem_root,MYF(0));
   mysys_var=0;					// Safety (shouldn't be needed)
@@ -339,6 +350,8 @@ THD::~THD()
 #ifndef DBUG_OFF
   dbug_sentry= THD_SENTRY_GONE;
 #endif  
+  /* Reset stmt_backup.mem_root to not double-free memory from thd.mem_root */
+  init_alloc_root(&stmt_backup.mem_root, 0, 0);
   DBUG_VOID_RETURN;
 }
 
@@ -678,12 +691,24 @@ bool select_send::send_eof()
 }
 
 
-/***************************************************************************
-** Export of select to textfile
-***************************************************************************/
+/************************************************************************
+  Handling writing to file
+************************************************************************/
+
+void select_to_file::send_error(uint errcode,const char *err)
+{
+  ::send_error(thd,errcode,err);
+  if (file > 0)
+  {
+    (void) end_io_cache(&cache);
+    (void) my_close(file,MYF(0));
+    (void) my_delete(path,MYF(0));		// Delete file on error
+    file= -1;
+  }
+}
 
 
-select_export::~select_export()
+select_to_file::~select_to_file()
 {
   if (file >= 0)
   {					// This only happens in case of error
@@ -691,42 +716,78 @@ select_export::~select_export()
     (void) my_close(file,MYF(0));
     file= -1;
   }
+}
+
+/***************************************************************************
+** Export of select to textfile
+***************************************************************************/
+
+select_export::~select_export()
+{
   thd->sent_row_count=row_count;
 }
+
+
+/*
+  Create file with IO cache
+
+  SYNOPSIS
+    create_file()
+    thd			Thread handle
+    path		File name
+    exchange		Excange class
+    cache		IO cache
+
+  RETURN
+    >= 0 	File handle
+   -1		Error
+*/
+
+
+static File create_file(THD *thd, char *path, sql_exchange *exchange,
+			IO_CACHE *cache)
+{
+  File file;
+  uint option= MY_UNPACK_FILENAME;
+
+#ifdef DONT_ALLOW_FULL_LOAD_DATA_PATHS
+  option|= MY_REPLACE_DIR;			// Force use of db directory
+#endif
+  (void) fn_format(path, exchange->file_name, thd->db ? thd->db : "", "",
+		   option);
+  if (!access(path, F_OK))
+  {
+    my_error(ER_FILE_EXISTS_ERROR, MYF(0), exchange->file_name);
+    return -1;
+  }
+  /* Create the file world readable */
+  if ((file= my_create(path, 0666, O_WRONLY, MYF(MY_WME))) < 0)
+    return file;
+#ifdef HAVE_FCHMOD
+  (void) fchmod(file, 0666);			// Because of umask()
+#else
+  (void) chmod(path, 0666);
+#endif
+  if (init_io_cache(cache, file, 0L, WRITE_CACHE, 0L, 1, MYF(MY_WME)))
+  {
+    my_close(file, MYF(0));
+    my_delete(path, MYF(0));  // Delete file on error, it was just created 
+    return -1;
+  }
+  return file;
+}
+
 
 int
 select_export::prepare(List<Item> &list, SELECT_LEX_UNIT *u)
 {
-  char path[FN_REFLEN];
-  uint option=4;
   bool blob_flag=0;
   unit= u;
-#ifdef DONT_ALLOW_FULL_LOAD_DATA_PATHS
-  option|=1;					// Force use of db directory
-#endif
   if ((uint) strlen(exchange->file_name) + NAME_LEN >= FN_REFLEN)
     strmake(path,exchange->file_name,FN_REFLEN-1);
-  (void) fn_format(path,exchange->file_name, thd->db ? thd->db : "", "",
-		   option);
-  if (!access(path,F_OK))
-  {
-    my_error(ER_FILE_EXISTS_ERROR, MYF(0), exchange->file_name);
+
+  if ((file= create_file(thd, path, exchange, &cache)) < 0)
     return 1;
-  }
-  /* Create the file world readable */
-  if ((file=my_create(path, 0666, O_WRONLY, MYF(MY_WME))) < 0)
-    return 1;
-#ifdef HAVE_FCHMOD
-  (void) fchmod(file,0666);			// Because of umask()
-#else
-  (void) chmod(path,0666);
-#endif
-  if (init_io_cache(&cache,file,0L,WRITE_CACHE,0L,1,MYF(MY_WME)))
-  {
-    my_close(file,MYF(0));
-    file= -1;
-    return 1;
-  }
   /* Check if there is any blobs in data */
   {
     List_iterator_fast<Item> li(list);
@@ -897,15 +958,6 @@ err:
 }
 
 
-void select_export::send_error(uint errcode, const char *err)
-{
-  ::send_error(thd,errcode,err);
-  (void) end_io_cache(&cache);
-  (void) my_close(file,MYF(0));
-  file= -1;
-}
-
-
 bool select_export::send_eof()
 {
   int error=test(end_io_cache(&cache));
@@ -923,48 +975,12 @@ bool select_export::send_eof()
 ***************************************************************************/
 
 
-select_dump::~select_dump()
-{
-  if (file >= 0)
-  {					// This only happens in case of error
-    (void) end_io_cache(&cache);
-    (void) my_close(file,MYF(0));
-    file= -1;
-  }
-}
-
 int
 select_dump::prepare(List<Item> &list __attribute__((unused)),
 		     SELECT_LEX_UNIT *u)
 {
-  uint option=4;
   unit= u;
-#ifdef DONT_ALLOW_FULL_LOAD_DATA_PATHS
-  option|=1;					// Force use of db directory
-#endif
-  (void) fn_format(path,exchange->file_name, thd->db ? thd->db : "", "",
-		   option);
-  if (!access(path,F_OK))
-  {
-    my_error(ER_FILE_EXISTS_ERROR,MYF(0),exchange->file_name);
-    return 1;
-  }
-  /* Create the file world readable */
-  if ((file=my_create(path, 0666, O_WRONLY, MYF(MY_WME))) < 0)
-    return 1;
-#ifdef HAVE_FCHMOD
-  (void) fchmod(file,0666);			// Because of umask()
-#else
-  (void) chmod(path,0666);
-#endif
-  if (init_io_cache(&cache,file,0L,WRITE_CACHE,0L,1,MYF(MY_WME)))
-  {
-    my_close(file,MYF(0));
-    my_delete(path,MYF(0));
-    file= -1;
-    return 1;
-  }
-  return 0;
+  return (int) ((file= create_file(thd, path, exchange, &cache)) < 0);
 }
 
 
@@ -1007,15 +1023,6 @@ err:
 }
 
 
-void select_dump::send_error(uint errcode,const char *err)
-{
-  ::send_error(thd,errcode,err);
-  (void) end_io_cache(&cache);
-  (void) my_close(file,MYF(0));
-  (void) my_delete(path,MYF(0));		// Delete file on error
-  file= -1;
-}
-
 bool select_dump::send_eof()
 {
   int error=test(end_io_cache(&cache));
@@ -1027,10 +1034,12 @@ bool select_dump::send_eof()
   return error;
 }
 
+
 select_subselect::select_subselect(Item_subselect *item_arg)
 {
   item= item_arg;
 }
+
 
 bool select_singlerow_subselect::send_data(List<Item> &items)
 {
@@ -1038,7 +1047,7 @@ bool select_singlerow_subselect::send_data(List<Item> &items)
   Item_singlerow_subselect *it= (Item_singlerow_subselect *)item;
   if (it->assigned())
   {
-      my_message(ER_SUBQUERY_NO_1_ROW, ER(ER_SUBQUERY_NO_1_ROW), MYF(0));
+    my_message(ER_SUBQUERY_NO_1_ROW, ER(ER_SUBQUERY_NO_1_ROW), MYF(0));
     DBUG_RETURN(1);
   }
   if (unit->offset_limit_cnt)
@@ -1053,6 +1062,7 @@ bool select_singlerow_subselect::send_data(List<Item> &items)
   it->assigned(1);
   DBUG_RETURN(0);
 }
+
 
 bool select_max_min_finder_subselect::send_data(List<Item> &items)
 {
@@ -1159,8 +1169,9 @@ bool select_exists_subselect::send_data(List<Item> &items)
 
 
 /***************************************************************************
-** Dump  of select to variables
+  Dump of select to variables
 ***************************************************************************/
+
 int select_dumpvar::prepare(List<Item> &list, SELECT_LEX_UNIT *u)
 {
   List_iterator_fast<Item> li(list);

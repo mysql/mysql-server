@@ -478,6 +478,7 @@ Item *create_func_quote(Item* a)
   return new Item_func_quote(a);
 }
 
+#ifdef HAVE_SPATIAL
 Item *create_func_as_wkt(Item *a)
 {
   return new Item_func_as_wkt(a);
@@ -637,6 +638,7 @@ Item *create_func_point(Item *a, Item *b)
 {
   return new Item_func_point(a, b);
 }
+#endif /*HAVE_SPATIAL*/
 
 Item *create_func_crc32(Item* a)
 {

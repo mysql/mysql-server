@@ -165,3 +165,9 @@ SELECT f_acc.rank, a1.rank, a2.rank  FROM t1 LEFT JOIN t1 f1 ON  (f1.access_id=1
 rank	rank	rank
 2	2	NULL
 DROP TABLE t1,t2;
+CREATE TABLE t1 (d varchar(6), k int);
+INSERT INTO t1 VALUES (NULL, 2);
+SELECT GREATEST(d,d) FROM t1 WHERE k=2;
+GREATEST(d,d)
+NULL
+DROP TABLE t1;

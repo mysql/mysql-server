@@ -24,6 +24,12 @@ Note	1003	select high_priority ~(5) AS `~5`,cast(~(5) as signed) AS `cast(~5 as 
 select cast(5 as unsigned) -6.0;
 cast(5 as unsigned) -6.0
 -1.0
+select cast(NULL as signed), cast(1/0 as signed);
+cast(NULL as signed)	cast(1/0 as signed)
+NULL	NULL
+select cast(NULL as unsigned), cast(1/0 as unsigned);
+cast(NULL as unsigned)	cast(1/0 as unsigned)
+NULL	NULL
 select cast("A" as binary) = "a", cast(BINARY "a" as CHAR) = "A";
 cast("A" as binary) = "a"	cast(BINARY "a" as CHAR) = "A"
 0	1
@@ -33,6 +39,24 @@ cast("2001-1-1" as DATE)	cast("2001-1-1" as DATETIME)
 select cast("1:2:3" as TIME);
 cast("1:2:3" as TIME)
 01:02:03
+select CONVERT("2004-01-22 21:45:33",DATE);
+CONVERT("2004-01-22 21:45:33",DATE)
+2004-01-22
+select CONVERT(DATE "2004-01-22 21:45:33" USING latin1);
+CONVERT(DATE "2004-01-22 21:45:33" USING latin1)
+2004-01-22 21:45:33
+select CONVERT(DATE "2004-01-22 21:45:33",CHAR);
+CONVERT(DATE "2004-01-22 21:45:33",CHAR)
+2004-01-22 21:45:33
+select CONVERT(DATE "2004-01-22 21:45:33",CHAR(4));
+CONVERT(DATE "2004-01-22 21:45:33",CHAR(4))
+2004
+select CONVERT(DATE "2004-01-22 21:45:33",CHAR(4) BINARY);
+CONVERT(DATE "2004-01-22 21:45:33",CHAR(4) BINARY)
+2004
+select CAST(DATE "2004-01-22 21:45:33" AS CHAR(4) BINARY);
+CAST(DATE "2004-01-22 21:45:33" AS CHAR(4) BINARY)
+2004
 set names binary;
 select cast(_latin1'test' as char character set latin2);
 cast(_latin1'test' as char character set latin2)
@@ -101,6 +125,21 @@ t1	CREATE TABLE `t1` (
   `c5` char(2) character set utf8 NOT NULL default ''
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop table t1;
+create table t1 (a binary(10), b char(10) character set koi8r);
+insert into t1 values (_binary'тест',_binary'тест');
+select a,b,cast(a as char character set cp1251),cast(b as binary) from t1;
+a	b	cast(a as char character set cp1251)	cast(b as binary)
+тест	тест	тест	тест
+set names koi8r;
+select a,b,cast(a as char character set cp1251),cast(b as binary) from t1;
+a	b	cast(a as char character set cp1251)	cast(b as binary)
+тест	тест	ФЕУФ	тест
+set names cp1251;
+select a,b,cast(a as char character set cp1251),cast(b as binary) from t1;
+a	b	cast(a as char character set cp1251)	cast(b as binary)
+тест	РЕЯР	тест	тест
+drop table t1;
+set names binary;
 select cast("2001-1-1" as date) = "2001-01-01";
 cast("2001-1-1" as date) = "2001-01-01"
 1

@@ -144,6 +144,8 @@ typedef struct my_charset_handler_st
   int     (*mbcharlen)(struct charset_info_st *, uint);
   uint    (*numchars)(struct charset_info_st *, const char *b, const char *e);
   uint    (*charpos)(struct charset_info_st *, const char *b, const char *e, uint pos);
+  uint    (*wellformedlen)(struct charset_info_st *,
+  			   const char *b,const char *e, uint nchars);
   uint    (*lengthsp)(struct charset_info_st *, const char *ptr, uint length);
   
   /* Unicode convertion */
@@ -206,8 +208,9 @@ typedef struct charset_info_st
   uchar state_map[256];
   uchar ident_map[256];
   uint      strxfrm_multiply;
+  uint      mbminlen;
   uint      mbmaxlen;
-  char    max_sort_char; /* For LIKE optimization */
+  char      max_sort_char; /* For LIKE optimization */
   
   MY_CHARSET_HANDLER *cset;
   MY_COLLATION_HANDLER *coll;
@@ -310,6 +313,7 @@ int my_wildcmp_8bit(CHARSET_INFO *,
 
 uint my_numchars_8bit(CHARSET_INFO *, const char *b, const char *e);
 uint my_charpos_8bit(CHARSET_INFO *, const char *b, const char *e, uint pos);
+uint my_wellformedlen_8bit(CHARSET_INFO *, const char *b, const char *e, uint pos);
 int my_mbcharlen_8bit(CHARSET_INFO *, uint c);
 
 
@@ -326,6 +330,7 @@ int my_wildcmp_mb(CHARSET_INFO *,
 		  int escape, int w_one, int w_many);
 uint my_numchars_mb(CHARSET_INFO *, const char *b, const char *e);
 uint my_charpos_mb(CHARSET_INFO *, const char *b, const char *e, uint pos);
+uint my_wellformedlen_mb(CHARSET_INFO *, const char *b, const char *e, uint pos);
 uint my_instr_mb(struct charset_info_st *,
                  const char *b, uint b_length,
                  const char *s, uint s_length,

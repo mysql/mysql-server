@@ -680,7 +680,7 @@ static bool mysql_test_upd_fields(Prepared_statement *stmt,
 #endif
   if (open_and_lock_tables(thd, table_list))
     DBUG_RETURN(1);
-  if (setup_tables(table_list) ||
+  if (setup_tables(table_list, 0) ||
       setup_fields(thd, 0, table_list, fields, 1, 0, 0) || 
       setup_conds(thd, table_list, &conds) || thd->net.report_error)      
     DBUG_RETURN(1);
@@ -734,7 +734,7 @@ static bool mysql_test_select_fields(Prepared_statement *stmt,
     DBUG_RETURN(1);
 #endif
   if ((&lex->select_lex != lex->all_selects_list &&
-       lex->unit.create_total_list(thd, lex, &tables, 0)))
+       lex->unit.create_total_list(thd, lex, &tables)))
    DBUG_RETURN(1);
     
   if (open_and_lock_tables(thd, tables))
@@ -747,7 +747,6 @@ static bool mysql_test_select_fields(Prepared_statement *stmt,
   }
   else 
   {
-    fix_tables_pointers(lex->all_selects_list);
     if (!result && !(result= new select_send()))
     {
       send_error(thd, ER_OUT_OF_RESOURCES);
@@ -757,7 +756,8 @@ static bool mysql_test_select_fields(Prepared_statement *stmt,
     JOIN *join= new JOIN(thd, fields, select_options, result);
     thd->used_tables= 0;	// Updated by setup_fields  
 
-    if (join->prepare(&select_lex->ref_pointer_array, tables, 
+    if (join->prepare(&select_lex->ref_pointer_array,
+		      (TABLE_LIST*)select_lex->get_table_list(),
                       wild_num, conds, og_num, order, group, having, proc, 
                       select_lex, unit))
       DBUG_RETURN(1);
@@ -926,6 +926,7 @@ bool mysql_stmt_prepare(THD *thd, char *packet, uint packet_length)
     sl->prep_where= sl->where;
   }
 
+  cleanup_items(thd->free_list);
   stmt->set_statement(thd);
   thd->set_statement(&thd->stmt_backup);
 
@@ -983,14 +984,10 @@ void mysql_stmt_execute(THD *thd, char *packet)
     DBUG_VOID_RETURN;
   }
 
-  /*
-    XXX: while thd->query_id is incremented for each command, stmt->query_id
-    holds query_id of prepare stage. Keeping old query_id seems to be more
-    natural, but differs from the way prepared statements work in 4.1:
-  */ 
-  /* stmt->query_id= thd->query_id; */
+  stmt->query_id= thd->query_id;
   thd->stmt_backup.set_statement(thd);
   thd->set_statement(stmt);
+  thd->free_list= 0;
 
   /*
     To make sure that all runtime data is stored in its own memory root and 
@@ -1014,6 +1011,13 @@ void mysql_stmt_execute(THD *thd, char *packet)
     if (sl->prep_where)
       sl->where= sl->prep_where->copy_andor_structure(thd);
     DBUG_ASSERT(sl->join == 0);
+    ORDER *order;
+    /* Fix GROUP list */
+    for (order=(ORDER *)sl->group_list.first ; order ; order=order->next)
+      order->item= (Item **)(order+1);
+    /* Fix ORDER list */
+    for (order=(ORDER *)sl->order_list.first ; order ; order=order->next)
+      order->item= (Item **)(order+1);
   }
 
   /*
@@ -1050,6 +1054,8 @@ void mysql_stmt_execute(THD *thd, char *packet)
   if (!(specialflag & SPECIAL_NO_PRIOR))
     my_pthread_setprio(pthread_self(), WAIT_PRIOR);
 
+  free_items(thd->free_list);
+  cleanup_items(stmt->free_list);
   free_root(&thd->mem_root, MYF(0));
   thd->set_statement(&thd->stmt_backup);
   DBUG_VOID_RETURN;
@@ -1201,7 +1207,7 @@ Prepared_statement::Prepared_statement(THD *thd_arg)
 #ifndef EMBEDDED_LIBRARY
     setup_params= insert_params; // not fully qualified query
 #else
-    setup_params_data= setup_params_data;
+    setup_params_data= ::setup_params_data;
 #endif
 }
 
