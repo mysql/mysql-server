@@ -101,6 +101,7 @@ typedef struct st_mi_state_info
 #define MI_COLUMNDEF_SIZE	(2*3+1)
 #define MI_BASE_INFO_SIZE	(5*8 + 8*4 + 4 + 4*2 + 16)
 #define MI_INDEX_BLOCK_MARGIN	16	/* Safety margin for .MYI tables */
+#define MI_TEMPORARY_TABLE      ((1 & ~F_RDLCK) | (2 & ~F_WRLCK) | (4 & ~F_UNLCK))
 
 typedef struct st_mi_base_info
 {
