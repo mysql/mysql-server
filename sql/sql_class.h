@@ -34,6 +34,8 @@ enum enum_log_type { LOG_CLOSED, LOG_NORMAL, LOG_NEW, LOG_BIN };
 enum enum_delay_key_write { DELAY_KEY_WRITE_NONE, DELAY_KEY_WRITE_ON,
 			    DELAY_KEY_WRITE_ALL };
 
+extern char internal_table_name[2];
+
 // log info errors
 #define LOG_INFO_EOF -1
 #define LOG_INFO_IO  -2
@@ -143,7 +145,9 @@ public:
   int generate_new_name(char *new_name,const char *old_name);
   void make_log_name(char* buf, const char* log_ident);
   bool is_active(const char* log_file_name);
+  int update_log_index(LOG_INFO* linfo);
   int purge_logs(THD* thd, const char* to_log);
+  int purge_logs_before_date(THD* thd, time_t purge_time);
   int purge_first_log(struct st_relay_log_info* rli); 
   bool reset_logs(THD* thd);
   // if we are exiting, we also want to close the index file
@@ -170,32 +174,6 @@ public:
 
 /* character conversion tables */
 
-class CONVERT;
-CONVERT *get_convert_set(const char *name_ptr);
-
-class CONVERT
-{
-  const uchar *from_map,*to_map;
-  void convert_array(const uchar *mapping,uchar *buff,uint length);
-public:
-  const char *name;
-  uint numb;
-  CONVERT(const char *name_par,uchar *from_par,uchar *to_par, uint number)
-    :from_map(from_par),to_map(to_par),name(name_par),numb(number) {}
-  friend CONVERT *get_convert_set(const char *name_ptr);
-  inline void convert(char *a,uint length)
-  {
-    convert_array(from_map, (uchar*) a,length);
-  }
-  char *store_dest(char *to, const char *from, uint length)
-  {
-    for (const char *end=from+length ; from != end ; from++)
-      *to++= to_map[(uchar) *from];
-    return to;
-  }
-  bool store(String *, const char *,uint);
-  inline uint number() { return numb; }
-};
 
 typedef struct st_copy_info {
   ha_rows records;
@@ -360,10 +338,6 @@ class select_result;
 #define THD_SENTRY_MAGIC 0xfeedd1ff
 #define THD_SENTRY_GONE  0xdeadbeef
 
-#ifdef EMBEDDED_LIBRARY
-typedef struct st_mysql;
-#endif
-
 #define THD_CHECK_SENTRY(thd) DBUG_ASSERT(thd->dbug_sentry == THD_SENTRY_MAGIC)
 
 struct system_variables
@@ -396,6 +370,7 @@ struct system_variables
   ulong tmp_table_size;
   ulong tx_isolation;
   ulong sql_mode;
+  ulong default_week_format;
   ulong group_concat_max_len;
   /*
     In slave thread we need to know in behalf of which
@@ -404,9 +379,10 @@ struct system_variables
   ulong pseudo_thread_id;
 
   my_bool log_warnings;
-  my_bool low_priority_updates; 
+  my_bool low_priority_updates;
+  my_bool new_mode;
+  my_bool convert_result_charset;
 
-  CONVERT	*convert_set;
   CHARSET_INFO 	*thd_charset;
 };
 
@@ -453,8 +429,9 @@ public:
     db - currently selected database
     ip - client IP
    */
-  
   char	  *host,*user,*priv_user,*db,*ip;
+  /* remote (peer) port */
+  uint16 peer_port;
   /* Points to info-string that will show in SHOW PROCESSLIST */
   const char *proc_info;
   /* points to host if host is available, otherwise points to ip */
@@ -577,6 +554,7 @@ public:
 
   void init(void);
   void change_user(void);
+  void init_for_queries();
   void cleanup(void);
   bool store_globals();
 #ifdef SIGNAL_WITH_VIO_CLOSE
@@ -684,7 +662,9 @@ public:
   {
     is_fatal_error= 1;
     net.report_error= 1; 
+    DBUG_PRINT("error",("Fatal error set"));
   }
+  inline CHARSET_INFO *charset() { return variables.thd_charset; }
 };
 
 /*
@@ -910,10 +890,11 @@ class Table_ident :public Sql_alloc
   LEX_STRING db;
   LEX_STRING table;
   SELECT_LEX_UNIT *sel;
-  inline Table_ident(LEX_STRING db_arg, LEX_STRING table_arg, bool force)
+  inline Table_ident(THD *thd, LEX_STRING db_arg, LEX_STRING table_arg,
+		     bool force)
     :table(table_arg), sel((SELECT_LEX_UNIT *)0)
   {
-    if (!force && (current_thd->client_capabilities & CLIENT_NO_SCHEMA))
+    if (!force && (thd->client_capabilities & CLIENT_NO_SCHEMA))
       db.str=0;
     else
       db= db_arg;
@@ -925,7 +906,8 @@ class Table_ident :public Sql_alloc
   }
   inline Table_ident(SELECT_LEX_UNIT *s) : sel(s) 
   {
-    db.str=0; table.str=(char *)""; table.length=0;
+    /* We must have a table name here as this is used with add_table_to_list */
+    db.str=0; table.str= internal_table_name; table.length=1;
   }
   inline void change_db(char *db_name)
   {
@@ -942,6 +924,7 @@ class user_var_entry
   ulong length, update_query_id, used_query_id;
   Item_result type;
   CHARSET_INFO *var_charset;
+  enum Item::coercion var_coercibility;
 };
 
 /* Class for unique (removing of duplicates) */
@@ -1000,7 +983,7 @@ class multi_update : public select_result
 {
   TABLE_LIST *all_tables, *update_tables, *table_being_updated;
   THD *thd;
-  TABLE **tmp_tables, *main_table;
+  TABLE **tmp_tables, *main_table, *table_to_update;
   TMP_TABLE_PARAM *tmp_table_param;
   ha_rows updated, found;
   List <Item> *fields, *values;
