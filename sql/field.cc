@@ -431,8 +431,9 @@ void Field_decimal::store(const char *from,uint len)
   {
     sign_char= *from++;
     /*
-      Unsigned can't have any flag. So we'll just drop "+"
-      and will overflow on "-"
+      We allow "+" for unsigned decimal unless defined different
+      Both options allowed as one may wish not to have "+" for unsigned numbers
+      because of data processing issues
     */ 
     if (unsigned_flag)  
     { 
@@ -441,8 +442,14 @@ void Field_decimal::store(const char *from,uint len)
         Field_decimal::overflow(1);
         return;
       }
+      /* 
+        Defining this will not store "+" for unsigned decimal type even if
+	it is passed in numeric string. This will make some tests to fail
+      */	 
+#ifdef DONT_ALLOW_UNSIGNED_PLUS      
       else 
         sign_char=0;
+#endif 	
     }
   }
 
