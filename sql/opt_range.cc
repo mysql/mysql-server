@@ -2869,10 +2869,10 @@ TRP_ROR_INTERSECT *get_best_ror_intersect(const PARAM *param, SEL_TREE *tree,
     trp->records= best_rows? best_rows : 1;
     trp->index_scan_costs= best_index_scan_costs;
     trp->cpk_scan= cpk_scan;
+    DBUG_PRINT("info",
+               ("Returning non-covering ROR-intersect plan: cost %g, records %lu",
+                trp->read_cost, (ulong) trp->records));
   }
-  DBUG_PRINT("info",
-             ("Returning non-covering ROR-intersect plan: cost %g, records %lu",
-              trp->read_cost, (ulong) trp->records));
   DBUG_RETURN(trp);
 }
 

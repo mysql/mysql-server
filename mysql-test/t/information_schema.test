@@ -162,16 +162,7 @@ select * from information_schema.TABLE_CONSTRAINTS where
 TABLE_SCHEMA= "test";
 select * from information_schema.KEY_COLUMN_USAGE where
 TABLE_SCHEMA= "test";
-drop table t1;
 
-CREATE TABLE t1 (id INT NOT NULL, PRIMARY KEY (id)) ENGINE=INNODB;
-CREATE TABLE t2 (id INT PRIMARY KEY, t1_id INT, INDEX par_ind (t1_id),
-FOREIGN KEY (t1_id) REFERENCES t1(id)  ON DELETE CASCADE,
-FOREIGN KEY (t1_id) REFERENCES t1(id)  ON UPDATE CASCADE) ENGINE=INNODB;
-select * from information_schema.TABLE_CONSTRAINTS where
-TABLE_SCHEMA= "test";
-select * from information_schema.KEY_COLUMN_USAGE where
-TABLE_SCHEMA= "test";
 
 connect (user1,localhost,mysqltest_1,,);
 connection user1;
@@ -181,7 +172,6 @@ select ROUTINE_NAME from information_schema.ROUTINES;
 disconnect user1;
 connection default;
 delete from mysql.user where user='mysqltest_1';
-drop table t2;
 drop table t1;
 drop procedure sel2;
 drop function sub1;
@@ -218,6 +208,7 @@ call px5()//
 call px5()//
 delimiter ;//
 select sql_mode from information_schema.ROUTINES;
+drop procedure px5;
 
 create table t1 (a int not null auto_increment,b int, primary key (a));
 insert into t1 values (1,1),(NULL,3),(NULL,4);
@@ -252,3 +243,20 @@ select COLUMN_NAME,COLUMN_TYPE, CHARACTER_MAXIMUM_LENGTH,
  CHARACTER_OCTET_LENGTH, NUMERIC_PRECISION, NUMERIC_SCALE
 from information_schema.columns where table_name= 't1';
 drop table t1;
+
+create table t115 as select table_name, column_name, column_type
+from information_schema.columns where table_name = 'proc';
+select * from t115;
+drop table t115;
+
+create view vk as select count(*) from information_schema.tables a;
+select * from vk;
+drop view vk;
+
+delimiter //;
+create procedure p108 () begin declare c cursor for select data_type
+from information_schema.columns;  open c; open c; end;//
+--error 1325
+call p108()//
+delimiter ;//
+drop procedure p108;

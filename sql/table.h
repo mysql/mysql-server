@@ -160,6 +160,7 @@ struct st_table {
   my_bool no_keyread, no_cache;
   my_bool clear_query_id;               /* To reset query_id for tables and cols */
   my_bool auto_increment_field_not_null;
+  my_bool alias_name_used; /* true if table_name is alias */
   Field *next_number_field,		/* Set if next_number is activated */
 	*found_next_number_field,	/* Set on open */
         *rowid_field;
@@ -243,7 +244,7 @@ typedef struct st_schema_table
   const char* table_name;
   ST_FIELD_INFO *fields_info;
   /* Create information_schema table */
-  TABLE *(*create_table)  (THD *thd, struct st_schema_table *schema_table);
+  TABLE *(*create_table)  (THD *thd, struct st_table_list *table_list);
   /* Fill table with data */
   int (*fill_table) (THD *thd, struct st_table_list *tables, COND *cond);
   /* Handle fileds for old SHOW */
@@ -286,7 +287,7 @@ typedef struct st_table_list
   struct st_table_list *next_local;
   /* link in a global list of all queries tables */
   struct st_table_list *next_global, **prev_global;
-  char		*db, *alias, *real_name;
+  char		*db, *alias, *real_name, *schema_table_name;
   char          *option;                /* Used by cache index  */
   Item		*on_expr;		/* Used with outer join */
   COND_EQUAL    *cond_equal;            /* Used with outer join */

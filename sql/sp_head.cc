@@ -275,6 +275,11 @@ sp_head::init(LEX *lex)
   DBUG_ENTER("sp_head::init");
 
   lex->spcont= m_pcont= new sp_pcontext(NULL);
+  /*
+    Altough trg_table_fields list is used only in triggers we init for all
+    types of stored procedures to simplify reset_lex()/restore_lex() code.
+  */
+  lex->trg_table_fields.empty();
   my_init_dynamic_array(&m_instr, sizeof(sp_instr *), 16, 8);
   m_param_begin= m_param_end= m_returns_begin= m_returns_end= m_body_begin= 0;
   m_qname.str= m_db.str= m_name.str= m_params.str= m_retstr.str=
@@ -771,7 +776,7 @@ sp_head::reset_lex(THD *thd)
   sublex->spcont= oldlex->spcont;
   /* And trigger related stuff too */
   sublex->trg_chistics= oldlex->trg_chistics;
-  sublex->trg_table= oldlex->trg_table;
+  sublex->trg_table_fields.empty();
   sublex->sp_lex_in_use= FALSE;
   DBUG_VOID_RETURN;
 }
@@ -790,6 +795,7 @@ sp_head::restore_lex(THD *thd)
   // Update some state in the old one first
   oldlex->ptr= sublex->ptr;
   oldlex->next_state= sublex->next_state;
+  oldlex->trg_table_fields.push_back(&sublex->trg_table_fields);
 
   // Collect some data from the sub statement lex.
   sp_merge_funs(oldlex, sublex);

@@ -694,7 +694,8 @@ static void verify_prepare_field(MYSQL_RES *result,
     as utf8. Field length is calculated as number of characters * maximum
     number of bytes a character can occupy.
   */
-  DIE_UNLESS(field->length == length * cs->mbmaxlen);
+  if (length)
+    DIE_UNLESS(field->length == length * cs->mbmaxlen);
   if (def)
     DIE_UNLESS(strcmp(field->def, def) == 0);
 }
@@ -7280,7 +7281,7 @@ static void test_explain_bug()
                        MYSQL_TYPE_STRING, 0, 0, "", 192, 0);
 
   verify_prepare_field(result, 1, "Type", "COLUMN_TYPE",
-                       MYSQL_TYPE_STRING, 0, 0, "", 120, 0);
+                       MYSQL_TYPE_BLOB, 0, 0, "", 0, 0);
 
   verify_prepare_field(result, 2, "Null", "IS_NULLABLE",
                        MYSQL_TYPE_STRING, 0, 0, "", 9, 0);

@@ -160,7 +160,8 @@ class ha_ndbcluster: public handler
   void release_metadata();
   NDB_INDEX_TYPE get_index_type(uint idx_no) const;
   NDB_INDEX_TYPE get_index_type_from_table(uint index_no) const;
-  
+  int check_index_fields_not_null(uint index_no);
+
   int pk_read(const byte *key, uint key_len, byte *buf);
   int complemented_pk_read(const byte *old_data, byte *new_data);
   int peek_row();
@@ -238,10 +239,12 @@ class ha_ndbcluster: public handler
   char *m_blobs_buffer;
   uint32 m_blobs_buffer_size;
   uint m_dupkey;
+  // set from thread variables at external lock
   bool m_ha_not_exact_count;
   bool m_force_send;
   ha_rows m_autoincrement_prefetch;
   bool m_transaction_on;
+  bool m_use_local_query_cache;
 
   void set_rec_per_key();
   void records_update();

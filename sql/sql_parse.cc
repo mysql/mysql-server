@@ -3352,16 +3352,15 @@ create_error:
   }
   case SQLCOM_CREATE_FUNCTION:                  // UDF function
   {
-    sp_head *sph;
     if (check_access(thd,INSERT_ACL,"mysql",0,1,0))
       break;
 #ifdef HAVE_DLOPEN
-    if ((sph= sp_find_function(thd, lex->spname)))
+    if (sp_find_function(thd, lex->spname))
     {
       my_error(ER_UDF_EXISTS, MYF(0), lex->spname->m_name.str);
       goto error;
     }
-    if (!(res = mysql_create_function(thd,&lex->udf)))
+    if (!(res = mysql_create_function(thd, &lex->udf)))
       send_ok(thd);
 #else
     res= TRUE;
@@ -3813,35 +3812,35 @@ create_error:
       else
 	sp= sp_find_function(thd, lex->spname);
       mysql_reset_errors(thd);
-      if (! sp)
-	result= SP_KEY_NOT_FOUND;
-      else
+      if (sp)
       {
 	if (check_sp_definer_access(thd, sp))
           goto error;
 	if (lex->sql_command == SQLCOM_DROP_PROCEDURE)
 	  result= sp_drop_procedure(thd, lex->spname);
 	else
-	{
 	  result= sp_drop_function(thd, lex->spname);
+      }
+      else
+      {
 #ifdef HAVE_DLOPEN
-	  if (result == SP_KEY_NOT_FOUND)
-	  {
-	    udf_func *udf = find_udf(lex->spname->m_name.str,
-				     lex->spname->m_name.length);
-	    if (udf)
+	if (lex->sql_command == SQLCOM_DROP_FUNCTION)
+	{
+          udf_func *udf = find_udf(lex->spname->m_name.str,
+                                   lex->spname->m_name.length);
+          if (udf)
+          {
+	    if (check_access(thd, DELETE_ACL, "mysql", 0, 1, 0))
+	      goto error;
+	    if (!(res = mysql_drop_function(thd, &lex->spname->m_name)))
 	    {
-	      if (check_access(thd, DELETE_ACL, "mysql", 0, 1, 0))
-		goto error;
-	      if (!(res = mysql_drop_function(thd,&lex->spname->m_name)))
-	      {
-		send_ok(thd);
-		break;
-	      }
+	      send_ok(thd);
+	      break;
 	    }
 	  }
-#endif
 	}
+#endif
+	result= SP_KEY_NOT_FOUND;
       }
       res= result;
       switch (result)
@@ -3926,11 +3925,11 @@ create_error:
     }
   case SQLCOM_CREATE_TRIGGER:
   {
-    /* We don't care much about trigger body at that point */
+    res= mysql_create_or_drop_trigger(thd, all_tables, 1);
+
+    /* We don't care about trigger body after this point */
     delete lex->sphead;
     lex->sphead= 0;
-
-    res= mysql_create_or_drop_trigger(thd, all_tables, 1);
     break;
   }
   case SQLCOM_DROP_TRIGGER:
