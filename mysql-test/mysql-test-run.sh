@@ -258,7 +258,7 @@ DASH72=`$ECHO '-----------------------------------------------------------------
 # on binary, use what is installed
 if [ x$SOURCE_DIST = x1 ] ; then
  MYSQLD="$BASEDIR/sql/mysqld"
- MYSQL_TEST="$BASEDIR/client/mysqltest"
+ MYSQL_TEST="$BASEDIR/client/.libs/lt-mysqltest" # for --client-gdb to work
  MYSQLADMIN="$BASEDIR/client/mysqladmin"
  MYSQL="$BASEDIR/client/mysql"
  LANGUAGE="$BASEDIR/sql/share/english/"
@@ -787,6 +787,7 @@ run_testcase ()
       pass_inc
       $ECHO "$RES$RES_SPACE [ pass ]"
     else
+      # why the following ``if'' ? That is why res==1 is special ?
       if [ $res = 1 ]; then
 	total_inc
         fail_inc
