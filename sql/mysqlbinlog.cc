@@ -108,7 +108,7 @@ static void die(const char* fmt, ...)
 
 static void print_version()
 {
-  printf("%s  Ver 1.3 for %s at %s\n",my_progname,SYSTEM_TYPE, MACHINE_TYPE);
+  printf("%s  Ver 1.4 for %s at %s\n",my_progname,SYSTEM_TYPE, MACHINE_TYPE);
 }
 
 
@@ -132,7 +132,7 @@ the mysql command line client\n\n");
 -s, --short-form	Just show the queries, no extra info\n\
 -o, --offset=N		Skip the first N entries\n\
 -h, --host=server	Get the binlog from server\n\
--P, --port=port         Use port to connect to the remove server\n\
+-P, --port=port         Use port to connect to the remote server\n\
 -u, --user=username     Connect to the remove server as username\n\
 -p, --password=password Password to connect to remote server\n\
 -r, --result-file=file  Direct output to a given file\n\

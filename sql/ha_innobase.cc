@@ -1523,6 +1523,10 @@ ha_innobase::update_row(
 
 	DBUG_ENTER("ha_innobase::update_row");
 
+        if (table->time_stamp) {
+                update_timestamp(new_row + table->time_stamp - 1);
+	}
+
 	if (last_query_id != user_thd->query_id) {
 	        prebuilt->sql_stat_start = TRUE;
                 last_query_id = user_thd->query_id;

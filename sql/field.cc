@@ -1593,7 +1593,7 @@ double Field_longlong::val_real(void)
   else
 #endif
     longlongget(j,ptr);
-  return unsigned_flag ? ulonglong2double(j) : (double) j;
+  return unsigned_flag ? ulonglong2double((ulonglong) j) : (double) j;
 }
 
 longlong Field_longlong::val_int(void)

@@ -86,7 +86,7 @@ mutex_test_and_set(
 	/* mutex_fence(); */
 
 	return(res);
-#elif defined(__GNUC__) && defined(UNIV_INTEL_X86)
+#elif defined(not_defined) && defined(__GNUC__) && defined(UNIV_INTEL_X86)
 	ulint*	lw;
 	ulint	res;
 
@@ -134,7 +134,7 @@ mutex_reset_lock_word(
 	__asm   MOV     EDX, 0
         __asm   MOV     ECX, lw
         __asm   XCHG    EDX, DWORD PTR [ECX]                    
-#elif defined(__GNUC__) && defined(UNIV_INTEL_X86)
+#elif defined(not_defined) && defined(__GNUC__) && defined(UNIV_INTEL_X86)
 	ulint*	lw;
 
 	lw = &(mutex->lock_word);

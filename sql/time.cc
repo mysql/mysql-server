@@ -455,8 +455,8 @@ str_to_TIME(const char *str, uint length, TIME *l_time,bool fuzzy_date)
     if ((date[i]=tmp_value))
       date_used=1;				// Found something
     if (i == 2 && str != end && *str == 'T')
-      str++;    // ISO8601:  CCYYMMDDThhmmss
-    else
+      str++;					// ISO8601:  CCYYMMDDThhmmss
+    else if ( i != 5 ) 				// Skip inter-field delimiters 
     {
       while (str != end && (ispunct(*str) || isspace(*str)))
       {

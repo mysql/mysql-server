@@ -650,12 +650,9 @@ int yylex(void *arg)
       if (c == 'e' || c == 'E')
       {
 	c = yyGet();
-	if (c != '-' && c != '+' && !isdigit(c))
-	{				// No exp sig found
-	  state= STATE_CHAR;
-	  break;
-	}
-	if (!isdigit(yyGet()))
+	if (c == '-' || c == '+')
+	  c = yyGet();			// Skipp sign
+	if (!isdigit(c))
 	{				// No digit after sign
 	  state= STATE_CHAR;
 	  break;

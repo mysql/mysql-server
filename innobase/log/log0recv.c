@@ -944,9 +944,9 @@ recv_read_in_area(
 	}
 
 	buf_read_recv_pages(FALSE, space, page_nos, n);
-
-	/* printf("Recv pages at %lu n %lu\n", page_nos[0], n); */
-	
+	/*
+        printf("Recv pages at %lu n %lu\n", page_nos[0], n);
+	*/
 	return(n);
 }
 			

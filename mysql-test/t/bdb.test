@@ -705,3 +705,13 @@ commit;
 select id,id3 from t1;
 UNLOCK TABLES;
 DROP TABLE t1;
+
+#
+# Test with empty tables (crashed with lock error)
+#
+
+CREATE TABLE t1 (SYAIN_NO char(5) NOT NULL default '', KINMU_DATE char(6) NOT NULL default '', PRIMARY KEY  (SYAIN_NO,KINMU_DATE)) TYPE=BerkeleyDB;
+CREATE TABLE t2 ( SYAIN_NO char(5) NOT NULL default '',STR_DATE char(8) NOT NULL default '',PRIMARY KEY  (SYAIN_NO,STR_DATE) ) TYPE=BerkeleyDB;
+select T1.KINMU_DATE from t1 T1 ,t2 T2 where  T1.SYAIN_NO = '12345' and T1.KINMU_DATE = '200106' and T2.SYAIN_NO = T1.SYAIN_NO;
+select T1.KINMU_DATE from t1 T1 ,t2 T2 where  T1.SYAIN_NO = '12345' and T1.KINMU_DATE = '200106' and T2.SYAIN_NO = T1.SYAIN_NO;
+DROP TABLE t1,t2;
