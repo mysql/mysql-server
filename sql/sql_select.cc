@@ -9123,7 +9123,7 @@ static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
   THD *thd=join->thd;
   select_result *result=join->result;
   Item *item_null= new Item_null();
-  CHARSET_INFO *cs= &my_charset_latin1;
+  CHARSET_INFO *cs= system_charset_info;
   DBUG_ENTER("select_describe");
   DBUG_PRINT("info", ("Select 0x%lx, type %s, message %s",
 		      (ulong)join->select_lex, join->select_lex->type,
@@ -9190,7 +9190,7 @@ static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
           {
             if (tmp1.length())
               tmp1.append(',');
-            tmp1.append(table->key_info[j].name);
+            tmp1.append(table->key_info[j].name, 0, system_charset_info);
           }
         }
       }
@@ -9209,7 +9209,7 @@ static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
 	{
 	  if (tmp2.length())
 	    tmp2.append(',');
-	  tmp2.append((*ref)->name());
+	  tmp2.append((*ref)->name(), 0, system_charset_info);
 	}
 	item_list.push_back(new Item_string(tmp2.ptr(),tmp2.length(),cs));
       }
