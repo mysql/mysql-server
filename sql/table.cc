@@ -1595,33 +1595,69 @@ bool st_table_list::setup_ancestor(THD *thd, Item **conds)
     if (arena)
       thd->set_n_backup_item_arena(arena, &backup);
 
-    /* Go up to join tree and try to find left join */
-    for (; tbl; tbl= tbl->embedding)
+    if (with_check)
     {
-      if (tbl->outer_join)
+      check_option= where->copy_andor_structure(thd);
+      if (with_check == VIEW_CHECK_CASCADED)
       {
-        /*
-          Store WHERE condition to ON expression for outer join, because we
-          can't use WHERE to correctly execute jeft joins on VIEWs and this
-          expression will not be moved to WHERE condition (i.e. will be clean
-          correctly for PS/SP)
-        */
-        tbl->on_expr= and_conds(tbl->on_expr, where);
-        break;
+        check_option= and_conds(check_option, ancestor->check_option);
       }
     }
-    if (tbl == 0)
+
+    /*
+      check that it is not VIEW in which we insert with INSERT SELECT
+      (in this case we can't add view WHERE condition to main SELECT_LEX)
+    */
+    if (!no_where_clause)
     {
-      /*
-        It is conds of JOIN, but it will be stored in st_select_lex::prep_where
-        for next reexecution
-      */
-      *conds= and_conds(*conds, where);
+      /* Go up to join tree and try to find left join */
+      for (; tbl; tbl= tbl->embedding)
+      {
+        if (tbl->outer_join)
+        {
+          /*
+            Store WHERE condition to ON expression for outer join, because
+            we can't use WHERE to correctly execute jeft joins on VIEWs and
+            this expression will not be moved to WHERE condition (i.e. will
+            be clean correctly for PS/SP)
+          */
+          tbl->on_expr= and_conds(tbl->on_expr, where);
+          break;
+        }
+      }
+      if (tbl == 0)
+      {
+        if (outer_join)
+        {
+          /*
+            Store WHERE condition to ON expression for outer join, because
+            we can't use WHERE to correctly execute jeft joins on VIEWs and
+            this expression will not be moved to WHERE condition (i.e. will
+            be clean correctly for PS/SP)
+          */
+          on_expr= and_conds(on_expr, where);
+        }
+        else
+        {
+          /*
+            It is conds of JOIN, but it will be stored in
+            st_select_lex::prep_where for next reexecution
+          */
+          *conds= and_conds(*conds, where);
+        }
+      }
     }
 
     if (arena)
       thd->restore_backup_item_arena(arena, &backup);
   }
+  /*
+    fix_fields do not need tables, because new are only AND operation and we
+    just need recollect statistics
+  */
+  if (check_option && !check_option->fixed &&
+      check_option->fix_fields(thd, 0, &check_option))
+    goto err;
 
   /* full text function moving to current select */
   if (view->select_lex.ftfunc_list->elements)
@@ -1652,6 +1688,40 @@ err:
   thd->set_query_id= save_set_query_id;
   thd->allow_sum_func= save_allow_sum_func;
   DBUG_RETURN(1);
+}
+
+
+/*
+  check CHECK OPTION condition
+
+  SYNOPSIS
+    check_option()
+    ignore_failure ignore check option fail
+
+  RETURN
+    VIEW_CHECK_OK     OK
+    VIEW_CHECK_ERROR  FAILED
+    VIEW_CHECK_SKIP   FAILED, but continue
+*/
+
+int st_table_list::view_check_option(THD *thd, bool ignore_failure)
+{
+  if (check_option && check_option->val_int() == 0)
+  {
+    if (ignore_failure)
+    {
+      push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_ERROR,
+                          ER_VIEW_CHECK_FAILED, ER(ER_VIEW_CHECK_FAILED),
+                          view_db.str, view_name.str);
+      return(VIEW_CHECK_SKIP);
+    }
+    else
+    {
+      my_error(ER_VIEW_CHECK_FAILED, MYF(0), view_db.str, view_name.str);
+      return(VIEW_CHECK_ERROR);
+    }
+  }
+  return(VIEW_CHECK_OK);
 }
 
 
