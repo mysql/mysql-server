@@ -229,10 +229,10 @@ LocalConfig::parseString(const char * connectString, char *line){
 
 bool LocalConfig::readFile(const char * filename, bool &fopenError)
 {
-  char line[150], line2[150];
-    
+  char line[1024];
+  
   fopenError = false;
-
+  
   FILE * file = fopen(filename, "r");
   if(file == 0){
     snprintf(line, 150, "Unable to open local config file: %s", filename);
@@ -241,31 +241,33 @@ bool LocalConfig::readFile(const char * filename, bool &fopenError)
     return false;
   }
 
-  unsigned int sz = 1024;
-  char* theString = (char*)NdbMem_Allocate(sz);
-  theString[0] = 0;
+  BaseString theString;
 
-  fgets(theString, sz, file);
-  while (fgets(line+1, 100, file)) {
-    line[0] = ';';
-    while (strlen(theString) + strlen(line) >= sz) {
-      sz = sz*2;
-      char *newString = (char*)NdbMem_Allocate(sz);
-      strcpy(newString, theString);
-      free(theString);
-      theString = newString;
+  while(fgets(line, 1024, file)){
+    BaseString tmp(line);
+    tmp.trim(" \t\n\r");
+    if(tmp.length() > 0 && tmp.c_str()[0] != '#'){
+      theString.append(tmp);
+      break;
     }
-    strcat(theString, line);
   }
-
-  bool return_value = parseString(theString, line);
+  while (fgets(line, 1024, file)) {
+    BaseString tmp(line);
+    tmp.trim(" \t\n\r");
+    if(tmp.length() > 0 && tmp.c_str()[0] != '#'){
+      theString.append(";");
+      theString.append(tmp);
+    }
+  }
+  
+  bool return_value = parseString(theString.c_str(), line);
 
   if (!return_value) {
-    snprintf(line2, 150, "Reading %s: %s", filename, line);
-    setError(0,line2);
+    BaseString tmp;
+    tmp.assfmt("Reading %s: %s", filename, line);
+    setError(0, tmp.c_str());
   }
 
-  free(theString);
   fclose(file);
   return return_value;
 }
