@@ -63,14 +63,13 @@ To make maintaining easier please:
   </collation>
 </charset>
 
-<charset name="pclatin1">
+<charset name="cp850">
   <family>Western</family>
   <description>DOS West European</description>
   <alias>850</alias>
-  <alias>cp850</alias>
   <alias>cspc850multilingual</alias>
   <alias>ibm850</alias>
-  <collation name="pclatin1"	id="4"	flag="primary">
+  <collation name="cp850_general_ci"	id="4"	flag="primary">
     <order>Dutch</order>
     <order>English</order>
     <order>French</order>
@@ -80,7 +79,7 @@ To make maintaining easier please:
     <order>Pogtuguese</order>
     <order>Spanish</order>
   </collation>
-  <collation name="pclatin1_bin"	id="80"	order="Binary"	flag="binary"/>
+  <collation name="cp850_bin"	id="80"	order="Binary"	flag="binary"/>
 </charset>
 
 <charset name="latin1">
@@ -479,13 +478,13 @@ To make maintaining easier please:
   </collation>
 </charset>
 
-<charset name="pclatin2">
+<charset name="cp852">
   <family>Central European</family>
   <description>DOS Central European</description>
   <alias>852</alias>
   <alias>cp852</alias>
   <alias>ibm852</alias>
-  <collation name="pclatin2"	id="40"	flag="primary">
+  <collation name="cp852_general_ci"	id="40"	flag="primary">
     <order>Hungarian</order>
     <order>Polish</order>
     <order>Romanian</order>
@@ -494,7 +493,7 @@ To make maintaining easier please:
     <order>Slovenian</order>
     <order>Sorbian</order>
   </collation>
-  <collation name="pclatin2_bin"	id="81"	order="Binary"	flag="binary"/>
+  <collation name="cp852_bin"	id="81"	order="Binary"	flag="binary"/>
 </charset>
 
 <charset name="cp1256">
