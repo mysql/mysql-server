@@ -11,7 +11,7 @@ liboptions_a_CPPFLAGS= $(CPPFLAGS) \
 	-DDEFAULT_LOG_FILE_NAME="$(localstatedir)/mysqlmanager.log" \
 	-DDEFAULT_SOCKET_FILE_NAME="$(localstatedir)/mysqlmanager.sock"
 
-liboptions_a_SOURCES= otpions.h options.cc
+liboptions_a_SOURCES= options.h options.cc
 
 bin_PROGRAMS = mysqlmanager
 
