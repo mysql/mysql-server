@@ -3611,9 +3611,10 @@ static void fetch_result_with_conversion(MYSQL_BIND *param, MYSQL_FIELD *field,
   switch (field_type) {
   case MYSQL_TYPE_TINY:
   {
-    char value= (char) **row;
-    longlong data= field_is_unsigned ? (longlong) (unsigned char) value :
-                                       (longlong) value;
+    uchar value= **row;
+    /* sic: we need to cast to 'signed char' as 'char' may be unsigned */
+    longlong data= field_is_unsigned ? (longlong) value :
+                                       (longlong) (signed char) value;
     fetch_long_with_conversion(param, field, data);
     *row+= 1;
     break;
