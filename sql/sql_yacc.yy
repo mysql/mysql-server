@@ -532,6 +532,8 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %token  SUBJECT_SYM
 %token  CIPHER_SYM
 
+%token  HELP
+%token  BEFORE_SYM
 %left   SET_VAR
 %left	OR_OR_CONCAT OR
 %left	AND
@@ -3683,13 +3685,34 @@ purge:
 	PURGE
 	{
 	  LEX *lex=Lex;
-	  lex->sql_command = SQLCOM_PURGE;
 	  lex->type=0;
+	} purge_options
+	{}
+	;
+
+purge_options:
+	LOGS_SYM purge_option
+	| MASTER_SYM LOGS_SYM purge_option
+	;
+
+purge_option:
+        TO_SYM TEXT_STRING
+        {
+	   Lex->sql_command = SQLCOM_PURGE;
+	   Lex->to_log = $2.str;
+        }
+	| BEFORE_SYM expr
+	{
+	  if ($2->check_cols(1) || $2->fix_fields(Lex->thd, 0, &$2))
+	  {
+	    net_printf(Lex->thd, ER_WRONG_ARGUMENTS, "PURGE LOGS BEFORE");
+	    YYABORT;	  
+	  }
+	  Item *tmp= new Item_func_unix_timestamp($2);
+	  Lex->sql_command = SQLCOM_PURGE_BEFORE;
+	  Lex->purge_time= tmp->val_int();
 	}
-        MASTER_SYM LOGS_SYM TO_SYM TEXT_STRING
-         {
-	   Lex->to_log = $6.str;
-         } ;
+	;
 
 /* kill threads */
 
