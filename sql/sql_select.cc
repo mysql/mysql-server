@@ -2911,27 +2911,43 @@ join_free(JOIN *join)
     */
     if (join->tables > join->const_tables) // Test for not-const tables
       free_io_cache(join->table[join->const_tables]);
-    for (tab=join->join_tab,end=tab+join->tables ; tab != end ; tab++)
-    {
-      delete tab->select;
-      delete tab->quick;
-      x_free(tab->cache.buff);
-      if (tab->table)
+    if (join->select_lex->dependent)
+      for (tab=join->join_tab,end=tab+join->tables ; tab != end ; tab++)
       {
-	if (tab->table->key_read)
+	if (tab->table)
 	{
-	  tab->table->key_read=0;
-	  tab->table->file->extra(HA_EXTRA_NO_KEYREAD);
+	  if (tab->table->key_read)
+	  {
+	    tab->table->key_read= 0;
+	    tab->table->file->extra(HA_EXTRA_NO_KEYREAD);
+	  }
+	  /* Don't free index if we are using read_record */
+	  if (!tab->read_record.table)
+	    tab->table->file->index_end();
 	}
-	/* Don't free index if we are using read_record */
-	if (!tab->read_record.table)
-	  tab->table->file->index_end();
       }
-      end_read_record(&tab->read_record);
+    else
+    {
+      for (tab=join->join_tab,end=tab+join->tables ; tab != end ; tab++)
+      {
+	delete tab->select;
+	delete tab->quick;
+	x_free(tab->cache.buff);
+	if (tab->table)
+	{
+	  if (tab->table->key_read)
+	  {
+	    tab->table->key_read= 0;
+	    tab->table->file->extra(HA_EXTRA_NO_KEYREAD);
+	  }
+	  /* Don't free index if we are using read_record */
+	  if (!tab->read_record.table)
+	    tab->table->file->index_end();
+	}
+	end_read_record(&tab->read_record);
+      }
+      join->table= 0;
     }
-    //TODO: is enough join_free at the end of mysql_select?
-    if (!join->select_lex->dependent)
-      join->table=0;
   }
   /*
     We are not using tables anymore

@@ -115,3 +115,27 @@ SELECT 1 FROM searchconthardwarefr3 WHERE 1=(SELECT 1 UNION SELECT 1) UNION ALL 
 SELECT 1 FROM searchconthardwarefr3 WHERE 1=(SELECT 1 UNION ALL SELECT 1) UNION SELECT 1;
 EXPLAIN SELECT 1 FROM searchconthardwarefr3 WHERE 1=(SELECT 1 UNION SELECT 1);
 drop table searchconthardwarefr3;
+
+drop table if exists forumconthardwarefr7, searchconthardwarefr7;
+CREATE TABLE `forumconthardwarefr7` (
+  `numeropost` mediumint(8) unsigned NOT NULL auto_increment,
+  `maxnumrep` int(10) unsigned NOT NULL default '0',
+  PRIMARY KEY  (`numeropost`),
+  UNIQUE KEY `maxnumrep` (`maxnumrep`)
+) TYPE=MyISAM ROW_FORMAT=FIXED;
+
+INSERT INTO forumconthardwarefr7 (numeropost,maxnumrep) VALUES (40143,1),(43506,2);
+
+CREATE TABLE `searchconthardwarefr7` (
+      `mot` varchar(30) NOT NULL default '',
+      `topic` mediumint(8) unsigned NOT NULL default '0',
+      `date` date NOT NULL default '0000-00-00',
+      `pseudo` varchar(35) NOT NULL default '',
+       PRIMARY KEY  (`mot`,`pseudo`,`date`,`topic`)
+    ) TYPE=MyISAM ROW_FORMAT=DYNAMIC;
+
+INSERT INTO searchconthardwarefr7 (mot,topic,date,pseudo) VALUES ('joce','40143','2002-10-22','joce'), ('joce','43506','2002-10-22','joce');
+
+SELECT numeropost,maxnumrep FROM forumconthardwarefr7 WHERE exists (SELECT 1 FROM searchconthardwarefr7 WHERE (mot='joce') AND date >= '2002-10-21' AND forumconthardwarefr7.numeropost = searchconthardwarefr7.topic) ORDER BY maxnumrep DESC LIMIT 0, 20;
+
+drop table forumconthardwarefr7, searchconthardwarefr7;
