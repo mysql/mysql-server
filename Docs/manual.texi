@@ -6001,8 +6001,14 @@ shell> scripts/mysql_install_db
 shell> chown -R root  /usr/local/mysql
 shell> chown -R mysql /usr/local/mysql/var
 shell> chgrp -R mysql /usr/local/mysql
+shell> cp support-files/my-medium.cnf /etc/my.cnf
 shell> /usr/local/mysql/bin/safe_mysqld --user=mysql &
 @end example
+
+If you want have support for InnoDB tables, you should edit the
+@code{/etc/my.cnf} file and remove the @code{#} character before the
+parameters that starts with @code{innodb_...}. @xref{Option
+files}. @xref{InnoDB start}.
 
 If you start from a source RPM, then do the following:
 
@@ -8816,7 +8822,7 @@ This is also described in the @file{README} file that comes with the
 @subsection Installing MySQL on Windows
 
 If you don't have a copy of the @strong{MySQL} distribution, you should 
-first download one from @uref{http://www.mysql.com/}.
+first download one from @uref{http://www.mysql.com/downloads/mysql-3.23.html}.
 
 If you plan to connect to @strong{MySQL} from some other program, you will
 probably also need the @strong{MyODBC} driver. You can find this at the
@@ -8843,6 +8849,36 @@ specify all paths with @samp{/} instead of @samp{\}. If you use
 @samp{\}, you need to specify this twice, as @samp{\} is the escape
 character in @strong{MySQL}.  @xref{Option files}.
 
+Starting from @strong{MySQL} 3.23.38 the windows distribution includes
+both the normal and the @strong{MySQL-Max} binaries.  The main benefit
+of using the normal @code{mysqld.exe} binary is that it's a little
+faster and uses less resources.
+
+Here is a list of the different @strong{MySQL} servers you can use:
+
+@multitable @columnfractions .25 .75
+@item @code{mysqld} @tab
+Compiled with full debugging and automatic memory allocation checking,
+symbolic links, BDB and InnoDB tables.
+@item @code{mysqld-opt} @tab
+Optimized binary with no support for transactional tables.
+@item @code{mysqld-nt} @tab
+Optimized for a Pentium pro processor. Has support for
+named pipes. One can run this version on Win98, but in
+this case no named pipes are created and one must
+have TCP/IP installed.
+@item mysqld-max @tab
+Optimized binary with support for symbolic links, BDB and InnoDB tables.
+@item mysqld-max-nt @tab
+Like mysqld-max, but compiled with support for named pipes.
+@end multitable
+
+All of the above binaries are optimized for the Pentium pro processor but
+should work on any Intel processor >= i386.
+
+NOTE: If you want to use InnoDB tables, you need to specify some startup
+options in your my.ini file! @xref{InnoDB start}.
+
 @node Win95 start, NT start, Windows installation, Windows
 @subsection Starting MySQL on Windows 95 or Windows 98
 
@@ -8856,15 +8892,6 @@ likely that you have an old Winsock package!  @strong{MySQL} requires
 Winsock 2!  You can get the newest Winsock from 
 @uref{http://www.microsoft.com/}.  Win98 has the new Winsock 2 library, so 
 the above doesn't apply for Win98.
-
-There are 2 different @strong{MySQL} servers you can use:
-
-@multitable @columnfractions .25 .75
-@item @code{mysqld} @tab Compiled with full debugging and automatic memory allocation checking
-@item @code{mysqld-opt} @tab Optimized for a Pentium processor.
-@end multitable
-
-Both of the above should work on any Intel processor >= i386.
 
 To start the @code{mysqld} server, you should start an MS-DOS window and type:
 
@@ -8911,10 +8938,15 @@ should install @strong{MySQL} as a service on NT/Win2000:
 
 @example
 C:\mysql\bin\mysqld-nt --install
+
+or
+
+C:\mysql\bin\mysqld-max-nt --install
 @end example
 
-(You could use the @code{mysqld} or @code{mysqld-opt} servers on NT,
-but those cannot be started as a service or use named pipes.)
+(You can also use @code{mysqld} binaries that doesn't end with
+@code{-nt.exe} on NT, but those cannot be started as a service or use
+named pipes.)
 
 You can start and stop the @strong{MySQL} service with:
 
@@ -9862,6 +9894,10 @@ reload the grant tables.
 @subsection Problems Starting the MySQL Server
 @cindex server, starting problems
 @cindex problems, starting the server
+
+If you are going to use tables that support transactions (BDB, InnoDB or
+Gemini), you should first create a my.cnf file and set startup options
+for the table types you plan to use. @xref{Table types}.
 
 Generally, you start the @code{mysqld} server in one of three ways:
 
@@ -23353,6 +23389,9 @@ type it should use for the table.  @strong{MySQL} will always create a
 @code{.frm} file to hold the table and column definitions.  Depending on
 the table type, the index and data will be stored in other files.
 
+Note that to use @code{InnoDB} tables you have to use at least
+the @code{innodb_data_file_path} startup option. @xref{InnoDB start}.
+
 The default table type in @strong{MySQL} is @code{MyISAM}. If you are
 trying to use a table type that is not compiled-in or activated,
 @strong{MySQL} will instead create a table of type @code{MyISAM}.  This
@@ -31719,6 +31758,14 @@ the following configure options:
 @item CFLAGS=-DUSE_SYMDIR @tab Symbolic links support for Windows.
 @end multitable
 
+You can find the @strong{MySQL}-max binaries at
+@uref{http://www.mysql.com/downloads/mysql-max-3.23.html}.
+
+The windows @strong{MySQL} 3.23 binary distribution includes both the
+standard @strong{mysqld.exe} binary and the @code{mysqld-max.exe} binary.
+@uref{http://www.mysql.com/downloads/mysql-3.23.html}.
+@xref{Windows installation}.
+
 Note that as Berkeley DB and InnoDB are not available for all platforms,
 some of the @code{Max} binaries may not have support for both of these.
 You can check which table types are supported by doing the following
@@ -31780,6 +31827,7 @@ binaries includes:
 @item Solaris-sparc @tab Y @tab Y
 @item SCO OSR5 @tab Y @tab Y
 @item UnixWare @tab Y @tab Y
+@item Windows/NT @tab Y @tab Y
 @end multitable
 
 @cindex tools, safe_mysqld

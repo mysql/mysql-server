@@ -1127,7 +1127,7 @@ static void start_signal_handler(void)
 #ifdef HAVE_LINUXTHREADS
 static sig_handler write_core(int sig);
 
-#if defined (__i386__) || defined(__alpha__)
+#if defined (__i386__) || (defined(__alpha__) && defined(__GNUC__))
 #define LINUX_STACK_TRACE
 #endif
 
@@ -1158,11 +1158,13 @@ inline __volatile__ void print_str(const char* name,
 #ifdef LINUX_STACK_TRACE
 #define SIGRETURN_FRAME_COUNT  1
 
-#ifdef __alpha__
-// The only way to backtrace without a symbol table on alpha
-// to find stq fp,N(sp), and the first byte
-// of the instruction opcode will give us the value of N. From this
-// we can find where the old value of fp is stored
+#if defined(__alpha__) && defined(__GNUC__)
+/*
+  The only way to backtrace without a symbol table on alpha
+  is to find stq fp,N(sp), and the first byte
+  of the instruction opcode will give us the value of N. From this
+  we can find where the old value of fp is stored
+*/
 
 #define MAX_INSTR_IN_FUNC  10000
 
@@ -1221,7 +1223,7 @@ terribly wrong...\n");
     return;
   }
 #endif
-#ifdef __alpha__  
+#if defined(__alpha__) && defined(__GNUC__) 
   __asm __volatile__ ("mov $15,%0"
 		      :"=r"(fp)
 		      :"r"(fp));
@@ -1231,7 +1233,7 @@ terribly wrong...\n");
 -fomit-frame-pointer? Aborting backtrace!\n");
     return;
   }
-#endif
+#endif /* __alpha__ */
   
   if (!thd)
   {
@@ -1252,7 +1254,7 @@ terribly wrong...\n");
   }
 
   fprintf(stderr, "Stack range sanity check OK, backtrace follows:\n");
-#ifdef __alpha__
+#if defined(__alpha__) && defined(__GNUC__)
   fprintf(stderr, "Warning: Alpha stacks are difficult -\
  will be taking some wild guesses, stack trace may be incorrect or \
  terminate abruptly\n");
@@ -1261,7 +1263,7 @@ terribly wrong...\n");
   __asm __volatile__ ("bsr %0, do_next; do_next: "
 		      :"=r"(pc)
 		      :"r"(pc));
-#endif  
+#endif  /* __alpha__ */
   
   while (fp < stack_bottom)
   {
@@ -1270,7 +1272,7 @@ terribly wrong...\n");
     fprintf(stderr, "%p\n", frame_count == SIGRETURN_FRAME_COUNT ?
 	    *(fp+17) : *(fp+1));
 #endif
-#ifdef __alpha__
+#if defined(__alpha__) && defined(__GNUC__)
     uchar** new_fp = find_prev_fp(pc, fp);
     if(frame_count == SIGRETURN_FRAME_COUNT - 1)
       {
@@ -1291,7 +1293,7 @@ terribly wrong...\n");
       }
     else
       {
-	fprintf(stderr, "Not smart enough to deal with the rest of \
+	fprintf(stderr, "Not smart enough to deal with the rest of\
  this stack\n");
         goto print_glob_vars;
       }
