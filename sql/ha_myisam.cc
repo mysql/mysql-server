@@ -67,8 +67,7 @@ static void mi_check_print_msg(MI_CHECK *param,	const char* msg_type,
     sql_print_error(msgbuf);
     return;
   }
-  if (param->testflag & (T_CREATE_MISSING_KEYS | T_SAFE_REPAIR |
-			 T_AUTO_REPAIR))
+  if (param->testflag & (T_CREATE_MISSING_KEYS | T_SAFE_REPAIR | T_AUTO_REPAIR))
   {
     my_message(ER_NOT_KEYFILE,msgbuf,MYF(MY_WME));
     return;
@@ -696,7 +695,7 @@ bool ha_myisam::activate_all_index(THD *thd)
     myisamchk_init(&param);
     param.op_name = (char*) "recreating_index";
     param.testflag = (T_SILENT | T_REP_BY_SORT | T_QUICK |
-		      T_CREATE_MISSING_KEYS | T_TRUST_HEADER);
+		      T_CREATE_MISSING_KEYS);
     param.myf_rw&= ~MY_WAIT_IF_FULL;
     param.sort_buffer_length=  myisam_sort_buffer_size;
     param.tmpdir=mysql_tmpdir;
