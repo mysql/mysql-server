@@ -23,7 +23,9 @@
 
 
 #include "mysys_priv.h"
-#include "m_string.h"
+#ifndef SCO
+#include <m_string.h>
+#endif
 
 /* We need to use qsort with 2 different compare functions */
 #ifdef QSORT_EXTRA_CMP_ARGUMENT

@@ -20,7 +20,9 @@
 #include <my_global.h>
 #ifdef HAVE_COMPRESS
 #include <my_sys.h>
+#ifndef SCO
 #include <m_string.h>
+#endif
 #include <zlib.h>
 
 /*

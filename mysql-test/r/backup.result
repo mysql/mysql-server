@@ -70,3 +70,4 @@ backup table t1 to '../tmp';
 unlock tables;
 Table	Op	Msg_type	Msg_text
 test.t1	backup	status	OK
+drop table t1;
