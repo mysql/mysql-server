@@ -253,7 +253,7 @@ case "$target_os" in
        ;;
      esac
   ;;
-  sysv5uw7*) LIBS="-lsocket -lnsl $LIBS"
+  sysv5uw7*) 
     if test "$GCC" != "yes"; then
       # We are using built-in inline function
       CFLAGS="$CFLAGS -Kalloca"
@@ -631,8 +631,6 @@ then
 fi
 # We make a special variable for client library's to avoid including
 # thread libs in the client.
-LIBS_AFTER_SOCKET=$LIBS
-LIBS="$LIBS_BEFORE_SOCKET $LIBS_SOCKET $LIBS_AFTER_SOCKET"
 NON_THREADED_CLIENT_LIBS="$LIBS"
 
 AC_MSG_CHECKING([for int8])
@@ -824,6 +822,13 @@ Reference Manual.])
      fi
    fi
 fi
+
+
+dnl This is needed because -lsocket has to come after the thread
+dnl library on SCO.
+AC_DEFUN([MYSQL_REMOVE_SOCKET_FROM_LIBS_HACK], [
+  LIBS=`echo " $LIBS " | sed -e 's/ -lsocket / /g'`
+])
 # Hack for SCO UNIX
 if test "$with_named_thread" = "no"
 then
@@ -832,7 +837,7 @@ then
   then
     if test -f /usr/lib/libgthreads.a -o -f /usr/lib/libgthreads.so
     then
-      LIBS="$LIBS_BEFORE_SOCKET $LIBS_AFTER_SOCKET"
+      MYSQL_REMOVE_SOCKET_FROM_LIBS_HACK
       with_named_thread="-lgthreads -lsocket -lgthreads"
       # sched.h conflicts with fsu-threads
       touch ./include/sched.h
@@ -847,7 +852,7 @@ then
       AC_MSG_RESULT("yes")
     elif test -f /usr/local/lib/libpthread.a -o -f /usr/local/lib/libpthread.so
     then
-      LIBS="$LIBS_BEFORE_SOCKET $LIBS_AFTER_SOCKET"
+      MYSQL_REMOVE_SOCKET_FROM_LIBS_HACK
       with_named_thread="-lpthread -lsocket"
       # sched.h conflicts with fsu-threads
       # touch ./include/sched.h
@@ -871,12 +876,12 @@ then
       then
         if test -f /usr/lib/libthread.so -o -f /usr/lib/libthreadT.so
         then
-          LIBS="$LIBS_BEFORE_SOCKET $LIBS_AFTER_SOCKET"
+	  MYSQL_REMOVE_SOCKET_FROM_LIBS_HACK
           if expr "$CC" : ".*gcc.*"
           then
-            with_named_thread="-pthread -lsocket -lnsl"
+            with_named_thread="-pthread -lnsl"
           else
-            with_named_thread="-Kthread -lsocket -lnsl"
+            with_named_thread="-Kthread -lnsl"
           fi
           if expr "$SYSTEM_TYPE" : ".*unixware7.0.0" > /dev/null
           then
@@ -917,8 +922,8 @@ then
   then
     if test -f /usr/lib/libthread.so -o -f /usr/lib/libthreadT.so
     then
-      LIBS="$LIBS_BEFORE_SOCKET $LIBS_AFTER_SOCKET"
-      with_named_thread="-Kthread -lsocket -lnsl"
+      MYSQL_REMOVE_SOCKET_FROM_LIBS_HACK
+      with_named_thread="-Kthread -lnsl"
       if expr "$SYSTEM_TYPE" : ".*unixware7.0.0" > /dev/null
       then
         AC_DEFINE(HAVE_UNIXWARE7_THREADS)
@@ -949,7 +954,7 @@ then
   AC_MSG_CHECKING("Siemens threads")
   if test -f /usr/lib/libxnet.so -a "$SYSTEM_TYPE" = "sni-sysv4"
   then
-    LIBS="$LIBS_BEFORE_SOCKET -lxnet $LIBS_AFTER_SOCKET"
+    LIBS="-lxnet $LIBS"
     NON_THREADED_CLIENT_LIBS="$NON_THREADED_CLIENT_LIBS -lxnet"
     with_named_thread="-Kthread $LDFLAGS -lxnet"
     LD_FLAGS=""
