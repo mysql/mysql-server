@@ -697,7 +697,9 @@ int SQL_SELECT::test_quick_select(key_map keys_to_use, table_map prev_tables,
 	      ** and that all key blocks are half full (normally things are
 	      ** much better)
 	      */
-	      uint keys_per_block= head->file->block_size/2/head->key_info[param.real_keynr[idx]].key_length+1;
+	      uint keys_per_block= head->file->block_size/2/
+		(head->key_info[param.real_keynr[idx]].key_length+
+		 head->file->ref_length) + 1;
 	      found_read_time=((double) (found_records+keys_per_block-1)/
 			       (double) keys_per_block);
 	    }
@@ -924,6 +926,8 @@ get_mm_leaf(Field *field,KEY_PART *key_part,
     String tmp(buff1,sizeof(buff1)),*res;
     uint length,offset,min_length,max_length;
 
+    if (!field->optimize_range())
+      DBUG_RETURN(0);				// Can't optimize this
     if (!(res= value->val_str(&tmp)))
       DBUG_RETURN(&null_element);
 
@@ -971,7 +975,8 @@ get_mm_leaf(Field *field,KEY_PART *key_part,
                                   max_str+maybe_null,&min_length,&max_length);
       else
 #endif
-        like_error=like_range(res->ptr(),res->length(),wild_prefix,field_length,
+        like_error=like_range(res->ptr(),res->length(),wild_prefix,
+			      field_length,
                               min_str+offset,max_str+offset,
                               max_sort_char,&min_length,&max_length);
     }

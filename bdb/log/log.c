@@ -309,13 +309,13 @@ __log_find(dblp, find_first, valp, statusp)
 	int find_first, *valp;
 	logfile_validity *statusp;
 {
-	logfile_validity clv_status, status;
+	logfile_validity logval_status, status;
 	u_int32_t clv, logval;
 	int cnt, fcnt, ret;
 	const char *dir;
 	char **names, *p, *q, savech;
 
-	clv_status = status = DB_LV_NORMAL;
+	logval_status = status = DB_LV_NONEXISTENT;
 
 	/* Return a value of 0 as the log file number on failure. */
 	*valp = 0;
@@ -385,10 +385,14 @@ __log_find(dblp, find_first, valp, statusp)
 			 * as a valid log file.
 			 */
 			break;
+		case DB_LV_NONEXISTENT:
+			/* Should never happen. */
+			DB_ASSERT(0);
+			break;
 		case DB_LV_NORMAL:
 		case DB_LV_OLD_READABLE:
 			logval = clv;
-			clv_status = status;
+			logval_status = status;
 			break;
 		case DB_LV_OLD_UNREADABLE:
 			/*
@@ -410,7 +414,7 @@ __log_find(dblp, find_first, valp, statusp)
 			 */
 			if (!find_first) {
 				logval = clv;
-				clv_status = status;
+				logval_status = status;
 			}
 			break;
 		}
@@ -420,7 +424,7 @@ __log_find(dblp, find_first, valp, statusp)
 
 err:	__os_dirfree(names, fcnt);
 	__os_freestr(p);
-	*statusp = clv_status;
+	*statusp = logval_status;
 
 	return (ret);
 }

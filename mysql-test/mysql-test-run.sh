@@ -24,10 +24,10 @@ PATH=/bin:/usr/bin:/usr/local/bin:/usr/bsd:/usr/X11R6/bin
 
 which ()
 {
-  DIRS=`echo $PATH | tr ":" " "`
+  IFS="${IFS=   }"; save_ifs="$IFS"; IFS=':'
   for file
   do
-    for dir in $DIRS
+    for dir in $PATH
     do
       if test -f $dir/$file
       then
@@ -38,6 +38,7 @@ which ()
     echo "which: no $file in ($PATH)"
     exit 1
   done
+  IFS="$save_ifs"
 }
 
 
@@ -197,7 +198,7 @@ done
 #--
 
 MYRUN_DIR=$MYSQL_TEST_DIR/var/run
-MASTER_MYDDIR="$MYSQL_TEST_DIR/var/lib"
+MASTER_MYDDIR="$MYSQL_TEST_DIR/var/master-data"
 MASTER_MYSOCK="$MYSQL_TMP_DIR/mysql-master.sock"
 MASTER_MYPID="$MYRUN_DIR/mysqld.pid"
 MASTER_MYLOG="$MYSQL_TEST_DIR/var/log/mysqld.log"
@@ -210,6 +211,9 @@ SLAVE_MYLOG="$MYSQL_TEST_DIR/var/log/mysqld-slave.log"
 SLAVE_MYERR="$MYSQL_TEST_DIR/var/log/mysqld-slave.err"
 
 SMALL_SERVER="-O key_buffer_size=1M -O sort_buffer=256K -O max_heap_table_size=1M"
+
+export MASTER_MYPORT
+export SLAVE_MYPORT
 
 if [ x$SOURCE_DIST = x1 ] ; then
  MY_BASEDIR=$MYSQL_TEST_DIR
@@ -294,6 +298,8 @@ prompt_user ()
  read unused
 }
 
+# We can't use diff -u as this isn't portable
+
 show_failed_diff ()
 {
   reject_file=r/$1.reject
@@ -302,7 +308,7 @@ show_failed_diff ()
   then
     echo "Below are the diffs between actual and expected results:"
     echo "-------------------------------------------------------"
-    $DIFF -u $result_file $reject_file
+    $DIFF -c $result_file $reject_file
     echo "-------------------------------------------------------"
     echo "Please e-mail the above, along with the output of mysqlbug"
     echo "and any other relevant info to bugs@lists.mysql.com"
@@ -373,6 +379,8 @@ mysql_install_db () {
 	error "Could not install slave test DBs"
 	exit 1
     fi
+    # Give mysqld some time to die.
+    sleep $SLEEP_TIME
     return 0
 }
 
@@ -441,7 +449,7 @@ start_master()
 	    --core \
 	    --tmpdir=$MYSQL_TMP_DIR \
 	    --language=english \
-            --innobase_data_file_path=ibdata1:50M \
+            --innodb_data_file_path=ibdata1:50M \
 	     $SMALL_SERVER \
 	     $EXTRA_MASTER_OPT $EXTRA_MASTER_MYSQLD_OPT"
     else
@@ -455,7 +463,7 @@ start_master()
 	    --core \
 	    --tmpdir=$MYSQL_TMP_DIR \
 	    --language=english \
-            --innobase_data_file_path=ibdata1:50M \
+            --innodb_data_file_path=ibdata1:50M \
 	     $SMALL_SERVER \
 	     $EXTRA_MASTER_OPT $EXTRA_MASTER_MYSQLD_OPT"
     fi	     
@@ -511,7 +519,7 @@ start_slave()
 	    --core \
 	    --tmpdir=$MYSQL_TMP_DIR \
             --language=english \
-	    --skip-innobase \
+	    --skip-innodb --skip-slave-start \
 	     $SMALL_SERVER \
              $EXTRA_SLAVE_OPT $EXTRA_SLAVE_MYSQLD_OPT"
     if [ x$DO_DDD = x1 ]

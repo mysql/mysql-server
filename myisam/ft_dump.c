@@ -25,7 +25,7 @@ static void complain(int val);
 static int count=0, stats=0, dump=0, verbose=0;
 static char *query=NULL;
 
-#define MAX (MAX_WORD_LEN+10)
+#define MAX (HA_FT_MAXLEN+10)
 #define HOW_OFTEN_TO_WRITE 1000
 
 int main(int argc,char *argv[])

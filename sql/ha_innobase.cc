@@ -1,4 +1,4 @@
-/* Copyright (C) 2000 MySQL AB & MySQL Finland AB & Innobase Oy
+/* Copyright (C) 2000 MySQL AB & MySQL Finland AB & InnoDB Oy
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -14,10 +14,10 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-/* This file defines the Innobase handler: the interface between MySQL and
-Innobase */
+/* This file defines the InnoDB handler: the interface between MySQL and
+InnoDB */
 
-/* TODO list for the Innobase handler:
+/* TODO list for the InnoDB handler:
   - Ask Monty if strings of different languages can exist in the same
     database. Answer: in near future yes, but not yet.
 */
@@ -40,7 +40,7 @@ Innobase */
 /* We must declare this here because we undef SAFE_MUTEX below */
 pthread_mutex_t innobase_mutex;
 
-/* Store MySQL definition of 'byte': in Linux it is char while Innobase
+/* Store MySQL definition of 'byte': in Linux it is char while InnoDB
 uses unsigned char */
 typedef byte	mysql_byte;
 
@@ -50,7 +50,7 @@ typedef byte	mysql_byte;
 
 #define INSIDE_HA_INNOBASE_CC
 
-/* Include necessary Innobase headers */
+/* Include necessary InnoDB headers */
 extern "C" {
 #include "../innobase/include/univ.i"
 #include "../innobase/include/srv0start.h"
@@ -72,7 +72,7 @@ extern "C" {
 #define HA_INNOBASE_ROWS_IN_TABLE 10000 /* to get optimization right */
 #define HA_INNOBASE_RANGE_COUNT	  100
 
-bool 	innobase_skip 		= 0;
+bool 	innodb_skip 		= 0;
 uint 	innobase_init_flags 	= 0;
 ulong 	innobase_cache_size 	= 0;
 
@@ -88,7 +88,7 @@ bool innobase_flush_log_at_trx_commit, innobase_log_archive,
 
 /* innobase_data_file_path=ibdata:15,idata2:1,... */
 
-/* The following counter is used to convey information to Innobase
+/* The following counter is used to convey information to InnoDB
 about server activity: in selects it is not sensible to call
 srv_active_wake_master_thread after each fetch or search, we only do
 it every INNOBASE_WAKE_INTERVAL'th step. */
@@ -128,13 +128,13 @@ innobase_active_small(void)
 }
 
 /************************************************************************
-Converts an Innobase error code to a MySQL error code. */
+Converts an InnoDB error code to a MySQL error code. */
 static
 int
 convert_error_code_to_mysql(
 /*========================*/
 			/* out: MySQL error code */
-	int	error)	/* in: Innobase error code */
+	int	error)	/* in: InnoDB error code */
 {
 	if (error == DB_SUCCESS) {
 
@@ -180,14 +180,14 @@ convert_error_code_to_mysql(
 }
 
 /*************************************************************************
-Gets the Innobase transaction handle for a MySQL handler object, creates
-an Innobase transaction struct if the corresponding MySQL thread struct still
+Gets the InnoDB transaction handle for a MySQL handler object, creates
+an InnoDB transaction struct if the corresponding MySQL thread struct still
 lacks one. */
 static
 trx_t*
 check_trx_exists(
 /*=============*/
-			/* out: Innobase transaction handle */
+			/* out: InnoDB transaction handle */
 	THD*	thd)	/* in: user thread handle */
 {
 	trx_t*	trx;
@@ -201,10 +201,10 @@ check_trx_exists(
 		thd->transaction.all.innobase_tid = trx;
 
 		/* The execution of a single SQL statement is denoted by
-		a 'transaction' handle which is a dummy pointer: Innobase
+		a 'transaction' handle which is a dummy pointer: InnoDB
 		remembers internally where the latest SQL statement
 		started, and if error handling requires rolling back the
-		latest statement, Innobase does a rollback to a savepoint. */
+		latest statement, InnoDB does a rollback to a savepoint. */
 
 		thd->transaction.stmt.innobase_tid =
 		                  (void*)&innodb_dummy_stmt_trx_handle;
@@ -214,7 +214,7 @@ check_trx_exists(
 }
 
 /*************************************************************************
-Updates the user_thd field in a handle and also allocates a new Innobase
+Updates the user_thd field in a handle and also allocates a new InnoDB
 transaction handle if needed, and updates the transaction fields in the
 prebuilt struct. */
 inline
@@ -418,7 +418,7 @@ innobase_parse_log_group_home_dirs(void)
 }
 
 /*************************************************************************
-Opens an Innobase database. */
+Opens an InnoDB database. */
 
 bool
 innobase_init(void)
@@ -443,14 +443,14 @@ innobase_init(void)
 	current_dir[1]=FN_LIBCHAR;
 	current_dir[2]=0;
 
-	/* Set Innobase initialization parameters according to the values
+	/* Set InnoDB initialization parameters according to the values
 	read from MySQL .cnf file */
 
 	if (!innobase_data_file_path)
 	{
 	  fprintf(stderr,
-       "Can't initialize Innobase as 'innobase_data_file_path' is not set\n");
-	  innobase_skip=1;
+       "Can't initialize InnoDB as 'innodb_data_file_path' is not set\n");
+	  innodb_skip=1;
 	  DBUG_RETURN(FALSE);			// Continue without innobase
 	}
 
@@ -504,7 +504,7 @@ innobase_init(void)
 }
 
 /***********************************************************************
-Closes an Innobase database. */
+Closes an InnoDB database. */
 
 bool
 innobase_end(void)
@@ -527,7 +527,7 @@ innobase_end(void)
 }
 
 /********************************************************************
-Flushes Innobase logs to disk and makes a checkpoint. Really, a commit
+Flushes InnoDB logs to disk and makes a checkpoint. Really, a commit
 flushes logs, and the name of this function should be innobase_checkpoint. */
 
 bool
@@ -545,7 +545,7 @@ innobase_flush_logs(void)
 }
 
 /*************************************************************************
-Gets the free space in an Innobase database: returned in units of kB. */
+Gets the free space in an InnoDB database: returned in units of kB. */
 
 uint
 innobase_get_free_space(void)
@@ -556,7 +556,7 @@ innobase_get_free_space(void)
 }
 
 /*********************************************************************
-Commits a transaction in an Innobase database. */
+Commits a transaction in an InnoDB database. */
 
 int
 innobase_commit(
@@ -564,7 +564,7 @@ innobase_commit(
 			/* out: 0 or error number */
 	THD*	thd,	/* in: MySQL thread handle of the user for whom
 			the transaction should be committed */
-	void*	trx_handle)/* in: Innobase trx handle or NULL: NULL means
+	void*	trx_handle)/* in: InnoDB trx handle or NULL: NULL means
 			that the current SQL statement ended, and we should
 			mark the start of a new statement with a savepoint */
 {
@@ -588,7 +588,7 @@ innobase_commit(
     		DBUG_PRINT("error", ("error: %d", error));
     	}
 #endif
-	/* Tell Innobase server that there might be work for
+	/* Tell InnoDB server that there might be work for
 	utility threads: */
 
 	srv_active_wake_master_thread();
@@ -597,7 +597,7 @@ innobase_commit(
 }
 
 /*********************************************************************
-Rolls back a transaction in an Innobase database. */
+Rolls back a transaction in an InnoDB database. */
 
 int
 innobase_rollback(
@@ -605,7 +605,7 @@ innobase_rollback(
 			/* out: 0 or error number */
 	THD*	thd,	/* in: handle to the MySQL thread of the user
 			whose transaction should be rolled back */
-	void*	trx_handle)/* in: Innobase trx handle or a dummy stmt handle */
+	void*	trx_handle)/* in: InnoDB trx handle or a dummy stmt handle */
 {
 	int	error = 0;
 	trx_t*	trx;
@@ -626,7 +626,7 @@ innobase_rollback(
 }
 
 /*********************************************************************
-Frees a possible Innobase trx object associated with the current
+Frees a possible InnoDB trx object associated with the current
 THD. */
 
 int
@@ -660,7 +660,7 @@ innobase_print_error(
 
 
 /*****************************************************************************
-** Innobase database tables
+** InnoDB database tables
 *****************************************************************************/
 
 /********************************************************************
@@ -770,7 +770,7 @@ ha_innobase::open(
 
   	ref_length = buff_len;
 
-	/* Get pointer to a table object in Innobase dictionary cache */
+	/* Get pointer to a table object in InnoDB dictionary cache */
 
  	if (NULL == (ib_table = dict_table_get(norm_name, NULL))) {
 
@@ -824,7 +824,7 @@ ha_innobase::initialize(void)
 }
 
 /**********************************************************************
-Closes a handle to an Innobase table. */
+Closes a handle to an InnoDB table. */
 
 int
 ha_innobase::close(void)
@@ -838,7 +838,7 @@ ha_innobase::close(void)
     	my_free((char*) upd_buff, MYF(0));
         free_share(share);
 
-	/* Tell Innobase server that there might be work for
+	/* Tell InnoDB server that there might be work for
 	utility threads: */
 
 	srv_active_wake_master_thread();
@@ -924,9 +924,9 @@ reset_null_bits(
 
 extern "C" {
 /*****************************************************************
-Innobase uses this function is to compare two data fields for which the
+InnoDB uses this function is to compare two data fields for which the
 data type is such that we must use MySQL code to compare them. NOTE that the
-prototype of this function is in rem0cmp.c in Innobase source code!
+prototype of this function is in rem0cmp.c in InnoDB source code!
 If you change this function, remember to update the prototype there! */
 
 int
@@ -972,7 +972,7 @@ innobase_mysql_cmp(
 }
 
 /******************************************************************
-Converts a MySQL type to an Innobase type. */
+Converts a MySQL type to an InnoDB type. */
 inline
 ulint
 get_innobase_type_from_mysql_type(
@@ -1231,7 +1231,7 @@ skip_field:
 }
 
 /************************************************************************
-Stores a row in an Innobase database, to the table specified in this
+Stores a row in an InnoDB database, to the table specified in this
 handle. */
 
 int
@@ -1295,7 +1295,7 @@ ha_innobase::write_row(
 
 	error = convert_error_code_to_mysql(error);
 
-	/* Tell Innobase server that there might be work for
+	/* Tell InnoDB server that there might be work for
 	utility threads: */
 
 	innobase_active_small();
@@ -1304,7 +1304,7 @@ ha_innobase::write_row(
 }
 
 /******************************************************************
-Converts field data for storage in an Innobase update vector. */
+Converts field data for storage in an InnoDB update vector. */
 inline
 mysql_byte*
 innobase_convert_and_store_changed_col(
@@ -1315,7 +1315,7 @@ innobase_convert_and_store_changed_col(
 	mysql_byte*	buf,	/* in: buffer we can use in conversion */
 	mysql_byte*	data,	/* in: column data to store */
 	ulint		len,	/* in: data len */
-	ulint		col_type,/* in: data type in Innobase type numbers */
+	ulint		col_type,/* in: data type in InnoDB type numbers */
 	ulint		is_unsigned)/* in: != 0 if an unsigned integer type */
 {
 	uint	i;
@@ -1330,7 +1330,7 @@ innobase_convert_and_store_changed_col(
 	        }
 
 	} else if (col_type == DATA_INT) {
-		/* Store integer data in Innobase in a big-endian
+		/* Store integer data in InnoDB in a big-endian
 		format, sign bit negated, if signed */
 
 		for (i = 0; i < len; i++) {
@@ -1365,7 +1365,7 @@ calc_row_difference(
 	mysql_byte* 	new_row,	/* in: new row in MySQL format */
 	struct st_table* table,		/* in: table in MySQL data dictionary */
 	mysql_byte*	upd_buff,	/* in: buffer to use */
-	row_prebuilt_t*	prebuilt,	/* in: Innobase prebuilt struct */
+	row_prebuilt_t*	prebuilt,	/* in: InnoDB prebuilt struct */
 	THD*		thd)		/* in: user thread */
 {
 	Field*		field;
@@ -1460,7 +1460,7 @@ calc_row_difference(
 Updates a row given as a parameter to a new value. Note that we are given
 whole rows, not just the fields which are updated: this incurs some
 overhead for CPU when we check which fields are actually updated.
-TODO: currently Innobase does not prevent the 'Halloween problem':
+TODO: currently InnoDB does not prevent the 'Halloween problem':
 in a searched update a single row can get updated several times
 if its index columns are updated! */
 
@@ -1504,7 +1504,7 @@ ha_innobase::update_row(
 
 	error = convert_error_code_to_mysql(error);
 
-	/* Tell Innobase server that there might be work for
+	/* Tell InnoDB server that there might be work for
 	utility threads: */
 
 	innobase_active_small();
@@ -1544,7 +1544,7 @@ ha_innobase::delete_row(
 
 	error = convert_error_code_to_mysql(error);
 
-	/* Tell the Innobase server that there might be work for
+	/* Tell the InnoDB server that there might be work for
 	utility threads: */
 
 	innobase_active_small();
@@ -1584,7 +1584,7 @@ ha_innobase::index_end(void)
 
 /*************************************************************************
 Converts a search mode flag understood by MySQL to a flag understood
-by Innobase. */
+by InnoDB. */
 inline
 ulint
 convert_search_mode_to_innobase(
@@ -1710,7 +1710,7 @@ ha_innobase::change_active_index(
 			/* out: 0 or error code */
 	uint 	keynr)	/* in: use this index; MAX_KEY means always clustered
 			index, even if it was internally generated by
-			Innobase */
+			InnoDB */
 {
 	row_prebuilt_t* prebuilt	= (row_prebuilt_t*) innobase_prebuilt;
 	KEY*		key;
@@ -1868,7 +1868,7 @@ corresponding row to buf. */
 int
 ha_innobase::index_first(
 /*=====================*/
-				/* out: 0, HA_ERR_KEY_NOT_FOUND,
+				/* out: 0, HA_ERR_END_OF_FILE,
 				or error code */
 	mysql_byte*	buf)	/* in/out: buffer for the row */
 {
@@ -1878,6 +1878,12 @@ ha_innobase::index_first(
   	statistic_increment(ha_read_first_count, &LOCK_status);
 
   	error = index_read(buf, NULL, 0, HA_READ_AFTER_KEY);
+
+        /* MySQL does not seem to allow this to return HA_ERR_KEY_NOT_FOUND */
+
+  	if (error == HA_ERR_KEY_NOT_FOUND) {
+  		error = HA_ERR_END_OF_FILE;
+  	}
 
   	DBUG_RETURN(error);
 }
@@ -1899,7 +1905,7 @@ ha_innobase::index_last(
 
   	error = index_read(buf, NULL, 0, HA_READ_BEFORE_KEY);
 
-  	/* MySQL does not seem to allow this to return HA_ERR_KEY_NOT_FOUND */
+        /* MySQL does not seem to allow this to return HA_ERR_KEY_NOT_FOUND */
 
   	if (error == HA_ERR_KEY_NOT_FOUND) {
   		error = HA_ERR_END_OF_FILE;
@@ -2011,7 +2017,7 @@ ha_innobase::rnd_pos(
 Stores a reference to the current row to 'ref' field of the handle. Note
 that the function parameter is illogical: we must assume that 'record'
 is the current 'position' of the handle, because if row ref is actually
-the row id internally generated in Innobase, then 'record' does not contain
+the row id internally generated in InnoDB, then 'record' does not contain
 it. We just guess that the row id must be for the record where the handle
 was positioned the last time. */
 
@@ -2073,7 +2079,7 @@ int ha_innobase::reset(void)
 As MySQL will execute an external lock for every new table it uses when it
 starts to process an SQL statement, we can use this function to store the
 pointer to the THD in the handle. We will also use this function to communicate
-to Innobase that a new SQL statement has started and that we must store a
+to InnoDB that a new SQL statement has started and that we must store a
 savepoint to our transaction handle, so that we are able to roll back
 the SQL statement in case of an error. */
 
@@ -2122,12 +2128,12 @@ ha_innobase::external_lock(
 }
 
 /*********************************************************************
-Creates a table definition to an Innobase database. */
+Creates a table definition to an InnoDB database. */
 static
 int
 create_table_def(
 /*=============*/
-	trx_t*		trx,		/* in: Innobase transaction handle */
+	trx_t*		trx,		/* in: InnoDB transaction handle */
 	TABLE*		form,		/* in: information on table
 					columns and indexes */
 	const char*	table_name)	/* in: table name */
@@ -2181,12 +2187,12 @@ create_table_def(
 }
 
 /*********************************************************************
-Creates an index in an Innobase database. */
+Creates an index in an InnoDB database. */
 static
 int
 create_index(
 /*=========*/
-	trx_t*		trx,		/* in: Innobase transaction handle */
+	trx_t*		trx,		/* in: InnoDB transaction handle */
 	TABLE*		form,		/* in: information on table
 					columns and indexes */
 	const char*	table_name,	/* in: table name */
@@ -2216,7 +2222,7 @@ create_index(
 		ind_type = ind_type | DICT_UNIQUE;
 	}
 
-	/* The '0' below specifies that everything in Innobase is currently
+	/* The '0' below specifies that everything in InnoDB is currently
 	created in tablespace 0 */
 
 	index = dict_mem_index_create((char*) table_name, key->name, 0,
@@ -2238,19 +2244,19 @@ create_index(
 }
 
 /*********************************************************************
-Creates an index to an Innobase table when the user has defined no
+Creates an index to an InnoDB table when the user has defined no
 primary index. */
 static
 int
 create_clustered_index_when_no_primary(
 /*===================================*/
-	trx_t*		trx,		/* in: Innobase transaction handle */
+	trx_t*		trx,		/* in: InnoDB transaction handle */
 	const char*	table_name)	/* in: table name */
 {
 	dict_index_t*	index;
   	int 		error;
 
-	/* The first '0' below specifies that everything in Innobase is
+	/* The first '0' below specifies that everything in InnoDB is
 	currently created in file space 0 */
 
 	index = dict_mem_index_create((char*) table_name,
@@ -2264,7 +2270,7 @@ create_clustered_index_when_no_primary(
 }
 
 /*********************************************************************
-Creates a new table to an Innobase database. */
+Creates a new table to an InnoDB database. */
 
 int
 ha_innobase::create(
@@ -2292,7 +2298,7 @@ ha_innobase::create(
 
 	normalize_table_name(norm_name, name2);
 
-  	/* Create the table definition in Innobase */
+  	/* Create the table definition in InnoDB */
 
   	if ((error = create_table_def(trx, form, norm_name))) {
 
@@ -2323,7 +2329,7 @@ ha_innobase::create(
 	if (form->keys == 0 || primary_key_no == -1) {
 		/* Create an index which is used as the clustered index;
 		order the rows by their row id which is internally generated
-		by Innobase */
+		by InnoDB */
 
 		error = create_clustered_index_when_no_primary(trx,
 							norm_name);
@@ -2337,7 +2343,7 @@ ha_innobase::create(
 	}
 
 	if (primary_key_no != -1) {
-		/* In Innobase the clustered index must always be created
+		/* In InnoDB the clustered index must always be created
 		first */
 	    	if ((error = create_index(trx, form, norm_name,
 					  (uint) primary_key_no))) {
@@ -2370,7 +2376,7 @@ ha_innobase::create(
 
 	assert(innobase_table);
 
-	/* Tell the Innobase server that there might be work for
+	/* Tell the InnoDB server that there might be work for
 	utility threads: */
 
 	srv_active_wake_master_thread();
@@ -2381,10 +2387,10 @@ ha_innobase::create(
 }
 
 /*********************************************************************
-Drops a table from an Innobase database. Before calling this function,
+Drops a table from an InnoDB database. Before calling this function,
 MySQL calls innobase_commit to commit the transaction of the current user.
 Then the current user cannot have locks set on the table. Drop table
-operation inside Innobase will wait sleeping in a loop until no other
+operation inside InnoDB will wait sleeping in a loop until no other
 user has locks on the table. */
 
 int
@@ -2411,11 +2417,11 @@ ha_innobase::delete_table(
 
 	normalize_table_name(norm_name, name);
 
-  	/* Drop the table in Innobase */
+  	/* Drop the table in InnoDB */
 
   	error = row_drop_table_for_mysql(norm_name, trx, FALSE);
 
-	/* Tell the Innobase server that there might be work for
+	/* Tell the InnoDB server that there might be work for
 	utility threads: */
 
 	srv_active_wake_master_thread();
@@ -2428,7 +2434,7 @@ ha_innobase::delete_table(
 }
 
 /*************************************************************************
-Renames an Innobase table. */
+Renames an InnoDB table. */
 
 int
 ha_innobase::rename_table(
@@ -2457,11 +2463,11 @@ ha_innobase::rename_table(
 	normalize_table_name(norm_from, from);
 	normalize_table_name(norm_to, to);
 
-  	/* Rename the table in Innobase */
+  	/* Rename the table in InnoDB */
 
   	error = row_rename_table_for_mysql(norm_from, norm_to, trx);
 
-	/* Tell the Innobase server that there might be work for
+	/* Tell the InnoDB server that there might be work for
 	utility threads: */
 
 	srv_active_wake_master_thread();
@@ -2630,7 +2636,7 @@ ha_innobase::info(
 		}
 	}
 
-	/* The trx struct in Innobase contains a pthread mutex embedded:
+	/* The trx struct in InnoDB contains a pthread mutex embedded:
 	in the debug version of MySQL that it replaced by a 'safe mutex'
 	which is of a different size. We have to use a function to access
 	trx fields. Otherwise trx->error_info will be a random
@@ -2646,7 +2652,7 @@ ha_innobase::info(
 }
 
 /*****************************************************************
-Adds information about free space in the Innobase tablespace to a
+Adds information about free space in the InnoDB tablespace to a
 table comment which is printed out when a user calls SHOW TABLE STATUS. */
 
 char*
@@ -2668,7 +2674,7 @@ ha_innobase::update_table_comment(
     *pos++=';';
     *pos++=' ';
   }
-  sprintf(pos, "Innobase free: %lu kB", (ulong) innobase_get_free_space());
+  sprintf(pos, "InnoDB free: %lu kB", (ulong) innobase_get_free_space());
 
   return(str);
 }

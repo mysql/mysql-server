@@ -196,6 +196,42 @@ then
 fi
 ])
 
+
+AC_DEFUN(MYSQL_PTHREAD_YIELD,
+[AC_CACHE_CHECK([if pthread_yield takes zero arguments], ac_cv_pthread_yield_zero_arg,
+[AC_TRY_LINK([#define _GNU_SOURCE
+#include <pthread.h>
+#ifdef __cplusplus
+extern "C"
+#endif
+],
+[
+  pthread_yield();
+], ac_cv_pthread_yield_zero_arg=yes, ac_cv_pthread_yield_zero_arg=yeso)])
+if test "$ac_cv_pthread_yield_zero_arg" = "yes"
+then
+  AC_DEFINE(HAVE_PTHREAD_YIELD_ZERO_ARG)
+fi
+]
+[AC_CACHE_CHECK([if pthread_yield takes 1 argument], ac_cv_pthread_yield_one_arg,
+[AC_TRY_LINK([#define _GNU_SOURCE
+#include <pthread.h>
+#ifdef __cplusplus
+extern "C"
+#endif
+],
+[
+  pthread_yield(0);
+], ac_cv_pthread_yield_one_arg=yes, ac_cv_pthread_yield_one_arg=no)])
+if test "$ac_cv_pthread_yield_one_arg" = "yes"
+then
+  AC_DEFINE(HAVE_PTHREAD_YIELD_ONE_ARG)
+fi
+]
+)
+
+
+
 #---END:
 
 AC_DEFUN(MYSQL_CHECK_FP_EXCEPT,
@@ -514,7 +550,8 @@ AC_DEFUN(MYSQL_STACK_DIRECTION,
 
 AC_DEFUN(MYSQL_FUNC_ALLOCA,
 [
-# Since we have heard that alloca fails on IRIX never define it on a SGI machine
+# Since we have heard that alloca fails on IRIX never define it on a
+# SGI machine
 if test ! "$host_vendor" = "sgi"
 then
  AC_REQUIRE_CPP()dnl Set CPP; we run AC_EGREP_CPP conditionally.
@@ -912,35 +949,36 @@ dnl END OF MYSQL_CHECK_BDB SECTION
 dnl ---------------------------------------------------------------------------
 
 dnl ---------------------------------------------------------------------------
-dnl Macro: MYSQL_CHECK_INNOBASE
-dnl Sets HAVE_INNOBASE_DB if --with-innobase is used
+dnl Macro: MYSQL_CHECK_INNODB
+dnl Sets HAVE_INNOBASE_DB if --with-innodb is used
 dnl ---------------------------------------------------------------------------
 
-AC_DEFUN([MYSQL_CHECK_INNOBASE], [
-  AC_ARG_WITH([innobase],
+AC_DEFUN([MYSQL_CHECK_INNODB], [
+  AC_ARG_WITH([innodb],
               [\
-  --with-innobase         Use Innobase],
-              [innobase="$withval"],
-              [innobase=no])
+  --with-innodb         Use Innodb],
+              [innodb="$withval"],
+              [innodb=no])
 
-  AC_MSG_CHECKING([for Innobase])
+  AC_MSG_CHECKING([for Innodb])
 
-  have_innobase_db=no
-  innobase_includes=
-  innobase_libs=
-  case "$innobase" in
+  have_innodb=no
+  innodb_includes=
+  innodb_libs=
+  case "$innodb" in
     yes )
-      AC_MSG_RESULT([Using Innobase])
+      AC_MSG_RESULT([Using Innodb])
       AC_DEFINE(HAVE_INNOBASE_DB)
-      have_innobase_db="yes"
-      innobase_includes="-I../innobase/include"
+      have_innodb="yes"
+      innodb_includes="-I../innobase/include"
 dnl Some libs are listed several times, in order for gcc to sort out
 dnl circular references.
-      innobase_libs="\
+      innodb_libs="\
  ../innobase/usr/libusr.a\
  ../innobase/odbc/libodbc.a\
  ../innobase/srv/libsrv.a\
  ../innobase/que/libque.a\
+ ../innobase/srv/libsrv.a\
  ../innobase/dict/libdict.a\
  ../innobase/ibuf/libibuf.a\
  ../innobase/row/librow.a\
@@ -973,19 +1011,19 @@ dnl circular references.
  ../innobase/os/libos.a\
  ../innobase/ut/libut.a"
 
-      AC_CHECK_LIB(rt, aio_read, [innobase_libs="$innobase_libs -lrt"])
+      AC_CHECK_LIB(rt, aio_read, [innodb_libs="$innodb_libs -lrt"])
       ;;
     * )
-      AC_MSG_RESULT([Not using Innobase])
+      AC_MSG_RESULT([Not using Innodb])
       ;;
   esac
 
-  AC_SUBST(innobase_includes)
-  AC_SUBST(innobase_libs)
+  AC_SUBST(innodb_includes)
+  AC_SUBST(innodb_libs)
 ])
 
 dnl ---------------------------------------------------------------------------
-dnl END OF MYSQL_CHECK_INNOBASE SECTION
+dnl END OF MYSQL_CHECK_INNODB SECTION
 dnl ---------------------------------------------------------------------------
 
 dnl ---------------------------------------------------------------------------

@@ -385,6 +385,12 @@ int mysqld_show_status(THD *thd);
 int mysqld_show_variables(THD *thd,const char *wild);
 int mysqld_show(THD *thd, const char *wild, show_var_st *variables);
 
+/* sql_handler.cc */
+int mysql_ha_open(THD *thd, TABLE_LIST *tables);
+int mysql_ha_close(THD *thd, TABLE_LIST *tables);
+int mysql_ha_read(THD *, TABLE_LIST *,enum enum_ha_read_modes,char *,
+               List<Item> *,enum ha_rkey_function,Item *,ha_rows,ha_rows);
+
 /* sql_base.cc */
 void set_item_name(Item *item,char *pos,uint length);
 bool add_field_to_list(char *field_name, enum enum_field_types type,
@@ -406,6 +412,8 @@ TABLE *unlink_open_table(THD *thd,TABLE *list,TABLE *find);
 SQL_SELECT *make_select(TABLE *head, table_map const_tables,
 			table_map read_tables, COND *conds, int *error);
 Item ** find_item_in_list(Item *item,List<Item> &items);
+bool insert_fields(THD *thd,TABLE_LIST *tables, const char *table_name,
+	      List_iterator<Item> *it);
 bool setup_tables(TABLE_LIST *tables);
 int setup_fields(THD *thd,TABLE_LIST *tables,List<Item> &item,
 		 bool set_query_id,List<Item> *sum_func_list);
@@ -422,6 +430,7 @@ bool send_fields(THD *thd,List<Item> &item,uint send_field_count);
 void free_io_cache(TABLE *entry);
 void intern_close_table(TABLE *entry);
 void close_thread_tables(THD *thd,bool locked=0);
+bool close_thread_table(THD *thd, TABLE **table_ptr);
 void close_temporary_tables(THD *thd);
 TABLE **find_temporary_table(THD *thd, const char *db, const char *table_name);
 bool close_temporary_table(THD *thd, const char *db, const char *table_name);
@@ -605,7 +614,8 @@ void init_read_record(READ_RECORD *info, THD *thd, TABLE *reg_form,
 		      int use_record_cache, bool print_errors);
 void end_read_record(READ_RECORD *info);
 ha_rows filesort(TABLE **form,struct st_sort_field *sortorder, uint s_length,
-		 SQL_SELECT *select, ha_rows special,ha_rows max_rows);
+		 SQL_SELECT *select, ha_rows special,ha_rows max_rows,
+		 ha_rows *examined_rows);
 void change_double_for_sort(double nr,byte *to);
 int get_quick_record(SQL_SELECT *select);
 int calc_weekday(long daynr,bool sunday_first_day_of_week);

@@ -83,14 +83,14 @@ class ha_innobase: public handler
 			  HA_NO_WRITE_DELAYED |
 			  HA_PRIMARY_KEY_IN_READ_INDEX |
 			  HA_DROP_BEFORE_CREATE |
-			  HA_NOT_READ_AFTER_KEY),
+			  HA_NOT_READ_AFTER_KEY | HA_NO_PREFIX_CHAR_KEYS),
 	  last_dup_key((uint) -1),
 	  start_of_scan(0)
   	{
   	}
   	~ha_innobase() {}
 
-  	const char* table_type() const { return("Innobase");}
+  	const char* table_type() const { return("InnoDB");}
   	const char** bas_ext() const;
  	ulong option_flag() const { return int_option_flag; }
   	uint max_record_length() const { return HA_MAX_REC_LENGTH; }
@@ -149,8 +149,8 @@ class ha_innobase: public handler
 			     		enum thr_lock_type lock_type);
 };
 
-extern bool innobase_skip;
-extern SHOW_COMP_OPTION have_innobase;
+extern bool innodb_skip;
+extern SHOW_COMP_OPTION have_innodb;
 extern uint innobase_init_flags, innobase_lock_type;
 extern ulong innobase_cache_size;
 extern char *innobase_home, *innobase_tmpdir, *innobase_logdir;

@@ -41,7 +41,8 @@ libmysqlobjects = errmsg.lo get_password.lo password.lo
 
 sqlsources = convert.cc derror.cc field.cc field_conv.cc filesort.cc \
 	ha_berkeley.cc ha_heap.cc ha_isam.cc ha_isammrg.cc \
-	ha_myisam.cc ha_myisammrg.cc handler.cc hostname.cc init.cc \
+	ha_myisam.cc ha_myisammrg.cc handler.cc sql_handler.cc \
+	hostname.cc init.cc \
 	item.cc item_buff.cc item_cmpfunc.cc item_create.cc \
 	item_func.cc item_strfunc.cc item_sum.cc item_timefunc.cc \
 	item_uniq.cc key.cc lock.cc log.cc log_event.cc md5.c \
@@ -58,7 +59,8 @@ sqlsources = convert.cc derror.cc field.cc field_conv.cc filesort.cc \
 ## XXX: we should not have to duplicate info from the sources list
 sqlobjects = convert.lo derror.lo field.lo field_conv.lo filesort.lo \
 	ha_berkeley.lo ha_heap.lo ha_isam.lo ha_isammrg.lo \
-	ha_myisam.lo ha_myisammrg.lo handler.lo hostname.lo init.lo \
+	ha_myisam.lo ha_myisammrg.lo handler.lo sql_handler.lo \
+	hostname.lo init.lo \
 	item.lo item_buff.lo item_cmpfunc.lo item_create.lo \
 	item_func.lo item_strfunc.lo item_sum.lo item_timefunc.lo \
 	item_uniq.lo key.lo lock.lo log.lo log_event.lo md5.lo \

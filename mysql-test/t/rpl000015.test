@@ -1,6 +1,5 @@
 connect (master,localhost,root,,test,0,mysql-master.sock);
 connect (slave,localhost,root,,test,0, mysql-slave.sock);
-source include/have_default_master.inc;
 connection master;
 reset master;
 show master status;
@@ -9,23 +8,26 @@ connection slave;
 reset slave;
 show slave status;
 change master to master_host='127.0.0.1';
+--replace_result 3306 9998 9306 9999 3334 9999 3335 9999
 show slave status;
-change master to master_host='127.0.0.1',master_user='root',
- master_password='',master_port=9306;
+eval change master to master_host='127.0.0.1',master_user='root',
+ master_password='',master_port=$MASTER_MYPORT;
+--replace_result 9306 9999 3334 9999 3335 9999
 show slave status;
 slave start;
 sync_with_master;
+--replace_result 9306 9999 3334 9999 3335 9999
 show slave status;
 connection master;
-drop table if exists foo;
-create table foo (n int);
-insert into foo values (10),(45),(90);
+drop table if exists t1;
+create table t1 (n int);
+insert into t1 values (10),(45),(90);
 save_master_pos;
 connection slave;
 sync_with_master;
-select * from foo;
+select * from t1;
 connection master;
-drop table foo;
+drop table t1;
 save_master_pos;
 connection slave;
 sync_with_master;

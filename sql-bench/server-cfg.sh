@@ -196,7 +196,7 @@ sub new
     $limits{'working_blobs'}	= 0; # HEAP tables can't handle BLOB's
   }
   if (defined($main::opt_create_options) &&
-      $main::opt_create_options =~ /type=innobase/i)
+      $main::opt_create_options =~ /type=innodb/i)
   {
     $limits{'max_text_size'}	= 8000; # Limit in Innobase
   }

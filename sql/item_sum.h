@@ -21,6 +21,8 @@
 #pragma interface			/* gcc class implementation */
 #endif
 
+#include <my_tree.h>
+
 class Item_sum :public Item_result_field
 {
 public:
@@ -145,11 +147,20 @@ class Item_sum_count_distinct :public Item_sum_int
   table_map used_table_cache;
   bool fix_fields(THD *thd,TABLE_LIST *tables);
   TMP_TABLE_PARAM *tmp_table_param;
+  TREE tree;
+  bool use_tree; // If there are no blobs, we can use a tree, which
+  // is faster than heap table. In that case, we still use the table
+  // to help get things set up, but we insert nothing in it
+  int rec_offset; // the first few bytes of record ( at least one)
+  // are just markers for deleted and NULLs. We want to skip them since
+  // they will just bloat the tree without providing any valuable info
 
+  friend int composite_key_cmp(void* arg, byte* key1, byte* key2);
+  
   public:
   Item_sum_count_distinct(List<Item> &list)
     :Item_sum_int(list),table(0),used_table_cache(~(table_map) 0),
-    tmp_table_param(0)
+     tmp_table_param(0),use_tree(0)
   { quick_group=0; }
   ~Item_sum_count_distinct();
   table_map used_tables() const { return used_table_cache; }

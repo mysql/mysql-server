@@ -28,6 +28,19 @@
 #include <os2.h>
 #endif /* __EMX__ */
 
+#ifdef __CYGWIN__
+/* We use a Unix API, so pretend it's not Windows */
+#undef WIN
+#undef WIN32
+#undef _WIN
+#undef _WIN32
+#undef _WIN64
+#undef __WIN__
+#undef __WIN32__
+#define HAVE_ERRNO_AS_DEFINE
+#endif /* __CYGWIN__ */
+
+
 #if defined(_WIN32) || defined(_WIN64) || defined(__WIN32__) || defined(WIN32)
 #include <config-win.h>
 #else
@@ -319,7 +332,8 @@ typedef int	File;		/* File descriptor */
 typedef int	my_socket;	/* File descriptor for sockets */
 #define INVALID_SOCKET -1
 #endif
-typedef RETSIGTYPE sig_handler; /* Function to handle signals */
+/* Type for fuctions that handles signals */
+#define sig_handler RETSIGTYPE
 typedef void	(*sig_return)();/* Returns type from signal */
 #if defined(__GNUC__) && !defined(_lint)
 typedef char	pchar;		/* Mixed prototypes can take char */
@@ -335,6 +349,7 @@ typedef int	pshort;		/* Mixed prototypes can't take short int */
 typedef double	pfloat;		/* Mixed prototypes can't take float */
 #endif
 typedef int	(*qsort_cmp)(const void *,const void *);
+typedef int	(*qsort_cmp2)(void*, const void *,const void *);
 #ifdef HAVE_mit_thread
 #define qsort_t void
 #undef QSORT_TYPE_IS_VOID

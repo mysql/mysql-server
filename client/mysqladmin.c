@@ -28,7 +28,7 @@
 #include <my_pthread.h>				/* because of signal()	*/
 #endif
 
-#define ADMIN_VERSION "8.19"
+#define ADMIN_VERSION "8.20"
 #define MAX_MYSQL_VAR 64
 #define SHUTDOWN_DEF_TIMEOUT 3600		/* Wait for shutdown */
 #define MAX_TRUNC_LENGTH 3
@@ -417,19 +417,13 @@ static my_bool execute_commands(MYSQL *mysql,int argc, char **argv)
     }
     case ADMIN_DROP:
     {
-      char buff[FN_REFLEN+20];
       if (argc < 2)
       {
 	my_printf_error(0,"Too few arguments to drop",MYF(ME_BELL));
 	return 1;
       }
-      sprintf(buff,"drop database `%.*s`",FN_REFLEN,argv[1]);
-      if (mysql_query(mysql,buff))
-      {
-	my_printf_error(0,"DROP DATABASE failed; error: '%-.200s'",
-			MYF(ME_BELL), mysql_error(mysql));
+      if (drop_db(mysql,argv[1]))
 	return 1;
-      }
       argc--; argv++;
       break;
     }
@@ -867,7 +861,8 @@ static int drop_db(MYSQL *mysql, const char *db)
   {
     puts("Dropping the database is potentially a very bad thing to do.");
     puts("Any data stored in the database will be destroyed.\n");
-    printf("Do you really want to drop the '%s' database [y/N]\n",db);
+    printf("Do you really want to drop the '%s' database [y/N] ",db);
+    fflush(stdout);
     VOID(fgets(buf,sizeof(buf)-1,stdin));
     if ((*buf != 'y') && (*buf != 'Y'))
     {
@@ -878,7 +873,7 @@ static int drop_db(MYSQL *mysql, const char *db)
   sprintf(name_buff,"drop database %.*s",FN_REFLEN,db);
   if (mysql_query(mysql,name_buff))
   {
-    my_printf_error(0,"drop of '%s' failed;\nerror: '%s'",MYF(ME_BELL),
+    my_printf_error(0,"DROP DATABASE %s failed;\nerror: '%s'",MYF(ME_BELL),
 		    db,mysql_error(mysql));
     return 1;
   }

@@ -117,7 +117,6 @@ que_thr_stop(
 /**************************************************************************
 Moves a thread from another state to the QUE_THR_RUNNING state. Increments
 the n_active_thrs counters of the query graph and transaction. */
-UNIV_INLINE
 void
 que_thr_move_to_run_state_for_mysql(
 /*================================*/
@@ -126,7 +125,6 @@ que_thr_move_to_run_state_for_mysql(
 /**************************************************************************
 A patch for MySQL used to 'stop' a dummy query thread used in MySQL
 select, when there is no error or lock wait. */
-UNIV_INLINE
 void
 que_thr_stop_for_mysql_no_error(
 /*============================*/

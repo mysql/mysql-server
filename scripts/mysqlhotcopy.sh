@@ -9,7 +9,7 @@ use DBI;
 
 =head1 NAME
 
-mysqlhotcopy - fast on-line hot-backup utility for local MySQL databases
+mysqlhotcopy - fast on-line hot-backup utility for local MySQL databases and tables
 
 =head1 SYNOPSIS
 
@@ -30,13 +30,13 @@ mysqlhotcopy - fast on-line hot-backup utility for local MySQL databases
   mysqlhotcopy --method='scp -Bq -i /usr/home/foo/.ssh/identity' --user=root --password=secretpassword \
          db_1./^nice_table/ user@some.system.dom:~/path/to/new_directory
 
-WARNING: THIS IS VERY MUCH A FIRST-CUT ALPHA. Comments/patches welcome.
+WARNING: THIS PROGRAM IS STILL IN BETA. Comments/patches welcome.
 
 =cut
 
 # Documentation continued at end of file
 
-my $VERSION = "1.11";
+my $VERSION = "1.12";
 
 my $opt_tmpdir = $ENV{TMPDIR} || "/tmp";
 
@@ -44,7 +44,7 @@ my $OPTIONS = <<"_OPTIONS";
 
 $0 Ver $VERSION
 
-Usage: $0 db_name [new_db_name | directory]
+Usage: $0 db_name[./table_regex/] [new_db_name | directory]
 
   -?, --help           display this helpscreen and exit
   -u, --user=#         user for database login if not current user
@@ -52,9 +52,9 @@ Usage: $0 db_name [new_db_name | directory]
   -P, --port=#         port to use when connecting to local server
   -S, --socket=#       socket to use when connecting to local server
 
-  --allowold           don't abort if target already exists (rename it _old)
-  --keepold            don't delete previous (now renamed) target when done
-  --noindices          don't include full index files in copy
+  --allowold           don\'t abort if target already exists (rename it _old)
+  --keepold            don\'t delete previous (now renamed) target when done
+  --noindices          don\'t include full index files in copy
   --method=#           method for copy (only "cp" currently supported)
 
   -q, --quiet          be silent except for errors
@@ -69,7 +69,7 @@ Usage: $0 db_name [new_db_name | directory]
   --resetslave         reset the master.info once all tables are locked
   --tmpdir=#	       temporary directory (instead of $opt_tmpdir)
 
-  Try 'perldoc $0 for more complete documentation'
+  Try \'perldoc $0 for more complete documentation\'
 _OPTIONS
 
 sub usage {
@@ -186,19 +186,21 @@ $datadir =~ s:/$::;
 # --- get target path ---
 my ($tgt_dirname, $to_other_database);
 $to_other_database=0;
-if ($tgt_name =~ m:^\w+$: && @db_desc <= 1)
+if (defined($tgt_name) && $tgt_name =~ m:^\w+$: && @db_desc <= 1)
 {
     $tgt_dirname = "$datadir/$tgt_name";
     $to_other_database=1;
 }
-elsif ($tgt_name =~ m:/: || $tgt_name eq '.') {
+elsif (defined($tgt_name) && ($tgt_name =~ m:/: || $tgt_name eq '.')) {
     $tgt_dirname = $tgt_name;
 }
 elsif ( $opt{suffix} ) {
-    print "copy suffix $opt{suffix}\n" unless $opt{quiet};
+    print "Using copy suffix '$opt{suffix}'\n" unless $opt{quiet};
 }
-else {
-    die "Target '$tgt_name' doesn't look like a database name or directory path.\n";
+else
+{
+  $tgt_name="" if (!defined($tgt_name));
+  die "Target '$tgt_name' doesn't look like a database name or directory path.\n";
 }
 
 # --- resolve database names from regexp ---
@@ -277,7 +279,7 @@ foreach my $rdb ( @db_desc ) {
 
 my @targets = ();
 
-if (length $tgt_name ) {
+if (defined($tgt_name) && length $tgt_name ) {
     # explicit destination directory specified
 
     # GNU `cp -r` error message
@@ -329,8 +331,11 @@ if ($opt{method} =~ /^cp\b/)
     push @existing, $rdb->{target} if ( -d  $rdb->{target} );
   }
 
-  die "Can't hotcopy to '", join( "','", @existing ), "' because already exist and --allowold option not given.\n"
-    if ( @existing && !$opt{allowold} );
+  if ( @existing && !$opt{allowold} )
+  {
+    $dbh->disconnect();
+    die "Can't hotcopy to '", join( "','", @existing ), "' because directory\nalready exist and the --allowold option was not given.\n"
+  }
 }
 
 retire_directory( @existing ) if ( @existing );
@@ -778,7 +783,7 @@ not copied by the previous subsets.
 newdb is either another not existing database or a full path to a directory
 where we can create a directory 'db'
 
-Add option to lock each table in turn for people who don't need
+Add option to lock each table in turn for people who don\'t need
 cross-table integrity.
 
 Add option to FLUSH STATUS just before UNLOCK TABLES.

@@ -4,17 +4,94 @@ AC_CANONICAL_SYSTEM
 AM_MAINTAINER_MODE
 AM_CONFIG_HEADER(ib_config.h)
 AM_INIT_AUTOMAKE(ib, 0.90)
+
+# This is need before AC_PROG_CC
+#
+
+if test "x${CFLAGS-}" = x ; then
+  cflags_is_set=no
+else
+  cflags_is_set=yes
+fi
+
+if test "x${CPPFLAGS-}" = x ; then
+  cppflags_is_set=no
+else
+  cppflags_is_set=yes
+fi
+
+if test "x${LDFLAGS-}" = x ; then
+  ldflags_is_set=no
+else
+  ldflags_is_set=yes
+fi
+
+# The following hack should ensure that configure doesn't add optimizing
+# or debugging flags to CFLAGS or CXXFLAGS
+CFLAGS="$CFLAGS "
+CXXFLAGS="$CXXFLAGS "
+
 AC_PROG_CC
 AC_PROG_RANLIB
 AC_PROG_INSTALL
-AC_CHECK_HEADERS(aio.h)
+AC_CHECK_HEADERS(aio.h sched.h)
 AC_CHECK_SIZEOF(int, 4)
-AC_C_INLINE
+AC_CHECK_FUNCS(sched_yield)
+#AC_C_INLINE  Already checked in MySQL
 AC_C_BIGENDIAN
 
+# Build optimized or debug version ?
+# First check for gcc and g++
+if test "$ac_cv_prog_gcc" = "yes"
+then
+  DEBUG_CFLAGS="-g"
+  DEBUG_OPTIMIZE_CC="-O"
+  OPTIMIZE_CFLAGS="$MAX_C_OPTIMIZE"
+else
+  DEBUG_CFLAGS="-g"
+  DEBUG_OPTIMIZE_CC=""
+  OPTIMIZE_CFLAGS="-O"
+fi
+if test "$ac_cv_prog_cxx_g" = "yes"
+then
+  DEBUG_CXXFLAGS="-g"
+  DEBUG_OPTIMIZE_CXX="-O"
+  OPTIMIZE_CXXFLAGS="-O3"
+else
+  DEBUG_CXXFLAGS="-g"
+  DEBUG_OPTIMIZE_CXX=""
+  OPTIMIZE_CXXFLAGS="-O"
+fi
+AC_ARG_WITH(debug,
+    [  --without-debug         Build a production version without debugging code],
+    [with_debug=$withval],
+    [with_debug=no])
+if test "$with_debug" = "yes"
+then
+  # Medium debug.
+  CFLAGS="$DEBUG_CFLAGS $DEBUG_OPTIMIZE_CC -DDBUG_ON -DSAFE_MUTEX $CFLAGS"
+  CXXFLAGS="$DEBUG_CXXFLAGS $DEBUG_OPTIMIZE_CXX -DSAFE_MUTEX $CXXFLAGS"
+elif test "$with_debug" = "full"
+then
+  # Full debug. Very slow in some cases
+  CFLAGS="$DEBUG_CFLAGS -DDBUG_ON -DSAFE_MUTEX -DSAFEMALLOC $CFLAGS"
+  CXXFLAGS="$DEBUG_CXXFLAGS -DSAFE_MUTEX -DSAFEMALLOC $CXXFLAGS"
+else
+  # Optimized version. No debug
+  CFLAGS="$OPTIMIZE_CFLAGS -DDBUG_OFF $CFLAGS -DDEBUG_OFF"
+  CXXFLAGS="$OPTIMIZE_CXXFLAGS -DDBUG_OFF $CXXFLAGS -DDEBUG_OFF"
+fi
+
 case "$target_os" in
-       hp*) AC_DEFINE(UNIV_MUST_NOT_INLINE, 1,
-	                     No inlining because gcc broken on HP-UX);;
+       hp*)
+	 CFLAGS="$CFLAGS -DUNIV_MUST_NOT_INLINE";;
+       irix*)
+	 CFLAGS="$CFLAGS -DUNIV_MUST_NOT_INLINE";;
+       osf*)
+	 CFLAGS="$CFLAGS -DUNIV_MUST_NOT_INLINE";;
+       sysv5uw7*)
+	 # Problem when linking on SCO
+	 CFLAGS="$CFLAGS -DUNIV_MUST_NOT_INLINE";;
 esac
 
 AC_OUTPUT(Makefile os/Makefile ut/Makefile btr/Makefile

@@ -53,8 +53,14 @@ uint check_ulonglong(const char *str, uint length);
 bool get_ev_num_info(EV_NUM_INFO *ev_info, NUM_INFO *info, const char *num);
 bool test_if_number(NUM_INFO *info, const char *str, uint str_len);
 int compare_double(const double *s, const double *t);
+int compare_double2(void* cmp_arg __attribute__((unused)),
+		    const double *s, const double *t);
 int compare_longlong(const longlong *s, const longlong *t);
+int compare_longlong2(void* cmp_arg __attribute__((unused)),
+		      const longlong *s, const longlong *t);
 int compare_ulonglong(const ulonglong *s, const ulonglong *t);
+int compare_ulonglong2(void* cmp_arg __attribute__((unused)),
+		       const ulonglong *s, const ulonglong *t);
 Procedure *proc_analyse_init(THD *thd, ORDER *param, select_result *result,
 			     List<Item> &field_list);
 void free_string(String*);
@@ -91,6 +97,11 @@ public:
 int collect_string(String *element, element_count count,
 		   TREE_INFO *info);
 
+int sortcmp2(void* cmp_arg __attribute__((unused)),
+	     const String *a,const String *b);
+int stringcmp2(void* cmp_arg __attribute__((unused)),
+	     const String *a,const String *b);
+
 class field_str :public field_info
 {
   String      min_arg, max_arg;
@@ -106,7 +117,7 @@ public:
     must_be_blob(0), was_zero_fill(0),
     was_maybe_zerofill(0), can_be_still_num(1)
     { init_tree(&tree, 0, sizeof(String), a->binary ?
-		(qsort_cmp) stringcmp : (qsort_cmp) sortcmp,
+		(qsort_cmp2) stringcmp2 : (qsort_cmp2) sortcmp2,
 		0, (void (*)(void*)) free_string); };
 
   void	 add();
@@ -146,7 +157,7 @@ public:
   field_real(Item* a, analyse* b) :field_info(a,b),
     min_arg(0), max_arg(0),  sum(0), sum_sqr(0), max_notzero_dec_len(0)
     { init_tree(&tree, 0, sizeof(double),
-		(qsort_cmp) compare_double, 0, NULL); }
+		(qsort_cmp2) compare_double2, 0, NULL); }
 
   void	 add();
   void	 get_opt_type(String*, ha_rows);
@@ -192,7 +203,7 @@ public:
   field_longlong(Item* a, analyse* b) :field_info(a,b), 
     min_arg(0), max_arg(0), sum(0), sum_sqr(0)
     { init_tree(&tree, 0, sizeof(longlong),
-		(qsort_cmp) compare_longlong, 0, NULL); }
+		(qsort_cmp2) compare_longlong2, 0, NULL); }
 
   void	 add();
   void	 get_opt_type(String*, ha_rows);
@@ -237,7 +248,7 @@ public:
   field_ulonglong(Item* a, analyse * b) :field_info(a,b),
     min_arg(0), max_arg(0), sum(0),sum_sqr(0)
     { init_tree(&tree, 0, sizeof(ulonglong),
-		(qsort_cmp) compare_ulonglong, 0, NULL); }
+		(qsort_cmp2) compare_ulonglong2, 0, NULL); }
   void	 add();
   void	 get_opt_type(String*, ha_rows);
   String *get_min_arg(String *s) { s->set(min_arg); return s; }

@@ -34,8 +34,6 @@ HASH open_cache;				/* Used by mysql_test */
 
 static int open_unireg_entry(THD *thd,TABLE *entry,const char *db,
 			     const char *name, const char *alias, bool locked);
-static bool insert_fields(THD *thd,TABLE_LIST *tables, const char *table_name,
-			  List_iterator<Item> *it);
 static void free_cache_entry(TABLE *entry);
 static void mysql_rm_tmp_tables(void);
 static key_map get_key_map_from_key_list(TABLE *table,
@@ -423,40 +421,9 @@ void close_thread_tables(THD *thd, bool locked)
 
   DBUG_PRINT("info", ("thd->open_tables=%p", thd->open_tables));
 
-  for (table=thd->open_tables ; table ; table=next)
-  {
-    next=table->next;
-    if (table->version != refresh_version ||
-	thd->version != refresh_version || !table->db_stat)
-    {
-      VOID(hash_delete(&open_cache,(byte*) table));
-      found_old_table=1;
-    }
-    else
-    {
-      if (table->flush_version != flush_version)
-      {
-	table->flush_version=flush_version;
-	table->file->extra(HA_EXTRA_FLUSH);
-      }
-      else
-      {
-	// Free memory and reset for next loop
-	table->file->extra(HA_EXTRA_RESET);
-      }
-      table->in_use=0;
-      if (unused_tables)
-      {
-	table->next=unused_tables;		/* Link in last */
-	table->prev=unused_tables->prev;
-	unused_tables->prev=table;
-	table->prev->next=table;
-      }
-      else
-	unused_tables=table->next=table->prev=table;
-    }
-  }
-  thd->open_tables=0;
+  while (thd->open_tables)
+    found_old_table|=close_thread_table(thd, &thd->open_tables);
+
   /* Free tables to hold down open files */
   while (open_cache.records > table_cache_size && unused_tables)
     VOID(hash_delete(&open_cache,(byte*) unused_tables)); /* purecov: tested */
@@ -470,6 +437,48 @@ void close_thread_tables(THD *thd, bool locked)
     VOID(pthread_mutex_unlock(&LOCK_open));
   /*  VOID(pthread_sigmask(SIG_SETMASK,&thd->signals,NULL)); */
   DBUG_VOID_RETURN;
+}
+
+/* move one table to free list */
+
+bool close_thread_table(THD *thd, TABLE **table_ptr)
+{
+  DBUG_ENTER("close_thread_table");
+
+  bool found_old_table=0;
+  TABLE *table=*table_ptr;
+
+  *table_ptr=table->next;
+  if (table->version != refresh_version ||
+      thd->version != refresh_version || !table->db_stat)
+  {
+    VOID(hash_delete(&open_cache,(byte*) table));
+    found_old_table=1;
+  }
+  else
+  {
+    if (table->flush_version != flush_version)
+    {
+      table->flush_version=flush_version;
+      table->file->extra(HA_EXTRA_FLUSH);
+    }
+    else
+    {
+      // Free memory and reset for next loop
+      table->file->extra(HA_EXTRA_RESET);
+    }
+    table->in_use=0;
+    if (unused_tables)
+    {
+      table->next=unused_tables;		/* Link in last */
+      table->prev=unused_tables->prev;
+      unused_tables->prev=table;
+      table->prev->next=table;
+    }
+    else
+      unused_tables=table->next=table->prev=table;
+  }
+  DBUG_RETURN(found_old_table);
 }
 
 	/* Close and delete temporary tables */
@@ -1396,6 +1405,7 @@ TABLE *open_ltable(THD *thd, TABLE_LIST *table_list, thr_lock_type lock_type)
 			    &refresh)) && refresh) ;
   if (table)
   {
+    int error;
     table_list->table=table;
     table->grant= table_list->grant;
     if (thd->locked_tables)
@@ -1407,7 +1417,12 @@ TABLE *open_ltable(THD *thd, TABLE_LIST *table_list, thr_lock_type lock_type)
 	my_printf_error(ER_TABLE_NOT_LOCKED_FOR_WRITE,
 			ER(ER_TABLE_NOT_LOCKED_FOR_WRITE),
 			MYF(0),table_list->name);
-	DBUG_RETURN(0);
+	table=0;
+      }
+      else if ((error=table->file->start_stmt(thd)))
+      {
+	table->file->print_error(error,MYF(0));
+	table=0;
       }
       thd->proc_info=0;
       DBUG_RETURN(table);
@@ -1434,10 +1449,10 @@ int open_and_lock_tables(THD *thd,TABLE_LIST *tables)
 
 int lock_tables(THD *thd,TABLE_LIST *tables)
 {
+  TABLE_LIST *table;
   if (tables && !thd->locked_tables)
   {
     uint count=0;
-    TABLE_LIST *table;
     for (table = tables ; table ; table=table->next)
       count++;
     TABLE **start,**ptr;
@@ -1447,6 +1462,18 @@ int lock_tables(THD *thd,TABLE_LIST *tables)
       *(ptr++)= table->table;
     if (!(thd->lock=mysql_lock_tables(thd,start,count)))
       return -1;				/* purecov: inspected */
+  }
+  else
+  {
+    for (table = tables ; table ; table=table->next)
+    {
+      int error;
+      if ((error=table->table->file->start_stmt(thd)))
+      {
+	table->table->file->print_error(error,MYF(0));
+	return -1;
+      }
+    }
   }
   return 0;
 }
@@ -1474,8 +1501,7 @@ TABLE *open_temporary_table(THD *thd, const char *path, const char *db,
     DBUG_RETURN(0);				/* purecov: inspected */
 
   if (openfrm(path, table_name,
-	      (uint) (HA_OPEN_KEYFILE | HA_OPEN_RNDFILE | HA_GET_INDEX |
-		      HA_TRY_READ_ONLY),
+	      (uint) (HA_OPEN_KEYFILE | HA_OPEN_RNDFILE | HA_GET_INDEX),
 	      READ_KEYINFO | COMPUTE_TYPES | EXTRA_RECORD,
 	      ha_open_options,
 	      tmp_table))
@@ -1484,11 +1510,13 @@ TABLE *open_temporary_table(THD *thd, const char *path, const char *db,
   }
 
   tmp_table->file->extra(HA_EXTRA_NO_READCHECK); // Not needed in SQL
-  tmp_table->reginfo.lock_type=TL_WRITE;	// Simulate locked
-  tmp_table->tmp_table = 1;
+  tmp_table->reginfo.lock_type=TL_WRITE;	 // Simulate locked
+  tmp_table->tmp_table = (tmp_table->file->has_transactions() ? 
+			  TRANSACTIONAL_TMP_TABLE : TMP_TABLE);
   tmp_table->table_cache_key=(char*) (tmp_table+1);
-  tmp_table->key_length= (uint) (strmov(strmov(tmp_table->table_cache_key,db)
-					+1, table_name)
+  tmp_table->key_length= (uint) (strmov((tmp_table->real_name=
+					 strmov(tmp_table->table_cache_key,db)
+					 +1), table_name)
 				 - tmp_table->table_cache_key)+1;
   int4store(tmp_table->table_cache_key + tmp_table->key_length,
 	    thd->slave_proxy_id);
@@ -1815,7 +1843,7 @@ static key_map get_key_map_from_key_list(TABLE *table,
 **	Returns pointer to last inserted field if ok
 ****************************************************************************/
 
-static bool
+bool
 insert_fields(THD *thd,TABLE_LIST *tables, const char *table_name,
 	      List_iterator<Item> *it)
 {

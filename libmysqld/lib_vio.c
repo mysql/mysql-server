@@ -156,13 +156,13 @@ int vio_write(Vio * vio, const gptr buf, int size)
   {
     *vio->last_packet = packet;
     vio->last_packet = (char **)packet;
-    *((char **)packet) = 0;	/* safety */
+    *((char **)packet) = 0;	/* Set forward link to 0 */
     packet += sizeof(char *);
     int4store(packet, size);
     memcpy(packet + 4, buf, size);
   }
   else
-    size=0;
+    size= -1;
   return (size);
 }
 
