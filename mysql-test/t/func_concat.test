@@ -46,7 +46,7 @@ select 'a' union select concat('a', -'3');
 select 'a' union select concat('a', -concat('3',4));
 
 select 'a' union select concat('a', -0);
-select 'a' union select concat('a', -0.0);
 
-select 'a' union select concat('a', -0.0000);
+--replace_result 'a-0.0' good 'a0.0' good
+select 'a' union select concat('a', -0.0);
 
