@@ -111,6 +111,14 @@ class ha_ndbcluster: public handler
 			      byte* buf);
   int read_range_next();
 
+  /**
+   * Multi range stuff
+   */
+  int read_multi_range_first(key_multi_range **found_range_p,
+			     key_multi_range *ranges, uint range_count,
+			     bool sorted, handler_buffer *buffer);
+  int read_multi_range_next(void);
+
   bool get_error_message(int error, String *buf);
   void info(uint);
   int extra(enum ha_extra_function operation);
@@ -257,6 +265,10 @@ class ha_ndbcluster: public handler
   uint32 m_blobs_buffer_size;
   uint m_dupkey;
 
+  bool m_disable_multi_read;
+  byte* m_multi_range_result_ptr;
+  const NdbOperation* m_current_multi_operation;
+  
   void set_rec_per_key();
   void records_update();
   void no_uncommitted_rows_execute_failure();

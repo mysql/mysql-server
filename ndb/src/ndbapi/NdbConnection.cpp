@@ -232,21 +232,6 @@ Remark:        Handle time-out on a transaction object.
 void
 NdbConnection::handleExecuteCompletion()
 {
-  
-  if (theCompletionStatus == CompletedFailure) {
-    NdbOperation* tOpTemp = theFirstExecOpInList;
-    while (tOpTemp != NULL) {
-/*****************************************************************************
- *	Ensure that all executing operations report failed for each 
- *      read attribute when failure occurs. 
- *      We do not want any operations to report both failure and 
- *      success on different read attributes.
- ****************************************************************************/
-      tOpTemp->handleFailedAI_ElemLen();
-      tOpTemp = tOpTemp->next();
-    }//while
-    theReturnStatus = ReturnFailure;
-  }//if
   /***************************************************************************
    *	  Move the NdbOperation objects from the list of executing 
    *      operations to list of completed
@@ -1512,6 +1497,7 @@ transactions.
     /**********************************************************************/
     theCompletionStatus = CompletedFailure;
     theCommitStatus = Aborted;
+    theReturnStatus = ReturnFailure;
     return 0;
   } else {
 #ifdef NDB_NO_DROPPED_SIGNAL

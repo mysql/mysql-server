@@ -430,6 +430,10 @@ public:
    */
   const NdbOperation * getNextCompletedOperation(const NdbOperation * op)const;
 
+  
+  const NdbOperation* getFirstDefinedOperation()const{return theFirstOpInList;}
+  const NdbOperation* getLastDefinedOperation()const{return theLastOpInList;}
+
   /** @} *********************************************************************/
 
   /**
