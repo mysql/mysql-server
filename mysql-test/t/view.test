@@ -1188,3 +1188,11 @@ create view v1(c) as select a+1 from t1 where b >= 4;
 select c from v1 where exists (select * from t1 where a=2 and b=c);
 drop view v1;
 drop table t1;
+
+#
+# view with cast operation
+#
+create view v1 as select cast(1 as char(3));
+show create view v1;
+select * from v1;
+drop view v1;
