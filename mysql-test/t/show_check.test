@@ -26,3 +26,10 @@ show keys from t1;
 optimize table t1;
 optimize table t1;
 drop table t1;
+
+#show variables;
+show variables like "wait_timeout%";
+show variables like "this_doesn't_exists%";
+show table status from test like "this_doesn't_exists%";
+show databases;
+show databases like "test%";

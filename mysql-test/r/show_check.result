@@ -34,3 +34,12 @@ Table	Op	Msg_type	Msg_text
 test.t1	optimize	status	OK
 Table	Op	Msg_type	Msg_text
 test.t1	optimize	status	Table is already up to date
+Variable_name	Value
+wait_timeout	28800
+Variable_name	Value
+Name	Type	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Create_options	Comment
+Database
+mysql
+test
+Database (test%)
+test

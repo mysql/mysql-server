@@ -16,5 +16,7 @@ drop table if exists bar;
 create table bar (m int);
 insert into bar values(15);
 connection slave;
-sleep 1;
+sleep 2;
 @r/rpl000007.result select foo.n,bar.m from foo,bar;
+connection master;
+drop table if exists bar,foo;

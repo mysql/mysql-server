@@ -1,0 +1,1796 @@
+period
+9410
+Period	Varor_period
+9410	9412
+Period	Varor_period
+9410	9412
+fld3
+imaginable
+fld3
+cultivation
+fld3	companynr
+concoct	58
+druggists	58
+engrossing	58
+Eurydice	58
+exclaimers	58
+ferociousness	58
+hopelessness	58
+Huey	58
+imaginable	58
+judges	58
+merging	58
+ostrich	58
+peering	58
+Phelps	58
+presumes	58
+Ruth	58
+sentences	58
+Shylock	58
+straggled	58
+synergy	58
+thanking	58
+tying	58
+unlocks	58
+fld3	companynr
+concoct	58
+druggists	58
+engrossing	58
+Eurydice	58
+exclaimers	58
+ferociousness	58
+hopelessness	58
+Huey	58
+imaginable	58
+judges	58
+merging	58
+ostrich	58
+peering	58
+Phelps	58
+presumes	58
+Ruth	58
+sentences	58
+Shylock	58
+straggled	58
+synergy	58
+thanking	58
+tying	58
+unlocks	58
+fld3
+youthfulness
+yelped
+Wotan
+workers
+Witt
+witchcraft
+Winsett
+Willy
+willed
+wildcats
+fld3
+youthfulness
+yelped
+Wotan
+workers
+Witt
+fld3
+witchcraft
+Winsett
+Willy
+willed
+wildcats
+fld3
+honeysuckle
+fld3
+honeysuckle
+fld3
+honeysuckle
+fld3
+honeysuckle
+fld3
+honeysuckle
+fld3
+fld3
+table	type	possible_keys	key	key_len	ref	rows	Extra
+t2	ref	fld3	fld3	30	const	1	where used; Using index
+table	type	possible_keys	key	key_len	ref	rows	Extra
+t2	index	fld3	fld3	30	NULL	1199	where used; Using index
+table	type	possible_keys	key	key_len	ref	rows	Extra
+t2	index	fld3	fld3	30	NULL	1199	where used; Using index
+table	type	possible_keys	key	key_len	ref	rows	Extra
+t2	ref	fld3	fld3	30	const	1	where used; Using index
+table	type	possible_keys	key	key_len	ref	rows	Extra
+t2	ref	fld3	fld3	30	const	1	where used; Using index
+fld3
+honeysuckle
+honoring
+table	type	possible_keys	key	key_len	ref	rows	Extra
+t2	range	fld3	fld3	30	NULL	2	where used; Using index
+fld1	fld3
+148504	Colombo
+068305	Colombo
+000000	nondecreasing
+fld1	fld3
+232605	appendixes
+1232605	appendixes
+1232606	appendixes
+1232607	appendixes
+1232608	appendixes
+1232609	appendixes
+fld1
+250501
+250502
+table	type	possible_keys	key	key_len	ref	rows	Extra
+t2	range	fld1	fld1	4	NULL	2	where used; Using index
+fld1
+250501
+250502
+250505
+250601
+table	type	possible_keys	key	key_len	ref	rows	Extra
+t2	range	fld1	fld1	4	NULL	4	where used; Using index
+fld1	fld3
+218401	faithful
+018007	fanatic
+228311	fated
+018017	featherweight
+218022	feed
+088303	feminine
+058004	Fenton
+038017	fetched
+018054	fetters
+208101	fiftieth
+238007	filial
+013606	fingerings
+218008	finishers
+038205	firearm
+188505	fitting
+202301	Fitzpatrick
+238008	fixedly
+012001	flanking
+018103	flint
+018104	flopping
+188007	flurried
+013602	foldout
+226205	foothill
+232102	forgivably
+228306	forthcoming
+186002	freakish
+208113	freest
+231315	freezes
+036002	funereal
+226209	furnishings
+198006	furthermore
+fld3
+fld3
+Chantilly
+fld1	fld3
+250501	poisoning
+250502	Iraqis
+250503	heaving
+250504	population
+250505	bomb
+fld1	fld3
+250501	poisoning
+250502	Iraqis
+250503	heaving
+250504	population
+250505	bomb
+companynr
+00
+37
+36
+50
+58
+29
+40
+53
+65
+41
+34
+68
+companynr
+00
+29
+34
+36
+37
+40
+41
+50
+53
+58
+65
+68
+companynr
+68
+65
+58
+53
+50
+41
+40
+37
+36
+34
+29
+00
+fld3	period
+obliterates	9410
+offload	9410
+opaquely	9410
+organizer	9410
+overestimating	9410
+overlay	9410
+fld3
+absentee
+accessed
+ahead
+alphabetic
+Asiaticizations
+attitude
+aye
+bankruptcies
+belays
+Blythe
+bomb
+boulevard
+bulldozes
+cannot
+caressing
+charcoal
+checksumming
+chess
+clubroom
+colorful
+cosy
+creator
+crying
+Darius
+diffusing
+duality
+Eiffel
+Epiphany
+Ernestine
+explorers
+exterminated
+famine
+forked
+Gershwins
+heaving
+Hodges
+Iraqis
+Italianization
+Lagos
+landslide
+libretto
+Majorca
+mastering
+narrowed
+occurred
+offerers
+Palestine
+Peruvianizes
+pharmaceutic
+poisoning
+population
+Pygmalion
+rats
+realest
+recording
+regimented
+retransmitting
+reviver
+rouses
+scars
+sicker
+sleepwalk
+stopped
+sugars
+translatable
+uncles
+unexpected
+uprisings
+versatility
+vest
+fld3
+abates
+abiding
+Abraham
+abrogating
+absentee
+abut
+accessed
+accruing
+accumulating
+accuracies
+fld3
+abates
+abiding
+Abraham
+abrogating
+absentee
+abut
+accessed
+accruing
+accumulating
+accuracies
+substring(fld3,1,3)
+aba
+abi
+Abr
+abs
+abu
+acc
+acq
+acu
+Ade
+adj
+Adl
+adm
+Ado
+ads
+adv
+aer
+aff
+afi
+afl
+afo
+agi
+ahe
+aim
+air
+Ald
+alg
+ali
+all
+alp
+alr
+ama
+ame
+amm
+ana
+and
+ane
+Ang
+ani
+Ann
+Ant
+api
+app
+aqu
+Ara
+arc
+Arm
+arr
+Art
+Asi
+ask
+asp
+ass
+ast
+att
+aud
+Aug
+aut
+ave
+avo
+awe
+aye
+Azt
+a
+aba
+abi
+Abr
+abs
+abu
+acc
+acq
+acu
+Ade
+adj
+substring(fld3,1,3)
+aba
+abi
+Abr
+abs
+abu
+acc
+acq
+acu
+Ade
+adj
+a
+aba
+abi
+Abr
+abs
+abu
+acc
+acq
+acu
+Ade
+adj
+namn
+Abraham Abraham
+abrogating abrogating
+admonishing admonishing
+Adolph Adolph
+afield afield
+aging aging
+ammonium ammonium
+analyzable analyzable
+animals animals
+animized animized
+concat(fld3," ",fld3)
+Abraham Abraham
+abrogating abrogating
+admonishing admonishing
+Adolph Adolph
+afield afield
+aging aging
+ammonium ammonium
+analyzable analyzable
+animals animals
+animized animized
+fld5
+neat
+Steinberg
+jarring
+tinily
+balled
+persist
+attainments
+fanatic
+measures
+rightfulness
+fld3	count(*)
+affixed	1
+and	1
+annoyers	1
+Anthony	1
+assayed	1
+assurers	1
+attendants	1
+bedlam	1
+bedpost	1
+boasted	1
+fld3	count(*)
+affixed	1
+and	1
+annoyers	1
+Anthony	1
+assayed	1
+assurers	1
+attendants	1
+bedlam	1
+bedpost	1
+boasted	1
+fld3	repeat("a",length(fld3))	count(*)
+circus	aaaaaa	1
+cited	aaaaa	1
+Colombo	aaaaaaa	1
+congresswoman	aaaaaaaaaaaaa	1
+contrition	aaaaaaaaaa	1
+corny	aaaaa	1
+cultivation	aaaaaaaaaaa	1
+definiteness	aaaaaaaaaaaa	1
+demultiplex	aaaaaaaaaaa	1
+disappointing	aaaaaaaaaaaaa	1
+companynr	rtrim(space(512+companynr))
+37	
+78	
+101	
+154	
+311	
+447	
+512	
+fld3
+table	type	possible_keys	key	key_len	ref	rows	Extra
+t2	ALL	fld1	NULL	NULL	NULL	1199	where used; Using temporary; Using filesort
+t3	eq_ref	PRIMARY	PRIMARY	4	t2.fld1	1	where used; Using index
+period
+9410
+period
+fld3	period
+breaking	9410
+fld3	period
+breaking	1001
+table	type	possible_keys	key	key_len	ref	rows	Extra
+t2	const	fld1	fld1	4	const	1	
+t3	const	PRIMARY,period	PRIMARY	4	const	1	
+fld3	period
+breaking	9410
+Romans	9410
+intercepted	9410
+bewilderingly	9410
+astound	9410
+admonishing	9410
+sumac	9410
+flanking	9410
+combed	9410
+subjective	9410
+scatterbrain	9410
+Eulerian	9410
+Kane	9410
+overlay	9410
+perturb	9410
+goblins	9410
+annihilates	9410
+Wotan	9410
+snatching	9410
+concludes	9410
+laterally	9410
+yelped	9410
+grazing	9410
+Baird	9410
+celery	9410
+misunderstander	9410
+handgun	9410
+foldout	9410
+mystic	9410
+succumbed	9410
+Nabisco	9410
+fingerings	9410
+aging	9410
+afield	9410
+ammonium	9410
+boat	9410
+intelligibility	9410
+Augustine	9410
+teethe	9410
+dreaded	9410
+scholastics	9410
+audiology	9410
+wallet	9410
+parters	9410
+eschew	9410
+quitter	9410
+neat	9410
+Steinberg	9410
+jarring	9410
+tinily	9410
+balled	9410
+persist	9410
+attainments	9410
+fanatic	9410
+measures	9410
+rightfulness	9410
+capably	9410
+impulsive	9410
+starlet	9410
+terminators	9410
+untying	9410
+announces	9410
+featherweight	9410
+pessimist	9410
+daughter	9410
+decliner	9410
+lawgiver	9410
+stated	9410
+readable	9410
+attrition	9410
+cascade	9410
+motors	9410
+interrogate	9410
+pests	9410
+stairway	9410
+dopers	9410
+testicle	9410
+Parsifal	9410
+leavings	9410
+postulation	9410
+squeaking	9410
+contrasted	9410
+leftover	9410
+whiteners	9410
+erases	9410
+Punjab	9410
+Merritt	9410
+Quixotism	9410
+sweetish	9410
+dogging	9410
+scornfully	9410
+bellow	9410
+bills	9410
+cupboard	9410
+sureties	9410
+puddings	9410
+fetters	9410
+bivalves	9410
+incurring	9410
+Adolph	9410
+pithed	9410
+Miles	9410
+trimmings	9410
+tragedies	9410
+skulking	9410
+flint	9410
+flopping	9410
+relaxing	9410
+offload	9410
+suites	9410
+lists	9410
+animized	9410
+multilayer	9410
+standardizes	9410
+Judas	9410
+vacuuming	9410
+dentally	9410
+humanness	9410
+inch	9410
+Weissmuller	9410
+irresponsibly	9410
+luckily	9410
+culled	9410
+medical	9410
+bloodbath	9410
+subschema	9410
+animals	9410
+Micronesia	9410
+repetitions	9410
+Antares	9410
+ventilate	9410
+pityingly	9410
+interdependent	9410
+Graves	9410
+neonatal	9410
+chafe	9410
+honoring	9410
+realtor	9410
+elite	9410
+funereal	9410
+abrogating	9410
+sorters	9410
+Conley	9410
+lectured	9410
+Abraham	9410
+Hawaii	9410
+cage	9410
+hushes	9410
+Simla	9410
+reporters	9410
+Dutchman	9410
+descendants	9410
+groupings	9410
+dissociate	9410
+coexist	9410
+Beebe	9410
+Taoism	9410
+Connally	9410
+fetched	9410
+checkpoints	9410
+rusting	9410
+galling	9410
+obliterates	9410
+traitor	9410
+resumes	9410
+analyzable	9410
+terminator	9410
+gritty	9410
+firearm	9410
+minima	9410
+Selfridge	9410
+disable	9410
+witchcraft	9410
+betroth	9410
+Manhattanize	9410
+imprint	9410
+peeked	9410
+swelling	9410
+interrelationships	9410
+riser	9410
+Gandhian	9410
+peacock	9410
+bee	9410
+kanji	9410
+dental	9410
+scarf	9410
+chasm	9410
+insolence	9410
+syndicate	9410
+alike	9410
+imperial	9410
+convulsion	9410
+railway	9410
+validate	9410
+normalizes	9410
+comprehensive	9410
+chewing	9410
+denizen	9410
+schemer	9410
+chronicle	9410
+Kline	9410
+Anatole	9410
+partridges	9410
+brunch	9410
+recruited	9410
+dimensions	9410
+Chicana	9410
+announced	9410
+praised	9410
+employing	9410
+linear	9410
+quagmire	9410
+western	9410
+relishing	9410
+serving	9410
+scheduling	9410
+lore	9410
+eventful	9410
+arteriole	9410
+disentangle	9410
+cured	9410
+Fenton	9410
+avoidable	9410
+drains	9410
+detectably	9410
+husky	9410
+impelling	9410
+undoes	9410
+evened	9410
+squeezes	9410
+destroyer	9410
+rudeness	9410
+beaner	9410
+boorish	9410
+Everhart	9410
+encompass	9410
+mushrooms	9410
+Alison	9410
+externally	9410
+pellagra	9410
+cult	9410
+creek	9410
+Huffman	9410
+Majorca	9410
+governing	9410
+gadfly	9410
+reassigned	9410
+intentness	9410
+craziness	9410
+psychic	9410
+squabbled	9410
+burlesque	9410
+capped	9410
+extracted	9410
+DiMaggio	9410
+exclamation	9410
+subdirectory	9410
+Gothicism	9410
+feminine	9410
+metaphysically	9410
+sanding	9410
+Miltonism	9410
+freakish	9410
+index	9410
+straight	9410
+flurried	9410
+denotative	9410
+coming	9410
+commencements	9410
+gentleman	9410
+gifted	9410
+Shanghais	9410
+sportswriting	9410
+sloping	9410
+navies	9410
+leaflet	9410
+shooter	9410
+Joplin	9410
+babies	9410
+assails	9410
+admiring	9410
+swaying	9410
+Goldstine	9410
+fitting	9410
+Norwalk	9410
+analogy	9410
+deludes	9410
+cokes	9410
+Clayton	9410
+exhausts	9410
+causality	9410
+sating	9410
+icon	9410
+throttles	9410
+communicants	9410
+dehydrate	9410
+priceless	9410
+publicly	9410
+incidentals	9410
+commonplace	9410
+mumbles	9410
+furthermore	9410
+cautioned	9410
+parametrized	9410
+registration	9410
+sadly	9410
+positioning	9410
+babysitting	9410
+eternal	9410
+hoarder	9410
+congregates	9410
+rains	9410
+workers	9410
+sags	9410
+unplug	9410
+garage	9410
+boulder	9410
+specifics	9410
+Teresa	9410
+Winsett	9410
+convenient	9410
+buckboards	9410
+amenities	9410
+resplendent	9410
+sews	9410
+participated	9410
+Simon	9410
+certificates	9410
+Fitzpatrick	9410
+Evanston	9410
+misted	9410
+textures	9410
+save	9410
+count	9410
+rightful	9410
+chaperone	9410
+Lizzy	9410
+clenched	9410
+effortlessly	9410
+accessed	9410
+beaters	9410
+Hornblower	9410
+vests	9410
+indulgences	9410
+infallibly	9410
+unwilling	9410
+excrete	9410
+spools	9410
+crunches	9410
+overestimating	9410
+ineffective	9410
+humiliation	9410
+sophomore	9410
+star	9410
+rifles	9410
+dialysis	9410
+arriving	9410
+indulge	9410
+clockers	9410
+languages	9410
+Antarctica	9410
+percentage	9410
+ceiling	9410
+specification	9410
+regimented	9410
+ciphers	9410
+pictures	9410
+serpents	9410
+allot	9410
+realized	9410
+mayoral	9410
+opaquely	9410
+hostess	9410
+fiftieth	9410
+incorrectly	9410
+decomposition	9410
+stranglings	9410
+mixture	9410
+electroencephalography	9410
+similarities	9410
+charges	9410
+freest	9410
+Greenberg	9410
+tinting	9410
+expelled	9410
+warm	9410
+smoothed	9410
+deductions	9410
+Romano	9410
+bitterroot	9410
+corset	9410
+securing	9410
+environing	9410
+cute	9410
+Crays	9410
+heiress	9410
+inform	9410
+avenge	9410
+universals	9410
+Kinsey	9410
+ravines	9410
+bestseller	9410
+equilibrium	9410
+extents	9410
+relatively	9410
+pressure	9410
+critiques	9410
+befouled	9410
+rightfully	9410
+mechanizing	9410
+Latinizes	9410
+timesharing	9410
+Aden	9410
+embassies	9410
+males	9410
+shapelessly	9410
+mastering	9410
+Newtonian	9410
+finishers	9410
+abates	9410
+teem	9410
+kiting	9410
+stodgy	9410
+feed	9410
+guitars	9410
+airships	9410
+store	9410
+denounces	9410
+Pyle	9410
+Saxony	9410
+serializations	9410
+Peruvian	9410
+taxonomically	9410
+kingdom	9410
+stint	9410
+Sault	9410
+faithful	9410
+Ganymede	9410
+tidiness	9410
+gainful	9410
+contrary	9410
+Tipperary	9410
+tropics	9410
+theorizers	9410
+renew	9410
+already	9410
+terminal	9410
+Hegelian	9410
+hypothesizer	9410
+warningly	9410
+journalizing	9410
+nested	9410
+Lars	9410
+saplings	9410
+foothill	9410
+labeled	9410
+imperiously	9410
+reporters	9410
+furnishings	9410
+precipitable	9410
+discounts	9410
+excises	9410
+Stalin	9410
+despot	9410
+ripeness	9410
+Arabia	9410
+unruly	9410
+mournfulness	9410
+boom	9410
+slaughter	9410
+Sabine	9410
+handy	9410
+rural	9410
+organizer	9410
+shipyard	9410
+civics	9410
+inaccuracy	9410
+rules	9410
+juveniles	9410
+comprised	9410
+investigations	9410
+stabilizes	9410
+seminaries	9410
+Hunter	9410
+sporty	9410
+test	9410
+weasels	9410
+CERN	9410
+tempering	9410
+afore	9410
+Galatean	9410
+techniques	9410
+error	9410
+veranda	9410
+severely	9410
+Cassites	9410
+forthcoming	9410
+guides	9410
+vanish	9410
+lied	9410
+sawtooth	9410
+fated	9410
+gradually	9410
+widens	9410
+preclude	9410
+evenhandedly	9410
+percentage	9410
+disobedience	9410
+humility	9410
+gleaning	9410
+petted	9410
+bloater	9410
+minion	9410
+marginal	9410
+apiary	9410
+measures	9410
+precaution	9410
+repelled	9410
+primary	9410
+coverings	9410
+Artemia	9410
+navigate	9410
+spatial	9410
+Gurkha	9410
+meanwhile	9410
+Melinda	9410
+Butterfield	9410
+Aldrich	9410
+previewing	9410
+glut	9410
+unaffected	9410
+inmate	9410
+mineral	9410
+impending	9410
+meditation	9410
+ideas	9410
+miniaturizes	9410
+lewdly	9410
+title	9410
+youthfulness	9410
+creak	9410
+Chippewa	9410
+clamored	9410
+freezes	9410
+forgivably	9410
+reduce	9410
+McGovern	9410
+Nazis	9410
+epistle	9410
+socializes	9410
+conceptions	9410
+Kevin	9410
+uncovering	9410
+chews	9410
+appendixes	9410
+appendixes	9410
+appendixes	9410
+appendixes	9410
+appendixes	9410
+appendixes	9410
+raining	9410
+infest	9410
+compartment	9410
+minting	9410
+ducks	9410
+roped	9410
+waltz	9410
+Lillian	9410
+repressions	9410
+chillingly	9410
+noncritical	9410
+lithograph	9410
+spongers	9410
+parenthood	9410
+posed	9410
+instruments	9410
+filial	9410
+fixedly	9410
+relives	9410
+Pandora	9410
+watering	9410
+ungrateful	9410
+secures	9410
+poison	9410
+dusted	9410
+encompasses	9410
+presentation	9410
+Kantian	9410
+fld3	period	price	price2
+admonishing	1002	28357832	8723648
+analyzable	1002	28357832	8723648
+annihilates	1001	5987435	234724
+Antares	1002	28357832	8723648
+astound	1001	5987435	234724
+audiology	1001	5987435	234724
+Augustine	1002	28357832	8723648
+Baird	1002	28357832	8723648
+bewilderingly	1001	5987435	234724
+breaking	1001	5987435	234724
+Conley	1001	5987435	234724
+dentally	1002	28357832	8723648
+dissociate	1002	28357832	8723648
+elite	1001	5987435	234724
+eschew	1001	5987435	234724
+Eulerian	1001	5987435	234724
+flanking	1001	5987435	234724
+foldout	1002	28357832	8723648
+funereal	1002	28357832	8723648
+galling	1002	28357832	8723648
+Graves	1001	5987435	234724
+grazing	1001	5987435	234724
+groupings	1001	5987435	234724
+handgun	1001	5987435	234724
+humility	1002	28357832	8723648
+impulsive	1002	28357832	8723648
+inch	1001	5987435	234724
+intelligibility	1001	5987435	234724
+jarring	1001	5987435	234724
+lawgiver	1001	5987435	234724
+lectured	1002	28357832	8723648
+Merritt	1002	28357832	8723648
+neonatal	1001	5987435	234724
+offload	1002	28357832	8723648
+parters	1002	28357832	8723648
+pityingly	1002	28357832	8723648
+puddings	1002	28357832	8723648
+Punjab	1001	5987435	234724
+quitter	1002	28357832	8723648
+realtor	1001	5987435	234724
+relaxing	1001	5987435	234724
+repetitions	1001	5987435	234724
+resumes	1001	5987435	234724
+Romans	1002	28357832	8723648
+rusting	1001	5987435	234724
+scholastics	1001	5987435	234724
+skulking	1002	28357832	8723648
+stated	1002	28357832	8723648
+suites	1002	28357832	8723648
+sureties	1001	5987435	234724
+testicle	1002	28357832	8723648
+tinily	1002	28357832	8723648
+tragedies	1001	5987435	234724
+trimmings	1001	5987435	234724
+vacuuming	1001	5987435	234724
+ventilate	1001	5987435	234724
+wallet	1001	5987435	234724
+Weissmuller	1002	28357832	8723648
+Wotan	1002	28357832	8723648
+fld1	fld3	period	price	price2
+018201	relaxing	1001	5987435	234724
+018601	vacuuming	1001	5987435	234724
+018801	inch	1001	5987435	234724
+018811	repetitions	1001	5987435	234724
+companynr	companyname
+00	Unknown
+29	company 1
+34	company 2
+36	company 3
+37	company 4
+40	company 5
+41	company 6
+50	company 11
+53	company 7
+58	company 8
+65	company 9
+68	company 10
+companynr	companyname
+00	Unknown
+29	company 1
+34	company 2
+36	company 3
+37	company 4
+40	company 5
+41	company 6
+50	company 11
+53	company 7
+58	company 8
+65	company 9
+68	company 10
+Period	Varor_period	Period	Varor_period
+9410	9412	9410	9412
+fld1	fld1
+250501	250501
+250502	250501
+250503	250501
+250504	250501
+250505	250501
+250501	250502
+250502	250502
+250503	250502
+250504	250502
+250505	250502
+250501	250503
+250502	250503
+250503	250503
+250504	250503
+250505	250503
+250501	250504
+250502	250504
+250503	250504
+250504	250504
+250505	250504
+250501	250505
+250502	250505
+250503	250505
+250504	250505
+250505	250505
+companynr	companyname
+table	type	possible_keys	key	key_len	ref	rows	Extra
+t2	ALL	NULL	NULL	NULL	NULL	1199	
+t4	eq_ref	PRIMARY	PRIMARY	1	t2.companynr	1	where used; Not exists
+table	type	possible_keys	key	key_len	ref	rows	Extra
+t4	ALL	NULL	NULL	NULL	NULL	12	
+t2	ALL	NULL	NULL	NULL	NULL	1199	where used; Not exists
+companynr	companynr
+37	36
+41	40
+table	type	possible_keys	key	key_len	ref	rows	Extra
+t2	ALL	NULL	NULL	NULL	NULL	1199	Using temporary
+t4	index	NULL	PRIMARY	1	NULL	12	where used; Using index
+fld1	companynr	fld3	period
+038008	37	reporters	1008
+038208	37	Selfridge	1008
+fld1	companynr	fld3	period
+038008	37	reporters	1008
+038208	37	Selfridge	1008
+fld1	companynr	fld3	period
+038008	37	reporters	1008
+038208	37	Selfridge	1008
+period
+9410
+period
+9410
+fld1
+250501
+250502
+250503
+250505
+fld1
+250502
+250503
+fld1
+250502
+250503
+250504
+fld3
+label
+labeled
+labeled
+landslide
+laterally
+leaflet
+lewdly
+Lillian
+luckily
+count(*)
+1
+companynr	count(*)	sum(fld1)
+00	82	10355753
+29	95	14473298
+34	70	17788966
+36	215	22786296
+37	588	83602098
+40	37	6618386
+41	52	12816335
+50	11	1595438
+53	4	793210
+58	23	2254293
+65	10	2284055
+68	12	3097288
+companynr	count(*)
+68	12
+65	10
+58	23
+53	4
+50	11
+count(*)	min(fld4)	max(fld4)	sum(fld1)	avg(fld1)	std(fld1)
+70	absentee	vest	17788966	254128.0857	3272.5940
+companynr	count(*)	min(fld4)	max(fld4)	sum(fld1)	avg(fld1)	std(fld1)
+00	82	Anthony	windmills	10355753	126289.6707	115550.9757
+29	95	abut	wetness	14473298	152350.5053	8368.5480
+34	70	absentee	vest	17788966	254128.0857	3272.5940
+companynr	t2nr	count(price)	sum(price)	min(price)	max(price)	avg(price)
+37	1	1	5987435	5987435	5987435	5987435.0000
+37	2	1	28357832	28357832	28357832	28357832.0000
+37	3	1	39654943	39654943	39654943	39654943.0000
+37	11	1	5987435	5987435	5987435	5987435.0000
+37	12	1	28357832	28357832	28357832	28357832.0000
+37	13	1	39654943	39654943	39654943	39654943.0000
+37	21	1	5987435	5987435	5987435	5987435.0000
+37	22	1	28357832	28357832	28357832	28357832.0000
+37	23	1	39654943	39654943	39654943	39654943.0000
+37	31	1	5987435	5987435	5987435	5987435.0000
+companynr	t2nr	count(price)	sum(price)	min(price)	max(price)	avg(price)
+37	1	1	5987435	5987435	5987435	5987435.0000
+37	2	1	28357832	28357832	28357832	28357832.0000
+37	3	1	39654943	39654943	39654943	39654943.0000
+37	11	1	5987435	5987435	5987435	5987435.0000
+37	12	1	28357832	28357832	28357832	28357832.0000
+37	13	1	39654943	39654943	39654943	39654943.0000
+37	21	1	5987435	5987435	5987435	5987435.0000
+37	22	1	28357832	28357832	28357832	28357832.0000
+37	23	1	39654943	39654943	39654943	39654943.0000
+37	31	1	5987435	5987435	5987435	5987435.0000
+companynr	count(price)	sum(price)	min(price)	max(price)	avg(price)
+37	12543	309394878010	5987435	39654943	24666736.6667
+78	8362	414611089292	726498	98439034	49582766.0000
+101	4181	3489454238	834598	834598	834598.0000
+154	4181	4112197254950	983543950	983543950	983543950.0000
+311	4181	979599938	234298	234298	234298.0000
+447	4181	9929180954	2374834	2374834	2374834.0000
+512	4181	3288532102	786542	786542	786542.0000
+mod(companynr,10)
+0
+9
+4
+6
+7
+1
+3
+8
+5
+1
+1
+count(distinct fld1)
+1199
+companynr	count(distinct fld1)
+00	82
+29	95
+34	70
+36	215
+37	588
+40	37
+41	52
+50	11
+53	4
+58	23
+65	10
+68	12
+companynr	count(*)
+00	82
+29	95
+34	70
+36	215
+37	588
+40	37
+41	52
+50	11
+53	4
+58	23
+65	10
+68	12
+companynr	count(distinct concat(fld1,repeat(65,1000)))
+00	82
+29	95
+34	70
+36	215
+37	588
+40	37
+41	52
+50	11
+53	4
+58	23
+65	10
+68	12
+companynr	count(distinct concat(fld1,repeat(65,200)))
+00	82
+29	95
+34	70
+36	215
+37	588
+40	37
+41	52
+50	11
+53	4
+58	23
+65	10
+68	12
+companynr	count(distinct floor(fld1/100))
+00	47
+29	35
+34	14
+36	69
+37	108
+40	16
+41	11
+50	9
+53	1
+58	1
+65	1
+68	1
+companynr	count(distinct concat(repeat(65,1000),floor(fld1/100)))
+00	47
+29	35
+34	14
+36	69
+37	108
+40	16
+41	11
+50	9
+53	1
+58	1
+65	1
+68	1
+sum(fld1)	fld3
+11402	Romans
+name	count(*)
+cloakroom	4181
+name	count(*)
+cloakroom	4181
+count(*)
+4181
+name	count(*)
+cloakroom	4181
+name	count(*)
+extramarital	4181
+gazer	4181
+gems	4181
+Iranizes	4181
+spates	4181
+tucked	4181
+violinist	4181
+fld3	count(*)
+spates	4181
+companynr|0	companyname
+0	Unknown
+29	company 1
+34	company 2
+36	company 3
+37	company 4
+40	company 5
+41	company 6
+50	company 11
+53	company 7
+58	company 8
+65	company 9
+68	company 10
+companynr	companyname	count(*)
+29	company 1	95
+68	company 10	12
+50	company 11	11
+34	company 2	70
+36	company 3	215
+37	company 4	588
+40	company 5	37
+41	company 6	52
+53	company 7	4
+58	company 8	23
+65	company 9	10
+00	Unknown	82
+fld1	count(*)
+158402	4181
+sum(Period)/count(*)
+9410.00
+companynr	count	sum	diff	func
+37	12543	309394878010	0.0000	464091
+78	8362	414611089292	0.0000	652236
+101	4181	3489454238	0.0000	422281
+154	4181	4112197254950	0.0000	643874
+311	4181	979599938	0.0000	1300291
+447	4181	9929180954	0.0000	1868907
+512	4181	3288532102	0.0000	2140672
+companynr	avg
+154	983543950.00
+companynr	count(*)
+37	588
+36	215
+29	95
+00	82
+34	70
+41	52
+40	37
+58	23
+68	12
+50	11
+65	10
+53	4
+companynr	count(*)
+41	52
+58	23
+68	12
+50	11
+65	10
+53	4
+fld4	fld1	count(price)	sum(price)	min(price)	max(price)	avg(price)
+teethe	000001	1	5987435	5987435	5987435	5987435.0000
+dreaded	011401	1	5987435	5987435	5987435	5987435.0000
+scholastics	011402	1	28357832	28357832	28357832	28357832.0000
+audiology	011403	1	39654943	39654943	39654943	39654943.0000
+wallet	011501	1	5987435	5987435	5987435	5987435.0000
+parters	011701	1	5987435	5987435	5987435	5987435.0000
+eschew	011702	1	28357832	28357832	28357832	28357832.0000
+quitter	011703	1	39654943	39654943	39654943	39654943.0000
+neat	012001	1	5987435	5987435	5987435	5987435.0000
+Steinberg	012003	1	39654943	39654943	39654943	39654943.0000
+balled	012301	1	5987435	5987435	5987435	5987435.0000
+persist	012302	1	28357832	28357832	28357832	28357832.0000
+attainments	012303	1	39654943	39654943	39654943	39654943.0000
+capably	012501	1	5987435	5987435	5987435	5987435.0000
+impulsive	012602	1	28357832	28357832	28357832	28357832.0000
+starlet	012603	1	39654943	39654943	39654943	39654943.0000
+featherweight	012701	1	5987435	5987435	5987435	5987435.0000
+pessimist	012702	1	28357832	28357832	28357832	28357832.0000
+daughter	012703	1	39654943	39654943	39654943	39654943.0000
+lawgiver	013601	1	5987435	5987435	5987435	5987435.0000
+stated	013602	1	28357832	28357832	28357832	28357832.0000
+readable	013603	1	39654943	39654943	39654943	39654943.0000
+testicle	013801	1	5987435	5987435	5987435	5987435.0000
+Parsifal	013802	1	28357832	28357832	28357832	28357832.0000
+leavings	013803	1	39654943	39654943	39654943	39654943.0000
+squeaking	013901	1	5987435	5987435	5987435	5987435.0000
+contrasted	016001	1	5987435	5987435	5987435	5987435.0000
+leftover	016201	1	5987435	5987435	5987435	5987435.0000
+whiteners	016202	1	28357832	28357832	28357832	28357832.0000
+erases	016301	1	5987435	5987435	5987435	5987435.0000
+Punjab	016302	1	28357832	28357832	28357832	28357832.0000
+Merritt	016303	1	39654943	39654943	39654943	39654943.0000
+sweetish	018001	1	5987435	5987435	5987435	5987435.0000
+dogging	018002	1	28357832	28357832	28357832	28357832.0000
+scornfully	018003	1	39654943	39654943	39654943	39654943.0000
+fetters	018012	1	28357832	28357832	28357832	28357832.0000
+bivalves	018013	1	39654943	39654943	39654943	39654943.0000
+skulking	018021	1	5987435	5987435	5987435	5987435.0000
+flint	018022	1	28357832	28357832	28357832	28357832.0000
+flopping	018023	1	39654943	39654943	39654943	39654943.0000
+Judas	018032	1	28357832	28357832	28357832	28357832.0000
+vacuuming	018033	1	39654943	39654943	39654943	39654943.0000
+medical	018041	1	5987435	5987435	5987435	5987435.0000
+bloodbath	018042	1	28357832	28357832	28357832	28357832.0000
+subschema	018043	1	39654943	39654943	39654943	39654943.0000
+interdependent	018051	1	5987435	5987435	5987435	5987435.0000
+Graves	018052	1	28357832	28357832	28357832	28357832.0000
+neonatal	018053	1	39654943	39654943	39654943	39654943.0000
+sorters	018061	1	5987435	5987435	5987435	5987435.0000
+epistle	018062	1	28357832	28357832	28357832	28357832.0000
+Conley	018101	1	5987435	5987435	5987435	5987435.0000
+lectured	018102	1	28357832	28357832	28357832	28357832.0000
+Abraham	018103	1	39654943	39654943	39654943	39654943.0000
+cage	018201	1	5987435	5987435	5987435	5987435.0000
+hushes	018202	1	28357832	28357832	28357832	28357832.0000
+Simla	018402	1	28357832	28357832	28357832	28357832.0000
+reporters	018403	1	39654943	39654943	39654943	39654943.0000
+coexist	018601	1	5987435	5987435	5987435	5987435.0000
+Beebe	018602	1	28357832	28357832	28357832	28357832.0000
+Taoism	018603	1	39654943	39654943	39654943	39654943.0000
+Connally	018801	1	5987435	5987435	5987435	5987435.0000
+fetched	018802	1	28357832	28357832	28357832	28357832.0000
+checkpoints	018803	1	39654943	39654943	39654943	39654943.0000
+gritty	018811	1	5987435	5987435	5987435	5987435.0000
+firearm	018812	1	28357832	28357832	28357832	28357832.0000
+minima	019101	1	5987435	5987435	5987435	5987435.0000
+Selfridge	019102	1	28357832	28357832	28357832	28357832.0000
+disable	019103	1	39654943	39654943	39654943	39654943.0000
+witchcraft	019201	1	5987435	5987435	5987435	5987435.0000
+betroth	030501	1	5987435	5987435	5987435	5987435.0000
+Manhattanize	030502	1	28357832	28357832	28357832	28357832.0000
+imprint	030503	1	39654943	39654943	39654943	39654943.0000
+swelling	031901	1	5987435	5987435	5987435	5987435.0000
+interrelationships	036001	1	5987435	5987435	5987435	5987435.0000
+riser	036002	1	28357832	28357832	28357832	28357832.0000
+bee	038001	1	5987435	5987435	5987435	5987435.0000
+kanji	038002	1	28357832	28357832	28357832	28357832.0000
+dental	038003	1	39654943	39654943	39654943	39654943.0000
+railway	038011	1	5987435	5987435	5987435	5987435.0000
+validate	038012	1	28357832	28357832	28357832	28357832.0000
+normalizes	038013	1	39654943	39654943	39654943	39654943.0000
+Kline	038101	1	5987435	5987435	5987435	5987435.0000
+Anatole	038102	1	28357832	28357832	28357832	28357832.0000
+partridges	038103	1	39654943	39654943	39654943	39654943.0000
+recruited	038201	1	5987435	5987435	5987435	5987435.0000
+dimensions	038202	1	28357832	28357832	28357832	28357832.0000
+Chicana	038203	1	39654943	39654943	39654943	39654943.0000
+companynr	fld3	sum(price)
+512	boat	786542
+512	capably	786542
+512	cupboard	786542
+512	decliner	786542
+512	descendants	786542
+512	dopers	786542
+512	erases	786542
+512	Micronesia	786542
+512	Miles	786542
+512	skies	786542
+companynr	count(*)	min(fld3)	max(fld3)	sum(price)	avg(price)
+00	1	Omaha	Omaha	5987435	5987435.0000
+36	1	dubbed	dubbed	28357832	28357832.0000
+37	83	Abraham	Wotan	1908978016	22999735.1325
+50	2	scribbled	tapestry	68012775	34006387.5000
+t3.companynr+0	t2nr	fld3	sum(price)
+37	1	Omaha	5987435
+37	11401	breaking	5987435
+37	11402	Romans	28357832
+37	11403	intercepted	39654943
+37	11501	bewilderingly	5987435
+37	11701	astound	5987435
+37	11702	admonishing	28357832
+37	11703	sumac	39654943
+37	12001	flanking	5987435
+37	12003	combed	39654943
+37	12301	Eulerian	5987435
+37	12302	dubbed	28357832
+37	12303	Kane	39654943
+37	12501	annihilates	5987435
+37	12602	Wotan	28357832
+37	12603	snatching	39654943
+37	12701	grazing	5987435
+37	12702	Baird	28357832
+37	12703	celery	39654943
+37	13601	handgun	5987435
+37	13602	foldout	28357832
+37	13603	mystic	39654943
+37	13801	intelligibility	5987435
+37	13802	Augustine	28357832
+37	13803	teethe	39654943
+37	13901	scholastics	5987435
+37	16001	audiology	5987435
+37	16201	wallet	5987435
+37	16202	parters	28357832
+37	16301	eschew	5987435
+37	16302	quitter	28357832
+37	16303	neat	39654943
+37	18001	jarring	5987435
+37	18002	tinily	28357832
+37	18003	balled	39654943
+37	18012	impulsive	28357832
+37	18013	starlet	39654943
+37	18021	lawgiver	5987435
+37	18022	stated	28357832
+37	18023	readable	39654943
+37	18032	testicle	28357832
+37	18033	Parsifal	39654943
+37	18041	Punjab	5987435
+37	18042	Merritt	28357832
+37	18043	Quixotism	39654943
+37	18051	sureties	5987435
+37	18052	puddings	28357832
+37	18053	tapestry	39654943
+37	18061	trimmings	5987435
+37	18062	humility	28357832
+37	18101	tragedies	5987435
+37	18102	skulking	28357832
+37	18103	flint	39654943
+37	18201	relaxing	5987435
+37	18202	offload	28357832
+37	18402	suites	28357832
+37	18403	lists	39654943
+37	18601	vacuuming	5987435
+37	18602	dentally	28357832
+37	18603	humanness	39654943
+37	18801	inch	5987435
+37	18802	Weissmuller	28357832
+37	18803	irresponsibly	39654943
+37	18811	repetitions	5987435
+37	18812	Antares	28357832
+37	19101	ventilate	5987435
+37	19102	pityingly	28357832
+37	19103	interdependent	39654943
+37	19201	Graves	5987435
+37	30501	neonatal	5987435
+37	30502	scribbled	28357832
+37	30503	chafe	39654943
+37	31901	realtor	5987435
+37	36001	elite	5987435
+37	36002	funereal	28357832
+37	38001	Conley	5987435
+37	38002	lectured	28357832
+37	38003	Abraham	39654943
+37	38011	groupings	5987435
+37	38012	dissociate	28357832
+37	38013	coexist	39654943
+37	38101	rusting	5987435
+37	38102	galling	28357832
+37	38103	obliterates	39654943
+37	38201	resumes	5987435
+37	38202	analyzable	28357832
+37	38203	terminator	39654943
+sum(price)
+234298
+fld1	sum(price)
+038008	234298
+Comment
+Impossible WHERE
+table	type	possible_keys	key	key_len	ref	rows	Extra
+t2	ALL	NULL	NULL	NULL	NULL	1199	
+companynr	fld1
+34	250501
+34	250502
+companynr	fld1
+34	250501
+34	250502
+companynr	count	sum
+00	82	10355753
+29	95	14473298
+34	70	17788966
+37	588	83602098
+41	52	12816335
+companynr
+00
+29
+34
+37
+41
+companynr	companyname	count(*)
+68	company 10	12
+50	company 11	11
+40	company 5	37
+41	company 6	52
+53	company 7	4
+58	company 8	23
+65	company 9	10
+count(*)
+1199
+count(*)
+387
+min(fld1)
+98024
+max(fld1)
+1232609
+count(*)
+4181
+count(*)
+4181
+Comment
+Select tables optimized away
+min(fld1)	max(fld1)	count(*)
+0	1232609	1199
+min(t2nr)	max(t2nr)
+2115	2115
+count(*)	min(t2nr)	max(t2nr)
+4181	4	41804
+t2nr	count(*)
+9	1
+19	1
+29	1
+39	1
+49	1
+59	1
+69	1
+79	1
+89	1
+99	1
+109	1
+119	1
+129	1
+139	1
+149	1
+159	1
+169	1
+179	1
+189	1
+199	1
+max(t2nr)
+41807
+period
+1001
+period
+9410
+Nuvarande period
+9410
+ok_period
+9410
+ok_period
+9410
+summa
+2
+Nuvarande period
+9410
+Tables_in_test
+m
+t1
+t2
+t3
+t4
+Tables_in_test (s%)
+Tables_in_test (t?)
+Field	Type	Null	Key	Default	Extra	Privileges
+auto	int(11)		PRI	NULL	auto_increment	select,insert,update,references
+fld1	int(6) unsigned zerofill		UNI	000000		select,insert,update,references
+companynr	tinyint(2) unsigned zerofill			00		select,insert,update,references
+fld3	char(30)		MUL			select,insert,update,references
+fld4	char(35)					select,insert,update,references
+fld5	char(35)					select,insert,update,references
+fld6	char(4)					select,insert,update,references
+Field	Type	Null	Key	Default	Extra	Privileges
+fld1	int(6) unsigned zerofill		UNI	000000		select,insert,update,references
+fld3	char(30)		MUL			select,insert,update,references
+fld4	char(35)					select,insert,update,references
+fld5	char(35)					select,insert,update,references
+fld6	char(4)					select,insert,update,references
+Field	Type	Null	Key	Default	Extra	Privileges
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Comment
+t2	0	PRIMARY	1	auto	A	1199	NULL	NULL	
+t2	0	fld1	1	fld1	A	1199	NULL	NULL	
+t2	1	fld3	1	fld3	A	NULL	NULL	NULL	
