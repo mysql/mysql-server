@@ -179,7 +179,7 @@ int vio_read(Vio * vio, gptr buf, int size)
 #ifndef DBUG_OFF
   if (r < 0)
   {
-    DBUG_PRINT("error", ("Got error %d during read",errno));
+    DBUG_PRINT("vio_error", ("Got error %d during read",errno));
   }
 #endif /* DBUG_OFF */
   DBUG_PRINT("exit", ("%d", r));
@@ -207,7 +207,7 @@ int vio_write(Vio * vio, const gptr buf, int size)
 #ifndef DBUG_OFF
   if (r < 0)
   {
-    DBUG_PRINT("error", ("Got error on write: %d",errno));
+    DBUG_PRINT("vio_error", ("Got error on write: %d",errno));
   }
 #endif /* DBUG_OFF */
   DBUG_PRINT("exit", ("%d", r));
@@ -346,7 +346,7 @@ int vio_close(Vio * vio)
   }
   if (r)
   {
-    DBUG_PRINT("error", ("close() failed, error: %d",errno));
+    DBUG_PRINT("vio_error", ("close() failed, error: %d",errno));
     /* FIXME: error handling (not critical for MySQL) */
   }
   vio->type= VIO_CLOSED;
