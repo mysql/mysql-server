@@ -35,8 +35,6 @@ static int open_unireg_entry(THD *thd,TABLE *entry,const char *db,
 			     const char *name, const char *alias);
 static void free_cache_entry(TABLE *entry);
 static void mysql_rm_tmp_tables(void);
-static key_map get_key_map_from_key_list(TABLE *table,
-					 List<String> *index_list);
 
 
 extern "C" byte *table_cache_key(const byte *record,uint *length,
@@ -2066,8 +2064,8 @@ bool setup_tables(TABLE_LIST *tables)
 }
 
 
-static key_map get_key_map_from_key_list(TABLE *table, 
-					 List<String> *index_list)
+key_map get_key_map_from_key_list(TABLE *table, 
+				  List<String> *index_list)
 {
   key_map map=0;
   List_iterator_fast<String> it(*index_list);

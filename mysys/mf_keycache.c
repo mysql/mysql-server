@@ -1259,6 +1259,86 @@ byte *key_cache_read(File file, my_off_t filepos, byte *buff, uint length,
 
 
 /*
+  Insert a block of file data from a buffer into key cache
+
+  SYNOPSIS
+    key_cache_insert()
+      file      file descriptor
+      filepos   file offset of the data from the buffer 
+      buff      buffer with data to insert into key cache
+      length    length of the data in the buffer
+
+  RETURN VALUE
+    0 if a success, 1 -otherwise.
+*/
+
+int key_cache_insert(File file, my_off_t filepos, byte *buff, uint length)
+{
+  DBUG_ENTER("key_cache_insert");
+  DBUG_PRINT("enter", ("file %u, filepos %lu, length %u",
+               (uint) file,(ulong) filepos, length));
+
+  if (my_disk_blocks > 0)
+  {
+    /* Key cache is used */
+    reg1 BLOCK_LINK *block;
+    uint offset= (uint) (filepos & (key_cache_block_size-1));
+    uint read_length;
+    int page_st;
+
+    /* Read data into key cache from buff in key_cache_block_size increments */
+    filepos-= offset;
+    do
+    {
+      read_length= length > key_cache_block_size ?
+                   key_cache_block_size : length;
+      KEYCACHE_DBUG_ASSERT(read_length > 0);
+      keycache_pthread_mutex_lock(&THR_LOCK_keycache);
+      my_cache_r_requests++;
+      block=find_key_block(file, filepos, 0, &page_st);
+      if (block->status != BLOCK_ERROR && page_st != PAGE_READ)
+      {
+        /* The requested page is to be read into the block buffer */
+#if !defined(SERIALIZED_READ_FROM_CACHE)
+        keycache_pthread_mutex_unlock(&THR_LOCK_keycache);
+#endif
+
+        /* Copy data from buff */
+        if (!(read_length & 511))
+          bmove512(block->buffer+offset, buff, read_length);
+        else
+          memcpy(block->buffer+offset, buff, (size_t) read_length);
+
+#if !defined(SERIALIZED_READ_FROM_CACHE)
+        keycache_pthread_mutex_lock(&THR_LOCK_keycache);
+#endif
+        block->status= BLOCK_READ;
+        block->length= read_length+offset;
+      }
+
+      remove_reader(block);
+      /*
+         Link the block into the LRU chain
+         if it's the last submitted request for the block
+      */
+      unreg_request(block,1);
+
+      keycache_pthread_mutex_unlock(&THR_LOCK_keycache);
+
+      if (block->status & BLOCK_ERROR)
+        DBUG_RETURN(1);
+
+      buff+=read_length;
+      filepos+=read_length;
+      offset=0;
+
+    } while ((length-= read_length));
+  }
+  DBUG_RETURN(0);
+}
+
+
+/*
   Write a buffer into disk;
   filepos must be a multiple of 'block_length', but it doesn't
   have to be a multiple of key cache block size;
