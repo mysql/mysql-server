@@ -529,7 +529,7 @@ public:
 
 #ifndef MYSQL_CLIENT  
   Intvar_log_event(THD* thd_arg,uchar type_arg, ulonglong val_arg)
-    :Log_event(),val(val_arg),type(type_arg)
+    :Log_event(thd_arg,0,0),val(val_arg),type(type_arg)
   {}
   void pack_info(String* packet);
   int exec_event(struct st_relay_log_info* rli);
