@@ -3042,8 +3042,8 @@ ha_innobase::estimate_number_of_rows(void)
 
 	/* Calculate a minimum length for a clustered index record and from
 	that an upper bound for the number of rows. Since we only calculate
-	new statistics in row0mysql.c when a table size has grown by 50 %
-	or by a threshold factor, we must add a safety factor 2 in front
+	new statistics in row0mysql.c when a tablehas grown
+        by a threshold factor, we must add a safety factor 2 in front
 	of the formula below. */
 
 	estimate = 2 * data_file_length / dict_index_calc_min_rec_len(index);
