@@ -117,7 +117,7 @@ set session preload_buffer_size=1*1024;
 select @@preload_buffer_size;
 @@preload_buffer_size
 1024
-load index into cache t1, t2 keys (primary,b) ignore leaves;
+load index into cache t1, t2 key (primary,b) ignore leaves;
 Table	Op	Msg_type	Msg_text
 test.t1	preload_keys	status	OK
 test.t2	preload_keys	status	OK
@@ -141,7 +141,7 @@ show status like "key_read%";
 Variable_name	Value
 Key_read_requests	0
 Key_reads	0
-load index into cache t3, t2 keys (primary,b) ;
+load index into cache t3, t2 key (primary,b) ;
 Table	Op	Msg_type	Msg_text
 test.t3	preload_keys	error	Table 'test.t3' doesn't exist
 test.t2	preload_keys	status	OK
@@ -155,7 +155,7 @@ show status like "key_read%";
 Variable_name	Value
 Key_read_requests	0
 Key_reads	0
-load index into cache t3 keys (b), t2 keys (c) ;
+load index into cache t3 key (b), t2 key (c) ;
 Table	Op	Msg_type	Msg_text
 test.t3	preload_keys	error	Table 'test.t3' doesn't exist
 test.t2	preload_keys	error	Key column 'c' doesn't exist in table

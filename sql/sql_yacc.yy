@@ -1615,11 +1615,6 @@ opt_key_or_index:
 	| key_or_index
 	;
 
-opt_keys_or_index:
-	/* empty */ {}
-	| keys_or_index
-	;
-
 keys_or_index:
 	KEYS {}
 	| INDEX {}
@@ -2120,7 +2115,7 @@ cache_keys_spec:
 
 cache_key_list_or_empty:
 	/* empty */	{ Lex->select_lex.use_index_ptr= 0; }
-	| opt_keys_or_index '(' key_usage_list2 ')'
+	| opt_key_or_index '(' key_usage_list2 ')'
 	  {
             SELECT_LEX *sel= &Lex->select_lex;
 	    sel->use_index_ptr= &sel->use_index;
