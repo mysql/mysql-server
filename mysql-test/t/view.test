@@ -1471,3 +1471,14 @@ select substring_index(t,':',2) from t1;
 select substring_index(t,':',2) from v1;
 drop view v1;
 drop table t1;
+
+#
+# test of cascaded check option for whiew without WHERE clause
+#
+create table t1 (s1 tinyint);
+create view v1 as select * from t1 where s1 <> 0 with local check option;
+create view v2 as select * from v1 with cascaded check option;
+-- error 1369
+insert into v2 values (0);
+drop view v2, v1;
+drop table t1;

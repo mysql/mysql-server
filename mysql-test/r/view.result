@@ -1528,3 +1528,10 @@ substring_index(t,':',2)
 12:24
 drop view v1;
 drop table t1;
+create table t1 (s1 tinyint);
+create view v1 as select * from t1 where s1 <> 0 with local check option;
+create view v2 as select * from v1 with cascaded check option;
+insert into v2 values (0);
+ERROR HY000: CHECK OPTION failed 'test.v2'
+drop view v2, v1;
+drop table t1;

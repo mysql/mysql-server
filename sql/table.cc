@@ -1586,14 +1586,16 @@ bool st_table_list::setup_ancestor(THD *thd, Item **conds)
   field_translation= transl;
   /* TODO: sort this list? Use hash for big number of fields */
 
-  if (where)
+  if (where ||
+      (effective_with_check == VIEW_CHECK_CASCADED &&
+       ancestor->check_option))
   {
     Item_arena *arena= thd->current_arena, backup;
     TABLE_LIST *tbl= this;
     if (arena->is_conventional())
       arena= 0;                                   // For easier test
 
-    if (!where->fixed && where->fix_fields(thd, ancestor, &where))
+    if (where && !where->fixed && where->fix_fields(thd, ancestor, &where))
       goto err;
 
     if (arena)
@@ -1601,7 +1603,8 @@ bool st_table_list::setup_ancestor(THD *thd, Item **conds)
 
     if (effective_with_check)
     {
-      check_option= where->copy_andor_structure(thd);
+      if (where)
+	check_option= where->copy_andor_structure(thd);
       if (effective_with_check == VIEW_CHECK_CASCADED)
       {
         check_option= and_conds(check_option, ancestor->check_option);
@@ -1612,7 +1615,7 @@ bool st_table_list::setup_ancestor(THD *thd, Item **conds)
       check that it is not VIEW in which we insert with INSERT SELECT
       (in this case we can't add view WHERE condition to main SELECT_LEX)
     */
-    if (!no_where_clause)
+    if (where && !no_where_clause)
     {
       /* Go up to join tree and try to find left join */
       for (; tbl; tbl= tbl->embedding)
