@@ -148,6 +148,10 @@ int mysql_union(THD *thd, LEX *lex,select_result *result)
   {
     ha_rows records_at_start;
     lex->select=sl;
+#if MYSQL_VERSION_ID < 40100
+    if (describe && sl->linkage == NOT_A_SELECT)
+      break;      // Skip extra item in case of 'explain'
+#endif
     /* Don't use offset for the last union if there is no braces */
     if (sl != lex_sl)
     {

@@ -2917,7 +2917,7 @@ show_param:
 	    lex->select->select_limit= lex->thd->variables.select_limit;
 	    lex->select->offset_limit= 0L;
           } limit_clause
-	| keys_or_index FROM table_ident opt_db
+	| keys_or_index from_or_in table_ident opt_db
 	  {
 	    Lex->sql_command= SQLCOM_SHOW_KEYS;
 	    if ($4)
