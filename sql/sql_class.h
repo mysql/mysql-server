@@ -482,12 +482,13 @@ class select_insert :public select_result {
   uint save_time_stamp;
   ulonglong last_insert_id;
   COPY_INFO info;
+	bool unions;
 
-  select_insert(TABLE *table_par,List<Item> *fields_par,enum_duplicates duplic)
+  select_insert(TABLE *table_par,List<Item> *fields_par,enum_duplicates duplic, bool u=false)
     :table(table_par),fields(fields_par), save_time_stamp(0),last_insert_id(0)
     {
       bzero((char*) &info,sizeof(info));
-      info.handle_duplicates=duplic;
+      info.handle_duplicates=duplic; unions = u;
     }
   ~select_insert();
   int prepare(List<Item> &list);
@@ -512,8 +513,8 @@ public:
 		 HA_CREATE_INFO *create_info_par,
 		 List<create_field> &fields_par,
 		 List<Key> &keys_par,
-		 List<Item> &select_fields,enum_duplicates duplic)
-    :select_insert (NULL, &select_fields, duplic), db(db_name),
+		 List<Item> &select_fields,enum_duplicates duplic, bool u=false)
+    :select_insert (NULL, &select_fields, duplic, u), db(db_name),
     name(table_name), extra_fields(&fields_par),keys(&keys_par),
     create_info(create_info_par),
     lock(0)

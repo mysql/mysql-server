@@ -351,7 +351,8 @@ berkeley_cmp_hidden_key(DB* file, const DBT *new_key, const DBT *saved_key)
 static int
 berkeley_cmp_packed_key(DB *file, const DBT *new_key, const DBT *saved_key)
 {
-  KEY *key=	      (KEY*) (file->app_private);
+  KEY *key=	      (new_key->app_private ? (KEY*) new_key->app_private :
+		       (KEY*) (file->app_private));
   char *new_key_ptr=  (char*) new_key->data;
   char *saved_key_ptr=(char*) saved_key->data;
   KEY_PART_INFO *key_part= key->key_part, *end=key_part+key->key_parts;
@@ -388,7 +389,8 @@ berkeley_cmp_packed_key(DB *file, const DBT *new_key, const DBT *saved_key)
 static int
 berkeley_cmp_fix_length_key(DB *file, const DBT *new_key, const DBT *saved_key)
 {
-  KEY *key=(KEY*) (file->app_private);
+  KEY *key=	      (new_key->app_private ? (KEY*) new_key->app_private :
+		       (KEY*) (file->app_private));
   char *new_key_ptr=  (char*) new_key->data;
   char *saved_key_ptr=(char*) saved_key->data;
   KEY_PART_INFO *key_part= key->key_part, *end=key_part+key->key_parts;
@@ -730,9 +732,9 @@ DBT *ha_berkeley::create_key(DBT *key, uint keynr, char *buff,
 			     const byte *record, int key_length)
 {
   bzero((char*) key,sizeof(*key));
-
   if (hidden_primary_key && keynr == primary_key)
   {
+    /* We don't need to set app_private here */
     key->data=current_ident;
     key->size=BDB_HIDDEN_PRIMARY_KEY_LENGTH;
     return key;
@@ -744,6 +746,7 @@ DBT *ha_berkeley::create_key(DBT *key, uint keynr, char *buff,
   DBUG_ENTER("create_key");
 
   key->data=buff;
+  key->app_private= key_info;
   for ( ; key_part != end && key_length > 0; key_part++)
   {
     if (key_part->null_bit)
@@ -777,10 +780,11 @@ DBT *ha_berkeley::pack_key(DBT *key, uint keynr, char *buff,
   KEY *key_info=table->key_info+keynr;
   KEY_PART_INFO *key_part=key_info->key_part;
   KEY_PART_INFO *end=key_part+key_info->key_parts;
-  DBUG_ENTER("pack_key2");
+  DBUG_ENTER("bdb:pack_key");
 
   bzero((char*) key,sizeof(*key));
   key->data=buff;
+  key->app_private= (void*) key_info;
 
   for (; key_part != end && (int) key_length > 0 ; key_part++)
   {
@@ -1373,6 +1377,7 @@ int ha_berkeley::read_row(int error, char *buf, uint keynr, DBT *row,
     bzero((char*) &key,sizeof(key));
     key.data=key_buff;
     key.size=row->size;
+    key.app_private= (void*) (table->key_info+primary_key);
     memcpy(key_buff,row->data,row->size);
     /* Read the data into current_row */
     current_row.flags=DB_DBT_REALLOC;
@@ -1537,6 +1542,7 @@ int ha_berkeley::rnd_next(byte *buf)
 
 DBT *ha_berkeley::get_pos(DBT *to, byte *pos)
 {
+  /* We don't need to set app_private here */
   bzero((char*) to,sizeof(*to));
 
   to->data=pos;
@@ -1950,6 +1956,7 @@ longlong ha_berkeley::get_auto_increment()
 			    table->next_number_key_offset);
     /* Store for compare */
     memcpy(old_key.data=key_buff2, key_buff, (old_key.size=last_key.size));
+    old_key.app_private=(void*) key_info;
     error=1;
     {
       /* Modify the compare so that we will find the next key */

@@ -1,20 +1,11 @@
---- mysql-3.23.23.orig/scripts/Makefile.in
-+++ mysql-3.23.23/scripts/Makefile.in
-@@ -337,6 +337,7 @@
- 	@RM@ -f $@ $@-t
- 	@SED@ \
- 	  -e 's!@''bindir''@!$(bindir)!g' \
-+	  -e 's!@''sbindir''@!$(sbindir)!g' \
- 	  -e 's!@''scriptdir''@!$(bindir)!g' \
- 	  -e 's!@''prefix''@!$(prefix)!g' \
- 	  -e 's!@''datadir''@!$(datadir)!g' \
---- mysql-3.23.23.orig/support-files/Makefile.in
-+++ mysql-3.23.23/support-files/Makefile.in
-@@ -308,6 +308,7 @@
- 	@RM@ -f $@ $@-t
- 	@SED@ \
- 	  -e 's!@''bindir''@!$(bindir)!g' \
-+	  -e 's!@''sbindir''@!$(sbindir)!g' \
- 	  -e 's!@''scriptdir''@!$(bindir)!g' \
- 	  -e 's!@''prefix''@!$(prefix)!g' \
- 	  -e 's!@''datadir''@!$(datadir)!g' \
+--- mysql-3.23.34a/sql/Makefile.in.orig	Mon Mar 12 08:27:39 2001
++++ mysql-3.23.34a/sql/Makefile.in	Thu Mar 15 04:11:14 2001
+@@ -373,7 +373,7 @@
+ 
+ mysqlbinlog: $(mysqlbinlog_OBJECTS) $(mysqlbinlog_DEPENDENCIES)
+ 	@rm -f mysqlbinlog
+-	$(CXXLINK) $(mysqlbinlog_LDFLAGS) $(mysqlbinlog_OBJECTS) $(mysqlbinlog_LDADD) $(LIBS)
++	$(CXXLINK) $(mysqld_LDFLAGS) $(mysqlbinlog_OBJECTS) $(mysqld_LDADD) $(LIBS)
+ 
+ mysqld: $(mysqld_OBJECTS) $(mysqld_DEPENDENCIES)
+ 	@rm -f mysqld

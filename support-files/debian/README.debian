@@ -18,6 +18,15 @@ Comments regarding the Package
   mysql-server-debug:
       --with-debug flag. mysqld only. (/usr/sbin/mysqld-debug)
 
+* about MySQL-Max packages:
+  
+  mysql-max  :
+      this is static linked MySQL-Max server only. (/usr/sbin/mysqld-max-static).
+  mysql-max-shared:
+      this is dynamic linked MySQL server only. (/usr/sbin/mysqld-max-shared)
+  mysql-max-debug:
+      --with-debug flag. mysqld only. (/usr/sbin/mysqld-max-debug)
+
 * about charset
  I build MySQL server --with-extra-charsets=all
 

@@ -871,6 +871,7 @@ static pthread_handler_decl(handle_delayed_insert,arg)
   /* Add thread to THD list so that's it's visible in 'show processlist' */
   pthread_mutex_lock(&LOCK_thread_count);
   thd->thread_id=thread_id++;
+  thd->end_time();
   threads.append(thd);
   pthread_mutex_unlock(&LOCK_thread_count);
 
@@ -1318,7 +1319,8 @@ bool select_insert::send_eof()
 	      thd->cuted_fields);
     if (last_insert_id)
       thd->insert_id(last_insert_id);		// For update log
-    ::send_ok(&thd->net,info.copied,last_insert_id,buff);
+		if (!unions)
+			::send_ok(&thd->net,info.copied,last_insert_id,buff);
     mysql_update_log.write(thd,thd->query,thd->query_length);
     if (mysql_bin_log.is_open())
     {
@@ -1400,7 +1402,9 @@ bool select_create::send_eof()
     mysql_unlock_tables(thd, lock);
     if (!table->tmp_table)
       hash_delete(&open_cache,(byte*) table);
-    lock=0; table=0;
+    lock=0; 
+		if (!unions)
+			table=0;
     VOID(pthread_mutex_unlock(&LOCK_open));
   }
   return tmp;

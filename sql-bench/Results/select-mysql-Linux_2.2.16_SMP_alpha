@@ -1,30 +1,30 @@
-Testing server 'MySQL 3.23.36' at 2001-03-26  2:12:47
+Testing server 'MySQL 3.23.39' at 2002-09-08 11:16:28
 
 Testing the speed of selecting on keys that consist of many parts
 The test-table has 10000 rows and the test is done with 500 ranges.
 
 Creating table
 Inserting 10000 rows
-Time to insert (10000):  4 wallclock secs ( 0.81 usr  0.63 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
+Time to insert (10000):  4 wallclock secs ( 0.71 usr  0.65 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
 
 Test if the database has a query cache
-Time for select_query_cache (10000): 82 wallclock secs ( 3.31 usr  1.00 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
+Time for select_query_cache (10000): 82 wallclock secs ( 3.53 usr  0.98 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
 
-Time for select_query_cache2 (10000): 83 wallclock secs ( 3.20 usr  0.96 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
+Time for select_query_cache2 (10000): 84 wallclock secs ( 3.50 usr  1.01 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
 
 Testing big selects on the table
-Time for select_big (70:17207):  1 wallclock secs ( 0.12 usr  0.08 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
-Time for select_range (410:1057904): 225 wallclock secs ( 7.61 usr  5.12 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
-Time for min_max_on_key (70000): 155 wallclock secs (21.44 usr  6.55 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
-Time for count_on_key (50000): 355 wallclock secs (16.27 usr  4.69 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
+Time for select_big (70:17207):  0 wallclock secs ( 0.12 usr  0.08 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
+Time for select_range (410:1057904): 230 wallclock secs ( 7.50 usr  5.11 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
+Time for min_max_on_key (70000): 155 wallclock secs (22.55 usr  6.20 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
+Time for count_on_key (50000): 349 wallclock secs (17.12 usr  4.59 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
 
-Time for count_group_on_key_parts (1000:100000): 42 wallclock secs ( 0.94 usr  0.56 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
+Time for count_group_on_key_parts (1000:100000): 38 wallclock secs ( 0.89 usr  0.59 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
 Testing count(distinct) on the table
-Time for count_distinct_key_prefix (1000:1000): 38 wallclock secs ( 0.39 usr  0.12 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
-Time for count_distinct (1000:1000): 48 wallclock secs ( 0.40 usr  0.10 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
-Time for count_distinct_2 (1000:1000): 50 wallclock secs ( 0.42 usr  0.12 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
-Time for count_distinct_group_on_key (1000:6000): 42 wallclock secs ( 0.42 usr  0.15 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
-Time for count_distinct_group_on_key_parts (1000:100000): 70 wallclock secs ( 0.97 usr  0.59 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
-Time for count_distinct_group (1000:100000): 69 wallclock secs ( 0.98 usr  0.61 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
-Time for count_distinct_big (100:1000000): 82 wallclock secs ( 6.04 usr  7.21 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
-Total time: 1346 wallclock secs (63.34 usr 28.50 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
+Time for count_distinct_key_prefix (1000:1000): 41 wallclock secs ( 0.42 usr  0.13 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
+Time for count_distinct (1000:1000): 51 wallclock secs ( 0.44 usr  0.11 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
+Time for count_distinct_2 (1000:1000): 49 wallclock secs ( 0.41 usr  0.14 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
+Time for count_distinct_group_on_key (1000:6000): 47 wallclock secs ( 0.45 usr  0.14 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
+Time for count_distinct_group_on_key_parts (1000:100000): 75 wallclock secs ( 0.98 usr  0.61 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
+Time for count_distinct_group (1000:100000): 75 wallclock secs ( 0.97 usr  0.60 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
+Time for count_distinct_big (100:1000000): 80 wallclock secs ( 6.08 usr  6.96 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
+Total time: 1360 wallclock secs (65.68 usr 27.91 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
