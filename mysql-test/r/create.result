@@ -189,9 +189,9 @@ select * from t1;
 if('2002'='2002','Y','N')
 Y
 drop table if exists t1;
-SET SESSION table_type="heap";
-SELECT @@table_type;
-@@table_type
+SET SESSION storage_engine="heap";
+SELECT @@storage_engine;
+@@storage_engine
 HEAP
 CREATE TABLE t1 (a int not null);
 show create table t1;
@@ -200,10 +200,10 @@ t1	CREATE TABLE `t1` (
   `a` int(11) NOT NULL default '0'
 ) ENGINE=HEAP DEFAULT CHARSET=latin1
 drop table t1;
-SET SESSION table_type="gemini";
+SET SESSION storage_engine="gemini";
 ERROR 42000: Unknown table engine 'gemini'
-SELECT @@table_type;
-@@table_type
+SELECT @@storage_engine;
+@@storage_engine
 HEAP
 CREATE TABLE t1 (a int not null);
 show create table t1;
@@ -211,7 +211,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) NOT NULL default '0'
 ) ENGINE=HEAP DEFAULT CHARSET=latin1
-SET SESSION table_type=default;
+SET SESSION storage_engine=default;
 drop table t1;
 create table t1 ( k1 varchar(2), k2 int, primary key(k1,k2));
 insert into t1 values ("a", 1), ("b", 2);
@@ -334,9 +334,9 @@ ERROR 42000: Incorrect table name 'a/a'
 drop table t1, t2, t3;
 drop table t3;
 drop database test_$1;
-SET SESSION table_type="heap";
-SELECT @@table_type;
-@@table_type
+SET SESSION storage_engine="heap";
+SELECT @@storage_engine;
+@@storage_engine
 HEAP
 CREATE TABLE t1 (a int not null);
 show create table t1;
@@ -345,10 +345,10 @@ t1	CREATE TABLE `t1` (
   `a` int(11) NOT NULL default '0'
 ) ENGINE=HEAP DEFAULT CHARSET=latin1
 drop table t1;
-SET SESSION table_type="gemini";
+SET SESSION storage_engine="gemini";
 ERROR 42000: Unknown table engine 'gemini'
-SELECT @@table_type;
-@@table_type
+SELECT @@storage_engine;
+@@storage_engine
 HEAP
 CREATE TABLE t1 (a int not null);
 show create table t1;
@@ -356,7 +356,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) NOT NULL default '0'
 ) ENGINE=HEAP DEFAULT CHARSET=latin1
-SET SESSION table_type=default;
+SET SESSION storage_engine=default;
 drop table t1;
 create table t1(a int,b int,c int unsigned,d date,e char,f datetime,g time,h blob);
 insert into t1(a)values(1);

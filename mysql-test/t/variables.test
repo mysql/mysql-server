@@ -70,9 +70,9 @@ show variables like 'concurrent_insert';
 set global concurrent_insert=DEFAULT;
 show variables like 'concurrent_insert';
 
-set table_type=MYISAM, table_type="HEAP", global table_type="INNODB";
-show local variables like 'table_type';
-show global variables like 'table_type';
+set storage_engine=MYISAM, storage_engine="HEAP", global storage_engine="INNODB";
+show local variables like 'storage_engine';
+show global variables like 'storage_engine';
 set GLOBAL query_cache_size=100000;
 
 set GLOBAL myisam_max_sort_file_size=2000000;
@@ -125,14 +125,14 @@ set unknown_variable=1;
 --error 1232
 set max_join_size="hello";
 --error 1285
-set table_type=UNKNOWN_TABLE_TYPE;
+set storage_engine=UNKNOWN_TABLE_TYPE;
 --error 1231
-set table_type=INNODB, big_tables=2;
-show local variables like 'table_type';
+set storage_engine=INNODB, big_tables=2;
+show local variables like 'storage_engine';
 --error 1229
 set SESSION query_cache_size=10000;
 --error 1230
-set GLOBAL table_type=DEFAULT;
+set GLOBAL storage_engine=DEFAULT;
 --error 1115
 set character_set_client=UNKNOWN_CHARACTER_SET;
 --error 1272
@@ -235,7 +235,7 @@ set sql_select_limit=1;
 set global sql_slave_skip_counter=100;
 set sql_warnings=1;
 set global table_cache=100;
-set table_type=myisam;
+set storage_engine=myisam;
 set global thread_cache_size=100;
 set timestamp=1, timestamp=default;
 set tmp_table_size=100;
