@@ -206,10 +206,10 @@ int  acl_init(bool dont_read_acl_tables)
 		      "Found old style password for user '%s'. Ignoring user. (You may want to restart using --old-protocol)",
 		      user.user ? user.user : ""); /* purecov: tested */
     }
-    else if (length % 8)		// This holds true for passwords
+    else if (length % 8 || length > 16)
     {
       sql_print_error(
-		      "Found invalid password for user: '%s@%s'; Ignoring user",
+		      "Found invalid password for user: '%s'@'%s'; Ignoring user",
 		      user.user ? user.user : "",
 		      user.host.hostname ? user.host.hostname : ""); /* purecov: tested */
       continue; /* purecov: tested */
