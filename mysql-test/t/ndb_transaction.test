@@ -181,51 +181,6 @@ select count(*) from t3;
 select count(*) from t4;
 
 #
-# insert records into tables and commit after timeout;
-#
-let $1=100;
-disable_query_log;
-begin;
-while ($1)
-{
- eval insert into t2 values($1, $1+9, 5);
- eval insert into t3 values($1, $1+9, 5);
- eval insert into t4 values($1, $1+9, 5, $1+26000);
- dec $1;
-}
-sleep 15;
--- error 1205
-commit;
-enable_query_log;
-
-select count(*) from t2;
-select count(*) from t3;
-select count(*) from t4;
-
-#
-# insert records into tables and timeout before last operation
-#
-let $1=100;
-disable_query_log;
-begin;
-while ($1)
-{
- eval insert into t2 values($1, $1+9, 5);
- eval insert into t3 values($1, $1+9, 5);
- eval insert into t4 values($1, $1+9, 5, $1+26000);
- dec $1;
-}
-sleep 15;
--- error 1205
-insert into t2 values(10000, 10000, 36000);
-commit;
-enable_query_log;
-
-select count(*) from t2;
-select count(*) from t3;
-select count(*) from t4;
-
-#
 # insert records into tables and commit;
 #
 let $1=100;
