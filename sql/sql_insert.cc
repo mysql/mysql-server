@@ -391,7 +391,7 @@ int write_record(TABLE *table,COPY_INFO *info)
       }
       else
       {
-	if (table->file->extra(HA_EXTRA_FLUSH_CACHE)) /* Not neaded with NISAM */
+	if (table->file->extra(HA_EXTRA_FLUSH_CACHE)) /* Not needed with NISAM */
 	{
 	  error=my_errno;
 	  goto err;
@@ -534,7 +534,7 @@ public:
   }
   ~delayed_insert()
   {
-    /* The following is not really neaded, but just for safety */
+    /* The following is not really needed, but just for safety */
     delayed_row *row;
     while ((row=rows.get()))
       delete row;

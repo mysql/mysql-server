@@ -170,7 +170,7 @@ typedef struct	st_lex_user {
 	/* Bits in form->status */
 #define STATUS_NO_RECORD	(1+2)	/* Record isn't usably */
 #define STATUS_GARBAGE		1
-#define STATUS_NOT_FOUND	2	/* No record in database when neaded */
+#define STATUS_NOT_FOUND	2	/* No record in database when needed */
 #define STATUS_NO_PARENT	4	/* Parent record wasn't found */
 #define STATUS_NOT_READ		8	/* Record isn't read */
 #define STATUS_UPDATED		16	/* Record is updated by formula */
