@@ -598,8 +598,9 @@ Full operator and function support in the @code{SELECT} and @code{WHERE}
 parts of queries.  For example:
 
 @example
-mysql> SELECT CONCAT(first_name, " ", last_name) FROM tbl_name
-           WHERE income/dependents > 10000 AND age > 30;
+mysql> SELECT CONCAT(first_name, " ", last_name)
+       FROM tbl_name
+       WHERE income/dependents > 10000 AND age > 30;
 @end example
 
 @item
@@ -885,7 +886,9 @@ any problems with dates until the year 2030:
 mysql> DROP TABLE IF EXISTS y2k;
 Query OK, 0 rows affected (0.01 sec)
 
-mysql> CREATE TABLE y2k (date date, date_time datetime, time_stamp timestamp);
+mysql> CREATE TABLE y2k (date date,
+                         date_time datetime,
+                         time_stamp timestamp);
 Query OK, 0 rows affected (0.00 sec)
 
 mysql> INSERT INTO y2k VALUES 
@@ -2581,7 +2584,9 @@ The default transaction isolation level is @code{SERIALIZABLE}.
 @xref{SET TRANSACTION}.
 @end itemize
 
-This is the same as using @code{--sql-mode=REAL_AS_FLOAT,PIPES_AS_CONCAT,ANSI_QUOTES,IGNORE_SPACE,SERIALIZE,ONLY_FULL_GROUP_BY}.
+This is the same as using
+@code{--sql-mode=REAL_AS_FLOAT,PIPES_AS_CONCAT,ANSI_QUOTES,
+IGNORE_SPACE,SERIALIZE,ONLY_FULL_GROUP_BY}.
 
 
 @node Extensions to ANSI, Differences from ANSI, ANSI mode, Compatibility
@@ -2802,7 +2807,7 @@ arguments.)
 
 @item The @code{BIT_COUNT()}, @code{CASE}, @code{ELT()},
 @code{FROM_DAYS()}, @code{FORMAT()}, @code{IF()}, @code{PASSWORD()},
-@code{ENCRYPT()}, @code{md5()}, @code{ENCODE()}, @code{DECODE()},
+@code{ENCRYPT()}, @code{MD5()}, @code{ENCODE()}, @code{DECODE()},
 @code{PERIOD_ADD()}, @code{PERIOD_DIFF()}, @code{TO_DAYS()}, or
 @code{WEEKDAY()} functions.
 
@@ -2899,13 +2904,15 @@ SELECT table1.* FROM table1,table2 WHERE table1.id=table2.id;
 The queries:
 @example
 SELECT * FROM table1 WHERE id NOT IN (SELECT id FROM table2);
-SELECT * FROM table1 WHERE NOT EXISTS (SELECT id FROM table2 where table1.id=table2.id);
+SELECT * FROM table1 WHERE NOT EXISTS (SELECT id FROM table2
+                                       WHERE table1.id=table2.id);
 @end example
 
 Can be rewritten as:
 
 @example
-SELECT table1.* FROM table1 LEFT JOIN table2 ON table1.id=table2.id where table2.id IS NULL
+SELECT table1.* FROM table1 LEFT JOIN table2 ON table1.id=table2.id
+                                       WHERE table2.id IS NULL;
 @end example
 
 For more complicated subqueries you can often create temporary tables
@@ -2956,8 +2963,8 @@ ANSI SQL syntax @code{INSERT INTO ... SELECT ...}, which is basically
 the same thing. @xref{INSERT SELECT}.
 
 @example
-INSERT INTO tblTemp2 (fldID) SELECT tblTemp1.fldOrder_ID FROM tblTemp1 WHERE
-tblTemp1.fldOrder_ID > 100;
+INSERT INTO tblTemp2 (fldID) SELECT tblTemp1.fldOrder_ID
+       FROM tblTemp1 WHERE tblTemp1.fldOrder_ID > 100;
 @end example
 
 Alternatively, you can use @code{SELECT INTO OUTFILE...} or @code{CREATE
@@ -3492,16 +3499,18 @@ the hidden columns when executing @code{DISTINCT}
 An example of this is:
 
 @example
-SELECT DISTINCT mp3id FROM band_downloads WHERE userid = 9 ORDER BY id
-DESC;
+SELECT DISTINCT mp3id FROM band_downloads
+       WHERE userid = 9 ORDER BY id DESC;
 @end example
 
 and
 
 @example
-SELECT DISTINCT band_downloads.mp3id, FROM band_downloads,band_mp3
-WHERE band_downloads.userid = 9 AND band_mp3.id = band_downloads.mp3id
-ORDER BY band_downloads.id DESC;
+SELECT DISTINCT band_downloads.mp3id
+       FROM band_downloads,band_mp3
+       WHERE band_downloads.userid = 9
+       AND band_mp3.id = band_downloads.mp3id
+       ORDER BY band_downloads.id DESC;
 @end example
 
 In the second case you may in MySQL 3.23.x get two identical rows
@@ -3737,8 +3746,10 @@ items.price=month.price where items.id=month.id;};
 @item
 Derived tables.
 @example
-select a.col1, b.col2 from (select max(col1) as col1 from root_table ) a,
-other_table b where a.col1=b.col1
+SELECT a.col1, b.col2
+       FROM (SELECT MAX(col1) AS col1 FROM root_table) a,
+       other_table b
+       WHERE a.col1=b.col1;
 @end example
 
 This could be done by automatically creating temporary tables for the
@@ -3878,13 +3889,13 @@ treated as a @code{LOAD DATA INFILE ... REPLACE INTO} is now.
 Make @code{LOAD DATA INFILE} understand syntax like:
 @example
 LOAD DATA INFILE 'file_name.txt' INTO TABLE tbl_name
-TEXT_FIELDS (text_field1, text_field2, text_field3)
-SET table_field1=concatenate(text_field1, text_field2), table_field3=23
-IGNORE text_field3
-
-This can be used to skip over extra columns in the text file, or update columns
-based on expressions of the read data...
+     TEXT_FIELDS (text_field1, text_field2, text_field3)
+     SET table_field1=concatenate(text_field1, text_field2),
+         table_field3=23
+     IGNORE text_field3
 @end example
+This can be used to skip over extra columns in the text file,
+or update columns based on expressions of the read data...
 @item
 @code{LOAD DATA INFILE 'file_name' INTO TABLE 'table_name' ERRORS TO err_table_name}
 This would cause any errors and warnings to be logged into the err_table_name
