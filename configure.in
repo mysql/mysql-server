@@ -921,7 +921,7 @@ then
       AC_TRY_COMPILE([#include <sched.h>], [int a = sched_get_priority_min(1);], ,
       AC_MSG_ERROR([Syntax error in sched.h. Change _P to __P in the /usr/include/sched.h file. See the Installation chapter in the Reference Manual]))
       # RedHat 5.0 does not work with dynamic linking of this. -static also
-      # gives a spped increase in linux so it does not hurt on other systems.
+      # gives a speed increase in linux so it does not hurt on other systems.
       with_named_thread="-lpthread"
     else
       AC_MSG_RESULT("Not found")
