@@ -225,6 +225,13 @@ void Item_bool_func2::fix_length_and_dec()
   }
   
   // Make a special case of compare with fields to get nicer DATE comparisons
+
+  if (functype() == LIKE_FUNC)  // Disable conversion in case of LIKE function.
+  {
+    set_cmp_func();
+    return;
+  }
+    
   if (args[0]->type() == FIELD_ITEM)
   {
     Field *field=((Item_field*) args[0])->field;
