@@ -284,8 +284,8 @@ JOIN::prepare(Item ***rref_pointer_array,
 	      uint wild_num, COND *conds_init, uint og_num,
 	      ORDER *order_init, ORDER *group_init,
 	      Item *having_init,
-	      ORDER *proc_param_init, SELECT_LEX *select,
-	      SELECT_LEX_UNIT *unit)
+	      ORDER *proc_param_init, SELECT_LEX *select_lex_arg,
+	      SELECT_LEX_UNIT *unit_arg)
 {
   DBUG_ENTER("JOIN::prepare");
 
@@ -295,9 +295,9 @@ JOIN::prepare(Item ***rref_pointer_array,
   having= having_init;
   proc_param= proc_param_init;
   tables_list= tables_init;
-  select_lex= select;
+  select_lex= select_lex_arg;
   select_lex->join= this;
-  union_part= (unit->first_select()->next_select() != 0);
+  union_part= (unit_arg->first_select()->next_select() != 0);
 
   /* Check that all tables, fields, conds and order are ok */
 
@@ -369,14 +369,14 @@ JOIN::prepare(Item ***rref_pointer_array,
 	DBUG_RETURN(-1);
       }
     }
-    TABLE_LIST *table;
-    for (table=tables_list ; table ; table=table->next)
+    TABLE_LIST *table_ptr;
+    for (table_ptr= tables_list ; table_ptr ; table_ptr= table_ptr->next)
       tables++;
   }
   {
     /* Caclulate the number of groups */
     send_group_parts= 0;
-    for (ORDER *group= group_list ; group ; group= group->next)
+    for (ORDER *group_tmp= group_list ; group_tmp ; group_tmp= group_tmp->next)
       send_group_parts++;
   }
   
@@ -416,13 +416,13 @@ JOIN::prepare(Item ***rref_pointer_array,
   ref_pointer_array_size= all_fields.elements*sizeof(Item*);
   this->group= group_list != 0;
   row_limit= ((select_distinct || order || group_list) ? HA_POS_ERROR :
-	      unit->select_limit_cnt);
+	      unit_arg->select_limit_cnt);
   /* select_limit is used to decide if we are likely to scan the whole table */
-  select_limit= unit->select_limit_cnt;
+  select_limit= unit_arg->select_limit_cnt;
   if (having || (select_options & OPTION_FOUND_ROWS))
     select_limit= HA_POS_ERROR;
-  do_send_rows = (unit->select_limit_cnt) ? 1 : 0;
-  this->unit= unit;
+  do_send_rows = (unit_arg->select_limit_cnt) ? 1 : 0;
+  unit= unit_arg;
 
 #ifdef RESTRICTED_GROUP
   if (sum_func_count && !group_list && (func_count || field_count))
@@ -431,7 +431,7 @@ JOIN::prepare(Item ***rref_pointer_array,
     goto err;
   }
 #endif
-  if (!procedure && result->prepare(fields_list, unit))
+  if (!procedure && result->prepare(fields_list, unit_arg))
     goto err;					/* purecov: inspected */
 
   if (select_lex->olap == ROLLUP_TYPE && rollup_init())
@@ -607,20 +607,20 @@ JOIN::optimize()
   if (const_tables && !thd->locked_tables &&
       !(select_options & SELECT_NO_UNLOCK))
   {
-    TABLE **table, **end;
-    for (table=this->table, end=table + const_tables ;
-	 table != end;
-	 table++)
+    TABLE **curr_table, **end;
+    for (curr_table= table, end=curr_table + const_tables ;
+	 curr_table != end;
+	 curr_table++)
     {
       /* BDB tables require that we call index_end() before doing an unlock */
-      if ((*table)->key_read)
+      if ((*curr_table)->key_read)
       {
-	(*table)->key_read=0;
-	(*table)->file->extra(HA_EXTRA_NO_KEYREAD);
+	(*curr_table)->key_read=0;
+	(*curr_table)->file->extra(HA_EXTRA_NO_KEYREAD);
       }
-      (*table)->file->index_end();
+      (*curr_table)->file->index_end();
     }
-    mysql_unlock_some_tables(thd, this->table, const_tables);
+    mysql_unlock_some_tables(thd, table, const_tables);
   }
   if (!conds && outer_join)
   {
@@ -963,18 +963,18 @@ JOIN::optimize()
     if (exec_tmp_table1->distinct)
     {
       table_map used_tables= thd->used_tables;
-      JOIN_TAB *join_tab= this->join_tab+tables-1;
+      JOIN_TAB *last_join_tab= join_tab+tables-1;
       do
       {
-	if (used_tables & join_tab->table->map)
+	if (used_tables & last_join_tab->table->map)
 	  break;
-	join_tab->not_used_in_distinct=1;
-      } while (join_tab-- != this->join_tab);
+	last_join_tab->not_used_in_distinct=1;
+      } while (last_join_tab-- != join_tab);
       /* Optimize "select distinct b from t1 order by key_part_1 limit #" */
       if (order && skip_sort_order)
       {
  	/* Should always succeed */
-	if (test_if_skip_sort_order(&this->join_tab[const_tables],
+	if (test_if_skip_sort_order(&join_tab[const_tables],
 				    order, unit->select_limit_cnt, 0))
 	  order=0;
       }
@@ -1393,26 +1393,27 @@ JOIN::exec()
     {
       // Some tables may have been const
       curr_join->tmp_having->update_used_tables();
-      JOIN_TAB *table= &curr_join->join_tab[curr_join->const_tables];
-      table_map used_tables= curr_join->const_table_map | table->table->map;
+      JOIN_TAB *curr_table= &curr_join->join_tab[curr_join->const_tables];
+      table_map used_tables= (curr_join->const_table_map |
+			      curr_table->table->map);
 
       Item* sort_table_cond= make_cond_for_table(curr_join->tmp_having,
 						 used_tables,
 						 used_tables);
       if (sort_table_cond)
       {
-	if (!table->select)
-	  if (!(table->select= new SQL_SELECT))
+	if (!curr_table->select)
+	  if (!(curr_table->select= new SQL_SELECT))
 	    DBUG_VOID_RETURN;
-	if (!table->select->cond)
-	  table->select->cond= sort_table_cond;
+	if (!curr_table->select->cond)
+	  curr_table->select->cond= sort_table_cond;
 	else					// This should never happen
-	  if (!(table->select->cond= new Item_cond_and(table->select->cond,
-						       sort_table_cond)))
+	  if (!(curr_table->select->cond=
+		new Item_cond_and(curr_table->select->cond, sort_table_cond)))
 	    DBUG_VOID_RETURN;
-	table->select_cond=table->select->cond;
-	table->select_cond->top_level_item();
-	DBUG_EXECUTE("where",print_where(table->select->cond,
+	curr_table->select_cond= curr_table->select->cond;
+	curr_table->select_cond->top_level_item();
+	DBUG_EXECUTE("where",print_where(curr_table->select->cond,
 					 "select and having"););
 	curr_join->tmp_having= make_cond_for_table(curr_join->tmp_having,
 						   ~ (table_map) 0,
@@ -1429,9 +1430,9 @@ JOIN::exec()
 	  We can abort sorting after thd->select_limit rows if we there is no
 	  WHERE clause for any tables after the sorted one.
 	*/
-	JOIN_TAB *table= &curr_join->join_tab[curr_join->const_tables+1];
+	JOIN_TAB *curr_table= &curr_join->join_tab[curr_join->const_tables+1];
 	JOIN_TAB *end_table= &curr_join->join_tab[tables];
-	for (; table < end_table ; table++)
+	for (; curr_table < end_table ; curr_table++)
 	{
 	  /*
 	    table->keyuse is set in the case there was an original WHERE clause
@@ -1439,7 +1440,8 @@ JOIN::exec()
 	    table->on_expr tells us that it was a LEFT JOIN and there will be
 	    at least one row generated from the table.
 	  */
-	  if (table->select_cond || (table->keyuse && !table->on_expr))
+	  if (curr_table->select_cond ||
+	      (curr_table->keyuse && !curr_table->on_expr))
 	  {
 	    /* We have to sort all rows */
 	    curr_join->select_limit= HA_POS_ERROR;
@@ -1517,11 +1519,11 @@ JOIN::cleanup()
   delete select;
   delete_dynamic(&keyuse);
   delete procedure;
-  for (SELECT_LEX_UNIT *unit= select_lex->first_inner_unit();
-       unit != 0;
-       unit= unit->next_unit())
+  for (SELECT_LEX_UNIT *lex_unit= select_lex->first_inner_unit();
+       lex_unit != 0;
+       lex_unit= lex_unit->next_unit())
   {
-    error|= unit->cleanup();
+    error|= lex_unit->cleanup();
   }
   DBUG_RETURN(error);
 }
@@ -4313,10 +4315,11 @@ COND *eliminate_not_funcs(COND *cond)
 static COND *
 optimize_cond(COND *conds,Item::cond_result *cond_value)
 {
+  DBUG_ENTER("optimize_cond");
   if (!conds)
   {
     *cond_value= Item::COND_TRUE;
-    return conds;
+    DBUG_RETURN(conds);
   }
   DBUG_EXECUTE("where",print_where(conds,"original"););
   /* eliminate NOT operators */
@@ -4331,7 +4334,7 @@ optimize_cond(COND *conds,Item::cond_result *cond_value)
   DBUG_EXECUTE("where",print_where(conds,"after const change"););
   conds=remove_eq_conds(conds,cond_value) ;
   DBUG_EXECUTE("info",print_where(conds,"after remove"););
-  return conds;
+  DBUG_RETURN(conds);
 }
 
 
@@ -8382,10 +8385,10 @@ bool JOIN::alloc_func_list()
 }
 
 
-bool JOIN::make_sum_func_list(List<Item> &all_fields, List<Item> &send_fields,
+bool JOIN::make_sum_func_list(List<Item> &field_list, List<Item> &send_fields,
 			      bool before_group_by)
 {
-  List_iterator_fast<Item> it(all_fields);
+  List_iterator_fast<Item> it(field_list);
   Item_sum **func;
   Item *item;
   DBUG_ENTER("make_sum_func_list");
@@ -8404,7 +8407,7 @@ bool JOIN::make_sum_func_list(List<Item> &all_fields, List<Item> &send_fields,
   if (before_group_by && rollup.state == ROLLUP::STATE_INITED)
   {
     rollup.state= ROLLUP::STATE_READY;
-    if (rollup_make_fields(all_fields, send_fields, &func))
+    if (rollup_make_fields(field_list, send_fields, &func))
       DBUG_RETURN(TRUE);			// Should never happen
   }
   else if (rollup.state == ROLLUP::STATE_NONE)
@@ -8707,12 +8710,12 @@ bool JOIN::rollup_init()
   */
   for (i= 0 ; i < send_group_parts ; i++)
   {
-    List<Item> *fields= &rollup.fields[i];
-    fields->empty();
+    List<Item> *rollup_fields= &rollup.fields[i];
+    rollup_fields->empty();
     rollup.ref_pointer_arrays[i]= ref_array;
     ref_array+= all_fields.elements;
     for (j=0 ; j < fields_list.elements ; j++)
-      fields->push_back(rollup.item_null);
+      rollup_fields->push_back(rollup.item_null);
   }
   return 0;
 }
@@ -8723,8 +8726,8 @@ bool JOIN::rollup_init()
 
   SYNOPSIS
     rollup_make_fields()
-    all_fields			List of all fields (hidden and real ones)
-    fields			Pointer to selected fields
+    fields_arg			List of all fields (hidden and real ones)
+    sel_fields			Pointer to selected fields
     func			Store here a pointer to all fields
 
   IMPLEMENTATION:
@@ -8736,11 +8739,11 @@ bool JOIN::rollup_init()
     1   on error
 */
 
-bool JOIN::rollup_make_fields(List<Item> &all_fields, List<Item> &fields,
+bool JOIN::rollup_make_fields(List<Item> &fields_arg, List<Item> &sel_fields,
 			      Item_sum ***func)
 {
-  List_iterator_fast<Item> it(all_fields);
-  Item *first_field= fields.head();
+  List_iterator_fast<Item> it(fields_arg);
+  Item *first_field= sel_fields.head();
   uint level;
 
   /*
@@ -8775,7 +8778,7 @@ bool JOIN::rollup_make_fields(List<Item> &all_fields, List<Item> &fields,
     ORDER *start_group;
 
     /* Point to first hidden field */
-    Item **ref_array= ref_array_start + all_fields.elements-1;
+    Item **ref_array= ref_array_start + fields_arg.elements-1;
 
     /* Remember where the sum functions ends for the previous level */
     sum_funcs_end[pos+1]= *func;
@@ -8815,10 +8818,10 @@ bool JOIN::rollup_make_fields(List<Item> &all_fields, List<Item> &fields,
       else if (real_fields)
       {
 	/* Check if this is something that is part of this group by */
-	ORDER *group;
-	for (group= start_group ; group ; group= group->next)
+	ORDER *group_tmp;
+	for (group_tmp= start_group ; group_tmp ; group_tmp= group_tmp->next)
 	{
-	  if (*group->item == item)
+	  if (*group_tmp->item == item)
 	  {
 	    /*
 	      This is an element that is used by the GROUP BY and should be
@@ -8925,7 +8928,7 @@ static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
   DBUG_ENTER("select_describe");
   DBUG_PRINT("info", ("Select 0x%lx, type %s, message %s",
 		      (ulong)join->select_lex, join->select_lex->type,
-		      message));
+		      message ? message : "NULL"));
   /* Don't log this into the slow query log */
   select_lex->options&= ~(QUERY_NO_INDEX_USED | QUERY_NO_GOOD_INDEX_USED);
   join->unit->offset_limit_cnt= 0;
@@ -9238,8 +9241,8 @@ void st_select_lex::print(THD *thd, String *str)
 	next_on= 0;
       }
 
-      TABLE_LIST *next;
-      if ((next= table->next))
+      TABLE_LIST *next_table;
+      if ((next_table= table->next))
       {
 	if (table->outer_join & JOIN_TYPE_RIGHT)
 	{
@@ -9248,9 +9251,9 @@ void st_select_lex::print(THD *thd, String *str)
 	      table->on_expr)
 	    next_on= table->on_expr;	    
 	}
-	else if (next->straight)
+	else if (next_table->straight)
 	  str->append(" straight_join ", 15);
-	else if (next->outer_join & JOIN_TYPE_LEFT)
+	else if (next_table->outer_join & JOIN_TYPE_LEFT)
 	  str->append(" left join ", 11);
 	else
 	  str->append(" join ", 6);
@@ -9258,17 +9261,17 @@ void st_select_lex::print(THD *thd, String *str)
     }
   }
 
-  //where
-  Item *where= this->where;
+  // Where
+  Item *cur_where= where;
   if (join)
-    where= join->conds;
-  if (where)
+    cur_where= join->conds;
+  if (cur_where)
   {
     str->append(" where ", 7);
-    where->print(str);
+    cur_where->print(str);
   }
 
-  //group by & olap
+  // group by & olap
   if (group_list.elements)
   {
     str->append(" group by ", 10);
@@ -9286,15 +9289,15 @@ void st_select_lex::print(THD *thd, String *str)
     }
   }
 
-  //having
-  Item *having= this->having;
+  // having
+  Item *cur_having= having;
   if (join)
-    having= join->having;
+    cur_having= join->having;
 
-  if (having)
+  if (cur_having)
   {
     str->append(" having ", 8);
-    having->print(str);
+    cur_having->print(str);
   }
 
   if (order_list.elements)

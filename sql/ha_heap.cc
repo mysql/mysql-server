@@ -248,7 +248,8 @@ ha_rows ha_heap::records_in_range(int inx,
   }
 }
 
-int ha_heap::create(const char *name, TABLE *table,
+
+int ha_heap::create(const char *name, TABLE *table_arg,
 		    HA_CREATE_INFO *create_info)
 {
   uint key, parts, mem_per_row= 0;
@@ -259,17 +260,17 @@ int ha_heap::create(const char *name, TABLE *table,
   char buff[FN_REFLEN];
   int error;
 
-  for (key= parts= 0; key < table->keys; key++)
-    parts+= table->key_info[key].key_parts;
+  for (key= parts= 0; key < table_arg->keys; key++)
+    parts+= table_arg->key_info[key].key_parts;
 
-  if (!(keydef= (HP_KEYDEF*) my_malloc(table->keys * sizeof(HP_KEYDEF) +
+  if (!(keydef= (HP_KEYDEF*) my_malloc(table_arg->keys * sizeof(HP_KEYDEF) +
 				       parts * sizeof(HA_KEYSEG),
 				       MYF(MY_WME))))
     return my_errno;
-  seg= my_reinterpret_cast(HA_KEYSEG*) (keydef + table->keys);
-  for (key= 0; key < table->keys; key++)
+  seg= my_reinterpret_cast(HA_KEYSEG*) (keydef + table_arg->keys);
+  for (key= 0; key < table_arg->keys; key++)
   {
-    KEY *pos= table->key_info+key;
+    KEY *pos= table_arg->key_info+key;
     KEY_PART_INFO *key_part=     pos->key_part;
     KEY_PART_INFO *key_part_end= key_part + pos->key_parts;
 
@@ -303,7 +304,7 @@ int ha_heap::create(const char *name, TABLE *table,
       if (field->null_ptr)
       {
 	seg->null_bit= field->null_bit;
-	seg->null_pos= (uint) (field->null_ptr - (uchar*) table->record[0]);
+	seg->null_pos= (uint) (field->null_ptr - (uchar*) table_arg->record[0]);
       }
       else
       {
@@ -317,7 +318,7 @@ int ha_heap::create(const char *name, TABLE *table,
       }
     }
   }
-  mem_per_row+= MY_ALIGN(table->reclength + 1, sizeof(char*));
+  mem_per_row+= MY_ALIGN(table_arg->reclength + 1, sizeof(char*));
   max_rows = (ha_rows) (current_thd->variables.max_heap_table_size /
 			mem_per_row);
   HP_CREATE_INFO hp_create_info;
@@ -326,16 +327,18 @@ int ha_heap::create(const char *name, TABLE *table,
   hp_create_info.auto_increment= (create_info->auto_increment_value ?
 				  create_info->auto_increment_value - 1 : 0);
   error= heap_create(fn_format(buff,name,"","",4+2),
-		     table->keys,keydef, table->reclength,
-		     (ulong) ((table->max_rows < max_rows && table->max_rows) ? 
-			      table->max_rows : max_rows),
-		     (ulong) table->min_rows, &hp_create_info);
+		     table_arg->keys,keydef, table_arg->reclength,
+		     (ulong) ((table_arg->max_rows < max_rows &&
+			       table_arg->max_rows) ? 
+			      table_arg->max_rows : max_rows),
+		     (ulong) table_arg->min_rows, &hp_create_info);
   my_free((gptr) keydef, MYF(0));
   if (file)
     info(HA_STATUS_NO_LOCK | HA_STATUS_CONST | HA_STATUS_VARIABLE);
   ref_length= sizeof(HEAP_PTR);
   return (error);
 }
+
 
 void ha_heap::update_create_info(HA_CREATE_INFO *create_info)
 {

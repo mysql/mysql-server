@@ -441,7 +441,7 @@ io_handler_thread(
 	os_thread_exit(NULL);
 
 #ifndef __WIN__
-	return(NULL);
+	return(NULL);				/* Not reached */
 #else
 	return(0);
 #endif

@@ -1289,12 +1289,13 @@ bool st_select_lex::test_limit()
     0 - OK
     !0 - error
 */
-bool st_select_lex_unit::create_total_list(THD *thd, st_lex *lex,
-					   TABLE_LIST **result,
+bool st_select_lex_unit::create_total_list(THD *thd_arg, st_lex *lex,
+					   TABLE_LIST **result_arg,
 					   bool check_derived)
 {
-  *result= 0;
-  res= create_total_list_n_last_return(thd, lex, &result, check_derived);
+  *result_arg= 0;
+  res= create_total_list_n_last_return(thd_arg, lex, &result_arg,
+				       check_derived);
   return res;
 }
 
@@ -1318,12 +1319,14 @@ bool st_select_lex_unit::create_total_list(THD *thd, st_lex *lex,
     0 - OK
     !0 - error
 */
-bool st_select_lex_unit::create_total_list_n_last_return(THD *thd, st_lex *lex,
-							 TABLE_LIST ***result,
-							 bool check_derived)
+bool st_select_lex_unit::
+create_total_list_n_last_return(THD *thd_arg,
+				st_lex *lex,
+				TABLE_LIST ***result_arg,
+				bool check_derived)
 {
   TABLE_LIST *slave_list_first=0, **slave_list_last= &slave_list_first;
-  TABLE_LIST **new_table_list= *result, *aux;
+  TABLE_LIST **new_table_list= *result_arg, *aux;
   SELECT_LEX *sl= (SELECT_LEX*)slave;
   
   /*
@@ -1342,7 +1345,7 @@ bool st_select_lex_unit::create_total_list_n_last_return(THD *thd, st_lex *lex,
     if (sl->order_list.first && sl->next_select() && !sl->braces &&
 	sl->linkage != GLOBAL_OPTIONS_TYPE)
     {
-      net_printf(thd,ER_WRONG_USAGE,"UNION","ORDER BY");
+      net_printf(thd_arg,ER_WRONG_USAGE,"UNION","ORDER BY");
       return 1;
     }
 
@@ -1360,12 +1363,12 @@ bool st_select_lex_unit::create_total_list_n_last_return(THD *thd, st_lex *lex,
 
     if ((aux= (TABLE_LIST*) sl->table_list.first))
     {
-      TABLE_LIST *next;
-      for (; aux; aux= next)
+      TABLE_LIST *next_table;
+      for (; aux; aux= next_table)
       {
 	TABLE_LIST *cursor;
-	next= aux->next;
-	for (cursor= **result; cursor; cursor= cursor->next)
+	next_table= aux->next;
+	for (cursor= **result_arg; cursor; cursor= cursor->next)
 	  if (!strcmp(cursor->db, aux->db) &&
 	      !strcmp(cursor->real_name, aux->real_name) &&
 	      !strcmp(cursor->alias, aux->alias))
@@ -1397,7 +1400,7 @@ end:
     *new_table_list= slave_list_first;
     new_table_list= slave_list_last;
   }
-  *result= new_table_list;
+  *result_arg= new_table_list;
   return 0;
 }
 

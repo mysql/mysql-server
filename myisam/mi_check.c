@@ -3301,29 +3301,27 @@ static int sort_ft_key_write(MI_SORT_PARAM *sort_param, const void *a)
     ft_buf->buf=0;
     return error;
   }
-  else
-  {
-    /* flushing buffer */
-    if ((error=sort_ft_buf_flush(sort_param)))
-      return error;
+
+  /* flushing buffer */
+  if ((error=sort_ft_buf_flush(sort_param)))
+    return error;
 
 word_init_ft_buf:
-    a_len+=val_len;
-    memcpy(ft_buf->lastkey, a, a_len);
-    ft_buf->buf=ft_buf->lastkey+a_len;
-    ft_buf->end=ft_buf->lastkey+ (sort_param->keyinfo->block_length-32);
-    /* 32 is just a safety margin here
-       (at least max(val_len, sizeof(nod_flag)) should be there).
-       May be better performance could be achieved if we'd put
-          (sort_info->keyinfo->block_length-32)/XXX
-       instead.
-       TODO: benchmark the best value for XXX.
-    */
-
-    return 0;
-  }
-  return -1; /* impossible */
+  a_len+=val_len;
+  memcpy(ft_buf->lastkey, a, a_len);
+  ft_buf->buf=ft_buf->lastkey+a_len;
+  /*
+    32 is just a safety margin here
+    (at least max(val_len, sizeof(nod_flag)) should be there).
+    May be better performance could be achieved if we'd put
+      (sort_info->keyinfo->block_length-32)/XXX
+      instead.
+        TODO: benchmark the best value for XXX.
+  */
+  ft_buf->end=ft_buf->lastkey+ (sort_param->keyinfo->block_length-32);
+  return 0;
 } /* sort_ft_key_write */
+
 
 	/* get pointer to record from a key */
 
