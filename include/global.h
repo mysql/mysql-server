@@ -39,6 +39,11 @@
 #endif
 #endif /* _cplusplus */
 
+/* Fix problem with S_ISLNK() on Linux */
+#if defined(HAVE_LINUXTHREADS)
+#define _GNU_SOURCE 1
+#endif
+
 /* The client defines this to avoid all thread code */
 #if defined(UNDEF_THREADS_HACK)
 #undef THREAD
@@ -55,9 +60,6 @@
 #define __EXTENSIONS__ 1	/* We want some extension */
 #ifndef __STDC_EXT__
 #define __STDC_EXT__ 1          /* To get large file support on hpux */
-#endif
-#if defined(HAVE_LINUXTHREADS)
-#define _GNU_SOURCE 1
 #endif
 
 #if defined(THREAD) && !defined(__WIN__)
