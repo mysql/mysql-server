@@ -818,8 +818,10 @@ dict_load_table(
 	field = rec_get_nth_field_old(rec, 4, &len);
 	n_cols = mach_read_from_4(field);
 
-	/* table->comp will be initialized later, in this function */
-	table = dict_mem_table_create(name, space, n_cols, FALSE);
+	/* The high-order bit of N_COLS is the "compact format" flag. */
+	table = dict_mem_table_create(name, space,
+					n_cols & ~0x80000000UL,
+					!!(n_cols & 0x80000000UL));
 
 	table->ibd_file_missing = ibd_file_missing;
 
@@ -844,14 +846,12 @@ dict_load_table(
 #endif
 	}
 
-	/* The high-order bit of MIX_LEN is the "compact format" flag */
-	field = rec_get_nth_field_old(rec, 7, &len);
-	table->comp = !!(mach_read_from_1(field) & 0x80);
-
 	if ((table->type == DICT_TABLE_CLUSTER)
 	    || (table->type == DICT_TABLE_CLUSTER_MEMBER)) {
 
-		table->mix_len = mach_read_from_4(field) & 0x7fffffff;
+		field = rec_get_nth_field_old(rec, 7, &len);
+		ut_a(len == 4);
+		table->mix_len = mach_read_from_4(field);
 	}
 
 	btr_pcur_close(&pcur);
