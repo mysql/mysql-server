@@ -1016,3 +1016,14 @@ create view v1 as select * from t1,t2 union all select * from t1,t2;
 select * from v1;
 drop view v1;
 drop tables t1, t2;
+
+#
+# Aggregate functions in view list
+#
+create table t1 (col1 int);
+insert into t1 values (1);
+create view v1 as select count(*) from t1;
+insert into t1 values (null);
+select * from v1;
+drop view v1;
+drop table t1;
