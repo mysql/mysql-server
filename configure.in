@@ -38,7 +38,7 @@ for i in $AVAILABLE_LANGUAGES
 do
   AVAILABLE_LANGUAGES_ERRORS="$AVAILABLE_LANGUAGES_ERRORS $i/errmsg.sys"
   echo "$i/errmsg.sys: $i/errmsg.txt
-	\$(top_srdir)/extra/comp_err $i/errmsg.txt $i/errmsg.sys" \
+	\$(top_builddir)/extra/comp_err $i/errmsg.txt $i/errmsg.sys" \
     >> $AVAILABLE_LANGUAGES_ERRORS_RULES
 done
 
