@@ -2812,7 +2812,6 @@ ibuf_insert_to_index_page(
 	rec_t*		rec;
 	page_t*		bitmap_page;
 	ulint		old_bits;
-	mem_heap_t*	heap;
 
 	ut_ad(ibuf_inside());
 	ut_ad(dtuple_check_typed(entry));
@@ -2824,12 +2823,9 @@ ibuf_insert_to_index_page(
 		goto dump;
 	}
 
-	heap = mem_heap_create(100);
 	rec = page_rec_get_next(page_get_infimum_rec(page));
 
-	if (rec_offs_n_fields(rec_get_offsets(rec, index, ULINT_UNDEFINED,
-			heap)) != dtuple_get_n_fields(entry)) {
-		mem_heap_free(heap);
+	if (rec_get_n_fields(rec, index) != dtuple_get_n_fields(entry)) {
 		fputs(
 "InnoDB: Trying to insert a record from the insert buffer to an index page\n"
 "InnoDB: but the number of fields does not match!\n", stderr);
@@ -2847,7 +2843,6 @@ ibuf_insert_to_index_page(
 		return;
 	}
 
-	mem_heap_free(heap);
 	low_match = page_cur_search(page, index, entry,
 						PAGE_CUR_LE, &page_cur);
 	
