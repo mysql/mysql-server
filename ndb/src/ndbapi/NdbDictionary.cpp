@@ -920,6 +920,9 @@ operator<<(NdbOut& out, const NdbDictionary::Column& col)
     out << " NOT NULL";
   else
     out << " NULL";
+
+  if(col.getDistributionKey())
+    out << " DISTRIBUTION KEY";
   return out;
 }
 

@@ -1028,6 +1028,12 @@ NdbIndexScanOperation::setBound(const NdbColumnImpl* tAttrInfo,
     Uint32 remaining = KeyInfo::DataLength - currLen;
     Uint32 sizeInBytes = tAttrInfo->m_attrSize * tAttrInfo->m_arraySize;
     bool tDistrKey = tAttrInfo->m_distributionKey;
+
+    len = aValue != NULL ? sizeInBytes : 0;
+    if (len != sizeInBytes && (len != 0)) {
+      setErrorCodeAbort(4209);
+      return -1;
+    }
     
     // normalize char bound
     CHARSET_INFO* cs = tAttrInfo->m_cs;
@@ -1035,26 +1041,23 @@ NdbIndexScanOperation::setBound(const NdbColumnImpl* tAttrInfo,
     if (cs != NULL && aValue != NULL) {
       // current limitation: strxfrm does not increase length
       assert(cs->strxfrm_multiply == 1);
+      ((Uint32*)xfrmData)[len >> 2] = 0;
       unsigned n =
 	(*cs->coll->strnxfrm)(cs,
                             (uchar*)xfrmData, sizeof(xfrmData),
-                            (const uchar*)aValue, sizeInBytes);
+                            (const uchar*)aValue, len);
       
-      ((Uint32*)xfrmData)[sizeInBytes >> 2] = 0;
-      
-      while (n < sizeInBytes)
+      while (n < len)
         ((uchar*)xfrmData)[n++] = 0x20;
 
-      if(sizeInBytes & 3)
-	sizeInBytes += (4 - sizeInBytes & 3);
-      
+      if(len & 3)
+      {
+	len += (4 - (len & 3));
+      }
+
       aValue = (char*)xfrmData;
     }
-    len = aValue != NULL ? sizeInBytes : 0;
-    if (len != sizeInBytes && (len != 0)) {
-      setErrorCodeAbort(4209);
-      return -1;
-    }
+
     // insert attribute header
     Uint32 tIndexAttrId = tAttrInfo->m_attrId;
     Uint32 sizeInWords = (len + 3) / 4;
@@ -1062,7 +1065,9 @@ NdbIndexScanOperation::setBound(const NdbColumnImpl* tAttrInfo,
     const Uint32 ahValue = ah.m_value;
 
     const Uint32 align = (UintPtr(aValue) & 7);
-    const bool aligned = (type == BoundEQ) ? (align & 3) == 0 : (align == 0);
+    const bool aligned = (tDistrKey && type == BoundEQ) ? 
+      (align == 0) : (align & 3) == 0;
+
     const bool nobytes = (len & 0x3) == 0;
     const Uint32 totalLen = 2 + sizeInWords;
     Uint32 tupKeyLen = theTupKeyLen;
@@ -1077,8 +1082,9 @@ NdbIndexScanOperation::setBound(const NdbColumnImpl* tAttrInfo,
 	Uint32 *tempData = (Uint32*)xfrmData;
 	tempData[0] = type;
 	tempData[1] = ahValue;
-	tempData[sizeInBytes >> 2] = 0;
+	tempData[2 + (len >> 2)] = 0;
         memcpy(tempData+2, aValue, len);
+	
 	insertBOUNDS(tempData, 2+sizeInWords);
       } else {
 	Uint32 buf[2] = { type, ahValue };
