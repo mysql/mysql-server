@@ -764,13 +764,15 @@ bool insert_fields(THD *thd,TABLE_LIST *tables,
 		   const char *db_name, const char *table_name,
 		   List_iterator<Item> *it, bool any_privileges,
                    bool allocate_view_names);
-bool setup_tables(THD *thd, TABLE_LIST *tables, Item **conds);
+bool setup_tables(THD *thd, TABLE_LIST *tables, Item **conds,
+		  TABLE_LIST **leaves, bool refresh_only);
 int setup_wild(THD *thd, TABLE_LIST *tables, List<Item> &fields,
 	       List<Item> *sum_func_list, uint wild_num);
 int setup_fields(THD *thd, Item** ref_pointer_array, TABLE_LIST *tables,
 		 List<Item> &item, bool set_query_id,
 		 List<Item> *sum_func_list, bool allow_sum_func);
-int setup_conds(THD *thd,TABLE_LIST *tables,COND **conds);
+int setup_conds(THD *thd, TABLE_LIST *tables, TABLE_LIST *leaves,
+		COND **conds);
 int setup_ftfuncs(SELECT_LEX* select);
 int init_ftfuncs(THD *thd, SELECT_LEX* select, bool no_order);
 void wait_for_refresh(THD *thd);

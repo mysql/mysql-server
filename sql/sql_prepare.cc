@@ -1717,8 +1717,15 @@ void reset_stmt_for_execute(THD *thd, LEX *lex)
       were closed in the end of previous prepare or execute call.
     */
     tables->table= 0;
+    if (tables->nested_join)
+      tables->nested_join->counter= 0;
   }
   lex->current_select= &lex->select_lex;
+
+  /* restore original list used in INSERT ... SELECT */
+  if (lex->leaf_tables_insert)
+    lex->select_lex.leaf_tables= lex->leaf_tables_insert;
+
   if (lex->result)
     lex->result->cleanup();
 }

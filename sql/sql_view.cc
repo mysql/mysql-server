@@ -465,15 +465,20 @@ static int mysql_register_view(THD *thd, TABLE_LIST *view,
   if ((view->updatable_view= (can_be_merged &&
                               view->algorithm != VIEW_ALGORITHM_TMPTABLE)))
   {
-    // TODO: change here when we will support UNIONs
-    for (TABLE_LIST *tbl= (TABLE_LIST *)thd->lex->select_lex.table_list.first;
-         tbl;
-         tbl= tbl->next_local)
+    if (thd->lex->select_lex.table_list.elements > 1)
+      view->updatable_view= 0;
+    else
     {
-      if (tbl->view && !tbl->updatable_view)
+      // TODO: change here when we will support UNIONs
+      for (TABLE_LIST *tbl= (TABLE_LIST *)thd->lex->select_lex.table_list.first;
+           tbl;
+           tbl= tbl->next_local)
       {
-        view->updatable_view= 0;
-        break;
+        if (tbl->view && !tbl->updatable_view)
+        {
+          view->updatable_view= 0;
+          break;
+        }
       }
     }
   }
@@ -516,6 +521,7 @@ mysql_make_view(File_parser *parser, TABLE_LIST *table)
   SELECT_LEX *end;
   THD *thd= current_thd;
   LEX *old_lex= thd->lex, *lex;
+  SELECT_LEX *view_select;
   int res= 0;
 
   /*
@@ -558,7 +564,8 @@ mysql_make_view(File_parser *parser, TABLE_LIST *table)
   */
   table->view= lex= thd->lex= (LEX*) new(&thd->mem_root) st_lex_local;
   mysql_init_query(thd, (uchar*)table->query.str, table->query.length, TRUE);
-  lex->select_lex.select_number= ++thd->select_number;
+  view_select= &lex->select_lex;
+  view_select->select_number= ++thd->select_number;
   old_lex->derived_tables|= DERIVED_VIEW;
   {
     ulong options= thd->options;
@@ -601,6 +608,7 @@ mysql_make_view(File_parser *parser, TABLE_LIST *table)
                            table);
     TABLE_LIST *view_tables= lex->query_tables;
     TABLE_LIST *view_tables_tail= 0;
+    TABLE_LIST *tbl;
 
     if (lex->spfuns.records)
     {
@@ -655,7 +663,7 @@ mysql_make_view(File_parser *parser, TABLE_LIST *table)
     old_lex->safe_to_cache_query= (old_lex->safe_to_cache_query &&
 				   lex->safe_to_cache_query);
     /* move SQL_CACHE to whole query */
-    if (lex->select_lex.options & OPTION_TO_QUERY_CACHE)
+    if (view_select->options & OPTION_TO_QUERY_CACHE)
       old_lex->select_lex.options|= OPTION_TO_QUERY_CACHE;
 
     /*
@@ -704,20 +712,51 @@ mysql_make_view(File_parser *parser, TABLE_LIST *table)
       table->updatable= (table->updatable_view != 0);
 
       table->ancestor= view_tables;
+
       /*
         next table should include SELECT_LEX under this table SELECT_LEX
-
-        TODO: ehere should be loop for multi tables substitution
       */
       table->ancestor->select_lex= table->select_lex;
+
       /*
-        move lock type (TODO: should we issue error in case of TMPTABLE
-        algorithm and non-read locking)?
+        Process upper level tables of view. As far as we do noy suport union
+        here we can go through local tables of view most upper SELECT
       */
-      view_tables->lock_type= table->lock_type;
+      for(tbl= (TABLE_LIST*)view_select->table_list.first;
+          tbl;
+          tbl= tbl->next_local)
+      {
+        /*
+          move lock type (TODO: should we issue error in case of TMPTABLE
+          algorithm and non-read locking)?
+        */
+        tbl->lock_type= table->lock_type;
+      }
+
+      /* multi table view */
+      if (view_tables->next_local)
+      {
+        table->updatable= 0;
+        /* make nested join structure for view tables */
+        NESTED_JOIN *nested_join;
+        if (!(nested_join= table->nested_join=
+              (NESTED_JOIN *) thd->calloc(sizeof(NESTED_JOIN))))
+          goto err;
+        nested_join->join_list= view_select->top_join_list;
+
+        /* re-nest tables of VIEW */
+        {
+          List_iterator_fast<TABLE_LIST> ti(nested_join->join_list);
+          while(tbl= ti++)
+          {
+            tbl->join_list= &nested_join->join_list;
+            tbl->embedding= table;
+          }
+        }
+      }
 
       /* Store WHERE clause for postprocessing in setup_ancestor */
-      table->where= lex->select_lex.where;
+      table->where= view_select->where;
 
       /*
 	This SELECT_LEX will be linked in global SELECT_LEX list
@@ -730,12 +769,12 @@ mysql_make_view(File_parser *parser, TABLE_LIST *table)
 
     table->effective_algorithm= VIEW_ALGORITHM_TMPTABLE;
     DBUG_PRINT("info", ("algorithm: TEMPORARY TABLE"));
-    lex->select_lex.linkage= DERIVED_TABLE_TYPE;
+    view_select->linkage= DERIVED_TABLE_TYPE;
     table->updatable= 0;
 
     /* SELECT tree link */
     lex->unit.include_down(table->select_lex);
-    lex->unit.slave= &lex->select_lex; // fix include_down initialisation
+    lex->unit.slave= view_select; // fix include_down initialisation
 
     table->derived= &lex->unit;
   }
@@ -746,7 +785,7 @@ ok:
   if (arena)
     thd->restore_backup_item_arena(arena, &backup);
   /* global SELECT list linking */
-  end= &lex->select_lex;	// primary SELECT_LEX is always last
+  end= view_select;	// primary SELECT_LEX is always last
   end->link_next= old_lex->all_selects_list;
   old_lex->all_selects_list->link_prev= &end->link_next;
   old_lex->all_selects_list= lex->all_selects_list;
@@ -875,7 +914,7 @@ frm_type_enum mysql_frm_type(char *path)
 bool check_key_in_view(THD *thd, TABLE_LIST *view)
 {
   TABLE *table;
-  Item **trans;
+  Field_translator *trans;
   KEY *key_info, *key_info_end;
   uint i, elements_in_view;
   DBUG_ENTER("check_key_in_view");
@@ -903,8 +942,8 @@ bool check_key_in_view(THD *thd, TABLE_LIST *view)
         uint k;
         for (k= 0; k < elements_in_view; k++)
         {
-          if (trans[k]->type() == Item::FIELD_ITEM &&
-              ((Item_field *)trans[k])->field == key_part->field) 
+          if (trans[k].item->type() == Item::FIELD_ITEM &&
+              ((Item_field *)trans[k].item)->field == key_part->field) 
             break;
         }
         if (k == elements_in_view)
@@ -923,8 +962,8 @@ bool check_key_in_view(THD *thd, TABLE_LIST *view)
     {
       for (i= 0; i < elements_in_view; i++)
       {
-        if (trans[i]->type() == Item::FIELD_ITEM &&
-            ((Item_field *)trans[i])->field == *field_ptr)
+        if (trans[i].item->type() == Item::FIELD_ITEM &&
+            ((Item_field *)trans[i].item)->field == *field_ptr)
           break;
       }
       if (i == elements_in_view)                // If field didn't exists
@@ -968,7 +1007,7 @@ bool check_key_in_view(THD *thd, TABLE_LIST *view)
 void insert_view_fields(List<Item> *list, TABLE_LIST *view)
 {
   uint elements_in_view= view->view->select_lex.item_list.elements;
-  Item **trans;
+  Field_translator *trans;
   DBUG_ENTER("insert_view_fields");
 
   if (!(trans= view->field_translation))
@@ -976,8 +1015,8 @@ void insert_view_fields(List<Item> *list, TABLE_LIST *view)
 
   for (uint i= 0; i < elements_in_view; i++)
   {
-    if (trans[i]->type() == Item::FIELD_ITEM)
-      list->push_back(trans[i]);
+    if (trans[i].item->type() == Item::FIELD_ITEM)
+      list->push_back(trans[i].item);
   }
   DBUG_VOID_RETURN;
 }

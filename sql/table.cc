@@ -1481,10 +1481,65 @@ void  st_table_list::calc_md5(char *buffer)
 
 void st_table_list::set_ancestor()
 {
-  if (ancestor->ancestor)
-    ancestor->set_ancestor();
-  table= ancestor->table;
-  ancestor->table->grant= grant;
+  /* process all tables of view */
+  for (TABLE_LIST *tbl= ancestor; tbl; tbl= tbl->next_local)
+  {
+    if (tbl->ancestor)
+      ancestor->set_ancestor();
+    tbl->table->grant= grant;
+  }
+  /* if view contain only one table, substitute TABLE of it */
+  if (!ancestor->next_local)
+    table= ancestor->table;
+}
+
+
+/*
+  Save old want_privilege and clear want_privilege
+
+  SYNOPSIS
+    save_and_clear_want_privilege()
+*/
+
+void st_table_list::save_and_clear_want_privilege()
+{
+  for (TABLE_LIST *tbl= ancestor; tbl; tbl= tbl->next_local)
+  {
+    if (tbl->table)
+    {
+      privilege_backup= tbl->table->grant.want_privilege;
+      tbl->table->grant.want_privilege= 0;
+    }
+    else
+    {
+      DBUG_ASSERT(tbl->view && tbl->ancestor &&
+		  tbl->ancestor->next_local);
+      tbl->save_and_clear_want_privilege();
+    }
+  }
+}
+
+
+/*
+  restore want_privilege saved by save_and_clear_want_privilege
+
+  SYNOPSIS
+    restore_want_privilege()
+*/
+
+void st_table_list::restore_want_privilege()
+{
+  for (TABLE_LIST *tbl= ancestor; tbl; tbl= tbl->next_local)
+  {
+    if (tbl->table)
+      tbl->table->grant.want_privilege= privilege_backup;
+    else
+    {
+      DBUG_ASSERT(tbl->view && tbl->ancestor &&
+		  tbl->ancestor->next_local);
+      tbl->restore_want_privilege();
+    }
+  }
 }
 
 
@@ -1509,10 +1564,11 @@ void st_table_list::set_ancestor()
 
 bool st_table_list::setup_ancestor(THD *thd, Item **conds)
 {
-  Item **transl;
+  Field_translator *transl;
   SELECT_LEX *select= &view->select_lex;
   SELECT_LEX *current_select_save= thd->lex->current_select;
   Item *item;
+  TABLE_LIST *tbl;
   List_iterator_fast<Item> it(select->item_list);
   uint i= 0;
   bool save_set_query_id= thd->set_query_id;
@@ -1520,35 +1576,53 @@ bool st_table_list::setup_ancestor(THD *thd, Item **conds)
   bool save_allow_sum_func= thd->allow_sum_func;
   DBUG_ENTER("st_table_list::setup_ancestor");
 
-  if (ancestor->ancestor &&
-      ancestor->setup_ancestor(thd, conds))
-    DBUG_RETURN(1);
+  for (tbl= ancestor; tbl; tbl= tbl->next_local)
+  {
+    if (tbl->ancestor && tbl->setup_ancestor(thd, conds))
+      DBUG_RETURN(1);
+  }
 
   if (field_translation)
   {
     /* prevent look up in SELECTs tree */
     thd->lex->current_select= &thd->lex->select_lex;
+    thd->lex->select_lex.no_wrap_view_item= 1;
     thd->set_query_id= 1;
     /* this view was prepared already on previous PS/SP execution */
-    Item **end= field_translation + select->item_list.elements;
-    for (Item **item= field_translation; item < end; item++)
+    Field_translator *end= field_translation + select->item_list.elements;
+    /* real rights will be checked in VIEW field */
+    save_and_clear_want_privilege();
+    /* aggregate function are allowed */
+    thd->allow_sum_func= 1;
+    for (transl= field_translation; transl < end; transl++)
     {
-      /* TODO: fix for several tables in VIEW */
-      uint want_privilege= ancestor->table->grant.want_privilege;
-      /* real rights will be checked in VIEW field */
-      ancestor->table->grant.want_privilege= 0;
-      /* aggregate function are allowed */
-      thd->allow_sum_func= 1;
-      if (!(*item)->fixed && (*item)->fix_fields(thd, ancestor, item))
+      if (!transl->item->fixed &&
+          transl->item->fix_fields(thd, ancestor, &transl->item))
         goto err;
-      ancestor->table->grant.want_privilege= want_privilege;
+    }
+    for (tbl= ancestor; tbl; tbl= tbl->next_local)
+    {
+      if (tbl->on_expr && !tbl->on_expr->fixed &&
+	  tbl->on_expr->fix_fields(thd, ancestor, &tbl->on_expr))
+	goto err;
+    }
+    if (where && !where->fixed && where->fix_fields(thd, ancestor, &where))
+      goto err;
+    restore_want_privilege();
+
+    /* WHERE/ON resolved => we can rename fields */
+    for (transl= field_translation; transl < end; transl++)
+    {
+      transl->item->rename((char *)transl->name);
     }
     goto ok;
   }
 
   /* view fields translation table */
   if (!(transl=
-	(Item**)(thd->current_arena->alloc(select->item_list.elements * sizeof(Item*)))))
+	(Field_translator*)(thd->current_arena->
+                            alloc(select->item_list.elements *
+                                  sizeof(Field_translator)))))
   {
     DBUG_RETURN(1);
   }
@@ -1564,22 +1638,29 @@ bool st_table_list::setup_ancestor(THD *thd, Item **conds)
     used fields correctly.
   */
   thd->set_query_id= 1;
+  /* real rights will be checked in VIEW field */
+  save_and_clear_want_privilege();
+  /* aggregate function are allowed */
+  thd->allow_sum_func= 1;
   while ((item= it++))
   {
-    /* TODO: fix for several tables in VIEW */
-    uint want_privilege= ancestor->table->grant.want_privilege;
-    /* real rights will be checked in VIEW field */
-    ancestor->table->grant.want_privilege= 0;
-    /* aggregate function are allowed */
-    thd->allow_sum_func= 1;
+    /* save original name of view column */
+    char *name= item->name;
     if (!item->fixed && item->fix_fields(thd, ancestor, &item))
       goto err;
-    ancestor->table->grant.want_privilege= want_privilege;
-    transl[i++]= item;
+    /* set new item get in fix fields and original column name */
+    transl[i].name= name;
+    transl[i++].item= item;
   }
   field_translation= transl;
   /* TODO: sort this list? Use hash for big number of fields */
 
+  for (tbl= ancestor; tbl; tbl= tbl->next_local)
+  {
+    if (tbl->on_expr && !tbl->on_expr->fixed &&
+	tbl->on_expr->fix_fields(thd, ancestor, &tbl->on_expr))
+      goto err;
+  }
   if (where)
   {
     Item_arena *arena= thd->current_arena, backup;
@@ -1619,6 +1700,16 @@ bool st_table_list::setup_ancestor(THD *thd, Item **conds)
 
     if (arena)
       thd->restore_backup_item_arena(arena, &backup);
+  }
+  restore_want_privilege();
+
+  /* WHERE/ON resolved => we can rename fields */
+  {
+    Field_translator *end= field_translation + select->item_list.elements;
+    for (transl= field_translation; transl < end; transl++)
+    {
+      transl->item->rename((char *)transl->name);
+    }
   }
 
   /* full text function moving to current select */
@@ -1674,7 +1765,7 @@ Item *Field_iterator_table::item(THD *thd)
 
 const char *Field_iterator_view::name()
 {
-  return (*ptr)->name;
+  return ptr->name;
 }
 
 

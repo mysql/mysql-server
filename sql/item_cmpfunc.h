@@ -965,7 +965,8 @@ public:
   void update_used_tables();
   void print(String *str);
   void split_sum_func(Item **ref_pointer_array, List<Item> &fields);
-  friend int setup_conds(THD *thd,TABLE_LIST *tables,COND **conds);
+  friend int setup_conds(THD *thd, TABLE_LIST *tables, TABLE_LIST *leaves,
+			 COND **conds);
   void top_level_item() { abort_on_null=1; }
   void copy_andor_arguments(THD *thd, Item_cond *item);
   bool walk(Item_processor processor, byte *arg);

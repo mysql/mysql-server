@@ -4344,7 +4344,7 @@ mysql_init_query(THD *thd, uchar *buf, uint length, bool lexonly)
   lex->found_colon= 0;
   lex->safe_to_cache_query= 1;
   lex->time_zone_tables_used= 0;
-  lex->proc_table= lex->query_tables= 0;
+  lex->leaf_tables_insert= lex->proc_table= lex->query_tables= 0;
   lex->query_tables_last= &lex->query_tables;
   lex->variables_used= 0;
   lex->select_lex.parent_lex= lex;
