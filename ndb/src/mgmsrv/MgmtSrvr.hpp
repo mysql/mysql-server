@@ -676,7 +676,7 @@ private:
   //**************************************************************************
   // General signal handling data
 
-  static const unsigned int WAIT_FOR_RESPONSE_TIMEOUT = 300000; // Milliseconds
+  STATIC_CONST( WAIT_FOR_RESPONSE_TIMEOUT = 300000 ); // Milliseconds
   // Max time to wait for a signal to arrive
 
   NdbApiSignal* theSignalIdleList;

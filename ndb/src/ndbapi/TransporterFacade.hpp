@@ -174,13 +174,13 @@ private:
    * Block number handling
    */
 public:
-  static const unsigned MAX_NO_THREADS = 4711;
+  STATIC_CONST( MAX_NO_THREADS = 4711 );
 private:
 
   struct ThreadData {
-    static const Uint32 ACTIVE = (1 << 16) | 1;
-    static const Uint32 INACTIVE = (1 << 16);
-    static const Uint32 END_OF_LIST = MAX_NO_THREADS + 1;
+    STATIC_CONST( ACTIVE = (1 << 16) | 1 );
+    STATIC_CONST( INACTIVE = (1 << 16) );
+    STATIC_CONST( END_OF_LIST = MAX_NO_THREADS + 1 );
     
     ThreadData(Uint32 initialSize = 32);
     

@@ -192,7 +192,7 @@ public:
   /**
    * Get blob parts table name.  Useful only to test programs.
    */
-  static const unsigned BlobTableNameSize = 40;
+  STATIC_CONST( BlobTableNameSize = 40 );
   static int getBlobTableName(char* btname, Ndb* anNdb, const char* tableName, const char* columnName);
   /**
    * Return error object.  The error may be blob specific (below) or may
@@ -200,19 +200,19 @@ public:
    */
   const NdbError& getNdbError() const;
   // "Invalid blob attributes or invalid blob parts table"
-  static const int ErrTable = 4263;
+  STATIC_CONST( ErrTable = 4263 );
   // "Invalid usage of blob attribute" 
-  static const int ErrUsage = 4264;
+  STATIC_CONST( ErrUsage = 4264 );
   // "Method is not valid in current blob state"
-  static const int ErrState = 4265;
+  STATIC_CONST( ErrState = 4265 );
   // "Invalid blob seek position"
-  static const int ErrSeek = 4266;
+  STATIC_CONST( ErrSeek = 4266 );
   // "Corrupted blob value"
-  static const int ErrCorrupt = 4267;
+  STATIC_CONST( ErrCorrupt = 4267 );
   // "Error in blob head update forced rollback of transaction"
-  static const int ErrAbort = 4268;
+  STATIC_CONST( ErrAbort = 4268 );
   // "Unknown blob error"
-  static const int ErrUnknown = 4269;
+  STATIC_CONST( ErrUnknown = 4269 );
   /**
    * Return info about all blobs in this operation.
    */
