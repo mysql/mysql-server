@@ -202,7 +202,8 @@ static void _ftb_init_index_search(FT_INFO *ftb)
   MI_KEYDEF  *keyinfo;
   my_off_t    keyroot;
 
-  if (ftb->state != READY || ftb->keynr == NO_SUCH_KEY)
+  if ((ftb->state != READY && ftb->state !=INDEX_DONE) ||
+      ftb->keynr == NO_SUCH_KEY)
     return;
   ftb->state=INDEX_SEARCH;
 

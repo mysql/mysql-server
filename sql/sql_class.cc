@@ -37,6 +37,8 @@
 #include <mysys_err.h>
 #include <assert.h>
 
+extern struct rand_struct sql_rand;
+
 /*****************************************************************************
 ** Instansiate templates
 *****************************************************************************/
@@ -79,7 +81,7 @@ static void free_var(user_var_entry *entry)
 
 THD::THD():user_time(0), fatal_error(0),
 	   last_insert_id_used(0),
-	   insert_id_used(0), in_lock_tables(0),
+	   insert_id_used(0), rand_used(0), in_lock_tables(0),
 	   global_read_lock(0), bootstrap(0)
 {
   host=user=priv_user=db=query=ip=0;
@@ -172,6 +174,18 @@ THD::THD():user_time(0), fatal_error(0),
     transaction.trans_log.end_of_file= max_binlog_cache_size;
   }
 #endif
+
+  /*
+    We need good random number initialization for new thread
+    Just coping global one will not work
+  */
+  {
+    pthread_mutex_lock(&LOCK_thread_count);
+    ulong tmp=(ulong) (rnd(&sql_rand) * 3000000);
+    randominit(&rand, tmp + (ulong) start_time,
+	       tmp + (ulong) thread_id);
+    pthread_mutex_unlock(&LOCK_thread_count);
+  }
 }
 
 /* Do operations that may take a long time */
@@ -873,8 +887,8 @@ bool select_singleval_subselect::send_data(List<Item> &items)
     Following val() call have to be first, because function AVG() & STD()
     calculate value on it & determinate "is it NULL?".
   */
-  it->real_value= val_item->val();
-  if ((it->null_value= val_item->is_null()))
+  it->real_value= val_item->val_result();
+  if ((it->null_value= val_item->is_null_result()))
   {
     it->assign_null();
   } 
@@ -882,9 +896,9 @@ bool select_singleval_subselect::send_data(List<Item> &items)
   {
     it->max_length= val_item->max_length;
     it->decimals= val_item->decimals;
-    it->binary= val_item->binary;
-    it->int_value= val_item->val_int();
-    String *s= val_item->val_str(&it->string_value);
+    it->set_charset(val_item->charset());
+    it->int_value= val_item->val_int_result();
+    String *s= val_item->str_result(&it->string_value);
     if (s != &it->string_value)
     {
       it->string_value.set(*s, 0, s->length());

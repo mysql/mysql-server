@@ -426,7 +426,17 @@ BOOL NTService::SeekStatus(LPCSTR szInternName, int OperationType)
 
   // open a connection to the SCM
   if (!(scm = OpenSCManager(0, 0,SC_MANAGER_CREATE_SERVICE)))
-    printf("There is a problem with the Service Control Manager!\n");
+  {
+    DWORD ret_error=GetLastError();
+    if (ret_error == ERROR_ACCESS_DENIED)
+    {
+     printf("Install/Remove of the Service Denied!\n");
+     if(!is_super_user())
+      printf("That operation should be made by an user with Administrator privileges!\n");
+    }
+    else
+     printf("There is a problem for to open the Service Control Manager!\n");
+  }
   else
   {
     if (OperationType == 1)
@@ -477,6 +487,85 @@ If this condition persist, reboot the machine and try again\n");
     CloseServiceHandle(scm);
   }
 
+  return ret_value;
+}
+/* ------------------------------------------------------------------------
+ -------------------------------------------------------------------------- */
+BOOL NTService::IsService(LPCSTR ServiceName)
+{
+  BOOL ret_value=FALSE;
+  SC_HANDLE service, scm;
+  
+  if (scm = OpenSCManager(0, 0,SC_MANAGER_ENUMERATE_SERVICE))
+  {
+    if ((service = OpenService(scm,ServiceName, SERVICE_ALL_ACCESS )))
+    {
+      ret_value=TRUE;
+      CloseServiceHandle(service);
+    }
+    CloseServiceHandle(scm);
+  }
+  return ret_value;
+}
+/* ------------------------------------------------------------------------
+ -------------------------------------------------------------------------- */
+BOOL NTService::got_service_option(char **argv, char *service_option)
+{
+  char *option;
+  for (option= argv[1]; *option; option++)
+    if (!strcmp(option, service_option))
+      return TRUE;
+  return FALSE;
+}
+/* ------------------------------------------------------------------------
+ -------------------------------------------------------------------------- */
+BOOL NTService::is_super_user()
+{
+  HANDLE hAccessToken;
+  UCHAR InfoBuffer[1024];
+  PTOKEN_GROUPS ptgGroups=(PTOKEN_GROUPS)InfoBuffer;
+  DWORD dwInfoBufferSize;
+  PSID psidAdministrators;
+  SID_IDENTIFIER_AUTHORITY siaNtAuthority = SECURITY_NT_AUTHORITY;
+  UINT x;
+  BOOL ret_value=FALSE;
+ 
+  if(!OpenThreadToken(GetCurrentThread(), TOKEN_QUERY, TRUE,&hAccessToken ))
+  {
+   if(GetLastError() != ERROR_NO_TOKEN)
+    return FALSE;
+ 
+   if(!OpenProcessToken(GetCurrentProcess(), TOKEN_QUERY, &hAccessToken))
+    return FALSE;
+  }
+ 
+  ret_value= GetTokenInformation(hAccessToken,TokenGroups,InfoBuffer,
+                                 1024, &dwInfoBufferSize);
+
+  CloseHandle(hAccessToken);
+ 
+  if(!ret_value )
+   return FALSE;
+ 
+  if(!AllocateAndInitializeSid(&siaNtAuthority, 2,
+      SECURITY_BUILTIN_DOMAIN_RID,
+      DOMAIN_ALIAS_RID_ADMINS,
+      0, 0, 0, 0, 0, 0,
+      &psidAdministrators))
+      return FALSE;
+
+  ret_value = FALSE;
+ 
+  for(x=0;x<ptgGroups->GroupCount;x++)
+  {
+   if( EqualSid(psidAdministrators, ptgGroups->Groups[x].Sid) )
+   {
+    ret_value = TRUE;
+    break;
+   }
+ 
+  }
+  FreeSid(psidAdministrators);
   return ret_value;
 }
 /* ------------------------------------------------------------------------

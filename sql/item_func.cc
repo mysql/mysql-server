@@ -75,7 +75,6 @@ Item_func::Item_func(List<Item> &list)
 
     Sets as a side effect the following class variables:
       maybe_null	Set if any argument may return NULL
-      binary		Set if any of the arguments is binary
       with_sum_func	Set if any of the arguments contains a sum function
       used_table_cache  Set to union of the arguments used table
 
@@ -97,7 +96,6 @@ Item_func::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
 {
   Item **arg,**arg_end;
   char buff[STACK_BUFF_ALLOC];			// Max argument in function
-  binary=0;
   used_tables_cache=0;
   const_item_cache=1;
 
@@ -105,24 +103,24 @@ Item_func::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
     return 0;					// Fatal error if flag is set!
   if (arg_count)
   {						// Print purify happy
+    /*
+      Set return character set to first argument if we are returning a
+      string.
+    */
+    if (result_type() == STRING_RESULT)
+      set_charset((*args)->charset());
     for (arg=args, arg_end=args+arg_count; arg != arg_end ; arg++)
     {
       if ((*arg)->fix_fields(thd, tables, arg))
 	return 1;				/* purecov: inspected */
       if ((*arg)->maybe_null)
 	maybe_null=1;
-      if ((*arg)->binary)
-	binary=1;
+      if ((*arg)->binary())
+	set_charset(my_charset_bin);
       with_sum_func= with_sum_func || (*arg)->with_sum_func;
       used_tables_cache|=(*arg)->used_tables();
       const_item_cache&= (*arg)->const_item();
     }
-    /*
-      Set return character set to first argument if we are returning a
-      string.
-    */
-    if (result_type() == STRING_RESULT)
-      str_value.set_charset((*args)->str_value.charset());
   }
   fix_length_and_dec();
   return 0;
@@ -230,10 +228,10 @@ Field *Item_func::tmp_table_field(TABLE *t_arg)
     break;
   case STRING_RESULT:
     if (max_length > 255)
-      res= new Field_blob(max_length, maybe_null, name, t_arg, binary,
+      res= new Field_blob(max_length, maybe_null, name, t_arg, 
 			  str_value.charset());
     else
-      res= new Field_string(max_length, maybe_null, name, t_arg, binary,
+      res= new Field_string(max_length, maybe_null, name, t_arg, 
 			    str_value.charset());
     break;
   }
@@ -743,17 +741,31 @@ double Item_func_round::val()
 
 double Item_func_rand::val()
 {
+  THD* thd = current_thd;
   if (arg_count)
   {					// Only use argument once in query
     uint32 tmp= (uint32) (args[0]->val_int());
-    randominit(&current_thd->rand,(uint32) (tmp*0x10001L+55555555L),
+    randominit(&thd->rand,(uint32) (tmp*0x10001L+55555555L),
 	       (uint32) (tmp*0x10000001L));
 #ifdef DELETE_ITEMS
     delete args[0];
 #endif
     arg_count=0;
   }
-  return rnd(&current_thd->rand);
+  else if (!thd->rand_used)
+  {
+    // no need to send a Rand log event if seed was given eg: RAND(seed),
+    // as it will be replicated in the query as such.
+
+    // save the seed only the first time RAND() is used in the query
+
+    // once events are forwarded rather than recreated,
+    // the following can be skipped if inside the slave thread
+    thd->rand_used=1;
+    thd->rand_saved_seed1=thd->rand.seed1;
+    thd->rand_saved_seed2=thd->rand.seed2;
+  }
+  return rnd(&thd->rand);
 }
 
 longlong Item_func_sign::val_int()
@@ -778,7 +790,6 @@ void Item_func_min_max::fix_length_and_dec()
   decimals=0;
   max_length=0;
   maybe_null=1;
-  binary=0;
   cmp_type=args[0]->result_type();
   for (uint i=0 ; i < arg_count ; i++)
   {
@@ -789,8 +800,8 @@ void Item_func_min_max::fix_length_and_dec()
     if (!args[i]->maybe_null)
       maybe_null=0;
     cmp_type=item_cmp_type(cmp_type,args[i]->result_type());
-    if (args[i]->binary)
-      binary=1;
+    if (args[i]->binary())
+      set_charset(my_charset_bin);
   }
 }
 
@@ -836,7 +847,7 @@ String *Item_func_min_max::val_str(String *str)
 	res2= args[i]->val_str(res == str ? &tmp_value : str);
 	if (res2)
 	{
-	  int cmp=binary ? stringcmp(res,res2) : sortcmp(res,res2);
+	  int cmp=binary() ? stringcmp(res,res2) : sortcmp(res,res2);
 	  if ((cmp_sign < 0 ? cmp : -cmp) < 0)
 	    res=res2;
 	}
@@ -926,7 +937,7 @@ longlong Item_func_char_length::val_int()
     return 0; /* purecov: inspected */
   }
   null_value=0;
-  return (longlong) (!args[0]->binary) ? res->numchars() : res->length();
+  return (longlong) (!args[0]->binary()) ? res->numchars() : res->length();
 }
 
 
@@ -934,7 +945,7 @@ longlong Item_func_locate::val_int()
 {
   String *a=args[0]->val_str(&value1);
   String *b=args[1]->val_str(&value2);
-  bool binary_str = args[0]->binary || args[1]->binary;
+  bool binary_str = args[0]->binary() || args[1]->binary();
   if (!a || !b)
   {
     null_value=1;
@@ -989,7 +1000,7 @@ longlong Item_func_locate::val_int()
     return 0;
   }
 #endif /* USE_MB */
-  return (longlong) (binary ? a->strstr(*b,start) :
+  return (longlong) (binary() ? a->strstr(*b,start) :
 		     (a->strstr_case(*b,start)))+1;
 }
 
@@ -1033,7 +1044,7 @@ longlong Item_func_ord::val_int()
   null_value=0;
   if (!res->length()) return 0;
 #ifdef USE_MB
-  if (use_mb(res->charset()) && !args[0]->binary)
+  if (use_mb(res->charset()) && !args[0]->binary())
   {
     register const char *str=res->ptr();
     register uint32 n=0, l=my_ismbchar(res->charset(),str,str+res->length());
@@ -1232,7 +1243,7 @@ udf_handler::fix_fields(THD *thd, TABLE_LIST *tables, Item_result_field *func,
   args=arguments;
 
   /* Fix all arguments */
-  func->binary=func->maybe_null=0;
+  func->maybe_null=0;
   used_tables_cache=0;
   const_item_cache=1;
 
@@ -1253,8 +1264,8 @@ udf_handler::fix_fields(THD *thd, TABLE_LIST *tables, Item_result_field *func,
     {
       if ((*arg)->fix_fields(thd, tables, arg))
 	return 1;
-      if ((*arg)->binary)
-	func->binary=1;
+      if ((*arg)->binary())
+	func->set_charset(my_charset_bin);
       if ((*arg)->maybe_null)
 	func->maybe_null=1;
       func->with_sum_func= func->with_sum_func || (*arg)->with_sum_func;
@@ -2169,8 +2180,9 @@ err:
 
 void Item_func_match::init_search(bool no_order)
 {
+  DBUG_ENTER("Item_func_match::init_search");
   if (ft_handler)
-    return;
+    DBUG_VOID_RETURN;
 
   if (key == NO_SUCH_KEY)
     concat=new Item_func_concat_ws(new Item_string(" ",1,
@@ -2183,7 +2195,7 @@ void Item_func_match::init_search(bool no_order)
     master->init_search(no_order);
     ft_handler=master->ft_handler;
     join_key=master->join_key;
-    return;
+    DBUG_VOID_RETURN;
   }
 
   String *ft_tmp= 0;
@@ -2203,10 +2215,9 @@ void Item_func_match::init_search(bool no_order)
 				      join_key && !no_order);
 
   if (join_key)
-  {
     table->file->ft_handler=ft_handler;
-    return;
-  }
+
+  DBUG_VOID_RETURN;
 }
 
 
@@ -2356,13 +2367,14 @@ bool Item_func_match::eq(const Item *item, bool binary_cmp) const
 
 double Item_func_match::val()
 {
+  DBUG_ENTER("Item_func_match::val");
   if (ft_handler == NULL)
-    return -1.0;
+    DBUG_RETURN(-1.0);
 
   if (join_key)
   {
     if (table->file->ft_handler)
-      return ft_handler->please->get_relevance(ft_handler);
+      DBUG_RETURN(ft_handler->please->get_relevance(ft_handler));
     join_key=0;
   }
 
@@ -2370,12 +2382,12 @@ double Item_func_match::val()
   {
     String *a= concat->val_str(&value);
     if ((null_value= (a == 0)))
-      return 0;
-    return ft_handler->please->find_relevance(ft_handler,
-					      (byte *)a->ptr(), a->length());
+      DBUG_RETURN(0);
+    DBUG_RETURN(ft_handler->please->find_relevance(ft_handler,
+				      (byte *)a->ptr(), a->length()));
   }
   else
-    return ft_handler->please->find_relevance(ft_handler, record, 0);
+    DBUG_RETURN(ft_handler->please->find_relevance(ft_handler, record, 0));
 }
 
 
