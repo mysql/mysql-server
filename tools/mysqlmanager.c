@@ -22,25 +22,21 @@
 
 #include <my_global.h>
 #include <my_sys.h>
+#include <my_pthread.h>
+#include <m_ctype.h>
 #include <m_string.h>
 #include <mysql.h>
 #include <mysql_version.h>
-#include <m_ctype.h>
-#include <my_config.h>
+#include <mysqld_error.h>
 #include <my_dir.h>
 #include <hash.h>
-#include <mysqld_error.h>
-#include <stdio.h>
-#include <stdlib.h>
 #include <getopt.h>
 #include <stdarg.h>
-#include <sys/stat.h>
-#include <sys/types.h>
-#include <sys/wait.h>
-#include <unistd.h>
-#include <errno.h>
 #include <violite.h>
-#include <my_pthread.h>
+#include <signal.h>
+#include <sys/stat.h>
+#include <sys/wait.h>
+#include <errno.h>
 
 #define MANAGER_VERSION "1.0"
 #define MANAGER_GREETING "MySQL Server Management Daemon v." ## \
@@ -827,7 +823,7 @@ LOG_MSG_FUNC(info,INFO)
 #ifndef DBUG_OFF
 LOG_MSG_FUNC(debug,DEBUG)
 #else
-inline void log_debug(char* __attribute__((unused)) fmt,...) {}
+void log_debug(char* __attribute__((unused)) fmt,...) {}
 #endif
 
 static pthread_handler_decl(process_launcher_messages,
@@ -905,6 +901,7 @@ static pthread_handler_decl(process_connection,arg)
   }
   manager_thd_free(thd);
   pthread_exit(0);
+  return 0;					/* Don't get cc warning */
 }
 
 static void client_msg_raw(Vio* vio, int err_code, int pre, const char* fmt,
@@ -1151,13 +1148,15 @@ static int run_server_loop()
 {
   pthread_t th;
   struct manager_thd *thd;
-  int client_sock,len;
+  int client_sock;
+  uint len;
   Vio* vio;
 
   for (;!shutdown_requested;)
   {
     len=sizeof(struct sockaddr_in);
-    if ((client_sock=accept(manager_sock,(struct sockaddr*)&manager_addr,&len))<0)
+    if ((client_sock=accept(manager_sock,(struct sockaddr*)&manager_addr,
+			    &len)) <0)
     {
       if (shutdown_requested)
 	break;
@@ -1531,7 +1530,7 @@ static int daemonize()
 int main(int argc, char** argv)
 {
   char c;
-  stack_bottom=&c;
+  stack_bottom= (uchar *) &c;
   MY_INIT(argv[0]);
   errfp = stderr;
   parse_args(argc,argv);
