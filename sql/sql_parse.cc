@@ -46,11 +46,6 @@
 #endif /* HAVE_OPENSSL */
 #define SCRAMBLE_LENGTH 8
 
-#define MEM_ROOT_BLOCK_SIZE       8192
-#define MEM_ROOT_PREALLOC         8192
-#define TRANS_MEM_ROOT_BLOCK_SIZE 4096
-#define TRANS_MEM_ROOT_PREALLOC   4096
-
 extern int yyparse(void);
 extern "C" pthread_mutex_t THR_LOCK_keycache;
 #ifdef SOLARIS
@@ -714,9 +709,12 @@ pthread_handler_decl(handle_one_connection,arg)
     thd->command=COM_SLEEP;
     thd->version=refresh_version;
     thd->set_time();
-    init_sql_alloc(&thd->mem_root, MEM_ROOT_BLOCK_SIZE, MEM_ROOT_PREALLOC);
+    init_sql_alloc(&thd->mem_root, thd->variables.query_alloc_block_size,
+		   thd->variables.query_prealloc_size);
     init_sql_alloc(&thd->transaction.mem_root,
-		   TRANS_MEM_ROOT_BLOCK_SIZE, TRANS_MEM_ROOT_PREALLOC);
+		   thd->variables.trans_alloc_block_size,
+		   thd->variables.trans_prealloc_size);
+
     while (!net->error && net->vio != 0 && !thd->killed)
     {
       if (do_command(thd))
@@ -791,9 +789,11 @@ extern "C" pthread_handler_decl(handle_bootstrap,arg)
   thd->priv_user=thd->user=(char*) my_strdup("boot", MYF(MY_WME));
 
   buff= (char*) thd->net.buff;
-  init_sql_alloc(&thd->mem_root, MEM_ROOT_BLOCK_SIZE, MEM_ROOT_PREALLOC);
+  init_sql_alloc(&thd->mem_root, thd->variables.query_alloc_block_size,
+		 thd->variables.query_prealloc_size);
   init_sql_alloc(&thd->transaction.mem_root,
-		 TRANS_MEM_ROOT_BLOCK_SIZE, TRANS_MEM_ROOT_PREALLOC);
+		 thd->variables.trans_alloc_block_size,
+		 thd->variables.trans_prealloc_size);
   while (fgets(buff, thd->net.max_packet, file))
   {
     uint length=(uint) strlen(buff);

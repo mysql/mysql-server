@@ -327,6 +327,11 @@ struct system_variables
   ulong table_type;
   ulong default_week_format;
   ulong max_seeks_for_key;
+  ulong range_alloc_block_size;
+  ulong query_alloc_block_size;
+  ulong query_prealloc_size;
+  ulong trans_alloc_block_size;
+  ulong trans_prealloc_size;
 
   my_bool log_warnings;
   my_bool low_priority_updates;
