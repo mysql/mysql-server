@@ -159,3 +159,9 @@ a	MAX(b)	(1, MAX(b)) = (1, 4)
 1	4	1
 10	43	0
 drop table t1;
+SELECT ROW(2,10) <=> ROW(3,4);
+ROW(2,10) <=> ROW(3,4)
+0
+SELECT ROW(NULL,10) <=> ROW(3,NULL);
+ROW(NULL,10) <=> ROW(3,NULL)
+0

@@ -266,8 +266,8 @@ int Arg_comparator::compare_e_row()
   uint n= (*a)->cols();
   for (uint i= 0; i<n; i++)
   {
-    if ((res= comparators[i].compare()))
-      return 1;
+    if ((res= !comparators[i].compare()))
+      return 0;
   }
   return 1;
 }
@@ -352,7 +352,6 @@ void Item_func_equal::fix_length_and_dec()
 {
   Item_bool_func2::fix_length_and_dec();
   maybe_null=null_value=0;
-  set_cmp_func();
 }
 
 longlong Item_func_equal::val_int()
