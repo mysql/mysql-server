@@ -1688,6 +1688,9 @@ add_ft_keys(DYNAMIC_ARRAY *keyuse_array,
   if (!cond_func || cond_func->key == NO_SUCH_KEY)
     return;
 
+  if (!(usable_tables & cond_func->table->map))
+    return;
+
   KEYUSE keyuse;
 
   keyuse.table= cond_func->table;
