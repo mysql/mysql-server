@@ -91,11 +91,11 @@ ab	a 	ab	a 	a
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` varchar(2) NOT NULL default '',
-  `c2` varchar(2) NOT NULL default '',
-  `c3` varchar(2) NOT NULL default '',
-  `c4` varchar(2) NOT NULL default '',
-  `c5` varchar(2) NOT NULL default ''
+  `c1` varbinary(2) NOT NULL default '',
+  `c2` varbinary(2) NOT NULL default '',
+  `c3` varbinary(2) NOT NULL default '',
+  `c4` varbinary(2) NOT NULL default '',
+  `c5` varbinary(2) NOT NULL default ''
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop table t1;
 select
