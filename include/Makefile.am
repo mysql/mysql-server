@@ -30,16 +30,14 @@ noinst_HEADERS =	global.h config-win.h \
 			my_tree.h hash.h thr_alarm.h thr_lock.h \
 			getopt.h t_ctype.h violite.h \
 			mysql_version.h.in
-EXTRA_DIST=		my_config.h
 
 # mysql_version.h are generated
-SUPERCLEANFILES =	mysql_version.h my_global.h
+SUPERCLEANFILES =	mysql_version.h my_global.h my_config.h
 
 # Some include files that may be moved and patched by configure
 DISTCLEANFILES =	sched.h
-CLEANFILES =		my_config.h
 
-all-local:		my_global.h
+all-local:		my_global.h my_config.h
 
 # Since we include my_config.h it better exist from the beginning
 link_sources:

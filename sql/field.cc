@@ -4574,6 +4574,7 @@ create_field::create_field(Field *old_field,Field *orig_field)
     interval= ((Field_enum*) old_field)->typelib;
   else
     interval=0;
+  def=0;
   if (!old_field->is_real_null() && ! (flags & BLOB_FLAG) &&
       old_field->type() != FIELD_TYPE_TIMESTAMP && old_field->ptr &&
       orig_field)
@@ -4584,15 +4585,14 @@ create_field::create_field(Field *old_field,Field *orig_field)
     /* Get the value from record[2] (the default value row) */
     my_ptrdiff_t diff= (my_ptrdiff_t) (orig_field->table->rec_buff_length*2);
     orig_field->move_field(diff);		// Points now at record[2]
+    bool is_null=orig_field->is_real_null();
     res=orig_field->val_str(&tmp,&tmp);
     orig_field->move_field(-diff);		// Back to record[0]
-    if (res)					// If not NULL value
+    if (!is_null)
     {
       pos= (char*) sql_memdup(tmp.ptr(),tmp.length()+1);
       pos[tmp.length()]=0;
       def=new Item_string(pos,tmp.length());
     }
   }
-  else
-    def=0;
 }
