@@ -545,7 +545,9 @@ int init_master_info(MASTER_INFO* mi)
 			     master_password) ||
        init_intvar_from_file((int*)&mi->port, &mi->file, master_port) ||
        init_intvar_from_file((int*)&mi->connect_retry, &mi->file,
-			     master_connect_retry))
+			     master_connect_retry) ||
+       init_intvar_from_file((int*)&mi->last_log_seq, &mi->file, 0)
+       )
     {
       msg="Error reading master configuration";
       goto error;
@@ -625,10 +627,12 @@ int show_master_info(THD* thd)
   field_list.push_back(new Item_empty_string("Last_errno", 4));
   field_list.push_back(new Item_empty_string("Last_error", 20));
   field_list.push_back(new Item_empty_string("Skip_counter", 12));
+  field_list.push_back(new Item_empty_string("Last_log_seq", 12));
   if(send_fields(thd, field_list, 1))
     DBUG_RETURN(-1);
 
   String* packet = &thd->packet;
+  uint32 last_log_seq;
   packet->length(0);
   
   pthread_mutex_lock(&glob_mi.lock);
@@ -637,7 +641,8 @@ int show_master_info(THD* thd)
   net_store_data(packet, (uint32) glob_mi.port);
   net_store_data(packet, (uint32) glob_mi.connect_retry);
   net_store_data(packet, glob_mi.log_file_name);
-  net_store_data(packet, (uint32) glob_mi.pos);	// QQ: Should be fixed
+  net_store_data(packet, (longlong) glob_mi.pos);
+  last_log_seq = glob_mi.last_log_seq;
   pthread_mutex_unlock(&glob_mi.lock);
   pthread_mutex_lock(&LOCK_slave);
   net_store_data(packet, slave_running ? "Yes":"No");
@@ -647,6 +652,7 @@ int show_master_info(THD* thd)
   net_store_data(packet, (uint32)last_slave_errno);
   net_store_data(packet, last_slave_error);
   net_store_data(packet, slave_skip_counter);
+  net_store_data(packet, last_log_seq);
   
   if (my_net_write(&thd->net, (char*)thd->packet.ptr(), packet->length()))
     DBUG_RETURN(-1);
@@ -659,11 +665,13 @@ int flush_master_info(MASTER_INFO* mi)
 {
   IO_CACHE* file = &mi->file;
   char lbuf[22];
+  char lbuf1[22];
   
   my_b_seek(file, 0L);
-  my_b_printf(file, "%s\n%s\n%s\n%s\n%s\n%d\n%d\n",
+  my_b_printf(file, "%s\n%s\n%s\n%s\n%s\n%d\n%d\n%d\n",
 	      mi->log_file_name, llstr(mi->pos, lbuf), mi->host, mi->user,
-	      mi->password, mi->port, mi->connect_retry);
+	      mi->password, mi->port, mi->connect_retry,
+	      llstr(mi->last_log_seq, lbuf1));
   flush_io_cache(file);
   return 0;
 }
@@ -1011,9 +1019,9 @@ static int exec_event(THD* thd, NET* net, MASTER_INFO* mi, int event_len)
 	return 1;
       }
       free_root(&thd->mem_root,0);
+      mi->last_log_seq = ev->log_seq;
       delete ev;
       thd->log_seq = 0;
-
       mi->inc_pos(event_len);
       flush_master_info(mi);
       break;
@@ -1027,8 +1035,11 @@ static int exec_event(THD* thd, NET* net, MASTER_INFO* mi, int event_len)
 	mysql_bin_log.write(sev);
       }
 
+      mi->last_log_seq = ev->log_seq;
       delete ev;
       thd->log_seq = 0;
+      mi->inc_pos(event_len);
+      flush_master_info(mi);
       break;
     }
 	  
@@ -1139,6 +1150,7 @@ static int exec_event(THD* thd, NET* net, MASTER_INFO* mi, int event_len)
 	return 1;
       }
       
+      mi->last_log_seq = ev->log_seq;
       delete ev;
       thd->log_seq = 0;
       free_root(&thd->mem_root,0);
@@ -1158,6 +1170,7 @@ static int exec_event(THD* thd, NET* net, MASTER_INFO* mi, int event_len)
     case START_EVENT:
       close_temporary_tables(thd);
       mi->inc_pos(event_len);
+      mi->last_log_seq = ev->log_seq;
       flush_master_info(mi);
       delete ev;
       thd->log_seq = 0;
@@ -1170,6 +1183,7 @@ static int exec_event(THD* thd, NET* net, MASTER_INFO* mi, int event_len)
           mi->inc_pos(event_len);
           flush_master_info(mi);
 	}
+      mi->last_log_seq = ev->log_seq;
       delete ev;
       thd->log_seq = 0;
       break;
@@ -1185,21 +1199,26 @@ static int exec_event(THD* thd, NET* net, MASTER_INFO* mi, int event_len)
       if (!*log_name || !(log_name[ident_len] == 0 &&
 	   !memcmp(log_name, rev->new_log_ident, ident_len)))
       {
-	write_slave_event = mysql_bin_log.is_open();
-	rotate_binlog = (*log_name && write_slave_event );
+	write_slave_event = (!(rev->flags & LOG_EVENT_FORCED_ROTATE_F)
+			 && mysql_bin_log.is_open());
+	rotate_binlog = (*log_name && write_slave_event);
         memcpy(log_name, rev->new_log_ident,ident_len );
         log_name[ident_len] = 0;
       }
       mi->pos = 4; // skip magic number
+      mi->last_log_seq = ev->log_seq;
       pthread_cond_broadcast(&mi->cond);
       pthread_mutex_unlock(&mi->lock);
-      flush_master_info(mi);
 #ifndef DBUG_OFF
       if (abort_slave_event_count)
 	++events_till_abort;
 #endif
       if (rotate_binlog)
+      {
+	mi->last_log_seq = 0;
 	mysql_bin_log.new_file();
+      }
+      flush_master_info(mi);
       
       if (write_slave_event)
       {
