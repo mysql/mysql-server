@@ -598,8 +598,9 @@ int mysql_create_table(THD *thd,const char *db, const char *table_name,
       {
 	if (key->type == Key::PRIMARY)
 	{
-	  my_error(ER_PRIMARY_CANT_HAVE_NULL, MYF(0));
-	  DBUG_RETURN(-1);
+	  /* Implicitly set primary key fields to NOT NULL for ISO conf. */
+	  sql_field->flags|= NOT_NULL_FLAG;
+	  sql_field->pack_flag&= ~FIELDFLAG_MAYBE_NULL;
 	}
 	if (!(file->table_flags() & HA_NULL_KEY))
 	{
