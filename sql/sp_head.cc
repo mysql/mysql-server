@@ -317,22 +317,26 @@ sp_head::create(THD *thd)
 
   DBUG_PRINT("info", ("type: %d name: %s params: %s body: %s",
 		      m_type, m_name.str, m_params.str, m_body.str));
-#ifndef DBUG_OFF
-  String s;
-  sp_instr *i;
-  uint ip= 0;
-  while ((i = get_instr(ip)))
-  {
-    char buf[8];
 
-    sprintf(buf, "%4u: ", ip);
-    s.append(buf);
-    i->print(&s);
-    s.append('\n');
-    ip+= 1;
+#ifndef DBUG_OFF
+  optimize();
+  {
+    String s;
+    sp_instr *i;
+    uint ip= 0;
+    while ((i = get_instr(ip)))
+    {
+      char buf[8];
+
+      sprintf(buf, "%4u: ", ip);
+      s.append(buf);
+      i->print(&s);
+      s.append('\n');
+      ip+= 1;
+    }
+    s.append('\0');
+    DBUG_PRINT("info", ("Code %s\n%s", m_qname.str, s.ptr()));
   }
-  s.append('\0');
-  DBUG_PRINT("info", ("Code %s\n%s", m_qname.str, s.ptr()));
 #endif
 
   if (m_type == TYPE_ENUM_FUNCTION)
@@ -981,6 +985,58 @@ sp_head::show_create_function(THD *thd)
   thd->variables.sql_mode= old_sql_mode;
   DBUG_RETURN(res);
 }
+
+void
+sp_head::optimize()
+{
+  List<sp_instr> bp;
+  sp_instr *i;
+  uint src, dst;
+
+  opt_mark(0);
+
+  bp.empty();
+  src= dst= 0;
+  while ((i= get_instr(src)))
+  {
+    if (! i->marked)
+    {
+      delete i;
+      src+= 1;
+    }
+    else
+    {
+      if (src != dst)
+      {
+	sp_instr *ibp;
+	List_iterator_fast<sp_instr> li(bp);
+
+	set_dynamic(&m_instr, (gptr)&i, dst);
+	while ((ibp= li++))
+	{
+	  sp_instr_jump *ji= static_cast<sp_instr_jump *>(ibp);
+	  if (ji->m_dest == src)
+	    ji->m_dest= dst;
+	}
+      }
+      i->opt_move(dst, &bp);
+      src+= 1;
+      dst+= 1;
+    }
+  }
+  m_instr.elements= dst;
+  bp.empty();
+}
+
+void
+sp_head::opt_mark(uint ip)
+{
+  sp_instr *i;
+
+  while ((i= get_instr(ip)) && !i->marked)
+    ip= i->opt_mark(this);
+}
+
 // ------------------------------------------------------------------
 
 //
@@ -1091,6 +1147,42 @@ sp_instr_jump::print(String *str)
   str->qs_append(m_dest);
 }
 
+uint
+sp_instr_jump::opt_mark(sp_head *sp)
+{
+  marked= 1;
+  m_dest= opt_shortcut_jump(sp);
+  m_optdest= sp->get_instr(m_dest);
+  return m_dest;
+}
+
+uint
+sp_instr_jump::opt_shortcut_jump(sp_head *sp)
+{
+  uint dest= m_dest;
+  sp_instr *i;
+
+  while ((i= sp->get_instr(dest)))
+  {
+    uint ndest= i->opt_shortcut_jump(sp);
+
+    if (ndest == dest)
+      break;
+    dest= ndest;
+  }
+  return dest;
+}
+
+void
+sp_instr_jump::opt_move(uint dst, List<sp_instr> *bp)
+{
+  if (m_dest > m_ip)
+    bp->push_back(this);	// Forward
+  else if (m_optdest)
+    m_dest= m_optdest->m_ip;	// Backward
+  m_ip= dst;
+}
+
 //
 // sp_instr_jump_if
 //
@@ -1120,6 +1212,21 @@ sp_instr_jump_if::print(String *str)
   m_expr->print(str);
 }
 
+uint
+sp_instr_jump_if::opt_mark(sp_head *sp)
+{
+  sp_instr *i;
+
+  marked= 1;
+  if ((i= sp->get_instr(m_dest)))
+  {
+    m_dest= i->opt_shortcut_jump(sp);
+    m_optdest= sp->get_instr(m_dest);
+  }
+  sp->opt_mark(m_dest);
+  return m_ip+1;
+}
+
 //
 // sp_instr_jump_if_not
 //
@@ -1147,6 +1254,21 @@ sp_instr_jump_if_not::print(String *str)
   str->qs_append(m_dest);
   str->append(' ');
   m_expr->print(str);
+}
+
+uint
+sp_instr_jump_if_not::opt_mark(sp_head *sp)
+{
+  sp_instr *i;
+
+  marked= 1;
+  if ((i= sp->get_instr(m_dest)))
+  {
+    m_dest= i->opt_shortcut_jump(sp);
+    m_optdest= sp->get_instr(m_dest);
+  }
+  sp->opt_mark(m_dest);
+  return m_ip+1;
 }
 
 //
@@ -1204,6 +1326,21 @@ sp_instr_hpush_jump::print(String *str)
   str->qs_append(m_frame);
   str->append(" h=");
   str->qs_append(m_handler);
+}
+
+uint
+sp_instr_hpush_jump::opt_mark(sp_head *sp)
+{
+  sp_instr *i;
+
+  marked= 1;
+  if ((i= sp->get_instr(m_dest)))
+  {
+    m_dest= i->opt_shortcut_jump(sp);
+    m_optdest= sp->get_instr(m_dest);
+  }
+  sp->opt_mark(m_dest);
+  return m_ip+1;
 }
 
 //
