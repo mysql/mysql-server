@@ -33013,7 +33013,7 @@ Temporary directory (instead of /tmp).
 You can use 'perldoc mysqlhotcopy' to get a more complete documentation for
 @code{mysqlhotcopy}.
 
-@code{mysqlhotcopy} reads the groups @code[client] and  @code{[mysqlhotcopy]}
+@code{mysqlhotcopy} reads the groups @code{[client]} and  @code{[mysqlhotcopy]}
 from the option files.
 
 To be able to execute @code{mysqlhotcopy} you need write access to the
