@@ -749,11 +749,12 @@ bool mysql_truncate(THD *thd, TABLE_LIST *table_list, bool dont_send_ok)
                table_list->db, table_list->table_name);
       DBUG_RETURN(TRUE);
     }
-    if (!ha_supports_generate(table_type))
+    if (!ha_supports_generate(table_type) || thd->lex->sphead)
     {
       /* Probably InnoDB table */
       table_list->lock_type= TL_WRITE;
       ha_enable_transaction(thd, FALSE);
+      mysql_init_select(thd->lex);
       error= mysql_delete(thd, table_list, (COND*) 0, (SQL_LIST*) 0,
 			  HA_POS_ERROR, 0);
       ha_enable_transaction(thd, TRUE);
