@@ -41,6 +41,7 @@ show tables like 't%';
 --replace_column 15 # 16 #
 show tables * from test where table_name like 't%';
 --replace_column 12 # 13 #
+--replace_result "2147483647	" "21474836479	"
 show table status;
 show full columns from t3 like "a%";
 show full columns from mysql.db like "Insert%";
