@@ -514,7 +514,7 @@ Variable_name	Value
 character_set_client	latin1
 SELECT charset('a'),collation('a'),coercibility('a'),'a'='A';
 charset('a')	collation('a')	coercibility('a')	'a'='A'
-latin1	latin1_swedish_ci	3	1
+latin1	latin1_swedish_ci	4	1
 explain extended SELECT charset('a'),collation('a'),coercibility('a'),'a'='A';
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
@@ -525,7 +525,7 @@ SHOW VARIABLES LIKE 'collation_client';
 Variable_name	Value
 SELECT charset('a'),collation('a'),coercibility('a'),'a'='A';
 charset('a')	collation('a')	coercibility('a')	'a'='A'
-latin1	latin1_swedish_ci	3	1
+latin1	latin1_swedish_ci	4	1
 SET CHARACTER SET 'DEFAULT';
 ERROR 42000: Unknown character set: 'DEFAULT'
 DROP TABLE t1;

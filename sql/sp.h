@@ -34,7 +34,7 @@ int
 sp_drop_db_routines(THD *thd, char *db);
 
 sp_head *
-sp_find_procedure(THD *thd, sp_name *name);
+sp_find_procedure(THD *thd, sp_name *name, bool cache_only = 0);
 
 int
 sp_exists_routine(THD *thd, TABLE_LIST *procs, bool any, bool no_error);
@@ -82,10 +82,10 @@ sp_function_exists(THD *thd, sp_name *name);
  */
 void
 sp_add_to_hash(HASH *h, sp_name *fun);
-void
+bool
 sp_merge_hash(HASH *dst, HASH *src);
-int
-sp_cache_routines(THD *thd, LEX *lex, int type);
+void
+sp_cache_routines(THD *thd, LEX *lex);
 
 
 //

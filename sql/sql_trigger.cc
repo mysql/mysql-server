@@ -415,9 +415,8 @@ bool Table_triggers_list::check_n_load(THD *thd, const char *db,
           */
           if (lex.sphead)
           {
-            if (&lex != thd->lex)
-              thd->lex->sphead->restore_lex(thd);
             delete lex.sphead;
+            lex.sphead= 0;
           }
           goto err_with_lex_cleanup;
         }
