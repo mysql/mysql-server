@@ -33,6 +33,8 @@
 #endif
 #include <m_ctype.h>
 #include <stdarg.h>
+#include "sp_head.h"
+#include "sp.h"
 
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
 
@@ -59,7 +61,7 @@ static DYNAMIC_ARRAY acl_hosts,acl_users,acl_dbs;
 static MEM_ROOT mem, memex;
 static bool initialized=0;
 static bool allow_all_hosts=1;
-static HASH acl_check_hosts, column_priv_hash;
+static HASH acl_check_hosts, column_priv_hash, proc_priv_hash;
 static DYNAMIC_ARRAY acl_wild_hosts;
 static hash_filo *acl_cache;
 static uint grant_version=0;
@@ -307,6 +309,16 @@ my_bool acl_init(THD *org_thd, bool dont_read_acl_tables)
       */
       if (table->fields <= 31 && (user.access & CREATE_ACL))
         user.access|= (CREATE_VIEW_ACL | SHOW_VIEW_ACL);
+
+      /*
+        if it is pre 5.0.2 privilege table then map CREATE/ALTER privilege on
+        CREATE PROCEDURE & ALTER PROCEDURE privileges
+      */
+      if (table->fields <= 33 && (user.access & CREATE_ACL))
+        user.access|= CREATE_PROC_ACL;
+      if (table->fields <= 33 && (user.access & ALTER_ACL))
+        user.access|= ALTER_PROC_ACL;
+
       user.sort= get_sort(2,user.host.hostname,user.user);
       user.hostname_length= (user.host.hostname ?
                              (uint) strlen(user.host.hostname) : 0);
@@ -1859,13 +1871,25 @@ static byte* get_key_column(GRANT_COLUMN *buff,uint *length,
 }
 
 
-class GRANT_TABLE :public Sql_alloc
+class GRANT_NAME :public Sql_alloc
 {
 public:
   char *host,*db, *user, *tname, *hash_key, *orig_host;
-  ulong privs, cols;
+  ulong privs;
   ulong sort;
   uint key_length;
+  GRANT_NAME(const char *h, const char *d,const char *u,
+             const char *t, ulong p);
+  GRANT_NAME (TABLE *form);
+  virtual ~GRANT_NAME() {};
+  virtual bool ok() { return privs != 0; }
+};
+
+
+class GRANT_TABLE :public GRANT_NAME
+{
+public:
+  ulong cols;
   HASH hash_columns;
 
   GRANT_TABLE(const char *h, const char *d,const char *u,
@@ -1877,9 +1901,9 @@ public:
 
 
 
-GRANT_TABLE::GRANT_TABLE(const char *h, const char *d,const char *u,
-                         const char *t, ulong p, ulong c)
-  :privs(p), cols(c)
+GRANT_NAME::GRANT_NAME(const char *h, const char *d,const char *u,
+                       const char *t, ulong p)
+  :privs(p)
 {
   /* Host given by user */
   orig_host=  strdup_root(&memex,h);
@@ -1897,15 +1921,20 @@ GRANT_TABLE::GRANT_TABLE(const char *h, const char *d,const char *u,
   key_length =(uint) strlen(d)+(uint) strlen(u)+(uint) strlen(t)+3;
   hash_key = (char*) alloc_root(&memex,key_length);
   strmov(strmov(strmov(hash_key,user)+1,db)+1,tname);
+}
+
+
+GRANT_TABLE::GRANT_TABLE(const char *h, const char *d,const char *u,
+                	 const char *t, ulong p, ulong c)
+  :GRANT_NAME(h,d,u,t,p), cols(c)
+{
   (void) hash_init(&hash_columns,system_charset_info,
                    0,0,0, (hash_get_key) get_key_column,0,0);
 }
 
 
-GRANT_TABLE::GRANT_TABLE(TABLE *form, TABLE *col_privs)
+GRANT_NAME::GRANT_NAME(TABLE *form)
 {
-  byte key[MAX_KEY_LENGTH];
-
   orig_host= host= get_field(&memex, form->field[0]);
   db=    get_field(&memex,form->field[1]);
   user=  get_field(&memex,form->field[2]);
@@ -1921,8 +1950,7 @@ GRANT_TABLE::GRANT_TABLE(TABLE *form, TABLE *col_privs)
   if (!db || !tname)
   {
     /* Wrong table row; Ignore it */
-    hash_clear(&hash_columns);                  /* allow for destruction */
-    privs= cols= 0;				/* purecov: inspected */
+    privs= 0;
     return;					/* purecov: inspected */
   }
   if (lower_case_table_names)
@@ -1935,8 +1963,23 @@ GRANT_TABLE::GRANT_TABLE(TABLE *form, TABLE *col_privs)
   hash_key = (char*) alloc_root(&memex,key_length);
   strmov(strmov(strmov(hash_key,user)+1,db)+1,tname);
   privs = (ulong) form->field[6]->val_int();
-  cols  = (ulong) form->field[7]->val_int();
   privs = fix_rights_for_table(privs);
+}
+
+
+GRANT_TABLE::GRANT_TABLE(TABLE *form, TABLE *col_privs)
+  :GRANT_NAME(form)
+{
+  byte key[MAX_KEY_LENGTH];
+
+  if (!db || !tname)
+  {
+    /* Wrong table row; Ignore it */
+    hash_clear(&hash_columns);                  /* allow for destruction */
+    cols= 0;
+    return;
+  }
+  cols= (ulong) form->field[7]->val_int();
   cols =  fix_rights_for_column(cols);
 
   (void) hash_init(&hash_columns,system_charset_info,
@@ -1995,7 +2038,7 @@ GRANT_TABLE::~GRANT_TABLE()
 }
 
 
-static byte* get_grant_table(GRANT_TABLE *buff,uint *length,
+static byte* get_grant_table(GRANT_NAME *buff,uint *length,
 			     my_bool not_used __attribute__((unused)))
 {
   *length=buff->key_length;
@@ -2011,43 +2054,61 @@ void free_grant_table(GRANT_TABLE *grant_table)
 
 /* Search after a matching grant. Prefer exact grants before not exact ones */
 
-static GRANT_TABLE *table_hash_search(const char *host,const char* ip,
+static GRANT_NAME *name_hash_search(HASH *name_hash,
+				      const char *host,const char* ip,
 				      const char *db,
 				      const char *user, const char *tname,
 				      bool exact)
 {
   char helping [NAME_LEN*2+USERNAME_LENGTH+3];
   uint len;
-  GRANT_TABLE *grant_table,*found=0;
+  GRANT_NAME *grant_name,*found=0;
 
   len  = (uint) (strmov(strmov(strmov(helping,user)+1,db)+1,tname)-helping)+ 1;
-  for (grant_table=(GRANT_TABLE*) hash_search(&column_priv_hash,
+  for (grant_name=(GRANT_NAME*) hash_search(name_hash,
 					      (byte*) helping,
 					      len) ;
-       grant_table ;
-       grant_table= (GRANT_TABLE*) hash_next(&column_priv_hash,(byte*) helping,
+       grant_name ;
+       grant_name= (GRANT_NAME*) hash_next(name_hash,(byte*) helping,
 					     len))
   {
     if (exact)
     {
       if ((host &&
-	   !my_strcasecmp(system_charset_info, host, grant_table->host)) ||
-	  (ip && !strcmp(ip,grant_table->host)))
-	return grant_table;
+	   !my_strcasecmp(system_charset_info, host, grant_name->host)) ||
+	  (ip && !strcmp(ip,grant_name->host)))
+	return grant_name;
     }
     else
     {
       if (((host && !wild_case_compare(system_charset_info,
-				       host,grant_table->host)) ||
+				       host,grant_name->host)) ||
 	   (ip && !wild_case_compare(system_charset_info,
-				     ip,grant_table->host))) &&
-          (!found || found->sort < grant_table->sort))
-	found=grant_table;					// Host ok
+				     ip,grant_name->host))) &&
+          (!found || found->sort < grant_name->sort))
+	found=grant_name;					// Host ok
     }
   }
   return found;
 }
 
+
+inline GRANT_NAME *
+proc_hash_search(const char *host, const char *ip, const char *db,
+		  const char *user, const char *tname, bool exact)
+{
+  return (GRANT_TABLE*) name_hash_search(&proc_priv_hash, host, ip, db,
+					 user, tname, exact);
+}
+
+
+inline GRANT_TABLE *
+table_hash_search(const char *host, const char *ip, const char *db,
+		  const char *user, const char *tname, bool exact)
+{
+  return (GRANT_TABLE*) name_hash_search(&column_priv_hash, host, ip, db,
+					 user, tname, exact);
+}
 
 
 inline GRANT_COLUMN *
@@ -2358,6 +2419,117 @@ table_error:
 }
 
 
+static int replace_proc_table(THD *thd, GRANT_NAME *grant_name,
+			      TABLE *table, const LEX_USER &combo,
+			      const char *db, const char *proc_name,
+			      ulong rights, bool revoke_grant)
+{
+  char grantor[HOSTNAME_LENGTH+USERNAME_LENGTH+2];
+  int old_row_exists= 1;
+  int error=0;
+  ulong store_proc_rights;
+  DBUG_ENTER("replace_proc_table");
+
+  if (!initialized)
+  {
+    my_error(ER_OPTION_PREVENTS_STATEMENT, MYF(0), "--skip-grant-tables");
+    DBUG_RETURN(-1);
+  }
+
+  strxmov(grantor, thd->user, "@", thd->host_or_ip, NullS);
+
+  /*
+    The following should always succeed as new users are created before
+    this function is called!
+  */
+  if (!find_acl_user(combo.host.str,combo.user.str))
+  {
+    my_error(ER_PASSWORD_NO_MATCH,MYF(0));
+    DBUG_RETURN(-1);
+  }
+
+  restore_record(table,default_values);			// Get empty record
+  table->field[0]->store(combo.host.str,combo.host.length, &my_charset_latin1);
+  table->field[1]->store(db,(uint) strlen(db), &my_charset_latin1);
+  table->field[2]->store(combo.user.str,combo.user.length, &my_charset_latin1);
+  table->field[3]->store(proc_name,(uint) strlen(proc_name), &my_charset_latin1);
+  store_record(table,record[1]);			// store at pos 1
+
+  if (table->file->index_read_idx(table->record[0],0,
+				  (byte*) table->field[0]->ptr,0,
+				  HA_READ_KEY_EXACT))
+  {
+    /*
+      The following should never happen as we first check the in memory
+      grant tables for the user.  There is however always a small change that
+      the user has modified the grant tables directly.
+    */
+    if (revoke_grant)
+    { // no row, no revoke
+      my_error(ER_NONEXISTING_PROC_GRANT, MYF(0),
+               combo.user.str, combo.host.str, proc_name);
+      DBUG_RETURN(-1);
+    }
+    old_row_exists= 0;
+    restore_record(table,record[1]);			// Get saved record
+  }
+
+  store_proc_rights= get_rights_for_procedure(rights);
+  if (old_row_exists)
+  {
+    ulong j;
+    store_record(table,record[1]);
+    j= (ulong) table->field[6]->val_int();
+
+    if (revoke_grant)
+    {
+      /* column rights are already fixed in mysql_table_grant */
+      store_proc_rights=j & ~store_proc_rights;
+    }
+    else
+    {
+      store_proc_rights|= j;
+    }
+  }
+
+  table->field[4]->store(grantor,(uint) strlen(grantor), &my_charset_latin1);
+  table->field[6]->store((longlong) store_proc_rights);
+  rights=fix_rights_for_procedure(store_proc_rights);
+
+  if (old_row_exists)
+  {
+    if (store_proc_rights)
+    {
+      if ((error=table->file->update_row(table->record[1],table->record[0])))
+	goto table_error;
+    }
+    else if ((error= table->file->delete_row(table->record[1])))
+      goto table_error;
+  }
+  else
+  {
+    error=table->file->write_row(table->record[0]);
+    if (error && error != HA_ERR_FOUND_DUPP_KEY)
+      goto table_error;
+  }
+
+  if (rights)
+  {
+    grant_name->privs= rights;
+  }
+  else
+  {
+    hash_delete(&proc_priv_hash,(byte*) grant_name);
+  }
+  DBUG_RETURN(0);
+
+  /* This should never happen */
+table_error:
+  table->file->print_error(error,MYF(0));
+  DBUG_RETURN(-1);
+}
+
+
 /*
   Store table level and column level grants in the privilege tables
 
@@ -2601,6 +2773,161 @@ bool mysql_table_grant(THD *thd, TABLE_LIST *table_list,
 }
 
 
+/*
+  Store procedure level grants in the privilege tables
+
+  SYNOPSIS
+    mysql_procedure_grant()
+    thd			Thread handle
+    table_list		List of procedures to give grant
+    user_list		List of users to give grant
+    rights		Table level grant
+    revoke_grant	Set to 1 if this is a REVOKE command
+
+  RETURN
+    0	ok
+    1	error
+*/
+
+bool mysql_procedure_grant(THD *thd, TABLE_LIST *table_list,
+			   List <LEX_USER> &user_list, ulong rights,
+			   bool revoke_grant, bool no_error)
+{
+  List_iterator <LEX_USER> str_list (user_list);
+  LEX_USER *Str;
+  TABLE_LIST tables[2];
+  bool create_new_users=0, result=0;
+  char *db_name, *real_name;
+  DBUG_ENTER("mysql_procedure_grant");
+
+  if (!initialized)
+  {
+    if (!no_error)
+      my_error(ER_OPTION_PREVENTS_STATEMENT, MYF(0),
+               "--skip-grant-tables");
+    DBUG_RETURN(TRUE);
+  }
+  if (rights & ~PROC_ACLS)
+  {
+    if (!no_error)
+      my_message(ER_ILLEGAL_GRANT_FOR_TABLE, ER(ER_ILLEGAL_GRANT_FOR_TABLE),
+        	 MYF(0));
+    DBUG_RETURN(TRUE);
+  }
+
+  if (!revoke_grant)
+  {
+    if (sp_exists_routine(thd, table_list, 0, no_error)<0)
+      DBUG_RETURN(TRUE);
+  }
+
+  /* open the mysql.user and mysql.procs_priv tables */
+
+  bzero((char*) &tables,sizeof(tables));
+  tables[0].alias=tables[0].real_name= (char*) "user";
+  tables[1].alias=tables[1].real_name= (char*) "procs_priv";
+  tables[0].next_local= tables[0].next_global= tables+1;
+  tables[0].lock_type=tables[1].lock_type=TL_WRITE;
+  tables[0].db=tables[1].db=(char*) "mysql";
+
+#ifdef HAVE_REPLICATION
+  /*
+    GRANT and REVOKE are applied the slave in/exclusion rules as they are
+    some kind of updates to the mysql.% tables.
+  */
+  if (thd->slave_thread && table_rules_on)
+  {
+    /*
+      The tables must be marked "updating" so that tables_ok() takes them into
+      account in tests.
+    */
+    tables[0].updating= tables[1].updating= 1;
+    if (!tables_ok(0, tables))
+      DBUG_RETURN(FALSE);
+  }
+#endif
+
+  if (simple_open_n_lock_tables(thd,tables))
+  {						// Should never happen
+    close_thread_tables(thd);
+    DBUG_RETURN(TRUE);
+  }
+
+  if (!revoke_grant)
+    create_new_users= test_if_create_new_users(thd);
+  rw_wrlock(&LOCK_grant);
+  MEM_ROOT *old_root= thd->mem_root;
+  thd->mem_root= &memex;
+
+  DBUG_PRINT("info",("now time to iterate and add users"));
+
+  while ((Str= str_list++))
+  {
+    int error;
+    GRANT_NAME *grant_name;
+    if (Str->host.length > HOSTNAME_LENGTH ||
+	Str->user.length > USERNAME_LENGTH)
+    {
+      if (!no_error)
+	my_message(ER_GRANT_WRONG_HOST_OR_USER, ER(ER_GRANT_WRONG_HOST_OR_USER),
+                   MYF(0));
+      result= TRUE;
+      continue;
+    }
+    /* Create user if needed */
+    pthread_mutex_lock(&acl_cache->lock);
+    error=replace_user_table(thd, tables[0].table, *Str,
+			     0, revoke_grant, create_new_users);
+    pthread_mutex_unlock(&acl_cache->lock);
+    if (error)
+    {
+      result= TRUE;				// Remember error
+      continue;					// Add next user
+    }
+
+    db_name= table_list->db;
+    real_name= table_list->real_name;
+
+    grant_name= proc_hash_search(Str->host.str, NullS, db_name,
+    				 Str->user.str, real_name, 1);
+    if (!grant_name)
+    {
+      if (revoke_grant)
+      {
+        if (!no_error)
+          my_error(ER_NONEXISTING_PROC_GRANT, MYF(0),
+		   Str->user.str, Str->host.str, real_name);
+	result= TRUE;
+	continue;
+      }
+      grant_name= new GRANT_NAME(Str->host.str, db_name,
+				 Str->user.str, real_name,
+				 rights);
+      if (!grant_name)
+      {
+        result= TRUE;
+	continue;
+      }
+      my_hash_insert(&proc_priv_hash,(byte*) grant_name);
+    }
+    
+    if (replace_proc_table(thd, grant_name, tables[1].table, *Str,
+			   db_name, real_name, rights, revoke_grant))
+    {
+      result= TRUE;
+      continue;
+    }
+  }
+  grant_option=TRUE;
+  thd->mem_root= old_root;
+  rw_unlock(&LOCK_grant);
+  if (!result && !no_error)
+    send_ok(thd);
+  /* Tables are automatically closed */
+  DBUG_RETURN(result);
+}
+
+
 bool mysql_grant(THD *thd, const char *db, List <LEX_USER> &list,
                  ulong rights, bool revoke_grant)
 {
@@ -2713,6 +3040,7 @@ void  grant_free(void)
   DBUG_ENTER("grant_free");
   grant_option = FALSE;
   hash_free(&column_priv_hash);
+  hash_free(&proc_priv_hash);
   free_root(&memex,MYF(0));
   DBUG_VOID_RETURN;
 }
@@ -2723,11 +3051,11 @@ void  grant_free(void)
 my_bool grant_init(THD *org_thd)
 {
   THD  *thd;
-  TABLE_LIST tables[2];
+  TABLE_LIST tables[3];
   MYSQL_LOCK *lock;
   MEM_ROOT *memex_ptr;
   my_bool return_val= 1;
-  TABLE *t_table, *c_table;
+  TABLE *t_table, *c_table, *p_table;
   bool check_no_resolve= specialflag & SPECIAL_NO_RESOLVE;
   DBUG_ENTER("grant_init");
 
@@ -2735,6 +3063,9 @@ my_bool grant_init(THD *org_thd)
   (void) hash_init(&column_priv_hash,system_charset_info,
 		   0,0,0, (hash_get_key) get_grant_table,
 		   (hash_free_key) free_grant_table,0);
+  (void) hash_init(&proc_priv_hash,system_charset_info,
+		   0,0,0, (hash_get_key) get_grant_table,
+		   0,0);
   init_sql_alloc(&memex, ACL_ALLOC_BLOCK_SIZE, 0);
 
   /* Don't do anything if running with --skip-grant */
@@ -2749,69 +3080,110 @@ my_bool grant_init(THD *org_thd)
   bzero((char*) &tables, sizeof(tables));
   tables[0].alias=tables[0].real_name= (char*) "tables_priv";
   tables[1].alias=tables[1].real_name= (char*) "columns_priv";
+  tables[2].alias=tables[2].real_name= (char*) "procs_priv";
   tables[0].next_local= tables[0].next_global= tables+1;
-  tables[0].lock_type=tables[1].lock_type=TL_READ;
-  tables[0].db=tables[1].db=thd->db;
+  tables[1].next_local= tables[1].next_global= tables+2;
+  tables[0].lock_type=tables[1].lock_type=tables[2].lock_type=TL_READ;
+  tables[0].db=tables[1].db=tables[2].db=thd->db;
 
   uint counter;
   if (open_tables(thd, tables, &counter))
     goto end;
 
-  TABLE *ptr[2];				// Lock tables for quick update
+  TABLE *ptr[3];				// Lock tables for quick update
   ptr[0]= tables[0].table;
   ptr[1]= tables[1].table;
-  if (!(lock=mysql_lock_tables(thd,ptr,2)))
+  ptr[2]= tables[2].table;
+  if (!(lock=mysql_lock_tables(thd,ptr,3)))
     goto end;
 
   t_table = tables[0].table; c_table = tables[1].table;
+  p_table= tables[2].table;
   t_table->file->ha_index_init(0);
-  if (t_table->file->index_first(t_table->record[0]))
+  p_table->file->ha_index_init(0);
+  if (!t_table->file->index_first(t_table->record[0]))
   {
-    return_val= 0;
-    goto end_unlock;
-  }
-  grant_option= TRUE;
-
-  /* Will be restored by org_thd->store_globals() */
-  memex_ptr= &memex;
-  my_pthread_setspecific_ptr(THR_MALLOC, &memex_ptr);
-  do
-  {
-    GRANT_TABLE *mem_check;
-    if (!(mem_check=new GRANT_TABLE(t_table,c_table)))
+    /* Will be restored by org_thd->store_globals() */
+    memex_ptr= &memex;
+    my_pthread_setspecific_ptr(THR_MALLOC, &memex_ptr);
+    do
     {
-      /* This could only happen if we are out memory */
-      grant_option= FALSE;			/* purecov: deadcode */
-      goto end_unlock;
-    }
-
-    if (check_no_resolve)
-    {
-      if (hostname_requires_resolving(mem_check->host))
+      GRANT_TABLE *mem_check;
+      if (!(mem_check=new GRANT_TABLE(t_table,c_table)))
       {
-        sql_print_warning("'tables_priv' entry '%s %s@%s' "
-                          "ignored in --skip-name-resolve mode.",
-                          mem_check->tname, mem_check->user,
-                          mem_check->host, mem_check->host);
-	continue;
+	/* This could only happen if we are out memory */
+	grant_option= FALSE;
+	goto end_unlock;
+      }
+
+      if (check_no_resolve)
+      {
+	if (hostname_requires_resolving(mem_check->host))
+	{
+          sql_print_warning("'tables_priv' entry '%s %s@%s' "
+                            "ignored in --skip-name-resolve mode.",
+                            mem_check->tname, mem_check->user,
+                            mem_check->host, mem_check->host);
+	  continue;
+	}
+      }
+
+      if (! mem_check->ok())
+	delete mem_check;
+      else if (my_hash_insert(&column_priv_hash,(byte*) mem_check))
+      {
+	delete mem_check;
+	grant_option= FALSE;
+	goto end_unlock;
       }
     }
-
-    if (! mem_check->ok())
-      delete mem_check;
-    else if (my_hash_insert(&column_priv_hash,(byte*) mem_check))
-    {
-      delete mem_check;
-      grant_option= FALSE;
-      goto end_unlock;
-    }
+    while (!t_table->file->index_next(t_table->record[0]));
   }
-  while (!t_table->file->index_next(t_table->record[0]));
+  if (!p_table->file->index_first(p_table->record[0]))
+  {
+    /* Will be restored by org_thd->store_globals() */
+    memex_ptr= &memex;
+    my_pthread_setspecific_ptr(THR_MALLOC, &memex_ptr);
+    do
+    {
+      GRANT_NAME *mem_check;
+      if (!(mem_check=new GRANT_NAME(p_table)))
+      {
+	/* This could only happen if we are out memory */
+	grant_option= FALSE;
+	goto end_unlock;
+      }
 
+      if (check_no_resolve)
+      {
+	if (hostname_requires_resolving(mem_check->host))
+	{
+          sql_print_warning("'procs_priv' entry '%s %s@%s' "
+                            "ignored in --skip-name-resolve mode.",
+                            mem_check->tname, mem_check->user,
+                            mem_check->host, mem_check->host);
+	  continue;
+	}
+      }
+
+      mem_check->privs= fix_rights_for_procedure(mem_check->privs);
+      if (! mem_check->ok())
+	delete mem_check;
+      else if (my_hash_insert(&proc_priv_hash,(byte*) mem_check))
+      {
+	delete mem_check;
+	grant_option= FALSE;
+	goto end_unlock;
+      }
+    }
+    while (!p_table->file->index_next(p_table->record[0]));
+  }
+  grant_option= TRUE;
   return_val=0;					// Return ok
 
 end_unlock:
   t_table->file->ha_index_end();
+  p_table->file->ha_index_end();
   mysql_unlock_tables(thd, lock);
   thd->version--;				// Force close to free memory
 
@@ -2842,7 +3214,7 @@ end:
 
 void grant_reload(THD *thd)
 {
-  HASH old_column_priv_hash;
+  HASH old_column_priv_hash, old_proc_priv_hash;
   bool old_grant_option;
   MEM_ROOT old_mem;
   DBUG_ENTER("grant_reload");
@@ -2850,6 +3222,7 @@ void grant_reload(THD *thd)
   rw_wrlock(&LOCK_grant);
   grant_version++;
   old_column_priv_hash= column_priv_hash;
+  old_proc_priv_hash= proc_priv_hash;
   old_grant_option= grant_option;
   old_mem= memex;
 
@@ -2858,12 +3231,14 @@ void grant_reload(THD *thd)
     DBUG_PRINT("error",("Reverting to old privileges"));
     grant_free();				/* purecov: deadcode */
     column_priv_hash= old_column_priv_hash;	/* purecov: deadcode */
+    proc_priv_hash= old_proc_priv_hash;
     grant_option= old_grant_option;		/* purecov: deadcode */
     memex= old_mem;				/* purecov: deadcode */
   }
   else
   {
     hash_free(&old_column_priv_hash);
+    hash_free(&old_proc_priv_hash);
     free_root(&old_mem,MYF(0));
   }
   rw_unlock(&LOCK_grant);
@@ -3099,7 +3474,7 @@ err2:
 
 /*
   Check if a user has the right to access a database
-  Access is accepted if he has a grant for any table in the database
+  Access is accepted if he has a grant for any table/routine in the database
   Return 1 if access is denied
 */
 
@@ -3130,6 +3505,72 @@ bool check_grant_db(THD *thd,const char *db)
   rw_unlock(&LOCK_grant);
   return error;
 }
+
+
+/****************************************************************************
+  Check procedure level grants
+
+  SYNPOSIS
+   bool check_grant_procedure()
+   thd		Thread handler
+   want_access  Bits of privileges user needs to have
+   procs	List of procedures to check. The user should have 'want_access'
+   no_errors	If 0 then we write an error. The error is sent directly to
+		the client
+
+   RETURN
+     0  ok
+     1  Error: User did not have the requested privielges
+****************************************************************************/
+
+bool check_grant_procedure(THD *thd, ulong want_access, 
+			   TABLE_LIST *procs, bool no_errors)
+{
+  TABLE_LIST *table;
+  char *user= thd->priv_user;
+  char *host= thd->priv_host;
+  DBUG_ENTER("check_grant_procedure");
+
+  want_access&= ~thd->master_access;
+  if (!want_access)
+    DBUG_RETURN(0);                             // ok
+
+  rw_rdlock(&LOCK_grant);
+  for (table= procs; table; table= table->next_global)
+  {
+    GRANT_NAME *grant_proc;
+    if ((grant_proc= proc_hash_search(host,thd->ip, 
+				      table->db, user, table->real_name, 0)))
+      table->grant.privilege|= grant_proc->privs;
+
+    if (want_access & ~table->grant.privilege)
+    {
+      want_access &= ~table->grant.privilege;
+      goto err;
+    }
+  }
+  rw_unlock(&LOCK_grant);
+  DBUG_RETURN(0);
+err:
+  rw_unlock(&LOCK_grant);
+  if (!no_errors)
+  {
+    char buff[1024];
+    const char *command="";
+    if (table)
+      strxmov(buff, table->db, ".", table->real_name, NullS);
+    if (want_access & EXECUTE_ACL)
+      command= "execute";
+    else if (want_access & ALTER_PROC_ACL)
+      command= "alter procedure";
+    else if (want_access & GRANT_ACL)
+      command= "grant";
+    my_error(ER_PROCACCESS_DENIED_ERROR, MYF(0),
+             command, user, host, table ? buff : "unknown");
+  }
+  DBUG_RETURN(1);
+}
+
 
 /*****************************************************************************
   Functions to retrieve the grant for a table/column  (for SHOW functions)
@@ -3215,12 +3656,12 @@ static const char *command_array[]=
   "SHUTDOWN", "PROCESS","FILE", "GRANT", "REFERENCES", "INDEX",
   "ALTER", "SHOW DATABASES", "SUPER", "CREATE TEMPORARY TABLES",
   "LOCK TABLES", "EXECUTE", "REPLICATION SLAVE", "REPLICATION CLIENT",
-  "CREATE VIEW", "SHOW VIEW"
+  "CREATE VIEW", "SHOW VIEW", "CREATE ROUTINE", "ALTER ROUTINE",
 };
 
 static uint command_lengths[]=
 {
-  6, 6, 6, 6, 6, 4, 6, 8, 7, 4, 5, 10, 5, 5, 14, 5, 23, 11, 7, 17, 18, 11, 9
+  6, 6, 6, 6, 6, 4, 6, 8, 7, 4, 5, 10, 5, 5, 14, 5, 23, 11, 7, 17, 18, 11, 9, 14, 13
 };
 
 
@@ -3565,6 +4006,74 @@ bool mysql_show_grants(THD *thd,LEX_USER *lex_user)
       }
     }
   }
+
+  /* Add procedure access */
+  for (index=0 ; index < proc_priv_hash.records ; index++)
+  {
+    const char *user;
+    GRANT_NAME *grant_proc= (GRANT_NAME*) hash_element(&proc_priv_hash,
+						       index);
+
+    if (!(user=grant_proc->user))
+      user= "";
+
+    if (!strcmp(lex_user->user.str,user) &&
+	!my_strcasecmp(system_charset_info, lex_user->host.str,
+                       grant_proc->orig_host))
+    {
+      ulong proc_access= grant_proc->privs;
+      if (proc_access != 0)
+      {
+	String global(buff, sizeof(buff), system_charset_info);
+	ulong test_access= proc_access & ~GRANT_ACL;
+
+	global.length(0);
+	global.append("GRANT ",6);
+
+	if (!test_access)
+ 	  global.append("USAGE",5);
+	else
+	{
+          /* Add specific procedure access */
+	  int found= 0;
+	  ulong j;
+
+	  for (counter= 0, j= SELECT_ACL; j <= PROC_ACLS; counter++, j<<= 1)
+	  {
+	    if (test_access & j)
+	    {
+	      if (found)
+		global.append(", ",2);
+	      found= 1;
+	      global.append(command_array[counter],command_lengths[counter]);
+	    }
+	  }
+	}
+	global.append(" ON ",4);
+	append_identifier(thd, &global, grant_proc->db,
+			  strlen(grant_proc->db));
+	global.append('.');
+	append_identifier(thd, &global, grant_proc->tname,
+			  strlen(grant_proc->tname));
+	global.append(" TO '",5);
+	global.append(lex_user->user.str, lex_user->user.length,
+		      system_charset_info);
+	global.append("'@'",3);
+	global.append(lex_user->host.str,lex_user->host.length,
+		      system_charset_info);
+	global.append('\'');
+	if (proc_access & GRANT_ACL)
+	  global.append(" WITH GRANT OPTION",18);
+	protocol->prepare_for_resend();
+	protocol->store(global.ptr(),global.length(),global.charset());
+	if (protocol->write())
+	{
+	  error= -1;
+	  break;
+	}
+      }
+    }
+  }
 end:
   VOID(pthread_mutex_unlock(&acl_cache->lock));
   rw_unlock(&LOCK_grant);
@@ -3632,6 +4141,7 @@ void get_mqh(const char *user, const char *host, USER_CONN *uc)
     < 0         Error.
 */
 
+#define GRANT_TABLES 5
 int open_grant_tables(THD *thd, TABLE_LIST *tables)
 {
   DBUG_ENTER("open_grant_tables");
@@ -3642,17 +4152,21 @@ int open_grant_tables(THD *thd, TABLE_LIST *tables)
     DBUG_RETURN(-1);
   }
 
-  bzero((char*) tables, 4*sizeof(*tables));
+  bzero((char*) tables, GRANT_TABLES*sizeof(*tables));
   tables->alias= tables->real_name= (char*) "user";
   (tables+1)->alias= (tables+1)->real_name= (char*) "db";
   (tables+2)->alias= (tables+2)->real_name= (char*) "tables_priv";
   (tables+3)->alias= (tables+3)->real_name= (char*) "columns_priv";
+  (tables+4)->alias= (tables+4)->real_name= (char*) "procs_priv";
   tables->next_local= tables->next_global= tables+1;
   (tables+1)->next_local= (tables+1)->next_global= tables+2;
   (tables+2)->next_local= (tables+2)->next_global= tables+3;
+  (tables+3)->next_local= (tables+3)->next_global= tables+4;
   tables->lock_type= (tables+1)->lock_type=
-    (tables+2)->lock_type= (tables+3)->lock_type= TL_WRITE;
-  tables->db= (tables+1)->db= (tables+2)->db= (tables+3)->db=(char*) "mysql";
+    (tables+2)->lock_type= (tables+3)->lock_type= 
+    (tables+4)->lock_type= TL_WRITE;
+  tables->db= (tables+1)->db= (tables+2)->db= 
+    (tables+3)->db= (tables+4)->db= (char*) "mysql";
 
 #ifdef HAVE_REPLICATION
   /*
@@ -3665,10 +4179,12 @@ int open_grant_tables(THD *thd, TABLE_LIST *tables)
       The tables must be marked "updating" so that tables_ok() takes them into
       account in tests.
     */
-    tables[0].updating=tables[1].updating=tables[2].updating=tables[3].updating=1;
+    tables[0].updating=tables[1].updating=tables[2].updating=
+      tables[3].updating=tables[4].updating=1;
     if (!tables_ok(0, tables))
       DBUG_RETURN(1);
-    tables[0].updating=tables[1].updating=tables[2].updating=tables[3].updating=0;
+    tables[0].updating=tables[1].updating=tables[2].updating=
+      tables[3].updating=tables[4].updating=0;;
   }
 #endif
 
@@ -3761,7 +4277,7 @@ static int modify_grant_table(TABLE *table, Field *host_field,
   SYNOPSIS
     handle_grant_table()
     tables                      The array with the four open tables.
-    table_no                    The number of the table to handle (0..3).
+    table_no                    The number of the table to handle (0..4).
     drop                        If user_from is to be dropped.
     user_from                   The the user to be searched/dropped/renamed.
     user_to                     The new name for the user if to be renamed,
@@ -3779,6 +4295,7 @@ static int modify_grant_table(TABLE *table, Field *host_field,
     1 db
     2 tables_priv
     3 columns_priv
+    4 procs_priv
 
   RETURN
     > 0         At least one record matched.
@@ -3922,6 +4439,7 @@ static int handle_grant_table(TABLE_LIST *tables, uint table_no, bool drop,
     0 acl_users
     1 acl_dbs
     2 column_priv_hash
+    3 procs_priv_hash
 
   RETURN
     > 0         At least one element matched.
@@ -3938,11 +4456,11 @@ static int handle_grant_struct(uint struct_no, bool drop,
   const char *host;
   ACL_USER *acl_user;
   ACL_DB *acl_db;
-  GRANT_TABLE *grant_table;
+  GRANT_NAME *grant_name;
   DBUG_ENTER("handle_grant_struct");
   LINT_INIT(acl_user);
   LINT_INIT(acl_db);
-  LINT_INIT(grant_table);
+  LINT_INIT(grant_name);
   DBUG_PRINT("info",("scan struct: %u  search: '%s'@'%s'",
                      struct_no, user_from->user.str, user_from->host.str));
 
@@ -3955,8 +4473,15 @@ static int handle_grant_struct(uint struct_no, bool drop,
   case 1:
     elements= acl_dbs.elements;
     break;
-  default:
+  case 2:
     elements= column_priv_hash.records;
+    break;
+  case 3:
+    elements= proc_priv_hash.records;
+    break;
+  default:
+    DBUG_ASSERT((struct_no < 0) || (struct_no > 3));
+    return -1;
   }
 
 #ifdef EXTRA_DEBUG
@@ -3985,10 +4510,17 @@ static int handle_grant_struct(uint struct_no, bool drop,
       host= acl_db->host.hostname;
       break;
 
-    default:
-      grant_table= (GRANT_TABLE*) hash_element(&column_priv_hash, idx);
-      user= grant_table->user;
-      host= grant_table->host;
+    case 2:
+      grant_name= (GRANT_NAME*) hash_element(&column_priv_hash, idx);
+      user= grant_name->user;
+      host= grant_name->host;
+      break;
+
+    case 3:
+      grant_name= (GRANT_NAME*) hash_element(&proc_priv_hash, idx);
+      user= grant_name->user;
+      host= grant_name->host;
+      break;
     }
     if (! user)
         user= "";
@@ -4015,8 +4547,13 @@ static int handle_grant_struct(uint struct_no, bool drop,
         delete_dynamic_element(&acl_dbs, idx);
         break;
 
-      default:
-        hash_delete(&column_priv_hash, (byte*) grant_table);
+      case 2:
+        hash_delete(&column_priv_hash, (byte*) grant_name);
+	break;
+
+      case 3:
+        hash_delete(&proc_priv_hash, (byte*) grant_name);
+	break;
       }
       elements--;
       idx--;
@@ -4035,9 +4572,11 @@ static int handle_grant_struct(uint struct_no, bool drop,
         acl_db->host.hostname= strdup_root(&mem, user_to->host.str);
         break;
 
-      default:
-        grant_table->user= strdup_root(&mem, user_to->user.str);
-        grant_table->host= strdup_root(&mem, user_to->host.str);
+      case 2:
+      case 3:
+        grant_name->user= strdup_root(&mem, user_to->user.str);
+        grant_name->host= strdup_root(&mem, user_to->host.str);
+	break;
       }
     }
     else
@@ -4123,6 +4662,25 @@ static int handle_grant_data(TABLE_LIST *tables, bool drop,
     }
   }
 
+  /* Handle procedures table. */
+  if ((found= handle_grant_table(tables, 4, drop, user_from, user_to)) < 0)
+  {
+    /* Handle of table failed, don't touch in-memory array. */
+    result= -1;
+  }
+  else
+  {
+    /* Handle procs array. */
+    if (((handle_grant_struct(3, drop, user_from, user_to) && ! result) ||
+         found) && ! result)
+    {
+      result= 1; /* At least one record/element found. */
+      /* If search is requested, we do not need to search further. */
+      if (! drop && ! user_to)
+        goto end;
+    }
+  }
+
   /* Handle tables table. */
   if ((found= handle_grant_table(tables, 2, drop, user_from, user_to)) < 0)
   {
@@ -4191,7 +4749,7 @@ bool mysql_create_user(THD *thd, List <LEX_USER> &list)
   ulong sql_mode;
   LEX_USER *user_name;
   List_iterator <LEX_USER> user_list(list);
-  TABLE_LIST tables[4];
+  TABLE_LIST tables[GRANT_TABLES];
   DBUG_ENTER("mysql_create_user");
 
   /* CREATE USER may be skipped on replication client. */
@@ -4253,7 +4811,7 @@ bool mysql_drop_user(THD *thd, List <LEX_USER> &list)
   String wrong_users;
   LEX_USER *user_name;
   List_iterator <LEX_USER> user_list(list);
-  TABLE_LIST tables[4];
+  TABLE_LIST tables[GRANT_TABLES];
   DBUG_ENTER("mysql_drop_user");
 
   /* DROP USER may be skipped on replication client. */
@@ -4302,7 +4860,7 @@ bool mysql_rename_user(THD *thd, List <LEX_USER> &list)
   LEX_USER *user_from;
   LEX_USER *user_to;
   List_iterator <LEX_USER> user_list(list);
-  TABLE_LIST tables[4];
+  TABLE_LIST tables[GRANT_TABLES];
   DBUG_ENTER("mysql_rename_user");
 
   /* RENAME USER may be skipped on replication client. */
@@ -4357,7 +4915,7 @@ bool mysql_revoke_all(THD *thd,  List <LEX_USER> &list)
   uint counter, revoked;
   int result;
   ACL_DB *acl_db;
-  TABLE_LIST tables[4];
+  TABLE_LIST tables[GRANT_TABLES];
   DBUG_ENTER("mysql_revoke_all");
 
   if ((result= open_grant_tables(thd, tables)))
@@ -4467,6 +5025,35 @@ bool mysql_revoke_all(THD *thd,  List <LEX_USER> &list)
 	counter++;
       }
     } while (revoked);
+
+    /* Remove procedure access */
+    do {
+      for (counter= 0, revoked= 0 ; counter < proc_priv_hash.records ; )
+      {
+	const char *user,*host;
+	GRANT_NAME *grant_proc= (GRANT_NAME*) hash_element(&proc_priv_hash,
+							   counter);
+	if (!(user=grant_proc->user))
+	  user= "";
+	if (!(host=grant_proc->host))
+	  host= "";
+
+	if (!strcmp(lex_user->user.str,user) &&
+	    !my_strcasecmp(system_charset_info, lex_user->host.str, host))
+	{
+	  if (!replace_proc_table(thd,grant_proc,tables[4].table,*lex_user,
+				  grant_proc->db,
+				  grant_proc->tname,
+				  ~0, 1))
+	  {
+	    revoked= 1;
+	    continue;
+	  }
+	  result= -1;	// Something went wrong
+	}
+	counter++;
+      }
+    } while (revoked);
   }
 
   VOID(pthread_mutex_unlock(&acl_cache->lock));
@@ -4476,6 +5063,129 @@ bool mysql_revoke_all(THD *thd,  List <LEX_USER> &list)
   if (result)
     my_message(ER_REVOKE_GRANTS, ER(ER_REVOKE_GRANTS), MYF(0));
 
+  DBUG_RETURN(result);
+}
+
+
+/*
+  Revoke privileges for all users on a stored procedure
+
+  SYNOPSIS
+    sp_revoke_privileges()
+    thd                         The current thread.
+    db				DB of the stored procedure
+    name			Name of the stored procedure
+
+  RETURN
+    0           OK.
+    < 0         Error. Error message not yet sent.
+*/
+
+bool sp_revoke_privileges(THD *thd, const char *sp_db, const char *sp_name)
+{
+  uint counter, revoked;
+  int result;
+  ACL_DB *acl_db;
+  TABLE_LIST tables[GRANT_TABLES];
+  DBUG_ENTER("sp_revoke_privileges");
+
+  if ((result= open_grant_tables(thd, tables)))
+    DBUG_RETURN(result != 1);
+
+  rw_wrlock(&LOCK_grant);
+  VOID(pthread_mutex_lock(&acl_cache->lock));
+
+  /* Remove procedure access */
+  do {
+    for (counter= 0, revoked= 0 ; counter < proc_priv_hash.records ; )
+    {
+      const char *db,*name;
+      GRANT_NAME *grant_proc= (GRANT_NAME*) hash_element(&proc_priv_hash,
+							 counter);
+      if (!my_strcasecmp(system_charset_info, grant_proc->db, sp_db) &&
+	  !my_strcasecmp(system_charset_info, grant_proc->tname, sp_name))
+      {
+        LEX_USER lex_user;
+	lex_user.user.str= grant_proc->user;
+	lex_user.user.length= strlen(grant_proc->user);
+	lex_user.host.str= grant_proc->host;
+	lex_user.host.length= strlen(grant_proc->host);
+	if (!replace_proc_table(thd,grant_proc,tables[4].table,lex_user,
+				grant_proc->db, grant_proc->tname, ~0, 1))
+	{
+	  revoked= 1;
+	  continue;
+	}
+	result= -1;	// Something went wrong
+      }
+      counter++;
+    }
+  } while (revoked);
+
+  VOID(pthread_mutex_unlock(&acl_cache->lock));
+  rw_unlock(&LOCK_grant);
+  close_thread_tables(thd);
+
+  if (result)
+    my_message(ER_REVOKE_GRANTS, ER(ER_REVOKE_GRANTS), MYF(0));
+
+  DBUG_RETURN(result);
+}
+
+
+/*
+  Grant EXECUTE,ALTER privilege for a stored procedure
+
+  SYNOPSIS
+    sp_grant_privileges()
+    thd                         The current thread.
+    db				DB of the stored procedure
+    name			Name of the stored procedure
+
+  RETURN
+    0           OK.
+    < 0         Error. Error message not yet sent.
+*/
+
+bool sp_grant_privileges(THD *thd, const char *sp_db, const char *sp_name)
+{
+  LEX_USER *combo;
+  TABLE_LIST tables[1];
+  List<LEX_USER> user_list;
+  bool result;
+  DBUG_ENTER("sp_grant_privileges");  
+
+  if (!(combo=(LEX_USER*) thd->alloc(sizeof(st_lex_user))))
+    DBUG_RETURN(TRUE);
+
+  combo->user.str= thd->user;
+  
+  if (!find_acl_user(combo->host.str=(char*)thd->host_or_ip, combo->user.str) &&
+      !find_acl_user(combo->host.str=(char*)thd->host, combo->user.str) &&
+      !find_acl_user(combo->host.str=(char*)thd->ip, combo->user.str) &&
+      !find_acl_user(combo->host.str=(char*)"%", combo->user.str))
+    DBUG_RETURN(TRUE);
+
+  bzero((char*)tables, sizeof(TABLE_LIST));
+  user_list.empty();
+
+  tables->db= (char*)sp_db;
+  tables->real_name= tables->alias= (char*)sp_name;
+  
+  combo->host.length= strlen(combo->host.str);
+  combo->user.length= strlen(combo->user.str);
+  combo->host.str= thd->strmake(combo->host.str,combo->host.length);
+  combo->user.str= thd->strmake(combo->user.str,combo->user.length);
+  combo->password.str= (char*)"";
+  combo->password.length= 0;
+
+  if (user_list.push_back(combo))
+    DBUG_RETURN(TRUE);
+
+  thd->lex->ssl_type= SSL_TYPE_NOT_SPECIFIED;
+
+  result= mysql_procedure_grant(thd, tables, user_list,
+  				DEFAULT_CREATE_PROC_ACLS, 0, 1);
   DBUG_RETURN(result);
 }
 

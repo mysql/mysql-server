@@ -301,32 +301,6 @@ NdbOperation::equal_impl(const NdbColumnImpl* tAttrInfo,
 }
 
 /******************************************************************************
- * Uint64 setTupleId( void )
- *
- * Return Value:  Return > 0: OK 
- *                Return 0 : setTupleId failed
- * Parameters:     
- * Remark:
- *****************************************************************************/
-Uint64
-NdbOperation::setTupleId()
-{
-  if (theStatus != OperationDefined)
-  {
-    return 0;
-  }
-  Uint64 tTupleId = theNdb->getTupleIdFromNdb(m_currentTable->m_tableId);
-  if (tTupleId == ~(Uint64)0){
-    setErrorCodeAbort(theNdb->theError.code);
-    return 0;
-  }
-  if (equal((Uint32)0, tTupleId) == -1)
-    return 0;
-
-  return tTupleId;
-}
-
-/******************************************************************************
  * int insertKEYINFO(const char* aValue, aStartPosition, 
  *                   anAttrSizeInWords, Uint32 anAttrBitsInLastWord);
  *

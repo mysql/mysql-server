@@ -138,13 +138,16 @@ struct show_privileges_st {
 static struct show_privileges_st sys_privileges[]=
 {
   {"Alter", "Tables",  "To alter the table"},
+  {"Alter routine", "Functions,Procedures",  "To alter or drop stored functions/procedures"},
   {"Create", "Databases,Tables,Indexes",  "To create new databases and tables"},
+  {"Create routine","Functions,Procedures","To use CREATE FUNCTION/PROCEDURE"},
   {"Create temporary tables","Databases","To use CREATE TEMPORARY TABLE"},
   {"Create view", "Tables",  "To create new views"},
   {"Delete", "Tables",  "To delete existing rows"},
   {"Drop", "Databases,Tables", "To drop databases, tables, and views"},
+  {"Execute", "Functions,Procedures", "To execute stored routines"},
   {"File", "File access on server",   "To read and write files on the server"},
-  {"Grant option",  "Databases,Tables", "To give to other users those privileges you possess"},
+  {"Grant option",  "Databases,Tables,Functions,Procedures", "To give to other users those privileges you possess"},
   {"Index", "Tables",  "To create or drop indexes"},
   {"Insert", "Tables",  "To insert data into tables"},
   {"Lock tables","Databases","To use LOCK TABLES (together with SELECT privilege)"},
@@ -2246,14 +2249,14 @@ static int get_schema_tables_record(THD *thd, struct st_table_list *tables,
     TABLE *show_table= tables->table;
     handler *file= show_table->file;
     file->info(HA_STATUS_VARIABLE | HA_STATUS_TIME | HA_STATUS_NO_LOCK);
-    if (table->tmp_table == TMP_TABLE)
+    if (show_table->tmp_table == TMP_TABLE)
       table->field[3]->store("TEMPORARY", 9, cs);
     else
       table->field[3]->store("BASE TABLE", 10, cs);
 
     for (int i= 4; i < 20; i++)
     {
-      if ((i > 12 && i < 17) || i == 18)
+      if (i == 7 || (i > 12 && i < 17) || i == 18)
         continue;
       table->field[i]->set_notnull();
     }
@@ -2265,7 +2268,11 @@ static int get_schema_tables_record(THD *thd, struct st_table_list *tables,
                (show_table->db_options_in_use & HA_OPTION_PACK_RECORD) ?
                "Dynamic" : "Fixed");
     table->field[6]->store(tmp_buff, strlen(tmp_buff), cs);
-    table->field[7]->store((longlong) file->records);
+    if (!tables->schema_table)
+    {
+      table->field[7]->store((longlong) file->records);
+      table->field[7]->set_notnull();
+    }
     table->field[8]->store((longlong) file->mean_rec_length);
     table->field[9]->store((longlong) file->data_file_length);
     if (file->max_data_file_length)
@@ -3453,7 +3460,7 @@ ST_FIELD_INFO schema_fields_info[]=
 {
   {"CATALOG_NAME", FN_REFLEN, MYSQL_TYPE_STRING, 0, 1, 0},
   {"SCHEMA_NAME", NAME_LEN, MYSQL_TYPE_STRING, 0, 0, "Database"},
-  {"DEFAULT_CHARACTER_SET_NAME", 60, MYSQL_TYPE_STRING, 0, 0, 0},
+  {"DEFAULT_CHARACTER_SET_NAME", 64, MYSQL_TYPE_STRING, 0, 0, 0},
   {"SQL_PATH", FN_REFLEN, MYSQL_TYPE_STRING, 0, 1, 0},
   {0, 0, MYSQL_TYPE_STRING, 0, 0, 0}
 };
@@ -3478,7 +3485,7 @@ ST_FIELD_INFO tables_fields_info[]=
   {"CREATE_TIME", 0, MYSQL_TYPE_TIMESTAMP, 0, 1, "Create_time"},
   {"UPDATE_TIME", 0, MYSQL_TYPE_TIMESTAMP, 0, 1, "Update_time"},
   {"CHECK_TIME", 0, MYSQL_TYPE_TIMESTAMP, 0, 1, "Check_time"},
-  {"COLLATION", 60, MYSQL_TYPE_STRING, 0, 1, "Collation"},
+  {"TABLE_COLLATION", 64, MYSQL_TYPE_STRING, 0, 1, "Collation"},
   {"CHECKSUM", 21 , MYSQL_TYPE_LONG, 0, 1, "Checksum"},
   {"CREATE_OPTIONS", 255, MYSQL_TYPE_STRING, 0, 1, "Create_options"},
   {"TABLE_COMMENT", 80, MYSQL_TYPE_STRING, 0, 0, "Comment"},
@@ -3500,8 +3507,8 @@ ST_FIELD_INFO columns_fields_info[]=
   {"CHARACTER_OCTET_LENGTH", 21 , MYSQL_TYPE_LONG, 0, 0, 0},
   {"NUMERIC_PRECISION", 21 , MYSQL_TYPE_LONG, 0, 1, 0},
   {"NUMERIC_SCALE", 21 , MYSQL_TYPE_LONG, 0, 1, 0},
-  {"CHARACTER_SET_NAME", 40, MYSQL_TYPE_STRING, 0, 1, 0},
-  {"COLLATION_NAME", 40, MYSQL_TYPE_STRING, 0, 1, "Collation"},
+  {"CHARACTER_SET_NAME", 64, MYSQL_TYPE_STRING, 0, 1, 0},
+  {"COLLATION_NAME", 64, MYSQL_TYPE_STRING, 0, 1, "Collation"},
   {"COLUMN_TYPE", 65535, MYSQL_TYPE_STRING, 0, 0, "Type"},
   {"COLUMN_KEY", 3, MYSQL_TYPE_STRING, 0, 0, "Key"},
   {"EXTRA", 20, MYSQL_TYPE_STRING, 0, 0, "Extra"},
@@ -3513,8 +3520,8 @@ ST_FIELD_INFO columns_fields_info[]=
 
 ST_FIELD_INFO charsets_fields_info[]=
 {
-  {"CHARACTER_SET_NAME", 30, MYSQL_TYPE_STRING, 0, 0, "Charset"},
-  {"DEFAULT_COLLATE_NAME", 60, MYSQL_TYPE_STRING, 0, 0, "Default collation"},
+  {"CHARACTER_SET_NAME", 64, MYSQL_TYPE_STRING, 0, 0, "Charset"},
+  {"DEFAULT_COLLATE_NAME", 64, MYSQL_TYPE_STRING, 0, 0, "Default collation"},
   {"DESCRIPTION", 60, MYSQL_TYPE_STRING, 0, 0, "Description"},
   {"MAXLEN", 3 ,MYSQL_TYPE_LONG, 0, 0, "Maxlen"},
   {0, 0, MYSQL_TYPE_STRING, 0, 0, 0}
@@ -3523,11 +3530,11 @@ ST_FIELD_INFO charsets_fields_info[]=
 
 ST_FIELD_INFO collation_fields_info[]=
 {
-  {"COLLATION_NAME", 30, MYSQL_TYPE_STRING, 0, 0, "Collation"},
-  {"CHARSET", 30, MYSQL_TYPE_STRING, 0, 0, "Charset"},
+  {"COLLATION_NAME", 64, MYSQL_TYPE_STRING, 0, 0, "Collation"},
+  {"CHARACTER_SET_NAME", 64, MYSQL_TYPE_STRING, 0, 0, "Charset"},
   {"ID", 11, MYSQL_TYPE_LONG, 0, 0, "Id"},
-  {"DEFAULT", 30 ,MYSQL_TYPE_STRING, 0, 0, "Default"},
-  {"COMPILED", 30 ,MYSQL_TYPE_STRING, 0, 0, "Compiled"},
+  {"IS_DEFAULT", 3, MYSQL_TYPE_STRING, 0, 0, "Default"},
+  {"IS_COMPILED", 3, MYSQL_TYPE_STRING, 0, 0, "Compiled"},
   {"SORTLEN", 3 ,MYSQL_TYPE_LONG, 0, 0, "Sortlen"},
   {0, 0, MYSQL_TYPE_STRING, 0, 0, 0}
 };
@@ -3535,8 +3542,8 @@ ST_FIELD_INFO collation_fields_info[]=
 
 ST_FIELD_INFO coll_charset_app_fields_info[]=
 {
-  {"COLLATION_NAME", 30, MYSQL_TYPE_STRING, 0, 0, 0},
-  {"CHARACTER_SET_NAME", 30, MYSQL_TYPE_STRING, 0, 0, 0},
+  {"COLLATION_NAME", 64, MYSQL_TYPE_STRING, 0, 0, 0},
+  {"CHARACTER_SET_NAME", 64, MYSQL_TYPE_STRING, 0, 0, 0},
   {0, 0, MYSQL_TYPE_STRING, 0, 0, 0}
 };
 

@@ -73,11 +73,9 @@ public:
   /**
    * Internal types and sizes, and aggregates
    */
-  Uint32 m_attrType;            // type outsize API and DICT
   Uint32 m_attrSize;            // element size (size when arraySize==1)
   Uint32 m_arraySize;           // length or length+2 for Var* types
   Uint32 m_keyInfoPos;
-  Uint32 m_extType;             // used by restore (kernel type in versin v2x)
   bool getInterpretableType() const ;
   bool getCharType() const;
   bool getBlobType() const;

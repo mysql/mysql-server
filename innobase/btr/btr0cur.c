@@ -2848,7 +2848,7 @@ btr_estimate_number_of_different_key_vals(
 
 			cmp_rec_rec_with_match(rec, next_rec,
 						offsets1, offsets2,
-						index, n_cols, &matched_fields,
+						index, &matched_fields,
 						&matched_bytes);
 
 			for (j = matched_fields + 1; j <= n_cols; j++) {

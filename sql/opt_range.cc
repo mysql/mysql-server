@@ -712,13 +712,20 @@ QUICK_SELECT_I::QUICK_SELECT_I()
 
 QUICK_RANGE_SELECT::QUICK_RANGE_SELECT(THD *thd, TABLE *table, uint key_nr,
                                        bool no_alloc, MEM_ROOT *parent_alloc)
-  :dont_free(0),error(0),free_file(0),cur_range(NULL),range(0)
+  :dont_free(0),error(0),free_file(0),cur_range(NULL),range(0),in_range(0)
 {
   sorted= 0;
   index= key_nr;
   head=  table;
   key_part_info= head->key_info[index].key_part;
   my_init_dynamic_array(&ranges, sizeof(QUICK_RANGE*), 16, 16);
+
+  /* 'thd' is not accessible in QUICK_RANGE_SELECT::get_next_init(). */
+  multi_range_bufsiz= thd->variables.read_rnd_buff_size;
+  multi_range_count= thd->variables.multi_range_count;
+  multi_range_length= 0;
+  multi_range= NULL;
+  multi_range_buff= NULL;
 
   if (!no_alloc && !parent_alloc)
   {
@@ -736,6 +743,10 @@ QUICK_RANGE_SELECT::QUICK_RANGE_SELECT(THD *thd, TABLE *table, uint key_nr,
 int QUICK_RANGE_SELECT::init()
 {
   DBUG_ENTER("QUICK_RANGE_SELECT::init");
+
+  if ((error= get_next_init()))
+    DBUG_RETURN(error);
+
   if (file->inited == handler::NONE)
     DBUG_RETURN(error= file->ha_index_init(index));
   error= 0;
@@ -771,6 +782,10 @@ QUICK_RANGE_SELECT::~QUICK_RANGE_SELECT()
     delete_dynamic(&ranges); /* ranges are allocated in alloc */
     free_root(&alloc,MYF(0));
   }
+  if (multi_range)
+    my_free((char*) multi_range, MYF(0));
+  if (multi_range_buff)
+    my_free((char*) multi_range_buff, MYF(0));
   DBUG_VOID_RETURN;
 }
 
@@ -5872,58 +5887,178 @@ int QUICK_ROR_UNION_SELECT::get_next()
   DBUG_RETURN(error);
 }
 
-	/* get next possible record using quick-struct */
+
+/*
+  Initialize data structures needed by get_next().
+
+  SYNOPSIS
+    QUICK_RANGE_SELECT::get_next_init()
+
+  DESCRIPTION
+    This is called from get_next() at its first call for an object.
+    It allocates memory buffers and sets size variables.
+
+  RETURN
+    0           OK.
+    != 0        Error.
+*/
+
+int QUICK_RANGE_SELECT::get_next_init(void)
+{
+  uint  mrange_bufsiz;
+  byte  *mrange_buff;
+  DBUG_ENTER("QUICK_RANGE_SELECT::get_next_init");
+
+  /* Do not allocate the buffers twice. */
+  if (multi_range_length)
+  {
+    DBUG_ASSERT(multi_range_length == min(multi_range_count, ranges.elements));
+    DBUG_RETURN(0);
+  }
+
+  /* If the ranges are not yet initialized, wait for the next call. */
+  if (! ranges.elements)
+  {
+    DBUG_RETURN(0);
+  }
+
+  /*
+    Allocate the ranges array.
+  */
+  multi_range_length= min(multi_range_count, ranges.elements);
+  DBUG_ASSERT(multi_range_length > 0);
+  while (multi_range_length && ! (multi_range= (KEY_MULTI_RANGE*)
+                                  my_malloc(multi_range_length *
+                                            sizeof(KEY_MULTI_RANGE),
+                                            MYF(MY_WME))))
+  {
+    /* Try to shrink the buffers until it is 0. */
+    multi_range_length/= 2;
+  }
+  if (! multi_range)
+  {
+    multi_range_length= 0;
+    DBUG_RETURN(HA_ERR_OUT_OF_MEM);
+  }
+
+  /*
+    Allocate the handler buffer if necessary.
+  */
+  if (file->table_flags() & HA_NEED_READ_RANGE_BUFFER)
+  {
+    mrange_bufsiz= min(multi_range_bufsiz,
+                       (QUICK_SELECT_I::records + 1)* head->reclength);
+
+    while (mrange_bufsiz &&
+           ! my_multi_malloc(MYF(MY_WME),
+                             &multi_range_buff, sizeof(*multi_range_buff),
+                             &mrange_buff, mrange_bufsiz,
+                             NullS))
+    {
+      /* Try to shrink the buffers until both are 0. */
+      mrange_bufsiz/= 2;
+    }
+    if (! multi_range_buff)
+    {
+      my_free((char*) multi_range, MYF(0));
+      multi_range= NULL;
+      multi_range_length= 0;
+      DBUG_RETURN(HA_ERR_OUT_OF_MEM);
+    }
+
+    /* Initialize the handler buffer. */
+    multi_range_buff->buffer= mrange_buff;
+    multi_range_buff->buffer_end= mrange_buff + mrange_bufsiz;
+    multi_range_buff->end_of_used_area= mrange_buff;
+  }
+
+  /* Initialize the current QUICK_RANGE pointer. */
+  cur_range= (QUICK_RANGE**) ranges.buffer;
+  DBUG_RETURN(0);
+}
+
+
+/*
+  Get next possible record using quick-struct.
+
+  SYNOPSIS
+    QUICK_RANGE_SELECT::get_next()
+
+  NOTES
+    Record is read into table->record[0]
+
+  RETURN
+    0			Found row
+    HA_ERR_END_OF_FILE	No (more) rows in range
+    #			Error code
+*/
 
 int QUICK_RANGE_SELECT::get_next()
 {
+  int             result;
+  KEY_MULTI_RANGE *mrange;
+  key_range       *start_key;
+  key_range       *end_key;
   DBUG_ENTER("QUICK_RANGE_SELECT::get_next");
+  DBUG_ASSERT(multi_range_length && multi_range &&
+              (cur_range >= (QUICK_RANGE**) ranges.buffer) &&
+              (cur_range <= (QUICK_RANGE**) ranges.buffer + ranges.elements));
 
   for (;;)
   {
-    int result;
-    key_range start_key, end_key;
-    if (range)
+    if (in_range)
     {
-      // Already read through key
-      result= file->read_range_next();
+      /* We did already start to read this key. */
+      result= file->read_multi_range_next(&mrange);
       if (result != HA_ERR_END_OF_FILE)
+      {
+        in_range= ! result;
 	DBUG_RETURN(result);
+      }
     }
 
-    if (!cur_range)
-      range= *(cur_range= (QUICK_RANGE**) ranges.buffer);
-    else
-      range=
-        (cur_range == ((QUICK_RANGE**) ranges.buffer + ranges.elements - 1)) ?
-        (QUICK_RANGE*) 0 : *(++cur_range);
+    uint count= min(multi_range_length, ranges.elements -
+                    (cur_range - (QUICK_RANGE**) ranges.buffer));
+    if (count == 0)
+    {
+      /* Ranges have already been used up before. None is left for read. */
+      in_range= FALSE;
+      DBUG_RETURN(HA_ERR_END_OF_FILE);
+    }
+    KEY_MULTI_RANGE *mrange_slot, *mrange_end;
+    for (mrange_slot= multi_range, mrange_end= mrange_slot+count;
+         mrange_slot < mrange_end;
+         mrange_slot++)
+    {
+      start_key= &mrange_slot->start_key;
+      end_key= &mrange_slot->end_key;
+      range= *(cur_range++);
 
-    if (!range)
-      DBUG_RETURN(HA_ERR_END_OF_FILE);		// All ranges used
+      start_key->key=    (const byte*) range->min_key;
+      start_key->length= range->min_length;
+      start_key->flag=   ((range->flag & NEAR_MIN) ? HA_READ_AFTER_KEY :
+                          (range->flag & EQ_RANGE) ?
+                          HA_READ_KEY_EXACT : HA_READ_KEY_OR_NEXT);
+      end_key->key=      (const byte*) range->max_key;
+      end_key->length=   range->max_length;
+      /*
+        We use HA_READ_AFTER_KEY here because if we are reading on a key
+        prefix. We want to find all keys with this prefix.
+      */
+      end_key->flag=     (range->flag & NEAR_MAX ? HA_READ_BEFORE_KEY :
+                          HA_READ_AFTER_KEY);
 
-    start_key.key=    (const byte*) range->min_key;
-    start_key.length= range->min_length;
-    start_key.flag=   ((range->flag & NEAR_MIN) ? HA_READ_AFTER_KEY :
-		       (range->flag & EQ_RANGE) ?
-		       HA_READ_KEY_EXACT : HA_READ_KEY_OR_NEXT);
-    end_key.key=      (const byte*) range->max_key;
-    end_key.length=   range->max_length;
-    /*
-      We use READ_AFTER_KEY here because if we are reading on a key
-      prefix we want to find all keys with this prefix
-    */
-    end_key.flag=     (range->flag & NEAR_MAX ? HA_READ_BEFORE_KEY :
-		       HA_READ_AFTER_KEY);
+      mrange_slot->range_flag= range->flag;
+    }
 
-    result= file->read_range_first(range->min_length ? &start_key : 0,
-				   range->max_length ? &end_key : 0,
-                                   test(range->flag & EQ_RANGE),
-				   sorted);
-    if (range->flag == (UNIQUE_RANGE | EQ_RANGE))
-      range=0;				// Stop searching
-
+    result= file->read_multi_range_first(&mrange, multi_range, count,
+                                         sorted, multi_range_buff);
     if (result != HA_ERR_END_OF_FILE)
+    {
+      in_range= ! result;
       DBUG_RETURN(result);
-    range=0;				// No matching rows; go to next range
+    }
+    in_range= FALSE; /* No matching rows; go to next set of ranges. */
   }
 }
 
@@ -5974,15 +6109,14 @@ int QUICK_RANGE_SELECT::get_next_prefix(uint prefix_length, byte *cur_prefix)
         DBUG_RETURN(result);
     }
 
-    if (!cur_range)
-      range= *(cur_range= (QUICK_RANGE**) ranges.buffer); /* First range. */
-    else
-      range=
-        (cur_range == ((QUICK_RANGE**) ranges.buffer + ranges.elements - 1)) ?
-        (QUICK_RANGE*) 0 : *(++cur_range);                /* Next range. */
-
-    if (!range)
-      DBUG_RETURN(HA_ERR_END_OF_FILE);		// All ranges used
+    uint count= ranges.elements - (cur_range - (QUICK_RANGE**) ranges.buffer);
+    if (count == 0)
+    {
+      /* Ranges have already been used up before. None is left for read. */
+      range= 0;
+      DBUG_RETURN(HA_ERR_END_OF_FILE);
+    }
+    range= *(cur_range++);
 
     start_key.key=    (const byte*) range->min_key;
     start_key.length= min(range->min_length, prefix_length);
@@ -6030,15 +6164,14 @@ int QUICK_RANGE_SELECT_GEOM::get_next()
 	DBUG_RETURN(result);
     }
 
-   if (!cur_range)
-      range= *(cur_range= (QUICK_RANGE**) ranges.buffer);
-    else
-      range=
-        (cur_range == ((QUICK_RANGE**) ranges.buffer + ranges.elements - 1)) ?
-        (QUICK_RANGE*) 0 : *(++cur_range);
-
-    if (!range)
-      DBUG_RETURN(HA_ERR_END_OF_FILE);		// All ranges used
+    uint count= ranges.elements - (cur_range - (QUICK_RANGE**) ranges.buffer);
+    if (count == 0)
+    {
+      /* Ranges have already been used up before. None is left for read. */
+      range= 0;
+      DBUG_RETURN(HA_ERR_END_OF_FILE);
+    }
+    range= *(cur_range++);
 
     result= file->index_read(record,
 			     (byte*) range->min_key,

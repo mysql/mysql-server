@@ -28,7 +28,6 @@ private:
   static void setType(Uint32 &, Uint32 type);
   static void setSize(Uint32 &, Uint32 size);
   static void setArray(Uint32 &, Uint32 arraySize);
-  static void setOriginal(Uint32 &, Uint32 original);
   static void setNullable(Uint32 &, Uint32 nullable);
   static void setDKey(Uint32 &, Uint32 dkey);
   static void setPrimaryKey(Uint32 &, Uint32 dkey);
@@ -40,7 +39,6 @@ private:
   static Uint32 getSizeInWords(const Uint32 &);
   static Uint32 getArrayType(const Uint32 &);
   static Uint32 getArraySize(const Uint32 &);
-  static Uint32 getOriginal(const Uint32 &);
   static Uint32 getNullable(const Uint32 &);
   static Uint32 getDKey(const Uint32 &);
   static Uint32 getPrimaryKey(const Uint32 &);
@@ -50,19 +48,19 @@ private:
 /**
  *
  * a = Array type            - 2  Bits -> Max 3  (Bit 0-1)
- * t = Attribute type        - 2  Bits -> Max 3  (Bit 2-3)
- * s = Attribute size        - 3  Bits -> Max 7  (Bit 4-6)
- * o = Original attribute    - 1  Bit 7
- * n = Nullable              - 1  Bit 8
- * d = Disk based            - 1  Bit 10
- * k = Distribution Key Ind  - 1  Bit 12
+ * t = Attribute type        - 5  Bits -> Max 31  (Bit 2-6)
+ * s = Attribute size        - 3  Bits -> Max 7  (Bit 8-10)
+ * d = Disk based            - 1  Bit 11
+ * n = Nullable              - 1  Bit 12
+ * k = Distribution Key Ind  - 1  Bit 13
  * p = Primary key attribute - 1  Bit 14
  * y = Dynamic attribute     - 1  Bit 15
  * z = Array size            - 16 Bits -> Max 65535 (Bit 16-31)
  *
  *           1111111111222222222233
  * 01234567890123456789012345678901
- * aattsss n d k pyzzzzzzzzzzzzzzzz
+ * aattttt sssdnkpyzzzzzzzzzzzzzzzz
+ * aattsss n d k pyzzzzzzzzzzzzzzzz  [ old format ]
  *               
  */
 
@@ -70,20 +68,17 @@ private:
 #define AD_ARRAY_TYPE_MASK  (3)
 
 #define AD_TYPE_SHIFT       (2)
-#define AD_TYPE_MASK        (3)
+#define AD_TYPE_MASK        (31)
 
-#define AD_SIZE_SHIFT       (4)
+#define AD_SIZE_SHIFT       (8)
 #define AD_SIZE_MASK        (7)
 
 #define AD_SIZE_IN_BYTES_SHIFT (3)
-
 #define AD_SIZE_IN_WORDS_OFFSET (31)
 #define AD_SIZE_IN_WORDS_SHIFT  (5)
 
-#define AD_ORIGINAL_SHIFT   (8)
-#define AD_NULLABLE_SHIFT   (8)
-
-#define AD_DISTR_KEY_SHIFT   (12)
+#define AD_NULLABLE_SHIFT    (12)
+#define AD_DISTR_KEY_SHIFT   (13)
 #define AD_PRIMARY_KEY       (14)
 #define AD_DYNAMIC           (15)
 
@@ -121,13 +116,6 @@ void
 AttributeDescriptor::setNullable(Uint32 & desc, Uint32 nullable){
   ASSERT_BOOL(nullable, "AttributeDescriptor::setNullable");
   desc |= (nullable << AD_NULLABLE_SHIFT);
-}
-
-inline
-void
-AttributeDescriptor::setOriginal(Uint32 & desc, Uint32 original){
-  ASSERT_BOOL(original, "AttributeDescriptor::setOriginal");
-  desc |= (original << AD_ORIGINAL_SHIFT);
 }
 
 inline
@@ -197,12 +185,6 @@ inline
 Uint32
 AttributeDescriptor::getNullable(const Uint32 & desc){
   return (desc >> AD_NULLABLE_SHIFT) & 1;
-}
-
-inline
-Uint32
-AttributeDescriptor::getOriginal(const Uint32 & desc){
-  return (desc >> AD_ORIGINAL_SHIFT) & 1;
 }
 
 inline

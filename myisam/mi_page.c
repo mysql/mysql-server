@@ -40,6 +40,7 @@ uchar *_mi_fetch_keypage(register MI_INFO *info, MI_KEYDEF *keyinfo,
   {
     DBUG_PRINT("error",("Got errno: %d from key_cache_read",my_errno));
     info->last_keypage=HA_OFFSET_ERROR;
+    mi_print_error(info, HA_ERR_CRASHED);
     my_errno=HA_ERR_CRASHED;
     DBUG_RETURN(0);
   }
@@ -51,6 +52,7 @@ uchar *_mi_fetch_keypage(register MI_INFO *info, MI_KEYDEF *keyinfo,
 			(ulong) page, page_size));
     DBUG_DUMP("page", (char*) tmp, keyinfo->block_length);
     info->last_keypage = HA_OFFSET_ERROR;
+    mi_print_error(info, HA_ERR_CRASHED);
     my_errno = HA_ERR_CRASHED;
     tmp = 0;
   }

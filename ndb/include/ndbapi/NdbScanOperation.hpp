@@ -37,16 +37,14 @@ class NdbScanOperation : public NdbOperation {
 
 public:
   /**
-   * readTuples returns a NdbResultSet where tuples are stored.
-   * Tuples are not stored in NdbResultSet until execute(NoCommit) 
-   * has been executed and nextResult has been called.
+   * readTuples
    * 
-   * @param parallel  Scan parallelism
+   * @param lock_mode Lock mode
    * @param batch No of rows to fetch from each fragment at a time
-   * @param LockMode  Scan lock handling   
+   * @param parallel No of fragments to scan in parallell
    * @note specifying 0 for batch and parallall means max performance
    */ 
-  int readTuples(LockMode = LM_Read, 
+  int readTuples(LockMode lock_mode = LM_Read, 
 		 Uint32 batch = 0, Uint32 parallel = 0);
   
 #ifndef DOXYGEN_SHOULD_SKIP_DEPRECATED
@@ -67,7 +65,7 @@ public:
   /**
    * Get the next tuple in a scan transaction. 
    * 
-   * After each call to NdbResult::nextResult
+   * After each call to nextResult
    * the buffers and NdbRecAttr objects defined in 
    * NdbOperation::getValue are updated with values 
    * from the scanned tuple. 
@@ -114,52 +112,30 @@ public:
   int nextResult(bool fetchAllowed = true, bool forceSend = false);
 
   /**
-   * Close result set (scan)
+   * Close scan
    */
   void close(bool forceSend = false);
 
   /**
-   * Restart
-   */
-  int restart(bool forceSend = false);
-  
-  /**
-   * Transfer scan operation to an updating transaction. Use this function 
-   * when a scan has found a record that you want to update. 
-   * 1. Start a new transaction.
-   * 2. Call the function takeOverForUpdate using your new transaction 
-   *    as parameter, all the properties of the found record will be copied 
-   *    to the new transaction.
-   * 3. When you execute the new transaction, the lock held by the scan will 
-   *    be transferred to the new transaction(it's taken over).
+   * Update current tuple
    *
-   * @note You must have started the scan with openScanExclusive
-   *       to be able to update the found tuple.
-   *
-   * @param updateTrans the update transaction connection.
    * @return an NdbOperation or NULL.
    */
   NdbOperation* updateCurrentTuple();
   NdbOperation*	updateCurrentTuple(NdbTransaction* updateTrans);
 
   /**
-   * Transfer scan operation to a deleting transaction. Use this function 
-   * when a scan has found a record that you want to delete. 
-   * 1. Start a new transaction.
-   * 2. Call the function takeOverForDelete using your new transaction 
-   *    as parameter, all the properties of the found record will be copied 
-   *    to the new transaction.
-   * 3. When you execute the new transaction, the lock held by the scan will 
-   *    be transferred to the new transaction(its taken over).
-   *
-   * @note You must have started the scan with openScanExclusive
-   *       to be able to delete the found tuple.
-   *
-   * @param deleteTrans the delete transaction connection.
-   * @return an NdbOperation or NULL.
+   * Delete current tuple
+   * @return 0 on success or -1 on failure
    */
   int deleteCurrentTuple();
   int deleteCurrentTuple(NdbTransaction* takeOverTransaction);
+  
+  /**
+   * Restart scan with exactly the same
+   *   getValues and search conditions
+   */
+  int restart(bool forceSend = false);
   
 protected:
   NdbScanOperation(Ndb* aNdb);
@@ -230,6 +206,7 @@ protected:
   bool m_ordered;
   bool m_descending;
   Uint32 m_read_range_no;
+  NdbRecAttr *m_curr_row; // Pointer to last returned row
 };
 
 inline

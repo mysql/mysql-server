@@ -59,7 +59,7 @@ SimpleProperties::SP2StructMapping
 DictTabInfo::AttributeMapping[] = {
   DTIMAPS(Attribute, AttributeName, AttributeName, 0, MAX_ATTR_NAME_SIZE),
   DTIMAP(Attribute, AttributeId, AttributeId),
-  DTIMAP2(Attribute, AttributeType, AttributeType,    0, 3),
+  DTIMAP(Attribute, AttributeType, AttributeType),
   DTIMAP2(Attribute, AttributeSize, AttributeSize,     3, 7),
   DTIMAP2(Attribute, AttributeArraySize, AttributeArraySize, 0, 65535),
   DTIMAP2(Attribute, AttributeKeyFlag, AttributeKeyFlag, 0, 1),
@@ -126,13 +126,13 @@ void
 DictTabInfo::Attribute::init(){
   memset(AttributeName, 0, sizeof(AttributeName));//AttributeName[0] = 0;
   AttributeId = 0;
-  AttributeType = DictTabInfo::UnSignedType;
+  AttributeType = ~0, // deprecated
   AttributeSize = DictTabInfo::a32Bit;
   AttributeArraySize = 1;
   AttributeKeyFlag = 0;
   AttributeNullableFlag = 0;
   AttributeDKey = 0;
-  AttributeExtType = 0,
+  AttributeExtType = DictTabInfo::ExtUnsigned,
   AttributeExtPrecision = 0,
   AttributeExtScale = 0,
   AttributeExtLength = 0,
