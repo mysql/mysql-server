@@ -489,6 +489,12 @@ extern "C" {
   int ndb_mgm_set_connectstring(NdbMgmHandle handle,
 				const char *connect_string);
 
+  int ndb_mgm_set_configuration_nodeid(NdbMgmHandle handle, int nodeid);
+  int ndb_mgm_get_configuration_nodeid(NdbMgmHandle handle);
+  int ndb_mgm_get_connected_port(NdbMgmHandle handle);
+  const char *ndb_mgm_get_connected_host(NdbMgmHandle handle);
+  const char *ndb_mgm_get_connectstring(NdbMgmHandle handle, char *buf, int buf_sz);
+
   /**
    * Gets the connectstring used for a connection
    *
