@@ -232,8 +232,6 @@ int handle_select(THD *thd, LEX *lex, select_result *result)
     result->abort();
     res= 1;					// Error sent to client
   }
-  if (result != lex->result)
-    delete result;
   DBUG_RETURN(res);
 }
 
