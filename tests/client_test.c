@@ -8069,9 +8069,9 @@ static void test_bug1946()
 {
   MYSQL_STMT *stmt;
   int rc;
+  const char *query= "INSERT INTO prepare_command VALUES (?)";
 
   myheader("test_bug1946");
-  const char *query= "INSERT INTO prepare_command VALUES (?)";
   
   rc = mysql_query(mysql, "DROP TABLE IF EXISTS prepare_command");
   myquery(rc);
