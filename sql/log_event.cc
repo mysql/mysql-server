@@ -206,7 +206,19 @@ Log_event::Log_event(const char* buf, bool old_format)
 
 int Log_event::exec_event(struct st_relay_log_info* rli)
 {
-  if (rli)					// QQ When is this not true ?
+  /*
+    rli is null when (as far as I (Guilhem) know)
+    the caller is
+    Load_log_event::exec_event *and* that one is called from
+    Execute_load_log_event::exec_event. 
+    In this case, we don't do anything here ;
+    Execute_load_log_event::exec_event will call Log_event::exec_event
+    again later with the proper rli.
+    Strictly speaking, if we were sure that rli is null
+    only in the case discussed above, 'if (rli)' is useless here.
+    But as we are not 100% sure, keep it for now.
+  */
+  if (rli)  
   {
     if (rli->inside_transaction)
       rli->inc_pending(get_event_len());
@@ -1773,8 +1785,34 @@ int Query_log_event::exec_event(struct st_relay_log_info* rli)
   return Log_event::exec_event(rli); 
 }
 
+/*
+  Does the data loading job when executing a LOAD DATA on the slave
 
-int Load_log_event::exec_event(NET* net, struct st_relay_log_info* rli)
+  SYNOPSIS
+    Load_log_event::exec_event
+      net  
+      rli                             
+      use_rli_only_for_errors	  - if set to 1, rli is provided to 
+                                  Load_log_event::exec_event only for this 
+				  function to have RPL_LOG_NAME and 
+				  rli->last_slave_error, both being used by 
+				  error reports. rli's position advancing
+				  is skipped (done by the caller which is
+				  Execute_load_log_event::exec_event).
+				  - if set to 0, rli is provided for full use,
+				  i.e. for error reports and position
+				  advancing.
+
+  DESCRIPTION
+    Does the data loading job when executing a LOAD DATA on the slave
+ 
+  RETURN VALUE
+    0           Success                                                 
+    1    	Failure
+*/
+
+int Load_log_event::exec_event(NET* net, struct st_relay_log_info* rli, 
+			       bool use_rli_only_for_errors)
 {
   init_sql_alloc(&thd->mem_root, 8192,0);
   thd->db = rewrite_db((char*)db);
@@ -1836,8 +1874,12 @@ int Load_log_event::exec_event(NET* net, struct st_relay_log_info* rli)
 		     TL_WRITE))
 	thd->query_error = 1;
       if (thd->cuted_fields)
+	/* 
+	   log_pos is the position of the LOAD
+	   event in the master log
+	*/
 	sql_print_error("Slave: load data infile at position %s in log \
-'%s' produced %d warning(s)", llstr(rli->master_log_pos,llbuff), RPL_LOG_NAME,
+'%s' produced %d warning(s)", llstr(log_pos,llbuff), RPL_LOG_NAME, 
 			thd->cuted_fields );
       if (net)
         net->pkt_nr= thd->net.pkt_nr;
@@ -1877,7 +1919,7 @@ int Load_log_event::exec_event(NET* net, struct st_relay_log_info* rli)
     return 1;
   }
 
-  return Log_event::exec_event(rli); 
+  return ( use_rli_only_for_errors ? 0 : Log_event::exec_event(rli) ); 
 }
 
 
@@ -2132,7 +2174,11 @@ int Execute_load_log_event::exec_event(struct st_relay_log_info* rli)
   save_options = thd->options;
   thd->options &= ~ (ulong) (OPTION_BIN_LOG);
   lev->thd = thd;
-  if (lev->exec_event(0,0))
+  /*
+    lev->exec_event should use rli only for errors
+    i.e. should not advance rli's position
+  */
+  if (lev->exec_event(0,rli,1)) 
   {
     slave_print_error(rli,my_errno, "Failed executing load from '%s'", fname);
     thd->options = save_options;

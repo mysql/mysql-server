@@ -2343,12 +2343,6 @@ static int process_io_rotate(MASTER_INFO *mi, Rotate_log_event *rev)
 
   memcpy(mi->master_log_name, rev->new_log_ident, rev->ident_len+1);
   mi->master_log_pos= rev->pos;
-
-  pthread_mutex_lock(&mi->rli.data_lock);
-  memcpy(mi->rli.master_log_name, rev->new_log_ident, rev->ident_len+1);
-  mi->rli.master_log_pos= rev->pos;
-  pthread_mutex_unlock(&mi->rli.data_lock);
-
   DBUG_PRINT("info", ("master_log_pos: '%s' %d",
 		      mi->master_log_name, (ulong) mi->master_log_pos));
 #ifndef DBUG_OFF
