@@ -1106,13 +1106,13 @@ loop:
 
 		buf_read_page(space, offset);
 
-		#ifdef UNIV_DEBUG
+#ifdef UNIV_DEBUG
 		buf_dbg_counter++;
 
 		if (buf_dbg_counter % 37 == 0) {
 			ut_ad(buf_validate());
 		}
-		#endif
+#endif
 		goto loop;
 	}
 

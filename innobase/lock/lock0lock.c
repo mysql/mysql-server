@@ -3064,11 +3064,6 @@ retry:
 
 		ut_a(strlen(lock_latest_err_buf) < 4100);
 
-		/*
-		sess_raise_error_low(trx, DB_DEADLOCK, lock->type_mode, table,
-						index, NULL, NULL, NULL);
-		*/
-
 		return(TRUE);
 	}
 	
