@@ -7158,7 +7158,16 @@ setup_copy_fields(THD *thd, TMP_TABLE_PARAM *param, List<Item> &fields)
 	if (!(pos=new Item_copy_string(pos)))
 	  goto err;
 	VOID(li.replace(pos));
-	if (param->copy_funcs.push_back(pos))
+       /*
+         Item_copy_string::copy for function can call 
+         Item_copy_string::val_int for blob via Item_ref.
+         But if Item_copy_string::copy for blob isn't called before,
+         it's value will be wrong
+         so let's insert Item_copy_string for blobs in the beginning of 
+         copy_funcs
+         (to see full test case look at having.test, BUG #4358) 
+       */
+	if (param->copy_funcs.push_front(pos))
 	  goto err;
 	continue;
       }
