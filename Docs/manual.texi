@@ -2848,7 +2848,7 @@ PTS: Project Tracking System.
 @item @uref{http://tomato.nvgc.vt.edu/~hroberts/mot}
 Job and software tracking system.
 
-@item @uref{http://www.cynergi.net/non-secure/exportsql/}
+@item @uref{http://www.cynergi.net/exportsql/}
 ExportSQL: A script to export data from Access95+.
 
 @item @uref{http://SAL.KachinaTech.COM/H/1/MYSQL.html}
@@ -43883,6 +43883,8 @@ An online magazine featuring music, literature, arts, and design content.
 @item @uref{http://kids.msfc.nasa.gov, NASA KIDS}
 @item @uref{http://science.nasa.gov, Sience@@NASA}
 
+@item @uref{http://www.handy.de/, handy.de}
+
 @item @uref{http://lindev.jmc.tju.edu/qwor, Qt Widget and Object Repository}
 
 @item @uref{http://www.samba-choro.com.br, Brazilian samba site (in Portuguese)}
@@ -44811,7 +44813,7 @@ detection of @code{TIMESTAMP} fields), provides warnings and suggestions
 while converting, quotes @strong{all} special characters in text and
 binary data, and so on.  It will also convert to @code{mSQL} v1 and v2,
 and is free of charge for anyone. See
-@uref{http://www.cynergi.net/prod/exportsql/} for the latest version. By
+@uref{http://www.cynergi.net/exportsql/} for the latest version. By
 Pedro Freire, @email{support@@cynergi.net}.  NOTE: Doesn't work with
 Access2!
 @item @uref{http://www.mysql.com/Downloads/Contrib/access_to_mysql.txt, access_to_mysql.txt}
