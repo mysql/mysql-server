@@ -220,6 +220,10 @@ buf_calc_page_checksum(
 {
   	ulint checksum;
 
+	/* Since the fields FIL_PAGE_FILE_FLUSH_LSN and ..._ARCH_LOG_NO
+	are written outside the buffer pool to the first pages of data
+	files, we have to skip them in page checksum calculation */
+  	
   	checksum = ut_fold_binary(page, FIL_PAGE_FILE_FLUSH_LSN);
   		+ ut_fold_binary(page + FIL_PAGE_DATA,
 				UNIV_PAGE_SIZE - FIL_PAGE_DATA
@@ -279,8 +283,9 @@ buf_page_print(
 
 	ut_sprintf_buf(buf, read_buf, UNIV_PAGE_SIZE);
 
+	ut_print_timestamp(stderr);
 	fprintf(stderr,
-	"InnoDB: Page dump in ascii and hex (%lu bytes):\n%s",
+	"  InnoDB: Page dump in ascii and hex (%lu bytes):\n%s",
 					UNIV_PAGE_SIZE, buf);
 	fprintf(stderr, "InnoDB: End of page dump\n");
 
@@ -288,7 +293,8 @@ buf_page_print(
 
 	checksum = buf_calc_page_checksum(read_buf);
 
-	fprintf(stderr, "InnoDB: Page checksum %lu stored checksum %lu\n",
+	ut_print_timestamp(stderr);
+	fprintf(stderr, "  InnoDB: Page checksum %lu stored checksum %lu\n",
 			checksum, mach_read_from_4(read_buf
                                         + UNIV_PAGE_SIZE
 					- FIL_PAGE_END_LSN)); 
@@ -1358,47 +1364,87 @@ buf_page_io_complete(
 /*=================*/
 	buf_block_t*	block)	/* in: pointer to the block in question */
 {
-	dulint		id;
 	dict_index_t*	index;
+	dulint		id;
 	ulint		io_type;
-
+	ulint		read_page_no;
+	
 	ut_ad(block);
 
 	io_type = block->io_fix;
 
 	if (io_type == BUF_IO_READ) {
+		/* If this page is not uninitialized and not in the
+		doublewrite buffer, then the page number should be the
+		same as in block */
+
+		read_page_no = mach_read_from_4((block->frame)
+						+ FIL_PAGE_OFFSET);
+		if (read_page_no != 0
+			&& !trx_doublewrite_page_inside(read_page_no)
+	    		&& read_page_no != block->offset) {
+
+			fprintf(stderr,
+"InnoDB: Error: page n:o stored in the page read in is %lu, should be %lu!\n",
+				read_page_no, block->offset);
+		}
+#ifdef notdefined
+		if (block->offset != 0 && read_page_no == 0) {
+			/* Check that the page is really uninited */
+
+			for (i = 0; i < UNIV_PAGE_SIZE; i++) {
+
+				if (*((block->frame) + i) != '\0') {
+					fprintf(stderr,
+"InnoDB: Error: page n:o in the page read in is 0, but page %lu is inited!\n",
+						block->offset);
+					break;
+				}
+			}
+		}
+#endif
 		/* From version 3.23.38 up we store the page checksum
-		   to the 4 upper bytes of the page end lsn field */
+		   to the 4 first bytes of the page end lsn field */
 
 		if (buf_page_is_corrupted(block->frame)) {
 		  	fprintf(stderr,
-			  "InnoDB: Database page corruption or a failed\n"
-			  "InnoDB: file read of page %lu.\n", block->offset);
+		"InnoDB: Database page corruption on disk or a failed\n"
+		"InnoDB: file read of page %lu.\n", block->offset);
 			  
 		  	fprintf(stderr,
-			  "InnoDB: You may have to recover from a backup.\n");
+		"InnoDB: You may have to recover from a backup.\n");
 
 			buf_page_print(block->frame);
 
 		  	fprintf(stderr,
-			  "InnoDB: Database page corruption or a failed\n"
-			  "InnoDB: file read of page %lu.\n", block->offset);
+		"InnoDB: Database page corruption on disk or a failed\n"
+		"InnoDB: file read of page %lu.\n", block->offset);
 		  	fprintf(stderr,
-			  "InnoDB: You may have to recover from a backup.\n");
+		"InnoDB: You may have to recover from a backup.\n");
 			fprintf(stderr,
-			  "InnoDB: It is also possible that your operating\n"
-			  "InnoDB: system has corrupted its own file cache\n"
-			  "InnoDB: and rebooting your computer removes the\n"
-			  "InnoDB: error.\n");
+		"InnoDB: It is also possible that your operating\n"
+		"InnoDB: system has corrupted its own file cache\n"
+		"InnoDB: and rebooting your computer removes the\n"
+		"InnoDB: error.\n"
+		"InnoDB: If the corrupt page is an index page\n"
+		"InnoDB: you can also try to fix the corruption\n"
+		"InnoDB: by dumping, dropping, and reimporting\n"
+		"InnoDB: the corrupt table. You can use CHECK\n"
+		"InnoDB: TABLE to scan your table for corruption.\n"
+		"InnoDB: Look also at section 6.1 of\n"
+		"InnoDB: http://www.innodb.com/ibman.html about\n"
+		"InnoDB: forcing recovery.\n");
 			  
-			if (srv_force_recovery < SRV_FORCE_IGNORE_CORRUPT) { 
+			if (srv_force_recovery < SRV_FORCE_IGNORE_CORRUPT) {
+				fprintf(stderr,
+	"InnoDB: Ending processing because of a corrupt database page.\n");
 		  		exit(1);
 		  	}
 		}
 
 		if (recv_recovery_is_on()) {
-			recv_recover_page(TRUE, block->frame, block->space,
-								block->offset);
+			recv_recover_page(FALSE, TRUE, block->frame,
+						block->space, block->offset);
 		}
 
 		if (!recv_no_ibuf_operations) {

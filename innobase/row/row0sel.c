@@ -2233,7 +2233,7 @@ row_sel_get_clust_rec_for_mysql(
 		(or old_vers) is not rec; in that case we must ignore
 		such row because in our snapshot rec would not have existed.
 		Remember that from rec we cannot see directly which transaction
-		id corrsponds to it: we have to go to the clustered index
+		id corresponds to it: we have to go to the clustered index
 		record. A query where we want to fetch all rows where
 		the secondary index value is in some interval would return
 		a wrong result if we would not drop rows which we come to
@@ -2244,6 +2244,12 @@ row_sel_get_clust_rec_for_mysql(
 		    && !row_sel_sec_rec_is_for_clust_rec(rec, sec_index,
 						clust_rec, clust_index)) {
 			clust_rec = NULL;
+		} else {
+#ifdef UNIV_SEARCH_DEBUG
+			ut_a(clust_rec == NULL ||
+			    row_sel_sec_rec_is_for_clust_rec(rec, sec_index,
+						clust_rec, clust_index));
+#endif		
 		}
 	}
 
@@ -2399,7 +2405,12 @@ row_sel_try_search_shortcut_for_mysql(
 
 	btr_pcur_open_with_no_init(index, search_tuple, PAGE_CUR_GE,
 					BTR_SEARCH_LEAF, pcur,
-					RW_S_LATCH, mtr);
+#ifndef UNIV_SEARCH_DEBUG
+					RW_S_LATCH,
+#else
+					0,
+#endif
+					mtr);
 	rec = btr_pcur_get_rec(pcur);
 	
 	if (!page_rec_is_user_rec(rec)) {
@@ -2623,15 +2634,18 @@ row_search_for_mysql(
 				
 				goto no_shortcut;
 			}
-			
+#ifndef UNIV_SEARCH_DEBUG			
 			if (!trx->has_search_latch) {
 				rw_lock_s_lock(&btr_search_latch);
 				trx->has_search_latch = TRUE;
 			}
-
+#endif
 			shortcut = row_sel_try_search_shortcut_for_mysql(&rec,
 							       prebuilt, &mtr);
 			if (shortcut == SEL_FOUND) {
+#ifdef UNIV_SEARCH_DEBUG
+				ut_a(0 == cmp_dtuple_rec(search_tuple, rec));
+#endif 
 				row_sel_store_mysql_rec(buf, prebuilt, rec);
 	
  				mtr_commit(&mtr);
@@ -2793,7 +2807,9 @@ rec_loop:
 		/* The record matches enough */
 
 		ut_ad(mode == PAGE_CUR_GE);
-	
+#ifdef UNIV_SEARCH_DEBUG
+		ut_a(0 == cmp_dtuple_rec(search_tuple, rec));
+#endif	
 	} else if (match_mode == ROW_SEL_EXACT) {
 		/* Test if the index record matches completely to search_tuple
 		in prebuilt: if not, then we return with DB_RECORD_NOT_FOUND */

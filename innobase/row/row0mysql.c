@@ -1882,6 +1882,28 @@ loop:
 }
 
 /*************************************************************************
+Checks if a table name contains the string "/#sql" which denotes temporary
+tables in MySQL. */
+static
+ibool
+row_is_mysql_tmp_table_name(
+/*========================*/
+			/* out: TRUE if temporary table */
+	char*	name)	/* in: table name in the form 'database/tablename' */
+{
+	ulint	i;
+
+	for (i = 0; i <= ut_strlen(name) - 5; i++) {
+		if (ut_memcmp(name + i, "/#sql", 5) == 0) {
+
+			return(TRUE);
+		}
+	}
+
+	return(FALSE);
+}
+
+/*************************************************************************
 Renames a table for MySQL. */
 
 int
@@ -1944,16 +1966,27 @@ row_rename_table_for_mysql(
 	str2 = 
 	"';\nold_table_name := '";
 
-	str3 =
-	"';\n"
-	"UPDATE SYS_TABLES SET NAME = new_table_name\n"
-	"WHERE NAME = old_table_name;\n"
-	"UPDATE SYS_FOREIGN SET FOR_NAME = new_table_name\n"
-	"WHERE FOR_NAME = old_table_name;\n"
-	"UPDATE SYS_FOREIGN SET REF_NAME = new_table_name\n"
-	"WHERE REF_NAME = old_table_name;\n"
-	"COMMIT WORK;\n"
-	"END;\n";
+	if (row_is_mysql_tmp_table_name(new_name)) {
+
+		/* We want to preserve the original foreign key
+		constraint definitions despite the name change */
+
+		str3 =
+		"';\n"
+		"UPDATE SYS_TABLES SET NAME = new_table_name\n"
+		"WHERE NAME = old_table_name;\n"
+		"END;\n";
+	} else {
+		str3 =
+		"';\n"
+		"UPDATE SYS_TABLES SET NAME = new_table_name\n"
+		"WHERE NAME = old_table_name;\n"
+		"UPDATE SYS_FOREIGN SET FOR_NAME = new_table_name\n"
+		"WHERE FOR_NAME = old_table_name;\n"
+		"UPDATE SYS_FOREIGN SET REF_NAME = new_table_name\n"
+		"WHERE REF_NAME = old_table_name;\n"
+		"END;\n";
+	}
 
 	len = ut_strlen(str1);
 
@@ -2028,7 +2061,32 @@ row_rename_table_for_mysql(
 		trx_general_rollback_for_mysql(trx, FALSE, NULL);
 		trx->error_state = DB_SUCCESS;
 	} else {
-		ut_a(dict_table_rename_in_cache(table, new_name));
+		ut_a(dict_table_rename_in_cache(table, new_name,
+				!row_is_mysql_tmp_table_name(new_name)));
+
+		if (row_is_mysql_tmp_table_name(old_name)) {
+
+			err = dict_load_foreigns(new_name);
+
+			if (err != DB_SUCCESS) {
+
+	    			ut_print_timestamp(stderr);
+
+				fprintf(stderr,
+     "  InnoDB: Error: in ALTER TABLE table %s\n"
+     "InnoDB: has or is referenced in foreign key constraints\n"
+     "InnoDB: which are not compatible with the new table definition.\n",
+     new_name);
+     
+				ut_a(dict_table_rename_in_cache(table,
+							old_name, FALSE));
+						
+				trx->error_state = DB_SUCCESS;
+				trx_general_rollback_for_mysql(trx, FALSE,
+									NULL);
+				trx->error_state = DB_SUCCESS;
+			}
+		}
 	}
 funct_exit:	
 	mutex_exit(&(dict_sys->mutex));

@@ -28,6 +28,16 @@ a margin of replaceable pages there. */
 void
 buf_flush_free_margin(void);
 /*=======================*/
+/************************************************************************
+Initializes a page for writing to the tablespace. */
+
+void
+buf_flush_init_for_writing(
+/*=======================*/
+	byte*	page,		/* in: page */
+	dulint	newest_lsn,	/* in: newest modification lsn to the page */
+	ulint	space,		/* in: space id */
+	ulint	page_no);	/* in: page number */
 /***********************************************************************
 This utility flushes dirty blocks from the end of the LRU list or flush_list.
 NOTE 1: in the case of an LRU flush the calling thread may own latches to
