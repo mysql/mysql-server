@@ -40,7 +40,7 @@
 #include <signal.h>
 #include <violite.h>
 
-const char *VER= "12.10";
+const char *VER= "12.11";
 
 /* Don't try to make a nice table if the data is too big */
 #define MAX_COLUMN_LENGTH	     1024
@@ -1487,7 +1487,7 @@ com_go(String *buffer,char *line __attribute__((unused)))
 
 static void init_pager()
 {
-#if !defined( __WIN__) && !defined( OS2) && (!defined(HAVE_mit_thread) && defined(THREAD))
+#if !defined( __WIN__) && !defined( OS2) && !(defined(HAVE_mit_thread) && defined(THREAD))
   if (!opt_nopager)
   {
     if (!(PAGER= popen(pager, "w")))
@@ -1503,7 +1503,7 @@ static void init_pager()
 
 static void end_pager()
 {
-#if !defined( __WIN__) && !defined( OS2) && (!defined(HAVE_mit_thread) && defined(THREAD))
+#if !defined( __WIN__) && !defined( OS2) && !(defined(HAVE_mit_thread) && defined(THREAD))
   if (!opt_nopager)
     pclose(PAGER);
 #endif
