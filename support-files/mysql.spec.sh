@@ -488,14 +488,7 @@ chmod -R og-rw $mysql_datadir/mysql
 sleep 2
 
 
-%pre ndb-storage
-mysql_clusterdir=/var/lib/mysql-cluster
-
-# Create cluster directory if needed
-if test ! -d $mysql_clusterdir; then mkdir -m755 $mysql_clusterdir; fi
-
-
-%pre ndb-storage
+%post ndb-storage
 mysql_clusterdir=/var/lib/mysql-cluster
 
 # Create cluster directory if needed
@@ -701,6 +694,12 @@ fi
 # itself - note that they must be ordered by date (important when
 # merging BK trees)
 %changelog 
+* Monday Feb 7 2005 Tomas Ulin <tomas@mysql.com>
+
+- enabled the "Ndbcluster" storage engine for the max binary
+- added extra make install in ndb subdir after Max build to get ndb binaries
+- added packages for ndbcluster storage engine
+
 * Fri Jan 14 2005 Lenz Grimmer <lenz@mysql.com>
 
 - replaced obsoleted "BuildPrereq" with "BuildRequires" instead
