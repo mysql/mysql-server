@@ -25,7 +25,7 @@ CFG=bdb - Win32 Max
 # PROP AllowPerConfigDependencies 0
 # PROP Scc_ProjName ""
 # PROP Scc_LocalPath ""
-CPP=cl.exe
+CPP=xicl6.exe
 RSC=rc.exe
 
 !IF  "$(CFG)" == "bdb - Win32 Debug"
@@ -41,14 +41,13 @@ RSC=rc.exe
 # PROP Intermediate_Dir "Debug"
 # PROP Target_Dir ""
 # ADD BASE CPP /nologo /W3 /Gm /GX /ZI /Od /D "WIN32" /D "_DEBUG" /D "_MBCS" /D "_LIB" /YX /FD /GZ /c
-# ADD CPP /nologo /G6 /MTd /W3 /Z7 /Od /Gf /I "../bdb/build_win32" /I "../bdb/include" /D "__WIN32__" /D "_DEBUG" /D "SAFEMALLOC" /D "SAFE_MUTEX" /D "_WINDOWS" /FD /c
-# SUBTRACT CPP /Fr
+# ADD CPP /nologo /G6 /MTd /W3 /Z7 /Od /Gf /I "../bdb/build_win32" /I "../bdb" /I "../bdb/dbinc" /D "__WIN32__" /D "_DEBUG" /D "SAFEMALLOC" /D "SAFE_MUTEX" /D "_WINDOWS" /FD /c
 # ADD BASE RSC /l 0x409 /d "_DEBUG"
 # ADD RSC /l 0x409 /d "_DEBUG"
 BSC32=bscmake.exe
 # ADD BASE BSC32 /nologo
 # ADD BSC32 /nologo
-LIB32=link.exe -lib
+LIB32=xilink6.exe -lib
 # ADD BASE LIB32 /nologo
 # ADD LIB32 /nologo /out:"..\lib_debug\bdb.lib"
 
@@ -66,13 +65,13 @@ LIB32=link.exe -lib
 # PROP Target_Dir ""
 # ADD BASE CPP /nologo /G6 /MTd /W3 /Z7 /Od /Gf /I "../bdb/build_win32" /I "../bdb/include" /D "__WIN32__" /D "_DEBUG" /D "SAFEMALLOC" /D "SAFE_MUTEX" /D "_WINDOWS" /FD /c
 # SUBTRACT BASE CPP /Fr
-# ADD CPP /nologo /G6 /MT /W3 /O2 /I "../bdb/build_win32" /I "../bdb/include" /D "NDEBUG" /D "DBUG_OFF" /D "_WINDOWS" /Fo"mysys___Win32_Max/" /Fd"mysys___Win32_Max/" /FD /c
+# ADD CPP /nologo /G6 /MT /W3 /O2 /I "../bdb/build_win32" /I "../bdb" /D "NDEBUG" /D "DBUG_OFF" /D "_WINDOWS" /Fo"mysys___Win32_Max/" /Fd"mysys___Win32_Max/" /FD /c
 # ADD BASE RSC /l 0x409 /d "_DEBUG"
 # ADD RSC /l 0x409 /d "_DEBUG"
 BSC32=bscmake.exe
 # ADD BASE BSC32 /nologo
 # ADD BSC32 /nologo
-LIB32=link.exe -lib
+LIB32=xilink6.exe -lib
 # ADD BASE LIB32 /nologo /out:"..\lib_debug\bdb.lib"
 # ADD LIB32 /nologo /out:"..\lib_release\bdb.lib"
 
@@ -167,34 +166,6 @@ SOURCE=.\db\crdel_rec.c
 # End Source File
 # Begin Source File
 
-SOURCE=.\cxx\cxx_app.cpp
-# End Source File
-# Begin Source File
-
-SOURCE=.\cxx\cxx_except.cpp
-# End Source File
-# Begin Source File
-
-SOURCE=.\cxx\cxx_lock.cpp
-# End Source File
-# Begin Source File
-
-SOURCE=.\cxx\cxx_log.cpp
-# End Source File
-# Begin Source File
-
-SOURCE=.\cxx\cxx_mpool.cpp
-# End Source File
-# Begin Source File
-
-SOURCE=.\cxx\cxx_table.cpp
-# End Source File
-# Begin Source File
-
-SOURCE=.\cxx\cxx_txn.cpp
-# End Source File
-# Begin Source File
-
 SOURCE=.\db\db.c
 # End Source File
 # Begin Source File
@@ -235,6 +206,10 @@ SOURCE=.\common\db_getlong.c
 # End Source File
 # Begin Source File
 
+SOURCE=.\common\db_idspace.c
+# End Source File
+# Begin Source File
+
 SOURCE=.\db\db_iface.c
 # End Source File
 # Begin Source File
@@ -255,6 +230,10 @@ SOURCE=.\db\db_method.c
 # End Source File
 # Begin Source File
 
+SOURCE=.\db\db_open.c
+# End Source File
+# Begin Source File
+
 SOURCE=.\db\db_overflow.c
 # End Source File
 # Begin Source File
@@ -271,6 +250,14 @@ SOURCE=.\db\db_reclaim.c
 # End Source File
 # Begin Source File
 
+SOURCE=.\db\db_remove.c
+# End Source File
+# Begin Source File
+
+SOURCE=.\db\db_rename.c
+# End Source File
+# Begin Source File
+
 SOURCE=.\db\db_ret.c
 # End Source File
 # Begin Source File
@@ -280,6 +267,10 @@ SOURCE=.\env\db_salloc.c
 # Begin Source File
 
 SOURCE=.\env\db_shash.c
+# End Source File
+# Begin Source File
+
+SOURCE=.\db\db_truncate.c
 # End Source File
 # Begin Source File
 
@@ -303,6 +294,26 @@ SOURCE=.\dbm\dbm.c
 # End Source File
 # Begin Source File
 
+SOURCE=.\dbreg\dbreg.c
+# End Source File
+# Begin Source File
+
+SOURCE=.\dbreg\dbreg_auto.c
+# End Source File
+# Begin Source File
+
+SOURCE=.\dbreg\dbreg_rec.c
+# End Source File
+# Begin Source File
+
+SOURCE=.\dbreg\dbreg_util.c
+# End Source File
+# Begin Source File
+
+SOURCE=.\env\env_file.c
+# End Source File
+# Begin Source File
+
 SOURCE=.\env\env_method.c
 # End Source File
 # Begin Source File
@@ -316,6 +327,22 @@ SOURCE=.\env\env_recover.c
 # Begin Source File
 
 SOURCE=.\env\env_region.c
+# End Source File
+# Begin Source File
+
+SOURCE=.\fileops\fileops_auto.c
+# End Source File
+# Begin Source File
+
+SOURCE=.\fileops\fop_basic.c
+# End Source File
+# Begin Source File
+
+SOURCE=.\fileops\fop_rec.c
+# End Source File
+# Begin Source File
+
+SOURCE=.\fileops\fop_util.c
 # End Source File
 # Begin Source File
 
@@ -347,6 +374,10 @@ SOURCE=.\hash\hash_method.c
 # End Source File
 # Begin Source File
 
+SOURCE=.\hash\hash_open.c
+# End Source File
+# Begin Source File
+
 SOURCE=.\hash\hash_page.c
 # End Source File
 # Begin Source File
@@ -371,15 +402,15 @@ SOURCE=.\hash\hash_verify.c
 # End Source File
 # Begin Source File
 
+SOURCE=.\hmac\hmac.c
+# End Source File
+# Begin Source File
+
 SOURCE=.\hsearch\hsearch.c
 # End Source File
 # Begin Source File
 
 SOURCE=.\lock\lock.c
-# End Source File
-# Begin Source File
-
-SOURCE=.\lock\lock_conflict.c
 # End Source File
 # Begin Source File
 
@@ -411,15 +442,7 @@ SOURCE=.\log\log_archive.c
 # End Source File
 # Begin Source File
 
-SOURCE=.\log\log_auto.c
-# End Source File
-# Begin Source File
-
 SOURCE=.\log\log_compare.c
-# End Source File
-# Begin Source File
-
-SOURCE=.\log\log_findckp.c
 # End Source File
 # Begin Source File
 
@@ -432,14 +455,6 @@ SOURCE=.\log\log_method.c
 # Begin Source File
 
 SOURCE=.\log\log_put.c
-# End Source File
-# Begin Source File
-
-SOURCE=.\log\log_rec.c
-# End Source File
-# Begin Source File
-
-SOURCE=.\log\log_register.c
 # End Source File
 # Begin Source File
 
@@ -495,6 +510,10 @@ SOURCE=.\mutex\mut_tas.c
 # End Source File
 # Begin Source File
 
+SOURCE=.\mutex\mut_win32.c
+# End Source File
+# Begin Source File
+
 SOURCE=.\mutex\mutex.c
 # End Source File
 # Begin Source File
@@ -504,6 +523,14 @@ SOURCE=.\os_win32\os_abs.c
 # Begin Source File
 
 SOURCE=.\os\os_alloc.c
+# End Source File
+# Begin Source File
+
+SOURCE=.\os_win32\os_clock.c
+# End Source File
+# Begin Source File
+
+SOURCE=.\os_win32\os_config.c
 # End Source File
 # Begin Source File
 
@@ -519,15 +546,15 @@ SOURCE=.\os_win32\os_fid.c
 # End Source File
 # Begin Source File
 
-SOURCE=.\os_win32\os_finit.c
+SOURCE=.\os_win32\os_fsync.c
 # End Source File
 # Begin Source File
 
-SOURCE=.\os\os_fsync.c
+SOURCE=.\os_win32\os_handle.c
 # End Source File
 # Begin Source File
 
-SOURCE=.\os\os_handle.c
+SOURCE=.\os\os_id.c
 # End Source File
 # Begin Source File
 
@@ -563,7 +590,7 @@ SOURCE=.\os\os_rpath.c
 # End Source File
 # Begin Source File
 
-SOURCE=.\os\os_rw.c
+SOURCE=.\os_win32\os_rw.c
 # End Source File
 # Begin Source File
 
@@ -579,7 +606,7 @@ SOURCE=.\os_win32\os_spin.c
 # End Source File
 # Begin Source File
 
-SOURCE=.\os\os_stat.c
+SOURCE=.\os_win32\os_stat.c
 # End Source File
 # Begin Source File
 
@@ -635,6 +662,26 @@ SOURCE=.\qam\qam_verify.c
 # End Source File
 # Begin Source File
 
+SOURCE=.\rep\rep_method.c
+# End Source File
+# Begin Source File
+
+SOURCE=.\rep\rep_record.c
+# End Source File
+# Begin Source File
+
+SOURCE=.\rep\rep_region.c
+# End Source File
+# Begin Source File
+
+SOURCE=.\rep\rep_util.c
+# End Source File
+# Begin Source File
+
+SOURCE=.\hmac\sha1.c
+# End Source File
+# Begin Source File
+
 SOURCE=.\clib\strcasecmp.c
 # End Source File
 # Begin Source File
@@ -647,11 +694,27 @@ SOURCE=.\txn\txn_auto.c
 # End Source File
 # Begin Source File
 
+SOURCE=.\txn\txn_method.c
+# End Source File
+# Begin Source File
+
 SOURCE=.\txn\txn_rec.c
 # End Source File
 # Begin Source File
 
+SOURCE=.\txn\txn_recover.c
+# End Source File
+# Begin Source File
+
 SOURCE=.\txn\txn_region.c
+# End Source File
+# Begin Source File
+
+SOURCE=.\txn\txn_stat.c
+# End Source File
+# Begin Source File
+
+SOURCE=.\txn\txn_util.c
 # End Source File
 # Begin Source File
 
