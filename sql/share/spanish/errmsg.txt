@@ -410,3 +410,5 @@ character-set=latin1
 "Binary logging and replication forbid changing the global server %s"
 "Can't map file: %-.64s, errno: %d"
 "Wrong magic in %-.64s"
+"Prepared statement contains too many placeholders"
+"Key part '%-.64s' length cannot be 0"

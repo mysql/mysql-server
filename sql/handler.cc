@@ -1200,8 +1200,7 @@ void handler::print_error(int error, myf errflag)
 	str.length(max_length-4);
 	str.append("...");
       }
-      my_printf_error(ER_DUP_ENTRY, ER(ER_DUP_ENTRY), MYF(0),
-                      str.c_ptr(), key_nr+1);
+      my_error(ER_DUP_ENTRY, MYF(0), str.c_ptr(), key_nr+1);
       DBUG_VOID_RETURN;
     }
     textno=ER_DUP_KEY;
@@ -1270,7 +1269,7 @@ void handler::print_error(int error, myf errflag)
     uint length=dirname_part(buff,table->path);
     buff[length-1]=0;
     db=buff+dirname_length(buff);
-    my_error(ER_NO_SUCH_TABLE,MYF(0),db,table->table_name);
+    my_error(ER_NO_SUCH_TABLE, MYF(0), db, table->table_name);
     break;
   }
   default:
@@ -1284,20 +1283,16 @@ void handler::print_error(int error, myf errflag)
       {
 	const char* engine= table_type();
 	if (temporary)
-	  my_printf_error(ER_GET_TEMPORARY_ERRMSG,
-                          ER(ER_GET_TEMPORARY_ERRMSG), MYF(0),
-                          error, str.ptr(), engine);
+	  my_error(ER_GET_TEMPORARY_ERRMSG, MYF(0), error, str.ptr(), engine);
 	else
-	  my_printf_error(ER_GET_ERRMSG,
-                          ER(ER_GET_ERRMSG), MYF(0),
-                          error, str.ptr(), engine);
+	  my_error(ER_GET_ERRMSG, MYF(0), error, str.ptr(), engine);
       }
       else       
 	my_error(ER_GET_ERRNO,errflag,error);
       DBUG_VOID_RETURN;
     }
   }
-  my_error(textno,errflag,table->table_name,error);
+  my_error(textno, errflag, table->table_name, error);
   DBUG_VOID_RETURN;
 }
 
@@ -1419,9 +1414,7 @@ int ha_create_table(const char *name, HA_CREATE_INFO *create_info,
   error=table.file->create(name,&table,create_info);
   VOID(closefrm(&table));
   if (error)
-    my_printf_error(ER_CANT_CREATE_TABLE, ER(ER_CANT_CREATE_TABLE),
-                    MYF(ME_BELL+ME_WAITTANG),
-                    name,error);
+    my_error(ER_CANT_CREATE_TABLE, MYF(ME_BELL+ME_WAITTANG), name,error);
   DBUG_RETURN(error != 0);
 }
 

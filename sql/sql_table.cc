@@ -84,9 +84,7 @@ bool mysql_rm_table(THD *thd,TABLE_LIST *tables, my_bool if_exists,
   {
     if (thd->global_read_lock)
     {
-      my_printf_error(ER_TABLE_NOT_LOCKED_FOR_WRITE,
-                      ER(ER_TABLE_NOT_LOCKED_FOR_WRITE), MYF(0),
-                      tables->real_name);
+      my_error(ER_TABLE_NOT_LOCKED_FOR_WRITE, MYF(0), tables->real_name);
       error= TRUE;
       goto err;
     }
@@ -269,8 +267,7 @@ int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
   if (wrong_tables.length())
   {
     if (!foreign_key_error)
-      my_printf_error(ER_BAD_TABLE_ERROR, ER(ER_BAD_TABLE_ERROR), MYF(0),
-                      wrong_tables.c_ptr());
+      my_error(ER_BAD_TABLE_ERROR, MYF(0), wrong_tables.c_ptr());
     else
       my_message(ER_ROW_IS_REFERENCED, ER(ER_ROW_IS_REFERENCED), MYF(0));
     error= 1;
@@ -470,8 +467,7 @@ int mysql_prepare_table(THD *thd, HA_CREATE_INFO *create_info,
 
     if (check_column_name(sql_field->field_name))
     {
-      my_printf_error(ER_WRONG_COLUMN_NAME, ER(ER_WRONG_COLUMN_NAME), MYF(0),
-                      sql_field->field_name);
+      my_error(ER_WRONG_COLUMN_NAME, MYF(0), sql_field->field_name);
       DBUG_RETURN(-1);
     }
 
@@ -488,8 +484,7 @@ int mysql_prepare_table(THD *thd, HA_CREATE_INFO *create_info,
 	*/
 	if (field_no < select_field_pos || dup_no >= select_field_pos)
 	{
-	  my_printf_error(ER_DUP_FIELDNAME, ER(ER_DUP_FIELDNAME), MYF(0),
-                          sql_field->field_name);
+	  my_error(ER_DUP_FIELDNAME, MYF(0), sql_field->field_name);
 	  DBUG_RETURN(-1);
 	}
 	else
@@ -541,8 +536,7 @@ int mysql_prepare_table(THD *thd, HA_CREATE_INFO *create_info,
 #ifdef HAVE_SPATIAL
       if (!(file->table_flags() & HA_CAN_GEOMETRY))
       {
-	my_printf_error(ER_CHECK_NOT_IMPLEMENTED, ER(ER_CHECK_NOT_IMPLEMENTED),
-			MYF(0), "GEOMETRY");
+	my_error(ER_CHECK_NOT_IMPLEMENTED, MYF(0), "GEOMETRY");
 	DBUG_RETURN(-1);
       }
       sql_field->pack_flag=FIELDFLAG_GEOM |
@@ -555,8 +549,8 @@ int mysql_prepare_table(THD *thd, HA_CREATE_INFO *create_info,
       blob_columns++;
       break;
 #else
-      my_printf_error(ER_FEATURE_DISABLED,ER(ER_FEATURE_DISABLED), MYF(0),
-		      sym_group_geom.name, sym_group_geom.needed_define);
+      my_error(ER_FEATURE_DISABLED, MYF(0),
+               sym_group_geom.name, sym_group_geom.needed_define);
       DBUG_RETURN(-1);
 #endif /*HAVE_SPATIAL*/
     case FIELD_TYPE_VAR_STRING:
@@ -676,11 +670,9 @@ int mysql_prepare_table(THD *thd, HA_CREATE_INFO *create_info,
       if (fk_key->ref_columns.elements &&
 	  fk_key->ref_columns.elements != fk_key->columns.elements)
       {
-	my_printf_error(ER_WRONG_FK_DEF, ER(ER_WRONG_FK_DEF), MYF(0),
-                        (fk_key->name ?
-                         fk_key->name :
-                         "foreign key without name"),
-                         ER(ER_KEY_REF_DO_NOT_MATCH_TABLE_REF));
+        my_error(ER_WRONG_FK_DEF, MYF(0),
+                 (fk_key->name ?  fk_key->name : "foreign key without name"),
+                 ER(ER_KEY_REF_DO_NOT_MATCH_TABLE_REF));
 	DBUG_RETURN(-1);
       }
       continue;
@@ -694,8 +686,7 @@ int mysql_prepare_table(THD *thd, HA_CREATE_INFO *create_info,
     }
     if (key->name && strlen(key->name) > NAME_LEN)
     {
-      my_printf_error(ER_TOO_LONG_IDENT, ER(ER_TOO_LONG_IDENT), MYF(0),
-                      key->name);
+      my_error(ER_TOO_LONG_IDENT, MYF(0), key->name);
       DBUG_RETURN(-1);
     }
     key_iterator2.rewind ();
@@ -735,8 +726,7 @@ int mysql_prepare_table(THD *thd, HA_CREATE_INFO *create_info,
     if (key->name && !tmp_table &&
 	!my_strcasecmp(system_charset_info,key->name,primary_key_name))
     {
-      my_printf_error(ER_WRONG_NAME_FOR_INDEX, ER(ER_WRONG_NAME_FOR_INDEX),
-                      MYF(0), key->name);
+      my_error(ER_WRONG_NAME_FOR_INDEX, MYF(0), key->name);
       DBUG_RETURN(-1);
     }
   }
@@ -781,8 +771,8 @@ int mysql_prepare_table(THD *thd, HA_CREATE_INFO *create_info,
 	key_info->flags= HA_SPATIAL;
 	break;
 #else
-	my_printf_error(ER_FEATURE_DISABLED,ER(ER_FEATURE_DISABLED),MYF(0),
-			sym_group_geom.name, sym_group_geom.needed_define);
+	my_error(ER_FEATURE_DISABLED, MYF(0),
+                 sym_group_geom.name, sym_group_geom.needed_define);
 	DBUG_RETURN(-1);
 #endif
     case Key::FOREIGN_KEY:
@@ -822,8 +812,7 @@ int mysql_prepare_table(THD *thd, HA_CREATE_INFO *create_info,
     {
       if (key_info->key_parts != 1)
       {
-	my_printf_error(ER_WRONG_ARGUMENTS,
-			ER(ER_WRONG_ARGUMENTS),MYF(0),"SPATIAL INDEX");
+	my_error(ER_WRONG_ARGUMENTS, MYF(0), "SPATIAL INDEX");
 	DBUG_RETURN(-1);
       }
     }
@@ -833,17 +822,15 @@ int mysql_prepare_table(THD *thd, HA_CREATE_INFO *create_info,
 #ifdef HAVE_RTREE_KEYS
       if ((key_info->key_parts & 1) == 1)
       {
-	my_printf_error(ER_WRONG_ARGUMENTS,
-			ER(ER_WRONG_ARGUMENTS),MYF(0),"RTREE INDEX");
+	my_error(ER_WRONG_ARGUMENTS, MYF(0), "RTREE INDEX");
 	DBUG_RETURN(-1);
       }
       /* TODO: To be deleted */
-      my_printf_error(ER_NOT_SUPPORTED_YET, ER(ER_NOT_SUPPORTED_YET),
-		      MYF(0), "RTREE INDEX");
+      my_error(ER_NOT_SUPPORTED_YET, MYF(0), "RTREE INDEX");
       DBUG_RETURN(-1);
 #else
-      my_printf_error(ER_FEATURE_DISABLED,ER(ER_FEATURE_DISABLED),MYF(0),
-		      sym_group_rtree.name, sym_group_rtree.needed_define);
+      my_error(ER_FEATURE_DISABLED, MYF(0),
+               sym_group_rtree.name, sym_group_rtree.needed_define);
       DBUG_RETURN(-1);
 #endif
     }
@@ -861,9 +848,7 @@ int mysql_prepare_table(THD *thd, HA_CREATE_INFO *create_info,
 	field++;
       if (!sql_field)
       {
-	my_printf_error(ER_KEY_COLUMN_DOES_NOT_EXITS,
-			ER(ER_KEY_COLUMN_DOES_NOT_EXITS),MYF(0),
-			column->field_name);
+	my_error(ER_KEY_COLUMN_DOES_NOT_EXITS, MYF(0), column->field_name);
 	DBUG_RETURN(-1);
       }
       /* for fulltext keys keyseg length is 1 for blobs (it's ignored in
@@ -881,8 +866,7 @@ int mysql_prepare_table(THD *thd, HA_CREATE_INFO *create_info,
 	    sql_field->charset->mbminlen > 1 || // ucs2 doesn't work yet
 	    (ft_key_charset && sql_field->charset != ft_key_charset))
 	{
-	    my_printf_error(ER_BAD_FT_COLUMN,ER(ER_BAD_FT_COLUMN),MYF(0),
-			    column->field_name);
+	    my_error(ER_BAD_FT_COLUMN, MYF(0), column->field_name);
 	    DBUG_RETURN(-1);
 	}
 	ft_key_charset=sql_field->charset;
@@ -903,15 +887,12 @@ int mysql_prepare_table(THD *thd, HA_CREATE_INFO *create_info,
 	{
 	  if (!(file->table_flags() & HA_CAN_INDEX_BLOBS))
 	  {
-	    my_printf_error(ER_BLOB_USED_AS_KEY,ER(ER_BLOB_USED_AS_KEY),MYF(0),
-			    column->field_name);
+	    my_error(ER_BLOB_USED_AS_KEY, MYF(0), column->field_name);
 	    DBUG_RETURN(-1);
 	  }
 	  if (!column->length)
 	  {
-	    my_printf_error(ER_BLOB_KEY_WITHOUT_LENGTH,
-			    ER(ER_BLOB_KEY_WITHOUT_LENGTH),MYF(0),
-			    column->field_name);
+	    my_error(ER_BLOB_KEY_WITHOUT_LENGTH, MYF(0), column->field_name);
 	    DBUG_RETURN(-1);
 	  }
 	}
@@ -940,8 +921,7 @@ int mysql_prepare_table(THD *thd, HA_CREATE_INFO *create_info,
 	     key_info->flags|= HA_NULL_PART_KEY;
 	  if (!(file->table_flags() & HA_NULL_IN_KEY))
 	  {
-	    my_printf_error(ER_NULL_COLUMN_IN_INDEX,ER(ER_NULL_COLUMN_IN_INDEX),
-			    MYF(0),column->field_name);
+	    my_error(ER_NULL_COLUMN_IN_INDEX, MYF(0), column->field_name);
 	    DBUG_RETURN(-1);
 	  }
 	  if (key->type == Key::SPATIAL)
@@ -1001,8 +981,7 @@ int mysql_prepare_table(THD *thd, HA_CREATE_INFO *create_info,
       }
       else if (length == 0)
       {
-	my_printf_error(ER_WRONG_KEY_COLUMN, ER(ER_WRONG_KEY_COLUMN), MYF(0),
-			column->field_name);
+	my_error(ER_WRONG_KEY_COLUMN, MYF(0), column->field_name);
 	  DBUG_RETURN(-1);
       }
       if (length > file->max_key_part_length())
@@ -1058,8 +1037,7 @@ int mysql_prepare_table(THD *thd, HA_CREATE_INFO *create_info,
 					key_info_buffer,key_info);
 	if (check_if_keyname_exists(key_name,key_info_buffer,key_info))
 	{
-	  my_printf_error(ER_DUP_KEYNAME, ER(ER_DUP_KEYNAME), MYF(0),
-                          key_name);
+	  my_error(ER_DUP_KEYNAME, MYF(0), key_name);
 	  DBUG_RETURN(-1);
 	}
 	key_info->name=(char*) key_name;
@@ -1067,8 +1045,7 @@ int mysql_prepare_table(THD *thd, HA_CREATE_INFO *create_info,
     }
     if (!key_info->name || check_column_name(key_info->name))
     {
-      my_printf_error(ER_WRONG_NAME_FOR_INDEX, ER(ER_WRONG_NAME_FOR_INDEX),
-                      MYF(0), key_info->name);
+      my_error(ER_WRONG_NAME_FOR_INDEX, MYF(0), key_info->name);
       DBUG_RETURN(-1);
     }
     if (!(key_info->flags & HA_NULL_PART_KEY))
@@ -1177,7 +1154,7 @@ bool mysql_create_table(THD *thd,const char *db, const char *table_name,
   if ((create_info->options & HA_LEX_CREATE_TMP_TABLE) &&
       (file->table_flags() & HA_NO_TEMP_TABLES))
   {
-    my_printf_error(ER_ILLEGAL_HA, ER(ER_ILLEGAL_HA), MYF(0), table_name);
+    my_error(ER_ILLEGAL_HA, MYF(0), table_name);
     DBUG_RETURN(TRUE);
   }
 #endif
@@ -1228,8 +1205,7 @@ bool mysql_create_table(THD *thd,const char *db, const char *table_name,
       create_info->table_existed= 1;		// Mark that table existed
       DBUG_RETURN(FALSE);
     }
-    my_printf_error(ER_TABLE_EXISTS_ERROR, ER(ER_TABLE_EXISTS_ERROR), MYF(0),
-                    alias);
+    my_error(ER_TABLE_EXISTS_ERROR, MYF(0), alias);
     DBUG_RETURN(TRUE);
   }
   if (wait_if_global_read_lock(thd, 0, 1))
@@ -1245,8 +1221,7 @@ bool mysql_create_table(THD *thd,const char *db, const char *table_name,
 	error= FALSE;
       }
       else
-	my_printf_error(ER_TABLE_EXISTS_ERROR,
-                        ER(ER_TABLE_EXISTS_ERROR), MYF(0), table_name);
+	my_error(ER_TABLE_EXISTS_ERROR, MYF(0), table_name);
       goto end;
     }
   }
@@ -1275,8 +1250,7 @@ bool mysql_create_table(THD *thd,const char *db, const char *table_name,
        error= FALSE;
       }
       else
-       my_printf_error(ER_TABLE_EXISTS_ERROR,
-                       ER(ER_TABLE_EXISTS_ERROR), MYF(0), table_name);
+       my_error(ER_TABLE_EXISTS_ERROR, MYF(0), table_name);
       goto end;
     }
   }
@@ -1495,8 +1469,7 @@ mysql_rename_table(enum db_type base,
   }
   delete file;
   if (error)
-    my_printf_error(ER_ERROR_ON_RENAME, ER(ER_ERROR_ON_RENAME),
-                    MYF(0), from, to, error);
+    my_error(ER_ERROR_ON_RENAME, MYF(0), from, to, error);
   DBUG_RETURN(error != 0);
 }
 
@@ -2048,8 +2021,7 @@ bool mysql_assign_to_keycache(THD* thd, TABLE_LIST* tables,
   if (!(key_cache= get_key_cache(key_cache_name)))
   {
     pthread_mutex_unlock(&LOCK_global_system_variables);
-    my_printf_error(ER_UNKNOWN_KEY_CACHE, ER(ER_UNKNOWN_KEY_CACHE), MYF(0),
-                    key_cache_name->str);
+    my_error(ER_UNKNOWN_KEY_CACHE, MYF(0), key_cache_name->str);
     DBUG_RETURN(TRUE);
   }
   pthread_mutex_unlock(&LOCK_global_system_variables);
@@ -2159,8 +2131,7 @@ bool mysql_create_like_table(THD* thd, TABLE_LIST* table,
        check_table_name(src_table,table_ident->table.length)) ||
       table_ident->db.str && check_db_name((src_db= table_ident->db.str)))
   {
-    my_printf_error(ER_WRONG_TABLE_NAME, ER(ER_WRONG_TABLE_NAME), MYF(0),
-                    src_table);
+    my_error(ER_WRONG_TABLE_NAME, MYF(0), src_table);
     DBUG_RETURN(TRUE);
   }
 
@@ -2179,8 +2150,7 @@ bool mysql_create_like_table(THD* thd, TABLE_LIST* table,
 	    reg_ext, NullS);
     if (access(src_path, F_OK))
     {
-      my_printf_error(ER_BAD_TABLE_ERROR, ER(ER_BAD_TABLE_ERROR), MYF(0),
-                      src_table);
+      my_error(ER_BAD_TABLE_ERROR, MYF(0), src_table);
       goto err;
     }
   }
@@ -2263,8 +2233,7 @@ table_exists:
     res= FALSE;
   }
   else
-    my_printf_error(ER_TABLE_EXISTS_ERROR, ER(ER_TABLE_EXISTS_ERROR), MYF(0),
-                    table_name);
+    my_error(ER_TABLE_EXISTS_ERROR, MYF(0), table_name);
 
 err:
   pthread_mutex_lock(&LOCK_open);
@@ -2523,8 +2492,7 @@ int mysql_drop_indexes(THD *thd, TABLE_LIST *table_list,
     }
     if (idx>= table->keys)
     {
-      my_printf_error(ER_CANT_DROP_FIELD_OR_KEY, ER(ER_CANT_DROP_FIELD_OR_KEY),
-                      MYF(0), drop_key->name);
+      my_error(ER_CANT_DROP_FIELD_OR_KEY, MYF(0), drop_key->name);
       /*don't need to free((gptr) key_numbers);*/
       DBUG_RETURN(-1);
     }
@@ -2647,8 +2615,7 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
       {
 	if (find_temporary_table(thd,new_db,new_name_buff))
 	{
-	  my_printf_error(ER_TABLE_EXISTS_ERROR, ER(ER_TABLE_EXISTS_ERROR),
-                          MYF(0), new_name_buff);
+	  my_error(ER_TABLE_EXISTS_ERROR, MYF(0), new_name_buff);
 	  DBUG_RETURN(TRUE);
 	}
       }
@@ -2660,8 +2627,7 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
 		    F_OK))
 	{
 	  /* Table will be closed in do_command() */
-	  my_printf_error(ER_TABLE_EXISTS_ERROR, ER(ER_TABLE_EXISTS_ERROR),
-                          MYF(0), new_alias);
+	  my_error(ER_TABLE_EXISTS_ERROR, MYF(0), new_alias);
 	  DBUG_RETURN(TRUE);
 	}
       }
@@ -2702,8 +2668,7 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
       error=0;
       if (!access(new_name_buff,F_OK))
       {
-	my_printf_error(ER_TABLE_EXISTS_ERROR, ER(ER_TABLE_EXISTS_ERROR),
-                        MYF(0), new_name);
+	my_error(ER_TABLE_EXISTS_ERROR, MYF(0), new_name);
 	error= -1;
       }
       else
@@ -2847,8 +2812,7 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
       {
 	if (def->sql_type == FIELD_TYPE_BLOB)
 	{
-	  my_printf_error(ER_BLOB_CANT_HAVE_DEFAULT,
-                          ER(ER_BLOB_CANT_HAVE_DEFAULT), MYF(0), def->change);
+	  my_error(ER_BLOB_CANT_HAVE_DEFAULT, MYF(0), def->change);
 	  DBUG_RETURN(TRUE);
 	}
 	def->def=alter->def;			// Use new default
@@ -2862,8 +2826,7 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
   {
     if (def->change && ! def->field)
     {
-      my_printf_error(ER_BAD_FIELD_ERROR, ER(ER_BAD_FIELD_ERROR), MYF(0),
-                      def->change, table_name);
+      my_error(ER_BAD_FIELD_ERROR, MYF(0), def->change, table_name);
       DBUG_RETURN(TRUE);
     }
     if (!def->after)
@@ -2881,8 +2844,7 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
       }
       if (!find)
       {
-	my_printf_error(ER_BAD_FIELD_ERROR, ER(ER_BAD_FIELD_ERROR),
-                        MYF(0), def->after, table_name);
+	my_error(ER_BAD_FIELD_ERROR, MYF(0), def->after, table_name);
 	DBUG_RETURN(TRUE);
       }
       find_it.after(def);			// Put element after this
@@ -2890,8 +2852,8 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
   }
   if (alter_info->alter_list.elements)
   {
-    my_printf_error(ER_BAD_FIELD_ERROR, ER(ER_BAD_FIELD_ERROR), MYF(0),
-                    alter_info->alter_list.head()->name, table_name);
+    my_error(ER_BAD_FIELD_ERROR, MYF(0),
+             alter_info->alter_list.head()->name, table_name);
     DBUG_RETURN(TRUE);
   }
   if (!create_list.elements)
@@ -2986,8 +2948,7 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
       if (key->name &&
 	  !my_strcasecmp(system_charset_info,key->name,primary_key_name))
       {
-	my_printf_error(ER_WRONG_NAME_FOR_INDEX, ER(ER_WRONG_NAME_FOR_INDEX),
-                        MYF(0), key->name);
+	my_error(ER_WRONG_NAME_FOR_INDEX, MYF(0), key->name);
 	DBUG_RETURN(TRUE);
       }
     }
@@ -2995,16 +2956,14 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
 
   if (alter_info->drop_list.elements)
   {
-    my_printf_error(ER_CANT_DROP_FIELD_OR_KEY,
-                    ER(ER_CANT_DROP_FIELD_OR_KEY), MYF(0),
-                    alter_info->drop_list.head()->name);
+    my_error(ER_CANT_DROP_FIELD_OR_KEY, MYF(0),
+             alter_info->drop_list.head()->name);
     goto err;
   }
   if (alter_info->alter_list.elements)
   {
-    my_printf_error(ER_CANT_DROP_FIELD_OR_KEY,
-                    ER(ER_CANT_DROP_FIELD_OR_KEY), MYF(0),
-                    alter_info->alter_list.head()->name);
+    my_error(ER_CANT_DROP_FIELD_OR_KEY, MYF(0),
+             alter_info->alter_list.head()->name);
     goto err;
   }
 
@@ -3207,8 +3166,7 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
     if (!access(new_name_buff,F_OK))
     {
       error=1;
-      my_printf_error(ER_TABLE_EXISTS_ERROR, ER(ER_TABLE_EXISTS_ERROR),
-                      MYF(0), new_name_buff);
+      my_error(ER_TABLE_EXISTS_ERROR, MYF(0), new_name_buff);
       VOID(quick_rm_table(new_db_type,new_db,tmp_name));
       VOID(pthread_mutex_unlock(&LOCK_open));
       goto err;

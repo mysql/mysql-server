@@ -74,8 +74,7 @@ bool mysql_create_or_drop_trigger(THD *thd, TABLE_LIST *tables, bool create)
   */
   if (tables->view || table->tmp_table != NO_TMP_TABLE)
   {
-    my_printf_error(ER_TRG_ON_VIEW_OR_TEMP_TABLE,
-                    ER(ER_TRG_ON_VIEW_OR_TEMP_TABLE), MYF(0), tables->alias);
+    my_error(ER_TRG_ON_VIEW_OR_TEMP_TABLE, MYF(0), tables->alias);
     DBUG_RETURN(TRUE);
   }
 
@@ -418,8 +417,8 @@ err_with_lex_cleanup:
       We don't care about this error message much because .TRG files will
       be merged into .FRM anyway.
     */
-    my_printf_error(ER_WRONG_OBJECT, ER(ER_WRONG_OBJECT), MYF(0),
-                    table_name, triggers_file_ext, "TRIGGER");
+    my_error(ER_WRONG_OBJECT, MYF(0),
+             table_name, triggers_file_ext, "TRIGGER");
     DBUG_RETURN(1);
   }
 

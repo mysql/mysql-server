@@ -430,8 +430,7 @@ static MYSQL_LOCK *get_lock_data(THD *thd, TABLE **table_ptr, uint count,
       *write_lock_used=table;
       if (table->db_stat & HA_READ_ONLY)
       {
-	my_printf_error(ER_OPEN_AS_READONLY, ER(ER_OPEN_AS_READONLY), MYF(0),
-                        table->table_name);
+	my_error(ER_OPEN_AS_READONLY, MYF(0), table->table_name);
 	my_free((gptr) sql_lock,MYF(0));
 	return 0;
       }

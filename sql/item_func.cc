@@ -45,11 +45,10 @@ bool check_reserved_words(LEX_STRING *name)
 static void my_coll_agg_error(DTCollation &c1, DTCollation &c2,
 			      const char *fname)
 {
-  my_printf_error(ER_CANT_AGGREGATE_2COLLATIONS,
-                  ER(ER_CANT_AGGREGATE_2COLLATIONS), MYF(0),
-                  c1.collation->name, c1.derivation_name(),
-                  c2.collation->name, c2.derivation_name(),
-                  fname);
+  my_error(ER_CANT_AGGREGATE_2COLLATIONS, MYF(0),
+           c1.collation->name, c1.derivation_name(),
+           c2.collation->name, c2.derivation_name(),
+           fname);
 }
 
 static void my_coll_agg_error(DTCollation &c1,
@@ -57,12 +56,11 @@ static void my_coll_agg_error(DTCollation &c1,
 			       DTCollation &c3,
 			       const char *fname)
 {
-  my_printf_error(ER_CANT_AGGREGATE_3COLLATIONS,
-                  ER(ER_CANT_AGGREGATE_3COLLATIONS), MYF(0),
-                  c1.collation->name, c1.derivation_name(),
-                  c2.collation->name, c2.derivation_name(),
-                  c3.collation->name, c3.derivation_name(),
-                  fname);
+  my_error(ER_CANT_AGGREGATE_3COLLATIONS, MYF(0),
+           c1.collation->name, c1.derivation_name(),
+           c2.collation->name, c2.derivation_name(),
+           c3.collation->name, c3.derivation_name(),
+           fname);
 }
 
 
@@ -76,8 +74,7 @@ static void my_coll_agg_error(Item** args, uint count, const char *fname)
 		      args[2]->collation,
 		      fname);
   else
-    my_printf_error(ER_CANT_AGGREGATE_NCOLLATIONS,
-                    ER(ER_CANT_AGGREGATE_NCOLLATIONS), MYF(0),fname);
+    my_error(ER_CANT_AGGREGATE_NCOLLATIONS, MYF(0), fname);
 }
 
 
@@ -1717,8 +1714,7 @@ udf_handler::fix_fields(THD *thd, TABLE_LIST *tables, Item_result_field *func,
 
   if (!tmp_udf)
   {
-    my_printf_error(ER_CANT_FIND_UDF,ER(ER_CANT_FIND_UDF),MYF(0),u_d->name.str,
-		    errno);
+    my_error(ER_CANT_FIND_UDF, MYF(0), u_d->name.str, errno);
     DBUG_RETURN(TRUE);
   }
   u_d=tmp_udf;
@@ -1838,8 +1834,8 @@ udf_handler::fix_fields(THD *thd, TABLE_LIST *tables, Item_result_field *func,
       u_d->func_init;
     if ((error=(uchar) init(&initid, &f_args, thd->net.last_error)))
     {
-      my_printf_error(ER_CANT_INITIALIZE_UDF,ER(ER_CANT_INITIALIZE_UDF),MYF(0),
-		      u_d->name.str, thd->net.last_error);
+      my_error(ER_CANT_INITIALIZE_UDF, MYF(0),
+               u_d->name.str, thd->net.last_error);
       free_udf(u_d);
       DBUG_RETURN(TRUE);
     }
@@ -1851,8 +1847,8 @@ udf_handler::fix_fields(THD *thd, TABLE_LIST *tables, Item_result_field *func,
   initialized=1;
   if (error)
   {
-    my_printf_error(ER_CANT_INITIALIZE_UDF,ER(ER_CANT_INITIALIZE_UDF),MYF(0),
-		    u_d->name.str, ER(ER_UNKNOWN_ERROR));
+    my_error(ER_CANT_INITIALIZE_UDF, MYF(0),
+             u_d->name.str, ER(ER_UNKNOWN_ERROR));
     DBUG_RETURN(TRUE);
   }
   DBUG_RETURN(FALSE);
@@ -3378,8 +3374,7 @@ Item *get_system_var(THD *thd, enum_var_type var_type, LEX_STRING name,
   {
     if (!var->is_struct())
     {
-      my_printf_error(ER_VARIABLE_IS_NOT_STRUCT, ER(ER_VARIABLE_IS_NOT_STRUCT),
-                      MYF(0), base_name->str);
+      my_error(ER_VARIABLE_IS_NOT_STRUCT, MYF(0), base_name->str);
       return 0;
     }
   }
@@ -3544,8 +3539,7 @@ Item_func_sp::execute(Item **itp)
     m_sp= sp_find_function(thd, m_name);
   if (! m_sp)
   {
-    my_printf_error(ER_SP_DOES_NOT_EXIST, ER(ER_SP_DOES_NOT_EXIST), MYF(0),
-		    "FUNCTION", m_name->m_qname);
+    my_error(ER_SP_DOES_NOT_EXIST, MYF(0), "FUNCTION", m_name->m_qname);
     DBUG_RETURN(-1);
   }
 
@@ -3579,8 +3573,7 @@ Item_func_sp::field_type() const
     DBUG_PRINT("info", ("m_returns = %d", m_sp->m_returns));
     DBUG_RETURN(m_sp->m_returns);
   }
-  my_printf_error(ER_SP_DOES_NOT_EXIST, ER(ER_SP_DOES_NOT_EXIST), MYF(0),
-		  "FUNCTION", m_name->m_qname);
+  my_error(ER_SP_DOES_NOT_EXIST, MYF(0), "FUNCTION", m_name->m_qname);
   DBUG_RETURN(MYSQL_TYPE_STRING);
 }
 
@@ -3596,8 +3589,7 @@ Item_func_sp::result_type() const
   {
     DBUG_RETURN(m_sp->result());
   }
-  my_printf_error(ER_SP_DOES_NOT_EXIST, ER(ER_SP_DOES_NOT_EXIST), MYF(0),
-		  "FUNCTION", m_name->m_qname);
+  my_error(ER_SP_DOES_NOT_EXIST, MYF(0), "FUNCTION", m_name->m_qname);
   DBUG_RETURN(STRING_RESULT);
 }
 
@@ -3610,8 +3602,7 @@ Item_func_sp::fix_length_and_dec()
     m_sp= sp_find_function(current_thd, m_name);
   if (! m_sp)
   {
-    my_printf_error(ER_SP_DOES_NOT_EXIST, ER(ER_SP_DOES_NOT_EXIST), MYF(0),
-		    "FUNCTION", m_name->m_qname);
+    my_error(ER_SP_DOES_NOT_EXIST, MYF(0), "FUNCTION", m_name->m_qname);
   }
   else
   {

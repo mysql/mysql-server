@@ -1534,9 +1534,7 @@ static int replace_user_table(THD *thd, TABLE *table, const LEX_USER &combo,
     if (combo.password.length != SCRAMBLED_PASSWORD_CHAR_LENGTH &&
         combo.password.length != SCRAMBLED_PASSWORD_CHAR_LENGTH_323)
     {
-      my_printf_error(ER_UNKNOWN_ERROR,
-                      "Password hash should be a %d-digit hexadecimal number",
-                      MYF(0), SCRAMBLED_PASSWORD_CHAR_LENGTH);
+      my_error(ER_PASSWD_LENGTH, MYF(0), SCRAMBLED_PASSWORD_CHAR_LENGTH);
       DBUG_RETURN(-1);
     }
     password_len= combo.password.length;
@@ -1552,8 +1550,7 @@ static int replace_user_table(THD *thd, TABLE *table, const LEX_USER &combo,
     /* what == 'N' means revoke */
     if (what == 'N')
     {
-      my_printf_error(ER_NONEXISTING_GRANT, ER(ER_NONEXISTING_GRAN), MYF(0),
-                      combo.user.str, combo.host.str);
+      my_error(ER_NONEXISTING_GRANT, MYF(0), combo.user.str, combo.host.str);
       goto end;
     }
     /*
@@ -1570,9 +1567,8 @@ static int replace_user_table(THD *thd, TABLE *table, const LEX_USER &combo,
     else if (((thd->variables.sql_mode & MODE_NO_AUTO_CREATE_USER) &&
               !password_len) || !create_user)
     {
-      my_printf_error(ER_NO_PERMISSION_TO_CREATE_USER,
-                      ER(ER_NO_PERMISSION_TO_CREATE_USER), MYF(0),
-                      thd->user, thd->host_or_ip);
+      my_error(ER_NO_PERMISSION_TO_CREATE_USER, MYF(0),
+               thd->user, thd->host_or_ip);
       goto end;
     }
     old_row_exists = 0;
@@ -1760,8 +1756,7 @@ static int replace_db_table(TABLE *table, const char *db,
   {
     if (what == 'N')
     { // no row, no revoke
-      my_printf_error(ER_NONEXISTING_GRANT, ER(ER_NONEXISTING_GRANT), MYF(0),
-                      combo.user.str, combo.host.str);
+      my_error(ER_NONEXISTING_GRANT, MYF(0), combo.user.str, combo.host.str);
       goto abort;
     }
     old_row_exists = 0;
@@ -2068,10 +2063,9 @@ static int replace_column_table(GRANT_TABLE *g_t,
     {
       if (revoke_grant)
       {
-	my_printf_error(ER_NONEXISTING_TABLE_GRANT,
-                        ER(ER_NONEXISTING_TABLE_GRANT), MYF(0),
-                        combo.user.str, combo.host.str,
-                        table_name); /* purecov: inspected */
+	my_error(ER_NONEXISTING_TABLE_GRANT, MYF(0),
+                 combo.user.str, combo.host.str,
+                 table_name); /* purecov: inspected */
 	result= -1; /* purecov: inspected */
 	continue; /* purecov: inspected */
       }
@@ -2237,10 +2231,9 @@ static int replace_table_table(THD *thd, GRANT_TABLE *grant_table,
     */
     if (revoke_grant)
     { // no row, no revoke
-      my_printf_error(ER_NONEXISTING_TABLE_GRANT,
-                      ER(ER_NONEXISTING_TABLE_GRANT), MYF(0),
-                      combo.user.str, combo.host.str,
-                      table_name);		/* purecov: deadcode */
+      my_error(ER_NONEXISTING_TABLE_GRANT, MYF(0),
+               combo.user.str, combo.host.str,
+               table_name);		        /* purecov: deadcode */
       DBUG_RETURN(-1);				/* purecov: deadcode */
     }
     old_row_exists = 0;
@@ -2369,8 +2362,8 @@ bool mysql_table_grant(THD *thd, TABLE_LIST *table_list,
                                column->column.length(), 0, 0, 0, 0,
                                &unused_field_idx))
       {
-	my_printf_error(ER_BAD_FIELD_ERROR, ER(ER_BAD_FIELD_ERROR), MYF(0),
-                        column->column.c_ptr(), table_list->alias);
+	my_error(ER_BAD_FIELD_ERROR, MYF(0),
+                 column->column.c_ptr(), table_list->alias);
 	DBUG_RETURN(TRUE);
       }
       column_priv|= column->rights;
@@ -2385,8 +2378,7 @@ bool mysql_table_grant(THD *thd, TABLE_LIST *table_list,
     fn_format(buf,buf,"","",4+16+32);
     if (access(buf,F_OK))
     {
-      my_printf_error(ER_NO_SUCH_TABLE, ER(ER_NO_SUCH_TABLE), MYF(0),
-                      table_list->db, table_list->alias);
+      my_error(ER_NO_SUCH_TABLE, MYF(0), table_list->db, table_list->alias);
       DBUG_RETURN(TRUE);
     }
   }
@@ -2474,9 +2466,8 @@ bool mysql_table_grant(THD *thd, TABLE_LIST *table_list,
     {
       if (revoke_grant)
       {
-	my_printf_error(ER_NONEXISTING_TABLE_GRANT,
-                        ER(ER_NONEXISTING_TABLE_GRANT), MYF(0),
-                        Str->user.str, Str->host.str, table_list->real_name);
+	my_error(ER_NONEXISTING_TABLE_GRANT, MYF(0),
+                 Str->user.str, Str->host.str, table_list->real_name);
 	result= TRUE;
 	continue;
       }
@@ -2920,12 +2911,11 @@ err:
       command= "create view";
     else if (want_access & SHOW_VIEW_ACL)
       command= "show create view";
-    my_printf_error(ER_TABLEACCESS_DENIED_ERROR,
-                    ER(ER_TABLEACCESS_DENIED_ERROR), MYF(0),
-                    command,
-                    thd->priv_user,
-                    thd->host_or_ip,
-                    table ? table->real_name : "unknown");
+    my_error(ER_TABLEACCESS_DENIED_ERROR, MYF(0),
+             command,
+             thd->priv_user,
+             thd->host_or_ip,
+             table ? table->real_name : "unknown");
   }
   DBUG_RETURN(1);
 }
@@ -2971,21 +2961,18 @@ bool check_grant_column(THD *thd, GRANT_INFO *grant,
   }
 #endif
 
-  /* We must use my_printf_error() here! */
 err:
   rw_unlock(&LOCK_grant);
   if (!show_tables)
   {
     char command[128];
     get_privilege_desc(command, sizeof(command), want_access);
-    my_printf_error(ER_COLUMNACCESS_DENIED_ERROR,
-		    ER(ER_COLUMNACCESS_DENIED_ERROR),
-		    MYF(0),
-		    command,
-		    thd->priv_user,
-		    thd->host_or_ip,
-		    name,
-		    table_name);
+    my_error(ER_COLUMNACCESS_DENIED_ERROR, MYF(0),
+             command,
+             thd->priv_user,
+             thd->host_or_ip,
+             name,
+             table_name);
   }
   return 1;
 }
@@ -3032,7 +3019,6 @@ bool check_grant_all_columns(THD *thd, ulong want_access, GRANT_INFO *grant,
   rw_unlock(&LOCK_grant);
   return 0;
 
-  /* We must use my_printf_error() here! */
 err:
   rw_unlock(&LOCK_grant);
 err2:
@@ -3041,14 +3027,12 @@ err2:
     command= "select";
   else if (want_access & INSERT_ACL)
     command= "insert";
-  my_printf_error(ER_COLUMNACCESS_DENIED_ERROR,
-		  ER(ER_COLUMNACCESS_DENIED_ERROR),
-		  MYF(0),
-		  command,
-		  thd->priv_user,
-		  thd->host_or_ip,
-		  fields->name(),
-		  table_name);
+  my_error(ER_COLUMNACCESS_DENIED_ERROR, MYF(0),
+           command,
+           thd->priv_user,
+           thd->host_or_ip,
+           fields->name(),
+           table_name);
   return 1;
 }
 
@@ -3232,9 +3216,8 @@ bool mysql_show_grants(THD *thd,LEX_USER *lex_user)
   }
   if (counter == acl_users.elements)
   {
-    my_printf_error(ER_NONEXISTING_GRANT,
-                    ER(ER_NONEXISTING_GRANT), MYF(0),
-                    lex_user->user.str, lex_user->host.str);
+    my_error(ER_NONEXISTING_GRANT, MYF(0),
+             lex_user->user.str, lex_user->host.str);
     DBUG_RETURN(TRUE);
   }
 

@@ -701,8 +701,8 @@ CHANGED_TABLE_LIST* THD::changed_table_dup(const char *key, long key_length)
 				      key_length + 1);
   if (!new_table)
   {
-    my_printf_error(EE_OUTOFMEMORY, ER(EE_OUTOFMEMORY), MYF(ME_BELL),
-                    ALIGN_SIZE(sizeof(TABLE_LIST)) + key_length + 1);
+    my_error(EE_OUTOFMEMORY, MYF(ME_BELL),
+             ALIGN_SIZE(sizeof(TABLE_LIST)) + key_length + 1);
     killed= KILL_CONNECTION;
     return 0;
   }
@@ -1018,8 +1018,7 @@ static File create_file(THD *thd, char *path, sql_exchange *exchange,
     
   if (!access(path, F_OK))
   {
-    my_printf_error(ER_FILE_EXISTS_ERROR, ER(ER_FILE_EXISTS_ERROR), MYF(0),
-                    exchange->file_name);
+    my_error(ER_FILE_EXISTS_ERROR, MYF(0), exchange->file_name);
     return -1;
   }
   /* Create the file world readable */
@@ -1263,8 +1262,7 @@ bool select_dump::send_data(List<Item> &items)
     }
     else if (my_b_write(&cache,(byte*) res->ptr(),res->length()))
     {
-      my_printf_error(ER_ERROR_ON_WRITE, ER(ER_ERROR_ON_WRITE), MYF(0),
-                      path, my_errno);
+      my_error(ER_ERROR_ON_WRITE, MYF(0), path, my_errno);
       goto err;
     }
   }

@@ -58,9 +58,7 @@ check_insert_fields(THD *thd, TABLE_LIST *table_list, List<Item> &fields,
   {
     if (values.elements != table->fields)
     {
-      my_printf_error(ER_WRONG_VALUE_COUNT_ON_ROW,
-		      ER(ER_WRONG_VALUE_COUNT_ON_ROW),
-		      MYF(0),counter);
+      my_error(ER_WRONG_VALUE_COUNT_ON_ROW, MYF(0), counter);
       return -1;
     }
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
@@ -82,9 +80,7 @@ check_insert_fields(THD *thd, TABLE_LIST *table_list, List<Item> &fields,
     int res;
     if (fields.elements != values.elements)
     {
-      my_printf_error(ER_WRONG_VALUE_COUNT_ON_ROW,
-		      ER(ER_WRONG_VALUE_COUNT_ON_ROW),
-		      MYF(0),counter);
+      my_error(ER_WRONG_VALUE_COUNT_ON_ROW, MYF(0), counter);
       return -1;
     }
 
@@ -100,8 +96,7 @@ check_insert_fields(THD *thd, TABLE_LIST *table_list, List<Item> &fields,
 
     if (check_unique && thd->dupp_field)
     {
-      my_printf_error(ER_FIELD_SPECIFIED_TWICE, ER(ER_FIELD_SPECIFIED_TWICE),
-                      MYF(0), thd->dupp_field->field_name);
+      my_error(ER_FIELD_SPECIFIED_TWICE, MYF(0), thd->dupp_field->field_name);
       return -1;
     }
     if (table->timestamp_field &&	// Don't set timestamp if used
@@ -172,9 +167,8 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
 			    table_list->db ? table_list->db : thd->db,
 			    table_list->real_name))
       {
-	my_printf_error(ER_DELAYED_INSERT_TABLE_LOCKED,
-			ER(ER_DELAYED_INSERT_TABLE_LOCKED),
-			MYF(0), table_list->real_name);
+	my_error(ER_DELAYED_INSERT_TABLE_LOCKED, MYF(0),
+                 table_list->real_name);
 	DBUG_RETURN(TRUE);
       }
     }
@@ -228,9 +222,7 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
     counter++;
     if (values->elements != value_count)
     {
-      my_printf_error(ER_WRONG_VALUE_COUNT_ON_ROW,
-		      ER(ER_WRONG_VALUE_COUNT_ON_ROW),
-		      MYF(0),counter);
+      my_error(ER_WRONG_VALUE_COUNT_ON_ROW, MYF(0), counter);
       goto abort;
     }
     if (setup_fields(thd, 0, table_list, *values, 0, 0, 0))
@@ -602,8 +594,7 @@ static bool mysql_prepare_insert_check_table(THD *thd, TABLE_LIST *table_list,
       (insert_into_view &&
        check_view_insertability(table_list, thd->query_id)))
   {
-    my_printf_error(ER_NON_UPDATABLE_TABLE, ER(ER_NON_UPDATABLE_TABLE),
-                    MYF(0), table_list->alias, "INSERT");
+    my_error(ER_NON_UPDATABLE_TABLE, MYF(0), table_list->alias, "INSERT");
     DBUG_RETURN(1);
   }
   DBUG_RETURN(0);
@@ -650,8 +641,7 @@ bool mysql_prepare_insert(THD *thd, TABLE_LIST *table_list, TABLE *table,
 
   if (unique_table(table_list, table_list->next_global))
   {
-    my_printf_error(ER_UPDATE_TABLE_USED, ER(ER_UPDATE_TABLE_USED),
-                    MYF(0), table_list->real_name);
+    my_error(ER_UPDATE_TABLE_USED, MYF(0), table_list->real_name);
     DBUG_RETURN(TRUE);
   }
   thd->lex->select_lex.first_execution= 0;
@@ -831,9 +821,7 @@ int check_that_all_fields_are_given_values(THD *thd, TABLE *entry)
     if ((*field)->query_id != thd->query_id &&
         ((*field)->flags & NO_DEFAULT_VALUE_FLAG))
     {
-      my_printf_error(ER_NO_DEFAULT_FOR_FIELD,
-                      ER(ER_NO_DEFAULT_FOR_FIELD),MYF(0),
-		      (*field)->field_name);
+      my_error(ER_NO_DEFAULT_FOR_FIELD, MYF(0), (*field)->field_name);
       return 1;
     }
   }
@@ -1325,8 +1313,7 @@ extern "C" pthread_handler_decl(handle_delayed_insert,arg)
   if (!(di->table->file->table_flags() & HA_CAN_INSERT_DELAYED))
   {
     thd->fatal_error();
-    my_printf_error(ER_ILLEGAL_HA, ER(ER_ILLEGAL_HA), MYF(0),
-                    di->table_list.real_name);
+    my_error(ER_ILLEGAL_HA, MYF(0), di->table_list.real_name);
     goto end;
   }
   di->table->copy_blobs=1;
@@ -1886,9 +1873,7 @@ select_create::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
 
   if (table->fields < values.elements)
   {
-    my_printf_error(ER_WRONG_VALUE_COUNT_ON_ROW,
-                    ER(ER_WRONG_VALUE_COUNT_ON_ROW),
-		    MYF(0),1);
+    my_error(ER_WRONG_VALUE_COUNT_ON_ROW, MYF(0), 1);
     DBUG_RETURN(-1);
   }
 
