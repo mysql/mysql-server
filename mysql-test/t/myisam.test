@@ -436,3 +436,13 @@ select sql_big_result distinct t1.a from t1,t2;
 explain select sql_big_result distinct t1.a from t1,t2 order by t2.a;
 explain select distinct t1.a from t1,t2 order by t2.a;
 drop table t1,t2;
+
+#
+# index search for NULL in blob. Bug #4816
+#
+create table t1 ( a tinytext, b char(1), index idx (a(1),b) );
+insert into t1 values (null,''), (null,'');
+explain select count(*) from t1 where a is null;
+select count(*) from t1 where a is null;
+drop table t1;
+

@@ -453,3 +453,12 @@ table	type	possible_keys	key	key_len	ref	rows	Extra
 t1	system	NULL	NULL	NULL	NULL	1	Using temporary
 t2	index	NULL	PRIMARY	4	NULL	2	Using index; Distinct
 drop table t1,t2;
+create table t1 ( a tinytext, b char(1), index idx (a(1),b) );
+insert into t1 values (null,''), (null,'');
+explain select count(*) from t1 where a is null;
+table	type	possible_keys	key	key_len	ref	rows	Extra
+t1	ref	idx	idx	4	const	1	Using where
+select count(*) from t1 where a is null;
+count(*)
+2
+drop table t1;
