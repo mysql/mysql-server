@@ -869,6 +869,35 @@ int ha_rollback_to_savepoint(THD *thd, char *savepoint_name)
   DBUG_RETURN(error);
 }
 
+int ha_release_savepoint_name(THD *thd, char *savepoint_name)
+{
+  my_off_t binlog_cache_pos=0;
+  bool operation_done=0;
+  int error=0;
+  DBUG_ENTER("ha_release_savepoint_name");
+#ifdef USING_TRANSACTIONS
+  if (opt_using_transactions)
+  {
+#ifdef HAVE_INNOBASE_DB
+    if ((error=innobase_release_savepoint_name(thd, savepoint_name)))
+    {
+      my_error(ER_ERROR_DURING_ROLLBACK, MYF(0), error);
+      error=1;
+    }
+    else if (mysql_bin_log.is_open())
+    {
+      Query_log_event qinfo(thd, thd->query, thd->query_length, TRUE, FALSE);
+      if (mysql_bin_log.write(&qinfo))
+        error= 1;
+    }
+    operation_done=1;
+#endif
+  }
+#endif /* USING_TRANSACTIONS */
+
+  DBUG_RETURN(error);
+}
+
 
 /*
 Sets a transaction savepoint.
