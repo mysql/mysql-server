@@ -152,8 +152,8 @@ struct dict_col_struct{
 };
 
 /* DICT_MAX_COL_PREFIX_LEN is measured in bytes. Starting from 4.1.6, we
-define max col prefix len as 3 * 256, so that one can create a column prefix
-index on 256 characters of a TEXT field also in the UTF-8 charset. In that
+set max col prefix len to < 3 * 256, so that one can create a column prefix
+index on 255 characters of a TEXT field also in the UTF-8 charset. In that
 charset, a character may take at most 3 bytes. */
 
 #define DICT_MAX_COL_PREFIX_LEN	768
@@ -169,9 +169,8 @@ struct dict_field_struct{
 					type, e.g., INDEX (textcol(25));
 					must be smaller than
 					DICT_MAX_COL_PREFIX_LEN; NOTE that
-					in the UTF-8 charset, MySQL reserves
-					sets this to 3 * the prefix len in
-					UTF-8 chars */
+					in the UTF-8 charset, MySQL sets this
+					to 3 * the prefix len in UTF-8 chars */
 };
 
 /* Data structure for an index tree */
