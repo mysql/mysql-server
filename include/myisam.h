@@ -314,24 +314,6 @@ typedef struct st_sort_key_blocks {		/* Used when sorting */
   int inited;
 } SORT_KEY_BLOCKS;
 
-struct st_mi_check_param;
-
-typedef struct st_sort_info {
-  MI_INFO *info;
-  struct st_mi_check_param *param;
-  enum data_file_type new_data_file_type;
-  SORT_KEY_BLOCKS *key_block,*key_block_end;
-  uint key,find_length,real_key_length;
-  my_off_t pos,max_pos,filepos,start_recpos,filelength,dupp,buff_length;
-  ha_rows max_records;
-  ulonglong unique[MI_MAX_KEY_SEG+1];
-  my_bool fix_datafile;
-  char *record,*buff;
-  void *wordlist, *wordptr;
-  MI_KEYDEF *keyinfo;
-  MI_KEYSEG *keyseg;
-} SORT_INFO;
-
 typedef struct st_mi_check_param
 {
   ulonglong auto_increment_value;
@@ -354,7 +336,6 @@ typedef struct st_mi_check_param
   int tmpfile_createflag;
   myf myf_rw;
   IO_CACHE read_cache;
-  SORT_INFO sort_info;
   ulonglong unique_count[MI_MAX_KEY_SEG+1];
   ha_checksum key_crc[MI_MAX_POSSIBLE_KEY];
   ulong rec_per_key_part[MI_MAX_KEY_SEG*MI_MAX_POSSIBLE_KEY];
@@ -363,17 +344,42 @@ typedef struct st_mi_check_param
   char *op_name;
 } MI_CHECK;
 
-
-typedef struct st_mi_sortinfo {
+typedef struct st_sort_info {
+  MI_INFO *info;
+  MI_CHECK *param;
+  enum data_file_type new_data_file_type;
+  SORT_KEY_BLOCKS *key_block,*key_block_end;
+  uint kei, total_keys;
+  my_off_t filelength,dupp,buff_length;
   ha_rows max_records;
-  SORT_INFO *sort_info;
-  char *tmpdir;
-  int (*key_cmp)(SORT_INFO *info, const void *, const void *);
-  int (*key_read)(SORT_INFO *info,void *buff);
-  int (*key_write)(SORT_INFO *info, const void *buff);
-  void (*lock_in_memory)(MI_CHECK *info);
-  uint key_length;
+  char *buff;
   myf myf_rw;
+  /* sync things*/
+  uint got_error, threads_running;
+  pthread_mutex_t mutex;
+  pthread_cond_t  cond;
+} SORT_INFO;
+
+typedef struct st_mi_sort_param {
+  pthread_t  thr;
+  IO_CACHE read_cache;
+  ulonglong unique[MI_MAX_KEY_SEG+1];
+  uint key, key_length,real_key_length,sortbuff_size;
+  uint maxbuffers, keys, find_length, sort_keys_length;
+  uchar **sort_keys;
+  void *wordlist, *wordptr;
+  MI_KEYDEF *keyinfo;
+  SORT_INFO *sort_info;
+  IO_CACHE tempfile, tempfile_for_exceptions;
+  DYNAMIC_ARRAY buffpek;
+  my_off_t pos,max_pos,filepos,start_recpos;
+  my_bool fix_datafile;
+  char *record;
+  char *tmpdir;
+  int (*key_cmp)(struct st_mi_sort_param *, const void *, const void *);
+  int (*key_read)(struct st_mi_sort_param *,void *);
+  int (*key_write)(struct st_mi_sort_param *, const void *);
+  void (*lock_in_memory)(MI_CHECK *);
 } MI_SORT_PARAM;
 
 /* functions in mi_check */
@@ -398,14 +404,17 @@ int flush_blocks(MI_CHECK *param, File file);
 void update_auto_increment_key(MI_CHECK *param, MI_INFO *info,
 			       my_bool repair);
 int update_state_info(MI_CHECK *param, MI_INFO *info,uint update);
+void update_key_parts(MI_KEYDEF *keyinfo, ulong *rec_per_key_part,
+			     ulonglong *unique, ulonglong records);
 int filecopy(MI_CHECK *param, File to,File from,my_off_t start,
 	     my_off_t length, const char *type);
 int movepoint(MI_INFO *info,byte *record,my_off_t oldpos,
 	      my_off_t newpos, uint prot_key);
-int sort_write_record(SORT_INFO *sort_info);
- int write_data_suffix(MI_CHECK *param, MI_INFO *info);
-int _create_index_by_sort(MI_SORT_PARAM *info,my_bool no_messages,
-			  ulong);
+int sort_write_record(MI_SORT_PARAM *sort_param);
+int write_data_suffix(SORT_INFO *sort_info, my_bool fix_datafile);
+int _create_index_by_sort(MI_SORT_PARAM *info,my_bool no_messages, ulong);
+void *_thr_find_all_keys(MI_SORT_PARAM *info);
+int _thr_write_keys(MI_SORT_PARAM *sort_param);
 int test_if_almost_full(MI_INFO *info);
 int recreate_table(MI_CHECK *param, MI_INFO **org_info, char *filename);
 void mi_disable_non_unique_index(MI_INFO *info, ha_rows rows);
