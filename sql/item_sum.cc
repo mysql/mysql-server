@@ -1,4 +1,4 @@
-/* Copyright (C) 2000 MySQL AB & MySQL Finland AB & TCX DataKonsult AB
+/* Copyright (C) 2000-2003 MySQL AB
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1012,7 +1012,6 @@ Item_sum_count_distinct::~Item_sum_count_distinct()
       delete_tree(tree);
   }
 }
-
 
 bool Item_sum_count_distinct::fix_fields(THD *thd, TABLE_LIST *tables,
 					 Item **ref)

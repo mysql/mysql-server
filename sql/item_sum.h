@@ -219,6 +219,7 @@ class Item_sum_count_distinct :public Item_sum_int
      always_null(item.always_null)
   {}
   ~Item_sum_count_distinct();
+
   table_map used_tables() const { return used_table_cache; }
   enum Sumfunctype sum_func () const { return COUNT_DISTINCT_FUNC; }
   void reset();
@@ -232,6 +233,7 @@ class Item_sum_count_distinct :public Item_sum_int
   {
     return new Item_sum_count_distinct(thd, *this);
   }
+  void no_rows_in_result() {}
 };
 
 
