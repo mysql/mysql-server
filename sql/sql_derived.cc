@@ -107,7 +107,10 @@ int mysql_derived(THD *thd, LEX *lex, SELECT_LEX_UNIT *unit, TABLE_LIST *t)
 	  table->derived_select_number= sl->select_number;
 	  table->tmp_table=TMP_TABLE;
 	  if (lex->describe)
-	    tables->table_list->table=tables->table; // to fix a problem in EXPLAIN
+	  {
+	    if (tables)
+	      tables->table_list->table=tables->table; // to fix a problem in EXPLAIN
+	  }
 	  else
 	    sl->exclude();
 	  t->db=(char *)"";

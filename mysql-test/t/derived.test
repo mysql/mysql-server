@@ -18,6 +18,8 @@ SELECT a,2 as a FROM (SELECT '1' as a) b HAVING a=1;
 SELECT 1 FROM (SELECT 1) a WHERE a=2;
 --error 1054
 SELECT (SELECT 1) as a FROM (SELECT 1 FROM t1  HAVING a=1) as a;
+select * from t1 as x1, (select * from t1) as x2;
+explain select * from t1 as x1, (select * from t1) as x2;
 drop table if exists  t1.t2,t3;
 select * from (select 1) as a;
 select a from (select 1 as a) as b;
