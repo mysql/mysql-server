@@ -31,7 +31,7 @@ int change_master(THD* thd, MASTER_INFO* mi);
 int show_binlog_events(THD* thd);
 int cmp_master_pos(const char* log_file_name1, ulonglong log_pos1,
 		   const char* log_file_name2, ulonglong log_pos2);
-int reset_slave(MASTER_INFO* mi);
+int reset_slave(THD *thd, MASTER_INFO* mi);
 int reset_master(THD* thd);
 int purge_master_logs(THD* thd, const char* to_log);
 bool log_in_use(const char* log_name);

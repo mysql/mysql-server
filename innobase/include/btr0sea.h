@@ -176,6 +176,7 @@ btr_search_validate(void);
 /* The search info struct in an index */
 
 struct btr_search_struct{
+	ulint	magic_n;	/* magic number */
 	/* The following 4 fields are currently not used: */
 	rec_t*	last_search;	/* pointer to the lower limit record of the
 				previous search; NULL if not known */
@@ -219,6 +220,8 @@ struct btr_search_struct{
 				far */
 	ulint	n_searches;	/* number of searches */
 };
+
+#define BTR_SEARCH_MAGIC_N	1112765
 
 /* The hash index system */
 

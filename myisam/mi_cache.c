@@ -72,8 +72,8 @@ int _mi_read_cache(IO_CACHE *info, byte *buff, my_off_t pos, uint length,
     in_buff_length=0;
   if (flag & READING_NEXT || info->share)
   {
-    if (pos != (info->pos_in_file + (uint) (info->read_end -
-					    info->request_pos)))
+    if (pos != (info->pos_in_file +
+		(uint) (info->read_end - info->request_pos)))
     {
       info->pos_in_file=pos;				/* Force start here */
       info->read_pos=info->read_end=info->request_pos;	/* Everything used */

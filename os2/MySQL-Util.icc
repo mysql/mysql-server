@@ -153,6 +153,7 @@ option ProjectOptions = MySQLOptions
          }
       }
 */
+
       target "..\\bin\\test\\insert_test.exe"
       {
          // optimized precompiled headers
@@ -179,4 +180,4 @@ option ProjectOptions = MySQLOptions
 }
 
 run after sources('..\bin\gen_lex_hash.exe') targets('..\sql\lex_hash.h')
-          '..\bin\gen_lex_has.exe > ..\sql\lex_hash.h'
+          'cd ..\bin & ..\bin\gen_lex_hash.exe > ..\sql\lex_hash.h'

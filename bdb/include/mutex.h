@@ -611,6 +611,28 @@ typedef unsigned char tsl_t;
 #endif
 #endif
 
+#ifdef HAVE_MUTEX_X86_64_GCC_ASSEMBLY
+typedef unsigned char tsl_t;
+
+#ifdef LOAD_ACTUAL_MUTEX_CODE
+/*
+ * For gcc/x86, 0 is clear, 1 is set.
+ */
+#define  MUTEX_SET(tsl) ({           \
+	register tsl_t *__l = (tsl);          \
+	int __r;              \
+	asm volatile("mov $1,%%rax; lock; xchgb %1,%%al; xor $1,%%rax"\
+		: "=&a" (__r), "=m" (*__l)          \
+		: "1" (*__l)            \
+		);                \
+	__r & 1;              \
+})
+
+#define  MUTEX_UNSET(tsl)  (*(tsl) = 0)
+#define  MUTEX_INIT(tsl)   MUTEX_UNSET(tsl)
+#endif
+#endif
+
 /*
  * Mutex alignment defaults to one byte.
  *

@@ -85,7 +85,7 @@ int mysql_create_db(THD *thd, char *db, uint create_options, bool silent)
       mysql_update_log.write(thd,thd->query, thd->query_length);
       if (mysql_bin_log.is_open())
       {
-	Query_log_event qinfo(thd, thd->query);
+	Query_log_event qinfo(thd, thd->query, thd->query_length);
 	mysql_bin_log.write(&qinfo);
       }
     }
@@ -153,7 +153,9 @@ int mysql_rm_db(THD *thd,char *db,bool if_exists, bool silent)
       send_ok(&thd->net,0);
     goto exit;
   }
+  pthread_mutex_lock(&LOCK_open);
   remove_db_from_cache(db);
+  pthread_mutex_unlock(&LOCK_open);
 
   error = -1;
   if ((deleted=mysql_rm_known_files(thd, dirp, db, path,0)) >= 0 && thd)
@@ -171,7 +173,7 @@ int mysql_rm_db(THD *thd,char *db,bool if_exists, bool silent)
       mysql_update_log.write(thd, thd->query, thd->query_length);
       if (mysql_bin_log.is_open())
       {
-	Query_log_event qinfo(thd, thd->query);
+	Query_log_event qinfo(thd, thd->query, thd->query_length);
 	mysql_bin_log.write(&qinfo);
       }
       if (thd->query == path)

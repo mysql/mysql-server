@@ -123,7 +123,8 @@ int init_io_cache(IO_CACHE *info, File file, uint cachesize,
   uint min_cache;
   my_off_t end_of_file= ~(my_off_t) 0;
   DBUG_ENTER("init_io_cache");
-  DBUG_PRINT("enter",("type: %d  pos: %ld",(int) type, (ulong) seek_offset));
+  DBUG_PRINT("enter",("cache: %lx  type: %d  pos: %ld",
+		      (ulong) info, (int) type, (ulong) seek_offset));
 
   info->file= file;
   info->type=type;
@@ -264,8 +265,9 @@ my_bool reinit_io_cache(IO_CACHE *info, enum cache_type type,
 			pbool clear_cache)
 {
   DBUG_ENTER("reinit_io_cache");
-  DBUG_PRINT("enter",("type: %d  seek_offset: %lu  clear_cache: %d",
-		      type, (ulong) seek_offset, (int) clear_cache));
+  DBUG_PRINT("enter",("cache: %lx type: %d  seek_offset: %lu  clear_cache: %d",
+		      (ulong) info, type, (ulong) seek_offset,
+		      (int) clear_cache));
 
   /* One can't do reinit with the following types */
   DBUG_ASSERT(type != READ_NET && info->type != READ_NET &&
@@ -283,11 +285,15 @@ my_bool reinit_io_cache(IO_CACHE *info, enum cache_type type,
     {
       info->read_end=info->write_pos;
       info->end_of_file=my_b_tell(info);
+      info->seek_not_done=1;
     }
     else if (type == WRITE_CACHE)
     {
       if (info->type == READ_CACHE)
+      {
 	info->write_end=info->write_buffer+info->buffer_length;
+	info->seek_not_done=1;
+      }
       info->end_of_file = ~(my_off_t) 0;
     }
     pos=info->request_pos+(seek_offset-info->pos_in_file);

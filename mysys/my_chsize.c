@@ -25,17 +25,19 @@
     my_chsize()
       fd		File descriptor
       new_length	New file size
+      filler		If we don't have truncate, fill up all bytes after
+			new_length with this character
       MyFlags		Flags
 
   DESCRIPTION
-    my_chsize() truncates file if shorter, else expand with zero.	
+    my_chsize() truncates file if shorter, else fill with the filler character
 
   RETURN VALUE
     0	Ok
     1	Error 
 */
 
-int my_chsize(File fd, my_off_t newlength, myf MyFlags)
+int my_chsize(File fd, my_off_t newlength, int filler, myf MyFlags)
 {
   DBUG_ENTER("my_chsize");
   DBUG_PRINT("my",("fd: %d  length: %lu  MyFlags: %d",fd,(ulong) newlength,
@@ -81,7 +83,7 @@ int my_chsize(File fd, my_off_t newlength, myf MyFlags)
     }
 #endif
     /* Full file with 0 until it's as big as requested */
-    bzero(buff,IO_SIZE);
+    bfill(buff, IO_SIZE, filler);
     while (newlength-oldsize > IO_SIZE)
     {
       if (my_write(fd,(byte*) buff,IO_SIZE,MYF(MY_NABP)))

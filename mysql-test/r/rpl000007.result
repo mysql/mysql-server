@@ -1,13 +1,12 @@
 slave stop;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
 reset master;
 reset slave;
 drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
 slave start;
-use test;
 drop table if exists foo;
 create table foo (n int);
 insert into foo values(4);
-use test;
 drop table if exists foo;
 create table foo (s char(20));
 load data infile '../../std_data/words.dat' into table foo;

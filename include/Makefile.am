@@ -22,7 +22,7 @@ pkginclude_HEADERS =	dbug.h m_string.h my_sys.h my_list.h \
 			errmsg.h my_global.h my_net.h my_alloc.h\
 			sslopt-case.h sslopt-longopts.h sslopt-usage.h \
 			sslopt-vars.h $(BUILT_SOURCES)
-noinst_HEADERS =	config-win.h \
+noinst_HEADERS =	config-win.h config-os2.h \
 			nisam.h heap.h merge.h my_bitmap.h\
 			myisam.h myisampack.h myisammrg.h ft_global.h\
 			my_dir.h mysys_err.h my_base.h \

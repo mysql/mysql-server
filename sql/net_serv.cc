@@ -107,7 +107,10 @@ int my_net_init(NET *net, Vio* vio)
     net->fd  = vio_fd(vio);			/* For perl DBI/DBD */
 #if defined(MYSQL_SERVER) && !defined(___WIN__) && !defined(__EMX__) && !defined(OS2)
     if (!(test_flags & TEST_BLOCKING))
-      vio_blocking(vio, FALSE);
+    {
+      my_bool old_mode;
+      vio_blocking(vio, FALSE, &old_mode);
+    }
 #endif
     vio_fastsend(vio);
   }
@@ -161,17 +164,14 @@ void net_clear(NET *net)
 {
 #if !defined(EXTRA_DEBUG) && !defined(EMBEDDED_LIBRARY)
   int count;					/* One may get 'unused' warn */
-  bool is_blocking=vio_is_blocking(net->vio);
-  if (is_blocking)
-    vio_blocking(net->vio, FALSE);
-  if (!vio_is_blocking(net->vio))		/* Safety if SSL */
+  my_bool old_mode;
+  if (!vio_blocking(net->vio, FALSE, &old_mode))
   {
     while ( (count = vio_read(net->vio, (char*) (net->buff),
 			      (uint32) net->max_packet)) > 0)
       DBUG_PRINT("info",("skipped %d bytes from file: %s",
 			 count,vio_description(net->vio)));
-    if (is_blocking)
-      vio_blocking(net->vio, TRUE);
+    vio_blocking(net->vio, TRUE, &old_mode);
   }
 #endif /* EXTRA_DEBUG */
   net->pkt_nr=net->compress_pkt_nr=0;		/* Ready for new command */
@@ -382,20 +382,18 @@ net_real_write(NET *net,const char *packet,ulong len)
       {
         if (!thr_alarm(&alarmed,(uint) net->write_timeout,&alarm_buff))
         {                                       /* Always true for client */
-	  if (!vio_is_blocking(net->vio))
+	  my_bool old_mode;
+	  while (vio_blocking(net->vio, TRUE, &old_mode) < 0)
 	  {
-	    while (vio_blocking(net->vio, TRUE) < 0)
-	    {
-	      if (vio_should_retry(net->vio) && retry_count++ < RETRY_COUNT)
-		continue;
+	    if (vio_should_retry(net->vio) && retry_count++ < RETRY_COUNT)
+	      continue;
 #ifdef EXTRA_DEBUG
-	      fprintf(stderr,
-		      "%s: my_net_write: fcntl returned error %d, aborting thread\n",
-		      my_progname,vio_errno(net->vio));
+	    fprintf(stderr,
+		    "%s: my_net_write: fcntl returned error %d, aborting thread\n",
+		    my_progname,vio_errno(net->vio));
 #endif /* EXTRA_DEBUG */
-	      net->error=2;                     /* Close socket */
-	      goto end;
-	    }
+	    net->error=2;                     /* Close socket */
+	    goto end;
 	  }
 	  retry_count=0;
 	  continue;
@@ -439,8 +437,9 @@ net_real_write(NET *net,const char *packet,ulong len)
 #endif
   if (thr_alarm_in_use(&alarmed))
   {
+    my_bool old_mode;
     thr_end_alarm(&alarmed);
-    vio_blocking(net->vio, net_blocking);
+    vio_blocking(net->vio, net_blocking, &old_mode);
   }
   net->reading_or_writing=0;
   DBUG_RETURN(((int) (pos != end)));
@@ -461,10 +460,12 @@ static void my_net_skip_rest(NET *net, uint32 remain, thr_alarm_t *alarmed)
 {
   ALARM alarm_buff;
   uint retry_count=0;
+  my_bool old_mode;
+
   if (!thr_alarm_in_use(&alarmed))
   {
     if (!thr_alarm(alarmed,net->read_timeout,&alarm_buff) ||
-	(!vio_is_blocking(net->vio) && vio_blocking(net->vio,TRUE) < 0))
+	vio_blocking(net->vio, TRUE, &old_mode) < 0)
       return;					/* Can't setup, abort */
   }
   while (remain > 0)
@@ -538,29 +539,27 @@ my_real_read(NET *net, ulong *complen)
 	  {
 	    if (!thr_alarm(&alarmed,net->read_timeout,&alarm_buff)) /* Don't wait too long */
 	    {
-              if (!vio_is_blocking(net->vio))
-              {
-                while (vio_blocking(net->vio,TRUE) < 0)
-                {
-                  if (vio_should_retry(net->vio) &&
-		      retry_count++ < RETRY_COUNT)
-                    continue;
-                  DBUG_PRINT("error",
-			     ("fcntl returned error %d, aborting thread",
-			      vio_errno(net->vio)));
+	      my_bool old_mode;
+	      while (vio_blocking(net->vio, TRUE, &old_mode) < 0)
+	      {
+		if (vio_should_retry(net->vio) &&
+		    retry_count++ < RETRY_COUNT)
+		  continue;
+		DBUG_PRINT("error",
+			   ("fcntl returned error %d, aborting thread",
+			    vio_errno(net->vio)));
 #ifdef EXTRA_DEBUG
-                  fprintf(stderr,
-                          "%s: read: fcntl returned error %d, aborting thread\n",
-                          my_progname,vio_errno(net->vio));
+		fprintf(stderr,
+			"%s: read: fcntl returned error %d, aborting thread\n",
+			my_progname,vio_errno(net->vio));
 #endif /* EXTRA_DEBUG */
-                  len= packet_error;
-                  net->error=2;                 /* Close socket */
+		len= packet_error;
+		net->error=2;                 /* Close socket */
 #ifdef MYSQL_SERVER
-		  net->last_errno=ER_NET_FCNTL_ERROR;
+		net->last_errno=ER_NET_FCNTL_ERROR;
 #endif
-		  goto end;
-                }
-              }
+		goto end;
+	      }
 	      retry_count=0;
 	      continue;
 	    }
@@ -583,7 +582,9 @@ my_real_read(NET *net, ulong *complen)
 	    continue;
 	  }
 #endif
-	  DBUG_PRINT("error",("Couldn't read packet: remain: %lu  errno: %d  length: %ld  alarmed: %d", remain,vio_errno(net->vio),length,alarmed));
+	  DBUG_PRINT("error",("Couldn't read packet: remain: %lu  errno: %d  length: %ld  alarmed: %d",
+			      remain,vio_errno(net->vio), length,
+			      thr_got_alarm(&alarmed)));
 	  len= packet_error;
 	  net->error=2;				/* Close socket */
 #ifdef MYSQL_SERVER
@@ -653,8 +654,9 @@ my_real_read(NET *net, ulong *complen)
 end:
   if (thr_alarm_in_use(&alarmed))
   {
+    my_bool old_mode;
     thr_end_alarm(&alarmed);
-    vio_blocking(net->vio, net_blocking);
+    vio_blocking(net->vio, net_blocking, &old_mode);
   }
   net->reading_or_writing=0;
   return(len);

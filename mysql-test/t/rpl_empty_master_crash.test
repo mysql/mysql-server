@@ -1,6 +1,4 @@
 source include/master-slave.inc;
-connection master;
-use test;
 drop table if exists t1;
 show slave status;
 --error 1218

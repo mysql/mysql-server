@@ -1,7 +1,6 @@
 source include/master-slave.inc;
 
 #first, make sure the slave has had enough time to register
-connection master;
 save_master_pos;
 connection slave;
 sync_with_master;

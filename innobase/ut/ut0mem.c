@@ -38,6 +38,8 @@ os_fast_mutex_t ut_list_mutex;  /* this protects the list */
 
 ibool  ut_mem_block_list_inited = FALSE;
 
+ulint*	ut_mem_null_ptr	= NULL;
+
 /**************************************************************************
 Initializes the mem block list at database startup. */
 static
@@ -83,12 +85,16 @@ ut_malloc_low(
 		"InnoDB: Check if you should increase the swap file or\n"
 		"InnoDB: ulimits of your operating system.\n"
 		"InnoDB: On FreeBSD check you have compiled the OS with\n"
-		"InnoDB: a big enough maximum process size.\n",
+		"InnoDB: a big enough maximum process size.\n"
+		"InnoDB: We now intentionally generate a seg fault so that\n"
+		"InnoDB: on Linux we get a stack trace.\n",
 		                  n, ut_total_allocated_memory, errno);
 
 	        os_fast_mutex_unlock(&ut_list_mutex);
 
-		exit(1);
+		/* Make an intentional seg fault so that we get a stack
+		trace */
+		printf("%lu\n", *ut_mem_null_ptr);	
 	}		
 
 	if (set_to_zero) {

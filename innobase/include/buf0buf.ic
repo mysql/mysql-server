@@ -209,7 +209,7 @@ buf_block_align(
 
 	ut_ad((ulint)ptr >= (ulint)frame_zero);
 
-	block = buf_pool_get_nth_block(buf_pool, (ptr - frame_zero)
+	block = buf_pool_get_nth_block(buf_pool, ((ulint)(ptr - frame_zero))
 						>> UNIV_PAGE_SIZE_SHIFT);
 	ut_a(block >= buf_pool->blocks);
 	ut_a(block < buf_pool->blocks + buf_pool->max_size);
@@ -236,7 +236,7 @@ buf_block_align_low(
 
 	ut_ad((ulint)ptr >= (ulint)frame_zero);
 
-	block = buf_pool_get_nth_block(buf_pool, (ptr - frame_zero)
+	block = buf_pool_get_nth_block(buf_pool, ((ulint)(ptr - frame_zero))
 						>> UNIV_PAGE_SIZE_SHIFT);
 	ut_a(block >= buf_pool->blocks);
 	ut_a(block < buf_pool->blocks + buf_pool->max_size);

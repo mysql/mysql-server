@@ -568,6 +568,55 @@ recv_read_cp_info_for_backup(
 	return(TRUE);
 }
 
+/**********************************************************
+Checks the 1-byte checksum to the trailer checksum field of a log block.
+We also accept a log block in the old format where the checksum field
+contained the highest byte of the log block number. */
+static
+ibool
+log_block_checksum_is_ok_or_old_format(
+/*===================================*/
+			/* out: TRUE if ok, or if the log block may be in the
+			format of InnoDB version < 3.23.52 */
+	byte*	block)	/* in: pointer to a log block */
+{
+	ulint	i;
+	ulint	sum;
+
+	sum = 1;
+
+	for (i = 0; i < OS_FILE_LOG_BLOCK_SIZE - LOG_BLOCK_TRL_SIZE; i++) {
+		sum += (ulint)(*(block + i));
+	}
+
+/*	printf("Checksum %lu, byte %lu\n", 0xFF & sum,
+		mach_read_from_1(block + OS_FILE_LOG_BLOCK_SIZE
+						- LOG_BLOCK_TRL_CHECKSUM));
+*/
+	if (mach_read_from_1(block + OS_FILE_LOG_BLOCK_SIZE
+						- LOG_BLOCK_TRL_CHECKSUM)
+	    == (0xFF & sum)) {
+
+		return(TRUE);
+	}
+
+	if (((0xFF000000 & log_block_get_hdr_no(block)) >> 24)
+		== mach_read_from_1(block + OS_FILE_LOG_BLOCK_SIZE
+						- LOG_BLOCK_TRL_CHECKSUM)) {
+
+		/* We assume the log block is in the format of
+		InnoDB version < 3.23.52 and the block is ok */
+/*
+		fprintf(stderr,
+"InnoDB: Scanned old format < InnoDB-3.23.52 log block number %lu\n",
+			log_block_get_hdr_no(block));
+*/
+		return(TRUE);
+	}
+
+	return(FALSE);
+}
+
 /***********************************************************************
 Scans the log segment and n_bytes_scanned is set to the length of valid
 log scanned. */
@@ -598,12 +647,13 @@ recv_scan_log_seg_for_backup(
 	
 		no = log_block_get_hdr_no(log_block);
 
-		/* fprintf(stderr, "Log block header no %lu\n", no); */
+/*		fprintf(stderr, "Log block header no %lu\n", no); */
 
-		if (no != log_block_get_trl_no(log_block)
-		    || no != log_block_convert_lsn_to_no(*scanned_lsn)) {
-
-/*			printf(
+		if ((no & 0xFFFFFF) != log_block_get_trl_no(log_block)
+		    || no != log_block_convert_lsn_to_no(*scanned_lsn)
+		    || !log_block_checksum_is_ok_or_old_format(log_block)) {
+/*
+			printf(
 "Log block n:o %lu, trailer n:o %lu, scanned lsn n:o %lu\n",
 			no, log_block_get_trl_no(log_block),
 			log_block_convert_lsn_to_no(*scanned_lsn));
@@ -611,8 +661,8 @@ recv_scan_log_seg_for_backup(
 			/* Garbage or an incompletely written log block */
 
 			log_block += OS_FILE_LOG_BLOCK_SIZE;
-
-/*			printf(
+/*
+			printf(
 "Next log block n:o %lu, trailer n:o %lu\n",
 			log_block_get_hdr_no(log_block),
 			log_block_get_trl_no(log_block));
@@ -629,11 +679,11 @@ recv_scan_log_seg_for_backup(
 
 			/* Garbage from a log buffer flush which was made
 			before the most recent database recovery */
-
+/*
 			printf("Scanned cp n:o %lu, block cp n:o %lu\n",
 				*scanned_checkpoint_no,
 				log_block_get_checkpoint_no(log_block));
-
+*/
 			break;
 		}
 
@@ -1011,7 +1061,7 @@ recv_recover_page(
 			page_lsn = page_newest_lsn;
 		}
 	} else {
-		/* In recovery from a backup we do not use the buffer
+		/* In recovery from a backup we do not really use the buffer
 		pool */
 
 		page_newest_lsn = ut_dulint_zero;
@@ -1360,6 +1410,14 @@ recv_apply_log_recs_for_backup(
 				& 0xFFFFFFFF,
 			  nth_page_in_file >> (32 - UNIV_PAGE_SIZE_SHIFT), 
 				UNIV_PAGE_SIZE);
+
+			/* We simulate a page read made by the buffer pool,
+			to make sure recovery works ok. We must init the
+			block corresponding to buf_pool->frame_zero
+			(== page) */
+
+			buf_page_init_for_backup_restore(0, i,
+						buf_block_align(page));
 
 			recv_recover_page(TRUE, FALSE, page, 0, i);
 
@@ -2037,8 +2095,33 @@ recv_scan_log_recs(
 
 		/* fprintf(stderr, "Log block header no %lu\n", no); */
 
-		if (no != log_block_get_trl_no(log_block)
-		    || no != log_block_convert_lsn_to_no(scanned_lsn)) {
+		if ((no & 0xFFFFFF) != log_block_get_trl_no(log_block)
+		    || no != log_block_convert_lsn_to_no(scanned_lsn)
+		    || !log_block_checksum_is_ok_or_old_format(log_block)) {
+
+			if ((no & 0xFFFFFF) == log_block_get_trl_no(log_block)
+		    	    && no == log_block_convert_lsn_to_no(scanned_lsn)
+			    && !log_block_checksum_is_ok_or_old_format(
+								log_block)) {
+				fprintf(stderr,
+"InnoDB: Log block no %lu at lsn %lu %lu has\n"
+"InnoDB: ok header and trailer, but checksum field contains %lu\n",
+				no, ut_dulint_get_high(scanned_lsn),
+				ut_dulint_get_low(scanned_lsn),
+				mach_read_from_1(log_block
+						+ OS_FILE_LOG_BLOCK_SIZE
+						- LOG_BLOCK_TRL_CHECKSUM));
+			}
+
+			if ((no & 0xFFFFFF)
+					!= log_block_get_trl_no(log_block)) {
+				fprintf(stderr,
+"InnoDB: Log block with header no %lu at lsn %lu %lu has\n"
+"InnoDB: trailer no %lu\n",
+				no, ut_dulint_get_high(scanned_lsn),
+				ut_dulint_get_low(scanned_lsn),
+				log_block_get_trl_no(log_block));
+			}
 
 			/* Garbage or an incompletely written log block */
 
@@ -2241,6 +2324,7 @@ recv_recovery_from_checkpoint_start(
 	dulint		archived_lsn;
 	ulint		capacity;
 	byte*		buf;
+	byte		log_hdr_buf[LOG_FILE_HDR_SIZE];
 	ulint		err;
 
 	ut_ad((type != LOG_CHECKPOINT)
@@ -2288,6 +2372,33 @@ recv_recovery_from_checkpoint_start(
 	checkpoint_no = mach_read_from_8(buf + LOG_CHECKPOINT_NO);
 	archived_lsn = mach_read_from_8(buf + LOG_CHECKPOINT_ARCHIVED_LSN);
 
+	/* Read the first log file header to print a note if this is
+	a recovery from a restored InnoDB Hot Backup */
+	
+	fil_io(OS_FILE_READ | OS_FILE_LOG, TRUE, max_cp_group->space_id,
+				0, 0, LOG_FILE_HDR_SIZE,
+				log_hdr_buf, max_cp_group);
+
+	if (0 == ut_memcmp(log_hdr_buf + LOG_FILE_WAS_CREATED_BY_HOT_BACKUP,
+				"ibbackup", ut_strlen("ibbackup"))) {
+		/* This log file was created by ibbackup --restore: print
+		a note to the user about it */
+
+		fprintf(stderr,
+	"InnoDB: The log file was created by ibbackup --restore at\n"
+	"InnoDB: %s\n", log_hdr_buf + LOG_FILE_WAS_CREATED_BY_HOT_BACKUP);
+		
+		/* Wipe over the label now */
+
+		ut_memcpy(log_hdr_buf + LOG_FILE_WAS_CREATED_BY_HOT_BACKUP,
+								"    ", 4);
+		/* Write to the log file to wipe over the label */
+		fil_io(OS_FILE_WRITE | OS_FILE_LOG, TRUE,
+				max_cp_group->space_id,
+				0, 0, OS_FILE_LOG_BLOCK_SIZE,
+				log_hdr_buf, max_cp_group);
+	}
+				
 	group = UT_LIST_GET_FIRST(log_sys->log_groups);
 
 	while (group) {
@@ -2471,7 +2582,7 @@ recv_recovery_from_checkpoint_finish(void)
 	/* Rollback the uncommitted transactions which have no user session */
 
 	if (srv_force_recovery < SRV_FORCE_NO_TRX_UNDO) {
-		trx_rollback_all_without_sess();
+		trx_rollback_or_clean_all_without_sess();
 	}
 
 	/* Apply the hashed log records to the respective file pages */
@@ -2487,6 +2598,7 @@ recv_recovery_from_checkpoint_finish(void)
 	}
 
 	if (recv_needed_recovery) {
+		trx_sys_print_mysql_master_log_pos();
 		trx_sys_print_mysql_binlog_offset();
 	}
 
@@ -2614,10 +2726,9 @@ recv_reset_log_files_for_backup(
 
 	/* We pretend there is a checkpoint at lsn + LOG_BLOCK_HDR_SIZE */
 	
-	log_reset_first_header_and_checkpoint(buf,
-				ut_dulint_add(lsn, LOG_BLOCK_HDR_SIZE));
+	log_reset_first_header_and_checkpoint(buf, lsn);
 	
-	log_block_init(buf + LOG_FILE_HDR_SIZE, lsn);
+	log_block_init_in_old_format(buf + LOG_FILE_HDR_SIZE, lsn);
 	log_block_set_first_rec_group(buf + LOG_FILE_HDR_SIZE,
 							LOG_BLOCK_HDR_SIZE);
 	sprintf(name, "%sib_logfile%lu", log_dir, 0);
@@ -2754,7 +2865,7 @@ ask_again:
 		if (ut_dulint_cmp(recv_sys->parse_start_lsn, start_lsn) < 0) {
 			fprintf(stderr, 
 	"InnoDB: Archive log file %s starts from too big a lsn\n",
-									name);	    
+								name);	    
 			return(TRUE);
 		}
 	
@@ -2765,7 +2876,7 @@ ask_again:
 
 		fprintf(stderr,
 	"InnoDB: Archive log file %s starts from a wrong lsn\n",
-									name);
+								name);
 		return(TRUE);
 	}
 

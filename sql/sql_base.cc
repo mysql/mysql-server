@@ -279,6 +279,7 @@ void intern_close_table(TABLE *table)
 static void free_cache_entry(TABLE *table)
 {
   DBUG_ENTER("free_cache_entry");
+  safe_mutex_assert_owner(&LOCK_open);
 
   intern_close_table(table);
   if (!table->in_use)
@@ -425,6 +426,7 @@ void close_thread_tables(THD *thd, bool locked)
   /* VOID(pthread_sigmask(SIG_SETMASK,&thd->block_signals,NULL)); */
   if (!locked)
     VOID(pthread_mutex_lock(&LOCK_open));
+  safe_mutex_assert_owner(&LOCK_open);
 
   DBUG_PRINT("info", ("thd->open_tables=%p", thd->open_tables));
 
@@ -550,13 +552,10 @@ void close_temporary_tables(THD *thd)
   }
   if (query && found_user_tables && mysql_bin_log.is_open())
   {
-    uint save_query_len = thd->query_length;
-    *--end = 0;					// Remove last ','
-    thd->query_length = (uint)(end-query);
-    Query_log_event qinfo(thd, query);
+    /* The -1 is to remove last ',' */
+    Query_log_event qinfo(thd, query, (ulong)(end-query)-1);
     qinfo.error_code=0;
     mysql_bin_log.write(&qinfo);
-    thd->query_length = save_query_len;
   }
   thd->temporary_tables=0;
 }
@@ -669,11 +668,13 @@ TABLE *unlink_open_table(THD *thd, TABLE *list, TABLE *find)
 
 /*
    When we call the following function we must have a lock on
-   LOCK_OPEN ; This lock will be unlocked on return.
+   LOCK_open ; This lock will be unlocked on return.
 */
 
 void wait_for_refresh(THD *thd)
 {
+  safe_mutex_assert_owner(&LOCK_open);
+
   /* Wait until the current table is up to date */
   const char *proc_info;
   thd->mysys_var->current_mutex= &LOCK_open;
@@ -931,6 +932,7 @@ bool reopen_table(TABLE *table,bool locked)
 #endif
   if (!locked)
     VOID(pthread_mutex_lock(&LOCK_open));
+  safe_mutex_assert_owner(&LOCK_open);
 
   if (open_unireg_entry(current_thd,&tmp,db,table_name,table->table_name,
 			locked))
@@ -1022,6 +1024,8 @@ bool close_data_tables(THD *thd,const char *db, const char *table_name)
 bool reopen_tables(THD *thd,bool get_locks,bool in_refresh)
 {
   DBUG_ENTER("reopen_tables");
+  safe_mutex_assert_owner(&LOCK_open);
+
   if (!thd->open_tables)
     DBUG_RETURN(0);
 
@@ -1259,6 +1263,8 @@ static int open_unireg_entry(THD *thd, TABLE *entry, const char *db,
     table_list.next=0;
     if (!locked)
       pthread_mutex_lock(&LOCK_open);
+    safe_mutex_assert_owner(&LOCK_open);
+
     if ((error=lock_table_name(thd,&table_list)))
     {
       if (error < 0)

@@ -127,6 +127,8 @@ Prints info of a hash table. */
 void
 ha_print_info(
 /*==========*/
+	char*		buf,	/* in/out: buffer where to print */
+	char*		buf_end,/* in: buffer end */
 	hash_table_t*	table);	/* in: hash table */
 
 

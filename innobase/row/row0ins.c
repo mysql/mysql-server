@@ -392,6 +392,19 @@ row_ins_foreign_delete_or_set_null(
 
 	node = thr->run_node;
 
+	ut_a(que_node_get_type(node) == QUE_NODE_UPDATE);
+
+	if (!node->is_delete) {
+	        /* According to SQL-92 an UPDATE with respect to FOREIGN
+	        KEY constraints is not semantically equivalent to a
+                DELETE + INSERT. Therefore we do not perform any action
+	        here and consequently the child rows would be left
+	        orphaned if we would let the UPDATE happen. Thus we return
+		an error. */
+
+	        return(DB_ROW_IS_REFERENCED);
+	}
+
 	if (node->cascade_node == NULL) {
 		/* Extend our query graph by creating a child to current
 		update node. The child is used in the cascade or set null
@@ -609,7 +622,7 @@ the caller must have a shared latch on dict_foreign_key_check_lock. */
 ulint
 row_ins_check_foreign_constraint(
 /*=============================*/
-				/* out: DB_SUCCESS, DB_LOCK_WAIT,
+				/* out: DB_SUCCESS,
 				DB_NO_REFERENCED_ROW,
 				or DB_ROW_IS_REFERENCED */
 	ibool		check_ref,/* in: TRUE if we want to check that
@@ -627,6 +640,7 @@ row_ins_check_foreign_constraint(
 	dict_table_t*	check_table;
 	dict_index_t*	check_index;
 	ulint		n_fields_cmp;
+	ibool           timeout_expired;
 	rec_t*		rec;
 	btr_pcur_t	pcur;
 	ibool		moved;
@@ -635,6 +649,7 @@ row_ins_check_foreign_constraint(
 	ulint		i;
 	mtr_t		mtr;
 
+run_again:
 	ut_ad(rw_lock_own(&dict_foreign_key_check_lock, RW_LOCK_SHARED));
 
 	if (thr_get_trx(thr)->check_foreigns == FALSE) {
@@ -682,7 +697,7 @@ row_ins_check_foreign_constraint(
 
 		if (err != DB_SUCCESS) {
 
-			return(err);
+			goto do_possible_lock_wait;
 		}
 	}
 
@@ -727,6 +742,11 @@ row_ins_check_foreign_constraint(
 			if (!rec_get_deleted_flag(rec)) {
 				/* Found a matching record */
 
+/*				printf(
+"FOREIGN: Found matching record from %s %s\n",
+		check_index->table_name, check_index->name);
+				rec_print(rec);
+*/
 				if (check_ref) {			
 					err = DB_SUCCESS;
 
@@ -779,6 +799,22 @@ next_rec:
 	/* Restore old value */
 	dtuple_set_n_fields_cmp(entry, n_fields_cmp);
 
+do_possible_lock_wait:
+	if (err == DB_LOCK_WAIT) {
+		thr_get_trx(thr)->error_state = err;
+
+		que_thr_stop_for_mysql(thr);
+
+		timeout_expired = srv_suspend_mysql_thread(thr);
+	
+		if (!timeout_expired) {
+
+		        goto run_again;
+		}
+
+		err = DB_LOCK_WAIT_TIMEOUT;
+	}
+
 	return(err);
 }
 
@@ -792,8 +828,7 @@ static
 ulint
 row_ins_check_foreign_constraints(
 /*==============================*/
-				/* out: DB_SUCCESS, DB_LOCK_WAIT, or error
-				code */
+				/* out: DB_SUCCESS or error code */
 	dict_table_t*	table,	/* in: table */
 	dict_index_t*	index,	/* in: index */
 	dtuple_t*	entry,	/* in: index entry for index */

@@ -154,30 +154,6 @@ dfield_datas_are_binary_equal(
 }
 
 /*************************************************************************
-Tests if dfield data length and content is equal to the given. */
-UNIV_INLINE
-ibool
-dfield_data_is_binary_equal(
-/*========================*/
-				/* out: TRUE if equal */
-	dfield_t*	field,	/* in: field */
-	ulint		len,	/* in: data length or UNIV_SQL_NULL */
-	byte*		data)	/* in: data */
-{
-	if (len != field->len) {
-
-		return(FALSE);
-	}
-
-	if (len != UNIV_SQL_NULL && 0 != ut_memcmp(field->data, data, len)) {
-	    	
-		return(FALSE);
-	}
-
-	return(TRUE);
-}
-
-/*************************************************************************
 Gets info bits in a data tuple. */
 UNIV_INLINE
 ulint

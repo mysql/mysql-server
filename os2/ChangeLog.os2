@@ -1,4 +1,25 @@
 
+
+2002/05/02
+	- now libinit is automatically called on client dll startup
+
+2002/01/27
+	- fixed console output for get_password
+
+2002/01/20
+	- back-ported fix for fulltext indexes (wrong report by myisamchk)
+
+2001/11/21
+	- MySQL 3.32.42 build 3 released.
+
+2001/11/19
+	- got GNU Readline to compile with VAC++, now console has a working
+	  history.
+
+2001/11/10
+	- fixed file locking on non-JFS disks; DosSetFileLocksL does not
+	  support ranges > 2GB on non-JFS disks.
+
 2001/09/16
 	- fixed creation directory of temporary files
 	- enabled cached list file for deleting temp open files
@@ -30,4 +51,3 @@
 2001/05/19
 	- new TLS code, fixed parser crashes and many other problems.
 	- fixed pthread_cond_timedwait, now handle manager expires
-
