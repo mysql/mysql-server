@@ -1,16 +1,16 @@
 grant all privileges on test.* to mysqltest_1@localhost;
 select * from information_schema.SCHEMATA where schema_name > 'm';
-CATALOG_NAME	SCHEMA_NAME	DEFAULT_CHARACTER_SET_NAME
-NULL	mysql	latin1
-NULL	test	latin1
+CATALOG_NAME	SCHEMA_NAME	DEFAULT_CHARACTER_SET_NAME	SQL_PATH
+NULL	mysql	latin1	NULL
+NULL	test	latin1	NULL
 select schema_name from information_schema.schemata;
 schema_name
 mysql
 test
 show databases *;
-CATALOG_NAME	SCHEMA_NAME	DEFAULT_CHARACTER_SET_NAME
-NULL	mysql	latin1
-NULL	test	latin1
+CATALOG_NAME	SCHEMA_NAME	DEFAULT_CHARACTER_SET_NAME	SQL_PATH
+NULL	mysql	latin1	NULL
+NULL	test	latin1	NULL
 show databases like 't%';
 Database (t%)
 test
@@ -19,10 +19,10 @@ Database
 mysql
 test
 show databases * where schema_name like 't%';
-CATALOG_NAME	SCHEMA_NAME	DEFAULT_CHARACTER_SET_NAME
-NULL	test	latin1
+CATALOG_NAME	SCHEMA_NAME	DEFAULT_CHARACTER_SET_NAME	SQL_PATH
+NULL	test	latin1	NULL
 show databases * where schema_name = 't%';
-CATALOG_NAME	SCHEMA_NAME	DEFAULT_CHARACTER_SET_NAME
+CATALOG_NAME	SCHEMA_NAME	DEFAULT_CHARACTER_SET_NAME	SQL_PATH
 create database testtets;
 create table testtets.t1(a int, b VARCHAR(30), KEY string_data (b));
 create table test.t2(a int);
@@ -119,24 +119,24 @@ Field	Type	Collation	Null	Key	Default	Extra	Privileges	Comment
 c	char(64)	utf8_general_ci					select,insert,update,references	
 select * from information_schema.COLUMNS where table_name="t1"
 and column_name= "a";
-TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME	ORDINAL_POSITION	DATA_TYPE	CHARACTER_MAXIMUM_LENGTH	CHARACTER_OCTET_LENGTH	NUMERIC_PRECISION	NUMERIC_SCALE	CHARACTER_SET_NAME	TYPE	COLLATION_NAME	IS_NULLABLE	KEY	COLUMN_DEFAULT	EXTRA	PRIVILEGES	COMMENT
-NULL	testtets	t1	a	1	int	0	11	4	0	NULL	int(11)	NULL	YES		NULL		select,insert,update,references	
+TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME	ORDINAL_POSITION	COLUMN_DEFAULT	IS_NULLABLE	DATA_TYPE	CHARACTER_MAXIMUM_LENGTH	CHARACTER_OCTET_LENGTH	NUMERIC_PRECISION	NUMERIC_SCALE	CHARACTER_SET_NAME	COLLATION_NAME	COLUMN_TYPE	COLUMN_KEY	EXTRA	PRIVILEGES	COLUMN_COMMENT
+NULL	testtets	t1	a	1	NULL	YES	int	11	11	11	0	NULL	NULL	int(11)			select,insert,update,references	
 show columns * where table_name = "t1";
-TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME	ORDINAL_POSITION	DATA_TYPE	CHARACTER_MAXIMUM_LENGTH	CHARACTER_OCTET_LENGTH	NUMERIC_PRECISION	NUMERIC_SCALE	CHARACTER_SET_NAME	TYPE	COLLATION_NAME	IS_NULLABLE	KEY	COLUMN_DEFAULT	EXTRA	PRIVILEGES	COMMENT
-NULL	testtets	t1	a	1	int	0	11	4	0	NULL	int(11)	NULL	YES		NULL		select,insert,update,references	
-NULL	testtets	t1	b	2	varchar	30	30	30	31	latin1	varchar(30)	latin1_swedish_ci	YES	MUL	NULL		select,insert,update,references	
+TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME	ORDINAL_POSITION	COLUMN_DEFAULT	IS_NULLABLE	DATA_TYPE	CHARACTER_MAXIMUM_LENGTH	CHARACTER_OCTET_LENGTH	NUMERIC_PRECISION	NUMERIC_SCALE	CHARACTER_SET_NAME	COLLATION_NAME	COLUMN_TYPE	COLUMN_KEY	EXTRA	PRIVILEGES	COLUMN_COMMENT
+NULL	testtets	t1	a	1	NULL	YES	int	11	11	11	0	NULL	NULL	int(11)			select,insert,update,references	
+NULL	testtets	t1	b	2	NULL	YES	varchar	30	30	NULL	NULL	latin1	latin1_swedish_ci	varchar(30)	MUL		select,insert,update,references	
 drop view v1;
 drop tables testtets.t4, testtets.t1, t2, t3;
 drop database testtets;
 select * from information_schema.CHARACTER_SETS
 where CHARACTER_SET_NAME like 'latin1%';
-CHARACTER_SET_NAME	Description	DEFAULT_COLLATE_NAME	Maxlen
+CHARACTER_SET_NAME	DESCRIPTION	DEFAULT_COLLATE_NAME	MAXLEN
 latin1	ISO 8859-1 West European	latin1_swedish_ci	1
 SHOW CHARACTER SET LIKE 'latin1%';
 Charset	Description	Default collation	Maxlen
 latin1	ISO 8859-1 West European	latin1_swedish_ci	1
 SHOW CHARACTER SET * LIKE 'latin1%';
-CHARACTER_SET_NAME	Description	DEFAULT_COLLATE_NAME	Maxlen
+CHARACTER_SET_NAME	DESCRIPTION	DEFAULT_COLLATE_NAME	MAXLEN
 latin1	ISO 8859-1 West European	latin1_swedish_ci	1
 SHOW CHARACTER SET WHERE CHARACTER_SET_NAME like 'latin1%';
 Charset	Description	Default collation	Maxlen
@@ -145,11 +145,11 @@ SHOW CHARACTER SET CHARACTER_SET_NAME WHERE CHARACTER_SET_NAME like 'latin1%';
 CHARACTER_SET_NAME
 latin1
 SHOW CHARACTER SET *  WHERE CHARACTER_SET_NAME like 'latin1%';
-CHARACTER_SET_NAME	Description	DEFAULT_COLLATE_NAME	Maxlen
+CHARACTER_SET_NAME	DESCRIPTION	DEFAULT_COLLATE_NAME	MAXLEN
 latin1	ISO 8859-1 West European	latin1_swedish_ci	1
 select * from information_schema.COLLATIONS
 where COLLATION_NAME like 'latin1%';
-COLLATION_NAME	Charset	Id	Default	Compiled	Sortlen
+COLLATION_NAME	CHARSET	ID	DEFAULT	COMPILED	SORTLEN
 latin1_german1_ci	latin1	5			0
 latin1_swedish_ci	latin1	8	Yes	Yes	1
 latin1_danish_ci	latin1	15			0
@@ -169,7 +169,7 @@ latin1_general_ci	latin1	48			0
 latin1_general_cs	latin1	49			0
 latin1_spanish_ci	latin1	94			0
 SHOW COLLATION * LIKE 'latin1%';
-COLLATION_NAME	Charset	Id	Default	Compiled	Sortlen
+COLLATION_NAME	CHARSET	ID	DEFAULT	COMPILED	SORTLEN
 latin1_german1_ci	latin1	5			0
 latin1_swedish_ci	latin1	8	Yes	Yes	1
 latin1_danish_ci	latin1	15			0
@@ -199,7 +199,7 @@ latin1_general_ci
 latin1_general_cs
 latin1_spanish_ci
 SHOW COLLATION *  WHERE COLLATION_NAME like 'latin1%';
-COLLATION_NAME	Charset	Id	Default	Compiled	Sortlen
+COLLATION_NAME	CHARSET	ID	DEFAULT	COMPILED	SORTLEN
 latin1_german1_ci	latin1	5			0
 latin1_swedish_ci	latin1	8	Yes	Yes	1
 latin1_danish_ci	latin1	15			0
@@ -358,11 +358,11 @@ NULL	test	key_1	test	t1	UNIQUE	NULL
 NULL	test	key_2	test	t1	UNIQUE	NULL
 select * from information_schema.KEY_COLUMN_USAGE where
 TABLE_SCHEMA= "test";
-CONSTRAINT_CATALOG	CONSTRAINT_SCHEMA	CONSTRAINT_NAME	TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME	ORDINAL_POSITION	REFERENCED_TABLE_SCHEMA	REFERENCED_TABLE_NAME	REFERENCED_COLUMN_NAME
-NULL	test	PRIMARY	test	t1	a	1	NULL	NULL	NULL
-NULL	test	constraint_1	test	t1	a	1	NULL	NULL	NULL
-NULL	test	key_1	test	t1	a	1	NULL	NULL	NULL
-NULL	test	key_2	test	t1	a	1	NULL	NULL	NULL
+CONSTRAINT_CATALOG	CONSTRAINT_SCHEMA	CONSTRAINT_NAME	TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME	ORDINAL_POSITION	REFERENCED_TABLE_SCHEMA	REFERENCED_TABLE_NAME	REFERENCED_COLUMN_NAME
+NULL	test	PRIMARY	NULL	test	t1	a	1	NULL	NULL	NULL
+NULL	test	constraint_1	NULL	test	t1	a	1	NULL	NULL	NULL
+NULL	test	key_1	NULL	test	t1	a	1	NULL	NULL	NULL
+NULL	test	key_2	NULL	test	t1	a	1	NULL	NULL	NULL
 drop table t1;
 CREATE TABLE t1 (id INT NOT NULL, PRIMARY KEY (id)) ENGINE=INNODB;
 CREATE TABLE t2 (id INT PRIMARY KEY, t1_id INT, INDEX par_ind (t1_id),
@@ -377,11 +377,11 @@ NULL	test	t2_ibfk_1	test	t2	FOREIGN KEY	ON DELETE CASCADE
 NULL	test	t2_ibfk_2	test	t2	FOREIGN KEY	ON UPDATE CASCADE
 select * from information_schema.KEY_COLUMN_USAGE where
 TABLE_SCHEMA= "test";
-CONSTRAINT_CATALOG	CONSTRAINT_SCHEMA	CONSTRAINT_NAME	TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME	ORDINAL_POSITION	REFERENCED_TABLE_SCHEMA	REFERENCED_TABLE_NAME	REFERENCED_COLUMN_NAME
-NULL	test	PRIMARY	test	t1	id	1	NULL	NULL	NULL
-NULL	test	PRIMARY	test	t2	id	1	NULL	NULL	NULL
-NULL	test	t2_ibfk_1	test	t2	t1_id	1	test	t1	id
-NULL	test	t2_ibfk_2	test	t2	t1_id	1	test	t1	id
+CONSTRAINT_CATALOG	CONSTRAINT_SCHEMA	CONSTRAINT_NAME	TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME	ORDINAL_POSITION	REFERENCED_TABLE_SCHEMA	REFERENCED_TABLE_NAME	REFERENCED_COLUMN_NAME
+NULL	test	PRIMARY	NULL	test	t1	id	1	NULL	NULL	NULL
+NULL	test	PRIMARY	NULL	test	t2	id	1	NULL	NULL	NULL
+NULL	test	t2_ibfk_1	NULL	test	t2	t1_id	1	NULL		id
+NULL	test	t2_ibfk_2	NULL	test	t2	t1_id	1	NULL		id
 select table_name from information_schema.TABLES where table_schema like "test%";
 table_name
 t1
@@ -439,6 +439,9 @@ v
 call px5()//
 v
 9
+select sql_mode from information_schema.ROUTINES;
+sql_mode
+
 create table t1 (a int not null auto_increment,b int, primary key (a));
 insert into t1 values (1,1),(NULL,3),(NULL,4);
 select AUTO_INCREMENT from information_schema.tables where table_name = 't1';
@@ -457,32 +460,51 @@ SHOW CREATE TABLE INFORMATION_SCHEMA.CHARACTER_SETS;
 Table	Create Table
 CHARACTER_SETS	CREATE TEMPORARY TABLE `CHARACTER_SETS` (
   `CHARACTER_SET_NAME` char(30) NOT NULL default '',
-  `Description` char(60) NOT NULL default '',
+  `DESCRIPTION` char(60) NOT NULL default '',
   `DEFAULT_COLLATE_NAME` char(60) NOT NULL default '',
-  `Maxlen` bigint(3) NOT NULL default '0'
+  `MAXLEN` bigint(3) NOT NULL default '0'
 ) ENGINE=HEAP DEFAULT CHARSET=utf8 MAX_ROWS=2282
 set names latin2;
 SHOW CREATE TABLE INFORMATION_SCHEMA.CHARACTER_SETS;
 Table	Create Table
 CHARACTER_SETS	CREATE TEMPORARY TABLE `CHARACTER_SETS` (
   `CHARACTER_SET_NAME` char(30) NOT NULL default '',
-  `Description` char(60) NOT NULL default '',
+  `DESCRIPTION` char(60) NOT NULL default '',
   `DEFAULT_COLLATE_NAME` char(60) NOT NULL default '',
-  `Maxlen` bigint(3) NOT NULL default '0'
+  `MAXLEN` bigint(3) NOT NULL default '0'
 ) ENGINE=HEAP DEFAULT CHARSET=utf8 MAX_ROWS=2282
 set names latin1;
 create table t1 select * from information_schema.CHARACTER_SETS
 where CHARACTER_SET_NAME like "latin1";
 select * from t1;
-CHARACTER_SET_NAME	Description	DEFAULT_COLLATE_NAME	Maxlen
+CHARACTER_SET_NAME	DESCRIPTION	DEFAULT_COLLATE_NAME	MAXLEN
 latin1	ISO 8859-1 West European	latin1_swedish_ci	1
 alter table t1 default character set utf8;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `CHARACTER_SET_NAME` char(30) NOT NULL default '',
-  `Description` char(60) NOT NULL default '',
+  `DESCRIPTION` char(60) NOT NULL default '',
   `DEFAULT_COLLATE_NAME` char(60) NOT NULL default '',
-  `Maxlen` bigint(3) NOT NULL default '0'
+  `MAXLEN` bigint(3) NOT NULL default '0'
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8
+drop table t1;
+create view v1 as select * from information_schema.TABLES;
+drop view v1;
+create table t1(a NUMERIC(5,3), b NUMERIC(5,1), c float(5,2),
+d NUMERIC(6,4), e float, f DECIMAL(6,3), g int(11), h DOUBLE(10,3),
+i DOUBLE);
+select COLUMN_NAME,COLUMN_TYPE, CHARACTER_MAXIMUM_LENGTH, 
+CHARACTER_OCTET_LENGTH, NUMERIC_PRECISION, NUMERIC_SCALE
+from information_schema.columns where table_name= 't1';
+COLUMN_NAME	COLUMN_TYPE	CHARACTER_MAXIMUM_LENGTH	CHARACTER_OCTET_LENGTH	NUMERIC_PRECISION	NUMERIC_SCALE
+a	decimal(5,3)	7	7	5	3
+b	decimal(5,1)	7	7	5	1
+c	float(5,2)	5	5	5	2
+d	decimal(6,4)	8	8	6	4
+e	float	12	12	12	NULL
+f	decimal(6,3)	8	8	6	3
+g	int(11)	11	11	11	0
+h	double(10,3)	10	10	10	3
+i	double	22	22	22	NULL
 drop table t1;

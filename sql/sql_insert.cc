@@ -633,10 +633,10 @@ bool mysql_prepare_insert(THD *thd, TABLE_LIST *table_list, TABLE *table,
       setup_fields(thd, 0, table_list, *values, 0, 0, 0) ||
       (duplic == DUP_UPDATE &&
        ((thd->lex->select_lex.no_wrap_view_item= 1,
-         (res= setup_fields(thd, 0, table_list, update_fields, 0, 0, 0)),
+         (res= setup_fields(thd, 0, table_list, update_fields, 1, 0, 0)),
          thd->lex->select_lex.no_wrap_view_item= 0,
          res) ||
-        setup_fields(thd, 0, table_list, update_values, 0, 0, 0))))
+        setup_fields(thd, 0, table_list, update_values, 1, 0, 0))))
     DBUG_RETURN(TRUE);
 
   if (unique_table(table_list, table_list->next_global))
@@ -644,6 +644,8 @@ bool mysql_prepare_insert(THD *thd, TABLE_LIST *table_list, TABLE *table,
     my_error(ER_UPDATE_TABLE_USED, MYF(0), table_list->real_name);
     DBUG_RETURN(TRUE);
   }
+  if (duplic == DUP_UPDATE || duplic == DUP_REPLACE)
+    table->file->extra(HA_EXTRA_RETRIEVE_PRIMARY_KEY);
   thd->lex->select_lex.first_execution= 0;
   DBUG_RETURN(FALSE);
 }

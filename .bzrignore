@@ -102,6 +102,7 @@ Makefile.in
 Makefile.in'
 PENDING/*
 TAGS
+ac_available_languages_fragment
 aclocal.m4
 autom4te-2.53.cache/*
 autom4te-2.53.cache/output.0
@@ -315,6 +316,7 @@ gmon.out
 hardcopy.0
 heap/hp_test1
 heap/hp_test2
+help
 help.c
 help.h
 include/my_config.h
@@ -756,11 +758,25 @@ ndb/tools/ndb_delete_all
 ndb/tools/ndb_desc
 ndb/tools/ndb_drop_index
 ndb/tools/ndb_drop_table
+ndb/tools/ndb_restore
 ndb/tools/ndb_select_all
 ndb/tools/ndb_select_count
 ndb/tools/ndb_show_tables
 ndb/tools/ndb_test_platform
 ndb/tools/ndb_waiter
+ndbcluster-1186
+ndbcluster-1186/SCCS
+ndbcluster-1186/config.ini
+ndbcluster-1186/ndb_1.pid
+ndbcluster-1186/ndb_1_out.log
+ndbcluster-1186/ndb_1_signal.log
+ndbcluster-1186/ndb_2.pid
+ndbcluster-1186/ndb_2_out.log
+ndbcluster-1186/ndb_2_signal.log
+ndbcluster-1186/ndb_3.pid
+ndbcluster-1186/ndb_3_cluster.log
+ndbcluster-1186/ndb_3_out.log
+ndbcluster-1186/ndbcluster.pid
 pull.log
 regex/re
 repl-tests/test-repl-ts/repl-timestamp.master.reject
@@ -959,5 +975,3 @@ vio/test-ssl
 vio/test-sslclient
 vio/test-sslserver
 vio/viotest-ssl
-ac_available_languages_fragment
-ndb/tools/ndb_restore

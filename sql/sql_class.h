@@ -431,6 +431,12 @@ struct system_variables
 #ifdef HAVE_INNOBASE_DB
   my_bool innodb_table_locks;
 #endif /* HAVE_INNOBASE_DB */
+#ifdef HAVE_NDBCLUSTER_DB
+  ulong ndb_autoincrement_prefetch_sz;
+  my_bool ndb_force_send;
+  my_bool ndb_use_exact_count;
+  my_bool ndb_use_transactions;
+#endif /* HAVE_NDBCLUSTER_DB */
   my_bool old_passwords;
   
   /* Only charset part of these variables is sensible */
