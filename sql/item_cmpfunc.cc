@@ -1658,7 +1658,7 @@ bool Item_func_like::turboBM_matches(const char* text, int text_len) const
 	  i -= u;
       }
       if (i < 0)
-	return true;
+	return 1;
 
       register const int v = plm1 - i;
       turboShift = u - v;
@@ -1675,7 +1675,7 @@ bool Item_func_like::turboBM_matches(const char* text, int text_len) const
       }
       j += shift;
     }
-    return false;
+    return 0;
   }
   else
   {
@@ -1689,7 +1689,7 @@ bool Item_func_like::turboBM_matches(const char* text, int text_len) const
 	  i -= u;
       }
       if (i < 0)
-	return true;
+	return 1;
 
       register const int v = plm1 - i;
       turboShift = u - v;
@@ -1706,7 +1706,7 @@ bool Item_func_like::turboBM_matches(const char* text, int text_len) const
       }
       j += shift;
     }
-    return false;
+    return 0;
   }
 }
 
