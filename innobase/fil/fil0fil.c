@@ -2573,7 +2573,7 @@ fil_load_single_table_tablespace(
 	        fprintf(stderr,
 "InnoDB: Error: could not open single-table tablespace file\n"
 "InnoDB: %s!\n"
-"InnoDB: We do no continue crash recovery, because the table will become\n"
+"InnoDB: We do not continue crash recovery, because the table will become\n"
 "InnoDB: corrupt if we cannot apply the log records in the InnoDB log to it.\n"
 "InnoDB: To fix the problem and start mysqld:\n"
 "InnoDB: 1) If there is a permission problem in the file and mysqld cannot\n"
@@ -2607,7 +2607,7 @@ fil_load_single_table_tablespace(
 	        fprintf(stderr,
 "InnoDB: Error: could not measure the size of single-table tablespace file\n"
 "InnoDB: %s!\n"
-"InnoDB: We do no continue crash recovery, because the table will become\n"
+"InnoDB: We do not continue crash recovery, because the table will become\n"
 "InnoDB: corrupt if we cannot apply the log records in the InnoDB log to it.\n"
 "InnoDB: To fix the problem and start mysqld:\n"
 "InnoDB: 1) If there is a permission problem in the file and mysqld cannot\n"
