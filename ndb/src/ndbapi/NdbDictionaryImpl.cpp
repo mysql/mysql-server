@@ -1361,9 +1361,7 @@ NdbDictInterface::parseTableInfo(NdbTableImpl ** ret,
     }
 
     Uint32 topBit = (1 << 31);
-    for(i = 31; i>=0; i--){
-      if((fragCount & topBit) != 0)
-	  break;
+    for(; topBit && !(fragCount & topBit); ){
       topBit >>= 1;
     }
     impl->m_hashValueMask = topBit - 1;
