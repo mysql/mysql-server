@@ -1695,6 +1695,7 @@ bool st_table_list::setup_ancestor(THD *thd, Item **conds,
   Field_translator *transl;
   SELECT_LEX *select= &view->select_lex;
   SELECT_LEX *current_select_save= thd->lex->current_select;
+  byte *main_table_list_save= thd->lex->select_lex.table_list.first;
   Item *item;
   TABLE_LIST *tbl;
   List_iterator_fast<Item> it(select->item_list);
@@ -1717,8 +1718,13 @@ bool st_table_list::setup_ancestor(THD *thd, Item **conds,
   if (field_translation)
   {
     DBUG_PRINT("info", ("there are already translation table"));
-    /* prevent look up in SELECTs tree */
+    /*
+      prevent look up in SELECTs tree, and emulate main table list by
+      ancestor table list for subquery processing
+    */
     thd->lex->current_select= &thd->lex->select_lex;
+    thd->lex->select_lex.table_list.first= (byte *)ancestor;
+
     thd->lex->select_lex.no_wrap_view_item= 1;
     thd->set_query_id= 1;
     /* this view was prepared already on previous PS/SP execution */
@@ -1763,8 +1769,13 @@ bool st_table_list::setup_ancestor(THD *thd, Item **conds,
     DBUG_RETURN(1);
   }
 
-  /* prevent look up in SELECTs tree */
+  /*
+    prevent look up in SELECTs tree, and emulate main table list by ancestor
+    table list for subquery processing
+  */
   thd->lex->current_select= &thd->lex->select_lex;
+  thd->lex->select_lex.table_list.first= (byte *)ancestor;
+
   thd->lex->select_lex.no_wrap_view_item= 1;
 
   /*
@@ -1909,6 +1920,7 @@ bool st_table_list::setup_ancestor(THD *thd, Item **conds,
 ok:
   thd->lex->select_lex.no_wrap_view_item= save_wrapper;
   thd->lex->current_select= current_select_save;
+  thd->lex->select_lex.table_list.first= main_table_list_save;
   thd->set_query_id= save_set_query_id;
   thd->allow_sum_func= save_allow_sum_func;
   DBUG_RETURN(0);
@@ -1923,6 +1935,7 @@ err:
   }
   thd->lex->select_lex.no_wrap_view_item= save_wrapper;
   thd->lex->current_select= current_select_save;
+  thd->lex->select_lex.table_list.first= main_table_list_save;
   thd->set_query_id= save_set_query_id;
   thd->allow_sum_func= save_allow_sum_func;
   DBUG_RETURN(1);

@@ -4059,7 +4059,12 @@ unsent_create_error:
     }
   case SQLCOM_CREATE_VIEW:
     {
-      res= mysql_create_view(thd, thd->lex->create_view_mode);
+      if (!(res= mysql_create_view(thd, thd->lex->create_view_mode)) &&
+          mysql_bin_log.is_open())
+      {
+        Query_log_event qinfo(thd, thd->query, thd->query_length, 0, FALSE);
+        mysql_bin_log.write(&qinfo);
+      }
       break;
     }
   case SQLCOM_DROP_VIEW:
@@ -4067,7 +4072,12 @@ unsent_create_error:
       if (check_table_access(thd, DROP_ACL, all_tables, 0) ||
           end_active_trans(thd))
         goto error;
-      res= mysql_drop_view(thd, first_table, thd->lex->drop_mode);
+      if (!(res= mysql_drop_view(thd, first_table, thd->lex->drop_mode)) &&
+          mysql_bin_log.is_open())
+      {
+        Query_log_event qinfo(thd, thd->query, thd->query_length, 0, FALSE);
+        mysql_bin_log.write(&qinfo);
+      }
       break;
     }
   case SQLCOM_CREATE_TRIGGER:
