@@ -712,6 +712,10 @@ void free_des_key_file();
 /* sql_do.cc */
 bool mysql_do(THD *thd, List<Item> &values);
 
+/* sql_analyse.h */
+bool append_escaped(String *to_str, String *from_str);
+bool append_escaped(String *to_str, char *from, uint from_len);
+
 /* sql_show.cc */
 bool mysqld_show_open_tables(THD *thd,const char *wild);
 bool mysqld_show_logs(THD *thd);
