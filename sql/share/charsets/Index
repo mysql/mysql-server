@@ -1,6 +1,7 @@
 # sql/share/charsets/Index
 #
-# This file lists all of the available character sets.
+# This file lists all of the available character sets.  Please keep this
+# file sorted by character set number.
 
 
 big5 		   1
@@ -34,3 +35,4 @@ croat 		  27
 gbk 		  28
 cp1257		  29
 latin5		  30
+latin1_de	  31
