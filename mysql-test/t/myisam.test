@@ -528,6 +528,32 @@ select count(*) from t1 where a is null;
 drop table t1;
 
 #
+# Bug #8306: TRUNCATE leads to index corruption 
+#
+create table t1 (c1 int, index(c1));
+create table t2 (c1 int, index(c1)) engine=merge union=(t1);
+insert into t1 values (1);
+# Close all tables.
+flush tables;
+# Open t2 and (implicitly) t1.
+select * from t2;
+# Truncate after flush works (unless another threads reopens t2 in between).
+flush tables;
+truncate table t1;
+insert into t1 values (1);
+# Close all tables.
+flush tables;
+# Open t2 and (implicitly) t1.
+select * from t2;
+# Truncate t1, wich was not recognized as open without the bugfix.
+# Now, it should fail with a table-in-use error message.
+--error 1105
+truncate table t1;
+# The insert used to fail on the crashed table.
+insert into t1 values (1);
+drop table t1,t2;
+
+#
 # Test varchar
 #
 
