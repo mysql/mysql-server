@@ -83,10 +83,10 @@ long innobase_mirrored_log_groups, innobase_log_files_in_group,
      innobase_log_file_size, innobase_log_buffer_size,
      innobase_buffer_pool_size, innobase_additional_mem_pool_size,
      innobase_file_io_threads, innobase_lock_wait_timeout,
+     innobase_thread_concurrency, innobase_force_recovery;
+
 /* The default values for the following char* start-up parameters
 are determined in innobase_init below: */
-  
-  /* innobase_data_file_path=ibdata:15,idata2:1,... */
   
 char*	innobase_data_home_dir			= NULL;
 char*	innobase_log_group_home_dir		= NULL;
@@ -106,8 +106,10 @@ my_bool	innobase_fast_shutdown			= TRUE;
   can use InnoDB without having to specify any startup options.
 */
 
+/* innobase_data_file_path=ibdata:15,idata2:1,... */
+
 char *innobase_data_file_path= (char*) "ibdata1:64M:autoextend";
-char *internal_innobase_data_file_path=0;
+static char *internal_innobase_data_file_path=0;
 
 /* The following counter is used to convey information to InnoDB
 about server activity: in selects it is not sensible to call
@@ -1918,7 +1920,7 @@ ha_innobase::change_active_index(
 			InnoDB */
 {
   row_prebuilt_t* prebuilt	= (row_prebuilt_t*) innobase_prebuilt;
-  KEY*		key;
+  KEY*		key=0;
 
   statistic_increment(ha_read_key_count, &LOCK_status);
   DBUG_ENTER("change_active_index");
@@ -1929,15 +1931,16 @@ ha_innobase::change_active_index(
     key = table->key_info + active_index;
 
     prebuilt->index = dict_table_get_index_noninline(
-						     prebuilt->table, key->name);
+						     prebuilt->table,
+						     key->name);
   } else {
     prebuilt->index = dict_table_get_first_index_noninline(
 							   prebuilt->table);
   }
 
   if (!prebuilt->index) {
-    sql_print_error("Innodb could not find key n:o %u with name %s from dict cache for table %s", keynr, key->name, prebuilt->table->name);
-    return(1);
+    sql_print_error("Innodb could not find key n:o %u with name %s from dict cache for table %s", keynr, key ? key->name : "NULL", prebuilt->table->name);
+    DBUG_RETURN(1);
   }
 
   assert(prebuilt->search_tuple != 0);
