@@ -458,7 +458,7 @@ int yylex(void *arg, void *yythd)
   LINT_INIT(c);
   for (;;)
   {
-    switch(state) {
+    switch (state) {
     case STATE_OPERATOR_OR_IDENT:	// Next is operator or keyword
     case STATE_START:			// Start of token
       // Skip startspace
@@ -900,7 +900,8 @@ int yylex(void *arg, void *yythd)
       return((int) '@');
     case STATE_HOSTNAME:		// end '@' of user@hostname
       for (c=yyGet() ;
-	   my_isalnum(system_charset_info,c) || c == '.' || c == '_' || c == '$';
+	   my_isalnum(system_charset_info,c) || c == '.' || c == '_' ||
+	     c == '$';
 	   c= yyGet()) ;
       yylval->lex_str=get_token(lex,yyLength());
       return(LEX_HOSTNAME);

@@ -142,8 +142,6 @@ THD::THD():user_time(0), fatal_error(0),
   bzero((char*) &con_root,sizeof(con_root));
   bzero((char*) &warn_root,sizeof(warn_root));
   init_alloc_root(&warn_root, 1024, 0);
-  bzero((char*) warn_count, sizeof(warn_count));
-  warn_list.empty();
   user_connect=(USER_CONN *)0;
   hash_init(&user_vars, system_charset_info, USER_VARS_HASH_SIZE, 0, 0,
 	    (hash_get_key) get_var_key,
@@ -187,17 +185,20 @@ THD::THD():user_time(0), fatal_error(0),
 
 void THD::init(void)
 {
-  server_status= SERVER_STATUS_AUTOCOMMIT;
-  update_lock_default= (variables.low_priority_updates ?
-			TL_WRITE_LOW_PRIORITY :
-			TL_WRITE);
-  options= thd_startup_options;
-  sql_mode=(uint) opt_sql_mode;
-  open_options=ha_open_options;
   pthread_mutex_lock(&LOCK_global_system_variables);
   variables= global_system_variables;
   pthread_mutex_unlock(&LOCK_global_system_variables);
+  server_status= SERVER_STATUS_AUTOCOMMIT;
+  options= thd_startup_options;
+  sql_mode=(uint) opt_sql_mode;
+  open_options=ha_open_options;
+  update_lock_default= (variables.low_priority_updates ?
+			TL_WRITE_LOW_PRIORITY :
+			TL_WRITE);
   session_tx_isolation= (enum_tx_isolation) variables.tx_isolation;
+  warn_list.empty();
+  bzero((char*) warn_count, sizeof(warn_count));
+  total_warn_count= 0;
 }
 
 /*
@@ -228,6 +229,7 @@ void THD::cleanup(void)
 {
   DBUG_ENTER("THD::cleanup");
   ha_rollback(this);
+  delete_tree(&prepared_statements);
   if (locked_tables)
   {
     lock=locked_tables; locked_tables=0;
@@ -289,7 +291,6 @@ THD::~THD()
   free_root(&con_root,MYF(0));
   free_root(&warn_root,MYF(0));
   free_root(&transaction.mem_root,MYF(0));
-  delete_tree(&prepared_statements);
   mysys_var=0;					// Safety (shouldn't be needed)
   pthread_mutex_destroy(&LOCK_delete);
 #ifndef DBUG_OFF
