@@ -125,7 +125,7 @@ Field	Type	Collation	Null	Key	Default	Extra	Privileges	Comment
 a	int(11)	NULL	YES	MUL	NULL		select,insert,update,references	
 show full columns from mysql.db like "Insert%";
 Field	Type	Collation	Null	Key	Default	Extra	Privileges	Comment
-Insert_priv	enum('N','Y')	utf8_bin	NO		N		select,insert,update,references	
+Insert_priv	enum('N','Y')	utf8_general_ci	NO		N		select,insert,update,references	
 show full columns from v1;
 Field	Type	Collation	Null	Key	Default	Extra	Privileges	Comment
 c	varchar(64)	utf8_general_ci	NO				select,insert,update,references	
