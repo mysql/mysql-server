@@ -1023,7 +1023,7 @@ public:
      * @param name   Name of table to get
      * @return table if successful otherwise NULL.
      */
-    const Table * getTable(const char * name);
+    const Table * getTable(const char * name) const;
 
     /**
      * Get index with given name, NULL if undefined
@@ -1032,7 +1032,7 @@ public:
      * @return  index if successful, otherwise 0.
      */
     const Index * getIndex(const char * indexName,
-			   const char * tableName);
+			   const char * tableName) const;
 
     /**
      * Fetch list of indexes of given table.
@@ -1173,10 +1173,10 @@ public:
     class NdbDictionaryImpl & m_impl;
     Dictionary(NdbDictionaryImpl&);
     const Table * getIndexTable(const char * indexName, 
-				const char * tableName);
+				const char * tableName) const;
   public:
 #ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
-    const Table * getTable(const char * name, void **data);
+    const Table * getTable(const char * name, void **data) const;
     void set_local_table_data_size(unsigned sz);
 #endif
   };
