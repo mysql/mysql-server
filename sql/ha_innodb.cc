@@ -4556,12 +4556,12 @@ innodb_show_status(
 
 	innobase_release_stat_resources(trx);
 
-	/* We let the InnoDB Monitor to output at most 200 kB of text, add
-	a safety margin of 10 kB for buffer overruns */
+	/* We let the InnoDB Monitor to output at most 60 kB of text, add
+	a safety margin of 100 kB for buffer overruns */
 
-	buf = (char*)ut_malloc(210 * 1024);
+	buf = (char*)ut_malloc(160 * 1024);
 	
-	srv_sprintf_innodb_monitor(buf, 200 * 1024);
+	srv_sprintf_innodb_monitor(buf, 60 * 1024);
 	
 	List<Item> field_list;
 
