@@ -1613,10 +1613,12 @@ public:
   /* If >0 convert all blob fields to varchar(convert_blob_length) */
   uint  convert_blob_length; 
   CHARSET_INFO *table_charset; 
+  bool schema_table;
 
   TMP_TABLE_PARAM()
     :copy_field(0), group_parts(0),
-    group_length(0), group_null_parts(0), convert_blob_length(0)
+    group_length(0), group_null_parts(0), convert_blob_length(0),
+    schema_table(0)
   {}
   ~TMP_TABLE_PARAM()
   {
