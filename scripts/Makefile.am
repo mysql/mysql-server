@@ -36,6 +36,7 @@ bin_SCRIPTS =		@server_scripts@ \
 			make_win_src_distribution
 
 EXTRA_SCRIPTS =		make_binary_distribution.sh \
+			make_sharedlib_distribution.sh \
 			make_win_src_distribution.sh \
 			msql2mysql.sh \
 			mysql_config.sh \
@@ -60,12 +61,13 @@ EXTRA_DIST =		$(EXTRA_SCRIPTS) \
 			mysqlaccess.conf \
 			mysqlbug
 
-pkgdata_DATA =		make_binary_distribution
+pkgdata_DATA =		make_binary_distribution make_sharedlib_distribution
 
 # mysqlbug should be distributed built so that people can report build
 # failures with it.
 CLEANFILES =		@server_scripts@ \
 			make_binary_distribution \
+			make_sharedlib_distribution \
 			msql2mysql \
 			mysql_config \
 			mysql_fix_privilege_tables \
