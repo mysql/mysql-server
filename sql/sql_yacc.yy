@@ -1587,6 +1587,7 @@ start:
 slave_thread_opts:
 	{ Lex->slave_thd_opt= 0; }
 	slave_thread_opt_list
+	;
 
 slave_thread_opt_list:
 	slave_thread_opt
