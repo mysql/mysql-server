@@ -22,6 +22,7 @@ if [ -d ../sql ] ; then
    exec_ndb=$ndbtop/src/kernel/ndbd
    exec_mgmtsrvr=$ndbtop/src/mgmsrv/ndb_mgmd
    exec_waiter=$ndbtop/tools/ndb_waiter
+   exec_test=$ndbtop/tools/ndb_test_platform
    exec_mgmtclient=$ndbtop/src/mgmclient/ndb_mgm
 else
    BINARY_DIST=1
@@ -34,7 +35,13 @@ else
      exec_mgmtsrvr=$BASEDIR/bin/ndb_mgmd
    fi
    exec_waiter=$BASEDIR/bin/ndb_waiter
+   exec_waiter=$BASEDIR/bin/ndb_test_platform
    exec_mgmtclient=$BASEDIR/bin/ndb_mgm
+fi
+
+if $exec_test ; then :; else
+  echo "ndb not correctly compiled to support this platform"
+  exit 1
 fi
 
 pidfile=ndbcluster.pid
