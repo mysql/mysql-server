@@ -100,7 +100,7 @@ test_io_cache: mf_iocache.c $(LIBRARIES)
 test_dir: test_dir.c $(LIBRARIES)
 	$(LINK) $(FLAGS) -DMAIN $(srcdir)/test_dir.c $(LDADD) $(LIBS)
 
-test_charset$(EXEEXT): test_charset.c $(LIBRARIES)
+test_charset: test_charset.c $(LIBRARIES)
 	$(LINK) $(FLAGS) -DMAIN $(srcdir)/test_charset.c $(LDADD) $(LIBS)
 
 testhash: testhash.c $(LIBRARIES)

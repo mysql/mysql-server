@@ -50900,6 +50900,8 @@ Changed output from @code{EXPLAIN} from @code{'where used'} to
 @item
 Removed variable @code{safe_show_database} as it was not used anymore.
 @item
+Read @code{--des-key-file} relative to database directory.
+@item
 Small code improvement in multi-table updates
 @item
 Fixed a newly introduced bug that caused @code{ORDER BY ... LIMIT #}

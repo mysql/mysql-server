@@ -858,6 +858,9 @@ void clean_up(bool print_message)
   bitmap_free(&temp_pool);
   free_max_user_conn();
   end_slave_list();
+#ifdef USE_REGEX
+  regex_end();
+#endif
 
 #if !defined(__WIN__) && !defined(EMBEDDED_LIBRARY)
   if (!opt_bootstrap)
@@ -1894,8 +1897,6 @@ int main(int argc, char **argv)
     if (!ssl_acceptor_fd)
       opt_use_ssl = 0;
   }
-  if (des_key_file)
-    load_des_key_file(des_key_file);
 #endif /* HAVE_OPENSSL */
 
 #ifdef HAVE_LIBWRAP
@@ -1968,6 +1969,10 @@ int main(int argc, char **argv)
   reset_floating_point_exceptions();
   init_thr_lock();
   init_slave_list();
+#ifdef HAVE_OPENSSL
+  if (des_key_file)
+    load_des_key_file(des_key_file);
+#endif /* HAVE_OPENSSL */
 
   /* Setup log files */
   if (opt_log)
@@ -2032,7 +2037,7 @@ int main(int argc, char **argv)
     exit(1);
   }
   start_signal_handler();				// Creates pidfile
-  if (acl_init(opt_noacl))
+  if (acl_init((THD*) 0, opt_noacl))
   {
     abort_loop=1;
     select_thread_in_use=0;
@@ -2044,7 +2049,7 @@ int main(int argc, char **argv)
     exit(1);
   }
   if (!opt_noacl)
-    (void) grant_init();
+    (void) grant_init((THD*) 0);
   init_max_user_conn();
   init_update_queries();
 
