@@ -124,6 +124,15 @@ Transporter::connect_client() {
   else
     sockfd= m_socket_client->connect();
 
+  connect_client(sockfd);
+}  
+
+bool
+Transporter::connect_client(NDB_SOCKET_TYPE sockfd) {
+
+  if(m_connected)
+    return true;
+
   if (sockfd == NDB_INVALID_SOCKET)
     return false;
 
