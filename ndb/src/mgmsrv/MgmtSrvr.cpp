@@ -2833,7 +2833,7 @@ MgmtSrvr::setConnectionDbParameter(int node1,
     DBUG_RETURN(-2);
   }
   
-  if(iter.get(param, &current_value) < 0) {
+  if(iter.get(param, &current_value) != 0) {
     msg.assign("Unable to get current value of parameter");
     NdbMutex_Unlock(m_configMutex);
     DBUG_RETURN(-3);
@@ -2848,7 +2848,7 @@ MgmtSrvr::setConnectionDbParameter(int node1,
     DBUG_RETURN(-4);
   }
   
-  if(iter.get(param, &new_value) < 0) {
+  if(iter.get(param, &new_value) != 0) {
     msg.assign("Unable to get parameter after setting it.");
     NdbMutex_Unlock(m_configMutex);
     DBUG_RETURN(-5);
@@ -2883,7 +2883,7 @@ MgmtSrvr::getConnectionDbParameter(int node1,
   }
 
   for(;iter.valid();iter.next()) {
-    Uint32 n1,n2;
+    Uint32 n1=0,n2=0;
     iter.get(CFG_CONNECTION_NODE_1, &n1);
     iter.get(CFG_CONNECTION_NODE_2, &n2);
     if((n1 == (unsigned)node1 && n2 == (unsigned)node2)
@@ -2896,7 +2896,7 @@ MgmtSrvr::getConnectionDbParameter(int node1,
     DBUG_RETURN(-1);
   }
   
-  if(iter.get(param, (Uint32*)value) < 0) {
+  if(iter.get(param, (Uint32*)value) != 0) {
     msg.assign("Unable to get current value of parameter");
     NdbMutex_Unlock(m_configMutex);
     DBUG_RETURN(-1);
