@@ -552,6 +552,13 @@ const char *NdbEventImpl::getName() const
 }
 
 void 
+NdbEventImpl::setTable(const NdbDictionary::Table& table)
+{
+  m_tableImpl= &NdbTableImpl::getImpl(table);
+  m_tableName.assign(m_tableImpl->getName());
+}
+
+void 
 NdbEventImpl::setTable(const char * table)
 {
   m_tableName.assign(table);
