@@ -10,7 +10,6 @@ Created 1/20/1994 Heikki Tuuri
 #define ut0ut_h
 
 #include "univ.i"
-#include <string.h>
 #include <time.h>
 #ifndef MYSQL_SERVER
 #include <ctype.h>

@@ -1654,8 +1654,8 @@ log_reset_first_header_and_checkpoint(
 	lsn = ut_dulint_add(start, LOG_BLOCK_HDR_SIZE);
 
 	/* Write the label of ibbackup --restore */
-	sprintf((char*) hdr_buf + LOG_FILE_WAS_CREATED_BY_HOT_BACKUP, "ibbackup ");
-	ut_sprintf_timestamp((char*) hdr_buf + LOG_FILE_WAS_CREATED_BY_HOT_BACKUP
+	sprintf(hdr_buf + LOG_FILE_WAS_CREATED_BY_HOT_BACKUP, "ibbackup ");
+	ut_sprintf_timestamp(hdr_buf + LOG_FILE_WAS_CREATED_BY_HOT_BACKUP
 						+ strlen("ibbackup "));
 	buf = hdr_buf + LOG_CHECKPOINT_1;
 	

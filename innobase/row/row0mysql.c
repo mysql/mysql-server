@@ -198,8 +198,9 @@ row_mysql_handle_errors(
 				/* out: TRUE if it was a lock wait and
 				we should continue running the query thread */
 	ulint*		new_err,/* out: possible new error encountered in
-				rollback, or the old error which was
-				during the function entry */
+				lock wait, or if no new error, the value
+				of trx->error_state at the entry of this
+				function */
 	trx_t*		trx,	/* in: transaction */
 	que_thr_t*	thr,	/* in: query thread */
 	trx_savept_t*	savept)	/* in: savepoint or NULL */
@@ -998,8 +999,8 @@ row_update_cascade_for_mysql(
 				or set null operation */
 	dict_table_t*	table)	/* in: table where we do the operation */
 {
-	ulint		err;
-	trx_t*		trx;
+	ulint	err;
+	trx_t*	trx;
 
 	trx = thr_get_trx(thr);
 run_again:
@@ -1010,11 +1011,28 @@ run_again:
 
 	err = trx->error_state;
 
-	if (err == DB_LOCK_WAIT) {
-		que_thr_stop_for_mysql(thr);
-	
-		row_mysql_handle_errors(&err, trx, thr, NULL);
+	/* Note that the cascade node is a subnode of another InnoDB
+	query graph node. We do a normal lock wait in this node, but
+	all errors are handled by the parent node. */
 
+	if (err == DB_LOCK_WAIT) {
+		/* Handle lock wait here */
+	
+		que_thr_stop_for_mysql(thr);
+
+		srv_suspend_mysql_thread(thr);
+
+		/* Note that a lock wait may also end in a lock wait timeout,
+		or this transaction is picked as a victim in selective
+		deadlock resolution */
+
+		if (trx->error_state != DB_SUCCESS) {
+
+			return(trx->error_state);
+		}
+
+		/* Retry operation after a normal lock wait */
+		
 		goto run_again;
 	}
 

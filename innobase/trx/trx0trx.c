@@ -129,6 +129,7 @@ trx_create(
 	trx->graph = NULL;
 
 	trx->wait_lock = NULL;
+	trx->was_chosen_as_deadlock_victim = FALSE;
 	UT_LIST_INIT(trx->wait_thrs);
 
 	trx->lock_heap = mem_heap_create_in_buffer(256);

@@ -2082,13 +2082,24 @@ srv_suspend_mysql_thread(
 
 	if (thr->state == QUE_THR_RUNNING) {
 
-		/* The lock has already been released: no need to suspend */
+		ut_ad(thr->is_active == TRUE);
+	
+		/* The lock has already been released or this transaction
+		was chosen as a deadlock victim: no need to suspend */
+
+		if (trx->was_chosen_as_deadlock_victim) {
+
+			trx->error_state = DB_DEADLOCK;
+			trx->was_chosen_as_deadlock_victim = FALSE;
+		}
 
 		mutex_exit(&kernel_mutex);
 
 		return;
 	}
 	
+	ut_ad(thr->is_active == FALSE);
+
 	slot = srv_table_reserve_slot_for_mysql();
 
 	event = slot->event;
@@ -2142,6 +2153,12 @@ srv_suspend_mysql_thread(
 
 	wait_time = ut_difftime(ut_time(), slot->suspend_time);
 	
+	if (trx->was_chosen_as_deadlock_victim) {
+
+		trx->error_state = DB_DEADLOCK;
+		trx->was_chosen_as_deadlock_victim = FALSE;
+	}
+
 	mutex_exit(&kernel_mutex);
 
 	if (srv_lock_wait_timeout < 100000000 && 

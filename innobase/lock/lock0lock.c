@@ -1727,6 +1727,7 @@ index->table_name);
 	}
 
 	trx->que_state = TRX_QUE_LOCK_WAIT;
+	trx->was_chosen_as_deadlock_victim = FALSE;
 	trx->wait_started = time(NULL);
 
 	ut_a(que_thr_stop(thr));
@@ -3173,7 +3174,8 @@ lock_deadlock_recursive(
 				err_buf += sprintf(err_buf,
 				"*** WE ROLL BACK TRANSACTION (1)\n");
 				
-				wait_lock->trx->error_state = DB_DEADLOCK;
+				wait_lock->trx->was_chosen_as_deadlock_victim
+								= TRUE;
 				
 				lock_cancel_waiting_and_release(wait_lock);
 
@@ -3353,6 +3355,7 @@ table->name);
 	}
 	
 	trx->que_state = TRX_QUE_LOCK_WAIT;
+	trx->was_chosen_as_deadlock_victim = FALSE;
 	trx->wait_started = time(NULL);
 
 	ut_a(que_thr_stop(thr));
