@@ -726,9 +726,8 @@ mysqld_show_keys(THD *thd, TABLE_LIST *table_list)
         net_store_null(packet);
 
       /* Check if we have a key part that only uses part of the field */
-      if (!key_part->field ||
-          key_part->length !=
-          table->field[key_part->fieldnr-1]->key_length())
+      if (!(key_info->flags & HA_FULLTEXT) && (!key_part->field ||
+          key_part->length != table->field[key_part->fieldnr-1]->key_length()))
       {
         end=int10_to_str((long) key_part->length, buff,10); /* purecov: inspected */
         net_store_data(packet,convert,buff,(uint) (end-buff)); /* purecov: inspected */
