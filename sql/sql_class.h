@@ -384,6 +384,8 @@ struct system_variables
   ulong net_retry_count;
   ulong net_wait_timeout;
   ulong net_write_timeout;
+  ulong optimizer_prune_level;
+  ulong optimizer_search_depth;
   ulong preload_buff_size;
   ulong query_cache_type;
   ulong read_buff_size;
@@ -392,8 +394,6 @@ struct system_variables
   ulong table_type;
   ulong tmp_table_size;
   ulong tx_isolation;
-  ulong heuristic;
-  ulong plan_search_depth;
   /* Determines which non-standard SQL behaviour should be enabled */
   ulong sql_mode;
   ulong default_week_format;
