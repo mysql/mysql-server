@@ -223,6 +223,26 @@ enum enum_field_types { MYSQL_TYPE_DECIMAL, MYSQL_TYPE_TINY,
 #define FIELD_TYPE_INTERVAL    MYSQL_TYPE_ENUM
 #define FIELD_TYPE_GEOMETRY    MYSQL_TYPE_GEOMETRY
 
+enum enum_shutdown_level {
+  /*
+    We want levels to be in growing order of gracefulness. So we leave room
+    for future intermediate levels. For now, escalating one level is += 10;
+    later if we insert new levels in between we will need a function
+    next_shutdown_level(level). Note that DEFAULT does not respect the
+    growing property.
+  */
+  SHUTDOWN_DEFAULT= 255, /* mapped to WAIT_ALL_BUFFERS for now */
+  /*
+    Here is the list in growing order (the next does the previous plus
+    something). WAIT_ALL_BUFFERS is what we have now. Others are "this MySQL
+    server does not support this shutdown level yet".
+  */
+  SHUTDOWN_WAIT_CRITICAL_BUFFERS= 10, /* flush MyISAM buffs (no corruption) */
+  SHUTDOWN_WAIT_ALL_BUFFERS= 20, /* flush InnoDB buffers */
+  SHUTDOWN_WAIT_TRANSACTIONS= 30, /* wait for existing trans to finish */
+  SHUTDOWN_WAIT_CONNECTIONS= 40 /* wait for existing connections to finish */
+};
+
 /* options for mysql_set_option */
 enum enum_mysql_set_option
 {
