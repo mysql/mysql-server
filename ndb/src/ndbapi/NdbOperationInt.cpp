@@ -33,7 +33,7 @@ Adjust:  991029  UABRONM   First version.
 #include "NdbRecAttr.hpp"
 #include "NdbUtil.hpp"
 #include "Interpreter.hpp"
-#include <NdbScanOperation.hpp>
+#include <NdbIndexScanOperation.hpp>
 
 #ifdef VM_TRACE
 #include <NdbEnv.h>
@@ -217,7 +217,7 @@ NdbOperation::initial_interpreterCheck()
 {
   if ((theInterpretIndicator == 1)) {
     if (theStatus == SetBound) {
-      ((NdbScanOperation*)this)->saveBoundATTRINFO();
+      ((NdbIndexScanOperation*)this)->saveBoundATTRINFO();
       theStatus = GetValue;
     }
     if (theStatus == ExecInterpretedValue) {

@@ -128,7 +128,6 @@ protected:
   NdbApiSignal* theSCAN_TABREQ;
 
   int getFirstATTRINFOScan();
-  int saveBoundATTRINFO();
   int doSendScan(int ProcessorId);
   int prepareSendScan(Uint32 TC_ConnectPtr, Uint64 TransactionId);
   
