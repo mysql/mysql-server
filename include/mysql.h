@@ -570,6 +570,7 @@ MYSQL_ROW_OFFSET STDCALL mysql_stmt_row_seek(MYSQL_STMT *stmt,
                                              MYSQL_ROW_OFFSET offset);
 MYSQL_ROW_OFFSET STDCALL mysql_stmt_row_tell(MYSQL_STMT *stmt);
 void STDCALL mysql_stmt_data_seek(MYSQL_STMT *stmt, my_ulonglong offset);
+my_ulonglong STDCALL mysql_stmt_num_rows(MYSQL_STMT *stmt);
 
 /* status return codes */
 #define MYSQL_NO_DATA      100

@@ -5467,11 +5467,7 @@ mysql_stmt_data_seek(MYSQL_STMT *stmt, my_ulonglong row)
   DBUG_ENTER("mysql_stmt_data_seek");
   DBUG_PRINT("enter",("row id to seek: %ld",(long) row));
   
-  if (!(result= stmt->result))
-  {
-    DBUG_PRINT("exit", ("stmt doesn't contain any resultset"));
-  }
-  else
+  if ((result= stmt->result))
   {
     MYSQL_ROWS	*tmp= 0;
     if (result->data)
@@ -5479,6 +5475,23 @@ mysql_stmt_data_seek(MYSQL_STMT *stmt, my_ulonglong row)
     result->current_row= 0;
     result->data_cursor= tmp;
   }
+  else
+    DBUG_PRINT("exit", ("stmt doesn't contain any resultset"));
+}
+
+/*
+  Return total rows the current statement result set
+*/
+
+my_ulonglong STDCALL mysql_stmt_num_rows(MYSQL_STMT *stmt)
+{
+  DBUG_ENTER("mysql_stmt_num_rows");
+    
+  if (stmt->result)
+    DBUG_RETURN(stmt->result->row_count);
+  
+  DBUG_PRINT("exit", ("stmt doesn't contain any resultset"));
+  DBUG_RETURN(0);
 }
 
 /********************************************************************
