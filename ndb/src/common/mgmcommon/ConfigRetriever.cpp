@@ -74,6 +74,9 @@ ConfigRetriever::init() {
 int
 ConfigRetriever::do_connect(int exit_on_connect_failure){
 
+  m_mgmd_port= 0;
+  m_mgmd_host= 0;
+
   if(!m_handle)
     m_handle= ndb_mgm_create_handle();
 
@@ -94,6 +97,8 @@ ConfigRetriever::do_connect(int exit_on_connect_failure){
       case MgmId_TCP:
 	tmp.assfmt("%s:%d", m->name.c_str(), m->port);
 	if (ndb_mgm_connect(m_handle, tmp.c_str()) == 0) {
+	  m_mgmd_port= m->port;
+	  m_mgmd_host= m->name.c_str();
 	  return 0;
 	}
 	setError(CR_RETRY, ndb_mgm_get_latest_error_desc(m_handle));
@@ -118,6 +123,8 @@ ConfigRetriever::do_connect(int exit_on_connect_failure){
   
   ndb_mgm_destroy_handle(&m_handle);
   m_handle= 0;
+  m_mgmd_port= 0;
+  m_mgmd_host= 0;
   return -1;
 }
 

@@ -67,6 +67,9 @@ public:
 
   const ndb_mgm_configuration_iterator * getOwnConfigIterator() const;
 
+  Uint32 get_mgmd_port() const {return m_mgmd_port;};
+  const char *get_mgmd_host() const {return m_mgmd_host;};
+
   class LogLevel * m_logLevel;
 private:
   friend class Cmvmi;
@@ -95,6 +98,8 @@ private:
   char * _backupPath;
   bool _initialStart;
   char * _connectString;
+  Uint32 m_mgmd_port;
+  const char *m_mgmd_host;
   bool _daemonMode;
 
   void calcSizeAlt(class ConfigValues * );
