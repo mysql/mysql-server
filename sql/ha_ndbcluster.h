@@ -208,6 +208,8 @@ class ha_ndbcluster: public handler
   int ndb_err(NdbConnection*);
   bool uses_blob_value(bool all_fields);
 
+  int write_ndb_file();
+
  private:
   int check_ndb_connection();
 
@@ -248,8 +250,11 @@ int ndbcluster_rollback(THD *thd, void* ndb_transaction);
 
 void ndbcluster_close_connection(THD *thd);
 
-int ndbcluster_discover(const char* dbname, const char* name,
+int ndbcluster_discover(THD* thd, const char* dbname, const char* name,
 			const void** frmblob, uint* frmlen);
+int ndbcluster_can_discover(THD *thd, const char *name);
+int ndbcluster_list_tables(THD* thd, HASH* tables, const char* db);
+int ndbcluster_table_exists(THD* thd, const char *db, const char *name);
 int ndbcluster_drop_database(const char* path);
 
 void ndbcluster_print_error(int error, const NdbOperation *error_op);
