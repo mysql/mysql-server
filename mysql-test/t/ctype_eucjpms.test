@@ -1,4 +1,3 @@
---character_set eucjp_ms
 --disable_warnings
 drop table if exists t1;
 drop table if exists t2;
@@ -6,10 +5,10 @@ drop table if exists t3;
 drop table if exists t4;
 --enable_warnings
 
-set names eucjp_ms;
-set character_set_database = eucjp_ms;
+set names eucjpms;
+set character_set_database = eucjpms;
  
-CREATE TABLE t1(c1 CHAR(1)) DEFAULT CHARACTER SET = eucjp_ms;
+CREATE TABLE t1(c1 CHAR(1)) DEFAULT CHARACTER SET = eucjpms;
 
 #Characters which are converted to Unicode ambiguously
 INSERT INTO t1 VALUES
@@ -332,7 +331,7 @@ CREATE TABLE t2 SELECT CONVERT(c1 USING ucs2) AS c1 FROM t1;
 SELECT HEX(c1) FROM t2;
 
 #Test round trip conversion
-CREATE TABLE t3 SELECT CONVERT(c1 USING eucjp_ms) AS c1 FROM t2;
+CREATE TABLE t3 SELECT CONVERT(c1 USING eucjpms) AS c1 FROM t2;
 SELECT HEX(c1) FROM t3;
 
 #Test conversion to cp932
