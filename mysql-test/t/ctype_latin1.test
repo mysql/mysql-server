@@ -53,3 +53,10 @@ SELECT
   hex(@l:=convert(@u using latin1)),
   a=@l FROM t1;
 DROP TABLE t1;
+
+#
+# Bug #6737: REGEXP gives wrong result with case sensitive collation
+#
+select 'a' regexp 'A' collate latin1_general_ci;
+select 'a' regexp 'A' collate latin1_general_cs;
+select 'a' regexp 'A' collate latin1_bin;
