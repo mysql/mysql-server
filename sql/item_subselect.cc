@@ -622,10 +622,10 @@ Item_in_subselect::single_value_transformer(JOIN *join,
 		       (char *)"<no matter>",
 		       (char *)in_left_expr_name);
 
-    unit->dependent= 1;
+    unit->dependent= unit->uncacheable= 1;
   }
 
-  select_lex->dependent= 1;
+  select_lex->dependent= select_lex->uncacheable= 1;
   Item *item;
 
   item= (Item*) select_lex->item_list.head();
@@ -747,13 +747,12 @@ Item_in_subselect::row_value_transformer(JOIN *join,
       DBUG_RETURN(RES_ERROR);
     }
     thd->lex.current_select= current;
-
-    unit->dependent= 1;
+    unit->dependent= unit->uncacheable= 1;
   }
 
   uint n= left_expr->cols();
 
-  select_lex->dependent= 1;
+  select_lex->dependent= select_lex->uncacheable= 1;
   select_lex->setup_ref_array(thd,
 			      select_lex->order_list.elements +
 			      select_lex->group_list.elements);

@@ -280,6 +280,7 @@ class JOIN :public Sql_alloc
 			  Item_sum ***func);
   int rollup_send_data(uint idx);
   bool test_in_subselect(Item **where);
+  void join_free(bool full);
   void clear();
   bool save_join_tab();
 };

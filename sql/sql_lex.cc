@@ -1195,16 +1195,16 @@ void st_select_lex::mark_as_dependent(SELECT_LEX *last)
     found table as depended (of select where was found table)
   */
   for (SELECT_LEX *s= this;
-       s &&s != last;
+       s && s != last;
        s= s->outer_select())
     if ( !s->dependent )
     {
       // Select is dependent of outer select
-      s->dependent= 1;
-      s->master_unit()->dependent= 1;
+      s->dependent= s->uncacheable= 1;
+      SELECT_LEX_UNIT *munit= s->master_unit();
+      munit->dependent= munit->uncacheable= 1;
       //Tables will be reopened many times
-      for (TABLE_LIST *tbl=
-	     s->get_table_list();
+      for (TABLE_LIST *tbl= s->get_table_list();
 	   tbl;
 	   tbl= tbl->next)
 	tbl->shared= 1;

@@ -62,7 +62,6 @@ static store_key *get_store_key(THD *thd,
 static bool make_simple_join(JOIN *join,TABLE *tmp_table);
 static bool make_join_select(JOIN *join,SQL_SELECT *select,COND *item);
 static void make_join_readinfo(JOIN *join,uint options);
-static void join_free(JOIN *join, bool full);
 static bool only_eq_ref_tables(JOIN *join, ORDER *order, table_map tables);
 static void update_depend_map(JOIN *join);
 static void update_depend_map(JOIN *join, ORDER *order);
@@ -1232,7 +1231,7 @@ JOIN::exec()
       DBUG_PRINT("info",("Creating group table"));
       
       /* Free first data from old join */
-      join_free(curr_join, 0);
+      curr_join->join_free(0);
       if (make_simple_join(curr_join, curr_tmp_table))
 	DBUG_VOID_RETURN;
       calc_group_buffer(curr_join, group_list);
@@ -1327,7 +1326,7 @@ JOIN::exec()
     if (curr_tmp_table->distinct)
       curr_join->select_distinct=0;		/* Each row is unique */
     
-    join_free(curr_join, 0);			/* Free quick selects */
+    curr_join->join_free(0);			/* Free quick selects */
     if (select_distinct && ! group_list)
     {
       thd->proc_info="Removing duplicates";
@@ -1501,7 +1500,7 @@ JOIN::cleanup()
   }
 
   lock=0;                                     // It's faster to unlock later
-  join_free(this, 1);
+  join_free(1);
    if (exec_tmp_table1)
      free_tmp_table(thd, exec_tmp_table1);
    if (exec_tmp_table2)
@@ -3667,26 +3666,37 @@ bool error_if_full_join(JOIN *join)
 }
 
 
-static void
-join_free(JOIN *join, bool full)
+/*
+  Free resources of given join
+
+  SYNOPSIS
+    JOIN::join_free()
+    fill - true if we should free all resources, call with full==1 should be
+           last, before it this function can be called with full==0
+
+  NOTE: with subquery this function definitely will be called several times,
+    but even for simple query it can be called several times.
+*/
+void
+JOIN::join_free(bool full)
 {
   JOIN_TAB *tab,*end;
   DBUG_ENTER("join_free");
 
-  if (join->table)
+  if (table)
   {
     /*
       Only a sorted table may be cached.  This sorted table is always the
       first non const table in join->table
     */
-    if (join->tables > join->const_tables) // Test for not-const tables
+    if (tables > const_tables) // Test for not-const tables
     {
-      free_io_cache(join->table[join->const_tables]);
-      filesort_free_buffers(join->table[join->const_tables]);
+      free_io_cache(table[const_tables]);
+      filesort_free_buffers(table[const_tables]);
     }
-    if (!full && join->select_lex->dependent)
+    if (!full && select_lex->uncacheable)
     {
-      for (tab=join->join_tab,end=tab+join->tables ; tab != end ; tab++)
+      for (tab= join_tab, end= tab+tables; tab != end; tab++)
       {
 	if (tab->table)
 	{
@@ -3703,7 +3713,7 @@ join_free(JOIN *join, bool full)
     }
     else
     {
-      for (tab=join->join_tab,end=tab+join->tables ; tab != end ; tab++)
+      for (tab= join_tab, end= tab+tables; tab != end; tab++)
       {
 	delete tab->select;
 	delete tab->quick;
@@ -3729,25 +3739,25 @@ join_free(JOIN *join, bool full)
 	}
 	end_read_record(&tab->read_record);
       }
-      join->table= 0;
+      table= 0;
     }
   }
   /*
     We are not using tables anymore
     Unlock all tables. We may be in an INSERT .... SELECT statement.
   */
-  if ((full || !join->select_lex->dependent) &&
-      join->lock && join->thd->lock &&
-      !(join->select_options & SELECT_NO_UNLOCK))
+  if ((full || !select_lex->uncacheable) &&
+      lock && thd->lock &&
+      !(select_options & SELECT_NO_UNLOCK))
   {
-    mysql_unlock_read_tables(join->thd, join->lock);// Don't free join->lock
-    join->lock=0;
+    mysql_unlock_read_tables(thd, lock);// Don't free join->lock
+    lock=0;
   }
   if (full)
   {
-    join->group_fields.delete_elements();
-    join->tmp_table_param.copy_funcs.delete_elements();
-    join->tmp_table_param.cleanup();
+    group_fields.delete_elements();
+    tmp_table_param.copy_funcs.delete_elements();
+    tmp_table_param.cleanup();
   }
   DBUG_VOID_RETURN;
 }
@@ -5459,7 +5469,7 @@ do_select(JOIN *join,List<Item> *fields,TABLE *table,Procedure *procedure)
 	The following will unlock all cursors if the command wasn't an
 	update command
       */
-      join_free(join, 0);				// Unlock all cursors
+      join->join_free(0);				// Unlock all cursors
       if (join->result->send_eof())
 	error= 1;				// Don't send error
     }
