@@ -44294,10 +44294,6 @@ The MySQL Contrib directory
 (@uref{http://www.mysql.com/Downloads/Contrib/})
 contains a Python interface written by Joseph Skinner.
 
-You can also use the Python interface to iODBC to access a
-MySQL server.
-@uref{http://starship.skyport.net/~lemburg/} (mxODBC)
-
 
 @node Tcl, Eiffel, Python, Clients
 @section MySQL Tcl APIs
