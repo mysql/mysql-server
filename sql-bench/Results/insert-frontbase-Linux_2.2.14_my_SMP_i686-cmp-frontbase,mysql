@@ -1,0 +1,59 @@
+Testing server '2.1' at 2000-11-23 23:33:36
+
+Testing the speed of inserting data into 1 table and do some selects on it.
+The tests are done with a table that has 100000 rows.
+
+Generating random keys
+Creating tables
+Inserting 100000 rows in order
+Inserting 100000 rows in reverse order
+Inserting 100000 rows in random order
+Time for insert (300000): 1077 wallclock secs (121.99 usr 88.83 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
+
+Retrieving data from the table
+Warning: Got 100 rows when selecting a whole table of 300000 rows
+Contact the database or DBD author!
+Time for select_big (10:1000):  0 wallclock secs ( 0.01 usr  0.01 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
+Time for order_by_big_key (10:1000): 206 wallclock secs ( 0.00 usr  0.00 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
+Time for order_by_big_key_desc (10:1000): 217 wallclock secs ( 0.00 usr  0.00 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
+Time for order_by_big_key2 (10:1000): 200 wallclock secs ( 0.00 usr  0.01 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
+Time for order_by_big_key_diff (10:1000): 201 wallclock secs ( 0.04 usr  0.00 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
+Time for order_by_big (10:1000): 204 wallclock secs ( 0.04 usr  0.00 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
+Note: Query took longer then time-limit: 600
+Estimating end time based on:
+214 queries in 214 loops of 500 loops took 601 seconds
+Estimated time for order_by_range (500:16549): 1404 wallclock secs ( 0.89 usr  0.14 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
+Note: Query took longer then time-limit: 600
+Estimating end time based on:
+213 queries in 213 loops of 500 loops took 601 seconds
+Estimated time for order_by_key (500:16449): 1410 wallclock secs ( 0.56 usr  0.21 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
+Note: Query took longer then time-limit: 600
+Estimating end time based on:
+209 queries in 209 loops of 500 loops took 601 seconds
+Estimated time for order_by_key2_diff (500:20900): 1437 wallclock secs ( 1.03 usr  0.26 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
+Note: Query took longer then time-limit: 600
+Estimating end time based on:
+201 queries in 201 loops of 500 loops took 602 seconds
+Estimated time for select_diff_key (500:402): 1497 wallclock secs ( 0.42 usr  0.27 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
+Note: Query took longer then time-limit: 600
+Estimating end time based on:
+20 queries in 20 loops of 5000 loops took 626 seconds
+Estimated time for select_range_prefix (5000:252): 156500 wallclock secs ( 5.00 usr  0.00 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
+Note: Query took longer then time-limit: 600
+Estimating end time based on:
+20 queries in 20 loops of 5000 loops took 608 seconds
+Estimated time for select_range_key2 (5000:252): 152000 wallclock secs ( 2.50 usr  0.00 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
+Note: Query took longer then time-limit: 600
+Estimating end time based on:
+318 queries in 159 loops of 100000 loops took 603 seconds
+Estimated time for select_key_prefix (200000): 379245 wallclock secs (132.08 usr 31.45 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
+Note: Query took longer then time-limit: 600
+Estimating end time based on:
+314 queries in 157 loops of 100000 loops took 602 seconds
+Estimated time for select_key (200000): 383439 wallclock secs (159.24 usr 89.17 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
+Note: Query took longer then time-limit: 600
+Estimating end time based on:
+312 queries in 156 loops of 100000 loops took 604 seconds
+Estimated time for select_key2 (200000): 387179 wallclock secs (173.08 usr 57.69 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
+
+Test of compares with simple ranges

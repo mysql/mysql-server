@@ -109,7 +109,7 @@ static HashTable ht;
 enum enum_info_type { INFO_INFO,INFO_ERROR,INFO_RESULT};
 typedef enum enum_info_type INFO_TYPE;
 
-const char *VER="11.6";
+const char *VER="11.7";
 
 static MYSQL mysql;			/* The connection */
 static bool info_flag=0,ignore_errors=0,wait_flag=0,quick=0,
@@ -118,7 +118,7 @@ static bool info_flag=0,ignore_errors=0,wait_flag=0,quick=0,
 	    opt_compress=0,
 	    vertical=0,skip_line_numbers=0,skip_column_names=0,opt_html=0,
 	    opt_nopager=1, opt_outfile=0, no_named_cmds=1;
-static uint verbose=0,opt_silent=0,opt_mysql_port=0,opt_connect_timeout=0;
+static uint verbose=0,opt_silent=0,opt_mysql_port=0;
 static my_string opt_mysql_unix_port=0;
 static int connect_flag=CLIENT_INTERACTIVE;
 static char *current_host,*current_db,*current_user=0,*opt_password=0,
@@ -126,7 +126,7 @@ static char *current_host,*current_db,*current_user=0,*opt_password=0,
 static char *histfile;
 static String glob_buffer,old_buffer;
 static STATUS status;
-static ulong select_limit,max_join_size;
+static ulong select_limit,max_join_size,opt_connect_timeout=0;
 static char default_pager[FN_REFLEN];
 char pager[FN_REFLEN], outfile[FN_REFLEN];
 FILE *PAGER, *OUTFILE;
@@ -371,7 +371,7 @@ sig_handler mysql_end(int sig)
   exit(status.exit_status);
 }
 
-enum options {OPT_CHARSETS_DIR=256, OPT_DEFAULT_CHARSET, OPT_TIMEOUT,
+enum options {OPT_CHARSETS_DIR=256, OPT_DEFAULT_CHARSET,
 	      OPT_PAGER, OPT_NOPAGER, OPT_TEE, OPT_NOTEE} ;
 
 
@@ -420,7 +420,6 @@ static struct option long_options[] =
   {"socket",	    required_argument,	   0, 'S'},
 #include "sslopt-longopts.h"
   {"table",	    no_argument,	   0, 't'},
-  {"timeout",	    required_argument,	   0, OPT_TIMEOUT},
 #ifndef DONT_ALLOW_USER_CHANGE
   {"user",	    required_argument,	   0, 'u'},
 #endif
@@ -434,6 +433,7 @@ static struct option long_options[] =
 
 
 CHANGEABLE_VAR changeable_vars[] = {
+  { "connect_timeout", (long*) &opt_connect_timeout, 0, 0, 3600*12, 0, 1},
   { "max_allowed_packet", (long*) &max_allowed_packet,16*1024L*1024L,4096,
     24*1024L*1024L, MALLOC_OVERHEAD,1024},
   { "net_buffer_length",(long*) &net_buffer_length,16384,1024,24*1024*1024L,
@@ -696,9 +696,6 @@ static int get_options(int argc, char **argv)
 #ifdef __WIN__
       opt_mysql_unix_port=my_strdup(MYSQL_NAMEDPIPE,MYF(0));
 #endif
-      break;
-    case OPT_TIMEOUT:
-      opt_connect_timeout=atoi(optarg);
       break;
     case 'V': usage(1); exit(0);
     case 'I':
@@ -2045,8 +2042,11 @@ sql_real_connect(char *host,char *database,char *user,char *password,
   }
   mysql_init(&mysql);
   if (opt_connect_timeout)
+  {
+    uint timeout=opt_connect_timeout;
     mysql_options(&mysql,MYSQL_OPT_CONNECT_TIMEOUT,
-		  (char*) &opt_connect_timeout);
+		  (char*) &timeout);
+  }
   if (opt_compress)
     mysql_options(&mysql,MYSQL_OPT_COMPRESS,NullS);
 #ifdef HAVE_OPENSSL

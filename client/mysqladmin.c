@@ -28,7 +28,7 @@
 #include <my_pthread.h>				/* because of signal()	*/
 #endif
 
-#define ADMIN_VERSION "8.12"
+#define ADMIN_VERSION "8.13"
 #define MAX_MYSQL_VAR 64
 #define MAX_TIME_TO_WAIT 3600			/* Wait for shutdown */
 #define MAX_TRUNC_LENGTH 3
@@ -40,6 +40,7 @@ static int interval=0;
 static my_bool option_force=0,interrupted=0,new_line=0,option_silent=0,
                opt_compress=0, opt_relative=0, opt_verbose=0, opt_vertical=0;
 static uint tcp_port = 0, option_wait = 0;
+static ulong opt_connect_timeout;
 static my_string unix_port=0;
 
 /* When using extended-status relatively, ex_val_max_len is the estimated
@@ -116,11 +117,12 @@ static struct option long_options[] = {
 #endif
   {"port",               required_argument, 0, 'P'},
   {"relative",           no_argument,       0, 'r'},
+  {"set-variable",	 required_argument, 0, 'O'},
   {"silent",             no_argument,       0, 's'},
   {"socket",             required_argument, 0, 'S'},
   {"sleep",              required_argument, 0, 'i'},
 #include "sslopt-longopts.h"
-  {"timeout",            required_argument, 0, 't'},
+  {"connect-timeout",    required_argument, 0, 't'},
 #ifndef DONT_ALLOW_USER_CHANGE
   {"user",               required_argument, 0, 'u'},
 #endif
@@ -129,6 +131,11 @@ static struct option long_options[] = {
   {"vertical",           no_argument,       0, 'E'},
   {"wait",               optional_argument, 0, 'w'},
   {0, 0, 0, 0}
+};
+
+CHANGEABLE_VAR changeable_vars[] = {
+  { "connect_timeout", (long*) &opt_connect_timeout, 0, 0, 3600*12, 0, 1},
+  { 0, 0, 0, 0, 0, 0, 0}  
 };
 
 static const char *load_default_groups[]= { "mysqladmin","client",0 };
@@ -143,7 +150,7 @@ int main(int argc,char *argv[])
   mysql_init(&mysql);
   load_defaults("my",load_default_groups,&argc,&argv);
 
-  while ((c=getopt_long(argc,argv,"h:i:p::u:#::P:sS:Ct:fq?vVw::WrE",
+  while ((c=getopt_long(argc,argv,"h:i:p::u:#::P:sS:Ct:fq?vVw::WrEO:",
 			long_options, &option_index)) != EOF)
   {
     switch(c) {
@@ -187,6 +194,13 @@ int main(int argc,char *argv[])
     case 'E':
       opt_vertical = 1;
       break;
+    case 'O':
+      if (set_changeable_var(optarg, changeable_vars))
+      {
+	usage();
+	return(1);
+      }
+      break;
     case 's':
       option_silent = 1;
       break;
@@ -198,12 +212,6 @@ int main(int argc,char *argv[])
       unix_port=MYSQL_NAMEDPIPE;
 #endif
       break;
-    case 't':
-      {
-	uint tmp=atoi(optarg);
-	mysql_options(&mysql,MYSQL_OPT_CONNECT_TIMEOUT, (char*) &tmp);
-	break;
-      }
     case '#':
       DBUG_PUSH(optarg ? optarg : "d:t:o,/tmp/mysqladmin.trace");
       break;
@@ -253,6 +261,11 @@ int main(int argc,char *argv[])
 
   if (opt_compress)
     mysql_options(&mysql,MYSQL_OPT_COMPRESS,NullS);
+  if (opt_connect_timeout)
+  {
+    uint tmp=opt_connect_timeout;
+    mysql_options(&mysql,MYSQL_OPT_CONNECT_TIMEOUT, (char*) &tmp);
+  }
 #ifdef HAVE_OPENSSL
   if (opt_use_ssl)
     mysql_ssl_set(&mysql, opt_ssl_key, opt_ssl_cert, opt_ssl_ca,
@@ -763,6 +776,7 @@ static void print_version(void)
 
 static void usage(void)
 {
+  uint i;
   print_version();
   puts("Copyright (C) 2000 MySQL AB & MySQL Finland AB & TCX DataKonsult AB");
   puts("This software comes with ABSOLUTELY NO WARRANTY. This is free software,\nand you are welcome to modify and redistribute it under the GPL license\n");
@@ -804,6 +818,11 @@ static void usage(void)
   -V, --version		Output version information and exit\n\
   -w, --wait[=retries]  Wait and retry if connection is down\n");
   print_defaults("my",load_default_groups);
+  printf("\nPossible variables for option --set-variable (-O) are:\n");
+  for (i=0 ; changeable_vars[i].name ; i++)
+    printf("%-20s  current value: %lu\n",
+	   changeable_vars[i].name,
+	   (ulong) *changeable_vars[i].varptr);
 
   puts("\nWhere command is a one or more of: (Commands may be shortened)\n\
   create databasename	Create a new database\n\

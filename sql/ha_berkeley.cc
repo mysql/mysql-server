@@ -171,7 +171,8 @@ bool berkeley_flush_logs()
 int berkeley_commit(THD *thd, void *trans)
 {
   DBUG_ENTER("berkeley_commit");
-  DBUG_PRINT("trans",("ending transaction"));
+  DBUG_PRINT("trans",("ending transaction %s",
+		      trans == thd->transaction.stmt.bdb_tid ? "stmt" : "all"));
   int error=txn_commit((DB_TXN*) trans,0);
 #ifndef DBUG_OFF
   if (error)
@@ -183,7 +184,8 @@ int berkeley_commit(THD *thd, void *trans)
 int berkeley_rollback(THD *thd, void *trans)
 {
   DBUG_ENTER("berkeley_rollback");
-  DBUG_PRINT("trans",("aborting transaction"));
+  DBUG_PRINT("trans",("aborting transaction %s",
+		      trans == thd->transaction.stmt.bdb_tid ? "stmt" : "all"));
   int error=txn_abort((DB_TXN*) trans);
   DBUG_RETURN(error);
 }
@@ -1350,7 +1352,7 @@ int ha_berkeley::external_lock(THD *thd, int lock_type)
     if (!thd->transaction.bdb_lock_count++)
     {
       /* First table lock, start transaction */
-      if (!(thd->options & (OPTION_NOT_AUTO_COMMIT | OPTION_BEGIN)) &&
+      if ((thd->options & (OPTION_NOT_AUTO_COMMIT | OPTION_BEGIN)) &&
 	  !thd->transaction.all.bdb_tid)
       {
 	/* We have to start a master transaction */

@@ -465,7 +465,7 @@ int mi_create(const char *name,uint keys,MI_KEYDEF *keydefs,
     share.state.create_time= (long) time((time_t*) 0);
 
   if ((file = my_create(fn_format(buff,name,"",MI_NAME_IEXT,4),0,
-       O_RDWR | O_TRUNC,MYF(MY_WME))) < 0)
+			O_RDWR | O_TRUNC,MYF(MY_WME))) < 0)
     goto err;
   errpos=1;
   VOID(fn_format(buff,name,"",MI_NAME_DEXT,2+4));

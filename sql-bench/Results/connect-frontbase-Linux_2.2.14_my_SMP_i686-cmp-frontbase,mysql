@@ -1,0 +1,21 @@
+Testing server '2.1' at 2000-11-23 19:22:47
+
+Testing the speed of connecting to the server and sending of data
+All tests are done 1000 times
+
+Testing connection/disconnect
+Time to connect (1000):  4 wallclock secs ( 0.87 usr  0.74 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
+
+Testing connect/select 1 row from table/disconnect
+Time to connect+select_1_row (1000):  7 wallclock secs ( 1.37 usr  1.41 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
+
+Testing select 1 row from table
+Time to select_1_row (1000):  2 wallclock secs ( 0.37 usr  0.28 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
+
+Testing select 2 rows from table
+Time to select_2_rows (1000):  1 wallclock secs ( 0.41 usr  0.35 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
+
+Test select with aritmetic (+)
+Time for select_column+column (1000):  2 wallclock secs ( 0.35 usr  0.31 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
+
+Total time: 16 wallclock secs ( 3.38 usr  3.09 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
