@@ -487,6 +487,9 @@ public:
   void set_item_arena(Item_arena *set);
 };
 
+
+class Cursor;
+
 /*
   State of a single command executed against this connection.
   One connection can contain a lot of simultaneously running statements,
@@ -543,6 +546,7 @@ public:
   */
   char *query;
   uint32 query_length;                          // current query length
+  Cursor *cursor;
 
 public:
   /* We build without RTTI, so dynamic_cast can't be used. */
@@ -1054,6 +1058,7 @@ public:
   {
     DBUG_ASSERT(current_arena!=0);
     cleanup_items(current_arena->free_list);
+    /* no need to reset free_list as it won't be used anymore */
     free_items(free_list);
     close_thread_tables(this); // to close derived tables
     free_root(&mem_root, MYF(0));
@@ -1108,7 +1113,7 @@ public:
     unit= u;
     return 0;
   }
-  virtual bool send_fields(List<Item> &list,uint flag)=0;
+  virtual bool send_fields(List<Item> &list, uint flags)=0;
   virtual bool send_data(List<Item> &items)=0;
   virtual bool initialize_tables (JOIN *join=0) { return 0; }
   virtual void send_error(uint errcode,const char *err);
@@ -1120,7 +1125,7 @@ public:
 class select_send :public select_result {
 public:
   select_send() {}
-  bool send_fields(List<Item> &list,uint flag);
+  bool send_fields(List<Item> &list, uint flags);
   bool send_data(List<Item> &items);
   bool send_eof();
 };
@@ -1138,7 +1143,7 @@ public:
   select_to_file(sql_exchange *ex) :exchange(ex), file(-1),row_count(0L)
   { path[0]=0; }
   ~select_to_file();
-  bool send_fields(List<Item> &list, uint flag) { return 0; }
+  bool send_fields(List<Item> &list, uint flags) { return 0; }
   void send_error(uint errcode,const char *err);
 };
 
@@ -1185,8 +1190,7 @@ class select_insert :public select_result {
   }
   ~select_insert();
   int prepare(List<Item> &list, SELECT_LEX_UNIT *u);
-  bool send_fields(List<Item> &list, uint flag)
-  { return 0; }
+  bool send_fields(List<Item> &list, uint flags) { return 0; }
   bool send_data(List<Item> &items);
   void send_error(uint errcode,const char *err);
   bool send_eof();
@@ -1273,8 +1277,7 @@ class select_union :public select_result {
   select_union(TABLE *table_par);
   ~select_union();
   int prepare(List<Item> &list, SELECT_LEX_UNIT *u);
-  bool send_fields(List<Item> &list, uint flag)
-  { return 0; }
+  bool send_fields(List<Item> &list, uint flags) { return 0; }
   bool send_data(List<Item> &items);
   bool send_eof();
   bool flush();
@@ -1288,7 +1291,7 @@ protected:
   Item_subselect *item;
 public:
   select_subselect(Item_subselect *item);
-  bool send_fields(List<Item> &list, uint flag) { return 0; };
+  bool send_fields(List<Item> &list, uint flags) { return 0; }
   bool send_data(List<Item> &items)=0;
   bool send_eof() { return 0; };
 
@@ -1457,8 +1460,7 @@ public:
   multi_delete(THD *thd, TABLE_LIST *dt, uint num_of_tables);
   ~multi_delete();
   int prepare(List<Item> &list, SELECT_LEX_UNIT *u);
-  bool send_fields(List<Item> &list,
- 		   uint flag) { return 0; }
+  bool send_fields(List<Item> &list, uint flags) { return 0; }
   bool send_data(List<Item> &items);
   bool initialize_tables (JOIN *join);
   void send_error(uint errcode,const char *err);
@@ -1486,7 +1488,7 @@ public:
 	       List<Item> *values, enum_duplicates handle_duplicates);
   ~multi_update();
   int prepare(List<Item> &list, SELECT_LEX_UNIT *u);
-  bool send_fields(List<Item> &list, uint flag) { return 0; }
+  bool send_fields(List<Item> &list, uint flags) { return 0; }
   bool send_data(List<Item> &items);
   bool initialize_tables (JOIN *join);
   void send_error(uint errcode,const char *err);
@@ -1515,7 +1517,7 @@ public:
   select_dumpvar(void)  { var_list.empty(); local_vars.empty(); vars.empty(); row_count=0;}
   ~select_dumpvar() {}
   int prepare(List<Item> &list, SELECT_LEX_UNIT *u);
-  bool send_fields(List<Item> &list, uint flag) {return 0;}
+  bool send_fields(List<Item> &list, uint flags) { return 0; }
   bool send_data(List<Item> &items);
   bool send_eof();
 };
