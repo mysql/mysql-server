@@ -447,6 +447,9 @@ static SYMBOL sql_functions[] = {
   { "CHARACTER_LENGTH", SYM(FUNC_ARG1),0,CREATE_FUNC(create_func_char_length)},
   { "COALESCE",		SYM(COALESCE),0,0},
   { "COERCIBILITY",	SYM(FUNC_ARG1),0,CREATE_FUNC(create_func_coercibility)},
+#ifdef HAVE_COMPRESS
+  { "COMPRESS",		SYM(FUNC_ARG1),0,CREATE_FUNC(create_func_compress)},
+#endif
   { "CONCAT",		SYM(CONCAT),0,0},
   { "CONCAT_WS",	SYM(CONCAT_WS),0,0},
   { "CONNECTION_ID",	SYM(FUNC_ARG0),0,CREATE_FUNC(create_func_connection_id)},
@@ -623,6 +626,10 @@ static SYMBOL sql_functions[] = {
   { "TOUCHES",		SYM(FUNC_ARG2),0,CREATE_FUNC(create_func_touches)},
   { "TRIM",		SYM(TRIM),0,0},
   { "UCASE",		SYM(FUNC_ARG1),0,CREATE_FUNC(create_func_ucase)},
+#ifdef HAVE_COMPRESS
+  { "UNCOMPRESS",	SYM(FUNC_ARG1),0,CREATE_FUNC(create_func_uncompress)},
+  { "UNCOMPRESSED_LENGTH", SYM(FUNC_ARG1),0,CREATE_FUNC(create_func_uncompressed_length)},
+#endif
   { "UNIQUE_USERS",	SYM(UNIQUE_USERS),0,0},
   { "UNIX_TIMESTAMP",	SYM(UNIX_TIMESTAMP),0,0},
   { "UPPER",		SYM(FUNC_ARG1),0,CREATE_FUNC(create_func_ucase)},

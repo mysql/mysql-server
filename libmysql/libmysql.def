@@ -122,6 +122,8 @@ EXPORTS
         mysql_commit
         mysql_rollback
         mysql_autocommit
+        load_defaults
+        free_defaults
   
   
 	

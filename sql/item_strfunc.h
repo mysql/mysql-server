@@ -781,6 +781,29 @@ public:
   const char *func_name() const { return "multipoint"; }
 };
 
+#ifdef HAVE_COMPRESS
+
+class Item_func_compress : public Item_str_func
+{
+  String buffer;
+public:
+  Item_func_compress(Item *a):Item_str_func(a){}
+  String *val_str(String *);
+  void fix_length_and_dec(){max_length= (args[0]->max_length*120)/100+12;}
+  const char *func_name() const{return "compress";}
+};
+
+class Item_func_uncompress : public Item_str_func 
+{
+  String buffer;
+public:
+  Item_func_uncompress(Item *a):Item_str_func(a){}
+  String *val_str(String *);
+  void fix_length_and_dec(){max_length= MAX_BLOB_WIDTH;}
+  const char *func_name() const{return "uncompress";}
+};
+
+#endif
 
 /*
 class Item_func_multipoint :public Item_str_func
