@@ -66,7 +66,7 @@ struct Query_cache_block_table
   TABLE_COUNTER_TYPE n;		// numbr in table (from 0)
   Query_cache_block_table *next, *prev;
   Query_cache_table *parent;
-  inline Query_cache_block * block();
+  inline Query_cache_block *block();
 };
 
 
@@ -82,30 +82,28 @@ struct Query_cache_block
     *pprev to join free blocks
     *prev to access to opposite side of list in cyclic sorted list
   */
-  Query_cache_block
-  *pnext,*pprev,				// physical next/previous block
-    *next,*prev;				// logical next/previous block
+  Query_cache_block *pnext,*pprev,		// physical next/previous block
+		    *next,*prev;		// logical next/previous block
   block_type type;
   TABLE_COUNTER_TYPE n_tables;			// number of tables in query
 
   inline my_bool is_free(void) { return type == FREE; }
-
   void init(ulong length);
   void destroy();
   inline uint headers_len();
   inline gptr data(void);
-  inline Query_cache_query * query();
-  inline Query_cache_table * table();
-  inline Query_cache_result * result();
-  inline Query_cache_block_table * table(TABLE_COUNTER_TYPE n);
+  inline Query_cache_query *query();
+  inline Query_cache_table *table();
+  inline Query_cache_result *result();
+  inline Query_cache_block_table *table(TABLE_COUNTER_TYPE n);
 };
 
 
 struct Query_cache_query
 {
   ulonglong limit_found_rows;
-  Query_cache_block * res;
-  NET * wri;
+  Query_cache_block *res;
+  NET *wri;
   ulong len;
   sem_t lock;			// R/W lock of block
   pthread_mutex_t clients_guard;
@@ -115,9 +113,9 @@ struct Query_cache_query
   void unlock_n_destroy();
   inline ulonglong found_rows()		   { return limit_found_rows; }
   inline void found_rows(ulonglong rows)   { limit_found_rows = rows; }
-  inline Query_cache_block * result()	   { return res; }
+  inline Query_cache_block *result()	   { return res; }
   inline void result(Query_cache_block *p) { res=p; }
-  inline NET * writer()			   { return wri; }
+  inline NET *writer()			   { return wri; }
   inline void writer(NET *p)		   { wri=p; }
   inline ulong length()			   { return len; }
   inline ulong add(ulong packet_len)	   { return(len += packet_len); }
@@ -132,9 +130,7 @@ struct Query_cache_query
   my_bool try_lock_writing();
   void unlock_writing();
   void unlock_reading();
-  static byte * cache_key(const byte *record, uint *length,
-				my_bool not_used);
-  static void free_cache(void *entry);
+  static byte *cache_key(const byte *record, uint *length, my_bool not_used);
 };
 
 
@@ -146,44 +142,45 @@ struct Query_cache_table
     return (type == DB_TYPE_INNODB ? INNODB : OTHER);
   }
 
-  char * tbl;
+  char *tbl;
   query_cache_table_type tp;
 
   inline query_cache_table_type type()	     { return tp; }
   inline void type(query_cache_table_type t) { tp = t;}
-  inline char * db()			     { return (char *) data(); }
-  inline char * table()			     { return tbl; }
-  inline void table(char * table)	     { tbl = table; }
+  inline char *db()			     { return (char *) data(); }
+  inline char *table()			     { return tbl; }
+  inline void table(char *table)	     { tbl = table; }
   inline gptr data()
   {
     return (gptr)(((byte*)this)+
 		  ALIGN_SIZE(sizeof(Query_cache_table)));
   }
-
-  static byte * cache_key(const byte *record, uint *length,
-				my_bool not_used);
-  static void free_cache(void *entry);
 };
-
 
 struct Query_cache_result
 {
   Query_cache_block *query;
 
-  inline gptr data(){return (gptr)(((byte*)this)+
-		ALIGN_SIZE(sizeof(Query_cache_result)));}
-
+  inline gptr data()
+  {
+    return (gptr)(((byte*) this)+
+		  ALIGN_SIZE(sizeof(Query_cache_result)));
+  }
   /* data_continue (if not whole packet contained by this block) */
-  inline Query_cache_block * parent()		  { return query; }
+  inline Query_cache_block *parent()		  { return query; }
   inline void parent (Query_cache_block *p)	  { query=p; }
 };
 
 
 extern "C" {
+  byte *query_cache_query_get_key(const byte *record, uint *length,
+				  my_bool not_used);
+  byte *query_cache_table_get_key(const byte *record, uint *length,
+				  my_bool not_used);
   void query_cache_insert(THD *thd, const char *packet, ulong length);
   void query_cache_end_of_result(THD *thd);
   void query_cache_abort(THD *thd);
-  void query_cache_invalidate_by_MyISAM_filename(char* filename);
+  void query_cache_invalidate_by_MyISAM_filename(const char* filename);
 }
 
 struct Query_cache_memory_bin
@@ -192,7 +189,7 @@ struct Query_cache_memory_bin
   ulong size;
 #endif
   uint number;
-  Query_cache_block * free_blocks;
+  Query_cache_block *free_blocks;
 
   inline void init(ulong size)
   {
@@ -219,94 +216,92 @@ struct Query_cache_memory_bin_step
 
 class Query_cache
 {
- protected:
-  byte * cache;					// cache memory
-  Query_cache_block *first_block;		// physical location block list
-  Query_cache_block *queries_blocks;		// query list (LIFO)
-  Query_cache_block *tables_blocks[Query_cache_table::TYPES_NUMBER];
-
-  Query_cache_memory_bin * bins;		// free block lists
-  Query_cache_memory_bin_step * steps;		// bins spacing info
-  uint mem_bin_num, mem_bin_steps;		// See at init_cache & find_bin
-
-  /* options */
-  ulong query_cache_size, query_cache_limit,
-	min_allocation_unit, min_result_data_size;
-  uint def_query_hash_size, def_table_hash_size;
-
-  /* statistics */
 public:
+  /* Info */
+  ulong query_cache_size, query_cache_limit;
+  /* statistics */
   ulong free_memory, queries_in_cache, hits, inserts, refused;
-protected:
-  my_bool initialized;
 
+protected:
   /*
-    Locked when searched or changed global query or
-    tables lists or hashes. When operate inside
-    query structure locked own query block mutex
-    LOCK SEQUENCE (to prevent clinch):
+    The following mutex is locked when searching or changing global
+    query, tables lists or hashes. When we are operating inside the
+    query structure we locked an internal query block mutex.
+    LOCK SEQUENCE (to prevent deadlocks):
       1. structure_guard_mutex
       2. query block / table block / free block
       3. results blocks (only when must become free).
   */
   pthread_mutex_t structure_guard_mutex;
+  byte *cache;					// cache memory
+  Query_cache_block *first_block;		// physical location block list
+  Query_cache_block *queries_blocks;		// query list (LIFO)
+  Query_cache_block *tables_blocks[Query_cache_table::TYPES_NUMBER];
 
+  Query_cache_memory_bin *bins;			// free block lists
+  Query_cache_memory_bin_step *steps;		// bins spacing info
   HASH queries, tables;
+  uint mem_bin_num, mem_bin_steps;		// See at init_cache & find_bin
+  my_bool initialized;
+
+  /* options */
+  ulong min_allocation_unit, min_result_data_size;
+  uint def_query_hash_size, def_table_hash_size;
 
   /* Exclude/include from cyclic double linked list */
-  static void double_linked_list_exclude(Query_cache_block * point,
-					  Query_cache_block * &list_pointer);
-  static void double_linked_list_simple_include(Query_cache_block * point,
-						 Query_cache_block *
-						   &list_pointer);
+  static void double_linked_list_exclude(Query_cache_block *point,
+					 Query_cache_block **list_pointer);
+  static void double_linked_list_simple_include(Query_cache_block *point,
+						Query_cache_block **
+						list_pointer);
   static void double_linked_list_join(Query_cache_block *head_tail,
 				      Query_cache_block *tail_head);
 
   /* Table key generation */
-  static uint filename_2_table_key (char * key, char *filename);
+  static uint filename_2_table_key (char *key, const char *filename);
 
-  /* Following function work properly only when structure_guard_mutex locked */
+  /* The following functions require that structure_guard_mutex is locked */
   void flush_cache();
   my_bool free_old_query();
-  void free_query(Query_cache_block * point);
-  my_bool allocate_data_chain(Query_cache_block * &result_block,
+  void free_query(Query_cache_block *point);
+  my_bool allocate_data_chain(Query_cache_block **result_block,
 			      ulong data_len,
-			      Query_cache_block * query_block);
+			      Query_cache_block *query_block);
   void invalidate_table(TABLE_LIST *table);
   void invalidate_table(TABLE *table);
   void invalidate_table_in_db(Query_cache_block *table_block,
-			      char * db);
+			      char *db);
   void invalidate_table(Query_cache_block *table_block);
-  my_bool register_all_tables(Query_cache_block * block,
-			      TABLE_LIST * tables_used,
+  my_bool register_all_tables(Query_cache_block *block,
+			      TABLE_LIST *tables_used,
 			      TABLE_COUNTER_TYPE tables);
-  my_bool insert_table(uint key_len, char * key,
-		       Query_cache_block_table * node,
+  my_bool insert_table(uint key_len, char *key,
+		       Query_cache_block_table *node,
 		       Query_cache_table::query_cache_table_type type);
-  void unlink_table(Query_cache_block_table * node);
-  Query_cache_block * get_free_block (ulong len, my_bool not_less,
+  void unlink_table(Query_cache_block_table *node);
+  Query_cache_block *get_free_block (ulong len, my_bool not_less,
 				      ulong min);
-  void free_memory_block(Query_cache_block * point);
+  void free_memory_block(Query_cache_block *point);
   void split_block(Query_cache_block *block, ulong len);
-  Query_cache_block * join_free_blocks(Query_cache_block *first_block,
-				       Query_cache_block * block_in_list);
-  my_bool append_next_free_block(Query_cache_block * block,
+  Query_cache_block *join_free_blocks(Query_cache_block *first_block,
+				       Query_cache_block *block_in_list);
+  my_bool append_next_free_block(Query_cache_block *block,
 				 ulong add_size);
-  void exclude_from_free_memory_list(Query_cache_block * free_block);
-  void insert_into_free_memory_list(Query_cache_block * new_block);
-  my_bool move_by_type(byte * &border, Query_cache_block * &before,
-		       ulong &gap, Query_cache_block * i);
+  void exclude_from_free_memory_list(Query_cache_block *free_block);
+  void insert_into_free_memory_list(Query_cache_block *new_block);
+  my_bool move_by_type(byte **border, Query_cache_block **before,
+		       ulong *gap, Query_cache_block *i);
   uint find_bin(ulong size);
-  void move_to_query_list_end(Query_cache_block * block);
-  void insert_into_free_memory_sorted_list(Query_cache_block * new_block,
-					   Query_cache_block * &list);
+  void move_to_query_list_end(Query_cache_block *block);
+  void insert_into_free_memory_sorted_list(Query_cache_block *new_block,
+					   Query_cache_block **list);
   void pack_cache();
-  void relink(Query_cache_block * oblock,
-	      Query_cache_block * nblock,
-	      Query_cache_block * next,
-	      Query_cache_block * prev,
-	      Query_cache_block * pnext,
-	      Query_cache_block * pprev);
+  void relink(Query_cache_block *oblock,
+	      Query_cache_block *nblock,
+	      Query_cache_block *next,
+	      Query_cache_block *prev,
+	      Query_cache_block *pnext,
+	      Query_cache_block *pprev);
   my_bool join_results(ulong join_limit);
 
   /*
@@ -317,38 +312,35 @@ protected:
   ulong init_cache();
   void make_disabled();
   void free_cache(my_bool destruction);
-  Query_cache_block * write_block_data(ulong data_len, gptr data,
+  Query_cache_block *write_block_data(ulong data_len, gptr data,
 				       ulong header_len,
 				       Query_cache_block::block_type type,
 				       TABLE_COUNTER_TYPE ntab = 0,
 				       my_bool under_guard=0);
-  my_bool append_result_data(Query_cache_block * &result,
+  my_bool append_result_data(Query_cache_block **result,
 			     ulong data_len, gptr data,
-			     Query_cache_block * parent,
-			     Query_cache_block * first_data_block);
-  my_bool write_result_data(Query_cache_block * &result,
+			     Query_cache_block *parent);
+  my_bool write_result_data(Query_cache_block **result,
 			    ulong data_len, gptr data,
-			    Query_cache_block * parent,
+			    Query_cache_block *parent,
 			    Query_cache_block::block_type
 			    type=Query_cache_block::RESULT);
-  Query_cache_block * allocate_block(ulong len, my_bool not_less,
+  Query_cache_block *allocate_block(ulong len, my_bool not_less,
 				     ulong min,
 				     my_bool under_guard=0);
   /*
-    If query is cachable return numder tables in query
+    If query is cacheable return number tables in query
     (query without tables not cached)
   */
-  TABLE_COUNTER_TYPE is_cachable(THD *thd, uint query_len, char *query,
-				 LEX *lex,
-				 TABLE_LIST *tables_used);
+  TABLE_COUNTER_TYPE is_cacheable(THD *thd, uint32 query_len, char *query,
+				  LEX *lex, TABLE_LIST *tables_used);
  public:
 
   Query_cache(ulong query_cache_limit = ULONG_MAX,
 	      ulong min_allocation_unit = QUERY_CACHE_MIN_ALLOCATION_UNIT,
 	      ulong min_result_data_size = QUERY_CACHE_MIN_RESULT_DATA_SIZE,
 	      uint def_query_hash_size = QUERY_CACHE_DEF_QUERY_HASH_SIZE,
-	      uint def_table_hash_size = QUERY_CACHE_DEF_TABLE_HASH_SIZE
-	      );
+	      uint def_table_hash_size = QUERY_CACHE_DEF_TABLE_HASH_SIZE);
 
   /* resize query cache (return real query size, 0 if disabled) */
   ulong resize(ulong query_cache_size);
@@ -371,10 +363,10 @@ protected:
   void invalidate(Query_cache_table::query_cache_table_type type);
 
   /* Remove all queries that uses any of the tables in following database */
-  void invalidate(char * db);
+  void invalidate(char *db);
 
   /* Remove all queries that uses any of the listed following table */
-  void invalidate_by_MyISAM_filename(char * filename);
+  void invalidate_by_MyISAM_filename(const char *filename);
 
   /* Remove all queries from cache */
   void flush();
@@ -386,7 +378,7 @@ protected:
   void destroy();
 
 #ifndef DBUG_OFF
-  void wreck(uint line, const char * message);
+  void wreck(uint line, const char *message);
   void bins_dump();
   void cache_dump();
   void queries_dump();

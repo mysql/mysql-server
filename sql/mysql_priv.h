@@ -332,7 +332,7 @@ int mysql_select(THD *thd,TABLE_LIST *tables,List<Item> &list,COND *conds,
 		 ORDER *order, ORDER *group,Item *having,ORDER *proc_param,
 		 ulong select_type,select_result *result);
 int mysql_union(THD *thd,LEX *lex,select_result *result);
-Field *create_tmp_field(TABLE *table,Item *item, Item::Type type,
+Field *create_tmp_field(THD *thd, TABLE *table,Item *item, Item::Type type,
 			Item_result_field ***copy_func, Field **from_field,
 			bool group,bool modify_item);
 int mysql_create_table(THD *thd,const char *db, const char *table_name,

@@ -48,9 +48,9 @@ class QUICK_RANGE :public Sql_alloc {
 	      uint flag_arg)
     : min_key((char*) sql_memdup(min_key_arg,min_length_arg+1)),
       max_key((char*) sql_memdup(max_key_arg,max_length_arg+1)),
-      min_length(min_length_arg),
-      max_length(max_length_arg),
-      flag(flag_arg)
+      min_length((uint16) min_length_arg),
+      max_length((uint16) max_length_arg),
+      flag((uint16) flag_arg)
     {}
 };
 

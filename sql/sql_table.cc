@@ -704,7 +704,7 @@ TABLE *create_table_from_items(THD *thd, HA_CREATE_INFO *create_info,
       DBUG_RETURN(0);
     }
 
-    Field *field=create_tmp_field(&tmp_table,item,item->type(),
+    Field *field=create_tmp_field(thd, &tmp_table, item, item->type(),
 				  (Item_result_field***) 0, &tmp_field,0,0);
     if (!field ||
 	!(cr_field=new create_field(field,(item->type() == Item::FIELD_ITEM ?

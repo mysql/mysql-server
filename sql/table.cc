@@ -467,7 +467,8 @@ int openfrm(const char *name, const char *alias, uint db_stat, uint prgflag,
 	    key_part->key_part_flag|= HA_PART_KEY;
 	    if (field->type() != FIELD_TYPE_BLOB)
 	    {					// Create a new field
-	      field=key_part->field=field->new_field(outparam);
+	      field=key_part->field=field->new_field(&outparam->mem_root,
+						     outparam);
 	      field->field_length=key_part->length;
 	    }
 	  }
