@@ -26,9 +26,9 @@ MYSQL_UNIX_ADDR_DEFAULT="/tmp/mysql.sock"
 
 # Remember to add a directory sql/share/LANGUAGE
 AVAILABLE_LANGUAGES="\
-czech danish dutch english estonia french german greek hungarian \
+czech danish dutch english estonian french german greek hungarian \
 italian japanese korean norwegian norwegian-ny polish portuguese \
-romania russian slovak spanish swedish"
+romanian russian slovak spanish swedish"
 
 #####
 #####

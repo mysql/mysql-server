@@ -22804,9 +22804,10 @@ group by
 @node Languages, Table size, Server, Server
 @section What languages are supported by MySQL?
 
-@code{mysqld} can issue error messages in the following languages: Czech,
-Dutch, English (the default), Estonia, French, German, Hungarian, Italian,
-Norwegian, Norwegian-ny, Polish, Portuguese, Spanish and Swedish.
+@code{mysqld} can issue error messages in the following languages:
+Czech, Danish, Dutch, English (the default), Estonian, French, German, Greek,
+Hungarian, Italian, Japanese, Korean, Norwegian, Norwegian-ny, Polish,
+Portuguese, Romanian, Russian, Slovak, Spanish, and Swedish.
 
 To start @code{mysqld} with a particular language, use either the
 @code{--language=lang} or @code{-L lang} options. For example:
