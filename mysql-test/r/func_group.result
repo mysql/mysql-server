@@ -207,13 +207,13 @@ drop table t1,t2;
 CREATE TABLE t1 (a int, b int);
 select count(b), sum(b), avg(b), std(b), min(b), max(b), bit_and(b), bit_or(b) from t1;
 count(b)	sum(b)	avg(b)	std(b)	min(b)	max(b)	bit_and(b)	bit_or(b)
-0	NULL	NULL	NULL	NULL	NULL	-1	0
+0	NULL	NULL	NULL	NULL	NULL	18446744073709551615	0
 select a,count(b), sum(b), avg(b), std(b), min(b), max(b), bit_and(b), bit_or(b) from t1 group by a;
 a	count(b)	sum(b)	avg(b)	std(b)	min(b)	max(b)	bit_and(b)	bit_or(b)
 insert into t1 values (1,null);
 select a,count(b), sum(b), avg(b), std(b), min(b), max(b), bit_and(b), bit_or(b) from t1 group by a;
 a	count(b)	sum(b)	avg(b)	std(b)	min(b)	max(b)	bit_and(b)	bit_or(b)
-1	0	NULL	NULL	NULL	NULL	NULL	-1	0
+1	0	NULL	NULL	NULL	NULL	NULL	18446744073709551615	0
 insert into t1 values (1,null);
 insert into t1 values (2,null);
 select a,count(b), sum(b), avg(b), std(b), min(b), max(b), bit_and(b), bit_or(b) from t1 group by a;
@@ -222,8 +222,8 @@ a	count(b)	sum(b)	avg(b)	std(b)	min(b)	max(b)	bit_and(b)	bit_or(b)
 2	0	NULL	NULL	NULL	NULL	NULL	18446744073709551615	0
 select SQL_BIG_RESULT a,count(b), sum(b), avg(b), std(b), min(b), max(b), bit_and(b), bit_or(b) from t1 group by a;
 a	count(b)	sum(b)	avg(b)	std(b)	min(b)	max(b)	bit_and(b)	bit_or(b)
-1	0	NULL	NULL	NULL	NULL	NULL	-1	0
-2	0	NULL	NULL	NULL	NULL	NULL	-1	0
+1	0	NULL	NULL	NULL	NULL	NULL	18446744073709551615	0
+2	0	NULL	NULL	NULL	NULL	NULL	18446744073709551615	0
 insert into t1 values (2,1);
 select a,count(b), sum(b), avg(b), std(b), min(b), max(b), bit_and(b), bit_or(b) from t1 group by a;
 a	count(b)	sum(b)	avg(b)	std(b)	min(b)	max(b)	bit_and(b)	bit_or(b)
@@ -231,7 +231,7 @@ a	count(b)	sum(b)	avg(b)	std(b)	min(b)	max(b)	bit_and(b)	bit_or(b)
 2	1	1	1.0000	0.0000	1	1	1	1
 select SQL_BIG_RESULT a,count(b), sum(b), avg(b), std(b), min(b), max(b), bit_and(b), bit_or(b) from t1 group by a;
 a	count(b)	sum(b)	avg(b)	std(b)	min(b)	max(b)	bit_and(b)	bit_or(b)
-1	0	NULL	NULL	NULL	NULL	NULL	-1	0
+1	0	NULL	NULL	NULL	NULL	NULL	18446744073709551615	0
 2	1	1	1.0000	0.0000	1	1	1	1
 insert into t1 values (3,1);
 select a,count(b), sum(b), avg(b), std(b), min(b), max(b), bit_and(b), bit_or(b) from t1 group by a;
@@ -241,7 +241,18 @@ a	count(b)	sum(b)	avg(b)	std(b)	min(b)	max(b)	bit_and(b)	bit_or(b)
 3	1	1	1.0000	0.0000	1	1	1	1
 select SQL_BIG_RESULT a,count(b), sum(b), avg(b), std(b), min(b), max(b), bit_and(b), bit_or(b) from t1 group by a;
 a	count(b)	sum(b)	avg(b)	std(b)	min(b)	max(b)	bit_and(b)	bit_or(b)
-1	0	NULL	NULL	NULL	NULL	NULL	-1	0
+1	0	NULL	NULL	NULL	NULL	NULL	18446744073709551615	0
 2	1	1	1.0000	0.0000	1	1	1	1
 3	1	1	1.0000	0.0000	1	1	1	1
+drop table t1;
+create table t1 (col int);
+insert into t1 values (-1), (-2), (-3);
+select bit_and(col), bit_or(col) from t1;
+bit_and(col)	bit_or(col)
+18446744073709551612	18446744073709551615
+select SQL_BIG_RESULT bit_and(col), bit_or(col) from t1 group by col;
+bit_and(col)	bit_or(col)
+18446744073709551613	18446744073709551613
+18446744073709551614	18446744073709551614
+18446744073709551615	18446744073709551615
 drop table t1;
