@@ -452,13 +452,11 @@ ClusterMgr::reportNodeFailed(NodeId nodeId){
   theNode.nfCompleteRep = false;
 
   if(noOfConnectedNodes == 0){
-    Uint32 theData[1];
-    NFCompleteRep * rep = (NFCompleteRep *)&theData[0];
-
+    NFCompleteRep rep;
     for(Uint32 i = 1; i<MAX_NODES; i++){
       if(theNodes[i].defined && theNodes[i].nfCompleteRep == false){
-	rep->failedNodeId = i;
-	execNF_COMPLETEREP(theData);
+	rep.failedNodeId = i;
+	execNF_COMPLETEREP((Uint32*)&rep);
       }
     }
   }
