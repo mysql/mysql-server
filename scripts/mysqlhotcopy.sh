@@ -81,13 +81,11 @@ sub usage {
     die @_, $OPTIONS;
 }
 
-# reading ~/.my.cnf
-my @defops = `@bindir@/my_print_defaults client mysqlhotcopy`;
-chop @defops;
-splice @ARGV, 0, 0, @defops;
+# Do not initialize user or password options; that way, any user/password
+# options specified in option files will be used.  If no values are specified
+# all, the defaults will be used (login name, no password).
 
 my %opt = (
-    user	=> scalar getpwuid($>),
     noindices	=> 0,
     allowold	=> 0,	# for safety
     keepold	=> 0,
@@ -169,6 +167,9 @@ my $dsn;
 $dsn  = ";host=" . (defined($opt{host}) ? $opt{host} : "localhost");
 $dsn .= ";port=$opt{port}" if $opt{port};
 $dsn .= ";mysql_socket=$opt{socket}" if $opt{socket};
+
+# use mysql_read_default_group=mysqlhotcopy so that [client] and
+# [mysqlhotcopy] groups will be read from standard options files.
 
 my $dbh = DBI->connect("dbi:mysql:$dsn;mysql_read_default_group=mysqlhotcopy",
                         $opt{user}, $opt{password},
