@@ -3308,8 +3308,8 @@ of cascading deletes.
 @item
 A properly written application will make sure internally that it is
 not violating referential integrity constraints before proceding with
-a query. Thus, additionaly checks on the database level will only slow
-down performance for such application.
+a query. Thus, additional checks on the database level will only slow
+down performance for such an application.
 
 @item
 It is not uncommon for a DBA to make such a complex topology of
@@ -5567,9 +5567,11 @@ There are two option files with the same function: @file{my.cnf} and
 @file{my.ini} file.  However, to avoid confusion, it's best if you use only
 of one them. Both files are plain text.  The @file{my.cnf} file, if used,
 should be created in the root directory of drive C.  The @file{my.ini}
-file, if used, should be created in the Windows system directory (e.g.,
-@file{C:\WINDOWS} or @file{C:\WINNT}).  MySQL will look first for the
-@code{my.ini} file, then for the @code{my.cnf} file.
+file, if used, should be created in the Windows system directory.  (This
+directory is typically something like @file{C:\WINDOWS} or @file{C:\WINNT}.
+You can determine its exact location from the value of the @code{windir}
+environment variable.)  MySQL looks first for the @code{my.ini} file,
+then for the @code{my.cnf} file.
 
 If your PC uses a boot loader where the C drive isn't the boot drive,
 then your only option is to use the @file{my.ini} file.  Also note that
@@ -5614,17 +5616,18 @@ Now you are ready to test starting the server.
 @subsubsection Starting the Server for the First Time
 
 Testing from a DOS command prompt is the best thing to do because
-the server prints messages, so if something is wrong with your
-configuration you will see a more accurate error message which
-will make it easier for you to identify and fix any problems.
+the server displays status messages that appear in the DOS window.
+If something is wrong with your configuration, these messages will
+make it easier for you to identify and fix any problems.
 
-Make sure you are in the right directory, then enter:
+Make sure you are in the directory where the server is located, then
+enter this command:
 
 @example
 C:\mysql\bin> mysqld-max --standalone
 @end example
 
-You should see the below print messages:
+You should see the following messages as the server starts up:
 
 @example
 InnoDB: The first specified data file c:\ibdata\ibdata1 did not exist:
