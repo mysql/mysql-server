@@ -587,7 +587,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 	simple_ident select_item2 expr opt_expr opt_else sum_expr in_sum_expr
 	table_wild opt_pad no_in_expr expr_expr simple_expr no_and_expr
 	using_list expr_or_default set_expr_or_default
-	param_marker singleval_subselect singleval_subselect_init
+	param_marker singlerow_subselect singlerow_subselect_init
 	exists_subselect exists_subselect_init
 
 %type <item_list>
@@ -2018,7 +2018,7 @@ simple_expr:
 	    $$= new Item_row(*$5);
 	  }
 	| EXISTS exists_subselect { $$= $2; }
-	| singleval_subselect   { $$= $1; }
+	| singlerow_subselect   { $$= $1; }
 	| '{' ident expr '}'	{ $$= $3; }
         | MATCH ident_list_arg AGAINST '(' expr ')'
           { Select->add_ftfunc_to_list((Item_func_match *)
@@ -4488,17 +4488,17 @@ union_option:
 	/* empty */ {}
 	| ALL {Select->master_unit()->union_option= 1;};
 
-singleval_subselect:
-	subselect_start singleval_subselect_init
+singlerow_subselect:
+	subselect_start singlerow_subselect_init
 	subselect_end
 	{
 	  $$= $2;
 	};
 
-singleval_subselect_init:
+singlerow_subselect_init:
 	select_init2
 	{
-	  $$= new Item_singleval_subselect(YYTHD,
+	  $$= new Item_singlerow_subselect(YYTHD,
 					   Lex->current_select->master_unit()->
                                              first_select());
 	};
