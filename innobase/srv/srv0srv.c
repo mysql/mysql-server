@@ -64,6 +64,8 @@ ulint	srv_n_data_files = 0;
 char**	srv_data_file_names = NULL;
 ulint*	srv_data_file_sizes = NULL;	/* size in database pages */ 
 
+ulint*  srv_data_file_is_raw_partition = NULL;
+
 char**	srv_log_group_home_dirs = NULL; 
 
 ulint	srv_n_log_groups	= ULINT_MAX;
@@ -1490,6 +1492,7 @@ srv_init(void)
 		slot = srv_mysql_table + i;
 		slot->in_use = FALSE;
 		slot->event = os_event_create(NULL);
+		slot->suspended = FALSE;
 		ut_a(slot->event);
 	}
 
@@ -1658,6 +1661,7 @@ srv_suspend_mysql_thread(
 	slot->thr = thr;
 
 	os_event_reset(event);	
+	slot->suspended = TRUE;
 
 	slot->suspend_time = ut_time();
 
@@ -1689,6 +1693,27 @@ srv_suspend_mysql_thread(
 	return(FALSE);
 }
 
+os_event_t
+srv_mysql_thread_event_get(void)
+{
+	srv_slot_t*	slot;
+	os_event_t	event;
+
+	mutex_enter(&kernel_mutex);
+	
+	slot = srv_table_reserve_slot_for_mysql();
+
+	event = slot->event;
+	
+	os_event_reset(event);	
+
+	slot->suspended = TRUE;
+
+	mutex_exit(&kernel_mutex);
+
+	return(event);
+}
+
 /************************************************************************
 Releases a MySQL OS thread waiting for a lock to be released, if the
 thread is already suspended. */
@@ -1712,12 +1737,66 @@ srv_release_mysql_thread_if_suspended(
 			/* Found */
 
 			os_event_set(slot->event);
+			slot->suspended = FALSE;
 
 			return;
 		}
 	}
 
 	/* not found */
+}
+
+void
+srv_mysql_thread_release(void)
+/*==========================*/
+{
+	srv_slot_t*	slot;
+	ulint		i;
+	
+        mutex_enter(&kernel_mutex);
+
+	for (i = 0; i < OS_THREAD_MAX_N; i++) {
+
+		slot = srv_mysql_table + i;
+
+		if (slot->in_use && slot->suspended) {
+			/* Found */
+			slot->suspended = FALSE;
+		        mutex_exit(&kernel_mutex);
+
+			os_event_set(slot->event);
+
+			return;
+		}
+	}
+
+	ut_a(0);
+}
+
+void
+srv_mysql_thread_slot_free(
+/*==========================*/
+			   os_event_t event)
+{
+	srv_slot_t*	slot;
+	ulint		i;
+	
+        mutex_enter(&kernel_mutex);
+
+	for (i = 0; i < OS_THREAD_MAX_N; i++) {
+
+		slot = srv_mysql_table + i;
+
+		if (slot->in_use && slot->event == event) {
+			/* Found */
+		        slot->in_use = FALSE;
+		        mutex_exit(&kernel_mutex);
+
+			return;
+		}
+	}
+
+	ut_a(0);
 }
 
 /*************************************************************************
@@ -1907,6 +1986,11 @@ loop:
 	}
 
 background_loop:
+	/*
+	sync_array_print_info(sync_primary_wait_array);
+	os_aio_print();
+	buf_print_io();
+	*/
 	/* In this loop we run background operations while the server
 	is quiet */
 
@@ -1967,9 +2051,15 @@ background_loop:
 	}
 		
 /*	mem_print_new_info();
+ */
 
-	fsp_print(0);
+/*	fsp_print(0); */
+
+/*	fprintf(stderr, "Validating tablespace\n");
+	fsp_validate(0);
+	fprintf(stderr, "Validation ok\n");
 */
+
 #ifdef UNIV_SEARCH_PERF_STAT
 /*	btr_search_print_info(); */
 #endif
