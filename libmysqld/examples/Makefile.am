@@ -1,7 +1,8 @@
-noinst_PROGRAMS =	mysql
-bin_PROGRAMS =	mysqltest_embedded mysql_client_test_embedded
-client_sources =	$(mysqltest_embedded_SOURCES) $(mysql_SOURCES)
-tests_sources= $(mysql_client_test_embedded_SOURCES)
+noinst_PROGRAMS = mysql
+bin_PROGRAMS    = mysqltest_embedded mysql_client_test_embedded
+client_sources  = $(mysqltest_embedded_SOURCES) $(mysql_SOURCES)
+tests_sources   = $(mysql_client_test_embedded_SOURCES)
+CLEANFILES      = $(client_sources) $(tests_sources)
 
 link_sources:
 	for f in $(client_sources); do \
@@ -16,7 +17,7 @@ link_sources:
 DEFS = 		-DEMBEDDED_LIBRARY
 INCLUDES =	@MT_INCLUDES@ -I$(top_srcdir)/include -I$(srcdir) \
 		-I$(top_srcdir) -I$(top_srcdir)/client -I$(top_srcdir)/regex \
-		-I$(top_srcdir)/extra $(openssl_includes)
+		-I$(top_builddir)/include $(openssl_includes)
 LIBS =		@LIBS@ @WRAPLIBS@ @CLIENT_LIBS@
 LDADD =		@CLIENT_EXTRA_LDFLAGS@ ../libmysqld.a @innodb_system_libs@ @LIBDL@ $(CXXLDFLAGS)
 
@@ -30,10 +31,6 @@ mysql_LDADD = @readline_link@ @TERMCAP_LIB@ $(LDADD)
 
 mysql_client_test_embedded_LINK = $(CXXLINK)
 mysql_client_test_embedded_SOURCES = mysql_client_test.c
-
-clean:
-	rm -f $(client_sources)
-	rm -f $(tests_sources)
 
 # Don't update the files from bitkeeper
 %::SCCS/s.%
