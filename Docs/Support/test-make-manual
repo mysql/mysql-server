@@ -1,16 +1,53 @@
 #!/bin/sh
 
-function die
-{
-  echo
-  echo $1
-  exit 1
-}
-
 needed_flags=0
 needed_texi2html=0
 needed_texinfo_tex=0
 needed_include_texi=0
+
+if [ -z $BROWSER ]; then
+    BROWSER=netscape 
+    echo "BROWSER not set, using $BROWSER"
+fi
+
+function die
+{
+    echo
+    echo $1
+    cleanup
+    exit 1
+}
+
+function cleanup
+{
+    echo "Cleaning up..."
+    if [ $needed_flags ]; then
+        bk clean Flags
+    fi
+
+    if [ $needed_texi2html ]; then
+        bk clean Support/texi2html
+    fi
+
+    if [ $needed_texinfo_tex ]; then
+        bk clean Support/texinfo.tex
+    fi
+
+    if [ $needed_include_texi ]; then
+        rm -f include.texi
+    fi
+
+    for file in \
+        manual.aux manual.cp  manual.cps manual.dvi  \
+        manual.fn  manual.fns manual.ky  manual.html \
+        manual.pg  manual.toc manual.tp  manual.vr   \
+        mysql.info manual_toc.html                   ;
+    do
+        rm -f $file
+    done
+        
+}
+
 
 if [ -e Flags/usa.txt ]; then
     echo "Good, Flags are there."
@@ -84,29 +121,6 @@ else
     echo " Looks good."
 fi
 
-needed_flags=0
-needed_texi2html=0
-needed_texinfo_tex=0
-needed_include_texi=0
-
-if [ $needed_flags ]; then
-    bk clean Flags
-fi
-
-if [ $needed_texi2html ]; then
-    bk clean Support/texi2html
-fi
-
-if [ $needed_texinfo_tex ]; then
-    bk clean Support/texinfo.tex
-fi
-
-if [ $needed_include_texi ]; then
-    rm -f include.texi
-fi
-
-[ -z $BROWSER ] && BROWSER=netscape 
-
 echo
 echo
 echo "Please examine your modifications in \`manual.html'."
@@ -115,4 +129,6 @@ echo "If you would like to use a different browser, set the 'BROWSER' environmen
 echo "variable." 
 echo
 
-$BROWSER file://`pwd`/manual_toc.html &
+$BROWSER file://`pwd`/manual_toc.html
+
+cleanup
