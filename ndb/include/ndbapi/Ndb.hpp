@@ -98,10 +98,12 @@
    @section secNdbOperations            Operations
 
    Each transaction (NdbTransaction object) consist of a list of 
-   operations (Ndb*Operation objects).   
+   operations (Ndb*Operation objects).
+#ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
    Operations are of two different kinds:
    -# standard operations, and
    -# interpreted program operations.
+#endif
 
    <h3>Single row operations</h3>
    After the operation is created using NdbTransaction::getNdbOperation
@@ -205,8 +207,7 @@
    The result of reading data from an NdbRecAttr object before
    calling NdbTransaction::execute is undefined.
 
-
-
+#ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
    <h3>Interpreted Program Operations</h3>
    The following types of interpreted program operations exist:
     -# NdbOperation::interpretedUpdateTuple :
@@ -267,7 +268,7 @@
       There might be zero NdbOperation::getValue calls.
    -# The fifth step is possible subroutine definitions using
       NdbOperation::def_subroutine and NdbOperation::ret_sub.
-
+#endif
 
    @subsection secScan              Scanning 
    The most common use of interpreted programs is for scanning
@@ -361,7 +362,7 @@
    but is of the following form:
     -# Start transaction
     -# Get NdbScanOperation for the table to be scanned
-    -# NdbScanOperation::readTuplesExclusive returns a handle to a 
+    -# NdbScanOperation::readTuples(NdbOperation::LM_Exclusive) returns a handle to a 
        NdbResultSet. 
     -# Search conditions are defined by NdbScanFilter
     -# Call NdbTransaction::execute(NoCommit) to start the scan.
@@ -384,7 +385,7 @@
        See the scan example program in @ref ndbapi_scan.cppn for example
        usage of the new scan api.
 
-
+#ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
    <h3>Interpreted Programs</h3>
    Interpretation programs are executed in a
    register-based virtual machine.
@@ -455,6 +456,7 @@
          The parameter used by NdbOperation::def_subroutine 
 	 should match the automatic numbering to make it easier to 
 	 debug the interpreted program.
+#endif
 
 #ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
    @section secAsync                    Asynchronous Transactions
@@ -587,7 +589,7 @@
      theTransaction = theNdb->startTransaction();
      theOperation = theTransaction->getNdbOperation("TEST_TABLE");
      if (theOperation == NULL) goto error;
-     theOperation->readTuple();
+     theOperation->readTuple(NdbOperation::LM_Read);
      theOperation->setValue("ATTR_1", at1);
      theOperation->setValue("ATTR_2", at1); //Here an error occurs
      theOperation->setValue("ATTR_3", at1);
