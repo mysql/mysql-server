@@ -1497,6 +1497,7 @@ JOIN::exec()
 	    are fixed or do not need fix_fields, too
 	  */
 	  curr_table->select->cond->quick_fix_field();
+          cur_tabl
 	}
 	curr_table->select_cond= curr_table->select->cond;
 	curr_table->select_cond->top_level_item();
@@ -5018,7 +5019,7 @@ add_found_match_trig_cond(JOIN_TAB *tab, COND *cond, JOIN_TAB *root_tab)
   {
     tmp= new Item_func_trig_cond(tmp, &tab->found);
   }
-  if (!tmp)
+  if (tmp)
     tmp->quick_fix_field();
   return tmp;
 }
