@@ -4116,22 +4116,16 @@ do_select(JOIN *join,List<Item> *fields,TABLE *table,Procedure *procedure)
     if (error == -3)
       error=0;					/* select_limit used */
   }
-  if (!table)					/* If sending data to client */
+  if (error < 0)
+    join->result->send_error(0,NullS);	/* purecov: inspected */
+  else
   {
-    if (error < 0)
-      join->result->send_error(0,NullS);	/* purecov: inspected */
-    else
+    if (!table)				// If sending data to client
     {
       join_free(join);				// Unlock all cursors
       if (join->result->send_eof())
 	error= -1;
     }
-  }
-  else if (error < 0)
-    join->result->send_error(0,NullS); /* purecov: inspected */
-
-  if (error >= 0)
-  {
     DBUG_PRINT("info",("%ld records output",join->send_records));
   }
   if (table)
@@ -4226,10 +4220,8 @@ sub_select(JOIN *join,JOIN_TAB *join_tab,bool end_of_records)
 	  info->file->unlock_row();
       }
     } while (!(error=info->read_record(info)));
-    if (error > 0)				// Fatal error
-      return -1;
   }
-  else if (error > 0)
+  if (error > 0)				// Fatal error
     return -1;
 
   if (!found && on_expr)
