@@ -669,6 +669,17 @@ int connect_to_master(THD *thd, MYSQL* mysql, MASTER_INFO* mi)
   }
   mysql_options(mysql, MYSQL_OPT_CONNECT_TIMEOUT, (char *) &slave_net_timeout);
   mysql_options(mysql, MYSQL_OPT_READ_TIMEOUT, (char *) &slave_net_timeout);
+
+#ifdef HAVE_OPENSSL
+  if (mi->ssl)
+    mysql_ssl_set(mysql, 
+        mi->ssl_key[0]?mi->ssl_key:0,
+        mi->ssl_cert[0]?mi->ssl_cert:0,
+        mi->ssl_ca[0]?mi->ssl_ca:0, 
+        mi->ssl_capath[0]?mi->ssl_capath:0,
+        mi->ssl_cipher[0]?mi->ssl_cipher:0);
+#endif
+    
   mysql_options(mysql, MYSQL_SET_CHARSET_NAME, default_charset_info->csname);
   mysql_options(mysql, MYSQL_SET_CHARSET_DIR, (char *) charsets_dir);
   if (!mysql_real_connect(mysql, mi->host, mi->user, mi->password, 0,
