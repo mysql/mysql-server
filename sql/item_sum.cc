@@ -1153,8 +1153,7 @@ String *Item_sum_udf_float::val_str(String *str)
   double nr=val();
   if (null_value)
     return 0;					/* purecov: inspected */
-  else
-    str->set(nr,decimals);
+  str->set(nr,decimals);
   return str;
 }
 
@@ -1172,8 +1171,7 @@ String *Item_sum_udf_int::val_str(String *str)
   longlong nr=val_int();
   if (null_value)
     return 0;
-  else
-    str->set(nr);
+  str->set(nr);
   return str;
 }
 

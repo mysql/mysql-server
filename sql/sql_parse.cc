@@ -268,8 +268,7 @@ static bool check_user(THD *thd,enum_server_command command, const char *user,
       decrease_user_connections(thd->user_connect);
     return error;
   }
-  else
-    send_ok(net);				// Ready to handle questions
+  send_ok(net);                                 // Ready to handle questions
   thd->password= test(passwd[0]);		// Remember for error messages
   return 0;					// ok
 }
