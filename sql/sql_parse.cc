@@ -1601,7 +1601,7 @@ mysql_execute_command(THD *thd)
   }
   if ((&lex->select_lex != lex->all_selects_list &&
        lex->unit.create_total_list(thd, lex, &tables, 0)) 
-#ifndef HAVE_REPLICATION
+#ifdef HAVE_REPLICATION
       ||
       (table_rules_on && tables && thd->slave_thread &&
        !tables_ok(thd,tables))
