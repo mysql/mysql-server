@@ -29,6 +29,10 @@ subdirectory of 'mysql'. */
 #include <global.h>
 #include <my_pthread.h>
 
+/* Include <sys/stat.h> to get S_I... macros defined for os0file.c */
+#include <sys/stat.h>
+
+
 #undef PACKAGE
 #undef VERSION
 

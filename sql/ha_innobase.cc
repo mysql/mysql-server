@@ -917,7 +917,7 @@ innobase_mysql_cmp(
 					not UNIV_SQL_NULL */
 {
 	enum_field_types	mysql_tp;
-        int                     ret;
+	int                     ret;
 
 	dbug_assert(a_length != UNIV_SQL_NULL);
 	dbug_assert(b_length != UNIV_SQL_NULL);
@@ -928,9 +928,15 @@ innobase_mysql_cmp(
 
 	case FIELD_TYPE_STRING:
 	case FIELD_TYPE_VAR_STRING:
-                ret = my_sortncmp((const char*) a, a_length,
-                                  (const char*) b, b_length);
-                return ret;
+  		ret = my_sortncmp((const char*) a, a_length,
+				  (const char*) b, b_length);
+		if (ret < 0) {
+		  return(-1);
+		} else if (ret > 0) {
+		  return(1);
+		} else {
+		  return(0);
+	        }
 	default:
 		assert(0);
 	}

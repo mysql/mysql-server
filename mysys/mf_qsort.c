@@ -37,7 +37,6 @@ along with GNU QSORT; see the file COPYING.  If not, write to
 the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA. */
 
 #include "mysys_priv.h"
-#if !defined(HAVE_purify) || defined(QSORT_EXTRA_CMP_ARGUMENT)
 
 /* Envoke the comparison function, returns either 0, < 0, or > 0. */
 #ifdef QSORT_EXTRA_CMP_ARGUMENT
@@ -123,6 +122,9 @@ qsort_t qsort(void *base_ptr, size_t total_elems, size_t size, qsort_cmp cmp)
     stack_node stack[STACK_SIZE]; /* Largest size needed for 32-bit int!!! */
     stack_node *top = stack + 1;
     char *pivot_buffer = (char *) my_alloca ((int) size);
+#ifdef HAVE_purify
+    stack[0].lo=stack[0].hi=0;
+#endif
 
     while (STACK_NOT_EMPTY)
     {
@@ -255,4 +257,3 @@ qsort_t qsort(void *base_ptr, size_t total_elems, size_t size, qsort_cmp cmp)
   }
   SORT_RETURN;
 }
-#endif /* HAVE_purify */
