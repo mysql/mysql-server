@@ -1410,8 +1410,9 @@ int ha_myisam::create(const char *name, register TABLE *table_arg,
       keydef[i].seg[j].start=  pos->key_part[j].offset;
       keydef[i].seg[j].length= pos->key_part[j].length;
       keydef[i].seg[j].bit_start= keydef[i].seg[j].bit_end=
-        keydef[i].seg[j].bit_pos= 0;
-      keydef[i].seg[j].language = field->charset()->number;
+        keydef[i].seg[j].bit_length= 0;
+      keydef[i].seg[j].bit_pos= 0;
+      keydef[i].seg[j].language= field->charset()->number;
 
       if (field->null_ptr)
       {

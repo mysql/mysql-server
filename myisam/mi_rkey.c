@@ -78,7 +78,7 @@ int mi_rkey(MI_INFO *info, byte *buf, int inx, const byte *key, uint key_len,
   case HA_KEY_ALG_RTREE:
     if (rtree_find_first(info,inx,key_buff,use_key_length,nextflag) < 0)
     {
-      mi_print_error(info, HA_ERR_CRASHED);
+      mi_print_error(info->s, HA_ERR_CRASHED);
       my_errno=HA_ERR_CRASHED;
       goto err;
     }

@@ -1064,7 +1064,7 @@ Dbtux::Index::Index() :
     m_fragId[i] = ZNIL;
     m_fragPtrI[i] = RNIL;
   };
-};
+}
 
 // Dbtux::Frag
 
@@ -1100,7 +1100,7 @@ Dbtux::FragOp::FragOp() :
   m_fragNo(ZNIL),
   m_numAttrsRecvd(ZNIL)
 {
-};
+}
 
 // Dbtux::NodeHandle
 

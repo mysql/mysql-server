@@ -21,9 +21,10 @@
 
 struct restore_callback_t {
   class BackupRestore *restore;
-  class TupleS *tup;
+  class TupleS tup;
   class NdbConnection *connection;
   int    retries;
+  int error_code;
   restore_callback_t *next;
 };
 
@@ -39,7 +40,6 @@ public:
     m_restore_meta = false;
     m_parallelism = parallelism;
     m_callback = 0;
-    m_tuples = 0;
     m_free_callback = 0;
     m_transactions = 0;
     m_cache.m_old_table = 0;
@@ -68,9 +68,8 @@ public:
   Uint32 m_dataCount;
 
   Uint32 m_parallelism;
-  Uint32 m_transactions;
+  volatile Uint32 m_transactions;
 
-  TupleS *m_tuples;
   restore_callback_t *m_callback;
   restore_callback_t *m_free_callback;
 

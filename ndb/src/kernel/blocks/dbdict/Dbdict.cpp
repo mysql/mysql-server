@@ -532,7 +532,7 @@ Dbdict::writeTableFile(Signal* signal, Uint32 tableId,
   Uint32 sz = tabInfoPtr.sz + ZPAGE_HEADER_SIZE;
 
   c_writeTableRecord.noOfPages = DIV(sz, ZSIZE_OF_PAGES_IN_WORDS);
-  c_writeTableRecord.tableWriteState = WriteTableRecord::CALLBACK;
+  c_writeTableRecord.tableWriteState = WriteTableRecord::TWR_CALLBACK;
   c_writeTableRecord.m_callback = * callback;
 
   c_writeTableRecord.pageId = 0;
@@ -651,7 +651,7 @@ void Dbdict::closeWriteTableConf(Signal* signal,
   case WriteTableRecord::WRITE_RESTART_FROM_OWN :
     ndbrequire(false);
     break;
-  case WriteTableRecord::CALLBACK:
+  case WriteTableRecord::TWR_CALLBACK:
     jam();
     execute(signal, c_writeTableRecord.m_callback, 0);
     return;
@@ -1192,7 +1192,7 @@ Dbdict::~Dbdict()
 {
 }//Dbdict::~Dbdict()
 
-BLOCK_FUNCTIONS(Dbdict);
+BLOCK_FUNCTIONS(Dbdict)
 
 void Dbdict::initCommonData() 
 {
@@ -2387,7 +2387,7 @@ Dbdict::restartCreateTab_readTableConf(Signal* signal,
   ndbrequire(c_writeTableRecord.tableWriteState == WriteTableRecord::IDLE);
   c_writeTableRecord.noOfPages = c_readTableRecord.noOfPages;
   c_writeTableRecord.pageId = c_readTableRecord.pageId;
-  c_writeTableRecord.tableWriteState = WriteTableRecord::CALLBACK;
+  c_writeTableRecord.tableWriteState = WriteTableRecord::TWR_CALLBACK;
   c_writeTableRecord.m_callback.m_callbackData = callbackData;
   c_writeTableRecord.m_callback.m_callbackFunction = 
     safe_cast(&Dbdict::restartCreateTab_writeTableConf);

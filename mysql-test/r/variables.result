@@ -502,3 +502,7 @@ t1	CREATE TABLE `t1` (
   `c3` longtext
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop table t1;
+SET GLOBAL MYISAM_DATA_POINTER_SIZE= 8;
+SHOW VARIABLES LIKE 'MYISAM_DATA_POINTER_SIZE';
+Variable_name	Value
+myisam_data_pointer_size	8

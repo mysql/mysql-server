@@ -93,7 +93,7 @@ public:
   Uint32 subscriptionId;
   Uint32 subscriptionKey;
   Uint32 senderNodeId;
-  GrepError::Code err;
+  GrepError::GE_Code err;
 };
 
 class RepGetGciReq 
@@ -151,7 +151,7 @@ public:
   Uint32 lastPSGCI;
   Uint32 firstSSGCI;
   Uint32 lastSSGCI;
-  GrepError::Code err;
+  GrepError::GE_Code err;
 };
 
 class RepGetGciBufferReq {
@@ -213,7 +213,7 @@ public:
   Uint32 lastSSGCI;
   Uint32 currentGCIBuffer;
   Uint32 nodeGrp;
-  GrepError::Code err;
+  GrepError::GE_Code err;
 };
 
 class RepInsertGciBufferReq 
@@ -252,7 +252,7 @@ public:
   Uint32 nodeGrp;
   Uint32 tableId;
   Uint32 force;
-  GrepError::Code err;
+  GrepError::GE_Code err;
 };
 
 class RepInsertGciBufferConf 
@@ -310,7 +310,7 @@ public:
   Uint32 lastGCI;
   Uint32 currentGCI;
   Uint32 nodeGrp;
-  GrepError::Code err;
+  GrepError::GE_Code err;
 };
 
 class RepClearPSGciBufferConf 
@@ -367,7 +367,7 @@ public:
   Uint32 lastGCI;
   Uint32 currentGCI;
   Uint32 nodeGrp;
-  GrepError::Code err;
+  GrepError::GE_Code err;
 };
 
 class RepClearSSGciBufferConf 

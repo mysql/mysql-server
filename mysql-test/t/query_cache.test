@@ -686,3 +686,14 @@ show status like "Qcache_hits";
 #
 DROP TABLE t1;
 SET GLOBAL query_cache_size=0;
+
+#
+# Information schema & query cache test
+#
+SET SESSION query_cache_type = 2;
+create table t1(a int);
+select table_name from information_schema.tables
+where table_schema="test";
+drop table t1;
+select table_name from information_schema.tables
+where table_schema="test";
