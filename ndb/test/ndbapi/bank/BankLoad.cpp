@@ -53,7 +53,7 @@ int Bank::getNumAccountTypes(){
   return accountTypesSize;
 }
 
-int Bank::createAndLoadBank(bool ovrWrt){
+int Bank::createAndLoadBank(bool ovrWrt, int num_accounts){
 
   m_ndb.init();   
   if (m_ndb.waitUntilReady() != 0)
@@ -78,7 +78,7 @@ int Bank::createAndLoadBank(bool ovrWrt){
   if (loadAccountType() != NDBT_OK)
     return NDBT_FAILED;
   
-  if (loadAccount(10) != NDBT_OK)
+  if (loadAccount(num_accounts) != NDBT_OK)
     return NDBT_FAILED;
     
   if (loadSystemValues() != NDBT_OK)
