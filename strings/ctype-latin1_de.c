@@ -278,13 +278,14 @@ int my_strnxfrm_latin1_de(uchar * dest, const uchar * src, int len, int srclen)
 int my_strcoll_latin1_de(const uchar * s1, const uchar * s2)
 {
   /* XXX QQ: This should be fixed to not call strlen */
-  return my_strnncoll_latin1_de(s1, strlen(s1), s2, strlen(s2));
+  return my_strnncoll_latin1_de(s1, strlen((char*) s1),
+				s2, strlen((char*) s2));
 }
 
 int my_strxfrm_latin1_de(uchar * dest, const uchar * src, int len)
 {
   /* XXX QQ: This should be fixed to not call strlen */
-  return my_strnxfrm_latin1_de(dest, src, len, strlen(src));
+  return my_strnxfrm_latin1_de(dest, src, len, strlen((char*) src));
 }
 
 /*

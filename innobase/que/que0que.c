@@ -103,7 +103,7 @@ que_thr_add_update_info(
 	mach_write_to_8(thr->msg_buf + SESS_SRV_MSG_N_DELETES,
 							graph->n_deletes);
 }
-#endif	
+#endif
 
 /***************************************************************************
 Adds a query graph to the session's list of graphs. */

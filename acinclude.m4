@@ -1126,9 +1126,9 @@ dnl circular references.
  \$(top_builddir)/innobase/usr/libusr.a\
  \$(top_builddir)/innobase/odbc/libodbc.a\
  \$(top_builddir)/innobase/srv/libsrv.a\
+ \$(top_builddir)/innobase/dict/libdict.a\
  \$(top_builddir)/innobase/que/libque.a\
  \$(top_builddir)/innobase/srv/libsrv.a\
- \$(top_builddir)/innobase/dict/libdict.a\
  \$(top_builddir)/innobase/ibuf/libibuf.a\
  \$(top_builddir)/innobase/row/librow.a\
  \$(top_builddir)/innobase/pars/libpars.a\

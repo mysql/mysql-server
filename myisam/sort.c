@@ -162,16 +162,16 @@ int _create_index_by_sort(MI_SORT_PARAM *info,my_bool no_messages,
 	printf("  - Merging %lu keys\n",records); /* purecov: tested */
       if (merge_many_buff(info,keys,sort_keys,
                   dynamic_element(&buffpek,0,BUFFPEK *),&maxbuffer,&tempfile))
-	goto err; /* purecov: inspected */
+	goto err;				/* purecov: inspected */
     }
     if (flush_io_cache(&tempfile) ||
 	reinit_io_cache(&tempfile,READ_CACHE,0L,0,0))
-      goto err; /* purecov: inspected */
+      goto err;					/* purecov: inspected */
     if (!no_messages)
       puts("  - Last merge and dumping keys"); /* purecov: tested */
     if (merge_index(info,keys,sort_keys,dynamic_element(&buffpek,0,BUFFPEK *),
                     maxbuffer,&tempfile))
-      goto err; /* purecov: inspected */
+      goto err;					/* purecov: inspected */
   }
 
   if (flush_pending_blocks(info->sort_info->param))
@@ -187,10 +187,13 @@ int _create_index_by_sort(MI_SORT_PARAM *info,my_bool no_messages,
 	reinit_io_cache(&tempfile_for_exceptions,READ_CACHE,0L,0,0))
       goto err;
 
-    while (!my_b_read(&tempfile_for_exceptions,(byte*)&key_length, sizeof(key_length))
-        && !my_b_read(&tempfile_for_exceptions,(byte*)sort_keys,(uint)key_length))
+    while (!my_b_read(&tempfile_for_exceptions,(byte*)&key_length,
+		      sizeof(key_length))
+        && !my_b_read(&tempfile_for_exceptions,(byte*)sort_keys,
+		      (uint) key_length))
     {
-	if (_mi_ck_write(index,keyno,(byte*)sort_keys,key_length-ref_length)) goto err;
+	if (_mi_ck_write(index,keyno,(uchar*) sort_keys,key_length-ref_length))
+	  goto err;
     }
   }
 
@@ -219,23 +222,24 @@ static ha_rows NEAR_F find_all_keys(MI_SORT_PARAM *info, uint keys,
   DBUG_ENTER("find_all_keys");
 
   idx=error=0;
-  sort_keys[0]=(char*)(sort_keys+keys);
+  sort_keys[0]=(uchar*) (sort_keys+keys);
 
   while(!(error=(*info->key_read)(info->sort_info,sort_keys[idx])))
   {
     if (info->sort_info->real_key_length > info->key_length)
     {
       if (write_key(info,sort_keys[idx],tempfile_for_exceptions))
-        DBUG_RETURN(HA_POS_ERROR); /* purecov: inspected */
+        DBUG_RETURN(HA_POS_ERROR);		/* purecov: inspected */
       continue;
     }
 
     if (++idx == keys)
     {
-      if (write_keys(info,sort_keys,idx-1,(BUFFPEK *)alloc_dynamic(buffpek),tempfile))
-      DBUG_RETURN(HA_POS_ERROR); /* purecov: inspected */
+      if (write_keys(info,sort_keys,idx-1,(BUFFPEK *)alloc_dynamic(buffpek),
+		     tempfile))
+      DBUG_RETURN(HA_POS_ERROR);		/* purecov: inspected */
 
-      sort_keys[0]=(char*)(sort_keys+keys);
+      sort_keys[0]=(uchar*) (sort_keys+keys);
       memcpy(sort_keys[0],sort_keys[idx-1],(size_t) info->key_length);
       idx=1;
     }
@@ -246,7 +250,7 @@ static ha_rows NEAR_F find_all_keys(MI_SORT_PARAM *info, uint keys,
   if (buffpek->elements)
   {
     if (write_keys(info,sort_keys,idx,(BUFFPEK *)alloc_dynamic(buffpek),tempfile))
-      DBUG_RETURN(HA_POS_ERROR); /* purecov: inspected */
+      DBUG_RETURN(HA_POS_ERROR);		/* purecov: inspected */
     *maxbuffer=buffpek->elements-1;
   }
   else

@@ -978,7 +978,7 @@ static int authenticate(struct manager_thd* thd)
   for (;isspace(*buf) && buf<buf_end;buf++) /* empty */;
   
   my_MD5Init(&context);
-  my_MD5Update(&context,buf,(uint)(buf_end-buf));
+  my_MD5Update(&context,(uchar*) buf,(uint)(buf_end-buf));
   my_MD5Final(digest,&context);
   if (memcmp(u->md5_pass,digest,MD5_LEN))
     return 1;
@@ -1218,7 +1218,7 @@ struct manager_thd* manager_thd_new(Vio* vio)
   tmp->user[0]=0;
   tmp->priv_flags=0;
   tmp->fatal=tmp->finished=0;
-  tmp->cmd_buf=tmp->net.read_pos;
+  tmp->cmd_buf= (char*) tmp->net.read_pos;
   return tmp;
 }
 
