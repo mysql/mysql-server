@@ -49113,6 +49113,14 @@ Our TODO section contains what we plan to have in 4.0. @xref{TODO MySQL 4.0}.
 
 @itemize @bullet
 @item
+Fixed bug in phrase operator @code{"..."} in boolean fulltext search.
+@item
+Fixed bug that caused duplicated rows when using truncation operator
+@code{*} in boolean fulltext search.
+@item
+Fixed bug in boolean fulltext search, that caused a crash when an identical
+@code{MATCH} expression that did not use an index appeared twice.
+@item
 Query cache disabled in mysqldump.
 @item
 Fixed problem on Windows 98 that made sending of results very slow.
