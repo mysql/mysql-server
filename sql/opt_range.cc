@@ -2447,6 +2447,7 @@ QUICK_SELECT *get_quick_select_for_ref(THD *thd, TABLE *table, TABLE_REF *ref)
   QUICK_SELECT *quick=new QUICK_SELECT(thd, table, ref->key, 1);
   KEY *key_info = &table->key_info[ref->key];
   KEY_PART *key_part;
+  QUICK_RANGE *range;
   uint part;
 
   if (!quick)
@@ -2458,8 +2459,7 @@ QUICK_SELECT *get_quick_select_for_ref(THD *thd, TABLE *table, TABLE_REF *ref)
     return quick;				// empty range
   }
 
-  QUICK_RANGE *range= new QUICK_RANGE();
-  if (!range)
+  if (!(range= new QUICK_RANGE()))
     goto err;			// out of memory
 
   range->min_key=range->max_key=(char*) ref->key_buff;
