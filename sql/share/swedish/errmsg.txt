@@ -287,4 +287,4 @@ character-set=latin1
 "Storleken av "Query cache" kunde inte sättas till %lu, ny storlek är %lu",
 "Kolumn '%-.64s' kan inte vara del av ett FULLTEXT index",
 "Unknown key cache '%-.100s'",
-"Can't resolve '%s' if --skip-name-resolve active",
+"MySQL is started in --skip-name-resolve mode. You need to restart it without this switch for this grant to work",
