@@ -107,7 +107,7 @@ class ha_ndbcluster: public handler
       return true;
 #endif
     }
-  bool has_transactions()  { return true;}
+  bool has_transactions()  { return true; }
 
   const char* index_type(uint key_number) {
     switch (get_index_type(key_number)) {
@@ -130,7 +130,7 @@ class ha_ndbcluster: public handler
 
   static Ndb* seize_ndb();
   static void release_ndb(Ndb* ndb);
-
+  uint8 table_cache_type() { return HA_CACHE_TBL_NOCACHE; }
     
  private:
   int alter_table_name(const char *from, const char *to);
