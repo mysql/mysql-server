@@ -3161,7 +3161,7 @@ sub safe_connect
 sub retry_connect
 {
   my ($dbh, $i);
-  for (i=0 ; $i < 10 ; $i++)
+  for ($i=0 ; $i < 10 ; $i++)
   {
     if (($dbh=DBI->connect($server->{'data_source'},$opt_user,$opt_password,
 			 { PrintError => 0, AutoCommit => 1})))
