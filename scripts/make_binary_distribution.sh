@@ -47,13 +47,15 @@ if [ -d $BASE ] ; then
  rm -r -f $BASE
 fi
 
+BS=""
+BIN_FILES=""
 BASE_SYSTEM="any"
 MYSQL_SHARE=$BASE/share/mysql
-BIN_FILES=""
 
 case $system in
   *netware*)
     BASE_SYSTEM="netware"
+    BS=".nlm"
     MYSQL_SHARE=$BASE/share
     ;;
 esac
@@ -81,36 +83,30 @@ do
   fi
 done
 
+# Non platform-specific bin dir files:
+BIN_FILES="extra/comp_err$BS extra/replace$BS extra/perror$BS \
+  extra/resolveip$BS extra/my_print_defaults$BS \
+  extra/resolve_stack_dump$BS extra/mysql_waitpid$BS \
+  isam/isamchk$BS isam/pack_isam$BS \
+  myisam/myisamchk$BS myisam/myisampack$BS myisam/myisamlog$BS \
+  sql/mysqld$BS \
+  client/mysql$BS client/mysqlshow$BS client/mysqladmin$BS \
+  client/mysqldump$BS client/mysqlimport$BS \
+  client/mysqltest$BS client/mysqlcheck$BS \
+  client/mysqlbinlog$BS 
+";
+
+# Platform-specific bin dir files:
 if [ $BASE_SYSTEM = "netware" ] ; then
-  
-  BIN_FILES="\
-    extra/comp_err.nlm extra/replace.nlm extra/perror.nlm \
-    extra/resolveip.nlm extra/my_print_defaults.nlm \
-    isam/isamchk.nlm isam/pack_isam.nlm \
-    myisam/myisamchk.nlm myisam/myisampack.nlm myisam/myisamlog.nlm \
-    sql/mysqld.nlm \
-    client/mysql.nlm client/mysqlshow.nlm client/mysqladmin.nlm \
-    client/mysqldump.nlm client/mysqlimport.nlm \
-    client/mysqltest.nlm client/mysqlcheck.nlm \
-    client/mysqlbinlog.nlm
-    netware/mysqld_safe.nlm netware/mysql_install_db.nlm \
-    netware/init_db.sql netware/test_db.sql netware/mysql_explain_log.nlm \
-    netware/mysqlhotcopy.nlm netware/libmysql.nlm netware/init_secure_db.sql \
-  ";
-  
+  BIN_FILES="$BIN_FILES \
+    netware/mysqld_safe$BS netware/mysql_install_db$BS \
+    netware/init_db.sql netware/test_db.sql netware/mysql_explain_log$BS \
+    netware/mysqlhotcopy$BS netware/libmysql$BS netware/init_secure_db.sql
+    ";
 else
-  
-  BIN_FILES="\
-    extra/comp_err extra/replace extra/perror \
-    extra/resolveip extra/my_print_defaults \
-    extra/resolve_stack_dump extra/mysql_waitpid \
-    isam/isamchk isam/pack_isam \
-    myisam/myisamchk myisam/myisampack myisam/myisamlog \
-    sql/mysqld \
-    client/mysql client/mysqlshow client/mysqladmin \
-    client/mysqldump client/mysqlimport \
-    client/mysqltest client/mysqlcheck \
-    client/mysqlbinlog client/mysqlmanagerc \
+  # For all other platforms:
+  BIN_FILES="$BIN_FILES \
+    client/mysqlmanagerc \
     client/mysqlmanager-pwgen tools/mysqlmanager \
     client/.libs/mysql client/.libs/mysqlshow client/.libs/mysqladmin \
     client/.libs/mysqldump client/.libs/mysqlimport \
@@ -118,7 +114,6 @@ else
     client/.libs/mysqlbinlog client/.libs/mysqlmanagerc \
     client/.libs/mysqlmanager-pwgen tools/.libs/mysqlmanager \
   ";
-  
 fi
 
 for i in $BIN_FILES
