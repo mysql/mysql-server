@@ -421,6 +421,7 @@ public:
      and are still in use by this thread
   */
   TABLE   *open_tables,*temporary_tables, *handler_tables;
+  HASH    handler_tables_hash;
   // TODO: document the variables below
   MYSQL_LOCK *lock,*locked_tables;
   ULL	  *ull;

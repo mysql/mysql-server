@@ -78,9 +78,9 @@ extern "C" void free_user_var(user_var_entry *entry)
 ** Thread specific functions
 ****************************************************************************/
 
-THD::THD():user_time(0),fatal_error(0),last_insert_id_used(0),
-	   insert_id_used(0),rand_used(0),in_lock_tables(0),
-	   global_read_lock(0),bootstrap(0)
+THD::THD():user_time(0),global_read_lock(0),fatal_error(0),
+           last_insert_id_used(0),insert_id_used(0),rand_used(0),
+           in_lock_tables(0),bootstrap(0)
 {
   host=user=priv_user=db=query=ip=0;
   host_or_ip= "connecting host";
@@ -90,6 +90,7 @@ THD::THD():user_time(0),fatal_error(0),last_insert_id_used(0),
   query_error=0;
   next_insert_id=last_insert_id=0;
   open_tables=temporary_tables=handler_tables=0;
+  hash_clear(&handler_tables_hash);
   current_tablenr=0;
   handler_items=0;
   tmp_table=0;
@@ -215,11 +216,9 @@ void THD::cleanup(void)
     lock=locked_tables; locked_tables=0;
     close_thread_tables(this);
   }
-  if (handler_tables)
-  {
-    open_tables=handler_tables; handler_tables=0;
-    close_thread_tables(this);
-  }
+  mysql_ha_flush(this, (TABLE_LIST*) 0,
+                 MYSQL_HA_CLOSE_FINAL | MYSQL_HA_FLUSH_ALL);
+  hash_free(&handler_tables_hash);
   close_temporary_tables(this);
   hash_free(&user_vars);
   if (global_read_lock)
