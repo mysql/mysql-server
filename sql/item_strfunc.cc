@@ -324,7 +324,7 @@ void Item_func_concat::fix_length_and_dec()
   bool first_coll= 1;
   max_length=0;
 
-  if (agg_arg_collations(collation, 0, arg_count))
+  if (agg_arg_collations(collation, args, arg_count))
     return;
 
   for (uint i=0 ; i < arg_count ; i++)
@@ -823,7 +823,7 @@ void Item_func_replace::fix_length_and_dec()
     maybe_null=1;
   }
   
-  if (agg_arg_collations_for_comparison(collation, 0, 3))
+  if (agg_arg_collations_for_comparison(collation, args, 3))
     return;
 }
 
@@ -1029,7 +1029,7 @@ void Item_func_substr_index::fix_length_and_dec()
 { 
   max_length= args[0]->max_length;
 
-  if (agg_arg_collations_for_comparison(collation, 0, 2))
+  if (agg_arg_collations_for_comparison(collation, args, 2))
     return;
 }
 
@@ -1658,7 +1658,7 @@ void Item_func_elt::fix_length_and_dec()
   max_length=0;
   decimals=0;
   
-  if (agg_arg_collations(collation, 0, arg_count))
+  if (agg_arg_collations(collation, args, arg_count))
     return;
 
   for (uint i=0 ; i < arg_count ; i++)
@@ -1758,7 +1758,7 @@ void Item_func_make_set::fix_length_and_dec()
 {
   max_length=arg_count-1;
 
-  if (agg_arg_collations(collation, 0, arg_count))
+  if (agg_arg_collations(collation, args, arg_count))
     return;
   
   for (uint i=0 ; i < arg_count ; i++)
@@ -2431,7 +2431,7 @@ void Item_func_export_set::fix_length_and_dec()
   uint sep_length=(arg_count > 3 ? args[3]->max_length : 1);
   max_length=length*64+sep_length*63;
 
-  if (agg_arg_collations(collation,1, min(4,arg_count)))
+  if (agg_arg_collations(collation, args+1, min(4,arg_count)-1))
     return;
 }
 
