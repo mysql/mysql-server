@@ -3324,7 +3324,6 @@ Backup::execBACKUP_FRAGMENT_REQ(Signal* signal)
     req->requestInfo = 0;
     req->savePointId = 0;
     req->tableId = table.tableId;
-    //ScanFragReq::setConcurrency(req->requestInfo, parallelism);
     ScanFragReq::setLockMode(req->requestInfo, 0);
     ScanFragReq::setHoldLockFlag(req->requestInfo, 0);
     ScanFragReq::setKeyinfoFlag(req->requestInfo, 1);
@@ -3332,6 +3331,8 @@ Backup::execBACKUP_FRAGMENT_REQ(Signal* signal)
     req->transId1 = 0;
     req->transId2 = (BACKUP << 20) + (getOwnNodeId() << 8);
     req->clientOpPtr= filePtr.i;
+    req->batch_size_rows= 16;
+    req->batch_size_bytes= 0;
     sendSignal(DBLQH_REF, GSN_SCAN_FRAGREQ, signal,
                ScanFragReq::SignalLength, JBB);
     
@@ -3549,8 +3550,7 @@ Backup::OperationRecord::newFragment(Uint32 tableId, Uint32 fragNo)
     head->FragmentNo    = htonl(fragNo);
     head->ChecksumType  = htonl(0);
 
-    opNoDone = opNoConf = 0;
-    memset(attrLen, 0, sizeof(attrLen));
+    opNoDone = opNoConf = opLen = 0;
     newRecord(tmp + headSz);
     scanStart = tmp;
     scanStop  = (tmp + headSz);
@@ -3593,8 +3593,7 @@ Backup::OperationRecord::newScan()
   ndbrequire(16 * maxRecordSize < dataBuffer.getMaxWrite());
   if(dataBuffer.getWritePtr(&tmp, 16 * maxRecordSize)) {
     jam();
-    opNoDone = opNoConf = 0;
-    memset(attrLen, 0, sizeof(attrLen));
+    opNoDone = opNoConf = opLen = 0;
     newRecord(tmp);
     scanStart = tmp;
     scanStop = tmp;
@@ -3604,14 +3603,14 @@ Backup::OperationRecord::newScan()
 }
 
 bool 
-Backup::OperationRecord::scanConf(Uint32 noOfOps, Uint32 opLen[])
+Backup::OperationRecord::scanConf(Uint32 noOfOps, Uint32 total_len)
 {
   const Uint32 done = opNoDone-opNoConf;
   
   ndbrequire(noOfOps == done);
-  ndbrequire(memcmp(&attrLen[opNoConf], opLen, done << 2) == 0);
+  ndbrequire(opLen == total_len);
   opNoConf = opNoDone;
-
+  
   const Uint32 len = (scanStop - scanStart);
   ndbrequire(len < dataBuffer.getMaxWrite());
   dataBuffer.updateWritePtr(len);
@@ -3652,8 +3651,8 @@ Backup::execSCAN_FRAGCONF(Signal* signal)
   c_backupFilePool.getPtr(filePtr, filePtrI);
 
   OperationRecord & op = filePtr.p->operation;
-  //op.scanConf(conf->completedOps, conf->opReturnDataLen);
-
+  
+  op.scanConf(conf->completedOps, conf->total_len);
   const Uint32 completed = conf->fragmentCompleted;
   if(completed != 2) {
     jam();
@@ -3722,6 +3721,8 @@ Backup::checkScan(Signal* signal, BackupFilePtr filePtr)
     req->closeFlag = 0;
     req->transId1 = 0;
     req->transId2 = (BACKUP << 20) + (getOwnNodeId() << 8);
+    req->batch_size_rows= 16;
+    req->batch_size_bytes= 0;
     sendSignal(DBLQH_REF, GSN_SCAN_NEXTREQ, signal, 
 	       ScanFragNextReq::SignalLength, JBB);
     return;

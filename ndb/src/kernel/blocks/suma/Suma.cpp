@@ -1880,7 +1880,6 @@ SumaParticipant::SyncRecord::nextScan(Signal* signal){
   req->tableId = tabPtr.p->m_tableId;
   req->requestInfo = 0;
   req->savePointId = 0;
-  //ScanFragReq::setConcurrency(req->requestInfo, parallelism);
   ScanFragReq::setLockMode(req->requestInfo, 0);
   ScanFragReq::setHoldLockFlag(req->requestInfo, 0);
   ScanFragReq::setKeyinfoFlag(req->requestInfo, 0);
@@ -1889,12 +1888,11 @@ SumaParticipant::SyncRecord::nextScan(Signal* signal){
   req->schemaVersion = tabPtr.p->m_schemaVersion;
   req->transId1 = 0;
   req->transId2 = (SUMA << 20) + (suma.getOwnNodeId() << 8);
-    
-  for(unsigned int i = 0; i<parallelism; i++){
-    //req->clientOpPtr[i] = (ptrI << 16) + (i + 1);
-    req->clientOpPtr = (ptrI << 16) + (i + 1);
-  }
-  suma.sendSignal(DBLQH_REF, GSN_SCAN_FRAGREQ, signal, 25, JBB);
+  req->clientOpPtr = (ptrI << 16);
+  req->batch_size_rows= 16;
+  req->batch_size_bytes= 0;
+  suma.sendSignal(DBLQH_REF, GSN_SCAN_FRAGREQ, signal, 
+		  ScanFragReq::SignalLength, JBB);
   
   signal->theData[0] = ptrI;
   signal->theData[1] = 0;
@@ -1996,6 +1994,8 @@ SumaParticipant::execSUB_SYNC_CONTINUE_CONF(Signal* signal){
   req->closeFlag = 0;
   req->transId1 = 0;
   req->transId2 = (SUMA << 20) + (getOwnNodeId() << 8);
+  req->batch_size_rows = 16;
+  req->batch_size_bytes = 0;
   sendSignal(DBLQH_REF, GSN_SCAN_NEXTREQ, signal, 
 	     ScanFragNextReq::SignalLength, JBB);
 }

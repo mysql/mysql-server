@@ -532,16 +532,21 @@ public:
       SCAN = 1,
       COPY = 2
     };
+
     UintR scan_acc_op_ptr[32];
     Uint32 scan_acc_index;
     Uint32 scan_acc_attr_recs;
     UintR scanApiOpPtr;
     UintR scanLocalref[2];
-    Uint32 scan_batch_len;
-    Uint32 batch_size;
-    Uint32 first_batch_size;
-    Uint32 batch_byte_size;
+    
+    Uint32 m_max_batch_size_rows;
+    Uint32 m_max_batch_size_bytes;
 
+    Uint32 m_curr_batch_size_rows;
+    Uint32 m_curr_batch_size_bytes;
+
+    bool check_scan_batch_completed() const;
+    
     UintR copyPtr;
     union {
       Uint32 nextPool;
@@ -559,8 +564,6 @@ public:
     
     UintR scanAccPtr;
     UintR scanAiLength;
-    UintR scanCompletedOperations;
-    UintR scanConcurrentOperations;
     UintR scanErrorCounter;
     UintR scanLocalFragid;
     UintR scanSchemaVersion;
@@ -2231,7 +2234,6 @@ private:
   Uint32 get_acc_ptr_from_scan_record(ScanRecord*, Uint32, bool);
   void set_acc_ptr_in_scan_record(ScanRecord*, Uint32, Uint32);
   void i_get_acc_ptr(ScanRecord*, Uint32*&, Uint32);
-  bool check_scan_batch_completed(ScanRecord*);
   
   void removeTable(Uint32 tableId);
   void sendLCP_COMPLETE_REP(Signal* signal, Uint32 lcpId);
@@ -2933,9 +2935,13 @@ public:
 
 inline
 bool
-Dblqh::check_scan_batch_completed(ScanRecord* scanP)
+Dblqh::ScanRecord::check_scan_batch_completed() const
 {
-  return (scanP->scanCompletedOperations == scanP->scanConcurrentOperations) ||
-         (scanP->scan_batch_len >= scanP->batch_byte_size);
+  Uint32 max_rows = m_max_batch_size_rows;
+  Uint32 max_bytes = m_max_batch_size_bytes;
+
+  return (max_rows > 0 && (m_curr_batch_size_rows >= max_rows))  ||
+    (max_bytes > 0 && (m_curr_batch_size_bytes >= max_bytes));
 }
+
 #endif

@@ -33,7 +33,7 @@ class ScanFragReq {
    */
   friend class Dblqh;
 public:
-  STATIC_CONST( SignalLength = 13 );
+  STATIC_CONST( SignalLength = 12 );
 
 public:
   Uint32 senderData;
@@ -46,10 +46,9 @@ public:
   Uint32 transId1;
   Uint32 transId2;
   Uint32 clientOpPtr;
-  Uint32 concurrency;
-  Uint32 batch_byte_size;
-  Uint32 first_batch_size;
-
+  Uint32 batch_size_rows;
+  Uint32 batch_size_bytes;
+  
   static Uint32 getLockMode(const Uint32 & requestInfo);
   static Uint32 getHoldLockFlag(const Uint32 & requestInfo);
   static Uint32 getKeyinfoFlag(const Uint32 & requestInfo);
@@ -176,13 +175,15 @@ class ScanFragNextReq {
   friend bool printSCANFRAGNEXTREQ(FILE * output, const Uint32 * theData, 
 				   Uint32 len, Uint16 receiverBlockNo);
 public:
-  STATIC_CONST( SignalLength = 4 );
+  STATIC_CONST( SignalLength = 6 );
   
 public:
   Uint32 senderData;
   Uint32 closeFlag;
   Uint32 transId1;
   Uint32 transId2;
+  Uint32 batch_size_rows;
+  Uint32 batch_size_bytes;
 };
 
 /**
