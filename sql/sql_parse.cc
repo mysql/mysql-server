@@ -706,8 +706,10 @@ pthread_handler_decl(handle_bootstrap,arg)
   thd->dbug_thread_id=my_thread_id();
 #if !defined(__WIN__) && !defined(OS2)
   sigset_t set;
-  VOID(sigemptyset(&set));			// Get mask in use
-  VOID(pthread_sigmask(SIG_UNBLOCK,&set,&thd->block_signals));
+  VOID(sigemptyset(&set));
+  VOID(sigaddset(&set,SIGINT));		
+  // Get mask in use and block SIGINT 
+  VOID(pthread_sigmask(SIG_BLOCK,&set,&thd->block_signals));
 #endif
 
   if ((ulong) thd->variables.max_join_size == (ulong) HA_POS_ERROR)
