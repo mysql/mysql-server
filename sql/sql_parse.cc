@@ -1500,7 +1500,7 @@ mysql_execute_command(void)
     break;
   }
 
-#ifndef EMBEDDED_LIBRARY
+#ifdef HAVE_REPLICATION
   case SQLCOM_CHANGE_MASTER:
   {
     if (check_global_access(thd, SUPER_ACL))
@@ -1538,7 +1538,7 @@ mysql_execute_command(void)
       res = load_master_data(thd);
     break;
 
-#endif /*!EMBEDDED_LIBRARY*/
+#endif /* HAVE_REPLICATION */
     
 #ifdef HAVE_INNOBASE_DB
   case SQLCOM_SHOW_INNODB_STATUS:
@@ -1550,7 +1550,7 @@ mysql_execute_command(void)
     }
 #endif
 
-#ifndef EMBEDDED_LIBRARY
+#ifdef HAVE_REPLICATION
   case SQLCOM_LOAD_MASTER_TABLE:
   {
     if (!tables->db)
@@ -1577,7 +1577,7 @@ mysql_execute_command(void)
     UNLOCK_ACTIVE_MI;
     break;
   }
-#endif /*!EMBEDDED_LIBRARY*/
+#endif /* HAVE_REPLICATION */
 
   case SQLCOM_CREATE_TABLE:
   {
@@ -1683,7 +1683,7 @@ mysql_execute_command(void)
       res = mysql_create_index(thd, tables, lex->key_list);
     break;
 
-#ifndef EMBEDDED_LIBRARY
+#ifdef HAVE_REPLICATION
   case SQLCOM_SLAVE_START:
   {
     LOCK_ACTIVE_MI;
@@ -1716,7 +1716,7 @@ mysql_execute_command(void)
     UNLOCK_ACTIVE_MI;
     break;
   }
-#endif /*!EMBEDDED_LIBRARY*/
+#endif /* HAVE_REPLICATION */
 
   case SQLCOM_ALTER_TABLE:
 #if defined(DONT_ALLOW_SHOW_COMMANDS)

@@ -74,8 +74,6 @@ static int send_file_to_server(MYSQL *mysql,const char *filename);
 static ulong mysql_sub_escape_string(CHARSET_INFO *charset_info, char *to,
 				     const char *from, ulong length);
 
-extern char server_inited;
-
 #define init_sigpipe_variables
 #define set_sigpipe(mysql)
 #define reset_sigpipe(mysql)

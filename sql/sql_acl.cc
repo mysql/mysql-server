@@ -3091,17 +3091,19 @@ int mysql_show_grants(THD *thd,LEX_USER *lex_user)
       if ((table_access | grant_table->cols) != 0)
       {
 	String global(buff,sizeof(buff));
+	ulong test_access= (table_access | grant_table->cols) & ~GRANT_ACL;
+
 	global.length(0);
 	global.append("GRANT ",6);
 
 	if (test_all_bits(table_access, (TABLE_ACLS & ~GRANT_ACL)))
 	  global.append("ALL PRIVILEGES",14);
- 	else if (!(table_access & ~GRANT_ACL))
+ 	else if (!test_access)
  	  global.append("USAGE",5);
 	else
 	{
 	  int found= 0;
-	  ulong j,test_access= (table_access | grant_table->cols) & ~GRANT_ACL;
+	  ulong j;
 
 	  for (counter= 0, j= SELECT_ACL; j <= TABLE_ACLS; counter++, j<<= 1)
 	  {
