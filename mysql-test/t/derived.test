@@ -22,3 +22,15 @@ drop table if exists  t1.t2,t3;
 select * from (select 1);
 select a from (select 1 as a);
 select 1 from (select 1);
+drop table if exists t1;
+create table t1(a int not null, t char(8), index(a));
+disable_query_log;
+let $1 = 10000;
+while ($1)
+ {
+  eval insert into t1 values ($1,'$1'); 
+  dec $1;
+ }
+enable_query_log;
+SELECT * FROM (SELECT * FROM t1) ORDER BY a  ASC LIMIT 0,20;
+drop table if exists  t1;
