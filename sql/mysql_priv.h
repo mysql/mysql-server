@@ -760,6 +760,11 @@ uint find_type(TYPELIB *lib, const char *find, uint length, bool part_match);
 uint check_word(TYPELIB *lib, const char *val, const char *end,
 		const char **end_of_word);
 
+/* sql_parse.cc */
+void free_items(Item *item);
+void cleanup_items(Item *item);
+
+
 /*
   External variables
 */

@@ -292,3 +292,4 @@ character-set=koi8r
 "MySQL is started in --skip-name-resolve mode. You need to restart it without this switch for this grant to work",
 "Unknown table engine '%s'",
 "'%s' is deprecated. Use '%s' instead.",
+"Таблица %-.100s в %s не может изменятся.",

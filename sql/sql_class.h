@@ -624,6 +624,19 @@ public:
      and are still in use by this thread
   */
   TABLE   *open_tables,*temporary_tables, *handler_tables, *derived_tables;
+  /*
+    During a MySQL session, one can lock tables in two modes: automatic
+    or manual. In automatic mode all necessary tables are locked just before
+    statement execution, and all acquired locks are stored in 'lock'
+    member. Unlocking takes place automatically as well, when the
+    statement ends.
+    Manual mode comes into play when a user issues a 'LOCK TABLES'
+    statement. In this mode the user can only use the locked tables.
+    Trying to use any other tables will give an error. The locked tables are
+    stored in 'locked_tables' member.  Manual locking is described in
+    the 'LOCK_TABLES' chapter of the MySQL manual.
+    See also lock_tables() for details.
+  */
   MYSQL_LOCK	*lock;				/* Current locks */
   MYSQL_LOCK	*locked_tables;			/* Tables locked with LOCK */
   /*

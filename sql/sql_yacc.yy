@@ -3155,13 +3155,6 @@ join_table:
         | '(' SELECT_SYM select_derived ')' opt_table_alias
 	{
 	  LEX *lex=Lex;
-	  if (lex->sql_command == SQLCOM_UPDATE &&
-	      &lex->select_lex == lex->current_select->outer_select())
-	  {
-	    send_error(lex->thd, ER_SYNTAX_ERROR);
-	    YYABORT;
-	  }
-
 	  SELECT_LEX_UNIT *unit= lex->current_select->master_unit();
 	  lex->current_select= unit->outer_select();
 	  if (!($$= lex->current_select->
@@ -3838,6 +3831,13 @@ update:
 	  Select->set_lock_for_tables($3);
           if (lex->select_lex.table_list.elements > 1)
             lex->sql_command= SQLCOM_UPDATE_MULTI;
+	  else if (lex->select_lex.get_table_list()->derived)
+	  {
+	    /* it is single table update and it is update of derived table */
+	    net_printf(lex->thd, ER_NON_UPDATABLE_TABLE,
+		       lex->select_lex.get_table_list()->alias, "UPDATE");
+	    YYABORT;
+	  }
 	}
 	;
 
@@ -4486,7 +4486,7 @@ simple_ident:
 	  $$= (sel->parsing_place != SELECT_LEX_NODE::IN_HAVING ||
 	       sel->get_in_sum_expr() > 0) ?
               (Item*) new Item_field(NullS,NullS,$1.str) :
-	      (Item*) new Item_ref(NullS,NullS,$1.str);
+	      (Item*) new Item_ref(0,0, NullS,NullS,$1.str);
 	}
 	| ident '.' ident
 	{
@@ -4502,7 +4502,7 @@ simple_ident:
 	  $$= (sel->parsing_place != SELECT_LEX_NODE::IN_HAVING ||
 	       sel->get_in_sum_expr() > 0) ?
 	      (Item*) new Item_field(NullS,$1.str,$3.str) :
-	      (Item*) new Item_ref(NullS,$1.str,$3.str);
+	      (Item*) new Item_ref(0,0,NullS,$1.str,$3.str);
 	}
 	| '.' ident '.' ident
 	{
@@ -4518,7 +4518,7 @@ simple_ident:
 	  $$= (sel->parsing_place != SELECT_LEX_NODE::IN_HAVING ||
 	       sel->get_in_sum_expr() > 0) ?
 	      (Item*) new Item_field(NullS,$2.str,$4.str) :
-              (Item*) new Item_ref(NullS,$2.str,$4.str);
+              (Item*) new Item_ref(0,0,NullS,$2.str,$4.str);
 	}
 	| ident '.' ident '.' ident
 	{
@@ -4536,8 +4536,8 @@ simple_ident:
 	      (Item*) new Item_field((YYTHD->client_capabilities &
 				      CLIENT_NO_SCHEMA ? NullS : $1.str),
 				     $3.str, $5.str) :
-	      (Item*) new Item_ref((YYTHD->client_capabilities &
-				    CLIENT_NO_SCHEMA ? NullS : $1.str),
+	      (Item*) new Item_ref(0,0,(YYTHD->client_capabilities &
+				        CLIENT_NO_SCHEMA ? NullS : $1.str),
                                    $3.str, $5.str);
 	};
 
