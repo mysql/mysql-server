@@ -5228,7 +5228,8 @@ shell> gunzip < /path/to/mysql-VERSION-OS.tar.gz | tar xvf -
 shell> ln -s mysql-VERSION-OS mysql
 shell> cd mysql
 shell> scripts/mysql_install_db
-shell> chown -R mysql /usr/local/mysql
+shell> chown -R root  /usr/local/mysql
+shell> chown -R mysql /usr/local/mysql/var
 shell> chgrp -R mysql /usr/local/mysql
 shell> bin/safe_mysqld --user=mysql &
 @end example
@@ -5348,17 +5349,19 @@ Note that @strong{MySQL} versions older than Version 3.22.10 started the
 longer true!
 
 @item
-Change ownership of the installation directory to the user that you will
-run @code{mysqld} as:
+Change ownership of binaries to @code{root} and ownership of the data 
+directory to the user that you will run @code{mysqld} as:
 
 @example
-shell> chown -R mysql /usr/local/mysql
+shell> chown -R root  /usr/local/mysql
+shell> chown -R mysql /usr/local/mysql/var
 shell> chgrp -R mysql /usr/local/mysql
 @end example
 
 The first command changes the @code{owner} attribute of the files to the
-@code{mysql} user, and the second changes the @code{group} attribute to
-the @code{mysql} group.
+@code{root} user, the second one changes the @code{owner} attribute of the 
+data directory to the @code{mysql} user, and the third one changes the
+@code{group} attribute to the @code{mysql} group.
 
 @item
 If you want to install support for the Perl @code{DBI}/@code{DBD} interface,
@@ -5710,7 +5713,8 @@ shell> ./configure --prefix=/usr/local/mysql
 shell> make
 shell> make install
 shell> scripts/mysql_install_db
-shell> chown -R mysql /usr/local/mysql
+shell> chown -R root  /usr/local/mysql
+shell> chown -R mysql /usr/local/mysql/var
 shell> chgrp -R mysql /usr/local/mysql
 shell> /usr/local/mysql/bin/safe_mysqld --user=mysql &
 @end example
@@ -5827,17 +5831,19 @@ Note that @strong{MySQL} versions older than Version 3.22.10 started the
 longer true!
 
 @item
-Change ownership of the installation to the user that you will run
-@code{mysqld} as:
+Change ownership of binaries to @code{root} and ownership of the data 
+directory to the user that you will run @code{mysqld} as:
 
 @example
-shell> chown -R mysql /usr/local/mysql
+shell> chown -R root  /usr/local/mysql
+shell> chown -R mysql /usr/local/mysql/var
 shell> chgrp -R mysql /usr/local/mysql
 @end example
 
 The first command changes the @code{owner} attribute of the files to the
-@code{mysql} user, and the second changes the @code{group} attribute to
-the @code{mysql} group.
+@code{root} user, the second one changes the @code{owner} attribute of the 
+data directory to the @code{mysql} user, and the third one changes the
+@code{group} attribute to the @code{mysql} group.
 
 @item
 If you want to install support for the Perl @code{DBI}/@code{DBD} interface,
