@@ -370,6 +370,8 @@ public:
   bool fix_fields(THD *thd, struct st_table_list *tlist, Item **ref);
   void split_sum_func(Item **ref_pointer_array, List<Item> &fields);
   Item *find_item(String *str);
+
+  bool walk(Item_processor processor, byte *args);
 };
 
 
@@ -632,6 +634,11 @@ class Item_func_in :public Item_int_func
   void update_used_tables();
   void split_sum_func(Item **ref_pointer_array, List<Item> &fields);
   bool nulls_in_row();
+  bool walk(Item_processor processor, byte *arg)
+  {
+    return item->walk(processor, arg) ||
+      Item_int_func::walk(processor, arg);
+  }
 };
 
 /* Functions used by where clause */
@@ -790,6 +797,8 @@ public:
   void split_sum_func(Item **ref_pointer_array, List<Item> &fields);
   friend int setup_conds(THD *thd,TABLE_LIST *tables,COND **conds);
   void top_level_item() { abort_on_null=1; }
+
+  bool walk(Item_processor processor, byte *arg);
 };
 
 

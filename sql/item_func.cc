@@ -136,6 +136,19 @@ Item_func::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
   return 0;
 }
 
+bool Item_func::walk (Item_processor processor, byte *argument)
+{
+  if (arg_count)
+  {
+    Item **arg,**arg_end;
+    for (arg= args, arg_end= args+arg_count; arg != arg_end; arg++)
+    {
+      if ((*arg)->walk(processor, argument))
+	return 1;
+    }
+  }
+  return (this->*processor)(argument);
+}
 
 void Item_func::split_sum_func(Item **ref_pointer_array, List<Item> &fields)
 {
@@ -2434,6 +2447,15 @@ bool Item_func_match::fix_fields(THD *thd, TABLE_LIST *tlist, Item **ref)
   return 0;
 }
 
+bool Item_func_match::walk(Item_processor processor, byte *arg)
+{
+  List_iterator_fast<Item> li(fields);
+  Item *item;
+  while ((item= li++))
+    if (item->walk(processor, arg))
+      return 1;
+  return Item_func::walk(processor, arg);
+}
 
 bool Item_func_match::fix_index()
 {

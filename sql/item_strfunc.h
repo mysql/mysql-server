@@ -107,6 +107,11 @@ public:
   }
   void split_sum_func(Item **ref_pointer_array, List<Item> &fields);
   const char *func_name() const { return "concat_ws"; }
+  bool walk(Item_processor processor, byte *arg)
+  {
+    return separator->walk(processor, arg) ||
+      Item_str_func::walk(processor, arg);
+  }
 };
 
 class Item_func_reverse :public Item_str_func
@@ -385,6 +390,11 @@ public:
   void fix_length_and_dec();
   void update_used_tables();
   const char *func_name() const { return "elt"; }
+  bool walk(Item_processor processor, byte *arg)
+  {
+    return item->walk(processor, arg) ||
+      Item_str_func::walk(processor, arg);
+  }
 };
 
 
@@ -407,6 +417,12 @@ public:
   void fix_length_and_dec();
   void update_used_tables();
   const char *func_name() const { return "make_set"; }
+
+  bool walk(Item_processor processor, byte *arg)
+  {
+    return item->walk(processor, arg) ||
+      Item_str_func::walk(processor, arg);
+  }
 };
 
 

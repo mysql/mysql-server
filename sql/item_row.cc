@@ -118,6 +118,16 @@ bool Item_row::check_cols(uint c)
   return 0;
 }
 
+bool Item_row::walk(Item_processor processor, byte *arg)
+{
+  for (uint i= 0; i < arg_count; i++)
+  {
+    if (items[i]->walk(processor, arg))
+      return 1;
+  }
+  return (this->*processor)(arg);
+}
+
 void Item_row::bring_value()
 {
   for (uint i= 0; i < arg_count; i++)

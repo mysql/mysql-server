@@ -69,6 +69,8 @@ public:
   enum Item_result result_type() const { return ROW_RESULT; }
   void update_used_tables();
 
+  bool walk(Item_processor processor, byte *arg);
+
   uint cols() { return arg_count; }
   Item* el(uint i) { return items[i]; }
   Item** addr(uint i) { return items + i; }

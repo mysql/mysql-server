@@ -134,6 +134,8 @@ public:
   Field *tmp_table_field() { return result_field; }
   Field *tmp_table_field(TABLE *t_arg);
   Item *get_tmp_table_item(THD *thd);
+
+  bool walk(Item_processor processor, byte *arg);
 };
 
 
@@ -647,6 +649,11 @@ public:
     const_item_cache&=  item->const_item();
     with_sum_func= with_sum_func || item->with_sum_func;
   }
+  bool walk(Item_processor processor, byte *arg)
+  {
+    return item->walk(processor, arg) ||
+      Item_int_func::walk(processor, arg);
+  }
 };
 
 
@@ -1024,6 +1031,8 @@ public:
 
   bool fix_index();
   void init_search(bool no_order);
+
+  bool walk(Item_processor processor, byte *arg);
 };
 
 
