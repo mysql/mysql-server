@@ -297,8 +297,9 @@ buf_page_is_corrupted(
 	ulint	old_checksum;
 	ulint	checksum_field;
 	ulint	old_checksum_field;
+#ifndef UNIV_HOTBACKUP
 	dulint	current_lsn;
-
+#endif
 	if (mach_read_from_4(read_buf + FIL_PAGE_LSN + 4)
 	     != mach_read_from_4(read_buf + UNIV_PAGE_SIZE
 				- FIL_PAGE_END_LSN_OLD_CHKSUM + 4)) {
