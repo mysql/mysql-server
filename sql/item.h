@@ -245,7 +245,7 @@ public:
   virtual Item *real_item() { return this; }
   virtual Item *get_tmp_table_item(THD *thd) { return copy_or_same(thd); }
 
-  CHARSET_INFO *default_charset() const;
+  static CHARSET_INFO *default_charset();
   virtual CHARSET_INFO *compare_collation() { return NULL; }
 
   virtual bool walk(Item_processor processor, byte *arg)
