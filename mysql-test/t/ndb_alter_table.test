@@ -2,6 +2,7 @@
 
 --disable_warnings
 DROP TABLE IF EXISTS t1;
+drop database if exists mysqltest;
 --enable_warnings
 
 #
@@ -18,6 +19,22 @@ INSERT INTO t1 VALUES (9410,9412);
 ALTER TABLE t1 ADD COLUMN c int not null;
 SELECT * FROM t1;
 
+DROP TABLE t1;
+
+#
+# Verfify changing table names between databases
+#
+CREATE DATABASE mysqltest;
+USE mysqltest;
+CREATE TABLE t1 (
+  a INT NOT NULL,
+  b INT NOT NULL
+) ENGINE=ndbcluster;
+RENAME TABLE t1 TO test.t1;
+SHOW TABLES;
+DROP DATABASE mysqltest;
+USE test;
+SHOW TABLES;
 DROP TABLE t1;
 
 #

@@ -775,10 +775,15 @@ NdbDictionary::Dictionary::removeCachedTable(const char * name){
 
 NdbDictionary::Table
 NdbDictionary::Dictionary::getTableForAlteration(const char * name){
-  const NdbDictionary::Table * oldTable = getTable(name);
+  const Table * oldTable = getTable(name);
   return (oldTable) ? 
     NdbDictionary::Table(*oldTable) 
     : NdbDictionary::Table();
+}
+
+NdbDictionary::Table
+NdbDictionary::Dictionary::getTableForAlteration(const Table & tab){
+  return NdbDictionary::Table(tab);
 }
 
 int
