@@ -57,7 +57,7 @@ Item_sum::Item_sum(THD *thd, Item_sum &item):
 
 void Item_sum::mark_as_sum_func()
 {
-  current_thd->lex.current_select->with_sum_func= 1;
+  current_thd->lex->current_select->with_sum_func= 1;
   with_sum_func= 1;
 }
 

@@ -14,35 +14,34 @@
 #  along with this program; if not, write to the Free Software 
 #  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
 
-INCLUDES =			-I$(srcdir)/../include -I../include -I..
-bin_PROGRAMS =			mysqld_safe mysql_install_db mysql_test_run libmysql
-mysqld_safe_SOURCES=		mysqld_safe.c my_manage.c
+INCLUDES=									-I$(srcdir)/../include -I../include -I..
+bin_PROGRAMS=							mysqld_safe mysql_install_db mysql_test_run libmysql
+mysqld_safe_SOURCES=			mysqld_safe.c my_manage.c
 mysql_install_db_SOURCES=	mysql_install_db.c my_manage.c
 mysql_test_run_SOURCES=		mysql_test_run.c my_manage.c
-libmysql_SOURCES=		libmysqlmain.c
-libmysql_LDADD =		../libmysql/.libs/libmysqlclient.a
+libmysql_SOURCES=					libmysqlmain.c
+libmysql_LDADD=						../libmysql/.libs/libmysqlclient.a
 
-netware_build_files =           client/mysql.def client/mysqladmin.def \
-                                client/mysqlbinlog.def client/mysqlcheck.def \
-                                client/mysqldump.def client/mysqlimport.def \
-                                client/mysqlshow.def client/mysqltest.def \
-                                extra/mysql_install.def extra/my_print_defaults.def \
-                                extra/perror.def extra/replace.def \
-                                extra/resolveip.def extra/comp_err.def \
-				isam/isamchk.def \
-                                isam/isamlog.def isam/pack_isam.def \
-                                libmysqld/libmysqld.def myisam/myisamchk.def \
-                                myisam/myisamlog.def myisam/myisampack.def \
-                                sql/mysqld.def
+netware_build_files =	client/mysql.def client/mysqladmin.def \
+											client/mysqlbinlog.def client/mysqlcheck.def \
+											client/mysqldump.def client/mysqlimport.def \
+											client/mysqlshow.def client/mysqltest.def \
+											extra/mysql_install.def extra/my_print_defaults.def \
+											extra/perror.def extra/replace.def \
+											extra/resolveip.def extra/comp_err.def \
+											isam/isamchk.def \
+											isam/isamlog.def isam/pack_isam.def \
+											libmysqld/libmysqld.def myisam/myisamchk.def \
+											myisam/myisamlog.def myisam/myisampack.def \
+											sql/mysqld.def
 																
 link_sources:
 	set -x; \
 	for f in $(netware_build_files); do \
-	  rm -f $(srcdir)/../$$f; \
-	  org=`echo $$f | sed -e 's/.*\/\(.*\)/\1/g'`; \
-	  @LN_CP_F@ $(srcdir)/$$org $(srcdir)/../$$f; \
+		rm -f $(srcdir)/../$$f; \
+		org=`echo $$f | sed -e 's/.*\/\(.*\)/\1/g'`; \
+		@LN_CP_F@ $(srcdir)/$$org $(srcdir)/../$$f; \
 	done;
-
 
 # Don't update the files from bitkeeper
 %::SCCS/s.%

@@ -68,7 +68,7 @@ int mysql_update(THD *thd,
   SQL_SELECT	*select;
   READ_RECORD	info;
   TABLE_LIST    *update_table_list= ((TABLE_LIST*) 
-				     thd->lex.select_lex.table_list.first);
+				     thd->lex->select_lex.table_list.first);
   TABLE_LIST    tables;
   List<Item>    all_fields;
   DBUG_ENTER("mysql_update");
@@ -79,7 +79,7 @@ int mysql_update(THD *thd,
   if ((open_and_lock_tables(thd, table_list)))
     DBUG_RETURN(-1);
   thd->proc_info="init";
-  fix_tables_pointers(thd->lex.all_selects_list);
+  fix_tables_pointers(thd->lex->all_selects_list);
   table= table_list->table;
   table->file->info(HA_STATUS_VARIABLE | HA_STATUS_NO_LOCK);
 
@@ -94,11 +94,11 @@ int mysql_update(THD *thd,
 
   if (setup_tables(update_table_list) ||
       setup_conds(thd,update_table_list,&conds) ||
-      setup_ref_array(thd, &thd->lex.select_lex.ref_pointer_array,
+      setup_ref_array(thd, &thd->lex->select_lex.ref_pointer_array,
 		      order_num) ||
-      setup_order(thd, thd->lex.select_lex.ref_pointer_array,
+      setup_order(thd, thd->lex->select_lex.ref_pointer_array,
 		  &tables, all_fields, all_fields, order) ||
-      setup_ftfuncs(&thd->lex.select_lex))
+      setup_ftfuncs(&thd->lex->select_lex))
     DBUG_RETURN(-1);				/* purecov: inspected */
 
   /* Check that we are not using table that we are updating in a sub select */
@@ -138,7 +138,7 @@ int mysql_update(THD *thd,
   table->grant.want_privilege=(SELECT_ACL & ~table->grant.privilege);
   if (setup_fields(thd, 0, update_table_list, values, 0, 0, 0))
   {
-    free_underlaid_joins(thd, &thd->lex.select_lex);
+    free_underlaid_joins(thd, &thd->lex->select_lex);
     DBUG_RETURN(-1);				/* purecov: inspected */
   }
 
@@ -149,7 +149,7 @@ int mysql_update(THD *thd,
       (select && select->check_quick(safe_update, limit)) || !limit)
   {
     delete select;
-    free_underlaid_joins(thd, &thd->lex.select_lex);
+    free_underlaid_joins(thd, &thd->lex->select_lex);
     if (error)
     {
       DBUG_RETURN(-1);				// Error in where
@@ -160,7 +160,7 @@ int mysql_update(THD *thd,
   /* If running in safe sql mode, don't allow updates without keys */
   if (!table->quick_keys)
   {
-    thd->lex.select_lex.options|=QUERY_NO_INDEX_USED;
+    thd->lex->select_lex.options|=QUERY_NO_INDEX_USED;
     if (safe_update && !using_limit)
     {
       my_message(ER_UPDATE_WITHOUT_KEY_IN_SAFE_MODE,
@@ -168,7 +168,7 @@ int mysql_update(THD *thd,
       goto err;
     }
   }
-  init_ftfuncs(thd, &thd->lex.select_lex, 1);
+  init_ftfuncs(thd, &thd->lex->select_lex, 1);
   /* Check if we are modifying a key that we are used to search with */
   if (select && select->quick)
     used_key_is_modified= (!select->quick->unique_key_range() &&
@@ -343,7 +343,6 @@ int mysql_update(THD *thd,
   log_delayed= (transactional_table || table->tmp_table);
   if (updated && (error <= 0 || !transactional_table))
   {
-    mysql_update_log.write(thd,thd->query,thd->query_length);
     if (mysql_bin_log.is_open())
     {
       Query_log_event qinfo(thd, thd->query, thd->query_length,
@@ -367,9 +366,9 @@ int mysql_update(THD *thd,
   }
 
   delete select;
-  free_underlaid_joins(thd, &thd->lex.select_lex);
+  free_underlaid_joins(thd, &thd->lex->select_lex);
   if (error >= 0)
-    send_error(thd,thd->killed ? ER_SERVER_SHUTDOWN : 0); /* purecov: inspected */
+    send_error(thd,thd->killed_errno()); /* purecov: inspected */
   else
   {
     char buff[80];
@@ -421,7 +420,7 @@ int mysql_multi_update(THD *thd,
   table_list->grant.want_privilege=(SELECT_ACL & ~table_list->grant.privilege);
   if ((res=open_and_lock_tables(thd,table_list)))
     DBUG_RETURN(res);
-  fix_tables_pointers(thd->lex.all_selects_list);
+  fix_tables_pointers(thd->lex->all_selects_list);
 
   thd->select_limit=HA_POS_ERROR;
   if (setup_fields(thd, 0, table_list, *fields, 1, 0, 0))
@@ -965,7 +964,6 @@ bool multi_update::send_eof()
 
   if (updated && (local_error <= 0 || !trans_safe))
   {
-    mysql_update_log.write(thd,thd->query,thd->query_length);
     if (mysql_bin_log.is_open())
     {
       Query_log_event qinfo(thd, thd->query, thd->query_length,

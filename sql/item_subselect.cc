@@ -186,7 +186,7 @@ void Item_singlerow_subselect::select_transformer(THD *thd,
   {
     
     have_to_be_excluded= 1;
-    if (thd->lex.describe)
+    if (thd->lex->describe)
     {
       char warn_buff[MYSQL_ERRMSG_SIZE];
       sprintf(warn_buff, ER(ER_SELECT_REDUCED), select_lex->select_number);
@@ -576,7 +576,7 @@ void Item_in_subselect::single_value_transformer(THD *thd,
 	  item= (*func)(left_expr, item);
 	  substitution= item;
 	  have_to_be_excluded= 1;
-	  if (thd->lex.describe)
+	  if (thd->lex->describe)
 	  {
 	    char warn_buff[MYSQL_ERRMSG_SIZE];
 	    sprintf(warn_buff, ER(ER_SELECT_REDUCED), sl->select_number);
@@ -719,8 +719,8 @@ int subselect_single_select_engine::prepare()
   if (prepared)
     return 0;
   prepared= 1;
-  SELECT_LEX_NODE *save_select= thd->lex.current_select;
-  thd->lex.current_select= select_lex;
+  SELECT_LEX_NODE *save_select= thd->lex->current_select;
+  thd->lex->current_select= select_lex;
   if (join->prepare(&select_lex->ref_pointer_array,
 		    (TABLE_LIST*) select_lex->table_list.first,
 		    select_lex->with_wild,
@@ -733,7 +733,7 @@ int subselect_single_select_engine::prepare()
 		    (ORDER*) 0, select_lex, 
 		    select_lex->master_unit(), 0))
     return 1;
-  thd->lex.current_select= save_select;
+  thd->lex->current_select= save_select;
   return 0;
 }
 

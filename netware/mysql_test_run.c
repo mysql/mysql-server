@@ -266,6 +266,7 @@ void start_master()
   int err, i;
   char master_out[PATH_MAX];
   char master_err[PATH_MAX];
+  char temp[PATH_MAX];
   
   // remove old berkeley db log files that can confuse the server
   removef("%s/log.*", master_dir);
@@ -289,6 +290,20 @@ void start_master()
   if (master_init_script[0] != NULL)
   {
     // run_init_script(master_init_script);
+    
+    // TODO: use the scripts
+    if (strindex(master_init_script, "repair_part2-master.sh") != NULL)
+    {
+      FILE *fp;
+      
+      // create an empty index file
+      snprintf(temp, PATH_MAX, "%s/test/t1.MYI", master_dir);
+      fp = fopen(temp, "wb+");
+      
+      fputs("1", fp);
+
+      fclose(fp);
+    }
   }
 
   // redirection files
