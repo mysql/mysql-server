@@ -68,10 +68,6 @@ SLAVE_RUNNING=0
 
 [ -d $MY_TMP_DIR ]  || mkdir -p $MY_TMP_DIR
 
-[ -z "$COLUMNS" ] && COLUMNS=80
-E=`expr $COLUMNS - 8`
-DASH72=`expr substr '________________________________________________________________________' 1 $E`
-
 #++
 # mysqld Environment Parameters
 #--
@@ -112,6 +108,11 @@ RM=/bin/rm
 TIME=/usr/bin/time
 TR=/usr/bin/tr
 XARGS=`which xargs | head -1`
+
+[ -z "$COLUMNS" ] && COLUMNS=80
+E=`$EXPR $COLUMNS - 8`
+#DASH72=`expr substr '________________________________________________________________________' 1 $E`
+DASH72=`$ECHO '________________________________________________________________________'|$CUT -c 1-$E`
 
 # on source dist, we pick up freshly build executables
 # on binary, use what is installed
@@ -469,7 +470,7 @@ run_testcase ()
     fi
 
 	timestr="$USERT $SYST $REALT"
-	pname=`$EXPR substr "$tname                 " 1 16`
+	pname=`$ECHO "$tname                 "|$CUT -c 1-16`
 	$SETCOLOR_NORMAL && $ECHO -n "$pname          $timestr"
 
 
