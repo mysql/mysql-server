@@ -5077,6 +5077,11 @@ void Field_blob::get_key_image(char *buff,uint length,
   }
 #endif /*HAVE_SPATIAL*/
 
+  get_ptr(&blob);
+  uint char_length= length / cs->mbmaxlen;
+  char_length= my_charpos(cs, blob, blob + length, char_length);
+  set_if_smaller(length, char_length);
+
   if ((uint32) length > blob_length)
   {
     /*
@@ -5087,7 +5092,6 @@ void Field_blob::get_key_image(char *buff,uint length,
     length=(uint) blob_length;
   }
   int2store(buff,length);
-  get_ptr(&blob);
   memcpy(buff+HA_KEY_BLOB_LENGTH, blob, length);
 }
 
@@ -5103,6 +5107,10 @@ int Field_blob::key_cmp(const byte *key_ptr, uint max_key_length)
   char *blob1;
   uint blob_length=get_length(ptr);
   memcpy_fixed(&blob1,ptr+packlength,sizeof(char*));
+  CHARSET_INFO *cs= charset();
+  uint char_length= max_key_length / cs->mbmaxlen;
+  char_length= my_charpos(cs, blob1, blob1+blob_length, char_length);
+  set_if_smaller(blob_length, char_length);
   return Field_blob::cmp(blob1,min(blob_length, max_key_length),
 			 (char*) key_ptr+HA_KEY_BLOB_LENGTH,
 			 uint2korr(key_ptr));
