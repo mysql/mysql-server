@@ -65,7 +65,7 @@ NdbDictionary::Column::getName() const {
 
 void
 NdbDictionary::Column::setType(Type t){
-  m_impl.m_type = t;
+  m_impl.init(t);
 }
 
 NdbDictionary::Column::Type 
@@ -100,6 +100,42 @@ NdbDictionary::Column::setLength(int length){
 
 int 
 NdbDictionary::Column::getLength() const{
+  return m_impl.m_length;
+}
+
+void
+NdbDictionary::Column::setInlineSize(int size)
+{
+  m_impl.m_precision = size;
+}
+
+int
+NdbDictionary::Column::getInlineSize() const
+{
+  return m_impl.m_precision;
+}
+
+void
+NdbDictionary::Column::setPartSize(int size)
+{
+  m_impl.m_scale = size;
+}
+
+int
+NdbDictionary::Column::getPartSize() const
+{
+  return m_impl.m_scale;
+}
+
+void
+NdbDictionary::Column::setStripeSize(int size)
+{
+  m_impl.m_length = size;
+}
+
+int
+NdbDictionary::Column::getStripeSize() const
+{
   return m_impl.m_length;
 }
 
