@@ -705,6 +705,14 @@ int openfrm(const char *name, const char *alias, uint db_stat, uint prgflag,
       outparam->crashed=((err == HA_ERR_CRASHED_ON_USAGE) &&
 			 outparam->file->auto_repair() &&
 			 !(ha_open_flags & HA_OPEN_FOR_REPAIR));
+
+      if (err==HA_ERR_NO_SUCH_TABLE)
+      {
+	/* The table did not exists in storage engine, use same error message
+	   as if the .frm file didn't exist */
+	error= 1;
+	my_errno= ENOENT;
+      }
       goto err_not_open; /* purecov: inspected */
     }
   }
