@@ -202,8 +202,6 @@ sys_var_thd_ha_rows	sys_sql_max_join_size("sql_max_join_size",
 					      &SV::max_join_size,
 					      fix_max_join_size);
 #endif
-sys_var_thd_ulong	sys_max_prep_stmt_count("max_prepared_statements",
-						&SV::max_prep_stmt_count);
 sys_var_long_ptr	sys_max_relay_log_size("max_relay_log_size",
                                                &max_relay_log_size,
                                                fix_max_relay_log_size);
@@ -462,7 +460,6 @@ sys_var *sys_variables[]=
   &sys_max_heap_table_size,
   &sys_max_join_size,
   &sys_max_length_for_sort_data,
-  &sys_max_prep_stmt_count,
   &sys_max_relay_log_size,
   &sys_max_seeks_for_key,
   &sys_max_sort_length,
@@ -653,7 +650,6 @@ struct show_var_st init_vars[]= {
   {sys_max_seeks_for_key.name,  (char*) &sys_max_seeks_for_key,	    SHOW_SYS},
   {sys_max_length_for_sort_data.name, (char*) &sys_max_length_for_sort_data,
    SHOW_SYS},
-  {sys_max_prep_stmt_count.name,(char*) &sys_max_prep_stmt_count,   SHOW_SYS},
   {sys_max_sort_length.name,	(char*) &sys_max_sort_length,	    SHOW_SYS},
   {sys_max_user_connections.name,(char*) &sys_max_user_connections, SHOW_SYS},
   {sys_max_tmp_tables.name,	(char*) &sys_max_tmp_tables,	    SHOW_SYS},
