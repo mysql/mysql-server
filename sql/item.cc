@@ -713,7 +713,7 @@ bool Item_param::get_time(TIME *res)
 
 double Item_param::val() 
 {
-  DBUG_ASSERT(fixed == 1);
+  DBUG_ASSERT(value_is_set == 1);
   int err;
   switch (item_result_type) {
   case STRING_RESULT:
@@ -729,7 +729,7 @@ double Item_param::val()
 
 longlong Item_param::val_int() 
 { 
-  DBUG_ASSERT(fixed == 1);
+  DBUG_ASSERT(value_is_set == 1);
   int err;
   switch (item_result_type) {
   case STRING_RESULT:
@@ -746,7 +746,7 @@ longlong Item_param::val_int()
 
 String *Item_param::val_str(String* str) 
 { 
-  DBUG_ASSERT(fixed == 1);
+  DBUG_ASSERT(value_is_set == 1);
   switch (item_result_type) {
   case INT_RESULT:
     str->set(int_value, &my_charset_bin);
@@ -766,7 +766,7 @@ String *Item_param::val_str(String* str)
 
 String *Item_param::query_val_str(String* str) 
 {
-  DBUG_ASSERT(fixed == 1);
+  DBUG_ASSERT(value_is_set == 1);
   switch (item_result_type) {
   case INT_RESULT:
   case REAL_RESULT:
