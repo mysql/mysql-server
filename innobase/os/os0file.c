@@ -1413,7 +1413,7 @@ try_again:
 			return(TRUE);
 		}
 
-		goto error_handling;
+		err = 1; /* Fall through the next if */
 	}
 #endif
 	if (err == 0) {
