@@ -178,7 +178,7 @@ int st_select_lex_unit::prepare(THD *thd, select_result *sel_result,
 				(ORDER*) 0, !union_option,
 				1, (select_cursor->options | thd->options |
 				    TMP_TABLE_ALL_COLUMNS),
-				HA_POS_ERROR)))
+				HA_POS_ERROR, (char*) "")))
     goto err;
   table->file->extra(HA_EXTRA_WRITE_CACHE);
   table->file->extra(HA_EXTRA_IGNORE_DUP_KEY);
