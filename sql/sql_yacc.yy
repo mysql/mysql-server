@@ -6495,12 +6495,6 @@ simple_ident:
 
 	  if (spc && (spv = spc->find_pvar(&$1)))
 	  { /* We're compiling a stored procedure and found a variable */
-	    if (lex->sql_command != SQLCOM_CALL && ! spv->isset)
-	    {
-	      push_warning_printf(YYTHD, MYSQL_ERROR::WARN_LEVEL_WARN,
-	                          ER_SP_UNINIT_VAR, ER(ER_SP_UNINIT_VAR),
-				  $1.str);
-	    }
 	    $$ = (Item*) new Item_splocal($1, spv->offset);
             lex->variables_used= 1;
 	    lex->safe_to_cache_query=0;

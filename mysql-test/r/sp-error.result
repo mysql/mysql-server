@@ -115,14 +115,6 @@ foo: loop
 set @x=2;
 end loop bar|
 ERROR 42000: End-label bar without match
-create procedure foo(out x int)
-begin
-declare y int;
-set x = y;
-end|
-Warnings:
-Warning	1311	Referring to uninitialized variable y
-drop procedure foo|
 create procedure foo()
 return 42|
 ERROR 42000: RETURN is only allowed in a FUNCTION
