@@ -17,14 +17,14 @@
 #define USES_TYPES
 #include "my_global.h"
 
-#if !defined(_MSC_VER) && !defined(__BORLANDC__) && !defined(OS2)
+#if !defined(_MSC_VER) && !defined(__BORLANDC__) && !defined(OS2) && !defined(__NETWARE__)
 #include "mysys_priv.h"
 #include <sys/times.h>
 #endif
 
 long my_clock(void)
 {
-#if !defined(MSDOS) && !defined(__WIN__) && !defined(OS2)
+#if !defined(MSDOS) && !defined(__WIN__) && !defined(OS2) && !defined(__NETWARE__)
   struct tms tmsbuf;
   VOID(times(&tmsbuf));
   return (tmsbuf.tms_utime + tmsbuf.tms_stime);

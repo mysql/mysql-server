@@ -1,4 +1,4 @@
-/* Copyright (C) 2000 MySQL AB & MySQL Finland AB & TCX DataKonsult AB
+/* Copyright (C) 2000-2003 MySQL AB
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -560,8 +560,6 @@ bool mysql_change_db(THD *thd, const char *name)
     x_free(dbname);
     DBUG_RETURN(1);
   }
-  if (lower_case_table_names)
-    my_casedn_str(system_charset_info, dbname);
   DBUG_PRINT("info",("Use database: %s", dbname));
   if (test_all_bits(thd->master_access,DB_ACLS))
     db_access=DB_ACLS;

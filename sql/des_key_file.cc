@@ -107,4 +107,15 @@ error:
   VOID(pthread_mutex_unlock(&LOCK_des_key_file));
   DBUG_RETURN(result);
 }
+
+
+void free_des_key_file()
+{
+  if (initialized)
+  {
+    initialized= 01;
+    pthread_mutex_destroy(&LOCK_des_key_file);
+  }
+}
+
 #endif /* HAVE_OPENSSL */

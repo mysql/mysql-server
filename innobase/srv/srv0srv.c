@@ -1712,7 +1712,62 @@ srv_general_init(void)
 	thr_local_init();
 }
 
+
+#if defined(__NETWARE__) || defined(SAFE_MUTEX_DETECT_DESTROY)
+/* NetWare requires some cleanup of mutexes */
+
+/*************************************************************************
+Deinitializes the synchronization primitives, memory system, and the thread
+local storage. */
+
+void
+srv_general_free(void)
+/*==================*/
+{
+  sync_close();
+}
+#endif /* __NETWARE__ */
+
+
 /*======================= InnoDB Server FIFO queue =======================*/
+
+#if defined(__NETWARE__) || defined(SAFE_MUTEX_DETECT_DESTROY)
+/* NetWare requires some cleanup of mutexes */
+
+/*************************************************************************
+Deinitializes the server. */
+
+void
+srv_free(void)
+/*==========*/
+{
+  srv_conc_slot_t* conc_slot;
+  srv_slot_t* slot;
+  ulint i;
+
+  for (i = 0; i < OS_THREAD_MAX_N; i++)
+  {
+    slot = srv_table_get_nth_slot(i);
+    os_event_free(slot->event);
+  }
+
+  /* TODO: free(srv_sys->threads); */
+
+  for (i = 0; i < OS_THREAD_MAX_N; i++)
+  {
+    slot = srv_mysql_table + i;
+    os_event_free(slot->event);
+  }
+
+  /* TODO: free(srv_mysql_table); */
+
+  for (i = 0; i < OS_THREAD_MAX_N; i++)
+  {
+    conc_slot = srv_conc_slots + i;
+    os_event_free(conc_slot->event);
+  }
+}
+#endif /* __NETWARE__ */
 
 /*************************************************************************
 Puts an OS thread to wait if there are too many concurrent threads

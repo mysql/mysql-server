@@ -326,7 +326,7 @@ typedef struct st_io_cache_share
   /* to sync on reads into buffer */
   pthread_mutex_t mutex;
   pthread_cond_t  cond;
-  int             count;
+  int             count, total;
   /* actual IO_CACHE that filled the buffer */
   struct st_io_cache *active;
 #ifdef NOT_YET_IMPLEMENTED
@@ -724,28 +724,31 @@ extern void my_free_lock(byte *ptr,myf flags);
 #define my_free_lock(A,B) my_free((A),(B))
 #endif
 #define alloc_root_inited(A) ((A)->min_malloc != 0)
-void init_alloc_root(MEM_ROOT *mem_root, uint block_size, uint pre_alloc_size);
-gptr alloc_root(MEM_ROOT *mem_root,unsigned int Size);
-void free_root(MEM_ROOT *root, myf MyFLAGS);
-void set_prealloc_root(MEM_ROOT *root, char *ptr);
-char *strdup_root(MEM_ROOT *root,const char *str);
-char *strmake_root(MEM_ROOT *root,const char *str,uint len);
-char *memdup_root(MEM_ROOT *root,const char *str,uint len);
-void load_defaults(const char *conf_file, const char **groups,
-		   int *argc, char ***argv);
-void free_defaults(char **argv);
-void print_defaults(const char *conf_file, const char **groups);
-my_bool my_compress(byte *, ulong *, ulong *);
-my_bool my_uncompress(byte *, ulong *, ulong *);
-byte *my_compress_alloc(const byte *packet, ulong *len, ulong *complen);
-ulong checksum(const byte *mem, uint count);
-uint my_bit_log2(ulong value);
+extern void init_alloc_root(MEM_ROOT *mem_root, uint block_size,
+			    uint pre_alloc_size);
+extern gptr alloc_root(MEM_ROOT *mem_root,unsigned int Size);
+extern void free_root(MEM_ROOT *root, myf MyFLAGS);
+extern void set_prealloc_root(MEM_ROOT *root, char *ptr);
+extern char *strdup_root(MEM_ROOT *root,const char *str);
+extern char *strmake_root(MEM_ROOT *root,const char *str,uint len);
+extern char *memdup_root(MEM_ROOT *root,const char *str,uint len);
+extern void load_defaults(const char *conf_file, const char **groups,
+			  int *argc, char ***argv);
+extern void free_defaults(char **argv);
+extern void print_defaults(const char *conf_file, const char **groups);
+extern my_bool my_compress(byte *, ulong *, ulong *);
+extern my_bool my_uncompress(byte *, ulong *, ulong *);
+extern byte *my_compress_alloc(const byte *packet, ulong *len, ulong *complen);
+extern ulong checksum(const byte *mem, uint count);
+extern uint my_bit_log2(ulong value);
+extern void my_sleep(ulong m_seconds);
 
-#if defined(_MSC_VER) && !defined(__WIN__)
-extern void sleep(int sec);
-#endif
 #ifdef __WIN__
 extern my_bool have_tcpip;		/* Is set if tcpip is used */
+#endif
+#ifdef __NETWARE__
+void netware_reg_user(const char *ip, const char *user,
+		      const char *application);
 #endif
 
 C_MODE_END

@@ -1,4 +1,4 @@
-/* Copyright (C) 2000 MySQL AB
+/* Copyright (C) 2000-2003 MySQL AB
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -751,7 +751,7 @@ pthread_handler_decl(handle_one_connection,arg)
 
 #if defined(__WIN__)
   init_signals();				// IRENA; testing ?
-#elif !defined(OS2)
+#elif !defined(OS2) && !defined(__NETWARE__)
   sigset_t set;
   VOID(sigemptyset(&set));			// Get mask in use
   VOID(pthread_sigmask(SIG_UNBLOCK,&set,&thd->block_signals));
@@ -781,7 +781,9 @@ pthread_handler_decl(handle_one_connection,arg)
       statistic_increment(aborted_connects,&LOCK_status);
       goto end_thread;
     }
-
+#ifdef __NETWARE__
+    netware_reg_user(thd->ip, thd->user, "MySQL");
+#endif
     if (thd->variables.max_join_size == HA_POS_ERROR)
       thd->options |= OPTION_BIG_SELECTS;
     if (thd->client_capabilities & CLIENT_COMPRESS)
@@ -850,12 +852,10 @@ extern "C" pthread_handler_decl(handle_bootstrap,arg)
 
   pthread_detach_this_thread();
   thd->thread_stack= (char*) &thd;
-#if !defined(__WIN__) && !defined(OS2)
+#if !defined(__WIN__) && !defined(OS2) && !defined(__NETWARE__)
   sigset_t set;
   VOID(sigemptyset(&set));			// Get mask in use
   VOID(pthread_sigmask(SIG_UNBLOCK,&set,&thd->block_signals));
-
-
 #endif
 
   if (thd->variables.max_join_size == HA_POS_ERROR)
@@ -930,16 +930,19 @@ int mysql_table_dump(THD* thd, char* db, char* tbl_name, int fd)
   table_list->real_name = table_list->alias = tbl_name;
   table_list->lock_type = TL_READ_NO_INSERT;
   table_list->next = 0;
-  remove_escape(table_list->real_name);
-
-  if (!(table=open_ltable(thd, table_list, TL_READ_NO_INSERT)))
-    DBUG_RETURN(1);
 
   if (!db || check_db_name(db))
   {
     net_printf(thd,ER_WRONG_DB_NAME, db ? db : "NULL");
     goto err;
   }
+  if (lower_case_table_names)
+    casedn_str(tbl_name);
+  remove_escape(table_list->real_name);
+
+  if (!(table=open_ltable(thd, table_list, TL_READ_NO_INSERT)))
+    DBUG_RETURN(1);
+
   if (check_access(thd, SELECT_ACL, db, &table_list->grant.privilege))
     goto err;
   if (grant_option && check_grant(thd, SELECT_ACL, table_list))
@@ -1172,7 +1175,6 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
 
     restore_user:
     x_free(thd->user);
-    x_free(thd->db);
     thd->master_access=save_master_access;
     thd->db_access=save_db_access;
     thd->db=save_db;
@@ -1262,7 +1264,12 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     if (!(thd->query=fields=thd->memdup(packet,thd->query_length+1)))
       break;
     mysql_log.write(thd,command,"%s %s",table_list.real_name,fields);
+    if (lower_case_table_names)
+      my_casedn_str(files_charset_info, table_list.real_name);
     remove_escape(table_list.real_name);	// This can't have wildcards
+
+    if (!(table=open_ltable(thd, table_list, TL_READ_NO_INSERT)))
+      DBUG_RETURN(1);
 
     if (check_access(thd,SELECT_ACL,table_list.db,&thd->col_access))
       break;
@@ -1291,8 +1298,6 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
 	net_printf(thd,ER_WRONG_DB_NAME, db ? db : "NULL");
 	break;
       }
-      if (lower_case_table_names)
-	my_casedn_str(files_charset_info, db);
       if (check_access(thd,CREATE_ACL,db,0,1))
 	break;
       mysql_log.write(thd,command,packet);
@@ -1309,8 +1314,6 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
 	net_printf(thd,ER_WRONG_DB_NAME, db ? db : "NULL");
 	break;
       }
-      if (lower_case_table_names)
-	my_casedn_str(files_charset_info, db);
       if (check_access(thd,DROP_ACL,db,0,1))
 	break;
       if (thd->locked_tables || thd->active_transaction())
@@ -2639,8 +2642,18 @@ mysql_execute_command(THD *thd)
       net_printf(thd,ER_WRONG_DB_NAME, lex->name);
       break;
     }
-    if (lower_case_table_names)
-      my_casedn_str(files_charset_info, lex->name);
+    /*
+      If in a slave thread :
+      CREATE DATABASE DB was certainly not preceded by USE DB.
+      For that reason, db_ok() in sql/slave.cc did not check the 
+      do_db/ignore_db. And as this query involves no tables, tables_ok()
+      above was not called. So we have to check rules again here.
+    */
+    if (thd->slave_thread && 
+	(!db_ok(lex->name, replicate_do_db, replicate_ignore_db) ||
+	 !db_ok_with_wild_table(lex->name)))
+      break;
+
     if (check_access(thd,CREATE_ACL,lex->name,0,1))
       break;
     res=mysql_create_db(thd,lex->name,&lex->create_info,0);
@@ -2653,8 +2666,17 @@ mysql_execute_command(THD *thd)
       net_printf(thd,ER_WRONG_DB_NAME, lex->name);
       break;
     }
-    if (lower_case_table_names)
-      my_casedn_str(files_charset_info, lex->name);
+    /*
+      If in a slave thread :
+      DROP DATABASE DB may not be preceded by USE DB.
+      For that reason, maybe db_ok() in sql/slave.cc did not check the 
+      do_db/ignore_db. And as this query involves no tables, tables_ok()
+      above was not called. So we have to check rules again here.
+    */
+    if (thd->slave_thread && 
+	(!db_ok(lex->name, replicate_do_db, replicate_ignore_db) ||
+	 !db_ok_with_wild_table(lex->name)))
+      break;
     if (check_access(thd,DROP_ACL,lex->name,0,1))
       break;
     if (thd->locked_tables || thd->active_transaction())
@@ -3763,10 +3785,7 @@ TABLE_LIST *st_select_lex::add_table_to_list(THD *thd,
 
   ptr->alias= alias_str;
   if (lower_case_table_names)
-  {
-    my_casedn_str(files_charset_info,ptr->db);
     my_casedn_str(files_charset_info,table->table.str);
-  }
   ptr->real_name=table->table.str;
   ptr->real_name_length=table->table.length;
   ptr->lock_type= lock_type;
@@ -3875,6 +3894,8 @@ bool reload_acl_and_cache(THD *thd, ulong options, TABLE_LIST *tables)
     mysql_bin_log.new_file(1);
     mysql_slow_log.new_file(1);
     if (ha_flush_logs())
+      result=1;
+    if (flush_error_log())
       result=1;
   }
 #ifdef HAVE_QUERY_CACHE

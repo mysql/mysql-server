@@ -1,4 +1,4 @@
-/* Copyright (C) 2000 MySQL AB & MySQL Finland AB & TCX DataKonsult AB
+/* Copyright (C) 2000-2003 MySQL AB
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1069,6 +1069,17 @@ longlong Item_func_field::val_int()
   return 0;
 }
 
+void Item_func_field::split_sum_func(List<Item> &fields)
+{
+  if (item->with_sum_func && item->type() != SUM_FUNC_ITEM)
+    item->split_sum_func(fields);
+  else if (item->used_tables() || item->type() == SUM_FUNC_ITEM)
+  {
+    fields.push_front(item);
+    item= new Item_ref((Item**) fields.head_ref(), 0, item->name);
+  }  
+  Item_func::split_sum_func(fields);
+}
 
 longlong Item_func_ascii::val_int()
 {
@@ -1613,6 +1624,7 @@ void item_user_lock_init(void)
 void item_user_lock_free(void)
 {
   hash_free(&hash_user_locks);
+  pthread_mutex_destroy(&LOCK_user_locks);
 }
 
 void item_user_lock_release(ULL *ull)
@@ -1653,11 +1665,12 @@ longlong Item_master_pos_wait::val_int()
     null_value = 1;
     return 0;
   }
-  ulong pos = (ulong)args[1]->val_int();
+  longlong pos = (ulong)args[1]->val_int();
+  longlong timeout = (arg_count==3) ? args[2]->val_int() : 0 ;
 #ifdef HAVE_REPLICATION
   LOCK_ACTIVE_MI;
-  if ((event_count = active_mi->rli.wait_for_pos(thd, log_name, pos)) == -1)
-  {
+   if ((event_count = active_mi->rli.wait_for_pos(thd, log_name, pos, timeout)) == -2)
+   {
     null_value = 1;
     event_count=0;
   }

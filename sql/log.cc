@@ -101,8 +101,15 @@ MYSQL_LOG::MYSQL_LOG()
 
 MYSQL_LOG::~MYSQL_LOG()
 {
+  cleanup();
+}
+
+void MYSQL_LOG::cleanup()
+{
   if (inited)
   {
+    close(1);
+    inited= 0;
     (void) pthread_mutex_destroy(&LOCK_log);
     (void) pthread_mutex_destroy(&LOCK_index);
     (void) pthread_cond_destroy(&update_cond);
@@ -1081,7 +1088,7 @@ bool MYSQL_LOG::write(Log_event* event_info)
       if (thd->last_insert_id_used)
       {
 	Intvar_log_event e(thd,(uchar) LAST_INSERT_ID_EVENT,
-			   thd->last_insert_id);
+			   thd->current_insert_id);
 	e.set_log_pos(this);
 	if (thd->server_id)
 	  e.server_id = thd->server_id;
@@ -1461,6 +1468,10 @@ void MYSQL_LOG:: wait_for_update(THD* thd)
 		at once after close, in which case we don't want to
 		close the index file.
 		We only write a 'stop' event to the log if exiting is set
+
+  NOTES
+    One can do an open on the object at once after doing a close.
+    The internal structures are not freed until cleanup() is called
 */
 
 void MYSQL_LOG::close(bool exiting)
@@ -1600,6 +1611,52 @@ void sql_perror(const char *message)
 #else
   perror(message);
 #endif
+}
+
+bool flush_error_log()
+{
+  bool result=0;
+  if (opt_error_log)
+  {
+    char err_renamed[FN_REFLEN], *end;
+    end= strmake(err_renamed,log_error_file,FN_REFLEN-4);
+    strmov(end, "-old");
+#ifdef __WIN__
+    char err_temp[FN_REFLEN+4];
+    /*
+     On Windows is necessary a temporary file for to rename
+     the current error file.
+    */
+    strmov(strmov(err_temp, err_renamed),"-tmp");
+    (void) my_delete(err_temp, MYF(0)); 
+    if (freopen(err_temp,"a+",stdout))
+    {
+      freopen(err_temp,"a+",stderr);
+      (void) my_delete(err_renamed, MYF(0));
+      my_rename(log_error_file,err_renamed,MYF(0));
+      if (freopen(log_error_file,"a+",stdout))
+        freopen(log_error_file,"a+",stderr);
+      int fd, bytes;
+      char buf[IO_SIZE];
+      if ((fd = my_open(err_temp, O_RDONLY, MYF(0))) >= 0)
+      {
+        while ((bytes = (int) my_read(fd, (byte*) buf, IO_SIZE, MYF(0))) > 0)
+             my_fwrite(stderr, (byte*) buf, (uint) strlen(buf),MYF(0));
+        my_close(fd, MYF(0));
+      }
+      (void) my_delete(err_temp, MYF(0)); 
+    }
+    else
+     result= 1;
+#else
+   my_rename(log_error_file,err_renamed,MYF(0));
+   if (freopen(log_error_file,"a+",stdout))
+     freopen(log_error_file,"a+",stderr);
+   else
+     result= 1;
+#endif
+  }
+   return result;
 }
 
 

@@ -1,3 +1,5 @@
+-- source include/have_crypt.inc
+
 select length(encrypt('foo', 'ff')) <> 0;
 --replace_result $1$aa$4OSUA5cjdx0RUQ08opV27/ aaqPiZY5xR5l.
 

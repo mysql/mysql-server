@@ -905,7 +905,7 @@ int chk_data_link(MI_CHECK *param, MI_INFO *info,int extend)
 	goto err;
       start_recpos=pos;
       splits++;
-      VOID(_mi_pack_get_block_info(info,&block_info, -1, start_recpos, NullS));
+      VOID(_mi_pack_get_block_info(info,&block_info, -1, start_recpos));
       pos=block_info.filepos+block_info.rec_len;
       if (block_info.rec_len < (uint) info->s->min_pack_length ||
 	  block_info.rec_len > (uint) info->s->max_pack_length)
@@ -2115,7 +2115,7 @@ int mi_repair_parallel(MI_CHECK *param, register MI_INFO *info,
 			const char * name, int rep_quick)
 {
   int got_error;
-  uint i,key, total_key_length;
+  uint i,key, total_key_length, istep;
   ulong rec_length;
   ha_rows start_records;
   my_off_t new_header_length,del;
@@ -2250,8 +2250,8 @@ int mi_repair_parallel(MI_CHECK *param, register MI_INFO *info,
   info->state->records=info->state->del=share->state.split=0;
   info->state->empty=0;
 
-  for (i=key=0 ; key < share->base.keys ;
-       rec_per_key_part+=sort_param[i].keyinfo->keysegs, i++, key++)
+  for (i=key=0, istep=1 ; key < share->base.keys ;
+       rec_per_key_part+=sort_param[i].keyinfo->keysegs, i+=istep, key++)
   {
     sort_param[i].key=key;
     sort_param[i].keyinfo=share->keyinfo+key;
@@ -2262,9 +2262,10 @@ int mi_repair_parallel(MI_CHECK *param, register MI_INFO *info,
 	     (char*) (share->state.rec_per_key_part+
 		      (uint) (rec_per_key_part - param->rec_per_key_part)),
 	     sort_param[i].keyinfo->keysegs*sizeof(*rec_per_key_part));
-      i--;
+      istep=0;
       continue;
     }
+    istep=1;
     if ((!(param->testflag & T_SILENT)))
       printf ("- Fixing index %d\n",key+1);
     if (sort_param[i].keyinfo->flag & HA_FULLTEXT)
@@ -2887,7 +2888,7 @@ static int sort_get_next_record(MI_SORT_PARAM *sort_param)
 	DBUG_RETURN(1);		/* Something wrong with data */
       }
       sort_param->start_recpos=sort_param->pos;
-      if (_mi_pack_get_block_info(info,&block_info,-1,sort_param->pos, NullS))
+      if (_mi_pack_get_block_info(info,&block_info,-1,sort_param->pos))
 	DBUG_RETURN(-1);
       if (!block_info.rec_len &&
 	  sort_param->pos + MEMMAP_EXTRA_MARGIN ==

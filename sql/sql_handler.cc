@@ -1,4 +1,4 @@
-/* Copyright (C) 2000 MySQL AB & MySQL Finland AB & TCX DataKonsult AB
+/* Copyright (C) 2000-2003 MySQL AB
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -42,8 +42,8 @@
   thd->open_tables=thd->handler_tables; \
   thd->handler_tables=tmp; }
 
-static TABLE **find_table_ptr_by_name(THD *thd, const char *db,
-				      const char *table_name);
+static TABLE **find_table_ptr_by_name(THD *thd,const char *db,
+				      const char *table_name, bool is_alias);
 
 int mysql_ha_open(THD *thd, TABLE_LIST *tables)
 {
@@ -67,7 +67,7 @@ int mysql_ha_open(THD *thd, TABLE_LIST *tables)
 
 int mysql_ha_close(THD *thd, TABLE_LIST *tables, bool dont_send_ok)
 {
-  TABLE **ptr=find_table_ptr_by_name(thd, tables->db, tables->alias);
+  TABLE **ptr=find_table_ptr_by_name(thd, tables->db, tables->alias, 1);
 
   if (*ptr)
   {
@@ -86,6 +86,21 @@ int mysql_ha_close(THD *thd, TABLE_LIST *tables, bool dont_send_ok)
   return 0;
 }
 
+int mysql_ha_closeall(THD *thd, TABLE_LIST *tables, bool dont_send_ok)
+{
+  TABLE **ptr=find_table_ptr_by_name(thd, tables->db, tables->real_name, 0);
+
+  DBUG_ASSERT(dont_send_ok);
+  if (*ptr)
+  {
+//    if (!dont_send_ok) VOID(pthread_mutex_lock(&LOCK_open));
+    close_thread_table(thd, ptr);
+//    if (!dont_send_ok) VOID(pthread_mutex_unlock(&LOCK_open));
+  }
+//  if (!dont_send_ok) send_ok(&thd->net);
+  return 0;
+}
+
 static enum enum_ha_read_modes rkey_to_rnext[]=
     { RNEXT, RNEXT, RPREV, RNEXT, RPREV, RNEXT, RPREV, RPREV };
 
@@ -96,7 +111,7 @@ int mysql_ha_read(THD *thd, TABLE_LIST *tables,
     ha_rows select_limit,ha_rows offset_limit)
 {
   int err, keyno=-1;
-  TABLE *table=*find_table_ptr_by_name(thd, tables->db, tables->alias);
+  TABLE *table=*find_table_ptr_by_name(thd, tables->db, tables->alias, 1);
   if (!table)
   {
     my_printf_error(ER_UNKNOWN_TABLE,ER(ER_UNKNOWN_TABLE),MYF(0),
@@ -281,6 +296,9 @@ static TABLE **find_table_ptr_by_name(THD *thd, const char *db,
   for (TABLE *table= *ptr; table ; table= *ptr)
   {
     if (!memcmp(table->table_cache_key, db, dblen) &&
+        !my_strcasecmp(system_charset_info,
+		       (is_alias ? table->table_name : table->real_name),
+		       table_name))
         !my_strcasecmp(system_charset_info,table->table_name,alias))
       break;
     ptr= &(table->next);

@@ -231,7 +231,7 @@ convert_error_code_to_mysql(
 
         } else if (error == (int) DB_COL_APPEARS_TWICE_IN_INDEX) {
 
-    		return(HA_ERR_WRONG_TABLE_DEF);
+    		return(HA_ERR_CRASHED);
 
  	} else if (error == (int) DB_OUT_OF_FILE_SPACE) {
 
@@ -847,6 +847,7 @@ innobase_end(void)
 	err = innobase_shutdown_for_mysql();
 	hash_free(&innobase_open_tables);
 	my_free(internal_innobase_data_file_path,MYF(MY_ALLOW_ZERO_PTR));
+	pthread_mutex_destroy(&innobase_mutex);
 
 	if (err != DB_SUCCESS) {
 
@@ -1944,9 +1945,14 @@ ha_innobase::write_row(
 		the counter here. */
 
 	        skip_auto_inc_decr = FALSE;
-	        if (error == DB_DUPLICATE_KEY &&
-		    user_thd->lex.sql_command == SQLCOM_REPLACE)
-		  skip_auto_inc_decr= TRUE;
+
+	        if (error == DB_DUPLICATE_KEY
+		    && (user_thd->lex.sql_command == SQLCOM_REPLACE
+			|| user_thd->lex.sql_command
+			                 == SQLCOM_REPLACE_SELECT)) {
+
+		        skip_auto_inc_decr= TRUE;
+		}
 
 	        if (!skip_auto_inc_decr && incremented_auto_inc_counter
 		    && prebuilt->trx->auto_inc_lock) {
@@ -4213,6 +4219,16 @@ ha_innobase::store_lock(
       			lock_type = TL_WRITE_ALLOW_WRITE;
       		}
 
+		/* In queries of type INSERT INTO t1 SELECT ... FROM t2 ...
+		MySQL would use the lock TL_READ_NO_INSERT on t2, and that
+		would conflict with TL_WRITE_ALLOW_WRITE, blocking all inserts
+		to t2. Convert the lock to a normal read lock to allow
+		concurrent inserts to t2. */
+      		
+		if (lock_type == TL_READ_NO_INSERT && !thd->in_lock_tables) {
+			lock_type = TL_READ;
+		}
+		
  		lock.type=lock_type;
   	}
 

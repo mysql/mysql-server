@@ -16,7 +16,7 @@
 
 /* By Jani Tolonen, 2001-04-20, MySQL Development Team */
 
-#define CHECK_VERSION "2.4.2"
+#define CHECK_VERSION "2.4.3"
 
 #include "client_priv.h"
 #include <m_ctype.h>
@@ -167,6 +167,7 @@ static void dbDisconnect(char *host);
 static void DBerror(MYSQL *mysql, const char *when);
 static void safe_exit(int error);
 static void print_result();
+static char *fix_table_name(char *dest, char *src);
 int what_to_do = 0;
 
 static void print_version(void)
@@ -390,7 +391,8 @@ static int process_selected_tables(char *db, char **table_names, int tables)
     for (end = table_names_comma_sep + 1; tables > 0;
 	 tables--, table_names++)
     {
-      end = strxmov(end, " `", *table_names, "`,", NullS);
+      end= fix_table_name(end, *table_names);
+      *end++= ',';
     }
     *--end = 0;
     handle_request_for_tables(table_names_comma_sep + 1, tot_length - 1);
@@ -401,6 +403,22 @@ static int process_selected_tables(char *db, char **table_names, int tables)
       handle_request_for_tables(*table_names, strlen(*table_names));
   return 0;
 } /* process_selected_tables */
+
+
+static char *fix_table_name(char *dest, char *src)
+{
+  char *db_sep;
+
+  *dest++= '`';
+  if ((db_sep= strchr(src, '.')))
+  {
+    dest= strmake(dest, src, (uint) (db_sep - src));
+    dest= strmov(dest, "`.`");
+    src= db_sep + 1;
+  }
+  dest= strxmov(dest, src, "`", NullS);
+  return dest;
+}
 
 
 static int process_all_tables_in_db(char *database)
@@ -437,7 +455,8 @@ static int process_all_tables_in_db(char *database)
     }
     for (end = tables + 1; (row = mysql_fetch_row(res)) ;)
     {
-      end = strxmov(end, " `", row[0], "`,", NullS);	    
+      end= fix_table_name(end, row[0]);
+      *end++= ',';
     }
     *--end = 0;
     if (tot_length)
@@ -468,6 +487,7 @@ static int use_db(char *database)
 static int handle_request_for_tables(char *tables, uint length)
 {
   char *query, *end, options[100], message[100];
+  uint query_length= 0;
   const char *op = 0;
 
   options[0] = 0;
@@ -498,11 +518,21 @@ static int handle_request_for_tables(char *tables, uint length)
   if (!(query =(char *) my_malloc((sizeof(char)*(length+110)), MYF(MY_WME))))
     return 1;
   if (opt_all_in_1)
+  {
     /* No backticks here as we added them before */
-    sprintf(query, "%s TABLE %s %s", op, tables, options);
+    query_length= my_sprintf(query,
+			     (query, "%s TABLE %s %s", op, tables, options));
+  }
   else
-    sprintf(query, "%s TABLE `%s` %s", op, tables, options);
-  if (mysql_query(sock, query))
+  {
+    char *ptr;
+
+    ptr= strmov(strmov(query, op), " TABLE ");
+    ptr= fix_table_name(ptr, tables);
+    ptr= strxmov(ptr, " ", options, NullS);
+    query_length= (uint) (ptr - query);
+  }
+  if (mysql_real_query(sock, query, query_length))
   {
     sprintf(message, "when executing '%s TABLE ... %s'", op, options);
     DBerror(sock, message);

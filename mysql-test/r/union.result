@@ -91,7 +91,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	4	
 2	UNION	t2	ALL	NULL	NULL	NULL	NULL	4	Using filesort
 select found_rows();
-FOUND_ROWS()
+found_rows()
 0
 explain select a,b from t1 union all select a,b from t2;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra

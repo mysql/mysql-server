@@ -16,7 +16,7 @@
 
 /* Resolves IP's to hostname and hostnames to IP's */
 
-#define RESOLVE_VERSION "2.2"
+#define RESOLVE_VERSION "2.3"
 
 #include <my_global.h>
 #include <m_ctype.h>
@@ -147,8 +147,11 @@ int main(int argc, char **argv)
 	else
 	{
 	  printf ("Host name of %s is %s", ip,hpaddr->h_name);
+#ifndef __NETWARE__
+	  /* this information is not available on NetWare */
 	  for (q = hpaddr->h_aliases; *q != 0; q++)
 	    (void) printf(", %s", *q);
+#endif /* __NETWARE__ */
 	  puts("");
 	}
       }

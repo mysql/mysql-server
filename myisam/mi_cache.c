@@ -29,7 +29,8 @@
   Allows "partial read" errors in the record header (when READING_HEADER flag
   is set) - unread part is bzero'ed
 
-  Note: out-of-cache reads are disabled for shared IO_CACHE's
+  Note: out-of-cache reads are enabled for shared IO_CACHE's too,
+  as these reads will be cached by OS cache (and my_pread is always atomic)
 */
 
 
@@ -43,7 +44,7 @@ int _mi_read_cache(IO_CACHE *info, byte *buff, my_off_t pos, uint length,
   char *in_buff_pos;
   DBUG_ENTER("_mi_read_cache");
 
-  if (pos < info->pos_in_file && ! info->share)
+  if (pos < info->pos_in_file)
   {
     read_length=length;
     if ((my_off_t) read_length > (my_off_t) (info->pos_in_file-pos))
@@ -70,7 +71,7 @@ int _mi_read_cache(IO_CACHE *info, byte *buff, my_off_t pos, uint length,
   }
   else
     in_buff_length=0;
-  if (flag & READING_NEXT || info->share)
+  if (flag & READING_NEXT)
   {
     if (pos != (info->pos_in_file +
 		(uint) (info->read_end - info->request_pos)))

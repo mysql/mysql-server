@@ -927,18 +927,17 @@ int cmp_master_pos(const char* log_file_name1, ulonglong log_pos1,
 		   const char* log_file_name2, ulonglong log_pos2)
 {
   int res;
-  /*
-    TODO: Change compare function to work with file name of type
-          '.999 and .1000'
-  */
+  uint log_file_name1_len=  strlen(log_file_name1);
+  uint log_file_name2_len=  strlen(log_file_name2);
 
-  if ((res = strcmp(log_file_name1, log_file_name2)))
-    return res;
-  if (log_pos1 > log_pos2)
-    return 1;
-  else if (log_pos1 == log_pos2)
-    return 0;
-  return -1;
+  //  We assume that both log names match up to '.'
+  if (log_file_name1_len == log_file_name2_len)
+  {
+    if ((res= strcmp(log_file_name1, log_file_name2)))
+      return res;
+    return (log_pos1 < log_pos2) ? -1 : (log_pos1 == log_pos2) ? 0 : 1;
+  }
+  return ((log_file_name1_len < log_file_name2_len) ? -1 : 1);
 }
 
 

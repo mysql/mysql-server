@@ -124,7 +124,7 @@ class TMP_TABLE_PARAM :public Sql_alloc
   Copy_field *copy_field, *copy_field_end;
   Copy_field *save_copy_field, *save_copy_field_end;
   byte	    *group_buff;
-  Item_result_field **funcs;
+  Item	    **items_to_copy;			/* Fields in tmp table */
   MI_COLUMNDEF *recinfo,*start_recinfo;
   KEY *keyinfo;
   ha_rows end_write_records;
@@ -293,7 +293,7 @@ bool setup_copy_fields(THD *thd, TMP_TABLE_PARAM *param,
 		       List<Item> &new_list1, List<Item> &new_list2,
 		       uint elements, List<Item> &fields);
 void copy_fields(TMP_TABLE_PARAM *param);
-void copy_funcs(Item_result_field **func_ptr);
+void copy_funcs(Item **func_ptr);
 bool create_myisam_from_heap(THD *thd, TABLE *table, TMP_TABLE_PARAM *param,
 			     int error, bool ignore_last_dupp_error);
 

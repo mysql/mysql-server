@@ -607,11 +607,11 @@ btr_cur_open_at_index_side(
 			page_cur_set_after_last(page, page_cursor);
 		}
 
-		if (estimate) {
-			btr_cur_add_path_info(cursor, height, root_height);
-		}
-
 		if (height == 0) {
+		        if (estimate) {
+			        btr_cur_add_path_info(cursor, height,
+						      root_height);
+		        }
 
 			break;
 		}
@@ -622,6 +622,10 @@ btr_cur_open_at_index_side(
 			page_cur_move_to_next(page_cursor);
 		} else {
 			page_cur_move_to_prev(page_cursor);
+		}
+
+		if (estimate) {
+			btr_cur_add_path_info(cursor, height, root_height);
 		}
 
 		height--;

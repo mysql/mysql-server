@@ -1,4 +1,4 @@
-/* Copyright (C) 2000 MySQL AB & MySQL Finland AB & TCX DataKonsult AB
+/* Copyright (C) 2000-2003 MySQL AB
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -750,7 +750,7 @@ static int myisamchk(MI_CHECK *param, my_string filename)
     case HA_ERR_CRASHED:
       mi_check_print_error(param,"'%s' doesn't have a correct index definition. You need to recreate it before you can do a repair",filename);
       break;
-    case HA_ERR_WRONG_TABLE_DEF:
+    case HA_ERR_NOT_A_TABLE:
       mi_check_print_error(param,"'%s' is not a MyISAM-table",filename);
       break;
     case HA_ERR_CRASHED_ON_USAGE:
@@ -875,7 +875,7 @@ static int myisamchk(MI_CHECK *param, my_string filename)
   else
   {
     if (share->state.header.fulltext_keys)
-      ft_init_stopwords(ft_precompiled_stopwords);
+      ft_init_stopwords();
 
     if (!(param->testflag & T_READONLY))
       lock_type = F_WRLCK;			/* table is changed */

@@ -1,4 +1,4 @@
-/* Copyright (C) 2000 MySQL AB & MySQL Finland AB & TCX DataKonsult AB
+/* Copyright (C) 2000-2003 MySQL AB
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -30,8 +30,12 @@
 bool Protocol::net_store_data(const char *from, uint length)
 {
   ulong packet_length=packet->length();
-  if (packet_length+5+length > packet->alloced_length() &&
-      packet->realloc(packet_length+5+length))
+  /* 
+     The +9 comes from that strings of length longer than 16M require
+     9 bytes to be stored (see net_store_length).
+  */
+  if (packet_length+9+length > packet->alloced_length() &&
+      packet->realloc(packet_length+9+length))
     return 1;
   char *to=(char*) net_store_length((char*) packet->ptr()+packet_length,
 				    (ulonglong) length);

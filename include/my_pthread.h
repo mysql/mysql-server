@@ -357,6 +357,14 @@ extern int my_pthread_cond_timedwait(pthread_cond_t *cond,
 #define pthread_cond_timedwait(A,B,C) my_pthread_cond_timedwait((A),(B),(C))
 #endif
 
+
+#ifdef __NETWARE__
+extern int my_pthread_cond_timedwait(pthread_cond_t *cond,
+				     pthread_mutex_t *mutex,
+				     struct timespec *abstime);
+#define pthread_cond_timedwait(A,B,C) my_pthread_cond_timedwait((A),(B),(C))
+#endif /* __NETWARE__ */
+
 #if defined(OS2)
 #define my_pthread_getspecific(T,A) ((T) &(A))
 #define pthread_setspecific(A,B) win_pthread_setspecific(&(A),(B),sizeof(A))
@@ -444,15 +452,39 @@ int my_pthread_mutex_trylock(pthread_mutex_t *mutex);
 
 	/* safe_mutex adds checking to mutex for easier debugging */
 
+#if defined(__NETWARE__) && !defined(SAFE_MUTEX_DETECT_DESTROY)
+#define SAFE_MUTEX_DETECT_DESTROY
+#endif
+
 typedef struct st_safe_mutex_t
 {
   pthread_mutex_t global,mutex;
   char *file;
   uint line,count;
   pthread_t thread;
+#ifdef SAFE_MUTEX_DETECT_DESTROY
+  struct st_safe_mutex_info_t *info;	/* to track destroying of mutexes */
+#endif
 } safe_mutex_t;
 
-int safe_mutex_init(safe_mutex_t *mp, const pthread_mutexattr_t *attr);
+#ifdef SAFE_MUTEX_DETECT_DESTROY
+/*
+  Used to track the destroying of mutexes. This needs to be a seperate
+  structure because the safe_mutex_t structure could be freed before
+  the mutexes are destroyed.
+*/
+
+typedef struct st_safe_mutex_info_t
+{
+  struct st_safe_mutex_info_t *next;
+  struct st_safe_mutex_info_t *prev;
+  char *init_file;
+  uint32 init_line;
+} safe_mutex_info_t;
+#endif /* SAFE_MUTEX_DETECT_DESTROY */
+
+int safe_mutex_init(safe_mutex_t *mp, const pthread_mutexattr_t *attr,
+                    const char *file, uint line);
 int safe_mutex_lock(safe_mutex_t *mp,const char *file, uint line);
 int safe_mutex_unlock(safe_mutex_t *mp,const char *file, uint line);
 int safe_mutex_destroy(safe_mutex_t *mp,const char *file, uint line);
@@ -460,6 +492,8 @@ int safe_cond_wait(pthread_cond_t *cond, safe_mutex_t *mp,const char *file,
 		   uint line);
 int safe_cond_timedwait(pthread_cond_t *cond, safe_mutex_t *mp,
 			struct timespec *abstime, const char *file, uint line);
+void safe_mutex_global_init(void);
+void safe_mutex_end(FILE *file);
 
 	/* Wrappers if safe mutex is actually used */
 #ifdef SAFE_MUTEX
@@ -473,7 +507,7 @@ int safe_cond_timedwait(pthread_cond_t *cond, safe_mutex_t *mp,
 #undef pthread_cond_wait
 #undef pthread_cond_timedwait
 #undef pthread_mutex_trylock
-#define pthread_mutex_init(A,B) safe_mutex_init((A),(B))
+#define pthread_mutex_init(A,B) safe_mutex_init((A),(B),__FILE__,__LINE__)
 #define pthread_mutex_lock(A) safe_mutex_lock((A),__FILE__,__LINE__)
 #define pthread_mutex_unlock(A) safe_mutex_unlock((A),__FILE__,__LINE__)
 #define pthread_mutex_destroy(A) safe_mutex_destroy((A),__FILE__,__LINE__)

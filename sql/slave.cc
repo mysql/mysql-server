@@ -1,4 +1,4 @@
-/* Copyright (C) 2000 MySQL AB & MySQL Finland AB & TCX DataKonsult AB
+/* Copyright (C) 2000-2003 MySQL AB
    
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -34,8 +34,7 @@ typedef bool (*CHECK_KILLED_FUNC)(THD*,void*);
 
 volatile bool slave_sql_running = 0, slave_io_running = 0;
 char* slave_load_tmpdir = 0;
-MASTER_INFO main_mi;
-MASTER_INFO* active_mi;
+MASTER_INFO *active_mi;
 volatile int active_mi_in_use = 0;
 HASH replicate_do_table, replicate_ignore_table;
 DYNAMIC_ARRAY replicate_wild_do_table, replicate_wild_ignore_table;
@@ -78,14 +77,23 @@ static int check_master_version(MYSQL* mysql, MASTER_INFO* mi);
 char* rewrite_db(char* db);
 
 
-/*****************************************************************************
+/*
+  Find out which replications threads are running
 
-  init_thread_mask()
+  SYNOPSIS
+    init_thread_mask()
+    mask		Return value here
+    mi			master_info for slave
+    inverse		If set, returns which threads are not running
 
-  Get a bit mask for which threads are running so that we can later restart
-  these threads.
+  IMPLEMENTATION
+    Get a bit mask for which threads are running so that we can later restart
+    these threads.
 
-*****************************************************************************/
+  RETURN
+    mask	If inverse == 0, running threads
+		If inverse == 1, stopped threads    
+*/
 
 void init_thread_mask(int* mask,MASTER_INFO* mi,bool inverse)
 {
@@ -100,11 +108,11 @@ void init_thread_mask(int* mask,MASTER_INFO* mi,bool inverse)
   *mask = tmp_mask;
 }
 
-/*****************************************************************************
 
+/*
   lock_slave_threads()
+*/
 
-*****************************************************************************/
 void lock_slave_threads(MASTER_INFO* mi)
 {
   //TODO: see if we can do this without dual mutex
@@ -112,11 +120,11 @@ void lock_slave_threads(MASTER_INFO* mi)
   pthread_mutex_lock(&mi->rli.run_lock);
 }
 
-/*****************************************************************************
 
+/*
   unlock_slave_threads()
+*/
 
-*****************************************************************************/
 void unlock_slave_threads(MASTER_INFO* mi)
 {
   //TODO: see if we can do this without dual mutex
@@ -124,11 +132,9 @@ void unlock_slave_threads(MASTER_INFO* mi)
   pthread_mutex_unlock(&mi->run_lock);
 }
 
-/*****************************************************************************
 
-  init_slave()
+/* Initialize slave structures */
 
-*****************************************************************************/
 int init_slave()
 {
   DBUG_ENTER("init_slave");
@@ -137,18 +143,19 @@ int init_slave()
     TODO: re-write this to interate through the list of files
     for multi-master
   */
-  active_mi = &main_mi;
+  active_mi= new MASTER_INFO;
 
   /*
     If master_host is not specified, try to read it from the master_info file.
     If master_host is specified, create the master_info file if it doesn't
     exists.
   */
-  if (init_master_info(active_mi,master_info_file,relay_log_info_file,
+  if (!active_mi ||
+      init_master_info(active_mi,master_info_file,relay_log_info_file,
 		       !master_host))
   {
-    sql_print_error("Warning: failed to initialized master info");
-    DBUG_RETURN(0);
+    sql_print_error("Note: Failed to initialized master info");
+    goto err;
   }
 
   /*
@@ -166,26 +173,24 @@ int init_slave()
 			    master_info_file,
 			    relay_log_info_file,
 			    SLAVE_IO | SLAVE_SQL))
+    {
       sql_print_error("Warning: Can't create threads to handle slave");
+      goto err;
+    }
   }
   DBUG_RETURN(0);
+
+err:
+  DBUG_RETURN(1);
 }
 
-/*****************************************************************************
 
-  free_table_ent()
-
-*****************************************************************************/
 static void free_table_ent(TABLE_RULE_ENT* e)
 {
   my_free((gptr) e, MYF(0));
 }
 
-/*****************************************************************************
 
-  get_table_key()
-
-*****************************************************************************/
 static byte* get_table_key(TABLE_RULE_ENT* e, uint* len,
 			   my_bool not_used __attribute__((unused)))
 {
@@ -193,10 +198,8 @@ static byte* get_table_key(TABLE_RULE_ENT* e, uint* len,
   return (byte*)e->db;
 }
 
-/*****************************************************************************
 
-  init_relay_log_pos()
-
+/*
   Open the given relay log
 
   SYNOPSIS
@@ -223,8 +226,8 @@ static byte* get_table_key(TABLE_RULE_ENT* e, uint* len,
   RETURN VALUES
     0	ok
     1	error.  errmsg is set to point to the error message
+*/
 
-*****************************************************************************/
 int init_relay_log_pos(RELAY_LOG_INFO* rli,const char* log,
 		       ulonglong pos, bool need_data_lock,
 		       const char** errmsg)
@@ -305,13 +308,18 @@ err:
   DBUG_RETURN ((*errmsg) ? 1 : 0);
 }
 
-/*****************************************************************************
 
-  init_slave_skip_errors()
+/*
+  Init functio to set up array for errors that should be skipped for slave
 
-  called from get_options() in mysqld.cc on start-up
+  SYNOPSIS
+    init_slave_skip_errors()
+    arg		List of errors numbers to skip, separated with ','
 
-*****************************************************************************/
+  NOTES
+    Called from get_options() in mysqld.cc on start-up
+*/
+
 void init_slave_skip_errors(const char* arg)
 {
   const char *p;
@@ -340,13 +348,14 @@ void init_slave_skip_errors(const char* arg)
   }
 }
 
-/*****************************************************************************
 
+/*
   purge_relay_logs()
 
-  Assumes to have a run lock on rli and that no slave thread are running.
+  NOTES
+    Assumes to have a run lock on rli and that no slave thread are running.
+*/
 
-*****************************************************************************/
 int purge_relay_logs(RELAY_LOG_INFO* rli, THD *thd, bool just_reset,
 		     const char** errmsg)
 {
@@ -391,11 +400,6 @@ err:
 }
 
 
-/*****************************************************************************
-
-  terminate_slave_threads()
-
-*****************************************************************************/
 int terminate_slave_threads(MASTER_INFO* mi,int thread_mask,bool skip_lock)
 {
   if (!mi->inited)
@@ -438,11 +442,7 @@ int terminate_slave_threads(MASTER_INFO* mi,int thread_mask,bool skip_lock)
   DBUG_RETURN(0);
 }
 
-/*****************************************************************************
 
-  terminate_slave_thread()
-
-*****************************************************************************/
 int terminate_slave_thread(THD* thd, pthread_mutex_t* term_lock,
 			   pthread_mutex_t *cond_lock,
 			   pthread_cond_t* term_cond,
@@ -487,11 +487,6 @@ int terminate_slave_thread(THD* thd, pthread_mutex_t* term_lock,
 }
 
 
-/*****************************************************************************
-
-  start_slave_thread()
-
-*****************************************************************************/
 int start_slave_thread(pthread_handler h_func, pthread_mutex_t *start_lock,
 		       pthread_mutex_t *cond_lock,
 		       pthread_cond_t *start_cond,
@@ -554,15 +549,16 @@ int start_slave_thread(pthread_handler h_func, pthread_mutex_t *start_lock,
   DBUG_RETURN(0);
 }
 
-/*****************************************************************************
 
+/*
   start_slave_threads()
 
-  SLAVE_FORCE_ALL is not implemented here on purpose since it does not make
-  sense to do that for starting a slave--we always care if it actually
-  started the threads that were not previously running
+  NOTES
+    SLAVE_FORCE_ALL is not implemented here on purpose since it does not make
+    sense to do that for starting a slave--we always care if it actually
+    started the threads that were not previously running
+*/
 
-*****************************************************************************/
 int start_slave_threads(bool need_slave_mutex, bool wait_for_start,
 			MASTER_INFO* mi, const char* master_info_fname,
 			const char* slave_info_fname, int thread_mask)
@@ -602,11 +598,7 @@ int start_slave_threads(bool need_slave_mutex, bool wait_for_start,
   DBUG_RETURN(error);
 }
 
-/*****************************************************************************
 
-  init_table_rule_hash()
-
-*****************************************************************************/
 void init_table_rule_hash(HASH* h, bool* h_inited)
 {
   hash_init(h, system_charset_info,TABLE_RULE_HASH_SIZE,0,0,
@@ -615,11 +607,7 @@ void init_table_rule_hash(HASH* h, bool* h_inited)
   *h_inited = 1;
 }
 
-/*****************************************************************************
 
-  init_table_rule_array()
-
-*****************************************************************************/
 void init_table_rule_array(DYNAMIC_ARRAY* a, bool* a_inited)
 {
   my_init_dynamic_array(a, sizeof(TABLE_RULE_ENT*), TABLE_RULE_ARR_SIZE,
@@ -627,11 +615,7 @@ void init_table_rule_array(DYNAMIC_ARRAY* a, bool* a_inited)
   *a_inited = 1;
 }
 
-/*****************************************************************************
 
-  find_wild()
-
-*****************************************************************************/
 static TABLE_RULE_ENT* find_wild(DYNAMIC_ARRAY *a, const char* key, int len)
 {
   uint i;
@@ -651,52 +635,121 @@ static TABLE_RULE_ENT* find_wild(DYNAMIC_ARRAY *a, const char* key, int len)
   return 0;
 }
 
-/*****************************************************************************
 
-  tables_ok()
+/*
+  Checks whether tables match some (wild_)do_table and (wild_)ignore_table
+  rules (for replication)
 
-*****************************************************************************/
+  SYNOPSIS
+    tables_ok()
+    thd             thread (SQL slave thread normally)
+    tables          list of tables to check
+
+  NOTES
+    Note that changing the order of the tables in the list can lead to
+    different results. Note also the order of precedence of the do/ignore 
+    rules (see code below). For that reason, users should not set conflicting 
+    rules because they may get unpredicted results.
+
+  RETURN VALUES
+    0           should not be logged/replicated
+    1           should be logged/replicated                  
+*/
+
 int tables_ok(THD* thd, TABLE_LIST* tables)
 {
+  DBUG_ENTER("tables_ok");
+
   for (; tables; tables = tables->next)
   {
+    char hash_key[2*NAME_LEN+2];
+    char *end;
+    uint len;
+
     if (!tables->updating) 
       continue;
-    char hash_key[2*NAME_LEN+2];
-    char* p;
-    p = strmov(hash_key, tables->db ? tables->db : thd->db);
-    *p++ = '.';
-    uint len = strmov(p, tables->real_name) - hash_key ;
+    end= strmov(hash_key, tables->db ? tables->db : thd->db);
+    *end++= '.';
+    len= (uint) (strmov(end, tables->real_name) - hash_key);
     if (do_table_inited) // if there are any do's
     {
       if (hash_search(&replicate_do_table, (byte*) hash_key, len))
-	return 1;
+	DBUG_RETURN(1);
     }
     if (ignore_table_inited) // if there are any ignores
     {
       if (hash_search(&replicate_ignore_table, (byte*) hash_key, len))
-	return 0; 
+	DBUG_RETURN(0); 
     }
     if (wild_do_table_inited && find_wild(&replicate_wild_do_table,
 					  hash_key, len))
-      return 1;
+      DBUG_RETURN(1);
     if (wild_ignore_table_inited && find_wild(&replicate_wild_ignore_table,
 					      hash_key, len))
-      return 0;
+      DBUG_RETURN(0);
   }
 
   /*
     If no explicit rule found and there was a do list, do not replicate.
     If there was no do list, go ahead
   */
-  return !do_table_inited && !wild_do_table_inited;
+  DBUG_RETURN(!do_table_inited && !wild_do_table_inited);
 }
 
-/*****************************************************************************
 
-  add_table_rule()
+/*
+  Checks whether a db matches wild_do_table and wild_ignore_table
+  rules (for replication)
 
-*****************************************************************************/
+  SYNOPSIS
+    db_ok_with_wild_table()
+    db		name of the db to check.
+		Is tested with check_db_name() before calling this function.
+
+  NOTES
+    Here is the reason for this function.
+    We advise users who want to exclude a database 'db1' safely to do it
+    with replicate_wild_ignore_table='db1.%' instead of binlog_ignore_db or
+    replicate_ignore_db because the two lasts only check for the selected db,
+    which won't work in that case:
+    USE db2;
+    UPDATE db1.t SET ... #this will be replicated and should not
+    whereas replicate_wild_ignore_table will work in all cases.
+    With replicate_wild_ignore_table, we only check tables. When
+    one does 'DROP DATABASE db1', tables are not involved and the
+    statement will be replicated, while users could expect it would not (as it
+    rougly means 'DROP db1.first_table, DROP db1.second_table...').
+    In other words, we want to interpret 'db1.%' as "everything touching db1".
+    That is why we want to match 'db1' against 'db1.%' wild table rules.
+
+  RETURN VALUES
+    0           should not be logged/replicated
+    1           should be logged/replicated
+ */
+
+int db_ok_with_wild_table(const char *db)
+{
+  char hash_key[NAME_LEN+2];
+  char *end;
+  int len;
+  end= strmov(hash_key, db);
+  *end++= '.';
+  len= end - hash_key ;
+  if (wild_do_table_inited && find_wild(&replicate_wild_do_table,
+                                        hash_key, len))
+    return 1;
+  if (wild_ignore_table_inited && find_wild(&replicate_wild_ignore_table,
+                                            hash_key, len))
+    return 0;
+  
+  /*
+    If no explicit rule found and there was a do list, do not replicate.
+    If there was no do list, go ahead
+  */
+  return !wild_do_table_inited;
+}
+
+
 int add_table_rule(HASH* h, const char* table_spec)
 {
   const char* dot = strchr(table_spec, '.');
@@ -714,11 +767,11 @@ int add_table_rule(HASH* h, const char* table_spec)
   return 0;
 }
 
-/*****************************************************************************
 
-  add_wild_table_rule()
+/*
+  Add table expression with wildcards to dynamic array
+*/
 
-*****************************************************************************/
 int add_wild_table_rule(DYNAMIC_ARRAY* a, const char* table_spec)
 {
   const char* dot = strchr(table_spec, '.');
@@ -735,11 +788,7 @@ int add_wild_table_rule(DYNAMIC_ARRAY* a, const char* table_spec)
   return 0;
 }
 
-/*****************************************************************************
 
-  free_string_array()
-
-*****************************************************************************/
 static void free_string_array(DYNAMIC_ARRAY *a)
 {
   uint i;
@@ -752,11 +801,7 @@ static void free_string_array(DYNAMIC_ARRAY *a)
   delete_dynamic(a);
 }
 
-/*****************************************************************************
 
-  end_slave_on_walk()
-
-*****************************************************************************/
 #ifdef NOT_USED_YET
 static int end_slave_on_walk(MASTER_INFO* mi, gptr /*unused*/)
 {
@@ -765,35 +810,39 @@ static int end_slave_on_walk(MASTER_INFO* mi, gptr /*unused*/)
 }
 #endif
 
-/*****************************************************************************
 
-  end_slave()
+/*
+  Free all resources used by slave
 
-*****************************************************************************/
+  SYNOPSIS
+    end_slave()
+*/
+
 void end_slave()
 {
-  /*
-    TODO: replace the line below with
-    list_walk(&master_list, (list_walk_action)end_slave_on_walk,0);
-    once multi-master code is ready.
-  */
-  terminate_slave_threads(active_mi,SLAVE_FORCE_ALL);
-  end_master_info(active_mi);
-  if (do_table_inited)
-    hash_free(&replicate_do_table);
-  if (ignore_table_inited)
-    hash_free(&replicate_ignore_table);
-  if (wild_do_table_inited)
-    free_string_array(&replicate_wild_do_table);
-  if (wild_ignore_table_inited)
-    free_string_array(&replicate_wild_ignore_table);
+  if (active_mi)
+  {
+    /*
+      TODO: replace the line below with
+      list_walk(&master_list, (list_walk_action)end_slave_on_walk,0);
+      once multi-master code is ready.
+    */
+    terminate_slave_threads(active_mi,SLAVE_FORCE_ALL);
+    end_master_info(active_mi);
+    if (do_table_inited)
+      hash_free(&replicate_do_table);
+    if (ignore_table_inited)
+      hash_free(&replicate_ignore_table);
+    if (wild_do_table_inited)
+      free_string_array(&replicate_wild_do_table);
+    if (wild_ignore_table_inited)
+      free_string_array(&replicate_wild_ignore_table);
+    delete active_mi;
+    active_mi= 0;
+  }
 }
 
-/*****************************************************************************
 
-  io_slave_killed()
-
-*****************************************************************************/
 static bool io_slave_killed(THD* thd, MASTER_INFO* mi)
 {
   DBUG_ASSERT(mi->io_thd == thd);
@@ -801,11 +850,7 @@ static bool io_slave_killed(THD* thd, MASTER_INFO* mi)
   return mi->abort_slave || abort_loop || thd->killed;
 }
 
-/*****************************************************************************
 
-  sql_slave_killed()
-
-*****************************************************************************/
 static bool sql_slave_killed(THD* thd, RELAY_LOG_INFO* rli)
 {
   DBUG_ASSERT(rli->sql_thd == thd);
@@ -813,11 +858,7 @@ static bool sql_slave_killed(THD* thd, RELAY_LOG_INFO* rli)
   return rli->abort_slave || abort_loop || thd->killed;
 }
 
-/*****************************************************************************
 
-  slave_print_error()
-
-*****************************************************************************/
 void slave_print_error(RELAY_LOG_INFO* rli, int err_code, const char* msg, ...)
 {
   va_list args;
@@ -829,13 +870,13 @@ void slave_print_error(RELAY_LOG_INFO* rli, int err_code, const char* msg, ...)
   rli->last_slave_errno = err_code;
 }
 
-/*****************************************************************************
-
+/*
   skip_load_data_infile()
 
-  This is used to tell a 3.23 master to break send_file()
+  NOTES
+    This is used to tell a 3.23 master to break send_file()
+*/
 
-*****************************************************************************/
 void skip_load_data_infile(NET *net)
 {
   (void)net_request_file(net, "/dev/null");
@@ -843,22 +884,14 @@ void skip_load_data_infile(NET *net)
   (void)net_write_command(net, 0, "", 0, "", 0);	// Send ok
 }
 
-/*****************************************************************************
 
-  net_request_file()
-
-*****************************************************************************/
 bool net_request_file(NET* net, const char* fname)
 {
   DBUG_ENTER("net_request_file");
   DBUG_RETURN(net_write_command(net, 251, fname, strlen(fname), "", 0));
 }
 
-/*****************************************************************************
 
-  rewrite_db()
-
-*****************************************************************************/
 char* rewrite_db(char* db)
 {
   if (replicate_rewrite_db.is_empty() || !db)
@@ -874,11 +907,22 @@ char* rewrite_db(char* db)
   return db;
 }
 
-/*****************************************************************************
 
-  db_ok()
+/*
+  Checks whether a db matches some do_db and ignore_db rules
+  (for logging or replication)
 
-*****************************************************************************/
+  SYNOPSIS
+    db_ok()
+    db              name of the db to check
+    do_list         either binlog_do_db or replicate_do_db
+    ignore_list     either binlog_ignore_db or replicate_ignore_db
+
+  RETURN VALUES
+    0           should not be logged/replicated
+    1           should be logged/replicated                  
+*/
+
 int db_ok(const char* db, I_List<i_string> &do_list,
 	  I_List<i_string> &ignore_list )
 {
@@ -918,11 +962,7 @@ int db_ok(const char* db, I_List<i_string> &do_list,
   }
 }
 
-/*****************************************************************************
 
-  init_strvar_from_file()
-
-*****************************************************************************/
 static int init_strvar_from_file(char *var, int max_size, IO_CACHE *f,
 				 const char *default_val)
 {
@@ -951,11 +991,7 @@ static int init_strvar_from_file(char *var, int max_size, IO_CACHE *f,
   return 1;
 }
 
-/*****************************************************************************
 
-  init_intvar_from_file()
-
-*****************************************************************************/
 static int init_intvar_from_file(int* var, IO_CACHE* f, int default_val)
 {
   char buf[32];
@@ -973,11 +1009,7 @@ static int init_intvar_from_file(int* var, IO_CACHE* f, int default_val)
   return 1;
 }
 
-/*****************************************************************************
 
-  check_master_version()
-
-*****************************************************************************/
 static int check_master_version(MYSQL* mysql, MASTER_INFO* mi)
 {
   const char* errmsg= 0;
@@ -1003,11 +1035,7 @@ static int check_master_version(MYSQL* mysql, MASTER_INFO* mi)
   return 0;
 }
 
-/*****************************************************************************
 
-  create_table_from_dump()
-
-*****************************************************************************/
 static int create_table_from_dump(THD* thd, NET* net, const char* db,
 				  const char* table_name)
 {
@@ -1110,11 +1138,7 @@ err:
   return error; 
 }
 
-/*****************************************************************************
 
-  fetch_master_table()
-
-*****************************************************************************/
 int fetch_master_table(THD *thd, const char *db_name, const char *table_name,
 		       MASTER_INFO *mi, MYSQL *mysql)
 {
@@ -1161,11 +1185,8 @@ int fetch_master_table(THD *thd, const char *db_name, const char *table_name,
     send_error(thd, error, errmsg);
   DBUG_RETURN(test(error));			// Return 1 on error
 }
-/*****************************************************************************
 
-  end_master_info()
 
-*****************************************************************************/
 void end_master_info(MASTER_INFO* mi)
 {
   DBUG_ENTER("end_master_info");
@@ -1184,11 +1205,7 @@ void end_master_info(MASTER_INFO* mi)
   DBUG_VOID_RETURN;
 }
 
-/*****************************************************************************
 
-  init_relay_log_info()
-
-*****************************************************************************/
 int init_relay_log_info(RELAY_LOG_INFO* rli, const char* info_fname)
 {
   char fname[FN_REFLEN+128];
@@ -1322,11 +1339,7 @@ err:
   DBUG_RETURN(1);
 }
 
-/*****************************************************************************
 
-  add_relay_log()
-
-*****************************************************************************/
 static inline int add_relay_log(RELAY_LOG_INFO* rli,LOG_INFO* linfo)
 {
   MY_STAT s;
@@ -1345,11 +1358,7 @@ static inline int add_relay_log(RELAY_LOG_INFO* rli,LOG_INFO* linfo)
   DBUG_RETURN(0);
 }
 
-/*****************************************************************************
 
-  wait_for_relay_log_space()
-
-*****************************************************************************/
 static bool wait_for_relay_log_space(RELAY_LOG_INFO* rli)
 {
   bool slave_killed=0;
@@ -1373,11 +1382,7 @@ static bool wait_for_relay_log_space(RELAY_LOG_INFO* rli)
   DBUG_RETURN(slave_killed);
 }
 
-/*****************************************************************************
 
-  count_relay_log_space()
-
-*****************************************************************************/
 static int count_relay_log_space(RELAY_LOG_INFO* rli)
 {
   LOG_INFO linfo;
@@ -1396,11 +1401,7 @@ static int count_relay_log_space(RELAY_LOG_INFO* rli)
   DBUG_RETURN(0);
 }
 
-/*****************************************************************************
 
-  init_master_info()
-
-*****************************************************************************/
 int init_master_info(MASTER_INFO* mi, const char* master_info_fname,
 		     const char* slave_info_fname,
 		     bool abort_if_no_master_info_file)
@@ -1518,11 +1519,7 @@ err:
   DBUG_RETURN(1);
 }
 
-/*****************************************************************************
 
-  register_slave_on_master()
-
-*****************************************************************************/
 int register_slave_on_master(MYSQL* mysql)
 {
   char buf[1024], *pos= buf;
@@ -1560,11 +1557,7 @@ int register_slave_on_master(MYSQL* mysql)
   return 0;
 }
 
-/*****************************************************************************
 
-  show_master_info()
-
-*****************************************************************************/
 int show_master_info(THD* thd, MASTER_INFO* mi)
 {
   // TODO: fix this for multi-master
@@ -1641,11 +1634,7 @@ int show_master_info(THD* thd, MASTER_INFO* mi)
   DBUG_RETURN(0);
 }
 
-/*****************************************************************************
 
-  flush_master_info()
-
-*****************************************************************************/
 bool flush_master_info(MASTER_INFO* mi)
 {
   IO_CACHE* file = &mi->file;
@@ -1662,73 +1651,214 @@ bool flush_master_info(MASTER_INFO* mi)
   DBUG_RETURN(0);
 }
 
-/*****************************************************************************
 
-  st_relay_log_info::wait_for_pos()
+st_relay_log_info::st_relay_log_info()
+  :info_fd(-1), cur_log_fd(-1), master_log_pos(0), save_temporary_tables(0),
+   cur_log_old_open_count(0), log_space_total(0), 
+   slave_skip_counter(0), abort_pos_wait(0), slave_run_id(0),
+   sql_thd(0), last_slave_errno(0), inited(0), abort_slave(0),
+   slave_running(0), log_pos_current(0), skip_log_purge(0),
+   inside_transaction(0) /* the default is autocommit=1 */
+{
+  relay_log_name[0] = master_log_name[0] = 0;
+  last_slave_error[0]=0;
+  
 
-*****************************************************************************/
+  bzero(&info_file,sizeof(info_file));
+  bzero(&cache_buf, sizeof(cache_buf));
+  pthread_mutex_init(&run_lock, MY_MUTEX_INIT_FAST);
+  pthread_mutex_init(&data_lock, MY_MUTEX_INIT_FAST);
+  pthread_mutex_init(&log_space_lock, MY_MUTEX_INIT_FAST);
+  pthread_cond_init(&data_cond, NULL);
+  pthread_cond_init(&start_cond, NULL);
+  pthread_cond_init(&stop_cond, NULL);
+  pthread_cond_init(&log_space_cond, NULL);
+}
+
+
+st_relay_log_info::~st_relay_log_info()
+{
+  pthread_mutex_destroy(&run_lock);
+  pthread_mutex_destroy(&data_lock);
+  pthread_mutex_destroy(&log_space_lock);
+  pthread_cond_destroy(&data_cond);
+  pthread_cond_destroy(&start_cond);
+  pthread_cond_destroy(&stop_cond);
+  pthread_cond_destroy(&log_space_cond);
+}
+
+/*
+  Waits until the SQL thread reaches (has executed up to) the
+  log/position or timed out.
+
+  SYNOPSIS
+    wait_for_pos()
+    thd             client thread that sent SELECT MASTER_POS_WAIT
+    log_name        log name to wait for
+    log_pos         position to wait for 
+    timeout         timeout in seconds before giving up waiting
+
+  NOTES
+    timeout is longlong whereas it should be ulong ; but this is
+    to catch if the user submitted a negative timeout.
+
+  RETURN VALUES
+    -2          improper arguments (log_pos<0)
+                or slave not running, or master info changed
+                during the function's execution,
+                or client thread killed. -2 is translated to NULL by caller
+    -1          timed out
+    >=0         number of log events the function had to wait
+                before reaching the desired log/position
+ */
+
 int st_relay_log_info::wait_for_pos(THD* thd, String* log_name,
-				    ulonglong log_pos)
+                                    longlong log_pos,
+                                    longlong timeout)
 {
   if (!inited)
     return -1;
   int event_count = 0;
   ulong init_abort_pos_wait;
+  int error=0;
+  struct timespec abstime; // for timeout checking
+  set_timespec(abstime,timeout);
+
   DBUG_ENTER("wait_for_pos");
-  DBUG_PRINT("enter",("master_log_name: '%s'  pos: %ld",
-		      master_log_name, (ulong) master_log_pos));
+  DBUG_PRINT("enter",("master_log_name: '%s'  pos: %lu timeout: %ld",
+                      master_log_name, (ulong) master_log_pos, 
+                      (long) timeout));
 
   pthread_mutex_lock(&data_lock);
-  // abort only if master info changes during wait
+  /* 
+     This function will abort when it notices that
+     some CHANGE MASTER or RESET MASTER has changed
+     the master info. To catch this, these commands
+     modify abort_pos_wait ; we just monitor abort_pos_wait
+     and see if it has changed.
+  */
   init_abort_pos_wait= abort_pos_wait;
 
+  /*
+    We'll need to 
+    handle all possible log names comparisons (e.g. 999 vs 1000).
+    We use ulong for string->number conversion ; this is no 
+    stronger limitation than in find_uniq_filename in sql/log.cc
+  */
+  ulong log_name_extension;
+  char log_name_tmp[FN_REFLEN]; //make a char[] from String
+  char *end= strmake(log_name_tmp, log_name->ptr(), min(log_name->length(),
+							FN_REFLEN-1));
+  char *p= fn_ext(log_name_tmp);
+  char *p_end;
+  if (!*p || log_pos<0)   
+  {
+    error= -2; //means improper arguments
+    goto err;
+  }
+  //p points to '.'
+  log_name_extension= strtoul(++p, &p_end, 10);
+  /*
+    p_end points to the first invalid character.
+    If it equals to p, no digits were found, error.
+    If it contains '\0' it means conversion went ok.
+  */
+  if (p_end==p || *p_end)
+  {
+    error= -2;
+    goto err;
+  }    
+
+  //"compare and wait" main loop
   while (!thd->killed &&
-	 init_abort_pos_wait == abort_pos_wait &&
-	 mi->slave_running)
+         init_abort_pos_wait == abort_pos_wait &&
+         mi->slave_running)
   {
     bool pos_reached;
-    int different_file= 0;
+    int cmp_result= 0;
     DBUG_ASSERT(*master_log_name || master_log_pos == 0);
     if (*master_log_name)
     {
-      /*
-	TODO:
-	Replace strncmp() with a comparison function that
-	can handle comparison of the following files:
-	mysqlbin.999
-	mysqlbin.1000
-      */
       char *basename= master_log_name + dirname_length(master_log_name);
-      different_file =  strncmp(basename, log_name->ptr(),
-			    log_name->length());
+      /*
+        First compare the parts before the extension.
+        Find the dot in the master's log basename,
+        and protect against user's input error :
+        if the names do not match up to '.' included, return error
+      */
+      char *q= (char*)(fn_ext(basename)+1);
+      if (strncmp(basename, log_name_tmp, (int)(q-basename)))
+      {
+        error= -2;
+        break;
+      }
+      // Now compare extensions.
+      char *q_end;
+      ulong master_log_name_extension= strtoul(q, &q_end, 10);
+      if (master_log_name_extension < log_name_extension)
+        cmp_result = -1 ;
+      else
+        cmp_result= (master_log_name_extension > log_name_extension) ? 1 : 0 ;
     }
-    pos_reached = ((!different_file && master_log_pos >= log_pos) ||
-		   different_file > 0);
+    pos_reached = ((!cmp_result && master_log_pos >= (ulonglong)log_pos) ||
+                   cmp_result > 0);
     if (pos_reached || thd->killed)
       break;
+
+    //wait for master update, with optional timeout.
     
     DBUG_PRINT("info",("Waiting for master update"));
     const char* msg = thd->enter_cond(&data_cond, &data_lock,
-				      "Waiting for master update");
-    pthread_cond_wait(&data_cond, &data_lock);
+                                      "Waiting for master update");
+    if (timeout > 0)
+    {
+      /*
+        Note that pthread_cond_timedwait checks for the timeout
+        before for the condition ; i.e. it returns ETIMEDOUT 
+        if the system time equals or exceeds the time specified by abstime
+        before the condition variable is signaled or broadcast, _or_ if
+        the absolute time specified by abstime has already passed at the time
+        of the call.
+        For that reason, pthread_cond_timedwait will do the "timeoutting" job
+        even if its condition is always immediately signaled (case of a loaded
+        master).
+      */
+      error=pthread_cond_timedwait(&data_cond, &data_lock, &abstime);
+    }
+    else
+      pthread_cond_wait(&data_cond, &data_lock);
     thd->exit_cond(msg);
+    if (error == ETIMEDOUT || error == ETIME)
+    {
+      error= -1;
+      break;
+    }
+    error=0;
     event_count++;
   }
+
+err:
   pthread_mutex_unlock(&data_lock);
-  DBUG_PRINT("exit",("killed: %d  abort: %d  slave_running: %d",
-		     (int) thd->killed,
-		     (int) (init_abort_pos_wait != abort_pos_wait),
-		     (int) mi->slave_running));
-  DBUG_RETURN((thd->killed || init_abort_pos_wait != abort_pos_wait ||
-	      !mi->slave_running) ?
-	      -1 : event_count);
+  DBUG_PRINT("exit",("killed: %d  abort: %d  slave_running: %d \
+improper_arguments: %d  timed_out: %d",
+                     (int) thd->killed,
+                     (int) (init_abort_pos_wait != abort_pos_wait),
+                     (int) mi->slave_running,
+                     (int) (error == -2),
+                     (int) (error == -1)));
+  if (thd->killed || init_abort_pos_wait != abort_pos_wait ||
+      !mi->slave_running) 
+  {
+    error= -2;
+  }
+  DBUG_RETURN( error ? error : event_count );
 }
 
-/*****************************************************************************
 
+/*
   init_slave_thread()
+*/
 
-*****************************************************************************/
 static int init_slave_thread(THD* thd, SLAVE_THD_TYPE thd_type)
 {
   DBUG_ENTER("init_slave_thread");
@@ -1753,7 +1883,7 @@ static int init_slave_thread(THD* thd, SLAVE_THD_TYPE thd_type)
     DBUG_RETURN(-1);
   }
 
-#if !defined(__WIN__) && !defined(OS2)
+#if !defined(__WIN__) && !defined(OS2) && !defined(__NETWARE__)
   sigset_t set;
   VOID(sigemptyset(&set));			// Get mask in use
   VOID(pthread_sigmask(SIG_UNBLOCK,&set,&thd->block_signals));
@@ -1771,11 +1901,7 @@ static int init_slave_thread(THD* thd, SLAVE_THD_TYPE thd_type)
   DBUG_RETURN(0);
 }
 
-/*****************************************************************************
 
-  safe_sleep()
-
-*****************************************************************************/
 static int safe_sleep(THD* thd, int sec, CHECK_KILLED_FUNC thread_killed,
 		      void* thread_killed_arg)
 {
@@ -1804,11 +1930,7 @@ static int safe_sleep(THD* thd, int sec, CHECK_KILLED_FUNC thread_killed,
   return 0;
 }
 
-/*****************************************************************************
 
-  request_dump()
-
-*****************************************************************************/
 static int request_dump(MYSQL* mysql, MASTER_INFO* mi,
 			bool *suppress_warnings)
 {
@@ -1843,11 +1965,7 @@ static int request_dump(MYSQL* mysql, MASTER_INFO* mi,
   DBUG_RETURN(0);
 }
 
-/*****************************************************************************
 
-  request_table_dump()
-
-*****************************************************************************/
 static int request_table_dump(MYSQL* mysql, const char* db, const char* table)
 {
   char buf[1024];
@@ -1877,10 +1995,7 @@ command");
 }
 
 
-/*****************************************************************************
-
-  read_event()
-
+/*
   Read one event from the master
   
   SYNOPSIS
@@ -1895,8 +2010,8 @@ command");
     RETURN VALUES
     'packet_error'	Error
     number		Length of packet
+*/
 
-*****************************************************************************/
 static ulong read_event(MYSQL* mysql, MASTER_INFO *mi, bool* suppress_warnings)
 {
   ulong len;
@@ -1945,11 +2060,7 @@ server_errno=%d)",
   return len - 1;   
 }
 
-/*****************************************************************************
 
-  check_expected_error()
-
-*****************************************************************************/
 int check_expected_error(THD* thd, RELAY_LOG_INFO* rli, int expected_error)
 {
   switch (expected_error) {
@@ -1971,11 +2082,7 @@ point. If you are sure that your master is ok, run this query manually on the\
   }
 }
 
-/*****************************************************************************
 
-  exec_relay_log_event()
-
-*****************************************************************************/
 static int exec_relay_log_event(THD* thd, RELAY_LOG_INFO* rli)
 {
   DBUG_ASSERT(rli->sql_thd==thd);
@@ -2040,9 +2147,8 @@ This may also be a network problem, or just a bug in the master or slave code.\
   }
 }
 
-/*****************************************************************************
-  Slave I/O Thread entry point
-*****************************************************************************/
+
+/* Slave I/O Thread entry point */
 
 extern "C" pthread_handler_decl(handle_slave_io,arg)
 {
@@ -2303,20 +2409,21 @@ err:
   THD_CHECK_SENTRY(thd);
   delete thd;
   pthread_mutex_unlock(&LOCK_thread_count);
-  my_thread_end();				// clean-up before broadcast
   pthread_cond_broadcast(&mi->stop_cond);	// tell the world we are done
   pthread_mutex_unlock(&mi->run_lock);
 #ifndef DBUG_OFF
   if (abort_slave_event_count && !events_till_abort)
     goto slave_begin;
 #endif  
+  my_thread_end();
+#ifndef __NETWARE__
   pthread_exit(0);
+#endif /* __NETWARE__ */
   DBUG_RETURN(0);				// Can't return anything here
 }
 
-/*****************************************************************************
-  Slave SQL Thread entry point
-*****************************************************************************/
+
+/* Slave SQL Thread entry point */
 
 extern "C" pthread_handler_decl(handle_slave_sql,arg)
 {
@@ -2443,7 +2550,6 @@ the slave SQL thread with \"SLAVE START\". We stopped at log \
   THD_CHECK_SENTRY(thd);
   delete thd;
   pthread_mutex_unlock(&LOCK_thread_count);
-  my_thread_end(); // clean-up before broadcasting termination
   pthread_cond_broadcast(&rli->stop_cond);
   // tell the world we are done
   pthread_mutex_unlock(&rli->run_lock);
@@ -2451,15 +2557,18 @@ the slave SQL thread with \"SLAVE START\". We stopped at log \
   if (abort_slave_event_count && !rli->events_till_abort)
     goto slave_begin;
 #endif  
+  my_thread_end();
+#ifndef __NETWARE__
   pthread_exit(0);
+#endif /* __NETWARE__ */
   DBUG_RETURN(0);				// Can't return anything here
 }
 
-/*****************************************************************************
 
+/*
   process_io_create_file()
+*/
 
-*****************************************************************************/
 static int process_io_create_file(MASTER_INFO* mi, Create_file_log_event* cev)
 {
   int error = 1;
@@ -2491,9 +2600,10 @@ static int process_io_create_file(MASTER_INFO* mi, Create_file_log_event* cev)
     goto err;
   }
 
-  /* this dummy block is so we could instantiate Append_block_log_event
-     once and then modify it slightly instead of doing it multiple times
-     in the loop
+  /*
+    This dummy block is so we could instantiate Append_block_log_event
+    once and then modify it slightly instead of doing it multiple times
+    in the loop
   */
   {
     Append_block_log_event aev(thd,0,0,0);
@@ -2554,10 +2664,8 @@ err:
   DBUG_RETURN(error);
 }
 
-/*****************************************************************************
 
-  process_io_rotate()
-
+/*
   Start using a new binary log on the master
 
   SYNOPSIS
@@ -2576,7 +2684,8 @@ err:
     0		ok
     1	        Log event is illegal
 
-*****************************************************************************/
+*/
+
 static int process_io_rotate(MASTER_INFO *mi, Rotate_log_event *rev)
 {
   int return_val= 1;
@@ -2601,15 +2710,15 @@ static int process_io_rotate(MASTER_INFO *mi, Rotate_log_event *rev)
   DBUG_RETURN(0);
 }
 
-/*****************************************************************************
 
+/*
   queue_old_event()
 
   TODO: 
     Test this code before release - it has to be tested on a separate
     setup with 3.23 master 
+*/
 
-*****************************************************************************/
 static int queue_old_event(MASTER_INFO *mi, const char *buf,
 			   ulong event_len)
 {
@@ -2697,14 +2806,14 @@ static int queue_old_event(MASTER_INFO *mi, const char *buf,
   DBUG_RETURN(0);
 }
 
-/*****************************************************************************
 
+/*
   queue_event()
 
   TODO: verify the issue with stop events, see if we need them at all
   in the relay log
+*/
 
-*****************************************************************************/
 int queue_event(MASTER_INFO* mi,const char* buf, ulong event_len)
 {
   int error= 0;
@@ -2757,11 +2866,7 @@ int queue_event(MASTER_INFO* mi,const char* buf, ulong event_len)
   DBUG_RETURN(error);
 }
 
-/*****************************************************************************
 
-  end_relay_log_info()
-
-*****************************************************************************/
 void end_relay_log_info(RELAY_LOG_INFO* rli)
 {
   DBUG_ENTER("end_relay_log_info");
@@ -2786,26 +2891,35 @@ void end_relay_log_info(RELAY_LOG_INFO* rli)
   DBUG_VOID_RETURN;
 }
 
-/*****************************************************************************
-
-  safe_connect()
-
+/*
   Try to connect until successful or slave killed
 
-*****************************************************************************/
+  SYNPOSIS
+    safe_connect()
+    thd			Thread handler for slave
+    mysql		MySQL connection handle
+    mi			Replication handle
+
+  RETURN
+    0	ok
+    #	Error
+*/
+
 static int safe_connect(THD* thd, MYSQL* mysql, MASTER_INFO* mi)
 {
   return connect_to_master(thd, mysql, mi, 0, 0);
 }
 
-/*****************************************************************************
 
-  connect_to_master()
+/*
+  SYNPOSIS
+    connect_to_master()
 
-  Try to connect until successful or slave killed or we have retried
-  master_retry_count times
+  IMPLEMENTATION
+    Try to connect until successful or slave killed or we have retried
+    master_retry_count times
+*/
 
-*****************************************************************************/
 static int connect_to_master(THD* thd, MYSQL* mysql, MASTER_INFO* mi,
 			     bool reconnect, bool suppress_warnings)
 {
@@ -2884,24 +2998,23 @@ replication resumed in log '%s' at position %s", mi->user,
   DBUG_RETURN(slave_was_killed);
 }
 
-/*****************************************************************************
 
+/*
   safe_reconnect()
 
-  Try to connect until successful or slave killed or we have retried
-  master_retry_count times
+  IMPLEMENTATION
+    Try to connect until successful or slave killed or we have retried
+    master_retry_count times
+*/
 
-*****************************************************************************/
 static int safe_reconnect(THD* thd, MYSQL* mysql, MASTER_INFO* mi,
 			  bool suppress_warnings)
 {
   return connect_to_master(thd, mysql, mi, 1, suppress_warnings);
 }
 
-/*****************************************************************************
 
-  flush_relay_log_info()
-
+/*
   Store the file and position where the execute-slave thread are in the
   relay log.
 
@@ -2928,8 +3041,8 @@ static int safe_reconnect(THD* thd, MYSQL* mysql, MASTER_INFO* mi,
   RETURN VALUES
     0	ok
     1	write error
+*/
 
-*****************************************************************************/
 bool flush_relay_log_info(RELAY_LOG_INFO* rli)
 {
   bool error=0;
@@ -2958,13 +3071,11 @@ bool flush_relay_log_info(RELAY_LOG_INFO* rli)
   return error;
 }
 
-/*****************************************************************************
 
-  reopen_relay_log()
-
+/*
   Called when we notice that the current "hot" log got rotated under our feet.
+*/
 
-*****************************************************************************/
 static IO_CACHE *reopen_relay_log(RELAY_LOG_INFO *rli, const char **errmsg)
 {
   DBUG_ASSERT(rli->cur_log != &rli->cache_buf);
@@ -2984,11 +3095,7 @@ static IO_CACHE *reopen_relay_log(RELAY_LOG_INFO *rli, const char **errmsg)
   DBUG_RETURN(cur_log);
 }
 
-/*****************************************************************************
 
-  next_event()
-
-*****************************************************************************/
 Log_event* next_event(RELAY_LOG_INFO* rli)
 {
   Log_event* ev;

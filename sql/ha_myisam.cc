@@ -125,7 +125,7 @@ void mi_check_print_warning(MI_CHECK *param, const char *fmt,...)
 }
 
 const char **ha_myisam::bas_ext() const
-{ static const char *ext[]= { ".MYD",".MYI", NullS }; return ext; }
+{ static const char *ext[]= { ".MYI",".MYD", NullS }; return ext; }
 
 
 const char *ha_myisam::index_type(uint key_number)
@@ -510,7 +510,7 @@ int ha_myisam::repair(THD* thd, HA_CHECK_OPT *check_opt)
 		      (uint) (T_RETRY_WITHOUT_QUICK | T_QUICK)))
     {
       param.testflag&= ~T_RETRY_WITHOUT_QUICK;
-      sql_print_error("Warning: Retrying repair of: '%s' without quick",
+      sql_print_error("Note: Retrying repair of: '%s' without quick",
 		      table->path);
       continue;
     }
@@ -518,7 +518,7 @@ int ha_myisam::repair(THD* thd, HA_CHECK_OPT *check_opt)
     if ((param.testflag & T_REP_BY_SORT))
     {
       param.testflag= (param.testflag & ~T_REP_BY_SORT) | T_REP;
-      sql_print_error("Warning: Retrying repair of: '%s' with keycache",
+      sql_print_error("Note: Retrying repair of: '%s' with keycache",
 		      table->path);
       continue;
     }
@@ -528,7 +528,7 @@ int ha_myisam::repair(THD* thd, HA_CHECK_OPT *check_opt)
       !(check_opt->flags & T_VERY_SILENT))
   {
     char llbuff[22],llbuff2[22];
-    sql_print_error("Warning: Found %s of %s rows when repairing '%s'",
+    sql_print_error("Note: Found %s of %s rows when repairing '%s'",
 		    llstr(file->state->records, llbuff),
 		    llstr(start_records, llbuff2),
 		    table->path);

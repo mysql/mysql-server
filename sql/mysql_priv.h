@@ -1,4 +1,4 @@
-/* Copyright (C) 2000 MySQL AB & MySQL Finland AB & TCX DataKonsult AB
+/* Copyright (C) 2000-2003 MySQL AB
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -416,7 +416,7 @@ int mysql_union(THD *thd, LEX *lex, select_result *result,
 		SELECT_LEX_UNIT *unit, bool tables_and_fields_initied);
 int mysql_derived(THD *thd, LEX *lex, SELECT_LEX_UNIT *s, TABLE_LIST *t);
 Field *create_tmp_field(THD *thd, TABLE *table,Item *item, Item::Type type,
-			Item_result_field ***copy_func, Field **from_field,
+			Item ***copy_func, Field **from_field,
 			bool group,bool modify_item);
 int mysql_create_table(THD *thd,const char *db, const char *table_name,
 		       HA_CREATE_INFO *create_info,
@@ -500,6 +500,7 @@ extern struct st_des_keyschedule des_keyschedule[10];
 extern uint des_default_key;
 extern pthread_mutex_t LOCK_des_key_file;
 bool load_des_key_file(const char *file_name);
+void free_des_key_file();
 #endif /* HAVE_OPENSSL */
 
 /* sql_do.cc */
@@ -551,6 +552,7 @@ my_bool mysqld_show_warnings(THD *thd, ulong levels_to_show);
 /* sql_handler.cc */
 int mysql_ha_open(THD *thd, TABLE_LIST *tables);
 int mysql_ha_close(THD *thd, TABLE_LIST *tables, bool dont_send_ok=0);
+int mysql_ha_closeall(THD *thd, TABLE_LIST *tables, bool dont_send_ok=0);
 int mysql_ha_read(THD *, TABLE_LIST *,enum enum_ha_read_modes,char *,
                List<Item> *,enum ha_rkey_function,Item *,ha_rows,ha_rows);
 
@@ -680,6 +682,7 @@ extern uchar *days_in_month;
 extern char language[LIBLEN],reg_ext[FN_EXTLEN];
 extern char glob_hostname[FN_REFLEN], mysql_home[FN_REFLEN];
 extern char pidfile_name[FN_REFLEN], time_zone[30], *opt_init_file;
+extern char log_error_file[FN_REFLEN];
 extern char blob_newline;
 extern double log_10[32];
 extern ulonglong keybuff_size;
@@ -717,7 +720,7 @@ extern uint delay_key_write_options;
 extern bool opt_endinfo, using_udf_functions, locked_in_memory;
 extern bool opt_using_transactions, mysql_embedded;
 extern bool using_update_log, opt_large_files;
-extern bool opt_log, opt_update_log, opt_bin_log, opt_slow_log;
+extern bool opt_log, opt_update_log, opt_bin_log, opt_slow_log, opt_error_log;
 extern bool opt_disable_networking, opt_skip_show_db;
 extern bool volatile abort_loop, shutdown_in_progress, grant_option;
 extern uint volatile thread_count, thread_running, global_read_lock;
@@ -760,6 +763,7 @@ extern struct rand_struct sql_rand;
 extern SHOW_COMP_OPTION have_isam, have_innodb, have_berkeley_db;
 extern SHOW_COMP_OPTION have_raid, have_openssl, have_symlink;
 extern SHOW_COMP_OPTION have_query_cache, have_berkeley_db, have_innodb;
+extern SHOW_COMP_OPTION have_crypt;
 
 #ifndef __WIN__
 extern pthread_t signal_thread;
@@ -846,7 +850,7 @@ int create_frm(char *name,uint reclength,uchar *fileinfo,
 	       HA_CREATE_INFO *create_info, uint keys);
 void update_create_info_from_table(HA_CREATE_INFO *info, TABLE *form);
 int rename_file_ext(const char * from,const char * to,const char * ext);
-bool check_db_name(const char *db);
+bool check_db_name(char *db);
 bool check_column_name(const char *name);
 bool check_table_name(const char *name, uint length);
 char *get_field(MEM_ROOT *mem,TABLE *table,uint fieldnr);
@@ -871,6 +875,8 @@ extern int sql_cache_hit(THD *thd, char *inBuf, uint length);
 Item *get_system_var(enum_var_type var_type, LEX_STRING name);
 Item *get_system_var(enum_var_type var_type, const char *var_name, uint length,
 		     const char *item_name);
+/* log.cc */
+bool flush_error_log(void);
 
 /* Some inline functions for more speed */
 

@@ -147,7 +147,7 @@ void udf_init()
   tables.lock_type = TL_READ;
   tables.db=new_thd->db;
 
-  if (open_tables(new_thd, &tables))
+  if (open_and_lock_tables(new_thd, &tables))
   {
     DBUG_PRINT("error",("Can't open udf table"));
     sql_print_error("Can't open mysql/func table");
@@ -233,6 +233,11 @@ void udf_free()
   }
   hash_free(&udf_hash);
   free_root(&mem,MYF(0));
+  if (initialized)
+  {
+    initialized= 0;
+    pthread_mutex_destroy(&THR_LOCK_udf);
+  }    
   DBUG_VOID_RETURN;
 }
 

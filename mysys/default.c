@@ -46,6 +46,8 @@ char *defaults_extra_file=0;
 const char *default_directories[]= {
 #ifdef __WIN__
 "C:/",
+#elif defined(__NETWARE__)
+"sys:/etc/",
 #else
 "/etc/",
 #endif
@@ -53,7 +55,7 @@ const char *default_directories[]= {
 DATADIR,
 #endif
 "",					/* Place for defaults_extra_dir */
-#ifndef __WIN__
+#if !defined(__WIN__) && !defined(__NETWARE__)
 "~/",
 #endif
 NullS,

@@ -1,4 +1,4 @@
-/* Copyright (C) 2000 MySQL AB & MySQL Finland AB & TCX DataKonsult AB
+/* Copyright (C) 2000-2003 MySQL AB
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -105,6 +105,8 @@ public:
 	    separator->check_cols(1) ||
 	    Item_func::fix_fields(thd, tlist, ref));
   }
+  void split_sum_func(List<Item> &fields);
+  const char *func_name() const { return "concat_ws"; }
   const char *func_name() const { return "concat_ws"; }
   void set_outer_resolving()
   {
@@ -379,6 +381,7 @@ public:
 	    item->check_cols(1) ||
 	    Item_func::fix_fields(thd, tlist, ref));
   }
+  void split_sum_func(List<Item> &fields);
   void fix_length_and_dec();
   void update_used_tables();
   const char *func_name() const { return "elt"; }
@@ -405,6 +408,7 @@ public:
 	    item->check_cols(1) ||
 	    Item_func::fix_fields(thd, tlist, ref));
   }
+  void split_sum_func(List<Item> &fields);
   void fix_length_and_dec();
   void update_used_tables();
   const char *func_name() const { return "make_set"; }

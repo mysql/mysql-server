@@ -8,6 +8,7 @@ drop database if exists mysqltest2;
 create database mysqltest2;
 drop database if exists mysqltest;
 create database mysqltest;
+create database mysqltest2;
 create table mysqltest2.foo (n int);
 insert into mysqltest2.foo values(4);
 create table mysqltest2.foo (n int);
