@@ -3,7 +3,7 @@
 # Untar a MySQL distribution, change the copyright texts,
 # pack it up again to a given directory
 
-$VER="1.4";
+$VER="1.5";
 
 use Cwd;
 use File::Basename;
@@ -134,7 +134,6 @@ sub main
   
     # remove temporary directory
     chdir($WD) or print "$! Unable to move up one dir\n";
-    `cd $WD`;
     my $cwd = getcwd();
     print "current dir is $cwd\n" if $opt_verbose ;
     if (-e $dir) {
@@ -231,7 +230,14 @@ sub run_autotools
 
     # File "configure.in" has already been modified by "trim_the_fat()"
 
-    `aclocal && autoheader && aclocal && automake && autoconf`;
+    # It must be ensured that the timestamps of the relevant files are really 
+    # ascending, for otherwise the Makefile may cause a re-run of these
+    # autotools. Experience shows that deletion is the only safe way.
+    unlink ("config.h.in") or die "Can't delete $destdir/config.h.in: $!\n";
+    unlink ("aclocal.m4") or die "Can't delete $destdir/aclocal.m4: $!\n";
+
+    # These sleep commands also ensure the ascending order.
+    `aclocal && sleep 2 && autoheader && sleep 2 && automake && sleep 2 && autoconf`;
     die "'./configure' was not produced!" unless (-f "configure");
 
     if (-d "autom4te.cache") {
