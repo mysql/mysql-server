@@ -81,7 +81,7 @@ eval_func_item(THD *thd, Item *it, enum enum_field_types type)
 	String *s= it->val_str(&tmp);
 
 	DBUG_PRINT("info",("default result: %*s",s->length(),s->c_ptr_quick()));
-	it= new Item_string(sql_strmake(s->c_ptr_quick(), s->length()),
+	it= new Item_string(thd->strmake(s->c_ptr_quick(), s->length()),
 			    s->length(), it->charset());
 	break;
       }
@@ -89,6 +89,34 @@ eval_func_item(THD *thd, Item *it, enum enum_field_types type)
   }
 
   DBUG_RETURN(it);
+}
+
+void *
+sp_head::operator new(size_t size)
+{
+  DBUG_ENTER("sp_head::operator new");
+  MEM_ROOT own_root;
+  sp_head *sp;
+
+  bzero((char *)&own_root, sizeof(own_root));
+  init_alloc_root(&own_root, MEM_ROOT_BLOCK_SIZE, MEM_ROOT_PREALLOC);
+  sp= (sp_head *)alloc_root(&own_root, size);
+  sp->m_mem_root= own_root;
+  
+  DBUG_RETURN(sp);
+}
+
+void 
+sp_head::operator delete(void *ptr, size_t size)
+{
+  DBUG_ENTER("sp_head::operator delete");
+  MEM_ROOT own_root;
+  sp_head *sp= (sp_head *)ptr;
+
+  memcpy(&own_root, (const void *)&sp->m_mem_root, sizeof(MEM_ROOT));
+  free_root(&own_root, MYF(0));
+
+  DBUG_VOID_RETURN;
 }
 
 sp_head::sp_head(LEX_STRING *name, LEX *lex, LEX_STRING *comment, char suid)
@@ -102,6 +130,7 @@ sp_head::sp_head(LEX_STRING *name, LEX *lex, LEX_STRING *comment, char suid)
   m_name.str= name->str;
   m_defstr.length= lex->end_of_query - lex->buf;
   m_defstr.str= lex->thd->strmake(dstr, m_defstr.length);
+  m_free_list= NULL;
 
   m_comment.length= 0;
   m_comment.str= 0;
@@ -115,6 +144,7 @@ sp_head::sp_head(LEX_STRING *name, LEX *lex, LEX_STRING *comment, char suid)
   m_pcont= lex->spcont;
   my_init_dynamic_array(&m_instr, sizeof(sp_instr *), 16, 8);
   m_backpatch.empty();
+  m_lex.empty();
   DBUG_VOID_RETURN;
 }
 
@@ -142,13 +172,31 @@ sp_head::create(THD *thd)
   DBUG_RETURN(ret);
 }
 
+sp_head::~sp_head()
+{
+  destroy();
+  if (m_thd)
+    restore_thd_mem_root(m_thd);
+}
+
 void
 sp_head::destroy()
 {
   DBUG_ENTER("sp_head::destroy");
   DBUG_PRINT("info", ("name: %s", m_name.str));
+  sp_instr *i;
+  LEX *lex;
+
+  for (uint ip = 0 ; (i = get_instr(ip)) ; ip++)
+    delete i;
   delete_dynamic(&m_instr);
   m_pcont->destroy();
+  free_items(m_free_list);
+  while ((lex= (LEX *)m_lex.pop()))
+  {
+    if (lex != &m_thd->main_lex) // We got interrupted and have lex'es left
+      delete lex;
+  }
   DBUG_VOID_RETURN;
 }
 
@@ -367,20 +415,22 @@ sp_head::reset_lex(THD *thd)
 {
   DBUG_ENTER("sp_head::reset_lex");
   LEX *sublex;
+  LEX *oldlex= thd->lex;
 
-  m_lex= thd->lex;
+  (void)m_lex.push_front(oldlex);
   thd->lex= sublex= new st_lex;
-  sublex->yylineno= m_lex->yylineno;
+  sublex->yylineno= oldlex->yylineno;
   /* Reset most stuff. The length arguments doesn't matter here. */
-  lex_start(thd, m_lex->buf, m_lex->end_of_query - m_lex->ptr);
+  lex_start(thd, oldlex->buf, oldlex->end_of_query - oldlex->ptr);
   /* We must reset ptr and end_of_query again */
-  sublex->ptr= m_lex->ptr;
-  sublex->end_of_query= m_lex->end_of_query;
-  sublex->tok_start= m_lex->tok_start;
+  sublex->ptr= oldlex->ptr;
+  sublex->end_of_query= oldlex->end_of_query;
+  sublex->tok_start= oldlex->tok_start;
   /* And keep the SP stuff too */
-  sublex->sphead= m_lex->sphead;
-  sublex->spcont= m_lex->spcont;
+  sublex->sphead= oldlex->sphead;
+  sublex->spcont= oldlex->spcont;
   mysql_init_query(thd, true);	// Only init lex
+  sublex->sp_lex_in_use= FALSE;
   DBUG_VOID_RETURN;
 }
 
@@ -390,14 +440,18 @@ sp_head::restore_lex(THD *thd)
 {
   DBUG_ENTER("sp_head::restore_lex");
   LEX *sublex= thd->lex;
+  LEX *oldlex= (LEX *)m_lex.pop();
+
+  if (! oldlex)
+    return;			// Nothing to restore
 
   // Update some state in the old one first
-  m_lex->ptr= sublex->ptr;
-  m_lex->next_state= sublex->next_state;
+  oldlex->ptr= sublex->ptr;
+  oldlex->next_state= sublex->next_state;
 
   // Collect some data from the sub statement lex.
-  sp_merge_funs(m_lex, sublex);
-#if 0
+  sp_merge_funs(oldlex, sublex);
+#ifdef NOT_USED_NOW
   // QQ We're not using this at the moment.
   if (sublex.sql_command == SQLCOM_CALL)
   {
@@ -438,8 +492,9 @@ sp_head::restore_lex(THD *thd)
     }
   }
 #endif
-
-  thd->lex= m_lex;
+  if (! sublex->sp_lex_in_use)
+    delete sublex;
+  thd->lex= oldlex;
   DBUG_VOID_RETURN;
 }
 
@@ -478,6 +533,12 @@ sp_head::backpatch(sp_label_t *lab)
 //
 // sp_instr_stmt
 //
+sp_instr_stmt::~sp_instr_stmt()
+{
+  if (m_lex)
+    delete m_lex;
+}
+
 int
 sp_instr_stmt::execute(THD *thd, uint *nextp)
 {

@@ -495,6 +495,7 @@ typedef struct st_lex
   char *help_arg;
   SQL_LIST *gorder_list;
   sp_head *sphead;
+  bool sp_lex_in_use;	/* Keep track on lex usage in SPs for error handling */
   sp_pcontext *spcont;
   List<char> spfuns;		/* Called functions */
 

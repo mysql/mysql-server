@@ -948,6 +948,7 @@ create:
 	    lex->sphead->m_old_cmq=
 	      YYTHD->client_capabilities & CLIENT_MULTI_QUERIES;
 	    YYTHD->client_capabilities &= (~CLIENT_MULTI_QUERIES);
+	    lex->sphead->reset_thd_mem_root(YYTHD);
 	  }
           '(' sp_pdparam_list ')'
 	  {
@@ -961,6 +962,7 @@ create:
 	    /* Restore flag if it was cleared above */
 	    if (lex->sphead->m_old_cmq)
 	      YYTHD->client_capabilities |= CLIENT_MULTI_QUERIES;
+	    lex->sphead->restore_thd_mem_root(YYTHD);
 	  } 
 	;
 
@@ -997,6 +999,7 @@ create_function_tail:
 	    lex->sphead->m_old_cmq=
 	      YYTHD->client_capabilities & CLIENT_MULTI_QUERIES;
 	    YYTHD->client_capabilities &= ~CLIENT_MULTI_QUERIES;
+	    lex->sphead->reset_thd_mem_root(YYTHD);
 	  }
           sp_fdparam_list ')'
 	  {
@@ -1014,6 +1017,7 @@ create_function_tail:
 	    /* Restore flag if it was cleared above */
 	    if (lex->sphead->m_old_cmq)
 	      YYTHD->client_capabilities |= CLIENT_MULTI_QUERIES;
+	    lex->sphead->restore_thd_mem_root(YYTHD);
 	  }
 	;
 
@@ -1174,7 +1178,7 @@ sp_proc_stmt:
 	    **  which get their set instructions generated separately.)
 	    */
 	    if (lex->sql_command != SQLCOM_SET_OPTION ||
-		!lex->var_list.is_empty())
+		! lex->var_list.is_empty())
 	    {
 	      /* Currently we can't handle queries inside a FUNCTION,
 	      ** because of the way table locking works.
@@ -1194,6 +1198,7 @@ sp_proc_stmt:
 
 		i->set_lex(lex);
 		lex->sphead->add_instr(i);
+		lex->sp_lex_in_use= TRUE;
 	      }
             }
 	    lex->sphead->restore_lex(YYTHD);
