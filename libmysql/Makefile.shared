@@ -41,7 +41,7 @@ mystringsobjects =	strmov.lo strxmov.lo strxnmov.lo strnmov.lo \
 			ctype.lo ctype-simple.lo ctype-mb.lo \
 			ctype-big5.lo ctype-czech.lo ctype-euc_kr.lo \
 			ctype-gb2312.lo ctype-gbk.lo ctype-latin1_de.lo \
-			ctype-sjis.lo ctype-tis620.lo ctype-ujis.lo
+			ctype-sjis.lo ctype-tis620.lo ctype-ujis.lo ctype-utf8.lo
 
 mystringsextra= 	strto.c
 dbugobjects =		dbug.lo # IT IS IN SAFEMALLOC.C sanity.lo

@@ -183,17 +183,17 @@ uchar NEAR sort_order_sjis[]=
                        (0x80<=(c) && (c)<=0xfc))
 
 
-int ismbchar_sjis(const char* p, const char *e)
+int ismbchar_sjis(CHARSET_INFO *cs,const char* p, const char *e)
 {
   return (issjishead((uchar) *p) && (e-p)>1 && issjistail((uchar)p[1]) ? 2: 0);
 }
 
-my_bool ismbhead_sjis(uint c)
+my_bool ismbhead_sjis(CHARSET_INFO *cs,uint c)
 {
   return issjishead((uchar) c);
 }
 
-int mbcharlen_sjis(uint c)
+int mbcharlen_sjis(CHARSET_INFO *cs,uint c)
 {
   return (issjishead((uchar) c) ? 2: 0);
 }
@@ -208,8 +208,8 @@ int my_strnncoll_sjis(CHARSET_INFO *cs,
   const uchar *e1 = s1 + len1;
   const uchar *e2 = s2 + len2;
   while (s1 < e1 && s2 < e2) {
-    if (ismbchar_sjis((char*) s1, (char*) e1) &&
-	ismbchar_sjis((char*) s2, (char*) e2)) {
+    if (ismbchar_sjis(cs,(char*) s1, (char*) e1) &&
+	ismbchar_sjis(cs,(char*) s2, (char*) e2)) {
       uint c1 = sjiscode(*s1, *(s1+1));
       uint c2 = sjiscode(*s2, *(s2+1));
       if (c1 != c2)
@@ -233,7 +233,7 @@ int my_strnxfrm_sjis(CHARSET_INFO *cs,
   uchar *d_end = dest + len;
   uchar *s_end = (uchar*) src + srclen;
   while (dest < d_end && src < s_end) {
-    if (ismbchar_sjis((char*) src, (char*) s_end)) {
+    if (ismbchar_sjis(cs,(char*) src, (char*) s_end)) {
       *dest++ = *src++;
       if (dest < d_end && src < s_end)
 	*dest++ = *src++;
@@ -275,7 +275,7 @@ my_bool my_like_range_sjis(CHARSET_INFO *cs,
   char *min_end=min_str+res_length;
 
   while (ptr < end && min_str < min_end) {
-    if (ismbchar_sjis(ptr, end)) {
+    if (ismbchar_sjis(cs, ptr, end)) {
       *min_str++ = *max_str++ = *ptr++;
       if (min_str < min_end)
 	*min_str++ = *max_str++ = *ptr++;
@@ -283,7 +283,7 @@ my_bool my_like_range_sjis(CHARSET_INFO *cs,
     }
     if (*ptr == escape && ptr+1 < end) {
       ptr++;				/* Skip escape */
-      if (ismbchar_sjis(ptr, end))
+      if (ismbchar_sjis(cs, ptr, end))
 	*min_str++ = *max_str++ = *ptr++;
       if (min_str < min_end)
 	*min_str++ = *max_str++ = *ptr++;
