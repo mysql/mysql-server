@@ -86,7 +86,7 @@ int main(int argc, char** argv){
 
   if (_hostName == NULL){
     LocalConfig lcfg;
-    if(!lcfg.init())
+    if(!lcfg.init(opt_connect_str, 0))
     {
       lcfg.printError();
       lcfg.printUsage();

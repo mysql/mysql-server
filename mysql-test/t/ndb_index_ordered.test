@@ -1,7 +1,7 @@
 -- source include/have_ndb.inc
 
 --disable_warnings
-drop table if exists t1;
+drop table if exists t1, test1, test2;
 --enable_warnings
 
 #
@@ -146,3 +146,29 @@ select * from t1 use index (bc) where b IS NULL and c = 2 order by a;
 select * from t1 use index (bc) where b < 4 order by a;
 select * from t1 use index (bc) where b IS NOT NULL order by a;
 drop table t1;
+
+#
+# Bug #6435
+CREATE TABLE test1 (
+SubscrID int(11) NOT NULL auto_increment,
+UsrID int(11) NOT NULL default '0',
+PRIMARY KEY  (SubscrID),
+KEY idx_usrid (UsrID)
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1;
+
+INSERT INTO test1 VALUES (2,224),(3,224),(1,224);
+
+CREATE TABLE test2 (
+SbclID int(11) NOT NULL auto_increment,
+SbcrID int(11) NOT NULL default '0',
+PRIMARY KEY  (SbclID),
+KEY idx_sbcrid (SbcrID)
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1;
+
+INSERT INTO test2 VALUES (3,2),(1,1),(2,1),(4,2);
+select * from test1 order by 1;
+select * from test2 order by 1;
+SELECT s.SubscrID,l.SbclID FROM test1 s left JOIN test2 l ON
+l.SbcrID=s.SubscrID WHERE s.UsrID=224 order by 1, 2;
+drop table test1;
+drop table test2;

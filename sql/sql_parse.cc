@@ -1658,15 +1658,15 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
 #ifndef EMBEDDED_LIBRARY
   case COM_BINLOG_DUMP:
     {
+      ulong pos;
+      ushort flags;
+      uint32 slave_server_id;
+
       statistic_increment(thd->status_var.com_other,&LOCK_status);
       thd->slow_command = TRUE;
       if (check_global_access(thd, REPL_SLAVE_ACL))
 	break;
-      mysql_log.write(thd,command, 0);
 
-      ulong pos;
-      ushort flags;
-      uint32 slave_server_id;
       /* TODO: The following has to be changed to an 8 byte integer */
       pos = uint4korr(packet);
       flags = uint2korr(packet + 4);
@@ -1674,6 +1674,9 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
       if ((slave_server_id= uint4korr(packet+6))) // mysqlbinlog.server_id==0
 	kill_zombie_dump_threads(slave_server_id);
       thd->server_id = slave_server_id;
+
+      mysql_log.write(thd, command, "Log: '%s'  Pos: %ld", packet+10,
+                      (long) pos);
       mysql_binlog_send(thd, thd->strdup(packet + 10), (my_off_t) pos, flags);
       unregister_slave(thd,1,1);
       /*  fake COM_QUIT -- if we get here, the thread needs to terminate */
@@ -3208,6 +3211,12 @@ purposes internal to the MySQL server", MYF(0));
   }
 
   case SQLCOM_UNLOCK_TABLES:
+    /*
+      It is critical for mysqldump --single-transaction --master-data that
+      UNLOCK TABLES does not implicitely commit a connection which has only
+      done FLUSH TABLES WITH READ LOCK + BEGIN. If this assumption becomes
+      false, mysqldump will not work.
+    */
     unlock_locked_tables(thd);
     if (thd->options & OPTION_TABLE_LOCK)
     {
@@ -3567,7 +3576,9 @@ purposes internal to the MySQL server", MYF(0));
       thd->options= ((thd->options & (ulong) ~(OPTION_STATUS_NO_TRANS_UPDATE)) |
 		     OPTION_BEGIN);
       thd->server_status|= SERVER_STATUS_IN_TRANS;
-      send_ok(thd);
+      if (!(lex->start_transaction_opt & MYSQL_START_TRANS_OPT_WITH_CONS_SNAPSHOT) ||
+          !(res= ha_start_consistent_snapshot(thd)))
+        send_ok(thd);
     }
     break;
   case SQLCOM_COMMIT:
