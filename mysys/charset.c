@@ -324,7 +324,7 @@ static int add_collation(CHARSET_INFO *cs)
     if (cs->primary_number == cs->number)
       cs->state |= MY_CS_PRIMARY;
       
-    if (cs->primary_number == cs->number)
+    if (cs->binary_number == cs->number)
       cs->state |= MY_CS_BINSORT;
     
     if (!(all_charsets[cs->number]->state & MY_CS_COMPILED))

@@ -90,19 +90,23 @@ bool Item::check_cols(uint c)
   return 0;
 }
 
-void Item::set_name(const char *str,uint length)
+void Item::set_name(const char *str,uint length, CHARSET_INFO *cs)
 {
   if (!length)
-    name= (char*) str;				// Used by AS
-  else
-  {
-    while (length && !my_isgraph(system_charset_info,*str))
-    {						// Fix problem with yacc
-      length--;
-      str++;
-    }
-    name=sql_strmake(str,min(length,MAX_FIELD_WIDTH));
+    length= str ? strlen(str) : 0;
+  while (length && !my_isgraph(cs,*str))
+  {						// Fix problem with yacc
+    length--;
+    str++;
   }
+  if (!my_charset_same(cs, system_charset_info))
+  {
+    String tmp;
+    tmp.copy(str, length, cs, system_charset_info);
+    name=sql_strmake(tmp.ptr(),min(tmp.length(),MAX_FIELD_WIDTH));
+  }
+  else
+    name=sql_strmake(str,min(length,MAX_FIELD_WIDTH));
 }
 
 /*
