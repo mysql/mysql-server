@@ -206,8 +206,8 @@ sp_head::operator delete(void *ptr, size_t size)
 }
 
 sp_head::sp_head()
-  : Sql_alloc(), m_has_return(FALSE), m_simple_case(FALSE),
-    m_multi_results(FALSE), m_free_list(NULL), m_returns_cs(NULL)
+  : Sql_alloc(), m_returns_cs(NULL), m_has_return(FALSE), m_simple_case(FALSE),
+    m_multi_results(FALSE), m_free_list(NULL)
 {
   DBUG_ENTER("sp_head::sp_head");
 

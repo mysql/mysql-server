@@ -3434,6 +3434,7 @@ unsent_create_error:
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
 	st_sp_security_context save_ctx;
 #endif
+	ha_rows select_limit;
 	uint smrx;
 	LINT_INIT(smrx);
 
@@ -3468,9 +3469,12 @@ unsent_create_error:
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
 	sp_change_security_context(thd, sp, &save_ctx);
 #endif
+	select_limit= thd->variables.select_limit;
+	thd->variables.select_limit= HA_POS_ERROR;
 
 	res= sp->execute_procedure(thd, &lex->value_list);
 
+	thd->variables.select_limit= select_limit;
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
 	sp_restore_security_context(thd, sp, &save_ctx);
 #endif

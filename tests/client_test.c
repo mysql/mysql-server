@@ -6976,7 +6976,7 @@ static void test_explain_bug()
                        "","","",NAME_LEN,0);
 
   verify_prepare_field(result,6,"key_len","",MYSQL_TYPE_VAR_STRING,
-                       "","","",NAME_LEN*32,0);
+                       "","","",NAME_LEN*64,0);
 
   verify_prepare_field(result,7,"ref","",MYSQL_TYPE_VAR_STRING,
                        "","","",NAME_LEN*16,0);

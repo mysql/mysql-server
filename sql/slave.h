@@ -283,12 +283,14 @@ typedef struct st_relay_log_info
       until_log_names_cmp_result= UNTIL_LOG_NAMES_CMP_UNKNOWN;
   }
   
-  inline void inc_event_relay_log_pos(ulonglong val)
+  inline void inc_event_relay_log_pos()
   {
-    event_relay_log_pos+= val;
+    event_relay_log_pos= future_event_relay_log_pos;
   }
 
-  void inc_group_relay_log_pos(ulonglong val, ulonglong log_pos, bool skip_lock=0);
+  void inc_group_relay_log_pos(ulonglong log_pos,
+			       bool skip_lock=0);
+
   int wait_for_pos(THD* thd, String* log_name, longlong log_pos, 
 		   longlong timeout);
   void close_temporary_tables();

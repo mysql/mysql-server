@@ -464,16 +464,15 @@ void init_slave_skip_errors(const char* arg)
 }
 
 
-void st_relay_log_info::inc_group_relay_log_pos(ulonglong val,
-                                                ulonglong log_pos,
-                                                bool skip_lock)
+void st_relay_log_info::inc_group_relay_log_pos(ulonglong log_pos,
+						bool skip_lock=0)  
 {
   if (!skip_lock)
     pthread_mutex_lock(&data_lock);
-  inc_event_relay_log_pos(val);
+  inc_event_relay_log_pos();
   group_relay_log_pos= event_relay_log_pos;
   strmake(group_relay_log_name,event_relay_log_name,
-          sizeof(group_relay_log_name)-1);
+	  sizeof(group_relay_log_name)-1);
 
   notify_group_relay_log_name_update();
         
@@ -487,6 +486,28 @@ void st_relay_log_info::inc_group_relay_log_pos(ulonglong val,
     not advance as it should on the non-transactional slave (it advances by
     big leaps, whereas it should advance by small leaps).
   */
+  /*
+    In 4.x we used the event's len to compute the positions here. This is
+    wrong if the event was 3.23/4.0 and has been converted to 5.0, because
+    then the event's len is not what is was in the master's binlog, so this
+    will make a wrong group_master_log_pos (yes it's a bug in 3.23->4.0
+    replication: Exec_master_log_pos is wrong). Only way to solve this is to
+    have the original offset of the end of the event the relay log. This is
+    what we do in 5.0: log_pos has become "end_log_pos" (because the real use
+    of log_pos in 4.0 was to compute the end_log_pos; so better to store
+    end_log_pos instead of begin_log_pos.
+    If we had not done this fix here, the problem would also have appeared
+    when the slave and master are 5.0 but with different event length (for
+    example the slave is more recent than the master and features the event
+    UID). It would give false MASTER_POS_WAIT, false Exec_master_log_pos in
+    SHOW SLAVE STATUS, and so the user would do some CHANGE MASTER using this
+    value which would lead to badly broken replication.
+    Even the relay_log_pos will be corrupted in this case, because the len is
+    the relay log is not "val".
+    With the end_log_pos solution, we avoid computations involving lengthes.
+  */
+  DBUG_PRINT("info", ("log_pos=%lld group_master_log_pos=%lld",
+		      log_pos,group_master_log_pos));
   if (log_pos) // 3.23 binlogs don't have log_posx
   {
 #if MYSQL_VERSION_ID < 50000
@@ -500,10 +521,10 @@ void st_relay_log_info::inc_group_relay_log_pos(ulonglong val,
       Yes this is a hack but it's just to make 3.23->4.x replication work;
       3.23->5.0 replication is working much better.
     */
-    group_master_log_pos= log_pos + val -
+    group_master_log_pos= log_pos -
       (mi->old_format ? (LOG_EVENT_HEADER_LEN - OLD_HEADER_LEN) : 0);
 #else
-    group_master_log_pos= log_pos+ val;
+    group_master_log_pos= log_pos;
 #endif /* MYSQL_VERSION_ID < 5000 */
   }
   pthread_cond_broadcast(&data_cond);
@@ -2540,13 +2561,13 @@ int st_relay_log_info::wait_for_pos(THD* thd, String* log_name,
     goto err;
   }    
 
-  int cmp_result;
-
   /* The "compare and wait" main loop */
   while (!thd->killed &&
          init_abort_pos_wait == abort_pos_wait &&
          slave_running)
   {
+    bool pos_reached;
+    int cmp_result= 0;
 
     /*
       group_master_log_name can be "", if we are just after a fresh
