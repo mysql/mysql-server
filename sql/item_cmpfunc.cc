@@ -1375,6 +1375,7 @@ cmp_item* cmp_item::get_comparator(Item *item)
   return 0; // to satisfy compiler :)
 }
 
+
 cmp_item* cmp_item_sort_string::make_same()
 {
   return new cmp_item_sort_string_in_static(cmp_charset);
@@ -1395,6 +1396,23 @@ cmp_item* cmp_item_row::make_same()
   return new cmp_item_row();
 }
 
+
+cmp_item_row::~cmp_item_row()
+{
+  DBUG_ENTER("~cmp_item_row");
+  DBUG_PRINT("enter",("this: %lx", this));
+  if (comparators)
+  {
+    for (uint i= 0; i < n; i++)
+    {
+      if (comparators[i])
+	delete comparators[i];
+    }
+  }
+  DBUG_VOID_RETURN;
+}
+
+
 void cmp_item_row::store_value(Item *item)
 {
   THD *thd= current_thd;
@@ -1404,17 +1422,15 @@ void cmp_item_row::store_value(Item *item)
     item->bring_value();
     item->null_value= 0;
     for (uint i=0; i < n; i++)
-      if ((comparators[i]= cmp_item::get_comparator(item->el(i))))
-      {
-	comparators[i]->store_value(item->el(i));
-	item->null_value|= item->el(i)->null_value;
-      }
-      else
-	return;
+    {
+      if (!(comparators[i]= cmp_item::get_comparator(item->el(i))))
+	break;					// new failed
+      comparators[i]->store_value(item->el(i));
+      item->null_value|= item->el(i)->null_value;
+    }
   }
-  else
-    return;
 }
+
 
 void cmp_item_row::store_value_by_template(cmp_item *t, Item *item)
 {
@@ -1430,18 +1446,16 @@ void cmp_item_row::store_value_by_template(cmp_item *t, Item *item)
     item->bring_value();
     item->null_value= 0;
     for (uint i=0; i < n; i++)
-      if ((comparators[i]= tmpl->comparators[i]->make_same()))
-      {
-	comparators[i]->store_value_by_template(tmpl->comparators[i],
-						item->el(i));
-	item->null_value|= item->el(i)->null_value;
-      }
-      else
-	return;
+    {
+      if (!(comparators[i]= tmpl->comparators[i]->make_same()))
+	break;					// new failed
+      comparators[i]->store_value_by_template(tmpl->comparators[i],
+					      item->el(i));
+      item->null_value|= item->el(i)->null_value;
+    }
   }
-  else
-    return;
 }
+
 
 int cmp_item_row::cmp(Item *arg)
 {
@@ -1454,24 +1468,30 @@ int cmp_item_row::cmp(Item *arg)
   bool was_null= 0;
   arg->bring_value();
   for (uint i=0; i < n; i++)
+  {
     if (comparators[i]->cmp(arg->el(i)))
     {
       if (!arg->el(i)->null_value)
 	return 1;
       was_null= 1;
     }
+  }
   return (arg->null_value= was_null);
 }
 
+
 int cmp_item_row::compare(cmp_item *c)
 {
-  int res;
   cmp_item_row *cmp= (cmp_item_row *) c;
   for (uint i=0; i < n; i++)
+  {
+    int res;
     if ((res= comparators[i]->compare(cmp->comparators[i])))
       return res;
+  }
   return 0;
 }
+
 
 bool Item_func_in::nulls_in_row()
 {
@@ -1484,12 +1504,14 @@ bool Item_func_in::nulls_in_row()
   return 0;
 }
 
+
 static int srtcmp_in(CHARSET_INFO *cs, const String *x,const String *y)
 {
   return cs->coll->strnncollsp(cs,
                         (unsigned char *) x->ptr(),x->length(),
 			(unsigned char *) y->ptr(),y->length());
 }
+
 
 void Item_func_in::fix_length_and_dec()
 {

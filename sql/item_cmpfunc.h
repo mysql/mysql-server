@@ -638,17 +638,7 @@ class cmp_item_row :public cmp_item
   uint n;
 public:
   cmp_item_row(): comparators(0), n(0) {}
-  ~cmp_item_row()
-  {
-    if (comparators)
-    {
-      for (uint i= 0; i < n; i++)
-      {
-	if (comparators[i])
-	  delete comparators[i];
-      }
-    }
-  }
+  ~cmp_item_row();
   void store_value(Item *item);
   int cmp(Item *arg);
   int compare(cmp_item *arg);
@@ -694,7 +684,7 @@ public:
     cmp_item_string *cmp= (cmp_item_string *)c;
     return sortcmp(value_res, cmp->value_res, cmp_charset);
   }
-  cmp_item * make_same()
+  cmp_item *make_same()
   {
     return new cmp_item_sort_string_in_static(cmp_charset);
   }
@@ -715,7 +705,10 @@ class Item_func_in :public Item_int_func
   }
   longlong val_int();
   void fix_length_and_dec();
-  ~Item_func_in() {}
+  ~Item_func_in()
+  {
+    cleanup(); /* This is not called by Item::~Item() */
+  }
   void cleanup()
   {
     delete array;
