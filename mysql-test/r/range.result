@@ -475,3 +475,89 @@ id	name	uid	id	name	uid
 1025	Y	25	1025	Y	25
 1026	Z	26	1026	Z	26
 drop table t1,t2;
+create table t1 (x bigint unsigned not null);
+insert into t1(x) values (0xfffffffffffffff0);
+insert into t1(x) values (0xfffffffffffffff1);
+select * from t1;
+x
+18446744073709551600
+18446744073709551601
+select count(*) from t1 where x>0;
+count(*)
+2
+select count(*) from t1 where x=0;
+count(*)
+0
+select count(*) from t1 where x<0;
+count(*)
+0
+select count(*) from t1 where x < -16;
+count(*)
+0
+select count(*) from t1 where x = -16;
+count(*)
+0
+select count(*) from t1 where x > -16;
+count(*)
+2
+select count(*) from t1 where x = 18446744073709551601;
+count(*)
+1
+create table t2 (x bigint not null);
+insert into t2(x) values (0xfffffffffffffff0);
+insert into t2(x) values (0xfffffffffffffff1);
+select * from t2;
+x
+-16
+-15
+select count(*) from t2 where x>0;
+count(*)
+0
+select count(*) from t2 where x=0;
+count(*)
+0
+select count(*) from t2 where x<0;
+count(*)
+2
+select count(*) from t2 where x < -16;
+count(*)
+0
+select count(*) from t2 where x = -16;
+count(*)
+1
+select count(*) from t2 where x > -16;
+count(*)
+1
+select count(*) from t2 where x = 18446744073709551601;
+count(*)
+0
+drop table t1;
+create table t1 (x bigint unsigned not null primary key) engine=innodb;
+insert into t1(x) values (0xfffffffffffffff0);
+insert into t1(x) values (0xfffffffffffffff1);
+select * from t1;
+x
+18446744073709551600
+18446744073709551601
+select count(*) from t1 where x>0;
+count(*)
+2
+select count(*) from t1 where x=0;
+count(*)
+0
+select count(*) from t1 where x<0;
+count(*)
+0
+select count(*) from t1 where x < -16;
+count(*)
+0
+select count(*) from t1 where x = -16;
+count(*)
+0
+select count(*) from t1 where x > -16;
+count(*)
+1
+select count(*) from t1 where x = 18446744073709551601;
+count(*)
+1
+drop table t1;
