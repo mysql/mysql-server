@@ -1047,3 +1047,9 @@ select * from v1;
 EXISTS (SELECT 1 UNION SELECT 2)
 1
 drop view v1;
+create table t1 (col1 int,col2 char(22));
+create view v1 as select * from t1;
+create index i1 on v1 (col1);
+ERROR HY000: 'test.v1' is not BASIC TABLE
+drop view v1;
+drop table t1;
