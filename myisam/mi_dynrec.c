@@ -311,7 +311,7 @@ static int update_backward_delete_link(MI_INFO *info, my_off_t delete_block,
       DBUG_RETURN(1);				/* Wrong delete link */
     }
   }
-  return 0;
+  DBUG_RETURN(0);
 }
 
 	/* Delete datarecord from database */
