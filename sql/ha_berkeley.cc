@@ -571,6 +571,7 @@ int ha_berkeley::open(const char *name, int mode, uint test_if_locked)
   transaction=0;
   cursor=0;
   key_read=0;
+  block_size=8192;				// Berkeley DB block size
   share->fixed_length_row=!(table->db_create_options & HA_OPTION_PACK_RECORD);
 
   get_status();
