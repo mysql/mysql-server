@@ -2376,6 +2376,7 @@ delete_limit_clause:
 
 ULONG_NUM:
 	NUM	    { $$= strtoul($1.str,NULL,10); }
+	| LONG_NUM  { $$= (ulonglong) strtoll($1.str,NULL,10); }
 	| ULONGLONG_NUM { $$= (ulong) strtoull($1.str,NULL,10); }
 	| REAL_NUM  { $$= strtoul($1.str,NULL,10); }
 	| FLOAT_NUM { $$= strtoul($1.str,NULL,10); };
@@ -2383,7 +2384,7 @@ ULONG_NUM:
 ulonglong_num:
 	NUM	    { $$= (ulonglong) strtoul($1.str,NULL,10); }
 	| ULONGLONG_NUM { $$= strtoull($1.str,NULL,10); }
-	| LONG_NUM  { $$= (ulonglong) strtoul($1.str,NULL,10); }
+	| LONG_NUM  { $$= (ulonglong) strtoll($1.str,NULL,10); }
 	| REAL_NUM  { $$= strtoull($1.str,NULL,10); }
 	| FLOAT_NUM { $$= strtoull($1.str,NULL,10); };
 
@@ -3110,8 +3111,8 @@ text_string:
 
 literal:
 	text_literal	{ $$ =	$1; }
-	| NUM		{ $$ =	new Item_int($1.str, (longlong) atol($1.str),$1.length); }
-	| LONG_NUM	{ $$ =	new Item_int($1.str); }
+	| NUM		{ $$ =	new Item_int($1.str, (longlong) strtol($1.str, NULL, 10),$1.length); }
+	| LONG_NUM	{ $$ =	new Item_int($1.str, (longlong) strtoll($1.str,NULL,10), $1.length); }
 	| ULONGLONG_NUM	{ $$ =	new Item_uint($1.str, $1.length); }
 	| REAL_NUM	{ $$ =	new Item_real($1.str, $1.length); }
 	| FLOAT_NUM	{ $$ =	new Item_float($1.str, $1.length); }
