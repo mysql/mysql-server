@@ -41,9 +41,22 @@ Item_sum::Item_sum(List<Item> &list)
   list.empty();					// Fields are used
 }
 
+Item_sum::Item_sum(Item_sum &item):
+  Item_result_field(item), quick_group(item.quick_group)
+{
+  arg_count= item.arg_count;
+  if (arg_count <= 2)
+    args=tmp_args;
+  else
+    if (!(args=(Item**) sql_alloc(sizeof(Item*)*arg_count)))
+      return;
+  for(uint i= 0; i < arg_count; i++)
+    args[i]= item.args[i];
+}
+
 void Item_sum::mark_as_sum_func()
 {
-  current_thd->lex.current_select->with_sum_func=1;
+  current_thd->lex.current_select->with_sum_func++;
   with_sum_func= 1;
 }
 
@@ -83,6 +96,26 @@ void Item_sum::fix_num_length_and_dec()
   max_length=float_length(decimals);
 }
 
+Item * Item_sum::get_tmp_table_item()
+{
+  Item_sum* sum_item= (Item_sum *) get_same();
+  if (sum_item && sum_item->result_field)	   // If not a const sum func
+  {
+    Field *result_field= sum_item->result_field;
+    for (uint i=0 ; i < sum_item->arg_count ; i++)
+    {
+      Item *arg= sum_item->args[i];
+      if (!arg->const_item())
+      {
+	if (arg->type() == Item::FIELD_ITEM)
+	  ((Item_field*) arg)->field= result_field++;
+	else
+	  sum_item->args[i]= new Item_field(result_field++);
+      }
+    }
+  }
+  return sum_item;
+}
 
 String *
 Item_sum_num::val_str(String *str)
@@ -952,7 +985,7 @@ int dump_leaf(byte* key, uint32 count __attribute__((unused)),
     The first item->rec_offset bytes are taken care of with
     restore_record(table,2) in setup()
   */
-  memcpy(buf + item->rec_offset, key, item->tree.size_of_element);
+  memcpy(buf + item->rec_offset, key, item->tree->size_of_element);
   if ((error = item->table->file->write_row(buf)))
   {
     if (error != HA_ERR_FOUND_DUPP_KEY &&
@@ -965,11 +998,14 @@ int dump_leaf(byte* key, uint32 count __attribute__((unused)),
 
 Item_sum_count_distinct::~Item_sum_count_distinct()
 {
-  if (table)
-    free_tmp_table(current_thd, table);
-  delete tmp_table_param;
-  if (use_tree)
-    delete_tree(&tree);
+  if (!original)
+  {
+    if (table)
+      free_tmp_table(current_thd, table);
+    delete tmp_table_param;
+    if (use_tree)
+      delete_tree(tree);
+  }
 }
 
 
@@ -1100,8 +1136,8 @@ bool Item_sum_count_distinct::setup(THD *thd)
       }
     }
 
-    init_tree(&tree, min(thd->variables.max_heap_table_size,
-			 thd->variables.sortbuff_size/16), 0,
+    init_tree(tree, min(thd->variables.max_heap_table_size,
+			thd->variables.sortbuff_size/16), 0,
 	      key_length, compare_key, 0, NULL, cmp_arg);
     use_tree = 1;
 
@@ -1113,6 +1149,12 @@ bool Item_sum_count_distinct::setup(THD *thd)
     */
     max_elements_in_tree = ((key_length) ? 
 			    thd->variables.max_heap_table_size/key_length : 1);
+
+  }
+  if (original)
+  {
+    original->table= table;
+    original->use_tree= use_tree;
   }
   return 0;
 }
@@ -1122,10 +1164,10 @@ int Item_sum_count_distinct::tree_to_myisam()
 {
   if (create_myisam_from_heap(current_thd, table, tmp_table_param,
 			      HA_ERR_RECORD_FILE_FULL, 1) ||
-      tree_walk(&tree, (tree_walk_action)&dump_leaf, (void*)this,
+      tree_walk(tree, (tree_walk_action)&dump_leaf, (void*)this,
 		left_root_right))
     return 1;
-  delete_tree(&tree);
+  delete_tree(tree);
   use_tree = 0;
   return 0;
 }
@@ -1133,7 +1175,7 @@ int Item_sum_count_distinct::tree_to_myisam()
 void Item_sum_count_distinct::reset()
 {
   if (use_tree)
-    reset_tree(&tree);
+    reset_tree(tree);
   else if (table)
   {
     table->file->extra(HA_EXTRA_NO_CACHE);
@@ -1161,13 +1203,13 @@ bool Item_sum_count_distinct::add()
       If the tree got too big, convert to MyISAM, otherwise insert into the
       tree.
     */
-    if (tree.elements_in_tree > max_elements_in_tree)
+    if (tree->elements_in_tree > max_elements_in_tree)
     {
       if (tree_to_myisam())
 	return 1;
     }
-    else if (!tree_insert(&tree, table->record[0] + rec_offset, 0,
-			  tree.custom_arg))
+    else if (!tree_insert(tree, table->record[0] + rec_offset, 0,
+			  tree->custom_arg))
       return 1;
   }
   else if ((error=table->file->write_row(table->record[0])))
@@ -1189,7 +1231,7 @@ longlong Item_sum_count_distinct::val_int()
   if (!table)					// Empty query
     return LL(0);
   if (use_tree)
-    return tree.elements_in_tree;
+    return tree->elements_in_tree;
   table->file->info(HA_STATUS_VARIABLE | HA_STATUS_NO_LOCK);
   return table->file->records;
 }

@@ -36,7 +36,7 @@ static char *make_unique_key_name(const char *field_name,KEY *start,KEY *end);
 static int copy_data_between_tables(TABLE *from,TABLE *to,
 				    List<create_field> &create,
 				    enum enum_duplicates handle_duplicates,
-                                    ORDER *order,
+                                    uint order_num, ORDER *order,
 				    ha_rows *copied,ha_rows *deleted);
 
 /*****************************************************************************
@@ -1572,7 +1572,7 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
 		      List<create_field> &fields,
 		      List<Key> &keys,List<Alter_drop> &drop_list,
 		      List<Alter_column> &alter_list,
-                      ORDER *order,
+                      uint order_num, ORDER *order,
 		      bool drop_primary,
 		      enum enum_duplicates handle_duplicates,
 	              enum enum_enable_or_disable keys_onoff,
@@ -2034,7 +2034,7 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
   if (!new_table->is_view)
     error=copy_data_between_tables(table,new_table,create_list,
 				   handle_duplicates,
-				   order, &copied, &deleted);
+				   order_num, order, &copied, &deleted);
   thd->last_insert_id=next_insert_id;		// Needed for correct log
   thd->count_cuted_fields=0;			// Don`t calc cuted fields
   new_table->time_stamp=save_time_stamp;
@@ -2244,7 +2244,7 @@ static int
 copy_data_between_tables(TABLE *from,TABLE *to,
                          List<create_field> &create,
 			 enum enum_duplicates handle_duplicates,
-                         ORDER *order,
+                         uint order_num, ORDER *order,
 			 ha_rows *copied,
                          ha_rows *deleted)
 {
@@ -2292,7 +2292,10 @@ copy_data_between_tables(TABLE *from,TABLE *to,
     tables.db	 = from->table_cache_key;
     error=1;
 
-    if (setup_order(thd, &tables, fields, all_fields, order) ||
+    if (setup_ref_array(thd, &thd->lex.select_lex.ref_pointer_array,
+			order_num)||
+	setup_order(thd, thd->lex.select_lex.ref_pointer_array,
+		    &tables, fields, all_fields, order) ||
         !(sortorder=make_unireg_sortorder(order, &length)) ||
         (from->found_records = filesort(thd, from, sortorder, length, 
 					(SQL_SELECT *) 0, HA_POS_ERROR,

@@ -54,6 +54,8 @@ public:
     mark_as_sum_func();
   }
   Item_sum(List<Item> &list);
+  //Copy constructor, need to perform subselects with temporary tables
+  Item_sum(Item_sum &item);
   ~Item_sum() { result_field=0; }
 
   enum Type type() const { return SUM_FUNC_ITEM; }
@@ -75,6 +77,7 @@ public:
   void print(String *str);
   void fix_num_length_and_dec();
   virtual bool setup(THD *thd) {return 0;}
+  Item * get_tmp_table_item();
 };
 
 
@@ -85,6 +88,7 @@ public:
   Item_sum_num(Item *item_par) :Item_sum(item_par) {}
   Item_sum_num(Item *a, Item* b) :Item_sum(a,b) {}
   Item_sum_num(List<Item> &list) :Item_sum(list) {}
+  Item_sum_num(Item_sum_num &item) :Item_sum(item) {}
   bool fix_fields(THD *, TABLE_LIST *, Item **);
   longlong val_int() { return (longlong) val(); } /* Real as default */
   String *val_str(String*str);
@@ -100,6 +104,7 @@ class Item_sum_int :public Item_sum_num
 public:
   Item_sum_int(Item *item_par) :Item_sum_num(item_par) {}
   Item_sum_int(List<Item> &list) :Item_sum_num(list) {}
+  Item_sum_int(Item_sum_int &item) :Item_sum_num(item) {}
   double val() { return (double) val_int(); }
   String *val_str(String*str);
   enum Item_result result_type () const { return INT_RESULT; }
@@ -113,6 +118,7 @@ class Item_sum_sum :public Item_sum_num
 
   public:
   Item_sum_sum(Item *item_par) :Item_sum_num(item_par),sum(0.0) {}
+  Item_sum_sum(Item_sum_sum &item) :Item_sum_num(item), sum(item.sum) {}
   enum Sumfunctype sum_func () const {return SUM_FUNC;}
   void reset();
   bool add();
@@ -120,6 +126,7 @@ class Item_sum_sum :public Item_sum_num
   void reset_field();
   void update_field(int offset);
   const char *func_name() const { return "sum"; }
+  Item * get_same() { return new Item_sum_sum(*this); }
 };
 
 
@@ -132,6 +139,10 @@ class Item_sum_count :public Item_sum_int
   Item_sum_count(Item *item_par)
     :Item_sum_int(item_par),count(0),used_table_cache(~(table_map) 0)
   {}
+  Item_sum_count(Item_sum_count &item): Item_sum_int(item),
+					count(item.count),
+					used_table_cache(item.used_table_cache)
+  {}
   table_map used_tables() const { return used_table_cache; }
   bool const_item() const { return !used_table_cache; }
   enum Sumfunctype sum_func () const { return COUNT_FUNC; }
@@ -142,6 +153,7 @@ class Item_sum_count :public Item_sum_int
   void reset_field();
   void update_field(int offset);
   const char *func_name() const { return "count"; }
+  Item * get_same() { return new Item_sum_count(*this); }
 };
 
 
@@ -154,7 +166,14 @@ class Item_sum_count_distinct :public Item_sum_int
   bool fix_fields(THD *thd, TABLE_LIST *tables, Item **ref);
   uint32 *field_lengths;
   TMP_TABLE_PARAM *tmp_table_param;
-  TREE tree;
+  TREE tree_base;
+  TREE *tree;
+  /*
+    Following is 0 normal object and pointer to original one for copy 
+    (to correctly free resources)
+  */
+  Item_sum_count_distinct *original;
+
   uint key_length;
   CHARSET_INFO *key_charset;
   
@@ -183,9 +202,19 @@ class Item_sum_count_distinct :public Item_sum_int
 
   public:
   Item_sum_count_distinct(List<Item> &list)
-    :Item_sum_int(list),table(0),used_table_cache(~(table_map) 0),
-     tmp_table_param(0),use_tree(0),always_null(0)
-  { quick_group=0; }
+    :Item_sum_int(list), table(0), used_table_cache(~(table_map) 0),
+     tmp_table_param(0), tree(&tree_base), original(0), use_tree(0),
+     always_null(0)
+  { quick_group= 0; }
+  Item_sum_count_distinct(Item_sum_count_distinct &item):
+    Item_sum_int(item), table(item.table),
+    used_table_cache(item.used_table_cache),
+    field_lengths(item.field_lengths), tmp_table_param(item.tmp_table_param),
+    tree(item.tree), original(&item), key_length(item.key_length),
+    max_elements_in_tree(item.max_elements_in_tree),
+    rec_offset(item.rec_offset), use_tree(item.use_tree),
+    always_null(item.always_null)
+    {}
   ~Item_sum_count_distinct();
   table_map used_tables() const { return used_table_cache; }
   enum Sumfunctype sum_func () const { return COUNT_DISTINCT_FUNC; }
@@ -196,6 +225,7 @@ class Item_sum_count_distinct :public Item_sum_int
   void update_field(int offset) { return ; }	// Never called
   const char *func_name() const { return "count_distinct"; }
   bool setup(THD *thd);
+  Item * get_same() { return new Item_sum_count_distinct(*this); }
 };
 
 
@@ -227,6 +257,8 @@ class Item_sum_avg :public Item_sum_num
 
   public:
   Item_sum_avg(Item *item_par) :Item_sum_num(item_par),count(0) {}
+  Item_sum_avg(Item_sum_avg &item)
+    :Item_sum_num(item), sum(item.sum), count(item.count) {}
   enum Sumfunctype sum_func () const {return AVG_FUNC;}
   void reset();
   bool add();
@@ -236,6 +268,7 @@ class Item_sum_avg :public Item_sum_num
   Item *result_item(Field *field)
   { return new Item_avg_field(this); }
   const char *func_name() const { return "avg"; }
+  Item * get_same() { return new Item_sum_avg(*this); }
 };
 
 class Item_sum_variance;
@@ -276,6 +309,9 @@ class Item_sum_variance : public Item_sum_num
 
   public:
   Item_sum_variance(Item *item_par) :Item_sum_num(item_par),count(0) {}
+  Item_sum_variance(Item_sum_variance &item):
+    Item_sum_num(item), sum(item.sum), sum_sqr(item.sum_sqr),
+    count(item.count) {}
   enum Sumfunctype sum_func () const { return VARIANCE_FUNC; }
   void reset();
   bool add();
@@ -285,6 +321,7 @@ class Item_sum_variance : public Item_sum_num
   Item *result_item(Field *field)
   { return new Item_variance_field(this); }
   const char *func_name() const { return "variance"; }
+  Item * get_same() { return new Item_sum_variance(*this); }
 };
 
 class Item_sum_std;
@@ -295,22 +332,6 @@ public:
   Item_std_field(Item_sum_std *item);
   enum Type type() const { return FIELD_STD_ITEM; }
   double val();
-};
-
-/*
-   standard_deviation(a) = sqrt(variance(a))
-*/
-
-class Item_sum_std :public Item_sum_variance
-{
-  public:
-  Item_sum_std(Item *item_par) :Item_sum_variance(item_par){}
-  enum Sumfunctype sum_func () const { return STD_FUNC; }
-  double val();
-  Item *result_item(Field *field)
-    { return new Item_std_field(this); }
-  const char *func_name() const { return "std"; }
-};
 
 // This class is a string or number function depending on num_func
 
@@ -329,6 +350,10 @@ class Item_sum_hybrid :public Item_sum
   Item_sum_hybrid(Item *item_par,int sign) :Item_sum(item_par),cmp_sign(sign),
     used_table_cache(~(table_map) 0)
   {}
+  Item_sum_hybrid(Item_sum_hybrid &item):
+    Item_sum(item), value(item.value), tmp_value(item.tmp_value),
+    sum(item.sum), sum_int(item.sum_int), hybrid_type(item.hybrid_type),
+    cmp_sign(item.cmp_sign), used_table_cache(used_table_cache) {}
   bool fix_fields(THD *, TABLE_LIST *, Item **);
   table_map used_tables() const { return used_table_cache; }
   bool const_item() const { return !used_table_cache; }
@@ -360,10 +385,12 @@ class Item_sum_min :public Item_sum_hybrid
 {
 public:
   Item_sum_min(Item *item_par) :Item_sum_hybrid(item_par,1) {}
+  Item_sum_min(Item_sum_min &item) :Item_sum_hybrid(item) {}
   enum Sumfunctype sum_func () const {return MIN_FUNC;}
 
   bool add();
   const char *func_name() const { return "min"; }
+  Item * get_same() { return new Item_sum_min(*this); }
 };
 
 
@@ -371,10 +398,12 @@ class Item_sum_max :public Item_sum_hybrid
 {
 public:
   Item_sum_max(Item *item_par) :Item_sum_hybrid(item_par,-1) {}
+  Item_sum_max(Item_sum_max &item) :Item_sum_hybrid(item) {}
   enum Sumfunctype sum_func () const {return MAX_FUNC;}
 
   bool add();
   const char *func_name() const { return "max"; }
+  Item * get_same() { return new Item_sum_max(*this); }
 };
 
 
@@ -386,6 +415,8 @@ class Item_sum_bit :public Item_sum_int
   public:
   Item_sum_bit(Item *item_par,ulonglong reset_arg)
     :Item_sum_int(item_par),reset_bits(reset_arg),bits(reset_arg) {}
+  Item_sum_bit(Item_sum_bit &item):
+    Item_sum_int(item), reset_bits(item.reset_bits), bits(item.bits) {}
   enum Sumfunctype sum_func () const {return SUM_BIT_FUNC;}
   void reset();
   longlong val_int();
@@ -397,9 +428,11 @@ class Item_sum_or :public Item_sum_bit
 {
   public:
   Item_sum_or(Item *item_par) :Item_sum_bit(item_par,LL(0)) {}
+  Item_sum_or(Item_sum_or &item) :Item_sum_bit(item) {}
   bool add();
   void update_field(int offset);
   const char *func_name() const { return "bit_or"; }
+  Item * get_same() { return new Item_sum_or(*this); }
 };
 
 
@@ -407,9 +440,11 @@ class Item_sum_and :public Item_sum_bit
 {
   public:
   Item_sum_and(Item *item_par) :Item_sum_bit(item_par, ~(ulonglong) LL(0)) {}
+  Item_sum_and(Item_sum_and &item) :Item_sum_bit(item) {}
   bool add();
   void update_field(int offset);
   const char *func_name() const { return "bit_and"; }
+  Item * get_same() { return new Item_sum_and(*this); }
 };
 
 /*
@@ -427,6 +462,7 @@ public:
   Item_udf_sum( udf_func *udf_arg, List<Item> &list )
     :Item_sum( list ), udf(udf_arg)
   { quick_group=0;}
+  Item_udf_sum(Item_udf_sum &item) :Item_sum(item), udf(item.udf) {}
   ~Item_udf_sum() {}
   const char *func_name() const { return udf.name(); }
   bool fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
@@ -450,11 +486,13 @@ class Item_sum_udf_float :public Item_udf_sum
   Item_sum_udf_float(udf_func *udf_arg) :Item_udf_sum(udf_arg) {}
   Item_sum_udf_float(udf_func *udf_arg, List<Item> &list)
     :Item_udf_sum(udf_arg,list) {}
+  Item_sum_udf_float(Item_sum_udf_float &item): Item_udf_sum(item) {}
   ~Item_sum_udf_float() {}
   longlong val_int() { return (longlong) Item_sum_udf_float::val(); }
   double val();
   String *val_str(String*str);
   void fix_length_and_dec() { fix_num_length_and_dec(); }
+  Item * get_same() { return new Item_sum_udf_float(*this); }
 };
 
 
@@ -464,12 +502,14 @@ public:
   Item_sum_udf_int(udf_func *udf_arg) :Item_udf_sum(udf_arg) {}
   Item_sum_udf_int(udf_func *udf_arg, List<Item> &list)
     :Item_udf_sum(udf_arg,list) {}
+  Item_sum_udf_int(Item_sum_udf_int &item): Item_udf_sum(item) {}
   ~Item_sum_udf_int() {}
   longlong val_int();
   double val() { return (double) Item_sum_udf_int::val_int(); }
   String *val_str(String*str);
   enum Item_result result_type () const { return INT_RESULT; }
   void fix_length_and_dec() { decimals=0; max_length=21; }
+  Item * get_same() { return new Item_sum_udf_int(*this); }
 };
 
 
@@ -479,6 +519,7 @@ public:
   Item_sum_udf_str(udf_func *udf_arg) :Item_udf_sum(udf_arg) {}
   Item_sum_udf_str(udf_func *udf_arg, List<Item> &list)
     :Item_udf_sum(udf_arg,list) {}
+  Item_sum_udf_str(Item_sum_udf_str &item): Item_udf_sum(item) {}
   ~Item_sum_udf_str() {}
   String *val_str(String *);
   double val()
@@ -496,6 +537,7 @@ public:
   }
   enum Item_result result_type () const { return STRING_RESULT; }
   void fix_length_and_dec();
+  Item * get_same() { return new Item_sum_udf_str(*this); }
 };
 
 #else /* Dummy functions to get sql_yacc.cc compiled */
@@ -505,12 +547,14 @@ class Item_sum_udf_float :public Item_sum_num
  public:
   Item_sum_udf_float(udf_func *udf_arg) :Item_sum_num() {}
   Item_sum_udf_float(udf_func *udf_arg, List<Item> &list) :Item_sum_num() {}
+  Item_sum_udf_float(Item_sum_udf_float &item): Item_sum_num(item) {}
   ~Item_sum_udf_float() {}
   enum Sumfunctype sum_func () const { return UDF_SUM_FUNC; }
   double val() { return 0.0; }
   void reset() {}
   bool add() { return 0; }  
   void update_field(int offset) {}
+  Item * get_same() { return new Item_sum_udf_float(*this); }
 };
 
 
@@ -519,6 +563,7 @@ class Item_sum_udf_int :public Item_sum_num
 public:
   Item_sum_udf_int(udf_func *udf_arg) :Item_sum_num() {}
   Item_sum_udf_int(udf_func *udf_arg, List<Item> &list) :Item_sum_num() {}
+  Item_sum_udf_int(Item_sum_udf_int &item): Item_sum_num(item) {}
   ~Item_sum_udf_int() {}
   enum Sumfunctype sum_func () const { return UDF_SUM_FUNC; }
   longlong val_int() { return 0; }
@@ -526,6 +571,7 @@ public:
   void reset() {}
   bool add() { return 0; }  
   void update_field(int offset) {}
+  Item * get_same() { return new Item_sum_udf_int(*this); }
 };
 
 
@@ -534,6 +580,7 @@ class Item_sum_udf_str :public Item_sum_num
 public:
   Item_sum_udf_str(udf_func *udf_arg) :Item_sum_num() {}
   Item_sum_udf_str(udf_func *udf_arg, List<Item> &list)  :Item_sum_num() {}
+  Item_sum_udf_str(Item_sum_udf_str &item): Item_sum_num(item) {}
   ~Item_sum_udf_str() {}
   String *val_str(String *) { null_value=1; return 0; }
   double val() { null_value=1; return 0.0; }
@@ -544,6 +591,7 @@ public:
   void reset() {}
   bool add() { return 0; }  
   void update_field(int offset) {}
+  Item * get_same() { return new Item_sum_udf_str(*this); }
 };
 
 #endif /* HAVE_DLOPEN */

@@ -210,8 +210,11 @@ public:
   List<List_item>     expr_list;
   List<List_item>     when_list;      /* WHEN clause (expression) */
   ha_rows select_limit, offset_limit; /* LIMIT clause parameters */
-  bool with_sum_func;
-  bool	create_refs;
+  // Arrays of pointers to top elements of all_fields list
+  Item **ref_pointer_array;
+
+  uint with_sum_func;   /* sum function indicator and number of it */
+  bool create_refs;
   bool dependent;	/* dependent from outer select subselect */
   bool no_table_names_allowed; /* used for global order by */
 
@@ -274,11 +277,10 @@ class select_union;
 class st_select_lex_unit: public st_select_lex_node {
 protected:
   List<Item> item_list; 
-  List<JOIN*> joins; /* list of *JOINs, to delete it in cleanup() */
   TABLE_LIST result_table_list;
   select_union *union_result;
   TABLE *table; /* temporary table using for appending UNION results */
-  THD *thd;
+
   select_result *result;
   int res;
   bool describe, found_rows_for_union,
@@ -295,6 +297,8 @@ public:
   ha_rows select_limit_cnt, offset_limit_cnt;
   /* not NULL if union used in subselect, point to subselect item */
   Item_subselect *item;
+  THD *thd;
+
   uint union_option;
 
   void init_query();
@@ -342,6 +346,7 @@ public:
   ulong table_join_options;
   uint in_sum_expr;
   uint select_number; /* number of select (used for EXPLAIN) */
+  uint with_wild; /* item list contain '*' */
   bool  braces;   	/* SELECT ... UNION (SELECT ... ) <- this braces */
   /* TRUE when having fix field called in processing of this SELECT */
   bool having_fix_field;
