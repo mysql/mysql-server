@@ -4687,7 +4687,7 @@ ha_innobase::get_foreign_key_list(THD *thd, List<FOREIGN_KEY_INFO> *f_key_list)
   update_thd(current_thd);
   prebuilt->trx->op_info = (char*)"getting list of foreign keys";
   trx_search_latch_release_if_reserved(prebuilt->trx);
-  mutex_enter(&(dict_sys->mutex));
+  mutex_enter_noninline(&(dict_sys->mutex));
   foreign = UT_LIST_GET_FIRST(prebuilt->table->foreign_list);
 
   while (foreign != NULL) 
@@ -4768,7 +4768,7 @@ ha_innobase::get_foreign_key_list(THD *thd, List<FOREIGN_KEY_INFO> *f_key_list)
     f_key_list->push_back(pf_key_info);
     foreign = UT_LIST_GET_NEXT(foreign_list, foreign);
   }
-  mutex_exit(&(dict_sys->mutex));
+  mutex_exit_noninline(&(dict_sys->mutex));
   prebuilt->trx->op_info = (char*)"";
   DBUG_RETURN(0);
 }
