@@ -93,3 +93,13 @@ create table t1 (f float(54));	# Should give an error
 drop table if exists t1;
 --enable_warnings
 
+# Ensure that maximum values as the result of number of decimals
+# being specified in table schema are enforced (Bug #7361)
+create table t1 (f float(4,3));
+insert into t1 values (-11.0),(-11),("-11"),(11.0),(11),("11");
+select * from t1;
+drop table if exists t1;
+create table t1 (f double(4,3));
+insert into t1 values (-11.0),(-11),("-11"),(11.0),(11),("11");
+select * from t1;
+drop table if exists t1;

@@ -145,7 +145,7 @@ case $FLAG in
 #
 -fh)
     cat $FILES | $AWK '/el_action_t/ { print $3 }' | \
-    sort | tr '[a-z]' '[A-Z]' | $AWK '
+    sort | tr abcdefghijklmnopqrstuvwxyz ABCDEFGHIJKLMNOPQRSTUVWXYZ | $AWK '
 	BEGIN {
 	    printf("/* Automatically generated file, do not edit */\n");
 	    printf("#ifndef _h_fcns_c\n#define _h_fcns_c\n");

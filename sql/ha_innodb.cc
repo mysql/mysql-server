@@ -3907,7 +3907,7 @@ ha_innobase::create(
 
 	error = create_table_def(trx, form, norm_name,
 		create_info->options & HA_LEX_CREATE_TMP_TABLE ? name2 : NULL,
-		!(form->s->db_options_in_use & HA_OPTION_PACK_RECORD));
+		form->s->row_type != ROW_TYPE_REDUNDANT);
 
   	if (error) {
 		innobase_commit_low(trx);
