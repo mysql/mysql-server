@@ -23,3 +23,9 @@ select uncompress("");
 select uncompress(compress(""));
 select uncompressed_length("");
 
+#
+# NULL (Bug #1333)
+#
+
+select compress(NULL);
+select uncompress(NULL);

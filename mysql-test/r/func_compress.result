@@ -40,3 +40,9 @@ uncompress(compress(""))
 select uncompressed_length("");
 uncompressed_length("")
 0
+select compress(NULL);
+compress(NULL)
+NULL
+select uncompress(NULL);
+uncompress(NULL)
+NULL

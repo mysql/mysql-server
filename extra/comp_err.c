@@ -71,14 +71,12 @@ int main(int argc,char *argv[])
       goto end;
     }
 
-#ifdef NEEDS_FIXES
     if (!(csnum= get_charset_number(charset_name, MY_CS_PRIMARY)))
     {
       fprintf(stderr,"Unknown character '%s' in '%s'\n",charset_name, *argv);
       fclose(from);
       goto end;
     }
-#endif
     
     if (remember_rows(from,'}') < 0)	/* Remember rows */
     {

@@ -63,6 +63,7 @@ typedef struct unicase_info_st
 #define MY_CS_STRNXFRM	64     /* if strnxfrm is used for sort   */
 #define MY_CS_UNICODE	128    /* is a charset is full unicode   */
 #define MY_CS_NONTEXT	256    /* if a charset is not sprintf() compatible */
+#define MY_CS_AVAILABLE	512    /* If either compiled-in or loaded*/
 
 #define MY_CHARSET_UNDEFINED 0
 
