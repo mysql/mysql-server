@@ -3060,8 +3060,9 @@ update:
         opt_low_priority opt_ignore join_table_list
 	SET update_list where_clause opt_order_clause delete_limit_clause
 	{
+	  LEX *lex= Lex;
 	  Select->set_lock_for_tables($3);
-          if (lex->select_lex->table_list.elements > 1)
+          if (lex->select_lex.table_list.elements > 1)
             lex->sql_command=SQLCOM_UPDATE_MULTI;
 	}
 	;

@@ -37,6 +37,11 @@ class LEX_COLUMN;
 #define LEX_YYSTYPE YYSTYPE *
 #endif
 
+/*
+  When a command is added here, be sure it's also added in mysqld.cc
+  in "struct show_var_st status_vars[]= {" ...
+*/
+
 enum enum_sql_command {
   SQLCOM_SELECT, SQLCOM_CREATE_TABLE, SQLCOM_CREATE_INDEX, SQLCOM_ALTER_TABLE,
   SQLCOM_UPDATE, SQLCOM_INSERT, SQLCOM_INSERT_SELECT,
@@ -66,7 +71,10 @@ enum enum_sql_command {
   SQLCOM_SHOW_BINLOG_EVENTS, SQLCOM_SHOW_NEW_MASTER, SQLCOM_DO,
   SQLCOM_SHOW_WARNS, SQLCOM_EMPTY_QUERY, SQLCOM_SHOW_ERRORS,
   SQLCOM_SHOW_COLUMN_TYPES, SQLCOM_SHOW_TABLE_TYPES, SQLCOM_SHOW_PRIVILEGES,
-  SQLCOM_END, SQLCOM_HELP
+  SQLCOM_HELP,
+
+  /* This should be the last !!! */
+  SQLCOM_END
 };
 
 enum lex_states
