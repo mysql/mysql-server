@@ -882,6 +882,11 @@ static int myisamchk(MI_CHECK *param, my_string filename)
       param->error_printed=0;
       goto end2;
     }
+    /*
+      _mi_readinfo() has locked the table.
+      We mark the table as locked (without doing file locks) to be able to
+      use functions that only works on locked tables (like row caching).
+    */
     mi_lock_database(info, F_EXTRA_LCK);
     datafile=info->dfile;
 

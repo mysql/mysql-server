@@ -35,6 +35,7 @@ int mi_lock_database(MI_INFO *info, int lock_type)
   MYISAM_SHARE *share=info->s;
   uint flag;
   DBUG_ENTER("mi_lock_database");
+  DBUG_PRINT("info",("lock_type: %d", lock_type));
 
   if (share->options & HA_OPTION_READ_ONLY_DATA ||
       info->lock_type == lock_type)
@@ -53,10 +54,13 @@ int mi_lock_database(MI_INFO *info, int lock_type)
   {
     switch (lock_type) {
     case F_UNLCK:
+      DBUG_PRINT("info", ("old lock: %d", info->lock_type));
       if (info->lock_type == F_RDLCK)
 	count= --share->r_locks;
-      else
+      else if (info->lock_type == F_WRLCK)
 	count= --share->w_locks;
+      else
+	count= 1;				/* F_EXTRA_LCK */
       --share->tot_locks;
       if (info->lock_type == F_WRLCK && !share->w_locks &&
 	  !share->delay_key_write && flush_key_blocks(share->kfile,FLUSH_KEEP))

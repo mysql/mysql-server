@@ -1079,7 +1079,7 @@ void ha_key_cache(void)
     changes.
   */
   pthread_mutex_lock(&LOCK_global_system_variables);
-  long tmp= keybuff_size;
+  long tmp= (long) keybuff_size;
   pthread_mutex_unlock(&LOCK_global_system_variables);
   if (tmp)
     (void) init_key_cache(tmp);
@@ -1089,7 +1089,7 @@ void ha_key_cache(void)
 void ha_resize_key_cache(void)
 {
   pthread_mutex_lock(&LOCK_global_system_variables);
-  long tmp= keybuff_size;
+  long tmp= (long) keybuff_size;
   pthread_mutex_unlock(&LOCK_global_system_variables);
   (void) resize_key_cache(tmp);
 }
