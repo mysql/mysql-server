@@ -1513,11 +1513,13 @@ TABLE *open_temporary_table(THD *thd, const char *path, const char *db,
   TABLE *tmp_table;
   DBUG_ENTER("open_temporary_table");
 
-  // the extra size in my_malloc() is for table_cache_key
-  //  4 bytes for master thread id if we are in the slave
-  //  1 byte to terminate db
-  //  1 byte to terminate table_name
-  // total of 6 extra bytes in my_malloc in addition to table/db stuff
+  /*
+    The extra size in my_malloc() is for table_cache_key
+    4 bytes for master thread id if we are in the slave
+    1 byte to terminate db
+    1 byte to terminate table_name
+    total of 6 extra bytes in my_malloc in addition to table/db stuff
+  */
   if (!(tmp_table=(TABLE*) my_malloc(sizeof(*tmp_table)+(uint) strlen(db)+
 				     (uint) strlen(table_name)+6,
 				     MYF(MY_WME))))
@@ -1529,6 +1531,7 @@ TABLE *open_temporary_table(THD *thd, const char *path, const char *db,
 	      ha_open_options,
 	      tmp_table))
   {
+    my_free((char*) tmp_table,MYF(0));
     DBUG_RETURN(0);
   }
 

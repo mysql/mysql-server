@@ -56,6 +56,7 @@ sleep_until_file_deleted ()
       sleep $SLEEP_TIME_AFTER_RESTART
       return
     fi
+    sleep 1
     loop=`expr $loop - 1`
   done
 }
@@ -309,6 +310,17 @@ while test $# -gt 0; do
       DO_DDD=1
       USE_RUNNING_SERVER=""
       ;;
+    --valgrind)
+      VALGRIND="valgrind --alignment=8 --leak-check=yes"
+      EXTRA_MASTER_MYSQLD_OPT="$EXTRA_MASTER_MYSQLD_OPT --skip-safemalloc"
+      EXTRA_SLAVE_MYSQLD_OPT="$EXTRA_SLAVE_MYSQLD_OPT --skip-safemalloc"
+      SLEEP_TIME_AFTER_RESTART=120
+      SLEEP_TIME_FOR_DELETE=120
+      ;;
+    --valgrind-options=*)
+      TMP=`$ECHO "$1" | $SED -e "s;--valgrind-options=;;"`
+      VALGRIND="$VALGRIND $TMP"
+      ;;
     --skip-*)
       EXTRA_MASTER_MYSQLD_OPT="$EXTRA_MASTER_MYSQLD_OPT $1"
       EXTRA_SLAVE_MYSQLD_OPT="$EXTRA_SLAVE_MYSQLD_OPT $1"
@@ -377,7 +389,7 @@ DASH72=`$ECHO '-----------------------------------------------------------------
 # on source dist, we pick up freshly build executables
 # on binary, use what is installed
 if [ x$SOURCE_DIST = x1 ] ; then
- MYSQLD="$BASEDIR/sql/mysqld"
+ MYSQLD="$VALGRIND $BASEDIR/sql/mysqld"
  if [ -f "$BASEDIR/client/.libs/lt-mysqltest" ] ; then
    MYSQL_TEST="$BASEDIR/client/.libs/lt-mysqltest"
  elif [ -f "$BASEDIR/client/.libs/mysqltest" ] ; then
@@ -400,9 +412,9 @@ if [ x$SOURCE_DIST = x1 ] ; then
 else
  if test -x "$BASEDIR/libexec/mysqld"
  then
-   MYSQLD="$BASEDIR/libexec/mysqld"
+   MYSQLD="$VALGRIND $BASEDIR/libexec/mysqld"
  else
-   MYSQLD="$BASEDIR/bin/mysqld"
+   MYSQLD="$VALGRIND $BASEDIR/bin/mysqld"
  fi
  MYSQL_TEST="$BASEDIR/bin/mysqltest"
  MYSQLADMIN="$BASEDIR/bin/mysqladmin"
@@ -701,7 +713,7 @@ manager_launch()
   ident=$1
   shift
   if [ $USE_MANAGER = 0 ] ; then
-    $@  >$CUR_MYERR 2>&1  &
+    $@  >> $CUR_MYERR 2>&1  &
     sleep 2 #hack
     return
   fi
@@ -1047,6 +1059,8 @@ run_testcase ()
  slave_init_script=$TESTDIR/$tname-slave.sh
  slave_master_info_file=$TESTDIR/$tname-slave-master-info.opt
  echo $tname > $CURRENT_TEST
+ echo "CURRENT_TEST: $tname" >> $SLAVE_MYERR
+ echo "CURRENT_TEST: $tname" >> $MASTER_MYERR
  SKIP_SLAVE=`$EXPR \( $tname : rpl \) = 0`
  if [ $USE_MANAGER = 1 ] ; then
   many_slaves=`$EXPR \( $tname : rpl_failsafe \) != 0`

@@ -3350,7 +3350,7 @@ bool reload_acl_and_cache(THD *thd, ulong options, TABLE_LIST *tables)
   if (options & REFRESH_GRANT)
   {
     acl_reload(thd);
-    grant_reload();
+    grant_reload(thd);
     if (mqh_used)
       reset_mqh(thd,(LEX_USER *) NULL,true);
   }

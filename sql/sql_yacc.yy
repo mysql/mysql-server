@@ -667,7 +667,7 @@ change:
         {
 	  LEX *lex = Lex;
 	  lex->sql_command = SQLCOM_CHANGE_MASTER;
-	  memset(&lex->mi, 0, sizeof(lex->mi));
+	  bzero((char*) &lex->mi, sizeof(lex->mi));
         } master_defs;
 
 master_defs:
