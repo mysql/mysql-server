@@ -525,7 +525,19 @@ int yylex(void *arg)
       yylval->lex_str=get_token(lex,length);
       if (lex->convert_set)
 	    lex->convert_set->convert((char*) yylval->lex_str.str,lex->yytoklen);
-      return(IDENT);
+
+      /* 
+         Note: "SELECT _bla AS 'alias'"
+         _bla should be considered as a IDENT if charset haven't been found.
+         So we don't use MYF(MY_WME) with get_charset_by_name to avoid 
+         producing an error.
+      */
+
+      if ((yylval->lex_str.str[0]=='_') && 
+          (lex->charset=get_charset_by_name(yylval->lex_str.str+1,MYF(0))))
+        return(UNDERSCORE_CHARSET);
+      else
+        return(IDENT);
 
     case STATE_IDENT_SEP:		// Found ident and now '.'
       lex->next_state=STATE_IDENT_START;// Next is an ident (not a keyword)
