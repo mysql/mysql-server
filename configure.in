@@ -2525,7 +2525,7 @@ done
 case $default_charset in 
     armscii8)
       default_charset_default_collation="armscii8_general_ci"
-      default_charset_collations="armscii8_general_ci armscii_bin"
+      default_charset_collations="armscii8_general_ci armscii8_bin"
       ;;
     ascii)
       default_charset_default_collation="ascii_general_ci"
