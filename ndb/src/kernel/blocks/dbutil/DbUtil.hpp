@@ -341,6 +341,7 @@ public:
     SLList<Operation> operations;
 
     Uint32 errorCode;
+    Uint32 noOfRetries;
     Uint32 sent;        // No of operations sent
     Uint32 recv;        // No of completed operations received
     inline bool complete() const { return sent == recv; };
@@ -401,7 +402,7 @@ public:
 		   KeyInfoIterator & kit);
   void sendAttrInfo(Signal*, 
 		    AttrInfo* attrInfo, 
-		    const AttrInfoBuffer & attrInfo,
+		    const AttrInfoBuffer &,
 		    AttrInfoIterator & ait);
   int getResultSet(Signal* signal, const Transaction * transP,
 		   struct LinearSectionPtr sectionsPtr[]);

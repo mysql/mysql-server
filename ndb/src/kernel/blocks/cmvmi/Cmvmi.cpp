@@ -46,10 +46,11 @@
 #include <TimeQueue.hpp>
 #include <new>
 
+#include <NdbSleep.h>
 #include <SafeCounter.hpp>
 
 // Used here only to print event reports on stdout/console.
-static EventLogger eventLogger;
+EventLogger g_eventLogger;
 
 Cmvmi::Cmvmi(const Configuration & conf) :
   SimulatedBlock(CMVMI, conf)
@@ -92,11 +93,6 @@ Cmvmi::Cmvmi(const Configuration & conf) :
   
   subscriberPool.setSize(5);
 
-  // Print to stdout/console
-  eventLogger.createConsoleHandler();
-  eventLogger.setCategory("NDB");
-  eventLogger.enable(Logger::LL_INFO, Logger::LL_ALERT); // Log INFO to ALERT
-
   const ClusterConfiguration::ClusterData & clData = 
     theConfig.clusterConfigurationData() ;
   
@@ -129,6 +125,10 @@ void Cmvmi::execNDB_TAMPER(Signal* signal)
   SET_ERROR_INSERT_VALUE(signal->theData[0]);
   if(ERROR_INSERTED(9999)){
     CRASH_INSERTION(9999);
+  }
+
+  if(ERROR_INSERTED(9998)){
+    while(true) NdbSleep_SecSleep(1);
   }
 }//execNDB_TAMPER()
 
@@ -194,7 +194,7 @@ void Cmvmi::execEVENT_REP(Signal* signal)
   }
 
   // Print the event info
-  eventLogger.log(eventReport->getEventType(), signal->theData);
+  g_eventLogger.log(eventReport->getEventType(), signal->theData);
 
 }//execEVENT_REP()
 
@@ -395,6 +395,15 @@ void Cmvmi::execSIZEALT_ACK(Signal* signal)
     sendSignal(numberToRef(blockNo, 0), GSN_SIZEALT_REP, signal,21, JBB);
   } else {
     jam();
+
+    if(theConfig.lockPagesInMainMemory()){
+      int res = NdbMem_MemLockAll();
+      if(res != 0){
+	g_eventLogger.warning("Failed to memlock pages");
+	warningEvent("Failed to memlock pages");
+      }
+    }
+    
     sendSTTORRY(signal);
   }
 }
@@ -404,7 +413,7 @@ void Cmvmi::execCM_INFOREQ(Signal* signal)
   int id = signal->theData[1];
   const BlockReference userRef = signal->theData[0];
   const ClusterConfiguration::ClusterData & clusterConf = 
-        theConfig.clusterConfigurationData();
+    theConfig.clusterConfigurationData();
   const int myNodeId = globalData.ownId;
   
   jamEntry();
@@ -1116,6 +1125,24 @@ public:
 };
 #endif
 
+
+static int iii;
+
+static
+int
+recurse(char * buf, int loops, int arg){
+  char * tmp = (char*)alloca(arg);
+  printf("tmp = %p\n", tmp);
+  for(iii = 0; iii<arg; iii += 1024){
+    tmp[iii] = (iii % 23 + (arg & iii));
+  }
+  
+  if(loops == 0)
+    return tmp[345];
+  else
+    return tmp[arg/loops] + recurse(tmp, loops - 1, arg);
+}
+
 void
 Cmvmi::execDUMP_STATE_ORD(Signal* signal)
 {
@@ -1141,7 +1168,18 @@ Cmvmi::execDUMP_STATE_ORD(Signal* signal)
    * Here I can dump CMVMI state if needed
    */
   if(signal->theData[0] == 13){
-    infoEvent("Cmvmi: signalCount = %d", signalCount);
+#if 0
+    int loop = 100;
+    int len = (10*1024*1024);
+    if(signal->getLength() > 1)
+      loop = signal->theData[1];
+    if(signal->getLength() > 2)
+      len = signal->theData[2];
+    
+    ndbout_c("recurse(%d loop, %dkb per recurse)", loop, len/1024);
+    int a = recurse(0, loop, len);
+    ndbout_c("after...%d", a);
+#endif
   }
 
   DumpStateOrd * const & dumpState = (DumpStateOrd *)&signal->theData[0];

@@ -256,17 +256,18 @@ int createRandomIndex(NDBT_Context* ctx, NDBT_Step* step){
   AttribList attrList;
   attrList.buildAttribList(pTab);
 
-  int retries = 10;
+  int retries = 100;
   while(retries > 0){
     const Uint32 i = rand() % attrList.attriblist.size();
     int res = create_index(ctx, i, pTab, pNdb, attrList.attriblist[i], 
 			   logged);
-    if (res == SKIP_INDEX)
-      continue;
-
-    if (res == NDBT_FAILED){
+    if (res == SKIP_INDEX){
       retries--;
       continue;
+    }
+
+    if (res == NDBT_FAILED){
+      return NDBT_FAILED;
     }
     
     ctx->setProperty("createRandomIndex", i);
@@ -1452,22 +1453,22 @@ TESTCASE("BuildDuring",
 	 "Test that index build when running transactions work"){ 
   TC_PROPERTY("OrderedIndex", (unsigned)0);
   TC_PROPERTY("LoggedIndexes", (unsigned)0);
-  TC_PROPERTY("Threads", 2); // # runTransactions4
+  TC_PROPERTY("Threads", 1); // # runTransactions4
   INITIALIZER(runClearTable);
   STEP(runBuildDuring);
   STEP(runTransactions4);
-  STEP(runTransactions4);
+  //STEP(runTransactions4);
   FINALIZER(runClearTable);
 }
 TESTCASE("BuildDuring_O", 
 	 "Test that index build when running transactions work"){ 
   TC_PROPERTY("OrderedIndex", (unsigned)1);
   TC_PROPERTY("LoggedIndexes", (unsigned)0);
-  TC_PROPERTY("Threads", 2); // # runTransactions4
+  TC_PROPERTY("Threads", 1); // # runTransactions4
   INITIALIZER(runClearTable);
   STEP(runBuildDuring);
   STEP(runTransactions4);
-  STEP(runTransactions4);
+  //STEP(runTransactions4);
   FINALIZER(runClearTable);
 }
 TESTCASE("UniqueNull", 

@@ -149,7 +149,7 @@ public:
     char* anAttrName;
     Uint32 anAttrId;
   };
-  typedef struct String {
+  struct String {
     char* aStringValue;
     Uint32 len;
   };

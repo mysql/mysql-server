@@ -760,8 +760,9 @@ NDBT_Tables::createAllTables(Ndb* pNdb, bool _temp, bool existsOk){
     tmpTab.setStoredTable(_temp? 0 : 1);
     
     int r = pNdb->getDictionary()->createTable(tmpTab);
+    int err = pNdb->getDictionary()->getNdbError().code;
     if(r == -1){
-      if (existsOk && pNdb->getNdbError().code == 721)
+      if (existsOk && err == 721)
 	;
       else {
 	return NDBT_FAILED;

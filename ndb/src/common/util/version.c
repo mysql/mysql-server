@@ -65,7 +65,6 @@ struct NdbUpGradeCompatible {
 
 #ifndef TEST_VERSION
 struct NdbUpGradeCompatible ndbCompatibleTable_full[] = {
-  { NDB_VERSION_D      , MAKE_VERSION(NDB_VERSION_MAJOR,NDB_VERSION_MINOR,2), UG_Range },
   { 0, 0, UG_Null }
 };
 

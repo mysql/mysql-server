@@ -2314,7 +2314,6 @@ Dbtc::seizeTcRecord(Signal* signal)
   regTcPtr->noReceivedTriggers = 0;
   regTcPtr->triggerExecutionCount = 0;
   regTcPtr->triggeringOperation = RNIL;
-  regTcPtr->triggerError = 0;
   regTcPtr->isIndexOp = false;
   regTcPtr->indexOp = RNIL;
   regTcPtr->currentIndexId = RNIL;
@@ -3500,7 +3499,7 @@ void Dbtc::execLQHKEYCONF(Signal* signal)
   UintR TapiConnectFilesize = capiConnectFilesize;
   UintR Ttrans1 = lqhKeyConf->transId1;
   UintR Ttrans2 = lqhKeyConf->transId2;
-  regTcPtr->noFiredTriggers = lqhKeyConf->noFiredTriggers;
+  Uint32 noFired = lqhKeyConf->noFiredTriggers;
 
   if (TapiConnectptrIndex >= TapiConnectFilesize) {
     TCKEY_abort(signal, 29);
@@ -3554,6 +3553,7 @@ void Dbtc::execLQHKEYCONF(Signal* signal)
   UintR TtcTimer = ctcTimer;
   regTcPtr->lastLqhCon = tlastLqhConnect;
   regTcPtr->lastLqhNodeId = refToNode(tlastLqhBlockref);
+  regTcPtr->noFiredTriggers = noFired;
 
   UintR Ttckeyrec = (UintR)regApiPtr->tckeyrec;
   UintR TclientData = regTcPtr->clientData;
@@ -3576,18 +3576,16 @@ void Dbtc::execLQHKEYCONF(Signal* signal)
     // will be returned unpacked
     regTcPtr->attrInfoLen = treadlenAi;
   } else {
-    jam();
-    regApiPtr->tcSendArray[Ttckeyrec] = TclientData;
-    regApiPtr->tcSendArray[Ttckeyrec + 1] = treadlenAi;
-    if ((regTcPtr->noFiredTriggers == 0) &&
-        (regTcPtr->triggeringOperation == RNIL)) {
+    if (noFired == 0 && regTcPtr->triggeringOperation == RNIL) {
       jam();
       /*
-      Skip counting triggering operations the first round
-      since they will enter execLQHKEYCONF a second time
-      Skip counting internally generated TcKeyReq
-      */
-      regApiPtr->tckeyrec += 2;
+       * Skip counting triggering operations the first round
+       * since they will enter execLQHKEYCONF a second time
+       * Skip counting internally generated TcKeyReq
+       */
+      regApiPtr->tcSendArray[Ttckeyrec] = TclientData;
+      regApiPtr->tcSendArray[Ttckeyrec + 1] = treadlenAi;
+      regApiPtr->tckeyrec = Ttckeyrec + 2;
     }//if
   }//if
   if (TdirtyOp == ZTRUE) {
@@ -3597,7 +3595,7 @@ void Dbtc::execLQHKEYCONF(Signal* signal)
     regApiPtr->lqhkeyreqrec = Tlqhkeyreqrec - 1;
   } else {
     jam();
-    if (regTcPtr->noFiredTriggers == 0) {
+    if (noFired == 0) {
       jam();
       // No triggers to execute
       UintR Tlqhkeyconfrec = regApiPtr->lqhkeyconfrec;
@@ -3624,10 +3622,9 @@ void Dbtc::execLQHKEYCONF(Signal* signal)
       Continue triggering operation
       */
       jam();
-      regTcPtr->triggeringOperation = RNIL;
       continueTriggeringOp(signal, opPtr.p);
     }
-  } else if (regTcPtr->noFiredTriggers == 0) {
+  } else if (noFired == 0) {
     // This operation did not fire any triggers, finish operation
     jam();
     if (regTcPtr->isIndexOp) {
@@ -3639,20 +3636,19 @@ void Dbtc::execLQHKEYCONF(Signal* signal)
     // We have fired triggers
     jam();
     saveTriggeringOpState(signal, regTcPtr);
-    if (regTcPtr->noReceivedTriggers == regTcPtr->noFiredTriggers) {
+    if (regTcPtr->noReceivedTriggers == noFired) {
       ApiConnectRecordPtr transPtr;
-    
+      
       // We have received all data
       jam();
       transPtr.i = TapiConnectptrIndex;
       transPtr.p = regApiPtr;
       executeTriggers(signal, &transPtr);
     }
-  // else wait for more trigger data
+    // else wait for more trigger data
   }
 }//Dbtc::execLQHKEYCONF()
-
-
+ 
 void Dbtc::setupIndexOpReturn(ApiConnectRecord* regApiPtr,
 			      TcConnectRecord* regTcPtr) 
 {
@@ -4863,16 +4859,8 @@ void Dbtc::execLQHKEYREF(Signal* signal)
 {
   const LqhKeyRef * const lqhKeyRef = (LqhKeyRef *)signal->getDataPtr();
   jamEntry();
-
-  handleFailedOperation(signal, lqhKeyRef, true);
-}
-
-void Dbtc::handleFailedOperation(Signal* signal,
-				 const LqhKeyRef * const lqhKeyRef, 
-				 bool gotLqhKeyRef)
-{
+  
   UintR compare_transid1, compare_transid2;
-
   UintR TtcConnectFilesize = ctcConnectFilesize;
   /*-------------------------------------------------------------------------
    *                                                                         
@@ -4891,7 +4879,7 @@ void Dbtc::handleFailedOperation(Signal* signal,
      * ALREADY COMPLETED (ABORTED).
      *-----------------------------------------------------------------------*/
     tcConnectptr.i = lqhKeyRef->connectPtr;
-    terrorCode = lqhKeyRef->errorCode;
+    Uint32 errCode = terrorCode = lqhKeyRef->errorCode;
     ptrAss(tcConnectptr, tcConnectRecord);
     TcConnectRecord * const regTcPtr = tcConnectptr.p;
     if (regTcPtr->tcConnectstate == OS_OPERATING) {
@@ -4906,98 +4894,58 @@ void Dbtc::handleFailedOperation(Signal* signal,
 	return;
       }//if
 
-      if (regTcPtr->triggeringOperation != RNIL) {
+      const ConnectionState state = regApiPtr->apiConnectstate;
+      const Uint32 triggeringOp = regTcPtr->triggeringOperation;
+      if (triggeringOp != RNIL) {
         jam();
 	// This operation was created by a trigger execting operation
 	TcConnectRecordPtr opPtr;
 	TcConnectRecord *localTcConnectRecord = tcConnectRecord;
        
 	const Uint32 currentIndexId = regTcPtr->currentIndexId;
+	ndbassert(currentIndexId != 0); // Only index triggers so far
 	
-	opPtr.i = regTcPtr->triggeringOperation;
+	opPtr.i = triggeringOp;
 	ptrCheckGuard(opPtr, ctcConnectFilesize, localTcConnectRecord);
-	if (currentIndexId != RNIL)
-        {
-          jam();
-	  // The operation executed an index trigger
-	  TcIndexData* indexData = NULL;
-	  indexData = c_theIndexes.getPtr(currentIndexId);
-          if (regTcPtr->operation == ZDELETE) {
-            if (lqhKeyRef->errorCode == ZNOT_FOUND) {
-              if (indexData->indexState == IS_BUILDING) {
-                jam();
-                /*
-	        If an index trigger fail with delete during index
-	        build phase it just means that the index build has not
-	        yet inserted that tuple
-	        Check if operation was a delete and part of trigger execution
-                */
-              } else {
-                jam();
-                ndbassert(false);
-                terrorCode = ZINDEX_CORRUPT_ERROR;
-                abortErrorLab(signal);
-                return;
-              }//if
-            } else {
-              terrorCode = lqhKeyRef->errorCode;
-              abortErrorLab(signal);
-              return;
-            }
-          } else if (regTcPtr->operation == ZINSERT) {
-            if (lqhKeyRef->errorCode == ZALREADYEXIST) {
-              terrorCode = 893; //Constraint violation
-              abortErrorLab(signal);
-              return;
-            } else {
-              terrorCode = lqhKeyRef->errorCode;
-              abortErrorLab(signal);
-            }
-          } else {
-            ndbrequire(false);
-            return;
-          }
-	  markOperationAborted(regApiPtr, regTcPtr);
-          if (regApiPtr->apiConnectstate == CS_ABORTING) {
-            jam();
-            return;
-          }
-	  unlinkReadyTcCon(signal);
-	  releaseTcCon(signal);
-	  // Decrease counter as if NOOP
-	  regApiPtr->lqhkeyreqrec--;
-          opPtr.p->triggerExecutionCount--;
-          if (opPtr.p->triggerExecutionCount == 0) {
-            jam();
-            /*
-	    We have completed current trigger execution
-            continue triggering operation
-            */
-            continueTriggeringOp(signal, opPtr.p);
-	  }//if
-	  if (!regApiPtr->theFiredTriggers.isEmpty()) {
-	    jam();
-            /*
-	    There are more triggers
-	    Continue with next trigger
-            */
-	    executeTriggers(signal, &apiConnectptr);
-	  }//if
-	  return;
+	
+	// The operation executed an index trigger
+	const Uint32 opType = regTcPtr->operation;
+	if (!(opType == ZDELETE && errCode == ZNOT_FOUND)) {
+	  jam();
+	  /**
+	   * "Normal path"
+	   */
+	  // fall-through
 	} else {
-          /**
-           * Currently the index id is always set for triggering operations
-             since we only support them for unique hash indexes at the moment.
-           */
-          ndbrequire(false);
-          return;
-        }
+	  jam();
+	  /** ZDELETE && NOT_FOUND */
+	  TcIndexData* indexData = c_theIndexes.getPtr(currentIndexId);
+	  if(indexData->indexState == IS_BUILDING && state != CS_ABORTING){
+	    jam();
+	    /**
+	     * Ignore error
+	     */
+	    regApiPtr->lqhkeyconfrec++;
+	    
+	    unlinkReadyTcCon(signal);
+	    releaseTcCon(signal);
+	    
+	    opPtr.p->triggerExecutionCount--;
+	    if (opPtr.p->triggerExecutionCount == 0) {
+	      /**
+	       * We have completed current trigger execution
+	       * Continue triggering operation
+	       */
+	      jam();
+	      continueTriggeringOp(signal, opPtr.p);
+	    }
+	    return;
+	  }
+	}
       }
-      if (gotLqhKeyRef) {
-        jam();
-	markOperationAborted(regApiPtr, regTcPtr);
-      }//if
-
+      
+      markOperationAborted(regApiPtr, regTcPtr);
+      
       if(regApiPtr->apiConnectstate == CS_ABORTING){
 	/**
 	 * We're already aborting' so don't send an "extra" TCKEYREF
@@ -5006,8 +4954,8 @@ void Dbtc::handleFailedOperation(Signal* signal,
 	return;
       }
       
-      const Uint32 abortOption = regTcPtr->m_execAbortOption;
-      if (abortOption == TcKeyReq::AbortOnError) {
+      const Uint32 abort = regTcPtr->m_execAbortOption;
+      if (abort == TcKeyReq::AbortOnError || triggeringOp != RNIL) {
 	/**
 	 * No error is allowed on this operation
 	 */
@@ -5035,10 +4983,8 @@ void Dbtc::handleFailedOperation(Signal* signal,
       bool isIndexOp = regTcPtr->isIndexOp;
       Uint32 indexOp = tcConnectptr.p->indexOp;
       Uint32 clientData = regTcPtr->clientData;
-      if (gotLqhKeyRef) {
-	unlinkReadyTcCon(signal);   /* LINK TC CONNECT RECORD OUT OF  */
-	releaseTcCon(signal);       /* RELEASE THE TC CONNECT RECORD  */
-      }
+      unlinkReadyTcCon(signal);   /* LINK TC CONNECT RECORD OUT OF  */
+      releaseTcCon(signal);       /* RELEASE THE TC CONNECT RECORD  */
       setApiConTimer(apiConnectptr.i, ctcTimer, __LINE__);
       if (isIndexOp) {
         jam();
@@ -5057,18 +5003,12 @@ void Dbtc::handleFailedOperation(Signal* signal,
        * IF NO MORE OUTSTANDING LQHKEYREQ'S THEN WE NEED TO 
        * TCKEYCONF (IF THERE IS ANYTHING TO SEND).          
        *---------------------------------------------------------------------*/
-      if (gotLqhKeyRef) {
-        jam();
-	regApiPtr->lqhkeyreqrec = regApiPtr->lqhkeyreqrec - 1;
-      } else {
-        jam();
-	regApiPtr->lqhkeyconfrec = regApiPtr->lqhkeyconfrec + 1;
-      }//if 
+      regApiPtr->lqhkeyreqrec--;
       if (regApiPtr->lqhkeyconfrec == regApiPtr->lqhkeyreqrec) {
 	if ((regApiPtr->lqhkeyconfrec == 0) &&
 	    (regApiPtr->apiConnectstate == CS_START_COMMITTING)) {
-
-	  if(abortOption == TcKeyReq::IgnoreError){
+	  
+	  if(abort == TcKeyReq::IgnoreError){
 	    jam();
 	    regApiPtr->returnsignal = RS_NO_RETURN;
 	    abort010Lab(signal);
@@ -6289,12 +6229,21 @@ void Dbtc::sendAbortedAfterTimeout(Signal* signal, int Tcheck)
 		 transP->firstTcConnect,
 		 c_apiConTimer[apiConnectptr.i]
 		 );
+    ndbout_c("TC: %d: %d state=%d abort==IDLE place: %d fop=%d t: %d", 
+	     __LINE__,
+	     apiConnectptr.i, 
+	     transP->apiConnectstate,
+	     c_apiConTimer_line[apiConnectptr.i],
+	     transP->firstTcConnect,
+	     c_apiConTimer[apiConnectptr.i]
+	     );
+    ndbrequire(false);
     setApiConTimer(apiConnectptr.i, 0, __LINE__);
     return;
   }
   
   OperationState tmp[16];
-
+  
   Uint32 TloopCount = 0;
   do {
     jam();
@@ -6316,6 +6265,8 @@ void Dbtc::sendAbortedAfterTimeout(Signal* signal, int Tcheck)
 	  snprintf(buf, sizeof(buf), buf2);
 	}
 	warningEvent(buf);
+	ndbout_c(buf);
+	ndbrequire(false);
 	releaseAbortResources(signal);
         return;
       }//if
@@ -7919,8 +7870,8 @@ void Dbtc::initApiConnectFail(Signal* signal)
   tblockref = calcTcBlockRef(tcNodeFailptr.p->takeOverNode);
 
   apiConnectptr.p->tcBlockref = tblockref;
-  apiConnectptr.p->ndbapiBlockref = tapplRef;
-  apiConnectptr.p->ndbapiConnect = tapplOprec;
+  apiConnectptr.p->ndbapiBlockref = 0;
+  apiConnectptr.p->ndbapiConnect = 0;
   apiConnectptr.p->buddyPtr = RNIL;
   setApiConTimer(apiConnectptr.i, 0, __LINE__);
   switch(ttransStatus){
@@ -9821,6 +9772,7 @@ void Dbtc::sendScanFragReq(Signal* signal) {
   ScanFragReq::setReadCommittedFlag(requestInfo, scanptr.p->readCommitted);
   ScanFragReq::setRangeScanFlag(requestInfo, scanptr.p->rangeScan);
   ScanFragReq::setAttrLen(requestInfo, scanptr.p->scanAiLength);
+  ScanFragReq::setScanPrio(requestInfo, 1);
   apiConnectptr.i = scanptr.p->scanApiRec;
   ptrCheckGuard(apiConnectptr, capiConnectFilesize, apiConnectRecord);
   ScanFragReq * const req = (ScanFragReq *)&signal->theData[0];
@@ -11195,34 +11147,52 @@ void Dbtc::execALTER_INDX_REQ(Signal* signal)
 void Dbtc::execFIRE_TRIG_ORD(Signal* signal)
 {
   jamEntry();
-  FireTrigOrd * const fireTrigOrd =  (FireTrigOrd *)signal->getDataPtr();
+  FireTrigOrd * const fireOrd =  (FireTrigOrd *)signal->getDataPtr();
   ApiConnectRecord *localApiConnectRecord = apiConnectRecord;
   ApiConnectRecordPtr transPtr;
   TcConnectRecord *localTcConnectRecord = tcConnectRecord;
   TcConnectRecordPtr opPtr;
-  
-  opPtr.i = fireTrigOrd->getConnectionPtr();
-  ptrCheckGuard(opPtr, ctcConnectFilesize, localTcConnectRecord);
-  transPtr.i = opPtr.p->apiConnect;
-  transPtr.p = &localApiConnectRecord[transPtr.i];
-  if(opPtr.p->triggerError == 0){
-    scheduleFiredTrigger(&transPtr, &opPtr);
-  }
-  
-  // If we have received complete info of all fired triggers
-  // then execute the triggers
-  if (++(opPtr.p->noReceivedTriggers) == opPtr.p->noFiredTriggers) {
+
+  /**
+   * TODO
+   * Check transid,
+   * Fix overload i.e invalid word count
+   */
+  TcFiredTriggerData key;
+  key.fireingOperation = fireOrd->getConnectionPtr();
+  key.nodeId = refToNode(signal->getSendersBlockRef());
+  FiredTriggerPtr trigPtr;
+  if(c_firedTriggerHash.find(trigPtr, key)){
+    
+    c_firedTriggerHash.remove(trigPtr);
+
+    bool ok = trigPtr.p->keyValues.getSize() == fireOrd->m_noPrimKeyWords;
+    ok &= trigPtr.p->afterValues.getSize() == fireOrd->m_noAfterValueWords;
+    ok &= trigPtr.p->beforeValues.getSize() == fireOrd->m_noBeforeValueWords;
+    if(ok){
+      opPtr.i = key.fireingOperation;
+      ptrCheckGuard(opPtr, ctcConnectFilesize, localTcConnectRecord);
+      transPtr.i = opPtr.p->apiConnect;
+      transPtr.p = &localApiConnectRecord[transPtr.i];
+      
+      opPtr.p->noReceivedTriggers++;
+      opPtr.p->triggerExecutionCount++;
+    
+      // Insert fired trigger in execution queue
+      transPtr.p->theFiredTriggers.add(trigPtr);
+      if (opPtr.p->noReceivedTriggers == opPtr.p->noFiredTriggers) {
+	executeTriggers(signal, &transPtr);
+      }
+      return;
+    }
     jam();
-    if (opPtr.p->triggerError != 0) {
-      jam();
-      // Abort transaction
-      apiConnectptr.i = transPtr.i;
-      terrorCode = opPtr.p->triggerError;
-      abortErrorLab(signal);
-      return;    
-    }//if
-    executeTriggers(signal, &transPtr);
-  }//if
+    c_theFiredTriggerPool.release(trigPtr);
+  }
+  jam();
+  /**
+   * Failed to find record or invalid word counts
+   */
+  ndbrequire(false);
 }
 
 void Dbtc::execTRIG_ATTRINFO(Signal* signal)
@@ -11231,91 +11201,57 @@ void Dbtc::execTRIG_ATTRINFO(Signal* signal)
   TrigAttrInfo * const trigAttrInfo =  (TrigAttrInfo *)signal->getDataPtr();
   Uint32 attrInfoLength = signal->getLength() - TrigAttrInfo::StaticLength;
   const Uint32 *src = trigAttrInfo->getData();
-  TcFiredTriggerData* currentTrigger;
   FiredTriggerPtr firedTrigPtr;
-  TcConnectRecord *localTcConnectRecord = tcConnectRecord;
-  TcConnectRecordPtr opPtr;
   
-  opPtr.i = trigAttrInfo->getConnectionPtr();
-  ptrCheckGuard(opPtr, ctcConnectFilesize, localTcConnectRecord);
-
-  if (opPtr.p->accumulatingTriggerData.p) {
+  TcFiredTriggerData key;
+  key.fireingOperation = trigAttrInfo->getConnectionPtr();
+  key.nodeId = refToNode(signal->getSendersBlockRef());
+  if(!c_firedTriggerHash.find(firedTrigPtr, key)){
     jam();
-    // We are already accumulating
-  } else {
-    jam();
-    // Allocate new trigger record
-    ApiConnectRecord *localApiConnectRecord = apiConnectRecord;
-    ApiConnectRecordPtr transPtr;
-
-    transPtr.i = opPtr.p->apiConnect;
-    //transPtr.p = &localApiConnectRecord[transPtr.i];
-    ptrCheckGuard(transPtr, capiConnectFilesize, localApiConnectRecord);
-    if (!c_theFiredTriggerPool.seize(firedTrigPtr)) {
+    if(!c_firedTriggerHash.seize(firedTrigPtr)){
       jam();
-      // Resource shortage, abort transaction
-      // Mark transaction for abortion
-#ifdef VM_TRACE
-      ndbout_c("Dbtc::execTRIG_ATTRINFO: Failed to seize fired triggers\n");
-      ndbout_c("%u: Trigger error = %u\n", __LINE__, 4000);
-#endif
-      opPtr.p->triggerError = 4000;
-      return;    
-    }//if
-    ndbrequire(firedTrigPtr.p->keyValues.isEmpty() &&
-	       firedTrigPtr.p->beforeValues.isEmpty() &&
-	       firedTrigPtr.p->afterValues.isEmpty());
+      /**
+       * Will be handled when FIRE_TRIG_ORD arrives
+       */
+      ndbout_c("op: %d node: %d failed to seize",
+	       key.fireingOperation, key.nodeId);
+      return;
+    }
+    ndbrequire(firedTrigPtr.p->keyValues.getSize() == 0 &&
+	       firedTrigPtr.p->beforeValues.getSize() == 0 &&
+	       firedTrigPtr.p->afterValues.getSize() == 0);
+    
+    firedTrigPtr.p->nodeId = refToNode(signal->getSendersBlockRef());
+    firedTrigPtr.p->fireingOperation = key.fireingOperation;
     firedTrigPtr.p->triggerId = trigAttrInfo->getTriggerId();
-    opPtr.p->accumulatingTriggerData = firedTrigPtr;
-    firedTrigPtr.p->fireingOperation = opPtr.i;
-  }//if
-  currentTrigger = opPtr.p->accumulatingTriggerData.p;
+    c_firedTriggerHash.add(firedTrigPtr);
+  }
+  
+  AttributeBuffer::DataBufferPool & pool = c_theAttributeBufferPool;
   switch (trigAttrInfo->getAttrInfoType()) {
   case(TrigAttrInfo::PRIMARY_KEY):
     jam();
-    if (currentTrigger->keyValues.append(src, attrInfoLength) == false) {
-      jam();
-      // Mark transaction for abortion
-#ifdef VM_TRACE
-      ndbout_c("Dbtc::execTRIG_ATTRINFO: Failed to seize keyValues\n");
-      ndbout_c("%u: Trigger error = %u\n", __LINE__, 4000);
-#endif
-      opPtr.p->triggerError = 4000;
-      // Return trigger to pool
-      c_theFiredTriggerPool.release(opPtr.p->accumulatingTriggerData.i);
-      return;    
+    {
+      LocalDataBuffer<11> buf(pool, firedTrigPtr.p->keyValues);
+      buf.append(src, attrInfoLength);
     }
     break;
   case(TrigAttrInfo::BEFORE_VALUES):
     jam();
-    if (currentTrigger->beforeValues.append(src, attrInfoLength) == false) {
-      jam();
-      // Mark transaction for abortion
-#ifdef VM_TRACE
-      ndbout_c("Dbtc::execTRIG_ATTRINFO: Failed to seize beforeValues\n");
-      ndbout_c("%u: Trigger error = %u\n", __LINE__, 4000);
-#endif
-      opPtr.p->triggerError = 4000;
-      // Return trigger to pool
-      c_theFiredTriggerPool.release(opPtr.p->accumulatingTriggerData.i);
-      return;    
+    {
+      LocalDataBuffer<11> buf(pool, firedTrigPtr.p->beforeValues);
+      buf.append(src, attrInfoLength);
     }
     break;
   case(TrigAttrInfo::AFTER_VALUES):
     jam();
-    if (currentTrigger->afterValues.append(src, attrInfoLength) == false) {
-      jam();
-      // Mark transaction for abortion
-#ifdef VM_TRACE
-      ndbout_c("Dbtc::execTRIG_ATTRINFO: Failed to seize afterValues\n");
-      ndbout_c("%u: Trigger error = %u\n", __LINE__, 4000);
-#endif
-      opPtr.p->triggerError = 4000;
-      // Return trigger to pool
-      c_theFiredTriggerPool.release(opPtr.p->accumulatingTriggerData.i);
-      return;    
+    {
+      LocalDataBuffer<11> buf(pool, firedTrigPtr.p->afterValues);
+      buf.append(src, attrInfoLength);
     }
     break;
+  default:
+    ndbrequire(false);
   }
 }
 
@@ -12342,46 +12278,18 @@ void Dbtc::saveTriggeringOpState(Signal* signal, TcConnectRecord* trigOp)
                 LqhKeyConf::SignalLength);  
 }
 
-void Dbtc::restoreTriggeringOpState(Signal* signal, TcConnectRecord* trigOp)
+void Dbtc::continueTriggeringOp(Signal* signal, TcConnectRecord* trigOp)
 {
   LqhKeyConf * lqhKeyConf = (LqhKeyConf *)signal->getDataPtr();
   copyFromToLen(&trigOp->savedState[0],
                 (UintR*)lqhKeyConf,
 		LqhKeyConf::SignalLength);
+
   lqhKeyConf->noFiredTriggers = 0;
-}
-
-void Dbtc::continueTriggeringOp(Signal* signal, TcConnectRecord* trigOp)
-{
-  restoreTriggeringOpState(signal, trigOp);
   trigOp->noReceivedTriggers = 0;
-  if (trigOp->triggerError != 0) {
-    // A trigger operation has failed
-    LqhKeyConf * lqhKeyConf = (LqhKeyConf *)signal->getDataPtr();
-    LqhKeyRef * lqhKeyRef = (LqhKeyRef *)signal->getDataPtrSend();
-    // Copy fields to avoid overwrite
-    Uint32 opPtr = lqhKeyConf->opPtr;
-    Uint32 userRef = lqhKeyConf->userRef;
-    Uint32 transId1 = lqhKeyConf->transId1;
-    Uint32 transId2 = lqhKeyConf->transId2;
 
-    lqhKeyRef->connectPtr = opPtr;
-    lqhKeyRef->userRef = userRef;
-    if (trigOp->triggerError == 630) { // Tuple already existed
-      jam();
-      lqhKeyRef->errorCode = 893;    // Constraint violation
-    } else {
-      jam();
-      lqhKeyRef->errorCode = trigOp->triggerError;
-    }//if
-    lqhKeyRef->transId1 = transId1;
-    lqhKeyRef->transId2 = transId2;
-    handleFailedOperation(signal, lqhKeyRef, false);
-  } else {
-    jam();
-    // All triggers executed successfully, continue operation
-    execLQHKEYCONF(signal);
-  }//if
+  // All triggers executed successfully, continue operation
+  execLQHKEYCONF(signal);
 }
 
 void Dbtc::scheduleFiredTrigger(ApiConnectRecordPtr* transPtr,
@@ -12389,7 +12297,7 @@ void Dbtc::scheduleFiredTrigger(ApiConnectRecordPtr* transPtr,
 {
   // Set initial values for trigger fireing operation
   opPtr->p->triggerExecutionCount++;
-  opPtr->p->triggerError = 0;
+
   // Insert fired trigger in execution queue
   transPtr->p->theFiredTriggers.add(opPtr->p->accumulatingTriggerData);
   opPtr->p->accumulatingTriggerData.i = RNIL;
@@ -12414,9 +12322,7 @@ void Dbtc::executeTriggers(Signal* signal, ApiConnectRecordPtr* transPtr)
         // Execute all ready triggers in parallel
         opPtr.i = trigPtr.p->fireingOperation;
         ptrCheckGuard(opPtr, ctcConnectFilesize, localTcConnectRecord);
-	FiredTriggerPtr nextTrigPtr;
-	nextTrigPtr.i = trigPtr.i;
-	nextTrigPtr.p = trigPtr.p;
+	FiredTriggerPtr nextTrigPtr = trigPtr;
 	regApiPtr->theFiredTriggers.next(nextTrigPtr);
         if (opPtr.p->noReceivedTriggers == opPtr.p->noFiredTriggers) {
           jam();
@@ -12425,9 +12331,13 @@ void Dbtc::executeTriggers(Signal* signal, ApiConnectRecordPtr* transPtr)
           // Should allow for interleaving here by sending a CONTINUEB and 
 	  // return
           // Release trigger records
-          trigPtr.p->keyValues.release();
-          trigPtr.p->beforeValues.release();
-          trigPtr.p->afterValues.release();
+	  AttributeBuffer::DataBufferPool & pool = c_theAttributeBufferPool;
+	  LocalDataBuffer<11> tmp1(pool, trigPtr.p->keyValues);
+	  tmp1.release();
+	  LocalDataBuffer<11> tmp2(pool, trigPtr.p->beforeValues);
+	  tmp2.release();
+	  LocalDataBuffer<11> tmp3(pool, trigPtr.p->afterValues);
+	  tmp3.release();
           regApiPtr->theFiredTriggers.release(trigPtr.i);
         }
 	trigPtr = nextTrigPtr;
@@ -12515,9 +12425,15 @@ void Dbtc::releaseFiredTriggerData(DLFifoList<TcFiredTriggerData>* triggers)
   while (trigPtr.i != RNIL) {
     jam();
     // Release trigger records
-    trigPtr.p->keyValues.release();
-    trigPtr.p->beforeValues.release();
-    trigPtr.p->afterValues.release();  
+
+    AttributeBuffer::DataBufferPool & pool = c_theAttributeBufferPool;
+    LocalDataBuffer<11> tmp1(pool, trigPtr.p->keyValues);
+    tmp1.release();
+    LocalDataBuffer<11> tmp2(pool, trigPtr.p->beforeValues);
+    tmp2.release();
+    LocalDataBuffer<11> tmp3(pool, trigPtr.p->afterValues);
+    tmp3.release();
+    
     triggers->next(trigPtr);
   }
   triggers->release();
@@ -12551,30 +12467,30 @@ void Dbtc::insertIntoIndexTable(Signal* signal,
     opRecord->triggerExecutionCount++;
   }//if
   // Calculate key length and renumber attribute id:s
-  for(bool moreKeyAttrs = firedTriggerData->afterValues.first(iter);
-      moreKeyAttrs;
-      attrId++) {
+  AttributeBuffer::DataBufferPool & pool = c_theAttributeBufferPool;
+  LocalDataBuffer<11> afterValues(pool, firedTriggerData->afterValues);
+  for(bool moreKeyAttrs = afterValues.first(iter); moreKeyAttrs; attrId++) {
     jam();
     AttributeHeader* attrHeader = (AttributeHeader *) iter.data;
 
     attrHeader->setAttributeId(attrId);      
     keyLength += attrHeader->getDataSize();
     hops = attrHeader->getHeaderSize() + attrHeader->getDataSize();
-    moreKeyAttrs = firedTriggerData->afterValues.next(iter, hops);
+    moreKeyAttrs = afterValues.next(iter, hops);
   }
 
   // Filter out single NULL attributes
   if (attrId == 1) {
     jam();
-    firedTriggerData->afterValues.first(iter);
+    afterValues.first(iter);
     AttributeHeader* attrHeader = (AttributeHeader *) iter.data;
-    if (attrHeader->isNULL() && !firedTriggerData->afterValues.next(iter)) {
+    if (attrHeader->isNULL() && !afterValues.next(iter)) {
       jam();
       opRecord->triggerExecutionCount--;
       if (opRecord->triggerExecutionCount == 0) {
         /*
-        We have completed current trigger execution
-	Continue triggering operation
+	  We have completed current trigger execution
+	  Continue triggering operation
         */
 	jam();
 	continueTriggeringOp(signal, opRecord);	
@@ -12584,20 +12500,19 @@ void Dbtc::insertIntoIndexTable(Signal* signal,
   }//if
 
   // Calculate total length of primary key to be stored in index table
-  for(bool moreAttrData = firedTriggerData->keyValues.first(iter);
-      (moreAttrData);
-      moreAttrData = firedTriggerData->keyValues.next(iter, hops)) {
+  LocalDataBuffer<11> keyValues(pool, firedTriggerData->keyValues);
+  for(bool moreAttrData = keyValues.first(iter); moreAttrData; ) {
     jam();
     AttributeHeader* attrHeader = (AttributeHeader *) iter.data;
     
     totalPrimaryKeyLength += attrHeader->getDataSize();
     hops = attrHeader->getHeaderSize() + attrHeader->getDataSize();
+    moreAttrData = keyValues.next(iter, hops);
   }
   AttributeHeader pkAttrHeader(attrId, totalPrimaryKeyLength);
-
+  
   TcKeyReq::setKeyLength(tcKeyRequestInfo, keyLength);
-  tcKeyReq->attrLen = 
-    firedTriggerData->afterValues.getSize() + 
+  tcKeyReq->attrLen = afterValues.getSize() + 
     pkAttrHeader.getHeaderSize() + pkAttrHeader.getDataSize();
   tcKeyReq->tableId = indexData->indexId;
   TcKeyReq::setOperationType(tcKeyRequestInfo, ZINSERT);
@@ -12611,15 +12526,14 @@ void Dbtc::insertIntoIndexTable(Signal* signal,
   Uint32 attrBufSize = 5; // Maximum for key in TCKEYREQ
   Uint32 dataPos = 0;
   // Filter out AttributeHeader:s since this should no be in key
-  bool moreKeyData = firedTriggerData->afterValues.first(iter);
+  bool moreKeyData = afterValues.first(iter);
   Uint32 headerSize = 0, keyAttrSize = 0, dataSize = 0, headAndData = 0;
 
-  while (moreKeyData && 
-         (dataPos < keyBufSize)) {
+  while (moreKeyData && (dataPos < keyBufSize)) {
     /*
-    If we have not read complete key
-    and it fits in the signal
-    */
+     * If we have not read complete key
+     * and it fits in the signal
+     */
     jam();
     AttributeHeader* attrHeader = (AttributeHeader *) iter.data;
     
@@ -12629,19 +12543,18 @@ void Dbtc::insertIntoIndexTable(Signal* signal,
     // Skip header
     if (headerSize == 1) {
       jam();
-      moreKeyData = firedTriggerData->afterValues.next(iter);
+      moreKeyData = afterValues.next(iter);
     } else {
       jam();
-      moreKeyData = firedTriggerData->afterValues.next(iter, headerSize - 1);
+      moreKeyData = afterValues.next(iter, headerSize - 1);
     }//if
-    while((keyAttrSize != 0) && 
-          (dataPos < keyBufSize)) {
+    while((keyAttrSize != 0) && (dataPos < keyBufSize)) {
       // If we have not read complete key
       jam();
       *dataPtr++ = *iter.data;
       dataPos++;
       keyAttrSize--;
-      moreKeyData = firedTriggerData->afterValues.next(iter);
+      moreKeyData = afterValues.next(iter);
     }
     if (keyAttrSize != 0) {
       jam();
@@ -12650,8 +12563,7 @@ void Dbtc::insertIntoIndexTable(Signal* signal,
   }
 
   tcKeyLength += dataPos;
-  Uint32 attributesLength = 
-    firedTriggerData->afterValues.getSize() + 
+  Uint32 attributesLength = afterValues.getSize() + 
     pkAttrHeader.getHeaderSize() + pkAttrHeader.getDataSize();
   if (attributesLength <= attrBufSize) {
     jam();
@@ -12660,16 +12572,16 @@ void Dbtc::insertIntoIndexTable(Signal* signal,
     TcKeyReq::setAIInTcKeyReq(tcKeyRequestInfo, attributesLength);
     bool moreAttrData;
     // Insert primary key attributes (insert after values of primary table)
-    for(moreAttrData = firedTriggerData->afterValues.first(iter);
+    for(moreAttrData = afterValues.first(iter);
 	moreAttrData;
-	moreAttrData = firedTriggerData->afterValues.next(iter)) {      
+	moreAttrData = afterValues.next(iter)) {      
       *dataPtr++ = *iter.data;
     }
     // Insert attribute values (insert key values of primary table)
     // as one attribute
     pkAttrHeader.insertHeader(dataPtr);
     dataPtr += pkAttrHeader.getHeaderSize();
-    moreAttrData = firedTriggerData->keyValues.first(iter);
+    moreAttrData = keyValues.first(iter);
     while(moreAttrData) {
       jam();
       AttributeHeader* attrHeader = (AttributeHeader *) iter.data;
@@ -12679,15 +12591,15 @@ void Dbtc::insertIntoIndexTable(Signal* signal,
       // Skip header
       if (headerSize == 1) {
         jam();
-        moreAttrData = firedTriggerData->keyValues.next(iter);
+        moreAttrData = keyValues.next(iter);
       } else {
         jam();
-        moreAttrData = firedTriggerData->keyValues.next(iter, headerSize - 1);
+        moreAttrData = keyValues.next(iter, headerSize - 1);
       }//if
       // Copy attribute data
       while(dataSize-- != 0) {
 	*dataPtr++ = *iter.data;
-	moreAttrData = firedTriggerData->keyValues.next(iter);
+	moreAttrData = keyValues.next(iter);
       }
     }
     tcKeyLength += attributesLength;
@@ -12721,8 +12633,7 @@ void Dbtc::insertIntoIndexTable(Signal* signal,
     dataPtr = (Uint32 *) &keyInfo->keyData;
     dataPos = 0;
     // Pack any part of a key attribute that did no fit TCKEYREQ
-    while((keyAttrSize != 0) &&
-	  (dataPos < KeyInfo::DataLength)) {
+    while((keyAttrSize != 0) && (dataPos < KeyInfo::DataLength)) {
       // If we have not read complete key
       *dataPtr++ = *iter.data;
       dataPos++;
@@ -12741,7 +12652,7 @@ void Dbtc::insertIntoIndexTable(Signal* signal,
 	dataPtr = (Uint32 *) &keyInfo->keyData;
 	dataPos = 0;
       }
-      moreKeyData = firedTriggerData->afterValues.next(iter);
+      moreKeyData = afterValues.next(iter);
     }
     
     while(moreKeyData) {
@@ -12754,11 +12665,10 @@ void Dbtc::insertIntoIndexTable(Signal* signal,
       // Skip header
       if (headerSize == 1) {
         jam();
-        moreKeyData = firedTriggerData->afterValues.next(iter);
+        moreKeyData = afterValues.next(iter);
       } else {
         jam();
-        moreKeyData = firedTriggerData->afterValues.next(iter,
-                                                         headerSize - 1);
+        moreKeyData = afterValues.next(iter, headerSize - 1);
       }//if
       while (keyAttrSize-- != 0) {
         *dataPtr++ = *iter.data;
@@ -12777,7 +12687,7 @@ void Dbtc::insertIntoIndexTable(Signal* signal,
 	  dataPtr = (Uint32 *) &keyInfo->keyData;	  
           dataPos = 0;
         }       
-        moreKeyData = firedTriggerData->afterValues.next(iter);
+        moreKeyData = afterValues.next(iter);
       }
     }
     if (dataPos != 0) {
@@ -12810,9 +12720,9 @@ void Dbtc::insertIntoIndexTable(Signal* signal,
     
     bool moreAttrData;
     // Insert primary key attributes (insert after values of primary table)
-    for(moreAttrData = firedTriggerData->afterValues.first(iter);
+    for(moreAttrData = afterValues.first(iter);
 	moreAttrData;
-	moreAttrData = firedTriggerData->afterValues.next(iter)) {      
+	moreAttrData = afterValues.next(iter)) {      
       *dataPtr++ = *iter.data;
       attrInfoPos++;
       if (attrInfoPos == AttrInfo::DataLength) {
@@ -12835,7 +12745,7 @@ void Dbtc::insertIntoIndexTable(Signal* signal,
     pkAttrHeader.insertHeader(dataPtr);
     dataPtr += pkAttrHeader.getHeaderSize();
     attrInfoPos += pkAttrHeader.getHeaderSize();
-    moreAttrData = firedTriggerData->keyValues.first(iter);
+    moreAttrData = keyValues.first(iter);
     while(moreAttrData) {
       jam();
       AttributeHeader* attrHeader = (AttributeHeader *) iter.data;
@@ -12845,11 +12755,10 @@ void Dbtc::insertIntoIndexTable(Signal* signal,
       // Skip header
       if (headerSize == 1) {
         jam();
-        moreAttrData = firedTriggerData->keyValues.next(iter);
+        moreAttrData = keyValues.next(iter);
       } else {
         jam();
-        moreAttrData = firedTriggerData->keyValues.next(iter,
-                                                        headerSize - 1);
+        moreAttrData = keyValues.next(iter, headerSize - 1);
       }//if
       while(dataSize-- != 0) { // If we have not read complete key
         if (attrInfoPos == AttrInfo::DataLength) {
@@ -12868,7 +12777,7 @@ void Dbtc::insertIntoIndexTable(Signal* signal,
         }       
         *dataPtr++ = *iter.data;
         attrInfoPos++;
-        moreAttrData = firedTriggerData->keyValues.next(iter);
+        moreAttrData = keyValues.next(iter);
       }
     }
     if (attrInfoPos != 0) {
@@ -12913,7 +12822,9 @@ void Dbtc::deleteFromIndexTable(Signal* signal,
     opRecord->triggerExecutionCount++;
   }//if
   // Calculate key length and renumber attribute id:s
-  for(bool moreKeyAttrs = firedTriggerData->beforeValues.first(iter);
+  AttributeBuffer::DataBufferPool & pool = c_theAttributeBufferPool;
+  LocalDataBuffer<11> beforeValues(pool, firedTriggerData->beforeValues);
+  for(bool moreKeyAttrs = beforeValues.first(iter);
       (moreKeyAttrs);
       attrId++) {
     jam();
@@ -12922,15 +12833,15 @@ void Dbtc::deleteFromIndexTable(Signal* signal,
     attrHeader->setAttributeId(attrId);      
     keyLength += attrHeader->getDataSize();
     hops = attrHeader->getHeaderSize() + attrHeader->getDataSize();
-    moreKeyAttrs = firedTriggerData->beforeValues.next(iter, hops);
+    moreKeyAttrs = beforeValues.next(iter, hops);
   }
 
   // Filter out single NULL attributes
   if (attrId == 1) {
     jam();
-    firedTriggerData->beforeValues.first(iter);
+    beforeValues.first(iter);
     AttributeHeader* attrHeader = (AttributeHeader *) iter.data;
-    if (attrHeader->isNULL() && !firedTriggerData->beforeValues.next(iter)) {
+    if (attrHeader->isNULL() && !beforeValues.next(iter)) {
       jam();
       opRecord->triggerExecutionCount--;
       if (opRecord->triggerExecutionCount == 0) {
@@ -12958,7 +12869,7 @@ void Dbtc::deleteFromIndexTable(Signal* signal,
   Uint32 keyBufSize = 8; // Maximum for key in TCKEYREQ
   Uint32 dataPos = 0;
   // Filter out AttributeHeader:s since this should no be in key
-  bool moreKeyData = firedTriggerData->beforeValues.first(iter);
+  bool moreKeyData = beforeValues.first(iter);
   Uint32 headerSize = 0, keyAttrSize = 0, headAndData = 0;
 
   while (moreKeyData && 
@@ -12976,10 +12887,10 @@ void Dbtc::deleteFromIndexTable(Signal* signal,
     // Skip header
     if (headerSize == 1) {
       jam();
-      moreKeyData = firedTriggerData->beforeValues.next(iter);
+      moreKeyData = beforeValues.next(iter);
     } else {
       jam();
-      moreKeyData = firedTriggerData->beforeValues.next(iter, headerSize - 1);
+      moreKeyData = beforeValues.next(iter, headerSize - 1);
     }//if
     while((keyAttrSize != 0) && 
           (dataPos < keyBufSize)) {
@@ -12988,7 +12899,7 @@ void Dbtc::deleteFromIndexTable(Signal* signal,
       *dataPtr++ = *iter.data;
       dataPos++;
       keyAttrSize--;
-      moreKeyData = firedTriggerData->beforeValues.next(iter);
+      moreKeyData = beforeValues.next(iter);
     }
     if (keyAttrSize != 0) {
       jam();
@@ -13042,7 +12953,7 @@ void Dbtc::deleteFromIndexTable(Signal* signal,
 	dataPtr = (Uint32 *) &keyInfo->keyData;
 	dataPos = 0;
       }
-      moreKeyData = firedTriggerData->beforeValues.next(iter);
+      moreKeyData = beforeValues.next(iter);
     }
     
     while(moreKeyData) {
@@ -13055,10 +12966,10 @@ void Dbtc::deleteFromIndexTable(Signal* signal,
       // Skip header
       if (headerSize == 1) {
         jam();
-        moreKeyData = firedTriggerData->beforeValues.next(iter);
+        moreKeyData = beforeValues.next(iter);
       } else {
         jam();
-        moreKeyData = firedTriggerData->beforeValues.next(iter, 
+        moreKeyData = beforeValues.next(iter, 
 							  headerSize - 1);
       }//if
       while (keyAttrSize-- != 0) {
@@ -13078,7 +12989,7 @@ void Dbtc::deleteFromIndexTable(Signal* signal,
 	  dataPtr = (Uint32 *) &keyInfo->keyData;	  
           dataPos = 0;
         }       
-        moreKeyData = firedTriggerData->beforeValues.next(iter);
+        moreKeyData = beforeValues.next(iter);
       }
     }
     if (dataPos != 0) {

@@ -1906,7 +1906,8 @@ SumaParticipant::execSCAN_FRAGCONF(Signal* signal){
   
   const Uint32 completed = conf->fragmentCompleted;
   const Uint32 senderData = conf->senderData;
-  
+  const Uint32 completedOps = conf->completedOps;
+
   SubscriptionPtr subPtr;
   c_subscriptions.getPtr(subPtr, senderData);
   
@@ -1922,12 +1923,14 @@ SumaParticipant::execSCAN_FRAGCONF(Signal* signal){
 #else
     SubSyncContinueReq * const req = (SubSyncContinueReq*)signal->getDataPtrSend();
     req->subscriberData = subPtr.p->m_subscriberData;
-    req->noOfRowsSent = 0; //rowCount;
+    req->noOfRowsSent = completedOps;
     sendSignal(subPtr.p->m_subscriberRef, GSN_SUB_SYNC_CONTINUE_REQ, signal,
 	       SubSyncContinueReq::SignalLength, JBB);
 #endif
     return;
   }
+
+  ndbrequire(completedOps == 0);
   
   SyncRecord* tmp = c_syncPool.getPtr(subPtr.p->m_syncPtrI);
   
