@@ -184,6 +184,8 @@ set GLOBAL table_type=DEFAULT;
 ERROR 42000: Variable 'table_type' doesn't have a default value
 set character_set_client=UNKNOWN_CHARACTER_SET;
 ERROR 42000: Unknown character set: 'UNKNOWN_CHARACTER_SET'
+set collation_connection=UNKNOWN_COLLATION;
+ERROR HY000: Unknown collation: 'UNKNOWN_COLLATION'
 set global autocommit=1;
 ERROR HY000: Variable 'autocommit' is a LOCAL variable and can't be used with SET GLOBAL
 select @@global.timestamp;

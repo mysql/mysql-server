@@ -127,7 +127,7 @@ static bool load_db_opt(THD *thd, const char *path, HA_CREATE_INFO *create)
 	{
 	  if (!(create->table_charset=get_charset_by_name(pos+1, MYF(0))))
 	  {
-	    sql_print_error(ER(ER_UNKNOWN_CHARACTER_SET),pos+1);
+	    sql_print_error(ER(ER_UNKNOWN_COLLATION),pos+1);
 	  }
 	}
       }
