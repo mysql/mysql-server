@@ -4823,8 +4823,10 @@ adding a lot of new rows to a table.  On a busy system with lots of changes,
 @code{VACUUM()} must be run very frequently, in the worst cases even
 many times a day.  During the @code{VACUUM()} run, which may take hours
 if the database is big, the database is from a production standpoint,
-practically dead.  The PostgreSQL team has fixing this on their TODO,
-but we assume that this is not an easy thing to fix permanently.
+practically dead. Please note: In PostgreSQL version 7.2, basic vacuuming
+no longer locks tables, thus allowing normal user access during the vacuum.
+A new @code{VACUUM FULL} command does old-style vacuum by locking the table
+and shrinking the on-disk copy of the table.
 
 @item
 MySQL replication has been thoroughly tested, and is used by sites like:
@@ -22751,7 +22753,7 @@ shell> perror [OPTIONS] [ERRORCODE [ERRORCODE...]]
 Example:
 
 shell> perror 13 64
-Error code  13:  Permission decided
+Error code  13:  Permission denied
 Error code  64:  Machine is not on the network
 @end example
 
