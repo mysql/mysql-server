@@ -1123,9 +1123,16 @@ bool MYSQL_LOG::write(Log_event* event_info)
       the table handler commit here, protected by the LOCK_log mutex,
       because otherwise the transactions may end up in a different order
       in the table handler log!
+
+      Note that we will NOT call ha_report_binlog_offset_and_commit() if
+      there are binlog events cached in the transaction cache. That is
+      because then the log event which we write to the binlog here is
+      not a transactional event. In versions < 4.0.13 before this fix this
+      caused an InnoDB transaction to be committed if in the middle there
+      was a MyISAM event!
     */
 
-    if (file == &log_file)
+    if (file == &log_file && !my_b_tell(&thd->transaction.trans_log))
     {
       /*
 	LOAD DATA INFILE in AUTOCOMMIT=1 mode writes to the binlog
