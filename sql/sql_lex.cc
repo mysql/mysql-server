@@ -1049,7 +1049,7 @@ void st_select_lex_node::exclude()
 st_select_lex* st_select_lex_node::select_lex()
 {
   DBUG_ENTER("st_select_lex_node::select_lex (never should be called)");
-  DBUG_ASSERT(1);
+  DBUG_ASSERT(0);
   DBUG_RETURN(0);
 }
 

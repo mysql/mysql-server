@@ -271,7 +271,7 @@ static uchar* setup_param_field(Item_param *item_param,
   default:
     {      
       ulong len=get_param_length(&pos);
-      item_param->set_value((const char*)pos,len);     
+      item_param->set_value((const char*)pos,len,current_thd->thd_charset);
       pos+=len;        
     }
   }
@@ -829,7 +829,7 @@ void mysql_stmt_get_longdata(THD *thd, char *pos, ulong packet_length)
     sprintf(stmt->last_error, ER(ER_WRONG_ARGUMENTS), "get_longdata");
     DBUG_VOID_RETURN;
   }
-  stmt->param[param_number].set_longdata(pos, packet_length-9);
+  stmt->param[param_number].set_longdata(pos, packet_length-9, current_thd->thd_charset);
   stmt->long_data_used= 1;
   DBUG_VOID_RETURN;
 }

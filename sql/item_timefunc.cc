@@ -31,28 +31,28 @@
 
 static String month_names[] = 
 { 
-  String("January",	default_charset_info), 
-  String("February",	default_charset_info),
-  String("March",	default_charset_info),
-  String("April",	default_charset_info),
-  String("May",		default_charset_info),
-  String("June",	default_charset_info),
-  String("July",	default_charset_info),
-  String("August",	default_charset_info),
-  String("September",	default_charset_info),
-  String("October",	default_charset_info),
-  String("November",	default_charset_info),
-  String("December",	default_charset_info)
+  String("January",	my_charset_latin1), 
+  String("February",	my_charset_latin1),
+  String("March",	my_charset_latin1),
+  String("April",	my_charset_latin1),
+  String("May",		my_charset_latin1),
+  String("June",	my_charset_latin1),
+  String("July",	my_charset_latin1),
+  String("August",	my_charset_latin1),
+  String("September",	my_charset_latin1),
+  String("October",	my_charset_latin1),
+  String("November",	my_charset_latin1),
+  String("December",	my_charset_latin1)
 };
 static String day_names[] = 
 { 
-  String("Monday",	default_charset_info),
-  String("Tuesday",	default_charset_info),
-  String("Wednesday",	default_charset_info),
-  String("Thursday",	default_charset_info),
-  String("Friday",	default_charset_info),
-  String("Saturday",	default_charset_info),
-  String("Sunday",	default_charset_info)
+  String("Monday",	my_charset_latin1),
+  String("Tuesday",	my_charset_latin1),
+  String("Wednesday",	my_charset_latin1),
+  String("Thursday",	my_charset_latin1),
+  String("Friday",	my_charset_latin1),
+  String("Saturday",	my_charset_latin1),
+  String("Sunday",	my_charset_latin1)
 };
 
 /*
@@ -396,7 +396,7 @@ String *Item_date::val_str(String *str)
     return (String*) 0;
   if (!value)					// zero daynr
   {
-    str->copy("0000-00-00",10);
+    str->copy("0000-00-00",10,my_charset_latin1);
     return str;
   }
   if (str->alloc(11))
@@ -547,7 +547,7 @@ String *Item_func_sec_to_time::val_str(String *str)
   uint sec= (uint) ((ulonglong) seconds % 3600);
   length= my_sprintf(buff,(buff,"%s%02lu:%02u:%02u",sign,(long) (seconds/3600),
 			   sec/60, sec % 60));
-  str->copy(buff, length);
+  str->copy(buff, length, my_charset_latin1);
   return str;
 }
 

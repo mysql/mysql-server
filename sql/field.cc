@@ -4302,7 +4302,7 @@ int Field_blob::store(const char *from,uint len,CHARSET_INFO *cs)
 	}
       }
 #endif /* USE_TIS620 */
-      value.copy(from,len);
+      value.copy(from,len,charset());
       from=value.ptr();
 #ifdef USE_TIS620
       my_free(th_ptr,MYF(MY_ALLOW_ZERO_PTR));
@@ -4316,14 +4316,14 @@ int Field_blob::store(const char *from,uint len,CHARSET_INFO *cs)
 
 int Field_blob::store(double nr)
 {
-  value.set(nr,2,my_thd_charset);
+  value.set(nr,2,current_thd->thd_charset);
   return Field_blob::store(value.ptr(),(uint) value.length(), value.charset());
 }
 
 
 int Field_blob::store(longlong nr)
 {
-  value.set(nr,my_thd_charset);
+  value.set(nr,current_thd->thd_charset);
   return Field_blob::store(value.ptr(), (uint) value.length(), value.charset());
 }
 

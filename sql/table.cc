@@ -392,8 +392,7 @@ int openfrm(const char *name, const char *alias, uint db_stat, uint prgflag,
 		 outparam->fieldnames.type_names[i],
 		 outparam);
     reg_field->comment=comment;
-    if (!reg_field->binary())
-      ((Field_str*) reg_field)->set_charset(charset);
+    reg_field->set_charset(charset);
     if (!(reg_field->flags & NOT_NULL_FLAG))
     {
       if ((null_bit<<=1) == 256)
