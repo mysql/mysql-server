@@ -553,6 +553,28 @@ drop table t3|
 --error 1049
 create procedure nodb.bug3339() begin end|
 
+#
+# BUG#2653
+#
+create procedure bug2653_1(a int, out b int)
+  set b = aa|
+
+create procedure bug2653_2(a int, out b int)
+begin
+  if aa < 0 then
+    set b = - a;
+  else
+    set b = a;
+  end if;
+end|
+
+--error 1054
+call bug2653_1(1, @b)|
+--error 1054
+call bug2653_2(2, @b)|
+
+drop procedure bug2653_1|
+drop procedure bug2653_2|
 
 drop table t1|
 

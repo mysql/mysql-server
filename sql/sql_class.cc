@@ -1515,7 +1515,8 @@ bool select_dumpvar::send_data(List<Item> &items)
     {
       if ((yy=var_li++)) 
       {
-	thd->spcont->set_item_eval(yy->get_offset(), item, zz->type);
+	if (thd->spcont->set_item_eval(yy->get_offset(), item, zz->type))
+	  DBUG_RETURN(1);
       }
     }
     else
