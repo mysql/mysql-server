@@ -35,7 +35,7 @@
               << error.code << ", msg: " << error.message << "." << std::endl; \
     exit(-1); }
 
-static void callback(int result, NdbConnection* NdbObject, void* aObject);
+static void callback(int result, NdbTransaction* NdbObject, void* aObject);
 
 int main()
 {
@@ -50,22 +50,36 @@ int main()
     exit(-1);
   }
 
-  Ndb* myNdb = new Ndb( cluster_connection,
-			"TEST_DB_2" );  // Object representing the database
-
-  NdbConnection*  myNdbConnection[2];   // For transactions
-  NdbOperation*   myNdbOperation;       // For operations
-  
-  /*******************************************
-   * Initialize NDB and wait until its ready *
-   *******************************************/
-  if (myNdb->init(2) == -1) {          // Want two parallel insert transactions
-    APIERROR(myNdb->getNdbError());
+  int r= cluster_connection->connect(5 /* retries               */,
+				     3 /* delay between retries */,
+				     1 /* verbose               */);
+  if (r > 0)
+  {
+    std::cout
+      << "Cluster connect failed, possibly resolved with more retries.\n";
+    exit(-1);
+  }
+  else if (r < 0)
+  {
+    std::cout
+      << "Cluster connect failed.\n";
+    exit(-1);
+  }
+					   
+  if (cluster_connection->wait_until_ready(30,30))
+  {
+    std::cout << "Cluster was not ready within 30 secs." << std::endl;
     exit(-1);
   }
 
-  if (myNdb->waitUntilReady(30) != 0) {
-    std::cout << "NDB was not ready within 30 secs." << std::endl;
+  Ndb* myNdb = new Ndb( cluster_connection,
+			"TEST_DB_2" );  // Object representing the database
+
+  NdbTransaction*  myNdbTransaction[2];   // For transactions
+  NdbOperation*   myNdbOperation;       // For operations
+  
+  if (myNdb->init(2) == -1) {          // Want two parallel insert transactions
+    APIERROR(myNdb->getNdbError());
     exit(-1);
   }
 
@@ -73,19 +87,19 @@ int main()
    * Insert (we do two insert transactions in parallel) *
    ******************************************************/
   for (int i = 0; i < 2; i++) {
-    myNdbConnection[i] = myNdb->startTransaction();
-    if (myNdbConnection[i] == NULL) APIERROR(myNdb->getNdbError());
+    myNdbTransaction[i] = myNdb->startTransaction();
+    if (myNdbTransaction[i] == NULL) APIERROR(myNdb->getNdbError());
     
-    myNdbOperation = myNdbConnection[i]->getNdbOperation("MYTABLENAME");
+    myNdbOperation = myNdbTransaction[i]->getNdbOperation("MYTABLENAME");
     // Error check. If error, then maybe table MYTABLENAME is not in database
-    if (myNdbOperation == NULL) APIERROR(myNdbConnection[i]->getNdbError());
+    if (myNdbOperation == NULL) APIERROR(myNdbTransaction[i]->getNdbError());
     
     myNdbOperation->insertTuple();
     myNdbOperation->equal("ATTR1", 20 + i);
     myNdbOperation->setValue("ATTR2", 20 + i);
     
     // Prepare transaction (the transaction is NOT yet sent to NDB)
-    myNdbConnection[i]->executeAsynchPrepare(Commit, &callback, NULL);
+    myNdbTransaction[i]->executeAsynchPrepare(Commit, &callback, NULL);
   }
 
   // Send all transactions to NDB 
@@ -96,7 +110,7 @@ int main()
   
   // Close all transactions
   for (int i = 0; i < 2; i++) 
-    myNdb->closeTransaction(myNdbConnection[i]);
+    myNdb->closeTransaction(myNdbTransaction[i]);
 
   delete myNdb;
   delete cluster_connection;
@@ -110,12 +124,12 @@ int main()
  *              
  *   (This function must have three arguments: 
  *   - The result of the transaction, 
- *   - The NdbConnection object, and 
+ *   - The NdbTransaction object, and 
  *   - A pointer to an arbitrary object.)
  */
 
 static void
-callback(int result, NdbConnection* myTrans, void* aObject)
+callback(int result, NdbTransaction* myTrans, void* aObject)
 {
   if (result == -1) {
     std::cout << "Poll error: " << std::endl; 
