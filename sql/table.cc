@@ -166,6 +166,14 @@ int openfrm(THD *thd, const char *name, const char *alias, uint db_stat,
   if (!share->table_charset)
   {
     /* unknown charset in head[38] or pre-3.23 frm */
+    if (use_mb(default_charset_info))
+    {
+      /* Warn that we may be changing the size of character columns */
+      sql_print_warning("'%s' had no or invalid character set, "
+                        "and default character set is multi-byte, "
+                        "so character column sizes may have changed",
+                        name);
+    }
     share->table_charset= default_charset_info;
   }
   share->db_record_offset= 1;
