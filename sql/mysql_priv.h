@@ -565,7 +565,11 @@ int mysql_explain_select(THD *thd, SELECT_LEX *sl, char const *type,
 			 select_result *result);
 int mysql_union(THD *thd, LEX *lex, select_result *result,
 		SELECT_LEX_UNIT *unit);
-int mysql_handle_derived(LEX *lex);
+int mysql_handle_derived(LEX *lex, int (*processor)(THD *thd,
+                                                    st_lex *lex,
+                                                    st_table_list *table));
+int mysql_derived_prepare(THD *thd, LEX *lex, TABLE_LIST *t);
+int mysql_derived_filling(THD *thd, LEX *lex, TABLE_LIST *t);
 Field *create_tmp_field(THD *thd, TABLE *table,Item *item, Item::Type type,
 			Item ***copy_func, Field **from_field,
 			bool group, bool modify_item, uint convert_blob_length);
@@ -792,7 +796,6 @@ void wait_for_refresh(THD *thd);
 int open_tables(THD *thd, TABLE_LIST *tables, uint *counter);
 int simple_open_n_lock_tables(THD *thd,TABLE_LIST *tables);
 int open_and_lock_tables(THD *thd,TABLE_LIST *tables);
-void relink_tables_for_derived(THD *thd);
 int lock_tables(THD *thd, TABLE_LIST *tables, uint counter);
 TABLE *open_temporary_table(THD *thd, const char *path, const char *db,
 			    const char *table_name, bool link_in_list);

@@ -4472,7 +4472,6 @@ mysql_init_select(LEX *lex)
   {
     DBUG_ASSERT(lex->result == 0);
     lex->exchange= 0;
-    lex->proc_list.first= 0;
   }
 }
 
