@@ -1439,7 +1439,7 @@ then
   if [ -z "$USE_RUNNING_NDBCLUSTER" ]
   then
     echo "Starting ndbcluster"
-    ./ndb/ndbcluster --initial --data-dir=$MYSQL_TEST_DIR/var || exit 1
+    ./ndb/ndbcluster --small --discless --initial --data-dir=$MYSQL_TEST_DIR/var || exit 1
     export NDB_CONNECTSTRING=`cat Ndb.cfg`
   else
     export NDB_CONNECTSTRING="$USE_RUNNING_NDBCLUSTER"
