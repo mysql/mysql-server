@@ -171,6 +171,11 @@ ALTER TABLE user ADD Show_view_priv enum('N','Y') DEFAULT 'N' NOT NULL AFTER Cre
 UPDATE user SET Create_view_priv=Create_priv, Show_view_priv=Create_priv where user<>"" AND @hadCreateViewPriv = 0;
 
 #
+# Add max_user_connections resource limit 
+#
+ALTER TABLE user ADD max_user_connections int(11) unsigned DEFAULT '0' NOT NULL AFTER max_connections;
+
+#
 # Create some possible missing tables
 #
 CREATE TABLE IF NOT EXISTS help_topic (

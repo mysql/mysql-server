@@ -437,6 +437,10 @@ my_bool mysql_rpl_probe(MYSQL *mysql __attribute__((unused))) { return 1; }
 #endif
 static void replace_dynstr_append_mem(DYNAMIC_STRING *ds, const char *val,
 				      int len);
+static void replace_dynstr_append(DYNAMIC_STRING *ds, const char *val);
+static int normal_handle_error(const char *query, struct st_query *q,
+                               MYSQL *mysql, DYNAMIC_STRING *ds);
+static int normal_handle_no_error(struct st_query *q);
 
 static void do_eval(DYNAMIC_STRING* query_eval, const char* query)
 {
@@ -949,7 +953,7 @@ static void do_exec(struct st_query* q)
       ds= &ds_res;
 
     while (fgets(buf, sizeof(buf), res_file))
-      replace_dynstr_append_mem(ds, buf, strlen(buf));
+      replace_dynstr_append(ds, buf);
   }
   error= pclose(res_file);
 
@@ -1611,6 +1615,29 @@ void init_manager()
 }
 #endif
 
+
+/*
+  Connect to a server doing several retries if needed.
+
+  SYNOPSIS
+    safe_connect()
+      con               - connection structure to be used
+      host, user, pass, - connection parameters
+      db, port, sock
+
+  NOTE
+    This function will try to connect to the given server MAX_CON_TRIES
+    times and sleep CON_RETRY_SLEEP seconds between attempts before
+    finally giving up. This helps in situation when the client starts
+    before the server (which happens sometimes).
+    It will ignore any errors during these retries. One should use
+    connect_n_handle_errors() if he expects a connection error and wants
+    handle as if it was an error from a usual statement.
+
+  RETURN VALUE
+    0 - success, non-0 - failure
+*/
+
 int safe_connect(MYSQL* con, const char* host, const char* user,
 		 const char* pass,
 		 const char* db, int port, const char* sock)
@@ -1631,6 +1658,114 @@ int safe_connect(MYSQL* con, const char* host, const char* user,
 }
 
 
+/*
+  Connect to a server and handle connection errors in case when they occur.
+
+  SYNOPSIS
+    connect_n_handle_errors()
+      q                 - context of connect "query" (command)
+      con               - connection structure to be used
+      host, user, pass, - connection parameters
+      db, port, sock
+      create_conn       - out parameter, set to zero if connection was
+                          not established and is not touched otherwise
+
+  DESCRIPTION
+    This function will try to establish a connection to server and handle
+    possible errors in the same manner as if "connect" was usual SQL-statement
+    (If error is expected it will ignore it once it occurs and log the
+    "statement" to the query log).
+    Unlike safe_connect() it won't do several attempts.
+
+  RETURN VALUE
+    0 - success, non-0 - failure
+*/
+
+int connect_n_handle_errors(struct st_query *q, MYSQL* con, const char* host,
+                            const char* user, const char* pass,
+                            const char* db, int port, const char* sock,
+                            int* create_conn)
+{
+  DYNAMIC_STRING ds_tmp, *ds;
+  int error= 0;
+
+  /*
+    Altough we ignore --require or --result before connect() command we still
+    need to handle record_file because of "@result_file sql-command" syntax.
+  */
+  if (q->record_file[0])
+  {
+    init_dynamic_string(&ds_tmp, "", 16384, 65536);
+    ds= &ds_tmp;
+  }
+  else
+    ds= &ds_res;
+
+  if (!disable_query_log)
+  {
+    /*
+      It is nice to have connect() statement logged in result file
+      in this case.
+      QQ: Should we do this only if we are expecting an error ?
+    */
+    char port_buff[22]; /* This should be enough for any int */
+    char *port_end;
+    dynstr_append_mem(ds, "connect(", 8);
+    replace_dynstr_append(ds, host);
+    dynstr_append_mem(ds, ",", 1);
+    replace_dynstr_append(ds, user);
+    dynstr_append_mem(ds, ",", 1);
+    replace_dynstr_append(ds, pass);
+    dynstr_append_mem(ds, ",", 1);
+    if (db)
+      replace_dynstr_append(ds, db);
+    dynstr_append_mem(ds, ",", 1);
+    port_end= int10_to_str(port, port_buff, 10);
+    replace_dynstr_append_mem(ds, port_buff, port_end - port_buff);
+    dynstr_append_mem(ds, ",", 1);
+    if (sock)
+      replace_dynstr_append(ds, sock);
+    dynstr_append_mem(ds, ")", 1);
+    dynstr_append_mem(ds, delimiter, delimiter_length);
+    dynstr_append_mem(ds, "\n", 1);
+  }
+  if (!mysql_real_connect(con, host, user, pass, db, port, sock ? sock: 0,
+                          CLIENT_MULTI_STATEMENTS))
+  {
+    error= normal_handle_error("connect", q, con, ds);
+    *create_conn= 0;
+    goto err;
+  }
+  else if (normal_handle_no_error(q))
+  {
+    /*
+      Fail if there was no error but we expected it.
+      We also don't want to have connection in this case.
+    */
+    mysql_close(con);
+    *create_conn= 0;
+    error= 1;
+    goto err;
+  }
+
+  if (record)
+  {
+    if (!q->record_file[0] && !result_file)
+      die("At line %u: Missing result file", start_lineno);
+    if (!result_file)
+      str_to_file(q->record_file, ds->str, ds->length);
+  }
+  else if (q->record_file[0])
+    error|= check_result(ds, q->record_file, q->require_file);
+
+err:
+  free_replace();
+  if (ds == &ds_tmp)
+    dynstr_free(&ds_tmp);
+  return error;
+}
+
+
 int do_connect(struct st_query* q)
 {
   char* con_name, *con_user,*con_pass, *con_host, *con_port_str,
@@ -1639,6 +1774,8 @@ int do_connect(struct st_query* q)
   char buff[FN_REFLEN];
   int con_port;
   int free_con_sock = 0;
+  int error= 0;
+  int create_conn= 1;
 
   DBUG_ENTER("do_connect");
   DBUG_PRINT("enter",("connect: %s",p));
@@ -1703,18 +1840,28 @@ int do_connect(struct st_query* q)
   /* Special database to allow one to connect without a database name */
   if (con_db && !strcmp(con_db,"*NO-ONE*"))
     con_db=0;
-  if ((safe_connect(&next_con->mysql, con_host,
-		    con_user, con_pass,
-		    con_db, con_port, con_sock ? con_sock: 0)))
-    die("Could not open connection '%s': %s", con_name,
-	mysql_error(&next_con->mysql));
 
-  if (!(next_con->name = my_strdup(con_name, MYF(MY_WME))))
-    die(NullS);
-  cur_con = next_con++;
+  if (q->abort_on_error)
+  {
+    if ((safe_connect(&next_con->mysql, con_host, con_user, con_pass,
+		      con_db, con_port, con_sock ? con_sock: 0)))
+      die("Could not open connection '%s': %s", con_name,
+          mysql_error(&next_con->mysql));
+  }
+  else
+    error= connect_n_handle_errors(q, &next_con->mysql, con_host, con_user,
+                                   con_pass, con_db, con_port, con_sock,
+                                   &create_conn);
+
+  if (create_conn)
+  {
+    if (!(next_con->name= my_strdup(con_name, MYF(MY_WME))))
+      die(NullS);
+    cur_con= next_con++;
+  }
   if (free_con_sock)
     my_free(con_sock, MYF(MY_WME));
-  DBUG_RETURN(0);
+  DBUG_RETURN(error);
 }
 
 
@@ -2351,6 +2498,13 @@ static void replace_dynstr_append_mem(DYNAMIC_STRING *ds, const char *val,
   dynstr_append_mem(ds, val, len);
 }
 
+/* Append zero-terminated string to ds, with optional replace */
+
+static void replace_dynstr_append(DYNAMIC_STRING *ds, const char *val)
+{
+  replace_dynstr_append_mem(ds, val, strlen(val));
+}
+
 
 /*
   Append all results to the dynamic string separated with '\t'
@@ -2497,93 +2651,14 @@ static int run_query_normal(MYSQL* mysql, struct st_query* q, int flags)
 	 (!(last_result= res= mysql_store_result(mysql)) &&
 	  mysql_field_count(mysql)))
     {
-      if (q->require_file)
-      {
-	abort_not_supported_test();
-      }
-      if (q->abort_on_error)
-	die("At line %u: query '%s' failed: %d: %s", start_lineno, query,
-	    mysql_errno(mysql), mysql_error(mysql));
-      else
-      {
-	for (i=0 ; (uint) i < q->expected_errors ; i++)
-	{
-          if (((q->expected_errno[i].type == ERR_ERRNO) &&
-               (q->expected_errno[i].code.errnum == mysql_errno(mysql))) ||
-              ((q->expected_errno[i].type == ERR_SQLSTATE) &&
-               (strcmp(q->expected_errno[i].code.sqlstate,mysql_sqlstate(mysql)) == 0)))
-	  {
-	    if (i == 0 && q->expected_errors == 1)
-	    {
-	      /* Only log error if there is one possible error */
-	      dynstr_append_mem(ds,"ERROR ",6);
-	      replace_dynstr_append_mem(ds, mysql_sqlstate(mysql),
-					strlen(mysql_sqlstate(mysql)));
-	      dynstr_append_mem(ds, ": ", 2);
-	      replace_dynstr_append_mem(ds,mysql_error(mysql),
-					strlen(mysql_error(mysql)));
-	      dynstr_append_mem(ds,"\n",1);
-	    }
-	    /* Don't log error if we may not get an error */
-            else if (q->expected_errno[0].type == ERR_SQLSTATE ||
-                     (q->expected_errno[0].type == ERR_ERRNO &&
-                      q->expected_errno[0].code.errnum != 0))
-	      dynstr_append(ds,"Got one of the listed errors\n");
-	    goto end;				/* Ok */
-	  }
-	}
-	DBUG_PRINT("info",("i: %d  expected_errors: %d", i,
-			   q->expected_errors));
-	dynstr_append_mem(ds, "ERROR ",6);
-	replace_dynstr_append_mem(ds, mysql_sqlstate(mysql),
-				  strlen(mysql_sqlstate(mysql)));
-	dynstr_append_mem(ds,": ",2);
-	replace_dynstr_append_mem(ds, mysql_error(mysql),
-				  strlen(mysql_error(mysql)));
-	dynstr_append_mem(ds,"\n",1);
-	if (i)
-	{
-          if (q->expected_errno[0].type == ERR_ERRNO)
-            verbose_msg("query '%s' failed with wrong errno %d instead of %d...",
-                        q->query, mysql_errno(mysql), q->expected_errno[0].code.errnum);
-          else
-            verbose_msg("query '%s' failed with wrong sqlstate %s instead of %s...",
-                        q->query, mysql_sqlstate(mysql), q->expected_errno[0].code.sqlstate);
-	  error= 1;
-	  goto end;
-	}
-	verbose_msg("query '%s' failed: %d: %s", q->query, mysql_errno(mysql),
-		    mysql_error(mysql));
-	/*
-	  if we do not abort on error, failure to run the query does
-	  not fail the whole test case
-	*/
-	goto end;
-      }
-      /*{
-	verbose_msg("failed in mysql_store_result for query '%s' (%d)", query,
-	mysql_errno(mysql));
-	error = 1;
-	goto end;
-	}*/
-    }
-
-    if (q->expected_errno[0].type == ERR_ERRNO &&
-        q->expected_errno[0].code.errnum != 0)
-    {
-      /* Error code we wanted was != 0, i.e. not an expected success */
-      verbose_msg("query '%s' succeeded - should have failed with errno %d...",
-                  q->query, q->expected_errno[0].code.errnum);
-      error = 1;
+      if (normal_handle_error(query, q, mysql, ds))
+        error= 1;
       goto end;
     }
-    else if (q->expected_errno[0].type == ERR_SQLSTATE &&
-             strcmp(q->expected_errno[0].code.sqlstate,"00000") != 0)
+
+    if (normal_handle_no_error(q))
     {
-      /* SQLSTATE we wanted was != "00000", i.e. not an expected success */
-      verbose_msg("query '%s' succeeded - should have failed with sqlstate %s...",
-                  q->query, q->expected_errno[0].code.sqlstate);
-      error = 1;
+      error= 1;
       goto end;
     }
 
@@ -2603,8 +2678,7 @@ static int run_query_normal(MYSQL* mysql, struct st_query* q, int flags)
 	  {
 	    if (i)
 	      dynstr_append_mem(ds, "\t", 1);
-	    replace_dynstr_append_mem(ds, field[i].name,
-				      strlen(field[i].name));
+	    replace_dynstr_append(ds, field[i].name);
 	  }
 	  dynstr_append_mem(ds, "\n", 1);
 	}
@@ -2680,6 +2754,135 @@ end:
   DBUG_RETURN(error);
 }
 
+
+/*
+  Handle errors which occurred after execution of conventional (non-prepared)
+  statement.
+
+  SYNOPSIS
+    normal_handle_error()
+      query - query string
+      q     - query context
+      mysql - connection through which query was sent to server
+      ds    - dynamic string which is used for output buffer
+
+  NOTE
+    If there is an unexpected error this function will abort mysqltest
+    immediately.
+
+  RETURN VALUE
+    0 - OK
+    1 - Some other error was expected.
+*/
+
+static int normal_handle_error(const char *query, struct st_query *q,
+                               MYSQL *mysql, DYNAMIC_STRING *ds)
+{
+  uint i;
+
+  DBUG_ENTER("normal_handle_error");
+
+  if (q->require_file)
+    abort_not_supported_test();
+
+  if (q->abort_on_error)
+    die("At line %u: query '%s' failed: %d: %s", start_lineno, query,
+        mysql_errno(mysql), mysql_error(mysql));
+  else
+  {
+    for (i= 0 ; (uint) i < q->expected_errors ; i++)
+    {
+      if (((q->expected_errno[i].type == ERR_ERRNO) &&
+            (q->expected_errno[i].code.errnum == mysql_errno(mysql))) ||
+          ((q->expected_errno[i].type == ERR_SQLSTATE) &&
+           (strcmp(q->expected_errno[i].code.sqlstate, mysql_sqlstate(mysql)) == 0)))
+      {
+        if (q->expected_errors == 1)
+        {
+          /* Only log error if there is one possible error */
+          dynstr_append_mem(ds, "ERROR ", 6);
+          replace_dynstr_append(ds, mysql_sqlstate(mysql));
+          dynstr_append_mem(ds, ": ", 2);
+          replace_dynstr_append(ds, mysql_error(mysql));
+          dynstr_append_mem(ds,"\n",1);
+        }
+	/* Don't log error if we may not get an error */
+        else if (q->expected_errno[0].type == ERR_SQLSTATE ||
+                 (q->expected_errno[0].type == ERR_ERRNO &&
+                  q->expected_errno[0].code.errnum != 0))
+          dynstr_append(ds,"Got one of the listed errors\n");
+        /* OK */
+        DBUG_RETURN(0);
+      }
+    }
+
+    DBUG_PRINT("info",("i: %d  expected_errors: %d", i, q->expected_errors));
+
+    dynstr_append_mem(ds, "ERROR ",6);
+    replace_dynstr_append(ds, mysql_sqlstate(mysql));
+    dynstr_append_mem(ds, ": ", 2);
+    replace_dynstr_append(ds, mysql_error(mysql));
+    dynstr_append_mem(ds, "\n", 1);
+
+    if (i)
+    {
+      if (q->expected_errno[0].type == ERR_ERRNO)
+        verbose_msg("query '%s' failed with wrong errno %d instead of %d...",
+                    q->query, mysql_errno(mysql),
+                    q->expected_errno[0].code.errnum);
+      else
+        verbose_msg("query '%s' failed with wrong sqlstate %s instead of %s...",
+                    q->query, mysql_sqlstate(mysql),
+                    q->expected_errno[0].code.sqlstate);
+      DBUG_RETURN(1);
+    }
+
+    /*
+      If we do not abort on error, failure to run the query does not fail the
+      whole test case.
+    */
+    verbose_msg("query '%s' failed: %d: %s", q->query, mysql_errno(mysql),
+                mysql_error(mysql));
+    DBUG_RETURN(0);
+  }
+}
+
+
+/*
+  Handle absence of errors after execution of convetional statement.
+
+  SYNOPSIS
+    normal_handle_error()
+      q - context of query
+
+  RETURN VALUE
+    0 - OK
+    1 - Some error was expected from this query.
+*/
+
+static int normal_handle_no_error(struct st_query *q)
+{
+  DBUG_ENTER("normal_handle_no_error");
+
+  if (q->expected_errno[0].type == ERR_ERRNO &&
+      q->expected_errno[0].code.errnum != 0)
+  {
+    /* Error code we wanted was != 0, i.e. not an expected success */
+    verbose_msg("query '%s' succeeded - should have failed with errno %d...",
+                q->query, q->expected_errno[0].code.errnum);
+    DBUG_RETURN(1);
+  }
+  else if (q->expected_errno[0].type == ERR_SQLSTATE &&
+           strcmp(q->expected_errno[0].code.sqlstate,"00000") != 0)
+  {
+    /* SQLSTATE we wanted was != "00000", i.e. not an expected success */
+    verbose_msg("query '%s' succeeded - should have failed with sqlstate %s...",
+                q->query, q->expected_errno[0].code.sqlstate);
+    DBUG_RETURN(1);
+  }
+
+  DBUG_RETURN(0);
+}
 
 /****************************************************************************\
  *  If --ps-protocol run ordinary statements using prepared statemnt C API
@@ -2874,8 +3077,7 @@ static int run_query_stmt(MYSQL *mysql, struct st_query *q, int flags)
       {
         if (col_idx)
           dynstr_append_mem(ds, "\t", 1);
-        replace_dynstr_append_mem(ds, field[col_idx].name,
-                                  strlen(field[col_idx].name));
+        replace_dynstr_append(ds, field[col_idx].name);
       }
       dynstr_append_mem(ds, "\n", 1);
     }
@@ -3143,11 +3345,9 @@ static int run_query_stmt_handle_error(char *query, struct st_query *q,
         {
           /* Only log error if there is one possible error */
           dynstr_append_mem(ds,"ERROR ",6);
-          replace_dynstr_append_mem(ds, mysql_stmt_sqlstate(stmt),
-                                    strlen(mysql_stmt_sqlstate(stmt)));
+          replace_dynstr_append(ds, mysql_stmt_sqlstate(stmt));
           dynstr_append_mem(ds, ": ", 2);
-          replace_dynstr_append_mem(ds,mysql_stmt_error(stmt),
-                                    strlen(mysql_stmt_error(stmt)));
+          replace_dynstr_append(ds,mysql_stmt_error(stmt));
           dynstr_append_mem(ds,"\n",1);
         }
         /* Don't log error if we may not get an error */
@@ -3161,11 +3361,9 @@ static int run_query_stmt_handle_error(char *query, struct st_query *q,
     DBUG_PRINT("info",("i: %d  expected_errors: %d", i,
                        q->expected_errors));
     dynstr_append_mem(ds, "ERROR ",6);
-    replace_dynstr_append_mem(ds, mysql_stmt_sqlstate(stmt),
-                              strlen(mysql_stmt_sqlstate(stmt)));
+    replace_dynstr_append(ds, mysql_stmt_sqlstate(stmt));
     dynstr_append_mem(ds,": ",2);
-    replace_dynstr_append_mem(ds, mysql_stmt_error(stmt),
-                              strlen(mysql_stmt_error(stmt)));
+    replace_dynstr_append(ds, mysql_stmt_error(stmt));
     dynstr_append_mem(ds,"\n",1);
     if (i)
     {
@@ -3447,7 +3645,9 @@ int main(int argc, char **argv)
     {
       processed = 1;
       switch (q->type) {
-      case Q_CONNECT: do_connect(q); break;
+      case Q_CONNECT:
+        error|= do_connect(q);
+        break;
       case Q_CONNECTION: select_connection(q->first_argument); break;
       case Q_DISCONNECT:
       case Q_DIRTY_CLOSE:

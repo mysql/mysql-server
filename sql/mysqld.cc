@@ -299,6 +299,12 @@ my_bool opt_short_log_format= 0;
 my_bool opt_log_queries_not_using_indexes= 0;
 my_bool lower_case_file_system= 0;
 my_bool opt_innodb_safe_binlog= 0;
+my_bool opt_old_style_user_limits= 0;
+/*
+  True if there is at least one per-hour limit for some user, so we should check
+  them before each query (and possibly reset counters when hour is changed).
+  False otherwise.
+*/
 volatile bool mqh_used = 0;
 
 uint mysqld_port, test_flags, select_errors, dropping_tables, ha_open_options;
@@ -4184,7 +4190,8 @@ enum options_mysqld
   OPT_OPTIMIZER_SEARCH_DEPTH,
   OPT_OPTIMIZER_PRUNE_LEVEL,
   OPT_UPDATABLE_VIEWS_WITH_LIMIT,
-  OPT_AUTO_INCREMENT, OPT_AUTO_INCREMENT_OFFSET
+  OPT_AUTO_INCREMENT, OPT_AUTO_INCREMENT_OFFSET,
+  OPT_OLD_STYLE_USER_LIMITS
 };
 
 
@@ -4586,6 +4593,10 @@ Disable with --skip-ndbcluster (will save memory).",
    "Only use one thread (for debugging under Linux).", 0, 0, 0, GET_NO_ARG,
    NO_ARG, 0, 0, 0, 0, 0, 0},
 #endif
+  {"old-style-user-limits", OPT_OLD_STYLE_USER_LIMITS,
+   "Enable old-style user limits (before 5.0.3 user resources were counted per each user+host vs. per account)",
+   (gptr*) &opt_old_style_user_limits, (gptr*) &opt_old_style_user_limits,
+   0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"pid-file", OPT_PID_FILE, "Pid file used by safe_mysqld.",
    (gptr*) &pidfile_name_ptr, (gptr*) &pidfile_name_ptr, 0, GET_STR,
    REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
