@@ -3588,7 +3588,7 @@ purposes internal to the MySQL server", MYF(0));
       lex->sphead= 0;
       goto error;
     case SP_NO_DB_ERROR:
-      net_printf(thd, ER_BAD_DB_ERROR, lex->sphead->m_db);
+      net_printf(thd, ER_BAD_DB_ERROR, lex->sphead->m_db.str);
       delete lex->sphead;
       lex->sphead= 0;
       goto error;
