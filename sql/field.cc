@@ -1677,6 +1677,7 @@ int Field_long::store(const char *from,uint len,CHARSET_INFO *cs)
        !test_if_int(from,len,end,cs)))
   {
     current_thd->cuted_fields++;
+    error= 1;
   }
 #ifdef WORDS_BIGENDIAN
   if (table->db_low_byte_first)
@@ -1932,7 +1933,10 @@ int Field_longlong::store(const char *from,uint len,CHARSET_INFO *cs)
   if (error ||
       (from+len != end && current_thd->count_cuted_fields &&
        !test_if_int(from,len,end,cs)))
-      current_thd->cuted_fields++;
+  {
+    current_thd->cuted_fields++;
+    error= 1;
+  }
 #ifdef WORDS_BIGENDIAN
   if (table->db_low_byte_first)
   {
@@ -2416,6 +2420,7 @@ int Field_double::store(const char *from,uint len,CHARSET_INFO *cs)
   if (err || current_thd->count_cuted_fields && !test_if_real(from,len,cs))
   {
     current_thd->cuted_fields++;
+    err= 1;
   }
   if (unsigned_flag && j < 0)
   {
