@@ -120,7 +120,7 @@ sp_pcontext::find_label(char *name)
   sp_label_t *lab;
 
   while ((lab= li++))
-    if (strcasecmp(name, lab->name) == 0)
+    if (my_strcasecmp(system_charset_info, name, lab->name) == 0)
       return lab;
 
   return NULL;
