@@ -2149,11 +2149,13 @@ find_best(JOIN *join,table_map rest_tables,uint idx,double record_count,
         }
 
         /*
-          In case of full scan we check every row in the table: 
-          here we take into account rows read and skipped, as well as rows
-          passed to next select
-         */
-        
+          We estimate the cost of making full cortesian product between
+          rows in the scanned table and generated records as
+          record_count*s->records/TIME_FOR_COMPARE. Taking into account
+          cost of evaluating WHERE clause for s->found_records is not
+          necessary because it costs much less than the cost mentioned
+          above.
+        */
 	if (best == DBL_MAX ||
 	    (tmp  + record_count/(double) TIME_FOR_COMPARE*s->records <
 	     best + record_count/(double) TIME_FOR_COMPARE*records))
