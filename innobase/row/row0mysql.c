@@ -723,14 +723,15 @@ run_again:
 }
 
 /*************************************************************************
-Unlocks a table lock possibly reserved by trx. */
+Unlocks all table locks explicitly requested by trx (with LOCK TABLES,
+lock type LOCK_TABLE_EXP). */
 
 void		  	
-row_unlock_table_for_mysql(
-/*=======================*/
+row_unlock_tables_for_mysql(
+/*========================*/
 	trx_t*	trx)	/* in: transaction */
 {
-	if (!trx->n_tables_locked) {
+	if (!trx->n_lock_table_exp) {
 
 		return;
 	}

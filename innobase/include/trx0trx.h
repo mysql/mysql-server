@@ -423,8 +423,9 @@ struct trx_struct{
 	lock_t*		auto_inc_lock;	/* possible auto-inc lock reserved by
 					the transaction; note that it is also
 					in the lock list trx_locks */
-	ulint		n_tables_locked;/* number of table locks reserved by
-					the transaction, stored in trx_locks */
+	ulint		n_lock_table_exp;/* number of explicit table locks
+					(LOCK TABLES) reserved by the
+					transaction, stored in trx_locks */
 	UT_LIST_NODE_T(trx_t)
 			trx_list;	/* list of transactions */
 	UT_LIST_NODE_T(trx_t)
