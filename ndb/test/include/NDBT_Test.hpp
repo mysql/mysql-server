@@ -392,10 +392,10 @@ C##suitname():NDBT_TestSuite(#suitname){ \
 
 // Add a number of equal steps to the testcase
 #define STEPS(stepfunc, num) \
-  for (int i = 0; i < num; i++){ \
+  { int i; for (i = 0; i < num; i++){ \
     pts = new NDBT_ParallelStep(pt, #stepfunc, stepfunc); \
     pt->addStep(pts);\
-  }
+  } }
 
 #define VERIFIER(stepfunc) \
   ptv = new NDBT_Verifier(pt, #stepfunc, stepfunc); \

@@ -305,7 +305,7 @@ void THD::init_for_queries()
 {
   ha_enable_transaction(this,TRUE);
 
-  reset_root_defaults(&mem_root, variables.query_alloc_block_size,
+  reset_root_defaults(mem_root, variables.query_alloc_block_size,
                       variables.query_prealloc_size);
   reset_root_defaults(&transaction.mem_root,
                       variables.trans_alloc_block_size,
@@ -411,7 +411,7 @@ THD::~THD()
   dbug_sentry = THD_SENTRY_GONE;
 #endif  
   /* Reset stmt_backup.mem_root to not double-free memory from thd.mem_root */
-  clear_alloc_root(&stmt_backup.mem_root);
+  clear_alloc_root(&stmt_backup.main_mem_root);
   DBUG_VOID_RETURN;
 }
 
@@ -1394,10 +1394,10 @@ void select_dumpvar::cleanup()
     for memory root initialization.
 */
 Item_arena::Item_arena(THD* thd)
-  :free_list(0),
-  state(INITIALIZED)
+  :free_list(0), mem_root(&main_mem_root),
+   state(INITIALIZED)
 {
-  init_sql_alloc(&mem_root,
+  init_sql_alloc(&main_mem_root,
                  thd->variables.query_alloc_block_size,
                  thd->variables.query_prealloc_size);
 }
@@ -1420,11 +1420,11 @@ Item_arena::Item_arena(THD* thd)
     statements.
 */
 Item_arena::Item_arena(bool init_mem_root)
-  :free_list(0),
+  :free_list(0), mem_root(&main_mem_root),
   state(CONVENTIONAL_EXECUTION)
 {
   if (init_mem_root)
-    init_sql_alloc(&mem_root, ALLOC_ROOT_MIN_BLOCK_SIZE, 0);
+    init_sql_alloc(&main_mem_root, ALLOC_ROOT_MIN_BLOCK_SIZE, 0);
 }
 
 
@@ -1518,13 +1518,16 @@ void THD::end_statement()
 
 void Item_arena::set_n_backup_item_arena(Item_arena *set, Item_arena *backup)
 {
+  DBUG_ENTER("Item_arena::set_n_backup_item_arena");
   backup->set_item_arena(this);
   set_item_arena(set);
+  DBUG_VOID_RETURN;
 }
 
 
 void Item_arena::restore_backup_item_arena(Item_arena *set, Item_arena *backup)
 {
+  DBUG_ENTER("Item_arena::restore_backup_item_arena");
   set->set_item_arena(this);
   set_item_arena(backup);
 #ifdef NOT_NEEDED_NOW
@@ -1537,18 +1540,19 @@ void Item_arena::restore_backup_item_arena(Item_arena *set, Item_arena *backup)
   */
   clear_alloc_root(&backup->mem_root);
 #endif
+  DBUG_VOID_RETURN;
 }
 
 void Item_arena::set_item_arena(Item_arena *set)
 {
-  mem_root= set->mem_root;
+  mem_root=  set->mem_root;
   free_list= set->free_list;
   state= set->state;
 }
 
 Statement::~Statement()
 {
-  free_root(&mem_root, MYF(0));
+  free_root(&main_mem_root, MYF(0));
 }
 
 C_MODE_START
