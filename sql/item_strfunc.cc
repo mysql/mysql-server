@@ -1706,14 +1706,11 @@ inline String* alloc_buffer(String *res,String *str,String *tmp_value,
       str->length(length);
       return str;
     }
-    else
-    {
-      if (tmp_value->alloc(length))
-	return 0;
-      (void) tmp_value->copy(*res);
-      tmp_value->length(length);
-      return tmp_value;
-    }
+    if (tmp_value->alloc(length))
+      return 0;
+    (void) tmp_value->copy(*res);
+    tmp_value->length(length);
+    return tmp_value;
   }
   res->length(length);
   return res;

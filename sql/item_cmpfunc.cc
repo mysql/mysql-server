@@ -463,10 +463,9 @@ static Item_result item_store_type(Item_result a,Item_result b)
 {
   if (a == STRING_RESULT || b == STRING_RESULT)
     return STRING_RESULT;
-  else if (a == REAL_RESULT || b == REAL_RESULT)
+  if (a == REAL_RESULT || b == REAL_RESULT)
     return REAL_RESULT;
-  else
-    return INT_RESULT;
+  return INT_RESULT;
 }
 
 void
