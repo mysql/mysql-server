@@ -125,6 +125,7 @@ static char *current_host,*current_db,*current_user=0,*opt_password=0,
             *default_charset;
 static char *histfile;
 static String glob_buffer,old_buffer;
+static int wait_time = 5;
 static STATUS status;
 static ulong select_limit,max_join_size,opt_connect_timeout=0;
 static char default_pager[FN_REFLEN];
@@ -427,7 +428,7 @@ static struct option long_options[] =
   {"verbose",	    no_argument,	   0, 'v'},
   {"version",	    no_argument,	   0, 'V'},
   {"vertical",	    no_argument,	   0, 'E'},
-  {"wait",	    no_argument,	   0, 'w'},
+  {"wait",	    optional_argument,	   0, 'w'},
   {0, 0, 0, 0}
 };
 
@@ -560,7 +561,7 @@ static int get_options(int argc, char **argv)
 
   set_all_changeable_vars(changeable_vars);
   while ((c=getopt_long(argc,argv,
-			"?ABCD:LfgGHinNoqrstTU::vVwWEe:h:O:P:S:u:#::p::",
+			"?ABCD:LfgGHinNoqrstTU::vVw::WEe:h:O:P:S:u:#::p::",
 			long_options, &option_index)) != EOF)
   {
     switch(c) {
@@ -664,7 +665,10 @@ static int get_options(int argc, char **argv)
     case 'n': unbuffered=1; break;
     case 'v': verbose++; break;
     case 'E': vertical=1; break;
-    case 'w': wait_flag=1; break;
+    case 'w':
+      wait_flag=1;
+      if(optarg) wait_time = atoi(optarg) ;
+      break;
     case 'A': no_rehash=1; break;
     case 'G': no_named_cmds=0; break;
     case 'g': no_named_cmds=1; break;
@@ -2114,7 +2118,7 @@ sql_connect(char *host,char *database,char *user,char *password,uint silent)
       message=1;
       tee_fputs("Waiting",stderr); (void) fflush(stderr);
     }
-    (void) sleep(5);
+    (void) sleep(wait_time);
     if (!silent)
     {
       putc('.',stderr); (void) fflush(stderr);

@@ -91,6 +91,12 @@ int *cur_block, *block_stack_end;
 
 DYNAMIC_ARRAY q_lines;
 
+typedef struct 
+{
+  char file[FN_REFLEN];
+  ulong pos;
+} MASTER_POS ;
+
 struct connection
 {
   MYSQL mysql;
@@ -104,6 +110,7 @@ typedef
   } PARSER;
 
 PARSER parser;
+MASTER_POS master_pos;
 int block_ok = 1; /* set to 0 if the current block should not be executed */
 int false_block_depth = 0;
 const char* result_file = 0; /* if set, all results are concated and
@@ -137,13 +144,15 @@ struct st_query
   enum { Q_CONNECTION=1, Q_QUERY, Q_CONNECT,
 	 Q_SLEEP, Q_INC, Q_DEC,Q_SOURCE,
 	 Q_DISCONNECT,Q_LET, Q_ECHO, Q_WHILE, Q_END_BLOCK,
-	 Q_SYSTEM, Q_RESULT, Q_REQUIRE,
+	 Q_SYSTEM, Q_RESULT, Q_REQUIRE, Q_SAVE_MASTER_POS,
+	 Q_SYNC_WITH_MASTER,
 	 Q_UNKNOWN, Q_COMMENT, Q_COMMENT_WITH_COMMAND} type;
 };
 
 const char *command_names[] = {
 "connection", "query","connect","sleep","inc","dec","source","disconnect",
-"let","echo","while","end","system","result", "require",0
+"let","echo","while","end","system","result", "require", "save_master_pos",
+ "sync_with_master", 0
 };
 
 TYPELIB command_typelib= {array_elements(command_names),"",
@@ -470,6 +479,50 @@ int do_echo(struct st_query* q)
   write(1, "\n", 1);
   return 0;
 }
+
+int do_sync_with_master()
+{
+  MYSQL_RES* res;
+  MYSQL_ROW row;
+  MYSQL* mysql = &cur_con->mysql;
+  char query_buf[FN_REFLEN+128];
+  sprintf(query_buf, "select master_pos_wait('%s', %ld)", master_pos.file,
+	  master_pos.pos);
+  if(mysql_query(mysql, query_buf))
+    die("At line %u: failed in %s: %d: %s", start_lineno, query_buf,
+	mysql_errno(mysql), mysql_error(mysql));
+
+  if(!(res = mysql_store_result(mysql)))
+    die("line %u: mysql_store_result() retuned NULL", start_lineno);
+  if(!(row = mysql_fetch_row(res)))
+    die("line %u: empty result in %s", start_lineno, query_buf);
+  if(!row[0])
+    die("Error on slave while syncing with master");
+  mysql_free_result(res);
+      
+  return 0;
+}
+
+int do_save_master_pos()
+{
+  MYSQL_RES* res;
+  MYSQL_ROW row;
+  MYSQL* mysql = &cur_con->mysql;
+  if(mysql_query(mysql, "show master status"))
+    die("At line %u: failed in show master status: %d: %s", start_lineno,
+	mysql_errno(mysql), mysql_error(mysql));
+
+  if(!(res = mysql_store_result(mysql)))
+    die("line %u: mysql_store_result() retuned NULL", start_lineno);
+  if(!(row = mysql_fetch_row(res)))
+    die("line %u: empty result in show master status", start_lineno);
+  strncpy(master_pos.file, row[0], sizeof(master_pos.file));
+  master_pos.pos = strtoul(row[1], (char**) 0, 10); 
+  mysql_free_result(res);
+      
+  return 0;
+}
+
 
 int do_let(struct st_query* q)
 {
@@ -1299,6 +1352,7 @@ int main(int argc, char** argv)
   cur_con = cons;
 
   memset(file_stack, 0, sizeof(file_stack));
+  memset(&master_pos, 0, sizeof(master_pos));
   file_stack_end = file_stack + MAX_INCLUDE_DEPTH;
   cur_file = file_stack;
   lineno   = lineno_stack;
@@ -1361,6 +1415,8 @@ int main(int argc, char** argv)
 	get_file_name(save_file,q);
 	require_file=1;
 	break;
+      case Q_SAVE_MASTER_POS: do_save_master_pos(q); break;	
+      case Q_SYNC_WITH_MASTER: do_sync_with_master(q); break;	
       case Q_COMMENT:				/* Ignore row */
       case Q_COMMENT_WITH_COMMAND:
       default: processed = 0; break;

@@ -376,3 +376,8 @@ Item *create_load_file(Item* a)
 {
   return new Item_load_file(a);
 }
+
+Item *create_wait_for_master_pos(Item* a, Item* b)
+{
+  return new Item_master_pos_wait(a, b);
+}
