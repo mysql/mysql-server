@@ -286,7 +286,7 @@ character-set=latin1
 "Dado truncado para coluna '%s' na linha %ld",
 "Usando engine de armazenamento %s para tabela '%s'",
 "Combinação ilegal de collations (%s,%s) e (%s,%s) para operação '%s'",
-"Não pode remover um ou mais dos usuários pedidos",
+"Operation %s failed for %d of the requested users",
 "Não pode revocar todos os privilégios, grant para um ou mais dos usuários pedidos",
 "Ilegal combinação de collations (%s,%s), (%s,%s), (%s,%s) para operação '%s'",
 "Ilegal combinação de collations para operação '%s'",

@@ -78,3 +78,150 @@ use test;
 delete from mysql.user where user like 'mysqltest\_%';
 delete from mysql.db where user like 'mysqltest\_%';
 flush privileges;
+
+#
+# Create and drop user
+#
+set sql_mode='maxdb';
+--disable_warnings
+drop table if exists t1, t2;
+--enable_warnings
+create table t1(c1 int);
+create table t2(c1 int, c2 int);
+#
+# Three forms of CREATE USER
+create user 'mysqltest_1';
+--error 1268
+create user 'mysqltest_1';
+create user 'mysqltest_2' identified by 'Mysqltest-2';
+create user 'mysqltest_3' identified by password 'fffffffffffffffffffffffffffffffffffffffff';
+grant select on *.* to 'mysqltest_2';
+grant insert on test.* to 'mysqltest_2';
+grant update on test.t1 to 'mysqltest_2';
+grant update (c2) on test.t2 to 'mysqltest_2';
+select host,user,password from mysql.user where user like 'mysqltest_%' order by host,user,password;
+select host,db,user from mysql.db where user like 'mysqltest_%' order by host,db,user;
+select host,db,user,table_name from mysql.tables_priv where user like 'mysqltest_%' order by host,db,user,table_name;
+select host,db,user,table_name,column_name from mysql.columns_priv where user like 'mysqltest_%' order by host,db,user,table_name,column_name;
+show grants for 'mysqltest_1';
+show grants for 'mysqltest_2';
+#
+# Drop
+drop user 'mysqltest_1';
+select host,user,password from mysql.user where user like 'mysqltest_%' order by host,user,password;
+select host,db,user from mysql.db where user like 'mysqltest_%' order by host,db,user;
+select host,db,user,table_name from mysql.tables_priv where user like 'mysqltest_%' order by host,db,user,table_name;
+select host,db,user,table_name,column_name from mysql.columns_priv where user like 'mysqltest_%' order by host,db,user,table_name,column_name;
+--error 1141
+show grants for 'mysqltest_1';
+#
+# Rename
+rename user 'mysqltest_2' to 'mysqltest_1';
+select host,user,password from mysql.user where user like 'mysqltest_%' order by host,user,password;
+select host,db,user from mysql.db where user like 'mysqltest_%' order by host,db,user;
+select host,db,user,table_name from mysql.tables_priv where user like 'mysqltest_%' order by host,db,user,table_name;
+select host,db,user,table_name,column_name from mysql.columns_priv where user like 'mysqltest_%' order by host,db,user,table_name,column_name;
+show grants for 'mysqltest_1';
+drop user 'mysqltest_1', 'mysqltest_3';
+#
+# Grant must not create user
+#grant all on test.t1 to 'mysqltest_1';
+#drop user 'mysqltest_1';
+#
+# Cleanup
+drop table t1, t2;
+#
+# Add a stray record
+insert into mysql.db set user='mysqltest_1', db='%', host='%';
+flush privileges;
+--error 1141
+show grants for 'mysqltest_1';
+--error 1269
+revoke all privileges, grant option from 'mysqltest_1';
+drop user 'mysqltest_1';
+select host,db,user from mysql.db where user = 'mysqltest_1' order by host,db,user;
+#
+# Add a stray record
+insert into mysql.tables_priv set host='%', db='test', user='mysqltest_1', table_name='t1';
+flush privileges;
+--error 1141
+show grants for 'mysqltest_1';
+drop user 'mysqltest_1';
+select host,db,user,table_name from mysql.tables_priv where user = 'mysqltest_1' order by host,db,user,table_name;
+#
+# Add a stray record
+insert into mysql.columns_priv set host='%', db='test', user='mysqltest_1', table_name='t1', column_name='c1';
+flush privileges;
+--error 1141
+show grants for 'mysqltest_1';
+drop user 'mysqltest_1';
+select host,db,user,table_name,column_name from mysql.columns_priv where user = 'mysqltest_1' order by host,db,user,table_name,column_name;
+#
+# Handle multi user lists
+create user 'mysqltest_1', 'mysqltest_2', 'mysqltest_3';
+drop user 'mysqltest_1', 'mysqltest_2', 'mysqltest_3';
+create user 'mysqltest_1', 'mysqltest_2' identified by 'Mysqltest-2', 'mysqltest_3' identified by password 'fffffffffffffffffffffffffffffffffffffffff';
+rename user 'mysqltest_1' to 'mysqltest_1a', 'mysqltest_2' TO 'mysqltest_2a', 'mysqltest_3' TO 'mysqltest_3a';
+--error 1268
+drop user 'mysqltest_1', 'mysqltest_2', 'mysqltest_3';
+drop user 'mysqltest_1a', 'mysqltest_2a', 'mysqltest_3a';
+#
+# Let one of multiple users fail
+create user 'mysqltest_1', 'mysqltest_2', 'mysqltest_3';
+--error 1268
+create user 'mysqltest_1a', 'mysqltest_2', 'mysqltest_3a';
+--error 1268
+rename user 'mysqltest_1a' to 'mysqltest_1b', 'mysqltest_2a' TO 'mysqltest_2b', 'mysqltest_3a' TO 'mysqltest_3b';
+drop user 'mysqltest_1', 'mysqltest_2', 'mysqltest_3';
+--error 1268
+drop user 'mysqltest_1b', 'mysqltest_2b', 'mysqltest_3b';
+#
+# Obsolete syntax has been dropped
+create user 'mysqltest_2' identified by 'Mysqltest-2';
+--error 1064
+drop user 'mysqltest_2' identified by 'Mysqltest-2';
+#
+# Strange user names
+create user '%@b'@'b';
+show grants for '%@b'@'b';
+grant select on mysql.* to '%@b'@'b';
+show grants for '%@b'@'b';
+rename user '%@b'@'b' to '%@a'@'a';
+--error 1141
+show grants for '%@b'@'b';
+show grants for '%@a'@'a';
+drop user '%@a'@'a';
+#
+# USAGE WITH GRANT OPTION is sufficient.
+create user mysqltest_2@localhost;
+grant usage on *.* to mysqltest_2@localhost with grant option;
+connect (user2,localhost,mysqltest_2,,);
+connection user2;
+--error 1044
+select host,user,password from mysql.user order by host,user,password;
+create user mysqltest_A@'%';
+rename user mysqltest_A@'%' to mysqltest_B@'%';
+drop user mysqltest_B@'%';
+disconnect user2;
+connection default;
+drop user mysqltest_2@localhost;
+#
+# ALL PRIVILEGES without GRANT OPTION is not sufficient.
+create user mysqltest_3@localhost;
+grant all privileges on mysql.* to mysqltest_3@localhost;
+connect (user3,localhost,mysqltest_3,,);
+connection user3;
+select host,user,password from mysql.user order by host,user,password;
+insert into mysql.user set host='%', user='mysqltest_B';
+--error 1044
+create user mysqltest_A@'%';
+--error 1044
+rename user mysqltest_B@'%' to mysqltest_C@'%';
+--error 1044
+drop user mysqltest_B@'%';
+disconnect user3;
+connection default;
+drop user mysqltest_B@'%';
+drop user mysqltest_3@localhost;
+#
+
