@@ -519,34 +519,34 @@ int start_slave(THD* thd , bool net_report)
 {
   if(!thd) thd = current_thd;
   NET* net = &thd->net;
-  const char* err = 0;
+  int slave_errno = 0;
   if (check_access(thd, PROCESS_ACL, any_db))
     return 1;
   pthread_mutex_lock(&LOCK_slave);
   if(!slave_running)
     {
       if(init_master_info(&glob_mi))
-	err = "Could not initialize master info";
+	slave_errno = ER_MASTER_INFO;
       else if(server_id_supplied && *glob_mi.host)
 	{
 	  pthread_t hThread;
 	  if(pthread_create(&hThread, &connection_attrib, handle_slave, 0))
 	    {
-	      err = "cannot create slave thread";
+	      slave_errno = ER_SLAVE_THREAD;
 	    }
 	  while(!slave_running) // slave might already be running by now
 	   pthread_cond_wait(&COND_slave_start, &LOCK_slave);
 	}
       else
-	err = "Master host not set, or server id not configured";
+	slave_errno = ER_BAD_SLAVE;
     }
   else
-    err =  "Slave already running";
+    slave_errno = ER_SLAVE_MUST_STOP;
 
   pthread_mutex_unlock(&LOCK_slave);
-  if(err)
+  if(slave_errno)
     {
-      if(net_report) send_error(net, 0, err);
+      if(net_report) send_error(net, slave_errno);
       return 1;
     }
   else if(net_report)
@@ -559,8 +559,8 @@ int stop_slave(THD* thd, bool net_report )
 {
   if(!thd) thd = current_thd;
   NET* net = &thd->net;
-  const char* err = 0;
-
+  int slave_errno = 0;
+  
   if (check_access(thd, PROCESS_ACL, any_db))
     return 1;
 
@@ -576,14 +576,14 @@ int stop_slave(THD* thd, bool net_report )
       pthread_cond_wait(&COND_slave_stopped, &LOCK_slave);
   }
   else
-    err = "Slave is not running";
+    slave_errno = ER_SLAVE_NOT_RUNNING;
 
   pthread_mutex_unlock(&LOCK_slave);
   thd->proc_info = 0;
 
-  if(err)
+  if(slave_errno)
     {
-     if(net_report) send_error(net, 0, err);
+     if(net_report) send_error(net, slave_errno);
      return 1;
     }
   else if(net_report)
