@@ -1,0 +1,7 @@
+use test;
+drop table if exists test;
+create table test (
+  test_set set( 'val1', 'val2', 'val3' ) not null default '',
+  name char(20) default 'O''Brien'
+  ) comment = 'it\'s a table' ;
+@r/3.23/shw000001.result show create table test ;

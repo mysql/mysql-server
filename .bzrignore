@@ -274,3 +274,5 @@ mysql-test/var/slave-data/test/choo.frm
 mysql-test/var/slave-data/test/choo.MYD
 mysql-test/var/slave-data/test/choo.MYI
 mysql-test/var/tmp/README
+BitKeeper/tmp/bkOF1wtJ
+scripts/mysqldumpslow
