@@ -5138,6 +5138,10 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
     recinfo->length=null_pack_length;
     recinfo++;
     bfill(null_flags,null_pack_length,255);	// Set null fields
+
+    table->null_flags= (uchar*) table->record[0];
+    table->null_fields= null_count+ hidden_null_count;
+    table->null_bytes= null_pack_length;
   }
   null_count= (blob_count == 0) ? 1 : 0;
   hidden_field_count=param->hidden_field_count;
@@ -5201,7 +5205,7 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
 
   param->copy_field_end=copy;
   param->recinfo=recinfo;
-  store_record(table,default_values);			// Make empty default record
+  store_record(table,default_values);		// Make empty default record
 
   if (thd->variables.tmp_table_size == ~(ulong) 0)		// No limit
     table->max_rows= ~(ha_rows) 0;
@@ -8327,10 +8331,11 @@ calc_group_buffer(JOIN *join,ORDER *group)
   join->tmp_table_param.group_null_parts=null_parts;
 }
 
-/*
-  alloc group fields or take prepared (chached)
 
-  SYNOPSYS
+/*
+  allocate group fields or take prepared (cached)
+
+  SYNOPSIS
     make_group_fields()
     main_join - join of current select
     curr_join - current join (join of current select or temporary copy of it)
@@ -8343,21 +8348,20 @@ calc_group_buffer(JOIN *join,ORDER *group)
 static bool
 make_group_fields(JOIN *main_join, JOIN *curr_join)
 {
-    if (main_join->group_fields_cache.elements)
-    {
-      curr_join->group_fields= main_join->group_fields_cache;
-      curr_join->sort_and_group= 1;
-    }
-    else
-    {
-      if (alloc_group_fields(curr_join, curr_join->group_list))
-      {
-	return (1);
-      }
-      main_join->group_fields_cache= curr_join->group_fields;
-    }
-    return (0);
+  if (main_join->group_fields_cache.elements)
+  {
+    curr_join->group_fields= main_join->group_fields_cache;
+    curr_join->sort_and_group= 1;
+  }
+  else
+  {
+    if (alloc_group_fields(curr_join, curr_join->group_list))
+      return (1);
+    main_join->group_fields_cache= curr_join->group_fields;
+  }
+  return (0);
 }
+
 
 /*
   Get a list of buffers for saveing last group
@@ -8397,7 +8401,6 @@ test_if_group_changed(List<Item_buff> &list)
   DBUG_PRINT("info", ("idx: %d", idx));
   DBUG_RETURN(idx);
 }
-
 
 
 /*
