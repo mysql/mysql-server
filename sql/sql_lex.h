@@ -125,7 +125,8 @@ typedef struct st_lex {
   udf_func udf;
   HA_CHECK_OPT   check_opt;			// check/repair options
   HA_CREATE_INFO create_info;
-  LEX_MASTER_INFO mi;				// used by CHANGE MASTER 
+  LEX_MASTER_INFO mi;				// used by CHANGE MASTER
+  char* backup_dir;                             // used by RESTORE/BACKUP
   ulong thread_id,type;
   ulong options;
   enum_sql_command sql_command;
