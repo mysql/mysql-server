@@ -4687,6 +4687,238 @@ TABLE_LIST *st_select_lex::add_table_to_list(THD *thd,
 
 
 /*
+  Initialize a new table list for a nested join
+
+  SYNOPSIS
+    init_table_list() 
+    thd         current thread
+  
+  DESCRIPTION
+    The function initializes a structure of the TABLE_LIST type
+    for a nested join. It sets up its nested join list as empty.
+    The created structure is added to the front of the current
+    join list in the st_select_lex object. Then the function
+    changes the current nest level for joins to refer to the newly
+    created empty list after having saved the info on the old level
+    in the initialized structure.
+
+  RETURN VALUE
+    0,  if success
+    1,  otherwise
+*/
+
+bool st_select_lex::init_nested_join(THD *thd)
+{
+  TABLE_LIST *ptr;
+  NESTED_JOIN *nested_join;
+  DBUG_ENTER("init_nested_join");
+  
+  if (!(ptr = (TABLE_LIST *) thd->calloc(sizeof(TABLE_LIST))) ||
+      !(nested_join= ptr->nested_join=
+                    (NESTED_JOIN *) thd->calloc(sizeof(NESTED_JOIN))))
+    DBUG_RETURN(1);
+  join_list->push_front(ptr);
+  ptr->embedding= embedding;
+  ptr->join_list= join_list;
+  embedding= ptr;
+  join_list= &nested_join->join_list;
+  join_list->empty();
+  nested_join->used_tables= nested_join->not_null_tables= (table_map) 0;
+  DBUG_RETURN(0);
+}
+
+
+/*
+  End a nested join table list
+
+  SYNOPSIS
+    end_nested_join()
+    thd         current thread
+
+  DESCRIPTION
+    The function returns to the previous join nest level.
+    If the current level contains only one member, the function
+    moves it one level up, eliminating the nest. 
+
+  RETURN VALUE
+    Pointer to TABLE_LIST element added to the total table list, if success
+    0, otherwise
+*/
+
+TABLE_LIST *st_select_lex::end_nested_join(THD *thd)
+{
+  TABLE_LIST *ptr;
+  DBUG_ENTER("end_nested_join");
+  ptr= embedding;
+  join_list= ptr->join_list;
+  embedding= ptr->embedding;
+  NESTED_JOIN *nested_join= ptr->nested_join;
+  if (nested_join->join_list.elements == 1)
+  {
+    TABLE_LIST *embedded= nested_join->join_list.head();
+    join_list->pop();
+    embedded->join_list= join_list;
+    embedded->embedding= embedding;
+    join_list->push_front(embedded);
+    ptr= embedded;
+  }
+  DBUG_RETURN(ptr);
+}
+
+
+/*
+  Nest last join operation
+
+  SYNOPSIS
+    nest_last_join() 
+    thd         current thread
+
+  DESCRIPTION
+    The function nest last join operation as if it was enclosed in braces.
+
+  RETURN VALUE
+    Pointer to TABLE_LIST element created for the new nested join, if success
+    0, otherwise
+*/
+
+TABLE_LIST *st_select_lex::nest_last_join(THD *thd)
+{
+  TABLE_LIST *ptr;
+  NESTED_JOIN *nested_join;
+  DBUG_ENTER("nest_last_join");
+  
+  if (!(ptr = (TABLE_LIST *) thd->calloc(sizeof(TABLE_LIST))) ||
+      !(nested_join= ptr->nested_join=
+                    (NESTED_JOIN *) thd->calloc(sizeof(NESTED_JOIN))))
+    DBUG_RETURN(0);
+  ptr->embedding= embedding;
+  ptr->join_list= join_list;
+  List<TABLE_LIST> *embedded_list= &nested_join->join_list;
+  embedded_list->empty();
+  for (int i=0; i < 2; i++)
+  {
+    TABLE_LIST *table= join_list->pop();
+    table->join_list= embedded_list;
+    table->embedding= ptr;
+    embedded_list->push_back(table);
+  }
+  join_list->push_front(ptr);
+  nested_join->used_tables= nested_join->not_null_tables= (table_map) 0;
+  DBUG_RETURN(ptr);
+}
+
+
+/*
+  Save names for a join with using clase
+   
+  SYNOPSIS
+    save_names_for_using_list
+    tab1      left table in join
+    tab2      right table in join
+
+  DESCRIPTION
+    The function saves the full names of the tables in st_select_lex
+    to be able to build later an on expression to replace the using clause.   
+  
+  RETURN VALUE
+    None  
+*/    
+
+void st_select_lex::save_names_for_using_list(TABLE_LIST *tab1,
+                                              TABLE_LIST *tab2)
+{
+  while (tab1->nested_join)
+  {
+    tab1= tab1->nested_join->join_list.head();
+  }
+  db1= tab1->db;
+  table1= tab1->alias;
+  while (tab2->nested_join)
+  {
+    TABLE_LIST *next;
+    List_iterator_fast<TABLE_LIST> it(tab2->nested_join->join_list);
+    tab2= it++;
+    while ((next= it++))
+      tab2= next;
+  }
+  db2= tab2->db;
+  table2= tab2->alias;
+}
+  
+
+/*
+  Add a table to the current join list
+
+  SYNOPSIS
+    add_joined_table()
+    table       the table to add
+
+  DESCRIPTION
+    The function puts a table in front of the current join list
+    of st_select_lex object.
+    Thus, joined tables are put into this list in the reverse order
+    (the most outer join operation follows first).
+
+  RETURN VALUE
+    None
+*/
+
+void st_select_lex::add_joined_table(TABLE_LIST *table)
+{
+  DBUG_ENTER("add_joined_table");
+  join_list->push_front(table);
+  table->join_list= join_list;
+  table->embedding= embedding;
+  DBUG_VOID_RETURN;
+}
+
+
+/*
+  Convert a right join into equivalent left join
+
+  SYNOPSIS
+    convert_right_join()
+    thd         current thread
+  
+  DESCRIPTION 
+    The function takes the current join list t[0],t[1] ... and 
+    effectively converts it into the list t[1],t[0] ...
+    Although the outer_join flag for the new nested table contains
+    JOIN_TYPE_RIGHT, it will be handled as the inner table of a left join
+    operation.
+
+  EXAMPLES
+    SELECT * FROM t1 RIGHT JOIN t2 ON on_expr =>
+      SELECT * FROM t2 LEFT JOIN t1 ON on_expr
+
+    SELECT * FROM t1,t2 RIGHT JOIN t3 ON on_expr =>
+      SELECT * FROM t1,t3 LEFT JOIN t2 ON on_expr
+
+    SELECT * FROM t1,t2 RIGHT JOIN (t3,t4) ON on_expr =>
+      SELECT * FROM t1,(t3,t4) LEFT JOIN t2 ON on_expr
+
+    SELECT * FROM t1 LEFT JOIN t2 ON on_expr1 RIGHT JOIN t3  ON on_expr2 =>
+      SELECT * FROM t3 LEFT JOIN (t1 LEFT JOIN t2 ON on_expr2) ON on_expr1
+
+  RETURN
+    Pointer to the table representing the inner table, if success
+    0, otherwise
+*/
+
+TABLE_LIST *st_select_lex::convert_right_join() 
+{
+  TABLE_LIST *tab2= join_list->pop();
+  TABLE_LIST *tab1= join_list->pop(); 
+  DBUG_ENTER("convert_right_join");
+
+  join_list->push_front(tab2);
+  join_list->push_front(tab1);
+  tab1->outer_join|= JOIN_TYPE_RIGHT;
+
+  DBUG_RETURN(tab1);
+}
+
+/*
   Set lock for all tables in current select level
 
   SYNOPSIS:

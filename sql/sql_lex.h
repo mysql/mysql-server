@@ -400,7 +400,10 @@ public:
   List<Item_func_match> *ftfunc_list;
   List<Item_func_match> ftfunc_list_alloc;
   JOIN *join; /* after JOIN::prepare it is pointer to corresponding JOIN */
-  const char *type; /* type of select for EXPLAIN */
+  List<TABLE_LIST> top_join_list; /* join list of the top level          */
+  List<TABLE_LIST> *join_list;    /* list for the currently parsed join  */  
+  TABLE_LIST *embedding;          /* table embedding to the above list   */
+  const char *type;               /* type of select for EXPLAIN          */
 
   SQL_LIST order_list;                /* ORDER clause */
   List<List_item>     expr_list;
@@ -488,6 +491,12 @@ public:
 				List<String> *ignore_index= 0,
                                 LEX_STRING *option= 0);
   TABLE_LIST* get_table_list();
+  bool init_nested_join(THD *thd);
+  TABLE_LIST *end_nested_join(THD *thd);
+  TABLE_LIST *nest_last_join(THD *thd);
+  void save_names_for_using_list(TABLE_LIST *tab1, TABLE_LIST *tab2);
+  void add_joined_table(TABLE_LIST *table);
+  TABLE_LIST *convert_right_join();
   List<Item>* get_item_list();
   List<String>* get_use_index();
   List<String>* get_ignore_index();
