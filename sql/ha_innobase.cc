@@ -230,7 +230,7 @@ innobase_mysql_print_thd(
   	}
 
   	if (thd->query) {
-    		printf("\n%0.100s", thd->query);
+    		printf("\n%.100s", thd->query);
   	}  
 
   	printf("\n");

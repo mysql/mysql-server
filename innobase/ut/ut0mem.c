@@ -78,7 +78,7 @@ ut_malloc_low(
 		fprintf(stderr,
 		"InnoDB: Fatal error: cannot allocate %lu bytes of\n"
 		"InnoDB: memory with malloc! Total allocated memory\n"
-		"InnoDB: by InnoDB %lu bytes. Operating system errno: %lu\n"
+		"InnoDB: by InnoDB %lu bytes. Operating system errno: %d\n"
 		"InnoDB: Cannot continue operation!\n"
 		"InnoDB: Check if you should increase the swap file or\n"
 		"InnoDB: ulimits of your operating system.\n",
@@ -155,7 +155,7 @@ ut_free_all_mem(void)
 
 	os_fast_mutex_lock(&ut_list_mutex);
 
-	while (block = UT_LIST_GET_FIRST(ut_mem_block_list)) {
+	while ((block = UT_LIST_GET_FIRST(ut_mem_block_list))) {
 
 		ut_a(block->magic_n == UT_MEM_MAGIC_N);
 		ut_a(ut_total_allocated_memory >= block->size);

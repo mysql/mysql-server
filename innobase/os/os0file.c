@@ -817,7 +817,9 @@ try_again:
 		return(TRUE);
 	}
 #endif	
+#ifdef __WIN__
 error_handling:
+#endif
 	retry = os_file_handle_error(file, NULL); 
 
 	if (retry) {
@@ -906,7 +908,9 @@ try_again:
 		return(TRUE);
 	}
 #endif
+#ifdef __WIN__
 error_handling:		
+#endif
 	retry = os_file_handle_error(file, name); 
 
 	if (retry) {
@@ -1150,6 +1154,8 @@ os_aio_get_array_and_local_segment(
 /***********************************************************************
 Gets an integer value designating a specified aio array. This is used
 to give numbers to signals in Posix aio. */
+
+#if !defined(WIN_ASYNC_IO) && defined(POSIX_ASYNC_IO)
 static
 ulint
 os_aio_get_array_no(
@@ -1203,6 +1209,7 @@ os_aio_get_array_from_no(
 		return(NULL);
 	}
 }
+#endif /* if !defined(WIN_ASYNC_IO) && defined(POSIX_ASYNC_IO) */
 
 /***********************************************************************
 Requests for a slot in the aio array. If no slot is available, waits until
@@ -1955,7 +1962,7 @@ consecutive_loop:
 		}
 	}
 
-	srv_io_thread_op_info[global_segment] = "doing file i/o";
+	srv_io_thread_op_info[global_segment] = (char*) "doing file i/o";
 
 	/* Do the i/o with ordinary, synchronous i/o functions: */
 	if (slot->type == OS_FILE_WRITE) {
@@ -1967,7 +1974,7 @@ consecutive_loop:
 	}
 
 	ut_a(ret);
-	srv_io_thread_op_info[global_segment] = "file i/o done";	
+	srv_io_thread_op_info[global_segment] = (char*) "file i/o done";
 
 /* printf("aio: %lu consecutive %lu:th segment, first offs %lu blocks\n",
 			n_consecutive, global_segment, slot->offset
@@ -2024,7 +2031,7 @@ wait_for_io:
 
 	os_mutex_exit(array->mutex);
 
-	srv_io_thread_op_info[global_segment] = "waiting for i/o request";
+	srv_io_thread_op_info[global_segment] = (char*) "waiting for i/o request";
 
 	os_event_wait(os_aio_segment_wait_events[global_segment]);
 

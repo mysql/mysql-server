@@ -259,8 +259,9 @@ int nisam_create(const char *name,uint keys,N_KEYDEF *keyinfo,
     (pointer == 3 && reclength >= 256L) ? (ulong) NI_POS_ERROR :
     ((ulong) reclength * (1L << (pointer*8)));
   share.base.max_key_file_length= (share.base.key_reflength == 3 ?
-				  NI_POS_ERROR :
-				  (1L << (share.base.key_reflength*8))*512);
+				   NI_POS_ERROR :
+				   (ulong)
+				   (1L << (share.base.key_reflength*8))*512);
   share.base.min_block_length=
     (share.base.pack_reclength+3 < N_EXTEND_BLOCK_LENGTH &&
      ! share.base.blobs) ?
