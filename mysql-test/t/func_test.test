@@ -17,6 +17,7 @@ select 2 in (3,2,5,9,5,1),"monty" in ("david","monty","allan"), 1.2 in (1.4,1.2,
 select -1.49 or -1.49,0.6 or 0.6;
 select 3 ^ 11, 1 ^ 1, 1 ^ 0, 1 ^ NULL, NULL ^ 1;
 select 1 XOR 1, 1 XOR 0, 0 XOR 1, 0 XOR 0, NULL XOR 1, 1 XOR NULL, 0 XOR NULL;
+select 1 like 2 xor 2 like 1;
 
 create table t1 (a int);
 insert t1 values (1);
