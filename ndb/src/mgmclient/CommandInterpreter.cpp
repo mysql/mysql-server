@@ -1363,36 +1363,29 @@ CommandInterpreter::executeLog(int processId,
   if (! parseBlockSpecification(parameters, blocks)) {
     return;
   }
-  int len=0;  
+  int len=1;
   Uint32 i;
   for(i=0; i<blocks.size(); i++) {
-    ndbout_c("blocks %s %d",blocks[i], strlen(blocks[i]));
-    len +=  strlen(blocks[i]);
+    len += strlen(blocks[i]) + 1;
   }
-  len += blocks.size()*2;
   char * blockNames = (char*)my_malloc(len,MYF(MY_WME));
   My_auto_ptr<char> ap1(blockNames);
   
+  blockNames[0] = 0;
   for(i=0; i<blocks.size(); i++) {
     strcat(blockNames, blocks[i]);
     strcat(blockNames, "|");
   }
-  strcat(blockNames, "\0");
-  ndbout_c("blocknames %s", blockNames);
   
-  /*int res =*/ndb_mgm_log_signals(m_mgmsrv,
+  int result = ndb_mgm_log_signals(m_mgmsrv,
 				   processId, 
 				   NDB_MGM_SIGNAL_LOG_MODE_INOUT, 
 				   blockNames,
 				   &reply);
-
-#if 0  
-  int result = 
-    _mgmtSrvr.setSignalLoggingMode(processId, MgmtSrvr::InOut, blocks);
   if (result != 0) {
-    ndbout << _mgmtSrvr.getErrorText(result) << endl;
+    ndbout_c("Execute LOG on node %d failed.", processId);
+    printError();
   }
-#endif
 }
 
 //*****************************************************************************
@@ -1401,17 +1394,7 @@ void
 CommandInterpreter::executeLogIn(int /* processId */,
 				 const char* parameters, bool /* all */) 
 {
-  Vector<const char*> blocks;
-  if (! parseBlockSpecification(parameters, blocks)) {
-    return;
-  }
-  
-#if 0
-  int result = _mgmtSrvr.setSignalLoggingMode(processId, MgmtSrvr::In, blocks);
-  if (result != 0) {
-    ndbout << _mgmtSrvr.getErrorText(result) << endl;
-  }
-#endif
+  ndbout << "Command LOGIN not implemented." << endl;
 }
 
 //*****************************************************************************
@@ -1420,19 +1403,7 @@ void
 CommandInterpreter::executeLogOut(int /*processId*/, 
 				  const char* parameters, bool /*all*/) 
 {
-  Vector<const char*> blocks;
-  if (! parseBlockSpecification(parameters, blocks)) {
-    return;
-  }
-
-
-#if 0
-  int result = _mgmtSrvr.setSignalLoggingMode(processId, MgmtSrvr::Out, 
-					      blocks);
-  if (result != 0) {
-    ndbout << _mgmtSrvr.getErrorText(result) << endl;
-  }
-#endif
+  ndbout << "Command LOGOUT not implemented." << endl;
 }
 
 //*****************************************************************************
@@ -1441,57 +1412,45 @@ void
 CommandInterpreter::executeLogOff(int /*processId*/,
 				  const char* parameters, bool /*all*/) 
 {
-  Vector<const char*> blocks;
-  if (! parseBlockSpecification(parameters, blocks)) {
-    return;
-  }
-
-  
-#if 0
-  int result = _mgmtSrvr.setSignalLoggingMode(processId, MgmtSrvr::Off, 
-					      blocks);
-  if (result != 0) {
-    ndbout << _mgmtSrvr.getErrorText(result) << endl;
-  }
-#endif
+  ndbout << "Command LOGOFF not implemented." << endl;
 }
 
 //*****************************************************************************
 //*****************************************************************************
 void 
-CommandInterpreter::executeTestOn(int /*processId*/, 
+CommandInterpreter::executeTestOn(int processId,
 				  const char* parameters, bool /*all*/) 
 {
   if (! emptyString(parameters)) {
     ndbout << "No parameters expected to this command." << endl;
     return;
   }
-
-#if 0
-  int result = _mgmtSrvr.startSignalTracing(processId);
+  connect();
+  struct ndb_mgm_reply reply;
+  int result = ndb_mgm_start_signallog(m_mgmsrv, processId, &reply);
   if (result != 0) {
-    ndbout << _mgmtSrvr.getErrorText(result) << endl;
+    ndbout_c("Execute TESTON failed.");
+    printError();
   }
-#endif
 }
 
 //*****************************************************************************
 //*****************************************************************************
 void 
-CommandInterpreter::executeTestOff(int /*processId*/, 
+CommandInterpreter::executeTestOff(int processId,
 				   const char* parameters, bool /*all*/) 
 {
   if (! emptyString(parameters)) {
     ndbout << "No parameters expected to this command." << endl;
     return;
   }
-
-#if 0
-  int result = _mgmtSrvr.stopSignalTracing(processId);
+  connect();
+  struct ndb_mgm_reply reply;
+  int result = ndb_mgm_stop_signallog(m_mgmsrv, processId, &reply);
   if (result != 0) {
-    ndbout << _mgmtSrvr.getErrorText(result) << endl;
+    ndbout_c("Execute TESTOFF failed.");
+    printError();
   }
-#endif
 }
 
 

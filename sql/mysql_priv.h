@@ -521,7 +521,7 @@ int mysql_union(THD *thd, LEX *lex, select_result *result,
 int mysql_handle_derived(LEX *lex);
 Field *create_tmp_field(THD *thd, TABLE *table,Item *item, Item::Type type,
 			Item ***copy_func, Field **from_field,
-			bool group,bool modify_item);
+			bool group, bool modify_item, uint convert_blob_length);
 int mysql_prepare_table(THD *thd, HA_CREATE_INFO *create_info,
 		       List<create_field> &fields,
 		       List<Key> &keys, uint &db_options, 
