@@ -237,7 +237,7 @@ public:
   virtual int update_row(const byte * old_data, byte * new_data)=0;
   virtual int delete_row(const byte * buf)=0;
   virtual int index_read(byte * buf, const byte * key,
-    			 uint key_len, enum ha_rkey_function find_flag)=0;
+			 uint key_len, enum ha_rkey_function find_flag)=0;
   virtual int index_read_idx(byte * buf, uint index, const byte * key,
 			     uint key_len, enum ha_rkey_function find_flag)=0;
   virtual int index_next(byte * buf)=0;

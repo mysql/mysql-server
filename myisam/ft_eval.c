@@ -83,23 +83,23 @@ int main(int argc,char *argv[])
   for(i=1;create_record(record,qf);i++) {
     FT_DOCLIST *result; double w; int t,err;
 
-    result=ft_init_search(file,0,blob_record,(uint) strlen(blob_record),1);
+    result=ft_nlq_init_search(file,0,blob_record,(uint) strlen(blob_record),1);
     if(!result) {
       printf("Query %d failed with errno %3d\n",i,my_errno);
       goto err;
     }
     if (!silent)
       printf("Query %d. Found: %d.\n",i,result->ndocs);
-    for(j=0;(err=ft_read_next(result, read_record))==0;j++) {
+    for(j=0;(err=ft_nlq_read_next(result, read_record))==0;j++) {
       t=uint2korr(read_record);
-      w=ft_get_relevance(result);
+      w=ft_nlq_get_relevance(result);
       printf("%d %.*s %f\n",i,t,read_record+2,w);
     }
     if(err != HA_ERR_END_OF_FILE) {
       printf("ft_read_next %d failed with errno %3d\n",j,my_errno);
       goto err;
     }
-    ft_close_search(result);
+    ft_nlq_close_search(result);
   }
 
   if (mi_close(file)) goto err;

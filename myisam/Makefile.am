@@ -45,7 +45,7 @@ libmyisam_a_SOURCES =	mi_open.c mi_extra.c mi_info.c mi_rkey.c \
 			mi_range.c mi_dbug.c mi_checksum.c mi_log.c \
 			mi_changed.c mi_static.c mi_delete_all.c \
 			mi_delete_table.c mi_rename.c  mi_check.c \
-			ft_parser.c ft_search.c ft_stopwords.c ft_static.c \
+			ft_parser.c ft_stopwords.c ft_static.c \
 			ft_update.c ft_boolean_search.c ft_nlq_search.c sort.c
 CLEANFILES =		test?.MY? FT?.MY? isam.log mi_test_all
 DEFS =			-DMAP_TO_USE_RAID
