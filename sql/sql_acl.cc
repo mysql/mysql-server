@@ -2250,7 +2250,7 @@ int mysql_grant (THD *thd, const char *db, List <LEX_USER> &list,
   if (!initialized)
   {
     send_error(&(thd->net), ER_UNKNOWN_COM_ERROR); /* purecov: tested */
-    return 1; /* purecov: tested */
+    DBUG_RETURN(1); /* purecov: tested */
   }
 
   if (lower_case_table_names && db)

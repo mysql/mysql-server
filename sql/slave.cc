@@ -1424,6 +1424,12 @@ static int count_relay_log_space(RELAY_LOG_INFO* rli)
     if (add_relay_log(rli,&linfo))
       DBUG_RETURN(1);
   } while (!rli->relay_log.find_next_log(&linfo, 1));
+  /* 
+     As we have counted everything, including what may have written in a
+     preceding write, we must reset bytes_written, or we may count some space 
+     twice.
+  */
+  rli->relay_log.reset_bytes_written();
   DBUG_RETURN(0);
 }
 
@@ -3213,8 +3219,25 @@ Log_event* next_event(RELAY_LOG_INFO* rli)
 	hot_log=0;				// Using old binary log
       }
     }
-    DBUG_ASSERT(my_b_tell(cur_log) >= BIN_LOG_HEADER_SIZE);
-    DBUG_ASSERT(my_b_tell(cur_log) == rli->relay_log_pos + rli->pending);
+#ifndef DBUG_OFF
+    {
+      DBUG_ASSERT(my_b_tell(cur_log) >= BIN_LOG_HEADER_SIZE);
+      /* The next assertion sometimes (very rarely) fails, let's try to track it */
+      char llbuf1[22], llbuf2[22];
+      /* Merging man, please be careful with this; in 4.1, the assertion below is
+         replaced by
+         DBUG_ASSERT(my_b_tell(cur_log) == rli->event_relay_log_pos);
+         so you should not merge blindly (fortunately it won't build then), and
+         instead modify the merged code. Thanks. */
+      DBUG_PRINT("info", ("Before assert, my_b_tell(cur_log)=%s \
+rli->relay_log_pos=%s rli->pending=%lu",
+                          llstr(my_b_tell(cur_log),llbuf1), 
+                          llstr(rli->relay_log_pos,llbuf2),
+                          rli->pending));
+      DBUG_ASSERT(my_b_tell(cur_log) == rli->relay_log_pos + rli->pending);
+    }
+#endif
+
     /*
       Relay log is always in new format - if the master is 3.23, the
       I/O thread will convert the format for us
