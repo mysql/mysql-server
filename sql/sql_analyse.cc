@@ -58,6 +58,7 @@ proc_analyse_init(THD *thd, ORDER *param, select_result *result,
     if ((*param->item)->type() != Item::INT_ITEM ||
 	(*param->item)->val() < 0)
     {
+      delete pc;
       net_printf(&thd->net, ER_WRONG_PARAMETERS_TO_PROCEDURE, proc_name);
       return 0;
     }
@@ -65,6 +66,7 @@ proc_analyse_init(THD *thd, ORDER *param, select_result *result,
     param = param->next;
     if (param->next)  // no third parameter possible
     {
+      delete pc;
       net_printf(&thd->net, ER_WRONG_PARAMCOUNT_TO_PROCEDURE, proc_name);
       return 0;
     }
@@ -72,6 +74,7 @@ proc_analyse_init(THD *thd, ORDER *param, select_result *result,
     if ((*param->item)->type() != Item::INT_ITEM ||
 	(*param->item)->val() < 0)
     {
+      delete pc;
       net_printf(&thd->net, ER_WRONG_PARAMETERS_TO_PROCEDURE, proc_name);
       return 0;
     }
@@ -80,6 +83,7 @@ proc_analyse_init(THD *thd, ORDER *param, select_result *result,
   else if ((*param->item)->type() != Item::INT_ITEM ||
 	   (*param->item)->val() < 0)
   {
+    delete pc;
     net_printf(&thd->net, ER_WRONG_PARAMETERS_TO_PROCEDURE, proc_name);
     return 0;
   }
