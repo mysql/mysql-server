@@ -498,7 +498,7 @@ static uint thai2sortable(uchar *tstr, uint len)
 	  l2bias use to control position weight of l2char
 	  example (*=l2char) XX*X must come before X*XX
 	*/
-	memcpy_overlap(p, p+1, tlen-1);
+	memcpy_overlap((char*) p, (char*) (p+1), tlen-1);
 	tstr[len-1]= l2bias + t_ctype0[1]- L2_GARAN +1;
 	p--;
 	continue;
@@ -630,7 +630,6 @@ static
 int my_strnxfrm_tis620(CHARSET_INFO *cs __attribute__((unused)),
                        uchar * dest, uint len,
                        const uchar * src, uint srclen)
-{
   len= (uint) (strmake((char*) dest, (char*) src, min(len, srclen)) -
 	       (char*) dest);
   return (int) thai2sortable(dest, len);

@@ -128,3 +128,4 @@ EXPORTS
 	alloc_root
 	free_root
 	my_read
+	max_allowed_packet

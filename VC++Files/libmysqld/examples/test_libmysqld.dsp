@@ -70,6 +70,14 @@ SOURCE=..\..\client\readline.cpp
 
 SOURCE=..\..\client\sql_string.cpp
 # End Source File
+# Begin Source File
+
+SOURCE=..\..\client\readline.cpp
+# End Source File
+# Begin Source File
+
+SOURCE=..\..\client\sql_string.cpp
+# End Source File
 # End Group
 # Begin Source File
 
