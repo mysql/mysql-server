@@ -19,7 +19,8 @@ BK_STATUS=$BK_STATUS$BK_COMMIT
 if [ "$BK_STATUS" = OK ]
 then 
 
-CHANGESET=`bk -R prs -r+ -h -d':I:' ChangeSet`
+USRN=`echo $FROM | sed 's/\(..*\)@.*/\1/'`
+CHANGESET=${USRN}:`bk -R prs -r+ -h -d':I:' ChangeSet`
 
 #++
 # dev-public@
