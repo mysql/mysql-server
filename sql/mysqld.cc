@@ -2642,9 +2642,8 @@ static struct option long_options[] = {
   {"default-table-type",    required_argument, 0, (int) OPT_TABLE_TYPE},
   {"delay-key-write-for-all-tables",
                             no_argument,       0, (int) OPT_DELAY_KEY_WRITE},
-  {"do-pstack",
-                            no_argument,       0, (int) OPT_DO_PSTACK},
   {"enable-locking",        no_argument,       0, (int) OPT_ENABLE_LOCK},
+  {"enable-pstack",         no_argument,       0, (int) OPT_DO_PSTACK},
   {"exit-info",             optional_argument, 0, 'T'},
   {"flush",                 no_argument,       0, (int) OPT_FLUSH},
 #ifdef HAVE_GEMINI_DB
@@ -3188,6 +3187,7 @@ static void usage(void)
 			Don't flush key buffers between writes for any MyISAM\n\
 			table\n\
   --enable-locking	Enable system locking\n\
+  --enable-pstack	Print a symbolic stack trace on failure\n\
   -T, --exit-info	Used for debugging;  Use at your own risk!\n\
   --flush		Flush tables to disk between SQL commands\n\
   -?, --help		Display this help and exit\n\
