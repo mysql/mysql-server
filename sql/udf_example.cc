@@ -56,7 +56,9 @@
 **
 ** Function 'myfunc_int' returns summary length of all its arguments.
 **
-** Function 'sequence' returns an sequence starting from a certain number
+** Function 'sequence' returns an sequence starting from a certain number.
+**
+** Function 'myfunc_argument_name' returns name of argument.
 **
 ** On the end is a couple of functions that converts hostnames to ip and
 ** vice versa.
@@ -82,6 +84,7 @@
 ** CREATE FUNCTION lookup RETURNS STRING SONAME "udf_example.so";
 ** CREATE FUNCTION reverse_lookup RETURNS STRING SONAME "udf_example.so";
 ** CREATE AGGREGATE FUNCTION avgcost RETURNS REAL SONAME "udf_example.so";
+** CREATE FUNCTION myfunc_argument_name RETURNS STRING SONAME "udf_example.so";
 **
 ** After this the functions will work exactly like native MySQL functions.
 ** Functions should be created only once.
@@ -94,6 +97,7 @@
 ** DROP FUNCTION lookup;
 ** DROP FUNCTION reverse_lookup;
 ** DROP FUNCTION avgcost;
+** DROP FUNCTION myfunc_argument_name;
 **
 ** The CREATE FUNCTION and DROP FUNCTION update the func@mysql table. All
 ** Active function will be reloaded on every restart of server
@@ -982,6 +986,45 @@ avgcost( UDF_INIT* initid, UDF_ARGS* args, char* is_null, char* error )
 
   *is_null = 0;
   return data->totalprice/double(data->totalquantity);
+}
+
+extern "C" {
+my_bool myfunc_argument_name_init(UDF_INIT *initid, UDF_ARGS *args,
+				  char *message);
+char *myfunc_argument_name(UDF_INIT *initid, UDF_ARGS *args, char *result,
+			   unsigned long *length, char *null_value,
+			   char *error);
+}
+
+my_bool myfunc_argument_name_init(UDF_INIT *initid, UDF_ARGS *args,
+				  char *message)
+{
+  if (args->arg_count != 1)
+  {
+    strmov(message,"myfunc_argument_name_init accepts only one argument");
+    return 1;
+  }
+  initid->max_length= args->attribute_lengths[0];
+  initid->maybe_null= 1;
+  initid->const_item= 1;
+  return 0;
+}
+
+char *myfunc_argument_name(UDF_INIT *initid, UDF_ARGS *args, char *result,
+			   unsigned long *length, char *null_value,
+			   char *error)
+{
+  if (!args->attributes[0])
+  {
+    null_value= 0;
+    return 0;
+  }
+  (*length)--; // space for ending \0 (for debugging purposes)
+  if (*length > args->attribute_lengths[0])
+    *length= args->attribute_lengths[0];
+  memcpy(result, args->attributes[0], *length);
+  result[*length]= 0;
+  return result;
 }
 
 #endif /* HAVE_DLOPEN */

@@ -534,3 +534,17 @@ show status like "Qcache_queries_in_cache";
 # Keep things tidy
 #
 DROP TABLE t1;
+
+#
+# comments before command
+#
+create table t1 (a int);
+show status like "Qcache_queries_in_cache";
+show status like "Qcache_inserts";
+show status like "Qcache_hits";
+/**/ select * from t1;
+/**/ select * from t1;
+show status like "Qcache_queries_in_cache";
+show status like "Qcache_inserts";
+show status like "Qcache_hits";
+drop table t1;

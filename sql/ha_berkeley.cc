@@ -2109,7 +2109,7 @@ static void print_msg(THD *thd, const char *table_name, const char *op_name,
   protocol->store(msg_type);
   protocol->store(msgbuf);
   if (protocol->write())
-    thd->killed=1;
+    thd->killed=THD::KILL_CONNECTION;
 }
 #endif
 

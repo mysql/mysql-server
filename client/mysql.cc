@@ -2815,6 +2815,7 @@ void tee_fprintf(FILE *file, const char *fmt, ...)
 {
   va_list args;
 
+  NETWARE_YIELD
   va_start(args, fmt);
   (void) vfprintf(file, fmt, args);
 #ifdef OS2
@@ -2828,6 +2829,7 @@ void tee_fprintf(FILE *file, const char *fmt, ...)
 
 void tee_fputs(const char *s, FILE *file)
 {
+  NETWARE_YIELD
   fputs(s, file);
 #ifdef OS2
   fflush( file);
@@ -2839,6 +2841,7 @@ void tee_fputs(const char *s, FILE *file)
 
 void tee_puts(const char *s, FILE *file)
 {
+  NETWARE_YIELD
   fputs(s, file);
   fputs("\n", file);
 #ifdef OS2

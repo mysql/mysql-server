@@ -134,3 +134,20 @@ name varchar(64) not null,
 primary key (help_keyword_id),
 unique index (name)
 ) comment='help keywords';
+
+#
+# Create proc table if it doesn't exists
+#
+
+CREATE TABLE IF NOT EXISTS proc (
+  name char(64) binary DEFAULT '' NOT NULL,
+  type enum('function','procedure') NOT NULL,
+  body blob DEFAULT '' NOT NULL,
+  creator char(77) binary DEFAULT '' NOT NULL,
+  modified timestamp,
+  created timestamp,
+  suid enum ('N', 'Y') DEFAULT 'Y' NOT NULL,
+  comment char(64) binary DEFAULT '' NOT NULL,
+  PRIMARY KEY (name,type)
+) comment='Stored Procedures';
+

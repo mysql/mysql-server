@@ -24,6 +24,7 @@
 #endif
 
 #include "mysql_priv.h"
+#include "sp_rcontext.h"
 #include <stdarg.h>
 
 #ifndef EMBEDDED_LIBRARY
@@ -62,6 +63,10 @@ void send_error(THD *thd, uint sql_errno, const char *err)
 		      err ? err : net->last_error[0] ?
 		      net->last_error : "NULL"));
 
+  if (thd->spcont && thd->spcont->find_handler(sql_errno))
+  {
+    DBUG_VOID_RETURN;
+  }
 #ifndef EMBEDDED_LIBRARY  /* TODO query cache in embedded library*/
   query_cache_abort(net);
 #endif
@@ -141,6 +146,10 @@ void send_error(THD *thd, uint sql_errno, const char *err)
 void send_warning(THD *thd, uint sql_errno, const char *err)
 {
   DBUG_ENTER("send_warning");  
+  if (thd->spcont && thd->spcont->find_handler(sql_errno))
+  {
+    DBUG_VOID_RETURN;
+  }
   push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN, sql_errno,
 	       err ? err : ER(sql_errno));
   send_ok(thd);
@@ -171,6 +180,10 @@ net_printf(THD *thd, uint errcode, ...)
   DBUG_ENTER("net_printf");
   DBUG_PRINT("enter",("message: %u",errcode));
 
+  if (thd->spcont && thd->spcont->find_handler(errcode))
+  {
+    DBUG_VOID_RETURN;
+  }
   thd->query_error=  1; // needed to catch query errors during replication
 #ifndef EMBEDDED_LIBRARY
   query_cache_abort(net);	// Safety
@@ -338,7 +351,7 @@ send_eof(THD *thd, bool no_flush)
       uint tmp= min(thd->total_warn_count, 65535);
       buff[0]=254;
       int2store(buff+1, tmp);
-      int2store(buff+3, 0);			// No flags yet
+      int2store(buff+3, thd->server_status);
       VOID(my_net_write(net,(char*) buff,5));
       VOID(net_flush(net));
     }
@@ -1125,12 +1138,3 @@ bool Protocol_prep::store_time(TIME *tm)
   buff[0]=(char) length;			// Length is stored first
   return packet->append(buff, length+1, PACKET_BUFFET_EXTRA_ALLOC);
 }
-
-#ifdef EMBEDDED_LIBRARY
-/* Should be removed when we define the Protocol_cursor's future */
-bool Protocol_cursor::write()
-{
-  return Protocol_simple::write();
-}
-#endif
-

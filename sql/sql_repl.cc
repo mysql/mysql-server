@@ -678,8 +678,8 @@ int start_slave(THD* thd , MASTER_INFO* mi,  bool net_report)
     was running (as we don't wan't to touch the other thread), so set the
     bit to 0 for the other thread
   */
-  if (thd->lex.slave_thd_opt)
-    thread_mask &= thd->lex.slave_thd_opt;
+  if (thd->lex->slave_thd_opt)
+    thread_mask &= thd->lex->slave_thd_opt;
   if (thread_mask) //some threads are stopped, start them
   {
     if (init_master_info(mi,master_info_file,relay_log_info_file, 0))
@@ -695,22 +695,22 @@ int start_slave(THD* thd , MASTER_INFO* mi,  bool net_report)
       {
         pthread_mutex_lock(&mi->rli.data_lock);
 
-        if (thd->lex.mi.pos)
+        if (thd->lex->mi.pos)
         {
           mi->rli.until_condition= RELAY_LOG_INFO::UNTIL_MASTER_POS;
-          mi->rli.until_log_pos= thd->lex.mi.pos;
+          mi->rli.until_log_pos= thd->lex->mi.pos;
           /* 
              We don't check thd->lex.mi.log_file_name for NULL here 
              since it is checked in sql_yacc.yy
           */
-          strmake(mi->rli.until_log_name, thd->lex.mi.log_file_name,
+          strmake(mi->rli.until_log_name, thd->lex->mi.log_file_name,
               sizeof(mi->rli.until_log_name)-1);
         } 
-        else if (thd->lex.mi.relay_log_pos)
+        else if (thd->lex->mi.relay_log_pos)
         {
           mi->rli.until_condition= RELAY_LOG_INFO::UNTIL_RELAY_POS;
-          mi->rli.until_log_pos= thd->lex.mi.relay_log_pos;
-          strmake(mi->rli.until_log_name, thd->lex.mi.relay_log_name,
+          mi->rli.until_log_pos= thd->lex->mi.relay_log_pos;
+          strmake(mi->rli.until_log_name, thd->lex->mi.relay_log_name,
               sizeof(mi->rli.until_log_name)-1);
         }
         else
@@ -748,7 +748,7 @@ int start_slave(THD* thd , MASTER_INFO* mi,  bool net_report)
         
         pthread_mutex_unlock(&mi->rli.data_lock);
       }
-      else if (thd->lex.mi.pos || thd->lex.mi.relay_log_pos)
+      else if (thd->lex->mi.pos || thd->lex->mi.relay_log_pos)
         push_warning(thd, MYSQL_ERROR::WARN_LEVEL_NOTE, ER_UNTIL_COND_IGNORED,
             ER(ER_UNTIL_COND_IGNORED));
         
@@ -802,8 +802,8 @@ int stop_slave(THD* thd, MASTER_INFO* mi, bool net_report )
     was stopped (as we don't wan't to touch the other thread), so set the
     bit to 0 for the other thread
   */
-  if (thd->lex.slave_thd_opt)
-    thread_mask &= thd->lex.slave_thd_opt;
+  if (thd->lex->slave_thd_opt)
+    thread_mask &= thd->lex->slave_thd_opt;
 
   if (thread_mask)
   {
@@ -952,7 +952,7 @@ void kill_zombie_dump_threads(uint32 slave_server_id)
       it will be slow because it will iterate through the list
       again. We just to do kill the thread ourselves.
     */
-    tmp->awake(1/*prepare to die*/);
+    tmp->awake(THD::KILL_QUERY);
     pthread_mutex_unlock(&tmp->LOCK_delete);
   }
 }
@@ -975,7 +975,7 @@ int change_master(THD* thd, MASTER_INFO* mi)
   }
 
   thd->proc_info = "Changing master";
-  LEX_MASTER_INFO* lex_mi = &thd->lex.mi;
+  LEX_MASTER_INFO* lex_mi = &thd->lex->mi;
   // TODO: see if needs re-write
   if (init_master_info(mi, master_info_file, relay_log_info_file, 0))
   {
@@ -1159,7 +1159,7 @@ int show_binlog_events(THD* thd)
 
   if (mysql_bin_log.is_open())
   {
-    LEX_MASTER_INFO *lex_mi = &thd->lex.mi;
+    LEX_MASTER_INFO *lex_mi = &thd->lex->mi;
     ha_rows event_count, limit_start, limit_end;
     my_off_t pos = max(BIN_LOG_HEADER_SIZE, lex_mi->pos); // user-friendly
     char search_file_name[FN_REFLEN], *name;
@@ -1168,8 +1168,8 @@ int show_binlog_events(THD* thd)
     LOG_INFO linfo;
     Log_event* ev;
   
-    limit_start = thd->lex.current_select->offset_limit;
-    limit_end = thd->lex.current_select->select_limit + limit_start;
+    limit_start = thd->lex->current_select->offset_limit;
+    limit_end = thd->lex->current_select->select_limit + limit_start;
 
     name= search_file_name;
     if (log_file_name)

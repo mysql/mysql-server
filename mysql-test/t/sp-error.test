@@ -1,0 +1,303 @@
+#
+# Stored PROCEDURE error tests
+#
+
+# Make sure we don't have any procedures left.
+delete from mysql.proc;
+
+delimiter |;
+
+# This should give three syntax errors (sometimes crashed; bug #643)
+# (Unfortunately, this is not a 100% test, on some platforms this
+#  passed despite the bug.)
+--error 1064
+create procedure syntaxerror(t int)|
+--error 1064
+create procedure syntaxerror(t int)|
+--error 1064
+create procedure syntaxerror(t int)|
+
+# Check that we get the right error, i.e. UDF declaration parses correctly,
+# but foo.so doesn't exist.
+# QQ This generates an error message containing a misleading errno which
+#    might vary between systems (it usually doesn't have anything to do with
+#    the actual failing dlopen()).
+#--error 1126
+#create function foo returns real soname "foo.so"|
+
+create procedure proc1()
+  set @x = 42|
+
+create function func1() returns int
+  return 42|
+
+# Can't create recursively
+--error 1279
+create procedure foo()
+  create procedure bar() set @x=3|
+--error 1279
+create procedure foo()
+  create function bar() returns double return 2.3|
+
+# Already exists
+--error 1280
+create procedure proc1()
+  set @x = 42|
+--error 1280
+create function func1() returns int
+  return 42|
+
+drop procedure proc1|
+drop function func1|
+
+# Does not exist
+--error 1281
+alter procedure foo|
+--error 1281
+alter function foo|
+--error 1281
+drop procedure foo|
+--error 1281
+drop function foo|
+--error 1281
+call foo()|
+drop procedure if exists foo|
+
+# LEAVE/ITERATE with no match
+--error 1284
+create procedure foo()
+foo: loop
+  leave bar;
+end loop|
+--error 1284
+create procedure foo()
+foo: loop
+  iterate bar;
+end loop|
+
+# Redefining label
+--error 1285
+create procedure foo()
+foo: loop
+  foo: loop
+    set @x=2;
+  end loop foo;
+end loop foo|
+
+# End label mismatch
+--error 1286
+create procedure foo()
+foo: loop
+  set @x=2;
+end loop bar|
+
+# Referring to undef variable
+--error 1287
+create procedure foo(out x int)
+begin
+  declare y int;
+  set x = y;
+end|
+
+# We require INTO in SELECTs for some older clients (as mysql and mysqltest,
+# for now).
+create procedure foo()
+begin
+  select name from mysql.proc;
+  select type from mysql.proc;
+end|
+--error 1288
+call foo()|
+drop procedure foo|
+
+# RETURN in FUNCTION only
+--error 1289
+create procedure foo()
+  return 42|
+
+# Doesn't allow queries in FUNCTIONs (for now :-( )
+--error 1290
+create function foo() returns int
+begin
+  declare x int;
+  select max(c) into x from test.t;
+  return x;
+end|
+
+# Wrong number of arguments
+create procedure p(x int)
+  insert into test.t1 values (x)|
+create function f(x int) returns int
+  return x+42|
+
+--error 1294
+call p()|
+--error 1294
+call p(1, 2)|
+--error 1294
+select f()|
+--error 1294
+select f(1, 2)|
+
+drop procedure p|
+drop function f|
+
+--error 1295
+create procedure p(val int, out res int)
+begin
+  declare x int default 0;
+  declare continue handler for foo set x = 1;
+
+  insert into test.t1 values (val);
+  if (x) then
+    set res = 0;
+  else
+    set res = 1;
+  end if;
+end|
+
+--error 1295
+create procedure p(val int, out res int)
+begin
+  declare x int default 0;
+  declare foo condition for 1146;
+  declare continue handler for bar set x = 1;
+
+  insert into test.t1 values (val);
+  if (x) then
+    set res = 0;
+  else
+    set res = 1;
+  end if;
+end|
+
+--error 1296
+create function f(val int) returns int
+begin
+  declare x int;
+
+  set x = val+3;
+end|
+
+create function f(val int) returns int
+begin
+  declare x int;
+
+  set x = val+3;
+  if x < 4 then
+    return x;
+  end if;
+end|
+
+--error 1297
+select f(10)|
+
+drop function f|
+
+--error 1298
+create procedure p()
+begin
+  declare c cursor for insert into test.t1 values ("foo", 42);
+
+  open c;
+  close c;
+end|
+
+--error 1299
+create procedure p()
+begin
+  declare x int;
+  declare c cursor for select * into x from test.t limit 1;
+
+  open c;
+  close c;
+end|
+
+--error 1300
+create procedure p()
+begin
+  declare c cursor for select * from test.t;
+
+  open cc;
+  close c;
+end|
+
+--disable_warnings
+drop table if exists t1|
+--enable_warnings
+create table t1 (val int)|
+
+create procedure p()
+begin
+  declare c cursor for select * from test.t1;
+
+  open c;
+  open c;
+  close c;
+end|
+--error 1301
+call p()|
+drop procedure p|
+
+create procedure p()
+begin
+  declare c cursor for select * from test.t1;
+
+  open c;
+  close c;
+  close c;
+end|
+--error 1302
+call p()|
+drop procedure p|
+
+drop table t1|
+
+--disable_warnings
+drop table if exists t1|
+--enable_warnings
+create table t1 (val int, x float)|
+insert into t1 values (42, 3.1), (19, 1.2)|
+
+--error 1303
+create procedure p()
+begin
+  declare c cursor for select * from t1;
+  declare x int;
+
+  open c;
+  fetch c into x, y;
+  close c;
+end|
+
+create procedure p()
+begin
+  declare c cursor for select * from t1;
+  declare x int;
+
+  open c;
+  fetch c into x;
+  close c;
+end|
+--error 1304
+call p()|
+drop procedure p|
+
+create procedure p()
+begin
+  declare c cursor for select * from t1;
+  declare x int;
+  declare y float;
+  declare z int;
+
+  open c;
+  fetch c into x, y, z;
+  close c;
+end|
+--error 1304
+call p()|
+drop procedure p|
+
+drop table t1|
+
+delimiter ;|

@@ -567,7 +567,7 @@ int start_slave_thread(pthread_handler h_func, pthread_mutex_t *start_lock,
       if (thd->killed)
       {
 	pthread_mutex_unlock(cond_lock);
-	DBUG_RETURN(ER_SERVER_SHUTDOWN);
+	DBUG_RETURN(thd->killed_errno());
       }
     }
   }
@@ -2313,7 +2313,7 @@ err:
   pthread_mutex_unlock(&data_lock);
   DBUG_PRINT("exit",("killed: %d  abort: %d  slave_running: %d \
 improper_arguments: %d  timed_out: %d",
-                     (int) thd->killed,
+                     thd->killed_errno(),
                      (int) (init_abort_pos_wait != abort_pos_wait),
                      (int) slave_running,
                      (int) (error == -2),
@@ -2718,7 +2718,7 @@ static int exec_relay_log_event(THD* thd, RELAY_LOG_INFO* rli)
   
     thd->server_id = ev->server_id; // use the original server id for logging
     thd->set_time();				// time the query
-    thd->lex.current_select= 0;
+    thd->lex->current_select= 0;
     if (!ev->when)
       ev->when = time(NULL);
     ev->thd = thd;

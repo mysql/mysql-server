@@ -73,6 +73,13 @@
 #endif
 #endif /* _WIN32... */
 
+/* extra protection against CPU Hogs on NetWare */
+#ifdef __NETWARE__
+  #define NETWARE_YIELD { kYieldIfTimeSliceUp(); }
+#else
+  #define NETWARE_YIELD { }
+#endif
+
 /*
   The macros below are borrowed from include/linux/compiler.h in the
   Linux kernel. Use them to indicate the likelyhood of the truthfulness

@@ -2628,7 +2628,7 @@ static int sort_get_next_record(MI_SORT_PARAM *sort_param)
   char llbuff[22],llbuff2[22];
   DBUG_ENTER("sort_get_next_record");
 
-  if (*killed_ptr(param))
+  if (*killed_ptr(param->thd))
     DBUG_RETURN(1);
 
   switch (share->data_file_type) {
