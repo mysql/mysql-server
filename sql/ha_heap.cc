@@ -174,6 +174,7 @@ void ha_heap::info(uint flag)
   index_file_length=info.index_length;
   max_data_file_length= info.max_records* info.reclength;
   delete_length= info.deleted * info.reclength;
+  implicit_emptied= info.implicit_emptied;
   if (flag & HA_STATUS_AUTO)
     auto_increment_value= info.auto_increment;
 }

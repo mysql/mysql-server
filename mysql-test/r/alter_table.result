@@ -424,3 +424,24 @@ t1	CREATE TABLE `t1` (
 ALTER TABLE t1 DROP PRIMARY KEY;
 ERROR 42000: Can't DROP 'PRIMARY'. Check that column/key exists
 DROP TABLE t1;
+create table t1 (name char(15));
+insert into t1 (name) values ("current");
+create database mysqltest;
+create table mysqltest.t1 (name char(15));
+insert into mysqltest.t1 (name) values ("mysqltest");
+select * from t1;
+name
+current
+select * from mysqltest.t1;
+name
+mysqltest
+alter table t1 rename mysqltest.t1;
+Table 't1' already exists
+select * from t1;
+name
+current
+select * from mysqltest.t1;
+name
+mysqltest
+drop table t1;
+drop database mysqltest;

@@ -206,7 +206,7 @@ character-set=latin1
 "Esta operación no puede ser hecha con el esclavo funcionando, primero use STOP SLAVE",
 "Esta operación necesita el esclavo funcionando, configure esclavo y haga el START SLAVE",
 "El servidor no está configurado como esclavo, edite el archivo config file o con CHANGE MASTER TO",
-"No puedo inicializar la estructura info del master, verifique permisiones en el master.info",
+"Could not initialize master info structure, more error messages can be found in the MySQL error log",
 "No puedo crear el thread esclavo, verifique recursos del sistema",
 "Usario %-.64s ya tiene mas que 'max_user_connections' conexiones activas",
 "Tu solo debes usar expresiones constantes con SET",
@@ -243,6 +243,7 @@ character-set=latin1
 "Esta versión de MySQL no soporta todavia '%s'",
 "Recibió fatal error %d: '%-.128s' del master cuando leyendo datos del binary log",
 "Slave SQL thread ignorado el query debido a las reglas de replicación-*-tabla",
+"Variable '%-.64s' is a %s variable",
 "Wrong foreign key definition for '%-.64s': %s",
 "Key reference and table reference doesn't match",
 "Operand should contain %d column(s)",
@@ -293,5 +294,5 @@ character-set=latin1
 "Unknown table engine '%s'",
 "'%s' is deprecated. Use '%s' instead.",
 "The target table %-.100s of the %s is not updatable.",
-"The '%s' feature was disabled. You need MySQL built with '%s' define to have it working"
-"MySQL is started in --skip-grant-tables mode. You can't use this command"
+"The '%s' feature was disabled. You need MySQL built with '%s' define to have it working",
+"MySQL is started in --skip-grant-tables mode. You can't use this command",

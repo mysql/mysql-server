@@ -262,6 +262,14 @@ dtuple_set_types_binary(
 /*====================*/
 	dtuple_t*	tuple,	/* in: data tuple */
 	ulint		n);	/* in: number of fields to set */
+/**************************************************************************
+Checks if a dtuple contains an SQL null value. */
+UNIV_INLINE
+ibool
+dtuple_contains_null(
+/*=================*/
+				/* out: TRUE if some field is SQL null */
+	dtuple_t*	tuple);	/* in: dtuple */
 /**************************************************************
 Checks that a data field is typed. Asserts an error if not. */
 

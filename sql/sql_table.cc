@@ -179,11 +179,10 @@ int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
 			 bool drop_temporary, bool dont_log_query)
 {
   TABLE_LIST *table;
-  char	path[FN_REFLEN];
+  char	path[FN_REFLEN], *alias;
   String wrong_tables;
-  db_type table_type;
   int error;
-  bool some_tables_deleted=0, tmp_table_deleted=0;
+  bool some_tables_deleted=0, tmp_table_deleted=0, foreign_key_error=0;
   DBUG_ENTER("mysql_rm_table_part2");
 
   if (lock_table_names(thd, tables))
@@ -212,13 +211,10 @@ int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
       drop_locked_tables(thd,db,table->real_name);
       if (thd->killed)
 	DBUG_RETURN(-1);
-
+      alias= (lower_case_table_names == 2) ? table->alias : table->real_name;
       /* remove form file and isam files */
-      strxmov(path, mysql_data_home, "/", db, "/", table->real_name, reg_ext,
-	      NullS);
+      strxmov(path, mysql_data_home, "/", db, "/", alias, reg_ext, NullS);
       (void) unpack_filename(path,path);
-
-      table_type=get_table_type(path);
     }
     if (drop_temporary || access(path,F_OK))
     {
@@ -232,10 +228,16 @@ int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
     else
     {
       char *end;
-      *(end=fn_ext(path))=0;			// Remove extension
+      db_type table_type= get_table_type(path);
+      *(end=fn_ext(path))=0;			// Remove extension for delete
       error=ha_delete_table(table_type, path);
       if (error == ENOENT && if_exists)
 	error = 0;
+      if (error == HA_ERR_ROW_IS_REFERENCED)
+      {
+	/* the table is referenced by a foreign key constraint */
+        foreign_key_error=1;
+      }
       if (!error || error == ENOENT)
       {
 	/* Delete the table definition file */
@@ -272,7 +274,10 @@ int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
   error= 0;
   if (wrong_tables.length())
   {
-    my_error(ER_BAD_TABLE_ERROR,MYF(0),wrong_tables.c_ptr());
+    if (!foreign_key_error)
+      my_error(ER_BAD_TABLE_ERROR,MYF(0),wrong_tables.c_ptr());
+    else
+      my_error(ER_ROW_IS_REFERENCED,MYF(0));
     error= 1;
   }
   DBUG_RETURN(error);
@@ -373,7 +378,7 @@ int mysql_create_table(THD *thd,const char *db, const char *table_name,
                        uint select_field_count)
 {
   char		path[FN_REFLEN];
-  const char	*key_name;
+  const char	*key_name, *alias;
   create_field	*sql_field,*dup_field;
   int		error= -1;
   uint		db_options,field,null_fields,blob_columns;
@@ -386,10 +391,7 @@ int mysql_create_table(THD *thd,const char *db, const char *table_name,
   enum db_type	new_db_type;
   DBUG_ENTER("mysql_create_table");
 
-  /*
-    Check for duplicate fields and check type of table to create
-  */
-
+  /* Check for duplicate fields and check type of table to create */
   if (!fields.elements)
   {
     my_error(ER_TABLE_MUST_HAVE_COLUMNS,MYF(0));
@@ -411,6 +413,7 @@ int mysql_create_table(THD *thd,const char *db, const char *table_name,
   db_options=create_info->table_options;
   if (create_info->row_type == ROW_TYPE_DYNAMIC)
     db_options|=HA_OPTION_PACK_RECORD;
+  alias= table_case_name(create_info, table_name);
   file=get_new_handler((TABLE*) 0, create_info->db_type);
 
   if ((create_info->options & HA_LEX_CREATE_TMP_TABLE) &&
@@ -955,7 +958,7 @@ int mysql_create_table(THD *thd,const char *db, const char *table_name,
     create_info->table_options|=HA_CREATE_DELAY_KEY_WRITE;
   }
   else
-    (void) sprintf(path,"%s/%s/%s%s",mysql_data_home,db,table_name,reg_ext);
+    (void) sprintf(path,"%s/%s/%s%s",mysql_data_home,db,alias,reg_ext);
   unpack_filename(path,path);
   /* Check if table already exists */
   if ((create_info->options & HA_LEX_CREATE_TMP_TABLE)
@@ -966,7 +969,7 @@ int mysql_create_table(THD *thd,const char *db, const char *table_name,
       create_info->table_existed= 1;		// Mark that table existed
       DBUG_RETURN(0);
     }
-    my_error(ER_TABLE_EXISTS_ERROR,MYF(0),table_name);
+    my_error(ER_TABLE_EXISTS_ERROR, MYF(0), alias);
     DBUG_RETURN(-1);
   }
   if (wait_if_global_read_lock(thd, 0))
@@ -1111,7 +1114,7 @@ TABLE *create_table_from_items(THD *thd, HA_CREATE_INFO *create_info,
     DBUG_RETURN(0);
   if (!(table=open_table(thd,db,name,name,(bool*) 0)))
   {
-    quick_rm_table(create_info->db_type,db,name);
+    quick_rm_table(create_info->db_type,db,table_case_name(create_info,name));
     DBUG_RETURN(0);
   }
   table->reginfo.lock_type=TL_WRITE;
@@ -1120,7 +1123,7 @@ TABLE *create_table_from_items(THD *thd, HA_CREATE_INFO *create_info,
     VOID(pthread_mutex_lock(&LOCK_open));
     hash_delete(&open_cache,(byte*) table);
     VOID(pthread_mutex_unlock(&LOCK_open));
-    quick_rm_table(create_info->db_type,db,name);
+    quick_rm_table(create_info->db_type,db,table_case_name(create_info, name));
     DBUG_RETURN(0);
   }
   table->file->extra(HA_EXTRA_WRITE_CACHE);
@@ -1135,18 +1138,32 @@ TABLE *create_table_from_items(THD *thd, HA_CREATE_INFO *create_info,
 bool
 mysql_rename_table(enum db_type base,
 		   const char *old_db,
-		   const char * old_name,
+		   const char *old_name,
 		   const char *new_db,
-		   const char * new_name)
+		   const char *new_name)
 {
-  char from[FN_REFLEN],to[FN_REFLEN];
+  char from[FN_REFLEN], to[FN_REFLEN];
+  char tmp_from[NAME_LEN+1], tmp_to[NAME_LEN+1];
   handler *file=get_new_handler((TABLE*) 0, base);
   int error=0;
   DBUG_ENTER("mysql_rename_table");
+
+  if (lower_case_table_names == 2 && !(file->table_flags() & HA_FILE_BASED))
+  {
+    /* Table handler expects to get all file names as lower case */
+    strmov(tmp_from, old_name);
+    casedn_str(tmp_from);
+    old_name= tmp_from;
+
+    strmov(tmp_to, new_name);
+    casedn_str(tmp_to);
+    new_name= tmp_to;
+  }
   (void) sprintf(from,"%s/%s/%s",mysql_data_home,old_db,old_name);
   (void) sprintf(to,"%s/%s/%s",mysql_data_home,new_db,new_name);
   fn_format(from,from,"","",4);
   fn_format(to,to,    "","",4);
+
   if (!(error=file->rename_table((const char*) from,(const char *) to)))
   {
     if (rename_file_ext(from,to,reg_ext))
@@ -1161,6 +1178,7 @@ mysql_rename_table(enum db_type base,
     my_error(ER_ERROR_ON_RENAME, MYF(0), from, to, error);
   DBUG_RETURN(error != 0);
 }
+
 
 /*
   Force all other threads to stop using the table
@@ -1206,7 +1224,7 @@ static void wait_while_table_is_used(THD *thd,TABLE *table,
   Close a cached table
 
   SYNOPSIS
-    clsoe_cached_table()
+    close_cached_table()
     thd			Thread handler
     table		Table to remove from cache
 
@@ -1969,8 +1987,8 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
 {
   TABLE *table,*new_table;
   int error;
-  char tmp_name[80],old_name[32],new_name_buff[FN_REFLEN],
-       *table_name,*db;
+  char tmp_name[80],old_name[32],new_name_buff[FN_REFLEN];
+  char new_alias_buff[FN_REFLEN], *table_name, *db, *new_alias, *alias;
   char index_file[FN_REFLEN], data_file[FN_REFLEN];
   bool use_timestamp=0;
   ha_rows copied,deleted;
@@ -1981,9 +1999,13 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
 
   thd->proc_info="init";
   table_name=table_list->real_name;
+  alias= (lower_case_table_names == 2) ? table_list->alias : table_name;
+
   db=table_list->db;
-  if (!new_db || !strcmp(new_db,db))
-    new_db=db;
+  if (!new_db || !my_strcasecmp(table_alias_charset, new_db, db))
+  {
+    new_db= db;
+  }
   used_fields=create_info->used_fields;
 
   mysql_ha_closeall(thd, table_list);
@@ -1991,7 +2013,7 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
   /* DISCARD/IMPORT TABLESPACE is always alone in an ALTER TABLE */
   if (tablespace_op != NO_TABLESPACE_OP)
     DBUG_RETURN(mysql_discard_or_import_tablespace(thd,table_list,
-							tablespace_op));
+						   tablespace_op));
   if (!(table=open_ltable(thd,table_list,TL_WRITE_ALLOW_READ)))
     DBUG_RETURN(-1);
 
@@ -1999,18 +2021,32 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
   if (new_name)
   {
     strmov(new_name_buff,new_name);
-    fn_same(new_name_buff,table_name,3);
+    strmov(new_alias= new_alias_buff, new_name);
     if (lower_case_table_names)
-      my_casedn_str(system_charset_info,new_name);
-    if (!my_strcasecmp(table_alias_charset, new_name_buff, table_name))
-      new_name=table_name;			// No. Make later check easier
+    {
+      if (lower_case_table_names != 2)
+      {
+	my_casedn_str(system_charset_info, new_name_buff);
+	new_alias= new_name;			// Create lower case table name
+      }
+      my_casedn_str(system_charset_info, new_name);
+    }
+    if (new_db == db &&
+	!my_strcasecmp(table_alias_charset, new_name_buff, table_name))
+    {
+      /*
+        Source and destination table names are equal: make later check
+        easier.
+      */
+      new_alias= new_name= table_name;
+    }
     else
     {
       if (table->tmp_table)
       {
 	if (find_temporary_table(thd,new_db,new_name_buff))
 	{
-	  my_error(ER_TABLE_EXISTS_ERROR,MYF(0),new_name);
+	  my_error(ER_TABLE_EXISTS_ERROR,MYF(0),new_name_buff);
 	  DBUG_RETURN(-1);
 	}
       }
@@ -2020,14 +2056,14 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
 		    F_OK))
 	{
 	  /* Table will be closed in do_command() */
-	  my_error(ER_TABLE_EXISTS_ERROR,MYF(0),new_name);
+	  my_error(ER_TABLE_EXISTS_ERROR,MYF(0), new_alias);
 	  DBUG_RETURN(-1);
 	}
       }
     }
   }
   else
-    new_name=table_name;
+    new_alias= new_name= table_name;
 
   old_db_type=table->db_type;
   if (create_info->db_type == DB_TYPE_DEFAULT)
@@ -2064,7 +2100,7 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
       {
         *fn_ext(new_name)=0;
         close_cached_table(thd, table);
-        if (mysql_rename_table(old_db_type,db,table_name,new_db,new_name))
+        if (mysql_rename_table(old_db_type,db,table_name,new_db,new_alias))
 	  error= -1;
       }
       VOID(pthread_mutex_unlock(&LOCK_open));
@@ -2089,14 +2125,12 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
 	  wait_while_table_is_used(thd, table, HA_EXTRA_FORCE_REOPEN);
 	  VOID(pthread_mutex_unlock(&LOCK_open));
  	  table->file->deactivate_non_unique_index(HA_POS_ERROR);
+	/* COND_refresh will be signaled in close_thread_tables() */
  	}
  	else
  	  push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN, 
  			      ER_ILLEGAL_HA,
  			      ER(ER_ILLEGAL_HA), table->table_name);
-  	break;
-
-	/* COND_refresh will be signaled in close_thread_tables() */
 	break;
       }
     }
@@ -2128,7 +2162,7 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
   if (!(used_fields & HA_CREATE_USED_DEFAULT_CHARSET))
     create_info->default_table_charset= table->table_charset;
 
-  restore_record(table,default_values);			// Empty record for DEFAULT
+  restore_record(table,default_values);		// Empty record for DEFAULT
   List_iterator<Alter_drop> drop_it(drop_list);
   List_iterator<create_field> def_it(fields);
   List_iterator<Alter_column> alter_it(alter_list);
@@ -2474,7 +2508,7 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
     }
     /* Remove link to old table and rename the new one */
     close_temporary_table(thd,table->table_cache_key,table_name);
-    if (rename_temporary_table(thd, new_table, new_db, new_name))
+    if (rename_temporary_table(thd, new_table, new_db, new_alias))
     {						// Fatal error
       close_temporary_table(thd,new_db,tmp_name);
       my_free((gptr) new_table,MYF(0));
@@ -2550,12 +2584,12 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
     VOID(quick_rm_table(new_db_type,new_db,tmp_name));
   }
   else if (mysql_rename_table(new_db_type,new_db,tmp_name,new_db,
-			      new_name))
+			      new_alias))
   {						// Try to get everything back
     error=1;
-    VOID(quick_rm_table(new_db_type,new_db,new_name));
+    VOID(quick_rm_table(new_db_type,new_db,new_alias));
     VOID(quick_rm_table(new_db_type,new_db,tmp_name));
-    VOID(mysql_rename_table(old_db_type,db,old_name,db,table_name));
+    VOID(mysql_rename_table(old_db_type,db,old_name,db,alias));
   }
   if (error)
   {

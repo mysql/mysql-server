@@ -2642,7 +2642,7 @@ void grant_reload(THD *thd)
 
 /****************************************************************************
   Check grants
-  All errors are written directly to the client if command name is given !
+  All errors are written directly to the client if no_errors is given !
 ****************************************************************************/
 
 bool check_grant(THD *thd, ulong want_access, TABLE_LIST *tables,

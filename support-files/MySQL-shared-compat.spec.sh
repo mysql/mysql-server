@@ -42,8 +42,8 @@ BuildRoot:    %{_tmppath}/%{name}-%{version}-build
 Obsoletes:    MySQL-shared, mysql-shared
 Provides:     MySQL-shared
 Summary:      MySQL shared libraries for MySQL %{version4} and %{version3}
-Source0:      MySQL-shared-%{version4}-0.i386.rpm
-Source1:      MySQL-shared-%{version3}-1.i386.rpm
+Source0:      MySQL-shared-%{version4}-0.%{_arch}.rpm
+Source1:      MySQL-shared-%{version3}-1.%{_arch}.rpm
 # No need to include the RPMs once more - they can be downloaded seperately
 # if you want to rebuild this package
 NoSource:     0

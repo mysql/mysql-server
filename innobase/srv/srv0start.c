@@ -1587,6 +1587,31 @@ NetWare. */
 
 	os_fast_mutex_free(&srv_os_test_mutex);
 
+	/***********************************************************/
+	/* Do NOT merge to the 4.1 code base! */
+	if (trx_sys_downgrading_from_4_1_1) {
+		fprintf(stderr,
+"InnoDB: You are downgrading from an InnoDB version which allows multiple\n"
+"InnoDB: tablespaces. Wait that purge and insert buffer merge run to\n"
+"InnoDB: completion...\n");
+		for (;;) {
+			os_thread_sleep(10000000);
+
+			if (0 == strcmp(srv_main_thread_op_info,
+					"waiting for server activity")) {
+				break;
+			}
+		}
+		fprintf(stderr,
+"InnoDB: Full purge and insert buffer merge completed.\n");
+
+	        trx_sys_mark_downgraded_from_4_1_1();
+
+		fprintf(stderr,
+"InnoDB: Downgraded from >= 4.1.1 to 4.0\n");
+	}
+	/***********************************************************/
+
 	if (srv_print_verbose_log) {
 	  	ut_print_timestamp(stderr);
 	  	fprintf(stderr,

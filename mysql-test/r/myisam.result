@@ -398,6 +398,52 @@ check table t1;
 Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
 drop table t1;
+create table t1 ( a text not null, key a (a(20)));
+insert into t1 values ('aaa   '),('aaa'),('aa');
+check table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+repair table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	repair	status	OK
+select concat(a,'.') from t1 where a='aaa';
+concat(a,'.')
+aaa.
+aaa   .
+select concat(a,'.') from t1 where binary a='aaa';
+concat(a,'.')
+aaa.
+update t1 set a='bbb' where a='aaa';
+select concat(a,'.') from t1;
+concat(a,'.')
+bbb.
+bbb.
+aa.
+drop table t1;
+create table t1(a text not null, b text not null, c text not null, index (a(10),b(10),c(10)));
+insert into t1 values('807780', '477', '165');
+insert into t1 values('807780', '477', '162');
+insert into t1 values('807780', '472', '162');
+select * from t1 where a='807780' and b='477' and c='165';
+a	b	c
+807780	477	165
+drop table t1;
+create table t1 (a int not null auto_increment primary key, b text not null, unique b (b(20)));
+insert into t1 (b) values ('a'),('a '),('a  ');
+select concat(b,'.') from t1;
+concat(b,'.')
+a.
+a .
+a  .
+update t1 set b='b ' where a=2;
+update t1 set b='b  ' where a > 1;
+Duplicate entry 'b  ' for key 2
+delete from t1 where b='b';
+select a,concat(b,'.') from t1;
+a	concat(b,'.')
+1	a.
+3	a  .
+drop table t1;
 CREATE TABLE t1 (`a` int(11) NOT NULL default '0', `b` int(11) NOT NULL default '0', UNIQUE KEY `a` USING RTREE (`a`,`b`)) ENGINE=MyISAM;
 ERROR 42000: This version of MySQL doesn't yet support 'RTREE INDEX'
 create table t1 (a int, b varchar(200), c text not null) checksum=1;

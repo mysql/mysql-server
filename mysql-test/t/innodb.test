@@ -753,8 +753,7 @@ insert into t2 set id=1, t1_id=1;
 delete t1,t2 from t1,t2 where t1.id=t2.t1_id;
 select * from t1;
 select * from t2;
-drop table t1,t2;
-DROP TABLE IF EXISTS t1,t2;
+drop table t2,t1;
 CREATE TABLE t1(id INT NOT NULL,  PRIMARY KEY (id)) ENGINE=INNODB;
 CREATE TABLE t2(id  INT PRIMARY KEY, t1_id INT, INDEX par_ind (t1_id)  ) ENGINE=INNODB;
 INSERT INTO t1 VALUES(1);
@@ -932,6 +931,15 @@ truncate table t1;
 insert into t1 (a) values (NULL),(NULL);
 SELECT * from t1;
 drop table t1;
+
+#
+# Test dictionary handling with spaceand quoting
+#
+
+CREATE TABLE t1 (`id 1` INT NOT NULL, PRIMARY KEY (`id 1`)) TYPE=INNODB;
+CREATE TABLE t2 (id INT PRIMARY KEY, t1_id INT, INDEX par_ind (t1_id), FOREIGN KEY (`t1_id`) REFERENCES `t1`(`id 1`)  ON DELETE CASCADE ) TYPE=INNODB;
+#show create table t2;
+drop table t2,t1;
 
 #
 # Test timestamps

@@ -229,7 +229,7 @@ SELECT * FROM t1 WHERE a IN(1,2) AND b=5;
 DROP TABLE t1;
 
 #
-# Test error with 
+# Test problem with range optimzer and sub ranges
 #
 
 CREATE TABLE t1 (a int, b int, c int, INDEX (c,a,b));
@@ -238,6 +238,22 @@ INSERT INTO t1 VALUES (0,1,0),(0,1,0),(0,1,0);
 # -- First reports 3; second reports 6
 SELECT COUNT(*) FROM t1 WHERE (c=0 and a=1) or (c=0 and b=1);
 SELECT COUNT(*) FROM t1 WHERE (c=0 and b=1) or (c=0 and a=1);
+DROP TABLE t1;
+
+#
+# Test problem with range optimization over overlapping ranges (#2448)
+#
+
+CREATE TABLE t1 ( a int not null, b int not null, INDEX ab(a,b) );
+INSERT INTO t1 VALUES (47,1), (70,1), (15,1), (15, 4);
+SELECT * FROM t1
+WHERE
+(
+    ( b =1 AND a BETWEEN 14 AND 21 ) OR
+    ( b =2 AND a BETWEEN 16 AND 18 ) OR
+    ( b =3 AND a BETWEEN 15 AND 19 ) OR
+    (a BETWEEN 19 AND 47)
+);
 DROP TABLE t1;
 
 # test for a bug with in() and unique key

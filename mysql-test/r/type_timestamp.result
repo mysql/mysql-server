@@ -128,5 +128,48 @@ t2	t4	t6	t8	t10	t12	t14
 0000-00-00 00:00:00	0000-00-00 00:00:00	0000-00-00 00:00:00	0000-00-00 00:00:00	0000-00-00 00:00:00	0000-00-00 00:00:00	0000-00-00 00:00:00
 1997-12-31 23:47:59	1997-12-31 23:47:59	1997-12-31 23:47:59	1997-12-31 23:47:59	1997-12-31 23:47:59	1997-12-31 23:47:59	1997-12-31 23:47:59
 drop table t1;
-create table t1 (a timestamp default 1);
-ERROR 42000: Invalid default value for 'a'
+create table t1 (t1 timestamp default '2003-01-01 00:00:00', 
+t2 timestamp default '2003-01-01 00:00:00');
+set TIMESTAMP=1000000000;
+insert into t1 values();
+select * from t1;
+t1	t2
+2001-09-09 04:46:40	2003-01-01 00:00:00
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `t1` timestamp(14) NOT NULL,
+  `t2` timestamp(14) NOT NULL default '2003-01-01 00:00:00'
+) TYPE=MyISAM
+show columns from t1;
+Field	Type	Null	Key	Default	Extra
+t1	timestamp(14)	YES		NULL	
+t2	timestamp(14)	YES		2003-01-01 00:00:00	
+show columns from t1 like 't2';
+Field	Type	Null	Key	Default	Extra
+t2	timestamp(14)	YES		2003-01-01 00:00:00	
+create table t2 (select * from t1);
+show create table t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `t1` timestamp(14) NOT NULL,
+  `t2` timestamp(14) NOT NULL default '2003-01-01 00:00:00'
+) TYPE=MyISAM
+alter table t1 add column t0 timestamp first;
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `t0` timestamp(14) NOT NULL,
+  `t1` timestamp(14) NOT NULL default '2003-01-01 00:00:00',
+  `t2` timestamp(14) NOT NULL default '2003-01-01 00:00:00'
+) TYPE=MyISAM
+drop table t1,t2;
+create table t1 (ts1 timestamp, ts2 timestamp);
+set TIMESTAMP=1000000000;
+insert into t1 values ();
+insert into t1 values (DEFAULT, DEFAULT);
+select * from t1;
+ts1	ts2
+2001-09-09 04:46:40	0000-00-00 00:00:00
+2001-09-09 04:46:40	0000-00-00 00:00:00
+drop table t1;

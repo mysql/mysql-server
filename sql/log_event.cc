@@ -949,6 +949,8 @@ int Query_log_event::exec_event(struct st_relay_log_info* rli)
     since we must store the pos of the END of the current log event (COMMIT).
   */
   rli->event_len= get_event_len();
+  thd->query_error= 0;			// clear error
+  thd->clear_error();
 
   if (db_ok(thd->db, replicate_do_db, replicate_ignore_db))
   {
@@ -958,8 +960,6 @@ int Query_log_event::exec_event(struct st_relay_log_info* rli)
     VOID(pthread_mutex_lock(&LOCK_thread_count));
     thd->query_id = query_id++;
     VOID(pthread_mutex_unlock(&LOCK_thread_count));
-    thd->query_error= 0;				// clear error
-    thd->clear_error();
     thd->variables.pseudo_thread_id= thread_id;		// for temp tables
 
     /*
@@ -1004,7 +1004,8 @@ Default database: '%s'",
 	       ignored_error_code(actual_error))
       {
 	DBUG_PRINT("info",("error ignored"));
-	thd->query_error = 0;
+	thd->query_error= 0;
+        thd->clear_error();
 	*rli->last_slave_error = 0;
 	rli->last_slave_errno = 0;
       }
@@ -1368,7 +1369,7 @@ Load_log_event::Load_log_event(THD *thd_arg, sql_exchange *ex,
    num_fields(0),fields(0),
    field_lens(0),field_block_len(0),
    table_name(table_name_arg ? table_name_arg : ""),
-   db(db_arg), fname(ex->file_name)
+   db(db_arg), fname(ex->file_name), local_fname(FALSE)
 {
   time_t end_time;
   time(&end_time);
@@ -1450,9 +1451,9 @@ Load_log_event::Load_log_event(THD *thd_arg, sql_exchange *ex,
 
 Load_log_event::Load_log_event(const char *buf, int event_len,
 			       bool old_format)
-  :Log_event(buf, old_format),num_fields(0),fields(0),
-   field_lens(0),field_block_len(0),
-   table_name(0),db(0),fname(0)
+  :Log_event(buf, old_format), num_fields(0), fields(0),
+   field_lens(0), field_block_len(0),
+   table_name(0), db(0), fname(0), local_fname(FALSE)
 {
   if (!event_len) // derived class, will call copy_log_event() itself
     return;
@@ -1664,8 +1665,9 @@ int Load_log_event::exec_event(NET* net, struct st_relay_log_info* rli,
 {
   thd->db= (char*) rewrite_db(db);
   DBUG_ASSERT(thd->query == 0);
-  thd->query = 0;				// Should not be needed
-  thd->query_error = 0;
+  thd->query= 0;				// Should not be needed
+  thd->query_error= 0;
+  thd->clear_error();
 
   /*
     We test replicate_*_db rules. Note that we have already prepared the file

@@ -29,6 +29,7 @@
 #include <m_ctype.h>
 
 #define FCOMP			17		/* Bytes for a packed field */
+#define FCOMP			17		/* Bytes for a packed field */
 
 static uchar * pack_screens(List<create_field> &create_fields,
 			    uint *info_length, uint *screens, bool small_file);
@@ -150,7 +151,7 @@ int rea_create_table(THD *thd, my_string file_name,
 
   my_free((gptr) screen_buff,MYF(0));
   my_free((gptr) keybuff, MYF(0));
-  if (my_sync(file, MYF(MY_WME)))
+  if (opt_sync_frm && my_sync(file, MYF(MY_WME)))
     goto err2;
   if (my_close(file,MYF(MY_WME)) ||
       ha_create_table(file_name,create_info,0))

@@ -289,6 +289,7 @@ typedef struct st_qsel_param {
   char min_key[MAX_KEY_LENGTH+MAX_FIELD_WIDTH],
     max_key[MAX_KEY_LENGTH+MAX_FIELD_WIDTH];
   bool quick;				// Don't calulate possible keys
+  COND *cond;
 } PARAM;
 
 static SEL_TREE * get_mm_parts(PARAM *param,COND *cond_func,Field *field,
@@ -655,7 +656,6 @@ int SQL_SELECT::test_quick_select(THD *thd, key_map keys_to_use,
     param.table=head;
     param.keys=0;
     param.mem_root= &alloc;
-
     thd->no_errors=1;				// Don't warn about NULL
     init_sql_alloc(&alloc, thd->variables.range_alloc_block_size, 0);
     if (!(param.key_parts = (KEY_PART*) alloc_root(&alloc,
@@ -838,6 +838,8 @@ static SEL_TREE *get_mm_tree(PARAM *param,COND *cond)
   Item_func *cond_func= (Item_func*) cond;
   if (cond_func->select_optimize() == Item_func::OPTIMIZE_NONE)
     DBUG_RETURN(0);				// Can't be calculated
+
+  param->cond= cond;
 
   if (cond_func->functype() == Item_func::BETWEEN)
   {
@@ -1061,14 +1063,15 @@ get_mm_leaf(PARAM *param, COND *conf_func, Field *field, KEY_PART *key_part,
       max_str[0]= min_str[0]=0;
 
     like_error= my_like_range(field->charset(),
-                                  res->ptr(),res->length(),
-				  wild_prefix,wild_one,wild_many,
-                                  field_length, 
-				  min_str+offset, max_str+offset,
-				  &min_length,&max_length);
-
+			      res->ptr(), res->length(),
+			      ((Item_func_like*)(param->cond))->escape
+			      wild_prefix, wild_one, wild_many,
+			      field_length, 
+			      min_str+offset, max_str+offset,
+			      &min_length, &max_length);
     if (like_error)				// Can't optimize with LIKE
       DBUG_RETURN(0);
+
     if (offset != maybe_null)			// Blob
     {
       int2store(min_str+maybe_null,min_length);
@@ -1717,6 +1720,8 @@ key_or(SEL_ARG *key1,SEL_ARG *key2)
 	  return 0;				// OOM
 	tmp->copy_max_to_min(&key);
 	tmp->increment_use_count(key1->use_count+1);
+	/* Increment key count as it may be used for next loop */
+	key.increment_use_count(1);
 	new_arg->next_key_part=key_or(tmp->next_key_part,key.next_key_part);
 	key1=key1->insert(new_arg);
 	break;
@@ -2789,15 +2794,17 @@ int QUICK_SELECT_DESC::get_next()
 			      ((range->flag & NEAR_MAX) ?
 			       HA_READ_BEFORE_KEY : HA_READ_PREFIX_LAST_OR_PREV));
 #else
-      /* Heikki changed Sept 11, 2002: since InnoDB does not store the cursor
-	 position if READ_KEY_EXACT is used to a primary key with all
-	 key columns specified, we must use below HA_READ_KEY_OR_NEXT,
-	 so that InnoDB stores the cursor position and is able to move
-	 the cursor one step backward after the search. */
-
-      /* Note: even if max_key is only a prefix, HA_READ_AFTER_KEY will
-       * do the right thing - go past all keys which match the prefix */
-
+      /*
+	Heikki changed Sept 11, 2002: since InnoDB does not store the cursor
+	position if READ_KEY_EXACT is used to a primary key with all
+	key columns specified, we must use below HA_READ_KEY_OR_NEXT,
+	so that InnoDB stores the cursor position and is able to move
+	the cursor one step backward after the search.
+      */
+      /*
+	Note: even if max_key is only a prefix, HA_READ_AFTER_KEY will
+	do the right thing - go past all keys which match the prefix
+      */
       result=file->index_read(record, (byte*) range->max_key,
 			      range->max_length,
 			      ((range->flag & NEAR_MAX) ?

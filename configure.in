@@ -346,7 +346,7 @@ AC_SUBST(CXXFLAGS)
 AC_SUBST(LD)
 AC_SUBST(INSTALL_SCRIPT)
 
-export CC CFLAGS LD LDFLAGS
+export CC CXX CFLAGS LD LDFLAGS AR
 
 if test "$GXX" = "yes"
 then
@@ -1051,7 +1051,7 @@ case $SYSTEM_TYPE in
       echo "Using --with-named-thread=-lpthread"
       with_named_thread="-lpthread"
     fi
-    CXXFLAGS="-D_BOOL"
+    CXXFLAGS="$CXXFLAGS -D_BOOL"
     ;;
     *aix4.3*)
       echo "Adding defines for AIX"
@@ -1830,7 +1830,7 @@ AC_CHECK_FUNCS(alarm bmove \
  sigset sigthreadmask pthread_sigmask pthread_setprio pthread_setprio_np \
  pthread_setschedparam pthread_attr_setprio pthread_attr_setschedparam \
  pthread_attr_create pthread_getsequence_np pthread_attr_setstacksize \
- pthread_attr_getstacksize \
+ pthread_attr_getstacksize pthread_key_delete \
  pthread_condattr_create rwlock_init pthread_rwlock_rdlock \
  fsync fdatasync fchmod getpass getpassphrase initgroups mlockall)
 
