@@ -1291,7 +1291,6 @@ public:
     return depended_from ? OUTER_REF_TABLE_BIT : (*ref)->used_tables(); 
   }
   void set_result_field(Field *field)	{ result_field= field; }
-  Field *get_tmp_table_field() { return result_field; }
   bool is_result_field() { return 1; }
   void save_in_result_field(bool no_conversions)
   {

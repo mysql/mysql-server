@@ -523,7 +523,7 @@ int ha_heap::create(const char *name, TABLE *table_arg,
       }
       if (field->flags & AUTO_INCREMENT_FLAG &&
           table_arg->found_next_number_field &&
-          key == table_arg->next_number_index)
+          key == share->next_number_index)
       {
         /*
           Store key number and type for found auto_increment key

@@ -1386,6 +1386,7 @@ JOIN::exec()
 	{
 	  DBUG_VOID_RETURN;
 	}
+	curr_join->group_list= 0;
       }
       
       thd->proc_info="Copying to group table";
