@@ -80,16 +80,17 @@ class TC_LOG_DUMMY: public TC_LOG // use it to disable the logging
   void unlog(ulong cookie, my_xid xid)  { }
 };
 
+#ifdef HAVE_MMAP
 class TC_LOG_MMAP: public TC_LOG
 {
-  private:
-
+  public:                // only to keep Sun Forte on sol9x86 happy
   typedef enum {
     POOL,                 // page is in pool
     ERROR,                // last sync failed
     DIRTY                 // new xids added since last sync
   } PAGE_STATE;
 
+  private:
   typedef struct st_page {
     struct st_page *next; // page a linked in a fifo queue
     my_xid *start, *end;  // usable area of a page
@@ -103,7 +104,8 @@ class TC_LOG_MMAP: public TC_LOG
 
   char logname[FN_REFLEN];
   File fd;
-  uint file_length, npages, inited;
+  my_off_t file_length;
+  uint npages, inited;
   uchar *data;
   struct st_page *pages, *syncing, *active, *pool, *pool_last;
   /*
@@ -128,6 +130,9 @@ class TC_LOG_MMAP: public TC_LOG
   int sync();
   int overflow();
 };
+#else
+#define TC_LOG_MMAP TC_LOG_DUMMY
+#endif
 
 extern TC_LOG *tc_log;
 extern TC_LOG_MMAP tc_log_mmap;

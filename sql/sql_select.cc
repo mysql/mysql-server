@@ -7217,8 +7217,9 @@ simplify_joins(JOIN *join, List<TABLE_LIST> *join_list, COND *conds, bool top)
         if (conds)
         {
           conds= and_conds(conds, table->on_expr);
-          if (!conds->fixed)
-            conds->fix_fields(join->thd, 0, &conds);
+          /* conds is always a new item as both cond and on_expr existed */
+          DBUG_ASSERT(!conds->fixed);
+          conds->fix_fields(join->thd, 0, &conds);
         }
         else
           conds= table->on_expr; 
