@@ -19779,7 +19779,7 @@ die Tabelle nur mit einem weiteren @code{myisamchk}-Befehl gesperrt werden.
 @end table
 
 
-@node Prüfoptionen für myisamchk, Reparaturoptionen für myisamchk, Allgemeine Optionen für myisamchk, Tabellenwartung
+@node Prufoptionen für myisamchk, Reparaturoptionen für myisamchk, Allgemeine Optionen für myisamchk, Tabellenwartung
 @subsubsection Prüfoptionen für @code{myisamchk}
 
 @cindex Prüfoptionen, myisamchk
