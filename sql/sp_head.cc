@@ -537,6 +537,7 @@ sp_head::restore_lex(THD *thd)
   DBUG_ENTER("sp_head::restore_lex");
   LEX *sublex= thd->lex;
   LEX *oldlex= (LEX *)m_lex.pop();
+  SELECT_LEX *sl;
 
   if (! oldlex)
     return;			// Nothing to restore
@@ -544,7 +545,7 @@ sp_head::restore_lex(THD *thd)
   // Update some state in the old one first
   oldlex->ptr= sublex->ptr;
   oldlex->next_state= sublex->next_state;
-  for (SELECT_LEX *sl= sublex->all_selects_list ;
+  for (sl= sublex->all_selects_list ;
        sl ;
        sl= sl->next_select_in_list())
   {
@@ -584,7 +585,7 @@ sp_head::restore_lex(THD *thd)
   // QQ ...or just open tables in thd->open_tables?
   //    This is not entirerly clear at the moment, but for now, we collect
   //    tables here.
-  for (SELECT_LEX *sl= sublex.all_selects_list ;
+  for (sl= sublex.all_selects_list ;
        sl ;
        sl= sl->next_select())
   {
