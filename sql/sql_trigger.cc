@@ -4,7 +4,8 @@
 #include "parse_file.h"
 
 static const LEX_STRING triggers_file_type= {(char *)"TRIGGERS", 8};
-static const char * const triggers_file_ext= ".TRG";
+
+const char * const triggers_file_ext= ".TRG";
 
 /*
   Table of .TRG file field descriptors.
