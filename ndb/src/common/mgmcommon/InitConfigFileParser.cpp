@@ -22,7 +22,7 @@
 #include <NdbOut.hpp>
 #include "ConfigInfo.hpp"
 
-const int MAX_LINE_LENGTH = 120;  // Max length of line of text in config file
+const int MAX_LINE_LENGTH = 1024;  // Max length of line of text in config file
 static void trim(char *);
 
 static void require(bool v) { if(!v) abort();}
