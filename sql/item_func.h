@@ -171,9 +171,22 @@ class Item_num_op :public Item_func
   bool is_null() { (void) val(); return null_value; }
   Field *tmp_table_field(TABLE *t_arg)
   {
-    if (!t_arg) return result_field;
-    return args[0]->result_type() == INT_RESULT ? ((max_length > 11) ?  (Field *)new Field_longlong(max_length,maybe_null,name, t_arg,unsigned_flag) :  (Field *)new Field_long(max_length,maybe_null,name, t_arg,unsigned_flag))  : (Field *) new Field_double(max_length, maybe_null, name,t_arg,decimals);
-  }  
+    Field *res;
+    if (!t_arg)
+      return result_field;
+    if (args[0]->result_type() == INT_RESULT)
+    {
+      if (max_length > 11)
+	res= new Field_longlong(max_length, maybe_null, name, t_arg,
+				unsigned_flag);
+      else
+	res= new Field_long(max_length, maybe_null, name, t_arg,
+			    unsigned_flag);
+    }
+    else
+      res= new Field_double(max_length, maybe_null, name, t_arg, decimals);
+    return res;
+  }
 };
 
 

@@ -21,6 +21,7 @@
 #include "mysql_priv.h"
 #include "sql_select.h"
 #include <hash.h>
+#include <thr_alarm.h>
 
 /* Intern key cache variables */
 extern "C" pthread_mutex_t THR_LOCK_keycache;
@@ -239,6 +240,17 @@ Open streams:  %10lu\n",
 	 (ulong) cached_tables(),
 	 (ulong) my_file_opened,
 	 (ulong) my_stream_opened);
+
+  ALARM_INFO alarm_info;
+  thr_alarm_info(&alarm_info);
+  printf("\nAlarm status:\n\
+Active alarms:   %u\n\
+Max used alarms: %u\n\
+Next alarm time: %lu\n",
+	 alarm_info.active_alarms,
+	 alarm_info.max_used_alarms,
+	 alarm_info.next_alarm_time);
+
   fflush(stdout);
   if (thd)
     thd->proc_info="malloc";
