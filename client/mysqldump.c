@@ -108,6 +108,8 @@ static uint opt_protocol= 0;
 static char *default_charset= (char*) MYSQL_UNIVERSAL_CLIENT_CHARSET;
 static CHARSET_INFO *charset_info= &my_charset_latin1;
 const char *default_dbug_option="d:t:o,/tmp/mysqldump.trace";
+/* do we met VIEWs during tables scaning */
+my_bool was_views= 0;
 
 const char *compatible_mode_names[]=
 {
@@ -367,6 +369,8 @@ static int dump_databases(char **);
 static int dump_all_databases();
 static char *quote_name(const char *name, char *buff, my_bool force);
 static const char *check_if_ignore_table(const char *table_name);
+static my_bool getViewStructure(char *table, char* db);
+static my_bool dump_all_views_in_db(char *database);
 
 #include <help_start.h>
 
@@ -1035,6 +1039,7 @@ static uint getTableStructure(char *table, char* db)
     {
       /* Make an sql-file, if path was given iow. option -T was given */
       char buff[20+FN_REFLEN];
+      MYSQL_FIELD *field;
 
       sprintf(buff,"show create table %s", result_table);
       if (mysql_query_with_error_report(sock, 0, buff))
@@ -1068,8 +1073,16 @@ static uint getTableStructure(char *table, char* db)
 	check_io(sql_file);
       }
 
-      tableRes=mysql_store_result(sock);
-      row=mysql_fetch_row(tableRes);
+      tableRes= mysql_store_result(sock);
+      field= mysql_fetch_field_direct(tableRes, 0);
+      if (strcmp(field->name, "View") == 0)
+      {
+        if (verbose)
+          fprintf(stderr, "-- It's a view, skipped\n");
+        was_views= 1;
+        DBUG_RETURN(0);
+      }
+      row= mysql_fetch_row(tableRes);
       fprintf(sql_file, "%s;\n", row[1]);
       check_io(sql_file);
       mysql_free_result(tableRes);
@@ -1213,6 +1226,14 @@ static uint getTableStructure(char *table, char* db)
       sprintf(buff,"show keys from %s", result_table);
       if (mysql_query_with_error_report(sock, &tableRes, buff))
       {
+        if (mysql_errno(sock) == ER_WRONG_OBJECT)
+        {
+          /* it is VIEW */
+          fputs("\t\t<options Comment=\"view\" />\n", sql_file);
+          goto continue_xml;
+        }
+        fprintf(stderr, "%s: Can't get keys for table %s (%s)\n",
+		my_progname, result_table, mysql_error(sock));
         if (path)
 	  my_fclose(sql_file, MYF(MY_WME));
         safe_exit(EX_MYSQLERR);
@@ -1316,6 +1337,7 @@ static uint getTableStructure(char *table, char* db)
         }
         mysql_free_result(tableRes);		/* Is always safe to free */
       }
+continue_xml:
       if (!opt_xml)
 	fputs(";\n", sql_file);
       else
@@ -1845,6 +1867,21 @@ static int dump_all_databases()
     if (dump_all_tables_in_db(row[0]))
       result=1;
   }
+  if (was_views)
+  {
+    if (mysql_query(sock, "SHOW DATABASES") ||
+        !(tableres = mysql_store_result(sock)))
+    {
+      my_printf_error(0, "Error: Couldn't execute 'SHOW DATABASES': %s",
+                      MYF(0), mysql_error(sock));
+      return 1;
+    }
+    while ((row = mysql_fetch_row(tableres)))
+    {
+      if (dump_all_views_in_db(row[0]))
+        result=1;
+    }
+  }
   return result;
 }
 /* dump_all_databases */
@@ -1853,10 +1890,19 @@ static int dump_all_databases()
 static int dump_databases(char **db_names)
 {
   int result=0;
-  for ( ; *db_names ; db_names++)
+  char **db;
+  for (db= db_names ; *db ; db++)
   {
-    if (dump_all_tables_in_db(*db_names))
+    if (dump_all_tables_in_db(*db))
       result=1;
+  }
+  if (!result && was_views)
+  {
+    for (db= db_names ; *db ; db++)
+    {
+      if (dump_all_views_in_db(*db))
+        result=1;
+    }
   }
   return result;
 } /* dump_databases */
@@ -1965,11 +2011,64 @@ static int dump_all_tables_in_db(char *database)
   return 0;
 } /* dump_all_tables_in_db */
 
+/*
+   dump structure of views of database
 
+   SYNOPSIS
+     dump_all_views_in_db()
+     database  database name
+
+  RETURN
+    0 OK
+    1 ERROR
+*/
+
+static my_bool dump_all_views_in_db(char *database)
+{
+  char *table;
+  uint numrows;
+  char table_buff[NAME_LEN*2+3];
+
+  if (init_dumping(database))
+    return 1;
+  if (opt_xml)
+    print_xml_tag1(md_result_file, "", "database name=", database, "\n");
+  if (lock_tables)
+  {
+    DYNAMIC_STRING query;
+    init_dynamic_string(&query, "LOCK TABLES ", 256, 1024);
+    for (numrows= 0 ; (table= getTableName(1)); numrows++)
+    {
+      dynstr_append(&query, quote_name(table, table_buff, 1));
+      dynstr_append(&query, " READ /*!32311 LOCAL */,");
+    }
+    if (numrows && mysql_real_query(sock, query.str, query.length-1))
+      DBerror(sock, "when using LOCK TABLES");
+            /* We shall continue here, if --force was given */
+    dynstr_free(&query);
+  }
+  if (flush_logs)
+  {
+    if (mysql_refresh(sock, REFRESH_LOG))
+      DBerror(sock, "when doing refresh");
+           /* We shall continue here, if --force was given */
+  }
+  while ((table= getTableName(0)))
+     getViewStructure(table, database);
+  if (opt_xml)
+  {
+    fputs("</database>\n", md_result_file);
+    check_io(md_result_file);
+  }
+  if (lock_tables)
+    mysql_query(sock,"UNLOCK TABLES");
+  return 0;
+} /* dump_all_tables_in_db */
 
 static int dump_selected_tables(char *db, char **table_names, int tables)
 {
   uint numrows;
+  int i;
   char table_buff[NAME_LEN*+3];
 
   if (init_dumping(db))
@@ -1977,7 +2076,6 @@ static int dump_selected_tables(char *db, char **table_names, int tables)
   if (lock_tables)
   {
     DYNAMIC_STRING query;
-    int i;
 
     init_dynamic_string(&query, "LOCK TABLES ", 256, 1024);
     for (i=0 ; i < tables ; i++)
@@ -1998,11 +2096,16 @@ static int dump_selected_tables(char *db, char **table_names, int tables)
   }
   if (opt_xml)
     print_xml_tag1(md_result_file, "", "database name=", db, "\n");
-  for (; tables > 0 ; tables-- , table_names++)
+  for (i=0 ; i < tables ; i++)
   {
-    numrows = getTableStructure(*table_names, db);
+    numrows = getTableStructure(table_names[i], db);
     if (!dFlag && numrows > 0)
-      dumpTable(numrows, *table_names);
+      dumpTable(numrows, table_names[i]);
+  }
+  if (was_views)
+  {
+    for (i=0 ; i < tables ; i++)
+      getViewStructure(table_names[i], db);
   }
   if (opt_xml)
   {
@@ -2197,11 +2300,110 @@ static const char *check_if_ignore_table(const char *table_name)
       mysql_free_result(res);
     return 0;					/* assume table is ok */
   }
-  if (strcmp(row[1], (result= "MRG_MyISAM")) &&
-      strcmp(row[1], (result= "MRG_ISAM")))
-    result= 0;
+  if (!(row[1]))
+      result= "VIEW";
+  else
+  {
+    if (strcmp(row[1], (result= "MRG_MyISAM")) &&
+        strcmp(row[1], (result= "MRG_ISAM")))
+      result= 0;
+  }
   mysql_free_result(res);  
   return result;
+}
+
+
+/*
+  Getting VIEW structure
+
+  SYNOPSIS
+    getViewStructure()
+    table   view name
+    db      db name
+
+  RETURN
+    0 OK
+    1 ERROR
+*/
+
+static my_bool getViewStructure(char *table, char* db)
+{
+  MYSQL_RES  *tableRes;
+  MYSQL_ROW  row;
+  MYSQL_FIELD *field;
+  char	     *result_table, *opt_quoted_table;
+  char	     table_buff[NAME_LEN*2+3];
+  char	     table_buff2[NAME_LEN*2+3];
+  char       buff[20+FN_REFLEN];
+  FILE       *sql_file = md_result_file;
+  DBUG_ENTER("getViewStructure");
+
+  if (tFlag)
+    DBUG_RETURN(0);
+
+  if (verbose)
+    fprintf(stderr, "-- Retrieving view structure for table %s...\n", table);
+
+  sprintf(insert_pat,"SET OPTION SQL_QUOTE_SHOW_CREATE=%d",
+	  (opt_quoted || opt_keywords));
+  result_table=     quote_name(table, table_buff, 1);
+  opt_quoted_table= quote_name(table, table_buff2, 0);
+
+  sprintf(buff,"show create table %s", result_table);
+  if (mysql_query(sock, buff))
+  {
+    fprintf(stderr, "%s: Can't get CREATE TABLE for view %s (%s)\n",
+            my_progname, result_table, mysql_error(sock));
+    safe_exit(EX_MYSQLERR);
+    DBUG_RETURN(0);
+  }
+
+  if (path)
+  {
+    char filename[FN_REFLEN], tmp_path[FN_REFLEN];
+    convert_dirname(tmp_path,path,NullS);
+    sql_file= my_fopen(fn_format(filename, table, tmp_path, ".sql", 4),
+                       O_WRONLY, MYF(MY_WME));
+    if (!sql_file)			/* If file couldn't be opened */
+    {
+      safe_exit(EX_MYSQLERR);
+      DBUG_RETURN(1);
+    }
+    write_header(sql_file, db);
+  }
+  tableRes= mysql_store_result(sock);
+  field= mysql_fetch_field_direct(tableRes, 0);
+  if (strcmp(field->name, "View") != 0)
+  {
+    if (verbose)
+      fprintf(stderr, "-- It's base table, skipped\n");
+    DBUG_RETURN(0);
+  }
+
+  if (!opt_xml && opt_comments)
+  {
+    fprintf(sql_file, "\n--\n-- View structure for view %s\n--\n\n",
+            result_table);
+    check_io(sql_file);
+  }
+  if (opt_drop)
+  {
+    fprintf(sql_file, "DROP VIEW IF EXISTS %s;\n", opt_quoted_table);
+    check_io(sql_file);
+  }
+
+  row= mysql_fetch_row(tableRes);
+  fprintf(sql_file, "%s;\n", row[1]);
+  check_io(sql_file);
+  mysql_free_result(tableRes);
+
+  if (sql_file != md_result_file)
+  {
+    fputs("\n", sql_file);
+    write_footer(sql_file);
+    my_fclose(sql_file, MYF(MY_WME));
+  }
+  DBUG_RETURN(0);
 }
 
 
