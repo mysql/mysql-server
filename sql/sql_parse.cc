@@ -3158,10 +3158,12 @@ bool add_field_to_list(char *field_name, enum_field_types type,
     break;
   case FIELD_TYPE_DECIMAL:
     if (!length)
-      if (new_field->length= new_field->decimals)
+    {
+      if ((new_field->length= new_field->decimals))
         new_field->length++;
       else
-        new_field->length=10;                   // Default length for DECIMAL
+        new_field->length= 10;                  // Default length for DECIMAL
+    }
     if (new_field->length < MAX_FIELD_WIDTH)	// Skip wrong argument
     {
       new_field->length+=sign_len;
