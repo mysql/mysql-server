@@ -31,3 +31,4 @@
 #define mysql_rpl_probe(mysql) 0
 #undef HAVE_SMEM
 #undef _CUSTOMCONFIG_
+

@@ -568,7 +568,7 @@ Item_in_subselect::single_value_transformer(JOIN *join,
     */
     expr= new Item_ref((Item**)optimizer->get_cache(), 
 		       (char *)"<no matter>",
-		       (char *)"<left expr>");
+		       (char *)in_left_expr_name);
 
     unit->dependent= 1;
   }
@@ -744,7 +744,7 @@ Item_in_subselect::row_value_transformer(JOIN *join,
       Item_bool_func2::eq_creator(new Item_ref((*optimizer->get_cache())->
 					       addr(i), 
 					       (char *)"<no matter>",
-					       (char *)"<left expr>"),
+					       (char *)in_left_expr_name),
 				  func);
     item= and_items(item, func);
   }
@@ -876,6 +876,7 @@ static Item_result set_row(SELECT_LEX *select_lex, Item * item,
       if (!(row[i]= Item_cache::get_cache(res_type)))
 	return STRING_RESULT; // we should return something
       row[i]->set_len_n_dec(sel_item->max_length, sel_item->decimals);
+      row[i]->collation.set(sel_item->collation);
     }
   }
   if (select_lex->item_list.elements > 1)
@@ -887,6 +888,7 @@ void subselect_single_select_engine::fix_length_and_dec(Item_cache **row)
 {
   DBUG_ASSERT(row || select_lex->item_list.elements==1);
   res_type= set_row(select_lex, item, row, &maybe_null);
+  item->collation.set(row[0]->collation);
   if (cols() != 1)
     maybe_null= 0;
 }

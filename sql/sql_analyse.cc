@@ -326,9 +326,9 @@ void field_str::add()
     if (length > max_length)
       max_length = length;
 
-    if (sortcmp(res, &min_arg,item->charset()) < 0)
+    if (sortcmp(res, &min_arg,item->collation.collation) < 0)
       min_arg.copy(*res);
-    if (sortcmp(res, &max_arg,item->charset()) > 0)
+    if (sortcmp(res, &max_arg,item->collation.collation) > 0)
       max_arg.copy(*res);
   }
 
@@ -736,7 +736,7 @@ void field_str::get_opt_type(String *answer, ha_rows total_rows)
   {
     if (must_be_blob)
     {
-      if (item->charset() == &my_charset_bin)
+      if (item->collation.collation == &my_charset_bin)
 	answer->append("TINYBLOB", 8);
       else
 	answer->append("TINYTEXT", 8);
@@ -754,21 +754,21 @@ void field_str::get_opt_type(String *answer, ha_rows total_rows)
   }
   else if (max_length < (1L << 16))
   {
-    if (item->charset() == &my_charset_bin)
+    if (item->collation.collation == &my_charset_bin)
       answer->append("BLOB", 4);
     else
       answer->append("TEXT", 4);
   }
   else if (max_length < (1L << 24))
   {
-    if (item->charset() == &my_charset_bin)
+    if (item->collation.collation == &my_charset_bin)
       answer->append("MEDIUMBLOB", 10);
     else
       answer->append("MEDIUMTEXT", 10);
   }
   else
   {
-    if (item->charset() == &my_charset_bin)
+    if (item->collation.collation == &my_charset_bin)
       answer->append("LONGBLOB", 8);
     else
       answer->append("LONGTEXT", 8);
