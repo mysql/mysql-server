@@ -393,7 +393,7 @@ check_trx_exists(
 {
 	trx_t*	trx;
 
-	ut_a(thd == current_thd);
+	DBUG_ASSERT(thd == current_thd);
 
 	trx = (trx_t*) thd->transaction.all.innobase_tid;
 
@@ -1807,7 +1807,7 @@ build_template(
 	ibool		fetch_all_in_key	= FALSE;
 	ulint		i;
 
-	ut_a(templ_type != ROW_MYSQL_REC_FIELDS || thd == current_thd);
+	DBUG_ASSERT(templ_type != ROW_MYSQL_REC_FIELDS || thd == current_thd);
 
 	clust_index = dict_table_get_first_index_noninline(prebuilt->table);
 
@@ -1978,8 +1978,8 @@ ha_innobase::write_row(
 
   	DBUG_ENTER("ha_innobase::write_row");
 
-	ut_a(prebuilt->trx ==
-		(trx_t*) current_thd->transaction.all.innobase_tid);
+	DBUG_ASSERT(prebuilt->trx ==
+		    (trx_t*) current_thd->transaction.all.innobase_tid);
 
   	statistic_increment(ha_write_count, &LOCK_status);
 
@@ -2351,8 +2351,8 @@ ha_innobase::update_row(
 
 	DBUG_ENTER("ha_innobase::update_row");
 
-	ut_a(prebuilt->trx ==
-		(trx_t*) current_thd->transaction.all.innobase_tid);
+	DBUG_ASSERT(prebuilt->trx ==
+		    (trx_t*) current_thd->transaction.all.innobase_tid);
 
         if (table->time_stamp) {
                 update_timestamp(new_row + table->time_stamp - 1);
@@ -2413,8 +2413,8 @@ ha_innobase::delete_row(
 
 	DBUG_ENTER("ha_innobase::delete_row");
 
-	ut_a(prebuilt->trx ==
-		(trx_t*) current_thd->transaction.all.innobase_tid);
+	DBUG_ASSERT(prebuilt->trx ==
+		    (trx_t*) current_thd->transaction.all.innobase_tid);
 
 	if (last_query_id != user_thd->query_id) {
 	        prebuilt->sql_stat_start = TRUE;
@@ -2591,8 +2591,8 @@ ha_innobase::index_read(
 
   	DBUG_ENTER("index_read");
 
-	ut_a(prebuilt->trx ==
-		(trx_t*) current_thd->transaction.all.innobase_tid);
+	DBUG_ASSERT(prebuilt->trx ==
+		    (trx_t*) current_thd->transaction.all.innobase_tid);
 
   	statistic_increment(ha_read_key_count, &LOCK_status);
 
@@ -2705,12 +2705,9 @@ ha_innobase::change_active_index(
   statistic_increment(ha_read_key_count, &LOCK_status);
   DBUG_ENTER("change_active_index");
 
+  DBUG_ASSERT(user_thd == current_thd);
   ut_a(prebuilt->trx ==
-		(trx_t*) current_thd->transaction.all.innobase_tid);
-  ut_a(user_thd == current_thd);
-
-  ut_a(prebuilt->trx ==
-	     (trx_t*) current_thd->transaction.all.innobase_tid);
+       (trx_t*) user_thd->transaction.all.innobase_tid);
 
   active_index = keynr;
 
@@ -2795,8 +2792,8 @@ ha_innobase::general_fetch(
 
 	DBUG_ENTER("general_fetch");
 
-	ut_a(prebuilt->trx ==
-	     (trx_t*) current_thd->transaction.all.innobase_tid);
+	DBUG_ASSERT(prebuilt->trx ==
+		    (trx_t*) current_thd->transaction.all.innobase_tid);
 
 	innodb_srv_conc_enter_innodb(prebuilt->trx);
 
@@ -3029,8 +3026,8 @@ ha_innobase::rnd_pos(
 
 	statistic_increment(ha_read_rnd_count, &LOCK_status);
 
-	ut_a(prebuilt->trx ==
-		(trx_t*) current_thd->transaction.all.innobase_tid);
+	DBUG_ASSERT(prebuilt->trx ==
+		    (trx_t*) current_thd->transaction.all.innobase_tid);
 
 	if (prebuilt->clust_index_was_generated) {
 		/* No primary key was defined for the table and we
@@ -3078,8 +3075,8 @@ ha_innobase::position(
 	row_prebuilt_t*	prebuilt = (row_prebuilt_t*) innobase_prebuilt;
 	uint		len;
 
-	ut_a(prebuilt->trx ==
-		(trx_t*) current_thd->transaction.all.innobase_tid);
+	DBUG_ASSERT(prebuilt->trx ==
+		    (trx_t*) current_thd->transaction.all.innobase_tid);
 
 	if (prebuilt->clust_index_was_generated) {
 		/* No primary key was defined for the table and we
@@ -3361,7 +3358,7 @@ ha_innobase::create(
 	/* Get the transaction associated with the current thd, or create one
 	if not yet created */
 	
-	parent_trx = check_trx_exists(current_thd);
+	parent_trx = check_trx_exists(thd);
 
 	/* In case MySQL calls this in the middle of a SELECT query, release
 	possible adaptive hash latch to avoid deadlocks of threads */
@@ -3474,10 +3471,10 @@ ha_innobase::create(
       		}
   	}
 
-	if (current_thd->query != NULL) {
+	if (thd->query != NULL) {
   	
 		error = row_table_add_foreign_constraints(trx,
-					current_thd->query, norm_name);
+					thd->query, norm_name);
 
 		error = convert_error_code_to_mysql(error, NULL);
 
@@ -3534,13 +3531,13 @@ ha_innobase::delete_table(
 	trx_t*	parent_trx;
 	trx_t*	trx;
 	char	norm_name[1000];
-
+	THD	*thd= current_thd;
   	DBUG_ENTER("ha_innobase::delete_table");
 
 	/* Get the transaction associated with the current thd, or create one
 	if not yet created */
 	
-	parent_trx = check_trx_exists(current_thd);
+	parent_trx = check_trx_exists(thd);
 
 	/* In case MySQL calls this in the middle of a SELECT query, release
 	possible adaptive hash latch to avoid deadlocks of threads */
@@ -3555,8 +3552,8 @@ ha_innobase::delete_table(
 
 	trx = trx_allocate_for_mysql();
 
-	trx->mysql_thd = current_thd;
-	trx->mysql_query_str = &((*current_thd).query);
+	trx->mysql_thd = thd;
+	trx->mysql_query_str = &(thd->query);
 
 	name_len = strlen(name);
 
@@ -3609,11 +3606,12 @@ innobase_drop_database(
 	char*	ptr;
 	int	error;
 	char	namebuf[10000];
+	THD	*thd= current_thd;
 
 	/* Get the transaction associated with the current thd, or create one
 	if not yet created */
 	
-	parent_trx = check_trx_exists(current_thd);
+	parent_trx = check_trx_exists(thd);
 
 	/* In case MySQL calls this in the middle of a SELECT query, release
 	possible adaptive hash latch to avoid deadlocks of threads */
@@ -3636,8 +3634,8 @@ innobase_drop_database(
 	my_casedn_str(system_charset_info, namebuf);
 #endif
 	trx = trx_allocate_for_mysql();
-	trx->mysql_thd = current_thd;
-	trx->mysql_query_str = &((*current_thd).query);
+	trx->mysql_thd = thd;
+	trx->mysql_query_str = &(thd->query);
 
   	error = row_drop_database_for_mysql(namebuf, trx);
 
@@ -3677,13 +3675,14 @@ ha_innobase::rename_table(
 	trx_t*	trx;
 	char	norm_from[1000];
 	char	norm_to[1000];
+	THD	*thd= current_thd;
 
   	DBUG_ENTER("ha_innobase::rename_table");
 
 	/* Get the transaction associated with the current thd, or create one
 	if not yet created */
 	
-	parent_trx = check_trx_exists(current_thd);
+	parent_trx = check_trx_exists(thd);
 
 	/* In case MySQL calls this in the middle of a SELECT query, release
 	possible adaptive hash latch to avoid deadlocks of threads */
@@ -3697,8 +3696,8 @@ ha_innobase::rename_table(
 	}
 
 	trx = trx_allocate_for_mysql();
-	trx->mysql_thd = current_thd;
-	trx->mysql_query_str = &((*current_thd).query);
+	trx->mysql_thd = thd;
+	trx->mysql_query_str = &(thd->query);
 
 	name_len1 = strlen(from);
 	name_len2 = strlen(to);
