@@ -465,7 +465,7 @@ void ha_ndbcluster::release_metadata()
 NdbScanOperation::LockMode get_ndb_lock_type(enum thr_lock_type type)
 {
   return (type == TL_WRITE_ALLOW_WRITE) ? 
-    NdbScanOperation::LM_Exclusive : NdbScanOperation::LM_Read;
+    NdbScanOperation::LM_Exclusive : NdbScanOperation::LM_CommittedRead;
 }
 
 static const ulong index_type_flags[]=
