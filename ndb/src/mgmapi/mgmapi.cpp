@@ -2184,8 +2184,8 @@ ndb_mgm_convert_to_transporter(NdbMgmHandle handle)
 {
   NDB_SOCKET_TYPE s;
 
-  CHECK_HANDLE(handle, -1);
-  CHECK_CONNECTED(handle, -2);
+  CHECK_HANDLE(handle, NDB_INVALID_SOCKET);
+  CHECK_CONNECTED(handle, NDB_INVALID_SOCKET);
 
   handle->connected= 0;   // we pretend we're disconnected
   s= handle->socket;
