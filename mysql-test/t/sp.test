@@ -852,6 +852,8 @@ end|
 call ifac(20)|
 select * from fac|
 drop table fac|
+--replace_column 4 '0000-00-00 00:00:00' 5 '0000-00-00 00:00:00'
+show function status like '%f%'|
 drop procedure ifac|
 drop function fac|
 
@@ -928,6 +930,9 @@ begin
     end;
   end while;
 end|
+show create procedure opp|
+--replace_column 4 '0000-00-00 00:00:00' 5 '0000-00-00 00:00:00'
+show procedure status like '%p%'|
 
 # This isn't the fastest way in the world to compute prime numbers, so
 # don't be too ambitious. ;-)
@@ -938,6 +943,19 @@ select * from primes where i=45 or i=100 or i=199|
 drop table primes|
 drop procedure opp|
 drop procedure ip|
+
+# Comment & suid
+create procedure bar(x char(16), y int)
+ comment "111111111111" SECURITY INVOKER
+ insert into test.t1 values (x, y)|
+--replace_column 4 '0000-00-00 00:00:00' 5 '0000-00-00 00:00:00'
+show procedure status like 'bar'|
+alter procedure bar name bar2 comment "2222222222" SECURITY DEFINER|
+alter procedure bar2 name bar comment "3333333333"|
+alter procedure bar|
+show create procedure bar|
+--replace_column 4 '0000-00-00 00:00:00' 5 '0000-00-00 00:00:00'
+show procedure status like 'bar'|
 
 delimiter ;|
 drop table t1;

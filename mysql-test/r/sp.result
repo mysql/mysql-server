@@ -734,6 +734,9 @@ n	f
 19	121645100408832000
 20	2432902008176640000
 drop table fac;
+show function status like '%f%';
+Name	Type	Creator	Modified	Created	Suid	Comment
+fac	function	root@localhost	0000-00-00 00:00:00	0000-00-00 00:00:00	Y	
 drop procedure ifac;
 drop function fac;
 drop table if exists primes;
@@ -794,6 +797,38 @@ set p = p+2;
 end;
 end while;
 end;
+show create procedure opp;
+Procedure	Create Procedure
+opp	create procedure opp(n bigint unsigned, out pp bool)
+begin
+declare r double;
+declare b, s bigint unsigned default 0;
+set r = sqrt(n);
+again:
+loop
+if s = 45 then
+set b = b+200, s = 0;
+else
+begin
+declare p bigint unsigned;
+select t.p into p from test.primes t where t.i = s;
+if b+p > r then
+set pp = 1;
+leave again;
+end if;
+if mod(n, b+p) = 0 then
+set pp = 0;
+leave again;
+end if;
+set s = s+1;
+end;
+end if;
+end loop;
+end
+show procedure status like '%p%';
+Name	Type	Creator	Modified	Created	Suid	Comment
+ip	procedure	root@localhost	0000-00-00 00:00:00	0000-00-00 00:00:00	Y	
+opp	procedure	root@localhost	0000-00-00 00:00:00	0000-00-00 00:00:00	Y	
 call ip(200);
 select * from primes where i=45 or i=100 or i=199;
 i	p
@@ -803,5 +838,22 @@ i	p
 drop table primes;
 drop procedure opp;
 drop procedure ip;
+create procedure bar(x char(16), y int)
+comment "111111111111" SECURITY INVOKER
+insert into test.t1 values (x, y);
+show procedure status like 'bar';
+Name	Type	Creator	Modified	Created	Suid	Comment
+bar	procedure	root@localhost	0000-00-00 00:00:00	0000-00-00 00:00:00	N	111111111111
+alter procedure bar name bar2 comment "2222222222" SECURITY DEFINER;
+alter procedure bar2 name bar comment "3333333333";
+alter procedure bar;
+show create procedure bar;
+Procedure	Create Procedure
+bar	create procedure bar(x char(16), y int)
+comment "111111111111" SECURITY INVOKER
+insert into test.t1 values (x, y)
+show procedure status like 'bar';
+Name	Type	Creator	Modified	Created	Suid	Comment
+bar	procedure	root@localhost	0000-00-00 00:00:00	0000-00-00 00:00:00	Y	3333333333
 drop table t1;
 drop table t2;

@@ -66,7 +66,21 @@ public:
 
   // Initialize after we have reset mem_root
   void
-  init(LEX_STRING *name, LEX *lex, LEX_STRING *comment, char suid);
+  init(LEX_STRING *name, LEX *lex);
+
+  void
+  init_options(LEX_STRING *comment, enum suid_behaviour suid)
+  {
+    m_comment.length= 0;
+    m_comment.str= 0;
+    if (comment)
+    {
+      m_comment.length= comment->length;
+      m_comment.str= comment->str;
+    }
+    m_suid= suid ? suid - 1 : 1;
+  }
+
 
   int
   create(THD *thd);
@@ -82,6 +96,12 @@ public:
 
   int
   execute_procedure(THD *thd, List<Item> *args);
+
+  int
+  show_create_procedure(THD *thd);
+
+  int
+  show_create_function(THD *thd);
 
   inline void
   add_instr(sp_instr *i)
