@@ -650,7 +650,7 @@ void my_print_help(const struct my_option *options)
   {
     if (optp->id < 256)
     {
-      printf("  -%c, ", optp->id);
+      printf("  -%c%s", optp->id, strlen(optp->name) ? ", " : "  ");
       col= 6;
     }
     else
@@ -658,29 +658,32 @@ void my_print_help(const struct my_option *options)
       printf("  ");
       col= 2;
     }
-    printf("--%s", optp->name);
-    col+= 2 + strlen(optp->name);
-    if (optp->var_type == GET_STR || optp->var_type == GET_STR_ALLOC)
+    if (strlen(optp->name))
     {
-      printf("%s=name%s ", optp->arg_type == OPT_ARG ? "[" : "",
-	     optp->arg_type == OPT_ARG ? "]" : "");
-      col+= (optp->arg_type == OPT_ARG) ? 8 : 6;
-    }
-    else if (optp->var_type == GET_NO_ARG || optp->var_type == GET_BOOL)
-    {
-      putchar(' ');
-      col++;
-    }
-    else
-    {
-      printf("%s=#%s ", optp->arg_type == OPT_ARG ? "[" : "",
-	     optp->arg_type == OPT_ARG ? "]" : "");
-      col+= (optp->arg_type == OPT_ARG) ? 5 : 3;
-    }
-    if (col > name_space && optp->comment && *optp->comment)
-    {
-      putchar('\n');
-      col= 0;
+      printf("--%s", optp->name);
+      col+= 2 + strlen(optp->name);
+      if (optp->var_type == GET_STR || optp->var_type == GET_STR_ALLOC)
+      {
+	printf("%s=name%s ", optp->arg_type == OPT_ARG ? "[" : "",
+	       optp->arg_type == OPT_ARG ? "]" : "");
+	col+= (optp->arg_type == OPT_ARG) ? 8 : 6;
+      }
+      else if (optp->var_type == GET_NO_ARG || optp->var_type == GET_BOOL)
+      {
+	putchar(' ');
+	col++;
+      }
+      else
+      {
+	printf("%s=#%s ", optp->arg_type == OPT_ARG ? "[" : "",
+	       optp->arg_type == OPT_ARG ? "]" : "");
+	col+= (optp->arg_type == OPT_ARG) ? 5 : 3;
+      }
+      if (col > name_space && optp->comment && *optp->comment)
+      {
+	putchar('\n');
+	col= 0;
+      }
     }
     for (; col < name_space; col++)
       putchar(' ');

@@ -11,18 +11,32 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-/* Written by Sergei A. Golubchik, who has a shared copyright to this code */
+/* Written by Sergei A. Golubchik, who has a shared copyright to this code
+   added support for long options (my_getopt) 22.5.2002 by Jani Tolonen */
 
 #include "ftdefs.h"
 #include "ft_eval.h"
 #include <stdarg.h>
-#include <getopt.h>
+#include <my_getopt.h>
 
 static void print_error(int exit_code, const char *fmt,...);
 static void get_options(int argc, char *argv[]);
 static int create_record(char *pos, FILE *file);
+static void usage();
 
-int main(int argc,char *argv[])
+static struct my_option my_long_options[] =
+{
+  {"", 's', "", 0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"", 'q', "", 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"", 'S', "", 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"", '#', "", 0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"", 'V', "", 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"", '?', "", 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"", 'h', "", 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
+  { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
+};
+
+int main(int argc, char *argv[])
 {
   MI_INFO *file;
   int i,j;
@@ -81,7 +95,9 @@ int main(int argc,char *argv[])
   if (!silent)
     printf("- Reading rows with key\n");
   for(i=1;create_record(record,qf);i++) {
-    FT_DOCLIST *result; double w; int t,err;
+    FT_DOCLIST *result;
+    double w;
+    int t, err;
 
     result=ft_nlq_init_search(file,0,blob_record,(uint) strlen(blob_record),1);
     if(!result) {
@@ -94,7 +110,7 @@ int main(int argc,char *argv[])
       t=uint2korr(read_record);
       w=ft_nlq_get_relevance(result);
       printf("%d %.*s %f\n",i,t,read_record+2,w);
-    }
+      }
     if(err != HA_ERR_END_OF_FILE) {
       printf("ft_read_next %d failed with errno %3d\n",j,my_errno);
       goto err;
@@ -106,57 +122,67 @@ int main(int argc,char *argv[])
   my_end(MY_CHECK_ERROR);
 
   return (0);
-err:
+
+ err:
   printf("got error: %3d when using myisam-database\n",my_errno);
-  return 1;			/* skipp warning */
+  return 1;			/* skip warning */
 
 }
 
-static void get_options(int argc,char *argv[])
+
+static my_bool
+get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
+	       char *argument)
 {
-  int c;
-  char *options=(char*) "Vh#:qSs:";
+  switch(optid) {
+  case 's':
+    if(stopwordlist && stopwordlist!=ft_precompiled_stopwords) break;
+    {
+      FILE *f; char s[HA_FT_MAXLEN]; int i=0,n=SWL_INIT;
 
-  while ((c=getopt(argc,argv,options)) != -1)
-  {
-    switch(c) {
-    case 's':
-      if(stopwordlist && stopwordlist!=ft_precompiled_stopwords) break;
-      {
-	FILE *f; char s[HA_FT_MAXLEN]; int i=0,n=SWL_INIT;
-
-	if(!(stopwordlist=(const char**) malloc(n*sizeof(char *))))
-	  print_error(1,"malloc(%d)",n*sizeof(char *));
-	if(!(f=fopen(optarg,"r")))
-	  print_error(1,"fopen(%s)",optarg);
-	while(!feof(f)) {
-	  if(!(fgets(s,HA_FT_MAXLEN,f)))
-	    print_error(1,"fgets(s,%d,%s)",HA_FT_MAXLEN,optarg);
-	  if(!(stopwordlist[i++]=strdup(s)))
-	    print_error(1,"strdup(%s)",s);
-	  if(i>=n) {
-	    n+=SWL_PLUS;
-	    if(!(stopwordlist=(const char**) realloc((char*) stopwordlist,n*sizeof(char *))))
-	      print_error(1,"realloc(%d)",n*sizeof(char *));
-	  }
+      if(!(stopwordlist=(const char**) malloc(n*sizeof(char *))))
+	print_error(1,"malloc(%d)",n*sizeof(char *));
+      if(!(f=fopen(argument,"r")))
+	print_error(1,"fopen(%s)",argument);
+      while(!feof(f)) {
+	if(!(fgets(s,HA_FT_MAXLEN,f)))
+	  print_error(1,"fgets(s,%d,%s)",HA_FT_MAXLEN,argument);
+	if(!(stopwordlist[i++]=strdup(s)))
+	  print_error(1,"strdup(%s)",s);
+	if(i>=n) {
+	  n+=SWL_PLUS;
+	  if(!(stopwordlist=(const char**) realloc((char*) stopwordlist,n*sizeof(char *))))
+	    print_error(1,"realloc(%d)",n*sizeof(char *));
 	}
-	fclose(f);
-	stopwordlist[i]=NULL;
-	break;
       }
-    case 'q': silent=1; break;
-    case 'S': if(stopwordlist==ft_precompiled_stopwords) stopwordlist=NULL; break;
-    case '#':
-      DEBUGGER_ON;
-      DBUG_PUSH (optarg);
+      fclose(f);
+      stopwordlist[i]=NULL;
       break;
-    case 'V':
-    case '?':
-    case 'h':
-    default:
-      printf("%s -[%s] <d_file> <q_file>\n", argv[0], options);
-      exit(0);
     }
+  case 'q': silent=1; break;
+  case 'S': if(stopwordlist==ft_precompiled_stopwords) stopwordlist=NULL; break;
+  case '#':
+    DEBUGGER_ON;
+    DBUG_PUSH (argument);
+    break;
+  case 'V':
+  case '?':
+  case 'h':
+    usage();
+    exit(1);
+  }
+  return 0;
+}
+
+static void get_options(int argc, char *argv[])
+{
+  int ho_error;
+
+  if ((ho_error=handle_options(&argc, &argv, my_long_options, get_one_option)))
+  {
+    printf("%s: handle_options() failed with error %d\n", my_progname,
+	   ho_error);
+    exit(1);
   }
   if(!(d_file=argv[optind])) print_error(1,"No d_file");
   if(!(df=fopen(d_file,"r")))
@@ -205,4 +231,12 @@ static void print_error(int exit_code, const char *fmt,...)
   fflush(stderr);
   va_end(args);
   exit(exit_code);
+}
+
+
+static void usage()
+{
+  printf("%s [options]\n", my_progname);
+  my_print_help(my_long_options);
+  my_print_variables(my_long_options);
 }
