@@ -1329,6 +1329,9 @@ add_ft_keys(DYNAMIC_ARRAY *keyuse_array,
 {
   Item_func_match *cond_func=NULL;
 
+  if (!cond)
+    return;
+
   if (cond->type() == Item::FUNC_ITEM)
   {
     Item_func *func=(Item_func *)cond,
