@@ -619,8 +619,10 @@ sub example
 #   - Speed penalty
 #   - Risk of table/data corruption
 #   - Data synchronising problems between the running servers
-#   - Heavily disk bound
+#   - Heavily media (disk) bound
 #   - Relies on the system (external) file locking
+#   - Is not applicable with all table types. (Such as InnoDB)
+#     Trying so will end up with undesirable results.
 #
 # 4.TCP/IP Port
 #
@@ -637,6 +639,23 @@ sub example
 #   You can pass the user=... option inside [mysqld#] groups. This
 #   can be very handy in some cases, but then you need to run $my_progname
 #   as UNIX root.
+#
+# 7.A Start-up Manage Script for $my_progname
+#
+#   In the recent MySQL distributions you can find a file called
+#   mysqld_multi.server.sh. It is a wrapper for $my_progname. This can
+#   be used to start and stop multiple servers during boot and shutdown.
+#
+#   You can place the file in /etc/init.d/mysqld_multi.server.sh and
+#   make the needed symbolic links to it from various run levels
+#   (as per Linux/Unix standard). You may even replace the
+#   /etc/init.d/mysql.server script with it.
+#
+#   Before using, you must create a my.cnf file either in /etc/my.cnf
+#   or /root/.my.cnf and add the [mysqld_multi] and [mysqld#] groups.
+#
+#   The script can be found from support-files/mysqld_multi.server.sh
+#   in MySQL distribution. (Verify the script before using)
 #
 
 [mysqld_multi]
