@@ -302,7 +302,6 @@ typedef struct st_mysql_res {
 #endif
 
 
-
 typedef struct st_mysql_manager
 {
   NET net;
