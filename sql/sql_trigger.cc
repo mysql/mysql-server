@@ -2,6 +2,7 @@
 #include "sp_head.h"
 #include "sql_trigger.h"
 #include "parse_file.h"
+#include "sql_acl.h"
 
 
 static const LEX_STRING triggers_file_type= {(char *)"TRIGGERS", 8};
@@ -54,7 +55,13 @@ int mysql_create_or_drop_trigger(THD *thd, TABLE_LIST *tables, bool create)
   if (open_and_lock_tables(thd, tables))
     DBUG_RETURN(-1);
 
-  // TODO: We should check if user has TRIGGER privilege for table here.
+  /*
+    TODO: We should check if user has TRIGGER privilege for table here.
+    Now we just require SUPER privilege for creating/dropping because
+    we don't have proper privilege checking for triggers in place yet.
+  */
+  if (check_global_access(thd, SUPER_ACL))
+    DBUG_RETURN(1);
 
   table= tables->table;
 
