@@ -38725,7 +38725,7 @@ your @code{FULLTEXT} indexes.
 @end example
 line in @code{myisam/ftdefs.h} to
 @example
-#define GWS_IN_USE GWS_IDF
+#define GWS_IN_USE GWS_FREQ
 @end example
 and recompile @strong{MySQL}.
 There is no need to rebuild the indexes though.
