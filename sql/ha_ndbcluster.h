@@ -210,7 +210,6 @@ class ha_ndbcluster: public handler
 
   NdbConnection *m_active_trans;
   NdbResultSet *m_active_cursor;
-  Ndb *m_ndb;
   void *m_table;
   void *m_table_info;
   char m_dbname[FN_HEADLEN];
@@ -246,6 +245,7 @@ class ha_ndbcluster: public handler
   bool m_transaction_on;
   bool m_use_local_query_cache;
 
+  Ndb *get_ndb();
   void set_rec_per_key();
   void records_update();
   void no_uncommitted_rows_execute_failure();
