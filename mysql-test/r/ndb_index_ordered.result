@@ -275,6 +275,115 @@ a	b	c
 1	1	1
 4	4	NULL
 drop table t1;
+create table t1 (
+a int unsigned primary key,
+b int unsigned,
+c char(10),
+key bc (b, c)
+) engine=ndb;
+insert into t1 values(1,1,'a'),(2,2,'b'),(3,3,'c'),(4,4,'d'),(5,5,'e');
+insert into t1 select a*7,10*b,'f' from t1;
+insert into t1 select a*13,10*b,'g' from t1;
+insert into t1 select a*17,10*b,'h' from t1;
+insert into t1 select a*19,10*b,'i' from t1;
+insert into t1 select a*23,10*b,'j' from t1;
+insert into t1 select a*29,10*b,'k' from t1;
+select b, c from t1 where b <= 10 and c <'f' order by b, c;
+b	c
+1	a
+2	b
+3	c
+4	d
+5	e
+select b, c from t1 where b <= 10 and c <'f' order by b desc, c desc;
+b	c
+5	e
+4	d
+3	c
+2	b
+1	a
+select b, c from t1 where b=4000 and c<'k' order by b, c;
+b	c
+4000	h
+4000	i
+4000	i
+4000	i
+4000	j
+4000	j
+4000	j
+4000	j
+4000	j
+4000	j
+select b, c from t1 where b=4000 and c<'k' order by b desc, c desc;
+b	c
+4000	j
+4000	j
+4000	j
+4000	j
+4000	j
+4000	j
+4000	i
+4000	i
+4000	i
+4000	h
+select b, c from t1 where 1000<=b and b<=100000 and c<'j' order by b, c;
+b	c
+1000	h
+1000	i
+1000	i
+1000	i
+2000	h
+2000	i
+2000	i
+2000	i
+3000	h
+3000	i
+3000	i
+3000	i
+4000	h
+4000	i
+4000	i
+4000	i
+5000	h
+5000	i
+5000	i
+5000	i
+10000	i
+20000	i
+30000	i
+40000	i
+50000	i
+select b, c from t1 where 1000<=b and b<=100000 and c<'j' order by b desc, c desc;
+b	c
+50000	i
+40000	i
+30000	i
+20000	i
+10000	i
+5000	i
+5000	i
+5000	i
+5000	h
+4000	i
+4000	i
+4000	i
+4000	h
+3000	i
+3000	i
+3000	i
+3000	h
+2000	i
+2000	i
+2000	i
+2000	h
+1000	i
+1000	i
+1000	i
+1000	h
+select min(b), max(b) from t1;
+min(b)	max(b)
+1	5000000
+drop table t1;
 CREATE TABLE test1 (
 SubscrID int(11) NOT NULL auto_increment,
 UsrID int(11) NOT NULL default '0',

@@ -25,9 +25,9 @@ char ft_boolean_syntax[]="+ -><()~*:\"\"&|";
 
 const HA_KEYSEG ft_keysegs[FT_SEGS]={
 {
-    HA_KEYTYPE_VARTEXT,               /* type */
+    HA_KEYTYPE_VARTEXT2,              /* type */
     63,                               /* language (will be overwritten) */
-    0, 0, 0,                          /* null_bit, bit_start, bit_end */
+    0, 2, 0,                          /* null_bit, bit_start, bit_end */
     HA_VAR_LENGTH_PART | HA_PACK_KEY,      /* flag */
     HA_FT_MAXBYTELEN,                 /* length */
     HA_FT_WLEN,                       /* start */

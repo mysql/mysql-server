@@ -80,7 +80,7 @@ public:
     FIELD_CAST_TIMESTAMP, FIELD_CAST_YEAR, FIELD_CAST_DATE, FIELD_CAST_NEWDATE,
     FIELD_CAST_TIME, FIELD_CAST_DATETIME,
     FIELD_CAST_STRING, FIELD_CAST_VARSTRING, FIELD_CAST_BLOB,
-    FIELD_CAST_GEOM, FIELD_CAST_ENUM, FIELD_CAST_SET
+    FIELD_CAST_GEOM, FIELD_CAST_ENUM, FIELD_CAST_SET, FIELD_CAST_BIT
   };
 
   utype		unireg_check;
@@ -113,9 +113,14 @@ public:
      This trickery is used to decrease a number of malloc calls.
   */
   virtual String *val_str(String*,String *)=0;
+  String *Field::val_int_as_str(String *val_buffer, my_bool unsigned_flag);
   virtual Item_result result_type () const=0;
   virtual Item_result cmp_type () const { return result_type(); }
-  bool eq(Field *field) { return ptr == field->ptr && null_ptr == field->null_ptr; }
+  bool eq(Field *field)
+  {
+    return (ptr == field->ptr && null_ptr == field->null_ptr &&
+            null_bit == field->null_bit);
+  }
   virtual bool eq_def(Field *field);
   virtual uint32 pack_length() const { return (uint32) field_length; }
   virtual void reset(void) { bzero(ptr,pack_length()); }
@@ -139,10 +144,9 @@ public:
   virtual int cmp(const char *,const char *)=0;
   virtual int cmp_binary(const char *a,const char *b, uint32 max_length=~0L)
   { return memcmp(a,b,pack_length()); }
-  virtual int cmp_offset(uint row_offset)
-  { return memcmp(ptr,ptr+row_offset,pack_length()); }
-  virtual int cmp_binary_offset(uint row_offset)
-  { return memcmp(ptr,ptr+row_offset,pack_length()); }
+  int cmp_offset(uint row_offset) { return cmp(ptr,ptr+row_offset); }
+  int cmp_binary_offset(uint row_offset)
+  { return cmp_binary(ptr, ptr+row_offset); };
   virtual int key_cmp(const byte *a,const byte *b)
   { return cmp((char*) a,(char*) b); }
   virtual int key_cmp(const byte *str, uint length)
@@ -185,7 +189,10 @@ public:
   virtual bool can_be_compared_as_longlong() const { return FALSE; }
   virtual void free() {}
   virtual Field *new_field(MEM_ROOT *root, struct st_table *new_table);
-  inline void move_field(char *ptr_arg,uchar *null_ptr_arg,uchar null_bit_arg)
+  virtual Field *new_key_field(MEM_ROOT *root, struct st_table *new_table,
+                               char *new_ptr, uchar *new_null_ptr,
+                               uint new_null_bit);
+  virtual void move_field(char *ptr_arg,uchar *null_ptr_arg,uchar null_bit_arg)
   {
     ptr=ptr_arg; null_ptr=null_ptr_arg; null_bit=null_bit_arg;
   }
@@ -211,6 +218,15 @@ public:
       ptr-=row_offset;
       return tmp;
     }
+
+  inline String *val_str(String *str, char *new_ptr)
+  {
+    char *old_ptr= ptr;
+    ptr= new_ptr;
+    val_str(str);
+    ptr= old_ptr;
+    return str;
+  }
   virtual bool send_binary(Protocol *protocol);
   virtual char *pack(char* to, const char *from, uint max_length=~(uint) 0)
   {
@@ -926,26 +942,31 @@ public:
 
 class Field_varstring :public Field_str {
 public:
-  Field_varstring(char *ptr_arg, uint32 len_arg,uchar *null_ptr_arg,
+  /* Store number of bytes used to store length (1 or 2) */
+  uint32 length_bytes;
+  Field_varstring(char *ptr_arg,
+                  uint32 len_arg, uint length_bytes_arg,
+                  uchar *null_ptr_arg,
 		  uchar null_bit_arg,
 		  enum utype unireg_check_arg, const char *field_name_arg,
 		  struct st_table *table_arg, CHARSET_INFO *cs)
     :Field_str(ptr_arg, len_arg, null_ptr_arg, null_bit_arg,
-	       unireg_check_arg, field_name_arg, table_arg, cs)
+	       unireg_check_arg, field_name_arg, table_arg, cs),
+    length_bytes(length_bytes_arg)
   {}
   Field_varstring(uint32 len_arg,bool maybe_null_arg,
 		  const char *field_name_arg,
 		  struct st_table *table_arg, CHARSET_INFO *cs)
     :Field_str((char*) 0,len_arg, maybe_null_arg ? (uchar*) "": 0,0,
-	       NONE, field_name_arg, table_arg, cs)
+	       NONE, field_name_arg, table_arg, cs),
+    length_bytes(len_arg < 256 ? 1 :2)
   {}
 
   enum_field_types type() const { return MYSQL_TYPE_VARCHAR; }
-  enum ha_base_keytype key_type() const
-    { return binary() ? HA_KEYTYPE_VARBINARY : HA_KEYTYPE_VARTEXT; }
+  enum ha_base_keytype key_type() const;
   bool zero_pack() const { return 0; }
-  void reset(void) { bzero(ptr,field_length+2); }
-  uint32 pack_length() const { return (uint32) field_length+2; }
+  void reset(void) { bzero(ptr,field_length+length_bytes); }
+  uint32 pack_length() const { return (uint32) field_length+length_bytes; }
   uint32 key_length() const { return (uint32) field_length; }
   int  store(const char *to,uint length,CHARSET_INFO *charset);
   int  store(longlong nr);
@@ -960,12 +981,13 @@ public:
   void sql_type(String &str) const;
   char *pack(char *to, const char *from, uint max_length=~(uint) 0);
   char *pack_key(char *to, const char *from, uint max_length);
+  char *pack_key_from_key_image(char* to, const char *from, uint max_length);
   const char *unpack(char* to, const char *from);
+  const char *unpack_key(char* to, const char *from, uint max_length);
   int pack_cmp(const char *a, const char *b, uint key_length,
                my_bool insert_or_update);
   int pack_cmp(const char *b, uint key_length,my_bool insert_or_update);
   int cmp_binary(const char *a,const char *b, uint32 max_length=~0L);
-  int cmp_binary_offset(uint row_offset);
   int key_cmp(const byte *,const byte*);
   int key_cmp(const byte *str, uint length);
   uint packed_col_length(const char *to, uint length);
@@ -975,6 +997,10 @@ public:
   bool has_charset(void) const
   { return charset() == &my_charset_bin ? FALSE : TRUE; }
   field_cast_enum field_cast_type() { return FIELD_CAST_VARSTRING; }
+  Field *new_field(MEM_ROOT *root, struct st_table *new_table);
+  Field *new_key_field(MEM_ROOT *root, struct st_table *new_table,
+                       char *new_ptr, uchar *new_null_ptr,
+                       uint new_null_bit);
 };
 
 
@@ -997,7 +1023,7 @@ public:
   }
   enum_field_types type() const { return FIELD_TYPE_BLOB;}
   enum ha_base_keytype key_type() const
-    { return binary() ? HA_KEYTYPE_VARBINARY : HA_KEYTYPE_VARTEXT; }
+    { return binary() ? HA_KEYTYPE_VARBINARY2 : HA_KEYTYPE_VARTEXT2; }
   int  store(const char *to,uint length,CHARSET_INFO *charset);
   int  store(double nr);
   int  store(longlong nr);
@@ -1006,9 +1032,7 @@ public:
   String *val_str(String*,String *);
   int cmp(const char *,const char*);
   int cmp(const char *a, uint32 a_length, const char *b, uint32 b_length);
-  int cmp_offset(uint offset);
   int cmp_binary(const char *a,const char *b, uint32 max_length=~0L);
-  int cmp_binary_offset(uint row_offset);
   int key_cmp(const byte *,const byte*);
   int key_cmp(const byte *str, uint length);
   uint32 key_length() const { return 0; }
@@ -1055,9 +1079,9 @@ public:
     return 0;
   }
   char *pack(char *to, const char *from, uint max_length= ~(uint) 0);
-  const char *unpack(char *to, const char *from);
   char *pack_key(char *to, const char *from, uint max_length);
   char *pack_key_from_key_image(char* to, const char *from, uint max_length);
+  const char *unpack(char *to, const char *from);
   const char *unpack_key(char* to, const char *from, uint max_length);
   int pack_cmp(const char *a, const char *b, uint key_length,
                my_bool insert_or_update);
@@ -1092,7 +1116,7 @@ public:
      :Field_blob(len_arg, maybe_null_arg, field_name_arg,
                  table_arg, &my_charset_bin)
   { geom_type= geom_type_arg; }
-  enum ha_base_keytype key_type() const { return HA_KEYTYPE_VARBINARY; }
+  enum ha_base_keytype key_type() const { return HA_KEYTYPE_VARBINARY2; }
   enum_field_types type() const { return FIELD_TYPE_GEOMETRY; }
   void sql_type(String &str) const;
   int  store(const char *to, uint length, CHARSET_INFO *charset);
@@ -1173,6 +1197,52 @@ public:
 };
 
 
+class Field_bit :public Field {
+public:
+  uchar *bit_ptr;     // position in record where 'uneven' bits store
+  uchar bit_ofs;      // offset to 'uneven' high bits
+  uint bit_len;       // number of 'uneven' high bits
+  Field_bit(char *ptr_arg, uint32 len_arg, uchar *null_ptr_arg,
+            uchar null_bit_arg, uchar *bit_ptr_arg, uchar bit_ofs_arg,
+            enum utype unireg_check_arg, const char *field_name_arg,
+            struct st_table *table_arg);
+  enum_field_types type() const { return FIELD_TYPE_BIT; }
+  enum ha_base_keytype key_type() const { return HA_KEYTYPE_BIT; }
+  uint32 key_length() const { return (uint32) field_length + (bit_len > 0); }
+  uint32 max_length() { return (uint32) field_length + (bit_len > 0); }
+  uint size_of() const { return sizeof(*this); }
+  Item_result result_type () const { return INT_RESULT; }
+  void make_field(Send_field *);
+  void reset(void) { bzero(ptr, field_length); }
+  int store(const char *to, uint length, CHARSET_INFO *charset);
+  int store(double nr);
+  int store(longlong nr);
+  double val_real(void);
+  longlong val_int(void);
+  String *val_str(String*, String *);
+  int cmp(const char *a, const char *b)
+  { return cmp_binary(a, b); }
+  int key_cmp(const byte *a, const byte *b)
+  { return cmp_binary(a, b); }
+  int key_cmp(const byte *str, uint length);
+  int cmp_offset(uint row_offset);
+  void get_key_image(char *buff, uint length, imagetype type);
+  void set_key_image(char *buff, uint length)
+  { Field_bit::store(buff, length, &my_charset_bin); }
+  void sort_string(char *buff, uint length)
+  { get_key_image(buff, length, itRAW); }
+  uint32 pack_length() const 
+  { return (uint32) field_length + (bit_len > 0); }
+  void sql_type(String &str) const;
+  field_cast_enum field_cast_type() { return FIELD_CAST_BIT; }
+  char *pack(char *to, const char *from, uint max_length=~(uint) 0);
+  const char *unpack(char* to, const char *from);
+  Field *new_key_field(MEM_ROOT *root, struct st_table *new_table,
+                       char *new_ptr, uchar *new_null_ptr,
+                       uint new_null_bit);
+};
+
+  
 /*
   Create field class for CREATE TABLE
 */

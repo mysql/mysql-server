@@ -425,7 +425,8 @@ int _mi_prefix_search(MI_INFO *info, register MI_KEYDEF *keyinfo, uchar *page,
         if (len < cmplen)
         {
 	  if ((keyinfo->seg->type != HA_KEYTYPE_TEXT &&
-	       keyinfo->seg->type != HA_KEYTYPE_VARTEXT))
+	       keyinfo->seg->type != HA_KEYTYPE_VARTEXT1 &&
+               keyinfo->seg->type != HA_KEYTYPE_VARTEXT2))
 	    my_flag= -1;
 	  else
 	  {
@@ -1371,7 +1372,8 @@ _mi_calc_var_pack_key_length(MI_KEYDEF *keyinfo,uint nod_flag,uchar *next_key,
   sort_order=0;
   if ((keyinfo->flag & HA_FULLTEXT) &&
       ((keyseg->type == HA_KEYTYPE_TEXT) ||
-       (keyseg->type == HA_KEYTYPE_VARTEXT)) &&
+       (keyseg->type == HA_KEYTYPE_VARTEXT1) ||
+       (keyseg->type == HA_KEYTYPE_VARTEXT2)) &&
       !use_strnxfrm(keyseg->charset))
     sort_order=keyseg->charset->sort_order;
 

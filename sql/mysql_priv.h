@@ -1027,6 +1027,8 @@ extern uint opt_crash_binlog_innodb;
 extern char *shared_memory_base_name, *mysqld_unix_port;
 extern bool opt_enable_shared_memory;
 extern char *default_tz_name;
+extern my_bool opt_large_pages;
+extern uint opt_large_page_size;
 
 extern MYSQL_LOG mysql_log,mysql_slow_log,mysql_bin_log;
 extern FILE *bootstrap_file;
@@ -1070,6 +1072,7 @@ extern struct my_option my_long_options[];
 
 extern SHOW_COMP_OPTION have_isam, have_innodb, have_berkeley_db;
 extern SHOW_COMP_OPTION have_example_db, have_archive_db, have_csv_db;
+extern SHOW_COMP_OPTION have_federated_db;
 extern SHOW_COMP_OPTION have_raid, have_openssl, have_symlink;
 extern SHOW_COMP_OPTION have_query_cache, have_berkeley_db, have_innodb;
 extern SHOW_COMP_OPTION have_geometry, have_rtree_keys;

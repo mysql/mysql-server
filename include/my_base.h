@@ -181,8 +181,13 @@ enum ha_base_keytype {
   HA_KEYTYPE_INT24=12,
   HA_KEYTYPE_UINT24=13,
   HA_KEYTYPE_INT8=14,
-  HA_KEYTYPE_VARTEXT=15,		/* Key is sorted as letters */
-  HA_KEYTYPE_VARBINARY=16		/* Key is sorted as unsigned chars */
+  /* Varchar (0-255 bytes) with length packed with 1 byte */
+  HA_KEYTYPE_VARTEXT1=15,               /* Key is sorted as letters */
+  HA_KEYTYPE_VARBINARY1=16,             /* Key is sorted as unsigned chars */
+  /* Varchar (0-65535 bytes) with length packed with 2 bytes */
+  HA_KEYTYPE_VARTEXT2=17,		/* Key is sorted as letters */
+  HA_KEYTYPE_VARBINARY2=18,		/* Key is sorted as unsigned chars */
+  HA_KEYTYPE_BIT=19
 };
 
 #define HA_MAX_KEYTYPE	31		/* Must be log2-1 */
@@ -232,6 +237,7 @@ enum ha_base_keytype {
   Only needed for internal temporary tables.
 */
 #define HA_END_SPACE_ARE_EQUAL	 512
+#define HA_BIT_PART		1024
 
 	/* optionbits for database */
 #define HA_OPTION_PACK_RECORD		1
@@ -389,5 +395,7 @@ typedef ulong		ha_rows;
 #else
 #define MAX_FILE_SIZE	LONGLONG_MAX
 #endif
+
+#define HA_VARCHAR_PACKLENGTH(field_length) ((field_length) < 256 ? 1 :2)
 
 #endif /* _my_base_h */
