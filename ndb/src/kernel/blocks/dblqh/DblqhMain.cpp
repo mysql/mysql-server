@@ -7056,10 +7056,7 @@ void Dblqh::continueScanNextReqLab(Signal* signal)
 
   // Update timer on tcConnectRecord
   tcConnectptr.p->tcTimer = cLqhTimeOutCount;
-
   init_acc_ptr_list(scanptr.p);
-  scanptr.p->m_curr_batch_size_rows = 0;
-  scanptr.p->m_curr_batch_size_bytes= 0;
   scanptr.p->scanFlag = NextScanReq::ZSCAN_NEXT;
   scanNextLoopLab(signal);
 }//Dblqh::continueScanNextReqLab()
@@ -7258,22 +7255,32 @@ void Dblqh::scanLockReleasedLab(Signal* signal)
   tcConnectptr.i = scanptr.p->scanTcrec;
   ptrCheckGuard(tcConnectptr, ctcConnectrecFileSize, tcConnectionrec);  
   releaseActiveFrag(signal);
+
   if (scanptr.p->scanReleaseCounter == scanptr.p->m_curr_batch_size_rows) {
     if ((scanptr.p->scanErrorCounter > 0) ||
         (scanptr.p->scanCompletedStatus == ZTRUE)) {
       jam();
+      scanptr.p->m_curr_batch_size_rows = 0;
+      scanptr.p->m_curr_batch_size_bytes = 0;
       closeScanLab(signal);
     } else if (scanptr.p->check_scan_batch_completed() &&
                scanptr.p->scanLockHold != ZTRUE) {
       jam();
       scanptr.p->scanState = ScanRecord::WAIT_SCAN_NEXTREQ;
       sendScanFragConf(signal, ZFALSE);
+    } else if (scanptr.p->m_last_row && !scanptr.p->scanLockHold) {
+      jam();
+      closeScanLab(signal);
+      return;
     } else {
       jam();
       /*
-      We came here after releasing locks after receiving SCAN_NEXTREQ from TC. We only
-      come here when scanHoldLock == ZTRUE
-      */
+       * We came here after releasing locks after 
+       * receiving SCAN_NEXTREQ from TC. We only come here 
+       * when scanHoldLock == ZTRUE
+       */
+      scanptr.p->m_curr_batch_size_rows = 0;
+      scanptr.p->m_curr_batch_size_bytes = 0;
       continueScanNextReqLab(signal);
     }//if
   } else if (scanptr.p->scanReleaseCounter < scanptr.p->m_curr_batch_size_rows) {
@@ -7358,25 +7365,6 @@ void
 Dblqh::init_acc_ptr_list(ScanRecord* scanP) 
 {
   scanP->scan_acc_index = 0;
-}
-
-inline
-void
-Dblqh::i_get_acc_ptr(ScanRecord* scanP, Uint32* &acc_ptr, Uint32 index)
-{
-  if (index == 0) {
-    acc_ptr= (Uint32*)&scanP->scan_acc_op_ptr[0];
-  } else {
-    Uint32 attr_buf_index, attr_buf_rec;
-    
-    AttrbufPtr regAttrPtr;
-    jam();
-    attr_buf_rec= (index + 31) / 32;
-    attr_buf_index= (index - 1) & 31;
-    regAttrPtr.i= scanP->scan_acc_op_ptr[attr_buf_rec];
-    ptrCheckGuard(regAttrPtr, cattrinbufFileSize, attrbuf);
-    acc_ptr= (Uint32*)&regAttrPtr.p->attrbuf[attr_buf_index];
-  }
 }
 
 Uint32
@@ -7902,6 +7890,13 @@ void Dblqh::nextScanConfScanLab(Signal* signal)
     /*************************************************************
      *       STOP THE SCAN PROCESS IF THIS HAS BEEN REQUESTED.
      ************************************************************ */    
+    if (!scanptr.p->scanLockHold)
+    {
+      jam();
+      closeScanLab(signal);
+      return;
+    }
+
     if (scanptr.p->scanCompletedStatus == ZTRUE) {
       if ((scanptr.p->scanLockHold == ZTRUE) && 
 	  (scanptr.p->m_curr_batch_size_rows > 0)) {
@@ -8390,8 +8385,6 @@ void Dblqh::tupScanCloseConfLab(Signal* signal)
 	 ScanFragRef::SignalLength, JBB);
   } else {
     jam();
-    scanptr.p->m_curr_batch_size_rows = 0;
-    scanptr.p->m_curr_batch_size_bytes= 0;
     sendScanFragConf(signal, ZSCAN_FRAG_CLOSED);
   }//if
   finishScanrec(signal);
@@ -8796,6 +8789,13 @@ void Dblqh::sendScanFragConf(Signal* signal, Uint32 scanCompleted)
   conf->total_len= total_len;
   sendSignal(tcConnectptr.p->clientBlockref, GSN_SCAN_FRAGCONF, 
              signal, ScanFragConf::SignalLength, JBB);
+  
+  if(!scanptr.p->scanLockHold)
+  {
+    jam();
+    scanptr.p->m_curr_batch_size_rows = 0;
+    scanptr.p->m_curr_batch_size_bytes= 0;
+  }
 }//Dblqh::sendScanFragConf()
 
 /* ######################################################################### */
