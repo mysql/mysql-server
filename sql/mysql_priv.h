@@ -858,7 +858,7 @@ extern ulong max_binlog_size, max_relay_log_size;
 extern ulong rpl_recovery_rank, thread_cache_size;
 extern ulong com_stat[(uint) SQLCOM_END], com_other, back_log;
 extern ulong specialflag, current_pid;
-extern ulong expire_logs_days;
+extern ulong expire_logs_days, sync_binlog_period, sync_binlog_counter;
 extern my_bool relay_log_purge;
 extern uint test_flags,select_errors,ha_open_options;
 extern uint protocol_version, mysqld_port, dropping_tables;
