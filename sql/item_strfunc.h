@@ -535,6 +535,7 @@ public:
 
 class Item_func_quote :public Item_str_func
 {
+  String tmp_value;
 public:
   Item_func_quote(Item *a) :Item_str_func(a) {}
   const char *func_name() const { return "quote"; }
