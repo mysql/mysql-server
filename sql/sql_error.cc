@@ -64,6 +64,7 @@ void MYSQL_ERROR::set_msg(THD *thd, const char *msg_arg)
   SYNOPSIS
     mysql_reset_errors()
     thd			Thread handle
+    force               Reset warnings even if it has been done before
 
   IMPLEMENTATION
     Don't reset warnings if this has already been called for this query.
@@ -71,14 +72,15 @@ void MYSQL_ERROR::set_msg(THD *thd, const char *msg_arg)
     in which case push_warnings() has already called this function.
 */  
 
-void mysql_reset_errors(THD *thd)
+void mysql_reset_errors(THD *thd, bool force)
 {
   DBUG_ENTER("mysql_reset_errors");
-  if (thd->query_id != thd->warn_id)
+  if (thd->query_id != thd->warn_id || force)
   {
     thd->warn_id= thd->query_id;
     free_root(&thd->warn_root,MYF(0));
     bzero((char*) thd->warn_count, sizeof(thd->warn_count));
+    if (force) thd->total_warn_count= 0;
     thd->warn_list.empty();
     thd->row_count= 1; // by default point to row 1
   }
