@@ -174,10 +174,12 @@ select a from t1 order by a;
 a
 16
 18
-master-bin.000001	79	Query	1	79	use `test`; BEGIN
-master-bin.000001	119	Query	1	79	use `test`; insert into t1 values(16)
-master-bin.000001	179	Query	1	79	use `test`; insert into t1 values(18)
-master-bin.000001	239	Query	1	239	use `test`; COMMIT
+show binlog events from 95;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	95	Query	1	#	use `test`; BEGIN
+master-bin.000001	157	Query	1	#	use `test`; insert into t1 values(16)
+master-bin.000001	239	Query	1	#	use `test`; insert into t1 values(18)
+master-bin.000001	321	Query	1	#	use `test`; COMMIT
 delete from t1;
 delete from t2;
 alter table t2 type=MyISAM;

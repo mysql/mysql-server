@@ -2045,8 +2045,8 @@ bool rm_temporary_table(enum db_type base, char *path)
 ******************************************************************************/
 
 /* Special Field pointers for find_field_in_tables returning */
-const Field *not_found_field= (Field*) 0x1;
-const Field *view_ref_found= (Field*) 0x2; 
+Field *not_found_field= (Field*) 0x1;
+Field *view_ref_found= (Field*) 0x2; 
 
 #define WRONG_GRANT (Field*) -1
 
@@ -2447,7 +2447,7 @@ find_field_in_tables(THD *thd, Item_ident *item, TABLE_LIST *tables,
 */
 
 /* Special Item pointer to serve as a return value from find_item_in_list(). */
-const Item **not_found_item= (const Item**) 0x1;
+Item **not_found_item= (Item**) 0x1;
 
 
 Item **
