@@ -222,6 +222,12 @@ buf_flush_write_block_low(
 	mach_write_to_8(block->frame + UNIV_PAGE_SIZE - FIL_PAGE_END_LSN,
 						block->newest_modification);
 
+	/* We overwrite the first 4 bytes of the end lsn field to store
+	a page checksum */
+
+	mach_write_to_4(block->frame + UNIV_PAGE_SIZE - FIL_PAGE_END_LSN,
+			buf_calc_page_checksum(block->frame));
+
 	fil_io(OS_FILE_WRITE | OS_AIO_SIMULATED_WAKE_LATER,
 		FALSE, block->space, block->offset, 0, UNIV_PAGE_SIZE,
 		 			(void*)block->frame, (void*)block);
