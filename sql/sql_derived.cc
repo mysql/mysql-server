@@ -23,7 +23,6 @@
 
 #include "mysql_priv.h"
 #include "sql_select.h"
-#include "sql_acl.h"
 
 static int mysql_derived(THD *thd, LEX *lex, SELECT_LEX_UNIT *s,
 			 TABLE_LIST *t);

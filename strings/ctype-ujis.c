@@ -8243,7 +8243,6 @@ my_jisx0212_uni_onechar(int code){
 }
 
 
-
 /*
   EUC-JP encoding subcomponents:
   [x00-x7F]			# ASCII/JIS-Roman (one-byte/character)  
@@ -8251,6 +8250,47 @@ my_jisx0212_uni_onechar(int code){
   [x8F][xA1-xFE][xA1-xFE]	# JIS X 0212-1990 (three bytes/char)  
   [xA1-xFE][xA1-xFE]		# JIS X 0208:1997 (two bytes/char)
 */
+
+static
+uint my_well_formed_len_ujis(CHARSET_INFO *cs __attribute__((unused)),
+                             const char *beg, const char *end, uint pos)
+{
+  const uchar *b= (uchar *) beg;
+  
+  for ( ; pos && b < (uchar*) end; pos--, b++)
+  {
+    char *chbeg;
+    uint ch= *b;
+    
+    if (ch <= 0x7F)                 /* one byte */
+      continue;
+    
+    chbeg= (char *) b++;
+    if (b >= (uchar *) end)         /* need more bytes */
+      return chbeg - beg;           /* unexpected EOL  */ 
+    
+    if (ch == 0x8E)                 /* [x8E][xA0-xDF] */
+    {
+      if (*b >= 0xA0 && *b <= 0xDF)
+        continue;
+      return chbeg - beg;           /* invalid sequence */
+    }
+    
+    if (ch == 0x8F)                 /* [x8F][xA1-xFE][xA1-xFE] */
+    {
+      ch= *b++;
+      if (b >= (uchar*) end)
+        return chbeg - beg;         /* unexpected EOL */
+    }
+    
+    if (ch >= 0xA1 && ch <= 0xFE &&
+        *b >= 0xA1 && *b <= 0xFE)   /* [xA1-xFE][xA1-xFE] */
+      continue;
+    return chbeg - beg;             /* invalid sequence */
+  }
+  return b - (uchar *) beg;
+}
+
 
 static
 uint my_numcells_eucjp(CHARSET_INFO *cs __attribute__((unused)),
@@ -8475,7 +8515,7 @@ static MY_CHARSET_HANDLER my_charset_handler=
     mbcharlen_ujis,
     my_numchars_mb,
     my_charpos_mb,
-    my_well_formed_len_mb,
+    my_well_formed_len_ujis,
     my_lengthsp_8bit,
     my_numcells_eucjp,
     my_mb_wc_euc_jp,	/* mb_wc       */
