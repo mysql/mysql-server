@@ -151,7 +151,7 @@ version see the relevant distribution.
 
 @detailmenu --- The Detailed Node Listing ---
 
-General Information about MySQL
+General Information About MySQL
 
 * What-is::                     What is @strong{MySQL}?
 * Manual-info::                 About this manual
@@ -960,7 +960,7 @@ Comments on porting to other systems
 @cindex Overview
 @cindex General Information
 @node Introduction, Questions, Top, Top
-@chapter General Information about MySQL
+@chapter General Information About MySQL
 
 @menu
 * What-is::                     What is @strong{MySQL}?
@@ -975,15 +975,15 @@ Comments on porting to other systems
 @end menu
 
 This is the @strong{MySQL} reference manual; it documents @strong{MySQL}
-version @value{mysql_version}. As @strong{MySQL} is work in progress,
+Version @value{mysql_version}. As @strong{MySQL} is work in progress,
 the manual gets updated frequently. There is a very good chance that
 this version is out of date, unless you are looking at it online. The
 most recent version of this manual is available at
 @uref{http://www.mysql.com/documentation/} in many different formats. If you
 have a hard time finding information in the manual, you can try the
-searchable PHP version at @uref{http://www.mysql.com/documentation/manual.php} .
+searchable PHP version at @uref{http://www.mysql.com/documentation/manual.php}.
 
-@strong{MySQL} is a very fast, multi-threaded, multi-user and robust SQL
+@strong{MySQL} is a very fast, multi-threaded, multi-user, and robust SQL
 (Structured Query Language) database server.
 
 @strong{MySQL} is free software. It is licensed with the @strong{GNU
@@ -1000,11 +1000,14 @@ The following list describes some useful sections of the manual:
 For a discussion of @strong{MySQL}'s capabilities, see @ref{Features}.
 
 @item
-For installation instructions, see @ref{Installing}. For tips on porting
-@strong{MySQL} to new architectures or operating systems, see @ref{Porting}.
+For installation instructions, see @ref{Installing}. 
 
 @item
-For information about upgrading from a 3.21 release, see
+For tips on porting @strong{MySQL} to new architectures or operating 
+systems, see @ref{Porting}.
+
+@item
+For information about upgrading from a Version 3.21 release, see
 @ref{Upgrading-from-3.21}.
 
 @item
@@ -1030,7 +1033,7 @@ For a list of all the contributors to this project, see @ref{Credits}.
 
 @strong{IMPORTANT:}
 
-Reports of errors (often called bugs), as well as questions and comments
+Reports of errors (often called bugs), as well as questions and comments,
 should be sent to the mailing list at @email{mysql@@lists.mysql.com}.
 @xref{Bug reports}.
 The @code{mysqlbug} script should be used to generate bug reports.
@@ -1050,7 +1053,7 @@ see @ref{General-SQL}. For books that focus more specifically on
 
 @cindex @strong{MySQL}, what it is
 @node What-is, Manual-info, Introduction, Introduction
-@section What is MySQL
+@section What Is MySQL
 
 @table @asis
 
@@ -1058,7 +1061,7 @@ see @ref{General-SQL}. For books that focus more specifically on
 
 A database is a structured collection of data. It may be anything from a
 simple shopping list to a picture gallery or the vast amounts of
-information in a corporate network. To add, access and process data
+information in a corporate network. To add, access, and process data
 stored in a computer database, you need a database management system
 such as @strong{MySQL}. Since computers are very good at handling large
 amounts of data, database management plays a central role in computing,
@@ -1073,7 +1076,7 @@ data from several tables on request. The SQL part of @strong{MySQL}
 stands for "Structured Query Language" - the most common standardized
 language used to access databases.
 
-@item @strong{MySQL} is Open Source Software
+@item @strong{MySQL} is Open Source Software.
 
 Open source means that it is possible for anyone to use and modify.
 Anybody can download @strong{MySQL} from the Internet and use it
@@ -1087,7 +1090,7 @@ us.
 
 @item Why use @strong{MySQL}?
 
-@strong{MySQL} is very fast, reliable and easy to use. If that is what
+@strong{MySQL} is very fast, reliable, and easy to use. If that is what
 you are looking for, you should give it a try. @strong{MySQL} also has a
 very practical set of features developed in very close cooperation with
 our users. You can find a performance comparison of @strong{MySQL}
@@ -1097,13 +1100,13 @@ to some other database managers on our benchmark page. @xref{Benchmarks}.
 much faster than existing solutions and has been successfully used in
 highly demanding production environments for several years.  Though
 under constant development, @strong{MySQL} today offers a rich and very
-useful set of functions. The connectivity, speed and security makes
+useful set of functions. The connectivity, speed, and security make
 @strong{MySQL} highly suited for accessing databases on the Internet.
 
 @item The technical features of @strong{MySQL}
 
 For advanced technical information, see @ref{Reference}.  @strong{MySQL} is
-a client/server system that consists of a multithreaded SQL server
+a client/server system that consists of a multi-threaded SQL server
 that supports different backends, several different client programs and
 libraries, administrative tools, and a programming interface.
 
@@ -1121,7 +1124,7 @@ MY-SEQUEL). But we try to avoid correcting people who say MY-SEQUEL.
 
 @strong{MySQL} core values
 
-We want @strong{MySQL} to be
+We want @strong{MySQL} to be:
 
 @itemize @bullet
 @item
@@ -1138,7 +1141,7 @@ Fun to use and improve
 Free from bugs
 @end itemize
 
-@strong{MySQL AB} and the people of @strong{MySQL AB}
+@strong{MySQL AB} and the people of @strong{MySQL AB}:
 
 @itemize @bullet
 @item
@@ -1157,14 +1160,14 @@ Work against software patents
 
 @cindex Manual information
 @node Manual-info, History, What-is, Introduction
-@section About this manual
+@section About This Manual
 
 @menu
 * Manual conventions::          Conventions used in this manual
 @end menu
 
 This manual is currently available in Texinfo, plain text, Info, HTML,
-PostScript and PDF versions.  The primary document is the Texinfo file. 
+PostScript, and PDF versions.  The primary document is the Texinfo file. 
 The HTML version is produced automatically using a modified version of 
 @code{texi2html}. The plain text and Info versions are produced with
  @code{makeinfo}. The Postscript version is produced using @code{texi2dvi} 
@@ -1175,7 +1178,7 @@ Widenius, Jeremy Cole, and Paul DuBois. For other contributors,
 see @ref{Credits}.
 
 @node Manual conventions,  , Manual-info, Manual-info
-@subsection Conventions used in this manual
+@subsection Conventions Used in This Manual
 
 This manual uses certain typographical conventions:
 
@@ -1200,8 +1203,8 @@ character.''
 Italic font is used for emphasis, @emph{like this}.
 
 @item @strong{boldface}
-Boldface font is used for access privilege names (e.g., ``do not grant the
-@strong{process} privilege lightly'') and occasionally to convey
+Boldface font is used for access privilege names (for example, ``do not grant
+the @strong{process} privilege lightly'') and occasionally to convey
 @strong{especially strong emphasis}.
 @end table
 
@@ -1242,7 +1245,7 @@ mysql> SELECT col_name FROM db_name.tbl_name;
 @end example
 
 This means that if you were to enter a similar statement, you would supply
-your own database, table and column names, perhaps like this:
+your own database, table, and column names, perhaps like this:
 
 @example
 mysql> SELECT author_name FROM biblio_db.author_list;
@@ -1309,7 +1312,7 @@ is also named My. So which of the two gave its name to @strong{MySQL} is
 still a mystery, even for us.
 
 @node MySQL-Books, Features, History, Introduction
-@section Books about MySQL
+@section Books About MySQL
 
 While this manual is still the right place for up to date techical
 information, its primary goal is to contain everything there is to know
@@ -1317,8 +1320,11 @@ about @strong{MySQL}. It is sometimes nice to have a bound book to read
 in bed or while you travel. Here is a list of books about @strong{MySQL} (in
 English):
 
+@itemize @bullet
+
+@item @emph{MySQL}
 @multitable @columnfractions .3 .7
-@item Title	@tab		@uref{http://shop.barnesandnoble.com/booksearch/isbnInquiry.asp?userid=2I7CR56GYQ&mscssid=7M1HKEME12MW9MFS547RKBSQX1N4FVLD&isbn=0735709211,MySQL}
+@item Available	@tab		@uref{http://shop.barnesandnoble.com/booksearch/isbnInquiry.asp?isbn=0735709211, Barnes and Noble}
 @item Publisher	@tab		New Riders
 @item Author	@tab		Paul DuBois
 @item Pub Date	@tab		1st Edition December 1999
@@ -1328,15 +1334,15 @@ English):
 @item Downloadable examples  @tab            @uref{http://www.mysql.com/Contrib/Examples/samp_db.tar.gz, @code{samp_db.tar.gz}}
 @item Errata  @tab            @uref{http://www.mysql.com/documentation/pauls-mysql-book-errata.html, are available here}
 @end multitable
-Foreword by Michael ``Monty'' Widenius, @strong{MySQL} Moderator
+Foreword by Michael ``Monty'' Widenius, @strong{MySQL} Moderator.@*
 
-In @strong{MySQL}, Paul DuBois provides you with a comprehensive guide to
+In @emph{MySQL}, Paul DuBois provides you with a comprehensive guide to
 one of the most popular relational database systems. Paul has
-contributed to the online documentation for @strong{MySQL}, and is an
+contributed to the online documentation for @strong{MySQL} and is an
 active member of the @strong{MySQL} community. The principal @strong{MySQL}
 developer, Monty Widenius, and a network of his fellow developers
-reviewed the manuscript, providing Paul with the kind of insight
-no one else could supply.
+reviewed the manuscript, and provided Paul with the kind of insight
+no one else could supply.@*
 
 Instead of merely giving you a general overview of @strong{MySQL}, Paul
 teaches you how to make the most of its capabilities. Through two
@@ -1348,8 +1354,8 @@ database queries. He teaches you to write programs that access
 @strong{MySQL} databases, and also provides a comprehensive set of
 references to column types, operators, functions, SQL syntax,
 @strong{MySQL} programming, C API, Perl @code{DBI}, and PHP API.
-@strong{MySQL} simply gives you the kind of information you won't find
-anywhere else.
+@emph{MySQL} simply gives you the kind of information you won't find
+anywhere else.@*
 
 If you use @strong{MySQL}, this book provides you with:
 @itemize @bullet
@@ -1374,9 +1380,11 @@ functions, and SQL statements and utilities
 Complete reference guides for @strong{MySQL}'s C API, the Perl @code{DBI} API,
 and PHP's @strong{MySQL}-related functions
 @end itemize
+@*
 
+@item @emph{MySQL & mSQL}
 @multitable @columnfractions .3 .7
-@item Title	@tab		@uref{http://shop.barnesandnoble.com/booksearch/isbnInquiry.asp?userid=2I7CR56GYQ&mscssid=7M1HKEME12MW9MFS547RKBSQX1N4FVLD&isbn=1565924347,MySQL & mSQL}
+@item Available	@tab		@uref{http://shop.barnesandnoble.com/booksearch/isbnInquiry.asp?isbn=1565924347, Barnes and Noble}
 @item Publisher	@tab		O'Reilly
 @item Authors	@tab		Randy Jay Yarger, George Reese & Tim King
 @item Pub Date	@tab		1st Edition July 1999
@@ -1385,17 +1393,19 @@ and PHP's @strong{MySQL}-related functions
 @item Price	@tab		$34.95
 @end multitable
 
-This book teaches you how to use @strong{MySQL} and @code{mSQL}, two popular and
-robust database products that support key subsets of SQL on both Linux
+This book teaches you how to use @strong{MySQL} and @code{mSQL}, two popular
+and robust database products that support key subsets of SQL on both Linux
 and UNIX systems. Anyone who knows basic C, Java, Perl, or Python can
 write a program to interact with a database, either as a stand-alone
 application or through a Web page. This book takes you through the
 whole process, from installation and configuration to programming
 interfaces and basic administration.  Includes ample tutorial
 material.
+@*
 
+@item @emph{Sams' Teach Yourself MySQL in 21 Days}
 @multitable @columnfractions .3 .7
-@item Title     @tab            @uref{http://shop.barnesandnoble.com/bookSearch/isbnInquiry.asp?isbn=0672319144,Sams Teach Yourself MySQL in 21 Days}
+@item Available @tab            @uref{http://shop.barnesandnoble.com/bookSearch/isbnInquiry.asp?isbn=0672319144, Barnes and Noble}
 @item Publisher @tab            Sams
 @item Authors   @tab            Mark Maslakowski and Tony Butcher
 @item Pub Date  @tab            June 2000
@@ -1405,15 +1415,17 @@ material.
 @end multitable
 
 Sams Teach Yourself @strong{MySQL} in 21 Days is for intermediate Linux users
-who want to move into databases.  A large share of the audience to be web
-developers needing a database to store large amounts of information that can
-be retrieved via the Web. Sams Teach Yourself @strong{MySQL} in 21 Days is a
+who want to move into databases.  A large share of the audience is Web
+developers who need a database to store large amounts of information that can
+be retrieved via the Web. @emph{Sams' Teach Yourself MySQL in 21 Days} is a
 practical, step-by-step tutorial.  The reader will learn to design and employ
-this open source database technology into his/her web site using practical,
+this open source database technology into his/her Web site using practical,
 hands-on examples to follow.
+@*
 
+@item @emph{E-Commerce Solutions with MySQL}
 @multitable @columnfractions .3 .7
-@item Title     @tab            @uref{http://shop.barnesandnoble.com/bookSearch/isbnInquiry.asp?isbn=0761524452,E-Commerce Solutions with MySQL}
+@item Available @tab            @uref{http://shop.barnesandnoble.com/bookSearch/isbnInquiry.asp?isbn=0761524452, Barnes and Noble}
 @item Publisher @tab            Prima Communications, Inc.
 @item Authors   @tab            N/A
 @item Pub Date  @tab            January 2000
@@ -1423,9 +1435,11 @@ hands-on examples to follow.
 @end multitable
 
 No description available.
+@*
 
+@item @emph{Professional MySQL Programming}
 @multitable @columnfractions .3 .7
-@item Title     @tab            @uref{http://shop.barnesandnoble.com/bookSearch/isbnInquiry.asp?isbn=1861004281,Professional MySQL Programming}
+@item Available @tab            @uref{http://shop.barnesandnoble.com/bookSearch/isbnInquiry.asp?isbn=1861004281, Barnes and Noble}
 @item Publisher @tab            Wrox Press, Inc.
 @item Authors   @tab            N/A
 @item Pub Date  @tab            July 2000
@@ -1435,9 +1449,11 @@ No description available.
 @end multitable
 
 No description available.
+@*
 
+@item @emph{PHP3 and MySQL Web Development}
 @multitable @columnfractions .3 .7
-@item Title     @tab            @uref{http://shop.barnesandnoble.com/bookSearch/isbnInquiry.asp?isbn=0672317842,PHP3 and MySQL Web Development}
+@item Available @tab            @uref{http://shop.barnesandnoble.com/bookSearch/isbnInquiry.asp?isbn=0672317842, Barnes and Noble}
 @item Publisher @tab            N/A
 @item Authors   @tab            William Jason Gilmore
 @item Pub Date  @tab            October 2000
@@ -1447,9 +1463,12 @@ No description available.
 @end multitable
 
 No description available.
+@*
+
+@end itemize
 
 @node Features, Stability, MySQL-Books, Introduction
-@section The main features of MySQL
+@section The Main Features of MySQL
 
 The following list describes some of the important characteristics
 of @strong{MySQL}:
@@ -1469,10 +1488,10 @@ C, C++, Eiffel, Java, Perl, PHP, Python and Tcl APIs. @xref{Clients}.
 Works on many different platforms. @xref{Which OS}.
 
 @item
-Many column types: signed/unsigned integers 1, 2, 3, 4 and 8 bytes
+Many column types: signed/unsigned integers 1, 2, 3, 4, and 8 bytes
 long, @code{FLOAT}, @code{DOUBLE}, @code{CHAR}, @code{VARCHAR},
 @code{TEXT}, @code{BLOB}, @code{DATE}, @code{TIME}, @code{DATETIME},
-@code{TIMESTAMP}, @code{YEAR}, @code{SET} and @code{ENUM} types. @xref{Column
+@code{TIMESTAMP}, @code{YEAR}, @code{SET}, and @code{ENUM} types. @xref{Column
 types}.
 
 @item
@@ -1487,7 +1506,7 @@ mysql> SELECT CONCAT(first_name, " ", last_name) FROM tbl_name
 @end example
 
 @item
-SQL functions are implemented through a highly-optimized class library and
+SQL functions are implemented through a highly optimized class library and
 should be as fast as they can get! Usually there shouldn't be any memory
 allocation at all after query initialization.
 
@@ -1502,12 +1521,12 @@ Support for @code{LEFT OUTER JOIN} with ANSI SQL and ODBC syntax.
 
 @item
 You can mix tables from different databases in the same query (as of
-version 3.22).
+Version 3.22).
 
 @item
-A privilege and password system which is very flexible and secure, and
-which allows host-based verification.  Passwords are secure because all
-password traffic when connecting to a server is encrypted.
+A privilege and password system that is very flexible and secure and
+allows host-based verification.  Passwords are secure because all
+password traffic is encrypted when you connect to a server.
 
 @item
 ODBC (Open-DataBase-Connectivity) support for Win32 (with source). All
@@ -1552,8 +1571,8 @@ No memory leaks. Tested with a commercial memory leakage detector
 (@code{purify}).
 
 @item
-Includes @code{myisamchk}, a very fast utility for table checking, optimization
-and repair.
+Includes @code{myisamchk}, a very fast utility for table checking, 
+optimization, and repair.
 @xref{Maintenance}.
 
 @item
@@ -1597,20 +1616,20 @@ languages. @xref{Languages}.
 
 @item
 Clients may connect to the @strong{MySQL} server using TCP/IP Sockets,
-Unix Sockets (Unixes), or Named Pipes (NT).
+UNIX Sockets (Unixes), or Named Pipes (NT).
 
 @item
 The @strong{MySQL}-specific @code{SHOW} command can be used to retrieve
-information about databases, tables and indexes. The @code{EXPLAIN} command
+information about databases, tables, and indexes. The @code{EXPLAIN} command
 can be used to determine how the optimizer resolves a query.
 @end itemize
 
 @cindex Stability
 @node Stability, Year 2000 compliance, Features, Introduction
-@section How stable is MySQL?
+@section How Stable Is MySQL?
 
 This section addresses the questions ``How stable is
-@strong{MySQL}?'', and ``Can I depend on @strong{MySQL} in this project?''
+@strong{MySQL}?'' and ``Can I depend on @strong{MySQL} in this project?''
 We will try to clarify some issues and to answer some of the more
 important questions that seem to concern many people.  This section has been
 put together from information gathered from the mailing list (which is very
@@ -1627,12 +1646,12 @@ each has had many new features).
 @c FIX We've been stable for quite a while now. :) (jcole)
 
 Each release of @strong{MySQL} has been usable, and there have been problems
-only when users start to use code from the ``gray zones''. Naturally, outside
-users can't know what the gray zones are; this section attempts to indicate
-those that are currently known.  The descriptions deal with the 3.23.x
-version of @strong{MySQL}. All known and reported bugs are fixed in the
+only when users start to use code from the ``gray zones.'' Naturally, outside
+users don't know what the gray zones are; this section attempts to indicate
+those that are currently known.  The descriptions deal with Version 3.23.x
+of @strong{MySQL}. All known and reported bugs are fixed in the
 latest version, with the exception of the bugs listed in the bugs section,
-which are things that are ``design''-related.  @xref{Bugs}.
+which are things that are design-related.  @xref{Bugs}.
 
 @strong{MySQL} is written in multiple layers and different independent
 modules.  These modules are listed below with an indication of how
@@ -1640,8 +1659,8 @@ well-tested each of them is:
 
 @table @strong
 @item The ISAM table handler --- Stable
-This manages storage and retrieval of all data in @strong{MySQL} 3.22
-and earlier versions. In all @strong{MySQL} releases there hasn't been a
+This manages storage and retrieval of all data in @strong{MySQL} Version 3.22
+and earlier. In all @strong{MySQL} releases there hasn't been a
 single (reported) bug in this code. The only known way to get a
 corrupted table is to kill the server in the middle of an update.  Even
 that is unlikely to destroy any data beyond rescue, because all data are
@@ -1649,16 +1668,16 @@ flushed to disk between each query.  There hasn't been a single bug
 report about lost data because of bugs in @strong{MySQL}.
 
 @item The MyISAM table handler --- Gamma
-This is new in @strong{MySQL} 3.23. It's largely based on the ISAM table code
-but has a lot of new very useful features.
+This is new in @strong{MySQL} Version 3.23. It's largely based on the ISAM 
+table code but has a lot of new and very useful features.
 
 @item The parser and lexical analyser --- Stable
 There hasn't been a single reported bug in this system for a long time.
 
 @item The C client code --- Stable
-No known problems. In early 3.20 releases, there were some limitations in
-the send/receive buffer size. As of 3.21.x, the buffer size is now dynamic up
-to a default of 24M.
+No known problems. In early Version 3.20 releases, there were some limitations
+in the send/receive buffer size. As of Version 3.21, the buffer size is now 
+dynamic up to a default of 24M.
 
 @item Standard client programs --- Stable
 These include @code{mysql}, @code{mysqladmin}, @code{mysqlshow},
@@ -1684,8 +1703,8 @@ systems.
 @item Linux threads --- Stable
 The major problem found has been with the @code{fcntl()} call, which is
 fixed by using the @w{@code{--skip-locking}} option to
-@code{mysqld}. Some people have reported lockup problems with the 0.5
-release. LinuxThreads will need to be recompiled if you plan to use
+@code{mysqld}. Some people have reported lockup problems with Version 0.5.
+LinuxThreads will need to be recompiled if you plan to use
 1000+ concurrent connections. Although it is possible to run that many
 connections with the default LinuxThreads (however, you will never go
 above 1021), the default stack spacing of 2 MB makes the application
@@ -1696,24 +1715,24 @@ unstable, and we have been able to reproduce a coredump after creating
 We use this for all our production work.
 
 @item MIT-pthreads (Other systems) --- Stable
-There have been no reported bugs since 3.20.15 and no known bugs since
-3.20.16. On some systems, there is a ``misfeature'' where some operations are
-quite slow (a 1/20 second sleep is done between each query). Of course,
-MIT-pthreads may slow down everything a bit, but index-based @code{SELECT}
-statements are usually done in one time frame so there shouldn't be a mutex
-locking/thread juggling.
+There have been no reported bugs since Version 3.20.15 and no known bugs since
+Version 3.20.16. On some systems, there is a ``misfeature'' where some 
+operations are quite slow (a 1/20 second sleep is done between each query). 
+Of course, MIT-pthreads may slow down everything a bit, but index-based 
+@code{SELECT} statements are usually done in one time frame so there shouldn't
+be a mutex locking/thread juggling.
 
 @item Other thread implementions --- Beta - Gamma
 The ports to other systems are still very new and may have bugs, possibly
 in @strong{MySQL}, but most often in the thread implementation itself.
 
 @item @code{LOAD DATA ...}, @code{INSERT ... SELECT} --- Stable
-Some people have thought they have found bugs here, but these usually have
+Some people thought they had found bugs here, but these usually have
 turned out to be misunderstandings. Please check the manual before reporting
 problems!
 
 @item @code{ALTER TABLE} --- Stable
-Small changes in 3.22.12.
+Small changes in Version 3.22.12.
 
 @item DBD --- Stable
 Now maintained by Jochen Wiedmann
@@ -1724,7 +1743,7 @@ Written and maintained by Yves Carlier
 @email{Yves.Carlier@@rug.ac.be}. Thanks!
 
 @item @code{GRANT} --- Stable
-Big changes made in @strong{MySQL} 3.22.12.
+Big changes made in @strong{MySQL} Version 3.22.12.
 
 @item @strong{MyODBC} (uses ODBC SDK 2.5) --- Gamma
 It seems to work well with some programs.
@@ -1732,7 +1751,7 @@ It seems to work well with some programs.
 @item Replication -- Alpha
 We are still working on replication, so don't expect this to be rock
 solid yet.  On the other hand, some @strong{MySQL} users are already
-using this with good results...
+using this with good results.
 
 @item BDB Tables -- Alpha
 The Berkeley DB code is very stable, but we are still improving the interface
@@ -1741,20 +1760,20 @@ is as tested as the other table types.
 
 @end table
 
-MySQL AB provides email support for paying customers, but the @strong{MySQL}
+MySQL AB provides e-mail support for paying customers, but the @strong{MySQL}
 mailing list usually provides answers to common questions. Bugs are
 usually fixed right away with a patch; for serious bugs, there is almost
 always a new release.
 
 @cindex Year 2000 compliance
 @node Year 2000 compliance, General-SQL, Stability, Introduction
-@section Year 2000 compliance
+@section Year 2000 Compliance
 
 @strong{MySQL} itself has no problems with Year 2000 (Y2K) compliance:
 
 @itemize @bullet
 @item
-@strong{MySQL} uses Unix time functions and has no problems with dates
+@strong{MySQL} uses UNIX time functions and has no problems with dates
 until @code{2069}; all 2-digit years are regarded to be in the range
 @code{1970} to @code{2069}, which means that if you store @code{01} in a
 @code{year} column, @strong{MySQL} treats it as @code{2001}.
@@ -1765,7 +1784,7 @@ functions are stored in one file @file{sql/time.cc} and coded very carefully
 to be year 2000-safe.
 
 @item
-In @strong{MySQL} 3.22 and later versions, the new @code{YEAR} column type
+In @strong{MySQL} Version 3.22 and later, the new @code{YEAR} column type
 can store years @code{0} and @code{1901} to @code{2155} in 1 byte and display
 them using 2 or 4 digits.
 @end itemize
@@ -1781,7 +1800,7 @@ applications may be written by different programmers, each of whom may
 use a different set of conventions and date-handling functions.
 
 Here is a simple demonstration illustrating that @strong{MySQL} doesn't have
-any problems with dates until the year 2030!
+any problems with dates until the year 2030:
 
 @example
 mysql> DROP TABLE IF EXISTS y2k;
@@ -1821,11 +1840,11 @@ mysql> SELECT * FROM y2k;
 13 rows in set (0.00 sec)
 @end example
 
-This shows that the @code{DATE} and @code{DATETIME} types are will not
+This shows that the @code{DATE} and @code{DATETIME} types will not
 give any problems with future dates (they handle dates until the year
 9999).
 
-The @code{TIMESTAMP} type, that is used to store the current time, has a
+The @code{TIMESTAMP} type, which is used to store the current time, has a
 range up to only @code{2030-01-01}. @code{TIMESTAMP} has a range of
 @code{1970} to @code{2030} on 32-bit machines (signed value). On 64-bit
 machines it handles times up to @code{2106} (unsigned value).
@@ -1836,39 +1855,40 @@ for dealing with ambiguous date input data (data containing 2-digit year
 values).
 
 @node General-SQL, Useful Links, Year 2000 compliance, Introduction
-@section General SQL information and tutorials
+@section General SQL Information and Tutorials
 
-This book has been recommended by a several people on the @strong{MySQL}
+The following book has been recommended by several people on the @strong{MySQL}
 mailing list:
 
 @example
 Judith S. Bowman, Sandra L. Emerson and Marcy Darnovsky
-The Practical SQL Handbook: Using Structured Query Language
+@emph{The Practical SQL Handbook: Using Structured Query Language}
 Second Edition
 Addison-Wesley
 ISBN 0-201-62623-3
 http://www.awl.com
 @end example
 
-This book has also received some recommendations by @strong{MySQL} users:
+The following book has also received some recommendations by @strong{MySQL} 
+users:
 
 @example
 Martin Gruber
-Understanding SQL
+@emph{Understanding SQL}
 ISBN 0-89588-644-8
 Publisher Sybex 510 523 8233
 Alameda, CA USA
 @end example
 
 A SQL tutorial is available on the net at
-http://www.geocities.com/SiliconValley/Vista/2207/sql1.html
+http://www.geocities.com/SiliconValley/Vista/2207/sql1.html.
 
 @c A nice german 404 error. (jcole)
 @c SQL in 21 Tagen (online book in German language):
 @c http://www.mut.de/leseecke/buecher/sql/inhalt.htm
 
 @node Useful Links,  , General-SQL, Introduction
-@section Useful MySQL-related links
+@section Useful MySQL-related Links
 
 Apart from the following links, you can find and download a lot of
 @strong{MySQL} programs, tools and APIs from the
@@ -1881,72 +1901,81 @@ Apart from the following links, you can find and download a lot of
 @c @item @uref{http://www.devshed.com/resource/advanced/mysql/index.html, A
 @c beginner's tutorial of how to start using @strong{MySQL}}
 
-@item @uref{http://www.analysisandsolutions.com/code/mybasic.htm}
+@item @uref{http://www.analysisandsolutions.com/code/mybasic.htm}@*
 Beginners @strong{MySQL} Tutorial on how to install and set up
 @strong{MySQL} on a Windows machine.
 
-@item @uref{http://www.devshed.com/Server_Side/MySQL/, A lot of @strong{MySQL} tutorials}
+@item @uref{http://www.devshed.com/Server_Side/MySQL/}@*
+A lot of @strong{MySQL} tutorials.
 
-@item @uref{http://mysql.hitstar.com/, MySQL manual in Chinese}.
+@item @uref{http://mysql.hitstar.com/}@*
+MySQL manual in Chinese.
 
-@item @uref{http://www.linuxplanet.com/linuxplanet/tutorials/1046/1/,
-Setting Up a @strong{MySQL}-Based Website}
+@item @uref{http://www.linuxplanet.com/linuxplanet/tutorials/1046/1/}@*
+Setting Up a @strong{MySQL}-based Web site.
 
-@item @uref{http://www.hotwired.com/webmonkey/backend/tutorials/tutorial1.html, @strong{MySQL}-Perl tutorial}
+@item @uref{http://www.hotwired.com/webmonkey/backend/tutorials/tutorial1.html}@*
+@strong{MySQL}-Perl tutorial.
 
-@item @uref{http://www.iserver.com/support/contrib/perl5/modules.html,Installing new Perl modules that require locally installed modules}
+@item @uref{http://www.iserver.com/support/contrib/perl5/modules.html}@*
+Installing new Perl modules that require locally installed modules.
 
-@item @uref{http://www.hotwired.com/webmonkey/databases/tutorials/tutorial4.html, PHP/@strong{MySQL} Tutorial}
+@item @uref{http://www.hotwired.com/webmonkey/databases/tutorials/tutorial4.html}@*
+PHP/@strong{MySQL} Tutorial.
 
-@item @uref{http://www.useractive.com/, Hands on tutorial for @strong{MySQL}}
+@item @uref{http://www.useractive.com/}@*
+Hands on tutorial for @strong{MySQL}.
 @end itemize
 
-@subheading Porting MySQL / Using MySQL on different systems
+@subheading Porting MySQL/Using MySQL on Different Systems
+
 @itemize @bullet
-@item @uref{http://xclave.macnn.com/MySQL/,The Mac OS Xclave}.
-Running @strong{MySQL} on Mac OS X
-@item @uref{http://www.prnet.de/RegEx/mysql.html, MySQL for Mac OS X Server}
-@item @uref{http://www.lilback.com/macsql/, Client libraries for the Macintosh}
+@item @uref{http://xclave.macnn.com/MySQL/}@*
+The Mac OS Xclave. Running @strong{MySQL} on Mac OS X
+@item @uref{http://www.prnet.de/RegEx/mysql.html}@*
+MySQL for Mac OS X Server.
+@item @uref{http://www.lilback.com/macsql/}@*
+Client libraries for the Macintosh.
 @end itemize
 
-@subheading Perl related links
+@subheading Perl-related Links
 @itemize @bullet
-@item
-@c Added 991122
-@c forwards to new url (jcole)
-@c @uref{http://haven.e-cactus.com/dbi_mysql, Perl DBI with @strong{MySQL} FAQ}
-@uref{http://dbimysql.photoflux.com/, Perl DBI with @strong{MySQL} FAQ}
+@item @uref{http://dbimysql.photoflux.com/}@*
+Perl DBI with @strong{MySQL} FAQ.
 @end itemize
 
-@subheading MySQL discussion forums
+@subheading MySQL Discussion Forums
 @itemize @bullet
-@item
-@uref{http://www.weberdev.com/, Examples using @strong{MySQL}; (check Top 20)}
-@item
-@uref{http://futurerealm.com/forum/futureforum.htm, FutureForum Web Discussion Software}
+@item @uref{http://www.weberdev.com/}@*
+Examples using @strong{MySQL}; (check Top 20)
+@item @uref{http://futurerealm.com/forum/futureforum.htm}@*
+FutureForum Web Discussion Software.
 @end itemize
 
-@c We should get longer descriptions for things in this category!
-@subheading Commercial applications that support MySQL
+@c FIX We should get longer descriptions for things in this category!
+@subheading Commercial Applications that Support MySQL
 @itemize @bullet
-@item
-@uref{http://www.supportwizard.com/, SupportWizard; Interactive helpdesk
-on the web (This product includes a licensed copy of @strong{MySQL})}
-@item
-@uref{http://www.stweb.org/, StWeb}
-StWeb - Stratos Web and Application server - an easy-to-use, cross
+
+@item @uref{http://www.supportwizard.com/}@*
+SupportWizard; Interactive helpdesk on the Web (This product includes a 
+licensed copy of @strong{MySQL}.)
+
+@item @uref{http://www.stweb.org/}@*
+StWeb - Stratos Web and Application server - An easy-to-use, cross
 platform, Internet/Intranet development and deployment system for
 development of web-enabled applications. The standard version of StWeb
 has a native interface to @strong{MySQL} database.
-@item
-@uref{http://www.rightnowtech.com/, Right Now Web; Web automation for customer service}
-@item
-@uref{http://www.icaap.org/Bazaar/, Bazaar; Interactive Discussion Forums with web interface}
-@item
-@uref{http://www.phonesweep.com/, PhoneSweepT} is the world's first
-commercial Telephone Scanner. Many break-ins in recent years have come
-not through the Internet, but through unauthorized dial-up
-modems. PhoneSweep lets you find these modems by repeatedly placing
+
+@item @uref{http://www.rightnowtech.com/}@*
+Right Now Web; Web automation for customer service.
+
+@item @uref{http://www.icaap.org/Bazaar/}@*
+Bazaar; Interactive Discussion Forums with Web interface.
+
+@item @uref{http://www.phonesweep.com/}@*
+PhoneSweepT is the world's first commercial Telephone Scanner. Many break-ins
+in recent years have come not through the Internet, but through unauthorized 
+dial-up modems. PhoneSweep lets you find these modems by repeatedly placing
 phone calls to every phone number that your organization
 controls. PhoneSweep has a built-in expert system that can recognize
 more than 250 different kinds of remote-access programs, including
@@ -1954,67 +1983,75 @@ Carbon Copy(TM), pcANYWHERE(TM), and Windows NT RAS. All information is stored
 in the SQL database. It then generates a comprehensive report detailing
 which services were discovered on which dial-up numbers in your
 organization.
+
 @end itemize
 
-@subheading SQL Clients/Report writers
+@subheading SQL Clients and Report Writers
 
 @itemize @bullet
-@item
-@uref{http://www.urbanresearch.com/software/utils/urbsql/index.html,
-@strong{MySQL} Editor/Utility for MS Windows Platforms.}
-@item
-@uref{http://www.xnot.com/kmysql, KDE @strong{MySQL} client}
-@item
+@item @uref{http://www.urbanresearch.com/software/utils/urbsql/index.html}@*
+@strong{MySQL} Editor/Utility for MS Windows Platforms.
+
+@item @uref{http://www.xnot.com/kmysql}@*
+KDE @strong{MySQL} client.
+
+
 @c EMAIL: bilhaut_f@mail.cpod.fr (Frédérik Bilhaut)
-@uref{http://www.penguinpowered.com/~kmysql, KMySQL}
+@item @uref{http://www.penguinpowered.com/~kmysql}@*
 KMySQL is a database client for KDE that primarily supports @strong{MySQL}.
-@item
-@uref{http://www.ecker-software.de, Windows GUI client}
+
+@item @uref{http://www.ecker-software.de}@*
 A Windows GUI client by David Ecker.
-@item
-@uref{http://www.icaap.org/software/kiosk/, Kiosk; a @strong{MySQL} client for
-database management}. Written in Perl. Will be a part of Bazaar.
-@item
-@uref{http://home.skif.net/~voland/zeos/eng/index.html, Zeos client}
-A client that supports @strong{MySQL}, Interbase and PostgreSQL.
-@item
-@uref{http://www.geocities.com/SiliconValley/Ridge/4280/GenericReportWriter/grwhome.html, A free report writer in Java}
-@item
-@uref{http://www.javaframework.de,MySQLExport}
-Export of @strong{MySQL} create statements and data in a lot of
+
+@item @uref{http://www.icaap.org/software/kiosk/}@*
+Kiosk; a @strong{MySQL} client for database management. Written in Perl. 
+Will be a part of Bazaar.
+
+@item @uref{http://home.skif.net/~voland/zeos/eng/index.html}@*
+Zeos - A client that supports @strong{MySQL}, Interbase and PostgreSQL.
+
+@item @uref{http://www.geocities.com/SiliconValley/Ridge/4280/GenericReportWriter/grwhome.html}
+A free report writer in Java
+
+@item @uref{http://www.javaframework.de}@*
+MySQLExport - Export of @strong{MySQL} create statements and data in a lot of
 different formats (SQL, HTML, CVS, text, ZIP, GZIP...)
 @end itemize
 
-@subheading Distributions that include MySQL
+@subheading Distributions that Include MySQL
 
 @c FIX add the rest (at least a couple more Linuxes)
 
 @itemize @bullet
-@item
-@uref{http://www.suse.com/, SuSE Linux (Suse 6.1 and above)}
+@item @uref{http://www.suse.com/}
+SuSE Linux (Suse 6.1 and above)
 @end itemize
 
-@subheading Web development tools that support @strong{MySQL}
+@subheading Web Development Tools that Support @strong{MySQL}
 
 @itemize @bullet
-@item
-@uref{http://www.php.net/, PHP: A server-side HTML-embedded scripting
-language}
-@item
-@uref{http://www.midgard-project.org, The Midgard Application Server; a
-powerful Web development environment based on @strong{MySQL} and PHP}
-@item
-@uref{http://www.smartworker.org, SmartWorker is a platform for web application development}
-@item
-@uref{http://xsp.lentus.se/, XSP: e(X)tendible (S)erver (P)ages and is a
-HTML embedded tag language written in Java (previously known as XTAGS)}
-@item
-@uref{http://www.dbServ.de/, dbServ} is an extension to a web server to
-integrate database output into your HTML code. You may use any HTML
-function in your output. Only the client will stop you. It works as
-standalone server or as JAVA servlet.
-@item
-@uref{http://www.chilisoft.com/, Platform independent ASP from Chili!Soft}
+@item @uref{http://www.php.net/}@*
+PHP: A server-side HTML-embedded scripting language.
+
+@item @uref{http://www.midgard-project.org}@*
+The Midgard Application Server; a powerful Web development environment 
+based on @strong{MySQL} and PHP.
+
+@item @uref{http://www.smartworker.org}@*
+SmartWorker is a platform for Web application development.
+
+@item @uref{http://xsp.lentus.se/}@*
+XSP: e(X)tendible (S)erver (P)ages and is a HTML embedded tag language 
+written in Java (previously known as XTAGS.)
+
+@item @uref{http://www.dbServ.de/}@*
+dbServ is an extension to a web server to integrate database output into 
+your HTML code. You may use any HTML function in your output. Only the 
+client will stop you. It works as standalone server or as JAVA servlet.
+
+@item @uref{http://www.chilisoft.com/}@*
+Platform independent ASP from Chili!Soft
+
 @c @item
 @c no answer from server 990830
 @c @uref{http://www.voicenet.com/~zellert/tjFM, A JDBC driver for @strong{MySQL}}
