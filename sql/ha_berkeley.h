@@ -100,7 +100,7 @@ class ha_berkeley: public handler
   ulong table_flags(void) const { return int_table_flags; }
   uint max_supported_keys()        const { return MAX_KEY-1; }
   uint extra_rec_buf_length()	 { return BDB_HIDDEN_PRIMARY_KEY_LENGTH; }
-  ha_rows estimate_number_of_rows();
+  ha_rows estimate_rows_upper_bound();
   const key_map *keys_to_use_for_scanning() { return &key_map_full; }
   bool has_transactions()  { return 1;}
 
