@@ -138,6 +138,7 @@ THD::THD():user_time(0), is_fatal_error(0),
   set_query_id=1;
   db_access=NO_ACCESS;
   version=refresh_version;			// For boot
+  *scramble= '\0';
 
   init();
   /* Initialize sub structures */
