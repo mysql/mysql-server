@@ -280,6 +280,8 @@ public:
 class Item_func_ifnull :public Item_func
 {
   enum Item_result cached_result_type;
+  enum_field_types cached_field_type;
+  bool field_type_defined;
 public:
   Item_func_ifnull(Item *a,Item *b)
     :Item_func(a,b), cached_result_type(INT_RESULT)
@@ -288,8 +290,10 @@ public:
   longlong val_int();
   String *val_str(String *str);
   enum Item_result result_type () const { return cached_result_type; }
+  enum_field_types field_type() const;
   void fix_length_and_dec();
   const char *func_name() const { return "ifnull"; }
+  Field *tmp_table_field(TABLE *table);
   table_map not_null_tables() const { return 0; }
 };
 
