@@ -96,7 +96,7 @@ protected:
    * Handling of execFunctions
    */
   typedef void (SimulatedBlock::* ExecFunction)(Signal* signal);
-  void addRecSignalImpl(GlobalSignalNumber g, ExecFunction fun, bool f = false);
+  void addRecSignalImpl(GlobalSignalNumber g, ExecFunction fun, bool f =false);
   void installSimulatedBlockFunctions();
   ExecFunction theExecArray[MAX_GSN+1];
 public:
@@ -304,7 +304,13 @@ protected:
   BlockNumber    number() const;
   BlockReference reference() const;
   NodeId         getOwnNodeId() const;
-  
+
+  /**
+   * Refresh Watch Dog in initialising code
+   *
+   */
+  void refresh_watch_dog();
+
   /**
    * Prog error
    * This function should be called when this node should be shutdown
@@ -344,14 +350,14 @@ protected:
    * Allocates memory for the datastructures where ndb keeps the data
    *
    */
-  void* allocRecord(const char * type, size_t s, size_t n) const ;
+  void* allocRecord(const char * type, size_t s, size_t n, bool clear = true);
   
   /**
    * Deallocate record
    *
    * NOTE: Also resets pointer
    */
-  void deallocRecord(void **, const char * type, size_t s, size_t n) const ;
+  void deallocRecord(void **, const char * type, size_t s, size_t n);
   
   /**
    * General info event (sent to cluster log)
@@ -441,6 +447,12 @@ public:
   } m_timeTrace[MAX_GSN+1];
   Uint32 m_currentGsn;
 #endif
+
+#ifdef VM_TRACE
+  Ptr<void> **m_global_variables;
+  void clear_global_variables();
+  void init_globals_list(void ** tmp, size_t cnt);
+#endif
 };
 
 inline 
@@ -448,6 +460,9 @@ void
 SimulatedBlock::executeFunction(GlobalSignalNumber gsn, Signal* signal){
   ExecFunction f = theExecArray[gsn];
   if(gsn <= MAX_GSN && f != 0){
+#ifdef VM_TRACE
+    clear_global_variables();
+#endif
     (this->*f)(signal);
     return;
   }
@@ -458,11 +473,11 @@ SimulatedBlock::executeFunction(GlobalSignalNumber gsn, Signal* signal){
   char errorMsg[255];
   if (!(gsn <= MAX_GSN)) {
     snprintf(errorMsg, 255, "Illegal signal received (GSN %d too high)", gsn);
-    REQUIRE(false, errorMsg);
+    ERROR_SET(fatal, ERR_ERROR_PRGERR, errorMsg, errorMsg);
   }
   if (!(theExecArray[gsn] != 0)) {
     snprintf(errorMsg, 255, "Illegal signal received (GSN %d not added)", gsn);
-    REQUIRE(false, errorMsg);
+    ERROR_SET(fatal, ERR_ERROR_PRGERR, errorMsg, errorMsg);
   }
   ndbrequire(false);
 }
@@ -672,7 +687,6 @@ void \
 BLOCK::addRecSignal(GlobalSignalNumber gsn, ExecSignalLocal f, bool force){ \
   addRecSignalImpl(gsn, (ExecFunction)f, force);\
 }
-
 
 #endif
 

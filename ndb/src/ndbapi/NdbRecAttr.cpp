@@ -29,6 +29,7 @@ Adjust:  971206  UABRONM First version
 #include <ndb_global.h>
 #include <NdbOut.hpp>
 #include <NdbRecAttr.hpp>
+#include <NdbBlob.hpp>
 #include "NdbDictionaryImpl.hpp"
 #include <NdbTCP.h>
 
@@ -60,6 +61,8 @@ NdbRecAttr::setup(const NdbColumnImpl* anAttrInfo, char* aValue)
   theAttrSize = tAttrSize;
   theArraySize = tArraySize;
   theValue = aValue;
+  theNULLind = 0;
+  m_nullable = anAttrInfo->m_nullable;
 
   // check alignment to signal data
   // a future version could check alignment per data type as well
@@ -128,78 +131,117 @@ NdbRecAttr::clone() const {
   return ret;
 }
 
-NdbOut& operator<<(NdbOut& ndbout, const NdbRecAttr &r)
+bool
+NdbRecAttr::receive_data(const Uint32 * data, Uint32 sz){
+  const Uint32 n = (theAttrSize * theArraySize + 3) >> 2;  
+  if(n == sz){
+    theNULLind = 0;
+    if(!copyoutRequired())
+      memcpy(theRef, data, 4 * sz);
+    else
+      memcpy(theValue, data, theAttrSize * theArraySize);
+    return true;
+  } else if(sz == 0){
+    setNULL();
+    return true;
+  }
+  return false;
+}
+
+NdbOut& operator<<(NdbOut& out, const NdbRecAttr &r)
 {
   if (r.isNULL())
   {
-    ndbout << "[NULL]";
-    return ndbout;
+    out << "[NULL]";
+    return out;
   }
 
   if (r.arraySize() > 1)
-    ndbout << "[";
+    out << "[";
 
   for (Uint32 j = 0; j < r.arraySize(); j++) 
   {
     if (j > 0)
-      ndbout << " ";
+      out << " ";
 
     switch(r.getType())
       {
       case NdbDictionary::Column::Bigunsigned:
-	ndbout << r.u_64_value();
+	out << r.u_64_value();
 	break;
       case NdbDictionary::Column::Unsigned:
-	ndbout << r.u_32_value();
+	out << r.u_32_value();
 	break;
       case NdbDictionary::Column::Smallunsigned:
-	ndbout << r.u_short_value();
+	out << r.u_short_value();
 	break;
       case NdbDictionary::Column::Tinyunsigned:
-	ndbout << (unsigned) r.u_char_value();
+	out << (unsigned) r.u_char_value();
 	break;
       case NdbDictionary::Column::Bigint:
-	ndbout << r.int64_value();
+	out << r.int64_value();
 	break;
       case NdbDictionary::Column::Int:
-	ndbout << r.int32_value();
+	out << r.int32_value();
 	break;
       case NdbDictionary::Column::Smallint:
-	ndbout << r.short_value();
+	out << r.short_value();
 	break;
       case NdbDictionary::Column::Tinyint:
-	ndbout << (int) r.char_value();
+	out << (int) r.char_value();
 	break;
       case NdbDictionary::Column::Char:
-	ndbout.print("%.*s", r.arraySize(), r.aRef());
+	out.print("%.*s", r.arraySize(), r.aRef());
 	j = r.arraySize();
 	break;
       case NdbDictionary::Column::Varchar:
 	{
 	  short len = ntohs(r.u_short_value());
-	  ndbout.print("%.*s", len, r.aRef()+2);
+	  out.print("%.*s", len, r.aRef()+2);
 	}
 	j = r.arraySize();
       break;
       case NdbDictionary::Column::Float:
-	ndbout << r.float_value();
+	out << r.float_value();
 	break;
       case NdbDictionary::Column::Double:
-	ndbout << r.double_value();
+	out << r.double_value();
 	break;
+      case NdbDictionary::Column::Blob:
+        {
+          const NdbBlob::Head* h = (const NdbBlob::Head*)r.aRef();
+          out << h->length << ":";
+          const unsigned char* p = (const unsigned char*)(h + 1);
+          unsigned n = r.arraySize() - sizeof(*h);
+          for (unsigned k = 0; k < n && k < h->length; k++)
+            out.print("%02X", (int)p[k]);
+          j = r.arraySize();
+        }
+        break;
+      case NdbDictionary::Column::Text:
+        {
+          const NdbBlob::Head* h = (const NdbBlob::Head*)r.aRef();
+          out << h->length << ":";
+          const unsigned char* p = (const unsigned char*)(h + 1);
+          unsigned n = r.arraySize() - sizeof(*h);
+          for (unsigned k = 0; k < n && k < h->length; k++)
+            out.print("%c", (int)p[k]);
+          j = r.arraySize();
+        }
+        break;
       default: /* no print functions for the rest, just print type */
-	ndbout << r.getType();
+	out << r.getType();
 	j = r.arraySize();
 	if (j > 1)
-	  ndbout << " %u times" << j;
+	  out << " " << j << " times";
 	break;
       }
   }
 
   if (r.arraySize() > 1)
   {
-    ndbout << "]";
+    out << "]";
   }
 
-  return ndbout;
+  return out;
 }

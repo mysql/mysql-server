@@ -72,6 +72,11 @@ emb_advanced_command(MYSQL *mysql, enum enum_server_command command,
   THD *thd=(THD *) mysql->thd;
   NET *net= &mysql->net;
 
+  if (thd->data)
+  {
+    free_rows(thd->data);
+    thd->data= 0;
+  }
   /* Check that we are calling the client functions in right order */
   if (mysql->status != MYSQL_STATUS_READY)
   {
@@ -84,6 +89,7 @@ emb_advanced_command(MYSQL *mysql, enum enum_server_command command,
   thd->clear_error();
   mysql->affected_rows= ~(my_ulonglong) 0;
   mysql->field_count= 0;
+  net->last_errno= 0;
 
   thd->store_globals();				// Fix if more than one connect
   /* 
@@ -107,10 +113,28 @@ emb_advanced_command(MYSQL *mysql, enum enum_server_command command,
   if (!skip_check)
     result= thd->net.last_errno ? -1 : 0;
 
-  embedded_get_error(mysql);
+  /*
+    If mysql->field_count is set it means the parsing of the query was OK
+    and metadata was returned (see Protocol::send_fields).
+    In this case we postpone the error to be returned in mysql_stmt_store_result
+    (see emb_read_rows) to behave just as standalone server.
+  */
+  if (!mysql->field_count)
+    embedded_get_error(mysql);
   mysql->server_status= thd->server_status;
   mysql->warning_count= ((THD*)mysql->thd)->total_warn_count;
   return result;
+}
+
+static void emb_flush_use_result(MYSQL *mysql)
+{
+  MYSQL_DATA *data= ((THD*)(mysql->thd))->data;
+
+  if (data)
+  {
+    free_rows(data);
+    ((THD*)(mysql->thd))->data= NULL;
+  }
 }
 
 static MYSQL_DATA *
@@ -118,6 +142,9 @@ emb_read_rows(MYSQL *mysql, MYSQL_FIELD *mysql_fields __attribute__((unused)),
 	      unsigned int fields __attribute__((unused)))
 {
   MYSQL_DATA *result= ((THD*)mysql->thd)->data;
+  embedded_get_error(mysql);
+  if (mysql->net.last_errno)
+    return NULL;
   if (!result)
   {
     if (!(result=(MYSQL_DATA*) my_malloc(sizeof(MYSQL_DATA),
@@ -195,11 +222,6 @@ static int emb_stmt_execute(MYSQL_STMT *stmt)
   THD *thd= (THD*)stmt->mysql->thd;
   thd->client_param_count= stmt->param_count;
   thd->client_params= stmt->params;
-  if (thd->data)
-  {
-    free_rows(thd->data);
-    thd->data= 0;
-  }
   if (emb_advanced_command(stmt->mysql, COM_EXECUTE,0,0,
 			   (const char*)&stmt->stmt_id,sizeof(stmt->stmt_id),
 			   1) ||
@@ -227,6 +249,9 @@ int emb_read_binary_rows(MYSQL_STMT *stmt)
 int emb_unbuffered_fetch(MYSQL *mysql, char **row)
 {
   MYSQL_DATA *data= ((THD*)mysql->thd)->data;
+  embedded_get_error(mysql);
+  if (mysql->net.last_errno)
+    return mysql->net.last_errno;
   if (!data || !data->data)
   {
     *row= NULL;
@@ -293,6 +318,7 @@ MYSQL_METHODS embedded_methods=
   emb_read_rows,
   emb_mysql_store_result,
   emb_fetch_lengths, 
+  emb_flush_use_result,
   emb_list_fields,
   emb_read_prepare_result,
   emb_stmt_execute,
@@ -442,14 +468,6 @@ int init_embedded_server(int argc, char **argv, char **groups)
     }
   }
 
-  /*
-    Update mysqld variables from client variables if set
-    The client variables are set also by get_one_option() in mysqld.cc
-  */
-  if (max_allowed_packet)
-    global_system_variables.max_allowed_packet= max_allowed_packet;
-  if (net_buffer_length)
-    global_system_variables.net_buffer_length= net_buffer_length;
   return 0;
 }
 
@@ -478,18 +496,20 @@ void *create_embedded_thd(int client_flag, char *db)
   if (thd->store_globals())
   {
     fprintf(stderr,"store_globals failed.\n");
-    return NULL;
+    goto err;
   }
 
   thd->mysys_var= my_thread_var;
   thd->dbug_thread_id= my_thread_id();
   thd->thread_stack= (char*) &thd;
 
+/* TODO - add init_connect command execution */
+
   thd->proc_info=0;				// Remove 'login'
   thd->command=COM_SLEEP;
   thd->version=refresh_version;
   thd->set_time();
-  init_sql_alloc(&thd->mem_root,8192,8192);
+  thd->init_for_queries();
   thd->client_capabilities= client_flag;
 
   thd->db= db;
@@ -504,6 +524,9 @@ void *create_embedded_thd(int client_flag, char *db)
 
   thread_count++;
   return thd;
+err:
+  delete(thd);
+  return NULL;
 }
 
 #ifdef NO_EMBEDDED_ACCESS_CHECKS
@@ -568,7 +591,7 @@ err:
 
 C_MODE_END
 
-bool Protocol::send_fields(List<Item> *list, uint flags)
+bool Protocol::send_fields(List<Item> *list, int flags)
 {
   List_iterator_fast<Item> it(*list);
   Item                     *item;
@@ -609,13 +632,13 @@ bool Protocol::send_fields(List<Item> *list, uint flags)
     client_field->org_table_length=	strlen(client_field->org_table);
     client_field->charsetnr=		server_field.charsetnr;
 
-    client_field->catalog= strdup_root(field_alloc, "std");
+    client_field->catalog= strdup_root(field_alloc, "def");
     client_field->catalog_length= 3;
-    
+
     if (INTERNAL_NUM_FIELD(client_field))
       client_field->flags|= NUM_FLAG;
 
-    if (flags & Protocol::SEND_DEFAULTS)
+    if (flags & (int) Protocol::SEND_DEFAULTS)
     {
       char buff[80];
       String tmp(buff, sizeof(buff), default_charset_info), *res;

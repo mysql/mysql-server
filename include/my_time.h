@@ -27,12 +27,27 @@
 C_MODE_START
 
 extern ulonglong log_10_int[20];
+extern uchar days_in_month[];
+
+/*
+  Portable time_t replacement.
+  Should be signed and hold seconds for 1902-2038 range.
+*/
+typedef long my_time_t;
+
+#define MY_TIME_T_MAX LONG_MAX
+#define MY_TIME_T_MIN LONG_MIN
 
 #define YY_PART_YEAR	   70
 
 /* Flags to str_to_datetime */
-#define TIME_FUZZY_DATE    1
-#define TIME_DATETIME_ONLY 2
+#define TIME_FUZZY_DATE		1
+#define TIME_DATETIME_ONLY	2
+/* Must be same as MODE_NO_ZERO_IN_DATE */
+#define TIME_NO_ZERO_IN_DATE    (65536L*2*2*2*2*2*2*2)
+/* Must be same as MODE_NO_ZERO_DATE */
+#define TIME_NO_ZERO_DATE	(TIME_NO_ZERO_IN_DATE*2)
+#define TIME_INVALID_DATES	(TIME_NO_ZERO_DATE*2)
 
 enum enum_mysql_timestamp_type
 str_to_datetime(const char *str, uint length, MYSQL_TIME *l_time,
@@ -40,6 +55,16 @@ str_to_datetime(const char *str, uint length, MYSQL_TIME *l_time,
 
 bool str_to_time(const char *str,uint length, MYSQL_TIME *l_time,
                  int *was_cut);
+
+long calc_daynr(uint year,uint month,uint day);
+uint calc_days_in_year(uint year);
+
+void init_time(void);
+
+my_time_t 
+my_system_gmt_sec(const MYSQL_TIME *t, long *my_timezone, bool *in_dst_time_gap);
+
+void set_zero_time(MYSQL_TIME *tm);
 
 C_MODE_END
 

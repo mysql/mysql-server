@@ -23,6 +23,8 @@
 #include "NdbOperation.hpp"
 #include "NdbScanOperation.hpp"
 #include "NdbIndexOperation.hpp"
+#include "NdbIndexScanOperation.hpp"
+#include "NdbScanFilter.hpp"
 #include "NdbRecAttr.hpp"
 #include "NdbResultSet.hpp"
 #include "NdbDictionary.hpp"

@@ -1,0 +1,104 @@
+#
+# Test of auto_increment with offset
+#
+source include/have_innodb.inc;
+source include/master-slave.inc;
+
+create table t1 (a int not null auto_increment,b int, primary key (a)) engine=myisam auto_increment=3;
+insert into t1 values (NULL,1),(NULL,2),(NULL,3);
+select * from t1;
+
+sync_slave_with_master;
+select * from t1;
+connection master;
+drop table t1;
+
+create table t1 (a int not null auto_increment,b int, primary key (a)) engine=myisam;
+insert into t1 values (1,1),(NULL,2),(3,3),(NULL,4);
+delete from t1 where b=4;
+insert into t1 values (NULL,5),(NULL,6);
+select * from t1;
+
+sync_slave_with_master;
+select * from t1;
+connection master;
+
+drop table t1;
+
+set @@session.auto_increment_increment=100, @@session.auto_increment_offset=10;
+show variables like "%auto%";
+
+create table t1 (a int not null auto_increment, primary key (a)) engine=myisam;
+# Insert with 2 insert statements to get better testing of logging
+insert into t1 values (NULL),(5),(NULL);
+insert into t1 values (250),(NULL);
+select * from t1;
+insert into t1 values (1000);
+set @@insert_id=400;
+insert into t1 values(NULL),(NULL);
+select * from t1;
+
+sync_slave_with_master;
+select * from t1;
+connection master;
+drop table t1;
+
+#
+# Same test with innodb (as the innodb code is a bit different)
+#
+create table t1 (a int not null auto_increment, primary key (a)) engine=innodb;
+# Insert with 2 insert statements to get better testing of logging
+insert into t1 values (NULL),(5),(NULL);
+insert into t1 values (250),(NULL);
+select * from t1;
+insert into t1 values (1000);
+set @@insert_id=400;
+insert into t1 values(NULL),(NULL);
+select * from t1;
+
+sync_slave_with_master;
+select * from t1;
+connection master;
+drop table t1;
+
+set @@session.auto_increment_increment=1, @@session.auto_increment_offset=1;
+create table t1 (a int not null auto_increment, primary key (a)) engine=myisam;
+# Insert with 2 insert statements to get better testing of logging
+insert into t1 values (NULL),(5),(NULL),(NULL);
+insert into t1 values (500),(NULL),(502),(NULL),(NULL);
+select * from t1;
+set @@insert_id=600;
+--error 1062
+insert into t1 values(600),(NULL),(NULL);
+set @@insert_id=600;
+insert ignore into t1 values(600),(NULL),(NULL),(610),(NULL);
+select * from t1;
+
+sync_slave_with_master;
+select * from t1;
+connection master;
+drop table t1;
+
+#
+# Test that auto-increment works when slave has rows in the table
+#
+set @@session.auto_increment_increment=10, @@session.auto_increment_offset=1;
+
+create table t1 (a int not null auto_increment, primary key (a)) engine=myisam;
+
+sync_slave_with_master;
+insert into t1 values(2),(12),(22),(32),(42);
+connection master;
+
+insert into t1 values (NULL),(NULL);
+insert into t1 values (3),(NULL),(NULL);
+select * from t1;
+
+sync_slave_with_master;
+select * from t1;
+connection master;
+
+drop table t1;
+
+# End cleanup
+sync_slave_with_master;

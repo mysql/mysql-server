@@ -1,4 +1,5 @@
 drop table if exists t1,t2;
+drop database if exists mysqltest;
 create table t1 (a int not null primary key, b int not null,c int not null, key(b,c));
 insert into t1 values (1,2,2),(2,2,3),(3,2,4),(4,2,4);
 check table t1 fast;
@@ -361,39 +362,39 @@ t1	HEAP	9	Fixed	0	5	#	#	#	5	NULL	NULL	NULL	NULL	latin1_swedish_ci	NULL
 t2	HEAP	9	Fixed	0	5	#	#	#	5	NULL	NULL	NULL	NULL	latin1_swedish_ci	NULL		
 t3	HEAP	9	Fixed	0	9	#	#	#	9	NULL	NULL	NULL	NULL	latin1_swedish_ci	NULL		
 drop table t1, t2, t3;
-create database test_$1;
-show create database test_$1;
+create database mysqltest;
+show create database mysqltest;
 Database	Create Database
-test_$1	CREATE DATABASE `test_$1` /*!40100 DEFAULT CHARACTER SET latin1 */
-create table test_$1.t1(a int);
-insert into test_$1.t1 values(1);
-grant select on `test_$1`.* to mysqltest_1@localhost;
-grant usage  on `test_$1`.* to mysqltest_2@localhost;
-grant drop   on `test_$1`.* to mysqltest_3@localhost;
+mysqltest	CREATE DATABASE `mysqltest` /*!40100 DEFAULT CHARACTER SET latin1 */
+create table mysqltest.t1(a int);
+insert into mysqltest.t1 values(1);
+grant select on `mysqltest`.* to mysqltest_1@localhost;
+grant usage  on `mysqltest`.* to mysqltest_2@localhost;
+grant drop   on `mysqltest`.* to mysqltest_3@localhost;
 select * from t1;
 a
 1
-show create database test_$1;
+show create database mysqltest;
 Database	Create Database
-test_$1	CREATE DATABASE `test_$1` /*!40100 DEFAULT CHARACTER SET latin1 */
+mysqltest	CREATE DATABASE `mysqltest` /*!40100 DEFAULT CHARACTER SET latin1 */
 drop table t1;
-ERROR 42000: Access denied for user 'mysqltest_1'@'localhost' to database 'test_$1'
-drop database test_$1;
-ERROR 42000: Access denied for user 'mysqltest_1'@'localhost' to database 'test_$1'
-select * from test_$1.t1;
-ERROR 42000: Access denied for user 'mysqltest_2'@'localhost' to database 'test_$1'
-show create database test_$1;
-ERROR 42000: Access denied for user 'mysqltest_2'@'localhost' to database 'test_$1'
-drop table test_$1.t1;
-ERROR 42000: Access denied for user 'mysqltest_2'@'localhost' to database 'test_$1'
-drop database test_$1;
-ERROR 42000: Access denied for user 'mysqltest_2'@'localhost' to database 'test_$1'
-select * from test_$1.t1;
-ERROR 42000: Access denied for user 'mysqltest_3'@'localhost' to database 'test_$1'
-show create database test_$1;
-ERROR 42000: Access denied for user 'mysqltest_3'@'localhost' to database 'test_$1'
-drop table test_$1.t1;
-drop database test_$1;
+ERROR 42000: Access denied for user 'mysqltest_1'@'localhost' to database 'mysqltest'
+drop database mysqltest;
+ERROR 42000: Access denied for user 'mysqltest_1'@'localhost' to database 'mysqltest'
+select * from mysqltest.t1;
+ERROR 42000: Access denied for user 'mysqltest_2'@'localhost' to database 'mysqltest'
+show create database mysqltest;
+ERROR 42000: Access denied for user 'mysqltest_2'@'localhost' to database 'mysqltest'
+drop table mysqltest.t1;
+ERROR 42000: Access denied for user 'mysqltest_2'@'localhost' to database 'mysqltest'
+drop database mysqltest;
+ERROR 42000: Access denied for user 'mysqltest_2'@'localhost' to database 'mysqltest'
+select * from mysqltest.t1;
+ERROR 42000: Access denied for user 'mysqltest_3'@'localhost' to database 'mysqltest'
+show create database mysqltest;
+ERROR 42000: Access denied for user 'mysqltest_3'@'localhost' to database 'mysqltest'
+drop table mysqltest.t1;
+drop database mysqltest;
 set names binary;
 delete from mysql.user 
 where user='mysqltest_1' || user='mysqltest_2' || user='mysqltest_3';

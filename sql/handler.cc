@@ -38,6 +38,9 @@
 #ifdef HAVE_ARCHIVE_DB
 #include "examples/ha_archive.h"
 #endif
+#ifdef HAVE_CSV_DB
+#include "examples/ha_tina.h"
+#endif
 #ifdef HAVE_INNOBASE_DB
 #include "ha_innodb.h"
 #endif
@@ -51,11 +54,7 @@
 
 static int NEAR_F delete_file(const char *name,const char *ext,int extflag);
 
-ulong ha_read_count, ha_write_count, ha_delete_count, ha_update_count,
-      ha_read_key_count, ha_read_next_count, ha_read_prev_count,
-      ha_read_first_count, ha_read_last_count,
-      ha_commit_count, ha_rollback_count,
-      ha_read_rnd_count, ha_read_rnd_next_count, ha_discover_count;
+ulong ha_read_count, ha_discover_count;
 
 static SHOW_COMP_OPTION have_yes= SHOW_OPTION_YES;
 
@@ -91,6 +90,8 @@ struct show_table_type_st sys_table_types[]=
    "Example storage engine", DB_TYPE_EXAMPLE_DB},
   {"ARCHIVE",&have_archive_db,
    "Archive storage engine", DB_TYPE_ARCHIVE_DB},
+  {"CSV",&have_csv_db,
+   "CSV storage engine", DB_TYPE_CSV_DB},
   {NullS, NULL, NullS, DB_TYPE_UNKNOWN}
 };
 
@@ -106,7 +107,7 @@ TYPELIB tx_isolation_typelib= {array_elements(tx_isolation_names)-1,"",
 
 enum db_type ha_resolve_by_name(const char *name, uint namelen)
 {
-  THD *thd=current_thd;
+  THD *thd= current_thd;
   if (thd && !my_strcasecmp(&my_charset_latin1, name, "DEFAULT")) {
     return (enum db_type) thd->variables.table_type;
   }
@@ -137,6 +138,7 @@ const char *ha_get_storage_engine(enum db_type db_type)
 enum db_type ha_checktype(enum db_type database_type)
 {
   show_table_type_st *types;
+  THD *thd= current_thd;
   for (types= sys_table_types; types->type; types++)
   {
     if ((database_type == types->db_type) && 
@@ -156,8 +158,8 @@ enum db_type ha_checktype(enum db_type database_type)
   }
   
   return 
-    DB_TYPE_UNKNOWN != (enum db_type) current_thd->variables.table_type ?
-    (enum db_type) current_thd->variables.table_type :
+    DB_TYPE_UNKNOWN != (enum db_type) thd->variables.table_type ?
+    (enum db_type) thd->variables.table_type :
     DB_TYPE_UNKNOWN != (enum db_type) global_system_variables.table_type ?
     (enum db_type) global_system_variables.table_type :
     DB_TYPE_MYISAM;
@@ -195,6 +197,10 @@ handler *get_new_handler(TABLE *table, enum db_type db_type)
 #ifdef HAVE_ARCHIVE_DB
   case DB_TYPE_ARCHIVE_DB:
     return new ha_archive(table);
+#endif
+#ifdef HAVE_CSV_DB
+  case DB_TYPE_CSV_DB:
+    return new ha_tina(table);
 #endif
 #ifdef HAVE_NDBCLUSTER_DB
   case DB_TYPE_NDBCLUSTER:
@@ -463,31 +469,45 @@ int ha_release_temporary_latches(THD *thd)
 int ha_commit_trans(THD *thd, THD_TRANS* trans)
 {
   int error=0;
-  DBUG_ENTER("ha_commit");
+  DBUG_ENTER("ha_commit_trans");
 #ifdef USING_TRANSACTIONS
   if (opt_using_transactions)
   {
-    bool operation_done= 0;
     bool transaction_commited= 0;
+    bool operation_done= 0, need_start_waiters= 0;
 
-    /* Update the binary log if we have cached some queries */
+    /* If transaction has done some updates to tables */
     if (trans == &thd->transaction.all && mysql_bin_log.is_open() &&
-	my_b_tell(&thd->transaction.trans_log))
+        my_b_tell(&thd->transaction.trans_log))
     {
-      mysql_bin_log.write(thd, &thd->transaction.trans_log, 1);
-      statistic_increment(binlog_cache_use, &LOCK_status);
-      if (thd->transaction.trans_log.disk_writes != 0)
+      if ((error= wait_if_global_read_lock(thd, 0, 0)))
       {
-        /* 
-          We have to do this after addition of trans_log to main binlog since
-          this operation can cause flushing of end of trans_log to disk. 
+        /*
+          Note that ROLLBACK [TO SAVEPOINT] does not have this test; it's
+          because ROLLBACK never updates data, so needn't wait on the lock.
         */
-        statistic_increment(binlog_cache_disk_use, &LOCK_status);
-        thd->transaction.trans_log.disk_writes= 0;
+        my_error(ER_ERROR_DURING_COMMIT, MYF(0), error);
+        error= 1;
       }
-      reinit_io_cache(&thd->transaction.trans_log,
-		      WRITE_CACHE, (my_off_t) 0, 0, 1);
-      thd->transaction.trans_log.end_of_file= max_binlog_cache_size;
+      else
+        need_start_waiters= 1;
+      if (mysql_bin_log.is_open())
+      {
+        mysql_bin_log.write(thd, &thd->transaction.trans_log, 1);
+        statistic_increment(binlog_cache_use, &LOCK_status);
+        if (thd->transaction.trans_log.disk_writes != 0)
+        {
+          /* 
+            We have to do this after addition of trans_log to main binlog since
+            this operation can cause flushing of end of trans_log to disk. 
+          */
+          statistic_increment(binlog_cache_disk_use, &LOCK_status);
+          thd->transaction.trans_log.disk_writes= 0;
+        }
+        reinit_io_cache(&thd->transaction.trans_log,
+                        WRITE_CACHE, (my_off_t) 0, 0, 1);
+        thd->transaction.trans_log.end_of_file= max_binlog_cache_size;
+      }
     }
 #ifdef HAVE_NDBCLUSTER_DB
     if (trans->ndb_tid)
@@ -495,9 +515,7 @@ int ha_commit_trans(THD *thd, THD_TRANS* trans)
       if ((error=ndbcluster_commit(thd,trans->ndb_tid)))
       {
 	if (error == -1)
-	  my_error(ER_ERROR_DURING_COMMIT, MYF(0), error);
-	else
-	    ndbcluster_print_error(error);
+	  my_error(ER_ERROR_DURING_COMMIT, MYF(0));
         error=1;
       }
       if (trans == &thd->transaction.all)
@@ -541,9 +559,11 @@ int ha_commit_trans(THD *thd, THD_TRANS* trans)
     thd->variables.tx_isolation=thd->session_tx_isolation;
     if (operation_done)
     {
-      statistic_increment(ha_commit_count,&LOCK_status);
+      statistic_increment(thd->status_var.ha_commit_count,&LOCK_status);
       thd->transaction.cleanup();
     }
+    if (need_start_waiters)
+      start_waiting_global_read_lock(thd);
   }
 #endif // using transactions
   DBUG_RETURN(error);
@@ -553,7 +573,7 @@ int ha_commit_trans(THD *thd, THD_TRANS* trans)
 int ha_rollback_trans(THD *thd, THD_TRANS *trans)
 {
   int error=0;
-  DBUG_ENTER("ha_rollback");
+  DBUG_ENTER("ha_rollback_trans");
 #ifdef USING_TRANSACTIONS
   if (opt_using_transactions)
   {
@@ -564,9 +584,7 @@ int ha_rollback_trans(THD *thd, THD_TRANS *trans)
       if ((error=ndbcluster_rollback(thd, trans->ndb_tid)))
       {
 	if (error == -1)
-	  my_error(ER_ERROR_DURING_ROLLBACK, MYF(0), error);	  
-	else
-	  ndbcluster_print_error(error);
+	  my_error(ER_ERROR_DURING_ROLLBACK, MYF(0));
         error=1;
       }
       trans->ndb_tid = 0;
@@ -630,7 +648,7 @@ int ha_rollback_trans(THD *thd, THD_TRANS *trans)
     }
     thd->variables.tx_isolation=thd->session_tx_isolation;
     if (operation_done)
-      statistic_increment(ha_rollback_count,&LOCK_status);
+      statistic_increment(thd->status_var.ha_rollback_count,&LOCK_status);
   }
 #endif /* USING_TRANSACTIONS */
   DBUG_RETURN(error);
@@ -703,7 +721,7 @@ int ha_rollback_to_savepoint(THD *thd, char *savepoint_name)
     operation_done=1;
 #endif
     if (operation_done)
-      statistic_increment(ha_rollback_count,&LOCK_status);
+      statistic_increment(thd->status_var.ha_rollback_count,&LOCK_status);
   }
 #endif /* USING_TRANSACTIONS */
 
@@ -747,12 +765,12 @@ bool ha_flush_logs()
 {
   bool result=0;
 #ifdef HAVE_BERKELEY_DB
-  if ((have_berkeley_db == SHOW_OPTION_YES) && 
+  if ((have_berkeley_db == SHOW_OPTION_YES) &&
       berkeley_flush_logs())
     result=1;
 #endif
 #ifdef HAVE_INNOBASE_DB
-  if ((have_innodb == SHOW_OPTION_YES) && 
+  if ((have_innodb == SHOW_OPTION_YES) &&
       innobase_flush_logs())
     result=1;
 #endif
@@ -847,7 +865,7 @@ my_off_t ha_get_ptr(byte *ptr, uint pack_length)
 int handler::ha_open(const char *name, int mode, int test_if_locked)
 {
   int error;
-  DBUG_ENTER("handler::open");
+  DBUG_ENTER("handler::ha_open");
   DBUG_PRINT("enter",("name: %s  db_type: %d  db_stat: %d  mode: %d  lock_test: %d",
 		      name, table->db_type, table->db_stat, mode,
 		      test_if_locked));
@@ -898,7 +916,7 @@ int handler::read_first_row(byte * buf, uint primary_key)
   register int error;
   DBUG_ENTER("handler::read_first_row");
 
-  statistic_increment(ha_read_first_count,&LOCK_status);
+  statistic_increment(current_thd->status_var.ha_read_first_count,&LOCK_status);
 
   /*
     If there is very few deleted rows in the table, find the first row by
@@ -925,7 +943,7 @@ int handler::read_first_row(byte * buf, uint primary_key)
 
 void handler::update_timestamp(byte *record)
 {
-  long skr= (long) current_thd->query_start();
+  long skr= (long) table->in_use->query_start();
 #ifdef WORDS_BIGENDIAN
   if (table->db_low_byte_first)
   {
@@ -937,42 +955,165 @@ void handler::update_timestamp(byte *record)
   return;
 }
 
+
 /*
-  Updates field with field_type NEXT_NUMBER according to following:
-  if field = 0 change field to the next free key in database.
+  Generate the next auto-increment number based on increment and offset
+  
+  In most cases increment= offset= 1, in which case we get:
+  1,2,3,4,5,...
+  If increment=10 and offset=5 and previous number is 1, we get:
+  1,5,15,25,35,...
+*/
+
+inline ulonglong
+next_insert_id(ulonglong nr,struct system_variables *variables)
+{
+  nr= (((nr+ variables->auto_increment_increment -
+         variables->auto_increment_offset)) /
+       (ulonglong) variables->auto_increment_increment);
+  return (nr* (ulonglong) variables->auto_increment_increment +
+          variables->auto_increment_offset);
+}
+
+
+/*
+  Updates columns with type NEXT_NUMBER if:
+
+  - If column value is set to NULL (in which case
+    auto_increment_field_not_null is 0)
+  - If column is set to 0 and (sql_mode & MODE_NO_AUTO_VALUE_ON_ZERO) is not
+    set. In the future we will only set NEXT_NUMBER fields if one sets them
+    to NULL (or they are not included in the insert list).
+
+
+  There are two different cases when the above is true:
+
+  - thd->next_insert_id == 0  (This is the normal case)
+    In this case we set the set the column for the first row to the value
+    next_insert_id(get_auto_increment(column))) which is normally
+    max-used-column-value +1.
+
+    We call get_auto_increment() only for the first row in a multi-row
+    statement. For the following rows we generate new numbers based on the
+    last used number.
+
+  - thd->next_insert_id != 0.  This happens when we have read a statement
+    from the binary log or when one has used SET LAST_INSERT_ID=#.
+
+    In this case we will set the column to the value of next_insert_id.
+    The next row will be given the id
+    next_insert_id(next_insert_id)
+
+    The idea is the generated auto_increment values are predicatable and
+    independent of the column values in the table.  This is needed to be
+    able to replicate into a table that alread has rows with a higher
+    auto-increment value than the one that is inserted.
+
+    After we have already generated an auto-increment number and the users
+    inserts a column with a higher value than the last used one, we will
+    start counting from the inserted value.
+
+    thd->next_insert_id is cleared after it's been used for a statement.
 */
 
 void handler::update_auto_increment()
 {
-  longlong nr;
-  THD *thd;
-  DBUG_ENTER("update_auto_increment");
-  if (table->next_number_field->val_int() != 0 ||
+  ulonglong nr;
+  THD *thd= table->in_use;
+  struct system_variables *variables= &thd->variables;
+  DBUG_ENTER("handler::update_auto_increment");
+
+  /*
+    We must save the previous value to be able to restore it if the
+    row was not inserted
+  */
+  thd->prev_insert_id= thd->next_insert_id;
+
+  if ((nr= table->next_number_field->val_int()) != 0 ||
       table->auto_increment_field_not_null &&
-      current_thd->variables.sql_mode & MODE_NO_AUTO_VALUE_ON_ZERO)
+      thd->variables.sql_mode & MODE_NO_AUTO_VALUE_ON_ZERO)
   {
+    /* Clear flag for next row */
     table->auto_increment_field_not_null= FALSE;
+    /* Mark that we didn't generated a new value **/
     auto_increment_column_changed=0;
+
+    /* Update next_insert_id if we have already generated a value */
+    if (thd->clear_next_insert_id && nr >= thd->next_insert_id)
+    {
+      if (variables->auto_increment_increment != 1)
+        nr= next_insert_id(nr, variables);
+      else
+        nr++;
+      thd->next_insert_id= nr;
+      DBUG_PRINT("info",("next_insert_id: %lu", (ulong) nr));
+    }
     DBUG_VOID_RETURN;
   }
   table->auto_increment_field_not_null= FALSE;
-  thd=current_thd;
-  if ((nr=thd->next_insert_id))
-    thd->next_insert_id=0;			// Clear after use
-  else
-    nr=get_auto_increment();
-  if (!table->next_number_field->store(nr))
+  if (!(nr= thd->next_insert_id))
+  {
+    nr= get_auto_increment();
+    if (variables->auto_increment_increment != 1)
+      nr= next_insert_id(nr-1, variables);
+    /*
+      Update next row based on the found value. This way we don't have to
+      call the handler for every generated auto-increment value on a
+      multi-row statement
+    */
+    thd->next_insert_id= nr;
+  }
+
+  DBUG_PRINT("info",("auto_increment: %lu", (ulong) nr));
+
+  /* Mark that we should clear next_insert_id before next stmt */
+  thd->clear_next_insert_id= 1;
+
+  if (!table->next_number_field->store((longlong) nr))
     thd->insert_id((ulonglong) nr);
   else
     thd->insert_id(table->next_number_field->val_int());
+
+  /*
+    We can't set next_insert_id if the auto-increment key is not the
+    first key part, as there is no gurantee that the first parts will be in
+    sequence
+  */
+  if (!table->next_number_key_offset)
+  {
+    /*
+      Set next insert id to point to next auto-increment value to be able to
+      handle multi-row statements
+      This works even if auto_increment_increment > 1
+    */
+    thd->next_insert_id= next_insert_id(nr, variables);
+  }
+  else
+    thd->next_insert_id= 0;
+
+  /* Mark that we generated a new value */
   auto_increment_column_changed=1;
   DBUG_VOID_RETURN;
 }
 
+/*
+  restore_auto_increment
 
-longlong handler::get_auto_increment()
+  In case of error on write, we restore the last used next_insert_id value
+  because the previous value was not used.
+*/
+
+void handler::restore_auto_increment()
 {
-  longlong nr;
+  THD *thd= table->in_use;
+  if (thd->next_insert_id)
+    thd->next_insert_id= thd->prev_insert_id;
+}
+
+
+ulonglong handler::get_auto_increment()
+{
+  ulonglong nr;
   int error;
 
   (void) extra(HA_EXTRA_KEYREAD);
@@ -993,8 +1134,8 @@ longlong handler::get_auto_increment()
   if (error)
     nr=1;
   else
-    nr=(longlong) table->next_number_field->
-      val_int_offset(table->rec_buff_length)+1;
+    nr=((ulonglong) table->next_number_field->
+        val_int_offset(table->rec_buff_length)+1);
   index_end();
   (void) extra(HA_EXTRA_NO_KEYREAD);
   return nr;
@@ -1004,7 +1145,7 @@ longlong handler::get_auto_increment()
 
 void handler::print_error(int error, myf errflag)
 {
-  DBUG_ENTER("print_error");
+  DBUG_ENTER("handler::print_error");
   DBUG_PRINT("enter",("error: %d",error));
 
   int textno=ER_GET_ERRNO;
@@ -1143,7 +1284,7 @@ bool handler::get_error_message(int error, String* buf)
 
 uint handler::get_dup_key(int error)
 {
-  DBUG_ENTER("get_dup_key");
+  DBUG_ENTER("handler::get_dup_key");
   table->file->errkey  = (uint) -1;
   if (error == HA_ERR_FOUND_DUPP_KEY || error == HA_ERR_FOUND_DUPP_UNIQUE)
     info(HA_STATUS_ERRKEY | HA_STATUS_NO_LOCK);
@@ -1221,7 +1362,7 @@ int ha_create_table(const char *name, HA_CREATE_INFO *create_info,
   char name_buff[FN_REFLEN];
   DBUG_ENTER("ha_create_table");
 
-  if (openfrm(name,"",0,(uint) READ_ALL, 0, &table))
+  if (openfrm(current_thd, name,"",0,(uint) READ_ALL, 0, &table))
     DBUG_RETURN(1);
   if (update_create_info)
   {

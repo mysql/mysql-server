@@ -29,9 +29,12 @@ typedef struct st_order {
   Item	 **item;			/* Point at item in select fields */
   Item	 *item_ptr;			/* Storage for initial item */
   Item   **item_copy;			/* For SPs; the original item ptr */
+  int    counter;                       /* position in SELECT list, correct
+                                           only if counter_used is true*/
   bool	 asc;				/* true if ascending */
   bool	 free_me;			/* true if item isn't shared  */
   bool	 in_field_list;			/* true if in select field list */
+  bool   counter_used;                  /* parapeter was counter of columns */
   Field  *field;			/* If tmp-table group */
   char	 *buff;				/* If tmp-table group */
   table_map used,depend_map;
@@ -46,6 +49,13 @@ typedef struct st_grant_info
 } GRANT_INFO;
 
 enum tmp_table_type {NO_TMP_TABLE=0, TMP_TABLE=1, TRANSACTIONAL_TMP_TABLE=2};
+
+enum frm_type_enum
+{
+  FRMTYPE_ERROR= 0,
+  FRMTYPE_TABLE,
+  FRMTYPE_VIEW
+};
 
 typedef struct st_filesort_info
 {
@@ -63,6 +73,7 @@ typedef struct st_filesort_info
 
 class Field_timestamp;
 class Field_blob;
+class Table_triggers_list;
 
 struct st_table {
   handler *file;
@@ -144,6 +155,8 @@ struct st_table {
   REGINFO reginfo;			/* field connections */
   MEM_ROOT mem_root;
   GRANT_INFO grant;
+  /* Table's triggers, 0 if there are no of them */
+  Table_triggers_list *triggers;
 
   char		*table_cache_key;
   char		*table_name,*real_name,*path;
@@ -172,7 +185,7 @@ struct st_table {
 #define JOIN_TYPE_RIGHT	2
 
 #define VIEW_ALGORITHM_UNDEFINED	0
-#define VIEW_ALGORITHM_TMEPTABLE	1
+#define VIEW_ALGORITHM_TMPTABLE	1
 #define VIEW_ALGORITHM_MERGE		2
 
 struct st_lex;
@@ -207,6 +220,8 @@ typedef struct st_table_list
   st_table_list	*ancestor;
   /* most upper view this table belongs to */
   st_table_list	*belong_to_view;
+  /* next_global before adding VIEW tables */
+  st_table_list	*old_next;
   Item          *where;                 /* VIEW WHERE clause condition */
   LEX_STRING	query;			/* text of (CRETE/SELECT) statement */
   LEX_STRING	md5;			/* md5 of query tesxt */
@@ -215,7 +230,7 @@ typedef struct st_table_list
   LEX_STRING	view_name;		/* save view name */
   LEX_STRING	timestamp;		/* GMT time stamp of last operation */
   ulonglong	file_version;		/* version of file's field set */
-  ulonglong     updatable_view;        /* VIEW can be updated */
+  ulonglong     updatable_view;         /* VIEW can be updated */
   ulonglong	revision;		/* revision control number */
   ulonglong	algorithm;		/* 0 any, 1 tmp tables , 2 merging */
   uint          effective_algorithm;    /* which algorithm was really used */
@@ -241,6 +256,8 @@ typedef struct st_table_list
   bool          setup_is_done;          /* setup_tables() is done */
   /* do view contain auto_increment field */
   bool          contain_auto_increment;
+  /* FRMTYPE_ERROR if any type is acceptable */
+  enum frm_type_enum required_type;
   char		timestamp_buffer[20];	/* buffer for timestamp (19+1) */
 
   void calc_md5(char *buffer);
@@ -248,6 +265,12 @@ typedef struct st_table_list
   bool setup_ancestor(THD *thd, Item **conds);
   bool placeholder() {return derived || view; }
   void print(THD *thd, String *str);
+  inline st_table_list *next_independent()
+  {
+    if (view)
+      return old_next;
+    return next_global;
+  }
 } TABLE_LIST;
 
 class Item;
@@ -258,7 +281,7 @@ public:
   virtual ~Field_iterator() {}
   virtual void set(TABLE_LIST *)= 0;
   virtual void next()= 0;
-  virtual bool end()= 0;
+  virtual bool end_of_fields()= 0;              /* Return 1 at end of list */
   virtual const char *name()= 0;
   virtual Item *item(THD *)= 0;
   virtual Field *field()= 0;
@@ -273,7 +296,7 @@ public:
   void set(TABLE_LIST *table) { ptr= table->table->field; }
   void set_table(TABLE *table) { ptr= table->field; }
   void next() { ptr++; }
-  bool end() { return test(*ptr); }
+  bool end_of_fields() { return *ptr == 0; }
   const char *name();
   Item *item(THD *thd);
   Field *field() { return *ptr; }
@@ -287,7 +310,7 @@ public:
   Field_iterator_view() :ptr(0), array_end(0) {}
   void set(TABLE_LIST *table);
   void next() { ptr++; }
-  bool end() { return ptr < array_end; }
+  bool end_of_fields() { return ptr == array_end; }
   const char *name();
   Item *item(THD *thd) { return *ptr; }
   Field *field() { return 0; }

@@ -19,6 +19,7 @@
 
 #include <mgmapi.h>
 #include <Vector.hpp>
+#include <BaseString.hpp>
 
 class NdbRestarter {
 public:
@@ -85,8 +86,8 @@ protected:
   Vector<ndb_mgm_node_state> apiNodes;
   
   bool connected;
-  const char* addr;
-  const char* host;
+  BaseString addr;
+  BaseString host;
   int port;
   NdbMgmHandle handle;
   ndb_mgm_configuration * m_config;

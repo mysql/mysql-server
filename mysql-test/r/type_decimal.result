@@ -158,17 +158,17 @@ insert into t1 values ("00000000000001"),("+0000000000001"),("-0000000000001");
 insert into t1 values ("+111111111.11"),("111111111.11"),("-11111111.11");
 insert into t1 values ("-111111111.11"),("+1111111111.11"),("1111111111.11");
 Warnings:
-Warning	1264	Data truncated; out of range for column 'a' at row 1
-Warning	1264	Data truncated; out of range for column 'a' at row 2
-Warning	1264	Data truncated; out of range for column 'a' at row 3
+Warning	1264	Out of range value adjusted for column 'a' at row 1
+Warning	1264	Out of range value adjusted for column 'a' at row 2
+Warning	1264	Out of range value adjusted for column 'a' at row 3
 insert into t1 values ("1e+1000"),("1e-1000"),("-1e+1000");
 Warnings:
-Warning	1264	Data truncated; out of range for column 'a' at row 1
+Warning	1264	Out of range value adjusted for column 'a' at row 1
 Warning	1265	Data truncated for column 'a' at row 2
-Warning	1264	Data truncated; out of range for column 'a' at row 3
+Warning	1264	Out of range value adjusted for column 'a' at row 3
 insert into t1 values ("123.4e"),("123.4e+2"),("123.4e-2"),("123e1"),("123e+0");
 Warnings:
-Warning	1265	Data truncated for column 'a' at row 3
+Note	1265	Data truncated for column 'a' at row 3
 select * from t1;
 a
 0.00
@@ -201,32 +201,32 @@ drop  table t1;
 create table t1 (a decimal(10,2) unsigned);
 insert into t1 values ("0.0"),("-0.0"),("+0.0"),("01.0"),("+01.0"),("-01.0");
 Warnings:
-Warning	1264	Data truncated; out of range for column 'a' at row 2
-Warning	1264	Data truncated; out of range for column 'a' at row 6
+Warning	1264	Out of range value adjusted for column 'a' at row 2
+Warning	1264	Out of range value adjusted for column 'a' at row 6
 insert into t1 values ("-.1"),("+.1"),(".1");
 Warnings:
-Warning	1264	Data truncated; out of range for column 'a' at row 1
+Warning	1264	Out of range value adjusted for column 'a' at row 1
 insert into t1 values ("00000000000001"),("+0000000000001"),("-0000000000001");
 Warnings:
-Warning	1264	Data truncated; out of range for column 'a' at row 3
+Warning	1264	Out of range value adjusted for column 'a' at row 3
 insert into t1 values ("+111111111.11"),("111111111.11"),("-11111111.11");
 Warnings:
-Warning	1264	Data truncated; out of range for column 'a' at row 1
-Warning	1264	Data truncated; out of range for column 'a' at row 2
-Warning	1264	Data truncated; out of range for column 'a' at row 3
+Warning	1264	Out of range value adjusted for column 'a' at row 1
+Warning	1264	Out of range value adjusted for column 'a' at row 2
+Warning	1264	Out of range value adjusted for column 'a' at row 3
 insert into t1 values ("-111111111.11"),("+1111111111.11"),("1111111111.11");
 Warnings:
-Warning	1264	Data truncated; out of range for column 'a' at row 1
-Warning	1264	Data truncated; out of range for column 'a' at row 2
-Warning	1264	Data truncated; out of range for column 'a' at row 3
+Warning	1264	Out of range value adjusted for column 'a' at row 1
+Warning	1264	Out of range value adjusted for column 'a' at row 2
+Warning	1264	Out of range value adjusted for column 'a' at row 3
 insert into t1 values ("1e+1000"),("1e-1000"),("-1e+1000");
 Warnings:
-Warning	1264	Data truncated; out of range for column 'a' at row 1
+Warning	1264	Out of range value adjusted for column 'a' at row 1
 Warning	1265	Data truncated for column 'a' at row 2
-Warning	1264	Data truncated; out of range for column 'a' at row 3
+Warning	1264	Out of range value adjusted for column 'a' at row 3
 insert into t1 values ("123.4e"),("123.4e+2"),("123.4e-2"),("123e1"),("123e+0");
 Warnings:
-Warning	1265	Data truncated for column 'a' at row 3
+Note	1265	Data truncated for column 'a' at row 3
 select * from t1;
 a
 0.00
@@ -259,32 +259,32 @@ drop  table t1;
 create table t1 (a decimal(10,2) zerofill);
 insert into t1 values ("0.0"),("-0.0"),("+0.0"),("01.0"),("+01.0"),("-01.0");
 Warnings:
-Warning	1264	Data truncated; out of range for column 'a' at row 2
-Warning	1264	Data truncated; out of range for column 'a' at row 6
+Warning	1264	Out of range value adjusted for column 'a' at row 2
+Warning	1264	Out of range value adjusted for column 'a' at row 6
 insert into t1 values ("-.1"),("+.1"),(".1");
 Warnings:
-Warning	1264	Data truncated; out of range for column 'a' at row 1
+Warning	1264	Out of range value adjusted for column 'a' at row 1
 insert into t1 values ("00000000000001"),("+0000000000001"),("-0000000000001");
 Warnings:
-Warning	1264	Data truncated; out of range for column 'a' at row 3
+Warning	1264	Out of range value adjusted for column 'a' at row 3
 insert into t1 values ("+111111111.11"),("111111111.11"),("-11111111.11");
 Warnings:
-Warning	1264	Data truncated; out of range for column 'a' at row 1
-Warning	1264	Data truncated; out of range for column 'a' at row 2
-Warning	1264	Data truncated; out of range for column 'a' at row 3
+Warning	1264	Out of range value adjusted for column 'a' at row 1
+Warning	1264	Out of range value adjusted for column 'a' at row 2
+Warning	1264	Out of range value adjusted for column 'a' at row 3
 insert into t1 values ("-111111111.11"),("+1111111111.11"),("1111111111.11");
 Warnings:
-Warning	1264	Data truncated; out of range for column 'a' at row 1
-Warning	1264	Data truncated; out of range for column 'a' at row 2
-Warning	1264	Data truncated; out of range for column 'a' at row 3
+Warning	1264	Out of range value adjusted for column 'a' at row 1
+Warning	1264	Out of range value adjusted for column 'a' at row 2
+Warning	1264	Out of range value adjusted for column 'a' at row 3
 insert into t1 values ("1e+1000"),("1e-1000"),("-1e+1000");
 Warnings:
-Warning	1264	Data truncated; out of range for column 'a' at row 1
+Warning	1264	Out of range value adjusted for column 'a' at row 1
 Warning	1265	Data truncated for column 'a' at row 2
-Warning	1264	Data truncated; out of range for column 'a' at row 3
+Warning	1264	Out of range value adjusted for column 'a' at row 3
 insert into t1 values ("123.4e"),("123.4e+2"),("123.4e-2"),("123e1"),("123e+0");
 Warnings:
-Warning	1265	Data truncated for column 'a' at row 3
+Note	1265	Data truncated for column 'a' at row 3
 select * from t1;
 a
 00000000.00
@@ -321,13 +321,13 @@ insert into t1 values (00000000000001),(+0000000000001),(-0000000000001);
 insert into t1 values (+111111111.11),(111111111.11),(-11111111.11);
 insert into t1 values (-111111111.11),(+1111111111.11),(1111111111.11);
 Warnings:
-Warning	1264	Data truncated; out of range for column 'a' at row 1
-Warning	1264	Data truncated; out of range for column 'a' at row 2
-Warning	1264	Data truncated; out of range for column 'a' at row 3
+Warning	1264	Out of range value adjusted for column 'a' at row 1
+Warning	1264	Out of range value adjusted for column 'a' at row 2
+Warning	1264	Out of range value adjusted for column 'a' at row 3
 insert into t1 values (1e+100),(1e-100),(-1e+100);
 Warnings:
-Warning	1264	Data truncated; out of range for column 'a' at row 1
-Warning	1264	Data truncated; out of range for column 'a' at row 3
+Warning	1264	Out of range value adjusted for column 'a' at row 1
+Warning	1264	Out of range value adjusted for column 'a' at row 3
 insert into t1 values (123.4e0),(123.4e+2),(123.4e-2),(123e1),(123e+0);
 select * from t1;
 a
@@ -361,8 +361,8 @@ drop  table t1;
 create table t1 (a decimal);
 insert into t1 values (-99999999999999),(-1),('+1'),('01'),('+00000000000001'),('+12345678901'),(99999999999999);
 Warnings:
-Warning	1264	Data truncated; out of range for column 'a' at row 1
-Warning	1264	Data truncated; out of range for column 'a' at row 7
+Warning	1264	Out of range value adjusted for column 'a' at row 1
+Warning	1264	Out of range value adjusted for column 'a' at row 7
 select * from t1;
 a
 -9999999999
@@ -376,9 +376,9 @@ drop  table t1;
 create table t1 (a decimal unsigned);
 insert into t1 values (-99999999999999),(-1),('+1'),('01'),('+00000000000001'),('+1234567890'),(99999999999999);
 Warnings:
-Warning	1264	Data truncated; out of range for column 'a' at row 1
-Warning	1264	Data truncated; out of range for column 'a' at row 2
-Warning	1264	Data truncated; out of range for column 'a' at row 7
+Warning	1264	Out of range value adjusted for column 'a' at row 1
+Warning	1264	Out of range value adjusted for column 'a' at row 2
+Warning	1264	Out of range value adjusted for column 'a' at row 7
 select * from t1;
 a
 0
@@ -392,9 +392,9 @@ drop  table t1;
 create table t1 (a decimal zerofill);
 insert into t1 values (-99999999999999),(-1),('+1'),('01'),('+00000000000001'),('+1234567890'),(99999999999999);
 Warnings:
-Warning	1264	Data truncated; out of range for column 'a' at row 1
-Warning	1264	Data truncated; out of range for column 'a' at row 2
-Warning	1264	Data truncated; out of range for column 'a' at row 7
+Warning	1264	Out of range value adjusted for column 'a' at row 1
+Warning	1264	Out of range value adjusted for column 'a' at row 2
+Warning	1264	Out of range value adjusted for column 'a' at row 7
 select * from t1;
 a
 0000000000
@@ -408,9 +408,9 @@ drop  table t1;
 create table t1 (a decimal unsigned zerofill);
 insert into t1 values (-99999999999999),(-1),('+1'),('01'),('+00000000000001'),('+1234567890'),(99999999999999);
 Warnings:
-Warning	1264	Data truncated; out of range for column 'a' at row 1
-Warning	1264	Data truncated; out of range for column 'a' at row 2
-Warning	1264	Data truncated; out of range for column 'a' at row 7
+Warning	1264	Out of range value adjusted for column 'a' at row 1
+Warning	1264	Out of range value adjusted for column 'a' at row 2
+Warning	1264	Out of range value adjusted for column 'a' at row 7
 select * from t1;
 a
 0000000000
@@ -425,7 +425,7 @@ create table t1(a decimal(10,0));
 insert into t1 values ("1e4294967295");
 Warnings:
 Warning	1265	Data truncated for column 'a' at row 1
-Warning	1264	Data truncated; out of range for column 'a' at row 1
+Warning	1264	Out of range value adjusted for column 'a' at row 1
 select * from t1;
 a
 99999999999
@@ -433,7 +433,7 @@ delete from t1;
 insert into t1 values("1e4294967297");
 Warnings:
 Warning	1265	Data truncated for column 'a' at row 1
-Warning	1264	Data truncated; out of range for column 'a' at row 1
+Warning	1264	Out of range value adjusted for column 'a' at row 1
 select * from t1;
 a
 99999999999

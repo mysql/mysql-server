@@ -50,7 +50,7 @@ flush tables;
 system rm var/master-data/test/t1.frm ;
 update t1 set name="Autodiscover" where id = 2;
 show status like 'handler_discover%';
-select * from t1 order by name;
+select * from t1 order by id;
 show status like 'handler_discover%';
 
 #

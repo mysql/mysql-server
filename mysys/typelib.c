@@ -49,7 +49,7 @@ int find_type(my_string x, TYPELIB *typelib, uint full_name)
   reg1 my_string i;
   reg2 const char *j;
   DBUG_ENTER("find_type");
-  DBUG_PRINT("enter",("x: '%s'  lib: %lx",x,typelib));
+  DBUG_PRINT("enter",("x: '%s'  lib: 0x%lx",x,typelib));
 
   if (!typelib->count)
   {

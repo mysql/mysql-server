@@ -29,9 +29,18 @@
  *  delete should be visible to same transaction
  *  
  */
+int runLoadTable2(NDBT_Context* ctx, NDBT_Step* step)
+{
+  int records = ctx->getNumRecords();
+  HugoTransactions hugoTrans(*ctx->getTab());
+  if (hugoTrans.loadTable(GETNDB(step), records, 512, false, 0, true) != 0){
+    return NDBT_FAILED;
+  }
+  return NDBT_OK;
+}
 
-int runLoadTable(NDBT_Context* ctx, NDBT_Step* step){
-
+int runLoadTable(NDBT_Context* ctx, NDBT_Step* step)
+{
   int records = ctx->getNumRecords();
   HugoTransactions hugoTrans(*ctx->getTab());
   if (hugoTrans.loadTable(GETNDB(step), records) != 0){
@@ -255,7 +264,7 @@ static
 int
 readOneNoCommit(Ndb* pNdb, NdbConnection* pTrans, 
 		const NdbDictionary::Table* tab,NDBT_ResultRow * row){
-
+  int a;
   NdbOperation * pOp = pTrans->getNdbOperation(tab->getName());
   if (pOp == NULL){
     ERR(pTrans->getNdbError());
@@ -271,7 +280,7 @@ readOneNoCommit(Ndb* pNdb, NdbConnection* pTrans,
   }
   
   // Define primary keys
-  for(int a = 0; a<tab->getNoOfColumns(); a++){
+  for(a = 0; a<tab->getNoOfColumns(); a++){
     if (tab->getColumn(a)->getPrimaryKey() == true){
       if(tmp.equalForAttr(pOp, a, 0) != 0){
 	ERR(pTrans->getNdbError());
@@ -281,7 +290,7 @@ readOneNoCommit(Ndb* pNdb, NdbConnection* pTrans,
   }
   
   // Define attributes to read  
-  for(int a = 0; a<tab->getNoOfColumns(); a++){
+  for(a = 0; a<tab->getNoOfColumns(); a++){
     if((row->attributeStore(a) = 
 	pOp->getValue(tab->getColumn(a)->getName())) == 0) {
       ERR(pTrans->getNdbError());
@@ -630,35 +639,35 @@ int runNoCommitRollback630(NDBT_Context* ctx, NDBT_Step* step){
 
 
 int runNoCommitAndClose(NDBT_Context* ctx, NDBT_Step* step){
-  int result = NDBT_OK;
+  int i, result = NDBT_OK;
   HugoOperations hugoOps(*ctx->getTab());
   Ndb* pNdb = GETNDB(step);
 
   do{
     // Read 
     CHECK(hugoOps.startTransaction(pNdb) == 0);  
-    for (int i = 0; i < 10; i++)
+    for (i = 0; i < 10; i++)
       CHECK(hugoOps.pkReadRecord(pNdb, i, true) == 0);
     CHECK(hugoOps.execute_NoCommit(pNdb) == 0);
     CHECK(hugoOps.closeTransaction(pNdb) == 0);
   
     // Update
     CHECK(hugoOps.startTransaction(pNdb) == 0);  
-    for (int i = 0; i < 10; i++)
+    for (i = 0; i < 10; i++)
       CHECK(hugoOps.pkUpdateRecord(pNdb, i) == 0);
     CHECK(hugoOps.execute_NoCommit(pNdb) == 0);
     CHECK(hugoOps.closeTransaction(pNdb) == 0);
   
     // Delete
     CHECK(hugoOps.startTransaction(pNdb) == 0);  
-    for (int i = 0; i < 10; i++)
+    for (i = 0; i < 10; i++)
       CHECK(hugoOps.pkDeleteRecord(pNdb, i) == 0);
     CHECK(hugoOps.execute_NoCommit(pNdb) == 0);
     CHECK(hugoOps.closeTransaction(pNdb) == 0);
 
     // Try to insert, record should already exist
     CHECK(hugoOps.startTransaction(pNdb) == 0);  
-    for (int i = 0; i < 10; i++)
+    for (i = 0; i < 10; i++)
       CHECK(hugoOps.pkInsertRecord(pNdb, i) == 0);
     CHECK(hugoOps.execute_Commit(pNdb) == 630);
     CHECK(hugoOps.closeTransaction(pNdb) == 0);
@@ -772,14 +781,14 @@ int runCheckRollbackDeleteMultiple(NDBT_Context* ctx, NDBT_Step* step){
     CHECK(hugoOps.closeTransaction(pNdb) == 0);
     
     Uint32 updatesValue = 0;
-
+    Uint32 j;
     for(Uint32 i = 0; i<1; i++){
       // Read  record 5 - 10
       CHECK(hugoOps.startTransaction(pNdb) == 0);  
       CHECK(hugoOps.pkReadRecord(pNdb, 5, true, 10) == 0);
       CHECK(hugoOps.execute_NoCommit(pNdb) == 0);
       
-      for(Uint32 j = 0; j<10; j++){
+      for(j = 0; j<10; j++){
 	// Update  record 5 - 10
 	updatesValue++;
 	CHECK(hugoOps.pkUpdateRecord(pNdb, 5, 10, updatesValue) == 0);
@@ -790,7 +799,7 @@ int runCheckRollbackDeleteMultiple(NDBT_Context* ctx, NDBT_Step* step){
 	CHECK(hugoOps.verifyUpdatesValue(updatesValue) == 0);
       }      
       
-      for(Uint32 j = 0; j<10; j++){
+      for(j = 0; j<10; j++){
 	// Delete record 5 - 10 times
 	CHECK(hugoOps.pkDeleteRecord(pNdb, 5, 10) == 0);
 	CHECK(hugoOps.execute_NoCommit(pNdb) == 0);
@@ -953,6 +962,7 @@ int runMassiveRollback(NDBT_Context* ctx, NDBT_Step* step){
   const Uint32 OPS_TOTAL = 4096;
 
   for(int row = 0; row < records; row++){
+    int res;
     CHECK(hugoOps.startTransaction(pNdb) == 0);  
     for(int i = 0; i<OPS_TOTAL; i += OPS_PER_TRANS){
       for(int j = 0; j<OPS_PER_TRANS; j++){
@@ -963,7 +973,12 @@ int runMassiveRollback(NDBT_Context* ctx, NDBT_Step* step){
       if(result != NDBT_OK){
 	break;
       }
-      CHECK(hugoOps.execute_NoCommit(pNdb) == 0);
+      res = hugoOps.execute_NoCommit(pNdb);
+      if(res != 0){
+	NdbError err = pNdb->getNdbError(res);
+	CHECK(err.classification == NdbError::TimeoutExpired);
+	break;
+      }
     }
     if(result != NDBT_OK){
       break;
@@ -1253,6 +1268,11 @@ TESTCASE("MassiveRollback2",
 	 "Test rollback of 4096 operations"){
   INITIALIZER(runClearTable2);
   INITIALIZER(runMassiveRollback2);
+  FINALIZER(runClearTable2);
+}
+TESTCASE("MassiveTransaction",
+         "Test very large insert transaction"){
+  INITIALIZER(runLoadTable2);
   FINALIZER(runClearTable2);
 }
 NDBT_TESTSUITE_END(testBasic);

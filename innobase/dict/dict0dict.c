@@ -682,6 +682,7 @@ dict_init(void)
 	rw_lock_set_level(&dict_operation_lock, SYNC_DICT_OPERATION);
 
 	dict_foreign_err_file = os_file_create_tmpfile();
+	ut_a(dict_foreign_err_file);
 	mutex_create(&dict_foreign_err_mutex);
 	mutex_set_level(&dict_foreign_err_mutex, SYNC_ANY_LATCH);
 }

@@ -1,4 +1,4 @@
-/*	$NetBSD: key.c,v 1.12 2001/05/17 01:02:17 christos Exp $	*/
+/*	$NetBSD: key.c,v 1.13 2002/03/18 16:00:55 christos Exp $	*/
 
 /*-
  * Copyright (c) 1992, 1993
@@ -36,7 +36,14 @@
  * SUCH DAMAGE.
  */
 
-#include "compat.h"
+#include "config.h"
+#if !defined(lint) && !defined(SCCSID)
+#if 0
+static char sccsid[] = "@(#)key.c	8.1 (Berkeley) 6/4/93";
+#else
+__RCSID("$NetBSD: key.c,v 1.13 2002/03/18 16:00:55 christos Exp $");
+#endif
+#endif /* not lint && not SCCSID */
 
 /*
  * key.c: This module contains the procedures for maintaining
@@ -59,7 +66,6 @@
  *      1) It is not possible to have one key that is a
  *	   substr of another.
  */
-#include "sys.h"
 #include <string.h>
 #include <stdlib.h>
 
@@ -85,8 +91,8 @@ private int		 node__try(EditLine *, key_node_t *, const char *,
 private key_node_t	*node__get(int);
 private void		 node__put(EditLine *, key_node_t *);
 private int		 node__delete(EditLine *, key_node_t **, const char *);
-private int		 node_lookup(EditLine *, const char *, 
-				     key_node_t *, int);
+private int		 node_lookup(EditLine *, const char *, key_node_t *,
+    int);
 private int		 node_enum(EditLine *, key_node_t *, int);
 private int		 key__decode_char(char *, int, int);
 
@@ -97,14 +103,14 @@ private int		 key__decode_char(char *, int, int);
  *	Initialize the key maps
  */
 protected int
-key_init(EditLine *el)
+el_key_init(EditLine *el)
 {
 
 	el->el_key.buf = (char *) el_malloc(KEY_BUFSIZ);
 	if (el->el_key.buf == NULL)
 		return (-1);
 	el->el_key.map = NULL;
-	key_reset(el);
+	el_key_reset(el);
 	return (0);
 }
 
@@ -113,7 +119,7 @@ key_init(EditLine *el)
  *	Free the key maps
  */
 protected void
-key_end(EditLine *el)
+el_key_end(EditLine *el)
 {
 
 	el_free((ptr_t) el->el_key.buf);
@@ -127,7 +133,7 @@ key_end(EditLine *el)
  *	Associate cmd with a key value
  */
 protected key_value_t *
-key_map_cmd(EditLine *el, int cmd)
+el_key_map_cmd(EditLine *el, int cmd)
 {
 
 	el->el_key.val.cmd = (el_action_t) cmd;
@@ -139,7 +145,7 @@ key_map_cmd(EditLine *el, int cmd)
  *	Associate str with a key value
  */
 protected key_value_t *
-key_map_str(EditLine *el, char *str)
+el_key_map_str(EditLine *el, char *str)
 {
 
 	el->el_key.val.str = str;
@@ -153,7 +159,7 @@ key_map_str(EditLine *el, char *str)
  *	[Always bind the ansi arrow keys?]
  */
 protected void
-key_reset(EditLine *el)
+el_key_reset(EditLine *el)
 {
 
 	node__put(el, el->el_key.map);
@@ -171,7 +177,7 @@ key_reset(EditLine *el)
  *      The last character read is returned in *ch.
  */
 protected int
-key_get(EditLine *el, char *ch, key_value_t *val)
+el_key_get(EditLine *el, char *ch, key_value_t *val)
 {
 
 	return (node_trav(el, el->el_key.map, ch, val));
@@ -185,7 +191,7 @@ key_get(EditLine *el, char *ch, key_value_t *val)
  *      out str or a unix command.
  */
 protected void
-key_add(EditLine *el, const char *key, key_value_t *val, int ntype)
+el_key_add(EditLine *el, const char *key, key_value_t *val, int ntype)
 {
 
 	if (key[0] == '\0') {
@@ -213,7 +219,7 @@ key_add(EditLine *el, const char *key, key_value_t *val, int ntype)
  *
  */
 protected void
-key_clear(EditLine *el, el_action_t *map, const char *in)
+el_key_clear(EditLine *el, el_action_t *map, const char *in)
 {
 
 	if ((map[(unsigned char)*in] == ED_SEQUENCE_LEAD_IN) &&
@@ -221,7 +227,7 @@ key_clear(EditLine *el, el_action_t *map, const char *in)
 	    el->el_map.alt[(unsigned char)*in] != ED_SEQUENCE_LEAD_IN) ||
 	    (map == el->el_map.alt &&
 	    el->el_map.key[(unsigned char)*in] != ED_SEQUENCE_LEAD_IN)))
-		(void) key_delete(el, in);
+		(void) el_key_delete(el, in);
 }
 
 
@@ -230,7 +236,7 @@ key_clear(EditLine *el, el_action_t *map, const char *in)
  *      they exists.
  */
 protected int
-key_delete(EditLine *el, const char *key)
+el_key_delete(EditLine *el, const char *key)
 {
 
 	if (key[0] == '\0') {
@@ -251,7 +257,7 @@ key_delete(EditLine *el, const char *key)
  *	Print entire el->el_key.map if null
  */
 protected void
-key_print(EditLine *el, const char *key)
+el_key_print(EditLine *el, const char *key)
 {
 
 	/* do nothing if el->el_key.map is empty and null key specified */
@@ -498,7 +504,7 @@ node_lookup(EditLine *el, const char *str, key_node_t *ptr, int cnt)
 				if (str[1] == 0) {
 					el->el_key.buf[ncnt + 1] = '"';
 					el->el_key.buf[ncnt + 2] = '\0';
-					key_kprint(el, el->el_key.buf,
+					el_key_kprint(el, el->el_key.buf,
 					    &ptr->val, ptr->type);
 					return (0);
 				} else
@@ -546,7 +552,7 @@ node_enum(EditLine *el, key_node_t *ptr, int cnt)
 		/* print this key and function */
 		el->el_key.buf[ncnt + 1] = '"';
 		el->el_key.buf[ncnt + 2] = '\0';
-		key_kprint(el, el->el_key.buf, &ptr->val, ptr->type);
+		el_key_kprint(el, el->el_key.buf, &ptr->val, ptr->type);
 	} else
 		(void) node_enum(el, ptr->next, ncnt + 1);
 
@@ -562,7 +568,7 @@ node_enum(EditLine *el, key_node_t *ptr, int cnt)
  *	function specified by val
  */
 protected void
-key_kprint(EditLine *el, const char *key, key_value_t *val, int ntype)
+el_key_kprint(EditLine *el, const char *key, key_value_t *val, int ntype)
 {
 	el_bindings_t *fp;
 	char unparsbuf[EL_BUFSIZ];
@@ -573,7 +579,7 @@ key_kprint(EditLine *el, const char *key, key_value_t *val, int ntype)
 		case XK_STR:
 		case XK_EXE:
 			(void) fprintf(el->el_outfile, fmt, key,
-			    key__decode_str(val->str, unparsbuf,
+			    el_key__decode_str(val->str, unparsbuf,
 				ntype == XK_STR ? "\"\"" : "[]"));
 			break;
 		case XK_CMD:
@@ -638,9 +644,9 @@ key__decode_char(char *buf, int cnt, int ch)
  *	Make a printable version of the ey
  */
 protected char *
-key__decode_str(const char *str, char *buf, const char *sep)
+el_key__decode_str(const char *str, char *buf, const char *sep)
 {
-	char *b; 
+	char *b;
 	const char *p;
 
 	b = buf;

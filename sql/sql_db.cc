@@ -39,7 +39,8 @@ static TYPELIB known_extentions=
 static long mysql_rm_known_files(THD *thd, MY_DIR *dirp,
 				 const char *db, const char *path,
 				 uint level);
-
+static long mysql_rm_arc_files(THD *thd, MY_DIR *dirp, const char *org_path);
+static my_bool rm_dir_w_symlink(const char *org_path, my_bool send_error);
 /* Database options hash */
 static HASH dboptions;
 static my_bool dboptions_init= 0;
@@ -321,10 +322,17 @@ bool load_db_opt(THD *thd, const char *path, HA_CREATE_INFO *create)
       {
 	if (!strncmp(buf,"default-character-set", (pos-buf)))
 	{
+          /*
+             Try character set name, and if it fails 
+             try collation name, probably it's an old
+             4.1.0 db.opt file, which didn't have
+             separate default-character-set and
+             default-collation commands.
+          */
 	  if (!(create->default_table_charset=
-		get_charset_by_csname(pos+1, 
-				      MY_CS_PRIMARY,
-				      MYF(0))))
+		get_charset_by_csname(pos+1, MY_CS_PRIMARY, MYF(0))) &&
+              !(create->default_table_charset=
+                get_charset_by_name(pos+1, MYF(0))))
 	  {
 	    sql_print_error("Error while loading database options: '%s':",path);
 	    sql_print_error(ER(ER_UNKNOWN_CHARACTER_SET),pos+1);
@@ -390,7 +398,7 @@ int mysql_create_db(THD *thd, char *db, HA_CREATE_INFO *create_info,
   VOID(pthread_mutex_lock(&LOCK_mysql_create_db));
 
   // do not create database if another thread is holding read lock
-  if (wait_if_global_read_lock(thd,0))
+  if (wait_if_global_read_lock(thd, 0, 1))
   {
     error= -1;
     goto exit2;
@@ -491,7 +499,7 @@ int mysql_alter_db(THD *thd, const char *db, HA_CREATE_INFO *create_info)
   VOID(pthread_mutex_lock(&LOCK_mysql_create_db));
 
   // do not alter database if another thread is holding read lock
-  if ((error=wait_if_global_read_lock(thd,0)))
+  if ((error=wait_if_global_read_lock(thd,0,1)))
     goto exit2;
 
   /* Check directory */
@@ -544,7 +552,6 @@ exit2:
     -1	Error generated
 */
 
-
 int mysql_rm_db(THD *thd,char *db,bool if_exists, bool silent)
 {
   long deleted=0;
@@ -557,7 +564,7 @@ int mysql_rm_db(THD *thd,char *db,bool if_exists, bool silent)
   VOID(pthread_mutex_lock(&LOCK_mysql_create_db));
 
   // do not drop database if another thread is holding read lock
-  if (wait_if_global_read_lock(thd,0))
+  if (wait_if_global_read_lock(thd, 0, 1))
   {
     error= -1;
     goto exit2;
@@ -698,9 +705,9 @@ static long mysql_rm_known_files(THD *thd, MY_DIR *dirp, const char *db,
       continue;
 
     /* Check if file is a raid directory */
-    if ((my_isdigit(&my_charset_latin1, file->name[0]) ||
+    if ((my_isdigit(system_charset_info, file->name[0]) ||
 	 (file->name[0] >= 'a' && file->name[0] <= 'f')) &&
-	(my_isdigit(&my_charset_latin1, file->name[1]) ||
+	(my_isdigit(system_charset_info, file->name[1]) ||
 	 (file->name[1] >= 'a' && file->name[1] <= 'f')) &&
 	!file->name[2] && !level)
     {
@@ -720,6 +727,25 @@ static long mysql_rm_known_files(THD *thd, MY_DIR *dirp, const char *db,
 	    !(dir= new (&thd->mem_root) String(copy_of_path, length,
 					       &my_charset_bin)) ||
 	    raid_dirs.push_back(dir))
+	  goto err;
+	continue;
+      }
+      found_other_files++;
+      continue;
+    }
+    else if (file->name[0] == 'a' && file->name[1] == 'r' &&
+             file->name[2] == 'c' && file->name[3] == '\0')
+    {
+      /* .frm archive */
+      char newpath[FN_REFLEN], *copy_of_path;
+      MY_DIR *new_dirp;
+      uint length;
+      strxmov(newpath, org_path, "/", "arc", NullS);
+      length= unpack_filename(newpath, newpath);
+      if ((new_dirp = my_dir(newpath, MYF(MY_DONT_SORT))))
+      {
+	DBUG_PRINT("my",("Archive subdir found: %s", newpath));
+	if ((mysql_rm_arc_files(thd, new_dirp, newpath)) < 0)
 	  goto err;
 	continue;
       }
@@ -785,44 +811,140 @@ static long mysql_rm_known_files(THD *thd, MY_DIR *dirp, const char *db,
   }
   else
   {
-    char tmp_path[FN_REFLEN], *pos;
-    char *path= tmp_path;
-    unpack_filename(tmp_path,org_path);
-#ifdef HAVE_READLINK
-    int error;
-    
-    /* Remove end FN_LIBCHAR as this causes problem on Linux in readlink */
-    pos=strend(path);
-    if (pos > path && pos[-1] == FN_LIBCHAR)
-      *--pos=0;
-
-    if ((error=my_readlink(filePath, path, MYF(MY_WME))) < 0)
-      DBUG_RETURN(-1);
-    if (!error)
-    {
-      if (my_delete(path,MYF(!level ? MY_WME : 0)))
-      {
-	/* Don't give errors if we can't delete 'RAID' directory */
-	if (level)
-	  DBUG_RETURN(deleted);
-	DBUG_RETURN(-1);
-      }
-      /* Delete directory symbolic link pointed at */
-      path= filePath;
-    }
-#endif
-    /* Remove last FN_LIBCHAR to not cause a problem on OS/2 */
-    pos=strend(path);
-
-    if (pos > path && pos[-1] == FN_LIBCHAR)
-      *--pos=0;
     /* Don't give errors if we can't delete 'RAID' directory */
-    if (rmdir(path) < 0 && !level)
-    {
-      my_error(ER_DB_DROP_RMDIR, MYF(0), path, errno);
+    if (rm_dir_w_symlink(org_path, level == 0))
       DBUG_RETURN(-1);
+  }
+
+  DBUG_RETURN(deleted);
+
+err:
+  my_dirend(dirp);
+  DBUG_RETURN(-1);
+}
+
+
+/*
+  Remove directory with symlink
+
+  SYNOPSIS
+    rm_dir_w_symlink()
+    org_path    path of derictory
+    send_error  send errors
+  RETURN
+    0 OK
+    1 ERROR
+*/
+
+static my_bool rm_dir_w_symlink(const char *org_path, my_bool send_error)
+{
+  char tmp_path[FN_REFLEN], tmp2_path[FN_REFLEN], *pos;
+  char *path= tmp_path;
+  DBUG_ENTER("rm_dir_w_symlink");
+  unpack_filename(tmp_path, org_path);
+#ifdef HAVE_READLINK
+  int error;
+
+  /* Remove end FN_LIBCHAR as this causes problem on Linux in readlink */
+  pos= strend(path);
+  if (pos > path && pos[-1] == FN_LIBCHAR)
+    *--pos=0;
+
+  if ((error= my_readlink(tmp2_path, path, MYF(MY_WME))) < 0)
+    DBUG_RETURN(1);
+  if (!error)
+  {
+    if (my_delete(path, MYF(send_error ? MY_WME : 0)))
+    {
+      DBUG_RETURN(send_error);
+    }
+    /* Delete directory symbolic link pointed at */
+    path= tmp2_path;
+  }
+#endif
+  /* Remove last FN_LIBCHAR to not cause a problem on OS/2 */
+  pos= strend(path);
+
+  if (pos > path && pos[-1] == FN_LIBCHAR)
+    *--pos=0;
+  if (rmdir(path) < 0 && send_error)
+  {
+    my_error(ER_DB_DROP_RMDIR, MYF(0), path, errno);
+    DBUG_RETURN(-1);
+  }
+  DBUG_RETURN(0);
+}
+
+
+/*
+  Remove .frm archives from directory
+
+  SYNOPSIS
+    thd       thread handler
+    dirp      list of files in archive directory
+    db        data base name
+    org_path  path of archive directory
+
+  RETURN
+    > 0 number of removed files
+    -1  error
+*/
+static long mysql_rm_arc_files(THD *thd, MY_DIR *dirp,
+				 const char *org_path)
+{
+  long deleted= 0;
+  ulong found_other_files= 0;
+  char filePath[FN_REFLEN];
+  DBUG_ENTER("mysql_rm_arc_files");
+  DBUG_PRINT("enter", ("path: %s", org_path));
+
+  for (uint idx=0 ;
+       idx < (uint) dirp->number_off_files && !thd->killed ;
+       idx++)
+  {
+    FILEINFO *file=dirp->dir_entry+idx;
+    char *extension, *revision;
+    DBUG_PRINT("info",("Examining: %s", file->name));
+
+    /* skiping . and .. */
+    if (file->name[0] == '.' && (!file->name[1] ||
+       (file->name[1] == '.' &&  !file->name[2])))
+      continue;
+
+    extension= fn_ext(file->name);
+    if (extension[0] != '.' ||
+        extension[1] != 'f' || extension[2] != 'r' ||
+        extension[3] != 'm' || extension[4] != '-')
+    {
+      found_other_files++;
+      continue;
+    }
+    revision= extension+5;
+    while (*revision && my_isdigit(system_charset_info, *revision))
+      revision++;
+    if (*revision)
+    {
+      found_other_files++;
+      continue;
+    }
+    strxmov(filePath, org_path, "/", file->name, NullS);
+    if (my_delete_with_symlink(filePath,MYF(MY_WME)))
+    {
+      goto err;
     }
   }
+  if (thd->killed)
+    goto err;
+
+  my_dirend(dirp);
+
+  /*
+    If the directory is a symbolic link, remove the link first, then
+    remove the directory the symbolic link pointed at
+  */
+  if (!found_other_files &&
+      rm_dir_w_symlink(org_path, 0))
+    DBUG_RETURN(-1);
   DBUG_RETURN(deleted);
 
 err:

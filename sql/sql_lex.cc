@@ -24,6 +24,21 @@
 #include "sp.h"
 #include "sp_head.h"
 
+/*
+  We are using pointer to this variable for distinguishing between assignment
+  to NEW row field (when parsing trigger definition) and structured variable.
+*/
+sys_var_long_ptr trg_new_row_fake_var(0, 0);
+
+/*
+  Fake table list object, pointer to which is used as special value for
+  st_lex::time_zone_tables_used indicating that we implicitly use time
+  zone tables in this statement but real table list was not yet created.
+  Pointer to it is also returned by my_tz_get_tables_list() as indication
+  of transient error;
+*/
+TABLE_LIST fake_time_zone_tables_list;
+
 /* Macros to look like lex */
 
 #define yyGet()		*(lex->ptr++)
@@ -129,6 +144,7 @@ void lex_start(THD *thd, uchar *buf,uint length)
   lex->duplicates= DUP_ERROR;
   lex->sphead= NULL;
   lex->spcont= NULL;
+  lex->trg_table= NULL;
 
   extern byte *sp_lex_spfuns_key(const byte *ptr, uint *plen, my_bool first);
   hash_free(&lex->spfuns);
@@ -1004,7 +1020,7 @@ void st_select_lex::init_query()
   subquery_in_having= explicit_limit= 0;
   first_execution= 1;
   first_cond_optimization= 1;
-  parsing_place= SELECT_LEX_NODE::NO_MATTER;
+  parsing_place= NO_MATTER;
   no_wrap_view_item= 0;
 }
 
@@ -1376,7 +1392,7 @@ bool st_select_lex::setup_ref_array(THD *thd, uint order_group_num)
     We have to create array in prepared statement memory if it is
     prepared statement
   */
-  Item_arena *arena= thd->current_arena ? thd->current_arena : thd;
+  Item_arena *arena= thd->current_arena;
   return (ref_pointer_array= 
           (Item **)arena->alloc(sizeof(Item*) *
                                 (item_list.elements +
@@ -1421,7 +1437,7 @@ bool st_select_lex_unit::check_updateable(char *db, char *table)
 */
 bool st_select_lex::check_updateable(char *db, char *table)
 {
-  if (find_real_table_in_local_list(get_table_list(), db, table))
+  if (find_table_in_local_list(get_table_list(), db, table))
     return 1;
 
   for (SELECT_LEX_UNIT *un= first_inner_unit();
@@ -1470,7 +1486,14 @@ void st_select_lex::print_order(String *str, ORDER *order)
 {
   for (; order; order= order->next)
   {
-    (*order->item)->print(str);
+    if (order->counter_used)
+    {
+      char buffer[20];
+      my_snprintf(buffer, 20, "%u", order->counter);
+      str->append(buffer);
+    }
+    else
+      (*order->item)->print(str);
     if (!order->asc)
       str->append(" desc", 5);
     if (order->next)
@@ -1481,8 +1504,9 @@ void st_select_lex::print_order(String *str, ORDER *order)
 
 void st_select_lex::print_limit(THD *thd, String *str)
 {
-  Item_subselect *item= master_unit()->item;
-  if (item &&
+  SELECT_LEX_UNIT *unit= master_unit();
+  Item_subselect *item= unit->item;
+  if (item && unit->global_parameters == this &&
       (item->substype() == Item_subselect::EXISTS_SUBS ||
        item->substype() == Item_subselect::IN_SUBS ||
        item->substype() == Item_subselect::ALL_SUBS))
@@ -1539,13 +1563,14 @@ bool st_lex::can_be_merged()
 	  select_lex.order_list.elements == 0 &&
 	  select_lex.group_list.elements == 0 &&
 	  select_lex.having == 0 &&
+          select_lex.with_sum_func == 0 &&
 	  select_lex.table_list.elements == 1 &&
 	  !(select_lex.options & SELECT_DISTINCT) &&
           select_lex.select_limit == HA_POS_ERROR);
 }
 
 /*
-  check if command can use VIEW with MERGE algorithm
+  check if command can use VIEW with MERGE algorithm (for top VIEWs)
 
   SYNOPSIS
     st_lex::can_use_merged()
@@ -1569,6 +1594,29 @@ bool st_lex::can_use_merged()
   case SQLCOM_INSERT_SELECT:
   case SQLCOM_REPLACE:
   case SQLCOM_REPLACE_SELECT:
+    return TRUE;
+  default:
+    return FALSE;
+  }
+}
+
+/*
+  check if command can't use merged views in any part of command
+
+  SYNOPSIS
+    st_lex::can_not_use_merged()
+
+  RETURN
+    FALSE - command can't use merged VIEWs
+    TRUE  - VIEWs with MERGE algorithms can be used
+*/
+
+bool st_lex::can_not_use_merged()
+{
+  switch (sql_command)
+  {
+  case SQLCOM_CREATE_VIEW:
+  case SQLCOM_SHOW_CREATE:
     return TRUE;
   default:
     return FALSE;
@@ -1630,14 +1678,16 @@ void st_select_lex_unit::set_limit(SELECT_LEX *values,
 
   SYNOPSIS
     unlink_first_table()
-    link_to_local	do we need link this table to local
+    link_to_local	Set to 1 if caller should link this table to local
 
   NOTES
     We rely on fact that first table in both list are same or local list
     is empty
 
   RETURN
+    0	If 'query_tables' == 0
     unlinked table
+      In this case link_to_local is set.
 
 */
 TABLE_LIST *st_lex::unlink_first_table(bool *link_to_local)
@@ -1691,11 +1741,11 @@ void st_lex::first_lists_tables_same()
   TABLE_LIST *first_table= (TABLE_LIST*) select_lex.table_list.first;
   if (query_tables != first_table && first_table != 0)
   {
+    TABLE_LIST *next;
     if (query_tables_last == &first_table->next_global)
       query_tables_last= first_table->prev_global;
-    TABLE_LIST *next= *first_table->prev_global= first_table->next_global;
-    first_table->next_global= 0;
-    if (next)
+    
+    if ((next= *first_table->prev_global= first_table->next_global))
       next->prev_global= first_table->prev_global;
     /* include in new place */
     first_table->next_global= query_tables;
@@ -1751,10 +1801,10 @@ void st_lex::link_first_table_back(TABLE_LIST *first,
 
 void st_select_lex::fix_prepare_information(THD *thd, Item **conds)
 {
-  if (thd->current_arena && first_execution)
+  if (!thd->current_arena->is_conventional() && first_execution)
   {
-    prep_where= where;
     first_execution= 0;
+    prep_where= where;
   }
 }
 

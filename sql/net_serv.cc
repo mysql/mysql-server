@@ -103,11 +103,10 @@ extern uint test_flags;
 extern ulong bytes_sent, bytes_received, net_big_packet_count;
 extern pthread_mutex_t LOCK_bytes_sent , LOCK_bytes_received;
 extern void query_cache_insert(NET *net, const char *packet, ulong length);
+#define update_statistics(A) A
 #else
-#undef statistic_add
-#undef statistic_increment
-#define statistic_add(A,B,C)
-#define statistic_increment(A,B)
+#define update_statistics(A)
+#define thd_increment_bytes_sent()
 #endif
 
 #define TEST_BLOCKING		8
@@ -565,7 +564,7 @@ net_real_write(NET *net,const char *packet,ulong len)
       break;
     }
     pos+=length;
-    statistic_add(bytes_sent,length,&LOCK_bytes_sent);
+    update_statistics(thd_increment_bytes_sent(length));
   }
 #ifndef __WIN__
  end:
@@ -636,7 +635,7 @@ static my_bool my_net_skip_rest(NET *net, uint32 remain, thr_alarm_t *alarmed,
   DBUG_PRINT("enter",("bytes_to_skip: %u", (uint) remain));
 
   /* The following is good for debugging */
-  statistic_increment(net_big_packet_count,&LOCK_bytes_received);
+  update_statistics(thd_increment_net_big_packet_count(1));
 
   if (!thr_alarm_in_use(alarmed))
   {
@@ -652,7 +651,7 @@ static my_bool my_net_skip_rest(NET *net, uint32 remain, thr_alarm_t *alarmed,
       uint length= min(remain, net->max_packet);
       if (net_safe_read(net, (char*) net->buff, length, alarmed))
 	DBUG_RETURN(1);
-      statistic_add(bytes_received, length, &LOCK_bytes_received);
+      update_statistics(thd_increment_bytes_received(length));
       remain -= (uint32) length;
     }
     if (old != MAX_PACKET_LENGTH)
@@ -777,7 +776,7 @@ my_real_read(NET *net, ulong *complen)
 	}
 	remain -= (uint32) length;
 	pos+= (ulong) length;
-	statistic_add(bytes_received,(ulong) length,&LOCK_bytes_received);
+	update_statistics(thd_increment_bytes_received(length));
       }
       if (i == 0)
       {					/* First parts is packet length */

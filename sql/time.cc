@@ -20,165 +20,8 @@
 #include "mysql_priv.h"
 #include <m_ctype.h>
 
-static ulong const days_at_timestart=719528;	/* daynr at 1970.01.01 */
-uchar *days_in_month= (uchar*) "\037\034\037\036\037\036\037\037\036\037\036\037";
-
-
-/*
-  Offset of system time zone from UTC in seconds used to speed up 
-  work of my_system_gmt_sec() function.
-*/
-static long my_time_zone=0;
-
-
-/*
-  Prepare offset of system time zone from UTC for my_system_gmt_sec() func.
-
-  SYNOPSIS
-    init_time()
-*/
-void init_time(void)
-{
-  time_t seconds;
-  struct tm *l_time,tm_tmp;;
-  TIME my_time;
-  bool not_used;
-
-  seconds= (time_t) time((time_t*) 0);
-  localtime_r(&seconds,&tm_tmp);
-  l_time= &tm_tmp;
-  my_time_zone=		3600;		/* Comp. for -3600 in my_gmt_sec */
-  my_time.year=		(uint) l_time->tm_year+1900;
-  my_time.month=	(uint) l_time->tm_mon+1;
-  my_time.day=		(uint) l_time->tm_mday;
-  my_time.hour=		(uint) l_time->tm_hour;
-  my_time.minute=	(uint) l_time->tm_min;
-  my_time.second=	(uint) l_time->tm_sec;
-  my_system_gmt_sec(&my_time, &my_time_zone, &not_used); /* Init my_time_zone */
-}
-
-
-/*
-  Convert time in TIME representation in system time zone to its
-  my_time_t form (number of seconds in UTC since begginning of Unix Epoch).
-
-  SYNOPSIS
-    my_system_gmt_sec()
-      t               - time value to be converted
-      my_timezone     - pointer to long where offset of system time zone
-                        from UTC will be stored for caching
-      in_dst_time_gap - set to true if time falls into spring time-gap
-
-  NOTES
-    The idea is to cache the time zone offset from UTC (including daylight 
-    saving time) for the next call to make things faster. But currently we 
-    just calculate this offset during startup (by calling init_time() 
-    function) and use it all the time.
-    Time value provided should be legal time value (e.g. '2003-01-01 25:00:00'
-    is not allowed).
-
-  RETURN VALUE
-    Time in UTC seconds since Unix Epoch representation.
-*/
-my_time_t 
-my_system_gmt_sec(const TIME *t, long *my_timezone, bool *in_dst_time_gap)
-{
-  uint loop;
-  time_t tmp;
-  struct tm *l_time,tm_tmp;
-  long diff, current_timezone;
-
-  /*
-    Calculate the gmt time based on current time and timezone
-    The -1 on the end is to ensure that if have a date that exists twice
-    (like 2002-10-27 02:00:0 MET), we will find the initial date.
-
-    By doing -3600 we will have to call localtime_r() several times, but
-    I couldn't come up with a better way to get a repeatable result :(
-
-    We can't use mktime() as it's buggy on many platforms and not thread safe.
-  */
-  tmp=(time_t) (((calc_daynr((uint) t->year,(uint) t->month,(uint) t->day) -
-		  (long) days_at_timestart)*86400L + (long) t->hour*3600L +
-		 (long) (t->minute*60 + t->second)) + (time_t) my_time_zone -
-		3600);
-  current_timezone= my_time_zone;
-
-  localtime_r(&tmp,&tm_tmp);
-  l_time=&tm_tmp;
-  for (loop=0;
-       loop < 2 &&
-	 (t->hour != (uint) l_time->tm_hour ||
-	  t->minute != (uint) l_time->tm_min);
-       loop++)
-  {					/* One check should be enough ? */
-    /* Get difference in days */
-    int days= t->day - l_time->tm_mday;
-    if (days < -1)
-      days= 1;					// Month has wrapped
-    else if (days > 1)
-      days= -1;
-    diff=(3600L*(long) (days*24+((int) t->hour - (int) l_time->tm_hour)) +
-	  (long) (60*((int) t->minute - (int) l_time->tm_min)));
-    current_timezone+= diff+3600;		// Compensate for -3600 above
-    tmp+= (time_t) diff;
-    localtime_r(&tmp,&tm_tmp);
-    l_time=&tm_tmp;
-  }
-  /*
-    Fix that if we are in the not existing daylight saving time hour
-    we move the start of the next real hour
-  */
-  if (loop == 2 && t->hour != (uint) l_time->tm_hour)
-  {
-    int days= t->day - l_time->tm_mday;
-    if (days < -1)
-      days=1;					// Month has wrapped
-    else if (days > 1)
-      days= -1;
-    diff=(3600L*(long) (days*24+((int) t->hour - (int) l_time->tm_hour))+
-	  (long) (60*((int) t->minute - (int) l_time->tm_min)));
-    if (diff == 3600)
-      tmp+=3600 - t->minute*60 - t->second;	// Move to next hour
-    else if (diff == -3600)
-      tmp-=t->minute*60 + t->second;		// Move to previous hour
-
-    *in_dst_time_gap= 1;
-  }
-  *my_timezone= current_timezone;
-  
-  return (my_time_t) tmp;
-} /* my_system_gmt_sec */
-
 
 	/* Some functions to calculate dates */
-
-	/* Calculate nr of day since year 0 in new date-system (from 1615) */
-
-long calc_daynr(uint year,uint month,uint day)
-{
-  long delsum;
-  int temp;
-  DBUG_ENTER("calc_daynr");
-
-  if (year == 0 && month == 0 && day == 0)
-    DBUG_RETURN(0);				/* Skip errors */
-  if (year < 200)
-  {
-    if ((year=year+1900) < 1900+YY_PART_YEAR)
-      year+=100;
-  }
-  delsum= (long) (365L * year+ 31*(month-1) +day);
-  if (month <= 2)
-      year--;
-  else
-    delsum-= (long) (month*4+23)/10;
-  temp=(int) ((year/100+1)*3)/4;
-  DBUG_PRINT("exit",("year: %d  month: %d  day: %d -> daynr: %ld",
-		     year+(month <= 2),month,day,delsum+year/4-temp));
-  DBUG_RETURN(delsum+(int) year/4-temp);
-} /* calc_daynr */
-
 
 #ifndef TESTTIME
 	/* Calc weekday from daynr */
@@ -189,15 +32,6 @@ int calc_weekday(long daynr,bool sunday_first_day_of_week)
   DBUG_ENTER("calc_weekday");
   DBUG_RETURN ((int) ((daynr + 5L + (sunday_first_day_of_week ? 1L : 0L)) % 7));
 }
-
-	/* Calc days in one year. works with 0 <= year <= 99 */
-
-uint calc_days_in_year(uint year)
-{
-  return (year & 3) == 0 && (year%100 || (year%400 == 0 && year)) ?
-    366 : 365;
-}
-
 
 /*
   The bits in week_format has the following meaning:
@@ -357,9 +191,16 @@ str_to_datetime_with_warn(const char *str, uint length, TIME *l_time,
                           uint flags)
 {
   int was_cut;
-  timestamp_type ts_type= str_to_datetime(str, length, l_time, flags, &was_cut);
+  THD *thd= current_thd;
+  timestamp_type ts_type;
+  
+  ts_type= str_to_datetime(str, length, l_time,
+                           (flags | (thd->variables.sql_mode &
+                                     (MODE_INVALID_DATES |
+                                      MODE_NO_ZERO_DATE))),
+                           &was_cut);
   if (was_cut)
-    make_truncated_value_warning(current_thd, str, length, ts_type);
+    make_truncated_value_warning(current_thd, str, length, ts_type,  NullS);
   return ts_type;
 }
 
@@ -415,7 +256,8 @@ str_to_time_with_warn(const char *str, uint length, TIME *l_time)
   int was_cut;
   bool ret_val= str_to_time(str, length, l_time, &was_cut);
   if (was_cut)
-    make_truncated_value_warning(current_thd, str, length, MYSQL_TIMESTAMP_TIME);
+    make_truncated_value_warning(current_thd, str, length,
+                                 MYSQL_TIMESTAMP_TIME, NullS);
   return ret_val;
 }
 
@@ -948,16 +790,15 @@ void make_datetime(const DATE_TIME_FORMAT *format __attribute__((unused)),
 
 
 void make_truncated_value_warning(THD *thd, const char *str_val,
-				  uint str_length, timestamp_type time_type)
+				  uint str_length, timestamp_type time_type,
+                                  const char *field_name)
 {
   char warn_buff[MYSQL_ERRMSG_SIZE];
   const char *type_str;
-
+  CHARSET_INFO *cs= &my_charset_latin1;
   char buff[128];
   String str(buff,(uint32) sizeof(buff), system_charset_info);
-  str.length(0);
-  str.append(str_val, str_length);
-  str.append('\0');
+  str.copy(str_val, str_length, system_charset_info);
 
   switch (time_type) {
     case MYSQL_TIMESTAMP_DATE: 
@@ -971,8 +812,15 @@ void make_truncated_value_warning(THD *thd, const char *str_val,
       type_str= "datetime";
       break;
   }
-  sprintf(warn_buff, ER(ER_TRUNCATED_WRONG_VALUE),
-	  type_str, str.ptr());
+  if (field_name)
+    cs->cset->snprintf(cs, warn_buff, sizeof(warn_buff),
+                       ER(ER_TRUNCATED_WRONG_VALUE_FOR_FIELD),
+                       type_str, str.c_ptr(), field_name,
+                       (ulong) thd->row_count);
+  else
+    cs->cset->snprintf(cs, warn_buff, sizeof(warn_buff),
+                       ER(ER_TRUNCATED_WRONG_VALUE),
+                       type_str, str.ptr());
   push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
 		      ER_TRUNCATED_WRONG_VALUE, warn_buff);
 }

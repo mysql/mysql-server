@@ -1585,7 +1585,7 @@ int mi_sort_index(MI_CHECK *param, register MI_INFO *info, my_string name)
   int old_lock;
   MYISAM_SHARE *share=info->s;
   MI_STATE_INFO old_state;
-  DBUG_ENTER("sort_index");
+  DBUG_ENTER("mi_sort_index");
 
   if (!(param->testflag & T_SILENT))
     printf("- Sorting index for MyISAM-table '%s'\n",name);
@@ -1664,7 +1664,7 @@ err:
 err2:
   VOID(my_delete(param->temp_filename,MYF(MY_WME)));
   DBUG_RETURN(-1);
-} /* sort_index */
+} /* mi_sort_index */
 
 
 	 /* Sort records recursive using one index */
@@ -1672,7 +1672,7 @@ err2:
 static int sort_one_index(MI_CHECK *param, MI_INFO *info, MI_KEYDEF *keyinfo,
 			  my_off_t pagepos, File new_file)
 {
-  uint length,nod_flag,used_length;
+  uint length,nod_flag,used_length, key_length;
   uchar *buff,*keypos,*endpos;
   uchar key[MI_MAX_POSSIBLE_KEY_BUFF];
   my_off_t new_page_pos,next_page;
@@ -1693,7 +1693,7 @@ static int sort_one_index(MI_CHECK *param, MI_INFO *info, MI_KEYDEF *keyinfo,
 		llstr(pagepos,llbuff));
     goto err;
   }
-  if ((nod_flag=mi_test_if_nod(buff)))
+  if ((nod_flag=mi_test_if_nod(buff)) || keyinfo->flag & HA_FULLTEXT)
   {
     used_length=mi_getint(buff);
     keypos=buff+2+nod_flag;
@@ -1704,7 +1704,7 @@ static int sort_one_index(MI_CHECK *param, MI_INFO *info, MI_KEYDEF *keyinfo,
       {
 	next_page=_mi_kpos(nod_flag,keypos);
 	_mi_kpointer(info,keypos-nod_flag,param->new_file_pos); /* Save new pos */
-	if (sort_one_index(param,info,keyinfo,next_page, new_file))
+	if (sort_one_index(param,info,keyinfo,next_page,new_file))
 	{
 	  DBUG_PRINT("error",("From page: %ld, keyoffset: %d  used_length: %d",
 			      (ulong) pagepos, (int) (keypos - buff),
@@ -1714,11 +1714,25 @@ static int sort_one_index(MI_CHECK *param, MI_INFO *info, MI_KEYDEF *keyinfo,
 	}
       }
       if (keypos >= endpos ||
-	  ((*keyinfo->get_key)(keyinfo,nod_flag,&keypos,key)) == 0)
+	  (key_length=(*keyinfo->get_key)(keyinfo,nod_flag,&keypos,key)) == 0)
 	break;
-#ifdef EXTRA_DEBUG
-      assert(keypos <= endpos);
-#endif
+      DBUG_ASSERT(keypos <= endpos);
+      if (keyinfo->flag & HA_FULLTEXT)
+      {
+        uint off;
+        int  subkeys;
+        get_key_full_length_rdonly(off, key);
+        subkeys=ft_sintXkorr(key+off);
+        if (subkeys < 0)
+        {
+          next_page= _mi_dpos(info,0,key+key_length);
+          _mi_dpointer(info,keypos-nod_flag-info->s->rec_reflength,
+                       param->new_file_pos); /* Save new pos */
+          if (sort_one_index(param,info,&info->s->ft2_keyinfo,
+                             next_page,new_file))
+            goto err;
+        }
+      }
     }
   }
 
@@ -2020,12 +2034,14 @@ int mi_repair_by_sort(MI_CHECK *param, register MI_INFO *info,
 
     if (sort_param.keyinfo->flag & HA_FULLTEXT)
     {
+      uint ft_max_word_len_for_sort=FT_MAX_WORD_LEN_FOR_SORT*
+                                    sort_param.keyinfo->seg->charset->mbmaxlen;
       sort_info.max_records=
-        (ha_rows) (sort_info.filelength/FT_MAX_WORD_LEN_FOR_SORT+1);
+        (ha_rows) (sort_info.filelength/ft_max_word_len_for_sort+1);
 
       sort_param.key_read=sort_ft_key_read;
       sort_param.key_write=sort_ft_key_write;
-      sort_param.key_length+=FT_MAX_WORD_LEN_FOR_SORT-HA_FT_MAXBYTELEN;
+      sort_param.key_length+=ft_max_word_len_for_sort-HA_FT_MAXBYTELEN;
     }
     else
     {
@@ -2425,7 +2441,11 @@ int mi_repair_parallel(MI_CHECK *param, register MI_INFO *info,
     total_key_length+=sort_param[i].key_length;
 
     if (sort_param[i].keyinfo->flag & HA_FULLTEXT)
-      sort_param[i].key_length+=FT_MAX_WORD_LEN_FOR_SORT-HA_FT_MAXBYTELEN;
+    {
+      uint ft_max_word_len_for_sort=FT_MAX_WORD_LEN_FOR_SORT*
+                                    sort_param[i].keyinfo->seg->charset->mbmaxlen;
+      sort_param[i].key_length+=ft_max_word_len_for_sort-HA_FT_MAXBYTELEN;
+    }
   }
   sort_info.total_keys=i;
   sort_param[0].master= 1;
@@ -2633,7 +2653,6 @@ static int sort_key_read(MI_SORT_PARAM *sort_param, void *key)
 #endif
   DBUG_RETURN(sort_write_record(sort_param));
 } /* sort_key_read */
-
 
 static int sort_ft_key_read(MI_SORT_PARAM *sort_param, void *key)
 {
@@ -3950,25 +3969,28 @@ static ha_checksum mi_byte_checksum(const byte *buf, uint length)
   return crc;
 }
 
+static my_bool mi_too_big_key_for_sort(MI_KEYDEF *key, ha_rows rows)
+{
+  uint key_maxlength=key->maxlength;
+  if (key->flag & HA_FULLTEXT)
+  {
+    uint ft_max_word_len_for_sort=FT_MAX_WORD_LEN_FOR_SORT*
+                                  key->seg->charset->mbmaxlen;
+    key_maxlength+=ft_max_word_len_for_sort-HA_FT_MAXBYTELEN;
+  }
+  return (key->flag & (HA_BINARY_PACK_KEY | HA_VAR_LENGTH_KEY | HA_FULLTEXT) &&
+	  ((ulonglong) rows * key_maxlength >
+	   (ulonglong) myisam_max_temp_length));
+}
+
 /*
-  Deactive all not unique index that can be recreated fast
+  Deactivate all not unique index that can be recreated fast
   These include packed keys on which sorting will use more temporary
   space than the max allowed file length or for which the unpacked keys
   will take much more space than packed keys.
   Note that 'rows' may be zero for the case when we don't know how many
   rows we will put into the file.
  */
-
-static my_bool mi_too_big_key_for_sort(MI_KEYDEF *key, ha_rows rows)
-{
-  uint key_maxlength=key->maxlength;
-  if (key->flag & HA_FULLTEXT)
-    key_maxlength+=FT_MAX_WORD_LEN_FOR_SORT-HA_FT_MAXBYTELEN;
-  return (key->flag & (HA_BINARY_PACK_KEY | HA_VAR_LENGTH_KEY | HA_FULLTEXT) &&
-	  ((ulonglong) rows * key_maxlength >
-	   (ulonglong) myisam_max_temp_length));
-}
-
 
 void mi_disable_non_unique_index(MI_INFO *info, ha_rows rows)
 {
