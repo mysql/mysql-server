@@ -425,9 +425,8 @@ int handler::ha_open(const char *name, int mode, int test_if_locked)
   {
     if (table->db_options_in_use & HA_OPTION_READ_ONLY_DATA)
       table->db_stat|=HA_READ_ONLY;
-  }
-  if (!error)
-  {
+    (void) extra(HA_EXTRA_NO_READCHECK);	// Not needed in SQL
+
     if (!alloc_root_inited(&table->mem_root))	// If temporary table
       ref=(byte*) sql_alloc(ALIGN_SIZE(ref_length)*2);
     else
