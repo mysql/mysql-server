@@ -86,9 +86,9 @@ create table t1 (
 # ok
 insert into t1 values(1, 'aAa');
 # fail
---error 1169
+--error 1062
 insert into t1 values(2, 'aaa');
---error 1169
+--error 1062
 insert into t1 values(3, 'AAA');
 # 1
 select * from t1 order by p;
@@ -156,4 +156,14 @@ select * from t1 where a = 'aaa' order by p;
 select * from t1 where a = 'AaA' order by p;
 # 6
 select * from t1 where a = 'AAA' order by p;
+drop table t1;
+
+# bug 
+create table t1 (
+  a varchar(10) primary key
+) engine=ndb;
+insert into t1 values ('jonas % ');
+replace into t1 values ('jonas % ');
+replace into t1 values ('jonas % ');
+select * from t1;
 drop table t1;

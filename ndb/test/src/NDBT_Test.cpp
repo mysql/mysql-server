@@ -519,6 +519,7 @@ void NDBT_TestCaseImpl1::waitSteps(){
     NdbThread_WaitFor(threads[i], &status);
     NdbThread_Destroy(&threads[i]);   
   }
+  threads.clear();
 }
 
 
@@ -839,9 +840,9 @@ void NDBT_TestSuite::execute(Ndb* ndb, const NdbDictionary::Table* pTab,
 	continue;
       }
       pTab2 = pDict->getTable(pTab->getName());
-    } else {
+    } else if(!pTab2) {
       pTab2 = pTab;
-    }
+    } 
     
     ctx = new NDBT_Context();
     ctx->setTab(pTab2);

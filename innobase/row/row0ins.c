@@ -1509,7 +1509,6 @@ row_ins_scan_sec_index_for_duplicate(
 	ibool		moved;
 	mtr_t		mtr;
 	trx_t*		trx;
-	const char*	ptr;
 	
 	n_unique = dict_index_get_n_unique(index);
 
@@ -1630,7 +1629,6 @@ row_ins_duplicate_error_in_clust(
 	page_t*	page;
 	ulint	n_unique;
 	trx_t*	trx	= thr_get_trx(thr);
-	const char*	ptr;
 
 	UT_NOT_USED(mtr);
 	

@@ -151,10 +151,10 @@ public:
 
     /*    Temporary record used during add/drop table */
     Uint32 myConnect;
-    
+#ifdef HAVE_TABLE_REORG    
     /*    Second table used by this table (for table reorg) */
     Uint32 secondTable;
-    
+#endif
     /*    Next record in Pool */
     Uint32 nextPool;
 

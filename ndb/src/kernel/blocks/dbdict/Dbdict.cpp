@@ -239,7 +239,11 @@ Dbdict::packTableIntoPagesImpl(SimpleProperties::Writer & w,
   
   w.add(DictTabInfo::TableName, tablePtr.p->tableName);
   w.add(DictTabInfo::TableId, tablePtr.i);
+#ifdef HAVE_TABLE_REORG
   w.add(DictTabInfo::SecondTableId, tablePtr.p->secondTable);
+#else
+  w.add(DictTabInfo::SecondTableId, (Uint32)0);
+#endif
   w.add(DictTabInfo::TableVersion, tablePtr.p->tableVersion);
   w.add(DictTabInfo::NoOfKeyAttr, tablePtr.p->noOfPrimkey);
   w.add(DictTabInfo::NoOfAttributes, tablePtr.p->noOfAttributes);
@@ -1436,6 +1440,7 @@ Uint32 Dbdict::getFreeTableRecord(Uint32 primaryTableId)
     jam();
     return RNIL;
   }//if
+#ifdef HAVE_TABLE_REORG
   bool secondFound = false;
   for (tablePtr.i = firstTablePtr.i + 1; tablePtr.i < tabSize ; tablePtr.i++) {
     jam();
@@ -1455,6 +1460,7 @@ Uint32 Dbdict::getFreeTableRecord(Uint32 primaryTableId)
     firstTablePtr.p->tabState = TableRecord::NOT_DEFINED;
     return RNIL;
   }//if
+#endif
   return firstTablePtr.i;
 }//Dbdict::getFreeTableRecord()
 
@@ -4623,7 +4629,7 @@ void Dbdict::handleTabInfoInit(SimpleProperties::Reader & it,
       jam();
       tablePtr.p->tabState = TableRecord::DEFINING;
     }//if
-
+#ifdef HAVE_TABLE_REORG
 /* ---------------------------------------------------------------- */
 // Get id of second table id and check that table doesn't already exist
 // and set up links between first and second table.
@@ -4637,7 +4643,7 @@ void Dbdict::handleTabInfoInit(SimpleProperties::Reader & it,
     secondTablePtr.p->tabState = TableRecord::REORG_TABLE_PREPARED;
     secondTablePtr.p->secondTable = tablePtr.i;
     tablePtr.p->secondTable = secondTablePtr.i;
-
+#endif
 /* ---------------------------------------------------------------- */
 // Set table version
 /* ---------------------------------------------------------------- */
@@ -5535,10 +5541,12 @@ void Dbdict::releaseTableObject(Uint32 tableId, bool removeFromHash)
     nextAttrRecord = attrPtr.p->nextAttrInTable;
     c_attributeRecordPool.release(attrPtr);
   }//if
+#ifdef HAVE_TABLE_REORG
   Uint32 secondTableId = tablePtr.p->secondTable;
   initialiseTableRecord(tablePtr);
   c_tableRecordPool.getPtr(tablePtr, secondTableId);
   initialiseTableRecord(tablePtr);
+#endif
   return; 
 }//releaseTableObject()
 
