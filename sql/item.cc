@@ -39,7 +39,8 @@ Item::Item():
 {
   marker= 0;
   maybe_null=null_value=with_sum_func=unsigned_flag=0;
-  coercibility=COER_COERCIBLE;
+  collation= &my_charset_bin;
+  coercibility= COER_COERCIBLE;
   name= 0;
   decimals= 0; max_length= 0;
   THD *thd= current_thd;
@@ -67,6 +68,7 @@ Item::Item(THD *thd, Item &item):
   unsigned_flag(item.unsigned_flag),
   with_sum_func(item.with_sum_func),
   fixed(item.fixed),
+  collation(item.collation),
   coercibility(item.coercibility)
 {
   next=thd->free_list;			// Put in free list
