@@ -84,7 +84,7 @@ int main(int argc, char **argv)
       }
       *to= *pos;
     }    
-    *to= *pos; // just to copy a '\0'  if '\\' was used
+    *to= *pos; /* just to copy a '\0'  if '\\' was used */
   }
   if (first_argument_uses_wildcards)
     wild= argv[--argc];
