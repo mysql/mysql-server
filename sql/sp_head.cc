@@ -296,16 +296,11 @@ sp_head::init_strings(THD *thd, LEX *lex, sp_name *name)
 		      name->m_db.length, name->m_db.str,
 		      name->m_name.length, name->m_name.str));
   /* We have to copy strings to get them into the right memroot */
+  m_db.length= name->m_db.length;
   if (name->m_db.length == 0)
-  {
-    m_db.length= (thd->db ? strlen(thd->db) : 0);
-    m_db.str= strmake_root(root, (thd->db ? thd->db : ""), m_db.length);
-  }
+    m_db.str= NULL;
   else
-  {
-    m_db.length= name->m_db.length;
     m_db.str= strmake_root(root, name->m_db.str, name->m_db.length);
-  }
   m_name.length= name->m_name.length;
   m_name.str= strmake_root(root, name->m_name.str, name->m_name.length);
 
@@ -453,7 +448,8 @@ sp_head::execute(THD *thd)
 #endif
 
   dbchanged= FALSE;
-  if ((ret= sp_use_new_db(thd, m_db.str, olddb, sizeof(olddb), 0, &dbchanged)))
+  if (m_db.length &&
+      (ret= sp_use_new_db(thd, m_db.str, olddb, sizeof(olddb), 0, &dbchanged)))
     goto done;
 
   if ((ctx= thd->spcont))

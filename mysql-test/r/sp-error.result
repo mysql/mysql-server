@@ -1,4 +1,27 @@
 delete from mysql.proc;
+create function .f1() returns int return 1;
+create procedure .p1() select 1, database();
+create procedure p1() select 2, database();
+alter procedure .p1 sql security invoker;
+select .f1();
+.f1()
+1
+call .p1();
+1	database()
+1	test
+call p1();
+2	database()
+2	test
+select f1();
+ERROR 42000: FUNCTION test.f1 does not exist
+select db,name,type,security_type from mysql.proc;
+db	name	type	security_type
+	f1	FUNCTION	DEFINER
+	p1	PROCEDURE	INVOKER
+test	p1	PROCEDURE	DEFINER
+drop function .f1;
+drop procedure .p1;
+drop procedure p1;
 create procedure syntaxerror(t int)|
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '' at line 1
 create procedure syntaxerror(t int)|
