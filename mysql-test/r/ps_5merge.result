@@ -1058,7 +1058,7 @@ set @arg00=NULL;
 set @arg01=2;
 execute stmt1 using @arg00, @arg01;
 Warnings:
-Warning	1265	Data truncated for column 'a' at row 1
+Warning	1263	Data truncated; NULL supplied to NOT NULL column 'a' at row 1
 select a,b from t1;
 a	b
 3	three
@@ -2253,7 +2253,7 @@ set @arg00=NULL;
 set @arg01=2;
 execute stmt1 using @arg00, @arg01;
 Warnings:
-Warning	1265	Data truncated for column 'a' at row 1
+Warning	1263	Data truncated; NULL supplied to NOT NULL column 'a' at row 1
 select a,b from t1;
 a	b
 3	three
