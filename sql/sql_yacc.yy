@@ -349,7 +349,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %token	ENUM
 %token	FAST_SYM
 %token	FLOAT_SYM
-%token  GEOM_SYM
+%token  GEOMETRY_SYM
 %token	INT_SYM
 %token	LIMIT
 %token	LONGBLOB
@@ -407,6 +407,8 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %token	FORMAT_SYM
 %token	FOR_SYM
 %token	FROM_UNIXTIME
+%token	GEOMCOLLFROMTEXT
+%token	GEOMFROMTEXT
 %token  GEOMETRYCOLLECTION
 %token	GROUP_UNIQUE_USERS
 %token	HOUR_MINUTE_SYM
@@ -419,6 +421,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %token	INTERVAL_SYM
 %token	LAST_INSERT_ID
 %token	LEFT
+%token	LINEFROMTEXT
 %token  LINESTRING
 %token	LOCATE
 %token	MAKE_SET_SYM
@@ -427,11 +430,16 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %token  MODE_SYM
 %token	MODIFY_SYM
 %token	MONTH_SYM
+%token	MLINEFROMTEXT
+%token	MPOINTFROMTEXT
+%token	MPOLYFROMTEXT
 %token  MULTILINESTRING
 %token  MULTIPOINT
 %token  MULTIPOLYGON
 %token	NOW_SYM
 %token	PASSWORD
+%token	POINTFROMTEXT
+%token	POLYFROMTEXT
 %token  POLYGON
 %token	POSITION_SYM
 %token	PROCEDURE
@@ -966,7 +974,7 @@ type:
 					  $$=FIELD_TYPE_TINY_BLOB; }
 	| BLOB_SYM			{ Lex->type|=BINARY_FLAG;
 					  $$=FIELD_TYPE_BLOB; }
-	| GEOM_SYM			{ Lex->type|=BINARY_FLAG;
+	| GEOMETRY_SYM			{ Lex->type|=BINARY_FLAG;
 					  $$=FIELD_TYPE_GEOMETRY; }
 	| MEDIUMBLOB			{ Lex->type|=BINARY_FLAG;
 					  $$=FIELD_TYPE_MEDIUM_BLOB; }
@@ -1722,6 +1730,10 @@ simple_expr:
 	  }
 	| FIELD_FUNC '(' expr ',' expr_list ')'
 	  { $$= new Item_func_field($3, *$5); }
+	| GEOMFROMTEXT '(' expr ')'
+	  { $$= new Item_func_geometry_from_text($3) }
+	| GEOMFROMTEXT '(' expr ',' expr ')'
+	  { $$= new Item_func_geometry_from_text($3) }
 	| GEOMETRYCOLLECTION '(' expr_list ')'
 	  { $$= new Item_func_spatial_collection(* $3, 
                        Geometry::wkbGeometryCollection, 
@@ -1757,10 +1769,18 @@ simple_expr:
 	  { $$= new Item_func_locate($5,$3); }
 	| LOCATE '(' expr ',' expr ',' expr ')'
 	  { $$= new Item_func_locate($5,$3,$7); }
- 	| GREATEST_SYM '(' expr ',' expr_list ')'
+ 	| GEOMCOLLFROMTEXT '(' expr ')'
+	  { $$= new Item_func_geometry_from_text($3) }
+	| GEOMCOLLFROMTEXT '(' expr ',' expr ')'
+	  { $$= new Item_func_geometry_from_text($3) }
+	| GREATEST_SYM '(' expr ',' expr_list ')'
 	  { $5->push_front($3); $$= new Item_func_max(*$5); }
 	| LEAST_SYM '(' expr ',' expr_list ')'
 	  { $5->push_front($3); $$= new Item_func_min(*$5); }
+ 	| LINEFROMTEXT '(' expr ')'
+	  { $$= new Item_func_geometry_from_text($3) }
+	| LINEFROMTEXT '(' expr ',' expr ')'
+	  { $$= new Item_func_geometry_from_text($3) }
 	| MINUTE_SYM '(' expr ')'
 	  { $$= new Item_func_minute($3); }
 	| MONTH_SYM '(' expr ')'
@@ -1768,7 +1788,19 @@ simple_expr:
  	| MULTILINESTRING '(' expr_list ')'
  	  { $$= new Item_func_spatial_collection(* $3, 
                     Geometry::wkbMultiLineString, Geometry::wkbLineString); }
- 	| MULTIPOINT '(' expr_list ')'
+ 	| MLINEFROMTEXT '(' expr ')'
+	  { $$= new Item_func_geometry_from_text($3) }
+	| MLINEFROMTEXT '(' expr ',' expr ')'
+	  { $$= new Item_func_geometry_from_text($3) }
+	| MPOINTFROMTEXT '(' expr ')'
+	  { $$= new Item_func_geometry_from_text($3) }
+	| MPOINTFROMTEXT '(' expr ',' expr ')'
+	  { $$= new Item_func_geometry_from_text($3) }
+	| MPOLYFROMTEXT '(' expr ')'
+	  { $$= new Item_func_geometry_from_text($3) }
+	| MPOLYFROMTEXT '(' expr ',' expr ')'
+	  { $$= new Item_func_geometry_from_text($3) }
+	| MULTIPOINT '(' expr_list ')'
  	  { $$= new Item_func_spatial_collection(* $3, 
                     Geometry::wkbMultiPoint, Geometry::wkbPoint); }
  	| MULTIPOLYGON '(' expr_list ')'
@@ -1782,7 +1814,15 @@ simple_expr:
 	  {
 	    $$= new Item_func_password($3);
 	   }
- 	| POLYGON '(' expr_list ')'
+ 	| POINTFROMTEXT '(' expr ')'
+	  { $$= new Item_func_geometry_from_text($3) }
+	| POINTFROMTEXT '(' expr ',' expr ')'
+	  { $$= new Item_func_geometry_from_text($3) }
+	| POLYFROMTEXT '(' expr ')'
+	  { $$= new Item_func_geometry_from_text($3) }
+	| POLYFROMTEXT '(' expr ',' expr ')'
+	  { $$= new Item_func_geometry_from_text($3) }
+	| POLYGON '(' expr_list ')'
  	  { $$= new Item_func_spatial_collection(* $3, 
 			Geometry::wkbPolygon, Geometry::wkbLineString); }
 	| POSITION_SYM '(' no_in_expr IN_SYM expr ')'
