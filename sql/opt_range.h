@@ -35,7 +35,7 @@
 
 
 typedef struct st_key_part {
-  uint16           key,part,part_length;
+  uint16           key,part, store_length, length;
   uint8            null_bit;
   Field            *field;
   Field::imagetype image_type;
@@ -68,7 +68,7 @@ class QUICK_RANGE :public Sql_alloc {
 
 class QUICK_SELECT {
 public:
-  bool next,dont_free;
+  bool next,dont_free,sorted;
   int error;
   uint index, max_used_key_length, used_key_parts;
   TABLE *head;
@@ -89,8 +89,17 @@ public:
   int init() { return error=file->index_init(index); }
   virtual int get_next();
   virtual bool reverse_sorted() { return 0; }
-  int cmp_next(QUICK_RANGE *range);
   bool unique_key_range();
+};
+
+
+class QUICK_SELECT_GEOM: public QUICK_SELECT
+{
+public:
+  QUICK_SELECT_GEOM(THD *thd, TABLE *table, uint index_arg, bool no_alloc)
+    :QUICK_SELECT(thd, table, index_arg, no_alloc)
+    {};
+  virtual int get_next();
 };
 
 

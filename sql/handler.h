@@ -218,6 +218,14 @@ typedef struct st_ha_check_opt
 } HA_CHECK_OPT;
 
 
+typedef struct st_key_range
+{
+  const byte *key;
+  uint length;
+  enum ha_rkey_function flag;
+} key_range;
+
+
 class handler :public Sql_alloc
 {
  protected:
@@ -239,6 +247,12 @@ public:
   time_t create_time;			/* When table was created */
   time_t check_time;
   time_t update_time;
+
+  /* The following are for read_range() */
+  key_range save_end_range, *end_range;
+  KEY_PART_INFO *range_key_part;
+  int key_compare_result_on_equal;
+
   uint errkey;				/* Last dup key */
   uint sortkey, key_used_on_scan;
   uint active_index;
@@ -249,6 +263,7 @@ public:
   FT_INFO *ft_handler;
   bool  auto_increment_column_changed;
   bool implicit_emptied;                /* Can be !=0 only if HEAP */
+
 
   handler(TABLE *table_arg) :table(table_arg),
     ref(0), data_file_length(0), max_data_file_length(0), index_file_length(0),
@@ -298,6 +313,11 @@ public:
   {
     return (my_errno=HA_ERR_WRONG_COMMAND);
   }
+  virtual int handler::read_range_first(const key_range *start_key,
+					const key_range *end_key,
+					bool sorted);
+  virtual int handler::read_range_next(bool eq_range);
+  int handler::compare_key(key_range *range);
   virtual int ft_init()
     { return -1; }
   virtual FT_INFO *ft_init_ext(uint flags,uint inx,const byte *key, uint keylen)
