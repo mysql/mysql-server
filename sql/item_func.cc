@@ -1346,11 +1346,6 @@ longlong Item_func_char_length::val_int()
 longlong Item_func_coercibility::val_int()
 {
   DBUG_ASSERT(fixed == 1);
-  if (args[0]->null_value)
-  {
-    null_value= 1;
-    return 0;
-  }
   null_value= 0;
   return (longlong) args[0]->collation.derivation;
 }
