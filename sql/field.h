@@ -211,6 +211,15 @@ public:
       ptr-=row_offset;
       return tmp;
     }
+
+  inline String *val_str(String *str, char *new_ptr)
+  {
+    char *old_ptr= ptr;
+    ptr= new_ptr;
+    val_str(str);
+    ptr= old_ptr;
+    return str;
+  }
   virtual bool send_binary(Protocol *protocol);
   virtual char *pack(char* to, const char *from, uint max_length=~(uint) 0)
   {
