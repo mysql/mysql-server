@@ -34,8 +34,7 @@ struct Options
   static const char *socket_file_name;
   static const char *password_file_name;
   static const char *default_mysqld_path;
-  static const char *default_admin_user;
-  static const char *default_admin_password;
+  static const char *user;
   static uint monitoring_interval;
   static uint port_number;
   static const char *bind_address;
