@@ -359,6 +359,9 @@ else
     *darwin*)
       FIND_PROC="$PS -uaxww | grep mysqld | grep \" \$\$PID \" > /dev/null"
       ;;
+    *cygwin*)
+      FIND_PROC="$PS -e | grep mysqld | grep \" \$\$PID \" > /dev/null"
+      ;;
     *)
       AC_MSG_ERROR([Could not find the right ps switches. Which OS is this ?. See the Installation chapter in the Reference Manual.])
   esac
@@ -794,6 +797,15 @@ case $SYSTEM_TYPE in
       echo "Adding defines for AIX"
       CFLAGS="$CFLAGS -Wa,-many -DUNDEF_HAVE_INITGROUPS"
       CXXFLAGS="$CXXFLAGS -Wa,-many -DUNDEF_HAVE_INITGROUPS"
+    ;;
+dnl Is this the right match for DEC OSF on alpha?
+    *dec-osf*)
+      if test "$ac_cv_prog_gcc" = "yes" && test "$host_cpu" = "alpha"
+      then
+	  echo "Adding defines for DEC OSF on alpha"
+	  CFLAGS="$CFLAGS -mieee"
+	  CXXFLAGS="$CXXFLAGS -mieee"
+      fi
     ;;
 esac
 
@@ -1605,10 +1617,11 @@ AC_ARG_WITH(bench,
 
 if test "$with_bench" = "yes"
 then
-  bench_dirs="sql-bench mysql-test"
+  bench_dirs="sql-bench"
 else
   bench_dirs=""
 fi
+bench_dirs="$bench_dirs mysql-test"
 AC_SUBST(bench_dirs)
 
 # Don't build readline, i have it already
