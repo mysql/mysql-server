@@ -717,8 +717,6 @@ row_ins_foreign_check_on_constraint(
 	ulint		i;
 	trx_t*		trx;
 	mem_heap_t*	tmp_heap	= NULL;
-	ulint		offsets_[100]	= { 100, };
-	ulint*		offsets		= offsets_;
 
 	ut_a(thr && foreign && pcur && mtr);
 
@@ -886,10 +884,8 @@ row_ins_foreign_check_on_constraint(
 		we already have a normal shared lock on the appropriate
 		gap if the search criterion was not unique */
 
-		offsets = rec_get_offsets(clust_rec, clust_index, offsets,
-						ULINT_UNDEFINED, &tmp_heap);
-		err = lock_clust_rec_read_check_and_lock(0, clust_rec,
-			clust_index, offsets, LOCK_X, LOCK_REC_NOT_GAP, thr);
+		err = lock_clust_rec_read_check_and_lock_alt(0, clust_rec,
+			clust_index, LOCK_X, LOCK_REC_NOT_GAP, thr);
 	}
 	
 	if (err != DB_SUCCESS) {
