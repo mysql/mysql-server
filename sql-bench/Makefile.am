@@ -24,7 +24,9 @@ bench_SCRIPTS =		test-ATIS test-connect test-create test-insert \
 			test-alter-table test-transactions \
 			graph-compare-results \
 			bench-init.pl compare-results run-all-tests \
-			server-cfg crash-me copy-db bench-count-distinct
+			server-cfg crash-me copy-db innotest1 innotest1a \
+			innotest1b innotest2 innotest2a innotest2b \
+			bench-count-distinct
 CLEANFILES =		$(bench_SCRIPTS)
 EXTRA_SCRIPTS =		test-ATIS.sh test-connect.sh test-create.sh \
 			test-insert.sh test-big-tables.sh test-select.sh \
@@ -32,7 +34,9 @@ EXTRA_SCRIPTS =		test-ATIS.sh test-connect.sh test-create.sh \
 			test-transactions.sh \
 			bench-init.pl.sh compare-results.sh server-cfg.sh \
 			run-all-tests.sh crash-me.sh copy-db.sh \
-			bench-count-distinct.sh graph-compare-results.sh
+			graph-compare-results.sh innotest1.sh innotest1a.sh \
+			innotest1b.sh innotest2.sh innotest2a.sh innotest2b.sh \
+			bench-count-distinct.sh
 EXTRA_DIST =		$(EXTRA_SCRIPTS)
 
 dist-hook:

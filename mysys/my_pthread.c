@@ -437,25 +437,47 @@ int my_pthread_cond_timedwait(pthread_cond_t *cond, pthread_mutex_t *mutex,
 #endif
 
 
-#ifdef HPUX
+#ifdef HAVE_POSIX1003_4a_MUTEX
 /*
   In HP-UX-10.20 and other old Posix 1003.4a Draft 4 implementations
   pthread_mutex_trylock returns 1 on success, not 0 like
   pthread_mutex_lock
-*/
-#undef pthread_mutex_trylock
 
+  From the HP-UX-10.20 man page:
+  RETURN VALUES
+      If the function fails, errno may be set to one of the following
+      values:
+           Return | Error    | Description
+           _______|__________|_________________________________________
+              1   |          | Successful completion.
+              0   |          | The mutex is  locked; therefore, it was
+                  |          | not acquired.
+             -1   | [EINVAL] | The value specified by mutex is invalid.
+
+*/
+
+/*
+  Convert pthread_mutex_trylock to return values according to latest POSIX
+
+  RETURN VALUES
+  0		If we are able successfully lock the mutex.
+  EBUSY		Mutex was locked by another thread
+  !=		errno set by pthread_mutex_trylock()
+*/
+
+#undef pthread_mutex_trylock
 int my_pthread_mutex_trylock(pthread_mutex_t *mutex)
 {
   int error=pthread_mutex_trylock(mutex);
-  if (error == 1)			/* Safety if the lib is fixed */
-    return 0;				/* Mutex was locked */
+  if (error == 1)
+    return 0;				/* Got lock on mutex */
+  if (error == 0)			/* Someon else is locking mutex */
+    return EBUSY;
   if (error == -1)			/* Safety if the lib is fixed */
-    error=errno;
+    error= errno;			/* Probably invalid parameter */
    return error;
 }
-#endif
-
+#endif /* HAVE_POSIX1003_4a_MUTEX */
 
 /* Some help functions */
 
