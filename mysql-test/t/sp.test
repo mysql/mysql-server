@@ -1036,6 +1036,25 @@ delete from t1|
 delete from t2|
 drop procedure bug1874|
 
+#
+# BUG#2260
+#
+create procedure bug2260()
+begin
+  declare v1 int;
+  declare continue handler for not found set @x2 = 1;
+  declare c1 cursor for select data from t1;
+
+  open c1;
+  fetch c1 into v1;
+  set @x2 = 2;
+  close c1;
+end|
+
+call bug2260()|
+select @x2|
+drop procedure bug2260|
+
 
 #
 # Some "real" examples
