@@ -159,7 +159,7 @@ if ($opt_stage <= 1)
   }
   if ($opt_with_other_libc)
   {
-    $opt_with_other_libc = "--with-other-libc=$opt_with_other_libc";    
+    $opt_with_other_libc = "--with-other-libc=$opt_with_other_libc";
   }
   if (!$opt_enable_shared)
   {
@@ -254,7 +254,7 @@ if (!$opt_no_test)
   $extra="";
   if ($opt_bdb)
   {
-    $extra.=" -O bdb_cache_size=16M";
+    $extra.=" --bdb_cache_size=16M --bdb_max_lock=60000"
   }
   if ($opt_innodb)
   {
