@@ -313,7 +313,7 @@ Item_sum_sum_distinct::~Item_sum_sum_distinct()
 Item *
 Item_sum_sum_distinct::copy_or_same(THD *thd)
 {
-  return new (&thd->mem_root) Item_sum_sum_distinct(thd, this);
+  return new (thd->mem_root) Item_sum_sum_distinct(thd, this);
 }
 
 C_MODE_START

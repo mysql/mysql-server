@@ -89,7 +89,8 @@ int openfrm(THD *thd, const char *name, const char *alias, uint db_stat,
 
   error=1;
   disk_buff=NULL;
-  old_root= my_pthread_getspecific_ptr(MEM_ROOT*,THR_MALLOC);
+  root_ptr= my_pthread_getspecific_ptr(MEM_ROOT**, THR_MALLOC);
+  old_root= *root_ptr;
 
   if ((file=my_open(fn_format(index_file, name, "", reg_ext,
 			      MY_UNPACK_FILENAME),
@@ -123,8 +124,6 @@ int openfrm(THD *thd, const char *name, const char *alias, uint db_stat,
   outparam->blob_ptr_size=sizeof(char*);
   outparam->db_stat = db_stat;
   init_sql_alloc(&outparam->mem_root, TABLE_ALLOC_BLOCK_SIZE, 0);
-  root_ptr= my_pthread_getspecific_ptr(MEM_ROOT**, THR_MALLOC);
-  old_root= *root_ptr;
   *root_ptr= &outparam->mem_root;
 
   outparam->real_name=strdup_root(&outparam->mem_root,
