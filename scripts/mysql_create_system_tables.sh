@@ -68,7 +68,7 @@ then
   c_d="$c_d   Lock_tables_priv enum('N','Y') DEFAULT 'N' NOT NULL,"
   c_d="$c_d PRIMARY KEY Host (Host,Db,User),"
   c_d="$c_d KEY User (User)"
-  c_d="$c_d )"
+  c_d="$c_d ) engine=MyISAM"
   c_d="$c_d CHARACTER SET utf8 COLLATE utf8_bin"
   c_d="$c_d comment='Database privileges';"
   
@@ -98,7 +98,7 @@ then
   c_h="$c_h  Create_tmp_table_priv enum('N','Y') DEFAULT 'N' NOT NULL,"
   c_h="$c_h  Lock_tables_priv enum('N','Y') DEFAULT 'N' NOT NULL,"
   c_h="$c_h  PRIMARY KEY Host (Host,Db)"
-  c_h="$c_h )"
+  c_h="$c_h ) engine=MyISAM"
   c_h="$c_h CHARACTER SET utf8 COLLATE utf8_bin"
   c_h="$c_h comment='Host privileges;  Merged with database privileges';"
 fi
@@ -142,7 +142,7 @@ then
   c_u="$c_u   max_updates int(11) unsigned DEFAULT 0  NOT NULL,"
   c_u="$c_u   max_connections int(11) unsigned DEFAULT 0  NOT NULL,"
   c_u="$c_u   PRIMARY KEY Host (Host,User)"
-  c_u="$c_u )"
+  c_u="$c_u ) engine=MyISAM"
   c_u="$c_u CHARACTER SET utf8 COLLATE utf8_bin"
   c_u="$c_u comment='Users and global privileges';"
 
@@ -182,7 +182,7 @@ then
   c_f="$c_f   dl char(128) DEFAULT '' NOT NULL,"
   c_f="$c_f   type enum ('function','aggregate') NOT NULL,"
   c_f="$c_f   PRIMARY KEY (name)"
-  c_f="$c_f )"
+  c_f="$c_f ) engine=MyISAM"
   c_f="$c_f CHARACTER SET utf8 COLLATE utf8_bin"
   c_f="$c_f   comment='User defined functions';"
 fi
@@ -204,7 +204,7 @@ then
   c_t="$c_t   Column_priv set('Select','Insert','Update','References') DEFAULT '' NOT NULL,"
   c_t="$c_t   PRIMARY KEY (Host,Db,User,Table_name),"
   c_t="$c_t   KEY Grantor (Grantor)"
-  c_t="$c_t )"
+  c_t="$c_t ) engine=MyISAM"
   c_t="$c_t CHARACTER SET utf8 COLLATE utf8_bin"
   c_t="$c_t   comment='Table privileges';"
 fi
@@ -224,7 +224,7 @@ then
   c_c="$c_c   Timestamp timestamp(14),"
   c_c="$c_c   Column_priv set('Select','Insert','Update','References') DEFAULT '' NOT NULL,"
   c_c="$c_c   PRIMARY KEY (Host,Db,User,Table_name,Column_name)"
-  c_c="$c_c )"
+  c_c="$c_c ) engine=MyISAM"
   c_c="$c_c CHARACTER SET utf8 COLLATE utf8_bin"
   c_c="$c_c   comment='Column privileges';"
 fi
@@ -244,7 +244,7 @@ then
   c_ht="$c_ht   url              varchar(128) not null,"
   c_ht="$c_ht   primary key      (help_topic_id),"
   c_ht="$c_ht   unique index     (name)"
-  c_ht="$c_ht )"
+  c_ht="$c_ht ) engine=MyISAM"
   c_ht="$c_ht CHARACTER SET utf8"
   c_ht="$c_ht   comment='help topics';"
 fi
@@ -264,7 +264,7 @@ then
   c_hc="$c_hc   url                varchar(128) not null,"
   c_hc="$c_hc   primary key        (help_category_id),"
   c_hc="$c_hc   unique index       (name)"
-  c_hc="$c_hc )"
+  c_hc="$c_hc ) engine=MyISAM"
   c_hc="$c_hc CHARACTER SET utf8"
   c_hc="$c_hc   comment='help categories';"
 fi
@@ -280,7 +280,7 @@ then
   c_hk="$c_hk   name             varchar(64) not null,"
   c_hk="$c_hk   primary key      (help_keyword_id),"
   c_hk="$c_hk   unique index     (name)"
-  c_hk="$c_hk )"
+  c_hk="$c_hk ) engine=MyISAM"
   c_hk="$c_hk CHARACTER SET utf8"
   c_hk="$c_hk   comment='help keywords';"
 fi
@@ -295,7 +295,7 @@ then
   c_hr="$c_hr   help_topic_id    int unsigned not null references help_topic,"
   c_hr="$c_hr   help_keyword_id  int unsigned not null references help_keyword,"
   c_hr="$c_hr   primary key      (help_keyword_id, help_topic_id)"
-  c_hr="$c_hr )"
+  c_hr="$c_hr ) engine=MyISAM"
   c_hr="$c_hr CHARACTER SET utf8"
   c_hr="$c_hr   comment='keyword-topic relation';"
 fi
@@ -310,8 +310,7 @@ then
   c_tzn="$c_tzn   Name char(64) NOT NULL,"
   c_tzn="$c_tzn   Time_zone_id int unsigned NOT NULL,"
   c_tzn="$c_tzn   PRIMARY KEY Name (Name)"
-  c_tzn="$c_tzn )"
-  c_tzn="$c_tzn CHARACTER SET utf8"
+  c_tzn="$c_tzn ) engine=MyISAM CHARACTER SET utf8"
   c_tzn="$c_tzn   comment='Time zone names';"
   
   if test "$1" = "test" 
@@ -333,8 +332,7 @@ then
   c_tz="$c_tz   Time_zone_id int unsigned NOT NULL auto_increment,"
   c_tz="$c_tz   Use_leap_seconds enum('Y','N') DEFAULT 'N' NOT NULL,"
   c_tz="$c_tz   PRIMARY KEY TzId (Time_zone_id)"
-  c_tz="$c_tz )"
-  c_tz="$c_tz CHARACTER SET utf8"
+  c_tz="$c_tz ) engine=MyISAM CHARACTER SET utf8"
   c_tz="$c_tz   comment='Time zones';"
   
   if test "$1" = "test" 
@@ -355,8 +353,7 @@ then
   c_tzt="$c_tzt   Transition_time bigint signed NOT NULL,"
   c_tzt="$c_tzt   Transition_type_id int unsigned NOT NULL,"
   c_tzt="$c_tzt   PRIMARY KEY TzIdTranTime (Time_zone_id, Transition_time)"
-  c_tzt="$c_tzt )"
-  c_tzt="$c_tzt CHARACTER SET utf8"
+  c_tzt="$c_tzt ) engine=MyISAM CHARACTER SET utf8"
   c_tzt="$c_tzt   comment='Time zone transitions';"
   
   if test "$1" = "test" 
@@ -578,8 +575,7 @@ then
   c_tztt="$c_tztt   Is_DST tinyint unsigned DEFAULT 0 NOT NULL,"
   c_tztt="$c_tztt   Abbreviation char(8) DEFAULT '' NOT NULL,"
   c_tztt="$c_tztt   PRIMARY KEY TzIdTrTId (Time_zone_id, Transition_type_id)"
-  c_tztt="$c_tztt )"
-  c_tztt="$c_tztt CHARACTER SET utf8"
+  c_tztt="$c_tztt ) engine=MyISAM CHARACTER SET utf8"
   c_tztt="$c_tztt   comment='Time zone transition types';"
   
   if test "$1" = "test" 
@@ -615,8 +611,7 @@ then
   c_tzls="$c_tzls   Transition_time bigint signed NOT NULL,"
   c_tzls="$c_tzls   Correction int signed NOT NULL,"
   c_tzls="$c_tzls   PRIMARY KEY TranTime (Transition_time)"
-  c_tzls="$c_tzls )"
-  c_tzts="$c_tzts CHARACTER SET utf8"
+  c_tzls="$c_tzls ) engine=MyISAM CHARACTER SET utf8"
   c_tzls="$c_tzls   comment='Leap seconds information for time zones';"
   
   if test "$1" = "test" 
