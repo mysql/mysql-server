@@ -435,9 +435,8 @@ int my_pthread_cond_timedwait(pthread_cond_t *cond,
   pthread_mutex_trylock returns 1 on success, not 0 like
   pthread_mutex_lock
 */
-/* We defined pthread_mutex_trylock as a macro in my_pthread.h, we have
-   to undef it here to prevent infinite recursion! */
 #undef pthread_mutex_trylock
+
 int my_pthread_mutex_trylock(pthread_mutex_t *mutex)
 {
   int error=pthread_mutex_trylock(mutex);
