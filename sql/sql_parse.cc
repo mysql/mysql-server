@@ -1287,7 +1287,7 @@ mysql_execute_command(THD *thd)
   int	res= 0;
   LEX	*lex= &thd->lex;
   TABLE_LIST *tables= (TABLE_LIST*) lex->select_lex.table_list.first;
-  SELECT_LEX *select_lex= lex->select;
+  SELECT_LEX *select_lex= &lex->select_lex;
   SELECT_LEX_UNIT *unit= &lex->unit;
   DBUG_ENTER("mysql_execute_command");
 

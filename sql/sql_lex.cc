@@ -142,11 +142,11 @@ LEX *lex_start(THD *thd, uchar *buf,uint length)
   lex->next_state=STATE_START;
   lex->end_of_query=(lex->ptr=buf)+length;
   lex->yylineno = 1;
-  lex->select->create_refs=lex->in_comment=0;
+  lex->select_lex.create_refs=lex->in_comment=0;
   lex->length=0;
-  lex->select->in_sum_expr=0;
-  lex->select->expr_list.empty();
-  lex->select->ftfunc_list.empty();
+  lex->select_lex.in_sum_expr=0;
+  lex->select_lex.expr_list.empty();
+  lex->select_lex.ftfunc_list.empty();
   lex->convert_set=(lex->thd=thd)->variables.convert_set;
   lex->yacc_yyss=lex->yacc_yyvs=0;
   lex->ignore_space=test(thd->sql_mode & MODE_IGNORE_SPACE);
@@ -158,7 +158,7 @@ LEX *lex_start(THD *thd, uchar *buf,uint length)
 
 void lex_end(LEX *lex)
 {
-  lex->select->expr_list.delete_elements();	// If error when parsing sql-varargs
+  lex->select_lex.expr_list.delete_elements();	// If error when parsing sql-varargs
   x_free(lex->yacc_yyss);
   x_free(lex->yacc_yyvs);
 }
