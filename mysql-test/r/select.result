@@ -1793,3 +1793,4 @@ Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_par
 t2	0	PRIMARY	1	auto	A	1199	NULL	NULL	
 t2	0	fld1	1	fld1	A	1199	NULL	NULL	
 t2	1	fld3	1	fld3	A	NULL	NULL	NULL	
+1
