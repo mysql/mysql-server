@@ -2666,7 +2666,7 @@ option_value:
 	  {
 	     Item_func_set_user_var *item = new Item_func_set_user_var($2,$4);
 	     if (item->fix_fields(current_thd,0) || item->update())
-		YYABORT;
+		send_error(&current_thd->net, ER_SET_CONSTANTS_ONLY);
 	  }
          | SQL_SLAVE_SKIP_COUNTER equal ULONG_NUM
           {
