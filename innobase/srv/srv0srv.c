@@ -55,6 +55,9 @@ ibool	srv_lower_case_table_names	= FALSE;
 in the server */
 ulint	srv_activity_count	= 0;
 
+/* The following is the maximum allowed duration of a lock wait. */
+ulint	srv_fatal_semaphore_wait_threshold = 600;
+
 ibool	srv_lock_timeout_and_monitor_active = FALSE;
 ibool	srv_error_monitor_active = FALSE;
 

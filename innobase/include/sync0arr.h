@@ -95,7 +95,7 @@ void
 sync_arr_wake_threads_if_sema_free(void);
 /*====================================*/
 /**************************************************************************
-Prints warnings of long semaphore waits to stderr. Currently > 120 sec. */
+Prints warnings of long semaphore waits to stderr. */
 
 void
 sync_array_print_long_waits(void);

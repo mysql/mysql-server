@@ -2805,7 +2805,12 @@ row_check_table_for_mysql(
 	REPEATABLE READ here */
 
 	prebuilt->trx->isolation_level = TRX_ISO_REPEATABLE_READ;
-	
+
+	/* Enlarge the fatal lock wait timeout during CHECK TABLE. */
+	mutex_enter(&kernel_mutex);
+	srv_fatal_semaphore_wait_threshold += 7200; /* 2 hours */
+	mutex_exit(&kernel_mutex);
+
 	index = dict_table_get_first_index(table);
 
 	while (index != NULL) {
@@ -2852,6 +2857,11 @@ row_check_table_for_mysql(
 
 		ret = DB_ERROR;
 	}
+
+	/* Restore the fatal lock wait timeout after CHECK TABLE. */
+	mutex_enter(&kernel_mutex);
+	srv_fatal_semaphore_wait_threshold -= 7200; /* 2 hours */
+	mutex_exit(&kernel_mutex);
 
 	prebuilt->trx->op_info = (char *) "";
 
