@@ -359,6 +359,7 @@ CHARSET_INFO my_charset_latin1_de =
     sort_order_latin1_de,
     tab_8859_1_uni,	/* tab_to_uni   */
     idx_uni_8859_1,	/* tab_from_uni */
+    "","",
     2,			/* strxfrm_multiply */
     my_strnncoll_latin1_de,
     my_strnncollsp_latin1_de,

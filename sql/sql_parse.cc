@@ -44,11 +44,6 @@
 #define MIN_HANDSHAKE_SIZE      6
 #endif /* HAVE_OPENSSL */
 
-#define MEM_ROOT_BLOCK_SIZE       8192
-#define MEM_ROOT_PREALLOC         8192
-#define TRANS_MEM_ROOT_BLOCK_SIZE 4096
-#define TRANS_MEM_ROOT_PREALLOC   4096
-
 extern int yyparse(void *thd);
 extern "C" pthread_mutex_t THR_LOCK_keycache;
 #ifdef SOLARIS
@@ -550,7 +545,7 @@ check_connections(THD *thd)
   {
     char ip[30];
 
-    if (vio_peer_addr(net->vio,ip))
+    if (vio_peer_addr(net->vio, ip, &thd->peer_port))
       return (ER_BAD_HOST_ERROR);
     if (!(thd->ip = my_strdup(ip,MYF(0))))
       return (ER_OUT_OF_RESOURCES);
@@ -568,7 +563,10 @@ check_connections(THD *thd)
 	thd->host=ip_to_hostname(&thd->remote.sin_addr,&connect_errors);
 	/* Cut very long hostnames to avoid possible overflows */
 	if (thd->host)
+	{
 	  thd->host[min(strlen(thd->host), HOSTNAME_LENGTH)]= 0;
+	  thd->host_or_ip= thd->host;
+	}
 	if (connect_errors > max_connect_errors)
 	  return(ER_HOST_IS_BLOCKED);
       }
@@ -582,8 +580,9 @@ check_connections(THD *thd)
   else /* Hostname given means that the connection was on a socket */
   {
     DBUG_PRINT("info",("Host: %s",thd->host));
-    thd->host_or_ip=thd->host;
-    thd->ip=0;
+    thd->host_or_ip= thd->host;
+    thd->ip= 0;
+    thd->peer_port= 0;
     bzero((char*) &thd->remote,sizeof(struct sockaddr));
   }
   /* Ensure that wrong hostnames doesn't cause buffer overflows */
@@ -833,9 +832,7 @@ pthread_handler_decl(handle_one_connection,arg)
     thd->command=COM_SLEEP;
     thd->version=refresh_version;
     thd->set_time();
-    init_sql_alloc(&thd->mem_root, MEM_ROOT_BLOCK_SIZE, MEM_ROOT_PREALLOC);
-    init_sql_alloc(&thd->transaction.mem_root,
-		   TRANS_MEM_ROOT_BLOCK_SIZE, TRANS_MEM_ROOT_PREALLOC);
+    thd->init_for_queries();
     while (!net->error && net->vio != 0 && !thd->killed)
     {
       if (do_command(thd))
@@ -906,13 +903,11 @@ extern "C" pthread_handler_decl(handle_bootstrap,arg)
   thd->priv_user=thd->user=(char*) my_strdup("boot", MYF(MY_WME));
 
   buff= (char*) thd->net.buff;
-  init_sql_alloc(&thd->mem_root, MEM_ROOT_BLOCK_SIZE, MEM_ROOT_PREALLOC);
-  init_sql_alloc(&thd->transaction.mem_root,
-		 TRANS_MEM_ROOT_BLOCK_SIZE, TRANS_MEM_ROOT_PREALLOC);
+  thd->init_for_queries();
   while (fgets(buff, thd->net.max_packet, file))
   {
     uint length=(uint) strlen(buff);
-    while (length && (my_isspace(system_charset_info, buff[length-1]) ||
+    while (length && (my_isspace(thd->charset(), buff[length-1]) ||
            buff[length-1] == ';'))
       length--;
     buff[length]=0;
@@ -1265,7 +1260,7 @@ restore_user:
       ulong length= thd->query_length-(ulong)(thd->lex.found_colon-thd->query);
       
       /* Remove garbage at start of query */
-      while (my_isspace(system_charset_info, *packet) && length > 0)
+      while (my_isspace(thd->charset(), *packet) && length > 0)
       {
         packet++;
         length--;
@@ -1539,14 +1534,14 @@ bool alloc_query(THD *thd, char *packet, ulong packet_length)
 {
   packet_length--;				// Remove end null
   /* Remove garbage at start and end of query */
-  while (my_isspace(system_charset_info,packet[0]) && packet_length > 0)
+  while (my_isspace(thd->charset(),packet[0]) && packet_length > 0)
   {
     packet++;
     packet_length--;
   }
   char *pos=packet+packet_length;		// Point at end null
   while (packet_length > 0 &&
-	 (pos[-1] == ';' || my_isspace(system_charset_info,pos[-1])))
+	 (pos[-1] == ';' || my_isspace(thd->charset() ,pos[-1])))
   {
     pos--;
     packet_length--;
@@ -1744,7 +1739,16 @@ mysql_execute_command(THD *thd)
   {
     if (check_global_access(thd, SUPER_ACL))
       goto error;
+    // PURGE MASTER LOGS TO 'file'
     res = purge_master_logs(thd, lex->to_log);
+    break;
+  }
+  case SQLCOM_PURGE_BEFORE:
+  {
+    if (check_global_access(thd, SUPER_ACL))
+      goto error;
+    // PURGE MASTER LOGS BEFORE 'data'
+    res = purge_master_logs_before_date(thd, lex->purge_time);
     break;
   }
 #endif
@@ -1950,6 +1954,7 @@ mysql_execute_command(THD *thd)
 	if (check_table_access(thd, SELECT_ACL, tables->next))
 	  goto error;				// Error message is given
       }
+      select_lex->options|= SELECT_NO_UNLOCK;
       unit->offset_limit_cnt= select_lex->offset_limit;
       unit->select_limit_cnt= select_lex->select_limit+
 	select_lex->offset_limit;
@@ -2207,8 +2212,14 @@ mysql_execute_command(THD *thd)
     break;
   }
   case SQLCOM_UPDATE:
-    if (check_access(thd,UPDATE_ACL,tables->db,&tables->grant.privilege))
+    TABLE_LIST *table;
+    if (check_db_used(thd,tables))
       goto error;
+    for (table=tables ; table ; table=table->next)
+    {
+      if (check_access(thd,UPDATE_ACL,table->db,&table->grant.privilege))
+	goto error;
+    }
     if (grant_option && check_grant(thd,UPDATE_ACL,tables))
       goto error;
     if (select_lex->item_list.elements != lex->value_list.elements)
@@ -2301,6 +2312,8 @@ mysql_execute_command(THD *thd)
       if ((res=check_table_access(thd, SELECT_ACL, save_next)))
 	goto error;
     }
+    /* Don't unlock tables until command is written to binary log */
+    select_lex->options|= SELECT_NO_UNLOCK;
 
     select_result *result;
     unit->offset_limit_cnt= select_lex->offset_limit;
@@ -2332,6 +2345,8 @@ mysql_execute_command(THD *thd)
   case SQLCOM_TRUNCATE:
     if (check_access(thd,DELETE_ACL,tables->db,&tables->grant.privilege))
       goto error; /* purecov: inspected */
+    if (grant_option && check_grant(thd,DELETE_ACL,tables))
+      goto error;
     /*
       Don't allow this within a transaction because we want to use
       re-generate table
@@ -2431,7 +2446,7 @@ mysql_execute_command(THD *thd)
 			(ORDER *)NULL,
 			select_lex->options | thd->options |
 			SELECT_NO_JOIN_CACHE | SELECT_NO_UNLOCK,
-			result, unit, select_lex, 0, 0);
+			result, unit, select_lex, 0);
       if (thd->net.report_error)
 	res= -1;
       delete result;
@@ -2866,7 +2881,7 @@ mysql_execute_command(THD *thd)
     if (check_global_access(thd,RELOAD_ACL) || check_db_used(thd, tables))
       goto error;
     /* error sending is deferred to reload_acl_and_cache */
-    reload_acl_and_cache(thd, lex->type, tables) ;
+    reload_acl_and_cache(thd, lex->type, tables);
     break;
   case SQLCOM_KILL:
     kill_one_thread(thd,lex->thread_id);
@@ -3275,7 +3290,6 @@ mysql_new_select(LEX *lex, bool move_down)
     select_lex->include_neighbour(lex->current_select);
 
   select_lex->master_unit()->global_parameters= select_lex;
-  DBUG_ASSERT(lex->current_select->linkage != GLOBAL_OPTIONS_TYPE);
   select_lex->include_global((st_select_lex_node**)&lex->all_selects_list);
   lex->current_select= select_lex;
   return 0;
@@ -3785,9 +3799,7 @@ TABLE_LIST *st_select_lex::add_table_to_list(THD *thd,
   if (!table)
     DBUG_RETURN(0);				// End of memory
   alias_str= alias ? alias->str : table->table.str;
-  if (table->table.length > NAME_LEN ||
-      (table->table.length &&
-       check_table_name(table->table.str,table->table.length)) ||
+  if (check_table_name(table->table.str,table->table.length) ||
       table->db.str && check_db_name(table->db.str))
   {
     net_printf(thd,ER_WRONG_TABLE_NAME,table->table.str);
@@ -3932,6 +3944,14 @@ bool reload_acl_and_cache(THD *thd, ulong options, TABLE_LIST *tables)
     mysql_log.new_file(1);
     mysql_update_log.new_file(1);
     mysql_bin_log.new_file(1);
+#ifdef HAVE_REPLICATION
+    if (expire_logs_days)
+    {
+      long purge_time= time(0) - expire_logs_days*24*60*60;
+      if (purge_time >= 0)
+	mysql_bin_log.purge_logs_before_date(thd, purge_time);
+    }
+#endif
     mysql_slow_log.new_file(1);
     if (ha_flush_logs())
       result=1;

@@ -36,6 +36,7 @@
 ******************************************************************************/
 char autoclose;
 char basedir[PATH_MAX];
+char checktables;
 char datadir[PATH_MAX];
 char pid_file[PATH_MAX];
 char address[PATH_MAX];
@@ -54,6 +55,7 @@ FILE *log_fd  = NULL;
 	
 ******************************************************************************/
 
+void usage(void);
 void vlog(char *, va_list);
 void log(char *, ...);
 void start_defaults(int, char*[]);
@@ -71,6 +73,42 @@ void mysql_start(int, char*[]);
 	functions
 	
 ******************************************************************************/
+
+/******************************************************************************
+
+  usage()
+  
+  Show usage.
+
+******************************************************************************/
+void usage(void)
+{
+  // keep the screen up
+  setscreenmode(SCR_NO_MODE);
+  
+  puts("\
+\n\
+usage: mysqld_safe [options]\n\
+\n\
+Program to start the MySQL daemon and restart it if it dies unexpectedly.\n\
+All options, besides those listed below, are passed on to the MySQL daemon.\n\
+\n\
+options:\n\
+\n\
+--autoclose                 Automatically close the mysqld_safe screen.\n\
+\n\
+--check-tables              Check the tables before starting the MySQL daemon.\n\
+\n\
+--err-log=<file>            Send the MySQL daemon error output to <file>.\n\
+\n\
+--help                      Show this help information.\n\
+\n\
+--mysqld=<file>             Use the <file> MySQL daemon.\n\
+\n\
+  ");
+  
+  exit(-1);
+}
 
 /******************************************************************************
 
@@ -135,6 +173,9 @@ void start_defaults(int argc, char *argv[])
   
   // basedir
   get_basedir(argv[0], basedir);
+  
+  // check-tables
+  checktables = FALSE;
   
   // hostname
   if (gethostname(hostname,PATH_MAX) < 0)
@@ -279,13 +320,15 @@ void parse_args(int argc, char *argv[])
     OPT_PORT,
     OPT_ERR_LOG,
     OPT_SAFE_LOG,
-    OPT_MYSQLD
+    OPT_MYSQLD,
+    OPT_HELP
   };
   
   static struct option options[] =
   {
     {"autoclose",     no_argument,        &autoclose,   TRUE},
     {"basedir",       required_argument,  0,            OPT_BASEDIR},
+    {"check-tables",  no_argument,        &checktables, TRUE},
     {"datadir",       required_argument,  0,            OPT_DATADIR},
     {"pid-file",      required_argument,  0,            OPT_PID_FILE},
     {"bind-address",  required_argument,  0,            OPT_BIND_ADDRESS},
@@ -293,6 +336,7 @@ void parse_args(int argc, char *argv[])
     {"err-log",       required_argument,  0,            OPT_ERR_LOG},
     {"safe-log",      required_argument,  0,            OPT_SAFE_LOG},
     {"mysqld",        required_argument,  0,            OPT_MYSQLD},
+    {"help",          no_argument,        0,            OPT_HELP},
     {0,               0,                  0,            0}
   };
   
@@ -339,6 +383,10 @@ void parse_args(int argc, char *argv[])
       
     case OPT_MYSQLD:
       strcpy(mysqld, optarg);
+      break;
+      
+    case OPT_HELP:
+      usage();
       break;
       
     default:
@@ -563,6 +611,8 @@ void mysql_start(int argc, char *argv[])
   static char *private_options[] =
   {
   	"--autoclose",
+    "--check-tables",
+    "--help",
   	"--err-log=",
   	"--mysqld=",
   	NULL
@@ -594,7 +644,7 @@ void mysql_start(int argc, char *argv[])
 	do
 	{
   	// check the database tables
-  	check_tables();
+  	if (checktables) check_tables();
 	
 		// status
     time(&cal);

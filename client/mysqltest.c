@@ -91,7 +91,9 @@
 
 
 enum {OPT_MANAGER_USER=256,OPT_MANAGER_HOST,OPT_MANAGER_PASSWD,
-      OPT_MANAGER_PORT,OPT_MANAGER_WAIT_TIMEOUT, OPT_SKIP_SAFEMALLOC};
+      OPT_MANAGER_PORT,OPT_MANAGER_WAIT_TIMEOUT, OPT_SKIP_SAFEMALLOC,
+      OPT_SSL_SSL, OPT_SSL_KEY, OPT_SSL_CERT, OPT_SSL_CA, OPT_SSL_CAPATH,
+      OPT_SSL_CIPHER};
 
 static int record = 0, opt_sleep=0;
 static char *db = 0, *pass=0;
@@ -123,7 +125,10 @@ static int block_stack[BLOCK_STACK_DEPTH];
 static int block_ok_stack[BLOCK_STACK_DEPTH];
 static uint global_expected_errno[MAX_EXPECTED_ERRORS], global_expected_errors;
 
+static CHARSET_INFO *charset_info= &my_charset_latin1;
 DYNAMIC_ARRAY q_lines;
+
+#include "sslopt-vars.h"
 
 typedef struct
 {
@@ -489,9 +494,9 @@ void init_parser()
 
 int hex_val(int c)
 {
-  if (my_isdigit(system_charset_info,c))
+  if (my_isdigit(charset_info,c))
     return c - '0';
-  else if ((c = my_tolower(system_charset_info,c)) >= 'a' && c <= 'f')
+  else if ((c = my_tolower(charset_info,c)) >= 'a' && c <= 'f')
     return c - 'a' + 10;
   else
     return -1;
@@ -601,7 +606,7 @@ VAR* var_get(const char* var_name, const char** var_name_end, my_bool raw,
   {
     const char* save_var_name = var_name, *end;
     end = (var_name_end) ? *var_name_end : 0;
-    while (my_isvar(system_charset_info,*var_name) && var_name != end)
+    while (my_isvar(charset_info,*var_name) && var_name != end)
       ++var_name;
     if (var_name == save_var_name)
     {
@@ -752,7 +757,7 @@ int do_server_op(struct st_query* q,const char* op)
   com_p=strmov(com_p,"_exec ");
   if (!*p)
     die("Missing server name in server_%s\n",op);
-  while (*p && !my_isspace(system_charset_info,*p))
+  while (*p && !my_isspace(charset_info,*p))
   {
    *com_p++=*p++;
   }
@@ -785,7 +790,7 @@ int do_require_version(struct st_query* q)
   if (!*p)
     die("Missing version argument in require_version\n");
   ver_arg = p;
-  while (*p && !my_isspace(system_charset_info,*p))
+  while (*p && !my_isspace(charset_info,*p))
     p++;
   *p = 0;
   ver_arg_len = p - ver_arg;
@@ -815,7 +820,7 @@ int do_source(struct st_query* q)
   if (!*p)
     die("Missing file name in source\n");
   name = p;
-  while (*p && !my_isspace(system_charset_info,*p))
+  while (*p && !my_isspace(charset_info,*p))
     p++;
   *p = 0;
 
@@ -1002,13 +1007,6 @@ int do_sync_with_master2(const char* p)
   if (rpl_parse)
     mysql_enable_rpl_parse(mysql);
 
-#ifndef TO_BE_REMOVED
-  /*
-    We need this because wait_for_pos() only waits for the relay log,
-    which doesn't guarantee that the slave has executed the statement.
-  */
-  my_sleep(2*1000000L);
-#endif
   return 0;
 }
 
@@ -1055,11 +1053,11 @@ int do_let(struct st_query* q)
   if (!*p)
     die("Missing variable name in let\n");
   var_name = p;
-  while (*p && (*p != '=' || my_isspace(system_charset_info,*p)))
+  while (*p && (*p != '=' || my_isspace(charset_info,*p)))
     p++;
   var_name_end = p;
   if (*p == '=') p++;
-  while (*p && my_isspace(system_charset_info,*p))
+  while (*p && my_isspace(charset_info,*p))
     p++;
   var_val_start = p;
   return var_set(var_name, var_name_end, var_val_start, q->end);
@@ -1089,7 +1087,7 @@ int do_disable_rpl_parse(struct st_query* q __attribute__((unused)))
 int do_sleep(struct st_query* q, my_bool real_sleep)
 {
   char *p=q->first_argument;
-  while (*p && my_isspace(system_charset_info,*p))
+  while (*p && my_isspace(charset_info,*p))
     p++;
   if (!*p)
     die("Missing argument in sleep\n");
@@ -1105,7 +1103,7 @@ static void get_file_name(char *filename, struct st_query* q)
   char* p=q->first_argument;
   strnmov(filename, p, FN_REFLEN);
   /* Remove end space */
-  while (p > filename && my_isspace(system_charset_info,p[-1]))
+  while (p > filename && my_isspace(charset_info,p[-1]))
     p--;
   p[0]=0;
 }
@@ -1191,7 +1189,7 @@ static char *get_string(char **to_ptr, char **from_ptr,
   if (*from != ' ' && *from)
     die("Wrong string argument in %s\n", q->query);
 
-  while (my_isspace(system_charset_info,*from))	/* Point to next string */
+  while (my_isspace(charset_info,*from))	/* Point to next string */
     from++;
 
   *to =0;				/* End of string marker */
@@ -1248,7 +1246,7 @@ static void get_replace(struct st_query *q)
     insert_pointer_name(&to_array,to);
   }
   for (i=1,pos=word_end_chars ; i < 256 ; i++)
-    if (my_isspace(system_charset_info,i))
+    if (my_isspace(charset_info,i))
       *pos++= i;
   *pos=0;					/* End pointer */
   if (!(glob_replace=init_replace((char**) from_array.typelib.type_names,
@@ -1285,7 +1283,7 @@ int select_connection(char *p)
   if (!*p)
     die("Missing connection name in connect\n");
   name = p;
-  while (*p && !my_isspace(system_charset_info,*p))
+  while (*p && !my_isspace(charset_info,*p))
     p++;
   *p = 0;
 
@@ -1311,7 +1309,7 @@ int close_connection(struct st_query* q)
   if (!*p)
     die("Missing connection name in connect\n");
   name = p;
-  while (*p && !my_isspace(system_charset_info,*p))
+  while (*p && !my_isspace(charset_info,*p))
     p++;
   *p = 0;
 
@@ -1348,12 +1346,12 @@ int close_connection(struct st_query* q)
 char* safe_get_param(char* str, char** arg, const char* msg)
 {
   DBUG_ENTER("safe_get_param");
-  while (*str && my_isspace(system_charset_info,*str))
+  while (*str && my_isspace(charset_info,*str))
     str++;
   *arg = str;
   for (; *str && *str != ',' && *str != ')' ; str++)
   {
-    if (my_isspace(system_charset_info,*str))
+    if (my_isspace(charset_info,*str))
       *str = 0;
   }
   if (!*str)
@@ -1455,6 +1453,11 @@ int do_connect(struct st_query* q)
     mysql_options(&next_con->mysql,MYSQL_OPT_COMPRESS,NullS);
   mysql_options(&next_con->mysql, MYSQL_OPT_LOCAL_INFILE, 0);
 
+#ifdef HAVE_OPENSSL
+  if (opt_use_ssl)
+    mysql_ssl_set(&next_con->mysql, opt_ssl_key, opt_ssl_cert, opt_ssl_ca,
+		  opt_ssl_capath, opt_ssl_cipher);
+#endif
   if (con_sock && !free_con_sock && *con_sock && *con_sock != FN_LIBCHAR)
     con_sock=fn_format(buff, con_sock, TMPDIR, "",0);
   if (!con_db[0])
@@ -1636,7 +1639,7 @@ int read_line(char* buf, int size)
       {
 	state = R_COMMENT;
       }
-      else if (my_isspace(system_charset_info,c))
+      else if (my_isspace(charset_info,c))
       {
 	if (c == '\n')
 	  start_lineno= ++*lineno;		/* Query hasn't started yet */
@@ -1762,7 +1765,7 @@ int read_query(struct st_query** q_ptr)
       {
 	expected_errno = 0;
 	p++;
-	for (;my_isdigit(system_charset_info,*p);p++)
+	for (;my_isdigit(charset_info,*p);p++)
 	  expected_errno = expected_errno * 10 + *p - '0';
 	q->expected_errno[0] = expected_errno;
 	q->expected_errno[1] = 0;
@@ -1770,27 +1773,27 @@ int read_query(struct st_query** q_ptr)
       }
     }
 
-    while (*p && my_isspace(system_charset_info,*p))
+    while (*p && my_isspace(charset_info,*p))
       p++ ;
     if (*p == '@')
     {
       p++;
       p1 = q->record_file;
-      while (!my_isspace(system_charset_info,*p) &&
+      while (!my_isspace(charset_info,*p) &&
 	     p1 < q->record_file + sizeof(q->record_file) - 1)
 	*p1++ = *p++;
       *p1 = 0;
     }
   }
-  while (*p && my_isspace(system_charset_info,*p))
+  while (*p && my_isspace(charset_info,*p))
     p++;
   if (!(q->query_buf=q->query=my_strdup(p,MYF(MY_WME))))
     die(NullS);
 
   /* Calculate first word and first argument */
-  for (p=q->query; *p && !my_isspace(system_charset_info,*p) ; p++) ;
+  for (p=q->query; *p && !my_isspace(charset_info,*p) ; p++) ;
   q->first_word_len = (uint) (p - q->query);
-  while (*p && my_isspace(system_charset_info,*p))
+  while (*p && my_isspace(charset_info,*p))
     p++;
   q->first_argument=p;
   q->end = strend(q->query);
@@ -1856,6 +1859,7 @@ static struct my_option my_long_options[] =
   {"socket", 'S', "Socket file to use for connection.",
    (gptr*) &unix_sock, (gptr*) &unix_sock, 0, GET_STR, REQUIRED_ARG, 0, 0, 0,
    0, 0, 0},
+#include "sslopt-longopts.h"
   {"test-file", 'x', "Read test from/in this file (default stdin).",
    0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"tmpdir", 't', "Temporary directory where sockets are put",
@@ -1930,6 +1934,7 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     else
       tty_password= 1;
     break;
+#include <sslopt-case.h>
   case 't':
     strnmov(TMPDIR, argument, sizeof(TMPDIR));
     break;
@@ -2346,7 +2351,7 @@ static void init_var_hash()
 {
   VAR* v;
   DBUG_ENTER("init_var_hash");
-  if (hash_init(&var_hash, system_charset_info, 
+  if (hash_init(&var_hash, charset_info, 
                 1024, 0, 0, get_var_key, var_free, MYF(0)))
     die("Variable hash initialization failed");
   var_from_env("MASTER_MYPORT", "9306");
@@ -2410,6 +2415,11 @@ int main(int argc, char** argv)
   if (opt_compress)
     mysql_options(&cur_con->mysql,MYSQL_OPT_COMPRESS,NullS);
   mysql_options(&cur_con->mysql, MYSQL_OPT_LOCAL_INFILE, 0);
+#ifdef HAVE_OPENSSL
+  if (opt_use_ssl)
+    mysql_ssl_set(&cur_con->mysql, opt_ssl_key, opt_ssl_cert, opt_ssl_ca,
+		  opt_ssl_capath, opt_ssl_cipher);
+#endif
 
   cur_con->name = my_strdup("default", MYF(MY_WME));
   if (!cur_con->name)
@@ -2537,6 +2547,7 @@ int main(int argc, char** argv)
       }
       case Q_COMMENT:				/* Ignore row */
       case Q_COMMENT_WITH_COMMAND:
+	break;
       case Q_PING:
 	(void) mysql_ping(&cur_con->mysql);
 	break;

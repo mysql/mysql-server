@@ -1,4 +1,4 @@
-/* Copyright (C) 2000 MySQL AB & MySQL Finland AB & TCX DataKonsult AB
+/* Copyright (C) 2000-2003 MySQL AB
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -65,7 +65,7 @@ static int copy_data_between_tables(TABLE *from,TABLE *to,
 int mysql_rm_table(THD *thd,TABLE_LIST *tables, my_bool if_exists,
 		   my_bool drop_temporary)
 {
-  int error;
+  int error= 0;
   DBUG_ENTER("mysql_rm_table");
 
   /* mark for close and remove all cached entries */
@@ -80,7 +80,7 @@ int mysql_rm_table(THD *thd,TABLE_LIST *tables, my_bool if_exists,
     {
       my_error(ER_TABLE_NOT_LOCKED_FOR_WRITE,MYF(0),
 	       tables->real_name);
-      error = 1;
+      error= 1;
       goto err;
     }
     while (global_read_lock && ! thd->killed)
@@ -93,7 +93,6 @@ int mysql_rm_table(THD *thd,TABLE_LIST *tables, my_bool if_exists,
 
  err:
   pthread_mutex_unlock(&LOCK_open);
-  VOID(pthread_cond_broadcast(&COND_refresh)); // Signal to refresh
 
   pthread_mutex_lock(&thd->mysys_var->mutex);
   thd->mysys_var->current_mutex= 0;
@@ -139,7 +138,6 @@ int mysql_rm_table_part2_with_lock(THD *thd,
 			     dont_log_query);
 
   pthread_mutex_unlock(&LOCK_open);
-  VOID(pthread_cond_broadcast(&COND_refresh)); // Signal to refresh
 
   pthread_mutex_lock(&thd->mysys_var->mutex);
   thd->mysys_var->current_mutex= 0;
@@ -188,9 +186,12 @@ int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
   bool some_tables_deleted=0, tmp_table_deleted=0;
   DBUG_ENTER("mysql_rm_table_part2");
 
+  if (lock_table_names(thd, tables))
+    DBUG_RETURN(1);
+
   for (table=tables ; table ; table=table->next)
   {
-    char *db=table->db ? table->db : thd->db;
+    char *db=table->db;
     mysql_ha_closeall(thd, table);
     if (!close_temporary_table(thd, db, table->real_name))
     {
@@ -266,11 +267,12 @@ int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
     }
   }
 
-  error = 0;
+  unlock_table_names(thd, tables);
+  error= 0;
   if (wrong_tables.length())
   {
     my_error(ER_BAD_TABLE_ERROR,MYF(0),wrong_tables.c_ptr());
-    error=1;
+    error= 1;
   }
   DBUG_RETURN(error);
 }
@@ -417,6 +419,12 @@ int mysql_create_table(THD *thd,const char *db, const char *table_name,
     }
     if (!(sql_field->flags & NOT_NULL_FLAG))
       null_fields++;
+
+    if (check_column_name(sql_field->field_name))
+    {
+      my_error(ER_WRONG_COLUMN_NAME, MYF(0), sql_field->field_name);
+      DBUG_RETURN(-1);
+    }
 
     /* Check if we have used the same field name before */
     for (dup_no=0; (dup_field=it2++) != sql_field; dup_no++)
@@ -979,12 +987,6 @@ TABLE *create_table_from_items(THD *thd, HA_CREATE_INFO *create_info,
   while ((item=it++))
   {
     create_field *cr_field;
-    if (strlen(item->name) > NAME_LEN ||
-	check_column_name(item->name))
-    {
-      my_error(ER_WRONG_COLUMN_NAME,MYF(0),item->name);
-      DBUG_RETURN(0);
-    }
     Field *field;
     if (item->type() == Item::FUNC_ITEM)
       field=item->tmp_table_field(&tmp_table);
@@ -1108,10 +1110,10 @@ static int send_check_errmsg(THD *thd, TABLE_LIST* table,
 {
   Protocol *protocol= thd->protocol;
   protocol->prepare_for_resend();
-  protocol->store(table->alias);
-  protocol->store((char*) operator_name);
-  protocol->store("error", 5);
-  protocol->store(errmsg);
+  protocol->store(table->alias, system_charset_info);
+  protocol->store((char*) operator_name, system_charset_info);
+  protocol->store("error", 5, system_charset_info);
+  protocol->store(errmsg, system_charset_info);
   thd->net.last_error[0]=0;
   if (protocol->write())
     return -1;
@@ -1301,12 +1303,12 @@ static int mysql_admin_table(THD* thd, TABLE_LIST* tables,
     {
       const char *err_msg;
       protocol->prepare_for_resend();
-      protocol->store(table_name);
-      protocol->store(operator_name);
-      protocol->store("error",5);
+      protocol->store(table_name, system_charset_info);
+      protocol->store(operator_name, system_charset_info);
+      protocol->store("error",5, system_charset_info);
       if (!(err_msg=thd->net.last_error))
 	err_msg=ER(ER_CHECK_NO_SUCH_TABLE);
-      protocol->store(err_msg);
+      protocol->store(err_msg, system_charset_info);
       thd->net.last_error[0]=0;
       if (protocol->write())
 	goto err;
@@ -1316,11 +1318,11 @@ static int mysql_admin_table(THD* thd, TABLE_LIST* tables,
     {
       char buff[FN_REFLEN + MYSQL_ERRMSG_SIZE];
       protocol->prepare_for_resend();
-      protocol->store(table_name);
-      protocol->store(operator_name);
-      protocol->store("error", 5);
+      protocol->store(table_name, system_charset_info);
+      protocol->store(operator_name, system_charset_info);
+      protocol->store("error", 5, system_charset_info);
       sprintf(buff, ER(ER_OPEN_AS_READONLY), table_name);
-      protocol->store(buff);
+      protocol->store(buff, system_charset_info);
       close_thread_tables(thd);
       table->table=0;				// For query cache
       if (protocol->write())
@@ -1355,8 +1357,8 @@ static int mysql_admin_table(THD* thd, TABLE_LIST* tables,
     thd->net.last_errno= 0;  // these errors shouldn't get client
 #endif
     protocol->prepare_for_resend();
-    protocol->store(table_name);
-    protocol->store(operator_name);
+    protocol->store(table_name, system_charset_info);
+    protocol->store(operator_name, system_charset_info);
 
     switch (result_code) {
     case HA_ADMIN_NOT_IMPLEMENTED:
@@ -1364,40 +1366,41 @@ static int mysql_admin_table(THD* thd, TABLE_LIST* tables,
         char buf[ERRMSGSIZE+20];
         uint length=my_snprintf(buf, ERRMSGSIZE,
 				ER(ER_CHECK_NOT_IMPLEMENTED), operator_name);
-        protocol->store("error", 5);
-        protocol->store(buf, length);
+        protocol->store("error", 5, system_charset_info);
+        protocol->store(buf, length, system_charset_info);
       }
       break;
 
     case HA_ADMIN_OK:
-      protocol->store("status", 6);
-      protocol->store("OK",2);
+      protocol->store("status", 6, system_charset_info);
+      protocol->store("OK",2, system_charset_info);
       break;
 
     case HA_ADMIN_FAILED:
-      protocol->store("status", 6);
-      protocol->store("Operation failed",16);
+      protocol->store("status", 6, system_charset_info);
+      protocol->store("Operation failed",16, system_charset_info);
       break;
 
     case HA_ADMIN_ALREADY_DONE:
-      protocol->store("status", 6);
-      protocol->store("Table is already up to date", 27);
+      protocol->store("status", 6, system_charset_info);
+      protocol->store("Table is already up to date", 27, system_charset_info);
       break;
 
     case HA_ADMIN_CORRUPT:
-      protocol->store("error", 5);
-      protocol->store("Corrupt", 8);
+      protocol->store("error", 5, system_charset_info);
+      protocol->store("Corrupt", 8, system_charset_info);
       fatal_error=1;
       break;
 
     case HA_ADMIN_INVALID:
-      protocol->store("error", 5);
-      protocol->store("Invalid argument",16);
+      protocol->store("error", 5, system_charset_info);
+      protocol->store("Invalid argument",16, system_charset_info);
       break;
 
     default:				// Probably HA_ADMIN_INTERNAL_ERROR
-      protocol->store("error", 5);
-      protocol->store("Unknown - internal error during operation", 41);
+      protocol->store("error", 5, system_charset_info);
+      protocol->store("Unknown - internal error during operation", 41
+		      , system_charset_info);
       fatal_error=1;
       break;
     }

@@ -248,3 +248,27 @@ CREATE TABLE t2 (
 INSERT INTO t2 VALUES (1,'s1'),(2,'s2'),(3,'s3'),(4,'s4'),(5,'s5');
 select t1.*, t2.*  from t1, t2 where t2.id=t1.t2_id limit 2;
 drop table t1,t2;
+
+#
+# Bug in range optimiser with MAYBE_KEY
+#
+
+CREATE TABLE t1 (
+  siteid varchar(25) NOT NULL default '',
+  emp_id varchar(30) NOT NULL default '',
+  rate_code varchar(10) default NULL,
+  UNIQUE KEY site_emp (siteid,emp_id),
+  KEY siteid (siteid)
+) TYPE=MyISAM;
+INSERT INTO t1 VALUES ('rivercats','psmith','cust'), ('rivercats','KWalker','cust');
+CREATE TABLE t2 (
+  siteid varchar(25) NOT NULL default '',
+  rate_code varchar(10) NOT NULL default '',
+  base_rate float NOT NULL default '0',
+  PRIMARY KEY  (siteid,rate_code),
+  FULLTEXT KEY rate_code (rate_code)
+) TYPE=MyISAM;
+INSERT INTO t2 VALUES ('rivercats','cust',20);
+SELECT emp.rate_code, lr.base_rate FROM t1 AS emp LEFT JOIN t2 AS lr USING (siteid, rate_code) WHERE emp.emp_id = 'psmith' AND lr.siteid = 'rivercats';
+SELECT emp.rate_code, lr.base_rate FROM t1 AS emp LEFT JOIN t2 AS lr USING (siteid, rate_code) WHERE lr.siteid = 'rivercats' AND emp.emp_id = 'psmith';
+drop table t1,t2;

@@ -58,6 +58,7 @@ int main(int argc, char **argv) {
   const char *the_set = MYSQL_CHARSET;
   char *cs_list;
   int argcnt = 1;
+  CHARSET_INFO *cs;
 
   my_init();
 
@@ -70,11 +71,11 @@ int main(int argc, char **argv) {
   if (argc > argcnt)
     charsets_dir = argv[argcnt++];
 
-  if (set_default_charset_by_name(the_set, MYF(MY_WME)))
+  if (!(cs= get_charset_by_name(the_set, MYF(MY_WME))))
     return 1;
 
   puts("CHARSET INFO:");
-  _print_csinfo(default_charset_info);
+  _print_csinfo(cs);
   fflush(stdout);
 
   cs_list = list_charsets(MYF(MY_CS_COMPILED | MY_CS_CONFIG));

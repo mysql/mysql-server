@@ -7,19 +7,19 @@
 CFG=mysqlclient - Win32 Debug
 !MESSAGE This is not a valid makefile. To build this project using NMAKE,
 !MESSAGE use the Export Makefile command and run
-!MESSAGE 
+!MESSAGE
 !MESSAGE NMAKE /f "mysqlclient.mak".
-!MESSAGE 
+!MESSAGE
 !MESSAGE You can specify a configuration when running NMAKE
 !MESSAGE by defining the macro CFG on the command line. For example:
-!MESSAGE 
+!MESSAGE
 !MESSAGE NMAKE /f "mysqlclient.mak" CFG="mysqlclient - Win32 Debug"
-!MESSAGE 
+!MESSAGE
 !MESSAGE Possible choices for configuration are:
-!MESSAGE 
+!MESSAGE
 !MESSAGE "mysqlclient - Win32 Release" (based on "Win32 (x86) Static Library")
 !MESSAGE "mysqlclient - Win32 Debug" (based on "Win32 (x86) Static Library")
-!MESSAGE 
+!MESSAGE
 
 # Begin Project
 # PROP AllowPerConfigDependencies 0
@@ -76,7 +76,7 @@ LIB32=xilink6.exe -lib
 # ADD BASE LIB32 /nologo
 # ADD LIB32 /nologo /out:"..\lib_debug\mysqlclient.lib"
 
-!ENDIF 
+!ENDIF
 
 # Begin Target
 
@@ -244,7 +244,7 @@ SOURCE=..\mysys\mf_iocache2.c
 
 # ADD CPP /Od
 
-!ENDIF 
+!ENDIF
 
 # End Source File
 # Begin Source File

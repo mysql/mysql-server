@@ -167,12 +167,14 @@ int mysql_derived(THD *thd, LEX *lex, SELECT_LEX_UNIT *unit,
 			  (TABLE_LIST*) select_cursor->table_list.first,
 			  select_cursor->with_wild,
 			  select_cursor->item_list, select_cursor->where,
-			  select_cursor->order_list.elements+select_cursor->group_list.elements,
+			  (select_cursor->order_list.elements+
+			   select_cursor->group_list.elements),
 			  (ORDER *) select_cursor->order_list.first,
 			  (ORDER *) select_cursor->group_list.first,
 			  select_cursor->having, (ORDER*) NULL,
-			  select_cursor->options | thd->options  | SELECT_NO_UNLOCK,
-			  derived_result, unit, select_cursor, 0, 1);
+			  (select_cursor->options | thd->options |
+			   SELECT_NO_UNLOCK),
+			  derived_result, unit, select_cursor, 1);
 
       if (!res)
       {

@@ -377,7 +377,7 @@ a
 set CHARACTER SET cp1251_koi8;
 select * from t1;
 a
-À
+?
 set CHARACTER SET DEFAULT;
 show status like "Qcache_queries_in_cache";
 Variable_name	Value

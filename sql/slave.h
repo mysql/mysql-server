@@ -156,7 +156,14 @@ typedef struct st_relay_log_info
                     extra offset to be added to the position.
   */
   ulonglong relay_log_pos, pending;
+
+  /*
+    Handling of the relay_log_space_limit optional constraint.
+    ignore_log_space_limit is used to resolve a deadlock between I/O and SQL
+    threads, it makes the I/O thread temporarily forget about the constraint
+  */
   ulonglong log_space_limit,log_space_total;
+  bool ignore_log_space_limit;
 
   /*
     InnoDB internally stores the master log position it has processed
@@ -186,7 +193,6 @@ typedef struct st_relay_log_info
   /* if not set, the value of other members of the structure are undefined */
   bool inited;
   volatile bool abort_slave, slave_running;
-  bool log_pos_current;
   bool skip_log_purge;
   bool inside_transaction;
 

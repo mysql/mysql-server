@@ -24,11 +24,26 @@ create table t1 (a bigint not null, primary key (a,a,a,a,a,a,a,a,a,a));
 insert into t1 values (2),(4),(6),(8),(10),(12),(14),(16),(18),(20),(22),(24),(26),(23),(27);
 delete from t1 where a=27;
 drop table t1;
-CREATE TABLE `t` (
+CREATE TABLE `t1` (
 `i` int(10) NOT NULL default '0',
 `i2` int(10) NOT NULL default '0',
 PRIMARY KEY  (`i`)
-) TYPE=MyISAM CHARSET=latin1;
-DELETE FROM t USING t WHERE post='1';
+);
+DELETE FROM t1 USING t1 WHERE post='1';
 Unknown column 'post' in 'where clause'
-drop table if exists t;
+drop table t1;
+CREATE TABLE t1 (
+bool     char(0) default NULL,
+not_null varchar(20) binary NOT NULL default '',
+misc     integer not null,
+PRIMARY KEY  (not_null)
+) TYPE=MyISAM;
+INSERT INTO t1 VALUES (NULL,'a',4), (NULL,'b',5), (NULL,'c',6), (NULL,'d',7);
+select * from t1 where misc > 5 and bool is null;
+bool	not_null	misc
+NULL	c	6
+NULL	d	7
+delete   from t1 where misc > 5 and bool is null;
+select * from t1 where misc > 5 and bool is null;
+bool	not_null	misc
+drop table t1;

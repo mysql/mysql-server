@@ -192,9 +192,10 @@ my_bool my_connect(my_socket s, const struct sockaddr *name,
   struct timeval tv;
   time_t start_time, now_time;
 
-  /* If they passed us a timeout of zero, we should behave
-   * exactly like the normal connect() call does.
-   */
+  /*
+    If they passed us a timeout of zero, we should behave
+    exactly like the normal connect() call does.
+  */
 
   if (timeout == 0)
     return connect(s, (struct sockaddr*) name, namelen) != 0;
@@ -247,12 +248,14 @@ my_bool my_connect(my_socket s, const struct sockaddr *name,
     tv.tv_sec = (long) timeout;
     tv.tv_usec = 0;
 #if defined(HPUX10) && defined(THREAD)
-    if ((res = select(s+1, NULL, (int*) &sfds, NULL, &tv)) >= 0)
+    if ((res = select(s+1, NULL, (int*) &sfds, NULL, &tv)) > 0)
       break;
 #else
-    if ((res = select(s+1, NULL, &sfds, NULL, &tv)) >= 0)
+    if ((res = select(s+1, NULL, &sfds, NULL, &tv)) > 0)
       break;
 #endif
+    if (res == 0)					/* timeout */
+      return -1;
     now_time=time(NULL);
     timeout-= (uint) (now_time - start_time);
     if (errno != EINTR || (int) timeout <= 0)
@@ -274,7 +277,8 @@ my_bool my_connect(my_socket s, const struct sockaddr *name,
     errno = s_err;
     return(1);					/* but return an error... */
   }
-  return(0);					/* It's all good! */
+  return (0);					/* ok */
+
 #endif
 }
 
@@ -1693,9 +1697,9 @@ STDCALL mysql_rpl_query_type(const char* q, int len)
   for (; q < q_end; ++q)
   {
     char c;
-    if (my_isalpha(system_charset_info, (c= *q)))
+    if (my_isalpha(&my_charset_latin1, (c= *q)))
     {
-      switch (my_tolower(system_charset_info,c)) {
+      switch (my_tolower(&my_charset_latin1,c)) {
       case 'i':  /* insert */
       case 'u':  /* update or unlock tables */
       case 'l':  /* lock tables or load data infile */
@@ -1703,10 +1707,10 @@ STDCALL mysql_rpl_query_type(const char* q, int len)
       case 'a':  /* alter */
 	return MYSQL_RPL_MASTER;
       case 'c':  /* create or check */
-	return my_tolower(system_charset_info,q[1]) == 'h' ? MYSQL_RPL_ADMIN :
+	return my_tolower(&my_charset_latin1,q[1]) == 'h' ? MYSQL_RPL_ADMIN :
 	  MYSQL_RPL_MASTER;
       case 's': /* select or show */
-	return my_tolower(system_charset_info,q[1]) == 'h' ? MYSQL_RPL_ADMIN :
+	return my_tolower(&my_charset_latin1,q[1]) == 'h' ? MYSQL_RPL_ADMIN :
 	  MYSQL_RPL_SLAVE;
       case 'f': /* flush */
       case 'r': /* repair */
@@ -4842,40 +4846,40 @@ static void send_data_str(MYSQL_BIND *param, char *value, uint length)
   switch(param->buffer_type) {
   case MYSQL_TYPE_TINY:
   {
-    uchar data= (uchar)my_strntol(system_charset_info,value,length,10,NULL,
+    uchar data= (uchar)my_strntol(&my_charset_latin1,value,length,10,NULL,
 				  &err);
     *buffer= data;
     break;
   }
   case MYSQL_TYPE_SHORT:
   {
-    short data= (short)my_strntol(system_charset_info,value,length,10,NULL,
+    short data= (short)my_strntol(&my_charset_latin1,value,length,10,NULL,
 				  &err);
     int2store(buffer, data);
     break;
   }
   case MYSQL_TYPE_LONG:
   {
-    int32 data= (int32)my_strntol(system_charset_info,value,length,10,NULL,
+    int32 data= (int32)my_strntol(&my_charset_latin1,value,length,10,NULL,
 				  &err);
     int4store(buffer, data);    
     break;
   }
   case MYSQL_TYPE_LONGLONG:
   {
-    longlong data= my_strntoll(system_charset_info,value,length,10,NULL,&err);
+    longlong data= my_strntoll(&my_charset_latin1,value,length,10,NULL,&err);
     int8store(buffer, data);
     break;
   }
   case MYSQL_TYPE_FLOAT:
   {
-    float data = (float)my_strntod(system_charset_info,value,length,NULL,&err);
+    float data = (float)my_strntod(&my_charset_latin1,value,length,NULL,&err);
     float4store(buffer, data);
     break;
   }
   case MYSQL_TYPE_DOUBLE:
   {
-    double data= my_strntod(system_charset_info,value,length,NULL,&err);
+    double data= my_strntod(&my_charset_latin1,value,length,NULL,&err);
     float8store(buffer, data);
     break;
   }

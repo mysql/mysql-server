@@ -257,14 +257,9 @@ bool log_in_use(const char* log_name)
   return result;
 }
 
-
-int purge_master_logs(THD* thd, const char* to_log)
+int purge_error_message(THD* thd, int res)
 {
-  char search_file_name[FN_REFLEN];
   const char* errmsg = 0;
-
-  mysql_bin_log.make_log_name(search_file_name, to_log);
-  int res = mysql_bin_log.purge_logs(thd, search_file_name);
 
   switch(res)  {
   case 0: break;
@@ -289,8 +284,24 @@ binlog purge"; break;
   }
   else
     send_ok(thd);
-
   return 0;
+}
+
+int purge_master_logs(THD* thd, const char* to_log)
+{
+  char search_file_name[FN_REFLEN];
+
+  mysql_bin_log.make_log_name(search_file_name, to_log);
+  int res = mysql_bin_log.purge_logs(thd, search_file_name);
+
+  return purge_error_message(thd, res);
+}
+
+
+int purge_master_logs_before_date(THD* thd, time_t purge_time)
+{
+  int res = mysql_bin_log.purge_logs_before_date(thd, purge_time);
+  return purge_error_message(thd ,res);
 }
 
 /*
@@ -373,7 +384,7 @@ impossible position";
     We need to start a packet with something other than 255
     to distiquish it from error
   */
-  packet->set("\0", 1, system_charset_info);
+  packet->set("\0", 1, &my_charset_bin);
 
   // if we are at the start of the log
   if (pos == BIN_LOG_HEADER_SIZE)
@@ -384,7 +395,7 @@ impossible position";
       my_errno= ER_MASTER_FATAL_ERROR_READING_BINLOG;
       goto err;
     }
-    packet->set("\0", 1, system_charset_info);
+    packet->set("\0", 1, &my_charset_bin);
   }
 
   while (!net->error && net->vio != 0 && !thd->killed)
@@ -419,7 +430,7 @@ impossible position";
 	  goto err;
 	}
       }
-      packet->set("\0", 1, system_charset_info);
+      packet->set("\0", 1, &my_charset_bin);
     }
     /*
       TODO: now that we are logging the offset, check to make sure
@@ -539,7 +550,7 @@ Increase max_allowed_packet on master";
 	      goto err;
 	    }
 	  }
-	  packet->set("\0", 1, system_charset_info);
+	  packet->set("\0", 1, &my_charset_bin);
 	  /*
 	    No need to net_flush because we will get to flush later when
 	    we hit EOF pretty quick
@@ -765,12 +776,18 @@ int reset_slave(THD *thd, MASTER_INFO* mi)
     error=1;
     goto err;
   }
+  //delete relay logs, clear relay log coordinates
   if ((error= purge_relay_logs(&mi->rli, thd,
 			       1 /* just reset */,
 			       &errmsg)))
     goto err;
   
+  //Clear master's log coordinates (only for good display of SHOW SLAVE STATUS)
+  mi->master_log_name[0]= 0;
+  mi->master_log_pos= BIN_LOG_HEADER_SIZE;
+  //close master_info_file, relay_log_info_file, set mi->inited=rli->inited=0
   end_master_info(mi);
+  //and delete these two files
   fn_format(fname, master_info_file, mysql_data_home, "", 4+32);
   if (my_stat(fname, &stat_area, MYF(0)) && my_delete(fname, MYF(MY_WME)))
   {
@@ -883,22 +900,21 @@ int change_master(THD* thd, MASTER_INFO* mi)
 
   if (lex_mi->relay_log_name)
   {
-    need_relay_log_purge = 0;
-    mi->rli.skip_log_purge=1;
+    need_relay_log_purge= 0;
     strmake(mi->rli.relay_log_name,lex_mi->relay_log_name,
 	    sizeof(mi->rli.relay_log_name)-1);
   }
 
   if (lex_mi->relay_log_pos)
   {
-    need_relay_log_purge=0;
+    need_relay_log_purge= 0;
     mi->rli.relay_log_pos=lex_mi->relay_log_pos;
   }
 
   flush_master_info(mi);
   if (need_relay_log_purge)
   {
-    mi->rli.skip_log_purge=0;
+    mi->rli.skip_log_purge= 0;
     thd->proc_info="purging old relay logs";
     if (purge_relay_logs(&mi->rli, thd,
 			 0 /* not only reset, but also reinit */,
@@ -912,6 +928,7 @@ int change_master(THD* thd, MASTER_INFO* mi)
   else
   {
     const char* msg;
+    mi->rli.skip_log_purge= 1;
     /* Relay log is already initialized */
     if (init_relay_log_pos(&mi->rli,
 			   mi->rli.relay_log_name,
@@ -1092,7 +1109,7 @@ int show_binlog_info(THD* thd)
     LOG_INFO li;
     mysql_bin_log.get_current_log(&li);
     int dir_len = dirname_length(li.log_file_name);
-    protocol->store(li.log_file_name + dir_len);
+    protocol->store(li.log_file_name + dir_len, &my_charset_bin);
     protocol->store((ulonglong) li.pos);
     protocol->store(&binlog_do_db);
     protocol->store(&binlog_ignore_db);
@@ -1149,7 +1166,7 @@ int show_binlogs(THD* thd)
     protocol->prepare_for_resend();
     int dir_len = dirname_length(fname);
     /* The -1 is for removing newline from fname */
-    protocol->store(fname + dir_len, length-1-dir_len);
+    protocol->store(fname + dir_len, length-1-dir_len, &my_charset_bin);
     if (protocol->write())
       goto err;
   }

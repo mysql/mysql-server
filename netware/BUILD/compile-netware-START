@@ -17,7 +17,7 @@ set -e
 base_configs=" \
 	--host=i686-pc-netware \
 	--enable-local-infile \
-	--with-extra-charsets=latin1_de \
+	--with-extra-charsets=all \
 	--prefix=N:/mysql \
 	"
 
