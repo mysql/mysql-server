@@ -121,7 +121,7 @@ a	b	c	a
 1	1	1	test.t1
 2	2	2	test.t1
 select * from t2;
-select command denied to user: 'mysqltest_2@localhost' for table 't2'
+SELECT command denied to user: 'mysqltest_2@localhost' for table 't2'
 show status like "Qcache_queries_in_cache";
 Variable_name	Value
 Qcache_queries_in_cache	6
@@ -135,7 +135,7 @@ select "user3";
 user3
 user3
 select * from t1;
-select command denied to user: 'mysqltest_3@localhost' for column 'b' in table 't1'
+SELECT command denied to user: 'mysqltest_3@localhost' for column 'b' in table 't1'
 select a from t1;
 a
 1
@@ -143,7 +143,7 @@ a
 select c from t1;
 SELECT command denied to user: 'mysqltest_3@localhost' for column 'c' in table 't1'
 select * from t2;
-select command denied to user: 'mysqltest_3@localhost' for table 't2'
+SELECT command denied to user: 'mysqltest_3@localhost' for table 't2'
 select mysqltest.t1.c from test.t1,mysqltest.t1;
 SELECT command denied to user: 'mysqltest_3@localhost' for column 'c' in table 't1'
 show status like "Qcache_queries_in_cache";
