@@ -27,7 +27,7 @@ class Item_field;
 
 /*
    "Declared Type Collation"
-   A combination of collation and its deriviation.
+   A combination of collation and its derivation.
 */
 
 enum Derivation
@@ -45,7 +45,7 @@ enum Derivation
   MY_COLL_ALLOW_COERCIBLE_CONV - allow conversion of a coercible value
                                  (i.e. constant).
   MY_COLL_ALLOW_CONV           - allow any kind of conversion
-                                 (combintion of the above two)
+                                 (combination of the above two)
   MY_COLL_DISALLOW_NONE        - don't allow return DERIVATION_NONE
                                  (e.g. when aggregating for comparison)
   MY_COLL_CMP_CONV             - combination of MY_COLL_ALLOW_CONV
@@ -130,7 +130,7 @@ public:
 	     PROC_ITEM,COND_ITEM, REF_ITEM, FIELD_STD_ITEM,
 	     FIELD_VARIANCE_ITEM, INSERT_VALUE_ITEM,
              SUBSELECT_ITEM, ROW_ITEM, CACHE_ITEM, TYPE_HOLDER,
-             PARAM_ITEM, TRIGGER_FIELD_ITEM};
+             PARAM_ITEM, TRIGGER_FIELD_ITEM, DECIMAL_ITEM};
 
   enum cond_result { COND_UNDEF,COND_OK,COND_TRUE,COND_FALSE };
   
@@ -156,11 +156,11 @@ public:
   // alloc & destruct is done as start of select using sql_alloc
   Item();
   /*
-     Constructor used by Item_field, Item_ref & agregate (sum) functions.
+     Constructor used by Item_field, Item_ref & aggregate (sum) functions.
      Used for duplicating lists in processing queries with temporary
      tables
      Also it used for Item_cond_and/Item_cond_or for creating
-     top AND/OR ctructure of WHERE clause to protect it of
+     top AND/OR structure of WHERE clause to protect it of
      optimisation changes in prepared statements
   */
   Item(THD *thd, Item *item);
@@ -193,40 +193,107 @@ public:
   virtual enum_field_types field_type() const;
   virtual enum Type type() const =0;
   /* valXXX methods must return NULL or 0 or 0.0 if null_value is set. */
+  /*
+    Return double precision floating point representation of item.
+
+    SYNOPSIS
+      val_real()
+
+    RETURN
+      In case of NULL value return 0.0 and set null_value flag to TRUE.
+      If value is not null null_value flag will be reset to FALSE.
+  */
   virtual double val_real()=0;
+  /*
+    Return integer representation of item.
+
+    SYNOPSIS
+      val_int()
+
+    RETURN
+      In case of NULL value return 0 and set null_value flag to TRUE.
+      If value is not null null_value flag will be reset to FALSE.
+  */
   virtual longlong val_int()=0;
   /*
     Return string representation of this item object.
 
-    The argument to val_str() is an allocated buffer this or any
-    nested Item object can use to store return value of this method.
-    This buffer should only be used if the item itself doesn't have an
-    own String buffer. In case when the item maintains it's own string
-    buffer, it's preferrable to return it instead to minimize number of
-    mallocs/memcpys.
-    The caller of this method can modify returned string, but only in
-    case when it was allocated on heap, (is_alloced() is true).  This
-    allows the caller to efficiently use a buffer allocated by a child
-    without having to allocate a buffer of it's own. The buffer, given
-    to val_str() as agrument, belongs to the caller and is later used
-    by the caller at it's own choosing.
-    A few implications from the above:
-    - unless you return a string object which only points to your buffer
-      but doesn't manages it you should be ready that it will be
-      modified.
-    - even for not allocated strings (is_alloced() == false) the caller
-      can change charset (see Item_func_{typecast/binary}. XXX: is this
-      a bug?
-    - still you should try to minimize data copying and return internal
-      object whenever possible.
+    SYNOPSIS
+      val_str()
+      str   an allocated buffer this or any nested Item object can use to
+            store return value of this method.
+
+    NOTE
+      Buffer passed via argument  should only be used if the item itself
+      doesn't have an own String buffer. In case when the item maintains
+      it's own string buffer, it's preferable to return it instead to
+      minimize number of mallocs/memcpys.
+      The caller of this method can modify returned string, but only in case
+      when it was allocated on heap, (is_alloced() is true).  This allows
+      the caller to efficiently use a buffer allocated by a child without
+      having to allocate a buffer of it's own. The buffer, given to
+      val_str() as argument, belongs to the caller and is later used by the
+      caller at it's own choosing.
+      A few implications from the above:
+      - unless you return a string object which only points to your buffer
+        but doesn't manages it you should be ready that it will be
+        modified.
+      - even for not allocated strings (is_alloced() == false) the caller
+        can change charset (see Item_func_{typecast/binary}. XXX: is this
+        a bug?
+      - still you should try to minimize data copying and return internal
+        object whenever possible.
+
+    RETURN
+      In case of NULL value return 0 (NULL pointer) and set null_value flag
+      to TRUE.
+      If value is not null null_value flag will be reset to FALSE.
   */
-  virtual String *val_str(String*)=0;
+  virtual String *val_str(String *str)=0;
+  /*
+    Return decimal representation of item with fixed point.
+
+    SYNOPSIS
+      val_decimal()
+      decimal_buffer  buffer which can be used by Item for returning value
+                      (but can be not)
+
+    NOTE
+      Returned value should not be changed if it is not the same which was
+      passed via argument.
+
+    RETURN
+      Return pointer on my_decimal (it can be other then passed via argument)
+        if value is not NULL (null_value flag will be reset to FALSE).
+      In case of NULL value it return 0 pointer and set null_value flag
+        to TRUE.
+  */
+  virtual my_decimal *val_decimal(my_decimal *decimal_buffer)= 0;
+  /*
+    Return boolean value of item.
+
+    RETURN
+      FALSE value is false or NULL
+      TRUE value is true (not equal to 0)
+  */
+  bool val_bool();
   virtual Field *get_tmp_table_field() { return 0; }
   virtual Field *tmp_table_field(TABLE *t_arg) { return 0; }
   virtual const char *full_name() const { return name ? name : "???"; }
+
+  /*
+    *result* family of methods is analog of *val* family (see above) but
+    return value of result_field of item if it is present. If Item have not
+    result field, it return val(). This methods set null_value flag in same
+    way as *val* methods do it.
+  */
   virtual double  val_result() { return val_real(); }
   virtual longlong val_int_result() { return val_int(); }
   virtual String *str_result(String* tmp) { return val_str(tmp); }
+  virtual my_decimal *val_decimal_result(my_decimal *val)
+  { return val_decimal(val); }
+  virtual bool val_bool_result() { return val_bool(); }
+
   /* bit map of tables used by item */
   virtual table_map used_tables() const { return (table_map) 0L; }
   /*
@@ -267,6 +334,9 @@ public:
   virtual void update_used_tables() {}
   virtual void split_sum_func(THD *thd, Item **ref_pointer_array,
                               List<Item> &fields) {}
+  /* Called for items that really have to be split */
+  void split_sum_func2(THD *thd, Item **ref_pointer_array, List<Item> &fields,
+                       Item **ref);
   virtual bool get_date(TIME *ltime,uint fuzzydate);
   virtual bool get_time(TIME *ltime);
   virtual bool get_date_result(TIME *ltime,uint fuzzydate)
@@ -287,14 +357,14 @@ public:
   virtual void top_level_item() {}
   /*
     set field of temporary table for Item which can be switched on temporary
-    table during query processing (groupping and so on)
+    table during query processing (grouping and so on)
   */
   virtual void set_result_field(Field *field) {}
   virtual bool is_result_field() { return 0; }
   virtual bool is_bool_func() { return 0; }
   virtual void save_in_result_field(bool no_conversions) {}
   /*
-    set value of aggegate function in case of no rows for groupping were found
+    set value of aggregate function in case of no rows for grouping were found
   */
   virtual void no_rows_in_result() {}
   virtual Item *copy_or_same(THD *thd) { return this; }
@@ -368,6 +438,9 @@ public:
   Item *this_item();
   Item *this_const_item() const;
 
+  bool fix_fields(THD *, struct st_table_list *, Item **);
+  void cleanup();
+
   inline uint get_offset()
   {
     return m_offset;
@@ -377,37 +450,12 @@ public:
   // the item in the frame
   enum Type type() const;
 
-  inline double val_real()
-  {
-    Item *it= this_item();
-    double ret= it->val_real();
-    Item::null_value= it->null_value;
-    return ret;
-  }
-
-  inline longlong val_int()
-  {
-    Item *it= this_item();
-    longlong ret= it->val_int();
-    Item::null_value= it->null_value;
-    return ret;
-  }
-
-  inline String *val_str(String *sp)
-  {
-    Item *it= this_item();
-    String *ret= it->val_str(sp);
-    Item::null_value= it->null_value;
-    return ret;
-  }
-
-  inline bool is_null()
-  {
-    Item *it= this_item();
-    bool ret= it->is_null();
-    Item::null_value= it->null_value;
-    return ret;
-  }
+  double val_real();
+  longlong val_int();
+  String *val_str(String *sp);
+  my_decimal *val_decimal(my_decimal *);
+  inline bool is_null();
+  void print(String *str);
 
   inline void make_field(Send_field *field)
   {
@@ -430,14 +478,6 @@ public:
   inline int save_in_field(Field *field, bool no_conversions)
   {
     return this_item()->save_in_field(field, no_conversions);
-  }
-
-  void print(String *str)
-  {
-    str->reserve(m_name.length+8);
-    str->append(m_name.str, m_name.length);
-    str->append('@');
-    str->qs_append(m_offset);
   }
 
   inline bool send(Protocol *protocol, String *str)
@@ -544,10 +584,13 @@ public:
   bool eq(const Item *item, bool binary_cmp) const;
   double val_real();
   longlong val_int();
+  my_decimal *val_decimal(my_decimal *);
   String *val_str(String*);
   double val_result();
   longlong val_int_result();
   String *str_result(String* tmp);
+  my_decimal *val_decimal_result(my_decimal *);
+  bool val_bool_result();
   bool send(Protocol *protocol, String *str_arg);
   void reset_field(Field *f);
   bool fix_fields(THD *, struct st_table_list *, Item **);
@@ -600,12 +643,13 @@ public:
   double val_real();
   longlong val_int();
   String *val_str(String *str);
+  my_decimal *val_decimal(my_decimal *);
   int save_in_field(Field *field, bool no_conversions);
   int save_safe_in_field(Field *field);
   bool send(Protocol *protocol, String *str);
   enum Item_result result_type () const { return STRING_RESULT; }
   enum_field_types field_type() const   { return MYSQL_TYPE_NULL; }
-  // to prevent drop fixed flag (no need parent cleanup call)
+  /* to prevent drop fixed flag (no need parent cleanup call) */
   void cleanup() {}
   bool basic_const_item() const { return 1; }
   Item *new_item() { return new Item_null(name); }
@@ -623,7 +667,8 @@ public:
   enum enum_item_param_state
   {
     NO_VALUE, NULL_VALUE, INT_VALUE, REAL_VALUE,
-    STRING_VALUE, TIME_VALUE, LONG_DATA_VALUE
+    STRING_VALUE, TIME_VALUE, LONG_DATA_VALUE,
+    DECIMAL_VALUE
   } state;
 
   /*
@@ -637,6 +682,7 @@ public:
     Can not be declared inside the union as it's not a POD type.
   */
   String str_value_ptr;
+  my_decimal decimal_value;
   union
   {
     longlong integer;
@@ -688,6 +734,7 @@ public:
 
   double val_real();
   longlong val_int();
+  my_decimal *val_decimal(my_decimal*);
   String *val_str(String*);
   bool get_time(TIME *tm);
   bool get_date(TIME *tm, uint fuzzydate);
@@ -696,6 +743,7 @@ public:
   void set_null();
   void set_int(longlong i, uint32 max_length_arg);
   void set_double(double i);
+  void set_decimal(const char *str, ulong length);
   bool set_str(const char *str, ulong length);
   bool set_longdata(const char *str, ulong length);
   void set_time(TIME *tm, timestamp_type type, uint32 max_length_arg);
@@ -746,6 +794,7 @@ public:
   enum_field_types field_type() const { return MYSQL_TYPE_LONGLONG; }
   longlong val_int() { DBUG_ASSERT(fixed == 1); return value; }
   double val_real() { DBUG_ASSERT(fixed == 1); return (double) value; }
+  my_decimal *val_decimal(my_decimal *);
   String *val_str(String*);
   int save_in_field(Field *field, bool no_conversions);
   bool basic_const_item() const { return 1; }
@@ -784,14 +833,52 @@ public:
 };
 
 
-class Item_real :public Item_num
+/* decimal (fixed point) constant */
+class Item_decimal :public Item_num
+{
+protected:
+  my_decimal decimal_value;
+public:
+  Item_decimal(const char *str_arg, uint length, CHARSET_INFO *charset);
+  Item_decimal(const char *str, const my_decimal *val_arg,
+               uint decimal_par, uint length);
+  Item_decimal(my_decimal *value_par);
+  Item_decimal(longlong val, bool unsig);
+  Item_decimal(double val, int precision, int scale);
+  Item_decimal(const char *bin, int precision, int scale);
+
+  enum Type type() const { return DECIMAL_ITEM; }
+  enum Item_result result_type () const { return DECIMAL_RESULT; }
+  enum_field_types field_type() const { return MYSQL_TYPE_NEWDECIMAL; }
+  longlong val_int();
+  double val_real();
+  String *val_str(String*);
+  my_decimal *val_decimal(my_decimal *val) { return &decimal_value; }
+  int save_in_field(Field *field, bool no_conversions);
+  bool basic_const_item() const { return 1; }
+  Item *new_item()
+  {
+    return new Item_decimal(name, &decimal_value, decimals, max_length);
+  }
+  // to prevent drop fixed flag (no need parent cleanup call)
+  void cleanup() {}
+  void print(String *str);
+  Item_num *neg()
+  {
+    my_decimal_neg(&decimal_value);
+    unsigned_flag= !decimal_value.sign();
+    return this;
+  }
+};
+
+class Item_float :public Item_num
 {
   char *presentation;
 public:
   double value;
   // Item_real() :value(0) {}
-  Item_real(const char *str_arg, uint length);
-  Item_real(const char *str,double val_arg,uint decimal_par,uint length)
+  Item_float(const char *str_arg, uint length);
+  Item_float(const char *str,double val_arg,uint decimal_par,uint length)
     :value(val_arg)
   {
     presentation= name=(char*) str;
@@ -799,7 +886,8 @@ public:
     max_length=length;
     fixed= 1;
   }
-  Item_real(double value_par) :presentation(0), value(value_par) { fixed= 1; }
+  Item_float(double value_par) :presentation(0), value(value_par) { fixed= 1; }
+
   int save_in_field(Field *field, bool no_conversions);
   enum Type type() const { return REAL_ITEM; }
   enum_field_types field_type() const { return MYSQL_TYPE_DOUBLE; }
@@ -810,36 +898,28 @@ public:
     return (longlong) (value+(value > 0 ? 0.5 : -0.5));
   }
   String *val_str(String*);
+  my_decimal *val_decimal(my_decimal *);
   bool basic_const_item() const { return 1; }
   // to prevent drop fixed flag (no need parent cleanup call)
   void cleanup() {}
-  Item *new_item() { return new Item_real(name,value,decimals,max_length); }
+  Item *new_item()
+  { return new Item_float(name, value, decimals, max_length); }
   Item_num *neg() { value= -value; return this; }
   void print(String *str);
 };
 
 
-class Item_static_real_func :public Item_real
+class Item_static_float_func :public Item_float
 {
   const char *func_name;
 public:
-  Item_static_real_func(const char *str, double val_arg, uint decimal_par,
+  Item_static_float_func(const char *str, double val_arg, uint decimal_par,
                         uint length)
-    :Item_real(NullS, val_arg, decimal_par, length), func_name(str)
+    :Item_float(NullS, val_arg, decimal_par, length), func_name(str)
   {}
   void print(String *str) { str->append(func_name); }
 };
 
-
-class Item_float :public Item_real
-{
-public:
-  Item_float(const char *str,uint length) :Item_real(str,length)
-  {
-    decimals=NOT_FIXED_DEC;
-    max_length=DBL_DIG+8;
-  }
-};
 
 class Item_string :public Item
 {
@@ -894,6 +974,7 @@ public:
     DBUG_ASSERT(fixed == 1);
     return (String*) &str_value;
   }
+  my_decimal *val_decimal(my_decimal *);
   int save_in_field(Field *field, bool no_conversions);
   enum Item_result result_type () const { return STRING_RESULT; }
   enum_field_types field_type() const { return MYSQL_TYPE_VARCHAR; }
@@ -932,7 +1013,7 @@ class Item_datetime :public Item_string
 {
 public:
   Item_datetime(const char *item_name): Item_string(item_name,"",0,
-  						    &my_charset_bin)
+                                                    &my_charset_bin)
   { max_length=19;}
   enum_field_types field_type() const { return MYSQL_TYPE_DATETIME; }
 };
@@ -971,6 +1052,7 @@ public:
   longlong val_int();
   bool basic_const_item() const { return 1; }
   String *val_str(String*) { DBUG_ASSERT(fixed == 1); return &str_value; }
+  my_decimal *val_decimal(my_decimal *);
   int save_in_field(Field *field, bool no_conversions);
   enum Item_result result_type () const { return STRING_RESULT; }
   enum_field_types field_type() const { return MYSQL_TYPE_VARCHAR; }
@@ -1033,54 +1115,25 @@ public:
     TODO we probably fix a superset of problems like in BUG#6658. Check this 
          with Bar, and if we have a more broader set of problems like this.
   */
-  Item_ref(Item **item, const char *table_name_par, const char *field_name_par)
-    :Item_ident(NullS, table_name_par, field_name_par), result_field(0), ref(item)
-  {
-    DBUG_ASSERT(item);
-    if (*item)
-      set_properties();
-  }
+  Item_ref(Item **item, const char *table_name_par, const char *field_name_par);
 
   /* Constructor need to process subselect with temporary tables (see Item) */
   Item_ref(THD *thd, Item_ref *item) :Item_ident(thd, item), result_field(item->result_field), ref(item->ref) {}
   enum Type type() const		{ return REF_ITEM; }
   bool eq(const Item *item, bool binary_cmp) const
   { return ref && (*ref)->eq(item, binary_cmp); }
-  double val_real()
-  {
-    DBUG_ASSERT(fixed);
-    double tmp=(*ref)->val_result();
-    null_value=(*ref)->null_value;
-    return tmp;
-  }
-  longlong val_int()
-  {
-    DBUG_ASSERT(fixed);
-    longlong tmp=(*ref)->val_int_result();
-    null_value=(*ref)->null_value;
-    return tmp;
-  }
-  String *val_str(String* tmp)
-  {
-    DBUG_ASSERT(fixed);
-    tmp=(*ref)->str_result(tmp);
-    null_value=(*ref)->null_value;
-    return tmp;
-  }
-  bool is_null()
-  {
-    DBUG_ASSERT(fixed);
-    (void) (*ref)->val_int_result();
-    return (*ref)->null_value;
-  }
-  bool get_date(TIME *ltime,uint fuzzydate)
-  {
-    DBUG_ASSERT(fixed);
-    return (null_value=(*ref)->get_date_result(ltime,fuzzydate));
-  }
+  double val_real();
+  longlong val_int();
+  my_decimal *val_decimal(my_decimal *);
+  bool val_bool();
+  String *val_str(String* tmp);
+  bool is_null();
+  bool get_date(TIME *ltime,uint fuzzydate);
   double val_result();
   longlong val_int_result();
   String *str_result(String* tmp);
+  my_decimal *val_decimal_result(my_decimal *);
+  bool val_bool_result();
   bool send(Protocol *prot, String *tmp);
   void make_field(Send_field *field)	{ (*ref)->make_field(field); }
   bool fix_fields(THD *, struct st_table_list *, Item **);
@@ -1121,33 +1174,13 @@ public:
   /* Constructor need to process subselect with temporary tables (see Item) */
   Item_direct_ref(THD *thd, Item_direct_ref *item) : Item_ref(thd, item) {}
 
-  double val_real()
-  {
-    double tmp=(*ref)->val_real();
-    null_value=(*ref)->null_value;
-    return tmp;
-  }
-  longlong val_int()
-  {
-    longlong tmp=(*ref)->val_int();
-    null_value=(*ref)->null_value;
-    return tmp;
-  }
-  String *val_str(String* tmp)
-  {
-    tmp=(*ref)->val_str(tmp);
-    null_value=(*ref)->null_value;
-    return tmp;
-  }
-  bool is_null()
-  {
-    (void) (*ref)->val_int();
-    return (*ref)->null_value;
-  }
-  bool get_date(TIME *ltime,uint fuzzydate)
-  {
-    return (null_value=(*ref)->get_date(ltime,fuzzydate));
-  }
+  double val_real();
+  longlong val_int();
+  String *val_str(String* tmp);
+  my_decimal *val_decimal(my_decimal *);
+  bool val_bool();
+  bool is_null();
+  bool get_date(TIME *ltime,uint fuzzydate);
 };
 
 
@@ -1164,6 +1197,8 @@ public:
   double val_real();
   longlong val_int();
   String* val_str(String* s);
+  my_decimal *val_decimal(my_decimal *);
+  bool val_bool();
   bool get_date(TIME *ltime, uint fuzzydate);
   void print(String *str);
 };
@@ -1174,7 +1209,8 @@ class Item_null_helper :public Item_ref_null_helper
 public:
   Item_null_helper(Item_in_subselect* master, Item *item,
 		   const char *table_name_par, const char *field_name_par)
-    :Item_ref_null_helper(master, &item, table_name_par, field_name_par),
+    :Item_ref_null_helper(master, (store= 0, &store), table_name_par,
+                          field_name_par),
      store(item)
     { ref= &store; }
   void print(String *str);
@@ -1243,6 +1279,7 @@ public:
     return null_value ? LL(0) : my_strntoll(str_value.charset(),str_value.ptr(),str_value.length(),10, (char**) 0,&err); 
   }
   String *val_str(String*);
+  my_decimal *val_decimal(my_decimal *);
   void make_field(Send_field *field) { item->make_field(field); }
   void copy();
   int save_in_field(Field *field, bool no_conversions);
@@ -1290,6 +1327,15 @@ public:
   bool cmp(void);
 };
 
+
+class Item_decimal_buff :public Item_buff
+{
+  Item *item;
+  my_decimal value;
+public:
+  Item_decimal_buff(Item *item_par);
+  bool cmp(void);
+};
 
 class Item_field_buff :public Item_buff
 {
@@ -1453,23 +1499,22 @@ public:
   void print(String *str);
 };
 
+
 class Item_cache_int: public Item_cache
 {
+protected:
   longlong value;
 public:
   Item_cache_int(): Item_cache(), value(0) {}
-  
+
   void store(Item *item);
   double val_real() { DBUG_ASSERT(fixed == 1); return (double) value; }
   longlong val_int() { DBUG_ASSERT(fixed == 1); return value; }
-  String* val_str(String *str)
-  {
-    DBUG_ASSERT(fixed == 1);
-    str->set(value, default_charset());
-    return str;
-  }
+  String* val_str(String *str);
+  my_decimal *val_decimal(my_decimal *);
   enum Item_result result_type() const { return INT_RESULT; }
 };
+
 
 class Item_cache_real: public Item_cache
 {
@@ -1479,30 +1524,41 @@ public:
 
   void store(Item *item);
   double val_real() { DBUG_ASSERT(fixed == 1); return value; }
-  longlong val_int()
-  {
-    DBUG_ASSERT(fixed == 1);
-    return (longlong) (value+(value > 0 ? 0.5 : -0.5));
-  }
-  String* val_str(String *str)
-  {
-    str->set(value, decimals, default_charset());
-    return str;
-  }
+  longlong val_int();
+  String* val_str(String *str);
+  my_decimal *val_decimal(my_decimal *);
   enum Item_result result_type() const { return REAL_RESULT; }
 };
 
+
+class Item_cache_decimal: public Item_cache
+{
+protected:
+  my_decimal decimal_value;
+public:
+  Item_cache_decimal(): Item_cache() {}
+
+  void store(Item *item);
+  double val_real();
+  longlong val_int();
+  String* val_str(String *str);
+  my_decimal *val_decimal(my_decimal *);
+  enum Item_result result_type() const { return DECIMAL_RESULT; }
+};
+
+
 class Item_cache_str: public Item_cache
 {
-  char buffer[80];
+  char buffer[STRING_BUFFER_USUAL_SIZE];
   String *value, value_buff;
 public:
   Item_cache_str(): Item_cache(), value(0) { }
-  
+
   void store(Item *item);
   double val_real();
   longlong val_int();
   String* val_str(String *) { DBUG_ASSERT(fixed == 1); return value; }
+  my_decimal *val_decimal(my_decimal *);
   enum Item_result result_type() const { return STRING_RESULT; }
   CHARSET_INFO *charset() const { return value->charset(); };
 };
@@ -1547,6 +1603,12 @@ public:
     illegal_method_call((const char*)"val_str");
     return 0;
   };
+  my_decimal *val_decimal(my_decimal *val)
+  {
+    illegal_method_call((const char*)"val_decimal");
+    return 0;
+  };
+
   enum Item_result result_type() const { return ROW_RESULT; }
   
   uint cols() { return item_count; }
@@ -1585,6 +1647,7 @@ public:
   enum Type type() const { return TYPE_HOLDER; }
   double val_real();
   longlong val_int();
+  my_decimal *val_decimal(my_decimal *);
   String *val_str(String*);
   bool join_types(THD *thd, Item *, TABLE *);
   Field *example() { return field_example; }

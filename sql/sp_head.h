@@ -92,11 +92,6 @@ public:
   uint m_old_cmq;		// Old CLIENT_MULTI_QUERIES value
   st_sp_chistics *m_chistics;
   ulong m_sql_mode;		// For SHOW CREATE
-#if NOT_USED_NOW
-  // QQ We're not using this at the moment.
-  List<char *> m_calls;		// Called procedures.
-  List<char *> m_tables;	// Used tables.
-#endif
   LEX_STRING m_qname;		// db.name
   LEX_STRING m_db;
   LEX_STRING m_name;
@@ -108,6 +103,7 @@ public:
   LEX_STRING m_definer_host;
   longlong m_created;
   longlong m_modified;
+  HASH m_sptabs;		/* Merged table lists */
   // Pointers set during parsing
   uchar *m_param_begin, *m_param_end, *m_returns_begin, *m_returns_end,
     *m_body_begin;
@@ -896,5 +892,23 @@ sp_change_security_context(THD *thd, sp_head *sp, st_sp_security_context *ctxp);
 void
 sp_restore_security_context(THD *thd, sp_head *sp,st_sp_security_context *ctxp);
 #endif /* NO_EMBEDDED_ACCESS_CHECKS */
+
+bool
+sp_merge_table_list(THD *thd, HASH *h, TABLE_LIST *table,
+		    LEX *lex_for_tmp_check = 0);
+void
+sp_merge_routine_tables(THD *thd, LEX *lex);
+void
+sp_merge_table_hash(HASH *hdst, HASH *hsrc);
+TABLE_LIST *
+sp_hash_to_table_list(THD *thd, HASH *h);
+bool
+sp_open_and_lock_tables(THD *thd, TABLE_LIST *tables);
+void
+sp_unlock_tables(THD *thd);
+TABLE_LIST *
+sp_add_to_query_tables(THD *thd, LEX *lex,
+		       const char *db, const char *name,
+		       thr_lock_type locktype);
 
 #endif /* _SP_HEAD_H_ */

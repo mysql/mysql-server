@@ -28,11 +28,21 @@ Item_buff *new_Item_buff(Item *item)
   if (item->type() == Item::FIELD_ITEM &&
       !(((Item_field *) item)->field->flags & BLOB_FLAG))
     return new Item_field_buff((Item_field *) item);
-  if (item->result_type() == STRING_RESULT)
+  switch (item->result_type())
+  {
+  case STRING_RESULT:
     return new Item_str_buff((Item_field *) item);
-  if (item->result_type() == INT_RESULT)
+  case INT_RESULT:
     return new Item_int_buff((Item_field *) item);
-  return new Item_real_buff(item);
+  case REAL_RESULT:
+    return new Item_real_buff(item);
+  case DECIMAL_RESULT:
+    return new Item_decimal_buff(item);
+  case ROW_RESULT:
+  default:
+    DBUG_ASSERT(0);
+    return 0;
+  }
 }
 
 Item_buff::~Item_buff() {}
@@ -104,6 +114,27 @@ bool Item_field_buff::cmp(void)
     tmp=TRUE;
   }
   return tmp;
+}
+
+
+Item_decimal_buff::Item_decimal_buff(Item *it)
+  :item(it)
+{
+  my_decimal_set_zero(&value);
+}
+
+
+bool Item_decimal_buff::cmp()
+{
+  my_decimal tmp;
+  my_decimal *ptmp= item->val_decimal(&tmp);
+  if (null_value != item->null_value || my_decimal_cmp(&value, ptmp) == 0)
+  {
+    null_value= item->null_value;
+    my_decimal2decimal(ptmp, &value);
+    return TRUE;
+  }
+  return FALSE;
 }
 
 

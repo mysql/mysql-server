@@ -176,7 +176,8 @@ bool Table_triggers_list::create_trigger(THD *thd, TABLE_LIST *tables)
        trg_field; trg_field= trg_field->next_trg_field)
   {
     trg_field->setup_field(thd, table, lex->trg_chistics.event);
-    if (trg_field->fix_fields(thd, (TABLE_LIST *)0, (Item **)0))
+    if (!trg_field->fixed &&
+        trg_field->fix_fields(thd, (TABLE_LIST *)0, (Item **)0))
       return 1;
   }
 

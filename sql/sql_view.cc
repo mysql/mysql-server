@@ -556,6 +556,7 @@ my_bool
 mysql_make_view(File_parser *parser, TABLE_LIST *table)
 {
   DBUG_ENTER("mysql_make_view");
+  DBUG_PRINT("info", ("table=%p (%s)", table, table->table_name));
 
   if (table->view)
   {
@@ -612,7 +613,9 @@ mysql_make_view(File_parser *parser, TABLE_LIST *table)
   table->view= lex= thd->lex= (LEX*) new(thd->mem_root) st_lex_local;
   lex_start(thd, (uchar*)table->query.str, table->query.length);
   view_select= &lex->select_lex;
-  view_select->select_number= ++thd->select_number;
+  /* Only if we're not in the pre-open phase */
+  if (!thd->shortcut_make_view)
+    view_select->select_number= ++thd->select_number;
   old_lex->derived_tables|= DERIVED_VIEW;
   {
     ulong options= thd->options;
@@ -657,27 +660,29 @@ mysql_make_view(File_parser *parser, TABLE_LIST *table)
     TABLE_LIST *view_tables_tail= 0;
     TABLE_LIST *tbl;
 
+    /* move SP to main LEX */
     if (lex->spfuns.records)
-    {
-      /* move SP to main LEX */
-      sp_merge_funs(old_lex, lex);
-      /* open mysq.proc for functions which are not in cache */
-      if (old_lex->proc_table == 0 &&
-          (old_lex->proc_table=
-           (TABLE_LIST*)thd->calloc(sizeof(TABLE_LIST))) != 0)
-      {
-        TABLE_LIST *table= old_lex->proc_table;
-        table->db= (char*)"mysql";
-        table->db_length= 5;
-        table->table_name= table->alias= (char*)"proc";
-        table->table_name_length= 4;
-        table->cacheable_table= 1;
-        old_lex->add_to_query_tables(table);
-      }
-    }
+      sp_merge_hash(&old_lex->spfuns, &lex->spfuns);
+
     /* cleanup LEX */
     if (lex->spfuns.array.buffer)
       hash_free(&lex->spfuns);
+    if (lex->spprocs.array.buffer)
+      hash_free(&lex->spprocs);
+    if (lex->sptabs.array.buffer)
+      hash_free(&lex->sptabs);
+
+    /* If we're pre-opening tables to find SPs and tables we need
+       not go any further; doing so will cause an infinite loop. */
+    if (thd->shortcut_make_view)
+    {
+      extern bool
+	sp_merge_table_list(THD *thd, HASH *h, TABLE_LIST *table,
+			    LEX *lex_for_tmp_check = 0);
+
+      sp_merge_table_list(thd, &old_lex->sptabs, view_tables);
+      goto ok;
+    }
 
     /*
       check rights to run commands (EXPLAIN SELECT & SHOW CREATE) which show
