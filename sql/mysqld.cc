@@ -1659,7 +1659,7 @@ int main(int argc, char **argv)
 
   if (gethostname(glob_hostname,sizeof(glob_hostname)-4) < 0)
     strmov(glob_hostname,"mysql");
-  strmov(pidfile_name,glob_hostname);
+  strmake(pidfile_name, glob_hostname, sizeof(pidfile_name)-5);
   strmov(strcend(pidfile_name,'.'),".pid");	// Add extension
 #ifndef DBUG_OFF
   strxmov(strend(server_version),MYSQL_SERVER_SUFFIX,"-debug",NullS);
@@ -3418,9 +3418,10 @@ static void set_options(void)
   opt_specialflag |= SPECIAL_NO_PRIOR;
 #endif
 
-  (void) strmov( default_charset, MYSQL_CHARSET);
-  (void) strmov( language, LANGUAGE);
-  (void) strmov( mysql_real_data_home, get_relative_path(DATADIR));
+  (void) strmake(default_charset, MYSQL_CHARSET, sizeof(default_charset)-1);
+  (void) strmake(language, LANGUAGE, sizeof(language)-1);
+  (void) strmake(mysql_real_data_home, get_relative_path(DATADIR),
+		 sizeof(mysql_real_data_home-1));
 #ifdef __WIN__
   /* Allow Win32 users to move MySQL anywhere */
   {
@@ -3433,7 +3434,7 @@ static void set_options(void)
   const char *tmpenv;
   if (!(tmpenv = getenv("MY_BASEDIR_VERSION")))
     tmpenv = DEFAULT_MYSQL_HOME;
-  (void) strmov( mysql_home, tmpenv );
+  (void) strmake(mysql_home, tmpenv, sizeof(mysql_home)-1);
 #endif
 
 #if defined( HAVE_mit_thread ) || defined( __WIN__ ) || defined( HAVE_LINUXTHREADS )
@@ -3469,17 +3470,17 @@ static void get_options(int argc,char **argv)
       default_tx_isolation= ISO_SERIALIZABLE;
       break;
     case 'b':
-      strmov(mysql_home,optarg);
+      strmake(mysql_home,optarg,sizeof(mysql_home)-1);
       break;
     case 'l':
       opt_log=1;
       opt_logname=optarg;			// Use hostname.log if null
       break;
     case 'h':
-      strmov(mysql_real_data_home,optarg);
+      strmake(mysql_real_data_home,optarg, sizeof(mysql_real_data_home)-1);
       break;
     case 'L':
-      strmov(language,optarg);
+      strmake(language, optarg, sizeof(language)-1);
       break;
     case 'n':
       opt_specialflag|= SPECIAL_NEW_FUNC;
@@ -3813,7 +3814,7 @@ static void get_options(int argc,char **argv)
       }
       break;
     case (int) OPT_PID_FILE:
-      strmov(pidfile_name,optarg);
+      strmake(pidfile_name, optarg, sizeof(pidfile_name)-1);
       break;
     case (int) OPT_INIT_FILE:
       opt_init_file=optarg;
@@ -3865,10 +3866,10 @@ static void get_options(int argc,char **argv)
       myisam_delay_key_write=0;
       break;
     case 'C':
-      strmov(default_charset,optarg);
+      strmake(default_charset, optarg, sizeof(default_charset)-1);
       break;
     case OPT_CHARSETS_DIR:
-      strmov(mysql_charsets_dir, optarg);
+      strmake(mysql_charsets_dir, optarg, sizeof(mysql_charsets_dir)-1);
       charsets_dir = mysql_charsets_dir;
       break;
 #include "sslopt-case.h"
@@ -4098,16 +4099,17 @@ static void fix_paths(void)
 
   char buff[FN_REFLEN],*sharedir=get_relative_path(SHAREDIR);
   if (test_if_hard_path(sharedir))
-    strmov(buff,sharedir);			/* purecov: tested */
+    strmake(buff,sharedir,sizeof(buff)-1);		/* purecov: tested */
   else
-    strxmov(buff,mysql_home,sharedir,NullS);
+    strxnmov(buff,sizeof(buff)-1,mysql_home,sharedir,NullS);
   convert_dirname(buff);
   (void) my_load_path(language,language,buff);
 
   /* If --character-sets-dir isn't given, use shared library dir */
   if (charsets_dir != mysql_charsets_dir)
   {
-    strmov(strmov(mysql_charsets_dir,buff),CHARSET_DIR);
+    strxnmov(mysql_charsets_dir, sizeof(mysql_charsets_dir)-1, buff,
+	     CHARSET_DIR, NullS);
     charsets_dir=mysql_charsets_dir;
   }
 
@@ -4115,7 +4117,7 @@ static void fix_paths(void)
   char *tmp= (char*) my_malloc(FN_REFLEN,MYF(MY_FAE));
   if (tmp)
   {
-    strmov(tmp,mysql_tmpdir);
+    strmake(tmp, mysql_tmpdir, FN_REFLEN-1);
     mysql_tmpdir=tmp;
     convert_dirname(mysql_tmpdir);
     mysql_tmpdir=(char*) my_realloc(mysql_tmpdir,(uint) strlen(mysql_tmpdir)+1,
