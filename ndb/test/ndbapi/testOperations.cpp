@@ -86,7 +86,7 @@ OperationTestCase matrix[] = {
   { "DeleteRead",       true, "DELETE", 0, 0, "READ",    626, 0,   0, 0 },
   { "DeleteReadEx",     true, "DELETE", 0, 0, "READ-EX", 626, 0,   0, 0 },
   { "DeleteSimpleRead", true, "DELETE", 0, 0, "S-READ",  626, 0,   0, 0 },
-  { "DeleteDirtyRead",  true, "DELETE", 0, 0, "D-READ",  626, 0,   0, 0 },
+  { "DeleteDirtyRead",  true, "DELETE", 0, 0, "D-READ",  626, 0, 626, 0 },
   { "DeleteInsert",     true, "DELETE", 0, 0, "INSERT",    0, 1,   0, 1 },
   { "DeleteUpdate",     true, "DELETE", 0, 0, "UPDATE",  626, 1,   0, 0 },
   { "DeleteDelete",     true, "DELETE", 0, 0, "DELETE",  626, 0,   0, 0 }

@@ -908,6 +908,7 @@ NdbScanOperation::takeOverScanOp(OperationType opType, NdbConnection* pTrans){
     if (newOp == NULL){
       return NULL;
     }
+    pTrans->theSimpleState = 0;
     
     const Uint32 len = (tRecAttr->attrSize() * tRecAttr->arraySize() + 3)/4-1;
 
