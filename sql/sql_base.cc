@@ -1853,8 +1853,8 @@ int simple_open_n_lock_tables(THD *thd, TABLE_LIST *tables)
 
 bool open_and_lock_tables(THD *thd, TABLE_LIST *tables)
 {
-  DBUG_ENTER("open_and_lock_tables");
   uint counter;
+  DBUG_ENTER("open_and_lock_tables");
   if (open_tables(thd, tables, &counter) ||
       lock_tables(thd, tables, counter) ||
       mysql_handle_derived(thd->lex, &mysql_derived_prepare) ||
@@ -1883,14 +1883,16 @@ bool open_and_lock_tables(THD *thd, TABLE_LIST *tables)
     data from the tables.
 */
 
-int open_normal_and_derived_tables(THD *thd, TABLE_LIST *tables)
+bool open_normal_and_derived_tables(THD *thd, TABLE_LIST *tables)
 {
   uint counter;
   DBUG_ENTER("open_normal_and_derived_tables");
-  if (open_tables(thd, tables, &counter))
-    DBUG_RETURN(-1);				/* purecov: inspected */
-  relink_tables_for_derived(thd);
-  DBUG_RETURN(mysql_handle_derived(thd->lex));
+  DBUG_ASSERT(!thd->fill_derived_tables());
+  if (open_tables(thd, tables, &counter) ||
+      mysql_handle_derived(thd->lex, &mysql_derived_prepare))
+    DBUG_RETURN(TRUE); /* purecov: inspected */
+  relink_tables_for_multidelete(thd);           // Not really needed, but
+  DBUG_RETURN(0);
 }
 
 

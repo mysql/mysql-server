@@ -643,16 +643,18 @@ public:
   String *val_str(String *);
   double val_real()
   {
-    int err;
+    int err_not_used;
+    char *end_not_used;
     String *res;  res=val_str(&str_value);
     return res ? my_strntod(res->charset(),(char*) res->ptr(),res->length(),
-			    (char**) 0, &err) : 0.0;
+			    &end_not_used, &err_not_used) : 0.0;
   }
   longlong val_int()
   {
-    int err;
+    int err_not_used;
     String *res;  res=val_str(&str_value);
-    return res ? my_strntoll(res->charset(),res->ptr(),res->length(),10, (char**) 0, &err) : (longlong) 0;
+    return res ? my_strntoll(res->charset(),res->ptr(),res->length(),10,
+                             (char**) 0, &err_not_used) : (longlong) 0;
   }
   enum Item_result result_type () const { return STRING_RESULT; }
   void fix_length_and_dec();
