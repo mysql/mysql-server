@@ -85,7 +85,7 @@
 "Kan inte skapa IP socket",
 "Tabellen '%-.64s' har inget index som motsvarar det angivna i CREATE INDEX. Skapa om tabellen",
 "Fält separatorerna är inte emotsägande eller för långa. Kontrollera mot manualen",
-"Man kan inte använda fast radlängd med blobs. Använd 'fields terminated by'."
+"Man kan inte använda fast radlängd med blobs. Använd 'fields terminated by'",
 "Textfilen '%' måste finnas i databas biblioteket eller vara läsbar för alla",
 "Filen '%-.64s' existerar redan",
 "Rader: %ld  Bortagna: %ld  Dubletter: %ld  Varningar: %ld",
@@ -102,7 +102,7 @@
 "Kan inte generera ett unikt filnamn %s.(1-999)\n",
 "Tabell '%-.64s' kan inte uppdateras emedan den är låst för läsning",
 "Tabell '%-.64s' är inte låst med LOCK TABLES",
-"BLOB fält '%-.64s' kan inte ha ett DEFAULT värde"
+"BLOB fält '%-.64s' kan inte ha ett DEFAULT värde",
 "Felaktigt databas namn '%-.64s'",
 "Felaktigt tabell namn '%-.64s'",
 "Den angivna frågan skulle troligen ta mycket long tid!  Kontrollar din WHERE och använd SET OPTION SQL_BIG_SELECTS=1 ifall du vill hantera stora joins",
@@ -117,7 +117,7 @@
 "Tabeller måste ha minst 1 kolumn",
 "Tabellen '%-.64s' är full",
 "Okänt karaktärset: '%-.64s'",
-"För många tabeller. MySQL can ha högst %d tabeller i en och samma join"
+"För många tabeller. MySQL can ha högst %d tabeller i en och samma join",
 "För många fält",
 "För stor total rad längd. Den högst tillåtna rad-längden, förutom BLOBs, är %d. Ändra några av dina fält till BLOB",
 "Tråd-stacken tog slut:  Har använt %ld av %ld bytes.  Använd 'mysqld -O thread_stack=#' ifall du behöver en större stack",
@@ -136,9 +136,9 @@
 "För att ändra lösenord för andra måste du ha rättigheter att uppdatera mysql databasen",
 "Hittade inte användaren i 'user' tabellen",
 "Rader: %ld  Uppdaterade: %ld  Varningar: %ld",
-"Kan inte skapa en ny tråd (errno %d)"
+"Kan inte skapa en ny tråd (errno %d)",
 "Antalet kolumner motsvarar inte antalet värden på rad: %ld",
-"Kunde inte stänga och öppna tabell: '%-.64s',
+"Kunde inte stänga och öppna tabell: '%-.64s",
 "Felaktig använding av NULL",
 "Fix fel '%-.64s' från REGEXP",
 "Man får ha både GROUP kolumner (MIN(),MAX(),COUNT()...) och fält i en fråga om man inte har en GROUP BY del",
@@ -147,7 +147,7 @@
 "%-.16s ej tillåtet för '%-.32s@%-.64s'\n för kolumn '%-.64s' i tabell '%-.64s'",
 "Felaktigt GRANT privilegium använt",
 "Felaktigt maskinnamn eller användarnamn använt med GRANT",
-"Det finns ingen tabell som heter '%-64s.%s'"
+"Det finns ingen tabell som heter '%-64s.%s'",
 "Det finns inget privilegium definierat för användare '%-.32s' på '%-.64s' för tabell '%-.64s'",
 "Du kan inte använda detta kommando med denna MySQL version",
 "Du har något fel i din syntax",
@@ -160,7 +160,7 @@
 "Kommunikationspaketen kom i fel ordning",
 "Kunde inte packa up kommunikationspaketet",
 "Fick ett fel vid läsning från klienten",
-"Fick 'timeout' vid läsning från klienten", 
+"Fick 'timeout' vid läsning från klienten",
 "Fick ett fel vid skrivning till klienten",
 "Fick 'timeout' vid skrivning till klienten",
 "Resultat strängen är längre än max_allowed_packet",
