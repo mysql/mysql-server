@@ -64,7 +64,7 @@ int main(int argc, char** argv){
     ndbout << "Unable to connect to management server." << endl;
     return NDBT_ProgramExit(NDBT_FAILED);
   }
-  if (con.wait_until_ready(30,0) < 0)
+  if (con.wait_until_ready(30,3) < 0)
   {
     ndbout << "Cluster nodes not ready in 30 seconds." << endl;
     return NDBT_ProgramExit(NDBT_FAILED);
