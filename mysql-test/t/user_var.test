@@ -112,3 +112,11 @@ select FIELD( @var,'1it','Hit') as my_column;
 select @v, coercibility(@v);
 set @v1=null, @v2=1, @v3=1.1, @v4=now();
 select coercibility(@v1),coercibility(@v2),coercibility(@v3),coercibility(@v4);
+
+#
+# Bug #9286  SESSION/GLOBAL should be disallowed for user variables
+#
+--error 1064
+set session @honk=99;
+--error 1105
+set one_shot @honk=99;
