@@ -305,7 +305,7 @@ int openfrm(THD *thd, const char *name, const char *alias, uint db_stat,
   if (!(record= (char *) alloc_root(&outparam->mem_root,
                                     rec_buff_length * records)))
     goto err;                                   /* purecov: inspected */
-  share->default_values= record;
+  share->default_values= (byte *) record;
   if (my_pread(file,(byte*) record, (uint) share->reclength,
 	       (ulong) (uint2korr(head+6)+
                         ((uint2korr(head+14) == 0xffff ?
@@ -320,9 +320,9 @@ int openfrm(THD *thd, const char *name, const char *alias, uint db_stat,
   }
   else
   {
-    outparam->record[0]= record+ rec_buff_length;
+    outparam->record[0]= (byte *) record+ rec_buff_length;
     if (records > 2)
-      outparam->record[1]= record+ rec_buff_length*2;
+      outparam->record[1]= (byte *) record+ rec_buff_length*2;
     else
       outparam->record[1]= outparam->record[0];   // Safety
   }
