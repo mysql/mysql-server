@@ -194,7 +194,7 @@ select (@before:=unix_timestamp())*0;
 begin;
  select * from t1 for update;
 insert into t2 values (20);
-Lock wait timeout exceeded; Try restarting transaction
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
 select (@after:=unix_timestamp())*0;
 (@after:=unix_timestamp())*0
 0

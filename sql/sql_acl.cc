@@ -970,6 +970,7 @@ ulong acl_get(const char *host, const char *ip,
   db_access=0; host_access= ~0;
   char key[ACL_KEY_LENGTH],*tmp_db,*end;
   acl_entry *entry;
+  DBUG_ENTER("acl_get");
 
   VOID(pthread_mutex_lock(&acl_cache->lock));
   end=strmov((tmp_db=strmov(strmov(key, ip ? ip : "")+1,user)+1),db);
@@ -983,7 +984,8 @@ ulong acl_get(const char *host, const char *ip,
   {
     db_access=entry->access;
     VOID(pthread_mutex_unlock(&acl_cache->lock));
-    return db_access;
+    DBUG_PRINT("exit", ("access: 0x%lx", db_access));
+    DBUG_RETURN(db_access);
   }
 
   /*
@@ -1035,7 +1037,8 @@ exit:
     acl_cache->add(entry);
   }
   VOID(pthread_mutex_unlock(&acl_cache->lock));
-  return (db_access & host_access);
+  DBUG_PRINT("exit", ("access: 0x%lx", db_access & host_access));
+  DBUG_RETURN(db_access & host_access);
 }
 
 /*
