@@ -2163,6 +2163,7 @@ bool Item_func_set_user_var::fix_fields(THD *thd, TABLE_LIST *tables,
      is different from query_id).
   */
   entry->update_query_id= thd->query_id;
+  entry->collation.set(args[0]->collation);
   cached_result_type= args[0]->result_type();
   return 0;
 }
@@ -2174,6 +2175,7 @@ Item_func_set_user_var::fix_length_and_dec()
   maybe_null=args[0]->maybe_null;
   max_length=args[0]->max_length;
   decimals=args[0]->decimals;
+  collation.set(args[0]->collation);
 }
 
 
@@ -2488,7 +2490,9 @@ void Item_func_get_user_var::fix_length_and_dec()
 
   if (!(var_entry= get_variable(&thd->user_vars, name, 0)))
     null_value= 1;
-
+  else
+    collation.set(var_entry->collation);
+  
   if (!(opt_bin_log && is_update_query(thd->lex->sql_command)))
     return;
 

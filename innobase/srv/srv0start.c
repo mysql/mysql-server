@@ -1603,6 +1603,19 @@ NetWare. */
 	fflush(stderr);
 
 	if (trx_doublewrite_must_reset_space_ids) {
+		/* Actually, we did not change the undo log format between
+		4.0 and 4.1.1, and we would not need to run purge to
+		completion. Note also that the purge algorithm in 4.1.1
+		can process the the history list again even after a full
+		purge, because our algorithm does not cut the end of the
+		history list in all cases so that it would become empty
+		after a full purge. That mean that we may purge 4.0 type
+		undo log even after this phase.
+		
+		The insert buffer record format changed between 4.0 and
+		4.1.1. It is essential that the insert buffer is emptied
+		here! */
+
 		fprintf(stderr,
 "InnoDB: You are upgrading to an InnoDB version which allows multiple\n"
 "InnoDB: tablespaces. Wait that purge and insert buffer merge run to\n"
