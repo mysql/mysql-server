@@ -1477,11 +1477,11 @@ public:
                     KEY_PART_INFO *min_max_arg_part, uint group_prefix_len,
                     uint used_key_parts, uint group_key_parts, KEY *index_info,
                     uint index, uint key_infix_len, byte *key_infix,
-                    SEL_TREE *tree, PARAM *param);
+                    SEL_TREE *tree, SEL_ARG *index_tree, uint param_idx,
+                    ha_rows quick_prefix_records, PARAM *param);
 
   QUICK_SELECT_I *make_quick(PARAM *param, bool retrieve_full_rows,
                              MEM_ROOT *parent_alloc);
-  void update_cost();
 };
 
 
@@ -6362,17 +6362,21 @@ static inline uint get_field_keypart(KEY *index, Field *field);
 static inline SEL_ARG * get_index_range_tree(uint index, SEL_TREE* range_tree,
                                              PARAM *param, uint *param_idx);
 static bool
-get_constant_key_infix(List<Item_field> &non_group_fields,
-                       SEL_ARG *index_range_tree,
+get_constant_key_infix(KEY *index_info, SEL_ARG *index_range_tree,
                        KEY_PART_INFO *first_non_group_part,
-                       KEY_PART_INFO *end_part,
-                       byte *key_infix, uint *key_infix_len);
+                       KEY_PART_INFO *min_max_arg_part,
+                       KEY_PART_INFO *last_part, THD *thd,
+                       byte *key_infix, uint *key_infix_len,
+                       KEY_PART_INFO **first_non_infix_part);
 static bool
-check_group_min_max_predicates(COND *cond, ORDER *group_list,
-                               List<Item_field> &select_fields,
-                               List<Item_field> &non_group_fields,
-                               Item_field *min_max_arg_item);
+check_group_min_max_predicates(COND *cond, Item_field *min_max_arg_item);
 
+static void
+cost_group_min_max(TABLE* table, KEY *index_info, uint used_key_parts,
+                   uint group_key_parts, SEL_TREE *range_tree,
+                   SEL_ARG *index_tree, ha_rows quick_prefix_records,
+                   bool have_min, bool have_max,
+                   double *read_cost, ha_rows *records);
 
 /*
   Test if this access method is applicable to a GROUP query with MIN/MAX
@@ -6400,7 +6404,7 @@ check_group_min_max_predicates(COND *cond, ORDER *group_list,
              = SA              - if Q is a DISTINCT query (based on the
                                  equivalence of DISTINCT and GROUP queries.
         - NGA = QA - (GA union C) = {NG_1, ..., NG_m} - the ones not in GROUP BY
-          and not referenced by a MIN/MAX functions.
+          and not referenced by MIN/MAX functions.
         with the following properties specified below.
 
     SA1. There is at most one attribute in SA referenced by any number of
@@ -6412,9 +6416,12 @@ check_group_min_max_predicates(COND *cond, ORDER *group_list,
          - (const {< | <= | > | >= | =} C)
          - (C between const_i and const_j)
          - C IS NULL
+         - C IS NOT NULL
+         - C != const
     SA4. If Q has a GROUP BY clause, there are no other aggregate functions
          except MIN and MAX. For queries with DISTINCT, aggregate functions
          are allowed.
+    SA5. The select list in DISTINCT queries should not contain expressions.
     GA1. If Q has a GROUP BY clause, then GA is a prefix of I. That is, if
          G_i = A_j => i = j.
     GA2. If Q has a DISTINCT clause, then there is a permutation of SA that
@@ -6444,14 +6451,16 @@ check_group_min_max_predicates(COND *cond, ORDER *group_list,
          in the index I (if this was already tested for GA, NGA and C).
 
     C) Overall query form:
-       SELECT [A_1,...,A_k], [B_1,...,B_m], [MIN(C)], [MAX(C)]  -- at least one
-         FROM T                                                 -- of {A_i} or
-        WHERE [RNG(A_1,...,A_p ; where p <= k)]                 -- MIN/MAX must
-         [AND EQ(B_1,...,B_m)]                                  -- be present.
+       SELECT EXPR([A_1,...,A_k], [B_1,...,B_m], [MIN(C)], [MAX(C)])
+         FROM T
+        WHERE [RNG(A_1,...,A_p ; where p <= k)]
+         [AND EQ(B_1,...,B_m)]
          [AND PC(C)]
          [AND PA(A_i1,...,A_iq)]
-       GROUP BY A_1,...,A_k;
-    or
+       GROUP BY A_1,...,A_k
+       [HAVING PH(A_1, ..., B_1,..., C)]
+    where EXPR(...) is an arbitrary expression over some or all SELECT fields,
+    or:
        SELECT DISTINCT A_i1,...,A_ik
          FROM T
         WHERE [RNG(A_1,...,A_p ; where p <= k)]
@@ -6506,11 +6515,6 @@ get_best_group_min_max(PARAM *param, SEL_TREE *tree)
   uint index= 0;            /* The id of the chosen index. */
   uint group_key_parts= 0;  /* Number of index key parts in the group prefix. */
   uint used_key_parts= 0;   /* Number of index key parts used for access. */
-  List<Item_field> query_fields;/* Set of all fields referenced in the query. */
-  List<Item_field> select_fields; /* Set of the fields referenced in SELECT. */
-  List<Item_field> non_group_fields;/* Set of the query fields not in GROUP BY*/
-                                    /* and not referenced in a MIN/MAX. */
-  List<Item_sum> min_max_functions; /* All MIN/MAX functions in SELECT. */
   byte key_infix[MAX_KEY_LENGTH]; /* Constants from equality predicates.*/
   uint key_infix_len= 0;          /* Length of key_infix. */
   TRP_GROUP_MIN_MAX *read_plan= NULL; /* The eventually constructed TRP. */
@@ -6532,109 +6536,44 @@ get_best_group_min_max(PARAM *param, SEL_TREE *tree)
     DBUG_RETURN(NULL);
 
   /* Analyze the query in more detail. */
+  List_iterator<Item> select_items_it(join->fields_list);
 
-  List<Item> &select_items= join->fields_list;
-  List_iterator<Item> select_items_it(select_items);
-  List_iterator<Item_field> query_fields_it(query_fields);
-  List_iterator<Item_field> select_fields_it(select_fields);
-  List_iterator<Item_sum> min_max_functions_it(min_max_functions);
-
-  /*
-    Collect all fields referenced in the query. Notice that since a HAVING
-    clause must reference only SELECT attributes, there is no need to extract
-    the attributes of HAVING.
-    Also:
-    - check (SA4) if there are any aggregate functions other than MIN and MAX,
-    - collect all references to MIN/MAX functions.
-  */
-  while ((item= select_items_it++))
+  /* Check (SA1,SA4) and store the only MIN/MAX argument - the C attribute.*/
+  if(join->make_sum_func_list(join->all_fields, join->fields_list, 1))
+    DBUG_RETURN(NULL);
+  if (join->sum_funcs[0])
   {
-    if (item->walk(&Item::has_non_min_max_sum_processor, NULL))
-      DBUG_RETURN(NULL);
-    item->walk(&Item::collect_item_field_processor, (byte*) &query_fields);
-    item->walk(&Item::collect_item_field_processor, (byte*) &select_fields);
-    item->walk(&Item::collect_item_sum_min_processor,
-               (byte*) &min_max_functions);
-    item->walk(&Item::collect_item_sum_max_processor,
-               (byte*) &min_max_functions);
-  }
-  if (join->conds)
-    join->conds->walk(&Item::collect_item_field_processor,
-                      (byte*) &query_fields);
-
-  /* Check (SA1) and store the only MIN/MAX argument - the C attribute.*/
-  Item_sum *min_max_item;
-  while ((min_max_item= min_max_functions_it++))
-  {
-    if (min_max_item->sum_func() == Item_sum::MIN_FUNC)
-      have_min= TRUE;
-    else if (min_max_item->sum_func() == Item_sum::MAX_FUNC)
-      have_max= TRUE;
-    else
-      DBUG_RETURN(NULL);
-
-    Item *expr= min_max_item->args[0];    /* This is the argument of MIN/MAX. */
-    if (expr->type() == Item::FIELD_ITEM) /* Is it an attribute? */
+    Item_sum *min_max_item;
+    Item_sum **func_ptr= join->sum_funcs;
+    while ((min_max_item= *(func_ptr++)))
     {
-      if (! min_max_arg_item)
-        min_max_arg_item= (Item_field*) expr;
-      else if (! min_max_arg_item->eq(expr, 1))
+      if (min_max_item->sum_func() == Item_sum::MIN_FUNC)
+        have_min= TRUE;
+      else if (min_max_item->sum_func() == Item_sum::MAX_FUNC)
+        have_max= TRUE;
+      else
+        DBUG_RETURN(NULL);
+
+      Item *expr= min_max_item->args[0];    /* The argument of MIN/MAX. */
+      if (expr->type() == Item::FIELD_ITEM) /* Is it an attribute? */
+      {
+        if (! min_max_arg_item)
+          min_max_arg_item= (Item_field*) expr;
+        else if (! min_max_arg_item->eq(expr, 1))
+          DBUG_RETURN(NULL);
+      }
+      else
         DBUG_RETURN(NULL);
     }
-    else
-      DBUG_RETURN(NULL);
   }
 
-  /* Collect the NGA fields. */
-  query_fields_it.rewind();
-  List_iterator<Item_field> non_group_fields_it(non_group_fields);
-  Item_field *curr_field;
-  while ((item_field= query_fields_it++))
+  /* Check (SA5). */
+  if (join->select_distinct)
   {
-    bool found_field= FALSE;
-    if (min_max_arg_item && item_field->eq(min_max_arg_item, 1))
-      found_field= TRUE;
-    else if (join->group_list)
+    while ((item= select_items_it++))
     {
-      for (tmp_group= join->group_list; tmp_group; tmp_group= tmp_group->next)
-      {
-        if (item_field->eq(*tmp_group->item, 1))
-        {
-          found_field= TRUE;
-          break;
-        }
-      }
-    }
-    else if (join->select_distinct)
-    { /* For DISTINCT queries select fields are treated as group fields. */
-      Item_field *sel_field;
-      select_fields_it.rewind();
-      while ((sel_field= select_fields_it++))
-      {
-        if (item_field->eq(sel_field, 1))
-        {
-          found_field= TRUE;
-          break;
-        }
-      }
-    }
-    else
-      DBUG_ASSERT(FALSE);
-
-    if (!found_field)
-    {
-      /* Make sure non_group_fields is a set. */
-      non_group_fields_it.rewind();
-      while ((curr_field= non_group_fields_it++))
-      {
-        if (curr_field->eq(item_field, 1))
-        {
-          found_field= TRUE;
-          break;
-        }
-      }
-      if (!found_field)
-        non_group_fields.push_back(item_field);
+      if (item->type() != Item::FIELD_ITEM)
+        DBUG_RETURN(NULL);
     }
   }
 
@@ -6653,17 +6592,32 @@ get_best_group_min_max(PARAM *param, SEL_TREE *tree)
   KEY *cur_index_info= table->key_info;
   KEY *cur_index_info_end= cur_index_info + table->keys;
   KEY_PART_INFO *cur_part= NULL;
-  KEY_PART_INFO *end_part;
-  for (uint tmp_index= 0 ; cur_index_info != cur_index_info_end ;
-       cur_index_info++, tmp_index++)
+  KEY_PART_INFO *end_part; /* Last part for loops. */
+  /* Last index part. */
+  KEY_PART_INFO *last_part= NULL;
+  KEY_PART_INFO *first_non_group_part= NULL;
+  KEY_PART_INFO *first_non_infix_part= NULL;
+  uint key_infix_parts= 0;
+  uint cur_group_key_parts= 0;
+  uint cur_group_prefix_len= 0;
+  /* Cost-related variables for the best index so far. */
+  double best_read_cost= DBL_MAX;
+  ha_rows best_records= 0;
+  SEL_ARG *best_index_tree= NULL;
+  ha_rows best_quick_prefix_records= 0;
+  uint best_param_idx= 0;
+  double cur_read_cost= DBL_MAX;
+  ha_rows cur_records;
+  SEL_ARG *cur_index_tree= NULL;
+  ha_rows cur_quick_prefix_records= 0;
+  uint cur_param_idx;
+
+  for (uint cur_index= 0 ; cur_index_info != cur_index_info_end ;
+       cur_index_info++, cur_index++)
   {
-    /* Check (B1) - each query field participates in the current index. */
-    query_fields_it.rewind();
-    while ((item_field= query_fields_it++))
-    {
-      if ( ! item_field->field->part_of_key.is_set(tmp_index) )
-        goto next_index;
-    }
+    /* Check (B1) - if current index is covering. */
+    if (!table->used_keys.is_set(cur_index))
+      goto next_index;
 
     /*
       Check (GA1) for GROUP BY queries.
@@ -6686,8 +6640,8 @@ get_best_group_min_max(PARAM *param, SEL_TREE *tree)
         Item_field *group_field= (Item_field *) (*tmp_group->item);
         if (group_field->field->eq(cur_part->field))
         {
-          group_prefix_len+= cur_part->store_length;
-          ++group_key_parts;
+          cur_group_prefix_len+= cur_part->store_length;
+          ++cur_group_key_parts;
         }
         else
           goto next_index;
@@ -6703,18 +6657,18 @@ get_best_group_min_max(PARAM *param, SEL_TREE *tree)
     */
     else if (join->select_distinct)
     {
-      DBUG_ASSERT(!join->group_list);  /* Only DISTINCT, no GROUP BY. */
-      select_fields_it.rewind();
-      while ((item_field= select_fields_it++))
+      select_items_it.rewind();
+      while ((item= select_items_it++))
       {
+        item_field= (Item_field*) item; /* (SA5) already checked above. */
         /* Find the order of the key part in the index. */
         key_part_nr= get_field_keypart(cur_index_info, item_field->field);
-        if (key_part_nr < 1 || key_part_nr > select_fields.elements)
+        if (key_part_nr < 1 || key_part_nr > join->fields_list.elements)
           goto next_index;
         cur_part= cur_index_info->key_part + key_part_nr - 1;
-        group_prefix_len+= cur_part->store_length;
+        cur_group_prefix_len+= cur_part->store_length;
       }
-      group_key_parts= select_fields.elements;
+      cur_group_key_parts= join->fields_list.elements;
     }
     else
       DBUG_ASSERT(FALSE);
@@ -6723,7 +6677,7 @@ get_best_group_min_max(PARAM *param, SEL_TREE *tree)
     if (min_max_arg_item)
     {
       key_part_nr= get_field_keypart(cur_index_info, min_max_arg_item->field);
-      if (key_part_nr <= group_key_parts)
+      if (key_part_nr <= cur_group_key_parts)
         goto next_index;
       min_max_arg_part= cur_index_info->key_part + key_part_nr - 1;
     }
@@ -6732,36 +6686,98 @@ get_best_group_min_max(PARAM *param, SEL_TREE *tree)
       Check (NGA1, NGA2) and extract a sequence of constants to be used as part
       of all search keys.
     */
-    if (non_group_fields.elements > 0)
+
+    /*
+      If there is MIN/MAX, each keypart between the last group part and the
+      MIN/MAX part must participate in one equality with constants, and all
+      keyparts after the MIN/MAX part must not be referenced in the query.
+
+      If there is no MIN/MAX, the keyparts after the last group part can be
+      referenced only in equalities with constants, and the referenced keyparts
+      must form a sequence without any gaps that starts immediately after the
+      last group keypart.
+    */
+    last_part= cur_index_info->key_part + cur_index_info->key_parts;
+    first_non_group_part= (cur_group_key_parts < cur_index_info->key_parts) ?
+                          cur_index_info->key_part + cur_group_key_parts :
+                          NULL;
+    first_non_infix_part= min_max_arg_part ?
+                          (min_max_arg_part < last_part) ?
+                             min_max_arg_part + 1 :
+                             NULL :
+                           NULL;
+    if (first_non_group_part &&
+        (!min_max_arg_part || (min_max_arg_part - first_non_group_part > 0)))
     {
-      if (!tree)
-        goto next_index; /* No range tree - no predicates at all. */
-      uint dummy;
-      SEL_ARG *index_range_tree= get_index_range_tree(tmp_index, tree, param,
-                                                      &dummy);
-      KEY_PART_INFO *first_non_group_part= cur_index_info->key_part +
-                                           group_key_parts;
-      KEY_PART_INFO *end_part= min_max_arg_part ?
-                               min_max_arg_part :
-                               cur_index_info->key_part +
-                               cur_index_info->key_parts;
-      if (!get_constant_key_infix(non_group_fields, index_range_tree,
-                                  first_non_group_part, end_part,
-                                  key_infix, &key_infix_len))
+      if (tree)
+      {
+        uint dummy;
+        SEL_ARG *index_range_tree= get_index_range_tree(cur_index, tree, param,
+                                                        &dummy);
+        if (!get_constant_key_infix(cur_index_info, index_range_tree,
+                                    first_non_group_part, min_max_arg_part,
+                                    last_part, thd, key_infix, &key_infix_len,
+                                    &first_non_infix_part))
+          goto next_index;
+      }
+      else if (min_max_arg_part &&
+               (min_max_arg_part - first_non_group_part > 0))
+        /*
+          There is a gap but no range tree, thus no predicates at all for the
+          non-group keyparts.
+        */
         goto next_index;
     }
 
-    /* If we got to this point, cur_index_info passes the test. */
-    index_info= cur_index_info;
-    index= tmp_index;
-    used_key_parts= group_key_parts + non_group_fields.elements;
+    /*
+      Test (WA1) partially - that no other keypart after the last infix part is
+      referenced in the query.
+    */
+    if (first_non_infix_part)
+    {
+      for (cur_part= first_non_infix_part; cur_part != last_part; cur_part++)
+      {
+        if (cur_part->field->query_id == thd->query_id)
+          goto next_index;
+      }
+    }
 
-    /* Exit the loop because we found a usable index. */
-    break;
+    /* If we got to this point, cur_index_info passes the test. */
+    key_infix_parts= key_infix_len ?
+                     (first_non_infix_part - first_non_group_part) : 0;
+    used_key_parts= cur_group_key_parts + key_infix_parts;
+
+    /* Compute the cost of using this index. */
+    if (tree)
+    {
+      /* Find the SEL_ARG sub-tree that corresponds to the chosen index. */
+      cur_index_tree= get_index_range_tree(cur_index, tree, param,
+                                           &cur_param_idx);
+      /* Check if this range tree can be used for prefix retrieval. */
+      cur_quick_prefix_records= check_quick_select(param, cur_param_idx,
+                                                    cur_index_tree);
+    }
+    cost_group_min_max(table, cur_index_info, used_key_parts,
+                       cur_group_key_parts, tree, cur_index_tree,
+                       cur_quick_prefix_records, have_min, have_max,
+                       &cur_read_cost, &cur_records);
+
+    if (cur_read_cost < best_read_cost)
+    {
+      index_info= cur_index_info;
+      index= cur_index;
+      best_read_cost= cur_read_cost;
+      best_records= cur_records;
+      best_index_tree= cur_index_tree;
+      best_quick_prefix_records= cur_quick_prefix_records;
+      best_param_idx= cur_param_idx;
+      group_key_parts= cur_group_key_parts;
+      group_prefix_len= cur_group_prefix_len;
+    }
 
   next_index:
-    group_key_parts= 0;
-    group_prefix_len= 0;
+    cur_group_key_parts= 0;
+    cur_group_prefix_len= 0;
     continue;
   }
   if (!index_info) /* No usable index found. */
@@ -6769,9 +6785,7 @@ get_best_group_min_max(PARAM *param, SEL_TREE *tree)
 
 
   /* Check (SA3,WA1) for the where clause. */
-  if (!check_group_min_max_predicates(join->conds, join->group_list,
-                                      select_fields, non_group_fields,
-                                      min_max_arg_item))
+  if (!check_group_min_max_predicates(join->conds, min_max_arg_item))
     DBUG_RETURN(NULL);
 
   /* The query passes all tests, so construct a new TRP object. */
@@ -6781,13 +6795,16 @@ get_best_group_min_max(PARAM *param, SEL_TREE *tree)
                                    used_key_parts, group_key_parts, index_info,
                                    index, key_infix_len,
                                    (key_infix_len > 0) ? key_infix : NULL,
-                                   tree, param);
+                                   tree, best_index_tree, best_param_idx,
+                                   best_quick_prefix_records, param);
   if (read_plan)
   {
     if (tree && read_plan->quick_prefix_records == 0)
       DBUG_RETURN(NULL);
 
-    read_plan->update_cost();
+    read_plan->read_cost= best_read_cost;
+    read_plan->records=   best_records;
+
     DBUG_PRINT("info",
                ("Returning group min/max plan: cost: %g, records: %lu",
                 read_plan->read_cost, (ulong) read_plan->records));
@@ -6798,33 +6815,20 @@ get_best_group_min_max(PARAM *param, SEL_TREE *tree)
 
 
 /*
-  Check that all where predicates reference only select fields and the MIN/MAX
-  attribute participates only in range predicates with constants.
+  Check that the MIN/MAX attribute participates only in range predicates
+  with constants.
 
   SYNOPSIS
     check_group_min_max_predicates()
     cond              tree (or subtree) describing all or part of the WHERE
                       clause being analyzed
-    select_fields     list of fields in the SELECT clause
     min_max_arg_item  the field referenced by the MIN/MAX function(s)
 
   DESCRIPTION
     The function walks recursively over the cond tree representing a WHERE
-    clause, and checks that:
-    (WA1) every predicate references only GA and NGA fields as specified
-          in get_best_group_min_max().
-    (SA3) if a field is referenced by a MIN/MAX aggregate function, it is
-          referenced only by the following predicates:
-          {=, <, <=, >, >=, between, is null}.
-    The function assumes that the select list has already been checked that
-    each selected attribute is part of an index. As a result this test
-    essentially checks condition B6 from get_best_group_min_max(), namely
-    that every attribute referenced in the WHERE clause is part of the index I.
-
-  IMPLEMENTATION
-    The function assumes that the two sets of attributes GA (group_list) and NGA
-    (non_group_fields) are already checked to satisfy all conditions given in
-    get_best_group_min_max's specification.
+    clause, and checks condition (SA3) - if a field is referenced by a MIN/MAX
+    aggregate function, it is referenced only by the following predicates:
+      {=, !=, <, <=, >, >=, between, is null, is not null}.
 
   RETURN
     TRUE  if cond passes the test
@@ -6832,10 +6836,7 @@ get_best_group_min_max(PARAM *param, SEL_TREE *tree)
 */
 
 static bool
-check_group_min_max_predicates(COND *cond, ORDER *group_list,
-                               List<Item_field> &select_fields,
-                               List<Item_field> &non_group_fields,
-                               Item_field *min_max_arg_item)
+check_group_min_max_predicates(COND *cond, Item_field *min_max_arg_item)
 {
   DBUG_ENTER("check_group_min_max_predicates");
   if (!cond) /* If no WHERE clause, then all is OK. */
@@ -6849,8 +6850,7 @@ check_group_min_max_predicates(COND *cond, ORDER *group_list,
     Item *and_or_arg;
     while ((and_or_arg= li++))
     {
-      if(!check_group_min_max_predicates(and_or_arg, group_list, select_fields,
-                                         non_group_fields, min_max_arg_item))
+      if(!check_group_min_max_predicates(and_or_arg, min_max_arg_item))
         DBUG_RETURN(FALSE);
     }
     DBUG_RETURN(TRUE);
@@ -6876,14 +6876,16 @@ check_group_min_max_predicates(COND *cond, ORDER *group_list,
          with a constant.
        */
         Item_func::Functype pred_type= pred->functype();
-        if (pred_type != Item_func::EQUAL_FUNC  &&
-            pred_type != Item_func::LT_FUNC     &&
-            pred_type != Item_func::LE_FUNC     &&
-            pred_type != Item_func::GT_FUNC     &&
-            pred_type != Item_func::GE_FUNC     &&
-            pred_type != Item_func::BETWEEN     &&
-            pred_type != Item_func::ISNULL_FUNC &&
-            pred_type != Item_func::EQ_FUNC)
+        if (pred_type != Item_func::EQUAL_FUNC     &&
+            pred_type != Item_func::LT_FUNC        &&
+            pred_type != Item_func::LE_FUNC        &&
+            pred_type != Item_func::GT_FUNC        &&
+            pred_type != Item_func::GE_FUNC        &&
+            pred_type != Item_func::BETWEEN        &&
+            pred_type != Item_func::ISNULL_FUNC    &&
+            pred_type != Item_func::ISNOTNULL_FUNC &&
+            pred_type != Item_func::EQ_FUNC        &&
+            pred_type != Item_func::NE_FUNC)
           DBUG_RETURN(FALSE);
 
         /* Check that pred compares min_max_arg_item with a constant. */
@@ -6893,54 +6895,10 @@ check_group_min_max_predicates(COND *cond, ORDER *group_list,
         if (!simple_pred(pred, args, &inv))
           DBUG_RETURN(FALSE);
       }
-      else
-      {/* pred can be arbitrary predicate, but cur_arg must be in GA or NGA. */
-        bool is_in_ga_or_nga= FALSE;
-        Item_field *item_field;
-        if (non_group_fields.elements > 0)
-        {
-          List_iterator<Item_field> non_group_fields_it(non_group_fields);
-          while ((item_field= non_group_fields_it++))
-          {
-            if (cur_arg->eq(item_field, 1))
-            {
-              is_in_ga_or_nga= TRUE;
-              break;
-            }
-          }
-        }
-        if (group_list && !is_in_ga_or_nga) /* This is a GROUP-BY query. */
-        {
-          ORDER *tmp_group;
-          for (tmp_group= group_list; tmp_group; tmp_group= tmp_group->next)
-          {
-            if (cur_arg->eq(*tmp_group->item, 1))
-            {
-              is_in_ga_or_nga= TRUE;
-              break;
-            }
-          }
-        }
-        else                                /* This is a DISTINCT query. */
-        {
-          List_iterator<Item_field> select_fields_it(select_fields);
-          while ((item_field= select_fields_it++))
-          {
-            if (cur_arg->eq(item_field, 1))
-            {
-              is_in_ga_or_nga= TRUE;
-              break;
-            }
-          }
-        }
-        if (!is_in_ga_or_nga)
-          DBUG_RETURN(FALSE);
-      }
     }
     else if (cur_arg->type() == Item::FUNC_ITEM)
     {
-      if(!check_group_min_max_predicates(cur_arg, group_list, select_fields,
-                                         non_group_fields, min_max_arg_item))
+      if(!check_group_min_max_predicates(cur_arg, min_max_arg_item))
         DBUG_RETURN(FALSE);
     }
     else if (cur_arg->const_item())
@@ -6953,6 +6911,105 @@ check_group_min_max_predicates(COND *cond, ORDER *group_list,
 
   DBUG_RETURN(TRUE);
 }
+
+
+/*
+  Extract a sequence of constants from a conjunction of equality predicates.
+
+  SYNOPSIS
+    get_constant_key_infix()
+    index_info             [in]  Descriptor of the chosen index.
+    index_range_tree       [in]  Range tree for the chosen index
+    first_non_group_part   [in]  First index part after group attribute parts
+    min_max_arg_part       [in]  The keypart of the MIN/MAX argument if any
+    last_part              [in]  Last keypart of the index
+    thd                    [in]  Current thread
+    key_infix              [out] Infix of constants to be used for index lookup
+    key_infix_len          [out] Lenghth of the infix
+    first_non_infix_part   [out] The first keypart after the infix (if any)
+    
+  DESCRIPTION
+    Test conditions (NGA1, NGA2) from get_best_group_min_max(). Namely,
+    for each keypart field NGF_i not in GROUP-BY, check that there is a constant
+    equality predicate among conds with the form (NGF_i = const_ci) or
+    (const_ci = NGF_i).
+    Thus all the NGF_i attributes must fill the 'gap' between the last group-by
+    attribute and the MIN/MAX attribute in the index (if present). If these
+    conditions hold, copy each constant from its corresponding predicate into
+    key_infix, in the order its NG_i attribute appears in the index, and update
+    key_infix_len with the total length of the key parts in key_infix.
+
+  RETURN
+    TRUE  if the index passes the test
+    FALSE o/w
+*/
+
+static bool
+get_constant_key_infix(KEY *index_info, SEL_ARG *index_range_tree,
+                       KEY_PART_INFO *first_non_group_part,
+                       KEY_PART_INFO *min_max_arg_part,
+                       KEY_PART_INFO *last_part, THD *thd,
+                       byte *key_infix, uint *key_infix_len,
+                       KEY_PART_INFO **first_non_infix_part)
+{
+  SEL_ARG       *cur_range;
+  KEY_PART_INFO *cur_part;
+  /* End part for the first loop below. */
+  KEY_PART_INFO *end_part= min_max_arg_part ? min_max_arg_part : last_part;
+
+  *key_infix_len= 0;
+  byte *key_ptr= key_infix;
+  for (cur_part= first_non_group_part; cur_part != end_part; cur_part++)
+  {
+    /*
+      Find the range tree for the current keypart. We assume that
+      index_range_tree points to the leftmost keypart in the index.
+    */
+    for (cur_range= index_range_tree; cur_range;
+         cur_range= cur_range->next_key_part)
+    {
+      if (cur_range->field->eq(cur_part->field))
+        break;
+    }
+    if (!cur_range)
+    {
+      if (min_max_arg_part)
+        return FALSE; /* The current keypart has no range predicates at all. */
+      else
+      {
+        *first_non_infix_part= cur_part;
+        return TRUE;
+      }
+    }
+
+    /* Check that the current range tree is a single point interval. */
+    if (cur_range->prev || cur_range->next)
+      return FALSE; /* This is not the only range predicate for the field. */
+    if ((cur_range->min_flag & NO_MIN_RANGE) ||
+        (cur_range->max_flag & NO_MAX_RANGE) ||
+        (cur_range->min_flag & NEAR_MIN) || (cur_range->max_flag & NEAR_MAX))
+      return FALSE;
+
+    uint field_length= cur_part->store_length;
+    if ((cur_range->maybe_null &&
+         cur_range->min_value[0] && cur_range->max_value[0])
+        ||
+        (memcmp(cur_range->min_value, cur_range->max_value, field_length) == 0))
+    { /* cur_range specifies 'IS NULL' or an equality condition. */
+      memcpy(key_ptr, cur_range->min_value, field_length);
+      key_ptr+= field_length;
+      *key_infix_len+= field_length;
+    }
+    else
+      return FALSE;
+  }
+
+  if (!min_max_arg_part && (cur_part == last_part))
+    *first_non_infix_part= last_part;
+
+  return TRUE;
+}
+
 
 /*
   Find the key part referenced by a field.
@@ -6993,13 +7050,22 @@ get_field_keypart(KEY *index, Field *field)
 
   SYNOPSIS
     get_index_range_tree()
-    index
-    range_tree
-    param
-    param_idx [out]
+    index     [in]  The ID of the index being looked for
+    range_tree[in]  Tree of ranges being searched
+    param     [in]  PARAM from SQL_SELECT::test_quick_select
+    param_idx [out] Index in the array PARAM::key that corresponds to 'index'
 
   DESCRIPTION
-    
+
+    A SEL_TREE contains range trees for all usable indexes. This procedure
+    finds the SEL_ARG sub-tree for 'index'. The members of a SEL_TREE are
+    ordered in the same way as the members of PARAM::key, thus we first find
+    the corresponding index in the array PARAM::key. This index is returned
+    through the variable param_idx, to be used later as argument of
+    check_quick_select().
+
+  RETURN
+    Pointer to the SEL_ARG subtree that corresponds to index.
 */
 
 SEL_ARG * get_index_range_tree(uint index, SEL_TREE* range_tree, PARAM *param,
@@ -7017,119 +7083,6 @@ SEL_ARG * get_index_range_tree(uint index, SEL_TREE* range_tree, PARAM *param,
 }
 
 
-/*
-  Extract a sequence of constants from a conjunction of equality predicates.
-
-  SYNOPSIS
-    get_constant_key_infix()
-    cond                   [in] The WHERE clause of the current query
-    non_group_fields[in] Select fields that are not in GROUP-BY list
-    index_info             [in] The index which key parts are being considered
-    group_prefix_len       [in] Length of the key parts referenced by group
-                                attributes
-    first_non_group_part   [in] First index part after group attribute parts
-    min_max_part           [in] Index keypart referenced by the MIN/MAX argument
-    key_infix              [out] 
-    key_infix_len          [out] 
-    
-  DESCRIPTION
-    Test conditions (NGA1, NGA2) from get_best_group_min_max(). Namely,
-    for each distinct attribute NG_i from non_group_fields test if:
-    - there is a constant equality predicate among conds with the form
-      (NG_i = const_ci) or (const_ci = NG_i), and
-    - the NG_i attributes are a sub-sequence of the index which starts
-      immediately after the last group attribute, and ends just before the
-      MIN/MAX attribute.
-    Thus all the NG_i attributes must fill the 'gap' between the last group-by
-    attribute and the MIN/MAX attribute in the index (if present). If these
-    conditions hold, copy each constant from its corresponding predicate into
-    key_infix, in the order its NG_i attribute appears in the index, and update
-    key_infix_len with the total length of the key parts in key_infix.
-
-  IMPLEMENTATION
-    TODO
-
-  RETURN
-    TRUE  if non_group_fields pass the test
-    FALSE o/w
-*/
-
-static bool
-get_constant_key_infix(List<Item_field> &non_group_fields,
-                       SEL_ARG *index_range_tree,
-                       KEY_PART_INFO *first_non_group_part,
-                       KEY_PART_INFO *end_part,
-                       byte *key_infix, uint *key_infix_len)
-{
-  Item_field *non_group_field;
-  List_iterator<Item_field> non_group_fields_it(non_group_fields);
-  SEL_ARG       *cur_range;
-  KEY_PART_INFO *cur_part;
-
-  DBUG_ASSERT(non_group_fields.elements > 0);
-
-  /*
-    For each keypart in the 'gap' between the last group part, and the min/max
-    argument (if present) or the last keypart, there must be exactly one
-    non-group field, therefore their count must match. Notice that
-    non_group_fields is a set.
-  */
-  if (non_group_fields.elements != (uint)(end_part - first_non_group_part))
-    return FALSE;
-
-  *key_infix_len= 0;
-  byte *key_ptr= key_infix;
-  for (cur_part= first_non_group_part; cur_part != end_part; cur_part++)
-  {
-    /*
-      Find the range tree for the current keypart. We assume that
-      index_range_tree points to the leftmost keypart in the index.
-    */
-    for (cur_range= index_range_tree; cur_range;
-         cur_range= cur_range->next_key_part)
-    {
-      if (cur_range->field->eq(cur_part->field))
-        break;
-    }
-    if (!cur_range)
-      return FALSE; /* The current keypart has no range predicates at all. */
-
-    /* Check if there is a matching non-group field. */
-    non_group_fields_it.rewind();
-    while ((non_group_field= non_group_fields_it++))
-    {
-      if (cur_range->field->eq(non_group_field->field))
-        break;
-    }
-    if (!non_group_field)
-      return FALSE;
-
-    /* Check that the current range tree is a single point interval. */
-    if (cur_range->prev || cur_range->next)
-      return FALSE; /* This is not the only range predicate for the field. */
-    if ((cur_range->min_flag & NO_MIN_RANGE) ||
-        (cur_range->max_flag & NO_MAX_RANGE) ||
-        (cur_range->min_flag & NEAR_MIN) || (cur_range->max_flag & NEAR_MAX))
-      return FALSE;
-
-    uint field_length= cur_part->store_length;
-    if ((cur_range->maybe_null &&
-         cur_range->min_value[0] && cur_range->max_value[0])
-        ||
-        (memcmp(cur_range->min_value, cur_range->max_value, field_length) == 0))
-    { /* cur_range specifies 'IS NULL' or an equality condition. */
-      memcpy(key_ptr, cur_range->min_value, field_length);
-      key_ptr+= field_length;
-      *key_infix_len+= field_length;
-    }
-    else
-      return FALSE;
-  }
-
-  return TRUE;
-}
-
-
 TRP_GROUP_MIN_MAX::TRP_GROUP_MIN_MAX(JOIN *join, TABLE* table,
                                      bool have_min, bool have_max,
                                      KEY_PART_INFO *min_max_arg_part,
@@ -7137,31 +7090,37 @@ TRP_GROUP_MIN_MAX::TRP_GROUP_MIN_MAX(JOIN *join, TABLE* table,
                                      uint group_key_parts, KEY *index_info,
                                      uint index, uint key_infix_len,
                                      byte *key_infix, SEL_TREE *tree,
-                                     PARAM *param)
+                                     SEL_ARG *index_tree, uint param_idx,
+                                     ha_rows quick_prefix_records, PARAM *param)
   : join(join), table(table), have_min(have_min), have_max(have_max),
     min_max_arg_part(min_max_arg_part), group_prefix_len(group_prefix_len),
     used_key_parts(used_key_parts), group_key_parts(group_key_parts),
     index_info(index_info), index(index), key_infix_len(key_infix_len),
-    range_tree(tree)
+    range_tree(tree), index_tree(index_tree), param_idx(param_idx),
+    quick_prefix_records(quick_prefix_records)
 {
   if (key_infix_len)
     memcpy(this->key_infix, key_infix, MAX_KEY_LENGTH);
-  if (range_tree)
-  {
-    /* Find the SEL_ARG sub-tree that corresponds to the chosen index. */
-    index_tree= get_index_range_tree(index, range_tree, param,
-                                     &param_idx);
-    /* Check if this range tree can be used for prefix retrieval. */
-    quick_prefix_records= check_quick_select(param, param_idx, index_tree);
-  }
 }
 
 
 /*
-  Compute the cost of this trp.
+  Compute the cost of a quick_group_min_max_select for a particular index.
 
   SYNOPSIS
-    TRP_GROUP_MIN_MAX::update_cost()
+    cost_group_min_max()
+    table                [in] The table being accessed
+    index_info           [in] The index used to access the table
+    used_key_parts       [in] Number of key parts used to access the index
+    group_key_parts      [in] Number of index key parts in the group prefix
+    range_tree           [in] Tree of ranges for all indexes
+    index_tree           [in] The range tree for the current index
+    quick_prefix_records [in] Number of records retrieved by the internally used
+                              quick range select if any
+    have_min             [in] True if there is a MIN function
+    have_max             [in] True if there is a MAX function
+    read_cost           [out] The cost to retrieve rows via this quick select
+    records             [out] The number of rows retrieved
 
   DESCRIPTION
     This method computes the access cost of a TRP_GROUP_MIN_MAX instance and the
@@ -7205,7 +7164,11 @@ TRP_GROUP_MIN_MAX::TRP_GROUP_MIN_MAX(JOIN *join, TABLE* table,
     None
 */
 
-void TRP_GROUP_MIN_MAX::update_cost()
+void cost_group_min_max(TABLE* table, KEY *index_info, uint used_key_parts,
+                        uint group_key_parts, SEL_TREE *range_tree,
+                        SEL_ARG *index_tree, ha_rows quick_prefix_records,
+                        bool have_min, bool have_max,
+                        double *read_cost, ha_rows *records)
 {
   uint table_records;
   uint num_groups;
@@ -7219,7 +7182,7 @@ void TRP_GROUP_MIN_MAX::update_cost()
   double io_cost;
   double cpu_cost= 0; /* TODO: CPU cost of index_read calls? */
 
-  DBUG_ENTER("TRP_GROUP_MIN_MAX::update_cost");
+  DBUG_ENTER("TRP_GROUP_MIN_MAX::cost");
   table_records= table->file->records;
   keys_per_block= (table->file->block_size / 2 /
                    (index_info->key_length + table->file->ref_length)
@@ -7270,8 +7233,8 @@ void TRP_GROUP_MIN_MAX::update_cost()
   */
   cpu_cost= (double) num_groups / TIME_FOR_COMPARE;
 
-  read_cost= io_cost /*+ cpu_cost*/;
-  records= num_groups;
+  *read_cost= io_cost /*+ cpu_cost*/;
+  *records= num_groups;
 
   DBUG_PRINT("info",
              ("records=%u, keys/block=%u, keys/group=%u, records=%u, blocks=%u",
@@ -7434,6 +7397,12 @@ QUICK_GROUP_MIN_MAX_SELECT::QUICK_GROUP_MIN_MAX_SELECT(
   SYNOPSIS
     QUICK_GROUP_MIN_MAX_SELECT::init()
   
+  DESCRIPTION
+    The method performs initialization that cannot be done in the constructor
+    such as memory allocations that may fail. It allocates memory for the
+    group prefix and inifix buffers, and for the lists of MIN/MAX item to be
+    updated during execution.
+
   RETURN
     0      OK
     other  Error code
@@ -7472,23 +7441,46 @@ int QUICK_GROUP_MIN_MAX_SELECT::init()
     if(my_init_dynamic_array(&min_max_ranges, sizeof(QUICK_RANGE*), 16, 16))
       return 1;
 
-    if (!(min_functions= new List<Item_sum>))
-      return 1;
-    if (!(max_functions= new List<Item_sum>))
-      return 1;
-
-    List_iterator<Item> select_items_it(join->fields_list);
-    Item *item;
-    while ((item= select_items_it++))
+    if (have_min)
     {
-      item->walk(&Item::collect_item_sum_min_processor, (byte*) min_functions);
-      item->walk(&Item::collect_item_sum_max_processor, (byte*) max_functions);
+      if(!(min_functions= new List<Item_sum>))
+        return 1;
+    }
+    else
+      min_functions= NULL;
+    if (have_max)
+    {
+      if(!(max_functions= new List<Item_sum>))
+        return 1;
+    }
+    else
+      max_functions= NULL;
+
+    Item_sum *min_max_item;
+    Item_sum **func_ptr= join->sum_funcs;
+    while ((min_max_item= *(func_ptr++)))
+    {
+      if (have_min && (min_max_item->sum_func() == Item_sum::MIN_FUNC))
+        min_functions->push_back(min_max_item);
+      else if (have_max && (min_max_item->sum_func() == Item_sum::MAX_FUNC))
+        max_functions->push_back(min_max_item);
     }
 
-    if (!(min_functions_it= new List_iterator<Item_sum>(*min_functions)))
-      return 1;
-    if (!(max_functions_it= new List_iterator<Item_sum>(*max_functions)))
-      return 1;
+    if (have_min)
+    {
+      if (!(min_functions_it= new List_iterator<Item_sum>(*min_functions)))
+        return 1;
+    }
+    else
+      min_functions_it= NULL;
+
+    if (have_max)
+    {
+      if (!(max_functions_it= new List_iterator<Item_sum>(*max_functions)))
+        return 1;
+    }
+    else
+      max_functions_it= NULL;
   }
 
   return 0;
@@ -7618,6 +7610,10 @@ void QUICK_GROUP_MIN_MAX_SELECT::update_key_stat()
 
   SYNOPSIS
     QUICK_GROUP_MIN_MAX_SELECT::reset()
+
+  DESCRIPTION
+    Initialize the index chosen for access and find and store the prefix
+    of the last group. The method is expensive since it performs disk access.
 
   RETURN
     0      OK
@@ -8211,6 +8207,21 @@ void QUICK_GROUP_MIN_MAX_SELECT::update_max_result()
 }
 
 
+/*
+  Append comma-separated list of keys this quick select uses to key_names;
+  append comma-separated list of corresponding used lengths to used_lengths.
+
+  SYNOPSIS
+    QUICK_GROUP_MIN_MAX_SELECT::add_keys_and_lengths()
+    key_names    [out] Names of used indexes
+    used_lengths [out] Corresponding lengths of the index names
+
+  DESCRIPTION
+    This method is used by select_describe to extract the names of the
+    indexes used by a quick select.
+
+*/
+
 void QUICK_GROUP_MIN_MAX_SELECT::add_keys_and_lengths(String *key_names,
                                                       String *used_lengths)
 {
@@ -8221,6 +8232,26 @@ void QUICK_GROUP_MIN_MAX_SELECT::add_keys_and_lengths(String *key_names,
   used_lengths->append(buf, length);
 }
 
+
+/*
+  Print quick select information to DBUG_FILE.
+
+  SYNOPSIS
+    QUICK_GROUP_MIN_MAX_SELECT::dbug_dump()
+    indent  Indentation offset
+    verbose If TRUE show more detailed output.
+
+  DESCRIPTION
+    Print the contents of this quick select to DBUG_FILE. The method also
+    calls dbug_dump() for the used quick select if any.
+
+  IMPLEMENTATION
+    Caller is responsible for locking DBUG_FILE before this call and unlocking
+    it afterwards.
+
+  RETURN
+    None
+*/
 
 void QUICK_GROUP_MIN_MAX_SELECT::dbug_dump(int indent, bool verbose)
 {

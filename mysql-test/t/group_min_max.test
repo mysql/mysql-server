@@ -3,6 +3,12 @@
 # The queries in this file test query execution via QUICK_GROUP_MIN_MAX_SELECT.
 #
 
+#
+# TODO:
+# Add queries with:
+# - C != const
+# - C IS NOT NULL
+# - HAVING clause
 
 --disable_warnings
 drop table if exists t1;
@@ -175,8 +181,6 @@ explain select a1, b, min(c), a1, max(c), b, a2, max(c), max(c) from t1 group by
 explain select min(a2) from t1 group by a1;
 explain select a2, min(c), max(c) from t1 group by a1,a2,b;
 
--- TODO: Queries with HAVING
-
 -- queries
 select a1, min(a2) from t1 group by a1;
 select a1, max(a2) from t1 group by a1;
@@ -189,8 +193,6 @@ select min(a2), a1, max(a2), min(a2), a1 from t1 group by a1;
 select a1, b, min(c), a1, max(c), b, a2, max(c), max(c) from t1 group by a1, a2, b;
 select min(a2) from t1 group by a1;
 select a2, min(c), max(c) from t1 group by a1,a2,b;
-
--- TODO: Queries with HAVING
 
 --
 -- Queries with a where clause
@@ -300,7 +302,6 @@ select a1,a2,b,min(c) from t2 where b is NULL group by a1,a2;
 select a1,a2,b,max(c) from t2 where b is NULL group by a1,a2;
 select a1,a2,b,min(c),max(c) from t2 where b is NULL group by a1,a2;
 select a1,a2,b,min(c),max(c) from t2 where b is NULL group by a1,a2;
--- TODO: IS NOT NULL ?
 
 -- C) Range predicates for the MIN/MAX attribute
 -- plans
@@ -552,6 +553,11 @@ where (a1 = 'b' or a1 = 'd' or a1 = 'a' or a1 = 'c') and (a2 > 'a') and (d > 'xy
 -- non-equality predicate for a non-group select attribute
 explain select a1,a2,b,max(c),min(c) from t2 where (a2 = 'a') and (b = 'b') or (b < 'b') group by a1;
 explain select a1,a2,b from t1 where (a1 = 'b' or a1 = 'd' or a1 = 'a' or a1 = 'c') and (a2 > 'a') and (c > 'a111') group by a1,a2,b;
+
+-- non-group field with an equality predicate that references a keypart after the
+-- MIN/MAX argument
+explain select a1,a2,min(b),c from t2 where (a2 = 'a') and (c = 'a111') group by a1;
+select a1,a2,min(b),c from t2 where (a2 = 'a') and (c = 'a111') group by a1;
 
 -- disjunction for a non-group select attribute
 explain select a1,a2,b,max(c),min(c) from t2 where (a2 = 'a') and (b = 'b') or (b = 'a') group by a1;

@@ -303,7 +303,7 @@ class JOIN :public Sql_alloc
   void restore_tmp();
   bool alloc_func_list();
   bool make_sum_func_list(List<Item> &all_fields, List<Item> &send_fields,
-			  bool before_group_by);
+			  bool before_group_by, bool recompute= FALSE);
 
   inline void set_items_ref_array(Item **ptr)
   {

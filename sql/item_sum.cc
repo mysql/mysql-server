@@ -183,44 +183,6 @@ bool Item_sum::walk (Item_processor processor, byte *argument)
 }
 
 
-/*
-  Store the pointer to this item into a list if not already there.
-
-  SYNOPSIS
-    Item_sum::collect()
-    item_list  pointer to a List<Item_sum> where item_sum objects are collected
-
-  DESCRIPTION
-    The method is used by collect_item_sum_*_processor, called by
-    Item_sum::walk, to collect all unique Item_sum_min and Item_sum_max objects
-    from a tree of Items into a set of items represented as a list.
-
-  IMPLEMENTATION
-    Item_cond::walk() and Item_func::walk() stop the evaluation of the
-    processor function for its arguments once the processor returns
-    true.Therefore in order to force this method being called for all item
-    arguments in a condition the method must return false.
-
-  RETURN
-    FALSE on success (force the evaluation of collect_item_sum_*_processor
-          for the subsequent items.)
-    TRUE  o/w (stop evaluation of subsequent items.)
-*/
-
-bool Item_sum::collect(List<Item_sum> *item_list)
-{
-  List_iterator<Item_sum> item_list_it(*item_list);
-  Item_sum *curr_item;
-  while ((curr_item= item_list_it++))
-  {
-    if (curr_item == this)
-      return FALSE; /* Already in the set. */
-  }
-  item_list->push_back(this);
-  return FALSE;
-}
-
-
 String *
 Item_sum_num::val_str(String *str)
 {
