@@ -5280,6 +5280,7 @@ Replication should work with @code{RAND()} and user variables @code{@@var}.
 Online backup with very low performance penalty.  The online backup will
 make it easy to add a new replication slave without taking down the
 master.
+@item
 Allow @code{DELETE} on @code{MyISAM} tables to use the record cache.
 To do this, we need to update the threads record cache when we update
 the @code{.MYD} file.
