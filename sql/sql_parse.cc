@@ -23,6 +23,8 @@
 #include <my_dir.h>
 #include <assert.h>
 
+#define files_charset_info system_charset_info
+
 #ifdef HAVE_INNOBASE_DB
 #include "ha_innodb.h"
 #endif
@@ -1222,7 +1224,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
 	break;
       }
       if (lower_case_table_names)
-	my_casedn_str(system_charset_info, db);
+	my_casedn_str(files_charset_info, db);
       if (check_access(thd,CREATE_ACL,db,0,1))
 	break;
       mysql_log.write(thd,command,packet);
@@ -1240,7 +1242,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
 	break;
       }
       if (lower_case_table_names)
-	my_casedn_str(system_charset_info, db);
+	my_casedn_str(files_charset_info, db);
       if (thd->locked_tables || thd->active_transaction())
       {
 	send_error(thd,ER_LOCK_OR_ACTIVE_TRANSACTION);
@@ -2488,7 +2490,7 @@ mysql_execute_command(THD *thd)
       break;
     }
     if (lower_case_table_names)
-      my_casedn_str(system_charset_info, lex->name);
+      my_casedn_str(files_charset_info, lex->name);
     if (check_access(thd,CREATE_ACL,lex->name,0,1))
       break;
     res=mysql_create_db(thd,lex->name,&lex->create_info,0);
@@ -2502,7 +2504,7 @@ mysql_execute_command(THD *thd)
       break;
     }
     if (lower_case_table_names)
-      my_casedn_str(system_charset_info, lex->name);
+      my_casedn_str(files_charset_info, lex->name);
     if (check_access(thd,DROP_ACL,lex->name,0,1))
       break;
     if (thd->locked_tables || thd->active_transaction())
@@ -2590,7 +2592,7 @@ mysql_execute_command(THD *thd)
 	if (user->password.str &&
 	    (strcmp(thd->user,user->user.str) ||
 	     user->host.str &&
-	     my_strcasecmp(system_charset_info,
+	     my_strcasecmp(my_charset_latin1,
                            user->host.str, thd->host_or_ip)))
 	{
 	  if (check_access(thd, UPDATE_ACL, "mysql",0,1))
@@ -3581,8 +3583,8 @@ TABLE_LIST *st_select_lex::add_table_to_list(THD *thd,
   ptr->alias= alias_str;
   if (lower_case_table_names)
   {
-    my_casedn_str(system_charset_info,ptr->db);
-    my_casedn_str(system_charset_info,table->table.str);
+    my_casedn_str(files_charset_info,ptr->db);
+    my_casedn_str(files_charset_info,table->table.str);
   }
   ptr->real_name=table->table.str;
   ptr->real_name_length=table->table.length;
