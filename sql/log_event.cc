@@ -1280,6 +1280,11 @@ int Load_log_event::copy_log_event(const char *buf, ulong event_len,
 
 void Load_log_event::print(FILE* file, bool short_form, char* last_db)
 {
+  print(file, short_form, last_db, 0);
+}
+
+void Load_log_event::print(FILE* file, bool short_form, char* last_db, bool commented)
+{
   if (!short_form)
   {
     print_header(file);
@@ -1295,9 +1300,12 @@ void Load_log_event::print(FILE* file, bool short_form, char* last_db)
   }
   
   if (db && db[0] && !same_db)
-    fprintf(file, "use %s;\n", db);
+    fprintf(file, "%suse %s;\n", 
+            commented ? "# " : "",
+            db);
 
-  fprintf(file, "LOAD DATA ");
+  fprintf(file, "%sLOAD DATA ",
+          commented ? "# " : "");
   if (check_fname_outside_temp_buf())
     fprintf(file, "LOCAL ");
   fprintf(file, "INFILE '%-*s' ", fname_len, fname);
@@ -1573,10 +1581,12 @@ void Create_file_log_event::print(FILE* file, bool short_form,
 
   if (enable_local)
   {
-    if (!check_fname_outside_temp_buf())
-      fprintf(file, "#");
-    Load_log_event::print(file, 1, last_db);
-    fprintf(file, "#");
+    Load_log_event::print(file, 1, last_db, !check_fname_outside_temp_buf());
+    /* 
+       That one is for "file_id: etc" below: in mysqlbinlog we want the #, in
+       SHOW BINLOG EVENTS we don't.
+    */
+    fprintf(file, "#"); 
   }
 
   fprintf(file, " file_id: %d  block_len: %d\n", file_id, block_len);

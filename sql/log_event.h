@@ -435,6 +435,7 @@ public:
 		 bool use_rli_only_for_errors);
 #else
   void print(FILE* file, bool short_form = 0, char* last_db = 0);
+  void print(FILE* file, bool short_form, char* last_db, bool commented);
 #endif
 
   Load_log_event(const char* buf, int event_len, bool old_format);
