@@ -830,8 +830,11 @@ int show_slave_hosts(THD* thd)
   List<Item> field_list;
   field_list.push_back(new Item_empty_string("Server_id", 20));
   field_list.push_back(new Item_empty_string("Host", 20));
-  field_list.push_back(new Item_empty_string("User",20));
-  field_list.push_back(new Item_empty_string("Password",20));
+  if(opt_show_slave_auth_info)
+  {
+    field_list.push_back(new Item_empty_string("User",20));
+    field_list.push_back(new Item_empty_string("Password",20));
+  }
   field_list.push_back(new Item_empty_string("Port",20));
 
   if(send_fields(thd, field_list, 1))
@@ -848,8 +851,11 @@ int show_slave_hosts(THD* thd)
     packet->length(0);
     net_store_data(packet, si->server_id);
     net_store_data(packet, si->host);
-    net_store_data(packet, si->user);
-    net_store_data(packet, si->password);
+    if(opt_show_slave_auth_info)
+    {
+      net_store_data(packet, si->user);
+      net_store_data(packet, si->password);
+    }
     net_store_data(packet, (uint)si->port);
     if(my_net_write(net, (char*)packet->ptr(), packet->length()))
     {

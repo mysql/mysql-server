@@ -12,6 +12,7 @@ typedef struct st_slave_info
   uint16 port;
 } SLAVE_INFO;
 
+extern bool opt_show_slave_auth_info;
 extern HASH slave_list;
 extern char* master_host;
 extern my_string opt_bin_logname, master_info_file;
