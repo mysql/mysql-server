@@ -109,6 +109,8 @@ static HashTable ht;
 enum enum_info_type { INFO_INFO,INFO_ERROR,INFO_RESULT};
 typedef enum enum_info_type INFO_TYPE;
 
+const char *VER="11.4";
+
 static MYSQL mysql;			/* The connection */
 static bool info_flag=0,ignore_errors=0,wait_flag=0,quick=0,
 	    connected=0,opt_raw_data=0,unbuffered=0,output_tables=0,
@@ -138,6 +140,7 @@ const char *default_dbug_option="d:t:o,/tmp/mysql.trace";
 void tee_fprintf(FILE *file, const char *fmt, ...);
 void tee_fputs(const char *s, FILE *file);
 void tee_puts(const char *s, FILE *file);
+void tee_putc(int c, FILE *file);
 /* The names of functions that actually do the manipulation. */
 static int get_options(int argc,char **argv);
 static int com_quit(String *str,char*),
@@ -437,8 +440,8 @@ CHANGEABLE_VAR changeable_vars[] = {
 
 static void usage(int version)
 {
-  printf("%s  Ver 11.3 Distrib %s, for %s (%s)\n",
-	 my_progname, MYSQL_SERVER_VERSION, SYSTEM_TYPE, MACHINE_TYPE);
+  printf("%s  Ver %s Distrib %s, for %s (%s)\n",
+	 my_progname, VER, MYSQL_SERVER_VERSION, SYSTEM_TYPE, MACHINE_TYPE);
   if (version)
     return;
   puts("Copyright (C) 2000 MySQL AB & MySQL Finland AB & TCX DataKonsult AB");
@@ -1637,7 +1640,7 @@ safe_put_field(const char *pos,ulong length)
       if (use_mb(default_charset_info) &&
           (l = my_ismbchar(default_charset_info, pos, end))) {
 	  while (l--)
-	    tee_fputs((const char *) *pos++, PAGER);
+	    tee_putc(*pos++, PAGER);
 	  pos--;
 	  continue;
       }
@@ -1651,7 +1654,7 @@ safe_put_field(const char *pos,ulong length)
       else if (*pos == '\\')
 	tee_fputs("\\\\", PAGER);
       else
-	tee_fputs(pos, PAGER);
+	tee_putc(*pos, PAGER);
     }
   }
 }
@@ -1867,7 +1870,7 @@ com_print(String *buffer,char *line __attribute__((unused)))
   tee_puts("--------------", stdout);
   (void) tee_fputs(buffer->c_ptr(), stdout);
   if (!buffer->length() || (*buffer)[buffer->length()-1] != '\n')
-    tee_fputs("\n", stdout);
+    tee_putc('\n', stdout);
   tee_puts("--------------\n", stdout);
   return 0;					/* If empty buffer */
 }
@@ -2174,7 +2177,7 @@ com_status(String *buffer __attribute__((unused)),
     }
     if (status)
     {
-      tee_fputs("\n", stdout);
+      tee_putc('\n', stdout);
       tee_puts(status, stdout);
     }
   }
@@ -2293,6 +2296,13 @@ void tee_puts(const char *s, FILE *file)
     fputs(s, OUTFILE);
     fputs("\n", OUTFILE);
   }
+}
+
+void tee_putc(int c, FILE *file)
+{
+  putc(c, file);
+  if (opt_outfile)
+    putc(c, OUTFILE);
 }
 
 #ifdef __WIN__
