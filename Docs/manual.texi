@@ -46785,7 +46785,7 @@ users use this code as the rest of the code and because of this we are
 not yet 100% confident in this code.
 
 @menu
-* News-3.23.46::                
+* News-3.23.46::                Changes in release 3.23.46
 * News-3.23.45::                Changes in release 3.23.45
 * News-3.23.44::                Changes in release 3.23.44
 * News-3.23.43::                Changes in release 3.23.43
@@ -46846,6 +46846,12 @@ One can now kill @code{ANALYZE},@code{REPAIR} and @code{OPTIMIZE TABLE} when
 the thread is waiting to get a lock on the table.
 @item
 Fixed race condition in @code{ANALYZE TABLE}.
+@item
+Fixed bug when joining with caching (unlikely to happen).
+@item
+Fixed race condition when using the binary log and @code{INSERT DELAYED}
+which could cause the binary log to have rows that was not yet written
+to MyISAM tables.
 @end itemize
 
 @node News-3.23.45, News-3.23.44, News-3.23.46, News-3.23.x
