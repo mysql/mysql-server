@@ -1986,6 +1986,7 @@ loop:
 
 		if (table->n_mysql_handles_opened > 0) {
 		        mutex_exit(&(dict_sys->mutex));
+			rw_lock_x_unlock(&(dict_foreign_key_check_lock));
 
 			ut_print_timestamp(stderr);
 			fprintf(stderr,
