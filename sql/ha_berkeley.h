@@ -35,6 +35,8 @@ typedef struct st_berkeley_share {
   u_int32_t *key_type;
   uint table_name_length,use_count;
   uint status,version;
+  uint ref_length;
+  bool fixed_length_primary_key, fixed_length_row;
 } BDB_SHARE;
 
 
@@ -55,8 +57,8 @@ class ha_berkeley: public handler
   ulong changed_rows;
   uint primary_key,last_dup_key, hidden_primary_key, version;
   u_int32_t lock_on_read;
-  bool fixed_length_row, fixed_length_primary_key, key_read, using_ignore;
-  bool	fix_rec_buff_for_blob(ulong length);
+  bool key_read, using_ignore;
+  bool fix_rec_buff_for_blob(ulong length);
   byte current_ident[BDB_HIDDEN_PRIMARY_KEY_LENGTH];
 
   ulong max_row_length(const byte *buf);

@@ -286,6 +286,7 @@ start_master()
 	    --pid-file=$MASTER_MYPID \
 	    --socket=$MASTER_MYSOCK \
             --log=$MASTER_MYLOG --default-character-set=latin1 \
+	    --core \
 	    --language=english $EXTRA_MASTER_OPT $EXTRA_MASTER_MYSQLD_OPT"
     if [ x$DO_DDD = x1 ]
     then
@@ -327,6 +328,7 @@ start_slave()
 	    --port=$SLAVE_MYPORT \
 	    --socket=$SLAVE_MYSOCK \
             --log=$SLAVE_MYLOG --default-character-set=latin1 \
+	    --core \
             --language=english $EXTRA_SLAVE_OPT $EXTRA_SLAVE_MYSQLD_OPT"
     if [ x$DO_DDD = x1 ]
     then
