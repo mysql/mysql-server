@@ -195,8 +195,7 @@ dtype_get_pad_char(
 	    || type->mtype == DATA_BINARY
 	    || type->mtype == DATA_FIXBINARY
 	    || type->mtype == DATA_MYSQL
-	    || type->mtype == DATA_VARMYSQL
-	    || type->mtype == DATA_BLOB) {
+	    || type->mtype == DATA_VARMYSQL) {
 
 		/* Space is the padding character for all char and binary
 	        strings */
