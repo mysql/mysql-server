@@ -203,9 +203,12 @@ int Instance_map::cleanup()
   while (i < hash.records)
   {
     instance= (Instance *) hash_element(&hash, i);
-    instance->cleanup();
+    if (instance->cleanup())
+			return 1;
     i++;
   }
+
+	return 0;
 }
 
 
@@ -250,7 +253,7 @@ Instance *Instance_map::Iterator::next()
 {
   if (current_instance < instance_map->hash.records)
     return (Instance *) hash_element(&instance_map->hash, current_instance++);
-  else
-    return NULL;
+
+  return NULL;
 }
 
