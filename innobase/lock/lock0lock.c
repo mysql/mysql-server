@@ -2011,6 +2011,19 @@ lock_grant(
 	ut_ad(mutex_own(&kernel_mutex));
 
 	lock_reset_lock_and_trx_wait(lock);
+	
+	if (lock_get_mode(lock) == LOCK_AUTO_INC) {
+
+	         if (lock->trx->auto_inc_lock != NULL) {
+	                 fprintf(stderr,
+		    "InnoDB: Error: trx already had an AUTO-INC lock!\n");
+	         }
+
+	         /* Store pointer to lock to trx so that we know to
+	         release it at the end of the SQL statement */
+
+	         lock->trx->auto_inc_lock = lock;
+	}
 
 	if (lock_print_waits) {
 		printf("Lock wait for trx %lu ends\n",
@@ -3763,6 +3776,8 @@ lock_print_info(
 	mtr_t	mtr;
 
 	if (buf_end - buf < 600) {
+		sprintf(buf, "... output truncated!\n");
+	
 		return;
 	}
 
@@ -3787,6 +3802,9 @@ lock_print_info(
 		if ((ulint)(buf_end - buf)
 			< 100 + strlen(lock_latest_err_buf)) {
 
+			lock_mutex_exit_kernel();
+			sprintf(buf, "... output truncated!\n");
+
 			return;
 		}
 
@@ -3794,6 +3812,9 @@ lock_print_info(
 	}
 
 	if (buf_end - buf < 600) {
+		lock_mutex_exit_kernel();
+		sprintf(buf, "... output truncated!\n");
+
 		return;
 	}
 
@@ -3805,6 +3826,9 @@ lock_print_info(
 
 	while (trx) {
 		if (buf_end - buf < 900) {
+			lock_mutex_exit_kernel();
+			sprintf(buf, "... output truncated!\n");
+
 			return;
 		}
 
@@ -3842,6 +3866,9 @@ loop:
 	}
 
 	if (buf_end - buf < 900) {
+		lock_mutex_exit_kernel();
+		sprintf(buf, "... output truncated!\n");
+
 		return;
 	}
 
@@ -3852,6 +3879,9 @@ loop:
 		buf += strlen(buf);
 		
 		if (buf_end - buf < 500) {
+			lock_mutex_exit_kernel();
+			sprintf(buf, "... output truncated!\n");
+
 			return;
 		}
 		
@@ -3906,6 +3936,9 @@ loop:
 	}
 
 	if (buf_end - buf < 500) {
+		lock_mutex_exit_kernel();
+		sprintf(buf, "... output truncated!\n");
+
 		return;
 	}
 

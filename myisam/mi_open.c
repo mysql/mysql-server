@@ -213,7 +213,7 @@ MI_INFO *mi_open(const char *name, int mode, uint open_flags)
     max_data_file_length=
       (share->options & (HA_OPTION_PACK_RECORD | HA_OPTION_COMPRESS_RECORD)) ?
       (((ulonglong) 1 << (share->base.rec_reflength*8))-1) :
-      (mi_safe_mul(share->base.reclength,
+      (mi_safe_mul(share->base.pack_reclength,
 		   (ulonglong) 1 << (share->base.rec_reflength*8))-1);
     max_key_file_length=
       mi_safe_mul(MI_MIN_KEY_BLOCK_LENGTH,

@@ -419,7 +419,7 @@ void Item_field::save_org_in_field(Field *to)
   if (field->is_null())
   {
     null_value=1;
-    set_field_to_null(to);
+    set_field_to_null_with_conversions(to);
   }
   else
   {
@@ -434,7 +434,7 @@ bool Item_field::save_in_field(Field *to)
   if (result_field->is_null())
   {
     null_value=1;
-    return set_field_to_null(to);
+    return set_field_to_null_with_conversions(to);
   }
   else
   {
@@ -445,8 +445,41 @@ bool Item_field::save_in_field(Field *to)
   return 0;
 }
 
+/*
+  Store null in field
+
+  SYNOPSIS
+    save_in_field()
+    field		Field where we want to store NULL
+
+  DESCRIPTION
+    This is used on INSERT.
+    Allow NULL to be inserted in timestamp and auto_increment values
+
+  RETURN VALUES
+    0	 ok
+    1	 Field doesn't support NULL values and can't handle 'field = NULL'
+*/   
 
 bool Item_null::save_in_field(Field *field)
+{
+  return set_field_to_null_with_conversions(field);
+}
+
+
+/*
+  Store null in field
+
+  SYNOPSIS
+    save_safe_in_field()
+    field		Field where we want to store NULL
+
+  RETURN VALUES
+    0	 ok
+    1	 Field doesn't support NULL values
+*/   
+
+bool Item_null::save_safe_in_field(Field *field)
 {
   return set_field_to_null(field);
 }
@@ -463,7 +496,7 @@ bool Item::save_in_field(Field *field)
     str_value.set_quick(buff,sizeof(buff));
     result=val_str(&str_value);
     if (null_value)
-      return set_field_to_null(field);
+      return set_field_to_null_with_conversions(field);
     field->set_notnull();
     field->store(result->ptr(),result->length());
     str_value.set_quick(0, 0);
@@ -480,12 +513,13 @@ bool Item::save_in_field(Field *field)
   {
     longlong nr=val_int();
     if (null_value)
-      return set_field_to_null(field);
+      return set_field_to_null_with_conversions(field);
     field->set_notnull();
     field->store(nr);
   }
   return 0;
 }
+
 
 bool Item_string::save_in_field(Field *field)
 {

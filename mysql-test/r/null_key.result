@@ -188,4 +188,10 @@ id	uniq_id
 4	2
 7	3
 8	4
+order_id	product_id	product_type
+order_id	product_id	product_type
+3d7ce39b5d4b3e3d22aaafe9b633de51	1206029	3
+3d7ce39b5d4b3e3d22aaafe9b633de51	5880836	3
+id	id
+id	id
 DROP table t1,t2;
