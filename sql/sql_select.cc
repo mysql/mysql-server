@@ -36,7 +36,8 @@ const char *join_type_str[]={ "UNKNOWN","system","const","eq_ref","ref",
 
 static bool make_join_statistics(JOIN *join,TABLE_LIST *tables,COND *conds,
                         DYNAMIC_ARRAY *keyuse,List<Item_func_match> &ftfuncs);
-static bool update_ref_and_keys(DYNAMIC_ARRAY *keyuse,JOIN_TAB *join_tab,
+static bool update_ref_and_keys(THD *thd, DYNAMIC_ARRAY *keyuse,
+				JOIN_TAB *join_tab,
                                 uint tables,COND *conds,table_map table_map,
                                 List<Item_func_match> &ftfuncs);
 static int sort_keyuse(KEYUSE *a,KEYUSE *b);
@@ -106,12 +107,14 @@ static uint find_shortest_key(TABLE *table, key_map usable_keys);
 static bool test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,
 				    ha_rows select_limit);
 static int create_sort_index(JOIN_TAB *tab,ORDER *order,ha_rows select_limit);
-static int remove_duplicates(JOIN *join,TABLE *entry,List<Item> &fields);
+static bool fix_having(JOIN *join, Item **having);
+static int remove_duplicates(JOIN *join,TABLE *entry,List<Item> &fields,
+			     Item *having);
 static int remove_dup_with_compare(THD *thd, TABLE *entry, Field **field,
-				   ulong offset);
+				   ulong offset,Item *having);
 static int remove_dup_with_hash_index(THD *thd, TABLE *table,
 				      uint field_count, Field **first_field,
-				      ulong key_length);
+				      ulong key_length,Item *having);
 static int join_init_cache(THD *thd,JOIN_TAB *tables,uint table_count);
 static ulong used_blob_length(CACHE_FIELD **ptr);
 static bool store_record_in_cache(JOIN_CACHE *cache);
@@ -717,8 +720,11 @@ mysql_select(THD *thd,TABLE_LIST *tables,List<Item> &fields,COND *conds,
     if (select_distinct && ! group)
     {
       thd->proc_info="Removing duplicates";
-      if (remove_duplicates(&join,tmp_table,fields))
-	goto err; /* purecov: inspected */
+      if (having)
+	having->update_used_tables();
+      if (remove_duplicates(&join,tmp_table,fields, having))
+	goto err;				/* purecov: inspected */
+      having=0;
       select_distinct=0;
     }
     tmp_table->reginfo.lock_type=TL_UNLOCK;
@@ -749,28 +755,8 @@ mysql_select(THD *thd,TABLE_LIST *tables,List<Item> &fields,COND *conds,
     /* If we have already done the group, add HAVING to sorted table */
     if (having && ! group && ! join.sort_and_group)
     {
-      having->update_used_tables();	// Some tables may have been const
-      JOIN_TAB *table=&join.join_tab[join.const_tables];
-      table_map used_tables= join.const_table_map | table->table->map;
-
-      Item* sort_table_cond=make_cond_for_table(having,used_tables,used_tables);
-      if (sort_table_cond)
-      {
-	if (!table->select)
-	  if (!(table->select=new SQL_SELECT))
-	    goto err;
-	if (!table->select->cond)
-	  table->select->cond=sort_table_cond;
-	else					// This should never happen
-	  if (!(table->select->cond=new Item_cond_and(table->select->cond,
-						      sort_table_cond)))
-	    goto err;
-	table->select_cond=table->select->cond;
-	DBUG_EXECUTE("where",print_where(table->select->cond,
-					 "select and having"););
-	having=make_cond_for_table(having,~ (table_map) 0,~used_tables);
-	DBUG_EXECUTE("where",print_where(conds,"having after sort"););
-      }
+      if (fix_having(&join,&having))
+	goto err;
     }
     if (create_sort_index(&join.join_tab[join.const_tables],
 			  group ? group : order,
@@ -941,7 +927,7 @@ make_join_statistics(JOIN *join,TABLE_LIST *tables,COND *conds,
   }
 
   if (conds || outer_join)
-    if (update_ref_and_keys(keyuse_array,stat,join->tables,
+    if (update_ref_and_keys(join->thd,keyuse_array,stat,join->tables,
                             conds,~outer_join,ftfuncs))
       DBUG_RETURN(1);
 
@@ -1442,8 +1428,9 @@ sort_keyuse(KEYUSE *a,KEYUSE *b)
 */
 
 static bool
-update_ref_and_keys(DYNAMIC_ARRAY *keyuse,JOIN_TAB *join_tab,uint tables,
-        COND *cond, table_map normal_tables,List<Item_func_match> &ftfuncs)
+update_ref_and_keys(THD *thd, DYNAMIC_ARRAY *keyuse,JOIN_TAB *join_tab,
+		    uint tables, COND *cond, table_map normal_tables,
+		    List<Item_func_match> &ftfuncs)
 {
   uint	and_level,i,found_eq_constant;
 
@@ -1451,8 +1438,7 @@ update_ref_and_keys(DYNAMIC_ARRAY *keyuse,JOIN_TAB *join_tab,uint tables,
     KEY_FIELD *key_fields,*end;
 
     if (!(key_fields=(KEY_FIELD*)
-	  my_malloc(sizeof(key_fields[0])*
-		    (current_thd->cond_count+1)*2,MYF(0))))
+	  thd->alloc((sizeof(key_fields[0])*thd->cond_count+1)*2)))
       return TRUE; /* purecov: inspected */
     and_level=0; end=key_fields;
     if (cond)
@@ -1466,14 +1452,10 @@ update_ref_and_keys(DYNAMIC_ARRAY *keyuse,JOIN_TAB *join_tab,uint tables,
       }
     }
     if (init_dynamic_array(keyuse,sizeof(KEYUSE),20,64))
-    {
-      my_free((gptr) key_fields,MYF(0));
       return TRUE;
-    }
     /* fill keyuse with found key parts */
     for (KEY_FIELD *field=key_fields ; field != end ; field++)
       add_key_part(keyuse,field);
-    my_free((gptr) key_fields,MYF(0));
   }
 
   if (ftfuncs.elements)
@@ -1894,7 +1876,7 @@ cache_record_length(JOIN *join,uint idx)
 {
   uint length;
   JOIN_TAB **pos,**end;
-  THD *thd=current_thd;
+  THD *thd=join->thd;
 
   length=0;
   for (pos=join->best_ref+join->const_tables,end=join->best_ref+idx ;
@@ -2076,7 +2058,7 @@ get_best_combination(JOIN *join)
       }
       else
       {
-	THD *thd=current_thd;
+	THD *thd=join->thd;
 	for (i=0 ; i < keyparts ; keyuse++,i++)
 	{
 	  while (keyuse->keypart != i ||
@@ -4433,7 +4415,8 @@ join_init_read_record(JOIN_TAB *tab)
 {
   if (tab->select && tab->select->quick)
     tab->select->quick->reset();
-  init_read_record(&tab->read_record,current_thd, tab->table, tab->select,1,1);
+  init_read_record(&tab->read_record, tab->join->thd, tab->table,
+		   tab->select,1,1);
   return (*tab->read_record.read_record)(&tab->read_record);
 }
 
@@ -5265,6 +5248,38 @@ err:
 }
 
 
+/*
+** Add the HAVING criteria to table->select
+*/
+
+static bool fix_having(JOIN *join, Item **having)
+{
+  (*having)->update_used_tables();	// Some tables may have been const
+  JOIN_TAB *table=&join->join_tab[join->const_tables];
+  table_map used_tables= join->const_table_map | table->table->map;
+
+  Item* sort_table_cond=make_cond_for_table(*having,used_tables,used_tables);
+  if (sort_table_cond)
+  {
+    if (!table->select)
+      if (!(table->select=new SQL_SELECT))
+	return 1;
+    if (!table->select->cond)
+      table->select->cond=sort_table_cond;
+    else					// This should never happen
+      if (!(table->select->cond=new Item_cond_and(table->select->cond,
+						  sort_table_cond)))
+	return 1;
+    table->select_cond=table->select->cond;
+    DBUG_EXECUTE("where",print_where(table->select_cond,
+				     "select and having"););
+    *having=make_cond_for_table(*having,~ (table_map) 0,~used_tables);
+    DBUG_EXECUTE("where",print_where(*having,"having after make_cond"););
+  }
+  return 0;
+}
+
+
 /*****************************************************************************
 ** Remove duplicates from tmp table
 ** This should be recoded to add a uniuqe index to the table and remove
@@ -5305,7 +5320,7 @@ static void free_blobs(Field **ptr)
 
 
 static int
-remove_duplicates(JOIN *join, TABLE *entry,List<Item> &fields)
+remove_duplicates(JOIN *join, TABLE *entry,List<Item> &fields, Item *having)
 {
   int error;
   ulong reclength,offset;
@@ -5342,9 +5357,10 @@ remove_duplicates(JOIN *join, TABLE *entry,List<Item> &fields)
 	sortbuff_size)))
     error=remove_dup_with_hash_index(join->thd, entry,
 				     field_count, first_field,
-				     reclength);
+				     reclength, having);
   else
-    error=remove_dup_with_compare(join->thd, entry, first_field, offset);
+    error=remove_dup_with_compare(join->thd, entry, first_field, offset,
+				  having);
 
   free_blobs(first_field);
   DBUG_RETURN(error);
@@ -5352,19 +5368,19 @@ remove_duplicates(JOIN *join, TABLE *entry,List<Item> &fields)
 
 
 static int remove_dup_with_compare(THD *thd, TABLE *table, Field **first_field,
-				   ulong offset)
+				   ulong offset, Item *having)
 {
   handler *file=table->file;
-  char *org_record,*new_record;
+  char *org_record,*new_record, *record;
   int error;
   ulong reclength=table->reclength-offset;
   DBUG_ENTER("remove_dup_with_compare");
 
-  org_record=(char*) table->record[0]+offset;
+  org_record=(char*) (record=table->record[0])+offset;
   new_record=(char*) table->record[1]+offset;
 
   file->rnd_init();
-  error=file->rnd_next(table->record[0]);
+  error=file->rnd_next(record);
   for (;;)
   {
     if (thd->killed)
@@ -5381,6 +5397,12 @@ static int remove_dup_with_compare(THD *thd, TABLE *table, Field **first_field,
 	break;
       goto err;
     }
+    if (having && !having->val_int())
+    {
+      if ((error=file->delete_row(record)))
+	goto err;
+      continue;
+    }
     if (copy_blobs(first_field))
     {
       my_error(ER_OUT_OF_SORTMEMORY,MYF(0));
@@ -5393,7 +5415,7 @@ static int remove_dup_with_compare(THD *thd, TABLE *table, Field **first_field,
     bool found=0;
     for (;;)
     {
-      if ((error=file->rnd_next(table->record[0])))
+      if ((error=file->rnd_next(record)))
       {
 	if (error == HA_ERR_RECORD_DELETED)
 	  continue;
@@ -5403,19 +5425,19 @@ static int remove_dup_with_compare(THD *thd, TABLE *table, Field **first_field,
       }
       if (compare_record(table, first_field) == 0)
       {
-	if ((error=file->delete_row(table->record[0])))
+	if ((error=file->delete_row(record)))
 	  goto err;
       }
       else if (!found)
       {
 	found=1;
-	file->position(table->record[0]);	// Remember position
+	file->position(record);	// Remember position
       }
     }
     if (!found)
       break;					// End of file
     /* Restart search on next row */
-    error=file->restart_rnd_next(table->record[0],file->ref);
+    error=file->restart_rnd_next(record,file->ref);
   }
 
   file->extra(HA_EXTRA_NO_CACHE);
@@ -5436,7 +5458,8 @@ err:
 static int remove_dup_with_hash_index(THD *thd, TABLE *table,
 				      uint field_count,
 				      Field **first_field,
-				      ulong key_length)
+				      ulong key_length,
+				      Item *having)
 {
   byte *key_buffer, *key_pos, *record=table->record[0];
   int error;
@@ -5484,6 +5507,12 @@ static int remove_dup_with_hash_index(THD *thd, TABLE *table,
 	break;
       goto err;
     }
+    if (having && !having->val_int())
+    {
+      if ((error=file->delete_row(record)))
+	goto err;
+      continue;
+    } 
 
     /* copy fields to key buffer */
     field_length=field_lengths;
@@ -5499,7 +5528,8 @@ static int remove_dup_with_hash_index(THD *thd, TABLE *table,
       if ((error=file->delete_row(record)))
 	goto err;
     }
-    (void) hash_insert(&hash, key_pos-key_length);
+    else
+      (void) hash_insert(&hash, key_pos-key_length);
     key_pos+=extra_length;
   }
   my_free((char*) key_buffer,MYF(0));
