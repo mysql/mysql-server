@@ -405,8 +405,8 @@ NdbScanFilterImpl::cond_col_const(Interpreter::BinaryCondition op,
     return -1;
   }
   
-  (m_operation->* branch)(AttrId, value, len, false, m_current.m_ownLabel);
-  return 0;
+  int ret = (m_operation->* branch)(AttrId, value, len, false, m_current.m_ownLabel);
+  return ret;
 }
 
 int
