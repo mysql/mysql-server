@@ -527,8 +527,8 @@ show binlog events from 96;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	96	User var	1	136	@`v`=_ucs2 0x006100620063 COLLATE ucs2_general_ci
 master-bin.000001	136	Query	1	226	use `test`; insert into t2 values (@v)
-flush logs;
 /*!40019 SET @@session.max_insert_delayed_threads=0*/;
+ROLLBACK;
 SET @`v`:=_ucs2 0x006100620063 COLLATE `ucs2_general_ci`;
 use test;
 SET TIMESTAMP=10000;

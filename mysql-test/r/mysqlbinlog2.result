@@ -16,6 +16,7 @@ insert into t1 values(null, "f");
 
 --- Local --
 /*!40019 SET @@session.max_insert_delayed_threads=0*/;
+ROLLBACK;
 use test;
 SET TIMESTAMP=1579609942;
 SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=1, @@session.unique_checks=1;
@@ -40,6 +41,7 @@ insert into t1 values(null, "e");
 
 --- offset --
 /*!40019 SET @@session.max_insert_delayed_threads=0*/;
+ROLLBACK;
 SET INSERT_ID=1;
 use test;
 SET TIMESTAMP=1579609942;
@@ -75,6 +77,7 @@ insert into t1 values(null, "e");
 
 --- stop-position --
 /*!40019 SET @@session.max_insert_delayed_threads=0*/;
+ROLLBACK;
 use test;
 SET TIMESTAMP=1579609942;
 SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=1, @@session.unique_checks=1;
@@ -93,6 +96,7 @@ insert into t1 values(null, "c");
 
 --- start-datetime --
 /*!40019 SET @@session.max_insert_delayed_threads=0*/;
+ROLLBACK;
 SET INSERT_ID=3;
 use test;
 SET TIMESTAMP=1579609944;
@@ -109,6 +113,7 @@ insert into t1 values(null, "e");
 
 --- stop-datetime --
 /*!40019 SET @@session.max_insert_delayed_threads=0*/;
+ROLLBACK;
 use test;
 SET TIMESTAMP=1579609942;
 SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=1, @@session.unique_checks=1;
@@ -124,6 +129,7 @@ insert into t1 values(null, "b");
 
 --- Local with 2 binlogs on command line --
 /*!40019 SET @@session.max_insert_delayed_threads=0*/;
+ROLLBACK;
 use test;
 SET TIMESTAMP=1579609942;
 SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=1, @@session.unique_checks=1;
@@ -152,10 +158,10 @@ SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=1, @@session.uniq
 SET @@session.sql_mode=0;
 SET @@session.character_set_client=8,@@session.collation_connection=8,@@session.collation_server=8;
 insert into t1 values(null, "f");
-ROLLBACK;
 
 --- offset --
 /*!40019 SET @@session.max_insert_delayed_threads=0*/;
+ROLLBACK;
 SET INSERT_ID=1;
 use test;
 SET TIMESTAMP=1579609942;
@@ -182,7 +188,6 @@ SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=1, @@session.uniq
 SET @@session.sql_mode=0;
 SET @@session.character_set_client=8,@@session.collation_connection=8,@@session.collation_server=8;
 insert into t1 values(null, "f");
-ROLLBACK;
 
 --- start-position --
 /*!40019 SET @@session.max_insert_delayed_threads=0*/;
@@ -203,10 +208,10 @@ SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=1, @@session.uniq
 SET @@session.sql_mode=0;
 SET @@session.character_set_client=8,@@session.collation_connection=8,@@session.collation_server=8;
 insert into t1 values(null, "f");
-ROLLBACK;
 
 --- stop-position --
 /*!40019 SET @@session.max_insert_delayed_threads=0*/;
+ROLLBACK;
 use test;
 SET TIMESTAMP=1579609942;
 SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=1, @@session.unique_checks=1;
@@ -232,6 +237,7 @@ SET INSERT_ID=6;
 
 --- start-datetime --
 /*!40019 SET @@session.max_insert_delayed_threads=0*/;
+ROLLBACK;
 SET INSERT_ID=3;
 use test;
 SET TIMESTAMP=1579609944;
@@ -252,10 +258,10 @@ SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=1, @@session.uniq
 SET @@session.sql_mode=0;
 SET @@session.character_set_client=8,@@session.collation_connection=8,@@session.collation_server=8;
 insert into t1 values(null, "f");
-ROLLBACK;
 
 --- stop-datetime --
 /*!40019 SET @@session.max_insert_delayed_threads=0*/;
+ROLLBACK;
 use test;
 SET TIMESTAMP=1579609942;
 SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=1, @@session.unique_checks=1;
@@ -271,6 +277,7 @@ insert into t1 values(null, "b");
 
 --- Remote --
 /*!40019 SET @@session.max_insert_delayed_threads=0*/;
+ROLLBACK;
 use test;
 SET TIMESTAMP=1579609942;
 SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=1, @@session.unique_checks=1;
@@ -295,6 +302,7 @@ insert into t1 values(null, "e");
 
 --- offset --
 /*!40019 SET @@session.max_insert_delayed_threads=0*/;
+ROLLBACK;
 SET INSERT_ID=1;
 use test;
 SET TIMESTAMP=1579609942;
@@ -330,6 +338,7 @@ insert into t1 values(null, "e");
 
 --- stop-position --
 /*!40019 SET @@session.max_insert_delayed_threads=0*/;
+ROLLBACK;
 use test;
 SET TIMESTAMP=1579609942;
 SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=1, @@session.unique_checks=1;
@@ -348,6 +357,7 @@ insert into t1 values(null, "c");
 
 --- start-datetime --
 /*!40019 SET @@session.max_insert_delayed_threads=0*/;
+ROLLBACK;
 SET INSERT_ID=3;
 use test;
 SET TIMESTAMP=1579609944;
@@ -364,6 +374,7 @@ insert into t1 values(null, "e");
 
 --- stop-datetime --
 /*!40019 SET @@session.max_insert_delayed_threads=0*/;
+ROLLBACK;
 use test;
 SET TIMESTAMP=1579609942;
 SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=1, @@session.unique_checks=1;
@@ -379,6 +390,7 @@ insert into t1 values(null, "b");
 
 --- Remote with 2 binlogs on command line --
 /*!40019 SET @@session.max_insert_delayed_threads=0*/;
+ROLLBACK;
 use test;
 SET TIMESTAMP=1579609942;
 SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=1, @@session.unique_checks=1;
@@ -410,6 +422,7 @@ insert into t1 values(null, "f");
 
 --- offset --
 /*!40019 SET @@session.max_insert_delayed_threads=0*/;
+ROLLBACK;
 SET INSERT_ID=1;
 use test;
 SET TIMESTAMP=1579609942;
@@ -459,6 +472,7 @@ insert into t1 values(null, "f");
 
 --- stop-position --
 /*!40019 SET @@session.max_insert_delayed_threads=0*/;
+ROLLBACK;
 use test;
 SET TIMESTAMP=1579609942;
 SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=1, @@session.unique_checks=1;
@@ -484,6 +498,7 @@ SET INSERT_ID=6;
 
 --- start-datetime --
 /*!40019 SET @@session.max_insert_delayed_threads=0*/;
+ROLLBACK;
 SET INSERT_ID=3;
 use test;
 SET TIMESTAMP=1579609944;
@@ -507,6 +522,7 @@ insert into t1 values(null, "f");
 
 --- stop-datetime --
 /*!40019 SET @@session.max_insert_delayed_threads=0*/;
+ROLLBACK;
 use test;
 SET TIMESTAMP=1579609942;
 SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=1, @@session.unique_checks=1;
@@ -522,6 +538,7 @@ insert into t1 values(null, "b");
 
 --- to-last-log --
 /*!40019 SET @@session.max_insert_delayed_threads=0*/;
+ROLLBACK;
 use test;
 SET TIMESTAMP=1579609942;
 SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=1, @@session.unique_checks=1;

@@ -44,7 +44,7 @@ static int binlog_dump_count = 0;
 */
 
 static int fake_rotate_event(NET* net, String* packet, char* log_file_name,
-                             ulonglong position, int flags, const char** errmsg)
+                             ulonglong position, const char** errmsg)
 {
   DBUG_ENTER("fake_rotate_event");
   char header[LOG_EVENT_HEADER_LEN], buf[ROTATE_HEADER_LEN+100];
@@ -60,7 +60,7 @@ static int fake_rotate_event(NET* net, String* packet, char* log_file_name,
   ulong event_len = ident_len + LOG_EVENT_HEADER_LEN + ROTATE_HEADER_LEN;
   int4store(header + SERVER_ID_OFFSET, server_id);
   int4store(header + EVENT_LEN_OFFSET, event_len);
-  int2store(header + FLAGS_OFFSET, flags);
+  int2store(header + FLAGS_OFFSET, 0);
 
   // TODO: check what problems this may cause and fix them
   int4store(header + LOG_POS_OFFSET, 0);
@@ -325,7 +325,7 @@ void mysql_binlog_send(THD* thd, char* log_ident, my_off_t pos,
   const char *errmsg = "Unknown error";
   NET* net = &thd->net;
   pthread_mutex_t *log_lock;
-  bool binlog_can_be_corrupted= FALSE, rotate_was_found=FALSE;
+  bool binlog_can_be_corrupted= FALSE;
 #ifndef DBUG_OFF
   int left_events = max_binlog_dump_events;
 #endif
@@ -419,7 +419,7 @@ impossible position";
     given that we want minimum modification of 4.0, we send the normal
     and fake Rotates.
   */
-  if (fake_rotate_event(net, packet, log_file_name, pos, 0, &errmsg))
+  if (fake_rotate_event(net, packet, log_file_name, pos, &errmsg))
   {
     /*
        This error code is not perfect, as fake_rotate_event() does not
@@ -509,8 +509,6 @@ impossible position";
         binlog_can_be_corrupted= (*packet)[FLAGS_OFFSET+1] & LOG_EVENT_BINLOG_IN_USE_F;
       else if ((*packet)[EVENT_TYPE_OFFSET+1] == STOP_EVENT)
         binlog_can_be_corrupted= FALSE;
-      else if ((*packet)[EVENT_TYPE_OFFSET+1] == ROTATE_EVENT)
-        rotate_was_found=TRUE;
 
       if (my_net_write(net, (char*)packet->ptr(), packet->length()))
       {
@@ -690,13 +688,11 @@ impossible position";
       */
       if ((file=open_binlog(&log, log_file_name, &errmsg)) < 0 ||
 	  fake_rotate_event(net, packet, log_file_name, BIN_LOG_HEADER_SIZE,
-                            rotate_was_found ? 0 : LOG_EVENT_FORCE_ROLLBACK_F,
                             &errmsg))
       {
 	my_errno= ER_MASTER_FATAL_ERROR_READING_BINLOG;
 	goto err;
       }
-      rotate_was_found=FALSE;
       packet->length(0);
       packet->append('\0');
     }

@@ -1722,7 +1722,7 @@ static int init_relay_log_info(RELAY_LOG_INFO* rli,
     if (rli->relay_log.open_index_file(opt_relaylog_index_name, ln) ||
         rli->relay_log.open(ln, LOG_BIN, 0, SEQ_READ_APPEND, 0,
                             (max_relay_log_size ? max_relay_log_size :
-                            max_binlog_size), 0))
+                            max_binlog_size), 1))
     {
       pthread_mutex_unlock(&rli->data_lock);
       sql_print_error("Failed in open_log() called from init_relay_log_info()");
@@ -3111,17 +3111,17 @@ static int exec_relay_log_event(THD* thd, RELAY_LOG_INFO* rli)
 {
   /*
      We acquire this mutex since we need it for all operations except
-     event execution. But we will release it in places where we will 
+     event execution. But we will release it in places where we will
      wait for something for example inside of next_event().
    */
   pthread_mutex_lock(&rli->data_lock);
-  
-  if (rli->until_condition!=RELAY_LOG_INFO::UNTIL_NONE && 
-      rli->is_until_satisfied()) 
+
+  if (rli->until_condition!=RELAY_LOG_INFO::UNTIL_NONE &&
+      rli->is_until_satisfied())
   {
     sql_print_error("Slave SQL thread stopped because it reached its"
                     " UNTIL position %ld", (long) rli->until_pos());
-    /* 
+    /*
       Setting abort_slave flag because we do not want additional message about
       error in query execution to be printed.
     */
@@ -3129,11 +3129,11 @@ static int exec_relay_log_event(THD* thd, RELAY_LOG_INFO* rli)
     pthread_mutex_unlock(&rli->data_lock);
     return 1;
   }
-  
+
   Log_event * ev = next_event(rli);
-  
+
   DBUG_ASSERT(rli->sql_thd==thd);
-  
+
   if (sql_slave_killed(thd,rli))
   {
     pthread_mutex_unlock(&rli->data_lock);
@@ -3158,13 +3158,13 @@ static int exec_relay_log_event(THD* thd, RELAY_LOG_INFO* rli)
       events created by the creation/rotation of the relay log (remember that
       now the relay log starts with its Format_desc, has a Rotate etc).
     */
-    
+
     DBUG_PRINT("info",("type_code=%d, server_id=%d",type_code,ev->server_id));
-    
+
     if ((ev->server_id == (uint32) ::server_id &&
          !replicate_same_server_id &&
          type_code != FORMAT_DESCRIPTION_EVENT) ||
- 	(rli->slave_skip_counter && 
+        (rli->slave_skip_counter &&
          type_code != ROTATE_EVENT && type_code != STOP_EVENT &&
          type_code != START_EVENT_V3 && type_code!= FORMAT_DESCRIPTION_EVENT))
     {
@@ -3173,24 +3173,24 @@ static int exec_relay_log_event(THD* thd, RELAY_LOG_INFO* rli)
         rli->inc_event_relay_log_pos();
       else
       {
-        rli->inc_group_relay_log_pos((type_code == ROTATE_EVENT || 
+        rli->inc_group_relay_log_pos((type_code == ROTATE_EVENT ||
                                       type_code == STOP_EVENT ||
                                       type_code == FORMAT_DESCRIPTION_EVENT) ?
                                      LL(0) : ev->log_pos,
                                      1/* skip lock*/);
         flush_relay_log_info(rli);
       }
-      
+
       /*
- 	Protect against common user error of setting the counter to 1
- 	instead of 2 while recovering from an insert which used auto_increment,
- 	rand or user var.
+        Protect against common user error of setting the counter to 1
+        instead of 2 while recovering from an insert which used auto_increment,
+        rand or user var.
       */
-      if (rli->slave_skip_counter && 
- 	  !((type_code == INTVAR_EVENT ||
-             type_code == RAND_EVENT || 
+      if (rli->slave_skip_counter &&
+          !((type_code == INTVAR_EVENT ||
+             type_code == RAND_EVENT ||
              type_code == USER_VAR_EVENT) &&
- 	    rli->slave_skip_counter == 1) &&
+            rli->slave_skip_counter == 1) &&
           /*
             The events from ourselves which have something to do with the relay
             log itself must be skipped, true, but they mustn't decrement
@@ -3205,34 +3205,20 @@ static int exec_relay_log_event(THD* thd, RELAY_LOG_INFO* rli)
              type_code == START_EVENT_V3 || type_code == FORMAT_DESCRIPTION_EVENT)))
         --rli->slave_skip_counter;
       pthread_mutex_unlock(&rli->data_lock);
-      delete ev;     
-      return 0;					// avoid infinite update loops
-    } 
+      delete ev;
+      return 0;                                 // avoid infinite update loops
+    }
     pthread_mutex_unlock(&rli->data_lock);
-  
+
     thd->server_id = ev->server_id; // use the original server id for logging
     thd->set_time();				// time the query
     thd->lex->current_select= 0;
     if (!ev->when)
-    {
       ev->when = time(NULL);
-      /*
-        fake Rotate: it means that normal execution flow of statements is
-        interrupted.  Let's fake ROLLBACK to undo any half-executed transaction
-      */
-      if (ev->get_type_code() == ROTATE_EVENT &&
-          ev->flags & LOG_EVENT_FORCE_ROLLBACK_F)
-      {
-        ha_rollback_stmt(thd);
-        ha_rollback(thd);
-        thd->options&= ~(ulong) (OPTION_BEGIN | OPTION_STATUS_NO_TRANS_UPDATE);
-        thd->server_status&= ~SERVER_STATUS_IN_TRANS;
-      }
-    }
     ev->thd = thd;
     exec_res = ev->exec_event(rli);
     DBUG_ASSERT(rli->sql_thd==thd);
-    /* 
+    /*
        Format_description_log_event should not be deleted because it will be
        used to read info about the relay log's format; it will be deleted when
        the SQL thread does not need it, i.e. when this thread terminates.
@@ -3267,17 +3253,17 @@ extern "C" pthread_handler_decl(handle_slave_io,arg)
 {
   THD *thd; // needs to be first for thread_stack
   MYSQL *mysql;
-  MASTER_INFO *mi = (MASTER_INFO*)arg; 
+  MASTER_INFO *mi = (MASTER_INFO*)arg;
   char llbuff[22];
   uint retry_count;
-  
+
   // needs to call my_thread_init(), otherwise we get a coredump in DBUG_ stuff
   my_thread_init();
   DBUG_ENTER("handle_slave_io");
 
 #ifndef DBUG_OFF
 slave_begin:
-#endif  
+#endif
   DBUG_ASSERT(mi->inited);
   mysql= NULL ;
   retry_count= 0;
@@ -3286,10 +3272,10 @@ slave_begin:
   /* Inform waiting threads that slave has started */
   mi->slave_run_id++;
 
-#ifndef DBUG_OFF  
+#ifndef DBUG_OFF
   mi->events_till_abort = abort_slave_event_count;
-#endif  
-  
+#endif
+
   thd= new THD; // note that contructor of THD uses DBUG_ !
   THD_CHECK_SENTRY(thd);
 
@@ -3310,17 +3296,17 @@ slave_begin:
   mi->abort_slave = 0;
   pthread_mutex_unlock(&mi->run_lock);
   pthread_cond_broadcast(&mi->start_cond);
-  
+
   DBUG_PRINT("master_info",("log_file_name: '%s'  position: %s",
 			    mi->master_log_name,
 			    llstr(mi->master_log_pos,llbuff)));
-  
+
   if (!(mi->mysql = mysql = mysql_init(NULL)))
   {
     sql_print_error("Slave I/O thread: error in mysql_init()");
     goto err;
   }
-  
+
   thd->proc_info = "Connecting to master";
   // we can get killed during safe_connect
   if (!safe_connect(thd, mysql, mi))
@@ -3355,11 +3341,11 @@ connected:
     if (register_slave_on_master(mysql) ||  update_slave_list(mysql, mi))
       goto err;
   }
-  
+
   DBUG_PRINT("info",("Starting reading binary log from master"));
   while (!io_slave_killed(thd,mi))
   {
-    bool suppress_warnings= 0;    
+    bool suppress_warnings= 0;
     thd->proc_info = "Requesting binlog dump";
     if (request_dump(mysql, mi, &suppress_warnings))
     {
@@ -3370,7 +3356,7 @@ connected:
 dump");
 	goto err;
       }
-	  
+
       mi->slave_running= MYSQL_SLAVE_RUN_NOT_CONNECT;
       thd->proc_info= "Waiting to reconnect after a failed binlog dump request";
 #ifdef SIGNAL_WITH_VIO_CLOSE
@@ -3414,8 +3400,8 @@ after reconnect");
 
     while (!io_slave_killed(thd,mi))
     {
-      bool suppress_warnings= 0;    
-      /* 
+      bool suppress_warnings= 0;
+      /*
          We say "waiting" because read_event() will wait if there's nothing to
          read. But if there's something to read, it will not wait. The
          important thing is to not confuse users by saying "reading" whereas
@@ -3429,7 +3415,7 @@ after reconnect");
 	  sql_print_information("Slave I/O thread killed while reading event");
 	goto err;
       }
-	  	  
+
       if (event_len == packet_error)
       {
 	uint mysql_error_number= mysql_errno(mysql);
@@ -3460,7 +3446,7 @@ max_allowed_packet",
 	    goto err;				// Don't retry forever
 	  safe_sleep(thd,mi->connect_retry,(CHECK_KILLED_FUNC)io_slave_killed,
 		     (void*) mi);
-	}	    
+	}
 	if (io_slave_killed(thd,mi))
 	{
 	  if (global_system_variables.log_warnings)
@@ -3483,7 +3469,7 @@ reconnect done to recover from failed read");
 	}
 	goto connected;
       } // if (event_len == packet_error)
-	  
+
       retry_count=0;			// ok event, reset retry counter
       thd->proc_info = "Queueing master event to the relay log";
       if (queue_event(mi,(const char*)mysql->net.read_pos + 1,
