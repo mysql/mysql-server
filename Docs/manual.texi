@@ -22563,6 +22563,8 @@ used.)
 @item  -q, --quick
 Don't buffer query, dump directly to stdout. Uses @code{mysql_use_result()}
 to do this.
+@item -Q, --quote-names
+Quote table and column names within @samp{`} characters.
 @item -r, --result-file=...
 Direct output to a given file. This option should be used in MSDOS,
 because it prevents new line '\n' from being converted to '\n\r' (new
@@ -30477,10 +30479,10 @@ mysql> SELECT "a" ="A ";
 @node Logical Operators, Control flow functions, Comparison Operators, Non-typed Operators
 @subsubsection Logical Operators
 
-@findex Logical functions
-@findex Functions, logical
+@findex Logical operators
+@findex Operators, logical
 
-All logical functions return @code{1} (TRUE), @code{0} (FALSE) or
+All logical operators evaluate to @code{1} (TRUE), @code{0} (FALSE) or
 @code{NULL} (unknown, which is in most cases the same as FALSE):
 
 @table @code
@@ -30488,9 +30490,9 @@ All logical functions return @code{1} (TRUE), @code{0} (FALSE) or
 @findex ! (logical NOT)
 @item NOT
 @itemx !
-Logical NOT. Returns @code{1} if the argument is @code{0}, otherwise returns
-@code{0}.
-Exception: @code{NOT NULL} returns @code{NULL}:
+Logical NOT. Evaluates to @code{1} if the operand is @code{0}, otherwise
+evaluates to @code{0}.
+Exception: @code{NOT NULL} evaluates to @code{NULL}:
 @example
 mysql> SELECT NOT 1;
         -> 0
@@ -30501,14 +30503,14 @@ mysql> SELECT ! (1+1);
 mysql> SELECT ! 1+1;
         -> 1
 @end example
-The last example returns @code{1} because the expression evaluates
+The last example produces @code{1} because the expression evaluates
 the same way as @code{(!1)+1}.
 
 @findex OR, logical
 @findex || (logical OR)
 @item OR
 @itemx ||
-Logical OR. Returns @code{1} if either argument is not @code{0} and not
+Logical OR. Evaluates to @code{1} if either operand is not @code{0} and not
 @code{NULL}:
 @example
 mysql> SELECT 1 || 0;
@@ -30524,13 +30526,16 @@ mysql> SELECT 1 || NULL;
 @findex && (logical AND)
 @item AND
 @itemx &&
-Logical AND. Returns @code{0} if either argument is @code{0} or @code{NULL},
-otherwise returns @code{1}:
+Logical AND. For non-@code{NULL} operands, evaluates to @code{1} if both
+operands are non-zero and to @code{0} otherwise.
+Produces @code{NULL} if either operand is @code{NULL}:
 @example
-mysql> SELECT 1 && NULL;
-        -> 0
+mysql> SELECT 1 && 1;
+        -> 1
 mysql> SELECT 1 && 0;
         -> 0
+mysql> SELECT 1 && NULL;
+        -> NULL
 @end example
 @end table
 
@@ -32295,10 +32300,10 @@ following specifiers may be used in the @code{format} string:
 @item @code{%s} @tab Seconds (@code{00}..@code{59})
 @item @code{%p} @tab @code{AM} or @code{PM}
 @item @code{%w} @tab Day of the week (@code{0}=Sunday..@code{6}=Saturday)
-@item @code{%U} @tab Week (@code{0}..@code{53}), where Sunday is the first day of the week
-@item @code{%u} @tab Week (@code{0}..@code{53}), where Monday is the first day of the week
-@item @code{%V} @tab Week (@code{1}..@code{53}), where Sunday is the first day of the week. Used with '%X'
-@item @code{%v} @tab Week (@code{1}..@code{53}), where Monday is the first day of the week. Used with '%x'
+@item @code{%U} @tab Week (@code{00}..@code{53}), where Sunday is the first day of the week
+@item @code{%u} @tab Week (@code{00}..@code{53}), where Monday is the first day of the week
+@item @code{%V} @tab Week (@code{01}..@code{53}), where Sunday is the first day of the week. Used with '%X'
+@item @code{%v} @tab Week (@code{01}..@code{53}), where Monday is the first day of the week. Used with '%x'
 @item @code{%%} @tab A literal @samp{%}.
 @end multitable
 
@@ -36186,16 +36191,15 @@ SET [GLOBAL | SESSION] TRANSACTION ISOLATION LEVEL
 Sets the transaction isolation level for the global, whole session or
 the next transaction.
 
-The default behavior is to set the isolation level for the next (not started)
-transaction.
+The default behavior is to set the isolation level for the next (not
+started) transaction.  If you use the @code{GLOBAL} keyword, the statement
+sets the default transaction level globally for all new connections
+created from that point on.  You will need the @strong{process}
+privilege to do do this.  Using the @code{SESSION} keyword sets the
+default transaction level for all future transactions performed on the
+current connection.
 
-If you set the @code{GLOBAL} privilege it will affect all new created threads.
-You will need the @strong{process} privilege to do do this.
-
-Setting the @code{SESSION} privilege will affect the following and all
-future transactions.
-
-You can set the default isolation level for @code{mysqld} with
+You can set the default global isolation level for @code{mysqld} with
 @code{--transaction-isolation=...}. @xref{Command-line options}.
 
 @node Fulltext Search, Query Cache, Transactional Commands, Reference
@@ -49676,7 +49680,7 @@ not yet 100% confident in this code.
 @node News-3.23.51, News-3.23.50, News-3.23.x, News-3.23.x
 @appendixsubsec Changes in release 3.23.51
 @itemize @bullet
-Fixed the result from @code{IF()} is case in-sensitive if the 2 and
+Fixed the result from @code{IF()} to be case insensitive if the second and
 third arguments are case-sensitive.
 @end itemize
 
@@ -49684,7 +49688,7 @@ third arguments are case-sensitive.
 @appendixsubsec Changes in release 3.23.50
 @itemize @bullet
 @item
-Fixed problem with @code{crash-me} and gcc 3.0.4.
+Fixed problem with @code{crash-me} and @code{gcc} 3.0.4.
 @item
 Fixed that @code{@@@@unknown_variable} doesn't hang server.
 @item
