@@ -188,9 +188,17 @@ sh -c  "PATH=\"${MYSQL_BUILD_PATH:-/bin:/usr/bin}\" \
  make benchdir_root=$RPM_BUILD_ROOT/usr/share/
 }
 
-# Use the build root for temporary storage of the shared libraries.
+# Use our own copy of glibc
 
 OTHER_LIBC_DIR=/usr/local/mysql-glibc
+USE_OTHER_LIBC_DIR=""
+if test -d "OTHER_LIBC_DIR"
+then
+  USE_OTHER_LIBC_DIR="--with-other-libc=$OTHER_LIBC_DIR"
+fi
+
+# Use the build root for temporary storage of the shared libraries.
+
 RBR=$RPM_BUILD_ROOT
 MBD=$RPM_BUILD_DIR/mysql-%{mysql_version}
 if test -z "$RBR" -o "$RBR" = "/"
@@ -204,7 +212,7 @@ mkdir -p $RBR
 # We need to build shared libraries separate from mysqld-max because we
 # are using --with-other-libc
 
-BuildMySQL "--disable-shared --with-other-libc=$OTHER_LIBC_DIR --with-berkeley-db --with-innodb --with-mysqld-ldflags='-all-static' --with-server-suffix='-Max'"
+BuildMySQL "--disable-shared $USE_OTHER_LIBC_DIR --with-berkeley-db --with-innodb --with-mysqld-ldflags='-all-static' --with-server-suffix='-Max'"
 
 # Save everything for debug
 # tar cf $RBR/all.tar .
@@ -234,7 +242,7 @@ automake
 BuildMySQL "--disable-shared" \
 	   "--with-mysqld-ldflags='-all-static'" \
 	   "--with-client-ldflags='-all-static'" \
-  	   "--with-other-libc=$OTHER_LIBC_DIR" \
+  	   "$USE_OTHER_LIBC_DIR" \
 	   "--without-berkeley-db --without-innodb"
 nm --numeric-sort sql/mysqld > sql/mysqld.sym
 
