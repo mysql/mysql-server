@@ -1804,7 +1804,7 @@ String *Item_func_rpad::val_str(String *str)
   String *res =args[0]->val_str(str);
   String *rpad = args[2]->val_str(str);
 
-  if (!res || args[1]->null_value || !rpad)
+  if (!res || args[1]->null_value || !rpad || count < 0)
     goto err;
   null_value=0;
   if (count <= (int32) (res_length=res->length()))
