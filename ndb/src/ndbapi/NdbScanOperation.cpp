@@ -160,8 +160,8 @@ NdbScanOperation::readTuples(NdbScanOperation::LockMode lm,
   m_keyInfo = lockExcl ? 1 : 0;
 
   bool range = false;
-  if (m_accessTable->m_indexType == NdbDictionary::Index::OrderedIndex ||
-      m_accessTable->m_indexType == NdbDictionary::Index::UniqueOrderedIndex){
+  if (m_accessTable->m_indexType == NdbDictionary::Index::OrderedIndex)
+  {
     if (m_currentTable == m_accessTable){
       // Old way of scanning indexes, should not be allowed
       m_currentTable = theNdb->theDictionary->
@@ -424,6 +424,7 @@ int NdbScanOperation::nextResultImpl(bool fetchAllowed, bool forceSend)
   int retVal = 2;
   Uint32 idx = m_current_api_receiver;
   Uint32 last = m_api_receivers_count;
+  m_curr_row = 0;
 
   if(DEBUG_NEXT_RESULT)
     ndbout_c("nextResult(%d) idx=%d last=%d", fetchAllowed, idx, last);
@@ -434,7 +435,7 @@ int NdbScanOperation::nextResultImpl(bool fetchAllowed, bool forceSend)
   for(; idx < last; idx++){
     NdbReceiver* tRec = m_api_receivers[idx];
     if(tRec->nextResult()){
-      tRec->copyout(theReceiver);      
+      m_curr_row = tRec->copyout(theReceiver);
       retVal = 0;
       break;
     }
@@ -510,7 +511,7 @@ int NdbScanOperation::nextResultImpl(bool fetchAllowed, bool forceSend)
       for(; idx < last; idx++){
 	NdbReceiver* tRec = m_api_receivers[idx];
 	if(tRec->nextResult()){
-	  tRec->copyout(theReceiver);      
+	  m_curr_row = tRec->copyout(theReceiver);      
 	  retVal = 0;
 	  break;
 	}
@@ -845,6 +846,7 @@ NdbScanOperation::doSendScan(int aProcessorId)
   }    
   theStatus = WaitResponse;  
 
+  m_curr_row = 0;
   m_sent_receivers_count = theParallelism;
   if(m_ordered)
   {
@@ -878,16 +880,9 @@ NdbScanOperation::doSendScan(int aProcessorId)
 int
 NdbScanOperation::getKeyFromKEYINFO20(Uint32* data, unsigned size)
 {
-  Uint32 idx = m_current_api_receiver;
-  Uint32 last = m_api_receivers_count;
-
-  Uint32 row;
-  NdbReceiver * tRec;
-  NdbRecAttr * tRecAttr;
-  if(idx < last && (tRec = m_api_receivers[idx]) 
-     && ((row = tRec->m_current_row) <= tRec->m_defined_rows)
-     && (tRecAttr = tRec->m_rows[row-1])){
-
+  NdbRecAttr * tRecAttr = m_curr_row;
+  if(tRecAttr)
+  {
     const Uint32 * src = (Uint32*)tRecAttr->aRef();
     memcpy(data, src, 4*size);
     return 0;
@@ -896,18 +891,12 @@ NdbScanOperation::getKeyFromKEYINFO20(Uint32* data, unsigned size)
 }
 
 NdbOperation*
-NdbScanOperation::takeOverScanOp(OperationType opType, NdbTransaction* pTrans){
+NdbScanOperation::takeOverScanOp(OperationType opType, NdbTransaction* pTrans)
+{
   
-  Uint32 idx = m_current_api_receiver;
-  Uint32 last = m_api_receivers_count;
-
-  Uint32 row;
-  NdbReceiver * tRec;
-  NdbRecAttr * tRecAttr;
-  if(idx < last && (tRec = m_api_receivers[idx]) 
-     && ((row = tRec->m_current_row) <= tRec->m_defined_rows)
-     && (tRecAttr = tRec->m_rows[row-1])){
-    
+  NdbRecAttr * tRecAttr = m_curr_row;
+  if(tRecAttr)
+  {
     NdbOperation * newOp = pTrans->getNdbOperation(m_currentTable);
     if (newOp == NULL){
       return NULL;
@@ -1302,6 +1291,7 @@ int
 NdbIndexScanOperation::next_result_ordered(bool fetchAllowed,
 					   bool forceSend){
   
+  m_curr_row = 0;
   Uint32 u_idx = 0, u_last = 0;
   Uint32 s_idx   = m_current_api_receiver; // first sorted
   Uint32 s_last  = theParallelism;         // last sorted
@@ -1412,7 +1402,7 @@ NdbIndexScanOperation::next_result_ordered(bool fetchAllowed,
   
   tRec = m_api_receivers[s_idx];    
   if(s_idx < s_last && tRec->nextResult()){
-    tRec->copyout(theReceiver);      
+    m_curr_row = tRec->copyout(theReceiver);      
     if(DEBUG_NEXT_RESULT) ndbout_c("return 0");
     return 0;
   }
@@ -1667,23 +1657,13 @@ NdbIndexScanOperation::end_of_bound(Uint32 no)
 int
 NdbIndexScanOperation::get_range_no()
 {
-  if(m_read_range_no)
+  NdbRecAttr* tRecAttr = m_curr_row;
+  if(m_read_range_no && tRecAttr)
   {
-    Uint32 idx = m_current_api_receiver;
-    Uint32 last = m_api_receivers_count;
-    
-    Uint32 row;
-    NdbReceiver * tRec;
-    NdbRecAttr * tRecAttr;
-    if(idx < last && (tRec = m_api_receivers[idx]) 
-       && ((row = tRec->m_current_row) <= tRec->m_defined_rows)
-       && (tRecAttr = tRec->m_rows[row-1])){
-      
-      if(m_keyInfo)
-	tRecAttr = tRecAttr->next();
-      Uint32 ret = *(Uint32*)tRecAttr->aRef();
-      return ret;
-    }
+    if(m_keyInfo)
+      tRecAttr = tRecAttr->next();
+    Uint32 ret = *(Uint32*)tRecAttr->aRef();
+    return ret;
   }
   return -1;
 }
