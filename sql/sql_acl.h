@@ -79,6 +79,55 @@
 #define fix_rights_for_column(A) (((A) & COL_ACLS) | ((A & ~COL_ACLS) << 7))
 #define get_rights_for_column(A) (((A) & COL_ACLS) | ((A & ~COL_ACLS) >> 7))
 
+/* Classes */
+
+struct acl_host_and_ip
+{
+  char *hostname;
+  long ip,ip_mask;                      // Used with masked ip:s
+};
+
+
+class ACL_ACCESS {
+public:
+  ulong sort;
+  ulong access;
+};
+
+
+/* ACL_HOST is used if no host is specified */
+
+class ACL_HOST :public ACL_ACCESS
+{
+public:
+  acl_host_and_ip host;
+  char *db;
+};
+
+
+class ACL_USER :public ACL_ACCESS
+{
+public:
+  acl_host_and_ip host;
+  uint hostname_length;
+  USER_RESOURCES user_resource;
+  char *user,*password;
+  ulong salt[6]; // New password has longer length
+  uint8 pversion; // password version
+  enum SSL_type ssl_type;
+  const char *ssl_cipher, *x509_issuer, *x509_subject;
+};
+
+
+class ACL_DB :public ACL_ACCESS
+{
+public:
+  acl_host_and_ip host;
+  char *user,*db;
+};
+
+
+
 /* prototypes */
 
 my_bool  acl_init(THD *thd, bool dont_read_acl_tables);
@@ -88,7 +137,8 @@ ulong acl_get(const char *host, const char *ip, const char *bin_ip,
 	      const char *user, const char *db);
 ulong acl_getroot(THD *thd, const char *host, const char *ip, const char *user,
 		  const char *password,const char *scramble,char **priv_user,
-		  bool old_ver, USER_RESOURCES *max,char* prepared_scramble, int stage);
+		  bool old_ver, USER_RESOURCES *max,char* prepared_scramble,
+                  int stage, uint *cur_priv_version, ACL_USER **cached_user);
 bool acl_check_host(const char *host, const char *ip);
 bool check_change_password(THD *thd, const char *host, const char *user);
 bool change_password(THD *thd, const char *host, const char *user,

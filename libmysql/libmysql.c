@@ -2220,7 +2220,7 @@ Try also with PIPE or TCP/IP
 #include "_cust_libmysql.h";
 #endif
   DBUG_PRINT("info",("user: %s",buff+5));
-  /* 
+  /*
     We always start with old type handshake the only difference is message sent
     If server handles secure connection type we'll not send the real scramble
    */
@@ -2228,10 +2228,10 @@ Try also with PIPE or TCP/IP
   {
     if (passwd[0])
     {
-      /* Use something for not empty password not to match it against empty one */
-      end=scramble(strend(buff+5)+1, mysql->scramble_buff,"~MySQL#!",
-                 (my_bool) (mysql->protocol_version == 9));                 
-    }             
+      /* Use something for not empty password not to match against empty one */
+      end=scramble(strend(buff+5)+1, mysql->scramble_buff,"\1~MySQL#!\2",
+                 (my_bool) (mysql->protocol_version == 9));
+    }
     else  /* For empty password*/ 
     {
       end=strend(buff+5)+1;
@@ -2242,11 +2242,11 @@ Try also with PIPE or TCP/IP
   else
     end=scramble(strend(buff+5)+1, mysql->scramble_buff, passwd,
                  (my_bool) (mysql->protocol_version == 9));
-                                              
+
   /* Add database if needed */	       
   if (db && (mysql->server_capabilities & CLIENT_CONNECT_WITH_DB))
   {
-    end=strmake(end+1,db,NAME_LEN);  
+    end=strmake(end+1,db,NAME_LEN);
     mysql->db=my_strdup(db,MYF(MY_WME));
     db=0;
   }
@@ -2409,21 +2409,96 @@ static my_bool mysql_reconnect(MYSQL *mysql)
 my_bool	STDCALL mysql_change_user(MYSQL *mysql, const char *user, 
 				  const char *passwd, const char *db)
 {
-  char buff[512],*pos=buff;
+  char buff[512],*end=buff;
+  ulong		pkt_length;
+  char          password_hash[20]; /* Used for tmp storage of stage1 hash */
+  NET		*net= &mysql->net;
+  
   DBUG_ENTER("mysql_change_user");
 
   if (!user)
     user="";
   if (!passwd)
     passwd="";
+    
+   /* Store user into the buffer */
+  end=strmov(end,user)+1;
+   
+  /* 
+    We always start with old type handshake the only difference is message sent
+    If server handles secure connection type we'll not send the real scramble
+  */
+  if (mysql->server_capabilities & CLIENT_SECURE_CONNECTION)
+  {
+    if (passwd[0])
+    {
+      /* Use something for not empty password not to match it against empty one */
+      end=scramble(end, mysql->scramble_buff,"\1~MySQL#!\2",
+                 (my_bool) (mysql->protocol_version == 9));                 
+    }             
+    else  /* For empty password*/ 
+      *end=0; /* Store zero length scramble */
+  }
+  /* Real scramble is sent only for servers. This is to be blocked by option */
+  else
+    end=scramble(end, mysql->scramble_buff, passwd,
+                 (my_bool) (mysql->protocol_version == 9));
+                                              
+  /* Add database if needed */	       
+  end=strmov(end+1,db ? db : "");
+  
+  /* Write authentication package */ 
+  
+  simple_command(mysql,COM_CHANGE_USER, buff,(ulong) (end-buff),1);
+  
+  /* We shall only query sever if it expect us to do so */     
+  if ( (pkt_length=net_safe_read(mysql)) == packet_error)
+    goto error;
 
-  pos=strmov(pos,user)+1;
-  pos=scramble(pos, mysql->scramble_buff, passwd,
-	       (my_bool) (mysql->protocol_version == 9));
-  pos=strmov(pos+1,db ? db : "");
-  if (simple_command(mysql,COM_CHANGE_USER, buff,(ulong) (pos-buff),0))
-    DBUG_RETURN(1);
-
+  if  (mysql->server_capabilities & CLIENT_SECURE_CONNECTION)
+  {
+    /* This should basically always happen with new server unless empty password */
+    if (pkt_length==24) /* We have new hash back */
+    {
+      /* Old passwords will have zero at the first byte of hash */
+      if (net->read_pos[0]) 
+      {
+        /* Build full password hash as it is required to decode scramble */        
+        password_hash_stage1(buff, passwd);        
+        /* Store copy as we'll need it later */
+        memcpy(password_hash,buff,20);
+        /* Finally hash complete password using hash we got from server */
+        password_hash_stage2(password_hash,net->read_pos);
+        /* Decypt and store scramble 4 = hash for stage2 */
+        password_crypt(net->read_pos+4,mysql->scramble_buff,password_hash,20);
+        mysql->scramble_buff[20]=0;    
+        /* Encode scramble with password. Recycle buffer */
+        password_crypt(mysql->scramble_buff,buff,buff,20);
+      }
+      else
+      {
+        /* Create password to decode scramble */
+        create_key_from_old_password(passwd,password_hash);
+        /* Decypt and store scramble 4 = hash for stage2 */
+        password_crypt(net->read_pos+4,mysql->scramble_buff,password_hash,20);
+        mysql->scramble_buff[20]=0;    
+        /* Finally scramble decoded scramble with password */    
+        scramble(buff, mysql->scramble_buff, passwd,
+                  (my_bool) (mysql->protocol_version == 9));    
+      }    
+      /* Write second package of authentication */
+      if (my_net_write(net,buff,20) || net_flush(net))
+      {
+        net->last_errno= CR_SERVER_LOST; 
+        strmov(net->last_error,ER(net->last_errno));    
+        goto error;
+      }
+      /* Read What server thinks about out new auth message report */ 
+      if (net_safe_read(mysql) == packet_error)
+          goto error;
+    }
+  }
+      
   my_free(mysql->user,MYF(MY_ALLOW_ZERO_PTR));
   my_free(mysql->passwd,MYF(MY_ALLOW_ZERO_PTR));
   my_free(mysql->db,MYF(MY_ALLOW_ZERO_PTR));
@@ -2432,6 +2507,10 @@ my_bool	STDCALL mysql_change_user(MYSQL *mysql, const char *user,
   mysql->passwd=my_strdup(passwd,MYF(MY_WME));
   mysql->db=    db ? my_strdup(db,MYF(MY_WME)) : 0;
   DBUG_RETURN(0);
+  
+  error:
+  DBUG_RETURN(1);
+   
 }
 
 
