@@ -1,0 +1,17 @@
+<?xml version="1.0" standalone="no"?>
+
+<!-- This file is maintained by matt@mysql.com -->
+
+<test name="sel000007">
+
+   <version value="3.22"/>
+   <version value="3.23"/>
+
+   <description>Numeric functions.</description>
+   <description>Testing TRUNCATE().</description>
+
+   <resultfile name="r/3.23/sel000007.result">
+        <sql>SELECT TRUNCATE(52.64,1),TRUNCATE(52.64,2),TRUNCATE(52.64,-1),TRUNCATE(52.64,-2)</sql>
+   </resultfile>
+
+</test>

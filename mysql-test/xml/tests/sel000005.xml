@@ -1,0 +1,17 @@
+<?xml version="1.0" standalone="no"?>
+
+<!-- This file is maintained by matt@mysql.com -->
+
+<test name="sel000005">
+
+   <version value="3.22"/>
+   <version value="3.23"/>
+
+   <description>Numeric functions.</description>
+   <description>Testing FLOOR(), CEILING(), ROUND().</description>
+
+   <resultfile name="r/3.23/sel000005.result">
+        <sql>SELECT FLOOR(5.5),FLOOR(-5.5),CEILING(5.5),CEILING(-5.5),ROUND(5.5),ROUND(-5.5)</sql>
+   </resultfile>
+
+</test>

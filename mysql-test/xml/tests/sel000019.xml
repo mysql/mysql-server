@@ -1,0 +1,17 @@
+<?xml version="1.0" standalone="no"?>
+
+<!-- This file is maintained by matt@mysql.com -->
+
+<test name="sel000019">
+
+   <version value="3.22"/>
+   <version value="3.23"/>
+
+   <description>Numerics.</description>
+   <description>Testing DEGREES(), RADIANS().</description>
+
+   <resultfile name="r/3.23/sel000019.result">
+        <sql>SELECT DEGREES(PI()),RADIANS(360)</sql>
+   </resultfile>
+
+</test>
