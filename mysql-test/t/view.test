@@ -851,3 +851,13 @@ REVOKE ALL PRIVILEGES, GRANT OPTION FROM mysqltest_1@localhost;
 drop database mysqltest;
 drop view v1,v2;
 
+#
+# VIEW fields quoting
+#
+set sql_mode='ansi';
+create table t1 ("a*b" int);
+create view v1 as select "a*b" from t1;
+show create view v1;
+drop view v1;
+drop table t1;
+set sql_mode=default;
