@@ -3190,6 +3190,13 @@ void Dblqh::execLQHKEYREQ(Signal* signal)
     noFreeRecordLab(signal, lqhKeyReq, ZNO_TC_CONNECT_ERROR);
     return;
   }//if
+
+  if(ERROR_INSERTED(5038) && 
+     refToNode(signal->getSendersBlockRef()) != getOwnNodeId()){
+    jam();
+    SET_ERROR_INSERT_VALUE(5039);
+    return;
+  }
   
   c_Counters.operations++;
 
@@ -3567,6 +3574,7 @@ void Dblqh::prepareContinueAfterBlockedLab(Signal* signal)
 /* -------------------------------------------------------------------------- */
 /*       ALSO AFTER NORMAL PROCEDURE WE CONTINUE HERE                         */
 /* -------------------------------------------------------------------------- */
+  Uint32 tc_ptr_i = tcConnectptr.i;
   TcConnectionrec * const regTcPtr = tcConnectptr.p;
   if (regTcPtr->indTakeOver == ZTRUE) {
     jam();
@@ -3670,14 +3678,14 @@ void Dblqh::prepareContinueAfterBlockedLab(Signal* signal)
   EXECUTE_DIRECT(refToBlock(regTcPtr->tcAccBlockref), GSN_ACCKEYREQ, 
 		 signal, 7 + regTcPtr->primKeyLen);
   if (signal->theData[0] < RNIL) {
-    signal->theData[0] = tcConnectptr.i;
+    signal->theData[0] = tc_ptr_i;
     execACCKEYCONF(signal);
     return;
   } else if (signal->theData[0] == RNIL) {
     ;
   } else {
     ndbrequire(signal->theData[0] == (UintR)-1);
-    signal->theData[0] = tcConnectptr.i;
+    signal->theData[0] = tc_ptr_i;
     execACCKEYREF(signal);
   }//if
   return;
@@ -5692,9 +5700,7 @@ void Dblqh::execABORT(Signal* signal)
   BlockReference tcBlockref = signal->theData[1];
   Uint32 transid1 = signal->theData[2];
   Uint32 transid2 = signal->theData[3];
-  if (ERROR_INSERTED(5003)) {
-    systemErrorLab(signal);
-  }
+  CRASH_INSERTION(5003);
   if (ERROR_INSERTED(5015)) {
     CLEAR_ERROR_INSERT_VALUE;
     sendSignalWithDelay(cownref, GSN_ABORT, signal, 2000, 4);
@@ -5704,6 +5710,21 @@ void Dblqh::execABORT(Signal* signal)
                       transid2,
                       tcOprec) != ZOK) {
     jam();
+
+    if(ERROR_INSERTED(5039) && 
+       refToNode(signal->getSendersBlockRef()) != getOwnNodeId()){
+      jam();
+      SET_ERROR_INSERT_VALUE(5040);
+      return;
+    }
+
+    if(ERROR_INSERTED(5040) && 
+       refToNode(signal->getSendersBlockRef()) != getOwnNodeId()){
+      jam();
+      SET_ERROR_INSERT_VALUE(5003);
+      return;
+    }
+    
 /* ------------------------------------------------------------------------- */
 // SEND ABORTED EVEN IF NOT FOUND.
 //THE TRANSACTION MIGHT NEVER HAVE ARRIVED HERE.
@@ -5891,10 +5912,18 @@ void Dblqh::execACCKEYREF(Signal* signal)
      * Only primary replica can get ZTUPLE_ALREADY_EXIST || ZNO_TUPLE_FOUND
      *
      * Unless it's a simple or dirty read
+     *
+     * NOT TRUE!
+     * 1) op1 - primary insert ok
+     * 2) op1 - backup insert fail (log full or what ever)
+     * 3) op1 - delete ok @ primary
+     * 4) op1 - delete fail @ backup
+     *
+     * -> ZNO_TUPLE_FOUND is possible
      */
     ndbrequire
       (tcPtr->seqNoReplica == 0 ||
-       (errCode != ZTUPLE_ALREADY_EXIST && errCode != ZNO_TUPLE_FOUND) ||
+       errCode != ZTUPLE_ALREADY_EXIST ||
        (tcPtr->operation == ZREAD && (tcPtr->dirtyOp || tcPtr->opSimple)));
   }
   tcPtr->abortState = TcConnectionrec::ABORT_FROM_LQH;
@@ -10618,6 +10647,8 @@ void Dblqh::execEND_LCPCONF(Signal* signal)
       clcpCompletedState = LCP_IDLE;
     }//if
   }//if
+  lcpPtr.i = 0;
+  ptrAss(lcpPtr, lcpRecord);
   sendLCP_COMPLETE_REP(signal, lcpPtr.p->currentFragment.lcpFragOrd.lcpId);
 }//Dblqh::execEND_LCPCONF()
 
