@@ -79,6 +79,7 @@ void mysql_reset_errors(THD *thd)
     free_root(&thd->warn_root,MYF(0));
     bzero((char*) thd->warn_count, sizeof(thd->warn_count));
     thd->warn_list.empty();
+    thd->row_count= 1; // by default point to row 1
   }
   DBUG_VOID_RETURN;
 }

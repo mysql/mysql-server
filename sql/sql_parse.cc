@@ -3653,12 +3653,13 @@ bool add_field_to_list(THD *thd, char *field_name, enum_field_types type,
       {
 	char *not_used;
 	uint not_used2;
+  bool not_used3;
 
 	thd->cuted_fields=0;
 	String str,*res;
 	res=default_value->val_str(&str);
 	(void) find_set(interval, res->ptr(), res->length(), &not_used,
-			&not_used2);
+			&not_used2, &not_used3);
 	if (thd->cuted_fields)
 	{
 	  net_printf(thd,ER_INVALID_DEFAULT,field_name);
