@@ -83,7 +83,8 @@ public:
       Datetime,         // Precision down to 1 sec  (size 8 bytes)
       Timespec,         // Precision down to 1 nsec (size 12 bytes)
       Blob,             // Blob
-      Text              // Text blob
+      Text,             // Text blob,
+      Bit               // A bit
     };
     Enum m_typeId;
     Cmp* m_cmp;         // comparison method

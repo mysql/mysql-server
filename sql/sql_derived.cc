@@ -77,7 +77,7 @@ mysql_handle_derived(LEX *lex, int (*processor)(THD*, LEX*, TABLE_LIST*))
   Create temporary table structure (but do not fill it)
 
   SYNOPSIS
-    mysql_derived(THD *thd, LEX *lex, SELECT_LEX_UNIT *unit, TABLE_LIST *t)
+    mysql_derived_prepare()
     thd			Thread handle
     lex                 LEX for this thread
     orig_table_list     TABLE_LIST for the upper SELECT
@@ -103,6 +103,7 @@ int mysql_derived_prepare(THD *thd, LEX *lex, TABLE_LIST *orig_table_list)
 {
   SELECT_LEX_UNIT *unit= orig_table_list->derived;
   int res= 0;
+  DBUG_ENTER("mysql_derived_prepare");
   if (unit)
   {
     SELECT_LEX *first_select= unit->first_select();
@@ -110,7 +111,6 @@ int mysql_derived_prepare(THD *thd, LEX *lex, TABLE_LIST *orig_table_list)
     select_union *derived_result;
     bool is_union= first_select->next_select() && 
       first_select->next_select()->linkage == UNION_TYPE;
-    DBUG_ENTER("mysql_derived");
 
     if (!(derived_result= new select_union(0)))
       DBUG_RETURN(1); // out of memory
@@ -173,7 +173,7 @@ exit:
   }
   else if (orig_table_list->ancestor)
     orig_table_list->set_ancestor();
-  return (res);
+  DBUG_RETURN(res);
 }
 
 
