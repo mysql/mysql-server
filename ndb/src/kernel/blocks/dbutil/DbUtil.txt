@@ -1,0 +1,68 @@
+UTIL Protocols
+--------------
+Transactions are executed in two phases:
+1) PREPARE
+2) EXECUTE
+
+
+PREPARE PHASE
+-------------
+1)  ** REQUEST **
+    Client (any block) requests prepare service from Util:
+
+    Client --UTIL_PREPARE_REQ--> Util
+                    ...
+    Client --UTIL_PREPARE_REQ--> Util
+
+2)  ** DICTINFO **
+    Util requests Dict for information about table:
+
+    Util --GET_TABINFOREQ-->  Dict
+
+    Util   <--DICTTABINFO--   Dict
+                 ...
+    Util   <--DICTTABINFO--   Dict
+
+3)  ** PREPARE **
+    Operation (= transaction) is prepared (DbUtil::prepareOperation)
+
+    a) AttrMapping is created (a map used to read of the 
+       actual execute request attribute values and put them in KEYINFO)
+
+    b) TC Signal train is prepared 
+
+4)  ** CONFIRM **
+    Request is confirmed
+
+    Client <--UTIL_PREPARE_CONF-- Util
+
+
+EXECUTE PHASE
+-------------
+1)  Client (any block) requests execute service from Util:
+    (Execute can be INSERT, DELETE,...)
+
+    Client --UTIL_EXECUTE_REQ--> Util    (Multi-signals not yet implemented)
+                    ...
+    Client --UTIL_EXECUTE_REQ--> Util
+
+2)  Util --TCKEYREQ-->  tc
+
+    Util --KEYINFO-->   tc  (sometimes)  (Not yet implemented)
+             ...
+    Util --KEYINFO-->   tc
+
+    Util --ATTRINFO-->  tc  (sometimes)
+             ...
+    Util --ATTRINFO-->  tc
+
+3)  Util <--TCKEYCONF-- tc
+
+    Util --TC_COMMIT_ACK-->tc  (sometimes)
+
+    (in parallel with)
+
+    Util <--TRANSID_AI-- tc  (sometimes)
+               ...
+    Util <--TRANSID_AI-- tc
+

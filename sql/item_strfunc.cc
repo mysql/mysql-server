@@ -1579,7 +1579,7 @@ String *Item_func_soundex::val_str(String *str)
   char *from= (char *) res->ptr(), *end=from+res->length();
   tmp_value.set_charset(cs);
   
-  while (from != end && my_isspace(cs,*from)) // Skip pre-space
+  while (from != end && !my_isalpha(cs,*from)) // Skip pre-space
     from++; /* purecov: inspected */
   if (from == end)
     return &my_empty_string;		// No alpha characters.
@@ -2825,9 +2825,9 @@ String *Item_func_uuid::val_str(String *str)
   uuid_time=tv;
   pthread_mutex_unlock(&LOCK_uuid_generator);
 
-  uint32 time_low=            tv & 0xFFFFFFFF;
-  uint16 time_mid=            (tv >> 32) & 0xFFFF;
-  uint16 time_hi_and_version= (tv >> 48) | UUID_VERSION;
+  uint32 time_low=            (uint32) (tv & 0xFFFFFFFF);
+  uint16 time_mid=            (uint16) ((tv >> 32) & 0xFFFF);
+  uint16 time_hi_and_version= (uint16) ((tv >> 48) | UUID_VERSION);
 
   str->realloc(UUID_LENGTH+1);
   str->length(UUID_LENGTH);

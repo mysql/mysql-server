@@ -337,7 +337,7 @@ trx_purge_free_segment(
 	ibool		marked		= FALSE;
 	mtr_t		mtr;
 	
-/*	printf("Freeing an update undo log segment\n"); */
+/*	fputs("Freeing an update undo log segment\n", stderr); */
 
 #ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&(purge_sys->mutex)));
@@ -918,7 +918,7 @@ trx_purge_fetch_next_rec(
 			trx_purge_truncate_if_arr_empty();
 
 			if (srv_print_thread_releases) {
-				printf(
+				fprintf(stderr,
 	"Purge: No logs left in the history list; pages handled %lu\n",
 					(ulong) purge_sys->n_pages_handled);
 			}
@@ -951,7 +951,7 @@ trx_purge_fetch_next_rec(
 		return(NULL);
 	}
 		
-/*	printf("Thread %lu purging trx %lu undo record %lu\n",
+/*	fprintf(stderr, "Thread %lu purging trx %lu undo record %lu\n",
 		os_thread_get_curr_id(),
 		ut_dulint_get_low(purge_sys->purge_trx_no),
 		ut_dulint_get_low(purge_sys->purge_undo_no)); */
@@ -1064,14 +1064,14 @@ trx_purge(void)
 
 	if (srv_print_thread_releases) {
 	
-		printf("Starting purge\n");
+		fputs("Starting purge\n", stderr);
 	}
 
 	que_run_threads(thr);
 
 	if (srv_print_thread_releases) {
 
-		printf(
+		fprintf(stderr,
 		"Purge ends; pages handled %lu\n",
 		(ulong) purge_sys->n_pages_handled);
 	}

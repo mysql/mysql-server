@@ -118,7 +118,7 @@ int mysql_insert(THD *thd,TABLE_LIST *table_list,
     runs without --log-update or --log-bin).
   */
   bool log_on= (thd->options & OPTION_BIN_LOG) || (!(thd->master_access & SUPER_ACL));
-  bool transactional_table, log_delayed, bulk_insert;
+  bool transactional_table, log_delayed;
   uint value_count;
   ulong counter = 1;
   ulonglong id;
@@ -200,19 +200,10 @@ int mysql_insert(THD *thd,TABLE_LIST *table_list,
       goto abort;
   }
 
-  if (check_insert_fields(thd,table,fields,*values,1) ||
-      setup_tables(insert_table_list) ||
-      setup_fields(thd, 0, insert_table_list, *values, 0, 0, 0) ||
-      (duplic == DUP_UPDATE &&
-       (setup_fields(thd, 0, insert_table_list, update_fields, 0, 0, 0) ||
-        setup_fields(thd, 0, insert_table_list, update_values, 0, 0, 0))))
+  if (mysql_prepare_insert(thd, table_list, insert_table_list, table,
+			   fields, values, update_fields,
+			   update_values, duplic))
     goto abort;
-  if (find_real_table_in_list(table_list->next, 
-			      table_list->db, table_list->real_name))
-  {
-    my_error(ER_UPDATE_TABLE_USED, MYF(0), table_list->real_name);
-    goto abort;
-  }
 
   value_count= values->elements;
   while ((values= its++))
@@ -253,17 +244,16 @@ int mysql_insert(THD *thd,TABLE_LIST *table_list,
   thd->proc_info="update";
   if (duplic != DUP_ERROR)
     table->file->extra(HA_EXTRA_IGNORE_DUP_KEY);
-  if ((lock_type != TL_WRITE_DELAYED && !(specialflag & SPECIAL_SAFE_MODE)) &&
-      values_list.elements >= MIN_ROWS_TO_USE_BULK_INSERT)
-  {
-    table->file->extra_opt(HA_EXTRA_WRITE_CACHE,
-			   min(thd->variables.read_buff_size,
-			       table->avg_row_length*values_list.elements));
-    table->file->deactivate_non_unique_index(values_list.elements);
-    bulk_insert=1;
-  }
-  else
-    bulk_insert=0;
+  /*
+    let's *try* to start bulk inserts. It won't necessary
+    start them as values_list.elements should be greater than
+    some - handler dependent - threshold.
+    So we call start_bulk_insert to perform nesessary checks on
+    values_list.elements, and - if nothing else - to initialize
+    the code to make the call of end_bulk_insert() below safe.
+  */
+  if (lock_type != TL_WRITE_DELAYED)
+    table->file->start_bulk_insert(values_list.elements);
 
   while ((values= its++))
   {
@@ -341,24 +331,10 @@ int mysql_insert(THD *thd,TABLE_LIST *table_list,
   else
 #endif
   {
-    if (bulk_insert)
+    if (table->file->end_bulk_insert() && !error)
     {
-      if (table->file->extra(HA_EXTRA_NO_CACHE))
-      {
-	if (!error)
-	{
-	  table->file->print_error(my_errno,MYF(0));
-	  error=1;
-	}
-      }
-      if (table->file->activate_all_index(thd))
-      {
-	if (!error)
-	{
-	  table->file->print_error(my_errno,MYF(0));
-	  error=1;
-	}
-      }
+      table->file->print_error(my_errno,MYF(0));
+      error=1;
     }
     if (id && values_list.elements != 1)
       thd->insert_id(id);			// For update log
@@ -378,7 +354,7 @@ int mysql_insert(THD *thd,TABLE_LIST *table_list,
     transactional_table= table->file->has_transactions();
 
     log_delayed= (transactional_table || table->tmp_table);
-    if ((info.copied || info.deleted || info.updated) && 
+    if ((info.copied || info.deleted || info.updated) &&
 	(error <= 0 || !transactional_table))
     {
       if (mysql_bin_log.is_open())
@@ -451,6 +427,43 @@ abort:
 }
 
 
+/*
+  Prepare items in INSERT statement
+
+  SYNOPSIS
+    mysql_prepare_update()
+    thd			- thread handler
+    table_list		- global table list
+    insert_table_list	- local table list of INSERT SELECT_LEX
+
+  RETURN VALUE
+    0  - OK
+    -1 - error (message is not sent to user)
+*/
+int mysql_prepare_insert(THD *thd, TABLE_LIST *table_list,
+			 TABLE_LIST *insert_table_list, TABLE *table,
+			 List<Item> &fields, List_item *values,
+			 List<Item> &update_fields, List<Item> &update_values,
+			 enum_duplicates duplic)
+{
+  DBUG_ENTER("mysql_prepare_insert");
+  if (check_insert_fields(thd, table, fields, *values, 1) ||
+      setup_tables(insert_table_list) ||
+      setup_fields(thd, 0, insert_table_list, *values, 0, 0, 0) ||
+      (duplic == DUP_UPDATE &&
+       (setup_fields(thd, 0, insert_table_list, update_fields, 0, 0, 0) ||
+        setup_fields(thd, 0, insert_table_list, update_values, 0, 0, 0))))
+    DBUG_RETURN(-1);
+  if (find_real_table_in_list(table_list->next, 
+			      table_list->db, table_list->real_name))
+  {
+    my_error(ER_UPDATE_TABLE_USED, MYF(0), table_list->real_name);
+    DBUG_RETURN(-1);
+  }
+  DBUG_RETURN(0);
+}
+
+
 	/* Check if there is more uniq keys after field */
 
 static int last_uniq_key(TABLE *table,uint keynr)
@@ -471,6 +484,7 @@ int write_record(TABLE *table,COPY_INFO *info)
 {
   int error;
   char *key=0;
+  DBUG_ENTER("write_record");
 
   info->records++;
   if (info->handle_duplicates == DUP_REPLACE ||
@@ -578,14 +592,14 @@ int write_record(TABLE *table,COPY_INFO *info)
     info->copied++;
   if (key)
     my_safe_afree(key,table->max_unique_length,MAX_KEY_LENGTH);
-  return 0;
+  DBUG_RETURN(0);
 
 err:
   if (key)
     my_afree(key);
   info->last_errno= error;
   table->file->print_error(error,MYF(0));
-  return 1;
+  DBUG_RETURN(1);
 }
 
 
@@ -1432,12 +1446,10 @@ select_insert::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
   table->next_number_field=table->found_next_number_field;
   thd->count_cuted_fields= CHECK_FIELD_WARN;		// calc cuted fields
   thd->cuted_fields=0;
-  if (info.handle_duplicates != DUP_REPLACE)
-    table->file->extra(HA_EXTRA_WRITE_CACHE);
   if (info.handle_duplicates == DUP_IGNORE ||
       info.handle_duplicates == DUP_REPLACE)
     table->file->extra(HA_EXTRA_IGNORE_DUP_KEY);
-  table->file->deactivate_non_unique_index((ha_rows) 0);
+  table->file->start_bulk_insert((ha_rows) 0);
   DBUG_RETURN(0);
 }
 
@@ -1446,7 +1458,7 @@ select_insert::~select_insert()
   if (table)
   {
     table->next_number_field=0;
-    table->file->extra(HA_EXTRA_RESET);
+    table->file->reset();
   }
   thd->count_cuted_fields= CHECK_FIELD_IGNORE;
 }
@@ -1454,24 +1466,25 @@ select_insert::~select_insert()
 
 bool select_insert::send_data(List<Item> &values)
 {
+  DBUG_ENTER("select_insert::send_data");
   if (unit->offset_limit_cnt)
   {						// using limit offset,count
     unit->offset_limit_cnt--;
-    return 0;
+    DBUG_RETURN(0);
   }
   if (fields->elements)
     fill_record(*fields, values, 1);
   else
     fill_record(table->field, values, 1);
   if (thd->net.report_error || write_record(table,&info))
-    return 1;
+    DBUG_RETURN(1);
   if (table->next_number_field)		// Clear for next record
   {
     table->next_number_field->reset();
     if (! last_insert_id && thd->insert_id_used)
       last_insert_id=thd->insert_id();
   }
-  return 0;
+  DBUG_RETURN(0);
 }
 
 
@@ -1490,15 +1503,14 @@ void select_insert::send_error(uint errcode,const char *err)
     */
     DBUG_VOID_RETURN;
   }
-  table->file->extra(HA_EXTRA_NO_CACHE);
-  table->file->activate_all_index(thd);
+  table->file->end_bulk_insert();
   /*
     If at least one row has been inserted/modified and will stay in the table
     (the table doesn't have transactions) (example: we got a duplicate key
     error while inserting into a MyISAM table) we must write to the binlog (and
     the error code will make the slave stop).
   */
-  if ((info.copied || info.deleted || info.updated) && 
+  if ((info.copied || info.deleted || info.updated) &&
       !table->file->has_transactions())
   {
     if (last_insert_id)
@@ -1510,7 +1522,7 @@ void select_insert::send_error(uint errcode,const char *err)
       mysql_bin_log.write(&qinfo);
     }
     if (!table->tmp_table)
-      thd->options|=OPTION_STATUS_NO_TRANS_UPDATE;    
+      thd->options|=OPTION_STATUS_NO_TRANS_UPDATE;
   }
   if (info.copied || info.deleted || info.updated)
   {
@@ -1526,8 +1538,7 @@ bool select_insert::send_eof()
   int error,error2;
   DBUG_ENTER("select_insert::send_eof");
 
-  if (!(error=table->file->extra(HA_EXTRA_NO_CACHE)))
-    error=table->file->activate_all_index(thd);
+  error=table->file->end_bulk_insert();
   table->file->extra(HA_EXTRA_NO_IGNORE_DUP_KEY);
 
   /*
@@ -1603,7 +1614,7 @@ select_create::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
 
   /* Don't set timestamp if used */
   table->timestamp_default_now= table->timestamp_on_update_now= 0;
-  
+
   table->next_number_field=table->found_next_number_field;
 
   restore_record(table,default_values);			// Get empty record
@@ -1612,7 +1623,7 @@ select_create::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
   if (info.handle_duplicates == DUP_IGNORE ||
       info.handle_duplicates == DUP_REPLACE)
     table->file->extra(HA_EXTRA_IGNORE_DUP_KEY);
-  table->file->deactivate_non_unique_index((ha_rows) 0);
+  table->file->start_bulk_insert((ha_rows) 0);
   DBUG_RETURN(0);
 }
 

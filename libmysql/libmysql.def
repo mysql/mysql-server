@@ -127,3 +127,5 @@ EXPORTS
 	mysql_stmt_prepare
 	mysql_stmt_init
 	mysql_stmt_insert_id
+        mysql_stmt_attr_get
+        mysql_stmt_attr_set

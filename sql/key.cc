@@ -233,7 +233,7 @@ void key_unpack(String *to,TABLE *table,uint idx)
     }
     if ((field=key_part->field))
     {
-      field->val_str(&tmp,&tmp);
+      field->val_str(&tmp);
       if (key_part->length < field->pack_length())
 	tmp.length(min(tmp.length(),key_part->length));
       to->append(tmp);

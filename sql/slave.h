@@ -283,63 +283,12 @@ typedef struct st_relay_log_info
       until_log_names_cmp_result= UNTIL_LOG_NAMES_CMP_UNKNOWN;
   }
   
-  inline void inc_event_relay_log_pos()
+  inline void inc_event_relay_log_pos(ulonglong val)
   {
-    event_relay_log_pos= future_event_relay_log_pos;
+    event_relay_log_pos+= val;
   }
 
-  void inc_group_relay_log_pos(ulonglong log_pos,
-                               bool skip_lock=0)  
-  {
-    if (!skip_lock)
-      pthread_mutex_lock(&data_lock);
-    inc_event_relay_log_pos();
-    group_relay_log_pos= event_relay_log_pos;
-    strmake(group_relay_log_name,event_relay_log_name,
-            sizeof(group_relay_log_name)-1);
-
-    notify_group_relay_log_name_update();
-        
-    /*
-      If the slave does not support transactions and replicates a transaction,
-      users should not trust group_master_log_pos (which they can display with
-      SHOW SLAVE STATUS or read from relay-log.info), because to compute
-      group_master_log_pos the slave relies on log_pos stored in the master's
-      binlog, but if we are in a master's transaction these positions are always
-      the BEGIN's one (excepted for the COMMIT), so group_master_log_pos does
-      not advance as it should on the non-transactional slave (it advances by
-      big leaps, whereas it should advance by small leaps).
-    */
-    /*
-      In 4.x we used the event's len to compute the positions here. This is
-      wrong if the event was 3.23/4.0 and has been converted to 5.0, because
-      then the event's len is not what is was in the master's binlog, so this
-      will make a wrong group_master_log_pos (yes it's a bug in 3.23->4.0
-      replication: Exec_master_log_pos is wrong). Only way to solve this is to
-      have the original offset of the end of the event the relay log. This is
-      what we do in 5.0: log_pos has become "end_log_pos" (because the real use
-      of log_pos in 4.0 was to compute the end_log_pos; so better to store
-      end_log_pos instead of begin_log_pos.
-      If we had not done this fix here, the problem would also have appeared
-      when the slave and master are 5.0 but with different event length (for
-      example the slave is more recent than the master and features the event
-      UID). It would give false MASTER_POS_WAIT, false Exec_master_log_pos in
-      SHOW SLAVE STATUS, and so the user would do some CHANGE MASTER using this
-      value which would lead to badly broken replication.
-      Even the relay_log_pos will be corrupted in this case, because the len is
-      the relay log is not "val".
-      With the end_log_pos solution, we avoid computations involving lengthes.
-    */
-    DBUG_PRINT("info", ("log_pos=%lld group_master_log_pos=%lld",
-                        log_pos,group_master_log_pos));
-    if (log_pos) // some events (like fake Rotate) don't have log_pos
-      // when we are here, log_pos is the end of the event
-      group_master_log_pos= log_pos;
-    pthread_cond_broadcast(&data_cond);
-    if (!skip_lock)
-      pthread_mutex_unlock(&data_lock);
-  }
-
+  void inc_group_relay_log_pos(ulonglong val, ulonglong log_pos, bool skip_lock=0);
   int wait_for_pos(THD* thd, String* log_name, longlong log_pos, 
 		   longlong timeout);
   void close_temporary_tables();
@@ -578,7 +527,7 @@ extern HASH replicate_do_table, replicate_ignore_table;
 extern DYNAMIC_ARRAY  replicate_wild_do_table, replicate_wild_ignore_table;
 extern bool do_table_inited, ignore_table_inited,
 	    wild_do_table_inited, wild_ignore_table_inited;
-extern bool table_rules_on;
+extern bool table_rules_on, replicate_same_server_id;
 
 extern int disconnect_slave_event_count, abort_slave_event_count ;
 

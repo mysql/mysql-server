@@ -19,7 +19,11 @@ Created 5/7/1996 Heikki Tuuri
 #include "read0types.h"
 #include "hash0hash.h"
 
+#ifdef UNIV_DEBUG
 extern ibool	lock_print_waits;
+#endif /* UNIV_DEBUG */
+/* Buffer for storing information about the most recent deadlock error */
+extern FILE*	lock_latest_err_file;
 
 /*************************************************************************
 Gets the size of a lock struct. */
@@ -377,7 +381,9 @@ lock_table(
 				/* out: DB_SUCCESS, DB_LOCK_WAIT,
 				DB_DEADLOCK, or DB_QUE_THR_SUSPENDED */
 	ulint		flags,	/* in: if BTR_NO_LOCKING_FLAG bit is set,
-				does nothing */
+				does nothing;
+				if LOCK_TABLE_EXP bits are set,
+				creates an explicit table lock */
 	dict_table_t*	table,	/* in: database table in dictionary cache */
 	ulint		mode,	/* in: lock mode */
 	que_thr_t*	thr);	/* in: query thread */
@@ -389,6 +395,14 @@ lock_is_on_table(
 /*=============*/
 				/* out: TRUE if there are lock(s) */
 	dict_table_t*	table);	/* in: database table in dictionary cache */
+/*************************************************************************
+Releases a table lock.
+Releases possible other transactions waiting for this lock. */
+
+void
+lock_table_unlock(
+/*==============*/
+	lock_t*	lock);	/* in: lock */
 /*************************************************************************
 Releases an auto-inc lock a transaction possibly has on a table.
 Releases possible other transactions waiting for this lock. */
@@ -404,6 +418,14 @@ because of these locks. */
 void
 lock_release_off_kernel(
 /*====================*/
+	trx_t*	trx);	/* in: transaction */
+/*************************************************************************
+Releases table locks, and releases possible other transactions waiting
+because of these locks. */
+
+void
+lock_release_tables_off_kernel(
+/*===========================*/
 	trx_t*	trx);	/* in: transaction */
 /*************************************************************************
 Cancels a waiting lock request and releases possible other transactions
@@ -453,6 +475,7 @@ lock_check_trx_id_sanity(
 	dict_index_t*	index,		/* in: clustered index */
 	ibool		has_kernel_mutex);/* in: TRUE if the caller owns the
 					kernel mutex */
+#ifdef UNIV_DEBUG
 /*************************************************************************
 Validates the lock queue on a single record. */
 
@@ -462,14 +485,14 @@ lock_rec_queue_validate(
 				/* out: TRUE if ok */
 	rec_t*		rec,	/* in: record to look at */
 	dict_index_t*	index);	/* in: index, or NULL if not known */
+#endif /* UNIV_DEBUG */
 /*************************************************************************
 Prints info of a table lock. */
 
 void
 lock_table_print(
 /*=============*/
-	char*	buf,	/* in/out: buffer where to print, must be at least
-			500 bytes */
+	FILE*	file,	/* in: file where to print */
 	lock_t*	lock);	/* in: table type lock */
 /*************************************************************************
 Prints info of a record lock. */
@@ -477,8 +500,7 @@ Prints info of a record lock. */
 void
 lock_rec_print(
 /*===========*/
-	char*	buf,	/* in/out: buffer where to print, must be at least
-			500 bytes */
+	FILE*	file,	/* in: file where to print */
 	lock_t*	lock);	/* in: record type lock */
 /*************************************************************************
 Prints info of locks for all transactions. */
@@ -486,8 +508,8 @@ Prints info of locks for all transactions. */
 void
 lock_print_info(
 /*============*/
-	char*	buf,	/* in/out: buffer where to print */
-	char*	buf_end);/* in: buffer end */
+	FILE*	file);	/* in: file where to print */
+#ifdef UNIV_DEBUG
 /*************************************************************************
 Validates the lock queue on a table. */
 
@@ -512,6 +534,7 @@ ibool
 lock_validate(void);
 /*===============*/
 			/* out: TRUE if ok */
+#endif /* UNIV_DEBUG */
 
 /* The lock system */
 extern lock_sys_t*	lock_sys;
@@ -531,6 +554,7 @@ extern lock_sys_t*	lock_sys;
 /* Lock types */
 #define LOCK_TABLE	16	/* these type values should be so high that */
 #define	LOCK_REC	32	/* they can be ORed to the lock mode */
+#define LOCK_TABLE_EXP	80	/* explicit table lock */
 #define LOCK_TYPE_MASK	0xF0UL	/* mask used to extract lock type from the
 				type_mode field in a lock */
 /* Waiting lock flag */

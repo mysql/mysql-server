@@ -461,7 +461,7 @@ int main(int argc,char **argv)
     hash_map= sql_functions_map;\n\
     register uint32 cur_struct= uint4korr(hash_map+((len-1)*4));\n\
 \n\
-    for(;;){\n\
+    for (;;){\n\
       register uchar first_char= (uchar)cur_struct;\n\
 \n\
       if (first_char == 0)\n\
@@ -492,7 +492,7 @@ int main(int argc,char **argv)
     hash_map= symbols_map;\n\
     register uint32 cur_struct= uint4korr(hash_map+((len-1)*4));\n\
 \n\
-    for(;;){\n\
+    for (;;){\n\
       register uchar first_char= (uchar)cur_struct;\n\
 \n\
       if (first_char==0){\n\

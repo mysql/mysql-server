@@ -32,20 +32,21 @@ Get the database name length in a table name. */
 ulint
 dict_get_db_name_len(
 /*=================*/
-			/* out: database name length */
-	char*	name);	/* in: table name in the form dbname '/' tablename */
+				/* out: database name length */
+	const char*	name);	/* in: table name in the form
+				dbname '/' tablename */
 /*************************************************************************
 Accepts a specified string. Comparisons are case-insensitive. */
 
-char*
+const char*
 dict_accept(
 /*========*/
-			/* out: if string was accepted, the pointer
-			is moved after that, else ptr is returned */
-	char*	ptr,	/* in: scan from this */
-	const char* string,/* in: accept only this string as the next
-			non-whitespace string */
-	ibool*	success);/* out: TRUE if accepted */
+				/* out: if string was accepted, the pointer
+				is moved after that, else ptr is returned */
+	const char*	ptr,	/* in: scan from this */
+	const char*	string,	/* in: accept only this string as the next
+				non-whitespace string */
+	ibool*		success);/* out: TRUE if accepted */
 /************************************************************************
 Decrements the count of open MySQL handles to a table. */
 
@@ -69,41 +70,6 @@ database directories. */
 void
 dict_load_space_id_list(void);
 /*=========================*/
-/**************************************************************************
-Returns a stored procedure object and memoryfixes it. */
-UNIV_INLINE
-dict_proc_t*
-dict_procedure_get(
-/*===============*/
-				/* out: procedure, NULL if does not exist */
-	char*	proc_name,	/* in: table name */
-	trx_t*	trx);		/* in: transaction handle or NULL */
-/**************************************************************************
-Adds a stored procedure object to the dictionary cache. */
-
-void
-dict_procedure_add_to_cache(
-/*========================*/
-	dict_proc_t*	proc);	/* in: procedure */
-/**************************************************************************
-Reserves a parsed copy of a stored procedure to execute. If there are no
-free parsed copies left at the moment, parses a new copy. Takes the copy off
-the list of copies: the copy must be returned there with
-dict_procedure_release_parsed_copy. */
-
-que_t*
-dict_procedure_reserve_parsed_copy(
-/*===============================*/
-				/* out: the query graph */
-	dict_proc_t*	proc);	/* in: dictionary procedure node */
-/**************************************************************************
-Releases a parsed copy of an executed stored procedure. Puts the copy to the
-list of copies. */
-
-void
-dict_procedure_release_parsed_copy(
-/*===============================*/
-	que_t*	graph);	/* in: query graph of a stored procedure */
 /*************************************************************************
 Gets the column data type. */
 UNIV_INLINE
@@ -270,7 +236,7 @@ dict_foreign_parse_drop_constraints(
 	dict_table_t*	table,			/* in: table */
 	ulint*		n,			/* out: number of constraints
 						to drop */
-	char***		constraints_to_drop);	/* out: id's of the
+	const char***	constraints_to_drop);	/* out: id's of the
 						constraints to drop */
 /**************************************************************************
 Returns a table object and memoryfixes it. NOTE! This is a high-level
@@ -354,18 +320,19 @@ dict_table_get_index_noninline(
 	dict_table_t*	table,	/* in: table */
 	char*		name);	/* in: index name */
 /**************************************************************************
-Prints a table definition. */
-
-void
-dict_table_print(
-/*=============*/
-	dict_table_t*	table);	/* in: table */
-/**************************************************************************
 Prints a table data. */
 
 void
 dict_table_print_low(
 /*=================*/
+	dict_table_t*	table);	/* in: table */
+#ifdef UNIV_DEBUG
+/**************************************************************************
+Prints a table definition. */
+
+void
+dict_table_print(
+/*=============*/
 	dict_table_t*	table);	/* in: table */
 /**************************************************************************
 Prints a table data when we know the table name. */
@@ -374,8 +341,9 @@ void
 dict_table_print_by_name(
 /*=====================*/
 	char*	name);
+#endif /* UNIV_DEBUG */
 /**************************************************************************
-Sprintfs to a string info on foreign keys of a table. */
+Outputs info on foreign keys of a table. */
 
 void
 dict_print_info_on_foreign_keys(
@@ -384,19 +352,23 @@ dict_print_info_on_foreign_keys(
 				a format suitable to be inserted into
 				a CREATE TABLE, otherwise in the format
 				of SHOW TABLE STATUS */
-	char*		str,	/* in/out: pointer to a string */
-	ulint		len,	/* in: space in str available for info */
+	FILE*		file,	/* in: file where to print */
 	dict_table_t*	table);	/* in: table */
 /**************************************************************************
-Sprintfs to a string info on a foreign key of a table in a format suitable
-for CREATE TABLE. */
-
-char*
+Outputs info on a foreign key of a table in a format suitable for
+CREATE TABLE. */
+void
 dict_print_info_on_foreign_key_in_create_format(
 /*============================================*/
-                                /* out: how far in buf we printed */
-	dict_foreign_t*	foreign,/* in: foreign key constraint */
-	char*		buf);	/* in: buffer of at least 5000 bytes */
+	FILE*		file,	/* in: file where to print */
+	dict_foreign_t*	foreign);/* in: foreign key constraint */
+/************************************************************************
+Displays the names of the index and the table. */
+void
+dict_index_name_print(
+/*==================*/
+	FILE*			file,	/* in: output stream */
+	const dict_index_t*	index);	/* in: index to print */
 /************************************************************************
 Gets the first index on the table (the clustered index). */
 UNIV_INLINE
@@ -899,14 +871,21 @@ Releases the dictionary system mutex for MySQL. */
 void
 dict_mutex_exit_for_mysql(void);
 /*===========================*/
+/************************************************************************
+Checks if the database name in two table names is the same. */
 
-/* The following len must be at least 10000 bytes! */
-#define DICT_FOREIGN_ERR_BUF_LEN	10000
+ibool
+dict_tables_have_same_db(
+/*=====================*/
+				/* out: TRUE if same db name */
+	const char*	name1,	/* in: table name in the form
+				dbname '/' tablename */
+	const char*	name2);	/* in: table name in the form
+				dbname '/' tablename */
 
 /* Buffers for storing detailed information about the latest foreign key
 and unique key errors */
-extern char*	dict_foreign_err_buf;
-extern char*	dict_unique_err_buf;
+extern FILE*	dict_foreign_err_file;
 extern mutex_t	dict_foreign_err_mutex; /* mutex protecting the buffers */
 
 extern dict_sys_t*	dict_sys;	/* the dictionary system */
@@ -932,8 +911,6 @@ struct dict_sys_struct{
 	hash_table_t* 	table_id_hash;	/* hash table of the tables, based
 					on id */
 	hash_table_t* 	col_hash;	/* hash table of the columns */
-	hash_table_t*	procedure_hash;	/* hash table of the stored
-					procedures */
 	UT_LIST_BASE_NODE_T(dict_table_t)
 			table_LRU; 	/* LRU list of tables */
 	ulint		size;		/* varying space in bytes occupied

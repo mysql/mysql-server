@@ -155,7 +155,7 @@ my_bool grant_init(THD *thd);
 void grant_free(void);
 void grant_reload(THD *thd);
 bool check_grant(THD *thd, ulong want_access, TABLE_LIST *tables,
-		 uint show_command, bool dont_print_error);
+		 uint show_command, uint number, bool dont_print_error);
 bool check_grant_column (THD *thd,TABLE *table, const char *name, uint length,
 			 uint show_command=0);
 bool check_grant_all_columns(THD *thd, ulong want_access, TABLE *table);
@@ -169,6 +169,6 @@ int mysql_drop_user(THD *thd, List <LEX_USER> &list);
 int mysql_revoke_all(THD *thd, List <LEX_USER> &list);
 
 #ifdef NO_EMBEDDED_ACCESS_CHECKS
-#define check_grant(A,B,C,D,E) 0
+#define check_grant(A,B,C,D,E,F) 0
 #define check_grant_db(A,B) 0
 #endif

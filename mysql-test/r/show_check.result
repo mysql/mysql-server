@@ -43,7 +43,7 @@ wait_timeout	28800
 show variables like "this_doesn't_exists%";
 Variable_name	Value
 show table status from test like "this_doesn't_exists%";
-Name	Type	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
+Name	Engine	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
 show databases;
 Database
 mysql
@@ -90,8 +90,8 @@ test_set set( 'val1', 'val2', 'val3' ) not null default '',
 name char(20) default 'O''Brien' comment 'O''Brien as default',
 c int not null comment 'int column',
 `c-b` int comment 'name with a minus',
-`space 2` int comment 'name with a space',
-) comment = 'it\'s a table' ;
+`space 2` int comment 'name with a space'
+  ) comment = 'it\'s a table' ;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -309,7 +309,7 @@ insert into t1 values (1),(2);
 insert into t2 values (1),(2);
 insert into t3 values (1,1),(2,2);
 show table status;
-Name	Type	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
+Name	Engine	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
 t1	HEAP	Fixed	2	5	#	#	#	0	NULL	NULL	NULL	NULL	latin1_swedish_ci	NULL		
 t2	HEAP	Fixed	2	5	#	#	#	0	NULL	NULL	NULL	NULL	latin1_swedish_ci	NULL		
 t3	HEAP	Fixed	2	9	#	#	#	0	NULL	NULL	NULL	NULL	latin1_swedish_ci	NULL		
@@ -317,7 +317,7 @@ insert into t1 values (3),(4);
 insert into t2 values (3),(4);
 insert into t3 values (3,3),(4,4);
 show table status;
-Name	Type	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
+Name	Engine	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
 t1	HEAP	Fixed	4	5	#	#	#	0	NULL	NULL	NULL	NULL	latin1_swedish_ci	NULL		
 t2	HEAP	Fixed	4	5	#	#	#	0	NULL	NULL	NULL	NULL	latin1_swedish_ci	NULL		
 t3	HEAP	Fixed	4	9	#	#	#	0	NULL	NULL	NULL	NULL	latin1_swedish_ci	NULL		
@@ -325,7 +325,7 @@ insert into t1 values (5);
 insert into t2 values (5);
 insert into t3 values (5,5);
 show table status;
-Name	Type	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
+Name	Engine	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
 t1	HEAP	Fixed	5	5	#	#	#	0	NULL	NULL	NULL	NULL	latin1_swedish_ci	NULL		
 t2	HEAP	Fixed	5	5	#	#	#	0	NULL	NULL	NULL	NULL	latin1_swedish_ci	NULL		
 t3	HEAP	Fixed	5	9	#	#	#	0	NULL	NULL	NULL	NULL	latin1_swedish_ci	NULL		
@@ -333,7 +333,7 @@ delete from t1 where a=3;
 delete from t2 where b=3;
 delete from t3 where a=3;
 show table status;
-Name	Type	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
+Name	Engine	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
 t1	HEAP	Fixed	4	5	#	#	#	5	NULL	NULL	NULL	NULL	latin1_swedish_ci	NULL		
 t2	HEAP	Fixed	4	5	#	#	#	5	NULL	NULL	NULL	NULL	latin1_swedish_ci	NULL		
 t3	HEAP	Fixed	4	9	#	#	#	9	NULL	NULL	NULL	NULL	latin1_swedish_ci	NULL		
@@ -341,7 +341,7 @@ delete from t1;
 delete from t2;
 delete from t3;
 show table status;
-Name	Type	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
+Name	Engine	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
 t1	HEAP	Fixed	0	5	#	#	#	0	NULL	NULL	NULL	NULL	latin1_swedish_ci	NULL		
 t2	HEAP	Fixed	0	5	#	#	#	0	NULL	NULL	NULL	NULL	latin1_swedish_ci	NULL		
 t3	HEAP	Fixed	0	9	#	#	#	0	NULL	NULL	NULL	NULL	latin1_swedish_ci	NULL		
@@ -349,7 +349,7 @@ insert into t1 values (5);
 insert into t2 values (5);
 insert into t3 values (5,5);
 show table status;
-Name	Type	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
+Name	Engine	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
 t1	HEAP	Fixed	1	5	#	#	#	0	NULL	NULL	NULL	NULL	latin1_swedish_ci	NULL		
 t2	HEAP	Fixed	1	5	#	#	#	0	NULL	NULL	NULL	NULL	latin1_swedish_ci	NULL		
 t3	HEAP	Fixed	1	9	#	#	#	0	NULL	NULL	NULL	NULL	latin1_swedish_ci	NULL		
@@ -357,7 +357,7 @@ delete from t1 where a=5;
 delete from t2 where b=5;
 delete from t3 where a=5;
 show table status;
-Name	Type	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
+Name	Engine	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
 t1	HEAP	Fixed	0	5	#	#	#	5	NULL	NULL	NULL	NULL	latin1_swedish_ci	NULL		
 t2	HEAP	Fixed	0	5	#	#	#	5	NULL	NULL	NULL	NULL	latin1_swedish_ci	NULL		
 t3	HEAP	Fixed	0	9	#	#	#	9	NULL	NULL	NULL	NULL	latin1_swedish_ci	NULL		

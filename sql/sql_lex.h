@@ -344,7 +344,10 @@ public:
   Item_subselect *item;
   /* thread handler */
   THD *thd;
-  /* fake SELECT_LEX for union processing */
+  /*
+    SELECT_LEX for hidden SELECT in onion which process global
+    ORDER BY and LIMIT
+  */
   st_select_lex *fake_select_lex;
 
   st_select_lex *union_distinct; /* pointer to the last UNION DISTINCT */
@@ -353,12 +356,18 @@ public:
   bool create_total_list(THD *thd, st_lex *lex, TABLE_LIST **result);
   st_select_lex_unit* master_unit();
   st_select_lex* outer_select();
-  st_select_lex* first_select() { return (st_select_lex*) slave; }
+  st_select_lex* first_select()
+  {
+    return my_reinterpret_cast(st_select_lex*)(slave);
+  }
   st_select_lex* first_select_in_union() 
   { 
-    return (st_select_lex*) slave;
+    return my_reinterpret_cast(st_select_lex*)(slave);
   }
-  st_select_lex_unit* next_unit() { return (st_select_lex_unit*) next; }
+  st_select_lex_unit* next_unit()
+  {
+    return my_reinterpret_cast(st_select_lex_unit*)(next);
+  }
   st_select_lex* return_after_parsing() { return return_to; }
   void exclude_level();
   void exclude_tree();
@@ -372,7 +381,8 @@ public:
 
   bool check_updateable(char *db, char *table);
   void print(String *str);
-  
+
+  ulong init_prepare_fake_select_lex(THD *thd);
   void set_limit(st_select_lex *values, st_select_lex *sl);
 
   friend void mysql_init_query(THD *thd, bool lexonly);
@@ -433,6 +443,8 @@ public:
   bool  braces;   	/* SELECT ... UNION (SELECT ... ) <- this braces */
   /* TRUE when having fix field called in processing of this SELECT */
   bool having_fix_field;
+  /* explicit LIMIT clause was used */
+  bool explicit_limit;
 
   /* 
      SELECT for SELECT command st_select_lex. Used to privent scaning
@@ -524,6 +536,14 @@ public:
 };
 typedef class st_select_lex SELECT_LEX;
 
+#define ALTER_ADD_COLUMN	1
+#define ALTER_DROP_COLUMN	2
+#define ALTER_CHANGE_COLUMN	4
+#define ALTER_ADD_INDEX		8
+#define ALTER_DROP_INDEX	16
+#define ALTER_RENAME		32
+#define ALTER_ORDER		64
+#define ALTER_OPTIONS		128
 
 struct st_sp_chistics
 {
@@ -601,6 +621,7 @@ typedef struct st_lex
   uint grant, grant_tot_col, which_columns;
   uint fk_delete_opt, fk_update_opt, fk_match_option;
   uint slave_thd_opt;
+  uint alter_flags;
   uint8 describe;
   bool drop_if_exists, drop_temporary, local_file;
   bool in_comment, ignore_space, verbose, simple_alter, no_write_to_binlog;
@@ -643,6 +664,12 @@ typedef struct st_lex
       un->uncacheable|= cause;
     }
   }
+  TABLE_LIST *unlink_first_table(TABLE_LIST *tables,
+				 TABLE_LIST **global_first,
+				 TABLE_LIST **local_first);
+  TABLE_LIST *link_first_table_back(TABLE_LIST *tables,
+				    TABLE_LIST *global_first,
+				    TABLE_LIST *local_first);
 } LEX;
 
 

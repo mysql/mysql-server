@@ -26,10 +26,10 @@ Created 3/26/1996 Heikki Tuuri
 #include "os0proc.h"
 
 /* Copy of the prototype for innobase_mysql_print_thd: this
-copy MUST be equal to the one in mysql/sql/ha_innobase.cc ! */
+copy MUST be equal to the one in mysql/sql/ha_innodb.cc ! */
 
 void innobase_mysql_print_thd(
-	char* buf,
+	FILE* f,
 	void* thd);
 
 /* Dummy session used currently in MySQL interface */
@@ -151,6 +151,7 @@ trx_create(
 	trx->n_tickets_to_enter_innodb = 0;
 
 	trx->auto_inc_lock = NULL;
+	trx->n_tables_locked = 0;
 	
 	trx->read_view_heap = mem_heap_create(256);
 	trx->read_view = NULL;
@@ -239,19 +240,17 @@ trx_free(
 /*=====*/
 	trx_t*	trx)	/* in, own: trx object */
 {
-        char      err_buf[1000];
-
 #ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&kernel_mutex));
 #endif /* UNIV_SYNC_DEBUG */
 
 	if (trx->declared_to_be_inside_innodb) {
 	        ut_print_timestamp(stderr);
-	        trx_print(err_buf, trx);
-
-	        fprintf(stderr,
+		fputs(
 "  InnoDB: Error: Freeing a trx which is declared to be processing\n"
-"InnoDB: inside InnoDB.\n%s\n", err_buf);
+"InnoDB: inside InnoDB.\n", stderr);
+		trx_print(stderr, trx);
+		putc('\n', stderr);
 	}
 
 	ut_a(trx->magic_n == TRX_MAGIC_N);
@@ -280,6 +279,7 @@ trx_free(
 
 	ut_a(!trx->has_search_latch);
 	ut_a(!trx->auto_inc_lock);
+	ut_a(!trx->n_tables_locked);
 
 	ut_a(trx->dict_operation_lock_mode == 0);
 
@@ -758,7 +758,8 @@ trx_commit_off_kernel(
 		trx->read_view = NULL;
 	}
 
-/*	printf("Trx %lu commit finished\n", ut_dulint_get_low(trx->id)); */
+/*	fprintf(stderr, "Trx %lu commit finished\n",
+		ut_dulint_get_low(trx->id)); */
 
 	if (must_flush_log) {
 
@@ -1568,93 +1569,99 @@ own the kernel mutex. */
 void
 trx_print(
 /*======*/
-	char*	buf,	/* in/out: buffer where to print, must be at least
-			800 bytes */
+	FILE*	f,	/* in: output stream */
 	trx_t*	trx)	/* in: transaction */
 {
-        char*   start_of_line;
+	ibool	newline;
 
-        buf += sprintf(buf, "TRANSACTION %lu %lu",
+	fprintf(f, "TRANSACTION %lu %lu",
 		(ulong) ut_dulint_get_high(trx->id),
 		 (ulong) ut_dulint_get_low(trx->id));
 
   	switch (trx->conc_state) {
-  		case TRX_NOT_STARTED:         buf += sprintf(buf,
-						", not started"); break;
-  		case TRX_ACTIVE:              buf += sprintf(buf,
-						", ACTIVE %lu sec",
-			 (ulong) difftime(time(NULL), trx->start_time)); break;
-  		case TRX_COMMITTED_IN_MEMORY: buf += sprintf(buf,
-						", COMMITTED IN MEMORY");
+		case TRX_NOT_STARTED:
+			fputs(", not started", f);
+			break;
+		case TRX_ACTIVE:
+			fprintf(f, ", ACTIVE %lu sec",
+				(ulong)difftime(time(NULL), trx->start_time));
 									break;
-  		default: buf += sprintf(buf, " state %lu", (ulong) trx->conc_state);
+		case TRX_COMMITTED_IN_MEMORY:
+			fputs(", COMMITTED IN MEMORY", f);
+			break;
+		default:
+			fprintf(f, " state %lu", (ulong) trx->conc_state);
   	}
 
 #ifdef UNIV_LINUX
-        buf += sprintf(buf, ", process no %lu", trx->mysql_process_no);
+	fprintf(f, ", process no %lu", trx->mysql_process_no);
 #endif
-        buf += sprintf(buf, ", OS thread id %lu",
+	fprintf(f, ", OS thread id %lu",
 		       (ulong) os_thread_pf(trx->mysql_thread_id));
 
-	if (ut_strlen(trx->op_info) > 0) {
-		buf += sprintf(buf, " %s", trx->op_info);
+	if (*trx->op_info) {
+		putc(' ', f);
+		fputs(trx->op_info, f);
 	}
 	
   	if (trx->type != TRX_USER) {
-    		buf += sprintf(buf, " purge trx");
+		fputs(" purge trx", f);
   	}
 
 	if (trx->declared_to_be_inside_innodb) {
-	        buf += sprintf(buf, ", thread declared inside InnoDB %lu",
+		fprintf(f, ", thread declared inside InnoDB %lu",
 			       (ulong) trx->n_tickets_to_enter_innodb);
 	}
 
-	buf += sprintf(buf, "\n");
+	putc('\n', f);
   	
         if (trx->n_mysql_tables_in_use > 0 || trx->mysql_n_tables_locked > 0) {
 
-                buf += sprintf(buf, "mysql tables in use %lu, locked %lu\n",
-                                    (ulong) trx->n_mysql_tables_in_use,
-                                    (ulong) trx->mysql_n_tables_locked);
+                fprintf(f, "mysql tables in use %lu, locked %lu\n",
+                           (ulong) trx->n_mysql_tables_in_use,
+                           (ulong) trx->mysql_n_tables_locked);
         }
 
-	start_of_line = buf;
+	newline = TRUE;
 
   	switch (trx->que_state) {
-  		case TRX_QUE_RUNNING:         break;
-  		case TRX_QUE_LOCK_WAIT:       buf += sprintf(buf,
-						"LOCK WAIT "); break;
-  		case TRX_QUE_ROLLING_BACK:    buf += sprintf(buf,
-						"ROLLING BACK "); break;
-  		case TRX_QUE_COMMITTING:      buf += sprintf(buf,
-						"COMMITTING "); break;
-  		default: buf += sprintf(buf, "que state %lu", (ulong) trx->que_state);
+		case TRX_QUE_RUNNING:
+			newline = FALSE; break;
+		case TRX_QUE_LOCK_WAIT:
+			fputs("LOCK WAIT ", f); break;
+		case TRX_QUE_ROLLING_BACK:
+			fputs("ROLLING BACK ", f); break;
+		case TRX_QUE_COMMITTING:
+			fputs("COMMITTING ", f); break;
+		default:
+			fprintf(f, "que state %lu ", (ulong) trx->que_state);
   	}
 
   	if (0 < UT_LIST_GET_LEN(trx->trx_locks) ||
 	    mem_heap_get_size(trx->lock_heap) > 400) {
+		newline = TRUE;
 
-  		buf += sprintf(buf,
-"%lu lock struct(s), heap size %lu",
+		fprintf(f, "%lu lock struct(s), heap size %lu",
 			       (ulong) UT_LIST_GET_LEN(trx->trx_locks),
 			       (ulong) mem_heap_get_size(trx->lock_heap));
 	}
 
   	if (trx->has_search_latch) {
-  		buf += sprintf(buf, ", holds adaptive hash latch");
+		newline = TRUE;
+		fputs(", holds adaptive hash latch", f);
   	}
 
 	if (ut_dulint_cmp(trx->undo_no, ut_dulint_zero) != 0) {
-		buf += sprintf(buf, ", undo log entries %lu",
+		newline = TRUE;
+		fprintf(f, ", undo log entries %lu",
 			(ulong) ut_dulint_get_low(trx->undo_no));
 	}
 	
-	if (buf != start_of_line) {
-
-	        buf += sprintf(buf, "\n");
+	if (newline) {
+		putc('\n', f);
 	}
 
   	if (trx->mysql_thd != NULL) {
-    		innobase_mysql_print_thd(buf, trx->mysql_thd);
+		innobase_mysql_print_thd(f, trx->mysql_thd);
   	}  
 }

@@ -203,7 +203,8 @@ void my_thread_end(void)
       tmp->dbug=0;
     }
 #endif
-#if !defined(__bsdi__) || defined(HAVE_mit_thread) /* bsdi dumps core here */
+#if !defined(__bsdi__) && !defined(__OpenBSD__) || defined(HAVE_mit_thread)
+ /* bsdi and openbsd 3.5 dumps core here */
     pthread_cond_destroy(&tmp->suspend);
 #endif
     pthread_mutex_destroy(&tmp->mutex);

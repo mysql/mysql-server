@@ -17,6 +17,7 @@ DEBUG=0
 SILENT=0
 TMP=/tmp
 SUFFIX=""
+NDBCLUSTER=
 
 parse_arguments() {
   for arg do
@@ -26,6 +27,7 @@ parse_arguments() {
       --suffix=*) SUFFIX=`echo "$arg" | sed -e "s;--suffix=;;"` ;;
       --no-strip) STRIP=0 ;;
       --silent)   SILENT=1 ;;
+      --with-ndbcluster) NDBCLUSTER=1 ;;
       *)
 	echo "Unknown argument '$arg'"
 	exit 1
@@ -262,6 +264,18 @@ fi
 if [ -d $BASE/sql-bench/SCCS ] ; then 
   find $BASE/share -name SCCS -print | xargs rm -r -f
   find $BASE/sql-bench -name SCCS -print | xargs rm -r -f
+fi
+
+# NDB Cluster
+if [ x$NDBCLUSTER = x1 ]; then
+  if [ ! -f ndb/BinDist.sh ]; then
+    echo "Missing ndb/BinDist.sh"; exit 1
+  fi
+  mkdir $BASE/ndb || exit 1
+  # assume we have cpio..
+  if (cd ndb && sh BinDist.sh | cpio -pdm $BASE/ndb); then :; else
+    echo "Copy failed - missing files in ndb/BinDist.sh ?"; exit 1
+  fi
 fi
 
 # Change the distribution to a long descriptive name

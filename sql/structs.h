@@ -150,7 +150,8 @@ typedef struct st_time {
 
 
 typedef struct {
-  long year,month,day,hour,minute,second,second_part;
+  ulong year,month,day,hour;
+  ulonglong minute,second,second_part;
   bool neg;
 } INTERVAL;
 
@@ -183,7 +184,8 @@ enum SHOW_TYPE
   SHOW_SSL_CTX_SESS_TIMEOUTS, SHOW_SSL_CTX_SESS_CACHE_FULL,
   SHOW_SSL_GET_CIPHER_LIST,
 #endif /* HAVE_OPENSSL */
-  SHOW_RPL_STATUS, SHOW_SLAVE_RUNNING, SHOW_KEY_CACHE_LONG
+  SHOW_RPL_STATUS, SHOW_SLAVE_RUNNING,
+  SHOW_KEY_CACHE_LONG, SHOW_KEY_CACHE_CONST_LONG
 };
 
 enum SHOW_COMP_OPTION { SHOW_OPTION_YES, SHOW_OPTION_NO, SHOW_OPTION_DISABLED};

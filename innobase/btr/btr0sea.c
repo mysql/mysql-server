@@ -803,7 +803,7 @@ btr_search_guess_on_hash(
 
 		success = FALSE;
 /*
-		printf("Tree id %lu, page index id %lu fold %lu\n",
+		fprintf(stderr, "Tree id %lu, page index id %lu fold %lu\n",
 				ut_dulint_get_low(tree_id),
 				ut_dulint_get_low(btr_page_get_index_id(page)),
 				fold);
@@ -1517,8 +1517,9 @@ check_next_rec:
 
 			ha_insert_for_fold(table, ins_fold, ins_rec);
 /*
-			printf("Hash insert for %s, fold %lu\n",
-					cursor->index->name, ins_fold);
+			fputs("Hash insert for ", stderr);
+			dict_index_name_print(stderr, cursor->index);
+			fprintf(stderr, " fold %lu\n", ins_fold);
 */
 		} else {
 			ha_insert_for_fold(table, next_fold, next_rec);
@@ -1545,7 +1546,6 @@ btr_search_validate(void)
 	ulint		n_page_dumps	= 0;
 	ibool		ok		= TRUE;
 	ulint		i;
-	char		rec_str[500];
 	
 	rw_lock_x_lock(&btr_search_latch);
 
@@ -1566,29 +1566,25 @@ btr_search_validate(void)
 
 				fprintf(stderr,
 "  InnoDB: Error in an adaptive hash index pointer to page %lu\n"
-"ptr mem address %lu index id %lu %lu, node fold %lu, rec fold %lu\n",
-				(ulong) buf_frame_get_page_no(page),
-				(ulong)(node->data),
-			(ulong) ut_dulint_get_high(btr_page_get_index_id(page)),
-			(ulong) ut_dulint_get_low(btr_page_get_index_id(page)),
-			(ulong) node->fold,
-			(ulong) rec_fold((rec_t*)(node->data),
-					block->curr_n_fields,
-					block->curr_n_bytes,
-					btr_page_get_index_id(page)));
+"ptr mem address %p index id %lu %lu, node fold %lu, rec fold %lu\n",
+					(ulong) buf_frame_get_page_no(page),
+					node->data,
+					(ulong) ut_dulint_get_high(btr_page_get_index_id(page)),
+					(ulong) ut_dulint_get_low(btr_page_get_index_id(page)),
+					(ulong) node->fold,
+					(ulong) rec_fold((rec_t*)(node->data),
+					  		  block->curr_n_fields,
+					  		  block->curr_n_bytes,
+					  		  btr_page_get_index_id(page)));
 
-				rec_sprintf(rec_str, 450, (rec_t*)(node->data));
-
-	  			fprintf(stderr,
-					"InnoDB: Record %s\n"
-					"InnoDB: on that page.", rec_str);
-
-				fprintf(stderr,
-"Page mem address %lu, is hashed %lu, n fields %lu, n bytes %lu\n"
+				fputs("InnoDB: Record ", stderr);
+				rec_print(stderr, (rec_t*)(node->data));
+				fprintf(stderr, "\nInnoDB: on that page."
+"Page mem address %p, is hashed %lu, n fields %lu, n bytes %lu\n"
 "side %lu\n",
-			(ulong) page, (ulong) block->is_hashed,
-			(ulong) block->curr_n_fields,
-			(ulong) block->curr_n_bytes, (ulong) block->curr_side);
+			        page, (ulong) block->is_hashed,
+			        (ulong) block->curr_n_fields,
+			        (ulong) block->curr_n_bytes, (ulong) block->curr_side);
 
 				if (n_page_dumps < 20) {	
 					buf_page_print(page);

@@ -142,7 +142,7 @@ longlong2str:
 	.align 4
 	
 .globl	longlong10_to_str
-	.type	 longlong10_str,@function
+	.type	 longlong10_to_str,@function
 longlong10_to_str:
 	subl $80,%esp
 	pushl %ebp

@@ -444,7 +444,7 @@ bool close_thread_table(THD *thd, TABLE **table_ptr)
     else
     {
       // Free memory and reset for next loop
-      table->file->extra(HA_EXTRA_RESET);
+      table->file->reset();
     }
     table->in_use=0;
     if (unused_tables)
@@ -1029,14 +1029,15 @@ bool reopen_table(TABLE *table,bool locked)
   *table=tmp;
   table->file->change_table_ptr(table);
 
+  DBUG_ASSERT(table->table_name);
   for (field=table->field ; *field ; field++)
   {
-    (*field)->table=table;
+    (*field)->table= (*field)->orig_table= table;
     (*field)->table_name=table->table_name;
   }
   for (key=0 ; key < table->keys ; key++)
     for (part=0 ; part < table->key_info[key].usable_key_parts ; part++)
-      table->key_info[key].key_part[part].field->table=table;
+      table->key_info[key].key_part[part].field->table= table;
   VOID(pthread_cond_broadcast(&COND_refresh));
   error=0;
 
@@ -1317,18 +1318,34 @@ static int open_unireg_entry(THD *thd, TABLE *entry, const char *db,
 {
   char path[FN_REFLEN];
   int error;
+  uint discover_retry_count= 0;
   DBUG_ENTER("open_unireg_entry");
 
   strxmov(path, mysql_data_home, "/", db, "/", name, NullS);
-  if (openfrm(path,alias,
+  while (openfrm(path,alias,
 	       (uint) (HA_OPEN_KEYFILE | HA_OPEN_RNDFILE | HA_GET_INDEX |
 		       HA_TRY_READ_ONLY),
 	       READ_KEYINFO | COMPUTE_TYPES | EXTRA_RECORD,
 	      thd->open_options, entry))
   {
     if (!entry->crashed)
-      goto err;					// Can't repair the table
+    {
+      /*
+       Frm file could not be found on disk
+       Since it does not exist, no one can be using it
+       LOCK_open has been locked to protect from someone else
+       trying to discover the table at the same time.
+      */
+      if (discover_retry_count++ != 0)
+       goto err;
+      if (create_table_from_handler(db, name, true) != 0)
+       goto err;
 
+      thd->clear_error(); // Clear error message
+      continue;
+    }
+
+    // Code below is for repairing a crashed file
     TABLE_LIST table_list;
     bzero((char*) &table_list, sizeof(table_list)); // just for safe
     table_list.db=(char*) db;
@@ -1374,6 +1391,7 @@ static int open_unireg_entry(THD *thd, TABLE *entry, const char *db,
 
     if (error)
       goto err;
+    break;
   }
   /*
     If we are here, there was no fatal error (but error may be still
@@ -2589,9 +2607,15 @@ static void mysql_rm_tmp_tables(void)
 
     /* Remove all SQLxxx tables from directory */
 
-  for (idx=2 ; idx < (uint) dirp->number_off_files ; idx++)
+  for (idx=0 ; idx < (uint) dirp->number_off_files ; idx++)
   {
     file=dirp->dir_entry+idx;
+
+    /* skiping . and .. */
+    if (file->name[0] == '.' && (!file->name[1] ||
+       (file->name[1] == '.' &&  !file->name[2])))
+      continue;
+
     if (!bcmp(file->name,tmp_file_prefix,tmp_file_prefix_length))
     {
         sprintf(filePath,"%s%s",tmpdir,file->name);
@@ -2604,45 +2628,6 @@ static void mysql_rm_tmp_tables(void)
 }
 
 
-/*
-  CREATE INDEX and DROP INDEX are implemented by calling ALTER TABLE with
-  the proper arguments.  This isn't very fast but it should work for most
-  cases.
-  One should normally create all indexes with CREATE TABLE or ALTER TABLE.
-*/
-
-int mysql_create_index(THD *thd, TABLE_LIST *table_list, List<Key> &keys)
-{
-  List<create_field> fields;
-  List<Alter_drop> drop;
-  List<Alter_column> alter;
-  HA_CREATE_INFO create_info;
-  DBUG_ENTER("mysql_create_index");
-  bzero((char*) &create_info,sizeof(create_info));
-  create_info.db_type=DB_TYPE_DEFAULT;
-  create_info.default_table_charset= thd->variables.collation_database;
-  DBUG_RETURN(mysql_alter_table(thd,table_list->db,table_list->real_name,
-				&create_info, table_list,
-				fields, keys, drop, alter, 0, (ORDER*)0,
-				DUP_ERROR));
-}
-
-
-int mysql_drop_index(THD *thd, TABLE_LIST *table_list, List<Alter_drop> &drop)
-{
-  List<create_field> fields;
-  List<Key> keys;
-  List<Alter_column> alter;
-  HA_CREATE_INFO create_info;
-  DBUG_ENTER("mysql_drop_index");
-  bzero((char*) &create_info,sizeof(create_info));
-  create_info.db_type=DB_TYPE_DEFAULT;
-  create_info.default_table_charset= thd->variables.collation_database;
-  DBUG_RETURN(mysql_alter_table(thd,table_list->db,table_list->real_name,
-				&create_info, table_list,
-				fields, keys, drop, alter, 0, (ORDER*)0,
-				DUP_ERROR));
-}
 
 /*****************************************************************************
 	unireg support functions

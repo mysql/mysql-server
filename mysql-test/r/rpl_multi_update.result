@@ -6,7 +6,7 @@ drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
 start slave;
 CREATE TABLE t1 (
 a int unsigned not null auto_increment primary key,
-b int unsigned,
+b int unsigned
 ) ENGINE=MyISAM;
 CREATE TABLE t2 (
 a int unsigned not null auto_increment primary key,

@@ -61,7 +61,9 @@ ut_fprintf(
 			     negative in case of an error */
 	FILE*	    stream,  /* in: stream where to print */
         const char* format,  /* in: format of prints */
-        ...);                /* in: arguments to be printed */
+			...)	/* in: arguments to be printed */
+	__attribute__((__format__ (__printf__, 2, 3)));
+
 /************************************************************
 Gets the high 32 bits in a ulint. That is makes a shift >> 32,
 but since there seem to be compiler bugs in both gcc and Visual C++,
@@ -200,7 +202,7 @@ ut_print_timestamp(
 /*===============*/
 	FILE*  file); /* in: file where to print */
 /**************************************************************
-Sprintfs a timestamp to a buffer. */
+Sprintfs a timestamp to a buffer, 13..14 chars plus terminating NUL. */
 
 void
 ut_sprintf_timestamp(
@@ -238,19 +240,37 @@ Prints the contents of a memory buffer in hex and ascii. */
 void
 ut_print_buf(
 /*=========*/
-	byte*	buf,    /* in: memory buffer */
-	ulint	len);   /* in: length of the buffer */
-/*****************************************************************
-Prints the contents of a memory buffer in hex and ascii. */
+	FILE*		file,	/* in: file where to print */
+	const byte*	buf,	/* in: memory buffer */
+	ulint		len);	/* in: length of the buffer */
 
-ulint
-ut_sprintf_buf(
-/*===========*/
-			/* out: printed length in bytes */
-	char*	str,	/* in: buffer to print to */
-	byte*	buf,	/* in: memory buffer */
-	ulint 	len);	/* in: length of the buffer */
+/**************************************************************************
+Outputs a NUL-terminated string, quoted as an SQL identifier. */
 
+void
+ut_print_name(
+/*==========*/
+	FILE*		f,	/* in: output stream */
+	const char*	name);	/* in: name to print */
+
+/**************************************************************************
+Outputs a fixed-length string, quoted as an SQL identifier. */
+
+void
+ut_print_namel(
+/*==========*/
+	FILE*		f,	/* in: output stream */
+	const char*	name,	/* in: name to print */
+	ulint		namelen);/* in: length of name */
+
+/**************************************************************************
+Catenate files. */
+
+void
+ut_copy_file(
+/*=========*/
+	FILE*	dest,	/* in: output file */
+	FILE*	src);	/* in: input file to be appended to output */
 
 #ifndef UNIV_NONINL
 #include "ut0ut.ic"

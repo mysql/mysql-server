@@ -147,6 +147,7 @@ public:
     complete fix_fields() procedure.
   */
   inline void quick_fix_field() { fixed= 1; }
+  /* Function returns 1 on overflow and -1 on fatal errors */
   virtual int save_in_field(Field *field, bool no_conversions);
   virtual void save_org_in_field(Field *field)
   { (void) save_in_field(field, 1); }
@@ -157,6 +158,7 @@ public:
   virtual Item_result result_type () const { return REAL_RESULT; }
   virtual enum_field_types field_type() const;
   virtual enum Type type() const =0;
+  /* valXXX methods must return NULL or 0 or 0.0 if null_value is set. */
   virtual double val()=0;
   virtual longlong val_int()=0;
   virtual String *val_str(String*)=0;
@@ -517,7 +519,7 @@ public:
   void set_long_end();
   void set_time(TIME *tm, timestamp_type type);
   bool get_time(TIME *tm);
-  void reset() {}
+  void reset();
   /*
     Assign placeholder value from bind data.
     Note, that 'len' has different semantics in embedded library (as we
@@ -553,10 +555,7 @@ public:
 #endif
   Item_int(const char *str_arg,longlong i,uint length) :value(i)
     { max_length=length; name=(char*) str_arg; fixed= 1; }
-  Item_int(const char *str_arg) :
-    value(str_arg[0] == '-' ? strtoll(str_arg,(char**) 0,10) :
-	  (longlong) strtoull(str_arg,(char**) 0,10))
-    { max_length= (uint) strlen(str_arg); name=(char*) str_arg; fixed= 1; }
+  Item_int(const char *str_arg, uint length=64);
   enum Type type() const { return INT_ITEM; }
   enum Item_result result_type () const { return INT_RESULT; }
   enum_field_types field_type() const { return MYSQL_TYPE_LONGLONG; }
@@ -576,9 +575,7 @@ public:
 class Item_uint :public Item_int
 {
 public:
-  Item_uint(const char *str_arg, uint length) :
-    Item_int(str_arg, (longlong) strtoull(str_arg, (char**) 0,10), length) 
-    { unsigned_flag= 1; }
+  Item_uint(const char *str_arg, uint length);
   Item_uint(uint32 i) :Item_int((longlong) i, 10) 
     { unsigned_flag= 1; }
   double val()
