@@ -2196,13 +2196,22 @@ bool Item_func_set_collation::fix_fields(THD *thd,struct st_table_list *tables, 
   if (args[0]->fix_fields(thd, tables, args) || args[0]->check_cols(1))
     return 1;
   maybe_null=args[0]->maybe_null;
+  if (strcmp(args[0]->charset()->csname,set_collation->csname))
+  {
+    if (strcmp(set_collation->name,"binary"))
+    {
+      my_error(ER_COLLATION_CHARSET_MISMATCH, MYF(0), 
+        set_collation->name,args[0]->charset()->csname);
+      return 1;
+    }
+  }
   set_charset(set_collation);
+  coercibility= COER_EXPLICIT;
   with_sum_func= with_sum_func || args[0]->with_sum_func;
   used_tables_cache=args[0]->used_tables();
   const_item_cache=args[0]->const_item();
   fix_length_and_dec();
   fixed= 1;
-  coercibility= COER_EXPLICIT;
   return 0;
 }
 
