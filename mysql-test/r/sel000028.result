@@ -1,2 +1,2 @@
-"aba" REGEXP CONCAT("^","a")	
-1	
+"aba" REGEXP CONCAT("^","a")
+1
