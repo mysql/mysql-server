@@ -1780,7 +1780,7 @@ longlong Item_func_like::val_int()
   null_value=0;
   if (canDoTurboBM)
     return turboBM_matches(res->ptr(), res->length()) ? 1 : 0;
-  return my_wildcmp(charset(),
+  return my_wildcmp(cmp_charset,
 		    res->ptr(),res->ptr()+res->length(),
 		    res2->ptr(),res2->ptr()+res2->length(),
 		    escape,wild_one,wild_many) ? 0 : 1;
@@ -1813,14 +1813,12 @@ bool Item_func_like::fix_fields(THD *thd, TABLE_LIST *tlist, Item ** ref)
   if (Item_bool_func2::fix_fields(thd, tlist, ref))
     return 1;
 
-  /*
-    Comparision is by default done according to character set of LIKE
-    QQ: COERCIBILITY
-  */
-  if (cmp_charset == &my_charset_bin)
-    set_charset(&my_charset_bin);
-  else
-    set_charset(args[1]->charset());
+  if (set_cmp_charset(args[0]->charset(), args[0]->coercibility,
+		      args[1]->charset(), args[1]->coercibility))
+  {
+    my_error(ER_WRONG_ARGUMENTS,MYF(0),func_name());
+    return 1;
+  }
 
   /*
     We could also do boyer-more for non-const items, but as we would have to
