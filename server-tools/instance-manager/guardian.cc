@@ -29,23 +29,6 @@
 #include <signal.h>
 
 
-/*
-  The Guardian list node structure. Guardian utilizes it to store
-  guarded instances plus some additional info.
-*/
-
-struct GUARD_NODE
-{
-  Instance *instance;
-  /* state of an instance (i.e. STARTED, CRASHED, etc.) */
-  int state;
-  /* the amount of attemts to restart instance (cleaned up at success) */
-  int restart_counter;
-  /* triggered at a crash */
-  time_t crash_moment;
-  /* General time field. Used to provide timeouts (at shutdown and restart) */
-  time_t last_checked;
-};
 
 
 C_MODE_START
@@ -99,9 +82,9 @@ void Guardian_thread::request_shutdown(bool stop_instances_arg)
 void Guardian_thread::process_instance(Instance *instance,
                                        GUARD_NODE *current_node,
                                        LIST **guarded_instances,
-                                       LIST *elem)
+                                       LIST *node)
 {
-  int waitchild= Instance::DEFAULT_SHUTDOWN_DELAY;
+  uint waitchild= (uint) Instance::DEFAULT_SHUTDOWN_DELAY;
   /* The amount of times, Guardian attempts to restart an instance */
   int restart_retry= 100;
   time_t current_time= time(NULL);
@@ -109,21 +92,21 @@ void Guardian_thread::process_instance(Instance *instance,
   if (current_node->state == STOPPING)
   {
     /* this brach is executed during shutdown */
-    if (instance->options.shutdown_delay != NULL)
-      waitchild= atoi(instance->options.shutdown_delay);
+    if (instance->options.shutdown_delay_val)
+      waitchild= instance->options.shutdown_delay_val;
 
-    /* this returns true if and only if an instance was stopped for shure */
+    /* this returns true if and only if an instance was stopped for sure */
     if (instance->is_crashed())
-      *guarded_instances= list_delete(*guarded_instances, elem);
-    else if (current_time - current_node->last_checked > waitchild)
-      {
-        instance->kill_instance(SIGKILL);
-        /*
-          Later we do elem= elem->next. This is ok, as we are only removing
-          the node from the list. The pointer to the next one is still valid.
-        */
-        *guarded_instances= list_delete(*guarded_instances, elem);
-      }
+      *guarded_instances= list_delete(*guarded_instances, node);
+    else if ( (uint) (current_time - current_node->last_checked) > waitchild)
+    {
+      instance->kill_instance(SIGKILL);
+      /*
+        Later we do node= node->next. This is ok, as we are only removing
+        the node from the list. The pointer to the next one is still valid.
+      */
+      *guarded_instances= list_delete(*guarded_instances, node);
+    }
 
     return;
   }
@@ -174,11 +157,12 @@ void Guardian_thread::process_instance(Instance *instance,
         {
           instance->start();
           current_node->last_checked= current_time;
-          ((GUARD_NODE *) elem->data)->restart_counter++;
-          log_info("guardian: starting instance %s",
+          current_node->restart_counter++;
+          log_info("guardian: restarting instance %s",
                    instance->options.instance_name);
         }
-        else current_node->state= CRASHED_AND_ABANDONED;
+        else
+          current_node->state= CRASHED_AND_ABANDONED;
       }
       break;
     case CRASHED_AND_ABANDONED:
@@ -205,7 +189,7 @@ void Guardian_thread::process_instance(Instance *instance,
 void Guardian_thread::run()
 {
   Instance *instance;
-  LIST *elem;
+  LIST *node;
   struct timespec timeout;
 
   thread_registry.register_thread(&thread_info);
@@ -216,23 +200,23 @@ void Guardian_thread::run()
   /* loop, until all instances were shut down at the end */
   while (!(shutdown_requested && (guarded_instances == NULL)))
   {
-    elem= guarded_instances;
+    node= guarded_instances;
 
-    while (elem != NULL)
+    while (node != NULL)
     {
       struct timespec timeout;
 
-      GUARD_NODE *current_node= (GUARD_NODE *) elem->data;
-      instance= ((GUARD_NODE *) elem->data)->instance;
-      process_instance(instance, current_node, &guarded_instances, elem);
+      GUARD_NODE *current_node= (GUARD_NODE *) node->data;
+      instance= ((GUARD_NODE *) node->data)->instance;
+      process_instance(instance, current_node, &guarded_instances, node);
 
-      elem= elem->next;
+      node= node->next;
     }
     timeout.tv_sec= time(NULL) + monitoring_interval;
     timeout.tv_nsec= 0;
 
     /* check the loop predicate before sleeping */
-    if (!(shutdown_requested && (guarded_instances == NULL)))
+    if (!(shutdown_requested && (!(guarded_instances))))
       pthread_cond_timedwait(&COND_guardian, &LOCK_guardian, &timeout);
   }
 
@@ -262,6 +246,8 @@ int Guardian_thread::is_stopped()
   SYNOPSYS
     Guardian_thread::init()
 
+  NOTE: One should always lock guardian before calling this routine.
+
   RETURN
     0 - ok
     1 - error occured
@@ -273,14 +259,22 @@ int Guardian_thread::init()
   Instance_map::Iterator iterator(instance_map);
 
   instance_map->lock();
+  /* clear the list of guarded instances */
+  free_root(&alloc, MYF(0));
+  init_alloc_root(&alloc, MEM_ROOT_BLOCK_SIZE, 0);
+  guarded_instances= NULL;
+
   while ((instance= iterator.next()))
   {
-    if ((instance->options.nonguarded == NULL))
-      if (guard(instance))
+    if (!(instance->options.nonguarded))
+      if (guard(instance, TRUE))                /* do not lock guardian */
+      {
+        instance_map->unlock();
         return 1;
+      }
   }
-  instance_map->unlock();
 
+  instance_map->unlock();
   return 0;
 }
 
@@ -291,6 +285,8 @@ int Guardian_thread::init()
   SYNOPSYS
     guard()
     instance           the instance to be guarded
+    nolock             whether we prefer do not lock Guardian here,
+                       but use external locking instead
 
   DESCRIPTION
 
@@ -302,7 +298,7 @@ int Guardian_thread::init()
     1 - error occured
 */
 
-int Guardian_thread::guard(Instance *instance)
+int Guardian_thread::guard(Instance *instance, bool nolock)
 {
   LIST *node;
   GUARD_NODE *content;
@@ -310,7 +306,7 @@ int Guardian_thread::guard(Instance *instance)
   node= (LIST *) alloc_root(&alloc, sizeof(LIST));
   content= (GUARD_NODE *) alloc_root(&alloc, sizeof(GUARD_NODE));
 
-  if ((node == NULL) || (content == NULL))
+  if ((!(node)) || (!(content)))
     return 1;
   /* we store the pointers to instances from the instance_map's MEM_ROOT */
   content->instance= instance;
@@ -319,16 +315,21 @@ int Guardian_thread::guard(Instance *instance)
   content->state= NOT_STARTED;
   node->data= (void *) content;
 
-  pthread_mutex_lock(&LOCK_guardian);
-  guarded_instances= list_add(guarded_instances, node);
-  pthread_mutex_unlock(&LOCK_guardian);
+  if (nolock)
+    guarded_instances= list_add(guarded_instances, node);
+  else
+  {
+    pthread_mutex_lock(&LOCK_guardian);
+    guarded_instances= list_add(guarded_instances, node);
+    pthread_mutex_unlock(&LOCK_guardian);
+  }
 
   return 0;
 }
 
 
 /*
-  TODO: perhaps it would make sense to create a pool of the LIST elements
+  TODO: perhaps it would make sense to create a pool of the LIST nodeents
   and give them upon request. Now we are loosing a bit of memory when
   guarded instance was stopped and then restarted (since we cannot free just
   a piece of the MEM_ROOT).
@@ -418,4 +419,16 @@ int Guardian_thread::stop_instances(bool stop_instances_arg)
     }
   }
   return 0;
+}
+
+
+int Guardian_thread::lock()
+{
+  return pthread_mutex_lock(&LOCK_guardian);
+}
+
+
+int Guardian_thread::unlock()
+{
+  return pthread_mutex_unlock(&LOCK_guardian);
 }

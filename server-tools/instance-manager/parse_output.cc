@@ -53,7 +53,7 @@ int parse_output_and_get_value(const char *command, const char *word,
 
   wordlen= strlen(word);
 
-  if ((output= popen(command, "r")) == NULL)
+  if (!(output= popen(command, "r")))
     goto err;
 
   /*
