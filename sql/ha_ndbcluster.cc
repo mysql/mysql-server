@@ -405,6 +405,7 @@ static inline bool ndb_supported_type(enum_field_types type)
   case MYSQL_TYPE_LONG_BLOB:  
   case MYSQL_TYPE_ENUM:
   case MYSQL_TYPE_SET:         
+  case MYSQL_TYPE_BIT:
     return TRUE;
   case MYSQL_TYPE_NULL:   
   case MYSQL_TYPE_GEOMETRY:
@@ -485,13 +486,34 @@ int ha_ndbcluster::set_ndb_value(NdbOperation *ndb_op, Field *field,
     }
     if (! (field->flags & BLOB_FLAG))
     {
-      if (field->is_null())
-        // Set value to NULL
-        DBUG_RETURN((ndb_op->setValue(fieldnr, (char*)NULL, pack_len) != 0));
-      // Common implementation for most field types
-      DBUG_RETURN(ndb_op->setValue(fieldnr, (char*)field_ptr, pack_len) != 0);
+      if (field->type() != MYSQL_TYPE_BIT)
+      {
+	if (field->is_null())
+	  // Set value to NULL
+	  DBUG_RETURN((ndb_op->setValue(fieldnr, 
+					(char*)NULL, pack_len) != 0));
+	// Common implementation for most field types
+	DBUG_RETURN(ndb_op->setValue(fieldnr, 
+				     (char*)field_ptr, pack_len) != 0);
+      }
+      else // if (field->type() == MYSQL_TYPE_BIT)
+      {
+	char buf[8];
+        String str(buf, (uint32) sizeof(buf), NULL);
+ 
+        if (pack_len % 4)
+          // Round up bit field length to nearest word boundry
+          pack_len+= 4 - (pack_len % 4);
+        DBUG_ASSERT(pack_len <= 8);
+        if (field->is_null())
+          // Set value to NULL
+          DBUG_RETURN((ndb_op->setValue(fieldnr, (char*)NULL, pack_len) != 0));
+        DBUG_PRINT("info", ("bit field"));
+        DBUG_DUMP("value", (char*)field->val_str(&str)->ptr(), pack_len);
+        DBUG_RETURN(ndb_op->setValue(fieldnr, (char*)field->val_str(&str)->ptr(),
+                                     pack_len) != 0);
+      }
     }
-
     // Blob type
     NdbBlob *ndb_blob= ndb_op->getBlobHandle(fieldnr);
     if (ndb_blob != NULL)
@@ -626,13 +648,20 @@ int ha_ndbcluster::get_ndb_value(NdbOperation *ndb_op, Field *field,
       DBUG_ASSERT(field->ptr != NULL);
       if (! (field->flags & BLOB_FLAG))
       {	
-	byte *field_buf;
-	if (field->pack_length() != 0)
-	  field_buf= buf + (field->ptr - table->record[0]);
-	else
-	  field_buf= (byte *)&dummy_buf;
-        m_value[fieldnr].rec= ndb_op->getValue(fieldnr, 
-					       field_buf);
+        if (field->type() != MYSQL_TYPE_BIT)
+        {
+	  byte *field_buf;
+	  if (field->pack_length() != 0)
+	    field_buf= buf + (field->ptr - table->record[0]);
+	  else
+	    field_buf= (byte *)&dummy_buf;
+	  m_value[fieldnr].rec= ndb_op->getValue(fieldnr, 
+						 field_buf);
+	}
+        else // if (field->type() == MYSQL_TYPE_BIT)
+        {
+          m_value[fieldnr].rec= ndb_op->getValue(fieldnr);
+        }
         DBUG_RETURN(m_value[fieldnr].rec == NULL);
       }
 
@@ -2124,6 +2153,24 @@ void ha_ndbcluster::unpack_record(byte* buf)
       {
         if ((*value).rec->isNULL())
          (*field)->set_null(row_offset);
+        else if ((*field)->type() == MYSQL_TYPE_BIT)
+        {
+          uint pack_len= (*field)->pack_length();
+          if (pack_len < 5)
+          {
+            DBUG_PRINT("info", ("bit field H'%.8X", 
+				(*value).rec->u_32_value()));
+            ((Field_bit *) *field)->store((longlong) 
+					  (*value).rec->u_32_value());
+          }
+          else
+          {
+            DBUG_PRINT("info", ("bit field H'%.8X%.8X",
+                                *(Uint32 *)(*value).rec->aRef(),
+                                *((Uint32 *)(*value).rec->aRef()+1)));
+            ((Field_bit *) *field)->store((longlong)
+					  (*value).rec->u_64_value());          }
+        }
       }
       else
       {
@@ -3481,6 +3528,15 @@ static int create_ndb_column(NDBCOL &col,
     col.setType(NDBCOL::Char);
     col.setLength(field->pack_length());
     break;
+  case MYSQL_TYPE_BIT: {
+    int no_of_bits= field->field_length*8 + ((Field_bit *) field)->bit_len;
+    col.setType(NDBCOL::Bit);
+    if (!no_of_bits)
+      col.setLength(1);
+      else
+        col.setLength(no_of_bits);
+    break;
+  }
   case MYSQL_TYPE_NULL:        
   case MYSQL_TYPE_GEOMETRY:
     goto mysql_type_unsupported;
@@ -3853,7 +3909,8 @@ ha_ndbcluster::ha_ndbcluster(TABLE *table_arg):
 		HA_AUTO_PART_KEY |
                 HA_NO_VARCHAR |
 		HA_NO_PREFIX_CHAR_KEYS |
-		HA_NEED_READ_RANGE_BUFFER),
+		HA_NEED_READ_RANGE_BUFFER |
+                                HA_CAN_BIT_FIELD),
   m_share(0),
   m_use_write(FALSE),
   m_ignore_dup_key(FALSE),
