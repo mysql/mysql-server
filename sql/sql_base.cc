@@ -854,7 +854,7 @@ TABLE *reopen_name_locked_table(THD* thd, TABLE_LIST* table_list)
   table->tablenr=thd->current_tablenr++;
   table->used_fields=0;
   table->const_table=0;
-  table->outer_join= table->null_row= table->maybe_null= table->force_index= 0;
+  table->null_row= table->maybe_null= table->force_index= 0;
   table->status=STATUS_NO_RECORD;
   table->keys_in_use_for_query= share->keys_in_use;
   table->used_keys= share->keys_for_keyread;
@@ -1078,7 +1078,7 @@ TABLE *open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
   table->tablenr=thd->current_tablenr++;
   table->used_fields=0;
   table->const_table=0;
-  table->outer_join= table->null_row= table->maybe_null= table->force_index= 0;
+  table->null_row= table->maybe_null= table->force_index= 0;
   table->status=STATUS_NO_RECORD;
   table->keys_in_use_for_query= table->s->keys_in_use;
   table->insert_values= 0;
@@ -1150,7 +1150,6 @@ bool reopen_table(TABLE *table,bool locked)
   tmp.tablenr=		table->tablenr;
   tmp.used_fields=	table->used_fields;
   tmp.const_table=	table->const_table;
-  tmp.outer_join=	table->outer_join;
   tmp.null_row=		table->null_row;
   tmp.maybe_null=	table->maybe_null;
   tmp.status=		table->status;
