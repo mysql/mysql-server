@@ -68,6 +68,20 @@ select grp,group_concat(c order by c) from t1 group by grp;
 set group_concat_max_len = 5;
 select grp,group_concat(c) from t1 group by grp;
 show warnings;
+set group_concat_max_len = 1024;
+
+# Test variable length
+
+drop table if exists T_URL;
+create table T_URL ( URL_ID int(11), URL varchar(80));
+drop table if exists T_REQUEST;
+create table T_REQUEST ( REQ_ID int(11), URL_ID int(11));
+insert into T_URL values (4,'www.host.com'), (5,'www.google.com'),(5,'www.help.com');
+insert into T_REQUEST values (1,4), (5,4), (5,5);
+select REQ_ID, Group_Concat(URL) as URL from T_URL, T_REQUEST where 
+T_REQUEST.URL_ID = T_URL.URL_ID group by REQ_ID;
+drop table T_URL;
+drop table T_REQUEST;
 
 # Test errors
 
@@ -76,4 +90,4 @@ select group_concat(sum(a)) from t1 group by grp;
 --error 1054
 select grp,group_concat(c order by 2) from t1 group by grp;
 
-drop table if exists t1;
+drop table t1;
