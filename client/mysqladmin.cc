@@ -125,6 +125,10 @@ static TYPELIB command_typelib=
 
 static struct my_option my_long_options[] =
 {
+#ifdef __NETWARE__
+  {"autoclose", 'a', " Auto close the screen on exit for NetWare",
+   0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
+#endif
   {"count", 'c',
    "Number of iterations to make. This works with -i (--sleep) only.",
    (gptr*) &nr_iterations, (gptr*) &nr_iterations, 0, GET_UINT,
@@ -218,6 +222,11 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
   int error = 0;
 
   switch(optid) {
+#ifdef __NETWARE__
+  case 'a':
+   setscreenmode(SCR_AUTOCLOSE_ON_EXIT);      // auto close the screen /
+   break;
+#endif
   case 'c':
     opt_count_iterations= 1;
     break;
@@ -816,10 +825,17 @@ static int execute_commands(MYSQL *mysql,int argc, char **argv)
       }
       if (argv[1][0])
       {
+        char *pw= argv[1];
+#ifdef __WIN__
+        uint pw_len= strlen(pw);
+        if (pw_len > 1 && pw[0] == '\'' && pw[pw_len-1] == '\'')
+          printf("Warning: single quotes were not trimmed from the password by"
+                 " your command\nline client, as you might have expected.\n");
+#endif
         if (find_type(argv[0], &command_typelib, 2) == ADMIN_OLD_PASSWORD)
-          make_scrambled_password_323(crypted_pw, argv[1]);
+          make_scrambled_password_323(crypted_pw, pw);
         else
-          make_scrambled_password(crypted_pw, argv[1]);
+          make_scrambled_password(crypted_pw, pw);
       }
       else
 	crypted_pw[0]=0;			/* No password */

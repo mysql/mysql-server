@@ -2,20 +2,19 @@ use test;
 drop table if exists t1, t9 ;
 create table t1
 (
-a int not null, b varchar(30),
+a int, b varchar(30),
 primary key(a)
 ) engine = 'NDB'  ;
-drop table if exists t9;
 create table t9 
 (
-c1  tinyint not null, c2  smallint, c3  mediumint, c4  int,
+c1  tinyint, c2  smallint, c3  mediumint, c4  int,
 c5  integer, c6  bigint, c7  float, c8  double,
 c9  double precision, c10 real, c11 decimal(7, 4), c12 numeric(8, 4),
 c13 date, c14 datetime, c15 timestamp(14), c16 time,
 c17 year, c18 bit, c19 bool, c20 char,
-c21 char(10), c22 varchar(30), c23 char(100), c24 char(100),
-c25 char(100), c26 char(100), c27 char(100), c28 char(100),
-c29 char(100), c30 char(100), c31 enum('one', 'two', 'three'),
+c21 char(10), c22 varchar(30), c23 tinyblob, c24 tinytext,
+c25 blob, c26 text, c27 mediumblob, c28 mediumtext,
+c29 longblob, c30 longtext, c31 enum('one', 'two', 'three'),
 c32 set('monday', 'tuesday', 'wednesday'),
 primary key(c1)
 ) engine = 'NDB'  ;
@@ -72,14 +71,14 @@ def	test	t9	t9	c19	c19	1	1	1	Y	32768	0	63
 def	test	t9	t9	c20	c20	254	1	1	Y	0	0	8
 def	test	t9	t9	c21	c21	253	10	10	Y	0	0	8
 def	test	t9	t9	c22	c22	253	30	30	Y	0	0	8
-def	test	t9	t9	c23	c23	253	100	8	Y	0	0	8
-def	test	t9	t9	c24	c24	253	100	8	Y	0	0	8
-def	test	t9	t9	c25	c25	253	100	4	Y	0	0	8
-def	test	t9	t9	c26	c26	253	100	4	Y	0	0	8
-def	test	t9	t9	c27	c27	253	100	10	Y	0	0	8
-def	test	t9	t9	c28	c28	253	100	10	Y	0	0	8
-def	test	t9	t9	c29	c29	253	100	8	Y	0	0	8
-def	test	t9	t9	c30	c30	253	100	8	Y	0	0	8
+def	test	t9	t9	c23	c23	252	255	8	Y	144	0	63
+def	test	t9	t9	c24	c24	252	255	8	Y	16	0	8
+def	test	t9	t9	c25	c25	252	65535	4	Y	144	0	63
+def	test	t9	t9	c26	c26	252	65535	4	Y	16	0	8
+def	test	t9	t9	c27	c27	252	16777215	10	Y	144	0	63
+def	test	t9	t9	c28	c28	252	16777215	10	Y	16	0	8
+def	test	t9	t9	c29	c29	252	16777215	8	Y	144	0	63
+def	test	t9	t9	c30	c30	252	16777215	8	Y	16	0	8
 def	test	t9	t9	c31	c31	254	5	3	Y	256	0	8
 def	test	t9	t9	c32	c32	254	24	7	Y	2048	0	8
 c1	c2	c3	c4	c5	c6	c7	c8	c9	c10	c11	c12	c13	c14	c15	c16	c17	c18	c19	c20	c21	c22	c23	c24	c25	c26	c27	c28	c29	c30	c31	c32
@@ -1188,7 +1187,7 @@ c29= 'longblob', c30= 'longtext', c31='two', c32= 'tuesday';
 commit ;
 prepare stmt1 from 'delete from t1 where a=2' ;
 execute stmt1;
-select a,b from t1 where a=2 order by b;
+select a,b from t1 where a=2;
 a	b
 execute stmt1;
 insert into t1 values(0,NULL);
@@ -1270,18 +1269,23 @@ execute stmt1 using @arg00, @arg00;
 select a,b from t1 where a=@arg00;
 a	b
 2	two
+execute stmt1 using @arg01, @arg00;
 select a,b from t1 where a=@arg01;
 a	b
+22	two
 execute stmt1 using @arg00, @arg01;
 select a,b from t1 where a=@arg00;
 a	b
 2	two
 set @arg00=NULL;
 set @arg01=2;
+execute stmt1 using @arg00, @arg01;
+Warnings:
+Warning	1263	Data truncated; NULL supplied to NOT NULL column 'a' at row 1
 select a,b from t1 order by a;
 a	b
+0	two
 1	one
-2	two
 3	three
 4	four
 set @arg00=0;
@@ -1302,15 +1306,19 @@ create table t2 as select a,b from t1 ;
 prepare stmt1 from 'update t1 set a=? where b=?
                     and a in (select ? from t2
                               where b = ? or a = ?)';
+execute stmt1 using @arg00, @arg01, @arg02, @arg03, @arg04 ;
+affected rows: 1
+info: Rows matched: 1  Changed: 1  Warnings: 0
 select a,b from t1 where a = @arg00 ;
 a	b
+23	two
 prepare stmt1 from 'update t1 set a=? where b=?
                     and a not in (select ? from t2
                               where b = ? or a = ?)';
 execute stmt1 using @arg04, @arg01, @arg02, @arg03, @arg00 ;
-affected rows: 0
-info: Rows matched: 0  Changed: 0  Warnings: 0
-select a,b from t1 order by a;
+affected rows: 1
+info: Rows matched: 1  Changed: 1  Warnings: 0
+select a,b from t1 order by a ;
 a	b
 1	one
 2	two
@@ -1319,21 +1327,25 @@ a	b
 drop table t2 ;
 create table t2
 (
-a int not null, b varchar(30),
+a int, b varchar(30),
 primary key(a)
 ) engine = 'NDB'  ;
 insert into t2(a,b) select a, b from t1 ;
 prepare stmt1 from 'update t1 set a=? where b=?
                     and a in (select ? from t2
                               where b = ? or a = ?)';
+execute stmt1 using @arg00, @arg01, @arg02, @arg03, @arg04 ;
+affected rows: 1
+info: Rows matched: 1  Changed: 1  Warnings: 0
 select a,b from t1 where a = @arg00 ;
 a	b
+23	two
 prepare stmt1 from 'update t1 set a=? where b=?
                     and a not in (select ? from t2
                               where b = ? or a = ?)';
 execute stmt1 using @arg04, @arg01, @arg02, @arg03, @arg00 ;
-affected rows: 0
-info: Rows matched: 0  Changed: 0  Warnings: 0
+affected rows: 1
+info: Rows matched: 1  Changed: 1  Warnings: 0
 select a,b from t1 order by a ;
 a	b
 1	one
@@ -1474,7 +1486,7 @@ set @arg02=82 ;
 set @arg03='8-2' ;
 prepare stmt1 from 'insert into t1 values(?,?),(?,?)';
 execute stmt1 using @arg00, @arg01, @arg02, @arg03 ;
-select a,b from t1 where a in (@arg00,@arg02) order by a ;
+select a,b from t1 where a in (@arg00,@arg02) ;
 a	b
 81	8-1
 82	8-2
@@ -1489,6 +1501,7 @@ set @arg00=6 ;
 set @arg01=1 ;
 prepare stmt1 from 'insert into t1 set a=?, b=''sechs''
                     on duplicate key update a=a + ?, b=concat(b,''modified'') ';
+execute stmt1 using @arg00, @arg01;
 select * from t1 order by a;
 a	b
 0	NULL
@@ -1497,13 +1510,15 @@ a	b
 3	three
 4	four
 5	five
-6	six
+7	sixmodified
 8	eight
 9	nine
 81	8-1
 82	8-2
 set @arg00=81 ;
 set @arg01=1 ;
+execute stmt1 using @arg00, @arg01;
+ERROR 23000: Duplicate entry '82' for key 1
 drop table if exists t2 ;
 create table t2 (id int auto_increment primary key) 
 ENGINE= 'NDB'  ;
@@ -1526,23 +1541,32 @@ set @x1100="x1100" ;
 set @100=100 ;
 set @updated="updated" ;
 insert into t1 values(1000,'x1000_1') ;
+insert into t1 values(@1000,@x1000_2),(@1000,@x1000_3)
+on duplicate key update a = a + @100, b = concat(b,@updated) ;
 select a,b from t1 where a >= 1000 order by a ;
 a	b
-1000	x1000_1
+1000	x1000_3
+1100	x1000_1updated
 delete from t1 where a >= 1000 ;
 insert into t1 values(1000,'x1000_1') ;
 prepare stmt1 from ' insert into t1 values(?,?),(?,?)
                on duplicate key update a = a + ?, b = concat(b,?) ';
+execute stmt1 using @1000, @x1000_2, @1000, @x1000_3, @100, @updated ;
 select a,b from t1 where a >= 1000 order by a ;
 a	b
-1000	x1000_1
+1000	x1000_3
+1100	x1000_1updated
 delete from t1 where a >= 1000 ;
 insert into t1 values(1000,'x1000_1') ;
+execute stmt1 using @1000, @x1000_2, @1100, @x1000_3, @100, @updated ;
 select a,b from t1 where a >= 1000 order by a ;
 a	b
-1000	x1000_1
+1200	x1000_1updatedupdated
 delete from t1 where a >= 1000 ;
 prepare stmt1 from ' replace into t1 (a,b) select 100, ''hundred'' ';
+execute stmt1;
+execute stmt1;
+execute stmt1;
 test_sequence
 ------ multi table tests ------
 delete from t1 ;
@@ -1891,13 +1915,13 @@ def					@arg19	254	20	1	Y	128	31	63
 def					@arg20	254	8192	1	Y	0	31	8
 def					@arg21	254	8192	10	Y	0	31	8
 def					@arg22	254	8192	30	Y	0	31	8
-def					@arg23	254	8192	8	Y	0	31	8
+def					@arg23	254	8192	8	Y	128	31	63
 def					@arg24	254	8192	8	Y	0	31	8
-def					@arg25	254	8192	4	Y	0	31	8
+def					@arg25	254	8192	4	Y	128	31	63
 def					@arg26	254	8192	4	Y	0	31	8
-def					@arg27	254	8192	10	Y	0	31	8
+def					@arg27	254	8192	10	Y	128	31	63
 def					@arg28	254	8192	10	Y	0	31	8
-def					@arg29	254	8192	8	Y	0	31	8
+def					@arg29	254	8192	8	Y	128	31	63
 def					@arg30	254	8192	8	Y	0	31	8
 def					@arg31	254	8192	3	Y	0	31	8
 def					@arg32	254	8192	6	Y	128	31	63
@@ -1938,13 +1962,13 @@ def					@arg19	254	20	0	Y	128	31	63
 def					@arg20	254	8192	0	Y	0	31	8
 def					@arg21	254	8192	0	Y	0	31	8
 def					@arg22	254	8192	0	Y	0	31	8
-def					@arg23	254	8192	0	Y	0	31	8
+def					@arg23	254	8192	0	Y	128	31	63
 def					@arg24	254	8192	0	Y	0	31	8
-def					@arg25	254	8192	0	Y	0	31	8
+def					@arg25	254	8192	0	Y	128	31	63
 def					@arg26	254	8192	0	Y	0	31	8
-def					@arg27	254	8192	0	Y	0	31	8
+def					@arg27	254	8192	0	Y	128	31	63
 def					@arg28	254	8192	0	Y	0	31	8
-def					@arg29	254	8192	0	Y	0	31	8
+def					@arg29	254	8192	0	Y	128	31	63
 def					@arg30	254	8192	0	Y	0	31	8
 def					@arg31	254	8192	0	Y	0	31	8
 def					@arg32	254	8192	0	Y	0	31	8
@@ -1988,13 +2012,13 @@ def					@arg19	254	20	1	Y	128	31	63
 def					@arg20	254	8192	1	Y	0	31	8
 def					@arg21	254	8192	10	Y	0	31	8
 def					@arg22	254	8192	30	Y	0	31	8
-def					@arg23	254	8192	8	Y	0	31	8
+def					@arg23	254	8192	8	Y	128	31	63
 def					@arg24	254	8192	8	Y	0	31	8
-def					@arg25	254	8192	4	Y	0	31	8
+def					@arg25	254	8192	4	Y	128	31	63
 def					@arg26	254	8192	4	Y	0	31	8
-def					@arg27	254	8192	10	Y	0	31	8
+def					@arg27	254	8192	10	Y	128	31	63
 def					@arg28	254	8192	10	Y	0	31	8
-def					@arg29	254	8192	8	Y	0	31	8
+def					@arg29	254	8192	8	Y	128	31	63
 def					@arg30	254	8192	8	Y	0	31	8
 def					@arg31	254	8192	3	Y	0	31	8
 def					@arg32	254	8192	6	Y	128	31	63
@@ -2028,13 +2052,13 @@ def					@arg19	254	20	0	Y	128	31	63
 def					@arg20	254	8192	0	Y	0	31	8
 def					@arg21	254	8192	0	Y	0	31	8
 def					@arg22	254	8192	0	Y	0	31	8
-def					@arg23	254	8192	0	Y	0	31	8
+def					@arg23	254	8192	0	Y	128	31	63
 def					@arg24	254	8192	0	Y	0	31	8
-def					@arg25	254	8192	0	Y	0	31	8
+def					@arg25	254	8192	0	Y	128	31	63
 def					@arg26	254	8192	0	Y	0	31	8
-def					@arg27	254	8192	0	Y	0	31	8
+def					@arg27	254	8192	0	Y	128	31	63
 def					@arg28	254	8192	0	Y	0	31	8
-def					@arg29	254	8192	0	Y	0	31	8
+def					@arg29	254	8192	0	Y	128	31	63
 def					@arg30	254	8192	0	Y	0	31	8
 def					@arg31	254	8192	0	Y	0	31	8
 def					@arg32	254	8192	0	Y	0	31	8
@@ -2076,13 +2100,13 @@ def					@arg19	254	20	1	Y	128	31	63
 def					@arg20	254	8192	1	Y	0	31	8
 def					@arg21	254	8192	10	Y	0	31	8
 def					@arg22	254	8192	30	Y	0	31	8
-def					@arg23	254	8192	8	Y	0	31	8
+def					@arg23	254	8192	8	Y	128	31	63
 def					@arg24	254	8192	8	Y	0	31	8
-def					@arg25	254	8192	4	Y	0	31	8
+def					@arg25	254	8192	4	Y	128	31	63
 def					@arg26	254	8192	4	Y	0	31	8
-def					@arg27	254	8192	10	Y	0	31	8
+def					@arg27	254	8192	10	Y	128	31	63
 def					@arg28	254	8192	10	Y	0	31	8
-def					@arg29	254	8192	8	Y	0	31	8
+def					@arg29	254	8192	8	Y	128	31	63
 def					@arg30	254	8192	8	Y	0	31	8
 def					@arg31	254	8192	3	Y	0	31	8
 def					@arg32	254	8192	6	Y	128	31	63
@@ -2120,13 +2144,13 @@ def					@arg19	254	20	0	Y	128	31	63
 def					@arg20	254	8192	0	Y	0	31	8
 def					@arg21	254	8192	0	Y	0	31	8
 def					@arg22	254	8192	0	Y	0	31	8
-def					@arg23	254	8192	0	Y	0	31	8
+def					@arg23	254	8192	0	Y	128	31	63
 def					@arg24	254	8192	0	Y	0	31	8
-def					@arg25	254	8192	0	Y	0	31	8
+def					@arg25	254	8192	0	Y	128	31	63
 def					@arg26	254	8192	0	Y	0	31	8
-def					@arg27	254	8192	0	Y	0	31	8
+def					@arg27	254	8192	0	Y	128	31	63
 def					@arg28	254	8192	0	Y	0	31	8
-def					@arg29	254	8192	0	Y	0	31	8
+def					@arg29	254	8192	0	Y	128	31	63
 def					@arg30	254	8192	0	Y	0	31	8
 def					@arg31	254	8192	0	Y	0	31	8
 def					@arg32	254	8192	0	Y	0	31	8
@@ -2166,13 +2190,13 @@ def					@arg19	254	20	1	Y	128	31	63
 def					@arg20	254	8192	1	Y	0	31	8
 def					@arg21	254	8192	10	Y	0	31	8
 def					@arg22	254	8192	30	Y	0	31	8
-def					@arg23	254	8192	8	Y	0	31	8
+def					@arg23	254	8192	8	Y	128	31	63
 def					@arg24	254	8192	8	Y	0	31	8
-def					@arg25	254	8192	4	Y	0	31	8
+def					@arg25	254	8192	4	Y	128	31	63
 def					@arg26	254	8192	4	Y	0	31	8
-def					@arg27	254	8192	10	Y	0	31	8
+def					@arg27	254	8192	10	Y	128	31	63
 def					@arg28	254	8192	10	Y	0	31	8
-def					@arg29	254	8192	8	Y	0	31	8
+def					@arg29	254	8192	8	Y	128	31	63
 def					@arg30	254	8192	8	Y	0	31	8
 def					@arg31	254	8192	3	Y	0	31	8
 def					@arg32	254	8192	6	Y	128	31	63
@@ -2204,13 +2228,13 @@ def					@arg19	254	20	0	Y	128	31	63
 def					@arg20	254	8192	0	Y	0	31	8
 def					@arg21	254	8192	0	Y	0	31	8
 def					@arg22	254	8192	0	Y	0	31	8
-def					@arg23	254	8192	0	Y	0	31	8
+def					@arg23	254	8192	0	Y	128	31	63
 def					@arg24	254	8192	0	Y	0	31	8
-def					@arg25	254	8192	0	Y	0	31	8
+def					@arg25	254	8192	0	Y	128	31	63
 def					@arg26	254	8192	0	Y	0	31	8
-def					@arg27	254	8192	0	Y	0	31	8
+def					@arg27	254	8192	0	Y	128	31	63
 def					@arg28	254	8192	0	Y	0	31	8
-def					@arg29	254	8192	0	Y	0	31	8
+def					@arg29	254	8192	0	Y	128	31	63
 def					@arg30	254	8192	0	Y	0	31	8
 def					@arg31	254	8192	0	Y	0	31	8
 def					@arg32	254	8192	0	Y	0	31	8
@@ -2770,14 +2794,14 @@ c1	c20	c21	c22	c23	c24	c25	c26	c27	c28	c29	c30
 41	4	41	41	41	41	41	41	41	41	41	41
 42	4	42	42	42	42	42	42	42	42	42	42
 43	4	43	43	43	43	43	43	43	43	43	43
-50	5	50	50	50	50	50	50	50	50	50	50
+50	5	50	50	50.00	50.00	50.00	50.00	50.00	50.00	50.00	50.00
 51	5	51	51	51	51	51	51	51	51	51	51
-52	5	52	52	52	52	52	52	52	52	52	52
-53	5	53	53	53	53	53	53	53	53	53	53
-54	5	54	54	54	54	54	54	54	54	54	54
+52	5	52	52	52.00	52.00	52.00	52.00	52.00	52.00	52.00	52.00
+53	5	53	53	53.00	53.00	53.00	53.00	53.00	53.00	53.00	53.00
+54	5	54	54	54.00	54.00	54.00	54.00	54.00	54.00	54.00	54.00
 55	5	55	55	55	55	55	55	55	55	55	55
-56	6	56	56	56	56	56	56	56	56	56	56
-57	6	57	57	57	57	57	57	57	57	57	57
+56	6	56	56	56.00	56.00	56.00	56.00	56.00	56.00	56.00	56.00
+57	6	57	57	57.00	57.00	57.00	57.00	57.00	57.00	57.00	57.00
 60	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
 61	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
 62	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL

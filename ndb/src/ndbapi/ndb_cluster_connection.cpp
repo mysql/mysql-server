@@ -40,10 +40,7 @@ Ndb_cluster_connection::Ndb_cluster_connection(const char *connect_string)
   DBUG_ENTER("Ndb_cluster_connection");
   DBUG_PRINT("enter",("Ndb_cluster_connection this=0x%x", this));
   m_facade= TransporterFacade::theFacadeInstance= new TransporterFacade();
-  if (connect_string)
-    m_connect_string= my_strdup(connect_string,MYF(MY_WME));
-  else
-    m_connect_string= 0;
+
   m_config_retriever= 0;
   m_connect_thread= 0;
   m_connect_callback= 0;
@@ -58,7 +55,37 @@ Ndb_cluster_connection::Ndb_cluster_connection(const char *connect_string)
     ndb_print_state_mutex= NdbMutex_Create();
   }
 #endif
+  m_config_retriever=
+    new ConfigRetriever(connect_string, NDB_VERSION, NODE_TYPE_API);
+  if (m_config_retriever->hasError())
+  {
+    printf("Could not connect initialize handle to management server: %s",
+	   m_config_retriever->getErrorString());
+    delete m_config_retriever;
+    m_config_retriever= 0;
+  }
   DBUG_VOID_RETURN;
+}
+
+int Ndb_cluster_connection::get_connected_port() const
+{
+  if (m_config_retriever)
+    return m_config_retriever->get_mgmd_port();
+  return -1;
+}
+
+const char *Ndb_cluster_connection::get_connected_host() const
+{
+  if (m_config_retriever)
+    return m_config_retriever->get_mgmd_host();
+  return 0;
+}
+
+const char *Ndb_cluster_connection::get_connectstring(char *buf, int buf_sz) const
+{
+  if (m_config_retriever)
+    return m_config_retriever->get_connectstring(buf,buf_sz);
+  return 0;
 }
 
 extern "C" pthread_handler_decl(run_ndb_cluster_connection_connect_thread, me)
@@ -77,7 +104,7 @@ void Ndb_cluster_connection::connect_thread()
   int r;
   do {
     NdbSleep_SecSleep(1);
-    if ((r = connect(1)) == 0)
+    if ((r = connect(0,0,0)) == 0)
       break;
     if (r == -1) {
       printf("Ndb_cluster_connection::connect_thread error\n");
@@ -98,7 +125,7 @@ int Ndb_cluster_connection::start_connect_thread(int (*connect_callback)(void))
   int r;
   DBUG_ENTER("Ndb_cluster_connection::start_connect_thread");
   m_connect_callback= connect_callback;
-  if ((r = connect(1)) == 1)
+  if ((r = connect(0,0,0)) == 1)
   {
     DBUG_PRINT("info",("starting thread"));
     m_connect_thread= 
@@ -117,36 +144,15 @@ int Ndb_cluster_connection::start_connect_thread(int (*connect_callback)(void))
   DBUG_RETURN(0);
 }
 
-int Ndb_cluster_connection::connect(int reconnect)
+int Ndb_cluster_connection::connect(int no_retries, int retry_delay_in_seconds, int verbose)
 {
   DBUG_ENTER("Ndb_cluster_connection::connect");
   const char* error = 0;
   do {
     if (m_config_retriever == 0)
-    {
-      m_config_retriever=
-	new ConfigRetriever(m_connect_string, NDB_VERSION, NODE_TYPE_API);
-      if (m_config_retriever->hasError())
-      {
-	printf("Could not connect initialize handle to management server",
-	       m_config_retriever->getErrorString());
-	DBUG_RETURN(-1);
-      }
-    }
-    else
-      if (reconnect == 0)
-	DBUG_RETURN(0);
-    if (reconnect)
-    {
-      int r= m_config_retriever->do_connect(0,0,0);
-      if (r == 1)
-	DBUG_RETURN(1); // mgmt server not up yet
-      if (r == -1)
-	break;
-    }
-    else
-      if(m_config_retriever->do_connect(12,5,1) == -1)
-	break;
+      DBUG_RETURN(-1);
+    if (m_config_retriever->do_connect(no_retries,retry_delay_in_seconds,verbose))
+      DBUG_RETURN(1); // mgmt server not up yet
 
     Uint32 nodeId = m_config_retriever->allocNodeId(4/*retries*/,3/*delay*/);
     if(nodeId == 0)
@@ -189,7 +195,6 @@ Ndb_cluster_connection::~Ndb_cluster_connection()
       abort();
     TransporterFacade::theFacadeInstance= 0;
   }
-  my_free(m_connect_string,MYF(MY_ALLOW_ZERO_PTR));
   if (m_config_retriever)
     delete m_config_retriever;
   DBUG_VOID_RETURN;

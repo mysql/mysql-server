@@ -321,3 +321,23 @@ DROP DATABASE testdb7;
 DROP DATABASE testdb8;
 DROP DATABASE testdb9;
 DROP DATABASE testdb10;
+create table t1(a int, b int, c int, d int);
+grant insert(b), insert(c), insert(d), insert(a) on t1 to grant_user@localhost;
+show grants for grant_user@localhost;
+Grants for grant_user@localhost
+GRANT USAGE ON *.* TO 'grant_user'@'localhost'
+GRANT INSERT (a, d, c, b) ON `test`.`t1` TO 'grant_user'@'localhost'
+select Host,Db,User,Table_name,Column_name,Column_priv from mysql.columns_priv;
+Host	Db	User	Table_name	Column_name	Column_priv
+localhost	test	grant_user	t1	c	Insert
+localhost	test	grant_user	t1	b	Insert
+localhost	test	grant_user	t1	a	Insert
+localhost	test	grant_user	t1	d	Insert
+revoke ALL PRIVILEGES on t1 from grant_user@localhost;
+show grants for grant_user@localhost;
+Grants for grant_user@localhost
+GRANT USAGE ON *.* TO 'grant_user'@'localhost'
+select Host,Db,User,Table_name,Column_name,Column_priv from mysql.columns_priv;
+Host	Db	User	Table_name	Column_name	Column_priv
+drop user grant_user@localhost;
+drop table t1;

@@ -375,6 +375,7 @@ extern "C" {
   int ndb_mgm_get_configuration_nodeid(NdbMgmHandle handle);
   int ndb_mgm_get_connected_port(NdbMgmHandle handle);
   const char *ndb_mgm_get_connected_host(NdbMgmHandle handle);
+  const char *ndb_mgm_get_connectstring(NdbMgmHandle handle, char *buf, int buf_sz);
 
   /**
    * Destroy a management server handle
@@ -746,6 +747,7 @@ extern "C" {
   int ndb_mgm_get_string_parameter(const ndb_mgm_configuration_iterator*,
 				   int param, const char  ** value);
   int ndb_mgm_purge_stale_sessions(NdbMgmHandle handle, char **);
+  int ndb_mgm_check_connection(NdbMgmHandle handle);
 #ifdef __cplusplus
 }
 #endif
