@@ -564,8 +564,15 @@ recv_parse_or_apply_log_rec_body(
 	} else if (type <= MLOG_WRITE_STRING) {
 		new_ptr = mlog_parse_string(ptr, end_ptr, page);
 	} else {
-		new_ptr = NULL; /* Eliminate compiler warning */
-		ut_error;
+		new_ptr = NULL;
+
+	        fprintf(stderr,
+		 "InnoDB: WARNING: the log file may have been corrupt and it\n"
+		 "InnoDB: is possible that the log scan did not proceed\n"
+		 "InnoDB: far enough in recovery. Please run CHECK TABLE\n"
+		 "InnoDB: on your InnoDB tables to check that they are ok!\n"
+		 "InnoDB: Corrupt log record type %lu\n",
+			                                  (ulint)type);
 	}
 
 	ut_ad(!page || new_ptr);
@@ -1316,9 +1323,29 @@ recv_parse_log_rec(
 
 	new_ptr = mlog_parse_initial_log_record(ptr, end_ptr, type, space,
 								page_no);
+
+	/* If the operating system writes to the log complete 512-byte
+	blocks, we should not get the warnings below in recovery.
+        A warning means that the header and the trailer appeared ok
+	in a 512-byte block, but in the middle there was something wrong.
+	TODO: (1) add similar warnings in the case there is an incompletely
+	written log record which does not extend to the boundary of a
+	512-byte block. (2) Add a checksum to a log block. */
+
+	if (!new_ptr) {
+	        return(0);
+	}
+
 	/* Check that space id and page_no are sensible */
 
-	if (!new_ptr || *space != 0 || *page_no > 0x8FFFFFFF) {
+	if (*space != 0 || *page_no > 0x8FFFFFFF) {
+	        fprintf(stderr,
+		 "InnoDB: WARNING: the log file may have been corrupt and it\n"
+		 "InnoDB: is possible that the log scan did not proceed\n"
+		 "InnoDB: far enough in recovery. Please run CHECK TABLE\n"
+		 "InnoDB: on your InnoDB tables to check that they are ok!\n"
+	   "InnoDB: Corrupt log record type %lu, space id %lu, page no %lu\n",
+			(ulint)(*type), *space, *page_no);
 
 		return(0);
 	}
