@@ -108,21 +108,16 @@ String *Item_func_sha::val_str(String *str)
   if (sptr)  /* If we got value different from NULL */
   {
     SHA1_CONTEXT context;  /* Context used to generate SHA1 hash */
-   /* Temporary buffer to store 160bit digest */
+    /* Temporary buffer to store 160bit digest */
     uint8_t digest[SHA1_HASH_SIZE];
-    null_value=0;
     sha1_reset(&context);  /* We do not have to check for error here */
     /* No need to check error as the only case would be too long message */
     sha1_input(&context,(const unsigned char *) sptr->ptr(), sptr->length());
-    
-    if (str->alloc(SHA1_HASH_SIZE*2) || (sha1_result(&context,digest)) )
-        // Ensure that memory is free
+    /* Ensure that memory is free and we got result */
+    if ( !( str->alloc(SHA1_HASH_SIZE*2) || (sha1_result(&context,digest)) ) )
     {
-      null_value=1;
-      return 0;
-    }
-    sprintf((char *) str->ptr(),
-    "%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x\
+      sprintf((char *) str->ptr(),
+      "%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x\
 %02x%02x%02x%02x%02x%02x%02x%02x",
            digest[0], digest[1], digest[2], digest[3],
            digest[4], digest[5], digest[6], digest[7],
@@ -130,9 +125,11 @@ String *Item_func_sha::val_str(String *str)
            digest[12], digest[13], digest[14], digest[15],
            digest[16], digest[17], digest[18], digest[19]);
 	   
-    str->length((uint)  SHA1_HASH_SIZE*2);
-    return str;
-  }
+      str->length((uint)  SHA1_HASH_SIZE*2);
+      null_value=0;
+      return str;
+    }
+  }    
   null_value=1;
   return 0;
 }
@@ -141,10 +138,10 @@ void Item_func_sha::fix_length_and_dec()
 {
    max_length=SHA1_HASH_SIZE*2; // size of hex representation of hash
 }
-                                                                                                                                    
-						
-/* Implementation of AES encryption routines */                                                                                     
-				                                                                                                                                				
+
+
+/* Implementation of AES encryption routines */
+
 String *Item_func_aes_encrypt::val_str(String *str)
 {
   String * sptr = args[0]->val_str(str); // String to encrypt
@@ -163,7 +160,7 @@ String *Item_func_aes_encrypt::val_str(String *str)
                      key->length()) == aes_length)
       {		     
        // we have to get expected result length
-       str->length((uint)aes_length);
+       str->length((uint) aes_length);
        return str;
       }
     }
@@ -193,10 +190,10 @@ String *Item_func_aes_decrypt::val_str(String *str)
       length=my_aes_decrypt(sptr->ptr(),sptr->length(),str->ptr(),
                             key->ptr(),key->length());
       if (length>=0)  // if we got correct data data
-        {      
-          str->length((uint)length);
-          return str;
-	}
+      {      
+        str->length((uint) length);
+        return str;
+      }
     }
   }
   // Bad parameters. No memory or bad data will all go here
@@ -208,8 +205,8 @@ void Item_func_aes_decrypt::fix_length_and_dec()
 {
    max_length=args[0]->max_length;
 }
-				
-									     
+
+
 /*
 ** Concatinate args with the following premissess
 ** If only one arg which is ok, return value of arg

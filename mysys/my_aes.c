@@ -1,31 +1,32 @@
-/* Copyright (C) 2002 MySQL AB & MySQL Finland AB & TCX DataKonsult AB                                                              
-                                                                                                                                    
- This program is free software; you can redistribute it and/or modify                                                             
- it under the terms of the GNU General Public License as published by                                                             
- the Free Software Foundation; either version 2 of the License, or                                                                
- (at your option) any later version.                                                                                              
+/* Copyright (C) 2002 MySQL AB & MySQL Finland AB & TCX DataKonsult AB
+
+ This program is free software; you can redistribute it and/or modify
+ it under the terms of the GNU General Public License as published by
+ the Free Software Foundation; either version 2 of the License, or
+ (at your option) any later version.
                                                                                                                                 
- This program is distributed in the hope that it will be useful,                                                                  
- but WITHOUT ANY WARRANTY; without even the implied warranty of                                                                   
- MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the                                                                    
- GNU General Public License for more details.                                                                                     
+ This program is distributed in the hope that it will be useful,
+ but WITHOUT ANY WARRANTY; without even the implied warranty of
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ GNU General Public License for more details.
 			                                                                                                                                    
- You should have received a copy of the GNU General Public License                                                                
- along with this program; if not, write to the Free Software                                                                      
- Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */                                                     
+ You should have received a copy of the GNU General Public License
+ along with this program; if not, write to the Free Software
+ Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 
-/* MY_AES.C  Implementation of AES Encryption for MySQL */ 
+/* 
+   Implementation of AES Encryption for MySQL 
+   Initial version by Peter Zaitsev  June 2002    
+*/ 
 
 
 #include "my_global.h"				                                                                                      
 #include "m_string.h"
-#include <stdio.h>
 #include "my_aes.h"
 
 
-#define AES_ENCRYPT 1
-#define AES_DECRYPT 2
+enum encrypt_dir { AES_ENCRYPT, AES_DECRYPT };
 
 #define AES_BLOCK_SIZE 16 
            /* Block size in bytes */
@@ -75,6 +76,18 @@ static int my_aes_create_key(KEYINSTANCE* aes_key,char direction, char* key,
 }
 
 
+/*
+my_aes_encrypt  - Crypt buffer with AES encryption algorithm.
+source        - Pinter to data for encryption
+source_length - size of encruption data
+dest          - buffer to place encrypted data (must be large enough)
+key           - Key to be used for encryption
+kel_length    - Lenght of the key. Will handle keys of any length
+
+returns  - size of encrypted data, or negative in case of error.
+
+*/
+
 int my_aes_encrypt(const char* source, int source_length, const char* dest,
                    const char* key, int key_length)
 {
@@ -85,7 +98,7 @@ int my_aes_encrypt(const char* source, int source_length, const char* dest,
   char pad_len;               /* pad size for the last block */
   int i;
   
-  if ( (rc=my_aes_create_key(&aes_key,AES_ENCRYPT,key,key_length)) )
+  if ((rc=my_aes_create_key(&aes_key,AES_ENCRYPT,key,key_length)))
     return rc;
     
   num_blocks = source_length/AES_BLOCK_SIZE;    
@@ -104,7 +117,20 @@ int my_aes_encrypt(const char* source, int source_length, const char* dest,
   rijndaelEncrypt(aes_key.rk, aes_key.nr, block, dest);
   return AES_BLOCK_SIZE*(num_blocks + 1);    
 }
- 
+
+
+/*
+my_aes_decrypt  - DeCrypt buffer with AES encryption algorithm.
+source        - Pinter to data for decryption
+source_length - size of encrypted data
+dest          - buffer to place decrypted data (must be large enough)
+key           - Key to be used for decryption
+kel_length    - Lenght of the key. Will handle keys of any length
+
+returns  - size of original data, or negative in case of error.
+
+*/ 
+
 int my_aes_decrypt(const char* source, int source_length, const char* dest,
                    const char* key, int key_length)
 {
@@ -115,7 +141,7 @@ int my_aes_decrypt(const char* source, int source_length, const char* dest,
   char pad_len;               /* pad size for the last block */
   int i;
   
-  if ( (rc=my_aes_create_key(&aes_key,AES_DECRYPT,key,key_length)) )
+  if ((rc=my_aes_create_key(&aes_key,AES_DECRYPT,key,key_length)))
     return rc;
     
   num_blocks = source_length/AES_BLOCK_SIZE;   
@@ -143,6 +169,14 @@ int my_aes_decrypt(const char* source, int source_length, const char* dest,
     
   return AES_BLOCK_SIZE*num_blocks - pad_len;	  
 }
+
+
+/*
+my_aes_get_size - get size of buffer which will be large enough for encrypted
+                  data
+source_length -  length of data to be encrypted
+returns  - size of buffer required to store encrypted data		  
+*/
  
 int my_aes_get_size(int source_length)
 {  

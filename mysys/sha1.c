@@ -1,19 +1,19 @@
-/* Copyright (C) 2000 MySQL AB & MySQL Finland AB & TCX DataKonsult AB                                                              
-                                                                                                                                    
- This program is free software; you can redistribute it and/or modify                                                             
- it under the terms of the GNU General Public License as published by                                                             
- the Free Software Foundation; either version 2 of the License, or                                                                
- (at your option) any later version.                                                                                              
-                                                                                                                                        
- This program is distributed in the hope that it will be useful,                                                                  
- but WITHOUT ANY WARRANTY; without even the implied warranty of                                                                   
- MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the                                                                    
- GNU General Public License for more details.                                                                                     
-		                                                                                                                                    
- You should have received a copy of the GNU General Public License                                                                
- along with this program; if not, write to the Free Software                                                                      
- Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */                                                     
-			                                                                                      
+/* Copyright (C) 2000 MySQL AB & MySQL Finland AB & TCX DataKonsult AB
+
+ This program is free software; you can redistribute it and/or modify
+ it under the terms of the GNU General Public License as published by
+ the Free Software Foundation; either version 2 of the License, or
+ (at your option) any later version.
+ 
+ This program is distributed in the hope that it will be useful,
+ but WITHOUT ANY WARRANTY; without even the implied warranty of
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ GNU General Public License for more details.
+ 
+ You should have received a copy of the GNU General Public License
+ along with this program; if not, write to the Free Software
+ Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+ 
 /*
  sha1.c
  Original Source from: http://www.faqs.org/rfcs/rfc3174.html
@@ -47,13 +47,15 @@
 */
  
 /* 
-  Modified by 2002 by Peter Zaitsev to 
+  Modified 2002 by Peter Zaitsev to 
   - fit to new prototypes according to MySQL standard
   - Some optimizations 
   - All checking is now done in debug only mode
   - More comments 
 */
 
+#include "my_global.h"
+#include "m_string.h"
 #include "sha1.h"
 
 /*
@@ -160,11 +162,8 @@ int sha1_result( SHA1_CONTEXT *context,
 
 #endif     
     SHA1PadMessage(context);
-    for (i=0; i<64; i++)
-    {
-      /* message may be sensitive, clear it out */
-      context->Message_Block[i] = 0;
-    }
+     /* message may be sensitive, clear it out */
+    bzero((char*) context->Message_Block,64);
     context->Length   = 0;    /* and clear length  */
     context->Computed = 1;
 
@@ -174,8 +173,8 @@ int sha1_result( SHA1_CONTEXT *context,
 
   for (i = 0; i < SHA1_HASH_SIZE; i++)
   {
-    Message_Digest[i] = context->Intermediate_Hash[i>>2]
-                            >> 8 * ( 3 - ( i & 0x03 ) );
+    Message_Digest[i] = (context->Intermediate_Hash[i>>2] >> 8 
+                         * ( 3 - ( i & 0x03 ) ));
   }
   
   return SHA_SUCCESS;
@@ -225,12 +224,9 @@ int sha1_input(SHA1_CONTEXT *context, const uint8 *message_array,
   {
     return context->Corrupted;
   }    
-  while (length-- && !context->Corrupted)
-  
-#else
-  while (length--)
 #endif     
 
+  while (length--)
   {
     context->Message_Block[context->Message_Block_Index++] =
                     (*message_array & 0xFF);
@@ -245,6 +241,7 @@ int sha1_input(SHA1_CONTEXT *context, const uint8 *message_array,
     {
       /* Message is too long */
       context->Corrupted = 1;
+      return 1;
     }
 #endif 
 	
@@ -252,10 +249,9 @@ int sha1_input(SHA1_CONTEXT *context, const uint8 *message_array,
     {
       SHA1ProcessMessageBlock(context);
     }
-
-    message_array++;
+    message_array++;  
   }
-
+  
   return SHA_SUCCESS;
 }
 
@@ -281,8 +277,9 @@ int sha1_input(SHA1_CONTEXT *context, const uint8 *message_array,
  
 */
 
+/* Constants defined in SHA-1   */
 static const uint32  K[]=   
-{ /* Constants defined in SHA-1   */
+{ 
   0x5A827999,
   0x6ED9EBA1,
   0x8F1BBCDC,
@@ -312,7 +309,7 @@ void SHA1ProcessMessageBlock(SHA1_CONTEXT *context)
   }
 
 
-  for(t = 16; t < 80; t++)
+  for (t = 16; t < 80; t++)
   {
     W[t] = SHA1CircularShift(1,W[t-3] ^ W[t-8] ^ W[t-14] ^ W[t-16]);
   }
@@ -323,7 +320,7 @@ void SHA1ProcessMessageBlock(SHA1_CONTEXT *context)
   D = context->Intermediate_Hash[3];
   E = context->Intermediate_Hash[4];
 
-  for(t = 0; t < 20; t++)
+  for (t = 0; t < 20; t++)
   {
     temp =  SHA1CircularShift(5,A) +
             ((B & C) | ((~B) & D)) + E + W[t] + K[0];
@@ -334,7 +331,7 @@ void SHA1ProcessMessageBlock(SHA1_CONTEXT *context)
     A = temp;
   }
   
-  for(t = 20; t < 40; t++)
+  for (t = 20; t < 40; t++)
   {
     temp = SHA1CircularShift(5,A) + (B ^ C ^ D) + E + W[t] + K[1];
     E = D;
@@ -344,7 +341,7 @@ void SHA1ProcessMessageBlock(SHA1_CONTEXT *context)
     A = temp;
   }
 
-  for(t = 40; t < 60; t++)
+  for (t = 40; t < 60; t++)
   {
     temp = SHA1CircularShift(5,A) +
            ((B & C) | (B & D) | (C & D)) + E + W[t] + K[2];
@@ -355,7 +352,7 @@ void SHA1ProcessMessageBlock(SHA1_CONTEXT *context)
     A = temp;
   }
 
-  for(t = 60; t < 80; t++)
+  for (t = 60; t < 80; t++)
   {
     temp = SHA1CircularShift(5,A) + (B ^ C ^ D) + E + W[t] + K[3];
     E = D;
@@ -408,33 +405,6 @@ void SHA1PadMessage(SHA1_CONTEXT *context)
    block.
   */
   
-#ifdef SHA_OLD_CODE
-  
-  if (context->Message_Block_Index > 55)
-  {
-    context->Message_Block[context->Message_Block_Index++] = 0x80;
-    while (context->Message_Block_Index < 64)
-    {
-      context->Message_Block[context->Message_Block_Index++] = 0;
-    }
-
-    SHA1ProcessMessageBlock(context);
-
-    while (context->Message_Block_Index < 56)
-    {
-      context->Message_Block[context->Message_Block_Index++] = 0;
-    }
-  }
-  else
-  {
-    context->Message_Block[context->Message_Block_Index++] = 0x80;
-    while (context->Message_Block_Index < 56)
-    {
-      context->Message_Block[context->Message_Block_Index++] = 0;
-    }
-  }
-  
-#else
   int i=context->Message_Block_Index;
 
   if (i > 55)
@@ -444,9 +414,9 @@ void SHA1PadMessage(SHA1_CONTEXT *context)
           sizeof(context->Message_Block[0])*(64-i));
     context->Message_Block_Index=64;
     
-    SHA1ProcessMessageBlock(context);
-    
     /* This function sets context->Message_Block_Index to zero  */
+    SHA1ProcessMessageBlock(context);    
+
     bzero((char*) &context->Message_Block[0],
           sizeof(context->Message_Block[0])*56);
     context->Message_Block_Index=56;
@@ -460,8 +430,6 @@ void SHA1PadMessage(SHA1_CONTEXT *context)
     context->Message_Block_Index=56;
   }
             
-#endif  
-
   /*
    Store the message length as the last 8 octets
   */

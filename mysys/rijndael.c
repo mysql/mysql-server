@@ -1,44 +1,33 @@
-/* Copyright (C) 2002 MySQL AB & MySQL Finland AB & TCX DataKonsult AB                                                              
-                                                                                                                                    
- This program is free software; you can redistribute it and/or modify                                                             
- it under the terms of the GNU General Public License as published by                                                             
- the Free Software Foundation; either version 2 of the License, or                                                                
- at your option) any later version.                                                                                               
-                                                                                                                                
- This program is distributed in the hope that it will be useful,                                                                  
- but WITHOUT ANY WARRANTY; without even the implied warranty of                                                                   
- MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the                                                                    
- GNU General Public License for more details.                                                                                     
-			                                                                                                                                    
- You should have received a copy of the GNU General Public License                                                                
- along with this program; if not, write to the Free Software                                                                      
- Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */                                                     
+/* Copyright (C) 2002 MySQL AB & MySQL Finland AB & TCX DataKonsult AB
+
+ This program is free software; you can redistribute it and/or modify
+ it under the terms of the GNU General Public License as published by
+ the Free Software Foundation; either version 2 of the License, or
+ at your option) any later version.
+ 
+ This program is distributed in the hope that it will be useful,
+ but WITHOUT ANY WARRANTY; without even the implied warranty of
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ GNU General Public License for more details.
+ 
+ You should have received a copy of the GNU General Public License
+ along with this program; if not, write to the Free Software
+ Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+
 				                                                                                      
-				 
-/**
- * rijndael-alg-fst.c
- *
- * @version 3.0 (December 2000)
- *
- * Optimised ANSI C code for the Rijndael cipher (now AES)
- *
- * @author Vincent Rijmen <vincent.rijmen@esat.kuleuven.ac.be>
- * @author Antoon Bosselaers <antoon.bosselaers@esat.kuleuven.ac.be>
- * @author Paulo Barreto <paulo.barreto@terra.com.br>
- *
- * This code is hereby placed in the public domain.
- *
- * THIS SOFTWARE IS PROVIDED BY THE AUTHORS ''AS IS'' AND ANY EXPRESS
- * OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHORS OR CONTRIBUTORS BE
- * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
- * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
- * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
- * BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
- * WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE
- * OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
- * EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+/*
+ rijndael-alg-fst.c
+ 
+  @version 3.0 (December 2000)
+ 
+  Optimised ANSI C code for the Rijndael cipher (now AES)
+ 
+  @author Vincent Rijmen <vincent.rijmen@esat.kuleuven.ac.be>
+  @author Antoon Bosselaers <antoon.bosselaers@esat.kuleuven.ac.be>
+  @author Paulo Barreto <paulo.barreto@terra.com.br>
+ 
+  This code is hereby placed in the public domain.
+ 
  */
  
 #include <my_global.h> 
@@ -47,10 +36,12 @@
 #include "rijndael.h"
 
 /* 
+ May be defined to use fastest and much larger code (~10K extra code)
  #define FULL_UNROLL 
- May be defined to use fastest and much larger code.
 */
 
+
+#ifdef NOT_USED
 
 /*
 Te0[x] = S [x].[02, 01, 01, 03];
@@ -65,6 +56,8 @@ Td2[x] = Si[x].[0d, 0b, 0e, 09];
 Td3[x] = Si[x].[09, 0d, 0b, 0e];
 Td4[x] = Si[x].[01, 01, 01, 01];
 */
+
+#endif
 
 static const uint32 Te0[256]=
 {
@@ -801,9 +794,7 @@ int rijndaelKeySetupEnc(uint32 rk[/*4*(Nr + 1)*/], const uint8 cipherKey[],
       rk[6] = rk[2] ^ rk[5];
       rk[7] = rk[3] ^ rk[6];
       if (++i == 10) 
-      {
         return 10;
-      }
       rk += 4;
     }
   }
@@ -814,12 +805,12 @@ int rijndaelKeySetupEnc(uint32 rk[/*4*(Nr + 1)*/], const uint8 cipherKey[],
     for (;;) 
     {
       temp = rk[ 5];
-      rk[ 6] = rk[ 0] ^
+      rk[ 6] = (rk[ 0] ^
       (Te4[(temp >> 16) & 0xff] & 0xff000000) ^
       (Te4[(temp >>  8) & 0xff] & 0x00ff0000) ^
       (Te4[(temp      ) & 0xff] & 0x0000ff00) ^
       (Te4[(temp >> 24)       ] & 0x000000ff) ^
-      rcon[i];
+      rcon[i]);
       rk[ 7] = rk[ 1] ^ rk[ 6];
       rk[ 8] = rk[ 2] ^ rk[ 7];
       rk[ 9] = rk[ 3] ^ rk[ 8];
@@ -839,12 +830,12 @@ int rijndaelKeySetupEnc(uint32 rk[/*4*(Nr + 1)*/], const uint8 cipherKey[],
     for (;;) 
     {
       temp = rk[ 7];
-      rk[ 8] = rk[ 0] ^
+      rk[ 8] = (rk[ 0] ^
       (Te4[(temp >> 16) & 0xff] & 0xff000000) ^
       (Te4[(temp >>  8) & 0xff] & 0x00ff0000) ^
       (Te4[(temp      ) & 0xff] & 0x0000ff00) ^
       (Te4[(temp >> 24)       ] & 0x000000ff) ^
-      rcon[i];
+      rcon[i]);
       rk[ 9] = rk[ 1] ^ rk[ 8];
       rk[10] = rk[ 2] ^ rk[ 9];
       rk[11] = rk[ 3] ^ rk[10];
@@ -853,11 +844,11 @@ int rijndaelKeySetupEnc(uint32 rk[/*4*(Nr + 1)*/], const uint8 cipherKey[],
         return 14;
       }
       temp = rk[11];
-      rk[12] = rk[ 4] ^
+      rk[12] = (rk[ 4] ^
       (Te4[(temp >> 24)       ] & 0xff000000) ^
       (Te4[(temp >> 16) & 0xff] & 0x00ff0000) ^
       (Te4[(temp >>  8) & 0xff] & 0x0000ff00) ^
-      (Te4[(temp      ) & 0xff] & 0x000000ff);
+      (Te4[(temp      ) & 0xff] & 0x000000ff));
       rk[13] = rk[ 5] ^ rk[12];
       rk[14] = rk[ 6] ^ rk[13];
       rk[15] = rk[ 7] ^ rk[14];
