@@ -903,16 +903,18 @@ stop_slave ()
     manager_term $slave_ident
     if [ $? != 0 ] && [ -f $slave_pid ]
     then # try harder!
-     $ECHO "slave not cooperating with mysqladmin, will try manual kill"
-     kill `$CAT $slave_pid`
-     sleep_until_file_deleted $slave_pid
-     if [ -f $slave_pid ] ; then
-       $ECHO "slave refused to die. Sending SIGKILL"
-       kill -9 `$CAT $slave_pid`
-       $RM -f $slave_pid
-     else
-      $ECHO "slave responded to SIGTERM "
-     fi
+      $ECHO "slave not cooperating with mysqladmin, will try manual kill"
+      kill `$CAT $slave_pid`
+      sleep_until_file_deleted $slave_pid
+      if [ -f $slave_pid ] ; then
+        $ECHO "slave refused to die. Sending SIGKILL"
+        kill -9 `$CAT $slave_pid`
+        $RM -f $slave_pid
+      else
+        $ECHO "slave responded to SIGTERM "
+      fi
+    else
+      sleep $SLEEP_TIME_AFTER_RESTART
     fi
     eval "SLAVE$1_RUNNING=0"
   fi
@@ -925,16 +927,18 @@ stop_master ()
     manager_term master
     if [ $? != 0 ] && [ -f $MASTER_MYPID ]
     then # try harder!
-     $ECHO "master not cooperating with mysqladmin, will try manual kill"
-     kill `$CAT $MASTER_MYPID`
-     sleep_until_file_deleted $MASTER_MYPID
-     if [ -f $MASTER_MYPID ] ; then
-       $ECHO "master refused to die. Sending SIGKILL"
-       kill -9 `$CAT $MASTER_MYPID`
-       $RM -f $MASTER_MYPID
-     else
-      $ECHO "master responded to SIGTERM "
-     fi
+      $ECHO "master not cooperating with mysqladmin, will try manual kill"
+      kill `$CAT $MASTER_MYPID`
+      sleep_until_file_deleted $MASTER_MYPID
+      if [ -f $MASTER_MYPID ] ; then
+        $ECHO "master refused to die. Sending SIGKILL"
+        kill -9 `$CAT $MASTER_MYPID`
+        $RM -f $MASTER_MYPID
+      else
+        $ECHO "master responded to SIGTERM "
+      fi
+    else
+      sleep $SLEEP_TIME_AFTER_RESTART
     fi
     MASTER_RUNNING=0
   fi
