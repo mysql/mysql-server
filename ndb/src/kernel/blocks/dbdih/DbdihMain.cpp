@@ -6896,6 +6896,7 @@ void Dbdih::initialiseFragstore()
   cfirstfragstore = RNIL;
   cremainingfrags = 0;
   for (i = 0; i < noOfChunks; i++) {
+    refresh_watch_dog();
     ptrCheckGuard(fragPtr, cfragstoreFileSize, fragmentstore);
     fragPtr.p->nextFragmentChunk = cfirstfragstore;
     cfirstfragstore = fragPtr.i;
@@ -11107,6 +11108,7 @@ void Dbdih::initialiseRecordsLab(Signal* signal,
     jam();
     /******** INTIALIZING API CONNECT RECORDS ********/
     for (apiConnectptr.i = 0; apiConnectptr.i < capiConnectFileSize; apiConnectptr.i++) {
+      refresh_watch_dog();
       ptrAss(apiConnectptr, apiConnectRecord);
       apiConnectptr.p->nextApi = RNIL;
     }//for
@@ -11118,6 +11120,7 @@ void Dbdih::initialiseRecordsLab(Signal* signal,
     jam();
     /****** CONNECT ******/
     for (connectPtr.i = 0; connectPtr.i < cconnectFileSize; connectPtr.i++) {
+      refresh_watch_dog();
       ptrAss(connectPtr, connectRecord);
       connectPtr.p->userpointer = RNIL;
       connectPtr.p->userblockref = ZNIL;
@@ -11182,6 +11185,7 @@ void Dbdih::initialiseRecordsLab(Signal* signal,
       jam();
       /******* PAGE RECORD ******/
       for (pagePtr.i = 0; pagePtr.i < cpageFileSize; pagePtr.i++) {
+        refresh_watch_dog();
 	ptrAss(pagePtr, pageRecord);
 	pagePtr.p->nextfreepage = pagePtr.i + 1;
       }//for
@@ -11198,6 +11202,7 @@ void Dbdih::initialiseRecordsLab(Signal* signal,
       /******* REPLICA RECORD ******/
       for (initReplicaPtr.i = 0; initReplicaPtr.i < creplicaFileSize;
 	   initReplicaPtr.i++) {
+        refresh_watch_dog();
 	ptrAss(initReplicaPtr, replicaRecord);
 	initReplicaPtr.p->lcpIdStarted = 0;
 	initReplicaPtr.p->lcpOngoingFlag = false;
@@ -11217,6 +11222,7 @@ void Dbdih::initialiseRecordsLab(Signal* signal,
       /********* TAB-DESCRIPTOR ********/
       for (loopTabptr.i = 0; loopTabptr.i < ctabFileSize; loopTabptr.i++) {
 	ptrAss(loopTabptr, tabRecord);
+        refresh_watch_dog();
 	initTable(loopTabptr);
       }//for
       break;

@@ -445,7 +445,6 @@ IPCConfig::configureTransporters(Uint32 nodeId,
       if(iter.get(CFG_TCP_RECEIVE_BUFFER_SIZE, &conf.maxReceiveSize)) break;
       
       conf.port= tmp_server_port;
-
       const char * proxy;
       if (!iter.get(CFG_TCP_PROXY, &proxy)) {
 	if (strlen(proxy) > 0 && nodeId2 == nodeId) {

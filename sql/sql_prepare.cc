@@ -1407,7 +1407,8 @@ static int send_prepare_results(Prepared_statement *stmt, bool text_protocol)
   DBUG_PRINT("enter",("command: %d, param_count: %ld",
                       sql_command, stmt->param_count));
 
-  if (select_lex != lex->all_selects_list &&
+  if ((&lex->select_lex != lex->all_selects_list ||
+       lex->time_zone_tables_used) &&
       lex->unit.create_total_list(thd, lex, &tables))
     DBUG_RETURN(1);
 
