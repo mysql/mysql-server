@@ -571,8 +571,8 @@ extern double		my_atof(const char*);
 #define closesocket(A)	close(A)
 #endif
 #ifndef ulonglong2double
-#define ulonglong2double(A) ((double) (A))
-#define my_off_t2double(A)  ((double) (A))
+#define ulonglong2double(A) ((double) (ulonglong) (A))
+#define my_off_t2double(A)  ((double) (my_off_t) (A))
 #endif
 #endif
 
