@@ -34,7 +34,7 @@ noinst_HEADERS =	config-win.h config-os2.h config-netware.h \
 SUPERCLEANFILES =	mysql_version.h my_config.h
 
 # Some include files that may be moved and patched by configure
-DISTCLEANFILES =	sched.h
+DISTCLEANFILES =	sched.h $(SUPERCLEANFILES)
 
 all-local:		my_config.h
 
