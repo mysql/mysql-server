@@ -91,7 +91,9 @@
 
 
 enum {OPT_MANAGER_USER=256,OPT_MANAGER_HOST,OPT_MANAGER_PASSWD,
-      OPT_MANAGER_PORT,OPT_MANAGER_WAIT_TIMEOUT, OPT_SKIP_SAFEMALLOC};
+      OPT_MANAGER_PORT,OPT_MANAGER_WAIT_TIMEOUT, OPT_SKIP_SAFEMALLOC,
+      OPT_SSL_SSL, OPT_SSL_KEY, OPT_SSL_CERT, OPT_SSL_CA, OPT_SSL_CAPATH,
+      OPT_SSL_CIPHER};
 
 static int record = 0, opt_sleep=0;
 static char *db = 0, *pass=0;
@@ -122,6 +124,8 @@ static int block_stack[BLOCK_STACK_DEPTH];
 
 static int block_ok_stack[BLOCK_STACK_DEPTH];
 static uint global_expected_errno[MAX_EXPECTED_ERRORS], global_expected_errors;
+
+#include "sslopt-vars.h"
 
 DYNAMIC_ARRAY q_lines;
 
@@ -1435,6 +1439,11 @@ int do_connect(struct st_query* q)
     mysql_options(&next_con->mysql,MYSQL_OPT_COMPRESS,NullS);
   mysql_options(&next_con->mysql, MYSQL_OPT_LOCAL_INFILE, 0);
 
+#ifdef HAVE_OPENSSL
+  if (opt_use_ssl)
+    mysql_ssl_set(&next_con->mysql, opt_ssl_key, opt_ssl_cert, opt_ssl_ca,
+		  opt_ssl_capath, opt_ssl_cipher);
+#endif
   if (con_sock && !free_con_sock && *con_sock && *con_sock != FN_LIBCHAR)
     con_sock=fn_format(buff, con_sock, TMPDIR, "",0);
   if (!con_db[0])
@@ -1833,6 +1842,7 @@ static struct my_option my_long_options[] =
   {"socket", 'S', "Socket file to use for connection.",
    (gptr*) &unix_sock, (gptr*) &unix_sock, 0, GET_STR, REQUIRED_ARG, 0, 0, 0,
    0, 0, 0},
+#include "sslopt-longopts.h"
   {"test-file", 'x', "Read test from/in this file (default stdin).",
    0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"tmpdir", 't', "Temporary directory where sockets are put",
@@ -1907,6 +1917,7 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     else
       tty_password= 1;
     break;
+#include <sslopt-case.h>
   case 't':
     strnmov(TMPDIR, argument, sizeof(TMPDIR));
     break;
@@ -2354,6 +2365,11 @@ int main(int argc, char** argv)
   if (opt_compress)
     mysql_options(&cur_con->mysql,MYSQL_OPT_COMPRESS,NullS);
   mysql_options(&cur_con->mysql, MYSQL_OPT_LOCAL_INFILE, 0);
+#ifdef HAVE_OPENSSL
+  if (opt_use_ssl)
+    mysql_ssl_set(&cur_con->mysql, opt_ssl_key, opt_ssl_cert, opt_ssl_ca,
+		  opt_ssl_capath, opt_ssl_cipher);
+#endif
 
   cur_con->name = my_strdup("default", MYF(MY_WME));
   if (!cur_con->name)

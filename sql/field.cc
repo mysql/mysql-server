@@ -2421,6 +2421,14 @@ void Field_double::sql_type(String &res) const
 ** by handler.cc.  The form->timestamp points at the automatic timestamp.
 ****************************************************************************/
 
+enum Item_result Field_timestamp::result_type() const
+{
+ return (!current_thd->variables.new_mode &&
+	 (field_length == 8 || field_length == 14) ? INT_RESULT :
+	 STRING_RESULT);
+}
+
+
 Field_timestamp::Field_timestamp(char *ptr_arg, uint32 len_arg,
 				 enum utype unireg_check_arg,
 				 const char *field_name_arg,
@@ -2621,9 +2629,9 @@ String *Field_timestamp::val_str(String *val_buffer,
   time_t time_arg;
   struct tm *l_time;
   struct tm tm_tmp;
-
-  val_buffer->alloc(field_length+1);
-  char *to=(char*) val_buffer->ptr(),*end=to+field_length;
+  my_bool new_format= (current_thd->variables.new_mode),
+          full_year=(field_length == 8 || field_length == 14 || new_format);
+  int real_field_length= new_format ? 19 : field_length;
 
 #ifdef WORDS_BIGENDIAN
   if (table->db_low_byte_first)
@@ -2634,17 +2642,23 @@ String *Field_timestamp::val_str(String *val_buffer,
 
   if (temp == 0L)
   {				      /* Zero time is "000000" */
-    VOID(strfill(to,field_length,'0'));
-    val_buffer->length(field_length);
+    if (new_format)
+      val_buffer->copy("0000-00-00 00:00:00", real_field_length);
+    else
+      val_buffer->copy("00000000000000", real_field_length);
     return val_buffer;
   }
   time_arg=(time_t) temp;
   localtime_r(&time_arg,&tm_tmp);
   l_time=&tm_tmp;
+
+  val_buffer->alloc(real_field_length+1);
+  char *to=(char*) val_buffer->ptr(),*end=to+real_field_length;
+
   for (pos=0; to < end ; pos++)
   {
     bool year_flag=0;
-    switch (dayord.pos[pos]) {
+    switch (pos) {
     case 0: part_time=l_time->tm_year % 100; year_flag=1; break;
     case 1: part_time=l_time->tm_mon+1; break;
     case 2: part_time=l_time->tm_mday; break;
@@ -2653,7 +2667,7 @@ String *Field_timestamp::val_str(String *val_buffer,
     case 5: part_time=l_time->tm_sec; break;
     default: part_time=0; break; /* purecov: deadcode */
     }
-    if (year_flag && (field_length == 8 || field_length == 14))
+    if (year_flag && full_year)
     {
       if (part_time < YY_PART_YEAR)
       {
@@ -2666,7 +2680,14 @@ String *Field_timestamp::val_str(String *val_buffer,
     }
     *to++=(char) ('0'+((uint) part_time/10));
     *to++=(char) ('0'+((uint) part_time % 10));
+    if (new_format)
+    {
+      static const char delim[6]="-- ::";
+      *to++=delim[pos];
+    }
   }
+  if (new_format)
+    to--;
   *to=0;					// Safeguard
   val_buffer->length((uint) (to-val_buffer->ptr()));
   return val_buffer;
@@ -2769,6 +2790,23 @@ void Field_timestamp::set_time()
 #endif
     longstore(ptr,tmp);
 }
+
+/*
+ This is an exact copy of Field_num except that 'length' is depending
+ on --new mode
+*/
+
+void Field_timestamp::make_field(Send_field *field)
+{
+  field->table_name=table_name;
+  field->col_name=field_name;
+  /* If --new, then we are using "YYYY-MM-DD HH:MM:SS" format */
+  field->length= current_thd->variables.new_mode ? 19 : field_length;
+  field->type=type();
+  field->flags=table->maybe_null ? (flags & ~NOT_NULL_FLAG) : flags;
+  field->decimals=dec;
+}
+
 
 /****************************************************************************
 ** time type

@@ -4,7 +4,7 @@ dnl Process this file with autoconf to produce a configure script.
 AC_INIT(sql/mysqld.cc)
 AC_CANONICAL_SYSTEM
 # The Docs Makefile.am parses this line!
-AM_INIT_AUTOMAKE(mysql, 4.0.12)
+AM_INIT_AUTOMAKE(mysql, 4.0.13)
 AM_CONFIG_HEADER(config.h)
 
 PROTOCOL_VERSION=10
@@ -14,7 +14,6 @@ SHARED_LIB_VERSION=12:0:0
 
 # Set all version vars based on $VERSION. How do we do this more elegant ?
 # Remember that regexps needs to quote [ and ] since this is run through m4
-MYSQL_NO_DASH_VERSION=`echo $VERSION | sed -e "s|-.*$||"`
 MYSQL_NO_DASH_VERSION=`echo $VERSION | sed -e "s|[[a-z]]*-.*$||"`
 MYSQL_BASE_VERSION=`echo $MYSQL_NO_DASH_VERSION | sed -e "s|\.[[^.]]*$||"`
 F_PART=`echo $MYSQL_BASE_VERSION | sed -e "s|\.||g"| sed -e "s|[a-zA-Z]\+||"|sed -e "s|^\(..\)$|\\10|"`

@@ -35,3 +35,23 @@ create table t1 (a bigint not null, primary key (a,a,a,a,a,a,a,a,a,a));
 insert into t1 values (2),(4),(6),(8),(10),(12),(14),(16),(18),(20),(22),(24),(26),(23),(27);
 delete from t1 where a=27;
 drop table t1;
+
+#
+# CHAR(0) bug - not actually DELETE bug, but anyway...
+#
+
+CREATE TABLE t1 (
+  bool     char(0) default NULL,
+  not_null varchar(20) binary NOT NULL default '',
+  misc     integer not null,
+  PRIMARY KEY  (not_null)
+) TYPE=MyISAM;
+
+INSERT INTO t1 VALUES (NULL,'a',4), (NULL,'b',5), (NULL,'c',6), (NULL,'d',7);
+
+select * from t1 where misc > 5 and bool is null;
+delete   from t1 where misc > 5 and bool is null;
+select * from t1 where misc > 5 and bool is null;
+
+drop table t1;
+

@@ -1,4 +1,4 @@
-drop table if exists t1,t2;
+drop table if exists t1,t2,t3;
 create table t1 (id int unsigned not null auto_increment, code tinyint unsigned not null, name char(20) not null, primary key (id), key (code), unique (name)) type=innodb;
 insert into t1 (code, name) values (1, 'Tim'), (1, 'Monty'), (2, 'David'), (2, 'Erik'), (3, 'Sasha'), (3, 'Jeremy'), (4, 'Matt');
 select id, code, name from t1 order by id;
@@ -1073,4 +1073,131 @@ select * from t1;
 id
 select * from t2;
 id	t1_id
+drop table t1,t2;
+DROP TABLE IF EXISTS t1,t2;
+CREATE TABLE t1(id INT NOT NULL,  PRIMARY KEY (id)) TYPE=INNODB;
+CREATE TABLE t2(id  INT PRIMARY KEY, t1_id INT, INDEX par_ind (t1_id)  ) TYPE=INNODB;
+INSERT INTO t1 VALUES(1);
+INSERT INTO t2 VALUES(1, 1);
+SELECT * from t1;
+id
+1
+UPDATE t1,t2 SET t1.id=t1.id+1, t2.t1_id=t1.id+1;
+SELECT * from t1;
+id
+2
+UPDATE t1,t2 SET t1.id=t1.id+1 where t1.id!=t2.id;
+SELECT * from t1;
+id
+3
+DROP TABLE t1,t2;
+set autocommit=0;
+CREATE TABLE t1 (id CHAR(15) NOT NULL, value CHAR(40) NOT NULL, PRIMARY KEY(id)) TYPE=InnoDB;
+CREATE TABLE t2 (id CHAR(15) NOT NULL, value CHAR(40) NOT NULL, PRIMARY KEY(id)) TYPE=InnoDB;
+CREATE TABLE t3 (id1 CHAR(15) NOT NULL, id2 CHAR(15) NOT NULL, PRIMARY KEY(id1, id2)) TYPE=InnoDB;
+INSERT INTO t3 VALUES("my-test-1", "my-test-2");
+COMMIT;
+INSERT INTO t1 VALUES("this-key", "will disappear");
+INSERT INTO t2 VALUES("this-key", "will also disappear");
+DELETE FROM t3 WHERE id1="my-test-1";
+SELECT * FROM t1;
+id	value
+this-key	will disappear
+SELECT * FROM t2;
+id	value
+this-key	will also disappear
+SELECT * FROM t3;
+id1	id2
+ROLLBACK;
+SELECT * FROM t1;
+id	value
+SELECT * FROM t2;
+id	value
+SELECT * FROM t3;
+id1	id2
+my-test-1	my-test-2
+SELECT * FROM t3 WHERE id1="my-test-1" LOCK IN SHARE MODE;
+id1	id2
+my-test-1	my-test-2
+COMMIT;
+set autocommit=1;
+DROP TABLE t1,t2,t3;
+CREATE TABLE t1 (a int not null primary key, b int not null, unique (b)) type=innodb;
+INSERT INTO t1 values (1,1),(2,2),(3,3),(4,4),(5,5),(6,6),(7,7),(8,8),(9,9);
+UPDATE t1 set a=a+100 where b between 2 and 3 and a < 1000;
+SELECT * from t1;
+a	b
+1	1
+102	2
+103	3
+4	4
+5	5
+6	6
+7	7
+8	8
+9	9
+drop table t1;
+CREATE TABLE t1 (a int not null primary key, b int not null, key (b)) type=innodb;
+CREATE TABLE t2 (a int not null primary key, b int not null, key (b)) type=innodb;
+INSERT INTO t1 values (1,1),(2,2),(3,3),(4,4),(5,5),(6,6),(7,7),(8,8),(9,9);
+INSERT INTO t2 values (1,1),(2,2),(3,3),(4,4),(5,5),(6,6),(7,7),(8,8),(9,9);
+update t1,t2 set t1.a=t1.a+100;
+select * from t1;
+a	b
+101	1
+102	2
+103	3
+104	4
+105	5
+106	6
+107	7
+108	8
+109	9
+update t1,t2 set t1.a=t1.a+100 where t1.a=101;
+select * from t1;
+a	b
+201	1
+102	2
+103	3
+104	4
+105	5
+106	6
+107	7
+108	8
+109	9
+update t1,t2 set t1.b=t1.b+10 where t1.b=2;
+select * from t1;
+a	b
+201	1
+103	3
+104	4
+105	5
+106	6
+107	7
+108	8
+109	9
+102	12
+update t1,t2 set t1.b=t1.b+2,t2.b=t1.b where t1.b between 3 and 5;
+select * from t1;
+a	b
+201	1
+103	5
+104	6
+106	6
+105	7
+107	7
+108	8
+109	9
+102	12
+select * from t2;
+a	b
+1	5
+2	5
+3	5
+4	5
+5	5
+6	5
+7	5
+8	5
+9	5
 drop table t1,t2;

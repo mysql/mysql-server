@@ -156,7 +156,7 @@ THD::THD():user_time(0),fatal_error(0),last_insert_id_used(0),
   */
   {
     pthread_mutex_lock(&LOCK_thread_count);
-    ulong tmp=(ulong) (rnd(&sql_rand) * 0xffffffff); /* make all bits random */
+    ulong tmp=(ulong) (my_rnd(&sql_rand) * 0xffffffff); /* make all bits random */
     pthread_mutex_unlock(&LOCK_thread_count);
     randominit(&rand, tmp + (ulong) &rand, tmp + (ulong) ::query_id);
   }
@@ -419,12 +419,14 @@ CHANGED_TABLE_LIST* THD::changed_table_dup(const char *key, long key_length)
 #ifdef SIGNAL_WITH_VIO_CLOSE
 void THD::close_active_vio()
 {
+  DBUG_ENTER("close_active_vio");
   safe_mutex_assert_owner(&LOCK_delete); 
   if (active_vio)
   {
     vio_close(active_vio);
     active_vio = 0;
   }
+  DBUG_VOID_RETURN;
 }
 #endif
 

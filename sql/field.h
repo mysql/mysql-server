@@ -65,7 +65,7 @@ public:
   virtual String *val_str(String*,String *)=0;
   virtual Item_result result_type () const=0;
   virtual Item_result cmp_type () const { return result_type(); }
-  bool eq(Field *field) { return ptr == field->ptr; }
+  bool eq(Field *field) { return ptr == field->ptr && null_ptr == field->null_ptr; }
   virtual bool eq_def(Field *field);
   virtual uint32 pack_length() const { return (uint32) field_length; }
   virtual void reset(void) { bzero(ptr,pack_length()); }
@@ -541,7 +541,7 @@ public:
   Field_timestamp(char *ptr_arg, uint32 len_arg,
 		  enum utype unireg_check_arg, const char *field_name_arg,
 		  struct st_table *table_arg);
-  enum Item_result result_type () const { return field_length == 8 || field_length == 14 ? INT_RESULT : STRING_RESULT; }
+  enum Item_result result_type () const;
   enum_field_types type() const { return FIELD_TYPE_TIMESTAMP;}
   enum ha_base_keytype key_type() const { return HA_KEYTYPE_ULONG_INT; }
   void store(const char *to,uint length);
@@ -575,6 +575,7 @@ public:
   void fill_and_store(char *from,uint len);
   bool get_date(TIME *ltime,bool fuzzydate);
   bool get_time(TIME *ltime);
+  void make_field(Send_field *field);
 };
 
 

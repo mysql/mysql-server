@@ -315,7 +315,7 @@ Incorrect sub part key. The used key part isn't a string, the used length is lon
 create table t1 (a text, key (a(255)));
 drop table t1;
 CREATE TABLE t1 (
-t1_id bigint(21) DEFAULT '0' NOT NULL auto_increment,
+t1_id bigint(21) NOT NULL auto_increment,
 _field_72 varchar(128) DEFAULT '' NOT NULL,
 _field_95 varchar(32),
 _field_115 tinyint(4) DEFAULT '0' NOT NULL,
@@ -339,7 +339,7 @@ INSERT INTO t2 VALUES (1,1);
 INSERT INTO t2 VALUES (2,1);
 INSERT INTO t2 VALUES (2,2);
 CREATE TABLE t3 (
-t3_id bigint(21) DEFAULT '0' NOT NULL auto_increment,
+t3_id bigint(21) NOT NULL auto_increment,
 _field_131 varchar(128),
 _field_133 tinyint(4) DEFAULT '0' NOT NULL,
 _field_135 datetime DEFAULT '0000-00-00 00:00:00' NOT NULL,
@@ -367,7 +367,7 @@ PRIMARY KEY (seq_0_id,seq_1_id)
 INSERT INTO t4 VALUES (1,1);
 INSERT INTO t4 VALUES (2,1);
 CREATE TABLE t5 (
-t5_id bigint(21) DEFAULT '0' NOT NULL auto_increment,
+t5_id bigint(21) NOT NULL auto_increment,
 _field_149 tinyint(4),
 _field_156 varchar(128) DEFAULT '' NOT NULL,
 _field_157 varchar(128) DEFAULT '' NOT NULL,
@@ -394,7 +394,7 @@ INSERT INTO t6 VALUES (1,1);
 INSERT INTO t6 VALUES (1,2);
 INSERT INTO t6 VALUES (2,2);
 CREATE TABLE t7 (
-t7_id bigint(21) DEFAULT '0' NOT NULL auto_increment,
+t7_id bigint(21) NOT NULL auto_increment,
 _field_143 tinyint(4),
 _field_165 varchar(32),
 _field_166 smallint(6) DEFAULT '0' NOT NULL,

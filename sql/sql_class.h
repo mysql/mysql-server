@@ -310,7 +310,8 @@ struct system_variables
   ulong table_type;
 
   my_bool log_warnings;
-  my_bool low_priority_updates; 
+  my_bool low_priority_updates;
+  my_bool new_mode;
 
   CONVERT *convert_set;
 };
@@ -822,7 +823,7 @@ class multi_update : public select_result
 {
   TABLE_LIST *all_tables, *update_tables, *table_being_updated;
   THD *thd;
-  TABLE **tmp_tables, *main_table;
+  TABLE **tmp_tables, *main_table, *table_to_update;
   TMP_TABLE_PARAM *tmp_table_param;
   ha_rows updated, found;
   List <Item> *fields, *values;
