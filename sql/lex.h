@@ -83,7 +83,7 @@ static SYMBOL symbols[] = {
   { "CHANGED",		SYM(CHANGED),0,0},
   { "CHECK",		SYM(CHECK_SYM),0,0},
   { "CHECKSUM",		SYM(CHECKSUM_SYM),0,0},
-  { "CHIPHER",		SYM(CHIPHER_SYM),0,0},
+  { "CIPHER",		SYM(CIPHER_SYM),0,0},
   { "CLOSE",		SYM(CLOSE_SYM),0,0},
   { "COLUMN",		SYM(COLUMN_SYM),0,0},
   { "COLUMNS",		SYM(COLUMNS),0,0},

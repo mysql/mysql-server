@@ -3309,7 +3309,7 @@ require_list_element: SUBJECT_SYM TEXT_STRING
  {
    Lex->ssl_issuer=$2.str;
  }
- | CHIPHER_SYM TEXT_STRING
+ | CIPHER_SYM TEXT_STRING
  {
    Lex->ssl_chipher=$2.str;
  }
