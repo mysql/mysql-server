@@ -481,15 +481,15 @@ float ft_boolean_find_relevance(FT_INFO *ftb, byte *record, uint length)
       continue;
 
     end=ftsi.pos+ftsi.len;
-    while (ft_simple_get_word((byte **)&ftsi.pos,(byte *)end,&word))
+    while (ft_simple_get_word((byte **) &ftsi.pos,(byte *) end, &word))
     {
       int a, b, c;
       for (a=0, b=ftb->queue.elements, c=(a+b)/2; b-a>1; c=(a+b)/2)
       {
         ftbw=(FTB_WORD *)(ftb->list[c]);
-        if (_mi_compare_text(ftb->charset, word.pos,word.len,
-                         (uchar*) ftbw->word+1,ftbw->len-1,
-                         (ftbw->flags&FTB_FLAG_TRUNC) ) >0)
+        if (_mi_compare_text(ftb->charset, word.pos, word.len,
+                             (uchar*) ftbw->word+1, ftbw->len-1,
+                             (my_bool) (ftbw->flags&FTB_FLAG_TRUNC)) >0)
           b=c;
         else
           a=c;
@@ -498,8 +498,8 @@ float ft_boolean_find_relevance(FT_INFO *ftb, byte *record, uint length)
       {
         ftbw=(FTB_WORD *)(ftb->list[c]);
         if (_mi_compare_text(ftb->charset, word.pos,word.len,
-                         (uchar*) ftbw->word+1,ftbw->len-1,
-                         (ftbw->flags&FTB_FLAG_TRUNC) ))
+                             (uchar*) ftbw->word+1,ftbw->len-1,
+                              (my_bool) (ftbw->flags&FTB_FLAG_TRUNC)))
           break;
         if (ftbw->docid[1] == docid)
           continue;

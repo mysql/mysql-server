@@ -848,13 +848,13 @@ static void mysql_read_default_options(struct st_mysql_options *options,
 	  options->client_flag&= CLIENT_LOCAL_FILES;
           break;
 	case 23:  /* replication probe */
-	  options->rpl_probe = 1;
+	  options->rpl_probe= 1;
 	  break;
 	case 24: /* enable-reads-from-master */
-	  options->rpl_parse = 1;
+	  options->no_master_reads= 0;
 	  break;
 	case 25: /* repl-parse-query */
-	  options->no_master_reads = 0;
+	  options->rpl_parse= 1;
 	  break;
 	default:
 	  DBUG_PRINT("warning",("unknown option: %s",option[0]));

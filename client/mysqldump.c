@@ -35,7 +35,7 @@
 ** and adapted to mysqldump 05/11/01 by Jani Tolonen
 */
 
-#define DUMP_VERSION "9.01"
+#define DUMP_VERSION "9.02"
 
 #include <my_global.h>
 #include <my_sys.h>
@@ -201,8 +201,7 @@ static struct my_option my_long_options[] =
    0, 0},
   {"result-file", 'r',
    "Direct output to a given file. This option should be used in MSDOS, because it prevents new line '\\n' from being converted to '\\n\\r' (newline + carriage return).",
-   (gptr*) &md_result_file, (gptr*) &md_result_file, 0, GET_STR, REQUIRED_ARG,
-   0, 0, 0, 0, 0, 0},
+   0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"socket", 'S', "Socket file to use for connection.",
    (gptr*) &opt_mysql_unix_port, (gptr*) &opt_mysql_unix_port, 0, GET_STR,
    REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
@@ -366,9 +365,6 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     opt_xml = 1;
     opt_disable_keys=0;
     break;
-  default:
-    fprintf(stderr,"%s: Illegal option character '%c'\n",my_progname,opterr);
-    /* Fall throught */
   case 'I':
   case '?':
     usage();

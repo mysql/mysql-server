@@ -333,7 +333,7 @@ typedef struct st_table_rule_ent
 #define SLAVE_FORCE_ALL 4
 
 int init_slave();
-void init_slave_skip_errors(char* arg);
+void init_slave_skip_errors(const char* arg);
 int flush_master_info(MASTER_INFO* mi);
 int flush_relay_log_info(RELAY_LOG_INFO* rli);
 int register_slave_on_master(MYSQL* mysql);
