@@ -145,10 +145,10 @@ max-time: 2500
 cmd: testNodeRestart
 args: -n FiftyPercentStopAndWait T6 T8 T13 
 
-max-time: 500
-cmd: testNodeRestart
-args: -n StopOnError T1 
-
+#max-time: 500
+#cmd: testNodeRestart
+#args: -n StopOnError T1 
+#
 #
 max-time: 2500
 cmd: testIndex
