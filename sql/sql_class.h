@@ -582,8 +582,7 @@ public:
   Statement_map stmt_map; 
   /*
     keeps THD state while it is used for active statement
-    Note, that double free_root() is safe, so we don't need to do any
-    special cleanup for it in THD destructor.
+    Note: we perform special cleanup for it in THD destructor.
   */
   Statement stmt_backup;
   /*
