@@ -15,10 +15,6 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 #include <my_global.h>
-#if defined(__WIN__) || defined(_WIN32) || defined(_WIN64)
-#include <winsock.h>
-#include <odbcinst.h>
-#endif
 #include <my_sys.h>
 #include <mysys_err.h>
 #include <m_string.h>
