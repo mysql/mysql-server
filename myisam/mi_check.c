@@ -1,15 +1,15 @@
 /* Copyright (C) 2000 MySQL AB & MySQL Finland AB & TCX DataKonsult AB
-   
+
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
    the Free Software Foundation; either version 2 of the License, or
    (at your option) any later version.
-   
+
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
    GNU General Public License for more details.
-   
+
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
@@ -1083,7 +1083,7 @@ int mi_repair(MI_CHECK *param, register MI_INFO *info,
   if (!(sort_info->record=(byte*) my_malloc((uint) share->base.pack_reclength,
 					   MYF(0))))
   {
-    mi_check_print_error(param,"Not Enough memory for extra record");
+    mi_check_print_error(param,"Not enough memory for extra record");
     goto err;
   }
 
@@ -1140,6 +1140,8 @@ int mi_repair(MI_CHECK *param, register MI_INFO *info,
     share->state.key_root[i]= HA_OFFSET_ERROR;
   for (i=0 ; i < share->state.header.max_block_size ; i++)
     share->state.key_del[i]=  HA_OFFSET_ERROR;
+
+  share->state.key_map= ((ulonglong)1L << share->base.keys)-1; /* Should I ? */
 
   info->state->key_file_length=share->base.keystart;
 
@@ -1271,8 +1273,15 @@ static int writekeys(register MI_INFO *info,byte *buff,my_off_t filepos)
   {
     if (((ulonglong) 1 << i) & info->s->state.key_map)
     {
-      uint key_length=_mi_make_key(info,i,key,buff,filepos);
-      if (_mi_ck_write(info,i,key,key_length)) goto err;
+      if (info->s->keyinfo[i].flag & HA_FULLTEXT )
+      {
+        if (_mi_ft_add(info,i,(char*) key,buff,filepos))  goto err;
+      }
+      else
+      {
+	uint key_length=_mi_make_key(info,i,key,buff,filepos);
+	if (_mi_ck_write(info,i,key,key_length)) goto err;
+      }
     }
   }
   DBUG_RETURN(0);
@@ -1285,8 +1294,15 @@ static int writekeys(register MI_INFO *info,byte *buff,my_off_t filepos)
     {
       if (((ulonglong) 1 << i) & info->s->state.key_map)
       {
-	uint key_length=_mi_make_key(info,i,key,buff,filepos);
-	if (_mi_ck_delete(info,i,key,key_length)) break;
+	if (info->s->keyinfo[i].flag & HA_FULLTEXT)
+        {
+          if (_mi_ft_del(info,i,(char*) key,buff,filepos)) break;
+        }
+        else
+	{
+	  uint key_length=_mi_make_key(info,i,key,buff,filepos);
+	  if (_mi_ck_delete(info,i,key,key_length)) break;
+	}
       }
     }
   }
@@ -1919,8 +1935,17 @@ static int sort_key_read(SORT_INFO *sort_info, void *key)
 			 "Found too many records; Can`t continue");
     DBUG_RETURN(1);
   }
-  VOID(_mi_make_key(info,sort_info->key,key,sort_info->record,
-		    sort_info->filepos));
+  if (sort_info->keyinfo->flag & HA_FULLTEXT )
+  {
+    mi_check_print_error(sort_info->param,
+    			 "Can`t use repair_by_sort with FULLTEXT key");
+    DBUG_RETURN(1);
+  }
+  else
+  {
+    VOID(_mi_make_key(info,sort_info->key,key,sort_info->record,
+                      sort_info->filepos));
+  }
   DBUG_RETURN(sort_write_record(sort_info));
 } /* sort_key_read */
 
@@ -2984,7 +3009,7 @@ my_bool mi_test_if_sort_rep(MI_INFO *info, ha_rows rows)
     return FALSE;				/* Can't use sort */
   for (i=0 ; i < share->base.keys ; i++,key++)
   {
-    if (mi_too_big_key_for_sort(key,rows))
+    if (mi_too_big_key_for_sort(key,rows) || (key->flag & HA_FULLTEXT))
       return FALSE;
   }
   return TRUE;

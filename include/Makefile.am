@@ -45,6 +45,7 @@ my_config.h:  ../config.h
 
 # This should be changed in the source and removed.
 my_global.h: global.h
+	-$(RM) my_global.h
 	$(CP) global.h my_global.h
 
 # These files should not be included in distributions since they are
