@@ -72,7 +72,7 @@ HugoTransactions::scanReadRecords(Ndb* pNdb,
       return NDBT_FAILED;
     }
 
-    if( pOp ->readTuples(lm) ) {
+    if( pOp ->readTuples(lm, 0, parallelism) ) {
       ERR(pTrans->getNdbError());
       pNdb->closeTransaction(pTrans);
       return NDBT_FAILED;
