@@ -526,6 +526,7 @@ NdbOperation::setValue( const NdbColumnImpl* tAttrInfo,
   const Uint32 sizeInBytes = tAttrInfo->m_attrSize * tAttrInfo->m_arraySize;
 
   CHARSET_INFO* cs = tAttrInfo->m_cs;
+  int dummy_error;
   // invalid data can crash kernel
   if (cs != NULL &&
       // fast fix bug#7340
@@ -533,7 +534,8 @@ NdbOperation::setValue( const NdbColumnImpl* tAttrInfo,
      (*cs->cset->well_formed_len)(cs,
                                    aValue,
                                    aValue + sizeInBytes,
-                                   sizeInBytes) != sizeInBytes) {
+                                   sizeInBytes,
+                                   &dummy_error) != sizeInBytes) {
     setErrorCodeAbort(744);
     return -1;
   }

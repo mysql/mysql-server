@@ -1267,11 +1267,11 @@ uint my_charpos_ucs2(CHARSET_INFO *cs __attribute__((unused)),
 
 static
 uint my_well_formed_len_ucs2(CHARSET_INFO *cs __attribute__((unused)),
-			     const char *b,
-			     const char *e,
-			     uint nchars)
+                             const char *b, const char *e,
+                             uint nchars, int *error)
 {
   uint nbytes= (e-b) & ~ (uint)1;
+  *error= 0;
   nchars*= 2;
   return min(nbytes, nchars);
 }
