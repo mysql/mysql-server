@@ -70,6 +70,27 @@ LocalDictCache::put(const char * name, Ndb_local_table_info * tab_info){
 void
 LocalDictCache::drop(const char * name){
   Ndb_local_table_info *info= m_tableHash.deleteKey(name, strlen(name));
+
+#ifndef DBUG_OFF
+  if (info == 0) {
+    ndbout_c("LocalDictCache::drop(%s) info==0", name);
+    ndbout_c("dump begin");
+    NdbElement_t<Ndb_local_table_info> * curr = m_tableHash.getNext(0);
+    while(curr != 0){
+      Ndb_local_table_info *tmp = curr->theData;
+      if (tmp) {
+	ndbout_c("m_table_impl=0x%x, id=%d, name=%s",
+		 tmp->m_table_impl,
+		 tmp->m_table_impl->m_tableId,
+		 tmp->m_table_impl->getName());
+      } else {
+	ndbout_c("NULL");
+      }
+      curr = m_tableHash.getNext(curr);
+    }
+    ndbout_c("dump end");
+  }
+#endif
   DBUG_ASSERT(info != 0);
   Ndb_local_table_info::destroy(info);
 }
