@@ -73,29 +73,49 @@ static HASH udf_hash;
 static pthread_mutex_t THR_LOCK_udf;
 
 
-static udf_func *add_udf(char *name, Item_result ret, char *dl,
-			 Item_udftype typ);
+static udf_func *add_udf(char *name, Item_result ret,
+                         char *dl, Item_udftype typ);
 static void del_udf(udf_func *udf);
 static void *find_udf_dl(const char *dl);
 
-
-static void init_syms(udf_func *tmp)
+static char *init_syms(udf_func *tmp, char *nm)
 {
-  char nm[MAX_FIELD_NAME+16],*end;
+  char *end;
 
-  tmp->func = dlsym(tmp->dlhandle, tmp->name);
+  if (!((tmp->func= dlsym(tmp->dlhandle, tmp->name))))
+    return tmp->name;
+
   end=strmov(nm,tmp->name);
-  (void) strmov(end,"_init");
-  tmp->func_init = dlsym(tmp->dlhandle, nm);
-  (void) strmov(end,"_deinit");
-  tmp->func_deinit = dlsym(tmp->dlhandle, nm);
+
   if (tmp->type == UDFTYPE_AGGREGATE)
   {
-    (void)strmov( end, "_reset" );
-    tmp->func_reset = dlsym( tmp->dlhandle, nm );
-    (void)strmov( end, "_add" );
-    tmp->func_add = dlsym( tmp->dlhandle, nm );
+    (void)strmov(end, "_reset");
+    if (!((tmp->func_reset= dlsym(tmp->dlhandle, nm))))
+      return nm;
+    (void)strmov(end, "_add");
+    if (!((tmp->func_add= dlsym(tmp->dlhandle, nm))))
+      return nm;
   }
+
+  (void) strmov(end,"_deinit");
+  tmp->func_deinit= dlsym(tmp->dlhandle, nm);
+
+  (void) strmov(end,"_init");
+  tmp->func_init= dlsym(tmp->dlhandle, nm);
+
+  /*
+    to prefent loading "udf" from, e.g. libc.so
+    let's ensure that at least one auxiliary symbol is defined
+  */
+  if (!tmp->func_init && !tmp->func_deinit && tmp->type != UDFTYPE_AGGREGATE)
+  {
+    if (opt_allow_suspicious_udfs)
+      sql_print_error(ER(ER_CANT_FIND_DL_ENTRY), nm);
+    else
+      return nm;
+  }
+
+  return 0;
 }
 
 extern "C" byte* get_hash_key(const byte *buff,uint *length,
@@ -107,7 +127,7 @@ extern "C" byte* get_hash_key(const byte *buff,uint *length,
 }
 
 /*
-** Read all predeclared functions from func@mysql and accept all that
+** Read all predeclared functions from mysql.func and accept all that
 ** can be used.
 */
 
@@ -149,7 +169,7 @@ void udf_init()
   if (open_and_lock_tables(new_thd, &tables))
   {
     DBUG_PRINT("error",("Can't open udf table"));
-    sql_print_error("Can't open the mysql/func table. Please run the mysql_install_db script to create it.");
+    sql_print_error("Can't open the mysql.func table. Please run the mysql_install_db script to create it.");
     goto end;
   }
 
@@ -165,10 +185,22 @@ void udf_init()
     if (table->fields >= 4)			// New func table
       udftype=(Item_udftype) table->field[3]->val_int();
 
+    /*
+      Ensure that the .dll doesn't have a path
+      This is done to ensure that only approved dll from the system
+      directories are used (to make this even remotely secure).
+    */
+    if (strchr(dl_name, '/') || strlen(name) > NAME_LEN)
+    {
+      sql_print_error("Invalid row in mysql.func table for function '%.64s'",
+                      name);
+      continue;
+    }
+
     if (!(tmp = add_udf(name,(Item_result) table->field[1]->val_int(),
 			dl_name, udftype)))
     {
-      sql_print_error("Can't alloc memory for udf function: name");
+      sql_print_error("Can't alloc memory for udf function: '%.64s'", name);
       continue;
     }
 
@@ -186,13 +218,15 @@ void udf_init()
       new_dl=1;
     }
     tmp->dlhandle = dl;
-    init_syms(tmp);
-    if (!tmp->func)
     {
-      sql_print_error(ER(ER_CANT_FIND_DL_ENTRY), name);
-      del_udf(tmp);
-      if (new_dl)
-	dlclose(dl);
+      char buf[MAX_FIELD_NAME+16], *missing;
+      if ((missing= init_syms(tmp, buf)))
+      {
+        sql_print_error(ER(ER_CANT_FIND_DL_ENTRY), missing);
+        del_udf(tmp);
+        if (new_dl)
+          dlclose(dl);
+      }
     }
   }
   if (error > 0)
@@ -234,7 +268,7 @@ void udf_free()
   {
     initialized= 0;
     pthread_mutex_destroy(&THR_LOCK_udf);
-  }    
+  }
   DBUG_VOID_RETURN;
 }
 
@@ -398,13 +432,15 @@ int mysql_create_function(THD *thd,udf_func *udf)
     new_dl=1;
   }
   udf->dlhandle=dl;
-  init_syms(udf);
-
-  if (udf->func == NULL)
   {
-    net_printf(&thd->net, ER_CANT_FIND_DL_ENTRY, udf->name);
-    goto err;
+    char buf[MAX_FIELD_NAME+16], *missing;
+    if ((missing= init_syms(udf, buf)))
+    {
+      net_printf(&thd->net, ER_CANT_FIND_DL_ENTRY, missing);
+      goto err;
+    }
   }
+
   udf->name=strdup_root(&mem,udf->name);
   udf->dl=strdup_root(&mem,udf->dl);
   if (!(u_d=add_udf(udf->name,udf->returns,udf->dl,udf->type)))
@@ -419,7 +455,7 @@ int mysql_create_function(THD *thd,udf_func *udf)
   u_d->func_reset=udf->func_reset;
   u_d->func_add=udf->func_add;
 
-  /* create entry in mysql/func table */
+  /* create entry in mysql.func table */
 
   bzero((char*) &tables,sizeof(tables));
   tables.db= (char*) "mysql";
@@ -439,7 +475,7 @@ int mysql_create_function(THD *thd,udf_func *udf)
   close_thread_tables(thd);
   if (error)
   {
-    net_printf(&thd->net, ER_ERROR_ON_WRITE, "func@mysql",error);
+    net_printf(&thd->net, ER_ERROR_ON_WRITE, "mysql.func",error);
     del_udf(u_d);
     goto err;
   }
