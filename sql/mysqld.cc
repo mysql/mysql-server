@@ -3596,7 +3596,7 @@ struct my_option my_long_options[] =
    IF_PURIFY(0,1), 0, 0, 0, 0, 0},
 #endif
   {"user", 'u', "Run mysqld daemon as user", (gptr*) &mysqld_user,
-   (gptr*) &mysqld_user, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+   (gptr*) &mysqld_user, 0, 0, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"version", 'V', "Output version information and exit", 0, 0, 0, GET_NO_ARG,
    NO_ARG, 0, 0, 0, 0, 0, 0},
   {"version", 'v', "Synonym for option -v", 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0,
@@ -4218,6 +4218,12 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     strmake(mysql_real_data_home,argument, sizeof(mysql_real_data_home)-1);
     /* Correct pointer set by my_getopt (for embedded library) */
     mysql_data_home= mysql_real_data_home;
+    break;
+  case 'u':
+    if (!mysqld_user)
+      mysqld_user=optarg;
+    else
+      fprintf(stderr, "Warning: Ignoring user change to '%s' becasue the user is set to '%s' earlier on the command line\n", optarg, mysqld_user);
     break;
   case 'L':
     strmake(language, argument, sizeof(language)-1);
