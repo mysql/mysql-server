@@ -240,6 +240,17 @@ Item_splocal::this_const_item() const
   return thd->spcont->get_item(m_offset);
 }
 
+Item::Type
+Item_splocal::type() const
+{
+  THD *thd= current_thd;
+
+  if (thd->spcont)
+    return thd->spcont->get_item(m_offset)->type();
+  return NULL_ITEM;		// Anything but SUBSELECT_ITEM
+}
+
+
 bool DTCollation::aggregate(DTCollation &dt)
 {
   if (!my_charset_same(collation, dt.collation))
