@@ -8,6 +8,7 @@ drop database if exists foo;
 create database foo;
 drop database if exists bar;
 create database bar;
+create database foo;
 drop table if exists foo.foo;
 create table foo.foo (n int);
 insert into foo.foo values(4);
@@ -20,10 +21,11 @@ insert into bar.bar values(15);
 select foo.foo.n,bar.bar.m from foo.foo,bar.bar;
 n	m
 4	15
-drop database if exists bar;
+drop database bar;
 drop database if exists foo;
-drop database if exists bar;
-drop database if exists foo;
+drop database bar;
+Can't drop database 'bar'. Database doesn't exist
+drop database foo;
 set sql_log_bin = 0;
 create database foo;
 create database bar;

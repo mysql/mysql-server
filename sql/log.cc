@@ -97,8 +97,15 @@ MYSQL_LOG::MYSQL_LOG()
 
 MYSQL_LOG::~MYSQL_LOG()
 {
+  cleanup();
+}
+
+void MYSQL_LOG::cleanup()
+{
   if (inited)
   {
+    close(1);
+    inited= 0;
     (void) pthread_mutex_destroy(&LOCK_log);
     (void) pthread_mutex_destroy(&LOCK_index);
     (void) pthread_cond_destroy(&update_cond);
@@ -1063,7 +1070,7 @@ bool MYSQL_LOG::write(Log_event* event_info)
       if (thd->last_insert_id_used)
       {
 	Intvar_log_event e(thd,(uchar) LAST_INSERT_ID_EVENT,
-			   thd->last_insert_id);
+			   thd->current_insert_id);
 	e.set_log_pos(this);
 	if (thd->server_id)
 	  e.server_id = thd->server_id;
@@ -1430,6 +1437,10 @@ void MYSQL_LOG:: wait_for_update(THD* thd)
 		at once after close, in which case we don't want to
 		close the index file.
 		We only write a 'stop' event to the log if exiting is set
+
+  NOTES
+    One can do an open on the object at once after doing a close.
+    The internal structures are not freed until cleanup() is called
 */
 
 void MYSQL_LOG::close(bool exiting)

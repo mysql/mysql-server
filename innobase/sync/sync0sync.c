@@ -220,7 +220,7 @@ mutex_create_func(
 	char*		cfile_name,	/* in: file name where created */
 	ulint		cline)		/* in: file line where created */
 {
-#if defined(_WIN32) && defined(UNIV_CAN_USE_X86_ASSEMBLER) 
+#if defined(_WIN32) && defined(UNIV_CAN_USE_X86_ASSEMBLER) && !defined(__NETWARE)
 	mutex_reset_lock_word(mutex);
 #else	
 	os_fast_mutex_init(&(mutex->os_fast_mutex));

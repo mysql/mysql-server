@@ -1089,7 +1089,7 @@ bool Item_sum_count_distinct::add()
   if (always_null)
     return 0;
   copy_fields(tmp_table_param);
-  copy_funcs(tmp_table_param->funcs);
+  copy_funcs(tmp_table_param->items_to_copy);
 
   for (Field **field=table->field ; *field ; field++)
     if ((*field)->is_real_null(0))

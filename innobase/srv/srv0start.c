@@ -1415,6 +1415,10 @@ innobase_start_or_create_for_mysql(void)
 
 	os_fast_mutex_unlock(&srv_os_test_mutex);
 
+#if defined(__NETWARE__) || defined(SAFE_MUTEX_DETECT_DESTROY)
+	os_fast_mutex_free(&srv_os_test_mutex);  /* all platforms? */
+#endif /* __NETWARE__ */
+
 	if (srv_print_verbose_log) {
 	  	ut_print_timestamp(stderr);
 	  	fprintf(stderr, "  InnoDB: Started\n");
@@ -1461,12 +1465,28 @@ innobase_shutdown_for_mysql(void)
 		srv_conc_n_threads);
 	}
 
+#if defined(__NETWARE__) || defined(SAFE_MUTEX_DETECT_DESTROY)
+	/*
+	  TODO: Fix this temporary solution
+	  We are having a race condition occure with io_handler_thread threads.
+	  When they yield in os_aio_simulated_handle during shutdown, this
+	  thread was able to free the memory early.
+	*/
+	os_thread_yield();
+
+	/* TODO: Where should this be called? */
+	srv_free();
+
+	/* TODO: Where should this be called? */
+	srv_general_free();
+#endif
 	/*
 	TODO: We should exit the i/o-handler and other utility threads
 	before freeing all memory. Now this can potentially cause a seg
 	fault!
 	*/
-#ifdef NOT_WORKING_YET
+#if defined(NOT_WORKING_YET) || defined(__NETWARE__) || defined(SAFE_MUTEX_DETECT_DESTROY)
+        /* NetWare requires this free */
         ut_free_all_mem();
 #endif 
 

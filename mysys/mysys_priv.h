@@ -23,9 +23,9 @@
 
 #ifdef THREAD
 #include <my_pthread.h>
-extern pthread_mutex_t THR_LOCK_malloc,THR_LOCK_open,THR_LOCK_keycache,
-  THR_LOCK_lock,THR_LOCK_isam,THR_LOCK_net,THR_LOCK_charset;
-extern pthread_mutex_t LOCK_bitmap;
+extern pthread_mutex_t THR_LOCK_malloc, THR_LOCK_open, THR_LOCK_keycache;
+extern pthread_mutex_t THR_LOCK_lock, THR_LOCK_isam, THR_LOCK_net;
+extern pthread_mutex_t THR_LOCK_charset;
 #else
 #include <my_no_pthread.h>
 #endif

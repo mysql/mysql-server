@@ -24,7 +24,7 @@
 #endif
 
 #ifdef HAVE_TEMPNAM
-#if !defined( MSDOS) && !defined(OS2)
+#if !defined(MSDOS) && !defined(OS2) && !defined(__NETWARE__)
 extern char **environ;
 #endif
 #endif
@@ -129,7 +129,7 @@ File create_temp_file(char *to, const char *dir, const char *prefix,
     if (buffer[strlen(buffer)-1] == '\\')
        buffer[strlen(buffer)-1] = '\0';
     putenv( buffer);
-#else
+#elif !defined(__NETWARE__)
     old_env= (char**) environ;
     if (dir)
     {				/* Don't use TMPDIR if dir is given */
@@ -151,7 +151,7 @@ File create_temp_file(char *to, const char *dir, const char *prefix,
     {
       DBUG_PRINT("error",("Got error: %d from tempnam",errno));
     }
-#ifndef OS2
+#if !defined(OS2) && !defined(__NETWARE__)
     environ=(const char**) old_env;
 #endif
   }
