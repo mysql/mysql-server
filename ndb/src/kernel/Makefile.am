@@ -51,7 +51,7 @@ LDADD +=  \
               $(top_builddir)/ndb/src/common/logger/liblogger.la       \
               $(top_builddir)/ndb/src/common/mgmcommon/libmgmsrvcommon.la \
               $(top_builddir)/ndb/src/mgmapi/libmgmapi.la \
-              $(top_builddir)/ndb/src/common/portlib/unix/libportlib.la      \
+              $(top_builddir)/ndb/src/common/portlib/libportlib.la      \
               $(top_builddir)/ndb/src/common/util/libgeneral.la 
 
 # Don't update the files from bitkeeper
