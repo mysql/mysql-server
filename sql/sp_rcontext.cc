@@ -125,9 +125,9 @@ sp_rcontext::restore_variables(uint fp)
 }
 
 void
-sp_rcontext::push_cursor(LEX *lex)
+sp_rcontext::push_cursor(sp_lex_keeper *lex_keeper)
 {
-  m_cstack[m_ccount++]= new sp_cursor(lex);
+  m_cstack[m_ccount++]= new sp_cursor(lex_keeper);
 }
 
 void
@@ -148,7 +148,7 @@ sp_rcontext::pop_cursors(uint count)
 
 // We have split this in two to make it easy for sp_instr_copen
 // to reuse the sp_instr::exec_stmt() code.
-LEX *
+sp_lex_keeper*
 sp_cursor::pre_open(THD *thd)
 {
   if (m_isopen)
@@ -168,7 +168,7 @@ sp_cursor::pre_open(THD *thd)
 
   m_nseof= thd->net.no_send_eof;
   thd->net.no_send_eof= TRUE;
-  return m_lex;
+  return m_lex_keeper;
 }
 
 void
