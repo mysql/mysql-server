@@ -25,6 +25,7 @@
 struct sp_cond_type;
 class sp_cursor;
 struct sp_pvar;
+class sp_lex_keeper;
 
 #define SP_HANDLER_NONE      0
 #define SP_HANDLER_EXIT      1
@@ -164,7 +165,7 @@ class sp_rcontext : public Sql_alloc
   restore_variables(uint fp);
 
   void
-  push_cursor(LEX *lex);
+  push_cursor(sp_lex_keeper *lex_keeper);
 
   void
   pop_cursors(uint count);
@@ -207,8 +208,8 @@ class sp_cursor : public Sql_alloc
 {
 public:
 
-  sp_cursor(LEX *lex)
-    : m_lex(lex), m_prot(NULL), m_isopen(0), m_current_row(NULL)
+  sp_cursor(sp_lex_keeper *lex_keeper)
+    : m_lex_keeper(lex_keeper), m_prot(NULL), m_isopen(0), m_current_row(NULL)
   {
     /* Empty */
   }
@@ -220,7 +221,7 @@ public:
 
   // We have split this in two to make it easy for sp_instr_copen
   // to reuse the sp_instr::exec_stmt() code.
-  LEX *
+  sp_lex_keeper *
   pre_open(THD *thd);
   void
   post_open(THD *thd, my_bool was_opened);
@@ -240,7 +241,7 @@ public:
 private:
 
   MEM_ROOT m_mem_root;		// My own mem_root
-  LEX *m_lex;
+  sp_lex_keeper *m_lex_keeper;
   Protocol_cursor *m_prot;
   my_bool m_isopen;
   my_bool m_nseof;		// Original no_send_eof
