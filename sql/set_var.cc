@@ -1343,6 +1343,7 @@ bool sys_var_character_set::check(THD *thd, set_var *var)
 bool sys_var_character_set::update(THD *thd, set_var *var)
 {
   ci_ptr(thd,var->type)[0]= var->save_result.charset;
+  thd->update_charset();
   return 0;
 }
 
