@@ -151,11 +151,11 @@ BuildMySQL() {
 # support assembler speedups.
 sh -c  "PATH=\"${MYSQL_BUILD_PATH:-/bin:/usr/bin}\" \
 	CC=\"${MYSQL_BUILD_CC:-egcs}\" \
-	CFLAGS=\"${MYSQL_BUILD_CFLAGS:- -O6 -fno-omit-frame-pointer}\" \
+	CFLAGS=\"${MYSQL_BUILD_CFLAGS:- -O3}\" \
 	CXX=\"${MYSQL_BUILD_CXX:-egcs}\" \
-	CXXFLAGS=\"${MYSQL_BUILD_CXXFLAGS:- -O6 \
+	CXXFLAGS=\"${MYSQL_BUILD_CXXFLAGS:- -O3 \
 	          -felide-constructors -fno-exceptions -fno-rtti \
-		  -fno-omit-frame-pointer}\" \
+		  }\" \
 	./configure \
  	    $* \
 	    --enable-assembler \
