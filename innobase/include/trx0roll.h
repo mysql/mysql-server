@@ -91,12 +91,16 @@ trx_undo_rec_release(
 /*************************************************************************
 Starts a rollback operation. */	
 
-que_thr_t*
+void
 trx_rollback(
 /*=========*/
-				/* out: next query thread to run */
 	trx_t*		trx,	/* in: transaction */
-	trx_sig_t*	sig);	/* in: signal starting the rollback */
+	trx_sig_t*	sig,	/* in: signal starting the rollback */
+	que_thr_t**	next_thr);/* in/out: next query thread to run;
+				if the value which is passed in is
+				a pointer to a NULL pointer, then the
+				calling function can start running
+				a new query thread */
 /***********************************************************************
 Rollback or clean up transactions which have no user session. If the
 transaction already was committed, then we clean up a possible insert
@@ -108,12 +112,17 @@ trx_rollback_or_clean_all_without_sess(void);
 /********************************************************************
 Finishes a transaction rollback. */
 
-que_thr_t*
+void
 trx_finish_rollback_off_kernel(
 /*===========================*/
-				/* out: next query thread to run */
 	que_t*		graph,	/* in: undo graph which can now be freed */
-	trx_t*		trx);	/* in: transaction */
+	trx_t*		trx,	/* in: transaction */
+	que_thr_t**	next_thr);/* in/out: next query thread to run;
+				if the value which is passed in is
+				a pointer to a NULL pointer, then the
+   				calling function can start running
+				a new query thread; if this parameter is
+				NULL, it is ignored */
 /********************************************************************
 Builds an undo 'query' graph for a transaction. The actual rollback is
 performed by executing this query graph like a query subprocedure call.

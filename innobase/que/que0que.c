@@ -12,6 +12,7 @@ Created 5/27/1996 Heikki Tuuri
 #include "que0que.ic"
 #endif
 
+#include "srv0que.h"
 #include "usr0sess.h"
 #include "trx0trx.h"
 #include "trx0roll.h"
@@ -174,15 +175,19 @@ a single worker thread to execute it. This function should be used to end
 the wait state of a query thread waiting for a lock or a stored procedure
 completion. */
 
-que_thr_t*
+void
 que_thr_end_wait(
 /*=============*/
-					/* out: next query thread to run;
-					NULL if none */
-	que_thr_t*	thr)		/* in: query thread in the
+	que_thr_t*	thr,		/* in: query thread in the
 					QUE_THR_LOCK_WAIT,
 					or QUE_THR_PROCEDURE_WAIT, or
 					QUE_THR_SIG_REPLY_WAIT state */
+	que_thr_t**	next_thr)	/* in/out: next query thread to run;
+					if the value which is passed in is
+					a pointer to a NULL pointer, then the
+					calling function can start running
+					a new query thread; if NULL is passed
+					as the parameter, it is ignored */
 {
 	ibool	was_active;
 
@@ -201,8 +206,17 @@ que_thr_end_wait(
 	
 	que_thr_move_to_run_state(thr);
 
-	return(was_active ? NULL : thr);
-}
+	if (was_active) {
+
+		return;
+	}	
+
+	if (next_thr && *next_thr == NULL) {
+		*next_thr = thr;
+	} else {
+		srv_que_task_enqueue_low(thr);
+	}
+}	
 
 /**************************************************************************
 Same as que_thr_end_wait, but no parameter next_thr available. */
@@ -239,6 +253,8 @@ que_thr_end_wait_no_next_thr(
 	for the lock to be released: */
 	
 	srv_release_mysql_thread_if_suspended(thr);
+
+	/* srv_que_task_enqueue_low(thr); */
 }
 
 /**************************************************************************
@@ -337,6 +353,48 @@ que_fork_start_command(
 
 	/* Else we return NULL */
 	return(NULL);
+}
+
+/**************************************************************************
+After signal handling is finished, returns control to a query graph error
+handling routine. (Currently, just returns the control to the root of the
+graph so that the graph can communicate an error message to the client.) */
+
+void
+que_fork_error_handle(
+/*==================*/
+	trx_t*	trx __attribute__((unused)),	/* in: trx */
+	que_t*	fork)	/* in: query graph which was run before signal
+			handling started, NULL not allowed */
+{
+	que_thr_t*	thr;
+
+#ifdef UNIV_SYNC_DEBUG
+	ut_ad(mutex_own(&kernel_mutex));
+#endif /* UNIV_SYNC_DEBUG */
+	ut_ad(trx->sess->state == SESS_ERROR);
+	ut_ad(UT_LIST_GET_LEN(trx->reply_signals) == 0);
+	ut_ad(UT_LIST_GET_LEN(trx->wait_thrs) == 0);
+
+	thr = UT_LIST_GET_FIRST(fork->thrs);
+
+	while (thr != NULL) {
+		ut_ad(!thr->is_active);
+		ut_ad(thr->state != QUE_THR_SIG_REPLY_WAIT);
+		ut_ad(thr->state != QUE_THR_LOCK_WAIT);
+		
+		thr->run_node = thr;
+		thr->prev_node = thr->child;
+		thr->state = QUE_THR_COMPLETED;
+		
+		thr = UT_LIST_GET_NEXT(thrs, thr);
+	}
+
+	thr = UT_LIST_GET_FIRST(fork->thrs);
+	
+	que_thr_move_to_run_state(thr);
+
+	srv_que_task_enqueue_low(thr);
 }
 
 /********************************************************************
@@ -707,18 +765,22 @@ this function may only be called from inside que_run_threads or
 que_thr_check_if_switch! These restrictions exist to make the rollback code
 easier to maintain. */
 static
-que_thr_t*
+void
 que_thr_dec_refer_count(
 /*====================*/
-					/* out: next query thread to run */
-	que_thr_t*	thr)		/* in: query thread */
+	que_thr_t*	thr,		/* in: query thread */
+	que_thr_t**	next_thr)	/* in/out: next query thread to run;
+					if the value which is passed in is
+					a pointer to a NULL pointer, then the
+					calling function can start running
+					a new query thread */ 
 {
 	que_fork_t*	fork;
 	trx_t*		trx;
 	sess_t*		sess;
 	ulint		fork_type;
-	que_thr_t*	next_thr = NULL;
-
+	ibool		stopped;
+	
 	fork = thr->common.parent;
 	trx = thr->graph->trx;
 	sess = trx->sess;
@@ -729,7 +791,9 @@ que_thr_dec_refer_count(
 
 	if (thr->state == QUE_THR_RUNNING) {
 
-		if (!que_thr_stop(thr)) {
+		stopped = que_thr_stop(thr);
+
+		if (!stopped) {
 			/* The reason for the thr suspension or wait was
 			already canceled before we came here: continue
 			running the thread */
@@ -737,9 +801,15 @@ que_thr_dec_refer_count(
 			/* fputs("!!!!!!!! Wait already ended: continue thr\n",
 				stderr); */
 
+			if (next_thr && *next_thr == NULL) {
+				*next_thr = thr;
+			} else {
+				srv_que_task_enqueue_low(thr);
+			}
+
 			mutex_exit(&kernel_mutex);
 
-			return(thr);
+			return;
 		}
 	}	
 
@@ -755,7 +825,7 @@ que_thr_dec_refer_count(
 
 		mutex_exit(&kernel_mutex);
 
-		return(next_thr);
+		return;
 	}
 	
 	fork_type = fork->fork_type;
@@ -771,7 +841,7 @@ que_thr_dec_refer_count(
 			ut_ad(UT_LIST_GET_LEN(trx->signals) > 0);
 			ut_ad(trx->handling_signals == TRUE);
 			
-			next_thr = trx_finish_rollback_off_kernel(fork, trx);
+			trx_finish_rollback_off_kernel(fork, trx, next_thr);
 			
 		} else if (fork_type == QUE_FORK_PURGE) {
 
@@ -793,7 +863,7 @@ que_thr_dec_refer_count(
 		zero, then we start processing a signal; from it we may get
 		a new query thread to run */
 
-		next_thr = trx_sig_start_handle(trx);
+		trx_sig_start_handle(trx, next_thr);
 	}
 
 	if (trx->handling_signals && UT_LIST_GET_LEN(trx->signals) == 0) {
@@ -802,8 +872,6 @@ que_thr_dec_refer_count(
 	}
 
 	mutex_exit(&kernel_mutex);
-
-	return(next_thr);
 }
 
 /**************************************************************************
@@ -1175,7 +1243,6 @@ loop:
 	/*-------------------------*/
 	next_thr = que_thr_step(thr);
 	/*-------------------------*/
-	ut_a(next_thr == thr || next_thr == NULL);
 
 	/* Test the effect on performance of adding extra mutex
 	reservations */
@@ -1192,7 +1259,7 @@ loop:
 	loop_count++;
 
 	if (next_thr != thr) {
-		next_thr = que_thr_dec_refer_count(thr);
+		que_thr_dec_refer_count(thr, &next_thr);
 
 		if (next_thr == NULL) {
 

@@ -152,6 +152,17 @@ que_run_threads(
 /*============*/
 	que_thr_t*	thr);	/* in: query thread which is run initially */
 /**************************************************************************
+After signal handling is finished, returns control to a query graph error
+handling routine. (Currently, just returns the control to the root of the
+graph so that the graph can communicate an error message to the client.) */
+
+void
+que_fork_error_handle(
+/*==================*/
+	trx_t*	trx,	/* in: trx */
+	que_t*	fork);	/* in: query graph which was run before signal
+			handling started, NULL not allowed */
+/**************************************************************************
 Handles an SQL error noticed during query thread execution. At the moment,
 does nothing! */
 
@@ -170,15 +181,18 @@ a single worker thread to execute it. This function should be used to end
 the wait state of a query thread waiting for a lock or a stored procedure
 completion. */
 
-que_thr_t*
+void
 que_thr_end_wait(
 /*=============*/
-					/* out: next query thread to run;
-					NULL if none */
-	que_thr_t*	thr);		/* in: query thread in the
+	que_thr_t*	thr,		/* in: query thread in the
 					QUE_THR_LOCK_WAIT,
 					or QUE_THR_PROCEDURE_WAIT, or
 					QUE_THR_SIG_REPLY_WAIT state */
+	que_thr_t**	next_thr);	/* in/out: next query thread to run;
+					if the value which is passed in is
+					a pointer to a NULL pointer, then the
+					calling function can start running
+					a new query thread */
 /**************************************************************************
 Same as que_thr_end_wait, but no parameter next_thr available. */
 

@@ -23,6 +23,7 @@ Created 3/26/1996 Heikki Tuuri
 #include "row0purge.h"
 #include "row0upd.h"
 #include "trx0rec.h"
+#include "srv0que.h"
 #include "os0thread.h"
 
 /* The global data structure coordinating a purge */
@@ -1058,6 +1059,8 @@ trx_purge(void)
 	
 
 	mutex_exit(&kernel_mutex);
+
+/*	srv_que_task_enqueue(thr2); */
 
 	if (srv_print_thread_releases) {
 	
