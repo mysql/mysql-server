@@ -216,3 +216,9 @@ a	b
 0	2
 3	4
 drop table t1;
+create table `t1 `(a int);
+Incorrect table name 't1 '
+create database `db1 `;
+Incorrect database name 'db1 '
+create table t1(`a ` int);
+Incorrect column name 'a '

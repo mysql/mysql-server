@@ -381,7 +381,7 @@ bool mysql_change_db(THD *thd,const char *name)
   ulong db_access;
   DBUG_ENTER("mysql_change_db");
 
-  if (!dbname || !(db_length=strip_sp(dbname)))
+  if (!dbname || !(db_length= strlength(dbname)))
   {
     x_free(dbname);				/* purecov: inspected */
     send_error(&thd->net,ER_NO_DB_ERROR);	/* purecov: inspected */
