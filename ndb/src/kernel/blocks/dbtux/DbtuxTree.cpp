@@ -34,7 +34,7 @@ Dbtux::treeAdd(Signal* signal, Frag& frag, TreePos treePos, TreeEnt ent)
     if (node.getOccup() < tree.m_maxOccup) {
       // node has room
       jam();
-      nodePushUp(signal, node, pos, ent);
+      nodePushUp(signal, node, pos, ent, RNIL);
       return;
     }
     treeAddFull(signal, frag, node, pos, ent);
@@ -42,7 +42,7 @@ Dbtux::treeAdd(Signal* signal, Frag& frag, TreePos treePos, TreeEnt ent)
   }
   jam();
   insertNode(signal, node);
-  nodePushUp(signal, node, 0, ent);
+  nodePushUp(signal, node, 0, ent, RNIL);
   node.setSide(2);
   tree.m_root = node.m_loc;
 }
@@ -68,13 +68,14 @@ Dbtux::treeAddFull(Signal* signal, Frag& frag, NodeHandle lubNode, unsigned pos,
     if (glbNode.getOccup() < tree.m_maxOccup) {
       // g.l.b node has room
       jam();
+      Uint32 scanList = RNIL;
       if (pos != 0) {
         jam();
         // add the new entry and return min entry
-        nodePushDown(signal, lubNode, pos - 1, ent);
+        nodePushDown(signal, lubNode, pos - 1, ent, scanList);
       }
       // g.l.b node receives min entry from l.u.b node
-      nodePushUp(signal, glbNode, glbNode.getOccup(), ent);
+      nodePushUp(signal, glbNode, glbNode.getOccup(), ent, scanList);
       return;
     }
     treeAddNode(signal, frag, lubNode, pos, ent, glbNode, 1);
@@ -97,13 +98,14 @@ Dbtux::treeAddNode(Signal* signal, Frag& frag, NodeHandle lubNode, unsigned pos,
   parentNode.setLink(i, glbNode.m_loc);
   glbNode.setLink(2, parentNode.m_loc);
   glbNode.setSide(i);
+  Uint32 scanList = RNIL;
   if (pos != 0) {
     jam();
     // add the new entry and return min entry
-    nodePushDown(signal, lubNode, pos - 1, ent);
+    nodePushDown(signal, lubNode, pos - 1, ent, scanList);
   }
   // g.l.b node receives min entry from l.u.b node
-  nodePushUp(signal, glbNode, 0, ent);
+  nodePushUp(signal, glbNode, 0, ent, scanList);
   // re-balance the tree
   treeAddRebalance(signal, frag, parentNode, i);
 }
@@ -179,7 +181,7 @@ Dbtux::treeRemove(Signal* signal, Frag& frag, TreePos treePos)
   if (node.getOccup() > tree.m_minOccup) {
     // no underflow in any node type
     jam();
-    nodePopDown(signal, node, pos, ent);
+    nodePopDown(signal, node, pos, ent, 0);
     return;
   }
   if (node.getChilds() == 2) {
@@ -189,7 +191,7 @@ Dbtux::treeRemove(Signal* signal, Frag& frag, TreePos treePos)
     return;
   }
   // remove entry in semi/leaf
-  nodePopDown(signal, node, pos, ent);
+  nodePopDown(signal, node, pos, ent, 0);
   if (node.getLink(0) != NullTupLoc) {
     jam();
     treeRemoveSemi(signal, frag, node, 0);
@@ -222,8 +224,9 @@ Dbtux::treeRemoveInner(Signal* signal, Frag& frag, NodeHandle lubNode, unsigned 
     loc = glbNode.getLink(1);
   } while (loc != NullTupLoc);
   // borrow max entry from semi/leaf
-  nodePopDown(signal, glbNode, glbNode.getOccup() - 1, ent);
-  nodePopUp(signal, lubNode, pos, ent);
+  Uint32 scanList = RNIL;
+  nodePopDown(signal, glbNode, glbNode.getOccup() - 1, ent, &scanList);
+  nodePopUp(signal, lubNode, pos, ent, scanList);
   if (glbNode.getLink(0) != NullTupLoc) {
     jam();
     treeRemoveSemi(signal, frag, glbNode, 0);
