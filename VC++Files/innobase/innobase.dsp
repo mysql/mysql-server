@@ -280,10 +280,6 @@ SOURCE=.\mtr\mtr0mtr.c
 # End Source File
 # Begin Source File
 
-SOURCE=.\odbc\odbc0odbc.c
-# End Source File
-# Begin Source File
-
 SOURCE=.\os\os0file.c
 # End Source File
 # Begin Source File
