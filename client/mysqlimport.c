@@ -1,15 +1,15 @@
-/* Copyright (C) 2000 MySQL AB & MySQL Finland AB & TCX DataKonsult AB
-   
+/* Copyright (C) 2000 MySQL AB
+
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
    the Free Software Foundation; either version 2 of the License, or
    (at your option) any later version.
-   
+
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
    GNU General Public License for more details.
-   
+
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
@@ -25,7 +25,7 @@
 **			   *			   *
 **			   *************************
 */
-#define IMPORT_VERSION "2.7"
+#define IMPORT_VERSION "2.8"
 
 #include "client_priv.h"
 #include "mysql_version.h"
@@ -336,7 +336,7 @@ static int write_to_table(char *filename, MYSQL *sock)
   if (ignore)
     end= strmov(end, " IGNORE");
   end= strmov(strmov(end, " INTO TABLE "), tablename);
-  
+
   if (fields_terminated || enclosed || opt_enclosed || escaped)
       end= strmov(end, " FIELDS");
   end= add_load_option(end, fields_terminated, " TERMINATED BY");
@@ -397,10 +397,13 @@ static MYSQL *db_connect(char *host, char *database, char *user, char *passwd)
   mysql_init(&mysql_connection);
   if (opt_compress)
     mysql_options(&mysql_connection,MYSQL_OPT_COMPRESS,NullS);
+  if (opt_local_file)
+    mysql_options(&mysql_connection,MYSQL_OPT_LOCAL_INFILE,
+		  (char*) &opt_local_file);
 #ifdef HAVE_OPENSSL
   if (opt_use_ssl)
     mysql_ssl_set(&mysql_connection, opt_ssl_key, opt_ssl_cert, opt_ssl_ca,
-		  opt_ssl_capath);
+		  opt_ssl_capath, opt_ssl_cipher);
 #endif
   if (!(sock= mysql_real_connect(&mysql_connection,host,user,passwd,
 				 database,opt_mysql_port,opt_mysql_unix_port,
@@ -482,7 +485,7 @@ static char *add_load_option(char *ptr, const char *object,
 ** This is done by doubleing ' and add a end -\ if needed to avoid
 ** syntax errors from the SQL parser.
 */ 
- 
+
 static char *field_escape(char *to,const char *from,uint length)
 {
   const char *end;
@@ -505,7 +508,7 @@ static char *field_escape(char *to,const char *from,uint length)
     *to++= '\\';          
   return to;
 }
-  
+
 
 
 int main(int argc, char **argv)

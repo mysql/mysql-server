@@ -191,7 +191,7 @@ void ha_isam::info(uint flag)
     sortkey = info.sortkey;
     block_size=nisam_block_size;
     table->keys	   = min(table->keys,info.keys);
-    table->keys_in_use= (((key_map) 1) << table->keys)- (key_map) 1;
+    table->keys_in_use= set_bits(key_map,table->keys);
     table->db_options_in_use= info.options;
     table->db_record_offset=
       (table->db_options_in_use &
