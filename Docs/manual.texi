@@ -18267,8 +18267,6 @@ through the key buffer is used in the following cases:
 @item
 If you use @code{--safe-recover}.
 @item
-If you are using a @code{FULLTEXT} index.
-@item
 If the temporary files needed to sort the keys would be more than twice
 as big as when creating the key file directly.  This is often the case
 when you have big @code{CHAR}, @code{VARCHAR} or @code{TEXT} keys as the
