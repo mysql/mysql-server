@@ -1,14 +1,14 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1997, 1998, 1999, 2000
+ * Copyright (c) 1997-2002
  *	Sleepycat Software.  All rights reserved.
  */
 
 #include "db_config.h"
 
 #ifndef lint
-static const char revid[] = "$Id: os_fsync.c,v 11.9 2000/04/04 23:29:20 ubell Exp $";
+static const char revid[] = "$Id: os_fsync.c,v 11.14 2002/07/12 18:56:50 bostic Exp $";
 #endif /* not lint */
 
 #ifndef NO_SYSTEM_INCLUDES
@@ -20,7 +20,6 @@ static const char revid[] = "$Id: os_fsync.c,v 11.9 2000/04/04 23:29:20 ubell Ex
 #endif
 
 #include "db_int.h"
-#include "os_jump.h"
 
 #ifdef	HAVE_VXWORKS
 #include "ioLib.h"
@@ -79,12 +78,12 @@ __os_fsync(dbenv, fhp)
 	if (F_ISSET(fhp, DB_FH_NOSYNC))
 		return (0);
 
-	ret = __db_jump.j_fsync != NULL ?
-	    __db_jump.j_fsync(fhp->fd) : fsync(fhp->fd);
+	do {
+		ret = DB_GLOBAL(j_fsync) != NULL ?
+		    DB_GLOBAL(j_fsync)(fhp->fd) : fsync(fhp->fd);
+	} while (ret != 0 && (ret = __os_get_errno()) == EINTR);
 
-	if (ret != 0) {
-		ret = __os_get_errno();
+	if (ret != 0)
 		__db_err(dbenv, "fsync %s", strerror(ret));
-	}
 	return (ret);
 }

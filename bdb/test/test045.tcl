@@ -1,11 +1,17 @@
 # See the file LICENSE for redistribution information.
 #
-# Copyright (c) 1996, 1997, 1998, 1999, 2000
+# Copyright (c) 1996-2002
 #	Sleepycat Software.  All rights reserved.
 #
-#	$Id: test045.tcl,v 11.17 2000/10/19 23:15:22 ubell Exp $
+# $Id: test045.tcl,v 11.24 2002/02/07 17:50:10 sue Exp $
 #
-# DB Test 45 Run the random db tester on the specified access method.
+# TEST	test045
+# TEST	Small random tester
+# TEST		Runs a number of random add/delete/retrieve operations.
+# TEST		Tests both successful conditions and error conditions.
+# TEST
+# TEST	Run the random db tester on the specified access method.
+#
 # Options are:
 #	-adds <maximum number of keys before you disable adds>
 #	-cursors <number of cursors>
@@ -17,11 +23,7 @@
 #	-keyavg <average key size>
 proc test045 { method {nops 10000} args } {
 	source ./include.tcl
-
-	if { [is_frecno $method] == 1 } {
-		puts "\tSkipping Test045 for method $method."
-		return
-	}
+	global encrypt
 
 	#
 	# If we are using an env, then skip this test.  It needs its own.
@@ -33,6 +35,10 @@ proc test045 { method {nops 10000} args } {
 		return
 	}
 	set args [convert_args $method $args]
+	if { $encrypt != 0 } {
+		puts "Test045 skipping for security"
+		return
+	}
 	set omethod [convert_method $method]
 
 	puts "Test045: Random tester on $method for $nops operations"
@@ -63,7 +69,7 @@ proc test045 { method {nops 10000} args } {
 			-errpct	 { incr i; set errpct [lindex $args $i] }
 			-init	 { incr i; set init [lindex $args $i] }
 			-keyavg	 { incr i; set keyavg [lindex $args $i] }
-			-extent	 { incr i; 
+			-extent	 { incr i;
 				    lappend oargs "-extent" "100" }
 			default	 { lappend oargs [lindex $args $i] }
 		}
@@ -77,7 +83,7 @@ proc test045 { method {nops 10000} args } {
 	# Run the script with 3 times the number of initial elements to
 	# set it up.
 	set db [eval {berkdb_open \
-	     -create -truncate -mode 0644 $omethod} $oargs {$f}]
+	     -create -mode 0644 $omethod} $oargs {$f}]
 	error_check_good dbopen:$f [is_valid_db $db] TRUE
 
 	set r [$db close]
@@ -90,7 +96,7 @@ proc test045 { method {nops 10000} args } {
 	if { $init != 0 } {
 		set n [expr 3 * $init]
 		exec $tclsh_path \
-		    $test_path/dbscript.tcl $f $n \
+		    $test_path/dbscript.tcl $method $f $n \
 		    1 $init $n $keyavg $dataavg $dups 0 -1 \
 		    > $testdir/test045.init
 	}
@@ -101,11 +107,11 @@ proc test045 { method {nops 10000} args } {
 	puts "\tTest045.b: Now firing off berkdb rand dbscript, running: "
 	# Now the database is initialized, run a test
 	puts "$tclsh_path\
-	    $test_path/dbscript.tcl $f $nops $cursors $delete $adds \
+	    $test_path/dbscript.tcl $method $f $nops $cursors $delete $adds \
 	    $keyavg $dataavg $dups $errpct > $testdir/test045.log"
 
 	exec $tclsh_path \
-	    $test_path/dbscript.tcl $f \
+	    $test_path/dbscript.tcl $method $f \
 	    $nops $cursors $delete $adds $keyavg \
 	    $dataavg $dups $errpct \
 	    > $testdir/test045.log

@@ -1,7 +1,7 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1996, 1997, 1998, 1999, 2000
+ * Copyright (c) 1996-2002
  *	Sleepycat Software.  All rights reserved.
  */
 
@@ -9,9 +9,9 @@
 
 #ifndef lint
 static const char copyright[] =
-    "Copyright (c) 1996-2000\nSleepycat Software Inc.  All rights reserved.\n";
+    "Copyright (c) 1996-2002\nSleepycat Software Inc.  All rights reserved.\n";
 static const char revid[] =
-    "$Id: db185.c,v 11.15 2001/01/23 21:27:03 bostic Exp $";
+    "$Id: db185.c,v 11.28 2002/05/09 01:55:14 bostic Exp $";
 #endif
 
 #ifndef NO_SYSTEM_INCLUDES
@@ -38,6 +38,15 @@ static int	db185_put __P((const DB185 *, DBT185 *, const DBT185 *, u_int));
 static int	db185_seq __P((const DB185 *, DBT185 *, DBT185 *, u_int));
 static int	db185_sync __P((const DB185 *, u_int));
 
+/*
+ * EXTERN: #ifdef _DB185_INT_H_
+ * EXTERN: DB185 *__db185_open
+ * EXTERN:     __P((const char *, int, int, DBTYPE, const void *));
+ * EXTERN: #else
+ * EXTERN: DB *__db185_open
+ * EXTERN:     __P((const char *, int, int, DBTYPE, const void *));
+ * EXTERN: #endif
+ */
 DB185 *
 __db185_open(file, oflags, mode, type, openinfo)
 	const char *file;
@@ -153,7 +162,7 @@ __db185_open(file, oflags, mode, type, openinfo)
 			if (oflags & O_CREAT && __os_exists(file, NULL) != 0)
 				if (__os_openhandle(NULL, file,
 				    oflags, mode, &fh) == 0)
-					(void)__os_closehandle(&fh);
+					(void)__os_closehandle(NULL, &fh);
 			(void)dbp->set_re_source(dbp, file);
 
 			if (O_RDONLY)
@@ -220,15 +229,12 @@ __db185_open(file, oflags, mode, type, openinfo)
 	 * to the underlying DB structure, and vice-versa.  This has to be
 	 * done BEFORE the DB::open method call because the hash callback
 	 * is exercised as part of hash database initialiation.
-	 *
-	 * XXX
-	 * Overload the cj_internal field for this purpose.
 	 */
 	db185p->dbp = dbp;
-	dbp->cj_internal = db185p;
+	dbp->api_internal = db185p;
 
 	/* Open the database. */
-	if ((ret = dbp->open(dbp,
+	if ((ret = dbp->open(dbp, NULL,
 	    file, NULL, type, __db_oflags(oflags), mode)) != 0)
 		goto err;
 
@@ -238,10 +244,10 @@ __db185_open(file, oflags, mode, type, openinfo)
 
 	return (db185p);
 
-einval:	ret = EINVAL;
-
-err:	if (db185p != NULL)
-		__os_free(db185p, sizeof(DB185));
+err:	if (ret < 0)		/* DB 1.85 can't handle DB 2.0's errors. */
+einval:		ret = EINVAL;
+	if (db185p != NULL)
+		__os_free(NULL, db185p);
 	if (dbp != NULL)
 		(void)dbp->close(dbp, 0);
 
@@ -260,11 +266,13 @@ db185_close(db185p)
 
 	ret = dbp->close(dbp, 0);
 
-	__os_free(db185p, sizeof(DB185));
+	__os_free(NULL, db185p);
 
 	if (ret == 0)
 		return (0);
 
+	if (ret < 0)		/* DB 1.85 can't handle DB 2.0's errors. */
+		ret = EINVAL;
 	__os_set_errno(ret);
 	return (-1);
 }
@@ -299,10 +307,9 @@ db185_del(db185p, key185, flags)
 		return (1);
 	}
 
+	if (ret < 0)		/* DB 1.85 can't handle DB 2.0's errors. */
+einval:		ret = EINVAL;
 	__os_set_errno(ret);
-	return (-1);
-
-einval:	__os_set_errno(EINVAL);
 	return (-1);
 }
 
@@ -318,6 +325,8 @@ db185_fd(db185p)
 	if ((ret = dbp->fd(dbp, &fd)) == 0)
 		return (fd);
 
+	if (ret < 0)		/* DB 1.85 can't handle DB 2.0's errors. */
+		ret = EINVAL;
 	__os_set_errno(ret);
 	return (-1);
 }
@@ -354,10 +363,9 @@ db185_get(db185p, key185, data185, flags)
 		return (1);
 	}
 
+	if (ret < 0)		/* DB 1.85 can't handle DB 2.0's errors. */
+einval:		ret = EINVAL;
 	__os_set_errno(ret);
-	return (-1);
-
-einval:	__os_set_errno(EINVAL);
 	return (-1);
 }
 
@@ -371,7 +379,7 @@ db185_put(db185p, key185, data185, flags)
 	DB *dbp;
 	DBC *dbcp_put;
 	DBT key, data;
-	int ret;
+	int ret, t_ret;
 
 	dbp = db185p->dbp;
 
@@ -394,23 +402,18 @@ db185_put(db185p, key185, data185, flags)
 		if (dbp->type != DB_RECNO)
 			goto einval;
 
-		if ((ret = dbp->cursor(dbp, NULL, &dbcp_put, 0)) != 0) {
-			__os_set_errno(ret);
-			return (-1);
-		}
+		if ((ret = dbp->cursor(dbp, NULL, &dbcp_put, 0)) != 0)
+			break;
 		if ((ret =
-		    dbcp_put->c_get(dbcp_put, &key, &data, DB_SET)) != 0) {
-			(void)dbcp_put->c_close(dbcp_put);
-			__os_set_errno(ret);
-			return (-1);
+		    dbcp_put->c_get(dbcp_put, &key, &data, DB_SET)) == 0) {
+			memset(&data, 0, sizeof(data));
+			data.data = data185->data;
+			data.size = data185->size;
+			ret = dbcp_put->c_put(dbcp_put, &key, &data,
+			    flags == R_IAFTER ? DB_AFTER : DB_BEFORE);
 		}
-		memset(&data, 0, sizeof(data));
-		data.data = data185->data;
-		data.size = data185->size;
-		ret = dbcp_put->c_put(dbcp_put,
-		    &key, &data, flags == R_IAFTER ? DB_AFTER : DB_BEFORE);
-		(void)dbcp_put->c_close(dbcp_put);
-		__os_set_errno(ret);
+		if ((t_ret = dbcp_put->c_close(dbcp_put)) != 0 && ret == 0)
+			ret = t_ret;
 		break;
 	case R_NOOVERWRITE:
 		ret = dbp->put(dbp, NULL, &key, &data, DB_NOOVERWRITE);
@@ -436,10 +439,10 @@ db185_put(db185p, key185, data185, flags)
 	case DB_KEYEXIST:
 		return (1);
 	}
-	__os_set_errno(ret);
-	return (-1);
 
-einval:	__os_set_errno(EINVAL);
+	if (ret < 0)		/* DB 1.85 can't handle DB 2.0's errors. */
+einval:		ret = EINVAL;
+	__os_set_errno(ret);
 	return (-1);
 }
 
@@ -496,10 +499,9 @@ db185_seq(db185p, key185, data185, flags)
 		return (1);
 	}
 
+	if (ret < 0)		/* DB 1.85 can't handle DB 2.0's errors. */
+einval:		ret = EINVAL;
 	__os_set_errno(ret);
-	return (-1);
-
-einval:	__os_set_errno(EINVAL);
 	return (-1);
 }
 
@@ -534,10 +536,9 @@ db185_sync(db185p, flags)
 	if ((ret = dbp->sync(dbp, 0)) == 0)
 		return (0);
 
+	if (ret < 0)		/* DB 1.85 can't handle DB 2.0's errors. */
+einval:		ret = EINVAL;
 	__os_set_errno(ret);
-	return (-1);
-
-einval:	__os_set_errno(EINVAL);
 	return (-1);
 }
 
@@ -564,7 +565,7 @@ db185_compare(dbp, a, b)
 	DB *dbp;
 	const DBT *a, *b;
 {
-	return (((DB185 *)dbp->cj_internal)->compare(a, b));
+	return (((DB185 *)dbp->api_internal)->compare(a, b));
 }
 
 /*
@@ -576,7 +577,7 @@ db185_prefix(dbp, a, b)
 	DB *dbp;
 	const DBT *a, *b;
 {
-	return (((DB185 *)dbp->cj_internal)->prefix(a, b));
+	return (((DB185 *)dbp->api_internal)->prefix(a, b));
 }
 
 /*
@@ -589,5 +590,5 @@ db185_hash(dbp, key, len)
 	const void *key;
 	u_int32_t len;
 {
-	return (((DB185 *)dbp->cj_internal)->hash(key, (size_t)len));
+	return (((DB185 *)dbp->api_internal)->hash(key, (size_t)len));
 }

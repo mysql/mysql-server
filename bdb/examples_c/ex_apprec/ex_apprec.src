@@ -1,0 +1,41 @@
+/*-
+ * See the file LICENSE for redistribution information.
+ *
+ * Copyright (c) 2002
+ *	Sleepycat Software.  All rights reserved.
+ *
+ * $Id: ex_apprec.src,v 1.3 2002/08/08 15:47:00 bostic Exp $
+ */
+
+PREFIX	ex_apprec
+
+/*
+ * This is the source file used to generate the application-specific recovery
+ * functions used by the ex_apprec example.  It should be turned into usable
+ * source code (including a template for the recovery function itself) by
+ * invoking changing to the dist directory of the DB distribution and
+ * running the gen_rec.awk script there as follows:
+ *
+ *     awk -f ./gen_rec.awk \
+ *         -v source_file=../examples_c/ex_apprec/ex_apprec_auto.c         \
+ *         -v header_file=../examples_c/ex_apprec/ex_apprec_auto.h         \
+ *         -v template_file=../examples_c/ex_apprec/ex_apprec_template     \
+ *         < ../examples_c/ex_apprec/ex_apprec.src
+
+INCLUDE #include <ctype.h>
+INCLUDE #include <errno.h>
+INCLUDE #include <stdlib.h>
+INCLUDE #include <string.h>
+INCLUDE
+INCLUDE #include <db.h>
+INCLUDE
+INCLUDE #include "ex_apprec.h"
+
+/*
+ * mkdir: used to create a directory
+ *
+ * dirname:	relative or absolute pathname of the directory to be created
+ */
+BEGIN mkdir	10000
+DBT	dirname		DBT		s
+END

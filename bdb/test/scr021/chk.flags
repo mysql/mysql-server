@@ -1,0 +1,97 @@
+#!/bin/sh -
+#
+# $Id: chk.flags,v 1.8 2002/08/14 02:19:55 bostic Exp $
+#
+# Check flag name-spaces.
+
+d=../..
+
+t1=__1
+
+# Check for DB_ENV flags.
+(grep 'F_ISSET([^ ]*dbenv,' $d/*/*.[chys];
+ grep 'F_SET([^ ]*dbenv,' $d/*/*.[chys];
+ grep 'F_CLR([^ ]*dbenv,' $d/*/*.[chys]) |
+ sed -e '/DB_ENV_/d' -e '/F_SET([^ ]*dbenv, db_env_reset)/d' > $t1
+[ -s $t1 ] && {
+	cat $t1
+	exit 1
+}
+
+grep 'DB_ENV_' $d/*/*.c |
+sed -e '/F_.*dbenv,/d' \
+    -e '/DB_ENV_TEST_RECOVERY(.*DB_TEST_/d' \
+    -e '/\/libdb_java\//d' > $t1
+[ -s $t1 ] && {
+	cat $t1
+	exit 1
+}
+
+# Check for DB flags.
+(grep 'F_ISSET([^ ]*dbp,' $d/*/*.[chys];
+ grep 'F_SET([^ ]*dbp,' $d/*/*.[chys];
+ grep 'F_CLR([^ ]*dbp,' $d/*/*.[chys]) |
+ sed -e '/DB_AM_/d' \
+     -e '/db.c:.*F_SET.*F_ISSET(subdbp,/d' > $t1
+[ -s $t1 ] && {
+	cat $t1
+	exit 1
+}
+
+grep 'DB_AM_' $d/*/*.c |
+sed -e '/F_.*dbp/d' \
+    -e '/"DB->open", dbp->flags, DB_AM_DUP,/d' \
+    -e '/"DB_NODUPDATA" behavior for databases with/d' \
+    -e '/If DB_AM_OPEN_CALLED is not set, then we/d' \
+    -e '/This was checked in set_flags when DB_AM_ENCRYPT/d' \
+    -e '/XA_ABORT, we can safely set DB_AM_RECOVER/d' \
+    -e '/ DB_AM_RECNUM\./d' \
+    -e '/ DB_AM_RECOVER set\./d' \
+    -e '/isdup = dbp->flags & DB_AM_DUP/d' \
+    -e '/otherwise we simply do/d' \
+    -e '/pginfo/d' \
+    -e '/setting DB_AM_RECOVER, we guarantee that we don/d' \
+    -e '/:[	 {]*DB_AM_/d' > $t1
+[ -s $t1 ] && {
+	cat $t1
+	exit 1
+}
+
+# Check for DBC flags.
+(grep 'F_ISSET([^ ]*dbc,' $d/*/*.[chys];
+ grep 'F_SET([^ ]*dbc,' $d/*/*.[chys];
+ grep 'F_CLR([^ ]*dbc,' $d/*/*.[chys]) |
+ sed -e '/DBC_/d' > $t1
+[ -s $t1 ] && {
+	cat $t1
+	exit 1
+}
+
+grep 'DBC_' $d/*/*.c |
+sed -e '/F_.*dbc/d' \
+    -e '/DBC_INTERNAL/d' \
+    -e '/DBC_LOGGING/d' \
+    -e '/Do the actual get.  Set DBC_TRANSIENT/d' \
+    -e '/If DBC_WRITEDUP is set, the cursor is an in/d' \
+    -e '/The DBC_TRANSIENT flag indicates that we/d' \
+    -e '/This function replaces the DBC_CONTINUE and DBC_KEYSET/d' \
+    -e '/db_cam.c:.*F_CLR(opd, DBC_ACTIVE);/d' \
+    -e '/{ DBC_/d' > $t1
+[ -s $t1 ] && {
+	cat $t1
+	exit 1
+}
+
+# Check for bad use of macros.
+egrep 'case .*F_SET\(|case .*F_CLR\(' $d/*/*.c > $t1
+egrep 'for .*F_SET\(|for .*F_CLR\(' $d/*/*.c >> $t1
+egrep 'if .*F_SET\(|if .*F_CLR\(' $d/*/*.c >> $t1
+egrep 'switch .*F_SET\(|switch .*F_CLR\(' $d/*/*.c >> $t1
+egrep 'while .*F_SET\(|while .*F_CLR\(' $d/*/*.c >> $t1
+[ -s $t1 ] && {
+	echo 'if statement followed by non-test macro'
+	cat $t1
+	exit 1
+}
+
+exit 0

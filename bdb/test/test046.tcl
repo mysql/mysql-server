@@ -1,11 +1,12 @@
 # See the file LICENSE for redistribution information.
 #
-# Copyright (c) 1999, 2000
+# Copyright (c) 1999-2002
 #	Sleepycat Software.  All rights reserved.
 #
-#	$Id: test046.tcl,v 11.26 2000/08/25 14:21:56 sue Exp $
+# $Id: test046.tcl,v 11.33 2002/05/24 15:24:55 sue Exp $
 #
-# DB Test 46: Overwrite test of small/big key/data with cursor checks.
+# TEST	test046
+# TEST	Overwrite test of small/big key/data with cursor checks.
 proc test046 { method args } {
 	global alphabet
 	global errorInfo
@@ -33,6 +34,7 @@ proc test046 { method args } {
 	}
 
 	puts "\tTest046: Create $method database."
+	set txnenv 0
 	set eindex [lsearch -exact $args "-env"]
 	#
 	# If we are using an env, then testfile should just be the db name.
@@ -44,6 +46,11 @@ proc test046 { method args } {
 		set testfile test046.db
 		incr eindex
 		set env [lindex $args $eindex]
+		set txnenv [is_txnenv $env]
+		if { $txnenv == 1 } {
+			append args " -auto_commit "
+		}
+		set testdir [get_home $env]
 	}
 	set t1 $testdir/t1
 	cleanup $testdir $env
@@ -52,27 +59,42 @@ proc test046 { method args } {
 	set db [eval {berkdb_open} $oflags $testfile.a]
 	error_check_good dbopen [is_valid_db $db] TRUE
 
-	# open curs to db
-	set dbc [$db cursor]
-	error_check_good db_cursor [is_substr $dbc $db] 1
-
 	# keep nkeys even
 	set nkeys 20
 
 	# Fill page w/ small key/data pairs
 	puts "\tTest046: Fill page with $nkeys small key/data pairs."
 	for { set i 1 } { $i <= $nkeys } { incr i } {
+		if { $txnenv == 1 } {
+			set t [$env txn]
+			error_check_good txn [is_valid_txn $t $env] TRUE
+			set txn "-txn $t"
+		}
 		if { [is_record_based $method] == 1} {
-			set ret [$db put $i $data$i]
+			set ret [eval {$db put} $txn {$i $data$i}]
 		} elseif { $i < 10 } {
-			set ret [$db put [set key]00$i [set data]00$i]
+			set ret [eval {$db put} $txn [set key]00$i \
+			    [set data]00$i]
 		} elseif { $i < 100 } {
-			set ret [$db put [set key]0$i [set data]0$i]
+			set ret [eval {$db put} $txn [set key]0$i \
+			    [set data]0$i]
 		} else {
-			set ret [$db put $key$i $data$i]
+			set ret [eval {$db put} $txn {$key$i $data$i}]
 		}
 		error_check_good dbput $ret 0
+		if { $txnenv == 1 } {
+			error_check_good txn [$t commit] 0
+		}
 	}
+
+	# open curs to db
+	if { $txnenv == 1 } {
+		set t [$env txn]
+		error_check_good txn [is_valid_txn $t $env] TRUE
+		set txn "-txn $t"
+	}
+	set dbc [eval {$db cursor} $txn]
+	error_check_good db_cursor [is_substr $dbc $db] 1
 
 	# get db order of keys
 	for {set i 1; set ret [$dbc get -first]} { [llength $ret] != 0} { \
@@ -92,7 +114,7 @@ proc test046 { method args } {
 
 	# delete before cursor(n-1), make sure it is gone
 	set i [expr $i - 1]
-	error_check_good db_del [$db del $key_set($i)] 0
+	error_check_good db_del [eval {$db del} $txn {$key_set($i)}] 0
 
 	# use set_range to get first key starting at n-1, should
 	# give us nth--but only works for btree
@@ -120,7 +142,7 @@ proc test046 { method args } {
 	puts "\t\tTest046.a.2: Delete cursor item by key."
 	# nth key, which cursor should be on now
 	set i [incr i]
-	set ret [$db del $key_set($i)]
+	set ret [eval {$db del} $txn {$key_set($i)}]
 	error_check_good db_del $ret 0
 
 	# this should return n+1 key/data, curr has nth key/data
@@ -155,7 +177,7 @@ proc test046 { method args } {
 	set ret [$dbc get -prev]
 	error_check_bad dbc_get:prev [llength $curr] 0
 	# delete *after* cursor pos.
-	error_check_good db:del [$db del $key_set([incr i])] 0
+	error_check_good db:del [eval {$db del} $txn {$key_set([incr i])}] 0
 
 	# make sure item is gone, try to get it
 	if { [string compare $omethod "-btree"] == 0} {
@@ -211,12 +233,12 @@ proc test046 { method args } {
 	puts "\t\tTest046.c.1: Insert by key before the cursor."
 	# i is at curs pos, i=n+1, we want to go BEFORE
 	set i [incr i -1]
-	set ret [$db put $key_set($i) $data_set($i)]
+	set ret [eval {$db put} $txn {$key_set($i) $data_set($i)}]
 	error_check_good db_put:before $ret 0
 
 	puts "\t\tTest046.c.2: Insert by key after the cursor."
 	set i [incr i +2]
-	set ret [$db put $key_set($i) $data_set($i)]
+	set ret [eval {$db put} $txn {$key_set($i) $data_set($i)}]
 	error_check_good db_put:after $ret 0
 
 	puts "\t\tTest046.c.3: Insert by curs with deleted curs (should fail)."
@@ -224,6 +246,9 @@ proc test046 { method args } {
 	set i [incr i -1]
 
 	error_check_good dbc:close [$dbc close] 0
+	if { $txnenv == 1 } {
+		error_check_good txn [$t commit] 0
+	}
 	error_check_good db:close [$db close] 0
 	if { [is_record_based $method] == 1} {
 		puts "\t\tSkipping the rest of test for method $method."
@@ -233,7 +258,12 @@ proc test046 { method args } {
 		# Reopen without printing __db_errs.
 		set db [eval {berkdb_open_noerr} $oflags $testfile.a]
 		error_check_good dbopen [is_valid_db $db] TRUE
-		set dbc [$db cursor]
+		if { $txnenv == 1 } {
+			set t [$env txn]
+			error_check_good txn [is_valid_txn $t $env] TRUE
+			set txn "-txn $t"
+		}
+		set dbc [eval {$db cursor} $txn]
 		error_check_good cursor [is_valid_cursor $dbc $db] TRUE
 
 		# should fail with EINVAL (deleted cursor)
@@ -254,7 +284,7 @@ proc test046 { method args } {
 		    Insert by cursor before/after existent cursor."
 		# can't use before after w/o dup except renumber in recno
 		# first, restore an item so they don't fail
-		#set ret [$db put $key_set($i) $data_set($i)]
+		#set ret [eval {$db put} $txn {$key_set($i) $data_set($i)}]
 		#error_check_good db_put $ret 0
 
 		#set ret [$dbc get -set $key_set($i)]
@@ -275,20 +305,36 @@ proc test046 { method args } {
 	# overwrites
 	puts "\tTest046.d.0: Cleanup, close db, open new db with no dups."
 	error_check_good dbc:close [$dbc close] 0
+	if { $txnenv == 1 } {
+		error_check_good txn [$t commit] 0
+	}
 	error_check_good db:close [$db close] 0
 
 	set db [eval {berkdb_open} $oflags $testfile.d]
 	error_check_good dbopen [is_valid_db $db] TRUE
-	set dbc [$db cursor]
-	error_check_good db_cursor [is_substr $dbc $db] 1
-	set nkeys 20
-
 	# Fill page w/ small key/data pairs
 	puts "\tTest046.d.0: Fill page with $nkeys small key/data pairs."
 	for { set i 1 } { $i < $nkeys } { incr i } {
-		set ret [$db put $key$i $data$i]
+		if { $txnenv == 1 } {
+			set t [$env txn]
+			error_check_good txn [is_valid_txn $t $env] TRUE
+			set txn "-txn $t"
+		}
+		set ret [eval {$db put} $txn {$key$i $data$i}]
 		error_check_good dbput $ret 0
+		if { $txnenv == 1 } {
+			error_check_good txn [$t commit] 0
+		}
 	}
+
+	if { $txnenv == 1 } {
+		set t [$env txn]
+		error_check_good txn [is_valid_txn $t $env] TRUE
+		set txn "-txn $t"
+	}
+	set dbc [eval {$db cursor} $txn]
+	error_check_good db_cursor [is_valid_cursor $dbc $db] TRUE
+	set nkeys 20
 
 	# Prepare cursor on item
 	set ret [$dbc get -first]
@@ -347,14 +393,14 @@ proc test046 { method args } {
 				if { [string compare $type key_over] == 0 } {
 					puts "\t\tTest046.d.$i: Key\
 					    Overwrite:($i_pair) by ($w_pair)."
-					set ret [$db put \
+					set ret [eval {$db put} $txn \
 					    $"key_init[lindex $i_pair 0]" \
 					    $"data_over[lindex $w_pair 1]"]
 					error_check_good \
 				dbput:over:i($i_pair):o($w_pair) $ret 0
 					# check value
-					set ret [$db \
-					    get $"key_init[lindex $i_pair 0]"]
+					set ret [eval {$db get} $txn \
+					    $"key_init[lindex $i_pair 0]"]
 					error_check_bad \
 					    db:get:check [llength $ret] 0
 					error_check_good db:get:compare_data \
@@ -382,6 +428,9 @@ proc test046 { method args } {
 
 	puts "\tTest046.d.3: Cleanup for next part of test."
 	error_check_good dbc_close [$dbc close] 0
+	if { $txnenv == 1 } {
+		error_check_good txn [$t commit] 0
+	}
 	error_check_good db_close [$db close] 0
 
 	if { [is_rbtree $method] == 1} {
@@ -394,10 +443,6 @@ proc test046 { method args } {
 	set db [eval {berkdb_open_noerr} $oflags -dup -dupsort $testfile.e]
 	error_check_good dbopen [is_valid_db $db] TRUE
 
-	# open curs to db
-	set dbc [$db cursor]
-	error_check_good db_cursor [is_substr $dbc $db] 1
-
 	# keep nkeys even
 	set nkeys 20
 	set ndups 20
@@ -406,13 +451,30 @@ proc test046 { method args } {
 	puts "\tTest046.e.2:\
 	    Put $nkeys small key/data pairs and $ndups sorted dups."
 	for { set i 0 } { $i < $nkeys } { incr i } {
+		if { $txnenv == 1 } {
+			set t [$env txn]
+			error_check_good txn [is_valid_txn $t $env] TRUE
+			set txn "-txn $t"
+		}
 		if { $i < 10 } {
-			set ret [$db put [set key]0$i [set data]0$i]
+			set ret [eval {$db put} $txn [set key]0$i [set data]0$i]
 		} else {
-			set ret [$db put $key$i $data$i]
+			set ret [eval {$db put} $txn {$key$i $data$i}]
 		}
 		error_check_good dbput $ret 0
+		if { $txnenv == 1 } {
+			error_check_good txn [$t commit] 0
+		}
 	}
+
+	if { $txnenv == 1 } {
+		set t [$env txn]
+		error_check_good txn [is_valid_txn $t $env] TRUE
+		set txn "-txn $t"
+	}
+	# open curs to db
+	set dbc [eval {$db cursor} $txn]
+	error_check_good db_cursor [is_substr $dbc $db] 1
 
 	# get db order of keys
 	for {set i 0; set ret [$dbc get -first]} { [llength $ret] != 0} { \
@@ -431,15 +493,15 @@ proc test046 { method args } {
 
 	for { set i 0 } { $i < $ndups } { incr i } {
 		if { $i < 10 } {
-			set ret [$db put $keym DUPLICATE_0$i]
+			set ret [eval {$db put} $txn {$keym DUPLICATE_0$i}]
 		} else {
-			set ret [$db put $keym DUPLICATE_$i]
+			set ret [eval {$db put} $txn {$keym DUPLICATE_$i}]
 		}
 		error_check_good db_put:DUP($i) $ret 0
 	}
 
 	puts "\tTest046.e.3: Check duplicate duplicates"
-	set ret [$db put $keym DUPLICATE_00]
+	set ret [eval {$db put} $txn {$keym DUPLICATE_00}]
 	error_check_good dbput:dupdup [is_substr $ret "DB_KEYEXIST"] 1
 
 	# get dup ordering
@@ -479,11 +541,24 @@ proc test046 { method args } {
 	#error_check_good \
 	#   dbc_get:current:deleted [is_substr $ret "DB_KEYEMPTY"] 1
 	error_check_good dbc_close [$dbc close] 0
+	if { $txnenv == 1 } {
+		error_check_good txn [$t commit] 0
+	}
 
+	if { $txnenv == 1 } {
+		set t [$env txn]
+		error_check_good txn [is_valid_txn $t $env] TRUE
+		set txn "-txn $t"
+	}
 	# restore deleted keys
-	error_check_good db_put:1 [$db put $keym $dup_set($i)] 0
-	error_check_good db_put:2 [$db put $keym $dup_set([incr i])] 0
-	error_check_good db_put:3 [$db put $keym $dup_set([incr i])] 0
+	error_check_good db_put:1 [eval {$db put} $txn {$keym $dup_set($i)}] 0
+	error_check_good db_put:2 [eval {$db put} $txn \
+	    {$keym $dup_set([incr i])}] 0
+	error_check_good db_put:3 [eval {$db put} $txn \
+	    {$keym $dup_set([incr i])}] 0
+	if { $txnenv == 1 } {
+		error_check_good txn [$t commit] 0
+	}
 
 	# tested above
 
@@ -491,7 +566,13 @@ proc test046 { method args } {
 	error_check_good dbclose [$db close] 0
 	set db [eval {berkdb_open_noerr} $oflags -dup -dupsort $testfile.e]
 	error_check_good dbopen [is_valid_db $db] TRUE
-	error_check_good db_cursor [is_substr [set dbc [$db cursor]] $db] 1
+	if { $txnenv == 1 } {
+		set t [$env txn]
+		error_check_good txn [is_valid_txn $t $env] TRUE
+		set txn "-txn $t"
+	}
+	set dbc [eval {$db cursor} $txn]
+	error_check_good db_cursor [is_valid_cursor $dbc $db] TRUE
 
 	set ret [$dbc get -set $keym]
 	error_check_bad dbc_get:set [llength $ret] 0
@@ -519,7 +600,7 @@ proc test046 { method args } {
 	set i 0
 
 	# use "spam" to prevent a duplicate duplicate.
-	set ret [$db put $keym $dup_set($i)spam]
+	set ret [eval {$db put} $txn {$keym $dup_set($i)spam}]
 	error_check_good db_put:before $ret 0
 	# make sure cursor was maintained
 	set ret [$dbc get -current]
@@ -530,7 +611,7 @@ proc test046 { method args } {
 	puts "\t\tTest046.g.2: Insert by key after cursor."
 	set i [expr $i + 2]
 	# use "eggs" to prevent a duplicate duplicate
-	set ret [$db put $keym $dup_set($i)eggs]
+	set ret [eval {$db put} $txn {$keym $dup_set($i)eggs}]
 	error_check_good db_put:after $ret 0
 	# make sure cursor was maintained
 	set ret [$dbc get -current]
@@ -559,19 +640,29 @@ proc test046 { method args } {
 
 	puts "\t\tTest046.h.2: New db (no dupsort)."
 	error_check_good dbc_close [$dbc close] 0
+	if { $txnenv == 1 } {
+		error_check_good txn [$t commit] 0
+	}
 	error_check_good db_close [$db close] 0
 
-	set db [berkdb_open \
-	    -create -dup $omethod -mode 0644 -truncate $testfile.h]
+	set db [eval {berkdb_open} \
+	    $oflags -dup $testfile.h]
 	error_check_good db_open [is_valid_db $db] TRUE
-	set dbc [$db cursor]
-	error_check_good db_cursor [is_substr $dbc $db] 1
+	if { $txnenv == 1 } {
+		set t [$env txn]
+		error_check_good txn [is_valid_txn $t $env] TRUE
+		set txn "-txn $t"
+	}
+	set dbc [eval {$db cursor} $txn]
+	error_check_good db_cursor [is_valid_cursor $dbc $db] TRUE
 
 	for {set i 0} {$i < $nkeys} {incr i} {
 		if { $i < 10 } {
-			error_check_good db_put [$db put key0$i datum0$i] 0
+			set ret [eval {$db put} $txn {key0$i datum0$i}]
+			error_check_good db_put $ret 0
 		} else {
-			error_check_good db_put [$db put key$i datum$i] 0
+			set ret [eval {$db put} $txn {key$i datum$i}]
+			error_check_good db_put $ret 0
 		}
 		if { $i == 0 } {
 			for {set j 0} {$j < $ndups} {incr j} {
@@ -581,9 +672,11 @@ proc test046 { method args } {
 					set keyput key$i
 				}
 				if { $j < 10 } {
-					set ret [$db put $keyput DUP_datum0$j]
+					set ret [eval {$db put} $txn \
+					    {$keyput DUP_datum0$j}]
 				} else {
-					set ret [$db put $keyput DUP_datum$j]
+					set ret [eval {$db put} $txn \
+					    {$keyput DUP_datum$j}]
 				}
 				error_check_good dbput:dup $ret 0
 			}
@@ -711,6 +804,9 @@ proc test046 { method args } {
 
 	puts "\tTest046.i: Cleaning up from test."
 	error_check_good dbc_close [$dbc close] 0
+	if { $txnenv == 1 } {
+		error_check_good txn [$t commit] 0
+	}
 	error_check_good db_close [$db close] 0
 
 	puts "\tTest046 complete."

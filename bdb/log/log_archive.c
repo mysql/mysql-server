@@ -1,14 +1,14 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1997, 1998, 1999, 2000
+ * Copyright (c) 1997-2002
  *	Sleepycat Software.  All rights reserved.
  */
 
 #include "db_config.h"
 
 #ifndef lint
-static const char revid[] = "$Id: log_archive.c,v 11.13 2000/11/30 00:58:40 ubell Exp $";
+static const char revid[] = "$Id: log_archive.c,v 11.39 2002/08/06 05:00:31 bostic Exp $";
 #endif /* not lint */
 
 #ifndef NO_SYSTEM_INCLUDES
@@ -19,50 +19,41 @@ static const char revid[] = "$Id: log_archive.c,v 11.13 2000/11/30 00:58:40 ubel
 #include <unistd.h>
 #endif
 
-#ifdef  HAVE_RPC
-#include "db_server.h"
-#endif
-
 #include "db_int.h"
-#include "db_dispatch.h"
-#include "log.h"
-#include "clib_ext.h"			/* XXX: needed for getcwd. */
-
-#ifdef HAVE_RPC
-#include "gen_client_ext.h"
-#include "rpc_client_ext.h"
-#endif
+#include "dbinc/db_page.h"
+#include "dbinc/log.h"
+#include "dbinc/qam.h"
+#include "dbinc/txn.h"
 
 static int __absname __P((DB_ENV *, char *, char *, char **));
-static int __build_data __P((DB_ENV *, char *, char ***, void *(*)(size_t)));
+static int __build_data __P((DB_ENV *, char *, char ***));
 static int __cmpfunc __P((const void *, const void *));
-static int __usermem __P((DB_ENV *, char ***, void *(*)(size_t)));
+static int __usermem __P((DB_ENV *, char ***));
 
 /*
- * log_archive --
+ * __log_archive --
  *	Supporting function for db_archive(1).
+ *
+ * PUBLIC: int __log_archive __P((DB_ENV *, char **[], u_int32_t));
  */
 int
-log_archive(dbenv, listp, flags, db_malloc)
+__log_archive(dbenv, listp, flags)
 	DB_ENV *dbenv;
 	char ***listp;
 	u_int32_t flags;
-	void *(*db_malloc) __P((size_t));
 {
 	DBT rec;
 	DB_LOG *dblp;
+	DB_LOGC *logc;
 	DB_LSN stable_lsn;
-	u_int32_t fnum;
-	int array_size, n, ret;
+	__txn_ckp_args *ckp_args;
 	char **array, **arrayp, *name, *p, *pref, buf[MAXPATHLEN];
-
-#ifdef HAVE_RPC
-	if (F_ISSET(dbenv, DB_ENV_RPCCLIENT))
-		return (__dbcl_log_archive(dbenv, listp, flags, db_malloc));
-#endif
+	int array_size, db_arch_abs, n, ret;
+	u_int32_t fnum;
 
 	PANIC_CHECK(dbenv);
-	ENV_REQUIRES_CONFIG(dbenv, dbenv->lg_handle, DB_INIT_LOG);
+	ENV_REQUIRES_CONFIG(dbenv,
+	    dbenv->lg_handle, "DB_ENV->log_archive", DB_INIT_LOG);
 
 	name = NULL;
 	dblp = dbenv->lg_handle;
@@ -70,14 +61,23 @@ log_archive(dbenv, listp, flags, db_malloc)
 
 #define	OKFLAGS	(DB_ARCH_ABS | DB_ARCH_DATA | DB_ARCH_LOG)
 	if (flags != 0) {
-		if ((ret =
-		    __db_fchk(dbenv, "log_archive", flags, OKFLAGS)) != 0)
+		if ((ret = __db_fchk(
+		    dbenv, "DB_ENV->log_archive", flags, OKFLAGS)) != 0)
 			return (ret);
-		if ((ret =
-		    __db_fcchk(dbenv,
-			"log_archive", flags, DB_ARCH_DATA, DB_ARCH_LOG)) != 0)
+		if ((ret = __db_fcchk(dbenv, "DB_ENV->log_archive",
+		    flags, DB_ARCH_DATA, DB_ARCH_LOG)) != 0)
 			return (ret);
 	}
+
+	if (LF_ISSET(DB_ARCH_ABS)) {
+		db_arch_abs = 1;
+		LF_CLR(DB_ARCH_ABS);
+	} else
+		db_arch_abs = 0;
+
+	if (flags == 0 || flags == DB_ARCH_DATA)
+		ENV_REQUIRES_CONFIG(dbenv,
+		    dbenv->tx_handle, "DB_ENV->log_archive", DB_INIT_TXN);
 
 	/*
 	 * Get the absolute pathname of the current directory.  It would
@@ -88,7 +88,7 @@ log_archive(dbenv, listp, flags, db_malloc)
 	 * Can't trust getcwd(3) to set a valid errno.  If it doesn't, just
 	 * guess that we ran out of memory.
 	 */
-	if (LF_ISSET(DB_ARCH_ABS)) {
+	if (db_arch_abs) {
 		__os_set_errno(0);
 		if ((pref = getcwd(buf, sizeof(buf))) == NULL) {
 			if (__os_get_errno() == 0)
@@ -98,31 +98,55 @@ log_archive(dbenv, listp, flags, db_malloc)
 	} else
 		pref = NULL;
 
-	switch (LF_ISSET(~DB_ARCH_ABS)) {
+	switch (flags) {
 	case DB_ARCH_DATA:
-		return (__build_data(dbenv, pref, listp, db_malloc));
+		return (__build_data(dbenv, pref, listp));
 	case DB_ARCH_LOG:
 		memset(&rec, 0, sizeof(rec));
-		if (F_ISSET(dbenv, DB_ENV_THREAD))
-			F_SET(&rec, DB_DBT_MALLOC);
-		if ((ret = log_get(dbenv, &stable_lsn, &rec, DB_LAST)) != 0)
+		if ((ret = dbenv->log_cursor(dbenv, &logc, 0)) != 0)
 			return (ret);
-		if (F_ISSET(dbenv, DB_ENV_THREAD))
-			__os_free(rec.data, rec.size);
+#ifdef UMRW
+		ZERO_LSN(stable_lsn);
+#endif
+		ret = logc->get(logc, &stable_lsn, &rec, DB_LAST);
+		(void)logc->close(logc, 0);
+		if (ret != 0)
+			return (ret);
 		fnum = stable_lsn.file;
 		break;
 	case 0:
-		if ((ret = __log_findckp(dbenv, &stable_lsn)) != 0) {
+		memset(&rec, 0, sizeof(rec));
+		if (__txn_getckp(dbenv, &stable_lsn) != 0) {
 			/*
-			 * A return of DB_NOTFOUND means that we didn't find
-			 * any records in the log (so we are not going to be
-			 * deleting any log files).
+			 * A failure return means that there's no checkpoint
+			 * in the log (so we are not going to be deleting
+			 * any log files).
 			 */
-			if (ret != DB_NOTFOUND)
-				return (ret);
 			*listp = NULL;
 			return (0);
 		}
+		if ((ret = dbenv->log_cursor(dbenv, &logc, 0)) != 0)
+			return (ret);
+		if ((ret = logc->get(logc, &stable_lsn, &rec, DB_SET)) != 0 ||
+		    (ret = __txn_ckp_read(dbenv, rec.data, &ckp_args)) != 0) {
+			/*
+			 * A return of DB_NOTFOUND may only mean that the
+			 * checkpoint LSN is before the beginning of the
+			 * log files that we still have.  This is not
+			 * an error;  it just means our work is done.
+			 */
+			if (ret == DB_NOTFOUND) {
+				*listp = NULL;
+				ret = 0;
+			}
+			(void)logc->close(logc, 0);
+			return (ret);
+		}
+		if ((ret = logc->close(logc, 0)) != 0)
+			return (ret);
+		stable_lsn = ckp_args->ckp_lsn;
+		__os_free(dbenv, ckp_args);
+
 		/* Remove any log files before the last stable LSN. */
 		fnum = stable_lsn.file - 1;
 		break;
@@ -130,9 +154,9 @@ log_archive(dbenv, listp, flags, db_malloc)
 
 #define	LIST_INCREMENT	64
 	/* Get some initial space. */
-	array_size = 10;
+	array_size = 64;
 	if ((ret = __os_malloc(dbenv,
-	    sizeof(char *) * array_size, NULL, &array)) != 0)
+	    sizeof(char *) * array_size, &array)) != 0)
 		return (ret);
 	array[0] = NULL;
 
@@ -143,27 +167,27 @@ log_archive(dbenv, listp, flags, db_malloc)
 		if (__os_exists(name, NULL) != 0) {
 			if (LF_ISSET(DB_ARCH_LOG) && fnum == stable_lsn.file)
 				continue;
-			__os_freestr(name);
+			__os_free(dbenv, name);
 			name = NULL;
 			break;
 		}
 
-		if (n >= array_size - 1) {
+		if (n >= array_size - 2) {
 			array_size += LIST_INCREMENT;
 			if ((ret = __os_realloc(dbenv,
-			    sizeof(char *) * array_size, NULL, &array)) != 0)
+			    sizeof(char *) * array_size, &array)) != 0)
 				goto err;
 		}
 
-		if (LF_ISSET(DB_ARCH_ABS)) {
+		if (db_arch_abs) {
 			if ((ret = __absname(dbenv,
 			    pref, name, &array[n])) != 0)
 				goto err;
-			__os_freestr(name);
+			__os_free(dbenv, name);
 		} else if ((p = __db_rpath(name)) != NULL) {
 			if ((ret = __os_strdup(dbenv, p + 1, &array[n])) != 0)
 				goto err;
-			__os_freestr(name);
+			__os_free(dbenv, name);
 		} else
 			array[n] = name;
 
@@ -182,7 +206,7 @@ log_archive(dbenv, listp, flags, db_malloc)
 	qsort(array, (size_t)n, sizeof(char *), __cmpfunc);
 
 	/* Rework the memory. */
-	if ((ret = __usermem(dbenv, &array, db_malloc)) != 0)
+	if ((ret = __usermem(dbenv, &array)) != 0)
 		goto err;
 
 	*listp = array;
@@ -190,11 +214,11 @@ log_archive(dbenv, listp, flags, db_malloc)
 
 err:	if (array != NULL) {
 		for (arrayp = array; *arrayp != NULL; ++arrayp)
-			__os_freestr(*arrayp);
-		__os_free(array, sizeof(char *) * array_size);
+			__os_free(dbenv, *arrayp);
+		__os_free(dbenv, array);
 	}
 	if (name != NULL)
-		__os_freestr(name);
+		__os_free(dbenv, name);
 	return (ret);
 }
 
@@ -203,73 +227,89 @@ err:	if (array != NULL) {
  *	Build a list of datafiles for return.
  */
 static int
-__build_data(dbenv, pref, listp, db_malloc)
+__build_data(dbenv, pref, listp)
 	DB_ENV *dbenv;
 	char *pref, ***listp;
-	void *(*db_malloc) __P((size_t));
 {
 	DBT rec;
+	DB_LOGC *logc;
 	DB_LSN lsn;
-	__log_register_args *argp;
+	__dbreg_register_args *argp;
 	u_int32_t rectype;
-	int array_size, last, n, nxt, ret;
-	char **array, **arrayp, *p, *real_name;
+	int array_size, last, n, nxt, ret, t_ret;
+	char **array, **arrayp, **list, **lp, *p, *real_name;
 
 	/* Get some initial space. */
-	array_size = 10;
+	array_size = 64;
 	if ((ret = __os_malloc(dbenv,
-	    sizeof(char *) * array_size, NULL, &array)) != 0)
+	    sizeof(char *) * array_size, &array)) != 0)
 		return (ret);
 	array[0] = NULL;
 
 	memset(&rec, 0, sizeof(rec));
-	if (F_ISSET(dbenv, DB_ENV_THREAD))
-		F_SET(&rec, DB_DBT_MALLOC);
-	for (n = 0, ret = log_get(dbenv, &lsn, &rec, DB_FIRST);
-	    ret == 0; ret = log_get(dbenv, &lsn, &rec, DB_NEXT)) {
+	if ((ret = dbenv->log_cursor(dbenv, &logc, 0)) != 0)
+		return (ret);
+	for (n = 0; (ret = logc->get(logc, &lsn, &rec, DB_PREV)) == 0;) {
 		if (rec.size < sizeof(rectype)) {
 			ret = EINVAL;
-			__db_err(dbenv, "log_archive: bad log record");
-			goto lg_free;
+			__db_err(dbenv, "DB_ENV->log_archive: bad log record");
+			goto free_continue;
 		}
 
 		memcpy(&rectype, rec.data, sizeof(rectype));
-		if (rectype != DB_log_register) {
-			if (F_ISSET(dbenv, DB_ENV_THREAD)) {
-				__os_free(rec.data, rec.size);
-				rec.data = NULL;
-			}
+		if (rectype != DB___dbreg_register)
 			continue;
-		}
-		if ((ret = __log_register_read(dbenv, rec.data, &argp)) != 0) {
+		if ((ret =
+		    __dbreg_register_read(dbenv, rec.data, &argp)) != 0) {
 			ret = EINVAL;
 			__db_err(dbenv,
-			    "log_archive: unable to read log record");
-			goto lg_free;
+			    "DB_ENV->log_archive: unable to read log record");
+			goto free_continue;
 		}
 
-		if (n >= array_size - 1) {
+		if (n >= array_size - 2) {
 			array_size += LIST_INCREMENT;
 			if ((ret = __os_realloc(dbenv,
-			    sizeof(char *) * array_size, NULL, &array)) != 0)
-				goto lg_free;
+			    sizeof(char *) * array_size, &array)) != 0)
+				goto free_continue;
 		}
 
 		if ((ret = __os_strdup(dbenv,
-		    argp->name.data, &array[n])) != 0) {
-lg_free:		if (F_ISSET(&rec, DB_DBT_MALLOC) && rec.data != NULL)
-				__os_free(rec.data, rec.size);
-			goto err1;
-		}
+		    argp->name.data, &array[n++])) != 0)
+			goto free_continue;
+		array[n] = NULL;
 
-		array[++n] = NULL;
-		__os_free(argp, 0);
-
-		if (F_ISSET(dbenv, DB_ENV_THREAD)) {
-			__os_free(rec.data, rec.size);
-			rec.data = NULL;
+		if (argp->ftype == DB_QUEUE) {
+			if ((ret = __qam_extent_names(dbenv,
+			    argp->name.data, &list)) != 0)
+				goto q_err;
+			for (lp = list;
+			    lp != NULL && *lp != NULL; lp++) {
+				if (n >= array_size - 2) {
+					array_size += LIST_INCREMENT;
+					if ((ret = __os_realloc(dbenv,
+					    sizeof(char *) *
+					    array_size, &array)) != 0)
+						goto q_err;
+				}
+				if ((ret =
+				    __os_strdup(dbenv, *lp, &array[n++])) != 0)
+					goto q_err;
+				array[n] = NULL;
+			}
+q_err:			if (list != NULL)
+				__os_free(dbenv, list);
 		}
+free_continue:	__os_free(dbenv, argp);
+		if (ret != 0)
+			break;
 	}
+	if (ret == DB_NOTFOUND)
+		ret = 0;
+	if ((t_ret = logc->close(logc, 0)) != 0 && ret == 0)
+		ret = t_ret;
+	if (ret != 0)
+		goto err1;
 
 	/* If there's nothing to return, we're done. */
 	if (n == 0) {
@@ -297,34 +337,34 @@ lg_free:		if (F_ISSET(&rec, DB_DBT_MALLOC) && rec.data != NULL)
 		}
 		for (++nxt; nxt < n &&
 		    strcmp(array[last], array[nxt]) == 0; ++nxt) {
-			__os_freestr(array[nxt]);
+			__os_free(dbenv, array[nxt]);
 			array[nxt] = NULL;
 		}
 
 		/* Get the real name. */
 		if ((ret = __db_appname(dbenv,
-		    DB_APP_DATA, NULL, array[last], 0, NULL, &real_name)) != 0)
+		    DB_APP_DATA, array[last], 0, NULL, &real_name)) != 0)
 			goto err2;
 
 		/* If the file doesn't exist, ignore it. */
 		if (__os_exists(real_name, NULL) != 0) {
-			__os_freestr(real_name);
-			__os_freestr(array[last]);
+			__os_free(dbenv, real_name);
+			__os_free(dbenv, array[last]);
 			array[last] = NULL;
 			continue;
 		}
 
 		/* Rework the name as requested by the user. */
-		__os_freestr(array[last]);
+		__os_free(dbenv, array[last]);
 		array[last] = NULL;
 		if (pref != NULL) {
 			ret = __absname(dbenv, pref, real_name, &array[last]);
-			__os_freestr(real_name);
+			__os_free(dbenv, real_name);
 			if (ret != 0)
 				goto err2;
 		} else if ((p = __db_rpath(real_name)) != NULL) {
 			ret = __os_strdup(dbenv, p + 1, &array[last]);
-			__os_freestr(real_name);
+			__os_free(dbenv, real_name);
 			if (ret != 0)
 				goto err2;
 		} else
@@ -336,7 +376,7 @@ lg_free:		if (F_ISSET(&rec, DB_DBT_MALLOC) && rec.data != NULL)
 	array[last] = NULL;
 
 	/* Rework the memory. */
-	if ((ret = __usermem(dbenv, &array, db_malloc)) != 0)
+	if ((ret = __usermem(dbenv, &array)) != 0)
 		goto err1;
 
 	*listp = array;
@@ -349,13 +389,13 @@ err2:	/*
 	 */
 	if (array != NULL)
 		for (; nxt < n; ++nxt)
-			__os_freestr(array[nxt]);
+			__os_free(dbenv, array[nxt]);
 	/* FALLTHROUGH */
 
 err1:	if (array != NULL) {
 		for (arrayp = array; *arrayp != NULL; ++arrayp)
-			__os_freestr(*arrayp);
-		__os_free(array, array_size * sizeof(char *));
+			__os_free(dbenv, *arrayp);
+		__os_free(dbenv, array);
 	}
 	return (ret);
 }
@@ -379,7 +419,7 @@ __absname(dbenv, pref, name, newnamep)
 
 	/* Malloc space for concatenating the two. */
 	if ((ret = __os_malloc(dbenv,
-	    l_pref + l_name + 2, NULL, &newname)) != 0)
+	    l_pref + l_name + 2, &newname)) != 0)
 		return (ret);
 	*newnamep = newname;
 
@@ -400,10 +440,9 @@ __absname(dbenv, pref, name, newnamep)
  *	If the user has their own malloc routine, use it.
  */
 static int
-__usermem(dbenv, listp, db_malloc)
+__usermem(dbenv, listp)
 	DB_ENV *dbenv;
 	char ***listp;
-	void *(*db_malloc) __P((size_t));
 {
 	size_t len;
 	int ret;
@@ -415,7 +454,7 @@ __usermem(dbenv, listp, db_malloc)
 	len += sizeof(char *);
 
 	/* Allocate it and set up the pointers. */
-	if ((ret = __os_malloc(dbenv, len, db_malloc, &array)) != 0)
+	if ((ret = __os_umalloc(dbenv, len, &array)) != 0)
 		return (ret);
 
 	strp = (char *)(array + (orig - *listp) + 1);
@@ -427,13 +466,13 @@ __usermem(dbenv, listp, db_malloc)
 		*arrayp = strp;
 		strp += len + 1;
 
-		__os_freestr(*orig);
+		__os_free(dbenv, *orig);
 	}
 
 	/* NULL-terminate the list. */
 	*arrayp = NULL;
 
-	__os_free(*listp, 0);
+	__os_free(dbenv, *listp);
 	*listp = array;
 
 	return (0);

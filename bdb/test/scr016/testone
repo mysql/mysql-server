@@ -1,0 +1,122 @@
+#!/bin/sh -
+#	$Id: testone,v 1.5 2002/08/16 19:35:56 dda Exp $
+#
+# Run just one Java regression test, the single argument
+# is the classname within this package.
+
+error()
+{
+	echo '' >&2
+	echo "Java regression error: $@" >&2
+	echo '' >&2
+	ecode=1
+}
+
+# compares the result against the good version,
+# reports differences, and removes the result file
+# if there are no differences.
+#
+compare_result()
+{
+	good="$1"
+	latest="$2"
+	if [ ! -e "$good" ]; then
+		echo "Note: $good does not exist"
+		return
+	fi
+	tmpout=/tmp/blddb$$.tmp
+	diff "$good" "$latest" > $tmpout
+	if [ -s $tmpout ]; then
+		nbad=`grep '^[0-9]' $tmpout | wc -l`
+		error "$good and $latest differ in $nbad places."
+	else
+		rm $latest
+	fi
+	rm -f $tmpout
+}
+
+ecode=0
+stdinflag=n
+JAVA=${JAVA:-java}
+JAVAC=${JAVAC:-javac}
+
+# classdir is relative to TESTDIR subdirectory
+classdir=./classes
+
+# CLASSPATH is used by javac and java.
+# We use CLASSPATH rather than the -classpath command line option
+# because the latter behaves differently from JDK1.1 and JDK1.2
+export CLASSPATH="$classdir:$CLASSPATH"
+
+# determine the prefix of the install tree
+prefix=""
+while :
+do
+	case "$1" in
+	--prefix=* )
+		prefix="`echo $1 | sed -e 's/--prefix=//'`"; shift
+	        export LD_LIBRARY_PATH="$prefix/lib:$LD_LIBRARY_PATH"
+                export CLASSPATH="$prefix/lib/db.jar:$CLASSPATH"
+		;;
+	--stdin )
+		stdinflag=y; shift
+		;;
+        * )
+		break
+                ;;
+	esac
+done
+
+if [ "$#" = 0 ]; then
+	echo 'Usage: testone [ --prefix=<dir> | --stdin ] TestName'
+        exit 1
+fi
+name="$1"
+
+# class must be public
+if ! grep "public.*class.*$name" $name.java > /dev/null; then
+	error "public class $name is not declared in file $name.java"
+	exit 1
+fi
+
+# compile
+rm -rf TESTDIR; mkdir TESTDIR
+cd ./TESTDIR
+mkdir -p $classdir
+${JAVAC} -d $classdir ../$name.java ../TestUtil.java > ../$name.compileout 2>&1
+if [ $? != 0 -o -s ../$name.compileout ]; then
+	error "compilation of $name failed, see $name.compileout"
+	exit 1
+fi
+rm -f ../$name.compileout
+
+# find input and error file
+infile=../$name.testin
+if [ ! -f $infile ]; then
+	infile=/dev/null
+fi
+
+# run and diff results
+rm -rf TESTDIR
+if [ "$stdinflag" = y ]
+then
+	${JAVA} com.sleepycat.test.$name $TEST_ARGS          >../$name.out 2>../$name.err
+else
+	${JAVA} com.sleepycat.test.$name $TEST_ARGS <$infile >../$name.out 2>../$name.err
+fi
+cd ..
+
+testerr=$name.testerr
+if [ ! -f $testerr ]; then
+	testerr=/dev/null
+fi
+
+testout=$name.testout
+if [ ! -f $testout ]; then
+	testout=/dev/null
+fi
+
+compare_result $testout $name.out
+compare_result $testerr $name.err
+rm -rf TESTDIR
+exit $ecode

@@ -1,20 +1,15 @@
 # See the file LICENSE for redistribution information.
 #
-# Copyright (c) 1999, 2000
+# Copyright (c) 1999-2002
 #	Sleepycat Software.  All rights reserved.
 #
-#	$Id: recd010.tcl,v 1.14 2000/12/11 17:24:55 sue Exp $
+# $Id: recd010.tcl,v 1.19 2002/03/15 19:05:07 sue Exp $
 #
-# Recovery Test 10.
-# Test stability of btree duplicates across btree off-page dup splits
-# and reverse splits and across recovery.
+# TEST	recd010
+# TEST	Test stability of btree duplicates across btree off-page dup splits
+# TEST	and reverse splits and across recovery.
 proc recd010 { method {select 0} args} {
-	global fixed_len
-	global kvals
-	global kvals_dups
-	source ./include.tcl
-
-	if { [is_dbtree $method] != 1 && [is_ddbtree $method] != 1} {
+	if { [is_btree $method] != 1 } {
 		puts "Recd010 skipping for method $method."
 		return
 	}
@@ -24,11 +19,24 @@ proc recd010 { method {select 0} args} {
 		puts "Recd010: skipping for specific pagesizes"
 		return
 	}
+	set largs $args
+	append largs " -dup "
+	recd010_main $method $select $largs
+	append largs " -dupsort "
+	recd010_main $method $select $largs
+}
 
-	set opts [convert_args $method $args]
+proc recd010_main { method select largs } {
+	global fixed_len
+	global kvals
+	global kvals_dups
+	source ./include.tcl
+
+
+	set opts [convert_args $method $largs]
 	set method [convert_method $method]
 
-	puts "\tRecd010 ($opts): Test duplicates across splits and recovery"
+	puts "Recd010 ($opts): Test duplicates across splits and recovery"
 
 	set testfile recd010.db
 	env_cleanup $testdir
@@ -41,10 +49,10 @@ proc recd010 { method {select 0} args} {
 	set data "data"
 	set key "recd010_key"
 
-	puts "\tRecd010.a: Create $method environment and database."
+	puts "\tRecd010.a: Create environment and database."
 	set flags "-create -txn -home $testdir"
 
-	set env_cmd "berkdb env $flags"
+	set env_cmd "berkdb_env $flags"
 	set dbenv [eval $env_cmd]
 	error_check_good dbenv [is_valid_env $dbenv] TRUE
 
@@ -69,17 +77,17 @@ proc recd010 { method {select 0} args} {
 		return
 	}
 	set rlist {
-	{ {recd010_split DB TXNID 1 $method 2 $mkeys}
+	{ {recd010_split DB TXNID 1 2 $mkeys}
 	    "Recd010.c: btree split 2 large dups"}
-	{ {recd010_split DB TXNID 0 $method 2 $mkeys}
+	{ {recd010_split DB TXNID 0 2 $mkeys}
 	    "Recd010.d: btree reverse split 2 large dups"}
-	{ {recd010_split DB TXNID 1 $method 10 $mkeys}
+	{ {recd010_split DB TXNID 1 10 $mkeys}
 	    "Recd010.e: btree split 10 dups"}
-	{ {recd010_split DB TXNID 0 $method 10 $mkeys}
+	{ {recd010_split DB TXNID 0 10 $mkeys}
 	    "Recd010.f: btree reverse split 10 dups"}
-	{ {recd010_split DB TXNID 1 $method 100 $mkeys}
+	{ {recd010_split DB TXNID 1 100 $mkeys}
 	    "Recd010.g: btree split 100 dups"}
-	{ {recd010_split DB TXNID 0 $method 100 $mkeys}
+	{ {recd010_split DB TXNID 0 100 $mkeys}
 	    "Recd010.h: btree reverse split 100 dups"}
 	}
 
@@ -100,7 +108,7 @@ proc recd010 { method {select 0} args} {
 		op_recover commit $testdir $env_cmd $testfile $cmd $msg
 		recd010_check $testdir $testfile $opts commit $reverse $firstkeys
 	}
-	puts "\tRecd010.e: Verify db_printlog can read logfile"
+	puts "\tRecd010.i: Verify db_printlog can read logfile"
 	set tmpfile $testdir/printlog.out
 	set stat [catch {exec $util_path/db_printlog -h $testdir \
 	    > $tmpfile} ret]
@@ -178,7 +186,14 @@ proc recd010_check { tdir testfile opts op reverse origdups } {
 		for {set d [$dbc get -set $key$ki]} { [llength $d] != 0 } {
 		    set d [$dbc get -nextdup]} {
 			set thisdata [lindex [lindex $d 0] 1]
-			error_check_good dup_check $thisdata $data$datacnt
+			if { $datacnt < 10 } {
+				set pdata $data.$ki.00$datacnt
+			} elseif { $datacnt < 100 } {
+				set pdata $data.$ki.0$datacnt
+			} else {
+				set pdata $data.$ki.$datacnt
+			}
+			error_check_good dup_check $thisdata $pdata
 			incr datacnt
 		}
 		error_check_good dup_count $datacnt $numdups
@@ -202,7 +217,7 @@ proc recd010_check { tdir testfile opts op reverse origdups } {
 	error_check_good db_close [$db close] 0
 }
 
-proc recd010_split { db txn split method nkeys mkeys } {
+proc recd010_split { db txn split nkeys mkeys } {
 	global errorCode
 	global kvals
 	global kvals_dups
@@ -220,7 +235,14 @@ proc recd010_split { db txn split method nkeys mkeys } {
 "\tRecd010_split: Add $nkeys keys, with $numdups duplicates each to force split."
 		for {set k 0} { $k < $nkeys } { incr k } {
 			for {set i 0} { $i < $numdups } { incr i } {
-				set ret [$db put -txn $txn $key$k $data$i]
+				if { $i < 10 } {
+					set pdata $data.$k.00$i
+				} elseif { $i < 100 } {
+					set pdata $data.$k.0$i
+				} else {
+					set pdata $data.$k.$i
+				}
+				set ret [$db put -txn $txn $key$k $pdata]
 				error_check_good dbput:more $ret 0
 			}
 		}

@@ -1,7 +1,7 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1996, 1997, 1998, 1999, 2000
+ * Copyright (c) 1996-2002
  *	Sleepycat Software.  All rights reserved.
  */
 /*
@@ -36,7 +36,7 @@
 #include "db_config.h"
 
 #ifndef lint
-static const char revid[] = "$Id: getcwd.c,v 11.7 2000/11/30 00:58:30 ubell Exp $";
+static const char revid[] = "$Id: getcwd.c,v 11.13 2002/02/28 21:27:18 ubell Exp $";
 #endif /* not lint */
 
 #ifndef NO_SYSTEM_INCLUDES
@@ -120,7 +120,7 @@ getcwd(pt, size)
 		ept = pt + size;
 	} else {
 		if ((ret =
-		    __os_malloc(NULL, ptsize = 1024 - 4, NULL, &pt)) != 0) {
+		    __os_malloc(NULL, ptsize = 1024 - 4, &pt)) != 0) {
 			__os_set_errno(ret);
 			return (NULL);
 		}
@@ -134,7 +134,7 @@ getcwd(pt, size)
 	 * Should always be enough (it's 340 levels).  If it's not, allocate
 	 * as necessary.  Special case the first stat, it's ".", not "..".
 	 */
-	if ((ret = __os_malloc(NULL, upsize = 1024 - 4, NULL, &up)) != 0)
+	if ((ret = __os_malloc(NULL, upsize = 1024 - 4, &up)) != 0)
 		goto err;
 	eup = up + 1024;
 	bup = up;
@@ -167,7 +167,7 @@ getcwd(pt, size)
 			 * been that way and stuff would probably break.
 			 */
 			bcopy(bpt, pt, ept - bpt);
-			__os_free(up, upsize);
+			__os_free(NULL, up);
 			return (pt);
 		}
 
@@ -177,7 +177,7 @@ getcwd(pt, size)
 		 * possible component name, plus a trailing NULL.
 		 */
 		if (bup + 3  + MAXNAMLEN + 1 >= eup) {
-			if (__os_realloc(NULL, upsize *= 2, NULL, &up) != 0)
+			if (__os_realloc(NULL, upsize *= 2, &up) != 0)
 				goto err;
 			bup = up;
 			eup = up + upsize;
@@ -238,7 +238,7 @@ getcwd(pt, size)
 			}
 			off = bpt - pt;
 			len = ept - bpt;
-			if (__os_realloc(NULL, ptsize *= 2, NULL, &pt) != 0)
+			if (__os_realloc(NULL, ptsize *= 2, &pt) != 0)
 				goto err;
 			bpt = pt + off;
 			ept = pt + ptsize;
@@ -261,12 +261,12 @@ notfound:
 	 * didn't find the current directory in its parent directory, set
 	 * errno to ENOENT.
 	 */
-	if (__os_get_errno() == 0)
+	if (__os_get_errno_ret_zero() == 0)
 		__os_set_errno(save_errno == 0 ? ENOENT : save_errno);
 	/* FALLTHROUGH */
 err:
 	if (ptsize)
-		__os_free(pt, ptsize);
-	__os_free(up, upsize);
+		__os_free(NULL, pt);
+	__os_free(NULL, up);
 	return (NULL);
 }

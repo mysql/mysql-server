@@ -1,13 +1,14 @@
 # See the file LICENSE for redistribution information.
 #
-# Copyright (c) 1996, 1997, 1998, 1999, 2000
+# Copyright (c) 1996-2002
 #	Sleepycat Software.  All rights reserved.
 #
-#	$Id: test060.tcl,v 11.6 2000/08/25 14:21:57 sue Exp $
+# $Id: test060.tcl,v 11.10 2002/05/22 15:42:56 sue Exp $
 #
-# Test060: Test of the DB_EXCL flag to DB->open.
-#     1) Attempt to open and create a nonexistent database; verify success.
-#     2) Attempt to reopen it;  verify failure.
+# TEST	test060
+# TEST	Test of the DB_EXCL flag to DB->open().
+# TEST	1) Attempt to open and create a nonexistent database; verify success.
+# TEST	2) Attempt to reopen it;  verify failure.
 proc test060 { method args } {
 	global errorCode
 	source ./include.tcl
@@ -18,6 +19,7 @@ proc test060 { method args } {
 	puts "Test060: $method ($args) Test of the DB_EXCL flag to DB->open"
 
 	# Set the database location and make sure the db doesn't exist yet
+	set txnenv 0
 	set eindex [lsearch -exact $args "-env"]
 	#
 	# If we are using an env, then testfile should just be the db name.
@@ -29,6 +31,11 @@ proc test060 { method args } {
 		set testfile test060.db
 		incr eindex
 		set env [lindex $args $eindex]
+		set txnenv [is_txnenv $env]
+		if { $txnenv == 1 } {
+			append args " -auto_commit "
+		}
+		set testdir [get_home $env]
 	}
 	cleanup $testdir $env
 

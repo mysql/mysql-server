@@ -1,16 +1,17 @@
 # See the file LICENSE for redistribution information.
 #
-# Copyright (c) 1996, 1997, 1998, 1999, 2000
+# Copyright (c) 1996-2002
 #	Sleepycat Software.  All rights reserved.
 #
-#	$Id: test028.tcl,v 11.12 2000/08/25 14:21:55 sue Exp $
+# $Id: test028.tcl,v 11.20 2002/07/01 15:03:45 krinsky Exp $
 #
-# Put after cursor delete test.
+# TEST	test028
+# TEST	Cursor delete test
+# TEST	Test put operations after deleting through a cursor.
 proc test028 { method args } {
 	global dupnum
 	global dupstr
 	global alphabet
-	global errorInfo
 	source ./include.tcl
 
 	set args [convert_args $method $args]
@@ -30,6 +31,7 @@ proc test028 { method args } {
 	}
 
 	# Create the database and open the dictionary
+	set txnenv 0
 	set eindex [lsearch -exact $args "-env"]
 	#
 	# If we are using an env, then testfile should just be the db name.
@@ -41,11 +43,16 @@ proc test028 { method args } {
 		set testfile test028.db
 		incr eindex
 		set env [lindex $args $eindex]
+		set txnenv [is_txnenv $env]
+		if { $txnenv == 1 } {
+			append args " -auto_commit "
+		}
+		set testdir [get_home $env]
 	}
 	set t1 $testdir/t1
 	cleanup $testdir $env
 	set db [eval {berkdb_open \
-	     -create -truncate -mode 0644} $args {$omethod $testfile}]
+	     -create -mode 0644} $args {$omethod $testfile}]
 	error_check_good dbopen [is_valid_db $db] TRUE
 
 	set ndups 20
@@ -57,6 +64,11 @@ proc test028 { method args } {
 		set gflags " -recno"
 	}
 
+	if { $txnenv == 1 } {
+		set t [$env txn]
+		error_check_good txn [is_valid_txn $t $env] TRUE
+		set txn "-txn $t"
+	}
 	set dbc [eval {$db cursor} $txn]
 	error_check_good db_cursor [is_substr $dbc $db] 1
 
@@ -129,8 +141,8 @@ proc test028 { method args } {
 
 			puts "\tTest028.g: Insert key with duplicates"
 			for { set count 0 } { $count < $ndups } { incr count } {
-			set ret [eval {$db put} \
-			    $txn {$key [chop_data $method $count$dupstr]}]
+				set ret [eval {$db put} $txn \
+				    {$key [chop_data $method $count$dupstr]}]
 				error_check_good db_put $ret 0
 			}
 
@@ -161,7 +173,6 @@ proc test028 { method args } {
 				if { $count == [expr $ndups - 1] } {
 					puts "\tTest028.k:\
 						Duplicate No_Overwrite test"
-					set $errorInfo ""
 					set ret [eval {$db put} $txn \
 					    {-nooverwrite $key $dupstr}]
 					error_check_good db_put [is_substr \
@@ -179,7 +190,8 @@ proc test028 { method args } {
 			    $txn {-nooverwrite $key 0$dupstr}]
 			error_check_good db_put $ret 0
 			for { set count 1 } { $count < $ndups } { incr count } {
-			set ret [eval {$db put} $txn {$key $count$dupstr}]
+				set ret [eval {$db put} $txn \
+				    {$key $count$dupstr}]
 				error_check_good db_put $ret 0
 			}
 
@@ -192,8 +204,10 @@ proc test028 { method args } {
 			error_check_good db_del $ret 0
 		}
 	}
-
 	error_check_good dbc_close [$dbc close] 0
+	if { $txnenv == 1 } {
+		error_check_good txn [$t commit] 0
+	}
 	error_check_good db_close [$db close] 0
 
 }

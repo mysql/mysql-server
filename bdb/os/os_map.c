@@ -1,14 +1,14 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1996, 1997, 1998, 1999, 2000
+ * Copyright (c) 1996-2002
  *	Sleepycat Software.  All rights reserved.
  */
 
 #include "db_config.h"
 
 #ifndef lint
-static const char revid[] = "$Id: os_map.c,v 11.32 2000/11/30 00:58:42 ubell Exp $";
+static const char revid[] = "$Id: os_map.c,v 11.44 2002/07/12 18:56:51 bostic Exp $";
 #endif /* not lint */
 
 #ifndef NO_SYSTEM_INCLUDES
@@ -26,9 +26,6 @@ static const char revid[] = "$Id: os_map.c,v 11.32 2000/11/30 00:58:42 ubell Exp
 #endif
 
 #include "db_int.h"
-#include "db_page.h"
-#include "db_ext.h"
-#include "os_jump.h"
 
 #ifdef HAVE_MMAP
 static int __os_map __P((DB_ENV *, char *, DB_FH *, size_t, int, int, void **));
@@ -143,12 +140,13 @@ __os_r_sysattach(dbenv, infop, rp)
 	int ret;
 
 	/*
-	 * Try to open/create the shared region file.  We DO NOT need to
-	 * ensure that multiple threads/processes attempting to
-	 * simultaneously create the region are properly ordered,
-	 * our caller has already taken care of that.
+	 * Try to open/create the shared region file.  We DO NOT need to ensure
+	 * that multiple threads/processes attempting to simultaneously create
+	 * the region are properly ordered, our caller has already taken care
+	 * of that.
 	 */
-	if ((ret = __os_open(dbenv, infop->name, DB_OSO_REGION |
+	if ((ret = __os_open(dbenv, infop->name,
+	    DB_OSO_REGION | DB_OSO_DIRECT |
 	    (F_ISSET(infop, REGION_CREATE_OK) ? DB_OSO_CREATE : 0),
 	    infop->mode, &fh)) != 0)
 		__db_err(dbenv, "%s: %s", infop->name, db_strerror(ret));
@@ -161,15 +159,16 @@ __os_r_sysattach(dbenv, infop, rp)
 	 * point, *badly* merged VM/buffer cache systems.
 	 */
 	if (ret == 0 && F_ISSET(infop, REGION_CREATE))
-		ret = __os_finit(dbenv,
-		    &fh, rp->size, DB_GLOBAL(db_region_init));
+		ret = __db_fileinit(dbenv,
+		    &fh, rp->size, F_ISSET(dbenv, DB_ENV_REGION_INIT) ? 1 : 0);
 
 	/* Map the file in. */
 	if (ret == 0)
 		ret = __os_map(dbenv,
 		    infop->name, &fh, rp->size, 1, 0, &infop->addr);
 
-	 (void)__os_closehandle(&fh);
+	if (F_ISSET(&fh, DB_FH_VALID))
+		(void)__os_closehandle(dbenv, &fh);
 
 	return (ret);
 	}
@@ -295,17 +294,25 @@ __os_unmapfile(dbenv, addr, len)
 	size_t len;
 {
 	/* If the user replaced the map call, call through their interface. */
-	if (__db_jump.j_unmap != NULL)
-		return (__db_jump.j_unmap(addr, len));
+	if (DB_GLOBAL(j_unmap) != NULL)
+		return (DB_GLOBAL(j_unmap)(addr, len));
 
 #ifdef HAVE_MMAP
 #ifdef HAVE_MUNLOCK
 	if (F_ISSET(dbenv, DB_ENV_LOCKDOWN))
-		(void)munlock(addr, len);
+		while (munlock(addr, len) != 0 && __os_get_errno() == EINTR)
+			;
 #else
 	COMPQUIET(dbenv, NULL);
 #endif
-	return (munmap(addr, len) ? __os_get_errno() : 0);
+	{
+		int ret;
+
+		while ((ret = munmap(addr, len)) != 0 &&
+		    __os_get_errno() == EINTR)
+			;
+		return (ret ? __os_get_errno() : 0);
+	}
 #else
 	COMPQUIET(dbenv, NULL);
 
@@ -331,8 +338,8 @@ __os_map(dbenv, path, fhp, len, is_region, is_rdonly, addrp)
 	int flags, prot, ret;
 
 	/* If the user replaced the map call, call through their interface. */
-	if (__db_jump.j_map != NULL)
-		return (__db_jump.j_map
+	if (DB_GLOBAL(j_map) != NULL)
+		return (DB_GLOBAL(j_map)
 		    (path, len, is_region, is_rdonly, addrp));
 
 	/*

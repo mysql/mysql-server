@@ -1,14 +1,14 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1996, 1997, 1998, 1999, 2000
+ * Copyright (c) 1996-2002
  *	Sleepycat Software.  All rights reserved.
  */
 
 #include "db_config.h"
 
 #ifndef lint
-static const char revid[] = "$Id: db_shash.c,v 11.3 2000/02/14 02:59:49 bostic Exp $";
+static const char revid[] = "$Id: db_shash.c,v 11.6 2002/03/01 17:22:16 ubell Exp $";
 #endif /* not lint */
 
 #ifndef NO_SYSTEM_INCLUDES
@@ -30,6 +30,7 @@ static const struct {
 	u_int32_t power;
 	u_int32_t prime;
 } list[] = {
+	{	 32,		37},		/* 2^5 */
 	{	 64,		67},		/* 2^6 */
 	{	128,	       131},		/* 2^7 */
 	{	256,	       257},		/* 2^8 */
@@ -89,8 +90,8 @@ __db_tablesize(n_buckets)
 	 *
 	 * Ref: Sedgewick, Algorithms in C, "Hash Functions"
 	 */
-	if (n_buckets < 64)
-		n_buckets = 64;
+	if (n_buckets < 32)
+		n_buckets = 32;
 
 	for (i = 0;; ++i) {
 		if (list[i].power == 0) {

@@ -74,6 +74,7 @@ typedef struct st_thr_lock_data {
   enum thr_lock_type type;
   ulong thread_id;
   void *status_param;			/* Param to status functions */
+  void *debug_print_param;
 } THR_LOCK_DATA;
 
 struct st_lock_list {
@@ -96,6 +97,9 @@ typedef struct st_thr_lock {
   my_bool (*check_status)(void *);
 } THR_LOCK;
 
+
+extern LIST *thr_lock_thread_list;
+extern pthread_mutex_t THR_LOCK_lock;
 
 my_bool init_thr_lock(void);		/* Must be called once/thread */
 void thr_lock_init(THR_LOCK *lock);

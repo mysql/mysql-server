@@ -1,14 +1,14 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1999, 2000
+ * Copyright (c) 1999-2002
  *	Sleepycat Software.  All rights reserved.
  */
 
 #include "db_config.h"
 
 #ifndef lint
-static const char revid[] = "$Id: os_errno.c,v 11.5 2000/11/30 00:58:43 ubell Exp $";
+static const char revid[] = "$Id: os_errno.c,v 11.10 2002/07/12 04:05:00 mjc Exp $";
 #endif /* not lint */
 
 #include "db_int.h"
@@ -58,13 +58,7 @@ __os_win32_errno(void)
 	DWORD last_error;
 	int ret;
 
-	/*
-	 * It's possible that errno was set after the error.
-	 * The caller must take care to set it to 0 before
-	 * any system operation.
-	 */
-	if (__os_get_errno() != 0)
-		return (__os_get_errno());
+	/* Ignore errno - we used to check it here. */
 
 	last_error = GetLastError();
 
@@ -113,6 +107,7 @@ __os_win32_errno(void)
 		break;
 
 	case ERROR_FILE_EXISTS:
+	case ERROR_ALREADY_EXISTS:
 		ret = EEXIST;
 		break;
 
@@ -131,6 +126,10 @@ __os_win32_errno(void)
 	case ERROR_LOCK_VIOLATION:
 	case ERROR_SHARING_VIOLATION:
 		ret = EBUSY;
+		break;
+
+	case ERROR_RETRY:
+		ret = EINTR;
 		break;
 
 	case 0:

@@ -1,0 +1,24 @@
+Berkeley DB Java RPC server, copyright (C) 2002 Sleepycat Software
+
+The Java implementation of the Berkeley DB RPC server is intended
+primarily for testing purposes.  It provides the same interface
+as the C and C++ RPC servers, but is implemented via the Java API
+rather than the C or C++ APIs.  This allows the existing Tcl test
+suite to exercise the Java API without modification.
+
+The Java RPC server relies on a Java version of rpcgen to
+automatically generate appropriate Java classes from the RPC
+interface specification (../db_server.x).  We use jrpcgen, which
+is part of the Remote Tea for Java project:
+  acplt.plt.rwth-aachen.de/ks/english/remotetea.html
+
+To rebuild the Java stubs from db_server.x, you will need to
+download the full Remote Tea package, but if you just want to
+compile the Java sources and run the Java RPC server, the runtime
+component of Remote Tea is included in oncrpc.jar.  Building
+the Java RPC server is automatic when Berkeley DB is configured
+with the both --enable-rpc and --enable-java.
+
+All of the Remote Tea project is licensed under the Library GNU
+Public License, and we have made no modifications to their
+released code.

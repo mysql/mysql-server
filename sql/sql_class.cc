@@ -108,6 +108,7 @@ THD::THD():user_time(0), fatal_error(0),
   file_id = 0;
   cond_count=0;
   db_charset=default_charset_info;
+  thd_charset=default_charset_info;
   mysys_var=0;
 #ifndef DBUG_OFF
   dbug_sentry=THD_SENTRY_MAGIC;

@@ -1,0 +1,11 @@
+got data: data
+get using bad key: DB_NOTFOUND: No matching key/data pair found
+BtreeStat:
+  bt_magic: 340322
+LogStat:
+  st_magic: 264584
+  st_cur_file: 1
+RepStat:
+  st_status: 0
+  st_log_duplication: 0
+finished test

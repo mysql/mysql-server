@@ -1,12 +1,12 @@
 # See the file LICENSE for redistribution information.
 #
-# Copyright (c) 2000
+# Copyright (c) 2000-2002
 #	Sleepycat Software.  All rights reserved.
 #
-#	$Id: recd011.tcl,v 11.13 2000/12/06 17:09:54 sue Exp $
+# $Id: recd011.tcl,v 11.19 2002/02/25 16:44:26 sandstro Exp $
 #
-# Recovery Test 11.
-# Test recovery to a specific timestamp.
+# TEST	recd011
+# TEST	Verify that recovery to a specific timestamp works.
 proc recd011 { method {niter 200} {ckpt_freq 15} {sleep_time 1} args } {
 	source ./include.tcl
 
@@ -29,11 +29,11 @@ proc recd011 { method {niter 200} {ckpt_freq 15} {sleep_time 1} args } {
 	puts "\tRecd0$tnum.a: Create environment and database."
 	set flags "-create -txn -home $testdir"
 
-	set env_cmd "berkdb env $flags"
+	set env_cmd "berkdb_env $flags"
 	set dbenv [eval $env_cmd]
 	error_check_good dbenv [is_valid_env $dbenv] TRUE
 
-	set oflags "-env $dbenv -create -mode 0644 $args $omethod"
+	set oflags "-auto_commit -env $dbenv -create -mode 0644 $args $omethod"
 	set db [eval {berkdb_open} $oflags $testfile]
 	error_check_good dbopen [is_valid_db $db] TRUE
 
@@ -70,11 +70,11 @@ proc recd011 { method {niter 200} {ckpt_freq 15} {sleep_time 1} args } {
 	# Now, loop through and recover to each timestamp, verifying the
 	# expected increment.
 	puts "\tRecd0$tnum.c: Recover to each timestamp and check."
-	for { set i 0 } { $i <= $niter } { incr i } {
+	for { set i $niter } { $i >= 0 } { incr i -1 } {
 
 		# Run db_recover.
-		berkdb debug_check
 		set t [clock format $timeof($i) -format "%y%m%d%H%M.%S"]
+		berkdb debug_check
 		set ret [catch {exec $util_path/db_recover -h $testdir -t $t} r]
 		error_check_good db_recover($i,$t) $ret 0
 
@@ -91,7 +91,8 @@ proc recd011 { method {niter 200} {ckpt_freq 15} {sleep_time 1} args } {
 
 	# Finally, recover to a time well before the first timestamp
 	# and well after the last timestamp.  The latter should
-	# be just like the last timestamp;  the former should fail.
+	# be just like the timestamp of the last test performed;
+	# the former should fail.
 	puts "\tRecd0$tnum.d: Recover to before the first timestamp."
 	set t [clock format [expr $timeof(0) - 1000] -format "%y%m%d%H%M.%S"]
 	set ret [catch {exec $util_path/db_recover -h $testdir -t $t} r]
@@ -108,8 +109,8 @@ proc recd011 { method {niter 200} {ckpt_freq 15} {sleep_time 1} args } {
 	error_check_good db_open(after) [is_valid_db $db] TRUE
 
 	set dbt [$db get $key]
-	set datum [lindex [lindex $dbt 0] 1]
+	set datum2 [lindex [lindex $dbt 0] 1]
 
-	error_check_good timestamp_recover $datum [pad_data $method $niter]
+	error_check_good timestamp_recover $datum2 $datum
 	error_check_good db_close [$db close] 0
 }

@@ -132,7 +132,7 @@ void Item_field::set_field(Field *field_par)
   table_name=field_par->table_name;
   field_name=field_par->field_name;
   unsigned_flag=test(field_par->flags & UNSIGNED_FLAG);
-  str_value.set_charset(field_par->charset());
+  set_charset(field_par->charset());
 }
 
 const char *Item_ident::full_name() const
@@ -234,7 +234,7 @@ table_map Item_field::used_tables() const
 
 String *Item_int::val_str(String *str)
 {
-  str->set(value);
+  str->set(value, my_thd_charset);
   return str;
 }
 
@@ -242,7 +242,7 @@ void Item_int::print(String *str)
 {
   if (!name)
   {
-    str_value.set(value);
+    str_value.set(value, my_thd_charset);
     name=str_value.c_ptr();
   }
   str->append(name);
@@ -250,7 +250,7 @@ void Item_int::print(String *str)
 
 String *Item_uint::val_str(String *str)
 {
-  str->set((ulonglong) value);
+  str->set((ulonglong) value, my_thd_charset);
   return str;
 }
 
@@ -258,7 +258,7 @@ void Item_uint::print(String *str)
 {
   if (!name)
   {
-    str_value.set((ulonglong) value);
+    str_value.set((ulonglong) value, my_thd_charset);
     name=str_value.c_ptr();
   }
   str->append(name);
@@ -267,7 +267,7 @@ void Item_uint::print(String *str)
 
 String *Item_real::val_str(String *str)
 {
-  str->set(value,decimals);
+  str->set(value,decimals,my_thd_charset);
   return str;
 }
 
@@ -384,10 +384,10 @@ String *Item_param::val_str(String* str)
 { 
   switch (item_result_type) {
   case INT_RESULT:
-    str->set(int_value);
+    str->set(int_value, my_thd_charset);
     return str;
   case REAL_RESULT:
-    str->set(real_value);
+    str->set(real_value, 2, my_thd_charset);
     return str;
   default:
     return (String*) &str_value;
