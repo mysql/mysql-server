@@ -114,7 +114,7 @@ int mysqld_show_open_tables(THD *thd,const char *db,const char *wild)
   if (send_fields(thd,field_list,1))
     DBUG_RETURN(1);
 
-  if (!(open_list=list_open_tables(thd,wild)) && thd->fatal_error)
+  if (!(list_open_tables(thd,&tables,db,wild)) && thd->fatal_error)
     DBUG_RETURN(-1);
 
   List_iterator<char> it(tables);

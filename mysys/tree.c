@@ -63,31 +63,7 @@ static void rb_delete_fixup(TREE *tree,TREE_ELEMENT ***parent);
 	/* The actuall code for handling binary trees */
 
 #ifndef DBUG_OFF
-
-	/* Test that the proporties for a red-black tree holds */
-
-static int test_rb_tree(TREE_ELEMENT *element)
-{
-  int count_l,count_r;
-
-  if (!element->left)
-    return 0;				/* Found end of tree */
-  if (element->colour == RED &&
-      (element->left->colour == RED || element->right->colour == RED))
-  {
-    printf("Wrong tree: Found two red in a row\n");
-    return -1;
-  }
-  count_l=test_rb_tree(element->left);
-  count_r=test_rb_tree(element->right);
-  if (count_l >= 0 && count_r >= 0)
-  {
-    if (count_l == count_r)
-      return count_l+(element->colour == BLACK);
-    printf("Wrong tree: Incorrect black-count: %d - %d\n",count_l,count_r);
-  }
-  return -1;
-}
+static int test_rb_tree(TREE_ELEMENT *element);
 #endif
 
 void init_tree(TREE *tree, uint default_alloc_size, uint memory_limit,
@@ -546,3 +522,31 @@ static void rb_delete_fixup(TREE *tree, TREE_ELEMENT ***parent)
   }
   x->colour=BLACK;
 }
+
+#ifndef DBUG_OFF
+
+	/* Test that the proporties for a red-black tree holds */
+
+static int test_rb_tree(TREE_ELEMENT *element)
+{
+  int count_l,count_r;
+
+  if (!element->left)
+    return 0;				/* Found end of tree */
+  if (element->colour == RED &&
+      (element->left->colour == RED || element->right->colour == RED))
+  {
+    printf("Wrong tree: Found two red in a row\n");
+    return -1;
+  }
+  count_l=test_rb_tree(element->left);
+  count_r=test_rb_tree(element->right);
+  if (count_l >= 0 && count_r >= 0)
+  {
+    if (count_l == count_r)
+      return count_l+(element->colour == BLACK);
+    printf("Wrong tree: Incorrect black-count: %d - %d\n",count_l,count_r);
+  }
+  return -1;
+}
+#endif
