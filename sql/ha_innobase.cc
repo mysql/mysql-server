@@ -260,7 +260,7 @@ void
 innobase_mysql_print_thd(
 /*=====================*/
 	char* buf,	/* in/out: buffer where to print, must be at least
-			300 bytes */
+			400 bytes */
         void* input_thd)/* in: pointer to a MySQL THD object */
 {
   	THD*  thd;
@@ -338,7 +338,7 @@ innobase_mysql_print_thd(
 	  buf=strnmov(buf, thd->query, 150);
   	}  
 	*buf='\n';
-	/* Here we should add '\0' to the nd of output to mark its end */
+	/* Here we should add '\0' to the end of output to mark its end */
 #endif
 }
 }

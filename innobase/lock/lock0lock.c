@@ -3625,7 +3625,7 @@ lock_print_info(
 	trx = UT_LIST_GET_FIRST(trx_sys->mysql_trx_list);
 
 	while (trx) {
-		if (buf_end - buf < 600) {
+		if (buf_end - buf < 900) {
 			return;
 		}
 
@@ -3662,7 +3662,7 @@ loop:
 		return;
 	}
 
-	if (buf_end - buf < 600) {
+	if (buf_end - buf < 900) {
 		return;
 	}
 

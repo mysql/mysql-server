@@ -262,7 +262,7 @@ void
 trx_print(
 /*======*/
 	char*	buf,	/* in/out: buffer where to print, must be at least
-			500 bytes */
+			800 bytes */
 	trx_t* trx); 	/* in: transaction */
 
 
