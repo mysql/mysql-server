@@ -1449,7 +1449,6 @@ int mysqld_show_collations(THD *thd, const char *wild)
   List<Item> field_list;
   CHARSET_INFO **cs;
   Protocol *protocol= thd->protocol;
-  char flags[64];
 
   DBUG_ENTER("mysqld_show_charsets");
 
@@ -1501,7 +1500,6 @@ int mysqld_show_charsets(THD *thd, const char *wild)
   List<Item> field_list;
   CHARSET_INFO **cs;
   Protocol *protocol= thd->protocol;
-  char flags[64];
 
   DBUG_ENTER("mysqld_show_charsets");
 

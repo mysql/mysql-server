@@ -486,6 +486,10 @@ SOURCE=.\item_func.cpp
 # End Source File
 # Begin Source File
 
+SOURCE=.\item_geofunc.cpp
+# End Source File
+# Begin Source File
+
 SOURCE=.\item_row.cpp
 # End Source File
 # Begin Source File
@@ -739,6 +743,10 @@ SOURCE=.\opt_range.h
 # Begin Source File
 
 SOURCE=.\OPT_SUM.cpp
+# End Source File
+# Begin Source File
+
+SOURCE=.\pack.c
 # End Source File
 # Begin Source File
 
