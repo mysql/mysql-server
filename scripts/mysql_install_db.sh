@@ -37,10 +37,11 @@ parse_arguments() {
       --force) force=1 ;;
       --basedir=*) basedir=`echo "$arg" | sed -e 's/^[^=]*=//'` ;;
       --ldata=*|--datadir=*) ldata=`echo "$arg" | sed -e 's/^[^=]*=//'` ;;
-      --user=*) user=`echo "$arg" | sed -e 's/^[^=]*=//'` ;;
-                # Note that this will be passed to mysqld so that it runs
-                # as 'user' (crucial e.g. if log-bin=/some_other_path/
-                # where a chown of datadir won't help)
+      --user=*)
+        # Note that the user will be passed to mysqld so that it runs
+        # as 'user' (crucial e.g. if log-bin=/some_other_path/
+        # where a chown of datadir won't help)
+	 user=`echo "$arg" | sed -e 's/^[^=]*=//'` ;;
       --skip-name-resolve) ip_only=1 ;;
       --verbose) verbose=1 ;;
       --rpm) in_rpm=1 ;;
