@@ -70,11 +70,10 @@ my_string	mysql_unix_port=0;
 #endif
 
 #if defined(MSDOS) || defined(__WIN__)
-#define ERRNO WSAGetLastError()
+// socket_errno is defined in global.h for all platforms
 #define perror(A)
 #else
 #include <errno.h>
-#define ERRNO errno
 #define SOCKET_ERROR -1
 #endif /* __WIN__ */
 
@@ -451,7 +450,7 @@ simple_command(MYSQL *mysql,enum enum_server_command command, const char *arg,
   if (net_write_command(net,(uchar) command,arg,
 			length ? length : (ulong) strlen(arg)))
   {
-    DBUG_PRINT("error",("Can't send command to server. Error: %d",errno));
+    DBUG_PRINT("error",("Can't send command to server. Error: %d",socket_errno));
     end_server(mysql);
     if (mysql_reconnect(mysql) ||
 	net_write_command(net,(uchar) command,arg,
@@ -1213,7 +1212,7 @@ mysql_real_connect(MYSQL *mysql,const char *host, const char *user,
     if ((sock = socket(AF_UNIX,SOCK_STREAM,0)) == SOCKET_ERROR)
     {
       net->last_errno=CR_SOCKET_CREATE_ERROR;
-      sprintf(net->last_error,ER(net->last_errno),ERRNO);
+      sprintf(net->last_error,ER(net->last_errno),socket_errno);
       goto error;
     }
     net->vio = vio_new(sock, VIO_TYPE_SOCKET, TRUE);
@@ -1223,9 +1222,9 @@ mysql_real_connect(MYSQL *mysql,const char *host, const char *user,
     if (connect2(sock,(struct sockaddr *) &UNIXaddr, sizeof(UNIXaddr),
 		 mysql->options.connect_timeout) <0)
     {
-      DBUG_PRINT("error",("Got error %d on connect to local server",ERRNO));
+      DBUG_PRINT("error",("Got error %d on connect to local server",socket_errno));
       net->last_errno=CR_CONNECTION_ERROR;
-      sprintf(net->last_error,ER(net->last_errno),unix_socket,ERRNO);
+      sprintf(net->last_error,ER(net->last_errno),unix_socket,socket_errno);
       goto error;
     }
   }
@@ -1276,7 +1275,7 @@ mysql_real_connect(MYSQL *mysql,const char *host, const char *user,
     if ((sock = (my_socket) socket(AF_INET,SOCK_STREAM,0)) == SOCKET_ERROR)
     {
       net->last_errno=CR_IPSOCK_ERROR;
-      sprintf(net->last_error,ER(net->last_errno),ERRNO);
+      sprintf(net->last_error,ER(net->last_errno),socket_errno);
       goto error;
     }
     net->vio = vio_new(sock,VIO_TYPE_TCPIP,FALSE);
@@ -1313,7 +1312,7 @@ mysql_real_connect(MYSQL *mysql,const char *host, const char *user,
       if (!(hp=gethostbyname(host)))
       {
 	net->last_errno=CR_UNKNOWN_HOST;
-	sprintf(net->last_error, ER(CR_UNKNOWN_HOST), host, errno);
+	sprintf(net->last_error, ER(CR_UNKNOWN_HOST), host, socket_errno);
 	goto error;
       }
       memcpy(&sock_addr.sin_addr,hp->h_addr, (size_t) hp->h_length);
@@ -1323,9 +1322,9 @@ mysql_real_connect(MYSQL *mysql,const char *host, const char *user,
     if (connect2(sock,(struct sockaddr *) &sock_addr, sizeof(sock_addr),
 		 mysql->options.connect_timeout) <0)
     {
-      DBUG_PRINT("error",("Got error %d on connect to '%s'",ERRNO,host));
+      DBUG_PRINT("error",("Got error %d on connect to '%s'",socket_errno,host));
       net->last_errno= CR_CONN_HOST_ERROR;
-      sprintf(net->last_error ,ER(CR_CONN_HOST_ERROR), host, ERRNO);
+      sprintf(net->last_error ,ER(CR_CONN_HOST_ERROR), host, socket_errno);
       goto error;
     }
   }
@@ -1810,7 +1809,7 @@ send_file_to_server(MYSQL *mysql, const char *filename)
   if (my_net_write(&mysql->net,"",0) || net_flush(&mysql->net))
   {
     mysql->net.last_errno=CR_SERVER_LOST;
-    sprintf(mysql->net.last_error,ER(mysql->net.last_errno),errno);
+    sprintf(mysql->net.last_error,ER(mysql->net.last_errno),socket_errno);
     my_free(tmp_name,MYF(0));
     DBUG_RETURN(-1);
   }

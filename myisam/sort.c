@@ -40,10 +40,10 @@
 
 typedef struct st_buffpek {
   my_off_t file_pos;			/* Where we are in the sort file */
-  ha_rows count;			/* Number of rows in table */
   uchar *base,*key;			/* Key pointers */
-  uint mem_count;			/* numbers of keys in memory */
-  uint max_keys;			/* Max keys in buffert */
+  ha_rows count;			/* Number of rows in table */
+  ulong mem_count;			/* numbers of keys in memory */
+  ulong max_keys;			/* Max keys in buffert */
 } BUFFPEK;
 
 extern void print_error _VARARGS((const char *fmt,...));

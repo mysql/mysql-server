@@ -43,7 +43,7 @@ typedef struct st_mrg_info		/* Struct from h_info */
   ulonglong data_file_length;
   uint	reclength;			/* Recordlength */
   int	errkey;				/* With key was dupplicated on err */
-  uint	options;			/* HA_OPTIONS_... used */
+  uint	options;			/* HA_OPTION_... used */
 } MERGE_INFO;
 
 typedef struct st_mrg_table_info

@@ -18,7 +18,7 @@
 /*
   Functions to create a unireg form-file from a FIELD and a fieldname-fieldinfo
   struct.
-  In the following functions FIELD * is a ordinary field-structure with
+  In the following functions FIELD * is an ordinary field-structure with
   the following exeptions:
     sc_length,typepos,row,kol,dtype,regnr and field nead not to be set.
     str is a (long) to record position where 0 is the first position.
@@ -502,7 +502,7 @@ static bool pack_fields(File file,List<create_field> &create_fields)
 }
 
 
-	/* save a empty record on start of formfile */
+	/* save an empty record on start of formfile */
 
 static bool make_empty_rec(File file,enum db_type table_type,
 			   uint table_options,

@@ -647,15 +647,24 @@ typedef off_t os_off_t;
 #define socket_errno	WSAGetLastError()
 #define SOCKET_EINTR	WSAEINTR 
 #define SOCKET_EAGAIN	WSAEINPROGRESS
+#define SOCKET_ENFILE	ENFILE
+#define SOCKET_EMFILE	EMFILE
 #elif defined(OS2)
 #define socket_errno	sock_errno()
+#define SOCKET_EINTR	SOCEINTR 
+#define SOCKET_EAGAIN	SOCEINPROGRESS
+#define SOCKET_EWOULDBLOCK SOCEWOULDBLOCK
+#define SOCKET_ENFILE	SOCENFILE
+#define SOCKET_EMFILE	SOCEMFILE
 #define closesocket(A)	soclose(A)
 #else /* Unix */
-#define socket_errno errno
+#define socket_errno	errno
 #define closesocket(A)	close(A)
 #define SOCKET_EINTR	EINTR
 #define SOCKET_EAGAIN	EAGAIN
 #define SOCKET_EWOULDBLOCK EWOULDBLOCK
+#define SOCKET_ENFILE	ENFILE
+#define SOCKET_EMFILE	EMFILE
 #endif
 
 typedef uint8		int7;	/* Most effective integer 0 <= x <= 127 */

@@ -18,7 +18,7 @@
 
 #include "heapdef.h"
 
-int heap_update(HP_INFO *info, const byte *old, const byte *new)
+int heap_update(HP_INFO *info, const byte *old, const byte *heap_new)
 {
   uint key;
   byte *pos;
@@ -35,16 +35,16 @@ int heap_update(HP_INFO *info, const byte *old, const byte *new)
 
   for (key=0 ; key < share->keys ; key++)
   {
-    if (_hp_rec_key_cmp(share->keydef+key,old,new))
+    if (_hp_rec_key_cmp(share->keydef+key,old,heap_new))
     {
       if (_hp_delete_key(info,share->keydef+key,old,pos,key ==
 			 (uint) info->lastinx) ||
-	  _hp_write_key(share,share->keydef+key,new,pos))
+	  _hp_write_key(share,share->keydef+key,heap_new,pos))
 	goto err;
     }
   }
 
-  memcpy(pos,new,(size_t) share->reclength);
+  memcpy(pos,heap_new,(size_t) share->reclength);
   if (++(share->records) == share->blength) share->blength+= share->blength;
   DBUG_RETURN(0);
 
@@ -54,9 +54,9 @@ int heap_update(HP_INFO *info, const byte *old, const byte *new)
     info->errkey=key;
     do
     {
-      if (_hp_rec_key_cmp(share->keydef+key,old,new))
+      if (_hp_rec_key_cmp(share->keydef+key,old,heap_new))
       {
-	if (_hp_delete_key(info,share->keydef+key,new,pos,0) ||
+	if (_hp_delete_key(info,share->keydef+key,heap_new,pos,0) ||
 	    _hp_write_key(share,share->keydef+key,old,pos))
 	  break;
       }

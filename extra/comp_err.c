@@ -119,9 +119,7 @@ int main(int argc,char *argv[])
 
 	/* Read options */
 
-static void get_options(argc,argv)
-register int *argc;
-register char **argv[];
+static void get_options(register int *argc,register char **argv[])
 {
   int help=0;
   char *pos,*progname;
@@ -163,9 +161,7 @@ register char **argv[];
 
 	/* Count rows in from-file until row that start with char is found */
 
-static int count_rows(from,c,c2)
-FILE *from;
-pchar c,c2;
+static int count_rows(FILE *from, pchar c, pchar c2)
 {
   int count;
   long pos;
@@ -189,9 +185,7 @@ pchar c,c2;
 	/* Read rows and remember them until row that start with char */
 	/* Converts row as a C-compiler would convert a textstring */
 
-static int remember_rows(from,c)
-FILE *from;
-pchar c;
+static int remember_rows(FILE* from, pchar c)
 {
   int i,nr,start_count,found_end;
   char row[MAXLENGTH],*pos;
@@ -253,8 +247,7 @@ pchar c;
 	/* Copy rows from memory to file and remember position */
 
 
-static int copy_rows(to)
-FILE *to;
+static int copy_rows(FILE *to)
 {
   int row_nr;
   long start_pos;
