@@ -867,7 +867,7 @@ TABLE *open_table(THD *thd,const char *db,const char *table_name,
       }
       key_cache_asmt->key_length= key_length;
       key_cache_asmt->key_cache= &dflt_key_cache_var;  
-      VOID(hash_insert(&assign_cache, (byte *) key_cache_asmt));
+      VOID(my_hash_insert(&assign_cache, (byte *) key_cache_asmt));
       key_cache_asmt->requests++;     
     }
     key_cache_asmt->to_reassign= 0;
