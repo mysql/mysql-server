@@ -3889,7 +3889,7 @@ lock_rec_print(
 	
 	page = buf_page_get_gen(space, page_no, RW_NO_LATCH,
 					NULL, BUF_GET_IF_IN_POOL,
-					IB__FILE__, __LINE__, &mtr);
+					__FILE__, __LINE__, &mtr);
 	if (page) {
 		page = buf_page_get_nowait(space, page_no, RW_S_LATCH, &mtr);
 

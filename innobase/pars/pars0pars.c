@@ -1713,7 +1713,8 @@ Called by yyparse on error. */
 void
 yyerror(
 /*====*/
-        char*	s __attribute__((unused))) /* in: error message string */
+	const char*	s __attribute__((unused)))
+				/* in: error message string */
 {
 	ut_ad(s);
 
