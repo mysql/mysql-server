@@ -1958,7 +1958,7 @@ static int my_mbcharlen_utf8(CHARSET_INFO *cs  __attribute__((unused)) , uint c)
 CHARSET_INFO my_charset_utf8 =
 {
     33,			/* number       */
-    MY_CS_COMPILED|MY_CS_PRIMARY,	/* state        */
+    MY_CS_COMPILED|MY_CS_PRIMARY|MY_CS_STRNXFRM,	/* state        */
     "utf8",		/* cs name      */
     "utf8",		/* name         */
     "",			/* comment      */
@@ -1990,8 +1990,8 @@ CHARSET_INFO my_charset_utf8 =
     my_hash_sort_utf8,	/* hash_sort    */
     0,
     my_snprintf_8bit,
-    my_l10tostr_8bit,
-    my_ll10tostr_8bit,
+    my_long10_to_str_8bit,
+    my_longlong10_to_str_8bit,
     my_strntol_8bit,
     my_strntoul_8bit,
     my_strntoll_8bit,
@@ -3019,7 +3019,7 @@ cnv:
 CHARSET_INFO my_charset_ucs2 =
 {
     35,			/* number       */
-    MY_CS_COMPILED|MY_CS_PRIMARY,	/* state        */
+    MY_CS_COMPILED|MY_CS_PRIMARY|MY_CS_STRNXFRM,	/* state        */
     "ucs2",		/* cs name    */
     "ucs2",		/* name         */
     "",			/* comment      */

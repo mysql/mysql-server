@@ -57,6 +57,7 @@ typedef struct unicase_info_st {
 #define MY_CS_LOADED    8      /* sets that are currently loaded */
 #define MY_CS_BINSORT	16     /* if binary sort order           */
 #define MY_CS_PRIMARY	32     /* if primary collation           */
+#define MY_CS_STRNXFRM	64     /* if strnxfrm is used for sort   */
 
 #define MY_CHARSET_UNDEFINED 0
 #define MY_CHARSET_CURRENT (default_charset_info->number)
@@ -133,8 +134,8 @@ typedef struct charset_info_st
   
   /* Charset dependant snprintf() */
   int  (*snprintf)(struct charset_info_st *, char *to, uint n, const char *fmt, ...);
-  int  (*l10tostr)(struct charset_info_st *, char *to, uint n, int radix, long int val);
-  int (*ll10tostr)(struct charset_info_st *, char *to, uint n, int radix, longlong val);
+  int  (*long10_to_str)(struct charset_info_st *, char *to, uint n, int radix, long int val);
+  int (*longlong10_to_str)(struct charset_info_st *, char *to, uint n, int radix, longlong val);
   
   /* String-to-number convertion routines */
   long        (*strntol)(struct charset_info_st *, const char *s, uint l,char **e, int base);
@@ -188,8 +189,8 @@ longlong   my_strntoll_8bit(CHARSET_INFO *, const char *s, uint l,char **e, int 
 ulonglong my_strntoull_8bit(CHARSET_INFO *, const char *s, uint l,char **e, int base);
 double      my_strntod_8bit(CHARSET_INFO *, char *s, uint l,char **e);
 
-int  my_l10tostr_8bit(CHARSET_INFO *, char *to, uint l, int radix, long int val);
-int my_ll10tostr_8bit(CHARSET_INFO *, char *to, uint l, int radix, longlong val);
+int  my_long10_to_str_8bit(CHARSET_INFO *, char *to, uint l, int radix, long int val);
+int my_longlong10_to_str_8bit(CHARSET_INFO *, char *to, uint l, int radix, longlong val);
 
 my_bool  my_like_range_simple(CHARSET_INFO *cs,
 			const char *ptr, uint ptr_length,
@@ -253,7 +254,7 @@ int my_wildcmp_mb(CHARSET_INFO *,
 #define my_isvar(s,c)                 (my_isalnum(s,c) || (c) == '_')
 #define my_isvar_start(s,c)           (my_isalpha(s,c) || (c) == '_')
 
-#define use_strnxfrm(s)               ((s)->strnxfrm  != NULL)
+#define use_strnxfrm(s)               ((s)->state  & MY_CS_STRNXFRM)
 #define my_strnxfrm(s, a, b, c, d)    ((s)->strnxfrm((s), (a), (b), (c), (d)))
 #define my_strnncoll(s, a, b, c, d)   ((s)->strnncoll((s), (a), (b), (c), (d)))
 #define my_like_range(s, a, b, c, d, e, f, g, h, i, j) \

@@ -622,7 +622,7 @@ static my_bool my_like_range_win1250ch(CHARSET_INFO *cs __attribute__((unused)),
 CHARSET_INFO my_charset_win1250ch =
 {
     34,				/* number    */
-    MY_CS_COMPILED,		/* state     */
+    MY_CS_COMPILED|MY_CS_STRNXFRM,		/* state     */
     "cp1250",			/* cs name    */
     "cp1250_czech",		/* name      */
     "",				/* comment   */
@@ -654,8 +654,8 @@ CHARSET_INFO my_charset_win1250ch =
     my_hash_sort_simple,
     0,
     my_snprintf_8bit,
-    my_l10tostr_8bit,
-    my_ll10tostr_8bit,
+    my_long10_to_str_8bit,
+    my_longlong10_to_str_8bit,
     my_strntol_8bit,
     my_strntoul_8bit,
     my_strntoll_8bit,

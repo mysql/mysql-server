@@ -6218,7 +6218,7 @@ my_mb_wc_big5(CHARSET_INFO *cs __attribute__((unused)),
 CHARSET_INFO my_charset_big5 =
 {
     1,			/* number     */
-    MY_CS_COMPILED|MY_CS_PRIMARY,	/* state      */
+    MY_CS_COMPILED|MY_CS_PRIMARY|MY_CS_STRNXFRM,	/* state      */
     "big5",		/* cs name    */
     "big5",		/* name       */
     "",			/* comment    */
@@ -6250,8 +6250,8 @@ CHARSET_INFO my_charset_big5 =
     my_hash_sort_simple,
     0,
     my_snprintf_8bit,
-    my_l10tostr_8bit,
-    my_ll10tostr_8bit,
+    my_long10_to_str_8bit,
+    my_longlong10_to_str_8bit,
 
     my_strntol_8bit,
     my_strntoul_8bit,

@@ -47,6 +47,7 @@ static void simple_cs_init_functions(CHARSET_INFO *cs)
 {
   cs->like_range  = my_like_range_simple;
   cs->wildcmp     = my_wildcmp_8bit;
+  cs->strnxfrm    = my_strnxfrm_simple;
   cs->strnncoll   = my_strnncoll_simple;
   cs->caseup_str  = my_caseup_str_8bit;
   cs->casedn_str  = my_casedn_str_8bit;
