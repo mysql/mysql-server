@@ -494,16 +494,17 @@ void Dbtup::readExecUndoLogLab(Signal* signal, DiskBufferSegmentInfoPtr dbsiPtr,
     Uint32 dataPages[16];
     ndbrequire(dbsiPtr.p->pdxFilePage > 0);
     ndbrequire(dbsiPtr.p->pdxFilePage <= ZUB_SEGMENT_SIZE);
-    for (Uint32 i = 0; i < dbsiPtr.p->pdxFilePage; i++) {
+    Uint32 i;
+    for (i = 0; i < dbsiPtr.p->pdxFilePage; i++) {
       ljam();
       dataPages[i] = dbsiPtr.p->pdxDataPage[i + ZUB_SEGMENT_SIZE];
     }//for
-    for (Uint32 i = 0; i < ZUB_SEGMENT_SIZE; i++) {
+    for (i = 0; i < ZUB_SEGMENT_SIZE; i++) {
       ljam();
       dataPages[i + dbsiPtr.p->pdxFilePage] = dbsiPtr.p->pdxDataPage[i];
     }//for
     Uint32 limitLoop = ZUB_SEGMENT_SIZE + dbsiPtr.p->pdxFilePage;
-    for (Uint32 i = 0; i < limitLoop; i++) {
+    for (i = 0; i < limitLoop; i++) {
       ljam();
       dbsiPtr.p->pdxDataPage[i] = dataPages[i];
     }//for
@@ -977,7 +978,8 @@ void Dbtup::allocRestartUndoBufferSegment(Signal* signal, DiskBufferSegmentInfoP
   seizeDiskBufferSegmentRecord(dbsiPtr);
   dbsiPtr.p->pdxBuffertype = UNDO_RESTART_PAGES;
   dbsiPtr.p->pdxUndoBufferSet[0] = undoPagePtr.i;
-  for (Uint32 i = 0; i < ZUB_SEGMENT_SIZE; i++) {
+  Uint32 i;
+  for (i = 0; i < ZUB_SEGMENT_SIZE; i++) {
     dbsiPtr.p->pdxDataPage[i] = undoPagePtr.i + i;
   }//for
 
@@ -994,7 +996,7 @@ void Dbtup::allocRestartUndoBufferSegment(Signal* signal, DiskBufferSegmentInfoP
   undoPagePtr.p->undoPageWord[ZPAGE_NEXT_POS] = RNIL;
   dbsiPtr.p->pdxUndoBufferSet[1] = undoPagePtr.i;
 //  lliPtr.p->lliUndoPage = undoPagePtr.i;
-  for (Uint32 i = ZUB_SEGMENT_SIZE; i < (2 * ZUB_SEGMENT_SIZE); i++) {
+  for (i = ZUB_SEGMENT_SIZE; i < (2 * ZUB_SEGMENT_SIZE); i++) {
     dbsiPtr.p->pdxDataPage[i] = undoPagePtr.i + (i - ZUB_SEGMENT_SIZE);
   }//for
   return;

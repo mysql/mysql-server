@@ -50,17 +50,18 @@ void Dbdih::initData()
   nodeRecord = (NodeRecord*)
     allocRecord("NodeRecord", sizeof(NodeRecord), MAX_NDB_NODES);
 
-  for(Uint32 i = 0; i<MAX_NDB_NODES; i++){
+  Uint32 i;
+  for(i = 0; i<MAX_NDB_NODES; i++){
     new (&nodeRecord[i]) NodeRecord();
   }
   
   takeOverRecord = (TakeOverRecord*)allocRecord("TakeOverRecord",
                                                 sizeof(TakeOverRecord), 
                                                 MAX_NDB_NODES);
-  for(Uint32 i = 0; i<MAX_NDB_NODES; i++)
+  for(i = 0; i<MAX_NDB_NODES; i++)
     new (&takeOverRecord[i]) TakeOverRecord();
 
-  for(Uint32 i = 0; i<MAX_NDB_NODES; i++)
+  for(i = 0; i<MAX_NDB_NODES; i++)
     new (&takeOverRecord[i]) TakeOverRecord();
   
   waitGCPProxyPool.setSize(ZPROXY_FILE_SIZE);

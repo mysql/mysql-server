@@ -51,7 +51,7 @@ int HugoOperations::pkReadRecord(Ndb* pNdb,
 				 int recordNo,
 				 bool exclusive,
 				 int numRecords){
-  
+  int a;  
   allocRows(numRecords);
   int check;
   for(int r=0; r < numRecords; r++){
@@ -71,7 +71,7 @@ int HugoOperations::pkReadRecord(Ndb* pNdb,
     }
     
     // Define primary keys
-    for(int a = 0; a<tab.getNoOfColumns(); a++){
+    for(a = 0; a<tab.getNoOfColumns(); a++){
       if (tab.getColumn(a)->getPrimaryKey() == true){
 	if(equalForAttr(pOp, a, r+recordNo) != 0){
 	  ERR(pTrans->getNdbError());
@@ -81,7 +81,7 @@ int HugoOperations::pkReadRecord(Ndb* pNdb,
     }
     
     // Define attributes to read  
-    for(int a = 0; a<tab.getNoOfColumns(); a++){
+    for(a = 0; a<tab.getNoOfColumns(); a++){
       if((rows[r]->attributeStore(a) = 
 	  pOp->getValue(tab.getColumn(a)->getName())) == 0) {
 	ERR(pTrans->getNdbError());
@@ -95,7 +95,7 @@ int HugoOperations::pkReadRecord(Ndb* pNdb,
 int HugoOperations::pkDirtyReadRecord(Ndb* pNdb,
 				      int recordNo,
 				      int numRecords){
-  
+  int a; 
   allocRows(numRecords);
   int check;
   for(int r=0; r < numRecords; r++){
@@ -113,7 +113,7 @@ int HugoOperations::pkDirtyReadRecord(Ndb* pNdb,
     }
     
     // Define primary keys
-    for(int a = 0; a<tab.getNoOfColumns(); a++){
+    for(a = 0; a<tab.getNoOfColumns(); a++){
       if (tab.getColumn(a)->getPrimaryKey() == true){
 	if(equalForAttr(pOp, a, r+recordNo) != 0){
 	  ERR(pTrans->getNdbError());
@@ -123,7 +123,7 @@ int HugoOperations::pkDirtyReadRecord(Ndb* pNdb,
     }
     
     // Define attributes to read  
-    for(int a = 0; a<tab.getNoOfColumns(); a++){
+    for(a = 0; a<tab.getNoOfColumns(); a++){
       if((rows[r]->attributeStore(a) = 
 	  pOp->getValue(tab.getColumn(a)->getName())) == 0) {
 	ERR(pTrans->getNdbError());
@@ -137,7 +137,7 @@ int HugoOperations::pkDirtyReadRecord(Ndb* pNdb,
 int HugoOperations::pkSimpleReadRecord(Ndb* pNdb,
 				       int recordNo,
 				       int numRecords){
-  
+  int a; 
   allocRows(numRecords);
   int check;
   for(int r=0; r < numRecords; r++){
@@ -155,7 +155,7 @@ int HugoOperations::pkSimpleReadRecord(Ndb* pNdb,
     }
     
     // Define primary keys
-    for(int a = 0; a<tab.getNoOfColumns(); a++){
+    for(a = 0; a<tab.getNoOfColumns(); a++){
       if (tab.getColumn(a)->getPrimaryKey() == true){
 	if(equalForAttr(pOp, a, r+recordNo) != 0){
 	  ERR(pTrans->getNdbError());
@@ -165,7 +165,7 @@ int HugoOperations::pkSimpleReadRecord(Ndb* pNdb,
     }
     
     // Define attributes to read  
-    for(int a = 0; a<tab.getNoOfColumns(); a++){
+    for(a = 0; a<tab.getNoOfColumns(); a++){
       if((rows[r]->attributeStore(a) = 
 	  pOp->getValue(tab.getColumn(a)->getName())) == 0) {
 	ERR(pTrans->getNdbError());
@@ -180,7 +180,7 @@ int HugoOperations::pkUpdateRecord(Ndb* pNdb,
 				   int recordNo,
 				   int numRecords,
 				   int updatesValue){
-  
+  int a; 
   allocRows(numRecords);
   int check;
   for(int r=0; r < numRecords; r++){
@@ -197,7 +197,7 @@ int HugoOperations::pkUpdateRecord(Ndb* pNdb,
     }
     
     // Define primary keys
-    for(int a = 0; a<tab.getNoOfColumns(); a++){
+    for(a = 0; a<tab.getNoOfColumns(); a++){
       if (tab.getColumn(a)->getPrimaryKey() == true){
 	if(equalForAttr(pOp, a, r+recordNo) != 0){
 	  ERR(pTrans->getNdbError());
@@ -207,7 +207,7 @@ int HugoOperations::pkUpdateRecord(Ndb* pNdb,
     }
     
     // Define attributes to update
-    for(int a = 0; a<tab.getNoOfColumns(); a++){
+    for(a = 0; a<tab.getNoOfColumns(); a++){
       if (tab.getColumn(a)->getPrimaryKey() == false){
 	if(setValueForAttr(pOp, a, recordNo+r, updatesValue ) != 0){ 
 	  ERR(pTrans->getNdbError());
@@ -224,7 +224,7 @@ int HugoOperations::pkInsertRecord(Ndb* pNdb,
 				   int numRecords,
 				   int updatesValue){
   
-  int check;
+  int a, check;
   for(int r=0; r < numRecords; r++){
     NdbOperation* pOp = pTrans->getNdbOperation(tab.getName());	
     if (pOp == NULL) {
@@ -239,7 +239,7 @@ int HugoOperations::pkInsertRecord(Ndb* pNdb,
     }
     
     // Define primary keys
-    for(int a = 0; a<tab.getNoOfColumns(); a++){
+    for(a = 0; a<tab.getNoOfColumns(); a++){
       if (tab.getColumn(a)->getPrimaryKey() == true){
 	if(equalForAttr(pOp, a, r+recordNo) != 0){
 	  ERR(pTrans->getNdbError());
@@ -249,7 +249,7 @@ int HugoOperations::pkInsertRecord(Ndb* pNdb,
     }
     
     // Define attributes to update
-    for(int a = 0; a<tab.getNoOfColumns(); a++){
+    for(a = 0; a<tab.getNoOfColumns(); a++){
       if (tab.getColumn(a)->getPrimaryKey() == false){
 	if(setValueForAttr(pOp, a, recordNo+r, updatesValue ) != 0){ 
 	  ERR(pTrans->getNdbError());
@@ -265,7 +265,7 @@ int HugoOperations::pkDeleteRecord(Ndb* pNdb,
 				   int recordNo,
 				   int numRecords){
   
-  int check;
+  int a, check;
   for(int r=0; r < numRecords; r++){
     NdbOperation* pOp = pTrans->getNdbOperation(tab.getName());	
     if (pOp == NULL) {
@@ -280,7 +280,7 @@ int HugoOperations::pkDeleteRecord(Ndb* pNdb,
     }
     
     // Define primary keys
-    for(int a = 0; a<tab.getNoOfColumns(); a++){
+    for(a = 0; a<tab.getNoOfColumns(); a++){
       if (tab.getColumn(a)->getPrimaryKey() == true){
 	if(equalForAttr(pOp, a, r+recordNo) != 0){
 	  ERR(pTrans->getNdbError());
@@ -619,6 +619,7 @@ int HugoOperations::indexReadRecords(Ndb*, const char * idxName, int recordNo,
 				     bool exclusive,
 				     int numRecords){
     
+  int a;
   allocRows(numRecords);
   int check;
   for(int r=0; r < numRecords; r++){
@@ -638,7 +639,7 @@ int HugoOperations::indexReadRecords(Ndb*, const char * idxName, int recordNo,
     }
     
     // Define primary keys
-    for(int a = 0; a<tab.getNoOfColumns(); a++){
+    for(a = 0; a<tab.getNoOfColumns(); a++){
       if (tab.getColumn(a)->getPrimaryKey() == true){
 	if(equalForAttr(pOp, a, r+recordNo) != 0){
 	  ERR(pTrans->getNdbError());
@@ -648,7 +649,7 @@ int HugoOperations::indexReadRecords(Ndb*, const char * idxName, int recordNo,
     }
     
     // Define attributes to read  
-    for(int a = 0; a<tab.getNoOfColumns(); a++){
+    for(a = 0; a<tab.getNoOfColumns(); a++){
       if((rows[r]->attributeStore(a) = 
 	  pOp->getValue(tab.getColumn(a)->getName())) == 0) {
 	ERR(pTrans->getNdbError());
@@ -665,7 +666,7 @@ HugoOperations::indexUpdateRecord(Ndb*,
 				  int recordNo,
 				  int numRecords,
 				  int updatesValue){
-  
+  int a; 
   allocRows(numRecords);
   int check;
   for(int r=0; r < numRecords; r++){
@@ -682,7 +683,7 @@ HugoOperations::indexUpdateRecord(Ndb*,
     }
     
     // Define primary keys
-    for(int a = 0; a<tab.getNoOfColumns(); a++){
+    for(a = 0; a<tab.getNoOfColumns(); a++){
       if (tab.getColumn(a)->getPrimaryKey() == true){
 	if(equalForAttr(pOp, a, r+recordNo) != 0){
 	  ERR(pTrans->getNdbError());
@@ -692,7 +693,7 @@ HugoOperations::indexUpdateRecord(Ndb*,
     }
     
     // Define attributes to update
-    for(int a = 0; a<tab.getNoOfColumns(); a++){
+    for(a = 0; a<tab.getNoOfColumns(); a++){
       if (tab.getColumn(a)->getPrimaryKey() == false){
 	if(setValueForAttr(pOp, a, recordNo+r, updatesValue ) != 0){ 
 	  ERR(pTrans->getNdbError());

@@ -1225,7 +1225,8 @@ void
 MgmStatService::println_statistics(const BaseString &line){
   MutexVector<NDB_SOCKET_TYPE> copy(m_sockets.size()); 
   m_sockets.lock();
-  for(int i = m_sockets.size() - 1; i >= 0; i--){
+  int i;
+  for(i = m_sockets.size() - 1; i >= 0; i--){
     if(println_socket(m_sockets[i], MAX_WRITE_TIMEOUT, line.c_str()) == -1){
       copy.push_back(m_sockets[i]);
       m_sockets.erase(i, false);
@@ -1233,7 +1234,7 @@ MgmStatService::println_statistics(const BaseString &line){
   }
   m_sockets.unlock();
   
-  for(int i = copy.size() - 1; i >= 0; i--){
+  for(i = copy.size() - 1; i >= 0; i--){
     NDB_CLOSE_SOCKET(copy[i]);
     copy.erase(i);
   }
