@@ -23,7 +23,6 @@
 #endif
 
 #include "mysql_priv.h"
-#include "sql_acl.h"
 #include "sql_repl.h"
 #include "ha_innodb.h" // necessary to cut the binlog when crash recovery
 

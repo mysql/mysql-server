@@ -55,7 +55,6 @@
 #include "mysql_priv.h"
 #include <mysql.h>
 #include "slave.h"
-#include "sql_acl.h"
 #include <my_getopt.h>
 #include <thr_alarm.h>
 #include <myisam.h>
@@ -366,6 +365,8 @@ sys_var_thd_enum	sys_tx_isolation("tx_isolation",
 					 fix_tx_isolation);
 sys_var_thd_ulong	sys_tmp_table_size("tmp_table_size",
 					   &SV::tmp_table_size);
+sys_var_bool_ptr  sys_timed_mutexes("timed_mutexes",
+                                    &timed_mutexes);
 sys_var_thd_ulong	sys_net_wait_timeout("wait_timeout",
 					     &SV::net_wait_timeout);
 
@@ -379,22 +380,18 @@ sys_var_thd_bool	sys_innodb_table_locks("innodb_table_locks",
 sys_var_long_ptr	sys_innodb_autoextend_increment("innodb_autoextend_increment",
 							&srv_auto_extend_increment);
 #endif
+
 #ifdef HAVE_NDBCLUSTER_DB
-// ndb thread specific variable settings
+/* ndb thread specific variable settings */
 sys_var_thd_ulong 
 sys_ndb_autoincrement_prefetch_sz("ndb_autoincrement_prefetch_sz",
 				  &SV::ndb_autoincrement_prefetch_sz);
 sys_var_thd_bool
-sys_ndb_force_send("ndb_force_send",
-		   &SV::ndb_force_send);
+sys_ndb_force_send("ndb_force_send", &SV::ndb_force_send);
 sys_var_thd_bool
-sys_ndb_use_exact_count("ndb_use_exact_count",
-			&SV::ndb_use_exact_count);
+sys_ndb_use_exact_count("ndb_use_exact_count", &SV::ndb_use_exact_count);
 sys_var_thd_bool
-sys_ndb_use_transactions("ndb_use_transactions",
-			 &SV::ndb_use_transactions);
-// ndb server global variable settings
-// none
+sys_ndb_use_transactions("ndb_use_transactions", &SV::ndb_use_transactions);
 #endif
 
 /* Time/date/datetime formats */
@@ -641,6 +638,7 @@ sys_var *sys_variables[]=
   &sys_table_type,
   &sys_thread_cache_size,
   &sys_time_format,
+  &sys_timed_mutexes,
   &sys_timestamp,
   &sys_time_zone,
   &sys_tmp_table_size,
@@ -908,6 +906,7 @@ struct show_var_st init_vars[]= {
   {"thread_stack",            (char*) &thread_stack,                SHOW_LONG},
   {sys_time_format.name,      (char*) &sys_time_format,		    SHOW_SYS},
   {"time_zone",               (char*) &sys_time_zone,               SHOW_SYS},
+  {sys_timed_mutexes.name,    (char*) &sys_timed_mutexes,       SHOW_SYS},
   {sys_tmp_table_size.name,   (char*) &sys_tmp_table_size,	    SHOW_SYS},
   {"tmpdir",                  (char*) &opt_mysql_tmpdir,            SHOW_CHAR_PTR},
   {sys_trans_alloc_block_size.name, (char*) &sys_trans_alloc_block_size,
@@ -2863,7 +2862,8 @@ int set_var::check(THD *thd)
     return 0;
   }
 
-  if (value->fix_fields(thd, 0, &value) || value->check_cols(1))
+  if ((!value->fixed && 
+       value->fix_fields(thd, 0, &value)) || value->check_cols(1))
     return -1;
   if (var->check_update_type(value->result_type()))
   {
@@ -2897,7 +2897,8 @@ int set_var::light_check(THD *thd)
   if (type == OPT_GLOBAL && check_global_access(thd, SUPER_ACL))
     return 1;
 
-  if (value && (value->fix_fields(thd, 0, &value) || value->check_cols(1)))
+  if (value && ((!value->fixed && value->fix_fields(thd, 0, &value)) ||
+                value->check_cols(1)))
     return -1;
   return 0;
 }

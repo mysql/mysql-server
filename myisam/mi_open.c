@@ -309,6 +309,7 @@ MI_INFO *mi_open(const char *name, int mode, uint open_flags)
       HA_KEYSEG *pos=share->keyparts;
       for (i=0 ; i < keys ; i++)
       {
+        share->keyinfo[i].share= share;
 	disk_pos=mi_keydef_read(disk_pos, &share->keyinfo[i]);
         disk_pos_assert(disk_pos + share->keyinfo[i].keysegs * HA_KEYSEG_SIZE,
  			end_pos);
@@ -1057,17 +1058,19 @@ int mi_keyseg_write(File file, const HA_KEYSEG *keyseg)
 {
   uchar buff[HA_KEYSEG_SIZE];
   uchar *ptr=buff;
+  ulong pos;
 
-  *ptr++ =keyseg->type;
-  *ptr++ =keyseg->language;
-  *ptr++ =keyseg->null_bit;
-  *ptr++ =keyseg->bit_start;
-  *ptr++ =keyseg->bit_end;
+  *ptr++= keyseg->type;
+  *ptr++= keyseg->language;
+  *ptr++= keyseg->null_bit;
+  *ptr++= keyseg->bit_start;
+  *ptr++= keyseg->bit_end;
   *ptr++= keyseg->bit_length;
   mi_int2store(ptr,keyseg->flag);	ptr+=2;
   mi_int2store(ptr,keyseg->length);	ptr+=2;
   mi_int4store(ptr,keyseg->start);	ptr+=4;
-  mi_int4store(ptr, keyseg->null_bit ? keyseg->null_pos : keyseg->bit_pos);
+  pos= keyseg->null_bit ? keyseg->null_pos : keyseg->bit_pos;
+  mi_int4store(ptr, pos);
   ptr+=4;
   
   return my_write(file,(char*) buff, (uint) (ptr-buff), MYF(MY_NABP));
@@ -1234,7 +1237,7 @@ int mi_enable_indexes(MI_INFO *info)
   if (share->state.state.data_file_length ||
       (share->state.state.key_file_length != share->base.keystart))
   {
-    mi_print_error(info, HA_ERR_CRASHED);
+    mi_print_error(info->s, HA_ERR_CRASHED);
     error= HA_ERR_CRASHED;
   }
   else

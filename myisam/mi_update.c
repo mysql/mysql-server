@@ -35,7 +35,7 @@ int mi_update(register MI_INFO *info, const byte *oldrec, byte *newrec)
   LINT_INIT(old_checksum);
 
   DBUG_EXECUTE_IF("myisam_pretend_crashed_table_on_usage",
-                  mi_print_error(info, HA_ERR_CRASHED);
+                  mi_print_error(info->s, HA_ERR_CRASHED);
                   DBUG_RETURN(my_errno= HA_ERR_CRASHED););
   if (!(info->update & HA_STATE_AKTIV))
   {
@@ -209,7 +209,7 @@ err:
   }
   else
   {
-    mi_print_error(info, HA_ERR_CRASHED);
+    mi_print_error(info->s, HA_ERR_CRASHED);
     mi_mark_crashed(info);
   }
   info->update= (HA_STATE_CHANGED | HA_STATE_AKTIV | HA_STATE_ROW_CHANGED |
@@ -221,7 +221,7 @@ err:
   allow_break();				/* Allow SIGHUP & SIGINT */
   if (save_errno == HA_ERR_KEY_NOT_FOUND)
   {
-    mi_print_error(info, HA_ERR_CRASHED);
+    mi_print_error(info->s, HA_ERR_CRASHED);
     save_errno=HA_ERR_CRASHED;
   }
   DBUG_RETURN(my_errno=save_errno);

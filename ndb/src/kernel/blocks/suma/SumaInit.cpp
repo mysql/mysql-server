@@ -188,6 +188,6 @@ Suma::~Suma()
 {
 }
 
-BLOCK_FUNCTIONS(Suma);
-BLOCK_FUNCTIONS(SumaParticipant);
+BLOCK_FUNCTIONS(Suma)
+BLOCK_FUNCTIONS(SumaParticipant)
 

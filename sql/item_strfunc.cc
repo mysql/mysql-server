@@ -25,7 +25,6 @@
 #endif
 
 #include "mysql_priv.h"
-#include "sql_acl.h"
 #include <m_ctype.h>
 #ifdef HAVE_OPENSSL
 #include <openssl/des.h>
@@ -955,8 +954,9 @@ String *Item_func_left::val_str(String *str)
   if (res->length() <= (uint) length ||
       res->length() <= (char_pos= res->charpos(length)))
     return res;
-  str_value.set(*res, 0, char_pos);
-  return &str_value;
+
+  tmp_value.set(*res, 0, char_pos);
+  return &tmp_value;
 }
 
 
@@ -1748,6 +1748,7 @@ void Item_func_make_set::split_sum_func(THD *thd, Item **ref_pointer_array,
   else if (item->used_tables() || item->type() == SUM_FUNC_ITEM)
   {
     uint el= fields.elements;
+    ref_pointer_array[el]=item;
     Item *new_item= new Item_ref(ref_pointer_array + el, 0, item->name);
     fields.push_front(item);
     ref_pointer_array[el]= item;
@@ -2331,17 +2332,6 @@ String *Item_func_hex::val_str(String *str)
   }
   return &tmp_value;
 }
-
-inline int hexchar_to_int(char c)
-{
-  if (c <= '9' && c >= '0')
-    return c-'0';
-  c|=32;
-  if (c <= 'f' && c >= 'a')
-    return c-'a'+10;
-  return -1;
-}
-
 
   /* Convert given hex string to a binary string */
 

@@ -46,7 +46,13 @@ extern "C" {
 #include <EventLogger.hpp>
 extern EventLogger g_eventLogger;
 
-static const char* opt_connect_str= 0;
+enum ndbd_options {
+  NDB_STD_OPTS_OPTIONS,
+  OPT_INITIAL,
+  OPT_NODAEMON
+};
+
+NDB_STD_OPTS_VARS;
 static int _daemon, _no_daemon, _initial, _no_start;
 /**
  * Arguments to NDB process
@@ -54,7 +60,7 @@ static int _daemon, _no_daemon, _initial, _no_start;
 static struct my_option my_long_options[] =
 {
   NDB_STD_OPTS("ndbd"),
-  { "initial", 256,
+  { "initial", OPT_INITIAL,
     "Perform initial start of ndbd, including cleaning the file system. "
     "Consult documentation before using this",
     (gptr*) &_initial, (gptr*) &_initial, 0,
@@ -66,7 +72,7 @@ static struct my_option my_long_options[] =
   { "daemon", 'd', "Start ndbd as daemon (default)",
     (gptr*) &_daemon, (gptr*) &_daemon, 0,
     GET_BOOL, NO_ARG, 1, 0, 0, 0, 0, 0 },
-  { "nodaemon", 257,
+  { "nodaemon", OPT_NODAEMON,
     "Do not start ndbd as daemon, provided for testing purposes",
     (gptr*) &_no_daemon, (gptr*) &_no_daemon, 0,
     GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
@@ -609,8 +615,9 @@ Configuration::calcSizeAlt(ConfigValues * ownConfig){
 
   Uint32 noOfMetaTables= noOfTables + noOfOrderedIndexes +
                            noOfUniqueHashIndexes;
-  if (noOfMetaTables > MAX_TABLES)
-    noOfMetaTables= MAX_TABLES;
+  Uint32 noOfMetaTablesDict= noOfMetaTables;
+  if (noOfMetaTablesDict > MAX_TABLES)
+    noOfMetaTablesDict= MAX_TABLES;
 
   {
     /**
@@ -619,8 +626,8 @@ Configuration::calcSizeAlt(ConfigValues * ownConfig){
     cfg.put(CFG_DICT_ATTRIBUTE, 
 	    noOfAttributes);
 
-    cfg.put(CFG_DICT_TABLE, 
-	    noOfMetaTables);
+    cfg.put(CFG_DICT_TABLE,
+	    noOfMetaTablesDict);
   }
 
 
