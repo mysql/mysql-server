@@ -361,3 +361,16 @@ a	b	c	d	e	f	g	h	dd
 1	-7	7	2000-01-01	b	2000-01-01 00:00:00	05:04:03	yet another binary data	02:00:00
 2	-2	2	1825-12-14	a	2003-01-01 03:02:01	04:03:02	binary data	02:00:00
 drop table t1, t2;
+drop database if exists test_$1;
+create database test_$1;
+use test_$1;
+select database();
+database()
+test_$1
+drop database test_$1;
+select database();
+database()
+NULL
+select database();
+database()
+NULL
