@@ -390,6 +390,9 @@ struct Query_cache_query_flags
   uint collation_connection_num;
   ha_rows limit;
   Time_zone *time_zone;
+  ulong sql_mode;
+  ulong max_sort_length;
+  ulong group_concat_max_len;
 };
 #define QUERY_CACHE_FLAGS_SIZE sizeof(Query_cache_query_flags)
 #include "sql_cache.h"
