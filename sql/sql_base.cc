@@ -193,7 +193,7 @@ send_fields(THD *thd,List<Item> &list,uint flag)
   List_iterator_fast<Item> it(list);
   Item *item;
   char buff[80];
-  CONVERT *convert= (flag & 4) ? (CONVERT*) 0 : thd->convert_set;
+  CONVERT *convert= (flag & 4) ? (CONVERT*) 0 : thd->variables.convert_set;
   DBUG_ENTER("send_fields");
 
   String tmp((char*) buff,sizeof(buff)),*res,*packet= &thd->packet;

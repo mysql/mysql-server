@@ -14,11 +14,6 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-/* Extra functions we want to do with a database */
-/* - Set flags for quicker databasehandler */
-/* - Set databasehandler to normal */
-/* - Reset recordpointers as after open database */
-
 #include "myisamdef.h"
 #ifdef HAVE_MMAP
 #include <sys/mman.h>
@@ -27,11 +22,28 @@
 #include <errno.h>
 #endif
 
-	/* set extra flags for database */
+/*
+  Set options and buffers to optimize table handling
 
-int mi_extra(MI_INFO *info, enum ha_extra_function function)
+  SYNOPSIS
+    mi_extra()
+    info	open table
+    function	operation
+    extra_arg	Pointer to extra argument (normally pointer to ulong)
+    		Used when function is one of:
+		HA_EXTRA_WRITE_CACHE
+		HA_EXTRA_CACHE
+		HA_EXTRA_BULK_INSERT_BEGIN
+		If extra_arg is 0, then the default cache size is used.
+    RETURN VALUES
+    0	ok
+*/
+
+
+int mi_extra(MI_INFO *info, enum ha_extra_function function, void *extra_arg)
 {
   int error=0;
+  ulong cache_size;
   MYISAM_SHARE *share=info->s;
   DBUG_ENTER("mi_extra");
   DBUG_PRINT("enter",("function: %d",(int) function));
@@ -103,11 +115,13 @@ int mi_extra(MI_INFO *info, enum ha_extra_function function)
     if (!(info->opt_flag &
 	  (READ_CACHE_USED | WRITE_CACHE_USED | MEMMAP_USED)))
     {
+      cache_size= (extra_arg ? *(ulong*) extra_arg :
+		   my_default_record_cache_size);
       if (!(init_io_cache(&info->rec_cache,info->dfile,
 			 (uint) min(info->state->data_file_length+1,
-				    my_default_record_cache_size),
-			 READ_CACHE,0L,(pbool) (info->lock_type != F_UNLCK),
-			 MYF(share->write_flag & MY_WAIT_IF_FULL))))
+				    cache_size),
+			  READ_CACHE,0L,(pbool) (info->lock_type != F_UNLCK),
+			  MYF(share->write_flag & MY_WAIT_IF_FULL))))
       {
 	info->opt_flag|=READ_CACHE_USED;
 	info->update&= ~HA_STATE_ROW_CHANGED;
@@ -133,10 +147,12 @@ int mi_extra(MI_INFO *info, enum ha_extra_function function)
       error=1;			/* Not possibly if not locked */
       break;
     }
+    cache_size= (extra_arg ? *(ulong*) extra_arg :
+		 my_default_record_cache_size);
     if (!(info->opt_flag &
 	  (READ_CACHE_USED | WRITE_CACHE_USED | OPT_NO_ROWS)) &&
 	!share->state.header.uniques)
-      if (!(init_io_cache(&info->rec_cache,info->dfile,0,
+      if (!(init_io_cache(&info->rec_cache,info->dfile, cache_size,
 			 WRITE_CACHE,info->state->data_file_length,
 			  (pbool) (info->lock_type != F_UNLCK),
 			  MYF(share->write_flag & MY_WAIT_IF_FULL))))
@@ -337,7 +353,8 @@ int mi_extra(MI_INFO *info, enum ha_extra_function function)
     info->quick_mode=1;
     break;
   case HA_EXTRA_BULK_INSERT_BEGIN:
-    error=_mi_init_bulk_insert(info);
+    error=_mi_init_bulk_insert(info, (extra_arg ? *(ulong*) extra_arg :
+				      myisam_bulk_insert_tree_size));
     break;
   case HA_EXTRA_BULK_INSERT_END:
     if (info->bulk_insert)

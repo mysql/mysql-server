@@ -11,10 +11,9 @@ typedef struct st_slave_info
   THD* thd;
 } SLAVE_INFO;
 
-extern bool opt_show_slave_auth_info, opt_old_rpl_compat;
+extern my_bool opt_show_slave_auth_info, opt_old_rpl_compat;
 extern char* master_host;
 extern my_string opt_bin_logname, master_info_file;
-extern uint32 server_id;
 extern bool server_id_supplied;
 extern I_List<i_string> binlog_do_db, binlog_ignore_db;
 

@@ -208,13 +208,13 @@ int main(int argc, char *argv[])
   if (!silent)
     printf("- Writing key:s\n");
   if (key_cacheing)
-    init_key_cache(key_cache_size,(uint) IO_SIZE*4*10);	/* Use a small cache */
+    init_key_cache(key_cache_size);		/* Use a small cache */
   if (locking)
     mi_lock_database(file,F_WRLCK);
   if (write_cacheing)
-    mi_extra(file,HA_EXTRA_WRITE_CACHE);
+    mi_extra(file,HA_EXTRA_WRITE_CACHE,0);
   if (opt_quick_mode)
-    mi_extra(file,HA_EXTRA_QUICK);
+    mi_extra(file,HA_EXTRA_QUICK,0);
 
   for (i=0 ; i < recant ; i++)
   {
@@ -261,11 +261,15 @@ int main(int argc, char *argv[])
   if (testflag==1) goto end;
 
   if (write_cacheing)
-    if (mi_extra(file,HA_EXTRA_NO_CACHE))
+  {
+    if (mi_extra(file,HA_EXTRA_NO_CACHE,0))
     {
       puts("got error from mi_extra(HA_EXTRA_NO_CACHE)");
       goto end;
     }
+    if (key_cacheing)
+      resize_key_cache(key_cache_size*2);
+  }
 
   if (!silent)
     printf("- Delete\n");
@@ -677,7 +681,7 @@ int main(int argc, char *argv[])
 
   if (!silent)
     printf("- mi_extra(CACHE) + mi_rrnd.... + mi_extra(NO_CACHE)\n");
-  if (mi_extra(file,HA_EXTRA_RESET) || mi_extra(file,HA_EXTRA_CACHE))
+  if (mi_extra(file,HA_EXTRA_RESET,0) || mi_extra(file,HA_EXTRA_CACHE,0))
   {
     if (locking || (!use_blob && !pack_fields))
     {
@@ -695,7 +699,7 @@ int main(int argc, char *argv[])
 	   ant,write_count-opt_delete);
     goto end;
   }
-  if (mi_extra(file,HA_EXTRA_NO_CACHE))
+  if (mi_extra(file,HA_EXTRA_NO_CACHE,0))
   {
     puts("got error from mi_extra(HA_EXTRA_NO_CACHE)");
     goto end;
@@ -720,7 +724,7 @@ int main(int argc, char *argv[])
   DBUG_PRINT("progpos",("Removing keys"));
   lastpos = HA_OFFSET_ERROR;
   /* DBUG_POP(); */
-  mi_extra(file,HA_EXTRA_RESET);
+  mi_extra(file,HA_EXTRA_RESET,0);
   found_parts=0;
   while ((error=mi_rrnd(file,read_record,HA_OFFSET_ERROR)) !=
 	 HA_ERR_END_OF_FILE)
@@ -791,8 +795,10 @@ end:
     printf("myisam_block_size:    %u\n", myisam_block_size);
     if (key_cacheing)
     {
-      puts("Key cacheing used");
+      puts("Key cache used");
       printf("key_cache_block_size: %u\n", key_cache_block_size);
+      if (write_cacheing)
+	puts("Key cache resized");
     }
     if (write_cacheing)
       puts("Write cacheing used");

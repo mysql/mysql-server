@@ -27,6 +27,8 @@ class LEX_COLUMN;
   YYSTYPE before including this file
 */
 
+#include "set_var.h"
+
 #ifdef MYSQL_YACC
 #define LEX_YYSTYPE void *
 #else
@@ -71,7 +73,8 @@ enum lex_states
   STATE_OPERATOR_OR_IDENT, STATE_NUMBER_IDENT, STATE_INT_OR_REAL,
   STATE_REAL_OR_POINT, STATE_BOOL, STATE_EOL, STATE_ESCAPE, STATE_LONG_COMMENT,
   STATE_END_LONG_COMMENT, STATE_COLON, STATE_SET_VAR, STATE_USER_END,
-  STATE_HOSTNAME, STATE_SKIP, STATE_USER_VARIABLE_DELIMITER
+  STATE_HOSTNAME, STATE_SKIP, STATE_USER_VARIABLE_DELIMITER, STATE_SYSTEM_VAR,
+  STATE_IDENT_OR_KEYWORD
 };
 
 typedef List<Item> List_item;
@@ -120,19 +123,6 @@ typedef struct st_select_lex
 } SELECT_LEX;
 
 
-class Set_option :public Sql_alloc
-{
-public:
-  const char *name;
-  Item *item;
-  uint name_length;
-  bool type;					/* 1 if global */
-  Set_option(bool par_type, const char *par_name, uint length,
-	     Item *par_item)
-    :name(par_name), item(par_item), name_length(length), type(par_type) {}
-};
-
-
 /* The state of the lex parsing. This is saved in the THD struct */
 
 typedef struct st_lex
@@ -153,22 +143,22 @@ typedef struct st_lex
   List<Alter_drop>    drop_list;
   List<Alter_column>  alter_list;
   List<String>	      interval_list;
-  List<st_lex_user>   users_list;
+  List<LEX_USER>      users_list;
   List<LEX_COLUMN>    columns;
   List<Key>	      key_list;
   List<create_field>  create_list;
   List<Item>	      *insert_list,field_list,value_list;
   List<List_item>     many_values;
-  List<Set_option>    option_list;
+  List<set_var_base>  var_list;
   SQL_LIST	      proc_list, auxilliary_table_list;
   TYPELIB	      *interval;
   create_field	      *last_field;
   Item *default_value;
   CONVERT *convert_set;
+  CONVERT *thd_convert_set;			// Set with SET CHAR SET
   LEX_USER *grant_user;
   gptr yacc_yyss,yacc_yyvs;
   THD *thd;
-  struct system_variables *variable_values;
   udf_func udf;
   HA_CHECK_OPT   check_opt;			// check/repair options
   HA_CREATE_INFO create_info;
@@ -182,10 +172,11 @@ typedef struct st_lex
   enum enum_ha_read_modes ha_read_mode;
   enum ha_rkey_function ha_rkey_mode;
   enum enum_enable_or_disable alter_keys_onoff;
+  enum enum_var_type option_type;
   uint grant,grant_tot_col,which_columns, union_option;
   thr_lock_type lock_option;
-  bool	drop_primary,drop_if_exists,local_file;
-  bool  in_comment,ignore_space,verbose,simple_alter, option_type, olap;
+  bool	drop_primary,drop_if_exists,local_file. olap;
+  bool  in_comment,ignore_space,verbose,simple_alter;
   uint slave_thd_opt;
 } LEX;
 

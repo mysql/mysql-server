@@ -67,7 +67,7 @@ select (@id := id) - id from t2;
 kill @id;
 drop table t2;
 Server shutdown in progress
-set sql_slave_skip_counter=1;
+set global sql_slave_skip_counter=1;
 slave start;
 select count(*) from t1;
 count(*)

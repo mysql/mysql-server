@@ -2088,7 +2088,7 @@ static void mrg_reset(PACK_MRG_INFO *mrg)
 {
   if (mrg->current)
   {
-    mi_extra(*mrg->current,HA_EXTRA_NO_CACHE);
+    mi_extra(*mrg->current, HA_EXTRA_NO_CACHE, 0);
     mrg->current=0;
   }
 }
@@ -2103,8 +2103,8 @@ static int mrg_rrnd(PACK_MRG_INFO *info,byte *buf)
   {
     isam_info= *(info->current=info->file);
     info->end=info->current+info->count;
-    mi_extra(isam_info,HA_EXTRA_RESET);
-    mi_extra(isam_info,HA_EXTRA_CACHE);
+    mi_extra(isam_info, HA_EXTRA_RESET, 0);
+    mi_extra(isam_info, HA_EXTRA_CACHE, 0);
     filepos=isam_info->s->pack.header_length;
   }
   else
@@ -2120,14 +2120,14 @@ static int mrg_rrnd(PACK_MRG_INFO *info,byte *buf)
 					  filepos, 1)) ||
 	error != HA_ERR_END_OF_FILE)
       return (error);
-    mi_extra(isam_info,HA_EXTRA_NO_CACHE);
+    mi_extra(isam_info,HA_EXTRA_NO_CACHE, 0);
     if (info->current+1 == info->end)
       return(HA_ERR_END_OF_FILE);
     info->current++;
     isam_info= *info->current;
     filepos=isam_info->s->pack.header_length;
-    mi_extra(isam_info,HA_EXTRA_RESET);
-    mi_extra(isam_info,HA_EXTRA_CACHE);
+    mi_extra(isam_info,HA_EXTRA_RESET, 0);
+    mi_extra(isam_info,HA_EXTRA_CACHE, 0);
   }
 }
 

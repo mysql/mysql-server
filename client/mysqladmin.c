@@ -23,7 +23,7 @@
 #include <my_pthread.h>				/* because of signal()	*/
 #endif
 
-#define ADMIN_VERSION "8.35"
+#define ADMIN_VERSION "8.36"
 #define MAX_MYSQL_VAR 128
 #define SHUTDOWN_DEF_TIMEOUT 3600		/* Wait for shutdown */
 #define MAX_TRUNC_LENGTH 3
@@ -588,7 +588,7 @@ static int execute_commands(MYSQL *mysql,int argc, char **argv)
       MYSQL_ROW row;
 
       new_line=1;
-      if (mysql_query(mysql,"show variables") ||
+      if (mysql_query(mysql,"show /*!40003 GLOBAL */ variables") ||
 	  !(res=mysql_store_result(mysql)))
       {
 	my_printf_error(0,"unable to show variables; error: '%s'",MYF(ME_BELL),

@@ -171,7 +171,7 @@ void start_test(int id)
     exit(1);
   }
   if (key_cacheing && rnd(2) == 0)
-    init_key_cache(65536L,(uint) IO_SIZE*4*10);
+    init_key_cache(65536L);
   printf("Process %d, pid: %d\n",id,(int) getpid()); fflush(stdout);
 
   for (error=i=0 ; i < tests && !error; i++)

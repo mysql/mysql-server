@@ -147,7 +147,7 @@ LEX *lex_start(THD *thd, uchar *buf,uint length)
   lex->select->in_sum_expr=0;
   lex->select->expr_list.empty();
   lex->select->ftfunc_list.empty();
-  lex->convert_set=(lex->thd=thd)->convert_set;
+  lex->convert_set=(lex->thd=thd)->variables.convert_set;
   lex->yacc_yyss=lex->yacc_yyvs=0;
   lex->ignore_space=test(thd->sql_mode & MODE_IGNORE_SPACE);
   lex->slave_thd_opt=0;
@@ -525,7 +525,7 @@ int yylex(void *arg)
       }
       yylval->lex_str=get_token(lex,length);
       if (lex->convert_set)
-	    lex->convert_set->convert((char*) yylval->lex_str.str,lex->yytoklen);
+	lex->convert_set->convert((char*) yylval->lex_str.str,lex->yytoklen);
       return(IDENT);
 
     case STATE_IDENT_SEP:		// Found ident and now '.'
@@ -853,14 +853,12 @@ int yylex(void *arg)
       }
       break;
     case STATE_USER_END:		// end '@' of user@hostname
-      switch (state_map[yyPeek()])
-      {
+      switch (state_map[yyPeek()]) {
       case STATE_STRING:
       case STATE_USER_VARIABLE_DELIMITER:
 	break;
       case STATE_USER_END:
-	lex->next_state=STATE_USER_END;
-	yySkip();
+	lex->next_state=STATE_SYSTEM_VAR;
 	break;
       default:
 	lex->next_state=STATE_HOSTNAME;
@@ -875,6 +873,33 @@ int yylex(void *arg)
 	   c= yyGet()) ;
       yylval->lex_str=get_token(lex,yyLength());
       return(LEX_HOSTNAME);
+    case STATE_SYSTEM_VAR:
+      yylval->lex_str.str=(char*) lex->ptr;
+      yylval->lex_str.length=1;
+      lex->next_state=STATE_IDENT_OR_KEYWORD;
+      yySkip();					// Skip '@'
+      return((int) '@');
+    case STATE_IDENT_OR_KEYWORD:
+      /*
+	We come here when we have found two '@' in a row.
+	We should now be able to handle:
+	[(global | local | session) .]variable_name
+      */
+
+      while (state_map[c=yyGet()] == STATE_IDENT ||
+	     state_map[c] == STATE_NUMBER_IDENT) ;
+      if (c == '.')
+	lex->next_state=STATE_IDENT_SEP;
+      length= (uint) (lex->ptr - lex->tok_start)-1;
+      if ((tokval= find_keyword(lex,length,0)))
+      {
+	yyUnget();				// Put back 'c'
+	return(tokval);				// Was keyword
+      }
+      yylval->lex_str=get_token(lex,length);
+      if (lex->convert_set)
+	lex->convert_set->convert((char*) yylval->lex_str.str,lex->yytoklen);
+      return(IDENT);
     }
   }
 }

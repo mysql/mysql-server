@@ -1761,7 +1761,7 @@ static user_var_entry *get_variable(HASH *hash, LEX_STRING &name,
 bool Item_func_set_user_var::fix_fields(THD *thd,TABLE_LIST *tables)
 {
   if (!thd)
-    thd=current_thd;
+    thd=current_thd;				// Should never happen
   if (Item_func::fix_fields(thd,tables) ||
       !(entry= get_variable(&thd->user_vars, name, 1)))
     return 1;
@@ -2269,20 +2269,34 @@ longlong Item_func_bit_xor::val_int()
 
 /***************************************************************************
   System variables
-  This has to be recoded after we get more than 3 system variables
 ****************************************************************************/
 
-Item *get_system_var(LEX_STRING name)
+Item *get_system_var(enum_var_type var_type, LEX_STRING name)
 {
-  if (!my_strcasecmp(name.str,"IDENTITY"))
-    return new Item_int((char*) "@@IDENTITY",
-			current_thd->insert_id(),21);
   if (!my_strcasecmp(name.str,"VERSION"))
     return new Item_string("@@VERSION",server_version,
 			   (uint) strlen(server_version));
-  net_printf(&current_thd->net, ER_UNKNOWN_SYSTEM_VARIABLE, name.str);
-  return 0;
+
+  THD *thd=current_thd;
+  Item *item;
+  sys_var *var;
+  char buff[MAX_SYS_VAR_LENGTH+3];
+
+  if (!(var= find_sys_var(name.str)))
+  {
+    net_printf(&thd->net, ER_UNKNOWN_SYSTEM_VARIABLE, name.str);
+    return 0;
+  }
+  if (!(item=var->item(thd, var_type)))
+    return 0;					// Impossible
+  thd->safe_to_cache_query=0;
+  buff[0]='@';
+  buff[1]='@';
+  memcpy(buff+2, var->name, var->name_length+1);
+  item->set_name(buff,var->name_length+2);	// Will allocate name
+  return item;
 }
+
 
 /*
   Check a user level lock.

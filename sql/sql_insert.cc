@@ -197,8 +197,10 @@ int mysql_insert(THD *thd,TABLE_LIST *table_list, List<Item> &fields,
 		     lock_type != TL_WRITE_DELAYED &&
 		     !(specialflag & SPECIAL_SAFE_MODE))))
   {
-    table->file->extra(HA_EXTRA_WRITE_CACHE);
-    table->file->extra(HA_EXTRA_BULK_INSERT_BEGIN);
+    table->file->extra_opt(HA_EXTRA_WRITE_CACHE,
+			   thd->variables.read_buff_size);
+    table->file->extra_opt(HA_EXTRA_BULK_INSERT_BEGIN,
+			   thd->variables.bulk_insert_buff_size);
   }
 
   while ((values = its++))
@@ -933,9 +935,7 @@ static pthread_handler_decl(handle_delayed_insert,arg)
 #endif
 
   DBUG_ENTER("handle_delayed_insert");
-  if (init_thr_lock() ||
-      my_pthread_setspecific_ptr(THR_THD,  thd) ||
-      my_pthread_setspecific_ptr(THR_NET,  &thd->net))
+  if (init_thr_lock() || thd->store_globals())
   {
     thd->fatal_error=1;
     strmov(thd->net.last_error,ER(thd->net.last_errno=ER_OUT_OF_RESOURCES));

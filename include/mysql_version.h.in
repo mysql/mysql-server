@@ -3,6 +3,8 @@
 
 /* Version numbers for protocol & mysqld */
 
+#ifndef _mysql_version_h
+#define _mysql_version_h
 #ifdef _CUSTOMCONFIG_
 #include <custom_conf.h>
 #else
@@ -17,5 +19,6 @@
 /* mysqld compile time options */
 #ifndef MYSQL_CHARSET
 #define MYSQL_CHARSET			"@default_charset@"
-#endif
-#endif
+#endif /* MYSQL_CHARSET */
+#endif /* _CUSTOMCONFIG_ */
+#endif /* _mysql_version_h */

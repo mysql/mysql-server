@@ -22,7 +22,8 @@
 
 #include "myrg_def.h"
 
-int myrg_extra(MYRG_INFO *info,enum ha_extra_function function)
+int myrg_extra(MYRG_INFO *info,enum ha_extra_function function,
+	       void *extra_arg)
 {
   int error,save_error=0;
   MYRG_TABLE *file;
@@ -30,7 +31,11 @@ int myrg_extra(MYRG_INFO *info,enum ha_extra_function function)
   DBUG_PRINT("info",("function: %d",(ulong) function));
 
   if (function == HA_EXTRA_CACHE)
+  {
     info->cache_in_use=1;
+    info->cache_size= (extra_arg ? *(long*) extra_arg :
+		       my_default_record_cache_size);
+  }
   else
   {
     if (function == HA_EXTRA_NO_CACHE || function == HA_EXTRA_RESET)
@@ -41,11 +46,14 @@ int myrg_extra(MYRG_INFO *info,enum ha_extra_function function)
       info->last_used_table=info->open_tables;
     }
     for (file=info->open_tables ; file != info->end_table ; file++)
-      if ((error=mi_extra(file->table,function)))
+    {
+      if ((error=mi_extra(file->table, function, extra_arg)))
 	save_error=error;
+    }
   }
   DBUG_RETURN(save_error);
 }
+
 
 void myrg_extrafunc(MYRG_INFO *info, invalidator_by_filename inv)
 {

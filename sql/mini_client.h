@@ -19,23 +19,18 @@
 
 
 MYSQL* mc_mysql_connect(MYSQL *mysql,const char *host, const char *user,
-		   const char *passwd, const char *db,
-		 uint port, const char *unix_socket,uint client_flag);
-
-int mc_simple_command(MYSQL *mysql,enum enum_server_command command, const char *arg,
-		  uint length, my_bool skipp_check);
+			const char *passwd, const char *db,
+			uint port, const char *unix_socket,uint client_flag,
+			uint net_read_timeout);
+int mc_simple_command(MYSQL *mysql,enum enum_server_command command,
+		      const char *arg, uint length, my_bool skipp_check);
 void mc_mysql_close(MYSQL *mysql);
-
-MYSQL * mc_mysql_init(MYSQL *mysql);
-
+MYSQL *mc_mysql_init(MYSQL *mysql);
 void mc_mysql_debug(const char *debug);
-
 ulong mc_net_safe_read(MYSQL *mysql);
-
-char *  mc_mysql_error(MYSQL *mysql);
+char *mc_mysql_error(MYSQL *mysql);
 int  mc_mysql_errno(MYSQL *mysql);
 my_bool mc_mysql_reconnect(MYSQL* mysql);
-
 int mc_mysql_send_query(MYSQL* mysql, const char* query, uint length);
 int mc_mysql_read_query_result(MYSQL *mysql);
 int mc_mysql_query(MYSQL *mysql, const char *query, uint length);

@@ -14,14 +14,11 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-#ifndef _MYSQL_PRIV_H
-#define _MYSQL_PRIV_H
-
 #include <my_global.h>
-#include "mysql_embed.h"
+#include <mysql_version.h>
+#include <mysql_embed.h>
 #include <my_sys.h>
 #include <m_string.h>
-#include <mysql_version.h>
 #include <hash.h>
 #include <signal.h>
 #include <thr_lock.h>
@@ -165,15 +162,14 @@ char* query_table_status(THD *thd,const char *db,const char *table_name);
 #define OPTION_BIG_SELECTS	1024		/* for SQL OPTION */
 #define OPTION_LOG_OFF		2048
 #define OPTION_UPDATE_LOG	4096		/* update log flag */
-#define OPTION_LOW_PRIORITY_UPDATES	8192
 #define OPTION_WARNINGS		16384
 #define OPTION_AUTO_IS_NULL	32768
 #define OPTION_FOUND_COMMENT	65536L
 #define OPTION_SAFE_UPDATES	OPTION_FOUND_COMMENT*2
 #define OPTION_BUFFER_RESULT	OPTION_SAFE_UPDATES*2
 #define OPTION_BIN_LOG          OPTION_BUFFER_RESULT*2
-#define OPTION_NOT_AUTO_COMMIT	OPTION_BIN_LOG*2
-#define OPTION_BEGIN		OPTION_NOT_AUTO_COMMIT*2
+#define OPTION_NOT_AUTOCOMMIT	OPTION_BIN_LOG*2
+#define OPTION_BEGIN		OPTION_NOT_AUTOCOMMIT*2
 #define OPTION_TABLE_LOCK	OPTION_BEGIN*2
 #define OPTION_QUICK		OPTION_TABLE_LOCK*2
 #define OPTION_QUOTE_SHOW_CREATE OPTION_QUICK*2
@@ -295,6 +291,9 @@ void mysql_binlog_send(THD* thd, char* log_ident, ulong pos, ushort flags);
 int mysql_rm_table(THD *thd,TABLE_LIST *tables, my_bool if_exists);
 int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
 			 bool log_query);
+int mysql_rm_table_part2_with_lock(THD *thd, TABLE_LIST *tables,
+				   bool if_exists,
+				   bool log_query);
 int quick_rm_table(enum db_type base,const char *db,
 		   const char *table_name);
 bool mysql_rename_tables(THD *thd, TABLE_LIST *table_list);
@@ -469,7 +468,7 @@ void mysqld_list_processes(THD *thd,const char *user,bool verbose);
 int mysqld_show_status(THD *thd);
 int mysqld_show_variables(THD *thd,const char *wild);
 int mysqld_show(THD *thd, const char *wild, show_var_st *variables,
-		struct system_variables *variable_values);
+		enum enum_var_type value_type);
 
 /* sql_handler.cc */
 int mysql_ha_open(THD *thd, TABLE_LIST *tables);
@@ -579,29 +578,66 @@ void open_log(MYSQL_LOG *log, const char *hostname,
 	      enum_log_type type, bool read_append = 0,
 	      bool no_auto_events = 0);
 
-extern uint32 server_id;
+/*
+  External variables
+*/
+
+extern time_t start_time;
 extern char *mysql_data_home,server_version[SERVER_VERSION_LENGTH],
-	    max_sort_char, mysql_real_data_home[];
+	    max_sort_char, mysql_real_data_home[], *charsets_list;
 extern my_string mysql_tmpdir;
+extern const char *command_name[];
 extern const char *first_keyword, *localhost, *delayed_user;
-extern ulong refresh_version,flush_version, thread_id,query_id,opened_tables,
-	     created_tmp_tables, created_tmp_disk_tables,
-	     aborted_threads,aborted_connects,
-	     delayed_insert_timeout,
-	     delayed_insert_limit, delayed_queue_size,
-	     delayed_insert_threads, delayed_insert_writes,
-	     delayed_rows_in_use,delayed_insert_errors;
+extern const char **errmesg;			/* Error messages */
+extern const char *myisam_recover_options_str;
+extern uchar *days_in_month;
+extern char language[LIBLEN],reg_ext[FN_EXTLEN];
+extern char glob_hostname[FN_REFLEN], mysql_home[FN_REFLEN];
+extern char pidfile_name[FN_REFLEN], time_zone[30], *opt_init_file;
+extern char blob_newline;
+extern double log_10[32];
+extern ulong refresh_version,flush_version, thread_id,query_id,opened_tables;
+extern ulong created_tmp_tables, created_tmp_disk_tables;
+extern ulong aborted_threads,aborted_connects;
+extern ulong delayed_insert_timeout;
+extern ulong delayed_insert_limit, delayed_queue_size;
+extern ulong delayed_insert_threads, delayed_insert_writes;
+extern ulong delayed_rows_in_use,delayed_insert_errors;
 extern ulong filesort_rows, filesort_range_count, filesort_scan_count;
 extern ulong filesort_merge_passes;
 extern ulong select_range_check_count, select_range_count, select_scan_count;
-extern ulong select_full_range_join_count,select_full_join_count,
-			 slave_open_temp_tables;
-extern uint test_flags,select_errors,ha_open_options;
+extern ulong select_full_range_join_count,select_full_join_count;
+extern ulong slave_open_temp_tables, query_cache_size;
 extern ulong thd_startup_options, slow_launch_threads, slow_launch_time;
-extern ulong query_cache_startup_type;
-extern time_t start_time;
-extern const char *command_name[];
-extern I_List<THD> threads;
+extern ulong server_id;
+extern ulong ha_read_count, ha_write_count, ha_delete_count, ha_update_count;
+extern ulong ha_read_key_count, ha_read_next_count, ha_read_prev_count;
+extern ulong ha_read_first_count, ha_read_last_count;
+extern ulong ha_read_rnd_count, ha_read_rnd_next_count;
+extern ulong ha_commit_count, ha_rollback_count, mysqld_net_retry_count;
+extern ulong keybuff_size,table_cache_size;
+extern ulong max_connections,max_connect_errors, connect_timeout;
+extern ulong max_insert_delayed_threads, max_user_connections;
+extern ulong long_query_count, what_to_log,flush_time,opt_sql_mode;
+extern ulong query_buff_size, thread_stack,thread_stack_min;
+extern ulong binlog_cache_size, max_binlog_cache_size, open_files_limit;
+extern ulong max_binlog_size, rpl_recovery_rank, thread_cache_size;
+extern ulong com_stat[(uint) SQLCOM_END], com_other, back_log;
+extern ulong specialflag, current_pid;
+
+extern uint test_flags,select_errors,ha_open_options;
+extern uint protocol_version,dropping_tables;
+extern bool opt_endinfo, using_udf_functions, locked_in_memory;
+extern bool opt_using_transactions, use_temp_pool, mysql_embedded;
+extern bool using_update_log, opt_large_files;
+extern bool opt_log, opt_update_log, opt_bin_log, opt_slow_log;
+extern bool opt_sql_bin_update, opt_safe_user_create, opt_no_mix_types;
+extern bool opt_disable_networking, opt_skip_show_db;
+extern bool volatile abort_loop, shutdown_in_progress, grant_option;
+extern uint volatile thread_count, thread_running, global_read_lock;
+extern my_bool opt_safe_show_db, opt_local_infile, lower_case_table_names;
+extern char f_fyllchar;
+
 extern MYSQL_LOG mysql_log,mysql_update_log,mysql_slow_log,mysql_bin_log;
 extern FILE *bootstrap_file;
 extern pthread_key(MEM_ROOT*,THR_MALLOC);
@@ -613,52 +649,21 @@ extern pthread_mutex_t LOCK_mysql_create_db,LOCK_Acl,LOCK_open,
        LOCK_server_id, LOCK_slave_list, LOCK_active_mi, LOCK_manager,
        LOCK_global_system_variables;
 extern pthread_cond_t COND_refresh, COND_thread_count, COND_manager;
-
 extern pthread_attr_t connection_attrib;
-extern bool opt_endinfo, using_udf_functions, locked_in_memory,
-            opt_using_transactions, use_temp_pool, mysql_embedded;
-extern char f_fyllchar;
-extern ulong ha_read_count, ha_write_count, ha_delete_count, ha_update_count,
-	     ha_read_key_count, ha_read_next_count, ha_read_prev_count,
-	     ha_read_first_count, ha_read_last_count,
-	     ha_read_rnd_count, ha_read_rnd_next_count,
-	     ha_commit_count, ha_rollback_count;
+extern I_List<THD> threads;
 extern MY_BITMAP temp_pool;
-extern uchar *days_in_month;
 extern DATE_FORMAT dayord;
-extern double log_10[32];
-extern uint protocol_version,dropping_tables;
-extern ulong keybuff_size,table_cache_size,
-	     max_connections,max_connect_errors,
-	     max_insert_delayed_threads, max_user_connections,
-	     long_query_count,
-             net_read_timeout,net_write_timeout,
-	     what_to_log,flush_time,opt_sql_mode,
-	     query_buff_size, lower_case_table_names,
-	     thread_stack,thread_stack_min,
-	     binlog_cache_size, max_binlog_cache_size;
-extern ulong com_stat[(uint) SQLCOM_END], com_other;
-extern ulong specialflag, current_pid;
-extern bool low_priority_updates, using_update_log;
-extern bool opt_sql_bin_update, opt_safe_show_db,
-	    opt_safe_user_create, opt_no_mix_types;
-extern char language[LIBLEN],reg_ext[FN_EXTLEN],blob_newline;
-extern const char **errmesg;			/* Error messages */
-extern const char *default_tx_isolation_name;
 extern String empty_string;
-extern struct show_var_st init_vars[];
-extern struct show_var_st status_vars[];
+extern SHOW_VAR init_vars[],status_vars[], internal_vars[];
 extern struct system_variables global_system_variables;
-extern enum db_type default_table_type;
-extern enum enum_tx_isolation default_tx_isolation;
-extern char glob_hostname[FN_REFLEN];
+extern struct system_variables max_system_variables;
+
+extern SHOW_COMP_OPTION have_isam, have_raid, have_openssl, have_symlink;
+extern SHOW_COMP_OPTION have_query_cache;
 
 #ifndef __WIN__
 extern pthread_t signal_thread;
 #endif
-
-extern bool volatile abort_loop, shutdown_in_progress, grant_option;
-extern uint volatile thread_count, thread_running, global_read_lock;
 
 MYSQL_LOCK *mysql_lock_tables(THD *thd,TABLE **table,uint count);
 void mysql_unlock_tables(THD *thd, MYSQL_LOCK *sql_lock);
@@ -757,10 +762,13 @@ void hostname_cache_free();
 void hostname_cache_refresh(void);
 bool get_interval_info(const char *str,uint length,uint count,
 		       long *values);
-/* sql_cache */
+/* sql_cache.cc */
 extern bool sql_cache_init();
 extern void sql_cache_free();
 extern int sql_cache_hit(THD *thd, char *inBuf, uint length);
+
+/* item.cc */
+Item *get_system_var(enum_var_type var_type, LEX_STRING name);
 
 /* Some inline functions for more speed */
 
@@ -786,5 +794,3 @@ inline void mark_as_null_row(TABLE *table)
   table->status|=STATUS_NULL_ROW;
   bfill(table->null_flags,table->null_bytes,255);
 }
-
-#endif

@@ -1,4 +1,4 @@
-error 1204;
+error 1054;
 set @a := foo;
 set @a := connection_id() + 3;
 select @a - connection_id();

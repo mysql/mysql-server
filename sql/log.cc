@@ -937,11 +937,11 @@ bool MYSQL_LOG::write(Log_event* event_info)
       if (e.write(file))
 	goto err;
     }
-    if (thd && thd->convert_set)
+    if (thd && thd->variables.convert_set)
     {
       char buf[1024] = "SET CHARACTER SET ";
       char* p = strend(buf);
-      p = strmov(p, thd->convert_set->name);
+      p = strmov(p, thd->variables.convert_set->name);
       int save_query_length = thd->query_length;
       // just in case somebody wants it later
       thd->query_length = (uint)(p - buf);
