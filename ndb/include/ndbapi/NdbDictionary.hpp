@@ -936,25 +936,56 @@ public:
       = 3
 #endif
     };
-    
+
+    /*
+     *  Constructor
+     *  @param  name  Name of event
+     */
     Event(const char *name);
+    /*
+     *  Constructor
+     *  @param  name  Name of event
+     *  @param  table Reference retrieved from NdbDictionary
+     */
+    Event(const char *name, const NdbDictionary::Table& table);
     virtual ~Event();
     /**
-     * Set unique identifier for the event
+     * Set/get unique identifier for the event
      */
     void setName(const char *name);
+    const char *getName() const;
+    /**
+     * Define table on which events should be detected
+     *
+     * @note calling this method will default to detection
+     *       of events on all columns. Calling subsequent
+     *       addEventColumn calls will override this.
+     *
+     * @param table reference retrieved from NdbDictionary
+     */
+    void setTable(const NdbDictionary::Table& table);
     /**
      * Set table for which events should be detected
+     *
+     * @note preferred way is using setTable(const NdbDictionary::Table)
+     *       or constructor with table object parameter
      */
     void setTable(const char *tableName);
+    /**
+     * Get table name for events
+     *
+     * @return table name
+     */
+    const char* getTableName() const;
     /**
      * Add type of event that should be detected
      */
     void addTableEvent(const TableEvent te);
     /**
-     * Set durability of the event
+     * Get/set durability of the event
      */
-    void setDurability(const EventDurability ed);
+    void setDurability(EventDurability ed);
+    EventDurability getDurability() const;
 #ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
     void addColumn(const Column &c);
 #endif
@@ -971,7 +1002,7 @@ public:
      *
      * @param columnName Column name
      *
-     * @note errors will mot be detected until createEvent() is called
+     * @note errors will not be detected until createEvent() is called
      */
     void addEventColumn(const char * columnName);
     /**
@@ -984,6 +1015,13 @@ public:
      *       NdbDictionary::Dictionary::createEvent() is called
      */
     void addEventColumns(int n, const char ** columnNames);
+
+    /**
+     * Get no of columns defined in an Event
+     *
+     * @return Number of columns, -1 on error
+     */
+    int getNoOfEventColumns() const;
 
     /**
      * Get object status

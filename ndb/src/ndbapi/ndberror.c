@@ -300,6 +300,12 @@ ErrorBundle ErrorCodes[] = {
   { 290,  AE, "Scan not started or has been closed by kernel due to timeout" },
 
   /** 
+   * Event schema errors
+   */
+
+  { 4713,  SE, "Column defined in event does not exist in table"},
+  
+  /** 
    * Event application errors
    */
 
