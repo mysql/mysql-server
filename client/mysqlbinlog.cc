@@ -103,17 +103,18 @@ class Load_log_processor
     }
 
 public:
-  Load_log_processor()
-    {
-      init_dynamic_array(&file_names,sizeof(Create_file_log_event*),
-			 100,100 CALLER_INFO);
-    }
-
+  Load_log_processor() {}
   ~Load_log_processor()
-    {
-      destroy();
-      delete_dynamic(&file_names);
-    }
+  {
+    destroy();
+    delete_dynamic(&file_names);
+  }
+
+  int init()
+  {
+    return init_dynamic_array(&file_names,sizeof(Create_file_log_event*),
+			      100,100 CALLER_INFO);
+  }
 
   void init_by_dir_name(const char *dir)
     {
@@ -350,7 +351,7 @@ int process_event(ulonglong *rec_count, char *last_db, Log_event *ev,
 	filename and use LOCAL), prepared in the 'case EXEC_LOAD_EVENT' 
 	below.
       */
-      ce->print(result_file, short_form, last_db, true);
+      ce->print(result_file, short_form, last_db, TRUE);
       if (!old_format)
       {
 	if (load_processor.process(ce))
@@ -376,7 +377,7 @@ int process_event(ulonglong *rec_count, char *last_db, Log_event *ev,
       */
       if (ce)
       {
-	ce->print(result_file, short_form, last_db,true);
+	ce->print(result_file, short_form, last_db, TRUE);
 	my_free((char*)ce->fname,MYF(MY_WME));
 	delete ce;
       }
@@ -458,6 +459,10 @@ void sql_print_error(const char *format,...)
 static void cleanup()
 {
   my_free(pass,MYF(MY_ALLOW_ZERO_PTR));
+  my_free((char*) database, MYF(MY_ALLOW_ZERO_PTR));
+  my_free((char*) host, MYF(MY_ALLOW_ZERO_PTR));
+  my_free((char*) user, MYF(MY_ALLOW_ZERO_PTR));
+  my_free((char*) dirname_for_local_load, MYF(MY_ALLOW_ZERO_PTR));
 }
 
 static void die(const char* fmt, ...)
@@ -469,12 +474,13 @@ static void die(const char* fmt, ...)
   fprintf(stderr, "\n");
   va_end(args);
   cleanup();
+  my_end(0);
   exit(1);
 }
 
 static void print_version()
 {
-  printf("%s Ver 2.4 for %s at %s\n", my_progname, SYSTEM_TYPE, MACHINE_TYPE);
+  printf("%s Ver 2.5 for %s at %s\n", my_progname, SYSTEM_TYPE, MACHINE_TYPE);
 }
 
 
@@ -935,6 +941,8 @@ int main(int argc, char** argv)
     dirname_for_local_load= my_tmpdir(&tmpdir);
   }
 
+  if (load_processor.init())
+    exit(1);
   if (dirname_for_local_load)
     load_processor.init_by_dir_name(dirname_for_local_load);
   else
