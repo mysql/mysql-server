@@ -38213,74 +38213,61 @@ innodb_data_home_dir =
 innodb_data_file_path = /ibdata/ibdata1:100M:autoextend:max:2000M
 @end example
 
-Suppose you have a Windows NT computer with 128 MB RAM and a
-single 10 GB hard disk.
-Following is an example of possible configuration parameters in
-@file{my.cnf} or @file{my.ini} for InnoDB:
+@strong{A simple @file{my.cnf} example.} Suppose you have a computer
+with 128 MB RAM and one hard disk. Below is an example of
+possible configuration parameters in @file{my.cnf} or
+@file{my.ini} for InnoDB. We assume you are running
+MySQL-Max-3.23.50 or later, or MySQL-4.0.2 or later.
+This example suits most users, both on Unix and Windows,
+who do not want to distribute InnoDB datafiles and
+log files on several disks. This creates an
+auto-extending data file @file{ibdata1} and two InnoDB log files
+@file{ib_logfile0} and @file{ib_logfile1} to the
+@code{datadir} of MySQL (typically @file{/mysql/data}).
+Also the small archived InnoDB log file
+@file{ib_arch_log_0000000000} ends up in the @code{datadir}. 
 
 @example
 [mysqld]
 # You can write your other MySQL server options here
 # ...
-#
-innodb_data_home_dir = c:\ibdata
-#                                  Datafiles must be able to
-#                                  hold your data and indexes
-innodb_data_file_path = ibdata1:2000M;ibdata2:2000M
-#                                  Set buffer pool size to 50 - 80%
-#                                  of your computer's memory
+#                                        Data file(s) must be able to
+#                                        hold your data and indexes.
+#                                        Make sure you have enough
+#                                        free disk space.
+innodb_data_file_path = ibdata1:10M:autoextend
+#                                        Set buffer pool size to
+#                                        50 - 80 % of your computer's
+#                                        memory
 set-variable = innodb_buffer_pool_size=70M
 set-variable = innodb_additional_mem_pool_size=10M
-innodb_log_group_home_dir = c:\iblogs
-#                                  .._log_arch_dir must be the same
-#                                  as .._log_group_home_dir
-innodb_log_arch_dir = c:\iblogs
-innodb_log_archive=0
-set-variable = innodb_log_files_in_group=3
-#                                  Set the log file-size to about
-#                                  15% of the buffer pool size
-set-variable = innodb_log_file_size=10M
+#                                        Set the log file size to about
+#                                        25 % of the buffer pool size
+set-variable = innodb_log_file_size=20M
 set-variable = innodb_log_buffer_size=8M
-#                                  Set ..flush_log_at_trx_commit to
-#                                  0 if you can afford losing
-#                                  a few last transactions 
+#                                        Set ..flush_log_at_trx_commit
+#                                        to 0 if you can afford losing
+#                                        some last transactions 
 innodb_flush_log_at_trx_commit=1
-set-variable = innodb_file_io_threads=4
-set-variable = innodb_lock_wait_timeout=50
 @end example
 
-Note that @code{InnoDB} @strong{does not create directories:
-you must create them yourself.}
-Use the Unix or MS-DOS @code{mkdir} command to create
-the data and log group home directories.
-Check also that the MySQL server
-has @strong{the rights to create files} in the directories you specify.
+@strong{Check that the MySQL server has the rights to create files} in
+@code{datadir}. 
 
-Note that datafiles must be < 2G in
-some filesystems! The combined size of datafiles
-must be >= 10 MB.
-The combined size of the log files must be < 4G.
+Note that datafiles must be < 2G in some file systems!
+The combined size of the log files must be < 4G. The combined
+size of datafiles must be >= 10 MB. 
 
-InnoDB forms the directory path to a datafile by textually
-catenating @code{innodb_data_home_dir} to a datafile name or
-path in @code{innodb_data_file_path},
-adding a possible slash or backslash in between if needed.
-If the keyword @code{innodb_data_home_dir} is not mentioned
-in @file{my.cnf} at all, the default for it is the 'dot'
-directory @file{./}
-which means the @code{datadir} of MySQL.
+When you for the first time create an InnoDB database, it is
+best that you start the MySQL server from the command prompt.
+Then InnoDB will print the information about the database
+creation to the screen, and you see what is happening.
+See below next section what the printout should look like.
+For example, in Windows you can start @file{mysqld-max.exe} with: 
 
-When you the first time create an InnoDB database, it
-is best that you start the MySQL server from the command
-prompt. Then InnoDB will print the information about the
-database creation to the screen, and you see what is
-happening.
-For example, in Windows you can start @file{mysqld-max.exe} with:
 @example
-your-path-to-mysqld>mysqld-max --standalone --console
+your-path-to-mysqld>mysqld-max --console
 @end example
-For information about what the printout should look like,
-see @ref{InnoDB init}.
 
 @strong{Where to put @file{my.cnf} or @file{my.ini} in Windows?}
 The rules for Windows are the following:
@@ -38315,46 +38302,55 @@ or @file{my.ini}, you can give the path as the first command-line
 option to the server:
 @code{mysqld --defaults-file=your_path_to_my_cnf}.
 
-Suppose you have a Linux computer with 512 MB RAM and
-three 20 GB hard disks (at directory paths @file{`/'},
-@file{`/dr2'} and @file{`/dr3'}).
-Here is an example of possible configuration parameters
-in @file{my.cnf} for
-InnoDB:
+InnoDB forms the directory path to a datafile by textually catenating
+@code{innodb_data_home_dir} to a datafile name or path in
+@code{innodb_data_file_path}, adding a possible slash or
+backslash in between if needed. If the keyword
+@code{innodb_data_home_dir} is not mentioned in
+@file{my.cnf} at all, the default for it is the
+'dot' directory @file{./} which means the @code{datadir} of MySQL. 
+
+@strong{An advanced @file{my.cnf} example.} Suppose you have a Linux computer
+with 2 GB RAM and three 60 GB hard disks
+(at directory paths @file{/}, @file{/dr2} and
+@file{/dr3}). Below is an example of possible
+configuration parameters in @file{my.cnf} for InnoDB. 
+
+@strong{Note that InnoDB does not create directories: you
+have to create them yourself.} Use the Unix or MS-DOS
+@code{mkdir} command to create the data and log group home directories. 
 
 @example
 [mysqld]
 # You can write your other MySQL server options here
 # ...
-#
 innodb_data_home_dir =
-#                                  Datafiles must be able to
-#                                  hold your data and indexes
-innodb_data_file_path = /ibdata/ibdata1:2000M;/dr2/ibdata/ibdata2:2000M
-#                                  Set buffer pool size to 50 - 80%
-#                                  of your computer's memory, but
-#                                  make sure on Linux x86 total
-#                                  memory usage is < 2 GB
-set-variable = innodb_buffer_pool_size=350M
+#                                        Data files must be able to
+#                                        hold your data and indexes
+innodb_data_file_path = /ibdata/ibdata1:2000M;/dr2/ibdata/ibdata2:2000M:autoextend
+#                                        Set buffer pool size to
+#                                        50 - 80 % of your computer's
+#                                        memory, but make sure on Linux
+#                                        x86 total memory usage is
+#                                        < 2 GB
+set-variable = innodb_buffer_pool_size=1G
 set-variable = innodb_additional_mem_pool_size=20M
 innodb_log_group_home_dir = /dr3/iblogs
-#                                  .._log_arch_dir must be the same
-#                                  as .._log_group_home_dir
+#                                        .._log_arch_dir must be the same
+#                                        as .._log_group_home_dir
 innodb_log_arch_dir = /dr3/iblogs
 innodb_log_archive=0
 set-variable = innodb_log_files_in_group=3
-#                                  Set the log file-size to about
-#                                  15% of the buffer pool size
-set-variable = innodb_log_file_size=50M
+#                                        Set the log file size to about
+#                                        15 % of the buffer pool size
+set-variable = innodb_log_file_size=150M
 set-variable = innodb_log_buffer_size=8M
-#                                  Set ..flush_log_at_trx_commit to
-#                                  0 if you can afford losing
-#                                  a few last transactions 
+#                                        Set ..flush_log_at_trx_commit to
+#                                        0 if you can afford losing
+#                                        some last transactions 
 innodb_flush_log_at_trx_commit=1
-set-variable = innodb_file_io_threads=4
 set-variable = innodb_lock_wait_timeout=50
 #innodb_flush_method=fdatasync
-#innodb_fast_shutdown=1
 #set-variable = innodb_thread_concurrency=5
 @end example
 
@@ -38384,6 +38380,7 @@ additional memory.
 @strong{How to tune other @file{mysqld} server parameters?}
 Typical values which suit most users are:
 @example
+skip-locking
 set-variable = max_connections=200
 set-variable = record_buffer=1M
 set-variable = sort_buffer=1M
@@ -39254,6 +39251,49 @@ use a locking read:
 SELECT * FROM t LOCK IN SHARE MODE;
 @end example
 
+@subsubsection How to cope with deadlocks?
+
+Deadlocks are a classic problem in transactional databases,
+but they are not dangerous unless they are so frequent
+that you cannot run certain transactions at all.
+Normally you have to write your applications so
+that they are always prepared to re-issue a
+transaction if it gets rolled back because of a deadlock. 
+
+InnoDB uses automatic row level locking. You can get
+deadlocks even in the case of transactions which just
+insert or delete a single row. That is because
+these operations are not really 'atomic': they
+automatically set locks on the (possibly several) index
+records of the row inserted/deleted. 
+
+You can cope with deadlocks and reduce the number of
+them with the following tricks: 
+
+@itemize @bullet
+@item
+Always be prepared to re-issue a transaction if it fails
+in a deadlock. Deadlocks are not dangerous. Just try again. 
+@item
+Commit your transactions often. Small transactions are less
+prone to collide. 
+@item
+Access your tables and rows in a fixed order. Then
+transactions will form nice queues, and do not deadlock. 
+@item
+Use less locking: if you can afford a @code{SELECT} to return
+data from an old snapshot, do not add the clause
+@code{FOR UPDATE} or @code{LOCK IN SHARE MODE} to it. 
+@item
+If nothing helps, serialize your transactions with table level
+locks: @code{LOCK TABLES t1 WRITE, t2 READ, ... ;
+[do something with tables t1 and t2 here]; UNLOCK TABLES.}
+Table level locks make you transactions to queue nicely,
+and deadlocks are avoided. Note that @code{LOCK TABLES} implicitly
+starts a transaction, just like the command @code{BEGIN},
+and @code{UNLOCK TABLES} implicitly ends the transaction in a
+@code{COMMIT}. 
+@end itemize
 
 @subsection Performance Tuning Tips
 
@@ -39962,7 +40002,7 @@ separate pages, the remaining length of the row must be less
 than half a database page. The maximun key length is 7000 bytes.
 @item
 On some operating systems datafiles must be < 2 GB. The combined
-size of log files must be < 4 GB on 32-bit computers.
+size of log files must be < 4 GB.
 @item
 The maximum tablespace size is 4 billion database pages. This is also
 the maximum size for a table. The minimum tablespace size is 10 MB.
