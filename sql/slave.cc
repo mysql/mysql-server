@@ -1965,7 +1965,7 @@ int show_master_info(THD* thd, MASTER_INFO* mi)
 						     sizeof(mi->user)));
   field_list.push_back(new Item_return_int("Master_Port", 7,
 					   MYSQL_TYPE_LONG));
-  field_list.push_back(new Item_return_int("Connect_retry", 10,
+  field_list.push_back(new Item_return_int("Connect_Retry", 10,
 					   MYSQL_TYPE_LONG));
   field_list.push_back(new Item_empty_string("Master_Log_File",
 					     FN_REFLEN));
@@ -1979,24 +1979,24 @@ int show_master_info(THD* thd, MASTER_INFO* mi)
 					     FN_REFLEN));
   field_list.push_back(new Item_empty_string("Slave_IO_Running", 3));
   field_list.push_back(new Item_empty_string("Slave_SQL_Running", 3));
-  field_list.push_back(new Item_empty_string("Replicate_do_db", 20));
-  field_list.push_back(new Item_empty_string("Replicate_ignore_db", 20));
-  field_list.push_back(new Item_empty_string("Replicate_do_table", 20));
-  field_list.push_back(new Item_empty_string("Replicate_ignore_table", 23));
-  field_list.push_back(new Item_empty_string("Replicate_wild_do_table", 24));
-  field_list.push_back(new Item_empty_string("Replicate_wild_ignore_table",
+  field_list.push_back(new Item_empty_string("Replicate_Do_DB", 20));
+  field_list.push_back(new Item_empty_string("Replicate_Ignore_DB", 20));
+  field_list.push_back(new Item_empty_string("Replicate_Do_Table", 20));
+  field_list.push_back(new Item_empty_string("Replicate_Ignore_Table", 23));
+  field_list.push_back(new Item_empty_string("Replicate_Wild_Do_Table", 24));
+  field_list.push_back(new Item_empty_string("Replicate_Wild_Ignore_Table",
 					     28));
-  field_list.push_back(new Item_return_int("Last_errno", 4, MYSQL_TYPE_LONG));
-  field_list.push_back(new Item_empty_string("Last_error", 20));
-  field_list.push_back(new Item_return_int("Skip_counter", 10,
+  field_list.push_back(new Item_return_int("Last_Errno", 4, MYSQL_TYPE_LONG));
+  field_list.push_back(new Item_empty_string("Last_Error", 20));
+  field_list.push_back(new Item_return_int("Skip_Counter", 10,
 					   MYSQL_TYPE_LONG));
-  field_list.push_back(new Item_return_int("Exec_master_log_pos", 10,
+  field_list.push_back(new Item_return_int("Exec_Master_Log_Pos", 10,
 					   MYSQL_TYPE_LONGLONG));
-  field_list.push_back(new Item_return_int("Relay_log_space", 10,
+  field_list.push_back(new Item_return_int("Relay_Log_Space", 10,
 					   MYSQL_TYPE_LONGLONG));
-  field_list.push_back(new Item_empty_string("Until_condition", 6));
+  field_list.push_back(new Item_empty_string("Until_Condition", 6));
   field_list.push_back(new Item_empty_string("Until_Log_File", FN_REFLEN));
-  field_list.push_back(new Item_return_int("Until_Log_pos", 10, 
+  field_list.push_back(new Item_return_int("Until_Log_Pos", 10, 
                                            MYSQL_TYPE_LONGLONG));
   field_list.push_back(new Item_empty_string("Master_SSL_Allowed", 7));
   field_list.push_back(new Item_empty_string("Master_SSL_CA_File",
@@ -2009,7 +2009,7 @@ int show_master_info(THD* thd, MASTER_INFO* mi)
                                              sizeof(mi->ssl_cipher)));
   field_list.push_back(new Item_empty_string("Master_SSL_Key", 
                                              sizeof(mi->ssl_key)));
-  field_list.push_back(new Item_return_int("Seconds_behind_master", 10,
+  field_list.push_back(new Item_return_int("Seconds_Behind_Master", 10,
                                            MYSQL_TYPE_LONGLONG));
   
   if (protocol->send_fields(&field_list, 1))
@@ -2362,7 +2362,7 @@ static int init_slave_thread(THD* thd, SLAVE_THD_TYPE thd_type)
   thd->options = ((opt_log_slave_updates) ? OPTION_BIN_LOG:0) |
     OPTION_AUTO_IS_NULL;
   /* 
-     It's nonsense to constraint the slave threads with max_join_size; if a
+     It's nonsense to constrain the slave threads with max_join_size; if a
      query succeeded on master, we HAVE to execute it.
   */
   thd->variables.max_join_size= HA_POS_ERROR;    
