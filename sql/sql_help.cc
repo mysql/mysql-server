@@ -22,6 +22,8 @@
 ** Get help on string
 ***************************************************************************/
 
+#define help_charset my_charset_latin1
+
 MI_INFO *open_help_file(THD *thd, const char *name)
 {
   char path[FN_REFLEN];
@@ -104,21 +106,21 @@ int search_functions(MI_INFO *file_leafs, const char *mask,
     leaf.prepare_fields();
 
     const char *lname= leaf.get_name();
-    if (wild_case_compare(system_charset_info,lname,mask))
+    if (wild_case_compare(help_charset,lname,mask))
       continue;
     count++;
 
     if (count>2)
     {
-      String *s= new String(lname,system_charset_info);
+      String *s= new String(lname,help_charset);
       if (!s->copy())
 	names->push_back(s);
     } 
     else if (count==1)
     {
-      *description= new String(leaf.get_description(),system_charset_info);
-      *example= new String(leaf.get_example(),system_charset_info);
-      *name= new String(lname,system_charset_info);
+      *description= new String(leaf.get_description(),help_charset);
+      *example= new String(leaf.get_example(),help_charset);
+      *name= new String(lname,help_charset);
       (*description)->copy();
       (*example)->copy();
       (*name)->copy();
@@ -132,7 +134,7 @@ int search_functions(MI_INFO *file_leafs, const char *mask,
       *description= 0;
       *example= 0;
       
-      String *s= new String(lname,system_charset_info);
+      String *s= new String(lname,help_charset);
       if (!s->copy())
 	names->push_back(s);
     }
@@ -203,14 +205,14 @@ int search_categories(THD *thd,
     category.prepare_fields();
 
     const char *lname= category.get_name();
-    if (mask && wild_case_compare(system_charset_info,lname,mask))
+    if (mask && wild_case_compare(help_charset,lname,mask))
       continue;
     count++;
 
     if (count==1 && res_id)
       *res_id= category.get_cat_id();
       
-    String *s= new String(lname,system_charset_info);
+    String *s= new String(lname,help_charset);
     if (!s->copy())
       names->push_back(s);
   }
@@ -282,7 +284,7 @@ int get_all_names_for_category(THD *thd,MI_INFO *file_leafs,
 		 (const byte*)&leaf_id,4,HA_READ_KEY_EXACT))
     {
       leaf.prepare_fields();
-      String *s= new String(leaf.get_name(),system_charset_info);
+      String *s= new String(leaf.get_name(),help_charset);
       if (!s->copy())
 	res->push_back(s);
     }
