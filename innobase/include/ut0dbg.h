@@ -26,11 +26,11 @@ extern ulint*	ut_dbg_null_ptr;
 	ulint	dbg_i;\
 \
 	if (!((ulint)(EXPR) + ut_dbg_zero)) {\
-	   	/* printf(\
+	   	printf(\
 		"Assertion failure in thread %lu in file %s line %lu\n",\
 			os_thread_get_curr_id(), IB__FILE__, (ulint)__LINE__);\
 	   	printf(\
-	"we generate a memory trap on purpose to start the debugger\n");*/\
+	"we generate a memory trap on purpose to start the debugger\n");\
 		ut_dbg_stop_threads = TRUE;\
 		dbg_i = *(ut_dbg_null_ptr);\
 	   	if (dbg_i) {\
