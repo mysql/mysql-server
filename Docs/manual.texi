@@ -113,8 +113,8 @@ distribution for that version.
 * Clients::                     MySQL client tools and APIs
 * Extending MySQL::             Extending MySQL
 * Problems::                    Problems
-* Users::                       Some MySQL users
-* MySQL customer usage::        MySQL customer usage
+* Users::                       MySQL Users
+* MySQL Testimonials::          MySQL Testimonials
 * Contrib::                     Contributed programs
 * Credits::                     Contributors to MySQL
 * News::                        MySQL change history
@@ -229,12 +229,12 @@ MySQL, see @ref{MySQL-Books}.
 
 @menu
 * MySQL and MySQL AB::          MySQL, MySQL AB, and Open Source
-* MySQL AB Logos and Trademarks::  
-* MySQL 4.0 In A Nutshell::     
+* MySQL AB Logos and Trademarks::  MySQL AB Logos and Trademarks
+* MySQL 4.0 In A Nutshell::     MySQL 4.0 In A Nutshell
 * MySQL Information Sources::   MySQL Information Sources
 * Licensing and Support::       MySQL Support and Licensing
-* MySQL AB business model and services::  
-* MySQL server licenses::       
+* MySQL AB business model and services::  The Business Model and Services of MySQL AB
+* MySQL server licenses::       MySQL Server Licenses
 * Compatibility::               How Standards-compatible Is MySQL?
 * Comparisons::                 How MySQL Compares to Other Databases
 * TODO::                        MySQL and the future (The TODO)
@@ -248,7 +248,6 @@ MySQL, see @ref{MySQL-Books}.
 * What-is::                     What is MySQL?
 * What is MySQL AB::            What is MySQL AB?
 * Manual-info::                 About this manual
-* Manual conventions::          Conventions used in this manual
 * History::                     History of MySQL
 * Features::                    The main features of MySQL
 * Stability::                   How stable is MySQL?
@@ -509,7 +508,7 @@ please send e-mail to @email{webmaster@@mysql.com}.
 
 
 
-@node Manual-info, Manual conventions, What is MySQL AB, MySQL and MySQL AB
+@node Manual-info, History, What is MySQL AB, MySQL and MySQL AB
 @subsection About This Manual
 
 This manual is currently available in Texinfo, plain text, Info, HTML,
@@ -526,8 +525,11 @@ This manual is written and maintained by David Axmark, Michael (Monty)
 Widenius, Jeremy Cole, Arjen Lentz, and Paul DuBois. For other
 contributors, see @ref{Credits}.
 
+@menu
+* Manual conventions::          Conventions Used in This Manual
+@end menu
 
-@node Manual conventions, History, Manual-info, MySQL and MySQL AB
+@node Manual conventions,  , Manual-info, Manual-info
 @subsubsection Conventions Used in This Manual
 
 This manual uses certain typographical conventions:
@@ -652,7 +654,7 @@ alternatives are listed within braces (@samp{@{} and @samp{@}}):
 @end example
 
 
-@node History, Features, Manual conventions, MySQL and MySQL AB
+@node History, Features, Manual-info, MySQL and MySQL AB
 @subsection History of MySQL
 
 @cindex MySQL history
@@ -1175,17 +1177,17 @@ stated in our trademark policy at
 @uref{http://www.mysql.com/company/trademark.html}.
 
 @menu
-* The Original MySQL logo::     The Original MySQL logo
-* MySQL logos that may be used without written permission::  MySQL logos that may be used without written permission
-* When need MySQL logo permission::  When do you need a written permission to use MySQL logos?
-* MySQL AB partnership logos::  MySQL AB partnership logos
-* Using MySQL word in presentations::  Using the word @code{MySQL} in printed text or presentations
-* Using MySQL word in company and product names::  Using the word @code{MySQL} in company and product names
+* The Original MySQL logo::     The Original MySQL Logo
+* MySQL Logos that may be Used Without Written Permission::  MySQL Logos that may be Used Without Written Permission
+* When need MySQL logo permission::  When do you need a Written Permission to use MySQL Logos?
+* MySQL AB Partnership Logos::  MySQL AB Partnership Logos
+* Using MySQL word in presentations::  Using the word @code{MySQL} in Printed Text or Presentations
+* Using MySQL word in company and product names::  Using the word @code{MySQL} in Company and Product Names
 @end menu
 
 
-@node The Original MySQL logo, MySQL logos that may be used without written permission, MySQL AB Logos and Trademarks, MySQL AB Logos and Trademarks
-@subsection The Original MySQL logo
+@node The Original MySQL logo, MySQL Logos that may be Used Without Written Permission, MySQL AB Logos and Trademarks, MySQL AB Logos and Trademarks
+@subsection The Original MySQL Logo
 
 @c FIX: picture: MySQL logo
 
@@ -1198,8 +1200,8 @@ The original MySQL logo may only be used by representatives of MySQL AB
 and by those having a written agreement allowing them to do so.
 
 
-@node MySQL logos that may be used without written permission, When need MySQL logo permission, The Original MySQL logo, MySQL AB Logos and Trademarks
-@subsection MySQL logos that may be used without written permission
+@node MySQL Logos that may be Used Without Written Permission, When need MySQL logo permission, The Original MySQL logo, MySQL AB Logos and Trademarks
+@subsection MySQL Logos that may be Used Without Written Permission
 
 @c FIX: pictures: powered by, works with, included - logos
 
@@ -1241,8 +1243,8 @@ Contact us at @email{trademark@@mysql.com} to inquire about special
 arrangements to fit your needs.
 
 
-@node When need MySQL logo permission, MySQL AB partnership logos, MySQL logos that may be used without written permission, MySQL AB Logos and Trademarks
-@subsection When do you need a written permission to use MySQL logos?
+@node When need MySQL logo permission, MySQL AB Partnership Logos, MySQL Logos that may be Used Without Written Permission, MySQL AB Logos and Trademarks
+@subsection When do you need a Written Permission to use MySQL Logos?
 
 In the following cases you need a written permission from MySQL AB before
 using MySQL logos:
@@ -1263,8 +1265,8 @@ reasonable that some of the revenue is returned to fund further
 development of the MySQL database.
 
 
-@node MySQL AB partnership logos, Using MySQL word in presentations, When need MySQL logo permission, MySQL AB Logos and Trademarks
-@subsection MySQL AB partnership logos
+@node MySQL AB Partnership Logos, Using MySQL word in presentations, When need MySQL logo permission, MySQL AB Logos and Trademarks
+@subsection MySQL AB Partnership Logos
 
 @c FIX: pictures: partnership logos - Bertrand?
 
@@ -1275,8 +1277,8 @@ entering our partnership programmes, please visit our website for details
 or mail to @email{partner@@mysql.com}.
 
 
-@node Using MySQL word in presentations, Using MySQL word in company and product names, MySQL AB partnership logos, MySQL AB Logos and Trademarks
-@subsection Using the word @code{MySQL} in printed text or presentations
+@node Using MySQL word in presentations, Using MySQL word in company and product names, MySQL AB Partnership Logos, MySQL AB Logos and Trademarks
+@subsection Using the word @code{MySQL} in Printed Text or Presentations
 
 MySQL AB welcomes references to the MySQL database, but note that the
 word @code{MySQL} is a trademark of MySQL AB. Because of this, you should
@@ -1288,7 +1290,7 @@ details.
 
 
 @node Using MySQL word in company and product names,  , Using MySQL word in presentations, MySQL AB Logos and Trademarks
-@subsection Using the word @code{MySQL} in company and product names
+@subsection Using the word @code{MySQL} in Company and Product Names
 
 Use of the word @code{MySQL} in product or company names or in Internet
 domain names is not allowed without written permission from MySQL AB.
@@ -1303,7 +1305,7 @@ domain names is not allowed without written permission from MySQL AB.
 @node MySQL 4.0 In A Nutshell, MySQL Information Sources, MySQL AB Logos and Trademarks, Introduction
 @section MySQL 4.0 In A Nutshell
 
-Dateline 16 October 2001, Uppsala, Sweden
+Dateline: 16 October 2001, Uppsala, Sweden
 
 Long promised by MySQL AB and long awaited by our users,
 MySQL 4.0 is now available in alpha version for download from
@@ -1316,11 +1318,11 @@ Other new features target the users of embedded databases.
 
 @menu
 * 4.0 NutShell Stepwise Rollout::  Stepwise Rollout
-* 4.0 Nutshell Development use possible immediately::  Development use possible immediately
+* 4.0 Nutshell Development use possible immediately::  Development Use Possible Immediately
 * 4.0 Nutshell Embedded MySQL::  Embedded MySQL
-* 4.0 Nutshell Other features::  Other features available from MySQL 4.0.0
-* 4.0 Nutshell Future features::  Future MySQL 4.0 features
-* 4.0 Nutshell 4.1 development release::  MySQL 4.1, the following development release
+* 4.0 Nutshell Other features::  Other Features Available From MySQL 4.0.0
+* 4.0 Nutshell Future features::  Future MySQL 4.0 Features
+* 4.0 Nutshell 4.1 development release::  MySQL 4.1, The Following Development Release
 @end menu
 
 
@@ -1337,7 +1339,7 @@ in December/January.
 
 
 @node 4.0 Nutshell Development use possible immediately, 4.0 Nutshell Embedded MySQL, 4.0 NutShell Stepwise Rollout, MySQL 4.0 In A Nutshell
-@subsection Development use possible immediately
+@subsection Development Use Possible Immediately
 
 Users are not recommended to switch their production systems
 to MySQL 4.0 until it is released in beta version later Q4/2001.
@@ -1370,7 +1372,7 @@ client library, so it is convenient and easy to use.
 
 
 @node 4.0 Nutshell Other features, 4.0 Nutshell Future features, 4.0 Nutshell Embedded MySQL, MySQL 4.0 In A Nutshell
-@subsection Other features available from MySQL 4.0.0
+@subsection Other Features Available From MySQL 4.0.0
 
 @itemize @bullet
 @item
@@ -1425,7 +1427,7 @@ possible to know how many rows a query would have returned without a
 
 
 @node 4.0 Nutshell Future features, 4.0 Nutshell 4.1 development release, 4.0 Nutshell Other features, MySQL 4.0 In A Nutshell
-@subsection Future MySQL 4.0 features
+@subsection Future MySQL 4.0 Features
 
 For the upcoming MySQL 4.0 releases (4.0.1, 4.0.2 and onwards), expect
 the following features now still under development:
@@ -1464,7 +1466,7 @@ in the client.
 
 
 @node 4.0 Nutshell 4.1 development release,  , 4.0 Nutshell Future features, MySQL 4.0 In A Nutshell
-@subsection MySQL 4.1, the following development release
+@subsection MySQL 4.1, The Following Development Release
 
 Internally, through a new .frm file format for table definitions,
 MySQL 4.0 lays the foundation for the new features of MySQL 4.1,
@@ -3231,19 +3233,19 @@ MySQL support, because MySQL is helping your enterprise.
 @c FIX: Start new by AGL - Erik's text on business model and services
 
 @node MySQL AB business model and services, MySQL server licenses, Licensing and Support, Introduction
-@section The business model and services of MySQL AB
+@section The Business Model and Services of MySQL AB
 
 MySQL AB is the company of the MySQL founders and main developers behind
 the MySQL database and this manual. One of the most common questions we
-encounter is:
-@emph{How can you make a living from something you give away for free?}
+encounter is: ``
+@emph{How can you make a living from something you give away for free?}''
 This is how.
 
 @menu
 * Business Services Support::   Support
 * Business Services Training::  Training
 * Business Services Consulting::  Consulting
-* Business Services Commercial licenses::  Commercial licenses
+* Business Services Commercial licenses::  Commercial Licenses
 * Business Services Royalties::  Royalties
 @end menu
 
@@ -3291,7 +3293,7 @@ to the Internet, please contact our sales staff at
 
 
 @node Business Services Commercial licenses, Business Services Royalties, Business Services Consulting, MySQL AB business model and services
-@subsection Commercial licenses
+@subsection Commercial Licenses
 The MySQL database is released under the GNU General Public License (GPL).
 This means that anybody can use it for free under the GPL rules. However
 if a company wishes to embed the database in a product, they have to buy
@@ -3329,7 +3331,7 @@ If you are interested in becoming a MySQL AB partner, please mail to
 
 
 @node MySQL server licenses, Compatibility, MySQL AB business model and services, Introduction
-@section MySQL server licenses
+@section MySQL Server Licenses
 
 The MySQL server is released under the GNU General Public License (GPL),
 which probably is the best known Open Source license. Please visit
@@ -3341,12 +3343,12 @@ MySQL AB at @uref{http://www.mysql.com/}.
 
 
 @menu
-* Using the MySQL server under a commercial license::  
-* Using the MySQL server for free under GPL::  
+* Using the MySQL server under a commercial license::  Using the MySQL Server Under a Commercial License
+* Using the MySQL server for free under GPL::  Using the MySQL Server for Free Under GPL
 @end menu
 
 @node Using the MySQL server under a commercial license, Using the MySQL server for free under GPL, MySQL server licenses, MySQL server licenses
-@subsection Using the MySQL server under a commercial license
+@subsection Using the MySQL Server Under a Commercial License
 
 The GPL license is contagious in the sense that when a program is linked
 to a GPL program the resulting product must also be released under GPL
@@ -3388,7 +3390,7 @@ at @uref{https://order.mysql.com/}.
 
 
 @node Using the MySQL server for free under GPL,  , Using the MySQL server under a commercial license, MySQL server licenses
-@subsection Using the MySQL server for free under GPL
+@subsection Using the MySQL Server for Free Under GPL
 
 You can use the MySQL server for free under GPL:
 
@@ -5565,16 +5567,16 @@ MySQL AB haven't had time to write and include in the benchmark suite,
 mainly because it's a big task to do this in a manner that is fair against
 all databases.
 
-One is the benchmark paid for by Great Bridge, which you can read about at:
-@uref{http://www.greatbridge.com/about/press.php?content_id=4}.
-
-This is the probably worst benchmark we have ever seen anyone conduct.  This
-was not only tuned to only test what PostgreSQL is absolutely best at, it 
-was also totally unfair against every other database involved in the test.
+One is the benchmark paid for by Great Bridge, the company that for 16 months
+attempted to build a business based on PostgreSQL but now has ceased
+operations. This is the probably worst benchmark we have ever seen anyone
+conduct.  This was not only tuned to only test what PostgreSQL is absolutely
+best at, it was also totally unfair against every other database involved in
+the test.
 
 @strong{NOTE}:  We know that not even some of the main PostgreSQL
 developers did like the way Great Bridge conducted the benchmark, so we
-don't blame them for the way the benchmark was made.
+don't blame them for the way the benchmark was done.
 
 This benchmark has been condemned in a lot of postings and newsgroups so
 we will here just shortly repeat some things that where wrong with it.
@@ -6432,7 +6434,7 @@ options that must be specified in your @file{my.ini} file! @xref{InnoDB start}.
 * Installation layouts::        Installation Layouts
 * Many versions::               How and When Updates Are Released
 * MySQL binaries::              MySQL Binaries Compiled by MySQL AB
-* Installing binary::           
+* Installing binary::           Installing a MySQL Binary Distribution
 @end menu
 
 
@@ -21239,7 +21241,7 @@ Create Table: CREATE TABLE t (
 * Character arrays::            The character definition arrays
 * String collating::            String Collating Support
 * Multi-byte characters::       Multi-byte Character Support
-* Problems with character sets::  
+* Problems with character sets::  Problems With Character Sets
 @end menu
 
 
@@ -21310,7 +21312,7 @@ default-character-set=character-set-name
 but normally this is never needed.
 
 @menu
-* German character set::        
+* German character set::        German character set
 @end menu
 
 @node German character set,  , Character sets, Character sets
@@ -30463,7 +30465,7 @@ mysql> select MOD(29,9);
 * Numeric Functions::           Numeric Functions
 * Date and time functions::     Date and time functions
 * Other Functions::             Other Functions
-* Group by functions::          
+* Group by functions::          Functions for Use with @code{GROUP BY} Clauses
 @end menu
 
 
@@ -33230,9 +33232,9 @@ mysql> SELECT id,FLOOR(value/100) FROM tbl_name ORDER BY RAND();
 
 @menu
 * SELECT::                      @code{SELECT} Syntax
-* HANDLER::                     
+* HANDLER::                     @code{HANDLER} Syntax
 * INSERT::                      @code{INSERT} Syntax
-* INSERT DELAYED::              @code{INSERT DELAYED} syntax
+* INSERT DELAYED::              @code{INSERT DELAYED} Syntax
 * UPDATE::                      @code{UPDATE} Syntax
 * DELETE::                      @code{DELETE} Syntax
 * TRUNCATE::                    @code{TRUNCATE} Syntax
@@ -33533,7 +33535,7 @@ the examined rows will be write locked.
 
 @menu
 * JOIN::                        @code{JOIN} Syntax
-* UNION::                       
+* UNION::                       @code{UNION} Syntax
 @end menu
 
 @node JOIN, UNION, SELECT, SELECT
@@ -33950,7 +33952,7 @@ overwrite old rows.
 
 
 @node INSERT DELAYED, UPDATE, INSERT, Data Manipulation
-@subsection @code{INSERT DELAYED} syntax
+@subsection @code{INSERT DELAYED} Syntax
 
 @findex INSERT DELAYED
 @findex DELAYED
@@ -43552,9 +43554,9 @@ included the thread libraries on the link/compile line.
 @menu
 * libmysqld overview::          Overview of the Embedded MySQL Server Library
 * libmysqld compiling::         Compiling Programs with @code{libmysqld}
-* libmysqld restrictions::      
-* libmysqld options::           
-* libmysqld TODO::              
+* libmysqld restrictions::      Restrictions when using the Embedded MySQL Server
+* libmysqld options::           Using option files with the embedded server
+* libmysqld TODO::              Things left to do in Embedded Server (TODO)
 * libmysqld example::           A Simple Embedded Server Example
 * libmysqld licensing::         Licensing the Embedded Server
 @end menu
@@ -46796,13 +46798,13 @@ We plan to fix the above in 4.0.
 
 
 
-@node Users, MySQL customer usage, Problems, Top
-@appendix Some MySQL Users
+@node Users, MySQL Testimonials, Problems, Top
+@appendix MySQL Users
 
 @cindex users, of MySQL
 @cindex news sites
 
-This appendix lists some users of MySQL that have given us permission
+This appendix lists users of MySQL that have given us permission
 to list them in our documentation.  It is by far not a complete list, but
 should give you a general idea of who uses MySQL and what it can
 be used for.
@@ -47080,7 +47082,8 @@ Ecommerce site that is selling computers.
 
 @end itemize
 
-@appendixsec Programming
+@c Commented out by Arjen 011018, section is empty!
+@c appendixsec Programming
 
 @cindex web pages, miscellaneous
 @appendixsec Uncategorized Pages
@@ -47217,23 +47220,19 @@ Send any additions to this list to @email{webmaster@@mysql.com}.
 
 
 
-@node MySQL customer usage, Contrib, Users, Top
-@appendix MySQL customer usage
+@node MySQL Testimonials, Contrib, Users, Top
+@appendix MySQL Testimonials
 
-@cindex MySQL usage
+@cindex MySQL Testimonials
 
-The section 'Some MySQL Users' contains a lot of different links to
+The section 'MySQL Users' contains a lot of different links to
 MySQL users but doesn't provide that much information about how
-they are using MySQL.  @xref{Users}. This manual section is to
-give you an idea of how other MySQL users are using
-MySQL to solve their problems.
+they are using MySQL.  @xref{Users}. This section gives you an idea
+of how other MySQL users are using MySQL to solve their problems.
 
-This manual section is very new and we plan to add more stories here
-shortly.  If you are interested in contributing of how you use
-MySQL in a unique environment or have success store about how you
-use MySQL, you can write to @code{docs@@mysql.com} with
-subject @code{Success:}.  Note that as we are very busy it may take some
-time before you get some feedback for your story.
+Please note that all new stories are added on the MySQL AB website,
+@url{http://www.mysql.com/}.
+Do let us know about @emph{your} success story too!
 
 @itemize @bullet
 @item 
@@ -47256,7 +47255,7 @@ that contain up to 2,000 million rows in a validation regression database.
 
 
 
-@node Contrib, Credits, MySQL customer usage, Top
+@node Contrib, Credits, MySQL Testimonials, Top
 @appendix Contributed Programs
 
 @cindex contributed programs
@@ -47273,10 +47272,16 @@ Please visit our Software Portal at
 @uref{http://www.mysql.com/portal/software/}.
 The community facilities there also allow for your input!
 
-Note: if you want to build MySQL support for the Perl @code{DBI}/@code{DBD}
+If you want to build MySQL support for the Perl @code{DBI}/@code{DBD}
 interface, you should fetch the @code{Data-Dumper}, @code{DBI}, and
 @code{Msql-Mysql-modules} files and install them.
 @xref{Perl support}.
+
+Note: The programs listed here can be freely downloaded and used.
+They are copyrighted by their respective owners.
+Please see each product documentation for more details on licensing and terms.
+MySQL AB assumes no liability for the correctness of the information in this
+chapter or for the proper operation of the programs listed herein.
 
 @appendixsec APIs
 
@@ -48037,7 +48042,7 @@ Prints the storage usage of a MySQL database.
 sprintf() function for SQL queries that can escape blobs. By Chunhua Liu.
 @end itemize
 
-@appendixsec Windows programs
+@appendixsec Windows Programs
 @itemize @bullet
 @item @uref{http://www.mysql.com/Downloads/Contrib/LaunchMySQL.zip, LaunchMySQL.zip}
 The program launches the MySQL server, shuts it down, and
@@ -48224,6 +48229,8 @@ Our webmaster.
 @item Miguel Solorzano
 @itemize @bullet
 @item
+Win32 development.
+@item
 Winmysqladmin.
 @end itemize
 
@@ -48266,21 +48273,16 @@ The new MySQL GUI client.
 @item
 Designer/programmer of our web interface.
 @end itemize
-@end table
 
-The following non-developers are also working in/with MySQL AB:
-
-@table @asis
+@item Jorge del Condo
+@itemize @bullet
 @item
-Hans Kierkegaard - Responsible for MySQL license handling.
+@code{MyCC} @code{MySQL Control Center}.
 @item
-Antti Halonen - Sales manager.
+Web portals.
 @item
-Jonas Norrman - Handles licensing questions sent to @email{info@@mysql.com}.
-@item
-Erik Granberg - Handles MySQL partners (and a lot of other stuff).
-@item
-Allan Larsson (the BOSS for TCX DataKonsult AB).
+Win32 development.
+@end itemize
 @end table
 
 
@@ -48595,7 +48597,7 @@ Our TODO section contains what we plan to have in 4.0. @xref{TODO MySQL 4.0}.
 @cindex changes, version 4.0
 
 @menu
-* News-4.0.1::                  
+* News-4.0.1::                  Changes in release 4.0.1
 * News-4.0.0::                  Changes in release 4.0.0
 @end menu
 
@@ -48611,9 +48613,6 @@ Added boolean fulltext search code. It should be considered early alpha.
 @appendixsubsec Changes in release 4.0.0
 
 @itemize @bullet
-@item
-Added boolean fulltext search code.
-It should be considered early alpha.
 @item
 Added variables @code{ft_min_word_len}, @code{ft_max_word_len}, and
 @code{ft_max_word_len_for_sort}.
@@ -54221,9 +54220,19 @@ Fixed @code{DISTINCT} with calculated columns.
 
 
 @node Porting, Environment variables, News, Top
-@appendix Comments on porting to other systems
+@appendix Comments on Porting to Other Systems
 
 @cindex porting, to other systems
+
+This appendix will help you port MySQL to other operationg systems.
+Do check the list of currently supported operating systems first.
+@xref{Which OS}.
+If you have created a new port of MySQL, please let us know so that
+we can list it here and on our website, recommending it to other users.
+
+Note: If you create a new port of MySQL, you are free to copy and
+distribute it under the GPL license, but it does not make you a
+copyright holder of MySQL.
 
 A working Posix thread library is needed for the server. On Solaris 2.5
 we use Sun PThreads (the native thread support in 2.4 and earlier
