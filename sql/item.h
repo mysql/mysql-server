@@ -515,6 +515,10 @@ public:
 
 /*
   Used to find item in list of select items after '*' items processing.
+
+  Because item '*' can be used in item list. when we create
+  Item_ref_on_list_position we do not know how item list will be changed, but
+  we know number of item position (I mean queries like "select * from t").
 */
 class Item_ref_on_list_position: public Item_ref_null_helper
 {

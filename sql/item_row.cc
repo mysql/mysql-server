@@ -54,7 +54,14 @@ bool Item_row::fix_fields(THD *thd, TABLE_LIST *tabl, Item **ref)
     if (items[i]->fix_fields(thd, tabl, items+i))
       return 1;
     used_tables_cache |= items[i]->used_tables();
-    const_item_cache&= items[i]->const_item();
+    if (const_item_cache&= items[i]->const_item() && !with_null)
+      if (items[i]->cols() > 1)
+	with_null|= items[i]->null_inside();
+      else
+      {
+	items[i]->val_int();
+	with_null|= items[i]->null_value;
+      }
     maybe_null|= items[i]->maybe_null;
   }
   return 0;
@@ -78,25 +85,6 @@ bool Item_row::check_cols(uint c)
   {
     my_error(ER_CARDINALITY_COL, MYF(0), c);
     return 1;
-  }
-  return 0;
-}
-
-bool Item_row::null_inside()
-{
-  for (uint i= 0; i < arg_count; i++)
-  {
-    if (items[i]->cols() > 1)
-    {
-      if (items[i]->null_inside())
-	return 1;
-    }
-    else
-    {
-      items[i]->val_int();
-      if (items[i]->null_value)
-	return 1;
-    }
   }
   return 0;
 }

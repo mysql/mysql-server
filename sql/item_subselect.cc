@@ -157,7 +157,11 @@ void Item_singlerow_subselect::select_transformer(THD *thd,
   SELECT_LEX *select_lex= unit->first_select();
   
   if (!select_lex->next_select() && !select_lex->table_list.elements &&
-      select_lex->item_list.elements == 1)
+      select_lex->item_list.elements == 1 &&
+      // TODO: mark subselect items from item list separately
+      !(select_lex->item_list.head()->type() == FIELD_ITEM ||
+	select_lex->item_list.head()->type() == REF_ITEM)
+      )
   {
     
     have_to_be_excluded= 1;
@@ -170,9 +174,6 @@ void Item_singlerow_subselect::select_transformer(THD *thd,
     }
     substitution= select_lex->item_list.head();
     substitution->set_outer_resolving();
-    if (substitution->type() == FIELD_ITEM ||
-	substitution->type() == REF_ITEM)
-      name= substitution->name; // Save name for correct resolving
      
     if (select_lex->where || select_lex->having)
     {
@@ -444,6 +445,9 @@ void Item_in_subselect::single_value_transformer(THD *thd,
 	     "LIMIT & IN/ALL/ANY/SOME subquery");
     DBUG_VOID_RETURN;
   }
+  // no sense in ORDER BY without LIMIT
+  unit->global_parameters->order_list.empty();
+
   Item_in_optimizer *optimizer;
   substitution= optimizer= new Item_in_optimizer(left_expr, this);
   if (!optimizer)
@@ -476,18 +480,16 @@ void Item_in_subselect::single_value_transformer(THD *thd,
     else
       item= (Item*) sl->item_list.pop();
 
-    if (sl->having || sl->with_sum_func || sl->group_list.first ||
-	sl->order_list.first)
+    sl->order_list.empty(); // no sense in ORDER BY without LIMIT
+
+    if (sl->having || sl->with_sum_func || sl->group_list.first)
     {
       sl->item_list.push_back(item);
       item= (*func)(expr, new Item_ref_null_helper(this,
 						   sl->item_list.head_ref(),
 						   (char *)"<no matter>",
 						   (char*)"<result>"));
-      if (sl->having || sl->with_sum_func || sl->group_list.first)
-	sl->having= and_items(sl->having, item);
-      else
-	sl->where= and_items(sl->where, item);
+      sl->having= and_items(sl->having, item);
     }
     else
     {
@@ -547,10 +549,22 @@ void Item_in_subselect::row_value_transformer(THD *thd,
   if (unit->global_parameters->select_limit != 
       HA_POS_ERROR)
   {
+    /*
+      Because we do the following (not exactly, following is just explenation) 
+      transformation
+      SELECT * from t1 WHERE t1.a IN (SELECT t2.a FROM t2)
+        ->
+      SELECT * from t1 WHERE EXISTS(SELECT 1 FROM t2 t1.a = t2.a LIMIT 1)
+
+      it's impossible to support limit in the sub select.
+    */
     my_error(ER_NOT_SUPPORTED_YET, MYF(0),
 	     "LIMIT & IN/ALL/ANY/SOME subquery");
     DBUG_VOID_RETURN;
   }
+  // no sense in ORDER BY without LIMIT
+  unit->global_parameters->order_list.empty();
+
   Item_in_optimizer *optimizer;
   substitution= optimizer= new Item_in_optimizer(left_expr, this);
   if (!optimizer)
@@ -568,6 +582,7 @@ void Item_in_subselect::row_value_transformer(THD *thd,
 	       "LIMIT & IN/ALL/ANY/SOME subquery");
       DBUG_VOID_RETURN;
     }
+    sl->order_list.empty(); // no sense in ORDER BY without LIMIT
 
     sl->dependent= 1;
 
@@ -589,7 +604,7 @@ void Item_in_subselect::row_value_transformer(THD *thd,
     }
 
     if (sl->having || sl->with_sum_func || sl->group_list.first ||
-	!sl->table_list.elements)
+	!sl->table_list.elements || !sl->table_list.elements)
       sl->having= and_items(sl->having, item);
     else
       sl->where= and_items(sl->where, item);
