@@ -27,18 +27,18 @@ socket		= @MYSQL_UNIX_ADDR@
 port		= @MYSQL_TCP_PORT@
 socket		= @MYSQL_UNIX_ADDR@
 skip-locking
-set-variable	= key_buffer=16K
-set-variable	= max_allowed_packet=1M
-set-variable	= table_cache=4
-set-variable	= sort_buffer_size=64K
-set-variable	= net_buffer_length=2K
-set-variable	= thread_stack=64K
+key_buffer = 16K
+max_allowed_packet = 1M
+table_cache = 4
+sort_buffer_size = 64K
+net_buffer_length = 2K
+thread_stack = 64K
 
 # Don't listen on a TCP/IP port at all. This can be a security enhancement,
 # if all processes that need to connect to mysqld run on the same host.
 # All interaction with mysqld must be made via Unix sockets or named pipes.
 # Note that using this option without enabling named pipes on Windows
-# (via the "pipe" option) will render mysqld useless!
+# (using the "enable-named-pipe" option) will render mysqld useless!
 # 
 #skip-networking
 server-id	= 1
@@ -56,17 +56,17 @@ server-id	= 1
 #innodb_log_arch_dir = @localstatedir@/
 # You can set .._buffer_pool_size up to 50 - 80 %
 # of RAM but beware of setting memory usage too high
-#set-variable = innodb_buffer_pool_size=16M
-#set-variable = innodb_additional_mem_pool_size=2M
+#innodb_buffer_pool_size = 16M
+#innodb_additional_mem_pool_size = 2M
 # Set .._log_file_size to 25 % of buffer pool size
-#set-variable = innodb_log_file_size=5M
-#set-variable = innodb_log_buffer_size=8M
-#innodb_flush_log_at_trx_commit=1
-#set-variable = innodb_lock_wait_timeout=50
+#innodb_log_file_size = 5M
+#innodb_log_buffer_size = 8M
+#innodb_flush_log_at_trx_commit = 1
+#innodb_lock_wait_timeout = 50
 
 [mysqldump]
 quick
-set-variable	= max_allowed_packet=16M
+max_allowed_packet = 16M
 
 [mysql]
 no-auto-rehash
@@ -74,12 +74,12 @@ no-auto-rehash
 #safe-updates
 
 [isamchk]
-set-variable	= key_buffer=8M
-set-variable	= sort_buffer_size=8M
+key_buffer = 8M
+sort_buffer_size = 8M
 
 [myisamchk]
-set-variable	= key_buffer=8M
-set-variable	= sort_buffer_size=8M
+key_buffer = 8M
+sort_buffer_size = 8M
 
 [mysqlhotcopy]
 interactive-timeout
