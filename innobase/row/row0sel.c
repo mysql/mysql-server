@@ -2410,14 +2410,9 @@ row_sel_store_mysql_rec(
 				/* Pad with trailing spaces */
 				data = mysql_rec + templ->mysql_col_offset;
 
-				/* Handle UCS2 strings differently.  As no new
-				collations will be introduced in 4.1, we
-				hardcode the charset-collation codes here.
-				5.0 will use a different approach. */
-				if (templ->charset == 35
-						|| templ->charset == 90
-						|| (templ->charset >= 128
-						&& templ->charset <= 144)) {
+				ut_ad(templ->mbminlen <= templ->mbmaxlen);
+				/* Handle UCS2 strings differently. */
+				if (templ->mbminlen == 2) {
 					/* space=0x0020 */
 					ulint	col_len = templ->mysql_col_len;
 
@@ -2436,6 +2431,7 @@ row_sel_store_mysql_rec(
 						data[len++] = 0x20;
 					}
 				} else {
+					ut_ad(templ->mbminlen == 1);
 					/* space=0x20 */
 					memset(data + len, 0x20,
 						templ->mysql_col_len - len);
@@ -2477,14 +2473,8 @@ row_sel_store_mysql_rec(
 				pad_char = '\0';
 			}
 
-			/* Handle UCS2 strings differently.  As no new
-			collations will be introduced in 4.1,
-			we hardcode the charset-collation codes here.
-			5.0 will use a different approach. */
-			if (templ->charset == 35
-					|| templ->charset == 90
-					|| (templ->charset >= 128
-					&& templ->charset <= 144)) {
+			/* Handle UCS2 strings differently. */
+			if (templ->mbminlen == 2) {
 				/* There are two bytes per char, so the length
 				has to be an even number. */
 				ut_a(!(templ->mysql_col_len & 1));
@@ -2497,6 +2487,7 @@ row_sel_store_mysql_rec(
 					len -= 2;
 				}
 			} else {
+				ut_ad(templ->mbminlen == 1);
 				memset(mysql_rec + templ->mysql_col_offset,
 					pad_char, templ->mysql_col_len);
 			}
