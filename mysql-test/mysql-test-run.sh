@@ -114,6 +114,11 @@ SLAVE_LOAD_TMPDIR=../../var/tmp #needs to be same length to test logging
 RES_SPACE="      "
 MYSQLD_SRC_DIRS="strings mysys include extra regex isam merge myisam \
  myisammrg heap sql"
+#
+# Set LD_LIBRARY_PATH if we are using shared libraries
+#
+LD_LIBRARY_PATH="$BASEDIR/lib:$LD_LIBRARY_PATH"
+export LD_LIBRARY_PATH
 
 MASTER_RUNNING=0
 MASTER_MYPORT=9306
@@ -367,7 +372,7 @@ prompt_user ()
  read unused
 }
 
-# We can't use diff -u as this isn't portable
+# We can't use diff -u or diff -a as these are not portable
 
 show_failed_diff ()
 {
@@ -384,7 +389,7 @@ show_failed_diff ()
   then
     echo "Below are the diffs between actual and expected results:"
     echo "-------------------------------------------------------"
-    $DIFF -c -a $result_file $reject_file
+    $DIFF -c $result_file $reject_file
     echo "-------------------------------------------------------"
     echo "Please follow the instructions outlined at"
     echo "http://www.mysql.com/doc/R/e/Reporting_mysqltest_bugs.html"
@@ -666,12 +671,12 @@ start_slave()
     	    --exit-info=256 \
 	    --log-bin=$MYSQL_TEST_DIR/var/log/slave-bin \
 	    --log-slave-updates \
+            --log=$SLAVE_MYLOG \
             --basedir=$MY_BASEDIR \
             --datadir=$SLAVE_MYDDIR \
 	    --pid-file=$SLAVE_MYPID \
 	    --port=$SLAVE_MYPORT \
 	    --socket=$SLAVE_MYSOCK \
-            --log=$SLAVE_MYLOG \
 	    --character-sets-dir=$CHARSETSDIR \
 	    --default-character-set=$CHARACTER_SET \
 	    --core \
@@ -681,6 +686,7 @@ start_slave()
 	    --slave-load-tmpdir=$SLAVE_LOAD_TMPDIR \
 	    --report-host=127.0.0.1 --report-user=root \
 	    --report-port=$SLAVE_MYPORT \
+	    --master-retry-count=5 \
 	     $SMALL_SERVER \
              $EXTRA_SLAVE_OPT $EXTRA_SLAVE_MYSQLD_OPT"
     CUR_MYERR=$SLAVE_MYERR

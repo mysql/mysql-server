@@ -35,7 +35,7 @@ int mi_rnext_same(MI_INFO *info, byte *buf)
     DBUG_RETURN(my_errno=HA_ERR_WRONG_INDEX);
   keyinfo=info->s->keyinfo+inx;
   flag=SEARCH_BIGGER;				/* Read next */
-  if (_mi_readinfo(info,F_RDLCK,1))
+  if (fast_mi_readinfo(info))
     DBUG_RETURN(my_errno);
 
   memcpy(info->lastkey2,info->lastkey,info->last_rkey_length);

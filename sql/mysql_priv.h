@@ -71,7 +71,6 @@ char* query_table_status(THD *thd,const char *db,const char *table_name);
 #define HASH_PASSWORD_LENGTH	16
 #define HOST_CACHE_SIZE		128
 #define MAX_ACCEPT_RETRY	10	// Test accept this many times
-#define MAX_BLOB_WIDTH		8192	// Default width for blob
 #define MAX_FIELDS_BEFORE_HASH	32
 #define USER_VARS_HASH_SIZE     16
 #define STACK_MIN_SIZE		8192	// Abort if less stack during eval.
@@ -520,7 +519,7 @@ void sql_print_error(const char *format,...)
 	        __attribute__ ((format (printf, 1, 2)));
 
 extern uint32 server_id;
-extern char mysql_data_home[2],server_version[SERVER_VERSION_LENGTH],
+extern char *mysql_data_home,server_version[SERVER_VERSION_LENGTH],
 	    max_sort_char, mysql_real_data_home[];
 extern my_string mysql_unix_port,mysql_tmpdir;
 extern const char *first_keyword, *localhost, *delayed_user;

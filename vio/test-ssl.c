@@ -41,6 +41,7 @@ main(	int	argc,
 	char*	server_key = 0,	*server_cert = 0;
 	char*	client_key = 0,	*client_cert = 0;
 	char*	ca_file = 0,	*ca_path = 0;
+	char*	cipher=0;
 	int	child_pid,sv[2];
 	struct st_VioSSLAcceptorFd* ssl_acceptor=0;
 	struct st_VioSSLConnectorFd* ssl_connector=0; 
@@ -74,17 +75,17 @@ main(	int	argc,
 	if (socketpair(PF_UNIX, SOCK_STREAM, IPPROTO_IP, sv)==-1)
 		fatal_error("socketpair");
 
-        ssl_acceptor = new_VioSSLAcceptorFd(server_key, server_cert, ca_file, ca_path);
-	ssl_connector = new_VioSSLConnectorFd(client_key, client_cert, ca_file, ca_path);
+        ssl_acceptor = new_VioSSLAcceptorFd(server_key, server_cert, ca_file, ca_path, cipher);
+	ssl_connector = new_VioSSLConnectorFd(client_key, client_cert, ca_file, ca_path, cipher);
 
 	client_vio = (struct st_vio*)my_malloc(sizeof(struct st_vio),MYF(0));
         client_vio->sd = sv[0];
 	client_vio->vioblocking(client_vio,0);
-        sslconnect(ssl_connector,client_vio);
+        sslconnect(ssl_connector,client_vio,60L);
 	server_vio = (struct st_vio*)my_malloc(sizeof(struct st_vio),MYF(0));
         server_vio->sd = sv[1];
 	server_vio->vioblocking(client_vio,0);
-        sslaccept(ssl_acceptor,server_vio);
+        sslaccept(ssl_acceptor,server_vio,60L);
 
 	printf("Socketpair: %d , %d\n", client_vio->sd, server_vio->sd);
 

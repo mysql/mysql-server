@@ -45,7 +45,7 @@ ha_rows mi_records_in_range(MI_INFO *info, int inx, const byte *start_key,
   if ((inx = _mi_check_index(info,inx)) < 0)
     DBUG_RETURN(HA_POS_ERROR);
 
-  if (_mi_readinfo(info,F_RDLCK,1))
+  if (fast_mi_readinfo(info))
     DBUG_RETURN(HA_POS_ERROR);
   info->update&= (HA_STATE_CHANGED+HA_STATE_ROW_CHANGED);
   if (info->s->concurrent_insert)
@@ -58,7 +58,7 @@ ha_rows mi_records_in_range(MI_INFO *info, int inx, const byte *start_key,
 	      info->state->records+ (ha_rows) 1);
   if (info->s->concurrent_insert)
     rw_unlock(&info->s->key_root_lock[inx]);
-  VOID(_mi_writeinfo(info,0));
+  fast_mi_writeinfo(info);
   if (start_pos == HA_POS_ERROR || end_pos == HA_POS_ERROR)
     DBUG_RETURN(HA_POS_ERROR);
   DBUG_PRINT("info",("records: %ld",(ulong) (end_pos-start_pos)));
@@ -72,7 +72,7 @@ ha_rows mi_records_in_range(MI_INFO *info, int inx, const byte *start_key,
 static ha_rows _mi_record_pos(MI_INFO *info, const byte *key, uint key_len,
 			      enum ha_rkey_function search_flag)
 {
-  uint inx=(uint) info->lastinx;
+  uint inx=(uint) info->lastinx, nextflag;
   MI_KEYDEF *keyinfo=info->s->keyinfo+inx;
   uchar *key_buff;
   double pos;
@@ -86,8 +86,12 @@ static ha_rows _mi_record_pos(MI_INFO *info, const byte *key, uint key_len,
   key_len=_mi_pack_key(info,inx,key_buff,(uchar*) key,key_len);
   DBUG_EXECUTE("key",_mi_print_key(DBUG_FILE,keyinfo->seg,
 				    (uchar*) key_buff,key_len););
+  nextflag=myisam_read_vec[search_flag];
+  if (!(nextflag & (SEARCH_FIND | SEARCH_NO_FIND | SEARCH_LAST)))
+    key_len=USE_WHOLE_KEY;
+
   pos=_mi_search_pos(info,keyinfo,key_buff,key_len,
-		     myisam_read_vec[search_flag] | SEARCH_SAVE_BUFF,
+		     nextflag | SEARCH_SAVE_BUFF,
 		     info->s->state.key_root[inx]);
   if (pos >= 0.0)
   {
@@ -145,9 +149,9 @@ static double _mi_search_pos(register MI_INFO *info,
     ** Matches keynr+1
     */
     offset=1.0;					/* Matches keynr+1 */
-    if (nextflag & SEARCH_FIND &&
+    if ((nextflag & SEARCH_FIND) && nod_flag &&
 	((keyinfo->flag & (HA_NOSAME | HA_NULL_PART)) != HA_NOSAME ||
-	 key_len) && nod_flag)
+	 key_len != USE_WHOLE_KEY))
     {
       /*
       ** There may be identical keys in the tree. Try to match on of those.
