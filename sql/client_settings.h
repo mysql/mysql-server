@@ -32,3 +32,5 @@
 #undef HAVE_SMEM
 #undef _CUSTOMCONFIG_
 
+#define mysql_server_init(a,b,c) 0
+
