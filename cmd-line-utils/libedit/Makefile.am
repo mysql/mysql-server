@@ -22,7 +22,7 @@ noinst_HEADERS =	chared.h el.h histedit.h key.h \
 			parse.h refresh.h sig.h sys.h \
 			tokenizer.h compat.h compat_conf.h fgetln.h \
 			hist.h map.h prompt.h search.h \
-			strlcpy.h term.h tty.h
+			strlcpy.h libedit_term.h tty.h
 
 EXTRA_DIST = makelist
 

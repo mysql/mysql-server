@@ -19,7 +19,6 @@
 #endif
 #include <stdio.h>
 #include <stdlib.h>
-#include "my_global.h"
 #include "mysql.h"
 
 #define SELECT_QUERY "select name from test where num = %d"

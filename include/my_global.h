@@ -110,6 +110,26 @@
 #define __STDC_EXT__ 1          /* To get large file support on hpux */
 #endif
 
+/*
+  Fix warnings on HPUX11
+  There is something really strange with HPUX11 include files as you get
+  error about wrongly declared symbols or missing defines if you don't
+  do the following:
+ */
+#if !defined(_XOPEN_SOURCE_EXTENDED) && ! defined(__cplusplus)
+#define _XOPEN_SOURCE_EXTENDED
+#endif
+
+/* Fix type of socklen as this is depending on the above define */
+#ifdef HPUX11
+#undef SOCKET_SIZE_TYPE
+#ifdef _XOPEN_SOURCE_EXTENDED
+#define SOCKET_SIZE_TYPE socklen_t
+#else
+#define SOCKET_SIZE_TYPE int
+#endif /* _XOPEN_SOURCE_EXTENDED */
+#endif /* HPUX11 */
+
 #if defined(THREAD) && !defined(__WIN__) && !defined(OS2)
 #ifndef _POSIX_PTHREAD_SEMANTICS
 #define _POSIX_PTHREAD_SEMANTICS /* We want posix threads */

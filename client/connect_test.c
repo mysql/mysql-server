@@ -16,7 +16,6 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-#include "my_global.h"
 #include "mysql.h"
 
 static void change_user(MYSQL *sock,const char *user, const char *password,

@@ -62,7 +62,9 @@
 	_DO(SIGCONT)	\
 	_DO(SIGWINCH)
 
-typedef sig_t	*el_signal_t;
+typedef RETSIGTYPE (*libedit_sig_t)();
+typedef libedit_sig_t *el_signal_t;
+
 
 protected void	sig_end(EditLine*);
 protected int	sig_init(EditLine*);

@@ -55,6 +55,10 @@ private int	read_preread(EditLine *);
 private int	read_getcmd(EditLine *, el_action_t *, char *);
 private int	read_char(EditLine *, char *);
 
+#ifndef MIN
+#define MIN(A,B) ((A) < (B) ? (A) : (B))
+#endif
+
 #ifdef DEBUG_EDIT
 private void
 read_debug(EditLine *el)
