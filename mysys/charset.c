@@ -572,7 +572,9 @@ CHARSET_INFO *get_charset_by_name(const char *cs_name, myf flags)
 }
 
 
-CHARSET_INFO *get_charset_by_csname(const char *cs_name, myf flags)
+CHARSET_INFO *get_charset_by_csname(const char *cs_name,
+				    uint cs_flags,
+				    myf flags)
 {
   CHARSET_INFO *cs=NULL;
   CHARSET_INFO **css;
@@ -580,7 +582,7 @@ CHARSET_INFO *get_charset_by_csname(const char *cs_name, myf flags)
   
   for (css= all_charsets; css < all_charsets+255; ++css)
   {
-    if ( css[0] && (css[0]->state & MY_CS_PRIMARY) && 
+    if ( css[0] && (css[0]->state & cs_flags) && 
          css[0]->csname && !strcmp(css[0]->csname, cs_name))
     {
       cs= css[0]->number ? get_internal_charset(css[0]->number,flags) : NULL;
