@@ -1219,8 +1219,10 @@ extern "C" pthread_handler_decl(handle_delayed_insert,arg)
     di->status=0;
     if (!di->stacked_inserts && !di->tables_in_use && thd->lock)
     {
-      /* No one is doing a insert delayed;
-	 Unlock it so that other threads can use it */
+      /*
+        No one is doing a insert delayed
+        Unlock table so that other threads can use it
+      */
       MYSQL_LOCK *lock=thd->lock;
       thd->lock=0;
       pthread_mutex_unlock(&di->mutex);

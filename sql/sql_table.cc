@@ -191,7 +191,7 @@ int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
   for (table=tables ; table ; table=table->next)
   {
     char *db=table->db;
-    mysql_ha_closeall(thd, table);
+    mysql_ha_close(thd, table, /*dont_send_ok*/ 1, /*dont_lock*/ 1);
     if (!close_temporary_table(thd, db, table->real_name))
     {
       tmp_table_deleted=1;
@@ -1727,7 +1727,7 @@ static int mysql_admin_table(THD* thd, TABLE_LIST* tables,
   if (protocol->send_fields(&field_list, 1))
     DBUG_RETURN(-1);
 
-  mysql_ha_closeall(thd, tables);
+  mysql_ha_close(thd, tables, /*dont_send_ok*/ 1, /*dont_lock*/ 1);
   for (table = tables; table; table = table->next)
   {
     char table_name[NAME_LEN*2+2];
@@ -2254,7 +2254,7 @@ int mysql_discard_or_import_tablespace(THD *thd,
   thd->tablespace_op=TRUE; /* we set this flag so that ha_innobase::open
 			   and ::external_lock() do not complain when we
 			   lock the table */
-  mysql_ha_closeall(thd, table_list);
+  mysql_ha_close(thd, table_list, /*dont_send_ok*/ 1, /*dont_lock*/ 1);
 
   if (!(table=open_ltable(thd,table_list,TL_WRITE)))
   {
@@ -2533,7 +2533,7 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
     new_db= db;
   used_fields=create_info->used_fields;
 
-  mysql_ha_closeall(thd, table_list);
+  mysql_ha_close(thd, table_list, /*dont_send_ok*/ 1, /*dont_lock*/ 1);
 
   /* DISCARD/IMPORT TABLESPACE is always alone in an ALTER TABLE */
   if (alter_info->tablespace_op != NO_TABLESPACE_OP)
@@ -2588,7 +2588,10 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
     }
   }
   else
-    new_alias= new_name= table_name;
+  {
+    new_alias= (lower_case_table_names == 2) ? alias : table_name;
+    new_name= table_name;
+  }
 
   old_db_type=table->db_type;
   if (create_info->db_type == DB_TYPE_DEFAULT)

@@ -691,7 +691,7 @@ report_stats () {
     #
     $RM -f $MY_LOG_DIR/warnings $MY_LOG_DIR/warnings.tmp
     # Remove some non fatal warnings from the log files
-    $SED -e 's!Warning:  Table:.* on delete!!g' \
+    $SED -e 's!Warning:  Table:.* on delete!!g' -e 's!Warning: Setting lower_case_table_names=2!!g' -e 's!Warning: One can only use the --user.*root!!g' \
         $MY_LOG_DIR/*.err \
         | $SED -e 's!Warning:  Table:.* on rename!!g' \
         > $MY_LOG_DIR/warnings.tmp

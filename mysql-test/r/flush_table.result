@@ -1,25 +1,13 @@
-# TODO: Only run this if we have privilege to do flush table
-
-#
-# Test of flush table
-#
-
 drop table if exists t1;
 create table t1 (a int not null auto_increment primary key);
 insert into t1 values(0);
 lock table t1 read;
 flush table t1;
 check table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
 drop table t1;
-
-#
-# Check if two database names beginning the same are seen as different.
-#
-# This database begins like the usual 'test' database.
-#
---disable_warnings
 drop database if exists test_test;
---enable_warnings
 create database test_test;
 use test_test;
 create table t1(table_id char(20) primary key);
@@ -27,53 +15,52 @@ insert into t1 values ('test_test.t1');
 insert into t1 values ('');
 handler t1 open;
 handler t1 read first limit 9;
+table_id
+test_test.t1
+
 create table t2(table_id char(20) primary key);
 insert into t2 values ('test_test.t2');
 insert into t2 values ('');
 handler t2 open;
 handler t2 read first limit 9;
-#
-# This is the usual 'test' database.
-#
+table_id
+test_test.t2
+
 use test;
---disable_warnings
 drop table if exists t1;
---enable_warnings
 create table t1(table_id char(20) primary key);
 insert into t1 values ('test.t1');
 insert into t1 values ('');
 handler t1 open;
 handler t1 read first limit 9;
-#
-# Check accesibility of all the tables.
-#
+table_id
+test.t1
+
 use test;
 handler test.t1 read first limit 9;
---error 1109;
+table_id
+test.t1
+
 handler test.t2 read first limit 9;
+Unknown table 't2' in HANDLER
 handler test_test.t1 read first limit 9;
+table_id
+test_test.t1
+
 handler test_test.t2 read first limit 9;
-#
-# Cleanup.
-#
+table_id
+test_test.t2
+
 handler test_test.t1 close;
 drop table test_test.t1;
 handler test_test.t2 close;
 drop table test_test.t2;
 drop database test_test;
-#
 use test;
 handler test.t1 close;
 drop table test.t1;
-
-#
-# In the following test FLUSH TABLES produces a deadlock
-# (hang forever) if the fix for bug#3565 is missing.
-#
---disable_warnings
 drop table if exists t1;
 drop table if exists t2;
---enable_warnings
 create table t1(table_id char(20) primary key);
 create table t2(table_id char(20) primary key);
 insert into t1 values ('test.t1');
@@ -84,31 +71,50 @@ handler t1 open as a1;
 handler t1 open as a2;
 handler t2 open;
 handler a1 read first limit 9;
+table_id
+test.t1
+
 handler a2 read first limit 9;
+table_id
+test.t1
+
 handler t2 read first limit 9;
+table_id
+test.t2
+
 flush tables;
---error 1109;
 handler a1 read first limit 9;
---error 1109;
+Unknown table 'a1' in HANDLER
 handler a2 read first limit 9;
---error 1109;
+Unknown table 'a2' in HANDLER
 handler t2 read first limit 9;
-#
+Unknown table 't2' in HANDLER
 handler t1 open as a1;
 handler t1 open as a2;
 handler t2 open;
 handler a1 read first limit 9;
+table_id
+test.t1
+
 handler a2 read first limit 9;
+table_id
+test.t1
+
 handler t2 read first limit 9;
+table_id
+test.t2
+
 flush table t1;
---error 1109;
 handler a1 read first limit 9;
---error 1109;
+Unknown table 'a1' in HANDLER
 handler a2 read first limit 9;
+Unknown table 'a2' in HANDLER
 handler t2 read first limit 9;
+table_id
+test.t2
+
 flush table t2;
---error 1109;
 handler t2 close;
+Unknown table 't2' in HANDLER
 drop table t1;
 drop table t2;
-
