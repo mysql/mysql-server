@@ -1326,7 +1326,7 @@ innobase_commit(
 			&innodb_dummy_stmt_trx_handle: the latter means
 			that the current SQL statement ended */
 {
-	trx_t*	trx;
+	trx_t*		trx;
 
   	DBUG_ENTER("innobase_commit");
   	DBUG_PRINT("trans", ("ending transaction"));
@@ -3830,6 +3830,7 @@ ha_innobase::create(
 	char		name2[FN_REFLEN];
 	char		norm_name[FN_REFLEN];
 	THD		*thd= current_thd;
+	ib_longlong     auto_inc_value;
 
   	DBUG_ENTER("ha_innobase::create");
 
@@ -3999,6 +4000,20 @@ ha_innobase::create(
 	innobase_table = dict_table_get(norm_name, NULL);
 
 	DBUG_ASSERT(innobase_table != 0);
+
+	if (thd->lex->sql_command == SQLCOM_ALTER_TABLE &&
+	   (thd->lex->create_info.used_fields & HA_CREATE_USED_AUTO) &&
+	   (thd->lex->create_info.auto_increment_value != 0)) {
+
+		/* Query was ALTER TABLE...AUTO_INC = x; Find out a table
+		definition from the dictionary and get the current value
+		of the auto increment field. Set a new value to the
+		auto increment field if the new value is creater than 
+		the current value. */
+
+		auto_inc_value = thd->lex->create_info.auto_increment_value;
+		dict_table_autoinc_initialize(innobase_table, auto_inc_value);
+	}
 
 	/* Tell the InnoDB server that there might be work for
 	utility threads: */
