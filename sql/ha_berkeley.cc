@@ -1306,6 +1306,7 @@ int ha_berkeley::index_init(uint keynr)
 {
   int error;
   DBUG_ENTER("index_init");
+  DBUG_PRINT("enter",("table: '%s'  key: %d", table->real_name, keynr));
   active_index=keynr;
   dbug_assert(cursor == 0);
   if ((error=key_file[keynr]->cursor(key_file[keynr], transaction, &cursor,
@@ -1323,6 +1324,7 @@ int ha_berkeley::index_end()
   DBUG_ENTER("index_end");
   if (cursor)
   {
+    DBUG_PRINT("enter",("table: '%s'", table->real_name));
     error=cursor->c_close(cursor);
     cursor=0;
   }

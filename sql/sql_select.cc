@@ -2488,6 +2488,7 @@ make_join_readinfo(JOIN *join,uint options)
 	else if (table->used_keys && ! (tab->select && tab->select->quick))
 	{					// Only read index tree
 	  tab->index=find_shortest_key(table, table->used_keys);
+	  tab->table->file->index_init(tab->index);
 	  tab->read_first_record= join_init_read_first_with_key;
 	  tab->type=JT_NEXT;		// Read with index_first / index_next
 	}
@@ -4445,7 +4446,6 @@ join_init_read_first_with_key(JOIN_TAB *tab)
   tab->read_record.file=table->file;
   tab->read_record.index=tab->index;
   tab->read_record.record=table->record[0];
-  tab->table->file->index_init(tab->index);
   error=tab->table->file->index_first(tab->table->record[0]);
   if (error)
   {
@@ -4494,7 +4494,6 @@ join_init_read_last_with_key(JOIN_TAB *tab)
   tab->read_record.file=table->file;
   tab->read_record.index=tab->index;
   tab->read_record.record=table->record[0];
-  tab->table->file->index_init(tab->index);
   error=tab->table->file->index_last(tab->table->record[0]);
   if (error)
   {
@@ -5177,6 +5176,7 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit)
 	  tab->index=nr;
 	  tab->read_first_record=  (flag > 0 ? join_init_read_first_with_key:
 				    join_init_read_last_with_key);
+	  tab->table->file->index_init(tab->index);
 	  tab->type=JT_NEXT;	// Read with index_first(), index_next()
 	  DBUG_RETURN(1);
 	}
