@@ -49582,34 +49582,41 @@ Added binary XOR.
 
 The one that with a query like :
 
-select 11 ^ 3;
+@example
+SELECT 11 ^ 3;
+@end example
 
 returns 8.
 
-Based on the code originated  by Hartmut Holzgraefe <hartmut@six.de>.
+Based on code contributed by Hartmut Holzgraefe @email{hartmut@@six.de}.
 @item
 
 Added logical XOR.
 
 The one that with a query like:
 
-select 1 XOR 1;
+@example
+SELECT 1 XOR 1;
+@end example
 
 returns 0;
 
-Based on the code originated by Hartmut Holzgraefe <hartmut@six.de>.
+Based on code contributed by Hartmut Holzgraefe @email{hartmut@@six.de}.
 @item
-Add function CHEDK_LOCK("lock_name"). 
-This function checks if the lock of the certain name is available or not. 
-This function does not attempt to take a look.
+Add function @code{CHECK_LOCK("lock_name")}. 
+This function returns a value indicating whether or not the lock with the
+given name is available. 
+It does not attempt to acquire a lock.
 It is used like this:
 
-   SELECT CHECK_LOCK("some_lock");
+@example
+SELECT CHECK_LOCK("some_lock");
+@end example
 
-it will return 1 if the lock is held by a process (including by
-itself), 0 if it is currently not held by anyone and NULL on
-errors.
-Based on the code originated  by Hartmut Holzgraefe <hartmut@six.de>.
+@code{CHECK_LOCK()} returns 1 if the lock is available,
+0 if the lock is held by any process (including the current process),
+and @code{NULL} if an error occurs.
+Based on code contributed by Hartmut Holzgraefe @email{hartmut@@six.de}.
 @item
 Removed @code{mysql_ssl_clear()}, as this was not needed.
 @item
