@@ -1697,6 +1697,7 @@ ha_innobase::write_row(
 	longlong	dummy;
 	ibool           incremented_auto_inc_for_stat = FALSE;
 	ibool           incremented_auto_inc_counter = FALSE;
+	ibool           skip_auto_inc_decr;
 
   	DBUG_ENTER("ha_innobase::write_row");
 
@@ -1861,13 +1862,25 @@ ha_innobase::write_row(
 	if (error != DB_SUCCESS) {
 	        /* If the insert did not succeed we restore the value of
 		the auto-inc counter we used; note that this behavior was
-		introduced only in version 4.0.4 */
+		introduced only in version 4.0.4.
+		NOTE that a REPLACE command handles a duplicate key error
+		itself, and we must not decrement the autoinc counter
+		if we are performing a REPLACE statement. This was fixed
+		in 4.0.6. */
 
-	        if (incremented_auto_inc_counter) {
+	        skip_auto_inc_decr = FALSE;
+
+	        if (error == DB_DUPLICATE_KEY) {
+	                ut_a(user_thd->query);
+	                dict_accept(user_thd->query, "REPLACE",
+				                       &skip_auto_inc_decr);
+		}
+
+	        if (!skip_auto_inc_decr && incremented_auto_inc_counter) {
 	                dict_table_autoinc_decrement(prebuilt->table);
 	        }
 
-		if (incremented_auto_inc_for_stat) {
+		if (!skip_auto_inc_decr && incremented_auto_inc_for_stat) {
 		        auto_inc_counter_for_this_stat--;
 		}
 	}
