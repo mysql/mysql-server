@@ -259,13 +259,13 @@ while test $# -gt 0; do
     --embedded-server)
       USE_EMBEDDED_SERVER=1
       USE_MANAGER=0 NO_SLAVE=1
-      USE_RUNNING_SERVER=""
+      USE_RUNNING_SERVER=0
       RESULT_EXT=".es"
       TEST_MODE="$TEST_MODE embedded" ;;
     --purify)
       USE_PURIFY=1
       USE_MANAGER=0
-      USE_RUNNING_SERVER=""
+      USE_RUNNING_SERVER=0
       TEST_MODE="$TEST_MODE purify" ;;
     --user=*) DBUSER=`$ECHO "$1" | $SED -e "s;--user=;;"` ;;
     --force)  FORCE=1 ;;

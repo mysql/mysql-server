@@ -140,9 +140,9 @@ public:
     enum FragmentType { 
       FragUndefined = 0,      ///< Fragmentation type undefined or default
       FragSingle = 1,         ///< Only one fragment
-      FragAllSmall = 2,       ///< One fragment per node group
-      FragAllMedium = 3,      ///< Default value. Two fragments per node group.
-      FragAllLarge = 4        ///< Eight fragments per node group.
+      FragAllSmall = 2,       ///< One fragment per node, default
+      FragAllMedium = 3,      ///< two fragments per node
+      FragAllLarge = 4        ///< Four fragments per node.
     };
   };
 

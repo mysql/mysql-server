@@ -295,7 +295,7 @@ void
 NdbTableImpl::init(){
   clearNewProperties();
   m_frm.clear();
-  m_fragmentType = NdbDictionary::Object::FragAllMedium;
+  m_fragmentType = NdbDictionary::Object::FragAllSmall;
   m_logging = true;
   m_kvalue = 6;
   m_minLoadFactor = 78;
