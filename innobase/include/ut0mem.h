@@ -26,12 +26,39 @@ int
 ut_memcmp(void* str1, void* str2, ulint n);
 
 
-void*
-ut_malloc(ulint n);
+/**************************************************************************
+Allocates memory. Sets it also to zero if UNIV_SET_MEM_TO_ZERO is
+defined and set_to_zero is TRUE. */
 
-UNIV_INLINE
+void*
+ut_malloc_low(
+/*==========*/
+	                     /* out, own: allocated memory */
+        ulint   n,           /* in: number of bytes to allocate */
+	ibool   set_to_zero); /* in: TRUE if allocated memory should be set
+			     to zero if UNIV_SET_MEM_TO_ZERO is defined */
+/**************************************************************************
+Allocates memory. Sets it also to zero if UNIV_SET_MEM_TO_ZERO is
+defined. */
+
+void*
+ut_malloc(
+/*======*/
+	                /* out, own: allocated memory */
+        ulint   n);     /* in: number of bytes to allocate */
+/**************************************************************************
+Frees a memory bloock allocated with ut_malloc. */
+
 void
-ut_free(void* ptr);
+ut_free(
+/*====*/
+	void* ptr);  /* in, own: memory block */
+/**************************************************************************
+Frees all allocated memory not freed yet. */
+
+void
+ut_free_all_mem(void);
+/*=================*/
 
 UNIV_INLINE
 char*

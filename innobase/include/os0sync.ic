@@ -38,6 +38,7 @@ os_fast_mutex_trylock(
 	return((ulint) pthread_mutex_trylock(fast_mutex));
 #endif
 }
+#endif
 
 /**************************************************************
 Releases ownership of a fast mutex. */
@@ -53,4 +54,3 @@ os_fast_mutex_unlock(
 	pthread_mutex_unlock(fast_mutex);
 #endif
 }
-#endif
