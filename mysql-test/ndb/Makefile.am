@@ -4,9 +4,9 @@ testdir =	        $(benchdir_root)/mysql-test/ndb
 
 test_SCRIPTS = ndbcluster
 
-EXTRA_SCRIPTS = ndbcluster.sh
+noinst_HEADERS = ndbcluster.sh
 
-test_DATA = ndb_config_2_node.ini
+dist_test_DATA = ndb_config_2_node.ini
 
 SUFFIXES = .sh
 
