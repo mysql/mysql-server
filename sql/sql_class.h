@@ -30,11 +30,11 @@ class Slave_log_event;
 enum enum_enable_or_disable { LEAVE_AS_IS, ENABLE, DISABLE };
 enum enum_ha_read_modes { RFIRST, RNEXT, RPREV, RLAST, RKEY };
 enum enum_duplicates { DUP_ERROR, DUP_REPLACE, DUP_IGNORE };
-enum enum_log_type { LOG_CLOSED, LOG_NORMAL, LOG_NEW, LOG_BIN };
+enum enum_log_type { LOG_CLOSED, LOG_TO_BE_OPENED, LOG_NORMAL, LOG_NEW, LOG_BIN};
 enum enum_delay_key_write { DELAY_KEY_WRITE_NONE, DELAY_KEY_WRITE_ON,
 			    DELAY_KEY_WRITE_ALL };
 
-// log info errors 
+/* log info errors */
 #define LOG_INFO_EOF -1
 #define LOG_INFO_IO  -2
 #define LOG_INFO_INVALID -3
@@ -42,6 +42,11 @@ enum enum_delay_key_write { DELAY_KEY_WRITE_NONE, DELAY_KEY_WRITE_ON,
 #define LOG_INFO_MEM -6
 #define LOG_INFO_FATAL -7
 #define LOG_INFO_IN_USE -8
+
+/* bitmap to SQL_LOG::close() */
+#define LOG_CLOSE_INDEX		1
+#define LOG_CLOSE_TO_BE_OPENED	2
+#define LOG_CLOSE_STOP_EVENT	4
 
 struct st_relay_log_info;
 
@@ -150,8 +155,7 @@ public:
   int purge_logs(THD* thd, const char* to_log);
   int purge_first_log(struct st_relay_log_info* rli); 
   bool reset_logs(THD* thd);
-  // if we are exiting, we also want to close the index file
-  void close(bool exiting = 0);
+  void close(uint exiting);
 
   // iterating through the log index file
   int find_log_pos(LOG_INFO* linfo, const char* log_name,
