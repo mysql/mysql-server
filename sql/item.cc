@@ -1036,7 +1036,7 @@ void Item_param::set_time(TIME *tm, timestamp_type type, uint32 max_length_arg)
   {
     char buff[MAX_DATE_STRING_REP_LENGTH];
     uint length= my_TIME_to_str(&value.time, buff);
-    make_truncated_value_warning(current_thd, buff, length, type);
+    make_truncated_value_warning(current_thd, buff, length, type, 0);
     set_zero_time(&value.time, MYSQL_TIMESTAMP_ERROR);
   }
 
