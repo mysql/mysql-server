@@ -526,7 +526,7 @@ int lock_table_name(THD *thd, TABLE_LIST *table_list)
   table->locked_by_name=1;
   table_list->table=table;
 
-  if (hash_insert(&open_cache, (byte*) table))
+  if (my_hash_insert(&open_cache, (byte*) table))
   {
     my_free((gptr) table,MYF(0));
     DBUG_RETURN(-1);

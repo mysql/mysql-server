@@ -664,7 +664,7 @@ static VAR* var_obtain(char* name, int len)
   if ((v = (VAR*)hash_search(&var_hash, name, len)))
     return v;
   v = var_init(0, name, len, "", 0);
-  hash_insert(&var_hash, (byte*)v);
+  my_hash_insert(&var_hash, (byte*)v);
   return v;
 }
 
@@ -2178,7 +2178,7 @@ int run_query(MYSQL* mysql, struct st_query* q, int flags)
   if (!(flags & QUERY_REAP))
     DBUG_RETURN(0);
 
-  if (mysql_read_query_result(mysql) ||
+  if ((*mysql->methods->read_query_result)(mysql) ||
       (!(last_result = res = mysql_store_result(mysql)) &&
        mysql_field_count(mysql)))
   {
@@ -2400,7 +2400,7 @@ static void var_from_env(const char *name, const char *def_val)
     tmp = def_val;
 
   v = var_init(0, name, 0, tmp, 0);
-  hash_insert(&var_hash, (byte*)v);
+  my_hash_insert(&var_hash, (byte*)v);
 }
 
 
@@ -2416,9 +2416,9 @@ static void init_var_hash(MYSQL *mysql)
   var_from_env("MYSQL_TEST_DIR", "/tmp");
   var_from_env("BIG_TEST", opt_big_test ? "1" : "0");
   v= var_init(0,"MAX_TABLES", 0, (sizeof(ulong) == 4) ? "31" : "62",0);
-  hash_insert(&var_hash, (byte*) v);
+  my_hash_insert(&var_hash, (byte*) v);
   v= var_init(0,"SERVER_VERSION", 0, mysql_get_server_info(mysql), 0);
-  hash_insert(&var_hash, (byte*) v);
+  my_hash_insert(&var_hash, (byte*) v);
   
   DBUG_VOID_RETURN;
 }

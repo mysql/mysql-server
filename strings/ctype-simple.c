@@ -1030,6 +1030,44 @@ uint my_lengthsp_8bit(CHARSET_INFO *cs __attribute__((unused)),
 }
 
 
+int my_instr_simple(CHARSET_INFO *cs,
+                    const char *big,   uint b_length, 
+		    const char *small, uint s_length)
+{
+  register const uchar *str, *search, *end, *search_end;
+  
+  if (s_length <= b_length)
+  {
+    if (!s_length)
+      return 0;		// Empty string is always found
+    
+    str= (const uchar*) big;
+    search= (const uchar*) small;
+    end= (const uchar*) big+b_length-s_length+1;
+    search_end= (const uchar*) small + s_length;
+    
+skipp:
+    while (str != end)
+    {
+      if (cs->sort_order[*str++] == cs->sort_order[*search])
+      {
+	register const uchar *i,*j;
+	
+	i= str; 
+	j= search+1;
+	
+	while (j != search_end)
+	  if (cs->sort_order[*i++] != cs->sort_order[*j++]) 
+            goto skipp;
+        
+	return (int) (str- (const uchar*)big) -1;
+      }
+    }
+  }
+  return -1;
+}
+
+
 MY_CHARSET_HANDLER my_charset_8bit_handler=
 {
     NULL,			/* ismbchar      */
@@ -1063,5 +1101,6 @@ MY_COLLATION_HANDLER my_collation_8bit_simple_ci_handler =
     my_like_range_simple,
     my_wildcmp_8bit,
     my_strcasecmp_8bit,
+    my_instr_simple,
     my_hash_sort_simple
 };

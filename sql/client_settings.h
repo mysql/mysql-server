@@ -32,5 +32,3 @@
 #undef HAVE_SMEM
 #undef _CUSTOMCONFIG_
 
-#define cli_list_fields NULL
-

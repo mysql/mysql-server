@@ -3,6 +3,8 @@
    3.22.10-beta   euc-japanese (ujis) text
 */
 
+character-set=ujis
+
 "hashchk",
 "isamchk",
 "NO",

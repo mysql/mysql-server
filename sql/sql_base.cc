@@ -873,7 +873,7 @@ TABLE *open_table(THD *thd,const char *db,const char *table_name,
     table->version=refresh_version;
     table->flush_version=flush_version;
     DBUG_PRINT("info", ("inserting table %p into the cache", table));
-    VOID(hash_insert(&open_cache,(byte*) table));
+    VOID(my_hash_insert(&open_cache,(byte*) table));
   }
 
   table->in_use=thd;

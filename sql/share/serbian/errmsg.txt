@@ -7,6 +7,8 @@
    Charset: cp1250
 */
 
+character-set=cp1250
+
 "hashchk",
 "isamchk",
 "NE",

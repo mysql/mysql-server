@@ -1069,7 +1069,7 @@ static void init_check_host(void)
       else if (!hash_search(&acl_check_hosts,(byte*) &acl_user->host,
 			    (uint) strlen(acl_user->host.hostname)))
       {
-	if (hash_insert(&acl_check_hosts,(byte*) acl_user))
+	if (my_hash_insert(&acl_check_hosts,(byte*) acl_user))
 	{					// End of memory
 	  allow_all_hosts=1;			// Should never happen
 	  DBUG_VOID_RETURN;
@@ -1782,7 +1782,7 @@ public:
 	  privs = cols = 0;			/* purecov: deadcode */
 	  return;				/* purecov: deadcode */
 	}
-	hash_insert(&hash_columns, (byte *) mem_check);
+	my_hash_insert(&hash_columns, (byte *) mem_check);
       } while (!col_privs->file->index_next(col_privs->record[0]) &&
 	       !key_cmp(col_privs,key,0,key_len));
     }
@@ -1944,7 +1944,7 @@ static int replace_column_table(GRANT_TABLE *g_t,
 	goto end;				/* purecov: inspected */
       }
       GRANT_COLUMN *grant_column = new GRANT_COLUMN(xx->column,privileges);
-      hash_insert(&g_t->hash_columns,(byte*) grant_column);
+      my_hash_insert(&g_t->hash_columns,(byte*) grant_column);
     }
   }
   table->file->index_end();
@@ -2295,7 +2295,7 @@ int mysql_table_grant(THD *thd, TABLE_LIST *table_list,
 	result= -1;				/* purecov: deadcode */
 	continue;				/* purecov: deadcode */
       }
-      hash_insert(&column_priv_hash,(byte*) grant_table);
+      my_hash_insert(&column_priv_hash,(byte*) grant_table);
     }
 
     /* If revoke_grant, calculate the new column privilege for tables_priv */
@@ -2538,7 +2538,7 @@ my_bool grant_init(THD *org_thd)
   {
     GRANT_TABLE *mem_check;
     if (!(mem_check=new GRANT_TABLE(t_table,c_table)) ||
-	mem_check->ok() && hash_insert(&column_priv_hash,(byte*) mem_check))
+	mem_check->ok() && my_hash_insert(&column_priv_hash,(byte*) mem_check))
     {
       /* This could only happen if we are out memory */
       grant_option= FALSE;			/* purecov: deadcode */

@@ -28,14 +28,19 @@ my_ulonglong net_field_length_ll(uchar **packet);
 MYSQL_FIELD *unpack_fields(MYSQL_DATA *data,MEM_ROOT *alloc,uint fields,
 			   my_bool default_value, uint server_capabilities);
 void free_rows(MYSQL_DATA *cur);
-MYSQL_DATA *read_rows (MYSQL *mysql,MYSQL_FIELD *fields,
-		       uint field_count);
 my_bool mysql_autenticate(MYSQL *mysql, const char *passwd);
 void free_old_query(MYSQL *mysql);
 void end_server(MYSQL *mysql);
 my_bool mysql_reconnect(MYSQL *mysql);
 void mysql_read_default_options(struct st_mysql_options *options,
 				const char *filename,const char *group);
+my_bool STDCALL
+cli_advanced_command(MYSQL *mysql, enum enum_server_command command,
+		     const char *header, ulong header_length,
+		     const char *arg, ulong arg_length, my_bool skip_check);
+
+void set_stmt_errmsg(MYSQL_STMT * stmt, const char *err, int errcode,
+		     const char *sqlstate);
 #ifdef	__cplusplus
 }
 #endif

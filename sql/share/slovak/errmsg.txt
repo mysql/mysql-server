@@ -9,6 +9,8 @@
    Date:           Streda 11. November 1998 20:58:15
 */
 
+character-set=latin2
+
 "hashchk",
 "isamchk",
 "NIE",

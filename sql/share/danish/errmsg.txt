@@ -4,6 +4,8 @@
 /* Knud Riishøjgård knudriis@post.tele.dk 99 &&
    Carsten H. Pedersen, carsten.pedersen@bitbybit.dk oct. 1999 / aug. 2001. */
 
+character-set=latin1
+
 "hashchk",
 "isamchk",
 "NEJ",

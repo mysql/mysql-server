@@ -5,6 +5,8 @@
    e-mail: tzoompy@cs.washington.edu
 */
 
+character-set=latin2
+
 "hashchk",
 "isamchk",
 "NU",

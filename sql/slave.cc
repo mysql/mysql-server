@@ -790,7 +790,7 @@ int add_table_rule(HASH* h, const char* table_spec)
   e->tbl_name = e->db + (dot - table_spec) + 1;
   e->key_len = len;
   memcpy(e->db, table_spec, len);
-  (void)hash_insert(h, (byte*)e);
+  (void)my_hash_insert(h, (byte*)e);
   return 0;
 }
 

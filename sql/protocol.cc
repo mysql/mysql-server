@@ -28,6 +28,9 @@
 
 #ifndef EMBEDDED_LIBRARY
 bool Protocol::net_store_data(const char *from, uint length)
+#else
+bool Protocol_prep::net_store_data(const char *from, uint length)
+#endif
 {
   ulong packet_length=packet->length();
   /* 
@@ -43,7 +46,6 @@ bool Protocol::net_store_data(const char *from, uint length)
   packet->length((uint) (to+length-packet->ptr()));
   return 0;
 }
-#endif
 
 
 	/* Send a error string to client */
@@ -1130,3 +1132,12 @@ bool Protocol_prep::store_time(TIME *tm)
   buff[0]=(char) length;			// Length is stored first
   return packet->append(buff, length+1, PACKET_BUFFET_EXTRA_ALLOC);
 }
+
+#ifdef EMBEDDED_LIBRARY
+/* Should be removed when we define the Protocol_cursor's future */
+bool Protocol_cursor::write()
+{
+  return Protocol_simple::write();
+}
+#endif
+

@@ -45,3 +45,8 @@ SHOW TABLES;
 SHOW TABLES IN РЕЯР;
 SET CHARACTER SET koi8r;
 DROP DATABASE тест;
+
+SET NAMES koi8r;
+SELECT hex('тест');
+SET character_set_connection=cp1251;
+SELECT hex('тест');

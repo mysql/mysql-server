@@ -461,7 +461,7 @@ static char *check_struct_option(char *cur_arg, char *key_name)
 {
   char *ptr, *end;
 
-  ptr= strcend(cur_arg + 1, '.'); // Skip the first character
+  ptr= strcend(cur_arg + 1, '.'); /* Skip the first character */
   end= strcend(cur_arg, '=');
 
   /* 

@@ -119,7 +119,7 @@ static void simple_cs_init_functions(CHARSET_INFO *cs)
   
   if (cs->state & MY_CS_BINSORT)
   {
-    cs->coll= &my_collation_bin_handler;
+    cs->coll= &my_collation_8bit_bin_handler;
   }
   else
   {
@@ -226,7 +226,6 @@ static my_bool create_fromuni(CHARSET_INFO *cs)
 static void simple_cs_copy_data(CHARSET_INFO *to, CHARSET_INFO *from)
 {
   to->number= from->number ? from->number : to->number;
-  to->state|= from->state;
 
   if (from->csname)
     to->csname= my_once_strdup(from->csname,MYF(MY_WME));
@@ -278,12 +277,10 @@ static my_bool simple_cs_is_full(CHARSET_INFO *cs)
 
 static int add_collation(CHARSET_INFO *cs)
 {
-  if (cs->name && (cs->number || (cs->number=get_charset_number(cs->name))))
+  if (cs->name && (cs->number || (cs->number=get_collation_number(cs->name))))
   {
     if (!all_charsets[cs->number])
     {
-      if (cs->state & MY_CS_COMPILED)
-        goto clear;
       if (!(all_charsets[cs->number]=
          (CHARSET_INFO*) my_once_alloc(sizeof(CHARSET_INFO),MYF(0))))
         return MY_XML_ERROR;
@@ -296,6 +293,8 @@ static int add_collation(CHARSET_INFO *cs)
     if (cs->binary_number == cs->number)
       cs->state |= MY_CS_BINSORT;
     
+    all_charsets[cs->number]->state|= cs->state;
+    
     if (!(all_charsets[cs->number]->state & MY_CS_COMPILED))
     {
       simple_cs_init_functions(all_charsets[cs->number]);
@@ -304,15 +303,28 @@ static int add_collation(CHARSET_INFO *cs)
       {
         all_charsets[cs->number]->state |= MY_CS_LOADED;
       }
+      all_charsets[cs->number]->state|= MY_CS_AVAILABLE;
     }
     else
     {
+      /*
+        We need the below to make get_charset_name()
+        and get_charset_number() working even if a
+        character set has not been really incompiled.
+        The above functions are used for example
+        in error message compiler extra/comp_err.c.
+        If a character set was compiled, this information
+        will get lost and overwritten in add_compiled_collation().
+      */
       CHARSET_INFO *dst= all_charsets[cs->number];
-      dst->state |= cs->state;
+      dst->number= cs->number;
       if (cs->comment)
 	dst->comment= my_once_strdup(cs->comment,MYF(MY_WME));
+      if (cs->csname)
+        dst->csname= my_once_strdup(cs->csname,MYF(MY_WME));
+      if (cs->name)
+        dst->name= my_once_strdup(cs->name,MYF(MY_WME));
     }
-clear:
     cs->number= 0;
     cs->primary_number= 0;
     cs->binary_number= 0;
@@ -389,77 +401,79 @@ char *get_charsets_dir(char *buf)
 CHARSET_INFO *all_charsets[256];
 CHARSET_INFO *default_charset_info = &my_charset_latin1;
 
-#define MY_ADD_CHARSET(x)	all_charsets[(x)->number]=(x)
+static void add_compiled_collation(CHARSET_INFO *cs)
+{
+  all_charsets[cs->number]= cs;
+  cs->state|= MY_CS_AVAILABLE;
+}
 
 
 static my_bool init_compiled_charsets(myf flags __attribute__((unused)))
 {
   CHARSET_INFO *cs;
 
-  MY_ADD_CHARSET(&my_charset_bin);
+  add_compiled_collation(&my_charset_bin);
   
-  MY_ADD_CHARSET(&my_charset_latin1);
-  MY_ADD_CHARSET(&my_charset_latin1_bin);
-  MY_ADD_CHARSET(&my_charset_latin1_german2_ci);
+  add_compiled_collation(&my_charset_latin1);
+  add_compiled_collation(&my_charset_latin1_bin);
+  add_compiled_collation(&my_charset_latin1_german2_ci);
 
 #ifdef HAVE_CHARSET_big5
-  MY_ADD_CHARSET(&my_charset_big5_chinese_ci);
-  MY_ADD_CHARSET(&my_charset_big5_bin);
+  add_compiled_collation(&my_charset_big5_chinese_ci);
+  add_compiled_collation(&my_charset_big5_bin);
 #endif
 
 #ifdef HAVE_CHARSET_cp1250
-  MY_ADD_CHARSET(&my_charset_cp1250_czech_ci);
+  add_compiled_collation(&my_charset_cp1250_czech_ci);
 #endif
 
 #ifdef HAVE_CHARSET_latin2
-  MY_ADD_CHARSET(&my_charset_latin2_czech_ci);
+  add_compiled_collation(&my_charset_latin2_czech_ci);
 #endif
 
 #ifdef HAVE_CHARSET_euckr
-  MY_ADD_CHARSET(&my_charset_euckr_korean_ci);
-  MY_ADD_CHARSET(&my_charset_euckr_bin);
+  add_compiled_collation(&my_charset_euckr_korean_ci);
+  add_compiled_collation(&my_charset_euckr_bin);
 #endif
 
 #ifdef HAVE_CHARSET_gb2312
-  MY_ADD_CHARSET(&my_charset_gb2312_chinese_ci);
-  MY_ADD_CHARSET(&my_charset_gb2312_bin);
+  add_compiled_collation(&my_charset_gb2312_chinese_ci);
+  add_compiled_collation(&my_charset_gb2312_bin);
 #endif
 
 #ifdef HAVE_CHARSET_gbk
-  MY_ADD_CHARSET(&my_charset_gbk_chinese_ci);
-  MY_ADD_CHARSET(&my_charset_gbk_bin);
+  add_compiled_collation(&my_charset_gbk_chinese_ci);
+  add_compiled_collation(&my_charset_gbk_bin);
 #endif
 
 #ifdef HAVE_CHARSET_sjis
-  MY_ADD_CHARSET(&my_charset_sjis_japanese_ci);
-  MY_ADD_CHARSET(&my_charset_sjis_bin);
+  add_compiled_collation(&my_charset_sjis_japanese_ci);
+  add_compiled_collation(&my_charset_sjis_bin);
 #endif
 
 #ifdef HAVE_CHARSET_tis620
-  MY_ADD_CHARSET(&my_charset_tis620_thai_ci);
-  MY_ADD_CHARSET(&my_charset_tis620_bin);
+  add_compiled_collation(&my_charset_tis620_thai_ci);
+  add_compiled_collation(&my_charset_tis620_bin);
 #endif
 
 #ifdef HAVE_CHARSET_ucs2
-  MY_ADD_CHARSET(&my_charset_ucs2_general_ci);
-  MY_ADD_CHARSET(&my_charset_ucs2_bin);
+  add_compiled_collation(&my_charset_ucs2_general_ci);
+  add_compiled_collation(&my_charset_ucs2_bin);
 #endif
 
 #ifdef HAVE_CHARSET_ujis
-  MY_ADD_CHARSET(&my_charset_ujis_japanese_ci);
-  MY_ADD_CHARSET(&my_charset_ujis_bin);
+  add_compiled_collation(&my_charset_ujis_japanese_ci);
+  add_compiled_collation(&my_charset_ujis_bin);
 #endif
 
 #ifdef HAVE_CHARSET_utf8
-  MY_ADD_CHARSET(&my_charset_utf8_general_ci);
-  MY_ADD_CHARSET(&my_charset_utf8_bin);
+  add_compiled_collation(&my_charset_utf8_general_ci);
+  add_compiled_collation(&my_charset_utf8_bin);
 #endif
 
   /* Copy compiled charsets */
   for (cs=compiled_charsets; cs->name; cs++)
-  {
-    all_charsets[cs->number]=cs;
-  }
+    add_compiled_collation(cs);
   
   return FALSE;
 }
@@ -513,7 +527,7 @@ void free_charsets(void)
 }
 
 
-uint get_charset_number(const char *charset_name)
+uint get_collation_number(const char *name)
 {
   CHARSET_INFO **cs;
   if (init_available_charsets(MYF(0)))	/* If it isn't initialized */
@@ -522,10 +536,25 @@ uint get_charset_number(const char *charset_name)
   for (cs= all_charsets; cs < all_charsets+255; ++cs)
   {
     if ( cs[0] && cs[0]->name && 
-         !my_strcasecmp(&my_charset_latin1, cs[0]->name, charset_name))
+         !my_strcasecmp(&my_charset_latin1, cs[0]->name, name))
       return cs[0]->number;
   }  
   return 0;   /* this mimics find_type() */
+}
+
+uint get_charset_number(const char *charset_name, uint cs_flags)
+{
+  CHARSET_INFO **cs;
+  if (init_available_charsets(MYF(0)))	/* If it isn't initialized */
+    return 0;
+  
+  for (cs= all_charsets; cs < all_charsets+255; ++cs)
+  {
+    if ( cs[0] && cs[0]->csname && (cs[0]->state & cs_flags) &&
+         !my_strcasecmp(&my_charset_latin1, cs[0]->csname, charset_name))
+      return cs[0]->number;
+  }  
+  return 0;
 }
 
 
@@ -555,7 +584,7 @@ static CHARSET_INFO *get_internal_charset(uint cs_number, myf flags)
 
   cs= all_charsets[cs_number];
 
-  if (cs && !(cs->state & (MY_CS_COMPILED | MY_CS_LOADED)))
+  if (cs && !(cs->state & MY_CS_COMPILED) && !(cs->state & MY_CS_LOADED))
   {
      strxmov(get_charsets_dir(buf), cs->csname, ".xml", NullS);
      my_read_charset_file(buf,flags);
@@ -593,7 +622,7 @@ CHARSET_INFO *get_charset_by_name(const char *cs_name, myf flags)
   CHARSET_INFO *cs;
   (void) init_available_charsets(MYF(0));	/* If it isn't initialized */
 
-  cs_number=get_charset_number(cs_name);
+  cs_number=get_collation_number(cs_name);
   cs= cs_number ? get_internal_charset(cs_number,flags) : NULL;
 
   if (!cs && (flags & MY_WME))
@@ -611,23 +640,15 @@ CHARSET_INFO *get_charset_by_csname(const char *cs_name,
 				    uint cs_flags,
 				    myf flags)
 {
-  CHARSET_INFO *cs=NULL;
-  CHARSET_INFO **css;
+  uint cs_number;
+  CHARSET_INFO *cs;
   DBUG_ENTER("get_charset_by_csname");
   DBUG_PRINT("enter",("name: '%s'", cs_name));
 
   (void) init_available_charsets(MYF(0));	/* If it isn't initialized */
   
-  for (css= all_charsets; css < all_charsets+255; ++css)
-  {
-    if ( css[0] && (css[0]->state & cs_flags) && 
-         css[0]->csname && !my_strcasecmp(&my_charset_latin1, 
-         				  css[0]->csname, cs_name))
-    {
-      cs= css[0]->number ? get_internal_charset(css[0]->number,flags) : NULL;
-      break;
-    }
-  }
+  cs_number= get_charset_number(cs_name, cs_flags);
+  cs= cs_number ? get_internal_charset(cs_number, flags) : NULL;
   
   if (!cs && (flags & MY_WME))
   {

@@ -49,7 +49,7 @@ void hash_free(HASH *tree);
 byte *hash_element(HASH *hash,uint idx);
 gptr hash_search(HASH *info,const byte *key,uint length);
 gptr hash_next(HASH *info,const byte *key,uint length);
-my_bool hash_insert(HASH *info,const byte *data);
+my_bool my_hash_insert(HASH *info,const byte *data);
 my_bool hash_delete(HASH *hash,byte *record);
 my_bool hash_update(HASH *hash,byte *record,byte *old_key,uint old_key_length);
 void hash_replace(HASH *hash, uint idx, byte *new_row);
