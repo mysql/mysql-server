@@ -6252,7 +6252,7 @@ shell> groupadd mysql
 shell> useradd -g mysql mysql
 shell> cd /usr/local
 shell> gunzip < /path/to/mysql-VERSION-OS.tar.gz | tar xvf -
-shell> ln -s mysql-VERSION-OS mysql
+shell> ln -s full-path-to-mysql-VERSION-OS mysql
 shell> cd mysql
 shell> scripts/mysql_install_db
 shell> chown -R root  .
@@ -6327,7 +6327,7 @@ Unpack the distribution and create the installation directory:
 
 @example
 shell> gunzip < /path/to/mysql-VERSION-OS.tar.gz | tar xvf -
-shell> ln -s mysql-VERSION-OS mysql
+shell> ln -s full-path-to-mysql-VERSION-OS mysql
 @end example
 
 The first command creates a directory named @file{mysql-VERSION-OS}.  The
@@ -48702,6 +48702,8 @@ Our TODO section contains what we plan to have in 4.0. @xref{TODO MySQL 4.0}.
 @appendixsubsec Changes in release 4.0.2
 
 @itemize @bullet
+@item
+Fixed wrong error value when doing a @code{SELECT} with an empty HEAP table.
 @item
 Use @code{ORDER BY column DESC} now sorts @code{NULL} values first.
 @item
