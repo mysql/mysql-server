@@ -7,13 +7,24 @@
 #include <m_ctype.h>
 #include <ndb_types.h>
 #include <ctype.h>
+#ifdef HAVE_STDARG_H
 #include <stdarg.h>
+#endif
+#ifdef TIME_WITH_SYS_TIME
 #include <time.h>
+#endif
+#ifdef HAVE_FCNTL_H
 #include <fcntl.h>
+#endif
 #include <sys/param.h>
+#ifdef HAVE_SYS_STAT_H
 #include <sys/stat.h>
-
-#ifndef NDB_MACOSX
+#endif
+#include <sys/resource.h>
+#ifdef HAVE_SYS_WAIT_H
+#include <sys/wait.h>
+#endif
+#ifdef HAVE_SYS_MMAN_H
 #include <sys/mman.h>
 #endif
 
