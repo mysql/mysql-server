@@ -939,8 +939,8 @@ MAX_CXX_OPTIMIZE="-O3"
 # workaround for Sun Forte/x86 see BUG#4681
 case $SYSTEM_TYPE-$MACHINE_TYPE-$ac_cv_prog_gcc in
   *solaris*-i?86-no)
-    CFLAGS="$CFLAGS -DBIG_FILES"
-    CXXFLAGS="$CXXFLAGS -DBIG_FILES"
+    CFLAGS="$CFLAGS -DBIG_TABLES"
+    CXXFLAGS="$CXXFLAGS -DBIG_TABLES"
     ;;
   *) ;;
 esac
