@@ -47,10 +47,13 @@ static const char* helpText =
 "HELP DEBUG                             Help for debug compiled version\n"
 #endif
 "SHOW                                   Print information about cluster\n"
+#if 0
 "SHOW CONFIG                            Print configuration\n"
 "SHOW PARAMETERS                        Print configuration parameters\n"
+#endif
 "START BACKUP                           Start backup\n"
 "ABORT BACKUP <backup id>               Abort backup\n"
+"SHUTDOWN                               Shutdown all processed in cluster and quit\n"
 "CLUSTERLOG ON                          Enable Cluster logging\n"
 "CLUSTERLOG OFF                         Disable Cluster logging\n"
 "CLUSTERLOG FILTER <severity>           Toggle severity filter on/off\n"
@@ -62,7 +65,9 @@ static const char* helpText =
 "EXIT SINGLE USER MODE                  Exit single user mode\n"
 "<id> STATUS                            Print status\n"
 "<id> CLUSTERLOG {<category>=<level>}+  Set log level for cluster log\n"
+#ifdef HAVE_GLOBAL_REPLICATION
 "REP CONNECT <host:port>                Connect to REP server on host:port\n"
+#endif
 "QUIT                                   Quit management client\n"
 ;
 
@@ -297,6 +302,10 @@ CommandInterpreter::readAndExecute(int _try_reconnect)
   }
   else if (strcmp(firstToken, "SHOW") == 0) {
     executeShow(allAfterFirstToken);
+    return true;
+  }
+  else if (strcmp(firstToken, "SHUTDOWN") == 0) {
+    executeShutdown(allAfterFirstToken);
     return true;
   }
   else if (strcmp(firstToken, "CLUSTERLOG") == 0){
@@ -627,6 +636,57 @@ CommandInterpreter::executeHelp(char* parameters)
   }
 }
 
+
+/*****************************************************************************
+ * SHUTDOWN
+ *****************************************************************************/
+
+void
+CommandInterpreter::executeShutdown(char* parameters) 
+{ 
+  connect();
+
+  ndb_mgm_cluster_state *state = ndb_mgm_get_status(m_mgmsrv);
+  if(state == NULL) {
+    ndbout_c("Could not get status");
+    printError();
+    return;
+  }
+
+  int result = 0;
+  result = ndb_mgm_stop(m_mgmsrv, 0, 0);
+  if (result <= 0) {
+    ndbout << "Shutdown failed." << endl;
+    printError();
+    return;
+  }
+
+  ndbout << "NDB Cluster storage node(s) have shutdown." << endl;
+
+  int mgm_id= 0;
+  for(int i=0; i < state->no_of_nodes; i++) {
+    if(state->node_states[i].node_type == NDB_MGM_NODE_TYPE_MGM &&
+       state->node_states[i].version != 0){
+      if (mgm_id == 0)
+	mgm_id= state->node_states[i].node_id;
+      else {
+	ndbout << "Unable to locate management server, shutdown manually with #STOP"
+	       << endl;
+      }
+    }
+  }
+
+  result = 0;
+  result = ndb_mgm_stop(m_mgmsrv, 1, &mgm_id);
+  if (result <= 0) {
+    ndbout << "Shutdown failed." << endl;
+    printError();
+    return;
+  }
+
+  ndbout << "NDB Cluster management server shutdown." << endl;
+  exit(0);
+}
 
 /*****************************************************************************
  * SHOW
