@@ -346,7 +346,7 @@ err:
 
 int _mi_read_key_record(MI_INFO *info, my_off_t filepos, byte *buf)
 {
-  VOID(_mi_writeinfo(info,0));
+  fast_mi_writeinfo(info);
   if (filepos != HA_OFFSET_ERROR)
   {
     if (info->lastinx >= 0)

@@ -965,4 +965,13 @@ typedef union {
 #define statistic_add(V,C,L)       (V)+=(C)
 #endif
 
+/* Macros to make switching between C and C++ mode easier */
+#ifdef __cplusplus
+#define C_MODE_START    extern "C" {
+#define C_MODE_END	}
+#else
+#define C_MODE_START
+#define C_MODE_END
+#endif
+
 #endif /* _global_h */

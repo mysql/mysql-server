@@ -291,7 +291,7 @@ static int w_search(register MI_INFO *info, register MI_KEYDEF *keyinfo,
 		    my_bool insert_last)
 {
   int error,flag;
-  uint comp_flag,nod_flag;
+  uint comp_flag,nod_flag, search_key_length;
   uchar *temp_buff,*keypos;
   uchar keybuff[MI_MAX_KEY_BUFF];
   my_bool was_last_key;
@@ -299,10 +299,14 @@ static int w_search(register MI_INFO *info, register MI_KEYDEF *keyinfo,
   DBUG_ENTER("w_search");
   DBUG_PRINT("enter",("page: %ld",page));
 
+  search_key_length=USE_WHOLE_KEY;
   if (keyinfo->flag & HA_SORT_ALLOWS_SAME)
     comp_flag=SEARCH_BIGGER;			/* Put after same key */
   else if (keyinfo->flag & HA_NOSAME)
+  {
     comp_flag=SEARCH_FIND | SEARCH_UPDATE;	/* No dupplicates */
+    search_key_length= key_length;
+  }
   else
     comp_flag=SEARCH_SAME;			/* Keys in rec-pos order */
 
@@ -312,8 +316,8 @@ static int w_search(register MI_INFO *info, register MI_KEYDEF *keyinfo,
   if (!_mi_fetch_keypage(info,keyinfo,page,temp_buff,0))
     goto err;
 
-  flag=(*keyinfo->bin_search)(info,keyinfo,temp_buff,key,key_length,comp_flag,
-			      &keypos, keybuff, &was_last_key);
+  flag=(*keyinfo->bin_search)(info,keyinfo,temp_buff,key,search_key_length,
+			      comp_flag, &keypos, keybuff, &was_last_key);
   nod_flag=mi_test_if_nod(temp_buff);
   if (flag == 0)
   {

@@ -40,7 +40,7 @@ my_bool myisam_concurrent_insert=0;
 #endif
 my_off_t myisam_max_extra_temp_length= MI_MAX_TEMP_LENGTH;
 my_off_t myisam_max_temp_length= MAX_FILE_SIZE;
-uint myisam_bulk_insert_tree_size=8192*1024;
+ulong    myisam_bulk_insert_tree_size=8192*1024;
 
 /* read_vec[] is used for converting between P_READ_KEY.. and SEARCH_ */
 /* Position is , == , >= , <= , > , < */
