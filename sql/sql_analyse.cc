@@ -133,22 +133,30 @@ proc_analyse_init(THD *thd, ORDER *param, select_result *result,
     Item *item;
     while ((item = it++))
     {
-      if (item->result_type() == INT_RESULT)
-      {
+      field_info *new_field;
+      switch (item->result_type()) {
+      case INT_RESULT:
         // Check if fieldtype is ulonglong
         if (item->type() == Item::FIELD_ITEM &&
             ((Item_field*) item)->field->type() == FIELD_TYPE_LONGLONG &&
             ((Field_longlong*) ((Item_field*) item)->field)->unsigned_flag)
-          *f_info++ = new field_ulonglong(item, pc);
+          new_field= new field_ulonglong(item, pc);
         else
-          *f_info++ = new field_longlong(item, pc);
+          new_field= new field_longlong(item, pc);
+        break;
+      case REAL_RESULT:
+        new_field= new field_real(item, pc);
+        break;
+      case DECIMAL_RESULT:
+        new_field= new field_decimal(item, pc);
+        break;
+      case STRING_RESULT:
+        new_field= new field_str(item, pc);
+        break;
+      default:
+        goto err;
       }
-      if (item->result_type() == REAL_RESULT)
-        *f_info++ = new field_real(item, pc);
-      if (item->result_type() == DECIMAL_RESULT)
-        *f_info++= new field_decimal(item, pc);
-      if (item->result_type() == STRING_RESULT)
-        *f_info++ = new field_str(item, pc);
+      *f_info++= new_field;
     }
   }
   DBUG_RETURN(pc);
@@ -470,6 +478,9 @@ void field_decimal::add()
 
   length= my_decimal_string_length(dec);
 
+  if (decimal_is_zero(dec))
+    empty++;
+
   if (room_in_tree)
   {
     char buf[DECIMAL_MAX_FIELD_SIZE];
@@ -502,7 +513,7 @@ void field_decimal::add()
     cur_sum= 0;
     min_length = max_length = length;
   }
-  else
+  else if (!decimal_is_zero(dec))
   {
     int next_cur_sum= cur_sum ^ 1;
     my_decimal sqr_buf;
@@ -972,15 +983,17 @@ void field_decimal::get_opt_type(String *answer,
 {
   my_decimal zero;
   char buff[MAX_FIELD_WIDTH];
+  uint length;
 
   my_decimal_set_zero(&zero);
   my_bool is_unsigned= (my_decimal_cmp(&zero, &min_arg) >= 0);
 
-  sprintf(buff, "DECIMAL(%d, %d)",
-          (int)(max_length - (item->decimals ? 1 : 0)), item->decimals);
+  length= my_sprintf(buff, (buff, "DECIMAL(%d, %d)",
+                            (int) (max_length - (item->decimals ? 1 : 0)),
+                            item->decimals));
   if (is_unsigned)
-    strcat(buff, " UNSIGNED");
-  answer->append(buff, (uint) strlen(buff));
+    length= (uint) (strmov(buff+length, " UNSIGNED")- buff);
+  answer->append(buff, length);
 }
 
 
