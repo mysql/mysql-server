@@ -100,3 +100,38 @@ id	mydate
 6	2002-06-22 00:00:00
 7	2002-07-22 00:00:00
 DROP TABLE IF EXISTS a,b,c;
+drop table if exists parent, child;
+CREATE TABLE IF NOT EXISTS `parent` (
+`id` int(11) NOT NULL auto_increment,
+`tst` text,
+`tst1` text,
+PRIMARY KEY  (`id`)
+) TYPE=MyISAM;
+CREATE TABLE IF NOT EXISTS `child` (
+`ID` int(11) NOT NULL auto_increment,
+`ParId` int(11) default NULL,
+`tst` text,
+`tst1` text,
+PRIMARY KEY  (`ID`),
+KEY `IX_ParId_child` (`ParId`),
+FOREIGN KEY (`ParId`) REFERENCES `test.parent` (`id`)
+) TYPE=MyISAM;
+INSERT INTO parent(tst,tst1)
+VALUES("MySQL","MySQL AB"), ("MSSQL","Microsoft"), ("ORACLE","ORACLE");
+INSERT INTO child(ParId)
+VALUES(1), (2), (3);
+select * from child;
+ID	ParId	tst	tst1
+1	1	NULL	NULL
+2	2	NULL	NULL
+3	3	NULL	NULL
+UPDATE child, parent
+SET child.tst = parent.tst,
+child.tst1 = parent.tst1
+WHERE child.ParId = parent.Id;
+select * from child;
+ID	ParId	tst	tst1
+1	1	MySQL	MySQL AB
+2	2	MSSQL	Microsoft
+3	3	ORACLE	ORACLE
+drop table parent, child;
