@@ -649,9 +649,10 @@ CommandInterpreter::executeShow(char* parameters)
     }
 
     int
-      ndb_nodes = 0,
-      api_nodes = 0,
-      mgm_nodes = 0;
+      master_id= 0,
+      ndb_nodes= 0,
+      api_nodes= 0,
+      mgm_nodes= 0;
 
     for(i=0; i < state->no_of_nodes; i++) {
       switch(state->node_states[i].node_type) {
@@ -659,6 +660,8 @@ CommandInterpreter::executeShow(char* parameters)
 	api_nodes++;
 	break;
       case NDB_MGM_NODE_TYPE_NDB:
+	if (state->node_states[i].dynamic_id > master_id)
+	  master_id= state->node_states[i].dynamic_id;
 	ndb_nodes++;
 	break;
       case NDB_MGM_NODE_TYPE_MGM:
@@ -681,34 +684,16 @@ CommandInterpreter::executeShow(char* parameters)
 	  ndbout << "  (Version: "
 		 << getMajor(state->node_states[i].version) << "."
 		 << getMinor(state->node_states[i].version) << "."
-		 << getBuild(state->node_states[i].version) << ")" << endl;
-	  
+		 << getBuild(state->node_states[i].version) << ","
+		 << " Nodegroup: " << state->node_states[i].node_group;
+	  if (state->node_states[i].dynamic_id == master_id)
+	    ndbout << ", Master";
+	  ndbout << ")" << endl;
 	} else
 	  {
 	    ndbout << "  (not connected) " << endl;
 	  }
 
-      }
-    }
-    ndbout << endl;
-    
-    ndbout << api_nodes
-	   << " API Node(s)" 
-	   << endl;
-
-    for(i=0; i < state->no_of_nodes; i++) {
-      if(state->node_states[i].node_type == NDB_MGM_NODE_TYPE_API) {
-	ndbout << "API node:\t" << state->node_states[i].node_id;
-	if(state->node_states[i].version != 0) {
-	  ndbout << "  (Version: "
-		 << getMajor(state->node_states[i].version) << "."
-		 << getMinor(state->node_states[i].version) << "."
-		 << getBuild(state->node_states[i].version) << ")" << endl;
-	  
-	} else
-	  {
-	    ndbout << "  (not connected) " << endl;
-	  }
       }
     }
     ndbout << endl;
@@ -733,6 +718,28 @@ CommandInterpreter::executeShow(char* parameters)
       }
     }
     ndbout << endl;
+
+    ndbout << api_nodes
+	   << " API Node(s)" 
+	   << endl;
+
+    for(i=0; i < state->no_of_nodes; i++) {
+      if(state->node_states[i].node_type == NDB_MGM_NODE_TYPE_API) {
+	ndbout << "API node:\t" << state->node_states[i].node_id;
+	if(state->node_states[i].version != 0) {
+	  ndbout << "  (Version: "
+		 << getMajor(state->node_states[i].version) << "."
+		 << getMinor(state->node_states[i].version) << "."
+		 << getBuild(state->node_states[i].version) << ")" << endl;
+	  
+	} else
+	  {
+	    ndbout << "  (not connected) " << endl;
+	  }
+      }
+    }
+    ndbout << endl;
+    
     //    ndbout << helpTextShow;
     return;
   } else if (strcmp(parameters, "PROPERTIES") == 0 ||

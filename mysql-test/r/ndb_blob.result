@@ -1,4 +1,5 @@
 drop table if exists t1;
+drop database if exists test2;
 set autocommit=0;
 create table t1 (
 a int not null primary key,
@@ -255,6 +256,20 @@ a	b	c	d
 7	7xb7	777	7xdd7
 8	8xb8	888	8xdd8
 9	9xb9	999	9xdd9
+create database test2;
+use test2;
+CREATE TABLE t2 (
+a bigint unsigned NOT NULL PRIMARY KEY,
+b int unsigned not null,
+c int unsigned
+) engine=ndbcluster;
+insert into t2 values (1,1,1),(2,2,2);
+select * from test.t1,t2 where test.t1.a = t2.a order by test.t1.a;
+a	b	c	d	a	b	c
+1	1xb1	111	1xdd1	1	1	1
+2	2xb2	222	2xdd2	2	2	2
+drop table t2;
+use test;
 delete from t1 where c >= 100;
 commit;
 select count(*) from t1;

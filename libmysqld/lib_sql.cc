@@ -72,6 +72,11 @@ emb_advanced_command(MYSQL *mysql, enum enum_server_command command,
   THD *thd=(THD *) mysql->thd;
   NET *net= &mysql->net;
 
+  if (thd->data)
+  {
+    free_rows(thd->data);
+    thd->data= 0;
+  }
   /* Check that we are calling the client functions in right order */
   if (mysql->status != MYSQL_STATUS_READY)
   {
@@ -217,11 +222,6 @@ static int emb_stmt_execute(MYSQL_STMT *stmt)
   THD *thd= (THD*)stmt->mysql->thd;
   thd->client_param_count= stmt->param_count;
   thd->client_params= stmt->params;
-  if (thd->data)
-  {
-    free_rows(thd->data);
-    thd->data= 0;
-  }
   if (emb_advanced_command(stmt->mysql, COM_EXECUTE,0,0,
 			   (const char*)&stmt->stmt_id,sizeof(stmt->stmt_id),
 			   1) ||

@@ -316,4 +316,4 @@ character-set=latin1
 "Unknown or incorrect time zone: '%-.64s'",
 "Invalid TIMESTAMP value in column '%s' at row %ld",
 "Invalid %s character string: '%.64s'",
-"Result of %s() was larger than max_allowed_packet (%d) - truncated"
+"Result of %s() was larger than max_allowed_packet (%ld) - truncated"

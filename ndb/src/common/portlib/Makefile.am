@@ -4,7 +4,7 @@ noinst_LTLIBRARIES = libportlib.la
 
 libportlib_la_SOURCES = \
 	NdbCondition.c NdbMutex.c NdbSleep.c NdbTick.c \
-	NdbEnv.c NdbThread.c NdbHost.c NdbTCP.c	    \
+	NdbEnv.c NdbThread.c NdbHost.c NdbTCP.cpp	    \
 	NdbDaemon.c NdbMem.c
 
 include $(top_srcdir)/ndb/config/common.mk.am
