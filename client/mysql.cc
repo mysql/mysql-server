@@ -477,8 +477,8 @@ static struct option long_options[] =
 CHANGEABLE_VAR changeable_vars[] = {
   { "connect_timeout", (long*) &opt_connect_timeout, 0, 0, 3600*12, 0, 1},
   { "max_allowed_packet", (long*) &max_allowed_packet,16*1024L*1024L,4096,
-    24*1024L*1024L, MALLOC_OVERHEAD,1024},
-  { "net_buffer_length",(long*) &net_buffer_length,16384,1024,24*1024*1024L,
+    512*1024L*1024L, MALLOC_OVERHEAD,1024},
+  { "net_buffer_length",(long*) &net_buffer_length,16384,1024,512*1024*1024L,
     MALLOC_OVERHEAD,1024},
   { "select_limit", (long*) &select_limit, 1000L, 1, ~0L, 0, 1},
   { "max_join_size", (long*) &max_join_size, 1000000L, 1, ~0L, 0, 1},

@@ -472,17 +472,36 @@ int handler::analyze(THD* thd, HA_CHECK_OPT* check_opt)
   return HA_ADMIN_NOT_IMPLEMENTED;
 }
 
-	/* Read first row from a table */
+/*
+  Read first row (only) from a table
+  This is never called for InnoDB or BDB tables, as these table types
+  has the HA_NOT_EXACT_COUNT set.
+*/
 
-int handler::rnd_first(byte * buf)
+int handler::read_first_row(byte * buf, uint primary_key)
 {
   register int error;
-  DBUG_ENTER("handler::rnd_first");
+  DBUG_ENTER("handler::read_first_row");
 
   statistic_increment(ha_read_first_count,&LOCK_status);
-  (void) rnd_init();
-  while ((error= rnd_next(buf)) == HA_ERR_RECORD_DELETED) ;
-  (void) rnd_end();
+
+  /*
+    If there is very few deleted rows in the table, find the first row by
+    scanning the table.
+  */
+  if (deleted < 10 || primary_key >= MAX_KEY)
+  {
+    (void) rnd_init();
+    while ((error= rnd_next(buf)) == HA_ERR_RECORD_DELETED) ;
+    (void) rnd_end();
+  }
+  else
+  {
+    /* Find the first row through the primary key */
+    (void) index_init(primary_key);
+    error=index_first(buf);
+    (void) index_end();
+  }
   DBUG_RETURN(error);
 }
 
@@ -498,7 +517,7 @@ int handler::restart_rnd_next(byte *buf, byte *pos)
 }
 
 
-	/* Set a timestamp in record */
+/* Set a timestamp in record */
 
 void handler::update_timestamp(byte *record)
 {
@@ -514,9 +533,10 @@ void handler::update_timestamp(byte *record)
   return;
 }
 
-	/* Updates field with field_type NEXT_NUMBER according to following:
-	** if field = 0 change field to the next free key in database.
-	*/
+/*
+  Updates field with field_type NEXT_NUMBER according to following:
+  if field = 0 change field to the next free key in database.
+*/
 
 void handler::update_auto_increment()
 {

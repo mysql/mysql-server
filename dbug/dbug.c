@@ -1928,7 +1928,7 @@ static void dbug_flush(CODE_STATE *state)
     {
       if (!(freopen(stack->name,"a",_db_fp_)))
       {
-	(void) fprintf(stderr, ERR_OPEN, _db_process_);
+	(void) fprintf(stderr, ERR_OPEN, _db_process_, stack->name);
 	fflush(stderr);
 	_db_fp_ = stdout;
 	stack -> out_file = _db_fp_;
