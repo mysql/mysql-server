@@ -1015,6 +1015,12 @@ call bUG3259_3()|
 drop procedure bUg3259_1|
 drop procedure BuG3259_2|
 drop procedure BUG3259_3|
+create function bug2772() returns char(10) character set latin2
+return 'a'|
+select bug2772()|
+bug2772()
+a
+drop function bug2772|
 drop table if exists fac|
 create table fac (n int unsigned not null primary key, f bigint unsigned)|
 create procedure ifac(n int unsigned)

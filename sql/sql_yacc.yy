@@ -1145,14 +1145,20 @@ create_function_tail:
 	  }
 	  RETURNS_SYM
 	  {
-	    Lex->sphead->m_returns_begin= Lex->tok_start;
+	    LEX *lex= Lex;
+	    sp_head *sp= lex->sphead;
+
+	    sp->m_returns_begin= lex->tok_start;
+	    sp->m_returns_cs= lex->charset= NULL;
 	  }
 	  type
 	  {
 	    LEX *lex= Lex;
+	    sp_head *sp= lex->sphead;
 
-	    lex->sphead->m_returns_end= lex->tok_start;
-	    lex->sphead->m_returns= (enum enum_field_types)$8;
+	    sp->m_returns_end= lex->tok_start;
+	    sp->m_returns= (enum enum_field_types)$8;
+	    sp->m_returns_cs= lex->charset;
 	    bzero((char *)&lex->sp_chistics, sizeof(st_sp_chistics));
 	  }
 	  sp_c_chistics
