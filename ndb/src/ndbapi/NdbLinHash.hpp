@@ -165,13 +165,14 @@ NdbLinHash<C>::createHashTable() {
   max = SEGMENTSIZE - 1;
   slack = SEGMENTSIZE * MAXLOADFCTR;
   directory[0] = new Segment_t();
-  
+  int i;
+ 
   /* The first segment cleared before used */
-  for(int i  = 0; i < SEGMENTSIZE; i++ )
+  for(i  = 0; i < SEGMENTSIZE; i++ )
     directory[0]->elements[i] = 0;
   
   /* clear the rest of the directory */
-  for( int i = 1; i < DIRECTORYSIZE; i++)
+  for(i = 1; i < DIRECTORYSIZE; i++)
     directory[i] = 0;
 }
 
@@ -203,7 +204,8 @@ NdbLinHash<C>::insertKey( const char* str, Uint32 len, Uint32 lkey1, C* data )
    * chain=chainp will copy the contents of HASH_T into chain  
    */
   NdbElement_t<C> * oldChain = 0;  
-  for(NdbElement_t<C> * chain = *chainp; chain != 0; chain = chain->next){
+  NdbElement_t<C> * chain;
+  for(chain = *chainp; chain != 0; chain = chain->next){
     if(chain->len == len && !memcmp(chain->str, str, len)) 
       return -1; /* Element already exists */
     else 
@@ -211,7 +213,7 @@ NdbLinHash<C>::insertKey( const char* str, Uint32 len, Uint32 lkey1, C* data )
   }
 
   /* New entry */
-  NdbElement_t<C> * chain = new NdbElement_t<C>();
+  chain = new NdbElement_t<C>();
   chain->len = len;
   chain->hash = hash;
   chain->localkey1 = lkey1;

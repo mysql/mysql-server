@@ -238,11 +238,12 @@ void Dbtup::execMEMCHECKREQ(Signal* signal)
 
   ljamEntry();
   BlockReference blockref = signal->theData[0];
-  for (Uint32 i = 0; i < 25; i++) {
+  Uint32 i;
+  for (i = 0; i < 25; i++) {
     ljam();
     data[i] = 0;
   }//for
-  for (Uint32 i = 0; i < 16; i++) {
+  for (i = 0; i < 16; i++) {
     regPagePtr.i = cfreepageList[i];
     ljam();
     while (regPagePtr.i != RNIL) {

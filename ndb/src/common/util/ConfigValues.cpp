@@ -578,11 +578,11 @@ ConfigValues::getPackedSize() const {
 
 Uint32
 ConfigValues::pack(void * _dst, Uint32 _len) const {
-
+  Uint32 i;
   char * dst = (char*)_dst;
   memcpy(dst, Magic, sizeof(Magic)); dst += sizeof(Magic);
 
-  for(Uint32 i = 0; i < 2 * m_size; i += 2){
+  for(i = 0; i < 2 * m_size; i += 2){
     Uint32 key = m_values[i];
     Uint32 val = m_values[i+1];
     if(key != CFV_KEY_FREE){
@@ -621,7 +621,7 @@ ConfigValues::pack(void * _dst, Uint32 _len) const {
   const Uint32 * sum = (Uint32*)_dst;
   const Uint32 len = ((Uint32*)dst) - sum;
   Uint32 chk = 0;
-  for(Uint32 i = 0; i<len; i++){
+  for(i = 0; i<len; i++){
     chk ^= htonl(sum[i]);
   }
 
