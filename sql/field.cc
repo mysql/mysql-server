@@ -5623,6 +5623,18 @@ Field *make_field(char *ptr, uint32 field_length,
     null_pos=0;
     null_bit=0;
   }
+
+  switch (field_type)
+  {
+    case FIELD_TYPE_DATE:
+    case FIELD_TYPE_NEWDATE:
+    case FIELD_TYPE_TIME:
+    case FIELD_TYPE_DATETIME:
+    case FIELD_TYPE_TIMESTAMP:
+      field_charset= &my_charset_bin;
+    default: break;
+  }
+
   if (f_is_alpha(pack_flag))
   {
     if (!f_is_packed(pack_flag))

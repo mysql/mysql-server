@@ -2358,7 +2358,7 @@ int run_query(MYSQL* mysql, struct st_query* q, int flags)
 
 	if (display_metadata)
 	{
-	  dynstr_append(ds,"Catalog\tDatabase\tTable\tTable_alias\tColumn\tColumn_alias\tName\tType\tLength\tMax length\tIs_null\tFlags\tDecimals\n");
+	  dynstr_append(ds,"Catalog\tDatabase\tTable\tTable_alias\tColumn\tColumn_alias\tName\tType\tLength\tMax length\tIs_null\tFlags\tDecimals\tCharsetnr\n");
 	  for (field= mysql_fetch_fields(res), field_end= field+num_fields ;
 	       field < field_end ;
 	       field++)
@@ -2393,6 +2393,9 @@ int run_query(MYSQL* mysql, struct st_query* q, int flags)
 	    dynstr_append(ds, buff);
 	    dynstr_append_mem(ds, "\t", 1);
 	    int10_to_str((int) field->decimals, buff, 10);
+	    dynstr_append(ds, buff);
+	    dynstr_append_mem(ds, "\t", 1);
+	    int10_to_str((int) field->charsetnr, buff, 10);
 	    dynstr_append(ds, buff);
 	    dynstr_append_mem(ds, "\n", 1);
 	  }
