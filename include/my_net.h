@@ -71,7 +71,7 @@ void my_inet_ntoa(struct in_addr in, char *buf);
   Handling of gethostbyname_r()
 */
 
-#if !defined(HPUX)
+#if !defined(HPUX10)
 struct hostent;
 #endif /* HPUX */
 #if !defined(HAVE_GETHOSTBYNAME_R)
@@ -84,7 +84,7 @@ struct hostent *my_gethostbyname_r(const char *name,
 				   struct hostent *result, char *buffer,
 				   int buflen, int *h_errnop);
 #define my_gethostbyname_r_free()
-#if !defined(HAVE_GETHOSTBYNAME_R_GLIBC2_STYLE) && !defined(HPUX)
+#if !defined(HAVE_GETHOSTBYNAME_R_GLIBC2_STYLE) && !defined(HPUX10)
 #define GETHOSTBYNAME_BUFF_SIZE sizeof(struct hostent_data)
 #endif /* !defined(HAVE_GETHOSTBYNAME_R_GLIBC2_STYLE) */
 
