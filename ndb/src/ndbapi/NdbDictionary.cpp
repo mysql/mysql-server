@@ -737,14 +737,6 @@ NdbDictionary::Dictionary::removeCachedTable(const char * name){
     m_impl.removeCachedObject(* t);
 }
 
-NdbDictionary::Table
-NdbDictionary::Dictionary::getTableForAlteration(const char * name){
-  const NdbDictionary::Table * oldTable = getTable(name);
-  return (oldTable) ? 
-    NdbDictionary::Table(*oldTable) 
-    : NdbDictionary::Table();
-}
-
 int
 NdbDictionary::Dictionary::createIndex(const Index & ind)
 {

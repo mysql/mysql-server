@@ -83,8 +83,17 @@ TODO:
 #include "mysql_version.h"
 #include "lex.h"
 
+const char *default_dbug_option="d:t:o,/tmp/gen_lex_hash.trace";
+
 struct my_option my_long_options[] =
 {
+#ifdef DBUG_OFF
+  {"debug", '#', "This is a non-debug version. Catch this and exit",
+   0,0, 0, GET_DISABLED, OPT_ARG, 0, 0, 0, 0, 0, 0},
+#else
+  {"debug", '#', "Output debug log", (gptr*) &default_dbug_option,
+   (gptr*) &default_dbug_option, 0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
+#endif
   {"help", '?', "Display help and exit",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"version", 'V', "Output version information and exit",
@@ -108,7 +117,7 @@ hash_lex_struct *get_hash_struct_by_len(hash_lex_struct **root_by_len,
 {
   if (*max_len<len){
     *root_by_len= (hash_lex_struct *)realloc((char*)*root_by_len,
-			    sizeof(hash_lex_struct)*len);
+                                             sizeof(hash_lex_struct)*len);
     hash_lex_struct *cur, *end= *root_by_len + len;
     for (cur= *root_by_len + *max_len; cur<end; cur++)
       cur->first_char= 0;
@@ -353,6 +362,9 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
   case '?':
     usage(0);
     exit(0);
+  case '#':
+    DBUG_PUSH(argument ? argument : default_dbug_option);
+    break;
   }
   return 0;
 }
@@ -425,11 +437,12 @@ int check_duplicates()
 int main(int argc,char **argv)
 {
   MY_INIT(argv[0]);
+  DBUG_PROCESS(argv[0]);
 
   if (get_options(argc,(char **) argv))
     exit(1);
 
-  printf("/* Copyright (C) 2001 MySQL AB\n\
+  printf("/* Copyright (C) 2001-2004 MySQL AB\n\
    This software comes with ABSOLUTELY NO WARRANTY. This is free software,\n\
    and you are welcome to modify and redistribute it under the GPL license\n\
    \n*/\n\n");
@@ -449,9 +462,8 @@ int main(int argc,char **argv)
   printf("\nunsigned int sql_functions_max_len=%d;\n",max_len);
   printf("\nunsigned int symbols_max_len=%d;\n\n",max_len2);
 
-  printf
-(
-"inline SYMBOL *get_hash_symbol(const char *s,\n\
+  printf("\
+inline SYMBOL *get_hash_symbol(const char *s,\n                         \
                                     unsigned int len,bool function)\n\
 {\n\
   register uchar *hash_map;\n\
@@ -516,5 +528,7 @@ int main(int argc,char **argv)
   }\n\
 }\n"
 );
+  my_end(0);
+  exit(0);
 }
 

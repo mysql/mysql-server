@@ -29,7 +29,7 @@
 class NdbObjectIdMap //: NdbLockable
 {
 public:
-  STATIC_CONST( InvalidId = ~0 );
+  STATIC_CONST( InvalidId = ~(Uint32)0 );
   NdbObjectIdMap(Uint32 initalSize = 128, Uint32 expandSize = 10);
   ~NdbObjectIdMap();
 

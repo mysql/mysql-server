@@ -14,29 +14,19 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-#ifndef NDB_VERSION_H
-#define NDB_VERSION_H
-
 #include <ndb_global.h>
-#include <version.h>
+#include "NdbSleep.h"
 
-#define MAKE_VERSION(A,B,C) (((A) << 16) | ((B) << 8)  | ((C) << 0))
+int
+NdbSleep_MilliSleep(int milliseconds)
+{
+    Sleep(milliseconds);
+    return 0;
+}
 
-#define NDB_VERSION_D MAKE_VERSION(NDB_VERSION_MAJOR, NDB_VERSION_MINOR, NDB_VERSION_BUILD)
+int
+NdbSleep_SecSleep(int seconds)
+{
+    return NdbSleep_MilliSleep(seconds*1000);
+}
 
-#define NDB_VERSION_STRING (getVersionString(NDB_VERSION, NDB_VERSION_STATUS))
-
-#define NDB_VERSION_TAG_STRING "$Name:  $"
-
-#define NDB_VERSION ndbGetOwnVersion()
-
-/**
- * Version id 
- *
- *  Used by transporter and when communicating with
- *     managment server
- */
-/*#define NDB_VERSION_ID 0*/
-
-#endif
- 

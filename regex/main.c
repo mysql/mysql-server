@@ -78,7 +78,7 @@ char *argv[];
 	if (err) {
 		len = regerror(err, &re, erbuf, sizeof(erbuf));
 		fprintf(stderr, "error %s, %d/%d `%s'\n",
-			eprint(err), len, (int) sizeof(erbuf), erbuf);
+			eprint(err), (int) len, (int) sizeof(erbuf), erbuf);
 		exit(status);
 	}
 	regprint(&re, stdout);

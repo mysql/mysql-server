@@ -1,6 +1,7 @@
 # Let's see if FLUSH TABLES WITH READ LOCK blocks COMMIT of existing
 # transactions.
 # We verify that we did not introduce a deadlock.
+# This is intended to mimick how mysqldump and innobackup work.
 
 -- source include/have_innodb.inc
 
@@ -63,4 +64,11 @@ unlock tables;
 connection con2;
 flush tables with read lock; # bug caused hang here
 unlock tables;
+
+# BUG#7358 SHOW CREATE DATABASE fails if open transaction
+
+begin;
+select * from t1;
+show create database test;
+
 drop table t1;

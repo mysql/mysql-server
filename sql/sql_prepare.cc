@@ -68,7 +68,6 @@ Long data handling:
 ***********************************************************************/
 
 #include "mysql_priv.h"
-#include "sql_acl.h"
 #include "sql_select.h" // for JOIN
 #include <m_ctype.h>  // for isspace()
 #include "sp_head.h"
@@ -906,10 +905,12 @@ static bool mysql_test_insert(Prepared_statement *stmt,
   {
     uint value_count;
     ulong counter= 0;
+    Item *unused_conds= 0;
 
     if ((res= mysql_prepare_insert(thd, table_list, table_list->table, 
 				   fields, values, update_fields,
-				   update_values, duplic)))
+				   update_values, duplic,
+                                   &unused_conds, FALSE)))
       goto error;
     
     value_count= values->elements;
@@ -1382,18 +1383,21 @@ static int mysql_test_multidelete(Prepared_statement *stmt,
     1   error, sent to client
    -1   error, not sent to client
 */
+
 static int mysql_test_insert_select(Prepared_statement *stmt,
 				    TABLE_LIST *tables)
 {
   int res;
   LEX *lex= stmt->lex;
-  if ((res= insert_select_precheck(stmt->thd, tables)))
+  TABLE_LIST *first_local_table;
+
+  if ((res= insert_precheck(stmt->thd, tables)))
     return res;
-  TABLE_LIST *first_local_table=
-    (TABLE_LIST *)lex->select_lex.table_list.first;
+  first_local_table= (TABLE_LIST *)lex->select_lex.table_list.first;
   DBUG_ASSERT(first_local_table != 0);
   /* Skip first table, which is the table we are inserting in */
   lex->select_lex.table_list.first= (byte*) first_local_table->next_local;
+
   /*
     insert/replace from SELECT give its SELECT_LEX for SELECT,
     and item_list belong to SELECT
@@ -1584,6 +1588,27 @@ static bool init_param_array(Prepared_statement *stmt)
 }
 
 
+/* Init statement before execution */
+
+static void cleanup_stmt_for_execute(Prepared_statement *stmt)
+{
+  THD *thd= stmt->thd;
+  LEX *lex= stmt->lex;
+  SELECT_LEX *sl= lex->all_selects_list;
+
+  for (; sl; sl= sl->next_select_in_list())
+  {
+    for (TABLE_LIST *tables= (TABLE_LIST*) sl->table_list.first;
+	 tables;
+	 tables= tables->next_global)
+    {
+      if (tables->table)
+        tables->table->insert_values= 0;
+    }
+  }
+}
+
+
 /*
   Given a query string with parameter markers, create a Prepared Statement
   from it and send PS info back to the client.
@@ -1692,6 +1717,7 @@ bool mysql_stmt_prepare(THD *thd, char *packet, uint packet_length,
   lex_end(lex);
   thd->restore_backup_statement(stmt, &thd->stmt_backup);
   cleanup_items(stmt->free_list);
+  cleanup_stmt_for_execute(stmt);
   close_thread_tables(thd);
   thd->rollback_item_tree_changes();
   thd->cleanup_after_query();
@@ -2036,6 +2062,7 @@ static void execute_stmt(THD *thd, Prepared_statement *stmt,
   cleanup_items(stmt->free_list);
   thd->rollback_item_tree_changes();
   reset_stmt_params(stmt);
+  cleanup_stmt_for_execute(stmt);
   close_thread_tables(thd);                    // to close derived tables
   thd->set_statement(&thd->stmt_backup);
   thd->cleanup_after_query();
@@ -2065,7 +2092,6 @@ void mysql_stmt_fetch(THD *thd, char *packet, uint packet_length)
   int error;
   DBUG_ENTER("mysql_stmt_fetch");
 
-  thd->current_arena= stmt;
   if (!(stmt= thd->stmt_map.find(stmt_id)) ||
       !stmt->cursor ||
       !stmt->cursor->is_open())
@@ -2073,7 +2099,7 @@ void mysql_stmt_fetch(THD *thd, char *packet, uint packet_length)
     my_error(ER_UNKNOWN_STMT_HANDLER, MYF(0), stmt_id, "fetch");
     DBUG_VOID_RETURN;
   }
-
+  thd->current_arena= stmt;
   thd->set_n_backup_statement(stmt, &thd->stmt_backup);
   stmt->cursor->init_thd(thd);
 
