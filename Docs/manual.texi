@@ -9227,6 +9227,18 @@ Once running, @code{mysqld-max-nt} can be stopped using
 @code{mysqladmin}, from the Services utility or by using the
 command @code{NET STOP MySQL}.
 
+When running as a service, the operating system will automatically stop
+the MySQL service on computer shutdown. In MySQL versions < 3.23.47,
+Windows only waited for a few seconds for the shutdown to complete, and
+killed the database server process if the time limit was exceeded
+(potentially causing problems). For instance, at the next startup the
+@code{InnoDB} table handler had to do crash recovery. Starting from
+MySQL version 3.23.48, the Windows will wait upto 4 minutes for the
+MySQL server shutdown to complete. If you notice that 4 minutes is not
+enough for your intallation, it is safest to run the MySQL server not as
+a service, but from the Command prompt, and shut it down with
+@code{mysqladmin shutdown}.
+
 Please note that when run as a service, @code{mysqld-max-nt}
 has no access to a console and so no messages can be seen.
 Errors can be checked in @file{c:\mysql\data\mysql.err}.
