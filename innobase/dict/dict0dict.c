@@ -2244,7 +2244,7 @@ dict_foreign_add_to_cache(
 Scans from pointer onwards. Stops if is at the start of a copy of
 'string' where characters are compared without case sensitivity. Stops
 also at '\0'. */
-static
+
 const char*
 dict_scan_to(
 /*=========*/

@@ -568,6 +568,7 @@ DROP TABLE t1;
 #
 # Bug #5723: length(<varchar utf8 field>) returns varying results
 #
+--disable_warnings
 SET NAMES utf8;
 --disable_warnings
 CREATE TABLE t1 (
