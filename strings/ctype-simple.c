@@ -85,3 +85,26 @@ int my_strncasecmp_8bit(CHARSET_INFO * cs,
  while (len-- != 0 && my_toupper(cs,(uchar)*s++) == my_toupper(cs,(uchar)*t++)) ;
    return (int) len+1;
 }
+
+int my_mb_wc_8bit(CHARSET_INFO *cs,my_wc_t *wc,
+		  const unsigned char *str,
+		  const unsigned char *end __attribute__((unused)))
+{
+  *wc=cs->tab_to_uni[*str];
+  return (!wc[0] && str[0]) ? MY_CS_ILSEQ : 1;
+}
+
+int my_wc_mb_8bit(CHARSET_INFO *cs,my_wc_t wc,
+		  unsigned char *s,
+		  unsigned char *e __attribute__((unused)))
+{
+  MY_UNI_IDX *idx;
+
+  for(idx=cs->tab_from_uni; idx->tab ; idx++){
+    if(idx->from<=wc && idx->to>=wc){
+      s[0]=idx->tab[wc-idx->from];
+      return (!s[0] && wc) ? MY_CS_ILUNI : 1;
+    }
+  }
+  return MY_CS_ILUNI;
+}

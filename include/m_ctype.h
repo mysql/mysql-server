@@ -42,7 +42,11 @@ typedef struct unicase_info_st {
 #define MY_CS_TOOSMALL	-1
 #define MY_CS_TOOFEW(n)	(-1-(n))
 
-                
+typedef struct my_uni_idx_st {
+  uint16 from;
+  uint16 to;
+  uchar  *tab;
+} MY_UNI_IDX;
 
 
 typedef struct charset_info_st
@@ -53,7 +57,10 @@ typedef struct charset_info_st
     uchar    *to_lower;
     uchar    *to_upper;
     uchar    *sort_order;
-
+    uint16      *tab_to_uni;
+    MY_UNI_IDX  *tab_from_uni;
+    
+    /* Collation routines */
     uint      strxfrm_multiply;
     int     (*strnncoll)(struct charset_info_st *,
                          const uchar *, uint, const uchar *, uint);
@@ -62,12 +69,19 @@ typedef struct charset_info_st
     my_bool (*like_range)(struct charset_info_st *,
                           const char *, uint, pchar, uint,
                           char *, char *, uint *, uint *);
-
+    
+    /* Multibyte routines */
     uint      mbmaxlen;
     int     (*ismbchar)(struct charset_info_st *, const char *, const char *);
     my_bool (*ismbhead)(struct charset_info_st *, uint);
     int     (*mbcharlen)(struct charset_info_st *, uint);
-
+    
+    /* Unicode convertion */
+    int (*mb_wc)(struct charset_info_st *cs,my_wc_t *wc,
+    		 const unsigned char *s,const unsigned char *e);
+    int (*wc_mb)(struct charset_info_st *cs,my_wc_t wc,
+    		 unsigned char *s,unsigned char *e);
+    
     /* Functions for case convertion */
     void    (*caseup_str)(struct charset_info_st *, char *);
     void    (*casedn_str)(struct charset_info_st *, char *);
@@ -105,6 +119,12 @@ extern void my_casedn_8bit(CHARSET_INFO *, char *, uint);
 
 extern int my_strcasecmp_8bit(CHARSET_INFO * cs, const char *, const char *);
 extern int my_strncasecmp_8bit(CHARSET_INFO * cs, const char *, const char *, uint);
+
+int my_mb_wc_8bit(CHARSET_INFO *cs,my_wc_t *wc,
+		  const unsigned char *s,const unsigned char *e);
+int my_wc_mb_8bit(CHARSET_INFO *cs,my_wc_t wc,
+		  unsigned char *s, unsigned char *e);
+
 
 #ifdef USE_MB
 /* Functions for multibyte charsets */
@@ -229,7 +249,7 @@ int my_strcasecmp_utf8(CHARSET_INFO *cs, const char *s, const char *t);
 int my_strncasecmp_utf8(CHARSET_INFO *cs, const char *s,const char *t,uint l);
 
 int my_utf8_uni (CHARSET_INFO *cs, my_wc_t *p, const uchar *s, const uchar *e);
-int my_uni_utf8 (CHARSET_INFO *cs, my_wc_t pwc  , uchar *b, uchar *e);
+int my_uni_utf8 (CHARSET_INFO *cs, my_wc_t wc, uchar *b, uchar *e);
 #endif
 
 #define	_U	01	/* Upper case */

@@ -164,7 +164,7 @@ uchar sort_order_latin1_de[] = {
   }
 
 
-int my_strnncoll_latin1_de(CHARSET_INFO *cs,
+int my_strnncoll_latin1_de(CHARSET_INFO *cs __attribute__((unused)),
                            const uchar * s1, uint len1,
                            const uchar * s2, uint len2)
 {
@@ -238,7 +238,7 @@ int my_strnncoll_latin1_de(CHARSET_INFO *cs,
 }
 
 
-int my_strnxfrm_latin1_de(CHARSET_INFO *cs,
+int my_strnxfrm_latin1_de(CHARSET_INFO *cs __attribute__((unused)),
                           uchar * dest, uint len,
                           const uchar * src, uint srclen)
 {
@@ -303,7 +303,7 @@ int my_strnxfrm_latin1_de(CHARSET_INFO *cs,
 #define wild_one '_'
 #define wild_many '%'
 
-my_bool my_like_range_latin1_de(CHARSET_INFO *cs,
+my_bool my_like_range_latin1_de(CHARSET_INFO *cs __attribute__((unused)),
 				const char *ptr, uint ptr_length,
 				pchar escape, uint res_length,
 				char *min_str, char *max_str,
