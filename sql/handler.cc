@@ -55,8 +55,6 @@
 
 	/* static functions defined in this file */
 
-static int NEAR_F delete_file(const char *name,const char *ext,int extflag);
-
 static SHOW_COMP_OPTION have_yes= SHOW_OPTION_YES;
 
 /* list of all available storage engines (of their handlertons) */
@@ -1585,17 +1583,19 @@ uint handler::get_dup_key(int error)
   RETURN
     0   If we successfully deleted at least one file from base_ext and
 	didn't get any other errors than ENOENT    
-    #   Error from delete_file()
+    #   Error
 */
 
 int handler::delete_table(const char *name)
 {
   int error= 0;
   int enoent_or_zero= ENOENT;                   // Error if no file was deleted
+  char buff[FN_REFLEN];
 
   for (const char **ext=bas_ext(); *ext ; ext++)
   {
-    if (delete_file(name,*ext,2))
+    fn_format(buff, name, "", *ext, 2 | 4);
+    if (my_delete_with_symlink(buff, MYF(0)))
     {
       if ((error= my_errno) != ENOENT)
 	break;
@@ -1764,13 +1764,6 @@ int ha_create_table_from_engine(THD* thd,
 err_end:
   my_free((char*) frmblob, MYF(MY_ALLOW_ZERO_PTR));
   DBUG_RETURN(error);  
-}
-
-static int NEAR_F delete_file(const char *name,const char *ext,int extflag)
-{
-  char buff[FN_REFLEN];
-  VOID(fn_format(buff,name,"",ext,extflag | 4));
-  return(my_delete_with_symlink(buff,MYF(MY_WME)));
 }
 
 void st_ha_check_opt::init()
