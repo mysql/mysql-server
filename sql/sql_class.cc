@@ -562,8 +562,8 @@ int THD::send_explain_fields(select_result *result)
   item->maybe_null=1;
   field_list.push_back(item=new Item_empty_string("key",NAME_LEN));
   item->maybe_null=1;
-  field_list.push_back(item=new Item_return_int("key_len",3,
-						MYSQL_TYPE_LONGLONG));
+  field_list.push_back(item=new Item_empty_string("key_len",
+						  NAME_LEN*MAX_KEY));
   item->maybe_null=1;
   field_list.push_back(item=new Item_empty_string("ref",
 						  NAME_LEN*MAX_REF_PARTS));
