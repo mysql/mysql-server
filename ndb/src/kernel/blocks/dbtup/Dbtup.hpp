@@ -500,7 +500,8 @@ struct Fragoperrec {
   Uint32 tableidFrag;
   Uint32 fragPointer;
   Uint32 attributeCount;
-  Uint32 freeNullBit;
+  Uint32 currNullBit;
+  Uint32 noOfNullBits;
   Uint32 noOfNewAttrCount;
   Uint32 charsetIndex;
   BlockReference lqhBlockrefFrag;
@@ -1629,6 +1630,12 @@ private:
   bool updateDynSmallVarSize(Uint32* inBuffer,
                              Uint32  attrDescriptor,
                              Uint32  attrDes2);
+
+
+  bool readBitsNULLable(Uint32* outBuffer, AttributeHeader*, Uint32, Uint32);
+  bool updateBitsNULLable(Uint32* inBuffer, Uint32, Uint32);
+  bool readBitsNotNULL(Uint32* outBuffer, AttributeHeader*, Uint32, Uint32);
+  bool updateBitsNotNULL(Uint32* inBuffer, Uint32, Uint32);
 
 // *****************************************************************
 // Read char routines optionally (tXfrmFlag) apply strxfrm
