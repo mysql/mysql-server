@@ -28326,6 +28326,7 @@ edited version that you can reinstall.
 
 @cindex tools, mysqld_multi
 @cindex scripts
+@cindex multi mysqld
 @cindex @code{mysqld_multi}
 @node  mysqld_multi, mysql, safe_mysqld, Tools
 @section mysqld_multi, program for managing multiple @code{MySQL} servers
@@ -28420,6 +28421,7 @@ same password (see below). Example how to do it:
 @example
 shell> mysql -u root -S /tmp/mysql.sock -proot_password -e
 "GRANT SHUTDOWN ON *.* TO multi_admin@@localhost IDENTIFIED BY 'multipass'"
+@xref{Privileges}.
 @end example
 You will have to do the above for each @code{mysqld} running in each
 data directory, that you have (just change the socket, -S=...)
@@ -28442,6 +28444,7 @@ MY_PWD=`pwd` Check if we are starting this relative (for the binary
 release) if test -d /data/mysql -a -f ./share/mysql/english/errmsg.sys
 -a -x ./bin/mysqld
 --------------------------------------------------------------------------
+@xref{safe_mysqld}.
 @end example
 The above test should be successful, or you may encounter problems.
 @item
@@ -28476,6 +28479,8 @@ YOU WANT} to have separate @code{mysqld} processes. Starting multiple
 @code{mysqlds} in one data directory @strong{WILL NOT} give you extra
 performance in a threaded system!
 @end itemize
+
+@xref{Multiple servers}.
 
 This is an example of the config file on behalf of @code{mysqld_multi}. 
 
@@ -28521,6 +28526,8 @@ datadir    = /usr/local/mysql/var6
 language   = /usr/local/share/mysql/japanese
 user       = jani
 @end example
+
+@xref{Option files}.
 
 @cindex command line tool
 @cindex tools, command line
@@ -33739,7 +33746,7 @@ be an Internet service provider that wants to provide independent
 
 If you want to run multiple servers, the easiest way is to compile the servers
 with different TCP/IP ports and socket files so they are not
-both listening to the same TCP/IP port or socket file.
+both listening to the same TCP/IP port or socket file. @xref{mysqld_multi}.
 
 Assume an existing server is configured for the default port number and
 socket file.  Then configure the new server with a @code{configure} command
@@ -33767,9 +33774,6 @@ If you have a @strong{MySQL} server running on the port you used, you will
 get a list of some of the most important configurable variables in
 @strong{MySQL}, including the socket name.
 
-You should also edit the initialization script for your machine (probably
-@file{mysql.server}) to start and kill multiple @code{mysqld} servers.
-
 You don't have to recompile a new @strong{MySQL} server just to start with
 a different port and socket.  You can change the port and socket to be used
 by specifying them at run time as options to @code{safe_mysqld}:
@@ -33777,6 +33781,10 @@ by specifying them at run time as options to @code{safe_mysqld}:
 @example
 shell> /path/to/safe_mysqld --socket=file_name --port=port_number
 @end example
+
+@code{mysqld_multi} can also take @code{safe_mysqld} (or @code{mysqld})
+as an argument and pass the options from a configuration file to
+@code{safe_mysqld} and further to @code{mysqld}.
 
 If you run the new server on the same database directory as another
 server with logging enabled, you should also specify the name of the log
@@ -33790,6 +33798,21 @@ locking, this may lead to unpleasant surprises!
 
 If you want to use another database directory for the second server, you
 can use the @code{--datadir=path} option to @code{safe_mysqld}.
+
+@strong{NOTE} also that starting several @strong{MySQL} servers
+(@code{mysqlds}) in different machines and letting them access one data
+directory over @code{NFS} is generally a @strong{BAD IDEA}! The problem
+is that the @code{NFS} will become the bottleneck with the speed. It is
+not meant for such use. And last but not least, you would still have to
+come up with a solution how to make sure that two or more @code{mysqlds}
+are not interfering with each other. At the moment there is no platform
+that would 100% reliable do the file locking (@code{lockd} daemon
+usually) in every situation. Yet there would be one more possible risk
+with @code{NFS}; it would make the work even more complicated for
+@code{lockd} daemon to handle. So make it easy for your self and forget
+about the idea. The working solution is to have one computer with an
+operating system that efficiently handles threads and have several CPUs
+in it.
 
 When you want to connect to a @strong{MySQL} server that is running with
 a different port than the port that is compiled into your client, you
