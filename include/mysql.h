@@ -542,15 +542,15 @@ typedef struct st_mysql_stmt
 typedef struct st_mysql_methods
 {
   my_bool STDCALL (*read_query_result)(MYSQL *mysql);
-  my_bool STDCALL (*advanced_command)(MYSQL *mysql, 
+  my_bool STDCALL (*advanced_command)(MYSQL *mysql,
 				      enum enum_server_command command,
-				      const char *header, 
-				      ulong header_length,
-				      const char *arg, 
-				      ulong arg_length, my_bool skip_check);
+				      const char *header,
+				      unsigned long header_length,
+				      const char *arg,
+				      unsigned long arg_length, my_bool skip_check);
   MYSQL_RES *	STDCALL (*store_result)(MYSQL *mysql);
   MYSQL_RES *	STDCALL (*use_result)(MYSQL *mysql);
-  void STDCALL (*fetch_lengths)(ulong *to, MYSQL_ROW column, uint field_count);
+  void STDCALL (*fetch_lengths)(unsigned long *to, MYSQL_ROW column, uint field_count);
 } MYSQL_METHODS;
 
 MYSQL_STMT * STDCALL mysql_prepare(MYSQL * mysql, const char *query,
