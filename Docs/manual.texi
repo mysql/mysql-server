@@ -4380,11 +4380,6 @@ ORDER BY columns in the result, something that is you are not allowed
 to do in ANSI SQL.
 
 @item
-Because MySQL allows you to work with table types that doesn't
-support transactions (and thus can't @code{rollback} data) some things
-behaves a little different in MySQL than in other SQL servers:
-(This is just to ensure that MySQL never need to do a rollback
-for a SQL command).  This may be a little awkward at times as column
 Because MySQL allows you to work with table types that don't
 support transactions, and thus can't @code{rollback} data, some things
 behave a little differently in MySQL than in other SQL servers.
@@ -6341,7 +6336,8 @@ In the following circumstances you will need to use the MySQL
 configuration file:
 @itemize @bullet
 @item
-The install directory is different than the default @file{c:\mysql}.
+The install/data directories are different than the default
+@file{c:\mysql} and @file{c:\mysql\data}.
 @item
 If you want to use one of the these servers:
 @itemize @bullet
@@ -6378,10 +6374,6 @@ If the data directory is other than the default
 @file{c:\mysql\data}, you must cut the whole @file{\data\mysql}
 directory and paste it on the your option new directory,
 e.g.: @file{d:\mydata\mysql}.
-
-Note that you should specify all paths with @samp{/} or @samp{\\}
-instead of @samp{\}, because @samp{\} is the escape character in
-MySQL. @xref{Option files}.
 
 If you want to use the @code{InnoDB} transactional tables, you
 need to manually create two new directories to hold the InnoDB
@@ -10662,6 +10654,11 @@ You can kill the MySQL server by executing:
 C:\> C:\mysql\bin\mysqladmin -u root shutdown
 @end example
 
+This calls the MySQL administation utility as user `root', which
+is the default Administrator in the MySQL grant system. Please
+note that the MySQL grant system is wholly independent from any
+login users under Windows.
+
 Note that Win95 and Win98 don't support creation of named pipes.
 On Win95 and Win98, you can only use named pipes to connect to a
 remote MySQL server running on a Windows NT/2000 server host.
@@ -10701,39 +10698,38 @@ the following command:
 C:\mysql\bin> mysqladmin -u root shutdown
 @end example
 
+This calls the MySQL administation utility as user `root', which
+is the default Administrator in the MySQL grant system. Please
+note that the MySQL grant system is wholly independent from any
+login users under Windows.
+
 Now install the server service:
 
 @example
 C:\mysql\bin> mysqld-max-nt --install
 @end example
 
+If any options are required, they must be specified as
+``Startup parameters'' in the SCM utility before you
+start the MySQL service.
+
+The SCM Utility (Windows Service Control Manager) can
+be found in the Windows Control Panel.
+
 For information about which server binary to run, see
 @ref{Windows prepare environment}.
 
 Please note that from MySQL version 3.23.44, you have the choice
-to set up the service as Manual (if you don't wish the Windows
-Service Control Manager SCM to automatically start the server
-during the boot process):
+of set up the service as Manual instead (if you don't wish the
+SCM to automatically start the server during the boot process):
 
 @example
 C:\mysql\bin> mysqld-max-nt --install-manual
 @end example
 
-To start or stop the MySQL server service:
-
-@example
-C:\> NET START MySQL
-C:\> NET STOP MySQL
-@end example
-
 The service is installed with the name @code{MySQL}. Once
-installed, it must be started using the Services Control
-Manager (SCM) Utility found in the Control Panel, or by
-using the @code{NET START MySQL} command.
-
-If any options are required, they must be specified as
-``Startup parameters'' in the SCM utility before you
-start the MySQL service.
+installed, it can be immediately started from the SCM utility,
+or by using the command @code{NET START MySQL}.
 
 Once running, @code{mysqld-max-nt} can be stopped using
 @code{mysqladmin}, from the SCM utility or by using the
@@ -10741,19 +10737,9 @@ command @code{NET STOP MySQL}.
 If you use SCM to stop @code{mysqld-max-nt}, there is a strange
 message from SCM about @code{mysqld shutdown normally}.
 
-When run as a service, @code{mysqld-max-nt} has no access to a
-console and so no messages can be seen.
-On NT/2000 you can get the following service error messages:
-
-@multitable @columnfractions .3 .7
-@item Permission Denied @tab
-Means that it cannot find @code{mysqld-max-nt.exe}.
-@item Cannot Register @tab
-Means that the path is incorrect.
-@item Failed to install service. @tab
-Means that the service is already installed or that the Service
-Control Manager is in bad state.
-@end multitable
+Please note that when run as a service, @code{mysqld-max-nt}
+has no access to a console and so no messages can be seen.
+Errors can be checked in @file{c:\mysql\data\mysql.err}.
 
 If you have problems installing @code{mysqld-max-nt} as a
 service, try starting it with the full path:
