@@ -250,3 +250,4 @@
 "Deze versie van MySQL ondersteunt nog geen '%s'",
 "Kreeg fatale fout %d: '%-.128s' van master tijdens lezen van data uit binaire log",
 "Slave SQL thread ignored the query because of replicate-*-table rules"
+"Variable '%-.64s' is a %s variable"
