@@ -2899,6 +2899,7 @@ fi
    ndb/Makefile ndb/include/Makefile ndb/src/Makefile ndb/src/common/Makefile dnl
    ndb/tools/Makefile dnl
    ndb/src/common/debugger/Makefile ndb/src/common/debugger/signaldata/Makefile dnl
+   ndb/src/common/portlib/Makefile ndb/src/common/portlib/unix/Makefile dnl
    ndb/src/common/util/Makefile dnl
    ndb/src/common/logger/Makefile dnl
    ndb/src/common/transporter/Makefile dnl
