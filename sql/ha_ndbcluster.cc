@@ -2053,7 +2053,11 @@ int ha_ndbcluster::update_row(const byte *old_data, byte *new_data)
   
   statistic_increment(thd->status_var.ha_update_count, &LOCK_status);
   if (table->timestamp_field_type & TIMESTAMP_AUTO_SET_ON_UPDATE)
+  {
     table->timestamp_field->set_time();
+    // Set query_id so that field is really updated
+    table->timestamp_field->query_id= thd->query_id;
+  }
 
   /* Check for update of primary key for special handling */  
   if ((table->s->primary_key != MAX_KEY) &&
