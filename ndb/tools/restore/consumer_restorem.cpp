@@ -80,6 +80,7 @@ BackupRestore::init()
 	ndbout_c("Connect failed: %s", mysql_error(&mysql));
 	returnValue = false;
       }
+      mysql.reconnect= 1;
       ndbout << "Connected to MySQL!!!" <<endl;
     }
 
