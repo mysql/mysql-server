@@ -3234,3 +3234,12 @@ longlong Item_func_is_used_lock::val_int()
   null_value=0;
   return ull->thread_id;
 }
+
+
+longlong Item_func_found_rows::val_int()
+{
+  DBUG_ASSERT(fixed == 1);
+  THD *thd= current_thd;
+
+  return thd->found_rows();
+}

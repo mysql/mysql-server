@@ -1088,12 +1088,14 @@ JOIN::exec()
   DBUG_ENTER("JOIN::exec");
   
   error= 0;
-  thd->limit_found_rows= thd->examined_row_count= 0;
   if (procedure)
   {
     if (procedure->change_columns(fields_list) ||
 	result->prepare(fields_list, unit))
+    {
+      thd->limit_found_rows= thd->examined_row_count= 0;
       DBUG_VOID_RETURN;
+    }
   }
 
   if (!tables_list)
@@ -1119,8 +1121,10 @@ JOIN::exec()
       else
 	error=(int) result->send_eof();
     }
+    thd->limit_found_rows= thd->examined_row_count= 0;
     DBUG_VOID_RETURN;
   }
+  thd->limit_found_rows= thd->examined_row_count= 0;
 
   if (zero_result_cause)
   {
