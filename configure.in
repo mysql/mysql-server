@@ -938,11 +938,7 @@ case $SYSTEM_TYPE in
     if test "$ac_cv_prog_gcc" = "no"
     then
       CFLAGS="$CFLAGS +DD64 -DHAVE_BROKEN_INLINE"
-      CXXFLAGS="$CXXFLAGS +DD64"
-      if "$with_debug" = "no"
-      then
-        CXXFLAGS="$CXXFLAGS +O2"
-      fi
+      CXXFLAGS="$CXXFLAGS +DD64 +O2"
     fi
     ;;
   *rhapsody*)
