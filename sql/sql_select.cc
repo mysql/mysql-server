@@ -24,8 +24,6 @@
 #include "mysql_priv.h"
 #include "sql_select.h"
 
-#include "opt_ft.h"
-
 #include <m_ctype.h>
 #include <hash.h>
 #include <ft_global.h>
@@ -7203,8 +7201,9 @@ create_sort_index(THD *thd, JOIN *join, ORDER *order,
 	For impossible ranges (like when doing a lookup on NULL on a NOT NULL
 	field, quick will contain an empty record set.
       */
-      if (!(select->quick=get_ft_or_quick_select_for_ref(tab->join->thd,
-							 table, tab)))
+      if (!(select->quick= tab->type == JT_FT ?
+			   new FT_SELECT(thd, table, tab->ref.key) :
+			   get_quick_select_for_ref(thd, table, &tab->ref)))
 	goto err;
     }
   }

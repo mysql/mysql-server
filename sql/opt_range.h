@@ -134,6 +134,17 @@ class SQL_SELECT :public Sql_alloc {
 			ha_rows limit, bool force_quick_range=0);
 };
 
+
+class FT_SELECT: public QUICK_SELECT {
+public:
+  FT_SELECT(THD *thd, TABLE *table, uint key):
+    QUICK_SELECT (thd, table, key, 1) { init(); }
+
+  int init() { return error= file->ft_init(); }
+  int get_next() { return error= file->ft_read(record); }
+};
+
+
 QUICK_SELECT *get_quick_select_for_ref(THD *thd, TABLE *table,
 				       struct st_table_ref *ref);
 
