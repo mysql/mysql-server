@@ -392,7 +392,7 @@ protected:
   void destroy();
 
   friend void query_cache_insert(NET *net, const char *packet, ulong length);
-  friend void query_cache_end_of_result(NET *net);
+  friend void query_cache_end_of_result(THD *thd);
   friend void query_cache_abort(NET *net);
 
   /*
@@ -416,7 +416,7 @@ protected:
 
 extern Query_cache query_cache;
 extern TYPELIB query_cache_type_typelib;
-void query_cache_end_of_result(NET *net);
+void query_cache_end_of_result(THD *thd);
 void query_cache_abort(NET *net);
 
 #endif

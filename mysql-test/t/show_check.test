@@ -53,9 +53,14 @@ drop table t2;
 create table t1 (
   test_set set( 'val1', 'val2', 'val3' ) not null default '',
   name char(20) default 'O''Brien' comment 'O''Brien as default',
-  c int not null comment 'int column'
+  c int not null comment 'int column',
+  `c-b` int comment 'name with a space',
+  `space ` int comment 'name with a space',
   ) comment = 'it\'s a table' ;
-show create table t1 ;
+show create table t1;
+set sql_quote_show_create=0;
+show create table t1;
+set sql_quote_show_create=1;
 show full columns from t1;
 drop table t1;
 

@@ -671,6 +671,7 @@ CHARSET_INFO my_charset_cp1250_czech_ci =
     idx_uni_cp1250,		/* tab_from_uni */
     "","",
     2,				/* strxfrm_multiply */
+    1,				/* mbminlen  */
     1,				/* mbmaxlen  */
     0,
     &my_charset_8bit_handler,

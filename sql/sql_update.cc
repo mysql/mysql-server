@@ -95,7 +95,7 @@ int mysql_update(THD *thd,
   tables.table= table;
   tables.alias= table_list->alias;
 
-  if (setup_tables(update_table_list) ||
+  if (setup_tables(update_table_list, 0) ||
       setup_conds(thd,update_table_list,&conds) ||
       thd->lex->select_lex.setup_ref_array(thd, order_num) ||
       setup_order(thd, thd->lex->select_lex.ref_pointer_array,
