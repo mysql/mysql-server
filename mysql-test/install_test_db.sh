@@ -134,16 +134,20 @@ then
   c_u="$c_u   References_priv enum('N','Y') DEFAULT 'N' NOT NULL,"
   c_u="$c_u   Index_priv enum('N','Y') DEFAULT 'N' NOT NULL,"
   c_u="$c_u   Alter_priv enum('N','Y') DEFAULT 'N' NOT NULL,"
+  c_u="$c_u   ssl_type enum('none', 'cipher', 'x509','issuer','subject') NOT NULL,"
+  c_u="$c_u   ssl_cipher char(60) NULL,"
+  c_u="$c_u   x509_issuer blob NULL,"
+  c_u="$c_u   x509_subject blob NULL,"
   c_u="$c_u   PRIMARY KEY Host (Host,User)"
   c_u="$c_u )"
   c_u="$c_u comment='Users and global privileges';"
 
-  i_u="INSERT INTO user VALUES ('localhost','root','','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y');
-  INSERT INTO user VALUES ('$hostname','root','','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y');
-  REPLACE INTO user VALUES ('127.0.0.1','root','','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y');
+  i_u="INSERT INTO user VALUES ('localhost','root','','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','none',NULL,NULL,NULL);
+  INSERT INTO user VALUES ('$hostname','root','','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','none',NULL,NULL,NULL);
+  REPLACE INTO user VALUES ('127.0.0.1','root','','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','none',NULL,NULL,NULL);
   
-  INSERT INTO user VALUES ('localhost','','','N','N','N','N','N','N','N','N','N','N','N','N','N','N');
-  INSERT INTO user VALUES ('$hostname','','','N','N','N','N','N','N','N','N','N','N','N','N','N','N');"
+  INSERT INTO user VALUES ('localhost','','','N','N','N','N','N','N','N','N','N','N','N','N','N','N','none',NULL,NULL,NULL);
+  INSERT INTO user VALUES ('$hostname','','','N','N','N','N','N','N','N','N','N','N','N','N','N','N','none',NULL,NULL,NULL);"
 fi
 
 if test ! -f $mdata/func.frm
