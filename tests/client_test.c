@@ -19,12 +19,6 @@
  protocol
 
  Main author: venu ( venu@mysql.com )
-
- NOTES:
-  - To be able to test which fields are used, we are not clearing
-    the MYSQL_BIND with bzero() but instead just clearing the fields that
-    are used by the API.
-
 ***************************************************************************/
 
 #include <my_global.h>
