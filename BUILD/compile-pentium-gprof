@@ -1,0 +1,9 @@
+#! /bin/sh
+
+path=`dirname $0`
+. "$path/SETUP.sh"
+
+extra_flags="$pentium_cflags -O2 -pg -g"
+extra_configs="$pentium_configs $debug_configs --disable-shared"
+
+. "$path/FINISH.sh"
