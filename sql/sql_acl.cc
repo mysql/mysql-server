@@ -3591,7 +3591,7 @@ int mysql_drop_user(THD *thd, List <LEX_USER> &list)
 
 int mysql_revoke_all(THD *thd,  List <LEX_USER> &list)
 {
-  uint counter;
+  uint counter, revoked;
   int result;
   ACL_DB *acl_db;
   TABLE_LIST tables[4];
@@ -3624,83 +3624,96 @@ int mysql_revoke_all(THD *thd,  List <LEX_USER> &list)
     }
 
     /* Remove db access privileges */
-    for (counter= 0 ; counter < acl_dbs.elements ; )
+    /*
+      Because acl_dbs and column_priv_hash shrink and may re-order
+      as privileges are removed, removal occurs in a repeated loop
+      until no more privileges are revoked.
+     */
+    do
     {
-      const char *user,*host;
-
-      acl_db=dynamic_element(&acl_dbs,counter,ACL_DB*);
-      if (!(user=acl_db->user))
-	user= "";
-      if (!(host=acl_db->host.hostname))
-	host= "";
-
-      if (!strcmp(lex_user->user.str,user) &&
-	  !my_strcasecmp(system_charset_info, lex_user->host.str, host))
+      for (counter= 0, revoked= 0 ; counter < acl_dbs.elements ; )
       {
-	if (!replace_db_table(tables[1].table, acl_db->db, *lex_user, ~0, 1))
-        {
-          /*
-            Don't increment counter as replace_db_table deleted the
-            current element in acl_db's and shifted the higher elements down
-          */
-	  continue;
-        }
-        result= -1;                             // Something went wrong
+	const char *user,*host;
+	
+	acl_db=dynamic_element(&acl_dbs,counter,ACL_DB*);
+	if (!(user=acl_db->user))
+	  user= "";
+	if (!(host=acl_db->host.hostname))
+	  host= "";
+	
+	if (!strcmp(lex_user->user.str,user) &&
+	    !my_strcasecmp(system_charset_info, lex_user->host.str, host))
+	{
+	  if (!replace_db_table(tables[1].table, acl_db->db, *lex_user, ~0, 1))
+	  {
+	    /*
+	      Don't increment counter as replace_db_table deleted the
+	      current element in acl_dbs.
+	     */
+	    revoked= 1;
+	    continue;
+	  }
+	  result= -1; // Something went wrong
+	}
+	counter++;
       }
-      counter++;
-    }
+    } while (revoked);
 
     /* Remove column access */
-    for (counter= 0 ; counter < column_priv_hash.records ; )
+    do
     {
-      const char *user,*host;
-      GRANT_TABLE *grant_table= (GRANT_TABLE*) hash_element(&column_priv_hash,
-							    counter);
-      if (!(user=grant_table->user))
-	user= "";
-      if (!(host=grant_table->host))
-	host= "";
-
-      if (!strcmp(lex_user->user.str,user) &&
-	  !my_strcasecmp(system_charset_info, lex_user->host.str, host))
+      for (counter= 0, revoked= 0 ; counter < column_priv_hash.records ; )
       {
-	if (replace_table_table(thd,grant_table,tables[2].table,*lex_user,
-				grant_table->db,
-				grant_table->tname,
-				~0, 0, 1))
+	const char *user,*host;
+	GRANT_TABLE *grant_table= (GRANT_TABLE*)hash_element(&column_priv_hash,
+							     counter);
+	if (!(user=grant_table->user))
+	  user= "";
+	if (!(host=grant_table->host))
+	  host= "";
+	
+	if (!strcmp(lex_user->user.str,user) &&
+	    !my_strcasecmp(system_charset_info, lex_user->host.str, host))
 	{
-	  result= -1;
-          continue;
+	  if (replace_table_table(thd,grant_table,tables[2].table,*lex_user,
+				  grant_table->db,
+				  grant_table->tname,
+				  ~0, 0, 1))
+	  {
+	    result= -1;
+	  }
+	  else
+	  {
+	    if (!grant_table->cols)
+	    {
+	      revoked= 1;
+	      continue;
+	    }
+	    List<LEX_COLUMN> columns;
+	    if (!replace_column_table(grant_table,tables[3].table, *lex_user,
+				      columns,
+				      grant_table->db,
+				      grant_table->tname,
+				      ~0, 1))
+	    {
+	      revoked= 1;
+	      continue;
+	    }
+	    result= -1;
+	  }
 	}
-	else
-	{
-	  if (!grant_table->cols)
-            continue;
-          List<LEX_COLUMN> columns;
-          if (replace_column_table(grant_table,tables[3].table, *lex_user,
-                                   columns,
-                                   grant_table->db,
-                                   grant_table->tname,
-                                   ~0, 1))
-          result= -1;
-          /*
-            Safer to do continue here as replace_table_table changed
-            column_priv_hash and we want to test the current element
-          */
-          continue;
-	}
+	counter++;
       }
-      counter++;
-    }
+    } while (revoked);
   }
-
+  
   VOID(pthread_mutex_unlock(&acl_cache->lock));
   rw_unlock(&LOCK_grant);
   close_thread_tables(thd);
-
+  
   if (result)
     my_error(ER_REVOKE_GRANTS, MYF(0));
-
+  
   DBUG_RETURN(result);
 }
 

@@ -1563,6 +1563,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
   case COM_CREATE_DB:				// QQ: To be removed
     {
       char *db=thd->strdup(packet), *alias;
+      HA_CREATE_INFO create_info;
 
       statistic_increment(com_stat[SQLCOM_CREATE_DB],&LOCK_status);
       // null test to handle EOM
@@ -1574,8 +1575,9 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
       if (check_access(thd,CREATE_ACL,db,0,1,0))
 	break;
       mysql_log.write(thd,command,packet);
+      bzero(&create_info, sizeof(create_info));
       if (mysql_create_db(thd, (lower_case_table_names == 2 ? alias : db),
-                          0, 0) < 0)
+                          &create_info, 0) < 0)
         send_error(thd, thd->killed ? ER_SERVER_SHUTDOWN : 0);
       break;
     }
