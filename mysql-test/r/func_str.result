@@ -691,7 +691,6 @@ select count(*) as total, left(c,10) as reg from t1 group by reg order by reg de
 total	reg
 10	2004-12-10
 drop table t1;
-
 select quote(ltrim(concat('    ', 'a')));
 quote(ltrim(concat('    ', 'a')))
 'a'
