@@ -1,4 +1,4 @@
-#!@PERL@
+#!@PERL@ -w
 
 use strict;
 use Getopt::Long;
@@ -36,8 +36,9 @@ WARNING: THIS IS VERY MUCH A FIRST-CUT ALPHA. Comments/patches welcome.
 
 # Documentation continued at end of file
 
-my $VERSION = "1.9";
-my $opt_tmpdir= $main::ENV{TMPDIR};
+my $VERSION = "1.10";
+
+my $opt_tmpdir = $ENV{TMPDIR} || "/tmp";
 
 my $OPTIONS = <<"_OPTIONS";
 
@@ -74,7 +75,7 @@ sub usage {
 }
 
 my %opt = (
-    user	=> getpwuid($>),
+    user	=> scalar getpwuid($>),
     noindices	=> 0,
     allowold	=> 0,	# for safety
     keepold	=> 0,
@@ -139,7 +140,7 @@ else {
 
 my %mysqld_vars;
 my $start_time = time;
-my $opt_tmpdir= $opt{tmpdir} ? $opt{tmpdir} : $main::ENV{TMPDIR};
+$opt_tmpdir= $opt{tmpdir} if $opt{tmpdir};
 $0 = $1 if $0 =~ m:/([^/]+)$:;
 $opt{quiet} = 0 if $opt{debug};
 $opt{allowold} = 1 if $opt{keepold};
@@ -235,16 +236,17 @@ foreach my $rdb ( @db_desc ) {
       or die "Cannot open dir '$db_dir': $!";
 
     my %db_files;
-    map { ( /(.+)\.\w+$/ ? { $db_files{$_} = $1 } : () ) } readdir(DBDIR);
+    map { ( /(.+)\.\w+$/ ? ( $db_files{$_} = $1 ) : () ) } readdir(DBDIR);
     unless( keys %db_files ) {
 	warn "'$db' is an empty database\n";
     }
     closedir( DBDIR );
 
     ## filter (out) files specified in t_regex
-    my @db_files = sort ( $negated 
+    my @db_files = ( $negated 
 			  ? grep { $db_files{$_} !~ $t_regex } keys %db_files
 			  : grep { $db_files{$_} =~ $t_regex } keys %db_files );
+    @db_files = sort @db_files;
     my @index_files=();
 
     ## remove indices unless we're told to keep them
@@ -776,3 +778,5 @@ Scott Wiersdorf - added table regex and scp support
 
 Monty - working --noindex (copy only first 2048 bytes of index file)
         Fixes for --method=scp
+
+Ask Bjoern Hansen - Cleanup code to fix a few bugs and enable -w again.

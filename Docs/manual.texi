@@ -288,6 +288,11 @@ BSD/OS Notes
 * BSDI3::                       BSD/OS 3.x notes
 * BSDI4::                       BSD/OS 4.x notes
 
+Mac OS X Notes
+
+* Mac OS X Public Data::        
+* Mac OS X Server::             
+
 Windows Notes
 
 * Windows installation::        Installing @strong{MySQL} on Windows
@@ -610,6 +615,7 @@ MySQL Utilites
 * mysql::                       The command line tool
 * mysqladmin::                  Administering a @strong{MySQL} server
 * mysqldump::                   Dumping the structure and data from @strong{MySQL} databases and tables
+* mysqlhotcopy::                Copying @code{MySQL} Databases and Tables
 * mysqlimport::                 Importing data from text files
 * perror::                      Displaying error messages
 * mysqlshow::                   Showing databases, tables and columns
@@ -846,7 +852,7 @@ Changes in release 4.0.x (Development; Alpha)
 
 Changes in release 3.23.x  (Recommended; Gamma)
 
-* News-3.23.31::                
+* News-3.23.31::                Changes in release 3.23.31
 * News-3.23.30::                Changes in release 3.23.30
 * News-3.23.29::                Changes in release 3.23.29
 * News-3.23.28::                Changes in release 3.23.28
@@ -2259,6 +2265,11 @@ FutureForum Web Discussion Software.
 @item @uref{http://www.supportwizard.com/}@*
 SupportWizard; Interactive helpdesk on the Web (This product includes a
 licensed copy of @strong{MySQL}.)
+
+@item @uref{http://www.sonork.com/}@*
+Sonork,  Instant Messenger that is not only Internet oriented. It's 
+focused on private networks and on small to medium companies.  Client
+is free, server is free for up to 5 seats.
 
 @item @uref{http://www.stweb.org/}@*
 StWeb - Stratos Web and Application server - An easy-to-use, cross
@@ -7965,12 +7976,30 @@ by HP's compilers. I did not change the flags.
 @node Mac OS X, BEOS, HP-UX 11.x, Source install system issues
 @subsection Mac OS X Notes
 
-You can get @strong{MySQL} to work on Mac OS X by following the links to
-the Mac OS X ports. @xref{Useful Links}.
+@menu
+* Mac OS X Public Data::        
+* Mac OS X Server::             
+@end menu
 
-@strong{MySQL} Version 3.23.7 should include all patches necessary to configure
-it on Mac OS X. You must, however, first install the pthread package from
-@uref{http://www.prnet.de/RegEx/mysql.html} before configuring @strong{MySQL}.
+@node Mac OS X Public Data, Mac OS X Server, Mac OS X, Mac OS X
+@subsubsection Mac OS X Public beta
+
+@strong{MySQL} should work without any probelms on Mac OS X public beta.
+(Darwin); You don't need the pthread patches for this os!
+
+@node Mac OS X Server,  , Mac OS X Public Data, Mac OS X
+@subsubsection Mac OS X Server
+
+Before trying to configure @strong{MySQL} on Mac OS X server you must
+first first install the pthread package from
+@uref{http://www.prnet.de/RegEx/mysql.html}.  Note that this is not neeaded
+
+Our binary for Mac OS X is compiled on Rhapsody 5.5 with the following
+configure line:
+
+@example
+CC=gcc CFLAGS="-O2 -fomit-frame-pointer" CXX=gcc CXXFLAGS="-O2 -fomit-frame-pointer" ./configure --prefix=/usr/local/mysql "--with-comment=Official MySQL binary" --with-extra-charsets=complex  --disable-shared
+@end example
 
 You might want to also add aliases to your shell's resource file to
 access @code{mysql} and @code{mysqladmin} from the command line:
@@ -8196,8 +8225,8 @@ which protocol is used:
 @end multitable
 
 You can force a @strong{MySQL} client to use named pipes by specifying the
-@code{--pipe} option.  Use the @code{--socket} option to specify the name of
-the pipe.
+@code{--pipe} option or by specifying @code{.} as the host name.
+ Use the @code{--socket} option to specify the name of the pipe.
 
 You can test whether or not @strong{MySQL} is working by executing the
 following commands:
@@ -9344,7 +9373,9 @@ Don't flush key buffers between writes for any @code{MyISAM} table.
 Enable system locking.
 
 @item -T, --exit-info
-Print some debug info at exit.
+This is a bit mask of different flags one can use for debugging the
+mysqld server;  One should not use this option if one doesn't know
+exactly what it does!
 
 @item --flush
 Flush all changes to disk after each SQL command.  Normally @strong{MySQL}
@@ -18443,7 +18474,7 @@ BACKUP TABLE tbl_name[,tbl_name...] TO '/path/to/backup/directory'
 Make a copy of all the table files to the backup directory that are the
 minimum needed to restore it. Currenlty only works for @code{MyISAM}
 tables. For @code{MyISAM} table, copies @code{.frm} (definition)  and
- @code{.MYD} (data) files. The index file can be rebuilt from those two.
+@code{.MYD} (data) files. The index file can be rebuilt from those two.
 
 During the backup, read lock will be held for each table, one at time,
 as they are being backed up. If you want to backup several tables as
@@ -20167,8 +20198,8 @@ The status variables listed above have the following meaning:
 
 @multitable @columnfractions .35 .65
 @item @strong{Variable} @tab @strong{Meaning}
-@item @code{Aborted_clients} @tab Number of connections aborted because the client died without closing the connection properly.
-@item @code{Aborted_connects} @tab Number of tries to connect to the @strong{MySQL} server that failed.
+@item @code{Aborted_clients} @tab Number of connections aborted because the client died without closing the connection properly. @xref{Communication errors}.
+@item @code{Aborted_connects} @tab Number of tries to connect to the @strong{MySQL} server that failed. @xref{Communication errors}.
 @item @code{Bytes_received} @tab Number of bytes received from all clients.
 @item @code{Bytes_sent} @tab Number of bytes sent to all clients.
 @item @code{Connections} @tab Number of connection attempts to the @strong{MySQL} server.
@@ -20244,12 +20275,6 @@ If @code{Handler_read_rnd} is big, then you probably have a lot of
 queries that require @strong{MySQL} to scan whole tables or you have
 joins that don't use keys properly.
 @item
-If @code{Created_tmp_tables} or @code{Sort_merge_passes} are high then
-your @code{mysqld} @code{sort_buffer} variables is probably too small.
-@item
-@code{Created_tmp_files} doesn't count the files needed to handle temporary
-tables.
-@item
 If @code{Threads_created} is big, you may want to increase the
 @code{thread_cache_size} variable.
 @end itemize
@@ -20274,6 +20299,7 @@ differ somewhat:
 | back_log                | 50                        |
 | basedir                 | /my/monty/                |
 | bdb_cache_size          | 16777216                  |
+| bdb_log_buffer_size     | 32768                     |
 | bdb_home                | /my/monty/data/           |
 | bdb_max_lock            | 10000                     |
 | bdb_logdir              |                           |
@@ -20380,6 +20406,12 @@ higher than your operating system limit will be ineffective.
 The value of the @code{--basedir} option.
 
 @item @code{bdb_cache_size}
+The buffer that is allocated to cache index and rows for @code{BDB}
+tables.  If you don't use @code{BDB} tables, you should start
+@code{mysqld} with @code{--skip-bdb} to not waste memory for this
+cache.
+
+@item @code{bdb_log_buffer_size}
 The buffer that is allocated to cache index and rows for @code{BDB}
 tables.  If you don't use @code{BDB} tables, you should set this to 0 or
 start @code{mysqld} with @code{--skip-bdb} to not waste memory for this
@@ -20552,7 +20584,13 @@ will be incremented. If you are using @code{--log-slow-queries}, the query
 will be logged to the slow query logfile. @xref{Slow query log}.
 
 @item @code{lower_case_table_names}
-Table names are stored in lowercase on disk.
+Is 1 if table names are stored in lowercase on disk. On @strong{MySQL} on Unix
+tables are always case-sensitive; Is this a big problem for you can
+start @code{mysqld} with @code{-O lower_case_table_names=1}
+
+In this case @strong{MySQL} will convert all table names to lower case on
+storage and lookup.  Not that you need to first convert your old table
+names to lower case before starting @code{mysqld} with this option.
 
 @item @code{max_allowed_packet}
 The maximum size of one packet. The message buffer is initialized to
@@ -21289,7 +21327,7 @@ When you use @code{LOCK TABLES}, you must lock all tables that you are
 going to use and you must use the same alias that you are going to use
 in your queries!  If you are using a table multiple times in a query
 (with aliases), you must get a lock for each alias! This policy ensures
-that table locking is deadlock free andh makes the locking code smaller,
+that table locking is deadlock free and makes the locking code smaller,
 simpler and much faster.
 
 Note that you should @strong{NOT} lock any tables that you are using with
@@ -22678,10 +22716,10 @@ Berkeley DB (@uref{http://www.sleepycat.com}) has provided
 crashes and also provides @code{COMMIT} and @code{ROLLBACK} on
 transactions. In order to build MySQL Version 3.23.x (BDB support first
 appeared in Version 3.23.15) with support for @code{BDB} tables, you
-will need Berkeley DB Version 3.2.3d or newer which can be downloaded from
+will need Berkeley DB Version 3.2.3g or newer which can be downloaded from
 @uref{http://www.mysql.com/downloads/mysql-3.23.html}.  This is a patched
 version of Berkeley DB that is only available from @strong{MySQL}; the
-standard Berkeley DB @strong{will not work with MySQL}.
+standard Berkeley DB @strong{will not yet work with MySQL}.
 
 @node BDB install, BDB start, BDB overview, BDB
 @subsection Installing BDB
@@ -22850,6 +22888,11 @@ TABLE}.
 @subsection Some things we need to fix for BDB in the near future:
 
 @itemize @bullet
+@item
+It's very slow to open many BDB tables at the same time. If you are
+going to use BDB tables, you should not have a very big table cache (>
+256 ?) and you should use @code{--no-auto-rehash} with the @code{mysql}
+client.  We plan to partly fix this in 4.0.
 @item
 @code{SHOW TABLE STATUS} doesn't yet provide that much information for BDB
 tables.
@@ -28310,6 +28353,7 @@ How big a @code{VARCHAR} column can be
 * mysql::                       The command line tool
 * mysqladmin::                  Administering a @strong{MySQL} server
 * mysqldump::                   Dumping the structure and data from @strong{MySQL} databases and tables
+* mysqlhotcopy::                Copying @strong{MySQL} Databases and Tables
 * mysqlimport::                 Importing data from text files
 * perror::                      Displaying error messages
 * mysqlshow::                   Showing databases, tables and columns
@@ -29167,17 +29211,22 @@ If you do @code{myslqadmin shutdown} on a socket (in other words, on a
 the computer where @code{mysqld} is running), @code{mysqladmin} will
 wait until the @strong{MySQL} @code{pid-file} is removed to ensure that
 the @code{mysqld} server has stopped properly.
+
 @cindex dumping, databases
 @cindex databases, dumping
 @cindex tables, dumping
 @cindex backing up, databases
-@node mysqldump, mysqlimport, mysqladmin, Tools
+@node mysqldump, mysqlhotcopy, mysqladmin, Tools
 @section Dumping the Structure and Data from MySQL Databases and Tables
 
 @cindex @code{mysqldump}
-Utility to dump a database or a collection of database for backup or
-for transferring the data to another SQL server.  The dump will contain SQL
-statements to create the table and/or populate the table:
+Utility to dump a database or a collection of database for backup or for
+transferring the data to another SQL server (not necessarily a MySQL
+server).  The dump will contain SQL statements to create the table
+and/or populate the table.
+
+If you are doing a backup on the server, you should consider using
+the @code{mysqlhotcopy} instead. @xref{mysqlhotcopy}.
 
 @example
 shell> mysqldump [OPTIONS] database [tables]
@@ -29350,12 +29399,79 @@ If all the databases are wanted, one can use:
 mysqldump --all-databases > all_databases.sql
 @end example
 
+@cindex dumping, databases
+@cindex databases, dumping
+@cindex tables, dumping
+@cindex backing up, databases
+@node mysqlhotcopy, mysqlimport, mysqldump, Tools
+@section Copying MySQL Databases and Tables
+
+@code{mysqlhotcopy} is a perl script that uses @code{LOCK TABLES},
+@code{FLUSH TABLES} and @code{cp} or @code{scp} to quickly make a backup
+of a database.  It's the fastest way to make a backup of the database,
+but it can only be run on the same machine where the database directories
+are.
+
+@example
+mysqlhotcopy db_name [/path/to/new_directory]
+
+mysqlhotcopy db_name_1 ... db_name_n /path/to/new_directory
+
+mysqlhotcopy db_name./regex/
+@end example
+
+@code{mysqlhotcopy} supports the following options:
+
+@table @code
+@item -?, --help
+Display a helpscreen and exit
+@item -u, --user=# 
+User for database login
+@item -p, --password=#
+Password to use when connecting to server
+@item -P, --port=# 
+Port to use when connecting to local server
+@item -S, --socket=#
+Socket to use when connecting to local server
+@item --allowold
+Don't abort if target already exists (rename it _old)
+@item --keepold
+Don't delete previous (now renamed) target when done
+@item --noindices
+Don't include full index files in copy to make the backup smaller and faster
+The indexes can later be reconstructed with @code{myisamchk -rq.}.
+@item --method=#
+Method for copy (@code{cp} or @code{scp}).
+@item -q, --quiet
+Be silent except for errors
+@item --debug
+Enable debug
+@item -n, --dryrun
+Report actions without doing them
+@item --regexp=#
+Copy all databases with names matching regexp
+@item --suffix=#
+Suffix for names of copied databases
+@item --checkpoint=#
+Insert checkpoint entry into specified db.table
+@item --flushlog
+Flush logs once all tables are locked.
+@item --tmpdir=#
+Temporary directory (instead of /tmp).
+@end table
+
+You can use 'perldoc mysqlhotcopy' to get a more complete documentation for
+@code{mysqlhotcopy}.
+
+@code{mysqlhotcopy} reads the group @code{[mysqlhotcopy]} from the option
+files.
+
 @cindex importing, data
 @cindex data, importing
 @cindex files, text
 @cindex text files, importing
 @cindex @code{mysqlimport}
-@node mysqlimport, perror, mysqldump, Tools
+@node mysqlimport, perror, mysqlhotcopy, Tools
 @section Importing Data from Text Files
 
 @code{mysqlimport} provides a command-line interface to the @code{LOAD DATA
@@ -32882,22 +32998,49 @@ expecting to store the full length of a @code{BLOB} into a table, you'll need
 to start the server with the @code{--set-variable=max_allowed_packet=16M}
 option.
 
+@cindex aborted clients
 @cindex aborted connection
 @cindex connection, aborted
 @node Communication errors, Full table, Packet too large, Common errors
 @subsection Communication Errors / Aborted Connection
 
-If you find the error @code{Aborted connection} in the @code{hostname.err}
-log file, this could be because of one of the following reasons:
+The server variable @code{Aborted_clients} is incremented when:
 
 @itemize @bullet
 @item
-The client had been sleeping more than @code{wait_timeout} without doing
-any requests. @xref{SHOW VARIABLES}.
+The client program did not call @code{mysql_close()} before exit.
+@item
+The client had been sleeping more than @code{wait_timeout} or
+@code{interactive_timeout} without doing any requests. @xref{SHOW
+VARIABLES}.
 @item
 The client program ended abruptly in the middle of the transfer.
+@end itemize
+
+When the above happens, the mysqld will write a note about an
+@code{Aborted connection} in the @code{hostname.err}
+
+The server variable @code{Aborted_connects} is incremented when:
+
+@itemize @bullet
 @item
-The client program did not call @code{mysql_close()} before exit.
+When a connection packet doesn't contain the right information.
+@item
+When the user didn't have privileges to connect to a database.
+@item
+When a user uses a wrong password.
+@item
+When it takes more than @code{connect_timeout} seconds to get
+a connect package.
+@end itemize
+
+Note that the above could indicate that someone is trying to break into
+your database!
+
+@xref{SHOW VARIABLES}.
+
+Other reason for problems with Aborted clients / Aborted connections.
+@itemize @bullet
 @item
 Usage of duplex Ethernet protocol, both half and full with
 Linux. Many Linux Ethernet drivers have this bug. You should test
@@ -32914,6 +33057,7 @@ Badly configured TCP/IP.
 Faulty Ethernets or hubs or switches, cables ... This can be diagnosed
 properly only by replacing hardware.
 @end itemize
+
 
 @cindex table is full
 @node Full table, Cannot create, Communication errors, Common errors
@@ -33793,13 +33937,19 @@ mirror if needed. @code{LAST_INSERT_ID()} is also safe to use.
 
 Because @strong{MySQL} tables are stored as files, it is easy to do a
 backup. To get a consistent backup, do a @code{LOCK TABLES} on the
-relevant tables. @xref{LOCK TABLES, , @code{LOCK TABLES}}. You only need a
-read lock; this allows other threads to continue to query the tables while
-you are making a copy of the files in the database directory. If you want to
-make a SQL level backup of a table, you can use @code{SELECT INTO OUTFILE}.
+relevant tables followed by @code{FLUSH TABLES} for the tables.
+@xref{LOCK TABLES, , @code{LOCK TABLES}}.
+@xref{FLUSH, , @code{FLUSH}}.
+You only need a read lock; this allows other threads to continue to
+query the tables while you are making a copy of the files in the
+database directory.
 
-Another way to back up a database is to use the @code{mysqldump} program:
-@xref{mysqldump}.
+If you want to make a SQL level backup of a table, you can use
+@code{SELECT INTO OUTFILE} or @code{BACKUP
+TABLE}. @xref{SELECT}. @xref{BACKUP TABLE}.
+
+Another way to back up a database is to use the @code{mysqldump} program or
+the @code{mysqlhotcopy script}. @xref{mysqldump}. @xref{mysqlhotcopy}.
 
 @enumerate
 @item
@@ -33807,6 +33957,10 @@ Do a full backup of your databases:
 
 @example
 shell> mysqldump --tab=/path/to/some/dir --opt --full
+
+or
+
+shell> mysqlhotcopy database /path/to/some/dir
 @end example
 
 You can also simply copy all table files (@file{*.frm}, @file{*.MYD}, and
@@ -33823,16 +33977,23 @@ you executed @code{mysqldump}.
 @end enumerate
 
 If you have to restore something, try to recover your tables using
-@code{myisamchk -r} first.  That should work in 99.9% of all cases.  If
-@code{myisamchk} fails, try the following procedure:
-(This will only work if you have started @strong{MySQL} with
+@code{REPAIR TABLE} or @code{myisamchk -r} first.  That should work in
+99.9% of all cases.  If @code{myisamchk} fails, try the following
+procedure: (This will only work if you have started @strong{MySQL} with
 @code{--log-update}. @xref{Update log}.):
 
 @enumerate
 @item
 Restore the original @code{mysqldump} backup.
 @item
-Execute the following command to re-run the updates in the update logs:
+Execute the following command to re-run the updates in the binary log:
+
+@example
+shell> mysqlbinlog hostname-bin.[0-9]* | mysql
+@end example
+
+If you are using the update log you can use:
+
 @example
 shell> ls -1 -t -r hostname.[0-9]* | xargs cat | mysql
 @end example
@@ -40045,6 +40206,7 @@ developed a @strong{MySQL} feature themself or by giving us hardware for
 @multitable @columnfractions .3 .7
 @item Va Linux / Andover.net @tab Replication
 @item NuSphere @tab Editing of the @strong{MySQL} manual.
+@item Stork Design studio @tab The MySQL web site in use between 1998-2000
 @item Intel @tab Contributed to development on Windows and Linux platforms
 @item Compaq @tab Contributed to Development on Linux-alpha
 @item SWSoft @tab Development on the embedded @code{mysqld} version.
@@ -40143,6 +40305,10 @@ though, so Version 3.23 is not released as a stable version yet.
 @appendixsubsec Changes in release 3.23.31
 @itemize @bullet
 @item
+Fixed bug when using expression of type
+@code{SELECT ... FROM t1 left join t2 on (t1.a=t2.a) WHERE t1.a=t2.a}. In this
+case the test in the @code{WHERE} clause was wrongly optimized away.
+@item
 Fixed bug in @code{MyISAM} when deleting keys with possible @code{NULL}
 values, but the first key-column was not a prefix-compressed text column.
 @item
@@ -40158,6 +40324,8 @@ Added @code{Threads_created} status variable to @code{mysqld}.
 @node News-3.23.30, News-3.23.29, News-3.23.31, News-3.23.x
 @appendixsubsec Changes in release 3.23.30
 @itemize @bullet
+@item
+Fixed that @code{myisamdump} works against old mysqld servers.
 @item
 Fixed that @code{myisamchk -k#} works again.
 @item
@@ -44720,6 +44888,13 @@ will probably be ignored).
 Doing a @code{LOCK TABLE ..} and @code{FLUSH TABLES ..} doesn't
 guarantee that there isn't a half-finished transaction in progress on the
 table.
+
+@item
+BDB tables are a bit slow to open from this. If you have many BDB tables
+in a database, it will take a long time to use the @code{mysql} client
+on the database if you are not using the @code{-A} option or if you are
+using @code{rehash}. This is especially notable when you have a big table
+cache.
 @end itemize
 
 The following problems are known and will be fixed in due time:
@@ -44973,6 +45148,10 @@ Secure connections (with SSL).
 @item
 Extend the optimizer to be able to optimize some @code{ORDER BY key_name DESC}
 queries.
+@item
+@code{SHOW COLUMNS FROM table_name} (used by @code{mysql} client to allow
+expansions of column names) should not open the table, but only the
+definition file. This will require less memory and be much faster.
 @item
 New key cache
 @end itemize
@@ -45565,20 +45744,20 @@ Stop the mysqld daemon (with @code{mysqladmin shutdown})
 Check all tables with @code{myisamchk -s database/*.MYI}.  Repair any
 wrong tables with @code{myisamchk -r database/table.MYI}.
 @item
-Start @code{mysqld} with @code{--log-update}. @xref{Update log}.
+Start @code{mysqld} with @code{--log-binary}. @xref{Binary log}.
 @item
 When you have gotten a crashed table, stop the @code{mysqld server}.
 @item
 Restore the backup.
 @item
-Restart the @code{mysqld} server @strong{without} @code{--log-update}
+Restart the @code{mysqld} server @strong{without} @code{--log-binary}
 @item
-Re-execute the commands with @code{mysql < update-log}.  The update log
-is saved in the @strong{MySQL} database directory with the name
-@code{your-hostname.#}.
+Re-execute the commands with @code{mysqlbinlog update-log-file | mysql}.
+The update log is saved in the @strong{MySQL} database directory with
+the name @code{hostname-bin.#}.
 @item
 If the tables are corrupted again, you have found reproducible bug
-in the @code{ISAM} code!  FTP the tables and the update log to
+in the @code{MyISAM} code!  FTP the tables and the update log to
 @uref{ftp://support.mysql.com/pub/mysql/secret} and we will fix this as soon as
 possible!
 @end itemize

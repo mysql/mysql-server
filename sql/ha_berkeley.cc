@@ -78,7 +78,7 @@ const char *ha_berkeley_ext=".db";
 bool berkeley_skip=0,berkeley_shared_data=0;
 u_int32_t berkeley_init_flags= DB_PRIVATE | DB_RECOVER, berkeley_env_flags=0,
           berkeley_lock_type=DB_LOCK_DEFAULT;
-ulong berkeley_cache_size;
+ulong berkeley_cache_size, berkeley_log_buffer_size, berkeley_log_file_size=0;
 char *berkeley_home, *berkeley_tmpdir, *berkeley_logdir;
 long berkeley_lock_scan_time=0;
 ulong berkeley_trans_retry=1;
@@ -99,7 +99,8 @@ static void berkeley_print_error(const char *db_errpfx, char *buffer);
 static byte* bdb_get_key(BDB_SHARE *share,uint *length,
 			 my_bool not_used __attribute__((unused)));
 static BDB_SHARE *get_share(const char *table_name, TABLE *table);
-static int free_share(BDB_SHARE *share, TABLE *table, uint hidden_primary_key);
+static int free_share(BDB_SHARE *share, TABLE *table, uint hidden_primary_key,
+		      bool mutex_is_locked);
 static int write_status(DB *status_block, char *buff, uint length);
 static void update_status(BDB_SHARE *share, TABLE *table);
 static void berkeley_noticecall(DB_ENV *db_env, db_notices notice);
@@ -118,6 +119,23 @@ bool berkeley_init(void)
     berkeley_tmpdir=mysql_tmpdir;
   if (!berkeley_home)
     berkeley_home=mysql_real_data_home;
+  /*
+    If we don't set set_lg_bsize() we will get into trouble when
+    trying to use many open BDB tables.
+    If log buffer is not set, assume that the we will need 512 byte per
+    open table.  This is a number that we have reached by testing.
+  */
+  if (!berkeley_log_buffer_size)
+  {
+    berkeley_log_buffer_size= max(table_cache_size*512,32*1024);
+  }
+  /*
+    Berkeley DB require that
+    berkeley_log_file_size >= berkeley_log_buffer_size*4
+  */
+  berkeley_log_file_size= berkeley_log_buffer_size*4;
+  berkeley_log_file_size= MY_ALIGN(berkeley_log_file_size,1024*1024L);
+  berkeley_log_file_size= max(berkeley_log_file_size, 10*1024*1024L);
 
   if (db_env_create(&db_env,0))
     DBUG_RETURN(1);
@@ -136,6 +154,8 @@ bool berkeley_init(void)
 			1);
 
   db_env->set_cachesize(db_env, 0, berkeley_cache_size, 0);
+  db_env->set_lg_max(db_env, berkeley_log_file_size);
+  db_env->set_lg_bsize(db_env, berkeley_log_buffer_size);
   db_env->set_lk_detect(db_env, berkeley_lock_type);
   if (berkeley_max_lock)
     db_env->set_lk_max(db_env, berkeley_max_lock);
@@ -465,7 +485,7 @@ int ha_berkeley::open(const char *name, int mode, uint test_if_locked)
   {
     if ((error=db_create(&file, db_env, 0)))
     {
-      free_share(share,table, hidden_primary_key);
+      free_share(share,table, hidden_primary_key,1);
       my_free(rec_buff,MYF(0));
       my_free(alloc_ptr,MYF(0));
       my_errno=error;
@@ -482,7 +502,7 @@ int ha_berkeley::open(const char *name, int mode, uint test_if_locked)
 					   2 | 4),
 			   "main", DB_BTREE, open_mode,0))))
     {
-      free_share(share,table, hidden_primary_key);
+      free_share(share,table, hidden_primary_key,1);
       my_free(rec_buff,MYF(0));
       my_free(alloc_ptr,MYF(0));
       my_errno=error;
@@ -555,7 +575,7 @@ int ha_berkeley::close(void)
 
   my_free(rec_buff,MYF(MY_ALLOW_ZERO_PTR));
   my_free(alloc_ptr,MYF(MY_ALLOW_ZERO_PTR));
-  DBUG_RETURN(free_share(share,table, hidden_primary_key));
+  DBUG_RETURN(free_share(share,table, hidden_primary_key,0));
 }
 
 
@@ -2077,11 +2097,14 @@ static BDB_SHARE *get_share(const char *table_name, TABLE *table)
   return share;
 }
 
-static int free_share(BDB_SHARE *share, TABLE *table, uint hidden_primary_key)
+static int free_share(BDB_SHARE *share, TABLE *table, uint hidden_primary_key,
+		      bool mutex_is_locked)
 {
   int error, result = 0;
   uint keys=table->keys + test(hidden_primary_key);
   pthread_mutex_lock(&bdb_mutex);
+  if (mutex_is_locked)
+    pthread_mutex_unlock(&share->mutex);
   if (!--share->use_count)
   {
     DB **key_file = share->key_file;
