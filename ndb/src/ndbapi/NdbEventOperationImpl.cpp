@@ -224,9 +224,8 @@ NdbEventOperationImpl::execute()
 
 
   int hasSubscriber;
-  int r=
-    m_bufferHandle->prepareAddSubscribeEvent(m_eventImpl->m_eventId,
-					     hasSubscriber /* return value */);
+  int r= m_bufferHandle->prepareAddSubscribeEvent(this,
+						  hasSubscriber /*return value*/);
   m_error.code= 4709;
 
   if (r < 0)
@@ -697,10 +696,11 @@ NdbGlobalEventBufferHandle::drop(NdbGlobalEventBufferHandle *handle)
 }
 */
 int 
-NdbGlobalEventBufferHandle::prepareAddSubscribeEvent(Uint32 eventId,
-						     int& hasSubscriber)
+NdbGlobalEventBufferHandle::prepareAddSubscribeEvent
+(NdbEventOperationImpl *eventOp, int& hasSubscriber)
 {
-  ADD_DROP_LOCK_GUARDR(int,real_prepareAddSubscribeEvent(this, eventId, hasSubscriber));
+  ADD_DROP_LOCK_GUARDR(int,real_prepareAddSubscribeEvent(this, eventOp,
+							 hasSubscriber));
 }
 void
 NdbGlobalEventBufferHandle::addSubscribeEvent
@@ -891,13 +891,15 @@ NdbGlobalEventBuffer::real_remove(NdbGlobalEventBufferHandle *h)
   exit(-1);
 }
 
-int 
+int
 NdbGlobalEventBuffer::real_prepareAddSubscribeEvent
-(NdbGlobalEventBufferHandle *aHandle, Uint32 eventId, int& hasSubscriber)
+(NdbGlobalEventBufferHandle *aHandle, NdbEventOperationImpl *eventOp,
+ int& hasSubscriber)
 {
   DBUG_ENTER("NdbGlobalEventBuffer::real_prepareAddSubscribeEvent");
   int i;
   int bufferId= -1;
+  Uint32 eventId= eventOp->m_eventId;
 
   //  add_drop_lock(); // only one thread can do add or drop at a time
 
@@ -939,6 +941,7 @@ found_bufferId:
     bufferId= NO_ID(0, bufferId);
 
     b.gId= eventId;
+    b.eventType= (Uint32)eventOp->m_eventImpl->mi_type;
 
     if ((b.p_buf_mutex= NdbMutex_Create()) == NULL) {
       ndbout_c("NdbGlobalEventBuffer: NdbMutex_Create() failed");
@@ -1137,6 +1140,8 @@ NdbGlobalEventBuffer::real_insertDataL(int bufferId,
 #ifdef EVENT_DEBUG
   int n = NO(bufferId);
 #endif
+
+  if ( b.eventType & (1 << (Uint32)sdata->operation) )
   {
     if (b.subs) {
 #ifdef EVENT_DEBUG
@@ -1175,6 +1180,13 @@ NdbGlobalEventBuffer::real_insertDataL(int bufferId,
 #endif
     }
   }
+  else
+  {
+#ifdef EVENT_DEBUG
+    ndbout_c("skipped");
+#endif
+  }
+
   DBUG_RETURN(0);
 }
 

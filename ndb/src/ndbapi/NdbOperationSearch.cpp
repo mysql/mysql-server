@@ -229,9 +229,6 @@ NdbOperation::equal_impl(const NdbColumnImpl* tAttrInfo,
       theNoOfTupKeyLeft = tNoKeysDef;
       tErrorLine++;
       theErrorLine = tErrorLine;
-
-      if(tDistrKey)
-	handle_distribution_key((Uint64*)aValue, totalSizeInWords);
       
       if (tNoKeysDef == 0) {	
 	if (tOpType == UpdateRequest) {

@@ -318,8 +318,51 @@ run_startHint(NDBT_Context* ctx, NDBT_Step* step)
   {
     return NDBT_FAILED;
   }
+
+  NdbRestarter restarter;
+  if(restarter.insertErrorInAllNodes(8050) != 0)
+    return NDBT_FAILED;
   
-  return NDBT_OK;
+  HugoCalculator dummy(*tab);
+  int result = NDBT_OK;
+  for(int i = 0; i<records && result == NDBT_OK; i++)
+  {
+    char buffer[8000];
+    char* start= buffer + (rand() & 7);
+    char* pos= start;
+    
+    for(int j = 0; j<tab->getNoOfColumns(); j++)
+    {
+      if(tab->getColumn(j)->getPartitionKey())
+      {
+	ndbout_c(tab->getColumn(j)->getName());
+	int sz = tab->getColumn(j)->getSizeInBytes();
+	int aligned_size = 4 * ((sz + 3) >> 2);
+	memset(pos, 0, aligned_size);
+	dummy.calcValue(i, j, 0, pos, sz);
+	pos += aligned_size;
+      }
+    }
+    // Now we have the pk
+    NdbTransaction* pTrans= p_ndb->startTransaction(tab, start,(pos - start));
+    HugoOperations ops(*tab);
+    ops.setTransaction(pTrans);
+    if(ops.pkReadRecord(p_ndb, i, 1) != NDBT_OK)
+    {
+      result = NDBT_FAILED;
+      break;
+    }
+    
+    if(ops.execute_Commit(p_ndb) != 0)
+    {
+      result = NDBT_FAILED;
+      break;
+    }
+    
+    ops.closeTransaction(p_ndb);
+  }
+  restarter.insertErrorInAllNodes(0);
+  return result;
 }
 
 
@@ -358,9 +401,18 @@ TESTCASE("ordered_index_dk",
   INITIALIZER(run_drop_table);
 }
 TESTCASE("startTransactionHint", 
-	 "Test startTransactionHint")
+	 "Test startTransactionHint wo/ distribution key")
 {
-  TC_PROPERTY("distributionkey", ~0);
+  TC_PROPERTY("distributionkey", (unsigned)0);
+  INITIALIZER(run_drop_table);
+  INITIALIZER(run_create_table);
+  INITIALIZER(run_startHint);
+  INITIALIZER(run_drop_table);
+}
+TESTCASE("startTransactionHint_dk", 
+	 "Test startTransactionHint with distribution key")
+{
+  TC_PROPERTY("distributionkey", (unsigned)~0);
   INITIALIZER(run_drop_table);
   INITIALIZER(run_create_table);
   INITIALIZER(run_startHint);

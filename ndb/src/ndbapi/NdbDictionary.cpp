@@ -231,6 +231,12 @@ NdbDictionary::Column::equal(const NdbDictionary::Column & col) const {
   return m_impl.equal(col.m_impl);
 }
 
+int
+NdbDictionary::Column::getSizeInBytes() const 
+{
+  return m_impl.m_attrSize * m_impl.m_arraySize;
+}
+
 /*****************************************************************
  * Table facade
  */
@@ -426,10 +432,14 @@ NdbDictionary::Table::getRowSizeInBytes() const {
   int sz = 0;
   for(int i = 0; i<getNoOfColumns(); i++){
     const NdbDictionary::Column * c = getColumn(i);
-    const NdbColumnImpl & col = NdbColumnImpl::getImpl(* c);
-    sz += (((col.m_attrSize * col.m_arraySize) + 3) / 4);
+    sz += (c->getSizeInBytes()+ 3) / 4;
   }
   return sz * 4;
+}
+
+int
+NdbDictionary::Table::getReplicaCount() const {  
+  return m_impl.m_replicaCount;
 }
 
 int
@@ -1000,6 +1010,7 @@ operator<<(NdbOut& out, const NdbDictionary::Column& col)
 }
 
 const NdbDictionary::Column * NdbDictionary::Column::FRAGMENT = 0;
+const NdbDictionary::Column * NdbDictionary::Column::FRAGMENT_MEMORY = 0;
 const NdbDictionary::Column * NdbDictionary::Column::ROW_COUNT = 0;
 const NdbDictionary::Column * NdbDictionary::Column::COMMIT_COUNT = 0;
 const NdbDictionary::Column * NdbDictionary::Column::ROW_SIZE = 0;
