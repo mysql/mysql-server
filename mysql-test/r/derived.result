@@ -94,13 +94,13 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	3	
 2	DERIVED	t1	ALL	NULL	NULL	NULL	NULL	4	
 3	UNION	t1	ALL	NULL	NULL	NULL	NULL	4	
--2	UNION RESULT	<union2>	ALL	NULL	NULL	NULL	NULL	NULL	
+NULL	UNION RESULT	<union2,3>	ALL	NULL	NULL	NULL	NULL	NULL	
 explain select * from (select * from t1 union all select * from t1) a;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	8	
 2	DERIVED	t1	ALL	NULL	NULL	NULL	NULL	4	
 3	UNION	t1	ALL	NULL	NULL	NULL	NULL	4	
--2	UNION RESULT	<union2>	ALL	NULL	NULL	NULL	NULL	NULL	
+NULL	UNION RESULT	<union2,3>	ALL	NULL	NULL	NULL	NULL	NULL	
 CREATE TABLE t2 (a int not null);
 insert into t2 values(1);
 select * from (select * from t1 where t1.a=(select a from t2 where t2.a=t1.a)) a;
@@ -248,10 +248,10 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	<derived4>	ALL	NULL	NULL	NULL	NULL	2	
 4	DERIVED	t1	ALL	NULL	NULL	NULL	NULL	2	
 5	UNION	t1	ALL	NULL	NULL	NULL	NULL	2	
--4	UNION RESULT	<union4>	ALL	NULL	NULL	NULL	NULL	NULL	
+NULL	UNION RESULT	<union4,5>	ALL	NULL	NULL	NULL	NULL	NULL	
 2	DERIVED	t1	ALL	NULL	NULL	NULL	NULL	2	
 3	UNION	t1	ALL	NULL	NULL	NULL	NULL	2	
--2	UNION RESULT	<union2>	ALL	NULL	NULL	NULL	NULL	NULL	
+NULL	UNION RESULT	<union2,3>	ALL	NULL	NULL	NULL	NULL	NULL	
 drop table t1;
 CREATE TABLE `t1` (
 `N` int(11) unsigned NOT NULL default '0',

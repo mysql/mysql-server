@@ -773,7 +773,7 @@ public:
   uint	     current_tablenr,tmp_table;
   uint	     server_status,open_options,system_thread;
   uint32     db_length;
-  int        select_number;             //number of select (used for EXPLAIN)
+  uint       select_number;             //number of select (used for EXPLAIN)
   /* variables.transaction_isolation is reset to this after each commit */
   enum_tx_isolation session_tx_isolation;
   enum_check_fields count_cuted_fields;

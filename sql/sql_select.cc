@@ -9133,7 +9133,7 @@ static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
 
   if (message)
   {
-    item_list.push_back(new Item_int((longlong)
+    item_list.push_back(new Item_int((int32)
 				     join->select_lex->select_number));
     item_list.push_back(new Item_string(join->select_lex->type,
 					strlen(join->select_lex->type), cs));
@@ -9146,23 +9146,44 @@ static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
   else if (join->select_lex == join->unit->fake_select_lex)
   {
     /* 
-       Here is guessing about fake_select_lex to avoid union SELECT
-       execution to get accurate information
+      here we assume that the query will return at least two rows, so we
+      show "filesort" in EXPLAIN. Of course, sometimes we'll be wrong
+      and no filesort will be actually done, but executing all selects in
+      the UNION to provide precise EXPLAIN information will hardly be
+      appreciated :)
     */
-    char table_name_buffer[64];
+    char table_name_buffer[NAME_LEN];
     item_list.empty();
     /* id */
-    item_list.push_back(new Item_int((int32)
-				     join->select_lex->select_number));
+    item_list.push_back(new Item_null);
     /* select_type */
     item_list.push_back(new Item_string(join->select_lex->type,
 					strlen(join->select_lex->type),
 					cs));
     /* table */
-    int len= my_snprintf(table_name_buffer, sizeof(table_name_buffer)-1,
-			 "<union%d>",
-			 -join->select_lex->select_number);
-    item_list.push_back(new Item_string(table_name_buffer, len, cs));
+    {
+      SELECT_LEX *sl= join->unit->first_select();
+      uint len= 6, lastop= 0;
+      memcpy(table_name_buffer, "<union", 6);
+      for (; sl && len + lastop + 5 < NAME_LEN; sl= sl->next_select())
+      {
+        len+= lastop;
+        lastop= my_snprintf(table_name_buffer + len, NAME_LEN - len,
+                            "%u,", sl->select_number);
+      }
+      if (sl || len + lastop >= NAME_LEN)
+      {
+        memcpy(table_name_buffer + len, "...>", 5);
+        len+= 4;
+      }
+      else
+      {
+        len+= lastop;
+        table_name_buffer[len - 1]= '>';  // change ',' to '>'
+      }
+      item_list.push_back(new Item_string(table_name_buffer, len, cs));
+    }
+    /* type */
     item_list.push_back(new Item_string(join_type_str[JT_ALL],
 					  strlen(join_type_str[JT_ALL]),
 					  cs));
@@ -9195,7 +9216,7 @@ static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
       TABLE *table=tab->table;
       char buff[512],*buff_ptr=buff;
       char buff1[512], buff2[512];
-      char table_name_buffer[64];
+      char table_name_buffer[NAME_LEN];
       String tmp1(buff1,sizeof(buff1),cs);
       String tmp2(buff2,sizeof(buff2),cs);
       tmp1.length(0);
@@ -9203,7 +9224,7 @@ static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
 
       item_list.empty();
       /* id */
-      item_list.push_back(new Item_int((int32)
+      item_list.push_back(new Item_uint((uint32)
 				       join->select_lex->select_number));
       /* select_type */
       item_list.push_back(new Item_string(join->select_lex->type,
@@ -9379,7 +9400,7 @@ int mysql_explain_union(THD *thd, SELECT_LEX_UNIT *unit, select_result *result)
   }
   if (first->next_select())
   {
-    unit->fake_select_lex->select_number= -first->select_number;
+    unit->fake_select_lex->select_number= UINT_MAX; // jost for initialization
     unit->fake_select_lex->type= "UNION RESULT";
     unit->fake_select_lex->options|= SELECT_DESCRIBE;
     if (!(res= unit->prepare(thd, result, SELECT_NO_UNLOCK | SELECT_DESCRIBE)))
