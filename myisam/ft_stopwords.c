@@ -37,7 +37,7 @@ static void FT_STOPWORD_free(FT_STOPWORD *w, TREE_FREE action,
                              void *arg __attribute__((unused)))
 {
   if (action == free_free)
-    my_free(w->pos, MYF(0));
+    my_free((gptr) w->pos, MYF(0));
 }
 
 static int ft_add_stopword(const char *w)
@@ -63,23 +63,20 @@ int ft_init_stopwords()
   if (ft_stopword_file)
   {
     File fd;
-    my_off_t len;
+    uint len;
     byte *buffer, *start, *end;
     FT_WORD w;
-    int err=-1;
+    int error=-1;
 
     if (!*ft_stopword_file)
       return 0;
 
     if ((fd=my_open(ft_stopword_file, O_RDONLY, MYF(MY_WME))) == -1)
       return -1;
-    len=my_seek(fd, 0L, MY_SEEK_END, MYF(0));
+    len=(uint)my_seek(fd, 0L, MY_SEEK_END, MYF(0));
     my_seek(fd, 0L, MY_SEEK_SET, MYF(0));
     if (!(start=buffer=my_malloc(len+1, MYF(MY_WME))))
-    {
-      my_close(fd, MYF(MY_WME));
-      return -1;
-    }
+      goto err0;
     len=my_read(fd, buffer, len, MYF(MY_WME));
     end=start+len;
     while (ft_simple_get_word(&start, end, &w))
@@ -87,17 +84,17 @@ int ft_init_stopwords()
       if (ft_add_stopword(my_strdup_with_length(w.pos, w.len, MYF(0))))
         goto err1;
     }
-    err=0;
+    error=0;
 err1:
     my_free(buffer, MYF(0));
 err0:
     my_close(fd, MYF(MY_WME));
-    return err;
+    return error;
   }
   else
   {
     /* compatibility mode: to be removed */
-    char **sws=ft_precompiled_stopwords;
+    char **sws=(char **)ft_precompiled_stopwords;
 
     for (;*sws;sws++)
     {
