@@ -285,7 +285,7 @@ int GLineString::get_mbr(MBR *mbr) const
     return 1;
   for (; n_points>0; --n_points)
   {
-    mbr->add_xy((double *)data, (double *)(data + 8));
+    mbr->add_xy(data, data + 8);
     data += 8+8;
   }
 
@@ -551,7 +551,7 @@ int GPolygon::get_mbr(MBR *mbr) const
       return 1;
     for (; n_points>0; --n_points)
     {
-      mbr->add_xy((double *)data, (double *)(data + 8));
+      mbr->add_xy(data, data + 8);
       data += 8+8;
     }
   }
@@ -838,8 +838,7 @@ int GMultiPoint::get_mbr(MBR *mbr) const
     return 1;
   for (; n_points>0; --n_points)
   {
-    mbr->add_xy((double *)(data + WKB_HEADER_SIZE), 
-                  (double *)(data + 8 + WKB_HEADER_SIZE));
+    mbr->add_xy(data + WKB_HEADER_SIZE, data + 8 + WKB_HEADER_SIZE);
     data += (8+8+WKB_HEADER_SIZE);
   }
   return 0;
@@ -963,7 +962,7 @@ int GMultiLineString::get_mbr(MBR *mbr) const
 
     for (; n_points>0; --n_points)
     {
-      mbr->add_xy((double *)data, (double *)(data + 8));
+      mbr->add_xy(data, data + 8);
       data += 8+8;
     }
   }
@@ -1156,7 +1155,7 @@ int GMultiPolygon::get_mbr(MBR *mbr) const
 
       for (; n_points>0; --n_points)
       {
-        mbr->add_xy((double *)data, (double *)(data + 8));
+        mbr->add_xy(data, data + 8);
         data += 8+8;
       }
     }
