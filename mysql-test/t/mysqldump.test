@@ -63,3 +63,11 @@ INSERT INTO t1 VALUES (1), (2);
 --exec $MYSQL_DUMP --skip-comments --compatible=mysql40 test t1
 --exec $MYSQL_DUMP --skip-comments --compatible=mysql323 test t1
 DROP TABLE t1;
+
+#
+# Bug #2592 'mysqldum doesn't quote "tricky" names correctly'
+#
+
+create table ```a` (i int);
+--exec $MYSQL_DUMP  --skip-comments test
+drop table ```a`;
