@@ -8905,6 +8905,53 @@ static void test_bind_nagative()
   myquery(rc);
 }
 
+static void test_derived()
+{
+  MYSQL_STMT *stmt;
+  int rc, i;
+  MYSQL_BIND      bind[1];
+  long            my_val = 0L;
+  long            my_length = 0L;
+  long            my_null = 0L;
+  const char *query=
+    "select count(1) from (select f.id from t1 f where f.id=?) as x";
+
+  myheader("test_derived");
+  
+  rc = mysql_query(mysql, "DROP TABLE IF EXISTS t1");
+  myquery(rc);
+  
+  rc= mysql_query(mysql,"create table t1 (id  int(8), primary key (id)) \
+TYPE=InnoDB DEFAULT CHARSET=utf8");
+  myquery(rc);
+
+  rc= mysql_query(mysql, "insert into t1 values (1)");
+  myquery(rc);
+
+  stmt= mysql_prepare(mysql, query, strlen(query));
+  mystmt_init(stmt);
+
+  bind[0].buffer_type = FIELD_TYPE_LONG;
+  bind[0].buffer = (char *)&my_val;
+  bind[0].length = &my_length;
+  bind[0].is_null = (char*)&my_null;
+  my_val= 1;
+  rc= mysql_bind_param(stmt, bind);
+  mystmt(stmt,rc);
+
+  for (i= 0; i < 3; i++)
+  {
+    rc= mysql_execute(stmt);
+    mystmt(stmt, rc);
+    assert(1 == my_process_stmt_result(stmt));
+  }
+  mysql_stmt_close(stmt);
+
+  rc= mysql_query(mysql, "DROP TABLE t1");
+  myquery(rc);
+}
+
+
 /*
   Read and parse arguments and MySQL options from my.cnf
 */
@@ -9172,6 +9219,7 @@ int main(int argc, char **argv)
     test_multi();	    /* test of multi delete & update */
     test_insert_select();   /* test INSERT ... SELECT */
     test_bind_nagative();   /* bind negative to unsigned BUG#3223 */
+    test_derived();	    /* derived table with parameter BUG#3020 */
 
     end_time= time((time_t *)0);
     total_time+= difftime(end_time, start_time);

@@ -148,36 +148,42 @@ static int mysql_derived(THD *thd, LEX *lex, SELECT_LEX_UNIT *unit,
   }
   derived_result->set_table(table);
 
-
-  if (is_union)
+  /*
+    if it is preparation PS only then we do not need real data and we
+    can skip execution (and parameters is not defined, too)
+  */
+  if (!thd->current_statement)
   {
-    // execute union without clean up
-    if (!(res= unit->prepare(thd, derived_result, SELECT_NO_UNLOCK)))
-      res= unit->exec();
-  }
-  else
-  {
-    unit->offset_limit_cnt= first_select->offset_limit;
-    unit->select_limit_cnt= first_select->select_limit+
-      first_select->offset_limit;
-    if (unit->select_limit_cnt < first_select->select_limit)
-      unit->select_limit_cnt= HA_POS_ERROR;
-    if (unit->select_limit_cnt == HA_POS_ERROR)
-      first_select->options&= ~OPTION_FOUND_ROWS;
+    if (is_union)
+    {
+      // execute union without clean up
+      if (!(res= unit->prepare(thd, derived_result, SELECT_NO_UNLOCK)))
+	res= unit->exec();
+    }
+    else
+    {
+      unit->offset_limit_cnt= first_select->offset_limit;
+      unit->select_limit_cnt= first_select->select_limit+
+	first_select->offset_limit;
+      if (unit->select_limit_cnt < first_select->select_limit)
+	unit->select_limit_cnt= HA_POS_ERROR;
+      if (unit->select_limit_cnt == HA_POS_ERROR)
+	first_select->options&= ~OPTION_FOUND_ROWS;
 
-    lex->current_select= first_select;
-    res= mysql_select(thd, &first_select->ref_pointer_array, 
-		      (TABLE_LIST*) first_select->table_list.first,
-		      first_select->with_wild,
-		      first_select->item_list, first_select->where,
-		      (first_select->order_list.elements+
-		       first_select->group_list.elements),
-		      (ORDER *) first_select->order_list.first,
-		      (ORDER *) first_select->group_list.first,
-		      first_select->having, (ORDER*) NULL,
-		      (first_select->options | thd->options |
-		       SELECT_NO_UNLOCK),
-		      derived_result, unit, first_select);
+      lex->current_select= first_select;
+      res= mysql_select(thd, &first_select->ref_pointer_array, 
+			(TABLE_LIST*) first_select->table_list.first,
+			first_select->with_wild,
+			first_select->item_list, first_select->where,
+			(first_select->order_list.elements+
+			 first_select->group_list.elements),
+			(ORDER *) first_select->order_list.first,
+			(ORDER *) first_select->group_list.first,
+			first_select->having, (ORDER*) NULL,
+			(first_select->options | thd->options |
+			 SELECT_NO_UNLOCK),
+			derived_result, unit, first_select);
+    }
   }
 
   if (!res)
