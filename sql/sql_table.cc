@@ -186,7 +186,7 @@ int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
   for (table=tables ; table ; table=table->next)
   {
     char *db=table->db;
-    mysql_ha_close(thd, table, /*dont_send_ok*/ 1, /*dont_lock*/ 1);
+    mysql_ha_flush(thd, table, MYSQL_HA_CLOSE_FINAL);
     if (!close_temporary_table(thd, db, table->real_name))
     {
       tmp_table_deleted=1;
@@ -1253,7 +1253,7 @@ static int mysql_admin_table(THD* thd, TABLE_LIST* tables,
   if (send_fields(thd, field_list, 1))
     DBUG_RETURN(-1);
 
-  mysql_ha_close(thd, tables, /*dont_send_ok*/ 1, /*dont_lock*/ 1);
+  mysql_ha_flush(thd, tables, MYSQL_HA_CLOSE_FINAL);
   for (table = tables; table; table = table->next)
   {
     char table_name[NAME_LEN*2+2];
@@ -1514,7 +1514,7 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
   }
   used_fields=create_info->used_fields;
   
-  mysql_ha_close(thd, table_list, /*dont_send_ok*/ 1, /*dont_lock*/ 1);
+  mysql_ha_flush(thd, table_list, MYSQL_HA_CLOSE_FINAL);
   if (!(table=open_ltable(thd,table_list,TL_WRITE_ALLOW_READ)))
     DBUG_RETURN(-1);
 
