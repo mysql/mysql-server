@@ -3162,7 +3162,7 @@ struct show_var_st init_vars[]= {
   {"record_rnd_buffer",       (char*) &record_rnd_cache_size,	    SHOW_LONG},
   {"query_buffer_size",       (char*) &query_buff_size,		    SHOW_LONG},
   {"safe_show_database",      (char*) &opt_safe_show_db,            SHOW_BOOL},
-  {"server_id",               (char*) &server_id,		    SHOW_LONG},
+  {"server_id",               (char*) &server_id,		    SHOW_INT},
   {"slave_net_timeout",       (char*) &slave_net_timeout,	    SHOW_LONG},
   {"skip_locking",            (char*) &my_disable_locking,          SHOW_MY_BOOL},
   {"skip_networking",         (char*) &opt_disable_networking,      SHOW_BOOL},
