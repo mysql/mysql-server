@@ -307,7 +307,7 @@ uint my_instr_mb(CHARSET_INFO *cs,
       {
         if (nmatch)
         {
-          match[0].beg= big0;
+          match[0].beg= 0;
           match[0].end= big-big0;
           match[0].mblen= res;
           if (nmatch > 1)
