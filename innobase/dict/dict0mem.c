@@ -59,6 +59,9 @@ dict_mem_table_create(
 	table->n_def = 0;
 	table->n_cols = n_cols + DATA_N_SYS_COLS;
 	table->mem_fix = 0;
+
+	table->n_mysql_handles_opened = 0;
+
 	table->cached = FALSE;
 	
 	table->cols = mem_heap_alloc(heap, (n_cols + DATA_N_SYS_COLS)

@@ -26,6 +26,20 @@ Created 1/8/1996 Heikki Tuuri
 #include "ut0byte.h"
 #include "trx0types.h"
 
+/************************************************************************
+Increments the count of open MySQL handles to a table. */
+
+void
+dict_table_increment_handle_count(
+/*==============================*/
+	dict_table_t*	table);	/* in: table */
+/************************************************************************
+Decrements the count of open MySQL handles to a table. */
+
+void
+dict_table_decrement_handle_count(
+/*==============================*/
+	dict_table_t*	table);	/* in: table */
 /**************************************************************************
 Inits the data dictionary module. */
 
