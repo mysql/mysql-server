@@ -529,10 +529,10 @@ GEMINI Tables
 
 INNODB Tables
 
-* INNODB overview::           
-* INNODB start::              INNODB startup options
-* Using INNODB tables::       Using INNODB tables
-* INNODB restrictions::       Some restrictions on @code{INNODB} tables:
+* INNODB overview::             
+* INNODB start::                INNODB startup options
+* Using INNODB tables::         Using INNODB tables
+* INNODB restrictions::         Some restrictions on @code{INNODB} tables:
 
 MySQL Tutorial
 
@@ -648,6 +648,7 @@ Speed of Queries that Access or Update Data
 MySQL Utilites
 
 * Programs::                    What do the executables do?
+* mysqld-max::                  
 * safe_mysqld::                 safe_mysqld, the wrapper around mysqld
 * mysqld_multi::                Program for managing multiple @strong{MySQL} servers
 * mysql::                       The command line tool
@@ -5066,6 +5067,21 @@ binary distributions are 'ready to run' at any place, but you may want
 to get even more flexibility).
 
 @item
+To be able to satisfy different user requirements, we are providing two
+different binary versions; One compiled with the non-transactional table
+handlers, (a small, fast binary), and one configurated with the most
+important extended options like transaction safe tables.  Both versions
+are compiled from the same source distribution.  All native @code{MySQL}
+clients can connect to both @strong{MySQL} versions.
+
+The extended @strong{MySQL} binary distribution is marked with the
+@code{-max} suffix and is configured with the same options as
+@code{mysqld-max}. @xref{mysqld-max}.
+
+If you are want to use the @code{MySQL-Max} RPM, you must first
+install the standard @code{MySQL} RPM.
+
+@item
 If you want to configure @code{mysqld} with some extra feature that is NOT in
 the standard binary distributions.  Here is a list of the most common
 extra options that you may want to use:
@@ -5397,6 +5413,12 @@ archives and have names like @file{mysql-VERSION-OS.tar.gz}, where
 @code{VERSION} is a number (for example, @code{3.21.15}), and @code{OS}
 indicates the type of operating system for which the distribution is intended
 (for example, @code{pc-linux-gnu-i586}).
+
+@item
+If you see a binary distribution marked with the @code{-max} prefix, this
+means that the binary has support for transaction safe tables and other
+features. @xref{mysqld-max}.  Note that all binaries are built from
+the same @strong{MySQL} source distribution.
 
 @item
 Add a user and group for @code{mysqld} to run as:
@@ -23174,7 +23196,7 @@ of both worlds.
 * HEAP::                        HEAP tables
 * BDB::                         BDB or Berkeley_db tables
 * GEMINI::                      GEMINI tables
-* INNODB::                    INNODB tables
+* INNODB::                      INNODB tables
 @end menu
 
 @node MyISAM, MERGE, Table types, Table types
@@ -24169,10 +24191,10 @@ NuSphere is working on removing these limitations.
 @section INNODB Tables
 
 @menu
-* INNODB overview::           
-* INNODB start::              INNODB startup options
-* Using INNODB tables::       Using INNODB tables
-* INNODB restrictions::       Some restrictions on @code{INNODB} tables:
+* INNODB overview::             
+* INNODB start::                INNODB startup options
+* Using INNODB tables::         Using INNODB tables
+* INNODB restrictions::         Some restrictions on @code{INNODB} tables:
 @end menu
 
 @node INNODB overview, INNODB start, INNODB, INNODB
@@ -30234,6 +30256,7 @@ We can find the result from crash-me on a lot of different databases at
 
 @menu
 * Programs::                    What do the executables do?
+* mysqld-max::                  
 * safe_mysqld::                 safe_mysqld, the wrapper around mysqld
 * mysqld_multi::                Program for managing multiple @strong{MySQL} servers
 * mysql::                       The command line tool
@@ -30252,7 +30275,7 @@ to use it, and what you should use it for.
 
 @cindex environment variables
 @cindex programs, list of
-@node Programs, safe_mysqld, Tools, Tools
+@node Programs, mysqld-max, Tools, Tools
 @section Overview of the Different MySQL Programs
 
 All @strong{MySQL} clients that communicate with the server using the
@@ -30375,16 +30398,49 @@ shell> replace a b b a -- file1 file2 ...
 @end example
 @end table
 
+@cindex @code{mysqld-max}
+@node mysqld-max, safe_mysqld, Programs, Tools
+@section mysqld-max, An extended mysqld server
+
+@code{mysqld-max} is the MySQL server (@code{mysqld}) configured with
+the following configure options:
+
+@multitable @columnfractions .3 .7
+@item @strong{Option} @tab @strong{Comment}
+@item --with-server-suffix=-max @tab Add a suffix to the @code{mysqld} version string.
+@item --with-bdb @tab Support for Berkeley DB (BDB) tables
+@item --with-innodb @tab Support for InnoDB tables.
+@item CFLAGS=-DUSE_SYMDIR @tab Symbolic links support for Windows.
+@end multitable
+
+@code{safe_mysqld} will automaticly try to start any @code{mysqld} binary
+with the @code{-max} prefix. This makes it very easy to test out a
+another @code{mysqld} binary in an existing installation.  Just
+run @code{configure} with the options you want and then install the
+new @code{mysqld} binary as @code{mysqld-max} in the same directory
+where your old @code{mysqld} binary is. @xref{safe_mysqld}.
+
+The @code{mysqld-max} RPM uses this @code{safe_mysqld} feature. It just
+installs the @code{mysqld-max} executable and @code{safe_mysqld} will
+automaticly use this when @code{mysqld} is restarted.
+
 @cindex tools, safe_mysqld
 @cindex scripts
 @cindex @code{safe_mysqld}
-@node safe_mysqld, mysqld_multi, Programs, Tools
+@node safe_mysqld, mysqld_multi, mysqld-max, Tools
 @section safe_mysqld, the wrapper around mysqld
 
 @code{safe_mysqld} is the recommended way to start a @code{mysqld}
 daemon on Unix.  @code{safe_mysqld} adds some safety features such as
 restarting the server when an error occurs and logging run-time
 information to a log file.
+
+If you don't use @code{--mysqld=#} or @code{--mysqld-version=#}
+@code{safe_mysqld} will use an executable named @code{mysqld-max} if it
+exists. If not, @code{safe_mysqld} will start @code{mysqld}.
+This makes it very easy to test to use @code{mysqld-max} instead of
+@code{mysqld};  Just copy @code{mysqld-max} to where you have
+@code{mysqld} and it will be used.
 
 Normally one should never edit the @code{safe_mysqld} script, but
 instead put the options to @code{safe_mysqld} in the
@@ -30415,6 +30471,11 @@ Path to @code{mysqld}
 @item --log=path
 @item --mysqld=mysqld-version
 Name of the mysqld version in the @code{ledir} directory you want to start.
+@item --mysqld-version=version
+Similar to @code{--mysqld=} but here you only give the suffix for mysqld.
+For example if you use @code{--mysqld-version=max}, @code{safe_mysqld} will
+start the @code{ledir/mysqld-max} version.  If the argument to
+@code{--mysqld-version} is empty, @code{ledir/mysqld} will be used.
 @item --no-defaults
 @item --open-files-limit=#
 Number of files @code{mysqld} should be able to open. Passed to @code{ulimit -n}. Note that you need to start @code{safe_mysqld} as root for this to work properly!
@@ -42850,10 +42911,13 @@ not yet 100% confident in this code.
 @appendixsubsec Changes in release 3.23.37
 @itemize @bullet
 @item
+Added @code{--mysql-version} to @code{safe_mysqld}
+@item
 Changed @code{INNOBASE} to @code{INNODB} (because the @code{INNOBASE}
-name was already used). Note that all @code{configure} options and
-@code{mysqld} start options are now using @code{innodb} instead of
-@code{innobase}.
+name was already used). All @code{configure} options and @code{mysqld}
+start options are now using @code{innodb} instead of @code{innobase}. This
+means that you have to change any configuration files where you have used
+@code{innobase} options before upgrading to this version!
 @item
 Fixed bug when using indexes on @code{CHAR(255) NULL} columns.
 @item
