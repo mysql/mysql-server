@@ -132,7 +132,7 @@ void init_read_record(READ_RECORD *info,THD *thd, TABLE *table,
   if (thd->variables.engine_condition_pushdown && 
       select && select->cond && 
       select->cond->used_tables() & table->map &&
-      !(select->quick || table->file->pushed_cond))
+      !table->file->pushed_cond)
     table->file->cond_push(select->cond);
 
   DBUG_VOID_RETURN;
