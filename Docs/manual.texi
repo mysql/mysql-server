@@ -13768,7 +13768,7 @@ For example, for a column declared as @code{INT(5) ZEROFILL}, a value
 of @code{4} is retrieved as @code{00004}.  Note that if you store larger
 values than the display width in an integer column, you may experience
 problems when @strong{MySQL} generates temporary tables for some
-complicated joins, as in these cases @strong{MySQL} will trust that the
+complicated joins, as in these cases @strong{MySQL} trusts that the
 data did fit into the original column width.
 
 All integral types can have an optional (non-standard) attribute
@@ -14869,7 +14869,7 @@ mysql> select (1+2)*3;
 @node Arithmetic functions, Bit functions, Grouping functions, Functions
 @subsection Normal Arithmetic Operations
 
-The usual arithmetic operators are available.  Note that in the case of
+The usual arithmetic operators are available. Note that in the case of
 @samp{-}, @samp{+}, and @samp{*}, the result is calculated with
 @code{BIGINT} (64-bit) precision if both arguments are integers!
 
@@ -17852,7 +17852,7 @@ automatically be deleted if any errors occur while copying data
 into the table.
 @item
 The @code{RAID_TYPE} option will help you to break the 2G/4G limit on
-Operating Systems that don't support big files. You can get also more speed
+operating systems that don't support big files. You can get also more speed
 from the I/O bottleneck by putting @code{RAID} directories on different
 physical disks. @code{RAID_TYPE} will work on any OS, as long as you have
 configured @strong{MySQL} with @code{--with-raid}.  For now the only allowed
@@ -18986,7 +18986,7 @@ If you specify the keyword @code{IGNORE} in an @code{INSERT} with many value
 rows, any rows that duplicate an existing @code{PRIMARY} or @code{UNIQUE}
 key in the table are ignored and are not inserted.  If you do not specify
 @code{IGNORE}, the insert is aborted if there is any row that duplicates an
-existing key value.  You can check with the C API function
+existing key value.  You can determine with the C API function
 @code{mysql_info()} how many rows were inserted into the table.
 
 @item
@@ -20224,9 +20224,10 @@ higher than your operating system limit will be ineffective.
 The value of the @code{--basedir} option.
 
 @item @code{bdb_cache_size}
-The buffer that is allocated to cache index and rows for @code{BDB} tables.
-If you don't use @code{BDB} tables, you should set this to 0 or
-start @code{mysqld} with @code{--skip-bdb} o not waste memory for this cache.
+The buffer that is allocated to cache index and rows for @code{BDB}
+tables.  If you don't use @code{BDB} tables, you should set this to 0 or
+start @code{mysqld} with @code{--skip-bdb} to not waste memory for this
+cache.
 
 @item @code{bdb_home}
 The value of the @code{--bdb-home} option.
@@ -33088,7 +33089,7 @@ simple rename should get your data back.
 @cindex changing, column order
 @cindex tables, changing column order
 @node Change column order,  , ALTER TABLE problems, Problems
-@section How To Change the Order of Columns in a Table
+@Section How To Change the Order of Columns in a Table
 
 The whole point of SQL is to abstract the application from the data
 storage format.  You should always specify the order in which you wish to
@@ -33196,7 +33197,7 @@ you are making a copy of the files in the database directory. If you want to
 make a SQL level backup of a table, you can use @code{SELECT INTO OUTFILE}.
 
 Another way to back up a database is to use the @code{mysqldump} program:
-@xref{mysqldump}. :
+@xref{mysqldump}:
 
 @enumerate
 @item
@@ -33223,7 +33224,7 @@ If you have to restore something, try to recover your tables using
 @code{myisamchk -r} first.  That should work in 99.9% of all cases.  If
 @code{myisamchk} fails, try the following procedure:
 (This will only work if you have started @strong{MySQL} with
-@code{--log-update}. @xref{Update log}.):
+@code{--log-update}. @xref{Update log}):
 
 @enumerate
 @item
@@ -33460,7 +33461,7 @@ when connecting to the @strong{MySQL} server.
 
 @item
 If your are using the @strong{MySQL} perl DBD module you can read the options
-from the @strong{MySQL} option files. @xref{Option files}.:
+from the @strong{MySQL} option files. @xref{Option files}:
 
 @example
 $dsn = "DBI:mysql:test;mysql_read_default_group=client;"
@@ -33720,7 +33721,7 @@ The number of decimals for numeric fields.
 
 The functions available in the C API are listed below and are described in
 greater detail in the next section.
-@xref{C API functions}.:
+@xref{C API functions}:
 
 @multitable @columnfractions .3 .7
 @item @strong{mysql_affected_rows()} @tab
@@ -38471,7 +38472,7 @@ User-customizable multi-threaded tool set to benchmark @strong{MySQL}. By Sasha 
 
 @itemize @bullet
 @item @uref{http://www.mysql.com/Downloads/Contrib/ascend-radius-mysql-0.7.2.patch.gz,ascend-radius-mysql-0.7.2.patch.gz}
-This is authentication and logging patch using @strong{MySQL} for
+This is an authentication and logging patch using @strong{MySQL} for
 Ascend-Radius. By @email{takeshi@@SoftAgency.co.jp}.
 
 @item @uref{http://www.mysql.com/Downloads/Contrib/icradius-0.10.tar.gz, icradius 0.10}
