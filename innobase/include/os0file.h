@@ -358,6 +358,14 @@ os_file_set_size(
 				size */
 	ulint		size_high);/* in: most significant 32 bits of size */
 /***************************************************************************
+Truncates a file at its current position. */
+
+ibool
+os_file_set_eof(
+/*============*/
+				/* out: TRUE if success */
+	FILE*		file);	/* in: file to be truncated */
+/***************************************************************************
 Flushes the write buffers of a given file to the disk. */
 
 ibool

@@ -341,12 +341,18 @@ public:
   bool create_total_list(THD *thd, st_lex *lex, TABLE_LIST **result);
   st_select_lex_unit* master_unit();
   st_select_lex* outer_select();
-  st_select_lex* first_select() { return (st_select_lex*) slave; }
+  st_select_lex* first_select()
+  {
+    return my_reinterpret_cast(st_select_lex*)(slave);
+  }
   st_select_lex* first_select_in_union() 
   { 
-    return (st_select_lex*) slave;
+    return my_reinterpret_cast(st_select_lex*)(slave);
   }
-  st_select_lex_unit* next_unit() { return (st_select_lex_unit*) next; }
+  st_select_lex_unit* next_unit()
+  {
+    return my_reinterpret_cast(st_select_lex_unit*)(next);
+  }
   st_select_lex* return_after_parsing() { return return_to; }
   void exclude_level();
   void exclude_tree();
