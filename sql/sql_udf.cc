@@ -74,7 +74,7 @@ static HASH udf_hash;
 static rw_lock_t THR_LOCK_udf;
 
 
-static udf_func *add_udf(char *name, Item_result ret,
+static udf_func *add_udf(LEX_STRING *name, Item_result ret,
                          char *dl, Item_udftype typ);
 static void del_udf(udf_func *udf);
 static void *find_udf_dl(const char *dl);
@@ -90,8 +90,8 @@ static char *init_syms(udf_func *tmp, char *nm)
 
   if (tmp->type == UDFTYPE_AGGREGATE)
   {
-    (void)strmov(end, "_reset");
-    if (!((tmp->func_reset= dlsym(tmp->dlhandle, nm))))
+    (void)strmov(end, "_clear");
+    if (!((tmp->func_clear= dlsym(tmp->dlhandle, nm))))
       return nm;
     (void)strmov(end, "_add");
     if (!((tmp->func_add= dlsym(tmp->dlhandle, nm))))
@@ -200,8 +200,9 @@ void udf_init()
       continue;
     }
 
-    if (!(tmp = add_udf(&name,(Item_result) table->field[1]->val_int(),
-			dl_name, udftype)))
+
+    if (!(tmp= add_udf(&name,(Item_result) table->field[1]->val_int(),
+                       dl_name, udftype)))
     {
       sql_print_error("Can't alloc memory for udf function: '%.64s'", name.str);
       continue;
@@ -445,7 +446,6 @@ int mysql_create_function(THD *thd,udf_func *udf)
       goto err;
     }
   }
-
   udf->name.str=strdup_root(&mem,udf->name.str);
   udf->dl=strdup_root(&mem,udf->dl);
   if (!(u_d=add_udf(&udf->name,udf->returns,udf->dl,udf->type)))
