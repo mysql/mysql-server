@@ -33551,8 +33551,9 @@ HANDLER table READ @{ FIRST | NEXT @}  [ WHERE ... ] [LIMIT ... ]
 HANDLER table CLOSE
 @end example
 
-The @code{HANDLER} statement provides direct access to MySQL table
-interface, bypassing SQL optimiser. Thus, it is faster then SELECT.
+The @code{HANDLER} statement provides direct access to the @code{MyISAM} table
+handler interface, bypassing the SQL optimiser. Thus, it is faster than
+@code{SELECT}.
 
 The first form of @code{HANDLER} statement opens a table, making
 in accessible via the following @code{HANDLER ... READ} routines.
