@@ -946,10 +946,12 @@ bool Item_func_from_unixtime::get_date(TIME *ltime,
 {
   struct tm tm_tmp;
   time_t tmp;
-  longlong arg= args[0]->val_int();
-  if ((null_value= (args[0]->null_value ||
-                    arg < TIMESTAMP_MIN_VALUE ||
-                    arg > TIMESTAMP_MAX_VALUE)))
+  ulonglong arg= (ulonglong)(args[0]->val_int());
+  /*
+    "arg > TIMESTAMP_MAX_VALUE" check also covers case of negative
+    from_unixtime() argument since arg is unsigned.
+  */
+  if ((null_value= (args[0]->null_value || arg > TIMESTAMP_MAX_VALUE)))
     return 1;
   tmp= arg;
   localtime_r(&tmp,&tm_tmp);
