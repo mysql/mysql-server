@@ -2572,6 +2572,15 @@ EOF
     AC_CONFIG_SUBDIRS(innobase)
   fi
 
+case $SYSTEM_TYPE-$MACHINE_TYPE-$ac_cv_prog_gcc-$have_ndbcluster in
+  *solaris*-i?86-no-yes)
+  # ndb fail for whatever strange reason to link Sun Forte/x86
+  # unless using incremental linker
+  CXXFLAGS="$CXXFLAGS -xildon"
+  ;;
+  *) ;;
+esac
+
   if test X"$have_ndbcluster" = Xyes
   then
     if test X"$mysql_cv_compress" != Xyes
