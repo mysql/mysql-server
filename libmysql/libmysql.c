@@ -1494,8 +1494,8 @@ static void set_stmt_error(MYSQL_STMT * stmt, int errcode,
   Copy error message to statement handler
 */
 
-static void set_stmt_errmsg(MYSQL_STMT * stmt, const char *err, int errcode,
-			    const char *sqlstate)
+void set_stmt_errmsg(MYSQL_STMT * stmt, const char *err, int errcode,
+		     const char *sqlstate)
 {
   DBUG_ENTER("set_stmt_error_msg");
   DBUG_PRINT("enter", ("error: %d/%s '%s'", errcode, sqlstate, err));
@@ -1601,6 +1601,16 @@ my_bool STDCALL cli_read_prepare_result(MYSQL *mysql, MYSQL_STMT *stmt)
   }
   stmt->field_count=  (uint) field_count;
   stmt->param_count=  (ulong) param_count;
+  if (!(stmt->params= (MYSQL_BIND *) alloc_root(&stmt->mem_root,
+						sizeof(MYSQL_BIND)*
+                                                (stmt->param_count + 
+                                                 stmt->field_count))))
+  {
+    set_stmt_error(stmt, CR_OUT_OF_MEMORY, unknown_sqlstate);
+    DBUG_RETURN(1);
+  }
+  stmt->bind= stmt->params + stmt->param_count;
+
   DBUG_RETURN(0);
 }
 
@@ -1649,12 +1659,6 @@ mysql_prepare(MYSQL  *mysql, const char *query, ulong length)
     stmt_close(stmt, 1);
     DBUG_RETURN(0);
   }
-  if (!(stmt->params= (MYSQL_BIND *) alloc_root(&stmt->mem_root,
-						sizeof(MYSQL_BIND)*
-                                                (stmt->param_count + 
-                                                 stmt->field_count))))
-    set_stmt_error(stmt, CR_OUT_OF_MEMORY, unknown_sqlstate);
-  stmt->bind= stmt->params + stmt->param_count;
 
   stmt->state= MY_ST_PREPARE;
   stmt->mysql= mysql;
@@ -1975,36 +1979,21 @@ static my_bool execute(MYSQL_STMT * stmt, char *packet, ulong length)
 
   mysql->last_used_con= mysql;
   int4store(buff, stmt->stmt_id);		/* Send stmt id to server */
-  if ((*mysql->methods->advanced_command)(mysql, COM_EXECUTE, buff, 
-					  MYSQL_STMT_HEADER, packet, 
-					  length, 1) ||
+  if (cli_advanced_command(mysql, COM_EXECUTE, buff, 
+			    MYSQL_STMT_HEADER, packet, 
+			    length, 1) ||
       mysql_read_query_result(mysql))
   {
     set_stmt_errmsg(stmt, net->last_error, net->last_errno, net->sqlstate);
     DBUG_RETURN(1);
   }
-  stmt->state= MY_ST_EXECUTE;
-  mysql_free_result(stmt->result);
-  stmt->result= (MYSQL_RES *)0;
-  stmt->result_buffered= 0;
-  stmt->current_row= 0;
   DBUG_RETURN(0);
 }
 
-
-/*
-  Execute the prepare query
-*/
-
-int STDCALL mysql_execute(MYSQL_STMT *stmt)
+int STDCALL cli_stmt_execute(MYSQL_STMT *stmt)
 {
-  DBUG_ENTER("mysql_execute");
+  DBUG_ENTER("cli_stmt_execute");
 
-  if (stmt->state == MY_ST_UNKNOWN)
-  {
-    set_stmt_error(stmt, CR_NO_PREPARE_STMT, unknown_sqlstate);
-    DBUG_RETURN(1);
-  }
   if (stmt->param_count)
   {
     NET        *net= &stmt->mysql->net;
@@ -2063,6 +2052,30 @@ int STDCALL mysql_execute(MYSQL_STMT *stmt)
     DBUG_RETURN(result);
   }
   DBUG_RETURN((int) execute(stmt,0,0));
+}
+
+/*
+  Execute the prepare query
+*/
+
+int STDCALL mysql_execute(MYSQL_STMT *stmt)
+{
+  DBUG_ENTER("mysql_execute");
+
+  if (stmt->state == MY_ST_UNKNOWN)
+  {
+    set_stmt_error(stmt, CR_NO_PREPARE_STMT, unknown_sqlstate);
+    DBUG_RETURN(1);
+  }
+  if ((*stmt->mysql->methods->stmt_execute)(stmt))
+    DBUG_RETURN(1);
+      
+  stmt->state= MY_ST_EXECUTE;
+  mysql_free_result(stmt->result);
+  stmt->result= (MYSQL_RES *)0;
+  stmt->result_buffered= 0;
+  stmt->current_row= 0;
+  DBUG_RETURN(0);
 }
 
 

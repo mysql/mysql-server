@@ -636,10 +636,10 @@ void free_rows(MYSQL_DATA *cur)
   }
 }
 
-static my_bool STDCALL
+my_bool STDCALL
 cli_advanced_command(MYSQL *mysql, enum enum_server_command command,
-		 const char *header, ulong header_length,
-		 const char *arg, ulong arg_length, my_bool skip_check)
+		     const char *header, ulong header_length,
+		     const char *arg, ulong arg_length, my_bool skip_check)
 {
   NET *net= &mysql->net;
   my_bool result= 1;
@@ -1407,7 +1407,8 @@ static MYSQL_METHODS client_methods=
   cli_mysql_use_result,
   cli_fetch_lengths,
   cli_list_fields,
-  cli_read_prepare_result
+  cli_read_prepare_result,
+  cli_stmt_execute
 };
 
 MYSQL * STDCALL 
