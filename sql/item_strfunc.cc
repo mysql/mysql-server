@@ -1776,6 +1776,73 @@ String *Item_func_conv::val_str(String *str)
 }
 
 
+String *Item_func_conv_charset::val_str(String *str)
+{
+  my_wc_t wc;
+  int cnvres;
+  const uchar *s, *se;
+  uchar *d, *d0, *de;
+  uint dmaxlen;
+  String *arg= args[0]->val_str(str);
+  CHARSET_INFO *from,*to;
+  
+  if (!arg)
+  {
+    null_value=1;
+    return 0;
+  }
+  
+  from=arg->charset();
+  to=conv_charset;
+
+  s=(const uchar*)arg->ptr();
+  se=s+arg->length();
+  
+  dmaxlen=arg->length()*(conv_charset->mbmaxlen?conv_charset->mbmaxlen:1)+1;
+  str->alloc(dmaxlen);
+  d0=d=(unsigned char*)str->ptr();
+  de=d+dmaxlen;
+  
+  while( s < se && d < de){
+
+    cnvres=from->mb_wc(from,&wc,s,se);
+    if (cnvres>0)
+    {
+      s+=cnvres;
+    }
+    else if (cnvres==MY_CS_ILSEQ)
+    {
+      s++;
+      wc='?';
+    }
+    else
+      break;
+
+outp:
+    cnvres=to->wc_mb(to,wc,d,de);
+    if (cnvres>0)
+    {
+      d+=cnvres;
+    }
+    else if (cnvres==MY_CS_ILUNI && wc!='?')
+    {
+        wc='?';
+        goto outp;
+    }
+    else
+      break;
+  };
+  
+  str->length((uint) (d-d0));
+  str->set_charset(to);
+  return str;
+}
+
+void Item_func_conv_charset::fix_length_and_dec()
+{
+  /* BAR TODO: What to do here??? */
+}
+
 String *Item_func_hex::val_str(String *str)
 {
   if (args[0]->result_type() != STRING_RESULT)
