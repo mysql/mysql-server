@@ -34492,10 +34492,13 @@ example, if you specify a column list that doesn't name all the columns in
 the table, unnamed columns are set to their default values.  Default value
 assignment is described in @ref{CREATE TABLE, , @code{CREATE TABLE}}.
 
-You can also use the keyword @code{DEFAULT} to set a column to it's
-defaults value. (New in MySQL 4.0.3).  This makes it easier to write
-insert statements as you don't have to use a field-name list just because
-you don't want to set a value for a few columns.
+You can also use the keyword @code{DEFAULT} to set a column to its
+default value. (New in MySQL 4.0.3.)  This makes it easier to write
+@code{INSERT} statements that assign values to all but a few columns,
+because it allows you to avoid writing an incomplete @code{VALUES()} list
+(a list that does not include an value for each column in the table).
+Otherwise, you would have to write out the list of column names
+corresponding to each value in the @code{VALUES()} list.
 
 MySQL always has a default value for all fields. This is something
 that is imposed on MySQL to be able to work with both transactional
