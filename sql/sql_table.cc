@@ -1779,8 +1779,6 @@ int mysql_discard_or_import_tablespace(THD *thd,
     DBUG_RETURN(-1);
   }
   
-  thd->tablespace_op=FALSE;
-
   error=table->file->discard_or_import_tablespace(discard);
 
   thd->proc_info="end";
@@ -1806,6 +1804,7 @@ int mysql_discard_or_import_tablespace(THD *thd,
   }
 err:
   close_thread_tables(thd);
+  thd->tablespace_op=FALSE;
   if (error == 0) {
     send_ok(thd);
    DBUG_RETURN(0);
@@ -1848,6 +1847,7 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
 
   mysql_ha_closeall(thd, table_list);
 
+  /* DISCARD/IMPORT TABLESPACE is always alone in an ALTER TABLE */
   if (tablespace_op != NO_TABLESPACE_OP)
     DBUG_RETURN(mysql_discard_or_import_tablespace(thd,table_list,
 							tablespace_op));
