@@ -1186,7 +1186,7 @@ row_create_table_for_mysql(
 	ut_ad(trx->mysql_thread_id == os_thread_get_curr_id());
 	ut_ad(mutex_own(&(dict_sys->mutex)));
 	
-	if (srv_created_new_raw || srv_force_recovery) {
+	if (srv_created_new_raw) {
 		fprintf(stderr,
 		"InnoDB: A new raw disk partition was initialized or\n"
 		"InnoDB: innodb_force_recovery is on: we do not allow\n"
@@ -1707,7 +1707,7 @@ row_drop_table_for_mysql(
 	ut_ad(trx->mysql_thread_id == os_thread_get_curr_id());
 	ut_a(name != NULL);
 
-	if (srv_created_new_raw || srv_force_recovery) {
+	if (srv_created_new_raw) {
 		fprintf(stderr,
 		"InnoDB: A new raw disk partition was initialized or\n"
 		"InnoDB: innodb_force_recovery is on: we do not allow\n"
