@@ -691,15 +691,15 @@ int mysql_table_dump(THD* thd, char* db, char* tbl_name, int fd)
 
   thd->free_list = 0;
   thd->query = tbl_name;
-  if((error = mysqld_dump_create_info(thd, table, -1)))
-    {
-      my_error(ER_GET_ERRNO, MYF(0));
-      goto err;
-    }
+  if ((error = mysqld_dump_create_info(thd, table, -1)))
+  {
+    my_error(ER_GET_ERRNO, MYF(0));
+    goto err;
+  }
   net_flush(&thd->net);
   error = table->file->dump(thd,fd);
-  if(error)
-      my_error(ER_GET_ERRNO, MYF(0));
+  if (error)
+    my_error(ER_GET_ERRNO, MYF(0));
 
 err:
 
@@ -776,9 +776,8 @@ bool do_command(THD *thd)
       *tbl_name++ = 0;
       memcpy(tbl_name, data + db_len + 2, tbl_len);
       tbl_name[tbl_len] = 0;
-      if(mysql_table_dump(thd, db, tbl_name, -1))
+      if (mysql_table_dump(thd, db, tbl_name, -1))
 	send_error(&thd->net); // dump to NET
-
       break;
     }
   case COM_CHANGE_USER:

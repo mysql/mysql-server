@@ -470,6 +470,7 @@ btr_search_check_guess(
 /*===================*/
 				/* out: TRUE if success */
 	btr_cur_t*	cursor,	/* in: guessed cursor position */
+	ibool           can_only_compare_to_cursor_rec,
 	dtuple_t* 	tuple,	/* in: data tuple */
 	ulint		mode,	/* in: PAGE_CUR_L, PAGE_CUR_LE, PAGE_CUR_G,
 				or PAGE_CUR_GE */
@@ -526,6 +527,10 @@ btr_search_check_guess(
 
 			return(FALSE);
 		}
+	}
+
+	if (can_only_compare_to_cursor_rec) {
+	       return(FALSE);
 	}
 
 	match = 0;
@@ -632,6 +637,7 @@ btr_search_guess_on_hash(
 	ulint		fold;
 	ulint		tuple_n_fields;
 	dulint		tree_id;
+	ibool           can_only_compare_to_cursor_rec = TRUE;
 #ifdef notdefined
 	btr_cur_t	cursor2;
 	btr_pcur_t	pcur;
@@ -706,6 +712,8 @@ btr_search_guess_on_hash(
 			goto failure;
 		}
 
+		can_only_compare_to_cursor_rec = FALSE;
+
 		buf_page_dbg_add_level(page, SYNC_TREE_NODE_FROM_HASH);
 	}
 
@@ -737,7 +745,9 @@ btr_search_guess_on_hash(
 				fold);
 */				
 	} else {
-		success = btr_search_check_guess(cursor, tuple, mode, mtr);
+		success = btr_search_check_guess(cursor,
+					   can_only_compare_to_cursor_rec,
+						 tuple, mode, mtr);
 	}
 	
 	if (!success) {
