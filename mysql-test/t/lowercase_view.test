@@ -32,3 +32,18 @@ delete from v2aA where col1 = (select max(col1) from v1aA);
 insert into v2aA values ((select max(col1) from v1aA));
 drop view v2Aa,v1Aa;
 drop table t1Aa,t2Aa;
+
+#
+# aliases in VIEWs
+#
+create table t1Aa (col1 int);
+create view v1Aa as select col1 from t1Aa as AaA;
+show create view v1AA;
+drop view v1AA;
+select Aaa.col1 from t1Aa as AaA;
+create view v1Aa as select Aaa.col1 from t1Aa as AaA;
+drop view v1AA;
+create view v1Aa as select AaA.col1 from t1Aa as AaA;
+show create view v1AA;
+drop view v1AA;
+drop table t1Aa;
