@@ -92,7 +92,7 @@ eval_func_item(THD *thd, Item *it, enum enum_field_types type)
 }
 
 sp_head::sp_head(LEX_STRING *name, LEX *lex)
-  : m_simple_case(FALSE)
+  : Sql_alloc(), m_simple_case(FALSE)
 {
   const char *dstr = (const char*)lex->buf;
 
@@ -126,19 +126,34 @@ sp_head::create(THD *thd)
   DBUG_RETURN(ret);
 }
 
+void
+sp_head::destroy()
+{
+  delete_dynamic(&m_instr);
+  m_pcont->destroy();
+}
 
 int
 sp_head::execute(THD *thd)
 {
   DBUG_ENTER("sp_head::execute");
-  char *olddbname;
+  char olddbname[128];
   char *olddbptr= thd->db;
   int ret= 0;
   uint ip= 0;
 
-  LINT_INIT(olddbname);
   if (olddbptr)
-    olddbname= my_strdup(olddbptr, MYF(MY_WME));
+  {
+    uint i= 0;
+    char *p= olddbptr;
+
+    /* Fast inline strncpy without padding... */
+    while (*p && i < sizeof(olddbname))
+      olddbname[i++]= *p++;
+    if (i == sizeof(olddbname))
+      i-= 1;			// QQ Error or warning for truncate?
+    olddbname[i]= '\0';
+  }
 
   do
   {
@@ -156,13 +171,12 @@ sp_head::execute(THD *thd)
     ret= -1;
   /* If the DB has changed, the pointer has changed too, but the
      original thd->db will then have been freed */
-  if (olddbptr && olddbptr != thd->db && olddbname)
+  if (olddbptr && olddbptr != thd->db)
   {
     /* QQ Maybe we should issue some special error message or warning here,
        if this fails?? */
     if (! thd->killed)
       ret= mysql_change_db(thd, olddbname);
-    my_free(olddbname, MYF(0));
   }
   DBUG_RETURN(ret);
 }
@@ -399,7 +413,7 @@ sp_head::restore_lex(THD *thd)
 void
 sp_head::push_backpatch(sp_instr *i, sp_label_t *lab)
 {
-  bp_t *bp= (bp_t *)my_malloc(sizeof(bp_t), MYF(MY_WME));
+  bp_t *bp= (bp_t *)sql_alloc(sizeof(bp_t));
 
   if (bp)
   {
