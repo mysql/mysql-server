@@ -1076,7 +1076,7 @@ private:
   void storeLongKeysAtPos(Signal* signal);
   void reorgLongPage(Signal* signal);
   void getElement(Signal* signal);
-  void searchLongKey(Signal* signal);
+  void searchLongKey(Signal* signal, bool verify);
   void getdirindex(Signal* signal);
   void commitdelete(Signal* signal, bool systemRestart);
   void deleteElement(Signal* signal);
