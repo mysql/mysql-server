@@ -18,6 +18,7 @@ Created 11/5/1995 Heikki Tuuri
 #include "log0recv.h"
 #include "trx0sys.h"
 #include "os0file.h"
+#include "srv0start.h"
 
 /* The size in blocks of the area where the random read-ahead algorithm counts
 the accessed pages when deciding whether to read-ahead */
@@ -132,10 +133,16 @@ buf_read_ahead_random(
 	ulint		low, high;
 	ulint		i;
 
-	if (ibuf_bitmap_page(offset)) {
+	if (srv_startup_is_before_trx_rollback_phase) {
+	        /* No read-ahead to avoid thread deadlocks */
+	        return(0);
+	}
 
-		/* If it is an ibuf bitmap page, we do no read-ahead, as
-		that could break the ibuf page access order */
+	if (ibuf_bitmap_page(offset) || trx_sys_hdr_page(space, offset)) {
+
+		/* If it is an ibuf bitmap page or trx sys hdr, we do
+                no read-ahead, as that could break the ibuf page access
+                order */
 
 		return(0);
 	}
@@ -301,9 +308,16 @@ buf_read_ahead_linear(
 	ulint		low, high;
 	ulint		i;
 	
-	if (ibuf_bitmap_page(offset)) {
-		/* If it is an ibuf bitmap page, we do no read-ahead, as
-		that could break the ibuf page access order */
+	if (srv_startup_is_before_trx_rollback_phase) {
+	        /* No read-ahead to avoid thread deadlocks */
+	        return(0);
+	}
+
+	if (ibuf_bitmap_page(offset) || trx_sys_hdr_page(space, offset)) {
+
+		/* If it is an ibuf bitmap page or trx sys hdr, we do
+                no read-ahead, as that could break the ibuf page access
+                order */
 
 		return(0);
 	}

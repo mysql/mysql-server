@@ -39,3 +39,5 @@ drop database foo;
 unlock tables;
 drop database foo;
 show databases;
+
+

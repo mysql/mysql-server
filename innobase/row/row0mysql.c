@@ -824,7 +824,11 @@ row_create_table_for_mysql(
 		} else {
 		         assert(err == DB_DUPLICATE_KEY);
 			 fprintf(stderr, 
-     "Innobase: error: table %s already exists in Innobase data dictionary\n",
+     "InnoDB: Error: table %s already exists in InnoDB internal\n"
+     "InnoDB: data dictionary. Have you deleted the .frm file\n"
+     "InnoDB: and not used DROP TABLE? Have you used DROP DATABASE\n"
+     "InnoDB: for InnoDB tables in MySQL version <= 3.23.39?\n"
+     "InnoDB: See the Restrictions section of the InnoDB manual.\n",
 				 table->name);
 		}
 

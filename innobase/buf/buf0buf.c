@@ -241,6 +241,8 @@ buf_block_init(
 
 	block->modify_clock = ut_dulint_zero;
 	
+	block->file_page_was_freed = FALSE;
+
 	rw_lock_create(&(block->lock));
 	ut_ad(rw_lock_validate(&(block->lock)));
 
@@ -543,6 +545,64 @@ buf_page_peek(
 }
 
 /************************************************************************
+Sets file_page_was_freed TRUE if the page is found in the buffer pool.
+This function should be called when we free a file page and want the
+debug version to check that it is not accessed any more unless
+reallocated. */
+
+buf_block_t*
+buf_page_set_file_page_was_freed(
+/*=============================*/
+			/* out: control block if found from page hash table,
+			otherwise NULL */
+	ulint	space,	/* in: space id */
+	ulint	offset)	/* in: page number */
+{
+	buf_block_t*	block;
+
+	mutex_enter_fast(&(buf_pool->mutex));
+
+	block = buf_page_hash_get(space, offset);
+
+	if (block) {
+		block->file_page_was_freed = TRUE;
+	}
+
+	mutex_exit(&(buf_pool->mutex));
+
+	return(block);
+}
+
+/************************************************************************
+Sets file_page_was_freed FALSE if the page is found in the buffer pool.
+This function should be called when we free a file page and want the
+debug version to check that it is not accessed any more unless
+reallocated. */
+
+buf_block_t*
+buf_page_reset_file_page_was_freed(
+/*===============================*/
+			/* out: control block if found from page hash table,
+			otherwise NULL */
+	ulint	space,	/* in: space id */
+	ulint	offset)	/* in: page number */
+{
+	buf_block_t*	block;
+
+	mutex_enter_fast(&(buf_pool->mutex));
+
+	block = buf_page_hash_get(space, offset);
+
+	if (block) {
+		block->file_page_was_freed = FALSE;
+	}
+
+	mutex_exit(&(buf_pool->mutex));
+
+	return(block);
+}
+
+/************************************************************************
 This is the general function used to get access to a database page. */
 
 buf_frame_t*
@@ -646,6 +706,9 @@ loop:
 
 	block->accessed = TRUE;
 
+#ifdef UNIV_DEBUG_FILE_ACCESSES
+	ut_a(block->file_page_was_freed == FALSE);
+#endif	
 	mutex_exit(&(buf_pool->mutex));
 
 #ifdef UNIV_DEBUG
@@ -842,6 +905,9 @@ buf_page_optimistic_get_func(
 	ut_ad(block->buf_fix_count > 0);
 	ut_ad(block->state == BUF_BLOCK_FILE_PAGE);
 
+#ifdef UNIV_DEBUG_FILE_ACCESSES
+	ut_a(block->file_page_was_freed == FALSE);
+#endif
 	if (!accessed) {
 		/* In the case of a first access, try to apply linear
 		read-ahead */
@@ -949,6 +1015,9 @@ buf_page_get_known_nowait(
 #endif
 	ut_ad(block->buf_fix_count > 0);
 	ut_ad(block->state == BUF_BLOCK_FILE_PAGE);
+#ifdef UNIV_DEBUG_FILE_ACCESSES
+	ut_a(block->file_page_was_freed == FALSE);
+#endif
 
 #ifdef UNIV_IBUF_DEBUG
 	ut_a((mode == BUF_KEEP_OLD)
@@ -996,6 +1065,8 @@ buf_page_init(
 
 	block->n_hash_helps	= 0;
 	block->is_hashed	= FALSE;
+
+	block->file_page_was_freed = FALSE;
 }
 
 /************************************************************************
@@ -1126,6 +1197,8 @@ buf_page_create(
 #ifdef UNIV_IBUF_DEBUG
 		ut_a(ibuf_count_get(block->space, block->offset) == 0);
 #endif
+		block->file_page_was_freed = FALSE;
+
 		/* Page can be found in buf_pool */
 		mutex_exit(&(buf_pool->mutex));
 

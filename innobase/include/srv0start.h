@@ -28,4 +28,7 @@ int
 innobase_shutdown_for_mysql(void);
 /*=============================*/
 				/* out: DB_SUCCESS or error code */
+
+extern     ibool     srv_startup_is_before_trx_rollback_phase;
+
 #endif
