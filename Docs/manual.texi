@@ -417,6 +417,7 @@ Functions for use in @code{SELECT} and @code{WHERE} clauses
 * SHOW VARIABLES::              
 * SHOW PROCESSLIST::            
 * SHOW GRANTS::                 
+* SHOW CREATE TABLE::
 
 MySQL table types
 
@@ -18265,6 +18266,7 @@ commands to examine and kill threads.
 @findex SHOW PROCESSLIST
 @findex SHOW TABLE STATUS
 @findex SHOW GRANTS
+@findex SHOW CREATE TABLE
 @node SHOW, EXPLAIN, KILL, Reference
 @section @code{SHOW} syntax (Get information about tables, columns,...)
 
@@ -18278,6 +18280,7 @@ or SHOW STATUS [LIKE wild]
 or SHOW VARIABLES [LIKE wild]
 or SHOW [FULL] PROCESSLIST
 or SHOW GRANTS FOR user
+or SHOW CREATE TABLE table_name
 @end example
 
 @code{SHOW} provides information about databases, tables, columns or
@@ -18298,6 +18301,7 @@ and @samp{_} wildcard characters.
 * SHOW VARIABLES::              
 * SHOW PROCESSLIST::            
 * SHOW GRANTS::                 
+* SHOW CREATE TABLE::
 @end menu
 
 @node SHOW DATABASE INFO, SHOW TABLE STATUS, SHOW, SHOW
@@ -18867,7 +18871,7 @@ threads.  Otherwise, you can see only your own threads.  @xref{KILL, ,
 @code{KILL}}.  If you don't use the the @code{FULL} option, then only
 the first 100 characters of each query will be shown.
 
-@node SHOW GRANTS,  , SHOW PROCESSLIST, SHOW
+@node SHOW GRANTS,SHOW CREATE TABLE  , SHOW PROCESSLIST, SHOW
 @subsection SHOW GRANTS (privileges) for a user
 
 @code{SHOW GRANTS FOR user} lists the grant commands that must be issued to
@@ -18880,6 +18884,19 @@ mysql> SHOW GRANTS FOR root@@localhost;
 +---------------------------------------------------------------------+
 | GRANT ALL PRIVILEGES ON *.* TO 'root'@@'localhost' WITH GRANT OPTION |
 +---------------------------------------------------------------------+
+@end example
+
+@node SHOW CREATE TABLE,,SHOW GRANTS, SHOW
+@subsection SHOW CREATE TABLE
+Shows a @code{CREATE TABLE} statement that will create the given table 
+@example
+mysql> show create table foo;
++-------+-------------------------------------------------------------------------------------+
+| Table | Create Table                                                                        |
++-------+-------------------------------------------------------------------------------------+
+| foo   | create table foo(n int(11) default NULL auto_increment,primary key (n)) type=MyISAM |
++-------+-------------------------------------------------------------------------------------+
+
 @end example
 
 @findex EXPLAIN
@@ -19234,6 +19251,7 @@ This statement is provided for Oracle compatibility.
 
 The @code{SHOW} statement provides similar information.
 @xref{SHOW, , @code{SHOW}}.
+
 
 
 @findex BEGIN
@@ -23145,16 +23163,22 @@ Below is a quick HOWTO on how to set up replication on your current system:
 @itemize @bullet
 @item
 Upgrade both slave and master to 3.23.15 or higher. We recommend that
-you use the latest 3.23 version on both the slave and the master. While
+you always use the latest 3.23 version on both the slave and the master. While
 3.23 is in beta, the versions may be not backwards compatible. In
-addition, the newer version will fix some bugs and add new features.
+addition, the newer version will fix some bugs and add new features. Please, do not report bugs until you have verified that the problem is present in 
+the latest release. 
 @item
 Set up special replication user(s) on the master with the @code{FILE}
 privilege and permission to connect from all the slaves. If the user is
 only doing replication, you don't need to grant him other privileges.
 @item
 Take a snapshot of all the tables/databases on the master that could
-possibly be involved in the update queries before taking the next step
+possibly be involved in the update queries before taking the next step.
+Starting in version 3.23.21, there is a command that allows you to
+take a snapshot of a table on the master and copy it to the slave, called
+@code{LOAD TABLE FROM MASTER}. Until 3.23.23, though, it has a serious 
+bug, and we recommend that you should not use it until you have upgraded .
+
 @item
 In @code{my.cnf} on the master add @code{log-bin} and restart it. Make
 sure there are no important updates to the master between the time you
@@ -23220,7 +23244,9 @@ specify this with @code{master-port} parameter in @code{my.cnf} .
 In 3.23.15,all of the tables and databases will be replicated. Starting
 in 3.23.16, you can restrict replication to a set of databases with
 @code{replicate-do-db} directives in @code{my.cnf} or just excluse a set
-of databases with @code{replicate-ignore-db}.
+of databases with @code{replicate-ignore-db}. Note that up until
+3.23.23 there was a bug that did not properly deal with @code{LOAD DATA
+INFILE} if you did it in a database that was excluded from replication.
 @item
 Starting in 3.23.16, @code{SET SQL_LOG_BIN = 0} will turn off
 replication (binary) logging on the master, and @code{SET SQL_LOG_BIN =
@@ -23240,6 +23266,12 @@ and @code{FLUSH SLAVE} commands
 @item
 Starting in 3.23.21 you can use LOAD TABLE FROM MASTER for network
 backup and to set up replication initially.
+@item
+Starting in 3.23.23, you can change masters with @code{CHANGE MASTER
+TO }
+@item 
+Starting in 3.23.23, you tell the master that updates in certain
+databases should not be logged to the binary log with @code{binlog-ignore-db}
 @end itemize
 
 @node Replication Options, Replication SQL, Replication Features, Replication
@@ -23289,7 +23321,13 @@ automatically set @code{SQL_LOG_UPDATE} to the same value and vice
 versa. @tab Master @tab @code{sql-bin-update-same}
 
 @item @code{log-slave-updates} @tab Tells the slave to log the updates from the slave thread to the binary log. Off by default. You will need to turn it on if you plan to daisy-chain the slaves @tab Slave @tab @code{log-slave-updates}
-
+@item @code{binlog-do-db} @tab Tells the master it should log updates
+for the specified database, and exclude all others not explicitly 
+mentioned. @tab Master @tab @code{binlog-do-db=some_database}
+@item @code{binlog-ignore-db} @tab Tells the master that updates to the given database
+should not be logged to the binary log @tab Master @tab
+@code{binlog-ignore-db=some_database}
+ 
 @end multitable
 
 @node Replication SQL,  , Replication Options, Replication
@@ -23307,6 +23345,31 @@ summary of commands:
 @item @code{FLUSH MASTER} @tab Deletes all binary logs listed in the inded file, resetting the binlog index file to be empty. @tab Master
 @item @code{FLUSH SLAVE} @tab Makes the slave forget its replication position in the master logs @tab Slave
 @item @code{LOAD TABLE tblname FROM MASTER} @tab Downloads a copy of the table from master to the slave @tab Slave
+@item @code{CHANGE MASTER TO master_def_list} @tab Changes the master parameters
+to the values specified in @code{master_def_list} and restarts the slave thread.
+@code{master_def_list} is a comma-separated list of @code{master_def} where
+@code{master_def} is one of the following: @code{MASTER_HOST},
+@code{MASTER_USER}, @code{MASTER_PASSWORD}, @code{MASTER_PORT},
+@code{MASTER_CONNECT_RETRY}, @code{MASTER_LOG_FILE}, @code{MASTER_LOG_POS}.
+Example: @code{CHANGE MASTER TO MASTER_HOST='master2.mycompany.com',
+MASTER_USER='replication', MASTER_PASSWORD='bigs3cret', MASTER_PORT=3306;}. You
+only need to speficy the values that need to be changed. The values that you
+omit will stay the same with the exception of when you change the host or the
+port. In that case, the slave will assume that since you are connecting to a
+different host or a different port, the master is different, therefore, the old
+values of log and position are not any more applicable, and will automatically
+reset them to empty string and 0 respectively ( the start values). Note that
+if you restart the slave, it will remember its last master. If this is not desirable,
+you should delete @code{master.info} file before restarting, and the slave will read
+its master from @code{my.cnf} or command line.
+ @tab Slave 
+@item @code{SHOW MASTER STATUS} @tab Provides status info on the binlog of the
+master @tab Master
+@item @code{SHOW SLAVE STATUS} @tab Provides status info on essential parameters
+of the slave thread @tab Slave
+ 
+ 
+
 @end multitable
 
 @cindex Performance
