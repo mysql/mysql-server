@@ -772,7 +772,7 @@ static void make_sortkey(register SORTPARAM *param,
     */
     SORT_ADDON_FIELD *addonf= param->addon_field;
     uchar *nulls= to;
-    DBUG_ASSERT(addonf);
+    DBUG_ASSERT(addonf != 0);
     bzero((char *) nulls, addonf->offset);
     to+= addonf->offset;
     for ( ; (field= addonf->field) ; addonf++)

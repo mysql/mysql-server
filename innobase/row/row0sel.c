@@ -112,7 +112,7 @@ row_sel_sec_rec_is_for_clust_rec(
 			clust_len = dtype_get_at_most_n_mbchars(
 				cur_type,
 				ifield->prefix_len,
-				clust_len, clust_field);
+				clust_len, (char*) clust_field);
 		}
 
                 if (0 != cmp_data_data(dict_col_get_type(col),

@@ -105,7 +105,6 @@ sp_pcontext::diff_handlers(sp_pcontext *ctx)
 uint
 sp_pcontext::diff_cursors(sp_pcontext *ctx)
 {
-  uint n= 0;
   sp_pcontext *pctx= this;
 
   while (pctx && pctx != ctx)

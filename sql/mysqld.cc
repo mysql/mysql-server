@@ -838,9 +838,9 @@ static void __cdecl kill_server(int sig_ptr)
 #define RETURN_FROM_KILL_SERVER DBUG_VOID_RETURN
 #endif
 {
-  int sig=(int) (long) sig_ptr;			// This is passed a int
   DBUG_ENTER("kill_server");
 #ifndef EMBEDDED_LIBRARY
+  int sig=(int) (long) sig_ptr;			// This is passed a int
   // if there is a signal during the kill in progress, ignore the other
   if (kill_in_progress)				// Safety
     RETURN_FROM_KILL_SERVER;
@@ -1166,7 +1166,7 @@ err:
 static void set_user(const char *user, struct passwd *user_info)
 {
 #if !defined(__WIN__) && !defined(OS2) && !defined(__NETWARE__)
-  DBUG_ASSERT(user_info);
+  DBUG_ASSERT(user_info != 0);
 #ifdef HAVE_INITGROUPS
   /*
     We can get a SIGSEGV when calling initgroups() on some systems when NSS
@@ -1195,7 +1195,7 @@ static void set_user(const char *user, struct passwd *user_info)
 static void set_effective_user(struct passwd *user_info)
 {
 #if !defined(__WIN__) && !defined(OS2) && !defined(__NETWARE__)
-  DBUG_ASSERT(user_info);
+  DBUG_ASSERT(user_info != 0);
   if (setregid((gid_t)-1, user_info->pw_gid) == -1)
   {
     sql_perror("setregid");
@@ -2228,6 +2228,8 @@ extern "C" int my_message_sql(uint error, const char *str, myf MyFlags)
 
     thd->query_error=  1; // needed to catch query errors during replication
 
+    if (!thd->no_warnings_for_error)
+      push_warning(thd, MYSQL_ERROR::WARN_LEVEL_ERROR, error, str);
     /*
       thd->lex->current_select == 0 if lex structure is not inited
       (not query command (COM_QUERY))
@@ -2239,8 +2241,6 @@ extern "C" int my_message_sql(uint error, const char *str, myf MyFlags)
                            (thd->lex->current_select ?
                             thd->lex->current_select->no_error : 0),
                            (int) thd->is_fatal_error));
-
-      push_warning(thd, MYSQL_ERROR::WARN_LEVEL_ERROR, error, str);
     }
     else
     {
@@ -2334,8 +2334,11 @@ const char *load_default_groups[]= {
 "mysql_cluster",
 #endif
 "mysqld","server", MYSQL_BASE_VERSION, 0, 0};
+
+#if defined(__WIN__) && !defined(EMBEDDED_LIBRARY)
 static const int load_default_groups_sz=
 sizeof(load_default_groups)/sizeof(load_default_groups[0]);
+#endif
 
 /*
   Initialize one of the global date/time format variables
@@ -3391,7 +3394,6 @@ int main(int argc, char **argv)
 
 static void bootstrap(FILE *file)
 {
-  int error= 0;
   DBUG_ENTER("bootstrap");
 
   THD *thd= new THD;
