@@ -1530,12 +1530,13 @@ TABLE *open_temporary_table(THD *thd, const char *path, const char *db,
 	      ha_open_options,
 	      tmp_table))
   {
+    my_free((gptr) tmp_table,MYF(0));
     DBUG_RETURN(0);
   }
 
   tmp_table->file->extra(HA_EXTRA_NO_READCHECK); // Not needed in SQL
   tmp_table->reginfo.lock_type=TL_WRITE;	 // Simulate locked
-  tmp_table->tmp_table = (tmp_table->file->has_transactions() ? 
+  tmp_table->tmp_table = (tmp_table->file->has_transactions() ?
 			  TRANSACTIONAL_TMP_TABLE : TMP_TABLE);
   tmp_table->table_cache_key=(char*) (tmp_table+1);
   tmp_table->key_length= (uint) (strmov((tmp_table->real_name=
