@@ -196,3 +196,4 @@ ER_SP_DUP_COND,			"42000", "",
 ER_SP_DUP_CURS,			"42000", "",
 /*ER_SP_CANT_ALTER*/
 ER_SP_SUBSELECT_NYI,            "0A000", "",
+ER_SP_NO_USE,                   "42000", "",

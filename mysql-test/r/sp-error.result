@@ -251,6 +251,10 @@ declare c cursor for select * from t1;
 declare c cursor for select field from t1;
 end|
 ERROR 42000: Duplicate cursor: c
+create procedure u()
+use sptmp;
+#|
+ERROR 42000: USE is not allowed in a stored procedure
 create procedure bug1965()
 begin
 declare c cursor for select val from t1 order by valname;

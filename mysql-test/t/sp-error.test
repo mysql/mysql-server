@@ -330,6 +330,12 @@ begin
   declare c cursor for select field from t1;
 end|
 
+# USE is not allowed
+--error 1323
+create procedure u()
+  use sptmp;
+
+
 #
 # BUG#1965
 #

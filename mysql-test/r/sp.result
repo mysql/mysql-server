@@ -18,17 +18,6 @@ id	data
 foo	42
 delete from t1;
 drop procedure foo42;
-create procedure u()
-use sptmp;
-drop database if exists sptmp;
-create database sptmp;
-use test;
-call u();
-select database();
-database()
-test
-drop database sptmp;
-drop procedure u;
 create procedure bar(x char(16), y int)
 insert into test.t1 values (x, y);
 call bar("bar", 666);
@@ -746,7 +735,7 @@ delete from t1|
 alter procedure chistics sql security invoker name chistics2|
 show create procedure chistics2|
 Procedure	Create Procedure
-chistics2	CREATE PROCEDURE `chistics2`()
+chistics2	CREATE PROCEDURE `test`.`chistics2`()
     SQL SECURITY INVOKER
     COMMENT 'Characteristics procedure test'
 insert into t1 values ("chistics", 1)
@@ -763,7 +752,7 @@ chistics()
 alter function chistics name chistics2 comment 'Characteristics function test'|
 show create function chistics2|
 Function	Create Function
-chistics2	CREATE FUNCTION `chistics2`() RETURNS int
+chistics2	CREATE FUNCTION `test`.`chistics2`() RETURNS int
     DETERMINISTIC
     SQL SECURITY INVOKER
     COMMENT 'Characteristics function test'
@@ -939,23 +928,23 @@ begin
 show create function fac;
 end|
 call bug2267_1()|
-Name	Type	Definer	Modified	Created	Security_type	Comment
-bug2267_1	PROCEDURE	root@localhost	0000-00-00 00:00:00	0000-00-00 00:00:00	DEFINER	
-bug2267_2	PROCEDURE	root@localhost	0000-00-00 00:00:00	0000-00-00 00:00:00	DEFINER	
-bug2267_3	PROCEDURE	root@localhost	0000-00-00 00:00:00	0000-00-00 00:00:00	DEFINER	
-bug2267_4	PROCEDURE	root@localhost	0000-00-00 00:00:00	0000-00-00 00:00:00	DEFINER	
+Db	Name	Type	Definer	Modified	Created	Security_type	Comment
+test	bug2267_1	PROCEDURE	root@localhost	0000-00-00 00:00:00	0000-00-00 00:00:00	DEFINER	
+test	bug2267_2	PROCEDURE	root@localhost	0000-00-00 00:00:00	0000-00-00 00:00:00	DEFINER	
+test	bug2267_3	PROCEDURE	root@localhost	0000-00-00 00:00:00	0000-00-00 00:00:00	DEFINER	
+test	bug2267_4	PROCEDURE	root@localhost	0000-00-00 00:00:00	0000-00-00 00:00:00	DEFINER	
 call bug2267_2()|
-Name	Type	Definer	Modified	Created	Security_type	Comment
-fac	FUNCTION	root@localhost	0000-00-00 00:00:00	0000-00-00 00:00:00	DEFINER	
+Db	Name	Type	Definer	Modified	Created	Security_type	Comment
+test	fac	FUNCTION	root@localhost	0000-00-00 00:00:00	0000-00-00 00:00:00	DEFINER	
 call bug2267_3()|
 Procedure	Create Procedure
-bug2267_1	CREATE PROCEDURE `bug2267_1`()
+bug2267_1	CREATE PROCEDURE `test`.`bug2267_1`()
 begin
 show procedure status;
 end
 call bug2267_4()|
 Function	Create Function
-fac	CREATE FUNCTION `fac`(n int unsigned) RETURNS bigint unsigned
+fac	CREATE FUNCTION `test`.`fac`(n int unsigned) RETURNS bigint unsigned
 begin
 declare f bigint unsigned default 1;
 while n > 1 do
@@ -1029,12 +1018,12 @@ n	f
 20	2432902008176640000
 drop table fac|
 show function status like '%f%'|
-Name	Type	Definer	Modified	Created	Security_type	Comment
-fac	FUNCTION	root@localhost	0000-00-00 00:00:00	0000-00-00 00:00:00	DEFINER	
+Db	Name	Type	Definer	Modified	Created	Security_type	Comment
+test	fac	FUNCTION	root@localhost	0000-00-00 00:00:00	0000-00-00 00:00:00	DEFINER	
 drop procedure ifac|
 drop function fac|
 show function status like '%f%'|
-Name	Type	Definer	Modified	Created	Security_type	Comment
+Db	Name	Type	Definer	Modified	Created	Security_type	Comment
 drop table if exists primes|
 create table primes (
 i int unsigned not null primary key,
@@ -1095,7 +1084,7 @@ end while;
 end|
 show create procedure opp|
 Procedure	Create Procedure
-opp	CREATE PROCEDURE `opp`(n bigint unsigned, out pp bool)
+opp	CREATE PROCEDURE `test`.`opp`(n bigint unsigned, out pp bool)
 begin
 declare r double;
 declare b, s bigint unsigned default 0;
@@ -1122,9 +1111,9 @@ end if;
 end loop;
 end
 show procedure status like '%p%'|
-Name	Type	Definer	Modified	Created	Security_type	Comment
-ip	PROCEDURE	root@localhost	0000-00-00 00:00:00	0000-00-00 00:00:00	DEFINER	
-opp	PROCEDURE	root@localhost	0000-00-00 00:00:00	0000-00-00 00:00:00	DEFINER	
+Db	Name	Type	Definer	Modified	Created	Security_type	Comment
+test	ip	PROCEDURE	root@localhost	0000-00-00 00:00:00	0000-00-00 00:00:00	DEFINER	
+test	opp	PROCEDURE	root@localhost	0000-00-00 00:00:00	0000-00-00 00:00:00	DEFINER	
 call ip(200)|
 select * from primes where i=45 or i=100 or i=199|
 i	p
@@ -1135,7 +1124,7 @@ drop table primes|
 drop procedure opp|
 drop procedure ip|
 show procedure status like '%p%'|
-Name	Type	Definer	Modified	Created	Security_type	Comment
+Db	Name	Type	Definer	Modified	Created	Security_type	Comment
 drop table if exists fib|
 create table fib ( f bigint unsigned not null )|
 insert into fib values (1), (1)|
@@ -1185,19 +1174,19 @@ create procedure bar(x char(16), y int)
 comment "111111111111" sql security invoker
 insert into test.t1 values (x, y)|
 show procedure status like 'bar'|
-Name	Type	Definer	Modified	Created	Security_type	Comment
-bar	PROCEDURE	root@localhost	0000-00-00 00:00:00	0000-00-00 00:00:00	INVOKER	111111111111
+Db	Name	Type	Definer	Modified	Created	Security_type	Comment
+test	bar	PROCEDURE	root@localhost	0000-00-00 00:00:00	0000-00-00 00:00:00	INVOKER	111111111111
 alter procedure bar name bar2 comment "2222222222" sql security definer|
 alter procedure bar2 name bar comment "3333333333"|
 alter procedure bar|
 show create procedure bar|
 Procedure	Create Procedure
-bar	CREATE PROCEDURE `bar`(x char(16), y int)
+bar	CREATE PROCEDURE `test`.`bar`(x char(16), y int)
     COMMENT '3333333333'
 insert into test.t1 values (x, y)
 show procedure status like 'bar'|
-Name	Type	Definer	Modified	Created	Security_type	Comment
-bar	PROCEDURE	root@localhost	0000-00-00 00:00:00	0000-00-00 00:00:00	DEFINER	3333333333
+Db	Name	Type	Definer	Modified	Created	Security_type	Comment
+test	bar	PROCEDURE	root@localhost	0000-00-00 00:00:00	0000-00-00 00:00:00	DEFINER	3333333333
 drop procedure bar|
 drop table t1;
 drop table t2;

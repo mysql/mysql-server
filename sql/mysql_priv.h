@@ -445,7 +445,8 @@ int mysql_rm_table_part2_with_lock(THD *thd, TABLE_LIST *tables,
 int quick_rm_table(enum db_type base,const char *db,
 		   const char *table_name);
 bool mysql_rename_tables(THD *thd, TABLE_LIST *table_list);
-bool mysql_change_db(THD *thd,const char *name);
+bool mysql_change_db(THD *thd,const char *name,
+		     bool empty_is_ok=0, bool no_access_check=0);
 void mysql_parse(THD *thd,char *inBuf,uint length);
 bool is_update_query(enum enum_sql_command command);
 void free_items(Item *item);
