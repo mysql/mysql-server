@@ -140,6 +140,7 @@ char* query_table_status(THD *thd,const char *db,const char *table_name);
 #define TEST_NO_EXTRA		128
 #define TEST_CORE_ON_SIGNAL	256	/* Give core if signal */
 #define TEST_NO_STACKTRACE	512
+#define TEST_SIGINT		1024	/* Allow sigint on threads */
 
 /* options for select set by the yacc parser (stored in lex->options) */
 #define SELECT_DISTINCT		1
@@ -819,6 +820,10 @@ Item *get_system_var(enum_var_type var_type, LEX_STRING name);
 
 /* log.cc */
 bool flush_error_log(void);
+
+/* sql_list.cc */
+void free_list(I_List <i_string_pair> *list);
+void free_list(I_List <i_string> *list);
 
 /* Some inline functions for more speed */
 

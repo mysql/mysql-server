@@ -57,7 +57,7 @@ ut_free(
 /*====*/
 	void* ptr);  /* in, own: memory block */
 /**************************************************************************
-Frees all allocated memory not freed yet. */
+Frees in shutdown all allocated memory not freed yet. */
 
 void
 ut_free_all_mem(void);

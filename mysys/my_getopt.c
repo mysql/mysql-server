@@ -609,9 +609,9 @@ static ulonglong getopt_ull(char *arg, const struct my_option *optp, int *err)
 
 ulonglong getopt_ull_limit_value(ulonglong num, const struct my_option *optp)
 {
-  if ((ulonglong) num > (ulonglong) (ulong) optp->max_value &&
+  if ((ulonglong) num > (ulonglong) optp->max_value &&
       optp->max_value) /* if max value is not set -> no upper limit */
-    num= (ulonglong) (ulong) optp->max_value;
+    num= (ulonglong) optp->max_value;
   if (optp->block_size > 1)
   {
     num/= (ulonglong) optp->block_size;

@@ -27,6 +27,7 @@ Created 2/6/1997 Heikki Tuuri
 #include "row0upd.h"
 #include "rem0cmp.h"
 #include "read0read.h"
+#include "lock0lock.h"
 
 /*********************************************************************
 Finds out if an active transaction has inserted or modified a secondary
@@ -111,6 +112,14 @@ row_vers_impl_x_locked_off_kernel(
 		return(NULL);
 	}
 
+	if (!lock_check_trx_id_sanity(trx_id, clust_rec, clust_index, TRUE)) {
+		/* Corruption noticed: try to avoid a crash by returning */
+		
+		mtr_commit(&mtr);
+
+		return(NULL);
+	}
+
 	/* We look up if some earlier version of the clustered index record
 	would require rec to be in a different state (delete marked or
 	unmarked, or not existing). If there is such a version, then rec was
@@ -177,7 +186,8 @@ row_vers_impl_x_locked_off_kernel(
 
 		/* If we get here, we know that the trx_id transaction is
 		still active and it has modified prev_version. Let us check
-		if prev_version would require rec to be in a different state. */
+		if prev_version would require rec to be in a different
+		state. */
 
 		vers_del = rec_get_deleted_flag(prev_version);
 

@@ -33,27 +33,23 @@ struct st_remember {
 };
 
 /*
-  The size of the following structure MUST be dividable by 8 to not cause
-  alignment problems on some cpu's
+  Structure that stores information of a allocated memory block
+  The data is at &struct_adr+sizeof(ALIGN_SIZE(sizeof(struct irem)))
+  The lspecialvalue is at the previous 4 bytes from this, which may not
+  necessarily be in the struct if the struct size isn't aligned at a 8 byte
+  boundary.
 */
 
-struct irem
+struct st_irem
 {
-  struct remember *_pNext;	/* Linked list of structures	   */
-  struct remember *_pPrev;	/* Other link			   */
-  char *_sFileName;		/* File in which memory was new'ed */
-  uint32 _uLineNum;		/* Line number in above file	   */
-  uint32 _uDataSize;		/* Size requested		   */
-#if SIZEOF_CHARP == 8
-  long _filler;			/* For alignment */
-#endif
-  long _lSpecialValue;		/* Underrun marker value	   */
+  struct st_irem *next;		/* Linked list of structures	   */
+  struct st_irem *prev;		/* Other link			   */
+  char *filename;		/* File in which memory was new'ed */
+  uint32 linenum;		/* Line number in above file	   */
+  uint32 datasize;		/* Size requested		   */
+  uint32 SpecialValue;		/* Underrun marker value	   */
 };
 
-struct remember {
-    struct irem tInt;
-    char aData[1];
-};
 
 extern char	NEAR curr_dir[FN_REFLEN],NEAR home_dir_buff[FN_REFLEN];
 
@@ -70,8 +66,8 @@ extern int	_my_tempnam_used;
 #endif
 
 extern byte	*sf_min_adress,*sf_max_adress;
-extern uint	cNewCount;
-extern struct remember *pRememberRoot;
+extern uint	sf_malloc_count;
+extern struct st_irem *sf_malloc_root;
 
 #if defined(THREAD) && !defined(__WIN__)
 extern sigset_t my_signals;		/* signals blocked by mf_brkhant */

@@ -4,6 +4,9 @@
 #
 # check replication of load data for temporary tables with additional parameters
 #
+# check if duplicate entries trigger an error (they should unless IGNORE or
+# REPLACE was used on the master) (bug 571).
+
 source include/master-slave.inc;
 
 create table t1(a int not null auto_increment, b int, primary key(a) );
@@ -27,7 +30,17 @@ connection master;
 drop table t1;
 drop table t2;
 drop table t3;
+create table t1(a int, b int, unique(b));
 
 save_master_pos;
 connection slave;
 sync_with_master;
+insert into t1 values(1,10);
+
+connection master;
+load data infile '../../std_data/rpl_loaddata.dat' into table t1;
+
+save_master_pos;
+connection slave;
+# The SQL slave thread should be stopped now.
+wait_for_slave_to_stop;

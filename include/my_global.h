@@ -642,9 +642,6 @@ typedef long		my_ptrdiff_t;
 typedef long long	my_ptrdiff_t;
 #endif
 
-/* typedef used for length of string;  Should be unsigned! */
-typedef ulong		size_str;
-
 #define MY_ALIGN(A,L)	(((A) + (L) - 1) & ~((L) - 1))
 #define ALIGN_SIZE(A)	MY_ALIGN((A),sizeof(double))
 /* Size to make adressable obj. */
@@ -712,6 +709,9 @@ typedef unsigned long	ulonglong;	  /* ulong or unsigned long long */
 typedef long		longlong;
 #endif
 #endif
+
+/* typedef used for length of string;  Should be unsigned! */
+typedef ulong		size_str;
 
 #ifdef USE_RAID
 /*
@@ -850,7 +850,7 @@ typedef char		bool;	/* Ordinary boolean values 0 1 */
 */
 
 /* Optimized store functions for Intel x86 */
-#ifdef __i386__
+#if defined(__i386__) && !defined(_WIN64)
 #define sint2korr(A)	(*((int16 *) (A)))
 #define sint3korr(A)	((int32) ((((uchar) (A)[2]) & 128) ? \
 				  (((uint32) 255L << 24) | \
