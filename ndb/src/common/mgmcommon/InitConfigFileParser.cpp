@@ -222,6 +222,8 @@ bool InitConfigFileParser::parseNameValuePair(Context& ctx, const char* line) {
   char tmpLine[MAX_LINE_LENGTH];
   char fname[MAX_LINE_LENGTH], rest[MAX_LINE_LENGTH];
   char* t;
+  const char separator_list[]= {':', '='};
+  char separator= 0;
 
   if (ctx.m_currentSection == NULL){
     ctx.reportError("Value specified outside section");
@@ -233,7 +235,14 @@ bool InitConfigFileParser::parseNameValuePair(Context& ctx, const char* line) {
   // *************************************
   //  Check if a separator exists in line 
   // *************************************
-  if (!strchr(tmpLine, ':')) {
+  for(int i= 0; i < sizeof(separator_list); i++) {
+    if(strchr(tmpLine, separator_list[i])) {
+      separator= separator_list[i];
+      break;
+    }
+  }
+
+  if (separator == 0) {
     ctx.reportError("Parse error");
     return false;
   }
@@ -247,7 +256,7 @@ bool InitConfigFileParser::parseNameValuePair(Context& ctx, const char* line) {
   //  Count number of tokens before separator
   // *****************************************
   if (sscanf(t, "%120s%120s", fname, rest) != 1) {
-    ctx.reportError("Multiple names before \':\'");
+    ctx.reportError("Multiple names before \'%c\'", separator);
     return false;
   }
   if (!ctx.m_currentInfo->contains(fname)) {
@@ -475,8 +484,24 @@ InitConfigFileParser::parseSectionHeader(const char* line) const {
   tmp[0] = ' ';
   trim(tmp);
 
+  // Convert section header to upper
+  for(int i= strlen(tmp)-1; i >= 0; i--)
+    tmp[i]= toupper(tmp[i]);
+
+  // Get the correct header name if an alias
+  {
+    const char *tmp_alias= m_info->getAlias(tmp);
+    if (tmp_alias) {
+      free(tmp);
+      tmp= strdup(tmp_alias);
+    }
+  }
+
   // Lookup token among sections
-  if(!m_info->isSection(tmp)) return NULL;
+  if(!m_info->isSection(tmp)) {
+    free(tmp);
+    return NULL;
+  }
   if(m_info->getInfo(tmp)) return tmp;
 
   free(tmp);
