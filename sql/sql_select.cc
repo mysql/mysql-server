@@ -7142,7 +7142,7 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
   {
     ref_key=	   tab->ref.key;
     ref_key_parts= tab->ref.key_parts;
-    if (tab->type == JT_REF_OR_NULL)
+    if (tab->type == JT_REF_OR_NULL || tab->type == JT_FT)
       DBUG_RETURN(0);
   }
   else if (select && select->quick)		// Range found by opt_range
