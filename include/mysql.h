@@ -483,8 +483,8 @@ MYSQL_STMT * STDCALL mysql_prepare(MYSQL * mysql, const char *query,
 				   unsigned long length);
 int STDCALL mysql_execute(MYSQL_STMT * stmt);
 unsigned long STDCALL mysql_param_count(MYSQL_STMT * stmt);
-my_bool STDCALL mysql_bind_param(MYSQL_STMT * stmt, MYSQL_BIND * bind);
-my_bool STDCALL mysql_bind_result(MYSQL_STMT * stmt, MYSQL_BIND * bind);
+my_bool STDCALL mysql_bind_param(MYSQL_STMT * stmt, MYSQL_BIND * bnd);
+my_bool STDCALL mysql_bind_result(MYSQL_STMT * stmt, MYSQL_BIND * bnd);
 my_bool STDCALL mysql_stmt_close(MYSQL_STMT * stmt);
 unsigned int STDCALL mysql_stmt_errno(MYSQL_STMT * stmt);
 const char *STDCALL mysql_stmt_error(MYSQL_STMT * stmt);
