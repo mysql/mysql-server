@@ -1683,8 +1683,6 @@ Cursor::init_from_thd(THD *thd)
 void
 Cursor::init_thd(THD *thd)
 {
-  thd->mem_root= mem_root;
-
   DBUG_ASSERT(thd->derived_tables == 0);
   thd->derived_tables= derived_tables;
 
@@ -1694,7 +1692,6 @@ Cursor::init_thd(THD *thd)
   DBUG_ASSERT(thd->lock== 0);
   thd->lock= lock;
   thd->query_id= query_id;
-  thd->free_list= free_list;
 }
 
 
@@ -1779,6 +1776,8 @@ Cursor::fetch(ulong num_rows)
 
   int error= 0;
 
+  /* save references to memory, allocated during fetch */
+  thd->set_n_backup_item_arena(this, &thd->stmt_backup);
   join->fetch_limit+= num_rows;
 
   /*
@@ -1842,54 +1841,37 @@ Cursor::fetch(ulong num_rows)
 
   if (thd->net.report_error)
     error= -1;
+  if (error == -3)                              /* LIMIT clause worked */
+    error= 0;
 
-  switch (error) {
-    /* Fetch limit worked, possibly more rows are there */
-  case -4:
+#ifdef USING_TRANSACTIONS
     if (thd->transaction.all.innobase_tid)
       ha_release_temporary_latches(thd);
+#endif
+
+  thd->restore_backup_item_arena(this, &thd->stmt_backup);
+  if (error == -4)
+  {
+    /* Fetch limit worked, possibly more rows are there */
     thd->server_status|= SERVER_STATUS_CURSOR_EXISTS;
     ::send_eof(thd);
     thd->server_status&= ~SERVER_STATUS_CURSOR_EXISTS;
-    /* save references to memory, allocated during fetch */
-    mem_root= thd->mem_root;
-    free_list= thd->free_list;
-    break;
-    /* Limit clause worked: this is the same as 'no more rows' */
-  case -3:                                      /* LIMIT clause worked */
-    error= 0;
-    /* fallthrough */
-  case 0:                                       /* No more rows */
-    if (thd->transaction.all.innobase_tid)
-      ha_release_temporary_latches(thd);
+  }
+  else
+  {
     close();
-    thd->server_status|= SERVER_STATUS_LAST_ROW_SENT;
-    ::send_eof(thd);
-    thd->server_status&= ~SERVER_STATUS_LAST_ROW_SENT;
-    join= 0;
-    unit= 0;
-    free_items(thd->free_list);
-    thd->free_list= free_list= 0;
-    /*
-      Must be last, as some memory might be allocated for free purposes,
-      like in free_tmp_table() (TODO: fix this issue)
-    */
-    mem_root= thd->mem_root;
+    if (error == 0)
+    {
+      thd->server_status|= SERVER_STATUS_LAST_ROW_SENT;
+      ::send_eof(thd);
+      thd->server_status&= ~SERVER_STATUS_LAST_ROW_SENT;
+    }
+    else
+      send_error(thd, ER_OUT_OF_RESOURCES);
+    /* free cursor memory */
+    free_items(free_list);
+    free_list= 0;
     free_root(&mem_root, MYF(0));
-    break;
-  default:
-    close();
-    join= 0;
-    unit= 0;
-    free_items(thd->free_list);
-    thd->free_list= free_list= 0;
-    /*
-      Must be last, as some memory might be allocated for free purposes,
-      like in free_tmp_table() (TODO: fix this issue)
-    */
-    mem_root= thd->mem_root;
-    free_root(&mem_root, MYF(0));
-    break;
   }
   return error;
 }
@@ -1927,6 +1909,8 @@ Cursor::close()
     thd->derived_tables= tmp_derived_tables;
     thd->lock= tmp_lock;
   }
+  join= 0;
+  unit= 0;
 }
 
 
