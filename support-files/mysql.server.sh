@@ -60,11 +60,11 @@ export PATH
 mode=$1    # start or stop
 
 case `echo "testing\c"`,`echo -n testing` in
-    *c*,-n*) echo_n= echo_c='';;
-    *c*,*)   echo_n=-n echo_c= ;;
-    *)     echo_n= echo_c='\c';;
-esac                                                                            
-	                                                                                    
+    *c*,-n*) echo_n=   echo_c=     ;;
+    *c*,*)   echo_n=-n echo_c=     ;;
+    *)       echo_n=   echo_c='\c' ;;
+esac
+
 parse_arguments() {
   for arg do
     case "$arg" in
