@@ -1,0 +1,44 @@
+source include/master-slave.inc;
+--disable_warnings
+drop table if exists t1,v1;
+drop view if exists t1,v1;
+sync_slave_with_master;
+--enable_warnings
+
+#
+# Check that createion drop of view is replicated, also check replication of
+# updating of view
+#
+connection master;
+create table t1 (a int);
+insert into t1 values (1);
+create view v1 as select a from t1;
+insert into v1 values (2);
+select * from v1 order by a;
+sync_slave_with_master;
+# view already have to be on slave
+select * from v1 order by a;
+connection master;
+update v1 set a=3 where a=1;
+select * from v1 order by a;
+sync_slave_with_master;
+select * from v1 order by a;
+connection master;
+delete from v1 where a=2;
+select * from v1 order by a;
+sync_slave_with_master;
+select * from v1 order by a;
+connection master;
+# 'alter view' internally maped to creation, but still check that it works
+alter view v1 as select a as b from t1;
+sync_slave_with_master;
+select * from v1 order by 1;
+connection master;
+drop view v1;
+sync_slave_with_master;
+#error, because view have to be removed from slave
+-- error 1146
+select * from v1 order by a;
+connection master;
+drop table t1;
+sync_slave_with_master;
