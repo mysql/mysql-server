@@ -697,6 +697,28 @@ select * from t1|
 delete from t1|
 drop procedure bug1495|
 
+#
+# BUG#1547
+#
+create procedure bug1547(s char(16))
+begin
+  declare x int;
+
+  select data into x from t1 where s = id limit 1;
+  if x > 10 then
+    insert into t1 values ("less", x-10);
+  else
+    insert into t1 values ("more", x+10);
+  end if;
+end|
+
+insert into t1 values ("foo", 12), ("bar", 7)|
+call bug1547("foo")|
+call bug1547("bar")|
+select * from t1|
+delete from t1|
+drop procedure bug1547|
+
 
 #
 # Some "real" examples
