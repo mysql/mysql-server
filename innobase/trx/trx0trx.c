@@ -1524,6 +1524,8 @@ trx_commit_complete_for_mysql(
         dulint  lsn     = trx->commit_lsn;
 
         ut_a(trx);
+	
+	trx->op_info = (char*)"flushing log";
 
         if (srv_flush_log_at_trx_commit == 0) {
                 /* Do nothing */
@@ -1546,6 +1548,8 @@ trx_commit_complete_for_mysql(
         } else {
                 ut_a(0);
         }
+
+	trx->op_info = (char*)"";
 
         return(0);
 }
