@@ -2565,7 +2565,7 @@ check_table_access(THD *thd,uint want_access,TABLE_LIST *tables,
       }
     }
     else if (check_access(thd,want_access,tables->db,&tables->grant.privilege,
-			  0, no_errors | grant_option))
+			  0, no_errors))
       return TRUE;
   }
   if (grant_option)
