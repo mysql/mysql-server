@@ -285,6 +285,7 @@ void debug_sync_point(const char* lock_name, uint lock_timeout);
 
 struct st_table;
 class THD;
+class Statement;
 
 /* Struct to handle simple linked lists */
 
