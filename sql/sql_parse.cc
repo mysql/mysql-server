@@ -51,7 +51,7 @@
 #define TRANS_MEM_ROOT_BLOCK_SIZE 4096
 #define TRANS_MEM_ROOT_PREALLOC   4096
 
-extern int yyparse(void);
+extern int yyparse(void *thd);
 extern "C" pthread_mutex_t THR_LOCK_keycache;
 #ifdef SOLARIS
 extern "C" int gethostname(char *name, int namelen);
@@ -74,7 +74,7 @@ const char *command_name[]={
   "Drop DB", "Refresh", "Shutdown", "Statistics", "Processlist",
   "Connect","Kill","Debug","Ping","Time","Delayed_insert","Change user",
   "Binlog Dump","Table Dump",  "Connect Out", "Register Slave",
-  "Prepare", "Prepare Execute", "Long Data"
+  "Prepare", "Prepare Execute", "Long Data", "Close stmt"
 };
 
 static char empty_c_string[1]= {0};		// Used for not defined 'db'
@@ -1002,6 +1002,11 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
   case COM_PREPARE:
   {
     mysql_stmt_prepare(thd, packet, packet_length);
+    break;
+  }
+  case COM_CLOSE_STMT:
+  {
+    mysql_stmt_free(thd, packet);
     break;
   }
   case COM_QUERY:
@@ -2953,7 +2958,7 @@ mysql_parse(THD *thd, char *inBuf, uint length)
   if (query_cache_send_result_to_client(thd, inBuf, length) <= 0)
   {
     LEX *lex=lex_start(thd, (uchar*) inBuf, length);
-    if (!yyparse() && ! thd->fatal_error)
+    if (!yyparse((void *)thd) && ! thd->fatal_error)
     {
       if (mqh_used && thd->user_connect &&
 	  check_mqh(thd, lex->sql_command))
