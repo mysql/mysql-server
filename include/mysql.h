@@ -502,10 +502,12 @@ my_bool STDCALL mysql_send_long_data(MYSQL_STMT *stmt,
 				     my_bool last_data);
 int STDCALL mysql_multi_query(MYSQL *mysql,const char *query,
 			      unsigned long len);
-MYSQL_RES *STDCALL mysql_next_result(MYSQL *mysql);
 MYSQL_RES *STDCALL mysql_prepare_result(MYSQL_STMT *stmt);
 my_ulonglong STDCALL mysql_stmt_affected_rows(MYSQL_STMT *stmt);
 int STDCALL mysql_stmt_store_result(MYSQL_STMT *stmt);
+my_bool STDCALL mysql_more_results(MYSQL *mysql);
+my_bool STDCALL mysql_next_result(MYSQL *mysql);
+
 
 
 /* new status messages */
