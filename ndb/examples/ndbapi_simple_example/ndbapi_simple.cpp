@@ -72,7 +72,7 @@ int main()
     }
 
     // Optionally connect and wait for the storage nodes (ndbd's)
-    if (cluster_connection.wait_until_ready(30,30))
+    if (cluster_connection.wait_until_ready(30,0) < 0)
     {
       std::cout << "Cluster was not ready within 30 secs.\n";
       exit(-1);
@@ -92,7 +92,6 @@ int main()
     run_application(mysql, cluster_connection);
   }
 
-  // ndb_end should not be called until all "Ndb" objects are deleted
   ndb_end(0);
 
   std::cout << "\nTo drop created table use:\n"

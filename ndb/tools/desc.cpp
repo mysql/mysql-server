@@ -101,7 +101,7 @@ int main(int argc, char** argv){
     if (pTab != 0){
       ndbout << (* pTab) << endl;
 
-      const NdbDictionary::Dictionary::List list;
+      NdbDictionary::Dictionary::List list;
       if (dict->listIndexes(list, argv[i]) != 0){
 	ndbout << argv[i] << ": " << dict->getNdbError() << endl;
 	return NDBT_ProgramExit(NDBT_FAILED);
