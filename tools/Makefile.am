@@ -15,7 +15,7 @@
 # Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 # Process this file with automake to create Makefile.in
 
-INCLUDES=@MT_INCLUDES@ -I$(top_srcdir)/include $(openssl_includes) \
+INCLUDES=-I$(top_srcdir)/include $(openssl_includes) \
 	-I$(top_builddir)/include
 LDADD=  @CLIENT_EXTRA_LDFLAGS@ @openssl_libs@ \
 	$(top_builddir)/libmysql_r/libmysqlclient_r.la @ZLIB_LIBS@ 
