@@ -27,7 +27,7 @@
 class Bank {
 public:  
 
-  Bank();
+  Bank(Ndb_cluster_connection&);
 
   int createAndLoadBank(bool overWrite, int num_accounts=10);
   int dropBank();
