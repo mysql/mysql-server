@@ -109,7 +109,7 @@ static HashTable ht;
 enum enum_info_type { INFO_INFO,INFO_ERROR,INFO_RESULT};
 typedef enum enum_info_type INFO_TYPE;
 
-const char *VER="11.4";
+const char *VER="11.6";
 
 static MYSQL mysql;			/* The connection */
 static bool info_flag=0,ignore_errors=0,wait_flag=0,quick=0,
@@ -496,14 +496,12 @@ static void usage(int version)
 			Give a variable an value. --help lists variables.\n\
   -o, --one-database	Only update the default database. This is useful\n\
 			for skipping updates to other database in the update\n\
-			log.\n\
-  --tee=...             Append everything into outfile. See interactive help\n\
-                        (\\h) also. Does not work in batch mode.\n");
+			log.\n");
 #ifndef __WIN__
   printf("\
   --pager[=...]         Output type. Default is your ENV variable PAGER.\n\
                         Valid pagers are less, more, cat [> filename], etc.\n\
-                        See interactive help (\\h) also. This options does\n\
+                        See interactive help (\\h) also. This option does\n\
                         not work in batch mode.\n");
 #endif
   printf("\
@@ -524,7 +522,9 @@ static void usage(int version)
 #include "sslopt-usage.h"
   printf("\
   -t  --table		Output in table format.\n\
-  -T, --debug-info	Print some debug info at exit.\n");
+  -T, --debug-info	Print some debug info at exit.\n\
+  --tee=...             Append everything into outfile. See interactive help\n\
+                        (\\h) also. Does not work in batch mode.\n");
 #ifndef DONT_ALLOW_USER_CHANGE
   printf("\
   -u, --user=#		User for login if not current user.\n");
@@ -763,16 +763,6 @@ static int read_lines(bool execute_commands)
 	status.query_start_line=line_number;
     }
     else
-#ifdef __WIN__
-    {
-      tee_fprintf(stdout, glob_buffer.is_empty() ? "mysql> " :
-		  !in_string ? "    -> " :
-		  in_string == '\'' ?
-		  "    '> " : "    \"> ");
-      linebuffer[0]=(char) sizeof(linebuffer);
-      line=_cgets(linebuffer);
-    }
-#else
     {
       if (opt_outfile)
       {
@@ -783,14 +773,22 @@ static int read_lines(bool execute_commands)
 	      in_string == '\'' ?
 	      "    '> " : "    \"> ", OUTFILE);
       }
+#ifdef __WIN__
+      tee_fprintf(stdout, glob_buffer.is_empty() ? "mysql> " :
+		  !in_string ? "    -> " :
+		  in_string == '\'' ?
+		  "    '> " : "    \"> ");
+      linebuffer[0]=(char) sizeof(linebuffer);
+      line=_cgets(linebuffer);
+#else
       line=readline((char*) (glob_buffer.is_empty() ? "mysql> " :
 			     !in_string ? "    -> " :
 			     in_string == '\'' ?
 			     "    '> " : "    \"> "));
+#endif
       if (opt_outfile)
 	fprintf(OUTFILE, "%s\n", line);
     }
-#endif
     if (!line)					// End of file
     {
       status.exit_status=0;
@@ -1762,7 +1760,7 @@ com_pager(String *buffer, char *line __attribute__((unused)))
   {
     if (!strlen(default_pager))
     {
-      tee_fprintf(stdout, "Default pager wasn't available, using stdout.\n");
+      tee_fprintf(stdout, "Default pager wasn't set, using stdout.\n");
       opt_nopager=1;
       strmov(pager, "stdout");
       PAGER= stdout;

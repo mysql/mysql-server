@@ -182,7 +182,7 @@ MI_INFO *mi_open(const char *name, int mode, uint open_flags)
     {
       DBUG_PRINT("error",("Table is marked as crashed"));
       my_errno=((share->state.changed & STATE_CRASHED_ON_REPAIR) ?
-		HA_ERR_CRASHED_ON_REPAIR : HA_ERR_CRASHED);
+		HA_ERR_CRASHED_ON_REPAIR : HA_ERR_CRASHED_ON_USAGE);
       goto err;
     }
     /* Correct max_file_length based on length of sizeof_t */
@@ -732,7 +732,8 @@ char *mi_state_info_read(char *ptr, MI_STATE_INFO *state)
   state->process= mi_uint4korr(ptr);		ptr +=4;
   state->unique = mi_uint4korr(ptr);		ptr +=4;
   state->status = mi_uint4korr(ptr);		ptr +=4;
-						ptr +=4; /* extra */
+  state->update_count=mi_uint4korr(ptr);	ptr +=4;
+
   for (i=0; i < keys; i++)
   {
     state->key_root[i]= mi_sizekorr(ptr);	ptr +=8;
