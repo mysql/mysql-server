@@ -5377,7 +5377,7 @@ TABLE_LIST *st_select_lex::add_table_to_list(THD *thd,
   Initialize a new table list for a nested join
 
   SYNOPSIS
-    init_table_list()
+    init_nested_join()
     thd         current thread
 
   DESCRIPTION
