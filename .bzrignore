@@ -253,6 +253,7 @@ libmysqld/table.cc
 libmysqld/thr_malloc.cc
 libmysqld/time.cc
 libmysqld/unireg.cc
+libmysqld/uniques.cc
 libtool
 linked_client_sources
 linked_include_sources
