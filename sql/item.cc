@@ -23,6 +23,10 @@
 #include <m_ctype.h>
 #include "my_dir.h"
 
+static void mark_as_dependent(bool outer_resolving,
+			      SELECT_LEX *last, SELECT_LEX_NODE *current,
+			      Item_ident *item);
+
 /*****************************************************************************
 ** Item functions
 *****************************************************************************/
@@ -786,6 +790,37 @@ bool Item_ref_null_helper::get_date(TIME *ltime, bool fuzzydate)
   return (owner->was_null|= null_value= (*ref)->get_date(ltime, fuzzydate));
 }
 
+
+/*
+  Mark item and SELECT_LEXs as dependent if it is not outer resolving
+
+  SYNOPSIS
+    mark_as_dependent()
+    outer_resolving - flag of outer resolving
+    last - select from which current item depend
+    current  - current select
+    item - item which should be marked
+*/
+
+static void mark_as_dependent(bool outer_resolving,
+			      SELECT_LEX *last, SELECT_LEX_NODE *current,
+			      Item_ident *item)
+{
+  /*
+    only last check is need, i.e.
+    "last != current"
+    first check added for speed up (check boolean should be faster
+    then comparing pointers and this condition usually true)
+  */
+  if (!outer_resolving || ((SELECT_LEX_NODE *)last) != current)
+  {
+    // store pointer on SELECT_LEX from wich item is dependent
+    item->depended_from= last;
+    current->mark_as_dependent(last);
+  }
+}
+
+
 bool Item_field::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
 {
   if (!field)					// If field is not checked
@@ -857,29 +892,22 @@ bool Item_field::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
 	  return -1;
 	}
 
-	Item_ref *r;
-	*ref= r= new Item_ref(last->ref_pointer_array + counter
-			      , (char *)table_name,
-			   (char *)field_name);
-	if (!r)
+	Item_ref *rf;
+	*ref= rf= new Item_ref(last->ref_pointer_array + counter,
+			       (char *)table_name,
+			       (char *)field_name);
+	if (!rf)
 	  return 1;
-	if (r->fix_fields(thd, tables, ref) || r->check_cols(1))
+	if (rf->fix_fields(thd, tables, ref) || rf->check_cols(1))
 	  return 1;
-	// store pointer on SELECT_LEX from which item is dependent
-	r->depended_from= last;
-	cursel->mark_as_dependent(last);
+
+	mark_as_dependent(outer_resolving, last, cursel, rf);
 	return 0;
       }
       else
       {
-	// store pointer on SELECT_LEX from wich item is dependent
-	depended_from= last;
-	/*
-	  Mark all selects from resolved to 1 before select where was 
-	  found table as depended (of select where was found table)
-	*/
-	thd->lex.current_select->mark_as_dependent(last);
-	if (depended_from->having_fix_field)
+	mark_as_dependent(outer_resolving, last, cursel, this);
+	if (last->having_fix_field)
 	{
 	  Item_ref *rf;
 	  *ref= rf= new Item_ref((where->db[0]?where->db:0), 
@@ -1351,12 +1379,10 @@ bool Item_ref::fix_fields(THD *thd,TABLE_LIST *tables, Item **reference)
       else if (tmp != not_found_field)
       {
 	ref= 0; // To prevent "delete *ref;" on ~Item_erf() of this item
-	Item_field* f;
-	if (!((*reference)= f= new Item_field(tmp)))
+	Item_field* fld;
+	if (!((*reference)= fld= new Item_field(tmp)))
 	  return 1;
-	// store pointer on SELECT_LEX from wich item is dependent
-	f->depended_from= last;
-	thd->lex.current_select->mark_as_dependent(last);
+	mark_as_dependent(outer_resolving, last, thd->lex.current_select, fld);
 	return 0;
       }
       else
@@ -1367,11 +1393,9 @@ bool Item_ref::fix_fields(THD *thd,TABLE_LIST *tables, Item **reference)
 		   "forward reference in item list");
 	  return -1;
 	}
-        /*
-	  depended_from: pointer on SELECT_LEX from wich item is dependent
-	*/
-	ref= (depended_from= last)->ref_pointer_array + counter;
-	thd->lex.current_select->mark_as_dependent(last);
+	mark_as_dependent(outer_resolving, last, thd->lex.current_select,
+			  this);
+	ref= last->ref_pointer_array + counter;
       }
     }
     else if (!ref)
