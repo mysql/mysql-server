@@ -17,6 +17,8 @@ Created 9/5/1995 Heikki Tuuri
 #include "os0sync.h"
 #include "sync0arr.h"
 
+extern my_bool  timed_mutexes;
+
 /**********************************************************************
 Initializes the synchronization data structures. */
 
@@ -35,8 +37,7 @@ location (which must be appropriately aligned). The mutex is initialized
 in the reset state. Explicit freeing of the mutex with mutex_free is
 necessary only if the memory block containing it is freed. */
 
-
-#define mutex_create(M)	mutex_create_func((M), __FILE__, __LINE__)
+#define mutex_create(M)	mutex_create_func((M), __FILE__, __LINE__, __STRING(M))
 /*===================*/
 /**********************************************************************
 Creates, or rather, initializes a mutex object in a specified memory
@@ -49,7 +50,8 @@ mutex_create_func(
 /*==============*/
 	mutex_t*	mutex,		/* in: pointer to memory */
 	const char*	cfile_name,	/* in: file name where created */
-	ulint		cline);		/* in: file line where created */
+  ulint cline,  /* in: file line where created */
+  const char* cmutex_name); /* in: mutex name */
 /**********************************************************************
 Calling this function is obligatory only if the memory buffer containing
 the mutex is freed. Removes a mutex object from the mutex list. The mutex
@@ -471,6 +473,15 @@ struct mutex_struct {
 	const char*	cfile_name;/* File name where mutex created */
 	ulint	cline;		/* Line where created */
 	ulint	magic_n;
+  ulong count_using; /* count of times mutex used */
+  ulong count_spin_loop; /* count of spin loops */
+  ulong count_spin_rounds; /* count of spin rounds */
+  ulong count_os_wait; /* count of os_wait */
+  ulong count_os_yield; /* count of os_wait */
+  ulonglong lspent_time; /* mutex os_wait timer msec */
+  ulonglong lmax_spent_time; /* mutex os_wait timer msec */
+  const char* cmutex_name;/* mutex name  */
+  ulint mutex_type;/* 0 - usual mutex 1 - rw_lock mutex  */
 };
 
 #define MUTEX_MAGIC_N	(ulint)979585
@@ -503,6 +514,13 @@ extern ibool	sync_order_checks_on;
 
 /* This variable is set to TRUE when sync_init is called */
 extern ibool	sync_initialized;
+
+/* Global list of database mutexes (not OS mutexes) created. */
+UT_LIST_BASE_NODE_T(mutex_t)  mutex_list;
+
+/* Mutex protecting the mutex_list variable */
+mutex_t mutex_list_mutex;
+
 
 #ifndef UNIV_NONINL
 #include "sync0sync.ic"
