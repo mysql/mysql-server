@@ -62,7 +62,7 @@ void end_slave_list()
 static int fake_rotate_event(NET* net, String* packet, char* log_file_name,
 			     const char**errmsg)
 {
-  char header[LOG_EVENT_HEADER_LEN];
+  char header[LOG_EVENT_HEADER_LEN], buf[ROTATE_HEADER_LEN];
   memset(header, 0, 4); // when does not matter
   header[EVENT_TYPE_OFFSET] = ROTATE_EVENT;
   char* p = strrchr(log_file_name, FN_LIBCHAR);
@@ -73,12 +73,14 @@ static int fake_rotate_event(NET* net, String* packet, char* log_file_name,
     p = log_file_name;
 
   uint ident_len = (uint) strlen(p);
-  ulong event_len = ident_len + sizeof(header);
+  ulong event_len = ident_len + ROTATE_EVENT_OVERHEAD;
   int4store(header + SERVER_ID_OFFSET, server_id);
   int4store(header + EVENT_LEN_OFFSET, event_len);
   int2store(header + FLAGS_OFFSET, 0);
   int4store(header + LOG_SEQ_OFFSET, 0);
   packet->append(header, sizeof(header));
+  int8store(buf, 4); // tell slave to skip magic number
+  packet->append(buf, ROTATE_HEADER_LEN);
   packet->append(p,ident_len);
   if(my_net_write(net, (char*)packet->ptr(), packet->length()))
     {
