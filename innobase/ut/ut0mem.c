@@ -93,7 +93,7 @@ retry:
 		"InnoDB: On FreeBSD check you have compiled the OS with\n"
 		"InnoDB: a big enough maximum process size.\n"
 		"InnoDB: Note that in most 32-bit computers the process\n"
-		"InnoDB: memory space is limited to 2 GB or 4 GB.\n",
+		"InnoDB: memory space is limited to 2 GB or 4 GB.\n"
 		"InnoDB: We keep retrying the allocation for 60 seconds...\n",
 		                  (ulong) n, (ulong) ut_total_allocated_memory,
 #ifdef __WIN__
