@@ -23,14 +23,15 @@ $opt_select_count=$opt_join_count=0;
 $opt_update=1;$opt_delete=0;
 $opt_flush=$opt_check=$opt_repair=$opt_alter=0;
 $opt_join_range=100;
+$opt_resize_interval=0;
 $opt_time=0;
 $opt_host=$opt_user=$opt_password=""; $opt_db="test";
+$opt_verbose=$opt_debug=$opt_lock_tables=$opt_fast_insert=$opt_fast=$opt_skip_in=$opt_force=undef;  # Ignore warnings from these
 
 GetOptions("host=s","db=s","user=s","password=s","loop-count=i","skip-create","skip-in","skip-drop",
            "verbose","fast-insert","lock-tables","debug","fast","force","thread-factor=i",
 		   "insert=i", "select=i", "join=i", "select-count=i", "join-count=i", "update=i", "delete=i",
-		   "flush=i", "check=i", "repair=i", "alter=i", "max-join_range=i", "time=i") || die "Aborted";
-$opt_verbose=$opt_debug=$opt_lock_tables=$opt_fast_insert=$opt_fast=$opt_skip_in=$opt_force=undef;  # Ignore warnings from these
+		   "flush=i", "check=i", "repair=i", "alter=i", "resize-interval=i", "max-join_range=i", "time=i") || die "Aborted";
 
 print "Test of multiple connections that test the following things:\n";
 print "insert, select, delete, update, alter, check, repair and flush\n";
@@ -158,6 +159,11 @@ for ($i=0 ; $i < $opt_alter ; $i ++)
   test_alter() if (($pid=fork()) == 0); $work{$pid}="alter";
 }
 $threads+=$i;
+if ($opt_resize_interval != 0)
+{
+  test_resize() if (($pid=fork()) == 0); $work{$pid}="resize";
+  $threads+=1;
+}
 
 print "Started $threads threads\n";
 
@@ -590,6 +596,32 @@ sub test_flush
   exit(0);
 }
 
+#
+# Do a resize key cache every periodically
+#
+
+sub test_resize
+{
+  my ($dbh, $key_buffer_size);
+
+  $dbh = DBI->connect("DBI:mysql:$opt_db:$opt_host",
+		      $opt_user, $opt_password,
+		    { PrintError => 0}) || die $DBI::errstr;
+
+  $count=0;
+  $key_buffer_size=1024*64;
+  while (!test_if_abort($dbh))
+  {
+    sleep($opt_resize_interval);
+    $dbh->do("set global key_buffer_size=$key_buffer_size") ||
+      die "Got error on resize key cache $DBI::errstr\n";
+    $key_buffer_size+=1024*16;
+    $count++;
+  }
+  $dbh->disconnect; $dbh=0;
+  print "Test_resize: Executed $count times resize key cache\n";
+  exit(0);
+}
 
 #
 # Test all tables in a database

@@ -36,8 +36,8 @@
 #endif
 #include <mysys_err.h>
 
-#include <sp_rcontext.h>
-#include <sp_cache.h>
+#include "sp_rcontext.h"
+#include "sp_cache.h"
 
 /*
   The following is used to initialise Table_ident with a internal
@@ -91,21 +91,22 @@ THD::THD():user_time(0), is_fatal_error(0),
 	   insert_id_used(0), rand_used(0), in_lock_tables(0),
 	   global_read_lock(0), bootstrap(0), spcont(NULL)
 {
-  lex= &main_lex;
-  host=user=priv_user=db=query=ip=0;
+  host= user= priv_user= db= ip= 0;
+  catalog= (char*)"std"; // the only catalog we have for now
   host_or_ip= "connecting host";
-  locked=some_tables_deleted=no_errors=password=
-    query_start_used=prepare_command=0;
+  locked=some_tables_deleted=no_errors=password= 0;
+  query_start_used= 0;
   count_cuted_fields= CHECK_FIELD_IGNORE;
   killed= NOT_KILLED;
-  db_length=query_length=col_access=0;
+  db_length= col_access=0;
   query_error= tmp_table_used= 0;
   next_insert_id=last_insert_id=0;
   open_tables= temporary_tables= handler_tables= derived_tables= 0;
   tmp_table=0;
   lock=locked_tables=0;
   used_tables=0;
-  cuted_fields= sent_row_count= current_stmt_id= 0L;
+  cuted_fields= sent_row_count= 0L;
+  statement_id_counter= 0UL;
   // Must be reset to handle error with THD's created for init of mysqld
   lex->current_select= 0;
   start_time=(time_t) 0;
@@ -141,7 +142,6 @@ THD::THD():user_time(0), is_fatal_error(0),
   server_id = ::server_id;
   slave_net = 0;
   command=COM_CONNECT;
-  set_query_id=1;
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   db_access=NO_ACCESS;
 #endif
@@ -149,11 +149,10 @@ THD::THD():user_time(0), is_fatal_error(0),
   *scramble= '\0';
 
   init();
+  init_sql_alloc(&mem_root,                    // must be after init()
+                 variables.query_alloc_block_size,
+                 variables.query_prealloc_size);
   /* Initialize sub structures */
-  bzero((char*) &mem_root,sizeof(mem_root));
-  bzero((char*) &transaction.mem_root,sizeof(transaction.mem_root));
-  bzero((char*) &con_root,sizeof(con_root));
-  bzero((char*) &warn_root,sizeof(warn_root));
   init_alloc_root(&warn_root, WARN_ALLOC_BLOCK_SIZE, WARN_ALLOC_PREALLOC_SIZE);
   user_connect=(USER_CONN *)0;
   hash_init(&user_vars, system_charset_info, USER_VARS_HASH_SIZE, 0, 0,
@@ -172,12 +171,6 @@ THD::THD():user_time(0), is_fatal_error(0),
   else
     bzero((char*) &user_var_events, sizeof(user_var_events));
 
-  /* Prepared statements */
-  last_prepared_stmt= 0;
-  init_tree(&prepared_statements, 0, 0, sizeof(PREP_STMT),
-	    (qsort_cmp2) compare_prep_stmt, 1,
-	    (tree_element_free) free_prep_stmt, 0);
-
   /* Protocol */
   protocol= &protocol_simple;			// Default protocol
   protocol_simple.init(this);
@@ -195,7 +188,9 @@ THD::THD():user_time(0), is_fatal_error(0),
     transaction.trans_log.end_of_file= max_binlog_cache_size;
   }
 #endif
-
+  init_sql_alloc(&transaction.mem_root,         
+		 variables.trans_alloc_block_size, 
+		 variables.trans_prealloc_size);
   /*
     We need good random number initialization for new thread
     Just coping global one will not work
@@ -239,22 +234,6 @@ void THD::init(void)
 
 
 /*
-  Init THD for query processing
-
-  This has to be called once before we call mysql_parse()
-*/
-
-void THD::init_for_queries()
-{
-  init_sql_alloc(&mem_root, variables.query_alloc_block_size,
-		 variables.query_prealloc_size);
-  init_sql_alloc(&transaction.mem_root,
-		 variables.trans_alloc_block_size,
-		 variables.trans_prealloc_size);
-}
-
-
-/*
   Do what's needed when one invokes change user
 
   SYNOPSIS
@@ -284,7 +263,6 @@ void THD::cleanup(void)
 {
   DBUG_ENTER("THD::cleanup");
   ha_rollback(this);
-  delete_tree(&prepared_statements);
   if (locked_tables)
   {
     lock=locked_tables; locked_tables=0;
@@ -354,14 +332,12 @@ THD::~THD()
     safeFree(user);
   safeFree(db);
   safeFree(ip);
-  free_root(&mem_root,MYF(0));
-  free_root(&con_root,MYF(0));
   free_root(&warn_root,MYF(0));
   free_root(&transaction.mem_root,MYF(0));
   mysys_var=0;					// Safety (shouldn't be needed)
   pthread_mutex_destroy(&LOCK_delete);
 #ifndef DBUG_OFF
-  dbug_sentry = THD_SENTRY_GONE;
+  dbug_sentry= THD_SENTRY_GONE;
 #endif  
   DBUG_VOID_RETURN;
 }
@@ -1051,9 +1027,9 @@ bool select_dump::send_eof()
   return error;
 }
 
-select_subselect::select_subselect(Item_subselect *item)
+select_subselect::select_subselect(Item_subselect *item_arg)
 {
-  this->item=item;
+  item= item_arg;
 }
 
 bool select_singlerow_subselect::send_data(List<Item> &items)
@@ -1218,6 +1194,100 @@ int select_dumpvar::prepare(List<Item> &list, SELECT_LEX_UNIT *u)
 }
 
 
+/*
+  Statement functions 
+*/
+
+Statement::Statement(THD *thd)
+  :id(++thd->statement_id_counter),
+  query_id(thd->query_id),
+  set_query_id(1),
+  allow_sum_func(0),
+  command(thd->command),
+  lex(&main_lex),
+  query(0),
+  query_length(0),
+  free_list(0)
+{
+  init_sql_alloc(&mem_root,
+                 thd->variables.query_alloc_block_size,
+                 thd->variables.query_prealloc_size);
+}
+
+/*
+  This constructor is called when statement is a subobject of THD:
+  Some variables are initialized in THD::init due to locking problems
+  This statement object will be used to 
+*/
+
+Statement::Statement()
+  :id(0),
+  query_id(0),                                  /* initialized later */
+  set_query_id(1),
+  allow_sum_func(0),                            /* initialized later */
+  command(COM_SLEEP),                           /* initialized later */ 
+  lex(&main_lex),
+  query(0),                                     /* these two are set */ 
+  query_length(0),                              /* in alloc_query() */
+  free_list(0)
+{
+  bzero((char *) &mem_root, sizeof(mem_root));
+}
+
+
+Statement::Type Statement::type() const
+{
+  return STATEMENT;
+}
+
+
+void Statement::set_statement(Statement *stmt)
+{
+  id=             stmt->id;
+  query_id=       stmt->query_id;
+  set_query_id=   stmt->set_query_id;
+  allow_sum_func= stmt->allow_sum_func;
+  command=        stmt->command;
+  lex=            stmt->lex;
+  query=          stmt->query;
+  query_length=   stmt->query_length;
+  free_list=      stmt->free_list;
+  mem_root=       stmt->mem_root;
+}
+
+
+Statement::~Statement()
+{
+  free_root(&mem_root, MYF(0));
+}
+
+C_MODE_START
+
+static byte *
+get_statement_id_as_hash_key(const byte *record, uint *key_length,
+                             my_bool not_used __attribute__((unused)))
+{
+  const Statement *statement= (const Statement *) record; 
+  *key_length= sizeof(statement->id);
+  return (byte *) &((const Statement *) statement)->id;
+}
+
+static void delete_statement_as_hash_key(void *key)
+{
+  delete (Statement *) key;
+}
+
+C_MODE_END
+
+Statement_map::Statement_map() :
+  last_found_statement(0)
+{
+  enum { START_HASH_SIZE = 16 };
+  hash_init(&st_hash, default_charset_info, START_HASH_SIZE, 0, 0,
+            get_statement_id_as_hash_key,
+            delete_statement_as_hash_key, MYF(0));
+}
+
 bool select_dumpvar::send_data(List<Item> &items)
 {
   List_iterator_fast<Item_func_set_user_var> li(vars);
@@ -1272,4 +1342,15 @@ bool select_dumpvar::send_eof()
     send_warning(thd, ER_SP_FETCH_NO_DATA);
   ::send_ok(thd,row_count);
   return 0;
+}
+
+/****************************************************************************
+  TMP_TABLE_PARAM
+****************************************************************************/
+
+void TMP_TABLE_PARAM::init()
+{
+  field_count= sum_func_count= func_count= hidden_field_count= 0;
+  group_parts= group_length= group_null_parts= 0;
+  quick_group= 1;
 }

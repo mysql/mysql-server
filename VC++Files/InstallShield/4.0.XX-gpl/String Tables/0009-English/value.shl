@@ -19,5 +19,5 @@ ERROR_UNINSTSETUP=unInstaller setup failed to initialize.  You may not be able t
 [General]
 Language=0009
 Type=STRINGTABLESPECIFIC
-Version=@VERSION@
+Version=1.00.000
 

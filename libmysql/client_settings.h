@@ -43,18 +43,29 @@ my_bool send_file_to_server(MYSQL *mysql, const char *filename);
 
 void mysql_read_default_options(struct st_mysql_options *options,
 				const char *filename,const char *group);
-MYSQL * STDCALL 
+MYSQL *
 cli_mysql_real_connect(MYSQL *mysql,const char *host, const char *user,
 		       const char *passwd, const char *db,
 		       uint port, const char *unix_socket,ulong client_flag);
 
-void STDCALL cli_mysql_close(MYSQL *mysql);
+void cli_mysql_close(MYSQL *mysql);
 
-MYSQL_FIELD * STDCALL cli_list_fields(MYSQL *mysql);
-my_bool STDCALL cli_read_prepare_result(MYSQL *mysql, MYSQL_STMT *stmt);
-MYSQL_DATA * STDCALL cli_read_rows(MYSQL *mysql,MYSQL_FIELD *mysql_fields,
+MYSQL_FIELD * cli_list_fields(MYSQL *mysql);
+my_bool cli_read_prepare_result(MYSQL *mysql, MYSQL_STMT *stmt);
+MYSQL_DATA * cli_read_rows(MYSQL *mysql,MYSQL_FIELD *mysql_fields,
 				   uint fields);
-int STDCALL cli_stmt_execute(MYSQL_STMT *stmt);
-MYSQL_DATA * STDCALL cli_read_binary_rows(MYSQL_STMT *stmt);
-int STDCALL cli_unbuffered_fetch(MYSQL *mysql, char **row);
-const char * STDCALL cli_read_statistic(MYSQL *mysql);
+int cli_stmt_execute(MYSQL_STMT *stmt);
+MYSQL_DATA * cli_read_binary_rows(MYSQL_STMT *stmt);
+int cli_unbuffered_fetch(MYSQL *mysql, char **row);
+const char * cli_read_statistic(MYSQL *mysql);
+
+#ifdef EMBEDDED_LIBRARY
+int init_embedded_server(int argc, char **argv, char **groups);
+void end_embedded_server();
+
+#else
+/* Prevent warnings of unused parameters */
+#define init_embedded_server(a,b,c) ((void)a, (void)b, (void)c, 0)
+#define end_embedded_server()
+#endif /*EMBEDDED_LIBRARY*/
+

@@ -50,11 +50,24 @@ public:
   my_bool m_simple_case;	// TRUE if parsing simple case, FALSE otherwise
   my_bool m_multi_results;	// TRUE if a procedure with SELECT(s)
   uint m_old_cmq;		// Old CLIENT_MULTI_QUERIES value
+  st_sp_chistics *m_chistics;
 #if NOT_USED_NOW
   // QQ We're not using this at the moment.
   List<char *> m_calls;		// Called procedures.
   List<char *> m_tables;	// Used tables.
 #endif
+  LEX_STRING m_name;
+  LEX_STRING m_params;
+  LEX_STRING m_retstr;		// For FUNCTIONs only
+  LEX_STRING m_body;
+  LEX_STRING m_defstr;
+  LEX_STRING m_definer_user;
+  LEX_STRING m_definer_host;
+  longlong m_created;
+  longlong m_modified;
+  // Pointers set during parsing
+  uchar *m_param_begin, *m_param_end, *m_returns_begin, *m_returns_end,
+    *m_body_begin;
 
   static void *
   operator new(size_t size);
@@ -66,21 +79,11 @@ public:
 
   // Initialize after we have reset mem_root
   void
-  init(LEX_STRING *name, LEX *lex);
+  init(LEX *lex);
 
+  // Initialize strings after parsing header
   void
-  init_options(LEX_STRING *comment, enum suid_behaviour suid)
-  {
-    m_comment.length= 0;
-    m_comment.str= 0;
-    if (comment)
-    {
-      m_comment.length= comment->length;
-      m_comment.str= comment->str;
-    }
-    m_suid= suid ? suid - 1 : 1;
-  }
-
+  init_strings(THD *thd, LEX *lex, LEX_STRING *name);
 
   int
   create(THD *thd);
@@ -149,23 +152,16 @@ public:
     return m_name.str;
   }
 
+  char *create_string(THD *thd, ulong *lenp);
+
   inline Item_result result()
   {
     return sp_map_result_type(m_returns);
   }
 
-  void sp_set_info(char *creator, uint creatorlen,
-		   longlong created, longlong modified,
-		   bool suid, char *comment, uint commentlen)
-  {
-    m_creator= creator;
-    m_creatorlen= creatorlen;
-    m_created= created;
-    m_modified= modified;
-    m_comment.length= commentlen;
-    m_comment.str= comment;
-    m_suid= suid;
-  }
+  void set_info(char *definer, uint definerlen,
+		longlong created, longlong modified,
+		st_sp_chistics *chistics);
 
   inline void reset_thd_mem_root(THD *thd)
   {
@@ -192,15 +188,6 @@ private:
   MEM_ROOT m_thd_root;		// Temp. store for thd's mem_root
   Item *m_free_list;		// Where the items go
   THD *m_thd;			// Set if we have reset mem_root
-
-  LEX_STRING m_name;
-  LEX_STRING m_defstr;
-  LEX_STRING m_comment;
-  char *m_creator;
-  uint m_creatorlen;
-  longlong m_created;
-  longlong m_modified;
-  bool m_suid;
 
   sp_pcontext *m_pcont;		// Parse context
   List<LEX> m_lex;		// Temp. store for the other lex
@@ -647,5 +634,26 @@ private:
 
 }; // class sp_instr_cfetch : public sp_instr
 
+
+struct st_sp_security_context
+{
+  bool changed;
+  uint master_access;
+  uint db_access;
+  char *db;
+  uint db_length;
+  char *priv_user;
+  char priv_host[MAX_HOSTNAME];
+  char *user;
+  char *host;
+  char *ip;
+};
+
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
+void
+sp_change_security_context(THD *thd, sp_head *sp, st_sp_security_context *ctxp);
+void
+sp_restore_security_context(THD *thd, sp_head *sp,st_sp_security_context *ctxp);
+#endif /* NO_EMBEDDED_ACCESS_CHECKS */
 
 #endif /* _SP_HEAD_H_ */

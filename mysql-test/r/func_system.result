@@ -49,7 +49,7 @@ t1	CREATE TABLE `t1` (
   `database()` char(34) character set utf8 NOT NULL default '',
   `user()` char(77) character set utf8 NOT NULL default '',
   `version` char(40) default NULL
-) TYPE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop table t1;
 select TRUE,FALSE,NULL;
 TRUE	FALSE	NULL

@@ -22,6 +22,7 @@
 #endif
 
 #include <ft_global.h>
+#include <keycache.h>
 
 #ifndef NO_HASH
 #define NO_HASH				/* Not yet implemented */
@@ -130,6 +131,13 @@ enum db_type { DB_TYPE_UNKNOWN=0,DB_TYPE_DIAB_ISAM=1,
 	       DB_TYPE_BERKELEY_DB, DB_TYPE_INNODB, DB_TYPE_GEMINI,
 	       DB_TYPE_DEFAULT };
 
+struct show_table_type_st {
+  const char *type;
+  SHOW_COMP_OPTION *value;
+  const char *comment;
+  enum db_type db_type;
+};
+
 enum row_type { ROW_TYPE_NOT_USED=-1, ROW_TYPE_DEFAULT, ROW_TYPE_FIXED,
 		ROW_TYPE_DYNAMIC, ROW_TYPE_COMPRESSED};
 
@@ -181,14 +189,13 @@ typedef struct st_ha_create_information
 
 struct st_table;
 typedef struct st_table TABLE;
-typedef struct st_key_cache_asmt KEY_CACHE_ASMT;
 
 typedef struct st_ha_check_opt
 {
   ulong sort_buffer_size;
   uint flags;       /* isam layer flags (e.g. for myisamchk) */
   uint sql_flags;   /* sql layer flags - for something myisamchk cannot do */
-  KEY_CACHE_VAR  *key_cache;	/* new key cache when changing key cache */
+  KEY_CACHE *key_cache;	/* new key cache when changing key cache */
   void init();
 } HA_CHECK_OPT;
 
@@ -368,12 +375,20 @@ public:
   */
   static bool caching_allowed(THD* thd, char* table_key,
 			      uint key_length, uint8 cahe_type);
+
+  /*
+   RETURN
+     true  Primary key (if there is one) is clustered key covering all fields
+     false otherwise
+  */
+  virtual bool primary_key_is_clustered() { return false; }
 };
 
 	/* Some extern variables used with handlers */
 
+extern struct show_table_type_st sys_table_types[];
 extern const char *ha_row_type[];
-extern TYPELIB ha_table_typelib, tx_isolation_typelib;
+extern TYPELIB tx_isolation_typelib;
 
 	/* Wrapper functions */
 #define ha_commit_stmt(thd) (ha_commit_trans((thd), &((thd)->transaction.stmt)))
@@ -383,7 +398,8 @@ extern TYPELIB ha_table_typelib, tx_isolation_typelib;
 
 #define ha_supports_generate(T) (T != DB_TYPE_INNODB)
 
-enum db_type ha_resolve_by_name(char *name, uint namelen);
+enum db_type ha_resolve_by_name(const char *name, uint namelen);
+const char *ha_get_storage_engine(enum db_type db_type);
 handler *get_new_handler(TABLE *table, enum db_type db_type);
 my_off_t ha_get_ptr(byte *ptr, uint pack_length);
 void ha_store_ptr(byte *buff, uint pack_length, my_off_t pos);
@@ -395,10 +411,10 @@ int ha_create_table(const char *name, HA_CREATE_INFO *create_info,
 		    bool update_create_info);
 int ha_delete_table(enum db_type db_type, const char *path);
 void ha_drop_database(char* path);
-int ha_init_key_cache(const char *name, KEY_CACHE_VAR *key_cache);
-int ha_resize_key_cache(KEY_CACHE_VAR *key_cache);
-int ha_change_key_cache_param(KEY_CACHE_VAR *key_cache);
-int ha_end_key_cache(KEY_CACHE_VAR *key_cache);
+int ha_init_key_cache(const char *name, KEY_CACHE *key_cache);
+int ha_resize_key_cache(KEY_CACHE *key_cache);
+int ha_change_key_cache_param(KEY_CACHE *key_cache);
+int ha_end_key_cache(KEY_CACHE *key_cache);
 int ha_start_stmt(THD *thd);
 int ha_report_binlog_offset_and_commit(THD *thd, char *log_file_name,
 				       my_off_t end_offset);
@@ -412,5 +428,5 @@ int ha_autocommit_or_rollback(THD *thd, int error);
 void ha_set_spin_retries(uint retries);
 bool ha_flush_logs(void);
 int ha_recovery_logging(THD *thd, bool on);
-int ha_change_key_cache(KEY_CACHE_VAR *old_key_cache,
-			KEY_CACHE_VAR *new_key_cache);
+int ha_change_key_cache(KEY_CACHE *old_key_cache,
+			KEY_CACHE *new_key_cache);

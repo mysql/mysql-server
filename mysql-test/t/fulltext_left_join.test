@@ -35,11 +35,13 @@ drop table t1, t2;
 # Bug #484, reported by Stephen Brandon <stephen@brandonitconsulting.co.uk>
 #
 
-create table t1 (venue_id int(11) default null, venue_text varchar(255) default null, dt datetime default null) type=myisam;
+create table t1 (venue_id int(11) default null, venue_text varchar(255) default null, dt datetime default null) engine=myisam;
 insert into t1 (venue_id, venue_text, dt) values (1, 'a1', '2003-05-23 19:30:00'),(null, 'a2', '2003-05-23 19:30:00');
-create table t2 (name varchar(255) not null default '', entity_id int(11) not null auto_increment, primary key  (entity_id), fulltext key name (name)) type=myisam;
+create table t2 (name varchar(255) not null default '', entity_id int(11) not null auto_increment, primary key  (entity_id), fulltext key name (name)) engine=myisam;
 insert into t2 (name, entity_id) values ('aberdeen town hall', 1), ('glasgow royal concert hall', 2), ('queen\'s hall, edinburgh', 3);
 select * from t1 left join t2 on venue_id = entity_id where match(name) against('aberdeen' in boolean mode) and dt = '2003-05-23 19:30:00';
 select * from t1 left join t2 on venue_id = entity_id where match(name) against('aberdeen') and dt = '2003-05-23 19:30:00';
+select * from t1 left join t2 on (venue_id = entity_id and match(name) against('aberdeen' in boolean mode)) where dt = '2003-05-23 19:30:00';
+select * from t1 left join t2 on (venue_id = entity_id and match(name) against('aberdeen')) where dt = '2003-05-23 19:30:00';
 drop table t1,t2;
 

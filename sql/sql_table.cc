@@ -257,6 +257,7 @@ int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
     query_cache_invalidate3(thd, tables, 0);
     if (!dont_log_query && mysql_bin_log.is_open())
     {
+      thd->clear_error();
       Query_log_event qinfo(thd, thd->query, thd->query_length,
                             tmp_table_deleted && !some_tables_deleted);
       mysql_bin_log.write(&qinfo);
@@ -306,10 +307,10 @@ static int sort_keys(KEY *a, KEY *b)
   {
     if (!(b->flags & HA_NOSAME))
       return -1;
-    if ((a->flags ^ b->flags) & HA_NULL_PART_KEY)
+    if ((a->flags ^ b->flags) & (HA_NULL_PART_KEY | HA_END_SPACE_KEY))
     {
       /* Sort NOT NULL keys before other keys */
-      return (a->flags & HA_NULL_PART_KEY) ? 1 : -1;
+      return (a->flags & (HA_NULL_PART_KEY | HA_END_SPACE_KEY)) ? 1 : -1;
     }
     if (a->name == primary_key_name)
       return -1;
@@ -400,7 +401,7 @@ int mysql_create_table(THD *thd,const char *db, const char *table_name,
     push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
 			ER_WARN_USING_OTHER_HANDLER,
 			ER(ER_WARN_USING_OTHER_HANDLER),
-			ha_table_typelib.type_names[new_db_type],
+			ha_get_storage_engine(new_db_type),
 			table_name);
   }
   db_options=create_info->table_options;
@@ -984,8 +985,8 @@ int mysql_create_table(THD *thd,const char *db, const char *table_name,
     thd->tmp_table_used= 1;
   }
   if (!tmp_table && !no_log && mysql_bin_log.is_open())
-    // Must be written before unlock
   {
+    thd->clear_error();
     Query_log_event qinfo(thd, thd->query, thd->query_length,
                           test(create_info->options &
                                HA_LEX_CREATE_TMP_TABLE));
@@ -1236,7 +1237,7 @@ static int prepare_for_restore(THD* thd, TABLE_LIST* table,
   }
   else
   {
-    char* backup_dir = thd->lex->backup_dir;
+    char* backup_dir= thd->lex->backup_dir;
     char src_path[FN_REFLEN], dst_path[FN_REFLEN];
     char* table_name = table->real_name;
     char* db = thd->db ? thd->db : table->db;
@@ -1531,7 +1532,7 @@ static int mysql_admin_table(THD* thd, TABLE_LIST* tables,
 
     case HA_ADMIN_CORRUPT:
       protocol->store("error", 5, system_charset_info);
-      protocol->store("Corrupt", 8, system_charset_info);
+      protocol->store("Corrupt", 7, system_charset_info);
       fatal_error=1;
       break;
 
@@ -1629,7 +1630,7 @@ int mysql_assign_to_keycache(THD* thd, TABLE_LIST* tables,
 			     LEX_STRING *key_cache_name)
 {
   HA_CHECK_OPT check_opt;
-  KEY_CACHE_VAR *key_cache;
+  KEY_CACHE *key_cache;
   DBUG_ENTER("mysql_assign_to_keycache");
 
   check_opt.init();
@@ -1644,8 +1645,7 @@ int mysql_assign_to_keycache(THD* thd, TABLE_LIST* tables,
   check_opt.key_cache= key_cache;
   DBUG_RETURN(mysql_admin_table(thd, tables, &check_opt,
 				"assign_to_keycache", TL_READ_NO_INSERT, 0, 
-                                HA_OPEN_TO_ASSIGN, 0,
-				&handler::assign_to_keycache));
+                                0, 0, &handler::assign_to_keycache));
 }
 
 
@@ -1674,14 +1674,14 @@ int mysql_assign_to_keycache(THD* thd, TABLE_LIST* tables,
     0	  ok
 */
 
-int reassign_keycache_tables(THD *thd, KEY_CACHE_VAR *src_cache, 
-                             KEY_CACHE_VAR *dst_cache)
+int reassign_keycache_tables(THD *thd, KEY_CACHE *src_cache, 
+                             KEY_CACHE *dst_cache)
 {
   DBUG_ENTER("reassign_keycache_tables");
 
   DBUG_ASSERT(src_cache != dst_cache);
   DBUG_ASSERT(src_cache->in_init);
-  src_cache->buff_size= 0;			// Free key cache
+  src_cache->param_buff_size= 0;		// Free key cache
   ha_resize_key_cache(src_cache);
   ha_change_key_cache(src_cache, dst_cache);
   DBUG_RETURN(0);            
@@ -1946,7 +1946,6 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
   ulonglong next_insert_id;
   uint save_time_stamp,db_create_options, used_fields;
   enum db_type old_db_type,new_db_type;
-  thr_lock_type lock_type;
   DBUG_ENTER("mysql_alter_table");
 
   thd->proc_info="init";
@@ -2009,7 +2008,7 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
     push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
 			ER_WARN_USING_OTHER_HANDLER,
 			ER(ER_WARN_USING_OTHER_HANDLER),
-			ha_table_typelib.type_names[new_db_type],
+			ha_get_storage_engine(new_db_type),
 			new_name);
   }
   if (create_info->row_type == ROW_TYPE_NOT_USED)
@@ -2074,6 +2073,7 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
     {
       if (mysql_bin_log.is_open())
       {
+        thd->clear_error();
 	Query_log_event qinfo(thd, thd->query, thd->query_length, 0);
 	mysql_bin_log.write(&qinfo);
       }
@@ -2456,6 +2456,7 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
     }
     if (mysql_bin_log.is_open())
     {
+      thd->clear_error();
       Query_log_event qinfo(thd, thd->query, thd->query_length, 0);
       mysql_bin_log.write(&qinfo);
     }
@@ -2586,6 +2587,7 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
   thd->proc_info="end";
   if (mysql_bin_log.is_open())
   {
+    thd->clear_error();
     Query_log_event qinfo(thd, thd->query, thd->query_length, 0);
     mysql_bin_log.write(&qinfo);
   }
@@ -2786,7 +2788,6 @@ int mysql_checksum_table(THD *thd, TABLE_LIST *tables, HA_CHECK_OPT *check_opt)
   for (table= tables; table; table= table->next)
   {
     char table_name[NAME_LEN*2+2];
-    bool fatal_error= 0;
     TABLE *t;
 
     strxmov(table_name, table->db ,".", table->real_name, NullS);

@@ -226,7 +226,6 @@ err:
 
 int ha_myisam::open(const char *name, int mode, uint test_if_locked)
 {
-  KEY_CACHE_VAR *key_cache;
   if (!(file=mi_open(name, mode, test_if_locked)))
     return (my_errno ? my_errno : -1);
   
@@ -391,7 +390,7 @@ int ha_myisam::analyze(THD *thd, HA_CHECK_OPT* check_opt)
 int ha_myisam::restore(THD* thd, HA_CHECK_OPT *check_opt)
 {
   HA_CHECK_OPT tmp_check_opt;
-  char* backup_dir = thd->lex->backup_dir;
+  char* backup_dir= thd->lex->backup_dir;
   char src_path[FN_REFLEN], dst_path[FN_REFLEN];
   char* table_name = table->real_name;
   int error;
@@ -431,7 +430,7 @@ int ha_myisam::restore(THD* thd, HA_CHECK_OPT *check_opt)
 
 int ha_myisam::backup(THD* thd, HA_CHECK_OPT *check_opt)
 {
-  char* backup_dir = thd->lex->backup_dir;
+  char* backup_dir= thd->lex->backup_dir;
   char src_path[FN_REFLEN], dst_path[FN_REFLEN];
   char* table_name = table->real_name;
   int error;
@@ -698,7 +697,7 @@ int ha_myisam::repair(THD *thd, MI_CHECK &param, bool optimize)
 
 int ha_myisam::assign_to_keycache(THD* thd, HA_CHECK_OPT *check_opt)
 {
-  KEY_CACHE_VAR *new_key_cache= check_opt->key_cache;
+  KEY_CACHE *new_key_cache= check_opt->key_cache;
   const char *errmsg= 0;
   int error= HA_ADMIN_OK;
   ulonglong map= ~(ulonglong) 0;
@@ -721,13 +720,10 @@ int ha_myisam::assign_to_keycache(THD* thd, HA_CHECK_OPT *check_opt)
 
   if ((error= mi_assign_to_key_cache(file, map, new_key_cache)))
   { 
-    switch (error) {
-    default: 
-      char buf[80];
-      my_snprintf(buf, sizeof(buf),
-                  "Failed to flush to index file (errno: %d)", error);
-      errmsg= buf;
-    }
+    char buf[80];
+    my_snprintf(buf, sizeof(buf),
+		"Failed to flush to index file (errno: %d)", error);
+    errmsg= buf;
     error= HA_ADMIN_CORRUPT;
   }
 

@@ -20,7 +20,7 @@ DEFAULT 'New' NOT NULL,
   PRIMARY KEY (ChargeID),
   KEY ServiceID (ServiceID),
   KEY ChargeDate (ChargeDate)
-) type=BDB;
+) engine=BDB;
 
 BEGIN;
 INSERT INTO t1

@@ -600,8 +600,8 @@ btr_page_get_father_for_rec(
 "InnoDB: father ptr page no %lu, child page no %lu\n",
                     (UT_LIST_GET_FIRST(tree->tree_indexes))->table_name,
                     (UT_LIST_GET_FIRST(tree->tree_indexes))->name,
-                    btr_node_ptr_get_child_page_no(node_ptr),
-                    buf_frame_get_page_no(page));
+                    (unsigned long) btr_node_ptr_get_child_page_no(node_ptr),
+                    (unsigned long) buf_frame_get_page_no(page));
      		page_rec_print(page_rec_get_next(page_get_infimum_rec(page)));
      		page_rec_print(node_ptr);
 
@@ -877,7 +877,9 @@ btr_page_reorganize_low(
 "InnoDB: Error: page old data size %lu new data size %lu\n"
 "InnoDB: Error: page old max ins size %lu new max ins size %lu\n"
 "InnoDB: Make a detailed bug report and send it to mysql@lists.mysql.com\n",
-			data_size1, data_size2, max_ins_size1, max_ins_size2);
+			(unsigned long) data_size1, (unsigned long) data_size2,
+			(unsigned long) max_ins_size1,
+			(unsigned long) max_ins_size2);
 	}
 
 	buf_frame_free(new_page);
@@ -2215,7 +2217,8 @@ btr_print_recursive(
 	ut_ad(mtr_memo_contains(mtr, buf_block_align(page),
 							MTR_MEMO_PAGE_X_FIX));
 	printf("NODE ON LEVEL %lu page number %lu\n",
-		btr_page_get_level(page, mtr), buf_frame_get_page_no(page));
+	       (ulong) btr_page_get_level(page, mtr),
+	       (ulong) buf_frame_get_page_no(page));
 	
 	page_print(page, width, width);
 	
@@ -2356,8 +2359,10 @@ btr_index_rec_validate(
 "InnoDB: Record in index %s in table %s, page %lu, at offset %lu\n"
 "InnoDB: has %lu fields, should have %lu\n",
 			index->name, index->table_name,
-			buf_frame_get_page_no(page), (ulint)(rec - page),
-			rec_get_n_fields(rec), n);
+			(unsigned long) buf_frame_get_page_no(page),
+			(unsigned long) (rec - page),
+			(unsigned long) rec_get_n_fields(rec),
+			(unsigned long) n);
 
 		if (!dump_on_error) {
 
@@ -2390,9 +2395,11 @@ btr_index_rec_validate(
 "InnoDB: Record in index %s in table %s, page %lu, at offset %lu\n"
 "InnoDB: field %lu len is %lu, should be %lu\n",
 				index->name, index->table_name,
-				buf_frame_get_page_no(page),
-				(ulint)(rec - page),
-				i, len, dtype_get_fixed_size(type));
+				(unsigned long) buf_frame_get_page_no(page),
+				(unsigned long) (rec - page),
+				(unsigned long) i,
+				(unsigned long) len,
+				(unsigned long) dtype_get_fixed_size(type));
 
 			if (!dump_on_error) {
 	
@@ -2507,8 +2514,8 @@ loop:
 	if (!page_validate(page, index)) {
 		fprintf(stderr,
 "InnoDB: Error in page %lu in index %s table %s, index tree level %lu\n",
-			buf_frame_get_page_no(page), index->name,
-			index->table_name, level);
+			(ulong) buf_frame_get_page_no(page), index->name,
+			index->table_name, (ulong) level);
 
 		ret = FALSE;
 	} else if (level == 0) {
@@ -2540,8 +2547,8 @@ loop:
 
  			fprintf(stderr,
 		"InnoDB: Error on pages %lu and %lu in index %s table %s\n",
-				buf_frame_get_page_no(page),
-				right_page_no,
+				(ulong) buf_frame_get_page_no(page),
+				(ulong) right_page_no,
 				index->name, index->table_name);
 
 			fprintf(stderr,
@@ -2581,7 +2588,7 @@ loop:
 								&mtr)) {
  			fprintf(stderr,
 			"InnoDB: Error on page %lu in index %s table %s\n",
-				buf_frame_get_page_no(page),
+				(unsigned long) buf_frame_get_page_no(page),
 				index->name, index->table_name);
 
 			fprintf(stderr,
@@ -2596,7 +2603,7 @@ loop:
 
 			fprintf(stderr,
 				"InnoDB: node ptr child page n:o %lu\n",
-				btr_node_ptr_get_child_page_no(node_ptr));
+				(unsigned long) btr_node_ptr_get_child_page_no(node_ptr));
 
 			rec_sprintf(err_buf, 900,
 			 	btr_page_get_father_for_rec(tree, page,
@@ -2624,7 +2631,7 @@ loop:
 
 	 			fprintf(stderr,
 			"InnoDB: Error on page %lu in index %s table %s\n",
-					buf_frame_get_page_no(page),
+					(ulong) buf_frame_get_page_no(page),
 					index->name, index->table_name);
 
 				buf_page_print(father_page);
@@ -2679,7 +2686,7 @@ loop:
 
 	 				fprintf(stderr,
 			"InnoDB: Error on page %lu in index %s table %s\n",
-					buf_frame_get_page_no(page),
+					(unsigned long) buf_frame_get_page_no(page),
 					index->name, index->table_name);
 
 					buf_page_print(father_page);
@@ -2699,7 +2706,7 @@ loop:
 
 	 				fprintf(stderr,
 			"InnoDB: Error on page %lu in index %s table %s\n",
-					buf_frame_get_page_no(page),
+					(unsigned long) buf_frame_get_page_no(page),
 					index->name, index->table_name);
 
 					buf_page_print(father_page);
@@ -2717,7 +2724,7 @@ loop:
 
 	 				fprintf(stderr,
 			"InnoDB: Error on page %lu in index %s table %s\n",
-					buf_frame_get_page_no(page),
+					(unsigned long) buf_frame_get_page_no(page),
 					index->name, index->table_name);
 
 					buf_page_print(father_page);

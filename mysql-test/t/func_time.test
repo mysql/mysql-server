@@ -42,6 +42,18 @@ select yearweek("2000-01-06",1) as '2000', yearweek("2001-01-06",1) as '2001', y
 select week(19981231,2), week(19981231,3), week(20000101,2), week(20000101,3);
 select week(20001231,2),week(20001231,3);
 
+select week(19981231,0) as '0', week(19981231,1) as '1', week(19981231,2) as '2', week(19981231,3) as '3', week(19981231,4) as '4', week(19981231,5) as '5', week(19981231,6) as '6', week(19981231,7) as '7';
+select week(20000101,0) as '0', week(20000101,1) as '1', week(20000101,2) as '2', week(20000101,3) as '3', week(20000101,4) as '4', week(20000101,5) as '5', week(20000101,6) as '6', week(20000101,7) as '7';
+select week(20000106,0) as '0', week(20000106,1) as '1', week(20000106,2) as '2', week(20000106,3) as '3', week(20000106,4) as '4', week(20000106,5) as '5', week(20000106,6) as '6', week(20000106,7) as '7';
+select week(20001231,0) as '0', week(20001231,1) as '1', week(20001231,2) as '2', week(20001231,3) as '3', week(20001231,4) as '4', week(20001231,5) as '5', week(20001231,6) as '6', week(20001231,7) as '7';
+select week(20010101,0) as '0', week(20010101,1) as '1', week(20010101,2) as '2', week(20010101,3) as '3', week(20010101,4) as '4', week(20010101,5) as '5', week(20010101,6) as '6', week(20010101,7) as '7';
+
+select yearweek(20001231,0), yearweek(20001231,1), yearweek(20001231,2), yearweek(20001231,3), yearweek(20001231,4), yearweek(20001231,5), yearweek(20001231,6), yearweek(20001231,7);
+
+set default_week_format = 6;
+select week(20001231), week(20001231,6);
+set default_week_format = 0;
+
 set default_week_format = 2;
 select week(20001231),week(20001231,2),week(20001231,0);
 set default_week_format = 0;
@@ -151,7 +163,7 @@ drop table t1,t2;
 #
 # Test bug with month() and year() on text fields with wrong information
 
-CREATE TABLE t1 (updated text) TYPE=MyISAM;
+CREATE TABLE t1 (updated text) ENGINE=MyISAM;
 INSERT INTO t1 VALUES ('');
 SELECT month(updated) from t1;
 SELECT year(updated) from t1;
@@ -194,6 +206,13 @@ select * from t1, t3 where t1.start between t3.ctime1 and t3.ctime2;
 drop table t1,t2,t3;
 
 #
+# Test unix timestamp
+#
+select @a:=FROM_UNIXTIME(1);
+select unix_timestamp(@a);
+select unix_timestamp('1969-12-01 19:00:01');
+
+#
 # Test types from + INTERVAL
 #
 
@@ -219,6 +238,30 @@ select date_add(date,INTERVAL "1 1" YEAR_MONTH) from t1;
 select date_add(date,INTERVAL "1:1:1" HOUR_SECOND) from t1;
 select date_add(date,INTERVAL "1 1:1" DAY_MINUTE) from t1;
 select date_add(date,INTERVAL "1 1:1:1" DAY_SECOND) from t1;
+
+select date_add(date,INTERVAL "1" WEEK) from t1;
+select date_add(date,INTERVAL "1" QUARTER) from t1;
+select timestampadd(MINUTE, 1, date) from t1;
+select timestampadd(WEEK, 1, date) from t1;
+select timestampadd(SQL_TSI_SECOND, 1, date) from t1;
+select timestampadd(SQL_TSI_FRAC_SECOND, 1, date) from t1;
+
+select timestampdiff(MONTH, '2001-02-01', '2001-05-01') as a;
+select timestampdiff(YEAR, '2002-05-01', '2001-01-01') as a;
+select timestampdiff(QUARTER, '2002-05-01', '2001-01-01') as a;
+select timestampdiff(MONTH, '2000-03-28', '2000-02-29') as a;
+select timestampdiff(MONTH, '1991-03-28', '2000-02-29') as a;
+select timestampdiff(SQL_TSI_WEEK, '2001-02-01', '2001-05-01') as a;
+select timestampdiff(SQL_TSI_HOUR, '2001-02-01', '2001-05-01') as a;
+select timestampdiff(SQL_TSI_DAY, '2001-02-01', '2001-05-01') as a;
+select timestampdiff(SQL_TSI_MINUTE, '2001-02-01 12:59:59', '2001-05-01 12:58:59') as a;
+select timestampdiff(SQL_TSI_SECOND, '2001-02-01 12:59:59', '2001-05-01 12:58:58') as a;
+select timestampdiff(SQL_TSI_FRAC_SECOND, '2001-02-01 12:59:59.120000', '2001-05-01 12:58:58.119999') as a;
+
+select timestampdiff(SQL_TSI_DAY, '1986-02-01', '1986-03-01') as a1,
+       timestampdiff(SQL_TSI_DAY, '1900-02-01', '1900-03-01') as a2,
+       timestampdiff(SQL_TSI_DAY, '1996-02-01', '1996-03-01') as a3,
+       timestampdiff(SQL_TSI_DAY, '2000-02-01', '2000-03-01') as a4;
 
 # The following is not as one would expect...
 select date_add(time,INTERVAL 1 SECOND) from t1;
@@ -247,3 +290,6 @@ select strcmp(date_format(utc_timestamp(),"%Y-%m-%d"), utc_date())=0;
 select strcmp(concat(utc_date(),' ',utc_time()),utc_timestamp())=0;
 
 explain extended select period_add("9602",-12),period_diff(199505,"9404"),from_days(to_days("960101")),dayofmonth("1997-01-02"), month("1997-01-02"), monthname("1972-03-04"),dayofyear("0000-00-00"),HOUR("1997-03-03 23:03:22"),MINUTE("23:03:22"),SECOND(230322),QUARTER(980303),WEEK("1998-03-03"),yearweek("2000-01-01",1),week(19950101,1),year("98-02-03"),weekday(curdate())-weekday(now()),dayname("1962-03-03"),unix_timestamp(),sec_to_time(time_to_sec("0:30:47")/6.21),curtime(),utc_time(),curdate(),utc_date(),utc_timestamp(),date_format("1997-01-02 03:04:05", "%M %W %D %Y %y %m %d %h %i %s %w"),from_unixtime(unix_timestamp("1994-03-02 10:11:12")),"1997-12-31 23:59:59" + INTERVAL 1 SECOND,"1998-01-01 00:00:00" - INTERVAL 1 SECOND,INTERVAL 1 DAY + "1997-12-31", extract(YEAR FROM "1999-01-02 10:11:12"),date_add("1997-12-31 23:59:59",INTERVAL 1 SECOND);
+
+explain extended select timestampdiff(SQL_TSI_WEEK, '2001-02-01', '2001-05-01') as a1,
+			timestampdiff(SQL_TSI_FRAC_SECOND, '2001-02-01 12:59:59.120000', '2001-05-01 12:58:58.119999') as a2;

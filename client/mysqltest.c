@@ -42,7 +42,7 @@
 
 **********************************************************************/
 
-#define MTEST_VERSION "2.0"
+#define MTEST_VERSION "2.1"
 
 #include <my_global.h>
 #include <mysql_embed.h>
@@ -54,13 +54,9 @@
 #include <m_ctype.h>
 #include <my_dir.h>
 #include <hash.h>
-#include <stdio.h>
-#include <stdlib.h>
 #include <my_getopt.h>
 #include <stdarg.h>
 #include <sys/stat.h>
-#include <unistd.h>
-#include <errno.h>
 #include <violite.h>
 
 #define MAX_QUERY	65536
@@ -90,8 +86,8 @@
 #define MAX_CON_TRIES	5
 
 #define SLAVE_POLL_INTERVAL 300000 /* 0.3 of a sec */
-
-#define DEFAULT_DELIMITER  ';'
+#define DEFAULT_DELIMITER ";"
+#define MAX_DELIMITER 16
 
 enum {OPT_MANAGER_USER=256,OPT_MANAGER_HOST,OPT_MANAGER_PASSWD,
       OPT_MANAGER_PORT,OPT_MANAGER_WAIT_TIMEOUT, OPT_SKIP_SAFEMALLOC,
@@ -119,7 +115,8 @@ static FILE** cur_file;
 static FILE** file_stack_end;
 static uint lineno_stack[MAX_INCLUDE_DEPTH];
 static char TMPDIR[FN_REFLEN];
-static int  *block_ok_stack_end;
+static char delimiter[MAX_DELIMITER]= DEFAULT_DELIMITER;
+static uint delimiter_length= 1;
 
 static int *cur_block, *block_stack_end;
 static int block_stack[BLOCK_STACK_DEPTH];
@@ -137,8 +134,6 @@ static const char *embedded_server_groups[] = {
   "mysqltest_SERVER",
   NullS
 };
-
-static char delimiter= DEFAULT_DELIMITER;
 
 DYNAMIC_ARRAY q_lines;
 
@@ -217,8 +212,8 @@ Q_WAIT_FOR_SLAVE_TO_STOP,
 Q_REQUIRE_VERSION,
 Q_ENABLE_WARNINGS, Q_DISABLE_WARNINGS,
 Q_ENABLE_INFO, Q_DISABLE_INFO,
-Q_EXEC,
-Q_DELIMITER,
+Q_EXEC, Q_DELIMITER,
+
 Q_UNKNOWN,			       /* Unknown command.   */
 Q_COMMENT,			       /* Comments, ignored. */
 Q_COMMENT_WITH_COMMAND
@@ -1482,7 +1477,8 @@ int safe_connect(MYSQL* con, const char* host, const char* user,
   int i;
   for (i = 0; i < MAX_CON_TRIES; ++i)
   {
-    if (mysql_real_connect(con, host,user, pass, db, port, sock, 0))
+    if (mysql_real_connect(con, host,user, pass, db, port, sock,
+			   CLIENT_MULTI_STATEMENTS))
     {
       con_error = 0;
       break;
@@ -1500,7 +1496,6 @@ int do_connect(struct st_query* q)
   char* p=q->first_argument;
   char buff[FN_REFLEN];
   int con_port;
-  int con_error;
   int free_con_sock = 0;
 
   DBUG_ENTER("do_connect");
@@ -1565,9 +1560,9 @@ int do_connect(struct st_query* q)
   /* Special database to allow one to connect without a database name */
   if (con_db && !strcmp(con_db,"*NO-ONE*"))
     con_db=0;
-  if ((con_error = safe_connect(&next_con->mysql, con_host,
-				con_user, con_pass,
-				con_db, con_port, con_sock ? con_sock: 0)))
+  if ((safe_connect(&next_con->mysql, con_host,
+		    con_user, con_pass,
+		    con_db, con_port, con_sock ? con_sock: 0)))
     die("Could not open connection '%s': %s", con_name,
 	mysql_error(&next_con->mysql));
 
@@ -1632,14 +1627,25 @@ int do_while(struct st_query* q)
   return 0;
 }
 
-int do_delimiter(char *p)
-{
-  while (*p && my_isspace(charset_info,*p))
-    p++;
-  if (!*p)
-    die("Missing delimiter character\n");
-  delimiter=*p;
 
+my_bool end_of_query(int c, char* p)
+{
+  uint i, j;
+  int tmp[MAX_DELIMITER]= {0};
+
+  for (i= 0; c == *(delimiter + i) && i < delimiter_length;
+       i++, c= fgetc(*cur_file))
+    tmp[i]= c;
+  tmp[i]= c;
+
+  for (j= i; j > 0 && i != delimiter_length; j--)
+    ungetc(tmp[j], *cur_file);
+  if (i == delimiter_length)
+  {
+    ungetc(tmp[i], *cur_file);
+    *p= 0;
+    return 1;
+  }
   return 0;
 }
 
@@ -1647,21 +1653,21 @@ int do_delimiter(char *p)
 int read_line(char* buf, int size)
 {
   int c;
-  char* p = buf, *buf_end = buf + size-1;
-  int no_save = 0;
+  char* p= buf, *buf_end= buf + size - 1;
+  int no_save= 0;
   enum {R_NORMAL, R_Q1, R_ESC_Q_Q1, R_ESC_Q_Q2,
 	R_ESC_SLASH_Q1, R_ESC_SLASH_Q2,
-	R_Q2, R_COMMENT, R_LINE_START} state = R_LINE_START;
+	R_Q2, R_COMMENT, R_LINE_START} state= R_LINE_START;
 
   start_lineno= *lineno;
   for (; p < buf_end ;)
   {
-    no_save = 0;
-    c = fgetc(*cur_file);
+    no_save= 0;
+    c= fgetc(*cur_file);
     if (feof(*cur_file))
     {
       if ((*cur_file) != stdin)
-	my_fclose(*cur_file,MYF(0));
+	my_fclose(*cur_file, MYF(0));
       cur_file--;
       lineno--;
       if (cur_file == file_stack)
@@ -1672,11 +1678,8 @@ int read_line(char* buf, int size)
     switch(state) {
     case R_NORMAL:
       /*  Only accept '{' in the beginning of a line */
-      if (c == delimiter)
-      {
-	*p = 0;
+      if (end_of_query(c, p))
 	return 0;
-      }
       else if (c == '\'')
 	state = R_Q1;
       else if (c == '"')
@@ -1690,7 +1693,7 @@ int read_line(char* buf, int size)
     case R_COMMENT:
       if (c == '\n')
       {
-	*p=0;
+	*p= 0;
 	(*lineno)++;
 	return 0;
       }
@@ -1700,78 +1703,72 @@ int read_line(char* buf, int size)
       {
 	state = R_COMMENT;
       }
-      else if (my_isspace(charset_info,c))
+      else if (my_isspace(charset_info, c))
       {
 	if (c == '\n')
 	  start_lineno= ++*lineno;		/* Query hasn't started yet */
-	no_save = 1;
+	no_save= 1;
       }
       else if (c == '}')
       {
-	*buf++ = '}';
-	*buf = 0;
+	*buf++= '}';
+	*buf= 0;
 	return 0;
       }
-      else if (c == delimiter || c == '{')
+      else if (end_of_query(c, p) || c == '{')
       {
-	*p = 0;
+	*p= 0;
 	return 0;
       }
       else if (c == '\'')
-	state = R_Q1;
+	state= R_Q1;
       else if (c == '"')
-	state = R_Q2;
+	state= R_Q2;
       else
-	state = R_NORMAL;
+	state= R_NORMAL;
       break;
 
     case R_Q1:
       if (c == '\'')
-	state = R_ESC_Q_Q1;
+	state= R_ESC_Q_Q1;
       else if (c == '\\')
-	state = R_ESC_SLASH_Q1;
+	state= R_ESC_SLASH_Q1;
       break;
     case R_ESC_Q_Q1:
-      if (c == delimiter)
-      {
-	*p = 0;
+      if (end_of_query(c, p))
 	return 0;
-      }
       if (c != '\'')
-	state = R_NORMAL;
+	state= R_NORMAL;
       else
-	state = R_Q1;
+	state= R_Q1;
       break;
     case R_ESC_SLASH_Q1:
-      state = R_Q1;
+      state= R_Q1;
       break;
 
     case R_Q2:
       if (c == '"')
-	state = R_ESC_Q_Q2;
+	state= R_ESC_Q_Q2;
       else if (c == '\\')
-	state = R_ESC_SLASH_Q2;
+	state= R_ESC_SLASH_Q2;
       break;
     case R_ESC_Q_Q2:
-      if (c == delimiter)
-      {
-	*p = 0;
+      if (end_of_query(c, p))
 	return 0;
-      }
       if (c != '"')
-	state = R_NORMAL;
+	state= R_NORMAL;
       else
-	state = R_Q2;
+	state= R_Q2;
       break;
     case R_ESC_SLASH_Q2:
-      state = R_Q2;
+      state= R_Q2;
       break;
     }
 
     if (!no_save)
-      *p++ = c;
+      *p++= c;
   }
-  *p=0;						/* Always end with \0 */
+  *p= 0;					/* Always end with \0 */
   return feof(*cur_file);
 }
 
@@ -1788,22 +1785,22 @@ int read_query(struct st_query** q_ptr)
     get_dynamic(&q_lines, (gptr) q_ptr, parser.current_line) ;
     return 0;
   }
-  if (!(*q_ptr=q=(struct st_query*) my_malloc(sizeof(*q), MYF(MY_WME))) ||
+  if (!(*q_ptr= q= (struct st_query*) my_malloc(sizeof(*q), MYF(MY_WME))) ||
       insert_dynamic(&q_lines, (gptr) &q))
     die(NullS);
 
-  q->record_file[0] = 0;
-  q->require_file=0;
-  q->first_word_len = 0;
+  q->record_file[0]= 0;
+  q->require_file= 0;
+  q->first_word_len= 0;
   memcpy((gptr) q->expected_errno, (gptr) global_expected_errno,
 	 sizeof(global_expected_errno));
-  q->expected_errors=global_expected_errors;
-  q->abort_on_error = global_expected_errno[0] == 0;
-  bzero((gptr) global_expected_errno,sizeof(global_expected_errno));
+  q->expected_errors= global_expected_errors;
+  q->abort_on_error= global_expected_errno[0] == 0;
+  bzero((gptr) global_expected_errno, sizeof(global_expected_errno));
   global_expected_errors=0;
 
   q->type = Q_UNKNOWN;
-  q->query_buf=q->query=0;
+  q->query_buf= q->query= 0;
   if (read_line(read_query_buf, sizeof(read_query_buf)))
     return 1;
 
@@ -1813,20 +1810,20 @@ int read_query(struct st_query** q_ptr)
   }
   else if (p[0] == '-' && p[1] == '-')
   {
-    q->type = Q_COMMENT_WITH_COMMAND;
-    p+=2;					/* To calculate first word */
+    q->type= Q_COMMENT_WITH_COMMAND;
+    p+= 2;					/* To calculate first word */
   }
   else
   {
     if (*p == '!')
     {
-      q->abort_on_error = 0;
+      q->abort_on_error= 0;
       p++;
       if (*p == '$')
       {
-	expected_errno = 0;
+	expected_errno= 0;
 	p++;
-	for (;my_isdigit(charset_info,*p);p++)
+	for (; my_isdigit(charset_info, *p); p++)
 	  expected_errno = expected_errno * 10 + *p - '0';
 	q->expected_errno[0] = expected_errno;
 	q->expected_errno[1] = 0;
@@ -1834,30 +1831,30 @@ int read_query(struct st_query** q_ptr)
       }
     }
 
-    while (*p && my_isspace(charset_info,*p))
+    while (*p && my_isspace(charset_info, *p))
       p++ ;
     if (*p == '@')
     {
       p++;
       p1 = q->record_file;
-      while (!my_isspace(charset_info,*p) &&
+      while (!my_isspace(charset_info, *p) &&
 	     p1 < q->record_file + sizeof(q->record_file) - 1)
 	*p1++ = *p++;
       *p1 = 0;
     }
   }
-  while (*p && my_isspace(charset_info,*p))
+  while (*p && my_isspace(charset_info, *p))
     p++;
-  if (!(q->query_buf=q->query=my_strdup(p,MYF(MY_WME))))
+  if (!(q->query_buf= q->query= my_strdup(p, MYF(MY_WME))))
     die(NullS);
 
   /* Calculate first word and first argument */
-  for (p=q->query; *p && !my_isspace(charset_info,*p) ; p++) ;
-  q->first_word_len = (uint) (p - q->query);
-  while (*p && my_isspace(charset_info,*p))
+  for (p= q->query; *p && !my_isspace(charset_info, *p) ; p++) ;
+  q->first_word_len= (uint) (p - q->query);
+  while (*p && my_isspace(charset_info, *p))
     p++;
-  q->first_argument=p;
-  q->end = strend(q->query);
+  q->first_argument= p;
+  q->end= strend(q->query);
   parser.read_lines++;
   return 0;
 }
@@ -2034,12 +2031,10 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
 
 int parse_args(int argc, char **argv)
 {
-  int ho_error;
-
   load_defaults("my",load_default_groups,&argc,&argv);
   default_argv= argv;
 
-  if ((ho_error=handle_options(&argc, &argv, my_long_options, get_one_option)))
+  if ((handle_options(&argc, &argv, my_long_options, get_one_option)))
     exit(1);
 
   if (argc > 1)
@@ -2153,13 +2148,13 @@ static void append_result(DYNAMIC_STRING *ds, MYSQL_RES *res)
 
 int run_query(MYSQL* mysql, struct st_query* q, int flags)
 {
-  MYSQL_RES* res = 0;
-  int i, error = 0;
+  MYSQL_RES* res= 0;
+  int i, error= 0, err= 0, counter= 0;
   DYNAMIC_STRING *ds;
   DYNAMIC_STRING ds_tmp;
   DYNAMIC_STRING eval_query;
   char* query;
-  int query_len;
+  int query_len, got_error_on_send= 0;
   DBUG_ENTER("run_query");
   
   if (q->type != Q_EVAL)
@@ -2184,152 +2179,166 @@ int run_query(MYSQL* mysql, struct st_query* q, int flags)
   else
     ds= &ds_res;
 
-  if ((flags & QUERY_SEND) && mysql_send_query(mysql, query, query_len))
-    die("At line %u: unable to send query '%s'(mysql_errno=%d,errno=%d)",
-	start_lineno, query,
-	mysql_errno(mysql), errno);
-  if ((flags & QUERY_SEND) && !disable_query_log)
+  if (flags & QUERY_SEND)
   {
-    replace_dynstr_append_mem(ds,query, query_len);
-    dynstr_append_mem(ds,";\n",2);
-  }
-  if (!(flags & QUERY_REAP))
-    DBUG_RETURN(0);
-
-  if ((*mysql->methods->read_query_result)(mysql) ||
-      (!(last_result = res = mysql_store_result(mysql)) &&
-       mysql_field_count(mysql)))
-  {
-    if (q->require_file)
-    {
-      abort_not_supported_test();
-    }
-    if (q->abort_on_error)
-      die("At line %u: query '%s' failed: %d: %s", start_lineno, query,
-	  mysql_errno(mysql), mysql_error(mysql));
-    else
-    {
-      for (i=0 ; (uint) i < q->expected_errors ; i++)
-      {
-	if ((q->expected_errno[i] == mysql_errno(mysql)))
-	{
-	  if (i == 0 && q->expected_errors == 1)
-	  {
-	    /* Only log error if there is one possible error */
-	    dynstr_append_mem(ds,"ERROR ",6);
-	    replace_dynstr_append_mem(ds, mysql_sqlstate(mysql),
-				      strlen(mysql_sqlstate(mysql)));
-	    dynstr_append_mem(ds,": ",2);
-	    replace_dynstr_append_mem(ds,mysql_error(mysql),
-				      strlen(mysql_error(mysql)));
-	    dynstr_append_mem(ds,"\n",1);
-	  }
-	  /* Don't log error if we may not get an error */
-	  else if (q->expected_errno[0] != 0)
-	    dynstr_append(ds,"Got one of the listed errors\n");
-	  goto end;				/* Ok */
-	}
-      }
-      DBUG_PRINT("info",("i: %d  expected_errors: %d", i, q->expected_errors));
-      dynstr_append_mem(ds,"ERROR ",6);
-      replace_dynstr_append_mem(ds, mysql_sqlstate(mysql),
-				strlen(mysql_sqlstate(mysql)));
-      dynstr_append_mem(ds,": ",2);
-      replace_dynstr_append_mem(ds, mysql_error(mysql),
-				strlen(mysql_error(mysql)));
-      dynstr_append_mem(ds,"\n",1);
-      if (i)
-      {
-	verbose_msg("query '%s' failed with wrong errno %d instead of %d...",
-		    q->query, mysql_errno(mysql), q->expected_errno[0]);
-	error= 1;
-	goto end;
-      }
-      verbose_msg("query '%s' failed: %d: %s", q->query, mysql_errno(mysql),
-		  mysql_error(mysql));
-      /*
-	if we do not abort on error, failure to run the query does
-	not fail the whole test case
-      */
-      goto end;
-    }
-    /*{
-      verbose_msg("failed in mysql_store_result for query '%s' (%d)", query,
-      mysql_errno(mysql));
-      error = 1;
-      goto end;
-      }*/
+    got_error_on_send= mysql_send_query(mysql, query, query_len);
+    if (got_error_on_send && !q->expected_errno[0])
+      die("At line %u: unable to send query '%s' (mysql_errno=%d , errno=%d)",
+	  start_lineno, query, mysql_errno(mysql), errno);
   }
 
-  if (q->expected_errno[0])
+  do
   {
-    error = 1;
-    verbose_msg("query '%s' succeeded - should have failed with errno %d...",
-		q->query, q->expected_errno[0]);
-    goto end;
-  }
-
-  if (!disable_result_log)
-  {
-    if (res)
+    if ((flags & QUERY_SEND) && !disable_query_log && !counter)
     {
-      int num_fields= mysql_num_fields(res);
-      MYSQL_FIELD *fields= mysql_fetch_fields(res);
-      for (i = 0; i < num_fields; i++)
-      {
-	if (i)
-	  dynstr_append_mem(ds, "\t", 1);
-	dynstr_append(ds, fields[i].name);
-      }
+      replace_dynstr_append_mem(ds,query, query_len);
+      dynstr_append_mem(ds, delimiter, delimiter_length);
       dynstr_append_mem(ds, "\n", 1);
-      append_result(ds, res);
     }
+    if (!(flags & QUERY_REAP))
+      DBUG_RETURN(0);
 
-    /* Add all warnings to the result */
-    if (!disable_warnings && mysql_warning_count(mysql))
+    if (got_error_on_send ||
+	(!counter && (*mysql->methods->read_query_result)(mysql)) ||
+	 (!(last_result= res= mysql_store_result(mysql)) &&
+	  mysql_field_count(mysql)))
     {
-      MYSQL_RES *warn_res=0;
-      uint count= mysql_warning_count(mysql);
-      if (!mysql_real_query(mysql, "SHOW WARNINGS", 13))
+      if (q->require_file)
       {
-	warn_res=mysql_store_result(mysql);
+	abort_not_supported_test();
       }
-      if (!warn_res)
-	verbose_msg("Warning count is %u but didn't get any warnings\n",
-		    count);
+      if (q->abort_on_error)
+	die("At line %u: query '%s' failed: %d: %s", start_lineno, query,
+	    mysql_errno(mysql), mysql_error(mysql));
       else
       {
-	dynstr_append_mem(ds, "Warnings:\n", 10);
-	append_result(ds, warn_res);
-	mysql_free_result(warn_res);
+	for (i=0 ; (uint) i < q->expected_errors ; i++)
+	{
+	  if ((q->expected_errno[i] == mysql_errno(mysql)))
+	  {
+	    if (i == 0 && q->expected_errors == 1)
+	    {
+	      /* Only log error if there is one possible error */
+	      dynstr_append_mem(ds,"ERROR ",6);
+	      replace_dynstr_append_mem(ds, mysql_sqlstate(mysql),
+					strlen(mysql_sqlstate(mysql)));
+	      dynstr_append_mem(ds, ": ", 2);
+	      replace_dynstr_append_mem(ds,mysql_error(mysql),
+					strlen(mysql_error(mysql)));
+	      dynstr_append_mem(ds,"\n",1);
+	    }
+	    /* Don't log error if we may not get an error */
+	    else if (q->expected_errno[0] != 0)
+	      dynstr_append(ds,"Got one of the listed errors\n");
+	    goto end;				/* Ok */
+	  }
+	}
+	DBUG_PRINT("info",("i: %d  expected_errors: %d", i, q->expected_errors));
+	dynstr_append_mem(ds, "ERROR ",6);
+	replace_dynstr_append_mem(ds, mysql_sqlstate(mysql),
+				  strlen(mysql_sqlstate(mysql)));
+	dynstr_append_mem(ds,": ",2);
+	replace_dynstr_append_mem(ds, mysql_error(mysql),
+				  strlen(mysql_error(mysql)));
+	dynstr_append_mem(ds,"\n",1);
+	if (i)
+	{
+	  verbose_msg("query '%s' failed with wrong errno %d instead of %d...",
+		      q->query, mysql_errno(mysql), q->expected_errno[0]);
+	  error= 1;
+	  goto end;
+	}
+	verbose_msg("query '%s' failed: %d: %s", q->query, mysql_errno(mysql),
+		    mysql_error(mysql));
+	/*
+	  if we do not abort on error, failure to run the query does
+	  not fail the whole test case
+	*/
+	goto end;
+      }
+      /*{
+	verbose_msg("failed in mysql_store_result for query '%s' (%d)", query,
+	mysql_errno(mysql));
+	error = 1;
+	goto end;
+	}*/
+    }
+
+    if (q->expected_errno[0])
+    {
+      error = 1;
+      verbose_msg("query '%s' succeeded - should have failed with errno %d...",
+		  q->query, q->expected_errno[0]);
+      goto end;
+    }
+
+    if (!disable_result_log)
+    {
+      if (res)
+      {
+	int num_fields= mysql_num_fields(res);
+	MYSQL_FIELD *fields= mysql_fetch_fields(res);
+
+	for (i = 0; i < num_fields; i++)
+	{
+	  if (i)
+	    dynstr_append_mem(ds, "\t", 1);
+	  dynstr_append(ds, fields[i].name);
+	}
+	dynstr_append_mem(ds, "\n", 1);
+	append_result(ds, res);
+      }
+
+      /* Add all warnings to the result */
+      if (!disable_warnings && mysql_warning_count(mysql))
+      {
+	MYSQL_RES *warn_res=0;
+	uint count= mysql_warning_count(mysql);
+	if (!mysql_real_query(mysql, "SHOW WARNINGS", 13))
+	{
+	  warn_res= mysql_store_result(mysql);
+	}
+	if (!warn_res)
+	  verbose_msg("Warning count is %u but didn't get any warnings\n",
+		      count);
+	else
+	{
+	  dynstr_append_mem(ds, "Warnings:\n", 10);
+	  append_result(ds, warn_res);
+	  mysql_free_result(warn_res);
+	}
+      }
+      if (!disable_info && mysql_info(mysql))
+      {
+	dynstr_append(ds, "info: ");
+	dynstr_append(ds, mysql_info(mysql));
+	dynstr_append_mem(ds, "\n", 1);
       }
     }
-    if (!disable_info && mysql_info(mysql))
+
+    if (glob_replace)
+      free_replace();
+
+    if (record)
     {
-      dynstr_append(ds, "info: ");
-      dynstr_append(ds, mysql_info(mysql));
-      dynstr_append_mem(ds, "\n", 1);
+      if (!q->record_file[0] && !result_file)
+	die("At line %u: Missing result file", start_lineno);
+      if (!result_file)
+	str_to_file(q->record_file, ds->str, ds->length);
     }
-  }
-
-  if (glob_replace)
-    free_replace();
-
-  if (record)
-  {
-    if (!q->record_file[0] && !result_file)
-      die("At line %u: Missing result file", start_lineno);
-    if (!result_file)
-      str_to_file(q->record_file, ds->str, ds->length);
-  }
-  else if (q->record_file[0])
-  {
-    error = check_result(ds, q->record_file, q->require_file);
-  }
+    else if (q->record_file[0])
+    {
+      error = check_result(ds, q->record_file, q->require_file);
+    }
+    if (res)
+      mysql_free_result(res);
+    last_result= 0;
+    counter++;
+  } while (!(err= mysql_next_result(mysql)));
+  if (err >= 1)
+    mysql_error(mysql);
 
 end:
-  if (res)
-    mysql_free_result(res);
   last_result=0;
   if (ds == &ds_tmp)
     dynstr_free(&ds_tmp);
@@ -2470,7 +2479,6 @@ int main(int argc, char **argv)
   memset(block_stack, 0, sizeof(block_stack));
   block_stack_end = block_stack + BLOCK_STACK_DEPTH;
   memset(block_ok_stack, 0, sizeof(block_stack));
-  block_ok_stack_end = block_ok_stack + BLOCK_STACK_DEPTH;
   cur_block = block_stack;
   block_ok = block_ok_stack;
   *block_ok = 1;
@@ -2545,6 +2553,10 @@ int main(int argc, char **argv)
       case Q_DEC: do_dec(q); break;
       case Q_ECHO: do_echo(q); break;
       case Q_SYSTEM: do_system(q); break;
+      case Q_DELIMITER:
+	strmake(delimiter, q->first_argument, sizeof(delimiter) - 1);
+	delimiter_length= strlen(delimiter);
+	break;
       case Q_LET: do_let(q); break;
       case Q_EVAL_RESULT: eval_result = 1; break;
       case Q_EVAL:
@@ -2625,9 +2637,6 @@ int main(int argc, char **argv)
 	do_sync_with_master2("");
 	break;
       }
-      case Q_DELIMITER: 
-	do_delimiter(q->first_argument);
-	break;
       case Q_COMMENT:				/* Ignore row */
       case Q_COMMENT_WITH_COMMAND:
 	break;
@@ -2676,6 +2685,7 @@ int main(int argc, char **argv)
   return error ? 1 : 0;				/* Keep compiler happy */
   }
 }
+
 
 /*
   Read arguments for embedded server and put them into

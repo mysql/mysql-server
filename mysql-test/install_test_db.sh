@@ -12,11 +12,13 @@ if [ x$1 = x"-bin" ]; then
  BINARY_DIST=1
  fix_bin=mysql-test
  scriptdir=../bin
+ libexecdir=../libexec
 else
  execdir=../sql
  bindir=../client
  fix_bin=.
  scriptdir=../scripts
+ libexecdir=../libexec
 fi
 
 vardir=var
@@ -36,8 +38,13 @@ EXTRA_ARG=""
 
 if test ! -x $execdir/mysqld
 then
-  echo "mysqld is missing - looked in $execdir"
-  exit 1
+  if test ! -x $libexecdir/mysqld
+  then
+    echo "mysqld is missing - looked in $execdir and in $libexecdir"
+    exit 1
+  else
+    execdir=$libexecdir
+  fi
 fi
 
 # On IRIX hostname is in /usr/bsd so add this to the path

@@ -33,11 +33,9 @@ InnoDB */
 
 #include "mysql_priv.h"
 #include "slave.h"
-#include "sql_cache.h"
 
 #ifdef HAVE_INNOBASE_DB
 #include <m_ctype.h>
-#include <assert.h>
 #include <hash.h>
 #include <myisampack.h>
 
@@ -46,6 +44,7 @@ InnoDB */
 #include "ha_innodb.h"
 
 pthread_mutex_t innobase_mutex;
+bool innodb_inited= 0;
 
 /* Store MySQL definition of 'byte': in Linux it is char while InnoDB
 uses unsigned char; the header univ.i which we include next defines
@@ -75,6 +74,7 @@ extern "C" {
 #include "../innobase/include/btr0cur.h"
 #include "../innobase/include/btr0btr.h"
 #include "../innobase/include/fsp0fsp.h"
+#include "../innobase/include/fil0fil.h"
 }
 
 #define HA_INNOBASE_ROWS_IN_TABLE 10000 /* to get optimization right */
@@ -546,7 +546,6 @@ innobase_query_caching_of_table_permitted(
 {
 	ibool	is_autocommit;
 	trx_t*	trx;
-	char*	ptr;
 	char	norm_name[1000];
 
 	ut_a(full_name_len < 999);
@@ -606,7 +605,7 @@ innobase_query_caching_of_table_permitted(
 #ifdef __WIN__
 	/* Put to lower case */
 
-	ptr = norm_name;
+	char*	ptr = norm_name;
 
 	while (*ptr != '\0') {
 	        *ptr = tolower(*ptr);
@@ -739,6 +738,7 @@ innobase_init(void)
 
 	if (mysql_embedded) {
 		default_path = mysql_real_data_home;
+		fil_path_to_mysql_datadir = mysql_real_data_home;
 	} else {
 	  	/* It's better to use current lib, to keep paths short */
 	  	current_dir[0] = FN_CURLIB;
@@ -899,6 +899,7 @@ innobase_init(void)
 	(void) hash_init(&innobase_open_tables,system_charset_info, 32, 0, 0,
 			 		(hash_get_key) innobase_get_key, 0, 0);
 	pthread_mutex_init(&innobase_mutex, MY_MUTEX_INIT_FAST);
+	innodb_inited= 1;
 
 	/* If this is a replication slave and we needed to do a crash recovery,
 	set the master binlog position to what InnoDB internally knew about
@@ -926,21 +927,21 @@ innobase_end(void)
 /*==============*/
 				/* out: TRUE if error */
 {
-	int	err;
+	int	err= 0;
 
 	DBUG_ENTER("innobase_end");
 
-	err = innobase_shutdown_for_mysql();
-	hash_free(&innobase_open_tables);
-	my_free(internal_innobase_data_file_path,MYF(MY_ALLOW_ZERO_PTR));
-	pthread_mutex_destroy(&innobase_mutex);
-
-	if (err != DB_SUCCESS) {
-
-	  DBUG_RETURN(1);
+	if (innodb_inited)
+	{
+	  innodb_inited= 0;
+	  if (innobase_shutdown_for_mysql() != DB_SUCCESS)
+	    err= 1;
+	  hash_free(&innobase_open_tables);
+	  my_free(internal_innobase_data_file_path,MYF(MY_ALLOW_ZERO_PTR));
+	  pthread_mutex_destroy(&innobase_mutex);
 	}
 
-  	DBUG_RETURN(0);
+  	DBUG_RETURN(err);
 }
 
 /********************************************************************
@@ -984,10 +985,19 @@ innobase_commit_low(
 
                 trx->mysql_master_log_file_name
                                         = active_mi->rli.group_master_log_name;
+                /*
+                  Guilhem to Heikki: in 5.0 we don't need to do a computation
+                  (old_pos+len) to get the end_pos, because we already have the
+                  end_pos under hand in the replication code
+                  (Query_log_event::exec_event()).
+                  I tested the code change below (simulated a crash with kill
+                  -9) and got the good (binlog, position) displayed by InnoDB at
+                  crash recovery, so this code change is ok.
+                */
                 trx->mysql_master_log_pos = ((ib_longlong)
-                                         (active_mi->rli.group_master_log_pos +
-                                          active_mi->rli.event_len
-                                          ));
+                                             (active_mi->rli.future_group_master_log_pos 
+                                              ));
+                
         }
 #endif /* HAVE_REPLICATION */
 
@@ -1391,7 +1401,6 @@ ha_innobase::open(
 	uint 		test_if_locked)	/* in: not used */
 {
 	dict_table_t*	ib_table;
-  	int 		error	= 0;
   	char		norm_name[1000];
 
 	DBUG_ENTER("ha_innobase::open");
@@ -1534,7 +1543,7 @@ ha_innobase::open(
 	                fprintf(stderr,
 "InnoDB: Warning: table %s key_used_on_scan is %lu even though there is no\n"
 "InnoDB: primary key inside InnoDB.\n",
-				name, (ulint)key_used_on_scan);
+				name, (ulong)key_used_on_scan);
 		}
 	}
 
@@ -1858,7 +1867,7 @@ ha_innobase::store_key_val_for_row(
 		    || mysql_type == FIELD_TYPE_BLOB
 		    || mysql_type == FIELD_TYPE_LONG_BLOB) {
 
-			ut_a(key_part->key_part_flag & HA_PART_KEY);
+			ut_a(key_part->key_part_flag & HA_PART_KEY_SEG);
 
 		        if (is_null) {
 				 buff += key_part->length + 2;
@@ -2001,10 +2010,13 @@ build_template(
 		update field->query_id so that the formula
 		thd->query_id == field->query_id did not work. */
 
-		if (templ_type == ROW_MYSQL_REC_FIELDS
-		    && !(fetch_all_in_key
-			 && dict_index_contains_col_or_prefix(index, i))
-		    && thd->query_id != field->query_id) {
+                ibool index_contains_field=
+                  dict_index_contains_col_or_prefix(index, i);
+
+		if (templ_type == ROW_MYSQL_REC_FIELDS && 
+                    ((prebuilt->read_just_key && !index_contains_field) ||
+		    (!(fetch_all_in_key && index_contains_field)
+		     && thd->query_id != field->query_id))) {
 
 			/* This field is not needed in the query, skip it */
 
@@ -3214,7 +3226,7 @@ ha_innobase::position(
 	if (len != ref_length) {
 	        fprintf(stderr,
 	 "InnoDB: Error: stored ref len is %lu, but table ref len is %lu\n",
-		  (ulint)len, (ulint)ref_length);
+		  (ulong)len, (ulong)ref_length);
 	}
 }
 
@@ -3343,7 +3355,7 @@ create_index(
 	for (i = 0; i < n_fields; i++) {
 		key_part = key->key_part + i;
 
-		/* (The flag HA_PART_KEY denotes in MySQL a column prefix
+		/* (The flag HA_PART_KEY_SEG denotes in MySQL a column prefix
 		field in an index: we only store a specified number of first
 		bytes of the column to the index field.) The flag does not
 		seem to be properly set by MySQL. Let us fall back on testing
@@ -3638,7 +3650,7 @@ ha_innobase::discard_or_import_tablespace(
 	my_bool discard)	/* in: TRUE if discard, else import */
 {
 	row_prebuilt_t* prebuilt	= (row_prebuilt_t*) innobase_prebuilt;
-	dict_table_t*	table;
+	dict_table_t*	dict_table;
 	trx_t*		trx;
 	int		err;
 
@@ -3648,13 +3660,13 @@ ha_innobase::discard_or_import_tablespace(
 	ut_a(prebuilt->trx ==
 		(trx_t*) current_thd->transaction.all.innobase_tid);
 
-	table = prebuilt->table;
+	dict_table = prebuilt->table;
 	trx = prebuilt->trx;
 
 	if (discard) {
-		err = row_discard_tablespace_for_mysql(table->name, trx);
+		err = row_discard_tablespace_for_mysql(dict_table->name, trx);
 	} else {
-		err = row_import_tablespace_for_mysql(table->name, trx);
+		err = row_import_tablespace_for_mysql(dict_table->name, trx);
 	}
 
 	if (err == DB_SUCCESS) {
@@ -4185,7 +4197,8 @@ ha_innobase::info(
 "InnoDB: .frm files from different installations? See section\n"
 "InnoDB: 15.1 at http://www.innodb.com/ibman.html\n",
 						index->name,
-						ib_table->name, index->n_uniq,
+						ib_table->name,
+						(unsigned long) index->n_uniq,
 						j + 1);
 				        break;
 				}

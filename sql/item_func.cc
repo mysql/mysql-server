@@ -320,6 +320,7 @@ void Item_func::print_op(String *str)
   str->append(')');
 }
 
+
 bool Item_func::eq(const Item *item, bool binary_cmp) const
 {
   /* Assume we don't have rtti */
@@ -375,8 +376,7 @@ String *Item_real_func::val_str(String *str)
   double nr=val();
   if (null_value)
     return 0; /* purecov: inspected */
-  else
-    str->set(nr,decimals,default_charset());
+  str->set(nr,decimals, &my_charset_bin);
   return str;
 }
 
@@ -388,18 +388,17 @@ String *Item_num_func::val_str(String *str)
     longlong nr=val_int();
     if (null_value)
       return 0; /* purecov: inspected */
-    else if (!unsigned_flag)
-      str->set(nr,default_charset());
+    if (!unsigned_flag)
+      str->set(nr,&my_charset_bin);
     else
-      str->set((ulonglong) nr,default_charset());
+      str->set((ulonglong) nr,&my_charset_bin);
   }
   else
   {
     double nr=val();
     if (null_value)
       return 0; /* purecov: inspected */
-    else
-      str->set(nr,decimals,default_charset());
+    str->set(nr,decimals,&my_charset_bin);
   }
   return str;
 }
@@ -425,10 +424,10 @@ String *Item_int_func::val_str(String *str)
   longlong nr=val_int();
   if (null_value)
     return 0;
-  else if (!unsigned_flag)
-    str->set(nr,default_charset());
+  if (!unsigned_flag)
+    str->set(nr,&my_charset_bin);
   else
-    str->set((ulonglong) nr,default_charset());
+    str->set((ulonglong) nr,&my_charset_bin);
   return str;
 }
 
@@ -454,18 +453,17 @@ String *Item_num_op::val_str(String *str)
     longlong nr=val_int();
     if (null_value)
       return 0; /* purecov: inspected */
-    else if (!unsigned_flag)
-      str->set(nr,default_charset());
+    if (!unsigned_flag)
+      str->set(nr,&my_charset_bin);
     else
-      str->set((ulonglong) nr,default_charset());
+      str->set((ulonglong) nr,&my_charset_bin);
   }
   else
   {
     double nr=val();
     if (null_value)
       return 0; /* purecov: inspected */
-    else
-      str->set(nr,decimals,default_charset());
+    str->set(nr,decimals,&my_charset_bin);
   }
   return str;
 }
@@ -750,7 +748,7 @@ double Item_func_log2::val()
   double value=args[0]->val();
   if ((null_value=(args[0]->null_value || value <= 0.0)))
     return 0.0;
-  return log(value) / log(2.0);
+  return log(value) / M_LN2;
 }
 
 double Item_func_log10::val()
@@ -1035,10 +1033,10 @@ String *Item_func_min_max::val_str(String *str)
     longlong nr=val_int();
     if (null_value)
       return 0;
-    else if (!unsigned_flag)
-      str->set(nr,default_charset());
+    if (!unsigned_flag)
+      str->set(nr,&my_charset_bin);
     else
-      str->set((ulonglong) nr,default_charset());
+      str->set((ulonglong) nr,&my_charset_bin);
     return str;
   }
   case REAL_RESULT:
@@ -1046,8 +1044,7 @@ String *Item_func_min_max::val_str(String *str)
     double nr=val();
     if (null_value)
       return 0; /* purecov: inspected */
-    else
-      str->set(nr,decimals,default_charset());
+    str->set(nr,decimals,&my_charset_bin);
     return str;
   }
   case STRING_RESULT:
@@ -1634,7 +1631,7 @@ bool udf_handler::get_arguments()
 
 String *udf_handler::val_str(String *str,String *save_str)
 {
-  uchar is_null=0;
+  uchar is_null_tmp=0;
   ulong res_length;
 
   if (get_arguments())
@@ -1651,9 +1648,9 @@ String *udf_handler::val_str(String *str,String *save_str)
       return 0;
     }
   }
-  char *res=func(&initid, &f_args, (char*) str->ptr(), &res_length, &is_null,
-		&error);
-  if (is_null || !res || error)			// The !res is for safety
+  char *res=func(&initid, &f_args, (char*) str->ptr(), &res_length,
+		 &is_null_tmp, &error);
+  if (is_null_tmp || !res || error)		// The !res is for safety
   {
     return 0;
   }
@@ -1682,8 +1679,7 @@ String *Item_func_udf_float::val_str(String *str)
   double nr=val();
   if (null_value)
     return 0;					/* purecov: inspected */
-  else
-    str->set(nr,decimals,default_charset());
+  str->set(nr,decimals,&my_charset_bin);
   return str;
 }
 
@@ -1703,10 +1699,10 @@ String *Item_func_udf_int::val_str(String *str)
   longlong nr=val_int();
   if (null_value)
     return 0;
-  else if (!unsigned_flag)
-    str->set(nr,default_charset());
+  if (!unsigned_flag)
+    str->set(nr,&my_charset_bin);
   else
-    str->set((ulonglong) nr,default_charset());
+    str->set((ulonglong) nr,&my_charset_bin);
   return str;
 }
 
@@ -1786,17 +1782,25 @@ char *ull_get_key(const ULL *ull,uint *length,
   return (char*) ull->key;
 }
 
+
+static bool item_user_lock_inited= 0;
+
 void item_user_lock_init(void)
 {
   pthread_mutex_init(&LOCK_user_locks,MY_MUTEX_INIT_SLOW);
   hash_init(&hash_user_locks,system_charset_info,
 	    16,0,0,(hash_get_key) ull_get_key,NULL,0);
+  item_user_lock_inited= 1;
 }
 
 void item_user_lock_free(void)
 {
-  hash_free(&hash_user_locks);
-  pthread_mutex_destroy(&LOCK_user_locks);
+  if (item_user_lock_inited)
+  {
+    item_user_lock_inited= 0;
+    hash_free(&hash_user_locks);
+    pthread_mutex_destroy(&LOCK_user_locks);
+  }
 }
 
 void item_user_lock_release(ULL *ull)
@@ -2331,9 +2335,7 @@ String *user_var_entry::val_str(my_bool *null_value, String *str,
 bool
 Item_func_set_user_var::check()
 {
-  bool res;
   DBUG_ENTER("Item_func_set_user_var::check");
-  LINT_INIT(res);
 
   switch (cached_result_type) {
   case REAL_RESULT:
@@ -2458,7 +2460,7 @@ Item_func_get_user_var::val_str(String *str)
 {
   DBUG_ENTER("Item_func_get_user_var::val_str");
   if (!var_entry)
-    return (String*) 0;				// No such variable
+    DBUG_RETURN((String*) 0);			// No such variable
   DBUG_RETURN(var_entry->val_str(&null_value, str, decimals));
 }
 
@@ -2712,6 +2714,7 @@ void Item_func_match::init_search(bool no_order)
 bool Item_func_match::fix_fields(THD *thd, TABLE_LIST *tlist, Item **ref)
 {
   Item *item;
+  LINT_INIT(item);				// Safe as arg_count is > 1
 
   maybe_null=1;
   join_key=0;
@@ -2722,7 +2725,8 @@ bool Item_func_match::fix_fields(THD *thd, TABLE_LIST *tlist, Item **ref)
     modifications to find_best and auto_close as complement to auto_init code
     above.
    */
-  if (Item_func::fix_fields(thd, tlist, ref) || !args[0]->const_item())
+  if (Item_func::fix_fields(thd, tlist, ref) ||
+      !args[0]->const_during_execution())
   {
     my_error(ER_WRONG_ARGUMENTS,MYF(0),"AGAINST");
     return 1;
@@ -2736,11 +2740,15 @@ bool Item_func_match::fix_fields(THD *thd, TABLE_LIST *tlist, Item **ref)
       args[i]= item= *((Item_ref *)item)->ref;
     if (item->type() != Item::FIELD_ITEM)
       key=NO_SUCH_KEY;
-    used_tables_cache|=item->used_tables();
   }
-  /* check that all columns come from the same table */
-  if (my_count_bits(used_tables_cache) != 1)
+  /*
+    Check that all columns come from the same table.
+    We've already checked that columns in MATCH are fields so 
+    PARAM_TABLE_BIT can only appear from AGAINST argument.
+  */
+  if ((used_tables_cache & ~PARAM_TABLE_BIT) != item->used_tables())
     key=NO_SUCH_KEY;
+  
   if (key == NO_SUCH_KEY && !(flags & FT_BOOL))
   {
     my_error(ER_WRONG_ARGUMENTS,MYF(0),"MATCH");
@@ -3022,7 +3030,6 @@ longlong Item_func_is_free_lock::val_int()
   String *res=args[0]->val_str(&value);
   THD *thd=current_thd;
   ULL *ull;
-  int error=0;
 
   null_value=0;
   if (!res || !res->length())
@@ -3066,13 +3073,27 @@ Item_func_sp::execute(Item **itp)
 {
   DBUG_ENTER("Item_func_sp::execute");
   THD *thd= current_thd;
+  int res;
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
+  st_sp_security_context save_ctx;
+#endif
 
   if (! m_sp)
     m_sp= sp_find_function(thd, &m_name);
   if (! m_sp)
     DBUG_RETURN(-1);
 
-  DBUG_RETURN(m_sp->execute_function(thd, args, arg_count, itp));
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
+  sp_change_security_context(thd, m_sp, &save_ctx);
+#endif
+
+  res= m_sp->execute_function(thd, args, arg_count, itp);
+
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
+  sp_restore_security_context(thd, m_sp, &save_ctx);
+#endif
+
+  DBUG_RETURN(res);
 }
 
 enum enum_field_types
@@ -3126,6 +3147,11 @@ Item_func_sp::fix_length_and_dec()
     case INT_RESULT:
       decimals= 0;
       max_length= 21;
+      break;
+    case ROW_RESULT:
+    default:
+      // This case should never be choosen
+      DBUG_ASSERT(0);
       break;
     }
   }

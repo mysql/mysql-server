@@ -48,16 +48,34 @@ int check_binlog_magic(IO_CACHE* log, const char** errmsg)
   return 0;
 }
 
+ /* 
+    fake_rotate_event() builds a fake (=which does not exist physically in any
+    binlog) Rotate event, which contains the name of the binlog we are going to
+    send to the slave (because the slave may not know it if it just asked for
+    MASTER_LOG_FILE='', MASTER_LOG_POS=4).
+    < 4.0.14, fake_rotate_event() was called only if the requested pos was
+    4. After this version we always call it, so that a 3.23.58 slave can rely on
+    it to detect if the master is 4.0 (and stop) (the _fake_ Rotate event has
+    zeros in the good positions which, by chance, make it possible for the 3.23
+    slave to detect that this event is unexpected) (this is luck which happens
+    because the master and slave disagree on the size of the header of
+    Log_event).
+ 
+    Relying on the event length of the Rotate event instead of these well-placed
+    zeros was not possible as Rotate events have a variable-length part. 
+*/
+
 static int fake_rotate_event(NET* net, String* packet, char* log_file_name,
-                             ulonglong position, const char**errmsg)
+                             ulonglong position, const char** errmsg)
 {
+  DBUG_ENTER("fake_rotate_event");
   char header[LOG_EVENT_HEADER_LEN], buf[ROTATE_HEADER_LEN];
-  memset(header, 0, 4); // when does not matter
+  memset(header, 0, 4); // 'when' (the timestamp) does not matter, is set to 0
   header[EVENT_TYPE_OFFSET] = ROTATE_EVENT;
 
   char* p = log_file_name+dirname_length(log_file_name);
   uint ident_len = (uint) strlen(p);
-  ulong event_len = ident_len + ROTATE_EVENT_OVERHEAD;
+  ulong event_len = ident_len + LOG_EVENT_HEADER_LEN + ROTATE_HEADER_LEN;
   int4store(header + SERVER_ID_OFFSET, server_id);
   int4store(header + EVENT_LEN_OFFSET, event_len);
   int2store(header + FLAGS_OFFSET, 0);
@@ -72,9 +90,9 @@ static int fake_rotate_event(NET* net, String* packet, char* log_file_name,
   if (my_net_write(net, (char*)packet->ptr(), packet->length()))
   {
     *errmsg = "failed on my_net_write()";
-    return -1;
+    DBUG_RETURN(-1);
   }
-  return 0;
+  DBUG_RETURN(0);
 }
 
 static int send_file(THD *thd)
@@ -310,6 +328,36 @@ int purge_master_logs_before_date(THD* thd, time_t purge_time)
   return purge_error_message(thd ,res);
 }
 
+int test_for_non_eof_log_read_errors(int error, const char **errmsg)
+{
+  if (error == LOG_READ_EOF) 
+    return 0;
+  my_errno= ER_MASTER_FATAL_ERROR_READING_BINLOG;
+  switch (error) {
+  case LOG_READ_BOGUS:
+    *errmsg = "bogus data in log event";
+    break;
+  case LOG_READ_TOO_LARGE:
+    *errmsg = "log event entry exceeded max_allowed_packet; \
+Increase max_allowed_packet on master";
+    break;
+  case LOG_READ_IO:
+    *errmsg = "I/O error reading log event";
+    break;
+  case LOG_READ_MEM:
+    *errmsg = "memory allocation failed reading log event";
+    break;
+  case LOG_READ_TRUNC:
+    *errmsg = "binlog truncated in the middle of event";
+    break;
+  default:
+    *errmsg = "unknown error reading log event on the master";
+    break;
+  }
+  return error;
+}
+
+
 /*
   TODO: Clean up loop to only have one call to send_file()
 */
@@ -326,6 +374,7 @@ void mysql_binlog_send(THD* thd, char* log_ident, my_off_t pos,
   int error;
   const char *errmsg = "Unknown error";
   NET* net = &thd->net;
+  pthread_mutex_t *log_lock;
 #ifndef DBUG_OFF
   int left_events = max_binlog_dump_events;
 #endif
@@ -385,18 +434,25 @@ impossible position";
     goto err;
   }
 
-  my_b_seek(&log, pos);				// Seek will done on next read
   /*
     We need to start a packet with something other than 255
-    to distiquish it from error
+    to distinguish it from error
   */
-  packet->set("\0", 1, &my_charset_bin);
+  packet->set("\0", 1, &my_charset_bin); /* This is the start of a new packet */
 
   /*
+    Tell the client about the log name with a fake Rotate event;
+    this is needed even if we also send a Format_description_log_event just
+    after, because that event does not contain the binlog's name.
+    Note that as this Rotate event is sent before Format_description_log_event,
+    the slave cannot have any info to understand this event's format, so the
+    header len of Rotate_log_event is FROZEN
+    (so in 5.0 it will have a header shorter than other events except
+    FORMAT_DESCRIPTION_EVENT). 
     Before 4.0.14 we called fake_rotate_event below only if 
     (pos == BIN_LOG_HEADER_SIZE), because if this is false then the slave
     already knows the binlog's name.
-    Now we always call fake_rotate_event; if the slave already knew the log's
+    Since, we always call fake_rotate_event; if the slave already knew the log's
     name (ex: CHANGE MASTER TO MASTER_LOG_FILE=...) this is useless but does
     not harm much. It is nice for 3.23 (>=.58) slaves which test Rotate events
     to see if the master is 4.0 (then they choose to stop because they can't
@@ -413,15 +469,72 @@ impossible position";
   */
   if (fake_rotate_event(net, packet, log_file_name, pos, &errmsg))
   {
+    /* 
+       This error code is not perfect, as fake_rotate_event() does not read
+       anything from the binlog; if it fails it's because of an error in
+       my_net_write(), fortunately it will say it in errmsg. 
+    */
     my_errno= ER_MASTER_FATAL_ERROR_READING_BINLOG;
     goto err;
   }
   packet->set("\0", 1, &my_charset_bin);
 
+  /*
+    We can set log_lock now, it does not move (it's a member of mysql_bin_log,
+    and it's already inited, and it will be destroyed only at shutdown).
+  */
+  log_lock = mysql_bin_log.get_log_lock();  
+  if (pos > BIN_LOG_HEADER_SIZE)
+   {
+     /* Try to find a Format_description_log_event at the beginning of the binlog */
+     if (!(error = Log_event::read_log_event(&log, packet, log_lock)))
+     {
+       /*
+         The packet has offsets equal to the normal offsets in a binlog event
+         +1 (the first character is \0).
+       */
+       DBUG_PRINT("info",
+                  ("Looked for a Format_description_log_event, found event type %d",
+                   (*packet)[EVENT_TYPE_OFFSET+1]));
+       if ((*packet)[EVENT_TYPE_OFFSET+1] == FORMAT_DESCRIPTION_EVENT)
+       {
+         /*
+           mark that this event with "log_pos=0", so the slave
+           should not increment master's binlog position
+           (rli->group_master_log_pos)
+         */
+         int4store(packet->c_ptr() +LOG_POS_OFFSET+1,0);
+         /* send it */
+         if (my_net_write(net, (char*)packet->ptr(), packet->length()))
+         {
+           errmsg = "Failed on my_net_write()";
+           my_errno= ER_UNKNOWN_ERROR;
+           goto err;
+         }
+         /*
+           No need to save this event. We are only doing simple reads (no real
+           parsing of the events) so we don't need it. And so we don't need the
+           artificial Format_description_log_event of 3.23&4.x.
+         */
+       }
+     }
+     else
+       if (test_for_non_eof_log_read_errors(error, &errmsg))
+         goto err;
+     /* 
+        else: it's EOF, nothing to do, go on reading next events, the
+        Format_description_log_event will be found naturally if it is written.
+     */
+     /* reset the packet as we wrote to it in any case */
+     packet->set("\0", 1, &my_charset_bin);
+   } /* end of if (pos > BIN_LOG_HEADER_SIZE); if false, the Format_description_log_event
+        event will be found naturally. */
+  
+  /* seek to the requested position, to start the requested dump */
+  my_b_seek(&log, pos);			// Seek will done on next read
+
   while (!net->error && net->vio != 0 && !thd->killed)
   {
-    pthread_mutex_t *log_lock = mysql_bin_log.get_log_lock();
-
     while (!(error = Log_event::read_log_event(&log, packet, log_lock)))
     {
 #ifndef DBUG_OFF
@@ -433,7 +546,7 @@ impossible position";
 	goto err;
       }
 #endif
-      if (my_net_write(net, (char*)packet->ptr(), packet->length()) )
+      if (my_net_write(net, (char*)packet->ptr(), packet->length()))
       {
 	errmsg = "Failed on my_net_write()";
 	my_errno= ER_UNKNOWN_ERROR;
@@ -454,34 +567,14 @@ impossible position";
     }
     /*
       TODO: now that we are logging the offset, check to make sure
-      the recorded offset and the actual match
+      the recorded offset and the actual match.
+      Guilhem 2003-06: this is not true if this master is a slave <4.0.15
+      running with --log-slave-updates, because then log_pos may be the offset
+      in the-master-of-this-master's binlog.
     */
-    if (error != LOG_READ_EOF)
-    {
-      my_errno= ER_MASTER_FATAL_ERROR_READING_BINLOG;
-      switch (error) {
-      case LOG_READ_BOGUS:
-	errmsg = "bogus data in log event";
-	break;
-      case LOG_READ_TOO_LARGE:
-	errmsg = "log event entry exceeded max_allowed_packet; \
-Increase max_allowed_packet on master";
-	break;
-      case LOG_READ_IO:
-	errmsg = "I/O error reading log event";
-	break;
-      case LOG_READ_MEM:
-	errmsg = "memory allocation failed reading log event";
-	break;
-      case LOG_READ_TRUNC:
-	errmsg = "binlog truncated in the middle of event";
-	break;
-      default:
-	errmsg = "unknown error reading log event on the master";
-	break;
-      }
+
+    if (test_for_non_eof_log_read_errors(error, &errmsg))
       goto err;
-    }
 
     if (!(flags & BINLOG_DUMP_NON_BLOCK) &&
        mysql_bin_log.is_active(log_file_name))
@@ -615,8 +708,13 @@ Increase max_allowed_packet on master";
       (void) my_close(file, MYF(MY_WME));
 
       /*
-        Even if the previous log contained a Rotate_log_event, we still fake
-        one.
+        Call fake_rotate_event() in case the previous log (the one which we have
+        just finished reading) did not contain a Rotate event (for example (I
+        don't know any other example) the previous log was the last one before
+        the master was shutdown & restarted).
+        This way we tell the slave about the new log's name and position.
+        If the binlog is 5.0, the next event we are going to read and send is
+        Format_description_log_event.
       */
       if ((file=open_binlog(&log, log_file_name, &errmsg)) < 0 ||
 	  fake_rotate_event(net, packet, log_file_name, BIN_LOG_HEADER_SIZE, &errmsg))
@@ -679,7 +777,7 @@ int start_slave(THD* thd , MASTER_INFO* mi,  bool net_report)
     bit to 0 for the other thread
   */
   if (thd->lex->slave_thd_opt)
-    thread_mask &= thd->lex->slave_thd_opt;
+    thread_mask&= thd->lex->slave_thd_opt;
   if (thread_mask) //some threads are stopped, start them
   {
     if (init_master_info(mi,master_info_file,relay_log_info_file, 0))
@@ -700,7 +798,7 @@ int start_slave(THD* thd , MASTER_INFO* mi,  bool net_report)
           mi->rli.until_condition= RELAY_LOG_INFO::UNTIL_MASTER_POS;
           mi->rli.until_log_pos= thd->lex->mi.pos;
           /* 
-             We don't check thd->lex.mi.log_file_name for NULL here 
+             We don't check thd->lex->mi.log_file_name for NULL here 
              since it is checked in sql_yacc.yy
           */
           strmake(mi->rli.until_log_name, thd->lex->mi.log_file_name,
@@ -961,8 +1059,8 @@ void kill_zombie_dump_threads(uint32 slave_server_id)
 int change_master(THD* thd, MASTER_INFO* mi)
 {
   int thread_mask;
-  const char* errmsg=0;
-  bool need_relay_log_purge=1;
+  const char* errmsg= 0;
+  bool need_relay_log_purge= 1;
   DBUG_ENTER("change_master");
 
   lock_slave_threads(mi);
@@ -975,7 +1073,7 @@ int change_master(THD* thd, MASTER_INFO* mi)
   }
 
   thd->proc_info = "Changing master";
-  LEX_MASTER_INFO* lex_mi = &thd->lex->mi;
+  LEX_MASTER_INFO* lex_mi= &thd->lex->mi;
   // TODO: see if needs re-write
   if (init_master_info(mi, master_info_file, relay_log_info_file, 0))
   {
@@ -1055,7 +1153,41 @@ int change_master(THD* thd, MASTER_INFO* mi)
     mi->rli.group_relay_log_pos= mi->rli.event_relay_log_pos= lex_mi->relay_log_pos;
   }
 
-  flush_master_info(mi);
+  /*
+    If user did specify neither host nor port nor any log name nor any log
+    pos, i.e. he specified only user/password/master_connect_retry, he probably
+    wants replication to resume from where it had left, i.e. from the
+    coordinates of the **SQL** thread (imagine the case where the I/O is ahead
+    of the SQL; restarting from the coordinates of the I/O would lose some
+    events which is probably unwanted when you are just doing minor changes
+    like changing master_connect_retry).
+    A side-effect is that if only the I/O thread was started, this thread may
+    restart from ''/4 after the CHANGE MASTER. That's a minor problem (it is a
+    much more unlikely situation than the one we are fixing here).
+    Note: coordinates of the SQL thread must be read here, before the
+    'if (need_relay_log_purge)' block which resets them.
+  */
+  if (!lex_mi->host && !lex_mi->port &&
+      !lex_mi->log_file_name && !lex_mi->pos &&
+      need_relay_log_purge)
+   {
+     /*
+       Sometimes mi->rli.master_log_pos == 0 (it happens when the SQL thread is
+       not initialized), so we use a max().
+       What happens to mi->rli.master_log_pos during the initialization stages
+       of replication is not 100% clear, so we guard against problems using
+       max().
+      */
+     mi->master_log_pos = max(BIN_LOG_HEADER_SIZE,
+			      mi->rli.group_master_log_pos);
+     strmake(mi->master_log_name, mi->rli.group_master_log_name,
+             sizeof(mi->master_log_name)-1);
+  }
+  /*
+    Relay log's IO_CACHE may not be inited, if rli->inited==0 (server was never
+    a slave before).
+  */
+  flush_master_info(mi, 0);
   if (need_relay_log_purge)
   {
     relay_log_purge= 1;
@@ -1078,7 +1210,7 @@ int change_master(THD* thd, MASTER_INFO* mi)
 			   mi->rli.group_relay_log_name,
 			   mi->rli.group_relay_log_pos,
 			   0 /*no data lock*/,
-			   &msg))
+			   &msg, 0))
     {
       net_printf(thd,0,"Failed initializing relay log position: %s",msg);
       unlock_slave_threads(mi);
@@ -1087,10 +1219,21 @@ int change_master(THD* thd, MASTER_INFO* mi)
   }
   mi->rli.group_master_log_pos = mi->master_log_pos;
   DBUG_PRINT("info", ("master_log_pos: %d", (ulong) mi->master_log_pos));
-  /* If changing RELAY_LOG_FILE or RELAY_LOG_POS, this will be nonsense: */
+
+  /*
+    Coordinates in rli were spoilt by the 'if (need_relay_log_purge)' block,
+    so restore them to good values. If we left them to ''/0, that would work;
+    but that would fail in the case of 2 successive CHANGE MASTER (without a
+    START SLAVE in between): because first one would set the coords in mi to
+    the good values of those in rli, the set those in rli to ''/0, then
+    second CHANGE MASTER would set the coords in mi to those of rli, i.e. to
+    ''/0: we have lost all copies of the original good coordinates.
+    That's why we always save good coords in rli.
+  */
   mi->rli.group_master_log_pos= mi->master_log_pos;
   strmake(mi->rli.group_master_log_name,mi->master_log_name,
 	  sizeof(mi->rli.group_master_log_name)-1);
+
   if (!mi->rli.group_master_log_name[0]) // uninitialized case
     mi->rli.group_master_log_pos=0;
 
@@ -1152,6 +1295,8 @@ int show_binlog_events(THD* thd)
   const char *errmsg = 0;
   IO_CACHE log;
   File file = -1;
+  Format_description_log_event *description_event= new
+    Format_description_log_event(3); /* MySQL 4.0 by default */ 
 
   Log_event::init_show_field_list(&field_list);
   if (protocol-> send_fields(&field_list, 1))
@@ -1159,7 +1304,7 @@ int show_binlog_events(THD* thd)
 
   if (mysql_bin_log.is_open())
   {
-    LEX_MASTER_INFO *lex_mi = &thd->lex->mi;
+    LEX_MASTER_INFO *lex_mi= &thd->lex->mi;
     ha_rows event_count, limit_start, limit_end;
     my_off_t pos = max(BIN_LOG_HEADER_SIZE, lex_mi->pos); // user-friendly
     char search_file_name[FN_REFLEN], *name;
@@ -1168,8 +1313,8 @@ int show_binlog_events(THD* thd)
     LOG_INFO linfo;
     Log_event* ev;
   
-    limit_start = thd->lex->current_select->offset_limit;
-    limit_end = thd->lex->current_select->select_limit + limit_start;
+    limit_start= thd->lex->current_select->offset_limit;
+    limit_end= thd->lex->current_select->select_limit + limit_start;
 
     name= search_file_name;
     if (log_file_name)
@@ -1190,10 +1335,38 @@ int show_binlog_events(THD* thd)
       goto err;
 
     pthread_mutex_lock(log_lock);
+
+    /* 
+       open_binlog() sought to position 4.
+       Read the first event in case it's a Format_description_log_event, to know the
+       format. If there's no such event, we are 3.23 or 4.x. This code, like
+       before, can't read 3.23 binlogs.
+       This code will fail on a mixed relay log (one which has Format_desc then
+       Rotate then Format_desc).
+    */
+    
+    ev = Log_event::read_log_event(&log,(pthread_mutex_t*)0,description_event);
+    if (ev)
+    {
+      if (ev->get_type_code() == FORMAT_DESCRIPTION_EVENT)
+      {
+        delete description_event;
+        description_event= (Format_description_log_event*) ev;
+      }
+      else
+        delete ev;
+    }
+
     my_b_seek(&log, pos);
 
+    if (!description_event->is_valid())
+    {
+      errmsg="Invalid Format_description event; could be out of memory";
+      goto err;
+    }
+    
     for (event_count = 0;
-	 (ev = Log_event::read_log_event(&log,(pthread_mutex_t*)0,0)); )
+	 (ev = Log_event::read_log_event(&log,(pthread_mutex_t*)0,description_event)); )
     {
       if (event_count >= limit_start &&
 	  ev->net_send(protocol, linfo.log_file_name, pos))
@@ -1222,6 +1395,7 @@ int show_binlog_events(THD* thd)
   }
 
 err:
+  delete description_event;
   if (file >= 0)
   {
     end_io_cache(&log);
@@ -1251,8 +1425,8 @@ int show_binlog_info(THD* thd)
   field_list.push_back(new Item_empty_string("File", FN_REFLEN));
   field_list.push_back(new Item_return_int("Position",20,
 					   MYSQL_TYPE_LONGLONG));
-  field_list.push_back(new Item_empty_string("Binlog_do_db",255));
-  field_list.push_back(new Item_empty_string("Binlog_ignore_db",255));
+  field_list.push_back(new Item_empty_string("Binlog_Do_DB",255));
+  field_list.push_back(new Item_empty_string("Binlog_Ignore_DB",255));
 
   if (protocol->send_fields(&field_list, 1))
     DBUG_RETURN(-1);
@@ -1291,9 +1465,7 @@ int show_binlogs(THD* thd)
 {
   IO_CACHE *index_file;
   char fname[FN_REFLEN];
-  NET* net = &thd->net;
   List<Item> field_list;
-  String *packet = &thd->packet;
   uint length;
   Protocol *protocol= thd->protocol;
   DBUG_ENTER("show_binlogs");

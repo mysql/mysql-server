@@ -71,7 +71,7 @@ static void printf_log(const char *str,...);
 static bool cmp_filename(struct file_info *file_info,my_string name);
 
 static uint verbose=0,update=0,test_info=0,max_files=0,re_open_count=0,
-  recover=0,prefix_remove=0,opt_processes=0,opt_myisam_with_debug=0;
+  recover=0,prefix_remove=0,opt_processes=0;
 static my_string log_filename=0,filepath=0,write_filename=0,record_pos_file=0;
 static ulong com_count[10][3],number_of_commands=(ulong) ~0L,
 	     isamlog_process;
@@ -200,9 +200,6 @@ static void get_options(register int *argc, register char ***argv)
       case 'r':
 	update=1;
 	recover++;
-	break;
-      case 'D':
-	opt_myisam_with_debug=1;
 	break;
       case 'P':
 	opt_processes=1;
@@ -333,8 +330,8 @@ static int examine_log(my_string file_name, char **table_names)
   bzero((gptr) com_count,sizeof(com_count));
   init_tree(&tree,0,0,sizeof(file_info),(qsort_cmp2) file_info_compare,1,
 	    (tree_element_free) file_info_free, NULL);
-  VOID(init_key_cache(dflt_keycache,KEY_CACHE_BLOCK_SIZE,KEY_CACHE_SIZE,
-                      &dflt_key_cache_var));
+  VOID(init_key_cache(dflt_key_cache,KEY_CACHE_BLOCK_SIZE,KEY_CACHE_SIZE,
+                      0, 0));
 
   files_open=0; access_time=0;
   while (access_time++ != number_of_commands &&
@@ -648,7 +645,7 @@ static int examine_log(my_string file_name, char **table_names)
       goto end;
     }
   }
-  end_key_cache(*dflt_keycache,1);
+  end_key_cache(dflt_key_cache,1);
   delete_tree(&tree);
   VOID(end_io_cache(&cache));
   VOID(my_close(file,MYF(0)));
@@ -668,7 +665,7 @@ static int examine_log(my_string file_name, char **table_names)
 	       llstr(isamlog_filepos,llbuff)));
   fflush(stderr);
  end:
-  end_key_cache(*dflt_keycache, 1);
+  end_key_cache(dflt_key_cache, 1);
   delete_tree(&tree);
   VOID(end_io_cache(&cache));
   VOID(my_close(file,MYF(0)));

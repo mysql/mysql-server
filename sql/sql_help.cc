@@ -524,7 +524,7 @@ int send_header_2(Protocol *protocol, bool for_category)
     same as strcmp
 */
 
-int string_ptr_cmp(const void* ptr1, const void* ptr2)
+extern "C" int string_ptr_cmp(const void* ptr1, const void* ptr2)
 {
   String *str1= *(String**)ptr1;
   String *str2= *(String**)ptr2;

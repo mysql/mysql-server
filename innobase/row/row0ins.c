@@ -225,11 +225,15 @@ ulint
 row_ins_sec_index_entry_by_modify(
 /*==============================*/
 				/* out: DB_SUCCESS or error code */
+	ulint		mode,	/* in: BTR_MODIFY_LEAF or BTR_MODIFY_TREE,
+				depending on whether mtr holds just a leaf
+				latch or also a tree latch */
 	btr_cur_t*	cursor,	/* in: B-tree cursor */
 	dtuple_t*	entry,	/* in: index entry to insert */
 	que_thr_t*	thr,	/* in: query thread */
 	mtr_t*		mtr)	/* in: mtr */
 {
+	big_rec_t*	dummy_big_rec;
 	mem_heap_t*	heap;
 	upd_t*		update;
 	rec_t*		rec;
@@ -241,16 +245,28 @@ row_ins_sec_index_entry_by_modify(
 	ut_ad(rec_get_deleted_flag(rec));
 	
 	/* We know that in the alphabetical ordering, entry and rec are
-	identical. But in their binary form there may be differences if
+	identified. But in their binary form there may be differences if
 	there are char fields in them. Therefore we have to calculate the
-	difference and do an update-in-place if necessary. */
+	difference. */
 	
 	heap = mem_heap_create(1024);
 	
 	update = row_upd_build_sec_rec_difference_binary(cursor->index,
 							entry, rec, heap); 
+	if (mode == BTR_MODIFY_LEAF) {
+		/* Try an optimistic updating of the record, keeping changes
+		within the page */
 
-	err = btr_cur_update_sec_rec_in_place(cursor, update, thr, mtr);
+		err = btr_cur_optimistic_update(BTR_KEEP_SYS_FLAG, cursor,
+						update, 0, thr, mtr);
+		if (err == DB_OVERFLOW || err == DB_UNDERFLOW) {
+			err = DB_FAIL;
+		}
+	} else  {
+		ut_a(mode == BTR_MODIFY_TREE);
+		err = btr_cur_pessimistic_update(BTR_KEEP_SYS_FLAG, cursor,
+					&dummy_big_rec, update, 0, thr, mtr);
+	}
 
 	mem_heap_free(heap);
 
@@ -1838,7 +1854,8 @@ row_ins_index_entry_low(
 							ext_vec, n_ext_vec,
 							thr, &mtr);
 		} else {
-			err = row_ins_sec_index_entry_by_modify(&cursor, entry,
+			err = row_ins_sec_index_entry_by_modify(mode, &cursor,
+								entry,
 								thr, &mtr);
 		}
 		

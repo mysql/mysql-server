@@ -40,7 +40,7 @@ main( int argc, char * argv[] )
   MYSQL_ROW	row ;
 
   //....just curious....
-  printf( "sizeof( MYSQL ) == %d\n", sizeof( MYSQL ) ) ;
+  printf( "sizeof( MYSQL ) == %d\n", (int) sizeof( MYSQL ) ) ;
   if ( argc == 2 )
     {
       strcpy( szDB, argv[ 1 ] ) ;
@@ -49,27 +49,31 @@ main( int argc, char * argv[] )
       {
 	strcpy( szDB, "mysql" ) ;
 	printf("Some mysql struct information (size and offset):\n");
-	printf("net:\t%3d %3d\n",sizeof(myData->net),offsetof(MYSQL,net));
-	printf("host:\t%3d %3d\n",sizeof(myData->host),offsetof(MYSQL,host));
-	printf("port:\t%3d %3d\n",sizeof(myData->port),offsetof(MYSQL,port));
-	printf("protocol_version:\t%3d %3d\n",sizeof(myData->protocol_version),
-	       offsetof(MYSQL,protocol_version));
-	printf("thread_id:\t%3d %3d\n",sizeof(myData->thread_id),
-	       offsetof(MYSQL,thread_id));
-	printf("affected_rows:\t%3d %3d\n",sizeof(myData->affected_rows),
-	       offsetof(MYSQL,affected_rows));
-	printf("packet_length:\t%3d %3d\n",sizeof(myData->packet_length),
-	       offsetof(MYSQL,packet_length));
-	printf("status:\t%3d %3d\n",sizeof(myData->status),
-	       offsetof(MYSQL,status));
-	printf("fields:\t%3d %3d\n",sizeof(myData->fields),
-	       offsetof(MYSQL,fields));
-	printf("field_alloc:\t%3d %3d\n",sizeof(myData->field_alloc),
-	       offsetof(MYSQL,field_alloc));
-	printf("free_me:\t%3d %3d\n",sizeof(myData->free_me),
-	       offsetof(MYSQL,free_me));
-	printf("options:\t%3d %3d\n",sizeof(myData->options),
-	       offsetof(MYSQL,options));
+	printf("net:\t%3d %3d\n",(int) sizeof(myData->net),
+	       (int) offsetof(MYSQL,net));
+	printf("host:\t%3d %3d\n",(int) sizeof(myData->host),
+	       (int) offsetof(MYSQL,host));
+	printf("port:\t%3d %3d\n", (int) sizeof(myData->port),
+	       (int) offsetof(MYSQL,port));
+	printf("protocol_version:\t%3d %3d\n",
+	       (int) sizeof(myData->protocol_version),
+	       (int) offsetof(MYSQL,protocol_version));
+	printf("thread_id:\t%3d %3d\n",(int) sizeof(myData->thread_id),
+	       (int) offsetof(MYSQL,thread_id));
+	printf("affected_rows:\t%3d %3d\n",(int) sizeof(myData->affected_rows),
+	       (int) offsetof(MYSQL,affected_rows));
+	printf("packet_length:\t%3d %3d\n",(int) sizeof(myData->packet_length),
+	       (int) offsetof(MYSQL,packet_length));
+	printf("status:\t%3d %3d\n",(int) sizeof(myData->status),
+	       (int) offsetof(MYSQL,status));
+	printf("fields:\t%3d %3d\n",(int) sizeof(myData->fields),
+	       (int) offsetof(MYSQL,fields));
+	printf("field_alloc:\t%3d %3d\n",(int) sizeof(myData->field_alloc),
+	       (int) offsetof(MYSQL,field_alloc));
+	printf("free_me:\t%3d %3d\n",(int) sizeof(myData->free_me),
+	       (int) offsetof(MYSQL,free_me));
+	printf("options:\t%3d %3d\n",(int) sizeof(myData->options),
+	       (int) offsetof(MYSQL,options));
 	puts("");
       }
     }		

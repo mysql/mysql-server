@@ -160,10 +160,10 @@ extern char *my_strdup_with_length(const byte *from, uint length,
 #endif
 
 #ifdef HAVE_ALLOCA
-#if defined(_AIX) && !defined(__GNUC__)
+#if defined(_AIX) && !defined(__GNUC__) && !defined(_AIX43)
 #pragma alloca
 #endif /* _AIX */
-#if defined(__GNUC__) && !defined(HAVE_ALLOCA_H)
+#if defined(__GNUC__) && !defined(HAVE_ALLOCA_H) && ! defined(alloca)
 #define alloca __builtin_alloca
 #endif /* GNUC */
 #define my_alloca(SZ) alloca((size_t) (SZ))
@@ -226,9 +226,8 @@ extern void add_compiled_collation(CHARSET_INFO *cs);
 extern ulong	my_cache_w_requests, my_cache_write, my_cache_r_requests,
 		my_cache_read;
 extern ulong	my_blocks_used, my_blocks_changed;
-extern uint	key_cache_block_size;
 extern ulong	my_file_opened,my_stream_opened, my_tmp_file_created;
-extern my_bool	key_cache_inited, my_init_done;
+extern my_bool	my_init_done;
 
 					/* Point to current my_message() */
 extern void (*my_sigtstp_cleanup)(void),
@@ -266,8 +265,7 @@ enum cache_type
 
 enum flush_type
 {
-  FLUSH_KEEP, FLUSH_RELEASE, FLUSH_IGNORE_CHANGED, FLUSH_FORCE_WRITE, 
-  FLUSH_REMOVE
+  FLUSH_KEEP, FLUSH_RELEASE, FLUSH_IGNORE_CHANGED, FLUSH_FORCE_WRITE
 };
 
 typedef struct st_record_cache	/* Used when cacheing records */
@@ -500,49 +498,12 @@ typedef int (*qsort2_cmp)(const void *, const void *, const void *);
 
 /* tell write offset in the SEQ_APPEND cache */
 my_off_t my_b_append_tell(IO_CACHE* info);
+my_off_t my_b_safe_tell(IO_CACHE* info); /* picks the correct tell() */
 
 #define my_b_bytes_in_cache(info) (uint) (*(info)->current_end - \
 					  *(info)->current_pos)
 
 typedef uint32 ha_checksum;
-
-/* Pointer to a key cache data structure (see the key cache module) */
-typedef struct st_key_cache* KEY_CACHE_HANDLE;
-
-/* Key cache variable structure */
-/*
-  The structure contains the parameters of a key cache that can
-  be set and undated by regular set global statements.
-  It also contains read-only statistics parameters.
-  If the corresponding key cache data structure has been already
-  created the variable contains the key cache handle.
-  The variables are put into a named list called key_caches.
-  At present the variables are only added to this list.
-*/   
-typedef struct st_key_cache_var
-{
-  ulonglong buff_size;           /* size the memory allocated for the cache  */
-  ulong block_size;              /* size of the blocks in the key cache      */
-  ulong division_limit;          /* min. percentage of warm blocks           */
-  ulong age_threshold;           /* determines when hot block is downgraded  */
-  KEY_CACHE_HANDLE cache;        /* handles for the current and registered   */
-  ulong blocks_used;             /* number of currently used blocks          */
-  ulong blocks_changed;          /* number of currently dirty blocks         */
-  ulong cache_w_requests;        /* number of write requests (write hits)    */
-  ulong cache_write;             /* number of writes from the cache to files */
-  ulong cache_r_requests;        /* number of read requests (read hits)      */
-  ulong cache_read;              /* number of reads from files to the cache  */
-  int blocks;                    /* max number of blocks in the cache        */
-  my_bool in_init;		 /* Set to 1 in MySQL during init/resize     */
-  struct st_key_cache_asmt *assign_list; /* list of assignments to the cache */
-  int assignments;               /* number of not completed assignments      */
-  void (*action)(void *);        /* optional call back function              */
-  void *extra_info;              /* ptr to extra info                        */
-} KEY_CACHE_VAR;
-
-
-extern KEY_CACHE_HANDLE *dflt_keycache;
-extern KEY_CACHE_VAR dflt_key_cache_var;
 
 #include <my_alloc.h>
 
@@ -623,7 +584,7 @@ extern int my_printf_error _VARARGS((uint my_err, const char *format,
 extern int my_message(uint my_err, const char *str,myf MyFlags);
 extern int my_message_no_curses(uint my_err, const char *str,myf MyFlags);
 extern int my_message_curses(uint my_err, const char *str,myf MyFlags);
-extern void my_init(void);
+extern my_bool my_init(void);
 extern void my_end(int infoflag);
 extern int my_redel(const char *from, const char *to, int MyFlags);
 extern int my_copystat(const char *from, const char *to, int MyFlags);
@@ -683,33 +644,6 @@ extern int flush_write_cache(RECORD_CACHE *info);
 extern long my_clock(void);
 extern sig_handler sigtstp_handler(int signal_number);
 extern void handle_recived_signals(void);
-extern int init_key_cache(KEY_CACHE_HANDLE *pkeycache,
-                          uint key_cache_block_size,
-                          ulong use_mem, KEY_CACHE_VAR* env);
-extern int resize_key_cache(KEY_CACHE_HANDLE *pkeycache,
-                            uint key_cache_block_size, ulong use_mem);
-extern void change_key_cache_param(KEY_CACHE_HANDLE keycache);
-extern byte *key_cache_read(KEY_CACHE_HANDLE keycache,
-                            File file, my_off_t filepos, int level,
-                            byte* buff, uint length,
-			    uint block_length,int return_buffer);
-extern int key_cache_insert(KEY_CACHE_HANDLE keycache,
-                            File file, my_off_t filepos, int level,
-                            byte *buff, uint length);
-extern int key_cache_write(KEY_CACHE_HANDLE keycache,
-                           File file, my_off_t filepos, int level,
-                           byte* buff, uint length,
-			   uint block_length,int force_write);
-extern int flush_key_blocks(KEY_CACHE_HANDLE keycache,
-                            int file, enum flush_type type);
-extern void end_key_cache(KEY_CACHE_HANDLE keycache, my_bool cleanup);
-extern my_bool multi_keycache_init(void);
-extern void multi_keycache_free(void);
-extern KEY_CACHE_HANDLE *multi_key_cache_search(byte *key, uint length);
-extern my_bool multi_key_cache_set(const byte *key, uint length,
-				   KEY_CACHE_HANDLE *key_cache);
-extern void multi_key_cache_change(KEY_CACHE_HANDLE *old_data,
-				   KEY_CACHE_HANDLE *new_data);
 
 extern sig_handler my_set_alarm_variable(int signo);
 extern void my_string_ptr_sort(void *base,uint items,size_s size);

@@ -52,6 +52,13 @@ static Slave_log_event* find_slave_event(IO_CACHE* log,
 					 const char* log_file_name,
 					 char* errmsg);
 
+/*
+  All of the functions defined in this file which are not used (the ones to
+  handle failsafe) are not used; their code has not been updated for more than
+  one year now so should be considered as BADLY BROKEN. Do not enable it.
+  The used functions (to handle LOAD DATA FROM MASTER, plus some small
+  functions like register_slave()) are working.
+*/
 
 static int init_failsafe_rpl_thread(THD* thd)
 {
@@ -254,7 +261,7 @@ static int find_target_pos(LEX_MASTER_INFO *mi, IO_CACHE *log, char *errmsg)
   it is reworked. Event's log_pos used to be preserved through 
   log-slave-updates to make code in repl_failsafe.cc work (this 
   function, SHOW NEW MASTER); but on the other side it caused unexpected
-  values in Exec_master_log_pos in A->B->C replication setup, 
+  values in Exec_Master_Log_Pos in A->B->C replication setup, 
   synchronization problems in master_pos_wait(), ... So we 
   (Dmitri & Guilhem) removed it.
   
@@ -418,7 +425,6 @@ static Slave_log_event* find_slave_event(IO_CACHE* log,
     my_snprintf(errmsg, SLAVE_ERRMSG_SIZE,
 		"Could not find slave event in log '%s'",
 		(char*)log_file_name);
-    delete ev;
     return 0;
   }
 
@@ -435,7 +441,7 @@ int show_new_master(THD* thd)
   DBUG_ENTER("show_new_master");
   List<Item> field_list;
   char errmsg[SLAVE_ERRMSG_SIZE];
-  LEX_MASTER_INFO* lex_mi = &thd->lex->mi;
+  LEX_MASTER_INFO* lex_mi= &thd->lex->mi;
 
   errmsg[0]=0;					// Safety
   if (translate_master(thd, lex_mi, errmsg))
@@ -623,7 +629,6 @@ err:
 int show_slave_hosts(THD* thd)
 {
   List<Item> field_list;
-  NET* net = &thd->net;
   Protocol *protocol= thd->protocol;
   DBUG_ENTER("show_slave_hosts");
 
@@ -909,7 +914,12 @@ int load_master_data(THD* thd)
 	// don't hit the magic number
 	if (active_mi->master_log_pos < BIN_LOG_HEADER_SIZE)
 	  active_mi->master_log_pos = BIN_LOG_HEADER_SIZE;
-	flush_master_info(active_mi);
+        /*
+          Relay log's IO_CACHE may not be inited (even if we are sure that some
+          host was specified; there could have been a problem when replication
+          started, which led to relay log's IO_CACHE to not be inited.
+        */
+	flush_master_info(active_mi, 0);
       }
       mysql_free_result(master_status_res);
     }

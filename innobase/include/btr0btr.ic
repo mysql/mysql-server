@@ -203,7 +203,7 @@ btr_node_ptr_get_child_page_no(
 	if (page_no == 0) {
 		fprintf(stderr,
 "InnoDB: a nonsensical page number 0 in a node ptr record at offset %lu\n",
-		       (ulint)(rec - buf_frame_align(rec)));
+		       (unsigned long)(rec - buf_frame_align(rec)));
 		buf_page_print(buf_frame_align(rec));
 	}
 

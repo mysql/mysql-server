@@ -118,12 +118,14 @@ enum enum_server_command
 #define CLIENT_SECURE_CONNECTION 32768  /* New 4.1 authentication */
 #define CLIENT_MULTI_STATEMENTS 65536   /* Enable/disable multi-stmt support */
 #define CLIENT_MULTI_RESULTS    131072  /* Enable/disable multi-results */
-#define CLIENT_REMEMBER_OPTIONS	(1L << 31)
+#define CLIENT_REMEMBER_OPTIONS	((ulong) (1L << 31))
 
 #define SERVER_STATUS_IN_TRANS     1	/* Transaction has started */
 #define SERVER_STATUS_AUTOCOMMIT   2	/* Server in auto_commit mode */
 #define SERVER_STATUS_MORE_RESULTS 4	/* More results on server */
 #define SERVER_MORE_RESULTS_EXISTS 8    /* Multi query - next query exists */
+#define SERVER_QUERY_NO_GOOD_INDEX_USED 16
+#define SERVER_QUERY_NO_INDEX_USED      32
 
 #define MYSQL_ERRMSG_SIZE	512
 #define NET_READ_TIMEOUT	30		/* Timeout on read */
@@ -157,7 +159,8 @@ typedef struct st_net {
   unsigned int *return_status;
   unsigned char reading_or_writing;
   char save_char;
-  my_bool no_send_ok;
+  my_bool no_send_ok;  /* For SPs and other things that do multiple stmts */
+  my_bool no_send_eof; /* For SPs' first version read-only cursors */
   /*
     Pointer to query object in query cache, do not equal NULL (0) for
     queries in cache that have not stored its results yet
@@ -353,7 +356,7 @@ const char *mysql_errno_to_sqlstate(unsigned int mysql_errno);
 
 /* Some other useful functions */
 
-void my_init(void);
+my_bool my_init(void);
 int load_defaults(const char *conf_file, const char **groups,
 		  int *argc, char ***argv);
 my_bool my_thread_init(void);

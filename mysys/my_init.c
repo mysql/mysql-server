@@ -61,13 +61,22 @@ static ulong atoi_octal(const char *str)
 }
 
 
-	/* Init my_sys functions and my_sys variabels */
+/*
+  Init my_sys functions and my_sys variabels
 
-void my_init(void)
+  SYNOPSIS
+    my_init()
+
+  RETURN
+    0  ok
+    1  Couldn't initialize environment
+*/
+
+my_bool my_init(void)
 {
   my_string str;
   if (my_init_done)
-    return;
+    return 0;
   my_init_done=1;
 #if defined(THREAD) && defined(SAFE_MUTEX)
   safe_mutex_global_init();		/* Must be called early */
@@ -77,7 +86,8 @@ void my_init(void)
 #if defined(HAVE_PTHREAD_INIT)
   pthread_init();			/* Must be called before DBUG_ENTER */
 #endif
-  my_thread_global_init();
+  if (my_thread_global_init())
+    return 1;
 #if !defined( __WIN__) && !defined(OS2) && !defined(__NETWARE__)
   sigfillset(&my_signals);		/* signals blocked by mf_brkhant */
 #endif
@@ -109,7 +119,7 @@ void my_init(void)
 #ifdef __WIN__
     win32_init_tcp_ip();
 #endif
-    DBUG_VOID_RETURN;
+    DBUG_RETURN(0);
   }
 } /* my_init */
 

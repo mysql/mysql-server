@@ -178,17 +178,7 @@ rm -r -f "$BASE/share/Makefile"
 rm -r -f "$BASE/share/Makefile.in"
 rm -r -f "$BASE/share/Makefile.am"
 
-#
-# Clean up if we did this from a bk tree
-#
-
-if [ -d $BASE/SCCS ]
-then
-  find $BASE/ -type d -name SCCS -printf " \"%p\"" | xargs rm -r -f
-fi
-
 mkdir $BASE/Docs $BASE/extra $BASE/include
-
 
 #
 # Copy directory files
@@ -282,7 +272,7 @@ touch $BASE/innobase/ib_config.h
 #
 
 cd $SOURCE
-for i in COPYING COPYING.LIB ChangeLog README \
+for i in COPYING ChangeLog README \
          INSTALL-SOURCE INSTALL-WIN \
          INSTALL-WIN-SOURCE \
          Docs/manual_toc.html  Docs/manual.html \
@@ -319,6 +309,15 @@ done
 
 unix_to_dos $BASE/README
 mv $BASE/README $BASE/README.txt
+
+#
+# Clean up if we did this from a bk tree
+#
+
+if [ -d $BASE/SSL/SCCS ]
+then
+  find $BASE -type d -name SCCS | xargs rm -r -f
+fi
 
 #
 # Initialize the initial data directory

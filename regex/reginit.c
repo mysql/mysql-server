@@ -49,6 +49,16 @@ void regex_init(CHARSET_INFO *cs)
     for (i=0; i < CCLASS_LAST ; i++)
     {
       char *tmp=(char*) malloc(count[i]+1);
+      if (!tmp)
+      {
+	/*
+	  This is very unlikely to happen as this function is called once
+	  at program startup
+	*/
+	fprintf(stderr,
+		"Fatal error: Can't allocate memory in regex_init\n");
+	exit(1);
+      }
       memcpy(tmp,buff[i],count[i]*sizeof(char));
       tmp[count[i]]=0;
       cclasses[i].chars=tmp;

@@ -72,15 +72,15 @@ sp_rcontext::find_handler(uint sql_errno)
 	found= 1;
       break;
     case sp_cond_type_t::warning:
-      if (sqlstate[0] == '0' && sqlstate[0] == '1')
+      if (sqlstate[0] == '0' && sqlstate[1] == '1')
 	found= 1;
       break;
     case sp_cond_type_t::notfound:
-      if (sqlstate[0] == '0' && sqlstate[0] == '2')
+      if (sqlstate[0] == '0' && sqlstate[1] == '2')
 	found= 1;
       break;
     case sp_cond_type_t::exception:
-      if (sqlstate[0] != '0' || sqlstate[0] > '2')
+      if (sqlstate[0] != '0' || sqlstate[1] > '2')
 	found= 1;
       break;
     }
@@ -133,8 +133,6 @@ sp_rcontext::pop_cursors(uint count)
 LEX *
 sp_cursor::pre_open(THD *thd)
 {
-  int res;
-
   if (m_isopen)
   {
     send_error(thd, ER_SP_CURSOR_ALREADY_OPEN);
@@ -149,18 +147,21 @@ sp_cursor::pre_open(THD *thd)
   m_oprot= thd->protocol;	// Save the original protocol
   thd->protocol= m_prot;
 
-  m_ovio= thd->net.vio;		// Prevent send_eof()
-  thd->net.vio= 0;
+  m_nseof= thd->net.no_send_eof;
+  thd->net.no_send_eof= TRUE;
   return m_lex;
 }
 
 void
-sp_cursor::post_open(THD *thd, my_bool isopen)
+sp_cursor::post_open(THD *thd, my_bool was_opened)
 {
-  thd->net.vio= m_ovio;		// Restore the originals
+  thd->net.no_send_eof= m_nseof; // Restore the originals
   thd->protocol= m_oprot;
-  m_isopen= isopen;
-  m_current_row= m_prot->data;
+  if (was_opened)
+  {
+    m_isopen= was_opened;
+    m_current_row= m_prot->data;
+  }
 }
 
 int
@@ -178,10 +179,13 @@ sp_cursor::close(THD *thd)
 void
 sp_cursor::destroy()
 {
-  delete m_prot;
-  m_prot= NULL;
-  free_root(&m_mem_root, MYF(0));
-  bzero((char *)&m_mem_root, sizeof(m_mem_root));
+  if (m_prot)
+  {
+    delete m_prot;
+    m_prot= NULL;
+    free_root(&m_mem_root, MYF(0));
+    bzero((char *)&m_mem_root, sizeof(m_mem_root));
+  }
   m_isopen= FALSE;
 }
 
@@ -192,14 +196,12 @@ sp_cursor::fetch(THD *thd, List<struct sp_pvar> *vars)
   sp_pvar_t *pv;
   MYSQL_ROW row;
   uint fldcount;
-  MYSQL_FIELD *fields= m_prot->fields;
 
   if (! m_isopen)
   {
     send_error(thd, ER_SP_CURSOR_NOT_OPEN);
     return -1;
   }
-
   if (m_current_row == NULL)
   {
     send_error(thd, ER_SP_FETCH_NO_DATA);

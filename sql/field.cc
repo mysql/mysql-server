@@ -169,6 +169,128 @@ static inline uint field_length_without_space(const char *ptr, uint length)
   return (uint) (end-ptr);
 }
 
+/*
+ Tables of filed type compatibility.
+
+ There are tables for every type, table consist of list of types in which
+ given type can be converted without data lost, list should be ended with
+ FIELD_CAST_STOP
+*/
+static Field::field_cast_enum field_cast_decimal[]=
+{Field::FIELD_CAST_STRING, Field::FIELD_CAST_VARSTRING,
+ Field::FIELD_CAST_BLOB, Field::FIELD_CAST_STOP};
+static Field::field_cast_enum field_cast_tiny[]=
+{Field::FIELD_CAST_SHORT, Field::FIELD_CAST_MEDIUM, Field::FIELD_CAST_LONG,
+ Field::FIELD_CAST_LONGLONG,
+ Field::FIELD_CAST_FLOAT, Field::FIELD_CAST_DOUBLE,
+ Field::FIELD_CAST_STRING, Field::FIELD_CAST_VARSTRING,
+ Field::FIELD_CAST_BLOB, Field::FIELD_CAST_STOP};
+static Field::field_cast_enum field_cast_short[]=
+{Field::FIELD_CAST_MEDIUM, Field::FIELD_CAST_LONG, Field::FIELD_CAST_LONGLONG,
+ Field::FIELD_CAST_FLOAT, Field::FIELD_CAST_DOUBLE,
+ Field::FIELD_CAST_STRING, Field::FIELD_CAST_VARSTRING,
+ Field::FIELD_CAST_BLOB, Field::FIELD_CAST_STOP};
+static Field::field_cast_enum field_cast_medium[]=
+{Field::FIELD_CAST_LONG, Field::FIELD_CAST_LONGLONG,
+ Field::FIELD_CAST_DOUBLE,
+ Field::FIELD_CAST_STRING, Field::FIELD_CAST_VARSTRING,
+ Field::FIELD_CAST_BLOB, Field::FIELD_CAST_STOP};
+static Field::field_cast_enum field_cast_long[]=
+{Field::FIELD_CAST_LONGLONG,
+ Field::FIELD_CAST_DOUBLE,
+ Field::FIELD_CAST_STRING, Field::FIELD_CAST_VARSTRING,
+ Field::FIELD_CAST_BLOB, Field::FIELD_CAST_STOP};
+static Field::field_cast_enum field_cast_longlong[]=
+{Field::FIELD_CAST_DOUBLE,
+ Field::FIELD_CAST_STRING, Field::FIELD_CAST_VARSTRING,
+ Field::FIELD_CAST_BLOB, Field::FIELD_CAST_STOP};
+static Field::field_cast_enum field_cast_float[]=
+{Field::FIELD_CAST_DOUBLE,
+ Field::FIELD_CAST_STRING, Field::FIELD_CAST_VARSTRING,
+ Field::FIELD_CAST_BLOB, Field::FIELD_CAST_STOP};
+static Field::field_cast_enum field_cast_double[]=
+{Field::FIELD_CAST_STRING, Field::FIELD_CAST_VARSTRING,
+ Field::FIELD_CAST_BLOB, Field::FIELD_CAST_STOP};
+static Field::field_cast_enum field_cast_null[]=
+{Field::FIELD_CAST_DECIMAL, Field::FIELD_CAST_TINY, Field::FIELD_CAST_SHORT,
+ Field::FIELD_CAST_MEDIUM, Field::FIELD_CAST_LONG, Field::FIELD_CAST_LONGLONG,
+ Field::FIELD_CAST_FLOAT, Field::FIELD_CAST_DOUBLE,
+ Field::FIELD_CAST_TIMESTAMP, Field::FIELD_CAST_YEAR,
+ Field::FIELD_CAST_DATE, Field::FIELD_CAST_NEWDATE,
+ Field::FIELD_CAST_TIME, Field::FIELD_CAST_DATETIME,
+ Field::FIELD_CAST_STRING, Field::FIELD_CAST_VARSTRING,
+ Field::FIELD_CAST_BLOB,
+ Field::FIELD_CAST_GEOM, Field::FIELD_CAST_ENUM, Field::FIELD_CAST_SET,
+ Field::FIELD_CAST_STOP};
+static Field::field_cast_enum field_cast_timestamp[]=
+{Field::FIELD_CAST_DATETIME,
+ Field::FIELD_CAST_STRING, Field::FIELD_CAST_VARSTRING,
+ Field::FIELD_CAST_BLOB, Field::FIELD_CAST_STOP};
+static Field::field_cast_enum field_cast_year[]=
+{Field::FIELD_CAST_SHORT, Field::FIELD_CAST_MEDIUM, Field::FIELD_CAST_LONG,
+ Field::FIELD_CAST_LONGLONG,
+ Field::FIELD_CAST_FLOAT, Field::FIELD_CAST_DOUBLE,
+ Field::FIELD_CAST_STRING, Field::FIELD_CAST_VARSTRING,
+ Field::FIELD_CAST_BLOB, Field::FIELD_CAST_STOP};
+static Field::field_cast_enum field_cast_date[]=
+{Field::FIELD_CAST_DATETIME,
+ Field::FIELD_CAST_STRING, Field::FIELD_CAST_VARSTRING,
+ Field::FIELD_CAST_BLOB, Field::FIELD_CAST_STOP};
+static Field::field_cast_enum field_cast_newdate[]=
+{Field::FIELD_CAST_DATETIME,
+ Field::FIELD_CAST_STRING, Field::FIELD_CAST_VARSTRING,
+ Field::FIELD_CAST_BLOB, Field::FIELD_CAST_STOP};
+static Field::field_cast_enum field_cast_time[]=
+{Field::FIELD_CAST_DATETIME,
+ Field::FIELD_CAST_STRING, Field::FIELD_CAST_VARSTRING,
+ Field::FIELD_CAST_BLOB, Field::FIELD_CAST_STOP};
+static Field::field_cast_enum field_cast_datetime[]=
+{Field::FIELD_CAST_STRING, Field::FIELD_CAST_VARSTRING,
+ Field::FIELD_CAST_BLOB, Field::FIELD_CAST_STOP};
+static Field::field_cast_enum field_cast_string[]=
+{Field::FIELD_CAST_VARSTRING, Field::FIELD_CAST_BLOB, Field::FIELD_CAST_STOP};
+static Field::field_cast_enum field_cast_varstring[]=
+{Field::FIELD_CAST_BLOB, Field::FIELD_CAST_STOP};
+static Field::field_cast_enum field_cast_blob[]=
+{Field::FIELD_CAST_STOP};
+static Field::field_cast_enum field_cast_geom[]=
+{Field::FIELD_CAST_STOP};
+static Field::field_cast_enum field_cast_enum[]=
+{Field::FIELD_CAST_STRING, Field::FIELD_CAST_VARSTRING,
+ Field::FIELD_CAST_BLOB, Field::FIELD_CAST_STOP};
+static Field::field_cast_enum field_cast_set[]=
+{Field::FIELD_CAST_STRING, Field::FIELD_CAST_VARSTRING,
+ Field::FIELD_CAST_BLOB, Field::FIELD_CAST_STOP};
+// Array of pointers on conversion table for all fields types casting
+static Field::field_cast_enum *field_cast_array[]=
+{0, //FIELD_CAST_STOP
+ field_cast_decimal, field_cast_tiny, field_cast_short,
+ field_cast_medium, field_cast_long, field_cast_longlong,
+ field_cast_float, field_cast_double,
+ field_cast_null,
+ field_cast_timestamp, field_cast_year, field_cast_date, field_cast_newdate,
+ field_cast_time, field_cast_datetime,
+ field_cast_string, field_cast_varstring, field_cast_blob,
+ field_cast_geom, field_cast_enum, field_cast_set
+};
+
+
+bool Field::field_cast_compatible(Field::field_cast_enum type)
+{
+  DBUG_ASSERT(type != FIELD_CAST_STOP);
+  Field::field_cast_enum *array= field_cast_array[field_cast_type()];
+  uint i= 0;
+  Field::field_cast_enum tp;
+  do
+  {
+    tp=  array[i++];
+    if (tp == type)
+      return 1;
+  } while (tp != FIELD_CAST_STOP);
+  return 0;
+}
+
+
 /****************************************************************************
 ** Functions for the base classes
 ** This is an unpacked number.
@@ -669,7 +791,7 @@ int Field_decimal::store(const char *from, uint len, CHARSET_INFO *cs)
   if (zerofill)
   {
     left_wall=to-1;
-    while (pos != left_wall)			// Fill with zeros
+    while (pos > left_wall)			// Fill with zeros
       *pos--='0';
   }
   else
@@ -677,7 +799,7 @@ int Field_decimal::store(const char *from, uint len, CHARSET_INFO *cs)
     left_wall=to+(sign_char != 0)-1;
     if (!expo_sign_char)	// If exponent was specified, ignore prezeros
     {
-      for (;pos != left_wall && pre_zeros_from !=pre_zeros_end;
+      for (;pos > left_wall && pre_zeros_from !=pre_zeros_end;
 	   pre_zeros_from++)
 	*pos--= '0';
     }
@@ -894,7 +1016,7 @@ int Field_decimal::cmp(const char *a_ptr,const char *b_ptr)
     return 0;
   if (*a_ptr == '-')
     return -1;
-  else if (*b_ptr == '-')
+  if (*b_ptr == '-')
     return 1;
 
   while (a_ptr != end)
@@ -2731,34 +2853,72 @@ int Field_timestamp::store(double nr)
   function.
 */
 
-static longlong fix_datetime(longlong nr)
+static longlong fix_datetime(longlong nr, TIME *time_res,
+			     const char *field_name, bool *error)
 {
-  current_thd->last_cuted_field= 0;
+  long part1,part2;
+  
+  *error= 0;
   if (nr == LL(0) || nr >= LL(10000101000000))
-    return nr;					// Normal datetime >= Year 1000
+    goto ok;
   if (nr < 101)
     goto err;
   if (nr <= (YY_PART_YEAR-1)*10000L+1231L)
-    return (nr+20000000L)*1000000L;		// YYMMDD, year: 2000-2069
+  {
+    nr= (nr+20000000L)*1000000L;                 // YYMMDD, year: 2000-2069
+    goto ok;
+  }
   if (nr < (YY_PART_YEAR)*10000L+101L)
     goto err;
   if (nr <= 991231L)
-    return (nr+19000000L)*1000000L;		// YYMMDD, year: 1970-1999
+  {
+    nr= (nr+19000000L)*1000000L;                 // YYMMDD, year: 1970-1999
+    goto ok;
+  }
   if (nr < 10000101L)
     goto err;
   if (nr <= 99991231L)
-    return nr*1000000L;
+  {
+    nr= nr*1000000L;
+    goto ok;
+  }
   if (nr < 101000000L)
     goto err;
   if (nr <= (YY_PART_YEAR-1)*LL(10000000000)+LL(1231235959))
-    return nr+LL(20000000000000);		// YYMMDDHHMMSS, 2000-2069
+  {
+    nr= nr+LL(20000000000000);                   // YYMMDDHHMMSS, 2000-2069
+    goto ok;
+  }
   if (nr <  YY_PART_YEAR*LL(10000000000)+ LL(101000000))
     goto err;
   if (nr <= LL(991231235959))
-    return nr+LL(19000000000000);		// YYMMDDHHMMSS, 1970-1999
+    nr= nr+LL(19000000000000);		// YYMMDDHHMMSS, 1970-1999
 
+ ok:
+  part1=(long) (nr/LL(1000000));
+  part2=(long) (nr - (longlong) part1*LL(1000000));
+  time_res->year=  (int) (part1/10000L);  part1%=10000L;
+  time_res->month= (int) part1 / 100;
+  time_res->day=   (int) part1 % 100;
+  time_res->hour=  (int) (part2/10000L);  part2%=10000L;
+  time_res->minute=(int) part2 / 100;
+  time_res->second=(int) part2 % 100;
+    
+  if (time_res->year <= 9999 && time_res->month <= 12 && 
+      time_res->day <= 31 && time_res->hour <= 23 && 
+      time_res->minute <= 59 && time_res->second <= 59)
+    return nr;
+  
  err:
-    current_thd->last_cuted_field= 1;
+  THD *thd= current_thd;
+  if (thd->count_cuted_fields)
+  {
+    thd->cuted_fields++;
+    push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN, 
+			ER_WARN_DATA_TRUNCATED, ER(ER_WARN_DATA_TRUNCATED),
+			field_name, thd->row_count);
+  }
+  *error= 1;
   return LL(0);
 }
 
@@ -2766,24 +2926,17 @@ static longlong fix_datetime(longlong nr)
 int Field_timestamp::store(longlong nr)
 {
   TIME l_time;
-  time_t timestamp;
-  long part1,part2;
+  time_t timestamp= 0;
+  bool error;
 
-  if ((nr=fix_datetime(nr)))
+  if ((nr= fix_datetime(nr, &l_time, field_name, &error)))
   {
     long not_used;
-    part1=(long) (nr/LL(1000000));
-    part2=(long) (nr - (longlong) part1*LL(1000000));
-    l_time.year=  (int) (part1/10000L);  part1%=10000L;
-    l_time.month= (int) part1 / 100;
-    l_time.day=	  (int) part1 % 100; 
-    l_time.hour=  (int) (part2/10000L);  part2%=10000L;
-    l_time.minute=(int) part2 / 100;
-    l_time.second=(int) part2 % 100; 
-    timestamp=my_gmt_sec(&l_time, &not_used);
+    
+    if (l_time.year >= TIMESTAMP_MAX_YEAR || l_time.year < 1900+YY_PART_YEAR-1)
+      goto err;
+    timestamp= my_gmt_sec(&l_time, &not_used);
   }
-  else
-    timestamp=0;
 #ifdef WORDS_BIGENDIAN
   if (table->db_low_byte_first)
   {
@@ -2792,9 +2945,12 @@ int Field_timestamp::store(longlong nr)
   else
 #endif
     longstore(ptr,(uint32) timestamp);
-  if (current_thd->last_cuted_field)    
-    set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, ER_WARN_DATA_TRUNCATED);
-  return 0;
+  return error;
+
+err:
+  longstore(ptr,(uint32) 0);
+  set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, ER_WARN_DATA_TRUNCATED);
+  return 1;
 }
 
 
@@ -2850,7 +3006,7 @@ String *Field_timestamp::val_str(String *val_buffer,
   struct tm tm_tmp;
 
   val_buffer->alloc(field_length+1);
-  char *to=(char*) val_buffer->ptr(),*end=to+field_length;
+  char *to= (char*) val_buffer->ptr();
   val_buffer->length(field_length);
 
 #ifdef WORDS_BIGENDIAN
@@ -3228,7 +3384,7 @@ int Field_year::store(const char *from, uint len,CHARSET_INFO *cs)
     set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, ER_WARN_DATA_OUT_OF_RANGE);
     return 1;
   }
-  else if (current_thd->count_cuted_fields && !test_if_int(from,len,end,cs))
+  if (current_thd->count_cuted_fields && !test_if_int(from,len,end,cs))
     set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, ER_WARN_DATA_TRUNCATED);
   if (nr != 0 || len != 4)
   {
@@ -3240,6 +3396,7 @@ int Field_year::store(const char *from, uint len,CHARSET_INFO *cs)
   *ptr= (char) (unsigned char) nr;
   return 0;
 }
+
 
 int Field_year::store(double nr)
 {
@@ -3635,7 +3792,7 @@ bool Field_newdate::get_date(TIME *ltime,uint fuzzydate)
   ltime->month= (tmp >> 5) & 15;
   ltime->year=  (tmp >> 9);
   ltime->time_type=TIMESTAMP_DATE;
-  ltime->hour= ltime->minute= ltime->second= ltime->second_part= 0;
+  ltime->hour= ltime->minute= ltime->second= ltime->second_part= ltime->neg= 0;
   return (!fuzzydate && (!ltime->month || !ltime->day)) ? 1 : 0;
 }
 
@@ -3703,15 +3860,10 @@ int Field_datetime::store(double nr)
 
 int Field_datetime::store(longlong nr)
 {
-  int error= 0;
-  if (nr < 0 || nr > LL(99991231235959))
-  {
-    nr=0;
-    set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, ER_WARN_DATA_OUT_OF_RANGE);
-    error= 1;
-  }
-  else
-    nr=fix_datetime(nr);
+  TIME not_used;
+  bool error;
+  
+  nr= fix_datetime(nr, &not_used, field_name, &error);
 #ifdef WORDS_BIGENDIAN
   if (table->db_low_byte_first)
   {
@@ -3720,10 +3872,9 @@ int Field_datetime::store(longlong nr)
   else
 #endif
     longlongstore(ptr,nr);
-  if (current_thd->last_cuted_field)    
-    set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, ER_WARN_DATA_TRUNCATED);
   return error;
 }
+
 
 void Field_datetime::store_time(TIME *ltime,timestamp_type type)
 {
@@ -3987,7 +4138,6 @@ longlong Field_string::val_int(void)
 String *Field_string::val_str(String *val_buffer __attribute__((unused)),
 			      String *val_ptr)
 {
-  char *end=ptr+field_length;
   uint length= field_charset->cset->lengthsp(field_charset, ptr, field_length);
   val_ptr->set((const char*) ptr, length, field_charset);
   return val_ptr;
@@ -4943,7 +5093,7 @@ int Field_enum::store(const char *from,uint length,CHARSET_INFO *cs)
   uint tmp=find_type(typelib, from, length, 0);
   if (!tmp)
   {
-    if (length < 6)			// Can't be more than 99999 enums
+    if (length < 6) // Can't be more than 99999 enums
     {
       /* This is for reading numbers with LOAD DATA INFILE */
       char *end;
@@ -5038,7 +5188,7 @@ String *Field_enum::val_str(String *val_buffer __attribute__((unused)),
 {
   uint tmp=(uint) Field_enum::val_int();
   if (!tmp || tmp > typelib->count)
-    val_ptr->length(0);
+    val_ptr->set("", 0, field_charset);
   else
     val_ptr->set((const char*) typelib->type_names[tmp-1],
 		 (uint) strlen(typelib->type_names[tmp-1]),
@@ -5071,16 +5221,21 @@ void Field_enum::sort_string(char *to,uint length __attribute__((unused)))
 
 void Field_enum::sql_type(String &res) const
 {
+  char buffer[255];
+  String enum_item(buffer, sizeof(buffer), res.charset());
+
   res.length(0);
   res.append("enum(");
 
   bool flag=0;
-  for (const char **pos=typelib->type_names; *pos ; pos++)
+  for (const char **pos= typelib->type_names; *pos; pos++)
   {
     if (flag)
       res.append(',');
-    append_unescaped(&res, *pos, strlen(*pos));
-    flag=1;
+    /* convert to res.charset() == utf8, then quote */
+    enum_item.copy(*pos, strlen(*pos), charset(), res.charset());
+    append_unescaped(&res, enum_item.ptr(), enum_item.length());
+    flag= 1;
   }
   res.append(')');
 }
@@ -5098,12 +5253,13 @@ void Field_enum::sql_type(String &res) const
 
 int Field_set::store(const char *from,uint length,CHARSET_INFO *cs)
 {
-  bool set_warning= 0;
+  bool got_warning= 0;
   int err= 0;
   char *not_used;
   uint not_used2;
   char buff[80];
   String tmpstr(buff,sizeof(buff), &my_charset_bin);
+
   /* Convert character set if nesessary */
   if (use_conversion(cs, field_charset))
   { 
@@ -5112,7 +5268,7 @@ int Field_set::store(const char *from,uint length,CHARSET_INFO *cs)
     length=  tmpstr.length();
   }
   ulonglong tmp= find_set(typelib, from, length, &not_used, &not_used2,
-			  &set_warning);
+			  &got_warning);
   if (!tmp && length && length < 22)
   {
     /* This is for reading numbers with LOAD DATA INFILE */
@@ -5122,16 +5278,11 @@ int Field_set::store(const char *from,uint length,CHARSET_INFO *cs)
 	tmp > (ulonglong) (((longlong) 1 << typelib->count) - (longlong) 1))
     {
       tmp=0;      
-      THD *thd= current_thd;
-      if (thd->count_cuted_fields)
-      {
-	thd->cuted_fields++;
-	push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN, 
-			    ER_WARN_DATA_TRUNCATED, ER(ER_WARN_DATA_TRUNCATED),
-			    field_name, 0);
-      }
+      set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, ER_WARN_DATA_TRUNCATED);
     }
   }
+  else if (got_warning)
+    set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, ER_WARN_DATA_TRUNCATED);
   store_type(tmp);
   return err;
 }
@@ -5179,16 +5330,21 @@ String *Field_set::val_str(String *val_buffer,
 
 void Field_set::sql_type(String &res) const
 {
+  char buffer[255];
+  String set_item(buffer, sizeof(buffer), res.charset());
+
   res.length(0);
   res.append("set(");
 
   bool flag=0;
-  for (const char **pos=typelib->type_names; *pos ; pos++)
+  for (const char **pos= typelib->type_names; *pos; pos++)
   {
     if (flag)
       res.append(',');
-    append_unescaped(&res, *pos, strlen(*pos));
-    flag=1;
+    /* convert to res.charset() == utf8, then quote */
+    set_item.copy(*pos, strlen(*pos), charset(), res.charset());
+    append_unescaped(&res, set_item.ptr(), set_item.length());
+    flag= 1;
   }
   res.append(')');
 }

@@ -1,7 +1,7 @@
-#! /bin/sh
+#!/bin/sh
 # mysql-test-run - originally written by Matt Wagner <matt@mysql.com>
 # modified by Sasha Pachev <sasha@mysql.com>
-# Sligtly updated by Monty
+# Slightly updated by Monty
 # Cleaned up again by Matt
 # Fixed by Sergei
 # :-)
@@ -198,6 +198,8 @@ USER_TEST=
 
 EXTRA_MASTER_OPT=""
 EXTRA_MYSQL_TEST_OPT=""
+EXTRA_MYSQLDUMP_OPT=""
+EXTRA_MYSQLBINLOG_OPT=""
 USE_RUNNING_SERVER=""
 DO_GCOV=""
 DO_GDB=""
@@ -373,6 +375,10 @@ while test $# -gt 0; do
        --debug=d:t:i:A,$MYSQL_TEST_DIR/var/log/slave.trace"
       EXTRA_MYSQL_TEST_OPT="$EXTRA_MYSQL_TEST_OPT \
        --debug=d:t:A,$MYSQL_TEST_DIR/var/log/mysqltest.trace"
+      EXTRA_MYSQLDUMP_OPT="$EXTRA_MYSQLDUMP_OPT \
+       --debug=d:t:A,$MYSQL_TEST_DIR/var/log/mysqldump.trace"
+      EXTRA_MYSQLBINLOG_OPT="$EXTRA_MYSQLBINLOG_OPT \
+       --debug=d:t:A,$MYSQL_TEST_DIR/var/log/mysqlbinlog.trace"
       ;;
     --fast)
       FAST_START=1
@@ -490,8 +496,8 @@ else
   fi
 fi
 
-MYSQL_DUMP="$MYSQL_DUMP --no-defaults -uroot --socket=$MASTER_MYSOCK"
-MYSQL_BINLOG="$MYSQL_BINLOG --no-defaults --local-load=$MYSQL_TMP_DIR"
+MYSQL_DUMP="$MYSQL_DUMP --no-defaults -uroot --socket=$MASTER_MYSOCK  $EXTRA_MYSQLDUMP_OPT"
+MYSQL_BINLOG="$MYSQL_BINLOG --no-defaults --local-load=$MYSQL_TMP_DIR $EXTRA_MYSQLBINLOG_OPT"
 export MYSQL_DUMP
 export MYSQL_BINLOG
 
@@ -805,7 +811,7 @@ manager_launch()
   ident=$1
   shift
   if [ $USE_MANAGER = 0 ] ; then
-    $@  >> $CUR_MYERR 2>&1 &
+    echo $@ | /bin/sh  >> $CUR_MYERR 2>&1  &
     sleep 2 #hack
     return
   fi
@@ -1172,7 +1178,7 @@ run_testcase ()
  slave_master_info_file=$TESTDIR/$tname.slave-mi
  echo $tname > $CURRENT_TEST
  SKIP_SLAVE=`$EXPR \( $tname : rpl \) = 0`
- if [ $USE_MANAGER = 1 ] ; then
+ if [ "$USE_MANAGER" = 1 ] ; then
   many_slaves=`$EXPR \( \( $tname : rpl_failsafe \) != 0 \) \| \( \( $tname : rpl_chain_temp_table \) != 0 \)`
  fi
 

@@ -54,6 +54,12 @@
 
 #ifdef EMBEDDED_LIBRARY
 
+#undef MYSQL_SERVER
+
+#ifndef MYSQL_CLIENT
+#define MYSQL_CLIENT
+#endif
+
 #undef net_flush
 
 extern "C" {
@@ -123,6 +129,7 @@ my_bool my_net_init(NET *net, Vio* vio)
   net->buff_end=net->buff+net->max_packet;
   net->vio = vio;
   net->no_send_ok = 0;
+  net->no_send_eof = 0;
   net->error=0; net->return_errno=0; net->return_status=0;
   net->pkt_nr=net->compress_pkt_nr=0;
   net->write_pos=net->read_pos = net->buff;

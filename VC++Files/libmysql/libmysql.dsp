@@ -119,6 +119,10 @@ SOURCE=..\strings\bmove_upp.c
 # End Source File
 # Begin Source File
 
+SOURCE="..\mysys\charset-def.c"
+# End Source File
+# Begin Source File
+
 SOURCE=..\mysys\charset.c
 # End Source File
 # Begin Source File
@@ -175,7 +179,19 @@ SOURCE="..\strings\ctype-tis620.c"
 # End Source File
 # Begin Source File
 
+SOURCE="..\strings\ctype-ucs2.c"
+# End Source File
+# Begin Source File
+
 SOURCE="..\strings\ctype-ujis.c"
+# End Source File
+# Begin Source File
+
+SOURCE="..\strings\ctype-utf8.c"
+# End Source File
+# Begin Source File
+
+SOURCE="..\strings\ctype-win1250ch.c"
 # End Source File
 # Begin Source File
 

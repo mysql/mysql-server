@@ -42,10 +42,7 @@ C_MODE_START
 #include "errmsg.h"
 #include <sql_common.h>
 
-static my_bool  org_my_init_done;
-my_bool         server_inited;
-
-static my_bool STDCALL
+static my_bool
 emb_advanced_command(MYSQL *mysql, enum enum_server_command command,
 		     const char *header, ulong header_length,
 		     const char *arg, ulong arg_length, my_bool skip_check)
@@ -103,7 +100,7 @@ emb_advanced_command(MYSQL *mysql, enum enum_server_command command,
   return result;
 }
 
-static MYSQL_DATA * STDCALL 
+static MYSQL_DATA *
 emb_read_rows(MYSQL *mysql, MYSQL_FIELD *mysql_fields __attribute__((unused)),
 	      unsigned int fields __attribute__((unused)))
 {
@@ -126,12 +123,12 @@ emb_read_rows(MYSQL *mysql, MYSQL_FIELD *mysql_fields __attribute__((unused)),
   return result;
 }
 
-static MYSQL_FIELD * STDCALL emb_list_fields(MYSQL *mysql)
+static MYSQL_FIELD *emb_list_fields(MYSQL *mysql)
 {
   return mysql->fields;
 }
 
-static my_bool STDCALL emb_read_prepare_result(MYSQL *mysql, MYSQL_STMT *stmt)
+static my_bool emb_read_prepare_result(MYSQL *mysql, MYSQL_STMT *stmt)
 {
   THD *thd= (THD*)mysql->thd;
   if (mysql->net.last_errno)
@@ -159,7 +156,8 @@ static my_bool STDCALL emb_read_prepare_result(MYSQL *mysql, MYSQL_STMT *stmt)
   else the lengths are calculated from the offset between pointers.
 **************************************************************************/
 
-static void STDCALL emb_fetch_lengths(ulong *to, MYSQL_ROW column, unsigned int field_count)
+static void emb_fetch_lengths(ulong *to, MYSQL_ROW column,
+			      unsigned int field_count)
 { 
   MYSQL_ROW end;
 
@@ -167,7 +165,7 @@ static void STDCALL emb_fetch_lengths(ulong *to, MYSQL_ROW column, unsigned int 
     *to= *column ? *(uint *)((*column) - sizeof(uint)) : 0;
 }
 
-static my_bool STDCALL emb_mysql_read_query_result(MYSQL *mysql)
+static my_bool emb_mysql_read_query_result(MYSQL *mysql)
 {
   if (mysql->net.last_errno)
     return -1;
@@ -178,7 +176,7 @@ static my_bool STDCALL emb_mysql_read_query_result(MYSQL *mysql)
   return 0;
 }
 
-static int STDCALL emb_stmt_execute(MYSQL_STMT *stmt)
+static int emb_stmt_execute(MYSQL_STMT *stmt)
 {
   DBUG_ENTER("emb_stmt_execute");
   THD *thd= (THD*)stmt->mysql->thd;
@@ -205,7 +203,7 @@ MYSQL_DATA *emb_read_binary_rows(MYSQL_STMT *stmt)
   return emb_read_rows(stmt->mysql, 0, 0);
 }
 
-int STDCALL emb_unbuffered_fetch(MYSQL *mysql, char **row)
+int emb_unbuffered_fetch(MYSQL *mysql, char **row)
 {
   MYSQL_DATA *data= ((THD*)mysql->thd)->data;
   if (!data || !data->data)
@@ -225,7 +223,7 @@ int STDCALL emb_unbuffered_fetch(MYSQL *mysql, char **row)
   return 0;
 }
 
-static void STDCALL emb_free_embedded_thd(MYSQL *mysql)
+static void emb_free_embedded_thd(MYSQL *mysql)
 {
   THD *thd= (THD*)mysql->thd;
   if (thd->data)
@@ -234,18 +232,25 @@ static void STDCALL emb_free_embedded_thd(MYSQL *mysql)
   delete thd;
 }
 
-static const char * STDCALL emb_read_statistic(MYSQL *mysql)
+static const char * emb_read_statistic(MYSQL *mysql)
 {
   THD *thd= (THD*)mysql->thd;
   return thd->net.last_error;
 }
+
+
+static MYSQL_RES * emb_mysql_store_result(MYSQL *mysql)
+{
+  return mysql_store_result(mysql);
+}
+
 
 MYSQL_METHODS embedded_methods= 
 {
   emb_mysql_read_query_result,
   emb_advanced_command,
   emb_read_rows,
-  mysql_store_result,
+  emb_mysql_store_result,
   emb_fetch_lengths, 
   emb_list_fields,
   emb_read_prepare_result,
@@ -297,7 +302,7 @@ extern "C"
 
 char **		copy_arguments_ptr= 0; 
 
-int STDCALL mysql_server_init(int argc, char **argv, char **groups)
+int init_embedded_server(int argc, char **argv, char **groups)
 {
   char glob_hostname[FN_REFLEN];
 
@@ -321,17 +326,7 @@ int STDCALL mysql_server_init(int argc, char **argv, char **groups)
   if (!groups)
     groups= (char**) fake_groups;
 
-
-  /* Only call MY_INIT() if it hasn't been called before */
-  if (!server_inited)
-  {
-    server_inited=1;
-    org_my_init_done=my_init_done;
-  }
-  if (!org_my_init_done)
-  {
-    MY_INIT((char *)"mysql_embedded");	// init my_sys library & pthreads
-  }
+  my_progname= (char *)"mysql_embedded";
 
   if (init_common_variables("my", *argcp, *argvp, (const char **)groups))
   {
@@ -430,14 +425,11 @@ int STDCALL mysql_server_init(int argc, char **argv, char **groups)
   return 0;
 }
 
-void STDCALL mysql_server_end()
+void end_embedded_server()
 {
   my_free((char*) copy_arguments_ptr, MYF(MY_ALLOW_ZERO_PTR));
   copy_arguments_ptr=0;
   clean_up(0);
-  /* If library called my_init(), free memory allocated by it */
-  if (!org_my_init_done)
-    my_end(0);
 }
 
 } /* extern "C" */
@@ -750,91 +742,4 @@ bool Protocol::convert_str(const char *from, uint length)
   return false;
 }
 #endif
-
-bool setup_params_data(st_prep_stmt *stmt)
-{                                       
-  THD *thd= stmt->thd;
-  List<Item> &params= thd->lex->param_list;
-  List_iterator<Item> param_iterator(params);
-  Item_param *param;
-  ulong param_no= 0;
-  MYSQL_BIND *client_param= thd->client_params;
-
-  DBUG_ENTER("setup_params_data");
-
-  for (;(param= (Item_param *)param_iterator++); client_param++)
-  {       
-    setup_param_functions(param, client_param->buffer_type);
-    if (!param->long_data_supplied)
-    {
-      if (*client_param->is_null)
-        param->maybe_null= param->null_value= 1;
-      else
-      {
-	uchar *buff= (uchar*)client_param->buffer;
-        param->maybe_null= param->null_value= 0;
-        param->setup_param_func(param,&buff, 
-				client_param->length ? 
-				*client_param->length : 
-				client_param->buffer_length);
-      }
-    }
-    param_no++;
-  }
-  DBUG_RETURN(0);
-}
-
-bool setup_params_data_withlog(st_prep_stmt *stmt)
-{                                       
-  THD *thd= stmt->thd;
-  List<Item> &params= thd->lex->param_list;
-  List_iterator<Item> param_iterator(params);
-  Item_param *param;
-  MYSQL_BIND *client_param= thd->client_params;
-
-  DBUG_ENTER("setup_params_data");
-
-  String str, *res, *query= new String(stmt->query->alloced_length());  
-  query->copy(*stmt->query);
-  
-  ulong param_no= 0;  
-  uint32 length= 0;
-
-  for (;(param= (Item_param *)param_iterator++); client_param++)
-  {       
-    setup_param_functions(param, client_param->buffer_type);
-    if (param->long_data_supplied)
-      res= param->query_val_str(&str);       
-    
-    else
-    {
-      if (*client_param->is_null)
-      {
-        param->maybe_null= param->null_value= 1;
-        res= &my_null_string;
-      }
-      else
-      {
-	uchar *buff= (uchar*)client_param->buffer;
-        param->maybe_null= param->null_value= 0;
-        param->setup_param_func(param,&buff,
-				client_param->length ? 
-				*client_param->length : 
-				client_param->buffer_length);
-        res= param->query_val_str(&str);
-      }
-    }
-    if (query->replace(param->pos_in_query+length, 1, *res))
-      DBUG_RETURN(1);
-    
-    length+= res->length()-1;
-    param_no++;
-  }
-  
-  if (alloc_query(stmt->thd, (char *)query->ptr(), query->length()+1))
-    DBUG_RETURN(1);
-  
-  query->free();
-  DBUG_RETURN(0);
-}
 

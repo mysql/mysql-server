@@ -76,6 +76,10 @@ TYPELIB delay_key_write_typelib=
 static bool sys_check_charset(THD *thd, set_var *var);
 static bool sys_update_charset(THD *thd, set_var *var);
 static void sys_set_default_charset(THD *thd, enum_var_type type);
+static bool sys_update_init_connect(THD*, set_var*);
+static void sys_default_init_connect(THD*, enum_var_type type);
+static bool sys_update_init_slave(THD*, set_var*);
+static void sys_default_init_slave(THD*, enum_var_type type);
 static bool set_option_bit(THD *thd, set_var *var);
 static bool set_option_autocommit(THD *thd, set_var *var);
 static bool set_log_update(THD *thd, set_var *var);
@@ -93,7 +97,7 @@ static void fix_myisam_max_sort_file_size(THD *thd, enum_var_type type);
 static void fix_max_binlog_size(THD *thd, enum_var_type type);
 static void fix_max_relay_log_size(THD *thd, enum_var_type type);
 static void fix_max_connections(THD *thd, enum_var_type type);
-static KEY_CACHE_VAR *create_key_cache(const char *name, uint length);
+static KEY_CACHE *create_key_cache(const char *name, uint length);
 void fix_sql_mode_var(THD *thd, enum_var_type type);
 static byte *get_error_count(THD *thd);
 static byte *get_warning_count(THD *thd);
@@ -114,6 +118,12 @@ sys_var_str			sys_charset_system("character_set_system",
 				    sys_check_charset,
 				    sys_update_charset,
 				    sys_set_default_charset);
+sys_var_str                     sys_init_connect("init_connect", 0,
+                                                 sys_update_init_connect,
+                                                 sys_default_init_connect);
+sys_var_str                     sys_init_slave("init_slave", 0,
+                                               sys_update_init_slave,
+                                               sys_default_init_slave);
 sys_var_character_set_database	sys_character_set_database("character_set_database");
 sys_var_character_set_client  sys_character_set_client("character_set_client");
 sys_var_character_set_connection  sys_character_set_connection("character_set_connection");
@@ -145,14 +155,14 @@ sys_var_thd_ulong	sys_join_buffer_size("join_buffer_size",
 					     &SV::join_buff_size);
 sys_var_key_buffer_size	sys_key_buffer_size("key_buffer_size");
 sys_var_key_cache_long  sys_key_cache_block_size("key_cache_block_size",
-						 offsetof(KEY_CACHE_VAR,
-							  block_size));
+						 offsetof(KEY_CACHE,
+							  param_block_size));
 sys_var_key_cache_long	sys_key_cache_division_limit("key_cache_division_limit",
-						     offsetof(KEY_CACHE_VAR,
-							      division_limit));
+						     offsetof(KEY_CACHE,
+							      param_division_limit));
 sys_var_key_cache_long  sys_key_cache_age_threshold("key_cache_age_threshold",
-						     offsetof(KEY_CACHE_VAR,
-							      age_threshold));
+						     offsetof(KEY_CACHE,
+							      param_age_threshold));
 sys_var_bool_ptr	sys_local_infile("local_infile",
 					 &opt_local_infile);
 sys_var_thd_bool	sys_log_warnings("log_warnings", &SV::log_warnings);
@@ -203,8 +213,6 @@ sys_var_thd_ha_rows	sys_sql_max_join_size("sql_max_join_size",
 					      &SV::max_join_size,
 					      fix_max_join_size);
 #endif
-sys_var_thd_ulong	sys_max_prep_stmt_count("max_prepared_statements",
-						&SV::max_prep_stmt_count);
 sys_var_long_ptr	sys_max_relay_log_size("max_relay_log_size",
                                                &max_relay_log_size,
                                                fix_max_relay_log_size);
@@ -285,8 +293,10 @@ sys_var_thd_ulong	sys_sort_buffer("sort_buffer_size",
 					&SV::sortbuff_size);
 sys_var_thd_sql_mode    sys_sql_mode("sql_mode",
                                      &SV::sql_mode);
-sys_var_thd_enum        sys_table_type("table_type", &SV::table_type,
-                                       &ha_table_typelib);
+sys_var_thd_table_type  sys_table_type("table_type",
+				       &SV::table_type);
+sys_var_thd_storage_engine sys_storage_engine("storage_engine",
+				       &SV::table_type);
 sys_var_long_ptr	sys_table_cache_size("table_cache",
 					     &table_cache_size);
 sys_var_long_ptr	sys_thread_cache_size("thread_cache_size",
@@ -438,6 +448,8 @@ sys_var *sys_variables[]=
   &sys_foreign_key_checks,
   &sys_group_concat_max_len,
   &sys_identity,
+  &sys_init_connect,
+  &sys_init_slave,
   &sys_insert_id,
   &sys_interactive_timeout,
   &sys_join_buffer_size,
@@ -463,7 +475,6 @@ sys_var *sys_variables[]=
   &sys_max_heap_table_size,
   &sys_max_join_size,
   &sys_max_length_for_sort_data,
-  &sys_max_prep_stmt_count,
   &sys_max_relay_log_size,
   &sys_max_seeks_for_key,
   &sys_max_sort_length,
@@ -518,6 +529,7 @@ sys_var *sys_variables[]=
   &sys_sql_max_join_size,
   &sys_sql_mode,
   &sys_sql_warnings,
+  &sys_storage_engine,
   &sys_table_cache_size,
   &sys_table_type,
   &sys_thread_cache_size,
@@ -550,7 +562,6 @@ struct show_var_st init_vars[]= {
   {"bdb_logdir",              (char*) &berkeley_logdir,             SHOW_CHAR_PTR},
   {"bdb_shared_data",	      (char*) &berkeley_shared_data,	    SHOW_BOOL},
   {"bdb_tmpdir",              (char*) &berkeley_tmpdir,             SHOW_CHAR_PTR},
-  {"bdb_version",             (char*) DB_VERSION_STRING,            SHOW_CHAR},
 #endif
   {sys_binlog_cache_size.name,(char*) &sys_binlog_cache_size,	    SHOW_SYS},
   {sys_bulk_insert_buff_size.name,(char*) &sys_bulk_insert_buff_size,SHOW_SYS},
@@ -592,6 +603,8 @@ struct show_var_st init_vars[]= {
   {"have_openssl",	      (char*) &have_openssl,		    SHOW_HAVE},
   {"have_query_cache",        (char*) &have_query_cache,            SHOW_HAVE},
   {"init_file",               (char*) &opt_init_file,               SHOW_CHAR_PTR},
+  {"init_connect",            (char*) &sys_init_connect,            SHOW_SYS},
+  {"init_slave",              (char*) &sys_init_slave,              SHOW_SYS},
 #ifdef HAVE_INNOBASE_DB
   {"innodb_additional_mem_pool_size", (char*) &innobase_additional_mem_pool_size, SHOW_LONG },
   {"innodb_buffer_pool_size", (char*) &innobase_buffer_pool_size, SHOW_LONG },
@@ -655,7 +668,6 @@ struct show_var_st init_vars[]= {
   {sys_max_seeks_for_key.name,  (char*) &sys_max_seeks_for_key,	    SHOW_SYS},
   {sys_max_length_for_sort_data.name, (char*) &sys_max_length_for_sort_data,
    SHOW_SYS},
-  {sys_max_prep_stmt_count.name,(char*) &sys_max_prep_stmt_count,   SHOW_SYS},
   {sys_max_sort_length.name,	(char*) &sys_max_sort_length,	    SHOW_SYS},
   {sys_max_user_connections.name,(char*) &sys_max_user_connections, SHOW_SYS},
   {sys_max_tmp_tables.name,	(char*) &sys_max_tmp_tables,	    SHOW_SYS},
@@ -723,6 +735,7 @@ struct show_var_st init_vars[]= {
 #endif
   {sys_sort_buffer.name,      (char*) &sys_sort_buffer, 	    SHOW_SYS},
   {sys_sql_mode.name,         (char*) &sys_sql_mode,                SHOW_SYS},
+  {sys_storage_engine.name,   (char*) &sys_storage_engine,          SHOW_SYS},
   {"table_cache",             (char*) &table_cache_size,            SHOW_LONG},
   {sys_table_type.name,	      (char*) &sys_table_type,	            SHOW_SYS},
   {sys_thread_cache_size.name,(char*) &sys_thread_cache_size,       SHOW_SYS},
@@ -741,6 +754,12 @@ struct show_var_st init_vars[]= {
    SHOW_SYS},
   {sys_trans_prealloc_size.name, (char*) &sys_trans_prealloc_size,  SHOW_SYS},
   {"version",                 server_version,                       SHOW_CHAR},
+#ifdef HAVE_BERKELEY_DB
+  {"version_bdb",             (char*) DB_VERSION_STRING,            SHOW_CHAR},
+#endif
+  {"version_comment",         (char*) MYSQL_COMPILATION_COMMENT,    SHOW_CHAR},
+  {"version_compile_machine", (char*) MACHINE_TYPE,		    SHOW_CHAR},
+  {"version_compile_os",      (char*) SYSTEM_TYPE,		    SHOW_CHAR},
   {sys_net_wait_timeout.name, (char*) &sys_net_wait_timeout,	    SHOW_SYS},
   {NullS, NullS, SHOW_LONG}
 };
@@ -755,6 +774,65 @@ bool sys_var::check(THD *thd, set_var *var)
 /*
   Functions to check and update variables
 */
+
+
+/*
+  Update variables 'init_connect, init_slave'.
+
+  In case of 'DEFAULT' value
+  (for example: 'set GLOBAL init_connect=DEFAULT')
+  'var' parameter is NULL pointer.
+*/
+
+bool update_sys_var_str(sys_var_str *var_str, rw_lock_t *var_mutex,
+			set_var *var)
+{
+  char *res= 0, *old_value;
+  uint new_length= 0;
+  /* If the string is "", delete old init command */
+  if (var && (new_length= var->value->str_value.length()))
+  {
+    if (!(res= my_strdup_with_length((byte*) var->value->str_value.ptr(),
+				     new_length, MYF(0))))
+      return 1;
+  }
+  /*
+    Replace the old value in such a way that the any thread using
+    the value will work.
+  */
+  rw_wrlock(var_mutex);
+  old_value= var_str->value;
+  var_str->value= res;
+  var_str->value_length= new_length;
+  rw_unlock(var_mutex);
+  my_free(old_value, MYF(MY_ALLOW_ZERO_PTR));
+  return 0;
+}
+
+
+static bool sys_update_init_connect(THD *thd, set_var *var)
+{
+  return update_sys_var_str(&sys_init_connect, &LOCK_sys_init_connect, var);
+}
+
+
+static void sys_default_init_connect(THD* thd, enum_var_type type)
+{
+  update_sys_var_str(&sys_init_connect, &LOCK_sys_init_connect, 0);
+}
+
+
+static bool sys_update_init_slave(THD *thd, set_var *var)
+{
+  return update_sys_var_str(&sys_init_slave, &LOCK_sys_init_slave, var);
+}
+
+
+static void sys_default_init_slave(THD* thd, enum_var_type type)
+{
+  update_sys_var_str(&sys_init_slave, &LOCK_sys_init_slave, 0);
+}
+
 
 /*
   The following 3 functions need to be changed in 4.1 when we allow
@@ -1779,15 +1857,14 @@ void sys_var_collation_server::set_default(THD *thd, enum_var_type type)
 
 LEX_STRING default_key_cache_base= {(char *) "default", 7 };
 
-static KEY_CACHE_VAR zero_key_cache=
-  { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
+static KEY_CACHE zero_key_cache;
 
-KEY_CACHE_VAR *get_key_cache(LEX_STRING *cache_name)
+KEY_CACHE *get_key_cache(LEX_STRING *cache_name)
 {
   safe_mutex_assert_owner(&LOCK_global_system_variables);
   if (!cache_name || ! cache_name->length)
     cache_name= &default_key_cache_base;
-  return ((KEY_CACHE_VAR*) find_named(&key_caches,
+  return ((KEY_CACHE*) find_named(&key_caches,
                                       cache_name->str, cache_name->length, 0));
 }
 
@@ -1795,7 +1872,7 @@ KEY_CACHE_VAR *get_key_cache(LEX_STRING *cache_name)
 byte *sys_var_key_cache_param::value_ptr(THD *thd, enum_var_type type,
 					 LEX_STRING *base)
 {
-  KEY_CACHE_VAR *key_cache= get_key_cache(base);
+  KEY_CACHE *key_cache= get_key_cache(base);
   if (!key_cache)
     key_cache= &zero_key_cache;
   return (byte*) key_cache + offset ;
@@ -1806,7 +1883,7 @@ bool sys_var_key_buffer_size::update(THD *thd, set_var *var)
 {
   ulonglong tmp= var->save_result.ulonglong_value;
   LEX_STRING *base_name= &var->base;
-  KEY_CACHE_VAR *key_cache;
+  KEY_CACHE *key_cache;
   bool error= 0;
 
   /* If no basename, assume it's for the key cache named 'default' */
@@ -1841,14 +1918,14 @@ bool sys_var_key_buffer_size::update(THD *thd, set_var *var)
     if (key_cache == sql_key_cache)
       goto end;					// Ignore default key cache
 
-    if (key_cache->cache)			// If initied
+    if (key_cache->key_cache_inited)		// If initied
     {
       /*
 	Move tables using this key cache to the default key cache
 	and clear the old key cache.
       */
       NAMED_LIST *list; 
-      key_cache= (KEY_CACHE_VAR *) find_named(&key_caches, base_name->str,
+      key_cache= (KEY_CACHE *) find_named(&key_caches, base_name->str,
 					      base_name->length, &list);
       key_cache->in_init= 1;
       pthread_mutex_unlock(&LOCK_global_system_variables);
@@ -1863,13 +1940,14 @@ bool sys_var_key_buffer_size::update(THD *thd, set_var *var)
     goto end;
   }
 
-  key_cache->buff_size= (ulonglong) getopt_ull_limit_value(tmp, option_limits);
+  key_cache->param_buff_size=
+    (ulonglong) getopt_ull_limit_value(tmp, option_limits);
 
   /* If key cache didn't existed initialize it, else resize it */
   key_cache->in_init= 1;
   pthread_mutex_unlock(&LOCK_global_system_variables);
 
-  if (!key_cache->cache)
+  if (!key_cache->key_cache_inited)
     error= (bool) (ha_init_key_cache("", key_cache));
   else
     error= (bool)(ha_resize_key_cache(key_cache));
@@ -1885,7 +1963,7 @@ end:
 
 bool sys_var_key_cache_long::update(THD *thd, set_var *var)
 {
-  ulong tmp= var->value->val_int();
+  ulong tmp= (ulong) var->value->val_int();
   LEX_STRING *base_name= &var->base;
   bool error= 0;
 
@@ -1893,7 +1971,7 @@ bool sys_var_key_cache_long::update(THD *thd, set_var *var)
     base_name= &default_key_cache_base;
 
   pthread_mutex_lock(&LOCK_global_system_variables);
-  KEY_CACHE_VAR *key_cache= get_key_cache(base_name);
+  KEY_CACHE *key_cache= get_key_cache(base_name);
                             
   if (!key_cache && !(key_cache= create_key_cache(base_name->str,
 				                  base_name->length)))
@@ -2430,6 +2508,86 @@ int set_var_password::update(THD *thd)
 }
 
 /****************************************************************************
+ Functions to handle table_type
+****************************************************************************/
+
+/* Based upon sys_var::check_enum() */
+
+bool sys_var_thd_storage_engine::check(THD *thd, set_var *var)
+{
+  char buff[80];
+  const char *value;
+  String str(buff, sizeof(buff), &my_charset_latin1), *res;
+
+  if (var->value->result_type() == STRING_RESULT)
+  {
+    if (!(res=var->value->val_str(&str)) ||
+	!(var->save_result.ulong_value=
+	 (ulong) ha_resolve_by_name(res->ptr(), res->length())))
+    {
+      value= res ? res->c_ptr() : "NULL";
+      goto err;
+    }
+    return 0;
+  }
+  value= "unknown";
+
+err:
+  my_error(ER_UNKNOWN_STORAGE_ENGINE, MYF(0), value);
+  return 1;    
+}
+
+
+byte *sys_var_thd_storage_engine::value_ptr(THD *thd, enum_var_type type,
+					    LEX_STRING *base)
+{
+  ulong val;
+  val= ((type == OPT_GLOBAL) ? global_system_variables.*offset :
+        thd->variables.*offset);
+  const char *table_type= ha_get_storage_engine((enum db_type)val);
+  return (byte *) table_type;
+}
+
+
+void sys_var_thd_storage_engine::set_default(THD *thd, enum_var_type type)
+{
+  if (type == OPT_GLOBAL)
+    global_system_variables.*offset= (ulong) DB_TYPE_MYISAM;
+  else
+    thd->variables.*offset= (ulong) (global_system_variables.*offset);
+}
+
+
+bool sys_var_thd_storage_engine::update(THD *thd, set_var *var)
+{
+  if (var->type == OPT_GLOBAL)
+    global_system_variables.*offset= var->save_result.ulong_value;
+  else
+    thd->variables.*offset= var->save_result.ulong_value;
+  return 0;
+}
+
+void sys_var_thd_table_type::warn_deprecated(THD *thd)
+{
+  push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+		      ER_WARN_DEPRECATED_SYNTAX,
+		      ER(ER_WARN_DEPRECATED_SYNTAX), "table_type", "storage_engine"); 
+}
+
+void sys_var_thd_table_type::set_default(THD *thd, enum_var_type type)
+{
+  warn_deprecated(thd);
+  sys_var_thd_storage_engine::set_default(thd, type);
+}
+
+bool sys_var_thd_table_type::update(THD *thd, set_var *var)
+{
+  warn_deprecated(thd);
+  return sys_var_thd_storage_engine::update(thd, var);
+}
+
+
+/****************************************************************************
  Functions to handle sql_mode
 ****************************************************************************/
 
@@ -2439,7 +2597,6 @@ byte *sys_var_thd_sql_mode::value_ptr(THD *thd, enum_var_type type,
   ulong val;
   char buff[256];
   String tmp(buff, sizeof(buff), &my_charset_latin1);
-  my_bool found= 0;
 
   tmp.length(0);
   val= ((type == OPT_GLOBAL) ? global_system_variables.*offset :
@@ -2569,13 +2726,13 @@ void delete_elements(I_List<NAMED_LIST> *list,
 
 /* Key cache functions */
 
-static KEY_CACHE_VAR *create_key_cache(const char *name, uint length)
+static KEY_CACHE *create_key_cache(const char *name, uint length)
 {
-  KEY_CACHE_VAR *key_cache;
+  KEY_CACHE *key_cache;
   DBUG_ENTER("create_key_cache");
   DBUG_PRINT("enter",("name: %.*s", length, name));
   
-  if ((key_cache= (KEY_CACHE_VAR*) my_malloc(sizeof(KEY_CACHE_VAR),
+  if ((key_cache= (KEY_CACHE*) my_malloc(sizeof(KEY_CACHE),
 					     MYF(MY_ZEROFILL | MY_WME))))
   {
     if (!new NAMED_LIST(&key_caches, name, length, (gptr) key_cache))
@@ -2591,19 +2748,19 @@ static KEY_CACHE_VAR *create_key_cache(const char *name, uint length)
 
 	We don't set 'buff_size' as this is used to enable the key cache
       */
-      key_cache->block_size=	 dflt_key_cache_var.block_size;
-      key_cache->division_limit= dflt_key_cache_var.division_limit;
-      key_cache->age_threshold=  dflt_key_cache_var.age_threshold;
+      key_cache->param_block_size=     dflt_key_cache_var.param_block_size;
+      key_cache->param_division_limit= dflt_key_cache_var.param_division_limit;
+      key_cache->param_age_threshold=  dflt_key_cache_var.param_age_threshold;
     }
   }
   DBUG_RETURN(key_cache);
 }
 
 
-KEY_CACHE_VAR *get_or_create_key_cache(const char *name, uint length)
+KEY_CACHE *get_or_create_key_cache(const char *name, uint length)
 {
   LEX_STRING key_cache_name;
-  KEY_CACHE_VAR *key_cache;
+  KEY_CACHE *key_cache;
 
   key_cache_name.str= (char *) name;
   key_cache_name.length= length;
@@ -2615,21 +2772,21 @@ KEY_CACHE_VAR *get_or_create_key_cache(const char *name, uint length)
 }
 
 
-void free_key_cache(const char *name, KEY_CACHE_VAR *key_cache)
+void free_key_cache(const char *name, KEY_CACHE *key_cache)
 {
   ha_end_key_cache(key_cache);
   my_free((char*) key_cache, MYF(0));
 }
 
 
-bool process_key_caches(int (* func) (const char *name, KEY_CACHE_VAR *))
+bool process_key_caches(int (* func) (const char *name, KEY_CACHE *))
 {
   I_List_iterator<NAMED_LIST> it(key_caches);
   NAMED_LIST *element;
 
   while ((element= it++))
   {
-    KEY_CACHE_VAR *key_cache= (KEY_CACHE_VAR *) element->data;
+    KEY_CACHE *key_cache= (KEY_CACHE *) element->data;
     func(element->name, key_cache);
   }
   return 0;

@@ -125,7 +125,7 @@ os_event_create(
 	if (!event->handle) {
 	        fprintf(stderr,
 "InnoDB: Could not create a Windows event semaphore; Windows error %lu\n",
-		  (ulint)GetLastError());
+		  (ulong) GetLastError());
 	}
 #else /* Unix */
 	os_event_t	event;
@@ -182,7 +182,7 @@ os_event_create_auto(
 	if (!event->handle) {
 	        fprintf(stderr,
 "InnoDB: Could not create a Windows auto event semaphore; Windows error %lu\n",
-		  (ulint)GetLastError());
+		  (ulong) GetLastError());
 	}
 
         /* Put to the list of events */
@@ -412,7 +412,7 @@ os_event_wait_multiple(
 					FALSE,	   /* Wait for any 1 event */
 					INFINITE); /* Infinite wait time
 						   limit */
-	ut_a(index >= WAIT_OBJECT_0);
+	ut_a(index >= WAIT_OBJECT_0);	/* NOTE: Pointless comparision */
 	ut_a(index < WAIT_OBJECT_0 + n);
 
 	if (srv_shutdown_state == SRV_SHUTDOWN_EXIT_THREADS) {

@@ -35,7 +35,6 @@ HASH assign_cache;
 static int open_unireg_entry(THD *thd,TABLE *entry,const char *db,
 			     const char *name, const char *alias);
 static void free_cache_entry(TABLE *entry);
-static void free_assign_entry(KEY_CACHE_ASMT *key_cache_asmt);
 static void mysql_rm_tmp_tables(void);
 
 
@@ -514,8 +513,8 @@ void close_temporary_tables(THD *thd)
   if (query && found_user_tables && mysql_bin_log.is_open())
   {
     /* The -1 is to remove last ',' */
+    thd->clear_error();
     Query_log_event qinfo(thd, query, (ulong)(end-query)-1, 0);
-    qinfo.error_code=0;
     mysql_bin_log.write(&qinfo);
   }
   thd->temporary_tables=0;
@@ -1753,6 +1752,19 @@ find_field_in_tables(THD *thd, Item_ident *item, TABLE_LIST *tables,
   const char *table_name=item->table_name;
   const char *name=item->field_name;
   uint length=(uint) strlen(name);
+  char name_buff[NAME_LEN+1];
+
+  if (db && lower_case_table_names)
+  {
+    /*
+      convert database to lower case for comparision.
+      We can't do this in Item_field as this would change the
+      'name' of the item which may be used in the select list
+    */
+    strmake(name_buff, db, sizeof(name_buff)-1);
+    my_casedn_str(files_charset_info, name_buff);
+    db= name_buff;
+  }
 
   if (table_name && table_name[0])
   {						/* Qualified field */
@@ -1933,7 +1945,7 @@ find_item_in_list(Item *find, List<Item> &items, uint *counter,
       }
     }
     else if (!table_name && (item->eq(find,0) ||
-			     find->name &&
+			     find->name && item->name &&
 			     !my_strcasecmp(system_charset_info, 
 					    item->name,find->name)))
     {
@@ -1970,7 +1982,8 @@ int setup_wild(THD *thd, TABLE_LIST *tables, List<Item> &fields,
   while ( wild_num && (item= it++))
   {    
     if (item->type() == Item::FIELD_ITEM && ((Item_field*) item)->field_name &&
-	((Item_field*) item)->field_name[0] == '*')
+	((Item_field*) item)->field_name[0] == '*' &&
+	!((Item_field*) item)->field)
     {
       uint elem= fields.elements;
       if (insert_fields(thd,tables,((Item_field*) item)->db_name,
@@ -2024,20 +2037,6 @@ int setup_fields(THD *thd, Item **ref_pointer_array, TABLE_LIST *tables,
   DBUG_RETURN(test(thd->net.report_error));
 }
 
-/*
-  Mark all items in list as not fixed (0 assigned to 'fixed' field)
-
-  SYNOPSYS
-    unfix_item_list()
-    item_list - list of items
-*/
-void unfix_item_list(List<Item> item_list)
-{
-  Item *item;
-  List_iterator_fast<Item> it(item_list);
-  while ((item= it++))
-    item->walk(&Item::remove_fixed, 0);
-}
 
 /*
   Remap table numbers if INSERT ... SELECT
@@ -2270,7 +2269,7 @@ int setup_conds(THD *thd,TABLE_LIST *tables,COND **conds)
 	}
       }
       cond_and->used_tables_cache= t1->map | t2->map;
-      thd->lex->current_select->cond_count+=cond_and->list.elements;
+      thd->lex->current_select->cond_count+= cond_and->list.elements;
       if (!table->outer_join)			// Not left join
       {
 	if (!(*conds=and_conds(*conds, cond_and)))

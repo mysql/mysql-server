@@ -58,8 +58,6 @@
 #define EXTRA_ACL	(1L << 29)
 #define NO_ACCESS	(1L << 30)
 
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
-
 /*
   Defines to change the above bits to how things are stored in tables
   This is needed as the 'host' and 'db' table is missing a few privileges
@@ -127,10 +125,9 @@ public:
   char *user,*db;
 };
 
-
-
 /* prototypes */
 
+bool hostname_requires_resolving(const char *hostname);
 my_bool  acl_init(THD *thd, bool dont_read_acl_tables);
 void acl_reload(THD *thd);
 void acl_free(bool end=0);
@@ -138,6 +135,7 @@ ulong acl_get(const char *host, const char *ip,
 	      const char *user, const char *db, my_bool db_is_pattern);
 int acl_getroot(THD *thd, USER_RESOURCES *mqh, const char *passwd,
                 uint passwd_len);
+int acl_getroot_no_password(THD *thd);
 bool acl_check_host(const char *host, const char *ip);
 bool check_change_password(THD *thd, const char *host, const char *user);
 bool change_password(THD *thd, const char *host, const char *user,
@@ -151,7 +149,7 @@ my_bool grant_init(THD *thd);
 void grant_free(void);
 void grant_reload(THD *thd);
 bool check_grant(THD *thd, ulong want_access, TABLE_LIST *tables,
-		 uint show_command=0, bool dont_print_error=0);
+		 uint show_command, bool dont_print_error);
 bool check_grant_column (THD *thd,TABLE *table, const char *name, uint length,
 			 uint show_command=0);
 bool check_grant_all_columns(THD *thd, ulong want_access, TABLE *table);
@@ -164,5 +162,7 @@ void get_mqh(const char *user, const char *host, USER_CONN *uc);
 int mysql_drop_user(THD *thd, List <LEX_USER> &list);
 int mysql_revoke_all(THD *thd, List <LEX_USER> &list);
 
-#endif /*!NO_EMBEDDED_ACCESS_CHECKS*/
-
+#ifdef NO_EMBEDDED_ACCESS_CHECKS
+#define check_grant(A,B,C,D,E) 0
+#define check_grant_db(A,B) 0
+#endif

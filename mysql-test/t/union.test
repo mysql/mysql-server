@@ -11,7 +11,7 @@ insert into t1 values(1,'a'),(2,'b'),(3,'c'),(3,'c');
 CREATE TABLE t2 (a int not null, b char (10) not null);
 insert into t2 values (3,'c'),(4,'d'),(5,'f'),(6,'e');
 
-select a,b from t1 union select a,b from t2;
+select a,b from t1 union distinct select a,b from t2;
 select a,b from t1 union all select a,b from t2;
 select a,b from t1 union all select a,b from t2 order by b;
 select a,b from t1 union all select a,b from t2 union select 7,'g';
@@ -97,7 +97,7 @@ CREATE TABLE t1 (
   `same` tinyint(1) unsigned NOT NULL default '1',
   PRIMARY KEY  (`pseudo1`),
   KEY `pseudo` (`pseudo`)
-) TYPE=MyISAM;
+) ENGINE=MyISAM;
 INSERT INTO t1 (pseudo,pseudo1,same) VALUES ('joce', 'testtt', 1),('joce', 'tsestset', 1),('dekad', 'joce', 1);
 SELECT pseudo FROM t1 WHERE pseudo1='joce' UNION SELECT pseudo FROM t1 WHERE pseudo='joce';
 SELECT pseudo1 FROM t1 WHERE pseudo1='joce' UNION SELECT pseudo1 FROM t1 WHERE pseudo='joce';
@@ -247,14 +247,24 @@ SELECT * FROM t1 UNION SELECT * FROM t2 ORDER BY a desc LIMIT 1;
 --error 1234
 (SELECT * FROM t1) UNION all (SELECT SQL_CALC_FOUND_ROWS * FROM t2) LIMIT 1;
 
+create temporary table t1 select a from t1 union select a from t2;
+drop temporary table t1;
+--error 1093
+create table t1 select a from t1 union select a from t2;
 drop table t1,t2;
+
+#
+# Problem with alias '*' (BUG #1249)
+#
+
+select length(version()) > 1 as `*` UNION select 2;
 
 #
 # Test for another bug with UNION and LEFT JOIN
 #
-CREATE TABLE t1 (  id int(3) unsigned default '0') TYPE=MyISAM;
+CREATE TABLE t1 (  id int(3) unsigned default '0') ENGINE=MyISAM;
 INSERT INTO t1 (id) VALUES("1");
-CREATE TABLE t2 ( id int(3) unsigned default '0',  id_master int(5) default '0',  text1 varchar(5) default NULL,  text2 varchar(5) default NULL) TYPE=MyISAM;
+CREATE TABLE t2 ( id int(3) unsigned default '0',  id_master int(5) default '0',  text1 varchar(5) default NULL,  text2 varchar(5) default NULL) ENGINE=MyISAM;
 INSERT INTO t2 (id, id_master, text1, text2) VALUES("1", "1",
 "foo1", "bar1");
 INSERT INTO t2 (id, id_master, text1, text2) VALUES("2", "1",
@@ -302,3 +312,156 @@ insert into t1 values (NULL, 'a', 1), (NULL, 'b', 2), (NULL, 'c', 3), (NULL, 'd'
 insert into t2 values (1, 100), (1, 101), (1, 102), (2, 100), (2, 103), (2, 104), (3, 101), (3, 102), (3, 105);
 SELECT mp.pla_id, MIN(m1.matintnum) AS matintnum FROM t2 mp INNER JOIN t1 m1 ON mp.mat_id=m1.mat_id GROUP BY mp.pla_id union SELECT 0, 0;
 drop table t1, t2;
+
+#
+# types conversions
+#
+create table t1 SELECT "a" as a UNION select "aa" as a;
+select * from t1;
+show create table t1;
+drop table t1;
+create table t1 SELECT 12 as a UNION select "aa" as a;
+select * from t1;
+show create table t1;
+drop table t1;
+create table t1 SELECT 12 as a UNION select 12.2 as a;
+select * from t1;
+show create table t1;
+drop table t1;
+
+create table t2 (it1 tinyint, it2 tinyint not null, i int not null, ib bigint, f float, d double, y year, da date, dt datetime, sc char(10), sv varchar(10), b blob, tx text);
+insert into t2 values (NULL, 1, 3, 4, 1.5, 2.5, 1972, '1972-10-22', '1972-10-22 11:50', 'testc', 'testv', 'tetetetetest', 'teeeeeeeeeeeest');
+
+create table t1 SELECT it2 from t2 UNION select it1 from t2;
+select * from t1;
+show create table t1;
+drop table t1;
+create table t1 SELECT it2 from t2 UNION select i from t2;
+select * from t1;
+show create table t1;
+drop table t1;
+create table t1 SELECT i from t2 UNION select f from t2;
+select * from t1;
+show create table t1;
+drop table t1;
+create table t1 SELECT f from t2 UNION select d from t2;
+select * from t1;
+show create table t1;
+drop table t1;
+create table t1 SELECT ib from t2 UNION select f from t2;
+select * from t1;
+show create table t1;
+drop table t1;
+create table t1 SELECT ib from t2 UNION select d from t2;
+select * from t1;
+show create table t1;
+drop table t1;
+create table t1 SELECT f from t2 UNION select y from t2;
+select * from t1;
+show create table t1;
+drop table t1;
+create table t1 SELECT f from t2 UNION select da from t2;
+select * from t1;
+show create table t1;
+drop table t1;
+create table t1 SELECT y from t2 UNION select da from t2;
+select * from t1;
+show create table t1;
+drop table t1;
+create table t1 SELECT y from t2 UNION select dt from t2;
+select * from t1;
+show create table t1;
+drop table t1;
+create table t1 SELECT da from t2 UNION select dt from t2;
+select * from t1;
+show create table t1;
+drop table t1;
+create table t1 SELECT dt from t2 UNION select sc from t2;
+select * from t1;
+show create table t1;
+drop table t1;
+create table t1 SELECT dt from t2 UNION select sv from t2;
+select * from t1;
+show create table t1;
+drop table t1;
+create table t1 SELECT sc from t2 UNION select sv from t2;
+select * from t1;
+show create table t1;
+drop table t1;
+create table t1 SELECT dt from t2 UNION select b from t2;
+select * from t1;
+show create table t1;
+drop table t1;
+create table t1 SELECT sv from t2 UNION select b from t2;
+select * from t1;
+show create table t1;
+drop table t1;
+create table t1 SELECT i from t2 UNION select d from t2 UNION select b from t2;
+select * from t1;
+show create table t1;
+drop table t1;
+create table t1 SELECT sv from t2 UNION select tx from t2;
+select * from t1;
+show create table t1;
+drop table t1;
+create table t1 SELECT b from t2 UNION select tx from t2;
+select * from t1;
+show create table t1;
+drop table t1,t2;
+create table t1 (d decimal(10,1));
+create table t2 (d decimal(10,9));
+insert into t1 values ("100000000.0");
+insert into t2 values ("1.23456780");
+create table t3 select * from t2 union select * from t1;
+select * from t3;
+show create table t3;
+drop table t1,t2,t3;
+create table t1 select 1 union select -1;
+select * from t1;
+show create table t1;
+drop table t1;
+-- error 1266
+create table t1 select _latin1"test" union select _latin2"testt" ;
+create table t1 select _latin2"test" union select _latin2"testt" ;
+show create table t1;
+drop table t1;
+
+#
+# conversion memory->disk table
+#
+create table t1 (s char(200));
+insert into t1 values (repeat("1",200));
+create table t2 select * from t1;
+insert into t2 select * from t1;
+insert into t1 select * from t2;
+insert into t2 select * from t1;
+insert into t1 select * from t2;
+insert into t2 select * from t1;
+set local tmp_table_size=1024;
+select count(*) from (select * from t1 union all select * from t2 order by 1) b;
+select count(*) from t1;
+select count(*) from t2;
+drop table t1,t2;
+set local tmp_table_size=default;
+
+#
+# slow logging
+#
+create table t1 (a int, index (a), b int);
+insert t1 values (1,1),(2,2),(3,3),(4,4),(5,5);
+insert t1 select a+1, a+b from t1;
+insert t1 select a+1, a+b from t1;
+insert t1 select a+1, a+b from t1;
+insert t1 select a+1, a+b from t1;
+insert t1 select a+1, a+b from t1;
+FLUSH STATUS;
+show status like 'Slow_queries';
+select count(*) from t1 where a=7;
+show status like 'Slow_queries';
+select count(*) from t1 where b=13;
+show status like 'Slow_queries';
+select count(*) from t1 where b=13 union select count(*) from t1 where a=7;
+show status like 'Slow_queries';
+select count(*) from t1 where a=7 union select count(*) from t1 where b=13;
+show status like 'Slow_queries';
+drop table t1;

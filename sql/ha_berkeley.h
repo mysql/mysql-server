@@ -167,6 +167,7 @@ class ha_berkeley: public handler
   longlong get_auto_increment();
   void print_error(int error, myf errflag);
   uint8 table_cache_type() { return HA_CACHE_TBL_TRANSACT; }
+  bool primary_key_is_clustered() { return true; }
 };
 
 extern bool berkeley_skip, berkeley_shared_data;

@@ -333,9 +333,9 @@ end:
 }
 
 
-static int print_key_cache_status(const char *name, KEY_CACHE_VAR *key_cache)
+static int print_key_cache_status(const char *name, KEY_CACHE *key_cache)
 {
-  if (!key_cache->cache)
+  if (!key_cache->key_cache_inited)
   {
     printf("%s: Not in use\n", name);
   }
@@ -353,11 +353,11 @@ writes:         %10lu\n\
 r_requests:     %10lu\n\
 reads:          %10lu\n\n",
 	   name,
-	   (ulong) key_cache->buff_size, key_cache->block_size,
-	   key_cache->division_limit, key_cache->age_threshold,
-	   key_cache->blocks_used,key_cache->blocks_changed,
-	   key_cache->cache_w_requests,key_cache->cache_write,
-	   key_cache->cache_r_requests,key_cache->cache_read);
+	   (ulong) key_cache->param_buff_size, key_cache->param_block_size,
+	   key_cache->param_division_limit, key_cache->param_age_threshold,
+	   key_cache->global_blocks_used,key_cache->global_blocks_changed,
+	   key_cache->global_cache_w_requests,key_cache->global_cache_write,
+	   key_cache->global_cache_r_requests,key_cache->global_cache_read);
   }
   return 0;
 }

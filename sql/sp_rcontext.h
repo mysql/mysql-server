@@ -23,7 +23,7 @@
 #endif
 
 struct sp_cond_type;
-struct sp_cursor;
+class sp_cursor;
 struct sp_pvar;
 
 #define SP_HANDLER_NONE      0
@@ -205,7 +205,7 @@ class sp_cursor : public Sql_alloc
 public:
 
   sp_cursor(LEX *lex)
-    : m_lex(lex), m_isopen(0), m_current_row(NULL)
+    : m_lex(lex), m_prot(NULL), m_isopen(0), m_current_row(NULL)
   {
     /* Empty */
   }
@@ -220,7 +220,7 @@ public:
   LEX *
   pre_open(THD *thd);
   void
-  post_open(THD *thd, my_bool isopen);
+  post_open(THD *thd, my_bool was_opened);
 
   int
   close(THD *thd);
@@ -240,7 +240,7 @@ private:
   LEX *m_lex;
   Protocol_cursor *m_prot;
   my_bool m_isopen;
-  Vio *m_ovio;			// Original vio
+  my_bool m_nseof;		// Original no_send_eof
   Protocol *m_oprot;		// Original protcol
   MYSQL_ROWS *m_current_row;
   

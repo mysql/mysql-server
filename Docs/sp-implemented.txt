@@ -1,9 +1,10 @@
-Stored Procedures implemented 2003-09-16:
+Stored Procedures implemented 2003-12-10:
 
 
 Summary of Not Yet Implemented:
 
-  - SQL queries (like SELECT, INSERT, UPDATE etc) in FUNCTION bodies
+  - SQL statements using table (like SELECT, INSERT, UPDATE etc)
+    in FUNCTIONs
   - External languages
   - Access control
   - Routine characteristics (mostly used for external languages)
@@ -25,18 +26,28 @@ Summary of what's implemented:
   - Prepared SP caching
   - CONDITIONs and HANDLERs
   - Simple read-only CURSORs.
+  - SHOW DECLARE PROCEDURE/FUNCTION and SHOW PROCEDURE/FUNCTION STATUS
+
 
 List of what's implemented:
 
-  - CREATE PROCEDURE|FUNCTION name ( args ) body
-    No routine characteristics yet.
+  - CREATE PROCEDURE|FUNCTION name ( args ) characteristics body
+    where characteristics is:
+      LANGUAGE SQL |
+      [NOT] DETERMINISTIC |
+      SQL SECURITY [DEFINER|INVOKER] |
+      COMMENT string
+    However the DETERMINISTIC setting is not currently used.
 
-  - ALTER PROCEDURE|FUNCTION name ...
-    Is parsed, but a no-op (as there are no characteristics implemented yet).
-    CASCADE/RESTRICT is not implemented (and CASCADE probably will not be).
+  - ALTER PROCEDURE|FUNCTION name characteristics
+    CASCADE/RESTRICT is not implemented.
+    characteristics is:
+      COMMENT string |
+      SQL SECURITY [DEFINER|INVOKER] |
+      NAME newname
 
   - DROP PROCEDURE|FUNCTION [IF EXISTS] name
-    CASCADE/RESTRICT is not implemented (and CASCADE probably will not be).
+    CASCADE/RESTRICT is not implemented.
 
   - CALL name (args)
     OUT and INOUT parameters are only supported for local variables, and
@@ -92,23 +103,9 @@ List of what's implemented:
       (The additional syntax will be added for completeness, but for the
        most part unsupported with the current underlying cursor mechanism.)
 
-Closed questions:
-
-  - What is the expected result when creating a procedure with a name that
-    already exists? An error or overwrite?
-  Answer: Error
-
-  - Do PROCEDUREs and FUNCTIONs share namespace or not? I think not, but the
-    we need to flag the type in the mysql.proc table and the name alone is
-    not a unique key any more, or, we have separate tables.
-    (Unfortunately, mysql.func is already taken. Use "sfunc" and maybe even
-     rename "proc" into "sproc" while we still can, for consistency?)
-  Answer: Same tables, with an additional key-field for the type.
-
-
-Open questions/issues:
-
-  - SQL-99 variables and parameters are typed. For the present we don't do
-    any type checking, since this is the way MySQL works. I still don't know
-    if we should keep it this way, or implement type checking. Possibly we
-    should have optional, uset-settable, type checking.
+  - SHOW procedures and functions
+    SHOW DECLARE PROCEDURE|FUNCTION <name>
+      returns the definition of a routine.
+    SHOW PROCEDURE|FUNCTION STATUS [LIKE <pattern>]
+      returns characteristics of routines, like the name, type, creator,
+      creation and modification dates, etc.

@@ -323,7 +323,7 @@ ha_validate(
 				fprintf(stderr,
 "InnoDB: Error: hash table node fold value %lu does not\n"
 "InnoDB: match with the cell number %lu.\n",
-					node->fold, i);
+					(ulong) node->fold, (ulong) i);
 
 				ok = FALSE;
 			}
@@ -390,7 +390,8 @@ ha_print_info(
 	}
 
 	buf += sprintf(buf,
-"Hash table size %lu, used cells %lu", hash_get_n_cells(table), cells);
+"Hash table size %lu, used cells %lu", (ulong) hash_get_n_cells(table),
+		       (ulong) cells);
 
 	if (table->heaps == NULL && table->heap != NULL) {
 
@@ -403,6 +404,6 @@ ha_print_info(
 			n_bufs++;
 		}
 				
-	        buf += sprintf(buf, ", node heap has %lu buffer(s)\n", n_bufs);
+	        buf += sprintf(buf, ", node heap has %lu buffer(s)\n", (ulong) n_bufs);
 	}
 }	

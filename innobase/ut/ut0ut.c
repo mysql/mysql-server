@@ -20,26 +20,224 @@ Created 5/11/1994 Heikki Tuuri
 ibool	ut_always_false	= FALSE;
 
 /************************************************************
-Uses vsprintf to emulate sprintf so that the function always returns
-the printed length. Apparently in some old SCO Unixes sprintf did not
-return the printed length but a pointer to the end of the printed string. */
+On the 64-bit Windows we substitute the format string
+%l -> %I64
+because we define ulint as unsigned __int64 and lint as __int64 on Windows,
+and both the Microsoft and Intel C compilers require the format string
+%I64 in that case instead of %l. */
 
-ulint
-ut_sprintf(
-/*=======*/
-        char*       buf,     /* in/out: buffer where to print */
+int
+ut_printf(
+/*======*/
+			     /* out: the number of characters written, or
+			     negative in case of an error */
         const char* format,  /* in: format of prints */
         ...)                 /* in: arguments to be printed */
 {
-        va_list   args;
-  
+        va_list	args;
+	ulint	len;
+	char*	format_end;
+	char*	newformat;	
+	char*	ptr;
+	char*	newptr;
+	int	ret;
+	char	format_buf_in_stack[500];
+
+	len = strlen(format);
+
+	if (len > 250) {
+		newformat = malloc(2 * len);
+	} else {
+		newformat = format_buf_in_stack;
+	}
+
+	format_end = (char*)format + len;
+
+	ptr = (char*)format;
+	newptr = newformat;
+
+#if defined(__WIN__) && (defined(WIN64) || defined(_WIN64))
+	/* Replace %l with %I64 if it is not preceded with '\' */
+
+	while (ptr < format_end) {
+		if (*ptr == '%' && *(ptr + 1) == 'l'
+		    && (ptr == format || *(ptr - 1) != '\\')) {
+			
+			memcpy(newptr, "%I64", 4);
+			ptr += 2;
+			newptr += 4;
+		} else {
+			*newptr = *ptr;
+			ptr++;
+			newptr++;
+		}
+	}
+
+	*newptr = '\0';
+	
+	ut_a(newptr < newformat + 2 * len);
+#else
+	strcpy(newformat, format);
+#endif
         va_start(args, format);
 
-        vsprintf(buf, format, args);
+        ret = vprintf((const char*)newformat, args);
 
         va_end(args);
 
-        return((ulint)strlen(buf));
+	if (newformat != format_buf_in_stack) {
+		free(newformat);
+	}
+
+        return(ret);
+}
+
+/************************************************************
+On the 64-bit Windows we substitute the format string
+%l -> %I64
+because we define ulint as unsigned __int64 and lint as __int64 on Windows,
+and both the Microsoft and Intel C compilers require the format string
+%I64 in that case instead of %l. */
+
+int
+ut_sprintf(
+/*=======*/
+			     /* out: the number of characters written, or
+			     negative in case of an error */
+	char*	    buf,     /* in: buffer where to print */
+        const char* format,  /* in: format of prints */
+        ...)                 /* in: arguments to be printed */
+{
+        va_list	args;
+	ulint	len;
+	char*	format_end;
+	char*	newformat;	
+	char*	ptr;
+	char*	newptr;
+	int	ret;
+	char	format_buf_in_stack[500];
+
+	len = strlen(format);
+
+	if (len > 250) {
+		newformat = malloc(2 * len);
+	} else {
+		newformat = format_buf_in_stack;
+	}
+
+	format_end = (char*)format + len;
+
+	ptr = (char*)format;
+	newptr = newformat;
+
+#if defined(__WIN__) && (defined(WIN64) || defined(_WIN64))
+	/* Replace %l with %I64 if it is not preceded with '\' */
+
+	while (ptr < format_end) {
+		if (*ptr == '%' && *(ptr + 1) == 'l'
+		    && (ptr == format || *(ptr - 1) != '\\')) {
+			
+			memcpy(newptr, "%I64", 4);
+			ptr += 2;
+			newptr += 4;
+		} else {
+			*newptr = *ptr;
+			ptr++;
+			newptr++;
+		}
+	}
+
+	*newptr = '\0';
+	
+	ut_a(newptr < newformat + 2 * len);
+#else
+	strcpy(newformat, format);
+#endif
+        va_start(args, format);
+
+        ret = vsprintf(buf, (const char*)newformat, args);
+
+        va_end(args);
+
+	if (newformat != format_buf_in_stack) {
+		free(newformat);
+	}
+
+        return(ret);
+}
+
+/************************************************************
+On the 64-bit Windows we substitute the format string
+%l -> %I64
+because we define ulint as unsigned __int64 and lint as __int64 on Windows,
+and both the Microsoft and Intel C compilers require the format string
+%I64 in that case instead of %l. */
+
+int
+ut_fprintf(
+/*=======*/
+			     /* out: the number of characters written, or
+			     negative in case of an error */
+	FILE*	    stream,  /* in: stream where to print */
+        const char* format,  /* in: format of prints */
+        ...)                 /* in: arguments to be printed */
+{
+        va_list	args;
+	ulint	len;
+	char*	format_end;
+	char*	newformat;	
+	char*	ptr;
+	char*	newptr;
+	int	ret;
+	char	format_buf_in_stack[500];
+
+	len = strlen(format);
+
+	if (len > 250) {
+		newformat = malloc(2 * len);
+	} else {
+		newformat = format_buf_in_stack;
+	}
+
+	format_end = (char*)format + len;
+
+	ptr = (char*)format;
+	newptr = newformat;
+
+#if defined(__WIN__) && (defined(WIN64) || defined(_WIN64))
+	/* Replace %l with %I64 if it is not preceded with '\' */
+
+	while (ptr < format_end) {
+		if (*ptr == '%' && *(ptr + 1) == 'l'
+		    && (ptr == format || *(ptr - 1) != '\\')) {
+			
+			memcpy(newptr, "%I64", 4);
+			ptr += 2;
+			newptr += 4;
+		} else {
+			*newptr = *ptr;
+			ptr++;
+			newptr++;
+		}
+	}
+
+	*newptr = '\0';
+	
+	ut_a(newptr < newformat + 2 * len);
+#else
+	strcpy(newformat, format);
+#endif
+        va_start(args, format);
+
+        ret = vfprintf(stream, (const char*)newformat, args);
+
+        va_end(args);
+
+	if (newformat != format_buf_in_stack) {
+		free(newformat);
+	}
+
+        return(ret);
 }
 
 /************************************************************
@@ -276,7 +474,7 @@ ut_delay(
 	}
 
 	if (ut_always_false) {
-		printf("%lu", j);
+		printf("%lu", (ulong) j);
 	}
 	
 	return(j);
@@ -294,12 +492,12 @@ ut_print_buf(
 	byte*	data;
 	ulint	i;
 
-	printf(" len %lu; hex ", len);
+	printf(" len %lu; hex ", (ulong) len);
 			
 	data = buf;
 
 	for (i = 0; i < len; i++) {
-		printf("%02lx", (ulint)*data);
+		printf("%02lx", (ulong) *data);
 		data++;
 	}
 
@@ -334,12 +532,12 @@ ut_sprintf_buf(
 
 	n = 0;
 	
-	n += sprintf(str + n, " len %lu; hex ", len);
+	n += sprintf(str + n, " len %lu; hex ", (ulong) len);
 			
 	data = buf;
 
 	for (i = 0; i < len; i++) {
-		n += sprintf(str + n, "%02lx", (ulint)*data);
+		n += sprintf(str + n, "%02lx", (ulong) *data);
 		data++;
 	}
 

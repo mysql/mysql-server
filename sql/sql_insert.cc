@@ -357,7 +357,9 @@ int mysql_insert(THD *thd,TABLE_LIST *table_list,
       before binlog writing and ha_autocommit_...
     */
     if (info.copied || info.deleted)
+    {
       query_cache_invalidate3(thd, table_list, 1);
+    }
 
     transactional_table= table->file->has_transactions();
 
@@ -366,6 +368,8 @@ int mysql_insert(THD *thd,TABLE_LIST *table_list,
     {
       if (mysql_bin_log.is_open())
       {
+        if (error <= 0)
+          thd->clear_error();
 	Query_log_event qinfo(thd, thd->query, thd->query_length,
 			      log_delayed);
 	if (mysql_bin_log.write(&qinfo) && transactional_table)
@@ -630,7 +634,7 @@ public:
     thd.lex->current_select= 0; /* for my_message_sql */
 
     bzero((char*) &thd.net,sizeof(thd.net));	// Safety
-    thd.system_thread=1;
+    thd.system_thread= SYSTEM_THREAD_DELAYED_INSERT;
     thd.host_or_ip= "";
     bzero((char*) &info,sizeof(info));
     pthread_mutex_init(&mutex,MY_MUTEX_INIT_FAST);
@@ -1140,7 +1144,9 @@ extern "C" pthread_handler_decl(handle_delayed_insert,arg)
       /* request for new delayed insert */
       if (!(thd->lock=mysql_lock_tables(thd,&di->table,1)))
       {
-	di->dead=thd->killed= THD::KILL_CONNECTION;			// Fatal error
+	/* Fatal error */
+	di->dead= 1;
+	thd->killed= THD::KILL_CONNECTION;
       }
       pthread_cond_broadcast(&di->cond_client);
     }
@@ -1148,7 +1154,9 @@ extern "C" pthread_handler_decl(handle_delayed_insert,arg)
     {
       if (di->handle_inserts())
       {
-	di->dead=thd->killed=THD::KILL_CONNECTION;			// Some fatal error
+	/* Some fatal error */
+	di->dead= 1;
+	thd->killed= THD::KILL_CONNECTION;
       }
     }
     di->status=0;
@@ -1175,7 +1183,8 @@ end:
 
   close_thread_tables(thd);			// Free the table
   di->table=0;
-  di->dead=thd->killed= THD::KILL_CONNECTION;	// If error
+  di->dead= 1;                                  // If error
+  thd->killed= THD::KILL_CONNECTION;	        // If error
   pthread_cond_broadcast(&di->cond_client);	// Safety
   pthread_mutex_unlock(&di->mutex);
 
@@ -1458,7 +1467,9 @@ void select_insert::send_error(uint errcode,const char *err)
       thd->options|=OPTION_STATUS_NO_TRANS_UPDATE;    
   }
   if (info.copied || info.deleted)
+  {
     query_cache_invalidate3(thd, table, 1);
+  }
   ha_rollback_stmt(thd);
   DBUG_VOID_RETURN;
 }
@@ -1467,6 +1478,8 @@ void select_insert::send_error(uint errcode,const char *err)
 bool select_insert::send_eof()
 {
   int error,error2;
+  DBUG_ENTER("select_insert::send_eof");
+
   if (!(error=table->file->extra(HA_EXTRA_NO_CACHE)))
     error=table->file->activate_all_index(thd);
   table->file->extra(HA_EXTRA_NO_IGNORE_DUP_KEY);
@@ -1488,6 +1501,8 @@ bool select_insert::send_eof()
   /* Write to binlog before commiting transaction */
   if (mysql_bin_log.is_open())
   {
+    if (!error)
+      thd->clear_error();
     Query_log_event qinfo(thd, thd->query, thd->query_length,
 			  table->file->has_transactions());
     mysql_bin_log.write(&qinfo);
@@ -1499,20 +1514,17 @@ bool select_insert::send_eof()
     table->file->print_error(error,MYF(0));
     //TODO error should be sent at the query processing end
     ::send_error(thd);
-    return 1;
+    DBUG_RETURN(1);
   }
+  char buff[160];
+  if (info.handle_duplicates == DUP_IGNORE)
+    sprintf(buff, ER(ER_INSERT_INFO), (ulong) info.records,
+	    (ulong) (info.records - info.copied), (ulong) thd->cuted_fields);
   else
-  {
-    char buff[160];
-    if (info.handle_duplicates == DUP_IGNORE)
-      sprintf(buff, ER(ER_INSERT_INFO), (ulong) info.records,
-	      (ulong) (info.records - info.copied), (ulong) thd->cuted_fields);
-    else
-      sprintf(buff, ER(ER_INSERT_INFO), (ulong) info.records,
-	      (ulong) info.deleted, (ulong) thd->cuted_fields);
-    ::send_ok(thd,info.copied+info.deleted,last_insert_id,buff);
-    return 0;
-  }
+    sprintf(buff, ER(ER_INSERT_INFO), (ulong) info.records,
+	    (ulong) info.deleted, (ulong) thd->cuted_fields);
+  ::send_ok(thd,info.copied+info.deleted,last_insert_id,buff);
+  DBUG_RETURN(0);
 }
 
 

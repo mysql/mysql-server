@@ -139,6 +139,8 @@ my_bool acl_init(THD *org_thd, bool dont_read_acl_tables)
   READ_RECORD read_record_info;
   MYSQL_LOCK *lock;
   my_bool return_val=1;
+  bool check_no_resolve= specialflag & SPECIAL_NO_RESOLVE;
+
   DBUG_ENTER("acl_init");
 
   if (!acl_cache)
@@ -198,6 +200,13 @@ my_bool acl_init(THD *org_thd, bool dont_read_acl_tables)
     host.access= get_access(table,2);
     host.access= fix_rights_for_db(host.access);
     host.sort=	 get_sort(2,host.host.hostname,host.db);
+    if (check_no_resolve && hostname_requires_resolving(host.host.hostname))
+    {
+      sql_print_error("Warning: 'host' entry '%s|%s' "
+		      "ignored in --skip-name-resolve mode.",
+		      host.host.hostname, host.db, host.host.hostname);
+      continue;
+    }
 #ifndef TO_BE_REMOVED
     if (table->fields ==  8)
     {						// Without grant
@@ -259,6 +268,14 @@ my_bool acl_init(THD *org_thd, bool dont_read_acl_tables)
     ACL_USER user;
     update_hostname(&user.host, get_field(&mem, table->field[0]));
     user.user= get_field(&mem, table->field[1]);
+    if (check_no_resolve && hostname_requires_resolving(user.host.hostname))
+    {
+      sql_print_error("Warning: 'user' entry '%s@%s' "
+		      "ignored in --skip-name-resolve mode.",
+		      user.user, user.host.hostname, user.host.hostname);
+      continue;
+    }
+
     const char *password= get_field(&mem, table->field[2]);
     uint password_len= password ? strlen(password) : 0;
     set_user_salt(&user, password, password_len);
@@ -353,6 +370,13 @@ my_bool acl_init(THD *org_thd, bool dont_read_acl_tables)
       continue;
     }
     db.user=get_field(&mem, table->field[2]);
+    if (check_no_resolve && hostname_requires_resolving(db.host.hostname))
+    {
+      sql_print_error("Warning: 'db' entry '%s %s@%s' "
+		      "ignored in --skip-name-resolve mode.",
+		      db.db, db.user, db.host.hostname, db.host.hostname);
+      continue;
+    }
     db.access=get_access(table,3);
     db.access=fix_rights_for_db(db.access);
     db.sort=get_sort(3,db.host.hostname,db.db,db.user);
@@ -632,8 +656,8 @@ int acl_getroot(THD *thd, USER_RESOURCES  *mqh,
   if (acl_user)
   {
     /* OK. User found and password checked continue validation */
-    Vio *vio=thd->net.vio;
 #ifdef HAVE_OPENSSL
+    Vio *vio=thd->net.vio;
     SSL *ssl= (SSL*) vio->ssl_arg;
 #endif
 
@@ -673,6 +697,7 @@ int acl_getroot(THD *thd, USER_RESOURCES  *mqh,
 	If cipher name is specified, we compare it to actual cipher in
 	use.
       */
+      X509 *cert;
       if (vio_type(vio) != VIO_TYPE_SSL ||
 	  SSL_get_verify_result(ssl) != X509_V_OK)
 	break;
@@ -693,7 +718,11 @@ int acl_getroot(THD *thd, USER_RESOURCES  *mqh,
       }
       /* Prepare certificate (if exists) */
       DBUG_PRINT("info",("checkpoint 1"));
-      X509* cert=SSL_get_peer_certificate(ssl);
+      if (!(cert= SSL_get_peer_certificate(ssl)))
+      {
+	user_access=NO_ACCESS;
+	break;
+      }
       DBUG_PRINT("info",("checkpoint 2"));
       /* If X509 issuer is speified, we check it... */
       if (acl_user->x509_issuer)
@@ -753,6 +782,66 @@ int acl_getroot(THD *thd, USER_RESOURCES  *mqh,
   DBUG_RETURN(res);
 }
 
+
+/*
+ * This is like acl_getroot() above, but it doesn't check password,
+ * and we don't care about the user resources.
+ * Used to get access rights for SQL SECURITY DEFINER invokation of
+ * stored procedures.
+ */
+int acl_getroot_no_password(THD *thd)
+{
+  ulong user_access= NO_ACCESS;
+  int res= 1;
+  ACL_USER *acl_user= 0;
+  DBUG_ENTER("acl_getroot_no_password");
+
+  if (!initialized)
+  {
+    /* 
+      here if mysqld's been started with --skip-grant-tables option.
+    */
+    thd->priv_user= (char *) "";                // privileges for
+    *thd->priv_host= '\0';                      // the user are unknown
+    thd->master_access= ~NO_ACCESS;             // everything is allowed
+    DBUG_RETURN(0);
+  }
+
+  VOID(pthread_mutex_lock(&acl_cache->lock));
+
+  /*
+     Find acl entry in user database.
+     This is specially tailored to suit the check we do for CALL of
+     a stored procedure; thd->user is set to what is actually a
+     priv_user, which can be ''.
+  */
+  for (uint i=0 ; i < acl_users.elements ; i++)
+  {
+    acl_user= dynamic_element(&acl_users,i,ACL_USER*);
+    if ((!acl_user->user && (!thd->user || !thd->user[0])) ||
+	(acl_user->user && strcmp(thd->user, acl_user->user) == 0))
+    {
+      if (compare_hostname(&acl_user->host, thd->host, thd->ip))
+      {
+	res= 0;
+	break;
+      }
+    }
+  }
+
+  if (acl_user)
+  {
+    thd->master_access= acl_user->access;
+    thd->priv_user= acl_user->user ? thd->user : (char *) "";
+
+    if (acl_user->host.hostname)
+      strmake(thd->priv_host, acl_user->host.hostname, MAX_HOSTNAME);
+    else
+      *thd->priv_host= 0;
+  }
+  VOID(pthread_mutex_unlock(&acl_cache->lock));
+  DBUG_RETURN(res);
+}
 
 static byte* check_get_key(ACL_USER *buff,uint *length,
 			   my_bool not_used __attribute__((unused)))
@@ -1162,6 +1251,7 @@ bool change_password(THD *thd, const char *host, const char *user,
 		acl_user->user ? acl_user->user : "",
 		acl_user->host.hostname ? acl_user->host.hostname : "",
 		new_password));
+  thd->clear_error();
   Query_log_event qinfo(thd, buff, query_length, 0);
   mysql_bin_log.write(&qinfo);
   DBUG_RETURN(0);
@@ -1233,11 +1323,11 @@ static const char *calc_ip(const char *ip, long *val, char end)
 static void update_hostname(acl_host_and_ip *host, const char *hostname)
 {
   host->hostname=(char*) hostname;		// This will not be modified!
-  if (hostname &&
+  if (!hostname ||
       (!(hostname=calc_ip(hostname,&host->ip,'/')) ||
        !(hostname=calc_ip(hostname+1,&host->ip_mask,'\0'))))
   {
-    host->ip=host->ip_mask=0;			// Not a masked ip
+    host->ip= host->ip_mask=0;			// Not a masked ip
   }
 }
 
@@ -1256,6 +1346,25 @@ static bool compare_hostname(const acl_host_and_ip *host, const char *hostname,
 	  (ip && !wild_compare(ip,host->hostname,0)));
 }
 
+bool hostname_requires_resolving(const char *hostname)
+{
+  char cur;
+  if (!hostname)
+    return false;
+  int namelen= strlen(hostname);
+  int lhlen= strlen(my_localhost);
+  if ((namelen == lhlen) &&
+      !my_strnncoll(&my_charset_latin1, (const uchar *)hostname,  namelen,
+		    (const uchar *)my_localhost, strlen(my_localhost)))
+    return false;
+  for (; (cur=*hostname); hostname++)
+  {
+    if ((cur != '%') && (cur != '_') && (cur != '.') &&
+	((cur < '0') || (cur > '9')))
+      return true;
+  }
+  return false;
+}
 
 /*
   Update grants in the user and database privilege tables
@@ -1464,7 +1573,7 @@ static int replace_user_table(THD *thd, TABLE *table, const LEX_USER &combo,
       break;
     }
 
-    USER_RESOURCES mqh = thd->lex->mqh;
+    USER_RESOURCES mqh= thd->lex->mqh;
     if (mqh.bits & 1)
       table->field[28]->store((longlong) mqh.questions);
     if (mqh.bits & 2)
@@ -2443,6 +2552,7 @@ my_bool grant_init(THD *org_thd)
   MYSQL_LOCK *lock;
   my_bool return_val= 1;
   TABLE *t_table, *c_table;
+  bool check_no_resolve= specialflag & SPECIAL_NO_RESOLVE;
   DBUG_ENTER("grant_init");
 
   grant_option = FALSE;
@@ -2492,11 +2602,28 @@ my_bool grant_init(THD *org_thd)
   do
   {
     GRANT_TABLE *mem_check;
-    if (!(mem_check=new GRANT_TABLE(t_table,c_table)) ||
-	mem_check->ok() && my_hash_insert(&column_priv_hash,(byte*) mem_check))
+    if (!(mem_check=new GRANT_TABLE(t_table,c_table)) || mem_check->ok())
     {
       /* This could only happen if we are out memory */
       grant_option= FALSE;			/* purecov: deadcode */
+      goto end_unlock;
+    }
+
+    if (check_no_resolve)
+    {
+      if (hostname_requires_resolving(mem_check->host))
+      {
+	sql_print_error("Warning: 'tables_priv' entry '%s %s@%s' "
+			"ignored in --skip-name-resolve mode.",
+			mem_check->tname, mem_check->user, 
+			mem_check->host, mem_check->host);
+	continue;
+      }
+    }
+
+    if (my_hash_insert(&column_priv_hash,(byte*) mem_check))
+    {
+      grant_option= FALSE;
       goto end_unlock;
     }
   }
@@ -3456,7 +3583,7 @@ int mysql_revoke_all(THD *thd,  List <LEX_USER> &list)
 {
   uint counter;
   int result;
-  ACL_USER *acl_user; ACL_DB *acl_db;
+  ACL_DB *acl_db;
   TABLE_LIST tables[4];
   DBUG_ENTER("mysql_revoke_all");
 
@@ -3470,7 +3597,7 @@ int mysql_revoke_all(THD *thd,  List <LEX_USER> &list)
   List_iterator <LEX_USER> user_list(list);
   while ((lex_user=user_list++))
   {
-    if (!(acl_user= check_acl_user(lex_user, &counter)))
+    if (!check_acl_user(lex_user, &counter))
     {
       sql_print_error("REVOKE ALL PRIVILEGES, GRANT: User '%s'@'%s' not exists",
 		      lex_user->user.str,

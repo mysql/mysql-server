@@ -5,7 +5,7 @@
 --disable_warnings
 drop table if exists t1,t2;
 --enable_warnings
-CREATE TABLE t1 (  `id` int(11) NOT NULL default '0', `id2` int(11) NOT NULL default '0', `id3` int(11) NOT NULL default '0', `dummy1` char(30) default NULL, PRIMARY KEY  (`id`,`id2`), KEY `index_id3` (`id3`)) TYPE=MyISAM;
+CREATE TABLE t1 (  `id` int(11) NOT NULL default '0', `id2` int(11) NOT NULL default '0', `id3` int(11) NOT NULL default '0', `dummy1` char(30) default NULL, PRIMARY KEY  (`id`,`id2`), KEY `index_id3` (`id3`)) ENGINE=MyISAM;
 insert into t1 (id,id2) values (1,1),(1,2),(1,3);
 LOCK TABLE t1 WRITE;
 select dummy1,count(distinct id) from t1 group by dummy1;
@@ -33,12 +33,12 @@ CREATE TABLE t1 (
   index1 smallint(6) default NULL,
   nr smallint(6) default NULL,
   KEY index1(index1)
-) TYPE=MyISAM;
+) ENGINE=MyISAM;
 
 CREATE TABLE t2 (
   nr smallint(6) default NULL,
   name varchar(20) default NULL
-) TYPE=MyISAM;
+) ENGINE=MyISAM;
 
 INSERT INTO t2 VALUES (1,'item1');
 INSERT INTO t2 VALUES (2,'item2');

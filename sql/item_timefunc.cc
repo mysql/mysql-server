@@ -137,14 +137,12 @@ static bool make_datetime(date_time_format_types format, TIME *ltime,
 static bool extract_date_time(DATE_TIME_FORMAT *format,
 			      const char *val, uint length, TIME *l_time)
 {
-  int weekday= 0, yearday= 0, daypart= 0, len;
+  int weekday= 0, yearday= 0, daypart= 0;
   int week_number= -1;
   CHARSET_INFO *cs= &my_charset_bin;
   int error= 0;
   bool usa_time= 0;
   bool sunday_first= 0;
-  uint part_len= 0;
-  const char *val_ptr= val;
   const char *val_end= val + length;
   const char *ptr= format->format.str;
   const char *end= ptr+ format->format.length;
@@ -237,7 +235,7 @@ static bool extract_date_time(DATE_TIME_FORMAT *format,
 	/* Second part */
       case 'f':
 	tmp= (char*) val_end;
-	l_time->second_part= my_strtoll10(val, &tmp, &error);
+	l_time->second_part= (int) my_strtoll10(val, &tmp, &error);
 	val= tmp;
 	break;
 
@@ -528,8 +526,11 @@ bool make_date_time(DATE_TIME_FORMAT *format, TIME *l_time,
 	uint year;
 	if (type == TIMESTAMP_TIME)
 	  return 1;
-	length= int10_to_str(calc_week(l_time, 0, (*ptr) == 'U', &year),
-		     intbuff, 10) - intbuff;
+	length= int10_to_str(calc_week(l_time,
+				       (*ptr) == 'U' ?
+				       WEEK_FIRST_WEEKDAY : WEEK_MONDAY_FIRST,
+				       &year),
+			     intbuff, 10) - intbuff;
 	str->append_with_prefill(intbuff, length, 2, '0');
       }
       break;
@@ -539,8 +540,12 @@ bool make_date_time(DATE_TIME_FORMAT *format, TIME *l_time,
 	uint year;
 	if (type == TIMESTAMP_TIME)
 	  return 1;
-	length= int10_to_str(calc_week(l_time, 1, (*ptr) == 'V', &year),
-		     intbuff, 10) - intbuff;
+	length= int10_to_str(calc_week(l_time,
+				       ((*ptr) == 'V' ?
+					(WEEK_YEAR | WEEK_FIRST_WEEKDAY) :
+					(WEEK_YEAR | WEEK_MONDAY_FIRST)),
+				       &year),
+			     intbuff, 10) - intbuff;
 	str->append_with_prefill(intbuff, length, 2, '0');
       }
       break;
@@ -550,7 +555,11 @@ bool make_date_time(DATE_TIME_FORMAT *format, TIME *l_time,
 	uint year;
 	if (type == TIMESTAMP_TIME)
 	  return 1;
-	(void) calc_week(l_time, 1, (*ptr) == 'X', &year);
+	(void) calc_week(l_time,
+			 ((*ptr) == 'X' ?
+			  WEEK_YEAR | WEEK_FIRST_WEEKDAY :
+			  WEEK_YEAR | WEEK_MONDAY_FIRST),
+			 &year);
 	length= int10_to_str(year, intbuff, 10) - intbuff;
 	str->append_with_prefill(intbuff, length, 4, '0');
       }
@@ -673,7 +682,7 @@ longlong Item_func_month::val_int()
 
 String* Item_func_monthname::val_str(String* str)
 {
-  const char *name;
+  const char *month_name;
   uint   month=(uint) Item_func_month::val_int();
 
   if (!month)					// This is also true for NULL
@@ -682,8 +691,8 @@ String* Item_func_monthname::val_str(String* str)
     return (String*) 0;
   }
   null_value=0;
-  name= month_names[month-1];
-  str->set(name, strlen(name), system_charset_info);
+  month_name= month_names[month-1];
+  str->set(month_name, strlen(month_name), system_charset_info);
   return str;
 }
 
@@ -720,27 +729,51 @@ longlong Item_func_second::val_int()
 }
 
 
-/*
-  Returns the week of year.
+uint week_mode(uint mode)
+{
+  uint week_format= (mode & 7);
+  if (!(week_format & WEEK_MONDAY_FIRST))
+    week_format^= WEEK_FIRST_WEEKDAY;
+  return week_format;
+}
 
-  The bits in week_format has the following meaning:
-    0	If not set:	USA format: Sunday is first day of week
-        If set:		ISO format: Monday is first day of week
-    1   If not set:	Week is in range 0-53
-    	If set		Week is in range 1-53.
+/*
+  The bits in week_format(for calc_week() function) has the following meaning:
+   WEEK_MONDAY_FIRST (0)  If not set	Sunday is first day of week
+      		   	  If set	Monday is first day of week
+   WEEK_YEAR (1)	  If not set	Week is in range 0-53
+
+   	Week 0 is returned for the the last week of the previous year (for
+	a date at start of january) In this case one can get 53 for the
+	first week of next year.  This flag ensures that the week is
+	relevant for the given year. Note that this flag is only
+	releveant if WEEK_JANUARY is not set.
+
+			  If set	 Week is in range 1-53.
+
+	In this case one may get week 53 for a date in January (when
+	the week is that last week of previous year) and week 1 for a
+	date in December.
+
+  WEEK_FIRST_WEEKDAY (2)  If not set	Weeks are numbered according
+			   		to ISO 8601:1988
+			  If set	The week that contains the first
+					'first-day-of-week' is week 1.
+	
+	ISO 8601:1988 means that if the week containing January 1 has
+	four or more days in the new year, then it is week 1;
+	Otherwise it is the last week of the previous year, and the
+	next week is week 1.
 */
 
 longlong Item_func_week::val_int()
 {
   uint year;
-  uint week_format;
   TIME ltime;
   if (get_arg0_date(&ltime,0))
     return 0;
-  week_format= (uint) args[1]->val_int();
-  return (longlong) calc_week(&ltime, 
-			      (week_format & 2) != 0,
-			      (week_format & 1) == 0,
+  return (longlong) calc_week(&ltime,
+			      week_mode((uint) args[1]->val_int()),
 			      &year);
 }
 
@@ -751,7 +784,9 @@ longlong Item_func_yearweek::val_int()
   TIME ltime;
   if (get_arg0_date(&ltime,0))
     return 0;
-  week=calc_week(&ltime, 1, (args[1]->val_int() & 1) == 0, &year);
+  week= calc_week(&ltime, 
+		  (week_mode((uint) args[1]->val_int()) | WEEK_YEAR),
+		  &year);
   return week+year*100;
 }
 
@@ -871,8 +906,14 @@ static bool get_interval_value(Item *args,interval_type int_type,
   case INTERVAL_YEAR:
     interval->year=value;
     break;
+  case INTERVAL_QUARTER:
+    interval->month=value*3;
+    break;
   case INTERVAL_MONTH:
     interval->month=value;
+    break;
+  case INTERVAL_WEEK:
+    interval->day=value*7;
     break;
   case INTERVAL_DAY:
     interval->day=value;
@@ -1221,7 +1262,7 @@ String *Item_func_sec_to_time::val_str(String *str)
 
   sec= (uint) ((ulonglong) seconds % 3600);
   ltime.day= 0;
-  ltime.hour= seconds/3600;
+  ltime.hour= (uint) (seconds/3600);
   ltime.minute= sec/60;
   ltime.second= sec % 60;
 
@@ -1385,7 +1426,6 @@ String *Item_func_from_unixtime::val_str(String *str)
 {
   struct tm tm_tmp,*start;
   time_t tmp=(time_t) args[0]->val_int();
-  CHARSET_INFO *cs= &my_charset_bin;
   TIME ltime;
   
   if ((null_value=args[0]->null_value))
@@ -1550,6 +1590,7 @@ bool Item_date_add_interval::get_date(TIME *ltime, uint fuzzy_date)
       goto null_date;
     break;
   case INTERVAL_DAY:
+  case INTERVAL_WEEK:
     period= calc_daynr(ltime->year,ltime->month,ltime->day) +
       sign*interval.day;
     if (period < 0 || period >= MAX_DAY_NUMBER) // Daynumber from year 0 to 9999-12-31
@@ -1565,6 +1606,7 @@ bool Item_date_add_interval::get_date(TIME *ltime, uint fuzzy_date)
       ltime->day=28;				// Was leap-year
     break;
   case INTERVAL_YEAR_MONTH:
+  case INTERVAL_QUARTER:
   case INTERVAL_MONTH:
     period= (ltime->year*12 + sign*interval.year*12 +
 	     ltime->month-1 + sign*interval.month);
@@ -1626,12 +1668,13 @@ longlong Item_date_add_interval::val_int()
 
 static const char *interval_names[]=
 {
-  "year", "month", "day", "hour", "minute",
-  "second", "microsecond", "year_month",
-  "day_hour", "day_minute", "day_second",
-  "hour_minute", "hour_second", "minute_second",
-  "day_microsecond", "hour_microsecond",
-  "minute_microsecond", "second_microsecond"
+  "year", "quarter", "month", "day", "hour",
+  "minute", "week", "second", "microsecond",
+  "year_month", "day_hour", "day_minute", 
+  "day_second", "hour_minute", "hour_second",
+  "minute_second", "day_microsecond",
+  "hour_microsecond", "minute_microsecond",
+  "second_microsecond"
 };
 
 void Item_date_add_interval::print(String *str)
@@ -1662,7 +1705,9 @@ void Item_extract::fix_length_and_dec()
   switch (int_type) {
   case INTERVAL_YEAR:		max_length=4; date_value=1; break;
   case INTERVAL_YEAR_MONTH:	max_length=6; date_value=1; break;
+  case INTERVAL_QUARTER:        max_length=2; date_value=1; break;
   case INTERVAL_MONTH:		max_length=2; date_value=1; break;
+  case INTERVAL_WEEK:		max_length=2; date_value=1; break;
   case INTERVAL_DAY:		max_length=2; date_value=1; break;
   case INTERVAL_DAY_HOUR:	max_length=9; date_value=0; break;
   case INTERVAL_DAY_MINUTE:	max_length=11; date_value=0; break;
@@ -1685,6 +1730,8 @@ void Item_extract::fix_length_and_dec()
 longlong Item_extract::val_int()
 {
   TIME ltime;
+  uint year;
+  ulong week_format;
   long neg;
   if (date_value)
   {
@@ -1706,7 +1753,13 @@ longlong Item_extract::val_int()
   switch (int_type) {
   case INTERVAL_YEAR:		return ltime.year;
   case INTERVAL_YEAR_MONTH:	return ltime.year*100L+ltime.month;
+  case INTERVAL_QUARTER:	return ltime.month/3 + 1;
   case INTERVAL_MONTH:		return ltime.month;
+  case INTERVAL_WEEK:
+  {
+    week_format= current_thd->variables.default_week_format;
+    return calc_week(&ltime, week_mode(week_format), &year);
+  }
   case INTERVAL_DAY:		return ltime.day;
   case INTERVAL_DAY_HOUR:	return (long) (ltime.day*100L+ltime.hour)*neg;
   case INTERVAL_DAY_MINUTE:	return (long) (ltime.day*10000L+
@@ -1759,6 +1812,7 @@ bool Item_extract::eq(const Item *item, bool binary_cmp) const
   return 1;
 }
 
+
 void Item_typecast::print(String *str)
 {
   str->append("cast(", 5);
@@ -1767,6 +1821,7 @@ void Item_typecast::print(String *str)
   str->append(cast_type());
   str->append(')');
 }
+
 
 void Item_char_typecast::print(String *str)
 {
@@ -1851,9 +1906,8 @@ String *Item_datetime_typecast::val_str(String *str)
   if (!get_arg0_date(&ltime,1) &&
       !make_datetime(ltime.second_part ? DATE_TIME_MICROSECOND : DATE_TIME, 
 		     &ltime, str))
-  return str;
+    return str;
 
-null_date:
   null_value=1;
   return 0;
 }
@@ -1912,8 +1966,8 @@ String *Item_date_typecast::val_str(String *str)
 String *Item_func_makedate::val_str(String *str)
 {
   TIME l_time;
-  long daynr= args[1]->val_int();
-  long yearnr= args[0]->val_int();
+  long daynr=  (long) args[1]->val_int();
+  long yearnr= (long) args[0]->val_int();
   long days;
 
   if (args[0]->null_value || args[1]->null_value ||
@@ -1921,7 +1975,7 @@ String *Item_func_makedate::val_str(String *str)
     goto err;
 
   days= calc_daynr(yearnr,1,1) + daynr - 1;
- // Day number from year 0 to 9999-12-31
+  /* Day number from year 0 to 9999-12-31 */
   if (days >= 0 && days < MAX_DAY_NUMBER)
   {
     null_value=0;
@@ -2088,6 +2142,79 @@ void Item_func_add_time::print(String *str)
 
 
 /*
+  SYNOPSIS
+    calc_time_diff()
+    l_time1		TIME/DATE/DATETIME value
+    l_time2		TIME/DATE/DATETIME value
+    l_sign		Can be 1 (operation of addition)
+                        or -1 (substraction)
+    seconds_out         Returns count of seconds bitween
+                        l_time1 and l_time2
+    microseconds_out    Returns count of microseconds bitween
+                        l_time1 and l_time2.
+
+  DESCRIPTION
+    Calculates difference in seconds(seconds_out)
+    and microseconds(microseconds_out)
+    bitween two TIME/DATE/DATETIME values.
+
+  RETURN VALUES
+    Rertuns sign of difference.
+    1 means negative result
+    0 means positive result
+
+*/
+
+bool calc_time_diff(TIME *l_time1,TIME *l_time2, int l_sign,
+		    longlong *seconds_out, long *microseconds_out)
+{
+  long days;
+  bool neg;
+  longlong seconds= *seconds_out;
+  long microseconds= *microseconds_out;
+
+  /*
+    We suppose that if first argument is TIMESTAMP_TIME
+    the second argument should be TIMESTAMP_TIME also.
+    We should check it before calc_time_diff call.
+  */
+  if (l_time1->time_type == TIMESTAMP_TIME)  // Time value
+    days= l_time1->day - l_sign*l_time2->day;
+  else                                      // DateTime value
+    days= (calc_daynr((uint) l_time1->year,
+		      (uint) l_time1->month,
+		      (uint) l_time1->day) - 
+	   l_sign*calc_daynr((uint) l_time2->year,
+			     (uint) l_time2->month,
+			     (uint) l_time2->day));
+
+  microseconds= l_time1->second_part - l_sign*l_time2->second_part;
+  seconds= ((longlong) days*86400L + l_time1->hour*3600L + 
+	    l_time1->minute*60L + l_time1->second + microseconds/1000000L -
+	    (longlong)l_sign*(l_time2->hour*3600L+l_time2->minute*60L+l_time2->second));
+
+  neg= 0;
+  if (seconds < 0)
+  {
+    seconds= -seconds;
+    neg= 1;
+  }
+  else if (seconds == 0 && microseconds < 0)
+  {
+    microseconds= -microseconds;
+    neg= 1;
+  }
+  if (microseconds < 0)
+  {
+    microseconds+= 1000000L;
+    seconds--;
+  }
+  *seconds_out= seconds;
+  *microseconds_out= microseconds;
+  return neg;
+}
+
+/*
   TIMEDIFF(t,s) is a time function that calculates the 
   time value between a start and end time.
 
@@ -2099,7 +2226,6 @@ String *Item_func_timediff::val_str(String *str)
 {
   longlong seconds;
   long microseconds;
-  long days;
   int l_sign= 1;
   TIME l_time1 ,l_time2, l_time3;
 
@@ -2112,41 +2238,18 @@ String *Item_func_timediff::val_str(String *str)
   if (l_time1.neg != l_time2.neg)
     l_sign= -l_sign;
 
-  if (l_time1.time_type == TIMESTAMP_TIME)  // Time value
-    days= l_time1.day - l_sign*l_time2.day;
-  else                                      // DateTime value
-    days= (calc_daynr((uint) l_time1.year,
-		      (uint) l_time1.month,
-		      (uint) l_time1.day) - 
-	   l_sign*calc_daynr((uint) l_time2.year,
-			     (uint) l_time2.month,
-			     (uint) l_time2.day));
+  l_time3.neg= calc_time_diff(&l_time1,&l_time2, l_sign,
+			      &seconds, &microseconds);
 
-  microseconds= l_time1.second_part - l_sign*l_time2.second_part;
-  seconds= ((longlong) days*86400L + l_time1.hour*3600L + 
-	    l_time1.minute*60L + l_time1.second + microseconds/1000000L -
-	    (longlong)l_sign*(l_time2.hour*3600L+l_time2.minute*60L+l_time2.second));
-
-  l_time3.neg= 0;
-  if (seconds < 0)
-  {
-    seconds= -seconds;
-    l_time3.neg= 1;
-  }
-  else if (seconds == 0 && microseconds < 0)
-  {
-    microseconds= -microseconds;
-    l_time3.neg= 1;
-  }
-  if (microseconds < 0)
-  {
-    microseconds+= 1000000L;
-    seconds--;
-  }
+  /*
+    For TIMESTAMP_TIME only:
+      If both argumets are negative values and diff between them
+      is negative we need to swap sign as result should be positive.
+  */
   if ((l_time2.neg == l_time1.neg) && l_time1.neg)
-    l_time3.neg= l_time3.neg ? 0 : 1;
+    l_time3.neg= 1-l_time3.neg;         // Swap sign of result
 
-  calc_time_from_sec(&l_time3, seconds, microseconds);
+  calc_time_from_sec(&l_time3, (long) seconds, microseconds);
 
   if (!make_datetime(l_time1.second_part || l_time2.second_part ?
 		     TIME_MICROSECOND : TIME_ONLY,
@@ -2168,9 +2271,9 @@ String *Item_func_maketime::val_str(String *str)
 {
   TIME ltime;
 
-  long hour= args[0]->val_int();
-  long minute= args[1]->val_int();
-  long second= args[2]->val_int();
+  long hour=   (long) args[0]->val_int();
+  long minute= (long) args[1]->val_int();
+  long second= (long) args[2]->val_int();
 
   if ((null_value=(args[0]->null_value || 
 		   args[1]->null_value ||
@@ -2186,9 +2289,9 @@ String *Item_func_maketime::val_str(String *str)
     ltime.neg= 1;
     hour= -hour;
   }
-  ltime.hour= (ulong)hour;
-  ltime.minute= (ulong)minute;
-  ltime.second= (ulong)second;
+  ltime.hour=   (ulong) hour;
+  ltime.minute= (ulong) minute;
+  ltime.second= (ulong) second;
   make_time((DATE_TIME_FORMAT *) 0, &ltime, str);
   return str;
 }
@@ -2208,6 +2311,166 @@ longlong Item_func_microsecond::val_int()
   if (!get_arg0_time(&ltime))
     return ltime.second_part;
   return 0;
+}
+
+
+longlong Item_func_timestamp_diff::val_int()
+{
+  TIME ltime1, ltime2;
+  longlong seconds;
+  long microseconds;
+  long months= 0;
+  int neg= 1;
+
+  null_value= 0;  
+  if (args[0]->get_date(&ltime1, 0) ||
+      args[1]->get_date(&ltime2, 0))
+    goto null_date;
+
+  if (calc_time_diff(&ltime2,&ltime1, 1,
+		     &seconds, &microseconds))
+    neg= -1;
+
+  if (int_type == INTERVAL_YEAR ||
+      int_type == INTERVAL_QUARTER ||
+      int_type == INTERVAL_MONTH)
+  {
+    uint year;
+    uint year_beg, year_end, month_beg, month_end;
+    uint diff_days= (uint) (seconds/86400L);
+    uint diff_months= 0;
+    uint diff_years= 0;
+    if (neg == -1)
+    {
+      year_beg= ltime2.year;
+      year_end= ltime1.year;
+      month_beg= ltime2.month;
+      month_end= ltime1.month;
+    }
+    else
+    {
+      year_beg= ltime1.year;
+      year_end= ltime2.year;
+      month_beg= ltime1.month;
+      month_end= ltime2.month;
+    }
+    /* calc years*/
+    for (year= year_beg;year < year_end; year++)
+    {
+      uint days=calc_days_in_year(year);
+      if (days > diff_days)
+	break;
+      diff_days-= days;
+      diff_years++;
+    }
+
+    /* calc months;  Current year is in the 'year' variable */
+    month_beg--;	/* Change months to be 0-11 for easier calculation */
+    month_end--;
+
+    months= 12*diff_years;
+    while (month_beg != month_end)
+    {
+      uint m_days= (uint) days_in_month[month_beg];
+      if (month_beg == 1)
+      {
+	/* This is only calculated once so there is no reason to cache it*/
+	uint leap= (uint) ((year & 3) == 0 && (year%100 ||
+					       (year%400 == 0 && year)));
+	m_days+= leap;
+      }
+      if (m_days > diff_days)
+	break;
+      diff_days-= m_days;
+      months++;
+      if (month_beg++ == 11)		/* if we wrap to next year */
+      {
+	month_beg= 0;
+	year++;
+      }
+    }
+    if (neg == -1)
+      months= -months;
+  }
+
+  switch (int_type) {
+  case INTERVAL_YEAR:
+    return months/12;
+  case INTERVAL_QUARTER:
+    return months/3;
+  case INTERVAL_MONTH:
+    return months;
+  case INTERVAL_WEEK:          
+    return seconds/86400L/7L*neg;
+  case INTERVAL_DAY:		
+    return seconds/86400L*neg;
+  case INTERVAL_HOUR:		
+    return seconds/3600L*neg;
+  case INTERVAL_MINUTE:		
+    return seconds/60L*neg;
+  case INTERVAL_SECOND:		
+    return seconds*neg;
+  case INTERVAL_MICROSECOND:
+  {
+    longlong max_sec= LONGLONG_MAX/1000000;
+    if (max_sec > seconds ||
+	max_sec == seconds && LONGLONG_MAX%1000000 >= microseconds)
+      return (longlong) (seconds*1000000L+microseconds)*neg;
+    goto null_date;
+  }
+  default:
+    break;
+  }
+
+null_date:
+  null_value=1;
+  return 0;
+}
+
+
+void Item_func_timestamp_diff::print(String *str)
+{
+  str->append(func_name());
+  str->append('(');
+
+  switch (int_type) {
+  case INTERVAL_YEAR:
+    str->append("YEAR");
+    break;
+  case INTERVAL_QUARTER:
+    str->append("QUARTER");
+    break;
+  case INTERVAL_MONTH:
+    str->append("MONTH");
+    break;
+  case INTERVAL_WEEK:          
+    str->append("WEEK");
+    break;
+  case INTERVAL_DAY:		
+    str->append("DAY");
+    break;
+  case INTERVAL_HOUR:
+    str->append("HOUR");
+    break;
+  case INTERVAL_MINUTE:		
+    str->append("MINUTE");
+    break;
+  case INTERVAL_SECOND:
+    str->append("SECOND");
+    break;		
+  case INTERVAL_MICROSECOND:
+    str->append("SECOND_FRAC");
+    break;
+  default:
+    break;
+  }
+
+  for (uint i=0 ; i < 2 ; i++)
+  {
+    str->append(',');
+    args[i]->print(str);
+  }
+  str->append(')');
 }
 
 

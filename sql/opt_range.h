@@ -65,11 +65,10 @@ class QUICK_RANGE :public Sql_alloc {
     }
 };
 
-class INDEX_MERGE; 
 
 /*
   Quick select interface. 
-  This class is parent for all QUICK_*_SELECT and FT_SELECT classes.
+  This class is a parent for all QUICK_*_SELECT and FT_SELECT classes.
 */
 
 class QUICK_SELECT_I
@@ -89,7 +88,7 @@ public:
   QUICK_SELECT_I();
   virtual ~QUICK_SELECT_I(){};
   virtual int  init() = 0;
-  virtual void reset(void) = 0;
+  virtual int  reset(void) = 0;
   virtual int  get_next() = 0;   /* get next record to retrieve */
   virtual bool reverse_sorted() = 0;
   virtual bool unique_key_range() { return false; }
@@ -119,29 +118,41 @@ public:
 protected:
   friend void print_quick_sel_range(QUICK_RANGE_SELECT *quick,
                                     const key_map* needed_reg);
-  friend QUICK_RANGE_SELECT *get_quick_select_for_ref(THD *thd, TABLE *table, 
-                                                      struct st_table_ref *ref);
+  friend
+  QUICK_RANGE_SELECT *get_quick_select_for_ref(THD *thd, TABLE *table, 
+                                               struct st_table_ref *ref);
   friend bool get_quick_keys(struct st_qsel_param *param,
                              QUICK_RANGE_SELECT *quick,KEY_PART *key,
-                             SEL_ARG *key_tree,char *min_key,uint min_key_flag,
+                             SEL_ARG *key_tree,
+                             char *min_key, uint min_key_flag,
                              char *max_key, uint max_key_flag);
   friend QUICK_RANGE_SELECT *get_quick_select(struct st_qsel_param*,uint idx,
                                               SEL_ARG *key_tree,
                                               MEM_ROOT *alloc);
   friend class QUICK_SELECT_DESC;
+  friend class QUICK_INDEX_MERGE_SELECT;
 
-  List<QUICK_RANGE> ranges;
-  List_iterator<QUICK_RANGE> it;
+  DYNAMIC_ARRAY ranges;     /* ordered array of range ptrs */
+  QUICK_RANGE **cur_range;  /* current element in ranges  */
+
   QUICK_RANGE *range;
   MEM_ROOT alloc;
   KEY_PART *key_parts;  
   int cmp_next(QUICK_RANGE *range);
+  int cmp_prev(QUICK_RANGE *range);
+  bool row_in_ranges();
 public:
   QUICK_RANGE_SELECT(THD *thd, TABLE *table,uint index_arg,bool no_alloc=0,
                      MEM_ROOT *parent_alloc=NULL);
   ~QUICK_RANGE_SELECT();
   
-  void reset(void) { next=0; it.rewind(); }
+  int reset(void)
+  {
+    next=0; 
+    range= NULL; 
+    cur_range= NULL;
+    return 0;
+  }
   int init();
   int get_next();
   bool reverse_sorted() { return 0; }
@@ -149,67 +160,64 @@ public:
   int get_type() { return QS_TYPE_RANGE; }
 };
 
+
 /*
-  Helper class for keeping track of rows that have been passed to output 
-  in index_merge access method. 
+  QUICK_INDEX_MERGE_SELECT - index_merge access method quick select.
 
-  NOTES
-    Current implementation uses a temporary table to store ROWIDs of rows that
-    have been passed to output. In the future it might be changed to use more 
-    efficient mechanisms, like Unique class.
-*/
+    QUICK_INDEX_MERGE_SELECT uses 
+     * QUICK_RANGE_SELECTs to get rows
+     * Unique class to remove duplicate rows
 
-class INDEX_MERGE
-{
-public:
-  INDEX_MERGE(THD *thd_arg);
-  ~INDEX_MERGE(); 
-  
-  int init(TABLE *table);
-  int check_record_in();
-  int start_last_quick_select();
-  int error;
-private:
-  /* The only field in temporary table */
-  class Item_rowid : public Item_str_func
-  {
-    TABLE *head; /* source table */
-  public:
-    Item_rowid(TABLE *table) : head(table) 
+  INDEX MERGE OPTIMIZER
+    Current implementation doesn't detect all cases where index_merge could 
+    be used, in particular:
+     * index_merge will never be used if range scan is possible (even if 
+       range scan is more expensive)
+
+     * index_merge+'using index' is not supported (this the consequence of 
+       the above restriction)
+   
+     * If WHERE part contains complex nested AND and OR conditions, some ways
+       to retrieve rows using index_merge will not be considered. The choice 
+       of read plan may depend on the order of conjuncts/disjuncts in WHERE 
+       part of the query, see comments near imerge_list_or_list and
+       SEL_IMERGE::or_sel_tree_with_checks functions for details.
+
+     * There is no "index_merge_ref" method (but index_merge on non-first
+       table in join is possible with 'range checked for each record').
+
+    See comments around SEL_IMERGE class and test_quick_select for more 
+    details.
+
+  ROW RETRIEVAL ALGORITHM
+
+    index_merge uses Unique class for duplicates removal.  index_merge takes
+    advantage of Clustered Primary Key (CPK) if the table has one.
+    The index_merge algorithm consists of two phases:
+
+    Phase 1 (implemented in QUICK_INDEX_MERGE_SELECT::prepare_unique):
+    prepare()
     {
-      max_length= table->file->ref_length;
-      collation.set(&my_charset_bin);
-    };
-    const char *func_name() const { return "rowid"; }
-    bool const_item() const { return 0; }
-    String *val_str(String *);
-    void fix_length_and_dec()
-    {}
-  };
+      activate 'index only';
+      while(retrieve next row for non-CPK scan)
+      {
+        if (there is a CPK scan and row will be retrieved by it)
+          skip this row;
+        else
+          put its rowid into Unique;
+      }
+      deactivate 'index only';
+    }
+    
+    Phase 2 (implemented as sequence of QUICK_INDEX_MERGE_SELECT::get_next
+    calls):
 
-  /* Check if record has been processed and save it if it wasn't  */
-  inline int put_record(); 
-  
-  /* Check if record has been processed without saving it         */
-  inline int check_record();
-  
-  /* If true, check_record_in does't store ROWIDs it is passed.   */
-  bool  dont_save;
-
-  THD *thd;
-  TABLE *head;                     /* source table                        */
-  TABLE *temp_table;               /* temp. table used for values storage */
-  TMP_TABLE_PARAM tmp_table_param; /* temp. table creation parameters     */
-  Item_rowid *rowid_item;          /* the only field in temp. table       */
-  List<Item> fields;               /* temp. table fields list 
-                                      (the only element is rowid_item)    */
-  ORDER order;                     /* key for temp. table (rowid_item)    */
-};
-
-
-/*
-  Index merge quick select. 
-  It is implemented as a container for several QUICK_RANGE_SELECTs.
+    fetch()
+    {
+      retrieve all rows from row pointers stored in Unique;
+      free Unique;
+      retrieve all rows for CPK scan;
+    }
 */
 
 class QUICK_INDEX_MERGE_SELECT : public QUICK_SELECT_I 
@@ -219,7 +227,7 @@ public:
   ~QUICK_INDEX_MERGE_SELECT();
 
   int  init();
-  void reset(void);
+  int  reset(void);
   int  get_next();
   bool reverse_sorted() { return false; }
   bool unique_key_range() { return false; }
@@ -234,20 +242,24 @@ public:
   List_iterator_fast<QUICK_RANGE_SELECT> cur_quick_it;
   QUICK_RANGE_SELECT* cur_quick_select;
   
-  /*
-    Last element in quick_selects list. 
-    INDEX_MERGE::start_last_quick_select is called before retrieving
-    rows for it. 
-  */
+  /* last element in quick_selects list */
   QUICK_RANGE_SELECT* last_quick_select;
-  
-  /*
-    Used to keep track of what records have been already passed to output 
-    when doing index_merge access (NULL means no index_merge) 
-  */
-  INDEX_MERGE index_merge;
 
-  MEM_ROOT    alloc;
+  /* quick select that uses clustered primary key (NULL if none) */
+  QUICK_RANGE_SELECT* pk_quick_select;
+  
+  /* true if this select is currently doing a clustered PK scan */
+  bool  doing_pk_scan;
+  
+  Unique  *unique;
+  MEM_ROOT alloc;
+
+  THD *thd;
+  int prepare_unique();
+  bool reset_called;
+  
+  /* used to get rows collected in Unique */
+  READ_RECORD read_record;
 };
 
 class QUICK_SELECT_DESC: public QUICK_RANGE_SELECT
@@ -258,12 +270,11 @@ public:
   bool reverse_sorted() { return 1; }
   int get_type() { return QS_TYPE_RANGE_DESC; }
 private:
-  int cmp_prev(QUICK_RANGE *range);
   bool range_reads_after_key(QUICK_RANGE *range);
 #ifdef NOT_USED
   bool test_if_null_range(QUICK_RANGE *range, uint used_key_parts);
 #endif
-  void reset(void) { next=0; rev_it.rewind(); }
+  int reset(void) { next=0; rev_it.rewind(); return 0; }
   List<QUICK_RANGE> rev_ranges;
   List_iterator<QUICK_RANGE> rev_it;
 };

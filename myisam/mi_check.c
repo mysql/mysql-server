@@ -77,6 +77,7 @@ void myisamchk_init(MI_CHECK *param)
   param->tmpfile_createflag=O_RDWR | O_TRUNC | O_EXCL;
   param->myf_rw=MYF(MY_NABP | MY_WME | MY_WAIT_IF_FULL);
   param->start_check_pos=0;
+  param->max_record_length= LONGLONG_MAX;
   param->key_cache_block_size= KEY_CACHE_BLOCK_SIZE;
 }
 
@@ -111,20 +112,13 @@ int chk_status(MI_CHECK *param, register MI_INFO *info)
 int chk_del(MI_CHECK *param, register MI_INFO *info, uint test_flag)
 {
   reg2 ha_rows i;
-  uint j,delete_link_length;
+  uint delete_link_length;
   my_off_t empty,next_link,old_link;
   char buff[22],buff2[22];
   DBUG_ENTER("chk_del");
 
-  if (!(test_flag & T_SILENT))
-    puts("- check key delete-chain");
-
   LINT_INIT(old_link);
   param->record_checksum=0;
-  param->key_file_blocks=info->s->base.keystart;
-  for (j=0 ; j < info->s->state.header.max_block_size ; j++)
-    if (check_k_link(param,info,j))
-      goto wrong;
   delete_link_length=((info->s->options & HA_OPTION_PACK_RECORD) ? 20 :
 		      info->s->rec_reflength+1);
 
@@ -242,7 +236,7 @@ static int check_k_link(MI_CHECK *param, register MI_INFO *info, uint nr)
     if (next_link > info->state->key_file_length ||
 	next_link & (info->s->blocksize-1))
       DBUG_RETURN(1);
-    if (!(buff=key_cache_read(*info->s->key_cache,
+    if (!(buff=key_cache_read(info->s->key_cache,
                               info->s->kfile, next_link, DFLT_INIT_HITS,
                               (byte*) info->buff,
 			      myisam_block_size, block_size, 1)))
@@ -262,7 +256,7 @@ static int check_k_link(MI_CHECK *param, register MI_INFO *info, uint nr)
 } /* check_k_link */
 
 
-	/* Kontrollerar storleken p} filerna */
+	/* Check sizes of files */
 
 int chk_size(MI_CHECK *param, register MI_INFO *info)
 {
@@ -273,8 +267,9 @@ int chk_size(MI_CHECK *param, register MI_INFO *info)
 
   if (!(param->testflag & T_SILENT)) puts("- check file-size");
 
-  flush_key_blocks(*info->s->key_cache,
-                info->s->kfile, FLUSH_FORCE_WRITE); /* If called externally */
+  /* The following is needed if called externally (not from myisamchk) */
+  flush_key_blocks(info->s->key_cache,
+		   info->s->kfile, FLUSH_FORCE_WRITE);
 
   size=my_seek(info->s->kfile,0L,MY_SEEK_END,MYF(0));
   if ((skr=(my_off_t) info->state->key_file_length) != size)
@@ -349,6 +344,18 @@ int chk_key(MI_CHECK *param, register MI_INFO *info)
   MI_KEYDEF *keyinfo;
   char buff[22],buff2[22];
   DBUG_ENTER("chk_key");
+
+  if (!(param->testflag & T_SILENT))
+    puts("- check key delete-chain");
+
+  param->key_file_blocks=info->s->base.keystart;
+  for (key=0 ; key < info->s->state.header.max_block_size ; key++)
+    if (check_k_link(param,info,key))
+    {
+      if (param->testflag & T_VERBOSE) puts("");
+      mi_check_print_error(param,"key delete-link-chain corrupted");
+      DBUG_RETURN(-1);
+    }
 
   if (!(param->testflag & T_SILENT)) puts("- check index reference");
 
@@ -502,9 +509,40 @@ int chk_key(MI_CHECK *param, register MI_INFO *info)
     param->record_checksum=old_record_checksum-init_checksum;	/* Remove delete links */
   else
     param->record_checksum=0;
-  DBUG_RETURN(0);
+  DBUG_RETURN(result);
 } /* chk_key */
 
+
+static int chk_index_down(MI_CHECK *param, MI_INFO *info, MI_KEYDEF *keyinfo,
+                     my_off_t page, uchar *buff, ha_rows *keys,
+                     ha_checksum *key_checksum, uint level)
+{
+  char llbuff[22],llbuff2[22];
+  if (page > info->state->key_file_length || (page & (info->s->blocksize -1)))
+  {
+    my_off_t max_length=my_seek(info->s->kfile,0L,MY_SEEK_END,MYF(0));
+    mi_check_print_error(param,"Wrong pagepointer: %s at page: %s",
+                llstr(page,llbuff),llstr(page,llbuff2));
+
+    if (page+info->s->blocksize > max_length)
+      goto err;
+    info->state->key_file_length=(max_length &
+                                  ~ (my_off_t) (info->s->blocksize-1));
+  }
+  if (!_mi_fetch_keypage(info,keyinfo,page, DFLT_INIT_HITS,buff,0))
+  {
+    mi_check_print_error(param,"Can't read key from filepos: %s",
+        llstr(page,llbuff));
+    goto err;
+  }
+  param->key_file_blocks+=keyinfo->block_length;
+  if (chk_index(param,info,keyinfo,page,buff,keys,key_checksum,level))
+    goto err;
+
+  return 0;
+err:
+  return 1;
+}
 
 	/* Check if index is ok */
 
@@ -516,13 +554,13 @@ static int chk_index(MI_CHECK *param, MI_INFO *info, MI_KEYDEF *keyinfo,
   uint used_length,comp_flag,nod_flag,key_length,not_used;
   uchar key[MI_MAX_POSSIBLE_KEY_BUFF],*temp_buff,*keypos,*old_keypos,*endpos;
   my_off_t next_page,record;
-  char llbuff[22],llbuff2[22];
+  char llbuff[22];
   DBUG_ENTER("chk_index");
   DBUG_DUMP("buff",(byte*) buff,mi_getint(buff));
 
   if (!(temp_buff=(uchar*) my_alloca((uint) keyinfo->block_length)))
   {
-    mi_check_print_error(param,"Not Enough memory");
+    mi_check_print_error(param,"Not enough memory for keyblock");
     DBUG_RETURN(-1);
   }
 
@@ -551,27 +589,8 @@ static int chk_index(MI_CHECK *param, MI_INFO *info, MI_KEYDEF *keyinfo,
     if (nod_flag)
     {
       next_page=_mi_kpos(nod_flag,keypos);
-      if (next_page > info->state->key_file_length ||
-	  (nod_flag && (next_page & (info->s->blocksize -1))))
-      {
-	my_off_t max_length=my_seek(info->s->kfile,0L,MY_SEEK_END,MYF(0));
-	mi_check_print_error(param,"Wrong pagepointer: %s at page: %s",
-		    llstr(next_page,llbuff),llstr(page,llbuff2));
-
-	if (next_page+info->s->blocksize > max_length)
-	  goto err;
-	info->state->key_file_length=(max_length &
-				      ~ (my_off_t) (info->s->blocksize-1));
-      }
-      if (!_mi_fetch_keypage(info,keyinfo,next_page,
-                             DFLT_INIT_HITS,temp_buff,0))
-      {
-	mi_check_print_error(param,"Can't read key from filepos: %s",llstr(next_page,llbuff));
-	goto err;
-      }
-      param->key_file_blocks+=keyinfo->block_length;
-      if (chk_index(param,info,keyinfo,next_page,temp_buff,keys,key_checksum,
-		    level+1))
+      if (chk_index_down(param,info,keyinfo,next_page,
+                         temp_buff,keys,key_checksum,level+1))
 	goto err;
     }
     old_keypos=keypos;
@@ -613,10 +632,27 @@ static int chk_index(MI_CHECK *param, MI_INFO *info, MI_KEYDEF *keyinfo,
     memcpy((char*) info->lastkey,(char*) key,key_length);
     info->lastkey_length=key_length;
     record= _mi_dpos(info,0,key+key_length);
+    if (keyinfo->flag & HA_FULLTEXT) /* special handling for ft2 */
+    {
+      uint off;
+      int  subkeys;
+      get_key_full_length_rdonly(off, key);
+      subkeys=ft_sintXkorr(key+off);
+      if (subkeys < 0)
+      {
+        ha_rows tmp_keys=0;
+        if (chk_index_down(param,info,&info->s->ft2_keyinfo,record,
+                           temp_buff,&tmp_keys,key_checksum,1))
+          goto err;
+        (*keys)+=tmp_keys-1;
+        continue;
+      }
+      /* fall through */
+    }
     if (record >= info->state->data_file_length)
     {
 #ifndef DBUG_OFF
-      char llbuff3[22];
+      char llbuff2[22], llbuff3[22];
 #endif
       mi_check_print_error(param,"Found key at page %s that points to record outside datafile",llstr(page,llbuff));
       DBUG_PRINT("test",("page: %s  record: %s  filelength: %s",
@@ -711,7 +747,7 @@ int chk_data_link(MI_CHECK *param, MI_INFO *info,int extend)
 
   if (!(record= (byte*) my_malloc(info->s->base.pack_reclength,MYF(0))))
   {
-    mi_check_print_error(param,"Not Enough memory");
+    mi_check_print_error(param,"Not enough memory for record");
     DBUG_RETURN(-1);
   }
   records=del_blocks=0;
@@ -814,16 +850,17 @@ int chk_data_link(MI_CHECK *param, MI_INFO *info,int extend)
 	    goto next;
 	  }
 	  mi_check_print_error(param,"Wrong bytesec: %d-%d-%d at linkstart: %s",
-		      block_info.header[0],block_info.header[1],
-		      block_info.header[2],
-		      llstr(start_block,llbuff));
+			       block_info.header[0],block_info.header[1],
+			       block_info.header[2],
+			       llstr(start_block,llbuff));
 	  goto err2;
 	}
 	if (info->state->data_file_length < block_info.filepos+
 	    block_info.block_len)
 	{
-	  mi_check_print_error(param,"Recordlink that points outside datafile at %s",
-		      llstr(pos,llbuff));
+	  mi_check_print_error(param,
+			       "Recordlink that points outside datafile at %s",
+			       llstr(pos,llbuff));
 	  got_error=1;
 	  break;
 	}
@@ -834,9 +871,9 @@ int chk_data_link(MI_CHECK *param, MI_INFO *info,int extend)
 	  pos=block_info.filepos+block_info.block_len;
 	  if (block_info.rec_len > (uint) info->s->base.max_pack_length)
 	  {
-	    mi_check_print_error(param,"Found too long record (%d) at %s",
-			block_info.rec_len,
-			llstr(start_recpos,llbuff));
+	    mi_check_print_error(param,"Found too long record (%lu) at %s",
+				 (ulong) block_info.rec_len,
+				 llstr(start_recpos,llbuff));
 	    got_error=1;
 	    break;
 	  }
@@ -845,8 +882,10 @@ int chk_data_link(MI_CHECK *param, MI_INFO *info,int extend)
 	    if (!(to= mi_alloc_rec_buff(info, block_info.rec_len,
 					&info->rec_buff)))
 	    {
-	      mi_check_print_error(param,"Not enough memory for blob at %s",
-			  llstr(start_recpos,llbuff));
+	      mi_check_print_error(param,
+				   "Not enough memory (%lu) for blob at %s",
+				   (ulong) block_info.rec_len,
+				   llstr(start_recpos,llbuff));
 	      got_error=1;
 	      break;
 	    }
@@ -857,9 +896,11 @@ int chk_data_link(MI_CHECK *param, MI_INFO *info,int extend)
 	}
 	if (left_length < block_info.data_len)
 	{
-	  mi_check_print_error(param,"Found too long record at %s",
-		      llstr(start_recpos,llbuff));
-	  got_error=1; break;
+	  mi_check_print_error(param,"Found too long record (%lu) at %s",
+			       (ulong) block_info.data_len,
+			       llstr(start_recpos,llbuff));
+	  got_error=1;
+	  break;
 	}
 	if (_mi_read_cache(&param->read_cache,(byte*) to,block_info.filepos,
 			   (uint) block_info.data_len,
@@ -1142,9 +1183,12 @@ int mi_repair(MI_CHECK *param, register MI_INFO *info,
   }
   param->testflag|=T_REP; /* for easy checking */
 
+  if (info->s->options & (HA_OPTION_CHECKSUM | HA_OPTION_COMPRESS_RECORD))
+    param->testflag|=T_CALC_CHECKSUM;
+
   if (!param->using_global_keycache)
-    VOID(init_key_cache(dflt_keycache, param->key_cache_block_size,
-                        param->use_buffers, &dflt_key_cache_var));
+    VOID(init_key_cache(dflt_key_cache, param->key_cache_block_size,
+                        param->use_buffers, 0, 0));
 
   if (init_io_cache(&param->read_cache,info->dfile,
 		    (uint) param->read_buffer_length,
@@ -1163,16 +1207,15 @@ int mi_repair(MI_CHECK *param, register MI_INFO *info,
 					   MYF(0))) ||
       !mi_alloc_rec_buff(info, -1, &sort_param.rec_buff))
   {
-    mi_check_print_error(param,"Not enough memory for extra record");
+    mi_check_print_error(param, "Not enough memory for extra record");
     goto err;
   }
 
   if (!rep_quick)
   {
     /* Get real path for data file */
-    fn_format(param->temp_filename,name,"", MI_NAME_DEXT,2+4+32);
     if ((new_file=my_raid_create(fn_format(param->temp_filename,
-					   param->temp_filename,"",
+					   share->data_file_name, "",
 					   DATA_TMP_EXT, 2+4),
 				 0,param->tmpfile_createflag,
 				 share->base.raid_type,
@@ -1355,6 +1398,7 @@ err:
       VOID(my_close(new_file,MYF(0)));
       VOID(my_raid_delete(param->temp_filename,info->s->base.raid_chunks,
 			  MYF(MY_WME)));
+      info->rec_cache.file=-1; /* don't flush data to new_file, it's closed */
     }
     mi_mark_crashed_on_repair(info);
   }
@@ -1365,7 +1409,7 @@ err:
   VOID(end_io_cache(&param->read_cache));
   info->opt_flag&= ~(READ_CACHE_USED | WRITE_CACHE_USED);
   VOID(end_io_cache(&info->rec_cache));
-  got_error|=flush_blocks(param, *share->key_cache, share->kfile);
+  got_error|=flush_blocks(param, share->key_cache, share->kfile);
   if (!got_error && param->testflag & T_UNPACK)
   {
     share->state.header.options[0]&= (uchar) ~HA_OPTION_COMPRESS_RECORD;
@@ -1501,7 +1545,7 @@ void lock_memory(MI_CHECK *param __attribute__((unused)))
 
 	/* Flush all changed blocks to disk */
 
-int flush_blocks(MI_CHECK *param, KEY_CACHE_HANDLE key_cache, File file)
+int flush_blocks(MI_CHECK *param, KEY_CACHE *key_cache, File file)
 {
   if (flush_key_blocks(key_cache, file, FLUSH_RELEASE))
   {
@@ -1564,7 +1608,7 @@ int mi_sort_index(MI_CHECK *param, register MI_INFO *info, my_string name)
   }
 
   /* Flush key cache for this file if we are calling this outside myisamchk */
-  flush_key_blocks(*share->key_cache,share->kfile, FLUSH_IGNORE_CHANGED);
+  flush_key_blocks(share->key_cache,share->kfile, FLUSH_IGNORE_CHANGED);
 
   share->state.version=(ulong) time((time_t*) 0);
   old_state= share->state;			/* save state if not stored */
@@ -1625,7 +1669,7 @@ static int sort_one_index(MI_CHECK *param, MI_INFO *info, MI_KEYDEF *keyinfo,
 
   if (!(buff=(uchar*) my_alloca((uint) keyinfo->block_length)))
   {
-    mi_check_print_error(param,"Not Enough memory");
+    mi_check_print_error(param,"Not enough memory for key block");
     DBUG_RETURN(-1);
   }
   if (!_mi_fetch_keypage(info,keyinfo,pagepos,DFLT_INIT_HITS,buff,0))
@@ -1811,6 +1855,9 @@ int mi_repair_by_sort(MI_CHECK *param, register MI_INFO *info,
   }
   param->testflag|=T_REP; /* for easy checking */
 
+  if (info->s->options & (HA_OPTION_CHECKSUM | HA_OPTION_COMPRESS_RECORD))
+    param->testflag|=T_CALC_CHECKSUM;
+
   bzero((char*)&sort_info,sizeof(sort_info));
   bzero((char *)&sort_param, sizeof(sort_param));
   if (!(sort_info.key_block=
@@ -1834,17 +1881,15 @@ int mi_repair_by_sort(MI_CHECK *param, register MI_INFO *info,
 					   MYF(0))) ||
       !mi_alloc_rec_buff(info, -1, &sort_param.rec_buff))
   {
-    mi_check_print_error(param,"Not enough memory for extra record");
+    mi_check_print_error(param, "Not enough memory for extra record");
     goto err;
   }
   if (!rep_quick)
   {
     /* Get real path for data file */
-    fn_format(param->temp_filename,name,"", MI_NAME_DEXT,2+4+32);
     if ((new_file=my_raid_create(fn_format(param->temp_filename,
-					   param->temp_filename, "",
-					   DATA_TMP_EXT,
-					   2+4),
+					   share->data_file_name, "",
+					   DATA_TMP_EXT, 2+4),
 				 0,param->tmpfile_createflag,
 				 share->base.raid_type,
 				 share->base.raid_chunks,
@@ -1874,7 +1919,7 @@ int mi_repair_by_sort(MI_CHECK *param, register MI_INFO *info,
       Flush key cache for this file if we are calling this outside
       myisamchk
     */
-    flush_key_blocks(*share->key_cache,share->kfile, FLUSH_IGNORE_CHANGED);
+    flush_key_blocks(share->key_cache,share->kfile, FLUSH_IGNORE_CHANGED);
     /* Clear the pointers to the given rows */
     for (i=0 ; i < share->base.keys ; i++)
       share->state.key_root[i]= HA_OFFSET_ERROR;
@@ -1884,7 +1929,7 @@ int mi_repair_by_sort(MI_CHECK *param, register MI_INFO *info,
   }
   else
   {
-    if (flush_key_blocks(*share->key_cache,share->kfile, FLUSH_FORCE_WRITE))
+    if (flush_key_blocks(share->key_cache,share->kfile, FLUSH_FORCE_WRITE))
       goto err;
     key_map= ~key_map;				/* Create the missing keys */
   }
@@ -1965,7 +2010,7 @@ int mi_repair_by_sort(MI_CHECK *param, register MI_INFO *info,
 
       sort_param.key_read=sort_ft_key_read;
       sort_param.key_write=sort_ft_key_write;
-      sort_param.key_length+=FT_MAX_WORD_LEN_FOR_SORT-HA_FT_MAXLEN;
+      sort_param.key_length+=FT_MAX_WORD_LEN_FOR_SORT-HA_FT_MAXBYTELEN;
     }
     else
     {
@@ -2076,7 +2121,7 @@ int mi_repair_by_sort(MI_CHECK *param, register MI_INFO *info,
     memcpy( &share->state.state, info->state, sizeof(*info->state));
 
 err:
-  got_error|= flush_blocks(param, *share->key_cache, share->kfile);
+  got_error|= flush_blocks(param, share->key_cache, share->kfile);
   VOID(end_io_cache(&info->rec_cache));
   if (!got_error)
   {
@@ -2182,6 +2227,9 @@ int mi_repair_parallel(MI_CHECK *param, register MI_INFO *info,
   }
   param->testflag|=T_REP; /* for easy checking */
 
+  if (info->s->options & (HA_OPTION_CHECKSUM | HA_OPTION_COMPRESS_RECORD))
+    param->testflag|=T_CALC_CHECKSUM;
+
   bzero((char*)&sort_info,sizeof(sort_info));
   if (!(sort_info.key_block=
 	alloc_key_blocks(param,
@@ -2203,9 +2251,8 @@ int mi_repair_parallel(MI_CHECK *param, register MI_INFO *info,
   if (!rep_quick)
   {
     /* Get real path for data file */
-    fn_format(param->temp_filename,name,"", MI_NAME_DEXT,2+4+32);
     if ((new_file=my_raid_create(fn_format(param->temp_filename,
-					   param->temp_filename, "",
+					   share->data_file_name, "",
 					   DATA_TMP_EXT,
 					   2+4),
 				 0,param->tmpfile_createflag,
@@ -2237,7 +2284,7 @@ int mi_repair_parallel(MI_CHECK *param, register MI_INFO *info,
       Flush key cache for this file if we are calling this outside
       myisamchk
     */
-    flush_key_blocks(*share->key_cache,share->kfile, FLUSH_IGNORE_CHANGED);
+    flush_key_blocks(share->key_cache,share->kfile, FLUSH_IGNORE_CHANGED);
     /* Clear the pointers to the given rows */
     for (i=0 ; i < share->base.keys ; i++)
       share->state.key_root[i]= HA_OFFSET_ERROR;
@@ -2247,7 +2294,7 @@ int mi_repair_parallel(MI_CHECK *param, register MI_INFO *info,
   }
   else
   {
-    if (flush_key_blocks(*share->key_cache,share->kfile, FLUSH_FORCE_WRITE))
+    if (flush_key_blocks(share->key_cache,share->kfile, FLUSH_FORCE_WRITE))
       goto err;
     key_map= ~key_map;				/* Create the missing keys */
   }
@@ -2267,17 +2314,19 @@ int mi_repair_parallel(MI_CHECK *param, register MI_INFO *info,
     rec_length=share->base.min_block_length;
   else
     rec_length=share->base.pack_reclength;
+  /*
+    +1 below is required hack for parallel repair mode.
+    The info->state->records value, that is compared later
+    to sort_info.max_records and cannot exceed it, is
+    increased in sort_key_write. In mi_repair_by_sort, sort_key_write
+    is called after sort_key_read, where the comparison is performed,
+    but in parallel mode master thread can call sort_key_write
+    before some other repair thread calls sort_key_read.
+    Furthermore I'm not even sure +1 would be enough.
+    May be sort_info.max_records shold be always set to max value in
+    parallel mode.
+  */
   sort_info.max_records=
-  /* +1 below is required hack for parallel repair mode.
-     The info->state->records value, that is compared later
-     to sort_info.max_records and cannot exceed it, is
-     increased in sort_key_write. In mi_repair_by_sort, sort_key_write
-     is called after sort_key_read, where the comparison is performed,
-     but in parallel mode master thread can call sort_key_write
-     before some other repair thread calls sort_key_read.
-     Furthermore I'm not even sure +1 would be enough.
-     May be sort_info.max_records shold be always set to max value in
-     parallel mode. */
     ((param->testflag & T_CREATE_MISSING_KEYS) ? info->state->records + 1:
      (ha_rows) (sort_info.filelength/rec_length+1));
 
@@ -2291,7 +2340,7 @@ int mi_repair_parallel(MI_CHECK *param, register MI_INFO *info,
 		  (sizeof(MI_SORT_PARAM) + share->base.pack_reclength),
 		  MYF(MY_ZEROFILL))))
   {
-    mi_check_print_error(param,"Not enough memory!");
+    mi_check_print_error(param,"Not enough memory for key!");
     goto err;
   }
   total_key_length=0;
@@ -2356,7 +2405,7 @@ int mi_repair_parallel(MI_CHECK *param, register MI_INFO *info,
     total_key_length+=sort_param[i].key_length;
 
     if (sort_param[i].keyinfo->flag & HA_FULLTEXT)
-      sort_param[i].key_length+=FT_MAX_WORD_LEN_FOR_SORT-ft_max_word_len;
+      sort_param[i].key_length+=FT_MAX_WORD_LEN_FOR_SORT-HA_FT_MAXBYTELEN;
   }
   sort_info.total_keys=i;
   sort_param[0].master= 1;
@@ -2483,7 +2532,7 @@ int mi_repair_parallel(MI_CHECK *param, register MI_INFO *info,
     memcpy(&share->state.state, info->state, sizeof(*info->state));
 
 err:
-  got_error|= flush_blocks(param, *share->key_cache, share->kfile);
+  got_error|= flush_blocks(param, share->key_cache, share->kfile);
   VOID(end_io_cache(&info->rec_cache));
   if (!got_error)
   {
@@ -2847,9 +2896,20 @@ static int sort_get_next_record(MI_SORT_PARAM *sort_param)
 	    if (!(to=mi_alloc_rec_buff(info,block_info.rec_len,
 				       &(sort_param->rec_buff))))
 	    {
-	      mi_check_print_error(param,"Not enough memory for blob at %s",
-			  llstr(sort_param->start_recpos,llbuff));
-	      DBUG_RETURN(1);
+	      if (param->max_record_length >= block_info.rec_len)
+	      {
+		mi_check_print_error(param,"Not enough memory for blob at %s (need %lu)",
+				     llstr(sort_param->start_recpos,llbuff),
+				     (ulong) block_info.rec_len);
+		DBUG_RETURN(1);
+	      }
+	      else
+	      {
+		mi_check_print_info(param,"Not enough memory for blob at %s (need %lu); Row skipped",
+				    llstr(sort_param->start_recpos,llbuff),
+				    (ulong) block_info.rec_len);
+		goto try_next;
+	      }
 	    }
 	  }
 	  else
@@ -2857,14 +2917,16 @@ static int sort_get_next_record(MI_SORT_PARAM *sort_param)
 	}
 	if (left_length < block_info.data_len || ! block_info.data_len)
 	{
-	  mi_check_print_info(param,"Found block with too small length at %s; Skipped",
+	  mi_check_print_info(param,
+			      "Found block with too small length at %s; Skipped",
 			      llstr(sort_param->start_recpos,llbuff));
 	  goto try_next;
 	}
 	if (block_info.filepos + block_info.data_len >
 	    sort_param->read_cache.end_of_file)
 	{
-	  mi_check_print_info(param,"Found block that points outside data file at %s",
+	  mi_check_print_info(param,
+			      "Found block that points outside data file at %s",
 			      llstr(sort_param->start_recpos,llbuff));
 	  goto try_next;
 	}
@@ -3269,29 +3331,27 @@ static int sort_ft_key_write(MI_SORT_PARAM *sort_param, const void *a)
     ft_buf->buf=0;
     return error;
   }
-  else
-  {
-    /* flushing buffer */
-    if ((error=sort_ft_buf_flush(sort_param)))
-      return error;
+
+  /* flushing buffer */
+  if ((error=sort_ft_buf_flush(sort_param)))
+    return error;
 
 word_init_ft_buf:
-    a_len+=val_len;
-    memcpy(ft_buf->lastkey, a, a_len);
-    ft_buf->buf=ft_buf->lastkey+a_len;
-    ft_buf->end=ft_buf->lastkey+ (sort_param->keyinfo->block_length-32);
-    /* 32 is just a safety margin here
-       (at least max(val_len, sizeof(nod_flag)) should be there).
-       May be better performance could be achieved if we'd put
-          (sort_info->keyinfo->block_length-32)/XXX
-       instead.
-       TODO: benchmark the best value for XXX.
-    */
-
-    return 0;
-  }
-  return -1; /* impossible */
+  a_len+=val_len;
+  memcpy(ft_buf->lastkey, a, a_len);
+  ft_buf->buf=ft_buf->lastkey+a_len;
+  /*
+    32 is just a safety margin here
+    (at least max(val_len, sizeof(nod_flag)) should be there).
+    May be better performance could be achieved if we'd put
+      (sort_info->keyinfo->block_length-32)/XXX
+      instead.
+        TODO: benchmark the best value for XXX.
+  */
+  ft_buf->end=ft_buf->lastkey+ (sort_param->keyinfo->block_length-32);
+  return 0;
 } /* sort_ft_key_write */
+
 
 	/* get pointer to record from a key */
 
@@ -3499,7 +3559,7 @@ static SORT_KEY_BLOCKS *alloc_key_blocks(MI_CHECK *param, uint blocks,
 					    buffer_length+IO_SIZE)*blocks,
 					   MYF(0))))
   {
-    mi_check_print_error(param,"Not Enough memory for sort-key-blocks");
+    mi_check_print_error(param,"Not enough memory for sort-key-blocks");
     return(0);
   }
   for (i=0 ; i < blocks ; i++)
@@ -3883,7 +3943,7 @@ static my_bool mi_too_big_key_for_sort(MI_KEYDEF *key, ha_rows rows)
 {
   uint key_maxlength=key->maxlength;
   if (key->flag & HA_FULLTEXT)
-    key_maxlength+=FT_MAX_WORD_LEN_FOR_SORT-HA_FT_MAXLEN;
+    key_maxlength+=FT_MAX_WORD_LEN_FOR_SORT-HA_FT_MAXBYTELEN;
   return (key->flag & (HA_BINARY_PACK_KEY | HA_VAR_LENGTH_KEY | HA_FULLTEXT) &&
 	  ((ulonglong) rows * key_maxlength >
 	   (ulonglong) myisam_max_temp_length));

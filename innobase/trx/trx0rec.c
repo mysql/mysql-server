@@ -866,15 +866,16 @@ trx_undo_update_rec_get_update(
 			fprintf(stderr,
    "InnoDB: Error: trying to access update undo rec field %lu in table %s\n"
    "InnoDB: index %s, but index has only %lu fields\n",
-			field_no, index->table_name, index->name,
-			dict_index_get_n_fields(index));
+			(ulong) field_no, index->table_name, index->name,
+			(ulong) dict_index_get_n_fields(index));
   			fprintf(stderr,
    "InnoDB: Send a detailed bug report to mysql@lists.mysql.com");
    
   			fprintf(stderr,
    "InnoDB: Run also CHECK TABLE on table %s\n", index->table_name);
   			fprintf(stderr,
-   "InnoDB: n_fields = %lu, i = %lu, ptr %lx\n", n_fields, i, (ulint)ptr);
+   "InnoDB: n_fields = %lu, i = %lu, ptr %lx\n", (ulong) n_fields, (ulong) i,
+				(ulong) ptr);
 			return(NULL);
 		}
 
@@ -1371,17 +1372,18 @@ trx_undo_prev_version_build(
 		fprintf(stderr,
 			"InnoDB: Table name %s, index name %s, n_uniq %lu\n",
 			index->table_name, index->name,
-			dict_index_get_n_unique(index));
+			(ulong) dict_index_get_n_unique(index));
 		
 		fprintf(stderr,
 		"InnoDB: undo rec address %lx, type %lu cmpl_info %lu\n",
-					(ulint)undo_rec, type, cmpl_info);
+					(ulong) undo_rec, (ulong) type,
+					(ulong) cmpl_info);
 		fprintf(stderr,
 		"InnoDB: undo rec table id %lu %lu, index table id %lu %lu\n",
-			ut_dulint_get_high(table_id),
-			ut_dulint_get_low(table_id),
-			ut_dulint_get_high(index->table->id),
-			ut_dulint_get_low(index->table->id));
+			(ulong) ut_dulint_get_high(table_id),
+			(ulong) ut_dulint_get_low(table_id),
+			(ulong) ut_dulint_get_high(index->table->id),
+			(ulong) ut_dulint_get_low(index->table->id));
 		
 		ut_sprintf_buf(err_buf, undo_rec, 150);
 
@@ -1395,17 +1397,17 @@ trx_undo_prev_version_build(
 
 		fprintf(stderr,
 	"InnoDB: Record trx id %lu %lu, update rec trx id %lu %lu\n",
-		 	ut_dulint_get_high(rec_trx_id),
-		 	ut_dulint_get_low(rec_trx_id),
-		 	ut_dulint_get_high(trx_id),
-		 	ut_dulint_get_low(trx_id));
+		 	(ulong) ut_dulint_get_high(rec_trx_id),
+		 	(ulong) ut_dulint_get_low(rec_trx_id),
+		 	(ulong) ut_dulint_get_high(trx_id),
+		 	(ulong) ut_dulint_get_low(trx_id));
 
 		fprintf(stderr,
 	"InnoDB: Roll ptr in rec %lu %lu, in update rec %lu %lu\n",
-		 	ut_dulint_get_high(old_roll_ptr),
-		 	ut_dulint_get_low(old_roll_ptr),
-		 	ut_dulint_get_high(roll_ptr),
-		 	ut_dulint_get_low(roll_ptr));
+		 	(ulong) ut_dulint_get_high(old_roll_ptr),
+		 	(ulong) ut_dulint_get_low(old_roll_ptr),
+		 	(ulong) ut_dulint_get_high(roll_ptr),
+		 	(ulong) ut_dulint_get_low(roll_ptr));
 		 
 		trx_purge_sys_print();
 		 

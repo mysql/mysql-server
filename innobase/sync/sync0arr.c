@@ -454,8 +454,9 @@ sync_array_cell_print(
 
 	buf += sprintf(buf,
 "--Thread %lu has waited at %s line %lu for %.2f seconds the semaphore:\n",
-			os_thread_pf(cell->thread), cell->file, cell->line,
-			difftime(time(NULL), cell->reservation_time));
+			(ulong) os_thread_pf(cell->thread), cell->file,
+		       (ulong) cell->line,
+		       difftime(time(NULL), cell->reservation_time));
 
 	if (type == SYNC_MUTEX) {
 		/* We use old_wait_mutex in case the cell has already
@@ -464,11 +465,12 @@ sync_array_cell_print(
 
 		buf += sprintf(buf,
 		"Mutex at %lx created file %s line %lu, lock var %lu\n",
-			(ulint)mutex, mutex->cfile_name, mutex->cline,
-							mutex->lock_word);
+			       (ulong) mutex, mutex->cfile_name,
+			       (ulong) mutex->cline, (ulong) mutex->lock_word);
 		buf += sprintf(buf,
 		"Last time reserved in file %s line %lu, waiters flag %lu\n",
-			mutex->file_name, mutex->line, mutex->waiters);
+			       mutex->file_name, (ulong) mutex->line,
+			       (ulong) mutex->waiters);
 
 	} else if (type == RW_LOCK_EX || type == RW_LOCK_SHARED) {
 
@@ -482,11 +484,12 @@ sync_array_cell_print(
 
 		buf += sprintf(buf,
 			" RW-latch at %lx created in file %s line %lu\n",
-			(ulint)rwlock, rwlock->cfile_name, rwlock->cline);
+			(ulong) rwlock, rwlock->cfile_name,
+			(ulong) rwlock->cline);
 		if (rwlock->writer != RW_LOCK_NOT_LOCKED) {
 			buf += sprintf(buf,
 			"a writer (thread id %lu) has reserved it in mode",
-				os_thread_pf(rwlock->writer_thread));
+				(ulong) os_thread_pf(rwlock->writer_thread));
 			if (rwlock->writer == RW_LOCK_EX) {
 				buf += sprintf(buf, " exclusive\n");
 			} else {
@@ -496,14 +499,16 @@ sync_array_cell_print(
 		
 		buf += sprintf(buf,
 				"number of readers %lu, waiters flag %lu\n",
-				rwlock->reader_count, rwlock->waiters);
+			       (ulong) rwlock->reader_count,
+			       (ulong) rwlock->waiters);
 	
 		buf += sprintf(buf,
 				"Last time read locked in file %s line %lu\n",
-			rwlock->last_s_file_name, rwlock->last_s_line);
+			rwlock->last_s_file_name,
+			(ulong) rwlock->last_s_line);
 		buf += sprintf(buf,
 			"Last time write locked in file %s line %lu\n",
-			rwlock->last_x_file_name, rwlock->last_x_line);
+			rwlock->last_x_file_name, (ulong) rwlock->last_x_line);
 	} else {
 		ut_error;
 	}
@@ -651,8 +656,8 @@ sync_array_detect_deadlock(
 				sync_array_cell_print(buf, cell);
 				printf(
 	"Mutex %lx owned by thread %lu file %s line %lu\n%s",
-			(ulint)mutex, os_thread_pf(mutex->thread_id),
-				mutex->file_name, mutex->line, buf);
+			(ulong) mutex, (ulong) os_thread_pf(mutex->thread_id),
+				mutex->file_name, (ulong) mutex->line, buf);
 
 				return(TRUE);
 			}
@@ -686,7 +691,7 @@ sync_array_detect_deadlock(
 							depth);
 			if (ret) {
 				sync_array_cell_print(buf, cell);
-				printf("rw-lock %lx %s ", (ulint) lock, buf);
+				printf("rw-lock %lx %s ", (ulong)  lock, buf);
 				rw_lock_debug_print(debug);
 
 				return(TRUE);
@@ -719,7 +724,7 @@ sync_array_detect_deadlock(
 							depth);
 			if (ret) {
 				sync_array_cell_print(buf, cell);
-				printf("rw-lock %lx %s ", (ulint) lock, buf);
+				printf("rw-lock %lx %s ", (ulong) lock, buf);
 				rw_lock_debug_print(debug);
 
 				return(TRUE);
@@ -972,7 +977,7 @@ sync_array_output_info(
 	
 	buf += sprintf(buf,
 		"OS WAIT ARRAY INFO: reservation count %ld, signal count %ld\n",
-						arr->res_count, arr->sg_count);
+						(long) arr->res_count, (long) arr->sg_count);
 	i = 0;
 	count = 0;
 

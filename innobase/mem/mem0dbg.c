@@ -333,7 +333,7 @@ mem_hash_remove(
 	if (node == NULL) {
 		printf(
     	    "Memory heap or buffer freed in %s line %lu did not exist.\n",
-			file_name, line);
+			file_name, (ulong) line);
 		ut_error;
 	}
 
@@ -348,9 +348,10 @@ mem_hash_remove(
 	if (error) {
 	        printf(
 "Inconsistency in memory heap or buffer n:o %lu created\n",
-							node->nth_heap);
+							(ulong) node->nth_heap);
 		printf("in %s line %lu and tried to free in %s line %lu.\n",
-	  			node->file_name, node->line, file_name, line);
+		       node->file_name, (ulong) node->line,
+		       file_name, (ulong) line);
 
 		printf(
 "Hex dump of 400 bytes around memory heap first block start:\n");
@@ -443,8 +444,8 @@ mem_heap_validate_or_print(
 		    && (mem_block_get_len(block) > UNIV_PAGE_SIZE)) {
 
 			fprintf(stderr,
-"InnoDB: Error: mem block %lx length %lu > UNIV_PAGE_SIZE\n", (ulint)block,
-				     mem_block_get_len(block));
+"InnoDB: Error: mem block %lx length %lu > UNIV_PAGE_SIZE\n", (ulong) block,
+				(ulong) mem_block_get_len(block));
 		    	/* error */
 
 		    	return;
@@ -556,7 +557,8 @@ mem_heap_print(
 				&us_size, &phys_size, &n_blocks);
 	printf(
   "\nheap type: %lu; size: user size %lu; physical size %lu; blocks %lu.\n",
-			heap->type, us_size, phys_size, n_blocks);
+			(ulong) heap->type, (ulong) us_size,
+			(ulong) phys_size, (ulong) n_blocks);
 	ut_a(!error);
 }
 
@@ -894,8 +896,8 @@ mem_analyze_corruption(
 			    if (*((ulint*)p) == MEM_BLOCK_MAGIC_N) {
 				fprintf(stderr,
 			"Mem block at - %lu, file %s, line %lu\n",
-				dist, p + sizeof(ulint),
-				*(ulint*)(p + 8 + sizeof(ulint)));
+				(ulong) dist, (p + sizeof(ulint)),
+				(ulong) (*(ulint*)(p + 8 + sizeof(ulint))));
 
 				break;
 			    }
@@ -903,8 +905,8 @@ mem_analyze_corruption(
 			    if (*((ulint*)p) == MEM_FREED_BLOCK_MAGIC_N) {
 				fprintf(stderr,
 			"Freed mem block at - %lu, file %s, line %lu\n",
-				dist, p + sizeof(ulint),
-				*(ulint*)(p + 8 + sizeof(ulint)));
+				(ulong) dist, (p + sizeof(ulint)),
+				(ulong) (*(ulint*)(p + 8 + sizeof(ulint))));
 
 				break;
 			    }
@@ -931,8 +933,8 @@ mem_analyze_corruption(
 			    if (*((ulint*)p) == MEM_BLOCK_MAGIC_N) {
 				fprintf(stderr,
 			"Mem block at + %lu, file %s, line %lu\n",
-				dist, p + sizeof(ulint),
-				*(ulint*)(p + 8 + sizeof(ulint)));
+				(ulong) dist, (p + sizeof(ulint)),
+				(ulong) (*(ulint*)(p + 8 + sizeof(ulint))));
 
 				break;
 			    }
@@ -940,8 +942,8 @@ mem_analyze_corruption(
 			    if (*((ulint*)p) == MEM_FREED_BLOCK_MAGIC_N) {
 				fprintf(stderr,
 			"Freed mem block at + %lu, file %s, line %lu\n",
-				dist, p + sizeof(ulint),
-				*(ulint*)(p + 8 + sizeof(ulint)));
+				(ulong) dist, (p + sizeof(ulint)),
+				(ulong) (*(ulint*)(p + 8 + sizeof(ulint))));
 
 				break;
 			    }

@@ -61,6 +61,17 @@ public:
     GEOM_GEOMETRYCOLLECTION = 7
   };
   enum imagetype { itRAW, itMBR};
+  enum field_cast_enum
+  {
+    FIELD_CAST_STOP, FIELD_CAST_DECIMAL, FIELD_CAST_TINY, FIELD_CAST_SHORT,
+    FIELD_CAST_MEDIUM, FIELD_CAST_LONG, FIELD_CAST_LONGLONG,
+    FIELD_CAST_FLOAT, FIELD_CAST_DOUBLE,
+    FIELD_CAST_NULL,
+    FIELD_CAST_TIMESTAMP, FIELD_CAST_YEAR, FIELD_CAST_DATE, FIELD_CAST_NEWDATE,
+    FIELD_CAST_TIME, FIELD_CAST_DATETIME,
+    FIELD_CAST_STRING, FIELD_CAST_VARSTRING, FIELD_CAST_BLOB,
+    FIELD_CAST_GEOM, FIELD_CAST_ENUM, FIELD_CAST_SET
+  };
 
   utype		unireg_check;
   uint32	field_length;		// Length of field
@@ -230,6 +241,8 @@ public:
   virtual bool has_charset(void) const { return FALSE; }
   virtual void set_charset(CHARSET_INFO *charset) { }
   void set_warning(const unsigned int level, const unsigned int code);
+  virtual field_cast_enum field_cast_type()= 0;
+  bool field_cast_compatible(field_cast_enum type);
   friend bool reopen_table(THD *,struct st_table *,bool);
   friend int cre_myisam(my_string name, register TABLE *form, uint options,
 			ulonglong auto_increment_value);
@@ -314,11 +327,6 @@ public:
 	       unireg_check_arg, field_name_arg, table_arg,
 	       dec_arg, zero_arg,unsigned_arg)
     {}
-  Field_decimal(uint32 len_arg,bool maybe_null_arg, const char *field_name_arg,
-		struct st_table *table_arg,bool unsigned_arg)
-    :Field_num((char*) 0, len_arg, maybe_null_arg ? (uchar*) "": 0,0,
-	       NONE, field_name_arg, table_arg,0,0,unsigned_arg)
-    {}
   enum_field_types type() const { return FIELD_TYPE_DECIMAL;}
   enum ha_base_keytype key_type() const
   { return zerofill ? HA_KEYTYPE_BINARY : HA_KEYTYPE_NUM; }
@@ -334,6 +342,7 @@ public:
   void overflow(bool negative);
   bool zero_pack() const { return 0; }
   void sql_type(String &str) const;
+  field_cast_enum field_cast_type() { return FIELD_CAST_DECIMAL; }
 };
 
 
@@ -347,11 +356,6 @@ public:
     :Field_num(ptr_arg, len_arg, null_ptr_arg, null_bit_arg,
 	       unireg_check_arg, field_name_arg, table_arg,
 	       0, zero_arg,unsigned_arg)
-    {}
-  Field_tiny(uint32 len_arg,bool maybe_null_arg, const char *field_name_arg,
-	     struct st_table *table_arg,bool unsigned_arg)
-    :Field_num((char*) 0, len_arg, maybe_null_arg ? (uchar*) "": 0,0,
-	       NONE, field_name_arg, table_arg,0,0,unsigned_arg)
     {}
   enum Item_result result_type () const { return INT_RESULT; }
   enum_field_types type() const { return FIELD_TYPE_TINY;}
@@ -369,6 +373,7 @@ public:
   void sort_string(char *buff,uint length);
   uint32 pack_length() const { return 1; }
   void sql_type(String &str) const;
+  field_cast_enum field_cast_type() { return FIELD_CAST_TINY; }
 };
 
 
@@ -404,6 +409,7 @@ public:
   void sort_string(char *buff,uint length);
   uint32 pack_length() const { return 2; }
   void sql_type(String &str) const;
+  field_cast_enum field_cast_type() { return FIELD_CAST_SHORT; }
 };
 
 
@@ -434,6 +440,7 @@ public:
   void sort_string(char *buff,uint length);
   uint32 pack_length() const { return 3; }
   void sql_type(String &str) const;
+  field_cast_enum field_cast_type() { return FIELD_CAST_MEDIUM; }
 };
 
 
@@ -469,6 +476,7 @@ public:
   void sort_string(char *buff,uint length);
   uint32 pack_length() const { return 4; }
   void sql_type(String &str) const;
+  field_cast_enum field_cast_type() { return FIELD_CAST_LONG; }
 };
 
 
@@ -507,6 +515,7 @@ public:
   uint32 pack_length() const { return 8; }
   void sql_type(String &str) const;
   bool store_for_compare() { return 1; }
+  field_cast_enum field_cast_type() { return FIELD_CAST_LONGLONG; }
 };
 #endif
 
@@ -540,6 +549,7 @@ public:
   void sort_string(char *buff,uint length);
   uint32 pack_length() const { return sizeof(float); }
   void sql_type(String &str) const;
+  field_cast_enum field_cast_type() { return FIELD_CAST_FLOAT; }
 };
 
 
@@ -573,6 +583,7 @@ public:
   void sort_string(char *buff,uint length);
   uint32 pack_length() const { return sizeof(double); }
   void sql_type(String &str) const;
+  field_cast_enum field_cast_type() { return FIELD_CAST_DOUBLE; }
 };
 
 
@@ -587,13 +598,9 @@ public:
     :Field_str(ptr_arg, len_arg, null, 1,
 	       unireg_check_arg, field_name_arg, table_arg, cs)
     {}
-  Field_null(uint32 len_arg, const char *field_name_arg,
-	     struct st_table *table_arg, CHARSET_INFO *cs)
-    :Field_str((char*) 0, len_arg, null, 1,
-	       NONE, field_name_arg, table_arg, cs)
-    {}
   enum_field_types type() const { return FIELD_TYPE_NULL;}
-  int  store(const char *to, uint length, CHARSET_INFO *cs) { null[0]=1; return 0; }
+  int  store(const char *to, uint length, CHARSET_INFO *cs)
+  { null[0]=1; return 0; }
   int  store(double nr)   { null[0]=1; return 0; }
   int  store(longlong nr) { null[0]=1; return 0; }
   void reset(void)	  {}
@@ -606,6 +613,7 @@ public:
   uint32 pack_length() const { return 0; }
   void sql_type(String &str) const;
   uint size_of() const { return sizeof(*this); }
+  field_cast_enum field_cast_type() { return FIELD_CAST_NULL; }
 };
 
 
@@ -649,6 +657,7 @@ public:
   }
   bool get_date(TIME *ltime,uint fuzzydate);
   bool get_time(TIME *ltime);
+  field_cast_enum field_cast_type() { return FIELD_CAST_TIMESTAMP; }
 };
 
 
@@ -661,10 +670,6 @@ public:
     :Field_tiny(ptr_arg, len_arg, null_ptr_arg, null_bit_arg,
 		unireg_check_arg, field_name_arg, table_arg, 1, 1)
     {}
-  Field_year(uint32 len_arg,bool maybe_null_arg, const char *field_name_arg,
-	     struct st_table *table_arg)
-    :Field_tiny(len_arg,maybe_null_arg,field_name_arg,table_arg,1)
-    {}
   enum_field_types type() const { return FIELD_TYPE_YEAR;}
   int  store(const char *to,uint length,CHARSET_INFO *charset);
   int  store(double nr);
@@ -674,6 +679,7 @@ public:
   String *val_str(String*,String *);
   bool send_binary(Protocol *protocol);
   void sql_type(String &str) const;
+  field_cast_enum field_cast_type() { return FIELD_CAST_YEAR; }
 };
 
 
@@ -706,6 +712,7 @@ public:
   void sql_type(String &str) const;
   bool store_for_compare() { return 1; }
   bool zero_pack() const { return 1; }
+  field_cast_enum field_cast_type() { return FIELD_CAST_DATE; }
 };
 
 class Field_newdate :public Field_str {
@@ -737,6 +744,7 @@ public:
   bool zero_pack() const { return 1; }
   bool get_date(TIME *ltime,uint fuzzydate);
   bool get_time(TIME *ltime);
+  field_cast_enum field_cast_type() { return FIELD_CAST_NEWDATE; }
 };
 
 
@@ -770,6 +778,7 @@ public:
   void sql_type(String &str) const;
   bool store_for_compare() { return 1; }
   bool zero_pack() const { return 1; }
+  field_cast_enum field_cast_type() { return FIELD_CAST_TIME; }
 };
 
 
@@ -807,6 +816,7 @@ public:
   bool zero_pack() const { return 1; }
   bool get_date(TIME *ltime,uint fuzzydate);
   bool get_time(TIME *ltime);
+  field_cast_enum field_cast_type() { return FIELD_CAST_DATETIME; }
 };
 
 
@@ -851,6 +861,7 @@ public:
   uint size_of() const { return sizeof(*this); }
   enum_field_types real_type() const { return FIELD_TYPE_STRING; }
   bool has_charset(void) const { return TRUE; }
+  field_cast_enum field_cast_type() { return FIELD_CAST_STRING; }
 };
 
 
@@ -861,11 +872,14 @@ public:
 		  enum utype unireg_check_arg, const char *field_name_arg,
 		  struct st_table *table_arg, CHARSET_INFO *cs)
     :Field_str(ptr_arg, len_arg, null_ptr_arg, null_bit_arg,
-	       unireg_check_arg, field_name_arg, table_arg, cs) {};
-  Field_varstring(uint32 len_arg,bool maybe_null_arg, const char *field_name_arg,
+	       unireg_check_arg, field_name_arg, table_arg, cs)
+  {}
+  Field_varstring(uint32 len_arg,bool maybe_null_arg,
+		  const char *field_name_arg,
 		  struct st_table *table_arg, CHARSET_INFO *cs)
     :Field_str((char*) 0,len_arg, maybe_null_arg ? (uchar*) "": 0,0,
-	       NONE, field_name_arg, table_arg, cs) {};
+	       NONE, field_name_arg, table_arg, cs)
+  {}
 
   enum_field_types type() const { return FIELD_TYPE_VAR_STRING; }
   enum ha_base_keytype key_type() const
@@ -894,6 +908,7 @@ public:
   uint size_of() const { return sizeof(*this); }
   enum_field_types real_type() const { return FIELD_TYPE_VAR_STRING; }
   bool has_charset(void) const { return TRUE; }
+  field_cast_enum field_cast_type() { return FIELD_CAST_VARSTRING; }
 };
 
 
@@ -911,10 +926,10 @@ public:
 	     struct st_table *table_arg, CHARSET_INFO *cs)
     :Field_str((char*) 0,len_arg, maybe_null_arg ? (uchar*) "": 0,0,
 	       NONE, field_name_arg, table_arg, cs),
-    geom_flag(true), packlength(3)
-    {
-      flags|= BLOB_FLAG;
-    }
+    geom_flag(true), packlength(4)
+  {
+    flags|= BLOB_FLAG;
+  }
   enum_field_types type() const { return FIELD_TYPE_BLOB;}
   enum ha_base_keytype key_type() const
     { return binary() ? HA_KEYTYPE_VARBINARY : HA_KEYTYPE_VARTEXT; }
@@ -983,6 +998,7 @@ public:
   uint size_of() const { return sizeof(*this); }
   bool has_charset(void) const
   { return charset() == &my_charset_bin ? FALSE : TRUE; }
+  field_cast_enum field_cast_type() { return FIELD_CAST_BLOB; }
 };
 
 
@@ -1011,6 +1027,7 @@ public:
 
   void get_key_image(char *buff,uint length, CHARSET_INFO *cs,imagetype type);
   void set_key_image(char *buff,uint length, CHARSET_INFO *cs);
+  field_cast_enum field_cast_type() { return FIELD_CAST_GEOM; }
 };
 
 
@@ -1052,6 +1069,7 @@ public:
   bool optimize_range(uint idx) { return 0; }
   bool eq_def(Field *field);
   bool has_charset(void) const { return TRUE; }
+  field_cast_enum field_cast_type() { return FIELD_CAST_ENUM; }
 };
 
 
@@ -1077,6 +1095,7 @@ public:
   void sql_type(String &str) const;
   enum_field_types real_type() const { return FIELD_TYPE_SET; }
   bool has_charset(void) const { return TRUE; }
+  field_cast_enum field_cast_type() { return FIELD_CAST_SET; }
 };
 
 
