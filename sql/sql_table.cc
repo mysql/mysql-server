@@ -870,7 +870,8 @@ static int send_check_errmsg(THD* thd, TABLE_LIST* table,
   return 1;
 }
 
-static int prepare_for_restore(THD* thd, TABLE_LIST* table)
+static int prepare_for_restore(THD* thd, TABLE_LIST* table,
+    HA_CHECK_OPT *check_opt)
 {
   DBUG_ENTER("prepare_for_restore");
 
@@ -919,6 +920,57 @@ static int prepare_for_restore(THD* thd, TABLE_LIST* table)
   DBUG_RETURN(0);
 }
 
+static int prepare_for_repair(THD* thd, TABLE_LIST* table,
+    HA_CHECK_OPT *check_opt)
+{
+  DBUG_ENTER("prepare_for_repair");
+
+  if (!(check_opt->sql_flags & TT_USEFRM))
+  {
+    DBUG_RETURN(0);
+  }
+  else
+  {
+
+    char from[FN_REFLEN],to[FN_REFLEN];
+    char* db = thd->db ? thd->db : table->db;
+
+    sprintf(from, "%s/%s/%s", mysql_real_data_home, db, table->name);
+    fn_format(from, from, "", MI_NAME_DEXT, 4);
+    sprintf(to,"%s-%lx_%lx", from, current_pid, thd->thread_id);
+
+
+    my_rename(to, from, MYF(MY_WME));
+
+    if (lock_and_wait_for_table_name(thd,table))
+      DBUG_RETURN(-1);
+
+    if (my_rename(from, to, MYF(MY_WME)))
+    {
+      unlock_table_name(thd, table);
+      DBUG_RETURN(send_check_errmsg(thd, table, "repair",
+				    "Failed renaming .MYD file"));
+    }
+    if (mysql_truncate(thd, table, 1))
+    {
+      unlock_table_name(thd, table);
+      DBUG_RETURN(send_check_errmsg(thd, table, "repair",
+				    "Failed generating table from .frm file"));
+    }
+    if (my_rename(to, from, MYF(MY_WME)))
+    {
+      unlock_table_name(thd, table);
+      DBUG_RETURN(send_check_errmsg(thd, table, "repair",
+				    "Failed restoring .MYD file"));
+    }
+  }
+
+  // now we should be able to open the partially repaired table
+  // to finish the repair in the handler later on
+  if (!(table->table = reopen_name_locked_table(thd, table)))
+     unlock_table_name(thd, table);
+  DBUG_RETURN(0);
+}
 
 static int mysql_admin_table(THD* thd, TABLE_LIST* tables,
 			     HA_CHECK_OPT* check_opt,
@@ -926,7 +978,7 @@ static int mysql_admin_table(THD* thd, TABLE_LIST* tables,
 			     thr_lock_type lock_type,
 			     bool open_for_modify,
 			     uint extra_open_options,
-                             int (*prepare_func)(THD *, TABLE_LIST *),
+                     int (*prepare_func)(THD *, TABLE_LIST *, HA_CHECK_OPT *),
 			     int (handler::*operator_func)
 			     (THD *, HA_CHECK_OPT *))
 {
@@ -960,7 +1012,7 @@ static int mysql_admin_table(THD* thd, TABLE_LIST* tables,
     packet->length(0);
     if (prepare_func)
     {
-      switch ((*prepare_func)(thd, table)) {
+      switch ((*prepare_func)(thd, table, check_opt)) {
         case  1: continue; // error, message written to net
         case -1: goto err; // error, message could be written to net
         default:         ; // should be 0 otherwise
@@ -1106,7 +1158,8 @@ int mysql_repair_table(THD* thd, TABLE_LIST* tables, HA_CHECK_OPT* check_opt)
 {
   DBUG_ENTER("mysql_repair_table");
   DBUG_RETURN(mysql_admin_table(thd, tables, check_opt,
-				"repair", TL_WRITE, 1, HA_OPEN_FOR_REPAIR, 0,
+				"repair", TL_WRITE, 1, HA_OPEN_FOR_REPAIR,
+                                &prepare_for_repair,
 				&handler::repair));
 }
 
