@@ -2835,6 +2835,7 @@ struct show_var_st init_vars[]= {
   {"log_update",              (char*) &opt_update_log,              SHOW_BOOL},
   {"log_bin",                 (char*) &opt_bin_log,                 SHOW_BOOL},
   {"log_slave_updates",       (char*) &opt_log_slave_updates,       SHOW_BOOL},
+  {"log_long_queries",        (char*) &opt_slow_log,                SHOW_BOOL},
   {"long_query_time",         (char*) &long_query_time,             SHOW_LONG},
   {"low_priority_updates",    (char*) &low_priority_updates,        SHOW_BOOL},
   {"lower_case_table_names",  (char*) &lower_case_table_names,      SHOW_LONG},
