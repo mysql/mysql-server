@@ -1529,7 +1529,7 @@ bool st_select_lex::setup_ref_array(THD *thd, uint order_group_num)
 */
 bool st_select_lex_unit::check_updateable(char *db, char *table)
 {
-  for(SELECT_LEX *sl= first_select(); sl; sl= sl->next_select())
+  for (SELECT_LEX *sl= first_select(); sl; sl= sl->next_select())
     if (sl->check_updateable(db, table))
       return 1;
   return 0;
