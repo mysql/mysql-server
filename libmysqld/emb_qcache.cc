@@ -284,11 +284,18 @@ uint emb_count_querycache_size(THD *thd)
   MYSQL *mysql= thd->mysql;
   MYSQL_FIELD *field= mysql->fields;
   MYSQL_FIELD *field_end= field + mysql->field_count;
+  MYSQL_ROWS *cur_row=NULL;
+  my_ulonglong n_rows=0;
   
-  *thd->data->prev_ptr= NULL; // this marks the last record
-  MYSQL_ROWS *cur_row= thd->data->data;
-
-  result= 4+8 + (42 + 4*thd->data->rows)*mysql->field_count;
+  if (!field)
+    return 0;
+  if (thd->data)
+  {
+    *thd->data->prev_ptr= NULL; // this marks the last record
+    cur_row= thd->data->data;
+    n_rows= thd->data->rows;
+  }
+  result= 4+8 + (42 + 4*n_rows)*mysql->field_count;
 
   for(; field < field_end; field++)
   {
@@ -315,12 +322,21 @@ void emb_store_querycache_result(Querycache_stream *dst, THD *thd)
   MYSQL *mysql= thd->mysql;
   MYSQL_FIELD *field= mysql->fields;
   MYSQL_FIELD *field_end= field + mysql->field_count;
-  
-  *thd->data->prev_ptr= NULL; // this marks the last record
-  MYSQL_ROWS *cur_row= thd->data->data;
+  MYSQL_ROWS *cur_row= NULL;
+  my_ulonglong n_rows= 0;
+
+  if (!field)
+    return;
+
+  if (thd->data)
+  {
+    *thd->data->prev_ptr= NULL; // this marks the last record
+    cur_row= thd->data->data;
+    n_rows= thd->data->rows;
+  }
 
   dst->store_int((uint)mysql->field_count);
-  dst->store_ll((uint)thd->data->rows);
+  dst->store_ll((uint)n_rows);
 
   for(; field < field_end; field++)
   {
