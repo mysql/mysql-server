@@ -271,3 +271,4 @@
 "Illegal mix of collations for operation '%s'",
 "Variable '%-.64s' is not a variable component (Can't be used as XXXX.variable_name)",
 "Unknown collation: '%-.64s'",
+"Server is running in --secure-auth mode, but '%s@%s' has a password in the old format; please change the password to the new format"

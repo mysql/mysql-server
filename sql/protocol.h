@@ -164,6 +164,7 @@ void net_printf(THD *thd,uint sql_errno, ...);
 void send_ok(THD *thd, ha_rows affected_rows=0L, ulonglong id=0L,
 	     const char *info=0);
 void send_eof(THD *thd, bool no_flush=0);
+bool send_old_password_request(THD *thd);
 char *net_store_length(char *packet,ulonglong length);
 char *net_store_length(char *packet,uint length);
 char *net_store_data(char *to,const char *from, uint length);
