@@ -526,8 +526,22 @@ innobase_init(void)
 {
 	int		err;
 	bool		ret;
-
+	char 	        current_lib[2], *default_path;
   	DBUG_ENTER("innobase_init");
+
+	/*
+	  When using the embedded server, the datadirectory is not
+	  in the current directory.
+	*/
+	if (!mysql_embedded)
+	  default_path=mysql_real_data_home;
+	else
+	{
+	  /* It's better to use current lib, to keep path's short */
+	  current_lib[0]=FN_CURLIB;
+	  current_lib[1]=FN_LIBCHAR;
+	  default_path=current_lib;
+	}
 
 	if (specialflag & SPECIAL_NO_PRIOR) {
 	        srv_set_thread_priorities = FALSE;
@@ -544,10 +558,10 @@ innobase_init(void)
 						   MYF(MY_WME));
 
 	srv_data_home = (innobase_data_home_dir ? innobase_data_home_dir :
-			 mysql_real_data_home);
+			 default_path);
 	srv_logs_home = (char*) "";
 	srv_arch_dir =  (innobase_log_arch_dir ? innobase_log_arch_dir :
-			 mysql_real_data_home);
+			 default_path);
 
 	ret = innobase_parse_data_file_paths_and_sizes();
 
@@ -557,7 +571,7 @@ innobase_init(void)
 	}
 
 	if (!innobase_log_group_home_dir)
-	  innobase_log_group_home_dir= mysql_real_data_home;
+	  innobase_log_group_home_dir= default_path;
 	ret = innobase_parse_log_group_home_dirs();
 
 	if (ret == FALSE) {
