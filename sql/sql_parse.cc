@@ -1840,8 +1840,14 @@ mysql_execute_command(void)
     break;
   }
   case SQLCOM_UPDATE:
-    if (check_access(thd,UPDATE_ACL,tables->db,&tables->grant.privilege))
+    TABLE_LIST *table;
+    if (check_db_used(thd,tables))
       goto error;
+    for (table=tables ; table ; table=table->next)
+    {
+      if (check_access(thd,UPDATE_ACL,table->db,&table->grant.privilege))
+	goto error;
+    }
     if (grant_option && check_grant(thd,UPDATE_ACL,tables))
       goto error;
     if (select_lex->item_list.elements != lex->value_list.elements)
