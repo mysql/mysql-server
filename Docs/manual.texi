@@ -2080,6 +2080,12 @@ All things about connecting to the MySQL server with ODBC.
 @item @email{myodbc-digest-subscribe@@lists.mysql.com} myodbc-digest
 A digest version of the @code{myodbc} list.
 
+@item @email{mycc-subscribe@@lists.mysql.com} mycc
+All things about the MySQL MyCC graphical client.
+
+@item @email{mycc-digest-subscribe@@lists.mysql.com} mycc-digest
+A digest version of the @code{mycc} list.
+
 @item @email{plusplus-subscribe@@lists.mysql.com} plusplus
 All things concerning programming with the C++ API to MySQL.
 
