@@ -2255,7 +2255,18 @@ convert_search_mode_to_innobase(
 		case HA_READ_AFTER_KEY:		return(PAGE_CUR_G);
 		case HA_READ_BEFORE_KEY:	return(PAGE_CUR_L);
 		case HA_READ_PREFIX:		return(PAGE_CUR_GE);
-          	case HA_READ_PREFIX_LAST:       return(PAGE_CUR_LE_OR_EXTENDS);
+	        case HA_READ_PREFIX_LAST:       return(PAGE_CUR_LE);
+		  /*  TODO: 1) this should really be
+		      return(PAGE_CUR_LE_OR_EXTENDS); but since MySQL uses
+		      a wrong flag in search, we convert this to PAGE_CUR_LE;
+		      2) if the character set is not latin1, then InnoDB
+		      uses a MySQL function innobase_mysql_cmp() to
+		      compare CHAR and VARCHAR strings; since that function
+		      does not return the number of matched bytes,
+		      PAGE_CUR_LE_OR_EXTENDS does not currently work: we
+		      should probably write my_sortncmp_with_n_matcehd_bytes()
+		      to determine if a field 'extends' another;
+		      see dev-public discussion on Feb 7th, 2003 */
 		default:			assert(0);
 	}
 
