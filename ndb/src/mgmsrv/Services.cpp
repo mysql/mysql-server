@@ -579,7 +579,7 @@ MgmApiSession::insertError(Parser<MgmApiSession>::Context &,
 
   m_output->println("insert error reply");
   if(result != 0)
-    m_output->println("result: %s", m_mgmsrv.getErrorText(result));
+    m_output->println("result: %s", get_error_text(result));
   else
     m_output->println("result: Ok");
   m_output->println("");
@@ -597,7 +597,7 @@ MgmApiSession::setTrace(Parser<MgmApiSession>::Context &,
 
   m_output->println("set trace reply");
   if(result != 0)
-    m_output->println("result: %s", m_mgmsrv.getErrorText(result));
+    m_output->println("result: %s", get_error_text(result));
   else
     m_output->println("result: Ok");
   m_output->println("");
@@ -665,7 +665,7 @@ MgmApiSession::startBackup(Parser<MgmApiSession>::Context &,
 
   m_output->println("start backup reply");
   if(result != 0)
-    m_output->println("result: %s(%d)", m_mgmsrv.getErrorText(result), result);
+    m_output->println("result: %s(%d)", get_error_text(result), result);
   else{
     m_output->println("result: Ok");
     m_output->println("id: %d", backupId);
@@ -685,7 +685,7 @@ MgmApiSession::startBackup(Parser<MgmApiSession>::Context &,
 
   m_output->println("start backup reply");
   if(result != 0)
-    m_output->println("result: %s", m_mgmsrv.getErrorText(result));
+    m_output->println("result: %s", get_error_text(result));
   else{
     m_output->println("result: Ok");
     m_output->println("id: %d", backupId);
@@ -705,7 +705,7 @@ MgmApiSession::abortBackup(Parser<MgmApiSession>::Context &,
 
   m_output->println("abort backup reply");
   if(result != 0)
-    m_output->println("result: %s", m_mgmsrv.getErrorText(result));
+    m_output->println("result: %s", get_error_text(result));
   else
     m_output->println("result: Ok");
   m_output->println("");
@@ -727,7 +727,7 @@ MgmApiSession::repCommand(Parser<MgmApiSession>::Context &,
   
   m_output->println("global replication reply");
   if(result != 0)
-    m_output->println("result: %s", m_mgmsrv.getErrorText(result));
+    m_output->println("result: %s", get_error_text(result));
   else{
     m_output->println("result: Ok");
     m_output->println("id: %d", repReqId);
@@ -749,7 +749,7 @@ MgmApiSession::dumpState(Parser<MgmApiSession>::Context &,
   int result = m_mgmsrv.dumpState(node, args_str.c_str());
   m_output->println("dump state reply");
   if(result != 0)
-    m_output->println("result: %s", m_mgmsrv.getErrorText(result));
+    m_output->println("result: %s", get_error_text(result));
   else
     m_output->println("result: Ok");
   m_output->println("");
@@ -834,7 +834,7 @@ MgmApiSession::stopSignalLog(Parser<MgmApiSession>::Context &,
 
   m_output->println("stop signallog");
   if(result != 0)
-    m_output->println("result: %s", m_mgmsrv.getErrorText(result));
+    m_output->println("result: %s", get_error_text(result));
   else
     m_output->println("result: Ok");
   m_output->println("");
@@ -874,7 +874,7 @@ MgmApiSession::restart(Parser<MgmApiSession>::Context &,
   
   m_output->println("restart reply");
   if(result != 0){
-    m_output->println("result: %d-%s", result, m_mgmsrv.getErrorText(result));
+    m_output->println("result: %d-%s", result, get_error_text(result));
   } else
     m_output->println("result: Ok");
   m_output->println("restarted: %d", restarted);
@@ -898,7 +898,7 @@ MgmApiSession::restartAll(Parser<MgmApiSession>::Context &,
 
   m_output->println("restart reply");
   if(result != 0)
-    m_output->println("result: %s", m_mgmsrv.getErrorText(result));
+    m_output->println("result: %s", get_error_text(result));
   else
     m_output->println("result: Ok");
   m_output->println("restarted: %d", count);
@@ -1029,7 +1029,7 @@ MgmApiSession::stop(Parser<MgmApiSession>::Context &,
 
   m_output->println("stop reply");
   if(result != 0)
-    m_output->println("result: %s", m_mgmsrv.getErrorText(result));
+    m_output->println("result: %s", get_error_text(result));
   else
     m_output->println("result: Ok");
   m_output->println("stopped: %d", stopped);
@@ -1051,7 +1051,7 @@ MgmApiSession::stopAll(Parser<MgmApiSession>::Context &,
 
   m_output->println("stop reply");
   if(result != 0)
-    m_output->println("result: %s", m_mgmsrv.getErrorText(result));
+    m_output->println("result: %s", get_error_text(result));
   else
     m_output->println("result: Ok");
   m_output->println("stopped: %d", stopped);
@@ -1067,7 +1067,7 @@ MgmApiSession::enterSingleUser(Parser<MgmApiSession>::Context &,
   int result = m_mgmsrv.enterSingleUser(&stopped, nodeId);
   m_output->println("enter single user reply");
   if(result != 0) {
-    m_output->println("result: %s", m_mgmsrv.getErrorText(result));
+    m_output->println("result: %s", get_error_text(result));
   }
   else {
     m_output->println("result: Ok");
@@ -1082,7 +1082,7 @@ MgmApiSession::exitSingleUser(Parser<MgmApiSession>::Context &,
   int result = m_mgmsrv.exitSingleUser(&stopped, false);
   m_output->println("exit single user reply");
   if(result != 0)
-    m_output->println("result: %s", m_mgmsrv.getErrorText(result));
+    m_output->println("result: %s", get_error_text(result));
   else
     m_output->println("result: Ok");
   m_output->println("");
@@ -1100,7 +1100,7 @@ MgmApiSession::startSignalLog(Parser<MgmApiSession>::Context &,
 
   m_output->println("start signallog reply");
   if(result != 0)
-    m_output->println("result: %s", m_mgmsrv.getErrorText(result));
+    m_output->println("result: %s", get_error_text(result));
   else
     m_output->println("result: Ok");
   m_output->println("");
@@ -1145,7 +1145,7 @@ MgmApiSession::logSignals(Parser<MgmApiSession>::Context &,
 
   m_output->println("log signals reply");
   if(result != 0)
-    m_output->println("result: %s", m_mgmsrv.getErrorText(result));
+    m_output->println("result: %s", get_error_text(result));
   else
     m_output->println("result: Ok");
   m_output->println("");
@@ -1162,7 +1162,7 @@ MgmApiSession::start(Parser<MgmApiSession>::Context &,
 
   m_output->println("start reply");
   if(result != 0)
-    m_output->println("result: %s", m_mgmsrv.getErrorText(result));
+    m_output->println("result: %s", get_error_text(result));
   else
     m_output->println("result: Ok");
   m_output->println("");
