@@ -3492,7 +3492,7 @@ int ndb_discover_tables()
   dict= g_ndb->getDictionary();
   if (dict->listObjects(list, 
 			NdbDictionary::Object::UserTable) != 0)
-    ERR_RETURN(g_ndb->getNdbError());
+    ERR_RETURN(dict->getNdbError());
   
   for (i= 0 ; i < list.count ; i++)
   {
@@ -3514,6 +3514,7 @@ int ndb_discover_tables()
 
 bool ndbcluster_init()
 {
+  int res;
   DBUG_ENTER("ndbcluster_init");
   // Set connectstring if specified
   if (ndbcluster_connectstring != 0)
@@ -3524,11 +3525,7 @@ bool ndbcluster_init()
     DBUG_PRINT("error",("Ndb_cluster_connection(%s)",ndbcluster_connectstring));
     DBUG_RETURN(TRUE);
   }
-  if (g_ndb_cluster_connection->start_connect_thread())
-  {
-    DBUG_PRINT("error", ("g_ndb_cluster_connection->start_connect_thread()"));
-    DBUG_RETURN(TRUE);
-  }
+
   // Create a Ndb object to open the connection  to NDB
   g_ndb= new Ndb(g_ndb_cluster_connection, "sys");
   if (g_ndb->init() != 0)
@@ -3536,6 +3533,23 @@ bool ndbcluster_init()
     ERR_PRINT (g_ndb->getNdbError());
     DBUG_RETURN(TRUE);
   }
+
+  if ((res= g_ndb_cluster_connection->connect(1)) == 0)
+  {
+    g_ndb->waitUntilReady(10);
+  } 
+  else if(res == 1 && g_ndb_cluster_connection->start_connect_thread())
+  {
+    DBUG_PRINT("error", ("g_ndb_cluster_connection->start_connect_thread()"));
+    DBUG_RETURN(TRUE);
+  }
+  else 
+  {
+    DBUG_ASSERT(res == -1);
+    DBUG_PRINT("error", ("permanent error"));
+    DBUG_RETURN(TRUE);
+  }
+  
   (void) hash_init(&ndbcluster_open_tables,system_charset_info,32,0,0,
                    (hash_get_key) ndbcluster_get_key,0,0);
   pthread_mutex_init(&ndbcluster_mutex,MY_MUTEX_INIT_FAST);
@@ -3558,7 +3572,8 @@ bool ndbcluster_end()
 {
   DBUG_ENTER("ndbcluster_end");
 
-  delete g_ndb;
+  if(g_ndb)
+    delete g_ndb;
   g_ndb= NULL;
   if (g_ndb_cluster_connection)
     delete g_ndb_cluster_connection;
