@@ -120,7 +120,7 @@ int mysql_update(THD *thd,
   bool		used_key_is_modified, transactional_table, log_delayed;
   int           res;
   int		error=0;
-  uint		used_index;
+  uint		used_index= MAX_KEY;
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   uint		want_privilege;
 #endif
@@ -134,7 +134,6 @@ int mysql_update(THD *thd,
   SELECT_LEX    *select_lex= &thd->lex->select_lex;
   DBUG_ENTER("mysql_update");
 
-  LINT_INIT(used_index);
   LINT_INIT(timestamp_query_id);
 
   if (open_tables(thd, table_list, &table_count))
@@ -273,7 +272,7 @@ int mysql_update(THD *thd,
       matching rows before updating the table!
     */
     table->file->extra(HA_EXTRA_RETRIEVE_ALL_COLS);
-    if ( (used_index != MAX_KEY) && old_used_keys.is_set(used_index))
+    if (used_index < MAX_KEY && old_used_keys.is_set(used_index))
     {
       table->key_read=1;
       table->file->extra(HA_EXTRA_KEYREAD);

@@ -2519,6 +2519,9 @@ String* Item_func_export_set::val_str(String* str)
   case 3:
     sep_buf.set(",", 1, default_charset());
     sep = &sep_buf;
+    break;
+  default:
+    DBUG_ASSERT(0); // cannot happen
   }
   null_value=0;
 
