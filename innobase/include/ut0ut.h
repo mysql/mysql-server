@@ -17,6 +17,18 @@ Created 1/20/1994 Heikki Tuuri
 
 typedef time_t	ib_time_t;
 
+
+/************************************************************
+Uses vsprintf to emulate sprintf so that the function always returns
+the printed length. Apparently in some old SCO Unixes sprintf did not
+return the printed length but a pointer to the end of the printed string. */
+
+ulint
+ut_sprintf(
+/*=======*/
+        char*       buf,     /* in/out: buffer where to print */
+        const char* format,  /* in: format of prints */
+        ...);                /* in: arguments to be printed */
 /************************************************************
 Gets the high 32 bits in a ulint. That is makes a shift >> 32,
 but since there seem to be compiler bugs in both gcc and Visual C++,

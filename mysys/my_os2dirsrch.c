@@ -26,10 +26,10 @@
 
 long  _findfirst( char* path, struct _finddata_t* dos_file)
 {
-   HDIR           hdir = HDIR_CREATE;
-   APIRET         rc;
+   HDIR		  hdir = HDIR_CREATE;
+   APIRET	  rc;
    FILEFINDBUF3   buf3;
-   ULONG          entries = 1;
+   ULONG	  entries = 1;
 
 #ifdef _DEBUG
    printf( "_findfirst path %s\n", path);
@@ -37,13 +37,13 @@ long  _findfirst( char* path, struct _finddata_t* dos_file)
 
    memset( &buf3, 0, sizeof( buf3));
    rc = DosFindFirst(
-               path,  /*  Address of the ASCIIZ path name of the file or subdirectory to be found. */
-               &hdir,        /*  Address of the handle associated with this DosFindFirst request. */
-               FILE_NORMAL | FILE_DIRECTORY,  /*  Attribute value that determines the file objects to be searched for. */
-               &buf3,     /*  Result buffer. */
-               sizeof( buf3),        /*  The length, in bytes, of pfindbuf. */
-               &entries,  /*  Pointer to the number of entries: */
-               FIL_STANDARD);  /*  The level of file information required. */
+	       path,  /*  Address of the ASCIIZ path name of the file or subdirectory to be found. */
+	       &hdir,	     /*  Address of the handle associated with this DosFindFirst request. */
+	       FILE_NORMAL | FILE_DIRECTORY,  /*  Attribute value that determines the file objects to be searched for. */
+	       &buf3,	  /*  Result buffer. */
+	       sizeof( buf3),	     /*  The length, in bytes, of pfindbuf. */
+	       &entries,  /*  Pointer to the number of entries: */
+	       FIL_STANDARD);  /*  The level of file information required. */
 
 #ifdef _DEBUG
    printf( "_findfirst rc=%d hdir=%d entries=%d->%s\n", rc, hdir, entries, buf3.achName);
@@ -64,16 +64,16 @@ long  _findfirst( char* path, struct _finddata_t* dos_file)
 
 long  _findnext( long hdir, struct _finddata_t* dos_file)
 {
-   APIRET         rc;
+   APIRET	  rc;
    FILEFINDBUF3   buf3;
-   ULONG          entries = 1;
+   ULONG	  entries = 1;
 
    memset( &buf3, 0, sizeof( buf3));
    rc = DosFindNext(
-               hdir,
-               &buf3,     /*  Result buffer. */
-               sizeof( buf3),        /*  The length, in bytes, of pfindbuf. */
-               &entries);  /*  Pointer to the number of entries: */
+	       hdir,
+	       &buf3,	  /*  Result buffer. */
+	       sizeof( buf3),	     /*  The length, in bytes, of pfindbuf. */
+	       &entries);  /*  Pointer to the number of entries: */
 
 #ifdef _DEBUG
    printf( "_findnext rc=%d hdir=%d entries=%d->%s\n", rc, hdir, entries, buf3.achName);
@@ -93,7 +93,7 @@ long  _findnext( long hdir, struct _finddata_t* dos_file)
 
 void  _findclose( long hdir)
 {
-   APIRET         rc;
+   APIRET	  rc;
 
    rc = DosFindClose( hdir);
 #ifdef _DEBUG
@@ -105,8 +105,8 @@ DIR* opendir( char* path)
 {
    DIR* dir = (DIR*) calloc( 1, sizeof( DIR));
    char buffer[260];
-   APIRET         rc;
-   ULONG          entries = 1;
+   APIRET	  rc;
+   ULONG	  entries = 1;
 
    strcpy( buffer, path);
    strcat( buffer, "*.*");
@@ -118,13 +118,13 @@ DIR* opendir( char* path)
    dir->hdir = HDIR_CREATE;
    memset( &dir->buf3, 0, sizeof( dir->buf3));
    rc = DosFindFirst(
-               buffer,  /*  Address of the ASCIIZ path name of the file or subdirectory to be found. */
-               &dir->hdir,        /*  Address of the handle associated with this DosFindFirst request. */
-               FILE_NORMAL | FILE_DIRECTORY,  /*  Attribute value that determines the file objects to be searched for. */
-               &dir->buf3,     /*  Result buffer. */
-               sizeof( dir->buf3),        /*  The length, in bytes, of pfindbuf. */
-               &entries,  /*  Pointer to the number of entries: */
-               FIL_STANDARD);  /*  The level of file information required. */
+	       buffer,	/*  Address of the ASCIIZ path name of the file or subdirectory to be found. */
+	       &dir->hdir,	  /*  Address of the handle associated with this DosFindFirst request. */
+	       FILE_NORMAL | FILE_DIRECTORY,  /*  Attribute value that determines the file objects to be searched for. */
+	       &dir->buf3,     /*  Result buffer. */
+	       sizeof( dir->buf3),	  /*  The length, in bytes, of pfindbuf. */
+	       &entries,  /*  Pointer to the number of entries: */
+	       FIL_STANDARD);  /*  The level of file information required. */
 
 #ifdef _DEBUG
    printf( "opendir rc=%d hdir=%d entries=%d->%s\n", rc, dir->hdir, entries, dir->buf3.achName);
@@ -138,9 +138,9 @@ DIR* opendir( char* path)
 
 struct dirent* readdir( DIR* dir)
 {
-   APIRET         rc;
+   APIRET	  rc;
    //FILEFINDBUF3   buf3;
-   ULONG          entries = 1;
+   ULONG	  entries = 1;
 
    if (!dir->buf3.achName[0]) // file not found on previous query
       return NULL;
@@ -151,10 +151,10 @@ struct dirent* readdir( DIR* dir)
    // query next file
    memset( &dir->buf3, 0, sizeof( dir->buf3));
    rc = DosFindNext(
-               dir->hdir,
-               &dir->buf3,     /*  Result buffer. */
-               sizeof( dir->buf3),        /*  The length, in bytes, of pfindbuf. */
-               &entries);  /*  Pointer to the number of entries: */
+	       dir->hdir,
+	       &dir->buf3,     /*  Result buffer. */
+	       sizeof( dir->buf3),	  /*  The length, in bytes, of pfindbuf. */
+	       &entries);  /*  Pointer to the number of entries: */
 
 #ifdef _DEBUG
    printf( "_findnext rc=%d hdir=%d entries=%d->%s\n", rc, dir->hdir, entries, dir->buf3.achName);
@@ -168,7 +168,7 @@ struct dirent* readdir( DIR* dir)
 
 int closedir (DIR *dir)
 {
-   APIRET         rc;
+   APIRET	  rc;
 
    rc = DosFindClose( dir->hdir);
 #ifdef _DEBUG

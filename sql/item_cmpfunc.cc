@@ -501,12 +501,12 @@ Item_func_if::fix_length_and_dec()
   if (null1)
   {
     cached_result_type= arg2_type;
-    binary= args[1]->binary;
+    binary= args[2]->binary;
   }
   else if (null2)
   {
-    cached_result_type= arg2_type;
-    binary= args[2]->binary;
+    cached_result_type= arg1_type;
+    binary= args[1]->binary;
   }
   else if (arg1_type == STRING_RESULT || arg2_type == STRING_RESULT)
   {

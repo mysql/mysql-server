@@ -12,9 +12,34 @@ Created 5/11/1994 Heikki Tuuri
 #include "ut0ut.ic"
 #endif
 
+#include <stdarg.h>
+
 #include "ut0sort.h"
 
 ibool	ut_always_false	= FALSE;
+
+/************************************************************
+Uses vsprintf to emulate sprintf so that the function always returns
+the printed length. Apparently in some old SCO Unixes sprintf did not
+return the printed length but a pointer to the end of the printed string. */
+
+ulint
+ut_sprintf(
+/*=======*/
+        char*       buf,     /* in/out: buffer where to print */
+        const char* format,  /* in: format of prints */
+        ...)                 /* in: arguments to be printed */
+{
+        va_list   args;
+  
+        va_start(args, format);
+
+        vsprintf(buf, format, args);
+
+        va_end(args);
+
+        return((ulint)strlen(buf));
+}
 
 /************************************************************
 Gets the high 32 bits in a ulint. That is makes a shift >> 32,

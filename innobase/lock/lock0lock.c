@@ -2755,6 +2755,8 @@ lock_deadlock_occurs(
 		err_buf += sprintf(err_buf,
 		"*** WE ROLL BACK TRANSACTION (2)\n");
 
+		ut_a(strlen(lock_latest_err_buf) < 4100);
+
 		/*
 		sess_raise_error_low(trx, DB_DEADLOCK, lock->type_mode, table,
 						index, NULL, NULL, NULL);
@@ -3626,7 +3628,7 @@ lock_print_info(
 	trx = UT_LIST_GET_FIRST(trx_sys->mysql_trx_list);
 
 	while (trx) {
-		if (buf_end - buf < 600) {
+		if (buf_end - buf < 900) {
 			return;
 		}
 
@@ -3663,7 +3665,7 @@ loop:
 		return;
 	}
 
-	if (buf_end - buf < 600) {
+	if (buf_end - buf < 900) {
 		return;
 	}
 
