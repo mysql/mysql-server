@@ -7,8 +7,6 @@ Log_name
 master-bin.001
 master-bin.002
 master-bin.003
-Master_Host	Master_User	Master_Port	Connect_retry	Log_File	Pos	Slave_Running	Replicate_do_db	Replicate_ignore_db	Last_errno	Last_error	Skip_counter
-127.0.0.1	root	9306	60	master-bin.003	129	Yes			1062	error 'Duplicate entry '1234' for key 1' on query 'insert into t2 values(1234)'	0
 Log_name
 master-bin.003
 Master_Host	Master_User	Master_Port	Connect_retry	Log_File	Pos	Slave_Running	Replicate_do_db	Replicate_ignore_db	Last_errno	Last_error	Skip_counter
