@@ -94,7 +94,6 @@ ERROR 42S01: Table 't3' already exists
 show status like 'handler_discover%';
 Variable_name	Value
 Handler_discover	1
-Tables_in_test	table_type
 create table IF NOT EXISTS t3(
 id int not null primary key,
 id2 int not null,
@@ -106,7 +105,7 @@ Handler_discover	2
 SHOW CREATE TABLE t3;
 Table	Create Table
 t3	CREATE TABLE `t3` (
-  `id` int(11) NOT NULL default '0',
+  `id` int(11) NOT NULL,
   `name` char(255) default NULL,
   PRIMARY KEY  (`id`)
 ) ENGINE=ndbcluster DEFAULT CHARSET=latin1
