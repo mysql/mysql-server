@@ -9869,6 +9869,9 @@ If you would like MySQL to start automatically, you can copy
 @file{support-files/mysql.server} to @file{/etc/init.d} and create a
 symbolic link to it named @file{/etc/rc3.d/S99mysql.server}.
 
+As Solaris doesn't support core files for @code{setuid()} applications,
+you can't get a core file from @code{mysqld} if you are using the
+@code{--user} option.
 
 @menu
 * Solaris 2.7::                 Solaris 2.7/2.8 Notes
@@ -14114,7 +14117,8 @@ though.
 @item --core-file
 Write a core file if @code{mysqld} dies.  For some systems you must also
 specify @code{--core-file-size} to @code{safe_mysqld}. @xref{safe_mysqld, ,
-@code{safe_mysqld}}.
+@code{safe_mysqld}}. Note that on some system like Solaris, you will
+not get a core file if you are also using the @code{--user} option.
 
 @item -h, --datadir=path
 Path to the database root.
@@ -48731,6 +48735,8 @@ with ``const'' tables.
 Fixed wrong error value when doing a @code{SELECT} with an empty HEAP table.
 @item
 Use @code{ORDER BY column DESC} now sorts @code{NULL} values first.
+@item
+Fixed bug in @code{WHERE key_name='constant' ORDER BY key_name DESC}.
 @item
 Fixed bug in @code{SELECT DISTINCT ... ORDER BY DESC} optimization.
 @item

@@ -112,7 +112,7 @@ int FTB_WORD_cmp_list(void *v __attribute__((unused)), FTB_WORD **a, FTB_WORD **
 }
 
 void _ftb_parse_query(FTB *ftb, byte **start, byte *end,
-                          FTB_EXPR *up, uint depth)
+		      FTB_EXPR *up, uint depth)
 {
   byte        res;
   FTB_PARAM   param;
@@ -127,7 +127,7 @@ void _ftb_parse_query(FTB *ftb, byte **start, byte *end,
   param.prev=' ';
   while ((res=ft_get_word(start,end,&w,&param)))
   {
-    byte  r=param.plusminus;
+    int  r=param.plusminus;
     float weight= (float) (param.pmsign ? nwghts : wghts)[(r>5)?5:((r<-5)?-5:r)];
     switch (res) {
       case 1: /* word found */

@@ -4685,7 +4685,7 @@ join_read_prev_same(READ_RECORD *info)
 		   tab->ref.key_length))
   {
     table->status=STATUS_NOT_FOUND;
-    error= 1;
+    error= -1;
   }
   return error;
 }
@@ -7056,8 +7056,9 @@ static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
 	item_list.push_back(new Item_null());
       if (tab->ref.key_parts)
       {
-	item_list.push_back(new Item_string(table->key_info[tab->ref.key].name,strlen(table->key_info[tab->ref.key].name)));
-	item_list.push_back(new Item_int((int) tab->ref.key_length));
+	item_list.push_back(new Item_string(table->key_info[tab->ref.key].name,
+					    strlen(table->key_info[tab->ref.key].name)));
+	item_list.push_back(new Item_int((int32) tab->ref.key_length));
 	for (store_key **ref=tab->ref.key_copy ; *ref ; ref++)
 	{
 	  if (tmp2.length())
@@ -7069,13 +7070,13 @@ static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
       else if (tab->type == JT_NEXT)
       {
 	item_list.push_back(new Item_string(table->key_info[tab->index].name,strlen(table->key_info[tab->index].name)));
-	item_list.push_back(new Item_int((int) table->key_info[tab->index].key_length));
+	item_list.push_back(new Item_int((int32) table->key_info[tab->index].key_length));
 	item_list.push_back(new Item_null());
       }
       else if (tab->select && tab->select->quick)
       {
 	item_list.push_back(new Item_string(table->key_info[tab->select->quick->index].name,strlen(table->key_info[tab->select->quick->index].name)));
-	item_list.push_back(new Item_int((int) tab->select->quick->max_used_key_length));
+	item_list.push_back(new Item_int((int32) tab->select->quick->max_used_key_length));
 	item_list.push_back(new Item_null());
       }
       else
