@@ -46928,6 +46928,8 @@ not yet 100% confident in this code.
 @appendixsubsec Changes in release 3.23.52
 @itemize @bullet
 @item
+Added name of 'administrator command' logs.
+@item
 Fixed bug with creating an auto-increment value on second part of a
 @code{UNIQUE()} key where first part could contain NULL values.
 @item
