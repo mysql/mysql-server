@@ -595,10 +595,10 @@ btr_page_get_father_for_rec(
 		buf_page_print(buf_frame_align(node_ptr));
 
 		fputs("InnoDB: Corruption of an index tree: table ", stderr);
-		ut_print_name(stderr,
+		ut_print_name(stderr, NULL,
 			UT_LIST_GET_FIRST(tree->tree_indexes)->table_name);
 		fputs(", index ", stderr);
-		ut_print_name(stderr,
+		ut_print_name(stderr, NULL,
 			UT_LIST_GET_FIRST(tree->tree_indexes)->name);
 		fprintf(stderr, ",\n"
 "InnoDB: father ptr page no %lu, child page no %lu\n",
@@ -2341,7 +2341,7 @@ btr_index_rec_validate_report(
 	dict_index_t*	index)	/* in: index */
 {
 	fputs("InnoDB: Record in ", stderr);
-	dict_index_name_print(stderr, index);
+	dict_index_name_print(stderr, NULL, index);
 	fprintf(stderr, ", page %lu, at offset %lu\n",
 		buf_frame_get_page_no(page), (ulint)(rec - page));
 }
@@ -2482,7 +2482,7 @@ btr_validate_report1(
 {
 	fprintf(stderr, "InnoDB: Error in page %lu of ",
 		buf_frame_get_page_no(page));
-	dict_index_name_print(stderr, index);
+	dict_index_name_print(stderr, NULL, index);
 	if (level) {
 		fprintf(stderr, ", index tree level %lu", level);
 	}
@@ -2503,7 +2503,7 @@ btr_validate_report2(
 	fprintf(stderr, "InnoDB: Error in pages %lu and %lu of ",
 		buf_frame_get_page_no(page1),
 		buf_frame_get_page_no(page2));
-	dict_index_name_print(stderr, index);
+	dict_index_name_print(stderr, NULL, index);
 	if (level) {
 		fprintf(stderr, ", index tree level %lu", level);
 	}
