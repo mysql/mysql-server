@@ -72,7 +72,7 @@ struct Opt {
     m_tname("TBLOB1"),
     m_x1name("TBLOB1X1"),
     m_x2name("TBLOB1X2"),
-    m_pk1off(999000000),
+    m_pk1off(0x12340000),
     m_pk2len(55),
     m_oneblob(false),
     m_blob1(false, 7, 1137, 10),
@@ -988,6 +988,8 @@ testmain()
     bool ulim = skip('w') ? false : true;
     // pk
     for (int rw = llim; rw <= ulim; rw++) {
+      if (skip('k'))
+        continue;
       DBG("--- pk ops " << (! rw ? "get/set" : "read/write") << " ---");
       calcTups(false);
       CHK(insertPk(rw) == 0);
