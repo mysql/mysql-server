@@ -501,7 +501,7 @@ void _db_push_ (const char *control)
   if (! _db_fp_)
     _db_fp_= stderr;		/* Output stream, default stderr */
 
-  if (control && *control == '-')
+  if (*control == '-')
   {
     if (*++control == '#')
       control++;

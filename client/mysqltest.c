@@ -2302,6 +2302,7 @@ static VAR* var_init(VAR* v, const char* name, int name_len, const char* val,
   if (!(tmp_var->str_val = my_malloc(val_alloc_len+1, MYF(MY_WME))))
     die("Out of memory");
 
+  /* 'name' may be NULL here, but in this case name_len is 0 */
   memcpy(tmp_var->name, name, name_len);
   if (val)
   {
