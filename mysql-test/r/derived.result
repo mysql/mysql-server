@@ -211,15 +211,15 @@ a
 2
 drop table t1;
 select mail_id,  if(folder.f_description!='', folder.f_description, folder.f_name) as folder_name,  date, address_id, phrase, address,  subject from folder, (select  mail.mail_id as mail_id,  date_format(mail.h_date, '%b %e, %Y %h:%i') as date,  mail.folder_id,  sender.address_id as address_id,  sender.phrase as phrase, sender.address as address,    mail.h_subject as subject from    mail left join mxa as mxa_sender on mail.mail_id=mxa_sender.mail_id and mxa_sender.type='from' left join address as sender on mxa_sender.address_id=sender.address_id  mxa as mxa_recipient,   address as recipient, where 1     and mail.mail_id=mxa_recipient.mail_id   and mxa_recipient.address_id=recipient.address_id   and mxa_recipient.type='to'  and  match(sender.phrase, sender.address, sender.comment) against ('jeremy' in boolean mode)   and  match(recipient.phrase, recipient.address, recipient.comment) against ('monty' in boolean mode) order by mail.h_date desc limit 0, 25 ) as query where query.folder_id=folder.folder_id;
-ERROR 42000: You have an error in your SQL syntax.  Check the manual that corresponds to your MySQL server version for the right syntax to use near 'mxa as mxa_recipient,   address as recipient, where 1     and mail.mail_id=mxa_r' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'mxa as mxa_recipient,   address as recipient, where 1     and mail.mail_id=mxa_r' at line 1
 create table t1 (a int);
 insert into t1 values (1),(2),(3);
 update (select * from t1) as t1 set a = 5;
 ERROR HY000: The target table t1 of the UPDATE is not updatable
 delete from (select * from t1);
-ERROR 42000: You have an error in your SQL syntax.  Check the manual that corresponds to your MySQL server version for the right syntax to use near '(select * from t1)' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '(select * from t1)' at line 1
 insert into  (select * from t1) values (5);
-ERROR 42000: You have an error in your SQL syntax.  Check the manual that corresponds to your MySQL server version for the right syntax to use near '(select * from t1) values (5)' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '(select * from t1) values (5)' at line 1
 drop table t1;
 create table t1 (E1 INTEGER UNSIGNED NOT NULL, E2 INTEGER UNSIGNED NOT NULL, E3 INTEGER UNSIGNED NOT NULL, PRIMARY KEY(E1)
 );
