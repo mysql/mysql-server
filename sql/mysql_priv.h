@@ -921,7 +921,7 @@ void TEST_filesort(SORT_FIELD *sortorder,uint s_length);
 void print_plan(JOIN* join, double read_time, double record_count,
                 uint idx, const char *info);
 #endif
-void mysql_print_status(THD *thd);
+void mysql_print_status();
 /* key.cc */
 int find_ref_key(TABLE *form,Field *field, uint *offset);
 void key_copy(byte *to_key, byte *from_record, KEY *key_info, uint key_length);
