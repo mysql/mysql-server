@@ -176,10 +176,15 @@ void Item::set_name(const char *str, uint length, CHARSET_INFO *cs)
     name= (char*) str;
     return;
   }
-  while (length && !my_isgraph(cs,*str))
-  {						// Fix problem with yacc
-    length--;
-    str++;
+  if (cs->ctype)
+  {
+    // This will probably need a better implementation in the future:
+    // a function in CHARSET_INFO structure.
+    while (length && !my_isgraph(cs,*str))
+    {						// Fix problem with yacc
+      length--;
+      str++;
+    }
   }
   if (!my_charset_same(cs, system_charset_info))
   {
