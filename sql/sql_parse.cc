@@ -496,6 +496,7 @@ check_connections(THD *thd)
     {
       vio_in_addr(net->vio,&thd->remote.sin_addr);
       thd->host=ip_to_hostname(&thd->remote.sin_addr,&connect_errors);
+      thd->host[strnlen(thd->host, HOSTNAME_LENGTH)]= 0;
       if (connect_errors > max_connect_errors)
 	return(ER_HOST_IS_BLOCKED);
     }
@@ -512,6 +513,7 @@ check_connections(THD *thd)
     thd->ip=0;
     bzero((char*) &thd->remote,sizeof(struct sockaddr));
   }
+  /* Ensure that wrong hostnames doesn't cause buffer overflows */
   vio_keepalive(net->vio, TRUE);
 
   ulong pkt_len=0;

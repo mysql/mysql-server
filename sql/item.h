@@ -267,8 +267,6 @@ public:
   }
   Item_string(const char *name_par,const char *str,uint length)
   {
-    if (!length)
-      length=strlen(str);
     str_value.set(str,length);
     max_length=length;
     name=(char*) name_par;

@@ -73,7 +73,7 @@ extern pthread_mutex_t LOCK_bytes_sent , LOCK_bytes_received;
 #include "thr_alarm.h"
 
 #define TEST_BLOCKING		8
-#define MAX_THREE_BYTES 255L*255L*255L
+#define MAX_THREE_BYTES (256L*256L*256L-1)
 
 static int net_write_buff(NET *net,const char *packet,ulong len);
 
