@@ -16,7 +16,7 @@
 
 /***************************************************************************
  This is a test sample to test the new features in MySQL client-server
- protocol                                                               
+ protocol
 
  Main author: venu ( venu@mysql.com )
 
@@ -6553,7 +6553,7 @@ static void test_decimal_bug()
 {
   MYSQL_STMT *stmt;
   MYSQL_BIND bind[1];
-  double     data;
+  char       data[30];
   int        rc;
   my_bool    is_null;
 
@@ -6573,9 +6573,9 @@ static void test_decimal_bug()
   stmt = mysql_simple_prepare(mysql,"select c1 from test_decimal_bug where c1= ?");
   mystmt_init(stmt);
 
-  bind[0].buffer_type= MYSQL_TYPE_DOUBLE;
-  bind[0].buffer= (char *)&data;
-  bind[0].buffer_length= 0;
+  bind[0].buffer_type= MYSQL_TYPE_STRING;
+  bind[0].buffer= (char *)data;
+  bind[0].buffer_length= 25;
   bind[0].is_null= &is_null;
   bind[0].length= 0;
 
@@ -6583,36 +6583,36 @@ static void test_decimal_bug()
   rc = mysql_bind_param(stmt, bind);
   mystmt(stmt,rc);
 
-  data= 8.0;
+  strcpy(data, "8.0");
   rc = mysql_execute(stmt);
   mystmt(stmt,rc);
 
-  data=0; 
+  data[0]=0;
   rc = mysql_bind_result(stmt, bind);
   mystmt(stmt,rc);
 
   rc = mysql_fetch(stmt);
   mystmt(stmt,rc);
 
-  fprintf(stdout, "\n data: %g", data);
-  assert(data == 8.0);
+  fprintf(stdout, "\n data: %s", data);
+  assert(strcmp(data, "8.00")==0);
 
   rc = mysql_fetch(stmt);
   assert(rc == MYSQL_NO_DATA);
 
-  data= 5.61;
+  strcpy(data, "5.61");
   rc = mysql_execute(stmt);
   mystmt(stmt,rc);
 
-  data=0;
+  data[0]=0;
   rc = mysql_bind_result(stmt, bind);
   mystmt(stmt,rc);
 
   rc = mysql_fetch(stmt);
   mystmt(stmt,rc);
 
-  fprintf(stdout, "\n data: %g", data);
-  assert(data == 5.61);
+  fprintf(stdout, "\n data: %s", data);
+  assert(strcmp(data, "5.61")==0);
 
   rc = mysql_fetch(stmt);
   assert(rc == MYSQL_NO_DATA);
@@ -6624,19 +6624,19 @@ static void test_decimal_bug()
   rc = mysql_fetch(stmt);
   assert(rc == MYSQL_NO_DATA);
 
-  data= 10.22; is_null= 0;
+  strcpy(data, "10.22"); is_null= 0;
   rc = mysql_execute(stmt);
   mystmt(stmt,rc);
 
-  data=0; 
+  data[0]=0; 
   rc = mysql_bind_result(stmt, bind);
   mystmt(stmt,rc);
 
   rc = mysql_fetch(stmt);
   mystmt(stmt,rc);
 
-  fprintf(stdout, "\n data: %g", data);
-  assert(data == 10.22);
+  fprintf(stdout, "\n data: %s", data);
+  assert(strcmp(data, "10.22")==0);
 
   rc = mysql_fetch(stmt);
   assert(rc == MYSQL_NO_DATA);
@@ -8256,7 +8256,7 @@ static void test_distinct()
 
   rc= mysql_query(mysql,
 		  "insert into t1 values (1,1), (2, 2), (3,3), (4,4), (5,5),\
-(1,10), (2, 20), (3,30), (4,40), (5,50)\;");
+(1,10), (2, 20), (3,30), (4,40), (5,50);");
   myquery(rc);
 
   for (i= 0; i < 3; i++)
