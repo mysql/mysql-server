@@ -36,6 +36,8 @@ class Item_subselect :public Item_result_field
   my_bool engine_owner; /* Is this item owner of engine */
   my_bool value_assigned; /* value already assigned to subselect */
 protected:
+  /* thread handler, will be assigned in fix_fields only */
+  THD *thd;
   /* substitution instead of subselect in case of optimization */
   Item *substitution;
   /* engine that perform execution of subselect (single select or union) */
@@ -81,6 +83,7 @@ public:
     return null_value;
   }
   bool fix_fields(THD *thd, TABLE_LIST *tables, Item **ref);
+  bool exec();
   virtual void fix_length_and_dec();
   table_map used_tables() const;
 

@@ -1355,7 +1355,7 @@ CHARSET_INFO ** sys_var_character_set_results::ci_ptr(THD *thd, enum_var_type ty
 void sys_var_character_set_results::set_default(THD *thd, enum_var_type type)
 {
  if (type == OPT_GLOBAL)
-   global_system_variables.character_set_results= NULL;
+   global_system_variables.character_set_results= default_charset_info;
  else
    thd->variables.character_set_results= global_system_variables.character_set_results;
 }

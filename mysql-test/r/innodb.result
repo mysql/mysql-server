@@ -906,8 +906,8 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 drop table t1;
 create table t1 (t int not null default 1, key (t)) type=innodb;
 desc t1;
-Field	Type	Collation	Null	Key	Default	Extra
-t	int(11)	NULL		MUL	1	
+Field	Type	Null	Key	Default	Extra
+t	int(11)		MUL	1	
 drop table t1;
 CREATE TABLE t1 (
 number bigint(20) NOT NULL default '0',
