@@ -4412,7 +4412,7 @@ Australia [ITworks Consulting/Victoria] @
 
 @itemize @bullet
 
-@c @item
+@item
 @c EMAIL: ftp-admin@mweb.com (Warren Baker)
 @c @image{Flags/south-africa1}
 South-Africa [Mweb] @
