@@ -26,8 +26,11 @@ bool slave_running = 0;
 pthread_t slave_real_id;
 MASTER_INFO glob_mi;
 HASH replicate_do_table, replicate_ignore_table;
+DYNAMIC_ARRAY replicate_wild_do_table, replicate_wild_ignore_table;
 bool do_table_inited = 0, ignore_table_inited = 0;
+bool wild_do_table_inited = 0, wild_ignore_table_inited = 0;
 bool table_rules_on = 0;
+
 
 
 static inline void skip_load_data_infile(NET* net);
@@ -61,6 +64,30 @@ void init_table_rule_hash(HASH* h, bool* h_inited)
   *h_inited = 1;
 }
 
+void init_table_rule_array(DYNAMIC_ARRAY* a, bool* a_inited)
+{
+  init_dynamic_array(a, sizeof(TABLE_RULE_ENT*), TABLE_RULE_ARR_SIZE,
+		     TABLE_RULE_ARR_SIZE);
+  *a_inited = 1;
+}
+
+static TABLE_RULE_ENT* find_wild(DYNAMIC_ARRAY *a, const char* key, int len)
+{
+  uint i;
+  const char* key_end = key + len;
+  
+  for(i = 0; i < a->elements; i++)
+    {
+      TABLE_RULE_ENT* e ;
+      get_dynamic(a, (gptr)&e, i);
+      if(!wild_case_compare(key, key_end, (const char*)e->db,
+			    (const char*)(e->db + e->key_len),'\\'))
+	return e;
+    }
+  
+  return 0;
+}
+
 int tables_ok(THD* thd, TABLE_LIST* tables)
 {
   for(; tables; tables = tables->next)
@@ -82,9 +109,14 @@ int tables_ok(THD* thd, TABLE_LIST* tables)
 	  if(hash_search(&replicate_ignore_table, (byte*) hash_key, len))
 	    return 0; 
 	}
+      if(wild_do_table_inited && find_wild(&replicate_wild_do_table,
+					   hash_key, len)) return 1;
+      if(wild_ignore_table_inited && find_wild(&replicate_wild_ignore_table,
+					   hash_key, len)) return 0;
     }
 
-  return !do_table_inited; // if no explicit rule found
+  return !do_table_inited && !wild_do_table_inited;
+  // if no explicit rule found
   // and there was a do list, do not replicate. If there was
   // no do list, go ahead
 }
@@ -106,6 +138,24 @@ int add_table_rule(HASH* h, const char* table_spec)
   (void)hash_insert(h, (byte*)e);
   return 0;
 }
+
+int add_wild_table_rule(DYNAMIC_ARRAY* a, const char* table_spec)
+{
+  char* dot = strchr(table_spec, '.');
+  if(!dot) return 1;
+  uint len = (uint)strlen(table_spec);
+  if(!len) return 1;
+  TABLE_RULE_ENT* e = (TABLE_RULE_ENT*)my_malloc(sizeof(TABLE_RULE_ENT)
+						 + len, MYF(MY_WME));
+  if(!e) return 1;
+  e->db = (char*)e + sizeof(TABLE_RULE_ENT);
+  e->tbl_name = e->db + (dot - table_spec) + 1;
+  e->key_len = len;
+  memcpy(e->db, table_spec, len);
+  insert_dynamic(a, (gptr)&e);
+  return 0;
+}
+
 
 static inline bool slave_killed(THD* thd)
 {
@@ -957,7 +1007,8 @@ pthread_handler_decl(handle_slave,arg __attribute__((unused)))
            goto err;
 	  
 	  thd->proc_info = "waiting to reconnect after a failed dump request";
-	  vio_close(mysql->net.vio); 
+	  if(mysql->net.vio)
+	    vio_close(mysql->net.vio); 
 	  safe_sleep(thd, glob_mi.connect_retry);
 	  if(slave_killed(thd))
 	      goto err;
@@ -983,7 +1034,8 @@ pthread_handler_decl(handle_slave,arg __attribute__((unused)))
 	  if (event_len == packet_error)
 	  {
 	    thd->proc_info = "waiting to reconnect after a failed read";
- 	    vio_close(mysql->net.vio); 
+	    if(mysql->net.vio)
+ 	      vio_close(mysql->net.vio); 
 	    safe_sleep(thd, glob_mi.connect_retry);
 	    if(slave_killed(thd))
 	      goto err;

@@ -1,0 +1,19 @@
+#this one assumes we are ignoring updates on table foo, but doing
+#the ones on bar
+source t/include/master-slave.inc;
+connection slave;
+use test;
+drop table if exists foo;
+create table foo (n int);
+insert into foo values(4);
+connection master;
+use test;
+drop table if exists foo;
+create table foo (n int);
+insert into foo values(5);
+drop table if exists bar;
+create table bar (m int);
+insert into bar values(15);
+connection slave;
+sleep 1;
+@r/3.23/rpl000007.result select foo.n,bar.m from foo,bar;

@@ -95,7 +95,7 @@ int open_file(const char* name)
   if(*cur_file && ++cur_file == file_stack_end)
     die("Source directives are nesting too deep");
   if(!(*cur_file = fopen(name, "r")))
-    die("Could not read '%s'\n", name);
+    die("Could not read '%s': errno %d\n", name, errno);
   
   return 0;
 }
@@ -593,8 +593,9 @@ void reject_dump(char* record_file, char* buf, int size)
   FILE* freject;
   
   p = reject_file;
-  p = safe_str_append(p, record_file, size);
-  p = safe_str_append(p, (char*)".reject", reject_file + size - p);
+  p = safe_str_append(p, record_file, sizeof(reject_file));
+  p = safe_str_append(p, (char*)".reject", reject_file - p +
+		      sizeof(reject_file));
 
   if(!(freject = fopen(reject_file, "w")))
     die("Could not open reject file %s, error %d", reject_file, errno);
