@@ -53,11 +53,6 @@ WWW (@uref{http://mysql.kpnqwest.fi/})
 WWW (@uref{http://mysql.tonnikala.org/})
 
 @item
-@image{Flags/france} France [fastorama.com, Chatenois] @@
-WWW (@uref{http://mysql.fastorama.com/})
-FTP (@uref{ftp://ftp.fastorama.com/unix/mysql/})
-
-@item
 @image{Flags/france} France [free.fr] @@
 WWW (@uref{http://mysql-mirror.free.fr/})
 FTP (@uref{ftp://ftp.free.fr/pub/MySQL/})
