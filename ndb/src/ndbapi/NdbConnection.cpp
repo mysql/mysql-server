@@ -27,11 +27,12 @@ Description:   Interface between TIS and NDB
 Documentation:
 Adjust:  971022  UABMNST   First version.
 *****************************************************************************/
-#include "NdbOut.hpp"
-#include "NdbConnection.hpp"
-#include "NdbOperation.hpp"
-#include "NdbScanOperation.hpp"
-#include "NdbIndexOperation.hpp"
+#include <NdbOut.hpp>
+#include <NdbConnection.hpp>
+#include <NdbOperation.hpp>
+#include <NdbScanOperation.hpp>
+#include <NdbIndexScanOperation.hpp>
+#include <NdbIndexOperation.hpp>
 #include "NdbApiSignal.hpp"
 #include "TransporterFacade.hpp"
 #include "API.hpp"
@@ -79,15 +80,12 @@ NdbConnection::NdbConnection( Ndb* aNdb ) :
   theTransactionIsStarted(false),
   theDBnode(0),
   theReleaseOnClose(false),
-  // Cursor operations
-  m_waitForReply(true),
-  m_theFirstCursorOperation(NULL),
-  m_theLastCursorOperation(NULL),
-  m_firstExecutedCursorOp(NULL),
   // Scan operations
-  theScanFinished(0),
-  theCurrentScanRec(NULL),
-  thePreviousScanRec(NULL),
+  m_waitForReply(true),
+  m_theFirstScanOperation(NULL),
+  m_theLastScanOperation(NULL),
+  m_firstExecutedScanOp(NULL),
+  // Scan operations
   theScanningOp(NULL),
   theBuddyConPtr(0xFFFFFFFF)
 {
@@ -117,7 +115,6 @@ NdbConnection::init()
   theListState            = NotInList;
   theInUseState           = true;
   theTransactionIsStarted = false;
-  theScanFinished = 0;
   theNext		  = NULL;
 
   theFirstOpInList	  = NULL;
@@ -127,9 +124,6 @@ NdbConnection::init()
 
   theFirstExecOpInList	  = NULL;
   theLastExecOpInList	  = NULL;
-
-  theCurrentScanRec  = NULL;
-  thePreviousScanRec = NULL;
 
   theCompletedFirstOp	  = NULL;
 
@@ -146,11 +140,11 @@ NdbConnection::init()
   theSimpleState          = true;
   theSendStatus           = InitState;
   theMagicNumber          = 0x37412619;
-  // Cursor operations
+  // Scan operations
   m_waitForReply            = true;
-  m_theFirstCursorOperation = NULL;
-  m_theLastCursorOperation  = NULL;
-  m_firstExecutedCursorOp   = 0;
+  m_theFirstScanOperation = NULL;
+  m_theLastScanOperation  = NULL;
+  m_firstExecutedScanOp   = 0;
   theBuddyConPtr            = 0xFFFFFFFF;
 }//NdbConnection::init()
 
@@ -331,7 +325,7 @@ NdbConnection::executeAsynchPrepare( ExecType           aTypeOfExec,
    */
   theError.code = 0;
 
-  NdbCursorOperation* tcOp = m_theFirstCursorOperation;
+  NdbScanOperation* tcOp = m_theFirstScanOperation;
   if (tcOp != 0){
     // Execute any cursor operations
     while (tcOp != NULL) {
@@ -340,14 +334,14 @@ NdbConnection::executeAsynchPrepare( ExecType           aTypeOfExec,
       if (tReturnCode == -1) {
         return;
       }//if
-      tcOp = (NdbCursorOperation*)tcOp->next();
+      tcOp = (NdbScanOperation*)tcOp->next();
     } // while
-    m_theLastCursorOperation->next(m_firstExecutedCursorOp);
-    m_firstExecutedCursorOp = m_theFirstCursorOperation;
+    m_theLastScanOperation->next(m_firstExecutedScanOp);
+    m_firstExecutedScanOp = m_theFirstScanOperation;
     // Discard cursor operations, since these are also
     // in the complete operations list we do not need
     // to release them.
-    m_theFirstCursorOperation = m_theLastCursorOperation = NULL;
+    m_theFirstScanOperation = m_theLastScanOperation = NULL;
   }
 
   bool tTransactionIsStarted = theTransactionIsStarted;
@@ -714,17 +708,14 @@ Remark:         Release all operations.
 ******************************************************************************/
 void 
 NdbConnection::release(){
-  if (theTransactionIsStarted == true && theScanningOp != NULL )
-    stopScan();
-    
   releaseOperations();
   if ( (theTransactionIsStarted == true) &&
-      ((theCommitStatus != Committed) &&
-       (theCommitStatus != Aborted))) {
-/****************************************************************************
- *	The user did not perform any rollback but simply closed the
- *      transaction. We must rollback Ndb since Ndb have been contacted.
-******************************************************************************/
+       ((theCommitStatus != Committed) &&
+	(theCommitStatus != Aborted))) {
+    /************************************************************************
+     *	The user did not perform any rollback but simply closed the
+     *      transaction. We must rollback Ndb since Ndb have been contacted.
+     ************************************************************************/
     execute(Rollback);
   }//if
   theMagicNumber = 0xFE11DC;
@@ -756,8 +747,8 @@ void
 NdbConnection::releaseOperations()
 {
   // Release any open scans
-  releaseCursorOperations(m_theFirstCursorOperation);
-  releaseCursorOperations(m_firstExecutedCursorOp);
+  releaseScanOperations(m_theFirstScanOperation);
+  releaseScanOperations(m_firstExecutedScanOp);
   
   releaseOps(theCompletedFirstOp);
   releaseOps(theFirstOpInList);
@@ -769,9 +760,9 @@ NdbConnection::releaseOperations()
   theLastOpInList = NULL;
   theLastExecOpInList = NULL;
   theScanningOp = NULL;
-  m_theFirstCursorOperation = NULL;
-  m_theLastCursorOperation = NULL;
-  m_firstExecutedCursorOp = NULL;
+  m_theFirstScanOperation = NULL;
+  m_theLastScanOperation = NULL;
+  m_firstExecutedScanOp = NULL;
 }//NdbConnection::releaseOperations()
 
 void 
@@ -782,24 +773,21 @@ NdbConnection::releaseCompletedOperations()
 }//NdbConnection::releaseOperations()
 
 /******************************************************************************
-void releaseCursorOperations();
+void releaseScanOperations();
 
 Remark:         Release all cursor operations. 
                 (NdbScanOperation and NdbIndexOperation)
 ******************************************************************************/
 void 
-NdbConnection::releaseCursorOperations(NdbCursorOperation* cursorOp)
+NdbConnection::releaseScanOperations(NdbIndexScanOperation* cursorOp)
 {
   while(cursorOp != 0){
-    NdbCursorOperation* next = (NdbCursorOperation*)cursorOp->next();
+    NdbIndexScanOperation* next = (NdbIndexScanOperation*)cursorOp->next();
     cursorOp->release();
-    if (cursorOp->cursorType() == NdbCursorOperation::ScanCursor)
-      theNdb->releaseScanOperation((NdbScanOperation*)cursorOp);
-    else 
-      theNdb->releaseOperation(cursorOp);
+    theNdb->releaseScanOperation(cursorOp);
     cursorOp = next;
   }
-}//NdbConnection::releaseCursorOperations()
+}//NdbConnection::releaseScanOperations()
 
 /*****************************************************************************
 NdbOperation* getNdbOperation(const char* aTableName);
@@ -830,45 +818,6 @@ NdbConnection::getNdbOperation(const char* aTableName)
   setOperationErrorCodeAbort(4114);
   
   return NULL;
-}//NdbConnection::getNdbOperation()
-
-/*****************************************************************************
-NdbOperation* getNdbOperation(const char* anIndexName, const char* aTableName);
-
-Return Value    Return a pointer to a NdbOperation object if getNdbOperation 
-                was succesful.
-                Return NULL : In all other case. 	
-Parameters:     anIndexName : Name of the index to use. 	
-		aTableName  : Name of the database table. 	
-Remark:         Get an operation from NdbOperation idlelist and get the 
-                NdbConnection object 
-		who was fetch by startTransaction pointing to this  operation  
-		getOperation will set the theTableId in the NdbOperation object.
-                synchronous
-******************************************************************************/
-NdbOperation*
-NdbConnection::getNdbOperation(const char* anIndexName, const char* aTableName)
-{
-  if ((theError.code == 0) &&
-      (theCommitStatus == Started)){
-    NdbIndexImpl* index = 
-      theNdb->theDictionary->getIndex(anIndexName, aTableName);
-    NdbTableImpl* table = theNdb->theDictionary->getTable(aTableName);
-    NdbTableImpl* indexTable = 
-      theNdb->theDictionary->getIndexTable(index, table);
-    if (indexTable != 0){
-      return getNdbOperation(indexTable);
-    } else {
-      setErrorCode(theNdb->theDictionary->getNdbError().code);
-      return NULL;
-    }//if
-  } else {
-    if (theError.code == 0) {
-      setOperationErrorCodeAbort(4114);
-    }//if
-
-    return NULL;
-  }//if    
 }//NdbConnection::getNdbOperation()
 
 /*****************************************************************************
@@ -956,8 +905,9 @@ Remark:         Get an operation from NdbScanOperation idlelist and get the NdbC
 		who was fetch by startTransaction pointing to this  operation  
 		getOperation will set the theTableId in the NdbOperation object.synchronous
 ******************************************************************************/
-NdbScanOperation*
-NdbConnection::getNdbScanOperation(const char* anIndexName, const char* aTableName)
+NdbIndexScanOperation*
+NdbConnection::getNdbIndexScanOperation(const char* anIndexName, 
+					const char* aTableName)
 {
   if (theCommitStatus == Started){
     NdbIndexImpl* index = 
@@ -966,7 +916,9 @@ NdbConnection::getNdbScanOperation(const char* anIndexName, const char* aTableNa
     NdbTableImpl* indexTable = 
       theNdb->theDictionary->getIndexTable(index, table);
     if (indexTable != 0){
-      return getNdbScanOperation(indexTable);
+      NdbIndexScanOperation* tOp = getNdbScanOperation(indexTable);
+      if(tOp) tOp->m_cursor_type = NdbScanOperation::IndexCursor;
+      return tOp;
     } else {
       setOperationErrorCodeAbort(theNdb->theError.code);
       return NULL;
@@ -987,21 +939,21 @@ Remark:         Get an operation from NdbScanOperation object idlelist and get t
                 object who was fetch by startTransaction pointing to this  operation 
   	        getOperation will set the theTableId in the NdbOperation object, synchronous.
 *****************************************************************************/
-NdbScanOperation*
+NdbIndexScanOperation*
 NdbConnection::getNdbScanOperation(NdbTableImpl * tab)
 { 
-  NdbScanOperation* tOp;
+  NdbIndexScanOperation* tOp;
   
   tOp = theNdb->getScanOperation();
   if (tOp == NULL)
     goto getNdbOp_error1;
   
   // Link scan operation into list of cursor operations
-  if (m_theLastCursorOperation == NULL)
-    m_theFirstCursorOperation = m_theLastCursorOperation = tOp;
+  if (m_theLastScanOperation == NULL)
+    m_theFirstScanOperation = m_theLastScanOperation = tOp;
   else {
-    m_theLastCursorOperation->next(tOp);
-    m_theLastCursorOperation = tOp;
+    m_theLastScanOperation->next(tOp);
+    m_theLastScanOperation = tOp;
   }
   tOp->next(NULL);
   if (tOp->init(tab, this) != -1) {
@@ -1211,12 +1163,12 @@ Remark:
 int			
 NdbConnection::receiveTC_COMMITCONF(const TcCommitConf * commitConf)
 { 
-  if(theStatus != Connected){
-    return -1;
+  if(checkState_TransId(&commitConf->transId1)){
+    theCommitStatus = Committed;
+    theCompletionStatus = CompletedSuccess;
+    return 0;
   }
-  theCommitStatus = Committed;
-  theCompletionStatus = CompletedSuccess;
-  return 0;
+  return -1;
 }//NdbConnection::receiveTC_COMMITCONF()
 
 /******************************************************************************
@@ -1230,33 +1182,33 @@ Remark:
 int			
 NdbConnection::receiveTC_COMMITREF(NdbApiSignal* aSignal)
 {
-  if(theStatus != Connected){
-    return -1;
+  const TcCommitRef * ref = CAST_CONSTPTR(TcCommitRef, aSignal->getDataPtr());
+  if(checkState_TransId(&ref->transId1)){
+    setOperationErrorCodeAbort(ref->errorCode);
+    theCommitStatus = Aborted;
+    theCompletionStatus = CompletedFailure;
+    return 0;
   }
-  const TcCommitRef * const ref = CAST_CONSTPTR(TcCommitRef, aSignal->getDataPtr());
-  setOperationErrorCodeAbort(ref->errorCode);
-  theCommitStatus = Aborted;
-  theCompletionStatus = CompletedFailure;
-  return 0;
+  return -1;
 }//NdbConnection::receiveTC_COMMITREF()
 
-/*******************************************************************************
+/******************************************************************************
 int  receiveTCROLLBACKCONF(NdbApiSignal* aSignal);
 
 Return Value:  Return 0 : receiveTCROLLBACKCONF was successful.
                Return -1: In all other case.
 Parameters:    aSignal: The signal object pointer.
 Remark:        
-*******************************************************************************/
+******************************************************************************/
 int			
 NdbConnection::receiveTCROLLBACKCONF(NdbApiSignal* aSignal)
 {
-  if(theStatus != Connected){
-    return -1;
+  if(checkState_TransId(aSignal->getDataPtr() + 1)){
+    theCommitStatus = Aborted;
+    theCompletionStatus = CompletedSuccess;
+    return 0;
   }
-  theCommitStatus = Aborted;
-  theCompletionStatus = CompletedSuccess;
-  return 0;
+  return -1;
 }//NdbConnection::receiveTCROLLBACKCONF()
 
 /*******************************************************************************
@@ -1270,13 +1222,13 @@ Remark:
 int			
 NdbConnection::receiveTCROLLBACKREF(NdbApiSignal* aSignal)
 {
-  if(theStatus != Connected){
-    return -1;
+  if(checkState_TransId(aSignal->getDataPtr() + 1)){
+    setOperationErrorCodeAbort(aSignal->readData(4));
+    theCommitStatus = Aborted;
+    theCompletionStatus = CompletedFailure;
+    return 0;
   }
-  setOperationErrorCodeAbort(aSignal->readData(2));
-  theCommitStatus = Aborted;
-  theCompletionStatus = CompletedFailure;
-  return 0;
+  return -1;
 }//NdbConnection::receiveTCROLLBACKREF()
 
 /*****************************************************************************
@@ -1291,36 +1243,26 @@ Remark:         Handles the reception of the ROLLBACKREP signal.
 int
 NdbConnection::receiveTCROLLBACKREP( NdbApiSignal* aSignal)
 {
-  Uint64 tRecTransId, tCurrTransId;
-  Uint32 tTmp1, tTmp2;
-
-  if (theStatus != Connected) {
-    return -1;
-  }//if
-/*****************************************************************************
+  /****************************************************************************
 Check that we are expecting signals from this transaction and that it doesn't
 belong to a transaction already completed. Simply ignore messages from other 
 transactions.
-******************************************************************************/
-  tTmp1 = aSignal->readData(2);
-  tTmp2 = aSignal->readData(3);
-  tRecTransId = (Uint64)tTmp1 + ((Uint64)tTmp2 << 32);
-  tCurrTransId = this->getTransactionId();
-  if (tCurrTransId != tRecTransId) {
-    return -1;
-  }//if
-  theError.code = aSignal->readData(4);	// Override any previous errors
+  ****************************************************************************/
+  if(checkState_TransId(aSignal->getDataPtr() + 1)){
+    theError.code = aSignal->readData(4);// Override any previous errors
 
-/**********************************************************************/
-/*	A serious error has occured. This could be due to deadlock or */
-/*	lack of resources or simply a programming error in NDB. This  */
-/*	transaction will be aborted. Actually it has already been     */
-/*	and we only need to report completion and return with the     */
-/*	error code to the application.				      */
-/**********************************************************************/
-  theCompletionStatus = CompletedFailure;
-  theCommitStatus = Aborted;
-  return 0;
+    /**********************************************************************/
+    /*	A serious error has occured. This could be due to deadlock or */
+    /*	lack of resources or simply a programming error in NDB. This  */
+    /*	transaction will be aborted. Actually it has already been     */
+    /*	and we only need to report completion and return with the     */
+    /*	error code to the application.				      */
+    /**********************************************************************/
+    theCompletionStatus = CompletedFailure;
+    theCommitStatus = Aborted;
+    return 0;
+  }
+  return -1;
 }//NdbConnection::receiveTCROLLBACKREP()
 
 /*******************************************************************************
@@ -1334,47 +1276,38 @@ Remark:
 int			
 NdbConnection::receiveTCKEYCONF(const TcKeyConf * keyConf, Uint32 aDataLength)
 {
-  Uint64 tRecTransId;
-  NdbOperation* tOp;
-  Uint32 tConditionFlag;
-
+  NdbReceiver* tOp;
   const Uint32 tTemp = keyConf->confInfo;
-  const Uint32 tTmp1 = keyConf->transId1;
-  const Uint32 tTmp2 = keyConf->transId2;
-/******************************************************************************
+  /***************************************************************************
 Check that we are expecting signals from this transaction and that it
 doesn't belong to a transaction already completed. Simply ignore messages
 from other transactions.
-******************************************************************************/
-  tRecTransId = (Uint64)tTmp1 + ((Uint64)tTmp2 << 32);
+  ***************************************************************************/
+  if(checkState_TransId(&keyConf->transId1)){
 
-  const Uint32 tNoOfOperations = TcKeyConf::getNoOfOperations(tTemp);
-  const Uint32 tCommitFlag = TcKeyConf::getCommitFlag(tTemp);
-  tConditionFlag = (Uint32)(((aDataLength - 5) >> 1) - tNoOfOperations);
-  tConditionFlag |= (Uint32)(tNoOfOperations > 10);
-  tConditionFlag |= (Uint32)(tNoOfOperations <= 0);
-  tConditionFlag |= (Uint32)(theTransactionId - tRecTransId);
-  tConditionFlag |= (Uint32)(theStatus - Connected);
+    const Uint32 tNoOfOperations = TcKeyConf::getNoOfOperations(tTemp);
+    const Uint32 tCommitFlag = TcKeyConf::getCommitFlag(tTemp);
 
-  if (tConditionFlag == 0) {
     const Uint32* tPtr = (Uint32 *)&keyConf->operations[0];
+    Uint32 tNoComp = theNoOfOpCompleted;
     for (Uint32 i = 0; i < tNoOfOperations ; i++) {
-      tOp = theNdb->void2rec_op(theNdb->int2void(*tPtr));
+      tOp = theNdb->void2rec(theNdb->int2void(*tPtr));
       tPtr++;
       const Uint32 tAttrInfoLen = *tPtr;
       tPtr++;
-      if (tOp && tOp->checkMagicNumber() != -1) {
-	tOp->TCOPCONF(tAttrInfoLen);
+      if (tOp && tOp->checkMagicNumber()) {
+	tNoComp += tOp->execTCOPCONF(tAttrInfoLen);
       } else {
  	return -1;
       }//if
     }//for
-    Uint32 tNoComp = theNoOfOpCompleted;
     Uint32 tNoSent = theNoOfOpSent;
+    theNoOfOpCompleted = tNoComp;
     Uint32 tGCI    = keyConf->gci;
     if (tCommitFlag == 1) {
       theCommitStatus = Committed;
       theGlobalCheckpointId = tGCI;
+      theTransactionId++;
     } else if ((tNoComp >= tNoSent) &&
                (theLastExecOpInList->theCommitIndicator == 1)){
 /**********************************************************************/
@@ -1406,50 +1339,46 @@ Remark:         Handles the reception of the TCKEY_FAILCONF signal.
 int
 NdbConnection::receiveTCKEY_FAILCONF(const TcKeyFailConf * failConf)
 {
-  Uint64 tRecTransId, tCurrTransId;
-  Uint32 tTmp1, tTmp2;
   NdbOperation*	tOp;
-  if (theStatus != Connected) {
-    return -1;
-  }//if
   /*
-  Check that we are expecting signals from this transaction and that it 
-  doesn't belong  to a transaction already completed. Simply ignore 
-  messages from other transactions.
+    Check that we are expecting signals from this transaction and that it 
+    doesn't belong  to a transaction already completed. Simply ignore 
+    messages from other transactions.
   */
-  tTmp1 = failConf->transId1;
-  tTmp2 = failConf->transId2;
-  tRecTransId = (Uint64)tTmp1 + ((Uint64)tTmp2 << 32);
-  tCurrTransId = this->getTransactionId();
-  if (tCurrTransId != tRecTransId) {
-    return -1;
-  }//if
-  /*
-  A node failure of the TC node occured. The transaction has
-  been committed.
-  */
-  theCommitStatus = Committed;
-  tOp = theFirstExecOpInList;
-  while (tOp != NULL) {
+  if(checkState_TransId(&failConf->transId1)){
     /*
-    Check if the transaction expected read values...
-    If it did some of them might have gotten lost even if we succeeded
-    in committing the transaction.
+      A node failure of the TC node occured. The transaction has
+      been committed.
     */
-    if (tOp->theAI_ElementLen != 0) {
-      theCompletionStatus = CompletedFailure;
-      setOperationErrorCodeAbort(4115);
-      break;
-    }//if
-    if (tOp->theCurrentRecAttr != NULL) {
-      theCompletionStatus = CompletedFailure;
-      setOperationErrorCodeAbort(4115);
-      break;
-    }//if
-    tOp = tOp->next();
-  }//while   
-  theReleaseOnClose = true;
-  return 0;
+    theCommitStatus = Committed;
+    tOp = theFirstExecOpInList;
+    while (tOp != NULL) {
+      /*
+       * Check if the transaction expected read values...
+       * If it did some of them might have gotten lost even if we succeeded
+       * in committing the transaction.
+       */
+      switch(tOp->theOperationType){
+      case UpdateRequest:
+      case InsertRequest:
+      case DeleteRequest:
+      case WriteRequest:
+	tOp = tOp->next();
+	break;
+      case ReadRequest:
+      case ReadExclusive:
+      case OpenScanRequest:
+      case OpenRangeScanRequest:
+	theCompletionStatus = CompletedFailure;
+	setOperationErrorCodeAbort(4115);
+	tOp = NULL;
+	break;
+      }//if
+    }//while   
+    theReleaseOnClose = true;
+    return 0;
+  }
+  return -1;
 }//NdbConnection::receiveTCKEY_FAILCONF()
 
 /*************************************************************************
@@ -1464,101 +1393,75 @@ Remark:         Handles the reception of the TCKEY_FAILREF signal.
 int
 NdbConnection::receiveTCKEY_FAILREF(NdbApiSignal* aSignal)
 {
-  Uint64 tRecTransId, tCurrTransId;
-  Uint32 tTmp1, tTmp2;
-
-  if (theStatus != Connected) {
-    return -1;
-  }//if
   /*
-  Check that we are expecting signals from this transaction and
-  that it doesn't belong to a transaction already
-  completed. Simply ignore messages from other transactions.
+    Check that we are expecting signals from this transaction and
+    that it doesn't belong to a transaction already
+    completed. Simply ignore messages from other transactions.
   */
-  tTmp1 = aSignal->readData(2);
-  tTmp2 = aSignal->readData(3);
-  tRecTransId = (Uint64)tTmp1 + ((Uint64)tTmp2 << 32);
-  tCurrTransId = this->getTransactionId();
-  if (tCurrTransId != tRecTransId) {
-    return -1;
-  }//if
-  /*
-  We received an indication of that this transaction was aborted due to a
-  node failure.
-  */
-  if (theSendStatus == sendTC_ROLLBACK) {
+  if(checkState_TransId(aSignal->getDataPtr()+1)){
     /*
-    We were in the process of sending a rollback anyways. We will
-    report it as a success.
+      We received an indication of that this transaction was aborted due to a
+      node failure.
     */
-    theCompletionStatus = CompletedSuccess;
-  } else {
-    theCompletionStatus = CompletedFailure;
-    theError.code = 4031;
-  }//if
-  theReleaseOnClose = true;
-  theCommitStatus = Aborted;
-  return 0;
+    if (theSendStatus == sendTC_ROLLBACK) {
+      /*
+	We were in the process of sending a rollback anyways. We will
+	report it as a success.
+      */
+      theCompletionStatus = CompletedSuccess;
+    } else {
+      theCompletionStatus = CompletedFailure;
+      theError.code = 4031;
+    }//if
+    theReleaseOnClose = true;
+    theCommitStatus = Aborted;
+    return 0;
+  }
+  return -1;
 }//NdbConnection::receiveTCKEY_FAILREF()
 
-/*******************************************************************************
+/******************************************************************************
 int  receiveTCINDXCONF(NdbApiSignal* aSignal, Uint32 long_short_ind);
 
 Return Value:  Return 0 : receiveTCINDXCONF was successful.
                Return -1: In all other case.
 Parameters:    aSignal: The signal object pointer.
 Remark:        
-*******************************************************************************/
-int			
-NdbConnection::receiveTCINDXCONF(const TcIndxConf * indxConf, Uint32 aDataLength)
-{
-  Uint64 tRecTransId;
-  Uint32 tConditionFlag;
-
-  const Uint32 tTemp = indxConf->confInfo;
-  const Uint32 tTmp1 = indxConf->transId1;
-  const Uint32 tTmp2 = indxConf->transId2;
-/******************************************************************************
-Check that we are expecting signals from this transaction and that it
-doesn't belong to a transaction already completed. Simply ignore messages
-from other transactions.
 ******************************************************************************/
-  tRecTransId = (Uint64)tTmp1 + ((Uint64)tTmp2 << 32);
-
-  const Uint32 tNoOfOperations = TcIndxConf::getNoOfOperations(tTemp);
-  const Uint32 tCommitFlag = TcKeyConf::getCommitFlag(tTemp);
-
-  tConditionFlag = (Uint32)(((aDataLength - 5) >> 1) - tNoOfOperations);
-  tConditionFlag |= (Uint32)(tNoOfOperations > 10);
-  tConditionFlag |= (Uint32)(tNoOfOperations <= 0);
-  tConditionFlag |= (Uint32)(theTransactionId - tRecTransId);
-  tConditionFlag |= (Uint32)(theStatus - Connected);
-
-  if (tConditionFlag == 0) {
+int			
+NdbConnection::receiveTCINDXCONF(const TcIndxConf * indxConf, 
+				 Uint32 aDataLength)
+{
+  if(checkState_TransId(&indxConf->transId1)){
+    const Uint32 tTemp = indxConf->confInfo;
+    const Uint32 tNoOfOperations = TcIndxConf::getNoOfOperations(tTemp);
+    const Uint32 tCommitFlag = TcKeyConf::getCommitFlag(tTemp);
+    
     const Uint32* tPtr = (Uint32 *)&indxConf->operations[0];
+    Uint32 tNoComp = theNoOfOpCompleted;
     for (Uint32 i = 0; i < tNoOfOperations ; i++) {
-      NdbIndexOperation* tOp = theNdb->void2rec_iop(theNdb->int2void(*tPtr));
+      NdbReceiver* tOp = theNdb->void2rec(theNdb->int2void(*tPtr));
       tPtr++;
       const Uint32 tAttrInfoLen = *tPtr;
       tPtr++;
-      if (tOp && tOp->checkMagicNumber() != -1) {
-	tOp->TCOPCONF(tAttrInfoLen);
+      if (tOp && tOp->checkMagicNumber()) {
+	tNoComp += tOp->execTCOPCONF(tAttrInfoLen);
       } else {
 	return -1;
       }//if
     }//for
-    Uint32 tNoComp = theNoOfOpCompleted;
     Uint32 tNoSent = theNoOfOpSent;
     Uint32 tGCI    = indxConf->gci;
+    theNoOfOpCompleted = tNoComp;
     if (tCommitFlag == 1) {
       theCommitStatus = Committed;
       theGlobalCheckpointId = tGCI;
     } else if ((tNoComp >= tNoSent) &&
                (theLastExecOpInList->theCommitIndicator == 1)){
-/**********************************************************************/
-// We sent the transaction with Commit flag set and received a CONF with
-// no Commit flag set. This is clearly an anomaly.
-/**********************************************************************/
+      /**********************************************************************/
+      // We sent the transaction with Commit flag set and received a CONF with
+      // no Commit flag set. This is clearly an anomaly.
+      /**********************************************************************/
       theError.code = 4011;
       theCompletionStatus = CompletedFailure;
       theCommitStatus = Aborted;
@@ -1584,36 +1487,21 @@ Remark:         Handles the reception of the TCINDXREF signal.
 int
 NdbConnection::receiveTCINDXREF( NdbApiSignal* aSignal)
 {
-  Uint64 tRecTransId, tCurrTransId;
-  Uint32 tTmp1, tTmp2;
+  if(checkState_TransId(aSignal->getDataPtr()+1)){
+    theError.code = aSignal->readData(4);	// Override any previous errors
 
-  if (theStatus != Connected) {
-    return -1;
-  }//if
-/*****************************************************************************
-Check that we are expecting signals from this transaction and that it doesn't
-belong to a transaction already completed. Simply ignore messages from other 
-transactions.
-******************************************************************************/
-  tTmp1 = aSignal->readData(2);
-  tTmp2 = aSignal->readData(3);
-  tRecTransId = (Uint64)tTmp1 + ((Uint64)tTmp2 << 32);
-  tCurrTransId = this->getTransactionId();
-  if (tCurrTransId != tRecTransId) {
-    return -1;
-  }//if
-  theError.code = aSignal->readData(4);	// Override any previous errors
-
-/**********************************************************************/
-/*	A serious error has occured. This could be due to deadlock or */
-/*	lack of resources or simply a programming error in NDB. This  */
-/*	transaction will be aborted. Actually it has already been     */
-/*	and we only need to report completion and return with the     */
-/*	error code to the application.				      */
-/**********************************************************************/
-  theCompletionStatus = CompletedFailure;
-  theCommitStatus = Aborted;
-  return 0;
+    /**********************************************************************/
+    /*	A serious error has occured. This could be due to deadlock or */
+    /*	lack of resources or simply a programming error in NDB. This  */
+    /*	transaction will be aborted. Actually it has already been     */
+    /*	and we only need to report completion and return with the     */
+    /*	error code to the application.				      */
+    /**********************************************************************/
+    theCompletionStatus = CompletedFailure;
+    theCommitStatus = Aborted;
+    return 0;
+  }
+  return -1;
 }//NdbConnection::receiveTCINDXREF()
 
 /*******************************************************************************
