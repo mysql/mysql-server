@@ -244,7 +244,7 @@ character-set=latin1
 "Slave SQL thread ignorado a consulta devido às normas de replicação-*-tabela"
 "Definição errada da chave estrangeira para '%-.64s': %s",
 "Referência da chave e referência da tabela não coincidem",
-"Error de cardinalidade (mais/menos que %d colunas)",
+"Operand should contain %d column(s)",
 "Subconsulta retorna mais que 1 registro",
 "Desconhecido manipulador de declaração preparado (%ld) determinado para %s",
 "Banco de dado de ajuda corrupto ou não existente",

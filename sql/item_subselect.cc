@@ -107,7 +107,7 @@ bool Item_subselect::fix_fields(THD *thd_param, TABLE_LIST *tables, Item **ref)
     // Is it one field subselect?
     if (engine->cols() > max_columns)
     {  
-      my_error(ER_CARDINALITY_COL, MYF(0), 1);
+      my_error(ER_OPERAND_COLUMNS, MYF(0), 1);
       return 1;
     }
     fix_length_and_dec();
@@ -264,7 +264,7 @@ bool Item_singlerow_subselect::check_cols(uint c)
 {
   if (c != engine->cols())
   {
-    my_error(ER_CARDINALITY_COL, MYF(0), c);
+    my_error(ER_OPERAND_COLUMNS, MYF(0), c);
     return 1;
   }
   return 0;
@@ -529,7 +529,7 @@ Item_in_subselect::single_value_transformer(JOIN *join,
   Item *item;
   if (select_lex->item_list.elements > 1)
   {
-    my_error(ER_CARDINALITY_COL, MYF(0), 1);
+    my_error(ER_OPERAND_COLUMNS, MYF(0), 1);
     DBUG_RETURN(RES_ERROR);
   }
 
