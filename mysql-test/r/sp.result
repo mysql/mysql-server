@@ -2204,6 +2204,10 @@ call bug8757()|
 delete from t1|
 delete from t2|
 drop procedure bug8757|
+drop procedure if exists bug8762|
+drop procedure if exists bug8762; create procedure bug8762() begin end|
+drop procedure if exists bug8762; create procedure bug8762() begin end|
+drop procedure bug8762|
 drop table if exists fac|
 create table fac (n int unsigned not null primary key, f bigint unsigned)|
 drop procedure if exists ifac|

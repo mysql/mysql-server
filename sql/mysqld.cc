@@ -334,7 +334,7 @@ ulong server_id, thd_startup_options;
 ulong table_cache_size, thread_stack, thread_stack_min, what_to_log;
 ulong query_buff_size, slow_launch_time, slave_open_temp_tables;
 ulong open_files_limit, max_binlog_size, max_relay_log_size;
-ulong slave_net_timeout;
+ulong slave_net_timeout, slave_trans_retries;
 ulong thread_cache_size=0, binlog_cache_size=0, max_binlog_cache_size=0;
 ulong query_cache_size=0;
 ulong refresh_version, flush_version;	/* Increments on each reload */
@@ -4192,7 +4192,7 @@ enum options_mysqld
   OPT_QUERY_CACHE_TYPE, OPT_QUERY_CACHE_WLOCK_INVALIDATE, OPT_RECORD_BUFFER,
   OPT_RECORD_RND_BUFFER, OPT_RELAY_LOG_SPACE_LIMIT, OPT_RELAY_LOG_PURGE,
   OPT_SLAVE_NET_TIMEOUT, OPT_SLAVE_COMPRESSED_PROTOCOL, OPT_SLOW_LAUNCH_TIME,
-  OPT_READONLY, OPT_DEBUGGING,
+  OPT_SLAVE_TRANS_RETRIES, OPT_READONLY, OPT_DEBUGGING,
   OPT_SORT_BUFFER, OPT_TABLE_CACHE,
   OPT_THREAD_CONCURRENCY, OPT_THREAD_CACHE_SIZE,
   OPT_TMP_TABLE_SIZE, OPT_THREAD_STACK,
@@ -5222,7 +5222,7 @@ The minimum value for this variable is 4096.",
     (gptr*) &max_system_variables.max_length_for_sort_data, 0, GET_ULONG,
     REQUIRED_ARG, 1024, 4, 8192*1024L, 0, 1, 0},
   {"max_relay_log_size", OPT_MAX_RELAY_LOG_SIZE,
-   "If non-zero: relay log will be rotated automatically when the size exceeds this value; if zero (the default): when the size exceeds max_binlog_size. 0 expected, the minimum value for this variable is 4096.",
+   "If non-zero: relay log will be rotated automatically when the size exceeds this value; if zero (the default): when the size exceeds max_binlog_size. 0 excepted, the minimum value for this variable is 4096.",
    (gptr*) &max_relay_log_size, (gptr*) &max_relay_log_size, 0, GET_ULONG,
    REQUIRED_ARG, 0L, 0L, 1024*1024L*1024L, 0, IO_SIZE, 0},
   { "max_seeks_for_key", OPT_MAX_SEEKS_FOR_KEY,
@@ -5408,6 +5408,12 @@ The minimum value for this variable is 4096.",
    "Number of seconds to wait for more data from a master/slave connection before aborting the read.",
    (gptr*) &slave_net_timeout, (gptr*) &slave_net_timeout, 0,
    GET_ULONG, REQUIRED_ARG, SLAVE_NET_TIMEOUT, 1, LONG_TIMEOUT, 0, 1, 0},
+  {"slave_transaction_retries", OPT_SLAVE_TRANS_RETRIES,
+   "Number of times the slave SQL thread will retry a transaction in case "
+   "it failed with a deadlock or elapsed lock wait timeout, "
+   "before giving up and stopping.",
+   (gptr*) &slave_trans_retries, (gptr*) &slave_trans_retries, 0,
+   GET_ULONG, REQUIRED_ARG, 0L, 0L, (longlong) ULONG_MAX, 0, 1, 0},
 #endif /* HAVE_REPLICATION */
   {"slow_launch_time", OPT_SLOW_LAUNCH_TIME,
    "If creating the thread takes longer than this value (in seconds), the Slow_launch_threads counter will be incremented.",
@@ -5793,7 +5799,7 @@ static void mysql_init_variables(void)
   opt_log= opt_update_log= opt_bin_log= opt_slow_log= 0;
   opt_disable_networking= opt_skip_show_db=0;
   opt_logname= opt_update_logname= opt_binlog_index_name= opt_slow_logname= 0;
-  opt_tc_log_file= (char*) "tc.log";      // no hostname in tc_log file name !
+  opt_tc_log_file= (char *)"tc.log";      // no hostname in tc_log file name !
   opt_secure_auth= 0;
   opt_bootstrap= opt_myisam_log= 0;
   mqh_used= 0;
