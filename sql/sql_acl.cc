@@ -564,6 +564,10 @@ ulong acl_getroot(THD *thd, const char *host, const char *ip, const char *user,
 		user_access=acl_user->access;
 	      else
 	      {
+		if (global_system_variables.log_warnings)
+		  sql_print_error("X509 ciphers mismatch: should be '%s' but is '%s'",
+				  acl_user->ssl_cipher,
+				  SSL_get_cipher(vio->ssl_));
 		user_access=NO_ACCESS;
 		break;
 	      }
@@ -581,6 +585,9 @@ ulong acl_getroot(THD *thd, const char *host, const char *ip, const char *user,
 				 acl_user->x509_issuer, ptr));
 	      if (strcmp(acl_user->x509_issuer, ptr))
 	      {
+		if (global_system_variables.log_warnings)
+		  sql_print_error("X509 issuer mismatch: should be '%s' but is '%s'",
+				  acl_user->x509_issuer, ptr);
 		user_access=NO_ACCESS;
 		free(ptr);
 		break;
@@ -596,7 +603,12 @@ ulong acl_getroot(THD *thd, const char *host, const char *ip, const char *user,
 	      DBUG_PRINT("info",("comparing subjects: '%s' and '%s'",
 				 acl_user->x509_subject, ptr));
 	      if (strcmp(acl_user->x509_subject,ptr))
+	      {
+		if (global_system_variables.log_warnings)
+		  sql_print_error("X509 subject mismatch: '%s' vs '%s'", 
+				  acl_user->x509_subject, ptr);
 		user_access=NO_ACCESS;
+	      }
 	      else
 		user_access=acl_user->access;
 	      free(ptr);
