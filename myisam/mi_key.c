@@ -18,6 +18,7 @@
 
 #include "myisamdef.h"
 #include "m_ctype.h"
+#include "sp_defs.h"
 #ifdef HAVE_IEEEFP_H
 #include <ieeefp.h>
 #endif
@@ -38,6 +39,14 @@ uint _mi_make_key(register MI_INFO *info, uint keynr, uchar *key,
   uchar *start;
   reg1 MI_KEYSEG *keyseg;
   DBUG_ENTER("_mi_make_key");
+
+  if(info->s->keyinfo[keynr].flag & HA_SPATIAL)
+  {
+    /* 
+      TODO: nulls processing
+    */
+    return sp_make_key(info,keynr,key,record,filepos);
+  }
 
   start=key;
   for (keyseg=info->s->keyinfo[keynr].seg ; keyseg->type ;keyseg++)

@@ -89,6 +89,7 @@ int run_test(const char *filename)
   /* Define a key over the first column */
   keyinfo[0].seg=keyseg;
   keyinfo[0].keysegs=1;
+  keyinfo[0].key_alg=HA_KEY_ALG_BTREE;
   keyinfo[0].seg[0].type= key_type;
   keyinfo[0].seg[0].flag= pack_seg;
   keyinfo[0].seg[0].start=1;

@@ -15,6 +15,7 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 #include "myisamdef.h"
+#include "rt_index.h"
 
 	/*
 	   Read next row with the same key as previous read, but abort if
@@ -38,26 +39,39 @@ int mi_rnext_same(MI_INFO *info, byte *buf)
   if (fast_mi_readinfo(info))
     DBUG_RETURN(my_errno);
 
-  memcpy(info->lastkey2,info->lastkey,info->last_rkey_length);
   if (info->s->concurrent_insert)
     rw_rdlock(&info->s->key_root_lock[inx]);
-  for (;;)
+    
+  switch(keyinfo->key_alg)
   {
-    if ((error=_mi_search_next(info,keyinfo,info->lastkey,
+    case HA_KEY_ALG_RTREE:
+      if((error=rtree_find_next(info,inx,myisam_read_vec[info->last_key_func])))
+        {
+          /* FIXME: What to do?*/
+        }
+      break;
+    case HA_KEY_ALG_BTREE:
+    default:
+    
+      memcpy(info->lastkey2,info->lastkey,info->last_rkey_length);
+      for (;;)
+      {
+        if ((error=_mi_search_next(info,keyinfo,info->lastkey,
 			       info->lastkey_length,flag,
 			       info->s->state.key_root[inx])))
-      break;
-    if (_mi_key_cmp(keyinfo->seg,info->lastkey2,info->lastkey,
+          break;
+        if (_mi_key_cmp(keyinfo->seg,info->lastkey2,info->lastkey,
 		    info->last_rkey_length, SEARCH_FIND, &not_used))
-    {
-      error=1;
-      my_errno=HA_ERR_END_OF_FILE;
-      info->lastpos= HA_OFFSET_ERROR;
-      break;
-    }
-    /* Skip rows that are inserted by other threads since we got a lock */
-    if (info->lastpos < info->state->data_file_length)
-      break;
+        {
+          error=1;
+          my_errno=HA_ERR_END_OF_FILE;
+          info->lastpos= HA_OFFSET_ERROR;
+          break;
+        }
+        /* Skip rows that are inserted by other threads since we got a lock */
+        if (info->lastpos < info->state->data_file_length)
+          break;
+      }
   }
   if (info->s->concurrent_insert)
     rw_unlock(&info->s->key_root_lock[inx]);
