@@ -4674,6 +4674,104 @@ ha_innobase::get_foreign_key_create_info(void)
   	return(str);
 }
 
+
+int 
+ha_innobase::get_foreign_key_list(THD *thd, List<FOREIGN_KEY_INFO> *f_key_list)
+{
+  dict_foreign_t* foreign;
+
+  DBUG_ENTER("get_foreign_key_list");
+  row_prebuilt_t* prebuilt = (row_prebuilt_t*)innobase_prebuilt;
+  ut_a(prebuilt != NULL);
+  update_thd(current_thd);
+  prebuilt->trx->op_info = (char*)"getting list of foreign keys";
+  trx_search_latch_release_if_reserved(prebuilt->trx);
+  mutex_enter(&(dict_sys->mutex));
+  foreign = UT_LIST_GET_FIRST(prebuilt->table->foreign_list);
+
+  while (foreign != NULL) 
+  {
+    uint i;
+    FOREIGN_KEY_INFO f_key_info;
+    LEX_STRING *name= 0;
+    const char *tmp_buff;
+
+    tmp_buff= foreign->id;
+    i= 0;
+    while (tmp_buff[i] != '/')
+      i++;
+    tmp_buff+= i + 1;
+    f_key_info.forein_id= make_lex_string(thd, f_key_info.forein_id,
+                                          tmp_buff, strlen(tmp_buff), 1);
+    tmp_buff= foreign->referenced_table_name;
+    i= 0;
+    while (tmp_buff[i] != '/')
+      i++;
+    f_key_info.referenced_db= make_lex_string(thd, f_key_info.referenced_db,
+                                              tmp_buff, i, 1);
+    tmp_buff+= i + 1;
+    f_key_info.referenced_table= make_lex_string(thd, 
+                                                 f_key_info.referenced_table,
+                                                 tmp_buff, strlen(tmp_buff), 1);
+
+    for (i= 0;;)
+    {
+      tmp_buff= foreign->foreign_col_names[i];
+      name= make_lex_string(thd, name, tmp_buff, strlen(tmp_buff), 1);
+      f_key_info.foreign_fields.push_back(name);
+      tmp_buff= foreign->referenced_col_names[i];
+      name= make_lex_string(thd, name, tmp_buff, strlen(tmp_buff), 1);
+      f_key_info.referenced_fields.push_back(name);
+      if (++i >= foreign->n_fields)
+        break;
+    }
+
+    ulong length= 0;
+    if (foreign->type == DICT_FOREIGN_ON_DELETE_CASCADE)
+    {
+      length=17;
+      tmp_buff= "ON DELETE CASCADE";
+    }	
+    else if (foreign->type == DICT_FOREIGN_ON_DELETE_SET_NULL)
+    {
+      length=18;
+      tmp_buff= "ON DELETE SET NULL";
+    }
+    else if (foreign->type == DICT_FOREIGN_ON_DELETE_NO_ACTION)
+    {
+      length=19;
+      tmp_buff= "ON DELETE NO ACTION";
+    }
+    else if (foreign->type == DICT_FOREIGN_ON_UPDATE_CASCADE)
+    {
+      length=17;
+      tmp_buff= "ON UPDATE CASCADE";
+    }
+    else if (foreign->type == DICT_FOREIGN_ON_UPDATE_SET_NULL)
+    {
+      length=18;
+      tmp_buff= "ON UPDATE SET NULL";
+    }
+    else if (foreign->type == DICT_FOREIGN_ON_UPDATE_NO_ACTION)
+    {
+      length=19;
+      tmp_buff= "ON UPDATE NO ACTION";
+    }
+    f_key_info.constraint_method= make_lex_string(thd,
+                                                  f_key_info.constraint_method,
+                                                  tmp_buff, length, 1);
+
+    FOREIGN_KEY_INFO *pf_key_info= ((FOREIGN_KEY_INFO *) 
+                                    thd->memdup((gptr) &f_key_info,
+                                                sizeof(FOREIGN_KEY_INFO)));
+    f_key_list->push_back(pf_key_info);
+    foreign = UT_LIST_GET_NEXT(foreign_list, foreign);
+  }
+  mutex_exit(&(dict_sys->mutex));
+  prebuilt->trx->op_info = (char*)"";
+  DBUG_RETURN(0);
+}
+
 /***********************************************************************
 Checks if a table is referenced by a foreign key. The MySQL manual states that
 a REPLACE is either equivalent to an INSERT, or DELETE(s) + INSERT. Only a

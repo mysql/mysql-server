@@ -370,7 +370,8 @@ bool close_cached_tables(THD *thd, bool if_wait_for_refresh,
     Put all normal tables used by thread in free list.
 */
 
-void close_thread_tables(THD *thd, bool lock_in_use, bool skip_derived)
+void close_thread_tables(THD *thd, bool lock_in_use, bool skip_derived, 
+                         TABLE *stopper)
 {
   bool found_old_table;
   DBUG_ENTER("close_thread_tables");
@@ -408,7 +409,7 @@ void close_thread_tables(THD *thd, bool lock_in_use, bool skip_derived)
   DBUG_PRINT("info", ("thd->open_tables: %p", thd->open_tables));
 
  found_old_table= 0;
-  while (thd->open_tables)
+  while (thd->open_tables != stopper)
     found_old_table|=close_thread_table(thd, &thd->open_tables);
   thd->some_tables_deleted=0;
 
@@ -1656,6 +1657,12 @@ int open_tables(THD *thd, TABLE_LIST *start, uint *counter)
      */
     if (tables->derived)
       continue;
+    if (tables->schema_table)
+    {
+      if (!mysql_schema_table(thd, thd->lex, tables))
+        continue;
+      DBUG_RETURN(-1);
+    }
     (*counter)++;
     if (!tables->table &&
 	!(tables->table= open_table(thd, tables, &new_frm_mem, &refresh)))
@@ -2904,7 +2911,7 @@ insert_fields(THD *thd, TABLE_LIST *tables, const char *db_name,
                                       &view_iter))
             goto err;
         }
-        else
+        else if (!tables->schema_table)
         {
           table_iter.set(tables);
           if (check_grant_all_columns(thd, SELECT_ACL, &table->grant,
@@ -2984,7 +2991,8 @@ insert_fields(THD *thd, TABLE_LIST *tables, const char *db_name,
               db= tables->db;
               tab= tables->real_name;
             }
-            if (!(fld->have_privileges= (get_column_grant(thd,
+            if (!tables->schema_table && 
+                !(fld->have_privileges= (get_column_grant(thd,
                                                           &table->grant,
                                                           db,
                                                           tab,

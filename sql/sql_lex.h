@@ -56,7 +56,7 @@ enum enum_sql_command {
   SQLCOM_SHOW_INNODB_STATUS,
   SQLCOM_SHOW_PROCESSLIST, SQLCOM_SHOW_MASTER_STAT, SQLCOM_SHOW_SLAVE_STAT,
   SQLCOM_SHOW_GRANTS, SQLCOM_SHOW_CREATE, SQLCOM_SHOW_CHARSETS,
-  SQLCOM_SHOW_COLLATIONS, SQLCOM_SHOW_CREATE_DB,
+  SQLCOM_SHOW_COLLATIONS, SQLCOM_SHOW_CREATE_DB, SQLCOM_SHOW_TABLE_STATUS,
 
   SQLCOM_LOAD,SQLCOM_SET_OPTION,SQLCOM_LOCK_TABLES,SQLCOM_UNLOCK_TABLES,
   SQLCOM_GRANT,
@@ -692,7 +692,7 @@ typedef struct st_lex
   LEX_MASTER_INFO mi;				// used by CHANGE MASTER
   USER_RESOURCES mqh;
   ulong thread_id,type;
-  enum_sql_command sql_command;
+  enum_sql_command sql_command, orig_sql_command;
   thr_lock_type lock_option, multi_lock_option;
   enum SSL_type ssl_type;			/* defined in violite.h */
   enum my_lex_states next_state;
