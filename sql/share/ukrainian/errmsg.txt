@@ -249,3 +249,4 @@
 "Пiдзапит поверта╓ бiльш нiж 1 запис",
 "Unknown prepared statement handler (%ld) given to %s",
 "Help database is corrupt or does not exist",
+"Циклiчне посилання на пiдзапит",

@@ -1035,6 +1035,24 @@ JOIN::cleanup(THD *thd)
   DBUG_RETURN(error);
 }
 
+bool JOIN::check_loop(uint id)
+{
+  DBUG_ENTER("JOIN::check_loop");
+  Item *item;
+  List_iterator<Item> it(all_fields);
+  DBUG_PRINT("info", ("all_fields:"));
+  while ((item= it++))
+    if (item->check_loop(id))
+      DBUG_RETURN(1);
+  DBUG_PRINT("info", ("where:"));
+  if (select_lex->where && select_lex->where->check_loop(id))
+    DBUG_RETURN(1);
+  DBUG_PRINT("info", ("having:"));
+  if (select_lex->having && select_lex->having->check_loop(id))
+    DBUG_RETURN(1);
+  DBUG_RETURN(0);
+}
+
 int
 mysql_select(THD *thd, TABLE_LIST *tables, List<Item> &fields, COND *conds,
 	     ORDER *order, ORDER *group,Item *having, ORDER *proc_param,

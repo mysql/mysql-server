@@ -105,6 +105,13 @@ public:
 	    || Item_func::fix_fields(thd, tlist, ref));
   }
  const char *func_name() const { return "concat_ws"; }
+ bool check_loop(uint id)
+ {
+   DBUG_ENTER("Item_func_concat_ws::check_loop");
+   if (Item_str_func::check_loop(id))
+     DBUG_RETURN(1);
+   DBUG_RETURN(separator->check_loop(id));
+ }
 };
 
 class Item_func_reverse :public Item_str_func
@@ -361,6 +368,13 @@ public:
   void fix_length_and_dec();
   void update_used_tables();
   const char *func_name() const { return "elt"; }
+  bool check_loop(uint id)
+  {
+    DBUG_ENTER("Item_func_elt::check_loop");
+    if (Item_str_func::check_loop(id))
+      DBUG_RETURN(1);
+    DBUG_RETURN(item->check_loop(id));
+  }
 };
 
 
@@ -381,6 +395,13 @@ public:
   void fix_length_and_dec();
   void update_used_tables();
   const char *func_name() const { return "make_set"; }
+  bool check_loop(uint id)
+  {
+    DBUG_ENTER("Item_func_make_set::check_loop");
+    if (Item_str_func::check_loop(id))
+      DBUG_RETURN(1);
+    DBUG_RETURN(item->check_loop(id));
+  }
 };
 
 
