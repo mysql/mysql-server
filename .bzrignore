@@ -399,3 +399,4 @@ tools/mysys_priv.h
 vio/test-sslclient
 vio/test-sslserver
 vio/viotest-ssl
+tools/mysqlmanager

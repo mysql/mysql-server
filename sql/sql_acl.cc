@@ -61,7 +61,9 @@ public:
   uint hostname_length;
   char *user,*password;
   ulong salt[2];
+#ifdef HAVE_OPENSSL  
   char *ssl_type, *ssl_cipher, *ssl_issuer, *ssl_subject;
+#endif  
 };
 
 class ACL_DB :public ACL_ACCESS
@@ -200,10 +202,12 @@ int  acl_init(bool dont_read_acl_tables)
     update_hostname(&user.host,get_field(&mem, table,0));
     user.user=get_field(&mem, table,1);
     user.password=get_field(&mem, table,2);
+#ifdef HAVE_OPENSSL    
     user.ssl_type=get_field(&mem, table,17);
     user.ssl_cipher=get_field(&mem, table,18);
     user.ssl_issuer=get_field(&mem, table,19);
     user.ssl_subject=get_field(&mem, table,20);
+#endif    
     if (user.password && (length=(uint) strlen(user.password)) == 8 &&
 	protocol_version == PROTOCOL_VERSION)
     {
@@ -2416,6 +2420,7 @@ int mysql_show_grants(THD *thd,LEX_USER *lex_user)
       global.append(passd_buff);
       global.append('\'');
     }
+#ifdef HAVE_OPENSSL    
 /* SSL grant stuff */
     DBUG_PRINT("info",("acl_user->ssl_type=%s",acl_user->ssl_type));
     DBUG_PRINT("info",("acl_user->ssl_cipher=%s",acl_user->ssl_cipher));
@@ -2439,7 +2444,7 @@ int mysql_show_grants(THD *thd,LEX_USER *lex_user)
 	}
       }
     }
-
+#endif    
     if (want_access & GRANT_ACL)
       global.append(" WITH GRANT OPTION",18); 
     thd->packet.length(0);
