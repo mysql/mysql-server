@@ -25,9 +25,10 @@ explain extended select if(u=1,st,binary st) s from t1 where st like "%a%" order
 #
 # NULLIF test
 #
-select nullif(u=0, 'test') from t1;
-explain extended select nullif(u=0, 'test') from t1;
+select nullif(u, 1) from t1;
+explain extended select nullif(u, 1) from t1;
 drop table t1;
+select nullif(1,'test');
 
 #
 # Bug 2629

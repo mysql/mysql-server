@@ -69,7 +69,7 @@ ALTER TABLE t1
 add new_field char(10) default "new" not null,
 change blob_col new_blob_col varchar(20),
 change date_field date_field char(10),
-alter column string set default "new default",
+alter column string set default "newdefault",
 alter short drop default,
 DROP INDEX utiny,
 DROP INDEX ushort,

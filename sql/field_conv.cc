@@ -508,8 +508,16 @@ void (*Copy_field::get_copy_func(Field *to,Field *from))(Copy_field*)
     // Check if identical fields
     if (from->result_type() == STRING_RESULT)
     {
+      /*
+        If we are copying date or datetime's we have to check the dates
+        if we don't allow 'all' dates.
+p      */
       if (to->real_type() != from->real_type() ||
-          !compatible_db_low_byte_first)
+          !compatible_db_low_byte_first ||
+          ((to->table->in_use->variables.sql_mode &
+            (MODE_NO_ZERO_IN_DATE | MODE_NO_ZERO_DATE | MODE_INVALID_DATES)) &&
+           to->type() == FIELD_TYPE_DATE ||
+           to->type() == FIELD_TYPE_DATETIME))
       {
 	if (from->real_type() == FIELD_TYPE_ENUM ||
 	    from->real_type() == FIELD_TYPE_SET)
@@ -590,7 +598,11 @@ void field_conv(Field *to,Field *from)
          (to->field_length == from->field_length &&
           (((Field_num*)to)->dec == ((Field_num*)from)->dec))) &&
         from->charset() == to->charset() &&
-	to->table->s->db_low_byte_first == from->table->s->db_low_byte_first)
+	to->table->s->db_low_byte_first == from->table->s->db_low_byte_first &&
+        (!(to->table->in_use->variables.sql_mode &
+           (MODE_NO_ZERO_IN_DATE | MODE_NO_ZERO_DATE | MODE_INVALID_DATES)) ||
+         to->type() != FIELD_TYPE_DATE &&
+         to->type() != FIELD_TYPE_DATETIME))
     {						// Identical fields
       memcpy(to->ptr,from->ptr,to->pack_length());
       return;
