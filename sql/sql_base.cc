@@ -171,7 +171,7 @@ static void check_unused(void)
   }
   if (count != 0)
   {
-    DBUG_PRINT("error",("Unused_links dosen't match open_cache: diff: %d", /* purecov: inspected */
+    DBUG_PRINT("error",("Unused_links doesn't match open_cache: diff: %d", /* purecov: inspected */
 			count)); /* purecov: inspected */
   }
 }

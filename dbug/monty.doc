@@ -1,11 +1,11 @@
 Some extra options to DBUG_PUSH:
 
-O,logfile   - As "o,logfile", but do a close and reopen each time anything
-	      is written to the logfile. This is neaded when one expects
-	      the program to crash anywhere, in which case one dosen't
+O,logfile   - As in "o,logfile", but do a close and reopen each time anything
+	      is written to the logfile. This is needed when one expects
+	      the program to crash anywhere, in which case one doesn't
 	      (at least in MSDOS) get a full log-file.
 
-If one wants a logfile with a ': in the filename, one can get it by
+If one wants a logfile with a ':' in the filename, one can get it by
 giving a double ':'.  (As in "O,c::\tmp\log")
 
 DBUG_DUMP("keyword",memory-position,length) writes a hexdump of the

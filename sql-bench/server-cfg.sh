@@ -421,7 +421,7 @@ sub create
     $field =~ s/tinyint|smallint|mediumint|integer/int/i;
     # mSQL can't handle different visual lengths
     $field =~ s/int\(\d*\)/int/i;
-    # mSQL dosen't have float, change it to real
+    # mSQL doesn't have float, change it to real
     $field =~ s/float(\(\d*,\d*\)){0,1}/real/i;
     $field =~ s/double(\(\d*,\d*\)){0,1}/real/i;
     # mSQL doesn't have blob, it has text instead
