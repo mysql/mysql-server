@@ -535,3 +535,12 @@ public:
   const char *func_name() const { return "inet_ntoa"; }
   void fix_length_and_dec() { decimals = 0; max_length=3*8+7; }
 };
+
+class Item_func_quote :public Item_str_func
+{
+public:
+  Item_func_quote(Item *a) :Item_str_func(a) {}
+  const char *func_name() const { return "quote"; }
+  String *val_str(String *);
+  void fix_length_and_dec();
+};

@@ -475,6 +475,7 @@ static SYMBOL sql_functions[] = {
   { "POW",		SYM(FUNC_ARG2),0,CREATE_FUNC(create_func_pow)},
   { "POWER",		SYM(FUNC_ARG2),0,CREATE_FUNC(create_func_pow)},
   { "QUARTER",		SYM(FUNC_ARG1),0,CREATE_FUNC(create_func_quarter)},
+  { "QUOTE",		SYM(FUNC_ARG1),0,CREATE_FUNC(create_func_quote)},
   { "RADIANS",		SYM(FUNC_ARG1),0,CREATE_FUNC(create_func_radians)},
   { "RAND",		SYM(RAND),0,0},
   { "RELEASE_LOCK",	SYM(FUNC_ARG1),0,CREATE_FUNC(create_func_release_lock)},

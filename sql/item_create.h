@@ -93,3 +93,4 @@ Item *create_func_weekday(Item* a);
 Item *create_load_file(Item* a);
 Item *create_wait_for_master_pos(Item* a, Item* b);
 Item *create_func_is_free_lock(Item* a);
+Item *create_func_quote(Item* a);
