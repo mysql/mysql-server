@@ -984,11 +984,11 @@ static void frm_error(int error, TABLE *form, const char *name, myf errortype)
       uint length=dirname_part(buff,name);
       buff[length-1]=0;
       db=buff+dirname_length(buff);
-      my_error(ER_NO_SUCH_TABLE,MYF(0),db,form->real_name);
+      my_error(ER_NO_SUCH_TABLE, MYF(0), db, form->real_name);
     }
     else
-      my_error(ER_FILE_NOT_FOUND,errortype,
-	       fn_format(buff,name,form_dev,reg_ext,0),my_errno);
+      my_error(ER_FILE_NOT_FOUND, errortype,
+               fn_format(buff, name, form_dev, reg_ext, 0), my_errno);
     break;
   case 2:
   {
@@ -996,14 +996,14 @@ static void frm_error(int error, TABLE *form, const char *name, myf errortype)
     datext= datext==NullS ? "" : datext;
     err_no= (my_errno == ENOENT) ? ER_FILE_NOT_FOUND : (my_errno == EAGAIN) ?
       ER_FILE_USED : ER_CANT_OPEN_FILE;
-    my_error(err_no,errortype,
-	     fn_format(buff,form->real_name,form_dev,datext,2),my_errno);
+    my_error(err_no, errortype,
+             fn_format(buff, form->real_name, form_dev, datext, 2), my_errno);
     break;
   }
   default:				/* Better wrong error than none */
   case 4:
-    my_error(ER_NOT_FORM_FILE,errortype,
-	     fn_format(buff,name,form_dev,reg_ext,0));
+    my_error(ER_NOT_FORM_FILE, errortype,
+             fn_format(buff, name, form_dev, reg_ext, 0));
     break;
   }
   DBUG_VOID_RETURN;

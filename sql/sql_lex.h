@@ -342,8 +342,8 @@ protected:
   TABLE *table; /* temporary table using for appending UNION results */
 
   select_result *result;
-  int res;
   ulong found_rows_for_union;
+  bool res;
   bool  prepared, // prepare phase already performed for UNION (unit)
     optimized, // optimize phase already performed for UNION (unit)
     executed, // already executed
@@ -403,9 +403,9 @@ public:
   void exclude_tree();
 
   /* UNION methods */
-  int prepare(THD *thd, select_result *result, ulong additional_options);
-  int exec();
-  int cleanup();
+  bool prepare(THD *thd, select_result *result, ulong additional_options);
+  bool exec();
+  bool cleanup();
   inline void unclean() { cleaned= 0; }
   void reinit_exec_mechanism();
 
@@ -413,7 +413,7 @@ public:
   void print(String *str);
 
   ulong init_prepare_fake_select_lex(THD *thd);
-  int change_result(select_subselect *result, select_subselect *old_result);
+  bool change_result(select_subselect *result, select_subselect *old_result);
   void set_limit(st_select_lex *values, st_select_lex *sl);
 
   friend void lex_start(THD *thd, uchar *buf, uint length);

@@ -162,9 +162,9 @@ master-bin.000001	#	Query	1	#	use `mysqltest2`; drop database mysqltest2
 master-bin.000001	#	Query	1	#	SET ONE_SHOT CHARACTER_SET_CLIENT=8,COLLATION_CONNECTION=31,COLLATION_DATABASE=9,COLLATION_SERVER=64
 master-bin.000001	#	Query	1	#	drop database mysqltest3
 set global character_set_server=latin2;
-ERROR HY000: Binary logging and replication forbid changing the global server character set or collation
+ERROR HY000: Binary logging and replication forbid changing the global server character set, collation
 set global character_set_server=latin2;
-ERROR HY000: Binary logging and replication forbid changing the global server character set or collation
+ERROR HY000: Binary logging and replication forbid changing the global server character set, collation
 set one_shot @@character_set_server=latin5;
 set @@max_join_size=1000;
 select @@character_set_server;
@@ -181,7 +181,7 @@ select @@character_set_server;
 @@character_set_server
 latin5
 set one_shot max_join_size=10;
-ERROR HY000: The SET ONE_SHOT syntax is reserved for purposes internal to the MySQL server
+ERROR HY000: The 'SET ONE_SHOT' syntax is reserved for purposes internal to the MySQL server
 set character_set_client=9999999;
 ERROR 42000: Unknown character set: '9999999'
 set collation_server=9999998;
