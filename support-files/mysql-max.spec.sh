@@ -22,7 +22,7 @@ Obsoletes:	mysql
 
 # Think about what you use here since the first step is to
 # run a rm -rf
-BuildRoot:	/var/tmp/mysql
+BuildRoot:	/var/tmp/mysql-max
 
 # From the manual
 %description
@@ -72,7 +72,7 @@ para maiores informações.
 
 %prep
 %setup -n mysql-max-%{mysql_version}
-# %setup -T -D -a 1 -n mysql-%{mysql_version}
+# %setup -T -D -a 1 -n mysql-max-%{mysql_version}
 
 %build
 # The all-static flag is to make the RPM work on different
@@ -118,7 +118,7 @@ sh -c  "PATH=\"${MYSQL_BUILD_PATH:-/bin:/usr/bin}\" \
 # Use the build root for temporary storage of the shared libraries.
 
 RBR=$RPM_BUILD_ROOT
-MBD=$RPM_BUILD_DIR/mysql-%{mysql_version}
+MBD=$RPM_BUILD_DIR/mysql-max-%{mysql_version}
 if test -z "$RBR" -o "$RBR" = "/"
 then
 	echo "RPM_BUILD_ROOT has stupid value"
@@ -140,7 +140,7 @@ BuildMySQL "--disable-shared" \
 
 %install -n mysql-max-%{mysql_version}
 RBR=$RPM_BUILD_ROOT
-MBD=$RPM_BUILD_DIR/mysql-%{mysql_version}
+MBD=$RPM_BUILD_DIR/mysql-max-%{mysql_version}
 # Ensure that needed directories exists
 install -d $RBR/etc/{logrotate.d,rc.d/init.d}
 install -d $RBR/var/lib/mysql/mysql
@@ -157,7 +157,7 @@ install -m644 $MBD/support-files/mysql-log-rotate $RBR/etc/logrotate.d/mysql
 install -m755 $MBD/support-files/mysql.server $RBR/etc/rc.d/init.d/mysql
 
 # Install docs
-install -m644 $RPM_BUILD_DIR/mysql-%{mysql_version}/Docs/mysql.info \
+install -m644 $RPM_BUILD_DIR/mysql-max-%{mysql_version}/Docs/mysql.info \
  $RBR/usr/info/mysql.info
 for file in README COPYING COPYING.LIB Docs/manual_toc.html Docs/manual.html \
     Docs/manual.txt Docs/manual.texi Docs/manual.ps \
@@ -259,5 +259,5 @@ fi
 
 %changelog 
 
-* 2000-04-01 Monty
+* Fri Apr 13 2001 Monty
   First version of mysql-max.spec.sh based on mysql.spec.sh
