@@ -454,7 +454,11 @@ drop function append|
 drop function fun|
 
 
-# A "real" procedure and function example
+#
+# Some "real" examples
+#
+
+# fac
 
 --disable_warnings
 drop table if exists fac|
@@ -481,6 +485,92 @@ select * from fac|
 drop table fac|
 drop procedure ifac|
 drop function fac|
+
+
+# primes
+
+--disable_warnings
+drop table if exists primes|
+--enable_warnings
+
+create table primes (
+  i int unsigned not null primary key,
+  p bigint unsigned not null
+)|
+
+insert into primes values
+ ( 0,   3), ( 1,   5), ( 2,   7), ( 3,  11), ( 4,  13),
+ ( 5,  17), ( 6,  19), ( 7,  23), ( 8,  29), ( 9,  31),
+ (10,  37), (11,  41), (12,  43), (13,  47), (14,  53),
+ (15,  59), (16,  61), (17,  67), (18,  71), (19,  73),
+ (20,  79), (21,  83), (22,  89), (23,  97), (24, 101),
+ (25, 103), (26, 107), (27, 109), (28, 113), (29, 127),
+ (30, 131), (31, 137), (32, 139), (33, 149), (34, 151),
+ (35, 157), (36, 163), (37, 167), (38, 173), (39, 179),
+ (40, 181), (41, 191), (42, 193), (43, 197), (44, 199)|
+
+create procedure opp(n bigint unsigned, out pp bool)
+begin
+  declare r double;
+  declare b, s bigint unsigned;
+
+  set b = 0, s = 0;
+  set r = sqrt(n);
+
+ again:
+  loop
+    if s = 45 then
+      set b = b+200, s = 0;
+    else
+      begin
+        declare p bigint unsigned;
+
+        select t.p into p from test.primes t where t.i = s;
+        if b+p > r then
+          set pp = 1;
+          leave again;
+        end if;
+        if mod(n, b+p) = 0 then
+          set pp = 0;
+          leave again;
+        end if;
+        set s = s+1;
+      end;
+    end if;
+  end loop again;
+end|
+
+create procedure ip(m int unsigned)
+begin
+  declare p bigint unsigned;
+  declare i int unsigned;
+
+  set i=45, p=201;
+
+  while i < m do
+    begin
+      declare pp bool;
+
+      set pp = 0;
+      call opp(p, pp);
+      if pp then
+        insert into test.primes values (i, p);
+        set i = i+1;
+      end if;
+      set p = p+2;
+    end;
+  end while;
+end|
+
+# This isn't the fastest way in the world to compute prime numbers, so
+# don't be too ambition. ;-)
+call ip(200)|
+# We don't want to select the entire table here, just pick a few
+# examples.
+select * from primes where i=45 or i=100 or i=199|
+drop table primes|
+drop procedure opp|
+drop procedure ip|
 
 delimiter ;|
 drop table t1;

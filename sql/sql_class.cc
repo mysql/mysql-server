@@ -972,6 +972,8 @@ int select_dumpvar::prepare(List<Item> &list, SELECT_LEX_UNIT *u)
   Item *item;
   my_var *mv;
   LEX_STRING *ls;
+
+  row_count= 0;
   if (var_list.elements != list.elements)
   {
     my_error(ER_WRONG_NUMBER_OF_COLUMNS_IN_SELECT, MYF(0));
@@ -996,6 +998,7 @@ int select_dumpvar::prepare(List<Item> &list, SELECT_LEX_UNIT *u)
   }
   return 0;
 }
+
 bool select_dumpvar::send_data(List<Item> &items)
 {
   List_iterator_fast<Item_func_set_user_var> li(vars);
