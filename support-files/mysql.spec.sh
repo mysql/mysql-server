@@ -322,7 +322,11 @@ install -m755 $MBD/support-files/mysql.server $RBR/etc/init.d/mysql
 # (safe_mysqld will be gone in MySQL 4.1)
 ln -sf ./mysqld_safe $RBR/usr/bin/safe_mysqld
 
-%pre
+# Touch the place where the my.cnf config file might be located
+# Just to make sure it's in the file list and marked as a config file
+touch $RBR/etc/my.cnf
+
+%pre server
 # Shut down a previously installed server first
 if test -x /etc/init.d/mysql
 then
@@ -336,13 +340,13 @@ then
   sleep 5
 fi
 
-%post
+%post server
 mysql_datadir=/var/lib/mysql
 
 # Create data directory if needed
-if test ! -d $mysql_datadir;		then mkdir $mysql_datadir; fi
-if test ! -d $mysql_datadir/mysql;	then mkdir $mysql_datadir/mysql; fi
-if test ! -d $mysql_datadir/test;	then mkdir $mysql_datadir/test; fi
+if test ! -d $mysql_datadir; then mkdir -m755 $mysql_datadir; fi
+if test ! -d $mysql_datadir/mysql; then mkdir $mysql_datadir/mysql; fi
+if test ! -d $mysql_datadir/test; then mkdir $mysql_datadir/test; fi
 
 # Make MySQL start/shutdown automatically when the machine does it.
 # use insserv for older SuSE Linux versions
@@ -384,7 +388,7 @@ sleep 2
 echo "Restarting mysqld."
 /etc/init.d/mysql restart > /dev/null 2>&1
 
-%preun
+%preun server
 if test $1 = 0
 then
 	# Stop MySQL before uninstalling it
@@ -429,6 +433,8 @@ fi
 %doc %attr(644, root, man) %{_mandir}/man1/mysqld_safe.1*
 %doc %attr(644, root, man) %{_mandir}/man1/perror.1*
 %doc %attr(644, root, man) %{_mandir}/man1/replace.1*
+
+%ghost %config(noreplace,missingok) /etc/my.cnf
 
 %attr(755, root, root) /usr/bin/isamchk
 %attr(755, root, root) /usr/bin/isamlog
@@ -528,6 +534,12 @@ fi
 %attr(644, root, root) /usr/lib/mysql/libmysqld.a
 
 %changelog 
+
+* Tue Feb 11 2003 Lenz Grimmer <lenz@mysql.com>
+
+- re-added missing pre- and post(un)install scripts to server subpackage
+- added config file /etc/my.cnf to the file list (just for completeness)
+- make sure to create the datadir with 755 permissions
 
 * Mon Jan 27 2003 Lenz Grimmer <lenz@mysql.com>
 
