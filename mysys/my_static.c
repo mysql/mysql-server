@@ -61,6 +61,12 @@ const char *soundex_map=	  "01230120022455012623010202";
 USED_MEM* my_once_root_block=0;			/* pointer to first block */
 uint	  my_once_extra=ONCE_ALLOC_INIT;	/* Memory to alloc / block */
 
+	/* from my_largepage.c */
+#ifdef HAVE_LARGE_PAGES
+my_bool my_use_large_pages= 0;
+uint    my_large_page_size= 0;
+#endif
+
 	/* from my_tempnam */
 #if !defined(HAVE_TEMPNAM) || defined(HPUX11)
 int _my_tempnam_used=0;
