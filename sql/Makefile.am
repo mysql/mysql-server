@@ -24,7 +24,7 @@ INCLUDES =		@MT_INCLUDES@ \
 			@bdb_includes@ @innodb_includes@ @gemini_includes@ \
 			-I$(srcdir)/../include \
 			-I$(srcdir)/../regex \
-			-I$(srcdir) -I../include -I.. -I.
+			-I$(srcdir) -I../include -I.. -I. $(openssl_includes)
 WRAPLIBS=		@WRAPLIBS@
 SUBDIRS =		share
 bin_PROGRAMS	=	mysqlbinlog
@@ -39,11 +39,12 @@ LDADD =			../isam/libnisam.a \
 			../mysys/libmysys.a \
 			../dbug/libdbug.a \
 			../regex/libregex.a \
+			../vio/libvio.a \
 			../strings/libmystrings.a
 mysqld_LDADD =		@MYSQLD_EXTRA_LDFLAGS@ \
 			@bdb_libs@ @innodb_libs@ @pstack_libs@ \
                         @gemini_libs@ \
-			$(LDADD)  $(CXXLDFLAGS) $(WRAPLIBS) @LIBDL@
+			$(LDADD)  $(CXXLDFLAGS) $(WRAPLIBS) @LIBDL@ @openssl_libs@
 noinst_HEADERS =	item.h item_func.h item_sum.h item_cmpfunc.h \
 			item_strfunc.h item_timefunc.h item_uniq.h \
 			item_create.h mysql_priv.h \
@@ -55,34 +56,37 @@ noinst_HEADERS =	item.h item_func.h item_sum.h item_cmpfunc.h \
 			ha_gemini.h opt_range.h opt_ft.h \
 			sql_select.h structs.h table.h sql_udf.h hash_filo.h\
 			lex.h lex_symbol.h sql_acl.h sql_crypt.h md5.h \
-                        log_event.h mini_client.h sql_repl.h slave.h
+                        log_event.h mini_client.h sql_repl.h slave.h \
+			stacktrace.h
 mysqld_SOURCES =	sql_lex.cc sql_handler.cc \
 			item.cc item_sum.cc item_buff.cc item_func.cc \
 			item_cmpfunc.cc item_strfunc.cc item_timefunc.cc \
 			thr_malloc.cc item_create.cc \
 			field.cc key.cc sql_class.cc sql_list.cc \
-			net_serv.cc violite.c net_pkg.cc lock.cc my_lock.c \
+			net_serv.cc net_pkg.cc lock.cc my_lock.c \
 			sql_string.cc sql_manager.cc sql_map.cc \
 			mysqld.cc password.c hash_filo.cc hostname.cc \
 			convert.cc sql_parse.cc sql_yacc.yy \
 			sql_base.cc table.cc sql_select.cc sql_insert.cc \
 			sql_update.cc sql_delete.cc \
 			procedure.cc item_uniq.cc sql_test.cc \
-			log.cc init.cc derror.cc sql_acl.cc unireg.cc \
+			log.cc log_event.cc init.cc derror.cc sql_acl.cc \
+			unireg.cc \
 			time.cc opt_range.cc opt_sum.cc opt_ft.cc \
 		   	records.cc filesort.cc handler.cc \
-		        ha_isam.cc ha_isammrg.cc ha_heap.cc \
-			ha_myisam.cc ha_myisammrg.cc ha_berkeley.cc \
-	                ha_innobase.cc ha_gemini.cc \
+		        ha_heap.cc ha_myisam.cc ha_myisammrg.cc \
+	                ha_berkeley.cc ha_innobase.cc ha_gemini.cc \
+			ha_isam.cc ha_isammrg.cc \
 			sql_db.cc sql_table.cc sql_rename.cc sql_crypt.cc \
 			sql_load.cc mf_iocache.cc field_conv.cc sql_show.cc \
 			sql_udf.cc sql_analyse.cc sql_analyse.h sql_cache.cc \
 			slave.cc sql_repl.cc \
-			md5.c log_event.cc mini_client.cc mini_client_errors.c
+			mini_client.cc mini_client_errors.c \
+			md5.c stacktrace.c
 gen_lex_hash_SOURCES =	gen_lex_hash.cc
 gen_lex_hash_LDADD =	$(LDADD) $(CXXLDFLAGS)
 mysqlbinlog_SOURCES =   mysqlbinlog.cc mini_client.cc net_serv.cc \
-			mini_client_errors.c violite.c password.c
+			mini_client_errors.c password.c
 mysqlbinlog_LDADD = $(LDADD) $(CXXLDFLAGS) $(mysqld_LDADD)
 
 DEFS =			-DMYSQL_SERVER \

@@ -104,7 +104,7 @@ int mysql_ha_read(THD *thd, TABLE_LIST *tables,
   List_iterator<Item> it(list);
   it++;
 
-  insert_fields(thd,tables,tables->name,&it);
+  insert_fields(thd,tables,tables->db,tables->name,&it);
 
   table->file->index_init(keyno);
 

@@ -115,7 +115,7 @@ t1	index	level	level	1	NULL	39	where used; Using index
 table	type	possible_keys	key	key_len	ref	rows	Extra
 t1	index	level	level	1	NULL	39	where used; Using index
 table	type	possible_keys	key	key_len	ref	rows	Extra
-t1	ref	level	level	1	const	12	
+t1	ALL	level	NULL	NULL	NULL	39	where used
 level	id
 1	1002
 1	1003

@@ -15,22 +15,32 @@
    Software Foundation, Inc., 59 Temple Place - Suite 330, Boston,
    MA 02111-1307, USA */
 
-#include <global.h>
+/*
+  Note that we can't have assertion on file descriptors;  The reason for
+  this is that during mysql shutdown, another thread can close a file
+  we are working on.  In this case we should just return read errors from
+  the file descriptior.
+*/
 
-#ifndef HAVE_VIO			/* is Vio suppored by the Vio lib ? */
+#define DONT_MAP_VIO
+#include <global.h>
 
 #include <errno.h>
 #include <assert.h>
-#include <violite.h>
+#include <vio.h>
 #include <my_sys.h>
 #include <my_net.h>
 #include <m_string.h>
+#ifdef HAVE_POLL
+#include <sys/poll.h>
+#endif
+#ifdef HAVE_SYS_IOCTL_H
+#include <sys/ioctl.h>
+#endif
 
 #if defined(__EMX__)
-#include <sys/ioctl.h>
-#define ioctlsocket(A,B,C) ioctl((A),(B),(void *)(C),sizeof(*(C)))
-#undef HAVE_FCNTL
-#endif				/* defined(__EMX__) */
+#define ioctlsocket ioctl
+#endif	/* defined(__EMX__) */
 
 #if defined(MSDOS) || defined(__WIN__)
 #ifdef __WIN__
@@ -51,90 +61,29 @@
 #define HANDLE void *
 #endif
 
-struct st_vio
-{
-  my_socket		sd;		/* my_socket - real or imaginary */
-  HANDLE hPipe;
-  my_bool		localhost;	/* Are we from localhost? */
-  int			fcntl_mode;	/* Buffered fcntl(sd,F_GETFL) */
-  my_bool		fcntl_set;	/* Have we done any fcntl yet?*/
-  struct sockaddr_in	local;		/* Local internet address */
-  struct sockaddr_in	remote;		/* Remote internet address */
-  enum enum_vio_type	type;		/* Type of connection */
-  char			desc[30];	/* String description */
-};
-
-typedef void *vio_ptr;
-typedef char *vio_cstring;
-
-/*
- * Helper to fill most of the Vio* with defaults.
- */
-
-static void vio_reset(Vio* vio, enum enum_vio_type type,
-		      my_socket sd, HANDLE hPipe,
-		      my_bool localhost)
-{
-  bzero((char*) vio, sizeof(*vio));
-  vio->type	= type;
-  vio->sd	= sd;
-  vio->hPipe	= hPipe;
-  vio->localhost= localhost;
-}
-
-Vio *vio_new(my_socket sd, enum enum_vio_type type, my_bool localhost)
-{
-  Vio *vio;
-  DBUG_ENTER("vio_new");
-  DBUG_PRINT("enter", ("sd=%d", sd));
-  if ((vio = (Vio*) my_malloc(sizeof(*vio),MYF(MY_WME))))
-  {
-    vio_reset(vio, type, sd, 0, localhost);
-    sprintf(vio->desc, "socket (%d)", vio->sd);
-  }
-  DBUG_RETURN(vio);
-}
-
-
-#ifdef __WIN__
-
-Vio *vio_new_win32pipe(HANDLE hPipe)
-{
-  Vio *vio;
-  DBUG_ENTER("vio_new_handle");
-  if ((vio = (Vio*) my_malloc(sizeof(Vio),MYF(MY_WME))))
-  {
-    vio_reset(vio, VIO_TYPE_NAMEDPIPE, 0, hPipe, TRUE);
-    strmov(vio->desc, "named pipe");
-  }
-  DBUG_RETURN(vio);
-}
-
-#endif
-
-void vio_delete(Vio * vio)
+void vio_delete(st_vio* vio)
 {
   /* It must be safe to delete null pointers. */
   /* This matches the semantics of C++'s delete operator. */
   if (vio)
   {
-    vio_close(vio);
+    if (vio->type != VIO_CLOSED)
+      vio_close(vio);
     my_free((gptr) vio,MYF(0));
   }
 }
 
-int vio_errno(Vio *vio)
+int vio_errno(st_vio *vio __attribute__((unused)))
 {
   return errno;			/* On Win32 this mapped to WSAGetLastError() */
 }
 
 
-int vio_read(Vio * vio, gptr buf, int size)
+int vio_read(st_vio * vio, gptr buf, int size)
 {
   int r;
   DBUG_ENTER("vio_read");
   DBUG_PRINT("enter", ("sd=%d, buf=%p, size=%d", vio->sd, buf, size));
-  assert(vio->sd >= 0);
 #ifdef __WIN__
   if (vio->type == VIO_TYPE_NAMEDPIPE)
   {
@@ -159,12 +108,11 @@ int vio_read(Vio * vio, gptr buf, int size)
 }
 
 
-int vio_write(Vio * vio, const gptr buf, int size)
+int vio_write(st_vio * vio, const gptr buf, int size)
 {
   int r;
   DBUG_ENTER("vio_write");
   DBUG_PRINT("enter", ("sd=%d, buf=%p, size=%d", vio->sd, buf, size));
-  assert(vio->sd >= 0);
 #ifdef __WIN__
   if ( vio->type == VIO_TYPE_NAMEDPIPE)
   {
@@ -188,7 +136,7 @@ int vio_write(Vio * vio, const gptr buf, int size)
 }
 
 
-int vio_blocking(Vio * vio, my_bool set_blocking_mode)
+int vio_blocking(st_vio * vio, my_bool set_blocking_mode)
 {
   int r=0;
   DBUG_ENTER("vio_blocking");
@@ -200,15 +148,10 @@ int vio_blocking(Vio * vio, my_bool set_blocking_mode)
   if (vio->sd >= 0)
   {
     int old_fcntl=vio->fcntl_mode;
-    if (!vio->fcntl_set)
-    {
-      vio->fcntl_set = TRUE;
-      old_fcntl=vio->fcntl_mode = fcntl(vio->sd, F_GETFL);
-    }
     if (set_blocking_mode)
-      vio->fcntl_mode &= ~O_NONBLOCK; /*clear bit */
+      vio->fcntl_mode &= ~O_NONBLOCK; /* clear bit */
     else
-      vio->fcntl_mode |= O_NONBLOCK; /*set bit */
+      vio->fcntl_mode |= O_NONBLOCK; /* set bit */
     if (old_fcntl != vio->fcntl_mode)
       r = fcntl(vio->sd, F_SETFL, vio->fcntl_mode);
   }
@@ -220,20 +163,15 @@ int vio_blocking(Vio * vio, my_bool set_blocking_mode)
   { 
     ulong arg;
     int old_fcntl=vio->fcntl_mode;
-    if (!vio->fcntl_set)
-    {
-      vio->fcntl_set = TRUE;
-      old_fnctl=vio->fcntl_mode=0;
-    }
     if (set_blocking_mode)
     {
       arg = 0;
-      vio->fcntl_mode &= ~O_NONBLOCK; /*clear bit */
+      vio->fcntl_mode &= ~O_NONBLOCK; /* clear bit */
     }
     else
     {
       arg = 1;
-      vio->fcntl_mode |= O_NONBLOCK; /*set bit */
+      vio->fcntl_mode |= O_NONBLOCK; /* set bit */
     }
     if (old_fcntl != vio->fcntl_mode)
       r = ioctlsocket(vio->sd,FIONBIO,(void*) &arg, sizeof(arg));
@@ -243,7 +181,7 @@ int vio_blocking(Vio * vio, my_bool set_blocking_mode)
 }
 
 my_bool
-vio_is_blocking(Vio * vio)
+vio_is_blocking(st_vio * vio)
 {
   my_bool r;
   DBUG_ENTER("vio_is_blocking");
@@ -253,12 +191,10 @@ vio_is_blocking(Vio * vio)
 }
 
 
-int vio_fastsend(Vio * vio, my_bool onoff)
+int vio_fastsend(st_vio * vio __attribute__((unused)))
 {
   int r=0;
   DBUG_ENTER("vio_fastsend");
-  DBUG_PRINT("enter", ("onoff:%d", (int) onoff));
-  assert(vio->sd >= 0);
 
 #ifdef IPTOS_THROUGHPUT
   {
@@ -281,7 +217,7 @@ int vio_fastsend(Vio * vio, my_bool onoff)
   DBUG_RETURN(r);
 }
 
-int vio_keepalive(Vio* vio, my_bool set_keep_alive)
+int vio_keepalive(st_vio* vio, my_bool set_keep_alive)
 {
   int r=0;
   uint opt = 0;
@@ -290,7 +226,6 @@ int vio_keepalive(Vio* vio, my_bool set_keep_alive)
 		       set_keep_alive));
   if (vio->type != VIO_TYPE_NAMEDPIPE)
   {
-    assert(vio->sd >= 0);
     if (set_keep_alive)
       opt = 1;
     r = setsockopt(vio->sd, SOL_SOCKET, SO_KEEPALIVE, (char *) &opt,
@@ -301,28 +236,27 @@ int vio_keepalive(Vio* vio, my_bool set_keep_alive)
 
 
 my_bool
-vio_should_retry(Vio * vio)
+vio_should_retry(st_vio * vio __attribute__((unused)))
 {
   int en = errno;
   return en == EAGAIN || en == EINTR || en == EWOULDBLOCK;
 }
 
 
-int vio_close(Vio * vio)
+int vio_close(st_vio * vio)
 {
   int r;
   DBUG_ENTER("vio_close");
-  assert(vio->sd >= 0);			/* Vill also work on PIPE:s */
 #ifdef __WIN__
   if (vio->type == VIO_TYPE_NAMEDPIPE)
   {
 #if defined(__NT__) && defined(MYSQL_SERVER)
-    CancelIO(vio->hPipe);
+    CancelIo(vio->hPipe);
     DisconnectNamedPipe(vio->hPipe);
 #endif
     r=CloseHandle(vio->hPipe);
   }
-  else
+  else if (vio->type != VIO_CLOSED)
 #endif /* __WIN__ */
   {
     r=0;
@@ -336,28 +270,29 @@ int vio_close(Vio * vio)
     DBUG_PRINT("error", ("close() failed, error: %d",errno));
     /* FIXME: error handling (not critical for MySQL) */
   }
-  vio_reset(vio,VIO_CLOSED,-1,0,TRUE);		/* For debugging */
+  vio->type= VIO_CLOSED;
+  vio->sd=   -1;
   DBUG_RETURN(r);
 }
 
 
-const char *vio_description(Vio * vio)
+const char *vio_description(st_vio * vio)
 {
   return vio->desc;
 }
 
-enum enum_vio_type vio_type(Vio* vio)
+enum enum_vio_type vio_type(st_vio* vio)
 {
   return vio->type;
 }
 
-my_socket vio_fd(Vio* vio)
+my_socket vio_fd(st_vio* vio)
 {
   return vio->sd;
 }
 
 
-my_bool vio_peer_addr(Vio * vio, char *buf)
+my_bool vio_peer_addr(st_vio * vio, char *buf)
 {
   DBUG_ENTER("vio_peer_addr");
   DBUG_PRINT("enter", ("sd=%d", vio->sd));
@@ -374,14 +309,15 @@ my_bool vio_peer_addr(Vio * vio, char *buf)
       DBUG_PRINT("exit", ("getpeername, error: %d", errno));
       DBUG_RETURN(1);
     }
-    my_inet_ntoa(vio->remote.sin_addr,buf);
+    /* FIXME */
+/*    my_inet_ntoa(vio->remote.sin_addr,buf);  */
   }
   DBUG_PRINT("exit", ("addr=%s", buf));
   DBUG_RETURN(0);
 }
 
 
-void vio_in_addr(Vio *vio, struct in_addr *in)
+void vio_in_addr(st_vio *vio, struct in_addr *in)
 {
   DBUG_ENTER("vio_in_addr");
   if (vio->localhost)
@@ -391,4 +327,25 @@ void vio_in_addr(Vio *vio, struct in_addr *in)
   DBUG_VOID_RETURN;
 }
 
-#endif /* HAVE_VIO */
+
+/* Return 0 if there is data to be read */
+
+my_bool vio_poll_read(st_vio *vio,uint timeout)
+{
+#ifndef HAVE_POLL
+  return 0;
+#else
+  struct pollfd fds;
+  int res;
+  DBUG_ENTER("vio_poll");
+  fds.fd=vio->sd;
+  fds.events=POLLIN;
+  fds.revents=0;
+  if ((res=poll(&fds,1,(int) timeout*1000)) <= 0)
+  {
+    DBUG_RETURN(res < 0 ? 0 : 1);		/* Don't return 1 on errors */
+  }
+  DBUG_RETURN(fds.revents & POLLIN ? 0 : 1);
+#endif
+}
+

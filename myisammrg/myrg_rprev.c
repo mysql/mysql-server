@@ -29,7 +29,11 @@ int myrg_rprev(MYRG_INFO *info, byte *buf, int inx)
   if ((err=mi_rprev(info->current_table->table,NULL,inx)))
   {
     if (err == HA_ERR_END_OF_FILE)
+    {
       queue_remove(&(info->by_key),0);
+      if (!info->by_key.elements)
+        return HA_ERR_END_OF_FILE;
+    }
     else
       return err;
   }
@@ -40,16 +44,7 @@ int myrg_rprev(MYRG_INFO *info, byte *buf, int inx)
     queue_replaced(&(info->by_key));
   }
 
-  /* next, let's finish myrg_rkey's initial scan */
-  if ((err=_myrg_finish_scan(info, inx, HA_READ_KEY_OR_PREV)))
-    return err;
-
-  if (!info->by_key.elements)
-    return HA_ERR_END_OF_FILE;
-
   /* now, mymerge's read_prev is as simple as one queue_top */
   mi=(info->current_table=(MYRG_TABLE *)queue_top(&(info->by_key)))->table;
   return mi_rrnd(mi,buf,mi->lastpos);
 }
-
-
