@@ -1609,7 +1609,7 @@ select t2.fld1,count(*) from t2,t3 where t2.fld1=158402 and t3.name=t2.fld3 grou
 #
 
 select sum(Period)/count(*) from t1;
-select companynr,count(price) as "count",sum(price) as "sum" ,sum(price)/count(price)-avg(price) as "diff",(0+count(price))*companynr as func from t3 group by companynr;
+select companynr,count(price) as "count",sum(price) as "sum" ,abs(sum(price)/count(price)-avg(price)) as "diff",(0+count(price))*companynr as func from t3 group by companynr;
 select companynr,sum(price)/count(price) as avg from t3 group by companynr having avg > 70000000 order by avg;
 
 #
