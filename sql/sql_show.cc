@@ -1900,7 +1900,7 @@ int get_all_tables(THD *thd, TABLE_LIST *tables, COND *cond)
     TABLE *old_open_tables= thd->open_tables;
     TABLE_LIST *show_table_list= (TABLE_LIST*) lsel->table_list.first;
     lex->all_selects_list= lsel;
-    int res= open_and_lock_tables(thd, show_table_list);
+    bool res= open_and_lock_tables(thd, show_table_list);
     if (schema_table->process_table(thd, show_table_list,
                                     table, res, show_table_list->db,
                                     show_table_list->real_name))
@@ -2060,9 +2060,10 @@ int fill_schema_shemata(THD *thd, TABLE_LIST *tables, COND *cond)
 }
 
 
-int get_schema_tables_record(THD *thd, struct st_table_list *tables,
-                             TABLE *table, int res, 
-                             const char *base_name, const char *file_name)
+static int get_schema_tables_record(THD *thd, struct st_table_list *tables,
+				    TABLE *table, bool res,
+				    const char *base_name,
+				    const char *file_name)
 {
   const char *tmp_buff;
   TIME time;
@@ -2070,18 +2071,21 @@ int get_schema_tables_record(THD *thd, struct st_table_list *tables,
 
   DBUG_ENTER("get_schema_tables_record");
   restore_record(table, default_values);
-  if (res > 0)
-  {
-    DBUG_RETURN(1);
-  }
   table->field[1]->store(base_name, strlen(base_name), cs);
   table->field[2]->store(file_name, strlen(file_name), cs);
-  if (res < 0 || tables->view)
+  if (res)
+  {
+    /*
+      there was errors during opening tables
+    */
+    const char *error= thd->net.last_error;
+    table->field[20]->store(error, strlen(error), cs);
+    thd->clear_error();
+  }
+  else if (tables->view)
   {
     table->field[3]->store("VIEW", 4, cs);
     table->field[20]->store("view", 4, cs);
-    if (res)
-      thd->clear_error();
   }
   else
   {
@@ -2203,9 +2207,10 @@ int get_schema_tables_record(THD *thd, struct st_table_list *tables,
 }
 
 
-int get_schema_column_record(THD *thd, struct st_table_list *tables,
-                             TABLE *table, int res, 
-                             const char *base_name, const char *file_name)
+static int get_schema_column_record(THD *thd, struct st_table_list *tables,
+				    TABLE *table, bool res,
+				    const char *base_name,
+				    const char *file_name)
 {
   TIME time;
   const char *wild= thd->lex->wild ? thd->lex->wild->ptr() : NullS;
@@ -2538,9 +2543,10 @@ err:
 }
 
 
-int get_schema_stat_record(THD *thd, struct st_table_list *tables,
-                           TABLE *table, int res, 
-                           const char *base_name, const char *file_name)
+static int get_schema_stat_record(THD *thd, struct st_table_list *tables,
+				  TABLE *table, bool res,
+				  const char *base_name,
+				  const char *file_name)
 {
   CHARSET_INFO *cs= system_charset_info;
   DBUG_ENTER("get_schema_stat_record");
@@ -2605,13 +2611,14 @@ int get_schema_stat_record(THD *thd, struct st_table_list *tables,
       }
     }
   }
-  DBUG_RETURN(0);
+  DBUG_RETURN(res);
 }
 
 
-int get_schema_views_record(THD *thd, struct st_table_list *tables,
-                            TABLE *table, int res, 
-                            const char *base_name, const char *file_name)
+static int get_schema_views_record(THD *thd, struct st_table_list *tables,
+				   TABLE *table, bool res,
+				   const char *base_name,
+				   const char *file_name)
 {
   CHARSET_INFO *cs= system_charset_info;
   DBUG_ENTER("get_schema_views_record");
@@ -2631,13 +2638,14 @@ int get_schema_views_record(THD *thd, struct st_table_list *tables,
       table->file->write_row(table->record[0]);
     }
   }
-  DBUG_RETURN(0);
+  DBUG_RETURN(res);
 }
 
 
-int get_schema_constarints_record(THD *thd, struct st_table_list *tables,
-                                  TABLE *table, int res, 
-                                  const char *base_name, const char *file_name)
+static int get_schema_constarints_record(THD *thd, struct st_table_list *tables,
+					 TABLE *table, bool res,
+					 const char *base_name,
+					 const char *file_name)
 {
   CHARSET_INFO *cs= system_charset_info;
   DBUG_ENTER("get_schema_constarints_record");
@@ -2684,14 +2692,15 @@ int get_schema_constarints_record(THD *thd, struct st_table_list *tables,
       table->file->write_row(table->record[0]);
     }
   }
-  DBUG_RETURN(0);
+  DBUG_RETURN(res);
 }
 
 
-int get_schema_key_column_usage_record(THD *thd, struct st_table_list *tables,
-                                       TABLE *table, int res,
-                                       const char *base_name,
-                                       const char *file_name)
+static int get_schema_key_column_usage_record(THD *thd,
+					      struct st_table_list *tables,
+					      TABLE *table, bool res,
+					      const char *base_name,
+					      const char *file_name)
 {
   DBUG_ENTER("get_schema_key_column_usage_record");
   CHARSET_INFO *cs= system_charset_info;
@@ -2707,7 +2716,7 @@ int get_schema_key_column_usage_record(THD *thd, struct st_table_list *tables,
     for (uint i=0 ; i < show_table->keys ; i++, key_info++)
     {
       if (i != primary_key && !(key_info->flags & HA_NOSAME))
-        continue;              
+        continue;
       uint f_idx= 0;
       KEY_PART_INFO *key_part= key_info->key_part;
       for (uint j=0 ; j < key_info->key_parts ; j++,key_part++)
@@ -2762,7 +2771,7 @@ int get_schema_key_column_usage_record(THD *thd, struct st_table_list *tables,
       }
     }
   }
-  DBUG_RETURN(0);
+  DBUG_RETURN(res);
 }
 
 
@@ -3076,11 +3085,11 @@ int make_schema_select(THD *thd, SELECT_LEX *sel,
     join  join which use schema tables
 
   RETURN
-    0	success
-    1   error
+    FALSE success
+    TRUE  error
 */
 
-int get_schema_tables_result(JOIN *join)
+bool get_schema_tables_result(JOIN *join)
 {
   DBUG_ENTER("get_schema_tables_result");
   JOIN_TAB *tmp_join_tab= join->join_tab+join->tables;
@@ -3090,7 +3099,7 @@ int get_schema_tables_result(JOIN *join)
     if (!tab->table || !tab->table->pos_in_table_list)
       break;
     TABLE_LIST *table_list= tab->table->pos_in_table_list;
-    if (table_list->schema_table && !thd->only_prepare())
+    if (table_list->schema_table && thd->fill_derived_tables())
     {
       TABLE *old_derived_tables= thd->derived_tables;
       thd->derived_tables= 0;
@@ -3103,14 +3112,14 @@ int get_schema_tables_result(JOIN *join)
       {
         thd->derived_tables= old_derived_tables;
         thd->lock= sql_lock;
-        DBUG_RETURN(-1);
+        DBUG_RETURN(TRUE);
       }
       thd->lock= sql_lock;
       thd->lex->sql_command= SQLCOM_SELECT;
       thd->derived_tables= old_derived_tables;
     }
   }
-  DBUG_RETURN(0);
+  DBUG_RETURN(FALSE);
 }
 
 

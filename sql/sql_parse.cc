@@ -1877,7 +1877,8 @@ int prepare_schema_table(THD *thd, LEX *lex, Table_ident *table_ident,
   switch(schema_table_idx) {
   case SCH_SCHEMATA:
 #if defined(DONT_ALLOW_SHOW_COMMANDS)
-    send_error(thd,ER_NOT_ALLOWED_COMMAND);   /* purecov: inspected */
+    my_message(ER_NOT_ALLOWED_COMMAND,
+               ER(ER_NOT_ALLOWED_COMMAND), MYF(0));   /* purecov: inspected */
     DBUG_RETURN(1);
 #else
     if ((specialflag & SPECIAL_SKIP_SHOW_DB) &&
@@ -1889,30 +1890,30 @@ int prepare_schema_table(THD *thd, LEX *lex, Table_ident *table_ident,
   case SCH_TABLES:
   case SCH_VIEWS:
 #ifdef DONT_ALLOW_SHOW_COMMANDS
-    send_error(thd,ER_NOT_ALLOWED_COMMAND);	/* purecov: inspected */
+    my_message(ER_NOT_ALLOWED_COMMAND,
+               ER(ER_NOT_ALLOWED_COMMAND), MYF(0)); /* purecov: inspected */
     DBUG_RETURN(1);
 #else
     {
       char *db= lex->select_lex.db ? lex->select_lex.db : thd->db;
       if (!db)
       {
-	send_error(thd,ER_NO_DB_ERROR);		/* purecov: inspected */
+	my_message(ER_NO_DB_ERROR,
+                   ER(ER_NO_DB_ERROR), MYF(0)); /* purecov: inspected */
         DBUG_RETURN(1);				/* purecov: inspected */
       }
       remove_escape(db);				// Fix escaped '_'
       if (check_db_name(db))
       {
-        net_printf(thd,ER_WRONG_DB_NAME, db);
+        my_error(ER_WRONG_DB_NAME, MYF(0), db);
         DBUG_RETURN(1);
       }
       if (check_access(thd,SELECT_ACL,db,&thd->col_access,0,0))
         DBUG_RETURN(1);			        /* purecov: inspected */
       if (!thd->col_access && check_grant_db(thd,db))
       {
-	net_printf(thd, ER_DBACCESS_DENIED_ERROR,
-		   thd->priv_user,
-		   thd->priv_host,
-		   db);
+	my_error(ER_DBACCESS_DENIED_ERROR, MYF(0),
+                 thd->priv_user, thd->priv_host, db);
 	DBUG_RETURN(1);
       }
       lex->select_lex.db= db;
@@ -1922,7 +1923,8 @@ int prepare_schema_table(THD *thd, LEX *lex, Table_ident *table_ident,
   case SCH_COLUMNS:
   case SCH_STATISTICS:
 #ifdef DONT_ALLOW_SHOW_COMMANDS
-    send_error(thd,ER_NOT_ALLOWED_COMMAND);	/* purecov: inspected */
+    my_message(ER_NOT_ALLOWED_COMMAND,
+               ER(ER_NOT_ALLOWED_COMMAND), MYF(0)); /* purecov: inspected */
     DBUG_RETURN(1);
 #else
     if (table_ident)
@@ -5238,8 +5240,8 @@ TABLE_LIST *st_select_lex::add_table_to_list(THD *thd,
     ST_SCHEMA_TABLE *schema_table= find_schema_table(thd, ptr->real_name);
     if (!schema_table)
     {
-      net_printf(thd, ER_UNKNOWN_TABLE, ptr->real_name,
-                 information_schema_name.str);
+      my_error(ER_UNKNOWN_TABLE, MYF(0),
+               ptr->real_name, information_schema_name.str);
       DBUG_RETURN(0);
     }
     ptr->schema_table= schema_table;

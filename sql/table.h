@@ -250,7 +250,7 @@ typedef struct st_schema_table
   /* Handle fileds for old SHOW */
   int (*old_format) (THD *thd, struct st_schema_table *schema_table);
   int (*process_table) (THD *thd, struct st_table_list *tables,
-                        TABLE *table, int res, const char *base_name,
+                        TABLE *table, bool res, const char *base_name,
                         const char *file_name);
   int idx_field1, idx_field2; 
 } ST_SCHEMA_TABLE;
