@@ -33,6 +33,7 @@ int main(int argc, char **argv)
     exit(1);
   }
 
+  mysql_init(&mysql);
   if (!(sock = mysql_real_connect(&mysql,NULL,NULL,NULL,argv[1],0,NULL,0)))
   {
     fprintf(stderr,"Couldn't connect to engine!\n%s\n",mysql_error(&mysql));
