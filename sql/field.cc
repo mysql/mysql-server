@@ -3788,12 +3788,8 @@ int Field_string::store(longlong nr)
 
 double Field_string::val_real(void)
 {
-  double value;
-  char save=ptr[field_length];			// Ok to patch record
-  ptr[field_length]=0;
-  value=atof(ptr);
-  ptr[field_length]=save;
-  return value;
+  CHARSET_INFO *cs=charset();
+  return my_strntod(cs,ptr,field_length,(char**)0);
 }
 
 
@@ -3989,13 +3985,9 @@ int Field_varstring::store(longlong nr)
 
 double Field_varstring::val_real(void)
 {
-  double value;
   uint length=uint2korr(ptr)+2;
-  char save=ptr[length];			// Ok to patch record
-  ptr[length]=0;
-  value=atof(ptr+2);
-  ptr[length]=save;
-  return value;
+  CHARSET_INFO *cs=charset();
+  return my_strntod(cs,ptr+2,length,(char**)0);
 }
 
 
@@ -4326,12 +4318,8 @@ double Field_blob::val_real(void)
   if (!blob)
     return 0.0;
   uint32 length=get_length(ptr);
-
-  char save=blob[length];			// Ok to patch blob in NISAM
-  blob[length]=0;
-  double nr=atof(blob);
-  blob[length]=save;
-  return nr;
+  CHARSET_INFO *cs=charset();
+  return my_strntod(cs,blob,length,(char**)0);
 }
 
 
