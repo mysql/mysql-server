@@ -20,4 +20,5 @@ reset slave;
 start slave;
 # can't sync_with_master so we must sleep
 sleep 3;
-wait_for_slave_to_stop;
+--replace_result $MASTER_MYPORT MASTER_PORT
+show slave status;
