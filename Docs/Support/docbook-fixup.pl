@@ -37,6 +37,11 @@ print STDERR "Fixing spacing problem with titles...\n";
 $data =~ s{</(\w+)>(\w{2,})}
           {</$1> $2}gs;
 
+# 2002-01-30 arjen@mysql.com
+print STDERR "Removing COLSPEC...\n";
+$data =~ s{\n *<colspec colwidth=\"[0-9]+\*\">}
+          {}gs;
+
 @apx = ("Users", "MySQL Testimonials", "News",
         "GPL-license", "LGPL-license");
 
