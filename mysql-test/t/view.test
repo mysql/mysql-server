@@ -943,3 +943,33 @@ select distinct first.col2 from t1 first where first.col2 in (select second.col2
 select distinct first.col2 from v1 first where first.col2 in (select second.col2 from t1 second where second.col1<>first.col1);
 drop view v1;
 drop table t1;
+
+#
+# Test of view updatebility in prepared statement
+#
+create table t1 (a int);
+create view v1 as select a from t1;
+insert into t1 values (1);
+
+#update
+SET @v0 = '2';
+PREPARE stmt FROM 'UPDATE v1 SET a = ?';
+EXECUTE stmt USING @v0;
+DEALLOCATE PREPARE stmt;
+
+#insert without field list
+SET @v0 = '3';
+PREPARE stmt FROM 'insert into v1 values (?)';
+EXECUTE stmt USING @v0;
+DEALLOCATE PREPARE stmt;
+
+#insert with field list
+SET @v0 = '4';
+PREPARE stmt FROM 'insert into v1 (a) values (?)';
+EXECUTE stmt USING @v0;
+DEALLOCATE PREPARE stmt;
+
+select * from t1;
+
+drop view v1;
+drop table t1;
