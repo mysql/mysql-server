@@ -182,6 +182,8 @@ mysql_find_files(THD *thd,List<char> *files, const char *db,const char *path,
   TABLE_LIST table_list;
   DBUG_ENTER("mysql_find_files");
 
+  if (wild && !wild[0])
+    wild=0;
   bzero((char*) &table_list,sizeof(table_list));
 
   if (!(dirp = my_dir(path,MYF(MY_WME | (dir ? MY_WANT_STAT : 0)))))
@@ -200,7 +202,7 @@ mysql_find_files(THD *thd,List<char> *files, const char *db,const char *path,
 #endif
       {
         if (file->name[0] == '.' || !MY_S_ISDIR(file->mystat.st_mode) ||
-            (wild && wild[0] && wild_compare(file->name,wild)))
+            (wild && wild_compare(file->name,wild)))
           continue;
       }
     }
@@ -211,8 +213,16 @@ mysql_find_files(THD *thd,List<char> *files, const char *db,const char *path,
           is_prefix(file->name,tmp_file_prefix))
         continue;
       *ext=0;
-      if (wild && wild[0] && wild_compare(file->name,wild))
-        continue;
+      if (wild)
+      {
+	if (lower_case_table_names)
+	{
+	  if (wild_case_compare(file->name,wild))
+	    continue;
+	}
+	else if (wild_compare(file->name,wild))
+	  continue;
+      }
     }
     /* Don't show tables where we don't have any privileges */
     if (db && !(col_access & TABLE_ACLS))

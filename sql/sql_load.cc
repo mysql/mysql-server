@@ -71,6 +71,8 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
   String *field_term=ex->field_term,*escaped=ex->escaped,
     *enclosed=ex->enclosed;
   bool is_fifo=0;
+  bool using_transactions;
+
   DBUG_ENTER("mysql_load");
 
   if (escaped->length() > 1 || enclosed->length() > 1)
@@ -239,8 +241,13 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
   free_blobs(table);				/* if pack_blob was used */
   table->copy_blobs=0;
   thd->count_cuted_fields=0;			/* Don`t calc cuted fields */
+  using_transactions = table->file->has_transactions();
   if (error)
-    DBUG_RETURN(-1);				// Error on read
+  {
+    if (using_transactions)
+      ha_autocommit_or_rollback(thd,error);
+    DBUG_RETURN(-1);                           // Error on read
+  }
   sprintf(name,ER(ER_LOAD_INFO),info.records,info.deleted,
 	  info.records-info.copied,thd->cuted_fields);
   send_ok(&thd->net,info.copied+info.deleted,0L,name);
@@ -248,7 +255,7 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
   if(!thd->slave_thread)
     mysql_update_log.write(thd,thd->query,thd->query_length);
   
-  if (!table->file->has_transactions())
+  if (!using_transactions)
     thd->options|=OPTION_STATUS_NO_TRANS_UPDATE;
   if (!read_file_from_client && mysql_bin_log.is_open())
   {
@@ -257,7 +264,9 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
 			 handle_duplicates);
     mysql_bin_log.write(&qinfo);
   }
-  DBUG_RETURN(0);
+  if (using_transactions)
+    error=ha_autocommit_or_rollback(thd,error); 
+  DBUG_RETURN(error);
 }
 
 

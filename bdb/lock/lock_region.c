@@ -291,6 +291,7 @@ __lock_init(dbenv, lt)
 		    sizeof(struct __db_lock), MUTEX_ALIGN, &lp)) != 0)
 			goto mem_err;
 		lp->status = DB_LSTAT_FREE;
+		lp->gen=0;
 		if ((ret = __db_shmutex_init(dbenv, &lp->mutex,
 		    R_OFFSET(&lt->reginfo, &lp->mutex) + DB_FCNTL_OFF_LOCK,
 		    MUTEX_SELF_BLOCK, &lt->reginfo,
