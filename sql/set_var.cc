@@ -394,9 +394,9 @@ sys_var *sys_variables[]=
   &sys_quote_show_create,
   &sys_rand_seed1,
   &sys_rand_seed2,
+  &sys_range_alloc_block_size,
   &sys_read_buff_size,
   &sys_read_rnd_buff_size,
-  &sys_range_alloc_block_size,
   &sys_rpl_recovery_rank,
   &sys_safe_updates,
   &sys_select_limit,
@@ -555,11 +555,11 @@ struct show_var_st init_vars[]= {
   {sys_query_cache_type.name, (char*) &sys_query_cache_type,        SHOW_SYS},
 #endif /* HAVE_QUERY_CACHE */
   {sys_query_prealloc_size.name, (char*) &sys_query_prealloc_size,  SHOW_SYS},
+  {sys_range_alloc_block_size.name, (char*) &sys_range_alloc_block_size,
+   SHOW_SYS},
   {sys_read_buff_size.name,   (char*) &sys_read_buff_size,	    SHOW_SYS},
   {sys_readonly.name,         (char*) &sys_readonly,                SHOW_SYS},
   {sys_read_rnd_buff_size.name,(char*) &sys_read_rnd_buff_size,	    SHOW_SYS},
-  {sys_range_alloc_block_size.name, (char*) &sys_range_alloc_block_size,
-   SHOW_SYS},
   {sys_rpl_recovery_rank.name,(char*) &sys_rpl_recovery_rank,       SHOW_SYS},
   {sys_server_id.name,	      (char*) &sys_server_id,		    SHOW_SYS},
   {sys_slave_net_timeout.name,(char*) &sys_slave_net_timeout,	    SHOW_SYS},
@@ -972,7 +972,8 @@ byte *sys_var_thd_bool::value_ptr(THD *thd, enum_var_type type)
 
 bool sys_var::check_enum(THD *thd, set_var *var, TYPELIB *enum_names)
 {
-  char buff[80], *value;
+  char buff[80];
+  const char *value;
   String str(buff,sizeof(buff)), *res;
 
   if (var->value->result_type() == STRING_RESULT)
@@ -982,7 +983,7 @@ bool sys_var::check_enum(THD *thd, set_var *var, TYPELIB *enum_names)
 		 (ulong) find_type(res->c_ptr(), enum_names, 3)-1))
 	< 0)
     {
-      value=res->c_ptr();
+      value= res ? res->c_ptr() : "NULL";
       goto err;
     }
   }
