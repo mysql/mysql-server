@@ -3169,7 +3169,7 @@ CHARSET_INFO compiled_charsets[] = {
     20,0,0,		/* number */
     MY_CS_COMPILED,	/* state      */
     "latin7",		/* cs name    */
-    "estonia",		/* name */
+    "latin7_estonian_ci_as",		/* name */
     "",			/* comment    */
     ctype_estonia,
     to_lower_estonia,
