@@ -941,8 +941,6 @@ int yylex(void *arg, void *yythd)
 
 void st_select_lex_node::init_query()
 {
-  next= master= slave= link_next= 0;
-  prev= link_prev= 0;
   dependent= 0;
 }
 
@@ -1011,6 +1009,7 @@ void st_select_lex_node::include_down(st_select_lex_node *upper)
   prev= &upper->slave;
   upper->slave= this;
   master= upper;
+  slave= 0;
 }
 
 /* include neighbour (on same level) */
@@ -1021,6 +1020,7 @@ void st_select_lex_node::include_neighbour(st_select_lex_node *before)
   prev= &before->next;
   before->next= this;
   master= before->master;
+  slave= 0;
 }
 
 /* including in global SELECT_LEX list */
