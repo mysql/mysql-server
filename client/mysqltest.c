@@ -215,8 +215,8 @@ Q_REQUIRE_VERSION,
 Q_ENABLE_WARNINGS, Q_DISABLE_WARNINGS,
 Q_ENABLE_INFO, Q_DISABLE_INFO,
 Q_EXEC, Q_DELIMITER,
-Q_DISPLAY_VERTICAL_RESULTS, Q_DISPLAY_HORISONTAL_RESULTS,
-Q_QUERY_VERTICAL, Q_QUERY_HORISONTAL,
+Q_DISPLAY_VERTICAL_RESULTS, Q_DISPLAY_HORIZONTAL_RESULTS,
+Q_QUERY_VERTICAL, Q_QUERY_HORIZONTAL,
 
 Q_UNKNOWN,			       /* Unknown command.   */
 Q_COMMENT,			       /* Comments, ignored. */
@@ -291,9 +291,9 @@ const char *command_names[]=
   "exec",
   "delimiter",
   "vertical_results",
-  "horisontal_results",
+  "horizontal_results",
   "query_vertical",
-  "query_horisontal",
+  "query_horizontal",
   0
 };
 
@@ -2581,7 +2581,7 @@ int main(int argc, char **argv)
 	delimiter_length= strlen(delimiter);
 	break;
       case Q_DISPLAY_VERTICAL_RESULTS: display_result_vertically= TRUE; break;
-      case Q_DISPLAY_HORISONTAL_RESULTS: 
+      case Q_DISPLAY_HORIZONTAL_RESULTS: 
 	display_result_vertically= FALSE; break;
       case Q_LET: do_let(q); break;
       case Q_EVAL_RESULT: eval_result = 1; break;
@@ -2590,7 +2590,7 @@ int main(int argc, char **argv)
 	  q->query= q->first_argument;
 	/* fall through */
       case Q_QUERY_VERTICAL:
-      case Q_QUERY_HORISONTAL:
+      case Q_QUERY_HORIZONTAL:
       {
 	my_bool old_display_result_vertically= display_result_vertically;
 	if (!q->query[q->first_word_len])
@@ -2605,7 +2605,7 @@ int main(int argc, char **argv)
 	switch(q->type)
 	{
 	case Q_QUERY_VERTICAL: display_result_vertically= TRUE; break;
-	case Q_QUERY_HORISONTAL: display_result_vertically= FALSE; break;
+	case Q_QUERY_HORIZONTAL: display_result_vertically= FALSE; break;
 	}
 	error |= run_query(&cur_con->mysql, q, QUERY_REAP|QUERY_SEND);
 	display_result_vertically= old_display_result_vertically;
