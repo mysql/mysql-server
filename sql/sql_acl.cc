@@ -941,7 +941,7 @@ static void acl_insert_db(const char *user, const char *host, const char *db,
 */
 
 ulong acl_get(const char *host, const char *ip,
-	     const char *user, const char *db, my_bool db_is_pattern)
+              const char *user, const char *db, my_bool db_is_pattern)
 {
   ulong host_access,db_access;
   uint i,key_length;
