@@ -665,7 +665,6 @@ JOIN::optimize()
     if (!order && org_order)
       skip_sort_order= 1;
   }
-  order= remove_const(this, order, conds, &simple_order);
   if (group_list || tmp_table_param.sum_func_count)
   {
     if (! hidden_group_fields)
