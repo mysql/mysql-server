@@ -544,3 +544,4 @@ vio/test-sslclient
 vio/test-sslserver
 vio/viotest-ssl
 scripts/make_win_binary_distribution
+EXCEPTIONS-CLIENT
