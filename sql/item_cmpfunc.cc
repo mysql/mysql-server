@@ -698,8 +698,21 @@ Item_func_ifnull::fix_length_and_dec()
     agg_arg_collations(collation, args, arg_count);
   else if (cached_result_type != REAL_RESULT)
     decimals= 0;
+  
+  cached_field_type= args[0]->field_type();
+  if (cached_field_type != args[1]->field_type())
+    cached_field_type= Item_func::field_type();
 }
 
+enum_field_types Item_func_ifnull::field_type() const 
+{
+  return cached_field_type;
+}
+
+Field *Item_func_ifnull::tmp_table_field(TABLE *table)
+{
+  return tmp_table_field_from_field_type(table);
+}
 
 double
 Item_func_ifnull::val()
