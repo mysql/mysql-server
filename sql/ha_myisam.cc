@@ -868,7 +868,7 @@ void ha_myisam::start_bulk_insert(ha_rows rows)
   ulong size= min(thd->variables.read_buff_size, table->avg_row_length*rows);
 
   /* don't enable row cache if too few rows */
-  if (!rows && rows > 10)
+  if (!rows && rows >  MI_MIN_ROWS_TO_USE_WRITE_CACHE)
     mi_extra(file, HA_EXTRA_WRITE_CACHE, (void*) &size);
 
   can_enable_indexes= (file->s->state.key_map ==
