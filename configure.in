@@ -130,7 +130,7 @@ AC_PROG_CXX
 AC_PROG_CPP
 
 # Print version of CC and CXX compiler (if they support --version)
-CC_VERSION=`$CC --version`
+CC_VERSION=`$CC --version | sed 1q`
 if test $? -eq "0"
 then
   AC_MSG_CHECKING("C Compiler version");
@@ -138,7 +138,7 @@ then
 else
 CC_VERSION=""
 fi
-CXX_VERSION=`$CXX --version`
+CXX_VERSION=`$CXX --version | sed 1q`
 if test $? -eq "0"
 then
   AC_MSG_CHECKING("C++ compiler version");
