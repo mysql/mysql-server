@@ -1,0 +1,40 @@
+source include/master-slave.inc;
+--disable_warnings
+drop database if exists mysqltest1;
+# 4.1 bases its conversion on the db's charset,
+# while 4.0 uses the part of "SET CHARACTER SET" after "_".
+# So for 4.1 we add a clause to CREATE DATABASE.
+create database mysqltest1 /*!40100 character set latin2 */;
+use mysqltest1;
+drop table if exists t1;
+--enable_warnings
+create table t1 (a varchar(255) character set latin2, b varchar(4));
+SET CHARACTER SET cp1250_latin2;
+INSERT INTO t1 VALUES ('ŠŒ','80');
+INSERT INTO t1 VALUES ('šœŸ','90');
+INSERT INTO t1 VALUES ('£¥ª¯','A0');
+INSERT INTO t1 VALUES ('³¹º¼¾¿','B0');
+INSERT INTO t1 VALUES ('ÀÁÂÃÄÅÆÇÈÉÊËÌÍÎÏ','C0');
+INSERT INTO t1 VALUES ('ĞÑÒÓÔÕÖ×ØÙÚÛÜİŞß','D0');
+INSERT INTO t1 VALUES ('àáâãäåæçèéêëìíîï','E0');
+INSERT INTO t1 VALUES ('ğñòóôõö÷øùúûüışÿ','F0');
+select "--- on master ---";
+select hex(a),b from t1 order by b;
+# It's complicated to verify that the charset is reset to default in
+# the binlog after each query, except by checking the binlog. When you
+# merge this into 4.1/5.0, the 1979 will have to be changed; all you have
+# to do is read the var/log/master-bin.0*01 with mysqlbinlog, verify
+# that a SET CHARACTER SET DEFAULT is just after the last INSERT, and
+# replace 1979 by its position (the "# at" line above the SET).
+show binlog events from 1979;
+save_master_pos;
+connection slave;
+sync_with_master;
+use mysqltest1;
+select "--- on slave ---";
+select hex(a),b from t1 order by b;
+connection master;
+drop table t1;
+save_master_pos;
+connection slave;
+sync_with_master;
