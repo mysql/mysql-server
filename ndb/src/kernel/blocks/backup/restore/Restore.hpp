@@ -21,7 +21,6 @@
 #include <NdbOut.hpp>
 #include <BackupFormat.hpp>
 #include <NdbApi.hpp>
-#include "myVector.hpp"
 
 #include <ndb_version.h>
 #include <version.h>
@@ -122,11 +121,11 @@ class TableS {
   
   Uint32 schemaVersion;
   Uint32 backupVersion;
-  myVector<AttributeDesc *> allAttributesDesc;
-  myVector<AttributeDesc *> m_fixedKeys;
-  //myVector<AttributeDesc *> m_variableKey; 
-  myVector<AttributeDesc *> m_fixedAttribs;
-  myVector<AttributeDesc *> m_variableAttribs;
+  Vector<AttributeDesc *> allAttributesDesc;
+  Vector<AttributeDesc *> m_fixedKeys;
+  //Vector<AttributeDesc *> m_variableKey; 
+  Vector<AttributeDesc *> m_fixedAttribs;
+  Vector<AttributeDesc *> m_variableAttribs;
   
   Uint32 m_noOfNullable;
   Uint32 m_nullBitmaskSize;
@@ -225,7 +224,7 @@ public:
 
 class RestoreMetaData : public BackupFile {
 
-  myVector<TableS *> allTables;
+  Vector<TableS *> allTables;
   bool readMetaFileHeader();
   bool readMetaTableDesc();
 		
@@ -280,13 +279,13 @@ public:
   };
   EntryType m_type;
   const TableS * m_table;  
-  myVector<AttributeS*> m_values;
-  myVector<AttributeS*> m_values_e;
+  Vector<AttributeS*> m_values;
+  Vector<AttributeS*> m_values_e;
   AttributeS *add_attr() {
     AttributeS * attr;
     if (m_values_e.size() > 0) {
       attr = m_values_e[m_values_e.size()-1];
-      m_values_e.pop_back();
+      m_values_e.erase(m_values_e.size()-1);
     }
     else
     {
@@ -296,18 +295,18 @@ public:
     return attr;
   }
   void clear() {
-    for(int i= 0; i < m_values.size(); i++)
+    for(Uint32 i= 0; i < m_values.size(); i++)
       m_values_e.push_back(m_values[i]);
     m_values.clear();
   }
   ~LogEntry()
   {
-    for(int i= 0; i< m_values.size(); i++)
+    for(Uint32 i= 0; i< m_values.size(); i++)
       delete m_values[i];
-    for(int i= 0; i< m_values_e.size(); i++)
+    for(Uint32 i= 0; i< m_values_e.size(); i++)
       delete m_values_e[i];
   }
-  int size() const { return m_values.size(); }
+  Uint32 size() const { return m_values.size(); }
   const AttributeS * operator[](int i) const { return m_values[i];}
 };
 

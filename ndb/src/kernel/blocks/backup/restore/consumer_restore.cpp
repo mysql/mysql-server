@@ -244,7 +244,7 @@ void BackupRestore::cback(int result, restore_callback_t *cb)
       exitHandler();
     }
   }
-  else 
+  else
   {
     /**
      * OK! close transaction
@@ -375,7 +375,7 @@ BackupRestore::logEntry(const LogEntry & tup)
     exit(-1);
   }
   
-  for (int i = 0; i < tup.size(); i++) 
+  for (Uint32 i= 0; i < tup.size(); i++) 
   {
     const AttributeS * attr = tup[i];
     int size = attr->Desc->size;
