@@ -8065,6 +8065,32 @@ static void test_bug1500()
   mysql_stmt_close(stmt);
 }
 
+static void test_bug1946()
+{
+  MYSQL_STMT *stmt;
+  int rc;
+
+  myheader("test_bug1946");
+  const char *query= "INSERT INTO prepare_command VALUES (?)";
+  
+  rc = mysql_query(mysql, "DROP TABLE IF EXISTS prepare_command");
+  myquery(rc);
+  
+  rc= mysql_query(mysql,"CREATE TABLE prepare_command(ID INT)");
+  myquery(rc);
+
+  stmt = mysql_prepare(mysql, query, strlen(query));
+  mystmt_init(stmt);
+  rc= mysql_real_query(mysql, query, strlen(query));
+  assert(rc != 0);
+  fprintf(stdout, "Got error (as expected):\n");
+  myerror(NULL);
+
+  mysql_stmt_close(stmt);
+  rc= mysql_query(mysql,"DROP TABLE prepare_command");
+}
+
+
 /*
   Read and parse arguments and MySQL options from my.cnf
 */
@@ -8208,6 +8234,8 @@ int main(int argc, char **argv)
     /* Used for internal new development debugging */
     test_drop_temp();       /* to test DROP TEMPORARY TABLE Access checks */
 #endif
+    test_bug1946(); /* test that placeholders are allowed only in 
+                               prepared queries */
     test_fetch_seek();      /* to test stmt seek() functions */
     test_fetch_nobuffs();   /* to fecth without prior bound buffers */
     test_open_direct();     /* direct execution in the middle of open stmts */
