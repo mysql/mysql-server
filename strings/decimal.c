@@ -816,7 +816,7 @@ int decimal_bin_size(int precision, int scale)
     E_DEC_OK/E_DEC_TRUNCATED
 */
 
-int decimal_round(decimal *from, decimal *to, int scale, dec_round_mode mode)
+int decimal_round(decimal *from, decimal *to, int scale, decimal_round_mode mode)
 {
   int frac0=ROUND_UP(scale), frac1=ROUND_UP(from->frac),
       intg0=ROUND_UP(from->intg), error=E_DEC_OK, len=to->len;
@@ -867,7 +867,7 @@ int decimal_round(decimal *from, decimal *to, int scale, dec_round_mode mode)
     if (mode != TRUNCATE)
     {
       x=buf0[1]/DIG_MASK;
-      if (x > 5 || (x == 5 && *buf0 & 1))
+      if (x > 5 || (x == 5 && (mode == HALF_UP || *buf0 & 1)))
         (*buf1)++;
     }
   }
@@ -878,7 +878,7 @@ int decimal_round(decimal *from, decimal *to, int scale, dec_round_mode mode)
     {
       x=*buf1 / powers10[pos];
       y=x % 10;
-      if (y > 5 || (y == 5 && (x/10) & 1))
+      if (y > 5 || (y == 5 && (mode == HALF_UP || (x/10) & 1)))
         x+=10;
       *buf1=x*powers10[pos]-y;
     }
@@ -1811,7 +1811,7 @@ void test_md(char *s1, char *s2)
   printf("\n");
 }
 
-void test_ro(char *s1, int n, dec_round_mode mode)
+void test_ro(char *s1, int n, decimal_round_mode mode)
 {
   char s[100];
   int res;
@@ -1941,17 +1941,18 @@ main()
   test_dv("0", "987");
 
   printf("==== decimal_round ====\n");
-  test_ro("15.1",0,EVEN);
-  test_ro("15.5",0,EVEN);
-  test_ro("15.9",0,EVEN);
-  test_ro("-15.1",0,EVEN);
-  test_ro("-15.5",0,EVEN);
-  test_ro("-15.9",0,EVEN);
-  test_ro("15.1",1,EVEN);
-  test_ro("-15.1",1,EVEN);
-  test_ro("15.17",1,EVEN);
-  test_ro("15.4",-1,EVEN);
-  test_ro("-15.4",-1,EVEN);
+  test_ro("15.1",0,HALF_UP);
+  test_ro("15.5",0,HALF_UP);
+  test_ro("15.5",0,HALF_UP);
+  test_ro("15.9",0,HALF_UP);
+  test_ro("-15.1",0,HALF_UP);
+  test_ro("-15.5",0,HALF_UP);
+  test_ro("-15.9",0,HALF_UP);
+  test_ro("15.1",1,HALF_UP);
+  test_ro("-15.1",1,HALF_UP);
+  test_ro("15.17",1,HALF_UP);
+  test_ro("15.4",-1,HALF_UP);
+  test_ro("-15.4",-1,HALF_UP);
   test_ro("5678.123451",-4,TRUNCATE);
   test_ro("5678.123451",-3,TRUNCATE);
   test_ro("5678.123451",-2,TRUNCATE);
