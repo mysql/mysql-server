@@ -166,7 +166,8 @@ int init_io_cache(IO_CACHE *info, File file, uint cachesize,
   info->seek_not_done= test(file >= 0 && type != READ_FIFO &&
 			    type != READ_NET);
   info->myflags=cache_myflags & ~(MY_NABP | MY_FNABP);
-  info->rc_request_pos=info->rc_pos=info->buffer;
+  info->rc_request_pos=info->rc_pos= info->write_pos = info->buffer;
+  info->write_pos = info->write_end = 0;
   if (type == SEQ_READ_APPEND)
   {
     info->append_read_pos = info->write_pos = info->append_buffer;
@@ -308,6 +309,11 @@ my_bool reinit_io_cache(IO_CACHE *info, enum cache_type type,
   {
     info->append_read_pos = info->write_pos = info->append_buffer;
   }
+  if (!info->write_pos)
+    info->write_pos = info->buffer;
+  if (!info->write_end)
+    info->write_end = info->buffer+info->buffer_length-
+      (seek_offset & (IO_SIZE-1));
   info->type=type;
   info->error=0;
   init_read_function(info,type);

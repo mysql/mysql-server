@@ -23,8 +23,10 @@ typedef struct st_master_info
   pthread_mutex_t lock;
   pthread_cond_t cond;
   bool inited;
+  bool old_format; /* master binlog is in 3.23 format */
   
-  st_master_info():pending(0),fd(-1),last_log_seq(0),inited(0)
+  st_master_info():pending(0),fd(-1),last_log_seq(0),inited(0),
+		   old_format(0)
   {
     host[0] = 0; user[0] = 0; password[0] = 0;
     pthread_mutex_init(&lock, MY_MUTEX_INIT_FAST);

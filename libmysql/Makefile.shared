@@ -55,7 +55,8 @@ mysysobjects1 =		my_init.lo my_static.lo my_malloc.lo my_realloc.lo \
 			mf_loadpath.lo my_pthread.lo my_thr_init.lo \
 			thr_mutex.lo mulalloc.lo string.lo default.lo \
 			my_compress.lo array.lo my_once.lo list.lo my_net.lo \
-                        charset.lo hash.lo mf_iocache.lo my_seek.lo \
+                        charset.lo hash.lo mf_iocache.lo \
+                        mf_iocache2.lo my_seek.lo \
 			my_pread.lo mf_cache.lo my_vsnprintf.lo md5.lo
 
 # Not needed in the minimum library

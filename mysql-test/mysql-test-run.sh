@@ -168,6 +168,9 @@ while test $# -gt 0; do
      USE_MANAGER=1
      USE_RUNNING_SERVER=
      ;;
+    --start-and-exit)
+     START_AND_EXIT=1
+     ;; 
     --skip-innobase)
      EXTRA_MASTER_MYSQLD_OPT="$EXTRA_MASTER_MYSQLD_OPT --skip-innobase"
      EXTRA_SLAVE_MYSQLD_OPT="$EXTRA_SLAVE_MYSQLD_OPT --skip-innobase" ;;
@@ -1091,6 +1094,10 @@ then
   mysql_loadstd
 fi
 
+if [ "x$START_AND_EXIT" = "x1" ] ; then
+ echo "Servers started, exiting"
+ exit
+fi
 
 $ECHO  "Starting Tests"
 
