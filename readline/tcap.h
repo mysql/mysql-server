@@ -42,7 +42,7 @@
 #endif
 
 extern char PC;
-extern char *UP, *BC;
+extern const char *UP, *BC;
 
 extern short ospeed;
 

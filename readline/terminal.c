@@ -84,40 +84,41 @@ static int tcap_initialized;
 #  if defined (__EMX__) || defined (NEED_EXTERN_PC)
 extern 
 #  endif /* __EMX__ || NEED_EXTERN_PC */
-char PC, *BC, *UP;
+const char PC;
+const char *BC, *UP;
 #endif /* __linux__ */
 
 /* Some strings to control terminal actions.  These are output by tputs (). */
-char *_rl_term_clreol;
-char *_rl_term_clrpag;
-char *_rl_term_cr;
-char *_rl_term_backspace;
-char *_rl_term_goto;
-char *_rl_term_pc;
+const char *_rl_term_clreol;
+const char *_rl_term_clrpag;
+const char *_rl_term_cr;
+const char *_rl_term_backspace;
+const char *_rl_term_goto;
+const char *_rl_term_pc;
 
 /* Non-zero if we determine that the terminal can do character insertion. */
 int _rl_terminal_can_insert = 0;
 
 /* How to insert characters. */
-char *_rl_term_im;
-char *_rl_term_ei;
-char *_rl_term_ic;
-char *_rl_term_ip;
-char *_rl_term_IC;
+const char *_rl_term_im;
+const char *_rl_term_ei;
+const char *_rl_term_ic;
+const char *_rl_term_ip;
+const char *_rl_term_IC;
 
 /* How to delete characters. */
-char *_rl_term_dc;
-char *_rl_term_DC;
+const char *_rl_term_dc;
+const char *_rl_term_DC;
 
 #if defined (HACK_TERMCAP_MOTION)
 char *_rl_term_forward_char;
 #endif  /* HACK_TERMCAP_MOTION */
 
 /* How to go up a line. */
-char *_rl_term_up;
+const char *_rl_term_up;
 
 /* A visible bell; char if the terminal can be made to flash the screen. */
-static char *_rl_visible_bell;
+static const char *_rl_visible_bell;
 
 /* Non-zero means the terminal can auto-wrap lines. */
 int _rl_term_autowrap;
@@ -127,30 +128,30 @@ static int term_has_meta;
 
 /* The sequences to write to turn on and off the meta key, if this
    terminal has one. */
-static char *_rl_term_mm;
-static char *_rl_term_mo;
+static const char *_rl_term_mm;
+static const char *_rl_term_mo;
 
 /* The key sequences output by the arrow keys, if this terminal has any. */
-static char *_rl_term_ku;
-static char *_rl_term_kd;
-static char *_rl_term_kr;
-static char *_rl_term_kl;
+static const char *_rl_term_ku;
+static const char *_rl_term_kd;
+static const char *_rl_term_kr;
+static const char *_rl_term_kl;
 
 /* How to initialize and reset the arrow keys, if this terminal has any. */
-static char *_rl_term_ks;
-static char *_rl_term_ke;
+static const char *_rl_term_ks;
+static const char *_rl_term_ke;
 
 /* The key sequences sent by the Home and End keys, if any. */
-static char *_rl_term_kh;
-static char *_rl_term_kH;
-static char *_rl_term_at7;	/* @7 */
+static const char *_rl_term_kh;
+static const char *_rl_term_kH;
+static const char *_rl_term_at7;	/* @7 */
 
 /* Insert key */
-static char *_rl_term_kI;
+static const char *_rl_term_kI;
 
 /* Cursor control */
-static char *_rl_term_vs;	/* very visible */
-static char *_rl_term_ve;	/* normal */
+static const char *_rl_term_vs;	/* very visible */
+static const char *_rl_term_ve;	/* normal */
 
 static void bind_termcap_arrow_keys PARAMS((Keymap));
 
@@ -296,7 +297,7 @@ rl_resize_terminal ()
 
 struct _tc_string {
      const char *tc_var;
-     char **tc_value;
+     const char **tc_value;
 };
 
 /* This should be kept sorted, just in case we decide to change the
@@ -416,7 +417,7 @@ _rl_init_terminal_io (terminal_name)
 
       /* Everything below here is used by the redisplay code (tputs). */
       _rl_screenchars = _rl_screenwidth * _rl_screenheight;
-      _rl_term_cr = (char*)"\r";
+      _rl_term_cr = "\r";
       _rl_term_im = _rl_term_ei = _rl_term_ic = _rl_term_IC = (char *)NULL;
       _rl_term_up = _rl_term_dc = _rl_term_DC = _rl_visible_bell = (char *)NULL;
       _rl_term_ku = _rl_term_kd = _rl_term_kl = _rl_term_kr = (char *)NULL;
@@ -433,8 +434,8 @@ _rl_init_terminal_io (terminal_name)
          tgoto if _rl_term_IC or _rl_term_DC is defined, but just in case we
          change that later... */
       PC = '\0';
-      BC = _rl_term_backspace = (char*)"\b";
-      UP = _rl_term_up;
+      BC = (char*)(_rl_term_backspace = "\b");
+      UP = (char*)_rl_term_up;
 
       return 0;
     }
@@ -444,11 +445,11 @@ _rl_init_terminal_io (terminal_name)
   /* Set up the variables that the termcap library expects the application
      to provide. */
   PC = _rl_term_pc ? *_rl_term_pc : 0;
-  BC = _rl_term_backspace;
-  UP = _rl_term_up;
+  BC = (char*)_rl_term_backspace;
+  UP = (char*)_rl_term_up;
 
   if (!_rl_term_cr)
-    _rl_term_cr = (char*)"\r";
+    _rl_term_cr = "\r";
 
   _rl_term_autowrap = tgetflag ("am") && tgetflag ("xn");
 
@@ -500,7 +501,7 @@ bind_termcap_arrow_keys (map)
   _rl_keymap = xkeymap;
 }
 
-char *
+const char *
 rl_get_termcap (cap)
      const char *cap;
 {

@@ -329,7 +329,7 @@ extern void rl_set_keymap PARAMS((Keymap));
 extern Keymap rl_get_keymap PARAMS((void));
 /* Undocumented; used internally only. */
 extern void rl_set_keymap_from_edit_mode PARAMS((void));
-extern char *rl_get_keymap_name_from_edit_mode PARAMS((void));
+extern const char *rl_get_keymap_name_from_edit_mode PARAMS((void));
 
 /* Functions for manipulating the funmap, which maps command names to functions. */
 extern int rl_add_funmap_entry PARAMS((const char *, rl_command_func_t *));
@@ -390,7 +390,7 @@ extern void rl_resize_terminal PARAMS((void));
 extern void rl_set_screen_size PARAMS((int, int));
 extern void rl_get_screen_size PARAMS((int *, int *));
 
-extern char *rl_get_termcap PARAMS((const char *));
+extern const char *rl_get_termcap PARAMS((const char *));
 
 /* Functions for character input. */
 extern int rl_stuff_char PARAMS((int));

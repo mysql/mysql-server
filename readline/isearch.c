@@ -70,7 +70,7 @@ static char *prev_line_found;
 static char *last_isearch_string;
 static int last_isearch_string_len;
 
-static char default_isearch_terminators[] = "\033\012";
+static const char *default_isearch_terminators = "\033\012";
 
 /* Search backwards through the history looking for a string which is typed
    interactively.  Start with the current line. */
@@ -186,7 +186,7 @@ rl_search_history (direction, invoking_key)
   /* The list of characters which terminate the search, but are not
      subsequently executed.  If the variable isearch-terminators has
      been set, we use that value, otherwise we use ESC and C-J. */
-  char *isearch_terminators;
+  const char *isearch_terminators;
 
   RL_SETSTATE(RL_STATE_ISEARCH);
   orig_point = rl_point;

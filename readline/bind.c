@@ -1629,17 +1629,17 @@ rl_set_keymap_from_edit_mode ()
 }
 
 
-char *
+const char *
 rl_get_keymap_name_from_edit_mode ()
 {
   if (rl_editing_mode == emacs_mode)
-    return (char*)"emacs";
+    return "emacs";
 #if defined (VI_MODE)
   else if (rl_editing_mode == vi_mode)
-    return (char*)"vi";
+    return "vi";
 #endif /* VI_MODE */
   else
-    return (char*)"nope";
+    return "nope";
 }
 
 /* **************************************************************** */
