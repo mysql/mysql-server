@@ -654,7 +654,7 @@ HugoTransactions::scanUpdateRecords3(Ndb* pNdb,
 
       if(check != -1){
 	check = pTrans->execute(Commit);   
-	pTrans->releaseCompletedOperations();
+	pTrans->restart();
       }
 
       const NdbError err = pTrans->getNdbError();    

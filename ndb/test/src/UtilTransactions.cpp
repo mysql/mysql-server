@@ -412,7 +412,7 @@ UtilTransactions::clearTable3(Ndb* pNdb,
       
       if(check != -1){
 	check = pTrans->execute(Commit);   
-	pTrans->releaseCompletedOperations();
+	pTrans->restart();
       }
       
       err = pTrans->getNdbError();    
@@ -536,7 +536,7 @@ UtilTransactions::copyTableData(Ndb* pNdb,
       } while((eof = rs->nextResult(false)) == 0);
       
       check = pTrans->execute(Commit);   
-      pTrans->releaseCompletedOperations();
+      pTrans->restart();
       if( check == -1 ) {
 	const NdbError err = pTrans->getNdbError();    
 	ERR(err);
