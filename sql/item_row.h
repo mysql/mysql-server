@@ -71,6 +71,7 @@ public:
   void print(String *str);
 
   bool walk(Item_processor processor, byte *arg);
+  Item *traverse(Item_calculator calculator, byte *arg);
 
   uint cols() { return arg_count; }
   Item* el(uint i) { return items[i]; }

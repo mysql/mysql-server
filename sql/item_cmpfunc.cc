@@ -225,7 +225,7 @@ void Item_bool_func2::fix_length_and_dec()
   }
   
   // Make a special case of compare with fields to get nicer DATE comparisons
-  if (args[0]->type() == FIELD_ITEM)
+  if (args[0]->type() == FIELD_ITEM && !args[0]->const_item())
   {
     Field *field=((Item_field*) args[0])->field;
     if (field->store_for_compare())
@@ -238,7 +238,7 @@ void Item_bool_func2::fix_length_and_dec()
       }
     }
   }
-  if (args[1]->type() == FIELD_ITEM)
+  if (args[1]->type() == FIELD_ITEM && !args[1]->const_item())
   {
     Field *field=((Item_field*) args[1])->field;
     if (field->store_for_compare())
@@ -1739,6 +1739,21 @@ bool Item_cond::walk(Item_processor processor, byte *arg)
   return Item_func::walk(processor, arg);
 }
 
+Item *Item_cond::traverse(Item_calculator calculator, byte *arg)
+{
+  List_iterator<Item> li(list);
+  Item *item;
+  while ((item= li++))
+  {
+    Item *new_item= item->traverse(calculator, arg);
+    if (!new_item)
+      return 0;
+    if (new_item != item)
+      li.replace(new_item);
+  }
+  return Item_func::traverse(calculator, arg);
+}
+
 void Item_cond::split_sum_func(Item **ref_pointer_array, List<Item> &fields)
 {
   List_iterator<Item> li(list);
@@ -2526,3 +2541,217 @@ Item *Item_cond_or::neg_transformer()		/* NOT(a OR b OR ...)  -> */
   neg_arguments();
   return new Item_cond_and(list);
 }
+
+Item_equal::Item_equal(Item_field *f1, Item_field *f2)
+  : Item_bool_func(), const_item(0), eval_item(0), cond_false(0)
+{
+  const_item_cache= 0;
+  fields.push_back(f1);
+  fields.push_back(f2);
+}
+
+Item_equal::Item_equal(Item *c, Item_field *f)
+  : Item_bool_func(), eval_item(0), cond_false(0)
+{
+  const_item_cache= 0;
+  fields.push_back(f);
+  const_item= c;
+}
+
+Item_equal::Item_equal(Item_equal *item_equal)
+  : Item_bool_func(), eval_item(0), cond_false(0)
+{
+  const_item_cache= 0;
+  List_iterator_fast<Item_field> li(item_equal->fields);
+  Item_field *item;
+  while ((item= li++))
+  {
+    fields.push_back(item);
+  }
+  const_item= item_equal->const_item;
+  cond_false= item_equal->cond_false;
+}
+
+void Item_equal::add(Item *c)
+{
+  if (cond_false)
+    return;
+  if (!const_item)
+  {
+    const_item= c;
+    return;
+  }
+  Item_func_eq *func= new Item_func_eq(c, const_item);
+  func->set_cmp_func();
+  cond_false =  !(func->val_int());
+}
+
+void Item_equal::add(Item_field *f)
+{
+  fields.push_back(f);
+}
+
+bool Item_equal::contains(Field *field)
+{
+  List_iterator_fast<Item_field> it(fields);
+  Item_field *item;
+  while ((item= it++))
+  {
+    if (field->eq(item->field))
+        return 1;
+  }
+  return 0;
+}
+
+void Item_equal::merge(Item_equal *item)
+{
+  fields.concat(&item->fields);
+  Item *c= item->const_item;
+  if (c)
+  {
+    /* 
+      The flag cond_false will be set to 1 after this, if 
+      the multiple equality already contains a constant and its 
+      value is  not equal to the value of c.
+    */
+    add(const_item);
+  }
+  cond_false|= item->cond_false;
+} 
+
+void Item_equal::sort(void *table_join_idx)
+{
+  bool swap;
+  void **idx= (void **) table_join_idx;
+  List_iterator<Item_field> it(fields);
+  do
+  {
+    Item_field *item1= it++;
+    Item_field **ref1= it.ref();
+    Item_field *item2;
+    Item_field **ref2;
+
+    if (!item1)
+      break; 
+    swap= FALSE;
+    while ((item2= it++))
+    {
+      ref2= it.ref();
+      if (idx[item1->field->table->tablenr] >
+          idx[item2->field->table->tablenr])
+      {
+        Item_field *item= *ref1;
+        *ref1= *ref2;
+        *ref2= item;
+        swap= TRUE;
+      }
+      else
+      {
+        item1= item2;
+        ref1= ref2;
+      }
+    }
+    it.rewind();
+  } while (swap);
+}
+
+bool Item_equal::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
+{
+  List_iterator_fast<Item_field> li(fields);
+  Item *item;
+  not_null_tables_cache= used_tables_cache= 0;
+  const_item_cache= 0;
+  while ((item=li++))
+  {
+    table_map tmp_table_map;
+    used_tables_cache|= item->used_tables();
+    tmp_table_map= item->not_null_tables();
+    not_null_tables_cache|= tmp_table_map;
+    if (item->maybe_null)
+      maybe_null=1;
+  }
+  fix_length_and_dec();
+  fixed= 1;
+  return 0;
+}
+
+void Item_equal::update_used_tables()
+{
+  List_iterator_fast<Item_field> li(fields);
+  Item *item;
+  not_null_tables_cache= used_tables_cache= 0;
+  while ((item=li++))
+  {
+    item->update_used_tables();
+    used_tables_cache|= item->used_tables();
+    const_item_cache&= item->const_item();
+  }
+}
+
+longlong Item_equal::val_int()
+{
+  if (cond_false)
+    return 0;
+  List_iterator_fast<Item_field> it(fields);
+  Item *item= const_item ? const_item : it++;
+  if ((null_value= item->null_value))
+    return 0;
+  eval_item->store_value(item);
+  while((item= it++))
+  {
+    if ((null_value= item->null_value) || eval_item->cmp(item))
+      return 0;
+  }
+  return 1;
+}
+
+void Item_equal::fix_length_and_dec()
+{
+  Item *item= const_item ? const_item : get_first();
+  eval_item= cmp_item::get_comparator(item);
+  if (item->result_type() == STRING_RESULT)
+    eval_item->cmp_charset= cmp_collation.collation;
+}
+
+bool Item_equal::walk(Item_processor processor, byte *arg)
+{
+  List_iterator_fast<Item_field> it(fields);
+  Item *item;
+  while ((item= it++))
+    if (item->walk(processor, arg))
+      return 1;
+  return Item_func::walk(processor, arg);
+}
+
+Item *Item_equal::traverse(Item_calculator calculator, byte *arg)
+{
+  List_iterator<Item_field> it(fields);
+  Item *item;
+  while ((item= it++))
+  {
+    Item *new_item= item->traverse(calculator, arg);
+    if (!new_item)
+      return 0;
+    if (new_item != item)
+      it.replace((Item_field *) new_item);
+  }
+  return Item_func::traverse(calculator, arg);
+}
+
+void Item_equal::print(String *str)
+{
+  str->append(func_name());
+  str->append('(');
+  List_iterator_fast<Item_field> it(fields);
+  Item *item;
+  if ((item= it++))
+    item->print(str);
+  while ((item= it++))
+  {
+    str->append(',');
+    str->append(' ');
+    item->print(str);
+  }
+  str->append(')');
+}
+

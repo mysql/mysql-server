@@ -73,6 +73,12 @@ static int return_zero_rows(JOIN *join, select_result *res,TABLE_LIST *tables,
 			    uint select_options, const char *info,
 			    Item *having, Procedure *proc,
 			    SELECT_LEX_UNIT *unit);
+static Item *flatten_condition(COND *cond);
+static COND *build_all_equal_items(COND *cond,
+                                        COND_EQUAL *inherited);
+static COND* substitute_for_best_equal_field(COND *cond,
+                                             COND_EQUAL *cond_equal,
+                                             void *table_join_idx);
 static COND *optimize_cond(COND *conds,Item::cond_result *cond_value);
 static COND *remove_eq_conds(COND *cond,Item::cond_result *cond_value);
 static bool const_expression_in_where(COND *conds,Item *item, Item **comp_item);
@@ -524,6 +530,56 @@ JOIN::optimize()
   }
 #endif
 
+  /* eliminate NOT operators */
+  conds= eliminate_not_funcs(conds);
+  DBUG_EXECUTE("where", print_where(conds, "after negation elimination"););
+
+  /* Eliminate nested AND/OR in conditions */
+  if (conds)
+    conds= flatten_condition(conds);
+  {
+    TABLE_LIST *tables;
+    for (tables= tables_list; tables; tables= tables->next)
+    { 
+      if (tables->on_expr)
+        tables->on_expr= flatten_condition(tables->on_expr);
+    }
+  }
+
+  /* 
+    Build all multiple equality predicates and eliminate equality
+    predicates that can be inferred from these multiple equalities.
+    For each reference of a field included into a multiple equality
+    that occurs in a function set a pointer to the multiple equality
+    predicate. Substitute a constant instead of this field if the
+    multiple equality contains a constant.
+  */
+  if (conds) 
+  {
+    conds= build_all_equal_items(conds, NULL);
+    conds->update_used_tables();
+    if (conds->type() == Item::COND_ITEM &&
+        ((Item_cond*) conds)->functype() == Item_func::COND_AND_FUNC)
+      cond_equal= &((Item_cond_and*) conds)->cond_equal;
+    else if (conds->type() == Item::FUNC_ITEM &&
+             ((Item_cond*) conds)->functype() == Item_func::MULT_EQUAL_FUNC)
+    {
+      cond_equal= new COND_EQUAL;
+      cond_equal->current_level.push_back((Item_equal *) conds);
+    }
+  }
+  {
+    TABLE_LIST *tables;
+    for (tables= tables_list; tables; tables= tables->next)
+    { 
+      if (tables->on_expr)
+      {
+        tables->on_expr= build_all_equal_items(tables->on_expr, cond_equal);
+        tables->on_expr->update_used_tables();  
+      }
+    }
+  }
+
   conds= optimize_cond(conds,&cond_value);
   if (thd->net.report_error)
   {
@@ -623,6 +679,31 @@ JOIN::optimize()
       (*curr_table)->file->index_end();
     }
     mysql_unlock_some_tables(thd, table, const_tables);
+  }
+  /*
+    Among the equal fields belonging to the same multiple equality
+    choose the one that is to be retrieved first and substitute
+    all references to these in where condition for a reference for
+    the selected field.
+  */
+  if (conds)
+  {
+    conds= substitute_for_best_equal_field(conds, cond_equal, map2table);
+    conds->update_used_tables();
+  }
+  {
+    TABLE_LIST *tables;
+    for (tables= tables_list; tables; tables= tables->next)
+    { 
+      if (tables->on_expr)
+      {
+        tables->on_expr= substitute_for_best_equal_field(tables->on_expr,
+                                                         cond_equal,
+                                                         map2table);
+        tables->on_expr->update_used_tables();
+        map2table[tables->table->tablenr]->on_expr= tables->on_expr;
+      }
+    }
   }
   if (!conds && outer_join)
   {
@@ -2218,6 +2299,35 @@ add_key_field(KEY_FIELD **key_fields,uint and_level,
 
 
 static void
+add_key_equal_fields(KEY_FIELD **key_fields, uint and_level,
+                     Item_field *field_item,
+                     bool eq_func, Item **val,
+                     uint num_values, table_map usable_tables)
+{
+  Field *field= field_item->field;
+  add_key_field(key_fields, and_level, field,
+                eq_func, val, num_values, usable_tables);
+  Item_equal *item_equal= field_item->item_equal;
+  if (item_equal)
+  { 
+    /*
+      Add to the set of possible key values every substitution of
+      the field for an equal field included into item_equal
+    */
+    Item_equal_iterator it(*item_equal);
+    Item_field *item;
+    while ((item= it++))
+    {
+      if (!field->eq(item->field))
+      {
+        add_key_field(key_fields, and_level, item->field,
+                      eq_func, val, num_values, usable_tables);
+      }
+    }
+  }
+}
+
+static void
 add_key_fields(JOIN_TAB *stat,KEY_FIELD **key_fields,uint *and_level,
 	       COND *cond, table_map usable_tables)
 {
@@ -2262,11 +2372,11 @@ add_key_fields(JOIN_TAB *stat,KEY_FIELD **key_fields,uint *and_level,
     // BETWEEN or IN
     if (cond_func->key_item()->real_item()->type() == Item::FIELD_ITEM &&
 	!(cond_func->used_tables() & OUTER_REF_TABLE_BIT))
-      add_key_field(key_fields,*and_level,
-		    ((Item_field*) (cond_func->key_item()->real_item()))->
-		    field, 0,
-                    cond_func->arguments()+1, cond_func->argument_count()-1,
-                    usable_tables);
+      add_key_equal_fields(key_fields,*and_level,
+                           (Item_field*) (cond_func->key_item()->real_item()),
+                           0, cond_func->arguments()+1,
+                           cond_func->argument_count()-1,
+                           usable_tables);
     break;
   case Item_func::OPTIMIZE_OP:
   {
@@ -2276,21 +2386,19 @@ add_key_fields(JOIN_TAB *stat,KEY_FIELD **key_fields,uint *and_level,
     if (cond_func->arguments()[0]->real_item()->type() == Item::FIELD_ITEM &&
 	!(cond_func->arguments()[0]->used_tables() & OUTER_REF_TABLE_BIT))
     {
-      add_key_field(key_fields,*and_level,
-		    ((Item_field*) (cond_func->arguments()[0])->real_item())
-		    ->field,
-		    equal_func,
-                    cond_func->arguments()+1, 1, usable_tables);
+      add_key_equal_fields(key_fields, *and_level,
+	                (Item_field*) (cond_func->arguments()[0])->real_item(),
+		           equal_func,
+		           cond_func->arguments()+1, 1, usable_tables);
     }
     if (cond_func->arguments()[1]->real_item()->type() == Item::FIELD_ITEM &&
 	cond_func->functype() != Item_func::LIKE_FUNC &&
 	!(cond_func->arguments()[1]->used_tables() & OUTER_REF_TABLE_BIT))
     {
-      add_key_field(key_fields,*and_level,
-		    ((Item_field*) (cond_func->arguments()[1])->real_item())
-		    ->field,
-		    equal_func,
-		    cond_func->arguments(),1,usable_tables);
+      add_key_equal_fields(key_fields,*and_level,
+                       (Item_field*) (cond_func->arguments()[1])->real_item(),
+		           equal_func,
+		           cond_func->arguments(),1,usable_tables);
     }
     break;
   }
@@ -2302,15 +2410,55 @@ add_key_fields(JOIN_TAB *stat,KEY_FIELD **key_fields,uint *and_level,
       Item *tmp=new Item_null;
       if (!tmp)					// Should never be true
 	return;
-      add_key_field(key_fields,*and_level,
-		    ((Item_field*) (cond_func->arguments()[0])->real_item())
-		    ->field,
+      add_key_equal_fields(key_fields,*and_level,
+		    (Item_field*) (cond_func->arguments()[0])->real_item(),
 		    cond_func->functype() == Item_func::ISNULL_FUNC,
 		    &tmp, 1, usable_tables);
     }
     break;
+  case Item_func::OPTIMIZE_EQUAL:
+    Item_equal *item_equal= (Item_equal *) cond;
+    Item *const_item= item_equal->get_const();
+    Item_equal_iterator it(*item_equal);
+    Item_field *item;
+    if (const_item)
+    {
+      /*
+        For each field field1 from item_equal consider the equality 
+        field1=const_item as a condition allowing an index access of the table
+        with field1 by the keys value of field1.
+      */   
+      while ((item= it++))
+      {
+        add_key_field(key_fields, *and_level, item->field,
+                      TRUE, &const_item, 1, usable_tables);
+      }
+    }
+    else 
+    {
+      /*
+        Consider all pairs of different fields included into item_equal.
+        For each of them (field1, field1) consider the equality 
+        field1=field2 as a condition allowing an index access of the table
+        with field1 by the keys value of field2.
+      */   
+      Item_equal_iterator fi(*item_equal);
+      while ((item= fi++))
+      {
+        Field *field= item->field;
+        while ((item= it++))
+        {
+          if (!field->eq(item->field))
+          {
+            add_key_field(key_fields, *and_level, field,
+                          TRUE, (Item **) &item, 1, usable_tables);
+          }
+        }
+        it.rewind();
+      }
+    }
+    break;
   }
-  return;
 }
 
 /*
@@ -2691,21 +2839,33 @@ find_best(JOIN *join,table_map rest_tables,uint idx,double record_count,
 	  {
             uint keypart=keyuse->keypart;
 	    uint found_part_ref_or_null= KEY_OPTIMIZE_REF_OR_NULL;
+            bool usable= 0;
+            table_map best_part_found_ref= 0;
+            double best_prev_record_reads= DBL_MAX;
 	    do
 	    {
 	      if (!(rest_tables & keyuse->used_tables) &&
 		  !(found_ref_or_null & keyuse->optimize))
 	      {
 		found_part|=keyuse->keypart_map;
-		found_ref|= keyuse->used_tables;
+                double tmp= prev_record_reads(join, 
+                              (table_map) (found_ref | keyuse->used_tables));
+                if (tmp < best_prev_record_reads)
+                {
+                  best_part_found_ref= keyuse->used_tables;
+                  best_prev_record_reads= tmp;
+                }
 		if (rec > keyuse->ref_table_rows)
 		  rec= keyuse->ref_table_rows;
 		found_part_ref_or_null&= keyuse->optimize;
+                usable= 1;
               }
 	      keyuse++;
-	      found_ref_or_null|= found_part_ref_or_null;
+              found_ref|= best_part_found_ref;
 	    } while (keyuse->table == table && keyuse->key == key &&
 		     keyuse->keypart == keypart);
+            if (usable)
+              found_ref_or_null|= found_part_ref_or_null;
 	  } while (keyuse->table == table && keyuse->key == key);
 
 	  /*
@@ -3417,7 +3577,7 @@ make_join_select(JOIN *join,SQL_SELECT *select,COND *cond)
       }
 
       COND *tmp=make_cond_for_table(cond,used_tables,current_map);
-      if (!tmp && tab->quick)
+      if (!tmp && tab->quick && tab->type == JT_ALL)
       {						// Outer join
 	/*
 	  Hack to handle the case where we only refer to a table
@@ -4114,6 +4274,583 @@ template class List<Item_func_match>;
 template class List_iterator<Item_func_match>;
 #endif
 
+/* 
+  Eliminate nesting in AND/OR subexpressions od a condition
+ 
+  SYNOPSIS
+    flatten_condition()
+    cond          condition where to eliminate nesting
+
+  DESCRIPTION
+    The function traverse the condition and recursively eliminates
+    nesting for AND/OR subexpressions:
+    ... AND (p AND ... r) AND ... => ... AND p AND ... r AND ...
+    ... OR (p OR ... r) OR ... => ... OR p OR ... r OR ...
+ 
+  NOTES
+    Nesting in AND/OR subexpresions inside of NOT/XOR formulas is not
+    eliminated. 
+
+  RETURN
+    The transformed condition
+*/
+static Item *flatten_condition(COND *cond)
+{
+  if (cond->type() == Item::COND_ITEM)
+  {
+    Item_func::Functype functype= ((Item_cond*) cond)->functype();
+    if (functype == Item_func::COND_AND_FUNC ||
+        functype == Item_func::COND_OR_FUNC)
+    {
+
+      List<Item> *args= ((Item_cond*) cond)->argument_list();    
+      List_iterator<Item> li(*args);
+      Item *item;
+      List<Item> list;
+      while ((item= li++))
+      { 
+        item= flatten_condition(item);
+        if (item->type() == Item::COND_ITEM &&
+            ((Item_func*) item)->functype() == functype)
+        { 
+          list.concat(((Item_cond*) item)->argument_list());
+          li.remove();
+        }
+      }
+      args->concat(&list);
+    }
+  }
+  return cond;
+}
+
+
+/* 
+  Find the multiple equality predicate containing a field
+ 
+  SYNOPSIS
+    find_item_equal()
+    cond_equal          multiple equalities to search in
+    field               field to look for
+    inherited_fl  :out  set up to TRUE iff multiple equality is found
+                        on upper levels (not on current level of cond_equal) 
+
+  DESCRIPTION
+    The function retrieves the multiple equalities accessed through
+    the con_equal structure from current level and up looking for
+    an equality containing field. It stops retrieval as soon as the equality
+    is found and set up inherited_fl to TRUE if it's found on upper levels.
+
+  RETURN
+    Item_equal for the found multiple equality predicate if a success;
+    NULL - otherwise.
+*/
+
+Item_equal *find_item_equal(COND_EQUAL *cond_equal, Field *field,
+                            bool *inherited_fl)
+{
+  Item_equal *item= 0;
+  bool in_upper_level= FALSE;
+  while (cond_equal)
+  {
+    List_iterator_fast<Item_equal> li(cond_equal->current_level);
+    while ((item= li++))
+    {
+      if (item->contains(field))
+        goto finish;
+    }
+    in_upper_level= TRUE;
+    cond_equal= cond_equal->parent_level;
+  }
+  in_upper_level= FALSE;
+finish:
+  if (inherited_fl)
+    *inherited_fl= in_upper_level;
+  return item;
+}
+  
+/* 
+  Check whether an item is a simple equality predicate and if so
+  create/find a multiple equality for this predicate
+
+  SYNOPSIS
+    check_equality()
+    item       item to check
+    cond_equal multiple equalities that must hold together with the predicate
+
+  DESCRIPTION
+    This function first checks whether an item is a simple equality i.e.
+    the one that equates a field with another field or a constant.
+    If this is the case the function looks a for a multiple equality
+    in the lists referenced directly or indirectly by cond_equal. If it
+    doesn't find any it builds a multiple equality that covers 
+    the predicate, i.e. the predicate can be inferred from it. The built
+    multiple equality could be obtained in such a way: create a binary
+    multiple equality equivalent to the predicate, than merge it, if
+    possible, with one of old multiple equalities. This guarantees that
+    the set of multiple equalities covering equality predicates will
+    be minimal.
+
+  NOTES
+    Now only fields that have the same type defintions (verified by
+    the Field::eq_def method) are placed to the same multiple equalities.
+    Because of this some equality predicates are not eliminated and
+    can be used in constant propagation procedure.
+    We could weeken the equlity test as soon as at least one of the 
+    equal fields is to be equal to a constant. It would require a 
+    more complicated implementation: we would have to store, in
+    general case, its own constant for each fields from the multiple
+    equality. But at the same time it would allow us to get rid
+    of constant propagation completely: it would be done by the call
+    to build_all_equal_items.
+    
+  IMPLEMENTATION
+    The implementation does not follow exactly the above rules to
+    build a new multiple equality for the equality predicate.
+    If it processes the equality of the form field1=field2, it
+    looks for multiple equalities me1 containig field1 and me2 containing
+    field2. If only one of them is found the fuction expand it by
+    the lacking field. If multiple equalities for both fields are
+    found they are merged. If both searches fail a new multiple equality
+    containing just field1 and field2 is added to the existing
+    multiple equalities.
+    If the function processes the predicate of the form field1=const,
+    it looks for a multiple equality containing field1. If found, the 
+    function checks the constant of the multiple equality. If the value
+    is unknown, it is setup to const. Otherwise the value is compared with
+    const and the evaluation of the equality predicate is performed.
+    When expanding/merging equality predicates from the upper levels
+    the function first copies them for the current level. It looks
+    acceptable, as this happens rarely. The implementation without
+    copying would be much more complicated.
+
+  RETURN
+    TRUE  - if the predicate is a simple equality predicate
+    FALSE - otherwise
+*/
+
+static bool check_equality(Item *item, COND_EQUAL *cond_equal)
+{
+  if (item->type() == Item::FUNC_ITEM &&
+         ((Item_func*) item)->functype() == Item_func::EQ_FUNC)
+  {
+    Item *left_item= ((Item_func*) item)->arguments()[0];
+    Item *right_item= ((Item_func*) item)->arguments()[1];
+    if (left_item->type() == Item::FIELD_ITEM &&
+        right_item->type() == Item::FIELD_ITEM)
+    {
+      /* The predicate the form field1=field2 is processed */
+
+      Field *left_field= ((Item_field*) left_item)->field;
+      Field *right_field= ((Item_field*) right_item)->field;
+
+      if (!left_field->eq_def(right_field))
+        return FALSE;
+
+      if (left_field->eq(right_field))
+        return TRUE;
+      
+      /* Search for multiple equalities containing field1 and/or field2 */
+      bool left_copyfl, right_copyfl;
+      Item_equal *left_item_equal=
+                 find_item_equal(cond_equal, left_field, &left_copyfl);
+      Item_equal *right_item_equal= 
+                 find_item_equal(cond_equal, right_field, &right_copyfl);
+
+      if (left_item_equal && left_item_equal == right_item_equal)
+      {
+        /* 
+           The equality predicate is inference of one of the existing
+           multiple equalities
+        */
+          return TRUE;
+      }
+      
+      /* Copy the found multiple equalities at the current level if needed */
+      if (left_copyfl)
+      {
+        left_item_equal= new Item_equal(left_item_equal);
+        cond_equal->current_level.push_back(left_item_equal);
+      }
+      if (right_copyfl)
+      {
+        right_item_equal= new Item_equal(right_item_equal);
+        cond_equal->current_level.push_back(right_item_equal);
+      }
+
+      if (left_item_equal)
+      { 
+        if (! right_item_equal)
+          left_item_equal->add((Item_field *) right_item);
+        else
+        {
+          /* Merge two multiple equalities forming a new one */
+          left_item_equal->merge(right_item_equal);
+          /* Remove the merged multiple equality from the list */
+          List_iterator<Item_equal> li(cond_equal->current_level);
+          while ((li++) != right_item_equal);
+          li.remove();
+        }
+      }
+      else
+      { 
+         if (right_item_equal)
+           right_item_equal->add((Item_field *) left_item);
+         else 
+         {
+           /* Multiple equalities for neither of the fields has been found */
+           Item_equal *item= new Item_equal((Item_field *) left_item,
+                                            (Item_field *) right_item);
+           cond_equal->current_level.push_back(item);
+         }
+      }
+      return TRUE;
+    }
+    else
+    {
+      /* The predicate of the form field=const/const=field is processed */
+      Item *const_item= 0;
+      Item_field *field_item= 0;
+      if (left_item->type() == Item::FIELD_ITEM && 
+          right_item->const_item())
+      {
+        field_item= (Item_field*) left_item;
+        const_item= right_item;
+      }
+      else if (right_item->type() == Item::FIELD_ITEM && 
+               left_item->const_item())
+      {
+        field_item= (Item_field*) right_item;
+        const_item= left_item;
+      }
+      if (const_item &&
+          field_item->result_type() == const_item->result_type())
+      {
+        bool copyfl;
+        Item_equal *item_equal = find_item_equal(cond_equal,
+                                                 field_item->field, &copyfl);
+        if (copyfl)
+        {
+          item_equal= new Item_equal(item_equal);
+          cond_equal->current_level.push_back(item_equal);
+        }
+        if (item_equal)
+        {
+          /* 
+            The flag cond_false will be set to 1 after this, if item_equal
+            already contains a constant and its value is  not equal to
+            the value of const_item.
+          */
+          item_equal->add(const_item);
+        }
+        else
+        {
+          item_equal= new Item_equal(const_item, field_item);
+          cond_equal->current_level.push_back(item_equal);
+        }
+        return TRUE;
+      }
+    }
+  }
+  return FALSE;
+}
+
+/* 
+  Replace all equality predicates in a condition by multiple equality items
+
+  SYNOPSIS
+    build_all_equal_items()
+    cond       condition(expression) where to make replacement
+    inherited  path to all inherited multiple equality items
+
+  DESCRIPTION
+    At each 'and' level the function detects items for equality predicates
+    and replaced them by a set of multiple equality items of class Item_equal,
+    taking into account inherited equalities from upper levels. 
+    If an equality predicate is used not in a conjunction it's just
+    replaced by a multiple equality predicate.
+    The functuion also traverse the cond tree and and for each field reference
+    sets a ponter to the multiple equality item containing the field, if there
+    is any. If this multiple equality equates fields to a constant the
+    function replace the field reference by the constant. 
+
+  NOTES
+    Multiple equality predicate =(f1,..fn) is equivalent to the conjuction of
+    f1=f2, .., fn-1=fn. It substitutes any inference from these
+    equality predicates that is equivalent to the conjunction.
+    Thus, =(a1,a2,a3) can substitute for ((a1=a3) AND (a2=a3) AND (a2=a1)) as
+    it is equivalent to ((a1=a2) AND (a2=a3)).
+    The function always makes a subsitution of all equality predicates occured
+    in a conjuction for a minimal set of multiple equality predicates.
+    This set can be considered as a canonical representation of the
+    sub-conjunction of the equality predicates.
+    E.g. (t1.a=t2.b AND t2.b>5 AND t1.a=t3.c) is replaced by 
+    (=(t1.a,t2.b,t3.c) AND t2.b>5), not by
+    (=(t1.a,t2.b) AND =(t1.a,t3.c) AND t2.b>5);
+    while (t1.a=t2.b AND t2.b>5 AND t3.c,t4.d) is replaced by
+    (=(t1.a,t2.b) AND =(t3.c=t4.d) AND t2.b>5),
+    but if additionally =(t4.d,t2.b) is inherited, it
+    will be replaced by (=(t1.a,t2.b,t3.c,t4.d) AND t2.b>5)
+
+  IMPLEMENTATION
+    The function performs the substitution in a recursive descent by
+    the condtion tree, passing to the next AND level a chain of multiple
+    equality predicates which have been built at the upper levels.
+    The Item_equal items built at the level are attached to other 
+    non-equality conjucts as a sublist. The pointer to the inherited
+    multiple equalities is saved in the and condition object (Item_cond_and).
+    This chain allows us for any field reference occurence easyly to find a 
+    multiple equality that must be held for this occurence.
+
+  RETURN
+    pointer to the transformed condition
+*/
+
+static COND *build_all_equal_items(COND *cond,
+                                        COND_EQUAL *inherited)
+{
+  COND_EQUAL cond_equal;
+  cond_equal.parent_level= inherited;
+
+  if (cond->type() == Item::COND_ITEM)
+  {
+    bool and_level= ((Item_cond*) cond)->functype() ==
+      Item_func::COND_AND_FUNC;
+    List<Item> *args= ((Item_cond*) cond)->argument_list();
+    
+    List_iterator<Item> li(*args);
+    Item *item;
+
+    if (and_level)
+    {
+      /*
+         Retrieve all conjucts of this level detecting the equality
+         that are subject to substitution by multiple equality items and
+         removing each such predicate from the conjunction after after having 
+         found/created a multiple equality whose inference the predicate is.
+     */      
+      while ((item= li++))
+      {
+        if (check_equality(item, &cond_equal))
+          li.remove();
+      }
+
+      List_iterator_fast<Item_equal> it(cond_equal.current_level);
+      while ((item= it++))
+      {
+        item->fix_fields(current_thd, 0, 0);
+      }      
+      ((Item_cond_and*)cond)->cond_equal= cond_equal;
+      inherited= &(((Item_cond_and*)cond)->cond_equal);
+    }
+    /*
+       Make replacement of equality predicates for lower levels
+       of the condition expression.
+    */
+    List_iterator<Item> it(*args);
+    while((item= it++))
+    { 
+      Item *new_item;
+      if ((new_item = build_all_equal_items(item, inherited))!= item)
+      {
+        /* This replacement happens only for standalone equalities */
+        it.replace(new_item);
+      }
+    }
+    if (and_level)
+      args->concat((List<Item> *)&cond_equal.current_level);
+  }
+  else if (cond->type() == Item::FUNC_ITEM)
+  {
+    /* Standalone equalities are handled here */
+    Item_equal *item_equal;
+    if (check_equality(cond, &cond_equal) &&
+        (item_equal= cond_equal.current_level.pop()))
+    {
+      item_equal->fix_fields(current_thd, 0, 0);
+      return item_equal;
+    }
+    else
+    {
+      cond= cond->traverse(&Item::equal_fields_propagator,
+                           (byte *) inherited);
+      cond->update_used_tables();
+    }
+  }
+  return cond;
+}    
+
+
+/* 
+  Generate minimal set of simple equalities equivalent to a multiple equality
+ 
+  SYNOPSIS
+    eliminate_item_equal()
+    cond            condition to add the generated equality to
+    cond_equal      structure to access multiple equality of upper levels
+    item_equal      multiple equality to generate simple equality from     
+
+  DESCRIPTION
+    The function retrieves the fields of the multiple equality item
+    item_equal and  for each field f:
+    - if item_equal contains const it generates the equality f=const_item;
+    - otherwise, if f is not the first field, generates the equality
+      f=item_equal->get_first().
+    All generated equality are added to the cond conjunction.
+
+  NOTES
+    Before generating an equality function checks that it has not
+    been generated for multiple equalies of the upper levels.
+    If cond is equal to 0, then not more then one equality is generated
+    and a pointer to it is returned as the result of the function.
+
+  RETURN
+    The condition with generated simple equalities or
+    a pointer to the simple generated equality.
+*/
+
+static Item *eliminate_item_equal(COND *cond, COND_EQUAL *cond_equal,
+                                  Item_equal *item_equal)
+{
+  Item *item_const= item_equal->get_const();
+  Item_equal_iterator it(*item_equal);
+  Item *head; 
+  if (item_const)
+    head= item_const;
+  else
+  {
+    head= item_equal->get_first();
+    it++;
+  }
+  Item_field *item_field;
+  Item *new_item= 0;
+  while ((item_field= it++))
+  {
+    Item_equal *upper= item_field->find_item_equal(cond_equal);
+    Item_field *item= item_field;
+    if (upper)
+    { 
+      if (item_const && upper->get_const())
+        item= 0;
+      else
+      {
+        Item_equal_iterator li(*item_equal);
+        while ((item= li++) != item_field)
+        {
+          if (item->find_item_equal(cond_equal) == upper)
+            break;
+        }
+      }
+    }
+    if (item == item_field)
+    {
+      if (!cond && new_item)
+      {
+        cond= new Item_cond_and();
+        ((Item_cond *) cond)->add(new_item);
+      }
+      item_field->item_equal= item_equal;
+      new_item= new Item_func_eq(item_field, head);
+      ((Item_func_eq *) new_item)->fix_length_and_dec();
+      if (cond)
+        ((Item_cond *) cond)->add(new_item);
+    }
+  }
+  if (!cond)
+    cond= (COND *) new_item;
+  return cond;
+}
+
+
+/* 
+  Substitute every field reference in a condition by the best equal field 
+  and eliminate all multiplle equality predicates
+ 
+  SYNOPSIS
+    substitute_for_best_equal_field()
+    cond            condition to process
+    cond_equal      multiple equalities to take into consideration
+    table_join_idx  index to tables determining field preference
+
+  DESCRIPTION
+    The function retrieves the cond condition and for each encountered
+    multiple equality predicate it sorts the field references in it
+    according to the order of tables specified by the table_join_idx
+    parameter. Then it eliminates the multiple equality predicate it
+    replacing it by the conjunction of simple equality predicates 
+    equating every field from the multiple equality to the first
+    field in it, or to the constant, if there is any.
+    After this the function retrieves all other conjuncted
+    predicates substitute every field reference by the field reference
+    to the first equal field or equal constant if there are any.
+ 
+  NOTES
+    At the first glance full sort of fields in multiple equality
+    seems to be an overkill. Yet it's not the case due to possible
+    new fields in multiple equality item of lower levels. We want
+    the order in them to comply with the order of upper levels.
+
+  RETURN
+    The transformed condition
+*/
+
+static COND* substitute_for_best_equal_field(COND *cond,
+                                             COND_EQUAL *cond_equal,
+                                             void *table_join_idx)
+{
+  Item_equal *item_equal;
+
+  if (cond->type() == Item::COND_ITEM)
+  {
+    List<Item> *cond_list= ((Item_cond*) cond)->argument_list();
+
+    bool and_level= ((Item_cond*) cond)->functype() ==
+                      Item_func::COND_AND_FUNC;
+    if (and_level)
+    {
+      cond_equal= &((Item_cond_and *) cond)->cond_equal;
+      cond_list->disjoin((List<Item> *) &cond_equal->current_level);
+
+      List_iterator_fast<Item_equal> it(cond_equal->current_level);      
+      while((item_equal= it++))
+      {
+        item_equal->sort(table_join_idx);
+      }
+    }
+    
+    List_iterator<Item> li(*cond_list);
+    Item *item;
+    while ((item= li++))
+    {
+      Item *new_item =substitute_for_best_equal_field(item, cond_equal,
+                                                        table_join_idx);
+      if (new_item != item)
+        li.replace(new_item);
+   }
+
+    if (and_level)
+    {
+      List_iterator_fast<Item_equal> it(cond_equal->current_level);
+      while((item_equal= it++))
+      {
+        eliminate_item_equal(cond, cond_equal->parent_level, item_equal);
+      }
+    }
+  }
+  else if (cond->type() == Item::FUNC_ITEM && 
+           ((Item_cond*) cond)->functype() == Item_func::MULT_EQUAL_FUNC)
+  {
+    item_equal= (Item_equal *) cond;
+    item_equal->sort(table_join_idx);
+    if (cond_equal && cond_equal->current_level.head() == item_equal)
+      cond_equal= 0;
+    return eliminate_item_equal(0, cond_equal, item_equal);
+  }
+  else
+    cond->walk(&Item::replace_equal_field_processor, 0);
+  return cond;
+}
+
+
 /*
   change field = field to field = const for each found field = const in the
   and_level
@@ -4344,9 +5081,6 @@ optimize_cond(COND *conds,Item::cond_result *cond_value)
     DBUG_RETURN(conds);
   }
   DBUG_EXECUTE("where",print_where(conds,"original"););
-  /* eliminate NOT operators */
-  conds= eliminate_not_funcs(conds);
-  DBUG_EXECUTE("where", print_where(conds, "after negation elimination"););
   /* change field = field to field = const for each found field = const */
   propagate_cond_constants((I_List<COND_CMP> *) 0,conds,conds);
   /*
@@ -4487,6 +5221,27 @@ remove_eq_conds(COND *cond,Item::cond_result *cond_value)
 	  cond->fix_fields(thd, 0, &cond);
 	}
       }
+    }
+    if (cond->const_item())
+    {
+      *cond_value= eval_const_cond(cond) ? Item::COND_TRUE : Item::COND_FALSE;
+      return (COND*) 0;
+    }
+  }
+  else if (cond->type() == Item::FUNC_ITEM &&
+	   ((Item_func*) cond)->functype() == Item_func::MULT_EQUAL_FUNC)
+  {
+    /*
+      The is_false method for an multiple equality item returns 1
+      when the conjunction with this item originally contained an
+      equality that was inconsistent with the multiple equality
+      predicate or has been inherited from other multiple equality
+      for which is_false returns 1.
+    */
+    if (((Item_equal *) cond)->is_false())
+    {
+      *cond_value= Item::COND_FALSE;
+      return (COND*) 0;
     }
   }
   else if (cond->const_item())

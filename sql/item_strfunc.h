@@ -427,6 +427,14 @@ public:
     return item->walk(processor, arg) ||
       Item_str_func::walk(processor, arg);
   }
+  Item *traverse(Item_calculator calculator, byte *arg)
+  {
+    Item *new_item= item->traverse(calculator, arg);
+    if (!new_item)
+      return 0;
+    item= new_item;
+    return Item_str_func::traverse(calculator, arg);
+  }
   void print(String *str);
 };
 

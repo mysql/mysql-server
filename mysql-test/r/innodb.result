@@ -141,13 +141,13 @@ id	parent_id	level
 1015	102	2
 explain select level from t1 where level=1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ref	level	level	1	const	#	Using where; Using index
+1	SIMPLE	t1	ref	level	level	1	const	#	Using index
 explain select level,id from t1 where level=1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ref	level	level	1	const	#	Using where; Using index
+1	SIMPLE	t1	ref	level	level	1	const	#	Using index
 explain select level,id,parent_id from t1 where level=1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ref	level	level	1	const	#	Using where
+1	SIMPLE	t1	ref	level	level	1	const	#	
 select level,id from t1 where level=1;
 level	id
 1	1002
@@ -609,7 +609,7 @@ id	parent_id	level
 1016	102	2
 explain select level from t1 where level=1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ref	level	level	1	const	#	Using where; Using index
+1	SIMPLE	t1	ref	level	level	1	const	#	Using index
 select level,id from t1 where level=1;
 level	id
 1	1004

@@ -242,6 +242,40 @@ bool Item_func::walk (Item_processor processor, byte *argument)
   return (this->*processor)(argument);
 }
 
+Item *Item_func::traverse(Item_calculator calculator, byte *argument)
+{
+  if (arg_count)
+  {
+    Item **arg,**arg_end;
+    for (arg= args, arg_end= args+arg_count; arg != arg_end; arg++)
+    {
+      Item *new_item= (*arg)->traverse(calculator, argument);
+      if (!new_item)
+	return 0;
+      *arg= new_item;
+    }
+  }
+  return (this->*calculator)(argument);
+}
+
+Item *Item_func::equal_fields_propagator(byte *argument)
+{
+  if (arg_count)
+  {
+    Item **arg,**arg_end;
+    for (arg= args, arg_end= args+arg_count; arg != arg_end; arg++)
+    {
+      if (!(*arg)->fixed)
+      {
+        fix_fields(current_thd, 0, 0);
+        break;
+      }
+    }
+  }
+  return this;
+}
+
+
 void Item_func::split_sum_func(Item **ref_pointer_array, List<Item> &fields)
 {
   Item **arg, **arg_end;
