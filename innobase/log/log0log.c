@@ -1,7 +1,7 @@
 /******************************************************
 Database log
 
-(c) 1995-1997 Innobase Oy
+(c) 1995-1997 InnoDB Oy
 
 Created 12/9/1995 Heikki Tuuri
 *******************************************************/
@@ -1886,12 +1886,12 @@ loop:
 
 		if (!ret) {
 		  fprintf(stderr,
-		   "Innobase: Cannot create or open archive log file %s.\n",
+		   "InnoDB: Cannot create or open archive log file %s.\n",
 			  name);
-		  fprintf(stderr, "Innobase: Cannot continue operation.\n"
-       		  "Innobase: Check that the log archive directory exists,\n"
-			  "Innobase: you have access rights to it, and\n"
-			  "Innobase: there is space available.\n");
+		  fprintf(stderr, "InnoDB: Cannot continue operation.\n"
+       		  "InnoDB: Check that the log archive directory exists,\n"
+			  "InnoDB: you have access rights to it, and\n"
+			  "InnoDB: there is space available.\n");
 		  exit(1);
 		}
 
@@ -2628,7 +2628,7 @@ logs_empty_and_mark_files_at_shutdown(void)
 	dulint	lsn;
 	ulint	arch_log_no;
 	
-	fprintf(stderr, "Innobase: Starting shutdown...\n");
+	fprintf(stderr, "InnoDB: Starting shutdown...\n");
 
 	/* Wait until the master thread and all other operations are idle: our
 	algorithm only works if the server is idle at shutdown */
@@ -2718,7 +2718,7 @@ loop:
 
 	fil_flush_file_spaces(FIL_TABLESPACE);
 
-	fprintf(stderr, "Innobase: Shutdown completed\n");
+	fprintf(stderr, "InnoDB: Shutdown completed\n");
 }
 
 /**********************************************************
