@@ -936,8 +936,8 @@ operator<<(NdbOut& out, const NdbDictionary::Column& col)
   case NdbDictionary::Column::Datetime:
     out << "Datetime";
     break;
-  case NdbDictionary::Column::Timespec:
-    out << "Timespec";
+  case NdbDictionary::Column::Date:
+    out << "Date";
     break;
   case NdbDictionary::Column::Blob:
     out << "Blob(" << col.getInlineSize() << "," << col.getPartSize()
