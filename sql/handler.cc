@@ -490,7 +490,7 @@ int ha_commit_trans(THD *thd, THD_TRANS* trans)
       {
 	if (error == -1)
 	  my_error(ER_ERROR_DURING_COMMIT, MYF(0), error);
-	  else
+	else
 	    ndbcluster_print_error(error);
         error=1;
       }
