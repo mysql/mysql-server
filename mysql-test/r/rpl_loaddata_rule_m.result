@@ -4,11 +4,12 @@ reset master;
 reset slave;
 drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
 start slave;
+drop database if exists mysqltest;
 reset master;
-create database test2;
+create database mysqltest;
 create table t1(a int, b int, unique(b));
-use test2;
+use mysqltest;
 load data infile '../../std_data/rpl_loaddata.dat' into table test.t1;
 show binlog events from 79;
 Log_name	Pos	Event_type	Server_id	Orig_log_pos	Info
-drop database test2;
+drop database mysqltest;

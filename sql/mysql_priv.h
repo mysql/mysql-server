@@ -537,11 +537,11 @@ Field *find_field_in_table(THD *thd,TABLE *table,const char *name,uint length,
 #include <openssl/des.h>
 struct st_des_keyblock
 {
-  des_cblock key1, key2, key3;
+  DES_cblock key1, key2, key3;
 };
 struct st_des_keyschedule
 {
-  des_key_schedule ks1, ks2, ks3;
+  DES_key_schedule ks1, ks2, ks3;
 };
 extern char *des_key_file;
 extern struct st_des_keyschedule des_keyschedule[10];
@@ -733,7 +733,7 @@ extern void yyerror(const char*);
 
 extern time_t start_time;
 extern char *mysql_data_home,server_version[SERVER_VERSION_LENGTH],
-	    mysql_real_data_home[], *opt_mysql_tmpdir;
+	    mysql_real_data_home[], *opt_mysql_tmpdir, mysql_charsets_dir[];
 #define mysql_tmpdir (my_tmpdir(&mysql_tmpdir_list))
 extern MY_TMPDIR mysql_tmpdir_list;
 extern const char *command_name[];
