@@ -22,10 +22,6 @@
 #include <m_ctype.h>
 #include <my_tree.h>
 
-#define MIN_WORD_LEN 4
-#define MAX_WORD_LEN HA_FT_MAXLEN
-#define MAX_WORD_LEN_FOR_SORT 20
-
 #define HYPHEN_IS_DELIM
 #define HYPHEN_IS_CONCAT     /* not used for now */
 

@@ -1,0 +1,4 @@
+Variable_name	Value
+ft_min_word_len	4
+ft_max_word_len	254
+ft_max_word_len_for_sort	20

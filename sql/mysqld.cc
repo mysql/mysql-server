@@ -2664,6 +2664,12 @@ CHANGEABLE_VAR changeable_vars[] = {
       DELAYED_QUEUE_SIZE, 1, ~0L, 0, 1 },
   { "flush_time",              (long*) &flush_time,
       FLUSH_TIME, 0, ~0L, 0, 1 },
+  { "ft_min_word_len",         (long*) &ft_min_word_len,
+      4, 1, HA_FT_MAXLEN, 0, 1 },
+  { "ft_max_word_len",         (long*) &ft_max_word_len,
+      HA_FT_MAXLEN, 10, HA_FT_MAXLEN, 0, 1 },
+  { "ft_max_word_len_for_sort",(long*) &ft_max_word_len_for_sort,
+      20, 4, HA_FT_MAXLEN, 0, 1 },
 #ifdef HAVE_GEMINI_DB
   { "gemini_buffer_cache",     (long*) &gemini_buffer_cache,
       128 * 8192, 16, LONG_MAX, 0, 1 },
@@ -2804,6 +2810,9 @@ struct show_var_st init_vars[]= {
   {"delayed_queue_size",      (char*) &delayed_queue_size,          SHOW_LONG},
   {"flush",                   (char*) &myisam_flush,                SHOW_MY_BOOL},
   {"flush_time",              (char*) &flush_time,                  SHOW_LONG},
+  {"ft_min_word_len",         (char*) &ft_min_word_len,             SHOW_LONG},
+  {"ft_max_word_len",         (char*) &ft_max_word_len,             SHOW_LONG},
+  {"ft_max_word_len_for_sort",(char*) &ft_max_word_len_for_sort,    SHOW_LONG},
 #ifdef HAVE_GEMINI_DB
   {"gemini_buffer_cache",     (char*) &gemini_buffer_cache,         SHOW_LONG},
   {"gemini_connection_limit", (char*) &gemini_connection_limit,     SHOW_LONG},

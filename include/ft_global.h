@@ -27,6 +27,7 @@ extern "C" {
 #endif
 
 #define FT_QUERY_MAXLEN 1024
+#define HA_FT_MAXLEN 254
 
 typedef struct ft_doc_rec {
   my_off_t  dpos;
@@ -41,6 +42,10 @@ typedef struct st_ft_doclist {
 } FT_DOCLIST;
 
 extern const char *ft_precompiled_stopwords[];
+
+extern uint ft_min_word_len;
+extern uint ft_max_word_len;
+extern uint ft_max_word_len_for_sort;
 
 int ft_init_stopwords(const char **);
 void ft_free_stopwords(void);

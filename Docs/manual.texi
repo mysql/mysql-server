@@ -21342,6 +21342,9 @@ differ somewhat:
 | delayed_queue_size      | 1000                      |
 | flush                   | OFF                       |
 | flush_time              | 0                         |
+| ft_min_word_len         | 4                         |
+| ft_max_word_len         | 254                       |
+| ft_max_word_len_for_sort| 20                        |
 | have_bdb                | YES                       |
 | have_gemini             | NO                        |
 | have_innodb             | YES                       |
@@ -21524,6 +21527,31 @@ If this is set to a non-zero value, then every @code{flush_time} seconds all
 tables will be closed (to free up resources and sync things to disk). We
 only recommend this option on Win95, Win98, or on systems where you have
 very little resources.
+
+@item @code{ft_min_word_len}
+The minimum length of the word to be included in a @code{FULLTEXT} index.
+@strong{Note: @code{FULLTEXT} index have to be rebuilt after changing
+this variable.}
+
+@item @code{ft_max_word_len}
+The maximum length of the word to be included in a @code{FULLTEXT} index.
+@strong{Note: @code{FULLTEXT} index have to be rebuilt after changing
+this variable.}
+
+@item @code{ft_max_word_len_sort}
+The maximum length of the word in a @code{FULLTEXT} index
+to be used in fast index recreation method in
+@code{REPAIR}, @code{CREATE INDEX},  or
+@code{ALTER TABLE}.  Longer words are inserted the slow way.
+The rule of the thumb is as follows: with @code{ft_max_word_len_sort}
+increasing, @strong{MySQL} will create bigger temporary files
+(thus slowing the process down, due to disk I/O), and will put
+fewer keys in one sort block (againg, decreasing the efficiency).
+When @code{ft_max_word_len_sort} is too small, instead,
+@strong{MySQL} will insert a lot of words into index the slow way -
+but short words will be inserted very fast. It applies only to
+Index recreation during @code{REPAIR}, @code{CREATE INDEX}, or
+@code{ALTER TABLE}.
 
 @item @code{have_bdb}
 @code{YES} if @code{mysqld} supports Berkeley DB tables. @code{DISABLED}
@@ -28279,12 +28307,9 @@ unless you know what you are doing!
 @itemize
 
 @item
-Minimal length of word to be indexed is defined in
-@code{myisam/ftdefs.h} file by the line
-@example
-#define MIN_WORD_LEN 4
-@end example
-Change it to the value you prefer, recompile @strong{MySQL}, and rebuild
+Minimal length of word to be indexed is defined by @strong{MySQL}
+variable @code{ft_min_word_length}. @xref{SHOW VARIABLES}.
+Change it to the value you prefer, and rebuild
 your @code{FULLTEXT} indexes.
 
 @item
@@ -42463,6 +42488,8 @@ Responsible for @strong{MySQL} configure.
 Full-text search.
 @item
 Added keys to the @code{MERGE} library.
+@item
+@code{HANDLER} command.
 @end itemize
 
 @item Jeremy Cole
@@ -42801,6 +42828,8 @@ Our TODO section contains what we plan to have in 4.0. @xref{TODO MySQL 4.0}.
 
 @itemize @bullet
 @item
+Added @code{HANDLER} command.
+@item
 Added @code{SQL_CALC_FOUND_ROWS} and @code{FOUND_ROWS()}. This make it
 possible to know how many rows a query would have returned if one hadn't
 used @code{LIMIT}.
@@ -42902,6 +42931,9 @@ not yet 100% confident in this code.
 @node News-3.23.37, News-3.23.36, News-3.23.x, News-3.23.x
 @appendixsubsec Changes in release 3.23.37
 @itemize @bullet
+@item
+Added variables @code{ft_min_word_len}, @code{ft_max_word_len}, and
+@code{ft_max_word_len_for_sort}.
 @item
 Changed @code{INNOBASE} to @code{INNODB} (because the @code{INNOBASE}
 name was already used). Note that all @code{configure} options and

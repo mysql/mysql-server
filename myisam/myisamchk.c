@@ -152,6 +152,12 @@ static CHANGEABLE_VAR changeable_vars[] = {
   { "sort_key_blocks",(long*) &check_param.sort_key_blocks,BUFFERS_WHEN_SORTING,4L,100L,0L,
     1L },
   { "decode_bits",(long*) &decode_bits,9L,4L,17L,0L,1L },
+  { "ft_min_word_len",         (long*) &ft_min_word_len,
+      4, 1, HA_FT_MAXLEN, 0, 1 },
+  { "ft_max_word_len",         (long*) &ft_max_word_len,
+      HA_FT_MAXLEN, 10, HA_FT_MAXLEN, 0, 1 },
+  { "ft_max_word_len_for_sort",(long*) &ft_max_word_len_for_sort,
+      20, 4, HA_FT_MAXLEN, 0, 1 },
   { NullS,(long*) 0,0L,0L,0L,0L,0L,} };
 
 enum options {OPT_CHARSETS_DIR=256, OPT_SET_CHARSET,OPT_START_CHECK_POS};

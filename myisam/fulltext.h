@@ -24,7 +24,6 @@
 /* shoudn't be def'ed when linking with mysql */
 #undef EVAL_RUN
 
-#define HA_FT_MAXLEN 254
 #define HA_FT_WTYPE  HA_KEYTYPE_FLOAT
 #define HA_FT_WLEN   4
 #ifdef EVAL_RUN
