@@ -1245,7 +1245,7 @@ owns the copyright to the @strong{MySQL} server source code and the
 @strong{MySQL} trademark.  A significant amount of revenues from our
 services goes to developing @strong{MySQL}. @xref{What-is}.
 
-@strong{MySQL AB} has been profitable providing MySQL AB from the start.
+@strong{MySQL AB} has been profitable providing @strong{MySQL AB} from the start.
 We don't get any outside funding, but have earned all our money ourselves.
 
 We are searching after partners that would like to support our
