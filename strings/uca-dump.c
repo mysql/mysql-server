@@ -269,7 +269,7 @@ int main(int ac, char **av)
           */
           int tmp= weight[i];
           if (w == 2 && tmp)
-            tmp= (int)(0x100 - weight[i]);
+            tmp= (int)(0x20 - weight[i]);
           
           
           printf("0x%04X", tmp);
@@ -304,7 +304,7 @@ int main(int ac, char **av)
       const char *comma= page < MY_UCA_NPAGES-1 ? "," : "";
       const char *nline= (page+1) % 4 ? "" : "\n";
       if (!pagemaxlen[page])
-        printf("NULL        %s%s", comma , nline);
+        printf("NULL       %s%s%s", w ? " ": "",  comma , nline);
       else
         printf("page%03Xdata%s%s%s", page, pname[w], comma, nline);
     }

@@ -447,6 +447,7 @@ public:
   List<TABLE_LIST> top_join_list; /* join list of the top level          */
   List<TABLE_LIST> *join_list;    /* list for the currently parsed join  */
   TABLE_LIST *embedding;          /* table embedding to the above list   */
+  TABLE_LIST *leaf_tables;        /* list of leaves in join table tree   */
   const char *type;               /* type of select for EXPLAIN          */
 
   SQL_LIST order_list;                /* ORDER clause */
@@ -669,6 +670,8 @@ typedef struct st_lex
   */
   TABLE_LIST **query_tables_last;
   TABLE_LIST *proc_table; /* refer to mysql.proc if it was opened by VIEW */
+  /* store original leaf_tables for INSERT SELECT and PS/SP */
+  TABLE_LIST *leaf_tables_insert;
 
   List<key_part_spec> col_list;
   List<key_part_spec> ref_list;
@@ -707,6 +710,7 @@ typedef struct st_lex
   uint grant, grant_tot_col, which_columns;
   uint fk_delete_opt, fk_update_opt, fk_match_option;
   uint slave_thd_opt, start_transaction_opt;
+  uint table_count; /* used when usual update transformed in multiupdate */
   uint8 describe;
   uint8 derived_tables;
   uint8 create_view_algorithm;
@@ -758,7 +762,7 @@ typedef struct st_lex
   */
   SQL_LIST trg_table_fields;
 
-  st_lex() :result(0)
+  st_lex() :result(0), sql_command(SQLCOM_END)
   {
     extern byte *sp_lex_spfuns_key(const byte *ptr, uint *plen, my_bool first);
     hash_init(&spfuns, system_charset_info, 0, 0, 0, sp_lex_spfuns_key, 0, 0);
@@ -802,6 +806,7 @@ typedef struct st_lex
   bool can_use_merged();
   bool can_not_use_merged();
   bool only_view_structure();
+  bool need_correct_ident();
 } LEX;
 
 extern TABLE_LIST fake_time_zone_tables_list;

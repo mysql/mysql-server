@@ -1650,7 +1650,9 @@ public:
 
 class multi_update :public select_result_interceptor
 {
-  TABLE_LIST *all_tables, *update_tables, *table_being_updated;
+  TABLE_LIST *all_tables; /* query/update command tables */
+  TABLE_LIST *leaves;     /* list of leves of join table tree */
+  TABLE_LIST *update_tables, *table_being_updated;
   THD *thd;
   TABLE **tmp_tables, *main_table, *table_to_update;
   TMP_TABLE_PARAM *tmp_table_param;
@@ -1663,8 +1665,9 @@ class multi_update :public select_result_interceptor
   bool do_update, trans_safe, transactional_tables, log_delayed;
 
 public:
-  multi_update(THD *thd_arg, TABLE_LIST *ut, List<Item> *fields,
-	       List<Item> *values, enum_duplicates handle_duplicates);
+  multi_update(THD *thd_arg, TABLE_LIST *ut, TABLE_LIST *leaves_list,
+	       List<Item> *fields, List<Item> *values,
+	       enum_duplicates handle_duplicates);
   ~multi_update();
   int prepare(List<Item> &list, SELECT_LEX_UNIT *u);
   bool send_data(List<Item> &items);

@@ -213,48 +213,41 @@ InitConfigFileParser::parseConfig(FILE * file) {
 //  Parse Name-Value Pair
 //****************************************************************************
 
-bool InitConfigFileParser::parseNameValuePair(Context& ctx, const char* line) {
-
-  char tmpLine[MAX_LINE_LENGTH];
-  char fname[MAX_LINE_LENGTH], rest[MAX_LINE_LENGTH];
-  char* t;
-  const char *separator_list[]= {":", "=", 0};
-  const char *separator= 0;
-
+bool InitConfigFileParser::parseNameValuePair(Context& ctx, const char* line)
+{
   if (ctx.m_currentSection == NULL){
     ctx.reportError("Value specified outside section");
     return false;
   }
 
-  strncpy(tmpLine, line, MAX_LINE_LENGTH);
-
   // *************************************
-  //  Check if a separator exists in line 
+  //  Split string at first occurrence of 
+  //  '=' or ':'
   // *************************************
-  for(int i= 0; separator_list[i] != 0; i++) {
-    if(strchr(tmpLine, separator_list[i][0])) {
-      separator= separator_list[i];
-      break;
-    }
-  }
 
-  if (separator == 0) {
+  Vector<BaseString> tmp_string_split;
+  if (BaseString(line).split(tmp_string_split,
+			     BaseString("=:"),
+			     2) != 2)
+  {
     ctx.reportError("Parse error");
     return false;
   }
 
-  // *******************************************
-  //  Get pointer to substring before separator
-  // *******************************************
-  t = strtok(tmpLine, separator);
-
-  // *****************************************
-  //  Count number of tokens before separator
-  // *****************************************
-  if (sscanf(t, "%120s%120s", fname, rest) != 1) {
-    ctx.reportError("Multiple names before \'%c\'", separator[0]);
-    return false;
+  // *************************************
+  // Remove leading and trailing chars
+  // *************************************
+  {
+    for (int i = 0; i < 2; i++)
+      tmp_string_split[i].trim("\r\n \t"); 
   }
+
+  // *************************************
+  // First in split is fname
+  // *************************************
+
+  const char *fname= tmp_string_split[0].c_str();
+
   if (!ctx.m_currentInfo->contains(fname)) {
     ctx.reportError("[%s] Unknown parameter: %s", ctx.fname, fname);
     return false;
@@ -273,24 +266,11 @@ bool InitConfigFileParser::parseNameValuePair(Context& ctx, const char* line) {
     } 
   }
 
-  // ******************************************
-  //  Get pointer to substring after separator 
-  // ******************************************
-  t = strtok(NULL, "\0");
-  if (t == NULL) {
-    ctx.reportError("No value for parameter");
-    return false;
-  }
-
-  // ******************************************
-  //  Remove prefix and postfix spaces and tabs
-  // *******************************************
-  trim(t);
-
   // ***********************
   //  Store name-value pair
   // ***********************
-  return storeNameValuePair(ctx, fname, t);
+
+  return storeNameValuePair(ctx, fname, tmp_string_split[1].c_str());
 }
 
 
