@@ -3,6 +3,8 @@
 #
 # Build the automatically generated logging/recovery files.
 
+. ./RELEASE
+
 tmp=/tmp/__db_a
 loglist=/tmp/__db_b
 source=/tmp/__db_c
