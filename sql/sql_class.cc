@@ -86,28 +86,28 @@ extern "C" void free_user_var(user_var_entry *entry)
 ** Thread specific functions
 ****************************************************************************/
 
-THD::THD():user_time(0), is_fatal_error(0),
+THD::THD():user_time(0),
+           is_fatal_error(0),
 	   last_insert_id_used(0),
 	   insert_id_used(0), rand_used(0), in_lock_tables(0),
 	   global_read_lock(0), bootstrap(0), spcont(NULL)
 {
-  lex= &main_lex;
-  host=user=priv_user=db=query=ip=0;
+  host= user= priv_user= db= ip= 0;
   host_or_ip= "connecting host";
   locked=some_tables_deleted=no_errors=password= 0;
   query_start_used= 0;
   count_cuted_fields= CHECK_FIELD_IGNORE;
   killed= NOT_KILLED;
-  db_length=query_length=col_access=0;
+  db_length= col_access=0;
   query_error= tmp_table_used= 0;
   next_insert_id=last_insert_id=0;
   open_tables= temporary_tables= handler_tables= derived_tables= 0;
   tmp_table=0;
   lock=locked_tables=0;
   used_tables=0;
-  cuted_fields= sent_row_count= current_stmt_id= 0L;
+  cuted_fields= sent_row_count= 0L;
+  statement_id_counter= 0UL;
   // Must be reset to handle error with THD's created for init of mysqld
-  lex->current_select= 0;
   start_time=(time_t) 0;
   current_linfo =  0;
   slave_thread = 0;
@@ -141,7 +141,6 @@ THD::THD():user_time(0), is_fatal_error(0),
   server_id = ::server_id;
   slave_net = 0;
   command=COM_CONNECT;
-  set_query_id=1;
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   db_access=NO_ACCESS;
 #endif
@@ -149,6 +148,9 @@ THD::THD():user_time(0), is_fatal_error(0),
   *scramble= '\0';
 
   init();
+  init_sql_alloc(&mem_root,                    // must be after init()
+                 variables.query_alloc_block_size,
+                 variables.query_prealloc_size);
   /* Initialize sub structures */
   bzero((char*) &mem_root,sizeof(mem_root));
   init_alloc_root(&warn_root, WARN_ALLOC_BLOCK_SIZE, WARN_ALLOC_PREALLOC_SIZE);
@@ -192,7 +194,9 @@ THD::THD():user_time(0), is_fatal_error(0),
     transaction.trans_log.end_of_file= max_binlog_cache_size;
   }
 #endif
-
+  init_sql_alloc(&transaction.mem_root,         
+		 variables.trans_alloc_block_size, 
+		 variables.trans_prealloc_size);
   /*
     We need good random number initialization for new thread
     Just coping global one will not work
@@ -232,22 +236,6 @@ void THD::init(void)
   bzero((char*) warn_count, sizeof(warn_count));
   total_warn_count= 0;
   update_charset();
-}
-
-
-/*
-  Init THD for query processing
-
-  This has to be called once before we call mysql_parse()
-*/
-
-void THD::init_for_queries()
-{
-  init_sql_alloc(&mem_root, variables.query_alloc_block_size,
-		 variables.query_prealloc_size);
-  init_sql_alloc(&transaction.mem_root,
-		 variables.trans_alloc_block_size,
-		 variables.trans_prealloc_size);
 }
 
 
@@ -351,7 +339,6 @@ THD::~THD()
     safeFree(user);
   safeFree(db);
   safeFree(ip);
-  free_root(&mem_root,MYF(0));
   free_root(&warn_root,MYF(0));
   free_root(&transaction.mem_root,MYF(0));
   mysys_var=0;					// Safety (shouldn't be needed)
@@ -1279,4 +1266,72 @@ void TMP_TABLE_PARAM::init()
   field_count= sum_func_count= func_count= hidden_field_count= 0;
   group_parts= group_length= group_null_parts= 0;
   quick_group= 1;
+}
+
+/****************************************************************************
+  Statement functions 
+****************************************************************************/
+
+Statement::Statement(THD *thd)
+  :id(++thd->statement_id_counter),
+  query_id(0),                                  /* initialized later */
+  set_query_id(1),
+  allow_sum_func(0),                           /* initialized later */
+  command(COM_SLEEP),     /* reset in THD counstructor and mysql_parse */
+  lex(&main_lex),
+  query(0),
+  query_length(0),
+  free_list(0)                                 /* reset in THD constructor */
+{
+  init_sql_alloc(&mem_root,
+                 thd->variables.query_alloc_block_size,
+                 thd->variables.query_prealloc_size);
+}
+
+/*
+  This constructor is called when statement is a subobject of THD:
+  Some variables are initialized in THD::init due to locking problems
+  This statement object will be used to hold state of currently active
+  statement.
+*/
+
+Statement::Statement()
+  :id(0),
+  query_id(0),
+  set_query_id(1),
+  allow_sum_func(0),
+  command(COM_SLEEP),
+  lex(&main_lex),
+  query(0),
+  query_length(0),
+  free_list(0)
+{
+  bzero((char *) &mem_root, sizeof(mem_root));
+}
+
+
+Statement::~Statement()
+{
+  free_root(&mem_root, MYF(0));
+}
+
+
+C_MODE_START
+
+static byte *
+get_statement_id_as_hash_key(const byte *record, uint *key_length,
+                             my_bool not_used __attribute__((unused)))
+{
+  const Statement *statement= (const Statement *) record; 
+  *key_length= sizeof(statement->id);
+  return (byte *) &((const Statement *) statement)->id;
+}
+
+C_MODE_END
+
+Statement_map::Statement_map()
+{
+  enum { START_HASH_SIZE = 16 };
+  hash_init(&st_hash, default_charset_info, START_HASH_SIZE, 0, 0,
+            get_statement_id_as_hash_key, (hash_free_key) 0, MYF(0));
 }
