@@ -322,9 +322,10 @@ static struct st_used_field init_fields[]=
   { 0,                 0, MYSQL_TYPE_STRING,    0}
 };
 
-int print_field_values(THD *thd, TABLE *table,
-		       struct st_used_field *used_fields,
-		       int type, const char *wild)
+static int
+print_field_values(THD *thd, TABLE *table,
+		   struct st_used_field *used_fields,
+		   int type, const char *wild)
 {
   Protocol *protocol= thd->protocol;
 
@@ -332,9 +333,8 @@ int print_field_values(THD *thd, TABLE *table,
   {
     String *tmp_string= new String();
     struct st_used_field *used_field= used_fields;
-    get_field(&thd->mem_root,
-	      used_field->field,
-	      tmp_string);
+
+    get_field(&thd->mem_root, used_field->field, tmp_string);
     if (!wild || !wild[0] || !wild_compare(tmp_string->ptr(), wild, 0))
     {
       protocol->prepare_for_resend();
@@ -345,35 +345,36 @@ int print_field_values(THD *thd, TABLE *table,
       {
 	switch (used_field->field_type) {
 	case MYSQL_TYPE_TIMESTAMP:
-	{
-	  TIME tmp_time;
-	  ((Field_timestamp *) used_field->field)->get_time(&tmp_time);
-	  protocol->store(&tmp_time);
-	}
-	break;
+	  {
+	    TIME tmp_time;
+	    ((Field_timestamp *) used_field->field)->get_time(&tmp_time);
+	    protocol->store(&tmp_time);
+	  }
+	  break;
 	default:
-	{
-	  String *tmp_string1= new String();
-	  get_field(&thd->mem_root, used_field->field, tmp_string1);
-	  protocol->store(tmp_string1);
-	}
-	break;
+	  {
+	    String *tmp_string1= new String();
+	    get_field(&thd->mem_root, used_field->field, tmp_string1);
+	    protocol->store(tmp_string1);
+	  }
+	  break;
 	}
       }
       if (protocol->write())
-	return 1;
+	return SP_INTERNAL_ERROR;
     }
   }
-  return 0;
+  return SP_OK;
 }
 
-int
+static int
 db_show_routine_status(THD *thd, int type, const char *wild)
 {
   DBUG_ENTER("db_show_routine_status");
 
   TABLE *table;
   TABLE_LIST tables;
+  int res;
 
   memset(&tables, 0, sizeof(tables));
   tables.db= (char*)"mysql";
@@ -381,7 +382,8 @@ db_show_routine_status(THD *thd, int type, const char *wild)
 
   if (! (table= open_ltable(thd, &tables, TL_READ)))
   {
-    DBUG_RETURN(1);
+    res= SP_OPEN_TABLE_FAILED;
+    goto done;
   }
   else
   {
@@ -389,6 +391,7 @@ db_show_routine_status(THD *thd, int type, const char *wild)
     List<Item> field_list;
     struct st_used_field *used_field;
     st_used_field used_fields[array_elements(init_fields)];
+
     memcpy((char*) used_fields, (char*) init_fields, sizeof(used_fields));
     /* Init header */
     for (used_field= &used_fields[0];
@@ -408,7 +411,10 @@ db_show_routine_status(THD *thd, int type, const char *wild)
     }
     /* Print header */
     if (thd->protocol->send_fields(&field_list,1))
+    {
+      res= SP_INTERNAL_ERROR;
       goto err_case;
+    }
 
     /* Init fields */
     setup_tables(&tables);
@@ -421,27 +427,37 @@ db_show_routine_status(THD *thd, int type, const char *wild)
 					used_field->field_name);
       if (!(used_field->field= find_field_in_tables(thd, field, &tables, 
 						    &not_used, TRUE)))
+      {
+	res= SP_INTERNAL_ERROR;
 	goto err_case1;
+      }
     }
 
     table->file->index_init(0);
-    table->file->index_first(table->record[0]);
-    if (print_field_values(thd, table, used_fields, type, wild))
+    if ((res= table->file->index_first(table->record[0])))
+    {
+      if (res == HA_ERR_END_OF_FILE)
+	res= 0;
+      else
+	res= SP_INTERNAL_ERROR;
+      goto err_case1;
+    }
+    if ((res= print_field_values(thd, table, used_fields, type, wild)))
       goto err_case1;
     while (!table->file->index_next(table->record[0]))
     {
-      if (print_field_values(thd, table, used_fields, type, wild))
+      if ((res= print_field_values(thd, table, used_fields, type, wild)))
 	goto err_case1;
     }
-    send_eof(thd);
-    close_thread_tables(thd);
-    DBUG_RETURN(0);
+    res= SP_OK;
   }
-err_case1:
+
+ err_case1:
   send_eof(thd);
-err_case:
+ err_case:
   close_thread_tables(thd);
-  DBUG_RETURN(1);
+ done:
+  DBUG_RETURN(res);
 }
 
 
@@ -530,16 +546,16 @@ sp_show_create_procedure(THD *thd, LEX_STRING *name)
   sp_head *sp;
 
   sp= sp_find_procedure(thd, name);
-  if (sp)
-    DBUG_RETURN(sp->show_create_procedure(thd));
+  if (sp) 
+   DBUG_RETURN(sp->show_create_procedure(thd));
 
-  DBUG_RETURN(1);
+  DBUG_RETURN(SP_KEY_NOT_FOUND);
 }
 
 int
-db_show_status_procedure(THD *thd, const char *wild)
+sp_show_status_procedure(THD *thd, const char *wild)
 {
-  DBUG_ENTER("db_show_status_procedure");
+  DBUG_ENTER("sp_show_status_procedure");
   DBUG_RETURN(db_show_routine_status(thd, TYPE_ENUM_PROCEDURE, wild));
 }
 
@@ -628,13 +644,13 @@ sp_show_create_function(THD *thd, LEX_STRING *name)
   if (sp)
     DBUG_RETURN(sp->show_create_function(thd));
 
-  DBUG_RETURN(1);
+  DBUG_RETURN(SP_KEY_NOT_FOUND);
 }
 
 int
-db_show_status_function(THD *thd, const char *wild)
+sp_show_status_function(THD *thd, const char *wild)
 {
-  DBUG_ENTER("db_show_status_function");
+  DBUG_ENTER("sp_show_status_function");
   DBUG_RETURN(db_show_routine_status(thd, TYPE_ENUM_FUNCTION, wild));
 }
 

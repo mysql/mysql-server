@@ -947,6 +947,8 @@ drop table fac|
 show function status like '%f%'|
 drop procedure ifac|
 drop function fac|
+--replace_column 4 '0000-00-00 00:00:00' 5 '0000-00-00 00:00:00'
+show function status like '%f%'|
 
 
 # primes
@@ -1034,6 +1036,8 @@ select * from primes where i=45 or i=100 or i=199|
 drop table primes|
 drop procedure opp|
 drop procedure ip|
+--replace_column 4 '0000-00-00 00:00:00' 5 '0000-00-00 00:00:00'
+show procedure status like '%p%'|
 
 # Comment & suid
 create procedure bar(x char(16), y int)
