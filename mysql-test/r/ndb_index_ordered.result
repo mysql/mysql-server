@@ -219,10 +219,10 @@ c int unsigned,
 KEY bc(b,c)
 ) engine = ndb;
 insert into t1 values(1,1,1),(2,NULL,2),(3,NULL,NULL),(4,4,NULL);
-select * from t1 use index (bc) where b IS NULL;
+select * from t1 use index (bc) where b IS NULL order by a;
 a	b	c
-3	NULL	NULL
 2	NULL	2
+3	NULL	NULL
 select * from t1 use index (bc)order by a;
 a	b	c
 1	1	1
