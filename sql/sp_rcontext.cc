@@ -40,6 +40,14 @@ sp_rcontext::sp_rcontext(uint fsize, uint hmax, uint cmax)
   m_saved.empty();
 }
 
+void
+sp_rcontext::set_item_eval(uint idx, Item *i, enum_field_types type)
+{
+  extern Item *sp_eval_func_item(THD *thd, Item *it, enum_field_types type);
+
+  set_item(idx, sp_eval_func_item(current_thd, i, type));
+}
+
 int
 sp_rcontext::find_handler(uint sql_errno)
 {

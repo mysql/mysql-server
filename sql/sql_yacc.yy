@@ -4351,7 +4351,7 @@ select_var_ident:
            {
              LEX *lex=Lex;
 	     if (lex->result) 
-	       ((select_dumpvar *)lex->result)->var_list.push_back( new my_var($2,0,0));
+	       ((select_dumpvar *)lex->result)->var_list.push_back( new my_var($2,0,0,(enum_field_types)0));
 	     else
 	       YYABORT;
 	   }
@@ -4370,7 +4370,7 @@ select_var_ident:
 	       YYABORT;
 	     else
 	     {
-	       ((select_dumpvar *)lex->result)->var_list.push_back( new my_var($1,1,t->offset));
+	       ((select_dumpvar *)lex->result)->var_list.push_back( new my_var($1,1,t->offset,t->type));
 	       t->isset= TRUE;
 	     }
 	   }

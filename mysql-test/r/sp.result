@@ -524,9 +524,44 @@ id	data
 foo	40
 bar	15
 zap	663
+drop procedure cur1;
+create table t3 ( s char(16), i int );
+create procedure cur2()
+begin
+declare done int default 0;
+declare continue handler for 1305 set done = 1;
+declare c1 cursor for select id,data from test.t1;
+declare c2 cursor for select i from test.t2;
+open c1;
+open c2;
+repeat
+begin
+declare a char(16);
+declare b,c int;
+fetch c1 into a, b;
+fetch c2 into c;
+if not done then
+if b < c then
+insert into test.t3 values (a, b);
+else
+insert into test.t3 values (a, c);
+end if;
+end if;
+end;
+until done end repeat;
+close c1;
+close c2;
+end;
+call cur2();
+select * from t3;
+s	i
+foo	40
+bar	3
+zap	663
 delete from t1;
 delete from t2;
-drop procedure cur1;
+drop table t3;
+drop procedure cur2;
 create procedure bug822(a_id char(16), a_data int)
 begin
 declare n int;
@@ -544,6 +579,28 @@ foo	42
 bar	666
 delete from t1;
 drop procedure bug822;
+create procedure bug1495()
+begin
+declare x int;
+select data into x from t1 order by id limit 1;
+if x > 10 then
+insert into t1 values ("less", x-10);
+else
+insert into t1 values ("more", x+10);
+end if;
+end;
+insert into t1 values ('foo', 12);
+call bug1495();
+delete from t1 where id='foo';
+insert into t1 values ('bar', 7);
+call bug1495();
+delete from t1 where id='bar';
+select * from t1;
+id	data
+less	2
+more	17
+delete from t1;
+drop procedure bug1495;
 drop table if exists fac;
 create table fac (n int unsigned not null primary key, f bigint unsigned);
 create procedure ifac(n int unsigned)

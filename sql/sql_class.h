@@ -1123,7 +1123,10 @@ public:
   LEX_STRING s;
   bool local;
   uint offset;
-  my_var (LEX_STRING& j, bool i, uint o) : s(j), local(i), offset(o) {}
+  enum_field_types type;
+  my_var (LEX_STRING& j, bool i, uint o, enum_field_types t)
+    :s(j), local(i), offset(o), type(t)
+  {}
   ~my_var() {}
 };
 
