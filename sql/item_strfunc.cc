@@ -1302,9 +1302,18 @@ String *Item_func_trim::val_str(String *str)
     return 0;					/* purecov: inspected */
   char buff[MAX_FIELD_WIDTH];
   String tmp(buff,sizeof(buff),res->charset());
-  String *remove_str= (arg_count==2) ? args[1]->val_str(&tmp) : &remove;
   uint remove_length;
   LINT_INIT(remove_length);
+  String *remove_str; /* The string to remove from res. */
+
+  if (arg_count == 2)
+  {
+    remove_str= args[1]->val_str(&tmp);
+    if ((null_value= args[1]->null_value))
+      return 0;
+  }
+  else
+    remove_str= &remove; /* Default value. */
 
   if (!remove_str || (remove_length=remove_str->length()) == 0 ||
       remove_length > res->length())
