@@ -1561,7 +1561,11 @@ void st_select_lex::print_limit(THD *thd, String *str)
 
 /*
   There are st_select_lex::add_table_to_list & 
-  st_select_lex::set_lock_for_tables in sql_parse.cc
+  st_select_lex::set_lock_for_tables are in sql_parse.cc
 
   st_select_lex::print is in sql_select.h
+
+  st_select_lex_unit::prepare, st_select_lex_unit::exec,
+  st_select_lex_unit::cleanup, st_select_lex_unit::reinit_exec_mechanism
+  are in sql_union.cc
 */

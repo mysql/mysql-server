@@ -1084,6 +1084,7 @@ int dump_leaf(byte* key, uint32 count __attribute__((unused)),
 
 void Item_sum_count_distinct::cleanup()
 {
+  DBUG_ENTER("Item_sum_count_distinct::cleanup");
   Item_sum_int::cleanup();
   /*
     Free table and tree if they belong to this item (if item have not pointer
@@ -1092,13 +1093,19 @@ void Item_sum_count_distinct::cleanup()
   if (!original)
   {
     if (table)
+    {
       free_tmp_table(current_thd, table);
+      table= 0;
+    }
     delete tmp_table_param;
+    tmp_table_param= 0;
     if (use_tree)
+    {
       delete_tree(tree);
-    table= 0;
-    use_tree= 0;
+      use_tree= 0;
+    }
   }
+  DBUG_VOID_RETURN;
 }
 
 bool Item_sum_count_distinct::fix_fields(THD *thd, TABLE_LIST *tables,
@@ -1666,6 +1673,7 @@ Item_func_group_concat::Item_func_group_concat(bool is_distinct,
 
 void Item_func_group_concat::cleanup()
 {
+  DBUG_ENTER("Item_func_group_concat::cleanup");
   /*
     Free table and tree if they belong to this item (if item have not pointer
     to original item from which was made copy => it own its objects )
@@ -1674,11 +1682,19 @@ void Item_func_group_concat::cleanup()
   {
     THD *thd= current_thd;
     if (table)
+    {
       free_tmp_table(thd, table);
+      table= 0;
+    }
     delete tmp_table_param;
+    tmp_table_param= 0;
     if (tree_mode)
-      delete_tree(tree); 
+    {
+      delete_tree(tree);
+      tree_mode= 0;
+    }
   }
+  DBUG_VOID_RETURN;
 }
 
 Item_func_group_concat::~Item_func_group_concat()
