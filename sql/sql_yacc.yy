@@ -2024,7 +2024,7 @@ simple_expr:
 	  { 
 	    LEX *lex=Lex;
 	    $$= new Item_func_week($3,new Item_int((char*) "0", 
-                                           lex->thd->variables.default_week_format,1)); 
+                                   lex->thd->variables.default_week_format,1));
 	  }
 	| WEEK_SYM '(' expr ',' expr ')'
 	  { $$= new Item_func_week($3,$5); }
