@@ -35,8 +35,7 @@
 
 #define reenable_binlog(A)          (A)->options= save_options;
 
-//extern HASH open_cache; // leftover from the merge. to be deleted
-static const char *primary_key_name="PRIMARY";
+const char *primary_key_name="PRIMARY";
 
 static bool check_if_keyname_exists(const char *name,KEY *start, KEY *end);
 static char *make_unique_key_name(const char *field_name,KEY *start,KEY *end);
@@ -1398,7 +1397,7 @@ TABLE *create_table_from_items(THD *thd, HA_CREATE_INFO *create_info,
     open_table().
   */
   tmp_disable_binlog(thd);
-  if (mysql_create_table(thd,db,name,create_info,*extra_fields,
+  if (!mysql_create_table(thd,db,name,create_info,*extra_fields,
 			 *keys,0,select_field_count))
   {
     if (!(table=open_table(thd,db,name,name,(bool*) 0)))
