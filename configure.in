@@ -4,7 +4,7 @@ dnl Process this file with autoconf to produce a configure script.
 AC_INIT(sql/mysqld.cc)
 AC_CANONICAL_SYSTEM
 # The Docs Makefile.am parses this line!
-AM_INIT_AUTOMAKE(mysql, 4.0.11)
+AM_INIT_AUTOMAKE(mysql, 4.0.11-gamma)
 AM_CONFIG_HEADER(config.h)
 
 PROTOCOL_VERSION=10
@@ -702,7 +702,7 @@ AC_ARG_WITH(mysqld-user,
 AC_SUBST(MYSQLD_USER)
 
 # If we should allow LOAD DATA LOCAL
-AC_MSG_CHECKING(if we should should enable LOAD DATA LOCAL by default)
+AC_MSG_CHECKING(If we should should enable LOAD DATA LOCAL by default)
 AC_ARG_ENABLE(local-infile,
     [  --enable-local-infile   Enable LOAD DATA LOCAL INFILE (default: disabled)],
     [ ENABLED_LOCAL_INFILE=$enableval ],
