@@ -566,7 +566,7 @@ public:
   assignment in Statement::Statement)
   Non-empty statement names are unique too: attempt to insert a new statement
   with duplicate name causes older statement to be deleted
-  
+
   Statements are auto-deleted when they are removed from the map and when the
   map is deleted.
 */
@@ -575,7 +575,7 @@ class Statement_map
 {
 public:
   Statement_map();
-  
+
   int insert(Statement *statement);
 
   Statement *find_by_name(LEX_STRING *name)
@@ -608,11 +608,18 @@ public:
     }
     hash_delete(&st_hash, (byte *) statement);
   }
+  /* Erase all statements (calls Statement destructor) */
+  void reset()
+  {
+    hash_reset(&names_hash);
+    hash_reset(&st_hash);
+    last_found_statement= 0;
+  }
 
   ~Statement_map()
   {
-    hash_free(&st_hash);
     hash_free(&names_hash);
+    hash_free(&st_hash);
   }
 private:
   HASH st_hash;
