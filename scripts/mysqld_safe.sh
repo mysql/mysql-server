@@ -47,8 +47,10 @@ parse_arguments() {
 
       # mysqld_safe-specific options - must be set in my.cnf ([mysqld_safe])!
       --ledir=*)   ledir=`echo "$arg" | sed -e "s;--ledir=;;"` ;;
+      # err-log should be removed in 5.0
       --err-log=*) err_log=`echo "$arg" | sed -e "s;--err-log=;;"` ;;
-      # QQ The --open-files should be removed
+      --log-error=*) err_log=`echo "$arg" | sed -e "s;--log-error=;;"` ;;
+      # QQ The --open-files should be removed in 5.0
       --open-files=*) open_files=`echo "$arg" | sed -e "s;--open-files=;;"` ;;
       --open-files-limit=*) open_files=`echo "$arg" | sed -e "s;--open-files-limit=;;"` ;;
       --core-file-size=*) core_file_size=`echo "$arg" | sed -e "s;--core-file-size=;;"` ;;

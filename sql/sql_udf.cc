@@ -145,7 +145,7 @@ void udf_init()
   tables.lock_type = TL_READ;
   tables.db=new_thd->db;
 
-  if (open_tables(new_thd, &tables))
+  if (open_and_lock_tables(new_thd, &tables))
   {
     DBUG_PRINT("error",("Can't open udf table"));
     sql_print_error("Can't open mysql/func table");

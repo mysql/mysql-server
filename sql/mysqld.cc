@@ -195,7 +195,7 @@ static pthread_cond_t COND_handler_count;
 static uint handler_count;
 #endif
 #ifdef __WIN__
-static bool opt_console=0, start_mode=0, use_opt_args;
+static bool start_mode=0, use_opt_args;
 static int opt_argc;
 static char **opt_argv;
 #endif
@@ -280,6 +280,7 @@ ulong back_log, connect_timeout, concurrency;
 char mysql_home[FN_REFLEN], pidfile_name[FN_REFLEN], time_zone[30];
 char log_error_file[FN_REFLEN];
 bool opt_log, opt_update_log, opt_bin_log, opt_slow_log;
+bool opt_error_log= IF_WIN(1,0);
 bool opt_disable_networking=0, opt_skip_show_db=0;
 my_bool opt_enable_named_pipe= 0;
 my_bool opt_local_infile, opt_external_locking, opt_slave_compressed_protocol;
@@ -301,7 +302,7 @@ static my_bool opt_noacl=0, opt_bootstrap=0, opt_myisam_log=0;
 my_bool opt_safe_user_create = 0, opt_no_mix_types = 0;
 my_bool lower_case_table_names, opt_old_rpl_compat;
 my_bool opt_show_slave_auth_info, opt_sql_bin_update = 0;
-my_bool opt_log_slave_updates= 0;
+my_bool opt_log_slave_updates= 0, opt_console= 0;
 
 volatile bool  mqh_used = 0;
 FILE *bootstrap_file=0;
@@ -2208,27 +2209,22 @@ int main(int argc, char **argv)
   if (opt_slow_log)
     open_log(&mysql_slow_log, glob_hostname, opt_slow_logname, "-slow.log",
 	     NullS, LOG_NORMAL);
-#ifdef __WIN__
-  if (!opt_console)
-#endif
+
+  if (opt_error_log)
   {
-    if (log_error_file_ptr != log_error_file)
-      strmake(log_error_file, log_error_file_ptr, sizeof(log_error_file));
+    if (!log_error_file_ptr[0])
+      fn_format(log_error_file, glob_hostname, mysql_data_home, ".err", 0);
+    else
+      fn_format(log_error_file, log_error_file_ptr, mysql_data_home, ".err",
+		MY_UNPACK_FILENAME | MY_SAFE_PATH);
+    if (!log_error_file[0])
+      opt_error_log= 1;				// Too long file name
     else
     {
-      char *end;
-      uint length= ((end=strmake(log_error_file,
-                                 mysql_real_data_home,
-                                 FN_REFLEN-5)) -
-		    log_error_file);
-      *strxnmov(end, sizeof(log_error_file)-length-1,
-                glob_hostname, ".err", NullS)= 0;
-    }
-    if (log_error_file[0] != 0)
       if (freopen(log_error_file, "a+", stdout))
-        freopen(log_error_file, "a+", stderr);
+	freopen(log_error_file, "a+", stderr);
+    }
   }
-
   if (ha_init())
   {
     sql_print_error("Can't init databases");
@@ -3231,10 +3227,10 @@ struct my_option my_long_options[] =
    REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"bootstrap", OPT_BOOTSTRAP, "Used by mysql installation scripts", 0, 0, 0,
    GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
-#ifdef __WIN__
-  {"console", OPT_CONSOLE, "Don't remove the console window",
+  {"console", OPT_CONSOLE, "Write error output on screen; Don't remove the console window on windows",
    (gptr*) &opt_console, (gptr*) &opt_console, 0, GET_BOOL, NO_ARG, 0, 0, 0,
    0, 0, 0},
+#ifdef __WIN__
   {"standalone", OPT_STANDALONE,
   "Dummy option to start as a standalone program (NT)", 0, 0, 0, GET_NO_ARG,
    NO_ARG, 0, 0, 0, 0, 0, 0},
@@ -3471,7 +3467,7 @@ struct my_option my_long_options[] =
    REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"log-error", OPT_ERROR_LOG_FILE, "Log error file",
    (gptr*) &log_error_file_ptr, (gptr*) &log_error_file_ptr, 0, GET_STR,
-   REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+   OPT_ARG, 0, 0, 0, 0, 0, 0},
   {"port", 'P', "Port number to use for connection.", (gptr*) &mysql_port,
    (gptr*) &mysql_port, 0, GET_UINT, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"reckless-slave", OPT_RECKLESS_SLAVE, "For debugging", 0, 0, 0, GET_NO_ARG,
@@ -4150,7 +4146,6 @@ Starts the MySQL server\n");
   printf("Usage: %s [OPTIONS]\n", my_progname);
 #ifdef __WIN__
   puts("NT and Win32 specific options:\n\
-  --console                     Don't remove the console window\n\
   --install                     Install the default service (NT)\n\
   --install-manual              Install the default service started manually (NT)\n\
   --install service_name        Install an optional service (NT)\n\
@@ -4294,6 +4289,9 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     break;
   case (int) OPT_BIN_LOG:
     opt_bin_log=1;
+    break;
+  case (int) OPT_ERROR_LOG_FILE:
+    opt_error_log= 1;
     break;
   case (int) OPT_INIT_RPL_ROLE:
   {
@@ -4515,6 +4513,10 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
   case (int) OPT_STANDALONE:		/* Dummy option for NT */
     break;
 #endif
+  case OPT_CONSOLE:
+    if (opt_console)
+      opt_error_log= 0;			// Force logs to stdout
+    break;
 #ifdef __NETWARE__
   case (int) OPT_AUTOCLOSE:
     setscreenmode(SCR_AUTOCLOSE_ON_EXIT);
