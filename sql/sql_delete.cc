@@ -199,7 +199,15 @@ cleanup:
 
   transactional_table= table->file->has_transactions();
   log_delayed= (transactional_table || table->tmp_table);
-  if (deleted && (error <= 0 || !transactional_table))
+  /*
+    We write to the binary log even if we deleted no row, because maybe the
+    user is using this command to ensure that a table is clean on master *and
+    on slave*. Think of the case of a user having played separately with the
+    master's table and slave's table and wanting to take a fresh identical
+    start now.
+    error < 0 means "really no error". error <= 0 means "maybe some error".
+  */
+  if ((deleted || (error < 0)) && (error <= 0 || !transactional_table))
   {
     mysql_update_log.write(thd,thd->query, thd->query_length);
     if (mysql_bin_log.is_open())
@@ -544,6 +552,8 @@ bool multi_delete::send_eof()
     rows and we succeeded, or also in an error case when there
     was a non-transaction-safe table involved, since
     modifications in it cannot be rolled back.
+    Note that if we deleted nothing we don't write to the binlog (TODO:
+    fix this).
   */
   if (deleted && (error <= 0 || normal_tables))
   {
