@@ -99,7 +99,8 @@
 #include "client_settings.h"
 #include <sql_common.h>
 
-const char	*unknown_sqlstate= "000000";
+const char	*unknown_sqlstate= "HY0000";
+const char	*not_error_sqlstate= "00000";
 
 #ifdef MYSQL_CLIENT
 extern my_bool stmt_close(MYSQL_STMT *stmt,my_bool skip_list);
@@ -339,10 +340,10 @@ HANDLE create_shared_memory(MYSQL *mysql,NET *net, uint connect_timeout)
 
   /*
     The name of event and file-mapping events create agree next rule:
-              shared_memory_base_name+unique_part
+    shared_memory_base_name+unique_part
     Where:
-      shared_memory_base_name is unique value for each server
-      unique_part is uniquel value for each object (events and file-mapping)
+    shared_memory_base_name is unique value for each server
+    unique_part is uniquel value for each object (events and file-mapping)
   */
   suffix_pos = strxmov(tmp,shared_memory_base_name,"_",NullS);
   strmov(suffix_pos, "CONNECT_REQUEST");
@@ -369,36 +370,34 @@ HANDLE create_shared_memory(MYSQL *mysql,NET *net, uint connect_timeout)
     error_allow = CR_SHARED_MEMORY_CONNECT_MAP_ERROR;
     goto err;
   }
-  /*
-    Send to server request of connection
-  */
+
+  /* Send to server request of connection */
   if (!SetEvent(event_connect_request))
   {
     error_allow = CR_SHARED_MEMORY_CONNECT_SET_ERROR;
     goto err;
   }
-  /*
-    Wait of answer from server
-  */
+
+  /* Wait of answer from server */
   if (WaitForSingleObject(event_connect_answer,connect_timeout*1000) !=
       WAIT_OBJECT_0)
   {
     error_allow = CR_SHARED_MEMORY_CONNECT_ABANDODED_ERROR;
     goto err;
   }
-  /*
-    Get number of connection
-  */
+
+  /* Get number of connection */
   connect_number = uint4korr(handle_connect_map);/*WAX2*/
   p= int2str(connect_number, connect_number_char, 10);
 
   /*
     The name of event and file-mapping events create agree next rule:
     shared_memory_base_name+unique_part+number_of_connection
+
     Where:
-      shared_memory_base_name is uniquel value for each server
-      unique_part is uniquel value for each object (events and file-mapping)
-      number_of_connection is number of connection between server and client
+    shared_memory_base_name is uniquel value for each server
+    unique_part is uniquel value for each object (events and file-mapping)
+    number_of_connection is number of connection between server and client
   */
   suffix_pos = strxmov(tmp,shared_memory_base_name,"_",connect_number_char,
 		       "_",NullS);
@@ -506,7 +505,7 @@ net_safe_read(MYSQL *mysql)
 {
   NET *net= &mysql->net;
   ulong len=0;
-  init_sigpipe_variables
+  init_sigpipe_variables;
 
   /* Don't give sigpipe errors if the client doesn't want them */
   set_sigpipe(mysql);
@@ -571,7 +570,7 @@ advanced_command(MYSQL *mysql, enum enum_server_command command,
 {
   NET *net= &mysql->net;
   my_bool result= 1;
-  init_sigpipe_variables
+  init_sigpipe_variables;
 
   /* Don't give sigpipe errors if the client doesn't want them */
   set_sigpipe(mysql);
@@ -589,8 +588,8 @@ advanced_command(MYSQL *mysql, enum enum_server_command command,
   }
 
   net->last_error[0]=0;
-  net->last_errno=0;
-  strmov(net->sqlstate, unknown_sqlstate);
+  net->last_errno= 0;
+  strmov(net->sqlstate, not_error_sqlstate);
   mysql->net.report_error=0;
   mysql->info=0;
   mysql->affected_rows= ~(my_ulonglong) 0;
@@ -624,7 +623,7 @@ advanced_command(MYSQL *mysql, enum enum_server_command command,
   if (!skip_check)
     result= ((mysql->packet_length=net_safe_read(mysql)) == packet_error ?
 	     1 : 0);
- end:
+end:
   reset_sigpipe(mysql);
   return result;
 }
@@ -665,7 +664,7 @@ void end_server(MYSQL *mysql)
   DBUG_ENTER("end_server");
   if (mysql->net.vio != 0)
   {
-    init_sigpipe_variables
+    init_sigpipe_variables;
     DBUG_PRINT("info",("Net: %s", vio_description(mysql->net.vio)));
     set_sigpipe(mysql);
     vio_delete(mysql->net.vio);
@@ -1457,7 +1456,7 @@ mysql_real_connect(MYSQL *mysql,const char *host, const char *user,
 #ifdef HAVE_SYS_UN_H
   struct	sockaddr_un UNIXaddr;
 #endif
-  init_sigpipe_variables
+  init_sigpipe_variables;
   DBUG_ENTER("mysql_real_connect");
   LINT_INIT(host_info);
 
@@ -1561,7 +1560,7 @@ mysql_real_connect(MYSQL *mysql,const char *host, const char *user,
       net->vio = vio_new(sock, VIO_TYPE_SOCKET, TRUE);
       bzero((char*) &UNIXaddr,sizeof(UNIXaddr));
       UNIXaddr.sun_family = AF_UNIX;
-      strmov(UNIXaddr.sun_path, unix_socket);
+      strmake(UNIXaddr.sun_path, unix_socket, sizeof(UNIXaddr.sun_path)-1);
       if (my_connect(sock,(struct sockaddr *) &UNIXaddr, sizeof(UNIXaddr),
 		     mysql->options.connect_timeout))
       {
@@ -2090,15 +2089,16 @@ static void mysql_fix_pointers(MYSQL* mysql, MYSQL* old_mysql)
 #endif /*MYSQL_CLIENT*/
 }
 
+
 my_bool mysql_reconnect(MYSQL *mysql)
 {
   MYSQL tmp_mysql;
   DBUG_ENTER("mysql_reconnect");
 
-  if (!mysql->reconnect
-      || (mysql->server_status & SERVER_STATUS_IN_TRANS) || !mysql->host_info)
+  if (!mysql->reconnect ||
+      (mysql->server_status & SERVER_STATUS_IN_TRANS) || !mysql->host_info)
   {
-   /* Allow reconnect next time */
+    /* Allow reconnect next time */
     mysql->server_status&= ~SERVER_STATUS_IN_TRANS;
     strmov(mysql->net.sqlstate, unknown_sqlstate);
     mysql->net.last_errno=CR_SERVER_GONE_ERROR;
