@@ -1127,7 +1127,7 @@ class Item_cache_int: public Item_cache
 {
   longlong value;
 public:
-  Item_cache_int(): Item_cache() {}
+  Item_cache_int(): Item_cache(), value(0) {}
   
   void store(Item *item);
   double val() { DBUG_ASSERT(fixed == 1); return (double) value; }
@@ -1145,7 +1145,7 @@ class Item_cache_real: public Item_cache
 {
   double value;
 public:
-  Item_cache_real(): Item_cache() {}
+  Item_cache_real(): Item_cache(), value(0) {}
 
   void store(Item *item);
   double val() { DBUG_ASSERT(fixed == 1); return value; }
@@ -1167,7 +1167,7 @@ class Item_cache_str: public Item_cache
   char buffer[80];
   String *value, value_buff;
 public:
-  Item_cache_str(): Item_cache() { }
+  Item_cache_str(): Item_cache(), value(0) { }
   
   void store(Item *item);
   double val();

@@ -2026,3 +2026,8 @@ select count(distinct id) from t1 where id in (select id from t2 where match(bod
 count(distinct id)
 1
 drop table t2,t1;
+create table t1 (s1 int,s2 int);
+insert into t1 values (20,15);
+select * from t1 where  (('a',null) <=> (select 'a',s2 from t1 where s1 = 0));
+s1	s2
+drop table t1;
