@@ -146,7 +146,7 @@ following set of functions:
 Multibyte routines
 ------------------
 ismbchar()  - detects if the given string is a multibyte sequence
-mbcharlen() - retuturns length of multibyte sequence starting with
+mbcharlen() - returns length of multibyte sequence starting with
               the given character
 numchars()  - returns number of characters in the given string, e.g.
               in SQL function CHAR_LENGTH().
