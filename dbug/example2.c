@@ -1,6 +1,3 @@
-
-#include <my_global.h>
-
 int debug = 0;
 
 main (argc, argv)

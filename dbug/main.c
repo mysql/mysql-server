@@ -1,4 +1,4 @@
-#include <dbug_long.h>
+#include <dbug.h>
 
 int main (argc, argv)
 int argc;
