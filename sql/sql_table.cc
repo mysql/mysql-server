@@ -1977,10 +1977,10 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
   for (table= tables; table; table= table->next_local)
   {
     char table_name[NAME_LEN*2+2];
-    char* db = (table->db) ? table->db : thd->db;
+    char* db = table->db;
     bool fatal_error=0;
-    strxmov(table_name,db ? db : "",".",table->table_name,NullS);
 
+    strxmov(table_name, db, ".", table->table_name, NullS);
     thd->open_options|= extra_open_options;
     table->lock_type= lock_type;
     /* open only one table from local list of command */
