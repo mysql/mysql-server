@@ -44985,10 +44985,10 @@ This chapter describes a lot of things that you need to know when
 working on the MySQL code. If you plan to contribute to MySQL
 development, want to have access to the bleeding-edge in-between
 versions code, or just want to keep track of development, follow the
-instructions in @xref{Installing source tree}.  If you are interested in MySQL
-internals, you should also subscribe to @email{internals@@lists.mysql.com}.
-This is a relatively low traffic list, in comparison with 
-@email{mysql@@lists.mysql.com}.
+instructions in @xref{Installing source tree}.  If you are interested
+in MySQL internals, you should also subscribe to our @code{internals}
+mailing list. This list is relatively low traffic. For details on how
+to subscribe, please see @ref{Mailing-list}.
 
 @menu
 * MySQL threads::               MySQL threads
