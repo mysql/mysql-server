@@ -475,7 +475,7 @@ null:
 
 void Item_func_concat_ws::fix_length_and_dec()
 {
-  max_length=0;
+  max_length=separator->max_length*(arg_count-1);
   for (uint i=0 ; i < arg_count ; i++)
     max_length+=args[i]->max_length;
   if (max_length > MAX_BLOB_WIDTH)
