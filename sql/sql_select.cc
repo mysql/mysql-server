@@ -555,6 +555,8 @@ mysql_select(THD *thd,TABLE_LIST *tables,List<Item> &fields,COND *conds,
 	/*  Change DISTINCT to GROUP BY */
 	select_distinct= 0;
 	no_order= !order;
+	if (order && skip_sort_order)
+	  join.tmp_table_param.quick_group=0;
 	if (all_order_fields_used)
 	  order=0;
 	join.group=1;				// For end_write_group
