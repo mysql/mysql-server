@@ -485,6 +485,7 @@ typedef struct st_lex
   char *help_arg;
   sp_head *sphead;
   sp_pcontext *spcont;
+  List<char> spfuns;		/* Called functions */
 
   inline void uncacheable()
   {

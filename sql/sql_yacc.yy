@@ -37,6 +37,7 @@
 #include "item_create.h"
 #include "sp_head.h"
 #include "sp_pcontext.h"
+#include "sp.h"
 #include <myisam.h>
 #include <myisammrg.h>
 
@@ -965,7 +966,7 @@ create_function_tail:
 	;
 
 call:
-	  CALL_SYM ident
+	  CALL_SYM ident_or_spfunc
 	  {
 	    LEX *lex = Lex;
 
@@ -2875,6 +2876,7 @@ simple_expr:
 	  { $$= new Item_int((char*) "TRUE",1,1); }
 	| SP_FUNC '(' udf_expr_list ')'
 	  {
+	    sp_add_fun_to_lex(Lex, $1);
 	    if ($3)
 	      $$= new Item_func_sp($1, *$3);
 	    else

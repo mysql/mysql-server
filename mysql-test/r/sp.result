@@ -1,8 +1,14 @@
 use test;
 drop table if exists t1;
+drop table if exists t2;
 create table t1 (
 id   char(16) not null,
 data int not null
+);
+create table t2 (
+s   char(16) not null,
+i   int not null,
+d   double not null
 );
 create procedure foo42()
 insert into test.t1 values ("foo", 42);
@@ -409,9 +415,33 @@ end;
 select fac(1), fac(2), fac(5), fac(10);
 fac(1)	fac(2)	fac(5)	fac(10)
 1	2	120	3628800
+create function fun(d double, i int, u int unsigned) returns double
+return mul(inc(i), fac(u)) / e();
+select fun(2.3, 3, 5);
+fun(2.3, 3, 5)
+176.58213176229
+insert into t2 values (append("xxx", "yyy"), mul(4,3), e());
+insert into t2 values (append("a", "b"), mul(2,mul(3,4)), fun(1.7, 4, 6));
+select * from t2 where s = append("a", "b");
+s	i	d
+ab	24	1324.36598821719
+select * from t2 where i = mul(4,3) or i = mul(mul(3,4),2);
+s	i	d
+xxxyyy	12	2.71828182845905
+ab	24	1324.36598821719
+select * from t2 where d = e();
+s	i	d
+xxxyyy	12	2.71828182845905
+select * from t2;
+s	i	d
+xxxyyy	12	2.71828182845905
+ab	24	1324.36598821719
+delete from t2;
 drop function e;
 drop function inc;
 drop function mul;
 drop function append;
 drop function fac;
+drop function fun;
 drop table t1;
+drop table t2;
