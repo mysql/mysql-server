@@ -906,9 +906,9 @@ mysql_select(THD *thd,TABLE_LIST *tables,List<Item> &fields,COND *conds,
   if (join.group || join.tmp_table_param.sum_func_count ||
       (procedure && (procedure->flags & PROC_GROUP)))
   {
-    alloc_group_fields(&join,group);
-    setup_copy_fields(thd, &join.tmp_table_param,all_fields);
-    if (make_sum_func_list(&join,all_fields) || thd->fatal_error)
+    if (alloc_group_fields(&join,group) ||
+        setup_copy_fields(thd, &join.tmp_table_param,all_fields) ||
+        make_sum_func_list(&join,all_fields) || thd->fatal_error)
       goto err; /* purecov: inspected */
   }
   if (group || order)
