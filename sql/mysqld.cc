@@ -4292,7 +4292,7 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     break;
   case OPT_SAFEMALLOC_MEM_LIMIT:
 #if !defined(DBUG_OFF) && defined(SAFEMALLOC)
-    safemalloc_mem_limit = atoi(argument);
+    sf_malloc_mem_limit = atoi(argument);
 #endif
     break;
 #ifdef EMBEDDED_LIBRARY

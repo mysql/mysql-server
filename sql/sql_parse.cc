@@ -1208,9 +1208,10 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
 	    opened_tables,refresh_version, cached_tables(),
 	    uptime ? (float)thd->query_id/(float)uptime : 0);
 #ifdef SAFEMALLOC
-    if (lCurMemory)				// Using SAFEMALLOC
+    if (sf_malloc_cur_memory)				// Using SAFEMALLOC
       sprintf(strend(buff), "  Memory in use: %ldK  Max memory used: %ldK",
-	      (lCurMemory+1023L)/1024L,(lMaxMemory+1023L)/1024L);
+	      (sf_malloc_cur_memory+1023L)/1024L,
+	      (sf_malloc_max_memory+1023L)/1024L);
  #endif
     VOID(my_net_write(net, buff,(uint) strlen(buff)));
     VOID(net_flush(net));
@@ -2476,8 +2477,10 @@ mysql_execute_command(void)
     res = mysql_ha_close(thd, tables);
     break;
   case SQLCOM_HA_READ:
-    if (check_db_used(thd,tables) ||
-	check_table_access(thd,SELECT_ACL, tables))
+    /* there is no need to check for table permissions here, because
+       if a user has no permissions to read a table, he won't be
+       able to open it (with SQLCOM_HA_OPEN) in the first place. */
+    if (check_db_used(thd,tables))
       goto error;
     res = mysql_ha_read(thd, tables, lex->ha_read_mode, lex->backup_dir,
 			lex->insert_list, lex->ha_rkey_mode, select_lex->where,
