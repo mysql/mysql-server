@@ -500,3 +500,9 @@ insert into t1 set a = concat(repeat('x', 19), 'aa');
 set max_sort_length=20;
 select a from t1 order by a;
 drop table t1;
+
+create table t1 (a int not null, b  int not null, c int not null);
+insert t1 values (1,1,1),(1,1,2),(1,2,1);
+select a, b from t1 group by a, b order by sum(c);
+drop table t1;
+
