@@ -129,8 +129,8 @@ extern int _rl_suppress_redisplay;
 extern char *rl_display_prompt;
 
 /* Variables imported from complete.c. */
-extern char *rl_completer_word_break_characters;
-extern char *rl_basic_word_break_characters;
+extern const char *rl_completer_word_break_characters;
+extern const char *rl_basic_word_break_characters;
 extern int rl_completion_query_items;
 extern int rl_complete_with_tilde_expansion;
 
@@ -181,7 +181,7 @@ extern char *xmalloc (), *xrealloc ();
 /*								    */
 /* **************************************************************** */
 
-char *rl_library_version = RL_LIBRARY_VERSION;
+const char *rl_library_version = RL_LIBRARY_VERSION;
 
 /* A pointer to the keymap that is currently in use.
    By default, it is the standard emacs keymap. */
@@ -960,8 +960,7 @@ rl_universal_argument (count, key)
    way that you should do insertion.  rl_insert () calls this
    function. */
 int
-rl_insert_text (string)
-     char *string;
+rl_insert_text (const char *string)
 {
   register int i, l = strlen (string);
 

@@ -145,7 +145,8 @@ sub new
   $limits{'join_optimizer'}	= 1; # Can optimize FROM tables
   $limits{'left_outer_join'}	= 1; # Supports left outer joins
   $limits{'like_with_column'}	= 1; # Can use column1 LIKE column2
-  $limits{'limit'}		= 1;		# supports the limit attribute
+  $limits{'limit'}		= 1; # supports the limit attribute
+  $limits{'truncate_table'}	= 1;
   $limits{'load_data_infile'}	= 1; # Has load data infile
   $limits{'lock_tables'}	= 1; # Has lock tables
   $limits{'max_column_name'}	= 64; # max table and column name
@@ -604,6 +605,7 @@ sub new
   $limits{'select_without_from'}= 1;
   $limits{'subqueries'}		= 1;
   $limits{'table_wildcard'}	= 1;
+  $limits{'truncate_table'}	= 1;
   $limits{'unique_index'}	= 1; # Unique index works or not
   $limits{'working_all_fields'} = 1;
   $limits{'working_blobs'}	= 1; # If big varchar/blobs works
@@ -1386,6 +1388,7 @@ sub new
   $limits{'max_index_parts'}	= 16; # Max segments/key
   $limits{'max_column_name'} = 32; # max table and column name
 
+  $limits{'truncate_table'}	= 1;
   $limits{'join_optimizer'}	= 1; # Can optimize FROM tables
   $limits{'load_data_infile'}	= 0; # Has load data infile
   $limits{'lock_tables'}	= 0; # Has lock tables

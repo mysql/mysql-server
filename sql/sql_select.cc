@@ -2049,10 +2049,11 @@ get_best_combination(JOIN *join)
   KEYUSE *keyuse;
   KEY *keyinfo;
   uint table_count;
+  THD *thd=join->thd;
 
   table_count=join->tables;
   if (!(join->join_tab=join_tab=
-	(JOIN_TAB*) join->thd->alloc(sizeof(JOIN_TAB)*table_count)))
+	(JOIN_TAB*) thd->alloc(sizeof(JOIN_TAB)*table_count)))
     return TRUE;
 
   join->const_tables=0;				/* for checking */
@@ -2130,10 +2131,10 @@ get_best_combination(JOIN *join)
       j->ref.key_parts=keyparts;
       j->ref.key_length=length;
       j->ref.key=(int) key;
-      if (!(j->ref.key_buff= (byte*) sql_calloc(ALIGN_SIZE(length)*2)) ||
-	  !(j->ref.key_copy= (store_key**) sql_alloc((sizeof(store_key*) *
+      if (!(j->ref.key_buff= (byte*) thd->calloc(ALIGN_SIZE(length)*2)) ||
+	  !(j->ref.key_copy= (store_key**) thd->alloc((sizeof(store_key*) *
 						      (keyparts+1)))) ||
-	  !(j->ref.items=    (Item**) sql_alloc(sizeof(Item*)*keyparts)))
+	  !(j->ref.items=    (Item**) thd->alloc(sizeof(Item*)*keyparts)))
       {
 	return TRUE;
       }
@@ -2153,7 +2154,6 @@ get_best_combination(JOIN *join)
       }
       else
       {
-	THD *thd=join->thd;
 	for (i=0 ; i < keyparts ; keyuse++,i++)
 	{
 	  while (keyuse->keypart != i ||
@@ -2358,7 +2358,7 @@ make_join_select(JOIN *join,SQL_SELECT *select,COND *cond)
       {
 	DBUG_EXECUTE("where",print_where(tmp,tab->table->table_name););
 	SQL_SELECT *sel=tab->select=(SQL_SELECT*)
-	  sql_memdup((gptr) select, sizeof(SQL_SELECT));
+	  join->thd->memdup((gptr) select, sizeof(SQL_SELECT));
 	if (!sel)
 	  DBUG_RETURN(1);			// End of memory
 	tab->select_cond=sel->cond=tmp;
@@ -2439,8 +2439,8 @@ make_join_select(JOIN *join,SQL_SELECT *select,COND *cond)
 					 current_map)))
 	    {
 	      DBUG_EXECUTE("where",print_where(tmp,"cache"););
-	      tab->cache.select=(SQL_SELECT*) sql_memdup((gptr) sel,
-						    sizeof(SQL_SELECT));
+	      tab->cache.select=(SQL_SELECT*)
+		join->thd->memdup((gptr) sel, sizeof(SQL_SELECT));
 	      tab->cache.select->cond=tmp;
 	      tab->cache.select->read_tables=join->const_table_map;
 	    }

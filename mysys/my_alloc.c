@@ -195,10 +195,17 @@ void set_prealloc_root(MEM_ROOT *root, char *ptr)
 
 char *strdup_root(MEM_ROOT *root,const char *str)
 {
-  uint len= (uint) strlen(str)+1;
+  return strmake_root(root, str, strlen(str));
+}
+
+char *strmake_root(MEM_ROOT *root,const char *str, uint len)
+{
   char *pos;
-  if ((pos=alloc_root(root,len)))
+  if ((pos=alloc_root(root,len+1)))
+  {
     memcpy(pos,str,len);
+    pos[len]=0;
+  }
   return pos;
 }
 

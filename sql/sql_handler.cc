@@ -202,7 +202,7 @@ int mysql_ha_read(THD *thd, TABLE_LIST *tables,
         it.rewind();
         while ((item=it++))
         {
-          if (item->send(packet))
+          if (item->send(thd,packet))
           {
             packet->free();                             // Free used
             my_error(ER_OUT_OF_RESOURCES,MYF(0));

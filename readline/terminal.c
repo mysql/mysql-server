@@ -99,8 +99,8 @@ char PC, *BC, *UP;
 #endif /* __linux__ */
 
 /* Some strings to control terminal actions.  These are output by tputs (). */
-char *term_goto, *term_clreol, *term_cr, *term_clrpag, *term_backspace;
-char *term_pc;
+char *term_goto, *term_clreol, *term_clrpag, *term_backspace;
+char *term_cr, *term_pc;
 
 /* Non-zero if we determine that the terminal can do character insertion. */
 int terminal_can_insert = 0;
@@ -245,8 +245,8 @@ rl_resize_terminal ()
 }
 
 struct _tc_string {
-     char *tc_var;
-     char **tc_value;
+  const char *tc_var;
+  char **tc_value;
 };
 
 /* This should be kept sorted, just in case we decide to change the
@@ -291,7 +291,7 @@ get_term_capabilities (bp)
 {
   register int i;
 
-  for (i = 0; i < NUM_TC_STRINGS; i++)
+  for (i = 0; i < (int) NUM_TC_STRINGS; i++)
     *(tc_strings[i].tc_value) = tgetstr (tc_strings[i].tc_var, bp);
   tcap_initialized = 1;
 }
@@ -304,7 +304,7 @@ _rl_init_terminal_io (terminal_name)
   screenwidth = ScreenCols ();
   screenheight = ScreenRows ();
   screenchars = screenwidth * screenheight;
-  term_cr = "\r";
+  term_cr = (char*) "\r";
   term_im = term_ei = term_ic = term_IC = (char *)NULL;
   term_up = term_dc = term_DC = visible_bell = (char *)NULL;
 
@@ -322,7 +322,8 @@ _rl_init_terminal_io (terminal_name)
   return;
 #else /* !__GO32__ */
 
-  char *term, *buffer;
+  const char *term;
+  char *buffer;
   int tty;
   Keymap xkeymap;
 
@@ -347,7 +348,7 @@ _rl_init_terminal_io (terminal_name)
       screenwidth = 79;
       screenheight = 24;
       screenchars = 79 * 24;
-      term_cr = "\r";
+      term_cr = (char*) "\r";
       term_im = term_ei = term_ic = term_IC = (char *)NULL;
       term_up = term_dc = term_DC = visible_bell = (char *)NULL;
       term_ku = term_kd = term_kl = term_kr = (char *)NULL;
@@ -367,7 +368,7 @@ _rl_init_terminal_io (terminal_name)
   UP = term_up;
 
   if (!term_cr)
-    term_cr = "\r";
+    term_cr = (char*) "\r";
 
   tty = rl_instream ? fileno (rl_instream) : 0;
 
@@ -427,7 +428,7 @@ rl_get_termcap (cap)
 
   if (tcap_initialized == 0)
     return ((char *)NULL);
-  for (i = 0; i < NUM_TC_STRINGS; i++)
+  for (i = 0; i < (int) NUM_TC_STRINGS; i++)
     {
       if (tc_strings[i].tc_var[0] == cap[0] && strcmp (tc_strings[i].tc_var, cap) == 0)
         return *(tc_strings[i].tc_value);

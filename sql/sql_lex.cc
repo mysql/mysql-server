@@ -201,7 +201,7 @@ LEX_STRING get_token(LEX *lex,uint length)
   LEX_STRING tmp;
   yyUnget();			// ptr points now after last token char
   tmp.length=lex->yytoklen=length;
-  tmp.str=(char*) sql_strmake((char*) lex->tok_start,tmp.length);
+  tmp.str=(char*) lex->thd->strmake((char*) lex->tok_start,tmp.length);
   return tmp;
 }
 
@@ -250,7 +250,7 @@ static char *get_text(LEX *lex)
 
       str=lex->tok_start+1;
       end=lex->ptr-1;
-      if (!(start=(uchar*) sql_alloc((uint) (end-str)+1)))
+      if (!(start=(uchar*) lex->thd->alloc((uint) (end-str)+1)))
 	return (char*) "";		// Sql_alloc has set error flag
       if (!found_escape)
       {

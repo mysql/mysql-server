@@ -280,20 +280,21 @@ public:
 
 
 typedef struct st_qsel_param {
-  uint baseflag,keys,max_key_part;
-  table_map prev_tables,read_tables,current_table;
   TABLE *table;
-  bool quick;				// Don't calulate possible keys
   KEY_PART *key_parts,*key_parts_end,*key[MAX_KEY];
+  MEM_ROOT *mem_root;
+  table_map prev_tables,read_tables,current_table;
+  uint baseflag,keys,max_key_part;
   uint real_keynr[MAX_KEY];
   char min_key[MAX_KEY_LENGTH+MAX_FIELD_WIDTH],
     max_key[MAX_KEY_LENGTH+MAX_FIELD_WIDTH];
+  bool quick;				// Don't calulate possible keys
 } PARAM;
 
 static SEL_TREE * get_mm_parts(PARAM *param,Field *field,
 			       Item_func::Functype type,Item *value,
 			       Item_result cmp_type);
-static SEL_ARG *get_mm_leaf(Field *field,KEY_PART *key_part,
+static SEL_ARG *get_mm_leaf(PARAM *param,Field *field,KEY_PART *key_part,
 			    Item_func::Functype type,Item *value);
 static bool like_range(const char *ptr,uint length,char wild_prefix,
 		       uint field_length, char *min_str,char *max_str,
@@ -626,6 +627,7 @@ int SQL_SELECT::test_quick_select(key_map keys_to_use, table_map prev_tables,
     param.current_table= head->map;
     param.table=head;
     param.keys=0;
+    param.mem_root= &alloc;
 
     current_thd->no_errors=1;			// Don't warn about NULL
     init_sql_alloc(&alloc,2048,0);
@@ -894,7 +896,7 @@ get_mm_parts(PARAM *param,Field *field, Item_func::Functype type,Item *value,
 	tree=new SEL_TREE();
       if (!value || !(value->used_tables() & ~param->read_tables))
       {
-	sel_arg=get_mm_leaf(key_part->field,key_part,type,value);
+	sel_arg=get_mm_leaf(param,key_part->field,key_part,type,value);
 	if (!sel_arg)
 	  continue;
 	if (sel_arg->type == SEL_ARG::IMPOSSIBLE)
@@ -914,7 +916,7 @@ get_mm_parts(PARAM *param,Field *field, Item_func::Functype type,Item *value,
 
 
 static SEL_ARG *
-get_mm_leaf(Field *field,KEY_PART *key_part,
+get_mm_leaf(PARAM *param, Field *field, KEY_PART *key_part,
 	    Item_func::Functype type,Item *value)
 {
   uint maybe_null=(uint) field->real_maybe_null();
@@ -959,7 +961,7 @@ get_mm_leaf(Field *field,KEY_PART *key_part,
 	field_length=length;
     }
     length+=offset;
-    if (!(min_str= (char*) sql_alloc(length*2)))
+    if (!(min_str= (char*) alloc_root(param->mem_root, length*2)))
       DBUG_RETURN(0);
     max_str=min_str+length;
     if (maybe_null)
@@ -1026,7 +1028,8 @@ get_mm_leaf(Field *field,KEY_PART *key_part,
     if (type == Item_func::EQUAL_FUNC)
     {
       /* convert column_name <=> NULL -> column_name IS NULL */
-      char *str= (char*) sql_alloc(1);		// Get local copy of key
+      // Get local copy of key
+      char *str= (char*) alloc_root(param->mem_root,1);
       if (!*str)
 	DBUG_RETURN(0);
       *str = 1;
@@ -1035,7 +1038,8 @@ get_mm_leaf(Field *field,KEY_PART *key_part,
     DBUG_RETURN(&null_element);			// NULL is never true
   }
   // Get local copy of key
-  char *str= (char*) sql_alloc(key_part->part_length+maybe_null);
+  char *str= (char*) alloc_root(param->mem_root,
+				key_part->part_length+maybe_null);
   if (!str)
     DBUG_RETURN(0);
   if (maybe_null)
@@ -2235,7 +2239,7 @@ get_quick_select(PARAM *param,uint idx,SEL_ARG *key_tree)
     else
     {
       quick->key_parts=(KEY_PART*)
-	sql_memdup(param->key[idx],
+	memdup_root(&quick->alloc,(char*) param->key[idx],
 		   sizeof(KEY_PART)*
 		   param->table->key_info[param->real_keynr[idx]].key_parts);
     }
@@ -2406,7 +2410,7 @@ QUICK_SELECT *get_quick_select_for_ref(TABLE *table, TABLE_REF *ref)
 		 (key_info->flags & HA_NOSAME)) ? EQ_RANGE : 0);
 
   if (!(quick->key_parts=key_part=(KEY_PART *)
-	sql_alloc(sizeof(KEY_PART)*ref->key_parts)))
+	alloc_root(&quick->alloc,sizeof(KEY_PART)*ref->key_parts)))
     goto err;
 
   for (part=0 ; part < ref->key_parts ;part++,key_part++)

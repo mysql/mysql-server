@@ -48,12 +48,12 @@ extern CPFunction *tilde_expansion_failure_hook;
 /* When non-null, this is a NULL terminated array of strings which
    are duplicates for a tilde prefix.  Bash uses this to expand
    `=~' and `:~'. */
-extern char **tilde_additional_prefixes;
+extern const char **tilde_additional_prefixes;
 
 /* When non-null, this is a NULL terminated array of strings which match
    the end of a username, instead of just "/".  Bash sets this to
    `:' and `=~'. */
-extern char **tilde_additional_suffixes;
+extern const char **tilde_additional_suffixes;
 
 /* Return a new string which is the result of tilde expanding STRING. */
 extern char *tilde_expand ();

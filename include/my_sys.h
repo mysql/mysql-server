@@ -608,6 +608,7 @@ gptr alloc_root(MEM_ROOT *mem_root,unsigned int Size);
 void free_root(MEM_ROOT *root, myf MyFLAGS);
 void set_prealloc_root(MEM_ROOT *root, char *ptr);
 char *strdup_root(MEM_ROOT *root,const char *str);
+char *strmake_root(MEM_ROOT *root,const char *str,uint len);
 char *memdup_root(MEM_ROOT *root,const char *str,uint len);
 void load_defaults(const char *conf_file, const char **groups,
 		   int *argc, char ***argv);

@@ -180,9 +180,7 @@ static FUNMAP default_funmap[] = {
 };
 
 int
-rl_add_funmap_entry (name, function)
-     char *name;
-     Function *function;
+rl_add_funmap_entry (const char *name, Function *function)
 {
   if (funmap_entry + 2 >= funmap_size)
     {
@@ -236,7 +234,7 @@ rl_funmap_names ()
 	  result = (char **)xrealloc (result, result_size * sizeof (char *));
 	}
 
-      result[result_index] = funmap[result_index]->name;
+      result[result_index] = (char*) funmap[result_index]->name;
       result[result_index + 1] = (char *)NULL;
     }
 
@@ -245,10 +243,10 @@ rl_funmap_names ()
 }
 
 /* Things that mean `Control'. */
-char *possible_control_prefixes[] = {
+const char *possible_control_prefixes[] = {
   "Control-", "C-", "CTRL-", (char *)NULL
 };
 
-char *possible_meta_prefixes[] = {
+const char *possible_meta_prefixes[] = {
   "Meta", "M-", (char *)NULL
 };

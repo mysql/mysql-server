@@ -84,7 +84,8 @@ static char *
 history_filename (filename)
      char *filename;
 {
-  char *return_val, *home;
+  char *return_val;
+  const char *home;
   int home_len;
 
   return_val = filename ? savestring (filename) : (char *)NULL;
@@ -130,11 +131,10 @@ read_history_range (filename, from, to)
      char *filename;
      int from, to;
 {
-  register int line_start, line_end;
   char *input, *buffer;
   int file, current_line;
   struct stat finfo;
-  size_t file_size;
+  size_t line_start, line_end, file_size;
 
   buffer = (char *)NULL;
   input = history_filename (filename);

@@ -52,7 +52,7 @@ extern int history_offset;
 
 /* The list of alternate characters that can delimit a history search
    string. */
-char *history_search_delimiter_chars = (char *)NULL;
+const char *history_search_delimiter_chars = (char *)NULL;
 
 /* Search the history for STRING, starting at history_offset.
    If DIRECTION < 0, then the search is through previous entries, else

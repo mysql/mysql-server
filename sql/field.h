@@ -154,7 +154,7 @@ public:
       ptr-=row_offset;
       return tmp;
     }
-  bool send(String *packet);
+  bool send(THD *thd, String *packet);
   virtual char *pack(char* to, const char *from, uint max_length=~(uint) 0)
   {
     uint length=pack_length();

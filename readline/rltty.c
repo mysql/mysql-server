@@ -368,13 +368,6 @@ static TIOTYPE otio;
 #  define OUTPUT_BEING_FLUSHED(tp)  0
 #endif
 
-static void
-rltty_warning (msg)
-     char *msg;
-{
-  fprintf (stderr, "readline: warning: %s\n", msg);
-}
-
 #if defined (_AIX)
 void
 setopost(tp)
@@ -604,8 +597,8 @@ rl_deprep_terminal ()
 /* **************************************************************** */
 
 int
-rl_restart_output (count, key)
-     int count, key;
+rl_restart_output (int count __attribute__((unused)),
+		   int key __attribute__((unused)))
 {
   int fildes = fileno (rl_outstream);
 #if defined (TIOCSTART)
@@ -637,8 +630,8 @@ rl_restart_output (count, key)
 }
 
 int
-rl_stop_output (count, key)
-     int count, key;
+rl_stop_output (int count __attribute__((unused)),
+		int key __attribute__((unused)))
 {
   int fildes = fileno (rl_instream);
 

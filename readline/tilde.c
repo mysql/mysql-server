@@ -82,13 +82,13 @@ extern char *get_env_value ();
 /* The default value of tilde_additional_prefixes.  This is set to
    whitespace preceding a tilde so that simple programs which do not
    perform any word separation get desired behaviour. */
-static char *default_prefixes[] =
+static const char *default_prefixes[] =
   { " ~", "\t~", (char *)NULL };
 
 /* The default value of tilde_additional_suffixes.  This is set to
    whitespace or newline so that simple programs which do not
    perform any word separation get desired behaviour. */
-static char *default_suffixes[] =
+static const char *default_suffixes[] =
   { " ", "\n", (char *)NULL };
 
 /* If non-null, this contains the address of a function that the application
@@ -106,12 +106,12 @@ CPFunction *tilde_expansion_failure_hook = (CPFunction *)NULL;
 /* When non-null, this is a NULL terminated array of strings which
    are duplicates for a tilde prefix.  Bash uses this to expand
    `=~' and `:~'. */
-char **tilde_additional_prefixes = default_prefixes;
+const char ** tilde_additional_prefixes = default_prefixes;
 
 /* When non-null, this is a NULL terminated array of strings which match
    the end of a username, instead of just "/".  Bash sets this to
    `:' and `=~'. */
-char **tilde_additional_suffixes = default_suffixes;
+const char **tilde_additional_suffixes = default_suffixes;
 
 /* Find the start of a tilde expansion in STRING, and return the index of
    the tilde which starts the expansion.  Place the length of the text
@@ -122,7 +122,7 @@ tilde_find_prefix (string, len)
      int *len;
 {
   register int i, j, string_len;
-  register char **prefixes = tilde_additional_prefixes;
+  register const char **prefixes = tilde_additional_prefixes;
 
   string_len = strlen (string);
   *len = 0;
@@ -154,7 +154,7 @@ tilde_find_suffix (string)
      char *string;
 {
   register int i, j, string_len;
-  register char **suffixes;
+  register const char **suffixes;
 
   suffixes = tilde_additional_suffixes;
   string_len = strlen (string);
