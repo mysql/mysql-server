@@ -165,7 +165,7 @@ GRANT UPDATE (c2) ON "test"."t2" TO 'mysqltest_1'@'%'
 GRANT UPDATE ON "test"."t1" TO 'mysqltest_1'@'%'
 drop user 'mysqltest_1', 'mysqltest_3';
 grant all on test.t1 to 'mysqltest_1';
-ERROR 42000: 'root'@'localhost' is not allowed to create new users
+ERROR HY000: You are not allowed to create a user with GRANT
 drop user 'mysqltest_1';
 ERROR HY000: Operation DROP USER failed for 'mysqltest_1'@'%'
 drop table t1, t2;
