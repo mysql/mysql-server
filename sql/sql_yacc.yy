@@ -2381,7 +2381,7 @@ simple_expr:
             Lex->safe_to_cache_query=0;
 	  }
 	| DATE_SYM '(' expr ')'
-	  { $$= new Item_func_date($3); }
+	  { $$= new Item_date_typecast($3); }
 	| DAY_SYM '(' expr ')'
 	  { $$= new Item_func_dayofmonth($3); }
 	| ELT_FUNC '(' expr ',' expr_list ')'
@@ -2580,9 +2580,11 @@ simple_expr:
 	| SUBSTRING_INDEX '(' expr ',' expr ',' expr ')'
 	  { $$= new Item_func_substr_index($3,$5,$7); }
 	| TIME_SYM '(' expr ')'
-	  { $$= new Item_func_time($3); }
+	  { $$= new Item_time_typecast($3); }
+	| TIMESTAMP '(' expr ')'
+	  { $$= new Item_datetime_typecast($3); }
 	| TIMESTAMP '(' expr ',' expr ')'
-	  { $$= new Item_func_timestamp($3, $5); }
+	  { $$= new Item_func_add_time($3, $5, 1, 0); }
 	| TRIM '(' expr ')'
 	  { $$= new Item_func_trim($3); }
 	| TRIM '(' LEADING expr FROM expr ')'
@@ -4427,6 +4429,7 @@ keyword:
 	| MEDIUM_SYM		{}
 	| MERGE_SYM		{}
 	| MEMORY_SYM		{}
+	| MICROSECOND_SYM	{}
 	| MINUTE_SYM		{}
 	| MIN_ROWS		{}
 	| MODIFY_SYM		{}

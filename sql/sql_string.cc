@@ -390,6 +390,23 @@ bool String::append(IO_CACHE* file, uint32 arg_length)
   return FALSE;
 }
 
+bool String::append_with_prefill(const char *s,uint32 arg_length,
+		 uint32 full_length, char fill_char)
+{
+  int t_length= arg_length > full_length ? arg_length : full_length;
+
+  if (realloc(str_length + t_length))
+    return TRUE;
+  t_length= full_length - arg_length;
+  if (t_length > 0)
+  {
+    bfill(Ptr+str_length, t_length, fill_char);
+    str_length=str_length + t_length;
+  }
+  append(s, arg_length);
+  return FALSE;
+}
+
 uint32 String::numchars()
 {
   return str_charset->cset->numchars(str_charset, Ptr, Ptr+str_length);
