@@ -2,7 +2,7 @@ DROP TABLE IF EXISTS t1;
 
 CREATE TABLE t1 (
   comment CHAR(32) ASCII NOT NULL,
-  koi8_ru_f CHAR(32) CHARACTER SET koi8_ru NOT NULL
+  koi8_ru_f CHAR(32) CHARACTER SET koi8_r NOT NULL
 ) CHARSET=latin5;
 
 SHOW CREATE TABLE t1;
@@ -156,7 +156,7 @@ ORDER BY t11.koi8_ru_f,t11.comment,t12.comment;
 
 SELECT t11.comment,t12.comment 
 FROM t1 t11,t1 t12 
-WHERE t11.koi8_ru_f=CONVERT(t12.utf8_f USING koi8_ru)
+WHERE t11.koi8_ru_f=CONVERT(t12.utf8_f USING koi8_r)
 ORDER BY t12.utf8_f,t11.comment,t12.comment;
 
 ALTER TABLE t1 ADD ucs2_f CHAR(32) CHARACTER SET ucs2;

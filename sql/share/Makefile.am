@@ -25,8 +25,7 @@ install-data-local:
 	done
 	$(mkinstalldirs) $(DESTDIR)$(pkgdatadir)/charsets
 	$(INSTALL_DATA) $(srcdir)/charsets/README $(DESTDIR)$(pkgdatadir)/charsets/README
-	$(INSTALL_DATA) $(srcdir)/charsets/Index.xml $(DESTDIR)$(pkgdatadir)/charsets/Index.xml
-	$(INSTALL_DATA) $(srcdir)/charsets/*.conf $(DESTDIR)$(pkgdatadir)/charsets
+	$(INSTALL_DATA) $(srcdir)/charsets/*.xml $(DESTDIR)$(pkgdatadir)/charsets
 
 fix_errors:
 	for lang in @AVAILABLE_LANGUAGES@; \

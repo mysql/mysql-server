@@ -432,7 +432,7 @@ ulong      my_strntoul_8bit(CHARSET_INFO *cs,
       c -= '0';
     else if (c>='A' && c<='F')
       c = c - 'A' + 10;
-    else if (c>='a' && c<='a')
+    else if (c>='a' && c<='f')
       c = c - 'a' + 10;
     else
       break;
