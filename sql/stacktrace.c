@@ -218,7 +218,7 @@ void write_core(int sig)
 {
   signal(sig, SIG_DFL);
   pthread_kill(pthread_self(), sig);
-#if defined(P_PID) && defined(P_MYID)
+#if defined(P_MYID)
   /* On Solaris, the above kill is not enough */
   sigsend(P_PID,P_MYID,sig);
 #endif
