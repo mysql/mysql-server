@@ -442,6 +442,7 @@ v
 select sql_mode from information_schema.ROUTINES;
 sql_mode
 
+drop procedure px5;
 create table t1 (a int not null auto_increment,b int, primary key (a));
 insert into t1 values (1,1),(NULL,3),(NULL,4);
 select AUTO_INCREMENT from information_schema.tables where table_name = 't1';
@@ -508,3 +509,34 @@ g	int(11)	11	11	11	0
 h	double(10,3)	10	10	10	3
 i	double	22	22	22	NULL
 drop table t1;
+create table t115 as select table_name, column_name, column_type
+from information_schema.columns where table_name = 'proc';
+select * from t115;
+table_name	column_name	column_type
+proc	db	varchar(64)
+proc	name	varchar(64)
+proc	type	enum('FUNCTION','PROCEDURE')
+proc	specific_name	varchar(64)
+proc	language	enum('SQL')
+proc	sql_data_access	enum('CONTAINS_SQL','NO_SQL','READS_SQL_DATA','MODIFIES_SQL_DATA')
+proc	is_deterministic	enum('YES','NO')
+proc	security_type	enum('INVOKER','DEFINER')
+proc	param_list	blob
+proc	returns	varchar(64)
+proc	body	blob
+proc	definer	varchar(77)
+proc	created	timestamp
+proc	modified	timestamp
+proc	sql_mode	set('REAL_AS_FLOAT','PIPES_AS_CONCAT','ANSI_QUOTES','IGNORE_SPACE','NOT_USED','ONLY_FULL_GROUP_BY','NO_UNSIGNED_SUBTRACTION','NO_DIR_IN_CREATE','POSTGRESQL','ORACLE','MSSQL','DB2','MAXDB','NO_KEY_OPTIONS','NO_TABLE_OPTIONS','NO_FIELD_OPTIONS','MYSQL323','MYSQL40','ANSI','NO_AUTO_VALUE_ON_ZERO')
+proc	comment	varchar(64)
+drop table t115;
+create view vk as select count(*) from information_schema.tables a;
+select * from vk;
+count(*)
+17
+drop view vk;
+create procedure p108 () begin declare c cursor for select data_type
+from information_schema.columns;  open c; open c; end;//
+call p108()//
+ERROR 24000: Cursor is already open
+drop procedure p108;

@@ -2152,7 +2152,8 @@ buf_get_latched_pages_number(void)
 
                block = buf_pool_get_nth_block(buf_pool, i);
 
-               if ((block->buf_fix_count != 0) || (block->io_fix != 0))
+               if (((block->buf_fix_count != 0) || (block->io_fix != 0)) &&
+                    block->magic_n == BUF_BLOCK_MAGIC_N )
                        fixed_pages_number++;
         }
 

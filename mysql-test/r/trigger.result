@@ -150,6 +150,10 @@ create trigger trg before delete on t1 for each row set new.i:=1;
 ERROR HY000: There is no NEW row in on DELETE trigger
 create trigger trg after update on t1 for each row set new.i:=1;
 ERROR HY000: Updating of NEW row is not allowed in after trigger
+create trigger trg before update on t1 for each row set new.j:=1;
+ERROR 42S22: Unknown column 'j' in 'NEW'
+create trigger trg before update on t1 for each row set @a:=old.j;
+ERROR 42S22: Unknown column 'j' in 'OLD'
 create trigger trg before insert on t2 for each row set @a:=1;
 ERROR 42S02: Table 'test.t2' doesn't exist
 create trigger trg before insert on t1 for each row set @a:=1;

@@ -161,8 +161,10 @@ create trigger trg before update on t1 for each row set old.i:=1;
 create trigger trg before delete on t1 for each row set new.i:=1;
 --error 1362
 create trigger trg after update on t1 for each row set new.i:=1;
-# TODO: We should also test wrong field names here, we don't do it now
-#       because proper error handling is not in place yet.
+--error 1054
+create trigger trg before update on t1 for each row set new.j:=1;
+--error 1054
+create trigger trg before update on t1 for each row set @a:=old.j;
 
 
 #
