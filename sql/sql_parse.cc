@@ -124,6 +124,16 @@ static bool end_active_trans(THD *thd)
 
 static HASH hash_user_connections;
 
+/*
+  get_or_create_user_conn()
+
+  RETURN VALUE
+    0  OK; thd->user_connect is set, thd->user_connect->connections is
+    incremented by one (so that the user_connect object cannot be dropped
+    while we are using it)
+    1  error
+*/
+
 static int get_or_create_user_conn(THD *thd, const char *user,
 				   const char *host,
 				   USER_RESOURCES *mqh)
@@ -157,7 +167,7 @@ static int get_or_create_user_conn(THD *thd, const char *user,
     uc->user_len= user_len;
     uc->host=uc->user + uc->user_len +  1;
     uc->len = temp_len;
-    uc->connections = 0;	/* BUG FIX by Heikki Oct 25, 2003 */
+    uc->connections = 1;	/* Another BUG FIX by Heikki Oct 26, 2003 */
     uc->questions=uc->updates=uc->conn_per_hour=0;
     uc->user_resources=*mqh;
     if (max_user_connections && mqh->connections > max_user_connections)
@@ -170,12 +180,14 @@ static int get_or_create_user_conn(THD *thd, const char *user,
       return_val=1;
       goto end;
     }
+  } else {
+    uc->connections++;		/* BUG FIX by Heikki Oct 26, 2003 */
   }
+
   thd->user_connect=uc;
 end:
   (void) pthread_mutex_unlock(&LOCK_user_conn);
   return return_val;
-
 }
 
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
@@ -199,8 +211,9 @@ end:
     are 'IN'.
 
   RETURN VALUE
-    0  OK; thd->user, thd->master_access, thd->priv_user, thd->db and
-       thd->db_access are updated; OK is sent to client;
+    0  OK; thd->user, thd->master_access, thd->priv_user, thd->db,
+       thd->db_access, and thd->user_connect->connections are updated; OK is
+       sent to client;
    -1  access denied or handshake error; error is sent to client;
    >0  error, not sent to client
 */
@@ -316,29 +329,24 @@ int check_user(THD *thd, enum enum_server_command command,
       /* Don't allow user to connect if he has done too many queries */
 
       /*
-      BUG FIX by Heikki Oct 25, 2003: since get_or_create_user_conn()
-      creates or finds the user object and does NOT check anything about ur,
-      we should call it always.
+      BUG FIXes by Heikki Oct 26, 2003
+
+      NOTE that the call get_or_create_user_conn() increments the connection
+      count by 1 if it succeeds! This is to prevent the dropping of the
+      thd->user_connect object before we check the connection limits in
+      check_for_max_user_connections.
       */
 
-      if ( /* (ur.questions || ur.updates ||
-           ur.connections || max_user_connections) && */
-          get_or_create_user_conn(thd,thd->user,thd->host_or_ip,&ur))
-        DBUG_RETURN(1);
-
-      /*
-      BUG FIX by Heikki Oct 25, 2003: since
-      check_for_max_user_connections() keeps the count of user connections,
-      and we delete the user object when the number of connections drops to
-      zero, we must call it always to keep the count right! Otherwise the
-      user object can get deleted too early, which caused memory corruption
-      to a user in Oct 2003.
-      */
+      if (get_or_create_user_conn(thd,thd->user,thd->host_or_ip,&ur))
+       DBUG_RETURN(1);
 
       if (thd->user_connect &&
-		/* thd->user_connect->user_resources.connections && */
           check_for_max_user_connections(thd, thd->user_connect))
+      { 
+	decrease_user_connections(thd->user_connect);
+
         DBUG_RETURN(1);
+      }
 
       /* Change database if necessary: OK or FAIL is sent in mysql_change_db */
       if (db && db[0])
@@ -416,14 +424,12 @@ static int check_for_max_user_connections(THD *thd, USER_CONN *uc)
   (void) pthread_mutex_lock(&LOCK_user_conn);
 
   if (max_user_connections &&
-      (max_user_connections <  (uint) uc->connections))
+      (max_user_connections < (uint) uc->connections))
   {
     net_printf(thd,ER_TOO_MANY_USER_CONNECTIONS, uc->user);
     error=1;
     goto end;
   }
-
-  uc->connections++;
 
   if (uc->user_resources.connections &&
       uc->conn_per_hour++ >= uc->user_resources.connections)
@@ -433,6 +439,7 @@ static int check_for_max_user_connections(THD *thd, USER_CONN *uc)
 	       (long) uc->user_resources.connections);
     error=1;
   }
+
 end:
 
   (void) pthread_mutex_unlock(&LOCK_user_conn);
@@ -455,9 +462,10 @@ static void decrease_user_connections(USER_CONN *uc)
   if (uc->connections == 0)
 	printf("Error: trying to decrease user %s connections below zero!\n",
 				                                 uc->user);
-  if ((uc->connections && !--uc->connections) && !mqh_used)
+  if ((!--uc->connections) && !mqh_used)
   {
-    /* Last connection for user; Delete it */
+    /* Last connection for user; delete it if we do not need the object
+    for keeping maximum-queries-per-hour statistics (mqh) */
 
     (void) hash_delete(&hash_user_connections,(byte*) uc);
   }
@@ -1296,7 +1304,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     else
     {
       /* we've authenticated new user */
-      if (max_connections && save_uc)
+      if (save_uc)  /* BUG FIX by Heikki Oct 26, 2003: always keep the count */
         decrease_user_connections(save_uc);
       x_free((gptr) save_db);
       x_free((gptr) save_user);
