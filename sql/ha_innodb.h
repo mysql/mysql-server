@@ -222,7 +222,7 @@ int innobase_savepoint(
 	my_off_t binlog_cache_pos);
 int innobase_close_connection(THD *thd);
 int innobase_drop_database(char *path);
-int innodb_show_status(THD* thd);
+bool innodb_show_status(THD* thd);
 
 my_bool innobase_query_caching_of_table_permitted(THD* thd, char* full_name,
 						uint full_name_len);
