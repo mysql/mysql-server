@@ -13,7 +13,7 @@ show slave status;
 change master to master_host='127.0.0.1',master_user='root',
  master_password='',master_port=9306;
 show slave status;
-slave start;
+!slave start;
 sync_with_master;
 show slave status;
 connection master;
