@@ -419,6 +419,7 @@ a
 (SELECT * FROM t1) UNION all (SELECT SQL_CALC_FOUND_ROWS * FROM t2) LIMIT 1;
 Wrong usage/placement of 'SQL_CALC_FOUND_ROWS'
 create temporary table t1 select a from t1 union select a from t2;
+drop table t1;
 create table t1 select a from t1 union select a from t2;
 INSERT TABLE 't1' isn't allowed in FROM table list
 select a from t1 union select a from t2 order by t2.a;
