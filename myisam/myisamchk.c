@@ -149,7 +149,7 @@ enum options_mc {
   OPT_CORRECT_CHECKSUM, OPT_KEY_BUFFER_SIZE, OPT_MYISAM_BLOCK_SIZE,
   OPT_READ_BUFFER_SIZE, OPT_WRITE_BUFFER_SIZE, OPT_SORT_BUFFER_SIZE,
   OPT_SORT_KEY_BLOCKS, OPT_DECODE_BITS, OPT_FT_MIN_WORD_LEN,
-  OPT_FT_MAX_WORD_LEN, OPT_FT_MAX_WORD_LEN_FOR_SORT
+  OPT_FT_MAX_WORD_LEN, OPT_FT_MAX_WORD_LEN_FOR_SORT, OPT_FT_STOPWORD_FILE
 };
 
 static struct my_option my_long_options[] =
@@ -315,6 +315,10 @@ static struct my_option my_long_options[] =
   { "ft_max_word_len_for_sort", OPT_FT_MAX_WORD_LEN_FOR_SORT, "",
     (gptr*) &ft_max_word_len_for_sort, (gptr*) &ft_max_word_len_for_sort, 0,
     GET_ULONG, REQUIRED_ARG, 20, 4, HA_FT_MAXLEN, 0, 1, 0},
+  { "ft_stopword_file", OPT_FT_STOPWORD_FILE,
+    "Use stopwords from this file instead of built-in list.",
+    (gptr*) &ft_stopword_file, (gptr*) &ft_stopword_file, 0, GET_STR,
+    REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}
 };
 
