@@ -6025,9 +6025,13 @@ static void clear_tables(JOIN *join)
 
 class COND_CMP :public ilink {
 public:
-  static void *operator new(size_t size) {return (void*) sql_alloc((uint) size); }
+  static void *operator new(size_t size)
+  {
+    return (void*) sql_alloc((uint) size);
+  }
   static void operator delete(void *ptr __attribute__((unused)),
-			      size_t size __attribute__((unused))) {} /*lint -e715 */
+                              size_t size __attribute__((unused)))
+  { TRASH(ptr, size); }
 
   Item *and_level;
   Item_func *cmp_func;
