@@ -1395,15 +1395,21 @@ extern "C" byte* my_offset_tzs_get_key(Time_zone_offset *entry, uint *length,
 
 
 /*
-  Prepare table list with time zone related tables from preallocated array.
+  Prepare table list with time zone related tables from preallocated array
+  and add to global table list.
 
   SYNOPSIS
     tz_init_table_list()
-      tz_tabs - pointer to preallocated array of 4 TABLE_LIST objects.
+      tz_tabs         - pointer to preallocated array of 4 TABLE_LIST objects
+      global_next_ptr - pointer to variable which points to global_next member
+                        of last element of global table list (or list root
+                        then list is empty) (in/out).
 
   DESCRIPTION
     This function prepares list of TABLE_LIST objects which can be used
-    for opening of time zone tables from preallocated array.
+    for opening of time zone tables from preallocated array. It also links
+    this list to the end of global table list (it will read and update
+    accordingly variable pointed by global_next_ptr for this).
 */
 
 static void
@@ -1434,15 +1440,21 @@ tz_init_table_list(TABLE_LIST *tz_tabs, TABLE_LIST ***global_next_ptr)
 
 
 /*
-  Create table list with time zone related tables.
+  Create table list with time zone related tables and add it to the end
+  of global table list.
 
   SYNOPSIS
     my_tz_get_table_list()
-      thd     - current thread object
+      thd             - current thread object
+      global_next_ptr - pointer to variable which points to global_next member
+                        of last element of global table list (or list root
+                        then list is empty) (in/out).
 
   DESCRIPTION
     This function creates list of TABLE_LIST objects allocated in thd's
-    memroot, which can be used for opening of time zone tables.
+    memroot, which can be used for opening of time zone tables. It will also
+    link this list to the end of global table list (it will read and update
+    accordingly variable pointed by global_next_ptr for this).
 
   RETURN VALUES
     Returns pointer to first TABLE_LIST object, (could be 0 if time zone
@@ -1497,7 +1509,7 @@ my_tz_init(THD *org_thd, const char *default_tzname, my_bool bootstrap)
 {
   THD *thd;
   TABLE_LIST *tables= 0;
-  TABLE_LIST tables_buff[5], **tmp_link, *first_table;
+  TABLE_LIST tables_buff[5], **last_global_next_ptr;
   TABLE *table;
   TZ_NAMES_ENTRY *tmp_tzname;
   my_bool return_val= 1;
@@ -1564,10 +1576,12 @@ my_tz_init(THD *org_thd, const char *default_tzname, my_bool bootstrap)
     (char*)"time_zone_leap_second";
   tables_buff[0].lock_type= TL_READ;
   tables_buff[0].db= thd->db;
-  tables_buff[0].next_global= tables_buff[0].next_local= tables_buff + 1;
-  /* Fill TABLE_LIST for rest of the time zone describing tables */
-  tmp_link= &first_table;
-  tz_init_table_list(tables_buff + 1, &tmp_link);
+  /*
+    Fill TABLE_LIST for the rest of the time zone describing tables
+    and link it to first one.
+  */
+  last_global_next_ptr= &(tables_buff[0].next_global);
+  tz_init_table_list(tables_buff + 1, &last_global_next_ptr);
 
   if (open_tables(thd, tables_buff, &counter) ||
       lock_tables(thd, tables_buff, counter))
