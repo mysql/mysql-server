@@ -695,7 +695,6 @@ struct show_var_st init_vars[]= {
   {"port",                    (char*) &mysqld_port,                  SHOW_INT},
   {"protocol_version",        (char*) &protocol_version,            SHOW_INT},
   {sys_preload_buff_size.name, (char*) &sys_preload_buff_size,      SHOW_SYS},
-  {sys_pseudo_thread_id.name, (char*) &sys_pseudo_thread_id,        SHOW_SYS},
   {sys_query_alloc_block_size.name, (char*) &sys_query_alloc_block_size,
    SHOW_SYS},
 #ifdef HAVE_QUERY_CACHE
