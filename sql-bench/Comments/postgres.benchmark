@@ -1,4 +1,4 @@
-# This file describes how to run MySQL benchmarks with PostgreSQL
+# This file describes how to run MySQL benchmark suite with PostgreSQL
 #
 # WARNING:
 #
@@ -18,7 +18,7 @@
 # WARNING
 
 # The test was run on a Intel Xeon 2x 550 Mzh machine with 1G memory,
-# 9G hard disk.  The OS is Suse 6.4, with Linux 2.2.14 compiled with SMP
+# 9G hard disk.  The OS is Suse 7.1, with Linux 2.4.0 compiled with SMP
 # support
 # Both the perl client and the database server is run
 # on the same machine. No other cpu intensive process was used during
