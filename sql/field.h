@@ -113,7 +113,7 @@ public:
      This trickery is used to decrease a number of malloc calls.
   */
   virtual String *val_str(String*,String *)=0;
-  String *Field::val_int_as_str(String *val_buffer, my_bool unsigned_flag);
+  String *val_int_as_str(String *val_buffer, my_bool unsigned_flag);
   virtual Item_result result_type () const=0;
   virtual Item_result cmp_type () const { return result_type(); }
   bool eq(Field *field)
