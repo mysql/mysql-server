@@ -223,6 +223,8 @@ int mysql_derived(THD *thd, LEX *lex, SELECT_LEX_UNIT *unit,
       /* Add new temporary table to list of open derived tables */
       table->next= thd->derived_tables;
       thd->derived_tables= table;
+      thd->query_id++;
+      query_id++;
     }
 
 exit:
