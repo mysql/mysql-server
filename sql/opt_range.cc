@@ -1169,9 +1169,9 @@ end:
   DBUG_EXECUTE("info",
     {
       if (quick_imerge)
-        print_quick_sel_imerge(quick_imerge, needed_reg);
+        print_quick_sel_imerge(quick_imerge, &needed_reg);
       else
-        print_quick_sel_range((QUICK_RANGE_SELECT*)quick, needed_reg);
+        print_quick_sel_range((QUICK_RANGE_SELECT*)quick, &needed_reg);
     }
   );
 
@@ -1720,7 +1720,6 @@ tree_and(PARAM *param,SEL_TREE *tree1,SEL_TREE *tree2)
     uint flag=0;
     if (*key1 || *key2)
     {
-      trees_have_key = true;
       if (*key1 && !(*key1)->simple_key())
 	flag|=CLONE_KEY1_MAYBE;
       if (*key2 && !(*key2)->simple_key())
