@@ -773,6 +773,7 @@ extern rw_lock_t	LOCK_grant;
 extern pthread_cond_t COND_refresh, COND_thread_count, COND_manager;
 extern pthread_attr_t connection_attrib;
 extern I_List<THD> threads;
+extern I_List<NAMED_LIST> key_caches;
 extern MY_BITMAP temp_pool;
 extern DATE_FORMAT dayord;
 extern String empty_string;
@@ -907,9 +908,10 @@ extern void sql_cache_free();
 extern int sql_cache_hit(THD *thd, char *inBuf, uint length);
 
 /* item.cc */
-Item *get_system_var(enum_var_type var_type, LEX_STRING name);
-Item *get_system_var(enum_var_type var_type, const char *var_name, uint length,
-		     const char *item_name);
+Item *get_system_var(THD *thd, enum_var_type var_type, LEX_STRING name,
+		     LEX_STRING component);
+Item *get_system_var(THD *thd, enum_var_type var_type, const char *var_name,
+		     uint length, const char *item_name);
 /* log.cc */
 bool flush_error_log(void);
 
