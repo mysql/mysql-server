@@ -2777,7 +2777,7 @@ int ha_ndbcluster::reset()
 
 
 const char **ha_ndbcluster::bas_ext() const
-{ static const char *ext[]= { ".ndb", NullS }; return ext; }
+{ static const char *ext[]= { ha_ndb_ext, NullS }; return ext; }
 
 
 /*
