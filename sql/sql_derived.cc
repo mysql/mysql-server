@@ -128,14 +128,14 @@ int mysql_derived(THD *thd, LEX *lex, SELECT_LEX_UNIT *unit,
 	cursor->table->clear_query_id= 1;
     }
 	
-    bzero((char*) &tmp_table_param,sizeof(tmp_table_param));
-    tmp_table_param.field_count= unit->types.elements;
+    bzero((char*) &derived_result->tmp_table_param, sizeof(tmp_table_param));
+    derived_result->tmp_table_param.field_count= unit->types.elements;
     /*
       Temp table is created so that it hounours if UNION without ALL is to be 
       processed
     */
-    if (!(table= create_tmp_table(thd, &tmp_table_param, unit->types,
-				  (ORDER*) 0, 
+    if (!(table= create_tmp_table(thd, &derived_result->tmp_table_param,
+				  unit->types, (ORDER*) 0, 
 				  is_union && !unit->union_option, 1,
 				  (first_select->options | thd->options |
 				   TMP_TABLE_ALL_COLUMNS),
@@ -146,7 +146,6 @@ int mysql_derived(THD *thd, LEX *lex, SELECT_LEX_UNIT *unit,
       goto exit;
     }
     derived_result->set_table(table);
-    derived_result->tmp_table_param=tmp_table_param;
 
     unit->offset_limit_cnt= first_select->offset_limit;
     unit->select_limit_cnt= first_select->select_limit+
