@@ -39360,6 +39360,11 @@ though, so Version 3.23 is not released as a stable version yet.
 @appendixsubsec Changes in release 3.23.29
 @itemize @bullet
 @item
+Fixed a bug with @code{HEAP} type tables; the variable
+@code{max_heap_table_size} wasn't used. Now either @code{MAX_ROWS} or
+@code[max_heap_table_size} can be used to limit the size of a @code{HEAP}
+type table.
+@item
 Renamed variable @code{bdb_lock_max} to @code{bdb_max_lock}.
 @item
 Changed the default server-id to 1 for masters and 2 for slaves
