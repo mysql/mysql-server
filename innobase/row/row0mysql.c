@@ -2051,6 +2051,7 @@ row_drop_table_for_mysql(
 	memcpy(sql, str1, (sizeof str1) - 1);
 	memcpy(sql + (sizeof str1) - 1, quoted_name, namelen);
 	memcpy(sql + (sizeof str1) - 1 + namelen, str2, sizeof str2);
+	mem_free(quoted_name);
 
 	/* Serialize data dictionary operations with dictionary mutex:
 	no deadlocks can occur then in these operations */

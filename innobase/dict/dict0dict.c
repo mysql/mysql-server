@@ -2500,7 +2500,9 @@ dict_strip_comments(
 	char*	str;
 	char*	sptr;
 	char*	ptr;
-	
+ 	/* unclosed quote character (0 if none) */
+ 	char		quote	= 0;
+
 	str = mem_alloc(strlen(sql_string) + 1);
 
 	sptr = sql_string;
@@ -2515,8 +2517,18 @@ scan_more:
 
 			return(str);
 		}
-		
-		if (*sptr == '#'
+
+		if (*sptr == quote) {
+			/* Closing quote character: do not look for
+			starting quote or comments. */
+			quote = 0;
+		} else if (quote) {
+			/* Within quotes: do not look for
+			starting quotes or comments. */
+		} else if (*sptr == '"' || *sptr == '`') {
+			/* Starting quote: remember the quote character. */
+			quote = *sptr;
+		} else if (*sptr == '#'
 		    || (0 == memcmp("-- ", sptr, 3))) {
 			for (;;) {
 				/* In Unix a newline is 0x0A while in Windows
@@ -2531,9 +2543,7 @@ scan_more:
 
 				sptr++;
 			}
-		}
-
-		if (*sptr == '/' && *(sptr + 1) == '*') {
+		} else if (!quote && *sptr == '/' && *(sptr + 1) == '*') {
 			for (;;) {
 				if (*sptr == '*' && *(sptr + 1) == '/') {
 
