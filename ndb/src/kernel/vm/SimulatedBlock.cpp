@@ -660,6 +660,7 @@ SimulatedBlock::allocRecord(const char * type, size_t s, size_t n)
       snprintf(buf2, sizeof(buf2), "Requested: %ux%u = %u bytes", (Uint32)s, (Uint32)n, (Uint32)size);
       ERROR_SET(fatal, ERR_MEMALLOC, buf1, buf2);
     }
+  }
   return p;
 }
 
