@@ -1076,34 +1076,33 @@ int select_dumpvar::prepare(List<Item> &list, SELECT_LEX_UNIT *u)
   List_iterator_fast<Item> li(list);
   List_iterator_fast<my_var> gl(var_list);
   Item *item;
-  my_var *mv;
-  LEX_STRING *ls;
 
+  local_vars.empty();				// Clear list if SP
+  unit= u;
   row_count= 0;
+
   if (var_list.elements != list.elements)
   {
     my_error(ER_WRONG_NUMBER_OF_COLUMNS_IN_SELECT, MYF(0));
     return 1;
   }
-  unit=u;
   while ((item=li++))
   {
-    mv=gl++;
-    ls= &mv->s;
+    my_var *mv= gl++;
     if (mv->local)
-    {
       (void)local_vars.push_back(new Item_splocal(mv->offset));
-    }
     else
     {
-      Item_func_set_user_var *xx = new Item_func_set_user_var(*ls,item);
-      xx->fix_fields(thd,(TABLE_LIST*) thd->lex->select_lex.table_list.first,&item);
+      Item_func_set_user_var *xx = new Item_func_set_user_var(mv->s, item);
+      xx->fix_fields(thd, (TABLE_LIST*) thd->lex->select_lex.table_list.first,
+		     &item);
       xx->fix_length_and_dec();
       vars.push_back(xx);
     }
   }
   return 0;
 }
+
 
 bool select_dumpvar::send_data(List<Item> &items)
 {
