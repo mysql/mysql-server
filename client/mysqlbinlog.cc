@@ -61,7 +61,7 @@ static const char *load_default_groups[]= { "mysqlbinlog","client",0 };
 
 void sql_print_error(const char *format, ...);
 
-static bool one_database=0, to_last_remote_log= 0;
+static bool one_database=0, to_last_remote_log= 0, disable_log_bin= 0;
 static const char* database= 0;
 static my_bool force_opt= 0, short_form= 0, remote_opt= 0;
 static ulonglong offset = 0;
@@ -495,6 +495,13 @@ static struct my_option my_long_options[] =
   {"database", 'd', "List entries for just this database (local log only).",
    (gptr*) &database, (gptr*) &database, 0, GET_STR_ALLOC, REQUIRED_ARG,
    0, 0, 0, 0, 0, 0},
+  {"disable-log-bin", 'D', "Disable binary log. This is useful, if you "
+    "enabled --to-last-log and are sending the output to the same MySQL server. "
+    "This way you could avoid an endless loop. You would also like to use it "
+    "when restoring after a crash to avoid duplication of the statements you "
+    "already have. NOTE: you will need a SUPER privilege to use this option.",
+   (gptr*) &disable_log_bin, (gptr*) &disable_log_bin, 0, GET_BOOL,
+   NO_ARG, 0, 0, 0, 0, 0, 0},
   {"force-read", 'f', "Force reading unknown binlog events.",
    (gptr*) &force_opt, (gptr*) &force_opt, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0,
    0, 0},
@@ -1218,6 +1225,11 @@ int main(int argc, char** argv)
 
   fprintf(result_file,
 	  "/*!40019 SET @@session.max_insert_delayed_threads=0*/;\n");
+
+  if (disable_log_bin)
+    fprintf(result_file,
+            "/*!32316 SET @OLD_SQL_LOG_BIN=@@SQL_LOG_BIN, SQL_LOG_BIN=0*/;\n");
+
   for (save_stop_position= stop_position, stop_position= ~(my_off_t)0 ;
        (--argc >= 0) && !stop_passed ; )
   {
@@ -1231,6 +1243,9 @@ int main(int argc, char** argv)
     // For next log, --start-position does not apply
     start_position= BIN_LOG_HEADER_SIZE;
   }
+
+  if (disable_log_bin)
+    fprintf(result_file, "/*!32316 SET SQL_LOG_BIN=@OLD_SQL_LOG_BIN*/;\n");
 
   if (tmpdir.list)
     free_tmpdir(&tmpdir);
