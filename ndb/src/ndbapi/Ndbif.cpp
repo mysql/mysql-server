@@ -301,6 +301,7 @@ Ndb::abortTransactionsAfterNodeFailure(Uint16 aNodeId)
       intact since the node was failing and they were aborted. Thus we
       set commit state to Aborted and set state to release on close.
       */
+      localCon->theReturnStatus = NdbConnection::ReturnFailure;
       localCon->theCommitStatus = NdbConnection::Aborted;
       localCon->theReleaseOnClose = true;
       completedTransaction(localCon);

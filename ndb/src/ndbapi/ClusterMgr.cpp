@@ -429,7 +429,6 @@ ClusterMgr::reportDisconnected(NodeId nodeId){
 
   noOfConnectedNodes--;
   theNodes[nodeId].connected = false;
-  theNodes[nodeId].m_info.m_connectCount ++;
   reportNodeFailed(nodeId);
 }
 
@@ -439,18 +438,22 @@ ClusterMgr::reportNodeFailed(NodeId nodeId){
   Node & theNode = theNodes[nodeId];
  
   theNode.m_alive = false;
-  if(theNode.connected)
-    theFacade.doDisconnect(nodeId);
+  theNode.m_info.m_connectCount ++;
   
+  if(theNode.connected)
+  {
+    theFacade.doDisconnect(nodeId);
+  }
   const bool report = (theNode.m_state.startLevel != NodeState::SL_NOTHING);  
   theNode.m_state.startLevel = NodeState::SL_NOTHING;
   
-  if(report){
+  if(report)
+  {
     theFacade.ReportNodeDead(nodeId);
-  }  
-
+  }
+  
   theNode.nfCompleteRep = false;
-
+  
   if(noOfConnectedNodes == 0){
     NFCompleteRep rep;
     for(Uint32 i = 1; i<MAX_NODES; i++){
