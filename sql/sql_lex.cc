@@ -912,6 +912,7 @@ int yylex(void *arg, void *yythd)
         if ((thd->client_capabilities & CLIENT_MULTI_STATEMENTS) && 
             (thd->command != COM_PREPARE))
         {
+	  lex->safe_to_cache_query=0;
           lex->found_colon=(char*)lex->ptr;
           thd->server_status |= SERVER_MORE_RESULTS_EXISTS;
           lex->next_state=MY_LEX_END;
