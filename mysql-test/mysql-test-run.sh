@@ -418,7 +418,7 @@ while test $# -gt 0; do
       fi
       # >=2.1.2 requires the --tool option, some versions write to stdout, some to stderr
       valgrind --help 2>&1 | grep "\-\-tool" > /dev/null && VALGRIND="$VALGRIND --tool=memcheck"
-      VALGRIND="$VALGRIND --alignment=8 --leak-check=yes --num-callers=16"
+      VALGRIND="$VALGRIND --alignment=8 --leak-check=yes --num-callers=16 --suppressions=$CWD/valgrind.supp"
       EXTRA_MASTER_MYSQLD_OPT="$EXTRA_MASTER_MYSQLD_OPT --skip-safemalloc --skip-bdb"
       EXTRA_SLAVE_MYSQLD_OPT="$EXTRA_SLAVE_MYSQLD_OPT --skip-safemalloc --skip-bdb"
       SLEEP_TIME_AFTER_RESTART=10
