@@ -14,7 +14,7 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-#define MANAGER_CLIENT_VERSION "1.1"
+#define MANAGER_CLIENT_VERSION "1.2"
 
 #include <my_global.h>
 #include <mysql.h>
@@ -22,7 +22,7 @@
 #include <mysqld_error.h>
 #include <my_sys.h>
 #include <m_string.h>
-#include <getopt.h>
+#include <my_getopt.h>
 #include <stdarg.h>
 #include <sys/stat.h>
 #include <unistd.h>
@@ -35,23 +35,31 @@ static void die(const char* fmt, ...);
 
 const char* user="root",*host="localhost";
 char* pass=0;
-int quiet=0;
+my_bool quiet=0;
 uint port=MYSQL_MANAGER_PORT;
 static const char *load_default_groups[]= { "mysqlmanagerc",0 };
 char** default_argv;
 MYSQL_MANAGER *manager;
 FILE* fp, *fp_out;
 
-struct option long_options[] =
+static struct my_option my_long_options[] =
 {
-  {"host",required_argument,0,'h'},
-  {"user",required_argument,0,'u'},
-  {"password",optional_argument,0,'p',},
-  {"port",required_argument,0,'P'},
-  {"help",no_argument,0,'?'},
-  {"version",no_argument,0,'V'},
-  {"quiet",no_argument,0,'q'},
-  {0,0,0,0}
+  {"host", 'h', "Connect to host.", (gptr*) &host, (gptr*) &host, 0,
+   GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"user", 'u', "User for login.", (gptr*) &user, (gptr*) &user, 0,
+   GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"password", 'p', "Password to use when connecting to server.",
+   0, 0, 0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
+  {"port", 'P', "Port number to use for connection.", (gptr*) &port,
+   (gptr*) &port, 0, GET_UINT, REQUIRED_ARG, MYSQL_MANAGER_PORT, 0, 0, 0, 0,
+   0},
+  {"help", '?', "Display this help and exit.", 0, 0, 0, GET_NO_ARG, NO_ARG,
+   0, 0, 0, 0, 0, 0},
+  {"version", 'V', "Output version information and exit.",  0, 0, 0,
+   GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"quiet", 'q', "Suppress all normal output.", (gptr*) &quiet, (gptr*) &quiet,
+   0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
 
 static void die(const char* fmt, ...)
@@ -84,65 +92,53 @@ void usage()
   printf("This software comes with ABSOLUTELY NO WARRANTY\n\n");
   printf("Command-line client for MySQL manager daemon.\n\n");
   printf("Usage: %s [OPTIONS] < command_file\n", my_progname);
-  printf("\n\
-  -?, --help               Display this help and exit.\n");
-  printf("\
-  -h, --host=...           Connect to host.\n\
-  -u, --user=...           User for login.\n\
-  -p[password], --password[=...]\n\
-                           Password to use when connecting to server.\n\
-  -P, --port=...           Port number to use for connection.\n\
-  -q, --quiet, --silent    Suppress all normal output.\n\
-  -V, --version            Output version information and exit.\n\
-  --no-defaults            Don't read default options from any options file.\n\n");
+  my_print_help(my_long_options);
+  printf("  --no-defaults         Don't read default options from any options file.\n\n");
+  my_print_variables(my_long_options);
 }
+
+
+static my_bool
+get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
+	       char *argument)
+{
+  my_bool tty_password=0;
+  
+  switch (optid) {
+  case 'p':
+    if (argument)
+    {
+      my_free(pass, MYF(MY_ALLOW_ZERO_PTR));
+      pass= my_strdup(argument, MYF(MY_FAE));
+      while (*argument) *argument++= 'x';	/* Destroy argument */
+    }
+    else
+      tty_password=1;
+    break;
+  case 'V':
+    print_version();
+    exit(0);
+  case '?':
+    usage();
+    exit(0);				
+  }
+  return 0;
+}
+
+
 int parse_args(int argc, char **argv)
 {
-  int c, option_index = 0;
-  my_bool tty_password=0;
+  int ho_error;
 
   load_defaults("my",load_default_groups,&argc,&argv);
   default_argv= argv;
-
-  while ((c = getopt_long(argc, argv, "h:p::u:P:?Vq",
-			 long_options, &option_index)) != EOF)
-    {
-      switch (c)
-      {
-      case 'h':
-	host=optarg;
-	break;
-      case 'u':
-	user=optarg;
-	break;
-      case 'p':
-	if (optarg)
-	{
-	  my_free(pass,MYF(MY_ALLOW_ZERO_PTR));
-	  pass=my_strdup(optarg,MYF(MY_FAE));
-	  while (*optarg) *optarg++= 'x';		/* Destroy argument */
-	}
-	else
-	  tty_password=1;
-	break;
-      case 'P':
-	port=atoi(optarg);
-	break;
-      case 'q':
-	quiet=1;
-	break;
-      case 'V':
-	print_version();
-	exit(0);
-      case '?':
-	usage();
-	exit(0);				
-      default:
-	usage();
-	exit(1);
-      }
-    }
- return 0;
+  if ((ho_error=handle_options(&argc, &argv, my_long_options, get_one_option)))
+  {
+    printf("%s: handle_options() failed with error %d\n", my_progname,
+	   ho_error);
+    exit(1);
+  }
+  return 0;
 }
 int main(int argc, char** argv)
 {

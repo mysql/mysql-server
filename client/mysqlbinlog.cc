@@ -19,6 +19,7 @@
 #include "client_priv.h"
 #include <time.h>
 #include "log_event.h"
+#include <my_getopt.h>
 
 #define PROBE_HEADER_LEN (4+EVENT_LEN_OFFSET+4)
 
@@ -37,26 +38,6 @@ static FILE *result_file;
 #ifndef DBUG_OFF
 static const char* default_dbug_option = "d:t:o,/tmp/mysqlbinlog.trace";
 #endif
-
-static struct option long_options[] =
-{
-#ifndef DBUG_OFF
-  {"debug", 	  optional_argument, 	0, '#'},
-#endif
-  {"database",    required_argument,    0, 'd'},
-  {"help", 	  no_argument, 		0, '?'},
-  {"host", 	  required_argument,	0, 'h'},
-  {"offset", 	  required_argument,	0, 'o'},
-  {"password",	  required_argument,	0, 'p'},
-  {"port", 	  required_argument,	0, 'P'},
-  {"position",	  required_argument,	0, 'j'},
-  {"result-file", required_argument,    0, 'r'},
-  {"short-form",  no_argument,		0, 's'},
-  {"table", 	  required_argument, 	0, 't'},
-  {"user",	  required_argument,	0, 'u'},
-  {"version",	  no_argument, 		0, 'V'},
-  {0,0,0,0}
-};
 
 void sql_print_error(const char *format,...);
 
@@ -82,6 +63,44 @@ static void dump_remote_table(NET* net, const char* db, const char* table);
 static void die(const char* fmt, ...);
 static MYSQL* safe_connect();
 
+static struct my_option my_long_options[] =
+{
+#ifndef DBUG_OFF
+  {"debug", '#', "Output debug log.", (gptr*) &default_dbug_option,
+   (gptr*) &default_dbug_option, 0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
+#endif
+  {"database", 'd', "List entries for just this database (local log only)",
+   (gptr*) &database, (gptr*) &database, 0, GET_STR_ALLOC, REQUIRED_ARG,
+   0, 0, 0, 0, 0, 0},
+  {"help", '?', "Display this help and exit",
+   0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"host", 'h', "Get the binlog from server", (gptr*) &host, (gptr*) &host,
+   0, GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"offset", 'o', "Skip the first N entries", (gptr*) &offset, (gptr*) &offset,
+   0, GET_ULL, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"password", 'p', "Password to connect to remote server",
+   0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"port", 'P', "Use port to connect to the remote server",
+   (gptr*) &port, (gptr*) &port, 0, GET_INT, REQUIRED_ARG, MYSQL_PORT, 0, 0,
+   0, 0, 0},
+  {"position", 'j', "Start reading the binlog at position N",
+   (gptr*) &position, (gptr*) &position, 0, GET_ULL, REQUIRED_ARG, 0, 0, 0, 0,
+   0, 0},
+  {"result-file", 'r', "Direct output to a given file", 0, 0, 0, GET_STR,
+   REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"short-form", 's', "Just show the queries, no extra info",
+   (gptr*) &short_form, (gptr*) &short_form, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0,
+   0, 0},
+  {"table", 't', "Get raw table dump using COM_TABLE_DUMB", (gptr*) &table,
+   (gptr*) &table, 0, GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"user", 'u', "Connect to the remote server as username",
+   (gptr*) &user, (gptr*) &user, 0, GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0,
+   0, 0},
+  {"version", 'V', "Print version and exit.", 0, 0, 0, GET_NO_ARG, NO_ARG, 0,
+   0, 0, 0, 0, 0},
+  {0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
+};
+
 
 void sql_print_error(const char *format,...)
 {
@@ -106,7 +125,7 @@ static void die(const char* fmt, ...)
 
 static void print_version()
 {
-  printf("%s  Ver 1.9 for %s at %s\n",my_progname,SYSTEM_TYPE, MACHINE_TYPE);
+  printf("%s Ver 2.0 for %s at %s\n", my_progname, SYSTEM_TYPE, MACHINE_TYPE);
 }
 
 
@@ -120,26 +139,10 @@ and you are welcome to modify and redistribute it under the GPL license\n");
   printf("\
 Dumps a MySQL binary log in a format usable for viewing or for pipeing to\n\
 the mysql command line client\n\n");
-  printf("Usage: %s [options] log-files\n",my_progname);
-  puts("Options:");
-#ifndef DBUG_OFF
-  printf("-#, --debug[=...]       Output debug log.  (%s)\n",
-	 default_dbug_option);
-#endif
-  printf("\
--?, --help		Display this help and exit\n\
--s, --short-form	Just show the queries, no extra info\n\
--o, --offset=N		Skip the first N entries\n\
--d, --database=database List entries for just this database (local log only)\n\
--h, --host=server	Get the binlog from server\n\
--P, --port=port         Use port to connect to the remote server\n\
--u, --user=username     Connect to the remote server as username\n\
--p, --password=password Password to connect to remote server\n\
--r, --result-file=file  Direct output to a given file\n\
--j, --position=N	Start reading the binlog at position N\n\
--t, --table=name        Get raw table dump using COM_TABLE_DUMB\n\
--V, --version		Print version and exit.\n\
-");
+  printf("Usage: %s [options] log-files\n", my_progname);
+  my_print_help(my_long_options);
+  putchar('\n');
+  my_print_variables(my_long_options);
 }
 
 static void dump_remote_file(NET* net, const char* fname)
@@ -172,82 +175,61 @@ static void dump_remote_file(NET* net, const char* fname)
   fflush(result_file);
 }
 
+
+static my_bool
+get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
+	       char *argument)
+{
+  switch(optid)
+  {
+#ifndef DBUG_OFF
+  case '#':
+    DBUG_PUSH(argument ? argument : default_dbug_option);
+    break;
+#endif
+  case 'd':
+    one_database = 1;
+    break;
+  case 'h':
+    use_remote = 1;
+    break;
+  case 'P':
+    use_remote = 1;
+    break;
+  case 'p':
+    use_remote = 1;
+    pass = my_strdup(argument, MYF(0));
+    break;
+  case 'r':
+    if (!(result_file = my_fopen(argument, O_WRONLY | O_BINARY, MYF(MY_WME))))
+      exit(1);
+    break;
+  case 'u':
+    use_remote = 1;
+    break;
+  case 'V':
+    print_version();
+    exit(0);
+  case '?':
+  default:
+    usage();
+    exit(0);
+  }
+  return 0;
+}
+
+
 static int parse_args(int *argc, char*** argv)
 {
-  int c, opt_index = 0;
+  int ho_error;
 
   result_file = stdout;
-  while((c = getopt_long(*argc, *argv, "so:#::d:h:j:u:p:P:r:t:?V", long_options,
-			 &opt_index)) != EOF)
+  if ((ho_error=handle_options(argc, argv, my_long_options, get_one_option)))
   {
-    switch(c)
-    {
-#ifndef DBUG_OFF
-    case '#':
-      DBUG_PUSH(optarg ? optarg : default_dbug_option);
-      break;
-#endif
-    case 'd':
-      one_database = 1;
-      database = my_strdup(optarg, MYF(0));
-      break;
-
-    case 's':
-      short_form = 1;
-      break;
-
-    case 'o':
-      offset = strtoull(optarg,(char**) 0, 10);
-      break;
-
-    case 'j':
-      position = strtoull(optarg,(char**) 0, 10);
-      break;
-
-    case 'h':
-      use_remote = 1;
-      host = my_strdup(optarg, MYF(0));
-      break;
-
-    case 'P':
-      use_remote = 1;
-      port = atoi(optarg);
-      break;
-
-    case 'p':
-      use_remote = 1;
-      pass = my_strdup(optarg, MYF(0));
-      break;
-
-    case 'r':
-      if (!(result_file = my_fopen(optarg, O_WRONLY | O_BINARY, MYF(MY_WME))))
-	exit(1);
-      break;
-
-    case 'u':
-      use_remote = 1;
-      user = my_strdup(optarg, MYF(0));
-      break;
-
-    case 't':
-      table = my_strdup(optarg, MYF(0));
-      break;
-
-    case 'V':
-      print_version();
-      exit(0);
-
-    case '?':
-    default:
-      usage();
-      exit(0);
-
-    }
+    printf("%s: handle_options() failed with error %d\n", my_progname,
+	   ho_error);
+    exit(1);
   }
-
-  (*argc)-=optind;
-  (*argv)+=optind;
-
   return 0;
 }
 

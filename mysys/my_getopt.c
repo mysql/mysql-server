@@ -593,6 +593,9 @@ static void init_variables(const struct my_option *options)
       else if (options->var_type == GET_UINT)
 	*((uint*) options->u_max_value)= *((uint*) options->value)=
 	  (uint) options->def_value;
+      else if (options->var_type == GET_BOOL)
+	*((my_bool*) options->u_max_value)= *((my_bool*) options->value)=
+	  (my_bool) options->def_value;
       else if (options->var_type == GET_LONG)
 	*((long*) options->u_max_value)= *((long*) options->value)=
 	  (long) options->def_value;
@@ -653,7 +656,7 @@ void my_print_help(const struct my_option *options)
 	     optp->arg_type == OPT_ARG ? "]" : "");
       col+= (optp->arg_type == OPT_ARG) ? 5 : 3;
     }
-    if (col > name_space)
+    if (col > name_space && optp->comment && *optp->comment)
     {
       putchar('\n');
       col= 0;
@@ -697,7 +700,7 @@ void my_print_variables(const struct my_option *options)
   printf("--------------------------------- -------------\n");
   for (optp= options; optp->id; optp++)
   {
-    if (optp->value && optp->var_type != GET_BOOL)
+    if (optp->value)
     {
       printf("%s", optp->name);
       length= strlen(optp->name);
@@ -709,6 +712,13 @@ void my_print_variables(const struct my_option *options)
 	  printf("%s\n", *((char**) optp->value));
 	else
 	  printf("(No default value)\n");
+      }
+      else if (optp->var_type == GET_BOOL)
+      {
+	if (!optp->def_value && !*((my_bool*) optp->value))
+	  printf("(No default value)\n");
+	else
+	  printf("%d\n", *((my_bool*) optp->value));
       }
       else if (optp->var_type == GET_INT)
       {

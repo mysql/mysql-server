@@ -14,7 +14,7 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-#define MANAGER_PWGEN_VERSION "1.0"
+#define MANAGER_PWGEN_VERSION "1.1"
 
 #include <my_global.h>
 #include <m_ctype.h>
@@ -22,18 +22,23 @@
 #include <m_string.h>
 #include <mysql_version.h>
 #include <errno.h>
-#include <getopt.h>
+#include <my_getopt.h>
 #include <md5.h>
 
 const char* outfile=0,*user="root";
 
-struct option long_options[] =
+static struct my_option my_long_options[] =
 {
-  {"output-file",required_argument,0,'o'},
-  {"user",required_argument,0,'u'},
-  {"help",no_argument,0,'?'},
-  {"version",no_argument,0,'V'},
-  {0,0,0,0}
+  {"output-file", 'o', "Write the output to the file with the given name",
+   (gptr*) &outfile, (gptr*) &outfile, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0,
+   0, 0},
+  {"user", 'u', "Put given user in the password file", (gptr*) &user,
+   (gptr*) &user, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"help", '?', "Display this message and exit", 0, 0, 0, GET_NO_ARG, NO_ARG,
+   0, 0, 0, 0, 0, 0},
+  {"version", 'V', "Display version info", 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0,
+   0, 0, 0, 0},
+  {0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
 
 static void die(const char* fmt, ...)
@@ -66,36 +71,39 @@ void usage()
   printf("This software comes with ABSOLUTELY NO WARRANTY\n\n");
   printf("Generates a password file to be used by mysqltest.\n\n");
   printf("Usage: %s [OPTIONS]\n", my_progname);
-  printf("-?,--help     Display this message and exit\n\
--V,--version    Display version info\n\
--u,--user=      Put given user in the password file\n\
--o,--output-file= Write the output to the file with the given name\n");
+  my_print_help(my_long_options);
+  putchar('\n');
+  my_print_variables(my_long_options);
 }
+
+static my_bool
+get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
+	       char *argument __attribute__((unused)))
+{
+  switch (optid) {
+  case '?':
+    usage();
+    exit(0);
+  case 'V':
+    print_version();
+    exit(0);
+  default:
+    usage();
+    exit(1);
+  }
+  return 0;
+}
+
 
 int parse_args(int argc, char** argv)
 {
-  int c,option_index=0;
-  while ((c=getopt_long(argc,argv,"?Vu:o:",long_options,&option_index))
-	 != EOF)
+  int ho_error;
+
+  if ((ho_error=handle_options(&argc, &argv, my_long_options, get_one_option)))
   {
-    switch (c)
-    {
-    case 'o':
-      outfile=optarg;
-      break;
-    case 'u':
-      user=optarg;
-      break;
-    case '?':
-      usage();
-      exit(0);
-    case 'V':
-      print_version();
-      exit(0);
-    default:
-      usage();
-      exit(1);
-    }
+    printf("%s: handle_options() failed with error %d\n", my_progname,
+	   ho_error);
+    exit(1);
   }
   return 0;
 }

@@ -334,7 +334,7 @@ ulong bytes_sent = 0L, bytes_received = 0L;
 
 bool opt_endinfo,using_udf_functions,low_priority_updates, locked_in_memory;
 bool opt_using_transactions, using_update_log, opt_warnings=0;
-bool opt_local_infile=1;
+my_bool opt_local_infile=1;
 bool volatile abort_loop,select_thread_in_use,grant_option;
 bool volatile ready_to_exit,shutdown_in_progress;
 ulong refresh_version=1L,flush_version=1L;	/* Increments on each reload */
@@ -2974,7 +2974,7 @@ static struct my_option my_long_options[] =
   {"local-infile", OPT_LOCAL_INFILE,
    "Enable/disable LOAD DATA LOCAL INFILE (takes values 1|0)",
    (gptr*) &opt_local_infile, (gptr*) &opt_local_infile, 0, GET_BOOL, OPT_ARG,
-   0, 0, 0, 0, 0, 0},
+   1, 0, 0, 0, 0, 0},
   {"log-bin", OPT_BIN_LOG,
    "Log queries in new binary format (for replication)",
    (gptr*) &opt_bin_logname, (gptr*) &opt_bin_logname, 0, GET_STR_ALLOC,
@@ -3986,9 +3986,6 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     break;
   case 'o':
     protocol_version=PROTOCOL_VERSION-1;
-    break;
-  case OPT_LOCAL_INFILE:
-    opt_local_infile= test(!argument || atoi(argument) != 0);
     break;
   case OPT_SLAVE_SKIP_ERRORS:
     init_slave_skip_errors(argument);
