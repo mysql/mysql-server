@@ -41,8 +41,6 @@ uint32 server_id = 0;
 // needed by net_serv.c
 ulong bytes_sent = 0L, bytes_received = 0L;
 ulong mysqld_net_retry_count = 10L;
-ulong net_read_timeout=  NET_READ_TIMEOUT;
-ulong net_write_timeout= NET_WRITE_TIMEOUT;
 uint test_flags = 0; 
 FILE *result_file;
 

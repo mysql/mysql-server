@@ -233,7 +233,8 @@ public:
   virtual void print(FILE* file, bool short_form = 0, char* last_db = 0) = 0;
   void print_timestamp(FILE* file, time_t *ts = 0);
   void print_header(FILE* file);
-
+#endif
+  
 #ifndef MYSQL_CLIENT  
   // if mutex is 0, the read will proceed without mutex
   static Log_event* read_log_event(IO_CACHE* file, pthread_mutex_t* log_lock);
