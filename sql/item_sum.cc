@@ -615,10 +615,8 @@ void Item_sum_avg::reset_field()
 
 void Item_sum_bit::reset_field()
 {
-  char *res= result_field->ptr;
-  bits= reset_bits;
-  add();
-  int8store(res, bits);
+  reset();
+  int8store(result_field->ptr, bits);
 }
 
 void Item_sum_bit::update_field()
