@@ -335,54 +335,67 @@ void *tree_search_key(TREE *tree, const void *key,
                       enum ha_rkey_function flag, void *custom_arg)
 {
   int cmp;
-  TREE_ELEMENT *element = tree->root;
-  TREE_ELEMENT **last_left_step_parent = NULL;
-  TREE_ELEMENT **last_equal_element = NULL;
+  TREE_ELEMENT *element= tree->root;
+  TREE_ELEMENT **last_left_step_parent= NULL, **last_right_step_parent= NULL;
+  TREE_ELEMENT **last_equal_element= NULL;
 
 /* 
-  TODO: handle HA_READ_KEY_OR_PREV, HA_READ_BEFORE_KEY, HA_READ_PREFIX, 
-  HA_READ_PREFIX_LAST flags if needed.
+  TODO: support for HA_READ_KEY_OR_PREV, HA_READ_PREFIX flags if needed.
 */
 
   *parents = &tree->null_element;
   while (element != &tree->null_element)
   {
-    *++parents = element;
-    if ((cmp = (*tree->compare)(custom_arg, ELEMENT_KEY(tree, element), 
-                                key)) == 0)
+    *++parents= element;
+    if ((cmp= (*tree->compare)(custom_arg, ELEMENT_KEY(tree, element), 
+			       key)) == 0)
     {
       switch (flag) {
       case HA_READ_KEY_EXACT:
       case HA_READ_KEY_OR_NEXT:
-        last_equal_element = parents;
-        cmp = 1;
-        break;
+      case HA_READ_BEFORE_KEY:
+	last_equal_element= parents;
+	cmp= 1;
+	break;
       case HA_READ_AFTER_KEY:
-        cmp = -1;
-        break;
+	cmp= -1;
+	break;
+      case HA_READ_PREFIX_LAST:
+      case HA_READ_PREFIX_LAST_OR_PREV:
+	last_equal_element= parents;
+	cmp= -1;
+	break;
       default:
-        return NULL;
+	return NULL;
       }
     }
     if (cmp < 0) /* element < key */
     {
-      element = element->right;
+      last_right_step_parent= parents;
+      element= element->right;
     }
     else
     {
-      last_left_step_parent = parents;
-      element = element->left;
+      last_left_step_parent= parents;
+      element= element->left;
     }
   }
   switch (flag) {
   case HA_READ_KEY_EXACT:
-    *last_pos = last_equal_element;
+  case HA_READ_PREFIX_LAST:
+    *last_pos= last_equal_element;
     break;
   case HA_READ_KEY_OR_NEXT:
-    *last_pos = last_equal_element ? last_equal_element : last_left_step_parent;
+    *last_pos= last_equal_element ? last_equal_element : last_left_step_parent;
     break;
   case HA_READ_AFTER_KEY:
-    *last_pos = last_left_step_parent;
+    *last_pos= last_left_step_parent;
+    break;
+  case HA_READ_PREFIX_LAST_OR_PREV:
+    *last_pos= last_equal_element ? last_equal_element : last_right_step_parent;
+    break;
+  case HA_READ_BEFORE_KEY:
+    *last_pos= last_right_step_parent;
     break;
   default:
     return NULL;
