@@ -14,14 +14,17 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-#include "command.h"
 #include "commands.h"
-#include "instance.h"
+
 #include "instance_map.h"
 #include "messages.h"
+#include "mysqld_error.h"
+#include "mysql_manager_error.h"
 #include "protocol.h"
 #include "buffer.h"
+
 #include <m_string.h>
+#include <mysql.h>
 
 
 /* implementation for Show_instances: */
