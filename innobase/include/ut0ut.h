@@ -17,21 +17,6 @@ Created 1/20/1994 Heikki Tuuri
 
 typedef time_t	ib_time_t;
 
-
-/************************************************************
-On the 64-bit Windows we substitute the format string
-%l -> %I64
-because we define ulint as unsigned __int64 and lint as __int64 on Windows,
-and both the Microsoft and Intel C compilers require the format string
-%I64 in that case instead of %l. */
-
-int
-ut_printf(
-/*======*/
-			     /* out: the number of characters written, or
-			     negative in case of an error */
-        const char* format,  /* in: format of prints */
-        ...);                /* in: arguments to be printed */
 /************************************************************
 On the 64-bit Windows we substitute the format string
 %l -> %I64

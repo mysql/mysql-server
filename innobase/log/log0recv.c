@@ -1080,7 +1080,7 @@ recv_recover_page(
 
 		success = buf_page_get_known_nowait(RW_X_LATCH, page,
 					BUF_KEEP_OLD,
-					IB__FILE__, __LINE__,
+					__FILE__, __LINE__,
 					&mtr);
 		ut_a(success);
 
@@ -1664,7 +1664,7 @@ recv_compare_spaces(
 
 		frame = buf_page_get_gen(space1, page_no, RW_S_LATCH, NULL,
 						BUF_GET_IF_IN_POOL,
-						IB__FILE__, __LINE__,
+						__FILE__, __LINE__,
 						&mtr);
 		if (frame) {
 #ifdef UNIV_SYNC_DEBUG
@@ -1679,7 +1679,7 @@ recv_compare_spaces(
 
 		frame = buf_page_get_gen(space2, page_no, RW_S_LATCH, NULL,
 						BUF_GET_IF_IN_POOL,
-						IB__FILE__, __LINE__,
+						__FILE__, __LINE__,
 						&mtr);
 		if (frame) {
 #ifdef UNIV_SYNC_DEBUG

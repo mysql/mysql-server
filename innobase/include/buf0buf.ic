@@ -585,7 +585,7 @@ buf_page_get_release_on_io(
 
 	frame = buf_page_get_gen(space, offset, rw_latch, guess,
 				BUF_GET_IF_IN_POOL,
-				IB__FILE__, __LINE__,
+				__FILE__, __LINE__,
 				mtr);
 	if (frame != NULL) {
 

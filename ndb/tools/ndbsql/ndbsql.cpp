@@ -138,6 +138,7 @@ bool emptyString(const char* s) {
  * to obtain the row count.
  */
 #define MAXCOLS 100
+#undef max
 #define max(a,b) ((a)>(b)?(a):(b))
 
 #define MAX_MESSAGE	500
