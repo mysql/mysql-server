@@ -249,6 +249,30 @@ n
 4
 5
 6
+set autocommit=0;
+begin;
+savepoint `my_savepoint`;
+insert into t1 values (7);
+savepoint `savept2`;
+insert into t1 values (3);
+select n from t1;
+n
+3
+4
+5
+6
+7
+rollback to savepoint `savept2`;
+release savepoint `my_savepoint`;
+select n from t1;
+n
+4
+5
+6
+7
+rollback to savepoint `my_savepoint`;
+ERROR HY000: Got error 153 during ROLLBACK
+set autocommit=1;
 rollback;
 drop table t1;
 create table t1 (n int not null primary key) engine=innodb;
@@ -1609,14 +1633,14 @@ t2	CREATE TABLE `t2` (
 drop table t2, t1;
 show status like "binlog_cache_use";
 Variable_name	Value
-Binlog_cache_use	24
+Binlog_cache_use	25
 show status like "binlog_cache_disk_use";
 Variable_name	Value
 Binlog_cache_disk_use	0
 create table t1 (a int) engine=innodb;
 show status like "binlog_cache_use";
 Variable_name	Value
-Binlog_cache_use	25
+Binlog_cache_use	26
 show status like "binlog_cache_disk_use";
 Variable_name	Value
 Binlog_cache_disk_use	1
@@ -1625,7 +1649,7 @@ delete from t1;
 commit;
 show status like "binlog_cache_use";
 Variable_name	Value
-Binlog_cache_use	26
+Binlog_cache_use	27
 show status like "binlog_cache_disk_use";
 Variable_name	Value
 Binlog_cache_disk_use	1
@@ -1693,10 +1717,10 @@ Variable_name	Value
 Innodb_rows_deleted	2070
 show status like "Innodb_rows_inserted";
 Variable_name	Value
-Innodb_rows_inserted	31706
+Innodb_rows_inserted	31708
 show status like "Innodb_rows_read";
 Variable_name	Value
-Innodb_rows_read	80153
+Innodb_rows_read	80162
 show status like "Innodb_rows_updated";
 Variable_name	Value
 Innodb_rows_updated	29530
