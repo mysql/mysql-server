@@ -2940,6 +2940,13 @@ we force server id to 2, but this MySQL server will not act as a slave.");
 #if defined(__NT__) || defined(HAVE_SMEM)
   handle_connections_methods();
 #else
+#ifdef __WIN__
+  if ( !have_tcpip || opt_disable_networking)
+  {
+    sql_print_error("TCP/IP unavailable or disabled with --skip-networking; no available interfaces");
+    unireg_abort(1);
+  }
+#endif
   handle_connections_sockets(0);
 #endif /* __NT__ */
 
@@ -6108,13 +6115,15 @@ mysql_getopt_value(const char *keyname, uint key_length,
  return option->value;
 }
 
-void option_error_reporter( enum loglevel level, const char *format, ... )
+
+void option_error_reporter(enum loglevel level, const char *format, ...)
 {
   va_list args;
-  va_start( args, format );
-  vprint_msg_to_log( level, format, args );
-  va_end( args );
+  va_start(args, format);
+  vprint_msg_to_log(level, format, args);
+  va_end(args);
 }
+
 
 static void get_options(int argc,char **argv)
 {
@@ -6123,7 +6132,9 @@ static void get_options(int argc,char **argv)
   my_getopt_register_get_addr(mysql_getopt_value);
   strmake(def_ft_boolean_syntax, ft_boolean_syntax,
 	  sizeof(ft_boolean_syntax)-1);
-  if ((ho_error=handle_options(&argc, &argv, my_long_options, get_one_option, option_error_reporter)))
+  my_getopt_error_reporter= option_error_reporter;
+  if ((ho_error= handle_options(&argc, &argv, my_long_options,
+                                get_one_option)))
     exit(ho_error);
   if (argc > 0)
   {

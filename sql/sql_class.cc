@@ -891,8 +891,10 @@ static File create_file(THD *thd, char *path, sql_exchange *exchange,
 #ifdef DONT_ALLOW_FULL_LOAD_DATA_PATHS
   option|= MY_REPLACE_DIR;			// Force use of db directory
 #endif
-  (void) fn_format(path, exchange->file_name, thd->db ? thd->db : "", "",
-		   option);
+
+  strxnmov(path, FN_REFLEN, mysql_real_data_home, thd->db ? thd->db : "",
+           NullS);
+  (void) fn_format(path, exchange->file_name, path, "", option);
   if (!access(path, F_OK))
   {
     my_error(ER_FILE_EXISTS_ERROR, MYF(0), exchange->file_name);

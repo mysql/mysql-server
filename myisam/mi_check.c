@@ -1585,7 +1585,7 @@ int mi_sort_index(MI_CHECK *param, register MI_INFO *info, my_string name)
   int old_lock;
   MYISAM_SHARE *share=info->s;
   MI_STATE_INFO old_state;
-  DBUG_ENTER("sort_index");
+  DBUG_ENTER("mi_sort_index");
 
   if (!(param->testflag & T_SILENT))
     printf("- Sorting index for MyISAM-table '%s'\n",name);
@@ -1664,7 +1664,7 @@ err:
 err2:
   VOID(my_delete(param->temp_filename,MYF(MY_WME)));
   DBUG_RETURN(-1);
-} /* sort_index */
+} /* mi_sort_index */
 
 
 	 /* Sort records recursive using one index */
@@ -1672,7 +1672,7 @@ err2:
 static int sort_one_index(MI_CHECK *param, MI_INFO *info, MI_KEYDEF *keyinfo,
 			  my_off_t pagepos, File new_file)
 {
-  uint length,nod_flag,used_length;
+  uint length,nod_flag,used_length, key_length;
   uchar *buff,*keypos,*endpos;
   uchar key[MI_MAX_POSSIBLE_KEY_BUFF];
   my_off_t new_page_pos,next_page;
@@ -1693,7 +1693,7 @@ static int sort_one_index(MI_CHECK *param, MI_INFO *info, MI_KEYDEF *keyinfo,
 		llstr(pagepos,llbuff));
     goto err;
   }
-  if ((nod_flag=mi_test_if_nod(buff)))
+  if ((nod_flag=mi_test_if_nod(buff)) || keyinfo->flag & HA_FULLTEXT)
   {
     used_length=mi_getint(buff);
     keypos=buff+2+nod_flag;
@@ -1704,7 +1704,7 @@ static int sort_one_index(MI_CHECK *param, MI_INFO *info, MI_KEYDEF *keyinfo,
       {
 	next_page=_mi_kpos(nod_flag,keypos);
 	_mi_kpointer(info,keypos-nod_flag,param->new_file_pos); /* Save new pos */
-	if (sort_one_index(param,info,keyinfo,next_page, new_file))
+	if (sort_one_index(param,info,keyinfo,next_page,new_file))
 	{
 	  DBUG_PRINT("error",("From page: %ld, keyoffset: %d  used_length: %d",
 			      (ulong) pagepos, (int) (keypos - buff),
@@ -1714,11 +1714,25 @@ static int sort_one_index(MI_CHECK *param, MI_INFO *info, MI_KEYDEF *keyinfo,
 	}
       }
       if (keypos >= endpos ||
-	  ((*keyinfo->get_key)(keyinfo,nod_flag,&keypos,key)) == 0)
+	  (key_length=(*keyinfo->get_key)(keyinfo,nod_flag,&keypos,key)) == 0)
 	break;
-#ifdef EXTRA_DEBUG
-      assert(keypos <= endpos);
-#endif
+      DBUG_ASSERT(keypos <= endpos);
+      if (keyinfo->flag & HA_FULLTEXT)
+      {
+        uint off;
+        int  subkeys;
+        get_key_full_length_rdonly(off, key);
+        subkeys=ft_sintXkorr(key+off);
+        if (subkeys < 0)
+        {
+          next_page= _mi_dpos(info,0,key+key_length);
+          _mi_dpointer(info,keypos-nod_flag-info->s->rec_reflength,
+                       param->new_file_pos); /* Save new pos */
+          if (sort_one_index(param,info,&info->s->ft2_keyinfo,
+                             next_page,new_file))
+            goto err;
+        }
+      }
     }
   }
 

@@ -1873,13 +1873,6 @@ else
 fi
 AC_SUBST(TERMCAP_LIB)
 
-# for libedit 2.6.7
-case "${host}" in
-  *-*-solaris2*)
-	AC_DEFINE_UNQUOTED(SUNOS, 1, [macro for libedit-2.6.7, current platform is solaris-2])
-	;;
-esac
-
 LIBEDIT_LOBJECTS=""
 AC_CHECK_FUNC(strunvis, ,[LIBEDIT_LOBJECTS="$LIBEDIT_LOBJECTS unvis.o"])
 AC_CHECK_FUNC(strvis,   ,[LIBEDIT_LOBJECTS="$LIBEDIT_LOBJECTS vis.o"])
@@ -2450,8 +2443,10 @@ elif test "$extra_charsets" = none; then
   CHARSETS="$CHARSETS"
 elif test "$extra_charsets" = complex; then
   CHARSETS="$CHARSETS $CHARSETS_COMPLEX"
+  AC_DEFINE([DEFINE_ALL_CHARACTER_SETS],1,[all charsets are available])
 elif test "$extra_charsets" = all; then
   CHARSETS="$CHARSETS $CHARSETS_AVAILABLE"
+  AC_DEFINE([DEFINE_ALL_CHARACTER_SETS],1,[all charsets are available])
 else
   EXTRA_CHARSETS=`echo $extra_charsets | sed -e 's/,/ /g'`
   CHARSETS="$CHARSETS $EXTRA_CHARSETS"
