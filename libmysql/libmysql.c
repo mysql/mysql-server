@@ -594,6 +594,8 @@ my_bool	STDCALL mysql_change_user(MYSQL *mysql, const char *user,
 				  const char *passwd, const char *db)
 {
   char buff[512],*end=buff;
+  NET *net= &mysql->net;
+  ulong pkt_length;
   DBUG_ENTER("mysql_change_user");
 
   if (!user)
@@ -627,8 +629,7 @@ my_bool	STDCALL mysql_change_user(MYSQL *mysql, const char *user,
   /* Write authentication package */
   simple_command(mysql,COM_CHANGE_USER, buff,(ulong) (end-buff),1);
 
-  NET *net= &mysql->net;
-  ulong pkt_length= net_safe_read(mysql);
+  pkt_length= net_safe_read(mysql);
 
   if (pkt_length == packet_error)
     goto error;

@@ -319,7 +319,7 @@ void randominit(struct rand_struct *, unsigned long seed1,
 double my_rnd(struct rand_struct *);
 void create_random_string(char *to, uint length, struct rand_struct *rand_st);
 
-void hash_password(ulong *to, const char *password, uint password_len);
+void hash_password(unsigned long *to, const char *password, uint password_len);
 void make_scrambled_password_323(char *to, const char *password);
 void scramble_323(char *to, const char *message, const char *password);
 my_bool check_scramble_323(const char *, const char *message,
