@@ -17,6 +17,7 @@ cd $CWD
 MYBIN="$CWD/mybin"
 TESTVER=3.23
 TESTDIR="$CWD/t/$TESTVER"
+TESTSUFFIX=test
 TOT_PASS=0
 TOT_FAIL=0
 TOT_TEST=0
@@ -46,9 +47,12 @@ MYERR="$CWD/var/log/mysqld.err"
 #++
 # Program Definitions
 #--
+ECHO=/bin/echo
+EXPR=/usr/bin/expr
+PRINTF=/usr/bin/printf
 TIME=/usr/bin/time
 MYSQLD="$BASEDIR/sql/mysqld"
-MYSQL_TEST="$BASEDIR/client/mysql-test"
+MYSQL_TEST="$BASEDIR/client/mysqltest"
 MYSQLADMIN="$BASEDIR/client/mysqladmin"
 MYSQL_TEST="$MYSQL_TEST --socket=$MYSOCK --database=$DB --user=$USER --password=$PASSWD --silent"
 INSTALL_DB="$MYBIN/mysql-test_install_db"
@@ -57,11 +61,11 @@ INSTALL_DB="$MYBIN/mysql-test_install_db"
 #++
 # Terminal Modifications
 #--
-MOVE_TO_COL="echo -en \\033[300C\\033[20D"
-SETCOLOR_SUCCESS="echo -en \\033[1;32m"
-SETCOLOR_FAILURE="echo -en \\033[1;31m"
-SETCOLOR_WARNING="echo -en \\033[1;33m"
-SETCOLOR_NORMAL="echo -en \\033[0;39m"
+MOVE_TO_COL="$ECHO -en \\033[300C\\033[20D"
+SETCOLOR_SUCCESS="$ECHO -en \\033[1;32m"
+SETCOLOR_FAILURE="$ECHO -en \\033[1;31m"
+SETCOLOR_WARNING="$ECHO -en \\033[1;33m"
+SETCOLOR_NORMAL="$ECHO -en \\033[0;39m"
 
 
 
@@ -70,78 +74,78 @@ SETCOLOR_NORMAL="echo -en \\033[0;39m"
 #--
 echo_ok() {
   $MOVE_TO_COL && $SETCOLOR_NORMAL
-  echo -n "[   "
+  $ECHO -n "[   "
   $SETCOLOR_SUCCESS
-  echo -n "ok"
+  $ECHO -n "ok"
   $SETCOLOR_NORMAL
-  echo "   ]"
+  $ECHO "   ]"
   return 0
 }
 
 echo_notok() {
   $MOVE_TO_COL && $SETCOLOR_NORMAL
-  echo -n "[ "
+  $ECHO -n "[ "
   $SETCOLOR_FAILURE
-  echo -n "not ok"
+  $ECHO -n "not ok"
   $SETCOLOR_NORMAL
-  echo " ]"
+  $ECHO " ]"
   return 0
 }
 
 echo_pass () {
   $MOVE_TO_COL && $SETCOLOR_NORMAL
-  echo -n "[  "
+  $ECHO -n "[  "
   $SETCOLOR_SUCCESS
-  echo -n "pass"
+  $ECHO -n "pass"
   $SETCOLOR_NORMAL
-  echo "  ]"
+  $ECHO "  ]"
   return 0
 }
 
 echo_fail () {
   $MOVE_TO_COL && $SETCOLOR_NORMAL
-  echo -n "[  "
+  $ECHO -n "[  "
   $SETCOLOR_FAILURE
-  echo -n "fail"
+  $ECHO -n "fail"
   $SETCOLOR_NORMAL
-  echo "  ]"
+  $ECHO "  ]"
   return 0
 }
 
 error () {
 
     $SETCOLOR_FAILURE
-    echo -n "Error: " && $SETCOLOR_NORMAL && echo $1
+    $ECHO -n "Error: " && $SETCOLOR_NORMAL && $ECHO $1
     $SETCOLOR_NORMAL
     exit 1
 }
 
 pass_inc () {
-    TOT_PASS=`expr $TOT_PASS + 1`
+    TOT_PASS=`$EXPR $TOT_PASS + 1`
 }
 
 fail_inc () {
-    TOT_FAIL=`expr $TOT_FAIL + 1`
+    TOT_FAIL=`$EXPR $TOT_FAIL + 1`
 }
 
 total_inc () {
-    TOT_TEST=`expr $TOT_TEST + 1`
+    TOT_TEST=`$EXPR $TOT_TEST + 1`
 }
 
 report_stats () {
     if [ $TOT_FAIL = 0 ]; then
-	echo "All tests successful."
+	$ECHO "All tests successful."
     else
-	echo -n "Failed ${TOT_FAIL}/${TOT_TEST} tests, "
+	$ECHO -n "Failed ${TOT_FAIL}/${TOT_TEST} tests, "
 
-	xten=`expr $TOT_PASS \* 10000`   #
-	raw=`expr $xten / $TOT_TEST`     # My God
-	raw=`printf %.4d $raw`           # This is such a ...
-	whole=`printf %.2s $raw`         # Narttu!!
-	xwhole=`expr $whole \* 100`      # Hynda!!!
-	deci=`expr $raw - $xwhole`       #
+	xten=`$EXPR $TOT_PASS \* 10000`   #
+	raw=`$EXPR $xten / $TOT_TEST`     # My God
+	raw=`$PRINTF %.4d $raw`           # This is such a ...
+	whole=`$PRINTF %.2s $raw`         # Narttu!!
+	xwhole=`$EXPR $whole \* 100`      # Hynda!!!
+	deci=`$EXPR $raw - $xwhole`       #
 
-	echo "${whole}.${deci}% successful."
+	$ECHO "${whole}.${deci}% successful."
     fi
 }
 	
@@ -197,27 +201,27 @@ mysql_loadstd () {
 
 mysql_install_db
 
-$SETCOLOR_NORMAL && echo -n "Starting mysqld for Testing"
+$SETCOLOR_NORMAL && $ECHO -n "Starting mysqld for Testing"
 mysql_start
 res=$?
 res=1
 [ $res != 1 ] && echo_notok && error "Starting mysqld"
 [ $res = 1 ] && echo_ok
 
-$SETCOLOR_NORMAL && echo -n "Loading Standard Test Database"
+$SETCOLOR_NORMAL && $ECHO -n "Loading Standard Test Database"
 mysql_loadstd
 res=$?
 [ $res != 1 ] && echo_notok && error "Loading STD"
 [ $res = 1 ] && echo_ok
 
-$SETCOLOR_NORMAL && echo -n "Starting Tests for MySQL $TESTVER Series"
+$SETCOLOR_NORMAL && $ECHO -n "Starting Tests for MySQL $TESTVER Series"
 $SETCOLOR_SUCCESS && echo_ok
 
-echo
-echo -e " TEST\t\t\tUSER\tSYSTEM\tELAPSED\t%CPU\t     RESULT"
-echo $DASH72
+$ECHO
+$ECHO -e " TEST\t\t\tUSER\tSYSTEM\tELAPSED\t%CPU\t     RESULT"
+$ECHO $DASH72
 
-for tf in $TESTDIR/*.test
+for tf in $TESTDIR/*.$TESTSUFFIX
 do
  if [ -f $tf ] ; then
     mytime=`$TIME -f $TIME_FORMAT $MYSQL_TEST < $tf 2>&1`
@@ -225,31 +229,31 @@ do
 
     tf=`basename $tf`
 
-    [ $res = 1 ] && mytime=`echo -ne $mytime | cut -b 39-`  
-    $SETCOLOR_NORMAL && echo -ne "$tf\t$mytime"
+    [ $res = 1 ] && mytime=`$ECHO -ne $mytime | cut -b 39-`  
+    $SETCOLOR_NORMAL && $ECHO -ne "$tf\t$mytime"
     [ $res = 1 ] && fail_inc && echo_fail 
     [ $res != 1 ] && pass_inc && echo_pass
 
     total_inc
 
     if [ $res != 0 ]; then
-	echo
-	$SETCOLOR_NORMAL && echo -ne "Restarting mysqld\t$DASHBLANK"
+	$ECHO
+	$SETCOLOR_NORMAL && $ECHO -ne "Restarting mysqld\t$DASHBLANK"
 	mysql_restart
 	$SETCOLOR_SUCCESS && echo_ok
-	$SETCOLOR_NORMAL && echo -ne "Resuming Tests\t\t$DASHBLANK"
+	$SETCOLOR_NORMAL && $ECHO -ne "Resuming Tests\t\t$DASHBLANK"
 	$SETCOLOR_SUCCESS && echo_ok
-	echo
+	$ECHO
     fi
   fi  
 done
 
-echo $DASH72
-echo
-$SETCOLOR_NORMAL && echo -n "Ending Tests for MySQL $TESTVER Series"
+$ECHO $DASH72
+$ECHO
+$SETCOLOR_NORMAL && $ECHO -n "Ending Tests for MySQL $TESTVER Series"
 $SETCOLOR_SUCCESS && echo_ok
 
-$SETCOLOR_NORMAL && echo -n "Shutdown mysqld"
+$SETCOLOR_NORMAL && $ECHO -n "Shutdown mysqld"
 mysql_stop
 res=$?
 res=1
@@ -258,8 +262,8 @@ res=1
 
 $SETCOLOR_NORMAL
 
-echo
+$ECHO
 report_stats
-echo
+$ECHO
 
 exit 0

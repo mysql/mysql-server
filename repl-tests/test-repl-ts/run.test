@@ -1,4 +1,4 @@
-#! ../client/mysql-test
+#! ../client/mysqltest
 # tests if the replicaion preserves timestamp properly
 
 source ../include/master-slave.inc;

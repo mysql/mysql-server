@@ -21,8 +21,8 @@ INCLUDES =			-I$(srcdir)/../include \
 				-I..
 LIBS =				@CLIENT_LIBS@
 LDADD =				@CLIENT_EXTRA_LDFLAGS@ ../libmysql/libmysqlclient.la
-bin_PROGRAMS =			mysql mysqladmin mysqlshow mysqldump mysqlimport
-noinst_PROGRAMS =		insert_test select_test thread_test mysql-test
+bin_PROGRAMS =			mysql mysqladmin mysqlshow mysqldump mysqlimport mysqltest
+noinst_PROGRAMS =		insert_test select_test thread_test
 noinst_HEADERS =		sql_string.h completion_hash.h my_readline.h
 mysql_SOURCES =			mysql.cc readline.cc sql_string.cc completion_hash.cc
 mysql_LDADD =			@readline_link@ @TERMCAP_LIB@ $(LDADD) $(CXXLDFLAGS)
@@ -33,8 +33,8 @@ mysqldump_DEPENDENCIES=		$(LIBRARIES) $(pkglib_LTLIBRARIES)
 mysqlimport_DEPENDENCIES=	$(LIBRARIES) $(pkglib_LTLIBRARIES)
 insert_test_DEPENDENCIES=	$(LIBRARIES) $(pkglib_LTLIBRARIES)
 select_test_DEPENDENCIES=	$(LIBRARIES) $(pkglib_LTLIBRARIES)
-mysql_test_SOURCES= mysql-test.c
-mysql_test_DEPENDENCIES=   $(LIBRARIES) $(pkglib_LTLIBRARIES)
+mysqltest_SOURCES=			mysqltest.c
+mysqltest_DEPENDENCIES=   	$(LIBRARIES) $(pkglib_LTLIBRARIES)
 
 # Fix for mit-threads
 DEFS =			-DUNDEF_THREADS_HACK
