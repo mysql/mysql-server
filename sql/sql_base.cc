@@ -744,7 +744,7 @@ void close_temporary_tables(THD *thd)
 }
 
 /*
-  Find first suitable table in given list.
+  Find first suitable table by alias in given list.
 
   SYNOPSIS
     find_table_in_list()
@@ -763,6 +763,31 @@ TABLE_LIST * find_table_in_list(TABLE_LIST *table,
   for (; table; table= table->next)
     if ((!db_name || !strcmp(table->db, db_name)) &&
 	(!table_name || !strcmp(table->alias, table_name)))
+      break;
+  return table;
+}
+
+/*
+  Find real table in given list.
+
+  SYNOPSIS
+    find_table_in_list()
+    table - pointer to table list
+    db_name - data base name
+    table_name - table name
+
+  RETURN VALUES
+    NULL	Table not found
+    #		Pointer to found table.
+*/
+
+TABLE_LIST * find_real_table_in_list(TABLE_LIST *table,
+				     const char *db_name,
+				     const char *table_name)
+{
+  for (; table; table= table->next)
+    if (!strcmp(table->db, db_name) &&
+	!strcmp(table->real_name, table_name))
       break;
   return table;
 }
@@ -1894,13 +1919,13 @@ find_field_in_tables(THD *thd, Item_ident *item, TABLE_LIST *tables,
   const char *name=item->field_name;
   uint length=(uint) strlen(name);
 
-  if (table_name)
+  if (table_name && table_name[0])
   {						/* Qualified field */
     bool found_table=0;
     for (; tables ; tables=tables->next)
     {
       if (!strcmp(tables->alias,table_name) &&
-	  (!db || !strcmp(db,tables->db)))
+	  (!db || !tables->db ||  !tables->db[0] || !strcmp(db,tables->db)))
       {
 	found_table=1;
 	Field *find=find_field_in_table(thd,tables->table,name,length,

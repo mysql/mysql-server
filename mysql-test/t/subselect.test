@@ -2,25 +2,24 @@ select (select 2);
 SELECT (SELECT 1) UNION SELECT (SELECT 2);
 SELECT (SELECT (SELECT 0 UNION SELECT 0));
 -- error 1245
-SELECT (SELECT 1 FROM (SELECT 1) HAVING a=1) as a;
+SELECT (SELECT 1 FROM (SELECT 1) as b HAVING a=1) as a;
 -- error 1245
-SELECT (SELECT 1 FROM (SELECT 1) HAVING b=1) as a,(SELECT 1 FROM (SELECT 1) HAVING a=1) as b;
-SELECT (SELECT 1),MAX(1) FROM (SELECT 1);
+SELECT (SELECT 1 FROM (SELECT 1) as b HAVING b=1) as a,(SELECT 1 FROM (SELECT 1) as c HAVING a=1) as b;
+SELECT (SELECT 1),MAX(1) FROM (SELECT 1) as a;
 -- error 1245
 SELECT (SELECT a) as a;
-EXPLAIN SELECT 1 FROM (SELECT 1 as a) HAVING (SELECT a)=1;
-SELECT 1 FROM (SELECT 1 as a) HAVING (SELECT a)=1;
+EXPLAIN SELECT 1 FROM (SELECT 1 as a) as b  HAVING (SELECT a)=1;
+SELECT 1 FROM (SELECT 1 as a) as b HAVING (SELECT a)=1;
 -- error 1054
 SELECT (SELECT 1), a;
-SELECT 1 as a FROM (SELECT 1) HAVING (SELECT a)=1;
+SELECT 1 as a FROM (SELECT 1) as b HAVING (SELECT a)=1;
 -- error 1054
-SELECT 1 FROM (SELECT (SELECT a));
-SELECT * FROM (SELECT 1 as id) WHERE id IN (SELECT * FROM (SELECT 1 as id) ORDER BY id LIMIT 1);
+SELECT 1 FROM (SELECT (SELECT a) b) c;
+SELECT * FROM (SELECT 1 as id) b WHERE id IN (SELECT * FROM (SELECT 1 as id) c ORDER BY id LIMIT 1);
 -- error 1239
-SELECT * FROM (SELECT 1) WHERE 1 IN (SELECT 1,1);
+SELECT * FROM (SELECT 1) a  WHERE 1 IN (SELECT 1,1);
 SELECT 1 IN (SELECT 1);
-SELECT 1 FROM (SELECT 1 as a) WHERE 1 IN (SELECT (SELECT a));
-
+SELECT 1 FROM (SELECT 1 as a) b WHERE 1 IN (SELECT (SELECT a));
 drop table if exists t1,t2,t3,t4,t5,t6,t7,t8;
 create table t1 (a int);
 create table t2 (a int, b int);
@@ -176,7 +175,7 @@ INSERT INTO t2 (mot,topic,date,pseudo) VALUES ('joce','40143','2002-10-22','joce
 select numeropost as a FROM t1 GROUP BY (SELECT 1 FROM t1 HAVING a=1);
 SELECT numeropost,maxnumrep FROM t1 WHERE exists (SELECT 1 FROM t2 WHERE (mot='joce') AND date >= '2002-10-21' AND t1.numeropost = t2.topic) ORDER BY maxnumrep DESC LIMIT 0, 20;
 -- error 1054
-SELECT (SELECT 1) as a FROM (SELECT 1 FROM t1 HAVING a=1);
+SELECT (SELECT 1) as a FROM (SELECT 1 FROM t1 HAVING a=1) b;
 -- error 1054
 SELECT 1 IN (SELECT 1 FROM t2 HAVING a);
 SELECT * from t2 where topic IN (SELECT topic FROM t2 GROUP BY date);
@@ -210,7 +209,7 @@ drop table t1;
 CREATE TABLE t1 (field char(1) NOT NULL DEFAULT 'b');
 INSERT INTO t1 VALUES ();
 -- error 1240
-SELECT field FROM t1 WHERE 1=(SELECT 1 UNION ALL SELECT 1 FROM (SELECT 1) HAVING field='b');
+SELECT field FROM t1 WHERE 1=(SELECT 1 UNION ALL SELECT 1 FROM (SELECT 1) a HAVING field='b');
 drop table t1;
 
 # threadhardwarefr7
@@ -236,7 +235,7 @@ drop table t1;
 
 CREATE TABLE t1 (a int(1));
 INSERT INTO t1 VALUES (1);
-SELECT 1 FROM (SELECT a FROM t1) HAVING (SELECT a)=1;
+SELECT 1 FROM (SELECT a FROM t1) b HAVING (SELECT b.a)=1;
 drop table t1;
 
 #update with subselects
@@ -245,6 +244,10 @@ create table t2 (a int NOT NULL, b int, primary key (a));
 insert into t1 values (0, 10),(1, 11),(2, 12);
 insert into t2 values (1, 21),(2, 22),(3, 23);
 select * from t1;
+-- error 1093
+update t1 set b= (select b from t1);
+-- error 1240
+update t1 set b= (select b from t2);
 update t1 set b= (select b from t2 where t1.a = t2.a);
 select * from t1;
 drop table t1, t2;
@@ -256,6 +259,10 @@ insert into t1 values (0, 10),(1, 11),(2, 12);
 insert into t2 values (1, 21),(2, 12),(3, 23);
 select * from t1;
 select * from t1 where b = (select b from t2 where t1.a = t2.a);
+-- error 1093
+delete from t1 where b = (select b from t1);
+-- error 1240
+delete from t1 where b = (select b from t2);
 delete from t1 where b = (select b from t2 where t1.a = t2.a);
 select * from t1;
 drop table t1, t2;
@@ -270,6 +277,10 @@ insert into t12 values (33, 10),(22, 11),(2, 12);
 insert into t2 values (1, 21),(2, 12),(3, 23);
 select * from t11;
 select * from t12;
+-- error 1093
+delete t11.*, t12.* from t11,t12 where t11.a = t12.a and t11.b = (select b from t12 where t11.a = t12.a);
+-- error 1240
+delete t11.*, t12.* from t11,t12 where t11.a = t12.a and t11.b = (select b from t2);
 delete t11.*, t12.* from t11,t12 where t11.a = t12.a and t11.b = (select b from t2 where t11.a = t2.a);
 select * from t11;
 select * from t12;
@@ -278,7 +289,13 @@ drop table t11, t12, t2;
 #insert with subselects
 CREATE TABLE t1 (x int);
 create table t2 (a int);
+create table t3 (a int);
 insert into t2 values (1);
+insert into t3 values (1),(2);
+-- error 1093
+INSERT INTO t1 (x) VALUES ((SELECT x FROM t1));
+-- error 1240
+INSERT INTO t1 (x) VALUES ((SELECT a FROM t3));
 INSERT INTO t1 (x) VALUES ((SELECT a FROM t2));
 select * from t1;
 insert into t2 values (1);
@@ -289,16 +306,22 @@ INSERT INTO t1 (x) select (SELECT SUM(a)+1 FROM t2) FROM t2;
 select * from t1;
 -- error 1093
 INSERT INTO t1 (x) select (SELECT SUM(x)+2 FROM t1) FROM t2;
-INSERT DELAYED INTO t1 (x) VALUES ((SELECT SUM(x) FROM t1));
+INSERT DELAYED INTO t1 (x) VALUES ((SELECT SUM(x) FROM t2));
 -- sleep 1
 select * from t1;
-drop table t1, t2;
+drop table t1, t2, t3;
 
 #replace with subselects
 CREATE TABLE t1 (x int not null, y int, primary key (x));
 create table t2 (a int);
+create table t3 (a int);
 insert into t2 values (1);
+insert into t3 values (1),(2);
 select * from t1;
+-- error 1093
+replace into t1 (x, y) VALUES ((SELECT x FROM t1), (SELECT a+1 FROM t2));
+-- error 1240
+replace into t1 (x, y) VALUES ((SELECT a FROM t3), (SELECT a+1 FROM t2));
 replace into t1 (x, y) VALUES ((SELECT a FROM t2), (SELECT a+1 FROM t2));
 select * from t1;
 replace into t1 (x, y) VALUES ((SELECT a FROM t2), (SELECT a+2 FROM t2));
@@ -311,10 +334,10 @@ replace DELAYED into t1 (x, y) VALUES ((SELECT a+3 FROM t2), (SELECT a+1 FROM t2
 select * from t1;
 replace LOW_PRIORITY into t1 (x, y) VALUES ((SELECT a+1 FROM t2), (SELECT a FROM t2));
 select * from t1;
-drop table t1, t2;
+drop table t1, t2, t3;
 
 -- error 1096
-SELECT * FROM (SELECT 1) WHERE 1 IN (SELECT *);
+SELECT * FROM (SELECT 1) b WHERE 1 IN (SELECT *);
 drop table if exists t;
 CREATE TABLE t (id int(11) default NULL, KEY id (id)) TYPE=MyISAM CHARSET=latin1;
 INSERT INTO t VALUES (1),(2);
@@ -326,5 +349,11 @@ EXPLAIN SELECT * FROM t WHERE id IN (SELECT 1+(select 1));
 EXPLAIN SELECT * FROM t WHERE id IN (SELECT 1 UNION SELECT 3);
 SELECT * FROM t WHERE id IN (SELECT 5 UNION SELECT 3);
 SELECT * FROM t WHERE id IN (SELECT 5 UNION SELECT 2);
-drop table if exists t;
-
+-- error 1093
+INSERT INTO t VALUES ((SELECT * FROM t));
+SELECT * FROM t;
+CREATE TABLE t1 (id int(11) default NULL, KEY id (id)) TYPE=MyISAM CHARSET=latin1;
+INSERT INTO t1 values (1),(1);
+-- error 1240
+UPDATE t SET id=(SELECT * FROM t1);
+drop table t;

@@ -86,6 +86,13 @@ int mysql_update(THD *thd,
       setup_conds(thd,update_table_list,&conds)
       || setup_ftfuncs(&thd->lex.select_lex))
     DBUG_RETURN(-1);				/* purecov: inspected */
+  if (find_real_table_in_list(table_list->next, 
+			      table_list->db, table_list->real_name))
+  {
+    my_error(ER_INSERT_TABLE_USED, MYF(0), table_list->real_name);
+    DBUG_RETURN(-1);
+  }
+
   old_used_keys=table->used_keys;		// Keys used in WHERE
 
   /*
@@ -274,7 +281,7 @@ int mysql_update(THD *thd,
     if (!(select && select->skipp_record()))
     {
       store_record(table,1);
-      if (fill_record(fields,values))
+      if (fill_record(fields,values) || thd->net.report_error)
 	break; /* purecov: inspected */
       found++;
       if (compare_record(table, query_id))
@@ -598,7 +605,7 @@ bool multi_update::send_data(List<Item> &values)
       // Only one table being updated receives a completely different treatment
       table->status|= STATUS_UPDATED;
       store_record(table,1); 
-      if (fill_record(fields,real_values))
+      if (fill_record(fields,real_values) || thd->net.report_error)
 	return 1;
       found++;
       if (/* compare_record(table, query_id)  && */
@@ -637,7 +644,8 @@ bool multi_update::send_data(List<Item> &values)
       {
 	table->status|= STATUS_UPDATED;
 	store_record(table,1); 
-	if (fill_record(*fields_by_tables[0],values_by_table))
+	if (fill_record(*fields_by_tables[0], values_by_table) ||
+	    thd->net.report_error)
 	  return 1;
 	found++;
 	if (/*compare_record(table, query_id)  && */
@@ -660,8 +668,8 @@ bool multi_update::send_data(List<Item> &values)
 						   table->file->ref_length,
 						   system_charset_info));
 	fill_record(tmp_tables[secure_counter]->field,values_by_table);
-	error= write_record(tmp_tables[secure_counter],
-			    &(infos[secure_counter]));
+	error= thd->net.report_error || 
+	  write_record(tmp_tables[secure_counter], &(infos[secure_counter]));
 	if (error)
 	{
 	  error=-1;
@@ -767,8 +775,10 @@ int multi_update::do_updates (bool from_send_error)
       table->status|= STATUS_UPDATED;
       store_record(table,1); 
       local_error= (fill_record(*fields_by_tables[counter + 1],list) ||
+		    thd->net.report_error ||
 		    /* compare_record(table, query_id) || */
-		    table->file->update_row(table->record[1],table->record[0]));
+		    table->file->update_row(table->record[1],
+					    table->record[0]));
       if (local_error)
       {
 	table->file->print_error(local_error,MYF(0));

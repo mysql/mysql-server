@@ -17,10 +17,12 @@
 /* sql_yacc.yy */
 
 %{
-/* Pass thd as an arg to yyparse(). The type will be void*, so it
-** must be  cast to (THD*) when used. Use the YYTHD macro for this.
+/* thd is passed as an arg to yyparse(), and subsequently to yylex().
+** The type will be void*, so it must be  cast to (THD*) when used.
+** Use the YYTHD macro for this.
 */
 #define YYPARSE_PARAM yythd
+#define YYLEX_PARAM yythd
 #define YYTHD ((THD *)yythd)
 
 #define MYSQL_YACC
@@ -37,7 +39,7 @@
 #include <myisammrg.h>
 
 extern void yyerror(const char*);
-int yylex(void *yylval);
+int yylex(void *yylval, void *yythd);
 
 #define yyoverflow(A,B,C,D,E,F) if (my_yyoverflow((B),(D),(int*) (F))) { yyerror((char*) (A)); return 2; }
 
@@ -2977,7 +2979,7 @@ insert_values:
 	    lex->lock_option= (using_update_log) ? TL_READ_NO_INSERT : TL_READ;
 	    mysql_init_select(lex);
 	  }
-	  select_options select_item_list select_from select_lock_type
+	  select_options select_item_list opt_select_from select_lock_type
           union_clause {}
 	;
 
