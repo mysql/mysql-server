@@ -201,6 +201,7 @@ class ha_ndbcluster: public handler
   void print_results();
 
   longlong get_auto_increment();
+  void invalidateCache();
   int ndb_err(NdbConnection*);
   bool uses_blob_value(bool all_fields);
 
