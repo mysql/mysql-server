@@ -1588,3 +1588,14 @@ create view v4 as select * from v2 where 20 < (select (s1) from t1);
 insert into v4 values (30);
 drop view v4, v3, v2, v1;
 drop table t1;
+
+#
+# CHECK TABLE with VIEW
+#
+create table t1 (a int);
+create view v1 as select * from t1;
+check table t1,v1;
+check table v1,t1;
+drop table t1;
+check table v1;
+drop view v1;

@@ -642,12 +642,15 @@ static void verify_prepare_field(MYSQL_RES *result,
                                  unsigned long length, const char *def)
 {
   MYSQL_FIELD *field;
+  CHARSET_INFO *cs;
 
   if (!(field= mysql_fetch_field_direct(result, no)))
   {
     fprintf(stdout, "\n *** ERROR: FAILED TO GET THE RESULT ***");
     exit(1);
   }
+  cs= get_charset(field->charsetnr, 0);
+  DIE_UNLESS(cs);
   if (!opt_silent)
   {
     fprintf(stdout, "\n field[%d]:", no);
@@ -663,7 +666,7 @@ static void verify_prepare_field(MYSQL_RES *result,
               field->org_table, org_table);
     fprintf(stdout, "\n    database :`%s`\t(expected: `%s`)", field->db, db);
     fprintf(stdout, "\n    length   :`%ld`\t(expected: `%ld`)",
-            field->length, length);
+            field->length, length * cs->mbmaxlen);
     fprintf(stdout, "\n    maxlength:`%ld`", field->max_length);
     fprintf(stdout, "\n    charsetnr:`%d`", field->charsetnr);
     fprintf(stdout, "\n    default  :`%s`\t(expected: `%s`)",
@@ -672,13 +675,26 @@ static void verify_prepare_field(MYSQL_RES *result,
   }
   DIE_UNLESS(strcmp(field->name, name) == 0);
   DIE_UNLESS(strcmp(field->org_name, org_name) == 0);
-  DIE_UNLESS(field->type == type);
+  /*
+    XXX: silent column specification change works based on number of
+    bytes a column occupies. So CHAR -> VARCHAR upgrade is possible even
+    for CHAR(2) column if its character set is multibyte.
+    VARCHAR -> CHAR downgrade won't work for VARCHAR(3) as one would
+    expect.
+  */
+  if (cs->mbmaxlen == 1)
+    DIE_UNLESS(field->type == type);
   if (table)
     DIE_UNLESS(strcmp(field->table, table) == 0);
   if (org_table)
     DIE_UNLESS(strcmp(field->org_table, org_table) == 0);
   DIE_UNLESS(strcmp(field->db, db) == 0);
-  DIE_UNLESS(field->length == length);
+  /*
+    Character set should be taken into account for multibyte encodings, such
+    as utf8. Field length is calculated as number of characters * maximum
+    number of bytes a character can occupy.
+  */
+  DIE_UNLESS(field->length == length * cs->mbmaxlen);
   if (def)
     DIE_UNLESS(strcmp(field->def, def) == 0);
 }
@@ -7263,13 +7279,13 @@ static void test_explain_bug()
   verify_prepare_field(result, 0, "Field", "COLUMN_NAME",
                        MYSQL_TYPE_STRING, 0, 0, "", 192, 0);
 
-  verify_prepare_field(result, 1, "Type", "TYPE",
+  verify_prepare_field(result, 1, "Type", "COLUMN_TYPE",
                        MYSQL_TYPE_STRING, 0, 0, "", 120, 0);
 
   verify_prepare_field(result, 2, "Null", "IS_NULLABLE",
                        MYSQL_TYPE_STRING, 0, 0, "", 9, 0);
 
-  verify_prepare_field(result, 3, "Key", "KEY",
+  verify_prepare_field(result, 3, "Key", "COLUMN_KEY",
                        MYSQL_TYPE_STRING, 0, 0, "", 9, 0);
 
   verify_prepare_field(result, 4, "Default", "COLUMN_DEFAULT",
@@ -11736,6 +11752,140 @@ static void test_bug6096()
 }
 
 
+/*
+  Test of basic checks that are performed in server for components
+  of MYSQL_TIME parameters.
+*/
+
+static void test_datetime_ranges()
+{
+  const char *stmt_text;
+  int rc, i;
+  MYSQL_STMT *stmt;
+  MYSQL_BIND bind[6];
+  MYSQL_TIME tm[6];
+
+  myheader("test_datetime_ranges");
+
+  stmt_text= "drop table if exists t1";
+  rc= mysql_real_query(mysql, stmt_text, strlen(stmt_text));
+  myquery(rc);
+
+  stmt_text= "create table t1 (year datetime, month datetime, day datetime, "
+                              "hour datetime, min datetime, sec datetime)";
+  rc= mysql_real_query(mysql, stmt_text, strlen(stmt_text));
+  myquery(rc);
+
+  stmt= mysql_simple_prepare(mysql,
+                             "INSERT INTO t1 VALUES (?, ?, ?, ?, ?, ?)");
+  check_stmt(stmt);
+  verify_param_count(stmt, 6);
+
+  bzero(bind, sizeof(bind));
+  for (i= 0; i < 6; i++)
+  {
+    bind[i].buffer_type= MYSQL_TYPE_DATETIME;
+    bind[i].buffer= &tm[i];
+  }
+  rc= mysql_stmt_bind_param(stmt, bind);
+  check_execute(stmt, rc);
+
+  tm[0].year= 2004; tm[0].month= 11; tm[0].day= 10;
+  tm[0].hour= 12; tm[0].minute= 30; tm[0].second= 30;
+  tm[0].second_part= 0; tm[0].neg= 0;
+
+  tm[5]= tm[4]= tm[3]= tm[2]= tm[1]= tm[0];
+  tm[0].year= 10000;  tm[1].month= 13; tm[2].day= 32;
+  tm[3].hour= 24; tm[4].minute= 60; tm[5].second= 60;
+
+  rc= mysql_stmt_execute(stmt);
+  check_execute(stmt, rc);
+  DIE_UNLESS(mysql_warning_count(mysql) != 6);
+
+  verify_col_data("t1", "year", "0000-00-00 00:00:00");
+  verify_col_data("t1", "month", "0000-00-00 00:00:00");
+  verify_col_data("t1", "day", "0000-00-00 00:00:00");
+  verify_col_data("t1", "hour", "0000-00-00 00:00:00");
+  verify_col_data("t1", "min", "0000-00-00 00:00:00");
+  verify_col_data("t1", "sec", "0000-00-00 00:00:00");
+
+  mysql_stmt_close(stmt);
+
+  stmt_text= "delete from t1";
+  rc= mysql_real_query(mysql, stmt_text, strlen(stmt_text));
+  myquery(rc);
+
+  stmt= mysql_simple_prepare(mysql, "INSERT INTO t1 (year, month, day) "
+                                    "VALUES (?, ?, ?)");
+  check_stmt(stmt);
+  verify_param_count(stmt, 3);
+
+  /*
+    We reuse contents of bind and tm arrays left from previous part of test.
+  */
+  for (i= 0; i < 3; i++)
+    bind[i].buffer_type= MYSQL_TYPE_DATE;
+
+  rc= mysql_stmt_bind_param(stmt, bind);
+  check_execute(stmt, rc);
+
+  rc= mysql_stmt_execute(stmt);
+  check_execute(stmt, rc);
+  DIE_UNLESS(mysql_warning_count(mysql) != 3);
+
+  verify_col_data("t1", "year", "0000-00-00 00:00:00");
+  verify_col_data("t1", "month", "0000-00-00 00:00:00");
+  verify_col_data("t1", "day", "0000-00-00 00:00:00");
+
+  mysql_stmt_close(stmt);
+
+  stmt_text= "drop table t1";
+  rc= mysql_real_query(mysql, stmt_text, strlen(stmt_text));
+  myquery(rc);
+
+  stmt_text= "create table t1 (day_ovfl time, day time, hour time, min time, sec time)";
+  rc= mysql_real_query(mysql, stmt_text, strlen(stmt_text));
+  myquery(rc);
+
+  stmt= mysql_simple_prepare(mysql,
+                             "INSERT INTO t1 VALUES (?, ?, ?, ?, ?)");
+  check_stmt(stmt);
+  verify_param_count(stmt, 5);
+
+  /*
+    Again we reuse what we can from previous part of test.
+  */
+  for (i= 0; i < 5; i++)
+    bind[i].buffer_type= MYSQL_TYPE_TIME;
+
+  rc= mysql_stmt_bind_param(stmt, bind);
+  check_execute(stmt, rc);
+
+  tm[0].year= 0; tm[0].month= 0; tm[0].day= 10;
+  tm[0].hour= 12; tm[0].minute= 30; tm[0].second= 30;
+  tm[0].second_part= 0; tm[0].neg= 0;
+
+  tm[4]= tm[3]= tm[2]= tm[1]= tm[0];
+  tm[0].day= 35; tm[1].day= 34; tm[2].hour= 30; tm[3].minute= 60; tm[4].second= 60;
+
+  rc= mysql_stmt_execute(stmt);
+  check_execute(stmt, rc);
+  DIE_UNLESS(mysql_warning_count(mysql) != 2);
+
+  verify_col_data("t1", "day_ovfl", "838:59:59");
+  verify_col_data("t1", "day", "828:30:30");
+  verify_col_data("t1", "hour", "270:30:30");
+  verify_col_data("t1", "min", "00:00:00");
+  verify_col_data("t1", "sec", "00:00:00");
+
+  mysql_stmt_close(stmt);
+
+  stmt_text= "drop table t1";
+  rc= mysql_real_query(mysql, stmt_text, strlen(stmt_text));
+  myquery(rc);
+}
+
+
 static void test_bug4172()
 {
   MYSQL_STMT *stmt;
@@ -12070,6 +12220,7 @@ static struct my_tests_st my_tests[]= {
   { "test_bug6046", test_bug6046 },
   { "test_bug6081", test_bug6081 },
   { "test_bug6096", test_bug6096 },
+  { "test_datetime_ranges", test_datetime_ranges },
   { "test_bug4172", test_bug4172 },
   { "test_conversion", test_conversion },
   { "test_view", test_view },

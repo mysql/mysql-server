@@ -309,7 +309,7 @@ void multi_keycache_free(void)
   Get a key cache to be used for a specific table.
 
   SYNOPSIS
-    multi_key_cache_get()
+    multi_key_cache_search()
     key				key to find (usually table path)
     uint length			Length of key.
 
