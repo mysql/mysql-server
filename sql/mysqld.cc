@@ -2105,13 +2105,11 @@ static int init_common_variables(const char *conf_file_name, int argc,
   strmov(fn_ext(pidfile_name),".pid");		// Add proper extension
 
 #ifndef DBUG_OFF
-  if (*(MYSQL_SERVER_SUFFIX))
-    strxmov(strend(server_version),MYSQL_SERVER_SUFFIX,"-debug",NullS);
+  if (!*(MYSQL_SERVER_SUFFIX))
+    strmov(strend(server_version),"-debug");
   else
-    strmov(strend(server_version),"--debug");
-#else
-    strmov(strend(server_version),MYSQL_SERVER_SUFFIX);
 #endif
+    strmov(strend(server_version),MYSQL_SERVER_SUFFIX);
 
   load_defaults(conf_file_name, groups, &argc, &argv);
   defaults_argv=argv;
@@ -2364,9 +2362,8 @@ Now disabling --log-slave-updates.");
     {
       if (global_system_variables.log_warnings)
 	sql_print_error("Warning: Failed to lock memory. Errno: %d\n",errno);
+      locked_in_memory= 0;
     }
-    else
-      locked_in_memory=1;
   }
 #else
   locked_in_memory=0;
@@ -2530,6 +2527,8 @@ int main(int argc, char **argv)
     }
   }
 #endif
+  thread_stack_min=thread_stack - STACK_MIN_SIZE;
+
   (void) thr_setconcurrency(concurrency);	// 10 by default
 
   /*

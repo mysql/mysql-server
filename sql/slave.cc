@@ -285,8 +285,9 @@ int init_relay_log_pos(RELAY_LOG_INFO* rli,const char* log,
       In this case, we will use the same IO_CACHE pointer to
       read data as the IO thread is using to write data.
     */
-    if (my_b_tell((rli->cur_log=rli->relay_log.get_log_file())) == 0 &&
-	check_binlog_magic(rli->cur_log,errmsg))
+    rli->cur_log= rli->relay_log.get_log_file();
+    if (my_b_tell(rli->cur_log) == 0 &&
+	check_binlog_magic(rli->cur_log, errmsg))
       goto err;
     rli->cur_log_old_open_count=rli->relay_log.get_open_count();
   }
@@ -1673,7 +1674,18 @@ int init_master_info(MASTER_INFO* mi, const char* master_info_fname,
   DBUG_ENTER("init_master_info");
 
   if (mi->inited)
+  {
+    /*
+      We have to reset read position of relay-log-bin as we may have
+      already been reading from 'hotlog' when the slave was stopped
+      last time. If this case pos_in_file would be set and we would
+      get a crash when trying to read the signature for the binary
+      relay log.
+    */
+    my_b_seek(mi->rli.cur_log, (my_off_t) 0);
     DBUG_RETURN(0);
+  }
+
   mi->mysql=0;
   mi->file_id=1;
   fn_format(fname, master_info_fname, mysql_data_home, "", 4+32);
@@ -3617,13 +3629,16 @@ int queue_event(MASTER_INFO* mi,const char* buf, ulong event_len)
     mi->master_log_pos+= inc_pos;
     DBUG_PRINT("info", ("master_log_pos: %d, event originating from the same server, ignored", (ulong) mi->master_log_pos));
   }  
-  else /* write the event to the relay log */
+  else
+  {
+    /* write the event to the relay log */
     if (likely(!(error= rli->relay_log.appendv(buf,event_len,0))))
     {
       mi->master_log_pos+= inc_pos;
       DBUG_PRINT("info", ("master_log_pos: %d", (ulong) mi->master_log_pos));
       rli->relay_log.harvest_bytes_written(&rli->log_space_total);
     }
+  }
 
 err:
   pthread_mutex_unlock(&mi->data_lock);
@@ -4091,8 +4106,9 @@ Before assert, my_b_tell(cur_log)=%s  rli->event_relay_log_pos=%s",
       if (rli->relay_log.is_active(rli->linfo.log_file_name))
       {
 #ifdef EXTRA_DEBUG
-	sql_print_error("next log '%s' is currently active",
-			rli->linfo.log_file_name);
+	if (global_system_variables.log_warnings)
+	  sql_print_error("next log '%s' is currently active",
+			  rli->linfo.log_file_name);
 #endif	  
 	rli->cur_log= cur_log= rli->relay_log.get_log_file();
 	rli->cur_log_old_open_count= rli->relay_log.get_open_count();
@@ -4120,8 +4136,9 @@ Before assert, my_b_tell(cur_log)=%s  rli->event_relay_log_pos=%s",
 	from hot to cold, but not from cold to hot). No need for LOCK_log.
       */
 #ifdef EXTRA_DEBUG
-      sql_print_error("next log '%s' is not active",
-		      rli->linfo.log_file_name);
+      if (global_system_variables.log_warnings)
+	sql_print_error("next log '%s' is not active",
+			rli->linfo.log_file_name);
 #endif	  
       // open_binlog() will check the magic header
       if ((rli->cur_log_fd=open_binlog(cur_log,rli->linfo.log_file_name,

@@ -12,6 +12,8 @@ reset query cache;
 flush status;
 connect (root,localhost,root,,test,$MASTER_MYPORT,master.sock);
 connection root;
+show grants for current_user;
+show grants;
 --disable_warnings
 create database if not exists mysqltest;
 --enable_warnings
@@ -43,6 +45,7 @@ grant SELECT(a) on mysqltest.t1 to mysqltest_3@localhost;
 # The following queries should be fetched from cache
 connect (user1,localhost,mysqltest_1,,mysqltest,$MASTER_MYPORT,master.sock);
 connection user1;
+show grants for current_user();
 show status like "Qcache_queries_in_cache";
 show status like "Qcache_hits";
 show status like "Qcache_not_cached";
@@ -63,6 +66,10 @@ select c from t1;
 show status like "Qcache_queries_in_cache";
 show status like "Qcache_hits";
 show status like "Qcache_not_cached";
+
+connect (unkuser,localhost,,,,$MASTER_MYPORT,master.sock);
+connection unkuser;
+show grants for current_user();
 
 # The following queries should be fetched from cache
 connect (user2,localhost,mysqltest_2,,mysqltest,$MASTER_MYPORT,master.sock);
@@ -104,6 +111,7 @@ show status like "Qcache_not_cached";
 connect (user4,localhost,mysqltest_1,,*NO-ONE*,$MASTER_MYPORT,master.sock);
 connection user4;
 select "user4";
+show grants;
 --error 1046
 select a from t1;
 # The following query is not cached before (different database)

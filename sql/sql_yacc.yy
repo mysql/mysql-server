@@ -210,6 +210,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %token	CONCURRENT
 %token	CONSTRAINT
 %token	CONVERT_SYM
+%token  CURRENT_USER
 %token	DATABASES
 %token	DATA_SYM
 %token	DEFAULT
@@ -2684,6 +2685,8 @@ simple_expr:
 	    $$= new Item_func_curtime_local($3);
 	    Lex->safe_to_cache_query=0;
 	  }
+	| CURRENT_USER optional_braces
+          { $$= create_func_current_user(); }
 	| DATE_ADD_INTERVAL '(' expr ',' interval_expr interval ')'
 	  { $$= new Item_date_add_interval($3,$5,$6,0); }
 	| DATE_SUB_INTERVAL '(' expr ',' interval_expr interval ')'
@@ -3060,11 +3063,15 @@ sum_expr:
 	  { $$=new Item_sum_variance($3); }
 	| SUM_SYM '(' in_sum_expr ')'
 	  { $$=new Item_sum_sum($3); }
-	| GROUP_CONCAT_SYM '(' opt_distinct expr_list opt_gorder_clause
-	  opt_gconcat_separator ')'
+	| GROUP_CONCAT_SYM '(' opt_distinct
+	  { Select->in_sum_expr++; }
+	  expr_list opt_gorder_clause
+	  opt_gconcat_separator
+	 ')'
 	  {
-	    $$=new Item_func_group_concat($3,$4,Lex->gorder_list,$6);
-	    $4->empty();
+	    Select->in_sum_expr--;
+	    $$=new Item_func_group_concat($3,$5,Select->gorder_list,$7);
+	    $5->empty();
 	  };
 
 opt_distinct:
@@ -3079,16 +3086,15 @@ opt_gconcat_separator:
 opt_gorder_clause:
 	  /* empty */
 	  {
-            LEX *lex=Lex;
-            lex->gorder_list = NULL;
+            Select->gorder_list = NULL;
 	  }
 	| order_clause
           {
-            LEX *lex=Lex;
-            lex->gorder_list=
-	      (SQL_LIST*) sql_memdup((char*) &lex->current_select->order_list,
+            SELECT_LEX *select= Select;
+            select->gorder_list=
+	      (SQL_LIST*) sql_memdup((char*) &select->order_list,
 				     sizeof(st_sql_list));
-	    lex->current_select->order_list.empty();
+	    select->order_list.empty();
 	  };
 
 
@@ -4170,6 +4176,29 @@ show_param:
 	  { Lex->sql_command= SQLCOM_SHOW_LOGS; WARN_DEPRECATED("SHOW BDB LOGS", "SHOW ENGINE BDB LOGS"); }
 	| LOGS_SYM
 	  { Lex->sql_command= SQLCOM_SHOW_LOGS; WARN_DEPRECATED("SHOW LOGS", "SHOW ENGINE BDB LOGS"); }
+	| GRANTS
+	  {
+	    LEX *lex=Lex;
+	    lex->sql_command= SQLCOM_SHOW_GRANTS;
+	    THD *thd= lex->thd;
+	    LEX_USER *curr_user;
+            if (!(curr_user= (LEX_USER*) thd->alloc(sizeof(st_lex_user))))
+              YYABORT;
+            curr_user->user.str= thd->priv_user;
+            curr_user->user.length= strlen(thd->priv_user);
+            if (*thd->priv_host != 0)
+            {
+              curr_user->host.str= thd->priv_host;
+              curr_user->host.length= strlen(thd->priv_host);
+            }
+            else
+            {
+              curr_user->host.str= (char *) "%";
+              curr_user->host.length= 1;
+            }
+            curr_user->password.str=NullS;
+	    lex->grant_user= curr_user;
+	  }
 	| GRANTS FOR_SYM user
 	  {
 	    LEX *lex=Lex;
@@ -4760,7 +4789,25 @@ user:
 	    if (!($$=(LEX_USER*) thd->alloc(sizeof(st_lex_user))))
 	      YYABORT;
 	    $$->user = $1; $$->host=$3;
-	  };
+	  }
+	| CURRENT_USER optional_braces
+	{
+          THD *thd= YYTHD;
+          if (!($$=(LEX_USER*) thd->alloc(sizeof(st_lex_user))))
+            YYABORT;
+          $$->user.str= thd->priv_user;
+          $$->user.length= strlen(thd->priv_user);
+          if (*thd->priv_host != 0)
+          {
+            $$->host.str= thd->priv_host;
+            $$->host.length= strlen(thd->priv_host);
+          }
+          else
+          {
+            $$->host.str= (char *) "%";
+            $$->host.length= 1;
+          }
+	};
 
 /* Keyword that we allow for identifiers */
 

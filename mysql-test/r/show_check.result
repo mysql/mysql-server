@@ -362,3 +362,41 @@ t1	HEAP	Fixed	0	5	#	#	#	5	NULL	NULL	NULL	NULL	latin1_swedish_ci	NULL
 t2	HEAP	Fixed	0	5	#	#	#	5	NULL	NULL	NULL	NULL	latin1_swedish_ci	NULL		
 t3	HEAP	Fixed	0	9	#	#	#	9	NULL	NULL	NULL	NULL	latin1_swedish_ci	NULL		
 drop table t1, t2, t3;
+create database test_$1;
+show create database test_$1;
+Database	Create Database
+test_$1	CREATE DATABASE `test_$1` /*!40100 DEFAULT CHARACTER SET latin1 */
+create table test_$1.t1(a int);
+insert into test_$1.t1 values(1);
+grant select on `test_$1`.* to mysqltest_1@localhost;
+grant usage  on `test_$1`.* to mysqltest_2@localhost;
+grant drop   on `test_$1`.* to mysqltest_3@localhost;
+select * from t1;
+a
+1
+show create database test_$1;
+Database	Create Database
+test_$1	CREATE DATABASE `test_$1` /*!40100 DEFAULT CHARACTER SET latin1 */
+drop table t1;
+ERROR 42000: Access denied for user: 'mysqltest_1'@'localhost' to database 'test_$1'
+drop database test_$1;
+ERROR 42000: Access denied for user: 'mysqltest_1'@'localhost' to database 'test_$1'
+select * from test_$1.t1;
+ERROR 42000: Access denied for user: 'mysqltest_2'@'localhost' to database 'test_$1'
+show create database test_$1;
+ERROR 42000: Access denied for user: 'mysqltest_2'@'localhost' to database 'test_$1'
+drop table test_$1.t1;
+ERROR 42000: Access denied for user: 'mysqltest_2'@'localhost' to database 'test_$1'
+drop database test_$1;
+ERROR 42000: Access denied for user: 'mysqltest_2'@'localhost' to database 'test_$1'
+select * from test_$1.t1;
+ERROR 42000: Access denied for user: 'mysqltest_3'@'localhost' to database 'test_$1'
+show create database test_$1;
+ERROR 42000: Access denied for user: 'mysqltest_3'@'localhost' to database 'test_$1'
+drop table test_$1.t1;
+drop database test_$1;
+delete from mysql.user 
+where user='mysqltest_1' || user='mysqltest_2' || user='mysqltest_3';
+delete from mysql.db   
+where user='mysqltest_1' || user='mysqltest_2' || user='mysqltest_3';
+flush privileges;

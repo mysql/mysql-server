@@ -161,13 +161,6 @@ static bool test_if_real(const char *str,int length, CHARSET_INFO *cs)
 }
 #endif
 
-static inline uint field_length_without_space(const char *ptr, uint length)
-{
-  const char *end= ptr+length;
-  while (end > ptr && end[-1] == ' ')
-    end--;
-  return (uint) (end-ptr);
-}
 
 /*
  Tables of filed type compatibility.
@@ -306,7 +299,7 @@ Field::Field(char *ptr_arg,uint32 length_arg,uchar *null_ptr_arg,
    field_name(field_name_arg),
    query_id(0), key_start(0), part_of_key(0), part_of_sortkey(0),
    unireg_check(unireg_check_arg),
-   field_length(length_arg),null_bit(null_bit_arg),abs_offset(0)
+   field_length(length_arg),null_bit(null_bit_arg)
 {
   flags=null_ptr ? 0: NOT_NULL_FLAG;
   comment.str= (char*) "";
@@ -2789,14 +2782,8 @@ int Field_double::cmp(const char *a_ptr, const char *b_ptr)
   else
 #endif
   {
-/* could this ALWAYS be 2 calls to doubleget() ?? */
-#if defined(__FLOAT_WORD_ORDER) && (__FLOAT_WORD_ORDER == __BIG_ENDIAN)
     doubleget(a, a_ptr);
     doubleget(b, b_ptr);
-#else
-    memcpy_fixed(&a,a_ptr,sizeof(double));
-    memcpy_fixed(&b,b_ptr,sizeof(double));
-#endif
   }
   return (a < b) ? -1 : (a > b) ? 1 : 0;
 }
@@ -2816,12 +2803,7 @@ void Field_double::sort_string(char *to,uint length __attribute__((unused)))
   }
   else
 #endif
-/* could this ALWAYS be 2 calls to doubleget() ?? */
-#if defined(__FLOAT_WORD_ORDER) && (__FLOAT_WORD_ORDER == __BIG_ENDIAN)
     doubleget(nr,ptr);
-#else
-    memcpy_fixed(&nr,ptr,sizeof(nr));
-#endif
   change_double_for_sort(nr, (byte*) to);
 }
 
@@ -5597,7 +5579,7 @@ uint32 calc_pack_length(enum_field_types type,uint32 length)
   case FIELD_TYPE_ENUM: abort(); return 0;	// This shouldn't happen
   default: return 0;
   }
-  return 0;					// This shouldn't happen
+  return 0;					// Keep compiler happy
 }
 
 
@@ -5630,6 +5612,18 @@ Field *make_field(char *ptr, uint32 field_length,
     null_pos=0;
     null_bit=0;
   }
+
+  switch (field_type)
+  {
+    case FIELD_TYPE_DATE:
+    case FIELD_TYPE_NEWDATE:
+    case FIELD_TYPE_TIME:
+    case FIELD_TYPE_DATETIME:
+    case FIELD_TYPE_TIMESTAMP:
+      field_charset= &my_charset_bin;
+    default: break;
+  }
+
   if (f_is_alpha(pack_flag))
   {
     if (!f_is_packed(pack_flag))

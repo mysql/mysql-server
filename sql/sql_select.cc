@@ -3610,7 +3610,6 @@ static void
 make_join_readinfo(JOIN *join, uint options)
 {
   uint i;
-  SELECT_LEX *select_lex= &join->thd->lex->select_lex;
   bool statistics= test(!(join->select_options & SELECT_DESCRIBE));
   DBUG_ENTER("make_join_readinfo");
 
@@ -3880,9 +3879,7 @@ JOIN::join_free(bool full)
     else
     {
       for (tab= join_tab, end= tab+tables; tab != end; tab++)
-      {
 	tab->cleanup();
-      }
       table= 0;
     }
   }
@@ -4789,7 +4786,7 @@ Field *create_tmp_field(THD *thd, TABLE *table,Item *item, Item::Type type,
       else
 	return new Field_double(item_sum->max_length,maybe_null,
 				item->name, table, item_sum->decimals);
-    case Item_sum::VARIANCE_FUNC:			/* Place for sum & count */
+    case Item_sum::VARIANCE_FUNC:		/* Place for sum & count */
     case Item_sum::STD_FUNC:	
       if (group)
 	return	new Field_string(sizeof(double)*2+sizeof(longlong),
@@ -4817,17 +4814,19 @@ Field *create_tmp_field(THD *thd, TABLE *table,Item *item, Item::Type type,
       default:
 	// This case should never be choosen
 	DBUG_ASSERT(0);
+	thd->fatal_error();
 	return 0;
       }
     }
-    thd->fatal_error();
-    return 0;					// Error
+    /* We never come here */
   }
   case Item::FIELD_ITEM:
   case Item::DEFAULT_VALUE_ITEM:
-    return create_tmp_field_from_field(thd, (*from_field=
-					     ((Item_field*) item)->field),
+  {
+    Item_field *field= (Item_field*) item;
+    return create_tmp_field_from_field(thd, (*from_field= field->field),
 				       item, table, modify_item);
+  }
   case Item::FUNC_ITEM:
   case Item::COND_ITEM:
   case Item::FIELD_AVG_ITEM:
@@ -8405,12 +8404,11 @@ setup_copy_fields(THD *thd, TMP_TABLE_PARAM *param,
   Item *pos;
   List_iterator_fast<Item> li(all_fields);
   Copy_field *copy;
-  DBUG_ENTER("setup_copy_fields");
   res_selected_fields.empty();
   res_all_fields.empty();
   List_iterator_fast<Item> itr(res_all_fields);
-
   uint i, border= all_fields.elements - elements;
+  DBUG_ENTER("setup_copy_fields");
 
   if (!(copy=param->copy_field= new Copy_field[param->field_count]))
     goto err2;
@@ -8545,6 +8543,23 @@ bool JOIN::alloc_func_list()
 }
 
 
+/*
+  Initialize 'sum_funcs' array with all Item_sum objects
+
+  SYNOPSIS
+    make_sum_func_list()
+    field_list		All items
+    send_fields		Items in select list
+    before_group_by	Set to 1 if this is called before GROUP BY handling
+
+  NOTES
+    Calls ::setup() for all item_sum objects in field_list
+
+  RETURN
+    0  ok
+    1  error
+*/
+
 bool JOIN::make_sum_func_list(List<Item> &field_list, List<Item> &send_fields,
 			      bool before_group_by)
 {
@@ -8581,7 +8596,7 @@ bool JOIN::make_sum_func_list(List<Item> &field_list, List<Item> &send_fields,
 
 
 /*
-  Change all funcs and sum_funcs to fields in tmp table,  and create
+  Change all funcs and sum_funcs to fields in tmp table, and create
   new list of all items.
 
   change_to_use_tmp_fields()
@@ -9081,7 +9096,6 @@ static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
   List<Item> field_list;
   List<Item> item_list;
   THD *thd=join->thd;
-  SELECT_LEX *select_lex= &join->thd->lex->select_lex;
   select_result *result=join->result;
   Item *item_null= new Item_null();
   CHARSET_INFO *cs= &my_charset_latin1;

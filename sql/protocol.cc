@@ -166,10 +166,10 @@ net_printf(THD *thd, uint errcode, ...)
   const char *format;
 #ifndef EMBEDDED_LIBRARY
   const char *text_pos;
+  int head_length= NET_HEADER_SIZE;
 #else
   char text_pos[1024];
 #endif
-  int head_length= NET_HEADER_SIZE;
   NET *net= &thd->net;
 
   DBUG_ENTER("net_printf");
@@ -530,7 +530,10 @@ bool Protocol::send_fields(List<Item> *list, uint flag)
       /* Store fixed length fields */
       pos= (char*) local_packet->ptr()+local_packet->length();
       *pos++= 12;				// Length of packed fields
-      int2store(pos, field.charsetnr);
+      if (item->collation.collation == &my_charset_bin || thd_charset == NULL)
+        int2store(pos, field.charsetnr);
+      else
+        int2store(pos, thd_charset->number);      
       int4store(pos+2, field.length);
       pos[6]= field.type;
       int2store(pos+7,field.flags);

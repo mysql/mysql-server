@@ -465,7 +465,6 @@ int openfrm(const char *name, const char *alias, uint db_stat, uint prgflag,
       goto err_not_open;			/* purecov: inspected */
     }
     reg_field->comment=comment;
-    reg_field->set_charset(charset);
     if (!(reg_field->flags & NOT_NULL_FLAG))
     {
       if ((null_bit<<=1) == 256)
@@ -1288,7 +1287,7 @@ bool check_db_name(char *name)
   /* Used to catch empty names and names with end space */
   bool last_char_is_space= TRUE;
 
-  if (lower_case_table_names)
+  if (lower_case_table_names && name != any_db)
     my_casedn_str(files_charset_info, name);
 
   while (*name)

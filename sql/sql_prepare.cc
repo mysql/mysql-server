@@ -802,7 +802,7 @@ static int mysql_test_select_fields(Prepared_statement *stmt,
     if (check_table_access(thd, privilege, tables,0))
       DBUG_RETURN(1);
   }
-  else if (check_access(thd, privilege, "*any*",0,0,0))
+  else if (check_access(thd, privilege, any_db,0,0,0))
     DBUG_RETURN(1);
 #endif
   if ((&lex->select_lex != lex->all_selects_list &&
@@ -1123,9 +1123,10 @@ static void reset_stmt_for_execute(Prepared_statement *stmt)
 void mysql_stmt_execute(THD *thd, char *packet, uint packet_length)
 {
   ulong stmt_id= uint4korr(packet);
+#ifndef EMBEDDED_LIBRARY
   uchar *packet_end= (uchar *) packet + packet_length - 1;
+#endif
   Prepared_statement *stmt;
-
   DBUG_ENTER("mysql_stmt_execute");
 
   packet+= 9;                               /* stmt_id + 5 bytes of flags */

@@ -425,8 +425,9 @@ int main(int argc,char *argv[])
   }
 #endif
   sprintf(buff, "%s",
+#ifndef NOT_YET
 	  "Type 'help;' or '\\h' for help. Type '\\c' to clear the buffer.\n");
-#ifdef NOT_YET
+#else
 	  "Type 'help [[%]function name[%]]' to get help on usage of function.\n");
 #endif
   put_info(buff,INFO_INFO);
