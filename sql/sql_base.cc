@@ -2247,12 +2247,12 @@ find_field_in_tables(THD *thd, Item_ident *item, TABLE_LIST *tables,
   if (item->cached_table)
   {
     /*
-      This shortcut is used by prepared statements. We assuming that 
-      TABLE_LIST *tables is not changed during query execution (which 
-      is true for all queries except RENAME but luckily RENAME doesn't 
+      This shortcut is used by prepared statements. We assuming that
+      TABLE_LIST *tables is not changed during query execution (which
+      is true for all queries except RENAME but luckily RENAME doesn't
       use fields...) so we can rely on reusing pointer to its member.
       With this optimization we also miss case when addition of one more
-      field makes some prepared query ambiguous and so erroneous, but we 
+      field makes some prepared query ambiguous and so erroneous, but we
       accept this trade off.
     */
     if (item->cached_table->table)
@@ -2268,7 +2268,7 @@ find_field_in_tables(THD *thd, Item_ident *item, TABLE_LIST *tables,
     else
     {
       TABLE_LIST *table= item->cached_table;
-      Field *find= find_field_in_table(thd, table, name, item->name, length,
+      found= find_field_in_table(thd, table, name, item->name, length,
 				       ref,
 				       (table->table &&
 					test(table->table->grant.
@@ -2391,9 +2391,7 @@ find_field_in_tables(THD *thd, Item_ident *item, TABLE_LIST *tables,
     {
       if (field == WRONG_GRANT)
 	return (Field*) 0;
-      item->cached_table= tables;
-      if (!tables->cacheable_table)
-	item->cached_table= 0;
+      item->cached_table= (!tables->cacheable_table || found) ? 0 : tables;
       if (found)
       {
 	if (!thd->where)			// Returns first found
