@@ -418,9 +418,7 @@ int mysql_prepare_table(THD *thd, HA_CREATE_INFO *create_info,
   ulong         pos;
   KEY           *key_info;
   KEY_PART_INFO *key_part_info;
-  int		auto_increment=0;
   int           timestamps= 0, timestamps_with_niladic= 0;
-  handler	*file;
   int           field_no,dup_no;
   int           select_field_pos,auto_increment=0;
   DBUG_ENTER("mysql_prepare_table");
@@ -2501,6 +2499,7 @@ int real_alter_table(THD *thd,char *new_db, char *new_name,
   char tmp_name[80],old_name[32],new_name_buff[FN_REFLEN];
   char new_alias_buff[FN_REFLEN], *table_name, *db, *new_alias, *alias;
   char index_file[FN_REFLEN], data_file[FN_REFLEN];
+  bool use_timestamp=0;
   ha_rows copied,deleted;
   ulonglong next_insert_id;
   uint db_create_options, used_fields;
