@@ -6518,6 +6518,11 @@ Please report bad or out-of-date mirrors to @email{webmaster@@mysql.com}.
 @uref{http://mysql.tonnikala.org/, WWW}
 
 @item
+@c EMAIL: helpdesk@kpnqwest.fi (Joni Turunen)
+@image{Flags/finland} Finland [KPNQwest] @
+@uref{http://mysql.kpnqwest.fi/, WWW}
+
+@item
 @c Added 981208
 @c EMAIL: noel@uni-bonn.de (Noel Koethe)
 @image{Flags/germany} Germany [Kernelnotes.de, Bonn] @
