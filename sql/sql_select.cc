@@ -11178,6 +11178,92 @@ int mysql_explain_union(THD *thd, SELECT_LEX_UNIT *unit, select_result *result)
 }
 
 
+/*
+  Print joins from the FROM clause
+
+  SYNOPSIS
+    print_join()
+    thd     thread handler
+    str     string where table should bbe printed
+    tables  list of tables in join
+*/
+
+static void print_join(THD *thd, String *str, List<TABLE_LIST> *tables)
+{
+  /* List is reversed => we should reverse it before using */
+  List_iterator_fast<TABLE_LIST> ti(*tables);
+  TABLE_LIST **table= (TABLE_LIST **)thd->alloc(sizeof(TABLE_LIST*) *
+                                                tables->elements);
+  if (table == 0)
+    return;  // out of memory
+
+  for (TABLE_LIST **t= table + (tables->elements - 1); t >= table; t--)
+    *t= ti++;
+
+  DBUG_ASSERT(tables->elements >= 1);
+  TABLE_LIST *prev= *table;
+  prev->print(thd, str);
+
+  TABLE_LIST **end= table + tables->elements;
+  for(TABLE_LIST **tbl= table + 1; tbl < end; tbl++)
+  {
+    TABLE_LIST *curr= *tbl;
+    if (prev->outer_join & JOIN_TYPE_RIGHT)
+      str->append(" right join ", 12);
+    else if (curr->outer_join & JOIN_TYPE_LEFT)
+      str->append(" left join ", 11);
+    else if (curr->straight)
+      str->append(" straight_join ", 15);
+    else
+      str->append(" join ", 6);
+    curr->print(thd, str);
+    if (curr->on_expr)
+    {
+      str->append(" on(", 4);
+      curr->on_expr->print(str);
+      str->append(')');
+    }
+    prev= curr;
+  }
+}
+
+
+/*
+  Print table as it should be in join list
+
+  SYNOPSIS
+    st_table_list::print();
+    str   string where table should bbe printed
+*/
+
+void st_table_list::print(THD *thd, String *str)
+{
+  if (nested_join)
+  {
+    str->append('(');
+    print_join(thd, str, &nested_join->join_list);
+    str->append(')');
+  }
+  else if (derived)
+  {
+    str->append('(');
+    derived->print(str);
+    str->append(") ", 2);
+    str->append(alias);
+  }
+  else
+  {
+    str->append(db);
+    str->append('.');
+    str->append(real_name);
+    if (my_strcasecmp(table_alias_charset, real_name, alias))
+    {
+      str->append(' ');
+      str->append(alias);
+    }
+  }
+}
+
 void st_select_lex::print(THD *thd, String *str)
 {
   if (!thd)
@@ -11226,92 +11312,8 @@ void st_select_lex::print(THD *thd, String *str)
   if (table_list.elements)
   {
     str->append(" from ", 6);
-    for (TABLE_LIST *table= (TABLE_LIST *) table_list.first;
-	 table;
-	 table= table->next)
-    {
-      TABLE_LIST *embedded=table;
-      TABLE_LIST *embedding= table->embedding;
-      while (embedding)
-      {
-        TABLE_LIST *next;
-        NESTED_JOIN *nested_join= table->embedding->nested_join;
-        List_iterator_fast<TABLE_LIST> it(nested_join->join_list);
-        TABLE_LIST *tab= it++;
-        while ((next= it++))
-          tab= next;
-        if (tab != embedded)
-          break;
-        str->append('(');
-	if (embedded->outer_join & JOIN_TYPE_RIGHT)
-	  str->append(" right join ", 12);
-	else if (embedded->outer_join & JOIN_TYPE_LEFT)
-	  str->append(" left join ", 11);
-	else if (embedded->straight)
-	  str->append(" straight_join ", 15);
-	else
-	  str->append(" join ", 6);
-        embedded= embedding;
-        embedding= embedding->embedding;
-      }
-
-      if (table->derived)
-      {
-	str->append('(');
-	table->derived->print(str);
-	str->append(") ");
-	str->append(table->alias);
-      }
-      else
-      {
-	str->append(table->db);
-	str->append('.');
-	str->append(table->real_name);
-	if (my_strcasecmp(table_alias_charset, table->real_name, table->alias))
-	{
-	  str->append(' ');
-	  str->append(table->alias);
-	}
-      }
-
-      if (table->on_expr)
-      {
-	str->append(" on(", 4);
-	table->on_expr->print(str);
-	str->append(')');
-      }
-
-      TABLE_LIST *next_table;
-      if ((next_table= table->next))
-      {
-	if (next_table->outer_join & JOIN_TYPE_RIGHT)
-	  str->append(" right join ", 12);
-	else if (next_table->outer_join & JOIN_TYPE_LEFT)
-	  str->append(" left join ", 11);
-	else if (next_table->straight)
-	  str->append(" straight_join ", 15);
-	else
-	  str->append(" join ", 6);
-      }
-
-      embedded=table;
-      embedding= table->embedding;
-      while (embedding)
-      {
-        NESTED_JOIN *nested_join= table->embedding->nested_join;
-        if (nested_join->join_list.head() != embedded)
-          break;
-        str->append(')');
-        if (embedding->on_expr)
-        {
-	  str->append(" on(", 4);
-	  embedding->on_expr->print(str);
-	  str->append(')');
-        }
-        embedded= embedding;
-        embedding= embedding->embedding;
-      }
-    }
+    /* go through join tree */
+    print_join(thd, str, &top_join_list);
   }
 
   // Where
