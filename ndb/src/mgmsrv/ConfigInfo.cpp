@@ -1730,9 +1730,9 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "NodeId1",
     "SHM",
     "Id of node ("DB_TOKEN_PRINT", "API_TOKEN_PRINT" or "MGM_TOKEN_PRINT") on one side of the connection",
-    ConfigInfo::USED,
+    ConfigInfo::CI_USED,
     false,
-    ConfigInfo::STRING,
+    ConfigInfo::CI_STRING,
     MANDATORY,
     0, 0 },
   

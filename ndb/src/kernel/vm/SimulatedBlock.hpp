@@ -76,7 +76,6 @@ typedef struct NewVar
 } NewVARIABLE;  /* 128 bits */
 
 class SimulatedBlock {
-  friend class MutexManager;
   friend class SafeCounter;
   friend class SafeCounterManager;
   friend struct UpgradeStartup;
@@ -468,7 +467,8 @@ public:
     BlockReference reference() const;
     void progError(int line, int err_code, const char* extra = 0);
   };
- 
+  
+  friend class MutexManager;
   MutexManager c_mutexMgr;
 
   void ignoreMutexUnlockCallback(Signal* signal, Uint32 ptrI, Uint32 retVal);
