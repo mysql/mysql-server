@@ -6,6 +6,8 @@ The interface to the operating system file i/o primitives
 Created 10/21/1995 Heikki Tuuri
 *******************************************************/
 
+#include <sys/stat.h>
+
 #include "os0file.h"
 #include "os0sync.h"
 #include "os0thread.h"
@@ -716,7 +718,9 @@ os_file_create_simple(
 			string */
 	ulint	create_mode,/* in: OS_FILE_OPEN if an existing file is opened
 			(if does not exist, error), or OS_FILE_CREATE if a new
-			file is created (if exists, error) */
+			file is created (if exists, error), or
+                        OS_FILE_CREATE_PATH if new file (if exists, error) and
+                        subdirectories along its path are created (if needed)*/
 	ulint	access_type,/* in: OS_FILE_READ_ONLY or OS_FILE_READ_WRITE */
 	ibool*	success)/* out: TRUE if succeed, FALSE if error */
 {
@@ -734,6 +738,14 @@ try_again:
 		create_flag = OPEN_EXISTING;
 	} else if (create_mode == OS_FILE_CREATE) {
 		create_flag = CREATE_NEW;
+        } else if (create_mode == OS_FILE_CREATE_PATH) {
+                /* create subdirs along the path if needed  */
+                *success = os_file_create_subdirs_if_needed(name);
+                if (!*success) {
+                        ut_error;
+                }
+                create_flag = CREATE_NEW;
+                create_mode = OS_FILE_CREATE;
 	} else {
 		create_flag = 0;
 		ut_error;
@@ -787,6 +799,14 @@ try_again:
 		}
 	} else if (create_mode == OS_FILE_CREATE) {
 		create_flag = O_RDWR | O_CREAT | O_EXCL;
+        } else if (create_mode == OS_FILE_CREATE_PATH) {
+                /* create subdirs along the path if needed  */
+                *success = os_file_create_subdirs_if_needed(name);
+                if (!*success) {
+                        return (-1);
+                }
+                create_flag = O_RDWR | O_CREAT | O_EXCL;
+                create_mode = OS_FILE_CREATE;
 	} else {
 		create_flag = 0;
 		ut_error;
@@ -2112,6 +2132,185 @@ retry:
 
 	return(FALSE);	
 #endif
+}
+
+/***********************************************************************
+Check the existence and type of the given file. */
+
+ibool
+os_file_status(
+/*===========*/
+				/* out: TRUE if call succeeded */
+	char*		path,	/* in:  pathname of the file */
+	ibool*		exists,	/* out: TRUE if file exists */
+	os_file_type_t* type)	/* out: type of the file (if it exists) */
+{
+#ifdef __WIN__
+	int		ret;
+	struct _stat	statinfo;
+	
+	ret = _stat(path, &statinfo);
+	if (ret && (errno == ENOENT || errno == ENOTDIR)) {
+		/* file does not exist */
+		*exists = FALSE;
+		return(TRUE);
+	} else if (ret) {
+		/* file exists, but stat call failed */
+		
+		os_file_handle_error_no_exit(0, path, "stat");
+		
+		return(FALSE);
+	}
+	    
+	if (_S_IFDIR & statinfo.st_mode) {
+		*type = OS_FILE_TYPE_DIR;
+	} else if (_S_IFREG & statinfo.st_mode) {
+	        *type = OS_FILE_TYPE_FILE;
+	} else {
+	        *type = OS_FILE_TYPE_UNKNOWN;
+	}
+
+	*exists = TRUE;
+	
+	return(TRUE);
+#else
+	int		ret;
+	struct stat	statinfo;
+	
+	ret = stat(path, &statinfo);
+	if (ret && (errno == ENOENT || errno == ENOTDIR)) {
+		/* file does not exist */
+		*exists = FALSE;
+		return(TRUE);
+	} else if (ret) {
+		/* file exists, but stat call failed */
+		
+		os_file_handle_error_no_exit(0, path, "stat");
+		
+		return(FALSE);
+	}
+	    
+	if (S_ISDIR(statinfo.st_mode)) {
+		*type = OS_FILE_TYPE_DIR;
+	} else if (S_ISLNK(statinfo.st_mode)) {
+	        *type = OS_FILE_TYPE_LINK;
+	} else if (S_ISREG(statinfo.st_mode)) {
+	        *type = OS_FILE_TYPE_FILE;
+	} else {
+	        *type = OS_FILE_TYPE_UNKNOWN;
+	}
+
+	*exists = TRUE;
+	
+	return(TRUE);
+#endif
+}
+
+/* path name separator character */
+#ifdef __WIN__
+#  define OS_FILE_PATH_SEPARATOR	'\\'
+#else
+#  define OS_FILE_PATH_SEPARATOR	'/'
+#endif
+
+/********************************************************************
+The function os_file_dirname returns a directory component of a
+null-terminated pathname string.  In the usual case, dirname returns
+the string up to, but not including, the final '/', and basename
+is the component following the final '/'.  Trailing '/' charac­
+ters are not counted as part of the pathname.
+
+If path does not contain a slash, dirname returns the string ".".
+
+Concatenating the string returned by dirname, a "/", and the basename
+yields a complete pathname.
+
+The return value is  a copy of the directory component of the pathname.
+The copy is allocated from heap. It is the caller responsibility
+to free it after it is no longer needed.	
+
+The following list of examples (taken from SUSv2) shows the strings
+returned by dirname and basename for different paths:
+
+       path           dirname        basename
+       "/usr/lib"     "/usr"         "lib"
+       "/usr/"        "/"            "usr"
+       "usr"          "."            "usr"
+       "/"            "/"            "/"
+       "."            "."            "."
+       ".."           "."            ".."
+*/
+
+char*
+os_file_dirname(
+/*============*/
+				/* out, own: directory component of the
+				pathname */
+	char*		path)	/* in: pathname */
+{
+	char*	dir;
+	int 	i, length, last_slash;
+
+	/* find the offset of the last slash */
+	length = ut_strlen(path);
+	for (i = length - 1; i >= 0 && path[i] != OS_FILE_PATH_SEPARATOR; i++);
+	last_slash = i;
+
+	if (last_slash < 0) {
+		/* no slash in the path, return "." */
+		return(ut_strdup((char*)"."));
+	}
+
+	/* ok, there is a slash */
+
+	if (last_slash == 0) {
+		/* last slash is the first char of the path */
+		return(ut_strdup((char*)"/"));
+	}
+
+	/* non-trivial directory component */
+	dir = ut_strdup(path);
+	dir[last_slash] = 0;
+
+	return(dir);
+}
+	
+/********************************************************************
+Creates all missing subdirectories along the given path. */
+	
+ibool
+os_file_create_subdirs_if_needed(
+/*=============================*/
+				/* out: TRUE if call succeeded
+				   FALSE otherwise */
+	char*		path)	/* in: path name */
+{
+	char*		subdir;
+	static char 	rootdir[2] = { OS_FILE_PATH_SEPARATOR, 0 };
+	ibool 		success, subdir_exists;
+	os_file_type_t	type;
+
+	subdir = os_file_dirname(path);
+	if (0 == strcmp(subdir, rootdir) || 0 == strcmp(subdir, ".")) {
+		/* subdir is root or cwd, nothing to do */
+		ut_free(subdir);
+		return(TRUE);
+	}
+
+	/* test if subdir exists */
+	success = os_file_status(subdir, &subdir_exists, &type);
+	if (success && !subdir_exists) {
+		/* subdir does not exist, create it */
+		success = os_file_create_subdirs_if_needed(subdir);
+		if (!success) {
+			ut_free(subdir);
+			return(FALSE);
+		}
+		success = os_file_create_directory(subdir, FALSE);
+	}
+
+	ut_free(subdir);
+	return(success);
 }
 
 /********************************************************************

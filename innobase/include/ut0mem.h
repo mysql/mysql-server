@@ -96,6 +96,15 @@ ut_str_catenate(
 	char*	str1,	/* in: null-terminated string */
 	char*	str2);	/* in: null-terminated string */
 /**************************************************************************
+Return a copy of the given string. The returned string must be freed
+using mem_free. */
+
+char*
+ut_strdup(
+/*======*/
+			/* out, own: cnull-terminated string */
+	char*	str);	/* in: null-terminated string */
+/**************************************************************************
 Checks if a null-terminated string contains a certain character. */
 
 ibool
