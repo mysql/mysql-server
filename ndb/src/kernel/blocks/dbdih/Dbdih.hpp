@@ -269,7 +269,7 @@ public:
   };
   
   struct NodeRecord {
-    NodeRecord() { m_nodefailSteps.clear();}
+    NodeRecord();
     
     enum NodeStatus {
       NOT_IN_CLUSTER = 0,
@@ -1127,7 +1127,6 @@ private:
   void setAllowNodeStart(Uint32 nodeId, bool newState);
   bool getNodeCopyCompleted(Uint32 nodeId);
   void setNodeCopyCompleted(Uint32 nodeId, bool newState);
-  void initNodeState(NodeRecordPtr regNodePtr);
   bool checkNodeAlive(Uint32 nodeId);
 
   // Initialisation
