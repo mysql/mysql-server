@@ -35,7 +35,7 @@
 ** and adapted to mysqldump 05/11/01 by Jani Tolonen
 */
 
-#define DUMP_VERSION "8.21"
+#define DUMP_VERSION "8.22"
 
 #include <my_global.h>
 #include <my_sys.h>
@@ -651,7 +651,7 @@ static uint getTableStructure(char *table, char* db)
       /* Make an sql-file, if path was given iow. option -T was given */
       char buff[20+FN_REFLEN];
 
-      sprintf(buff,"show create table %s",table_name);
+      sprintf(buff,"show create table `%s`",table_name);
       if (mysql_query(sock, buff))
       {
         fprintf(stderr, "%s: Can't get CREATE TABLE for table '%s' (%s)\n",
@@ -1074,6 +1074,9 @@ static void dumpTable(uint numFields, char *table)
 	fputs(insert_pat,md_result_file);
       mysql_field_seek(res,0);
 
+      if (opt_xml)
+        fprintf(md_result_file, "\t<row>\n");
+
       for (i = 0; i < mysql_num_fields(res); i++)
       {
 	if (!(field = mysql_fetch_field(res)))
@@ -1162,6 +1165,9 @@ static void dumpTable(uint numFields, char *table)
 	  }
 	}
       }
+
+      if (opt_xml)
+        fprintf(md_result_file, "\t</row>\n");
 
       if (extended_insert)
       {
