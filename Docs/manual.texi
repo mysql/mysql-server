@@ -4533,7 +4533,7 @@ to get even more flexibility).
 
 @item
 If you want to configure @code{mysqld} with some extra feature that is NOT in
-the standard binary distributions. Here follows a list of the most common
+the standard binary distributions. Here is a list of the most common
 extra options that you may want to use
 
 @itemize @bullet
@@ -16839,7 +16839,7 @@ file.  See @code{ENCRYPT()}.
 @item ENCRYPT(str[,salt])
 Encrypt @code{str} using the UNIX @code{crypt()} system call. The
 @code{salt} argument should be a string with two characters.
-(As of @strong{MySQL} 3.22.16, @code{salt} may be longer than two characters.):
+(As of @strong{MySQL} Version 3.22.16, @code{salt} may be longer than two characters.):
 
 @example
 mysql> select ENCRYPT("hello");
@@ -18101,7 +18101,7 @@ normal check has succeeded!).
 
 @findex BACKUP TABLE
 @node BACKUP TABLE, RESTORE TABLE, CHECK TABLE, Reference
-@section @code{BACKUP TABLE} syntax
+@section @code{BACKUP TABLE} Syntax
 
 @example
 BACKUP TABLE tbl_name[,tbl_name...] TO '/path/to/backup/directory'
@@ -18132,7 +18132,7 @@ version 3.23.25 and later.
 
 @findex RESTORE TABLE
 @node RESTORE TABLE, ANALYZE TABLE, BACKUP TABLE, Reference
-@section @code{RESTORE TABLE} syntax
+@section @code{RESTORE TABLE} Syntax
 
 @example
 RESTORE TABLE tbl_name[,tbl_name...] FROM '/path/to/backup/directory'
@@ -18159,7 +18159,7 @@ The command returns a table with the following columns:
 
 @findex ANALYZE TABLE
 @node ANALYZE TABLE, REPAIR TABLE, RESTORE TABLE, Reference
-@section @code{ANALYZE TABLE} syntax
+@section @code{ANALYZE TABLE} Syntax
 
 @example
 ANALYZE TABLE tbl_name[,tbl_name...]
@@ -18167,7 +18167,7 @@ ANALYZE TABLE tbl_name[,tbl_name...]
 
 Analyze and store the key distribution for the table.  During the
 analyze the table is locked with a read lock.
-This is equivalent of running @code{myisamchk -a} on the table.
+This is equivalent to running @code{myisamchk -a} on the table.
 
 @strong{MySQL} uses the stored key distribution to decide in which order
 tables should be joined when one does a join on something else than a
@@ -18191,13 +18191,13 @@ the table will not be analyzed again.
 
 @findex REPAIR TABLE
 @node REPAIR TABLE, DELETE, ANALYZE TABLE, Reference
-@section @code{REPAIR TABLE} syntax
+@section @code{REPAIR TABLE} Syntax
 
 @example
 REPAIR TABLE tbl_name[,tbl_name...] [QUICK] [EXTENDED]
 @end example
 
-@code{REPAIR TABLE} only works on @code{MyISAM} tables and is the same things
+@code{REPAIR TABLE} only works on @code{MyISAM} tables and is the same
 as running @code{myisamchk -r table_name} on the table.
 
 Repair the corrupted table. The command returns a table with the following
@@ -18228,7 +18228,7 @@ keys that compress very good.
 
 @findex DELETE
 @node DELETE, TRUNCATE, REPAIR TABLE, Reference
-@section @code{DELETE} syntax
+@section @code{DELETE} Syntax
 
 @example
 DELETE [LOW_PRIORITY] FROM tbl_name
@@ -18263,7 +18263,7 @@ operations reuse old record positions. To reclaim unused space and reduce
 file sizes, use the @code{OPTIMIZE TABLE} statement or the @code{myisamchk}
 utility to reorganize tables.  @code{OPTIMIZE TABLE} is easier, but
 @code{myisamchk} is faster.
-@xref{OPTIMIZE TABLE, , @code{OPTIMIZE TABLE}}, and
+@xref{OPTIMIZE TABLE, , @code{OPTIMIZE TABLE}} and
 @ref{Optimization}.
 
 The @strong{MySQL}-specific @code{LIMIT rows} option to @code{DELETE} tells
@@ -18275,7 +18275,7 @@ the @code{LIMIT} value.
 
 @findex TRUNCATE
 @node TRUNCATE, SELECT, DELETE, Reference
-@section @code{TRUNCATE} syntax
+@section @code{TRUNCATE} Syntax
 
 @example
 TRUNCATE table_name
@@ -18301,7 +18301,7 @@ files have become corrupted..
 
 @findex SELECT
 @node SELECT, JOIN, TRUNCATE, Reference
-@section @code{SELECT} syntax
+@section @code{SELECT} Syntax
 
 @c help SELECT
 @example
@@ -18354,7 +18354,7 @@ retrieve rows.  If you name more than one table, you are performing a
 join.  For information on join syntax, see @ref{JOIN, , @code{JOIN}}.
 
 @item
-You can refer to a column as @code{col_name}, @code{tbl_name.col_name} or
+You can refer to a column as @code{col_name}, @code{tbl_name.col_name}, or
 @code{db_name.tbl_name.col_name}.  You need not specify a @code{tbl_name} or
 @code{db_name.tbl_name} prefix for a column reference in a @code{SELECT}
 statement unless the reference would be ambiguous.  See @ref{Legal names},
@@ -18364,7 +18364,7 @@ forms.
 @item
 @cindex aliases, for tables
 @cindex table aliases
-A table reference may be aliased using @code{tbl_name [AS] alias_name}.
+A table reference may be aliased using @code{tbl_name [AS] alias_name}:
 
 @example
 mysql> select t1.name, t2.salary from employee AS t1, info AS t2
@@ -18375,8 +18375,8 @@ mysql> select t1.name, t2.salary from employee t1, info t2
 
 @item
 Columns selected for output may be referred to in @code{ORDER BY} and
-@code{GROUP BY} clauses using column names, column aliases or column
-positions.  Column positions begin with 1.
+@code{GROUP BY} clauses using column names, column aliases, or column
+positions.  Column positions begin with 1:
 
 @example
 mysql> select college, region, seed from tournament
@@ -18408,7 +18408,7 @@ Write this instead:
 mysql> select col_name from tbl_name WHERE col_name > 0;
 @end example
 
-In @strong{MySQL} 3.22.5 or later, you can also write queries like this:
+In @strong{MySQL} Version 3.22.5 or later, you can also write queries like this:
 
 @example
 mysql> select user,max(salary) from users
@@ -18424,7 +18424,7 @@ mysql> select user,max(salary) AS sum from users
 
 @item
 @code{SQL_SMALL_RESULT}, @code{SQL_BIG_RESULT}, @code{SQL_BUFFER_RESULT},
-@code{STRAIGHT_JOIN} and @code{HIGH_PRIORITY} are @strong{MySQL} extensions
+@code{STRAIGHT_JOIN}, and @code{HIGH_PRIORITY} are @strong{MySQL} extensions
 to ANSI SQL92.
 
 @item
@@ -18437,12 +18437,12 @@ statement that is waiting for the table to be free.
 @item
 @code{SQL_BIG_RESULT} can be used with @code{GROUP BY} or @code{DISTINCT}
 to tell the optimizer that the result set will have many rows.  In this case,
-@strong{MySQL} will directly use disk based temporary tables if needed.
-@strong{MySQL} will also in this case prefer sorting to doing a
+@strong{MySQL} will directly use disk-based temporary tables if needed.
+@strong{MySQL} will also, in this case, prefer sorting to doing a
 temporary table with a key on the @code{GROUP BY} elements.
 
 @item
-@code{SQL_BUFFER_RESULT} will put force the result to be put into a temporary
+@code{SQL_BUFFER_RESULT} will force the result to be put into a temporary
 table. This will help @strong{MySQL} free the table locks early and will help
 in cases where it takes a long time to send the result set to the client.
 
@@ -18466,13 +18466,13 @@ arguments.
 
 If two arguments are given, the first specifies the offset of the first row to
 return, the second specifies the maximum number of rows to return.
-The offset of the initial row is 0 (not 1).
+The offset of the initial row is 0 (not 1):
 
 @example
 mysql> select * from table LIMIT 5,10;  # Retrieve rows 6-15
 @end example
 
-If one argument is given, it indicates the maximum number of rows to return.
+If one argument is given, it indicates the maximum number of rows to return:
 
 @example
 mysql> select * from table LIMIT 5;     # Retrieve first 5 rows
@@ -18483,7 +18483,7 @@ In other words, @code{LIMIT n} is equivalent to @code{LIMIT 0,n}.
 @item
 @tindex /etc/passwd
 The @code{SELECT ... INTO OUTFILE 'file_name'} form of @code{SELECT} writes
-the selected rows to a file. The file is created on the server host, and
+the selected rows to a file. The file is created on the server host and
 cannot already exist (among other things, this prevents database tables and
 files such as @file{/etc/passwd} from being destroyed).  You must have the
 @strong{file} privilege on the server host to use this form of @code{SELECT}.
@@ -18507,7 +18507,7 @@ Additionally, @code{ASCII 0} is converted to @code{ESCAPED BY} followed by 0
 (@code{ASCII 48}).
 
 The reason for the above is that you MUST escape any @code{FIELDS
-TERMINATED BY}, @code{ESCAPED BY} or @code{LINES TERMINATED BY}
+TERMINATED BY}, @code{ESCAPED BY}, or @code{LINES TERMINATED BY}
 characters to reliably be able to read the file
 back. @code{ASCII 0} is escaped to make it easier to view with some
 pagers.
@@ -18517,7 +18517,7 @@ else need be escaped.
 @end itemize
 
 @findex DUMPFILE
-If you use @code{INTO DUMPFILE} instead of @code{INTO OUTFILE} @strong{MySQL}
+If you use @code{INTO DUMPFILE} instead of @code{INTO OUTFILE}, @strong{MySQL}
 will only write one row into the file, without any column or line
 terminations and without any escaping.  This is useful if you want to
 store a blob in a file.
@@ -18535,7 +18535,7 @@ store a blob in a file.
 @findex NATURAL RIGHT OUTER JOIN
 @findex STRAIGHT_JOIN
 @node JOIN, INSERT, SELECT, Reference
-@section @code{JOIN} syntax
+@section @code{JOIN} Syntax
 
 @strong{MySQL} supports the following @code{JOIN} syntaxes for use in
 @code{SELECT} statements:
@@ -18554,30 +18554,30 @@ table_reference RIGHT [OUTER] JOIN table_reference
 table_reference NATURAL [RIGHT [OUTER]] JOIN table_reference
 @end example
 
-Where @code{table_reference} is defined as
+Where @code{table_reference} is defined as:
 @example
 table_name [[AS] alias] [USE INDEX (key_list)] [IGNORE INDEX (key_list)]
 @end example
 
-and @code{join_condition} is defined as
+and @code{join_condition} is defined as:
 
 @example
 ON conditional_expr |
 USING (column_list)
 @end example
 
-Note that in version before 3.23.16 the @code{INNER JOIN} didn't take
+Note that in versions before Version 3.23.16, the @code{INNER JOIN} didn't take
 a join condition!
 
 @cindex ODBC compatibility
 @cindex compatibility, with ODBC
 The last @code{LEFT OUTER JOIN} syntax shown above exists only for
-compatibility with ODBC.
+compatibility with ODBC:
 
 @itemize @bullet
 @item
 A table reference may be aliased using @code{tbl_name AS alias_name} or
-@code{tbl_name alias_name}.
+@code{tbl_name alias_name}:
 
 @example
 mysql> select t1.name, t2.salary from employee AS t1, info AS t2
@@ -18606,7 +18606,7 @@ mysql> select table1.* from table1
 @end example
 
 This example finds all rows in @code{table1} with an @code{id} value that is
-not present in @code{table2} (i.e., all rows in @code{table1} with no
+not present in @code{table2} (that is, all rows in @code{table1} with no
 corresponding row in @code{table2}).  This assumes that @code{table2.id} is
 declared @code{NOT NULL}, of course. @xref{LEFT JOIN optimization}.
 
@@ -18627,7 +18627,7 @@ A.C1=B.C1 AND A.C2=B.C2 AND A.C3=B.C3,...
 
 @item
 The @code{NATURAL [LEFT] JOIN} of two tables is defined to be
-semantically equivalent to a @code{INNER JOIN} or a @code{LEFT JOIN}
+semantically equivalent to an @code{INNER JOIN} or a @code{LEFT JOIN}
 with a @code{USING} clause that names all columns that exist in both
 tables.
 
@@ -18670,7 +18670,7 @@ mysql> select * from table1 IGNORE INDEX (key3) WHERE key1=1 and key2=2 AND
 
 @findex INSERT
 @node INSERT, REPLACE, JOIN, Reference
-@section @code{INSERT} syntax
+@section @code{INSERT} Syntax
 
 @example
     INSERT [LOW_PRIORITY | DELAYED] [IGNORE]
@@ -18685,16 +18685,16 @@ or  INSERT [LOW_PRIORITY | DELAYED] [IGNORE]
 @end example
 
 @code{INSERT} inserts new rows into an existing table.  The @code{INSERT ...
-VALUES} form of the statement inserts rows based on explicitly-specified
+VALUES} form of the statement inserts rows based on explicitly specified
 values.  The @code{INSERT ... SELECT} form inserts rows selected from another
 table or tables.  The @code{INSERT ... VALUES} form with multiple value lists
-is supported in @strong{MySQL} 3.22.5 or later.  The
-@code{col_name=expression} syntax is supported in @strong{MySQL} 3.22.10 or
+is supported in @strong{MySQL} Version 3.22.5 or later.  The
+@code{col_name=expression} syntax is supported in @strong{MySQL} Version 3.22.10 or
 later.
 
 @code{tbl_name} is the table into which rows should be inserted.  The column
 name list or the @code{SET} clause indicates which columns the statement
-specifies values for.
+specifies values for:
 
 @itemize @bullet
 @item
@@ -18728,13 +18728,13 @@ If you specify the keyword @code{LOW_PRIORITY}, execution of the
 @code{INSERT} is delayed until no other clients are reading from the table.
 In this case the client has to wait until the insert statement is completed,
 which may take a long time if the table is in heavy use. This is in
-contrast to @code{INSERT DELAYED} which lets the client continue at once.
+contrast to @code{INSERT DELAYED}, which lets the client continue at once.
 Note that @code{LOW_PRIORITY} should normally not be used with @code{MyISAM}
 tables as this disables concurrent inserts.@xref{MyISAM}.
 
 @item
 If you specify the keyword @code{IGNORE} in an @code{INSERT} with many value
-rows, any rows which duplicate an existing @code{PRIMARY} or @code{UNIQUE}
+rows, any rows that duplicate an existing @code{PRIMARY} or @code{UNIQUE}
 key in the table are ignored and are not inserted.  If you do not specify
 @code{IGNORE}, the insert is aborted if there is any row that duplicates an
 existing key value.  You can check with the C API function
@@ -18747,7 +18747,7 @@ specify values for all columns that require a non-@code{NULL} value.
 @xref{configure options,  , @code{configure} options}.
 
 @item
-The following conditions hold for a @code{INSERT INTO ... SELECT} statement:
+The following conditions hold for an @code{INSERT INTO ... SELECT} statement:
 
 @itemize @minus
 @item
@@ -18755,7 +18755,7 @@ The query cannot contain an @code{ORDER BY} clause.
 
 @item
 The target table of the @code{INSERT} statement cannot appear in the
-@code{FROM} clause of the @code{SELECT} part of the query, because it's
+@code{FROM} clause of the @code{SELECT} part of the query because it's
 forbidden in ANSI SQL to @code{SELECT} from the same table into which you are
 inserting.  (The problem is that the @code{SELECT} possibly would
 find records that were inserted earlier during the same run.  When using
@@ -18767,7 +18767,7 @@ sub-select clauses, the situation could easily be very confusing!)
 @end itemize
 
 @findex mysql_info()
-If you use @code{INSERT ... SELECT} or a @code{INSERT ... VALUES}
+If you use @code{INSERT ... SELECT} or an @code{INSERT ... VALUES}
 statement with multiple value lists, you can use the C API function
 @code{mysql_info()} to get information about the query.  The format of the
 information string is shown below:
@@ -18797,13 +18797,13 @@ garbage is stripped and the remaining numeric part is inserted.  If the value
 doesn't make sense as a number at all, the column is set to @code{0}.
 
 @item
-Inserting a string into a @code{CHAR}, @code{VARCHAR}, @code{TEXT} or
+Inserting a string into a @code{CHAR}, @code{VARCHAR}, @code{TEXT}, or
 @code{BLOB} column that exceeds the column's maximum length.  The value is
 truncated to the column's maximum length.
 
 @item
 Inserting a value into a date or time column that is illegal for the column
-type.  The column is set to the appropriate ``zero'' value for the type.
+type.  The column is set to the appropriate zero value for the type.
 @end itemize
 
 @findex INSERT DELAYED
@@ -18815,10 +18815,10 @@ for the
 useful if you have clients that can't wait for the @code{INSERT} to complete.
 This is a common problem when you use @strong{MySQL} for logging and you also
 periodically run @code{SELECT} statements that take a long time to complete.
-@code{DELAYED} was introduced in @strong{MySQL} 3.22.15.  It is a
+@code{DELAYED} was introduced in @strong{MySQL} Version 3.22.15.  It is a
 @strong{MySQL} extension to ANSI SQL92.
 
-When you use @code{INSERT DELAYED}, the client will get an ok at once
+When you use @code{INSERT DELAYED}, the client will get an OK at once
 and the row will be inserted when the table is not in use by any other thread.
 
 Another major benefit of using @code{INSERT DELAYED} is that inserts
@@ -18851,8 +18851,8 @@ or @code{WRITE} lock on the table.  However, the handler will wait for all
 structure is up to date.
 
 @item
-The thread executes the @code{INSERT} statement but instead of writing
-the row to the table it puts a copy of the final row into a queue that
+The thread executes the @code{INSERT} statement, but instead of writing
+the row to the table, it puts a copy of the final row into a queue that
 is managed by the handler thread. Any syntax errors are noticed by the
 thread and reported to the client program.
 
@@ -18898,7 +18898,7 @@ Note that the above means that @code{INSERT DELAYED} commands have higher
 priority than normal @code{INSERT} commands if there is an @code{INSERT
 DELAYED} handler already running!  Other update commands will have to wait
 until the @code{INSERT DELAYED} queue is empty, someone kills the handler
-thread (with @code{KILL thread_id}) or someone executes @code{FLUSH TABLES}.
+thread (with @code{KILL thread_id}), or someone executes @code{FLUSH TABLES}.
 
 @item
 The following status variables provide information about @code{INSERT
@@ -18923,7 +18923,7 @@ DELAYED} when you are really sure you need it!
 
 @findex REPLACE
 @node REPLACE, LOAD DATA, INSERT, Reference
-@section @code{REPLACE} syntax
+@section @code{REPLACE} Syntax
 
 @example
     REPLACE [LOW_PRIORITY | DELAYED]
@@ -18947,7 +18947,7 @@ In other words, you can't access the values of the old row from a
 
 @findex LOAD DATA INFILE
 @node LOAD DATA, UPDATE, REPLACE, Reference
-@section @code{LOAD DATA INFILE} syntax
+@section @code{LOAD DATA INFILE} Syntax
 
 @example
 LOAD DATA [LOW_PRIORITY] [LOCAL] INFILE 'file_name.txt' [REPLACE | IGNORE]
@@ -18966,7 +18966,7 @@ The @code{LOAD DATA INFILE} statement reads rows from a text file into a
 table at a very high speed.  If the @code{LOCAL} keyword is specified, the
 file is read from the client host.  If @code{LOCAL} is not specified, the
 file must be located on the server.  (@code{LOCAL} is available in
-@strong{MySQL} 3.22.6 or later.)
+@strong{MySQL} Version 3.22.6 or later.)
 
 For security reasons, when reading text files located on the server, the
 files must either reside in the database directory or be readable by all.
@@ -18985,7 +18985,7 @@ host to the server host.  On the other hand, you do not need the
 
 @c old version
 If you are using @strong{MySQL} before Version 3.23.24 you can't read from a
-FIFO with @code{LOAD DATA INFILE}; If you need to read from a FIFO (for
+FIFO with @code{LOAD DATA INFILE}.  If you need to read from a FIFO (for
 example the output from gunzip), use @code{LOAD DATA LOCAL INFILE}
 instead.
 
@@ -19052,7 +19052,7 @@ must precede @code{LINES} if both are specified.
 
 If you specify a @code{FIELDS} clause,
 each of its subclauses (@code{TERMINATED BY}, @code{[OPTIONALLY] ENCLOSED
-BY} and @code{ESCAPED BY}) is also optional, except that you must
+BY}, and @code{ESCAPED BY}) is also optional, except that you must
 specify at least one of them.
 
 If you don't specify a @code{FIELDS} clause, the defaults are the
@@ -19074,17 +19074,17 @@ when reading input:
 
 @itemize @bullet
 @item
-Look for line boundaries at newlines
+Look for line boundaries at newlines.
 
 @item
-Break lines into fields at tabs
+Break lines into fields at tabs.
 
 @item
-Do not expect fields to be enclosed within any quoting characters
+Do not expect fields to be enclosed within any quoting characters.
 
 @item
-Interpret occurrences of tab, newline or @samp{\} preceded by
-@samp{\} as literal characters that are part of field values
+Interpret occurrences of tab, newline, or @samp{\} preceded by
+@samp{\} as literal characters that are part of field values.
 @end itemize
 
 Conversely, the defaults cause @code{SELECT ... INTO OUTFILE} to act as
@@ -19092,17 +19092,17 @@ follows when writing output:
 
 @itemize @bullet
 @item
-Write tabs between fields
+Write tabs between fields.
 
 @item
-Do not enclose fields within any quoting characters
+Do not enclose fields within any quoting characters.
 
 @item
 Use @samp{\} to escape instances of tab, newline or @samp{\} that occur
-within field values
+within field values.
 
 @item
-Write newlines at the ends of lines
+Write newlines at the ends of lines.
 @end itemize
 
 Note that to write @code{FIELDS ESCAPED BY '\\'}, you must specify two
@@ -19271,7 +19271,7 @@ values are written and read using the ``display'' widths of the columns.  For
 example, if a column is declared as @code{INT(7)}, values for the column are
 written using 7-character fields.  On input, values for the column are
 obtained by reading 7 characters.  Fixed-row format also affects handling of
-@code{NULL} values; see below.  Note that fixed size format will not work
+@code{NULL} values; see below.  Note that fixed-size format will not work
 if you are using a multi-byte character set.
 @end itemize
 
@@ -19420,7 +19420,7 @@ For more information about the efficiency of @code{INSERT} versus
 
 @findex UPDATE
 @node UPDATE, USE, LOAD DATA, Reference
-@section @code{UPDATE} syntax
+@section @code{UPDATE} Syntax
 
 @example
 UPDATE [LOW_PRIORITY] [IGNORE] tbl_name SET col_name1=expr1,col_name2=expr2,...
@@ -19460,16 +19460,16 @@ this and doesn't update it.
 
 @findex mysql_info()
 @code{UPDATE} returns the number of rows that were actually changed.
-In @strong{MySQL} 3.22 or later, the C API function @code{mysql_info()}
+In @strong{MySQL} Version 3.22 or later, the C API function @code{mysql_info()}
 returns the number of rows that were matched and updated and the number of
 warnings that occurred during the @code{UPDATE}.
 
-In @strong{MySQL} Version 3.23 you can use @code{LIMIT #} to ensure that
+In @strong{MySQL} Version 3.23, you can use @code{LIMIT #} to ensure that
 only a given number of rows are changed.
 
 @findex USE
 @node USE, FLUSH, UPDATE, Reference
-@section @code{USE} syntax
+@section @code{USE} Syntax
 
 @example
 USE db_name
@@ -19477,7 +19477,7 @@ USE db_name
 
 The @code{USE db_name} statement tells @strong{MySQL} to use the @code{db_name}
 database as the default database for subsequent queries.  The database remains
-current until the end of the session, or until another @code{USE} statement
+current until the end of the session or until another @code{USE} statement
 is issued:
 
 @example
@@ -19507,7 +19507,7 @@ The @code{USE} statement is provided for Sybase compatibility.
 @cindex caches, clearing
 @findex FLUSH
 @node FLUSH, KILL, USE, Reference
-@section @code{FLUSH} syntax (clearing caches)
+@section @code{FLUSH} Syntax (Clearing Caches)
 
 @example
 FLUSH flush_option [,flush_option]
@@ -19542,7 +19542,7 @@ the @code{mysql} database.
 
 @item @code{TABLES} @tab Closes all open tables and force all tables in use to be closed.
 
-@item @code{[TABLE | TABLES] table_name [,table_name...]} @tab Flush only the given tables
+@item @code{[TABLE | TABLES] table_name [,table_name...]} @tab Flushes only the given tables.
 
 @item @code{TABLES WITH READ LOCK} @tab Closes all open tables and locks all tables for all databases with a read until one executes @code{UNLOCK TABLES}. This is very convinient way to get backups if you have a file system, like Veritas,that can take snapshots in time.
 
@@ -19550,20 +19550,20 @@ the @code{mysql} database.
 @end multitable
 
 You can also access each of the commands shown above with the @code{mysqladmin}
-utility, using the @code{flush-hosts}, @code{flush-logs}, @code{reload}
+utility, using the @code{flush-hosts}, @code{flush-logs}, @code{reload},
 or @code{flush-tables} commands.
 
 @cindex @code{mysqladmin}
 @findex KILL
 @node KILL, SHOW, FLUSH, Reference
-@section @code{KILL} syntax
+@section @code{KILL} Syntax
 
 @example
 KILL thread_id
 @end example
 
 Each connection to @code{mysqld} runs in a separate thread.  You can see
-which threads are running with the @code{SHOW PROCESSLIST} command, and kill
+which threads are running with the @code{SHOW PROCESSLIST} command and kill
 a thread with the @code{KILL thread_id} command.
 
 If you have the @strong{process} privilege, you can see and kill all threads.
@@ -19585,7 +19585,7 @@ commands to examine and kill threads.
 @findex SHOW GRANTS
 @findex SHOW CREATE TABLE
 @node SHOW, EXPLAIN, KILL, Reference
-@section @code{SHOW} syntax (Get information about tables, columns,...)
+@section @code{SHOW} Syntax (Get Information About Tables, Columns,...)
 
 @example
    SHOW DATABASES [LIKE wild]
@@ -19600,7 +19600,7 @@ or SHOW GRANTS FOR user
 or SHOW CREATE TABLE table_name
 @end example
 
-@code{SHOW} provides information about databases, tables, columns or
+@code{SHOW} provides information about databases, tables, columns, or
 status information about the server. If the @code{LIKE wild} part is
 used, the @code{wild} string can be a string that uses the SQL @samp{%}
 and @samp{_} wild-card characters.
@@ -19623,7 +19623,7 @@ and @samp{_} wild-card characters.
 
 @cindex displaying, information, @code{SHOW}
 @node SHOW DATABASE INFO, SHOW TABLE STATUS, SHOW, SHOW
-@subsection SHOW information about database, tables, columns and index
+@subsection SHOW Information About Databases, Tables, Columns, and Indexes
 
 You can use @code{db_name.tbl_name} as an alternative to the @code{tbl_name
 FROM db_name} syntax.  These two statements are equivalent:
@@ -19639,7 +19639,7 @@ host.  You can also get this list using the @code{mysqlshow} command.
 @code{SHOW TABLES} lists the tables in a given database.  You can also
 get this list using the @code{mysqlshow db_name} command.
 
-@strong{Note:} If a user doesn't have any privileges for a table, the table
+@strong{NOTE:} If a user doesn't have any privileges for a table, the table
 will not show up in the output from @code{SHOW TABLES} or @code{mysqlshow
 db_name}.
 
@@ -19652,7 +19652,7 @@ The @code{DESCRIBE} statement provides information similar to
 @code{SHOW COLUMNS}.
 @xref{DESCRIBE, , @code{DESCRIBE}}.
 
-@code{SHOW FIELDS} is a synonym for @code{SHOW COLUMNS} and
+@code{SHOW FIELDS} is a synonym for @code{SHOW COLUMNS}, and
 @code{SHOW KEYS} is a synonym for @code{SHOW INDEX}.  You can also
 list a table's columns or indexes with @code{mysqlshow db_name tbl_name}
 or @code{mysqlshow -k db_name tbl_name}.
@@ -19663,9 +19663,9 @@ are returned:
 
 @multitable @columnfractions .35 .65
 @item @strong{Column} @tab @strong{Meaning}
-@item @code{Table} @tab Name of the table
+@item @code{Table} @tab Name of the table.
 @item @code{Non_unique} @tab 0 if the index can't contain duplicates.
-@item @code{Key_name} @tab Name of the index
+@item @code{Key_name} @tab Name of the index.
 @item @code{Seq_in_index} @tab Column sequence number in index, starting with 1.
 @item @code{Column_name} @tab Column name.
 @item @code{Collation} @tab How the column is sorted in the index.  In
@@ -19681,34 +19681,34 @@ only partly indexed. @code{NULL} if the entire key is indexed.
 @cindex tables, displaying status
 @cindex status, tables
 @node SHOW TABLE STATUS, SHOW STATUS, SHOW DATABASE INFO, SHOW
-@subsection SHOW status information about tables
+@subsection SHOW Status Information About Tables
 
-@code{SHOW TABLE STATUS} (new in version 3.23) works likes @code{SHOW
+@code{SHOW TABLE STATUS} (new in Version 3.23) works likes @code{SHOW
 STATUS}, but provides a lot of information about each table. You can
 also get this list using the @code{mysqlshow --status db_name} command.
 The following columns are returned:
 
 @multitable @columnfractions .30 .70
 @item @strong{Column} @tab @strong{Meaning}
-@item @code{Name} @tab Name of the table
-@item @code{Type} @tab Type of table (BDB, ISAM, MERGE, MyISAM or HEAP)
-@item @code{Row_format} @tab The row storage format (Fixed, Dynamic, or Compressed)
-@item @code{Rows} @tab Number of rows
-@item @code{Avg_row_length} @tab Average row length
-@item @code{Data_length} @tab Length of the data file
-@item @code{Max_data_length} @tab Max length of the data file
-@item @code{Index_length} @tab Length of the index file
-@item @code{Data_free} @tab Number of allocated but not used bytes
-@item @code{Auto_increment} @tab Next autoincrement value
-@item @code{Create_time} @tab When the table was created
-@item @code{Update_time} @tab When the data file was last updated
-@item @code{Check_time} @tab When one last run a check on the table
-@item @code{Create_options} @tab Extra options used with @code{CREATE TABLE}
+@item @code{Name} @tab Name of the table.
+@item @code{Type} @tab Type of table (BDB, ISAM, MERGE, MyISAM, or HEAP).
+@item @code{Row_format} @tab The row storage format (Fixed, Dynamic, or Compressed).
+@item @code{Rows} @tab Number of rows.
+@item @code{Avg_row_length} @tab Average row length.
+@item @code{Data_length} @tab Length of the data file.
+@item @code{Max_data_length} @tab Max length of the data file.
+@item @code{Index_length} @tab Length of the index file.
+@item @code{Data_free} @tab Number of allocated but not used bytes.
+@item @code{Auto_increment} @tab Next autoincrement value.
+@item @code{Create_time} @tab When the table was created.
+@item @code{Update_time} @tab When the data file was last updated.
+@item @code{Check_time} @tab When the table was last checked.
+@item @code{Create_options} @tab Extra options used with @code{CREATE TABLE}.
 @item @code{Comment} @tab The comment used when creating the table (or some information why @strong{MySQL} couldn't access the table information).
 @end multitable
 
 @node SHOW STATUS, SHOW VARIABLES, SHOW TABLE STATUS, SHOW
-@subsection SHOW status information
+@subsection SHOW Status Information
 
 @cindex @code{mysqladmin}
 @code{SHOW STATUS} provides server status information
@@ -19775,13 +19775,13 @@ The status variables listed above have the following meaning:
 
 @multitable @columnfractions .35 .65
 @item @strong{Variable} @tab @strong{Meaning}
-@item @code{Aborted_clients} @tab Number of connections that has been aborted because the client has died without closing the connection properly.
-@item @code{Aborted_connects} @tab Number of tries to connect to the @strong{MySQL} server that has failed.
-@item @code{Bytes_received} @tab Number of bytes received from all clients
-@item @code{Bytes_sent} @tab Number of bytes sent to all clients
+@item @code{Aborted_clients} @tab Number of connections aborted because the client died without closing the connection properly.
+@item @code{Aborted_connects} @tab Number of tries to connect to the @strong{MySQL} server that failed.
+@item @code{Bytes_received} @tab Number of bytes received from all clients.
+@item @code{Bytes_sent} @tab Number of bytes sent to all clients.
 @item @code{Connections} @tab Number of connection attempts to the @strong{MySQL} server.
-@item @code{Created_tmp_disk_tables} @tab Number of implicit temporary tables on disk that have been created while executing statements.
-@item @code{Created_tmp_tables} @tab Number of implicit temporary tables in memory that have been created while executing statements.
+@item @code{Created_tmp_disk_tables} @tab Number of implicit temporary tables on disk created while executing statements.
+@item @code{Created_tmp_tables} @tab Number of implicit temporary tables in memory created while executing statements.
 @item @code{Created_tmp_files} @tab How many temporary files @code{mysqld} have created.
 @item @code{Delayed_insert_threads} @tab Number of delayed insert handler threads in use.
 @item @code{Delayed_writes} @tab Number of rows written with @code{INSERT DELAYED}.
@@ -19790,7 +19790,7 @@ The status variables listed above have the following meaning:
 @item @code{Handler_delete} @tab Number of times a row was deleted from a table.
 @item @code{Handler_read_first} @tab Number of times the first entry was read from an index.
 If this is high, it suggests that the server is doing a lot of full index scans, for example,
-@code{SELECT col1 FROM foo}, assuming that col1 is indexed
+@code{SELECT col1 FROM foo}, assuming that col1 is indexed.
 @item @code{Handler_read_key} @tab Number of requests to read a row based on a key. If this
 is high, it is a good indication that your queries and tables are properly indexed.
 @item @code{Handler_read_next} @tab Number of requests to read next row in key order. This
@@ -19799,9 +19799,9 @@ will be incremented if you are doing an index scan.
 @item @code{Handler_read_rnd} @tab Number of requests to read a row based on a fixed position.
 This will be high if you are doing a lot of queries that require sorting of the result.
 @item @code{Handler_read_rnd_next} @tab Number of requests to read the next row in the datafile.
-This will be high if you are doing a lot of table scans - generally this suggests that you tables
-are not properly indexed or that you queries are not written to take advantaged of the indeces you
-have..
+This will be high if you are doing a lot of table scans. Generally this suggests that your tables
+are not properly indexed or that your queries are not written to take advantage of the indexes you
+have.
 @item @code{Handler_update} @tab Number of requests to update a row in a table.
 @item @code{Handler_write} @tab Number of requests to insert a row in a table.
 @item @code{Key_blocks_used} @tab The number of used blocks in the key cache.
@@ -19809,21 +19809,21 @@ have..
 @item @code{Key_reads} @tab The number of physical reads of a key block from disk.
 @item @code{Key_write_requests} @tab The number of requests to write a key block to the cache.
 @item @code{Key_writes} @tab The number of physical writes of a key block to disk.
-@item @code{Max_used_connections} @tab The maximum number of connections that has been in use simultaneously.
+@item @code{Max_used_connections} @tab The maximum number of connections in use simultaneously.
 @item @code{Not_flushed_key_blocks} @tab Keys blocks in the key cache that has changed but hasn't yet been flushed to disk.
 @item @code{Not_flushed_delayed_rows} @tab Number of rows waiting to be written in @code{INSERT DELAY} queues.
 @item @code{Open_tables} @tab Number of tables that are open.
 @item @code{Open_files} @tab  Number of files that are open.
-@item @code{Open_streams} @tab Number of streams that are open (used mainly for logging)
+@item @code{Open_streams} @tab Number of streams that are open (used mainly for logging).
 @item @code{Opened_tables} @tab Number of tables that have been opened.
 @item @code{Select_full_join} @tab Number of joins without keys (Should be 0).
 @item @code{Select_full_range_join} @tab Number of joins where we used a range search on reference table.
-@item @code{Select_range} @tab Number of joins where we used ranges on the first table (It's normally not critical even if this is big)
+@item @code{Select_range} @tab Number of joins where we used ranges on the first table. (It's normally not critical even if this is big.)
 @item @code{Select_scan} @tab Number of joins where we scanned the first table.
 @item @code{Select_range_check} @tab Number of joins without keys where we check for key usage after each row (Should be 0).
 @item @code{Questions} @tab Number of queries sent to the server.
 @item @code{Slow_launch_threads} @tab Number of threads that have taken more than @code{slow_launch_time} to connect.
-@item @code{Slow_queries} @tab Number of queries that has taken more than @code{long_query_time}. @xref{Slow query log}.
+@item @code{Slow_queries} @tab Number of queries that have taken more than @code{long_query_time}. @xref{Slow query log}.
 @item @code{Sort_merge_passes} @tab Number of merges the sort has to do. If this value is large you should consider increasing @code{sort_buffer}.
 @item @code{Sort_range} @tab Number of sorts that where done with ranges.
 @item @code{Sort_rows}  @tab Number of sorted rows.
@@ -19845,9 +19845,9 @@ If @code{key_reads} is big, then your @code{key_cache} is probably too
 small.  The cache hit rate can be calculated with
 @code{key_reads}/@code{key_read_requests}.
 @item
-If @code{Handler_read_rnd} is big, then you have a probably a lot of
-queries that requires @strong{MySQL} to scan whole tables or you have
-joins that doesn't use keys properly.
+If @code{Handler_read_rnd} is big, then you probably have a lot of queries
+that require @strong{MySQL} to scan whole tables or you have joins that don't use
+keys properly.
 @item
 If @code{Created_tmp_tables} or @code{Sort_merge_passes} are high then
 your @code{mysqld} @code{sort_buffer} variables is probably too small.
@@ -19860,7 +19860,7 @@ tables.
 @node SHOW VARIABLES, SHOW PROCESSLIST, SHOW STATUS, SHOW
 @subsection SHOW VARIABLES
 
-@code{SHOW VARIABLES} shows the values of the some of @strong{MySQL} system
+@code{SHOW VARIABLES} shows the values of some @strong{MySQL} system
 variables.  You can also get this information using the @code{mysqladmin
 variables} command.  If the default values are unsuitable, you can set most
 of these variables using command-line options when @code{mysqld} starts up.
@@ -19936,11 +19936,11 @@ differ somewhat:
 +-------------------------+---------------------------------+
 @end example
 
-Each option is described below. Values for buffer sizes, lengths and stack
+Each option is described below. Values for buffer sizes, lengths, and stack
 sizes are given in bytes.  You can specify values with a suffix of @samp{K}
 or @samp{M} to indicate kilobytes or megabytes. For example, @code{16M}
 indicates 16 megabytes.  The case of suffix letters does not matter;
-@code{16M} and @code{16m} are equivalent.
+@code{16M} and @code{16m} are equivalent:
 
 @table @code
 @item @code{ansi_mode}.
@@ -19959,7 +19959,7 @@ number of connections in a short period of time.
 
 In other words, this value is the size of the listen queue for incoming
 TCP/IP connections.  Your operating system has its own limit on the size
-of this queue.  The manual page for the Unix @code{listen(2)} system
+of this queue.  The manual page for the UNIX @code{listen(2)} system
 call should have more details.  Check your OS documentation for the
 maximum value for this variable.  Attempting to set @code{back_log}
 higher than your operating system limit will be ineffective.
@@ -20012,7 +20012,7 @@ If enabled (is on by default), @strong{MySQL} will honor the
 @code{delay_key_write} option @code{CREATE TABLE}.  This means that the
 key buffer for tables with this option will not get flushed on every
 index update, but only when a table is closed.  This will speed up
-writes on keys a lot but you should add automatic checking of all tables
+writes on keys a lot, but you should add automatic checking of all tables
 with @code{myisamchk --fast --force} if you use this.  Note that if you
 start @code{mysqld} with the @code{--delay-key-write-for-all-tables}
 option this means that all tables will be treated as if they were
@@ -20040,7 +20040,7 @@ option.
 @item @code{flush_time}
 If this is set to a non-zero value, then every @code{flush_time} seconds all
 tables will be closed (to free up resources and sync things to disk). We
-only recommend this option on Win95, Win98 or on system where you have
+only recommend this option on Win95, Win98, or on systems where you have
 very little resources.
 
 @item @code{init_file}
@@ -20070,7 +20070,7 @@ Index blocks are buffered and are shared by all threads.
 
 Increase this to get better index handling (for all reads and multiple
 writes) to as much as you can afford; 64M on a 256M machine that mainly
-runs @strong{MySQL} is quite common.  If you however make this too big
+runs @strong{MySQL} is quite common.  If you, however, make this too big
 (more than 50% of your total memory?) your system may start to page and
 become REALLY slow. Remember that because @strong{MySQL} does not cache
 data read, that you will have to leave some room for the OS filesystem
@@ -20078,14 +20078,14 @@ cache.
 
 You can check the performance of the key buffer by doing @code{show
 status} and examine the variables @code{Key_read_requests},
-@code{Key_reads}, @code{Key_write_requests} and @code{Key_writes}.  The
+@code{Key_reads}, @code{Key_write_requests}, and @code{Key_writes}.  The
 @code{Key_reads/Key_read_request} ratio should normally be < 0.01.
 The @code{Key_write/Key_write_requests} is usually near 1 if you are
 using mostly updates/deletes but may be much smaller if you tend to
 do updates that affect many at the same time or if you are
 using @code{delay_key_write}. @xref{SHOW}.
 
-To get even more speed when writing many rows at the same time use
+To get even more speed when writing many rows at the same time, use
 @code{LOCK TABLES}.  @xref{LOCK TABLES, , @code{LOCK TABLES}}.
 
 @item @code{language}
@@ -20115,7 +20115,7 @@ will be incremented. If you are using @code{--log-slow-queries}, the query
 will be logged to the slow query logfile. @xref{Slow query log}.
 
 @item @code{lower_case_table_names}
-Table names are stored in lower case on disk.
+Table names are stored in lowercase on disk.
 
 @item @code{max_allowed_packet}
 The maximum size of one packet. The message buffer is initialized to
@@ -20147,7 +20147,7 @@ Don't allow creation of heap tables bigger than this.
 @item @code{max_join_size}
 Joins that are probably going to read more than @code{max_join_size}
 records return an error. Set this value if your users tend to perform joins
-without a @code{WHERE} clause that take a long time and return
+that lack a @code{WHERE} clause, that take a long time, and that return
 millions of rows.
 
 @item @code{max_sort_length}
@@ -20156,7 +20156,7 @@ values (only the first @code{max_sort_length} bytes of each value
 are used; the rest are ignored).
 
 @item @code{max_tmp_tables}
-(This option doesn't yet do anything).
+(This option doesn't yet do anything.)
 Maximum number of temporary tables a client can keep open at the same time.
 
 @item @code{max_write_lock_count}
@@ -20185,7 +20185,7 @@ is defined by @code{write_timeout}.
 @item @code{net_retry_count}
 If a read on a communication port is interrupted, retry this many times
 before giving up.  This value should be quite high on @code{FreeBSD} as
-internal interrupts is sent to all threads.
+internal interrupts are sent to all threads.
 
 @item @code{net_write_timeout}
 Number of seconds to wait for a block to be written to a connection before
@@ -20219,13 +20219,13 @@ Is OFF if @code{mysqld} uses external locking.
 Is ON if we only allow local (socket) connections.
 
 @item @code{skip_show_databases}
-This prevents people from doing @code{SHOW DATABASES}, if they don't
+This prevents people from doing @code{SHOW DATABASES} if they don't
 have the @code{PROCESS_PRIV} privilege. This can improve security if
 you're concerned about people being able to see what databases and
 tables other users have.
 
 @item @code{slow_launch_time}
-If the creating of the thread longer than this (in seconds), the
+If creating the thread takes longer than this value (in seconds), the
 @code{Slow_launch_threads} counter will be incremented.
 
 @item @code{socket}
@@ -20258,19 +20258,19 @@ For information about how the table cache works, see @ref{Table cache}.
 The default table type
 
 @item @code{thread_cache_size}
-How many threads we should keep keep in a cache for reuse.  When a
-client disconnects the clients threads is put in the cache if there
-isn't more than @code{thread_cache_size} threads from before.  All new
-threads are first taken from the cache and only when the cache is empty
-a new thread is created.  This variable can be increased to improve
-performance if you have a lot of new connections (Normally this doesn't
-however give a notable performance improvement if you have a good
-thread implementation).
+How many threads we should keep in a cache for reuse.  When a
+client disconnects, the client's threads are put in the cache if there
+aren't more than @code{thread_cache_size} threads from before.  All new
+threads are first taken from the cache, and only when the cache is empty
+is a new thread created.  This variable can be increased to improve
+performance if you have a lot of new connections. (Normally this doesn't
+give a notable performance improvement if you have a good
+thread implementation.)
 
 @item @code{thread_concurrency}
 On Solaris, @code{mysqld} will call @code{thr_setconcurrency()} with
 this value.  @code{thr_setconcurrency()} permits the application to give
-the threads system a hint, for the desired number of threads that should
+the threads system a hint for the desired number of threads that should
 be run at the same time.
 
 @item @code{thread_stack}
@@ -20306,7 +20306,7 @@ information of how to tune the above variables. @xref{Server parameters}.
 @findex threads
 @findex PROCESSLIST
 @node SHOW PROCESSLIST, SHOW GRANTS, SHOW VARIABLES, SHOW
-@subsection SHOW information about connected threads (processes)
+@subsection SHOW Information About Connected Threads (Processes)
 
 @code{SHOW PROCESSLIST} shows you which threads are running.  You can
 also get this information using the @code{mysqladmin processlist}
@@ -20317,7 +20317,7 @@ the first 100 characters of each query will be shown.
 
 @cindex privileges, display
 @node SHOW GRANTS, SHOW CREATE TABLE, SHOW PROCESSLIST, SHOW
-@subsection SHOW GRANTS (privileges) for a user
+@subsection SHOW GRANTS (Privileges) for a User
 
 @code{SHOW GRANTS FOR user} lists the grant commands that must be issued to
 duplicate the grants for a user.
@@ -20333,7 +20333,7 @@ mysql> SHOW GRANTS FOR root@@localhost;
 
 @node SHOW CREATE TABLE,  , SHOW GRANTS, SHOW
 @subsection SHOW CREATE TABLE
-Shows a @code{CREATE TABLE} statement that will create the given table
+Shows a @code{CREATE TABLE} statement that will create the given table:
 @example
 mysql> show create table t\G
 *************************** 1. row ***************************
@@ -20353,7 +20353,7 @@ Create Table: CREATE TABLE t (
 @findex EXPLAIN
 @findex SELECT, optimizing
 @node EXPLAIN, DESCRIBE, SHOW, Reference
-@section @code{EXPLAIN} syntax (Get information about a @code{SELECT})
+@section @code{EXPLAIN} Syntax (Get Information About a @code{SELECT})
 
 @example
     EXPLAIN tbl_name
@@ -20396,7 +20396,7 @@ The join type.  Information about the various types is given below.
 The @code{possible_keys} column indicates which indexes @strong{MySQL}
 could use to find the rows in this table. Note that this column is
 totally independent of the order of the tables. That means that some of
-the keys in possible_keys may not be useable in practice with the
+the keys in possible_keys may not be usable in practice with the
 generated table order.
 
 If this column is empty, there are no relevant indexes. In this case,
@@ -20418,7 +20418,7 @@ decided to use. The key is @code{NULL} if no index was chosen.  If
 @item key_len
 The @code{key_len} column indicates the length of the key that
 @strong{MySQL} decided to use.  The length is @code{NULL} if the
-@code{key} is @code{NULL}. Note that this tell us how many parts of a
+@code{key} is @code{NULL}. Note that this tells us how many parts of a
 multi-part key @strong{MySQL} will actually use.
 
 @item ref
@@ -20431,7 +20431,7 @@ believes it must examine to execute the query.
 
 @item Extra
 This column contains additional information of how @strong{MySQL} will
-resolve the query. Here follows an explanation of the different text
+resolve the query. Here is an explanation of the different text
 strings that can be found in this column:
 
 @table @code
@@ -20441,12 +20441,12 @@ combination after it has found the first matching row.
 @item Not exists
 @strong{MySQL} was able to do a @code{LEFT JOIN} optimization on the
 query and will not examine more rows in this table for a row combination
-after it founds one rows that matches the @code{LEFT JOIN} criteria.
+after it finds one row that matches the @code{LEFT JOIN} criteria.
 @item @code{range checked for each record (index map: #)}
-@strong{MySQL} didn't find a real good index to use. It will instead for
-each row combination in the preceding tables do a check which index to
-use (if any) use this index to retrieve the rows from the table.  This
-isn't very fast but is of course faster than having to do a join without
+@strong{MySQL} didn't find a real good index to use. It will, instead, for
+each row combination in the preceding tables, do a check on which index to
+use (if any), and use this index to retrieve the rows from the table.  This
+isn't very fast but is faster than having to do a join without
 an index.
 @item Using filesort
 @strong{MySQL} will need to do an extra pass to find out how to retrieve
@@ -20457,17 +20457,17 @@ sorted. Finally the rows are retrieved in sorted order.
 @item Using index
 The column information is retrieved from the table using only
 information in the index tree without having to do an additional seek to
-read the actually row.  This can be done when all the used columns for
+read the actual row.  This can be done when all the used columns for
 the table are part of the same index.
 @item Using temporary
-To be able to resolve the query @strong{MySQL} will need to create a
+To resolve the query @strong{MySQL} will need to create a
 temporary table to hold the result.  This typically happens if you do an
-@code{ORDER BY} on a different column set than you did an @code{GROUP
+@code{ORDER BY} on a different column set than you did a @code{GROUP
 BY} on.
 @item Where used
 A @code{WHERE} clause will be used to restrict which rows will be
 matched against the next table or sent to the client.  If you don't have
-this information and the table is of type @code{ALL} or @code{index}
+this information and the table is of type @code{ALL} or @code{index},
 you may have something wrong in your query (if you don't intend to
 fetch/examine all rows from the table).
 @end table
@@ -20495,7 +20495,7 @@ optimizer. @code{const} tables are very fast as they are read only once!
 
 @item eq_ref
 One row will be read from this table for each combination of rows from
-the previous tables.  This the best possible join type, other than the
+the previous tables.  This is the best possible join type, other than the
 @code{const} types.  It is used when all parts of an index are used by
 the join and the index is @code{UNIQUE} or a @code{PRIMARY KEY}.
 
@@ -20603,7 +20603,7 @@ Because @code{type} is @code{ALL} for each table, this output indicates that
 long time, as the product of the number of rows in each table must be
 examined!  For the case at hand, this is @code{74 * 2135 * 74 * 3872 =
 45,268,558,720} rows.  If the tables were bigger, you can only imagine how
-long it would take...
+long it would take.
 
 One problem here is that @strong{MySQL} can't (yet) use indexes on columns
 efficiently if they are declared differently.  In this context,
@@ -20655,7 +20655,7 @@ et_1  eq_ref PRIMARY         PRIMARY 15      tt.AssignedPC  1
 do    eq_ref PRIMARY         PRIMARY 15      tt.ClientID    1
 @end example
 
-This is ``almost'' as good as it can get.
+This is almost as good as it can get.
 
 The remaining problem is that, by default, @strong{MySQL} assumes that values
 in the @code{tt.ActualPC} column are evenly distributed, and that isn't the
@@ -20667,7 +20667,7 @@ shell> myisamchk --analyze PATH_TO_MYSQL_DATABASE/tt
 shell> mysqladmin refresh
 @end example
 
-Now the join is ``perfect'', and @code{EXPLAIN} produces this result:
+Now the join is perfect, and @code{EXPLAIN} produces this result:
 
 @example
 table type   possible_keys   key     key_len ref            rows    Extra
@@ -20678,7 +20678,7 @@ do    eq_ref PRIMARY         PRIMARY 15      tt.ClientID    1
 @end example
 
 Note that the @code{rows} column in the output from @code{EXPLAIN} is an
-``educated guess'' from the @strong{MySQL} join optimizer;  To optimize a
+educated guess from the @strong{MySQL} join optimizer. To optimize a
 query, you should check if the numbers are even close to the truth.  If not,
 you may get better performance by using @code{STRAIGHT_JOIN} in your
 @code{SELECT} statement and trying to list the tables in a different order in
@@ -20687,7 +20687,7 @@ the @code{FROM} clause.
 @findex DESC
 @findex DESCRIBE
 @node DESCRIBE, COMMIT, EXPLAIN, Reference
-@section @code{DESCRIBE} syntax (Get information about columns)
+@section @code{DESCRIBE} Syntax (Get Information About Columns)
 
 @example
 @{DESCRIBE | DESC@} tbl_name @{col_name | wild@}
@@ -20714,7 +20714,7 @@ The @code{SHOW} statement provides similar information.
 @findex COMMIT
 @findex ROLLBACK
 @node COMMIT, LOCK TABLES, DESCRIBE, Reference
-@section @code{BEGIN/COMMIT/ROLLBACK} syntax
+@section @code{BEGIN/COMMIT/ROLLBACK} Syntax
 
 By default, @strong{MySQL} runs in @code{autocommit} mode. This means that
 as soon as you execute an update, @strong{MySQL} will store the update on
@@ -20731,8 +20731,8 @@ After this you must use @code{COMMIT} to store your changes to disk or
 @code{ROLLBACK} if you want to ignore the changes you have made since
 the beginning of your transaction.
 
-If you want to switch from @code{AUTOCOMMIT} mode for one serie of
-statements, you can use the @code{BEGIN} or @code{BEGIN WORK} statement.
+If you want to switch from @code{AUTOCOMMIT} mode for one series of
+statements, you can use the @code{BEGIN} or @code{BEGIN WORK} statement:
 
 @example
 BEGIN;
@@ -20747,7 +20747,7 @@ stored at once, independent of the status of the @code{autocommit} mode.
 @findex LOCK TABLES
 @findex UNLOCK TABLES
 @node LOCK TABLES, SET OPTION, COMMIT, Reference
-@section @code{LOCK TABLES/UNLOCK TABLES} syntax
+@section @code{LOCK TABLES/UNLOCK TABLES} Syntax
 
 @example
 LOCK TABLES tbl_name [AS alias] @{READ | [READ LOCAL] | [LOW_PRIORITY] WRITE@}
@@ -20845,7 +20845,7 @@ that can take snapshots in time.
 
 @findex SET OPTION
 @node SET OPTION, GRANT, LOCK TABLES, Reference
-@section @code{SET} syntax
+@section @code{SET} Syntax
 
 @example
 SET [OPTION] SQL_VALUE_OPTION= value, ...
@@ -20897,7 +20897,7 @@ ODBC programs like Access.
 
 @item AUTOCOMMIT= 0 | 1
 If set to @code{1} all changes to a table will be done at once. To start
-an multi command transaction you have to use the @code{BEGIN}
+a multi-command transaction, you have to use the @code{BEGIN}
 statement. @xref{COMMIT}. If set to @code{0} you have to use @code{COMMIT} /
 @code{ROLLBACK} to accept/revoke that transaction. @xref{COMMIT}.  Note
 that when you change from not @code{AUTOCOMMIT} mode to
@@ -20910,7 +20910,7 @@ If set to @code{1}, all temporary tables are stored on disk rather than in
 memory.  This will be a little slower, but you will not get the error
 @code{The table tbl_name is full} for big @code{SELECT} operations that
 require a large temporary table.  The default value for a new connection is
-@code{0} (i.e., use in-memory temporary tables).
+@code{0} (that is, use in-memory temporary tables).
 
 @item SQL_BIG_SELECTS = 0 | 1
 If set to @code{0}, @strong{MySQL} will abort if a @code{SELECT} is attempted
@@ -20927,14 +20927,14 @@ table locks early and will help in cases where it takes a long time to
 send the result set to the client.
 
 @item SQL_LOW_PRIORITY_UPDATES = 0 | 1
-If set to @code{1}, all @code{INSERT}, @code{UPDATE}, @code{DELETE} and
+If set to @code{1}, all @code{INSERT}, @code{UPDATE}, @code{DELETE}, and
 and @code{LOCK TABLE WRITE} statements wait until there is no pending
 @code{SELECT} or @code{LOCK TABLE READ} on the affected table.
 
 @item SQL_MAX_JOIN_SIZE = value | DEFAULT
-Don't allow @code{SELECT}'s that will probably need to examine more than
+Don't allow @code{SELECT}s that will probably need to examine more than
 @code{value} row combinations.  By setting this value, you can catch
-@code{SELECT}'s where keys are not used properly and that would probably
+@code{SELECT}s where keys are not used properly and that would probably
 take a long time. Setting this to a value other than @code{DEFAULT} will reset
 the @code{SQL_BIG_SELECTS} flag.  If you set the @code{SQL_BIG_SELECTS}
 flag again, the @code{SQL_MAX_JOIN_SIZE} variable will be ignored.
@@ -20942,7 +20942,7 @@ You can set a default value for this variable by starting @code{mysqld} with
 @code{-O max_join_size=#}.
 
 @item SQL_SAFE_MODE = 0 | 1
-If set to @code{1}, @strong{MySQL} will abort if a @code{UPDATE} or
+If set to @code{1}, @strong{MySQL} will abort if an @code{UPDATE} or
 @code{DELETE} is attempted that doesn't use a key or @code{LIMIT} in the
 @code{WHERE} clause. This makes it possible to catch wrong updates
 when creating SQL commands by hand.
@@ -20951,7 +20951,7 @@ when creating SQL commands by hand.
 The maximum number of records to return from @code{SELECT} statements.  If
 a @code{SELECT} has a @code{LIMIT} clause, the @code{LIMIT} takes precedence
 over the value of @code{SQL_SELECT_LIMIT}.  The default value for a new
-connection is ``unlimited''.  If you have changed the limit, the default value
+connection is ``unlimited.'' If you have changed the limit, the default value
 can be restored by using a @code{SQL_SELECT_LIMIT} value of @code{DEFAULT}.
 
 @item SQL_LOG_OFF = 0 | 1
@@ -20994,7 +20994,7 @@ with the update log.
 @findex GRANT
 @findex REVOKE
 @node GRANT, CREATE INDEX, SET OPTION, Reference
-@section @code{GRANT} and @code{REVOKE} syntax
+@section @code{GRANT} and @code{REVOKE} Syntax
 
 @example
 GRANT priv_type [(column_list)] [, priv_type [(column_list)] ...]
@@ -21008,7 +21008,7 @@ REVOKE priv_type [(column_list)] [, priv_type [(column_list)] ...]
     FROM user_name [, user_name ...]
 @end example
 
-@code{GRANT} is implemented in @strong{MySQL} 3.22.11 or later. For
+@code{GRANT} is implemented in @strong{MySQL} Version 3.22.11 or later. For
 earlier @strong{MySQL} versions, the @code{GRANT} statement does nothing.
 
 The @code{GRANT} and @code{REVOKE} commands allow system administrators to
@@ -21046,7 +21046,7 @@ DROP                REFERENCES          USAGE
 @end example
 
 @code{ALL} is a synonym for @code{ALL PRIVILEGES}.  @code{REFERENCES} is not
-yet implemented.  @code{USAGE} is currently a synonym for ``no privileges''.
+yet implemented.  @code{USAGE} is currently a synonym for ``no privileges.''
 It can be used when you want to create a user that has no privileges.
 
 To revoke the @strong{grant} privilege from a user, use a @code{priv_type}
@@ -21058,16 +21058,16 @@ REVOKE GRANT OPTION ON ... FROM ...;
 
 The only @code{priv_type} values you can specify for a table are @code{SELECT},
 @code{INSERT}, @code{UPDATE}, @code{DELETE}, @code{CREATE}, @code{DROP},
-@code{GRANT}, @code{INDEX} and @code{ALTER}.
+@code{GRANT}, @code{INDEX}, and @code{ALTER}.
 
 The only @code{priv_type} values you can specify for a column (that is, when
-you use a @code{column_list} clause) are @code{SELECT}, @code{INSERT} and
+you use a @code{column_list} clause) are @code{SELECT}, @code{INSERT}, and
 @code{UPDATE}.
 
 You can set global privileges by using @code{ON *.*} syntax.  You can set
 database privileges by using @code{ON db_name.*} syntax. If you specify
 @code{ON *} and you have a current database, you will set the privileges for
-that database.  (@strong{Warning:} If you specify @code{ON *} and you
+that database.  (@strong{WARNING:} If you specify @code{ON *} and you
 @emph{don't} have a current database, you will affect the global privileges!)
 
 In order to accommodate granting rights to users from arbitrary hosts,
@@ -21083,7 +21083,7 @@ You can specify wild cards in the hostname.  For example,
 for any host in the @code{144.155.166} class C subnet.
 
 The simple form @code{user} is a synonym for @code{user@@"%"}.
-@strong{Note:} If you allow anonymous users to connect to the @strong{MySQL}
+@strong{NOTE:} If you allow anonymous users to connect to the @strong{MySQL}
 server (which is the default), you should also add all local users as
 @code{user@@localhost} because otherwise the anonymous user entry for the
 local host in the @code{mysql.user} table will be used when the user tries to
@@ -21096,7 +21096,7 @@ this query:
 mysql> SELECT Host,User FROM mysql.user WHERE User='';
 @end example
 
-For the moment, @code{GRANT} only supports host, table, database and
+For the moment, @code{GRANT} only supports host, table, database, and
 column names up to 60 characters long. A user name can be up to 16
 characters.
 
@@ -21104,7 +21104,7 @@ The privileges for a table or column are formed from the
 logical OR of the privileges at each of the four privilege
 levels.  For example, if the @code{mysql.user} table specifies that a
 user has a global @strong{select} privilege, this can't be denied by an
-entry at the database, table or column level.
+entry at the database, table, or column level.
 
 The privileges for a column can be calculated as follows:
 
@@ -21116,7 +21116,7 @@ OR column privileges
 @end example
 
 In most cases, you grant rights to a user at only one of the privilege
-levels, so life isn't normally as complicated as above. :) The details of the
+levels, so life isn't normally as complicated as above. The details of the
 privilege-checking procedure are presented in
 @ref{Privilege system}.
 
@@ -21127,13 +21127,13 @@ create @code{user} table entries, but @code{REVOKE} will not remove them;
 you must do that explicitly using @code{DELETE}.
 
 @cindex passwords, setting
-In @strong{MySQL} 3.22.12 or later,
+In @strong{MySQL} Version 3.22.12 or later,
 if a new user is created or if you have global grant privileges, the user's
 password will be set to the password specified by the @code{IDENTIFIED BY}
 clause, if one is given.  If the user already had a password, it is replaced
 by the new one.
 
-@strong{Warning:} If you create a new user but do not specify an
+@strong{WARNING:} If you create a new user but do not specify an
 @code{IDENTIFIED BY} clause, the user has no password.  This is insecure.
 
 Passwords can also be set with the @code{SET PASSWORD} command.
@@ -21175,7 +21175,7 @@ server examines table and column privileges for all users and this will slow
 down @strong{MySQL} a bit.
 
 When @code{mysqld} starts, all privileges are read into memory.
-Database, table and column privileges take effect at once and
+Database, table, and column privileges take effect at once, and
 user-level privileges take effect the next time the user connects.
 Modifications to the grant tables that you perform using @code{GRANT} or
 @code{REVOKE} are noticed by the server immediately.
@@ -21195,7 +21195,7 @@ In @strong{MySQL} privileges are given for an username + hostname combination
 and not only for an username.
 
 @item
-ANSI SQL doesn't have global or database-level privileges and ANSI SQL
+ANSI SQL doesn't have global or database-level privileges, and ANSI SQL
 doesn't support all privilege types that @strong{MySQL} supports.
 @strong{MySQL} doesn't support the ANSI SQL @code{TRIGGER}, @code{EXECUTE} or
 @code{UNDER} privileges.
@@ -21226,7 +21226,7 @@ dropped only with explicit @code{REVOKE} commands or by manipulating the
 @cindex multi-part index
 @findex CREATE INDEX
 @node CREATE INDEX, DROP INDEX, GRANT, Reference
-@section @code{CREATE INDEX} syntax
+@section @code{CREATE INDEX} Syntax
 
 @example
 CREATE [UNIQUE|FULLTEXT] INDEX index_name ON tbl_name (col_name[(length)],... )
@@ -21277,7 +21277,7 @@ are available in @strong{MySQL} Version 3.23.23 and later.
 
 @findex DROP INDEX
 @node DROP INDEX, Comments, CREATE INDEX, Reference
-@section @code{DROP INDEX} syntax
+@section @code{DROP INDEX} Syntax
 
 @example
 DROP INDEX index_name ON tbl_name
@@ -21344,7 +21344,7 @@ input from that file with @code{mysql < some-file}.
 @findex User-defined functions
 @findex Functions, user-defined
 @node CREATE FUNCTION, Reserved words, Comments, Reference
-@section @code{CREATE FUNCTION/DROP FUNCTION} syntax
+@section @code{CREATE FUNCTION/DROP FUNCTION} Syntax
 
 @example
 CREATE [AGGREGATE] FUNCTION function_name RETURNS @{STRING|REAL|INTEGER@}
@@ -21687,7 +21687,7 @@ count variable for the table is not 0 and you are running with
 The table is checked for errors.
 @item
 If we found an error, try to do a fast repair (with sorting and without
-recreating the data file) of the table.
+re-creating the data file) of the table.
 @item
 If the repair fails because of an error in the data file (for example a
 duplicate key error), we try again, but this time we recreate the data file.
@@ -21776,7 +21776,7 @@ Also when scanning a table it is very easy to read a constant number of
 records with each disk read.
 
 The security comes from if your computer crashes when writing to a
-fixed size MyISAM file, @code{myisamchk} can easily figure out where each
+fixed-size MyISAM file, @code{myisamchk} can easily figure out where each
 row starts and ends. So it can usually reclaim all records except the
 partially written one. Note that in @strong{MySQL} all indexes can always be
 reconstructed.
@@ -22375,7 +22375,7 @@ To connect to the server, you'll usually need to provide a @strong{MySQL}
 user name when you invoke @code{mysql} and, most likely, a password.  If the
 server runs on a machine other than the one where you log in, you'll also
 need to specify a hostname.  Contact your administrator to find out what
-connection parameters you should use to connect (i.e., what host, user name
+connection parameters you should use to connect (that is, what host, user name
 and password to use).  Once you know the proper parameters, you should be
 able to connect like this:
 
@@ -22656,7 +22656,7 @@ cancel the current command.
 @node Examples, Searching on two keys, Entering queries, Tutorial
 @section Examples of common queries
 
-Here follows examples of how to solve some common problems with
+Here are examples of how to solve some common problems with
 @strong{MySQL}.
 
 Some of the examples use the table @code{shop} to hold the price of each
@@ -24843,8 +24843,8 @@ value + 1.  This is an old legacy to be able to handle EOF.)
 You can find the following bitmask definitions in @file{m_ctype.h}:
 
 @example
-#define _U      01      /* Upper case */
-#define _L      02      /* Lower case */
+#define _U      01      /* Uppercase */
+#define _L      02      /* Lowercase */
 #define _N      04      /* Numeral (digit) */
 #define _S      010     /* Spacing character */
 #define _P      020     /* Punctuation */
@@ -24915,7 +24915,7 @@ the size in bytes of the largest character in the set.
 @node Table size,  , Languages, Server
 @section How big MySQL tables can be
 
-@strong{MySQL} 3.22 has a 4G limit on table size. With the new
+@strong{MySQL} Version 3.22 has a 4G limit on table size. With the new
 @code{MyISAM} in @strong{MySQL} Version 3.23 the maximum table size is
 pushed up to 8 million terabytes (2 ^ 63 bytes).
 
@@ -26247,7 +26247,7 @@ automatically changing the in-memory (HEAP) table to a disk-based
 increase the temporary table size by setting the @code{tmp_table_size}
 option to @code{mysqld}, or by setting the SQL option
 @code{SQL_BIG_TABLES} in the client program.  @xref{SET OPTION, ,
-@code{SET OPTION}}. In @strong{MySQL} 3.20, the maximum size of the
+@code{SET OPTION}}. In @strong{MySQL} Version 3.20, the maximum size of the
 temporary table was @code{record_buffer*16}, so if you are using this
 version, you have to increase the value of @code{record_buffer}. You can
 also start @code{mysqld} with the @code{--big-tables} option to always
@@ -28489,7 +28489,7 @@ Verbose mode.  Print out more information what the program does.
 Print version information and exit.
 @end table
 
-Here follows a sample run of using @code{mysqlimport}:
+Here is a sample run of using @code{mysqlimport}:
 
 @example
 $ mysql --version
@@ -29164,7 +29164,7 @@ The following options are used if you start @code{myisamchk} with
 
 @table @code
 @item -D # or --data-file-length=#
-Max length of data file (when recreating data file when it's 'full')
+Max length of data file (when re-creating data file when it's 'full')
 @item -e or --extend-check
 Try to recover every possible row from the data file.
 Normally this will also find a lot of garbage rows; Don't use this option
@@ -29647,7 +29647,7 @@ What percentage of the data file is used.
 What percentage of the data file is unused.
 
 @item Blocks/Record
-Average number of blocks per record (i.e., how many links a fragmented
+Average number of blocks per record (that is, how many links a fragmented
 record is composed of). This is always 1 for fixed-format tables. This value
 should stay as close to 1.0 as possible. If it gets too big, you can
 reorganize the table with @code{myisamchk}.
@@ -30003,7 +30003,7 @@ start from @code{cron} to handle log files.
 
 You can force @strong{MySQL} to start using new log files by using
 @code{mysqladmin flush-logs} or by using the SQL command @code{FLUSH LOGS}.
-If you are using @strong{MySQL} 3.21 you must use @code{mysqladmin refresh}.
+If you are using @strong{MySQL} Version 3.21 you must use @code{mysqladmin refresh}.
 
 The above command does the following:
 
@@ -30385,7 +30385,7 @@ parameter to @code{1}:
 If @code{xxx()} sets @code{*error} to @code{1} for any row, the function
 value is @code{NULL} for the current row and for any subsequent rows
 processed by the statement in which @code{XXX()} was invoked.  (@code{xxx()}
-will not even be called for subsequent rows.) @strong{Note:} In
+will not even be called for subsequent rows.) @strong{NOTE:} In
 @strong{MySQL} versions prior to 3.22.10, you should set both @code{*error}
 and @code{*is_null}:
 
@@ -30814,7 +30814,7 @@ aren't specified.  Another way to around this bug is to upgrade to
 MyODBC Version 2.50.33 and @strong{MySQL} Version 3.23.x, which together provides a
 workaround for this bug!
 
-Note that if you are using @strong{MySQL} 3.22, you must to apply the
+Note that if you are using @strong{MySQL} Version 3.22, you must to apply the
 MDAC patch and use MyODBC 2.50.32 or 2.50.34 and above to go around
 this problem.
 @item
@@ -31189,7 +31189,7 @@ If you have one of the following symptoms, then it is probably a hardware
 The keyboard doesn't work.  This can normally be checked by pressing
 Caps Lock;  If the Caps Lock light doesn't change you have to replace
 your keyboard.  (Before doing this, you should however try to reboot
-your computer and check all cables to the keyboard :)
+your computer and check all cables to the keyboard.)
 @item
 The mouse pointer doesn't move.
 @item
@@ -31480,7 +31480,7 @@ an error that is related to your particular system libraries).
 If you have a problem with table with dynamic length rows and you are
 not using @code{BLOB/TEXT} columns (but only @code{VARCHAR} columns) you
 can try to change all @code{VARCHAR} to @code{CHAR} with @code{ALTER
-TABLE}.  This will force @strong{MySQL} to use fixed size rows.  Fixed
+TABLE}.  This will force @strong{MySQL} to use fixed-size rows.  Fixed
 size rows take a little extra space, but are much more tolerant to
 corruption!
 
@@ -31656,7 +31656,7 @@ shell> mysqladmin --socket=/tmp/mysql.sock version
 @end example
 
 Note the use of backquotes rather than forward quotes with the @code{hostname}
-command; these cause the output of @code{hostname} (i.e., the current
+command; these cause the output of @code{hostname} (that is, the current
 hostname) to be substituted into the @code{mysqladmin} command.
 
 Here are some reasons the @code{Can't connect to local MySQL server}
@@ -31866,7 +31866,7 @@ You can also start @code{mysqld} with the @code{--big-tables} option.
 This is exactly the same as using @code{SQL_BIG_TABLES} for all queries.
 
 In @strong{MySQL} Version 3.23 in-memory temporary tables will automatically be
-converted to a disk based @code{MyISAM} table after the table size gets
+converted to a disk-based @code{MyISAM} table after the table size gets
 bigger than @code{tmp_table_size}.
 
 @cindex can't create/write to file
@@ -32115,7 +32115,7 @@ you.
 
 @item
 Start the server as user @code{user_name}, or, if you are using
-@strong{MySQL} 3.22 or later, start @code{mysqld} as the Unix @code{root}
+@strong{MySQL} Version 3.22 or later, start @code{mysqld} as the Unix @code{root}
 user and use the @code{--user=user_name} option.  @code{mysqld} will switch
 to run as Unix user @code{user_name} before accepting any connections.
 
@@ -32782,7 +32782,7 @@ extension, @code{mysqld} will create log file names of type
 time you execute @code{mysqladmin refresh} or @code{mysqladmin
 flush-logs}, the @code{FLUSH LOGS} statement, or restart the server.
 
-@strong{Note:} For the above scheme to work, you should NOT create
+@strong{NOTE:} For the above scheme to work, you should NOT create
 own files with the same file name as the update log + some extensions
 that may be regarded as a number, in the directory used by the update log!
 
@@ -32958,7 +32958,7 @@ files to @code{safe_mysqld} with @code{--log}, @code{--log-update} or
 @code{--log-slow-queries}.  Otherwise, both servers may be trying to
 write to the same log file.
 
-@strong{Warning}: Normally you should never have two servers that update
+@strong{WARNING}: Normally you should never have two servers that update
 data in the same database!  If your OS doesn't support fault-free system
 locking, this may lead to unpleasant surprises!
 
@@ -34795,7 +34795,7 @@ or
 
 @code{unsigned int mysql_num_fields(MYSQL *mysql)}
 
-The second form doesn't work on @strong{MySQL} 3.22.24 or newer.  To pass a
+The second form doesn't work on @strong{MySQL} Version 3.22.24 or newer.  To pass a
 @code{MYSQL*} argument, you must use
 @code{unsigned int mysql_field_count(MYSQL *mysql)} instead.
 
@@ -35963,7 +35963,7 @@ Use compressed communication between the client and server (@strong{MySQL}
 
 @item mysql_socket=/path/to/socket
 Specify the pathname of the Unix socket that is used to connect
-to the server (@strong{MySQL} 3.21.15 or later).
+to the server (@strong{MySQL} Version 3.21.15 or later).
 @end table
 
 Multiple modifiers may be given; each must be preceded by a semicolon.
@@ -37091,7 +37091,7 @@ may sometimes produce bizarre results.
 
 For example search for the word "search" will produce no results in the
 above example. Word "search" is present in more than half of rows, and
-as, such, is effectively treated as stopword (i.e. with semantical value
+as, such, is effectively treated as stopword (that is, with semantical value
 zero). It is, really, the desired behaviour - natural language query
 should not return every second row in 1GB table.
 
@@ -37106,7 +37106,7 @@ particular dataset}.
 @node Environment variables, Users, MySQL internals, Top
 @appendix  Environment variables
 
-Here follows a list of all environment variables that are used directly or
+Here is a list of all environment variables that are used directly or
 indirectly by @strong{MySQL}. Most of these can also be found at other
 places in this manual.
 
@@ -37779,7 +37779,7 @@ Fernandez Herrero.
 @itemize @bullet
 @item Graphical clients
 @itemize @bullet
-@item @uref{http://www.ideit.com/products/dbvis, DbVisualizer}
+@item @uref{http://www.ideit.com/products/dbvis: DbVisualizer}
 Freeware JDBC client to graphically visualize the data and structure
 of several databases simultaneously. By Innovative-IT Development AB.
 
@@ -37945,7 +37945,7 @@ SQL/HTML is an HTML database manager for @strong{MySQL} using @code{DBI} 1.06.
 @item @uref{http://www.mysql.com/Downloads/Contrib/udmsearch-3.0.21.tar.gz, UdmSearch 3.0.22 (stable version)}
 @item @uref{http://www.mysql.com/Downloads/Contrib/udmsearch-3.1.3.tar.gz, UdmSearch 3.1.3 (development version)}
 @item @uref{http://search.mnoGo.ru, UdmSearch home page}
-An SQL-based search engine for Internet. By
+A SQL-based search engine for Internet. By
 Alexander I. Barkov @email{bar@@izhcom.ru}.
 
 @item @uref{http://www.mysql.com/Downloads/Contrib/wmtcl.doc, wmtcl.doc}
@@ -38091,7 +38091,7 @@ use Access for all DB design and administration, and synchronize with
 your actual @strong{MySQL} server either way. Free of charge. See
 @uref{http://www.netdive.com/freebies/importsql/} for any updates.
 Created by Laurent Bossavit of NetDIVE.
-@strong{Note:} Doesn't work with Access2!
+@strong{NOTE:} Doesn't work with Access2!
 
 @item @uref{http://www.mysql.com/Downloads/Contrib/msql2mysqlWrapper-1.0.tgz, /msql2mysqlWrapper 1.0}
 A C wrapper from @code{mSQL} to @strong{MySQL}. By @email{alfred@@sb.net}
@@ -38269,13 +38269,13 @@ Developers that are or has been employed by MySQL AB to work on MySQL.
 Has written the following parts of @strong{MySQL}:
 @itemize @bullet
 @item
-Most the main code in @code{mysqld}.
+All the main code in @code{mysqld}.
 @item
 New functions for the string library.
 @item
 Most of the @code{mysys} library.
 @item
-The @code{ISAM},@code{MyISAM} and @code{MERGE} libraries (B-tree index file
+The @code{ISAM} and @code{MyISAM} libraries (B-tree index file
 handlers with index compression and different record formats).
 @item
 The @code{HEAP} library. A memory table system with our superior full dynamic
@@ -39009,7 +39009,7 @@ To make it possible to reliably dump and restore tables with
 @code{TIMESTAMP(X)} columns, @strong{MySQL} now reports columns with @code{X}
 other than 14 or 8 to be strings.
 @item
-Changed sort order for latin1 as it was before @strong{MySQL} 3.23.23.
+Changed sort order for latin1 as it was before @strong{MySQL} Version 3.23.23.
 Any table with @code{CHAR} columns that may have characters with ASCII
 values greater than 128 that was created or modified with 3.23.22 must
 be repaired!
@@ -39772,7 +39772,7 @@ Changed the argument to @code{mysql_data_seek()} from @code{ulong} to
 @itemize @bullet
 @item
 Added @code{mysqld} option @code{-O lower_case_table_names=@{0|1@}} to allow
-users to force table names to lower case.
+users to force table names to lowercase.
 @item
 Added @code{SELECT ... INTO DUMPFILE}.
 @item
@@ -40143,7 +40143,7 @@ Added aggregate UDF functions. Thanks to Andreas F. Bobak
 Some small changes to the join table optimizer to make some joins faster.
 @item
 @code{SELECT DISTINCT} is much faster; It uses the new @code{UNIQUE}
-functionality in @code{MyISAM}. One difference compared to @strong{MySQL} 3.22
+functionality in @code{MyISAM}. One difference compared to @strong{MySQL} Version 3.22
 is that the output of @code{DISTINCT} is not sorted anymore.
 @item
 All C client API macros are now functions to make shared libraries more
@@ -40430,7 +40430,7 @@ Better support for SCO in @code{configure}.
 Added option @code{--defaults-file=###} to option file handling to force use
 of only one specific option file.
 @item
-Extended @code{CREATE} syntax to ignore @strong{MySQL} 3.23 keywords.
+Extended @code{CREATE} syntax to ignore @strong{MySQL} Version 3.23 keywords.
 @item
 Fixed deadlock problem when using @code{INSERT DELAYED} on a table locked with
 @code{LOCK TABLES}.
@@ -41104,7 +41104,7 @@ Added @code{DATE_ADD()} and @code{DATE_SUB()} functions.
 
 @itemize @bullet
 @item
-Fixed a lock problem (bug in @strong{MySQL} 3.22.1) when closing temporary tables.
+Fixed a lock problem (bug in @strong{MySQL} Version 3.22.1) when closing temporary tables.
 @item
 Added missing @code{mysql_ping()} to the client library.
 @item
@@ -41152,7 +41152,7 @@ Server error messages are now in @file{mysqld_error.h}.
 @item
 The server/client protocol now supports compression.
 @item
-All bug fixes from @strong{MySQL} 3.21.32.
+All bug fixes from @strong{MySQL} Version 3.21.32.
 @end itemize
 
 @node News-3.22.1, News-3.22.0, News-3.22.2, News-3.22.x
@@ -41183,7 +41183,7 @@ within a row in an existing table.
 the week starts on Monday (some European countries).  By default,
 @code{WEEK()} assumes the week starts on Sunday.
 @item
-@code{TIME} columns weren't stored properly (bug in @strong{MySQL} 3.22.0).
+@code{TIME} columns weren't stored properly (bug in @strong{MySQL} Version 3.22.0).
 @item
 @code{UPDATE} now returns information about how many rows were
 matched and updated, and how many ``warnings'' occurred when doing the update.
@@ -41626,7 +41626,7 @@ Added command @code{variables} to @code{mysqladmin}.
 @item
 A lot of small changes to the binary releases.
 @item
-Fixed a bug in the new protocol from @strong{MySQL} 3.21.20.
+Fixed a bug in the new protocol from @strong{MySQL} Version 3.21.20.
 @item
 Changed @code{ALTER TABLE} to work with Windows (Windows can't rename
 open files).  Also fixed a couple of small bugs in the Windows version.
@@ -41924,7 +41924,7 @@ Sorting on calculated @code{DOUBLE} values sorted on integer results instead.
 @code{mysql} no longer needs a database argument.
 @item
 Changed the place where @code{HAVING} should be. According to ANSI, it should
-be after @code{GROUP BY} but before @code{ORDER BY}. @strong{MySQL} 3.20
+be after @code{GROUP BY} but before @code{ORDER BY}. @strong{MySQL} Version 3.20
 incorrectly had it last.
 @item
 Added Sybase command @code{USE DATABASE} to start using another database.
@@ -42008,7 +42008,7 @@ easily portable to Win95.
 Changed the @code{CREATE COLUMN} syntax of @code{NOT NULL} columns to be after
 the @code{DEFAULT} value, as specified in the ANSI SQL standard. This will
 make @code{mysqldump} with @code{NOT NULL} and default values incompatible with
-@strong{MySQL} 3.20.
+@strong{MySQL} Version 3.20.
 @item
 Added many function name aliases so the functions can be used with
 ODBC or ANSI SQL92 syntax.
@@ -42957,7 +42957,7 @@ New functions: @code{INSERT()}, @code{RTRIM()}, @code{LTRIM()} and
 @code{AUTO_INCREMENT}). The format for @code{SHOW FIELDS FROM tbl_name}
 is changed so the @code{Type} column contains information suitable for
 @code{CREATE TABLE}.  In previous releases, some @code{CREATE TABLE}
-information had to be patched when recreating tables.
+information had to be patched when re-creating tables.
 @item
 Some parser bugs from 3.19.5 (@code{BLOB} and @code{TIMESTAMP}) are corrected.
 @code{TIMESTAMP} now returns different date information depending on its
@@ -43173,7 +43173,7 @@ Delayed insert handler has pending inserts to a table.
 @end enumerate
 
 @item
-Before @strong{MySQL} 3.23.2 an @code{UPDATE} that updated a key with
+Before @strong{MySQL} Version 3.23.2 an @code{UPDATE} that updated a key with
 a @code{WHERE} on the same key may have failed because the key was used to
 search for records and the same row may have been found multiple times:
 
@@ -43190,7 +43190,7 @@ mysql> UPDATE tbl_name SET KEY=KEY+1 WHERE KEY+0 > 100;
 This will work because @strong{MySQL} will not use index on expressions in
 the @code{WHERE} clause.
 @item
-Before @strong{MySQL} 3.23, all numeric types where treated as fixed-point
+Before @strong{MySQL} Version 3.23, all numeric types where treated as fixed-point
 fields. That means you had to specify how many decimals a floating-point
 field shall have. All results were returned with the correct number of
 decimals.
@@ -43661,7 +43661,7 @@ If you run into problems with a new port, you may have to do some debugging
 of @strong{MySQL}!
 @xref{Debugging server}.
 
-@strong{Note:} Before you start debugging @code{mysqld}, first get the test
+@strong{NOTE:} Before you start debugging @code{mysqld}, first get the test
 programs @code{mysys/thr_alarm} and @code{mysys/thr_lock} to work.  This
 will ensure that your thread installation has even a remote chance to work!
 
@@ -43778,7 +43778,7 @@ If you have problems debugging threads with gdb, you should download
 gdb 5.x and try this instead. The new gdb version has very improved
 thread handling!
 
-Here follows an example how to debug mysqld:
+Here is an example how to debug mysqld:
 
 @example
 shell> gdb /usr/local/libexec/mysqld
@@ -43962,7 +43962,7 @@ The currently recognized flag characters are:
 
 @multitable @columnfractions .1 .9
 @item d	@tab Enable output from DBUG_<N> macros for for the current state. May be followed by a list of keywords which selects output only for the DBUG macros with that keyword. A empty list of keywords implies output for all macros.
-@item D	@tab Delay after each debugger output line. The argument is the number of tenths of seconds to delay, subject to machine capabilities. I.E.  @code{-#D,20} is delay two seconds.
+@item D	@tab Delay after each debugger output line. The argument is the number of tenths of seconds to delay, subject to machine capabilities. That is, @code{-#D,20} is delay two seconds.
 @item f	@tab Limit debugging and/or tracing, and profiling to the list of named functions.  Note that a null list will disable all functions.	The appropriate "d" or "t" flags must still be given, this flag only limits their actions if they are enabled.
 @item F	@tab Identify the source file name for each line of debug or trace output.
 @item i	@tab Identify the process with the pid or thread id for each line of debug or trace output.
@@ -44079,7 +44079,7 @@ for the application but generally it's very hard to say that a given
 lock type is better than another; Everything depends on the application
 and different part of the application may require different lock types.
 
-Here follows some tips about locking in @strong{MySQL}:
+Here are some tips about locking in @strong{MySQL}:
 
 On web application most applications do lots of selects, very few
 deletes, updates mainly on keys and inserts in some specific tables.
@@ -44153,7 +44153,7 @@ If there are some small differences in the implementation, they may be fixed
 by changing @file{my_pthread.h} and @file{my_pthread.c}.
 @item
 Run @code{thr_alarm}. If it runs without any ``warning'', ``error'' or aborted
-messages, you are on the right track. Here follows a successful run on
+messages, you are on the right track. Here is a successful run on
 Solaris:
 @example
 Main thread: 1
