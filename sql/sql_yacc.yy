@@ -470,7 +470,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 	ULONGLONG_NUM
 
 %type <item>
-	literal text_literal insert_ident group_ident order_ident
+	literal text_literal insert_ident order_ident
 	simple_ident select_item2 expr opt_expr opt_else sum_expr in_sum_expr
 	table_wild opt_pad no_in_expr expr_expr simple_expr no_and_expr
 	using_list
@@ -1869,10 +1869,10 @@ group_clause:
 	| GROUP BY group_list
 
 group_list:
-	group_list ',' group_ident
-	  { if (add_group_to_list($3,(bool) 1)) YYABORT; }
-	| group_ident
-	  { if (add_group_to_list($1,(bool) 1)) YYABORT; }
+	group_list ',' order_ident order_dir
+	  { if (add_group_to_list($3,(bool) $4)) YYABORT; }
+	| order_ident order_dir
+	  { if (add_group_to_list($1,(bool) $2)) YYABORT; }
 
 /*
 ** Order by statement in select
@@ -1883,7 +1883,7 @@ opt_order_clause:
 	| order_clause
 
 order_clause:
-	ORDER_SYM BY { Lex->sort_default=1; } order_list
+	ORDER_SYM BY order_list
 
 order_list:
 	order_list ',' order_ident order_dir
@@ -1893,8 +1893,8 @@ order_list:
 
 order_dir:
 	/* empty */ { $$ =  1; }
-	| ASC  { $$ = Lex->sort_default=1; }
-	| DESC { $$ = Lex->sort_default=0; }
+	| ASC  { $$ =1; }
+	| DESC { $$ =0; }
 
 
 limit_clause:
@@ -2451,9 +2451,6 @@ table_wild:
 	ident '.' '*' { $$ = new Item_field(NullS,$1.str,"*"); }
 	| ident '.' ident '.' '*'
 	{ $$ = new Item_field((current_thd->client_capabilities & CLIENT_NO_SCHEMA ? NullS : $1.str),$3.str,"*"); }
-
-group_ident:
-	order_ident order_dir
 
 order_ident:
 	expr { $$=$1; }
