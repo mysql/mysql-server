@@ -1452,6 +1452,11 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     mysql_stmt_execute(thd, packet, packet_length);
     break;
   }
+  case COM_FETCH:
+  {
+    mysql_stmt_fetch(thd, packet, packet_length);
+    break;
+  }
   case COM_LONG_DATA:
   {
     mysql_stmt_get_longdata(thd, packet, packet_length);
@@ -1545,7 +1550,6 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
       send_error(thd,ER_NO_DB_ERROR);
       break;
     }
-    thd->free_list=0;
     pend= strend(packet);
     thd->convert_string(&conv_name, system_charset_info,
 			packet, (uint) (pend-packet), thd->charset());
@@ -1567,6 +1571,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
       break;
     mysqld_list_fields(thd,&table_list,fields);
     free_items(thd->free_list);
+    thd->free_list=0;           /* free_list should never point to garbage */
     break;
   }
 #endif
@@ -4443,6 +4448,7 @@ void mysql_parse(THD *thd, char *inBuf, uint length)
     }
     thd->proc_info="freeing items";
     free_items(thd->free_list);  /* Free strings used by items */
+    thd->free_list= 0;           /* free_list should never point to garbage */
     lex_end(lex);
   }
   DBUG_VOID_RETURN;
@@ -4470,6 +4476,7 @@ bool mysql_test_parse_for_slave(THD *thd, char *inBuf, uint length)
       all_tables_not_ok(thd,(TABLE_LIST*) lex->select_lex.table_list.first))
     error= 1;                  /* Ignore question */
   free_items(thd->free_list);  /* Free strings used by items */
+  thd->free_list= 0;           /* free_list should never point to garbage */
   lex_end(lex);
 
   DBUG_RETURN(error);

@@ -487,6 +487,7 @@ void Protocol::init(THD *thd_arg)
     flag	Bit mask with the following functions:
 		1 send number of rows
 		2 send default values
+                4 don't write eof packet
 
   DESCRIPTION
     Sum fields has table name empty and field_name.
@@ -497,7 +498,7 @@ void Protocol::init(THD *thd_arg)
 */
 
 #ifndef EMBEDDED_LIBRARY
-bool Protocol::send_fields(List<Item> *list, uint flag)
+bool Protocol::send_fields(List<Item> *list, uint flags)
 {
   List_iterator_fast<Item> it(*list);
   Item *item;
@@ -508,7 +509,7 @@ bool Protocol::send_fields(List<Item> *list, uint flag)
   CHARSET_INFO *thd_charset= thd->variables.character_set_results;
   DBUG_ENTER("send_fields");
 
-  if (flag & 1)
+  if (flags & SEND_NUM_ROWS)
   {				// Packet with number of elements
     char *pos=net_store_length(buff, (uint) list->elements);
     (void) my_net_write(&thd->net, buff,(uint) (pos-buff));
@@ -594,7 +595,7 @@ bool Protocol::send_fields(List<Item> *list, uint flag)
       }
     }
     local_packet->length((uint) (pos - local_packet->ptr()));
-    if (flag & 2)
+    if (flags & SEND_DEFAULTS)
       item->send(&prot, &tmp);			// Send default value
     if (prot.write())
       break;					/* purecov: inspected */
@@ -603,7 +604,8 @@ bool Protocol::send_fields(List<Item> *list, uint flag)
 #endif
   }
 
-  my_net_write(&thd->net, eof_buff, 1);
+  if (flags & SEND_EOF)
+    my_net_write(&thd->net, eof_buff, 1);
   DBUG_RETURN(prepare_for_send(list));
 
 err:
@@ -962,12 +964,6 @@ void Protocol_prep::prepare_for_resend()
 bool Protocol_prep::store(const char *from, uint length, CHARSET_INFO *fromcs)
 {
   CHARSET_INFO *tocs= thd->variables.character_set_results;
-#ifndef DEBUG_OFF
-  DBUG_ASSERT(field_types == 0 ||
-	      field_types[field_pos] == MYSQL_TYPE_DECIMAL ||
-	      (field_types[field_pos] >= MYSQL_TYPE_ENUM &&
-	       field_types[field_pos] <= MYSQL_TYPE_GEOMETRY));
-#endif
   field_pos++;
   return store_string_aux(from, length, fromcs, tocs);
 }
@@ -975,12 +971,6 @@ bool Protocol_prep::store(const char *from, uint length, CHARSET_INFO *fromcs)
 bool Protocol_prep::store(const char *from,uint length,
 			  CHARSET_INFO *fromcs, CHARSET_INFO *tocs)
 {
-#ifndef DEBUG_OFF
-  DBUG_ASSERT(field_types == 0 ||
-	      field_types[field_pos] == MYSQL_TYPE_DECIMAL ||
-	      (field_types[field_pos] >= MYSQL_TYPE_ENUM &&
-	       field_types[field_pos] <= MYSQL_TYPE_GEOMETRY));
-#endif
   field_pos++;
   return store_string_aux(from, length, fromcs, tocs);
 }
@@ -998,10 +988,6 @@ bool Protocol_prep::store_null()
 
 bool Protocol_prep::store_tiny(longlong from)
 {
-#ifndef DEBUG_OFF
-  DBUG_ASSERT(field_types == 0 ||
-	      field_types[field_pos] == MYSQL_TYPE_TINY);
-#endif
   char buff[1];
   field_pos++;
   buff[0]= (uchar) from;
@@ -1011,11 +997,6 @@ bool Protocol_prep::store_tiny(longlong from)
 
 bool Protocol_prep::store_short(longlong from)
 {
-#ifndef DEBUG_OFF
-  DBUG_ASSERT(field_types == 0 ||
-        field_types[field_pos] == MYSQL_TYPE_SHORT ||
-        field_types[field_pos] == MYSQL_TYPE_YEAR);
-#endif
   field_pos++;
   char *to= packet->prep_append(2, PACKET_BUFFER_EXTRA_ALLOC);
   if (!to)
@@ -1027,11 +1008,6 @@ bool Protocol_prep::store_short(longlong from)
 
 bool Protocol_prep::store_long(longlong from)
 {
-#ifndef DEBUG_OFF
-  DBUG_ASSERT(field_types == 0 ||
-	      field_types[field_pos] == MYSQL_TYPE_INT24 ||
-	      field_types[field_pos] == MYSQL_TYPE_LONG);
-#endif
   field_pos++;
   char *to= packet->prep_append(4, PACKET_BUFFER_EXTRA_ALLOC);
   if (!to)
@@ -1043,10 +1019,6 @@ bool Protocol_prep::store_long(longlong from)
 
 bool Protocol_prep::store_longlong(longlong from, bool unsigned_flag)
 {
-#ifndef DEBUG_OFF
-  DBUG_ASSERT(field_types == 0 ||
-	      field_types[field_pos] == MYSQL_TYPE_LONGLONG);
-#endif
   field_pos++;
   char *to= packet->prep_append(8, PACKET_BUFFER_EXTRA_ALLOC);
   if (!to)
@@ -1058,10 +1030,6 @@ bool Protocol_prep::store_longlong(longlong from, bool unsigned_flag)
 
 bool Protocol_prep::store(float from, uint32 decimals, String *buffer)
 {
-#ifndef DEBUG_OFF
-  DBUG_ASSERT(field_types == 0 ||
-	      field_types[field_pos] == MYSQL_TYPE_FLOAT);
-#endif
   field_pos++;
   char *to= packet->prep_append(4, PACKET_BUFFER_EXTRA_ALLOC);
   if (!to)
@@ -1073,10 +1041,6 @@ bool Protocol_prep::store(float from, uint32 decimals, String *buffer)
 
 bool Protocol_prep::store(double from, uint32 decimals, String *buffer)
 {
-#ifndef DEBUG_OFF
-  DBUG_ASSERT(field_types == 0 ||
-	      field_types[field_pos] == MYSQL_TYPE_DOUBLE);
-#endif
   field_pos++;
   char *to= packet->prep_append(8, PACKET_BUFFER_EXTRA_ALLOC);
   if (!to)
@@ -1100,12 +1064,6 @@ bool Protocol_prep::store(Field *field)
 
 bool Protocol_prep::store(TIME *tm)
 {
-#ifndef DEBUG_OFF
-  DBUG_ASSERT(field_types == 0 ||
-	      field_types[field_pos] == MYSQL_TYPE_DATETIME ||
-	      field_types[field_pos] == MYSQL_TYPE_DATE ||
-	      field_types[field_pos] == MYSQL_TYPE_TIMESTAMP);
-#endif
   char buff[12],*pos;
   uint length;
   field_pos++;
@@ -1140,10 +1098,6 @@ bool Protocol_prep::store_date(TIME *tm)
 
 bool Protocol_prep::store_time(TIME *tm)
 {
-#ifndef DEBUG_OFF
-  DBUG_ASSERT(field_types == 0 ||
-	      field_types[field_pos] == MYSQL_TYPE_TIME);
-#endif
   char buff[13], *pos;
   uint length;
   field_pos++;

@@ -800,3 +800,4 @@ vio/test-sslclient
 vio/test-sslserver
 vio/viotest-ssl
 libmysqld/sql_view.cc
+libmysqld/examples/client_test.cc
