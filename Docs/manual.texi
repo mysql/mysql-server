@@ -4621,11 +4621,11 @@ Please report bad or out-of-date mirrors to @email{webmaster@@mysql.com}.
 @c removed because ftp was not working 990729 & 30
 @c @uref{ftp://mysql.bluep.com/pub/mirror1/mysql/, FTP}
 
-@item
+@c @item
 @c Added 990531
 @c EMAIL: gavin@itworks.com.au (Gavin Cameron)
-@image{Flags/australia} Australia [ITworks Consulting/Victoria] @
-@uref{http://mysql.itworks.com.au, WWW}
+@c @image{Flags/australia} Australia [ITworks Consulting/Victoria] @
+@c @uref{http://mysql.itworks.com.au, WWW}
 
 @c @item
 @c 980610 Only the toplevel dir!
