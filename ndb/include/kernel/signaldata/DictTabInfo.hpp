@@ -308,7 +308,7 @@ public:
     ExtBinary = NdbSqlUtil::Type::Binary,
     ExtVarbinary = NdbSqlUtil::Type::Varbinary,
     ExtDatetime = NdbSqlUtil::Type::Datetime,
-    ExtTimespec = NdbSqlUtil::Type::Timespec,
+    ExtDate = NdbSqlUtil::Type::Date,
     ExtBlob = NdbSqlUtil::Type::Blob,
     ExtText = NdbSqlUtil::Type::Text
   };
@@ -428,10 +428,10 @@ public:
         AttributeSize = DictTabInfo::an8Bit;
         AttributeArraySize = 8 * AttributeExtLength;
         return true;
-      case DictTabInfo::ExtTimespec:
+      case DictTabInfo::ExtDate:
         AttributeType = DictTabInfo::StringType;
         AttributeSize = DictTabInfo::an8Bit;
-        AttributeArraySize = 12 * AttributeExtLength;
+        AttributeArraySize = 3 * AttributeExtLength;
         return true;
       case DictTabInfo::ExtBlob:
       case DictTabInfo::ExtText:

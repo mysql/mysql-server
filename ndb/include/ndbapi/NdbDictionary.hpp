@@ -185,7 +185,7 @@ public:
       Binary,        ///< Len
       Varbinary,     ///< Max len
       Datetime,    ///< Precision down to 1 sec (sizeof(Datetime) == 8 bytes )
-      Timespec,    ///< Precision down to 1 nsec(sizeof(Datetime) == 12 bytes )
+      Date,        ///< Precision down to 1 day(sizeof(Date) == 4 bytes )
       Blob,        ///< Binary large object (see NdbBlob)
       Text         ///< Text blob
     };

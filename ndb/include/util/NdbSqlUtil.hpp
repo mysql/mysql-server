@@ -81,7 +81,7 @@ public:
       Binary,           // Len
       Varbinary,        // Max len
       Datetime,         // Precision down to 1 sec  (size 8 bytes)
-      Timespec,         // Precision down to 1 nsec (size 12 bytes)
+      Date,             // Precision down to 1 day (size 4 bytes)
       Blob,             // Blob
       Text              // Text blob
     };
@@ -132,7 +132,7 @@ private:
   static Cmp cmpBinary;
   static Cmp cmpVarbinary;
   static Cmp cmpDatetime;
-  static Cmp cmpTimespec;
+  static Cmp cmpDate;
   static Cmp cmpBlob;
   static Cmp cmpText;
 };
