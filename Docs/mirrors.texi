@@ -291,6 +291,11 @@ WWW (@uref{http://mysql.tecnoera.com/})
 @image{Flags/chile} Chile [Vision] @@
 WWW (@uref{http://mysql.vision.cl/})
 
+@item
+@image{Flags/costarica} Costa Rica [Ogmios Communications] @@
+WWW (@uref{http://mysql.ogmios.co.cr/})
+FTP (@uref{ftp://mysql.ogmios.co.cr/pub/mysql/})
+
 @end itemize
 
 @strong{Asia:}
