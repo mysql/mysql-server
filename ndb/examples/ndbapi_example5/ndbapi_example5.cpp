@@ -56,7 +56,6 @@
               << error.code << ", msg: " << error.message << "." << std::endl; \
     exit(-1); }
 
-Ndb* myCreateNdb();
 int myCreateEvent(Ndb* myNdb,
 		  const char *eventName,
 		  const char *eventTableName,
@@ -66,12 +65,29 @@ int myCreateEvent(Ndb* myNdb,
 int main()
 {
   ndb_init();
-  Ndb* myNdb = myCreateNdb();
+
+  Ndb_cluster_connection *cluster_connection=
+    new Ndb_cluster_connection(); // Object representing the cluster
+
+  if (cluster_connection->wait_until_ready(30,30))
+  {
+    std::cout << "Cluster was not ready within 30 secs." << std::endl;
+    exit(-1);
+  }
+
+  Ndb* myNdb= new Ndb(cluster_connection,
+		      "TEST_DB");  // Object representing the database
+
+  if (myNdb->init() == -1) { 
+    APIERROR(myNdb->getNdbError());
+    exit(-1);
+  }
+
   NdbDictionary::Dictionary *myDict;
 
-  const char *eventName = "CHNG_IN_TAB0";
-  const char *eventTableName = "TAB0";
-  const int noEventColumnName = 3;
+  const char *eventName= "CHNG_IN_TAB0";
+  const char *eventTableName= "TAB0";
+  const int noEventColumnName= 3;
   const char *eventColumnName[noEventColumnName] =
     {"COL0",
      "COL1",
@@ -134,6 +150,8 @@ int main()
 	  case NdbDictionary::Event::TE_UPDATE:
 	    printf("%u UPDATE: ", i);
 	    break;
+	  default:
+	    abort(); // should not happen
 	  }
 	  printf("overrun %u pk %u: ", overrun, recAttr[0]->u_32_value());
 	  for (int i = 1; i < noEventColumnName; i++) {
@@ -166,26 +184,9 @@ int main()
   myDict->dropEvent(eventName); // remove event from database
 
   delete myNdb;
-}
-
-Ndb* myCreateNdb()
-{
-  Ndb* myNdb = new Ndb("TEST_DB");
-
-  /********************************************
-   * Initialize NDB and wait until it's ready *
-   ********************************************/
-  if (myNdb->init() == -1) { 
-    APIERROR(myNdb->getNdbError());
-    exit(-1);
-  }
-
-  if (myNdb->waitUntilReady(30) != 0) {
-    std::cout << "NDB was not ready within 30 secs." << std::endl;
-    exit(-1);
-  }
-
-  return myNdb;
+  delete cluster_connection;
+  ndb_end(0);
+  return 0;
 }
 
 int myCreateEvent(Ndb* myNdb,
