@@ -120,12 +120,21 @@ NdbConnection::receiveSCAN_TABCONF(NdbApiSignal* aSignal,
 	}
       }
     }
+    if (conf->requestInfo & ScanTabConf::EndOfData) {
+      if(theScanningOp->m_ordered)
+	theScanningOp->m_api_receivers_count = 0;
+      if(theScanningOp->m_api_receivers_count + 
+	 theScanningOp->m_conf_receivers_count +
+	 theScanningOp->m_sent_receivers_count){
+	abort();
+      }
+    }
     return 0;
   } else {
 #ifdef NDB_NO_DROPPED_SIGNAL
     abort();
 #endif
   }
-
+  
   return -1;
 }
