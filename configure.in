@@ -2704,9 +2704,7 @@ then
 	/* ) rel_srcdir="$srcdir" ;;
 	* )  rel_srcdir="../../$srcdir" ;;
       esac
-      (cd $bdb/build_unix && \
-       sh $rel_srcdir/$bdb/dist/configure $bdb_conf_flags) || \
-	AC_MSG_ERROR([could not configure Berkeley DB])
+      AC_CONFIG_SUBDIRS($bdb/dist/configure)
 
 dnl       echo "bdb = '$bdb'; inc = '$bdb_includes', lib = '$bdb_libs'"
       echo "END OF BERKELEY DB CONFIGURATION"
@@ -2745,25 +2743,7 @@ EOF
   then
     innodb_conf_flags=""
     sql_server_dirs="$sql_server_dirs innobase"
-    echo "CONFIGURING FOR INNODB" 
-    if test ! -d "innobase"; then
-        # This should only happen when doing a VPATH build
-        echo "NOTICE: I have to make the Innobase directory: `pwd`/innobase"
-	mkdir "innobase" || exit 1
-    fi
-    rel_srcdir=
-    case "$srcdir" in
-	/* ) rel_srcdir="$srcdir" ;;
-	* )  rel_srcdir="../$srcdir" ;;
-    esac
-    if test "x$enable_dependency_tracking" == xno
-    then
-      innodb_conf_flags=--disable-dependency-tracking
-    fi
-    (cd innobase && sh $rel_srcdir/innobase/configure --host=$host $innodb_conf_flags) \
-    || AC_MSG_ERROR([could not configure INNODB])
-
-    echo "END OF INNODB CONFIGURATION"
+    AC_CONFIG_SUBDIRS(innobase)
   fi
   #
   # END of configuration for optional table handlers
