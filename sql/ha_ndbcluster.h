@@ -211,7 +211,7 @@ class ha_ndbcluster: public handler
   int set_ndb_key(NdbOperation*, Field *field,
 		  uint fieldnr, const byte* field_ptr);
   int set_ndb_value(NdbOperation*, Field *field, uint fieldnr);
-  int get_ndb_value(NdbOperation*, Field *field, uint fieldnr);
+  int get_ndb_value(NdbOperation*, Field *field, uint fieldnr, byte*);
   friend int g_get_ndb_blobs_value(NdbBlob *ndb_blob, void *arg);
   int get_ndb_blobs_value(NdbBlob *last_ndb_blob);
   int set_primary_key(NdbOperation *op, const byte *key);
