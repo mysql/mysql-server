@@ -1631,12 +1631,13 @@ longlong Item_date_add_interval::val_int()
 
 static const char *interval_names[]=
 {
-  "year", "month", "day", "hour", "minute",
-  "second", "microsecond", "year_month",
-  "day_hour", "day_minute", "day_second",
-  "hour_minute", "hour_second", "minute_second",
-  "day_microsecond", "hour_microsecond",
-  "minute_microsecond", "second_microsecond"
+  "year", "quarter", "month", "day", "hour",
+  "minute", "week", "second", "microsecond",
+  "year_month", "day_hour", "day_minute", 
+  "day_second", "hour_minute", "hour_second",
+  "minute_second", "day_microsecond",
+  "hour_microsecond", "minute_microsecond",
+  "second_microsecond"
 };
 
 void Item_date_add_interval::print(String *str)
