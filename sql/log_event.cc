@@ -2528,7 +2528,7 @@ int User_var_log_event::exec_event(struct st_relay_log_info* rli)
     0 can be passed as last argument (reference on item)
   */
   e.fix_fields(thd, 0, 0);
-  e.update_hash(val, val_len, type, charset, DERIVATION_NONE);
+  e.update_hash(val, val_len, type, charset, DERIVATION_IMPLICIT);
   free_root(thd->mem_root,0);
 
   rli->inc_event_relay_log_pos(get_event_len());
