@@ -453,7 +453,7 @@ public:
   bool       query_error, bootstrap, cleanup_done;
   bool	     safe_to_cache_query;
   bool	     volatile killed;
-  bool       prepare_command;  
+  bool       prepare_command;
   ulong      param_count,current_param_number;  
   Error<mysql_st_error> err_list;  
   Error<mysql_st_error> warn_list; 
@@ -621,7 +621,7 @@ public:
   virtual void initialize_tables (JOIN *join=0) {}
   virtual void send_error(uint errcode,const char *err)
   {
-    ::send_error(&thd->net,errcode,err);
+    my_message(errcode, err, MYF(0));
   }
   virtual bool send_eof()=0;
   virtual void abort() {}

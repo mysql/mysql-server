@@ -178,9 +178,14 @@ int handle_select(THD *thd, LEX *lex, select_result *result)
 		     select_lex->having,
 		     (ORDER*) lex->proc_list.first,
 		     select_lex->options | thd->options,
-		     result, &(lex->unit));
+		     result, &(lex->unit), 0);
   if (res && result)
     result->abort();
+  if (res || thd->net.report_error)
+  {
+    send_error(&thd->net, 0, MYF(0));
+    res= 1;
+  }
   delete result;
   return res;
 }
@@ -198,9 +203,10 @@ int handle_select(THD *thd, LEX *lex, select_result *result)
 */
 int
 JOIN::prepare(TABLE_LIST *tables_init,
-            COND *conds_init, ORDER *order_init, ORDER *group_init,
-            Item *having_init,
-            ORDER *proc_param_init, SELECT_LEX *select, SELECT_LEX_UNIT *unit)
+	      COND *conds_init, ORDER *order_init, ORDER *group_init,
+	      Item *having_init,
+	      ORDER *proc_param_init, SELECT_LEX *select,
+	      SELECT_LEX_UNIT *unit, bool fake_select_lex)
 {
   DBUG_ENTER("JOIN::prepare");
 
@@ -211,7 +217,8 @@ JOIN::prepare(TABLE_LIST *tables_init,
   proc_param= proc_param_init;
   tables_list= tables_init;
   select_lex= select;
-  select->join= this;
+  if (!fake_select_lex)
+    select->join= this;
   union_part= (unit->first_select()->next_select() != 0);
   
   /* Check that all tables, fields, conds and order are ok */
@@ -231,7 +238,7 @@ JOIN::prepare(TABLE_LIST *tables_init,
     select_lex->having_fix_field= 1;
     bool having_fix_rc= having->fix_fields(thd, tables_list, &having);
     select_lex->having_fix_field= 0;
-    if (having_fix_rc || thd->fatal_error)
+    if (having_fix_rc || thd->net.report_error)
       DBUG_RETURN(-1);				/* purecov: inspected */
     if (having->with_sum_func)
       having->split_sum_func(all_fields);
@@ -538,7 +545,7 @@ JOIN::optimize()
   make_join_readinfo(this,
 		     (select_options & (SELECT_DESCRIBE |
 					SELECT_NO_JOIN_CACHE)) |
-		     (thd->lex.select->ftfunc_list.elements ? 
+		     (thd->lex.select->ftfunc_list->elements ? 
 		      SELECT_NO_JOIN_CACHE : 0));
 
   /* Need to tell Innobase that to play it safe, it should fetch all
@@ -650,16 +657,16 @@ JOIN::exec()
       result->send_fields(fields_list,1);
       if (!having || having->val_int())
       {
-      if (do_send_rows && result->send_data(fields_list))
-      {
-        result->send_error(0,NullS);          /* purecov: inspected */
-        error=1;
-      }
+	if (do_send_rows && result->send_data(fields_list))
+	{
+	  result->send_error(0,NullS);          /* purecov: inspected */
+          error= 1;
+	}
       else
         error=(int) result->send_eof();
       }
       else
-      error=(int) result->send_eof();
+	error=(int) result->send_eof();
     }
     delete procedure;
     DBUG_VOID_RETURN;
@@ -995,8 +1002,9 @@ JOIN::cleanup(THD *thd)
 
 int
 mysql_select(THD *thd, TABLE_LIST *tables, List<Item> &fields, COND *conds,
-           ORDER *order, ORDER *group,Item *having, ORDER *proc_param,
-           ulong select_options, select_result *result, SELECT_LEX_UNIT *unit)
+	     ORDER *order, ORDER *group,Item *having, ORDER *proc_param,
+	     ulong select_options, select_result *result, 
+	     SELECT_LEX_UNIT *unit, bool fake_select_lex)
 {
   JOIN *join = new JOIN(thd, fields, select_options, result);
 
@@ -1005,7 +1013,7 @@ mysql_select(THD *thd, TABLE_LIST *tables, List<Item> &fields, COND *conds,
   thd->used_tables=0;                         // Updated by setup_fields
 
   if (join->prepare(tables, conds, order, group, having, proc_param,
-                  &(thd->lex.select_lex), unit))
+                  &(thd->lex.select_lex), unit, fake_select_lex))
   {
     DBUG_RETURN(-1);
   }
@@ -1026,7 +1034,7 @@ err:
   thd->limit_found_rows = join->send_records;
   thd->examined_row_count = join->examined_rows;
   thd->proc_info="end";
-  int error= join->cleanup(thd);
+  int error= (fake_select_lex?0:join->cleanup(thd)) || thd->net.report_error;
   delete join;
   DBUG_RETURN(error);
 }
@@ -1760,7 +1768,7 @@ update_ref_and_keys(THD *thd, DYNAMIC_ARRAY *keyuse,JOIN_TAB *join_tab,
       add_key_part(keyuse,field);
   }
 
-  if (thd->lex.select->ftfunc_list.elements)
+  if (thd->lex.select->ftfunc_list->elements)
   {
     add_ft_keys(keyuse,join_tab,cond,normal_tables);
   }
@@ -4329,7 +4337,7 @@ do_select(JOIN *join,List<Item> *fields,TABLE *table,Procedure *procedure)
     VOID(table->file->extra(HA_EXTRA_WRITE_CACHE));
     empty_record(table);
   }
-  join->tmp_table=table;			/* Save for easy recursion */
+  join->tmp_table= table;			/* Save for easy recursion */
   join->fields= fields;
 
   /* Set up select_end */
@@ -4379,20 +4387,14 @@ do_select(JOIN *join,List<Item> *fields,TABLE *table,Procedure *procedure)
   }
   else
   {
-    error=sub_select(join,join_tab,0);
+    error= sub_select(join,join_tab,0);
     if (error >= 0)
-      error=sub_select(join,join_tab,1);
+      error= sub_select(join,join_tab,1);
     if (error == -3)
-      error=0;					/* select_limit used */
+      error= 0;					/* select_limit used */
   }
 
-  /* Return 1 if error is sent;  -1 if error should be sent */
-  if (error < 0)
-  {
-    join->result->send_error(0,NullS);		/* purecov: inspected */
-    error=1;					// Error sent
-  }
-  else
+  if (error >= 0)
   {
     error=0;
     if (!table)					// If sending data to client
@@ -6445,10 +6447,7 @@ find_order_in_list(THD *thd,TABLE_LIST *tables,ORDER *order,List<Item> &fields,
     order->in_field_list=1;
     return 0;
   }
-  const char *save_where=thd->where;
-  thd->where=0;					// No error if not found
-  Item **item=find_item_in_list(*order->item,fields);
-  thd->where=save_where;
+  Item **item=find_item_in_list(*order->item, fields, 0);
   if (item)
   {
     order->item=item;				// use it
@@ -6546,17 +6545,15 @@ setup_new_fields(THD *thd,TABLE_LIST *tables,List<Item> &fields,
   DBUG_ENTER("setup_new_fields");
 
   thd->set_query_id=1;				// Not really needed, but...
-  thd->where=0;					// Don't give error
   for ( ; new_field ; new_field=new_field->next)
   {
-    if ((item=find_item_in_list(*new_field->item,fields)))
+    if ((item=find_item_in_list(*new_field->item, fields, 0)))
       new_field->item=item;			/* Change to shared Item */
     else
     {
       thd->where="procedure list";
       if ((*new_field->item)->fix_fields(thd, tables, new_field->item))
 	DBUG_RETURN(1); /* purecov: inspected */
-      thd->where=0;
       all_fields.push_front(*new_field->item);
       new_field->item=all_fields.head_ref();
     }

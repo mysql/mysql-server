@@ -72,7 +72,10 @@ void send_error(NET *net, uint sql_errno, const char *err)
   }
   VOID(net_write_command(net,(uchar) 255,(char*) err,length));
   if (thd)
-    thd->fatal_error=0;			// Error message is given
+  {
+    thd->fatal_error= 0;       		// Error message is given
+    thd->net.report_error= 0;
+  }
   DBUG_VOID_RETURN;
 }
 

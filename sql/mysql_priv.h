@@ -373,7 +373,7 @@ int handle_select(THD *thd, LEX *lex, select_result *result);
 int mysql_select(THD *thd,TABLE_LIST *tables,List<Item> &list,COND *conds,
 		 ORDER *order, ORDER *group,Item *having,ORDER *proc_param,
 		 ulong select_type,select_result *result,
-		 SELECT_LEX_UNIT *unit);
+		 SELECT_LEX_UNIT *unit, bool fake_select_lex);
 int mysql_union(THD *thd, LEX *lex,select_result *result);
 int mysql_derived(THD *thd, LEX *lex, SELECT_LEX_UNIT *s, TABLE_LIST *t);
 Field *create_tmp_field(THD *thd, TABLE *table,Item *item, Item::Type type,
@@ -442,7 +442,8 @@ bool wait_for_tables(THD *thd);
 bool table_is_used(TABLE *table, bool wait_for_name_lock);
 bool drop_locked_tables(THD *thd,const char *db, const char *table_name);
 void abort_locked_tables(THD *thd,const char *db, const char *table_name);
-Field *find_field_in_tables(THD *thd,Item_field *item,TABLE_LIST *tables);
+Field *find_field_in_tables(THD *thd, Item_field *item, TABLE_LIST *tables,
+			    bool report_error);
 Field *find_field_in_table(THD *thd,TABLE *table,const char *name,uint length,
 			   bool check_grant,bool allow_rowid);
 #ifdef HAVE_OPENSSL
@@ -530,7 +531,7 @@ TABLE *unlink_open_table(THD *thd,TABLE *list,TABLE *find);
 
 SQL_SELECT *make_select(TABLE *head, table_map const_tables,
 			table_map read_tables, COND *conds, int *error);
-Item ** find_item_in_list(Item *item,List<Item> &items);
+Item ** find_item_in_list(Item *item, List<Item> &items, bool report_error);
 bool insert_fields(THD *thd,TABLE_LIST *tables, 
 		   const char *db_name, const char *table_name,
 		   List_iterator<Item> *it);
