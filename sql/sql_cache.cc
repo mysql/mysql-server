@@ -1037,9 +1037,9 @@ Query_cache::send_result_to_client(THD *thd, char *sql, uint query_length)
     */
     for (tmptable= thd->temporary_tables; tmptable ; tmptable= tmptable->next)
     {
-      if (tmptable->key_length - TMP_TABLE_KEY_EXTRA == table->key_len() &&
+      if (tmptable->key_length - TMP_TABLE_KEY_EXTRA == table->key_length() &&
           !memcmp(tmptable->table_cache_key, table->data(),
-                  table->key_len()))
+                  table->key_length()))
       {
         DBUG_PRINT("qcache",
                    ("Temporary table detected: '%s.%s'",
@@ -1050,7 +1050,7 @@ Query_cache::send_result_to_client(THD *thd, char *sql, uint query_length)
           temporary tables => assign following variable to make check
           faster.
         */
-        thd->safe_to_cache_query=0;
+        thd->lex->safe_to_cache_query=0;
         BLOCK_UNLOCK_RD(query_block);
         DBUG_RETURN(-1);
       }

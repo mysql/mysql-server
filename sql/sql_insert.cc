@@ -1681,9 +1681,10 @@ bool select_create::send_eof()
     */
     if (!table->tmp_table)
     {
+      ulong version= table->version;
       hash_delete(&open_cache,(byte*) table);
       /* Tell threads waiting for refresh that something has happened */
-      if (table->version != refresh_version)
+      if (version != refresh_version)
         VOID(pthread_cond_broadcast(&COND_refresh));
     }
     lock=0;
@@ -1707,11 +1708,12 @@ void select_create::abort()
     enum db_type table_type=table->db_type;
     if (!table->tmp_table)
     {
+      ulong version= table->version;      
       hash_delete(&open_cache,(byte*) table);
       if (!create_info->table_existed)
         quick_rm_table(table_type, db, name);
       /* Tell threads waiting for refresh that something has happened */
-      if (table->version != refresh_version)
+      if (version != refresh_version)
         VOID(pthread_cond_broadcast(&COND_refresh));
     }
     else if (!create_info->table_existed)
