@@ -2505,7 +2505,7 @@ int TC_LOG_MMAP::open(const char *opt_name)
       goto err;
   }
 
-  data= (uchar *)my_mmap(0, file_length, PROT_READ|PROT_WRITE,
+  data= (uchar *)my_mmap(0, (size_t)file_length, PROT_READ|PROT_WRITE,
                         MAP_NOSYNC|MAP_SHARED, fd, 0);
   if (data == MAP_FAILED)
   {
@@ -2514,7 +2514,7 @@ int TC_LOG_MMAP::open(const char *opt_name)
   }
   inited=2;
 
-  npages=file_length/tc_log_page_size;
+  npages=(uint)file_length/tc_log_page_size;
   DBUG_ASSERT(npages >= 3);             // to guarantee non-empty pool
   if (!(pages=(PAGE *)my_malloc(npages*sizeof(PAGE), MYF(MY_WME|MY_ZEROFILL))))
     goto err;
@@ -2540,7 +2540,7 @@ int TC_LOG_MMAP::open(const char *opt_name)
       goto err;
 
   memcpy(data, tc_log_magic, sizeof(tc_log_magic));
-  data[sizeof(tc_log_magic)]= total_ha_2pc;
+  data[sizeof(tc_log_magic)]= (uchar)total_ha_2pc;
   my_msync(fd, data, tc_log_page_size, MS_SYNC);
   inited=5;
 
@@ -2794,7 +2794,7 @@ void TC_LOG_MMAP::close()
   case 3:
     my_free((gptr)pages, MYF(0));
   case 2:
-    my_munmap(data, file_length);
+    my_munmap(data, (size_t)file_length);
   case 1:
     my_close(fd, MYF(0));
   }
@@ -2842,7 +2842,7 @@ int TC_LOG_MMAP::recover()
     goto err2;
 
   hash_free(&xids);
-  bzero(data, file_length);
+  bzero(data, (size_t)file_length);
   return 0;
 
 err2:

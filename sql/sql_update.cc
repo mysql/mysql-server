@@ -29,7 +29,7 @@ static bool safe_update_on_fly(JOIN_TAB *join_tab, List<Item> *fields);
 
 /* Return 0 if row hasn't changed */
 
-static bool compare_record(TABLE *table, ulong query_id)
+static bool compare_record(TABLE *table, query_id_t query_id)
 {
   if (table->s->blob_fields + table->s->varchar_fields == 0)
     return cmp_record(table,record[1]);
@@ -125,7 +125,7 @@ int mysql_update(THD *thd,
   uint		want_privilege;
 #endif
   uint          table_count= 0;
-  ulong		query_id=thd->query_id, timestamp_query_id;
+  query_id_t	query_id=thd->query_id, timestamp_query_id;
   ha_rows	updated, found;
   key_map	old_used_keys;
   TABLE		*table;
