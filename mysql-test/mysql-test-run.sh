@@ -20,6 +20,27 @@ TZ=GMT-3; export TZ # for UNIX_TIMESTAMP tests to work
 
 PATH=/bin:/usr/bin:/usr/local/bin:/usr/bsd:/usr/X11R6/bin
 
+# Standard functions
+
+which ()
+{
+  DIRS=`echo $PATH | tr ":" " "`
+  for file
+  do
+    for dir in $DIRS
+    do
+      if test -f $dir/$file
+      then
+        echo "$dir/$file"
+        continue 2
+      fi
+    done
+    echo "which: no $file in ($PATH)"
+    exit 1
+  done
+}
+
+
 # No paths below as we can't be sure where the program is!
 
 BASENAME=`which basename | head -1`

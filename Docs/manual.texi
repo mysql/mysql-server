@@ -28294,6 +28294,10 @@ slower on the same computer. (If you are connection to @code{localhost},
 @strong{MySQL} will, by default, use sockets).
 
 @item
+If you connect using TCP/IP from another computer over a 100M Ethernet,
+things will be 8-11 % slower.
+
+@item
 If you compile with @code{--with-debug=full}, then you will loose 20 %
 for most queries, but some queries may take substantially longer (The
 @strong{MySQL} benchmarks ran 35 % slower)
