@@ -2,7 +2,7 @@
 
 --disable_warnings
 drop table if exists t1;
-drop database if exists mysqltest;
+drop database if exists test2;
 --enable_warnings
 
 #
@@ -12,31 +12,7 @@ drop database if exists mysqltest;
 # A prerequisite for this handler test is that "testBlobs" succeeds.
 #
 
-# -- bug-5252 tinytext crashes --
-
-create table t1 (
-  a int not null primary key,
-  b tinytext
-) engine=ndbcluster;
-
-insert into t1 values(1, 'x');
-update t1 set b = 'y';
-select * from t1;
-delete from t1;
-drop table t1;
-
-# -- bug-5013 insert empty string to text --
-
-create table t1 (
-  a int not null primary key,
-  b text not null
-) engine=ndbcluster;
-
-insert into t1 values(1, '');
-select * from t1;
-drop table t1;
-
--- general test starts --
+# -- general test starts --
 
 # make test harder with autocommit off
 set autocommit=0;
@@ -117,8 +93,50 @@ from t1 where a=2;
 # pk update to null
 update t1 set d=null where a=1;
 commit;
-# FIXME now fails at random due to weird mixup between the 2 rows
 select a from t1 where d is null;
+
+# pk delete
+delete from t1 where a=1;
+delete from t1 where a=2;
+commit;
+select count(*) from t1;
+
+# -- replace ( bug-6018 ) --
+
+# insert
+replace t1 set a=1,b=@b1,c=111,d=@d1;
+replace t1 set a=2,b=@b2,c=222,d=@d2;
+commit;
+explain select * from t1 where a = 1;
+
+# pk read
+select a,length(b),substr(b,1+2*900,2),length(d),substr(d,1+3*900,3)
+from t1 where a=1;
+select a,length(b),substr(b,1+2*9000,2),length(d),substr(d,1+3*9000,3)
+from t1 where a=2;
+
+# update
+replace t1 set a=1,b=@b2,c=111,d=@d2;
+replace t1 set a=2,b=@b1,c=222,d=@d1;
+commit;
+select a,length(b),substr(b,1+2*9000,2),length(d),substr(d,1+3*9000,3)
+from t1 where a=1;
+select a,length(b),substr(b,1+2*900,2),length(d),substr(d,1+3*900,3)
+from t1 where a=2;
+
+# update
+replace t1 set a=1,b=concat(@b2,@b2),c=111,d=concat(@d2,@d2);
+replace t1 set a=2,b=concat(@b1,@b1),c=222,d=concat(@d1,@d1);
+commit;
+select a,length(b),substr(b,1+4*9000,2),length(d),substr(d,1+6*9000,3)
+from t1 where a=1;
+select a,length(b),substr(b,1+4*900,2),length(d),substr(d,1+6*900,3)
+from t1 where a=2;
+
+# update to null
+replace t1 set a=1,b='xyz',c=111,d=null;
+commit;
+select a,b from t1 where d is null;
 
 # pk delete
 delete from t1 where a=1;
@@ -231,39 +249,6 @@ where c >= 100;
 commit;
 select * from t1 where c >= 100 order by a;
 
-# alter table
-
-select * from t1 order by a;
-alter table t1 add x int;
-select * from t1 order by a;
-alter table t1 drop x;
-select * from t1 order by a;
-
-# multi db
-
-create database mysqltest;
-use mysqltest;
-
-CREATE TABLE t2 (
-  a bigint unsigned NOT NULL PRIMARY KEY,
-  b int unsigned not null,
-  c int unsigned
-) engine=ndbcluster;
-
-insert into t2 values (1,1,1),(2,2,2);
-select * from test.t1,t2 where test.t1.a = t2.a order by test.t1.a;
-
-drop table t2;
-use test;
-
-# alter table
-
-select * from t1 order by a;
-alter table t1 add x int;
-select * from t1 order by a;
-alter table t1 drop x;
-select * from t1 order by a;
-
 # range scan delete
 delete from t1 where c >= 100;
 commit;
@@ -306,10 +291,77 @@ select a,length(b),substr(b,1+2*900,2),length(d),substr(d,1+3*900,3)
 from t1 order by a;
 rollback;
 select count(*) from t1;
-drop table t1;
-drop database mysqltest;
 
-# bug #5349
+# -- alter table and multi db --
+
+insert into t1 values(1,'b1',111,'dd1');
+insert into t1 values(2,'b2',222,'dd2');
+insert into t1 values(3,'b3',333,'dd3');
+insert into t1 values(4,'b4',444,'dd4');
+insert into t1 values(5,'b5',555,'dd5');
+insert into t1 values(6,'b6',666,'dd6');
+insert into t1 values(7,'b7',777,'dd7');
+insert into t1 values(8,'b8',888,'dd8');
+insert into t1 values(9,'b9',999,'dd9');
+commit;
+
+select * from t1 order by a;
+alter table t1 add x int;
+select * from t1 order by a;
+alter table t1 drop x;
+select * from t1 order by a;
+
+create database test2;
+use test2;
+
+CREATE TABLE t2 (
+  a bigint unsigned NOT NULL PRIMARY KEY,
+  b int unsigned not null,
+  c int unsigned
+) engine=ndbcluster;
+
+insert into t2 values (1,1,1),(2,2,2);
+select * from test.t1,t2 where test.t1.a = t2.a order by test.t1.a;
+
+drop table t2;
+use test;
+
+select * from t1 order by a;
+alter table t1 add x int;
+select * from t1 order by a;
+alter table t1 drop x;
+select * from t1 order by a;
+
+# -- end general test --
+
+drop table t1;
+drop database test2;
+
+# -- bug-5252 tinytext crashes --
+
+create table t1 (
+  a int not null primary key,
+  b tinytext
+) engine=ndbcluster;
+
+insert into t1 values(1, 'x');
+update t1 set b = 'y';
+select * from t1;
+delete from t1;
+drop table t1;
+
+# -- bug-5013 insert empty string to text --
+
+create table t1 (
+  a int not null primary key,
+  b text not null
+) engine=ndbcluster;
+
+insert into t1 values(1, '');
+select * from t1;
+drop table t1;
+
+# -- bug #5349 --
 set autocommit=1;
 use test;
 CREATE TABLE t1 (
@@ -327,7 +379,7 @@ select * from t1 order by a;
 alter table t1 engine=ndb;
 select * from t1 order by a;
 
-# bug #5872
+# -- bug #5872 --
 alter table t1 engine=myisam;
 select * from t1 order by a;
 drop table t1;

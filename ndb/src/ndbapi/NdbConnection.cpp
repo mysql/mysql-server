@@ -170,12 +170,14 @@ Remark:        Sets an error code on the connection object from an
                operation object. 
 *****************************************************************************/
 void
-NdbConnection::setOperationErrorCodeAbort(int error)
+NdbConnection::setOperationErrorCodeAbort(int error, int abortOption)
 {
   DBUG_ENTER("NdbConnection::setOperationErrorCodeAbort");
+  if (abortOption == -1)
+    abortOption = m_abortOption;
   if (theTransactionIsStarted == false) {
     theCommitStatus = Aborted;
-  } else if ((m_abortOption == AbortOnError) && 
+  } else if ((abortOption == AbortOnError) && 
 	     (theCommitStatus != Committed) &&
              (theCommitStatus != Aborted)) {
     theCommitStatus = NeedAbort;
@@ -335,8 +337,11 @@ NdbConnection::execute(ExecType aTypeOfExec,
         tOp = tOp->next();
       }
     }
+
     if (executeNoBlobs(tExecType, abortOption, forceSend) == -1)
         ret = -1;
+    assert(theFirstOpInList == NULL && theLastOpInList == NULL);
+
     {
       NdbOperation* tOp = theCompletedFirstOp;
       while (tOp != NULL) {
@@ -360,6 +365,7 @@ NdbConnection::execute(ExecType aTypeOfExec,
         theLastOpInList->next(tRestOp);
       theLastOpInList = tLastOp;
     }
+    assert(theFirstOpInList == NULL || tExecType == NoCommit);
   } while (theFirstOpInList != NULL || tExecType != aTypeOfExec);
 
   DBUG_RETURN(ret);
@@ -1806,11 +1812,12 @@ Parameters:    aErrorCode: The error code.
 Remark:        An operation was completed with failure.
 *******************************************************************************/
 int 
-NdbConnection::OpCompleteFailure(Uint8 abortOption)
+NdbConnection::OpCompleteFailure(Uint8 abortOption, bool setFailure)
 {
   Uint32 tNoComp = theNoOfOpCompleted;
   Uint32 tNoSent = theNoOfOpSent;
-  theCompletionStatus = NdbConnection::CompletedFailure;
+  if (setFailure)
+    theCompletionStatus = NdbConnection::CompletedFailure;
   tNoComp++;
   theNoOfOpCompleted = tNoComp;
   if (tNoComp == tNoSent) {
