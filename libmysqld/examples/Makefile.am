@@ -27,7 +27,7 @@ mysql_SOURCES = mysql.cc readline.cc completion_hash.cc \
 mysql_LDADD = @readline_link@ @TERMCAP_LIB@ $(LDADD)
 
 client_test_LINK = $(CXXLINK)
-client_test_SOURCES =	client_test.cc
+client_test_SOURCES =	client_test.c
 
 clean:
 	rm -f $(client_sources)
