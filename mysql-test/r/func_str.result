@@ -303,6 +303,9 @@ latin2_general_ci	3
 select collation(substring(_latin2'ab',1)), coercibility(substring(_latin2'ab',1));
 collation(substring(_latin2'ab',1))	coercibility(substring(_latin2'ab',1))
 latin2_general_ci	3
+select collation(insert(_latin2'abcd',2,3,_latin2'ef')), coercibility(insert(_latin2'abcd',2,3,_latin2'ef'));
+collation(insert(_latin2'abcd',2,3,_latin2'ef'))	coercibility(insert(_latin2'abcd',2,3,_latin2'ef'))
+latin2_general_ci	3
 create table t1 
 select
 left(_latin2'a',1),
@@ -322,7 +325,8 @@ repeat(_latin2'a',10),
 reverse(_latin2'ab'),
 quote(_latin2'ab'),
 soundex(_latin2'ab'),
-substring(_latin2'ab',1)
+substring(_latin2'ab',1),
+insert(_latin2'abcd',2,3,_latin2'ef')
 ;
 show create table t1;
 Table	Create Table
@@ -344,6 +348,7 @@ t1	CREATE TABLE `t1` (
   `reverse(_latin2'ab')` char(2) character set latin2 NOT NULL default '',
   `quote(_latin2'ab')` char(6) character set latin2 NOT NULL default '',
   `soundex(_latin2'ab')` char(4) character set latin2 NOT NULL default '',
-  `substring(_latin2'ab',1)` char(2) character set latin2 NOT NULL default ''
+  `substring(_latin2'ab',1)` char(2) character set latin2 NOT NULL default '',
+  `insert(_latin2'abcd',2,3,_latin2'ef')` char(6) character set latin2 NOT NULL default ''
 ) TYPE=MyISAM CHARSET=latin1
 drop table t1;

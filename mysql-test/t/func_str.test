@@ -154,6 +154,7 @@ select collation(reverse(_latin2'ab')), coercibility(reverse(_latin2'ab'));
 select collation(quote(_latin2'ab')), coercibility(quote(_latin2'ab'));
 select collation(soundex(_latin2'ab')), coercibility(soundex(_latin2'ab'));
 select collation(substring(_latin2'ab',1)), coercibility(substring(_latin2'ab',1));
+select collation(insert(_latin2'abcd',2,3,_latin2'ef')), coercibility(insert(_latin2'abcd',2,3,_latin2'ef'));
 
 create table t1 
 select
@@ -174,7 +175,8 @@ select
   reverse(_latin2'ab'),
   quote(_latin2'ab'),
   soundex(_latin2'ab'),
-  substring(_latin2'ab',1)
+  substring(_latin2'ab',1),
+  insert(_latin2'abcd',2,3,_latin2'ef')
 ;
 
 show create table t1;
