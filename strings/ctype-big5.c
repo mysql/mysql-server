@@ -401,7 +401,7 @@ static int ismbchar_big5(CHARSET_INFO *cs __attribute__((unused)),
 
 static int mbcharlen_big5(CHARSET_INFO *cs __attribute__((unused)), uint c)
 {
-  return (isbig5head(c)? 2: 0);
+  return (isbig5head(c)? 2 : 1);
 }
 
 /* page 0 0xA140-0xC7FC */
@@ -6183,16 +6183,16 @@ my_wc_mb_big5(CHARSET_INFO *cs __attribute__((unused)),
   if (s >= e)
     return MY_CS_TOOSMALL;
   
-  if(wc<0x80)
+  if ((int) wc < 0x80)
   {
-    s[0]=wc;
+    s[0]= (uchar) wc;
     return 1;
   }
   
-  if(!(code=func_uni_big5_onechar(wc)))
+  if (!(code=func_uni_big5_onechar(wc)))
     return MY_CS_ILUNI;
   
-  if(s+2>e)
+  if (s+2>e)
     return MY_CS_TOOSMALL;
   
   s[0]=code>>8;
@@ -6200,6 +6200,7 @@ my_wc_mb_big5(CHARSET_INFO *cs __attribute__((unused)),
   
   return 2;
 }
+
 
 static int 
 my_mb_wc_big5(CHARSET_INFO *cs __attribute__((unused)),
@@ -6211,16 +6212,16 @@ my_mb_wc_big5(CHARSET_INFO *cs __attribute__((unused)),
   if (s >= e)
     return MY_CS_TOOFEW(0);
   
-  if(hi<0x80)
+  if (hi<0x80)
   {
     pwc[0]=hi;
     return 1;
   }
   
-  if(s+2>e)
+  if (s+2>e)
     return MY_CS_TOOFEW(0);
 
-  if(!(pwc[0]=func_big5_uni_onechar((hi<<8)+s[1])))
+  if (!(pwc[0]=func_big5_uni_onechar((hi<<8)+s[1])))
     return MY_CS_ILSEQ;
   
   return 2;

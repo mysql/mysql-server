@@ -119,11 +119,13 @@ fi
 mdata=$ldata/mysql
 mysqld=$execdir/mysqld
 mysqld_opt=""
+scriptdir=$bindir
 
 if test "$windows" = 1
 then
   mysqld="./sql/mysqld"
   mysqld_opt="--language=./sql/share/english"
+  scriptdir="./scripts"
 fi
 
 if test ! -x $mysqld
@@ -199,7 +201,7 @@ then
   echo "Installing all prepared tables"
 fi
 if (
-   $bindir/mysql_create_system_tables $create_option $mdata $hostname $windows 
+   $scriptdir/mysql_create_system_tables $create_option $mdata $hostname $windows 
    if test -n "$fill_help_tables"
    then
      cat $fill_help_tables
