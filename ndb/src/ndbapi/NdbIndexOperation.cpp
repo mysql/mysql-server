@@ -71,6 +71,7 @@ NdbIndexOperation::indxInit(const NdbIndexImpl * anIndex,
     return -1;
   }
   m_theIndex = anIndex;
+  m_thePrimaryTable = aTable;
   m_accessTable = anIndex->m_table;
   m_theIndexLen = 0;
   m_theNoOfIndexDefined = 0;
@@ -100,6 +101,12 @@ int NdbIndexOperation::readTuple(NdbOperation::LockMode lm)
   default:
     return -1;
   };
+}
+
+int NdbIndexOperation::insertTuple()
+{
+  setErrorCode(4200);
+  return -1;
 }
 
 int NdbIndexOperation::readTuple()
@@ -341,12 +348,11 @@ int NdbIndexOperation::equal_impl(const NdbColumnImpl* tAttrInfo,
       theDistrGroupIndicator = 1;
     }//if
     /**************************************************************************
-     *	If the operation is an insert request and the attribute is stored then
+     *	If the operation is a write request and the attribute is stored then
      *      we also set the value in the stored part through putting the 
      *      information in the INDXATTRINFO signals.
      *************************************************************************/
-    if ((tOpType == InsertRequest) ||
-	(tOpType == WriteRequest)) {
+    if ((tOpType == WriteRequest)) {
       if (!tAttrInfo->m_indexOnly){
         // invalid data can crash kernel
         if (cs != NULL &&
@@ -357,7 +363,13 @@ int NdbIndexOperation::equal_impl(const NdbColumnImpl* tAttrInfo,
           goto equal_error4;
 	Uint32 ahValue;
 	Uint32 sz = totalSizeInWords;
-	AttributeHeader::init(&ahValue, tAttrId, sz);
+        /*
+         * XXX should be linked in metadata but cannot now because
+         * things can be defined in arbitrary order
+         */
+        const NdbColumnImpl* primaryCol = m_thePrimaryTable->getColumn(tAttrInfo->m_name.c_str());
+        assert(primaryCol != NULL);
+	AttributeHeader::init(&ahValue, primaryCol->m_attrId, sz);
 	insertATTRINFO( ahValue );
 	insertATTRINFOloop((Uint32*)aValueToWrite, sizeInWords);
 	if (bitsInLastWord != 0) {
@@ -369,7 +381,6 @@ int NdbIndexOperation::equal_impl(const NdbColumnImpl* tAttrInfo,
 	}//if
       }//if
     }//if
-
     /**************************************************************************
      *	Store the Key information in the TCINDXREQ and INDXKEYINFO signals. 
      *************************************************************************/
@@ -734,13 +745,10 @@ NdbIndexOperation::receiveTCINDXREF( NdbApiSignal* aSignal)
   }//if
 
   theStatus = Finished;
-  
+
   theNdbCon->theReturnStatus = NdbConnection::ReturnFailure;
   Uint32 errorCode = tcIndxRef->errorCode;
   theError.code = errorCode;
   theNdbCon->setOperationErrorCodeAbort(errorCode);
   return theNdbCon->OpCompleteFailure(theNdbCon->m_abortOption);
 }//NdbIndexOperation::receiveTCINDXREF()
-
-
-

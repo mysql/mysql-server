@@ -26,7 +26,6 @@
 #endif
 
 #include <ndbapi_limits.h>
-#include <ndb_types.h>
 
 class Ndb;             // Forward declaration
 class NdbOperation;    // Forward declaration
