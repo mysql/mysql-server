@@ -601,7 +601,7 @@ manager_term()
   shift
   if [ $USE_MANAGER = 0 ] ; then
    $MYSQLADMIN --no-defaults -uroot --socket=$MYSQL_TMP_DIR/$ident.sock -O \
-   connect_timeout=5 shutdown >/dev/null 2>&1
+   connect_timeout=5 -O shutdown_timeout=20 shutdown >/dev/null 2>&1
    return
   fi
   $MYSQL_MANAGER_CLIENT $MANAGER_QUIET_OPT --user=$MYSQL_MANAGER_USER \
@@ -1049,8 +1049,8 @@ run_testcase ()
 # Ensure that no old mysqld test servers are running
 if [ -z "$USE_RUNNING_SERVER" ]
 then
-  $MYSQLADMIN --no-defaults --socket=$MASTER_MYSOCK -u root -O connect_timeout=5 shutdown > /dev/null 2>&1
-  $MYSQLADMIN --no-defaults --socket=$SLAVE_MYSOCK -u root -O connect_timeout=5 shutdown > /dev/null 2>&1
+  $MYSQLADMIN --no-defaults --socket=$MASTER_MYSOCK -u root -O connect_timeout=5 -O shutdown_timeout=20 shutdown > /dev/null 2>&1
+  $MYSQLADMIN --no-defaults --socket=$SLAVE_MYSOCK -u root -O connect_timeout=5 -O shutdown_timeout=20 shutdown > /dev/null 2>&1
   $ECHO "Installing Test Databases"
   mysql_install_db
   start_manager

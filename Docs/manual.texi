@@ -49089,6 +49089,8 @@ Fixed bug with BDB tables and keys on @code{BLOB}'s.
 Fixed bug in @code{MERGE} tables on OS with 32 bit file pointers.
 @item
 Fixed bug in @code{TIME_TO_SEC()} when using negative values.
+@item
+Fixed core dump bug in @code{ALTER TABLE} on a @code{TEMPORARY} InnoDB table.
 @end itemize
 
 @node News-3.23.44, News-3.23.43, News-3.23.45, News-3.23.x

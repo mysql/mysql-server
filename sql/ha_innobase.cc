@@ -827,7 +827,8 @@ ha_innobase::bas_ext() const
 /*********************************************************************
 Normalizes a table name string. A normalized name consists of the
 database name catenated to '/' and table name. An example:
-test/mytable. */
+test/mytable. On Windows normalization puts both the database name and the
+table name always to lower case. */
 static
 void
 normalize_table_name(
@@ -863,6 +864,17 @@ normalize_table_name(
 	memcpy(norm_name, db_ptr, strlen(name) + 1 - (db_ptr - name));
 
 	norm_name[name_ptr - db_ptr - 1] = '/';
+
+#ifdef __WIN__
+	/* Put to lower case */
+
+	ptr = norm_name;
+
+	while (*ptr != '\0') {
+	        *ptr = tolower(*ptr);
+	        ptr++;
+	}
+#endif
 }
 
 /*********************************************************************
