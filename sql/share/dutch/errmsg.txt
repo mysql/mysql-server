@@ -398,3 +398,6 @@ character-set=latin1
 "Illegal %s '%-.64s' value found during parsing",
 "CHECK OPTION on non-updatable view '%-.64s.%-.64s'"
 "CHECK OPTION failed '%-.64s.%-.64s'"
+"Can not modify more than one base table through a join view '%-.64s.%-.64s'"
+"Can not insert into join view '%-.64s.%-.64s' without fields list"
+"Can not delete from join view '%-.64s.%-.64s'"

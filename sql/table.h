@@ -200,6 +200,13 @@ struct st_table {
 
 struct st_lex;
 
+
+struct Field_translator
+{
+  Item *item;
+  const char *name;
+};
+
 typedef struct st_table_list
 {
   /* link in a local table list (used by SQL_LIST) */
@@ -225,13 +232,15 @@ typedef struct st_table_list
   /* link to select_lex where this table was used */
   st_select_lex	*select_lex;
   st_lex	*view;			/* link on VIEW lex for merging */
-  Item		**field_translation;	/* array of VIEW fields */
+  Field_translator *field_translation;	/* array of VIEW fields */
   /* ancestor of this table (VIEW merge algorithm) */
   st_table_list	*ancestor;
   /* most upper view this table belongs to */
   st_table_list	*belong_to_view;
   /* next_global before adding VIEW tables */
   st_table_list	*old_next;
+  /* list of join table tree leaves */
+  st_table_list	*next_leaf;
   Item          *where;                 /* VIEW WHERE clause condition */
   Item          *check_option;          /* WITH CHECK OPTION condition */
   LEX_STRING	query;			/* text of (CRETE/SELECT) statement */
@@ -246,6 +255,7 @@ typedef struct st_table_list
   ulonglong	algorithm;		/* 0 any, 1 tmp tables , 2 merging */
   ulonglong     with_check;             /* WITH CHECK OPTION */
   uint          effective_algorithm;    /* which algorithm was really used */
+  uint		privilege_backup;       /* place for saving privileges */
   GRANT_INFO	grant;
   thr_lock_type lock_type;
   uint		outer_join;		/* Which join type */
@@ -279,6 +289,11 @@ typedef struct st_table_list
   bool setup_ancestor(THD *thd, Item **conds);
   bool placeholder() {return derived || view; }
   void print(THD *thd, String *str);
+  void save_and_clear_want_privilege();
+  void restore_want_privilege();
+  bool check_single_table(st_table_list **table, table_map map);
+  bool set_insert_values(MEM_ROOT *mem_root);
+  void clear_insert_values();
   inline st_table_list *next_independent()
   {
     if (view)
@@ -319,14 +334,14 @@ public:
 
 class Field_iterator_view: public Field_iterator
 {
-  Item **ptr, **array_end;
+  Field_translator *ptr, *array_end;
 public:
   Field_iterator_view() :ptr(0), array_end(0) {}
   void set(TABLE_LIST *table);
   void next() { ptr++; }
   bool end_of_fields() { return ptr == array_end; }
   const char *name();
-  Item *item(THD *thd) { return *ptr; }
+  Item *item(THD *thd) { return ptr->item; }
   Field *field() { return 0; }
 };
 
