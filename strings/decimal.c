@@ -585,7 +585,7 @@ int decimal2bin(decimal *from, char *to, int precision, int frac)
 {
   dec1 mask=from->sign ? -1 : 0, *buf1=from->buf, *stop1;
   int error=E_DEC_OK, intg=precision-frac,
-      isize1, intg1, intg1x=from->intg,
+      isize1, intg1, intg1x, from_intg=from->intg,
       intg0=intg/DIG_PER_DEC1,
       frac0=frac/DIG_PER_DEC1,
       intg0x=intg-intg0*DIG_PER_DEC1,
@@ -597,33 +597,33 @@ int decimal2bin(decimal *from, char *to, int precision, int frac)
       fsize1=frac1*sizeof(dec1)+dig2bytes[frac1x];
 
   /* removing leading zeroes */
-  intg1=((intg1x-1) % DIG_PER_DEC1)+1;
-  while (intg1x > 0 && *buf1 == 0)
+  intg1=((from_intg-1) % DIG_PER_DEC1)+1;
+  while (from_intg > 0 && *buf1 == 0)
   {
-    intg1x-=intg1;
+    from_intg-=intg1;
     intg1=DIG_PER_DEC1;
     buf1++;
   }
-  if (intg1x > 0)
+  if (from_intg > 0)
   {
-    for (intg1=(intg1x-1) % DIG_PER_DEC1; *buf1 < powers10[intg1--]; intg1x--) ;
-    DBUG_ASSERT(intg1x > 0);
+    for (intg1=(from_intg-1) % DIG_PER_DEC1; *buf1 < powers10[intg1--]; from_intg--) ;
+    DBUG_ASSERT(from_intg > 0);
   }
   else
-    intg1x=0;
+    from_intg=0;
 
-  if (unlikely(intg1x+fsize1==0))
+  if (unlikely(from_intg+fsize1==0))
   {
     mask=0; /* just in case */
     intg=1;
     buf1=&mask;
   }
 
-  intg1=intg1x/DIG_PER_DEC1;
-  intg1x=intg1x-intg1*DIG_PER_DEC1;
+  intg1=from_intg/DIG_PER_DEC1;
+  intg1x=from_intg-intg1*DIG_PER_DEC1;
   isize1=intg1*sizeof(dec1)+dig2bytes[intg1x];
 
-  if (isize0 < isize1)
+  if (intg < from_intg)
   {
     buf1+=intg1-intg0+(intg1x>0)-(intg0x>0);
     intg1=intg0; intg1x=intg0x;
@@ -873,7 +873,7 @@ int decimal_round(decimal *from, decimal *to, int scale, decimal_round_mode mode
     error=E_DEC_TRUNCATED;
   }
 
-  if (scale+from->intg <= 0)
+  if (scale+from->intg < 0)
   {
     decimal_make_zero(to);
     return E_DEC_OK;
@@ -942,6 +942,16 @@ int decimal_round(decimal *from, decimal *to, int scale, decimal_round_mode mode
       }
       *buf1=1;
       to->intg++;
+    }
+  }
+  else
+  {
+    while (unlikely(*buf1 == 0) && buf1 >= to->buf)
+      buf1--;
+    if (buf1 < to->buf)
+    {
+      decimal_make_zero(to);
+      return E_DEC_OK;
     }
   }
   if (scale<0) scale=0;
@@ -2028,6 +2038,7 @@ main()
   test_d2b2d(".12345000098765", 30, 20);
   test_d2b2d("-.000000012345000098765", 30, 20);
   test_d2b2d("1234500009876.5", 30, 5);
+  test_d2b2d("111111111.11", 10, 2);
 
   printf("==== decimal_cmp ====\n");
   test_dc("12","13");
@@ -2075,7 +2086,6 @@ main()
   test_ro("-15.1",0,FLOOR);
   test_ro("999999999999999999999.999", 0, CEILING);
   test_ro("-999999999999999999999.999", 0, FLOOR);
-
 
   return 0;
 }
