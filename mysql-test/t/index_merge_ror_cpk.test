@@ -72,6 +72,8 @@ explain select * from t1 where pktail2ok=1 and key1=10;
 select '  The following is actually a deficiency, it uses sort_union currently:' as 'note:';
 explain select * from t1 where (pktail2ok=1 and pk1< 50000) or key1=10;
 
+# The expected rows differs a bit from platform to platform
+--replace_result 98 ROWS 99 ROWS
 explain select * from t1 where pktail3bad=1 and key1=10;
 explain select * from t1 where pktail4bad=1 and key1=10;
 explain select * from t1 where pktail5bad=1 and key1=10;
