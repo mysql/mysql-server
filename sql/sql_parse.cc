@@ -1830,6 +1830,7 @@ mysql_execute_command(void)
     {
       thd->lock=thd->locked_tables;
       thd->locked_tables=0;			// Will be automaticly closed
+      end_active_trans(thd);
     }
     if (thd->global_read_lock)
     {

@@ -22511,6 +22511,9 @@ locks while the thread is waiting for the @code{WRITE} lock. You should only
 use @code{LOW_PRIORITY WRITE} locks if you are sure that there will
 eventually be a time when no threads will have a @code{READ} lock.
 
+@code{LOCK TABLES} and @code{UNLOCK TABLES} both commits any active
+transactions.
+
 When you use @code{LOCK TABLES}, you must lock all tables that you are
 going to use and you must use the same alias that you are going to use
 in your queries!  If you are using a table multiple times in a query
@@ -43940,6 +43943,8 @@ not yet 100% confident in this code.
 @appendixsubsec Changes in release 3.23.38
 @itemize @bullet
 @item
+Lots of portability fixes for InnoDB.
+@item
 Changed optimizer so that queries like
 @code{SELECT * FROM table_name,table_name2 ... ORDER BY key_part1 LIMIT #}
 will use index on @code{key_part1} instead of @code{filesort}.
@@ -43947,13 +43952,15 @@ will use index on @code{key_part1} instead of @code{filesort}.
 Fixed bug when doing
 @code{LOCK TABLE to_table WRITE,...; INSERT INTO to_table... SELECT ...}
 when to_table was empty.
+@item
+Fixed bug with @code{LOCK TABLE} and BDB tables.
 @end itemize
 
 @node News-3.23.37, News-3.23.36, News-3.23.38, News-3.23.x
 @appendixsubsec Changes in release 3.23.37
 @itemize @bullet
 @item
-Fixed a bug when using MATCH in HAVING clause.
+Fixed a bug when using @code{MATCH} in @code{HAVING} clause.
 @item
 Fixed a bug when using @code{HEAP} tables with @code{LIKE}.
 @item
@@ -43977,7 +43984,7 @@ with @code{SET SQL_SLAVE_SKIP_COUNTER=1; SLAVE START} after a manual sanity
 check/correction of data integrity
 @item
 Fixed bug that erroneously logged a drop of internal temporary table
- on thread termination to the binary log - bug affected replication
+on thread termination to the binary log - bug affected replication
 @item
 Fixed a bug in @code{REGEXP()} on 64-bit machines.
 @item
