@@ -90,24 +90,9 @@ void Item_row::split_sum_func(THD *thd, Item **ref_pointer_array,
 {
   Item **arg, **arg_end;
   for (arg= items, arg_end= items+arg_count; arg != arg_end ; arg++)
-  {
-    Item *item= *arg;
-    if (item->type() != SUM_FUNC_ITEM &&
-        (item->with_sum_func ||
-         (item->used_tables() & PSEUDO_TABLE_BITS)))
-      item->split_sum_func(thd, ref_pointer_array, fields);
-    else if (item->type() == SUM_FUNC_ITEM ||
-             (item->used_tables() && item->type() != REF_ITEM))
-    {
-      uint el= fields.elements;
-      ref_pointer_array[el]=*arg;
-      Item *new_item= new Item_ref(ref_pointer_array + el, 0, (*arg)->name);
-      fields.push_front(*arg);
-      ref_pointer_array[el]= *arg;
-      thd->change_item_tree(arg, new_item);
-    }
-  }
+    (*arg)->split_sum_func2(thd, ref_pointer_array, fields, arg);
 }
+
 
 void Item_row::update_used_tables()
 {
