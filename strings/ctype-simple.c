@@ -213,10 +213,12 @@ long        my_strntol_8bit(CHARSET_INFO *cs,
   register unsigned char c;
   const char *save, *e;
   int overflow;
-  
+
+#if 0
   if (base < 0 || base == 1 || base > 36)
     base = 10;
-  
+#endif
+
   s = nptr;
   e = nptr+l;
   
@@ -241,9 +243,12 @@ long        my_strntol_8bit(CHARSET_INFO *cs,
   else
     negative = 0;
 
+#if 0
   if (base == 16 && s[0] == '0' && (s[1]=='X' || s[1]=='x'))
     s += 2;
+#endif
 
+#if 0
   if (base == 0)
   {
     if (*s == '0')
@@ -259,6 +264,7 @@ long        my_strntol_8bit(CHARSET_INFO *cs,
     else
       base = 10;
   }
+#endif
 
   save = s;
   cutoff = ((ulong)~0L) / (unsigned long int) base;
@@ -330,9 +336,11 @@ ulong      my_strntoul_8bit(CHARSET_INFO *cs,
   const char *save, *e;
   int overflow;
 
+#if 0
   if (base < 0 || base == 1 || base > 36)
     base = 10;
-  
+#endif
+
   s = nptr;
   e = nptr+l;
   
@@ -356,9 +364,12 @@ ulong      my_strntoul_8bit(CHARSET_INFO *cs,
   else
     negative = 0;
 
+#if 0
   if (base == 16 && s[0] == '0' && (s[1]=='X' || s[1]=='x'))
     s += 2;
+#endif
 
+#if 0
   if (base == 0)
   {
     if (*s == '0')
@@ -374,6 +385,7 @@ ulong      my_strntoul_8bit(CHARSET_INFO *cs,
     else
       base = 10;
   }
+#endif
 
   save = s;
   cutoff = ((ulong)~0L) / (unsigned long int) base;
@@ -437,8 +449,10 @@ longlong   my_strntoll_8bit(CHARSET_INFO *cs __attribute__((unused)),
   const char *save;
   int overflow;
 
+#if 0
   if (base < 0 || base == 1 || base > 36)
     base = 10;
+#endif
 
   s = nptr;
   e = nptr+l;
@@ -463,9 +477,12 @@ longlong   my_strntoll_8bit(CHARSET_INFO *cs __attribute__((unused)),
   else
     negative = 0;
 
+#if 0
   if (base == 16 && s[0] == '0' && (s[1]=='X'|| s[1]=='x'))
     s += 2;
+#endif
 
+#if 0
   if (base == 0)
   {
     if (*s == '0')
@@ -481,6 +498,7 @@ longlong   my_strntoll_8bit(CHARSET_INFO *cs __attribute__((unused)),
     else
       base = 10;
   }
+#endif
 
   save = s;
 
@@ -553,8 +571,10 @@ ulonglong my_strntoull_8bit(CHARSET_INFO *cs,
   const char *save;
   int overflow;
 
+#if 0
   if (base < 0 || base == 1 || base > 36)
     base = 10;
+#endif
 
   s = nptr;
   e = nptr+l;
@@ -579,9 +599,12 @@ ulonglong my_strntoull_8bit(CHARSET_INFO *cs,
   else
     negative = 0;
 
+#if 0
   if (base == 16 && s[0] == '0' && (s[1]=='X' || s[1]=='x'))
     s += 2;
+#endif
 
+#if 0
   if (base == 0)
   {
     if (*s == '0')
@@ -597,6 +620,7 @@ ulonglong my_strntoull_8bit(CHARSET_INFO *cs,
     else
       base = 10;
   }
+#endif
 
   save = s;
 

@@ -4066,7 +4066,7 @@ static int cs_value(MY_XML_PARSER *st,const char *attr, uint len)
   
   switch (state) {
   case _CS_ID:
-    i->cs.number= my_strntoul(my_charset_latin1,attr,len,0,(char**)NULL,&err);
+    i->cs.number= my_strntoul(my_charset_latin1,attr,len,10,(char**)NULL,&err);
     break;
   case _CS_COLNAME:
     i->cs.name=mstr(i->name,attr,len,MY_CS_NAME_SIZE-1);
