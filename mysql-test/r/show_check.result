@@ -212,6 +212,12 @@ select * from t1;
 type_bool	type_tiny	type_short	type_mediumint	type_bigint	type_decimal	type_numeric	empty_char	type_char	type_varchar	type_timestamp	type_date	type_time	type_datetime	type_year	type_enum	type_set	type_tinyblob	type_blob	type_medium_blob	type_long_blob
 0	1	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	20030207100001	0000-00-00	00:00:00	0000-00-00 00:00:00	NULL	NULL	NULL	NULL	NULL	NULL	NULL
 drop table t1;
+create table t1 (a int not null);
+create table t2 select max(a) from t1;
+show columns from t2;
+Field	Type	Null	Key	Default	Extra
+max(a)	bigint(20)	YES		NULL	
+drop table t1,t2;
 create table t1 (c decimal, d double, f float, r real);
 show columns from t1;
 Field	Type	Null	Key	Default	Extra

@@ -1580,11 +1580,12 @@ print_field_types(MYSQL_RES *result)
   MYSQL_FIELD	*field;  
   while ((field = mysql_fetch_field(result)))
   {
-    tee_fprintf(PAGER,"%s '%s' %d %d %d %d %d\n",
+    tee_fprintf(PAGER,"Name:       '%s'\nTable:      '%s'\nType:       %d\nLength:     %d\nMax length: %d\nIs_null:    %d\nFlags:      %d\nDecimals:   %d\n\n",
 		field->name,
 		field->table ? "" : field->table,
 		(int) field->type,
-		field->length, field->max_length, 
+		field->length, field->max_length,
+		!IS_NOT_NULL(field->flags),
 		field->flags, field->decimals);
   }
   tee_puts("", PAGER);

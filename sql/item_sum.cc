@@ -46,7 +46,11 @@ Item_sum::Item_sum(List<Item> &list)
 void Item_sum::make_field(Send_field *tmp_field)
 {
   if (args[0]->type() == Item::FIELD_ITEM && keep_field_type())
+  {
     ((Item_field*) args[0])->field->make_field(tmp_field);
+    if (maybe_null)
+      tmp_field->flags&= ~NOT_NULL_FLAG;
+  }
   else
   {
     tmp_field->flags=0;
@@ -158,7 +162,8 @@ Item_sum_hybrid::fix_fields(THD *thd,TABLE_LIST *tables)
   else
     max_length=item->max_length;
   decimals=item->decimals;
-  maybe_null=item->maybe_null;
+  /* MIN/MAX can return NULL for empty set indepedent of the used column */
+  maybe_null= 1;
   binary=item->binary;
   unsigned_flag=item->unsigned_flag;
   result_field=0;
