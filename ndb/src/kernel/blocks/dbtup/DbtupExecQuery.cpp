@@ -893,19 +893,19 @@ int Dbtup::handleReadReq(Signal* signal,
   
   if (regOperPtr->interpretedExec != 1) {
     jam();
-    
-    Uint32 TnoOfDataRead = readAttributes(pagePtr,
-                                          Ttupheadoffset,
-                                          &cinBuffer[0],
-                                          regOperPtr->attrinbufLen,
-                                          dst,
-					  dstLen,
-                                          false);
-    if (TnoOfDataRead != (Uint32)-1) {
+    int ret = readAttributes(pagePtr,
+			     Ttupheadoffset,
+			     &cinBuffer[0],
+			     regOperPtr->attrinbufLen,
+			     dst,
+			     dstLen,
+			     false);
+    if (ret != -1) {
 /* ------------------------------------------------------------------------- */
 // We have read all data into coutBuffer. Now send it to the API.
 /* ------------------------------------------------------------------------- */
       jam();
+      Uint32 TnoOfDataRead= (Uint32) ret;
       regOperPtr->attroutbufLen = TnoOfDataRead;
       sendReadAttrinfo(signal, TnoOfDataRead, regOperPtr);
       return 0;
@@ -1111,7 +1111,7 @@ Dbtup::updateStartLab(Signal* signal,
                                 regOperPtr->pageOffset,
                                 &cinBuffer[0],
                                 regOperPtr->attrinbufLen);
-    if (retValue == (Uint32)-1) {
+    if (retValue == -1) {
       tupkeyErrorLab(signal);
     }//if
   } else {
@@ -1215,7 +1215,7 @@ int Dbtup::interpreterStartLab(Signal* signal,
 {
   Operationrec *  const regOperPtr = operPtr.p;
   Uint32 RtotalLen;
-  Uint32 TnoDataRW;
+  int TnoDataRW;
 
   Uint32 RinitReadLen = cinBuffer[0];
   Uint32 RexecRegionLen = cinBuffer[1];
@@ -1273,7 +1273,7 @@ int Dbtup::interpreterStartLab(Signal* signal,
 				 &dst[0],
 				 dstLen,
                                  false);
-      if (TnoDataRW != (Uint32)-1) {
+      if (TnoDataRW != -1) {
 	RattroutCounter = TnoDataRW;
 	RinstructionCounter += RinitReadLen;
       } else {
@@ -1300,7 +1300,7 @@ int Dbtup::interpreterStartLab(Signal* signal,
 				     RsubLen,
 				     &coutBuffer[0],
 				     sizeof(coutBuffer) / 4);
-      if (TnoDataRW != (Uint32)-1) {
+      if (TnoDataRW != -1) {
 	RinstructionCounter += RexecRegionLen;
 	RlogSize = TnoDataRW;
       } else {
@@ -1319,7 +1319,7 @@ int Dbtup::interpreterStartLab(Signal* signal,
 				     TupHeadOffset,
 				     &cinBuffer[RinstructionCounter],
 				     RfinalUpdateLen);
-	if (TnoDataRW != (Uint32)-1) {
+	if (TnoDataRW != -1) {
 	  MEMCOPY_NO_WORDS(&clogMemBuffer[RlogSize],
 			   &cinBuffer[RinstructionCounter],
 			   RfinalUpdateLen);
@@ -1347,7 +1347,7 @@ int Dbtup::interpreterStartLab(Signal* signal,
 				 &dst[RattroutCounter],
 				 (dstLen - RattroutCounter),
                                  false);
-      if (TnoDataRW != (Uint32)-1) {
+      if (TnoDataRW != -1) {
 	RattroutCounter += TnoDataRW;
       } else {
 	jam();
@@ -1480,14 +1480,13 @@ int Dbtup::interpreterNextLab(Signal* signal,
 	/* ---------------------------------------------------------------- */
 	{
 	  Uint32 theAttrinfo = theInstruction;
-	  Uint32 TnoDataRW;
-	  TnoDataRW = readAttributes(pagePtr,
-				     TupHeadOffset,
-				     &theAttrinfo,
-				     (Uint32)1,
-				     &TregMemBuffer[theRegister],
-				     (Uint32)3,
-                                     false);
+	  int TnoDataRW= readAttributes(pagePtr,
+					TupHeadOffset,
+					&theAttrinfo,
+					(Uint32)1,
+					&TregMemBuffer[theRegister],
+					(Uint32)3,
+					false);
 	  if (TnoDataRW == 2) {
 	    /* ------------------------------------------------------------- */
 	    // Two words read means that we get the instruction plus one 32 
@@ -1511,7 +1510,7 @@ int Dbtup::interpreterNextLab(Signal* signal,
 	    TregMemBuffer[theRegister] = 0;
 	    TregMemBuffer[theRegister + 2] = 0;
 	    TregMemBuffer[theRegister + 3] = 0;
-	  } else if (TnoDataRW == (Uint32)-1) {
+	  } else if (TnoDataRW == -1) {
 	    jam();
 	    tupkeyErrorLab(signal);
 	    return -1;
@@ -1564,12 +1563,11 @@ int Dbtup::interpreterNextLab(Signal* signal,
 		ah.setNULL();
 		Tlen = 1;
 	      }//if
-	      Uint32 TnoDataRW;
-	      TnoDataRW = updateAttributes(pagePtr,
-					   TupHeadOffset,
-					   &TdataForUpdate[0],
-					   Tlen);
-	      if (TnoDataRW != (Uint32)-1) {
+	      int TnoDataRW= updateAttributes(pagePtr,
+					      TupHeadOffset,
+					      &TdataForUpdate[0],
+					      Tlen);
+	      if (TnoDataRW != -1) {
 		/* --------------------------------------------------------- */
 		// Write the written data also into the log buffer so that it 
 		// will be logged.

@@ -936,8 +936,9 @@ operator<<(NdbOut& ndbout, const TableS & table){
   for (int j = 0; j < table.getNoOfAttributes(); j++) 
   {
     const AttributeDesc * desc = table[j];
-    ndbout << desc->m_column->getName() << ": " << desc->m_column->getType();
-    ndbout << " key: "  << desc->m_column->getPrimaryKey();
+    ndbout << desc->m_column->getName() << ": "
+	   << (Uint32) desc->m_column->getType();
+    ndbout << " key: "  << (Uint32) desc->m_column->getPrimaryKey();
     ndbout << " array: " << desc->arraySize;
     ndbout << " size: " << desc->size << endl;
   } // for
