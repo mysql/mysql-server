@@ -377,6 +377,7 @@ Item *negate_expression(THD *thd, Item *expr);
 struct Query_cache_query_flags
 {
   unsigned int client_long_flag:1;
+  unsigned int client_protocol_41:1;
   uint character_set_client_num;
   uint character_set_results_num;
   uint collation_connection_num;

@@ -32,6 +32,10 @@ class Item_func :public Item_result_field
 {
 protected:
   Item **args, *tmp_arg[2];
+  /*
+    Allowed numbers of columns in result (usually 1, which means scalar value)
+    0 means get this number from first argument
+  */
   uint allowed_arg_cols;
 public:
   uint arg_count;
