@@ -412,6 +412,9 @@ extern pthread_mutex_t LOCK_des_key_file;
 bool load_des_key_file(const char *file_name);
 #endif /* HAVE_OPENSSL */
 
+/* sql_do.cc */
+int mysql_do(THD *thd, List<Item> &values);
+
 /* sql_list.c */
 int mysqld_show_dbs(THD *thd,const char *wild);
 int mysqld_show_open_tables(THD *thd,const char *wild);

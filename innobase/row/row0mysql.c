@@ -432,19 +432,24 @@ row_update_statistics_if_needed(
 	row_prebuilt_t*	prebuilt)	/* in: prebuilt struct */
 {
 	ulint	counter;
-	ulint	old_counter;
 	
-	counter = prebuilt->table->stat_modif_counter;
+	counter = prebuilt->table->stat_modified_counter;
 
-	counter += prebuilt->mysql_row_len;
-	prebuilt->table->stat_modif_counter = counter;
+	/* Since the physical size of an InnoDB row is bigger than the
+	MySQL row len, we put a safety factor 2 below */
 
-	old_counter = prebuilt->table->stat_last_estimate_counter;
+	counter += 2 * prebuilt->mysql_row_len;
 
-	if (counter - old_counter >= DICT_STAT_CALCULATE_INTERVAL
-	    || counter - old_counter >=
-		(UNIV_PAGE_SIZE
-			* prebuilt->table->stat_clustered_index_size / 2)) {
+	prebuilt->table->stat_modified_counter = counter;
+
+	/* Calculate new statistics if 1 / 16 of table has been modified
+	since the last time a statistics batch was run, or if
+	stat_modified_counter > 2 000 000 000 (to avoid wrap-around) */
+
+	if (counter > 2000000000
+	    || ((ib_longlong)counter >
+		(UNIV_PAGE_SIZE * prebuilt->table->stat_clustered_index_size)
+		/ 16)) {
 
 		dict_update_statistics(prebuilt->table);
 	}	
@@ -1019,6 +1024,26 @@ row_create_table_for_mysql(
 
 		srv_print_innodb_table_monitor = TRUE;
 		os_event_set(srv_lock_timeout_thread_event);
+	}
+
+	keywordlen = ut_strlen("innodb_mem_validate");
+
+	if (namelen >= keywordlen
+		    && 0 == ut_memcmp(table->name + namelen - keywordlen,
+ 				"innodb_mem_validate", keywordlen)) {
+
+	        /* We define here a debugging feature intended for
+		developers */
+
+	        printf("Validating InnoDB memory:\n"
+		 "to use this feature you must compile InnoDB with\n"
+		 "UNIV_MEM_DEBUG defined in univ.i and the server must be\n"
+		 "quiet because allocation from a mem heap is not protected\n"
+		       "by any semaphore.\n");
+
+		ut_a(mem_validate());
+		      
+		printf("Memory validated\n");
 	}
 
 	/* Serialize data dictionary operations with dictionary mutex:
