@@ -439,13 +439,9 @@ public:
 
   virtual void print(String *str);
 
-  bool setup_field(THD *thd, TABLE *table, enum trg_event_type event)
-  {
-    return trigger_field.setup_field(thd, table, event);
-  }
-private:
-
   Item_trigger_field trigger_field;
+
+private:
   Item *value;
 }; // class sp_instr_trigger_field : public sp_instr
 

@@ -363,40 +363,17 @@ NULL	test	PRIMARY	NULL	test	t1	a	1	NULL	NULL	NULL
 NULL	test	constraint_1	NULL	test	t1	a	1	NULL	NULL	NULL
 NULL	test	key_1	NULL	test	t1	a	1	NULL	NULL	NULL
 NULL	test	key_2	NULL	test	t1	a	1	NULL	NULL	NULL
-drop table t1;
-CREATE TABLE t1 (id INT NOT NULL, PRIMARY KEY (id)) ENGINE=INNODB;
-CREATE TABLE t2 (id INT PRIMARY KEY, t1_id INT, INDEX par_ind (t1_id),
-FOREIGN KEY (t1_id) REFERENCES t1(id)  ON DELETE CASCADE,
-FOREIGN KEY (t1_id) REFERENCES t1(id)  ON UPDATE CASCADE) ENGINE=INNODB;
-select * from information_schema.TABLE_CONSTRAINTS where
-TABLE_SCHEMA= "test";
-CONSTRAINT_CATALOG	CONSTRAINT_SCHEMA	CONSTRAINT_NAME	TABLE_SCHEMA	TABLE_NAME	CONSTRAINT_TYPE	CONSTRAINT_METHOD
-NULL	test	PRIMARY	test	t1	PRIMARY KEY	NULL
-NULL	test	PRIMARY	test	t2	PRIMARY KEY	NULL
-NULL	test	t2_ibfk_1	test	t2	FOREIGN KEY	ON DELETE CASCADE
-NULL	test	t2_ibfk_2	test	t2	FOREIGN KEY	ON UPDATE CASCADE
-select * from information_schema.KEY_COLUMN_USAGE where
-TABLE_SCHEMA= "test";
-CONSTRAINT_CATALOG	CONSTRAINT_SCHEMA	CONSTRAINT_NAME	TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME	ORDINAL_POSITION	REFERENCED_TABLE_SCHEMA	REFERENCED_TABLE_NAME	REFERENCED_COLUMN_NAME
-NULL	test	PRIMARY	NULL	test	t1	id	1	NULL	NULL	NULL
-NULL	test	PRIMARY	NULL	test	t2	id	1	NULL	NULL	NULL
-NULL	test	t2_ibfk_1	NULL	test	t2	t1_id	1	NULL		id
-NULL	test	t2_ibfk_2	NULL	test	t2	t1_id	1	NULL		id
 select table_name from information_schema.TABLES where table_schema like "test%";
 table_name
 t1
-t2
 select table_name,column_name from information_schema.COLUMNS where table_schema like "test%";
 table_name	column_name
-t1	id
-t2	id
-t2	t1_id
+t1	a
 select ROUTINE_NAME from information_schema.ROUTINES;
 ROUTINE_NAME
 sel2
 sub1
 delete from mysql.user where user='mysqltest_1';
-drop table t2;
 drop table t1;
 drop procedure sel2;
 drop function sub1;
@@ -442,6 +419,7 @@ v
 select sql_mode from information_schema.ROUTINES;
 sql_mode
 
+drop procedure px5;
 create table t1 (a int not null auto_increment,b int, primary key (a));
 insert into t1 values (1,1),(NULL,3),(NULL,4);
 select AUTO_INCREMENT from information_schema.tables where table_name = 't1';
@@ -508,3 +486,34 @@ g	int(11)	11	11	11	0
 h	double(10,3)	10	10	10	3
 i	double	22	22	22	NULL
 drop table t1;
+create table t115 as select table_name, column_name, column_type
+from information_schema.columns where table_name = 'proc';
+select * from t115;
+table_name	column_name	column_type
+proc	db	varchar(64)
+proc	name	varchar(64)
+proc	type	enum('FUNCTION','PROCEDURE')
+proc	specific_name	varchar(64)
+proc	language	enum('SQL')
+proc	sql_data_access	enum('CONTAINS_SQL','NO_SQL','READS_SQL_DATA','MODIFIES_SQL_DATA')
+proc	is_deterministic	enum('YES','NO')
+proc	security_type	enum('INVOKER','DEFINER')
+proc	param_list	blob
+proc	returns	varchar(64)
+proc	body	blob
+proc	definer	varchar(77)
+proc	created	timestamp
+proc	modified	timestamp
+proc	sql_mode	set('REAL_AS_FLOAT','PIPES_AS_CONCAT','ANSI_QUOTES','IGNORE_SPACE','NOT_USED','ONLY_FULL_GROUP_BY','NO_UNSIGNED_SUBTRACTION','NO_DIR_IN_CREATE','POSTGRESQL','ORACLE','MSSQL','DB2','MAXDB','NO_KEY_OPTIONS','NO_TABLE_OPTIONS','NO_FIELD_OPTIONS','MYSQL323','MYSQL40','ANSI','NO_AUTO_VALUE_ON_ZERO')
+proc	comment	varchar(64)
+drop table t115;
+create view vk as select count(*) from information_schema.tables a;
+select * from vk;
+count(*)
+17
+drop view vk;
+create procedure p108 () begin declare c cursor for select data_type
+from information_schema.columns;  open c; open c; end;//
+call p108()//
+ERROR 24000: Cursor is already open
+drop procedure p108;
