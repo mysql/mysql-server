@@ -429,6 +429,7 @@ timestamp_type
 str_to_TIME(const char *str, uint length, TIME *l_time,bool fuzzy_date)
 {
   uint field_length,year_length,digits,i,number_of_fields,date[7];
+  uint not_zero_date;
   const char *pos;
   const char *end=str+length;
   DBUG_ENTER("str_to_TIME");
@@ -446,6 +447,7 @@ str_to_TIME(const char *str, uint length, TIME *l_time,bool fuzzy_date)
   digits= (uint) (pos-str);
   year_length= (digits == 4 || digits == 8 || digits >= 14) ? 4 : 2;
   field_length=year_length-1;
+  not_zero_date= 0;
   for (i=0 ; i < 6 && str != end && isdigit(*str) ; i++)
   {
     uint tmp_value=(uint) (uchar) (*str++ - '0');
@@ -455,6 +457,7 @@ str_to_TIME(const char *str, uint length, TIME *l_time,bool fuzzy_date)
       str++;
     }
     date[i]=tmp_value;
+    not_zero_date|= tmp_value;
     if (i == 2 && str != end && *str == 'T')
       str++;					// ISO8601:  CCYYMMDDThhmmss
     else if ( i != 5 ) 				// Skip inter-field delimiters 
@@ -478,6 +481,7 @@ str_to_TIME(const char *str, uint length, TIME *l_time,bool fuzzy_date)
     while (str++ != end && isdigit(str[0]) && field_length--)
       tmp_value=tmp_value*10 + (uint) (uchar) (*str - '0');
     date[6]=tmp_value;
+    not_zero_date|= tmp_value;
   }
   else
     date[6]=0;
@@ -491,7 +495,20 @@ str_to_TIME(const char *str, uint length, TIME *l_time,bool fuzzy_date)
       date[2] > 31 || date[3] > 23 || date[4] > 59 || date[5] > 59 ||
       !fuzzy_date && (date[1] == 0 || date[2] == 0))
   {
-    current_thd->cuted_fields++;
+    /* Only give warning for a zero date if there is some garbage after */
+    if (!not_zero_date)				// If zero date
+    {
+      for (; str != end ; str++)
+      {
+	if (!isspace(*str))
+	{
+	  not_zero_date= 1;			// Give warning
+	  break;
+	}
+      }
+    }
+    if (not_zero_date)
+      current_thd->cuted_fields++;
     DBUG_RETURN(TIMESTAMP_NONE);
   }
   if (str != end && current_thd->count_cuted_fields)

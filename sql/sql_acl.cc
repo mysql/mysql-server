@@ -643,7 +643,8 @@ static void acl_update_user(const char *user, const char *host,
 	!strcmp(user,acl_user->user))
     {
       if (!acl_user->host.hostname && !host[0] ||
-	  acl_user->host.hostname && !strcmp(host,acl_user->host.hostname))
+	  acl_user->host.hostname &&
+	  !my_strcasecmp(host,acl_user->host.hostname))
       {
 	acl_user->access=privileges;
 	if (mqh->bits & 1)
@@ -732,7 +733,7 @@ static void acl_update_db(const char *user, const char *host, const char *db,
 	!strcmp(user,acl_db->user))
     {
       if (!acl_db->host.hostname && !host[0] ||
-	  acl_db->host.hostname && !strcmp(host,acl_db->host.hostname))
+	  acl_db->host.hostname && !my_strcasecmp(host,acl_db->host.hostname))
       {
 	if (!acl_db->db && !db[0] ||
 	    acl_db->db && !strcmp(db,acl_db->db))
@@ -1666,7 +1667,7 @@ static GRANT_TABLE *table_hash_search(const char *host,const char* ip,
   {
     if (exact)
     {
-      if ((host && !strcmp(host,grant_table->host)) ||
+      if ((host && !my_strcasecmp(host,grant_table->host)) ||
 	  (ip && !strcmp(ip,grant_table->host)))
 	return grant_table;
     }
@@ -2723,7 +2724,7 @@ int mysql_show_grants(THD *thd,LEX_USER *lex_user)
     if (!(host=acl_user->host.hostname))
       host="%";
     if (!strcmp(lex_user->user.str,user) &&
-	!strcmp(lex_user->host.str,host))
+	!my_strcasecmp(lex_user->host.str,host))
       break;
   }
   if (counter == acl_users.elements) 
@@ -2870,7 +2871,7 @@ int mysql_show_grants(THD *thd,LEX_USER *lex_user)
       host="";
 
     if (!strcmp(lex_user->user.str,user) &&
-	!strcmp(lex_user->host.str,host))
+	!my_strcasecmp(lex_user->host.str,host))
     {
       want_access=acl_db->access;
       if (want_access) 
@@ -2929,7 +2930,7 @@ int mysql_show_grants(THD *thd,LEX_USER *lex_user)
       host="";
 
     if (!strcmp(lex_user->user.str,user) &&
-	!strcmp(lex_user->host.str,host))
+	!my_strcasecmp(lex_user->host.str,host))
     {
       want_access=grant_table->privs;
       if ((want_access | grant_table->cols) != 0)
