@@ -2082,6 +2082,34 @@ static int dump_all_tables_in_db(char *database)
 } /* dump_all_tables_in_db */
 
 
+/*
+  get_actual_table_name -- executes a SHOW TABLES LIKE '%s' to get the actual table name
+  from the server for the table name given on the command line.  we do this because
+  the table name given on the command line may be a different case (e.g.  T1 vs t1)
+  
+  RETURN
+    void
+*/
+static void get_actual_table_name( const char *old_table_name, char *new_table_name, int buf_size )
+{
+    MYSQL_RES  *tableRes;
+    MYSQL_ROW  row;
+	char query[ NAME_LEN*2+3 + 50 ];
+
+    DBUG_ENTER("get_actual_table_name");
+
+	sprintf( query, "SHOW TABLES LIKE '%s'", old_table_name );
+    if (mysql_query_with_error_report(sock, 0, query))
+    {
+        safe_exit(EX_MYSQLERR);
+    }
+
+	tableRes = mysql_store_result( sock );
+    row = mysql_fetch_row( tableRes );
+	strncpy( new_table_name, row[0], buf_size );
+    mysql_free_result(tableRes);
+} /* get_actual_table_name */
+
 
 static int dump_selected_tables(char *db, char **table_names, int tables)
 {
@@ -2116,9 +2144,14 @@ static int dump_selected_tables(char *db, char **table_names, int tables)
     print_xml_tag1(md_result_file, "", "database name=", db, "\n");
   for (; tables > 0 ; tables-- , table_names++)
   {
-    numrows = getTableStructure(*table_names, db);
+     char new_table_name[NAME_LEN*+3];
+
+     /* the table name passed on commandline may be wrong case */
+     get_actual_table_name( *table_names, new_table_name, sizeof(new_table_name) );
+
+    numrows = getTableStructure(new_table_name, db);
     if (!dFlag && numrows > 0)
-      dumpTable(numrows, *table_names);
+      dumpTable(numrows, new_table_name);
     my_free(order_by, MYF(MY_ALLOW_ZERO_PTR));
     order_by= 0;
   }
