@@ -23,7 +23,11 @@
 
 #include "mysql_priv.h"
 #include "sql_select.h"
-#include "opt_ft.h"
+
+#if 0 // Sergei - remove when fixed
+#include "opt_ft.h" 
+#endif
+
 #include <m_ctype.h>
 #include <hash.h>
 #include <ft_global.h>
@@ -5045,6 +5049,11 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit)
   DBUG_RETURN(0);				// Can't use index.
 }
 
+// Sergei - remove this one when you have added opt_ft stuff
+QUICK_SELECT *get_ft_or_quick_select_for_ref(TABLE *table, JOIN_TAB *tab)
+{
+  return  get_quick_select_for_ref(table, &tab->ref);
+}
 
 static int
 create_sort_index(JOIN_TAB *tab,ORDER *order,ha_rows select_limit)
