@@ -926,7 +926,15 @@ bool mysql_stmt_prepare(THD *thd, char *packet, uint packet_length)
   lex->safe_to_cache_query= 0;
   lex->param_count= 0;
 
-  if (yyparse((void *)thd) || thd->is_fatal_error || send_prepare_results(stmt))
+  if (yyparse((void *)thd) || thd->is_fatal_error ||
+      /*
+        Check for wrong (too big) length passed to mysql_prepare() resulting in
+        garbage at the end of the query. There is a similar check in mysql_parse().
+      */
+      (!thd->lex->found_colon && 
+       (char*)(thd->lex->ptr) != (thd->query+thd->query_length+1) &&
+       /* yyerror() will show the garbage chars to the user */
+       (yyerror("syntax error"), 1)) || send_prepare_results(stmt))
     goto yyparse_err;
 
   lex_end(lex);
