@@ -943,7 +943,10 @@ bool Item_sum_count_distinct::fix_fields(THD *thd, TABLE_LIST *tables,
 bool Item_sum_count_distinct::setup(THD *thd)
 {
   List<Item> list;
-  SELECT_LEX *select_lex= current_lex->select;
+  SELECT_LEX *select_lex= (SELECT_LEX *)current_lex->current_select;
+  if (select_lex->linkage == GLOBAL_OPTIONS_TYPE)
+    return 1;
+    
   /* Create a table with an unique key over all parameters */
   for (uint i=0; i < arg_count ; i++)
   {

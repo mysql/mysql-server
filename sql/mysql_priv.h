@@ -537,11 +537,6 @@ bool add_field_to_list(char *field_name, enum enum_field_types type,
 		       char *change, TYPELIB *interval,CHARSET_INFO *cs);
 void store_position_for_column(const char *name);
 bool add_to_list(SQL_LIST &list,Item *group,bool asc=0);
-TABLE_LIST *add_table_to_list(Table_ident *table,LEX_STRING *alias,
-			      bool updating,
-			      thr_lock_type flags=TL_UNLOCK,
-			      List<String> *use_index=0,
-			      List<String> *ignore_index=0);
 void add_join_on(TABLE_LIST *b,Item *expr);
 void add_join_natural(TABLE_LIST *a,TABLE_LIST *b);
 bool add_proc_to_list(Item *item);
@@ -562,8 +557,8 @@ int setup_fields(THD *thd,TABLE_LIST *tables,List<Item> &item,
 		 bool set_query_id,List<Item> *sum_func_list,
 		 bool allow_sum_func);
 int setup_conds(THD *thd,TABLE_LIST *tables,COND **conds);
-int setup_ftfuncs(THD *thd);
-int init_ftfuncs(THD *thd, bool no_order);
+int setup_ftfuncs(SELECT_LEX* select);
+int init_ftfuncs(THD *thd, SELECT_LEX* select, bool no_order);
 void wait_for_refresh(THD *thd);
 int open_tables(THD *thd,TABLE_LIST *tables);
 int open_and_lock_tables(THD *thd,TABLE_LIST *tables);
@@ -850,19 +845,19 @@ Item *get_system_var(enum_var_type var_type, const char *var_name, uint length,
 
 inline bool add_item_to_list(Item *item)
 {
-  return current_lex->select->item_list.push_back(item);
+  return current_lex->current_select->add_item_to_list(item);
 }
 inline bool add_value_to_list(Item *value)
 {
   return current_lex->value_list.push_back(value);
 }
-inline bool add_order_to_list(Item *item,bool asc)
+inline bool add_order_to_list(Item *item, bool asc)
 {
-  return add_to_list(current_lex->select->order_list,item,asc);
+  return current_lex->current_select->add_order_to_list(item, asc);
 }
-inline bool add_group_to_list(Item *item,bool asc)
+inline bool add_group_to_list(Item *item, bool asc)
 {
-  return add_to_list(current_lex->select->group_list,item,asc);
+  return current_lex->current_select->add_group_to_list(item, asc);
 }
 inline void mark_as_null_row(TABLE *table)
 {
