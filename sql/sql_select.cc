@@ -7309,6 +7309,6 @@ static void describe_info(THD *thd, const char *info)
     return; /* purecov: inspected */
   packet->length(0);
   net_store_data(packet,info);
-  if (!my_net_write(&thd->net,(char*) packet->ptr(),packet->length()))
+  if (!SEND_ROW(thd, &thd->net, field_list.elements, (char*) packet->ptr(),packet->length()))
     send_eof(&thd->net);
 }
