@@ -45,3 +45,11 @@ then
 else
   echo "$commands"
 fi
+
+comp_finished=sounds/compilation_finished.au.gz
+
+if [ -c /dev/audio ] && [ -f "$comp_finished" ]
+then
+ gunzip -c $comp_finished > /dev/audio
+fi
+ 
