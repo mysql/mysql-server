@@ -610,6 +610,19 @@ Suma::execSIGNAL_DROPPED_REP(Signal* signal){
  *
  */
 
+static unsigned
+count_subscribers(const DLList<SumaParticipant::Subscriber> &subs)
+{
+  unsigned n= 0;
+  SumaParticipant::SubscriberPtr i_subbPtr;
+  subs.first(i_subbPtr);
+  while(!i_subbPtr.isNull()){
+    n++;
+    subs.next(i_subbPtr);
+  }
+  return n;
+}
+
 void
 Suma::execDUMP_STATE_ORD(Signal* signal){
   jamEntry();
@@ -664,6 +677,15 @@ Suma::execDUMP_STATE_ORD(Signal* signal){
     infoEvent("Suma: c_dataBufferPool  size: %d free: %d",
 	      c_dataBufferPool.getSize(),
 	      c_dataBufferPool.getNoOfFree());
+
+    infoEvent("Suma: c_metaSubscribers count: %d",
+	      count_subscribers(c_metaSubscribers));
+    infoEvent("Suma: c_dataSubscribers count: %d",
+	      count_subscribers(c_dataSubscribers));
+    infoEvent("Suma: c_prepDataSubscribers count: %d",
+	      count_subscribers(c_prepDataSubscribers));
+    infoEvent("Suma: c_removeDataSubscribers count: %d",
+	      count_subscribers(c_removeDataSubscribers));
   }
 }
 
