@@ -771,7 +771,7 @@ public:
 		 const char* table_name_arg,
 		 List<Item>& fields_arg, enum enum_duplicates handle_dup,
 		 bool using_trans);
-  void set_fields(List<Item> &fields_arg);
+  void set_fields(const char* db, List<Item> &fields_arg);
   const char* get_db() { return db; }
 #ifdef HAVE_REPLICATION
   void pack_info(Protocol* protocol);
