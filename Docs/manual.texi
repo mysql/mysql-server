@@ -28530,7 +28530,7 @@ A few are reserved because MySQL needs them and is
 
 @c START_OF_RESERVED_WORDS
 
-@c Reserved word list updated Fri May  3 08:41:00 2002 by arjen.
+@c Reserved word list updated Fri Jun 14 09:34:10 2002 by arjen.
 @c To regenerate, use Support/update-reserved-words.pl.
 
 @multitable @columnfractions .33 .33 .34
@@ -28710,18 +28710,18 @@ A few are reserved because MySQL needs them and is
  @tab @code{UPDATE}
 @item @code{USAGE}
  @tab @code{USE}
- @tab @code{USING}
-@item @code{VALUES}
+ @tab @code{USER_RESOURCES}
+@item @code{USING}
+ @tab @code{VALUES}
  @tab @code{VARBINARY}
- @tab @code{VARCHAR}
-@item @code{VARYING}
+@item @code{VARCHAR}
+ @tab @code{VARYING}
  @tab @code{WHEN}
- @tab @code{WHERE}
-@item @code{WITH}
+@item @code{WHERE}
+ @tab @code{WITH}
  @tab @code{WRITE}
- @tab @code{YEAR_MONTH}
-@item @code{ZEROFILL}
- @tab
+@item @code{YEAR_MONTH}
+ @tab @code{ZEROFILL}
  @tab
 @end multitable
 
