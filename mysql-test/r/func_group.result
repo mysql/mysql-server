@@ -183,12 +183,12 @@ insert into t2 values('BBB', 20, 1.0);
 select t1.a1, t1.a2, t2.a1, t2.a2 from t1,t2;
 a1	a2	a1	a2
 10	aaa	AAA	10
-10	NULL	AAA	10
-10	bbb	AAA	10
-20	zzz	AAA	10
 10	aaa	BBB	20
+10	NULL	AAA	10
 10	NULL	BBB	20
+10	bbb	AAA	10
 10	bbb	BBB	20
+20	zzz	AAA	10
 20	zzz	BBB	20
 select max(t1.a1), max(t2.a1) from t1, t2 where t2.a2=9;
 max(t1.a1)	max(t2.a1)
@@ -551,7 +551,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 explain
 select min(a1) from t1  where a1 between a3 and 'KKK';
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ALL	PRIMARY	NULL	NULL	NULL	14	Using where
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	14	Using where
 explain
 select min(a4) from t1  where (a4 + 0.01) between 0.07 and 0.08;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra

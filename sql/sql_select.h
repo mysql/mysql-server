@@ -116,6 +116,7 @@ typedef struct st_join_table {
 typedef struct st_position			/* Used in find_best */
 {
   double records_read;
+  double read_time;
   JOIN_TAB *table;
   KEYUSE *key;
 } POSITION;
@@ -133,8 +134,9 @@ typedef struct st_rollup
 class JOIN :public Sql_alloc
 {
  public:
-  JOIN_TAB *join_tab,**best_ref,**map2table;
-  JOIN_TAB *join_tab_save; //saved join_tab for subquery reexecution
+  JOIN_TAB *join_tab,**best_ref;
+  JOIN_TAB **map2table;    // mapping between table indexes and JOIN_TABs
+  JOIN_TAB *join_tab_save; // saved join_tab for subquery reexecution
   TABLE    **table,**all_tables,*sort_by_table;
   uint	   tables,const_tables;
   uint	   send_group_parts;
@@ -436,4 +438,4 @@ bool cp_buffer_from_ref(TABLE_REF *ref);
 bool error_if_full_join(JOIN *join);
 int report_error(TABLE *table, int error);
 int safe_index_read(JOIN_TAB *tab);
-COND *eliminate_not_funcs(THD *thd, COND *cond);
+COND *eliminate_not_funcs(COND *cond);
