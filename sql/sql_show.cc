@@ -1330,7 +1330,7 @@ void mysqld_list_processes(THD *thd,const char *user, bool verbose)
         thd_info->user=thd->strdup(tmp->user ? tmp->user :
 				   (tmp->system_thread ?
 				    "system user" : "unauthenticated user"));
-	if (tmp->peer_port && (tmp->host || tmp->ip))
+	if (tmp->peer_port && (tmp->host || tmp->ip) && thd->host_or_ip[0])
 	{
 	  if ((thd_info->host= thd->alloc(LIST_PROCESS_HOST_LEN+1)))
 	    my_snprintf((char *) thd_info->host, LIST_PROCESS_HOST_LEN,

@@ -30,6 +30,7 @@ chomp ($LOGFILE= `pwd`);
 $LOGFILE.= "/Bootstrap.log";
 chomp ($opt_directory= `pwd`);
 $opt_docdir= $opt_directory . "/mysqldoc";
+$opt_build_command= undef;
 $opt_changelog= undef;
 $opt_delete= undef;
 $opt_dry_run= undef;
@@ -44,6 +45,7 @@ $opt_skip_manual= undef;
 $version= "unknown";
 
 GetOptions(
+	"build-command|b=s",
 	"changelog|c:s",
 	"directory|d=s",
 	"delete",
@@ -53,7 +55,6 @@ GetOptions(
 	"help|h",
 	"log|l:s",
 	"mail|m=s",
-	"revision|r=s",
 	"revision|r=s",
 	"skip-check|s",
 	"skip-manual",
@@ -79,6 +80,14 @@ if (defined $opt_log)
 			$LOGFILE.= "/" . $opt_log;
 		}
 	}
+}
+
+#
+# Override predefined build command
+#
+if (defined $opt_build_command)
+{
+	$build_command= $opt_build_command;
 }
 
 print_help("") if ($opt_help);
@@ -329,36 +338,41 @@ archive is being created.
 
 Options:
 
--c, --changelog[=<rev>]  Add a ChangeLog [down to revision <rev>]
-                         This will automatically be included in the source
-                         distribution. To get a ChangeLog down to the last
-                         tagged Changeset, simply use "last" as the revision
-                         number.
---delete                 Delete an already existing distribution directory
-                         in the target directory instead of renaming it.
--d, --directory=<dir>    Specify the target directory
-                         (default is "$opt_directory")
---docdir=<dir>           Use the MySQL documentation BK tree located in in <dir>
-                         (default is "$opt_docdir")
---dry-run                Dry run without executing
--e, --export-only        Just export (and add the ChangeLog, if requested),
-                         do not build or test the source distribution
--h, --help               Print this help message
--l, --log[=<filename>]   Write a log file [to <filename>]
-                         (default is "$LOGFILE")
--m, --mail=<address>     Mail a failure report to the given address (and
-                         include a log file snippet, if logging is enabled)
-                         Note that the \@-Sign needs to be quoted!
-                         Example: --mail=user\\\@domain.com
--r, --revision=<rev>     Export the tree as of revision <rev>
-                         (default is up to the latest revision)
--s, --skip-check         Skip checking the distribution with "make distcheck"
---skip-manual            Skip updating the manual from the mysqldoc tree
---suffix=<suffix>        Append <suffix> to the version number in configure.in.
-                         Using the special suffix "YMD" will add the current
-                         date as the suffix (e.g. "-20020518").
--t, --test               Run the test suite after build
--v, --verbose            Be verbose
+-b, --build-command=<cmd>  Use <cmd> to compile the sources before packing
+                           the distribution.
+                           (default is "$build_command")
+-c, --changelog[=<rev>]    Add a ChangeLog [down to revision <rev>]
+                           This will automatically be included in the source
+                           distribution. To get a ChangeLog down to the last
+                           tagged Changeset, simply use "last" as the revision
+                           number.
+--delete                   Delete an already existing distribution directory
+                           in the target directory instead of renaming it.
+-d, --directory=<dir>      Specify the target directory
+                           (default is "$opt_directory")
+--docdir=<dir>             Use the MySQL documentation BK tree located
+                           in <dir>
+                           (default is "$opt_docdir")
+--dry-run                  Dry run without executing
+-e, --export-only          Just export (and add the ChangeLog, if requested),
+                           do not build or test the source distribution
+-h, --help                 Print this help message
+-l, --log[=<filename>]     Write a log file [to <filename>]
+                           (default is "$LOGFILE")
+-m, --mail=<address>       Mail a failure report to the given address (and
+                           include a log file snippet, if logging is enabled)
+                           Note that the \@-Sign needs to be quoted!
+                           Example: --mail=user\\\@domain.com
+-r, --revision=<rev>       Export the tree as of revision <rev>
+                           (default is up to the latest revision)
+-s, --skip-check           Skip checking the distribution with "make distcheck"
+--skip-manual              Skip updating the manual from the mysqldoc tree
+--suffix=<suffix>          Append <suffix> to the version number in
+                           configure.in. Using the special suffix "YMD" will
+                           add the current date as the suffix
+                           (e.g. "-20020518").
+-t, --test                 Run the test suite after build
+-v, --verbose              Be verbose
 
 Example:
 
