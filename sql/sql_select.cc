@@ -5762,7 +5762,15 @@ sub_select(JOIN *join,JOIN_TAB *join_tab,bool end_of_records)
 	    return 0;
 	}
 	else
+        {
+          /* 
+            This row failed selection, release lock on it.
+            XXX: There is no table handler in MySQL which makes use of this
+            call. It's kept from Gemini times. A lot of new code was added
+            recently (i. e. subselects) without having it in mind.
+          */
 	  info->file->unlock_row();
+        }
       }
     } while (!(error=info->read_record(info)) && !(*report_error));
   }
