@@ -40,6 +40,7 @@ CREATE TABLE t2 (
 # Populate table
 #
 
+--disable_query_log
 INSERT INTO t2 VALUES (1,000001,00,'Omaha','teethe','neat','');
 INSERT INTO t2 VALUES (2,011401,37,'breaking','dreaded','Steinberg','W');
 INSERT INTO t2 VALUES (3,011402,37,'Romans','scholastics','jarring','');
@@ -1239,6 +1240,7 @@ INSERT INTO t2 VALUES (1190,123304,00,'bruises','Medicare','backer','');
 INSERT INTO t2 VALUES (1191,068504,00,'bonfire','corresponds','positively','');
 INSERT INTO t2 VALUES (1192,068305,00,'Colombo','hardware','colicky','');
 INSERT INTO t2 VALUES (1193,000000,00,'nondecreasing','implant','thrillingly','');
+--enable_query_log
 
 #
 # Search with a key
@@ -1364,6 +1366,7 @@ create table t3 (
  key (name)
 );
 
+--disable_query_log
 INSERT INTO t3 (period,name,companynr,price,price2) VALUES (1001,"Iranizes",37,5987435,234724);
 INSERT INTO t3 (period,name,companynr,price,price2) VALUES (1002,"violinist",37,28357832,8723648);
 INSERT INTO t3 (period,name,companynr,price,price2) VALUES (1003,"extramarital",37,39654943,235872);
@@ -1374,6 +1377,7 @@ INSERT INTO t3 (period,name,companynr,price,price2) VALUES (1007,"hand",154,9835
 INSERT INTO t3 (period,name,companynr,price,price2) VALUES (1008,"tucked",311,234298,3275892);
 INSERT INTO t3 (period,name,companynr,price,price2) VALUES (1009,"gems",447,2374834,9872392);
 INSERT INTO t3 (period,name,companynr,price,price2) VALUES (1010,"clinker",512,786542,76234234);
+--enable_query_log
 
 create temporary table tmp type = myisam select * from t3;
 
@@ -1496,6 +1500,7 @@ create table t4 (
   UNIQUE KEY companyname(companyname)
 ) TYPE=MyISAM MAX_ROWS=50 PACK_KEYS=1 COMMENT='companynames';
 
+--disable_query_log
 INSERT INTO t4 (companynr, companyname) VALUES (29,'company 1');
 INSERT INTO t4 (companynr, companyname) VALUES (34,'company 2');
 INSERT INTO t4 (companynr, companyname) VALUES (36,'company 3');
@@ -1508,6 +1513,7 @@ INSERT INTO t4 (companynr, companyname) VALUES (65,'company 9');
 INSERT INTO t4 (companynr, companyname) VALUES (68,'company 10');
 INSERT INTO t4 (companynr, companyname) VALUES (50,'company 11');
 INSERT INTO t4 (companynr, companyname) VALUES (00,'Unknown');
+--enable_query_log
 
 #
 # Test of stright join to force a full join.
