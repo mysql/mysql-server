@@ -3015,7 +3015,7 @@ int main(int argc, char **argv)
      need to have an  unique  named  hEventShudown  through the
      application PID e.g.: MySQLShutdown1890; MySQLShutdown2342
   */ 
-  int2str((int) GetCurrentProcessId(),strmov(shutdown_event_name,
+  int10_to_str((int) GetCurrentProcessId(),strmov(shutdown_event_name,
           "MySQLShutdown"), 10);
   
   /* Must be initialized early for comparison of service name */
@@ -3635,7 +3635,7 @@ pthread_handler_decl(handle_connections_shared_memory,arg)
     HANDLE event_server_read= 0;
     THD *thd= 0;
 
-    p= int2str(connect_number, connect_number_char, 10);
+    p= int10_to_str(connect_number, connect_number_char, 10);
     /*
       The name of event and file-mapping events create agree next rule:
         shared_memory_base_name+unique_part+number_of_connection
@@ -6224,7 +6224,7 @@ static void create_pid_file()
 			O_WRONLY | O_TRUNC, MYF(MY_WME))) >= 0)
   {
     char buff[21], *end;
-    end= int2str((long) getpid(), buff, 10);
+    end= int10_to_str((long) getpid(), buff, 10);
     *end++= '\n';
     (void) my_write(file, (byte*) buff, (uint) (end-buff),MYF(MY_WME));
     (void) my_close(file, MYF(0));

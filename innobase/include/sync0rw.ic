@@ -30,7 +30,7 @@ rw_lock_add_debug_info(
 	rw_lock_t*	lock,		/* in: rw-lock */
 	ulint		pass,		/* in: pass value */
 	ulint		lock_type,	/* in: lock type */
-	char*		file_name,	/* in: file where requested */
+	const char*	file_name,	/* in: file where requested */
 	ulint		line);		/* in: line where requested */
 /**********************************************************************
 Removes a debug information struct for an rw-lock. */
