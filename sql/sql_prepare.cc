@@ -72,6 +72,7 @@ Long data handling:
 #include "sql_select.h" // for JOIN
 #include <m_ctype.h>  // for isspace()
 #include "sp_head.h"
+#include "sp.h"
 #ifdef EMBEDDED_LIBRARY
 /* include MYSQL_BIND headers */
 #include <mysql.h>
@@ -1408,6 +1409,20 @@ static int send_prepare_results(Prepared_statement *stmt, bool text_protocol)
 
   lex->first_lists_tables_same();
   tables= lex->query_tables;
+
+  /*
+    Preopen 'proc' system table and cache all functions used in this
+    statement. We must do that before we open ordinary tables to avoid
+    deadlocks. We can't open and lock any table once query tables were
+    opened.
+  */
+  if (lex->sql_command != SQLCOM_CREATE_PROCEDURE &&
+      lex->sql_command != SQLCOM_CREATE_SPFUNCTION)
+  {
+    /* the error is print inside */
+    if (sp_cache_functions(thd, lex))
+      DBUG_RETURN(1);
+  }
 
   switch (sql_command) {
   case SQLCOM_REPLACE:
