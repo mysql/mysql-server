@@ -313,6 +313,9 @@ Configuration::setupConfiguration(){
       ERROR_SET(fatal, ERR_INVALID_CONFIG, "Invalid configuration fetched", 
 		"No transporters configured");
     }
+    if(!globalTransporterRegistry.connect_client(m_config_retriever->get_mgmHandle()))
+      ERROR_SET(fatal, ERR_INVALID_CONFIG, "Connection to mgmd terminated before setup was complete", 
+		"StopOnError missing");
   }
 
   /**
