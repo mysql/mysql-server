@@ -819,6 +819,7 @@ compiler."
     old_convenience=
     deplibs=
     linkopts=
+    linkflags=
 
     if test -n "$shlibpath_var"; then
       # get the directories listed in $shlibpath_var
@@ -1159,6 +1160,7 @@ compiler."
 	# Unknown arguments in both finalize_command and compile_command need
 	# to be aesthetically quoted because they are evaled later.
 	arg=`$echo "X$arg" | $Xsed -e "$sed_quote_subst"`
+	linkflags="$linkflags $arg"
 	case "$arg" in
 	*[\[\~\#\^\&\*\(\)\{\}\|\;\<\>\?\'\ \	]*|*]*)
 	  arg="\"$arg\""

@@ -40,7 +40,7 @@ File create_temp_file(char *to, const char *dir, const char *prefix,
 		      myf MyFlags __attribute__((unused)))
 {
   File file= -1;
-  DBUG_ENTER("open_temp_file");
+  DBUG_ENTER("create_temp_file");
 #if defined(_MSC_VER)
   {
     char temp[FN_REFLEN],*end,*res,**old_env,*temp_env[1];

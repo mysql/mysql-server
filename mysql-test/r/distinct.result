@@ -153,3 +153,17 @@ j_lj_t3	index	id	id	4	NULL	2	where used; Using index; Distinct
 t3_lj	index	id	id	8	NULL	1	where used; Using index; Distinct
 id
 2
+a	sec_to_time(sum(time_to_sec(t)))
+1	00:06:15
+1	00:36:30
+1	00:36:30
+a	sec_to_time(sum(time_to_sec(t)))
+1	00:06:15
+1	00:36:30
+a	sec_to_time(sum(time_to_sec(t)))
+1	00:06:15
+1	00:36:30
+1	00:36:30
+a	sec_to_time(sum(time_to_sec(t)))
+1	00:06:15
+1	00:36:30

@@ -30,6 +30,7 @@
 #include <hash.h>
 #include <ft_global.h>
 #include <assert.h>
+#include <my_bitmap.h>
 
 const char *join_type_str[]={ "UNKNOWN","system","const","eq_ref","ref",
 			      "MAYBE_REF","ALL","range","index","fulltext" };
@@ -268,7 +269,7 @@ mysql_select(THD *thd,TABLE_LIST *tables,List<Item> &fields,COND *conds,
   join.first_record=join.sort_and_group=0;
   join.select_options=select_options;
   join.result=result;
-  count_field_types(&join.tmp_table_param,all_fields);
+  count_field_types(&join.tmp_table_param,all_fields,0);
   join.const_tables=0;
   join.having=0;
   join.group= group != 0;
@@ -632,9 +633,14 @@ mysql_select(THD *thd,TABLE_LIST *tables,List<Item> &fields,COND *conds,
     /*
     ** If we have different sort & group then we must sort the data by group
     ** and copy it to another tmp table
+    ** This code is also used if we are using distinct something
+    ** we haven't been able to store in the temporary table yet
+    ** like SEC_TO_TIME(SUM(...)).
     */
 
-    if (group && (!test_if_subpart(group,order) || select_distinct))
+    if (group && (!test_if_subpart(group,order) || select_distinct) ||
+	(select_distinct &&
+	 join.tmp_table_param.using_indirect_summary_function))
     {					/* Must copy to another table */
       TABLE *tmp_table2;
       DBUG_PRINT("info",("Creating group table"));
@@ -644,11 +650,16 @@ mysql_select(THD *thd,TABLE_LIST *tables,List<Item> &fields,COND *conds,
       if (make_simple_join(&join,tmp_table))
 	goto err;
       calc_group_buffer(&join,group);
-      count_field_types(&join.tmp_table_param,all_fields);
+      count_field_types(&join.tmp_table_param,all_fields,
+			select_distinct && !group);
+      join.tmp_table_param.hidden_field_count=(all_fields.elements-
+					       fields.elements);
 
       /* group data to new table */
       if (!(tmp_table2 = create_tmp_table(thd,&join.tmp_table_param,all_fields,
-					  (ORDER*) 0, 0 , 1, 0,
+					  (ORDER*) 0,
+					  select_distinct && !group,
+					  1, 0,
 					  join.select_options)))
 	goto err;				/* purecov: inspected */
       if (group)
@@ -657,7 +668,7 @@ mysql_select(THD *thd,TABLE_LIST *tables,List<Item> &fields,COND *conds,
 	if (create_sort_index(join.join_tab,group,HA_POS_ERROR) ||
 	    alloc_group_fields(&join,group))
 	{
-	  free_tmp_table(thd,tmp_table2); /* purecov: inspected */
+	  free_tmp_table(thd,tmp_table2);	/* purecov: inspected */
 	  goto err;				/* purecov: inspected */
 	}
 	group=0;
@@ -696,14 +707,14 @@ mysql_select(THD *thd,TABLE_LIST *tables,List<Item> &fields,COND *conds,
     if (make_simple_join(&join,tmp_table))
       goto err;
     calc_group_buffer(&join,group);
-    count_field_types(&join.tmp_table_param,all_fields);
+    count_field_types(&join.tmp_table_param,all_fields,0);
   }
   if (procedure)
   {
     if (procedure->change_columns(fields) ||
 	result->prepare(fields))
       goto err;
-    count_field_types(&join.tmp_table_param,all_fields);
+    count_field_types(&join.tmp_table_param,all_fields,0);
   }
   if (join.group || join.tmp_table_param.sum_func_count ||
       (procedure && (procedure->flags & PROC_GROUP)))
@@ -3265,6 +3276,7 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
 {
   TABLE *table;
   uint	i,field_count,reclength,null_count,null_pack_length,
+        hidden_null_count, hidden_null_pack_length, hidden_field_count,
 	blob_count,group_null_items;
   bool	using_unique_constraint=0;
   char	*tmpname,path[FN_REFLEN];
@@ -3276,14 +3288,28 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
   KEY_PART_INFO *key_part_info;
   Item_result_field **copy_func;
   MI_COLUMNDEF *recinfo;
+  uint temp_pool_slot;
+
   DBUG_ENTER("create_tmp_table");
   DBUG_PRINT("enter",("distinct: %d  save_sum_fields: %d  allow_distinct_limit: %d  group: %d",
 		      (int) distinct, (int) save_sum_fields,
 		      (int) allow_distinct_limit,test(group)));
 
   statistic_increment(created_tmp_tables, &LOCK_status);
-  sprintf(path,"%s%s%lx_%lx_%x",mysql_tmpdir,tmp_file_prefix,current_pid,
-	  thd->thread_id, thd->tmp_table++);
+
+  if(use_temp_pool) {
+    temp_pool_slot = bitmap_set_next(temp_pool, TEMP_POOL_SIZE);
+    if(temp_pool_slot != MY_BIT_NONE) // we got a slot
+      sprintf(path, "%s%s_%lx_%i", mysql_tmpdir, tmp_file_prefix, 
+              current_pid, temp_pool_slot);
+    else // if we run out of slots in the pool, fall back to old behavior
+      sprintf(path,"%s%s%lx_%lx_%x",mysql_tmpdir,tmp_file_prefix,current_pid,
+              thd->thread_id, thd->tmp_table++);
+  } else {
+    sprintf(path,"%s%s%lx_%lx_%x",mysql_tmpdir,tmp_file_prefix,current_pid,
+            thd->thread_id, thd->tmp_table++);
+  };
+
   if (group)
   {
     if (!param->quick_group)
@@ -3292,9 +3318,12 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
       (*tmp->item)->marker=4;			// Store null in key
     if (param->group_length >= MAX_BLOB_WIDTH)
       using_unique_constraint=1;
+    if (group)
+      distinct=0;				// Can't use distinct
   }
 
   field_count=param->field_count+param->func_count+param->sum_func_count;
+  hidden_field_count=param->hidden_field_count;
   if (!my_multi_malloc(MYF(MY_WME),
 		       &table,sizeof(*table),
 		       &reg_field,sizeof(Field*)*(field_count+1),
@@ -3310,10 +3339,12 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
 		       param->group_length : 0,
 		       NullS))
   {
+    bitmap_clear_bit(temp_pool, TEMP_POOL_SIZE, temp_pool_slot);
     DBUG_RETURN(NULL); /* purecov: inspected */
   }
   if (!(param->copy_field=copy=new Copy_field[field_count]))
   {
+    bitmap_clear_bit(temp_pool, TEMP_POOL_SIZE, temp_pool_slot);
     my_free((gptr) table,MYF(0)); /* purecov: inspected */
     DBUG_RETURN(NULL); /* purecov: inspected */
   }
@@ -3333,10 +3364,13 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
   table->map=1;
   table->tmp_table=1;
   table->db_low_byte_first=1;			// True for HEAP and MyISAM
+  table->temp_pool_slot = temp_pool_slot;
 
-  /* Calculate with type of fields we will need in heap table */
 
-  reclength=blob_count=null_count=group_null_items=0;
+  /* Calculate which type of fields we will store in the temporary table */
+
+  reclength=blob_count=null_count=hidden_null_count=group_null_items=0;
+  param->using_indirect_summary_function=0;
 
   List_iterator<Item> li(fields);
   Item *item;
@@ -3344,8 +3378,17 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
   while ((item=li++))
   {
     Item::Type type=item->type();
-    if (item->with_sum_func && type != Item::SUM_FUNC_ITEM ||
-	item->const_item())
+    if (item->with_sum_func && type != Item::SUM_FUNC_ITEM)
+    {
+      /*
+	Mark that the we have ignored an item that refers to a summary
+	function. We need to know this if someone is going to use
+	DISTINCT on the result.
+      */
+      param->using_indirect_summary_function=1;
+      continue;
+    }
+    if (item->const_item())			// We don't have to store this
       continue;
     if (type == Item::SUM_FUNC_ITEM && !group && !save_sum_fields)
     {						/* Can't calc group yet */
@@ -3396,6 +3439,8 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
       }
       *(reg_field++) =new_field;
     }
+    if (!--hidden_field_count)
+      hidden_null_count=null_count;
   }
   field_count= (uint) (reg_field - table->field);
 
@@ -3420,8 +3465,16 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
 
   table->blob_fields=blob_count;
   if (blob_count == 0)
-    null_count++;				// For delete link
-  reclength+=(null_pack_length=(null_count+7)/8);
+  {
+    /* We need to ensure that first byte is not 0 for the delete link */
+    if (hidden_null_count)
+      hidden_null_count++;
+    else
+      null_count++;
+  }
+  hidden_null_pack_length=(hidden_null_count+7)/8;
+  null_pack_length=hidden_null_count+(null_count+7)/8;
+  reclength+=null_pack_length;
   if (!reclength)
     reclength=1;				// Dummy select
 
@@ -3449,6 +3502,7 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
     bfill(null_flags,null_pack_length,255);	// Set null fields
   }
   null_count= (blob_count == 0) ? 1 : 0;
+  hidden_field_count=param->hidden_field_count;
   for (i=0,reg_field=table->field; i < field_count; i++,reg_field++,recinfo++)
   {
     Field *field= *reg_field;
@@ -3496,6 +3550,8 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
       recinfo->type=FIELD_SKIPP_ENDSPACE;
     else
       recinfo->type=FIELD_NORMAL;
+    if (!--hidden_field_count)
+      null_count=(null_count+7) & ~7;		// move to next byte
   }
 
   param->copy_field_count=(uint) (copy - param->copy_field);
@@ -3559,11 +3615,17 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
     }
   }
 
-  if (distinct && !group)
+  if (distinct)
   {
-    /* Create an unique key or an unique constraint over all columns */
-    keyinfo->key_parts=field_count+ test(null_count);
-    if (distinct && allow_distinct_limit)
+    /*
+      Create an unique key or an unique constraint over all columns
+      that should be in the result.  In the temporary table, there are
+      'param->hidden_field_count' extra columns, whose null bits are stored
+      in the first 'hidden_null_pack_length' bytes of the row.
+    */
+    null_pack_length-=hidden_null_pack_length;
+    keyinfo->key_parts=field_count+ test(null_pack_length);
+    if (allow_distinct_limit)
     {
       set_if_smaller(table->max_rows,thd->select_limit);
       param->end_write_records=thd->select_limit;
@@ -3585,11 +3647,11 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
     keyinfo->flags=HA_NOSAME;
     keyinfo->key_length=(uint16) reclength;
     keyinfo->name=(char*) "tmp";
-    if (null_count)
+    if (null_pack_length)
     {
       key_part_info->null_bit=0;
-      key_part_info->offset=0;
-      key_part_info->length=(null_count+7)/8;
+      key_part_info->offset=hidden_null_pack_length;
+      key_part_info->length=null_pack_length;
       key_part_info->field=new Field_string((char*) table->record[0],
 					    (uint32) key_part_info->length,
 					    (uchar*) 0,
@@ -3600,7 +3662,8 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
       key_part_info->type=    HA_KEYTYPE_BINARY;
       key_part_info++;
     }
-    for (i=0,reg_field=table->field; i < field_count;
+    for (i=param->hidden_field_count, reg_field=table->field + i ;
+	 i < field_count;
 	 i++, reg_field++, key_part_info++)
     {
       key_part_info->null_bit=0;
@@ -3626,7 +3689,8 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
     DBUG_RETURN(table);
 
  err:
-  free_tmp_table(thd,table);			/* purecov: inspected */
+  free_tmp_table(thd,table);                    /* purecov: inspected */
+  bitmap_clear_bit(temp_pool, TEMP_POOL_SIZE, temp_pool_slot);
   DBUG_RETURN(NULL);				/* purecov: inspected */
 }
 
@@ -3773,6 +3837,9 @@ free_tmp_table(THD *thd, TABLE *entry)
     delete *ptr;
   my_free((gptr) entry->record[0],MYF(0));
   free_io_cache(entry);
+
+  bitmap_clear_bit(temp_pool, TEMP_POOL_SIZE, entry->temp_pool_slot);
+
   my_free((gptr) entry,MYF(0));
   thd->proc_info=save_proc_info;
 
@@ -5917,13 +5984,14 @@ create_distinct_group(ORDER *order_list,List<Item> &fields)
 *****************************************************************************/
 
 void
-count_field_types(TMP_TABLE_PARAM *param, List<Item> &fields)
+count_field_types(TMP_TABLE_PARAM *param, List<Item> &fields,
+		  bool reset_with_sum_func)
 {
   List_iterator<Item> li(fields);
   Item *field;
 
-  param->field_count=param->sum_func_count=
-    param->func_count=0;
+  param->field_count=param->sum_func_count=param->func_count= 
+    param->hidden_field_count=0;
   param->quick_group=1;
   while ((field=li++))
   {
@@ -5949,7 +6017,11 @@ count_field_types(TMP_TABLE_PARAM *param, List<Item> &fields)
       }
     }
     else
+    {
       param->func_count++;
+      if (reset_with_sum_func)
+	field->with_sum_func=0;
+    }
   }
 }
 

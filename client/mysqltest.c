@@ -485,14 +485,19 @@ int do_echo(struct st_query* q)
   return 0;
 }
 
-int do_sync_with_master()
+int do_sync_with_master(struct st_query* q)
 {
   MYSQL_RES* res;
   MYSQL_ROW row;
   MYSQL* mysql = &cur_con->mysql;
   char query_buf[FN_REFLEN+128];
+  int offset = 0;
+  char* p = q->first_argument;
+  if(*p)
+    offset = atoi(p);
+  
   sprintf(query_buf, "select master_pos_wait('%s', %ld)", master_pos.file,
-	  master_pos.pos);
+	  master_pos.pos + offset);
   if(mysql_query(mysql, query_buf))
     die("At line %u: failed in %s: %d: %s", start_lineno, query_buf,
 	mysql_errno(mysql), mysql_error(mysql));
@@ -1458,7 +1463,7 @@ int main(int argc, char** argv)
 	  q->require_file=require_file;
 	  save_file[0]=0;
 	}
-	error |= run_query(&cur_con->mysql, q, QUERY_SEND|QUERY_REAP);
+	error |= run_query(&cur_con->mysql, q, flags);
 	break;
       }
       case Q_SEND:

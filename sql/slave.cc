@@ -34,10 +34,13 @@ DYNAMIC_ARRAY replicate_wild_do_table, replicate_wild_ignore_table;
 bool do_table_inited = 0, ignore_table_inited = 0;
 bool wild_do_table_inited = 0, wild_ignore_table_inited = 0;
 bool table_rules_on = 0;
-
+uint32 slave_skip_counter = 0; 
+static TABLE* save_temporary_tables = 0;
 // when slave thread exits, we need to remember the temporary tables so we
 // can re-use them on slave start
-static TABLE* save_temporary_tables = 0;
+
+static int last_slave_errno = 0;
+static char last_slave_error[1024] = "";
 #ifndef DBUG_OFF
 int disconnect_slave_event_count = 0, abort_slave_event_count = 0;
 static int events_till_disconnect = -1, events_till_abort = -1;
@@ -45,8 +48,8 @@ static int stuck_count = 0;
 #endif
 
 
-static inline void skip_load_data_infile(NET* net);
-static inline bool slave_killed(THD* thd);
+inline void skip_load_data_infile(NET* net);
+inline bool slave_killed(THD* thd);
 static int init_slave_thread(THD* thd);
 static int safe_connect(THD* thd, MYSQL* mysql, MASTER_INFO* mi);
 static int safe_reconnect(THD* thd, MYSQL* mysql, MASTER_INFO* mi);
@@ -54,7 +57,7 @@ static int safe_sleep(THD* thd, int sec);
 static int request_table_dump(MYSQL* mysql, char* db, char* table);
 static int create_table_from_dump(THD* thd, NET* net, const char* db,
 				  const char* table_name);
-static inline char* rewrite_db(char* db);
+inline char* rewrite_db(char* db);
 static void free_table_ent(TABLE_RULE_ENT* e)
 {
   my_free((gptr) e, MYF(0));
@@ -194,12 +197,12 @@ void end_slave()
     free_string_array(&replicate_wild_ignore_table);
 }
 
-static inline bool slave_killed(THD* thd)
+inline bool slave_killed(THD* thd)
 {
   return abort_slave || abort_loop || thd->killed;
 }
 
-static inline void skip_load_data_infile(NET* net)
+inline void skip_load_data_infile(NET* net)
 {
   (void)my_net_write(net, "\xfb/dev/null", 10);
   (void)net_flush(net);
@@ -207,7 +210,7 @@ static inline void skip_load_data_infile(NET* net)
   send_ok(net); // the master expects it
 }
 
-static inline char* rewrite_db(char* db)
+inline char* rewrite_db(char* db)
 {
   if(replicate_rewrite_db.is_empty() || !db) return db;
   I_List_iterator<i_string_pair> it(replicate_rewrite_db);
@@ -506,14 +509,14 @@ int init_master_info(MASTER_INFO* mi)
       return 1;
     }
       
-    if (!(length=my_b_gets(&mi->file, mi->log_file_name,
-			   sizeof(mi->log_file_name))))
+    if ((length=my_b_gets(&mi->file, mi->log_file_name,
+			   sizeof(mi->log_file_name))) < 1)
     {
       msg="Error reading log file name from master info file ";
       goto error;
     }
 
-    mi->log_file_name[length]= 0; // kill \n
+    mi->log_file_name[length-1]= 0; // kill \n
     char buf[FN_REFLEN];
     if(!my_b_gets(&mi->file, buf, sizeof(buf)))
     {
@@ -570,6 +573,9 @@ int show_master_info(THD* thd)
   field_list.push_back(new Item_empty_string("Slave_Running", 3));
   field_list.push_back(new Item_empty_string("Replicate_do_db", 20));
   field_list.push_back(new Item_empty_string("Replicate_ignore_db", 20));
+  field_list.push_back(new Item_empty_string("Last_errno", 4));
+  field_list.push_back(new Item_empty_string("Last_error", 20));
+  field_list.push_back(new Item_empty_string("Skip_counter", 12));
   if(send_fields(thd, field_list, 1))
     DBUG_RETURN(-1);
 
@@ -589,6 +595,9 @@ int show_master_info(THD* thd)
   pthread_mutex_unlock(&LOCK_slave);
   net_store_data(packet, &replicate_do_db);
   net_store_data(packet, &replicate_ignore_db);
+  net_store_data(packet, (uint32)last_slave_errno);
+  net_store_data(packet, last_slave_error);
+  net_store_data(packet, slave_skip_counter);
   
   if (my_net_write(&thd->net, (char*)thd->packet.ptr(), packet->length()))
     DBUG_RETURN(-1);
@@ -833,13 +842,14 @@ static int exec_event(THD* thd, NET* net, MASTER_INFO* mi, int event_len)
   if (ev)
   {
     int type_code = ev->get_type_code();
-    if (ev->server_id == ::server_id)
+    if (ev->server_id == ::server_id || slave_skip_counter)
     {
       if(type_code == LOAD_EVENT)
 	skip_load_data_infile(net);
 	
       mi->inc_pos(event_len);
       flush_master_info(mi);
+      --slave_skip_counter;
       delete ev;     
       return 0;					// avoid infinite update loops
     }
@@ -853,6 +863,7 @@ static int exec_event(THD* thd, NET* net, MASTER_INFO* mi, int event_len)
     {
       Query_log_event* qev = (Query_log_event*)ev;
       int q_len = qev->q_len;
+      int expected_error,actual_error = 0;
       init_sql_alloc(&thd->mem_root, 8192,0);
       thd->db = rewrite_db((char*)qev->db);
       if (db_ok(thd->db, replicate_do_db, replicate_ignore_db))
@@ -869,19 +880,22 @@ static int exec_event(THD* thd, NET* net, MASTER_INFO* mi, int event_len)
 	thd->net.last_error[0] = 0;
 	thd->slave_proxy_id = qev->thread_id;	// for temp tables
 	mysql_parse(thd, thd->query, q_len);
-	int expected_error,actual_error;
 	if ((expected_error = qev->error_code) !=
 	    (actual_error = thd->net.last_errno) && expected_error)
 	{
-	  sql_print_error("Slave: did not get the expected error\
- running query from master - expected: '%s', got '%s'",
-			  ER(expected_error),
-			  actual_error ? ER(actual_error):"no error"
+	  const char* errmsg = "Slave: did not get the expected error\
+ running query from master - expected: '%s', got '%s'"; 
+	  sql_print_error(errmsg, ER(expected_error),
+			  actual_error ? thd->net.last_error:"no error"
 			  );
 	  thd->query_error = 1;
 	}
 	else if (expected_error == actual_error)
-	  thd->query_error = 0;
+	  {
+	    thd->query_error = 0;
+	    *last_slave_error = 0;
+	    last_slave_errno = 0;
+	  }
       }
       thd->db = 0;				// prevent db from being freed
       thd->query = 0;				// just to be sure
@@ -893,6 +907,13 @@ static int exec_event(THD* thd, NET* net, MASTER_INFO* mi, int event_len)
       {
 	sql_print_error("Slave:  error running query '%s' ",
 			qev->query);
+	last_slave_errno = actual_error ? actual_error : -1;
+	my_snprintf(last_slave_error, sizeof(last_slave_error),
+		    "error '%s' on query '%s'",
+		    actual_error ? thd->net.last_error :
+		    "unexpected success or fatal error",
+		    qev->query
+		    );
         free_root(&thd->mem_root,0);
 	delete ev;
 	return 1;
@@ -1034,9 +1055,12 @@ static int exec_event(THD* thd, NET* net, MASTER_INFO* mi, int event_len)
       break;
                   
     case STOP_EVENT:
-      close_temporary_tables(thd);
-      mi->inc_pos(event_len);
-      flush_master_info(mi);
+      if(mi->pos > 4) // stop event should be ignored after rotate event
+	{
+          close_temporary_tables(thd);
+          mi->inc_pos(event_len);
+          flush_master_info(mi);
+	}
       delete ev;
       break;
     case ROTATE_EVENT:

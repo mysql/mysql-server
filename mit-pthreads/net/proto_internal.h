@@ -44,6 +44,7 @@ static char *rcsid = "$Id$";
 #include <resolv.h>
 
 #define PROTO_BUFSIZE 4096
+#undef ALIGN
 #define ALIGN(p, t) ((char *)(((((long)(p) - 1) / sizeof(t)) + 1) * sizeof(t)))
 #define SP(p, t, n) (ALIGN(p, t) + (n) * sizeof(t))
 

@@ -177,6 +177,7 @@ void ha_myisammrg::info(uint flag)
   errkey  = info.errkey;
   table->keys_in_use=(((key_map) 1) << table->keys)- (key_map) 1;
   table->db_options_in_use    = info.options;
+  table->is_view=1;
   mean_rec_length=info.reclength;
   block_size=0;
   update_time=0;

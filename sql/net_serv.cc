@@ -74,7 +74,7 @@ typedef my_bool ALARM;
 #define thr_alarm_in_use(A) (*(A))
 #define thr_end_alarm(A)
 #define thr_alarm(A,B,C) local_thr_alarm((A),(B),(C))
-static inline int local_thr_alarm(my_bool *A,int B __attribute__((unused)),ALARM *C __attribute__((unused)))
+inline int local_thr_alarm(my_bool *A,int B __attribute__((unused)),ALARM *C __attribute__((unused)))
 {
   *A=1;
   return 0;
@@ -271,7 +271,7 @@ net_real_write(NET *net,const char *packet,ulong len)
   int length;
   char *pos,*end;
   thr_alarm_t alarmed;
-#if !defined(__WIN__) && !defined(__EMX__)
+#if !defined(__WIN__)
   ALARM alarm_buff;
 #endif
   uint retry_count=0;
@@ -426,7 +426,7 @@ static void my_net_skip_rest(NET *net, ulong remain, thr_alarm_t *alarmed)
     if ((int) (length=vio_read(net->vio,(char*) net->buff,remain)) <= 0L)
     {
       my_bool interrupted = vio_should_retry(net->vio);
-      if (!thr_got_alarm(&alarmed) && interrupted)
+      if (!thr_got_alarm(alarmed) && interrupted)
       {					/* Probably in MIT threads */
 	if (retry_count++ < RETRY_COUNT)
 	  continue;
