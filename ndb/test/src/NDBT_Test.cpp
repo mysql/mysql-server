@@ -820,15 +820,15 @@ void NDBT_TestSuite::execute(Ndb* ndb, const NdbDictionary::Table* pTab,
     const NdbDictionary::Table* pTab2 = pDict->getTable(pTab->getName());
     if (createTable == true){
 
-      if (pTab2 != 0 && !pTab->equal(* pTab2)){
+      if(pTab2 != 0 && pDict->dropTable(pTab->getName()) != 0){
 	numTestsFail++;
 	numTestsExecuted++;
-	g_err << "ERROR0: Failed to create table " << pTab->getName() << endl;
+	g_err << "ERROR0: Failed to drop table " << pTab->getName() << endl;
 	tests[t]->saveTestResult(pTab, FAILED_TO_CREATE);
 	continue;
       }
-
-      if(pTab2 == 0 && pDict->createTable(* pTab) != 0){
+      
+      if(pDict->createTable(* pTab) != 0){
 	numTestsFail++;
 	numTestsExecuted++;
 	g_err << "ERROR1: Failed to create table " << pTab->getName()

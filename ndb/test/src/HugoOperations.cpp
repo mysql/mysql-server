@@ -40,6 +40,9 @@ int HugoOperations::closeTransaction(Ndb* pNdb){
   }
   pTrans = NULL;
 
+  m_result_sets.clear();
+  m_executed_result_sets.clear();
+
   return NDBT_OK;
 }
 
@@ -291,7 +294,7 @@ int HugoOperations::pkDeleteRecord(Ndb* pNdb,
   }
   return NDBT_OK;
 }
-
+#if 0
 NdbResultSet*
 HugoOperations::scanReadRecords(Ndb* pNdb, ScanLock lock){
   
@@ -349,6 +352,7 @@ HugoOperations::readTuples(NdbResultSet* rs){
     return NDBT_FAILED;
   return NDBT_OK;
 }
+#endif
 
 int HugoOperations::execute_Commit(Ndb* pNdb,
 				   AbortOption eao){
@@ -368,6 +372,35 @@ int HugoOperations::execute_Commit(Ndb* pNdb,
       return NDBT_FAILED;
     return err.code;
   }
+
+  for(int i = 0; i<m_result_sets.size(); i++){
+    m_executed_result_sets.push_back(m_result_sets[i]);
+
+    int rows = m_result_sets[i].records;
+    NdbResultSet* rs = m_result_sets[i].m_result_set;
+    int res = rs->nextResult();
+    switch(res){
+    case 1:
+      return 626;
+    case -1:
+      const NdbError err = pTrans->getNdbError();
+      ERR(err);
+      return (err.code > 0 ? err.code : NDBT_FAILED);
+    }
+
+    // A row found
+
+    switch(rows){
+    case 0:
+      return 4000;
+    default:
+      m_result_sets[i].records--;
+      break;
+    }
+  }
+
+  m_result_sets.clear();
+  
   return NDBT_OK;
 }
 
@@ -388,6 +421,35 @@ int HugoOperations::execute_NoCommit(Ndb* pNdb, AbortOption eao){
       return NDBT_FAILED;
     return err.code;
   }
+
+  for(int i = 0; i<m_result_sets.size(); i++){
+    m_executed_result_sets.push_back(m_result_sets[i]);
+
+    int rows = m_result_sets[i].records;
+    NdbResultSet* rs = m_result_sets[i].m_result_set;
+    int res = rs->nextResult();
+    switch(res){
+    case 1:
+      return 626;
+    case -1:
+      const NdbError err = pTrans->getNdbError();
+      ERR(err);
+      return (err.code > 0 ? err.code : NDBT_FAILED);
+    }
+
+    // A row found
+
+    switch(rows){
+    case 0:
+      return 4000;
+    default:
+    case 1:
+      break;
+    }
+  }
+
+  m_result_sets.clear();
+
   return NDBT_OK;
 }
 
@@ -703,4 +765,34 @@ HugoOperations::indexUpdateRecord(Ndb*,
     } 
   }
   return NDBT_OK;
+}
+
+int 
+HugoOperations::scanReadRecords(Ndb* pNdb, NdbScanOperation::LockMode lm,
+				int records){
+
+  allocRows(records);
+  NdbScanOperation * pOp = pTrans->getNdbScanOperation(tab.getName());
+  
+  if(!pOp)
+    return -1;
+
+  NdbResultSet * rs = pOp->readTuples(lm, 1, 1);
+  
+  if(!rs){
+    return -1;
+  }
+
+  for(int a = 0; a<tab.getNoOfColumns(); a++){
+    if((rows[0]->attributeStore(a) = 
+	pOp->getValue(tab.getColumn(a)->getName())) == 0) {
+      ERR(pTrans->getNdbError());
+      return NDBT_FAILED;
+    }
+  } 
+
+  RsPair p = {rs, records};
+  m_result_sets.push_back(p);
+  
+  return 0;
 }
