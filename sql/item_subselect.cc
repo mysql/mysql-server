@@ -638,6 +638,8 @@ String *Item_in_subselect::val_str(String *str)
 }
 
 
+/* Rewrite a single-column IN/ALL/ANY subselect. */
+
 Item_subselect::trans_res
 Item_in_subselect::single_value_transformer(JOIN *join,
 					    Comp_creator *func)
@@ -656,12 +658,27 @@ Item_in_subselect::single_value_transformer(JOIN *join,
   if (arena->is_stmt_prepare())
     thd->set_n_backup_item_arena(arena, &backup);
 
+  /*
+    Check that the right part of the subselect contains no more than one
+    column. E.g. in SELECT 1 IN (SELECT * ..) the right part is (SELECT * ...)
+  */
   if (select_lex->item_list.elements > 1)
   {
     my_error(ER_OPERAND_COLUMNS, MYF(0), 1);
     goto err;
   }
 
+  /*
+    If this is an ALL/ANY single-value subselect, try to rewrite it with
+    a MIN/MAX subselect. We can do that if a possible NULL result of the
+    subselect can be ignored.
+    E.g. SELECT * FROM t1 WHERE b > ANY (SELECT a FROM t2) can be rewritten
+    with SELECT * FROM t1 WHERE b > (SELECT MAX(a) FROM t2).
+    We can't check that this optimization is safe if it's not a top-level
+    item of the WHERE clause (e.g. because the WHERE clause can contain IS
+    NULL/IS NOT NULL functions). If so, we rewrite ALL/ANY with NOT EXISTS
+    later in this method.
+  */
   if ((abort_on_null || (upper_not && upper_not->top_level())) &&
       !select_lex->master_unit()->uncacheable && !func->eqne_op())
   {
@@ -764,7 +781,13 @@ Item_in_subselect::single_value_transformer(JOIN *join,
   Item *item;
 
   item= (Item*) select_lex->item_list.head();
-
+  /*
+    Add the left part of a subselect to a WHERE or HAVING clause of
+    the right part, e.g. SELECT 1 IN (SELECT a FROM t1)  =>
+    SELECT Item_in_optimizer(1, SELECT a FROM t1 WHERE a=1)
+    HAVING is used only if the right part contains a SUM function, a GROUP
+    BY or a HAVING clause.
+  */
   if (join->having || select_lex->with_sum_func ||
       select_lex->group_list.elements)
   {
