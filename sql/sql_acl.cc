@@ -1586,7 +1586,7 @@ static bool test_if_create_new_users(THD *thd)
 
 static int replace_user_table(THD *thd, TABLE *table, const LEX_USER &combo,
 			      ulong rights, bool revoke_grant,
-			      bool create_user)
+			      bool can_create_user, bool no_auto_create)
 {
   int error = -1;
   bool old_row_exists=0;
@@ -1640,8 +1640,12 @@ static int replace_user_table(THD *thd, TABLE *table, const LEX_USER &combo,
 
       see also test_if_create_new_users()
     */
-    else if (((thd->variables.sql_mode & MODE_NO_AUTO_CREATE_USER) &&
-              !password_len) || !create_user)
+    else if (!password_len && no_auto_create)
+    {
+      my_error(ER_PASSWORD_NO_MATCH, MYF(0), combo.user.str, combo.host.str);
+      goto end;
+    }
+    else if (!can_create_user)
     {
       my_error(ER_CANT_CREATE_USER_WITH_GRANT, MYF(0),
                thd->user, thd->host_or_ip);
@@ -2724,7 +2728,8 @@ bool mysql_table_grant(THD *thd, TABLE_LIST *table_list,
     /* Create user if needed */
     pthread_mutex_lock(&acl_cache->lock);
     error=replace_user_table(thd, tables[0].table, *Str,
-			     0, revoke_grant, create_new_users);
+			     0, revoke_grant, create_new_users,
+                             thd->variables.sql_mode & MODE_NO_AUTO_CREATE_USER);
     pthread_mutex_unlock(&acl_cache->lock);
     if (error)
     {
@@ -2929,7 +2934,8 @@ bool mysql_procedure_grant(THD *thd, TABLE_LIST *table_list,
     /* Create user if needed */
     pthread_mutex_lock(&acl_cache->lock);
     error=replace_user_table(thd, tables[0].table, *Str,
-			     0, revoke_grant, create_new_users);
+			     0, revoke_grant, create_new_users,
+                             thd->variables.sql_mode & MODE_NO_AUTO_CREATE_USER);
     pthread_mutex_unlock(&acl_cache->lock);
     if (error)
     {
@@ -3053,11 +3059,9 @@ bool mysql_grant(THD *thd, const char *db, List <LEX_USER> &list,
       result= -1;
       continue;
     }
-    if ((replace_user_table(thd,
-			    tables[0].table,
-			    *Str,
-			    (!db ? rights : 0), revoke_grant,
-			    create_new_users)))
+    if (replace_user_table(thd, tables[0].table, *Str,
+                           (!db ? rights : 0), revoke_grant, create_new_users,
+                           thd->variables.sql_mode & MODE_NO_AUTO_CREATE_USER))
       result= -1;
     else if (db)
     {
@@ -4826,13 +4830,11 @@ bool mysql_create_user(THD *thd, List <LEX_USER> &list)
     }
 
     sql_mode= thd->variables.sql_mode;
-    thd->variables.sql_mode&= ~MODE_NO_AUTO_CREATE_USER;
-    if (replace_user_table(thd, tables[0].table, *user_name, 0, 0, 1))
+    if (replace_user_table(thd, tables[0].table, *user_name, 0, 0, 1, 0))
     {
       append_user(&wrong_users, user_name);
       result= TRUE;
     }
-    thd->variables.sql_mode= sql_mode;
   }
 
   VOID(pthread_mutex_unlock(&acl_cache->lock));
@@ -4988,7 +4990,7 @@ bool mysql_revoke_all(THD *thd,  List <LEX_USER> &list)
     }
 
     if (replace_user_table(thd, tables[0].table,
-			   *lex_user, ~0, 1, 0))
+                           *lex_user, ~0, 1, 0, 0))
     {
       result= -1;
       continue;
