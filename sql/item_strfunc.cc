@@ -1868,6 +1868,7 @@ String *Item_func_char::val_str(String *str)
   {
     int32 num=(int32) args[i]->val_int();
     if (!args[i]->null_value)
+    {
 #ifdef USE_MB
       if (use_mb(collation.collation))
       {
@@ -1883,6 +1884,7 @@ b1:        str->append((char)(num>>8));
       }
 #endif
       str->append((char)num);
+    }
   }
   str->set_charset(collation.collation);
   str->realloc(str->length());			// Add end 0 (for Purify)
