@@ -2,13 +2,9 @@
 benchdir_root=		$(prefix)
 testdir =	        $(benchdir_root)/mysql-test/ndb
 
-test_SCRIPTS = 	\
-install_ndbcluster \
-stop_ndbcluster
+test_SCRIPTS = ndbcluster
 
-EXTRA_SCRIPTS = \
-install_ndbcluster.sh \
-stop_ndbcluster.sh
+EXTRA_SCRIPTS = ndbcluster.sh
 
 test_DATA = ndb_config_2_node.ini
 

@@ -1,7 +1,7 @@
 
-ndbtools_PROGRAMS = restore
+ndbtools_PROGRAMS = ndb_restore
 
-restore_SOURCES = main.cpp Restore.cpp
+ndb_restore_SOURCES = main.cpp Restore.cpp
 
 LDADD_LOC = $(top_srcdir)/ndb/src/libndbclient.la
 

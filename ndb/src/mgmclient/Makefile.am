@@ -1,7 +1,7 @@
 
-ndbtools_PROGRAMS = mgmtclient
+ndbtools_PROGRAMS = ndb_mgm
 
-mgmtclient_SOURCES = \
+ndb_mgm_SOURCES = \
 	main.cpp \
 	CommandInterpreter.cpp \
 	CpcClient.cpp
