@@ -4963,15 +4963,16 @@ end_write_group(JOIN *join, JOIN_TAB *join_tab __attribute__((unused)),
 static bool test_if_ref(Item_field *left_item,Item *right_item)
 {
   Field *field=left_item->field;
-  if (!field->table->const_table)		// No need to change const test
+  // No need to change const test. We also have to keep tests on LEFT JOIN
+  if (!field->table->const_table && !field->table->maybe_null)
   {
     Item *ref_item=part_of_refkey(field->table,field);
     if (ref_item && ref_item->eq(right_item))
     {
       if (right_item->type() == Item::FIELD_ITEM)
-	return (field->eq_def(((Item_field *) right_item)->field) &&
-		!field->table->maybe_null);
-      if (right_item->const_item())
+	return (field->eq_def(((Item_field *) right_item)->field));
+      if (right_item->const_item() &&
+	  (right_item->val_int() || !right_item->null_value))
       {
 	// We can remove binary fields and numerical fields except float,
 	// as float comparison isn't 100 % secure
