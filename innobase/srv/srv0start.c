@@ -1512,12 +1512,13 @@ NetWare. */
 	srv_is_being_started = FALSE;
 
 #ifdef UNIV_DEBUG
-        /* Wait a while so that creates threads have time to suspend themselves
-	before we switch sync debugging on; otherwise a thread may execute
-	mutex_enter() before the checks are on, and mutex_exit() after the
-	checks are on. */
+        /* Wait a while so that the created threads have time to suspend
+	themselves before we switch sync debugging on; otherwise a thread may
+	execute mutex_enter() before the checks are on, and mutex_exit() after
+	the checks are on, which will cause an assertion failure in sync
+	debug. */
 
-        os_thread_sleep(2000000);
+        os_thread_sleep(3000000);
 #endif
 	sync_order_checks_on = TRUE;
 
