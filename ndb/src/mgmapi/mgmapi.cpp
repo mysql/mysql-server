@@ -629,7 +629,6 @@ ndb_mgm_get_status(NdbMgmHandle handle)
     malloc(sizeof(ndb_mgm_cluster_state)+
 	   noOfNodes*(sizeof(ndb_mgm_node_state)+sizeof("000.000.000.000#")));
 
-  state->hostname= 0;
   state->no_of_nodes= noOfNodes;
   ndb_mgm_node_state * ptr = &state->node_states[0];
   int nodeId = 0;
