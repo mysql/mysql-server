@@ -3638,7 +3638,7 @@ make_join_readinfo(JOIN *join, uint options)
       table->status=STATUS_NO_RECORD;
       tab->read_first_record= join_read_const;
       tab->read_record.read_record= join_no_more_records;
-      if (table->used_keys.is_set(tab->index) &&
+      if (table->used_keys.is_set(tab->ref.key) &&
           !table->no_keyread)
       {
         table->key_read=1;
@@ -5967,7 +5967,7 @@ join_read_const_table(JOIN_TAB *tab, POSITION *pos)
   }
   else
   {
-    if (!table->key_read && table->used_keys.is_set(tab->index) &&
+    if (!table->key_read && table->used_keys.is_set(tab->ref.key) &&
 	!table->no_keyread)
     {
       table->key_read=1;

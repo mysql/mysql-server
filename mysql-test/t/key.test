@@ -216,3 +216,15 @@ explain select name from t1 where id =2;
 ALTER TABLE t1 DROP PRIMARY KEY, ADD INDEX (id);
 explain select 1 from t1 where id =2;
 drop table t1;
+
+#
+# Test of problem with key read (Bug #3666)
+#
+
+CREATE TABLE t1 (numeropost mediumint(8) unsigned NOT NULL default '0', numreponse int(10) unsigned NOT NULL auto_increment, PRIMARY KEY (numeropost,numreponse), UNIQUE KEY numreponse (numreponse));
+INSERT INTO t1 (numeropost,numreponse) VALUES ('1','1'),('1','2'),('2','3'),('2','4');
+SELECT numeropost FROM t1 WHERE numreponse='1';
+EXPLAIN SELECT numeropost FROM t1 WHERE numreponse='1';
+FLUSH TABLES;
+SELECT numeropost FROM t1 WHERE numreponse='1';
+drop table t1;
