@@ -259,57 +259,66 @@ convert_error_code_to_mysql(
 extern "C" {
 /*****************************************************************
 Prints info of a THD object (== user session thread) to the
-standard output. NOTE that mysql/innobase/trx/trx0trx.c must contain
+standard output. NOTE that /mysql/innobase/trx/trx0trx.c must contain
 the prototype for this function! */
 
 void
 innobase_mysql_print_thd(
 /*=====================*/
-	char* buf,	/* in/out: buffer where to print, must be at least
-			300 bytes */
-        void* input_thd)/* in: pointer to a MySQL THD object */
+	char*   buf,	/* in/out: buffer where to print, must be at least
+			400 bytes */
+        void*   input_thd)/* in: pointer to a MySQL THD object */
 {
-  	THD*  thd;
+  	THD*    thd;
+	char*   old_buf = buf;
 
-  	thd = (THD*) input_thd;
+        thd = (THD*) input_thd;
 
-	/*  We can't use value of sprintf() as this is not portable */
-  	buf+= my_sprintf(buf,
+	/*  We cannot use the return value of normal sprintf() as this is
+	not portable to some old non-Posix Unixes, e.g., some old SCO
+	Unixes */
+
+  	buf += my_sprintf(buf,
 			 (buf, "MySQL thread id %lu, query id %lu",
 			  thd->thread_id, thd->query_id));
-    	if (thd->host)
-	{
-	  *buf++=' ';
-	  buf=strnmov(buf, thd->host, 30);
+    	if (thd->host) {
+	        *buf = ' ';
+		buf++;
+	        buf = strnmov(buf, thd->host, 30);
   	}
 
-  	if (thd->ip)
-	{
-	  *buf++=' ';
-	  buf=strnmov(buf, thd->ip, 20);
+  	if (thd->ip) {
+	        *buf = ' ';
+		buf++;
+	        buf=strnmov(buf, thd->ip, 20);
   	}
 
-  	if (thd->user)
-	{
-	  *buf++=' ';
-	  buf=strnmov(buf, thd->user, 20);
+  	if (thd->user) {
+	        *buf = ' ';
+		buf++;
+	        buf=strnmov(buf, thd->user, 20);
   	}
 
-  	if (thd->proc_info)
-	{
-	  *buf++=' ';
-	  buf=strnmov(buf, thd->proc_info, 50);
+  	if (thd->proc_info) {
+	        *buf = ' ';
+		buf++;
+	        buf=strnmov(buf, thd->proc_info, 50);
   	}
 
-  	if (thd->query)
-	{
-	  *buf++=' ';
-	  buf=strnmov(buf, thd->query, 150);
+  	if (thd->query) {
+	        *buf = '\n';
+		buf++;
+	        buf=strnmov(buf, thd->query, 150);
   	}  
-	buf[0]='\n';
-	buf[1]=0;
 
- 	ut_a(strlen(buf) < 400);
+	buf[0] = '\n';
+	buf[1] = '\0'; /* Note that we must put a null character here to end
+		       the printed string */
+
+	/* We test the printed length did not overrun the buffer length of
+	400 bytes */
+
+ 	ut_a(strlen(old_buf) < 400);
 }
 }
 
@@ -395,6 +404,9 @@ ha_innobase::update_thd(
 	return(0);
 }
 
+#ifdef notdefined
+/* The code here appears for documentational purposes only. Not used
+or tested yet. Will be used in 4.1. */
 /*********************************************************************
 Call this when you have opened a new table handle in HANDLER, before you
 call index_read_idx() etc. Actually, we can let the cursor stay open even
@@ -402,13 +414,14 @@ over a transaction commit! Then you should call this before every operation,
 fecth next etc. This function inits the necessary things even after a
 transaction commit. */
 
-/* TODO: THIS CODE HAS NOT BEEN TESTED!!! */
-
 void
 ha_innobase::init_table_handle_for_HANDLER(void)
 /*============================================*/
 {
         row_prebuilt_t* prebuilt;
+
+	ut_a(0); /* the code has not been used or tested yet; to prevent
+		  inadvertent usage we assert an error here */
 
         /* If current thd does not yet have a trx struct, create one.
         If the current handle does not yet have a prebuilt struct, create
@@ -449,6 +462,7 @@ ha_innobase::init_table_handle_for_HANDLER(void)
 
         prebuilt->read_just_key = FALSE;
 }
+#endif
 
 /*************************************************************************
 Opens an InnoDB database. */
@@ -2500,6 +2514,7 @@ ha_innobase::rnd_pos(
 Stores a reference to the current row to 'ref' field of the handle. Note
 that in the case where we have generated the clustered index for the
 table, the function parameter is illogical: we MUST ASSUME that 'record'
+is the current 'position' of the handle, because if row ref is actually
 the row id internally generated in InnoDB, then 'record' does not contain
 it. We just guess that the row id must be for the record where the handle
 was positioned the last time. */

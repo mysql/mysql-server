@@ -3346,6 +3346,7 @@ set_expr_or_default:
 	expr      { $$=$1; }
 	| DEFAULT { $$=0; }
 	| ON	  { $$=new Item_string("ON",2); }
+	| ALL	  { $$=new Item_string("ALL",3); }
 	;
 
 

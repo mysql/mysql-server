@@ -164,7 +164,8 @@ class ha_innobase: public handler
 	void free_foreign_key_create_info(char* str);	
   	THR_LOCK_DATA **store_lock(THD *thd, THR_LOCK_DATA **to,
 			     		enum thr_lock_type lock_type);
-	void init_table_handle_for_HANDLER(); /* TODO: NOT TESTED!!! */
+	/* void init_table_handle_for_HANDLER(); Not tested or used yet, code
+	included for documentational purposes only */
 	longlong get_auto_increment();
 };
 

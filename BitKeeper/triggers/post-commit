@@ -80,5 +80,5 @@ EOF
  fi
 
 else
- echo "commit failed because '$BK_STATUS', sorry life is hard..." 
+  echo "commit failed because '$BK_STATUS', you may need to re-clone..." 
 fi
