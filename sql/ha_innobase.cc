@@ -1334,6 +1334,8 @@ ha_innobase::write_row(
 	        autoincrement field */
 	        
 	        auto_inc = table->next_number_field->val_int();
+		if (auto_inc == 0)
+		  auto_inc= user_thd->next_insert_id;
 
 		if (auto_inc != 0) {
 			/* This call will calculate the max of the

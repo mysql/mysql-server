@@ -37,7 +37,7 @@
 **   Tõnu Samuel  <tonu@please.do.not.remove.this.spam.ee>
 **/
 
-#define DUMP_VERSION "8.14"
+#define DUMP_VERSION "8.15"
 
 #include <global.h>
 #include <my_sys.h>
@@ -1224,6 +1224,7 @@ static int dump_all_tables_in_db(char *database)
 {
   char *table;
   uint numrows;
+  char table_buff[NAME_LEN+3];
 
   if (init_dumping(database))
     return 1;
@@ -1233,7 +1234,7 @@ static int dump_all_tables_in_db(char *database)
     init_dynamic_string(&query, "LOCK TABLES ", 256, 1024);
     for (numrows=0 ; (table = getTableName(1)) ; numrows++)
     {
-      dynstr_append(&query, table);
+      dynstr_append(&query, quote_name(table,table_buff));
       dynstr_append(&query, " READ /*!32311 LOCAL */,");
     }
     if (numrows && mysql_real_query(sock, query.str, query.length-1))
@@ -1263,6 +1264,7 @@ static int dump_all_tables_in_db(char *database)
 static int dump_selected_tables(char *db, char **table_names, int tables)
 {
   uint numrows;
+  char table_buff[NAME_LEN+3];
 
   if (init_dumping(db))
     return 1;
@@ -1274,7 +1276,7 @@ static int dump_selected_tables(char *db, char **table_names, int tables)
     init_dynamic_string(&query, "LOCK TABLES ", 256, 1024);
     for (i=0 ; i < tables ; i++)
     {
-      dynstr_append(&query, table_names[i]);
+      dynstr_append(&query, quote_name(table_names[i],table_buff));
       dynstr_append(&query, " READ /*!32311 LOCAL */,");
     }
     if (mysql_real_query(sock, query.str, query.length-1))

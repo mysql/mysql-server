@@ -46672,6 +46672,8 @@ not yet 100% confident in this code.
 @appendixsubsec Changes in release 3.23.42
 @itemize @bullet
 @item
+Fixed bug in @code{InnoDB} and @code{AUTO_INCREMENT} columns.
+@item
 Applied large patch for OS/2 from Yuri Dario.
 @item
 Fixed problem with InnoDB when one could get the error @code{Can't
