@@ -1874,6 +1874,22 @@ else
 fi
 AC_SUBST(TERMCAP_LIB)
 
+# for libedit 2.6.7
+case "${host}" in
+  *-*-solaris2*)
+	AC_DEFINE_UNQUOTED(SUNOS, 1, [macro for libedit-2.6.7, current platform is solaris-2])
+	;;
+esac
+
+LIBEDIT_LOBJECTS=""
+AC_CHECK_FUNC(strunvis, ,[LIBEDIT_LOBJECTS="$LIBEDIT_LOBJECTS unvis.o"])
+AC_CHECK_FUNC(strvis,   ,[LIBEDIT_LOBJECTS="$LIBEDIT_LOBJECTS vis.o"])
+AC_CHECK_FUNC(strlcpy,  ,[LIBEDIT_LOBJECTS="$LIBEDIT_LOBJECTS strlcpy.o"])
+AC_CHECK_FUNC(strlcat,  ,[LIBEDIT_LOBJECTS="$LIBEDIT_LOBJECTS strlcat.o"])
+AC_CHECK_FUNC(fgetln,   ,[LIBEDIT_LOBJECTS="$LIBEDIT_LOBJECTS fgetln.o"])
+AC_SUBST(LIBEDIT_LOBJECTS)
+enable_readline="yes"
+
 # End of readline/libedit stuff
 #########################################################################
 
@@ -2341,10 +2357,10 @@ then
     readline_topdir="cmd-line-utils"
     readline_basedir="libedit"
     readline_dir="$readline_topdir/$readline_basedir"
-    readline_link="\$(top_builddir)/cmd-line-utils/libedit/liblibedit.a"
+    readline_link="\$(top_builddir)/cmd-line-utils/libedit/libedit.a"
     readline_h_ln_cmd="\$(LN) -s \$(top_builddir)/cmd-line-utils/libedit/readline readline"
     compile_libedit=yes
-    AC_DEFINE_UNQUOTED(HAVE_HIST_ENTRY)
+    AC_DEFINE_UNQUOTED(HAVE_HIST_ENTRY, 1)
     AC_DEFINE_UNQUOTED(USE_LIBEDIT_INTERFACE, 1)
 elif test "$with_readline" = "yes"
 then
