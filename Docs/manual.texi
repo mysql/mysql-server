@@ -46943,7 +46943,7 @@ Fixed that @code{--skip-show-databases} doesn't reset the @code{--port} option.
 @item
 Small fix in @code{safe_mysqld} for some shells.
 @item
-Fixed that @code{SHOW STATUS} doesn't reset @code{Delayed_insert_threads}.
+Fixed that @code{FLUSH STATUS} doesn't reset @code{Delayed_insert_threads}.
 @item
 Fixed core dump bug when using the @code{BINARY} cast on a @code{NULL} value.
 @item
