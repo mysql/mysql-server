@@ -4871,11 +4871,11 @@ ha_innobase::update_table_comment(
 		dict_print_info_on_foreign_keys(FALSE, file,
 				prebuilt->trx, prebuilt->table);
 		flen = ftell(file);
-		if(length + flen + 3 > 64000) {
+		if (flen < 0) {
+			flen = 0;
+		} else if (length + flen + 3 > 64000) {
 			flen = 64000 - 3 - length;
 		}
-
-		ut_ad(flen > 0);
 
 		/* allocate buffer for the full string, and
 		read the contents of the temporary file */
@@ -4940,11 +4940,11 @@ ha_innobase::get_foreign_key_create_info(void)
 		prebuilt->trx->op_info = (char*)"";
 
 		flen = ftell(file);
-		if(flen > 64000 - 1) {
+		if (flen < 0) {
+			flen = 0;
+		} else if(flen > 64000 - 1) {
 			flen = 64000 - 1;
 		}
-
-		ut_ad(flen >= 0);
 
 		/* allocate buffer for the string, and
 		read the contents of the temporary file */
@@ -5546,11 +5546,11 @@ innodb_show_status(
 	srv_printf_innodb_monitor(srv_monitor_file);
 	flen = ftell(srv_monitor_file);
 	os_file_set_eof(srv_monitor_file);
-	if(flen > 64000 - 1) {
+	if (flen < 0) {
+		flen = 0;
+	} else if (flen > 64000 - 1) {
 		flen = 64000 - 1;
 	}
-
-	ut_ad(flen > 0);
 
 	/* allocate buffer for the string, and
 	read the contents of the temporary file */
