@@ -2593,8 +2593,8 @@ int main(int argc, char **argv)
   {
     char file_path[FN_REFLEN];
     my_path(file_path, argv[0], "");		      /* Find name in path */
-    fn_format(file_path,argv[0],file_path,"",MY_REPLACE_DIR+
-              MY_UNPACK_FILENAME | MY_RESOLVE_SYMLINKS);
+    fn_format(file_path,argv[0],file_path,"",
+	      MY_REPLACE_DIR | MY_UNPACK_FILENAME | MY_RESOLVE_SYMLINKS);
     if (argc == 2)
     {	
       if (!default_service_handling(argv, MYSQL_SERVICENAME, MYSQL_SERVICENAME,

@@ -16,13 +16,12 @@ create table t1 (s text);
 insert into t1 values('Could not break slave'),('Tried hard');
 show slave status;
 Master_Host	Master_User	Master_Port	Connect_retry	Master_Log_File	Read_Master_Log_Pos	Relay_Log_File	Relay_Log_Pos	Relay_Master_Log_File	Slave_IO_Running	Slave_SQL_Running	Replicate_do_db	Replicate_ignore_db	Last_errno	Last_error	Skip_counter	Exec_master_log_pos	Relay_log_space
-127.0.0.1	root	MASTER_PORT	60	master-bin.001	417	slave-relay-bin.001	458	master-bin.001	Yes	Yes			0		0	417	458
+127.0.0.1	root	MASTER_PORT	60	master-bin.001	417	slave-relay-bin.001	458	master-bin.001	Yes	Yes			0		0	417	#
 select * from t1;
 s
 Could not break slave
 Tried hard
 flush logs;
-drop table if exists t2;
 create table t2(m int not null auto_increment primary key);
 insert into t2 values (34),(67),(123);
 flush logs;
@@ -48,7 +47,7 @@ master-bin.003
 insert into t2 values (65);
 show slave status;
 Master_Host	Master_User	Master_Port	Connect_retry	Master_Log_File	Read_Master_Log_Pos	Relay_Log_File	Relay_Log_Pos	Relay_Master_Log_File	Slave_IO_Running	Slave_SQL_Running	Replicate_do_db	Replicate_ignore_db	Last_errno	Last_error	Skip_counter	Exec_master_log_pos	Relay_log_space
-127.0.0.1	root	MASTER_PORT	60	master-bin.003	290	slave-relay-bin.001	1073	master-bin.003	Yes	Yes			0		0	290	1073
+127.0.0.1	root	MASTER_PORT	60	master-bin.003	290	slave-relay-bin.001	1073	master-bin.003	Yes	Yes			0		0	290	#
 select * from t2;
 m
 34
@@ -58,8 +57,10 @@ m
 1234
 create temporary table temp_table (a char(80) not null);
 insert into temp_table values ("testing temporary tables part 2");
-drop table if exists t3;
 create table t3 (n int);
+select count(*) from t3 where n >= 4;
+count(*)
+100
 create table t4 select * from temp_table;
 show master logs;
 Log_name
@@ -73,7 +74,7 @@ a
 testing temporary tables part 2
 show slave status;
 Master_Host	Master_User	Master_Port	Connect_retry	Master_Log_File	Read_Master_Log_Pos	Relay_Log_File	Relay_Log_Pos	Relay_Master_Log_File	Slave_IO_Running	Slave_SQL_Running	Replicate_do_db	Replicate_ignore_db	Last_errno	Last_error	Skip_counter	Exec_master_log_pos	Relay_log_space
-127.0.0.1	root	MASTER_PORT	60	master-bin.004	2886	slave-relay-bin.001	7870	master-bin.004	Yes	Yes			0		0	2886	7870
+127.0.0.1	root	MASTER_PORT	60	master-bin.004	2886	slave-relay-bin.001	7870	master-bin.004	Yes	Yes			0		0	2886	#
 lock tables t3 read;
 select count(*) from t3 where n >= 4;
 count(*)
