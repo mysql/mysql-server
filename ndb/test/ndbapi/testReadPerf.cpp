@@ -119,7 +119,13 @@ main(int argc, const char** argv){
   myRandom48Init(NdbTick_CurrentMillisecond());
   memset(g_times, 0, sizeof(g_times));
 
-  g_ndb = new Ndb("TEST_DB");
+  Ndb_cluster_connection con;
+  if(con.connect(12, 5, 1))
+  {
+    return NDBT_ProgramExit(NDBT_FAILED);
+  }
+
+  g_ndb = new Ndb(&con, "TEST_DB");
   if(g_ndb->init() != 0){
     g_err << "init() failed" << endl;
     goto error;
