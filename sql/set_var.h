@@ -429,10 +429,10 @@ public:
   byte *value_ptr(THD *thd, enum_var_type type);
 };
 
-class sys_var_literal_collation :public sys_var_collation
+class sys_var_connection_collation :public sys_var_collation
 {
 public:
-  sys_var_literal_collation(const char *name_arg) :sys_var_collation(name_arg) {}
+  sys_var_connection_collation(const char *name_arg) :sys_var_collation(name_arg) {}
   bool update(THD *thd, set_var *var);
   void set_default(THD *thd, enum_var_type type);
   byte *value_ptr(THD *thd, enum_var_type type);
@@ -556,14 +556,14 @@ public:
 class set_var_client_collation: public set_var_base
 {
   CHARSET_INFO *client_collation;
-  CHARSET_INFO *literal_collation;
+  CHARSET_INFO *connection_collation;
   CHARSET_INFO *result_collation;
 public:
   set_var_client_collation(CHARSET_INFO *client_coll_arg,
-  			   CHARSET_INFO *literal_coll_arg,
+  			   CHARSET_INFO *connection_coll_arg,
   			   CHARSET_INFO *result_coll_arg)
     :client_collation(client_coll_arg),
-     literal_collation(literal_coll_arg),
+     connection_collation(connection_coll_arg),
      result_collation(result_coll_arg)
   {}
   int check(THD *thd);

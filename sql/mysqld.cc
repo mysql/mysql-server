@@ -2094,7 +2094,7 @@ static int init_common_variables(const char *conf_file_name, int argc,
     return 1;
   global_system_variables.result_collation= default_charset_info;
   global_system_variables.client_collation= default_charset_info;
-  global_system_variables.literal_collation= default_charset_info;
+  global_system_variables.connection_collation= default_charset_info;
 
   charsets_list= list_charsets(MYF(MY_CS_COMPILED | MY_CS_CONFIG));
 
@@ -4577,7 +4577,7 @@ static void set_options(void)
   /* Set default values for some variables */
   global_system_variables.result_collation= default_charset_info;
   global_system_variables.client_collation= default_charset_info;
-  global_system_variables.literal_collation= default_charset_info;
+  global_system_variables.connection_collation= default_charset_info;
   global_system_variables.table_type=   DB_TYPE_MYISAM;
   global_system_variables.tx_isolation= ISO_REPEATABLE_READ;
   global_system_variables.select_limit= (ulonglong) HA_POS_ERROR;

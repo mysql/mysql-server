@@ -3924,7 +3924,7 @@ text_literal:
 	TEXT_STRING_literal
 	{
 	  THD *thd= YYTHD;
-	  $$ = new Item_string($1.str,$1.length,thd->variables.literal_collation);
+	  $$ = new Item_string($1.str,$1.length,thd->variables.connection_collation);
 	}
 	| NCHAR_STRING
 	{ $$=  new Item_string($1.str,$1.length,national_charset_info); }
@@ -3936,7 +3936,7 @@ text_literal:
 
 text_string:
 	TEXT_STRING_literal
-	{ $$=  new String($1.str,$1.length,YYTHD->variables.literal_collation); }
+	{ $$=  new String($1.str,$1.length,YYTHD->variables.connection_collation); }
 	| HEX_NUM
 	  {
 	    Item *tmp = new Item_varbinary($1.str,$1.length);
@@ -4106,14 +4106,14 @@ TEXT_STRING_literal:
 	TEXT_STRING
 	{
 	  THD *thd= YYTHD;
-	  if (my_charset_same(thd->charset(),thd->variables.literal_collation))
+	  if (my_charset_same(thd->charset(),thd->variables.connection_collation))
 	  {
 	    $$=$1;
 	  }
 	  else
 	  {
 	    String ident;
-	    ident.copy($1.str,$1.length,thd->charset(),thd->variables.literal_collation);
+	    ident.copy($1.str,$1.length,thd->charset(),thd->variables.connection_collation);
 	    $$.str= thd->strmake(ident.ptr(),ident.length());
 	    $$.length= ident.length();
 	  }
