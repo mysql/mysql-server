@@ -1182,6 +1182,7 @@ bool MYSQL_LOG::write(Log_event* event_info)
 	p= strmov(strmov(buf, "SET CHARACTER SET "),
 		  thd->variables.convert_set->name);
 	Query_log_event e(thd, buf, (ulong) (p - buf), 0);
+	e.error_code = 0;	// This statement cannot fail (see [1]).
 	e.set_log_pos(this);
 	if (e.write(file))
 	  goto err;
@@ -1199,12 +1200,22 @@ bool MYSQL_LOG::write(Log_event* event_info)
       {
 	Query_log_event e(thd, "SET FOREIGN_KEY_CHECKS=0", 24, 0);
 	e.set_log_pos(this);
+	e.error_code = 0;	// This statement cannot fail (see [1]).
 	if (e.write(file))
 	  goto err;
       }
     }
 
-    /* Write the SQL command */
+    /* 
+       Write the SQL command 
+       
+       [1] If this statement has an error code, the slave is required to fail
+           with the same error code or stop. The preamble and epilogue should
+           *not* have this error code since the execution of those is
+           guaranteed *not* to produce any error code. This would therefore
+           stop the slave even if the execution of the real statement can be
+           handled gracefully by the slave.
+     */
 
     event_info->set_log_pos(this);
     if (event_info->write(file))
@@ -1218,6 +1229,7 @@ bool MYSQL_LOG::write(Log_event* event_info)
       {
         Query_log_event e(thd, "SET FOREIGN_KEY_CHECKS=1", 24, 0);
         e.set_log_pos(this);
+	e.error_code = 0;	// This statement cannot fail (see [1]).
         if (e.write(file))
           goto err;
       }
@@ -1226,6 +1238,7 @@ bool MYSQL_LOG::write(Log_event* event_info)
       {
 	Query_log_event e(thd, "SET CHARACTER SET DEFAULT", 25, 0);
 	e.set_log_pos(this);
+	e.error_code = 0;	// This statement cannot fail (see [1]).
 	if (e.write(file))
 	  goto err;
       }
