@@ -1036,3 +1036,17 @@ void my_fill_8bit(CHARSET_INFO *cs __attribute__((unused)),
 {
   bfill(s,l,fill);
 }
+
+uint my_numchars_8bit(CHARSET_INFO *cs __attribute__((unused)),
+		      const char *b, const char *e)
+{
+  return e-b;
+}
+
+uint my_charpos_8bit(CHARSET_INFO *cs __attribute__((unused)),
+		     const char *b  __attribute__((unused)),
+		     const char *e  __attribute__((unused)),
+		     uint pos)
+{
+  return pos;
+}

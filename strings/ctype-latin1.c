@@ -198,6 +198,8 @@ CHARSET_INFO my_charset_latin1 =
     NULL,		/* ismbchar  */
     NULL,		/* ismbhead  */
     NULL,		/* mbcharlen */
+    my_numchars_8bit,
+    my_charpos_8bit,
     my_mb_wc_latin1,	/* mb_wc     */
     my_wc_mb_latin1,	/* wc_mb     */
     my_caseup_str_8bit,

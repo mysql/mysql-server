@@ -292,6 +292,8 @@ CHARSET_INFO my_charset_bin =
     NULL,			/* ismbchar      */
     NULL,			/* ismbhead      */
     NULL,			/* mbcharlen     */
+    my_numchars_8bit,
+    my_charpos_8bit,
     my_mb_wc_bin,		/* mb_wc         */
     my_wc_mb_bin,		/* wc_mb         */
     my_caseup_str_bin,		/* caseup_str    */

@@ -8453,6 +8453,8 @@ CHARSET_INFO my_charset_ujis =
     ismbchar_ujis,
     ismbhead_ujis,
     mbcharlen_ujis,
+    my_numchars_mb,
+    my_charpos_mb,
     my_mb_wc_euc_jp,	 /* mb_wc       */
     my_wc_mb_euc_jp,	 /* wc_mb       */
     my_caseup_str_mb,

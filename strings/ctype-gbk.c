@@ -9909,6 +9909,8 @@ CHARSET_INFO my_charset_gbk =
     ismbchar_gbk,
     ismbhead_gbk,
     mbcharlen_gbk,
+    my_numchars_mb,
+    my_charpos_mb,
     my_mb_wc_gbk,	/* mb_wc      */
     my_wc_mb_gbk,	/* wc_mb      */
     my_caseup_str_mb,
