@@ -882,11 +882,11 @@ NdbScanOperation::takeOverScanOp(OperationType opType, NdbConnection* pTrans){
     
     const Uint32 * src = (Uint32*)tRecAttr->aRef();
     const Uint32 tScanInfo = src[len] & 0x3FFFF;
-    const Uint32 tTakeOverNode = src[len] >> 20;
+    const Uint32 tTakeOverFragment = src[len] >> 20;
     {
       UintR scanInfo = 0;
       TcKeyReq::setTakeOverScanFlag(scanInfo, 1);
-      TcKeyReq::setTakeOverScanNode(scanInfo, tTakeOverNode);
+      TcKeyReq::setTakeOverScanFragment(scanInfo, tTakeOverFragment);
       TcKeyReq::setTakeOverScanInfo(scanInfo, tScanInfo);
       newOp->theScanInfo = scanInfo;
     }
