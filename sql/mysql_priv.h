@@ -723,6 +723,9 @@ int lock_and_wait_for_table_name(THD *thd, TABLE_LIST *table_list);
 int lock_table_name(THD *thd, TABLE_LIST *table_list);
 void unlock_table_name(THD *thd, TABLE_LIST *table_list);
 bool wait_for_locked_table_names(THD *thd, TABLE_LIST *table_list);
+bool lock_table_names(THD *thd, TABLE_LIST *table_list);
+void unlock_table_names(THD *thd, TABLE_LIST *table_list,
+			TABLE_LIST *last_table= 0);
 
 
 /* old unireg functions */
