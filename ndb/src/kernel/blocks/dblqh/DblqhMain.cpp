@@ -7692,7 +7692,6 @@ void Dblqh::accScanConfScanLab(Signal* signal)
   Uint32 boundAiLength = tcConnectptr.p->primKeyLen - 4;
   if (scanptr.p->rangeScan) {
     jam();
-    // bound info length is in first of the 5 header words
     TuxBoundInfo* const req = (TuxBoundInfo*)signal->getDataPtrSend();
     req->errorCode = RNIL;
     req->tuxScanPtrI = scanptr.p->scanAccPtr;
