@@ -234,14 +234,6 @@ typedef struct st_ha_check_opt
 } HA_CHECK_OPT;
 
 
-typedef struct st_key_range
-{
-  const byte *key;
-  uint length;
-  enum ha_rkey_function flag;
-} key_range;
-
-
 class handler :public Sql_alloc
 {
  protected:
@@ -268,6 +260,7 @@ public:
   key_range save_end_range, *end_range;
   KEY_PART_INFO *range_key_part;
   int key_compare_result_on_equal;
+  bool eq_range;
 
   uint errkey;				/* Last dup key */
   uint sortkey, key_used_on_scan;
@@ -331,13 +324,14 @@ public:
     return (my_errno=HA_ERR_WRONG_COMMAND);
   }
   virtual int read_range_first(const key_range *start_key,
-					const key_range *end_key,
-					bool sorted);
-  virtual int read_range_next(bool eq_range);
+                               const key_range *end_key,
+                               bool eq_range, bool sorted);
+  virtual int read_range_next();
   int compare_key(key_range *range);
   virtual int ft_init()
     { return -1; }
-  virtual FT_INFO *ft_init_ext(uint flags,uint inx,const byte *key, uint keylen)
+  virtual FT_INFO *ft_init_ext(uint flags,uint inx,const byte *key,
+                               uint keylen)
     { return NULL; }
   virtual int ft_read(byte *buf) { return -1; }
   virtual int rnd_init(bool scan=1)=0;
@@ -346,11 +340,8 @@ public:
   virtual int rnd_pos(byte * buf, byte *pos)=0;
   virtual int read_first_row(byte *buf, uint primary_key);
   virtual int restart_rnd_next(byte *buf, byte *pos);
-  virtual ha_rows records_in_range(int inx,
-			           const byte *start_key,uint start_key_len,
-			           enum ha_rkey_function start_search_flag,
-			           const byte *end_key,uint end_key_len,
-			           enum ha_rkey_function end_search_flag)
+  virtual ha_rows records_in_range(uint inx, key_range *min_key,
+                                   key_range *max_key)
     { return (ha_rows) 10; }
   virtual void position(const byte *record)=0;
   virtual my_off_t row_position() { return HA_OFFSET_ERROR; }

@@ -126,12 +126,7 @@ class ha_ndbcluster: public handler
   }
 
   double scan_time();
-  ha_rows records_in_range(int inx,
-			   const byte *start_key,uint start_key_len,
-			   enum ha_rkey_function start_search_flag,
-			   const byte *end_key,uint end_key_len,
-			   enum ha_rkey_function end_search_flag);
-
+  ha_rows records_in_range(uint inx, key_range *min_key, key_range *max_key);
   void start_bulk_insert(ha_rows rows);
   int end_bulk_insert();
 

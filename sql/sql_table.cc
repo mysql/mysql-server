@@ -683,9 +683,16 @@ int mysql_prepare_table(THD *thd, HA_CREATE_INFO *create_info,
     {
       while ((key2 = key_iterator2++) != key)
       {
-        if ((key2->type != Key::FOREIGN_KEY && !foreign_key_prefix(key, key2)))
+	/*
+          foreign_key_prefix(key, key2) returns 0 if key or key2, or both, is
+          'generated', and a generated key is a prefix of the other key.
+          Then we do not need the generated shorter key.
+        */
+        if ((key2->type != Key::FOREIGN_KEY &&
+             key2->name != ignore_key &&
+             !foreign_key_prefix(key, key2)))
         {
-          /* TO DO: issue warning message */
+          /* TODO: issue warning message */
           /* mark that the generated key should be ignored */
           if (!key2->generated ||
               (key->generated && key->columns.elements <
@@ -693,7 +700,6 @@ int mysql_prepare_table(THD *thd, HA_CREATE_INFO *create_info,
             key->name= ignore_key;
           else
           {
-            /* Remove the previous, generated key */
             key2->name= ignore_key;
             key_parts-= key2->columns.elements;
             (*key_count)--;
