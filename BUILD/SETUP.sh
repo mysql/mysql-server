@@ -71,4 +71,6 @@ else
   make=make
 fi
 
-CXX=gcc
+if test -z $CXX ; then
+  CXX=gcc
+fi
