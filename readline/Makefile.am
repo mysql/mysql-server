@@ -2,7 +2,7 @@
 # Makefile for the GNU readline library.
 # Copyright (C) 1994,1996,1997 Free Software Foundation, Inc.
 
-INCLUDES =		-I$(srcdir)/../include -I$(srcdir)/.. -I..
+INCLUDES =		-I$(top_srcdir)/include
 
 noinst_LIBRARIES =	libreadline.a
 
