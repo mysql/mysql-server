@@ -533,7 +533,6 @@ check_connections(THD *thd)
     thd->ip= 0;
     bzero((char*) &thd->remote,sizeof(struct sockaddr));
   }
-  /* Ensure that wrong hostnames doesn't cause buffer overflows */
   vio_keepalive(net->vio, TRUE);
 
   ulong pkt_len=0;
