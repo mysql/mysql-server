@@ -476,3 +476,9 @@ EXPLAIN
   WHERE a = CONV('e251273eb74a8ee3', 16, 10);
 
 DROP TABLE t1;
+
+#
+# Bug #6317: string function CHAR, parameter is NULL, wrong result
+#
+SELECT CHAR(NULL,121,83,81,'76') as my_column;
+SELECT CHAR_LENGTH(CHAR(NULL,121,83,81,'76')) as my_column;
