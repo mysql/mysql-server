@@ -27,9 +27,9 @@ class Item_sum :public Item_result_field
 {
 public:
   enum Sumfunctype
-  { COUNT_FUNC,COUNT_DISTINCT_FUNC,SUM_FUNC,AVG_FUNC,MIN_FUNC,
-    MAX_FUNC, UNIQUE_USERS_FUNC,STD_FUNC,VARIANCE_FUNC,SUM_BIT_FUNC,
-    UDF_SUM_FUNC, GROUP_CONCAT_FUNC
+  { COUNT_FUNC, COUNT_DISTINCT_FUNC, SUM_FUNC, SUM_DISTINCT_FUNC, AVG_FUNC,
+    MIN_FUNC, MAX_FUNC, UNIQUE_USERS_FUNC, STD_FUNC, VARIANCE_FUNC,
+    SUM_BIT_FUNC, UDF_SUM_FUNC, GROUP_CONCAT_FUNC
   };
 
   Item **args,*tmp_args[2];
@@ -65,7 +65,18 @@ public:
   inline bool reset() { clear(); return add(); };
   virtual void clear()= 0;
   virtual bool add()=0;
+  /*
+    Called when new group is started and results are being saved in
+    a temporary table. Similar to reset(), but must also store value in
+    result_field. Like reset() it is supposed to reset start value to
+    default.
+  */
   virtual void reset_field()=0;
+  /*
+    Called for each new value in the group, when temporary table is in use.
+    Similar to add(), but uses temporary table field to obtain current value,
+    Updated value is then saved in the field.
+  */
   virtual void update_field()=0;
   virtual bool keep_field_type(void) const { return 0; }
   virtual void fix_length_and_dec() { maybe_null=1; null_value=1; }
@@ -135,6 +146,39 @@ class Item_sum_sum :public Item_sum_num
   void no_rows_in_result() {}
   const char *func_name() const { return "sum"; }
   Item *copy_or_same(THD* thd);
+};
+
+
+/*
+  Item_sum_sum_distinct - SELECT SUM(DISTINCT expr) FROM ... 
+  support. See also: MySQL manual, chapter 'Adding New Functions To MySQL'
+  and comments in item_sum.cc.
+*/
+
+class Unique;
+
+class Item_sum_sum_distinct :public Item_sum_num
+{
+  double sum;
+  Unique *tree;
+private:
+  Item_sum_sum_distinct(THD *thd, Item_sum_sum_distinct &item);
+public:
+  Item_sum_sum_distinct(Item *item_par);
+  ~Item_sum_sum_distinct();
+
+  bool setup(THD *thd);
+  void clear();
+  bool add();
+  double val();
+
+  inline void add(double val) { sum+= val; }
+  enum Sumfunctype sum_func () const { return SUM_DISTINCT_FUNC; }
+  void reset_field() {} // not used
+  void update_field() {} // not used
+  const char *func_name() const { return "sum_distinct"; }
+  Item *copy_or_same(THD* thd);
+  virtual void no_rows_in_result() {}
 };
 
 
@@ -445,10 +489,10 @@ public:
 
 class Item_sum_bit :public Item_sum_int
 {
- protected:
+protected:
   ulonglong reset_bits,bits;
 
-  public:
+public:
   Item_sum_bit(Item *item_par,ulonglong reset_arg)
     :Item_sum_int(item_par),reset_bits(reset_arg),bits(reset_arg) {}
   Item_sum_bit(THD *thd, Item_sum_bit &item):
@@ -457,6 +501,7 @@ class Item_sum_bit :public Item_sum_int
   void clear();
   longlong val_int();
   void reset_field();
+  void update_field();
   void fix_length_and_dec()
   { decimals=0; max_length=21; unsigned_flag=1; maybe_null=null_value=0; }
 };
@@ -464,11 +509,10 @@ class Item_sum_bit :public Item_sum_int
 
 class Item_sum_or :public Item_sum_bit
 {
-  public:
+public:
   Item_sum_or(Item *item_par) :Item_sum_bit(item_par,LL(0)) {}
   Item_sum_or(THD *thd, Item_sum_or &item) :Item_sum_bit(thd, item) {}
   bool add();
-  void update_field();
   const char *func_name() const { return "bit_or"; }
   Item *copy_or_same(THD* thd);
 };
@@ -477,10 +521,9 @@ class Item_sum_or :public Item_sum_bit
 class Item_sum_and :public Item_sum_bit
 {
   public:
-  Item_sum_and(Item *item_par) :Item_sum_bit(item_par, ~(ulonglong) LL(0)) {}
+  Item_sum_and(Item *item_par) :Item_sum_bit(item_par, ULONGLONG_MAX) {}
   Item_sum_and(THD *thd, Item_sum_and &item) :Item_sum_bit(thd, item) {}
   bool add();
-  void update_field();
   const char *func_name() const { return "bit_and"; }
   Item *copy_or_same(THD* thd);
 };
@@ -491,7 +534,6 @@ class Item_sum_xor :public Item_sum_bit
   Item_sum_xor(Item *item_par) :Item_sum_bit(item_par,LL(0)) {}
   Item_sum_xor(THD *thd, Item_sum_xor &item) :Item_sum_bit(thd, item) {}
   bool add();
-  void update_field();
   const char *func_name() const { return "bit_xor"; }
   Item *copy_or_same(THD* thd);
 };

@@ -117,6 +117,7 @@ void pthread_exit(void *a);	 /* was #define pthread_exit(A) ExitThread(A)*/
 #undef SAFE_MUTEX				/* This will cause conflicts */
 #define pthread_key(T,V)  DWORD V
 #define pthread_key_create(A,B) ((*A=TlsAlloc())==0xFFFFFFFF)
+#define pthread_key_delete(A) TlsFree(A)
 #define pthread_getspecific(A) (TlsGetValue(A))
 #define my_pthread_getspecific(T,A) ((T) TlsGetValue(A))
 #define my_pthread_getspecific_ptr(T,V) ((T) TlsGetValue(V))
@@ -125,6 +126,7 @@ void pthread_exit(void *a);	 /* was #define pthread_exit(A) ExitThread(A)*/
 #else
 #define pthread_key(T,V) __declspec(thread) T V
 #define pthread_key_create(A,B) pthread_dummy(0)
+#define pthread_key_delete(A) pthread_dummy(0)
 #define pthread_getspecific(A) (&(A))
 #define my_pthread_getspecific(T,A) (&(A))
 #define my_pthread_getspecific_ptr(T,V) (V)
@@ -180,6 +182,7 @@ extern int pthread_mutex_destroy (pthread_mutex_t *);
 typedef int pthread_attr_t;			/* Needed by Unixware 7.0.0 */
 
 #define pthread_key_create(A,B) thr_keycreate((A),(B))
+#define pthread_key_delete(A) thr_keydelete(A)
 
 #define pthread_handler_decl(A,B) void *A(void *B)
 #define pthread_key(T,V) pthread_key_t V

@@ -104,7 +104,7 @@ enum db_type ha_resolve_by_name(const char *name, uint namelen)
   return DB_TYPE_UNKNOWN;
 }
 
-const char *ha_get_table_type(enum db_type db_type)
+const char *ha_get_storage_engine(enum db_type db_type)
 {
   show_table_type_st *types;
   for (types= sys_table_types; types->type; types++)

@@ -94,13 +94,34 @@ my_bool stmt_close(MYSQL_STMT *stmt, my_bool skip_list);
 static my_bool mysql_client_init= 0;
 static my_bool org_my_init_done= 0;
 
-void mysql_once_init(void)
+
+/*
+  Initialize the MySQL client library
+
+  SYNOPSIS
+    mysql_server_init()
+
+  NOTES
+    Should be called before doing any other calls to the MySQL
+    client library to initialize thread specific variables etc.
+    It's called by mysql_init() to ensure that things will work for
+    old not threaded applications that doesn't call mysql_server_init()
+    directly.
+
+  RETURN
+    0  ok
+    1  could not initialize environment (out of memory or thread keys)
+*/
+
+int STDCALL mysql_server_init(int argc, char **argv, char **groups)
 {
+  int result= 0;
   if (!mysql_client_init)
   {
     mysql_client_init=1;
     org_my_init_done=my_init_done;
-    my_init();					/* Will init threads */
+    if (my_init())				/* Will init threads */
+      return 1;
     init_client_errs();
     if (!mysql_port)
     {
@@ -131,24 +152,19 @@ void mysql_once_init(void)
 #if defined(SIGPIPE) && !defined(__WIN__)
     (void) signal(SIGPIPE, SIG_IGN);
 #endif
+    result= init_embedded_server(argc, argv, groups);
   }
 #ifdef THREAD
   else
-    my_thread_init();         /* Init if new thread */
+    result= (int)my_thread_init();         /* Init if new thread */
 #endif
+  return result;
 }
 
-#ifndef EMBEDDED_LIBRARY
-int STDCALL mysql_server_init(int argc __attribute__((unused)),
-			      char **argv __attribute__((unused)),
-			      char **groups __attribute__((unused)))
-{
-  mysql_once_init();
-  return 0;
-}
 
 void STDCALL mysql_server_end()
 {
+  end_embedded_server();
   /* If library called my_init(), free memory allocated by it */
   if (!org_my_init_done)
   {
@@ -162,8 +178,6 @@ void STDCALL mysql_server_end()
     mysql_thread_end();
   mysql_client_init= org_my_init_done= 0;
 }
-
-#endif /*EMBEDDED_LIBRARY*/
 
 my_bool STDCALL mysql_thread_init()
 {
