@@ -55,7 +55,7 @@ public:
      decimals=dec; max_length=float_length(dec);
   }
   enum Item_result result_type () const { return REAL_RESULT; }
-  enum_field_types field_type() const { return FIELD_TYPE_DOUBLE; }
+  enum_field_types field_type() const { return MYSQL_TYPE_DOUBLE; }
   void set(double nr) { value=nr; }
   void set(longlong nr) { value=(double) nr; }
   void set(const char *str,uint length,CHARSET_INFO *cs)
@@ -73,7 +73,7 @@ public:
   Item_proc_int(const char *name_par) :Item_proc(name_par)
   { max_length=11; }
   enum Item_result result_type () const { return INT_RESULT; }
-  enum_field_types field_type() const { return FIELD_TYPE_LONG; }
+  enum_field_types field_type() const { return MYSQL_TYPE_LONGLONG; }
   void set(double nr) { value=(longlong) nr; }
   void set(longlong nr) { value=nr; }
   void set(const char *str,uint length, CHARSET_INFO *cs)
@@ -91,7 +91,7 @@ public:
   Item_proc_string(const char *name_par,uint length) :Item_proc(name_par)
     { this->max_length=length; }
   enum Item_result result_type () const { return STRING_RESULT; }
-  enum_field_types field_type() const { return FIELD_TYPE_STRING; }
+  enum_field_types field_type() const { return MYSQL_TYPE_STRING; }
   void set(double nr) { str_value.set(nr, 2, thd_charset()); }
   void set(longlong nr) { str_value.set(nr, thd_charset()); }
   void set(const char *str, uint length, CHARSET_INFO *cs)

@@ -74,7 +74,6 @@ public:
   void assigned(bool a) { value_assigned= a; }
   enum Type type() const;
   bool is_null() { return null_value; }
-  void make_field (Send_field *);
   bool fix_fields(THD *thd, TABLE_LIST *tables, Item **ref);
   virtual void fix_length_and_dec();
   table_map used_tables() const;

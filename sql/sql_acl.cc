@@ -2776,6 +2776,7 @@ int mysql_show_grants(THD *thd,LEX_USER *lex_user)
   int  error = 0;
   ACL_USER *acl_user; ACL_DB *acl_db;
   char buff[1024];
+  Protocol *protocol= thd->protocol;
   DBUG_ENTER("mysql_show_grants");
 
   LINT_INIT(acl_user);
@@ -2822,7 +2823,7 @@ int mysql_show_grants(THD *thd,LEX_USER *lex_user)
   strxmov(buff,"Grants for ",lex_user->user.str,"@",
 	  lex_user->host.str,NullS);
   field_list.push_back(field);
-  if (send_fields(thd,field_list,1))
+  if (protocol->send_fields(&field_list,1))
     DBUG_RETURN(-1);
 
   rw_wrlock(&LOCK_grant);
@@ -2931,12 +2932,12 @@ int mysql_show_grants(THD *thd,LEX_USER *lex_user)
 	global.append(buff,p-buff);
       }
     }
-    thd->packet.length(0);
-    net_store_data(&thd->packet,global.ptr(),global.length());
-    if (my_net_write(&thd->net,(char*) thd->packet.ptr(),
-		     thd->packet.length()))
+    protocol->prepare_for_resend();
+    protocol->store(global.ptr(),global.length());
+    if (protocol->write())
     {
-      error=-1; goto end;
+      error=-1;
+      goto end;
     }
   }
 
@@ -2987,10 +2988,9 @@ int mysql_show_grants(THD *thd,LEX_USER *lex_user)
 	db.append ('\'');
 	if (want_access & GRANT_ACL)
 	  db.append(" WITH GRANT OPTION",18);
-	thd->packet.length(0);
-	net_store_data(&thd->packet,db.ptr(),db.length());
-	if (my_net_write(&thd->net,(char*) thd->packet.ptr(),
-			 thd->packet.length()))
+	protocol->prepare_for_resend();
+	protocol->store(db.ptr(),db.length());
+	if (protocol->write())
 	{
 	  error=-1;
 	  goto end;
@@ -3075,10 +3075,9 @@ int mysql_show_grants(THD *thd,LEX_USER *lex_user)
 	global.append('\'');
 	if (want_access & GRANT_ACL)
 	  global.append(" WITH GRANT OPTION",18);
-	thd->packet.length(0);
-	net_store_data(&thd->packet,global.ptr(),global.length());
-	if (my_net_write(&thd->net,(char*) thd->packet.ptr(),
-			 thd->packet.length()))
+	protocol->prepare_for_resend();
+	protocol->store(global.ptr(),global.length());
+	if (protocol->write())
 	{
 	  error= -1;
 	  break;

@@ -1017,20 +1017,18 @@ bool close_cached_table(THD *thd,TABLE *table)
   DBUG_RETURN(result);
 }
 
-static int send_check_errmsg(THD* thd, TABLE_LIST* table,
+static int send_check_errmsg(THD *thd, TABLE_LIST* table,
 			     const char* operator_name, const char* errmsg)
 
 {
-
-  String* packet = &thd->packet;
-  packet->length(0);
-  net_store_data(packet, table->alias);
-  net_store_data(packet, (char*)operator_name);
-  net_store_data(packet, "error");
-  net_store_data(packet, errmsg);
+  Protocol *protocol= thd->protocol;
+  protocol->prepare_for_resend();
+  protocol->store(table->alias);
+  protocol->store((char*) operator_name);
+  protocol->store("error", 5);
+  protocol->store(errmsg);
   thd->net.last_error[0]=0;
-  if (my_net_write(&thd->net, (char*) thd->packet.ptr(),
-		   packet->length()))
+  if (protocol->write())
     return -1;
   return 1;
 }
@@ -1176,8 +1174,8 @@ static int mysql_admin_table(THD* thd, TABLE_LIST* tables,
 {
   TABLE_LIST *table;
   List<Item> field_list;
-  Item* item;
-  String* packet = &thd->packet;
+  Item *item;
+  Protocol *protocol= thd->protocol;
   DBUG_ENTER("mysql_admin_table");
 
   field_list.push_back(item = new Item_empty_string("Table", NAME_LEN*2));
@@ -1188,7 +1186,7 @@ static int mysql_admin_table(THD* thd, TABLE_LIST* tables,
   item->maybe_null = 1;
   field_list.push_back(item = new Item_empty_string("Msg_text", 255));
   item->maybe_null = 1;
-  if (send_fields(thd, field_list, 1))
+  if (protocol->send_fields(&field_list, 1))
     DBUG_RETURN(-1);
 
   for (table = tables; table; table = table->next)
@@ -1201,7 +1199,8 @@ static int mysql_admin_table(THD* thd, TABLE_LIST* tables,
     thd->open_options|= extra_open_options;
     table->table = open_ltable(thd, table, lock_type);
     thd->open_options&= ~extra_open_options;
-    packet->length(0);
+    protocol->prepare_for_resend();
+
     if (prepare_func)
     {
       switch ((*prepare_func)(thd, table, check_opt)) {
@@ -1214,30 +1213,30 @@ static int mysql_admin_table(THD* thd, TABLE_LIST* tables,
     if (!table->table)
     {
       const char *err_msg;
-      net_store_data(packet, table_name);
-      net_store_data(packet, operator_name);
-      net_store_data(packet, "error");
+      protocol->prepare_for_resend();
+      protocol->store(table_name);
+      protocol->store(operator_name);
+      protocol->store("error",5);
       if (!(err_msg=thd->net.last_error))
 	err_msg=ER(ER_CHECK_NO_SUCH_TABLE);
-      net_store_data(packet, err_msg);
+      protocol->store(err_msg);
       thd->net.last_error[0]=0;
-      if (my_net_write(&thd->net, (char*) thd->packet.ptr(),
-		       packet->length()))
+      if (protocol->write())
 	goto err;
       continue;
     }
     if ((table->table->db_stat & HA_READ_ONLY) && open_for_modify)
     {
       char buff[FN_REFLEN + MYSQL_ERRMSG_SIZE];
-      net_store_data(packet, table_name);
-      net_store_data(packet, operator_name);
-      net_store_data(packet, "error");
+      protocol->prepare_for_resend();
+      protocol->store(table_name);
+      protocol->store(operator_name);
+      protocol->store("error", 5);
       sprintf(buff, ER(ER_OPEN_AS_READONLY), table_name);
-      net_store_data(packet, buff);
+      protocol->store(buff);
       close_thread_tables(thd);
       table->table=0;				// For query cache
-      if (my_net_write(&thd->net, (char*) thd->packet.ptr(),
-		       packet->length()))
+      if (protocol->write())
 	goto err;
       continue;
     }
@@ -1265,50 +1264,50 @@ static int mysql_admin_table(THD* thd, TABLE_LIST* tables,
     }
 
     int result_code = (table->table->file->*operator_func)(thd, check_opt);
-    packet->length(0);
-    net_store_data(packet, table_name);
-    net_store_data(packet, operator_name);
+    protocol->prepare_for_resend();
+    protocol->store(table_name);
+    protocol->store(operator_name);
 
     switch (result_code) {
     case HA_ADMIN_NOT_IMPLEMENTED:
       {
         char buf[ERRMSGSIZE+20];
-        my_snprintf(buf, ERRMSGSIZE,
-            ER(ER_CHECK_NOT_IMPLEMENTED), operator_name);
-        net_store_data(packet, "error");
-        net_store_data(packet, buf);
+        uint length=my_snprintf(buf, ERRMSGSIZE,
+				ER(ER_CHECK_NOT_IMPLEMENTED), operator_name);
+        protocol->store("error", 5);
+        protocol->store(buf, length);
       }
       break;
 
     case HA_ADMIN_OK:
-      net_store_data(packet, "status");
-      net_store_data(packet, "OK");
+      protocol->store("status", 6);
+      protocol->store("OK",2);
       break;
 
     case HA_ADMIN_FAILED:
-      net_store_data(packet, "status");
-      net_store_data(packet, "Operation failed");
+      protocol->store("status", 6);
+      protocol->store("Operation failed",16);
       break;
 
     case HA_ADMIN_ALREADY_DONE:
-      net_store_data(packet, "status");
-      net_store_data(packet, "Table is already up to date");
+      protocol->store("status", 6);
+      protocol->store("Table is already up to date", 27);
       break;
 
     case HA_ADMIN_CORRUPT:
-      net_store_data(packet, "error");
-      net_store_data(packet, "Corrupt");
+      protocol->store("error", 5);
+      protocol->store("Corrupt", 8);
       fatal_error=1;
       break;
 
     case HA_ADMIN_INVALID:
-      net_store_data(packet, "error");
-      net_store_data(packet, "Invalid argument");
+      protocol->store("error", 5);
+      protocol->store("Invalid argument",16);
       break;
 
     default:				// Probably HA_ADMIN_INTERNAL_ERROR
-      net_store_data(packet, "error");
-      net_store_data(packet, "Unknown - internal error during operation");
+      protocol->store("error", 5);
+      protocol->store("Unknown - internal error during operation", 41);
       fatal_error=1;
       break;
     }
@@ -1325,8 +1324,7 @@ static int mysql_admin_table(THD* thd, TABLE_LIST* tables,
     }
     close_thread_tables(thd);
     table->table=0;				// For query cache
-    if (my_net_write(&thd->net, (char*) packet->ptr(),
-		     packet->length()))
+    if (protocol->write())
       goto err;
   }
 

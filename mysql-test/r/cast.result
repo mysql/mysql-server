@@ -24,10 +24,10 @@ cast("A" as binary) = "a"	cast(BINARY "a" as CHAR) = "A"
 0	1
 select cast("2001-1-1" as DATE), cast("2001-1-1" as DATETIME);
 cast("2001-1-1" as DATE)	cast("2001-1-1" as DATETIME)
-2001-1-1	2001-1-1
+2001-01-01	2001-01-01 00:00:00
 select cast("1:2:3" as TIME);
 cast("1:2:3" as TIME)
-1:2:3
+1:02:03
 select cast("2001-1-1" as date) = "2001-01-01";
 cast("2001-1-1" as date) = "2001-01-01"
 0

@@ -306,9 +306,9 @@ int Log_event::exec_event(struct st_relay_log_info* rli)
   Log_event::pack_info()
 
  ****************************************************************************/
-void Log_event::pack_info(String* packet)
+void Log_event::pack_info(Protocol *protocol)
 {
-  net_store_data(packet, "", 0);
+  protocol->store("",0);
 }
 
 /*****************************************************************************
@@ -319,10 +319,13 @@ void Log_event::pack_info(String* packet)
 void Log_event::init_show_field_list(List<Item>* field_list)
 {
   field_list->push_back(new Item_empty_string("Log_name", 20));
-  field_list->push_back(new Item_empty_string("Pos", 20));
+  field_list->push_back(new Item_return_int("Pos", 11,
+					    MYSQL_TYPE_LONGLONG));
   field_list->push_back(new Item_empty_string("Event_type", 20));
-  field_list->push_back(new Item_empty_string("Server_id", 20));
-  field_list->push_back(new Item_empty_string("Orig_log_pos", 20));
+  field_list->push_back(new Item_return_int("Server_id", 10,
+					    MYSQL_TYPE_LONG));
+  field_list->push_back(new Item_return_int("Orig_log_pos", 11,
+					    MYSQL_TYPE_LONGLONG));
   field_list->push_back(new Item_empty_string("Info", 20));
 }
 
@@ -333,23 +336,22 @@ void Log_event::init_show_field_list(List<Item>* field_list)
   Only called by SHOW BINLOG EVENTS
 
  ****************************************************************************/
-int Log_event::net_send(THD* thd_arg, const char* log_name, my_off_t pos)
+int Log_event::net_send(Protocol *protocol, const char* log_name, my_off_t pos)
 {
-  String* packet = &thd_arg->packet;
   const char *p= strrchr(log_name, FN_LIBCHAR);
   const char *event_type;
   if (p)
     log_name = p + 1;
   
-  packet->length(0);
-  net_store_data(packet, log_name, strlen(log_name));
-  net_store_data(packet, (longlong) pos);
+  protocol->prepare_for_resend();
+  protocol->store(log_name);
+  protocol->store((ulonglong) pos);
   event_type = get_type_str();
-  net_store_data(packet, event_type, strlen(event_type));
-  net_store_data(packet, server_id);
-  net_store_data(packet, (longlong) log_pos);
-  pack_info(packet);
-  return my_net_write(&thd_arg->net, (char*) packet->ptr(), packet->length());
+  protocol->store(event_type, strlen(event_type));
+  protocol->store((uint32) server_id);
+  protocol->store((ulonglong) log_pos);
+  pack_info(protocol);
+  return protocol->write();
 }
 #endif // !MYSQL_CLIENT
 
@@ -671,7 +673,7 @@ void Log_event::set_log_pos(MYSQL_LOG* log)
   Query_log_event::pack_info()
 
  ****************************************************************************/
-void Query_log_event::pack_info(String* packet)
+void Query_log_event::pack_info(Protocol *protocol)
 {
   char buf[256];
   String tmp(buf, sizeof(buf), system_charset_info);
@@ -685,7 +687,7 @@ void Query_log_event::pack_info(String* packet)
 
   if (query && q_len)
     tmp.append(query, q_len);
-  net_store_data(packet, (char*)tmp.ptr(), tmp.length());
+  protocol->store((char*) tmp.ptr(), tmp.length());
 }
 #endif // !MYSQL_CLIENT
 
@@ -925,7 +927,7 @@ int Query_log_event::exec_event(struct st_relay_log_info* rli)
 
  ****************************************************************************/
 #ifndef MYSQL_CLIENT
-void Start_log_event::pack_info(String* packet)
+void Start_log_event::pack_info(Protocol *protocol)
 {
   char buf1[256];
   String tmp(buf1, sizeof(buf1), system_charset_info);
@@ -936,7 +938,7 @@ void Start_log_event::pack_info(String* packet)
   tmp.append(server_version);
   tmp.append(", Binlog ver: ");
   tmp.append(llstr(binlog_version, buf));
-  net_store_data(packet, tmp.ptr(), tmp.length());
+  protocol->store(tmp.ptr(), tmp.length());
 }
 #endif // !MYSQL_CLIENT
 
@@ -1036,7 +1038,7 @@ int Start_log_event::exec_event(struct st_relay_log_info* rli)
 
  ****************************************************************************/
 #ifndef MYSQL_CLIENT
-void Load_log_event::pack_info(String* packet)
+void Load_log_event::pack_info(Protocol *protocol)
 {
   char buf[256];
   String tmp(buf, sizeof(buf), system_charset_info);
@@ -1109,7 +1111,7 @@ void Load_log_event::pack_info(String* packet)
     tmp.append(')');
   }
 
-  net_store_data(packet, tmp.ptr(), tmp.length());
+  protocol->store(tmp.ptr(), tmp.length());
 }
 #endif // !MYSQL_CLIENT
 
@@ -1542,7 +1544,7 @@ int Load_log_event::exec_event(NET* net, struct st_relay_log_info* rli)
 
  ****************************************************************************/
 #ifndef MYSQL_CLIENT
-void Rotate_log_event::pack_info(String* packet)
+void Rotate_log_event::pack_info(Protocol *protocol)
 {
   char buf1[256], buf[22];
   String tmp(buf1, sizeof(buf1), system_charset_info);
@@ -1552,7 +1554,7 @@ void Rotate_log_event::pack_info(String* packet)
   tmp.append(llstr(pos,buf));
   if (flags & LOG_EVENT_FORCED_ROTATE_F)
     tmp.append("; forced by master");
-  net_store_data(packet, tmp.ptr(), tmp.length());
+  protocol->store(tmp.ptr(), tmp.length());
 }
 #endif // !MYSQL_CLIENT
 
@@ -1680,7 +1682,7 @@ int Rotate_log_event::exec_event(struct st_relay_log_info* rli)
 
  ****************************************************************************/
 #ifndef MYSQL_CLIENT
-void Intvar_log_event::pack_info(String* packet)
+void Intvar_log_event::pack_info(Protocol *protocol)
 {
   char buf1[256], buf[22];
   String tmp(buf1, sizeof(buf1), system_charset_info);
@@ -1688,7 +1690,7 @@ void Intvar_log_event::pack_info(String* packet)
   tmp.append(get_var_type_name());
   tmp.append('=');
   tmp.append(llstr(val, buf));
-  net_store_data(packet, tmp.ptr(), tmp.length());
+  protocol->store(tmp.ptr(), tmp.length());
 }
 #endif // !MYSQL_CLIENT
 
@@ -1801,14 +1803,14 @@ int Intvar_log_event::exec_event(struct st_relay_log_info* rli)
 
  ****************************************************************************/
 #ifndef MYSQL_CLIENT
-void Rand_log_event::pack_info(String* packet)
+void Rand_log_event::pack_info(Protocol *protocol)
 {
   char buf1[256], *pos;
   pos= strmov(buf1,"rand_seed1=");
   pos= int10_to_str((long) seed1, pos, 10);
   pos= strmov(pos, ",rand_seed2=");
   pos= int10_to_str((long) seed2, pos, 10);
-  net_store_data(packet, buf1, (uint) (pos-buf1));
+  protocol->store(buf1, (uint) (pos-buf1));
 }
 #endif // !MYSQL_CLIENT
 
@@ -1888,7 +1890,7 @@ int Rand_log_event::exec_event(struct st_relay_log_info* rli)
 
  ****************************************************************************/
 #ifndef MYSQL_CLIENT
-void Slave_log_event::pack_info(String* packet)
+void Slave_log_event::pack_info(Protocol *protocol)
 {
   char buf1[256], buf[22], *end;
   String tmp(buf1, sizeof(buf1), system_charset_info);
@@ -1902,7 +1904,7 @@ void Slave_log_event::pack_info(String* packet)
   tmp.append(master_log);
   tmp.append(",pos=");
   tmp.append(llstr(master_pos,buf));
-  net_store_data(packet, tmp.ptr(), tmp.length());
+  protocol->store(tmp.ptr(), tmp.length());
 }
 #endif // !MYSQL_CLIENT
 
@@ -2236,7 +2238,7 @@ void Create_file_log_event::print(FILE* file, bool short_form,
 
  ****************************************************************************/
 #ifndef MYSQL_CLIENT
-void Create_file_log_event::pack_info(String* packet)
+void Create_file_log_event::pack_info(Protocol *protocol)
 {
   char buf1[256],buf[22], *end;
   String tmp(buf1, sizeof(buf1), system_charset_info);
@@ -2251,7 +2253,7 @@ void Create_file_log_event::pack_info(String* packet)
   tmp.append(";block_len=");
   end= int10_to_str((long) block_len, buf, 10);
   tmp.append(buf, (uint32) (end-buf));
-  net_store_data(packet, (char*) tmp.ptr(), tmp.length());
+  protocol->store((char*) tmp.ptr(), tmp.length());
 }
 #endif // !MYSQL_CLIENT
 
@@ -2395,14 +2397,14 @@ void Append_block_log_event::print(FILE* file, bool short_form,
 
  ****************************************************************************/
 #ifndef MYSQL_CLIENT
-void Append_block_log_event::pack_info(String* packet)
+void Append_block_log_event::pack_info(Protocol *protocol)
 {
   char buf[256];
   uint length;
   length= (uint) my_sprintf(buf,
 			    (buf, ";file_id=%u;block_len=%u", file_id,
 			     block_len));
-  net_store_data(packet, buf, (int32) length);
+  protocol->store(buf, (int32) length);
 }
 #endif // !MYSQL_CLIENT
 
@@ -2510,12 +2512,12 @@ void Delete_file_log_event::print(FILE* file, bool short_form,
 
  ****************************************************************************/
 #ifndef MYSQL_CLIENT
-void Delete_file_log_event::pack_info(String* packet)
+void Delete_file_log_event::pack_info(Protocol *protocol)
 {
   char buf[64];
   uint length;
   length= (uint) my_sprintf(buf, (buf, ";file_id=%u", (uint) file_id));
-  net_store_data(packet, buf, (int32) length);
+  protocol->store(buf, (int32) length);
 }
 #endif // !MYSQL_CLIENT
 
@@ -2609,12 +2611,12 @@ void Execute_load_log_event::print(FILE* file, bool short_form,
 
  ****************************************************************************/
 #ifndef MYSQL_CLIENT
-void Execute_load_log_event::pack_info(String* packet)
+void Execute_load_log_event::pack_info(Protocol *protocol)
 {
   char buf[64];
   uint length;
   length= (uint) my_sprintf(buf, (buf, ";file_id=%u", (uint) file_id));
-  net_store_data(packet, buf, (int32) length);
+  protocol->store(buf, (int32) length);
 }
 #endif // !MYSQL_CLIENT
 
