@@ -20,9 +20,6 @@
 SUBSELECT TODO:
    - add function from mysql_select that use JOIN* as parameter to JOIN methods
      (sql_select.h/sql_select.cc)
-   - remove double 'having' & 'having_list' from JOIN
-     (sql_select.h/sql_select.cc)
-
 */
 
 #ifdef __GNUC__
@@ -72,8 +69,7 @@ Item_subselect::~Item_subselect()
 }
 
 Item_subselect::trans_res
-Item_subselect::select_transformer(THD *thd,
-				   JOIN *join) 
+Item_subselect::select_transformer(JOIN *join) 
 {
   DBUG_ENTER("Item_subselect::select_transformer");
   DBUG_RETURN(OK);
@@ -169,8 +165,7 @@ void Item_singlerow_subselect::reset()
 }
 
 Item_subselect::trans_res
-Item_singlerow_subselect::select_transformer(THD *thd,
-						    JOIN *join)
+Item_singlerow_subselect::select_transformer(JOIN *join)
 {
   SELECT_LEX *select_lex= join->select_lex;
   
@@ -190,15 +185,14 @@ Item_singlerow_subselect::select_transformer(THD *thd,
   {
     
     have_to_be_excluded= 1;
-    if (thd->lex.describe)
+    if (join->thd->lex.describe)
     {
       char warn_buff[MYSQL_ERRMSG_SIZE];
       sprintf(warn_buff, ER(ER_SELECT_REDUCED), select_lex->select_number);
-      push_warning(thd, MYSQL_ERROR::WARN_LEVEL_NOTE,
+      push_warning(join->thd, MYSQL_ERROR::WARN_LEVEL_NOTE,
 		   ER_SELECT_REDUCED, warn_buff);
     }
     substitution= select_lex->item_list.head();
-    substitution->set_outer_resolving();
      
     if (select_lex->where || select_lex->having)
     {
@@ -337,32 +331,16 @@ Item_exists_subselect::Item_exists_subselect(THD *thd,
 
 bool Item_in_subselect::test_limit(SELECT_LEX_UNIT *unit)
 {
-  SELECT_LEX_NODE *global= unit->global_parameters;
-  if (global->select_limit != HA_POS_ERROR)
-  {
-    my_error(ER_NOT_SUPPORTED_YET, MYF(0),
-	     "LIMIT & IN/ALL/ANY/SOME subquery");
+  if (unit->global_parameters == unit &&
+      unit->global_parameters->test_limit())
     return(1);
-  }
+
   SELECT_LEX *sl= unit->first_select();
   for (; sl; sl= sl->next_select())
   {
-    if (sl->select_limit != HA_POS_ERROR)
-    {
-      my_error(ER_NOT_SUPPORTED_YET, MYF(0),
-	       "LIMIT & IN/ALL/ANY/SOME subquery");
+    if (sl->test_limit())
       return(1);
-    }
-    // We need only 1 row to determinate existence
-    sl->select_limit= 1;
-    // no sense in ORDER BY without LIMIT
-    sl->order_list.empty();
   }
-  // no sense in ORDER BY without LIMIT
-  global->order_list.empty();
-  // We need only 1 row to determinate existence
-  global->select_limit= 1;
-
   return(0);
 }
 
@@ -377,6 +355,7 @@ Item_in_subselect::Item_in_subselect(THD *thd, Item * left_exp,
   maybe_null= 1;
   abort_on_null= 0;
   reset();
+  //if test_limit will fail then error will be reported to client
   test_limit(select_lex->master_unit());
   DBUG_VOID_RETURN;
 }
@@ -393,6 +372,7 @@ Item_allany_subselect::Item_allany_subselect(THD *thd, Item * left_exp,
   max_columns= 1;
   abort_on_null= 0;
   reset();
+  //if test_limit will fail then error will be reported to client
   test_limit(select_lex->master_unit());
   DBUG_VOID_RETURN;
 }
@@ -493,8 +473,7 @@ Item_allany_subselect::Item_allany_subselect(Item_allany_subselect *item):
 }
 
 Item_subselect::trans_res
-Item_in_subselect::single_value_transformer(THD *thd,
-					    JOIN *join,
+Item_in_subselect::single_value_transformer(JOIN *join,
 					    Item *left_expr,
 					    compare_func_creator func)
 {
@@ -502,6 +481,7 @@ Item_in_subselect::single_value_transformer(THD *thd,
 
   SELECT_LEX *select_lex= join->select_lex;
 
+  THD *thd= join->thd;
   thd->where= "scalar IN/ALL/ANY subquery";
 
   if (!substitution)
@@ -538,8 +518,8 @@ Item_in_subselect::single_value_transformer(THD *thd,
     my_error(ER_CARDINALITY_COL, MYF(0), 1);
     DBUG_RETURN(ERROR);
   }
-  else
-    item= (Item*) select_lex->item_list.head();
+
+  item= (Item*) select_lex->item_list.head();
 
   if (join->having || select_lex->with_sum_func ||
       select_lex->group_list.elements)
@@ -657,12 +637,12 @@ Item_in_subselect::single_value_transformer(THD *thd,
 }
 
 Item_subselect::trans_res
-Item_in_subselect::row_value_transformer(THD *thd,
-					      JOIN *join,
-					      Item *left_expr)
+Item_in_subselect::row_value_transformer(JOIN *join,
+					 Item *left_expr)
 {
   DBUG_ENTER("Item_in_subselect::row_value_transformer");
 
+  THD *thd= join->thd;
   thd->where= "row IN/ALL/ANY subquery";
 
   SELECT_LEX *select_lex= join->select_lex;
@@ -730,20 +710,18 @@ Item_in_subselect::row_value_transformer(THD *thd,
 }
 
 Item_subselect::trans_res
-Item_in_subselect::select_transformer(THD *thd, JOIN *join)
+Item_in_subselect::select_transformer(JOIN *join)
 {
   if (left_expr->cols() == 1)
-    return single_value_transformer(thd, join, left_expr,
+    return single_value_transformer(join, left_expr,
 				    &Item_bool_func2::eq_creator);
-  else
-    return row_value_transformer(thd, join, left_expr);
+  return row_value_transformer(join, left_expr);
 }
 
 Item_subselect::trans_res
-Item_allany_subselect::select_transformer(THD *thd,
-					  JOIN *join)
+Item_allany_subselect::select_transformer(JOIN *join)
 {
-  return single_value_transformer(thd, join, left_expr, func);
+  return single_value_transformer(join, left_expr, func);
 }
 
 subselect_single_select_engine::subselect_single_select_engine(THD *thd, 

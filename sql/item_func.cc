@@ -136,15 +136,6 @@ Item_func::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
   return 0;
 }
 
-void Item_func::set_outer_resolving()
-{
-  if (arg_count)
-  {
-    Item **arg,**arg_end;
-    for (arg= args, arg_end= args+arg_count; arg != arg_end; arg++)
-      (*arg)->set_outer_resolving();
-  }
-}
 
 void Item_func::split_sum_func(Item **ref_pointer_array, List<Item> &fields)
 {
@@ -2443,14 +2434,6 @@ bool Item_func_match::fix_fields(THD *thd, TABLE_LIST *tlist, Item **ref)
   return 0;
 }
 
-void Item_func_match::set_outer_resolving()
-{
-  Item_real_func::set_outer_resolving();
-  List_iterator<Item> li(fields);
-  Item *item;
-  while ((item= li++))
-    item->set_outer_resolving();
-}
 
 bool Item_func_match::fix_index()
 {

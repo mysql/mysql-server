@@ -23,8 +23,7 @@
 #include <m_ctype.h>
 #include "my_dir.h"
 
-static void mark_as_dependent(bool outer_resolving,
-			      SELECT_LEX *last, SELECT_LEX_NODE *current,
+static void mark_as_dependent(SELECT_LEX *last, SELECT_LEX_NODE *current,
 			      Item_ident *item);
 
 /*****************************************************************************
@@ -796,28 +795,17 @@ bool Item_ref_null_helper::get_date(TIME *ltime, bool fuzzydate)
 
   SYNOPSIS
     mark_as_dependent()
-    outer_resolving - flag of outer resolving
     last - select from which current item depend
     current  - current select
     item - item which should be marked
 */
 
-static void mark_as_dependent(bool outer_resolving,
-			      SELECT_LEX *last, SELECT_LEX_NODE *current,
+static void mark_as_dependent(SELECT_LEX *last, SELECT_LEX_NODE *current,
 			      Item_ident *item)
 {
-  /*
-    only last check is need, i.e.
-    "last != current"
-    first check added for speed up (check boolean should be faster
-    then comparing pointers and this condition usually true)
-  */
-  if (!outer_resolving || ((SELECT_LEX_NODE *)last) != current)
-  {
-    // store pointer on SELECT_LEX from wich item is dependent
-    item->depended_from= last;
-    current->mark_as_dependent(last);
-  }
+  // store pointer on SELECT_LEX from wich item is dependent
+  item->depended_from= last;
+  current->mark_as_dependent(last);
 }
 
 
@@ -827,8 +815,7 @@ bool Item_field::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
   {
     TABLE_LIST *where= 0;
     Field *tmp= (Field *)not_found_field;
-    if (outer_resolving || 
-	(tmp= find_field_in_tables(thd, this, tables, &where, 0)) ==
+    if ((tmp= find_field_in_tables(thd, this, tables, &where, 0)) ==
 	not_found_field)
     {
       /*
@@ -849,9 +836,8 @@ bool Item_field::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
       uint counter;
       // Prevent using outer fields in subselects, that is not supported now
       SELECT_LEX *cursel=(SELECT_LEX *) thd->lex.current_select;
-      if (outer_resolving ||
-	  cursel->master_unit()->first_select()->linkage != DERIVED_TABLE_TYPE)
-	for (SELECT_LEX *sl=(outer_resolving?cursel:cursel->outer_select());
+      if (cursel->master_unit()->first_select()->linkage != DERIVED_TABLE_TYPE)
+	for (SELECT_LEX *sl= cursel->outer_select();
 	     sl;
 	     sl= sl->outer_select())
 	{
@@ -901,12 +887,12 @@ bool Item_field::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
 	if (rf->fix_fields(thd, tables, ref) || rf->check_cols(1))
 	  return 1;
 
-	mark_as_dependent(outer_resolving, last, cursel, rf);
+	mark_as_dependent(last, cursel, rf);
 	return 0;
       }
       else
       {
-	mark_as_dependent(outer_resolving, last, cursel, this);
+	mark_as_dependent(last, cursel, this);
 	if (last->having_fix_field)
 	{
 	  Item_ref *rf;
@@ -915,7 +901,6 @@ bool Item_field::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
 				 (char *)field_name);
 	  if (!rf)
 	    return 1;
-	  (rf)->outer_resolving= outer_resolving;
 	  return rf->fix_fields(thd, tables, ref) ||  rf->check_cols(1);
 	}
       }
@@ -1309,16 +1294,13 @@ bool Item_ref::fix_fields(THD *thd,TABLE_LIST *tables, Item **reference)
   if (!ref)
   {
     TABLE_LIST *where= 0, *table_list;
-    SELECT_LEX *sl= (outer_resolving?
-		     thd->lex.current_select->select_lex():
-		     thd->lex.current_select->outer_select());
+    SELECT_LEX *sl= thd->lex.current_select->outer_select();
     /*
       Finding only in current select will be performed for selects that have 
       not outer one and for derived tables (which not support using outer 
       fields for now)
     */
-    if (outer_resolving ||
-	(ref= find_item_in_list(this, 
+    if ((ref= find_item_in_list(this, 
 				*(thd->lex.current_select->get_item_list()),
 				&counter,
 				((sl && 
@@ -1382,7 +1364,7 @@ bool Item_ref::fix_fields(THD *thd,TABLE_LIST *tables, Item **reference)
 	Item_field* fld;
 	if (!((*reference)= fld= new Item_field(tmp)))
 	  return 1;
-	mark_as_dependent(outer_resolving, last, thd->lex.current_select, fld);
+	mark_as_dependent(last, thd->lex.current_select, fld);
 	return 0;
       }
       else
@@ -1393,7 +1375,7 @@ bool Item_ref::fix_fields(THD *thd,TABLE_LIST *tables, Item **reference)
 		   "forward reference in item list");
 	  return -1;
 	}
-	mark_as_dependent(outer_resolving, last, thd->lex.current_select,
+	mark_as_dependent(last, thd->lex.current_select,
 			  this);
 	ref= last->ref_pointer_array + counter;
       }
