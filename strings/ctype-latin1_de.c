@@ -452,7 +452,8 @@ CHARSET_INFO my_charset_latin1_de =
     my_strntoul_8bit,
     my_strntoll_8bit,
     my_strntoull_8bit,
-    my_strntod_8bit
+    my_strntod_8bit,
+    my_scan_8bit
 };
 
 #endif
