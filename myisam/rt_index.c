@@ -462,20 +462,12 @@ static uchar *rtree_pick_key(MI_INFO *info, MI_KEYDEF *keyinfo, uchar *key,
     if ((increase = rtree_perimeter_increase(keyinfo->seg, k, key, key_length,
 					     &perimeter)) == -1)
       return NULL;
-    if (increase < best_incr)
+    if ((increase < best_incr)||
+	(increase == best_incr && perimeter < best_perimeter))
     {
       best_key = k;
       best_perimeter= perimeter;
       best_incr = increase;
-    }
-    else
-    {
-      if ((increase == best_incr) && (perimeter < best_perimeter))
-      {
-        best_key = k;
-        best_perimeter= perimeter;
-        best_incr = increase;
-      }
     }
   }
   return best_key;
