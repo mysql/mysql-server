@@ -156,13 +156,14 @@ static bool send_prep_stmt(PREP_STMT *stmt, uint columns)
   return (my_net_write(net, buff, sizeof(buff)) || net_flush(net));
 }
 #else
-static bool send_prep_stmt(PREP_STMT *stmt, uint columns)
+static bool send_prep_stmt(PREP_STMT *stmt, uint columns __attribute__((unused)))
 {
-  MYSQL_STMT *client_stmt= stmt->thd->client_stmt;
+  THD *thd= stmt->thd;
 
-  client_stmt->stmt_id= stmt->stmt_id;
-  client_stmt->field_count= columns;
-  client_stmt->param_count= stmt->param_count;
+  thd->client_stmt_id= stmt->stmt_id;
+  thd->client_param_count= stmt->param_count;
+
+  return 0;
 }
 #endif /*!EMBEDDED_LIBRAYR*/
 

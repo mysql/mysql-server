@@ -973,6 +973,19 @@ mysql_list_tables(MYSQL *mysql, const char *wild)
   DBUG_RETURN (mysql_store_result(mysql));
 }
 
+MYSQL_FIELD * STDCALL cli_list_fields(MYSQL *mysql)
+{
+  MYSQL_DATA *query;
+  if (!(query= cli_read_rows(mysql,(MYSQL_FIELD*) 0, 
+			     protocol_41(mysql) ? 8 : 6)))
+    return NULL;
+
+  mysql->field_count= query->rows;
+  return unpack_fields(query,&mysql->field_alloc,
+		       query->rows, 1, mysql->server_capabilities);
+}
+
+
 /**************************************************************************
   List all fields in a table
   If wild is given then only the fields matching wild is returned
@@ -981,36 +994,29 @@ mysql_list_tables(MYSQL *mysql, const char *wild)
 **************************************************************************/
 
 MYSQL_RES * STDCALL
-cli_list_fields(MYSQL *mysql, const char *table, const char *wild)
+mysql_list_fields(MYSQL *mysql, const char *table, const char *wild)
 {
-  MYSQL_RES *result;
-  MYSQL_DATA *query;
+  MYSQL_RES   *result;
+  MYSQL_FIELD *fields;
   char	     buff[257],*end;
   DBUG_ENTER("mysql_list_fields");
   DBUG_PRINT("enter",("table: '%s'  wild: '%s'",table,wild ? wild : ""));
 
-  LINT_INIT(query);
-
   end=strmake(strmake(buff, table,128)+1,wild ? wild : "",128);
+  free_old_query(mysql);
   if (simple_command(mysql,COM_FIELD_LIST,buff,(ulong) (end-buff),1) ||
-      !(query = read_rows(mysql,(MYSQL_FIELD*) 0, 
-			  protocol_41(mysql) ? 8 : 6)))
+      !(fields= (*mysql->methods->list_fields)(mysql)))
     DBUG_RETURN(NULL);
 
-  free_old_query(mysql);
   if (!(result = (MYSQL_RES *) my_malloc(sizeof(MYSQL_RES),
 					 MYF(MY_WME | MY_ZEROFILL))))
-  {
-    free_rows(query);
     DBUG_RETURN(NULL);
-  }
+
   result->methods= mysql->methods;
   result->field_alloc=mysql->field_alloc;
   mysql->fields=0;
-  result->field_count = (uint) query->rows;
-  result->fields= unpack_fields(query,&result->field_alloc,
-				result->field_count, 1,
-				mysql->server_capabilities);
+  result->field_count = mysql->field_count;
+  result->fields= fields;
   result->eof=1;
   DBUG_RETURN(result);
 }
@@ -1031,8 +1037,8 @@ mysql_list_processes(MYSQL *mysql)
   free_old_query(mysql);
   pos=(uchar*) mysql->net.read_pos;
   field_count=(uint) net_field_length(&pos);
-  if (!(fields = read_rows(mysql,(MYSQL_FIELD*) 0,
-			   protocol_41(mysql) ? 7 : 5)))
+  if (!(fields = (*mysql->methods->read_rows)(mysql,(MYSQL_FIELD*) 0,
+					      protocol_41(mysql) ? 7 : 5)))
     DBUG_RETURN(NULL);
   if (!(mysql->fields=unpack_fields(fields,&mysql->field_alloc,field_count,0,
 				    mysql->server_capabilities)))
@@ -1569,7 +1575,7 @@ my_bool STDCALL cli_read_prepare_result(MYSQL *mysql, MYSQL_STMT *stmt)
   uint field_count;
   ulong length, param_count;
   MYSQL_DATA *fields_data;
-  DBUG_ENTER("cli_read_prepare_result");
+  DBUG_ENTER("read_prepare_result");
 
   mysql= mysql->last_used_con;
   if ((length= net_safe_read(mysql)) == packet_error)
@@ -1586,7 +1592,7 @@ my_bool STDCALL cli_read_prepare_result(MYSQL *mysql, MYSQL_STMT *stmt)
       mysql->server_status|= SERVER_STATUS_IN_TRANS;
 
     mysql->extra_info= net_field_length_ll(&pos);
-    if (!(fields_data= read_rows(mysql, (MYSQL_FIELD*) 0, 7)))
+    if (!(fields_data= (*mysql->methods->read_rows)(mysql,(MYSQL_FIELD*)0,7)))
       DBUG_RETURN(1);
     if (!(stmt->fields= unpack_fields(fields_data,&stmt->mem_root,
 				      field_count,0,
@@ -1638,17 +1644,17 @@ mysql_prepare(MYSQL  *mysql, const char *query, ulong length)
   }
 
   init_alloc_root(&stmt->mem_root,8192,0);
-  if ((*mysql->read_prepare_result)(mysql, stmt))
+  if ((*mysql->methods->read_prepare_result)(mysql, stmt))
   {
     stmt_close(stmt, 1);
     DBUG_RETURN(0);
   }
   if (!(stmt->params= (MYSQL_BIND *) alloc_root(&stmt->mem_root,
 						sizeof(MYSQL_BIND)*
-                                                (param_count + 
-                                                 field_count))))
+                                                (stmt->param_count + 
+                                                 stmt->field_count))))
     set_stmt_error(stmt, CR_OUT_OF_MEMORY, unknown_sqlstate);
-  stmt->bind= stmt->params + param_count;
+  stmt->bind= stmt->params + stmt->param_count;
 
   stmt->state= MY_ST_PREPARE;
   stmt->mysql= mysql;

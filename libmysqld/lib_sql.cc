@@ -50,7 +50,7 @@ static bool check_user(THD *thd, enum_server_command command,
 char * get_mysql_home(){ return mysql_home;};
 char * get_mysql_real_data_home(){ return mysql_real_data_home;};
 
-my_bool STDCALL
+static my_bool STDCALL
 emb_advanced_command(MYSQL *mysql, enum enum_server_command command,
 		     const char *header, ulong header_length,
 		     const char *arg, ulong arg_length, my_bool skip_check)
@@ -93,6 +93,77 @@ emb_advanced_command(MYSQL *mysql, enum enum_server_command command,
   mysql->warning_count= ((THD*)mysql->thd)->total_warn_count;
   return result;
 }
+
+static MYSQL_DATA * STDCALL 
+emb_read_rows(MYSQL *mysql, MYSQL_FIELD *mysql_fields __attribute__((unused)),
+	      uint fields __attribute__((unused)))
+{
+  MYSQL_DATA *result= ((THD*)mysql->thd)->data;
+  if (!result)
+    return NULL;
+  *result->prev_ptr= NULL;
+  ((THD*)mysql->thd)->data= NULL;
+  return result;
+}
+
+static MYSQL_FIELD * STDCALL emb_list_fields(MYSQL *mysql)
+{
+  return mysql->fields;
+}
+
+static my_bool STDCALL emb_read_prepare_result(MYSQL *mysql, MYSQL_STMT *stmt)
+{
+  THD *thd= (THD*)mysql->thd;
+  stmt->stmt_id= thd->client_stmt_id;
+  stmt->param_count= thd->client_param_count;
+  stmt->field_count= mysql->field_count;
+
+  if (stmt->field_count != 0)
+  {
+    if (!(mysql->server_status & SERVER_STATUS_AUTOCOMMIT))
+      mysql->server_status|= SERVER_STATUS_IN_TRANS;
+
+    stmt->fields= mysql->fields;
+    stmt->mem_root= mysql->field_alloc;
+  }
+  return 0;
+}
+
+/**************************************************************************
+  Get column lengths of the current row
+  If one uses mysql_use_result, res->lengths contains the length information,
+  else the lengths are calculated from the offset between pointers.
+**************************************************************************/
+
+static void STDCALL emb_fetch_lengths(ulong *to, MYSQL_ROW column, uint field_count)
+{ 
+  MYSQL_ROW end;
+
+  for (end=column + field_count; column != end ; column++,to++)
+    *to= *column ? *(uint *)((*column) - sizeof(uint)) : 0;
+}
+
+static my_bool STDCALL emb_mysql_read_query_result(MYSQL *mysql)
+{
+  if (mysql->net.last_errno)
+    return -1;
+
+  if (mysql->field_count)
+    mysql->status=MYSQL_STATUS_GET_RESULT;
+
+  return 0;
+}
+
+MYSQL_METHODS embedded_methods= 
+{
+  emb_mysql_read_query_result,
+  emb_advanced_command,
+  emb_read_rows,
+  mysql_store_result,
+  emb_fetch_lengths, 
+  emb_list_fields,
+  emb_read_prepare_result
+};
 
 C_MODE_END
 
@@ -334,6 +405,8 @@ void *create_embedded_thd(int client_flag, char *db)
   thd->master_access= ~NO_ACCESS;
   thd->net.query_cache_query= 0;
 
+  thd->data= 0;
+
   return thd;
 }
 
@@ -343,35 +416,29 @@ bool Protocol::send_fields(List<Item> *list, uint flag)
 {
   List_iterator_fast<Item> it(*list);
   Item                     *item;
-  MYSQL_FIELD              *field, *client_field;
+  MYSQL_FIELD              *client_field;
   MYSQL                    *mysql= thd->mysql;
+  MEM_ROOT                 *field_alloc;
   
   DBUG_ENTER("send_fields");
 
   field_count= list->elements;
-  if (!(mysql->result=(MYSQL_RES*) my_malloc(sizeof(MYSQL_RES)+
-				      sizeof(ulong) * (field_count + 1),
-				      MYF(MY_WME | MY_ZEROFILL))))
-    goto err;
-  mysql->result->lengths= (ulong *)(mysql->result + 1);
-
-  mysql->field_count=field_count;
-  alloc= &mysql->field_alloc;
-  field= (MYSQL_FIELD *)alloc_root(alloc, sizeof(MYSQL_FIELD) * field_count);
-  if (!field)
+  field_alloc= &mysql->field_alloc;
+  if (!(client_field= thd->mysql->fields= 
+	(MYSQL_FIELD *)alloc_root(field_alloc, 
+				  sizeof(MYSQL_FIELD) * field_count)))
     goto err;
 
-  client_field= field;
   while ((item= it++))
   {
     Send_field server_field;
     item->make_field(&server_field);
 
-    client_field->db=	  strdup_root(alloc, server_field.db_name);
-    client_field->table=  strdup_root(alloc, server_field.table_name);
-    client_field->name=   strdup_root(alloc, server_field.col_name);
-    client_field->org_table= strdup_root(alloc, server_field.org_table_name);
-    client_field->org_name=  strdup_root(alloc, server_field.org_col_name);
+    client_field->db=	  strdup_root(field_alloc, server_field.db_name);
+    client_field->table=  strdup_root(field_alloc, server_field.table_name);
+    client_field->name=   strdup_root(field_alloc, server_field.col_name);
+    client_field->org_table= strdup_root(field_alloc, server_field.org_table_name);
+    client_field->org_name=  strdup_root(field_alloc, server_field.org_col_name);
     client_field->length= server_field.length;
     client_field->type=   server_field.type;
     client_field->flags= server_field.flags;
@@ -392,31 +459,16 @@ bool Protocol::send_fields(List<Item> *list, uint flag)
       String tmp(buff, sizeof(buff), default_charset_info), *res;
 
       if (!(res=item->val_str(&tmp)))
-	client_field->def= strdup_root(alloc, "");
+	client_field->def= strdup_root(field_alloc, "");
       else
-	client_field->def= strdup_root(alloc, tmp.ptr());
+	client_field->def= strdup_root(field_alloc, tmp.ptr());
     }
     else
       client_field->def=0;
     client_field->max_length= 0;
     ++client_field;
   }
-  mysql->result->fields = field;
-
-  if (!(mysql->result->data= (MYSQL_DATA*) my_malloc(sizeof(MYSQL_DATA),
-				       MYF(MY_WME | MY_ZEROFILL))))
-    goto err;
-
-  init_alloc_root(&mysql->result->data->alloc,8192,0);	/* Assume rowlength < 8192 */
-  mysql->result->data->alloc.min_malloc=sizeof(MYSQL_ROWS);
-  mysql->result->data->rows=0;
-  mysql->result->data->fields=field_count;
-  mysql->result->field_count=field_count;
-  mysql->result->data->prev_ptr= &mysql->result->data->data;
-
-  mysql->result->field_alloc=	mysql->field_alloc;
-  mysql->result->current_field=0;
-  mysql->result->current_row=0;
+  thd->mysql->field_count= field_count;
 
   DBUG_RETURN(prepare_for_send(list));
  err:
@@ -456,13 +508,27 @@ send_eof(THD *thd, bool no_flush)
 
 void Protocol_simple::prepare_for_resend()
 {
-  MYSQL_ROWS               *cur;
-  MYSQL_DATA               *result= thd->mysql->result->data;
+  MYSQL_ROWS *cur;
+  MYSQL_DATA *data= thd->data;
 
   DBUG_ENTER("send_data");
 
-  alloc= &result->alloc;
-  result->rows++;
+  if (!data)
+  {
+    if (!(data= (MYSQL_DATA*) my_malloc(sizeof(MYSQL_DATA),
+					MYF(MY_WME | MY_ZEROFILL))))
+      goto err;
+    
+    alloc= &data->alloc;
+    init_alloc_root(alloc,8192,0);	/* Assume rowlength < 8192 */
+    alloc->min_malloc=sizeof(MYSQL_ROWS);
+    data->rows=0;
+    data->fields=field_count;
+    data->prev_ptr= &data->data;
+    thd->data= data;
+  }
+
+  data->rows++;
   if (!(cur= (MYSQL_ROWS *)alloc_root(alloc, sizeof(MYSQL_ROWS)+(field_count + 1) * sizeof(char *))))
   {
     my_error(ER_OUT_OF_RESOURCES,MYF(0));
@@ -470,11 +536,11 @@ void Protocol_simple::prepare_for_resend()
   }
   cur->data= (MYSQL_ROW)(((char *)cur) + sizeof(MYSQL_ROWS));
 
-  *result->prev_ptr= cur;
-  result->prev_ptr= &cur->next;
+  *data->prev_ptr= cur;
+  data->prev_ptr= &cur->next;
   next_field=cur->data;
-  next_mysql_field= thd->mysql->result->fields;
-
+  next_mysql_field= thd->mysql->fields;
+err:
   DBUG_VOID_RETURN;
 }
 
