@@ -3757,7 +3757,7 @@ bool mysql_recreate_table(THD *thd, TABLE_LIST *table_list,
   lex->alter_info.reset();
   bzero((char*) &create_info,sizeof(create_info));
   create_info.db_type=DB_TYPE_DEFAULT;
-  create_info.row_type=ROW_TYPE_DEFAULT;
+  create_info.row_type=ROW_TYPE_NOT_USED;
   create_info.default_table_charset=default_charset_info;
   /* Force alter table to recreate table */
   lex->alter_info.flags= ALTER_CHANGE_COLUMN;
