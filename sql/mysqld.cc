@@ -1788,7 +1788,7 @@ bytes of memory\n", ((ulong) sql_key_cache->key_cache_mem_size +
 You seem to be running 32-bit Linux and have %d concurrent connections.\n\
 If you have not changed STACK_SIZE in LinuxThreads and built the binary \n\
 yourself, LinuxThreads is quite likely to steal a part of the global heap for\n\
-the thread stack. Please read http://www.mysql.com/doc/L/i/Linux.html\n\n",
+the thread stack. Please read http://www.mysql.com/doc/en/Linux.html\n\n",
 	    thread_count);
   }
 #endif /* HAVE_LINUXTHREADS */
