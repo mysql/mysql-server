@@ -276,3 +276,4 @@ v/*
 "SELECT in a stored procedure must have INTO"
 "RETURN is only allowed in a FUNCTION"
 "Queries, like SELECT, INSERT, UPDATE (and others), are not allowed in a FUNCTION"
+"Query execution was interrupted"

@@ -844,7 +844,8 @@ merge_buffers(MI_SORT_PARAM *info, uint keys, IO_CACHE *from_file,
   uchar *strpos;
   BUFFPEK *buffpek,**refpek;
   QUEUE queue;
-  volatile bool *killed= killed_ptr(info->sort_info->param);
+  void *thd= info->sort_info->param->thd;
+
   DBUG_ENTER("merge_buffers");
 
   count=error=0;
@@ -875,7 +876,7 @@ merge_buffers(MI_SORT_PARAM *info, uint keys, IO_CACHE *from_file,
   {
     for (;;)
     {
-      if (*killed)
+      if (killed_ptr(thd))
       {
         error=1; goto err;
       }

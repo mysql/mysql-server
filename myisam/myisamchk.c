@@ -1644,9 +1644,9 @@ err:
   DBUG_RETURN(1);
 } /* sort_record_index */
 
-volatile bool *killed_ptr(MI_CHECK *param)
+bool killed_ptr(void *thd)
 {
-  return (bool *)(& param->thd); /* always NULL */
+  return (bool)thd; /* always NULL */
 }
 
 	/* print warnings and errors */
