@@ -4589,6 +4589,11 @@ Please report bad or out-of-date mirrors to @email{webmaster@@mysql.com}.
 @image{Flags/japan} Japan [Soft Agency] @
 @uref{http://www.softagency.co.jp/MySQL, WWW}
 
+@item
+@c EMAIL: takafumi@u-aizu.ac.jp (Takafumi Hayashi)
+@image{Flags/japan} Japan [u-aizu.ac.jp/Aizu] @
+@uref{ftp://ftp.u-aizu.ac.jp/ftp/pub/dbms/mysql/mysql.com, FTP}
+
 @c @item
 @c Ok 980109 Removed 990730
 @c EMAIL: satoshi@HappySize.co.jp (Satoshi TATSUOKA)
