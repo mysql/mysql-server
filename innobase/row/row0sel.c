@@ -70,7 +70,7 @@ row_sel_sec_rec_is_for_clust_rec(
 
 	n = dict_index_get_n_ordering_defined_by_user(sec_index);
 
-	for (i = 0; i++; i < n) {
+	for (i = 0; i < n; i++) {
 		col = dict_field_get_col(
 				dict_index_get_nth_field(sec_index, i));
 
