@@ -2174,6 +2174,36 @@ end if;
 select plus;
 end|
 drop procedure bug6857|
+drop procedure if exists bug8757|
+create procedure bug8757()
+begin
+declare x int;
+declare c1 cursor for select data from t1 limit 1;
+begin
+declare y int;
+declare c2 cursor for select i from t2 limit 1;
+open c2;
+fetch c2 into y;
+close c2;
+select 2,y;
+end;
+open c1;
+fetch c1 into x;
+close c1;
+select 1,x;
+end|
+delete from t1|
+delete from t2|
+insert into t1 values ("x", 1)|
+insert into t2 values ("y", 2, 0.0)|
+call bug8757()|
+2	y
+2	2
+1	x
+1	1
+delete from t1|
+delete from t2|
+drop procedure bug8757|
 drop table if exists fac|
 create table fac (n int unsigned not null primary key, f bigint unsigned)|
 drop procedure if exists ifac|
