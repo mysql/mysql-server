@@ -146,6 +146,7 @@ int st_select_lex_unit::prepare(THD *thd_arg, select_result *sel_result,
 
   for (;sl; sl= sl->next_select())
   {
+    sl->options|=  SELECT_NO_UNLOCK;
     JOIN *join= new JOIN(thd_arg, sl->item_list, 
 			 sl->options | thd_arg->options | additional_options,
 			 tmp_result);
