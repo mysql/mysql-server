@@ -63,9 +63,10 @@ const char *any_db="*any*";	// Special symbol for check_access
 const char *command_name[]={
   "Sleep", "Quit", "Init DB", "Query", "Field List", "Create DB",
   "Drop DB", "Refresh", "Shutdown", "Statistics", "Processlist",
-  "Connect","Kill","Debug","Ping","Time","Delayed_insert","Change user",
+  "Connect","Kill","Debug","Ping","Time","Delayed insert","Change user",
   "Binlog Dump","Table Dump",  "Connect Out", "Register Slave",
   "Prepare", "Prepare Execute", "Long Data", "Close stmt",
+  "Reset stmt", "Set option",
   "Error"					// Last command number
 };
 
