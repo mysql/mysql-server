@@ -421,6 +421,24 @@ const char *Item_ident::full_name() const
 void Item_ident::print(String *str)
 {
   THD *thd= current_thd;
+  char d_name_buff[MAX_ALIAS_NAME], t_name_buff[MAX_ALIAS_NAME];
+  const char *d_name= db_name, *t_name= table_name;
+  if (lower_case_table_names)
+  {
+    if (table_name && table_name[0])
+    {
+      strmov(t_name_buff, table_name);
+      my_casedn_str(files_charset_info, t_name_buff);
+      t_name= t_name_buff;
+    }
+    if (db_name && db_name[0])
+    {
+      strmov(d_name_buff, db_name);
+      my_casedn_str(files_charset_info, d_name_buff);
+      d_name= d_name_buff;
+    }
+  }
+
   if (!table_name || !field_name)
   {
     const char *nm= field_name ? field_name : name ? name : "tmp_field";
@@ -429,9 +447,9 @@ void Item_ident::print(String *str)
   }
   if (db_name && db_name[0])
   {
-    append_identifier(thd, str, db_name, strlen(db_name));
+    append_identifier(thd, str, d_name, strlen(d_name));
     str->append('.');
-    append_identifier(thd, str, table_name, strlen(table_name));
+    append_identifier(thd, str, t_name, strlen(t_name));
     str->append('.');
     append_identifier(thd, str, field_name, strlen(field_name));
   }
@@ -439,7 +457,7 @@ void Item_ident::print(String *str)
   {
     if (table_name[0])
     {
-      append_identifier(thd, str, table_name, strlen(table_name));
+      append_identifier(thd, str, t_name, strlen(t_name));
       str->append('.');
       append_identifier(thd, str, field_name, strlen(field_name));
     }
