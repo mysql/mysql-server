@@ -1084,7 +1084,7 @@ DbUtil::prepareOperation(Signal* signal, PreparePtr prepPtr)
      ************************/
     DictTabInfo::Attribute attrDesc; attrDesc.init();
     char attrName[MAX_ATTR_NAME_SIZE];
-    Uint32 attrId;
+    Uint32 attrId= ~(Uint32)0;
     bool attributeFound = false;
     Uint32 noOfKeysFound = 0;     // # PK attrs found before attr in DICTdata
     Uint32 noOfNonKeysFound = 0;  // # nonPK attrs found before attr in DICTdata
@@ -1094,11 +1094,13 @@ DbUtil::prepareOperation(Signal* signal, PreparePtr prepPtr)
 	ndbrequire(dictInfoReader.getKey() == DictTabInfo::AttributeName);
 	ndbrequire(dictInfoReader.getValueLen() <= MAX_ATTR_NAME_SIZE);
 	dictInfoReader.getString(attrName);
+	attrId= ~(Uint32)0; // attrId not used
       } else { // (tableKey == UtilPrepareReq::TableId)
 	jam();
 	dictInfoReader.next(); // Skip name
 	ndbrequire(dictInfoReader.getKey() == DictTabInfo::AttributeId);
 	attrId = dictInfoReader.getUint32();
+	attrName[0]= '\0'; // attrName not used
       }
       unpackStatus = SimpleProperties::unpack(dictInfoReader, &attrDesc, 
 					      DictTabInfo::AttributeMapping, 
