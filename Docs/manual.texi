@@ -6012,7 +6012,7 @@ Please report bad or out-of-date mirrors to @email{webmaster@@mysql.com}.
 @c Statistics at http://mirror.borsen.dk/
 @c EMAIL: guru@borsen.dk (Jesper Angelo)
 @image{Flags/denmark} Denmark [Borsen] @
-@uref{ http://mysql.borsen.dk/, WWW}
+@uref{http://mysql.borsen.dk/, WWW}
 
 @item
 @c EMAIL: mirror@sunsite.dk (Mirror Admin Team)
