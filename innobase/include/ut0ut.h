@@ -9,10 +9,9 @@ Created 1/20/1994 Heikki Tuuri
 #ifndef ut0ut_h
 #define ut0ut_h
 
-#include <time.h>
-#include <ctype.h>
-
 #include "univ.i"
+#include <time.h>
+#include <m_ctype.h>
 
 
 typedef time_t	ib_time_t;

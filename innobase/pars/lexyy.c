@@ -6,6 +6,7 @@
 
 #define FLEX_SCANNER
 
+#include "univ.i"
 #include <stdio.h>
 
 
@@ -5850,7 +5851,6 @@ Created 12/14/1997 Heikki Tuuri
 *******************************************************/
 #define YYSTYPE que_node_t*
 
-#include "univ.i"
 #include "pars0pars.h"
 #include "pars0grm.h"
 #include "pars0sym.h"

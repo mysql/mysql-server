@@ -1,30 +1,30 @@
-Testing server 'MySQL 3.23.31' at 2001-01-18  0:40:33
+Testing server 'MySQL 3.23.37' at 2001-04-19 13:51:45
 
 Testing the speed of connecting to the server and sending of data
 All tests are done 10000 times
 
 Testing connection/disconnect
-Time to connect (10000): 33 wallclock secs (11.47 usr  9.97 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
+Time to connect (10000): 33 wallclock secs (12.13 usr  9.89 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
 
 Test connect/simple select/disconnect
-Time for connect+select_simple (10000): 36 wallclock secs (12.84 usr 11.23 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
+Time for connect+select_simple (10000): 37 wallclock secs (12.36 usr 12.34 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
 
 Test simple select
-Time for select_simple (10000):  4 wallclock secs ( 0.88 usr  1.61 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
+Time for select_simple (10000):  4 wallclock secs ( 0.80 usr  1.48 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
 
 Testing connect/select 1 row from table/disconnect
-Time to connect+select_1_row (10000): 38 wallclock secs (13.19 usr 12.03 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
+Time to connect+select_1_row (10000): 39 wallclock secs (12.91 usr 11.73 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
 
 Testing select 1 row from table
-Time to select_1_row (10000):  5 wallclock secs ( 1.14 usr  1.80 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
+Time to select_1_row (10000):  5 wallclock secs ( 1.23 usr  1.69 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
 
 Testing select 2 rows from table
-Time to select_2_rows (10000):  6 wallclock secs ( 0.91 usr  2.03 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
+Time to select_2_rows (10000):  6 wallclock secs ( 1.00 usr  2.20 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
 
 Test select with aritmetic (+)
-Time for select_column+column (10000):  6 wallclock secs ( 0.88 usr  1.83 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
+Time for select_column+column (10000):  5 wallclock secs ( 1.08 usr  1.75 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
 
 Testing retrieval of big records (65000 bytes)
-Time to select_big (10000): 55 wallclock secs (19.23 usr  8.98 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
+Time to select_big (10000): 50 wallclock secs (17.36 usr  6.95 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
 
-Total time: 183 wallclock secs (60.53 usr 49.50 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
+Total time: 179 wallclock secs (58.89 usr 48.05 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
