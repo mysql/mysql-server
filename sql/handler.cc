@@ -1471,7 +1471,7 @@ int ha_discover(THD* thd, const char* db, const char* name,
 
 int
 ha_find_files(THD *thd,const char *db,const char *path,
-	      const char *wild, bool dir)
+	      const char *wild, bool dir, List<char> *files)
 {
   int error= 0;
   DBUG_ENTER("ha_find_files");
@@ -1479,7 +1479,7 @@ ha_find_files(THD *thd,const char *db,const char *path,
 		       db, path, wild, dir));
 #ifdef HAVE_NDBCLUSTER_DB
   if (have_ndbcluster == SHOW_OPTION_YES)
-    error= ndbcluster_find_files(thd, db, path, wild, dir);
+    error= ndbcluster_find_files(thd, db, path, wild, dir, files);
 #endif
   DBUG_RETURN(error);
   
