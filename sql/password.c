@@ -218,6 +218,8 @@ check_scramble_323(const char *scrambled, const char *message,
   to=buff;
   for (pos=scrambled ; *pos ; pos++)
     *to++=(char) (floor(my_rnd(&rand_st)*31)+64);
+  if (pos-scrambled != SCRAMBLE_LENGTH_323)
+    return 1;
   extra=(char) (floor(my_rnd(&rand_st)*31));
   to=buff;
   while (*scrambled)
