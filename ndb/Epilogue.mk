@@ -227,7 +227,7 @@ CCFLAGS_LOC += -I$(call fixpath,$(NDB_TOP)/include/util) \
 BIN_TARGET_LIBS += logger general portlib
 endif
 
-CCFLAGS_LOC += -I$(call fixpath,$(NDB_TOP)/include)
+CCFLAGS_LOC += -I$(call fixpath,$(NDB_TOP)/include) -I$(call fixpath,$(NDB_TOP)/../include)
 
 ifeq ($(NDB_SCI), Y)
 BIN_TARGET_LIBS += sisci
