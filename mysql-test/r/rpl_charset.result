@@ -153,7 +153,7 @@ master-bin.000001	4413	Query	1	4413	use `test2`; SET ONE_SHOT CHARACTER_SET_CLIE
 master-bin.000001	4549	Query	1	4549	use `test2`; truncate table t1
 master-bin.000001	4602	Query	1	4602	use `test2`; SET ONE_SHOT CHARACTER_SET_CLIENT=8,COLLATION_CONNECTION=31,COLLATION_DATABASE=9,COLLATION_SERVER=64
 master-bin.000001	4738	Intvar	1	4738	INSERT_ID=1
-master-bin.000001	4766	User var	1	4766	@`a`=_cp850'Müller' COLLATE cp850_general_ci
+master-bin.000001	4766	User var	1	4766	@`a`=_cp850 0x4DFC6C6C6572 COLLATE cp850_general_ci
 master-bin.000001	4806	Query	1	4806	use `test2`; insert into t1 (b) values(collation(@a))
 master-bin.000001	4882	Query	1	4882	use `test2`; SET ONE_SHOT CHARACTER_SET_CLIENT=8,COLLATION_CONNECTION=31,COLLATION_DATABASE=9,COLLATION_SERVER=64
 master-bin.000001	5018	Query	1	5018	use `test2`; drop database test2
