@@ -26421,6 +26421,10 @@ option to @code{configure}, and the character set configuration files
 listed in @file{SHAREDIR/charsets/Index}.
 @xref{Quick install}.
 
+If you change the character set when running MySQL (which may also
+change the sort order), you must run myisamchk -r -q on all
+tables. Otherwise your indexes may not be ordered correctly.
+
 When a client connects to a @strong{MySQL} server, the server sends the
 default character set in use to the client.  The client will switch to
 use this character set for this connection.
