@@ -23,132 +23,40 @@
 #include <NdbSleep.h>
 #include <NdbOut.hpp>
 
-#include <InputStream.hpp>
-#include <OutputStream.hpp>
-
 #include <sys/ipc.h>
 #include <sys/shm.h>
 
 bool
-SHM_Transporter::connect_server_impl(NDB_SOCKET_TYPE sockfd)
+SHM_Transporter::ndb_shm_create()
 {
-  SocketOutputStream s_output(sockfd);
-  SocketInputStream s_input(sockfd);
-
-  if(!_shmSegCreated){
-    shmId = shmget(shmKey, shmSize, IPC_CREAT | 960);
-    if(shmId == -1){
-      perror("shmget: ");
-      report_error(TE_SHM_UNABLE_TO_CREATE_SEGMENT);
-      NdbSleep_MilliSleep(m_timeOutMillis);
-      NDB_CLOSE_SOCKET(sockfd);
-      return false;
-    }
-    _shmSegCreated = true;
-  }
-
-  s_output.println("shm server 1 ok");
-
-  char buf[256];
-  if (s_input.gets(buf, 256) == 0) {
-    NDB_CLOSE_SOCKET(sockfd);
+  shmId = shmget(shmKey, shmSize, IPC_CREAT | 960);
+  if(shmId == -1) {
+    perror("shmget: ");
     return false;
   }
-
-  int r= connect_common(sockfd);
-
-  if (r) {
-    s_output.println("shm server 2 ok");
-    if (s_input.gets(buf, 256) == 0) {
-      NDB_CLOSE_SOCKET(sockfd);
-      return false;
-    }
-  }
-
-  NDB_CLOSE_SOCKET(sockfd);
-  return r;
+  return true;
 }
 
 bool
-SHM_Transporter::connect_client_impl(NDB_SOCKET_TYPE sockfd)
+SHM_Transporter::ndb_shm_get()
 {
-  SocketInputStream s_input(sockfd);
-  SocketOutputStream s_output(sockfd);
-
-  char buf[256];
-  if (s_input.gets(buf, 256) == 0) {
-    NDB_CLOSE_SOCKET(sockfd);
+  shmId = shmget(shmKey, shmSize, 0);
+  if(shmId == -1) {
+    perror("shmget: ");
     return false;
   }
-
-  if(!_shmSegCreated){
-    shmId = shmget(shmKey, shmSize, 0);
-    if(shmId == -1){
-      NdbSleep_MilliSleep(m_timeOutMillis);
-      NDB_CLOSE_SOCKET(sockfd);
-      return false;
-    }
-    _shmSegCreated = true;
-  }
-
-  s_output.println("shm client 1 ok");
-
-  int r= connect_common(sockfd);
-
-  if (r) {
-    if (s_input.gets(buf, 256) == 0) {
-      NDB_CLOSE_SOCKET(sockfd);
-      return false;
-    }
-    s_output.println("shm client 2 ok");
-  }
-
-  NDB_CLOSE_SOCKET(sockfd);
-  return r;
+  return true;
 }
 
 bool
-SHM_Transporter::connect_common(NDB_SOCKET_TYPE sockfd)
+SHM_Transporter::ndb_shm_attach()
 {
-  if(!_attached){
-    shmBuf = (char *)shmat(shmId, 0, 0);
-    if(shmBuf == 0){
-      report_error(TE_SHM_UNABLE_TO_ATTACH_SEGMENT);
-      NdbSleep_MilliSleep(m_timeOutMillis);
-      return false;
-    }
-    _attached = true;
-  }
-
-  struct shmid_ds info;
-
-  const int res = shmctl(shmId, IPC_STAT, &info);
-  if(res == -1){
-    report_error(TE_SHM_IPC_STAT);
-    NdbSleep_MilliSleep(m_timeOutMillis);
+  shmBuf = (char *)shmat(shmId, 0, 0);
+  if(shmBuf == 0) {
+    perror("shmat: ");
     return false;
   }
-  
-
-  if(info.shm_nattch == 2 && !setupBuffersDone) {
-    setupBuffers();
-    setupBuffersDone=true;
-  }
-
-  if(setupBuffersDone) {
-    NdbSleep_MilliSleep(m_timeOutMillis);
-    if(*serverStatusFlag==1 && *clientStatusFlag==1)
-      return true;
-  }
-
-  if(info.shm_nattch > 2){
-    report_error(TE_SHM_DISCONNECT);
-    NdbSleep_MilliSleep(m_timeOutMillis);
-    return false;
-  }
-
-  NdbSleep_MilliSleep(m_timeOutMillis);
-  return false;
+  return true;
 }
 
 bool
@@ -190,4 +98,3 @@ SHM_Transporter::disconnectImpl(){
   }
   setupBuffersDone=false;
 }
-

@@ -106,17 +106,8 @@ Configuration::init(int argc, const char** argv){
     _initialStart = true;
   
   // Check connectstring
-  if (_connect_str){
-
-    if(_connect_str[0] == '-' || 
-       strstr(_connect_str, "host") == 0 || 
-       strstr(_connect_str, "nodeid") == 0) {
-      ndbout << "Illegal/empty connectString: " << _connect_str << endl;
-      arg_printusage(args, num_args, argv[0], desc);
-      return false;
-    } 
+  if (_connect_str)
     _connectString = strdup(_connect_str);
-  } 
   
   // Check deamon flag
   if (_deamon)
