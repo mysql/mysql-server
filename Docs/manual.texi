@@ -41932,8 +41932,8 @@ programming!  By Marc Beneteau, @email{marc@@odbsoft.com}.
 @item @uref{http://www.mysql.com/Downloads/Contrib/sqlhtml.tar.gz, sqlhtml.tar.gz}
 SQL/HTML is an HTML database manager for @strong{MySQL} using @code{DBI} 1.06.
 
-@item @uref{http://www.mysql.com/Downloads/Contrib/udmsearch-3.0.21.tar.gz, UdmSearch 3.0.22 (stable version)}.
-@item @uref{http://www.mysql.com/Downloads/Contrib/udmsearch-3.1.3.tar.gz, UdmSearch 3.1.3 (development version)}.
+@item @uref{http://www.mysql.com/Downloads/Contrib/udmsearch-3.0.23.tar.gz, UdmSearch 3.0.23 (stable version)}.
+@item @uref{http://www.mysql.com/Downloads/Contrib/mnogosearch-3.1.12.tar.gz, mnogosearch 3.1.12 (development but recommended version)}.
 @item @uref{http://search.mnoGo.ru, UdmSearch home page}
 A SQL-based search engine for Internet. By
 Alexander I. Barkov @email{bar@@izhcom.ru}.
@@ -42845,7 +42845,9 @@ not yet 100% confident in this code.
 @appendixsubsec Changes in release 3.23.37
 @itemize @bullet
 @item
-Fixed a bug in @code{REGEXP()} on 64-bit machines.
+Fixed bug when using indexes on @code{CHAR(255) NULL} columns.
+@item
+Fixed two bugs in @code{REGEXP()} on 64-bit machines.
 @item
 @code{UPDATE} and @code{DELETE} with @code{WHERE unique_key_part IS NULL}
 didn't update/delete all rows.
