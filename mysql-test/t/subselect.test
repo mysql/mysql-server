@@ -351,9 +351,9 @@ INSERT DELAYED INTO t1 (x) VALUES ((SELECT SUM(a) FROM t2));
 select * from t1;
 INSERT INTO t1 (x) select (SELECT SUM(a)+1 FROM t2) FROM t2;
 select * from t1;
-# QQ This doesn't work right since the merge /pem 2003-07-09
-#-- error 1093
+# After this, only data based on old t1 records should have been added.
 INSERT INTO t1 (x) select (SELECT SUM(x)+2 FROM t1) FROM t2;
+select * from t1;
 -- error 1054
 INSERT DELAYED INTO t1 (x) VALUES ((SELECT SUM(x) FROM t2));
 INSERT DELAYED INTO t1 (x) VALUES ((SELECT SUM(a) FROM t2));
