@@ -454,6 +454,7 @@ inline static uint int_token(const char *str,uint length)
 int yylex(void *arg, void *yythd)
 {
   reg1	uchar c;
+  bool  space_ignored;
   int	tokval, result_state;
   uint length;
   enum my_lex_states state;
@@ -572,11 +573,12 @@ int yylex(void *arg, void *yythd)
         result_state= result_state & 0x80 ? IDENT_QUOTED : IDENT;
       }
       length= (uint) (lex->ptr - lex->tok_start)-1;
+      space_ignored= FALSE;
       if (lex->ignore_space)
       {
-	for (; state_map[c] == MY_LEX_SKIP ; c= yyGet());
+        for (; state_map[c] == MY_LEX_SKIP ; space_ignored= TRUE, c= yyGet());
       }
-      if (c == '.' && ident_map[yyPeek()])
+      if (! space_ignored && c == '.' && ident_map[yyPeek()])
 	lex->next_state=MY_LEX_IDENT_SEP;
       else
       {					// '(' must follow directly if function
