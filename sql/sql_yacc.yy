@@ -337,6 +337,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %token	MAX_UPDATES_PER_HOUR
 %token	MEDIUM_SYM
 %token	MIN_ROWS
+%token	MUTEX_SYM
 %token	NAMES_SYM
 %token	NAME_SYM
 %token	NATIONAL_SYM
@@ -5986,6 +5987,8 @@ show_param:
 	  }	
         | INNOBASE_SYM STATUS_SYM
           { Lex->sql_command = SQLCOM_SHOW_INNODB_STATUS; WARN_DEPRECATED("SHOW INNODB STATUS", "SHOW ENGINE INNODB STATUS"); }
+        | MUTEX_SYM STATUS_SYM
+          { Lex->sql_command = SQLCOM_SHOW_MUTEX_STATUS; }
 	| opt_full PROCESSLIST_SYM
 	  { Lex->sql_command= SQLCOM_SHOW_PROCESSLIST;}
 	| opt_var_type VARIABLES wild
@@ -6987,6 +6990,7 @@ keyword:
 	| MULTILINESTRING	{}
 	| MULTIPOINT		{}
 	| MULTIPOLYGON		{}
+	| MUTEX_SYM		{}
 	| NAME_SYM              {}
 	| NAMES_SYM		{}
 	| NATIONAL_SYM		{}

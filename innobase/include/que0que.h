@@ -359,6 +359,7 @@ struct que_thr_struct{
 					the control came */
 	ulint		resource;	/* resource usage of the query thread
 					thus far */
+  ulint		lock_state;	/* lock state of thread (table or row) */
 };
 
 #define QUE_THR_MAGIC_N		8476583
@@ -481,6 +482,11 @@ struct que_fork_struct{
 #define QUE_THR_SIG_REPLY_WAIT	6
 #define QUE_THR_SUSPENDED	7
 #define QUE_THR_ERROR		8
+
+/* Query thread lock states */
+#define QUE_THR_LOCK_NOLOCK    0
+#define QUE_THR_LOCK_ROW       1
+#define QUE_THR_LOCK_TABLE     2
 
 /* From where the cursor position is counted */
 #define QUE_CUR_NOT_DEFINED	1

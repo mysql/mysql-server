@@ -83,6 +83,12 @@ show variables like 'concurrent_insert';
 set global concurrent_insert=DEFAULT;
 show variables like 'concurrent_insert';
 
+set global timed_mutexes=1;
+show variables like 'timed_mutexes';
+set global timed_mutexes=0;
+show variables like 'timed_mutexes';
+
+
 set storage_engine=MYISAM, storage_engine="HEAP", global storage_engine="INNODB";
 show local variables like 'storage_engine';
 show global variables like 'storage_engine';
