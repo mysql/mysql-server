@@ -369,7 +369,7 @@ static byte *federated_get_key(FEDERATED_SHARE *share, uint *length,
                                my_bool not_used __attribute__ ((unused)))
 {
   *length= share->table_name_length;
-  return (byte*)share->table_name;
+  return (byte*) share->table_name;
 }
 
 /*
@@ -456,7 +456,6 @@ static int parse_url(FEDERATED_SHARE *share, TABLE *table,
 {
   DBUG_ENTER("ha_federated::parse_url");
 
-  // This either get set or will remain the same.
   share->port= 0;
   uint error_num= table_create_flag ? ER_CANT_CREATE_TABLE :
     ER_CONNECT_TO_MASTER;
@@ -484,7 +483,9 @@ static int parse_url(FEDERATED_SHARE *share, TABLE *table,
         share->username[share->password - share->username]= '\0';
         share->password++;
         share->username= share->username;
-        // make sure there isn't an extra / or @
+        /* 
+          make sure there isn't an extra / or @
+        */
         if ((strchr(share->password, '/') || strchr(share->hostname, '@')))
         {
           my_error(error_num, MYF(0),
@@ -502,7 +503,9 @@ static int parse_url(FEDERATED_SHARE *share, TABLE *table,
       else
         share->username= share->username;
 
-      // make sure there isn't an extra / or @
+      /*
+        make sure there isn't an extra / or @
+      */
       if ((strchr(share->username, '/')) || (strchr(share->hostname, '@')))
       {
         my_error(error_num, MYF(0),
@@ -543,7 +546,9 @@ static int parse_url(FEDERATED_SHARE *share, TABLE *table,
                  "this connection string is not in the correct format!!!\n");
         DBUG_RETURN(1);
       }
-      // make sure there's not an extra /
+      /*
+        make sure there's not an extra /
+      */
       if ((strchr(share->table_base_name, '/')))
       {
         my_error(error_num, MYF(0),
@@ -602,7 +607,7 @@ static int parse_url(FEDERATED_SHARE *share, TABLE *table,
   RETURN VALUE
     0   After fields have had field values stored from record  
  */
-uint ha_federated::convert_row_to_internal_format(byte* record, MYSQL_ROW row)
+uint ha_federated::convert_row_to_internal_format(byte *record, MYSQL_ROW row)
 {
   ulong *lengths;
   uint num_fields;
@@ -611,9 +616,8 @@ uint ha_federated::convert_row_to_internal_format(byte* record, MYSQL_ROW row)
   DBUG_ENTER("ha_federated::convert_row_to_internal_format");
 
   num_fields= mysql_num_fields(result);
-  lengths= (ulong*) my_malloc(num_fields * sizeof(ulong),
-                                      MYF(0));
-  cli_fetch_lengths((ulong*) (lengths), row, num_fields);
+  lengths= (ulong*) my_malloc(num_fields * sizeof(ulong), MYF(0));
+  cli_fetch_lengths((ulong*) lengths, row, num_fields);
 
   memset(record, 0, table->s->null_bytes);
 
@@ -770,7 +774,7 @@ static FEDERATED_SHARE *get_share(const char *table_name, TABLE *table)
     share->table_name has the file location - we want the actual table's
     name!
   */
-  table_base_name= (char*)table->s->table_name;
+  table_base_name= (char*) table->s->table_name;
   DBUG_PRINT("ha_federated::get_share", ("table_name %s", table_base_name));
   /*
      So why does this exist? There is no way currently to init a storage engine.
@@ -825,13 +829,11 @@ static FEDERATED_SHARE *get_share(const char *table_name, TABLE *table)
 
   return share;
 
-error2:
-  thr_lock_delete(&share->lock);
-  pthread_mutex_destroy(&share->mutex);
 error:
   pthread_mutex_unlock(&federated_mutex);
   if (share->scheme)
     my_free((gptr) share->scheme, MYF(0));
+  VOID(pthread_mutex_destroy(&share->mutex));
   my_free((gptr) share, MYF(0));
 
   return NULL;
@@ -852,7 +854,7 @@ static int free_share(FEDERATED_SHARE *share)
     if (share->scheme)
       my_free((gptr) share->scheme, MYF(0));
 
-    hash_delete(&federated_open_tables, (byte*)share);
+    hash_delete(&federated_open_tables, (byte*) share);
     thr_lock_delete(&share->lock);
     VOID(pthread_mutex_destroy(&share->mutex));
     my_free((gptr) share, MYF(0));
@@ -934,7 +936,7 @@ int ha_federated::close(void)
 {
   DBUG_ENTER("ha_federated::close");
 
-  // free the result set
+  /* free the result set */
   if (result)
   {
     DBUG_PRINT("ha_federated::close",
@@ -966,9 +968,9 @@ int ha_federated::close(void)
       1    if NULL
       0    otherwise 
 */
-inline uint field_in_record_is_null(TABLE *table, /* in: MySQL table object */
-                                    Field *field, /* in: MySQL field object */
-                                    char *record) /* in: row in MySQL format */
+inline uint field_in_record_is_null(TABLE *table,
+                                    Field *field,
+                                    char *record)
 {
   int null_offset;
   DBUG_ENTER("ha_federated::field_in_record_is_null");
@@ -997,7 +999,7 @@ inline uint field_in_record_is_null(TABLE *table, /* in: MySQL table object */
   Called from item_sum.cc, item_sum.cc, sql_acl.cc, sql_insert.cc,
   sql_insert.cc, sql_select.cc, sql_table.cc, sql_udf.cc, and sql_update.cc.
 */
-int ha_federated::write_row(byte* buf)
+int ha_federated::write_row(byte *buf)
 {
   uint x= 0, num_fields= 0;
   Field **field;
@@ -1008,23 +1010,20 @@ int ha_federated::write_row(byte* buf)
   char insert_buffer[IO_SIZE];
   char values_buffer[IO_SIZE], insert_field_value_buffer[IO_SIZE];
 
-  // The main insert query string
+  /* The main insert query string */
   String insert_string(insert_buffer, sizeof(insert_buffer), &my_charset_bin);
   insert_string.length(0);
-  // The string containing the values to be added to the insert
+  /* The string containing the values to be added to the insert */
   String values_string(values_buffer, sizeof(values_buffer), &my_charset_bin);
   values_string.length(0);
-  // The actual value of the field, to be added to the values_string 
+  /* The actual value of the field, to be added to the values_string */
   String insert_field_value_string(insert_field_value_buffer,
                                    sizeof(insert_field_value_buffer),
                                    &my_charset_bin);
   insert_field_value_string.length(0);
 
   DBUG_ENTER("ha_federated::write_row");
-  /*
-     I want to use this and the next line, but the repository needs to be
-     updated to do so
-  */
+
   statistic_increment(table->in_use->status_var.ha_write_count, &LOCK_status);
   if (table->timestamp_field_type & TIMESTAMP_AUTO_SET_ON_INSERT)
     table->timestamp_field->set_time();
@@ -1038,10 +1037,10 @@ int ha_federated::write_row(byte* buf)
   DBUG_PRINT("ha_federated::write_row", ("current query id %d",
                                          current_query_id));
 
-  // start off our string 
+  /* start off our string */
   insert_string.append("INSERT INTO ");
   insert_string.append(share->table_base_name);
-  // start both our field and field values strings
+  /* start both our field and field values strings */
   insert_string.append(" (");
   values_string.append(" VALUES (");
 
@@ -1083,17 +1082,17 @@ int ha_federated::write_row(byte* buf)
                    ("current query id %d field is not null query ID %d",
                     current_query_id, (*field)->query_id));
         (*field)->val_str(&insert_field_value_string);
-        // quote these fields if they require it
+        /* quote these fields if they require it */
         (*field)->quote_data(&insert_field_value_string);
       }
-      // append the field name
+      /* append the field name */
       insert_string.append((*field)->field_name);
 
-      // append the value
+      /* append the value */
       values_string.append(insert_field_value_string);
       insert_field_value_string.length(0);
 
-      // append commas between both fields and fieldnames
+      /* append commas between both fields and fieldnames */
       insert_string.append(',');
       values_string.append(',');
       DBUG_PRINT("ha_federated::write_row",
@@ -1120,14 +1119,14 @@ int ha_federated::write_row(byte* buf)
   DBUG_PRINT("ha_federated::write_row", ("x %d  num fields %d", x, num_fields));
   if (num_fields > 0)
   {
-    // chops off leading commas
+    /* chops off leading commas */
     values_string.chop();
     insert_string.append(')');
   }
-  // we always want to append this, even if there aren't any fields
+  /* we always want to append this, even if there aren't any fields */
   values_string.append(')');
 
-  // add the values 
+  /* add the values */
   insert_string.append(values_string);
 
   DBUG_PRINT("ha_federated::write_row", ("insert query %s",
@@ -1158,7 +1157,7 @@ int ha_federated::write_row(byte* buf)
 
   Called from sql_select.cc, sql_acl.cc, sql_update.cc, and sql_insert.cc.
 */
-int ha_federated::update_row(const byte * old_data, byte * new_data)
+int ha_federated::update_row(const byte *old_data, byte *new_data)
 {
   uint x= 0;
   uint has_a_primary_key= 0;
@@ -1166,18 +1165,20 @@ int ha_federated::update_row(const byte * old_data, byte * new_data)
   char old_field_value_buffer[IO_SIZE], new_field_value_buffer[IO_SIZE];
   char update_buffer[IO_SIZE], where_buffer[IO_SIZE];
 
-  // stores the value to be replaced of the field were are updating 
+  /*
+    stores the value to be replaced of the field were are updating 
+  */
   String old_field_value(old_field_value_buffer, sizeof(old_field_value_buffer),
                          &my_charset_bin);
   old_field_value.length(0);
-  // stores the new value of the field 
+  /* stores the new value of the field */
   String new_field_value(new_field_value_buffer, sizeof(new_field_value_buffer),
                          &my_charset_bin);
   new_field_value.length(0);
-  // stores the update query
+  /* stores the update query */
   String update_string(update_buffer, sizeof(update_buffer), &my_charset_bin);
   update_string.length(0);
-  // stores the WHERE clause 
+  /* stores the WHERE clause */ 
   String where_string(where_buffer, sizeof(where_buffer), &my_charset_bin);
   where_string.length(0);
 
@@ -1275,7 +1276,7 @@ int ha_federated::update_row(const byte * old_data, byte * new_data)
     old_field_value.length(0);
   }
   update_string.append(" WHERE ");
-  update_string.append(where_string.c_ptr_quick());
+  update_string.append(where_string);
   if (! has_a_primary_key)
     update_string.append(" LIMIT 1");
 
@@ -1305,7 +1306,7 @@ int ha_federated::update_row(const byte * old_data, byte * new_data)
   it is used for removing duplicates while in insert it is used for REPLACE
   calls.
 */
-int ha_federated::delete_row(const byte * buf)
+int ha_federated::delete_row(const byte *buf)
 {
   uint x= 0;
   char delete_buffer[IO_SIZE];
@@ -1364,7 +1365,7 @@ int ha_federated::delete_row(const byte * buf)
   index. This method, which is called in the case of an SQL statement having
   a WHERE clause on a non-primary key index, simply calls index_read_idx.
 */
-int ha_federated::index_read(byte* buf, const byte * key,
+int ha_federated::index_read(byte *buf, const byte *key,
                              uint key_len __attribute__ ((unused)),
                              enum ha_rkey_function find_flag
                              __attribute__ ((unused)))
@@ -1382,7 +1383,7 @@ int ha_federated::index_read(byte* buf, const byte * key,
   a regular non-primary key index, OR is called DIRECTLY when the WHERE clause 
   uses a PRIMARY KEY index.
 */
-int ha_federated::index_read_idx(byte* buf, uint index, const byte * key,
+int ha_federated::index_read_idx(byte *buf, uint index, const byte *key,
                                  uint key_len __attribute__ ((unused)),
                                  enum ha_rkey_function find_flag
                                  __attribute__ ((unused)))
@@ -1411,7 +1412,7 @@ int ha_federated::index_read_idx(byte* buf, uint index, const byte * key,
 
   DBUG_PRINT("ha_federated::index_read_idx",
              ("current key %d key value %s index_string value %s length %d",
-              index, (char*) (key), index_string.c_ptr_quick(),
+              index, (char*) key, index_string.c_ptr_quick(),
               index_string.length()));
 
   DBUG_PRINT("ha_federated::index_read_idx",
@@ -1461,7 +1462,7 @@ int ha_federated::index_init(uint keynr)
 /*
   Used to read forward through the index.
 */
-int ha_federated::index_next(byte* buf)
+int ha_federated::index_next(byte *buf)
 {
   DBUG_ENTER("ha_federated::index_next");
   DBUG_RETURN(rnd_next(buf));
@@ -1553,7 +1554,7 @@ int ha_federated::index_end(void)
   Called from filesort.cc, records.cc, sql_handler.cc, sql_select.cc,
   sql_table.cc, and sql_update.cc.
 */
-int ha_federated::rnd_next(byte* buf)
+int ha_federated::rnd_next(byte *buf)
 {
   MYSQL_ROW row;
   DBUG_ENTER("ha_federated::rnd_next");
@@ -1601,7 +1602,7 @@ void ha_federated::position(const byte *record)
 
   Called from filesort.cc records.cc sql_insert.cc sql_select.cc sql_update.cc.
 */
-int ha_federated::rnd_pos(byte* buf, byte *pos)
+int ha_federated::rnd_pos(byte *buf, byte *pos)
 {
   DBUG_ENTER("ha_federated::rnd_pos");
   /* 
@@ -1613,10 +1614,8 @@ int ha_federated::rnd_pos(byte* buf, byte *pos)
   {
     statistic_increment(table->in_use->status_var.ha_read_rnd_count,
                         &LOCK_status);
-    /* 
-      pos is not aligned
-    */
-    memcpy_fixed(&current_position, pos, sizeof(MYSQL_ROW_OFFSET)); 
+    memcpy_fixed(&current_position, pos, sizeof(MYSQL_ROW_OFFSET));     // pos
+    /* is not aligned */
     result->current_row= 0;
     result->data_cursor= current_position;
     DBUG_RETURN(rnd_next(buf));
@@ -1668,11 +1667,11 @@ int ha_federated::rnd_pos(byte* buf, byte *pos)
     sql_update.cc
 
 */
-// FIX: later version provide better information to the optimizer
+/* FIX: later version provide better information to the optimizer */
 void ha_federated::info(uint flag)
 {
   DBUG_ENTER("ha_federated::info");
-  records= 10000;                               // Fake!
+  records= 10000; // fix later 
   DBUG_VOID_RETURN;
 }
 
