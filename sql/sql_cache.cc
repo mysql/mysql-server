@@ -1022,6 +1022,7 @@ Query_cache::send_result_to_client(THD *thd, char *sql, uint query_length)
     Query_cache_table *table = block_table->parent;
     table_list.db = table->db();
     table_list.alias= table_list.real_name= table->table();
+    table_list.non_cachable_table= 1;	// just safety for table on stack
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
     if (check_table_access(thd,SELECT_ACL,&table_list,1))
     {

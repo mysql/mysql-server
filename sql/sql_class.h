@@ -788,12 +788,6 @@ public:
   bool       slow_command;
 
   /*
-    Used in prepared statement to prevent using table/field cache in
-    Item_idend, bacuse it can point on removed table.
-  */
-  bool	     no_table_fix_fields_cache;
-
-  /*
     If we do a purge of binary logs, log index info of the threads
     that are currently reading it needs to be adjusted. To do that
     each thread that is using LOG_INFO needs to adjust the pointer to it
