@@ -1608,14 +1608,23 @@ view_store_create_info(THD *thd, TABLE_LIST *table, String *buff)
                                                        MODE_MAXDB |
                                                        MODE_ANSI)) != 0;
   buff->append("CREATE ", 7);
-  if (!foreign_db_mode && (table->algorithm == VIEW_ALGORITHM_MERGE ||
-                           table->algorithm == VIEW_ALGORITHM_TMPTABLE))
+  if (!foreign_db_mode)
   {
     buff->append("ALGORITHM=", 10);
-    if (table->algorithm == VIEW_ALGORITHM_TMPTABLE)
+    switch(table->algorithm)
+    {
+    case VIEW_ALGORITHM_UNDEFINED:
+      buff->append("UNDEFINED ", 10);
+      break;
+    case VIEW_ALGORITHM_TMPTABLE:
       buff->append("TEMPTABLE ", 10);
-    else
+      break;
+    case VIEW_ALGORITHM_MERGE:
       buff->append("MERGE ", 6);
+      break;
+    default:
+	DBUG_ASSERT(0); // never should happen
+    }
   }
   buff->append("VIEW ", 5);
   append_identifier(thd, buff, table->view_db.str, table->view_db.length);
@@ -1623,6 +1632,13 @@ view_store_create_info(THD *thd, TABLE_LIST *table, String *buff)
   append_identifier(thd, buff, table->view_name.str, table->view_name.length);
   buff->append(" AS ", 4);
   buff->append(table->query.str, table->query.length);
+  if (table->with_check != VIEW_CHECK_NONE)
+  {
+    if (table->with_check == VIEW_CHECK_LOCAL)
+      buff->append(" WITH LOCAL CHECK OPTION", 24);
+    else
+      buff->append(" WITH CASCADED CHECK OPTION", 27);
+  }
   return 0;
 }
 

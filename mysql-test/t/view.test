@@ -178,7 +178,12 @@ grant create view,select on test.* to mysqltest_1@localhost;
 connect (user1,localhost,mysqltest_1,,test);
 connection user1;
 
-create view v1  as select * from mysqltest.t1;
+create view v1 as select * from mysqltest.t1;
+# try to modify view without DELETE privilege on it
+-- error 1142
+alter view v1 as select * from mysqltest.t1;
+-- error 1142
+create or replace view v1 as select * from mysqltest.t1;
 # no CRETE VIEW privilege
 -- error 1142
 create view mysqltest.v2  as select * from mysqltest.t1;
@@ -1382,5 +1387,37 @@ insert into v1 values (1) on duplicate key update a=2;
 insert into v1 values (1) on duplicate key update a=2;
 insert ignore into v1 values (1) on duplicate key update a=2;
 select * from t1;
+drop view v1;
+drop table t1;
+
+#
+# check cyclic referencing protection on altering view
+#
+create table t1 (s1 int);
+create view v1 as select * from t1;
+create view v2 as select * from v1;
+-- error 1146
+alter view v1 as select * from v2;
+-- error 1066
+alter view v1 as select * from v1;
+-- error 1146
+create or replace view v1 as select * from v2;
+-- error 1066
+create or replace view v1 as select * from v1;
+drop view v2,v1;
+drop table t1;
+
+#
+# check altering differ options
+#
+create table t1 (a int);
+create view v1 as select * from t1;
+show create view v1;
+alter algorithm=undefined view v1 as select * from t1 with check option;
+show create view v1;
+alter algorithm=merge view v1 as select * from t1 with cascaded check option;
+show create view v1;
+alter algorithm=temptable view v1 as select * from t1;
+show create view v1;
 drop view v1;
 drop table t1;

@@ -245,6 +245,11 @@ typedef struct st_table_list
   ulonglong	revision;		/* revision control number */
   ulonglong	algorithm;		/* 0 any, 1 tmp tables , 2 merging */
   ulonglong     with_check;             /* WITH CHECK OPTION */
+  /*
+    effective value of WITH CHECK OPTION (differ for temporary table
+    algorithm)
+  */
+  uint8         effective_with_check;
   uint          effective_algorithm;    /* which algorithm was really used */
   GRANT_INFO	grant;
   thr_lock_type lock_type;
