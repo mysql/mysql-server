@@ -166,6 +166,46 @@ struct sync_level_struct{
 	ulint	level;	/* level of the latch in the latching order */
 };
 
+
+#if defined(__GNUC__) && defined(UNIV_INTEL_X86)
+
+ulint
+sync_gnuc_intelx86_test_and_set(
+		   /* out: old value of the lock word */
+        ulint* lw) /* in: pointer to the lock word */
+{
+        ulint res;
+
+	/* In assembly we use the so-called AT & T syntax where
+	the order of operands is inverted compared to the ordinary Intel
+	syntax. The 'l' after the mnemonics denotes a 32-bit operation.
+	The line after the code tells which values come out of the asm
+	code, and the second line tells the input to the asm code. */
+
+	asm volatile("movl $1, %%eax; xchgl (%%ecx), %%eax" :
+	              "=eax" (res), "=m" (*lw) :
+	              "ecx" (lw));
+	return(res);
+}
+
+void
+sync_gnuc_intelx86_reset(
+        ulint* lw) /* in: pointer to the lock word */
+{
+	/* In assembly we use the so-called AT & T syntax where
+	the order of operands is inverted compared to the ordinary Intel
+	syntax. The 'l' after the mnemonics denotes a 32-bit operation. */
+
+	asm volatile("movl $0, %%eax; xchgl (%%ecx), %%eax" :
+	              "=m" (*lw) :
+	              "ecx" (lw) :
+		      "eax");	/* gcc does not seem to understand
+				that our asm code resets eax: tell it
+				explicitly that after the third ':' */
+}
+
+#endif
+
 /**********************************************************************
 Creates, or rather, initializes a mutex object in a specified memory
 location (which must be appropriately aligned). The mutex is initialized

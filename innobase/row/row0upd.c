@@ -750,6 +750,7 @@ row_upd_sec_index_entry(
 	btr_cur_t*	btr_cur;
 	mem_heap_t*	heap;
 	rec_t*		rec;
+	char*           err_buf;
 	ulint		err	= DB_SUCCESS;
 	
 	index = node->index;
@@ -764,18 +765,37 @@ row_upd_sec_index_entry(
 	
 	found = row_search_index_entry(index, entry, BTR_MODIFY_LEAF, &pcur,
 									&mtr);
-	ut_ad(found);
-
 	btr_cur = btr_pcur_get_btr_cur(&pcur);
 
 	rec = btr_cur_get_rec(btr_cur);
 
- 	/* Delete mark the old index record; it can already be delete marked if
- 	we return after a lock wait in row_ins_index_entry below */
+	if (!found) {
 
-	if (!rec_get_deleted_flag(rec)) {
+	  err_buf = mem_alloc(1000);
+	  dtuple_sprintf(err_buf, 900, entry);
+
+	  fprintf(stderr, "InnoDB: error in sec index entry update in\n"
+		  "InnoDB: index %s table %s\n", index->name,
+		  index->table->name);
+	  fprintf(stderr, "InnoDB: tuple %s\n", err_buf);
+
+	  rec_sprintf(err_buf, 900, rec);
+	  fprintf(stderr, "InnoDB: record %s\n", err_buf);
+
+	  fprintf(stderr, "InnoDB: Make a detailed bug report and send it\n");
+	  fprintf(stderr, "InnoDB: to mysql@lists.mysql.com\n");
+
+	  mem_free(err_buf);
+	} else {
+
+ 	  /* Delete mark the old index record; it can already be
+          delete marked if we return after a lock wait in
+          row_ins_index_entry below */
+
+	  if (!rec_get_deleted_flag(rec)) {
 		err = btr_cur_del_mark_set_sec_rec(0, btr_cur, TRUE, thr,
 									&mtr);
+	  }
 	}
 
 	btr_pcur_close(&pcur);
