@@ -2186,10 +2186,9 @@ Field *find_field_in_real_table(THD *thd, TABLE *table,
     check_privileges    need to check privileges
 
   RETURN VALUES
-    0			No field was found, or the found field is not unique, or
-                        there are no sufficient access priviliges for the
-                        found field, or the field is qualified with non-existing
-                        table.
+    0			If error: the found field is not unique, or there are
+                        no sufficient access priviliges for the found field,
+                        or the field is qualified with non-existing table.
     not_found_field	The function was called with report_error ==
                         (IGNORE_ERRORS || IGNORE_EXCEPT_NON_UNIQUE) and a
 			field was not found.
