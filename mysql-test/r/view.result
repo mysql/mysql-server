@@ -977,3 +977,9 @@ ERROR HY000: View 'test.v1' references invalid table(s) or column(s)
 drop view v1;
 create view v1 (a,a) as select 'a','a';
 ERROR 42S21: Duplicate column name 'a'
+create table t1 (a int, b int);
+create view v1 as select a, sum(b) from t1 group by a;
+select b from v1 use index (some_index) where b=1;
+ERROR 42000: Key column 'some_index' doesn't exist in table
+drop view v1;
+drop table t1;
