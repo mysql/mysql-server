@@ -340,8 +340,10 @@ drop table t1, t2;
 
 # Test for BUG#5837 - delete with outer join and const tables
 drop table if exists t2, t1;
+--disable_warnings
 create table t1(aclid bigint not null primary key, status tinyint(1) not null ) type = innodb;
 create table t2(refid bigint not null primary key, aclid bigint, index idx_acl(aclid) )type = innodb;
+--enable_warnings
 insert into t2 values(1,null);
 delete t2, t1 from t2 as a left join t1 as b on (a.aclid=b.aclid) where a.refid='1';
 drop table t1, t2;
