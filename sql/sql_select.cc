@@ -5269,6 +5269,7 @@ make_join_select(JOIN *join,SQL_SELECT *select,COND *cond)
           if (!(tmp= add_found_match_trig_cond(first_inner_tab, tmp, 0)))
             DBUG_RETURN(1);
           tab->select_cond=sel->cond=tmp;
+	  tab->table->file->cond_push(tmp); // Push condition to handler
         }
         else
           tab->select_cond= sel->cond= NULL;
@@ -5390,6 +5391,8 @@ make_join_select(JOIN *join,SQL_SELECT *select,COND *cond)
 		join->thd->memdup((gptr) sel, sizeof(SQL_SELECT));
 	      tab->cache.select->cond=tmp;
 	      tab->cache.select->read_tables=join->const_table_map;
+	      if (tmp != tab->select_cond)
+		tab->table->file->cond_push(tmp); // Push condition to handler
 	    }
 	  }
 	}
