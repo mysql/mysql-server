@@ -494,7 +494,7 @@ void Item_in_subselect::single_value_transformer(THD *thd,
     else
     {
       sl->item_list.empty();
-      sl->item_list.push_back(new Item_int(1));
+      sl->item_list.push_back(new Item_int("Not_used", (longlong) 1, 21));
       if (sl->table_list.elements)
       {
 	item= (*func)(expr, new Item_asterisk_remover(this, item,

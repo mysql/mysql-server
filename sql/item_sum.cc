@@ -22,7 +22,7 @@
 #endif
 
 #include "mysql_priv.h"
-#include "assert.h"
+
 Item_sum::Item_sum(List<Item> &list)
 {
   arg_count=list.elements;

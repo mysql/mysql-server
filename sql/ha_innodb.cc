@@ -32,7 +32,6 @@ InnoDB */
 
 #ifdef HAVE_INNOBASE_DB
 #include <m_ctype.h>
-#include <assert.h>
 #include <hash.h>
 #include <myisampack.h>
 

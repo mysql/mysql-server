@@ -33,8 +33,6 @@
 #include <m_ctype.h>
 #include <nisam.h>
 #include "sql_select.h"
-#include <assert.h>
-
 
 #ifndef EXTRA_DEBUG
 #define test_rb_tree(A,B) {}

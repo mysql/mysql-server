@@ -382,7 +382,7 @@ int mysqld_help(THD *thd, const char *mask)
       if ((res= send_header_2(protocol)) ||
 	  (count==0 && 
 	   (search_categories(thd, 0, &categories_list, 0)<0 && 
-	    (res= 1))) ||
+	    ((res= 1)))) ||
 	  (res= send_variant_2_list(protocol,&categories_list,true)))
 	goto end;
     }
@@ -396,7 +396,7 @@ int mysqld_help(THD *thd, const char *mask)
   else if ((res= send_header_2(protocol)) ||
 	   (res= send_variant_2_list(protocol,&function_list,false)) ||
 	   (search_categories(thd, mask, &categories_list, 0)<0 && 
-	    (res=1)) ||
+	    ((res=1))) ||
 	   (res= send_variant_2_list(protocol,&categories_list,true)))
   {
     goto end;

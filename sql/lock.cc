@@ -68,8 +68,7 @@ TODO:
 
 #include "mysql_priv.h"
 #include <hash.h>
-#include <assert.h>
-#include <ha_myisammrg.h>
+#include "ha_myisammrg.h"
 #ifndef MASTER
 #include "../srclib/myisammrg/myrg_def.h"
 #else

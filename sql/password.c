@@ -151,11 +151,8 @@ void create_random_string(int length,struct rand_struct *rand_st,char* target)
 {
   char* end=target+length;
   /* Use pointer arithmetics as it is faster way to do so. */
-  while (target<end)
-  {
-    *target=rnd(rand_st)*94+33;
-    target++;
-  }
+  for (; target<end ; target++)
+    *target= (char) (rnd(rand_st)*94+33);
 }
 
 
@@ -296,7 +293,7 @@ void make_scrambled_password(char *to,const char *password,
   {
     to[0]=PVERSION41_CHAR; /* New passwords have version prefix */
    /* Rnd returns number from 0 to 1 so this would be good salt generation.*/
-    salt=rnd(rand_st)*65535+1;
+    salt=(unsigned short) (rnd(rand_st)*65535+1);
     /* Use only 2 first bytes from it */
     sprintf(to+1,"%04x",salt);
     /* First hasing is done without salt */
@@ -556,7 +553,7 @@ void get_hash_and_password(ulong* salt, uint8 pversion, char* hash, unsigned cha
       val=*(++salt);
       for (t=3; t>=0; t--)
       {
-        bin_password[t]=val & 255;
+        bin_password[t]= (char) (val & 255);
         val>>=8; /* Scroll 8 bits to get next part*/
       }
       bin_password+=4; /* Get to next 4 chars*/
@@ -575,8 +572,7 @@ void get_hash_and_password(ulong* salt, uint8 pversion, char* hash, unsigned cha
       val=*salt;
       for (t=3;t>=0;t--)
       {
-        bp[t]=val%256;
-
+        bp[t]= (uchar) (val & 255);
         val>>=8; /* Scroll 8 bits to get next part*/
       }
       bp+=4; /* Get to next 4 chars*/

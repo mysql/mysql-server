@@ -3,9 +3,9 @@
 path=`dirname $0`
 . "$path/SETUP.sh"
 
-extra_flags="$pentium_cflags $fast_cflags"
+extra_flags="$pentium_cflags $fast_cflags -g"
 extra_configs="$pentium_configs"
-strip=yes
+#strip=yes
 
 extra_configs="$extra_configs --with-innodb --with-berkeley-db \
 	--with-embedded-server --enable-thread-safe-client \

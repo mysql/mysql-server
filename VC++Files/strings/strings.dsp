@@ -25,7 +25,7 @@ CFG=strings - Win32 Debug
 # PROP AllowPerConfigDependencies 0
 # PROP Scc_ProjName ""
 # PROP Scc_LocalPath ""
-CPP=cl.exe
+CPP=xicl6.exe
 RSC=rc.exe
 
 !IF  "$(CFG)" == "strings - Win32 Release"
@@ -48,7 +48,7 @@ RSC=rc.exe
 BSC32=bscmake.exe
 # ADD BASE BSC32 /nologo
 # ADD BSC32 /nologo
-LIB32=link.exe -lib
+LIB32=xilink6.exe -lib
 # ADD BASE LIB32 /nologo
 # ADD LIB32 /nologo /out:"..\lib_release\strings.lib"
 
@@ -72,7 +72,7 @@ LIB32=link.exe -lib
 BSC32=bscmake.exe
 # ADD BASE BSC32 /nologo
 # ADD BSC32 /nologo
-LIB32=link.exe -lib
+LIB32=xilink6.exe -lib
 # ADD BASE LIB32 /nologo
 # ADD LIB32 /nologo /out:"..\lib_debug\strings.lib"
 
@@ -104,11 +104,11 @@ SOURCE=.\bmove512.c
 # End Source File
 # Begin Source File
 
-SOURCE=".\ctype-bin.c"
+SOURCE=".\ctype-big5.c"
 # End Source File
 # Begin Source File
 
-SOURCE=".\ctype-big5.c"
+SOURCE=".\ctype-bin.c"
 # End Source File
 # Begin Source File
 
@@ -132,6 +132,10 @@ SOURCE=".\ctype-latin1_de.c"
 # End Source File
 # Begin Source File
 
+SOURCE=".\ctype-mb.c"
+# End Source File
+# Begin Source File
+
 SOURCE=".\ctype-simple.c"
 # End Source File
 # Begin Source File
@@ -145,6 +149,14 @@ SOURCE=".\ctype-tis620.c"
 # Begin Source File
 
 SOURCE=".\ctype-ujis.c"
+# End Source File
+# Begin Source File
+
+SOURCE=".\ctype-utf8.c"
+# End Source File
+# Begin Source File
+
+SOURCE=".\ctype-win1250ch.c"
 # End Source File
 # Begin Source File
 
@@ -164,23 +176,15 @@ SOURCE=.\longlong2str.c
 # End Source File
 # Begin Source File
 
+SOURCE=.\my_vsnprintf.c
+# End Source File
+# Begin Source File
+
 SOURCE=.\r_strinstr.c
 # End Source File
 # Begin Source File
 
 SOURCE=.\str2int.c
-# End Source File
-# Begin Source File
-
-SOURCE=.\strcend.c
-# End Source File
-# Begin Source File
-
-SOURCE=.\strend.c
-# End Source File
-# Begin Source File
-
-SOURCE=.\strfill.c
 # End Source File
 # Begin Source File
 
@@ -214,19 +218,6 @@ InputName=Strings
 
 # End Source File
 # Begin Source File
-
-SOURCE=.\strmake.c
-# End Source File
-# Begin Source File
-
-SOURCE=.\strmov.c
-# End Source File
-# Begin Source File
-
-SOURCE=.\strnmov.c
-# End Source File
-# Begin Source File
-
 
 SOURCE=.\strtol.c
 # End Source File
@@ -276,6 +267,10 @@ InputName=Strxmov
 # Begin Source File
 
 SOURCE=.\strxnmov.c
+# End Source File
+# Begin Source File
+
+SOURCE=.\xml.c
 # End Source File
 # End Target
 # End Project

@@ -16,6 +16,8 @@ select * from t1 where MATCH(a,b) AGAINST ("indexes collections");
 a	b
 Full-text indexes	are called collections
 Only MyISAM tables	support collections
+select * from t1 where MATCH(a,b) AGAINST ("only");
+a	b
 select * from t1 where MATCH(a,b) AGAINST ("collections") UNION ALL select * from t1 where MATCH(a,b) AGAINST ("indexes");
 a	b
 Only MyISAM tables	support collections
