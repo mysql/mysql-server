@@ -800,7 +800,7 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
   case 'B':
     status.batch= 1;
     status.add_to_history= 0;
-    opt_silent++;				// more silent
+    set_if_bigger(opt_silent,1);                         // more silent
     break;
   case 'W':
 #ifdef __WIN__
