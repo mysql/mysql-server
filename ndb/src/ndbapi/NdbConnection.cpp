@@ -730,7 +730,8 @@ NdbConnection::doSend()
     theNdb->insert_completed_list(this); 
     DBUG_RETURN(0);
   default:
-    ndbout << "Inconsistent theSendStatus = " << theSendStatus << endl;
+    ndbout << "Inconsistent theSendStatus = "
+	   << (Uint32) theSendStatus << endl;
     abort();
     break;
   }//switch
@@ -1643,6 +1644,10 @@ NdbConnection::receiveTCKEY_FAILCONF(const TcKeyFailConf * failConf)
 	setOperationErrorCodeAbort(4115);
 	tOp = NULL;
 	break;
+      case NdbOperation::NotDefined:
+      case NdbOperation::NotDefined2:
+	assert();
+	break;
       }//if
     }//while   
     theReleaseOnClose = true;
@@ -1924,14 +1929,14 @@ NdbConnection::printState()
   CASE(Connected);
   CASE(DisConnecting);
   CASE(ConnectFailure);
-  default: ndbout << theStatus;
+  default: ndbout << (Uint32) theStatus;
   }
   switch (theListState) {
   CASE(NotInList);
   CASE(InPreparedList);
   CASE(InSendList);
   CASE(InCompletedList);
-  default: ndbout << theListState;
+  default: ndbout << (Uint32) theListState;
   }
   switch (theSendStatus) {
   CASE(NotInit);
@@ -1944,7 +1949,7 @@ NdbConnection::printState()
   CASE(sendTC_ROLLBACK);
   CASE(sendTC_COMMIT);
   CASE(sendTC_OP);
-  default: ndbout << theSendStatus;
+  default: ndbout << (Uint32) theSendStatus;
   }
   switch (theCommitStatus) {
   CASE(NotStarted);
@@ -1952,14 +1957,14 @@ NdbConnection::printState()
   CASE(Committed);
   CASE(Aborted);
   CASE(NeedAbort);
-  default: ndbout << theCommitStatus;
+  default: ndbout << (Uint32) theCommitStatus;
   }
   switch (theCompletionStatus) {
   CASE(NotCompleted);
   CASE(CompletedSuccess);
   CASE(CompletedFailure);
   CASE(DefinitionFailure);
-  default: ndbout << theCompletionStatus;
+  default: ndbout << (Uint32) theCompletionStatus;
   }
   ndbout << endl;
 }
