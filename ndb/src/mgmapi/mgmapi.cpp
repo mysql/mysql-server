@@ -2020,5 +2020,49 @@ ndb_mgm_set_connection_int_parameter(NdbMgmHandle handle,
   return res;
 }
 
+extern "C"
+int
+ndb_mgm_get_connection_int_parameter(NdbMgmHandle handle,
+				     int node1,
+				     int node2,
+				     int param,
+				     unsigned *value,
+				     struct ndb_mgm_reply* mgmreply){
+  DBUG_ENTER("ndb_mgm_get_connection_int_parameter");
+  CHECK_HANDLE(handle, -1);
+  CHECK_CONNECTED(handle, -1);
+  
+  Properties args;
+  args.put("node1", node1);
+  args.put("node2", node2);
+  args.put("param", param);
+  
+  const ParserRow<ParserDummy> reply[]= {
+    MGM_CMD("get connection parameter reply", NULL, ""),
+    MGM_ARG("result", String, Mandatory, "Error message"),
+    MGM_ARG("value", Int, Mandatory, "Current Value"),
+    MGM_END()
+  };
+  
+  const Properties *prop;
+  prop= ndb_mgm_call(handle, reply, "get connection parameter", &args);
+  CHECK_REPLY(prop, -1);
+
+  int res= -1;
+  do {
+    const char * buf;
+    if(!prop->get("result", &buf) || strcmp(buf, "Ok") != 0){
+      ndbout_c("ERROR Message: %s\n", buf);
+      break;
+    }
+    res= 0;
+  } while(0);
+
+  prop->get("value",value);
+
+  delete prop;
+  return res;
+}
+
 
 template class Vector<const ParserRow<ParserDummy>*>;
