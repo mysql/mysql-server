@@ -30,7 +30,7 @@
 #include <stdarg.h>
 #include <m_ctype.h>				// For test_if_number
 
-MYSQL_LOG mysql_log,mysql_update_log,mysql_slow_log,mysql_bin_log;
+MYSQL_LOG mysql_log, mysql_slow_log, mysql_bin_log;
 extern I_List<i_string> binlog_do_db, binlog_ignore_db;
 
 static bool test_if_number(const char *str,
@@ -1068,7 +1068,7 @@ err:
 
 /*
   Write to normal (not rotable) log
-  This is the format for the 'normal', 'slow' and 'update' logs.
+  This is the format for the 'normal' log.
 */
 
 bool MYSQL_LOG::write(THD *thd,enum enum_server_command command,
@@ -1511,8 +1511,7 @@ err:
 
 
 /*
-  Write update log in a format suitable for incremental backup
-  This is also used by the slow query log.
+  Write to the slow query log.
 */
 
 bool MYSQL_LOG::write(THD *thd,const char *query, uint query_length,
@@ -1528,12 +1527,6 @@ bool MYSQL_LOG::write(THD *thd,const char *query, uint query_length,
     int tmp_errno=0;
     char buff[80],*end;
     end=buff;
-    if (!(thd->options & OPTION_UPDATE_LOG) &&
-        (thd->master_access & SUPER_ACL))
-    {
-      VOID(pthread_mutex_unlock(&LOCK_log));
-      return 0;
-    }
     if ((specialflag & SPECIAL_LONG_LOG_FORMAT) || query_start_arg)
     {
       current_time=time(NULL);

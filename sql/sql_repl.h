@@ -20,7 +20,7 @@ extern I_List<i_string> binlog_do_db, binlog_ignore_db;
 extern int max_binlog_dump_events;
 extern my_bool opt_sporadic_binlog_dump_fail;
 
-#define KICK_SLAVE(thd) { pthread_mutex_lock(&(thd)->LOCK_delete); (thd)->awake(0 /* do not prepare to die*/); pthread_mutex_unlock(&(thd)->LOCK_delete); }
+#define KICK_SLAVE(thd) { pthread_mutex_lock(&(thd)->LOCK_delete); (thd)->awake(THD::NOT_KILLED); pthread_mutex_unlock(&(thd)->LOCK_delete); }
 
 File open_binlog(IO_CACHE *log, const char *log_file_name,
 		 const char **errmsg);

@@ -563,7 +563,7 @@ int start_slave_thread(pthread_handler h_func, pthread_mutex_t *start_lock,
       if (thd->killed)
       {
 	pthread_mutex_unlock(cond_lock);
-	DBUG_RETURN(ER_SERVER_SHUTDOWN);
+	DBUG_RETURN(thd->killed_errno());
       }
     }
   }
@@ -2096,7 +2096,7 @@ err:
   pthread_mutex_unlock(&data_lock);
   DBUG_PRINT("exit",("killed: %d  abort: %d  slave_running: %d \
 improper_arguments: %d  timed_out: %d",
-                     (int) thd->killed,
+                     thd->killed_errno(),
                      (int) (init_abort_pos_wait != abort_pos_wait),
                      (int) slave_running,
                      (int) (error == -2),

@@ -14,7 +14,10 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-/* Defines for netware compatible with MySQL */
+/* Header for NetWare compatible with MySQL */
+
+#ifndef _config_netware_h
+#define _config_netware_h
 
 /* required headers */
 #include <unistd.h>
@@ -31,6 +34,10 @@
 #include <sys/time.h>
 #include <pthread.h>
 #include <termios.h>
+
+#ifdef	__cplusplus
+extern "C" {
+#endif
 
 /* required adjustments */
 #undef HAVE_READDIR_R
@@ -80,6 +87,15 @@
 /* do not use the extended time in LibC sys\stat.h */
 #define _POSIX_SOURCE
 
-/* Some macros for portability */
+/* kernal call on NetWare that will only yield if our time slice is up */
+void kYieldIfTimeSliceUp(void);
 
+/* some macros for portability */
 #define set_timespec(ABSTIME,SEC) { (ABSTIME).tv_sec=(SEC); (ABSTIME).tv_nsec=0; }
+
+#ifdef	__cplusplus
+}
+#endif
+
+#endif /* _config_netware_h */
+
