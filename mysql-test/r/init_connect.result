@@ -12,7 +12,7 @@ set GLOBAL init_connect=DEFAULT;
 select @a;
 @a
 NULL
-set global init_connect="create table t1(a char(10));\
+set global init_connect="drop table if exists t1; create table t1(a char(10));\
 insert into t1 values ('\0');insert into t1 values('abc')";
 select hex(a) from t1;
 hex(a)
