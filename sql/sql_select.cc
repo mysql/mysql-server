@@ -1803,14 +1803,7 @@ update_ref_and_keys(THD *thd, DYNAMIC_ARRAY *keyuse,JOIN_TAB *join_tab,
     }
     /* fill keyuse with found key parts */
     for (; field != end ; field++)
-    {
       add_key_part(keyuse,field);
-      /* Mark that we can optimize LEFT JOIN */
-      if (field->field->table == join_tab->table &&
-	  field->val->type() == Item::NULL_ITEM &&
-	  !field->field->real_maybe_null())
-	join_tab->table->reginfo.not_exists_optimize=1;
-    }
   }
 
   if (thd->lex.select->ftfunc_list.elements)
