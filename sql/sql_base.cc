@@ -2142,8 +2142,12 @@ find_item_in_list(Item *find, List<Item> &items, uint *counter,
           case sensitive.
           In cases where they are not case sensitive, they are always in lower
           case.
+
+	  item_field->field_name and item_field->table_name can be 0x0 if
+	  item is not fix fielded yet.
         */
-        if (!my_strcasecmp(system_charset_info, item_field->field_name,
+        if (item_field->field_name && item_field->table_name &&
+	    !my_strcasecmp(system_charset_info, item_field->field_name,
                            field_name) &&
             !strcmp(item_field->table_name, table_name) &&
             (!db_name || (item_field->db_name &&
