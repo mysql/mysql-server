@@ -72,9 +72,9 @@ if test ! -f $mdata/db.frm
 then
   # mysqld --bootstrap wants one command/line
   c_d="$c_d CREATE TABLE db ("
-  c_d="$c_d   Host char(60) DEFAULT '' NOT NULL,"
-  c_d="$c_d   Db char(64) DEFAULT '' NOT NULL,"
-  c_d="$c_d   User char(16) DEFAULT '' NOT NULL,"
+  c_d="$c_d   Host char(60) binary DEFAULT '' NOT NULL,"
+  c_d="$c_d   Db char(64) binary DEFAULT '' NOT NULL,"
+  c_d="$c_d   User char(16) binary DEFAULT '' NOT NULL,"
   c_d="$c_d   Select_priv enum('N','Y') DEFAULT 'N' NOT NULL,"
   c_d="$c_d   Insert_priv enum('N','Y') DEFAULT 'N' NOT NULL,"
   c_d="$c_d   Update_priv enum('N','Y') DEFAULT 'N' NOT NULL,"
@@ -99,8 +99,8 @@ fi
 if test ! -f $mdata/host.frm
 then
   c_h="$c_h CREATE TABLE host ("
-  c_h="$c_h  Host char(60) DEFAULT '' NOT NULL,"
-  c_h="$c_h  Db char(64) DEFAULT '' NOT NULL,"
+  c_h="$c_h  Host char(60) binary DEFAULT '' NOT NULL,"
+  c_h="$c_h  Db char(64) binary DEFAULT '' NOT NULL,"
   c_h="$c_h  Select_priv enum('N','Y') DEFAULT 'N' NOT NULL,"
   c_h="$c_h  Insert_priv enum('N','Y') DEFAULT 'N' NOT NULL,"
   c_h="$c_h  Update_priv enum('N','Y') DEFAULT 'N' NOT NULL,"
@@ -178,10 +178,10 @@ fi
 if test ! -f $mdata/tables_priv.frm
 then
   c_t="$c_t CREATE TABLE tables_priv ("
-  c_t="$c_t   Host char(60) DEFAULT '' NOT NULL,"
-  c_t="$c_t   Db char(64) DEFAULT '' NOT NULL,"
-  c_t="$c_t   User char(16) DEFAULT '' NOT NULL,"
-  c_t="$c_t   Table_name char(60) DEFAULT '' NOT NULL,"
+  c_t="$c_t   Host char(60) binary DEFAULT '' NOT NULL,"
+  c_t="$c_t   Db char(64) binary DEFAULT '' NOT NULL,"
+  c_t="$c_t   User char(16) binary DEFAULT '' NOT NULL,"
+  c_t="$c_t   Table_name char(64) binary DEFAULT '' NOT NULL,"
   c_t="$c_t   Grantor char(77) DEFAULT '' NOT NULL,"
   c_t="$c_t   Timestamp timestamp(14),"
   c_t="$c_t   Table_priv set('Select','Insert','Update','Delete','Create','Drop','Grant','References','Index','Alter') DEFAULT '' NOT NULL,"
@@ -195,11 +195,11 @@ fi
 if test ! -f $mdata/columns_priv.frm
 then
   c_c="$c_c CREATE TABLE columns_priv ("
-  c_c="$c_c   Host char(60) DEFAULT '' NOT NULL,"
-  c_c="$c_c   Db char(64) DEFAULT '' NOT NULL,"
-  c_c="$c_c   User char(16) DEFAULT '' NOT NULL,"
-  c_c="$c_c   Table_name char(64) DEFAULT '' NOT NULL,"
-  c_c="$c_c   Column_name char(64) DEFAULT '' NOT NULL,"
+  c_c="$c_c   Host char(60) binary DEFAULT '' NOT NULL,"
+  c_c="$c_c   Db char(64) binary DEFAULT '' NOT NULL,"
+  c_c="$c_c   User char(16) binary DEFAULT '' NOT NULL,"
+  c_c="$c_c   Table_name char(64) binary DEFAULT '' NOT NULL,"
+  c_c="$c_c   Column_name char(64) binary DEFAULT '' NOT NULL,"
   c_c="$c_c   Timestamp timestamp(14),"
   c_c="$c_c   Column_priv set('Select','Insert','Update','References') DEFAULT '' NOT NULL,"
   c_c="$c_c   PRIMARY KEY (Host,Db,User,Table_name,Column_name)"
