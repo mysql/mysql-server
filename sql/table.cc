@@ -288,7 +288,8 @@ int openfrm(THD *thd, const char *name, const char *alias, uint db_stat,
     records=2;
   else
     records=1;
-  if (prgflag & (READ_ALL+EXTRA_RECORD)) records++;
+  if (prgflag & (READ_ALL+EXTRA_RECORD))
+    records++;
   /* QQ: TODO, remove the +1 from below */
   rec_buff_length= ALIGN_SIZE(share->reclength + 1 +
                               outparam->file->extra_rec_buf_length());
@@ -304,12 +305,32 @@ int openfrm(THD *thd, const char *name, const char *alias, uint db_stat,
 	       MYF(MY_NABP)))
     goto err_not_open; /* purecov: inspected */
 
-  outparam->record[0]= record+ rec_buff_length;
-  if (records > 2)
-    outparam->record[1]= record+ rec_buff_length*2;
+  if (records == 1)
+  {
+    /* We are probably in hard repair, and the buffers should not be used */
+    outparam->record[0]= outparam->record[1]= share->default_values;
+  }
   else
-    outparam->record[1]= outparam->record[0];   // Safety
+  {
+    outparam->record[0]= record+ rec_buff_length;
+    if (records > 2)
+      outparam->record[1]= record+ rec_buff_length*2;
+    else
+      outparam->record[1]= outparam->record[0];   // Safety
+  }
 
+#ifdef HAVE_purify
+  /*
+    We need this because when we read var-length rows, we are not updating
+    bytes after end of varchar
+  */
+  if (records > 1)
+  {
+    memcpy(outparam->record[0], share->default_values, rec_buff_length);
+    if (records > 2)
+      memcpy(outparam->record[1], share->default_values, rec_buff_length);
+  }
+#endif
   VOID(my_seek(file,pos,MY_SEEK_SET,MYF(0)));
   if (my_read(file,(byte*) head,288,MYF(MY_NABP))) goto err_not_open;
   if (crypted)
@@ -822,7 +843,7 @@ int openfrm(THD *thd, const char *name, const char *alias, uint db_stat,
   outparam->file=0;				// For easier errorchecking
   outparam->db_stat=0;
   hash_free(&share->name_hash);
-  free_root(&share->mem_root, MYF(0));
+  free_root(&outparam->mem_root, MYF(0));
   my_free((char*) outparam->alias, MYF(MY_ALLOW_ZERO_PTR));
   DBUG_RETURN (error);
 } /* openfrm */
