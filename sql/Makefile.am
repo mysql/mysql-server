@@ -96,7 +96,7 @@ mysqld_SOURCES =	sql_lex.cc sql_handler.cc \
 gen_lex_hash_SOURCES =	gen_lex_hash.cc
 gen_lex_hash_LDADD =	$(LDADD) $(CXXLDFLAGS)
 mysql_tzinfo_to_sql_SOURCES =   mysql_tzinfo_to_sql.cc
-mysql_tzinfo_to_sql_LDADD =     $(LDADD) $(CXXLDFLAGS)
+mysql_tzinfo_to_sql_LDADD =  @MYSQLD_EXTRA_LDFLAGS@ $(LDADD) $(CXXLDFLAGS)
 
 DEFS =			-DMYSQL_SERVER \
 			-DDEFAULT_MYSQL_HOME="\"$(MYSQLBASEdir)\"" \
