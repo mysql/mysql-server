@@ -16,65 +16,9 @@
 
 
 
-#include "GlobalSignalNumbers.h"
-#include "signaldata/SignalDataPrint.hpp"
-#include "signaldata/TcKeyReq.hpp"
-#include "signaldata/TcKeyConf.hpp"
-#include "signaldata/TcKeyRef.hpp"
-#include "signaldata/LqhKey.hpp"
-#include "signaldata/TupKey.hpp"
-#include "signaldata/TupCommit.hpp"
-#include "signaldata/FsOpenReq.hpp"
-#include "signaldata/FsCloseReq.hpp"
-#include "signaldata/FsReadWriteReq.hpp"
-#include "signaldata/FsRef.hpp"
-#include "signaldata/FsConf.hpp"
-#include "signaldata/CloseComReqConf.hpp"
-#include "signaldata/PackedSignal.hpp"
-#include "signaldata/PrepFailReqRef.hpp"
-#include "signaldata/DictTabInfo.hpp"
-#include "signaldata/AlterTable.hpp"
-#include "signaldata/AlterTab.hpp"
-#include "signaldata/CreateTrig.hpp"
-#include "signaldata/AlterTrig.hpp"
-#include "signaldata/DropTrig.hpp"
-#include "signaldata/FireTrigOrd.hpp"
-#include "signaldata/TrigAttrInfo.hpp"
-#include "signaldata/CreateIndx.hpp"
-#include "signaldata/AlterIndx.hpp"
-#include "signaldata/DropIndx.hpp"
-#include "signaldata/TcIndx.hpp"
-#include "signaldata/IndxKeyInfo.hpp"
-#include "signaldata/IndxAttrInfo.hpp"
-#include <signaldata/FsAppendReq.hpp>
-#include <signaldata/BackupSignalData.hpp>
-#include <signaldata/BackupImpl.hpp>
-#include <signaldata/UtilSequence.hpp>
-#include <signaldata/UtilPrepare.hpp>
-#include <signaldata/UtilExecute.hpp>
-#include <signaldata/ScanTab.hpp>
-#include <signaldata/ScanFrag.hpp>
-#include <signaldata/LqhFrag.hpp>
-#include <signaldata/LqhTransConf.hpp>
-#include <signaldata/DropTab.hpp>
-#include <signaldata/PrepDropTab.hpp>
-#include <signaldata/LCP.hpp>
-#include <signaldata/MasterLCP.hpp>
-#include <signaldata/CopyGCIReq.hpp>
-#include <signaldata/SystemError.hpp>
-#include <signaldata/StartRec.hpp>
-#include <signaldata/NFCompleteRep.hpp>
-#include <signaldata/SignalDroppedRep.hpp>
-#include <signaldata/FailRep.hpp>
-#include <signaldata/DisconnectRep.hpp>
-#include <signaldata/SumaImpl.hpp>
-#include <signaldata/NdbSttor.hpp>
-#include <signaldata/CreateFragmentation.hpp>
-#include <signaldata/UtilLock.hpp>
-#include <signaldata/CntrStart.hpp>
-#include <signaldata/ReadNodesConf.hpp>
-#include <signaldata/TuxMaint.hpp>
-#include <signaldata/AccLock.hpp>
+#include <GlobalSignalNumbers.h>
+#include <signaldata/SignalData.hpp>
+#include <signaldata/SignalDataPrint.hpp>
 
 /** 
  * This is the register
@@ -253,6 +197,8 @@ SignalDataPrintFunctions[] = {
   ,{ GSN_SCAN_FRAGREQ, printSCAN_FRAGREQ }
   ,{ 0, 0 }
 };
+
+#include <Bitmask.hpp>
 
 template struct BitmaskPOD<1>;
 template struct BitmaskPOD<2>;
