@@ -267,35 +267,6 @@ innobase_mysql_print_thd(
 
   	thd = (THD*) input_thd;
 
-        buf += sprintf(buf, "MySQL thread id %lu, query id %lu",
-		       thd->thread_id, thd->query_id);
-        if (thd->host) {
-	  buf += sprintf(buf, " %.30s", thd->host);
-        }
-
-        if (thd->ip) {
-	  buf += sprintf(buf, " %.20s", thd->ip);
-        }
-
-        if (thd->user) {
-	  buf += sprintf(buf, " %.20s", thd->user);
-        }
-
-        if (thd->proc_info) {
-	  buf += sprintf(buf, " %.50s", thd->proc_info);
-        }
-
-        if (thd->query) {
-	  buf += sprintf(buf, "\n%.150s", thd->query);
-        }
-
-        buf += sprintf(buf, "\n");
-
-#ifdef notdefined
-	/* July 30, 2002
-	Revert Monty's changes because they seem to make control
-	characters sometimes appear in the output */
-
 	/*  We can't use value of sprintf() as this is not portable */
   	buf+= my_sprintf(buf,
 			 (buf, "MySQL thread id %lu",
@@ -330,7 +301,6 @@ innobase_mysql_print_thd(
 	  buf=strnmov(buf, thd->query, 150);
   	}  
 	*buf='\n';
-#endif
 }
 }
 
@@ -478,9 +448,8 @@ innobase_init(void)
 				&srv_auto_extend_last_data_file,
 				&srv_last_file_size_max);
 	if (ret == FALSE) {
-		fprintf(stderr,
-			"InnoDB: syntax error in innodb_data_file_path\n");
-	  	DBUG_RETURN(TRUE);
+	  sql_print_error("InnoDB: syntax error in innodb_data_file_path");
+	  DBUG_RETURN(TRUE);
 	}
 
 	if (!innobase_log_group_home_dir)
@@ -925,13 +894,13 @@ ha_innobase::open(
 				      		     norm_name, NULL);
  	if (NULL == ib_table) {
 
-	  	fprintf(stderr,
-"InnoDB: Error: cannot find table %s from the internal data dictionary\n"
-"InnoDB: of InnoDB though the .frm file for the table exists. Maybe you\n"
-"InnoDB: have deleted and recreated InnoDB data files but have forgotten\n"
-"InnoDB: to delete the corresponding .frm files of InnoDB tables, or you\n"
-"InnoDB: have moved .frm files to another database?\n",
-		  norm_name);
+	  sql_print_error("InnoDB error:\n\
+Cannot find table %s from the internal data dictionary\n\
+of InnoDB though the .frm file for the table exists. Maybe you\n\
+have deleted and recreated InnoDB data files but have forgotten\n\
+to delete the corresponding .frm files of InnoDB tables, or you\n\
+have moved .frm files to another database?",
+			  norm_name);
 
 	        free_share(share);
     		my_free((char*) upd_buff, MYF(0));
@@ -1269,7 +1238,6 @@ ha_innobase::store_key_val_for_row(
 	equal */
 
 	bzero(buff, (ref_length - (uint) (buff - buff_start)));
-
 	DBUG_RETURN(ref_length);
 }
 
@@ -2124,11 +2092,8 @@ ha_innobase::change_active_index(
 	}
 
 	if (!prebuilt->index) {
-		fprintf(stderr,
-	"InnoDB: Could not find key n:o %u with name %s from dict cache\n"
-	"InnoDB: for table %s\n", keynr, key ? key->name : "NULL", prebuilt->table->name);
-
-		DBUG_RETURN(1);
+	  sql_print_error("Innodb could not find key n:o %u with name %s from dict cache for table %s", keynr, key ? key->name : "NULL", prebuilt->table->name);
+	  DBUG_RETURN(1);
 	}
 	
 	assert(prebuilt->search_tuple != 0);
@@ -2425,6 +2390,7 @@ ha_innobase::rnd_pos(
 	}
 
 	if (error) {
+	        DBUG_PRINT("error",("Got error: %ld",error));
 		DBUG_RETURN(error);
 	}
 	
@@ -2432,6 +2398,10 @@ ha_innobase::rnd_pos(
         for the table, and it is == ref_length */
 
 	error = index_read(buf, pos, ref_length, HA_READ_KEY_EXACT);
+	if (error)
+	{
+	  DBUG_PRINT("error",("Got error: %ld",error));
+	}
 
 	change_active_index(keynr);
 
@@ -2442,7 +2412,6 @@ ha_innobase::rnd_pos(
 Stores a reference to the current row to 'ref' field of the handle. Note
 that in the case where we have generated the clustered index for the
 table, the function parameter is illogical: we MUST ASSUME that 'record'
-is the current 'position' of the handle, because if row ref is actually
 the row id internally generated in InnoDB, then 'record' does not contain
 it. We just guess that the row id must be for the record where the handle
 was positioned the last time. */
@@ -2691,7 +2660,7 @@ ha_innobase::create(
 	/* Our function row_get_mysql_key_number_for_index assumes
 	the primary key is always number 0, if it exists */
 
-	assert(primary_key_no == -1 || primary_key_no == 0);
+	DBUG_ASSERT(primary_key_no == -1 || primary_key_no == 0);
 
 	/* Create the keys */
 
@@ -2772,7 +2741,7 @@ ha_innobase::create(
 
 	innobase_table = dict_table_get(norm_name, NULL);
 
-	assert(innobase_table != 0);
+	DBUG_ASSERT(innobase_table != 0);
 
 	/* Tell the InnoDB server that there might be work for
 	utility threads: */

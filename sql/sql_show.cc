@@ -117,7 +117,6 @@ int mysqld_show_open_tables(THD *thd,const char *db,const char *wild)
   if (list_open_tables(thd,&tables,db,wild))
     DBUG_RETURN(-1);
 
-  pthread_mutex_lock(&LOCK_open);
   List_iterator<char> it(tables);
   while ((table_name=it++))
   {
@@ -126,11 +125,9 @@ int mysqld_show_open_tables(THD *thd,const char *db,const char *wild)
     net_store_data(&thd->packet,query_table_status(thd,db,table_name));
     if (my_net_write(&thd->net,(char*) thd->packet.ptr(),thd->packet.length()))
     {
-      pthread_mutex_unlock(&LOCK_open);
       DBUG_RETURN(-1);
     }
   }
-  pthread_mutex_unlock(&LOCK_open);
   send_eof(&thd->net);
   DBUG_RETURN(0);
 }
