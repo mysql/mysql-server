@@ -273,3 +273,5 @@ SELECT @a:=1 UNION SELECT @a:=@a+1;
 @a:=1
 1
 2
+(SELECT 1) UNION (SELECT 2) ORDER BY (SELECT a);
+Unknown column 'a' in 'field list'

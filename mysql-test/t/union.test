@@ -146,3 +146,5 @@ drop table t1,t2;
 (select 1) union (select 2) order by 0;
 
 SELECT @a:=1 UNION SELECT @a:=@a+1;
+--error 1054
+(SELECT 1) UNION (SELECT 2) ORDER BY (SELECT a);
