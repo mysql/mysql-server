@@ -625,6 +625,20 @@ bool Item_sum_or::add()
   return 0;
 }
 
+Item *Item_sum_xor::copy_or_same(THD* thd)
+{
+  return new (&thd->mem_root) Item_sum_xor(thd, *this);
+}
+
+
+bool Item_sum_xor::add()
+{
+  ulonglong value= (ulonglong) args[0]->val_int();
+  if (!args[0]->null_value)
+    bits^=value;
+  return 0;
+}
+
 Item *Item_sum_and::copy_or_same(THD* thd)
 {
   return new (&thd->mem_root) Item_sum_and(thd, *this);
@@ -912,6 +926,15 @@ void Item_sum_or::update_field()
   int8store(res,nr);
 }
 
+void Item_sum_xor::update_field()
+{
+  ulonglong nr;
+  char *res=result_field->ptr;
+
+  nr=uint8korr(res);
+  nr^= (ulonglong) args[0]->val_int();
+  int8store(res,nr);
+}
 
 void Item_sum_and::update_field()
 {

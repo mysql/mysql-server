@@ -484,6 +484,18 @@ class Item_sum_and :public Item_sum_bit
   Item *copy_or_same(THD* thd);
 };
 
+class Item_sum_xor :public Item_sum_bit
+{
+  public:
+  Item_sum_xor(Item *item_par) :Item_sum_bit(item_par,LL(0)) {}
+  Item_sum_xor(THD *thd, Item_sum_xor &item) :Item_sum_bit(thd, item) {}
+  bool add();
+  void update_field();
+  const char *func_name() const { return "bit_xor"; }
+  Item *copy_or_same(THD* thd);
+};
+
+
 /*
 **	user defined aggregates
 */
