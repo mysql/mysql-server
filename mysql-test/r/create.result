@@ -204,7 +204,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) NOT NULL
-) ENGINE=HEAP DEFAULT CHARSET=latin1
+) ENGINE=MEMORY DEFAULT CHARSET=latin1
 drop table t1;
 SET SESSION storage_engine="gemini";
 ERROR 42000: Unknown table engine 'gemini'
@@ -216,7 +216,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) NOT NULL
-) ENGINE=HEAP DEFAULT CHARSET=latin1
+) ENGINE=MEMORY DEFAULT CHARSET=latin1
 SET SESSION storage_engine=default;
 drop table t1;
 create table t1 ( k1 varchar(2), k2 int, primary key(k1,k2));
@@ -361,7 +361,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) NOT NULL
-) ENGINE=HEAP DEFAULT CHARSET=latin1
+) ENGINE=MEMORY DEFAULT CHARSET=latin1
 drop table t1;
 SET SESSION storage_engine="gemini";
 ERROR 42000: Unknown table engine 'gemini'
@@ -373,7 +373,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) NOT NULL
-) ENGINE=HEAP DEFAULT CHARSET=latin1
+) ENGINE=MEMORY DEFAULT CHARSET=latin1
 SET SESSION storage_engine=default;
 drop table t1;
 create table t1(a int,b int,c int unsigned,d date,e char,f datetime,g time,h blob);

@@ -1853,8 +1853,8 @@ int simple_open_n_lock_tables(THD *thd, TABLE_LIST *tables)
 
 bool open_and_lock_tables(THD *thd, TABLE_LIST *tables)
 {
-  DBUG_ENTER("open_and_lock_tables");
   uint counter;
+  DBUG_ENTER("open_and_lock_tables");
   if (open_tables(thd, tables, &counter) ||
       lock_tables(thd, tables, counter) ||
       mysql_handle_derived(thd->lex, &mysql_derived_prepare) ||
@@ -1862,6 +1862,36 @@ bool open_and_lock_tables(THD *thd, TABLE_LIST *tables)
        mysql_handle_derived(thd->lex, &mysql_derived_filling)))
     DBUG_RETURN(TRUE); /* purecov: inspected */
   relink_tables_for_multidelete(thd);
+  DBUG_RETURN(0);
+}
+
+
+/*
+  Open all tables in list and process derived tables
+
+  SYNOPSIS
+    open_normal_and_derived_tables
+    thd		- thread handler
+    tables	- list of tables for open&locking
+
+  RETURN
+    FALSE - ok
+    TRUE  - error
+
+  NOTE 
+    This is to be used on prepare stage when you don't read any
+    data from the tables.
+*/
+
+bool open_normal_and_derived_tables(THD *thd, TABLE_LIST *tables)
+{
+  uint counter;
+  DBUG_ENTER("open_normal_and_derived_tables");
+  DBUG_ASSERT(!thd->fill_derived_tables());
+  if (open_tables(thd, tables, &counter) ||
+      mysql_handle_derived(thd->lex, &mysql_derived_prepare))
+    DBUG_RETURN(TRUE); /* purecov: inspected */
+  relink_tables_for_multidelete(thd);           // Not really needed, but
   DBUG_RETURN(0);
 }
 
