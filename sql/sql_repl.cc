@@ -15,7 +15,6 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 // Sasha Pachev <sasha@mysql.com> is currently in charge of this file
-// Do not mess with it without his permission!
 
 #include "mysql_priv.h"
 #include "sql_repl.h"
@@ -259,9 +258,10 @@ void adjust_linfo_offsets(my_off_t purge_offset)
     if ((linfo = tmp->current_linfo))
     {
       pthread_mutex_lock(&linfo->lock);
-      // Why (monty): I don't understand this comment
-      // no big deal if we just started reading the log
-      // nothing to adjust
+      /* index file offset can be less that purge offset
+	 only if we just started reading the index file. In that case
+	 we have nothing to adjust
+      */
       if (linfo->index_file_offset < purge_offset)
 	linfo->fatal = (linfo->index_file_offset != 0);
       else
@@ -935,16 +935,7 @@ int translate_master(THD* thd, LEX_MASTER_INFO* mi, char* errmsg)
 
   linfo.index_file_offset = 0;
   
-  /*
-    WARNING: POSSIBLE BUG:
-    Sasha, you are setting an uninitialized linfo into
-    thd->current_linfo.
-    What will happen if some other thread calls log_in_use() or
-    adjust_linfo_offsets() after the next instruction as linfo may
-    contain anything ?
-  */
 
-  thd->current_linfo = &linfo;
   search_file_name[0] = 0;
 
   if (mysql_bin_log.find_first_log(&linfo, search_file_name))
@@ -952,6 +943,7 @@ int translate_master(THD* thd, LEX_MASTER_INFO* mi, char* errmsg)
     strmov(errmsg,"Could not find first log");
     return 1;
   }
+  thd->current_linfo = &linfo;
 
   bzero((char*) &log,sizeof(log));
   log_lock = mysql_bin_log.get_log_lock();

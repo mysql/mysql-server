@@ -36,11 +36,12 @@ typedef struct st_master_info
   {
     pending += val;
   }
-  inline void inc_pos(ulonglong val)
+  inline void inc_pos(ulonglong val, uint32 log_seq)
   {
     pthread_mutex_lock(&lock);
     pos += val + pending;
     pending = 0;
+    last_log_seq = log_seq;
     pthread_cond_broadcast(&cond);
     pthread_mutex_unlock(&lock);
   }
