@@ -277,7 +277,7 @@ my_socket vio_fd(Vio* vio)
 }
 
 
-my_bool vio_peer_addr(Vio * vio, char *buf, u_int16_t *port)
+my_bool vio_peer_addr(Vio * vio, char *buf, uint16 *port)
 {
   DBUG_ENTER("vio_peer_addr");
   DBUG_PRINT("enter", ("sd: %d", vio->sd));

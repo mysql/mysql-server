@@ -352,7 +352,7 @@ public:
    */
   char	  *host,*user,*priv_user,*db,*ip;
   /* remote (peer) port */
-  u_int16_t peer_port;
+  uint16 peer_port;
   /* Points to info-string that will show in SHOW PROCESSLIST */
   const char *proc_info;
   /* points to host if host is available, otherwise points to ip */

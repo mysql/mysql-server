@@ -1064,13 +1064,10 @@ void mysqld_list_processes(THD *thd,const char *user, bool verbose)
 	{
 	  if ((thd_info->host= thd->alloc(LIST_PROCESS_HOST_LEN+1)))
 	    snprintf((char *) thd_info->host, LIST_PROCESS_HOST_LEN, "%s:%u",
-		     (tmp->host ? tmp->host : tmp->ip), tmp->peer_port);
+		     thd->host_or_ip, tmp->peer_port);
 	}
 	else
-	  thd_info->host= thd->strdup(tmp->host ? tmp->host :
-				      (tmp->ip ? tmp->ip :
-				       (tmp->system_thread ? "none" :
-					"connecting host")));
+	  thd_info->host= thd->strdup(thd->host_or_ip);
         if ((thd_info->db=tmp->db))             // Safe test
           thd_info->db=thd->strdup(thd_info->db);
         thd_info->command=(int) tmp->command;
