@@ -44366,10 +44366,10 @@ releases of 3.23 with small fixes for this part of the code. As long as
 you don't use these features, you should be quite safe with
 @strong{MySQL} 3.23!
 
-Note that the above doesn't mean that replication or Berkeley DB doesn't
+Note that the above doesn't mean that replication or Berkeley DB don't
 work; We have done a lot of testing of all code, including replication
 and BDB without finding any problems.  It only means that not as many
-users uses this code as the rest of the code and because of this we are
+users use this code as the rest of the code and because of this we are
 not yet 100% confident in this code.
 
 @menu
@@ -44450,8 +44450,8 @@ Added option @code{--skip-stack-trace} to @code{mysqld}.
 @item
 Added option @code{CONCURRENT} to @code{LOAD DATA}.
 @item
-Better error message when slave @code{max_allowed_packet} is to low to
-read a very long log event from the master
+Better error message when slave @code{max_allowed_packet} is too low to
+read a very long log event from the master.
 @item
 Fixed bug when too many rows where removed when using
 @code{SELECT DISTINCT ... HAVING}.
