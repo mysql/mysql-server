@@ -623,7 +623,7 @@ dict_tree_build_node_ptr(
 	rec_t*		rec,	/* in: record for which to build node pointer */
 	ulint		page_no,/* in: page number to put in node pointer */
 	mem_heap_t*	heap,	/* in: memory heap where pointer created */
-	ibool           level);  /* in: level of rec in tree: 0 means leaf
+	ulint           level);  /* in: level of rec in tree: 0 means leaf
 				level */
 /**************************************************************************
 Copies an initial segment of a physical record, long enough to specify an
