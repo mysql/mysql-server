@@ -370,7 +370,9 @@ buf_LRU_old_adjust_len(void)
 	ulint	new_len;
 
 	ut_ad(buf_pool->LRU_old);
+#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&(buf_pool->mutex)));
+#endif /* UNIV_SYNC_DEBUG */
 	ut_ad(3 * (BUF_LRU_OLD_MIN_LEN / 8) > BUF_LRU_OLD_TOLERANCE + 5);
 
 	for (;;) {
@@ -440,7 +442,9 @@ buf_LRU_remove_block(
 {
 	ut_ad(buf_pool);
 	ut_ad(block);
+#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&(buf_pool->mutex)));
+#endif /* UNIV_SYNC_DEBUG */
 		
 	/* If the LRU_old pointer is defined and points to just this block,
 	move it backward one step */
@@ -493,7 +497,9 @@ buf_LRU_add_block_to_end_low(
 	
 	ut_ad(buf_pool);
 	ut_ad(block);
+#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&(buf_pool->mutex)));
+#endif /* UNIV_SYNC_DEBUG */
 
 	block->old = TRUE;
 
@@ -545,7 +551,9 @@ buf_LRU_add_block_low(
 	
 	ut_ad(buf_pool);
 	ut_ad(block);
+#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&(buf_pool->mutex)));
+#endif /* UNIV_SYNC_DEBUG */
 
 	block->old = old;
 	cl = buf_pool_clock_tic();
@@ -632,7 +640,9 @@ buf_LRU_block_free_non_file_page(
 /*=============================*/
 	buf_block_t*	block)	/* in: block, must not contain a file page */
 {
+#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&(buf_pool->mutex)));
+#endif /* UNIV_SYNC_DEBUG */
 	ut_ad(block);
 	
 	ut_ad((block->state == BUF_BLOCK_MEMORY)
@@ -658,7 +668,9 @@ buf_LRU_block_remove_hashed_page(
 				be in a state where it can be freed; there
 				may or may not be a hash index to the page */
 {
+#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&(buf_pool->mutex)));
+#endif /* UNIV_SYNC_DEBUG */
 	ut_ad(block);
 	
 	ut_ad(block->state == BUF_BLOCK_FILE_PAGE);
@@ -672,7 +684,7 @@ buf_LRU_block_remove_hashed_page(
 	buf_pool->freed_page_clock += 1;
 
  	buf_frame_modify_clock_inc(block->frame);
-		
+
 	HASH_DELETE(buf_block_t, hash, buf_pool->page_hash,
 			buf_page_address_fold(block->space, block->offset),
 			block);
@@ -689,7 +701,9 @@ buf_LRU_block_free_hashed_page(
 	buf_block_t*	block)	/* in: block, must contain a file page and
 				be in a state where it can be freed */
 {
+#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&(buf_pool->mutex)));
+#endif /* UNIV_SYNC_DEBUG */
 	ut_ad(block->state == BUF_BLOCK_REMOVE_HASH);
 
 	block->state = BUF_BLOCK_MEMORY;

@@ -73,7 +73,9 @@ trx_create(
 {
 	trx_t*	trx;
 
+#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&kernel_mutex));
+#endif /* UNIV_SYNC_DEBUG */
 
 	trx = mem_alloc(sizeof(trx_t));
 
@@ -239,7 +241,9 @@ trx_free(
 {
         char      err_buf[1000];
 
+#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&kernel_mutex));
+#endif /* UNIV_SYNC_DEBUG */
 
 	if (trx->declared_to_be_inside_innodb) {
 	        ut_print_timestamp(stderr);
@@ -345,7 +349,9 @@ trx_list_insert_ordered(
 {
 	trx_t*	trx2;
 
+#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&kernel_mutex));
+#endif /* UNIV_SYNC_DEBUG */
 
 	trx2 = UT_LIST_GET_FIRST(trx_sys->trx_list);
 
@@ -507,7 +513,9 @@ trx_assign_rseg(void)
 {
 	trx_rseg_t*	rseg	= trx_sys->latest_rseg;
 
+#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&kernel_mutex));
+#endif /* UNIV_SYNC_DEBUG */
 loop:
 	/* Get next rseg in a round-robin fashion */
 
@@ -544,7 +552,9 @@ trx_start_low(
 {
 	trx_rseg_t*	rseg;
 
+#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&kernel_mutex));
+#endif /* UNIV_SYNC_DEBUG */
 	ut_ad(trx->rseg == NULL);
 
 	if (trx->type == TRX_PURGE) {
@@ -619,7 +629,9 @@ trx_commit_off_kernel(
 	ibool		must_flush_log	= FALSE;
 	mtr_t		mtr;
 	
+#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&kernel_mutex));
+#endif /* UNIV_SYNC_DEBUG */
 
 	rseg = trx->rseg;
 	
@@ -713,7 +725,9 @@ trx_commit_off_kernel(
 	}
 
 	ut_ad(trx->conc_state == TRX_ACTIVE);
+#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&kernel_mutex));
+#endif /* UNIV_SYNC_DEBUG */
 	
 	/* The following assignment makes the transaction committed in memory
 	and makes its changes to data visible to other transactions.
@@ -893,7 +907,9 @@ trx_handle_commit_sig_off_kernel(
 	trx_sig_t*	sig;
 	trx_sig_t*	next_sig;
 	
+#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&kernel_mutex));
+#endif /* UNIV_SYNC_DEBUG */
 
 	trx->que_state = TRX_QUE_COMMITTING;
 
@@ -933,7 +949,9 @@ trx_end_lock_wait(
 {
 	que_thr_t*	thr;
 
+#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&kernel_mutex));
+#endif /* UNIV_SYNC_DEBUG */
 	ut_ad(trx->que_state == TRX_QUE_LOCK_WAIT);
 	
 	thr = UT_LIST_GET_FIRST(trx->wait_thrs);
@@ -960,7 +978,9 @@ trx_lock_wait_to_suspended(
 {
 	que_thr_t*	thr;
 
+#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&kernel_mutex));
+#endif /* UNIV_SYNC_DEBUG */
 	ut_ad(trx->que_state == TRX_QUE_LOCK_WAIT);
 	
 	thr = UT_LIST_GET_FIRST(trx->wait_thrs);
@@ -988,7 +1008,9 @@ trx_sig_reply_wait_to_suspended(
 	trx_sig_t*	sig;
 	que_thr_t*	thr;
 
+#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&kernel_mutex));
+#endif /* UNIV_SYNC_DEBUG */
 	
 	sig = UT_LIST_GET_FIRST(trx->reply_signals);
 
@@ -1021,7 +1043,9 @@ trx_sig_is_compatible(
 {
 	trx_sig_t*	sig;
 
+#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&kernel_mutex));
+#endif /* UNIV_SYNC_DEBUG */
 
 	if (UT_LIST_GET_LEN(trx->signals) == 0) {
 
@@ -1109,7 +1133,9 @@ trx_sig_send(
 	trx_t*		receiver_trx;
 
 	ut_ad(trx);
+#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&kernel_mutex));
+#endif /* UNIV_SYNC_DEBUG */
 
 	if (!trx_sig_is_compatible(trx, type, sender)) {
 		/* The signal is not compatible with the other signals in
@@ -1188,7 +1214,9 @@ trx_end_signal_handling(
 /*====================*/
 	trx_t*	trx)	/* in: trx */
 {
+#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&kernel_mutex));
+#endif /* UNIV_SYNC_DEBUG */
 	ut_ad(trx->handling_signals == TRUE);
 
 	trx->handling_signals = FALSE;
@@ -1222,7 +1250,9 @@ loop:
 	we can process immediately */
 
 	ut_ad(trx);
+#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&kernel_mutex));
+#endif /* UNIV_SYNC_DEBUG */
 
 	if (trx->handling_signals && (UT_LIST_GET_LEN(trx->signals) == 0)) {
 
@@ -1323,7 +1353,9 @@ trx_sig_reply(
 	trx_t*	receiver_trx;
 
 	ut_ad(sig);
+#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&kernel_mutex));
+#endif /* UNIV_SYNC_DEBUG */
 
 	if (sig->receiver != NULL) {
 		ut_ad((sig->receiver)->state == QUE_THR_SIG_REPLY_WAIT);
@@ -1351,7 +1383,9 @@ trx_sig_remove(
 	trx_sig_t*	sig)	/* in, own: signal */
 {
 	ut_ad(trx && sig);
+#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&kernel_mutex));
+#endif /* UNIV_SYNC_DEBUG */
 
 	ut_ad(sig->receiver == NULL);
 

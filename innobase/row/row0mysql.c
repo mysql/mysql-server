@@ -1267,9 +1267,11 @@ row_create_table_for_mysql(
 	ulint		err;
 
 	ut_ad(trx->mysql_thread_id == os_thread_get_curr_id());
+#ifdef UNIV_SYNC_DEBUG
 	ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_EX));
-	ut_ad(trx->dict_operation_lock_mode == RW_X_LATCH);
 	ut_ad(mutex_own(&(dict_sys->mutex)));
+#endif /* UNIV_SYNC_DEBUG */
+	ut_ad(trx->dict_operation_lock_mode == RW_X_LATCH);
 	
 	if (srv_created_new_raw) {
 		fprintf(stderr,
@@ -1471,8 +1473,10 @@ row_create_index_for_mysql(
 	ulint		err;
 	ulint		i, j;
 	
+#ifdef UNIV_SYNC_DEBUG
 	ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_EX));
 	ut_ad(mutex_own(&(dict_sys->mutex)));
+#endif /* UNIV_SYNC_DEBUG */
 	ut_ad(trx->mysql_thread_id == os_thread_get_curr_id());
 	
 	trx->op_info = (char *) "creating index";
@@ -1576,8 +1580,10 @@ row_table_add_foreign_constraints(
 	ulint	keywordlen;
 	ulint	err;
 
+#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&(dict_sys->mutex)));
 	ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_EX));
+#endif /* UNIV_SYNC_DEBUG */
 	ut_a(sql_string);
 	
 	trx->op_info = (char *) "adding foreign keys";
@@ -1748,7 +1754,9 @@ row_get_background_drop_list_len_low(void)
 /*======================================*/
 					/* out: how many tables in list */
 {
+#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&kernel_mutex));
+#endif /* UNIV_SYNC_DEBUG */
 
 	if (!row_mysql_drop_list_inited) {
 
@@ -1968,8 +1976,10 @@ row_drop_table_for_mysql(
 		locked_dictionary = TRUE;
 	}
 
+#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&(dict_sys->mutex)));
 	ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_EX));
+#endif /* UNIV_SYNC_DEBUG */
 	
 	graph = pars_sql(buf);
 

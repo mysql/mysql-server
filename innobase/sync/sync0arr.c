@@ -100,6 +100,7 @@ struct sync_array_struct {
 					since creation of the array */
 };
 
+#ifdef UNIV_SYNC_DEBUG
 /**********************************************************************
 This function is called only in the debug version. Detects a deadlock
 of one or more threads because of waits of semaphores. */
@@ -113,6 +114,7 @@ sync_array_detect_deadlock(
 	sync_cell_t*	start,	/* in: cell where recursive search started */
 	sync_cell_t*	cell,	/* in: cell to search */
 	ulint		depth);	/* in: recursion depth */
+#endif /* UNIV_SYNC_DEBUG */
 
 /*********************************************************************
 Gets the nth cell in array. */
@@ -464,12 +466,17 @@ sync_array_cell_print(
 		mutex = cell->old_wait_mutex;
 
 		buf += sprintf(buf,
-		"Mutex at %lx created file %s line %lu, lock var %lu\n",
-			(ulint)mutex, mutex->cfile_name, mutex->cline,
-							mutex->lock_word);
-		buf += sprintf(buf,
-		"Last time reserved in file %s line %lu, waiters flag %lu\n",
-			mutex->file_name, mutex->line, mutex->waiters);
+			"Mutex at %p created file %s line %lu, lock var %lu\n"
+#ifdef UNIV_SYNC_DEBUG
+			"Last time reserved in file %s line %lu, "
+#endif /* UNIV_SYNC_DEBUG */
+			"waiters flag %lu\n",
+			mutex, mutex->cfile_name, mutex->cline,
+			mutex->lock_word,
+#ifdef UNIV_SYNC_DEBUG
+			mutex->file_name, mutex->line,
+#endif /* UNIV_SYNC_DEBUG */
+			mutex->waiters);
 
 	} else if (type == RW_LOCK_EX || type == RW_LOCK_SHARED) {
 
@@ -518,6 +525,7 @@ sync_array_cell_print(
 	}
 }
 
+#ifdef UNIV_SYNC_DEBUG
 /**********************************************************************
 Looks for a cell with the given thread id. */
 static
@@ -689,7 +697,6 @@ sync_array_detect_deadlock(
 				sync_array_cell_print(buf, cell);
 				printf("rw-lock %lx %s ", (ulint) lock, buf);
 				rw_lock_debug_print(debug);
-
 				return(TRUE);
 			}
 		}
@@ -739,6 +746,7 @@ sync_array_detect_deadlock(
 	return(TRUE); 	/* Execution never reaches this line: for compiler
 			fooling only */
 }
+#endif /* UNIV_SYNC_DEBUG */
 
 /**********************************************************************
 Determines if we can wake up the thread waiting for a sempahore. */

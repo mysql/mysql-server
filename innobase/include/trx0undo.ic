@@ -126,7 +126,9 @@ trx_undo_page_get(
 	
 	page = buf_page_get(space, page_no, RW_X_LATCH, mtr);
 
+#ifdef UNIV_SYNC_DEBUG
 	buf_page_dbg_add_level(page, SYNC_TRX_UNDO_PAGE);
+#endif /* UNIV_SYNC_DEBUG */
 
 	return(page);
 }
@@ -146,7 +148,9 @@ trx_undo_page_get_s_latched(
 	
 	page = buf_page_get(space, page_no, RW_S_LATCH, mtr);
 
+#ifdef UNIV_SYNC_DEBUG
 	buf_page_dbg_add_level(page, SYNC_TRX_UNDO_PAGE);
+#endif /* UNIV_SYNC_DEBUG */
 
 	return(page);
 }

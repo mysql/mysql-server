@@ -56,7 +56,9 @@ trx_sys_mark_downgraded_from_4_1_1(void)
 	mtr_start(&mtr);
 
 	page = buf_page_get(TRX_SYS_SPACE, TRX_SYS_PAGE_NO, RW_X_LATCH, &mtr);
+#ifdef UNIV_SYNC_DEBUG
 	buf_page_dbg_add_level(page, SYNC_NO_ORDER_CHECK);
+#endif /* UNIV_SYNC_DEBUG */
 
 	doublewrite = page + TRX_SYS_DOUBLEWRITE;
 
@@ -169,7 +171,9 @@ start_again:
 	mtr_start(&mtr);
 
 	page = buf_page_get(TRX_SYS_SPACE, TRX_SYS_PAGE_NO, RW_X_LATCH, &mtr);
+#ifdef UNIV_SYNC_DEBUG
 	buf_page_dbg_add_level(page, SYNC_NO_ORDER_CHECK);
+#endif /* UNIV_SYNC_DEBUG */
 
 	doublewrite = page + TRX_SYS_DOUBLEWRITE;
 	
@@ -228,7 +232,9 @@ start_again:
 		/* fseg_create acquires a second latch on the page,
 		therefore we must declare it: */
 
+#ifdef UNIV_SYNC_DEBUG
 		buf_page_dbg_add_level(page2, SYNC_NO_ORDER_CHECK);
+#endif /* UNIV_SYNC_DEBUG */
 
 		if (page2 == NULL) {
 			fprintf(stderr,
@@ -271,7 +277,9 @@ start_again:
 			
 			new_page = buf_page_get(TRX_SYS_SPACE, page_no,
 							RW_X_LATCH, &mtr);
+#ifdef UNIV_SYNC_DEBUG
 			buf_page_dbg_add_level(new_page, SYNC_NO_ORDER_CHECK);
+#endif /* UNIV_SYNC_DEBUG */
 
 			/* Make a dummy change to the page to ensure it will
 			be written to disk in a flush */
@@ -490,7 +498,9 @@ trx_in_trx_list(
 {
 	trx_t*	trx;
 
+#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&(kernel_mutex)));
+#endif /* UNIV_SYNC_DEBUG */
 
 	trx = UT_LIST_GET_FIRST(trx_sys->trx_list);
 
@@ -517,7 +527,9 @@ trx_sys_flush_max_trx_id(void)
 	trx_sysf_t*	sys_header;
 	mtr_t		mtr;
 
+#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&kernel_mutex));
+#endif /* UNIV_SYNC_DEBUG */
 
 	mtr_start(&mtr);
 
@@ -716,7 +728,9 @@ trx_sysf_rseg_find_free(
 	ulint		page_no;
 	ulint		i;
 	
+#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&(kernel_mutex)));
+#endif /* UNIV_SYNC_DEBUG */
 
 	sys_header = trx_sysf_get(mtr);
 
@@ -762,7 +776,9 @@ trx_sysf_create(
 					    				mtr);
 	ut_a(buf_frame_get_page_no(page) == TRX_SYS_PAGE_NO);
 
+#ifdef UNIV_SYNC_DEBUG
 	buf_page_dbg_add_level(page, SYNC_TRX_SYS_HEADER);
+#endif /* UNIV_SYNC_DEBUG */
 
 	sys_header = trx_sysf_get(mtr);
 
