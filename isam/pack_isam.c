@@ -67,7 +67,7 @@ struct st_file_buffer {
   char *buffer,*pos,*end;
   my_off_t pos_in_file;
   int bits;
-  uint byte;
+  uint bytes;
 };
 
 struct st_huff_tree;
@@ -1832,7 +1832,7 @@ static void init_file_buffer(File file, pbool read_buffer)
     file_buffer.pos=file_buffer.buffer;
     file_buffer.bits=BITS_SAVED;
   }
-  file_buffer.byte=0;
+  file_buffer.bytes=0;
 }
 
 
@@ -1863,13 +1863,13 @@ static void write_bits (register ulong value, register uint bits)
 {
   if ((file_buffer.bits-=(int) bits) >= 0)
   {
-    file_buffer.byte|=value << file_buffer.bits;
+    file_buffer.bytes|=value << file_buffer.bits;
   }
   else
   {
     reg3 uint byte_buff;
     bits= (uint) -file_buffer.bits;
-    byte_buff=file_buffer.byte | (uint) (value >> bits);
+    byte_buff=file_buffer.bytes | (uint) (value >> bits);
 #if BITS_SAVED == 32
     *file_buffer.pos++= (byte) (byte_buff >> 24) ;
     *file_buffer.pos++= (byte) (byte_buff >> 16) ;
@@ -1895,7 +1895,7 @@ static void write_bits (register ulong value, register uint bits)
     if (file_buffer.pos >= file_buffer.end)
       VOID(flush_buffer((uint) ~0));
     file_buffer.bits=(int) (BITS_SAVED - bits);
-    file_buffer.byte=(uint) (value << (BITS_SAVED - bits));
+    file_buffer.bytes=(uint) (value << (BITS_SAVED - bits));
   }
   return;
 }
@@ -1907,7 +1907,7 @@ static void flush_bits (void)
   uint bits,byte_buff;
 
   bits=(file_buffer.bits) & ~7;
-  byte_buff = file_buffer.byte >> bits;
+  byte_buff = file_buffer.bytes >> bits;
   bits=BITS_SAVED - bits;
   while (bits > 0)
   {
@@ -1915,7 +1915,7 @@ static void flush_bits (void)
     *file_buffer.pos++= (byte) (uchar) (byte_buff >> bits) ;
   }
   file_buffer.bits=BITS_SAVED;
-  file_buffer.byte=0;
+  file_buffer.bytes=0;
   return;
 }
 

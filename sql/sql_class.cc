@@ -59,14 +59,14 @@ template class List_iterator<Alter_column>;
 ** User variables
 ****************************************************************************/
 
-static byte* get_var_key(user_var_entry *entry, uint *length,
-			 my_bool not_used __attribute__((unused)))
+extern "C" static byte *get_var_key(user_var_entry *entry, uint *length,
+				    my_bool not_used __attribute__((unused)))
 {
   *length=(uint) entry->name.length;
   return (byte*) entry->name.str;
 }
 
-static void free_var(user_var_entry *entry)
+extern "C" static void free_var(user_var_entry *entry)
 {
   char *pos= (char*) entry+ALIGN_SIZE(sizeof(*entry));
   if (entry->value && entry->value != pos)
@@ -148,7 +148,7 @@ THD::THD():user_time(0),fatal_error(0),last_insert_id_used(0),
   user_connect=(USER_CONN *)0;
   hash_init(&user_vars, USER_VARS_HASH_SIZE, 0, 0,
 	    (hash_get_key) get_var_key,
-	    (void (*)(void*)) free_var,0);
+	    (hash_free_key) free_var,0);
 #ifdef USING_TRANSACTIONS
   bzero((char*) &transaction,sizeof(transaction));
   if (opt_using_transactions)
@@ -320,20 +320,21 @@ void THD::add_changed_table(TABLE *table)
   DBUG_VOID_RETURN;
 }
 
+
 void THD::add_changed_table(const char *key, long key_length)
 {
   DBUG_ENTER("THD::add_changed_table(key)");
-  CHANGED_TABLE_LIST** prev = &transaction.changed_tables;
-  CHANGED_TABLE_LIST* curr = transaction.changed_tables;
+  CHANGED_TABLE_LIST **prev_changed = &transaction.changed_tables;
+  CHANGED_TABLE_LIST *curr = transaction.changed_tables;
 
-  for (; curr; prev = &(curr->next), curr = curr->next)
+  for (; curr; prev_changed = &(curr->next), curr = curr->next)
   {
     int cmp =  (long)curr->key_length - (long)key_length;
     if (cmp < 0)
     {
-      list_include(prev, curr, changed_table_dup(key, key_length));
+      list_include(prev_changed, curr, changed_table_dup(key, key_length));
       DBUG_PRINT("info", 
-		 ("key_length %u %u", key_length, (*prev)->key_length));
+		 ("key_length %u %u", key_length, (*prev_changed)->key_length));
       DBUG_VOID_RETURN;
     }
     else if (cmp == 0)
@@ -341,10 +342,10 @@ void THD::add_changed_table(const char *key, long key_length)
       cmp = memcmp(curr->key, key, curr->key_length);
       if (cmp < 0)
       {
-	list_include(prev, curr, changed_table_dup(key, key_length));
+	list_include(prev_changed, curr, changed_table_dup(key, key_length));
 	DBUG_PRINT("info", 
 		   ("key_length %u %u", key_length,
-		    (*prev)->key_length));
+		    (*prev_changed)->key_length));
 	DBUG_VOID_RETURN;
       }
       else if (cmp == 0)
@@ -354,9 +355,9 @@ void THD::add_changed_table(const char *key, long key_length)
       }
     }
   }
-  *prev = changed_table_dup(key, key_length);
+  *prev_changed = changed_table_dup(key, key_length);
   DBUG_PRINT("info", ("key_length %u %u", key_length,
-		      (*prev)->key_length));
+		      (*prev_changed)->key_length));
   DBUG_VOID_RETURN;
 }
 

@@ -178,7 +178,7 @@ extern "C"
 				  my_bool not_used);
 }
 void query_cache_insert(NET *thd, const char *packet, ulong length);
-void query_cache_invalidate_by_MyISAM_filename(const char* filename);
+extern "C" void query_cache_invalidate_by_MyISAM_filename(const char* filename);
 
 
 struct Query_cache_memory_bin

@@ -392,9 +392,9 @@ void Log_event::init_show_field_list(List<Item>* field_list)
 /*
  * only called by SHOW BINLOG EVENTS
  */
-int Log_event::net_send(THD* thd, const char* log_name, my_off_t pos)
+int Log_event::net_send(THD* thd_arg, const char* log_name, my_off_t pos)
 {
-  String* packet = &thd->packet;
+  String* packet = &thd_arg->packet;
   const char* p = strrchr(log_name, FN_LIBCHAR);
   const char* event_type;
   if (p)
@@ -408,7 +408,7 @@ int Log_event::net_send(THD* thd, const char* log_name, my_off_t pos)
   net_store_data(packet, server_id);
   net_store_data(packet, (longlong) log_pos);
   pack_info(packet);
-  return my_net_write(&thd->net, (char*) packet->ptr(), packet->length());
+  return my_net_write(&thd_arg->net, (char*) packet->ptr(), packet->length());
 }
 
 #endif /* MYSQL_CLIENT */
@@ -1089,12 +1089,12 @@ char* sql_ex_info::init(char* buf,char* buf_end,bool use_new_format)
 
 
 #ifndef MYSQL_CLIENT
-Load_log_event::Load_log_event(THD* thd, sql_exchange* ex,
+Load_log_event::Load_log_event(THD* thd_arg, sql_exchange* ex,
 			       const char* db_arg, const char* table_name_arg,
 			       List<Item>& fields_arg,
 			       enum enum_duplicates handle_dup,
 			       bool using_trans)
-  :Log_event(thd, 0, using_trans),thread_id(thd->thread_id),
+  :Log_event(thd_arg, 0, using_trans),thread_id(thd_arg->thread_id),
   num_fields(0),fields(0),
   field_lens(0),field_block_len(0),
   table_name(table_name_arg ? table_name_arg : ""),
@@ -1102,7 +1102,7 @@ Load_log_event::Load_log_event(THD* thd, sql_exchange* ex,
 {
   time_t end_time;
   time(&end_time);
-  exec_time = (ulong) (end_time  - thd->start_time);
+  exec_time = (ulong) (end_time  - thd_arg->start_time);
   /* db can never be a zero pointer in 4.0 */
   db_len = (uint32) strlen(db);
   table_name_len = (uint32) strlen(table_name);
@@ -1171,8 +1171,8 @@ Load_log_event::Load_log_event(THD* thd, sql_exchange* ex,
 */
 
 Load_log_event::Load_log_event(const char* buf, int event_len,
-			       bool old_format):
-  Log_event(buf, old_format),num_fields(0),fields(0),
+			       bool old_format)
+  :Log_event(buf, old_format),num_fields(0),fields(0),
   field_lens(0),field_block_len(0),
   table_name(0),db(0),fname(0)
 {
@@ -1319,14 +1319,14 @@ void Log_event::set_log_pos(MYSQL_LOG* log)
 }
 
 
-void Load_log_event::set_fields(List<Item> &fields)
+void Load_log_event::set_fields(List<Item> &field_list)
 {
   uint i;
-  const char* field = this->fields;
-  for (i = 0; i < num_fields; i++)
+  const char *field= fields;
+  for (i= 0; i < num_fields; i++)
   {
-    fields.push_back(new Item_field(db, table_name, field));	  
-    field += field_lens[i]  + 1;
+    field_list.push_back(new Item_field(db, table_name, field));	  
+    field+= field_lens[i]  + 1;
   }
 }
 
@@ -1803,8 +1803,8 @@ int Load_log_event::exec_event(NET* net, struct st_relay_log_info* rli)
 	ex.field_term->length(0);
 
       ex.skip_lines = skip_lines;
-      List<Item> fields;
-      set_fields(fields);
+      List<Item> field_list;
+      set_fields(field_list);
       thd->slave_proxy_id = thd->thread_id;
       if (net)
       {
@@ -1815,7 +1815,7 @@ int Load_log_event::exec_event(NET* net, struct st_relay_log_info* rli)
 	*/
 	thd->net.pkt_nr = net->pkt_nr;
       }
-      if (mysql_load(thd, &ex, &tables, fields, handle_dup, net != 0,
+      if (mysql_load(thd, &ex, &tables, field_list, handle_dup, net != 0,
 		     TL_WRITE))
 	thd->query_error = 1;
       if (thd->cuted_fields)

@@ -3361,7 +3361,7 @@ ha_innobase::estimate_number_of_rows(void)
 	row_prebuilt_t* prebuilt	= (row_prebuilt_t*) innobase_prebuilt;
 	dict_index_t*	index;
 	ulonglong	estimate;
-	ulonglong	data_file_length;
+	ulonglong	local_data_file_length;
 
 	/* Warning: since it is not sure that MySQL calls external_lock
 	before calling this function, the trx field in prebuilt can be
@@ -3371,7 +3371,7 @@ ha_innobase::estimate_number_of_rows(void)
 
 	index = dict_table_get_first_index_noninline(prebuilt->table);
 
-	data_file_length = ((ulonglong) index->stat_n_leaf_pages)
+	local_data_file_length = ((ulonglong) index->stat_n_leaf_pages)
     							* UNIV_PAGE_SIZE;
 
 	/* Calculate a minimum length for a clustered index record and from
@@ -3380,7 +3380,7 @@ ha_innobase::estimate_number_of_rows(void)
         by a threshold factor, we must add a safety factor 2 in front
 	of the formula below. */
 
-	estimate = 2 * data_file_length / dict_index_calc_min_rec_len(index);
+	estimate = 2 * local_data_file_length / dict_index_calc_min_rec_len(index);
 
 	DBUG_RETURN((ha_rows) estimate);
 }
@@ -3873,9 +3873,9 @@ innodb_show_status(
   	DBUG_ENTER("innodb_show_status");
 	
 	if (innodb_skip) {
-                fprintf(stderr,
-	 "Cannot call SHOW INNODB STATUS because skip-innodb is defined\n");
-
+	        my_message(ER_NOT_SUPPORTED_YET,
+			   "Cannot call SHOW INNODB STATUS because skip-innodb is defined",
+			   MYF(0));
                 DBUG_RETURN(-1);
         }
 

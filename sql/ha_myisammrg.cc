@@ -262,13 +262,15 @@ THR_LOCK_DATA **ha_myisammrg::store_lock(THD *thd,
 					 THR_LOCK_DATA **to,
 					 enum thr_lock_type lock_type)
 {
-  MYRG_TABLE *table;
+  MYRG_TABLE *open_table;
 
-  for (table=file->open_tables ; table != file->end_table ; table++)
+  for (open_table=file->open_tables ;
+       open_table != file->end_table ;
+       open_table++)
   {
-    *(to++)= &table->table->lock;
-    if (lock_type != TL_IGNORE && table->table->lock.type == TL_UNLOCK)
-      table->table->lock.type=lock_type;
+    *(to++)= &open_table->table->lock;
+    if (lock_type != TL_IGNORE && open_table->table->lock.type == TL_UNLOCK)
+      open_table->table->lock.type=lock_type;
   }
   return to;
 }
@@ -279,14 +281,16 @@ void ha_myisammrg::update_create_info(HA_CREATE_INFO *create_info)
   DBUG_ENTER("ha_myisammrg::update_create_info");
   if (!(create_info->used_fields & HA_CREATE_USED_UNION))
   {
-    MYRG_TABLE *table;
+    MYRG_TABLE *open_table;
     THD *thd=current_thd;
     create_info->merge_list.next= &create_info->merge_list.first;
     create_info->merge_list.elements=0;
 
-    for (table=file->open_tables ; table != file->end_table ; table++)
+    for (open_table=file->open_tables ;
+	 open_table != file->end_table ;
+	 open_table++)
     {
-      char *name=table->table->filename;
+      char *name=open_table->table->filename;
       char buff[FN_REFLEN];
       TABLE_LIST *ptr;
       if (!(ptr = (TABLE_LIST *) thd->calloc(sizeof(TABLE_LIST))))
@@ -340,13 +344,15 @@ void ha_myisammrg::append_create_info(String *packet)
     packet->append(get_type(&merge_insert_method,file->merge_insert_method-1));
   }
   packet->append(" UNION=(",8);
-  MYRG_TABLE *table,*first;
+  MYRG_TABLE *open_table,*first;
 
-  for (first=table=file->open_tables ; table != file->end_table ; table++)
+  for (first=open_table=file->open_tables ;
+       open_table != file->end_table ;
+       open_table++)
   {
-    char *name=table->table->filename;
+    char *name= open_table->table->filename;
     fn_format(buff,name,"","",3);
-    if (table != first)
+    if (open_table != first)
       packet->append(',');
     packet->append(buff,(uint) strlen(buff));
   }
