@@ -425,6 +425,7 @@ char mysql_real_data_home[FN_REFLEN],
      *opt_init_file;
 char *language_ptr= language;
 char mysql_data_home_buff[2], *mysql_data_home=mysql_real_data_home;
+char *default_collation_name= (char*) default_charset_info->name;
 #ifndef EMBEDDED_LIBRARY
 bool mysql_embedded=0;
 #else
@@ -2088,8 +2089,24 @@ static int init_common_variables(const char *conf_file_name, int argc,
 #ifdef USE_REGEX
   regex_init(&my_charset_latin1);
 #endif
-  if (!(default_charset_info= get_charset_by_name(sys_charset.value, MYF(MY_WME))))
+  if (!(default_charset_info= get_charset_by_csname(sys_charset.value, 
+						    MY_CS_PRIMARY,
+						    MYF(MY_WME))))
     return 1;
+  if (default_collation_name)
+  {
+    CHARSET_INFO *default_collation= get_charset_by_name(default_collation_name,
+							  MYF(0));
+    if (!default_collation || !my_charset_same(default_charset_info,
+					       default_collation))
+    {
+      sql_print_error(ER(ER_COLLATION_CHARSET_MISMATCH),
+		      default_collation_name,
+		      default_charset_info->csname);
+      return 1;
+    }
+    default_charset_info= default_collation;
+  }
   global_system_variables.collation_results= default_charset_info;
   global_system_variables.collation_client= default_charset_info;
   global_system_variables.collation_connection= default_charset_info;
@@ -3492,7 +3509,8 @@ enum options
   OPT_OLD_PASSWORDS,
   OPT_EXPIRE_LOGS_DAYS,
   OPT_DEFAULT_WEEK_FORMAT,
-  OPT_GROUP_CONCAT_MAX_LEN
+  OPT_GROUP_CONCAT_MAX_LEN,
+  OPT_DEFAULT_COLLATION
 };
 
 
@@ -3581,6 +3599,9 @@ Disable with --skip-bdb (will save memory)",
   {"default-character-set", 'C', "Set the default character set",
    (gptr*) &sys_charset.value, (gptr*) &sys_charset.value, 0, GET_STR,
    REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
+  {"default-collation", OPT_DEFAULT_COLLATION, "Set the default collation",
+   (gptr*) &default_collation_name, (gptr*) &default_collation_name,
+   0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
   {"default-table-type", OPT_TABLE_TYPE,
    "Set the default table type for tables", 0, 0,
    0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
@@ -4642,6 +4663,9 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     break;
   case 'b':
     strmake(mysql_home,argument,sizeof(mysql_home)-1);
+    break;
+  case 'C':
+    default_collation_name= NULL;
     break;
   case 'l':
     opt_log=1;
