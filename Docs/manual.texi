@@ -36190,6 +36190,9 @@ others, but will not be excluded altogether, as it would be with the
 @item *
 An asterisk is the truncation operator. Unlike the other operators, it
 should be @strong{appended} to the word, not prepended.
+@item "
+The phrase, that is enclosed in double quotes @code{"}, matches only
+rows that contain this phrase @strong{literally, as it was typed}.
 @end table
 
 And here are some examples:
@@ -36198,16 +36201,18 @@ And here are some examples:
 @item apple banana
 find rows that contain at least one of these words.
 @item +apple +juice
-... both words
+... both words.
 @item +apple macintosh
-... word ``apple'', but rank it higher if it also contain ``macintosh''
+... word ``apple'', but rank it higher if it also contain ``macintosh''.
 @item +apple -macintosh
-... word ``apple'' but not ``macintosh''
+... word ``apple'' but not ``macintosh''.
 @item +apple +(>pie <strudel)
 ... ``apple'' and ``pie'', or ``apple'' and ``strudel'' (in any
 order), but rank ``apple pie'' higher than ``apple strudel''.
 @item apple*
-... ``apple'', ``apples'', ``applesauce'', and ``applet''
+... ``apple'', ``apples'', ``applesauce'', and ``applet''.
+@item "some words"
+... ``some words of wisdom'', but not ``some noise words''.
 @end table
 
 @menu
@@ -48926,6 +48931,8 @@ Our TODO section contains what we plan to have in 4.0. @xref{TODO MySQL 4.0}.
 @appendixsubsec Changes in release 4.0.2
 
 @itemize @bullet
+@item
+Boolean fulltext search now supports "phrase searches".
 @item
 New configure option @code{--without-query-cache}. 
 @item
