@@ -761,7 +761,7 @@ typedef long		int32;
 #endif
 typedef unsigned long	uint32; /* Short for unsigned integer >= 32 bits */
 #else
-error "Neither int or long is of 4 bytes width"
+#error "Neither int or long is of 4 bytes width"
 #endif
 
 #if !defined(HAVE_ULONG) && !defined(HAVE_LINUXTHREADS) && !defined(__USE_MISC)

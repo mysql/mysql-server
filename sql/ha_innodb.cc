@@ -14,14 +14,12 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-/* This file defines the InnoDB handler: the interface between MySQL and
-InnoDB
+/* This file defines the InnoDB handler: the interface between MySQL and InnoDB
 NOTE: You can only use noninlined InnoDB functions in this file, because we
 have disables the InnoDB inlining in this file. */
 
-/* TODO list for the InnoDB handler in 4.1:
-  - Remove the flag innodb_active_trans from thd and replace it with a
-    function call innodb_active_trans(thd), which looks at the InnoDB
+/* TODO list for the InnoDB handler in 5.0:
+  - Remove the flag trx->active_trans and look at the InnoDB
     trx struct state field
   - Find out what kind of problems the OS X case-insensitivity causes to
     table and database names; should we 'normalize' the names like we do
@@ -141,8 +139,6 @@ ulong	innobase_active_counter	= 0;
 
 char*	innobase_home 	= NULL;
 
-char    innodb_dummy_stmt_trx_handle = 'D';
-
 static HASH 	innobase_open_tables;
 
 #ifdef __NETWARE__  	/* some special cleanup for NetWare */
@@ -153,6 +149,27 @@ static mysql_byte* innobase_get_key(INNOBASE_SHARE *share,uint *length,
 			      my_bool not_used __attribute__((unused)));
 static INNOBASE_SHARE *get_share(const char *table_name);
 static void free_share(INNOBASE_SHARE *share);
+static int innobase_close_connection(THD* thd);
+static int innobase_commit(THD* thd, bool all);
+static int innobase_rollback(THD* thd, bool all);
+static int innobase_rollback_to_savepoint(THD* thd, void *savepoint);
+static int innobase_savepoint(THD* thd, void *savepoint);
+static int innobase_release_savepoint(THD* thd, void *savepoint);
+
+static handlerton innobase_hton = {
+  0,				/* slot */
+  sizeof(trx_named_savept_t),	/* savepoint size. TODO: use it */
+  innobase_close_connection,
+  innobase_savepoint,
+  innobase_rollback_to_savepoint,
+  innobase_release_savepoint,
+  innobase_commit,		/* commit */
+  innobase_rollback,		/* rollback */
+  innobase_xa_prepare,		/* prepare */
+  innobase_xa_recover,		/* recover */
+  innobase_commit_by_xid,	/* commit_by_xid */
+  innobase_rollback_by_xid	/* rollback_by_xid */
+};
 
 /*********************************************************************
 Commits a transaction in an InnoDB database. */
@@ -250,7 +267,7 @@ struct show_var_st innodb_status_variables[]= {
   {"rows_updated",
   (char*) &export_vars.innodb_rows_updated,               SHOW_LONG},
   {NullS, NullS, SHOW_LONG}};
-      
+
 /* General functions */
 
 /**********************************************************************
@@ -317,9 +334,11 @@ documentation, see handler.cc. */
 void
 innobase_release_temporary_latches(
 /*===============================*/
-        void*   innobase_tid)
+        THD *thd)
 {
-        innobase_release_stat_resources((trx_t*)innobase_tid);
+  trx_t *trx= (trx_t*) thd->ha_data[innobase_hton.slot];
+  if (trx)
+        innobase_release_stat_resources(trx);
 }
 
 /************************************************************************
@@ -535,22 +554,31 @@ innobase_mysql_print_thd(
 }
 
 /**********************************************************************
-Determines whether the given character set is of variable length.
+Get the variable length bounds of the given character set.
 
 NOTE that the exact prototype of this function has to be in
 /innobase/data/data0type.ic! */
 extern "C"
-ibool
-innobase_is_mb_cset(
-/*================*/
-	ulint	cset)	/* in: MySQL charset-collation code */
+void
+innobase_get_cset_width(
+/*====================*/
+	ulint	cset,		/* in: MySQL charset-collation code */
+	ulint*	mbminlen,	/* out: minimum length of a char (in bytes) */
+	ulint*	mbmaxlen)	/* out: maximum length of a char (in bytes) */
 {
 	CHARSET_INFO*	cs;
 	ut_ad(cset < 256);
+	ut_ad(mbminlen);
+	ut_ad(mbmaxlen);
 
 	cs = all_charsets[cset];
-
-	return(cs && cs->mbminlen != cs->mbmaxlen);
+	if (cs) {
+		*mbminlen = cs->mbminlen;
+		*mbmaxlen = cs->mbmaxlen;
+	} else {
+		ut_a(cset == 0);
+		*mbminlen = *mbmaxlen = 0;
+	}
 }
 
 /**********************************************************************
@@ -593,7 +621,7 @@ innobase_mysql_tmpfile(void)
 {
 	char	filename[FN_REFLEN];
 	int	fd2 = -1;
-	File	fd = create_temp_file(filename, NullS, "ib",
+	File	fd = create_temp_file(filename, mysql_tmpdir, "ib",
 #ifdef __WIN__
 				O_BINARY | O_TRUNC | O_SEQUENTIAL |
 				O_TEMPORARY | O_SHORT_LIVED |
@@ -643,25 +671,17 @@ check_trx_exists(
 
 	ut_ad(thd == current_thd);
 
-	trx = (trx_t*) thd->transaction.all.innobase_tid;
+        trx = (trx_t*) thd->ha_data[innobase_hton.slot];
 
 	if (trx == NULL) {
 	        DBUG_ASSERT(thd != NULL);
 		trx = trx_allocate_for_mysql();
 
 		trx->mysql_thd = thd;
-		trx->mysql_query_str = &((*thd).query);
-		
-		thd->transaction.all.innobase_tid = trx;
+		trx->mysql_query_str = &(thd->query);
+                trx->active_trans = 0;
 
-		/* The execution of a single SQL statement is denoted by
-		a 'transaction' handle which is a dummy pointer: InnoDB
-		remembers internally where the latest SQL statement
-		started, and if error handling requires rolling back the
-		latest statement, InnoDB does a rollback to a savepoint. */
-
-		thd->transaction.stmt.innobase_tid =
-		                  (void*)&innodb_dummy_stmt_trx_handle;
+                thd->ha_data[innobase_hton.slot] = trx;
 	} else {
 		if (trx->magic_n != TRX_MAGIC_N) {
 			mem_analyze_corruption((byte*)trx);
@@ -698,7 +718,7 @@ ha_innobase::update_thd(
 {
 	row_prebuilt_t*	prebuilt = (row_prebuilt_t*) innobase_prebuilt;
 	trx_t*		trx;
-	
+
 	trx = check_trx_exists(thd);
 
 	if (prebuilt->trx != trx) {
@@ -711,6 +731,24 @@ ha_innobase::update_thd(
 	return(0);
 }
 
+/*************************************************************************
+Registers the InnoDB transaction in MySQL, to receive commit/rollback
+events. This function must be called every time InnoDB starts a
+transaction internally. */
+static
+void
+register_trans(
+/*============*/
+	THD*	thd)	/* in: thd to use the handle */
+{
+        /* register the start of the statement */
+        trans_register_ha(thd, FALSE, &innobase_hton);
+        if (thd->options & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN)) {
+
+              /* no autocommit mode, register for a transaction */
+              trans_register_ha(thd, TRUE, &innobase_hton);
+        }
+}
 
 /*   BACKGROUND INFO: HOW THE MYSQL QUERY CACHE WORKS WITH INNODB
      ------------------------------------------------------------
@@ -804,12 +842,7 @@ innobase_query_caching_of_table_permitted(
 		return((my_bool)FALSE);
 	}
 
-	trx = (trx_t*) thd->transaction.all.innobase_tid;
-
-	if (trx == NULL) {
-		trx = check_trx_exists(thd);
-	}
-
+        trx = check_trx_exists(thd);
 	if (trx->has_search_latch) {
 		ut_print_timestamp(stderr);
 		fprintf(stderr,
@@ -862,7 +895,11 @@ innobase_query_caching_of_table_permitted(
 	/* The call of row_search_.. will start a new transaction if it is
 	not yet started */
 
-	thd->transaction.all.innodb_active_trans = 1;
+        if (trx->active_trans == 0) {
+
+                register_trans(thd);
+                trx->active_trans = 1;
+        }
 
 	if (row_search_check_if_query_cache_permitted(trx, norm_name)) {
 
@@ -974,7 +1011,12 @@ ha_innobase::init_table_handle_for_HANDLER(void)
 
 	/* Set the MySQL flag to mark that there is an active transaction */
 
-	current_thd->transaction.all.innodb_active_trans = 1;
+        if (prebuilt->trx->active_trans == 0) {
+
+                register_trans(current_thd);
+
+                prebuilt->trx->active_trans = 1;
+        }
 
         /* We did the necessary inits in this function, no need to repeat them
         in row_search_for_mysql */
@@ -1004,7 +1046,7 @@ ha_innobase::init_table_handle_for_HANDLER(void)
 /*************************************************************************
 Opens an InnoDB database. */
 
-bool
+handlerton *
 innobase_init(void)
 /*===============*/
 			/* out: TRUE if error */
@@ -1079,7 +1121,9 @@ innobase_init(void)
 	if (ret == FALSE) {
 	  	sql_print_error(
 			"InnoDB: syntax error in innodb_data_file_path");
-	  	DBUG_RETURN(TRUE);
+	  	my_free(internal_innobase_data_file_path,
+						MYF(MY_ALLOW_ZERO_PTR));
+	  	DBUG_RETURN(0);
 	}
 
 	/* -------------- Log files ---------------------------*/
@@ -1109,7 +1153,9 @@ innobase_init(void)
 		"InnoDB: syntax error in innodb_log_group_home_dir\n"
 		"InnoDB: or a wrong number of mirrored log groups\n");
 
-		DBUG_RETURN(TRUE);
+	  	my_free(internal_innobase_data_file_path,
+						MYF(MY_ALLOW_ZERO_PTR));
+		DBUG_RETURN(0);
 	}
 
 	/* --------------------------------------------------*/
@@ -1155,11 +1201,11 @@ innobase_init(void)
 
 	srv_fast_shutdown = (ibool) innobase_fast_shutdown;
 
-  srv_use_doublewrite_buf = (ibool) innobase_use_doublewrite;
-  srv_use_checksums = (ibool) innobase_use_checksums;
+	srv_use_doublewrite_buf = (ibool) innobase_use_doublewrite;
+	srv_use_checksums = (ibool) innobase_use_checksums;
 
-  os_use_large_pages = (ibool) innobase_use_large_pages;
-  os_large_page_size = (ulint) innobase_large_page_size;
+	os_use_large_pages = (ibool) innobase_use_large_pages;
+	os_large_page_size = (ulint) innobase_large_page_size;
   
 	srv_file_per_table = (ibool) innobase_file_per_table;
         srv_locks_unsafe_for_binlog = (ibool) innobase_locks_unsafe_for_binlog;
@@ -1197,8 +1243,9 @@ innobase_init(void)
 	err = innobase_start_or_create_for_mysql();
 
 	if (err != DB_SUCCESS) {
-
-		DBUG_RETURN(1);
+	  	my_free(internal_innobase_data_file_path,
+						MYF(MY_ALLOW_ZERO_PTR));
+		DBUG_RETURN(0);
 	}
 
 	(void) hash_init(&innobase_open_tables,system_charset_info, 32, 0, 0,
@@ -1221,7 +1268,7 @@ innobase_init(void)
 		glob_mi.pos = trx_sys_mysql_master_log_pos;
 	}
 */
-  	DBUG_RETURN(0);
+	DBUG_RETURN(&innobase_hton);
 }
 
 /***********************************************************************
@@ -1241,23 +1288,23 @@ innobase_end(void)
 		set_panic_flag_for_netware();
 	}
 #endif
-	if (innodb_inited)
-	{
-	  if (innobase_very_fast_shutdown) {
-	    srv_very_fast_shutdown = TRUE;
-	    fprintf(stderr,
+	if (innodb_inited) {
+	  	if (innobase_very_fast_shutdown) {
+	    		srv_very_fast_shutdown = TRUE;
+	    		fprintf(stderr,
 "InnoDB: MySQL has requested a very fast shutdown without flushing\n"
 "InnoDB: the InnoDB buffer pool to data files. At the next mysqld startup\n"
 "InnoDB: InnoDB will do a crash recovery!\n");
+	  	}
 
-	  }
-
-	  innodb_inited= 0;
-	  if (innobase_shutdown_for_mysql() != DB_SUCCESS)
-	    err= 1;
-	  hash_free(&innobase_open_tables);
-	  my_free(internal_innobase_data_file_path,MYF(MY_ALLOW_ZERO_PTR));
-	  pthread_mutex_destroy(&innobase_mutex);
+	  	innodb_inited = 0;
+	  	if (innobase_shutdown_for_mysql() != DB_SUCCESS) {
+	    		err = 1;
+		}
+	  	hash_free(&innobase_open_tables);
+	  	my_free(internal_innobase_data_file_path,
+						MYF(MY_ALLOW_ZERO_PTR));
+	  	pthread_mutex_destroy(&innobase_mutex);
 	}
 
   	DBUG_RETURN(err);
@@ -1345,7 +1392,12 @@ innobase_start_trx_and_assign_read_view(
 
 	/* Set the MySQL flag to mark that there is an active transaction */
 
-	current_thd->transaction.all.innodb_active_trans = 1;
+        if (trx->active_trans == 0) {
+
+                register_trans(current_thd);
+
+                trx->active_trans = 1;
+        }
 
 	DBUG_RETURN(0);
 }
@@ -1354,15 +1406,14 @@ innobase_start_trx_and_assign_read_view(
 Commits a transaction in an InnoDB database or marks an SQL statement
 ended. */
 
-int
+static int
 innobase_commit(
 /*============*/
 			/* out: 0 */
 	THD*	thd,	/* in: MySQL thread handle of the user for whom
 			the transaction should be committed */
-	void*	trx_handle)/* in: InnoDB trx handle or
-			&innodb_dummy_stmt_trx_handle: the latter means
-			that the current SQL statement ended */
+        bool    all)    /* in: TRUE - commit transaction
+                               FALSE - the current SQL statement ended */
 {
 	trx_t*		trx;
 
@@ -1377,7 +1428,7 @@ innobase_commit(
 
 	innobase_release_stat_resources(trx);
 
-	/* The flag thd->transaction.all.innodb_active_trans is set to 1 in
+        /* The flag trx->active_trans is set to 1 in
 
 	1. ::external_lock(),
 	2. ::start_stmt(),
@@ -1392,23 +1443,22 @@ innobase_commit(
 	For the time being, we play safe and do the cleanup though there should
 	be nothing to clean up. */
 
-	if (thd->transaction.all.innodb_active_trans == 0
+        if (trx->active_trans == 0
 	    && trx->conc_state != TRX_NOT_STARTED) {
 	    
 	        fprintf(stderr,
-"InnoDB: Error: thd->transaction.all.innodb_active_trans == 0\n"
+"InnoDB: Error: trx->active_trans == 0\n"
 "InnoDB: but trx->conc_state != TRX_NOT_STARTED\n");
 	}
 
-	if (trx_handle != (void*)&innodb_dummy_stmt_trx_handle
-	    || (!(thd->options & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN)))) {
+        if (all || (!(thd->options & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN)))) {
 	        
  		/* We were instructed to commit the whole transaction, or
 		this is an SQL statement end and autocommit is on */
 
 		innobase_commit_low(trx);
 
-		thd->transaction.all.innodb_active_trans = 0;
+                trx->active_trans = 0;
 	} else {
 	        /* We just mark the SQL statement ended and do not do a
 		transaction commit */
@@ -1434,6 +1484,11 @@ innobase_commit(
 	DBUG_RETURN(0);
 }
 
+/*
+  don't delete it - it may be re-enabled later
+  as an optimization for the most common case InnoDB+binlog
+*/
+#if 0
 /*********************************************************************
 This is called when MySQL writes the binlog entry for the current
 transaction. Writes to the InnoDB tablespace info which tells where the
@@ -1459,17 +1514,50 @@ innobase_report_binlog_offset_and_commit(
 
 	ut_a(trx != NULL);
 
-	trx->mysql_log_file_name = log_file_name;  	
+	trx->mysql_log_file_name = log_file_name;
 	trx->mysql_log_offset = (ib_longlong)end_offset;
-	
+
 	trx->flush_log_later = TRUE;
 
-  	innobase_commit(thd, trx_handle);
+	innobase_commit(thd, trx_handle);
 
 	trx->flush_log_later = FALSE;
 
 	return(0);
 }
+
+/***********************************************************************
+This function stores the binlog offset and flushes logs. */
+
+void
+innobase_store_binlog_offset_and_flush_log(
+/*=======================================*/
+    char *binlog_name,          /* in: binlog name */
+    longlong	offset)		/* in: binlog offset */
+{
+	mtr_t mtr;
+
+	assert(binlog_name != NULL);
+
+	/* Start a mini-transaction */
+        mtr_start_noninline(&mtr);
+
+	/* Update the latest MySQL binlog name and offset info
+        in trx sys header */
+
+        trx_sys_update_mysql_binlog_offset(
+            binlog_name,
+            offset,
+            TRX_SYS_MYSQL_LOG_INFO, &mtr);
+
+        /* Commits the mini-transaction */
+        mtr_commit(&mtr);
+
+	/* Syncronous flush of the log buffer to disk */
+	log_buffer_flush_to_disk();
+}
+
+#endif
 
 /*********************************************************************
 This is called after MySQL has written the binlog entry for the current
@@ -1479,20 +1567,23 @@ int
 innobase_commit_complete(
 /*=====================*/
                                 /* out: 0 */
-        void*   trx_handle)     /* in: InnoDB trx handle */
+        THD*    thd)            /* in: user thread */
 {
 	trx_t*	trx;
 
-	if (srv_flush_log_at_trx_commit == 0) {
+        trx = (trx_t*) thd->ha_data[innobase_hton.slot];
 
-	        return(0);
-	}
+        if (trx && trx->active_trans) {
 
-	trx = (trx_t*)trx_handle;
+                trx->active_trans = 0;
 
-	ut_a(trx != NULL);
+                if (srv_flush_log_at_trx_commit == 0) {
 
-  	trx_commit_complete_for_mysql(trx);
+                        return(0);
+                }
+
+                trx_commit_complete_for_mysql(trx);
+        }
 
 	return(0);
 }
@@ -1500,15 +1591,14 @@ innobase_commit_complete(
 /*********************************************************************
 Rolls back a transaction or the latest SQL statement. */
 
-int
+static int
 innobase_rollback(
 /*==============*/
 			/* out: 0 or error number */
 	THD*	thd,	/* in: handle to the MySQL thread of the user
 			whose transaction should be rolled back */
-	void*	trx_handle)/* in: InnoDB trx handle or a dummy stmt handle;
-			the latter means we roll back the latest SQL
-			statement */
+        bool    all)    /* in: TRUE - commit transaction
+                               FALSE - the current SQL statement ended */
 {
 	int	error = 0;
 	trx_t*	trx;
@@ -1532,11 +1622,10 @@ innobase_rollback(
 		row_unlock_table_autoinc_for_mysql(trx);
 	}
 
-	if (trx_handle != (void*)&innodb_dummy_stmt_trx_handle
-	    || (!(thd->options & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN)))) {
+        if (all || (!(thd->options & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN)))) {
 
 		error = trx_rollback_for_mysql(trx);
-		thd->transaction.all.innodb_active_trans = 0;
+                trx->active_trans = 0;
 	} else {
 		error = trx_rollback_last_sql_stat_for_mysql(trx);
 	}
@@ -1580,17 +1669,14 @@ innobase_rollback_trx(
 /*********************************************************************
 Rolls back a transaction to a savepoint. */
 
-int
+static int
 innobase_rollback_to_savepoint(
 /*===========================*/
 				/* out: 0 if success, HA_ERR_NO_SAVEPOINT if
 				no savepoint with the given name */
 	THD*	thd,		/* in: handle to the MySQL thread of the user
 				whose transaction should be rolled back */
-	char*	savepoint_name,	/* in: savepoint name */
-	my_off_t* binlog_cache_pos)/* out: position which corresponds to the
-				savepoint in the binlog cache of this
-				transaction, not defined if error */
+        void *savepoint)        /* in: savepoint data */
 {
 	ib_longlong mysql_binlog_cache_pos;
 	int	    error = 0;
@@ -1606,34 +1692,35 @@ innobase_rollback_to_savepoint(
 
 	innobase_release_stat_resources(trx);
 
-	error = trx_rollback_to_savepoint_for_mysql(trx, savepoint_name,
+        /* TODO: use provided savepoint data area to store savepoint data */
+        char name[16]; sprintf(name, "s_%08lx", savepoint);
+        error = trx_rollback_to_savepoint_for_mysql(trx, name,
 						&mysql_binlog_cache_pos);
-	*binlog_cache_pos = (my_off_t)mysql_binlog_cache_pos;
-
 	DBUG_RETURN(convert_error_code_to_mysql(error, NULL));
 }
 
 /*********************************************************************
 Release transaction savepoint name. */
 
-int
-innobase_release_savepoint_name(
+static int
+innobase_release_savepoint(
 /*===========================*/
 				/* out: 0 if success, HA_ERR_NO_SAVEPOINT if
 				no savepoint with the given name */
 	THD*	thd,		/* in: handle to the MySQL thread of the user
 				whose transaction should be rolled back */
-	char*	savepoint_name)	/* in: savepoint name */
+        void *savepoint)        /* in: savepoint data */
 {
-	ib_longlong mysql_binlog_cache_pos;
 	int	    error = 0;
 	trx_t*	    trx;
 
-	DBUG_ENTER("innobase_release_savepoint_name");
+	DBUG_ENTER("innobase_release_savepoint");
 
 	trx = check_trx_exists(thd);
 
-	error = trx_release_savepoint_for_mysql(trx, savepoint_name);
+        /* TODO: use provided savepoint data area to store savepoint data */
+        char name[16]; sprintf(name, "s_%08lx", savepoint);
+	error = trx_release_savepoint_for_mysql(trx, name);
 
 	DBUG_RETURN(convert_error_code_to_mysql(error, NULL));
 }
@@ -1641,17 +1728,12 @@ innobase_release_savepoint_name(
 /*********************************************************************
 Sets a transaction savepoint. */
 
-int
+static int
 innobase_savepoint(
 /*===============*/
 				/* out: always 0, that is, always succeeds */
 	THD*	thd,		/* in: handle to the MySQL thread */
-	char*	savepoint_name,	/* in: savepoint name */
-	my_off_t binlog_cache_pos)/* in: offset up to which the current
-				transaction has cached log entries to its
-				binlog cache, not defined if no transaction
-				active, or we are in the autocommit state, or
-				binlogging is not switched on */
+        void *savepoint)        /* in: savepoint data */
 {
 	int	error = 0;
 	trx_t*	trx;
@@ -1672,14 +1754,12 @@ innobase_savepoint(
 
 	innobase_release_stat_resources(trx);
 
-	/* Setting a savepoint starts a transaction inside InnoDB since
-	it allocates resources for it (memory to store the savepoint name,
-	for example) */
+        /* cannot happen outside of transaction */
+        DBUG_ASSERT(trx->active_trans);
 
-	thd->transaction.all.innodb_active_trans = 1;
-
-	error = trx_savepoint_for_mysql(trx, savepoint_name,
-					     (ib_longlong)binlog_cache_pos);
+        /* TODO: use provided savepoint data area to store savepoint data */
+        char name[16]; sprintf(name, "s_%08lx", savepoint);
+        error = trx_savepoint_for_mysql(trx, name, (ib_longlong)0);
 
 	DBUG_RETURN(convert_error_code_to_mysql(error, NULL));
 }
@@ -1687,25 +1767,14 @@ innobase_savepoint(
 /*********************************************************************
 Frees a possible InnoDB trx object associated with the current THD. */
 
-int
+static int
 innobase_close_connection(
 /*======================*/
 			/* out: 0 or error number */
 	THD*	thd)	/* in: handle to the MySQL thread of the user
-			whose transaction should be rolled back */
+			whose resources should be free'd */
 {
-	trx_t*	trx;
-
-	trx = (trx_t*)thd->transaction.all.innobase_tid;
-
-	if (NULL != trx) {
-	        innobase_rollback(thd, (void*)trx);
-
-		trx_free_for_mysql(trx);
-
-		thd->transaction.all.innobase_tid = NULL;
-	}
-
+        trx_free_for_mysql((trx_t*)thd->ha_data[innobase_hton.slot]);
 	return(0);
 }
 
@@ -1713,6 +1782,26 @@ innobase_close_connection(
 /*****************************************************************************
 ** InnoDB database tables
 *****************************************************************************/
+
+/********************************************************************
+Get the record format from the data dictionary. */
+enum row_type
+ha_innobase::get_row_type() const
+/*=============================*/
+			/* out: ROW_TYPE_REDUNDANT or ROW_TYPE_COMPACT */
+{
+	row_prebuilt_t*	prebuilt = (row_prebuilt_t*) innobase_prebuilt;
+
+	if (prebuilt && prebuilt->table) {
+		if (prebuilt->table->comp) {
+			return(ROW_TYPE_COMPACT);
+		} else {
+			return(ROW_TYPE_REDUNDANT);
+		}
+	}
+	ut_ad(0);
+	return(ROW_TYPE_NOT_USED);
+}
 
 /********************************************************************
 Gives the file extension of an InnoDB single-table tablespace. */
@@ -1841,7 +1930,7 @@ ha_innobase::open(
     		my_free((char*) upd_buff, MYF(0));
     		my_errno = ENOENT;
 
-    		DBUG_RETURN(1);
+    		DBUG_RETURN(HA_ERR_NO_SUCH_TABLE);
   	}
 
  	if (ib_table->ibd_file_missing && !thd->tablespace_op) {
@@ -1858,7 +1947,7 @@ ha_innobase::open(
     		my_free((char*) upd_buff, MYF(0));
     		my_errno = ENOENT;
 
-    		DBUG_RETURN(1);
+    		DBUG_RETURN(HA_ERR_NO_SUCH_TABLE);
   	}
 
 	innobase_prebuilt = row_create_prebuilt(ib_table);
@@ -2455,6 +2544,8 @@ build_template(
 		templ->type = get_innobase_type_from_mysql_type(field);
 		templ->charset = dtype_get_charset_coll_noninline(
 				index->table->cols[i].type.prtype);
+		templ->mbminlen = index->table->cols[i].type.mbminlen;
+		templ->mbmaxlen = index->table->cols[i].type.mbmaxlen;
 		templ->is_unsigned = (ulint) (field->flags & UNSIGNED_FLAG);
 
 		if (templ->type == DATA_BLOB) {
@@ -2499,19 +2590,19 @@ ha_innobase::write_row(
   	DBUG_ENTER("ha_innobase::write_row");
 
 	if (prebuilt->trx !=
-			(trx_t*) current_thd->transaction.all.innobase_tid) {
+                        (trx_t*) current_thd->ha_data[innobase_hton.slot]) {
 		fprintf(stderr,
 "InnoDB: Error: the transaction object for the table handle is at\n"
 "InnoDB: %p, but for the current thread it is at %p\n",
 			prebuilt->trx,
-			current_thd->transaction.all.innobase_tid);
+                        (trx_t*) current_thd->ha_data[innobase_hton.slot]);
 		fputs("InnoDB: Dump of 200 bytes around prebuilt: ", stderr);
 		ut_print_buf(stderr, ((const byte*)prebuilt) - 100, 200);
 		fputs("\n"
 			"InnoDB: Dump of 200 bytes around transaction.all: ",
 			stderr);
 		ut_print_buf(stderr,
-			((byte*)(&(current_thd->transaction.all))) - 100, 200);
+                        ((byte*)(&(current_thd->ha_data[innobase_hton.slot]))) - 100, 200);
 		putc('\n', stderr);
 		ut_error;
 	}
@@ -2561,9 +2652,9 @@ ha_innobase::write_row(
 			no need to re-acquire locks on it. */
 
 			/* Altering to InnoDB format */
-			innobase_commit(user_thd, prebuilt->trx);
+                        innobase_commit(user_thd, 1);
 			/* Note that this transaction is still active. */
-			user_thd->transaction.all.innodb_active_trans = 1;
+			prebuilt->trx->active_trans = 1;
 			/* We will need an IX lock on the destination table. */
 		        prebuilt->sql_stat_start = TRUE;
 		} else {
@@ -2576,9 +2667,9 @@ ha_innobase::write_row(
 
 			/* Commit the transaction.  This will release the table
 			locks, so they have to be acquired again. */
-			innobase_commit(user_thd, prebuilt->trx);
+                        innobase_commit(user_thd, 1);
 			/* Note that this transaction is still active. */
-			user_thd->transaction.all.innodb_active_trans = 1;
+			prebuilt->trx->active_trans = 1;
 			/* Re-acquire the table lock on the source table. */
 			row_lock_table_for_mysql(prebuilt, src_table, mode);
 			/* We will need an IX lock on the destination table. */
@@ -2866,7 +2957,7 @@ ha_innobase::update_row(
 	DBUG_ENTER("ha_innobase::update_row");
 
 	ut_ad(prebuilt->trx ==
-		(trx_t*) current_thd->transaction.all.innobase_tid);
+                (trx_t*) current_thd->ha_data[innobase_hton.slot]);
 
         if (table->timestamp_field_type & TIMESTAMP_AUTO_SET_ON_UPDATE)
                 table->timestamp_field->set_time();
@@ -2927,7 +3018,7 @@ ha_innobase::delete_row(
 	DBUG_ENTER("ha_innobase::delete_row");
 
 	ut_ad(prebuilt->trx ==
-		(trx_t*) current_thd->transaction.all.innobase_tid);
+                (trx_t*) current_thd->ha_data[innobase_hton.slot]);
 
 	if (last_query_id != user_thd->query_id) {
 	        prebuilt->sql_stat_start = TRUE;
@@ -3137,7 +3228,7 @@ ha_innobase::index_read(
   	DBUG_ENTER("index_read");
 
 	ut_ad(prebuilt->trx ==
-		(trx_t*) current_thd->transaction.all.innobase_tid);
+                (trx_t*) current_thd->ha_data[innobase_hton.slot]);
 
   	statistic_increment(current_thd->status_var.ha_read_key_count,
 			    &LOCK_status);
@@ -3252,7 +3343,7 @@ ha_innobase::change_active_index(
 
 	ut_ad(user_thd == current_thd);
 	ut_ad(prebuilt->trx ==
-	     (trx_t*) current_thd->transaction.all.innobase_tid);
+             (trx_t*) current_thd->ha_data[innobase_hton.slot]);
 
 	active_index = keynr;
 
@@ -3340,7 +3431,7 @@ ha_innobase::general_fetch(
 	DBUG_ENTER("general_fetch");
 
 	ut_ad(prebuilt->trx ==
-	     (trx_t*) current_thd->transaction.all.innobase_tid);
+             (trx_t*) current_thd->ha_data[innobase_hton.slot]);
 
 	innodb_srv_conc_enter_innodb(prebuilt->trx);
 
@@ -3566,7 +3657,7 @@ ha_innobase::rnd_pos(
 			    &LOCK_status);
 
 	ut_ad(prebuilt->trx ==
-		(trx_t*) current_thd->transaction.all.innobase_tid);
+                (trx_t*) current_thd->ha_data[innobase_hton.slot]);
 
 	if (prebuilt->clust_index_was_generated) {
 		/* No primary key was defined for the table and we
@@ -3615,7 +3706,7 @@ ha_innobase::position(
 	uint		len;
 
 	ut_ad(prebuilt->trx ==
-		(trx_t*) current_thd->transaction.all.innobase_tid);
+                (trx_t*) current_thd->ha_data[innobase_hton.slot]);
 
 	if (prebuilt->clust_index_was_generated) {
 		/* No primary key was defined for the table and we
@@ -4105,7 +4196,7 @@ ha_innobase::discard_or_import_tablespace(
 
 	ut_a(prebuilt->trx && prebuilt->trx->magic_n == TRX_MAGIC_N);
 	ut_a(prebuilt->trx ==
-		(trx_t*) current_thd->transaction.all.innobase_tid);
+                (trx_t*) current_thd->ha_data[innobase_hton.slot]);
 
 	dict_table = prebuilt->table;
 	trx = prebuilt->trx;
@@ -4156,7 +4247,7 @@ ha_innobase::delete_all_rows(void)
 		goto fallback;
 	}
 
-	innobase_commit(thd, trx);
+	innobase_commit(thd, 1);
 
 	error = convert_error_code_to_mysql(error, NULL);
 
@@ -4811,7 +4902,7 @@ ha_innobase::check(
 
 	ut_a(prebuilt->trx && prebuilt->trx->magic_n == TRX_MAGIC_N);
 	ut_a(prebuilt->trx ==
-		(trx_t*) current_thd->transaction.all.innobase_tid);
+                (trx_t*) current_thd->ha_data[innobase_hton.slot]);
 
 	if (prebuilt->mysql_template == NULL) {
 		/* Build the template; we will use a dummy template
@@ -5249,7 +5340,11 @@ ha_innobase::start_stmt(
 	}
 
 	/* Set the MySQL flag to mark that there is an active transaction */
-	thd->transaction.all.innodb_active_trans = 1;
+        if (trx->active_trans == 0) {
+
+                register_trans(thd);
+                trx->active_trans = 1;
+        }
 
 	return(0);
 }
@@ -5317,7 +5412,11 @@ ha_innobase::external_lock(
 
 		/* Set the MySQL flag to mark that there is an active
 		transaction */
-		thd->transaction.all.innodb_active_trans = 1;
+                if (trx->active_trans == 0) {
+
+                        register_trans(thd);
+                        trx->active_trans = 1;
+                }
 
 		trx->n_mysql_tables_in_use++;
 		prebuilt->mysql_has_locked = TRUE;
@@ -5397,8 +5496,8 @@ ha_innobase::external_lock(
 		innobase_release_stat_resources(trx);
 
 		if (!(thd->options & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN))) {
-			if (thd->transaction.all.innodb_active_trans != 0) {
-		    	        innobase_commit(thd, trx);
+                        if (trx->active_trans != 0) {
+                                innobase_commit(thd, TRUE);
 			}
 		} else {
 			if (trx->isolation_level <= TRX_ISO_READ_COMMITTED
@@ -5477,12 +5576,16 @@ ha_innobase::transactional_table_lock(
 	/* MySQL is setting a new transactional table lock */
 
 	/* Set the MySQL flag to mark that there is an active transaction */
-	thd->transaction.all.innodb_active_trans = 1;
+        if (trx->active_trans == 0) {
+
+                register_trans(thd);
+                trx->active_trans = 1;
+        }
 
 	if (thd->in_lock_tables && thd->variables.innodb_table_locks) {
 		ulint	error = DB_SUCCESS;
 
-		error = row_lock_table_for_mysql(prebuilt,NULL, 
+		error = row_lock_table_for_mysql(prebuilt,NULL,
 						LOCK_TABLE_TRANSACTIONAL);
 
 		if (error != DB_SUCCESS) {
@@ -5881,7 +5984,7 @@ ha_innobase::innobase_read_and_init_auto_inc(
 
   	ut_a(prebuilt);
 	ut_a(prebuilt->trx ==
-		(trx_t*) current_thd->transaction.all.innobase_tid);
+                (trx_t*) current_thd->ha_data[innobase_hton.slot]);
 	ut_a(prebuilt->table);
 	
 	/* In case MySQL calls this in the middle of a SELECT query, release
@@ -5989,37 +6092,6 @@ ha_innobase::get_auto_increment()
 	}
 
 	return((ulonglong) nr);
-}
-
-/***********************************************************************
-This function stores the binlog offset and flushes logs. */
-
-void 
-innobase_store_binlog_offset_and_flush_log(
-/*=======================================*/
-    char *binlog_name,          /* in: binlog name */
-    longlong 	offset)		/* in: binlog offset */
-{
-	mtr_t mtr;
-	
-	assert(binlog_name != NULL);
-
-	/* Start a mini-transaction */
-        mtr_start_noninline(&mtr); 
-
-	/* Update the latest MySQL binlog name and offset info
-        in trx sys header */
-
-        trx_sys_update_mysql_binlog_offset(
-            binlog_name,
-            offset,
-            TRX_SYS_MYSQL_LOG_INFO, &mtr);
-
-        /* Commits the mini-transaction */
-        mtr_commit(&mtr);
-        
-	/* Syncronous flush of the log buffer to disk */
-	log_buffer_flush_to_disk();
 }
 
 
@@ -6216,9 +6288,7 @@ innobase_xa_prepare(
 
         trx = check_trx_exists(thd);
 
-	/* TODO: Get X/Open XA Transaction Identification from MySQL*/
-	memset(&trx->xid, 0, sizeof(trx->xid));
-	trx->xid.formatID = -1;
+        trx->xid=thd->transaction.xid;
 
 	/* Release a possible FIFO ticket and search latch. Since we will
 	reserve the kernel mutex, we have to release the search system latch
@@ -6229,14 +6299,14 @@ innobase_xa_prepare(
 	if (trx->active_trans == 0 && trx->conc_state != TRX_NOT_STARTED) {
 
 		fprintf(stderr,
-"InnoDB: Error: thd->transaction.all.innodb_active_trans == 0\n"
+"InnoDB: Error: trx->active_trans == 0\n"
 "InnoDB: but trx->conc_state != TRX_NOT_STARTED\n");
 	}
 
 	if (all || (!(thd->options & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN)))) {
-	        
- 		/* We were instructed to prepare the whole transaction, or
-		this is an SQL statement end and autocommit is on */
+
+                /* We were instructed to prepare the whole transaction, or
+                this is an SQL statement end and autocommit is on */
 
 		error = trx_prepare_for_mysql(trx);
 	} else {

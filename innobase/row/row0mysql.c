@@ -238,7 +238,8 @@ row_mysql_convert_row_to_innobase(
 						+ templ->mysql_col_offset,
 					mysql_rec + templ->mysql_col_offset,
 					templ->mysql_col_len,
-					templ->type, templ->is_unsigned);
+					templ->type, prebuilt->table->comp,
+					templ->is_unsigned);
 next_column:
 		;
 	} 
@@ -424,9 +425,12 @@ row_create_prebuilt(
 	prebuilt->sel_graph = NULL;
 
 	prebuilt->search_tuple = dtuple_create(heap,
-						dict_table_get_n_cols(table));
+					2 * dict_table_get_n_cols(table));
 	
 	clust_index = dict_table_get_first_index(table);
+
+	/* Make sure that search_tuple is long enough for clustered index */
+	ut_a(2 * dict_table_get_n_cols(table) >= clust_index->n_fields);
 
 	ref_len = dict_index_get_n_unique(clust_index);
 

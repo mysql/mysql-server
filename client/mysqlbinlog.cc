@@ -1100,7 +1100,7 @@ at offset %lu ; this could be a log format error or read error",
           /* EOF can't be hit here normally, so it's a real error */
           die("Could not read a Rotate_log_event event \
 at offset %lu ; this could be a log format error or read error",
-              tmp_pos); 
+              tmp_pos);
       }
       else
         break;
@@ -1130,15 +1130,15 @@ static int dump_local_log_entries(const char* logname)
     }
     check_header(file, &description_event);
   }
-  else // reading from stdin; TODO: check that it works
+  else // reading from stdin;
   {
-    if (init_io_cache(file, fileno(result_file), 0, READ_CACHE, (my_off_t) 0,
+    if (init_io_cache(file, fileno(stdin), 0, READ_CACHE, (my_off_t) 0,
 		      0, MYF(MY_WME | MY_NABP | MY_DONT_CHECK_FILESIZE)))
       return 1;
     check_header(file, &description_event);
     if (start_position)
     {
-      /* skip 'start_position' characters from stdout */
+      /* skip 'start_position' characters from stdin */
       byte buff[IO_SIZE];
       my_off_t length,tmp;
       for (length= start_position_mot ; length > 0 ; length-=tmp)
@@ -1151,8 +1151,6 @@ static int dump_local_log_entries(const char* logname)
         }
       }
     }
-    file->pos_in_file= start_position_mot;
-    file->seek_not_done=0;
   }
 
   if (!description_event || !description_event->is_valid())
@@ -1171,9 +1169,15 @@ static int dump_local_log_entries(const char* logname)
     Log_event* ev = Log_event::read_log_event(file, description_event);
     if (!ev)
     {
-      if (file->error)
+      /*
+        if binlog wasn't closed properly ("in use" flag is set) don't complain
+        about a corruption, but treat it as EOF and move to the next binlog.
+      */
+      if (description_event->flags & LOG_EVENT_BINLOG_IN_USE_F)
+        file->error= 0;
+      else if (file->error)
       {
-	fprintf(stderr,
+        fprintf(stderr,
                 "Could not read entry at offset %s:"
                 "Error in log format or read error\n",
                 llstr(old_off,llbuff));

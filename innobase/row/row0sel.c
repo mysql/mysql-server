@@ -2137,6 +2137,7 @@ row_sel_convert_mysql_key_to_innobase(
 		        row_mysql_store_col_in_innobase_format(
 					dfield, buf, key_ptr + data_offset,
 					data_len, type,
+					index->table->comp,
 					dfield_get_type(dfield)->prtype
 							& DATA_UNSIGNED);
 			buf += data_len;
@@ -2232,17 +2233,17 @@ row_sel_field_store_in_mysql_format(
 			are not in themselves stored here: the caller must
 			allocate and copy the BLOB into buffer before, and pass
 			the pointer to the BLOB in 'data' */
-	ulint	col_len,/* in: MySQL column length */
+	const mysql_row_templ_t* templ,	/* in: MySQL column template.
+			Its following fields are referenced:
+			type, is_unsigned, mysql_col_len, mbminlen, mbmaxlen */
 	byte*	data,	/* in: data to store */
-	ulint	len,	/* in: length of the data */
-	ulint	type,	/* in: data type */
-	ulint	is_unsigned)/* in: != 0 if an unsigned integer type */
+	ulint	len)	/* in: length of the data */
 {
 	byte*	ptr;
 
 	ut_ad(len != UNIV_SQL_NULL);
 
-	if (type == DATA_INT) {
+	if (templ->type == DATA_INT) {
 		/* Convert integer data from Innobase to a little-endian
 		format, sign bit restored to normal */
 
@@ -2257,31 +2258,58 @@ row_sel_field_store_in_mysql_format(
 			data++;
 		}
 
-		if (!is_unsigned) {
+		if (!templ->is_unsigned) {
 			dest[len - 1] = (byte) (dest[len - 1] ^ 128);
 		}
 
-		ut_ad(col_len == len);
-	} else if (type == DATA_VARCHAR || type == DATA_VARMYSQL
-						|| type == DATA_BINARY) {
+		ut_ad(templ->mysql_col_len == len);
+	} else if (templ->type == DATA_VARCHAR || templ->type == DATA_VARMYSQL
+					|| templ->type == DATA_BINARY) {
 		/* Store the length of the data to the first two bytes of
 		dest; does not do anything yet because MySQL has
 		no real vars! */
 		
 		dest = row_mysql_store_var_len(dest, len);
 		ut_memcpy(dest, data, len);
-
-		/* ut_ad(col_len >= len + 2); No real var implemented in
-		MySQL yet! */
+#if 0
+		/* No real var implemented in MySQL yet! */
+		ut_ad(templ->mysql_col_len >= len + 2);
+#endif
 		
-	} else if (type == DATA_BLOB) {
+	} else if (templ->type == DATA_BLOB) {
 		/* Store a pointer to the BLOB buffer to dest: the BLOB was
 		already copied to the buffer in row_sel_store_mysql_rec */
 
-		row_mysql_store_blob_ref(dest, col_len, data, len);
+		row_mysql_store_blob_ref(dest, templ->mysql_col_len,
+							data, len);
+	} else if (templ->type == DATA_MYSQL) {
+		memcpy(dest, data, len);
+
+		ut_a(templ->mysql_col_len >= len);
+		ut_a(templ->mbmaxlen >= templ->mbminlen);
+
+		ut_a(templ->mbmaxlen > templ->mbminlen
+			|| templ->mysql_col_len == len);
+		ut_a(!templ->mbmaxlen
+			|| !(templ->mysql_col_len % templ->mbmaxlen));
+		ut_a(len * templ->mbmaxlen >= templ->mysql_col_len);
+
+		if (templ->mbminlen != templ->mbmaxlen) {
+			/* Pad with spaces.  This undoes the stripping
+			done in row0mysql.ic, function
+			row_mysql_store_col_in_innobase_format(). */
+			memset(dest + len, 0x20, templ->mysql_col_len - len);
+		}
 	} else {
-		ut_memcpy(dest, data, len);
-		ut_ad(col_len == len);
+		ut_a(templ->type == DATA_CHAR
+			|| templ->type == DATA_FIXBINARY
+			/*|| templ->type == DATA_SYS_CHILD
+			|| templ->type == DATA_SYS*/
+			|| templ->type == DATA_FLOAT
+			|| templ->type == DATA_DOUBLE
+			|| templ->type == DATA_DECIMAL);
+		ut_ad(templ->mysql_col_len == len);
+		memcpy(dest, data, len);
 	}
 }
 
@@ -2401,8 +2429,7 @@ row_sel_store_mysql_rec(
 		
 			row_sel_field_store_in_mysql_format(
 				mysql_rec + templ->mysql_col_offset,
-				templ->mysql_col_len, data, len,
-				templ->type, templ->is_unsigned);
+				templ, data, len);
 
 			if (templ->type == DATA_VARCHAR
 					|| templ->type == DATA_VARMYSQL
@@ -2410,14 +2437,9 @@ row_sel_store_mysql_rec(
 				/* Pad with trailing spaces */
 				data = mysql_rec + templ->mysql_col_offset;
 
-				/* Handle UCS2 strings differently.  As no new
-				collations will be introduced in 4.1, we
-				hardcode the charset-collation codes here.
-				5.0 will use a different approach. */
-				if (templ->charset == 35
-						|| templ->charset == 90
-						|| (templ->charset >= 128
-						&& templ->charset <= 144)) {
+				ut_ad(templ->mbminlen <= templ->mbmaxlen);
+				/* Handle UCS2 strings differently. */
+				if (templ->mbminlen == 2) {
 					/* space=0x0020 */
 					ulint	col_len = templ->mysql_col_len;
 
@@ -2436,6 +2458,7 @@ row_sel_store_mysql_rec(
 						data[len++] = 0x20;
 					}
 				} else {
+					ut_ad(templ->mbminlen == 1);
 					/* space=0x20 */
 					memset(data + len, 0x20,
 						templ->mysql_col_len - len);
@@ -2477,14 +2500,8 @@ row_sel_store_mysql_rec(
 				pad_char = '\0';
 			}
 
-			/* Handle UCS2 strings differently.  As no new
-			collations will be introduced in 4.1,
-			we hardcode the charset-collation codes here.
-			5.0 will use a different approach. */
-			if (templ->charset == 35
-					|| templ->charset == 90
-					|| (templ->charset >= 128
-					&& templ->charset <= 144)) {
+			/* Handle UCS2 strings differently. */
+			if (templ->mbminlen == 2) {
 				/* There are two bytes per char, so the length
 				has to be an even number. */
 				ut_a(!(templ->mysql_col_len & 1));
@@ -2497,6 +2514,7 @@ row_sel_store_mysql_rec(
 					len -= 2;
 				}
 			} else {
+				ut_ad(!pad_char || templ->mbminlen == 1);
 				memset(mysql_rec + templ->mysql_col_offset,
 					pad_char, templ->mysql_col_len);
 			}
@@ -2864,9 +2882,11 @@ row_sel_push_cache_row_for_mysql(
 
 	ut_ad(prebuilt->fetch_cache_first == 0);
 
-	ut_a(row_sel_store_mysql_rec(
+	if (!row_sel_store_mysql_rec(
 			prebuilt->fetch_cache[prebuilt->n_fetch_cached],
-			prebuilt, rec, offsets));
+			prebuilt, rec, offsets)) {
+		ut_error;
+	}
 
 	prebuilt->n_fetch_cached++;
 }

@@ -1102,7 +1102,7 @@ Query_cache::send_result_to_client(THD *thd, char *sql, uint query_length)
                    ("Handler require invalidation queries of %s.%s %lld-%lld",
                               table_list.db, table_list.alias,
                               engine_data, table->engine_data()));
-        invalidate_table(table->db(), table->key_length());
+        invalidate_table((byte *) table->db(), table->key_length());
       }
       else
         thd->lex->safe_to_cache_query= 0;       // Don't try to cache this
@@ -1438,7 +1438,7 @@ ulong Query_cache::init_cache()
     init();
   approx_additional_data_size = (sizeof(Query_cache) +
 				 sizeof(gptr)*(def_query_hash_size+
-					       def_query_hash_size));
+					       def_table_hash_size));
   if (query_cache_size < approx_additional_data_size)
     goto err;
 

@@ -115,6 +115,8 @@
   data - The data is stored in a "row +blobs" format.
 */
 
+/* If the archive storage engine has been inited */
+static bool archive_inited= 0;
 /* Variables for archive share methods */
 pthread_mutex_t archive_mutex;
 static HASH archive_open_tables;
@@ -132,6 +134,23 @@ static HASH archive_open_tables;
 */
 #define DATA_BUFFER_SIZE 2       // Size of the data used in the data file
 #define ARCHIVE_CHECK_HEADER 254 // The number we use to determine corruption
+
+/* dummy handlerton - only to have something to return from archive_db_init */
+static handlerton archive_hton = {
+  0,       /* slot */
+  0,       /* savepoint size. */
+  0,       /* close_connection */
+  0,       /* savepoint */
+  0,       /* rollback to savepoint */
+  0,       /* releas savepoint */
+  0,       /* commit */
+  0,       /* rollback */
+  0,       /* prepare */
+  0,       /* recover */
+  0,       /* commit_by_xid */
+  0        /* rollback_by_xid */
+};
+
 
 /*
   Used for hash table that tracks open tables.
@@ -152,17 +171,19 @@ static byte* archive_get_key(ARCHIVE_SHARE *share,uint *length,
     void
 
   RETURN
-    FALSE       OK
-    TRUE        Error
+    &archive_hton OK
+    0             Error
 */
 
-bool archive_db_init()
+handlerton *archive_db_init()
 {
+  archive_inited= 1;
   VOID(pthread_mutex_init(&archive_mutex, MY_MUTEX_INIT_FAST));
-  return (hash_init(&archive_open_tables, system_charset_info, 32, 0, 0,
-                    (hash_get_key) archive_get_key, 0, 0));
+  if (hash_init(&archive_open_tables, system_charset_info, 32, 0, 0,
+                (hash_get_key) archive_get_key, 0, 0))
+    return 0;
+  return &archive_hton;
 }
-
 
 /*
   Release the archive handler.
@@ -177,8 +198,12 @@ bool archive_db_init()
 
 bool archive_db_end()
 {
-  hash_free(&archive_open_tables);
-  VOID(pthread_mutex_destroy(&archive_mutex));
+  if (archive_inited)
+  {
+    hash_free(&archive_open_tables);
+    VOID(pthread_mutex_destroy(&archive_mutex));
+  }
+  archive_inited= 0;
   return FALSE;
 }
 
@@ -727,7 +752,7 @@ int ha_archive::rnd_next(byte *buf)
 }
 
 
-/* 
+/*
   Thanks to the table flag HA_REC_NOT_IN_SEQ this will be called after
   each call to ha_archive::rnd_next() if an ordering of the rows is
   needed.
@@ -736,7 +761,7 @@ int ha_archive::rnd_next(byte *buf)
 void ha_archive::position(const byte *record)
 {
   DBUG_ENTER("ha_archive::position");
-  ha_store_ptr(ref, ref_length, current_position);
+  my_store_ptr(ref, ref_length, current_position);
   DBUG_VOID_RETURN;
 }
 
@@ -753,7 +778,7 @@ int ha_archive::rnd_pos(byte * buf, byte *pos)
   DBUG_ENTER("ha_archive::rnd_pos");
   statistic_increment(table->in_use->status_var.ha_read_rnd_next_count,
 		      &LOCK_status);
-  current_position= ha_get_ptr(pos, ref_length);
+  current_position= my_get_ptr(pos, ref_length);
   z_off_t seek= gzseek(archive, current_position, SEEK_SET);
 
   DBUG_RETURN(get_row(archive, buf));

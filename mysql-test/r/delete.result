@@ -163,3 +163,12 @@ select * from t1;
 a	b
 7	7
 drop table t1;
+CREATE TABLE t1 ( a int PRIMARY KEY );
+DELETE FROM t1 WHERE t1.a > 0 ORDER BY t1.a;
+INSERT INTO t1 VALUES (0),(1),(2);
+DELETE FROM t1 WHERE t1.a > 0 ORDER BY t1.a LIMIT 1;
+SELECT * FROM t1;
+a
+0
+2
+DROP TABLE t1;

@@ -220,6 +220,8 @@ dict_build_table_def_step(
 	const char*	path_or_name;
 	ibool		is_path;
 	mtr_t		mtr;
+	ulint		i;
+	ulint		row_len;
 
 #ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&(dict_sys->mutex)));
@@ -230,6 +232,15 @@ dict_build_table_def_step(
 	table->id = dict_hdr_get_new_id(DICT_HDR_TABLE_ID);
 
 	thr_get_trx(thr)->table_id = table->id;
+
+	row_len = 0;
+	for (i = 0; i < table->n_def; i++) {
+		row_len += dtype_get_min_size(dict_col_get_type(
+						&table->cols[i]));
+	}
+	if (row_len > BTR_PAGE_MAX_REC_SIZE) {
+		return(DB_TOO_BIG_RECORD);
+	}
 
 	if (table->type == DICT_TABLE_CLUSTER_MEMBER) {
 

@@ -2520,6 +2520,131 @@ call bug6029()|
 drop procedure bug6029|
 drop table t3|
 
+#
+# BUG#8540: Local variable overrides an alias
+#
+--disable_warnings
+drop procedure if exists bug8540|
+--enable_warnings
+
+create procedure bug8540()
+begin
+  declare x int default 1;
+  select x as y, x+0 as z;
+end|
+
+call bug8540()|
+drop procedure bug8540|
+
+#
+# BUG#6642: Stored procedure crash if expression with set function
+#
+--disable_warnings
+drop table if exists t3|
+--enable_warnings
+create table t3 (s1 int)|
+
+--disable_warnings
+drop procedure if exists bug6642|
+--enable_warnings
+
+create procedure bug6642()
+  select abs(count(s1)) from t3|
+
+call bug6642()|
+call bug6642()|
+drop procedure bug6642|
+
+#
+# BUG#7013: Stored procedure crash if group by ... with rollup
+#
+insert into t3 values (0),(1)|
+--disable_warnings
+drop procedure if exists bug7013|
+--enable_warnings
+create procedure bug7013()
+  select s1,count(s1) from t3 group by s1 with rollup|
+call bug7013()|
+call bug7013()|
+drop procedure bug7013|
+
+#
+# BUG#7743: 'Lost connection to MySQL server during query' on Stored Procedure
+#
+--disable_warnings
+drop table if exists t4;
+--enable_warnings
+create table t4 (
+  a mediumint(8) unsigned not null auto_increment,
+  b smallint(5) unsigned not null,
+  c char(32) not null,
+  primary key  (a)
+) engine=myisam default charset=latin1|
+insert into t4 values (1, 2, 'oneword')|
+insert into t4 values (2, 2, 'anotherword')|
+
+--disable_warnings
+drop procedure if exists bug7743|
+--enable_warnings
+create procedure bug7743 ( searchstring char(28) )
+begin
+  declare var mediumint(8) unsigned;
+  select a into var from t4 where b = 2 and c = binary searchstring limit 1;
+  select var;
+end|
+
+call bug7743("oneword")|
+call bug7743("OneWord")|
+call bug7743("anotherword")|
+call bug7743("AnotherWord")|
+drop procedure bug7743|
+drop table t4|
+
+#
+# BUG#7992: SELECT .. INTO variable .. within Stored Procedure crashes
+#           the server
+#
+delete from t3|
+insert into t3 values(1)|
+drop procedure if exists bug7992_1|
+drop procedure if exists bug7992_2|
+create procedure bug7992_1()
+begin
+  declare i int;
+  select max(s1)+1 into i from t3;
+end|
+create procedure bug7992_2()
+  insert into t3 (s1) select max(t4.s1)+1 from t3 as t4|
+
+call bug7992_1()|
+call bug7992_1()|
+call bug7992_2()|
+call bug7992_2()|
+
+drop procedure bug7992_1|
+drop procedure bug7992_2|
+drop table t3|
+
+#
+# BUG#8116: calling simple stored procedure twice in a row results
+#           in server crash
+#
+--disable_warnings
+drop table if exists t3|
+--enable_warnings
+create table t3 (  userid bigint(20) not null default 0 )|
+
+--disable_warnings
+drop procedure if exists bug8116|
+--enable_warnings
+create procedure bug8116(in _userid int)
+   select * from t3 where userid = _userid|
+
+call bug8116(42)|
+call bug8116(42)|
+drop procedure bug8116|
+drop table t3|
+
 
 #
 # Some "real" examples
@@ -2811,6 +2936,12 @@ drop function getcount|
 #
 # BUG#5240: Stored procedure crash if function has cursor declaration
 #
+# The following test case fails in --ps-protocol mode due to some bugs
+# in algorithm which calculates list of tables to be locked for queries
+# using Stored Functions. It is disabled until Dmitri fixes this.
+#
+--disable_ps_protocol
+
 --disable_warnings
 drop function if exists bug5240|
 --enable_warnings
@@ -2830,6 +2961,8 @@ insert into t1 values ("answer", 42)|
 # QQ BUG: This returns the wrong result, id=42 instead of "answer".
 select id, bug5240() from t1|
 drop function bug5240|
+
+--enable_ps_protocol
 
 #
 # BUG#5278: Stored procedure packets out of order if SET PASSWORD.

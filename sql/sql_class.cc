@@ -194,6 +194,7 @@ THD::THD()
   file_id = 0;
   warn_id= 0;
   db_charset= global_system_variables.collation_database;
+  bzero(ha_data, sizeof(ha_data));
   mysys_var=0;
 #ifndef DBUG_OFF
   dbug_sentry=THD_SENTRY_MAGIC;
@@ -205,7 +206,6 @@ THD::THD()
   ull=0;
   system_thread= cleanup_done= abort_on_warning= 0;
   peer_port= 0;					// For SHOW PROCESSLIST
-  transaction.changed_tables = 0;
 #ifdef	__WIN__
   real_id = 0;
 #endif
@@ -240,9 +240,7 @@ THD::THD()
   /* For user vars replication*/
   if (opt_bin_log)
     my_init_dynamic_array(&user_var_events,
-			  sizeof(BINLOG_USER_VAR_EVENT *),
-			  16,
-			  16);
+			  sizeof(BINLOG_USER_VAR_EVENT *), 16, 16);
   else
     bzero((char*) &user_var_events, sizeof(user_var_events));
 
@@ -252,26 +250,8 @@ THD::THD()
   protocol_prep.init(this);
 
   tablespace_op=FALSE;
-#ifdef USING_TRANSACTIONS
-  bzero((char*) &transaction,sizeof(transaction));
-  /*
-    Binlog is always open (if needed) before a THD is created (including
-    bootstrap).
-  */
-  if (opt_using_transactions && mysql_bin_log.is_open())
-  {
-    if (open_cached_file(&transaction.trans_log,
-			 mysql_tmpdir, LOG_PREFIX, binlog_cache_size,
-			 MYF(MY_WME)))
-      killed= KILL_CONNECTION;
-    transaction.trans_log.end_of_file= max_binlog_cache_size;
-  }
-#endif
-  init_sql_alloc(&transaction.mem_root, ALLOC_ROOT_MIN_BLOCK_SIZE, 0);
-  {
     ulong tmp=sql_rnd_with_mutex();
     randominit(&rand, tmp + (ulong) &rand, tmp + (ulong) ::query_id);
-  }
 }
 
 
@@ -320,9 +300,12 @@ void THD::init_for_queries()
 
   reset_root_defaults(mem_root, variables.query_alloc_block_size,
                       variables.query_prealloc_size);
+#ifdef USING_TRANSACTIONS
   reset_root_defaults(&transaction.mem_root,
                       variables.trans_alloc_block_size,
                       variables.trans_prealloc_size);
+#endif
+  transaction.xid.null();
 }
 
 
@@ -407,13 +390,8 @@ THD::~THD()
 #endif
   if (!cleanup_done)
     cleanup();
-#ifdef USING_TRANSACTIONS
-  if (opt_using_transactions)
-  {
-    close_cached_file(&transaction.trans_log);
+
     ha_close_connection(this);
-  }
-#endif
 
   sp_cache_clear(&sp_proc_cache);
   sp_cache_clear(&sp_func_cache);
@@ -426,7 +404,9 @@ THD::~THD()
   safeFree(ip);
   safeFree(db);
   free_root(&warn_root,MYF(0));
+#ifdef USING_TRANSACTIONS
   free_root(&transaction.mem_root,MYF(0));
+#endif
   mysys_var=0;					// Safety (shouldn't be needed)
   pthread_mutex_destroy(&LOCK_delete);
 #ifndef DBUG_OFF
@@ -767,6 +747,8 @@ struct Item_change_record: public ilink
   Item *old_value;
   /* Placement new was hidden by `new' in ilink (TODO: check): */
   static void *operator new(size_t size, void *mem) { return mem; }
+  static void operator delete(void *ptr, size_t size) {}
+  static void operator delete(void *ptr, void *mem) { /* never called */ }
 };
 
 
@@ -866,7 +848,6 @@ bool select_send::send_data(List<Item> &items)
     InnoDB adaptive hash S-latch to avoid thread deadlocks if it was reserved
     by thd
   */
-  if (thd->transaction.all.innobase_tid)
     ha_release_temporary_latches(thd);
 #endif
 
@@ -901,7 +882,6 @@ bool select_send::send_eof()
   /* We may be passing the control from mysqld to the client: release the
      InnoDB adaptive hash S-latch to avoid thread deadlocks if it was reserved
      by thd */
-  if (thd->transaction.all.innobase_tid)
     ha_release_temporary_latches(thd);
 #endif
 
@@ -1364,10 +1344,9 @@ bool select_max_min_finder_subselect::cmp_real()
     return (cache->null_value && !maxmin->null_value) ||
       (!cache->null_value && !maxmin->null_value &&
        val1 > val2);
-  else
-    return (maxmin->null_value && !cache->null_value) ||
-      (!cache->null_value && !maxmin->null_value &&
-       val1 < val2);
+  return (maxmin->null_value && !cache->null_value) ||
+    (!cache->null_value && !maxmin->null_value &&
+     val1 < val2);
 }
 
 bool select_max_min_finder_subselect::cmp_int()
@@ -1378,30 +1357,23 @@ bool select_max_min_finder_subselect::cmp_int()
     return (cache->null_value && !maxmin->null_value) ||
       (!cache->null_value && !maxmin->null_value &&
        val1 > val2);
-  else
-    return (maxmin->null_value && !cache->null_value) ||
-      (!cache->null_value && !maxmin->null_value &&
-       val1 < val2);
+  return (maxmin->null_value && !cache->null_value) ||
+    (!cache->null_value && !maxmin->null_value &&
+     val1 < val2);
 }
 
 bool select_max_min_finder_subselect::cmp_decimal()
 {
-  String *val1, *val2, buf1, buf2;
   Item *maxmin= ((Item_singlerow_subselect *)item)->el(0);
-  /*
-    as far as both operand is Item_cache buf1 & buf2 will not be used,
-    but added for safety
-  */
   my_decimal cval, *cvalue= cache->val_decimal(&cval);
   my_decimal mval, *mvalue= maxmin->val_decimal(&mval);
   if (fmax)
     return (cache->null_value && !maxmin->null_value) ||
       (!cache->null_value && !maxmin->null_value &&
        my_decimal_cmp(cvalue, mvalue) > 0) ;
-  else
-    return (maxmin->null_value && !cache->null_value) ||
-      (!cache->null_value && !maxmin->null_value &&
-       my_decimal_cmp(cvalue,mvalue) < 0);
+  return (maxmin->null_value && !cache->null_value) ||
+    (!cache->null_value && !maxmin->null_value &&
+     my_decimal_cmp(cvalue,mvalue) < 0);
 }
 
 bool select_max_min_finder_subselect::cmp_str()
@@ -1418,10 +1390,9 @@ bool select_max_min_finder_subselect::cmp_str()
     return (cache->null_value && !maxmin->null_value) ||
       (!cache->null_value && !maxmin->null_value &&
        sortcmp(val1, val2, cache->collation.collation) > 0) ;
-  else
-    return (maxmin->null_value && !cache->null_value) ||
-      (!cache->null_value && !maxmin->null_value &&
-       sortcmp(val1, val2, cache->collation.collation) < 0);
+  return (maxmin->null_value && !cache->null_value) ||
+    (!cache->null_value && !maxmin->null_value &&
+     sortcmp(val1, val2, cache->collation.collation) < 0);
 }
 
 bool select_exists_subselect::send_data(List<Item> &items)

@@ -48,10 +48,10 @@ void item_init(void)
 /*
 TODO: make this functions class dependent
 */
+
 bool Item::val_bool()
 {
-  switch(result_type())
-  {
+  switch(result_type()) {
   case INT_RESULT:
     return val_int();
   case DECIMAL_RESULT:
@@ -68,7 +68,101 @@ bool Item::val_bool()
   case ROW_RESULT:
   default:
     DBUG_ASSERT(0);
+    return 0;                                   // Wrong (but safe)
   }
+}
+
+
+String *Item::val_string_from_real(String *str)
+{
+  double nr= val_real();
+  if (null_value)
+    return 0;					/* purecov: inspected */
+  str->set(nr,decimals, &my_charset_bin);
+  return str;
+}
+
+
+String *Item::val_string_from_int(String *str)
+{
+  longlong nr= val_int();
+  if (null_value)
+    return 0;
+  if (unsigned_flag)
+    str->set((ulonglong) nr, &my_charset_bin);
+  else
+    str->set(nr, &my_charset_bin);
+  return str;
+}
+
+
+String *Item::val_string_from_decimal(String *str)
+{
+  my_decimal dec_buf, *dec= val_decimal(&dec_buf);
+  if (null_value)
+    return 0;
+  my_decimal_round(E_DEC_FATAL_ERROR, dec, decimals, FALSE, &dec_buf);
+  my_decimal2string(E_DEC_FATAL_ERROR, &dec_buf, 0, 0, 0, str);
+  return str;
+}
+
+
+my_decimal *Item::val_decimal_from_real(my_decimal *decimal_value)
+{
+  double nr= val_real();
+  if (null_value)
+    return 0;
+  double2my_decimal(E_DEC_FATAL_ERROR, nr, decimal_value);
+  return (decimal_value);
+}
+
+
+my_decimal *Item::val_decimal_from_int(my_decimal *decimal_value)
+{
+  longlong nr= val_int();
+  if (null_value)
+    return 0;
+  int2my_decimal(E_DEC_FATAL_ERROR, nr, unsigned_flag, decimal_value);
+  return decimal_value;
+}
+
+
+my_decimal *Item::val_decimal_from_string(my_decimal *decimal_value)
+{
+  String *res;
+  char *end_ptr;
+  int error;
+  if (!(res= val_str(&str_value)))
+    return 0;                                   // NULL or EOM
+
+  end_ptr= (char*) res->ptr()+ res->length();
+  str2my_decimal(E_DEC_FATAL_ERROR, res->ptr(), res->length(), res->charset(),
+                 decimal_value);
+  return decimal_value;
+}
+
+
+double Item::val_real_from_decimal()
+{
+  /* Note that fix_fields may not be called for Item_avg_field items */
+  double result;
+  my_decimal value_buff, *dec_val= val_decimal(&value_buff);
+  if (null_value)
+    return 0.0;
+  my_decimal2double(E_DEC_FATAL_ERROR, dec_val, &result);
+  return result;
+}
+
+
+longlong Item::val_int_from_decimal()
+{
+  /* Note that fix_fields may not be called for Item_avg_field items */
+  longlong result;
+  my_decimal value, *dec_val= val_decimal(&value);
+  if (null_value)
+    return 0;
+  my_decimal2int(E_DEC_FATAL_ERROR, dec_val, unsigned_flag, &result);
+  return result;
 }
 
 
@@ -991,8 +1085,7 @@ bool Item_field::val_bool_result()
 {
   if ((null_value= result_field->is_null()))
     return FALSE;
-  switch (result_field->result_type())
-  {
+  switch (result_field->result_type()) {
   case INT_RESULT:
     return result_field->val_int();
   case DECIMAL_RESULT:
@@ -1060,8 +1153,9 @@ Item *Item_field::get_tmp_table_item(THD *thd)
 
 
 /*
-  Create an item from a string we KNOW points to a valid longlong/ulonglong
-  end \0 terminated number string
+  Create an item from a string we KNOW points to a valid longlong
+  end \0 terminated number string.
+  This is always 'signed'. Unsigned values are created with Item_uint()
 */
 
 Item_int::Item_int(const char *str_arg, uint length)
@@ -1071,7 +1165,6 @@ Item_int::Item_int(const char *str_arg, uint length)
   value= my_strtoll10(str_arg, &end_ptr, &error);
   max_length= (uint) (end_ptr - str_arg);
   name= (char*) str_arg;
-  unsigned_flag= value > 0;
   fixed= 1;
 }
 
@@ -1376,11 +1469,14 @@ void Item_param::set_double(double d)
     binary protocol, we use str2my_decimal to convert it to
     internal decimal value.
 */
+
 void Item_param::set_decimal(const char *str, ulong length)
 {
+  char *end;
   DBUG_ENTER("Item_param::set_decimal");
 
-  str2my_decimal(E_DEC_FATAL_ERROR, str, &decimal_value);
+  end= (char*) str+length;
+  str2my_decimal(E_DEC_FATAL_ERROR, str, &decimal_value, &end);
   state= DECIMAL_VALUE;
   decimals= decimal_value.frac;
   max_length= decimal_value.intg + decimals + 2;
@@ -2445,8 +2541,8 @@ bool Item_field::fix_fields(THD *thd, TABLE_LIST *tables, Item **reference)
 	  rf is Item_ref => never substitute other items (in this case)
 	  during fix_fields() => we can use rf after fix_fields()
 	*/
-        if (!rf->fixed &&
-            rf->fix_fields(thd, tables, reference) || rf->check_cols(1))
+        DBUG_ASSERT(!rf->fixed);                // Assured by Item_ref()
+        if (rf->fix_fields(thd, tables, reference) || rf->check_cols(1))
 	  return TRUE;
 
 	mark_as_dependent(thd, last, current_sel, rf);
@@ -2467,8 +2563,8 @@ bool Item_field::fix_fields(THD *thd, TABLE_LIST *tables, Item **reference)
 	    rf is Item_ref => never substitute other items (in this case)
 	    during fix_fields() => we can use rf after fix_fields()
 	  */
-          return (!rf->fixed &&
-                  rf->fix_fields(thd, tables, reference) ||  rf->check_cols(1));
+          DBUG_ASSERT(!rf->fixed);                // Assured by Item_ref()
+          return (rf->fix_fields(thd, tables, reference) || rf->check_cols(1));
 	}
       }
     }
@@ -2715,8 +2811,7 @@ void Item_empty_string::make_field(Send_field *tmp_field)
 
 enum_field_types Item::field_type() const
 {
-  switch (result_type())
-  {
+  switch (result_type()) {
   case STRING_RESULT:  return MYSQL_TYPE_VARCHAR;
   case INT_RESULT:     return FIELD_TYPE_LONGLONG;
   case DECIMAL_RESULT: return FIELD_TYPE_NEWDECIMAL;
@@ -2724,8 +2819,8 @@ enum_field_types Item::field_type() const
   case ROW_RESULT:
   default:
     DBUG_ASSERT(0);
-    return FIELD_TYPE_VAR_STRING;
-  };
+    return MYSQL_TYPE_VARCHAR;
+  }
 }
 
 
@@ -3022,6 +3117,29 @@ Item_num *Item_uint::neg()
 }
 
 
+static uint nr_of_decimals(const char *str, const char *end)
+{
+  const char *decimal_point;
+
+  /* Find position for '.' */
+  for (;;)
+  {
+    if (str == end)
+      return 0;
+    if (*str == 'e' || *str == 'E')
+      return NOT_FIXED_DEC;    
+    if (*str++ == '.')
+      break;
+  }
+  decimal_point= str;
+  for (; my_isdigit(system_charset_info, *str) ; str++)
+    ;
+  if (*str == 'e' || *str == 'E')
+    return NOT_FIXED_DEC;
+  return (uint) (str - decimal_point);
+}
+
+
 /*
   This function is only called during parsing. We will signal an error if
   value is not a true double value (overflow)
@@ -3043,7 +3161,7 @@ Item_float::Item_float(const char *str_arg, uint length)
     my_error(ER_ILLEGAL_VALUE_FOR_TYPE, MYF(0), "double", (char*) str_arg);
   }
   presentation= name=(char*) str_arg;
-  decimals=(uint8) nr_of_decimals(str_arg);
+  decimals=(uint8) nr_of_decimals(str_arg, str_arg+length);
   max_length=length;
   fixed= 1;
 }
@@ -3676,18 +3794,17 @@ bool Item_ref::val_bool_result()
   {
     if ((null_value= result_field->is_null()))
       return 0;
-    switch (result_field->result_type())
-    {
+    switch (result_field->result_type()) {
     case INT_RESULT:
       return result_field->val_int();
     case DECIMAL_RESULT:
-      {
-        my_decimal decimal_value;
-        my_decimal *val= result_field->val_decimal(&decimal_value);
-        if (val)
-          return !my_decimal_is_zero(val);
-        return 0;
-      }
+    {
+      my_decimal decimal_value;
+      my_decimal *val= result_field->val_decimal(&decimal_value);
+      if (val)
+        return !my_decimal_is_zero(val);
+      return 0;
+    }
     case REAL_RESULT:
     case STRING_RESULT:
       return result_field->val_real() != 0.0;
@@ -4063,8 +4180,7 @@ void resolve_const_item(THD *thd, Item **ref, Item *comp_item)
 				     item->result_type());
   char *name=item->name;			// Alloced by sql_alloc
 
-  switch (res_type)
-  {
+  switch (res_type) {
   case STRING_RESULT:
   {
     char buff[MAX_FIELD_WIDTH];
@@ -4160,8 +4276,7 @@ bool field_is_equal_to_item(Field *field,Item *item)
 
 Item_cache* Item_cache::get_cache(Item_result type)
 {
-  switch (type)
-  {
+  switch (type) {
   case INT_RESULT:
     return new Item_cache_int();
   case REAL_RESULT:
@@ -4539,7 +4654,7 @@ bool Item_type_holder::join_types(THD *thd, Item *item, TABLE *table)
   bool use_new_field= 0, use_expression_type= 0;
   Item_result new_result_type= type_convertor[item_type][item->result_type()];
   Field *field= get_holder_example_field(thd, item, table);
-  bool item_is_a_field= field;
+  bool item_is_a_field= (field != NULL);
   /*
     Check if both items point to fields: in this case we
     can adjust column types of result table in the union smartly.
@@ -4631,8 +4746,7 @@ uint32 Item_type_holder::real_length(Item *item)
   if (item->type() == Item::FIELD_ITEM)
     return ((Item_field *)item)->max_disp_length();
 
-  switch (item->result_type())
-  {
+  switch (item->result_type()) {
   case STRING_RESULT:
   case DECIMAL_RESULT:
     return item->max_length;

@@ -103,7 +103,7 @@ a	b
 1	cp850_general_ci
 drop database mysqltest2;
 drop database mysqltest3;
-show binlog events from 95;
+show binlog events from 96;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	1	#	drop database if exists mysqltest2
 master-bin.000001	#	Query	1	#	drop database if exists mysqltest3
@@ -175,6 +175,7 @@ select hex(c1), hex(c2) from t1;
 hex(c1)	hex(c2)
 CDF32C20E7E020F0FBE1E0EBEAF3	CDF32C20E7E020F0FBE1E0EBEAF3
 /*!40019 SET @@session.max_insert_delayed_threads=0*/;
+ROLLBACK;
 SET TIMESTAMP=1000000000;
 SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=1, @@session.unique_checks=1;
 SET @@session.sql_mode=0;

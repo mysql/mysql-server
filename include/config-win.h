@@ -31,18 +31,25 @@ functions */
 
 #define HAVE_SMEM 1
 
-#if defined(__NT__)
-#define SYSTEM_TYPE	"NT"
-#elif defined(__WIN2000__)
-#define SYSTEM_TYPE	"WIN2000"
+#if defined(_WIN64) || defined(WIN64) 
+#define SYSTEM_TYPE	"Win64" 
+#elif defined(_WIN32) || defined(WIN32) 
+#define SYSTEM_TYPE	"Win32" 
 #else
-#define SYSTEM_TYPE	"Win95/Win98"
+#define SYSTEM_TYPE	"Windows"
 #endif
 
-#if defined(_WIN64) || defined(WIN64)
-#define MACHINE_TYPE	"ia64"		/* Define to machine type name */
+#if defined(_M_IA64) 
+#define MACHINE_TYPE	"ia64" 
+#elif defined(_M_IX86) 
+#define MACHINE_TYPE	"ia32" 
+#elif defined(_M_ALPHA) 
+#define MACHINE_TYPE	"axp" 
 #else
-#define MACHINE_TYPE	"i32"		/* Define to machine type name */
+#define MACHINE_TYPE	"unknown"	/* Define to machine type name */
+#endif 
+ 
+#if !(defined(_WIN64) || defined(WIN64)) 
 #ifndef _WIN32
 #define _WIN32				/* Compatible with old source */
 #endif
@@ -346,6 +353,8 @@ inline double ulonglong2double(ulonglong value)
 
 #define DO_NOT_REMOVE_THREAD_WRAPPERS
 #define thread_safe_increment(V,L) InterlockedIncrement((long*) &(V))
+#define thread_safe_decrement(V,L) InterlockedDecrement((long*) &(V))
+#define thread_safe_dec_and_test(V, L) thread_safe_decrement(V,L)
 /* The following is only used for statistics, so it should be good enough */
 #ifdef __NT__  /* This should also work on Win98 but .. */
 #define thread_safe_add(V,C,L) InterlockedExchangeAdd((long*) &(V),(C))
@@ -359,6 +368,7 @@ inline double ulonglong2double(ulonglong value)
 #define statistic_add(V,C,L)	 (V)+=(C)
 #endif
 #define statistic_increment(V,L) thread_safe_increment((V),(L))
+#define statistic_decrement(V,L) thread_safe_decrement((V),(L))
 
 #define shared_memory_buffer_length 16000
 #define default_shared_memory_base_name "MYSQL"
