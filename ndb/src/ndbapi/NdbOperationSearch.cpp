@@ -31,7 +31,7 @@ Adjust:  971022  UABMNST   First version.
 
 #include <NdbOperation.hpp>
 #include "NdbApiSignal.hpp"
-#include <NdbConnection.hpp>
+#include <NdbTransaction.hpp>
 #include <Ndb.hpp>
 #include "NdbImpl.hpp"
 #include <NdbOut.hpp>

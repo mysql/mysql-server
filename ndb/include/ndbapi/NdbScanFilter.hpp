@@ -169,7 +169,9 @@ public:
   /** @} *********************************************************************/
 
 private:
+#ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
   friend class NdbScanFilterImpl;
+#endif
   class NdbScanFilterImpl & m_impl;
   NdbScanFilter& operator=(const NdbScanFilter&); ///< Defined not implemented
 };

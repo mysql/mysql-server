@@ -33,7 +33,7 @@ class ScanTabReq {
   /**
    * Sender(s)
    */
-  friend class NdbConnection;
+  friend class NdbTransaction;
   friend class NdbScanOperation;
   friend class NdbIndexScanOperation;
 
@@ -277,7 +277,7 @@ class ScanTabConf {
   /**
    * Reciver(s) 
    */
-  friend class NdbConnection;         // Reciver
+  friend class NdbTransaction;         // Reciver
 
   /**
    * Sender(s)
@@ -345,7 +345,7 @@ class ScanTabRef {
   /**
    * Reciver(s)
    */
-  friend class NdbConnection;         // Reciver
+  friend class NdbTransaction;         // Reciver
 
   /**
    * Sender(s)

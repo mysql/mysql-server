@@ -131,7 +131,6 @@ Command *parse_command(Command_factory *factory, const char *text)
   const char *instance_name;
   uint instance_name_len;
   Command *command;
-  const char *saved_text= text;
 
   Token tok1= shift_token(&text, &word_len);
 
