@@ -627,7 +627,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 	using_list expr_or_default set_expr_or_default interval_expr
 	param_marker singlerow_subselect singlerow_subselect_init
 	exists_subselect exists_subselect_init
-	NUM_literal
+	signed_literal NUM_literal
 
 %type <item_list>
 	expr_list udf_expr_list when_list ident_list ident_list_arg
@@ -1437,7 +1437,7 @@ opt_attribute_list:
 attribute:
 	NULL_SYM	  { Lex->type&= ~ NOT_NULL_FLAG; }
 	| NOT NULL_SYM	  { Lex->type|= NOT_NULL_FLAG; }
-	| DEFAULT literal { Lex->default_value=$2; }
+	| DEFAULT signed_literal { Lex->default_value=$2; }
 	| AUTO_INC	  { Lex->type|= AUTO_INCREMENT_FLAG | NOT_NULL_FLAG; }
 	| SERIAL_SYM DEFAULT VALUE_SYM
 	  { Lex->type|= AUTO_INCREMENT_FLAG | NOT_NULL_FLAG | UNIQUE_FLAG; }
@@ -1749,7 +1749,7 @@ alter_list_item:
 	  }
 	| DISABLE_SYM KEYS { Lex->alter_keys_onoff=DISABLE; }
 	| ENABLE_SYM KEYS  { Lex->alter_keys_onoff=ENABLE; }
-	| ALTER opt_column field_ident SET DEFAULT literal
+	| ALTER opt_column field_ident SET DEFAULT signed_literal
 	  {
 	    LEX *lex=Lex;
 	    lex->alter_list.push_back(new Alter_column($3.str,$6));
@@ -4408,10 +4408,16 @@ param_marker:
         }
 	;
 
+signed_literal:
+	literal		{ $$ = $1; }
+	| '+' NUM_literal { $$ = $2; }
+	| '-' NUM_literal { $$ = new Item_func_neg($2); }
+	;
+
+
 literal:
 	text_literal	{ $$ =	$1; }
-	| opt_plus NUM_literal { $$ = $2; }
-	| '-' NUM_literal { $$ = new Item_func_neg($2); }
+	| NUM_literal	{ $$ = $1; }
 	| NULL_SYM	{ $$ =	new Item_null();
 			  Lex->next_state=MY_LEX_OPERATOR_OR_IDENT;}
 	| HEX_NUM	{ $$ =	new Item_varbinary($1.str,$1.length);}
@@ -4426,9 +4432,6 @@ literal:
 	| DATE_SYM text_literal { $$ = $2; }
 	| TIME_SYM text_literal { $$ = $2; }
 	| TIMESTAMP text_literal { $$ = $2; };
-
-opt_plus:
-	| '+' ;
 
 NUM_literal:
 	NUM		{ $$ =	new Item_int($1.str, (longlong) strtol($1.str, NULL, 10),$1.length); }
