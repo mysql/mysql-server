@@ -75,14 +75,12 @@ my_string	mysql_unix_port=0;
 #endif
 
 /* XXX: this is real ugly... */
-static void mysql_once_init(void);
-extern void embedded_srv_init(void);
-extern void embedded_srv_deinit(void);
 extern void start_embedded_connection(NET * net);
 extern void lib_connection_phase(NET *net, int phase);
 extern bool lib_dispatch_command(enum enum_server_command command, NET *net,
 				 const char *arg, ulong length);
 
+static void mysql_once_init(void);
 static MYSQL_DATA *read_rows (MYSQL *mysql,MYSQL_FIELD *fields,
 			      uint field_count);
 static int read_one_row(MYSQL *mysql,uint fields,MYSQL_ROW row,
@@ -791,10 +789,8 @@ static void mysql_once_init()
   {
     mysql_client_init=1;
     my_init();					/* Will init threads */
-    embedded_srv_init();
     init_client_errs();
     mysql_port = MYSQL_PORT;
-    DEBUGGER_ON;
     mysql_debug(NullS);
   }
 #ifdef THREAD
