@@ -135,6 +135,9 @@ public:
   Field *tmp_table_field(TABLE *t_arg);
   void set_outer_resolving();
   Item *get_tmp_table_item(THD *thd);
+  
+  bool agg_arg_collations(DTCollation &c, uint from, uint argc);
+  bool agg_arg_collations_for_comparison(DTCollation &c, uint from, uint argc);
 };
 
 
