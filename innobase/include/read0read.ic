@@ -1,0 +1,85 @@
+/******************************************************
+Cursor read
+
+(c) 1997 Innobase Oy
+
+Created 2/16/1997 Heikki Tuuri
+*******************************************************/
+
+/*************************************************************************
+Gets the nth trx id in a read view. */
+UNIV_INLINE
+dulint
+read_view_get_nth_trx_id(
+/*=====================*/
+				/* out: trx id */
+	read_view_t*	view,	/* in: read view */
+	ulint		n)	/* in: position */
+{
+	ut_ad(n < view->n_trx_ids);
+
+	return(*(view->trx_ids + n));
+}
+
+/*************************************************************************
+Sets the nth trx id in a read view. */
+UNIV_INLINE
+void
+read_view_set_nth_trx_id(
+/*=====================*/
+	read_view_t*	view,	/* in: read view */
+	ulint		n,	/* in: position */
+	dulint		trx_id)	/* in: trx id to set */
+{
+	ut_ad(n < view->n_trx_ids);
+
+	*(view->trx_ids + n) = trx_id;
+}
+
+/*************************************************************************
+Checks if a read view sees the specified transaction. */
+UNIV_INLINE
+ibool
+read_view_sees_trx_id(
+/*==================*/
+				/* out: TRUE if sees */
+	read_view_t*	view,	/* in: read view */
+	dulint		trx_id)	/* in: trx id */
+{
+	ulint	n_ids;
+	int	cmp;
+	ulint	i;
+	
+	if (ut_dulint_cmp(trx_id, view->up_limit_id) < 0) {
+
+		return(TRUE);
+	}
+
+	if (ut_dulint_cmp(trx_id, view->low_limit_id) >= 0) {
+
+		return(FALSE);
+	}
+
+	/* We go through the trx ids in the array smallest first: this order
+	may save CPU time, because if there was a very long running
+	transaction in the trx id array, its trx id is looked at first, and
+	the first two comparisons may well decide the visibility of trx_id. */
+
+	n_ids = view->n_trx_ids;
+
+	for (i = 0; i < n_ids; i++) {
+
+		cmp = ut_dulint_cmp(trx_id,
+				read_view_get_nth_trx_id(view, n_ids - i - 1));
+		if (0 == cmp) {
+
+			return(FALSE);
+
+		} else if (cmp < 0) {
+
+			return(TRUE);
+		}
+	}
+	
+	return(TRUE);
+}

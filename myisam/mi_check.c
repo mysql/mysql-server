@@ -3178,7 +3178,7 @@ my_bool mi_test_if_sort_rep(MI_INFO *info, ha_rows rows,
    is very time-consuming process, it's better to leave it to repair stage
    but this repair shouldn't be repair_by_sort (serg)
  */
-    if (!force && mi_too_big_key_for_sort(key,rows) ||
+    if ((!force && mi_too_big_key_for_sort(key,rows)) ||
 	(key->flag & HA_FULLTEXT))
       return FALSE;
   }

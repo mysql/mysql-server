@@ -1,0 +1,360 @@
+/******************************************************************
+Utilities for byte operations
+
+(c) 1994, 1995 Innobase Oy
+
+Created 5/30/1994 Heikki Tuuri
+*******************************************************************/
+
+/***********************************************************
+Creates a 64-bit dulint out of two ulints. */
+UNIV_INLINE
+dulint
+ut_dulint_create(
+/*=============*/
+			/* out: created dulint */
+	ulint	high,	/* in: high-order 32 bits */
+	ulint	low)	/* in: low-order 32 bits */
+{
+	dulint	res;
+
+	ut_ad(high <= 0xFFFFFFFF);
+	ut_ad(low <= 0xFFFFFFFF);
+
+	res.high = high;
+	res.low  = low;
+
+	return(res);
+}
+
+/***********************************************************
+Gets the high-order 32 bits of a dulint. */
+UNIV_INLINE
+ulint
+ut_dulint_get_high(
+/*===============*/
+			/* out: 32 bits in ulint */
+	dulint	d)	/* in: dulint */
+{
+	return(d.high);
+}
+
+/***********************************************************
+Gets the low-order 32 bits of a dulint. */
+UNIV_INLINE
+ulint
+ut_dulint_get_low(
+/*==============*/
+			/* out: 32 bits in ulint */
+	dulint	d)	/* in: dulint */
+{
+	return(d.low);
+}
+
+/***********************************************************
+Tests if a dulint is zero. */
+UNIV_INLINE
+ibool
+ut_dulint_is_zero(
+/*==============*/
+			/* out: TRUE if zero */
+	dulint	a)	/* in: dulint */
+{
+	if ((a.low == 0) && (a.high == 0)) {
+
+		return(TRUE);
+	}
+
+	return(FALSE);
+}
+
+/***********************************************************
+Compares two dulints. */
+UNIV_INLINE
+int
+ut_dulint_cmp(
+/*==========*/
+			/* out: -1 if a < b, 0 if a == b,
+			1 if a > b */ 
+	dulint	a,	/* in: dulint */
+	dulint	b)	/* in: dulint */
+{
+	if (a.high > b.high) {
+		return(1);
+	} else if (a.high < b.high) {
+		return(-1);
+	} else if (a.low > b.low) {
+		return(1);
+	} else if (a.low < b.low) {
+		return(-1);
+	} else {
+		return(0);
+	}
+}
+
+/***********************************************************
+Calculates the max of two dulints. */
+UNIV_INLINE
+dulint
+ut_dulint_get_max(
+/*==============*/
+			/* out: max(a, b) */
+	dulint	a,	/* in: dulint */
+	dulint	b)	/* in: dulint */
+{
+	if (ut_dulint_cmp(a, b) > 0) {
+
+		return(a);
+	}
+
+	return(b);
+}
+
+/***********************************************************
+Calculates the min of two dulints. */
+UNIV_INLINE
+dulint
+ut_dulint_get_min(
+/*==============*/
+			/* out: min(a, b) */
+	dulint	a,	/* in: dulint */
+	dulint	b)	/* in: dulint */
+{
+	if (ut_dulint_cmp(a, b) > 0) {
+
+		return(b);
+	}
+
+	return(a);
+}
+
+/***********************************************************
+Adds a ulint to a dulint. */
+UNIV_INLINE
+dulint
+ut_dulint_add(
+/*==========*/
+			/* out: sum a + b */
+	dulint	a,	/* in: dulint */
+	ulint	b)	/* in: ulint */
+{
+	if (0xFFFFFFFF - b >= a.low) {
+		a.low += b;
+
+		return(a);
+	}
+
+	a.low = a.low - (0xFFFFFFFF - b) - 1;
+
+	a.high++;
+
+	return(a);
+}
+
+/***********************************************************
+Subtracts a ulint from a dulint. */
+UNIV_INLINE
+dulint
+ut_dulint_subtract(
+/*===============*/
+			/* out: a - b */
+	dulint	a,	/* in: dulint */
+	ulint	b)	/* in: ulint, b <= a */
+{
+	if (a.low >= b) {
+		a.low -= b;
+
+		return(a);
+	}
+
+	b -= a.low + 1;
+
+	a.low = 0xFFFFFFFF - b;
+
+	ut_ad(a.high > 0);
+	
+	a.high--;
+
+	return(a);
+}
+
+/***********************************************************
+Subtracts a dulint from another. NOTE that the difference must be positive
+and smaller that 4G. */
+UNIV_INLINE
+ulint
+ut_dulint_minus(
+/*============*/
+			/* out: a - b */
+	dulint	a,	/* in: dulint; NOTE a must be >= b and at most
+			2 to power 32 - 1 greater */
+	dulint	b)	/* in: dulint */
+{
+	ulint	diff;
+
+	if (a.high == b.high) {
+		ut_ad(a.low >= b.low);
+
+		return(a.low - b.low);
+	}
+
+	ut_ad(a.high == b.high + 1);
+
+	diff = (ulint)(0xFFFFFFFF - b.low);
+	diff += 1 + a.low;
+
+	ut_ad(diff > a.low);
+	
+	return(diff);
+} 
+
+/************************************************************
+Rounds a dulint downward to a multiple of a power of 2. */
+UNIV_INLINE
+dulint
+ut_dulint_align_down(
+/*=================*/
+				/* out: rounded value */
+	dulint   n,        	/* in: number to be rounded */
+	ulint    align_no)  	/* in: align by this number which must be a
+				power of 2 */
+{
+	ulint	low, high;
+
+	ut_ad(align_no > 0);
+	ut_ad(((align_no - 1) & align_no) == 0);
+
+	low = ut_dulint_get_low(n);
+	high = ut_dulint_get_high(n);
+	
+	low = low & ~(align_no - 1);
+
+	return(ut_dulint_create(high, low));
+}
+
+/************************************************************
+Rounds a dulint upward to a multiple of a power of 2. */
+UNIV_INLINE
+dulint
+ut_dulint_align_up(
+/*===============*/
+				/* out: rounded value */
+	dulint   n,        	/* in: number to be rounded */
+	ulint    align_no)  	/* in: align by this number which must be a
+				power of 2 */
+{
+	return(ut_dulint_align_down(ut_dulint_add(n, align_no - 1), align_no));
+}
+
+/************************************************************
+The following function calculates the value of an integer n rounded
+to the least product of align_no which is >= n. align_no
+has to be a power of 2. */
+UNIV_INLINE
+ulint
+ut_calc_align(
+/*==========*/
+				/* out: rounded value */
+	ulint    n,        	/* in: number to be rounded */
+	ulint    align_no)  	/* in: align by this number */
+{
+	ut_ad(align_no > 0);
+	ut_ad(((align_no - 1) & align_no) == 0);
+
+	return((n + align_no - 1) & ~(align_no - 1));
+}
+
+/*************************************************************
+The following function rounds up a pointer to the nearest aligned address. */
+UNIV_INLINE
+void*
+ut_align(
+/*=====*/
+				/* out: aligned pointer */
+	void*   ptr,            /* in: pointer */
+	ulint   align_no)      	/* in: align by this number */
+{
+	ut_ad(align_no > 0);
+	ut_ad(((align_no - 1) & align_no) == 0);
+	ut_ad(ptr);
+
+	ut_ad(sizeof(void*) == sizeof(ulint));
+
+	return((void*)((((ulint)ptr) + align_no - 1) & ~(align_no - 1)));
+}
+
+/************************************************************
+The following function calculates the value of an integer n rounded
+to the biggest product of align_no which is <= n. align_no has to be a
+power of 2. */
+UNIV_INLINE
+ulint
+ut_calc_align_down(
+/*===============*/
+				/* out: rounded value */
+	ulint    n,              /* in: number to be rounded */
+	ulint    align_no)       /* in: align by this number */
+{
+	ut_ad(align_no > 0);
+	ut_ad(((align_no - 1) & align_no) == 0);
+
+	return(n & ~(align_no - 1));
+}
+
+/*************************************************************
+The following function rounds down a pointer to the nearest
+aligned address. */
+UNIV_INLINE
+void*
+ut_align_down(
+/*==========*/
+				/* out: aligned pointer */
+	void*   ptr,            /* in: pointer */
+	ulint   align_no)      	/* in: align by this number */
+{
+	ut_ad(align_no > 0);
+	ut_ad(((align_no - 1) & align_no) == 0);
+	ut_ad(ptr);
+
+	ut_ad(sizeof(void*) == sizeof(ulint));
+
+	return((void*)((((ulint)ptr)) & ~(align_no - 1)));
+}
+
+/*********************************************************************
+Gets the nth bit of a ulint. */
+UNIV_INLINE
+ibool
+ut_bit_get_nth(
+/*===========*/
+			/* out: TRUE if nth bit is 1; 0th bit is defined to
+			be the least significant */
+	ulint	a,	/* in: ulint */
+	ulint	n)	/* in: nth bit requested */
+{
+	ut_ad(n < 8 * sizeof(ulint));
+	ut_ad(TRUE == 1);
+
+	return(1 & (a >> n));
+}
+
+/*********************************************************************
+Sets the nth bit of a ulint. */
+UNIV_INLINE
+ulint
+ut_bit_set_nth(
+/*===========*/
+			/* out: the ulint with the bit set as requested */
+	ulint	a,	/* in: ulint */
+	ulint	n,	/* in: nth bit requested */
+	ibool	val)	/* in: value for the bit to set */
+{
+	ut_ad(n < 8 * sizeof(ulint));
+	ut_ad(TRUE == 1);
+
+	if (val) {
+		return((1 << n) | a);
+	} else {
+		return(~(1 << n) & a);
+	}
+}

@@ -1,0 +1,34 @@
+include ..\include\makefile.i
+
+row.lib: row0mysql.obj row0upd.obj row0sel.obj row0umod.obj row0uins.obj row0ins.obj row0upd.obj row0undo.obj row0purge.obj row0vers.obj row0row.obj
+	lib -out:..\libs\row.lib row0mysql.obj row0sel.obj row0umod.obj row0uins.obj row0ins.obj row0upd.obj row0undo.obj row0purge.obj row0vers.obj row0row.obj
+
+row0mysql.obj: row0mysql.c
+	$(CCOM) $(CFL) -c row0mysql.c
+
+row0ins.obj: row0ins.c
+	$(CCOM) $(CFL) -c row0ins.c
+
+row0sel.obj: row0sel.c
+	$(CCOM) $(CFL) -c row0sel.c
+
+row0upd.obj: row0upd.c
+	$(CCOM) $(CFL) -c row0upd.c
+
+row0undo.obj: row0undo.c
+	$(CCOM) $(CFL) -c row0undo.c
+
+row0purge.obj: row0purge.c
+	$(CCOM) $(CFL) -c row0purge.c
+
+row0row.obj: row0row.c
+	$(CCOM) $(CFL) -c row0row.c
+
+row0vers.obj: row0vers.c
+	$(CCOM) $(CFL) -c row0vers.c
+
+row0umod.obj: row0umod.c
+	$(CCOM) $(CFL) -c row0umod.c
+
+row0uins.obj: row0uins.c
+	$(CCOM) $(CFL) -c row0uins.c

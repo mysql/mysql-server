@@ -1,0 +1,69 @@
+/******************************************************
+Transaction undo log record
+
+(c) 1996 Innobase Oy
+
+Created 3/26/1996 Heikki Tuuri
+*******************************************************/
+
+/**************************************************************************
+Reads from an undo log record the record type. */
+UNIV_INLINE
+ulint
+trx_undo_rec_get_type(
+/*==================*/
+					/* out: record type */
+	trx_undo_rec_t*	undo_rec)	/* in: undo log record */
+{
+	return(mach_read_from_1(undo_rec + 2) & (TRX_UNDO_CMPL_INFO_MULT - 1));
+}
+
+/**************************************************************************
+Reads from an undo log record the record compiler info. */
+UNIV_INLINE
+ulint
+trx_undo_rec_get_cmpl_info(
+/*=======================*/
+					/* out: compiler info */
+	trx_undo_rec_t*	undo_rec)	/* in: undo log record */
+{
+	return(mach_read_from_1(undo_rec + 2) / TRX_UNDO_CMPL_INFO_MULT);
+}
+
+/**************************************************************************
+Reads the undo log record number. */
+UNIV_INLINE
+dulint
+trx_undo_rec_get_undo_no(
+/*=====================*/
+					/* out: undo no */
+	trx_undo_rec_t*	undo_rec)	/* in: undo log record */
+{
+	byte*	ptr;
+
+	ptr = undo_rec + 3;
+
+	return(mach_dulint_read_much_compressed(ptr));
+}
+
+/***************************************************************************
+Copies the undo record to the heap. */
+UNIV_INLINE
+trx_undo_rec_t*
+trx_undo_rec_copy(
+/*==============*/
+					/* out, own: copy of undo log record */
+	trx_undo_rec_t*	undo_rec,	/* in: undo log record */
+	mem_heap_t*	heap)		/* in: heap where copied */
+{
+	ulint		len;
+	trx_undo_rec_t*	rec_copy;
+
+	len = mach_read_from_2(undo_rec) + buf_frame_align(undo_rec)
+								- undo_rec;
+	rec_copy = mem_heap_alloc(heap, len);
+
+	ut_memcpy(rec_copy, undo_rec, len);
+
+	return(rec_copy);
+}

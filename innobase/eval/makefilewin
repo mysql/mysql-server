@@ -1,0 +1,10 @@
+include ..\include\makefile.i
+
+eval.lib: eval0eval.obj eval0proc.obj
+	lib -out:..\libs\eval.lib eval0eval.obj eval0proc.obj
+
+eval0eval.obj: eval0eval.c
+	$(CCOM) $(CFL) -c eval0eval.c
+
+eval0proc.obj: eval0proc.c
+	$(CCOM) $(CFL) -c eval0proc.c

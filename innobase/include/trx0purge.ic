@@ -1,0 +1,26 @@
+/******************************************************
+Purge old versions
+
+(c) 1996 Innobase Oy
+
+Created 3/26/1996 Heikki Tuuri
+*******************************************************/
+
+#include "trx0undo.h"
+
+/************************************************************************
+Calculates the file address of an undo log header when we have the file
+address of its history list node. */
+UNIV_INLINE
+fil_addr_t
+trx_purge_get_log_from_hist(
+/*========================*/
+					/* out: file address of the log */
+	fil_addr_t	node_addr)	/* in: file address of the history
+					list node of the log */
+{
+	node_addr.boffset -= TRX_UNDO_HISTORY_NODE;
+
+	return(node_addr);
+}	
+

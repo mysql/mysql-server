@@ -1,0 +1,8 @@
+/******************************************************
+The interface to the operating system
+process and thread control primitives
+
+(c) 1995 Innobase Oy
+
+Created 9/8/1995 Heikki Tuuri
+*******************************************************/

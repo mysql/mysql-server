@@ -1,0 +1,31 @@
+/******************************************************
+Sessions
+
+(c) 1996 Innobase Oy
+
+Created 6/25/1996 Heikki Tuuri
+*******************************************************/
+
+/***************************************************************************
+Sets the message type of a message from the client. */
+UNIV_INLINE
+void
+sess_cli_msg_set_type(
+/*==================*/
+	byte*	str,	/* in: message string */
+	ulint	type)	/* in: message type */
+{
+	mach_write_to_4(str + SESS_CLI_MSG_TYPE, type);
+}
+
+/***************************************************************************
+Gets the message type of a message from the server. */
+UNIV_INLINE
+ulint
+sess_srv_msg_get_type(
+/*==================*/
+			/* out: message type */
+	byte*	str)	/* in: message string */
+{
+	return(mach_read_from_4(str + SESS_SRV_MSG_TYPE));
+}
