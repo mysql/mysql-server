@@ -146,3 +146,5 @@ SELECT 1 as a FROM (SELECT a UNION SELECT 1) b;
 Unknown column 'a' in 'field list'
 SELECT 1 as a FROM (SELECT 1 UNION SELECT a) b;
 Unknown column 'a' in 'field list'
+select 1 from  (select 2) a order by 0;
+Unknown column '0' in 'order clause'
