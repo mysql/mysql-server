@@ -69,9 +69,9 @@ my_bool mi_check_unique(MI_INFO *info, MI_UNIQUEDEF *def, byte *record,
 ha_checksum mi_unique_hash(MI_UNIQUEDEF *def, const byte *record)
 {
   const byte *pos, *end;
-  ha_checksum crc=0;
-  HA_KEYSEG *keyseg;
+  ulong crc=  0;
   ulong seed= 4;
+  HA_KEYSEG *keyseg;
 
   for (keyseg=def->seg ; keyseg < def->end ; keyseg++)
   {
@@ -118,7 +118,7 @@ ha_checksum mi_unique_hash(MI_UNIQUEDEF *def, const byte *record)
 	     (((uchar)  *(uchar*) pos++))) +
 	  (crc >> (8*sizeof(ha_checksum)-8));
   }
-  return crc;
+  return (ha_checksum)crc;
 }
 
 	/*
