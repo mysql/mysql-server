@@ -6755,10 +6755,11 @@ Please report bad or out-of-date mirrors to @email{webmaster@@mysql.com}.
 @strong{Asia:}
 
 @itemize @bullet
-@item
+@c @item
+@c Host cannot be resolved for last week at least 20010809 Tonu
 @c EMAIL: mirnshi@263.net (Meng Lingbo)
-@image{Flags/china} China [Freecode] @
-@uref{http://www.freecode.net.cn/mirror/mysql/, WWW}
+@c @image{Flags/china} China [Freecode] @
+@c @uref{http://www.freecode.net.cn/mirror/mysql/, WWW}
 
 @item
 @c EMAIL: yusun@atwell.co.jp (yu sun)
