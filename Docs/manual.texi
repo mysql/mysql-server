@@ -121,6 +121,7 @@ distribution for that version.
 * Tutorial::                    @strong{MySQL} Tutorial
 * Server::                      @strong{MySQL} Server
 * Replication::                 Replication
+* Fulltext Search::             Fulltext Search
 * Performance::                 Getting maximum performance from @strong{MySQL}
 * MySQL Benchmarks::            The @strong{MySQL} benchmark suite
 * Tools::                       @strong{MySQL} Utilities
@@ -602,6 +603,13 @@ Replication in MySQL
 * Replication FAQ::             Frequently Asked Questions about replication
 * Replication Problems::        Troubleshooting Replication.
 
+MySQL Full-text Search
+
+* Fulltext Search::
+* Fulltext Fine-tuning::        
+* Fulltext Features to Appear in MySQL 4.0::  
+* Fulltext TODO::               
+
 Getting Maximum Performance from MySQL
 
 * Optimize Basics::             Optimization overview
@@ -884,14 +892,7 @@ How MySQL Compares to @code{mSQL}
 MySQL Internals
 
 * MySQL threads::               MySQL threads
-* MySQL full-text search::      MySQL full-text search
 * MySQL test suite::            MySQL test suite
-
-MySQL Full-text Search
-
-* Fulltext Fine-tuning::        
-* Fulltext features to appear in MySQL 4.0::  
-* Fulltext TODO::               
 
 Credits
 
@@ -7430,7 +7431,18 @@ go around this limit.
 
 If you see a dead @code{mysqld} daemon process with @code{ps}, this usually
 means that you have found a bug in @strong{MySQL} or you have a corrupted
-table.  @xref{Crashing}.
+table. @xref{Crashing}.
+
+To get a core dump on Linux if mysqld dies with a SIGSEGV
+signal, you can start mysqld with the @code{--core-file} option.  Note
+that you also probably need to raise the @code{core file size} by adding
+@code{ulimit -c 1000000} to @code{safe_mysqld} or starting @code{safe_mysqld}
+with @code{--core-file-sizes=1000000}. @xref{safe_mysqld}.
+
+@c the stuff below is really out of date - hardly anybody uses it anymore
+
+If you are using LinuxThreads and @code{mysqladmin shutdown} doesn't work,
+you must upgrade to LinuxThreads Version 0.7.1 or newer.
 
 To get a core dump on Linux if mysqld dies with a SIGSEGV signal, you can 
 start mysqld with the @code{--core-file} option.  Note that you also probably
@@ -15550,7 +15562,7 @@ In @strong{MySQL} Version 3.23.23 or later, you can also create special
 @code{MyISAM} table type supports @code{FULLTEXT} indexes. They can be
 created only from @code{VARCHAR} and @code{TEXT} columns.
 Indexing always happens over the entire column and partial indexing is not
-supported. See @ref{MySQL full-text search} for details.
+supported. See @ref{Fulltext Search} for details.
 
 @cindex multi-column indexes
 @cindex indexes, multi-column
@@ -16293,7 +16305,7 @@ For @code{MATCH ... AGAINST()} to work, a @strong{FULLTEXT} index
 must be created first. @xref{CREATE TABLE, , @code{CREATE TABLE}}.
 @code{MATCH ... AGAINST()} is available in @strong{MySQL} Version
 3.23.23 or later. For details and usage examples
-@pxref{MySQL full-text search}.
+@pxref{Fulltext Search}.
 @end table
 
 @findex casts
@@ -18678,7 +18690,7 @@ In @strong{MySQL} Version 3.23.23 or later, you can also create special
 @code{MyISAM} table type supports @code{FULLTEXT} indexes. They can be created
 only from @code{VARCHAR} and @code{TEXT} columns.
 Indexing always happens over the entire column, partial indexing is not
-supported. See @ref{MySQL full-text search} for details of operation.
+supported. See @ref{Fulltext Search} for details of operation.
 
 @item
 The @code{FOREIGN KEY}, @code{CHECK}, and @code{REFERENCES} clauses don't
@@ -22883,7 +22895,7 @@ For more information about how @strong{MySQL} uses indexes, see
 @code{FULLTEXT} indexes can index only @code{VARCHAR} and
 @code{TEXT} columns, and only in @code{MyISAM} tables. @code{FULLTEXT} indexes
 are available in @strong{MySQL} Version 3.23.23 and later.
-@ref{MySQL full-text search}.
+@ref{Fulltext Search}.
 
 @findex DROP INDEX
 @node DROP INDEX, Comments, CREATE INDEX, Reference
@@ -27129,7 +27141,7 @@ tables}.
 @cindex increasing, speed
 @cindex speed, increasing
 @cindex databases, replicating
-@node Replication, Performance, Server, Top
+@node Replication, Fulltext Search, Server, Top
 @chapter Replication in MySQL
 
 @menu
@@ -28108,10 +28120,208 @@ Once you have collected the evidence on the phantom problem, try hard to
 isolate it into a separate test case first. Then report the problem to
 @email{bugs@@lists.mysql.com} with as much info as possible.
 
+@cindex searching, full-text
+@cindex full-text search
+@cindex FULLTEXT
+@node Fulltext Search, Performance, Replication, Top
+@chapter MySQL Full-text Search
+
+Since Version 3.23.23, @strong{MySQL} has support for full-text indexing
+and searching.  Full-text indexes in @strong{MySQL} are an index of type 
+@code{FULLTEXT}.  @code{FULLTEXT} indexes can be created from @code{VARCHAR} 
+and @code{TEXT} columns at @code{CREATE TABLE} time or added later with 
+@code{ALTER TABLE} or @code{CREATE INDEX}.  For large datasets, adding 
+@code{FULLTEXT} index with @code{ALTER TABLE} (or @code{CREATE INDEX}) would 
+be much faster than inserting rows into the empty table with a @code{FULLTEXT} 
+index.
+
+Full-text search is performed with the @code{MATCH} function.
+
+@example
+mysql> CREATE TABLE t (a VARCHAR(200), b TEXT, FULLTEXT (a,b));
+Query OK, 0 rows affected (0.00 sec)
+
+mysql> INSERT INTO t VALUES
+    ->   ('MySQL has now support', 'for full-text search'),
+    ->   ('Full-text indexes', 'are called collections'),
+    ->   ('Only MyISAM tables','support collections'),
+    ->   ('Function MATCH ... AGAINST()','is used to do a search'),
+    ->   ('Full-text search in MySQL', 'implements vector space model');
+Query OK, 5 rows affected (0.00 sec)
+Records: 5  Duplicates: 0  Warnings: 0
+
+mysql> SELECT * FROM t WHERE MATCH (a,b) AGAINST ('MySQL');
++---------------------------+-------------------------------+
+| a                         | b                             |
++---------------------------+-------------------------------+
+| MySQL has now support     | for full-text search          |
+| Full-text search in MySQL | implements vector-space-model |
++---------------------------+-------------------------------+
+2 rows in set (0.00 sec)
+
+mysql> SELECT *,MATCH a,b AGAINST ('collections support') as x FROM t;
++------------------------------+-------------------------------+--------+
+| a                            | b                             | x      |
++------------------------------+-------------------------------+--------+
+| MySQL has now support        | for full-text search          | 0.3834 |
+| Full-text indexes            | are called collections        | 0.3834 |
+| Only MyISAM tables           | support collections           | 0.7668 |
+| Function MATCH ... AGAINST() | is used to do a search        |      0 |
+| Full-text search in MySQL    | implements vector space model |      0 |
++------------------------------+-------------------------------+--------+
+5 rows in set (0.00 sec)
+@end example
+
+The function @code{MATCH} matches a natural language query @code{AGAINST} 
+a text collection (which is simply the columns that are covered by a 
+@code{FULLTEXT} index).  For every row in a table it returns relevance - 
+a similarity measure between the text in that row (in the columns that are 
+part of the collection) and the query.  When it is used in a @code{WHERE} 
+clause (see example above) the rows returned are automatically sorted with 
+relevance decreasing.  Relevance is a non-negative floating-point number. 
+Zero relevance means no similarity.  Relevance is computed based on the 
+number of words in the row, the number of unique words in that row, the 
+total number of words in the collection, and the number of documents (rows) 
+that contain a particular word.
+
+MySQL uses a very simple parser to split text into words.  A ``word'' is
+any sequence of letters, numbers, @samp{'}, and @samp{_}.  Any ``word''
+that is present in the stopword list or just too short (3 characters
+or less) is ignored.
+
+Every correct word in the collection and in the query is weighted,
+according to its significance in the query or collection.  This way, a
+word that is present in many documents will have lower weight (and may
+even have a zero weight), because it has lower semantic value in this
+particular collection.  Otherwise, if the word is rare, it will receive a
+higher weight.  The weights of the words are then combined to compute the
+relevance of the row.
+
+Such a technique works best with large collections (in fact, it was
+carefully tuned this way).  For very small tables, word distribution
+does not reflect adequately their semantical value, and this model
+may sometimes produce bizarre results.
+
+For example, search for the word "search" will produce no results in the
+above example. Word "search" is present in more than half of rows, and
+as such, is effectively treated as a stopword (that is, with semantical value
+zero).  It is, really, the desired behavior - a natural language query
+should not return every other row in 1GB table.
+
+A word that matches half of rows in a table is less likely to locate relevant
+documents.  In fact, it will most likely find plenty of irrelevant documents.
+We all know this happens far too often when we are trying to find something on
+the Internet with a search engine.  It is with this reasoning that such rows 
+have been assigned a low semantical value in @strong{a particular dataset}.
+
+@menu
+* Fulltext Fine-tuning::        
+* Fulltext Features to Appear in MySQL 4.0::  
+* Fulltext TODO::               
+@end menu
+
+@node Fulltext Fine-tuning, Fulltext Features to Appear in MySQL 4.0, , Fulltext Search
+@section Fine-tuning MySQL Full-text Search
+
+Unfortunately, full-text search has no user-tunable parameters yet,
+although adding some is very high on the TODO.  However, if you have a 
+@strong{MySQL} source distribution (@xref{Installing source}.), you can 
+somewhat alter the full-text search behavior.
+
+Note that full-text search was carefully tuned for the best searching
+effectiveness.  Modifying the default behavior will, in most cases,
+only make the search results worse.  Do not alter the @strong{MySQL} sources
+unless you know what you are doing!
+
+@itemize
+
+@item
+Minimal length of word to be indexed is defined in
+@code{myisam/ftdefs.h} file by the line
+@example
+#define MIN_WORD_LEN 4
+@end example
+Change it to the value you prefer, recompile @strong{MySQL}, and rebuild
+your @code{FULLTEXT} indexes.
+
+@item
+The stopword list is defined in @code{myisam/ft_static.c}
+Modify it to your taste, recompile @strong{MySQL} and rebuild
+your @code{FULLTEXT} indexes.
+
+@item
+The 50% threshold is caused by the particular weighting scheme chosen. To 
+disable it, change the following line in @code{myisam/ftdefs.h}:
+@example
+#define GWS_IN_USE GWS_PROB
+@end example
+to
+@example
+#define GWS_IN_USE GWS_FREQ
+@end example
+and recompile @strong{MySQL}.
+There is no need to rebuild the indexes in this case.
+
+@end itemize
+
+@node Fulltext Features to Appear in MySQL 4.0, Fulltext TODO, Fulltext Fine-tuning, Fulltext Search
+@section New Features of Full-text Search to Appear in MySQL 4.0
+
+This section includes a list of the fulltext features that are already
+implemented in the 4.0 tree. It explains
+@strong{More functions for full-text search} entry of @ref{TODO MySQL 4.0}.
+
+@itemize @bullet
+@item @code{REPAIR TABLE} with @code{FULLTEXT} indexes,
+@code{ALTER TABLE} with @code{FULLTEXT} indexes, and
+@code{OPTIMIZE TABLE} with @code{FULLTEXT} indexes are now
+up to 100 times faster.
+
+@item @code{MATCH ... AGAINST} now supports the following 
+@strong{boolean operators}:
+
+@itemize @bullet
+@item @code{+}word means the that word @strong{must} be present in every
+row returned.
+@item @code{-}word means the that word @strong{must not} be present in every
+row returned.
+@item @code{<} and @code{>} can be used to decrease and increase word 
+weight in the query.
+@item @code{~} can be used to assign a @strong{negative} weight to a noise 
+word.
+@item @code{*} is a truncation operator.
+@end itemize
+
+Boolean search utilizes a more simplistic way of calculating the relevance,
+that does not have a 50% threshold.
+
+@item Searches are now up to 2 times faster due to optimized search algorithm.
+
+@item Utility program @code{ft_dump} added for low-level @code{FULLTEXT}
+index operations (querying/dumping/statistics).
+
+@end itemize
+
+@node Fulltext TODO,  , Fulltext Features to Appear in MySQL 4.0, Fulltext Search
+@section Full-text Search TODO
+
+@itemize @bullet
+@item Make all operations with @code{FULLTEXT} index @strong{faster}.
+@item Support for braces @code{()} in boolean full-text search.
+@item Support for "always-index words". They could be any strings
+the user wants to treat as words, examples are "C++", "AS/400", "TCP/IP", etc.
+@item Support for full-text search in @code{MERGE} tables.
+@item Support for multi-byte charsets.
+@item Make stopword list to depend of the language of the data.
+@item Stemming (dependent of the language of the data, of course).
+@item Generic user-supplyable UDF (?) preparser.
+@item Make the model more flexible (by adding some adjustable
+parameters to @code{FULLTEXT} in @code{CREATE/ALTER TABLE}).
+@end itemize
 
 @cindex performance, maximizing
 @cindex optimization
-@node Performance, MySQL Benchmarks, Replication, Top
+@node Performance, MySQL Benchmarks, Fulltext Search, Top
 @chapter Getting Maximum Performance from MySQL
 
 Optimization is a complicated task because it ultimately requires
@@ -40554,11 +40764,10 @@ This is a relatively low traffic list, in comparison with
 
 @menu
 * MySQL threads::               MySQL threads
-* MySQL full-text search::      MySQL full-text search
 * MySQL test suite::            MySQL test suite
 @end menu
 
-@node MySQL threads, MySQL full-text search, MySQL internals, MySQL internals
+@node MySQL threads, MySQL test suite, , MySQL internals
 @section MySQL Threads
 
 The @strong{MySQL} server creates the following threads:
@@ -40806,7 +41015,7 @@ parameters to @code{FULLTEXT} in @code{CREATE/ALTER TABLE}).
 
 @cindex mysqltest, MySQL Test Suite
 @cindex testing mysqld, mysqltest
-@node MySQL test suite,  , MySQL full-text search, MySQL internals
+@node MySQL test suite,  , MySQL threads, MySQL internals
 @section MySQL Test Suite
 
 Until recently, our main full-coverage test suite was based on proprietary 
@@ -48067,7 +48276,7 @@ the @code{.MYD} file.
 Better replication.
 @item
 More functions for full-text search.
-@xref{Fulltext features to appear in MySQL 4.0}.
+@xref{Fulltext Features to Appear in MySQL 4.0}.
 @item
 Character set casts and syntax for handling multiple character sets.
 @item
