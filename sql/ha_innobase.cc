@@ -649,6 +649,7 @@ innobase_close_connection(
 				(thd->transaction.all.innobase_tid));
 		trx_free_for_mysql((trx_t*)
 				(thd->transaction.all.innobase_tid));
+		thd->transaction.all.innobase_tid = NULL;
 	}
 
 	return(0);
