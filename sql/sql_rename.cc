@@ -35,8 +35,10 @@ bool mysql_rename_tables(THD *thd, TABLE_LIST *table_list)
   TABLE_LIST *lock_table,*ren_table=0;
   DBUG_ENTER("mysql_rename_tables");
 
-  /* Avoid problems with a rename on a table that we have locked or
-     if the user is trying to to do this in a transcation context */
+  /*
+    Avoid problems with a rename on a table that we have locked or
+    if the user is trying to to do this in a transcation context
+  */
 
   if (thd->locked_tables || thd->active_transaction())
   {

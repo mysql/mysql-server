@@ -351,7 +351,7 @@ time_t start_time;
 ulong opt_sql_mode = 0L;
 const char *sql_mode_names[] =
 { "REAL_AS_FLOAT", "PIPES_AS_CONCAT", "ANSI_QUOTES", "IGNORE_SPACE",
-  "SERIALIZE","ONLY_FULL_GROUP_BY", NullS };
+  "SERIALIZE","ONLY_FULL_GROUP_BY", "NO_UNSIGNED_SUBTRACTION",NullS };
 TYPELIB sql_mode_typelib= {array_elements(sql_mode_names)-1,"",
 			   sql_mode_names};
 
@@ -486,7 +486,6 @@ static void close_connections(void)
     HANDLE hTempPipe = &hPipe;
     DBUG_PRINT( "quit", ("Closing named pipes") );
     hPipe = INVALID_HANDLE_VALUE;
-    CancelIo( hTempPipe );
     DisconnectNamedPipe( hTempPipe );
     CloseHandle( hTempPipe );
   }
@@ -3411,7 +3410,8 @@ static void usage(void)
   -t, --tmpdir=path	Path for temporary files\n\
   --sql-mode=option[,option[,option...]] where option can be one of:\n\
                         REAL_AS_FLOAT, PIPES_AS_CONCAT, ANSI_QUOTES,\n\
-                        IGNORE_SPACE, SERIALIZE, ONLY_FULL_GROUP_BY.\n\
+                        IGNORE_SPACE, SERIALIZE, ONLY_FULL_GROUP_BY,\n\
+			NO_UNSIGNED_SUBTRACTION.\n\
   --transaction-isolation\n\
 		        Default transaction isolation level\n\
   --temp-pool           Use a pool of temporary files\n\

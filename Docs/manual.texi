@@ -8133,15 +8133,17 @@ than it had in 3.23.
 @item
 The result of all bitwise operators @code{|}, @code{&}, @code{<<},
 @code{>>} and @code{~} is now unsigned.  This may cause problems if your
-are using them in a context where you want an signed result. @xref{Cast
-Functions}.
+are using them in a context where you want an signed result.
+@xref{Cast Functions}.
 @item
 @strong{NOTE:} When you use subtraction between integers values where
 one is of type @code{UNSIGNED}, the result will be unsigned!  In other
 words, before upgrading to MySQL 4.0, you should check your application
-for cases where you are subtracting a value from an unsigned entity
-and want a negative answer or subtracting an unsigned value from a an
-integer column. @xref{Cast Functions}.
+for cases where you are subtracting a value from an unsigned entity and
+want a negative answer or subtracting an unsigned value from a an
+integer column. You can disable this behaviour by using the
+@code{--sql-mode=NO_UNSIGNED_SUBTRACTION} option when starting
+@code{mysqld}.  @xref{Cast Functions}.
 @item
 To use @code{MATCH ... AGAINST (... IN BOOLEAN MODE)} with your tables,
 you need to rebuild them with @code{ALTER TABLE table_name TYPE=MyISAM},
@@ -19873,6 +19875,8 @@ Means that the thread is flushing the changed table data to disk and
 closing the used tables. This should be a fast operation.  If not, then
 you should check that you don't have a full disk or that the disk is not
 in very heavy use.
+@item @code{Connect Out}
+Slave connecting to master.
 @item @code{Copying to tmp table on disk}
 The temporary result set was larger than @code{tmp_table_size} and the
 thread is now changing the in memory based temporary table to a disk
@@ -31999,6 +32003,12 @@ SELECT (unsigned_column_1+0.0)-(unsigned_column_2+0.0);
 
 The idea is that the columns are converted to floating point before doing
 the subtraction.
+
+If you get a problem with @code{UNSIGNED} columns in your old MySQL
+application when porting to MySQL 4.0, you can use the
+@code{--sql-mode=NO_UNSIGNED_SUBTRACTION} option when starting
+@code{mysqld}.  Note however that as long as you use this, you will not
+be able to efficiently use the @code{UNSIGNED BIGINT} column type.
 
 @node Other Functions, Group by functions, Cast Functions, Functions
 @subsection Other Functions
@@ -48364,6 +48374,10 @@ Our TODO section contains what we plan to have in 4.0. @xref{TODO MySQL 4.0}.
 
 @itemize @bullet
 @item
+Added sql-mode flag @code{NO_UNSIGNED_SUBTRACTION} to disable unsigned
+arithmetic rules when it comes to subtraction. (This will make MySQL 4.0
+behave more closely to 3.23 with @code{UNSIGNED} columns).
+@item
 Added @code{WITH MAX_QUERIES_PER_HOUR=#} to @code{GRANT} command.
 @item
 The type returned for all bit functions (@code{|}, @code{<<} ...) are now of
@@ -48476,7 +48490,7 @@ Added support for @code{MATCH ... AGAINST(... IN BOOLEAN MODE)}.
 @code{ALTER TABLE tablename TYPE=MyISAM} to be
 able to use boolean fulltext search}.
 @item
-@code{LOCATE()} and @code{INSTR()} are case sensitive if neither
+@code{LOCATE()} and @code{INSTR()} are now case sensitive if either
 argument is a binary string.
 @item
 Changed @code{RAND()} initialization so that @code{RAND(N)} and
