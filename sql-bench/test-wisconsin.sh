@@ -109,6 +109,11 @@ if ($opt_fast && $server->{'limits'}->{'load_data_infile'})
 }
 else
 {
+  if ($opt_fast && $server->{transactions})
+  {
+    $dbh->{AutoCommit} = 0;
+  }
+
   for ($ti = 0; $ti <= $#table_names; $ti++)
   {
     my $table_name = $table_names[$ti];
@@ -133,10 +138,17 @@ else
   }
   close(DATA);
 }
+
 if ($opt_lock_tables)
 {
   do_query($dbh,"UNLOCK TABLES");
 }
+if ($opt_fast && $server->{transactions})
+{
+  $dbh->commit;
+  $dbh->{AutoCommit} = 1;
+}
+
 $end_time=new Benchmark;
 print "Time to insert ($row_count): " .
   timestr(timediff($end_time, $loop_time),"all") . "\n";
