@@ -1343,7 +1343,7 @@ static int open_unireg_entry(THD *thd, TABLE *entry, const char *db,
       */
       if (discover_retry_count++ != 0)
        goto err;
-      if (create_table_from_handler(db, name, true) != 0)
+      if (ha_create_table_from_engine(thd, db, name, true) != 0)
        goto err;
 
       thd->clear_error(); // Clear error message
