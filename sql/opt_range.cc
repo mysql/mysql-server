@@ -912,7 +912,7 @@ int QUICK_RANGE_SELECT::init_ror_merged_scan(bool reuse_handler)
   {
     DBUG_PRINT("info", ("Reusing handler %p", file));
     if (file->extra(HA_EXTRA_KEYREAD) ||
-        file->extra(HA_EXTRA_RETRIEVE_ALL_COLS) |
+        file->extra(HA_EXTRA_RETRIEVE_PRIMARY_KEY) ||
         init() || reset())
     {
       DBUG_RETURN(1);
@@ -937,7 +937,7 @@ int QUICK_RANGE_SELECT::init_ror_merged_scan(bool reuse_handler)
   }
 
   if (file->extra(HA_EXTRA_KEYREAD) ||
-      file->extra(HA_EXTRA_RETRIEVE_ALL_COLS) ||
+      file->extra(HA_EXTRA_RETRIEVE_PRIMARY_KEY) ||
       init() || reset())
   {
     file->close();
@@ -5619,7 +5619,8 @@ int QUICK_INDEX_MERGE_SELECT::read_keys_and_merge()
   DBUG_ENTER("QUICK_INDEX_MERGE_SELECT::prepare_unique");
 
   /* We're going to just read rowids. */
-  head->file->extra(HA_EXTRA_KEYREAD);
+  if (head->file->extra(HA_EXTRA_KEYREAD))
+    DBUG_RETURN(1);
 
   /*
     Make innodb retrieve all PK member fields, so
@@ -5628,7 +5629,8 @@ int QUICK_INDEX_MERGE_SELECT::read_keys_and_merge()
     (This also creates a deficiency - it is possible that we will retrieve
      parts of key that are not used by current query at all.)
   */
-  head->file->extra(HA_EXTRA_RETRIEVE_ALL_COLS);
+  if (head->file->extra(HA_EXTRA_RETRIEVE_PRIMARY_KEY))
+    DBUG_RETURN(1);
 
   cur_quick_it.rewind();
   cur_quick= cur_quick_it++;
