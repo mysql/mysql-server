@@ -3756,6 +3756,23 @@ ha_innobase::info(
   	DBUG_VOID_RETURN;
 }
 
+/**************************************************************************
+Updates index cardinalities of the table, based on 10 random dives into
+each index tree. This does NOT calculate exact statistics of the table. */
+
+int
+ha_innobase::analyze(
+/*=================*/			 
+					/* out: returns always 0 (success) */
+	THD*		thd,		/* in: connection thread handle */
+	HA_CHECK_OPT*	check_opt)	/* in: currently ignored */
+{
+	/* Simply call ::info() with all the flags */
+	info(HA_STATUS_TIME | HA_STATUS_CONST | HA_STATUS_VARIABLE);
+
+	return(0);
+}
+
 /***********************************************************************
 Tries to check that an InnoDB table is not corrupted. If corruption is
 noticed, prints to stderr information about it. In case of corruption
