@@ -428,7 +428,7 @@ int mysql_multi_update(THD *thd,
 		    conds, 0, (ORDER *) NULL, (ORDER *)NULL, (Item *) NULL,
 		    (ORDER *)NULL,
 		    options | SELECT_NO_JOIN_CACHE,
-		    result, unit, select_lex, 0);
+		    result, unit, select_lex, 0, 0);
   delete result;
   DBUG_RETURN(res);
 }

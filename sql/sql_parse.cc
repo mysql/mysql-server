@@ -2387,7 +2387,7 @@ mysql_execute_command(THD *thd)
 			(ORDER *)NULL,
 			select_lex->options | thd->options |
 			SELECT_NO_JOIN_CACHE,
-			result, unit, select_lex, 0);
+			result, unit, select_lex, 0, 0);
       if (thd->net.report_error)
 	res= -1;
       delete result;
