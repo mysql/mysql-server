@@ -228,11 +228,9 @@ Field *Item_func::tmp_table_field(TABLE *t_arg)
     break;
   case STRING_RESULT:
     if (max_length > 255)
-      res= new Field_blob(max_length, maybe_null, name, t_arg, 
-			  str_value.charset());
+      res= new Field_blob(max_length, maybe_null, name, t_arg, charset());
     else
-      res= new Field_string(max_length, maybe_null, name, t_arg, 
-			    str_value.charset());
+      res= new Field_string(max_length, maybe_null, name, t_arg, charset());
     break;
   }
   return res;
