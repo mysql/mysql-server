@@ -256,3 +256,47 @@ select c from t1 where c=0xD0B1212223D0B1D0B1D0B1D0B1D0B1;
 select t from t1 where t=0xD0B1D0B1212223D0B1D0B1D0B1D0B1;
 drop table t1;
 
+#
+# BUG#6151 - myisam index corruption
+#
+DROP TABLE IF EXISTS t1;
+CREATE TABLE t1 (
+  c1 int,
+  c2 varbinary(240),
+  UNIQUE KEY (c1),
+  KEY (c2)
+) ENGINE=MyISAM;
+INSERT INTO t1 VALUES (1,'\Z\Z\Z\Z');
+INSERT INTO t1 VALUES (2,'\Z\Z\Z\Z\Z\Z');
+INSERT INTO t1 VALUES (3,'\Z\Z\Z\Z');
+select c1 from t1 where c2='\Z\Z\Z\Z';
+DELETE FROM t1 WHERE (c1 = 1);
+check table t1;
+select c1 from t1 where c2='\Z\Z\Z\Z';
+DELETE FROM t1 WHERE (c1 = 3);
+check table t1;
+select c1 from t1 where c2='\Z\Z\Z\Z';
+
+#
+# test delete of keys in a different order
+#
+truncate table t1;
+insert into t1 values(1,"aaaa"),(2,"aaab"),(3,"aaac"),(4,"aaccc");
+delete from t1 where c1=3;
+delete from t1 where c1=1;
+delete from t1 where c1=4;
+check table t1;
+
+drop table t1;
+
+#
+# Bug 6166: index prefix length of 0 not rejected
+#
+# this test should fail in 5.0
+# to fix it, remove #ifdef in 
+# file sql_yacc.yy(key_part)
+# create dedicated error code for this and
+# and change my_printf_error() to my_error
+
+--error 1105
+create table t1 (c char(10), index (c(0)));

@@ -375,7 +375,7 @@ printReport(TestPhase & p){
     
     char buf[255];
     if(p.signalSize != 0){
-      snprintf(buf, 255,
+      BaseString::snprintf(buf, 255,
 	       "%d\t%d\t%d\t%s\t%s\t%s\t%d\t%d\t%d\t%d",
 	       p.noOfSignals,
 	       p.signalSize,
@@ -388,7 +388,7 @@ printReport(TestPhase & p){
 	       (int)(p.totTimePrioA / p.loopCount),
 	       (int)(p.bytesSentBeforePrioA));
     } else {
-      snprintf(buf, 255,
+      BaseString::snprintf(buf, 255,
 	       "%d\trand\t4*rand\t%s\t%s\t%s\t%d\t%d\t%d\t%d",
 	       p.noOfSignals,
 	       st,

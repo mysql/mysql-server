@@ -149,6 +149,24 @@ INSERT INTO t1 (c1, c2) VALUES ('Ну, за рыбалку','Ну, за рыбалку');
 select hex(c1), hex(c2) from t1;
 sync_slave_with_master;
 select hex(c1), hex(c2) from t1;
+
+# Now test for BUG##5705: SET CHARATER_SET_SERVERetc will be lost if
+# STOP SLAVE before following query
+
+stop slave;
+delete from t1;
+change master to master_log_pos=5801;
+start slave until master_log_file='master-bin.000001', master_log_pos=5937;
+# Slave is supposed to stop _after_ the INSERT, even though 5937 is
+# the position of the beginning of the INSERT; after SET slave is not
+# supposed to increment position.
+wait_for_slave_to_stop;
+# When you merge this into 5.0 you will have to adjust positions
+# above; the first master_log_pos above should be the one of the SET,
+# the second should be the one of the INSERT.
+start slave;
+sync_with_master;
+select hex(c1), hex(c2) from t1;
 connection master;
 drop table t1;
 sync_slave_with_master;

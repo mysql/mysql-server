@@ -561,6 +561,17 @@ unlock table;
 drop table t1,t2;
 set query_cache_wlock_invalidate=default;
 
+#
+# hiding real table stored in query cache by temporary table
+#
+CREATE TABLE t1 (id INT PRIMARY KEY);
+insert into t1 values (1),(2),(3);
+select * from t1;
+create temporary table t1 (a int not null auto_increment
+primary key);
+select * from t1;
+drop table t1;
+drop table t1;
 
 #
 # Test character set related variables:
@@ -624,6 +635,40 @@ DROP TABLE t1;
 set character_set_results=null;
 select @@character_set_results;
 set character_set_results=default;
+#
+# query cache and environment variables
+#
+# max_sort_length
+set GLOBAL query_cache_size=1355776;
+create table t1 (id int auto_increment primary key, c char(25));
+insert into t1 set c = repeat('x',24);
+insert into t1 set c = concat(repeat('x',24),'x');
+insert into t1 set c = concat(repeat('x',24),'w');
+insert into t1 set c = concat(repeat('x',24),'y');
+set max_sort_length=200;   
+select c from t1 order by c, id;
+reset query cache;
+set max_sort_length=20;
+select c from t1 order by c, id;
+set max_sort_length=200;   
+select c from t1 order by c, id;
+set max_sort_length=default;
+# sql_mode
+select '1' || '3' from t1;
+set SQL_MODE=oracle;
+select '1' || '3' from t1;
+set SQL_MODE=default;
+drop table t1;
+# group_concat_max_len
+create table t1 (a varchar(20), b int);
+insert into t1 values ('12345678901234567890', 1);
+set group_concat_max_len=10;
+select group_concat(a) FROM t1 group by b;
+set group_concat_max_len=1024;
+select group_concat(a) FROM t1 group by b;
+set group_concat_max_len=default;
+drop table t1;
+
 # comments before command
 #
 create table t1 (a int);

@@ -1507,19 +1507,19 @@ private:
 
   // Common operation record pool
 public:
-  static const size_t opCreateTableSize = sizeof(CreateTableRecord);
-  static const size_t opDropTableSize = sizeof(DropTableRecord);
-  static const size_t opCreateIndexSize = sizeof(OpCreateIndex);
-  static const size_t opDropIndexSize = sizeof(OpDropIndex);
-  static const size_t opAlterIndexSize = sizeof(OpAlterIndex);
-  static const size_t opBuildIndexSize = sizeof(OpBuildIndex);
-  static const size_t opCreateEventSize = sizeof(OpCreateEvent);
-  static const size_t opSubEventSize = sizeof(OpSubEvent);
-  static const size_t opDropEventSize = sizeof(OpDropEvent);
-  static const size_t opSignalUtilSize = sizeof(OpSignalUtil);
-  static const size_t opCreateTriggerSize = sizeof(OpCreateTrigger);
-  static const size_t opDropTriggerSize = sizeof(OpDropTrigger);
-  static const size_t opAlterTriggerSize = sizeof(OpAlterTrigger);
+  STATIC_CONST( opCreateTableSize = sizeof(CreateTableRecord) );
+  STATIC_CONST( opDropTableSize = sizeof(DropTableRecord) );
+  STATIC_CONST( opCreateIndexSize = sizeof(OpCreateIndex) );
+  STATIC_CONST( opDropIndexSize = sizeof(OpDropIndex) );
+  STATIC_CONST( opAlterIndexSize = sizeof(OpAlterIndex) );
+  STATIC_CONST( opBuildIndexSize = sizeof(OpBuildIndex) );
+  STATIC_CONST( opCreateEventSize = sizeof(OpCreateEvent) );
+  STATIC_CONST( opSubEventSize = sizeof(OpSubEvent) );
+  STATIC_CONST( opDropEventSize = sizeof(OpDropEvent) );
+  STATIC_CONST( opSignalUtilSize = sizeof(OpSignalUtil) );
+  STATIC_CONST( opCreateTriggerSize = sizeof(OpCreateTrigger) );
+  STATIC_CONST( opDropTriggerSize = sizeof(OpDropTrigger) );
+  STATIC_CONST( opAlterTriggerSize = sizeof(OpAlterTrigger) );
 private:
 #define PTR_ALIGN(n) ((((n)+sizeof(void*)-1)>>2)&~((sizeof(void*)-1)>>2))
   union OpRecordUnion {

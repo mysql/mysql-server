@@ -188,42 +188,51 @@ static bool test_if_real(const char *str,int length, CHARSET_INFO *cs)
  FIELD_CAST_STOP
 */
 static Field::field_cast_enum field_cast_decimal[]=
-{Field::FIELD_CAST_STRING, Field::FIELD_CAST_VARSTRING,
+{Field::FIELD_CAST_DECIMAL,
+ Field::FIELD_CAST_STRING, Field::FIELD_CAST_VARSTRING,
  Field::FIELD_CAST_BLOB, Field::FIELD_CAST_STOP};
 static Field::field_cast_enum field_cast_tiny[]=
-{Field::FIELD_CAST_SHORT, Field::FIELD_CAST_MEDIUM, Field::FIELD_CAST_LONG,
+{Field::FIELD_CAST_TINY,
+ Field::FIELD_CAST_SHORT, Field::FIELD_CAST_MEDIUM, Field::FIELD_CAST_LONG,
  Field::FIELD_CAST_LONGLONG,
  Field::FIELD_CAST_FLOAT, Field::FIELD_CAST_DOUBLE,
  Field::FIELD_CAST_STRING, Field::FIELD_CAST_VARSTRING,
  Field::FIELD_CAST_BLOB, Field::FIELD_CAST_STOP};
 static Field::field_cast_enum field_cast_short[]=
-{Field::FIELD_CAST_MEDIUM, Field::FIELD_CAST_LONG, Field::FIELD_CAST_LONGLONG,
+{Field::FIELD_CAST_SHORT,
+ Field::FIELD_CAST_MEDIUM, Field::FIELD_CAST_LONG, Field::FIELD_CAST_LONGLONG,
  Field::FIELD_CAST_FLOAT, Field::FIELD_CAST_DOUBLE,
  Field::FIELD_CAST_STRING, Field::FIELD_CAST_VARSTRING,
  Field::FIELD_CAST_BLOB, Field::FIELD_CAST_STOP};
 static Field::field_cast_enum field_cast_medium[]=
-{Field::FIELD_CAST_LONG, Field::FIELD_CAST_LONGLONG,
+{Field::FIELD_CAST_MEDIUM,
+ Field::FIELD_CAST_LONG, Field::FIELD_CAST_LONGLONG,
  Field::FIELD_CAST_DOUBLE,
  Field::FIELD_CAST_STRING, Field::FIELD_CAST_VARSTRING,
  Field::FIELD_CAST_BLOB, Field::FIELD_CAST_STOP};
 static Field::field_cast_enum field_cast_long[]=
-{Field::FIELD_CAST_LONGLONG,
+{Field::FIELD_CAST_LONG,
+ Field::FIELD_CAST_LONGLONG,
  Field::FIELD_CAST_DOUBLE,
  Field::FIELD_CAST_STRING, Field::FIELD_CAST_VARSTRING,
  Field::FIELD_CAST_BLOB, Field::FIELD_CAST_STOP};
 static Field::field_cast_enum field_cast_longlong[]=
-{Field::FIELD_CAST_DOUBLE,
+{Field::FIELD_CAST_LONGLONG,
+ Field::FIELD_CAST_DOUBLE,
  Field::FIELD_CAST_STRING, Field::FIELD_CAST_VARSTRING,
  Field::FIELD_CAST_BLOB, Field::FIELD_CAST_STOP};
 static Field::field_cast_enum field_cast_float[]=
-{Field::FIELD_CAST_DOUBLE,
+{Field::FIELD_CAST_FLOAT,
+ Field::FIELD_CAST_DOUBLE,
  Field::FIELD_CAST_STRING, Field::FIELD_CAST_VARSTRING,
  Field::FIELD_CAST_BLOB, Field::FIELD_CAST_STOP};
 static Field::field_cast_enum field_cast_double[]=
-{Field::FIELD_CAST_STRING, Field::FIELD_CAST_VARSTRING,
+{Field::FIELD_CAST_DOUBLE,
+ Field::FIELD_CAST_STRING, Field::FIELD_CAST_VARSTRING,
  Field::FIELD_CAST_BLOB, Field::FIELD_CAST_STOP};
 static Field::field_cast_enum field_cast_null[]=
-{Field::FIELD_CAST_DECIMAL, Field::FIELD_CAST_TINY, Field::FIELD_CAST_SHORT,
+{Field::FIELD_CAST_NULL,
+ Field::FIELD_CAST_DECIMAL, Field::FIELD_CAST_TINY, Field::FIELD_CAST_SHORT,
  Field::FIELD_CAST_MEDIUM, Field::FIELD_CAST_LONG, Field::FIELD_CAST_LONGLONG,
  Field::FIELD_CAST_FLOAT, Field::FIELD_CAST_DOUBLE,
  Field::FIELD_CAST_TIMESTAMP, Field::FIELD_CAST_YEAR,
@@ -234,44 +243,54 @@ static Field::field_cast_enum field_cast_null[]=
  Field::FIELD_CAST_GEOM, Field::FIELD_CAST_ENUM, Field::FIELD_CAST_SET,
  Field::FIELD_CAST_STOP};
 static Field::field_cast_enum field_cast_timestamp[]=
-{Field::FIELD_CAST_DATETIME,
+{Field::FIELD_CAST_TIMESTAMP,
+ Field::FIELD_CAST_DATETIME,
  Field::FIELD_CAST_STRING, Field::FIELD_CAST_VARSTRING,
  Field::FIELD_CAST_BLOB, Field::FIELD_CAST_STOP};
 static Field::field_cast_enum field_cast_year[]=
-{Field::FIELD_CAST_SHORT, Field::FIELD_CAST_MEDIUM, Field::FIELD_CAST_LONG,
+{Field::FIELD_CAST_YEAR,
+ Field::FIELD_CAST_SHORT, Field::FIELD_CAST_MEDIUM, Field::FIELD_CAST_LONG,
  Field::FIELD_CAST_LONGLONG,
  Field::FIELD_CAST_FLOAT, Field::FIELD_CAST_DOUBLE,
  Field::FIELD_CAST_STRING, Field::FIELD_CAST_VARSTRING,
  Field::FIELD_CAST_BLOB, Field::FIELD_CAST_STOP};
 static Field::field_cast_enum field_cast_date[]=
-{Field::FIELD_CAST_DATETIME,
+{Field::FIELD_CAST_DATE,
+ Field::FIELD_CAST_DATETIME,
  Field::FIELD_CAST_STRING, Field::FIELD_CAST_VARSTRING,
  Field::FIELD_CAST_BLOB, Field::FIELD_CAST_STOP};
 static Field::field_cast_enum field_cast_newdate[]=
-{Field::FIELD_CAST_DATETIME,
+{Field::FIELD_CAST_NEWDATE,
+ Field::FIELD_CAST_DATETIME,
  Field::FIELD_CAST_STRING, Field::FIELD_CAST_VARSTRING,
  Field::FIELD_CAST_BLOB, Field::FIELD_CAST_STOP};
 static Field::field_cast_enum field_cast_time[]=
-{Field::FIELD_CAST_DATETIME,
+{Field::FIELD_CAST_TIME,
+ Field::FIELD_CAST_DATETIME,
  Field::FIELD_CAST_STRING, Field::FIELD_CAST_VARSTRING,
  Field::FIELD_CAST_BLOB, Field::FIELD_CAST_STOP};
 static Field::field_cast_enum field_cast_datetime[]=
-{Field::FIELD_CAST_STRING, Field::FIELD_CAST_VARSTRING,
+{Field::FIELD_CAST_DATETIME,
+ Field::FIELD_CAST_STRING, Field::FIELD_CAST_VARSTRING,
  Field::FIELD_CAST_BLOB, Field::FIELD_CAST_STOP};
 static Field::field_cast_enum field_cast_string[]=
-{Field::FIELD_CAST_VARSTRING, Field::FIELD_CAST_BLOB, Field::FIELD_CAST_STOP};
+{Field::FIELD_CAST_STRING,
+ Field::FIELD_CAST_VARSTRING, Field::FIELD_CAST_BLOB, Field::FIELD_CAST_STOP};
 static Field::field_cast_enum field_cast_varstring[]=
-{Field::FIELD_CAST_BLOB, Field::FIELD_CAST_STOP};
+{Field::FIELD_CAST_VARSTRING,
+ Field::FIELD_CAST_BLOB, Field::FIELD_CAST_STOP};
 static Field::field_cast_enum field_cast_blob[]=
-{Field::FIELD_CAST_STOP};
+{Field::FIELD_CAST_BLOB,
+ Field::FIELD_CAST_STOP};
+/*
+  Geometrical, enum and set fields can be casted only to expressions
+*/
 static Field::field_cast_enum field_cast_geom[]=
 {Field::FIELD_CAST_STOP};
 static Field::field_cast_enum field_cast_enum[]=
-{Field::FIELD_CAST_STRING, Field::FIELD_CAST_VARSTRING,
- Field::FIELD_CAST_BLOB, Field::FIELD_CAST_STOP};
+{Field::FIELD_CAST_STOP};
 static Field::field_cast_enum field_cast_set[]=
-{Field::FIELD_CAST_STRING, Field::FIELD_CAST_VARSTRING,
- Field::FIELD_CAST_BLOB, Field::FIELD_CAST_STOP};
+{Field::FIELD_CAST_STOP};
 // Array of pointers on conversion table for all fields types casting
 static Field::field_cast_enum *field_cast_array[]=
 {0, //FIELD_CAST_STOP
@@ -286,18 +305,26 @@ static Field::field_cast_enum *field_cast_array[]=
 };
 
 
+/*
+  Check if field of given type can store a value of this field.
+
+  SYNOPSIS
+    type   type for test
+
+  RETURN
+    1 can
+    0 can not
+*/
+
 bool Field::field_cast_compatible(Field::field_cast_enum type)
 {
   DBUG_ASSERT(type != FIELD_CAST_STOP);
   Field::field_cast_enum *array= field_cast_array[field_cast_type()];
-  uint i= 0;
-  Field::field_cast_enum tp;
-  do
+  while (*array != FIELD_CAST_STOP)
   {
-    tp=  array[i++];
-    if (tp == type)
+    if (*(array++) == type)
       return 1;
-  } while (tp != FIELD_CAST_STOP);
+  }
   return 0;
 }
 
@@ -441,11 +468,9 @@ bool Field::get_time(TIME *ltime)
 
 void Field::store_time(TIME *ltime,timestamp_type type)
 {
-  char buff[MAX_DATE_REP_LENGTH];
-  String tmp;
-  tmp.set(buff, sizeof(buff), &my_charset_bin);
-  TIME_to_string(ltime, &tmp);
-  store(buff, tmp.length(), &my_charset_bin);
+  char buff[MAX_DATE_STRING_REP_LENGTH];
+  uint length= (uint) my_TIME_to_str(ltime, buff);
+  store(buff, length, &my_charset_bin);
 }
 
 
@@ -2905,11 +2930,12 @@ void Field_double::sql_type(String &res) const
  */
 
 Field_timestamp::Field_timestamp(char *ptr_arg, uint32 len_arg,
+                                 uchar *null_ptr_arg, uchar null_bit_arg,
 				 enum utype unireg_check_arg,
 				 const char *field_name_arg,
 				 struct st_table *table_arg,
 				 CHARSET_INFO *cs)
-  :Field_str(ptr_arg, 19, (uchar*) 0,0,
+  :Field_str(ptr_arg, 19, null_ptr_arg, null_bit_arg,
 	     unireg_check_arg, field_name_arg, table_arg, cs)
 {
   /* For 4.0 MYD and 4.0 InnoDB compatibility */
@@ -2925,23 +2951,41 @@ Field_timestamp::Field_timestamp(char *ptr_arg, uint32 len_arg,
 
 
 /*
-    Sets TABLE::timestamp_default_now and TABLE::timestamp_on_update_now 
-    members according to unireg type of this TIMESTAMP field.
-  
-  SYNOPSIS
-    Field_timestamp::set_timestamp_offsets()
-  
-*/
-void Field_timestamp::set_timestamp_offsets()
-{
-  ulong timestamp= (ulong) (ptr - (char*) table->record[0]) + 1;
-  
-  DBUG_ASSERT(table->timestamp_field == this && unireg_check != NONE);
+  Get auto-set type for TIMESTAMP field.
 
-  table->timestamp_default_now= 
-    (unireg_check == TIMESTAMP_UN_FIELD)? 0 : timestamp;
-  table->timestamp_on_update_now= 
-    (unireg_check == TIMESTAMP_DN_FIELD)? 0 : timestamp;
+  SYNOPSIS
+    get_auto_set_type()
+
+  DESCRIPTION
+    Returns value indicating during which operations this TIMESTAMP field
+    should be auto-set to current timestamp.
+*/
+timestamp_auto_set_type Field_timestamp::get_auto_set_type() const
+{
+  switch (unireg_check)
+  {
+  case TIMESTAMP_DN_FIELD:
+    return TIMESTAMP_AUTO_SET_ON_INSERT;
+  case TIMESTAMP_UN_FIELD:
+    return TIMESTAMP_AUTO_SET_ON_UPDATE;
+  case TIMESTAMP_OLD_FIELD:
+    /*
+      Altough we can have several such columns in legacy tables this
+      function should be called only for first of them (i.e. the one
+      having auto-set property).
+    */
+    DBUG_ASSERT(table->timestamp_field == this);
+    /* Fall-through */
+  case TIMESTAMP_DNUN_FIELD:
+    return TIMESTAMP_AUTO_SET_ON_BOTH;
+  default:
+    /*
+      Normally this function should not be called for TIMESTAMPs without
+      auto-set property.
+    */
+    DBUG_ASSERT(0);
+    return TIMESTAMP_NO_AUTO_SET;
+  }
 }
 
 
@@ -3249,6 +3293,7 @@ void Field_timestamp::sql_type(String &res) const
 void Field_timestamp::set_time()
 {
   long tmp= (long) table->in_use->query_start();
+  set_notnull();
 #ifdef WORDS_BIGENDIAN
   if (table->db_low_byte_first)
   {
@@ -3475,8 +3520,8 @@ bool Field_time::send_binary(Protocol *protocol)
 {
   TIME tm;
   Field_time::get_time(&tm);
-  tm.day= tm.hour/3600;				// Move hours to days
-  tm.hour-= tm.day*3600;
+  tm.day= tm.hour/24;				// Move hours to days
+  tm.hour-= tm.day*24;
   return protocol->store_time(&tm);
 }
 
@@ -4258,9 +4303,12 @@ int Field_string::store(const char *from,uint length,CHARSET_INFO *cs)
   /* Convert character set if nesessary */
   if (String::needs_conversion(length, cs, field_charset, &not_used))
   { 
-    tmpstr.copy(from, length, cs, field_charset);
+    uint conv_errors;
+    tmpstr.copy(from, length, cs, field_charset, &conv_errors);
     from= tmpstr.ptr();
     length=  tmpstr.length();
+    if (conv_errors)
+      error= 1;
   }
 
   /* 
@@ -4283,11 +4331,11 @@ int Field_string::store(const char *from,uint length,CHARSET_INFO *cs)
     from+= field_charset->cset->scan(field_charset, from, end,
 				     MY_SEQ_SPACES);
     if (from != end)
-    {
-      set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, ER_WARN_DATA_TRUNCATED, 1);
-      error=1;
-    }
+      error= 1;
   }
+  if (error)
+    set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, ER_WARN_DATA_TRUNCATED, 1);
+
   return error;
 }
 
@@ -4309,8 +4357,9 @@ int Field_str::store(double nr)
   uint length;
   bool use_scientific_notation= TRUE;
   use_scientific_notation= TRUE;
-if (field_length < 32 && fabs(nr) < log_10[field_length]-1)
+  if (field_length < 32 && fabs(nr) < log_10[field_length]-1)
     use_scientific_notation= FALSE;
+
   length= (uint) my_sprintf(buff, (buff, "%-.*g",
                                    (use_scientific_notation ?
                                     max(0, (int)field_length-5) :
@@ -4325,7 +4374,7 @@ if (field_length < 32 && fabs(nr) < log_10[field_length]-1)
     like inserting 500.0 in char(1)
   */
   DBUG_ASSERT(field_length < 5 || length <= field_length+1);
-  return store((const char *)buff, min(length, field_length), charset());
+  return store((const char *) buff, length, charset());
 }
 
 
@@ -4407,20 +4456,7 @@ void Field_string::sql_type(String &res) const
   res.length(length);
 }
 
-
 char *Field_string::pack(char *to, const char *from, uint max_length)
-{
-  const char *end=from+min(field_length,max_length);
-  uchar length;
-  while (end > from && end[-1] == ' ')
-    end--;
-  *to= length=(uchar) (end-from);
-  memcpy(to+1, from, (int) length);
-  return to+1+length;
-}
-
-
-char *Field_string::pack_key(char *to, const char *from, uint max_length)
 {
   uint length=      min(field_length,max_length);
   uint char_length= max_length/field_charset->mbmaxlen;
@@ -4429,15 +4465,24 @@ char *Field_string::pack_key(char *to, const char *from, uint max_length)
   set_if_smaller(length, char_length);
   while (length && from[length-1] == ' ')
     length--;
-  *to= (uchar)length;
-  memcpy(to+1, from, length);
-  return to+1+length;
+  *to++= (char) (uchar) length;
+  if (field_length > 255)
+    *to++= (char) (uchar) (length >> 8);
+  memcpy(to, from, length);
+  return to+length;
 }
 
 
 const char *Field_string::unpack(char *to, const char *from)
 {
-  uint length= (uint) (uchar) *from++;
+  uint length;
+  if (field_length > 255)
+  {
+    length= uint2korr(from);
+    from+= 2;
+  }
+  else
+    length= (uint) (uchar) *from++;
   memcpy(to, from, (int) length);
   bfill(to+length, field_length - length, ' ');
   return from+length;
@@ -4446,8 +4491,19 @@ const char *Field_string::unpack(char *to, const char *from)
 
 int Field_string::pack_cmp(const char *a, const char *b, uint length)
 {
-  uint a_length= (uint) (uchar) *a++;
-  uint b_length= (uint) (uchar) *b++;
+  uint a_length, b_length;
+  if (field_length > 255)
+  {
+    a_length= uint2korr(a);
+    b_length= uint2korr(b);
+    a+= 2;
+    b+= 2;
+  }
+  else
+  {
+    a_length= (uint) (uchar) *a++;
+    b_length= (uint) (uchar) *b++;
+  }
   return my_strnncoll(field_charset,
 		      (const uchar*)a,a_length,
 		      (const uchar*)b,b_length);
@@ -4456,7 +4512,14 @@ int Field_string::pack_cmp(const char *a, const char *b, uint length)
 
 int Field_string::pack_cmp(const char *b, uint length)
 {
-  uint b_length= (uint) (uchar) *b++;
+  uint b_length;
+  if (field_length > 255)
+  {
+    b_length= uint2korr(b);
+    b+= 2;
+  }
+  else
+    b_length= (uint) (uchar) *b++;
   char *end= ptr + field_length;
   while (end > ptr && end[-1] == ' ')
     end--;
@@ -4496,16 +4559,20 @@ int Field_varstring::store(const char *from,uint length,CHARSET_INFO *cs)
   /* Convert character set if nesessary */
   if (String::needs_conversion(length, cs, field_charset, &not_used))
   { 
-    tmpstr.copy(from, length, cs, field_charset);
+    uint conv_errors;
+    tmpstr.copy(from, length, cs, field_charset, &conv_errors);
     from= tmpstr.ptr();
     length=  tmpstr.length();
+    if (conv_errors)
+      error= 1;
   }
   if (length > field_length)
   {
     length=field_length;
-    set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, ER_WARN_DATA_TRUNCATED, 1);
     error= 1;
   }
+  if (error)
+    set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, ER_WARN_DATA_TRUNCATED, 1);
   memcpy(ptr+HA_KEY_BLOB_LENGTH,from,length);
   int2store(ptr, length);
   return error;
@@ -4833,6 +4900,7 @@ void Field_blob::put_length(char *pos, uint32 length)
 
 int Field_blob::store(const char *from,uint length,CHARSET_INFO *cs)
 {
+  int error= 0;
   if (!length)
   {
     bzero(ptr,Field_blob::pack_length());
@@ -4849,9 +4917,12 @@ int Field_blob::store(const char *from,uint length,CHARSET_INFO *cs)
     if ((was_conversion= String::needs_conversion(length, cs, field_charset,
 						  &not_used)))
     { 
-      tmpstr.copy(from, length, cs, field_charset);
+      uint conv_errors;
+      tmpstr.copy(from, length, cs, field_charset, &conv_errors);
       from= tmpstr.ptr();
       length=  tmpstr.length();
+      if (conv_errors)
+        error= 1;
     }
     
     copy_length= max_data_length();
@@ -4865,8 +4936,7 @@ int Field_blob::store(const char *from,uint length,CHARSET_INFO *cs)
 						      min(length, copy_length),
 						      copy_length);
     if (copy_length < length)
-      set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, ER_WARN_DATA_TRUNCATED, 1);
-    
+      error= 1;
     Field_blob::store_length(copy_length);
     if (was_conversion || table->copy_blobs || copy_length <= MAX_FIELD_WIDTH)
     {						// Must make a copy
@@ -4878,6 +4948,8 @@ int Field_blob::store(const char *from,uint length,CHARSET_INFO *cs)
     }
     bmove(ptr+packlength,(char*) &from,sizeof(char*));
   }
+  if (error)
+    set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, ER_WARN_DATA_TRUNCATED, 1);
   return 0;
 }
 
@@ -4939,10 +5011,10 @@ String *Field_blob::val_str(String *val_buffer __attribute__((unused)),
 int Field_blob::cmp(const char *a,uint32 a_length, const char *b,
 		    uint32 b_length)
 {
-  int diff=my_strnncoll(field_charset,
-			(const uchar*)a,min(a_length,b_length),
-			(const uchar*)b,min(a_length,b_length));
-  return diff ? diff : (int) (a_length - b_length);
+  return field_charset->coll->strnncoll(field_charset, 
+                                        (const uchar*)a, a_length,
+                                        (const uchar*)b, b_length,
+                                        0);
 }
 
 
@@ -5024,6 +5096,11 @@ void Field_blob::get_key_image(char *buff,uint length,
   }
 #endif /*HAVE_SPATIAL*/
 
+  get_ptr(&blob);
+  uint char_length= length / cs->mbmaxlen;
+  char_length= my_charpos(cs, blob, blob + blob_length, char_length);
+  set_if_smaller(blob_length, char_length);
+
   if ((uint32) length > blob_length)
   {
     /*
@@ -5034,7 +5111,6 @@ void Field_blob::get_key_image(char *buff,uint length,
     length=(uint) blob_length;
   }
   int2store(buff,length);
-  get_ptr(&blob);
   memcpy(buff+HA_KEY_BLOB_LENGTH, blob, length);
 }
 
@@ -5050,6 +5126,10 @@ int Field_blob::key_cmp(const byte *key_ptr, uint max_key_length)
   char *blob1;
   uint blob_length=get_length(ptr);
   memcpy_fixed(&blob1,ptr+packlength,sizeof(char*));
+  CHARSET_INFO *cs= charset();
+  uint char_length= max_key_length / cs->mbmaxlen;
+  char_length= my_charpos(cs, blob1, blob1+blob_length, char_length);
+  set_if_smaller(blob_length, char_length);
   return Field_blob::cmp(blob1,min(blob_length, max_key_length),
 			 (char*) key_ptr+HA_KEY_BLOB_LENGTH,
 			 uint2korr(key_ptr));
@@ -5458,7 +5538,7 @@ int Field_enum::store(const char *from,uint length,CHARSET_INFO *cs)
   /* Remove end space */
   while (length > 0 && my_isspace(system_charset_info,from[length-1]))
     length--;
-  uint tmp=find_type(typelib, from, length, 0);
+  uint tmp=find_type2(typelib, from, length, field_charset);
   if (!tmp)
   {
     if (length < 6) // Can't be more than 99999 enums
@@ -5636,8 +5716,8 @@ int Field_set::store(const char *from,uint length,CHARSET_INFO *cs)
     from= tmpstr.ptr();
     length=  tmpstr.length();
   }
-  ulonglong tmp= find_set(typelib, from, length, &not_used, &not_used2,
-			  &got_warning);
+  ulonglong tmp= find_set(typelib, from, length, field_charset,
+                          &not_used, &not_used2, &got_warning);
   if (!tmp && length && length < 22)
   {
     /* This is for reading numbers with LOAD DATA INFILE */
@@ -5944,8 +6024,9 @@ Field *make_field(char *ptr, uint32 field_length,
 			      f_is_zerofill(pack_flag) != 0,
 			      f_is_dec(pack_flag) == 0);
   case FIELD_TYPE_TIMESTAMP:
-    return new Field_timestamp(ptr,field_length,
-			       unireg_check, field_name, table, field_charset);
+    return new Field_timestamp(ptr,field_length, null_pos, null_bit,
+                               unireg_check, field_name, table,
+                               field_charset);
   case FIELD_TYPE_YEAR:
     return new Field_year(ptr,field_length,null_pos,null_bit,
 			  unireg_check, field_name, table);

@@ -3,7 +3,7 @@
 #
 
 --disable_warnings
-drop table if exists t1,t2;
+drop table if exists t1,t2,t3;
 --enable_warnings
 
 create table t1 (a int not null);
@@ -87,12 +87,14 @@ use mysqltest;
 create table t1 (c int);
 insert into mysqltest.t1 set mysqltest.t1.c = '1';
 drop database mysqltest;
+use test;
 
 #
 # Test of wrong values for float data (bug #2082)
 #
 
-use test;
+# PS gives sligthly different numbers for max-float/max-double
+--disable_ps_protocol
 create table t1(number int auto_increment primary key, original_value varchar(50), f_double double, f_float float, f_double_7_2 double(7,2), f_float_4_3 float (4,3), f_double_u double unsigned, f_float_u float unsigned, f_double_15_1_u double(15,1) unsigned, f_float_3_1_u float (3,1) unsigned);
 
 set @value= "aa";
@@ -136,10 +138,9 @@ set @value= -1;
 insert into t1 values(null,@value,@value,@value,@value,@value,@value,@value,@value,@value);
 --query_vertical select * from t1 where number =last_insert_id()
 
-use test;
---disable_warnings
-drop table if exists t1,t2,t3;
---enable_warnings
+drop table t1;
+--enable_ps_protocol
+
 create table t1(id1 int not null auto_increment primary key, t char(12));
 create table t2(id2 int not null, t char(12));
 create table t3(id3 int not null, t char(12), index(id3));
@@ -166,4 +167,4 @@ enable_query_log;
 select count(*) from t2;
 insert into  t2 select t1.* from t1, t2 t, t3 where  t1.id1 = t.id2 and t.id2 = t3.id3;
 select count(*) from t2;
-drop table if exists t1,t2,t3;
+drop table t1,t2,t3;

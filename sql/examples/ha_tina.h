@@ -90,6 +90,12 @@ class ha_tina: public handler
   /* The next method will never be called */
   virtual double read_time(ha_rows rows) { DBUG_ASSERT(0); return((double) rows /  20.0+1); }
   virtual bool fast_key_read() { return 1;}
+  /* 
+    TODO: return actual upper bound of number of records in the table.
+    (e.g. save number of records seen on full table scan and/or use file size
+    as upper bound)
+  */
+  ha_rows estimate_rows_upper_bound() { return HA_POS_ERROR; }
 
   int open(const char *name, int mode, uint test_if_locked);
   int close(void);

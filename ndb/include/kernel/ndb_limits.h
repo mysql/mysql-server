@@ -50,7 +50,7 @@
  **/
 #define MAX_TUPLES_PER_PAGE 8191
 #define MAX_TUPLES_BITS 13 		/* 13 bits = 8191 tuples per page */
-//#define MAX_NO_OF_TUPLEKEY 16 Not currently used
+/*#define MAX_NO_OF_TUPLEKEY 16 Not currently used */
 #define MAX_TABLES 1600
 #define MAX_TAB_NAME_SIZE 128
 #define MAX_ATTR_NAME_SIZE 32
@@ -64,11 +64,32 @@
 
 #define MIN_ATTRBUF ((MAX_ATTRIBUTES_IN_TABLE/24) + 1)
 /*
- * Number of Records to fetch per SCAN_NEXTREQ in a scan in LQH. The
+ * Max Number of Records to fetch per SCAN_NEXTREQ in a scan in LQH. The
  * API can order a multiple of this number of records at a time since
  * fragments can be scanned in parallel.
  */
-#define MAX_PARALLEL_OP_PER_SCAN 16
+#define MAX_PARALLEL_OP_PER_SCAN 992
+/*
+* The default batch size. Configurable parameter.
+*/
+#define DEF_BATCH_SIZE 64
+/*
+* When calculating the number of records sent from LQH in each batch
+* one uses SCAN_BATCH_SIZE divided by the expected size of signals
+* per row. This gives the batch size used for the scan. The NDB API
+* will receive one batch from each node at a time so there has to be
+* some care taken also so that the NDB API is not overloaded with
+* signals.
+* This parameter is configurable, this is the default value.
+*/
+#define SCAN_BATCH_SIZE 32768
+/*
+* To protect the NDB API from overload we also define a maximum total
+* batch size from all nodes. This parameter should most likely be
+* configurable, or dependent on sendBufferSize.
+* This parameter is configurable, this is the default value.
+*/
+#define MAX_SCAN_BATCH_SIZE 262144
 /*
  * Maximum number of Parallel Scan queries on one hash index fragment
  */
@@ -87,13 +108,13 @@
 /*
  * Ordered index constants.  Make configurable per index later.
  */
-#define MAX_TTREE_NODE_SIZE 64		// total words in node
-#define MAX_TTREE_PREF_SIZE 4		// words in min prefix
-#define MAX_TTREE_NODE_SLACK 3		// diff between max and min occupancy
+#define MAX_TTREE_NODE_SIZE 64	    /* total words in node */
+#define MAX_TTREE_PREF_SIZE 4	    /* words in min prefix */
+#define MAX_TTREE_NODE_SLACK 2	    /* diff between max and min occupancy */
 
 /*
  * Blobs.
  */
-#define NDB_BLOB_HEAD_SIZE 2            // sizeof(NdbBlob::Head) >> 2
+#define NDB_BLOB_HEAD_SIZE 2        /* sizeof(NdbBlob::Head) >> 2 */
 
 #endif

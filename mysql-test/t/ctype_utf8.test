@@ -33,6 +33,14 @@ select 'A' like 'a';
 select 'A' like 'a' collate utf8_bin;
 select _utf8 0xD0B0D0B1D0B2 like concat(_utf8'%',_utf8 0xD0B1,_utf8 '%');
 
+# Bug #6040: can't retrieve records with umlaut
+# characters in case insensitive manner.
+# Case insensitive search LIKE comparison
+# was broken for multibyte characters:
+select convert(_latin1'G�nter Andr�' using utf8) like CONVERT(_latin1'G�NTER%' USING utf8);
+select CONVERT(_koi8r'����' USING utf8) LIKE CONVERT(_koi8r'����' USING utf8);
+select CONVERT(_koi8r'����' USING utf8) LIKE CONVERT(_koi8r'����' USING utf8);
+
 #
 # Check the following:
 # "a"  == "a "
@@ -219,6 +227,29 @@ drop table t1;
 
 #
 # Bug 4521: unique key prefix interacts poorly with utf8
+# InnoDB: keys with prefix compression, case insensitive collation.
+#
+--disable_warnings
+create table t1 (c varchar(30) character set utf8, unique(c(10))) engine=innodb;
+--enable_warnings
+insert into t1 values ('1'),('2'),('3'),('x'),('y'),('z');
+insert into t1 values ('aaaaaaaaaa');
+--error 1062
+insert into t1 values ('aaaaaaaaaaa');
+--error 1062
+insert into t1 values ('aaaaaaaaaaaa');
+insert into t1 values (repeat('b',20));
+select c c1 from t1 where c='1';
+select c c2 from t1 where c='2';
+select c c3 from t1 where c='3';
+select c cx from t1 where c='x';
+select c cy from t1 where c='y';
+select c cz from t1 where c='z';
+select c ca10 from t1 where c='aaaaaaaaaa';
+select c cb20 from t1 where c=repeat('b',20);
+drop table t1;
+#
+# Bug 4521: unique key prefix interacts poorly with utf8
 # MYISAM: fixed length keys, case insensitive collation
 #
 create table t1 (c char(3) character set utf8, unique (c(2)));
@@ -244,7 +275,35 @@ insert into t1 values ('ꪪꪪ');
 --error 1062
 insert into t1 values ('ꪪꪪꪪ');
 drop table t1;
-
+#
+# Bug 4521: unique key prefix interacts poorly with utf8
+# InnoDB: fixed length keys, case insensitive collation
+#
+--disable_warnings
+create table t1 (c char(3) character set utf8, unique (c(2))) engine=innodb;
+--enable_warnings
+insert into t1 values ('1'),('2'),('3'),('4'),('x'),('y'),('z');
+insert into t1 values ('a');
+insert into t1 values ('aa');
+--error 1062
+insert into t1 values ('aaa');
+insert into t1 values ('b');
+insert into t1 values ('bb');
+--error 1062
+insert into t1 values ('bbb');
+insert into t1 values ('а');
+insert into t1 values ('аа');
+--error 1062
+insert into t1 values ('ааа');
+insert into t1 values ('б');
+insert into t1 values ('бб');
+--error 1062
+insert into t1 values ('ббб');
+insert into t1 values ('ꪪ');
+insert into t1 values ('ꪪꪪ');
+--error 1062
+insert into t1 values ('ꪪꪪꪪ');
+drop table t1;
 #
 # Bug 4531: unique key prefix interacts poorly with utf8
 # Check HEAP+HASH, case insensitive collation
@@ -454,6 +513,20 @@ INSERT INTO t1 VALUES ('str2');
 select * from t1 where str='str';
 drop table t1;
 
+# Bug#4594: column index make = failed for gbk, but like works
+# Check InnoDB
+#
+--disable_warnings
+create table t1 (
+  str varchar(255) character set utf8 not null,
+  key str  (str(2))
+) engine=innodb;
+--enable_warnings
+INSERT INTO t1 VALUES ('str');
+INSERT INTO t1 VALUES ('str2');
+select * from t1 where str='str';
+drop table t1;
+
 # the same for HEAP+BTREE
 #
 
@@ -492,3 +565,97 @@ INSERT INTO t1 VALUES ('str2');
 select * from t1 where str='str';
 drop table t1;
 
+#
+# Bug #5397: Crash with varchar binary and LIKE
+#
+CREATE TABLE t1 (a varchar(32) BINARY) CHARACTER SET utf8;
+INSERT INTO t1 VALUES ('test');
+SELECT a FROM t1 WHERE a LIKE '%te';
+DROP TABLE t1;
+
+#
+# Bug #5723: length(<varchar utf8 field>) returns varying results
+#
+--disable_warnings
+SET NAMES utf8;
+--disable_warnings
+CREATE TABLE t1 (
+  subject varchar(255) character set utf8 collate utf8_unicode_ci,
+  p varchar(15) character set utf8
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+--enable_warnings
+INSERT INTO t1 VALUES ('谷川俊二と申しますが、インターネット予約の会員登録をしましたところ、メールアドレスを間違えてしまい会員ＩＤが受け取ることが出来ませんでした。間違えアドレスはtani-shun@n.vodafone.ne.jpを書き込みました。どうすればよいですか？ その他、住所等は間違えありません。連絡ください。よろしくお願いします。m(__)m','040312-000057');
+INSERT INTO t1 VALUES ('aaa','bbb');
+SELECT length(subject) FROM t1;
+SELECT length(subject) FROM t1 ORDER BY 1;
+DROP TABLE t1;
+
+#
+# Bug #5832 SELECT doesn't return records in some cases
+#
+CREATE TABLE t1 (
+    id       int unsigned NOT NULL auto_increment,
+    list_id  smallint unsigned NOT NULL,
+    term     TEXT NOT NULL,
+    PRIMARY KEY(id),
+    INDEX(list_id, term(4))
+) ENGINE=MYISAM CHARSET=utf8;
+INSERT INTO t1 SET list_id = 1, term = "letterc";
+INSERT INTO t1 SET list_id = 1, term = "letterb";
+INSERT INTO t1 SET list_id = 1, term = "lettera";
+INSERT INTO t1 SET list_id = 1, term = "letterd";
+SELECT id FROM t1 WHERE (list_id = 1) AND (term = "letterc");
+SELECT id FROM t1 WHERE (list_id = 1) AND (term = "letterb");
+SELECT id FROM t1 WHERE (list_id = 1) AND (term = "lettera");
+SELECT id FROM t1 WHERE (list_id = 1) AND (term = "letterd");
+DROP TABLE t1;
+
+
+#
+# Bug #6043 erratic searching for diacriticals in indexed MyISAM UTF-8 table
+#
+SET NAMES latin1;
+CREATE TABLE t1 (
+    id int unsigned NOT NULL auto_increment,
+    list_id smallint unsigned NOT NULL,
+    term text NOT NULL,
+    PRIMARY KEY(id),
+    INDEX(list_id, term(19))
+) ENGINE=MyISAM CHARSET=utf8;
+INSERT INTO t1 set list_id = 1, term = "test�test";
+INSERT INTO t1 set list_id = 1, term = "testetest";
+INSERT INTO t1 set list_id = 1, term = "test�test";
+SELECT id, term FROM t1 where (list_id = 1) AND (term = "test�test");
+SELECT id, term FROM t1 where (list_id = 1) AND (term = "testetest");
+SELECT id, term FROM t1 where (list_id = 1) AND (term = "test�test");
+DROP TABLE t1;
+
+#
+# Bug #6019 SELECT tries to use too short prefix index on utf8 data
+#
+set names utf8;
+--disable_warnings
+create table t1 (
+  a int primary key,
+  b varchar(6),
+  index b3(b(3))
+) engine=innodb character set=utf8;
+--enable_warnings
+insert into t1 values(1,'foo'),(2,'foobar');
+select * from t1 where b like 'foob%';
+--disable_warnings
+alter table t1 engine=bdb;
+select * from t1 where b like 'foob%';
+drop table t1;
+
+#
+# Test for calculate_interval_lengths() function
+#
+create table t1 (
+  a enum('петя','вася','анюта') character set utf8 not null default 'анюта',
+  b set('петя','вася','анюта') character set utf8 not null default 'анюта'
+);
+create table t2 select concat(a,_utf8'') as a, concat(b,_utf8'')as b from t1;
+show create table t2;
+drop table t2;
+drop table t1;

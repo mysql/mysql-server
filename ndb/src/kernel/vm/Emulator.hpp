@@ -79,6 +79,7 @@ enum NdbShutdownType {
   NST_Normal,
   NST_Watchdog,
   NST_ErrorHandler,
+  NST_ErrorHandlerSignal,
   NST_Restart,
   NST_ErrorInsert
 };

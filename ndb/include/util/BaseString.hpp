@@ -177,6 +177,12 @@ public:
    * Trim string from <i>delim</i>
    */
   static char* trim(char * src, const char * delim);
+
+  /**
+   * snprintf on some platforms need special treatment
+   */
+  static int snprintf(char *str, size_t size, const char *format, ...);
+  static int vsnprintf(char *str, size_t size, const char *format, va_list ap);
 private:
   char* m_chr;
   unsigned m_len;

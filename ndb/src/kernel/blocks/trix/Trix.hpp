@@ -138,19 +138,6 @@ private:
    */  
   ArrayList<SubscriptionRecord> c_theSubscriptions;
 
-  // Linear memory abstraction
-#define TRIX_WORDS_PER_PAGE 8191
-  struct Page32 {
-    Uint32 data[TRIX_WORDS_PER_PAGE];
-    Uint32 nextPool;
-  };
-  typedef Ptr<Page32> Page32Ptr;
-
-  ArrayPool<Page32> c_thePagePool;
-  Array<Page32> c_thePages;
-
-  // Private methods
-
   // System start
   void execSTTOR(Signal* signal);
   void execNDB_STTOR(Signal* signal);

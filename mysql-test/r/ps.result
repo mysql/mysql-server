@@ -270,3 +270,189 @@ execute stmt using @var;
 a
 deallocate prepare stmt;
 drop table t1;
+create table t1 (a bigint(20) not null primary key auto_increment);
+insert into t1 (a) values (null);
+select * from t1;
+a
+1
+prepare stmt from "insert into t1 (a) values (?)";
+set @var=null;
+execute stmt using @var;
+select * from t1;
+a
+1
+2
+drop table t1;
+create table t1 (a timestamp not null);
+prepare stmt from "insert into t1 (a) values (?)";
+execute stmt using @var;
+select * from t1;
+deallocate prepare stmt;
+drop table t1;
+prepare stmt from "select 'abc' like convert('abc' using utf8)";
+execute stmt;
+'abc' like convert('abc' using utf8)
+1
+execute stmt;
+'abc' like convert('abc' using utf8)
+1
+deallocate prepare stmt;
+create table t1 ( a bigint );
+prepare stmt from 'select a from t1 where a between ? and ?';
+set @a=1;
+execute stmt using @a, @a;
+a
+execute stmt using @a, @a;
+a
+execute stmt using @a, @a;
+a
+drop table t1;
+deallocate prepare stmt;
+create table t1 (a int);
+prepare stmt from "select * from t1 where 1 > (1 in (SELECT * FROM t1))";
+execute stmt;
+a
+execute stmt;
+a
+execute stmt;
+a
+drop table t1;
+deallocate prepare stmt;
+create table t1 (a int, b int);
+insert into t1 (a, b) values (1,1), (1,2), (2,1), (2,2);
+prepare stmt from
+"explain select * from t1 where t1.a=2 and t1.a=t1.b and t1.b > 1 + ?";
+set @v=5;
+execute stmt using @v;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+-	-	-	-	-	-	-	-	NULL	Impossible WHERE
+set @v=0;
+execute stmt using @v;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+-	-	-	-	-	-	-	-	4	Using where
+set @v=5;
+execute stmt using @v;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+-	-	-	-	-	-	-	-	NULL	Impossible WHERE
+drop table t1;
+deallocate prepare stmt;
+create table t1 (a int);
+insert into t1 (a) values (1), (2), (3), (4);
+set @precision=10000000000;
+select rand(), 
+cast(rand(10)*@precision as unsigned integer),
+cast(rand(a)*@precision as unsigned integer) from t1;
+rand()	cast(rand(10)*@precision as unsigned integer)	cast(rand(a)*@precision as unsigned integer)
+-	6570515219	-
+-	1282061302	-
+-	6698761160	-
+-	9647622201	-
+prepare stmt from
+"select rand(), 
+        cast(rand(10)*@precision as unsigned integer),
+        cast(rand(a)*@precision as unsigned integer),
+        cast(rand(?)*@precision as unsigned integer) from t1";
+set @var=1;
+execute stmt using @var;
+rand()	cast(rand(10)*@precision as unsigned integer)	cast(rand(a)*@precision as unsigned integer)	cast(rand(?)*@precision as unsigned integer)
+-	6570515219	-	4054035371
+-	1282061302	-	8716141803
+-	6698761160	-	1418603212
+-	9647622201	-	944590960
+set @var=2;
+execute stmt using @var;
+rand()	cast(rand(10)*@precision as unsigned integer)	cast(rand(a)*@precision as unsigned integer)	cast(rand(?)*@precision as unsigned integer)
+-	6570515219	1559528654	6555866465
+-	1282061302	6238114970	1223466192
+-	6698761160	6511989195	6449731873
+-	9647622201	3845601374	8578261098
+set @var=3;
+execute stmt using @var;
+rand()	cast(rand(10)*@precision as unsigned integer)	cast(rand(a)*@precision as unsigned integer)	cast(rand(?)*@precision as unsigned integer)
+-	6570515219	1559528654	9057697559
+-	1282061302	6238114970	3730790581
+-	6698761160	6511989195	1480860534
+-	9647622201	3845601374	6211931236
+drop table t1;
+deallocate prepare stmt;
+create database mysqltest1;
+create table t1 (a int);
+create table mysqltest1.t1 (a int);
+select * from t1, mysqltest1.t1;
+a	a
+prepare stmt from "select * from t1, mysqltest1.t1";
+execute stmt;
+a	a
+execute stmt;
+a	a
+execute stmt;
+a	a
+drop table t1;
+drop table mysqltest1.t1;
+drop database mysqltest1;
+deallocate prepare stmt;
+select '1.1' as a, '1.2' as a UNION SELECT '2.1', '2.2';
+a	a
+1.1	1.2
+2.1	2.2
+prepare stmt from
+"select '1.1' as a, '1.2' as a UNION SELECT '2.1', '2.2'";
+execute stmt;
+a	a
+1.1	1.2
+2.1	2.2
+execute stmt;
+a	a
+1.1	1.2
+2.1	2.2
+execute stmt;
+a	a
+1.1	1.2
+2.1	2.2
+deallocate prepare stmt;
+create table t1 (a int);
+insert into t1 values (1),(2),(3);
+create table t2 select * from t1;
+prepare stmt FROM 'create table t2 select * from t1';
+drop table t2;
+execute stmt;
+drop table t2;
+execute stmt;
+execute stmt;
+ERROR 42S01: Table 't2' already exists
+drop table t2;
+execute stmt;
+drop table t1,t2;
+deallocate prepare stmt;
+create table t1 (a int);
+insert into t1 (a) values (1), (2), (3), (4), (5), (6), (7), (8), (9), (10);
+prepare stmt from "select sql_calc_found_rows * from t1 limit 2";
+execute stmt;
+a
+1
+2
+select found_rows();
+found_rows()
+10
+execute stmt;
+a
+1
+2
+select found_rows();
+found_rows()
+10
+execute stmt;
+a
+1
+2
+select found_rows();
+found_rows()
+10
+deallocate prepare stmt;
+drop table t1;
+CREATE TABLE t1 (N int, M tinyint);
+INSERT INTO t1 VALUES (1,0),(1,0),(2,0),(2,0),(3,0);
+PREPARE stmt FROM 'UPDATE t1 AS P1 INNER JOIN (SELECT N FROM t1 GROUP BY N HAVING COUNT(M) > 1) AS P2 ON P1.N = P2.N SET P1.M = 2';
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+DROP TABLE t1;

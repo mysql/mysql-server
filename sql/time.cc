@@ -746,13 +746,7 @@ const char *get_date_time_format_str(KNOWN_DATE_TIME_FORMAT *format,
 void make_time(const DATE_TIME_FORMAT *format __attribute__((unused)),
                const TIME *l_time, String *str)
 {
-  long length= my_sprintf((char*) str->ptr(),
-			  ((char*) str->ptr(),
-			   "%s%02d:%02d:%02d",
-			   (l_time->neg ? "-" : ""),
-			   l_time->hour,
-			   l_time->minute,
-			   l_time->second));
+  uint length= (uint) my_time_to_str(l_time, (char*) str->ptr());
   str->length(length);
   str->set_charset(&my_charset_bin);
 }
@@ -761,12 +755,7 @@ void make_time(const DATE_TIME_FORMAT *format __attribute__((unused)),
 void make_date(const DATE_TIME_FORMAT *format __attribute__((unused)),
                const TIME *l_time, String *str)
 {
-  long length= my_sprintf((char*) str->ptr(),
-			  ((char*) str->ptr(),
-			   "%04d-%02d-%02d",
-			   l_time->year,
-			   l_time->month,
-			   l_time->day));
+  uint length= (uint) my_date_to_str(l_time, (char*) str->ptr());
   str->length(length);
   str->set_charset(&my_charset_bin);
 }
@@ -775,15 +764,7 @@ void make_date(const DATE_TIME_FORMAT *format __attribute__((unused)),
 void make_datetime(const DATE_TIME_FORMAT *format __attribute__((unused)),
                    const TIME *l_time, String *str)
 {
-  long length= my_sprintf((char*) str->ptr(),
-			  ((char*) str->ptr(),
-			   "%04d-%02d-%02d %02d:%02d:%02d",
-			   l_time->year,
-			   l_time->month,
-			   l_time->day,
-			   l_time->hour,
-			   l_time->minute,
-			   l_time->second));
+  uint length= (uint) my_datetime_to_str(l_time, (char*) str->ptr());
   str->length(length);
   str->set_charset(&my_charset_bin);
 }
@@ -897,40 +878,6 @@ ulonglong TIME_to_ulonglong(const TIME *time)
     DBUG_ASSERT(0);
   }
   return 0;
-}
-
-
-/*
-  Convert struct DATE/TIME/DATETIME value to string using built-in
-  MySQL time conversion formats.
-
-  SYNOPSIS
-    TIME_to_string()
-
-  NOTE 
-    The string must have at least MAX_DATE_REP_LENGTH bytes reserved.
-*/
-
-void TIME_to_string(const TIME *time, String *str)
-{
-  switch (time->time_type) {
-  case MYSQL_TIMESTAMP_DATETIME:
-    make_datetime((DATE_TIME_FORMAT*) 0, time, str);
-    break;
-  case MYSQL_TIMESTAMP_DATE:
-    make_date((DATE_TIME_FORMAT*) 0, time, str);
-    break;
-  case MYSQL_TIMESTAMP_TIME:
-    make_time((DATE_TIME_FORMAT*) 0, time, str);
-    break;
-  case MYSQL_TIMESTAMP_NONE:
-  case MYSQL_TIMESTAMP_ERROR:
-    str->length(0);
-    str->set_charset(&my_charset_bin);
-    break;
-  default:
-    DBUG_ASSERT(0);
-  }
 }
 
 #endif

@@ -689,10 +689,9 @@ failure:
 "InnoDB: To get mysqld to start up, set innodb_thread_concurrency in my.cnf\n"
 "InnoDB: to a lower value, for example, to 8. After an ERROR-FREE shutdown\n"
 "InnoDB: of mysqld you can adjust the size of ib_logfiles, as explained in\n"
-"InnoDB: section 5 of http://www.innodb.com/ibman.php",
+"InnoDB: http://dev.mysql.com/doc/mysql/en/Adding_and_removing.html\n"
+"InnoDB: Cannot continue operation. Calling exit(1).\n",
 			(ulong)srv_thread_concurrency);
-		fprintf(stderr,
-"InnoDB: Cannot continue operation. Calling exit(1).\n");
 
 		exit(1);
 	}
@@ -3049,13 +3048,25 @@ loop:
 #ifdef UNIV_LOG_ARCHIVE
 	log_archive_all();
 #endif /* UNIV_LOG_ARCHIVE */
-	log_make_checkpoint_at(ut_dulint_max, TRUE);
+
+	if (!srv_very_fast_shutdown) {
+		/* In a 'very fast' shutdown we do not flush the buffer pool:
+		it is essentially a 'crash' of the InnoDB server. */
+
+		log_make_checkpoint_at(ut_dulint_max, TRUE);
+	} else {
+		/* Make sure that the log is all flushed to disk, so that
+		we can recover all committed transactions in a crash
+		recovery */
+		log_buffer_flush_to_disk();
+	}
 
 	mutex_enter(&(log_sys->mutex));
 
 	lsn = log_sys->lsn;
 
-	if (ut_dulint_cmp(lsn, log_sys->last_checkpoint_lsn) != 0
+	if ((ut_dulint_cmp(lsn, log_sys->last_checkpoint_lsn) != 0
+	    && !srv_very_fast_shutdown)
 #ifdef UNIV_LOG_ARCHIVE
 	   || (srv_log_archive_on
 	       && ut_dulint_cmp(lsn,
@@ -3099,11 +3110,12 @@ loop:
 	fil_flush_file_spaces(FIL_TABLESPACE);
 	fil_flush_file_spaces(FIL_LOG);
 
-	/* The next fil_write_... will pass the buffer pool: therefore
-	it is essential that the buffer pool has been completely flushed
-	to disk! */
+	/* The call fil_write_flushed_lsn_to_data_files() will pass the buffer
+	pool: therefore it is essential that the buffer pool has been
+	completely flushed to disk! (We do not call fil_write... if the
+	'very fast' shutdown is enabled.) */
 
-	if (!buf_all_freed()) {
+	if (!srv_very_fast_shutdown && !buf_all_freed()) {
 
 		goto loop;
 	}
@@ -3126,7 +3138,7 @@ loop:
 
 	/* Make some checks that the server really is quiet */
 	ut_a(srv_n_threads_active[SRV_MASTER] == 0);
-	ut_a(buf_all_freed());
+	ut_a(srv_very_fast_shutdown || buf_all_freed());
 	ut_a(0 == ut_dulint_cmp(lsn, log_sys->lsn));
 
 	if (ut_dulint_cmp(lsn, srv_start_lsn) < 0) {
@@ -3141,7 +3153,15 @@ loop:
 
 	srv_shutdown_lsn = lsn;
 
-	fil_write_flushed_lsn_to_data_files(lsn, arch_log_no);	
+	if (!srv_very_fast_shutdown) {
+		/* In a 'very fast' shutdown we do not flush the buffer pool:
+		it is essentially a 'crash' of the InnoDB server. Then we must
+		not write the lsn stamps to the data files, since at a
+		startup InnoDB deduces from the stamps if the previous
+		shutdown was clean. */
+
+		fil_write_flushed_lsn_to_data_files(lsn, arch_log_no);
+	}
 
 	fil_flush_file_spaces(FIL_TABLESPACE);
 
@@ -3149,7 +3169,7 @@ loop:
 
 	/* Make some checks that the server really is quiet */
 	ut_a(srv_n_threads_active[SRV_MASTER] == 0);
-	ut_a(buf_all_freed());
+	ut_a(srv_very_fast_shutdown || buf_all_freed());
 	ut_a(0 == ut_dulint_cmp(lsn, log_sys->lsn));
 }
 

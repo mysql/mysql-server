@@ -26,6 +26,7 @@
 
 int 
 main(int argc, const char** argv){
+  ndb_init();
 
   const char* _dbname = "TEST_DB";
   int _help = 0;

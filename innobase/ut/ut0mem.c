@@ -313,7 +313,9 @@ ut_free_all_mem(void)
 }
 
 /**************************************************************************
-Make a quoted copy of a string. */
+Make a quoted copy of a NUL-terminated string.  Leading and trailing
+quotes will not be included; only embedded quotes will be escaped.
+See also ut_strlenq() and ut_memcpyq(). */
 
 char*
 ut_strcpyq(
@@ -333,7 +335,9 @@ ut_strcpyq(
 }
 
 /**************************************************************************
-Make a quoted copy of a fixed-length string. */
+Make a quoted copy of a fixed-length string.  Leading and trailing
+quotes will not be included; only embedded quotes will be escaped.
+See also ut_strlenq() and ut_strcpyq(). */
 
 char*
 ut_memcpyq(

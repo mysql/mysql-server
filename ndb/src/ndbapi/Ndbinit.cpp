@@ -19,8 +19,6 @@
 
 #include "NdbApiSignal.hpp"
 #include "NdbImpl.hpp"
-//#include "NdbSchemaOp.hpp"
-//#include "NdbSchemaCon.hpp" 
 #include "NdbOperation.hpp"
 #include "NdbConnection.hpp"
 #include "NdbRecAttr.hpp"
@@ -39,15 +37,11 @@ void NdbGlobalEventBuffer_drop(NdbGlobalEventBufferHandle *);
 /**
  * Static object for NDB
  */
-static int theNoOfNdbObjects = 0;
 
+// only needed for backwards compatability, before ndb_cluster_connection
 static char *ndbConnectString = 0;
-
-#if defined NDB_WIN32 || defined SCO
-static NdbMutex & createNdbMutex = * NdbMutex_Create();
-#else
-static NdbMutex createNdbMutex = NDB_MUTEX_INITIALIZER;
-#endif
+static int theNoOfNdbObjects = 0;
+static Ndb_cluster_connection *global_ndb_cluster_connection= 0;
 
 
 /***************************************************************************
@@ -56,51 +50,88 @@ Ndb(const char* aDataBase);
 Parameters:    aDataBase : Name of the database.
 Remark:        Connect to the database.
 ***************************************************************************/
-Ndb::Ndb( const char* aDataBase , const char* aSchema) :
-  theNdbObjectIdMap(0),
-  thePreparedTransactionsArray(NULL),
-  theSentTransactionsArray(NULL),
-  theCompletedTransactionsArray(NULL),
-  theNoOfPreparedTransactions(0),
-  theNoOfSentTransactions(0),
-  theNoOfCompletedTransactions(0),
-  theNoOfAllocatedTransactions(0),
-  theMaxNoOfTransactions(0),
-  theMinNoOfEventsToWakeUp(0),
-  prefixEnd(NULL),
-  theImpl(NULL),
-  theDictionary(NULL),
-  theConIdleList(NULL),
-  theOpIdleList(NULL),
-  theScanOpIdleList(NULL),
-  theIndexOpIdleList(NULL),
-//  theSchemaConIdleList(NULL),
-//  theSchemaConToNdbList(NULL),
-  theTransactionList(NULL),
-  theConnectionArray(NULL),
-  theRecAttrIdleList(NULL),
-  theSignalIdleList(NULL),
-  theLabelList(NULL),
-  theBranchList(NULL),
-  theSubroutineList(NULL),
-  theCallList(NULL),
-  theScanList(NULL),
-  theNdbBlobIdleList(NULL),
-  theNoOfDBnodes(0),
-  theDBnodes(NULL),
-  the_release_ind(NULL),
-  the_last_check_time(0),
-  theFirstTransId(0),
-  theRestartGCI(0),
-  theNdbBlockNumber(-1),
-  theInitState(NotConstructed)
+Ndb::Ndb( const char* aDataBase , const char* aSchema) {
+  DBUG_ENTER("Ndb::Ndb()");
+  DBUG_PRINT("enter",("(old)Ndb::Ndb this=0x%x", this));
+  if (theNoOfNdbObjects < 0)
+    abort(); // old and new Ndb constructor used mixed
+  theNoOfNdbObjects++;
+  if (global_ndb_cluster_connection == 0) {
+    global_ndb_cluster_connection= new Ndb_cluster_connection(ndbConnectString);
+    global_ndb_cluster_connection->connect();
+  }
+  setup(global_ndb_cluster_connection, aDataBase, aSchema);
+  DBUG_VOID_RETURN;
+}
+
+Ndb::Ndb( Ndb_cluster_connection *ndb_cluster_connection,
+	  const char* aDataBase , const char* aSchema)
 {
+  DBUG_ENTER("Ndb::Ndb()");
+  DBUG_PRINT("enter",("Ndb::Ndb this=0x%x", this));
+  if (global_ndb_cluster_connection != 0 &&
+      global_ndb_cluster_connection != ndb_cluster_connection)
+    abort(); // old and new Ndb constructor used mixed
+  theNoOfNdbObjects= -1;
+  setup(ndb_cluster_connection, aDataBase, aSchema);
+  DBUG_VOID_RETURN;
+}
+
+void Ndb::setup(Ndb_cluster_connection *ndb_cluster_connection,
+	  const char* aDataBase , const char* aSchema)
+{
+  DBUG_ENTER("Ndb::setup");
+
+  theNdbObjectIdMap= 0;
+  m_ndb_cluster_connection= ndb_cluster_connection;
+  thePreparedTransactionsArray= NULL;
+  theSentTransactionsArray= NULL;
+  theCompletedTransactionsArray= NULL;
+  theNoOfPreparedTransactions= 0;
+  theNoOfSentTransactions= 0;
+  theNoOfCompletedTransactions= 0;
+  theNoOfAllocatedTransactions= 0;
+  theMaxNoOfTransactions= 0;
+  theMinNoOfEventsToWakeUp= 0;
+  prefixEnd= NULL;
+  theImpl= NULL;
+  theDictionary= NULL;
+  theConIdleList= NULL;
+  theOpIdleList= NULL;
+  theScanOpIdleList= NULL;
+  theIndexOpIdleList= NULL;
+  theTransactionList= NULL;
+  theConnectionArray= NULL;
+  theRecAttrIdleList= NULL;
+  theSignalIdleList= NULL;
+  theLabelList= NULL;
+  theBranchList= NULL;
+  theSubroutineList= NULL;
+  theCallList= NULL;
+  theScanList= NULL;
+  theNdbBlobIdleList= NULL;
+  theNoOfDBnodes= 0;
+  theDBnodes= NULL;
+  the_release_ind= NULL;
+  the_last_check_time= 0;
+  theFirstTransId= 0;
+  theRestartGCI= 0;
+  theNdbBlockNumber= -1;
+  theInitState= NotConstructed;
+
+  theNode= 0;
+  theFirstTransId= 0;
+  theMyRef= 0;
+
   fullyQualifiedNames = true;
 
+#ifdef POORMANSPURIFY
   cgetSignals =0;
   cfreeSignals = 0;
   cnewSignals = 0;
   creleaseSignals = 0;
+#endif
+
   theError.code = 0;
 
   theNdbObjectIdMap  = new NdbObjectIdMap(1024,1024);
@@ -122,34 +153,19 @@ Ndb::Ndb( const char* aDataBase , const char* aSchema) :
     theLastTupleId[i] = 0;
   }//for
   
-  snprintf(theDataBase, sizeof(theDataBase), "%s",
+  BaseString::snprintf(theDataBase, sizeof(theDataBase), "%s",
            aDataBase ? aDataBase : "");
-  snprintf(theDataBaseSchema, sizeof(theDataBaseSchema), "%s",
+  BaseString::snprintf(theDataBaseSchema, sizeof(theDataBaseSchema), "%s",
 	   aSchema ? aSchema : "");
 
-  int len = snprintf(prefixName, sizeof(prefixName), "%s%c%s%c",
+  int len = BaseString::snprintf(prefixName, sizeof(prefixName), "%s%c%s%c",
                      theDataBase, table_name_separator,
                      theDataBaseSchema, table_name_separator);
-  prefixEnd = prefixName + (len < sizeof(prefixName) ? len : 
+  prefixEnd = prefixName + (len < (int) sizeof(prefixName) ? len : 
                             sizeof(prefixName) - 1);
 
-  NdbMutex_Lock(&createNdbMutex);
-  
-  TransporterFacade * m_facade = 0;
-  if(theNoOfNdbObjects == 0){
-    if ((m_facade = TransporterFacade::start_instance(ndbConnectString)) == 0)
-      theInitState = InitConfigError;
-  } else {
-    m_facade = TransporterFacade::instance();
-  }
-  
-  if(m_facade != 0){
-    theWaiter.m_mutex = m_facade->theMutexPtr;
-  } 
-  
-  // For keeping track of how many Ndb objects that exists.
-  theNoOfNdbObjects += 1;
-  
+  theWaiter.m_mutex =  TransporterFacade::instance()->theMutexPtr;
+
   // Signal that the constructor has finished OK
   if (theInitState == NotConstructed)
     theInitState = NotInitialised;
@@ -166,7 +182,12 @@ Ndb::Ndb( const char* aDataBase , const char* aSchema) :
     theGlobalEventBufferHandle = h;
   }
 
-  NdbMutex_Unlock(&createNdbMutex);
+  theDictionary = new NdbDictionaryImpl(*this);
+  if (theDictionary == NULL) {
+    ndbout_c("Ndb cailed to allocate dictionary");
+    exit(-1);
+  }
+  DBUG_VOID_RETURN;
 }
 
 
@@ -187,6 +208,8 @@ void Ndb::setConnectString(const char * connectString)
  *****************************************************************************/
 Ndb::~Ndb()
 { 
+  DBUG_ENTER("Ndb::~Ndb()");
+  DBUG_PRINT("enter",("Ndb::~Ndb this=0x%x",this));
   doDisconnect();
 
   delete theDictionary;  
@@ -195,26 +218,21 @@ Ndb::~Ndb()
   NdbGlobalEventBuffer_drop(theGlobalEventBufferHandle);
 
   if (TransporterFacade::instance() != NULL && theNdbBlockNumber > 0){
-    TransporterFacade::instance()->close(theNdbBlockNumber);
+    TransporterFacade::instance()->close(theNdbBlockNumber, theFirstTransId);
   }
-
-  NdbMutex_Lock(&createNdbMutex);
-
-  theNoOfNdbObjects -= 1;
-  if(theNoOfNdbObjects == 0){
-    TransporterFacade::stop_instance();
+  
+  if (global_ndb_cluster_connection != 0) {
+    theNoOfNdbObjects--;
+    if(theNoOfNdbObjects == 0){
+      delete global_ndb_cluster_connection;
+      global_ndb_cluster_connection= 0;
+    }
   }//if
 
-  NdbMutex_Unlock(&createNdbMutex);
-  
 //  if (theSchemaConToNdbList != NULL)
 //    closeSchemaTransaction(theSchemaConToNdbList);
   while ( theConIdleList != NULL )
     freeNdbCon();
-  while ( theSignalIdleList != NULL )
-    freeSignal();
-  while (theRecAttrIdleList != NULL)
-    freeRecAttr(); 
   while (theOpIdleList != NULL)
     freeOperation();
   while (theScanOpIdleList != NULL)
@@ -233,6 +251,10 @@ Ndb::~Ndb()
     freeNdbScanRec();
   while (theNdbBlobIdleList != NULL)
     freeNdbBlob();
+  while (theRecAttrIdleList != NULL)
+    freeRecAttr(); 
+  while ( theSignalIdleList != NULL )
+    freeSignal();
   
   releaseTransactionArrays();
   startTransactionNodeSelectionData.release();
@@ -271,6 +293,7 @@ Ndb::~Ndb()
   assert(cnewSignals == cfreeSignals);
   assert(cgetSignals == creleaseSignals);
 #endif
+  DBUG_VOID_RETURN;
 }
 
 NdbWaiter::NdbWaiter(){

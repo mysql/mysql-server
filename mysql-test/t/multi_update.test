@@ -5,6 +5,11 @@
 --disable_warnings
 drop table if exists t1,t2,t3;
 drop database if exists mysqltest;
+--error 0,1141
+revoke all privileges on mysqltest.t1 from mysqltest_1@localhost;
+--error 0,1141
+revoke all privileges on mysqltest.* from mysqltest_1@localhost;
+delete from mysql.user where user=_binary'mysqltest_1';
 --enable_warnings
 
 create table t1(id1 int not null auto_increment primary key, t char(12));
@@ -154,8 +159,6 @@ LOCK TABLES t1 write, t2 read;
 DELETE t1.*, t2.* FROM t1,t2 where t1.n=t2.n;
 --error 1099
 UPDATE t1,t2 SET t1.d=t2.d,t2.d=30 WHERE t1.n=t2.n;
-# The following should be fixed to not give an error
---error 1099
 UPDATE t1,t2 SET t1.d=t2.d WHERE t1.n=t2.n;
 unlock tables;
 LOCK TABLES t1 write, t2 write;
@@ -385,7 +388,7 @@ select * from t2;
 drop table t1, t2;
 
 #
-# prevelege chexk for multiupdate with other tables
+# privilege check for multiupdate with other tables
 #
 
 connect (root,localhost,root,,test,$MASTER_MYPORT,$MASTER_MYSOCK);
@@ -417,6 +420,17 @@ create table t3 (a int, primary key (a));
 -- error 1109
 delete t1,t3 from t1,t2 where t1.a=t2.a and t2.a=(select t3.a from t3 where t1.a=t3.a);
 drop table t1, t2, t3;
+
+#
+# multi* unique updating table check
+#
+create table t1 (col1 int); 
+create table t2 (col1 int);
+-- error 1093
+update t1,t2 set t1.col1 = (select max(col1) from t1) where t1.col1 = t2.col1;
+-- error 1093
+delete t1 from t1,t2 where t1.col1 < (select max(col1) from t1) and t1.col1 = t2.col1;
+drop table t1,t2;
 
 #
 # Test for bug #1980.

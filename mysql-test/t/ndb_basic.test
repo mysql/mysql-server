@@ -20,8 +20,9 @@ CREATE TABLE t1 (
   attr3 VARCHAR(10)
 ) ENGINE=ndbcluster;
 
+SHOW INDEX FROM t1;  
 INSERT INTO t1 VALUES (9410,9412, NULL, '9412'), (9411,9413, 17, '9413');
-  
+SHOW INDEX FROM t1;  
 SELECT pk1 FROM t1 ORDER BY pk1;
 SELECT * FROM t1 ORDER BY pk1;
 SELECT t1.* FROM t1 ORDER BY pk1;
@@ -357,3 +358,16 @@ select b,test.t1.attr1 from test.t1, t2 where test.t1.pk1 < a;
 drop table test.t1, t2;
 drop database mysqltest;
 
+#
+# test support of char(0)
+#
+
+use test;
+create table t1 (a int primary key, b char(0));
+insert into t1 values (1,"");
+insert into t1 values (2,NULL);
+select * from t1 order by a;
+select * from t1 order by b;
+select * from t1 where b IS NULL;
+select * from t1 where b IS NOT NULL;
+drop table t1;

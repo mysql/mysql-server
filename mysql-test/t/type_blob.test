@@ -16,7 +16,10 @@ drop table if exists t1,t2,t3,t4,t5,t6,t7;
 
 CREATE TABLE t1 (a blob, b text, c blob(250), d text(70000), e text(70000000));
 show columns from t1;
+# PS doesn't give errors on prepare yet
+--disable_ps_protocol
 CREATE TABLE t2 (a char(257), b varbinary(70000), c varchar(70000000));
+--enable_ps_protocol
 show columns from t2;
 create table t3 (a long, b long byte);
 show create TABLE t3;

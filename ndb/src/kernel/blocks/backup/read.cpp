@@ -48,6 +48,7 @@ static Uint32 logEntryNo;
 int
 main(int argc, const char * argv[]){
 
+  ndb_init();
   if(argc <= 1){
     printf("Usage: %s <filename>", argv[0]);
     exit(1);

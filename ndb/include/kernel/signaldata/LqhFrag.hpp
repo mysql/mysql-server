@@ -130,7 +130,7 @@ private:
   Uint32 keyLength;
   Uint32 nextLCP;
   Uint32 noOfKeyAttr;
-  Uint32 noOfNewAttr;
+  Uint32 noOfNewAttr;           // noOfCharsets in upper half
   Uint32 checksumIndicator;
   Uint32 noOfAttributeGroups;
   Uint32 GCPIndicator;

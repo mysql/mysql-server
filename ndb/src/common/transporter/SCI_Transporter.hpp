@@ -26,7 +26,7 @@
  
 #include <ndb_types.h> 
  
- /** 
+/** 
  *  The SCI Transporter 
  * 
  *  The design goal of the SCI transporter is to deliver high performance  
@@ -135,15 +135,17 @@ public:
   bool getConnectionStatus(); 
    
 private: 
-  SCI_Transporter(Uint32 packetSize,  
+  SCI_Transporter(TransporterRegistry &t_reg,
+                  const char *local_host,
+                  const char *remote_host,
+                  int port,
+                  Uint32 packetSize,  
 		  Uint32 bufferSize, 
 		  Uint32 nAdapters, 
 		  Uint16 remoteSciNodeId0,  
 		  Uint16 remoteSciNodeId1,  
 		  NodeId localNodeID,  
 		  NodeId remoteNodeID,  
-		  int byteorder, 
-		  bool compression,  
 		  bool checksum,  
 		  bool signalId, 
 		  Uint32 reportFreq = 4096); 
@@ -160,7 +162,8 @@ private:
   /** 
    * For statistics on transfered packets  
    */   
-#ifdef DEBUG_TRANSPORTER 
+//#ifdef DEBUG_TRANSPORTER 
+#if 1
   Uint32 i1024; 
   Uint32 i2048; 
   Uint32 i2049; 
@@ -177,10 +180,8 @@ private:
   struct {
     Uint32 * m_buffer;       // The buffer
     Uint32 m_dataSize;       // No of words in buffer
-    Uint32 m_bufferSize;     // Buffer size
+    Uint32 m_sendBufferSize; // Buffer size
     Uint32 m_forceSendLimit; // Send when buffer is this full
-    
-    bool full() const { return (m_dataSize * 4) > m_forceSendLimit ;}
   } m_sendBuffer;
 
   SHM_Reader * reader; 
@@ -196,7 +197,7 @@ private:
   Uint32 m_adapters;   
   Uint32 m_numberOfRemoteNodes; 
  
-  Uint16* m_remoteNodes; 
+  Uint16 m_remoteNodes[2]; 
  
   typedef struct SciAdapter { 
     sci_desc_t scidesc; 
@@ -296,12 +297,11 @@ private:
    */ 
   bool sendIsPossible(struct timeval * timeout); 
    
-
   void getReceivePtr(Uint32 ** ptr, Uint32 ** eod){
     reader->getReadPtr(* ptr, * eod);
   }
 
-  void updateReceivePtr(Uint32 * ptr){
+  void updateReceivePtr(Uint32 *ptr){
     reader->updateReadPtr(ptr);
   }
  
@@ -341,7 +341,9 @@ private:
    */ 
   void failoverShmWriter(); 
  
- 
+  bool init_local();
+  bool init_remote();
+
 protected: 
    
   /** Perform a connection between segment 
@@ -350,7 +352,8 @@ protected:
    * retrying. 
    * @return Returns true on success, otherwize falser 
    */ 
-  bool connectImpl(Uint32 timeOutMillis); 
+  bool connect_server_impl(NDB_SOCKET_TYPE sockfd);
+  bool connect_client_impl(NDB_SOCKET_TYPE sockfd);
  
   /** 
    *  We will disconnect if: 
