@@ -32,7 +32,7 @@ select * from t1 where b <= 4 order by b;
 # Update using ordered index scan
 #
 
-# MASV update t1 set c = 3 where b = 3;
+update t1 set c = 3 where b = 3;
 select * from t1 order by a;
 update t1 set c = 10 where b >= 6;
 select * from t1 order by a;
@@ -59,7 +59,7 @@ CREATE TABLE t1 (
 
 insert t1 values(1, 2, 13), (2,3, 13), (3, 4, 12), (4, 5, 12), (5,6, 12), (6,7, 12);
 
-# MASV delete from t1 where b = 3;
+delete from t1 where b = 3;
 select * from t1 order by a;
 delete from t1 where b >= 6;
 select * from t1 order by a;
@@ -97,11 +97,16 @@ insert into t1 values (14, 5, 4);
 insert into t1 values (15,5,5);
 insert into t1 values (16,5, 6);
 insert into t1 values (17,4,4);
+insert into t1 values (18,1, 7);
+
+
 
 select * from t1 order by a;
-select * from t1 where b<=5;
-#select * from t1 where b<=5 and c=0;
-#select * from t1 where b=4 and c<=5;
-select * from t1 where b<=4 and c<=5;
-# MASV select * from t1 where b<=5 and c=0 or b<=5 and c=2;
+select * from t1 where b<=5 order by a;
+select * from t1 where b<=5 and c=0;
+insert into t1 values (19,4, 0);
+select * from t1 where b<=5 and c=0;
+select * from t1 where b=4 and c<=5;
+select * from t1 where b<=4 and c<=5 order by a;
+select * from t1 where b<=5 and c=0 or b<=5 and c=2;
 drop table t1;

@@ -87,8 +87,8 @@ typedef struct st_mysql_field {
   char *db;                   /* Database for table */
   char *catalog;	      /* Catalog for table */
   char *def;                  /* Default value (set by mysql_list_fields) */
-  unsigned long length;       /* Width of column */
-  unsigned long max_length;   /* Max width of selected set */
+  unsigned long length;       /* Width of column (create length) */
+  unsigned long max_length;   /* Max width for selected set */
   unsigned int name_length;
   unsigned int org_name_length;
   unsigned int table_length;
@@ -120,6 +120,7 @@ typedef unsigned long long my_ulonglong;
 typedef struct st_mysql_rows {
   struct st_mysql_rows *next;		/* list of rows */
   MYSQL_ROW data;
+  ulong	    length;
 } MYSQL_ROWS;
 
 typedef MYSQL_ROWS *MYSQL_ROW_OFFSET;	/* offset to current row */
@@ -547,11 +548,14 @@ typedef struct st_mysql_bind
   unsigned long offset;           /* offset position for char/binary fetch */
   unsigned long	internal_length;  /* Used if length is 0 */
   unsigned int	param_number;	  /* For null count and error messages */
+  unsigned int  pack_length;	  /* Internal length for packed data */
   my_bool       is_unsigned;      /* set if integer type is unsigned */
   my_bool	long_data_used;	  /* If used with mysql_send_long_data */
   my_bool	internal_is_null; /* Used if is_null is 0 */
   void (*store_param_func)(NET *net, struct st_mysql_bind *param);
   void (*fetch_result)(struct st_mysql_bind *, unsigned char **row);
+  void (*skip_result)(struct st_mysql_bind *, MYSQL_FIELD *,
+		      unsigned char **row);
 } MYSQL_BIND;
 
 
