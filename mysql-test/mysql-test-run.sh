@@ -241,6 +241,9 @@ USE_EMBEDDED_SERVER=""
 RESULT_EXT=""
 TEST_MODE="default"
 
+NDB_MGMD_EXTRA_OPTS=
+NDBD_EXTRA_OPTS=
+
 while test $# -gt 0; do
   case "$1" in
     --embedded-server) USE_EMBEDDED_SERVER=1 USE_MANAGER=0 NO_SLAVE=1 ; \
@@ -261,6 +264,10 @@ while test $# -gt 0; do
     --ndb-connectstring=*)
       USE_NDBCLUSTER="--ndbcluster" ;
       USE_RUNNING_NDBCLUSTER=`$ECHO "$1" | $SED -e "s;--ndb-connectstring=;;"` ;;
+    --ndb_mgmd-extra-opts=*)
+      NDB_MGMD_EXTRA_OPTS=`$ECHO "$1" | $SED -e "s;--ndb_mgmd-extra-opts=;;"` ;;
+    --ndbd-extra-opts=*)
+      NDBD_EXTRA_OPTS=`$ECHO "$1" | $SED -e "s;--ndbd-extra-opts=;;"` ;;
     --tmpdir=*) MYSQL_TMP_DIR=`$ECHO "$1" | $SED -e "s;--tmpdir=;;"` ;;
     --local-master)
       MASTER_MYPORT=3306;
@@ -427,6 +434,9 @@ while test $# -gt 0; do
     --fast)
       FAST_START=1
       ;;
+    --use-old-data)
+      USE_OLD_DATA=1;
+      ;;
     -- )  shift; break ;;
     --* ) $ECHO "Unrecognized option: $1"; exit 1 ;;
     * ) break ;;
@@ -460,7 +470,7 @@ SMALL_SERVER="--key_buffer_size=1M --sort_buffer=256K --max_heap_table_size=1M"
 export MASTER_MYPORT MASTER_MYPORT1 SLAVE_MYPORT MYSQL_TCP_PORT MASTER_MYSOCK MASTER_MYSOCK1
 
 NDBCLUSTER_BASE_PORT=`expr $NDBCLUSTER_PORT + 2`
-NDBCLUSTER_OPTS="--port=$NDBCLUSTER_PORT --port-base=$NDBCLUSTER_BASE_PORT --data-dir=$MYSQL_TEST_DIR/var"
+NDBCLUSTER_OPTS="--port=$NDBCLUSTER_PORT --port-base=$NDBCLUSTER_BASE_PORT --data-dir=$MYSQL_TEST_DIR/var --ndb_mgmd-extra-opts=\"$NDB_MGMD_EXTRA_OPTS\" --ndbd-extra-opts=\"$NDBD_EXTRA_OPTS\""
 
 if [ x$SOURCE_DIST = x1 ] ; then
  MY_BASEDIR=$MYSQL_TEST_DIR
@@ -538,7 +548,12 @@ else
    MYSQLD="$VALGRIND $BASEDIR/bin/mysqld"
  fi
  CLIENT_BINDIR="$BASEDIR/bin"
- TESTS_BINDIR="$BASEDIR/bin"
+ if test -d "$BASEDIR/tests"
+ then
+   TESTS_BINDIR="$BASEDIR/tests"
+ else
+   TESTS_BINDIR="$BASEDIR/bin"
+ fi
  MYSQL_TEST="$CLIENT_BINDIR/mysqltest"
  MYSQL_DUMP="$CLIENT_BINDIR/mysqldump"
  MYSQL_BINLOG="$CLIENT_BINDIR/mysqlbinlog"
@@ -768,12 +783,14 @@ report_stats () {
 
 mysql_install_db () {
     $ECHO "Removing Stale Files"
-    $RM -rf $MASTER_MYDDIR $MASTER_MYDDIR"1" $SLAVE_MYDDIR $MY_LOG_DIR/* 
-    $ECHO "Installing Master Databases"
-    $INSTALL_DB
-    if [ $? != 0 ]; then
+    if [ -z "$USE_OLD_DATA" ]; then
+      $RM -rf $MASTER_MYDDIR $MASTER_MYDDIR"1"
+      $ECHO "Installing Master Databases"
+      $INSTALL_DB
+      if [ $? != 0 ]; then
 	error "Could not install master test DBs"
-	exit 1
+        exit 1
+      fi
     fi
     if [ ! -z "$USE_NDBCLUSTER" ]
     then
@@ -785,6 +802,7 @@ mysql_install_db () {
       fi
     fi
     $ECHO "Installing Slave Databases"
+    $RM -rf $SLAVE_MYDDIR $MY_LOG_DIR/* 
     $INSTALL_DB -slave
     if [ $? != 0 ]; then
 	error "Could not install slave test DBs"

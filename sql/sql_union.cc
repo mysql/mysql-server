@@ -478,11 +478,14 @@ bool st_select_lex_unit::exec()
 	}
 	res= sl->join->error;
 	offset_limit_cnt= sl->offset_limit;
-	if (!res && union_result->flush())
+	if (!res)
 	{
-          examined_rows+= thd->examined_row_count;
-	  thd->lex->current_select= lex_select_save;
-	  DBUG_RETURN(TRUE);
+	  examined_rows+= thd->examined_row_count;
+	  if (union_result->flush())
+	  {
+	    thd->lex->current_select= lex_select_save;
+	    DBUG_RETURN(1);
+	  }
 	}
       }
       if (res)

@@ -473,12 +473,12 @@ void TransporterFacade::threadMainReceive(void)
 }
 
 TransporterFacade::TransporterFacade(NdbMgmHandle mgm_handle) :
+  m_mgm_handle(mgm_handle),
   theTransporterRegistry(0),
   theStopReceive(0),
   theSendThread(NULL),
   theReceiveThread(NULL),
-  m_fragmented_signal_id(0),
-  m_mgm_handle(mgm_handle)
+  m_fragmented_signal_id(0)
 {
   theOwnId = 0;
 

@@ -245,6 +245,19 @@ static inline void mark_blocks_free(MEM_ROOT* root)
 /*
   Deallocate everything used by alloc_root or just move
   used blocks to free list if called with MY_USED_TO_FREE
+
+  SYNOPSIS
+    free_root()
+      root		Memory root
+      MyFlags		Flags for what should be freed:
+
+        MY_MARK_BLOCKS_FREED	Don't free blocks, just mark them free
+        MY_KEEP_PREALLOC	If this is not set, then free also the
+        		        preallocated block
+
+  NOTES
+    One can call this function either with root block initialised with
+    init_alloc_root() or with a bzero()-ed block.
 */
 
 void free_root(MEM_ROOT *root, myf MyFlags)

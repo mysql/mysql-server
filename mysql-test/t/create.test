@@ -294,7 +294,7 @@ select * from t2;
 create table t3 like t1;
 --error 1050
 create table t3 like mysqltest.t3;
---error 1044,1
+--error ER_DBACCESS_DENIED_ERROR,1
 create table non_existing_database.t1 like t1;
 --error 1051
 create table t3 like non_existing_table;
