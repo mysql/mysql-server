@@ -159,15 +159,48 @@ export MYSQL_TCP_PORT
 
 
 NOHUP_NICENESS="nohup"
-if test -w /
+
+# Using nice with no args to get the niceness level is GNU-specific.
+# This check could be extended for other operating systems (e.g.,
+# BSD could use "nohup sh -c 'ps -o nice -p $$' | tail -1").
+# But, it also seems that GNU nohup is the only one which messes
+# with the priority, so this is okay.
+if nohup nice > /dev/null 2>&1
 then
-  NOHUP_NICENESS=`nohup nice 2>&1`
- if test $? -eq 0 && test x"$NOHUP_NICENESS" != x0 && nice --1 echo foo > /dev/null 2>&1
- then
-    NOHUP_NICENESS="nice --$NOHUP_NICENESS nohup"
-  else
-    NOHUP_NICENESS="nohup"
-  fi
+    normal_niceness=`nice`
+    nohup_niceness=`nohup nice`
+
+    numeric_nice_values=1
+    for val in $normal_niceness $nohup_niceness
+    do
+        case "$val" in
+            -[0-9] | -[0-9][0-9] | -[0-9][0-9][0-9] | \
+             [0-9] |  [0-9][0-9] |  [0-9][0-9][0-9] )
+                ;;
+            * )
+                numeric_nice_values=0 ;;
+        esac
+    done
+
+    if test $numeric_nice_values -eq 1
+    then
+        nice_value_diff=`expr $nohup_niceness - $normal_niceness`
+        if test $? -eq 0 && test $nice_value_diff -gt 0 && \
+            nice --$nice_value_diff echo testing > /dev/null 2>&1
+        then
+            # nohup increases the priority (bad), and we are permitted
+            # to lower the priority
+            NOHUP_NICENESS="nice --$nice_value_diff nohup"
+        fi
+    fi
+else
+    if nohup echo testing > /dev/null 2>&1
+    then
+        :
+    else
+        # nohup doesn't work on this system
+        NOHUP_NICENESS=""
+    fi
 fi
 
 USER_OPTION=""
