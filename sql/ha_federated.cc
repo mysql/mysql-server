@@ -469,6 +469,7 @@ static int check_foreign_data_source(FEDERATED_SHARE *share)
     */
     query.append("SHOW TABLES LIKE '");
     escape_string_for_mysql(&my_charset_bin, (char *)escaped_table_base_name,
+                            sizeof(escaped_table_base_name),
                             share->table_base_name,
                             share->table_base_name_length);
     query.append(escaped_table_base_name);
