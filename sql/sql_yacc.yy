@@ -1270,7 +1270,7 @@ select_lock_type:
 	/* empty */
 	| FOR_SYM UPDATE_SYM
 	  { Lex->lock_option= TL_WRITE; }
-	| IN_SYM SHARE_SYM MODE_SYM
+	| LOCK_SYM IN_SYM SHARE_SYM MODE_SYM
 	  { Lex->lock_option= TL_READ_WITH_SHARED_LOCKS; }
 
 select_item_list:
