@@ -1138,90 +1138,94 @@ UtilTransactions::readRowFromTableAndIndex(Ndb* pNdb,
      */    
     NdbIndexOperation* pIndexOp= NULL;
     NdbIndexScanOperation *pScanOp= NULL;
+    NdbOperation *pIOp= 0;
+
+    bool null_found= false;
+    for(a = 0; a<(int)pIndex->getNoOfColumns(); a++){
+      const NdbDictionary::Column *  col = pIndex->getColumn(a);
+      
+      if (row.attributeStore(col->getName())->isNULL())
+      {
+	null_found= true;
+	ndbout_c("null found");
+	break;
+      }
+    }
+    
+    const char * tabName= tab.getName();
+    if(!null_found)
     {
-      void* pOpCheck= NULL;
       if (indexType == NdbDictionary::Index::UniqueHashIndex) {
-	pOpCheck= pIndexOp= pTrans1->getNdbIndexOperation(indexName, tab.getName());
+	pIOp= pIndexOp= pTrans1->getNdbIndexOperation(indexName, tabName);
       } else {
-	pOpCheck= pScanOp= pTrans1->getNdbIndexScanOperation(indexName, tab.getName());
+	pIOp= pScanOp= pTrans1->getNdbIndexScanOperation(indexName, tabName);
       }
-
-      if (pOpCheck == NULL) {
+      
+      if (pIOp == NULL) {
 	ERR(pTrans1->getNdbError());
 	goto close_all;
       }
-    }
-
-    {
-      bool not_ok;
-      if (pIndexOp) {
-	not_ok = pIndexOp->readTuple() == -1;
-      } else {
-	not_ok = (cursor= pScanOp->readTuples()) == 0;
+    
+      {
+	bool not_ok;
+	if (pIndexOp) {
+	  not_ok = pIndexOp->readTuple() == -1;
+	} else {
+	  not_ok = (cursor= pScanOp->readTuples()) == 0;
+	}
+	
+	if( not_ok ) {
+	  ERR(pTrans1->getNdbError());
+	  goto close_all;
+	}
       }
-
-      if( not_ok ) {
-	ERR(pTrans1->getNdbError());
-	goto close_all;
-      }
-    }
     
     // Define primary keys for index
 #if VERBOSE
-    printf("SI: ");
+      printf("SI: ");
 #endif
-    for(a = 0; a<(int)pIndex->getNoOfColumns(); a++){
-      const NdbDictionary::Column *  col = pIndex->getColumn(a);
-
-      int r;
-      if (pIndexOp)
-	r = pIndexOp->equal(col->getName(), row.attributeStore(col->getName())->aRef());
-      else {
-	// setBound not possible for null attributes
+      for(a = 0; a<(int)pIndex->getNoOfColumns(); a++){
+	const NdbDictionary::Column *  col = pIndex->getColumn(a);
+	
+	int r;
 	if ( !row.attributeStore(col->getName())->isNULL() ) {
-	  r = pScanOp->setBound(col->getName(),
-				NdbIndexScanOperation::BoundEQ,
-				row.attributeStore(col->getName())->aRef());
+	  if(pIOp->equal(col->getName(), 
+			 row.attributeStore(col->getName())->aRef()) != 0){
+	    ERR(pTrans1->getNdbError());
+	    goto close_all;
+	  }
 	}
-      }
-      if (r != 0){
-	ERR(pTrans1->getNdbError());
-	goto close_all;
+#if VERBOSE
+	printf("%s = %d: ", col->getName(), row.attributeStore(a)->aRef());
+#endif
       }
 #if VERBOSE
-      printf("%s = %d: ", col->getName(), row.attributeStore(a)->aRef());
+      printf("\n");
 #endif
+      
+      // Read all attributes
+#if VERBOSE
+      printf("Reading %u attributes: ", tab.getNoOfColumns());
+#endif
+      for(a = 0; a<tab.getNoOfColumns(); a++){
+	void* pCheck;
+	
+	pCheck= indexRow.attributeStore(a)= 
+	  pIOp->getValue(tab.getColumn(a)->getName());
+	
+	if(pCheck == NULL) {
+	  ERR(pTrans1->getNdbError());
+	  goto close_all;
+	}
+#if VERBOSE
+	printf("%s ", tab.getColumn(a)->getName());
+#endif
+      }
     }
 #if VERBOSE
     printf("\n");
 #endif
     
-    // Read all attributes
-#if VERBOSE
-    printf("Reading %u attributes: ", tab.getNoOfColumns());
-#endif
-    for(a = 0; a<tab.getNoOfColumns(); a++){
-      void* pCheck;
-
-      if (pIndexOp)
-	pCheck= indexRow.attributeStore(a)=
-	  pIndexOp->getValue(tab.getColumn(a)->getName());
-      else
-	pCheck= indexRow.attributeStore(a)=
-	  pScanOp->getValue(tab.getColumn(a)->getName());
-
-      if(pCheck == NULL) {
-	ERR(pTrans1->getNdbError());
-	goto close_all;
-      }
-#if VERBOSE
-      printf("%s ", tab.getColumn(a)->getName());
-#endif
-    }
-#if VERBOSE
-    printf("\n");
-#endif
-
     check = pTrans1->execute(Commit);
     if( check == -1 ) {
       const NdbError err = pTrans1->getNdbError();
@@ -1238,41 +1242,43 @@ UtilTransactions::readRowFromTableAndIndex(Ndb* pNdb,
       ndbout << "row: " << row.c_str().c_str() << endl;
       goto close_all;
     } 
-
+    
     /** 
      * Compare the two rows
      */ 
-    if (pScanOp) {
-      if (cursor->nextResult() != 0){
-	const NdbError err = pTrans1->getNdbError();
-	ERR(err);
-	ndbout << "Error when comparing records - index op next_result missing" << endl;
-	ndbout << "row: " << row.c_str().c_str() << endl;
+    if(!null_found){
+      if (pScanOp) {
+	if (cursor->nextResult() != 0){
+	  const NdbError err = pTrans1->getNdbError();
+	  ERR(err);
+	  ndbout << "Error when comparing records - index op next_result missing" << endl;
+	  ndbout << "row: " << row.c_str().c_str() << endl;
+	  goto close_all;
+	}
+      }
+      if (!(tabRow.c_str() == indexRow.c_str())){
+	ndbout << "Error when comapring records" << endl;
+	ndbout << " tabRow: \n" << tabRow.c_str().c_str() << endl;
+	ndbout << " indexRow: \n" << indexRow.c_str().c_str() << endl;
 	goto close_all;
       }
-    }
-    if (!(tabRow.c_str() == indexRow.c_str())){
-      ndbout << "Error when comapring records" << endl;
-      ndbout << " tabRow: \n" << tabRow.c_str().c_str() << endl;
-      ndbout << " indexRow: \n" << indexRow.c_str().c_str() << endl;
-      goto close_all;
-    }
-    if (pScanOp) {
-      if (cursor->nextResult() == 0){
-	ndbout << "Error when comparing records - index op next_result to many" << endl;
-	ndbout << "row: " << row.c_str().c_str() << endl;
-	goto close_all;
+      if (pScanOp) {
+	if (cursor->nextResult() == 0){
+	  ndbout << "Error when comparing records - index op next_result to many" << endl;
+	  ndbout << "row: " << row.c_str().c_str() << endl;
+	  goto close_all;
+	}
       }
     }
     return_code= NDBT_OK;
     goto close_all;
   }
   
- close_all:
+close_all:
   if (cursor)
     cursor->close();
   if (pTrans1)
     pNdb->closeTransaction(pTrans1);
-
+  
   return return_code;
 }
