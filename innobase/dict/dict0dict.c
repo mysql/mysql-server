@@ -3285,6 +3285,9 @@ try_find_index:
 "Cannot find an index in the referenced table where the\n"
 "referenced columns appear as the first columns, or column types\n"
 "in the table and the referenced table do not match for constraint.\n"
+"Note that the internal storage type of ENUM and SET changed in\n"
+"tables created with >= InnoDB-4.1.12, and such columns in old tables\n"
+"cannot be referenced by such columns in new tables.\n"
 "See http://dev.mysql.com/doc/mysql/en/InnoDB_foreign_key_constraints.html\n"
 "for correct foreign key definition.\n",
 				start_of_latest_foreign);
