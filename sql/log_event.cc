@@ -278,7 +278,7 @@ void Log_event::print_timestamp(FILE* file, time_t* ts)
     ts = &when;
   }
 #ifdef MYSQL_SERVER
-  res=localtime_r(ts,&tm_tmp);
+  localtime_r(ts,(res= &tm_tmp));
 #else
   res=localtime(ts);
 #endif
