@@ -652,6 +652,7 @@ void Dbtup::executeTrigger(Signal* signal,
     return;
   default:
     ndbrequire(false);
+    executeDirect= false; // remove warning
   }//switch
 
   regOperPtr->noFiredTriggers++;
@@ -1077,6 +1078,7 @@ Dbtup::executeTuxCommitTriggers(Signal* signal,
     ndbrequire(tupVersion == regOperPtr->tupVersion);
   } else {
     ndbrequire(false);
+    tupVersion= 0; // remove warning
   }
   // fill in constant part
   req->tableId = regOperPtr->tableRef;
@@ -1121,6 +1123,7 @@ Dbtup::executeTuxAbortTriggers(Signal* signal,
     return;
   } else {
     ndbrequire(false);
+    tupVersion= 0; // remove warning
   }
   // fill in constant part
   req->tableId = regOperPtr->tableRef;
