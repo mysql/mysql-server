@@ -417,7 +417,6 @@ static my_bool execute_commands(MYSQL *mysql,int argc, char **argv)
     }
     case ADMIN_DROP:
     {
-      char buff[FN_REFLEN+20];
       if (argc < 2)
       {
 	my_printf_error(0,"Too few arguments to drop",MYF(ME_BELL));

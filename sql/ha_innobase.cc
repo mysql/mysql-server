@@ -449,7 +449,7 @@ innobase_init(void)
 	if (!innobase_data_file_path)
 	{
 	  fprintf(stderr,
-       "Can't initialize InnoDB as 'innobase_data_file_path' is not set\n");
+       "Can't initialize InnoDB as 'innodb_data_file_path' is not set\n");
 	  innodb_skip=1;
 	  DBUG_RETURN(FALSE);			// Continue without innobase
 	}
