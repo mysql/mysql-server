@@ -866,6 +866,10 @@ int do_exec(struct st_query* q)
   while (fgets(buf, sizeof(buf), res_file))
     replace_dynstr_append_mem(ds, buf, strlen(buf));
   pclose(res_file);
+  
+  if (glob_replace)
+    free_replace();
+
   if (record)
   {
     if (!q->record_file[0] && !result_file)
