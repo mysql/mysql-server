@@ -18,6 +18,7 @@ then
   then
      scripts/make_binary_distribution
   fi
+  make test
 fi
 
 exit

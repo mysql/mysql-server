@@ -18382,6 +18382,11 @@ CHECK TABLE test_table FAST QUICK;
 
 Which only would do a quick check on the table if it wasn't closed properly.
 
+@strong{NOTE:} that in some case @code{CHECK TABLE} will change the
+table!  This happens if the table is marked as 'corrupted' or 'not
+closed properly' but @code{CHECK TABLE} didn't find any problems in the
+table.  In this case @code{CHECK TABLE} will mark the table as ok.
+
 If a table is corrupted, then it's most likely that the problem is in
 the indexes and not in the data part.  All of the above check types
 checks the indexes throughly and should thus find most errors.
