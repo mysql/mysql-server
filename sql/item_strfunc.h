@@ -630,6 +630,26 @@ public:
   };
 };
 
+class Item_func_crc32 :public Item_int_func
+{
+  String value;
+public:
+  Item_func_crc32(Item *a) :Item_int_func(a) {}
+  const char *func_name() const { return "crc32"; }
+  void fix_length_and_dec() { max_length=10; }
+  longlong val_int();
+};
+
+class Item_func_uncompressed_length : public Item_int_func
+{
+  String value;
+public:
+  Item_func_uncompressed_length(Item *a):Item_int_func(a){}
+  const char *func_name() const{return "uncompressed_length";}
+  void fix_length_and_dec() { max_length=10; }
+  longlong val_int();
+};
+
 #ifdef HAVE_COMPRESS
 #define ZLIB_DEPENDED_FUNCTION ;
 #else
@@ -654,25 +674,5 @@ public:
   void fix_length_and_dec(){max_length= MAX_BLOB_WIDTH;}
   const char *func_name() const{return "uncompress";}
   String *val_str(String *) ZLIB_DEPENDED_FUNCTION
-};
-
-class Item_func_crc32 :public Item_int_func
-{
-  String value;
-public:
-  Item_func_crc32(Item *a) :Item_int_func(a) {}
-  const char *func_name() const { return "crc32"; }
-  void fix_length_and_dec() { max_length=10; }
-  longlong val_int() ZLIB_DEPENDED_FUNCTION
-};
-
-class Item_func_uncompressed_length : public Item_int_func
-{
-  String value;
-public:
-  Item_func_uncompressed_length(Item *a):Item_int_func(a){}
-  const char *func_name() const{return "uncompressed_length";}
-  void fix_length_and_dec() { max_length=10; }
-  longlong val_int();
 };
 

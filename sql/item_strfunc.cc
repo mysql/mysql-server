@@ -2561,9 +2561,6 @@ longlong Item_func_uncompressed_length::val_int()
   return uint4korr(res->c_ptr()) & 0x3FFFFFFF;
 }
 
-#ifdef HAVE_COMPRESS
-#include "zlib.h"
-
 longlong Item_func_crc32::val_int()
 {
   String *res=args[0]->val_str(&value);
@@ -2573,21 +2570,11 @@ longlong Item_func_crc32::val_int()
     return 0; /* purecov: inspected */
   }
   null_value=0;
-  return (longlong) crc32(0L, (Bytef*)res->ptr(), res->length());
+  return (longlong) crc32(0L, (uchar*)res->ptr(), res->length());
 }
 
-longlong Item_func_uncompressed_length::val_int()
-{
-  String *res= args[0]->val_str(&value);
-  if (!res)
-  {
-    null_value=1;
-    return 0; /* purecov: inspected */
-  }
-  null_value=0;
-  if (res->is_empty()) return 0;
-  return uint4korr(res->c_ptr()) & 0x3FFFFFFF;
-}
+#ifdef HAVE_COMPRESS
+#include "zlib.h"
 
 String *Item_func_compress::val_str(String *str)
 {

@@ -753,8 +753,9 @@ extern my_bool my_uncompress(byte *, ulong *, ulong *);
 extern byte *my_compress_alloc(const byte *packet, ulong *len, ulong *complen);
 extern ha_checksum my_checksum(ha_checksum crc, const byte *mem, uint count);
 extern uint my_bit_log2(ulong value);
-uint my_count_bits(ulonglong v);
+extern uint my_count_bits(ulonglong v);
 extern void my_sleep(ulong m_seconds);
+extern ulong crc32(ulong crc, const uchar *buf, uint len);
 
 #ifdef __WIN__
 extern my_bool have_tcpip;		/* Is set if tcpip is used */
