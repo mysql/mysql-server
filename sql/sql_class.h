@@ -34,6 +34,8 @@ enum enum_log_type { LOG_CLOSED, LOG_NORMAL, LOG_NEW, LOG_BIN };
 enum enum_delay_key_write { DELAY_KEY_WRITE_NONE, DELAY_KEY_WRITE_ON,
 			    DELAY_KEY_WRITE_ALL };
 
+extern char internal_table_name[2];
+
 // log info errors
 #define LOG_INFO_EOF -1
 #define LOG_INFO_IO  -2
@@ -900,7 +902,7 @@ class Table_ident :public Sql_alloc
   inline Table_ident(SELECT_LEX_UNIT *s) : sel(s) 
   {
     /* We must have a table name here as this is used with add_table_to_list */
-    db.str=0; table.str=(char *)"*"; table.length=1;
+    db.str=0; table.str= internal_table_name; table.length=1;
   }
   inline void change_db(char *db_name)
   {
