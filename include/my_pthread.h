@@ -111,7 +111,6 @@ void pthread_exit(void *a);	 /* was #define pthread_exit(A) ExitThread(A)*/
 #endif
 #define pthread_self() win_pthread_self
 #define HAVE_LOCALTIME_R		1
-#define HAVE_GMTIME_R			1
 #define _REENTRANT			1
 #define HAVE_PTHREAD_ATTR_SETSTACKSIZE	1
 
