@@ -113,6 +113,65 @@ io_handler_thread(
 #endif
 }
 
+#ifdef __WIN__
+#define SRV_PATH_SEPARATOR	"\\"
+#else
+#define SRV_PATH_SEPARATOR	"/"
+#endif
+
+/*************************************************************************
+Normalizes a directory path for Windows: converts slashes to backslashes. */
+static
+void
+srv_normalize_path_for_win(
+/*=======================*/
+	char*	str)	/* in/out: null-terminated character string */
+{
+#ifdef __WIN__
+	ulint	i;
+
+	for (i = 0; i < ut_strlen(str); i++) {
+
+		if (str[i] == '/') {
+			str[i] = '\\';
+		}
+	}
+#endif
+}
+	
+/*************************************************************************
+Adds a slash or a backslash to the end of a string if it is missing. */
+static
+char*
+srv_add_path_separator_if_needed(
+/*=============================*/
+			/* out, own: string which has the separator */
+	char*	str)	/* in: null-terminated character string */
+{
+	char*	out_str;
+
+	if (ut_strlen(str) == 0) {
+		out_str = ut_malloc(2);
+		sprintf(out_str, "%s", SRV_PATH_SEPARATOR);
+
+		return(out_str);
+	}
+
+	if (str[ut_strlen(str) - 1] == SRV_PATH_SEPARATOR[0]) {
+		out_str = ut_malloc(ut_strlen(str) + 1);
+		
+		sprintf(out_str, "%s", str);
+
+		return(out_str);
+	}
+		
+	out_str = ut_malloc(ut_strlen(str) + 2);
+		
+	sprintf(out_str, "%s%s", str, SRV_PATH_SEPARATOR);
+
+	return(out_str);
+}
+
 /*************************************************************************
 Creates or opens the log files. */
 static
@@ -136,7 +195,11 @@ open_or_create_log_file(
 	UT_NOT_USED(create_new_db);
 
 	*log_file_created = FALSE;
-	
+
+	srv_normalize_path_for_win(srv_log_group_home_dirs[k]);
+	srv_log_group_home_dirs[k] = srv_add_path_separator_if_needed(
+						srv_log_group_home_dirs[k]);
+
 	sprintf(name, "%s%s%lu", srv_log_group_home_dirs[k], "ib_logfile", i);
 
 	files[i] = os_file_create(name, OS_FILE_CREATE, OS_FILE_NORMAL, &ret);
@@ -258,7 +321,11 @@ open_or_create_data_files(
 	
 	*create_new_db = FALSE;
 
+	srv_normalize_path_for_win(srv_data_home);
+	srv_data_home = srv_add_path_separator_if_needed(srv_data_home);
+
 	for (i = 0; i < srv_n_data_files; i++) {
+		srv_normalize_path_for_win(srv_data_file_names[i]);
 
 		sprintf(name, "%s%s", srv_data_home, srv_data_file_names[i]);
 	
@@ -525,6 +592,14 @@ innobase_start_or_create_for_mysql(void)
 		os_thread_create(io_handler_thread, n + i, thread_ids + i);
     	}
 
+	if (0 != ut_strcmp(srv_log_group_home_dirs[0], srv_arch_dir)) {
+		fprintf(stderr,
+	"InnoDB: Error: you must set the log group home dir in my.cnf the\n"
+	"InnoDB: same as log arch dir.\n");
+
+		return(DB_ERROR);
+	}
+
 	err = open_or_create_data_files(&create_new_db,
 					&min_flushed_lsn, &min_arch_log_no,
 					&max_flushed_lsn, &max_arch_log_no,
@@ -535,6 +610,9 @@ innobase_start_or_create_for_mysql(void)
 
 		return((int) err);
 	}
+
+	srv_normalize_path_for_win(srv_arch_dir);
+	srv_arch_dir = srv_add_path_separator_if_needed(srv_arch_dir);
 
 	for (k = 0; k < srv_n_log_groups; k++) {
 

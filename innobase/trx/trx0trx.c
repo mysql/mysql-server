@@ -64,6 +64,8 @@ trx_create(
 
 	trx->n_mysql_tables_in_use = 0;
 
+	trx->ignore_duplicates_in_insert = FALSE;
+
 	mutex_create(&(trx->undo_mutex));
 	mutex_set_level(&(trx->undo_mutex), SYNC_TRX_UNDO);
 

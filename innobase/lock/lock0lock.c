@@ -700,24 +700,24 @@ lock_mode_stronger_or_eq(
 	ulint	mode1,	/* in: lock mode */
 	ulint	mode2)	/* in: lock mode */
 {
-	ut_ad((mode1 == LOCK_X) || (mode1 == LOCK_S) || (mode1 == LOCK_IX)
-							|| (mode1 == LOCK_IS));
-	ut_ad((mode2 == LOCK_X) || (mode2 == LOCK_S) || (mode2 == LOCK_IX)
-							|| (mode2 == LOCK_IS));
+	ut_ad(mode1 == LOCK_X || mode1 == LOCK_S || mode1 == LOCK_IX
+							|| mode1 == LOCK_IS);
+	ut_ad(mode2 == LOCK_X || mode2 == LOCK_S || mode2 == LOCK_IX
+							|| mode2 == LOCK_IS);
 	if (mode1 == LOCK_X) {
 
 		return(TRUE);
 
-	} else if ((mode1 == LOCK_S)
-				&& ((mode2 == LOCK_S) || (mode2 == LOCK_IS))) {
+	} else if (mode1 == LOCK_S
+				&& (mode2 == LOCK_S || mode2 == LOCK_IS)) {
 		return(TRUE);
 
-	} else if ((mode1 == LOCK_IS) && (mode2 == LOCK_IS)) {
+	} else if (mode1 == LOCK_IS && mode2 == LOCK_IS) {
 
 		return(TRUE);
 
-	} else if ((mode1 == LOCK_IX) && ((mode2 == LOCK_IX)
-						|| (mode2 == LOCK_IS))) {
+	} else if (mode1 == LOCK_IX && (mode2 == LOCK_IX
+						|| mode2 == LOCK_IS)) {
 		return(TRUE);
 	}
 
@@ -734,12 +734,12 @@ lock_mode_compatible(
 	ulint	mode1,	/* in: lock mode */
 	ulint	mode2)	/* in: lock mode */
 {
-	ut_ad((mode1 == LOCK_X) || (mode1 == LOCK_S) || (mode1 == LOCK_IX)
-							|| (mode1 == LOCK_IS));
-	ut_ad((mode2 == LOCK_X) || (mode2 == LOCK_S) || (mode2 == LOCK_IX)
-							|| (mode2 == LOCK_IS));
+	ut_ad(mode1 == LOCK_X || mode1 == LOCK_S || mode1 == LOCK_IX
+							|| mode1 == LOCK_IS);
+	ut_ad(mode2 == LOCK_X || mode2 == LOCK_S || mode2 == LOCK_IX
+							|| mode2 == LOCK_IS);
 
-	if ((mode1 == LOCK_S) && ((mode2 == LOCK_IS) || (mode2 == LOCK_S))) {
+	if (mode1 == LOCK_S && (mode2 == LOCK_IS || mode2 == LOCK_S)) {
 
 		return(TRUE);
 
@@ -747,13 +747,13 @@ lock_mode_compatible(
 
 		return(FALSE);
 
-	} else if ((mode1 == LOCK_IS) && ((mode2 == LOCK_IS)
-					  	|| (mode2 == LOCK_IX)
-					  	|| (mode2 == LOCK_S))) {
+	} else if (mode1 == LOCK_IS && (mode2 == LOCK_IS
+					  	|| mode2 == LOCK_IX
+					  	|| mode2 == LOCK_S)) {
 		return(TRUE);
 
-	} else if ((mode1 == LOCK_IX) && ((mode2 == LOCK_IS)
-					  	|| (mode2 == LOCK_IX))) {
+	} else if (mode1 == LOCK_IX && (mode2 == LOCK_IS
+					  	|| mode2 == LOCK_IX)) {
 		return(TRUE);
 	}
 
@@ -769,7 +769,7 @@ lock_get_confl_mode(
 			/* out: conflicting basic lock mode */
 	ulint	mode)	/* in: LOCK_S or LOCK_X */
 {
-	ut_ad((mode == LOCK_X) || (mode == LOCK_S));
+	ut_ad(mode == LOCK_X || mode == LOCK_S);
 
 	if (mode == LOCK_S) {
 
@@ -792,7 +792,7 @@ lock_has_to_wait(
 	lock_t*	lock2)	/* in: another lock; NOTE that it is assumed that this
 			has a lock bit set on the same record as in lock1 */
 {
-	if ((lock1->trx != lock2->trx)
+	if (lock1->trx != lock2->trx
 			&& !lock_mode_compatible(lock_get_mode(lock1),
 				     		lock_get_mode(lock2))) {
 		return(TRUE);
@@ -1228,8 +1228,8 @@ lock_table_has(
 
 	while (lock != NULL) {
 
-		if ((lock->trx == trx)
-		    && (lock_mode_stronger_or_eq(lock_get_mode(lock), mode))) {
+		if (lock->trx == trx
+		    && lock_mode_stronger_or_eq(lock_get_mode(lock), mode)) {
 
 			/* The same trx already has locked the table in 
 			a mode stronger or equal to the mode given */
@@ -1267,7 +1267,7 @@ lock_rec_has_expl(
 	lock = lock_rec_get_first(rec);
 
 	while (lock) {
-		if ((lock->trx == trx)
+		if (lock->trx == trx
 		    && lock_mode_stronger_or_eq(lock_get_mode(lock), mode)
 		    && !lock_get_wait(lock)
 		    && !(lock_rec_get_gap(lock)
@@ -1306,7 +1306,7 @@ lock_rec_other_has_expl_req(
 	lock = lock_rec_get_first(rec);
 
 	while (lock) {
-		if ((lock->trx != trx)
+		if (lock->trx != trx
 		    && (gap ||
 			!(lock_rec_get_gap(lock) || page_rec_is_supremum(rec)))
 		    && (wait || !lock_get_wait(lock))
@@ -1344,9 +1344,9 @@ lock_rec_find_similar_on_page(
 	lock = lock_rec_get_first_on_page(rec);
 
 	while (lock != NULL) {
-		if ((lock->trx == trx)
-		    && (lock->type_mode == type_mode)
-		    && (lock_rec_get_n_bits(lock) > heap_no)) {
+		if (lock->trx == trx
+		    && lock->type_mode == type_mode
+		    && lock_rec_get_n_bits(lock) > heap_no) {
 		    	
 			return(lock);
 		}
@@ -1653,9 +1653,9 @@ lock_rec_lock_fast(
 		return(FALSE);
 	}
 
-	if ((lock->trx != thr_get_trx(thr))
-				|| (lock->type_mode != (mode | LOCK_REC))
-				|| (lock_rec_get_n_bits(lock) <= heap_no)) {
+	if (lock->trx != thr_get_trx(thr)
+				|| lock->type_mode != (mode | LOCK_REC)
+				|| lock_rec_get_n_bits(lock) <= heap_no) {
 	    	return(FALSE);
 	}
 
@@ -1836,7 +1836,7 @@ lock_rec_cancel(
 {
 	ut_ad(mutex_own(&kernel_mutex));
 
-	/* Reset the bit in lock bitmap */
+	/* Reset the bit (there can be only one set bit) in the lock bitmap */
 	lock_rec_reset_nth_bit(lock, lock_rec_find_set_bit(lock));
 
 	/* Reset the wait flag and the back pointer to lock in trx */
@@ -1884,8 +1884,7 @@ lock_rec_dequeue_from_page(
 
 	lock = lock_rec_get_first_on_page_addr(space, page_no);
 
-	while (lock != NULL) {
-		
+	while (lock != NULL) {		
 		if (lock_get_wait(lock)
 				&& !lock_rec_has_to_wait_in_queue(lock)) {
 
@@ -1896,6 +1895,33 @@ lock_rec_dequeue_from_page(
 		lock = lock_rec_get_next_on_page(lock);
 	}
 }	
+
+/*****************************************************************
+Removes a record lock request, waiting or granted, from the queue. */
+static
+void
+lock_rec_discard(
+/*=============*/
+	lock_t*	in_lock)/* in: record lock object: all record locks which
+			are contained in this lock object are removed */
+{
+	ulint	space;
+	ulint	page_no;
+	trx_t*	trx;
+	
+	ut_ad(mutex_own(&kernel_mutex));
+	ut_ad(lock_get_type(in_lock) == LOCK_REC);
+
+	trx = in_lock->trx;
+	
+	space = in_lock->un_member.rec_lock.space;
+	page_no = in_lock->un_member.rec_lock.page_no;
+
+	HASH_DELETE(lock_t, hash, lock_sys->rec_hash,
+				lock_rec_fold(space, page_no), in_lock);
+
+	UT_LIST_REMOVE(trx_locks, trx->trx_locks, in_lock);
+}
 
 /*****************************************************************
 Removes record lock objects set on an index page which is discarded. This
@@ -1911,7 +1937,6 @@ lock_rec_free_all_from_discard_page(
 	ulint	page_no;
 	lock_t*	lock;
 	lock_t*	next_lock;
-	trx_t*	trx;
 	
 	ut_ad(mutex_own(&kernel_mutex));
 	
@@ -1926,12 +1951,8 @@ lock_rec_free_all_from_discard_page(
 
 		next_lock = lock_rec_get_next_on_page(lock);
 		
-		HASH_DELETE(lock_t, hash, lock_sys->rec_hash,
-					lock_rec_fold(space, page_no), lock);
-		trx = lock->trx;
+		lock_rec_discard(lock);
 		
-		UT_LIST_REMOVE(trx_locks, trx->trx_locks, lock);
-
 		lock = next_lock;
 	}
 }	
@@ -1957,7 +1978,6 @@ lock_rec_reset_and_release_wait(
 	lock = lock_rec_get_first(rec);
 
 	while (lock != NULL) {
-
 		if (lock_get_wait(lock)) {
 			lock_rec_cancel(lock);
 		} else {
@@ -3088,6 +3108,69 @@ lock_release_off_kernel(
 	mem_heap_empty(trx->lock_heap);
 }
 
+/*************************************************************************
+Resets all record and table locks of a transaction on a table to be dropped.
+No lock is allowed to be a wait lock. */
+static
+void
+lock_reset_all_on_table_for_trx(
+/*============================*/
+	dict_table_t*	table,	/* in: table to be dropped */
+	trx_t*		trx)	/* in: a transaction */
+{
+	lock_t*	lock;
+	lock_t*	prev_lock;
+
+	ut_ad(mutex_own(&kernel_mutex));
+
+	lock = UT_LIST_GET_LAST(trx->trx_locks);
+	
+	while (lock != NULL) {
+		prev_lock = UT_LIST_GET_PREV(trx_locks, lock);
+		
+		if (lock_get_type(lock) == LOCK_REC
+				&& lock->index->table == table) {
+			ut_a(!lock_get_wait(lock));
+			
+			lock_rec_discard(lock);
+		} else if (lock_get_type(lock) == LOCK_TABLE
+				&& lock->un_member.tab_lock.table == table) {
+
+			ut_a(!lock_get_wait(lock));
+			
+			lock_table_remove_low(lock);
+		}
+
+		lock = prev_lock;
+	}
+}
+
+/*************************************************************************
+Resets all locks, both table and record locks, on a table to be dropped.
+No lock is allowed to be a wait lock. */
+
+void
+lock_reset_all_on_table(
+/*====================*/
+	dict_table_t*	table)	/* in: table to be dropped */
+{
+	lock_t*	lock;
+
+	mutex_enter(&kernel_mutex);
+
+	lock = UT_LIST_GET_FIRST(table->locks);
+
+	while (lock) {	
+		ut_a(!lock_get_wait(lock));
+
+		lock_reset_all_on_table_for_trx(table, lock->trx);
+
+		lock = UT_LIST_GET_FIRST(table->locks);
+	}
+
+	mutex_exit(&kernel_mutex);
+}
+
 /*===================== VALIDATION AND DEBUGGING  ====================*/
 
 /*************************************************************************
@@ -3394,7 +3477,7 @@ lock_rec_queue_validate(
 		while (lock) {
 			ut_a(lock->trx->conc_state == TRX_ACTIVE
 		     	     || lock->trx->conc_state
-					== TRX_COMMITTED_IN_MEMORY);
+						== TRX_COMMITTED_IN_MEMORY);
 	
 			ut_a(trx_in_trx_list(lock->trx));
 			
@@ -3414,7 +3497,7 @@ lock_rec_queue_validate(
 	    	return(TRUE);
 	}
 
-	if (index && index->type & DICT_CLUSTERED) {
+	if (index && (index->type & DICT_CLUSTERED)) {
 	
 		impl_trx = lock_clust_rec_some_has_impl(rec, index);
 
@@ -3525,12 +3608,12 @@ loop:
 	}
 
 	ut_a(trx_in_trx_list(lock->trx));
-	ut_a(((lock->trx)->conc_state == TRX_ACTIVE)
-		     || ((lock->trx)->conc_state == TRX_COMMITTED_IN_MEMORY));
+	ut_a(lock->trx->conc_state == TRX_ACTIVE
+		     || lock->trx->conc_state == TRX_COMMITTED_IN_MEMORY);
 	
 	for (i = nth_bit; i < lock_rec_get_n_bits(lock); i++) {
 
-		if ((i == 1) || lock_rec_get_nth_bit(lock, i)) {
+		if (i == 1 || lock_rec_get_nth_bit(lock, i)) {
 
 			index = lock->index;
 			rec = page_find_rec_with_heap_no(page, i);
@@ -3894,9 +3977,9 @@ lock_sec_rec_read_check_and_lock(
 
 	lock_mutex_enter_kernel();
 
-	ut_ad((mode != LOCK_X)
+	ut_ad(mode != LOCK_X
 	      || lock_table_has(thr_get_trx(thr), index->table, LOCK_IX));
-	ut_ad((mode != LOCK_S)
+	ut_ad(mode != LOCK_S
 	      || lock_table_has(thr_get_trx(thr), index->table, LOCK_IS));
 
 	/* Some transaction may have an implicit x-lock on the record only
@@ -3956,9 +4039,9 @@ lock_clust_rec_read_check_and_lock(
 
 	lock_mutex_enter_kernel();
 
-	ut_ad((mode != LOCK_X)
+	ut_ad(mode != LOCK_X
 	      || lock_table_has(thr_get_trx(thr), index->table, LOCK_IX));
-	ut_ad((mode != LOCK_S)
+	ut_ad(mode != LOCK_S
 	      || lock_table_has(thr_get_trx(thr), index->table, LOCK_IS));
 	
 	if (!page_rec_is_supremum(rec)) {

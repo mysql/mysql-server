@@ -163,19 +163,14 @@ handle_new_error:
 	trx->error_state = DB_SUCCESS;
 
 	if (err == DB_DUPLICATE_KEY) {
-		if (savept) {
+           	if (savept) {
 			/* Roll back the latest, possibly incomplete
 			insertion or update */
 
 			trx_general_rollback_for_mysql(trx, TRUE, savept);
-		}			
+		}
 	} else if (err == DB_TOO_BIG_RECORD) {
-		if (savept) {
-			/* Roll back the latest, possibly incomplete
-			insertion or update */
-
-			trx_general_rollback_for_mysql(trx, TRUE, savept);
-		}			
+		/* MySQL will roll back the latest SQL statement */
 	} else if (err == DB_LOCK_WAIT) {
 
 		timeout_expired = srv_suspend_mysql_thread(thr);
@@ -193,19 +188,19 @@ handle_new_error:
 		return(TRUE);
 
 	} else if (err == DB_DEADLOCK) {
-
-		/* Roll back the whole transaction */
-
-		trx_general_rollback_for_mysql(trx, FALSE, NULL);
+		/* MySQL will roll back the latest SQL statement */
 
 	} else if (err == DB_OUT_OF_FILE_SPACE) {
+		/* MySQL will roll back the latest SQL statement */
 
-		/* Roll back the whole transaction */
-
-		trx_general_rollback_for_mysql(trx, FALSE, NULL);
 	} else if (err == DB_MUST_GET_MORE_FILE_SPACE) {
 
-		ut_a(0); /* TODO: print something to MySQL error log */
+		fprintf(stderr,
+		"InnoDB: The database cannot continue operation because of\n"
+		"InnoDB: lack of space. You must add a new data file to\n"
+		"InnoDB: my.cnf and restart the database.\n");
+		
+		exit(1);
 	} else {
 		ut_a(0);
 	}		
@@ -919,7 +914,7 @@ row_drop_table_for_mysql(
 	char*		str2;
 	ulint		len;
 	char		buf[10000];
-retry:
+
 	ut_ad(trx->mysql_thread_id == os_thread_get_curr_id());
 	ut_a(name != NULL);
 	
@@ -997,20 +992,14 @@ retry:
 		goto funct_exit;
 	}
 
-	/* Check if there are any locks on the table: if yes, it cannot
-	be dropped: we have to wait for the locks to be released  */
-
-	if (lock_is_on_table(table)) {
-
-		err = DB_TABLE_IS_BEING_USED;
-
-		goto funct_exit;
-	}		
+	/* Remove any locks there are on the table or its records */
+	
+	lock_reset_all_on_table(table);
 
 	/* TODO: check that MySQL prevents users from accessing the table
 	after this function row_drop_table_for_mysql has been called:
 	otherwise anyone with an open handle to the table could, for example,
-	come to read the table! */
+	come to read the table! Monty said that it prevents. */
 
 	trx->dict_operation = TRUE;
 	trx->table_id = table->id;
@@ -1041,12 +1030,6 @@ funct_exit:
 
 	que_graph_free(graph);
 	
-	if (err == DB_TABLE_IS_BEING_USED) {
-		os_thread_sleep(200000);
-
-		goto retry;
-	}
-
 	return((int) err);
 }
 
