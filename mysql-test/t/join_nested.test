@@ -1,6 +1,7 @@
 
-
+--disable_warnings
 DROP TABLE IF EXISTS t0,t1,t2,t3,t4,t5,t6,t7,t8,t9;
+--enable_warnings
 
 CREATE TABLE t0 (a int, b int, c int);
 CREATE TABLE t1 (a int, b int, c int);
@@ -49,7 +50,7 @@ SELECT t2.a,t2.b,t3.a,t3.b,t4.a,t4.b
        (t3, t4)
        ON t3.a=1 AND t2.b=t4.b;
 
-EXPLAIN
+EXPLAIN EXTENDED
 SELECT t2.a,t2.b,t3.a,t3.b,t4.a,t4.b
   FROM t2
        LEFT JOIN              
@@ -83,7 +84,7 @@ SELECT t2.a,t2.b,t3.a,t3.b,t4.a,t4.b,t5.a,t5.b
        (t3, t4, t5)
        ON t2.b=t4.b;
 
-EXPLAIN
+EXPLAIN EXTENDED
 SELECT t2.a,t2.b,t3.a,t3.b,t4.a,t4.b,t5.a,t5.b
   FROM t2
        LEFT JOIN              
@@ -98,7 +99,7 @@ SELECT t2.a,t2.b,t3.a,t3.b,t4.a,t4.b,t5.a,t5.b
        ON t2.b=t4.b
     WHERE t3.a>1 OR t3.c IS NULL;
 
-EXPLAIN
+EXPLAIN EXTENDED
 SELECT t2.a,t2.b,t3.a,t3.b,t4.a,t4.b,t5.a,t5.b
   FROM t2
        LEFT JOIN              
@@ -127,7 +128,7 @@ SELECT t6.a,t6.b,t7.a,t7.b
 SELECT t8.a,t8.b
   FROM t8;
 
-EXPLAIN
+EXPLAIN EXTENDED
 SELECT t6.a,t6.b,t7.a,t7.b,t8.a,t8.b
   FROM t6,
        t7 
@@ -267,7 +268,7 @@ SELECT t1.a,t1.b,t2.a,t2.b,t3.a,t3.b,t4.a,t4.b,
 SELECT t0.a,t0.b
   FROM t0;
 
-EXPLAIN
+EXPLAIN EXTENDED
 SELECT t0.a,t0.b,t1.a,t1.b,t2.a,t2.b,t3.a,t3.b,t4.a,t4.b,
        t5.a,t5.b,t6.a,t6.b,t7.a,t7.b,t8.a,t8.b
   FROM t0,t1
@@ -322,7 +323,7 @@ SELECT t0.a,t0.b,t1.a,t1.b,t2.a,t2.b,t3.a,t3.b,t4.a,t4.b,
           t0.b=t1.b AND          
           (t2.a >= 4 OR t2.c IS NULL); 
 
-EXPLAIN
+EXPLAIN EXTENDED
 SELECT t0.a,t0.b,t1.a,t1.b,t2.a,t2.b,t3.a,t3.b,t4.a,t4.b,
        t5.a,t5.b,t6.a,t6.b,t7.a,t7.b,t8.a,t8.b,t9.a,t9.b
   FROM t0,t1
@@ -457,9 +458,17 @@ SELECT t1.a,t1.b,t2.a,t2.b,t3.a,t3.b,t4.a,t4.b
        ON t3.a=1 AND t2.b=t4.b
     WHERE t1.a <= 2;
 
+EXPLAIN EXTENDED
+SELECT t1.a,t1.b,t2.a,t2.b,t3.a,t3.b,t4.a,t4.b
+  FROM t1, t3, t4
+       RIGHT JOIN
+       t2
+       ON t3.a=1 AND t2.b=t4.b
+    WHERE t1.a <= 2;
+
 CREATE INDEX idx_b ON t2(b);
 
-EXPLAIN
+EXPLAIN EXTENDED
 SELECT t2.a,t2.b,t3.a,t3.b,t4.a,t4.b
   FROM t3,t4 
        LEFT JOIN              
@@ -472,7 +481,7 @@ SELECT t2.a,t2.b,t3.a,t3.b,t4.a,t4.b
        (t1,t2)
        ON t3.a=1 AND t3.b=t2.b AND t2.b=t4.b;
 
-EXPLAIN
+EXPLAIN EXTENDED
 SELECT t0.a,t0.b,t1.a,t1.b,t2.a,t2.b,t3.a,t3.b,t4.a,t4.b,
        t5.a,t5.b,t6.a,t6.b,t7.a,t7.b,t8.a,t8.b,t9.a,t9.b
   FROM t0,t1
@@ -512,7 +521,7 @@ SELECT t0.a,t0.b,t1.a,t1.b,t2.a,t2.b,t3.a,t3.b,t4.a,t4.b,
 CREATE INDEX idx_b ON t4(b);
 CREATE INDEX idx_b ON t5(b);
 
-EXPLAIN
+EXPLAIN EXTENDED
 SELECT t0.a,t0.b,t1.a,t1.b,t2.a,t2.b,t3.a,t3.b,t4.a,t4.b,
        t5.a,t5.b,t6.a,t6.b,t7.a,t7.b,t8.a,t8.b,t9.a,t9.b
   FROM t0,t1
@@ -551,7 +560,7 @@ SELECT t0.a,t0.b,t1.a,t1.b,t2.a,t2.b,t3.a,t3.b,t4.a,t4.b,
 
 CREATE INDEX idx_b ON t8(b);
 
-EXPLAIN
+EXPLAIN EXTENDED
 SELECT t0.a,t0.b,t1.a,t1.b,t2.a,t2.b,t3.a,t3.b,t4.a,t4.b,
        t5.a,t5.b,t6.a,t6.b,t7.a,t7.b,t8.a,t8.b,t9.a,t9.b
   FROM t0,t1
@@ -591,7 +600,7 @@ SELECT t0.a,t0.b,t1.a,t1.b,t2.a,t2.b,t3.a,t3.b,t4.a,t4.b,
 CREATE INDEX idx_b ON t1(b);
 CREATE INDEX idx_a ON t0(a);
 
-EXPLAIN
+EXPLAIN EXTENDED
 SELECT t0.a,t0.b,t1.a,t1.b,t2.a,t2.b,t3.a,t3.b,t4.a,t4.b,
        t5.a,t5.b,t6.a,t6.b,t7.a,t7.b,t8.a,t8.b,t9.a,t9.b
   FROM t0,t1
