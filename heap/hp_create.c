@@ -168,6 +168,8 @@ int heap_create(const char *name, uint keys, HP_KEYDEF *keydef,
 	keyinfo->write_key= hp_write_key;
         keyinfo->hash_buckets= 0;
       }
+      if ((keyinfo->flag & HA_AUTO_KEY) && create_info->with_auto_increment)
+        share->auto_key= i + 1;
     }
     share->min_records= min_records;
     share->max_records= max_records;
