@@ -2875,7 +2875,6 @@ mysql_init_query(THD *thd)
   thd->last_insert_id_used= thd->query_start_used= thd->insert_id_used=0;
   thd->sent_row_count= thd->examined_row_count= 0;
   thd->fatal_error= thd->rand_used= 0;
-  thd->safe_to_cache_query= 1;
   thd->possible_loops= 0;
   DBUG_VOID_RETURN;
 }
