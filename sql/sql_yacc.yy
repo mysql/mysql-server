@@ -478,7 +478,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %token  CIPHER_SYM
 
 %left   SET_VAR
-%left	OR_OR_CONCAT OR
+%left	OR_OR_CONCAT OR XOR
 %left	AND
 %left	BETWEEN_SYM CASE_SYM WHEN_SYM THEN_SYM ELSE
 %left	EQ EQUAL_SYM GE GT_SYM LE LT NE IS LIKE REGEXP IN_SYM
@@ -488,7 +488,6 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %left	'-' '+'
 %left	'*' '/' '%'
 %left	NEG '~'
-%left   XOR
 %left   '^'
 %right	NOT
 %right	BINARY
