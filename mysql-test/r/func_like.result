@@ -3,10 +3,10 @@ create table t1 (a varchar(10), key(a));
 insert into t1 values ("a"),("abc"),("abcd"),("hello"),("test");
 explain select * from t1 where a like 'abc%';
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	index	a	a	11	NULL	5	Using where; Using index
+1	SIMPLE	t1	index	a	a	13	NULL	5	Using where; Using index
 explain select * from t1 where a like concat('abc','%');
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	index	a	a	11	NULL	5	Using where; Using index
+1	SIMPLE	t1	index	a	a	13	NULL	5	Using where; Using index
 select * from t1 where a like "abc%";
 a
 abc

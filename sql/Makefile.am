@@ -29,8 +29,7 @@ libexec_PROGRAMS =	mysqld
 noinst_PROGRAMS =	gen_lex_hash
 bin_PROGRAMS =		mysql_tzinfo_to_sql
 gen_lex_hash_LDFLAGS =  @NOINST_LDFLAGS@
-LDADD =			@isam_libs@ \
-			$(top_builddir)/myisam/libmyisam.a \
+LDADD =			$(top_builddir)/myisam/libmyisam.a \
 			$(top_builddir)/myisammrg/libmyisammrg.a \
 			$(top_builddir)/heap/libheap.a \
 			$(top_builddir)/vio/libvio.a \
@@ -51,7 +50,7 @@ noinst_HEADERS =	item.h item_func.h item_sum.h item_cmpfunc.h \
 			procedure.h sql_class.h sql_lex.h sql_list.h \
 			sql_manager.h sql_map.h sql_string.h unireg.h \
 			field.h handler.h mysqld_suffix.h \
-			ha_isammrg.h ha_isam.h ha_myisammrg.h\
+			ha_myisammrg.h\
 			ha_heap.h ha_myisam.h ha_berkeley.h ha_innodb.h \
 			ha_ndbcluster.h opt_range.h protocol.h \
 			sql_select.h structs.h table.h sql_udf.h hash_filo.h\
@@ -86,7 +85,7 @@ mysqld_SOURCES =	sql_lex.cc sql_handler.cc \
 		   	records.cc filesort.cc handler.cc \
 		        ha_heap.cc ha_myisam.cc ha_myisammrg.cc \
 	                ha_berkeley.cc ha_innodb.cc \
-			ha_isam.cc ha_isammrg.cc ha_ndbcluster.cc \
+			ha_ndbcluster.cc \
 			sql_db.cc sql_table.cc sql_rename.cc sql_crypt.cc \
 			sql_load.cc mf_iocache.cc field_conv.cc sql_show.cc \
 			sql_udf.cc sql_analyse.cc sql_analyse.h sql_cache.cc \

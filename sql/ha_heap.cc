@@ -98,6 +98,7 @@ void ha_heap::set_keys_for_scanning(void)
   }
 }
 
+
 void ha_heap::update_key_stats()
 {
   for (uint i= 0; i < table->keys; i++)
@@ -112,6 +113,7 @@ void ha_heap::update_key_stats()
   }
   records_changed= 0;
 }
+
 
 int ha_heap::write_row(byte * buf)
 {
@@ -439,8 +441,7 @@ ha_rows ha_heap::records_in_range(uint inx, key_range *min_key,
       min_key->flag != HA_READ_KEY_EXACT ||
       max_key->flag != HA_READ_AFTER_KEY)
     return HA_POS_ERROR;			// Can only use exact keys
-  else
-    return key->rec_per_key[key->key_parts-1];
+  return key->rec_per_key[key->key_parts-1];
 }
 
 
@@ -481,16 +482,20 @@ int ha_heap::create(const char *name, TABLE *table_arg,
     {
       uint flag=    key_part->key_type;
       Field *field= key_part->field;
+
       if (pos->algorithm == HA_KEY_ALG_BTREE)
 	seg->type= field->key_type();
       else
       {
-        if ((seg->type = field->key_type()) != (int) HA_KEYTYPE_TEXT)
+        if ((seg->type = field->key_type()) != (int) HA_KEYTYPE_TEXT &&
+            seg->type != HA_KEYTYPE_VARTEXT &&
+            seg->type != HA_KEYTYPE_VARBINARY)
           seg->type= HA_KEYTYPE_BINARY;
       }
       seg->start=   (uint) key_part->offset;
       seg->length=  (uint) key_part->length;
-      seg->flag =   0;
+      seg->flag=    key_part->key_part_flag;
+
       seg->charset= field->charset();
       if (field->null_ptr)
       {

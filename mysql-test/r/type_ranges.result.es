@@ -223,7 +223,7 @@ umedium	mediumint(8) unsigned	NULL		MUL	0
 ulong	int(11) unsigned	NULL		MUL	0			
 ulonglong	bigint(13) unsigned	NULL		MUL	0			
 time_stamp	timestamp	NULL	YES		CURRENT_TIMESTAMP			
-date_field	varchar(10)	latin1_swedish_ci	YES		NULL			
+date_field	char(10)	latin1_swedish_ci	YES		NULL			
 time_field	time	NULL	YES		NULL			
 date_time	datetime	NULL	YES		NULL			
 new_blob_col	varchar(20)	latin1_swedish_ci	YES		NULL			
@@ -231,7 +231,7 @@ tinyblob_col	tinyblob	NULL	YES		NULL
 mediumblob_col	mediumblob	NULL						
 options	enum('one','two','tree')	latin1_swedish_ci		MUL	one			
 flags	set('one','two','tree')	latin1_swedish_ci						
-new_field	varchar(10)	latin1_swedish_ci			new			
+new_field	char(10)	latin1_swedish_ci			new			
 show full columns from t2;
 Field	Type	Collation	Null	Key	Default	Extra	Privileges	Comment
 auto	int(5) unsigned	NULL			0			
@@ -249,7 +249,7 @@ umedium	mediumint(8) unsigned	NULL			0
 ulong	int(11) unsigned	NULL			0			
 ulonglong	bigint(13) unsigned	NULL			0			
 time_stamp	timestamp	NULL	YES		0000-00-00 00:00:00			
-date_field	varchar(10)	latin1_swedish_ci	YES		NULL			
+date_field	char(10)	latin1_swedish_ci	YES		NULL			
 time_field	time	NULL	YES		NULL			
 date_time	datetime	NULL	YES		NULL			
 new_blob_col	varchar(20)	latin1_swedish_ci	YES		NULL			
@@ -257,7 +257,7 @@ tinyblob_col	tinyblob	NULL	YES		NULL
 mediumblob_col	mediumblob	NULL						
 options	enum('one','two','tree')	latin1_swedish_ci			one			
 flags	set('one','two','tree')	latin1_swedish_ci						
-new_field	varchar(10)	latin1_swedish_ci			new			
+new_field	char(10)	latin1_swedish_ci			new			
 select t1.auto,t2.auto from t1,t2 where t1.auto=t2.auto and ((t1.string<>t2.string and (t1.string is not null or t2.string is not null)) or (t1.tiny<>t2.tiny and (t1.tiny is not null or t2.tiny is not null)) or (t1.short<>t2.short and (t1.short is not null or t2.short is not null)) or (t1.medium<>t2.medium and (t1.medium is not null or t2.medium is not null)) or (t1.long_int<>t2.long_int and (t1.long_int is not null or t2.long_int is not null)) or (t1.longlong<>t2.longlong and (t1.longlong is not null or t2.longlong is not null)) or (t1.real_float<>t2.real_float and (t1.real_float is not null or t2.real_float is not null)) or (t1.real_double<>t2.real_double and (t1.real_double is not null or t2.real_double is not null)) or (t1.utiny<>t2.utiny and (t1.utiny is not null or t2.utiny is not null)) or (t1.ushort<>t2.ushort and (t1.ushort is not null or t2.ushort is not null)) or (t1.umedium<>t2.umedium and (t1.umedium is not null or t2.umedium is not null)) or (t1.ulong<>t2.ulong and (t1.ulong is not null or t2.ulong is not null)) or (t1.ulonglong<>t2.ulonglong and (t1.ulonglong is not null or t2.ulonglong is not null)) or (t1.time_stamp<>t2.time_stamp and (t1.time_stamp is not null or t2.time_stamp is not null)) or (t1.date_field<>t2.date_field and (t1.date_field is not null or t2.date_field is not null)) or (t1.time_field<>t2.time_field and (t1.time_field is not null or t2.time_field is not null)) or (t1.date_time<>t2.date_time and (t1.date_time is not null or t2.date_time is not null)) or (t1.new_blob_col<>t2.new_blob_col and (t1.new_blob_col is not null or t2.new_blob_col is not null)) or (t1.tinyblob_col<>t2.tinyblob_col and (t1.tinyblob_col is not null or t2.tinyblob_col is not null)) or (t1.mediumblob_col<>t2.mediumblob_col and (t1.mediumblob_col is not null or t2.mediumblob_col is not null)) or (t1.options<>t2.options and (t1.options is not null or t2.options is not null)) or (t1.flags<>t2.flags and (t1.flags is not null or t2.flags is not null)) or (t1.new_field<>t2.new_field and (t1.new_field is not null or t2.new_field is not null)));
 auto	auto
 16	16

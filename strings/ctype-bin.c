@@ -103,7 +103,9 @@ static int my_strnncoll_binary(CHARSET_INFO * cs __attribute__((unused)),
 
 static int my_strnncollsp_binary(CHARSET_INFO * cs __attribute__((unused)),
                                  const uchar *s, uint slen,
-                                 const uchar *t, uint tlen)
+                                 const uchar *t, uint tlen,
+                                 my_bool diff_if_only_endspace_difference
+                                 __attribute__((unused)))
 {
   return my_strnncoll_binary(cs,s,slen,t,tlen,0);
 }
@@ -130,6 +132,9 @@ static int my_strnncoll_8bit_bin(CHARSET_INFO * cs __attribute__((unused)),
     slen		Length of 's'
     t			String to compare
     tlen		Length of 't'
+    diff_if_only_endspace_difference
+		        Set to 1 if the strings should be regarded as different
+                        if they only difference in end space
 
   NOTE
    This function is used for character strings with binary collations.
@@ -144,10 +149,16 @@ static int my_strnncoll_8bit_bin(CHARSET_INFO * cs __attribute__((unused)),
 
 static int my_strnncollsp_8bit_bin(CHARSET_INFO * cs __attribute__((unused)),
                                    const uchar *a, uint a_length, 
-                                   const uchar *b, uint b_length)
+                                   const uchar *b, uint b_length,
+                                   my_bool diff_if_only_endspace_difference)
 {
   const uchar *end;
   uint length;
+  int res;
+
+#ifndef VARCHAR_WITH_DIFF_ENDSPACE_ARE_DIFFERENT_FOR_UNIQUE
+  diff_if_only_endspace_difference= 0;
+#endif
 
   end= a + (length= min(a_length, b_length));
   while (a < end)
@@ -155,6 +166,7 @@ static int my_strnncollsp_8bit_bin(CHARSET_INFO * cs __attribute__((unused)),
     if (*a++ != *b++)
       return ((int) a[-1] - (int) b[-1]);
   }
+  res= 0;
   if (a_length != b_length)
   {
     int swap= 0;
@@ -162,12 +174,15 @@ static int my_strnncollsp_8bit_bin(CHARSET_INFO * cs __attribute__((unused)),
       Check the next not space character of the longer key. If it's < ' ',
       then it's smaller than the other key.
     */
+    if (diff_if_only_endspace_difference)
+      res= 1;                                   /* Assume 'a' is bigger */
     if (a_length < b_length)
     {
       /* put shorter key in s */
       a_length= b_length;
       a= b;
       swap= -1;					/* swap sign of result */
+      res= -res;
     }
     for (end= a + a_length-length; a < end ; a++)
     {
@@ -175,7 +190,7 @@ static int my_strnncollsp_8bit_bin(CHARSET_INFO * cs __attribute__((unused)),
 	return ((int) *a - (int) ' ') ^ swap;
     }
   }
-  return 0;
+  return res;
 }
 
 

@@ -36,16 +36,16 @@ create table t2 select * from t1 where 0=1 procedure analyse();
 show create table t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `Field_name` char(255) NOT NULL default '',
-  `Min_value` char(255) default NULL,
-  `Max_value` char(255) default NULL,
+  `Field_name` varchar(255) NOT NULL default '',
+  `Min_value` varchar(255) default NULL,
+  `Max_value` varchar(255) default NULL,
   `Min_length` bigint(11) NOT NULL default '0',
   `Max_length` bigint(11) NOT NULL default '0',
   `Empties_or_zeros` bigint(11) NOT NULL default '0',
   `Nulls` bigint(11) NOT NULL default '0',
-  `Avg_value_or_avg_length` char(255) NOT NULL default '',
-  `Std` char(255) default NULL,
-  `Optimal_fieldtype` char(64) NOT NULL default ''
+  `Avg_value_or_avg_length` varchar(255) NOT NULL default '',
+  `Std` varchar(255) default NULL,
+  `Optimal_fieldtype` varchar(64) NOT NULL default ''
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 select * from t1 where 0=1 procedure analyse();
 Field_name	Min_value	Max_value	Min_length	Max_length	Empties_or_zeros	Nulls	Avg_value_or_avg_length	Std	Optimal_fieldtype
@@ -55,16 +55,16 @@ create table t2 select * from t1 where 0=1 procedure analyse();
 show create table t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `Field_name` char(255) NOT NULL default '',
-  `Min_value` char(255) default NULL,
-  `Max_value` char(255) default NULL,
+  `Field_name` varchar(255) NOT NULL default '',
+  `Min_value` varchar(255) default NULL,
+  `Max_value` varchar(255) default NULL,
   `Min_length` bigint(11) NOT NULL default '0',
   `Max_length` bigint(11) NOT NULL default '0',
   `Empties_or_zeros` bigint(11) NOT NULL default '0',
   `Nulls` bigint(11) NOT NULL default '0',
-  `Avg_value_or_avg_length` char(255) NOT NULL default '',
-  `Std` char(255) default NULL,
-  `Optimal_fieldtype` char(64) NOT NULL default ''
+  `Avg_value_or_avg_length` varchar(255) NOT NULL default '',
+  `Std` varchar(255) default NULL,
+  `Optimal_fieldtype` varchar(64) NOT NULL default ''
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 select * from t2;
 Field_name	Min_value	Max_value	Min_length	Max_length	Empties_or_zeros	Nulls	Avg_value_or_avg_length	Std	Optimal_fieldtype
@@ -78,16 +78,16 @@ create table t2 select * from t1 where 0=1 procedure analyse();
 show create table t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `Field_name` char(255) NOT NULL default '',
-  `Min_value` char(255) default NULL,
-  `Max_value` char(255) default NULL,
+  `Field_name` varchar(255) NOT NULL default '',
+  `Min_value` varchar(255) default NULL,
+  `Max_value` varchar(255) default NULL,
   `Min_length` bigint(11) NOT NULL default '0',
   `Max_length` bigint(11) NOT NULL default '0',
   `Empties_or_zeros` bigint(11) NOT NULL default '0',
   `Nulls` bigint(11) NOT NULL default '0',
-  `Avg_value_or_avg_length` char(255) NOT NULL default '',
-  `Std` char(255) default NULL,
-  `Optimal_fieldtype` char(64) NOT NULL default ''
+  `Avg_value_or_avg_length` varchar(255) NOT NULL default '',
+  `Std` varchar(255) default NULL,
+  `Optimal_fieldtype` varchar(64) NOT NULL default ''
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 select * from t2;
 Field_name	Min_value	Max_value	Min_length	Max_length	Empties_or_zeros	Nulls	Avg_value_or_avg_length	Std	Optimal_fieldtype
