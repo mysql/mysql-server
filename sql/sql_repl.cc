@@ -622,7 +622,7 @@ Increase max_allowed_packet on master";
 
 int start_slave(THD* thd , MASTER_INFO* mi,  bool net_report)
 {
-  int slave_errno = 0;
+  int slave_errno;
   if (!thd)
     thd = current_thd;
   int thread_mask;
@@ -631,10 +631,17 @@ int start_slave(THD* thd , MASTER_INFO* mi,  bool net_report)
   if (check_access(thd, SUPER_ACL, any_db))
     DBUG_RETURN(1);
   lock_slave_threads(mi);  // this allows us to cleanly read slave_running
+  // Get a mask of _stopped_ threads
   init_thread_mask(&thread_mask,mi,1 /* inverse */);
+  /*
+    Below we will start all stopped threads.
+    But if the user wants to start only one thread, do as if the other thread
+    was running (as we don't wan't to touch the other thread), so set the
+    bit to 0 for the other thread
+  */
   if (thd->lex.slave_thd_opt)
     thread_mask &= thd->lex.slave_thd_opt;
-  if (thread_mask)
+  if (thread_mask) //some threads are stopped, start them
   {
     if (init_master_info(mi,master_info_file,relay_log_info_file, 0))
       slave_errno=ER_MASTER_INFO;
@@ -648,7 +655,12 @@ int start_slave(THD* thd , MASTER_INFO* mi,  bool net_report)
       slave_errno = ER_BAD_SLAVE;
   }
   else
-    slave_errno = ER_SLAVE_MUST_STOP;
+  {
+    //no error if all threads are already started, only a warning
+    slave_errno= 0;
+    push_warning(thd, MYSQL_ERROR::WARN_LEVEL_NOTE, ER_SLAVE_WAS_RUNNING,
+                 ER(ER_SLAVE_WAS_RUNNING));
+  }
   
   unlock_slave_threads(mi);
   
@@ -667,7 +679,7 @@ int start_slave(THD* thd , MASTER_INFO* mi,  bool net_report)
 
 int stop_slave(THD* thd, MASTER_INFO* mi, bool net_report )
 {
-  int slave_errno = 0;
+  int slave_errno;
   if (!thd)
     thd = current_thd;
 
@@ -676,12 +688,29 @@ int stop_slave(THD* thd, MASTER_INFO* mi, bool net_report )
   thd->proc_info = "Killing slave";
   int thread_mask;
   lock_slave_threads(mi);
+  // Get a mask of _running_ threads
   init_thread_mask(&thread_mask,mi,0 /* not inverse*/);
+  /*
+    Below we will stop all running threads.
+    But if the user wants to stop only one thread, do as if the other thread
+    was stopped (as we don't wan't to touch the other thread), so set the
+    bit to 0 for the other thread
+  */
   if (thd->lex.slave_thd_opt)
     thread_mask &= thd->lex.slave_thd_opt;
-  slave_errno = (thread_mask) ?
-    terminate_slave_threads(mi,thread_mask,
-			    1 /*skip lock */) :    ER_SLAVE_NOT_RUNNING;
+
+  if (thread_mask)
+  {
+    slave_errno= terminate_slave_threads(mi,thread_mask,
+                                         1 /*skip lock */);
+  }
+  else
+  {
+    //no error if both threads are already stopped, only a warning
+    slave_errno= 0;
+    push_warning(thd, MYSQL_ERROR::WARN_LEVEL_NOTE, ER_SLAVE_WAS_NOT_RUNNING,
+                 ER(ER_SLAVE_WAS_NOT_RUNNING));
+  }
   unlock_slave_threads(mi);
   thd->proc_info = 0;
 
