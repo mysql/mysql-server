@@ -1238,6 +1238,32 @@ static my_bool my_cset_init_8bit(CHARSET_INFO *cs, void *(*alloc)(uint))
   return create_fromuni(cs, alloc);
 }
 
+static void set_max_sort_char(CHARSET_INFO *cs)
+{
+  uchar max_char;
+  uint  i;
+  
+  if (!cs->sort_order)
+    return;
+  
+  max_char=cs->sort_order[(uchar) cs->max_sort_char];
+  for (i= 0; i < 256; i++)
+  {
+    if ((uchar) cs->sort_order[i] > max_char)
+    {
+      max_char=(uchar) cs->sort_order[i];
+      cs->max_sort_char= i;
+    }
+  }
+}
+
+static my_bool my_coll_init_simple(CHARSET_INFO *cs,
+                                   void *(*alloc)(uint) __attribute__((unused)))
+{
+  set_max_sort_char(cs);
+  return FALSE;
+}
+
 
 
 MY_CHARSET_HANDLER my_charset_8bit_handler=
@@ -1269,7 +1295,7 @@ MY_CHARSET_HANDLER my_charset_8bit_handler=
 
 MY_COLLATION_HANDLER my_collation_8bit_simple_ci_handler =
 {
-    NULL,		/* init */
+    my_coll_init_simple,	/* init */
     my_strnncoll_simple,
     my_strnncollsp_simple,
     my_strnxfrm_simple,
