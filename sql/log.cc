@@ -948,16 +948,16 @@ bool MYSQL_LOG::write(THD *thd,const char *query, uint query_length,
       if (end != buff)
       {
 	*end++=';';
-	*end++='\n';
-	*end=0;
+	*end='\n';
 	if (my_b_write(&log_file, (byte*) "SET ",4) ||
-	    my_b_write(&log_file, (byte*) buff+1,(uint) (end-buff)-1))
+	    my_b_write(&log_file, (byte*) buff+1,(uint) (end-buff)))
 	  tmp_errno=errno;
       }
       if (!query)
       {
-	query="#adminstrator command";
-	query_length=21;
+	end=strxmov(buff, "# administrator command: ",
+		    command_name[thd->command], NullS);
+	query_length=(ulong) (end-buff);
       }
       if (my_b_write(&log_file, (byte*) query,query_length) ||
 	  my_b_write(&log_file, (byte*) ";\n",2) ||
