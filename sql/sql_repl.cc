@@ -1079,6 +1079,9 @@ err:
   }
 
   send_eof(thd);
+  pthread_mutex_lock(&LOCK_thread_count);
+  thd->current_linfo = 0;
+  pthread_mutex_unlock(&LOCK_thread_count);
   DBUG_RETURN(0);
 }
 

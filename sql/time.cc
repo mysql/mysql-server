@@ -251,145 +251,6 @@ void get_date_from_daynr(long daynr,uint *ret_year,uint *ret_month,
   DBUG_VOID_RETURN;
 }
 
-/*	find date from string and put it in vektor
-	Input: pos = "YYMMDD" OR "YYYYMMDD" in any order or
-	"xxxxx YYxxxMMxxxDD xxxx" where xxx is anything exept
-	a number. Month or day mustn't exeed 2 digits, year may be 4 digits.
-*/
-
-
-#ifdef NOT_NEEDED
-
-void find_date(string pos,uint *vek,uint flag)
-{
-  uint length,value;
-  string start;
-  DBUG_ENTER("find_date");
-  DBUG_PRINT("enter",("pos: '%s'  flag: %d",pos,flag));
-
-  bzero((char*) vek,sizeof(int)*4);
-  while (*pos && !my_isdigit(my_charset_latin1,*pos))
-    pos++;
-  length=(uint) strlen(pos);
-  for (uint i=0 ; i< 3; i++)
-  {
-    start=pos; value=0;
-    while (my_isdigit(my_charset_latin1,pos[0]) &&
-	   ((pos-start) < 2 || ((pos-start) < 4 && length >= 8 &&
-				!(flag & 3))))
-    {
-      value=value*10 + (uint) (uchar) (*pos - '0');
-      pos++;
-    }
-    vek[flag & 3]=value; flag>>=2;
-    while (*pos && (my_ispunct(my_charset_latin1,*pos) || 
-                    my_isspace(my_charset_latin1,*pos)))
-      pos++;
-  }
-  DBUG_PRINT("exit",("year: %d  month: %d  day: %d",vek[0],vek[1],vek[2]));
-  DBUG_VOID_RETURN;
-} /* find_date */
-
-
-	/* Outputs YYMMDD if input year < 100 or YYYYMMDD else */
-
-static long calc_daynr_from_week(uint year,uint week,uint day)
-{
-  long daynr;
-  int weekday;
-
-  daynr=calc_daynr(year,1,1);
-  if ((weekday= calc_weekday(daynr,0)) >= 3)
-    daynr+= (7-weekday);
-  else
-    daynr-=weekday;
-
-  return (daynr+week*7+day-8);
-}
-
-void convert_week_to_date(string date,uint flag,uint *res_length)
-{
-  string format;
-  uint year,vek[4];
-
-  find_date(date,vek,(uint) (1*4+2*16));		/* YY-WW-DD */
-  year=vek[0];
-
-  get_date_from_daynr(calc_daynr_from_week(vek[0],vek[1],vek[2]),
-		      &vek[0],&vek[1],&vek[2]);
-  *res_length=8;
-  format="%04d%02d%02d";
-  if (year < 100)
-  {
-    vek[0]= vek[0]%100;
-    *res_length=6;
-    format="%02d%02d%02d";
-  }
-  sprintf(date,format,vek[flag & 3],vek[(flag >> 2) & 3],
-	  vek[(flag >> 4) & 3]);
-  return;
-}
-
-	/* returns YYWWDD or YYYYWWDD according to input year */
-	/* flag only reflects format of input date */
-
-void convert_date_to_week(string date,uint flag,uint *res_length)
-{
-  uint vek[4],weekday,days,year,week,day;
-  long daynr,first_daynr;
-  char buff[256],*format;
-
-  if (! date[0])
-  {
-    get_date(buff,0,0L);			/* Use current date */
-    find_date(buff+2,vek,(uint) (1*4+2*16));	/* YY-MM-DD */
-  }
-  else
-    find_date(date,vek,flag);
-
-  year= vek[0];
-  daynr=      calc_daynr(year,vek[1],vek[2]);
-  first_daynr=calc_daynr(year,1,1);
-
-	/* Caculate year and first daynr of year */
-  if (vek[1] == 1 && (weekday=calc_weekday(first_daynr,0)) >= 3 &&
-      vek[2] <= 7-weekday)
-  {
-    if (!year--)
-      year=99;
-    first_daynr=first_daynr-calc_days_in_year(year);
-  }
-  else if (vek[1] == 12 &&
-	   (weekday=calc_weekday(first_daynr+calc_days_in_year(year)),0) < 3 &&
-	   vek[2] > 31-weekday)
-  {
-    first_daynr=first_daynr+calc_days_in_year(year);
-    if (year++ == 99)
-      year=0;
-  }
-
-	/* Calulate daynr of first day of week 1 */
-  if ((weekday= calc_weekday(first_daynr,0)) >= 3)
-    first_daynr+= (7-weekday);
-  else
-    first_daynr-=weekday;
-
-  days=(int) (daynr-first_daynr);
-  week=days/7+1 ; day=calc_weekday(daynr,0)+1;
-
-  *res_length=8;
-  format="%04d%02d%02d";
-  if (year < 100)
-  {
-    *res_length=6;
-    format="%02d%02d%02d";
-  }
-  sprintf(date,format,year,week,day);
-  return;
-}
-
-#endif
-
 	/* Functions to handle periods */
 
 ulong convert_period_to_month(ulong period)
@@ -516,14 +377,14 @@ str_to_TIME(const char *str, uint length, TIME *l_time,bool fuzzy_date)
   else
     date[6]=0;
 
-  if (year_length == 2)
+  if (year_length == 2 && i >=2 && (date[1] || date[2]))
     date[0]+= (date[0] < YY_PART_YEAR ? 2000 : 1900);
   number_of_fields=i;
   while (i < 6)
     date[i++]=0;
   if (number_of_fields < 3 || date[1] > 12 ||
       date[2] > 31 || date[3] > 23 || date[4] > 59 || date[5] > 59 ||
-      !fuzzy_date && (date[1] == 0 || date[2] == 0))
+      (!fuzzy_date && (date[1] == 0 || date[2] == 0)))
   {
     /* Only give warning for a zero date if there is some garbage after */
     if (!not_zero_date)				// If zero date

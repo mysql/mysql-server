@@ -258,7 +258,7 @@ int mysql_insert(THD *thd,TABLE_LIST *table_list,
     if (fields.elements || !value_count)
     {
       restore_record(table,default_values);	// Get empty record
-      if (fill_record(fields,*values)|| thd->net.report_error ||
+      if (fill_record(fields, *values, 0)|| thd->net.report_error ||
 	  check_null_fields(thd,table))
       {
 	if (values_list.elements != 1 && !thd->net.report_error)
@@ -276,7 +276,7 @@ int mysql_insert(THD *thd,TABLE_LIST *table_list,
 	restore_record(table,default_values);	// Get empty record
       else
 	table->record[0][0]=table->default_values[0]; // Fix delete marker
-      if (fill_record(table->field,*values) ||  thd->net.report_error)
+      if (fill_record(table->field,*values, 0) || thd->net.report_error)
       {
 	if (values_list.elements != 1 && ! thd->net.report_error)
 	{
@@ -484,7 +484,8 @@ int write_record(TABLE *table,COPY_INFO *info)
 	key_copy((byte*) key,table,key_nr,0);
 	if ((error=(table->file->index_read_idx(table->record[1],key_nr,
 						(byte*) key,
-						table->key_info[key_nr].key_length,
+						table->key_info[key_nr].
+						key_length,
 						HA_READ_KEY_EXACT))))
 	  goto err;
       }
@@ -496,7 +497,7 @@ int write_record(TABLE *table,COPY_INFO *info)
         */
         store_record(table,insert_values);
         restore_record(table,record[1]);
-        if (fill_record(*info->update_fields,*info->update_values))
+        if (fill_record(*info->update_fields, *info->update_values, 0))
           goto err;
         if ((error=table->file->update_row(table->record[1],table->record[0])))
           goto err;
@@ -507,10 +508,11 @@ int write_record(TABLE *table,COPY_INFO *info)
       {
         if (last_uniq_key(table,key_nr))
         {
-          if ((error=table->file->update_row(table->record[1],table->record[0])))
+          if ((error=table->file->update_row(table->record[1],
+					     table->record[0])))
             goto err;
           info->deleted++;
-          break;					/* Update logfile and count */
+          break;				/* Update logfile and count */
         }
         else if ((error=table->file->delete_row(table->record[1])))
           goto err;
@@ -709,6 +711,9 @@ static TABLE *delayed_get_table(THD *thd,TABLE_LIST *table_list)
   /* no match; create a new thread to handle the table */
   if (!(tmp=find_handler(thd,table_list)))
   {
+    /* Don't create more than max_insert_delayed_threads */
+    if (delayed_insert_threads >= max_insert_delayed_threads)
+      DBUG_RETURN(0);
     thd->proc_info="Creating delayed handler";
     pthread_mutex_lock(&LOCK_delayed_create);
     if (!(tmp=find_handler(thd,table_list)))	// Was just created
@@ -1087,12 +1092,12 @@ extern "C" pthread_handler_decl(handle_delayed_insert,arg)
       while (!thd->killed)
       {
 	int error;
-#if (defined(HAVE_BROKEN_COND_TIMEDWAIT) || defined(HAVE_LINUXTHREADS))
+#if defined(HAVE_BROKEN_COND_TIMEDWAIT)
 	error=pthread_cond_wait(&di->cond,&di->mutex);
 #else
 	error=pthread_cond_timedwait(&di->cond,&di->mutex,&abstime);
 #ifdef EXTRA_DEBUG
-	if (error && error != EINTR)
+	if (error && error != EINTR && error != ETIMEDOUT)
 	{
 	  fprintf(stderr, "Got error %d from pthread_cond_timedwait\n",error);
 	  DBUG_PRINT("error",("Got error %d from pthread_cond_timedwait",
@@ -1394,9 +1399,9 @@ bool select_insert::send_data(List<Item> &values)
     return 0;
   }
   if (fields->elements)
-    fill_record(*fields,values);
+    fill_record(*fields, values, 1);
   else
-    fill_record(table->field,values);
+    fill_record(table->field, values, 1);
   if (thd->net.report_error || write_record(table,&info))
     return 1;
   if (table->next_number_field)		// Clear for next record
@@ -1461,7 +1466,7 @@ bool select_insert::send_eof()
 	      thd->cuted_fields);
     if (last_insert_id)
       thd->insert_id(last_insert_id);		// For update log
-    ::send_ok(thd,info.copied,last_insert_id,buff);
+    ::send_ok(thd,info.copied+info.deleted,last_insert_id,buff);
     mysql_update_log.write(thd,thd->query,thd->query_length);
     return 0;
   }
@@ -1511,7 +1516,7 @@ bool select_create::send_data(List<Item> &values)
     unit->offset_limit_cnt--;
     return 0;
   }
-  fill_record(field,values);
+  fill_record(field, values, 1);
   if (thd->net.report_error ||write_record(table,&info))
     return 1;
   if (table->next_number_field)		// Clear for next record

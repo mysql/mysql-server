@@ -116,7 +116,8 @@ int mysql_derived(THD *thd, LEX *lex, SELECT_LEX_UNIT *unit,
     TABLE_LIST *first_table= (TABLE_LIST*) select_cursor->table_list.first;
     /* Setting up. A must if a join or IGNORE, USE or similar are utilised */
     if (setup_tables(first_table) ||
-	setup_wild(thd, first_table, select_cursor->item_list, 0, select_cursor->with_wild))
+	setup_wild(thd, first_table, select_cursor->item_list, 0,
+		   select_cursor->with_wild))
     {
       res= -1;
       goto exit;
@@ -128,16 +129,18 @@ int mysql_derived(THD *thd, LEX *lex, SELECT_LEX_UNIT *unit,
 			(item_list.elements + select_cursor->with_sum_func +
 			 select_cursor->order_list.elements + 
 			 select_cursor->group_list.elements)) ||
-	setup_fields(thd, select_cursor->ref_pointer_array, first_table, item_list,
-		     0, 0, 1))
+	setup_fields(thd, select_cursor->ref_pointer_array, first_table,
+		     item_list, 0, 0, 1))
     {
       res= -1;
       goto exit;
     }
     bzero((char*) &tmp_table_param,sizeof(tmp_table_param));
     tmp_table_param.field_count= item_list.elements;
-    /* temp table is created so that it hounours if UNION without ALL is to be 
-       processed */
+    /*
+      Temp table is created so that it hounours if UNION without ALL is to be 
+      processed
+    */
     if (!(table= create_tmp_table(thd, &tmp_table_param, item_list,
 				  (ORDER*) 0, 
 				  is_union && !unit->union_option, 1,
@@ -190,6 +193,7 @@ int mysql_derived(THD *thd, LEX *lex, SELECT_LEX_UNIT *unit,
 	  org_table_list->table=table;
 	  table->derived_select_number= select_cursor->select_number;
 	  table->tmp_table= TMP_TABLE;
+	  org_table_list->grant.privilege= SELECT_ACL;
 	  if (lex->describe)
 	  {
 	    // to fix a problem in EXPLAIN
@@ -206,7 +210,7 @@ int mysql_derived(THD *thd, LEX *lex, SELECT_LEX_UNIT *unit,
 	  /* Try to catch errors if this is accessed */
 	  org_table_list->derived=(SELECT_LEX_UNIT *) 1;
 #endif
-// This line is required to force read of table stats in the optimizer
+	  // Force read of table stats in the optimizer
 	  table->file->info(HA_STATUS_VARIABLE);
 	}
       }

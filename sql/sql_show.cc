@@ -923,7 +923,10 @@ mysqld_show_keys(THD *thd, TABLE_LIST *table_list)
       protocol->store((const char*) pos, system_charset_info);
       protocol->store(table->file->index_type(i), system_charset_info);
       /* Comment */
-      protocol->store("", system_charset_info);
+      if (!(table->keys_in_use & ((key_map) 1 << i)))
+	protocol->store("disabled",8, system_charset_info);
+      else
+        protocol->store("", 0, system_charset_info);
       if (protocol->write())
         DBUG_RETURN(1); /* purecov: inspected */
     }
@@ -1587,7 +1590,7 @@ int mysqld_show(THD *thd, const char *wild, show_var_st *variables,
       case SHOW_QUESTION:
 	end= int10_to_str((long) thd->query_id, buff, 10);
         break;
-#ifndef EMBEDDED_LIBRARY
+#ifdef HAVE_REPLICATION
       case SHOW_RPL_STATUS:
 	end= strmov(buff, rpl_status_type[(int)rpl_status]);
 	break;
@@ -1599,7 +1602,7 @@ int mysqld_show(THD *thd, const char *wild, show_var_st *variables,
 	UNLOCK_ACTIVE_MI;
 	break;
       }
-#endif /* EMBEDDED_LIBRARY */
+#endif /* HAVE_REPLICATION */
       case SHOW_OPENTABLES:
 	end= int10_to_str((long) cached_tables(), buff, 10);
         break;

@@ -350,12 +350,7 @@ select t1.name, t2.name, t2.id,t3.id from t1 right join t2 on (t1.id = t2.owner)
 name	name	id	id
 Antonio Paz	El Gato	1	1
 Antonio Paz	Perrito	2	1
-NULL	Happy	3	1
-NULL	El Gato	1	2
-NULL	Perrito	2	2
-NULL	Happy	3	2
-NULL	El Gato	1	3
-NULL	Perrito	2	3
+NULL	NULL	NULL	2
 Thimble Smith	Happy	3	3
 select t1.name, t2.name, t2.id, t2.owner, t3.id from t1 left join t2 on (t1.id = t2.owner) right join t1 as t3 on t3.id=t2.owner;
 name	name	id	owner	id
@@ -372,10 +367,10 @@ Thimble Smith	Happy	3	3	3
 drop table t1,t2;
 create table t1 (id int not null, str char(10), index(str));
 insert into t1 values (1, null), (2, null), (3, "foo"), (4, "bar");
-select * from t1 where str is not null;
+select * from t1 where str is not null order by id;
 id	str
-4	bar
 3	foo
+4	bar
 select * from t1 where str is null;
 id	str
 1	NULL
@@ -651,3 +646,14 @@ fooID	barID	fooID
 20	2	NULL
 30	3	30
 drop table t1,t2;
+create table t1 (i int);
+create table t2 (i int);
+create table t3 (i int);
+insert into t1 values(1),(2);
+insert into t2 values(2),(3);
+insert into t3 values(2),(4);
+select * from t1 natural left join t2 natural left join t3;
+i	i	i
+1	NULL	NULL
+2	2	2
+drop table t1,t2,t3;

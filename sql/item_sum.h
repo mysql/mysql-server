@@ -99,9 +99,6 @@ public:
 
 class Item_sum_int :public Item_sum_num
 {
-  void fix_length_and_dec()
-    { decimals=0; max_length=21; maybe_null=null_value=0; }
-
 public:
   Item_sum_int(Item *item_par) :Item_sum_num(item_par) {}
   Item_sum_int(List<Item> &list) :Item_sum_num(list) {}
@@ -109,6 +106,8 @@ public:
   double val() { return (double) val_int(); }
   String *val_str(String*str);
   enum Item_result result_type () const { return INT_RESULT; }
+  void fix_length_and_dec()
+  { decimals=0; max_length=21; maybe_null=null_value=0; }
 };
 
 
@@ -127,6 +126,7 @@ class Item_sum_sum :public Item_sum_num
   double val();
   void reset_field();
   void update_field(int offset);
+  void no_rows_in_result() {}
   const char *func_name() const { return "sum"; }
   Item *copy_or_same(THD* thd) { return new Item_sum_sum(thd, *this); }
 };
@@ -449,6 +449,8 @@ class Item_sum_bit :public Item_sum_int
   void reset();
   longlong val_int();
   void reset_field();
+  void fix_length_and_dec()
+  { decimals=0; max_length=21; unsigned_flag=1; maybe_null=null_value=0; }
 };
 
 

@@ -225,6 +225,7 @@ enum ha_base_keytype {
 
 	/* Errorcodes given by functions */
 
+/* opt_sum_query() assumes these codes are > 1 */
 #define HA_ERR_KEY_NOT_FOUND	120	/* Didn't find key on read or update */
 #define HA_ERR_FOUND_DUPP_KEY	121	/* Dupplicate key on write */
 #define HA_ERR_RECORD_CHANGED	123	/* Uppdate with is recoverable */

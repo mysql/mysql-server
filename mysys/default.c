@@ -251,7 +251,13 @@ static my_bool search_default_file(DYNAMIC_ARRAY *args, MEM_ROOT *alloc,
     MY_STAT stat_info;
     if (!my_stat(name,&stat_info,MYF(0)))
       return 0;
-    if (stat_info.st_mode & S_IWOTH) /* ignore world-writeable files */
+    /*
+      Ignore world-writable regular files.
+      This is mainly done to protect us to not read a file created by
+      the mysqld server, but the check is still valid in most context. 
+    */
+    if ((stat_info.st_mode & S_IWOTH) &&
+	(stat_info.st_mode & S_IFMT) == S_IFREG)
     {
       fprintf(stderr, "warning: World-writeable config file %s is ignored\n",
               name);

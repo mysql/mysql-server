@@ -466,8 +466,17 @@ JOIN::optimize()
   if (tables_list && tmp_table_param.sum_func_count && ! group_list)
   {
     int res;
+    /*
+      opt_sum_query() returns -1 if no rows match to the WHERE conditions,
+      or 1 if all items were resolved, or 0, or an error number HA_ERR_...
+    */
     if ((res=opt_sum_query(tables_list, all_fields, conds)))
     {
+      if (res > 1)
+      {
+	delete procedure;
+	DBUG_RETURN(-1);
+      }
       if (res < 0)
       {
 	zero_result_cause= "No matching min/max row";
@@ -610,7 +619,17 @@ JOIN::optimize()
 	select_distinct= 0;
 	no_order= !order;
 	if (all_order_fields_used)
+	{
+	  if (order && skip_sort_order)
+	  {
+	    /*
+	      Force MySQL to read the table in sorted order to get result in
+	      ORDER BY order.
+	    */	    
+	    tmp_table_param.quick_group=0;
+	  }
 	  order=0;
+        }
 	group=1;				// For end_write_group
       }
       else
@@ -2379,7 +2398,10 @@ find_best(JOIN *join,table_map rest_tables,uint idx,double record_count,
 		if (table->quick_keys & ((key_map) 1 << key))
 		  records= (double) table->quick_rows[key];
 		else
-		  records= (double) s->records/rec; // quick_range couldn't use key!
+		{
+		  /* quick_range couldn't use key! */
+		  records= (double) s->records/rec;
+		}
 	      }
 	      else
 	      {
@@ -3037,6 +3059,9 @@ make_join_select(JOIN *join,SQL_SELECT *select,COND *cond)
 					join->unit->select_limit_cnt)) < 0)
 	      DBUG_RETURN(1);				// Impossible range
 	    sel->cond=orig_cond;
+	    /* Fix for EXPLAIN */
+	    if (sel->quick)
+	      join->best_positions[i].records_read= sel->quick->records;
 	  }
 	  else
 	  {
@@ -4239,7 +4264,6 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
   table->blob_ptr_size=mi_portable_sizeof_char_ptr;
   table->map=1;
   table->tmp_table= TMP_TABLE;
-  table->derived_select_number= 0;
   table->db_low_byte_first=1;			// True for HEAP and MyISAM
   table->temp_pool_slot = temp_pool_slot;
   table->copy_blobs= 1;
@@ -7251,7 +7275,8 @@ setup_group(THD *thd, Item **ref_pointer_array, TABLE_LIST *tables,
 
     while ((item=li++))
     {
-      if (item->type() != Item::SUM_FUNC_ITEM && !item->marker)
+      if (item->type() != Item::SUM_FUNC_ITEM && !item->marker &&
+	  !item->const_item())
       {
 	my_printf_error(ER_WRONG_FIELD_WITH_GROUP,
 			ER(ER_WRONG_FIELD_WITH_GROUP),
@@ -7959,6 +7984,7 @@ static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
       TABLE *table=tab->table;
       char buff[512],*buff_ptr=buff;
       char buff1[512], buff2[512];
+      char derived_name[64];
       String tmp1(buff1,sizeof(buff1),cs);
       String tmp2(buff2,sizeof(buff2),cs);
       tmp1.length(0);
@@ -7972,13 +7998,13 @@ static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
 					  cs));
       if (tab->type == JT_ALL && tab->select && tab->select->quick)
 	tab->type= JT_RANGE;
-      if (table->tmp_table == TMP_TABLE && table->derived_select_number != 0)
+      if (table->derived_select_number)
       {
-	// Derived table name generation
-	char buff[512];
-	int len= my_snprintf(buff, 512, "<derived%u>",
+	/* Derived table name generation */
+	int len= my_snprintf(derived_name, sizeof(derived_name)-1,
+			     "<derived%u>",
 			     table->derived_select_number);
-	item_list.push_back(new Item_string(buff, len, cs));
+	item_list.push_back(new Item_string(derived_name, len, cs));
       }
       else
 	item_list.push_back(new Item_string(table->table_name,
@@ -8172,5 +8198,3 @@ void free_underlaid_joins(THD *thd, SELECT_LEX *select)
        unit= unit->next_unit())
     unit->cleanup();
 }
-
-

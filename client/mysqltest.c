@@ -939,16 +939,16 @@ int do_system(struct st_query* q)
   var_init(&v, 0, 0, 0, 0);
   eval_expr(&v, p, 0); /* NULL terminated */
   if (v.str_val_len)
-    {
-      char expr_buf[512];
-      if ((uint)v.str_val_len > sizeof(expr_buf) - 1)
-	v.str_val_len = sizeof(expr_buf) - 1;
-      memcpy(expr_buf, v.str_val, v.str_val_len);
-      expr_buf[v.str_val_len] = 0;
-      DBUG_PRINT("info", ("running system command '%s'", expr_buf));
-      if (system(expr_buf) && q->abort_on_error)
-	die("system command '%s' failed", expr_buf);
-    }
+  {
+    char expr_buf[512];
+    if ((uint)v.str_val_len > sizeof(expr_buf) - 1)
+      v.str_val_len = sizeof(expr_buf) - 1;
+    memcpy(expr_buf, v.str_val, v.str_val_len);
+    expr_buf[v.str_val_len] = 0;
+    DBUG_PRINT("info", ("running system command '%s'", expr_buf));
+    if (system(expr_buf) && q->abort_on_error)
+      die("system command '%s' failed", expr_buf);
+  }
   var_free(&v);
   return 0;
 }
@@ -2284,7 +2284,7 @@ void get_query_type(struct st_query* q)
     q->type=(enum enum_commands) type;		/* Found command */
 }
 
-static byte* get_var_key(const byte* var, uint* len,
+static byte *get_var_key(const byte* var, uint* len,
 			 my_bool __attribute__((unused)) t)
 {
   register char* key;
@@ -2293,11 +2293,11 @@ static byte* get_var_key(const byte* var, uint* len,
   return (byte*)key;
 }
 
-static VAR* var_init(VAR* v, const char* name, int name_len, const char* val,
+static VAR *var_init(VAR *v, const char *name, int name_len, const char *val,
 		     int val_len)
 {
   int val_alloc_len;
-  VAR* tmp_var;
+  VAR *tmp_var;
   if (!name_len && name)
     name_len = strlen(name);
   if (!val_len && val)
@@ -2327,7 +2327,7 @@ static VAR* var_init(VAR* v, const char* name, int name_len, const char* val,
   return tmp_var;
 }
 
-static void var_free(void* v)
+static void var_free(void *v)
 {
   my_free(((VAR*) v)->str_val, MYF(MY_WME));
   if (((VAR*)v)->alloced)
@@ -2335,10 +2335,10 @@ static void var_free(void* v)
 }
 
 
-static void var_from_env(const char* name, const char* def_val)
+static void var_from_env(const char *name, const char *def_val)
 {
-  const char* tmp;
-  VAR* v;
+  const char *tmp;
+  VAR *v;
   if (!(tmp = getenv(name)))
     tmp = def_val;
 
@@ -2347,9 +2347,9 @@ static void var_from_env(const char* name, const char* def_val)
 }
 
 
-static void init_var_hash()
+static void init_var_hash(MYSQL *mysql)
 {
-  VAR* v;
+  VAR *v;
   DBUG_ENTER("init_var_hash");
   if (hash_init(&var_hash, charset_info, 
                 1024, 0, 0, get_var_key, var_free, MYF(0)))
@@ -2358,16 +2358,19 @@ static void init_var_hash()
   var_from_env("SLAVE_MYPORT", "9307");
   var_from_env("MYSQL_TEST_DIR", "/tmp");
   var_from_env("BIG_TEST", opt_big_test ? "1" : "0");
-  v=var_init(0,"MAX_TABLES", 0, (sizeof(ulong) == 4) ? "31" : "63",0);
-  hash_insert(&var_hash, (byte*)v);
+  v= var_init(0,"MAX_TABLES", 0, (sizeof(ulong) == 4) ? "31" : "62",0);
+  hash_insert(&var_hash, (byte*) v);
+  v= var_init(0,"SERVER_VERSION", 0, mysql_get_server_info(mysql), 0);
+  hash_insert(&var_hash, (byte*) v);
+  
   DBUG_VOID_RETURN;
 }
 
 
-int main(int argc, char** argv)
+int main(int argc, char **argv)
 {
   int error = 0;
-  struct st_query* q;
+  struct st_query *q;
   my_bool require_file=0, q_send_flag=0;
   char save_file[FN_REFLEN];
   MY_INIT(argv[0]);
@@ -2402,7 +2405,6 @@ int main(int argc, char** argv)
 			embedded_server_args,
 			(char**) embedded_server_groups))
     die("Can't initialize MySQL server");
-  init_var_hash();
   if (cur_file == file_stack)
     *++cur_file = stdin;
   *lineno=1;
@@ -2421,13 +2423,13 @@ int main(int argc, char** argv)
 		  opt_ssl_capath, opt_ssl_cipher);
 #endif
 
-  cur_con->name = my_strdup("default", MYF(MY_WME));
-  if (!cur_con->name)
+  if (!(cur_con->name = my_strdup("default", MYF(MY_WME))))
     die("Out of memory");
 
-  if (safe_connect(&cur_con->mysql, host,
-			 user, pass, db, port, unix_sock))
+  if (safe_connect(&cur_con->mysql, host, user, pass, db, port, unix_sock))
     die("Failed in mysql_real_connect(): %s", mysql_error(&cur_con->mysql));
+
+  init_var_hash(&cur_con->mysql);
 
   while (!read_query(&q))
   {
@@ -2596,7 +2598,7 @@ int main(int argc, char** argv)
 */
 
 
-static int read_server_arguments(const char* name)
+static int read_server_arguments(const char *name)
 {
   char argument[1024],buff[FN_REFLEN], *str=0;
   FILE *file;

@@ -45,6 +45,7 @@
 #define LIBLEN FN_REFLEN-FN_LEN			/* Max l{ngd p} dev */
 #define MAX_DBKEY_LENGTH (FN_LEN*2+6)           /* extra 4 bytes for slave tmp
 						 * tables */
+#define MAX_ALIAS_NAME 256
 #define MAX_FIELD_NAME 34			/* Max colum name length +2 */
 #define MAX_SYS_VAR_LENGTH 32
 #define MAX_KEY 32				/* Max used keys */
@@ -55,6 +56,7 @@
 #else
 #define MAX_REFLENGTH 4				/* Max length for record ref */
 #endif
+#define MAX_HOSTNAME  61			/* len+1 in mysql.user */
 
 #define MAX_FIELD_WIDTH 256			/* Max column width +1 */
 #define MAX_TABLES	(sizeof(table_map)*8-2)	/* Max tables in join */

@@ -66,7 +66,7 @@ TYPELIB sql_protocol_typelib = {array_elements(sql_protocol_names_lib)-1,"",
 #define closesocket(A) close(A)
 #endif
 
-void mysql_once_init(void);
+void mysqld_once_init(void);
 static void end_server(MYSQL *mysql);
 static void append_wild(char *to,char *end,const char *wild);
 static ulong mysql_sub_escape_string(CHARSET_INFO *charset_info, char *to,
@@ -373,7 +373,7 @@ static void mysql_read_default_options(struct st_mysql_options *options,
 MYSQL * STDCALL
 mysql_init(MYSQL *mysql)
 {
-  mysql_once_init();
+  mysqld_once_init();
   if (!mysql)
   {
     if (!(mysql=(MYSQL*) my_malloc(sizeof(*mysql),MYF(MY_WME | MY_ZEROFILL))))
@@ -386,7 +386,7 @@ mysql_init(MYSQL *mysql)
 }
 
 
-void mysql_once_init()
+void mysqld_once_init()
 {
   if (!mysql_client_init)
   {

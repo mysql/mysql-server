@@ -219,12 +219,14 @@ Item_sum_hybrid::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
 
 void Item_sum_sum::reset()
 {
-  null_value=0; sum=0.0; Item_sum_sum::add();
+  null_value=1; sum=0.0; Item_sum_sum::add();
 }
 
 bool Item_sum_sum::add()
 {
   sum+=args[0]->val();
+  if (!args[0]->null_value)
+    null_value= 0;
   return 0;
 }
 
@@ -641,8 +643,10 @@ void Item_sum_sum::reset_field()
 {
   double nr=args[0]->val();			// Nulls also return 0
   float8store(result_field->ptr,nr);
-  null_value=0;
-  result_field->set_notnull();
+  if (args[0]->null_value)
+    result_field->set_null();
+  else
+    result_field->set_notnull();
 }
 
 
@@ -698,7 +702,10 @@ void Item_sum_sum::update_field(int offset)
   float8get(old_nr,res+offset);
   nr=args[0]->val();
   if (!args[0]->null_value)
+  {
     old_nr+=nr;
+    result_field->set_notnull();
+  }
   float8store(res,old_nr);
 }
 

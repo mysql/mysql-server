@@ -321,7 +321,7 @@ Item *create_func_current_user()
   char buff[HOSTNAME_LENGTH+USERNAME_LENGTH+2];
   uint length;
 
-  length= (uint) (strxmov(buff, thd->priv_user, "@", thd->host_or_ip, NullS) -
+  length= (uint) (strxmov(buff, thd->priv_user, "@", thd->priv_host, NullS) -
 		  buff);
   return new Item_string(NullS, thd->memdup(buff, length), length,
 			 default_charset_info);

@@ -17,7 +17,7 @@
 
 include ../include/Makefile.i
 
-libs_LIBRARIES =	libread.a
+noinst_LIBRARIES =	libread.a
 
 libread_a_SOURCES =	read0read.c
 

@@ -1,0 +1,4 @@
+00 23 * * * (export PATH='/usr/local/bin:/usr/bin:/bin'; export DISPLAY=':0'; cd ~/bk/mysqldoc; echo 'y' | bk pull)
+00 00 * * * (export PATH='/usr/local/bin:/usr/bin:/bin'; export DISPLAY=':0'; cd ~/bk/mysql-4.0; ./netware/BUILD/cron-build)
+00 04 * * * (export PATH='/usr/local/bin:/usr/bin:/bin'; export DISPLAY=':0'; cd ~/bk/mysql-4.1; ./netware/BUILD/cron-build)
+

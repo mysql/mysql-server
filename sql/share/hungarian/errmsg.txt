@@ -107,7 +107,7 @@
 "A(z) '%-.64s' blob objektumnak nem lehet alapertelmezett erteke",
 "Hibas adatbazisnev: '%-.100s'",
 "Hibas tablanev: '%-.100s'",
-"A SELECT tul sok rekordot fog megvizsgalni es nagyon sokaig fog tartani. Ellenorizze a WHERE-t es hasznalja a SET OPTION SQL_BIG_SELECTS=1 beallitast, ha a SELECT ok",
+"A SELECT tul sok rekordot fog megvizsgalni es nagyon sokaig fog tartani. Ellenorizze a WHERE-t es hasznalja a SET SQL_BIG_SELECTS=1 beallitast, ha a SELECT ok",
 "Ismeretlen hiba",
 "Ismeretlen eljaras: '%-.64s'",
 "Rossz parameter a(z) '%-.64s'eljaras szamitasanal",

@@ -8257,7 +8257,7 @@ my_mb_wc_euc_jp(CHARSET_INFO *cs,my_wc_t *pwc, const uchar *s, const uchar *e)
 {
   int c1,c2,c3;
   
-  if (s>e)
+  if (s >= e)
     return MY_CS_TOOFEW(0);
   
   c1=s[0];

@@ -11,12 +11,13 @@ use Getopt::Long;
 $opt_host="";
 $opt_user=$opt_password="";
 $opt_db="test";
-$opt_rows=200;			# Test of blobs up to ($rows-1)*100000+1 bytes
+$opt_rows=20;			# Test of blobs up to ($rows-1)*100000+1 bytes
 $opt_compress=0;
 $opt_table="test_big_record";
+$opt_loop_count=100000; # Change this to make test harder/easier
 
 GetOptions("host=s","db=s","user=s", "password=s", "table=s", "rows=i",
-	   "compress") || die "Aborted";
+	   "compress", "loop-count=i") || die "Aborted";
 
 print "Connection to database $test_db\n";
 
@@ -42,12 +43,12 @@ $|=1;	# Flush output to stdout to be able to monitor process
 for ($i=0 ; $i < $opt_rows ; $i++)
 {
   $tmp= chr(65+($i % 16)) x ($i*100000+1);
-  print $i," ",length($tmp),"\n";
   $tmp= $dbh->quote($tmp);
   $dbh->do("insert into $opt_table (test) values ($tmp)") or die $DBI::errstr;
+  print ".";
 }
 
-print "Reading records\n";
+print "\nReading records\n";
 
 $sth=$dbh->prepare("select * from $opt_table", { "mysql_use_result" => 1}) or die $dbh->errstr;
 
@@ -56,14 +57,40 @@ $sth->execute() or die $sth->errstr;
 $i=0;
 while (($row = $sth->fetchrow_arrayref))
 {
-  print $row->[0]," ",length($row->[1]),"\n";
   die "Record $i had wrong data in blob" if ($row->[1] ne (chr(65+($i % 16)) x ($i*100000+1)));
   $i++;
 }
 
 die "Didn't get all rows from server" if ($i != $opt_rows);
 
-$dbh->do("drop table $opt_table") or die $DBI::errstr;
+#
+# Test by insert/updating/deleting random rows for a while
+#
 
-print "Test ok\n";
+print "Testing insert/update/delete\n";
+
+$max_row_id= $rows;
+for ($i= 0 ; $i < $opt_loop_count ; $i++)
+{
+  $length= int(rand 65535);
+  $tmp= chr(65+($i % 16)) x $length;
+  $tmp= $dbh->quote($tmp);
+  $dbh->do("insert into $opt_table (test) values ($tmp)") or die $DBI::errstr;
+  $max_row_id++;
+  $length=int(rand 65535);
+  $tmp= chr(65+($i % 16)) x $length;
+  $tmp= $dbh->quote($tmp);
+  $id= int(rand $max_row_id);
+  $dbh->do("update $opt_table set test= $tmp where auto= $id") or die $DBI::errstr;
+  if (($i % 2) == 1)
+  {
+    $id= int(rand $max_row_id);
+    $dbh->do("delete from $opt_table where auto= $id") or die $DBI::errstr;
+  }
+  print "." if ($i % ($opt_loop_count/100) == 1);
+}
+
+# $dbh->do("drop table $opt_table") or die $DBI::errstr;
+
+print "\nTest ok\n";
 exit 0;

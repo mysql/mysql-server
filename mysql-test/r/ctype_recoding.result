@@ -41,3 +41,4 @@ Field	Type	Collation	Null	Key	Default	Extra
 п©п╬п╩п╣	char(32) character set koi8r	koi8r_general_ci				
 SET CHARACTER SET koi8r;
 DROP TABLE таблица;
+SET CHARACTER SET default;

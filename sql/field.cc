@@ -161,6 +161,14 @@ static bool test_if_real(const char *str,int length, CHARSET_INFO *cs)
 }
 
 
+static inline uint field_length_without_space(const char *ptr, uint length)
+{
+  const char *end= ptr+length;
+  while (end > ptr && end[-1] == ' ')
+    end--;
+  return (uint) (end-ptr);
+}
+
 /****************************************************************************
 ** Functions for the base classes
 ** This is an unpacked number.
@@ -3616,11 +3624,11 @@ bool Field_newdate::get_date(TIME *ltime,bool fuzzydate)
   if (is_null())
     return 1;
   uint32 tmp=(uint32) uint3korr(ptr);
-  bzero((char*) ltime,sizeof(*ltime));
   ltime->day=   tmp & 31;
   ltime->month= (tmp >> 5) & 15;
   ltime->year=  (tmp >> 9);
   ltime->time_type=TIMESTAMP_DATE;
+  ltime->hour= ltime->minute= ltime->second= ltime->second_part= 0;
   return (!fuzzydate && (!ltime->month || !ltime->day)) ? 1 : 0;
 }
 
@@ -3983,9 +3991,19 @@ String *Field_string::val_str(String *val_buffer __attribute__((unused)),
 
 int Field_string::cmp(const char *a_ptr, const char *b_ptr)
 {
-    return my_strnncoll(field_charset,
-			(const uchar*)a_ptr,field_length,
-			(const uchar*)b_ptr,field_length);
+  if (field_charset->strxfrm_multiply > 1)
+  {
+    /*
+      We have to remove end space to be able to compare multi-byte-characters
+      like in latin_de 'ae' and 0xe4
+    */
+    return field_charset->strnncollsp(field_charset,
+				      (const uchar*) a_ptr, field_length,
+				      (const uchar*) b_ptr, field_length);
+  }
+  return field_charset->strnncoll(field_charset,
+				  (const uchar*) a_ptr, field_length,
+				  (const uchar*) b_ptr, field_length);
 }
 
 void Field_string::sort_string(char *to,uint length)

@@ -214,9 +214,14 @@ os_file_get_last_error(void)
   "InnoDB: the directory. It may also be you have created a subdirectory\n"
   "InnoDB: of the same name as a data file.\n"); 
 		} else {
-		         fprintf(stderr,
-  "InnoDB: Look from section 13.2 at http://www.innodb.com/ibman.html\n"
-  "InnoDB: what the error number means.\n");
+			 if (strerror((int)err) != NULL) {
+				fprintf(stderr,
+  "InnoDB: Error number %lu means '%s'.\n", err, strerror((int)err));
+			 }
+
+			 fprintf(stderr,
+  "InnoDB: See also section 13.2 at http://www.innodb.com/ibman.html\n"
+  "InnoDB: about operating system error numbers.\n");
 		}
 	}
 
@@ -252,9 +257,14 @@ os_file_get_last_error(void)
   "InnoDB: The error means mysqld does not have the access rights to\n"
   "InnoDB: the directory.\n");
 		} else {
-		         fprintf(stderr,
-  "InnoDB: Look from section 13.2 at http://www.innodb.com/ibman.html\n"
-  "InnoDB: what the error number means or use the perror program of MySQL.\n");
+			 if (strerror((int)err) != NULL) {
+				fprintf(stderr,
+  "InnoDB: Error number %lu means '%s'.\n", err, strerror((int)err));
+			 }
+
+			 fprintf(stderr,
+  "InnoDB: See also section 13.2 at http://www.innodb.com/ibman.html\n"
+  "InnoDB: about operating system error numbers.\n");
 		}
 	}
 
@@ -511,10 +521,11 @@ try_again:
 		}
 #endif			
 #ifdef UNIV_NON_BUFFERED_IO
-		if (type == OS_LOG_FILE && srv_flush_log_at_trx_commit == 2) {
+		if (type == OS_LOG_FILE) {
 		        /* Do not use unbuffered i/o to log files because
-		        value 2 denotes that we do not flush the log at every
-		        commit, but only once per second */
+		        to allow group commit to work when MySQL binlogging
+			is used we must separate log file write and log
+			file flush to disk. */
 		} else {
 			if (srv_win_file_flush_method ==
 					SRV_WIN_IO_UNBUFFERED) {
@@ -741,7 +752,12 @@ os_file_set_size(
 
 	offset = 0;
 	low = (ib_longlong)size + (((ib_longlong)size_high) << 32);
+
+	if (low >= (ib_longlong)(100 * 1024 * 1024)) {
 				
+		fprintf(stderr, "InnoDB: Progress in MB:");
+	}
+
 	while (offset < low) {
 	        if (low - offset < UNIV_PAGE_SIZE * 512) {
 	        	n_bytes = (ulint)(low - offset);
@@ -757,7 +773,22 @@ os_file_set_size(
 			ut_free(buf2);
 	         	goto error_handling;
 	        }
+				
+		/* Print about progress for each 100 MB written */
+		if ((offset + n_bytes) / (ib_longlong)(100 * 1024 * 1024)
+		    != offset / (ib_longlong)(100 * 1024 * 1024)) {
+
+		        fprintf(stderr, " %lu00",
+				(ulint)((offset + n_bytes)
+					/ (ib_longlong)(100 * 1024 * 1024)));
+		}
+		
 	        offset += n_bytes;
+	}
+
+	if (low >= (ib_longlong)(100 * 1024 * 1024)) {
+				
+		fprintf(stderr, "\n");
 	}
 
 	ut_free(buf2);

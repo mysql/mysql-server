@@ -102,16 +102,70 @@ select status from t1;
 status
 1
 drop table t1;
-create table t1 (a int not null, b int not null);
-insert into t1 values (1,1),(1,2),(1,3);
-update t1 set b=4 where a=1 order by b asc limit 1;
-update t1 set b=4 where a=1 order by b desc limit 1;
+create table t1 (a int not null, b int not null, key (a));
+insert into t1 values (1,1),(1,2),(1,3),(3,1),(3,2),(3,3),(3,1),(3,2),(3,3),(2,1),(2,2),(2,3);
+SET @tmp=0;
+update t1 set b=(@tmp:=@tmp+1) order by a;
+update t1 set b=99 where a=1 order by b asc limit 1;
+select * from t1 order by a,b;
+a	b
+1	2
+1	3
+1	99
+2	4
+2	5
+2	6
+3	7
+3	8
+3	9
+3	10
+3	11
+3	12
+update t1 set b=100 where a=1 order by b desc limit 2;
+update t1 set a=a+10+b where a=1 order by b;
+select * from t1 order by a,b;
+a	b
+2	4
+2	5
+2	6
+3	7
+3	8
+3	9
+3	10
+3	11
+3	12
+13	2
+111	100
+111	100
 create table t2 (a int not null, b int not null);
 insert into t2 values (1,1),(1,2),(1,3);
-select * from t1;
-a	b
-1	4
-1	2
-1	4
 update t1 set b=(select distinct 1 from (select * from t2) a);
 drop table t1,t2;
+CREATE TABLE t1 (
+`id_param` smallint(3) unsigned NOT NULL default '0',
+`nom_option` char(40) NOT NULL default '',
+`valid` tinyint(1) NOT NULL default '0',
+KEY `id_param` (`id_param`,`nom_option`)
+) TYPE=MyISAM;
+INSERT INTO t1 (id_param,nom_option,valid) VALUES (185,'600x1200',1);
+UPDATE t1 SET nom_option='test' WHERE id_param=185 AND nom_option='600x1200' AND valid=1 LIMIT 1;
+select * from t1;
+id_param	nom_option	valid
+185	test	1
+drop table t1;
+create table t1 (F1 VARCHAR(30), F2 VARCHAR(30), F3 VARCHAR(30), cnt int, groupid int, KEY groupid_index (groupid));
+insert into t1 (F1,F2,F3,cnt,groupid) values ('0','0','0',1,6),
+('0','1','2',1,5), ('0','2','0',1,3), ('1','0','1',1,2),
+('1','2','1',1,1), ('1','2','2',1,1), ('2','0','1',2,4),
+('2','2','0',1,7);
+delete from t1 using t1 m1,t1 m2 where m1.groupid=m2.groupid and (m1.cnt < m2.cnt or m1.cnt=m2.cnt and m1.F3>m2.F3);
+select * from t1;
+F1	F2	F3	cnt	groupid
+0	0	0	1	6
+0	1	2	1	5
+0	2	0	1	3
+1	0	1	1	2
+1	2	1	1	1
+2	0	1	2	4
+2	2	0	1	7
+drop table t1;

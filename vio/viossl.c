@@ -212,13 +212,14 @@ my_socket vio_ssl_fd(Vio* vio)
 }
 
 
-my_bool vio_ssl_peer_addr(Vio * vio, char *buf)
+my_bool vio_ssl_peer_addr(Vio * vio, char *buf, uint16 *port)
 {
   DBUG_ENTER("vio_ssl_peer_addr");
   DBUG_PRINT("enter", ("sd=%d", vio->sd));
   if (vio->localhost)
   {
     strmov(buf,"127.0.0.1");
+    *port=0;
   }
   else
   {
@@ -229,8 +230,13 @@ my_bool vio_ssl_peer_addr(Vio * vio, char *buf)
       DBUG_PRINT("exit", ("getpeername, error: %d", socket_errno));
       DBUG_RETURN(1);
     }
-    /* FIXME */
-/*    my_inet_ntoa(vio->remote.sin_addr,buf); */
+#ifdef TO_BE_FIXED
+    my_inet_ntoa(vio->remote.sin_addr,buf);
+    *port= 0;
+#else
+    strmov(buf, "unknown");
+    *port= 0;
+#endif
   }
   DBUG_PRINT("exit", ("addr=%s", buf));
   DBUG_RETURN(0);
@@ -281,7 +287,8 @@ int sslaccept(struct st_VioSSLAcceptorFd* ptr, Vio* vio, long timeout)
   SSL_SESSION_set_timeout(SSL_get_session(vio->ssl_), timeout);
   SSL_set_fd(vio->ssl_,vio->sd);
   SSL_set_accept_state(vio->ssl_);
-  if (SSL_do_handshake(vio->ssl_) < 1)
+  if (SSL_do_handshake(vio->ssl_) < 1 ||
+      SSL_get_verify_result(vio->ssl_) != X509_V_OK)
   {
     DBUG_PRINT("error", ("SSL_do_handshake failure"));
     report_errors();
@@ -354,7 +361,8 @@ int sslconnect(struct st_VioSSLConnectorFd* ptr, Vio* vio, long timeout)
   SSL_SESSION_set_timeout(SSL_get_session(vio->ssl_), timeout);
   SSL_set_fd (vio->ssl_, vio->sd);
   SSL_set_connect_state(vio->ssl_);
-  if (SSL_do_handshake(vio->ssl_) < 1)
+  if (SSL_do_handshake(vio->ssl_) < 1 ||
+      SSL_get_verify_result(vio->ssl_) != X509_V_OK)
   {
     DBUG_PRINT("error", ("SSL_do_handshake failure"));
     report_errors();

@@ -85,3 +85,33 @@ gptr sql_memdup(const void *ptr,uint len)
 
 void sql_element_free(void *ptr __attribute__((unused)))
 {} /* purecov: deadcode */
+
+
+
+char *sql_strmake_with_convert(const char *str, uint32 arg_length,
+			       CHARSET_INFO *from_cs,
+			       uint32 max_res_length,
+			       CHARSET_INFO *to_cs, uint32 *result_length)
+{
+  char *pos;
+  uint32 new_length= to_cs->mbmaxlen*arg_length;
+  max_res_length--;				// Reserve place for end null
+
+  set_if_smaller(new_length, max_res_length);
+  if (!(pos= sql_alloc(new_length+1)))
+    return pos;					// Error
+
+  if ((from_cs == &my_charset_bin) || (to_cs == &my_charset_bin))
+  {
+    // Safety if to_cs->mbmaxlen > 0
+    new_length= min(arg_length, max_res_length);
+    memcpy(pos, str, new_length);
+  }
+  else
+    new_length= copy_and_convert((char*) pos, new_length, to_cs, str,
+				 arg_length, from_cs);
+  pos[new_length]= 0;
+  *result_length= new_length;
+  return pos;
+}
+
