@@ -2006,6 +2006,7 @@ CHARSET_INFO my_charset_utf8_general_ci=
     "",
     "",
     1,			/* strxfrm_multiply */
+    1,			/* mbminlen     */
     3,			/* mbmaxlen     */
     0,
     &my_charset_handler,
@@ -2029,6 +2030,7 @@ CHARSET_INFO my_charset_utf8_bin=
     "",
     "",
     1,			/* strxfrm_multiply */
+    1,			/* mbminlen     */
     3,			/* mbmaxlen     */
     0,
     &my_charset_handler,

@@ -483,7 +483,7 @@ public:
   	      CHARSET_INFO *cs, Derivation dv= DERIVATION_COERCIBLE)
   {
     collation.set(cs, dv);
-    str_value.set(str,length,cs);
+    str_value.set_or_copy_aligned(str,length,cs);
     /*
       We have to have a different max_length than 'length' here to
       ensure that we get the right length if we do use the item
@@ -499,7 +499,7 @@ public:
 	      CHARSET_INFO *cs, Derivation dv= DERIVATION_COERCIBLE)
   {
     collation.set(cs, dv);
-    str_value.set(str,length,cs);
+    str_value.set_or_copy_aligned(str,length,cs);
     max_length= str_value.numchars()*cs->mbmaxlen;
     set_name(name_par,0,cs);
     decimals=NOT_FIXED_DEC;

@@ -956,6 +956,7 @@ CHARSET_INFO my_charset_tis620_thai_ci=
     "",
     "",
     4,			/* strxfrm_multiply */
+    1,			/* mbminlen   */
     1,			/* mbmaxlen  */
     0,
     &my_charset_handler,
@@ -978,6 +979,7 @@ CHARSET_INFO my_charset_tis620_bin=
     "",
     "",
     1,			/* strxfrm_multiply */
+    1,			/* mbminlen   */
     1,			/* mbmaxlen  */
     0,
     &my_charset_handler,
