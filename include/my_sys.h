@@ -464,7 +464,7 @@ typedef struct st_changeable_var {
 } CHANGEABLE_VAR;
 
 
-#include "my_alloc.h"
+#include <my_alloc.h>
 
 	/* Prototypes for mysys and my_func functions */
 
@@ -651,9 +651,9 @@ extern my_bool real_open_cached_file(IO_CACHE *cache);
 extern void close_cached_file(IO_CACHE *cache);
 File create_temp_file(char *to, const char *dir, const char *pfx,
 		      int mode, myf MyFlags);
-#define init_dynamic_array(A,B,C,D) _init_dynamic_array(A,B,C,D CALLER_INFO)
-#define init_dynamic_array_ci(A,B,C,D) _init_dynamic_array(A,B,C,D ORIG_CALLER_INFO)
-extern my_bool _init_dynamic_array(DYNAMIC_ARRAY *array,uint element_size,
+#define my_init_dynamic_array(A,B,C,D) init_dynamic_array(A,B,C,D CALLER_INFO)
+#define my_init_dynamic_array_ci(A,B,C,D) init_dynamic_array(A,B,C,D ORIG_CALLER_INFO)
+extern my_bool init_dynamic_array(DYNAMIC_ARRAY *array,uint element_size,
 	  uint init_alloc,uint alloc_increment CALLER_INFO_PROTO);
 extern my_bool insert_dynamic(DYNAMIC_ARRAY *array,gptr element);
 extern byte *alloc_dynamic(DYNAMIC_ARRAY *array);

@@ -135,7 +135,7 @@ static int init_question_widget(QUESTION_WIDGET* w, const char* question,
   }
   w->question = question;
   w->default_ind = default_ind;
-  if (init_dynamic_array(&w->answers,sizeof(char*),
+  if (my_init_dynamic_array(&w->answers,sizeof(char*),
 			 ANSWERS_CHUNCK,ANSWERS_CHUNCK))
     die("Out of memory");
   return 0;

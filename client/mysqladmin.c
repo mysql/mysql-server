@@ -24,7 +24,7 @@
 #include <my_pthread.h>				/* because of signal()	*/
 #endif
 
-#define ADMIN_VERSION "8.30"
+#define ADMIN_VERSION "8.31"
 #define MAX_MYSQL_VAR 64
 #define SHUTDOWN_DEF_TIMEOUT 3600		/* Wait for shutdown */
 #define MAX_TRUNC_LENGTH 3
@@ -124,8 +124,8 @@ static struct my_option my_long_options[] =
   {"pipe", 'W', "Use named pipes to connect to server.", 0, 0, 0, GET_NO_ARG,
    NO_ARG, 0, 0, 0, 0, 0, 0},
 #endif
-  {"port", 'P', "Port number to use for connection.", 0, 0, 0, 
-   GET_LONG, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"port", 'P', "Port number to use for connection.", (gptr*) &tcp_port,
+   (gptr*) &tcp_port, 0, GET_UINT, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"relative", 'r',
    "Show difference between current and previous values when used with -i. Currently works only with extended-status.",
    (gptr*) &opt_relative, (gptr*) &opt_relative, 0, GET_BOOL, NO_ARG, 0, 0, 0,
@@ -138,7 +138,8 @@ static struct my_option my_long_options[] =
   {"socket", 'S', "Socket file to use for connection.",
    0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"sleep", 'i', "Execute commands again and again with a sleep between.",
-   0, 0, 0, GET_LONG, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+   (gptr*) &interval, (gptr*) &interval, 0, GET_INT, REQUIRED_ARG, 0, 0, 0, 0,
+   0, 0},
 #include "sslopt-longopts.h"
 #ifndef DONT_ALLOW_USER_CHANGE
   {"user", 'u', "User for login if not current user.", (gptr*) &user,
@@ -155,10 +156,10 @@ static struct my_option my_long_options[] =
   {"wait", 'w', "Wait and retry if connection is down", 0, 0, 0, GET_NO_ARG,
    NO_ARG, 0, 0, 0, 0, 0, 0},
   {"connect_timeout", OPT_CONNECT_TIMEOUT, "", (gptr*) &opt_connect_timeout,
-   (gptr*) &opt_connect_timeout, 0, GET_LONG, REQUIRED_ARG, 3600*12, 0,
+   (gptr*) &opt_connect_timeout, 0, GET_ULONG, REQUIRED_ARG, 3600*12, 0,
    3600*12, 0, 1, 0},
   {"shutdown_timeout", OPT_SHUTDOWN_TIMEOUT, "", (gptr*) &opt_shutdown_timeout,
-   (gptr*) &opt_shutdown_timeout, 0, GET_LONG, REQUIRED_ARG,
+   (gptr*) &opt_shutdown_timeout, 0, GET_ULONG, REQUIRED_ARG,
    SHUTDOWN_DEF_TIMEOUT, 0, 3600*12, 0, 1, 0},
   { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };

@@ -1,8 +1,8 @@
 This is a release of MySQL, a GPL (free) SQL database server (more
 licence information in the PUBLIC file and in the reference manual).
 
-Please read the Upgrading section in the manual if emigration from
-3.20.# to 3.21.#. Otherwise it wont work!!
+Please read the "Upgrading from..." section in the manual first, if you are
+migrating from older versions of MySQL!
 
 The latest information about MySQL can be found at:
 http://www.mysql.com
@@ -24,13 +24,11 @@ For examples of SQL and benchmarking information see the bench
 directory.
 
 The manual mentioned above can be found in the Docs directory. The
-manual is available in the following formats: as text in
-Docs/manual.txt, as HTML in Docs/manual_toc.html, as GNU Info in
+manual is available in the following formats: as plain ASCII text in
+Docs/manual.txt, in HTML format in Docs/manual_toc.html, as GNU Info in
 Docs/mysql.info and as PostScript in Docs/manual.ps.
 
-For a contributed user manual see http://www.turbolift.com/mysql.
-
-MySQL is brought to you by  the MySQL team at MySQL AB
+MySQL is brought to you by the MySQL team at MySQL AB
 
 For a list of developers and other contributors, see the Credits appendix
 in the manual.
@@ -48,7 +46,7 @@ and start your editor with a form in which you can describe your
 problem. Bug reports might be silently ignored by the MySQL
 maintainers if there is not a good reason included in the report as to
 why mysqlbug has not been used. A report that says 'MySQL does not
-work for me. Why?' is not consider a valid bug report.
+work for me. Why?' is not considered a valid bug report.
 
-The mysqlbug script can be found in the 'scripts' directory in the
-distribution, that is 'there-you-installed-mysql/scripts'.
+The mysqlbug script can be found in the 'scripts' directory of the
+distribution, that is '<where-you-installed-mysql>/scripts'.

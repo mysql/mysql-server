@@ -463,3 +463,7 @@ mysql-test/r/rpl000001.eval
 Docs/safe-mysql.xml
 mysys/test_vsnprintf
 Docs/manual.de.log
+Docs/internals.info
+mysql-4.0.2-alpha-pc-linux-gnu-i686.tar.gz
+mysql-4.0.2-alpha.tar.gz
+mysql-max-4.0.2-alpha-pc-linux-gnu-i686.tar.gz

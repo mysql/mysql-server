@@ -1,4 +1,35 @@
-Changes done to this distrubtion (pthreads-1_60_beta6) by Monty (monty@tcx.se)
+Changes done to this distrubtion (pthreads-1_60_beta6) by Monty (monty@mysql.com)
+
+02.04.26
+- removed the following files because of copyright problems
+
+machdep/i386-sco-3.2v5/__signal.h
+machdep/i386-sco-3.2v5/__stdio.h
+machdep/i386-sco-3.2v5/__stdlib.h
+machdep/i386-sco-3.2v5/__string.h
+machdep/i386-sco-3.2v5/__time.h
+machdep/i386-sco-3.2v5/__unistd.h
+machdep/i386-sco-3.2v5/compat.h
+machdep/i386-sco-3.2v5/dirent.h
+machdep/i386-sco-3.2v5/posix/__signal.h
+machdep/i386-sco-3.2v5/socket.h
+machdep/i386-sco-3.2v5/syscall.h
+machdep/i386-sco-3.2v5/timers.h
+machdep/i386-sco-3.2v5/trash.can
+machdep/sco-3.2v5/__math.h
+machdep/sco-3.2v5/__signal.h
+machdep/sco-3.2v5/__stdio.h
+machdep/sco-3.2v5/__stdlib.h
+machdep/sco-3.2v5/__string.h
+machdep/sco-3.2v5/__time.h
+machdep/sco-3.2v5/__unistd.h
+machdep/sco-3.2v5/compat.h
+machdep/sco-3.2v5/dirent.h
+machdep/sco-3.2v5/posix/__signal.h
+machdep/sco-3.2v5/socket.h
+machdep/sco-3.2v5/syscall.h
+machdep/sco-3.2v5/timers.h
+machdep/sco-3.2v5/trash.can
 
 93.04.01
 - socket() didn't return NOTOK (-1) on error.

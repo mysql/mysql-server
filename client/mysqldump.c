@@ -35,7 +35,7 @@
 ** and adapted to mysqldump 05/11/01 by Jani Tolonen
 */
 
-#define DUMP_VERSION "9.01"
+#define DUMP_VERSION "9.03"
 
 #include <my_global.h>
 #include <my_sys.h>
@@ -63,6 +63,9 @@
 #define SHOW_DEFAULT  4
 #define SHOW_EXTRA  5
 #define QUOTE_CHAR	'`'
+
+/* Size of buffer for dump's select query */
+#define QUERY_LENGTH 1536
 
 static char *add_load_option(char *ptr, const char *object,
 			     const char *statement);
@@ -189,8 +192,9 @@ static struct my_option my_long_options[] =
   {"pipe", 'W', "Use named pipes to connect to server", 0, 0, 0, GET_NO_ARG,
    NO_ARG, 0, 0, 0, 0, 0, 0},
 #endif
-  {"port", 'P', "Port number to use for connection.", 0, 0, 0, GET_LONG,
-   REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"port", 'P', "Port number to use for connection.", (gptr*) &opt_mysql_port,
+   (gptr*) &opt_mysql_port, 0, GET_UINT, REQUIRED_ARG, MYSQL_PORT, 0, 0, 0, 0,
+   0},
   {"quick", 'q', "Don't buffer query, dump directly to stdout.",
    (gptr*) &quick, (gptr*) &quick, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"quote-names",'Q', "Quote table and column names with a `",
@@ -198,8 +202,7 @@ static struct my_option my_long_options[] =
    0, 0},
   {"result-file", 'r',
    "Direct output to a given file. This option should be used in MSDOS, because it prevents new line '\\n' from being converted to '\\n\\r' (newline + carriage return).",
-   (gptr*) &md_result_file, (gptr*) &md_result_file, 0, GET_STR, REQUIRED_ARG,
-   0, 0, 0, 0, 0, 0},
+   0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"socket", 'S', "Socket file to use for connection.",
    (gptr*) &opt_mysql_unix_port, (gptr*) &opt_mysql_unix_port, 0, GET_STR,
    REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
@@ -222,15 +225,15 @@ static struct my_option my_long_options[] =
    (gptr*) &where, (gptr*) &where, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"xml", 'X', "Dump a database as well formed XML.", 0, 0, 0, GET_NO_ARG,
    NO_ARG, 0, 0, 0, 0, 0, 0},
-  { "max_allowed_packet", OPT_MAX_ALLOWED_PACKET, "",
+  {"max_allowed_packet", OPT_MAX_ALLOWED_PACKET, "",
     (gptr*) &max_allowed_packet, (gptr*) &max_allowed_packet, 0,
-    GET_LONG, REQUIRED_ARG, 24*1024*1024, 4096, 512*1024L*1024L,
+    GET_ULONG, REQUIRED_ARG, 24*1024*1024, 4096, 512*1024L*1024L,
     MALLOC_OVERHEAD, 1024, 0},
-  { "net_buffer_length", OPT_NET_BUFFER_LENGTH, "",
+  {"net_buffer_length", OPT_NET_BUFFER_LENGTH, "",
     (gptr*) &net_buffer_length, (gptr*) &net_buffer_length, 0,
-    GET_LONG, REQUIRED_ARG, 1024*1024L-1025, 4096, 16*1024L*1024L,
+    GET_ULONG, REQUIRED_ARG, 1024*1024L-1025, 4096, 16*1024L*1024L,
     MALLOC_OVERHEAD-1024, 1024, 0},
-  { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
+  {0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
 
 static const char *load_default_groups[]= { "mysqldump","client",0 };
@@ -363,9 +366,6 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     opt_xml = 1;
     opt_disable_keys=0;
     break;
-  default:
-    fprintf(stderr,"%s: Illegal option character '%c'\n",my_progname,opterr);
-    /* Fall throught */
   case 'I':
   case '?':
     usage();
@@ -909,7 +909,7 @@ static char *field_escape(char *to,const char *from,uint length)
 */
 static void dumpTable(uint numFields, char *table)
 {
-  char query[1024], *end, buff[256],table_buff[NAME_LEN+3];
+  char query[QUERY_LENGTH], *end, buff[256],table_buff[NAME_LEN+3];
   MYSQL_RES	*res;
   MYSQL_FIELD  *field;
   MYSQL_ROW    row;
@@ -926,7 +926,8 @@ static void dumpTable(uint numFields, char *table)
     my_delete(filename, MYF(0)); /* 'INTO OUTFILE' doesn't work, if
 				    filename wasn't deleted */
     to_unix_path(filename);
-    sprintf(query, "SELECT * INTO OUTFILE '%s'", filename);
+    sprintf(query, "SELECT /*!40001 SQL_NO_CACHE */ * INTO OUTFILE '%s'",
+	    filename);
     end= strend(query);
     if (replace)
       end= strmov(end, " REPLACE");
@@ -957,7 +958,8 @@ static void dumpTable(uint numFields, char *table)
     if (!opt_xml)
       fprintf(md_result_file,"\n--\n-- Dumping data for table '%s'\n--\n",
 	      table);
-    sprintf(query, "SELECT * FROM %s", quote_name(table,table_buff));
+    sprintf(query, "SELECT /*!40001 SQL_NO_CACHE */ * FROM %s",
+	    quote_name(table,table_buff));
     if (where)
     {
       if (!opt_xml)
@@ -1420,8 +1422,6 @@ int main(int argc, char **argv)
       return(first_error);
     }
   }
-  if(mysql_query(sock, "SET SQL_QUERY_CACHE_TYPE=OFF") && verbose)
-    fprintf(stderr, "-- Can't disable query cache (not supported).\n");
   if (opt_alldbs)
     dump_all_databases();
   /* Only one database and selected table(s) */

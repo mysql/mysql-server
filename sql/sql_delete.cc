@@ -182,7 +182,9 @@ cleanup:
     thd->lock=0;
   }
   if (deleted)
-    query_cache_invalidate3(thd, table_list, 1);
+  {
+	query_cache_invalidate3(thd, table_list, 1);
+  }
   delete select;
   if (error >= 0)				// Fatal error
     send_error(&thd->net,thd->killed ? ER_SERVER_SHUTDOWN: 0);
@@ -470,7 +472,9 @@ bool multi_delete::send_eof()
     VOID(ha_autocommit_or_rollback(thd,error > 0));
   }
   if (deleted)
+  {
     query_cache_invalidate3(thd, delete_tables, 1);
+  }
   ::send_ok(&thd->net,deleted);
   return 0;
 }

@@ -40,19 +40,16 @@ extern void sql_element_free(void *ptr);
 bool String::real_alloc(uint32 arg_length)
 {
   arg_length=ALIGN_SIZE(arg_length+1);
+  str_length=0;
   if (Alloced_length < arg_length)
   {
     free();
     if (!(Ptr=(char*) my_malloc(arg_length,MYF(MY_WME))))
-    {
-      str_length=0;
       return TRUE;
-    }
     Alloced_length=arg_length;
     alloced=1;
   }
   Ptr[0]=0;
-  str_length=0;
   return FALSE;
 }
 

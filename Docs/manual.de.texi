@@ -39897,12 +39897,12 @@ gespeichert werden kann.
 
 
 @menu
-* InnoDB Disk i/o::             
+* InnoDB Disk I/O::             
 * InnoDB File space::           
 * InnoDB File Defragmenting::   
 @end menu
 
-@node InnoDB Disk i/o, InnoDB File space, File space management, File space management
+@node InnoDB Disk I/O, InnoDB File space, File space management, File space management
 @c German node Festplatten-Ein- und -Ausgaben bei InnoDB
 @subsubsection Festplatten-Ein- und -Ausgaben
 
@@ -39969,7 +39969,7 @@ Eingelesenwerdens in den Puffer-Pool zu sein scheint. Dann schickt InnoDB
 die verbleibenden Lesevorgänge an das Ein-/Ausgabesystem.
 
 
-@node InnoDB File space, InnoDB File Defragmenting, InnoDB Disk i/o, File space management
+@node InnoDB File space, InnoDB File Defragmenting, InnoDB Disk I/O, File space management
 @c German node Speicherplatz in InnoDB
 @subsubsection Speicherplatzverwaltung
 
@@ -44743,6 +44743,7 @@ wollen. @xref{Threaded clients}.
 * my_init::                     
 * mysql_thread_init::           
 * mysql_thread_end::            
+* mysql_thread_safe::           
 @end menu
 
 @node my_init, mysql_thread_init, C Thread functions, C Thread functions
@@ -44783,7 +44784,7 @@ Diese Funktion wird automatisch von @code{my_init()} und
 
 Keine.
 
-@node mysql_thread_end,  , mysql_thread_init, C Thread functions
+@node mysql_thread_end, mysql_thread_safe, mysql_thread_init, C Thread functions
 @c German node mysql_thread_end()
 @subsubsection @code{mysql_thread_end()}
 
@@ -44802,6 +44803,22 @@ Speicherlecks zu vermeiden.
 @subsubheading Rückgabewerte
 
 Keine.
+
+@node mysql_thread_safe,  , mysql_thread_end, C Thread functions
+@c Arjen note: new @node 2002-04-19, please translate text!
+@subsubsection @code{mysql_thread_safe()}
+
+@findex @code{mysql_thread_safe()}
+
+@code{unsigned int mysql_thread_safe(void)}
+
+@subsubheading Description
+
+This function indicates whether the client is compiled as thread safe.
+
+@subsubheading Return Values
+
+1 is the client is thread safe, 0 otherwise.
 
 @node C Embedded Server func, C API problems, C Thread functions, C
 @c German node C-Embedded-Server-Funktionen

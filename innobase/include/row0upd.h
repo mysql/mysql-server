@@ -312,6 +312,11 @@ struct upd_node_struct{
 	ibool		in_mysql_interface;
 				/* TRUE if the update node was created
 				for the MySQL interface */
+	upd_node_t*	cascade_node;/* NULL or an update node template which
+				is used to implement ON DELETE CASCADE
+				or ... SET NULL for foreign keys */
+	mem_heap_t*	cascade_heap;/* NULL or a mem heap where the cascade
+				node is created */
 	sel_node_t*	select;	/* query graph subtree implementing a base
 				table cursor: the rows returned will be
 				updated */
@@ -322,6 +327,11 @@ struct upd_node_struct{
 				of the MySQL interface */
 	dict_table_t*	table;	/* table where updated */
 	upd_t*		update;	/* update vector for the row */
+	ulint		update_n_fields;
+				/* when this struct is used to implement
+				a cascade operation for foreign keys, we store
+				here the size of the buffer allocated for use
+				as the update vector */
 	sym_node_list_t	columns;/* symbol table nodes for the columns
 				to retrieve from the table */
 	ibool		has_clust_rec_x_lock;
