@@ -169,7 +169,7 @@ void *	my_pthread_getspecific_imp(pthread_key_t key);
 
 #define pthread_sigmask(A,B,C) thr_sigsetmask((A),(B),(C))
 
-extern int my_sigwait(sigset_t *set,int *sig);
+extern int my_sigwait(const sigset_t *set,int *sig);
 
 #define pthread_detach_this_thread() pthread_dummy(0)
 
@@ -309,7 +309,7 @@ extern int my_pthread_cond_init(pthread_cond_t *mp,
 #endif
 
 #if !defined(HAVE_SIGWAIT) && !defined(HAVE_mit_thread) && !defined(HAVE_rts_threads) && !defined(sigwait) && !defined(alpha_linux_port) && !defined(HAVE_NONPOSIX_SIGWAIT) && !defined(HAVE_DEC_3_2_THREADS) && !defined(_AIX)
-int sigwait(sigset_t *setp, int *sigp);		/* Use our implemention */
+int sigwait(const sigset_t *setp, int *sigp);		/* Use our implemention */
 #endif
 #if !defined(HAVE_SIGSET) && !defined(HAVE_mit_thread) && !defined(sigset)
 #define sigset(A,B) do { struct sigaction s; sigset_t set;              \
