@@ -358,6 +358,10 @@ sub main () {
 
   if ( $opt_start_and_exit )
   {
+    if ( ndbcluster_start() )
+    {
+      mtr_error("Can't start ndbcluster");
+    }
     if ( mysqld_start('master',0,[],[]) )
     {
       mtr_report("Servers started, exiting");
@@ -1054,7 +1058,7 @@ sub ndbcluster_start () {
 		"--data-dir=$glob_mysql_test_dir/var"],
 	       "", "/dev/null", "", "") )
   {
-    mtr_error("Error ndbcluster_install");
+    mtr_error("Error ndbcluster_start");
     return 1;
   }
 
