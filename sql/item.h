@@ -1011,6 +1011,11 @@ public:
   {
     return ref->save_in_field(field, no_conversions);
   }
+  Item *new_item()
+  {
+    return (ref->unsigned_flag)? new Item_uint(ref->name, ref->max_length) :
+                                 new Item_int(ref->name, ref->max_length);
+  }
 };
 
 
