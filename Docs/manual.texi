@@ -39260,7 +39260,7 @@ constraints to guard the integrity of your data.
 
 The syntax of a foreign key constraint definition in InnoDB:
 @example
-FOREIGN KEY (index_col_name, ...)
+[CONSTRAINT symbol] FOREIGN KEY (index_col_name, ...)
                   REFERENCES table_name (index_col_name, ...)
                   [ON DELETE CASCADE | ON DELETE SET NULL]
 @end example
@@ -39319,7 +39319,7 @@ Starting from version 3.23.50 InnoDB allows you to add a new
 foreign key constraint to a table through
 @example
 ALTER TABLE yourtablename
-  ADD CONSTRAINT FOREIGN KEY (...) REFERENCES anothertablename(...)
+ADD [CONSTRAINT symbol] FOREIGN KEY (...) REFERENCES anothertablename(...)
 @end example
 Remember to create the required indexes first, though.
                            
