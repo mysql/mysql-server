@@ -5977,15 +5977,15 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
   }
   case OPT_BDB_SHARED:
     berkeley_init_flags&= ~(DB_PRIVATE);
-    berkeley_shared_data=1;
+    berkeley_shared_data= 1;
     break;
 #endif /* HAVE_BERKELEY_DB */
   case OPT_BDB:
 #ifdef HAVE_BERKELEY_DB
     if (opt_bdb)
-      have_berkeley_db=SHOW_OPTION_YES;
+      have_berkeley_db= SHOW_OPTION_YES;
     else
-      have_berkeley_db=SHOW_OPTION_DISABLED;
+      have_berkeley_db= SHOW_OPTION_DISABLED;
 #endif
     break;
   case OPT_ISAM:
@@ -5999,27 +5999,27 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
   case OPT_NDBCLUSTER:
 #ifdef HAVE_NDBCLUSTER_DB
     if (opt_ndbcluster)
-      have_ndbcluster=SHOW_OPTION_YES;
+      have_ndbcluster= SHOW_OPTION_YES;
     else
-      have_ndbcluster=SHOW_OPTION_DISABLED;
+      have_ndbcluster= SHOW_OPTION_DISABLED;
 #endif
     break;
   case OPT_NDB_CONNECTSTRING:
 #ifdef HAVE_NDBCLUSTER_DB
-    have_ndbcluster=SHOW_OPTION_YES;
+    have_ndbcluster= SHOW_OPTION_YES;
 #endif
     break;
   case OPT_INNODB:
 #ifdef HAVE_INNOBASE_DB
     if (opt_innodb)
-      have_innodb=SHOW_OPTION_YES;
+      have_innodb= SHOW_OPTION_YES;
     else
-      have_innodb=SHOW_OPTION_DISABLED;
+      have_innodb= SHOW_OPTION_DISABLED;
 #endif
     break;
   case OPT_INNODB_DATA_FILE_PATH:
 #ifdef HAVE_INNOBASE_DB
-    innobase_data_file_path=argument;
+    innobase_data_file_path= argument;
 #endif
     break;
 #ifdef HAVE_INNOBASE_DB
