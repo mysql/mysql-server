@@ -454,8 +454,7 @@ int multi_delete::do_deletes(bool from_send_error)
 	{
 	  DBUG_RETURN(local_error);
 	}
-	else
-	  break;
+	break;
       }
       deleted++;
     }
