@@ -128,7 +128,12 @@ Log_event::Log_event(THD* thd_arg, uint16 flags_arg, bool using_trans)
 	       (thd->options & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN)));
 }
 
-
+/*
+  This minimal constructor is for when you are not even sure that there is a
+  valid THD. For example in the server when we are shutting down or flushing
+  logs after receiving a SIGHUP (then we must write a Rotate to the binlog but
+  we have no THD, so we need this minimal constructor).
+*/
 Log_event::Log_event()
   :temp_buf(0), exec_time(0), cached_event_len(0), flags(0), cache_stmt(0),
    thd(0)

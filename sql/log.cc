@@ -843,7 +843,7 @@ void MYSQL_LOG::new_file(bool need_lock)
         We log the whole file name for log file as the user may decide
         to change base names at some point.
       */
-      THD* thd = current_thd;
+      THD* thd = current_thd; /* may be 0 if we are reacting to SIGHUP */
       Rotate_log_event r(thd,new_name+dirname_length(new_name));
       r.set_log_pos(this);
       
@@ -852,7 +852,7 @@ void MYSQL_LOG::new_file(bool need_lock)
         the slave running with log-bin, we set the flag on rotate
         event to prevent infinite log rotation loop
       */
-      if (thd->slave_thread)
+      if (thd && thd->slave_thread)
         r.flags|= LOG_EVENT_FORCED_ROTATE_F;
       r.write(&log_file);
       bytes_written += r.get_event_len();
