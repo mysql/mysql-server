@@ -1495,8 +1495,7 @@ TABLE *open_temporary_table(THD *thd, const char *path, const char *db,
     DBUG_RETURN(0);				/* purecov: inspected */
 
   if (openfrm(path, table_name,
-	      (uint) (HA_OPEN_KEYFILE | HA_OPEN_RNDFILE | HA_GET_INDEX |
-		      HA_TRY_READ_ONLY),
+	      (uint) (HA_OPEN_KEYFILE | HA_OPEN_RNDFILE | HA_GET_INDEX),
 	      READ_KEYINFO | COMPUTE_TYPES | EXTRA_RECORD,
 	      ha_open_options,
 	      tmp_table))
@@ -1505,8 +1504,9 @@ TABLE *open_temporary_table(THD *thd, const char *path, const char *db,
   }
 
   tmp_table->file->extra(HA_EXTRA_NO_READCHECK); // Not needed in SQL
-  tmp_table->reginfo.lock_type=TL_WRITE;	// Simulate locked
-  tmp_table->tmp_table = 1;
+  tmp_table->reginfo.lock_type=TL_WRITE;	 // Simulate locked
+  tmp_table->tmp_table = (tmp_table->file->has_transactions() ? 
+			  TRANSACTIONAL_TMP_TABLE : TMP_TABLE);
   tmp_table->table_cache_key=(char*) (tmp_table+1);
   tmp_table->key_length= (uint) (strmov((tmp_table->real_name=
 					 strmov(tmp_table->table_cache_key,db)

@@ -41,6 +41,8 @@ typedef struct st_grant_info
   uint want_privilege;
 } GRANT_INFO;
 
+enum tmp_table_type {NO_TMP_TABLE=0, TMP_TABLE=1, TRANSACTIONAL_TMP_TABLE=2};
+
 /* Table cache entry struct */
 
 class Field_timestamp;
@@ -83,10 +85,11 @@ struct st_table {
   uint blob_ptr_size;			/* 4 or 8 */
   uint next_number_key_offset;
   int current_lock;			/* Type of lock on table */
+  enum tmp_table_type tmp_table;
   my_bool copy_blobs;			/* copy_blobs when storing */
   my_bool null_row;			/* All columns are null */
   my_bool maybe_null,outer_join;	/* Used with OUTER JOIN */
-  my_bool distinct,tmp_table,const_table;
+  my_bool distinct,const_table;
   my_bool key_read;
   my_bool crypted;
   my_bool db_low_byte_first;		/* Portable row format */
