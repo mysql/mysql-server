@@ -4553,13 +4553,14 @@ void Dbdict::handleTabInfoInit(SimpleProperties::Reader & it,
   TableRecordPtr tablePtr;
   c_tableRecordHash.find(tablePtr, keyRecord);
 
-  if (checkExist)
+  if (checkExist){
     jam();
     /* ---------------------------------------------------------------- */
     // Check if table already existed.
     /* ---------------------------------------------------------------- */
     tabRequire(tablePtr.i == RNIL, CreateTableRef::TableAlreadyExist);
-  
+  }
+
   switch (parseP->requestType) {
   case DictTabInfo::CreateTableFromAPI: {
     jam();
