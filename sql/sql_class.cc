@@ -79,6 +79,34 @@ extern "C" void free_user_var(user_var_entry *entry)
 }
 
 
+bool key_part_spec::operator==(const key_part_spec& other) const
+{
+  return length == other.length && !strcmp(field_name, other.field_name);
+}
+
+/* Equality comparison of keys (ignoring name) */
+bool Key::operator==(Key& other)
+{
+  if (type == other.type &&
+      algorithm == other.algorithm &&
+      columns.elements == other.columns.elements)
+  {
+    List_iterator<key_part_spec> col_it1(columns);
+    List_iterator<key_part_spec> col_it2(other.columns);
+    const key_part_spec *col1, *col2;
+    while ((col1 = col_it1++))
+    {
+      col2 = col_it2++;
+      DBUG_ASSERT(col2 != NULL);
+      if (!(*col1 == *col2))
+	return false;
+    }
+    return true;
+  }
+  return false;
+}
+
+
 /****************************************************************************
 ** Thread specific functions
 ****************************************************************************/

@@ -1200,12 +1200,14 @@ key_def:
 	| opt_constraint FOREIGN KEY_SYM opt_ident '(' key_list ')' references
 	  {
 	    LEX *lex=Lex;
-	    lex->key_list.push_back(new foreign_key($4, lex->col_list,
+	    lex->key_list.push_back(new foreign_key($4 ? $4:$1, lex->col_list,
 				    $8,
 				    lex->ref_list,
 				    lex->fk_delete_opt,
 				    lex->fk_update_opt,
 				    lex->fk_match_option));
+	    lex->key_list.push_back(new Key(Key::MULTIPLE, $4 ? $4:$1,
+					    HA_KEY_ALG_UNDEF, lex->col_list));
 	    lex->col_list.empty();		/* Alloced by sql_alloc */
 	  }
 	| constraint opt_check_constraint

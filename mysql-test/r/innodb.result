@@ -371,7 +371,6 @@ t1	0	PRIMARY	2	b	A	#	NULL	NULL		BTREE
 t1	0	c	1	c	A	#	NULL	NULL		BTREE	
 t1	0	b	1	b	A	#	NULL	NULL		BTREE	
 t1	1	a	1	a	A	#	NULL	NULL		BTREE	
-t1	1	a_2	1	a	A	#	NULL	NULL		BTREE	
 drop table t1;
 create table t1 (col1 int not null, col2 char(4) not null, primary key(col1));
 alter table t1 engine=innodb;
