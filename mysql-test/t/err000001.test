@@ -10,7 +10,8 @@ create table t1 (a int);
 !$1054 select count(test.t1.b) from t1;
 !$1109 select count(not_existing_database.t1) from t1;
 !$1109 select count(not_existing_database.t1.a) from t1;
-!$1044 select count(not_existing_database.t1.a) from not_existing_database.t1;
+--error 1044,1146
+select count(not_existing_database.t1.a) from not_existing_database.t1;
 !$1054 select 1 from t1 order by 2;
 !$1054 select 1 from t1 group by 2;
 !$1054 select 1 from t1 order by t1.b;

@@ -43,7 +43,7 @@
 
 **********************************************************************/
 
-#define MTEST_VERSION "1.8"
+#define MTEST_VERSION "1.10"
 
 #include <global.h>
 #include <my_sys.h>
@@ -84,7 +84,7 @@
 static int record = 0, verbose = 0, silent = 0, opt_sleep=0;
 static char *db = 0, *pass=0;
 const char* user = 0, *host = 0, *unix_sock = 0;
-static int port = 0;
+static int port = 0, opt_big_test=0;
 static uint start_lineno, *lineno;
 
 static char **default_argv;
@@ -95,9 +95,13 @@ static FILE** cur_file;
 static FILE** file_stack_end;
 static uint lineno_stack[MAX_INCLUDE_DEPTH];
 static char TMPDIR[FN_REFLEN];
+static int  *block_ok_stack_end;
 
-static int block_stack[BLOCK_STACK_DEPTH];
 static int *cur_block, *block_stack_end;
+static int block_stack[BLOCK_STACK_DEPTH];
+
+
+static int block_ok_stack[BLOCK_STACK_DEPTH];
 static uint global_expected_errno[MAX_EXPECTED_ERRORS];
 
 DYNAMIC_ARRAY q_lines;
@@ -121,7 +125,7 @@ typedef struct
 
 PARSER parser;
 MASTER_POS master_pos;
-int block_ok = 1; /* set to 0 if the current block should not be executed */
+int* block_ok; /* set to 0 if the current block should not be executed */
 int false_block_depth = 0;
 const char* result_file = 0; /* if set, all results are concated and
 				compared against this file*/
@@ -159,6 +163,8 @@ Q_SYNC_WITH_MASTER, Q_ERROR,
 Q_SEND,             Q_REAP, 
 Q_DIRTY_CLOSE,      Q_REPLACE,
 Q_PING,             Q_EVAL,
+Q_RPL_PROBE,        Q_ENABLE_RPL_PARSE,
+Q_DISABLE_RPL_PARSE, Q_EVAL_RESULT,
 Q_UNKNOWN,                             /* Unknown command.   */
 Q_COMMENT,                             /* Comments, ignored. */
 Q_COMMENT_WITH_COMMAND
@@ -167,7 +173,7 @@ Q_COMMENT_WITH_COMMAND
 /* this should really be called command */
 struct st_query
 {
-  char *query, *query_buf,*first_argument;
+  char *query, *query_buf,*first_argument,*end;
   int first_word_len;
   my_bool abort_on_error, require_file;
   uint expected_errno[MAX_EXPECTED_ERRORS];
@@ -188,6 +194,8 @@ const char *command_names[] = {
   "send",             "reap", 
   "dirty_close",      "replace_result",
   "ping",             "eval",
+  "rpl_probe",        "enable_rpl_parse",
+  "disable_rpl_parse", "eval_result",
   0
 };
 
@@ -199,7 +207,7 @@ static void die(const char* fmt, ...);
 static void init_var_hash();
 static byte* get_var_key(const byte* rec, uint* len,
 			 my_bool __attribute__((unused)) t);
-static VAR* var_init(const char* name, int name_len, const char* val,
+static VAR* var_init(VAR* v, const char* name, int name_len, const char* val,
 		     int val_len);
 
 static void var_free(void* v);
@@ -230,10 +238,21 @@ void free_pointer_array(POINTER_ARRAY *pa);
 static int initialize_replace_buffer(void);
 static void free_replace_buffer(void);
 static void do_eval(DYNAMIC_STRING* query_eval, const char* query);
+void str_to_file(const char* fname, char* str, int size);
 
 struct st_replace *glob_replace;
 static char *out_buff;
 static uint out_length;
+static int eval_result = 0;
+
+/* Disable functions that only exist in MySQL 4.0 */
+#if MYSQL_VERSION_ID < 40000
+static void mysql_enable_rpl_parse(MYSQL* mysql) {}
+static void mysql_disable_rpl_parse(MYSQL* mysql) {}
+static int mysql_rpl_parse_enabled(MYSQL* mysql) { return 1; }
+static int mysql_rpl_probe(MYSQL *mysql) { return 1; }
+#endif
+
 
 static void do_eval(DYNAMIC_STRING* query_eval, const char* query)
 {
@@ -290,7 +309,7 @@ static void close_files()
 {
   do
   {
-    if (*cur_file != stdin)
+    if (*cur_file != stdin && *cur_file)
       my_fclose(*cur_file,MYF(0));
   } while (cur_file-- != file_stack);
 }
@@ -352,7 +371,9 @@ static void abort_not_supported_test()
 static void verbose_msg(const char* fmt, ...)
 {
   va_list args;
-  if (!verbose) return;
+  DBUG_ENTER("verbose_msg");
+  if (!verbose)
+    DBUG_VOID_RETURN;
 
   va_start(args, fmt);
 
@@ -360,6 +381,7 @@ static void verbose_msg(const char* fmt, ...)
   vfprintf(stderr, fmt, args);
   fprintf(stderr, "\n");
   va_end(args);
+  DBUG_VOID_RETURN;
 }
 
 
@@ -382,25 +404,53 @@ int hex_val(int c)
 int dyn_string_cmp(DYNAMIC_STRING* ds, const char* fname)
 {
   MY_STAT stat_info;
-  char *tmp;
+  char *tmp, *res_ptr;
+  char eval_file[FN_REFLEN];
   int res;
+  uint res_len;
   int fd;
+  DYNAMIC_STRING res_ds;
   DBUG_ENTER("dyn_string_cmp");
 
   if (!my_stat(fname, &stat_info, MYF(MY_WME)))
     die(NullS);
-  if (stat_info.st_size != ds->length)
+  if (!eval_result && stat_info.st_size != ds->length)
     DBUG_RETURN(2);
-  if (!(tmp = (char*) my_malloc(ds->length, MYF(MY_WME))))
+  if (!(tmp = (char*) my_malloc(stat_info.st_size + 1, MYF(MY_WME))))
     die(NullS);
   if ((fd = my_open(fname, O_RDONLY, MYF(MY_WME))) < 0)
     die(NullS);
   if (my_read(fd, (byte*)tmp, stat_info.st_size, MYF(MY_WME|MY_NABP)))
     die(NullS);
-  res = (memcmp(tmp, ds->str, stat_info.st_size)) ?  1 : 0;
+  tmp[stat_info.st_size] = 0;
+  init_dynamic_string(&res_ds, "", 0, 65536);
+  if (eval_result)
+  {
+    do_eval(&res_ds, tmp);
+    res_ptr = res_ds.str;
+    if((res_len = res_ds.length) != ds->length)
+    {
+      res = 2;
+      goto err;
+    }
+  }
+  else
+  {
+    res_ptr = tmp;
+    res_len = stat_info.st_size;
+  }
+  
+  res = (memcmp(res_ptr, ds->str, res_len)) ?  1 : 0;
+  
+err:  
+  if(res && eval_result)
+     str_to_file(fn_format(eval_file, fname, "", ".eval",2), res_ptr,
+		  res_len);
+    
   my_free((gptr) tmp, MYF(0));
   my_close(fd, MYF(MY_WME));
-
+  dynstr_free(&res_ds);
+  
   DBUG_RETURN(res);
 }
 
@@ -446,12 +496,12 @@ VAR* var_get(const char* var_name, const char** var_name_end, int raw)
   {
     const char* save_var_name = var_name, *end;
     end = (var_name_end) ? *var_name_end : 0;
-    while(isalnum(*var_name) || *var_name == '_')
-      {
-	if(end && var_name == end)
-	  break;
-        ++var_name;
-      }
+    while (isvar(*var_name))
+    {
+      if(end && var_name == end)
+	break;
+      ++var_name;
+    }
     if(var_name == save_var_name)
       die("Empty variable");
     
@@ -488,7 +538,7 @@ static VAR* var_obtain(char* name, int len)
   VAR* v;
   if((v = (VAR*)hash_search(&var_hash, name, len)))
     return v;
-  v = var_init(name, len, "", 0);
+  v = var_init(0, name, len, "", 0);
   hash_insert(&var_hash, (byte*)v);
   return v;
 }
@@ -497,7 +547,6 @@ int var_set(char* var_name, char* var_name_end, char* var_val,
 	    char* var_val_end)
 {
   int digit;
-  int val_len;
   VAR* v;
   if (*var_name++ != '$')
     {
@@ -512,21 +561,8 @@ int var_set(char* var_name, char* var_name_end, char* var_val,
     }
   else 
    v = var_reg + digit;
-  if (v->alloced_len < (val_len = (int)(var_val_end - var_val)+1))
-    {
-      v->alloced_len = (val_len < MIN_VAR_ALLOC) ? MIN_VAR_ALLOC : val_len;
-     if (!(v->str_val =
-	  v->str_val ? my_realloc(v->str_val, v->alloced_len,  MYF(MY_WME)) :
-	   my_malloc(v->alloced_len, MYF(MY_WME))))
-	 die("Out of memory");
-    }
-  val_len--;
-  memcpy(v->str_val, var_val, val_len);
-  v->str_val_len = val_len;
-  v->str_val[val_len] = 0;
-  v->int_val = atoi(v->str_val);
-  v->int_dirty=0;
-  return 0;
+  
+  return eval_expr(v, var_val, (const char**)&var_val_end);
 }
 
 int open_file(const char* name)
@@ -554,6 +590,35 @@ int do_source(struct st_query* q)
   return open_file(name);
 }
 
+int var_query_set(VAR* v, const char* p, const char** p_end)
+{
+  char* end = (char*)((p_end && *p_end) ? *p_end : p + strlen(p));
+  MYSQL_RES *res;
+  MYSQL_ROW row;
+  MYSQL* mysql = &cur_con->mysql;
+  LINT_INIT(res);
+  
+  while (end > p && *end != '`')
+    --end;
+  if (p == end)
+    die("Syntax error in query, missing '`'");
+  ++p;
+
+  if (mysql_real_query(mysql, p, (int)(end - p)) ||
+      !(res = mysql_store_result(mysql)))
+  {
+    *end = 0;
+    die("Error running query '%s': %s", p, mysql_error(mysql));
+  }
+
+  if ((row = mysql_fetch_row(res)) && row[0])
+    eval_expr(v, row[0], 0);
+  else
+    eval_expr(v, "", 0);
+
+  mysql_free_result(res);
+  return 0;
+}
 
 int eval_expr(VAR* v, const char* p, const char** p_end)
 {
@@ -566,10 +631,27 @@ int eval_expr(VAR* v, const char* p, const char** p_end)
 	  return 0;
 	}
     }
+  else if(*p == '`')
+  {
+    return var_query_set(v, p, p_end);
+  }
   else
     {
-      v->str_val = (char*)p;
-      v->str_val_len = (p_end && *p_end) ? (int) (*p_end - p) : (int) strlen(p);
+      int new_val_len = (p_end && *p_end) ?
+	 (int) (*p_end - p) : (int) strlen(p);
+      if (new_val_len + 1 >= v->alloced_len)
+      {
+        v->alloced_len = (new_val_len < MIN_VAR_ALLOC - 1) ?
+	  MIN_VAR_ALLOC : new_val_len + 1;
+	if (!(v->str_val =
+	      v->str_val ? my_realloc(v->str_val, v->alloced_len,
+				      MYF(MY_WME)) :
+	      my_malloc(v->alloced_len, MYF(MY_WME))))
+	  die("Out of memory");
+      }
+      v->str_val_len = new_val_len;
+      memcpy(v->str_val, p, new_val_len);
+      v->str_val[new_val_len] = 0;
       v->int_val=atoi(p);
       v->int_dirty=0;
       return 0;
@@ -605,6 +687,7 @@ int do_system(struct st_query* q)
 {
   char* p=q->first_argument;
   VAR v;
+  var_init(&v, 0, 0, 0, 0);
   eval_expr(&v, p, 0); /* NULL terminated */
   if (v.str_val_len)
     {
@@ -624,6 +707,7 @@ int do_echo(struct st_query* q)
 {
   char* p=q->first_argument;
   VAR v;
+  var_init(&v,0,0,0,0);
   eval_expr(&v, p, 0); /* NULL terminated */
   if (v.str_val_len)
   {
@@ -642,6 +726,11 @@ int do_sync_with_master(struct st_query* q)
   char query_buf[FN_REFLEN+128];
   int offset = 0;
   char* p = q->first_argument;
+  int rpl_parse;
+
+  rpl_parse = mysql_rpl_parse_enabled(mysql);
+  mysql_disable_rpl_parse(mysql);
+  
   if(*p)
     offset = atoi(p);
   
@@ -658,7 +747,10 @@ int do_sync_with_master(struct st_query* q)
   if(!row[0])
     die("Error on slave while syncing with master");
   mysql_free_result(res);
-      
+
+  if(rpl_parse)
+    mysql_enable_rpl_parse(mysql);
+  
   return 0;
 }
 
@@ -667,6 +759,11 @@ int do_save_master_pos()
   MYSQL_RES* res;
   MYSQL_ROW row;
   MYSQL* mysql = &cur_con->mysql;
+  int rpl_parse;
+
+  rpl_parse = mysql_rpl_parse_enabled(mysql);
+  mysql_disable_rpl_parse(mysql);
+  
   if(mysql_query(mysql, "show master status"))
     die("At line %u: failed in show master status: %d: %s", start_lineno,
 	mysql_errno(mysql), mysql_error(mysql));
@@ -678,6 +775,9 @@ int do_save_master_pos()
   strncpy(master_pos.file, row[0], sizeof(master_pos.file));
   master_pos.pos = strtoul(row[1], (char**) 0, 10); 
   mysql_free_result(res);
+  
+  if(rpl_parse)
+    mysql_enable_rpl_parse(mysql);
       
   return 0;
 }
@@ -697,10 +797,28 @@ int do_let(struct st_query* q)
   while(*p && isspace(*p))
     p++;
   var_val_start = p;
-  while(*p && !isspace(*p))
-    p++;
-  return var_set(var_name, var_name_end, var_val_start, p);
+  return var_set(var_name, var_name_end, var_val_start, q->end);
 }
+
+int do_rpl_probe(struct st_query* __attribute__((unused)) q)
+{
+  if(mysql_rpl_probe(&cur_con->mysql))
+    die("Failed in mysql_rpl_probe(): %s", mysql_error(&cur_con->mysql));
+  return 0;
+}
+
+int do_enable_rpl_parse(struct st_query* __attribute__((unused)) q)
+{
+  mysql_enable_rpl_parse(&cur_con->mysql);
+  return 0;
+}
+
+int do_disable_rpl_parse(struct st_query* __attribute__((unused)) q)
+{
+  mysql_disable_rpl_parse(&cur_con->mysql);
+  return 0;
+}
+
 
 int do_sleep(struct st_query* q)
 {
@@ -1015,7 +1133,8 @@ int do_connect(struct st_query* q)
 
   if (!mysql_init(&next_con->mysql))
     die("Failed on mysql_init()");
-  con_sock=fn_format(buff, con_sock, TMPDIR, "",0);
+  if (con_sock)
+    con_sock=fn_format(buff, con_sock, TMPDIR, "",0);
   if (!con_db[0])
     con_db=db;
   con_error = 1;
@@ -1047,13 +1166,14 @@ int do_done(struct st_query* q)
   q->type = Q_END_BLOCK;
   if (cur_block == block_stack)
     die("Stray '}' - end of block before beginning");
-  if (block_ok)
+  if (*block_ok--)
+  {
     parser.current_line = *--cur_block;
+  }
   else
     {
-      if (!--false_block_depth)
-	block_ok = 1;
       ++parser.current_line;
+      --cur_block;
     }
   return 0;
 }
@@ -1063,13 +1183,17 @@ int do_while(struct st_query* q)
   char* p=q->first_argument;
   const char* expr_start, *expr_end;
   VAR v;
+  var_init(&v,0,0,0,0);
   if (cur_block == block_stack_end)
 	die("Nesting too deeply");
-  if (!block_ok)
+  if (!*block_ok)
     {
       ++false_block_depth;
+      *++block_ok = 0;
+      *cur_block++ = parser.current_line++;
       return 0;
     }
+    
   expr_start = strchr(p, '(');
   if (!expr_start)
     die("missing '(' in while");
@@ -1080,9 +1204,11 @@ int do_while(struct st_query* q)
   *cur_block++ = parser.current_line++;
   if (!v.int_val)
     {
-      block_ok = 0;
-      false_block_depth = 1;
+      *++block_ok = 0;
+      false_block_depth++;
     }
+  else
+    *++block_ok = 1;
   return 0;
 }
 
@@ -1346,7 +1472,7 @@ int read_query(struct st_query** q_ptr)
   q->first_word_len = (uint) (p - q->query);
   while (*p && isspace(*p)) p++;
   q->first_argument=p;
-
+  q->end = strend(q->query);
   parser.read_lines++;
   return 0;
 }
@@ -1356,6 +1482,7 @@ struct option long_options[] =
 {
   {"debug",       optional_argument, 0, '#'},
   {"database",    required_argument, 0, 'D'},
+  {"big-test",	  no_argument,	     0, 'B'},
   {"help",        no_argument,       0, '?'},
   {"host",        required_argument, 0, 'h'},
   {"password",    optional_argument, 0, 'p'},
@@ -1366,6 +1493,7 @@ struct option long_options[] =
   {"silent",      no_argument,       0, 'q'},
   {"sleep",       required_argument, 0, 'T'},
   {"socket",      required_argument, 0, 'S'},
+  {"test-file",   required_argument, 0, 'x'},
   {"tmpdir",      required_argument, 0, 't'},
   {"user",        required_argument, 0, 'u'},
   {"verbose",     no_argument,       0, 'v'},
@@ -1398,6 +1526,7 @@ void usage()
   -u, --user=...           User for login.\n\
   -p[password], --password[=...]\n\
                            Password to use when connecting to server.\n\
+  -B, --big-test	   Define BIG_TEST to 1\n\
   -D, --database=...       Database to use.\n\
   -P, --port=...           Port number to use for connection.\n\
   -S, --socket=...         Socket file to use for connection.\n\
@@ -1405,6 +1534,7 @@ void usage()
   -T, --sleep=#		   Sleep always this many seconds on sleep commands\n\
   -r, --record             Record output of test_file into result file.\n\
   -R, --result-file=...    Read/Store result from/in this file.\n\
+  -x, --test-file=...      Read test from/in this file (default stdin).\n\
   -v, --verbose            Write more.\n\
   -q, --quiet, --silent    Suppress all normal output.\n\
   -V, --version            Output version information and exit.\n\
@@ -1419,7 +1549,7 @@ int parse_args(int argc, char **argv)
   load_defaults("my",load_default_groups,&argc,&argv);
   default_argv= argv;
 
-  while((c = getopt_long(argc, argv, "h:p::u:P:D:S:R:t:T:#:?rvVq",
+  while((c = getopt_long(argc, argv, "h:p::u:BP:D:S:R:x:t:T:#:?rvVq",
 			 long_options, &option_index)) != EOF)
     {
       switch(c)	{
@@ -1438,6 +1568,10 @@ int parse_args(int argc, char **argv)
       case 'R':
 	result_file = optarg;
 	break;
+      case 'x':
+      if (!(*cur_file = my_fopen(optarg, O_RDONLY, MYF(MY_WME))))
+	  die("Could not open %s: errno = %d", optarg, errno);
+	break;
       case 'p':
 	if (optarg)
 	{
@@ -1448,6 +1582,9 @@ int parse_args(int argc, char **argv)
 	else
 	  tty_password=1;
 	break;
+      case 'B':
+        opt_big_test=1;
+        break;
       case 'P':
 	port = atoi(optarg);
 	break;
@@ -1522,10 +1659,12 @@ void reject_dump(const char* record_file, char* buf, int size)
   str_to_file(fn_format(reject_file, record_file,"",".reject",2), buf, size);
 }
 
-/* flags control the phased/stages of query execution to be performed 
+/*
+* flags control the phased/stages of query execution to be performed 
 * if QUERY_SEND bit is on, the query will be sent. If QUERY_REAP is on
 * the result will be read - for regular query, both bits must be on
 */
+
 int run_query(MYSQL* mysql, struct st_query* q, int flags)
 {
   MYSQL_RES* res = 0;
@@ -1568,7 +1707,8 @@ int run_query(MYSQL* mysql, struct st_query* q, int flags)
   if(!(flags & QUERY_REAP))
     return 0;
   
-  if (mysql_read_query_result(mysql))
+  if (mysql_read_query_result(mysql) ||
+      (!(res = mysql_store_result(mysql)) && mysql_field_count(mysql)))
   {
     if (q->require_file)
       abort_not_supported_test();
@@ -1584,17 +1724,25 @@ int run_query(MYSQL* mysql, struct st_query* q, int flags)
       }
       if (i)
       {
-	verbose_msg("query '%s' failed with wrong errno\
- %d instead of %d...", q->query, mysql_errno(mysql), q->expected_errno[0]);
+	verbose_msg("query '%s' failed with wrong errno %d instead of %d...",
+		    q->query, mysql_errno(mysql), q->expected_errno[0]);
+	error=1;
 	goto end;
       }
       verbose_msg("query '%s' failed: %d: %s", q->query, mysql_errno(mysql),
 		  mysql_error(mysql));
-      /* if we do not abort on error, failure to run the query does
+      /* 
+	 if we do not abort on error, failure to run the query does
 	 not fail the whole test case
       */
       goto end;
     }
+    /*{
+      verbose_msg("failed in mysql_store_result for query '%s' (%d)", query,
+		  mysql_errno(mysql));
+      error = 1;
+      goto end;
+    }*/
   }
 
   if (q->expected_errno[0])
@@ -1603,23 +1751,6 @@ int run_query(MYSQL* mysql, struct st_query* q, int flags)
     verbose_msg("query '%s' succeeded - should have failed with errno %d...",
 		q->query, q->expected_errno[0]);
     goto end;
-  }
-
-
-  if (!(res = mysql_store_result(mysql)) && mysql_field_count(mysql))
-  {
-    if (q->require_file)
-      abort_not_supported_test();
-    if (q->abort_on_error)
-      die("At line %u: Failed in mysql_store_result for query '%s' (%d)",
-	  start_lineno, query, mysql_errno(mysql));
-    else
-    {
-      verbose_msg("failed in mysql_store_result for query '%s' (%d)", query,
-		  mysql_errno(mysql));
-      error = 1;
-      goto end;
-    }
   }
 
   if (!res) goto end;
@@ -1718,33 +1849,39 @@ static byte* get_var_key(const byte* var, uint* len,
   return (byte*)key;
 }
 
-static VAR* var_init(const char* name, int name_len, const char* val,
+static VAR* var_init(VAR* v, const char* name, int name_len, const char* val,
 		     int val_len)
 {
   int val_alloc_len;
   VAR* tmp_var;
-  if(!name_len)
+  if(!name_len && name)
     name_len = strlen(name);
-  if(!val_len)
+  if(!val_len && val)
     val_len = strlen(val) ;
   val_alloc_len = val_len + 16; /* room to grow */
-  if(!(tmp_var = (VAR*)my_malloc(sizeof(*tmp_var) + val_alloc_len
+  if(!(tmp_var=v) && !(tmp_var = (VAR*)my_malloc(sizeof(*tmp_var) 
 				 + name_len, MYF(MY_WME))))
     die("Out of memory");
-  tmp_var->name = (char*)tmp_var + sizeof(*tmp_var);
-  tmp_var->str_val = tmp_var->name + name_len;
+  
+  tmp_var->name = (name) ? (char*)tmp_var + sizeof(*tmp_var) : 0;
+
+  if(!(tmp_var->str_val = my_malloc(val_alloc_len, MYF(MY_WME))))
+    die("Out of memory");
+  
   memcpy(tmp_var->name, name, name_len);
-  memcpy(tmp_var->str_val, val, val_len + 1);
+  if(val)
+    memcpy(tmp_var->str_val, val, val_len + 1);
   tmp_var->name_len = name_len;
   tmp_var->str_val_len = val_len;
   tmp_var->alloced_len = val_alloc_len;
-  tmp_var->int_val = atoi(val);
+  tmp_var->int_val = (val) ? atoi(val) : 0;
   tmp_var->int_dirty = 0;
   return tmp_var;
 }
 
 static void var_free(void* v)
 {
+  my_free(((VAR*)v)->str_val, MYF(MY_WME));
   my_free(v, MYF(MY_WME));
 }
 
@@ -1756,17 +1893,19 @@ static void var_from_env(const char* name, const char* def_val)
   if(!(tmp = getenv(name)))
     tmp = def_val;
     
-  v = var_init(name, 0, tmp, 0); 
+  v = var_init(0, name, 0, tmp, 0); 
   hash_insert(&var_hash, (byte*)v);
 }
 
+
 static void init_var_hash()
 {
-  if(hash_init(&var_hash, 1024, 0, 0, get_var_key, var_free, MYF(0)))
+  if (hash_init(&var_hash, 1024, 0, 0, get_var_key, var_free, MYF(0)))
     die("Variable hash initialization failed");
   var_from_env("MASTER_MYPORT", "9306");
   var_from_env("SLAVE_MYPORT", "9307");
-  var_from_env("MYSQL_TEST_DIR", "");
+  var_from_env("MYSQL_TEST_DIR", "/tmp");
+  var_from_env("BIG_TEST", opt_big_test ? "1" : "0");
 }
 
 int main(int argc, char** argv)
@@ -1793,7 +1932,11 @@ int main(int argc, char** argv)
 		     INIT_Q_LINES);
   memset(block_stack, 0, sizeof(block_stack));
   block_stack_end = block_stack + BLOCK_STACK_DEPTH;
+  memset(block_ok_stack, 0, sizeof(block_stack));
+  block_ok_stack_end = block_ok_stack + BLOCK_STACK_DEPTH;
   cur_block = block_stack;
+  block_ok = block_ok_stack;
+  *block_ok = 1;
   init_dynamic_string(&ds_res, "", 0, 65536);
   parse_args(argc, argv);
   init_var_hash();
@@ -1817,7 +1960,7 @@ int main(int argc, char** argv)
     int current_line_inc = 1, processed = 0;
     if (q->type == Q_UNKNOWN || q->type == Q_COMMENT_WITH_COMMAND)
       get_query_type(q);
-    if (block_ok)
+    if (*block_ok)
     {
       processed = 1;
       switch (q->type) {
@@ -1826,6 +1969,9 @@ int main(int argc, char** argv)
       case Q_DISCONNECT:
       case Q_DIRTY_CLOSE:	
 	close_connection(q); break;
+      case Q_RPL_PROBE: do_rpl_probe(q); break;
+      case Q_ENABLE_RPL_PARSE: do_enable_rpl_parse(q); break;
+      case Q_DISABLE_RPL_PARSE: do_disable_rpl_parse(q); break;
       case Q_SOURCE: do_source(q); break;
       case Q_SLEEP: do_sleep(q); break;
       case Q_INC: do_inc(q); break;
@@ -1833,6 +1979,7 @@ int main(int argc, char** argv)
       case Q_ECHO: do_echo(q); break;
       case Q_SYSTEM: do_system(q); break;
       case Q_LET: do_let(q); break;
+      case Q_EVAL_RESULT: eval_result = 1; break;	
       case Q_EVAL:
         if (q->query == q->query_buf)
 	  q->query += q->first_word_len;
@@ -1893,7 +2040,7 @@ int main(int argc, char** argv)
       case Q_SAVE_MASTER_POS: do_save_master_pos(); break;	
       case Q_SYNC_WITH_MASTER: do_sync_with_master(q); break;	
       case Q_COMMENT:				/* Ignore row */
-      case Q_COMMENT_WITH_COMMAND:
+      case Q_COMMENT_WITH_COMMAND: 
       case Q_PING:
 	(void) mysql_ping(&cur_con->mysql);
 	break;

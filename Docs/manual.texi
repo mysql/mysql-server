@@ -1523,7 +1523,7 @@ Apart from the following links, you can find and download a lot of
 @subheading Tutorials and Manuals
 
 @table @asis
-@item @uref{http://netgraft.com/~mbac/research/mysqlmyths.html, MySQL Myths Debunked}
+@item @uref{http://michael.bacarella.com/research/mysqlmyths.html, MySQL Myths Debunked}
 @strong{MySQL} used in the real world.
 
 @item @uref{http://www.4t2.com/mysql}
@@ -10030,6 +10030,12 @@ make_install
 
 and @strong{mysqld} should be ready to run.
 
+On Ia64 the @strong{MySQL} client binaries are using shared
+libraries. This means that if you install our binary distribution in
+some other place than @file{/usr/local/mysql} you need to either modify
+@file{/etc/ld.so.conf} or add the path to the directory where you have
+@file{libmysqlclient.so} to the @code{LD_LIBRARY_PATH} environment
+variable. @xref{Link errors}.
 
 @node Windows, Solaris, Linux, Operating System Specific Notes
 @subsection Windows Notes
@@ -10635,7 +10641,7 @@ CXX=gcc CXXFLAGS="-O3 -felide-constructors -fno-exceptions -fno-rtti" \
 If you have a ultra sparc, you can get 4 % more performance by adding
 "-mcpu=v8 -Wa,-xarch=v8plusa" to CFLAGS and CXXFLAGS.
 
-If you have the Sun Workshop (SunPro) 4.2 (or newer) compiler, you can
+If you have Sun Workshop (Fortre) 5.3 (or newer) compiler, you can
 run @code{configure} like this:
 
 @example
@@ -10643,6 +10649,15 @@ CC=cc CFLAGS="-Xa -fast -xO4 -native -xstrconst -mt" \
 CXX=CC CXXFLAGS="-noex -xO4 -mt" \
 ./configure --prefix=/usr/local/mysql --enable-assembler
 @end example
+
+In the MySQL benchmarks, we got a 6 % speedup on an Ultrasparc when
+using Sun Workshop 5.3 compared to using gcc with -mcpu flags.
+
+If you get a problem with @code{fdatasync} or @code{sched_yield},
+you can fix this by adding @code{LIBS=-lrt} to the configure line
+
+The following paragraph is only relevant for older compilers than
+WorkShop 5.3:
 
 You may also have to edit the @code{configure} script to change this line:
 
@@ -15496,7 +15511,7 @@ With this option,
 @code{SHOW DATABASES} returns only those databases for which the user has
 some kind of privilege.
 
-@item @code{--safe-user-create}
+@item --safe-user-create
 If this is enabled, an user can't create new users with the @code{GRANT}
 command, if the user doesn't have @code{INSERT} privilege to the
 @code{mysql.user} table.  If you want to give a user access to just create
@@ -21385,7 +21400,7 @@ mysql> show variables like "have_%";
 | have_bdb      | YES   |
 | have_innodb   | NO    |
 | have_isam     | YES   |
-| have_raid     | YES   |
+| have_raid     | NO    |
 | have_ssl      | NO    |
 +---------------+-------+
 @end example
@@ -46290,9 +46305,6 @@ Added prototypes for @code{my_thread_init()} and @code{my_thread_end()} to
 @file{mysql_com.h} 
 @item
 Added option @code{--safe-user-create} to @code{mysqld}.
-@item
-Added options to the @code{--ansi} startup options to let the user
-decide which @code{ansi} options one to enable.
 @item
 Fixed bug in @code{SELECT DISTINCT ... HAVING} that casued error message
 @code{Can't find record in '#...}
