@@ -1215,6 +1215,32 @@ select @x|
 drop procedure bug2776_1|
 drop procedure bug2776_2|
 
+#
+# BUG#2780
+#
+--disable_warnings
+drop table if exists t3|
+--enable_warnings
+create table t3 (s1 smallint)|
+
+insert into t3 values (123456789012)|
+
+create procedure bug2780()
+begin
+  declare exit handler for sqlwarning set @x = 1; 
+
+  set @x = 0;
+  insert into t3 values (123456789012);
+  insert into t3 values (0);
+end|
+
+call bug2780()|
+select @x|
+select * from t3|
+
+drop procedure bug2780|
+drop table t3|
+
 
 #
 # Some "real" examples
