@@ -28,8 +28,6 @@
 #include <my_dir.h>
 #include <sql_common.h>
 
-extern Table_filter *rpl_filter;
-
 bool use_slave_mask = 0;
 MY_BITMAP slave_error_mask;
 

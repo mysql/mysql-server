@@ -20,18 +20,13 @@
 #define TABLE_RULE_HASH_SIZE   16
 #define TABLE_RULE_ARR_SIZE   16
 
-Table_filter::Table_filter()
+Table_filter::Table_filter() : 
+  table_rules_on(0), do_table_inited(0), ignore_table_inited(0),
+  wild_do_table_inited(0), wild_ignore_table_inited(0)
 {
-  do_table_inited= 0;
-  ignore_table_inited= 0;
-  wild_do_table_inited= 0;
-  wild_ignore_table_inited= 0;
-
   do_db.empty();
   ignore_db.empty();
   rewrite_db.empty();
-
-  table_rules_on= 0;
 }
 
 
@@ -324,8 +319,8 @@ Table_filter::add_table_rule(HASH* h, const char* table_spec)
   e->tbl_name= e->db + (dot - table_spec) + 1;
   e->key_len= len;
   memcpy(e->db, table_spec, len);
-  (void)my_hash_insert(h, (byte*)e);
-  return 0;
+
+  return my_hash_insert(h, (byte*)e);
 }
 
 
@@ -367,16 +362,20 @@ Table_filter::add_ignore_db(const char* table_spec)
 }
 
 
-static byte* get_table_key(TABLE_RULE_ENT* e, uint* len,
-			   my_bool not_used __attribute__((unused)))
+static byte* get_table_key(const byte* a, uint* len,
+			   my_bool __attribute__((unused)))
 {
+  TABLE_RULE_ENT *e= (TABLE_RULE_ENT *) a;
+
   *len= e->key_len;
   return (byte*)e->db;
 }
 
 
-static void free_table_ent(TABLE_RULE_ENT* e)
+static void free_table_ent(void* a)
 {
+  TABLE_RULE_ENT *e= (TABLE_RULE_ENT *) a;
+  
   my_free((gptr) e, MYF(0));
 }
 
@@ -385,8 +384,7 @@ void
 Table_filter::init_table_rule_hash(HASH* h, bool* h_inited)
 {
   hash_init(h, system_charset_info,TABLE_RULE_HASH_SIZE,0,0,
-	    (hash_get_key) get_table_key,
-	    (hash_free_key) free_table_ent, 0);
+	    get_table_key, free_table_ent, 0);
   *h_inited = 1;
 }
 
@@ -517,7 +515,7 @@ Table_filter::get_rewrite_db(const char* db, uint32 *new_len)
   {
     if (!strcmp(tmp->key, db))
     {
-      *new_len= (uint32)strlen(tmp->val);
+      *new_len= strlen(tmp->val);
       return tmp->val;
     }
   }

@@ -22,8 +22,6 @@
 #include <myisam.h>
 #include <my_dir.h>
 
-extern Table_filter *rpl_filter;
-
 #ifdef HAVE_INNOBASE_DB
 #include "ha_innodb.h"
 #endif

@@ -39,7 +39,9 @@ class Table_filter
 public:
   Table_filter();
   ~Table_filter();
-
+  Table_filter(Table_filter const&);
+  Table_filter& operator=(Table_filter const&);
+ 
   /* Checks - returns true if ok to replicate/log */
 
   bool tables_ok(const char* db, TABLE_LIST* tables);

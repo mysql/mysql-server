@@ -35,8 +35,6 @@
 #include "message.h"
 #endif
 
-extern Table_filter *binlog_filter;
-
 MYSQL_LOG mysql_log, mysql_slow_log, mysql_bin_log;
 ulong sync_binlog_counter= 0;
 
