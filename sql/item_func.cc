@@ -1552,7 +1552,7 @@ udf_handler::fix_fields(THD *thd, TABLE_LIST *tables, Item_result_field *func,
     if ((error=(uchar) init(&initid, &f_args, thd->net.last_error)))
     {
       my_printf_error(ER_CANT_INITIALIZE_UDF,ER(ER_CANT_INITIALIZE_UDF),MYF(0),
-		      u_d->name,thd->net.last_error);
+		      u_d->name.str, thd->net.last_error);
       free_udf(u_d);
       DBUG_RETURN(1);
     }
@@ -1565,7 +1565,7 @@ udf_handler::fix_fields(THD *thd, TABLE_LIST *tables, Item_result_field *func,
   if (error)
   {
     my_printf_error(ER_CANT_INITIALIZE_UDF,ER(ER_CANT_INITIALIZE_UDF),MYF(0),
-		    u_d->name, ER(ER_UNKNOWN_ERROR));
+		    u_d->name.str, ER(ER_UNKNOWN_ERROR));
     DBUG_RETURN(1);
   }
   DBUG_RETURN(0);
