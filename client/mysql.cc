@@ -279,7 +279,8 @@ static void initialize_readline (char *name);
 #endif
 
 static COMMANDS *find_command (char *name,char cmd_name);
-static bool add_line(String &buffer,char *line,char *in_string);
+static bool add_line(String &buffer, char *line, char *in_string, 
+                     my_bool *in_comment);
 static void remove_cntrl(String &buffer);
 static void print_table_data(MYSQL_RES *result);
 static void print_table_data_html(MYSQL_RES *result);
@@ -800,6 +801,7 @@ static int read_lines(bool execute_commands)
 #endif
   char	*line;
   char	in_string=0;
+  my_bool in_comment= 0;
   ulong line_number=0;
   COMMANDS *com;
   status.exit_status=1;
@@ -879,7 +881,7 @@ static int read_lines(bool execute_commands)
 #endif
       continue;
     }
-    if (add_line(glob_buffer,line,&in_string))
+    if (add_line(glob_buffer, line, &in_string, &in_comment))
       break;
   }
   /* if in batch mode, send last query even if it doesn't end with \g or go */
@@ -939,12 +941,12 @@ static COMMANDS *find_command (char *name,char cmd_char)
 }
 
 
-static bool add_line(String &buffer,char *line,char *in_string)
+static bool add_line(String &buffer,char *line,char *in_string, 
+                     my_bool *in_comment)
 {
   uchar inchar;
   char buff[80],*pos,*out;
   COMMANDS *com;
-  my_bool in_comment= 0;
 
   if (!line[0] && buffer.is_empty())
     return 0;
@@ -1004,7 +1006,7 @@ static bool add_line(String &buffer,char *line,char *in_string)
 	continue;
       }
     }
-    else if (inchar == ';' && !*in_string && !in_comment)
+    else if (inchar == ';' && !*in_string && !*in_comment)
     {						// ';' is end of command
       if (out != line)
 	buffer.append(line,(uint) (out-line));	// Add this line
@@ -1032,15 +1034,15 @@ static bool add_line(String &buffer,char *line,char *in_string)
     {						// Add found char to buffer
       if (inchar == *in_string)
 	*in_string=0;
-      else if (!in_comment && !*in_string && (inchar == '\'' || inchar == '"' || inchar == '`'))
+      else if (!*in_comment && !*in_string && (inchar == '\'' || inchar == '"' || inchar == '`'))
 	*in_string=(char) inchar;
       *out++ = (char) inchar;
       if (inchar == '*' && !*in_string)
       {
 	if (pos != line && pos[-1] == '/')
-	  in_comment= 1;
+	  *in_comment= 1;
 	else if (in_comment && pos[1] == '/')
-	  in_comment= 0;
+	  *in_comment= 0;
       }
     }
   }
