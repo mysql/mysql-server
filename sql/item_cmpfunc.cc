@@ -708,7 +708,7 @@ longlong Item_in_optimizer::val_int()
     null_value= 1;
     return 0;
   }
-  longlong tmp= args[1]->val_int_result();
+  bool tmp= args[1]->val_bool_result();
   null_value= args[1]->null_value;
   return tmp;
 }

@@ -874,7 +874,7 @@ select * from v1;
 col1
 describe v1;
 Field	Type	Null	Key	Default	Extra
-col1	char(2)	YES		NULL	
+col1	varchar(2)	YES		NULL	
 drop view v1;
 drop table `t1a``b`;
 create table t1 (col1 char(5),col2 char(5));
