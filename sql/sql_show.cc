@@ -995,7 +995,7 @@ mysqld_show_keys(THD *thd, TABLE_LIST *table_list)
       str=(key_part->field ? key_part->field->field_name :
 	   "?unknown field?");
       protocol->store(str, system_charset_info);
-      if (table->file->index_flags(i) & HA_READ_ORDER)
+      if (table->file->index_flags(i,j) & HA_READ_ORDER)
         protocol->store(((key_part->key_part_flag & HA_REVERSE_SORT) ?
 			 "D" : "A"), 1, system_charset_info);
       else
