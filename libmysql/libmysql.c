@@ -114,7 +114,7 @@ static sig_handler pipe_sig_handler(int sig);
 static ulong mysql_sub_escape_string(CHARSET_INFO *charset_info, char *to,
 				     const char *from, ulong length);
 static my_bool stmt_close(MYSQL_STMT *stmt, my_bool skip_list);
-
+static void fetch_lengths(ulong *to, MYSQL_ROW column, uint field_count);
 static my_bool org_my_init_done=0;
 
 int STDCALL mysql_server_init(int argc __attribute__((unused)),
@@ -1158,6 +1158,7 @@ unpack_fields(MYSQL_DATA *data,MEM_ROOT *alloc,uint fields,
 {
   MYSQL_ROWS	*row;
   MYSQL_FIELD	*field,*result;
+  ulong lengths[8];				/* Max of fields */
   DBUG_ENTER("unpack_fields");
 
   field=result=(MYSQL_FIELD*) alloc_root(alloc,
@@ -1174,11 +1175,19 @@ unpack_fields(MYSQL_DATA *data,MEM_ROOT *alloc,uint fields,
     for (row=data->data; row ; row = row->next,field++)
     {
       uchar *pos;
+      fetch_lengths(&lengths[0], row->data, default_value ? 7 : 6);
       field->db       = strdup_root(alloc,(char*) row->data[0]);
       field->table    = strdup_root(alloc,(char*) row->data[1]);
       field->org_table= strdup_root(alloc,(char*) row->data[2]);
       field->name     = strdup_root(alloc,(char*) row->data[3]);
       field->org_name = strdup_root(alloc,(char*) row->data[4]);
+
+      field->db_length=		lengths[0];
+      field->table_length=	lengths[1];
+      field->org_table_length=	lengths[2];
+      field->name_length=	lengths[3];
+      field->org_name_length=	lengths[4];
+
       /* Unpack fixed length parts */
       pos= (uchar*) row->data[5];
       field->charsetnr= uint2korr(pos);
@@ -1190,10 +1199,10 @@ unpack_fields(MYSQL_DATA *data,MEM_ROOT *alloc,uint fields,
       if (INTERNAL_NUM_FIELD(field))
         field->flags|= NUM_FLAG;
       if (default_value && row->data[6])
+      {
         field->def=strdup_root(alloc,(char*) row->data[8]);
-      else
-        field->def=0;
-      field->max_length= 0;
+	field->def_length= lengths[6];
+      }
     }
   }
 #ifndef DELETE_SUPPORT_OF_4_0_PROTOCOL
@@ -1202,10 +1211,14 @@ unpack_fields(MYSQL_DATA *data,MEM_ROOT *alloc,uint fields,
     /* old protocol, for backward compatibility */
     for (row=data->data; row ; row = row->next,field++)
     {
+      fetch_lengths(&lengths[0], row->data, default_value ? 6 : 5);
       field->org_table= field->table=  strdup_root(alloc,(char*) row->data[0]);
       field->name=   strdup_root(alloc,(char*) row->data[1]);
       field->length= (uint) uint3korr(row->data[2]);
       field->type=   (enum enum_field_types) (uchar) row->data[3][0];
+
+      field->org_table_length=	field->table_length=	lengths[0];
+      field->name_length=	lengths[1];
 
       if (server_capabilities & CLIENT_LONG_FLAG)
       {
@@ -1220,7 +1233,10 @@ unpack_fields(MYSQL_DATA *data,MEM_ROOT *alloc,uint fields,
       if (INTERNAL_NUM_FIELD(field))
         field->flags|= NUM_FLAG;
       if (default_value && row->data[5])
+      {
         field->def=strdup_root(alloc,(char*) row->data[5]);
+	field->def_length= lengths[5];
+      }
       else
         field->def=0;
       field->max_length= 0;
@@ -2875,7 +2891,7 @@ get_info:
 
   mysql->extra_info= net_field_length_ll(&pos); /* Maybe number of rec */
 
-  if (!(fields=read_rows(mysql,(MYSQL_FIELD*)0, 5)))
+  if (!(fields=read_rows(mysql,(MYSQL_FIELD*)0, protocol_41(mysql) ? 6 : 5)))
     DBUG_RETURN(1);
   if (!(mysql->fields=unpack_fields(fields,&mysql->field_alloc,
 				    (uint) field_count,0,
@@ -3122,33 +3138,37 @@ mysql_fetch_row(MYSQL_RES *res)
   else the lengths are calculated from the offset between pointers.
 **************************************************************************/
 
+static void fetch_lengths(ulong *to, MYSQL_ROW column, uint field_count)
+{ 
+  ulong *prev_length;
+  byte *start=0;
+  MYSQL_ROW end;
+
+  prev_length=0;				/* Keep gcc happy */
+  for (end=column + field_count + 1 ; column != end ; column++, to++)
+  {
+    if (!*column)
+    {
+      *to= 0;					/* Null */
+      continue;
+    }
+    if (start)					/* Found end of prev string */
+      *prev_length= (ulong) (*column-start-1);
+    start= *column;
+    prev_length= to;
+  }
+}
+
+
 ulong * STDCALL
 mysql_fetch_lengths(MYSQL_RES *res)
 {
-  ulong *lengths,*prev_length;
-  byte *start;
-  MYSQL_ROW column,end;
+  MYSQL_ROW column;
 
   if (!(column=res->current_row))
     return 0;					/* Something is wrong */
   if (res->data)
-  {
-    start=0;
-    prev_length=0;				/* Keep gcc happy */
-    lengths=res->lengths;
-    for (end=column+res->field_count+1 ; column != end ; column++,lengths++)
-    {
-      if (!*column)
-      {
-	*lengths=0;				/* Null */
-	continue;
-      }
-      if (start)				/* Found end of prev string */
-	*prev_length= (ulong) (*column-start-1);
-      start= *column;
-      prev_length=lengths;
-    }
-  }
+    fetch_lengths(res->lengths, column, res->field_count);
   return res->lengths;
 }
 
@@ -3246,7 +3266,8 @@ mysql_list_fields(MYSQL *mysql, const char *table, const char *wild)
 
   end=strmake(strmake(buff, table,128)+1,wild ? wild : "",128);
   if (simple_command(mysql,COM_FIELD_LIST,buff,(ulong) (end-buff),1) ||
-      !(query = read_rows(mysql,(MYSQL_FIELD*) 0, 6)))
+      !(query = read_rows(mysql,(MYSQL_FIELD*) 0, 
+			  protocol_41(mysql) ? 7 : 6)))
     DBUG_RETURN(NULL);
 
   free_old_query(mysql);
@@ -3283,7 +3304,8 @@ mysql_list_processes(MYSQL *mysql)
   free_old_query(mysql);
   pos=(uchar*) mysql->net.read_pos;
   field_count=(uint) net_field_length(&pos);
-  if (!(fields = read_rows(mysql,(MYSQL_FIELD*) 0, 5)))
+  if (!(fields = read_rows(mysql,(MYSQL_FIELD*) 0,
+			   protocol_41(mysql) ? 6 : 5)))
     DBUG_RETURN(NULL);
   if (!(mysql->fields=unpack_fields(fields,&mysql->field_alloc,field_count,0,
 				    mysql->server_capabilities)))
