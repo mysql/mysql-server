@@ -130,7 +130,11 @@ int main(int argc,char *argv[])
 #error
 #endif
 
+#ifdef HAVE_SNPRINTF
       snprintf(buf,MAX_LEN,"%.*s",(int) keylen,info->lastkey+1);
+#else
+      sprintf(buf,"%.*s",(int) keylen,info->lastkey+1);
+#endif
       casedn_str(buf);
       total++;
       lengths[keylen]++;
