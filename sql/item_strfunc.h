@@ -536,8 +536,8 @@ public:
   const char *func_name() const { return "load_file"; }
   void fix_length_and_dec()
   { 
-    set_charset(&my_charset_bin);
-    maybe_null=1; 
+    set_charset(&my_charset_bin, COER_COERCIBLE);
+    maybe_null=1;
     max_length=MAX_BLOB_WIDTH;
   }
 };
