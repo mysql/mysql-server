@@ -1793,15 +1793,19 @@ Big changes made in @strong{MySQL} Version 3.22.12.
 @item @strong{MyODBC} (uses ODBC SDK 2.5) --- Gamma
 It seems to work well with some programs.
 
-@item Replication -- Alpha
+@item Replication -- Alpha / Beta
 We are still working on replication, so don't expect this to be rock
 solid yet.  On the other hand, some @strong{MySQL} users are already
 using this with good results.
 
-@item BDB Tables -- Alpha
+@item BDB Tables -- Alpha  / Beta
 The Berkeley DB code is very stable, but we are still improving the interface
 between @strong{MySQL} and BDB tables, so it will take some time before this
 is as tested as the other table types.
+
+@item Automatic recovery of MyISAM tables - Alpha.
+This only affects the new code that checks if the table was closed properly
+on open and executes an automatic check/repair of the table if it wasn't.
 
 @end table
 
@@ -7979,12 +7983,10 @@ you should also compile your code to be multi-threaded!
 @node Windows and BDB tables., Windows vs Unix, Windows compiling, Windows
 @subsection Windows and BDB Tables
 
-We are working on removing the requirement that one must have a primary
-key in a BDB table. As soon as this is fixed we will throughly test the
-BDB interface by running the @strong{MySQL} benchmark and our internal
-test suite on it.  When the above is done we will start to release binary
-distributions (for Windows and UNIX) of @strong{MySQL} that will include
-support for BDB tables.
+We will shortly do a full test on the new BDB interface on Windows.
+When this is done we will start to release binary distributions (for
+Windows and UNIX) of @strong{MySQL} that will include support for BDB
+tables.
 
 @cindex Windows, versus UNIX
 @cindex operating systems, Windows versus UNIX
@@ -21876,12 +21878,21 @@ Some characteristic of @code{BDB} tables:
 
 @itemize @bullet
 @item
-All @code{BDB} tables must have a primary key.
+@strong{MySQL} requires a @code{PRIMARY KEY} in each BDB table to be
+able to refer to previously read rows; If you don't create on,
+@strong{MySQL} will create an maintain a hidden @code{PRIMARY KEY} for
+you.  The hidden key has a length of 5 bytes and is incremented for each
+insert attempt.
 @item
 If all columns you access in a @code{BDB} tables is part of the same index or
 part of the the primary key then @strong{MySQL} can execute the query
 without having to access the actual row.  In a @code{MyISAM} table the
 above holds only if the columns are part of the same index.
+@item
+The @code{PRIMARY KEY} will be faster than any other key, as the
+@code{PRIMARY KEY} is stored together with the row data.  As the other keys are
+stored as the key data + the @code{PRIMARY KEY}, its important to keep the
+@code{PRIMARY KEY} as short as possible to save disk and get better speed.
 @item
 @code{LOCK TABLES} works on @code{BDB} tables as with other tables.  If
 you don't use @code{LOCK TABLE}, @strong{MYSQL} will issue an internal
@@ -37971,6 +37982,11 @@ though, so 3.23 is not released as a stable version yet.
 @node News-3.23.26, News-3.23.25, News-3.23.x, News-3.23.x
 @appendixsubsec Changes in release 3.23.26
 @itemize @bullet
+@item
+If one don't create a @code{PRIMARY KEY} in a BDB table, a hidden
+@code{PRIMARY KEY} will be created.
+@item
+Added read-only-key optimization to BDB tables.
 @item
 @code{LEFT JOIN} did in some case prefer a full table scan when one
 didn't have a @code{WHERE} clause.

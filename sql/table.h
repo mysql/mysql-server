@@ -113,7 +113,7 @@ struct st_table {
   byte		*record_pointers;		/* If sorted in memory */
   ha_rows	found_records;			/* How many records in sort */
   ORDER		*group;
-  key_map	quick_keys,used_keys;
+  key_map	quick_keys, used_keys, ref_primary_key;
   ha_rows	quick_rows[MAX_KEY];
   uint		quick_key_parts[MAX_KEY];
   key_part_map  const_key_parts[MAX_KEY];

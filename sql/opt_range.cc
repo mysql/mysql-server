@@ -2347,6 +2347,7 @@ bool QUICK_SELECT::unique_key_range()
 
 QUICK_SELECT *get_quick_select_for_ref(TABLE *table, TABLE_REF *ref)
 {
+  table->file->index_end();			// Remove old cursor
   QUICK_SELECT *quick=new QUICK_SELECT(table, ref->key, 1);
   KEY *key_info = &table->key_info[ref->key];
   KEY_PART *key_part;
