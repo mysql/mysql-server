@@ -10462,6 +10462,18 @@ CXXFLAGS="-I/opt/dce/include -felide-constructors -fno-exceptions \
 --with-named-thread-libs='-ldce' --prefix=/usr/local/mysql --disable-shared
 @end example
 
+The following configure line should work with gcc 3.1:
+
+@example
+CFLAGS="-DHPUX -I/opt/dce/include -O3 -fPIC" CXX=gcc \
+CXXFLAGS="-DHPUX -I/opt/dce/include -felide-constructors -fno-exceptions \
+-fno-rtti -O3 -fPIC" ./configure --prefix=/usr/local/mysql \
+--with-extra-charsets=complex --enable-thread-safe-client \
+--enable-local-infile  --with-pthread \
+--with-named-thread-libs=-ldce --with-lib-ccflags=-fPIC
+--disable-shared
+@end example
+
 @node HP-UX 11.x, IBM-AIX, HP-UX 10.20, Other Unix Notes
 @subsubsection HP-UX Version 11.x Notes
 
