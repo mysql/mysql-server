@@ -30,10 +30,11 @@ else
   ledir=/usr/local/mysql/libexec
 fi
 
-pidfile=$DATADIR/`/bin/hostname`.pid
-log=$DATADIR/`/bin/hostname`.log
-err=$DATADIR/`/bin/hostname`.err
-lockfile=$DATADIR/`/bin/hostname`.lock
+hostname=`@HOSTNAME@`
+pidfile=$DATADIR/$hostname.pid
+log=$DATADIR/$hostname.log
+err=$DATADIR/$hostname.err
+lockfile=$DATADIR/$hostname.lock
 
 #
 # If there exists an old pid file, check if the demon is already running

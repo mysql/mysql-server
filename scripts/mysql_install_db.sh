@@ -77,9 +77,7 @@ then
   fi
 fi
 
-# On IRIX hostname is in /usr/bsd so add this to the path
-PATH=$PATH:/usr/bsd
-hostname=`hostname`		# Install this too in the user table
+hostname=`@HOSTNAME@`		# Install this too in the user table
 
 # Check if hostname is valid
 if test "$IN_RPM" -eq 0 -a $force -eq 0
@@ -287,7 +285,7 @@ then
   echo "PLEASE REMEMBER TO SET A PASSWORD FOR THE MySQL root USER !"
   echo "This is done with:"
   echo "$bindir/mysqladmin -u root -p password 'new-password'"
-  echo "$bindir/mysqladmin -u root -h `hostname` -p password 'new-password'"
+  echo "$bindir/mysqladmin -u root -h $hostname -p password 'new-password'"
   echo "See the manual for more instructions."
   #
   # Print message about upgrading unless we have created a new db table.
