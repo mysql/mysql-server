@@ -16,3 +16,12 @@ SET collation_connection='big5_chinese_ci';
 -- source include/ctype_filesort.inc
 SET collation_connection='big5_bin';
 -- source include/ctype_filesort.inc
+
+#
+# Bugs#9357: TEXT columns break string with special word in BIG5 charset.
+#
+SET NAMES big5;
+CREATE TABLE t1 (a text) character set big5;
+INSERT INTO t1 VALUES ('ùØ');
+SELECT * FROM t1;
+DROP TABLE t1;

@@ -845,7 +845,8 @@ extern char *get_charsets_dir(char *buf);
 extern my_bool my_charset_same(CHARSET_INFO *cs1, CHARSET_INFO *cs2);
 extern my_bool init_compiled_charsets(myf flags);
 extern void add_compiled_collation(CHARSET_INFO *cs);
-extern ulong escape_string_for_mysql(CHARSET_INFO *charset_info, char *to,
+extern ulong escape_string_for_mysql(CHARSET_INFO *charset_info,
+                                     char *to, ulong to_length,
                                      const char *from, ulong length);
 
 extern void thd_increment_bytes_sent(ulong length);
@@ -854,6 +855,14 @@ extern void thd_increment_net_big_packet_count(ulong length);
 
 #ifdef __WIN__
 extern my_bool have_tcpip;		/* Is set if tcpip is used */
+
+/* implemented in my_windac.c */
+
+int my_security_attr_create(SECURITY_ATTRIBUTES **psa, const char **perror,
+                            DWORD owner_rights, DWORD everybody_rights);
+
+void my_security_attr_free(SECURITY_ATTRIBUTES *sa);
+
 #endif
 #ifdef __NETWARE__
 void netware_reg_user(const char *ip, const char *user,

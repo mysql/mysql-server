@@ -9,6 +9,7 @@ SET NAMES binary;
 # prepare playground before tests
 --disable_warnings
 drop database if exists mysqltest;
+drop database if exists mysqltest_1;
 --enable_warnings
 delete from mysql.user where user like 'mysqltest\_%';
 delete from mysql.db where user like 'mysqltest\_%';
@@ -18,6 +19,7 @@ flush privileges;
 
 
 grant all privileges on `my\_1`.* to mysqltest_1@localhost with grant option;
+grant create user on *.* to mysqltest_1@localhost;
 create user mysqltest_2@localhost;
 connect (user_a,localhost,mysqltest_1,,);
 connection user_a;
@@ -30,7 +32,6 @@ grant update on mysql.* to mysqltest_1@localhost;
 connect (user_b,localhost,mysqltest_1,,);
 connection user_b;
 grant select on `my\_1`.* to mysqltest_2@localhost identified by 'pass';
---error 1211
 grant select on `my\_1`.* to mysqltest_3@localhost;
 disconnect user_b;
 connection default;
@@ -52,11 +53,10 @@ flush privileges;
 #
 
 grant all privileges on `my\_%`.* to mysqltest_1@localhost with grant option;
+grant create user on *.* to mysqltest_1@localhost;
 connect (user1,localhost,mysqltest_1,,);
 connection user1;
 select current_user();
-select current_user;
---error 1211
 grant all privileges on `my\_1`.* to mysqltest_2@localhost with grant option;
 --error 1044
 grant all privileges on `my_%`.* to mysqltest_3@localhost with grant option;
@@ -66,15 +66,16 @@ grant all privileges on `my_%`.* to mysqltest_3@localhost with grant option;
 #
 set @@sql_mode='NO_AUTO_CREATE_USER';
 select @@sql_mode;
---error 1211
+#
+# GRANT without IDENTIFIED BY does not create new users
+#
+--error 1133
 grant select on `my\_1`.* to mysqltest_4@localhost with grant option;
---error 1211
 grant select on `my\_1`.* to mysqltest_4@localhost identified by 'mypass'
 with grant option;
 disconnect user1;
 connection default;
 show grants for mysqltest_1@localhost;
---error 1141
 show grants for mysqltest_2@localhost;
 --error 1141
 show grants for mysqltest_3@localhost;
@@ -82,6 +83,24 @@ delete from mysql.user where user like 'mysqltest\_%';
 delete from mysql.db where user like 'mysqltest\_%';
 flush privileges;
 
+#
+# wild_compare part two - acl_cache
+#
+create database mysqltest_1;
+grant all privileges on `mysqltest\_1`.* to mysqltest_1@localhost with grant option;
+connect (user2,localhost,mysqltest_1,,);
+connection user2;
+select current_user();
+show databases;
+--error 1044
+grant all privileges on `mysqltest_1`.* to mysqltest_1@localhost with grant option;
+disconnect user2;
+connection default;
+show grants for mysqltest_1@localhost;
+delete from mysql.user where user like 'mysqltest\_%';
+delete from mysql.db where user like 'mysqltest\_%';
+drop database mysqltest_1;
+flush privileges;
 
 #
 # Bug #6173: One can circumvent missing UPDATE privilege if he has SELECT
@@ -116,9 +135,9 @@ create table t1 (a int, b int);
 grant select (a) on t1 to mysqltest_1@localhost with grant option;
 connect (mrugly, localhost, mysqltest_1,,mysqltest);
 connection mrugly;
---error 1211
+--error 1143
 grant select (a,b) on t1 to mysqltest_2@localhost;
---error 1211
+--error 1142
 grant select on t1 to mysqltest_3@localhost;
 disconnect mrugly;
 
@@ -177,10 +196,6 @@ select host,db,user,table_name from mysql.tables_priv where user like 'mysqltest
 select host,db,user,table_name,column_name from mysql.columns_priv where user like 'mysqltest_%' order by host,db,user,table_name,column_name;
 show grants for 'mysqltest_1';
 drop user 'mysqltest_1', 'mysqltest_3';
-#
-# Grant must not create user
---error 1410
-grant all on test.t1 to 'mysqltest_1';
 --error 1396
 drop user 'mysqltest_1';
 #
@@ -248,9 +263,10 @@ show grants for '%@b'@'b';
 show grants for '%@a'@'a';
 drop user '%@a'@'a';
 #
-# USAGE WITH GRANT OPTION is sufficient.
+# CREATE USER privilege is enough
+#
 create user mysqltest_2@localhost;
-grant usage on *.* to mysqltest_2@localhost with grant option;
+grant create user on *.* to mysqltest_2@localhost;
 connect (user2,localhost,mysqltest_2,,);
 connection user2;
 --error 1142
@@ -262,22 +278,20 @@ disconnect user2;
 connection default;
 drop user mysqltest_2@localhost;
 #
-# ALL PRIVILEGES without GRANT OPTION is not sufficient.
+# INSERT/UPDATE/DELETE is ok too
 create user mysqltest_3@localhost;
-grant all privileges on mysql.* to mysqltest_3@localhost;
+grant INSERT,DELETE,UPDATE on mysql.* to mysqltest_3@localhost;
 connect (user3,localhost,mysqltest_3,,);
 connection user3;
+show grants;
+--error 1142
 select host,user,password from mysql.user where user like 'mysqltest_%' order by host,user,password;
 insert into mysql.user set host='%', user='mysqltest_B';
---error 1044
 create user mysqltest_A@'%';
---error 1044
 rename user mysqltest_B@'%' to mysqltest_C@'%';
---error 1044
-drop user mysqltest_B@'%';
+drop user mysqltest_C@'%';
 disconnect user3;
 connection default;
-drop user mysqltest_B@'%';
 drop user mysqltest_3@localhost;
 #
 # Bug #3309: Test IP addresses with netmask
