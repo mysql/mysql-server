@@ -374,7 +374,7 @@ Field *find_field_in_table(THD *thd,TABLE *table,const char *name,uint length,
 
 /* sql_list.c */
 int mysqld_show_dbs(THD *thd,const char *wild);
-int mysqld_show_open_tables(THD *thd,const char *db,const char *wild);
+int mysqld_show_open_tables(THD *thd,const char *wild);
 int mysqld_show_tables(THD *thd,const char *db,const char *wild);
 int mysqld_extend_show_tables(THD *thd,const char *db,const char *wild);
 int mysqld_show_fields(THD *thd,TABLE_LIST *table, const char *wild,
@@ -451,8 +451,7 @@ bool close_cached_tables(THD *thd, bool wait_for_refresh, TABLE_LIST *tables);
 void copy_field_from_tmp_record(Field *field,int offset);
 int fill_record(List<Item> &fields,List<Item> &values);
 int fill_record(Field **field,List<Item> &values);
-int list_open_tables(THD *thd,List<char> *tables, const char *db,
-		     const char *wild);
+OPEN_TABLE_LIST *list_open_tables(THD *thd, const char *wild);
 
 /* sql_calc.cc */
 bool eval_const_cond(COND *cond);
