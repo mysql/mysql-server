@@ -172,8 +172,9 @@ calling a PROCEDURE.
     with the addition that a FUNCTION has a return type and a RETURN
     statement, but no OUT or INOUT parameters.
 
-    [QQ - More details here; sp_head needs a result slot and a type flag
-          indicating if it's a function or procedure]
+    The main difference during parsing is that we store the result type
+    in the sp_head. However, there are big differences when it comes to
+    invoking a FUNCTION. (See below.)
 
 
   - Storing, caching, dropping...
@@ -273,7 +274,64 @@ calling a PROCEDURE.
     So, stored functions must be handled in a simpilar way, and as a
     consequence, UDFs and functions must not have the same name.
 
-    [QQ - Details of how function calls works here]
+    - Detecting and parsing a FUNCTION invokation
+
+      The existance of UDFs are checked during the lexical analysis (in
+      sql_lex.cc:find_keyword()). This has the drawback that they must
+      exist before they are refered to, which was ok before SPs existed,
+      but then it becomes a problem. The first implementation of SP FUNCTIONs
+      will work the same way, but this should be fixed a.s.a.p. (This will
+      required some reworking of the way UDFs are handled, which is why it's
+      not done from the start.)
+      For the time being, a FUNCTION is detected the same way, and returns
+      the token SP_FUNC. During the parsing we only check for the *existance*
+      of the function, we don't parse it, since wa can't call the parser
+      recursively.
+
+      When encountering a SP_FUNC with parameters in the expression parser,
+      an instance of the new Item_func_sp class is created. Unlike UDFs, we
+      don't have different classes for different return types, since we at
+      this point don't know the type.
+
+    - Collecting FUNCTIONs to invoke
+
+      A FUNCTION differs from a PROCEDURE in one important aspect: Whereas a
+      PROCEDURE is CALLed as statement by itself, a FUNCTION is invoked
+      "on-the-fly" during the execution of *another* statement.
+      This makes things a lot more complicated compared to CALL:
+      - We can't read and parse the FUNCTION from the mysql.proc table at the
+        point of invokation; the server requires that all tables used are
+	opened and locked at the beginning of the query execution.
+      One "obvious" solution would be to simply push "mysql.proc" to the list
+      of tables used by the query, but this implies a "join" with this table
+      if the query is a select, so it doesn't work (and we can't exclude this
+      table easily; since a priviledged used might in fact want to search
+      the proc table).
+      Another solution would of course be to allow the opening and closing
+      of the mysql.proc table during a query execution, but this it not
+      possible at the present.
+
+      So, the solution is to collect the names of the refered FUNCTIONs during
+      parsing in the lex.
+      Then, before doing anything else in mysql_execute_command(), read all
+      functions from the database an keep them in the THD, where the function
+      sp_find_function() can find them during the execution.
+      Note: Even when a global in-memory cache is implemented, we must still
+        make sure that the functions are indeed read and cached at this point.
+      The code that read and cache functions from the database must also be
+      invoked recursively for each read FUNCTION to make sure we have *all* the
+      functions we need.
+
+      In the absence of the real in-memory cache for SPs, a temporary solution
+      has been implemented with a per-THD cache for just FUNCTIONs. This is
+      handled by the functions
+
+        void sp_add_fun_to_lex(LEX *lex, LEX_STRING fun);
+	void sp_merge_funs(LEX *dst, LEX *src);
+	int sp_cache_functions(THD *thd, LEX *lex);
+	void sp_clear_function_cache(THD *thd);
+
+      in sp.cc.
 
 
   - Parsing DROP PROCEDURE/FUNCTION
