@@ -15,7 +15,7 @@ create view v1 (c,d) as select a,b from t1;
 
 create temporary table t1 (a int, b int);
 #view on temporary table
--- error 1351
+-- error 1352
 create view v1 (c) as select b+1 from t1;
 drop table t1;
 
@@ -23,7 +23,7 @@ create table t1 (a int, b int);
 insert into t1 values (1,2), (1,3), (2,4), (2,5), (3,10);
 
 #view with variable
--- error 1350
+-- error 1351
 create view v1 (c,d) as select a,b+@@global.max_user_connections from t1;
 
 # simple view
@@ -38,7 +38,7 @@ select * from t1;
 select c from v1;
 show create table v1;
 show create view v1;
--- error 1346
+-- error 1347
 show create view t1;
 drop table t1;
 
@@ -55,7 +55,7 @@ select v1.b from v1;
 # view with different algorithms (explain out put are differ)
 explain extended select c from v1;
 create algorithm=temptable view v2 (c) as select b+1 from t1;
-show create table v2;
+show create view v2;
 select c from v2;
 explain extended select c from v2;
 
@@ -131,7 +131,7 @@ show grants for test@localhost;
 drop view v100;
 
 #try to drop table with DROP VIEW
--- error 1346
+-- error 1347
 drop view t1;
 
 #try to drop VIEW with DROP TABLE
@@ -265,22 +265,22 @@ select c from mysqltest.v4;
 show columns from mysqltest.v1;
 show columns from mysqltest.v2;
 # but explain/show do not
--- error 1344
+-- error 1345
 explain select c from mysqltest.v1;
--- error 1344
-show create table mysqltest.v1;
--- error 1344
+-- error 1142
+show create view mysqltest.v1;
+-- error 1345
 explain select c from mysqltest.v2;
--- error 1344
-show create table mysqltest.v2;
--- error 1344
+-- error 1142
+show create view mysqltest.v2;
+-- error 1345
 explain select c from mysqltest.v3;
--- error 1344
-show create table mysqltest.v3;
--- error 1344
+-- error 1142
+show create view mysqltest.v3;
+-- error 1345
 explain select c from mysqltest.v4;
--- error 1344
-show create table mysqltest.v4;
+-- error 1142
+show create view mysqltest.v4;
 
 # allow to see one of underlaing table
 connection root;
@@ -288,31 +288,33 @@ grant select on mysqltest.t1 to mysqltest_1@localhost;
 connection user1;
 # EXPLAIN of view on above table works
 explain select c from mysqltest.v1;
-show create table mysqltest.v1;
+-- error 1142
+show create view mysqltest.v1;
 explain select c from mysqltest.v2;
-show create table mysqltest.v2;
+-- error 1142
+show create view mysqltest.v2;
 # but other EXPLAINs do not
--- error 1344
+-- error 1345
 explain select c from mysqltest.v3;
--- error 1344
-show create table mysqltest.v3;
--- error 1344
+-- error 1142
+show create view mysqltest.v3;
+-- error 1345
 explain select c from mysqltest.v4;
--- error 1344
-show create table mysqltest.v4;
+-- error 1142
+show create view mysqltest.v4;
 
 # allow to see any view in mysqltest database
 connection root;
 grant show view on mysqltest.* to mysqltest_1@localhost;
 connection user1;
 explain select c from mysqltest.v1;
-show create table mysqltest.v1;
+show create view mysqltest.v1;
 explain select c from mysqltest.v2;
-show create table mysqltest.v2;
+show create view mysqltest.v2;
 explain select c from mysqltest.v3;
-show create table mysqltest.v3;
+show create view mysqltest.v3;
 explain select c from mysqltest.v4;
-show create table mysqltest.v4;
+show create view mysqltest.v4;
 
 connection root;
 revoke all privileges on mysqltest.* from mysqltest_1@localhost;
@@ -445,7 +447,7 @@ insert into t1 values (10,2), (20,3), (30,4), (40,5), (50,10);
 create view v1 (a,c) as select a, b+1 from t1;
 create algorithm=temptable view v2 (a,c) as select a, b+1 from t1;
 # try to update expression
--- error 1347
+-- error 1348
 update v1 set c=a+c;
 # try to update VIEW with forced TEMPORARY TABLE algorithm
 -- error 1288
@@ -467,7 +469,7 @@ insert into t2 values (10), (20);
 create view v1 (a,c) as select a, b+1 from t1;
 create algorithm=temptable view v2 (a,c) as select a, b+1 from t1;
 # try to update expression
--- error 1347
+-- error 1348
 update t2,v1 set v1.c=v1.a+v1.c where t2.x=v1.a;
 # try to update VIEW with forced TEMPORARY TABLE algorithm
 -- error 1288
@@ -693,7 +695,7 @@ insert into v1 select c, b, a from t2;
 insert into v1 (z,y,x) select a+20,b+2,-100 from t2;
 insert into v2 select b+1, a+10 from t2;
 select * from t1;
-drop table t1;
+drop table t1, t2;
 drop view v1,v2,v3,v4,v5;
 
 #
@@ -798,35 +800,43 @@ connection user1;
 create view v1 as select * from mysqltest.t1;
 create view v2 as select b from mysqltest.t2;
 # There are not rights on mysqltest.v1
---error 1142
+-- error 1142
 create view mysqltest.v1 as select * from mysqltest.t1;
 # There are not any rights on mysqltest.t2.a
 -- error 1143
 create view v3 as select a from mysqltest.t2;
 
-# give CRETEA VIEW privileges but without any privileges for result colemn
+# give CRETEA VIEW privileges (without any privileges for result colemn)
 connection root;
 create table mysqltest.v3 (b int);
 grant create view on mysqltest.v3 to mysqltest_1@localhost;
 drop table mysqltest.v3;
 connection user1;
--- error 1143
 create view mysqltest.v3 as select b from mysqltest.t2;
 
-# give UPDATE privileges -> create works
+# give UPDATE privileges
 connection root;
-create table mysqltest.v3 (b int);
 grant create view, update on mysqltest.v3 to mysqltest_1@localhost;
-drop table mysqltest.v3;
+drop view mysqltest.v3;
 connection user1;
+create view mysqltest.v3 as select b from mysqltest.t2;
+
+# give UPDATE and INSERT privilege (to get more privileges then anderlying
+# table)
+connection root;
+grant create view, update, insert on mysqltest.v3 to mysqltest_1@localhost;
+drop view mysqltest.v3;
+connection user1;
+-- error 1143
 create view mysqltest.v3 as select b from mysqltest.t2;
 
 
 # If give other privileges for VIEW then underlaying table have =>
 # creation prohibited
 connection root;
+create table mysqltest.v3 (b int);
 grant select(b) on mysqltest.v3 to mysqltest_1@localhost;
-drop view mysqltest.v3;
+drop table mysqltest.v3;
 connection user1;
 -- error 1142
 create view mysqltest.v3 as select b from mysqltest.t2;
@@ -849,7 +859,7 @@ create view v4 as select b+1 from mysqltest.t2;
 connection root;
 REVOKE ALL PRIVILEGES, GRANT OPTION FROM mysqltest_1@localhost;
 drop database mysqltest;
-drop view v1,v2;
+drop view v1,v2,v4;
 
 #
 # VIEW fields quoting
@@ -888,10 +898,10 @@ create table t1 (col1 char(5),col2 char(5));
 create view v1 as select * from t1;
 drop table t1;
 create table t1 (col1 char(5),newcol2 char(5));
--- error 1355
+-- error 1356
 insert into v1 values('a','aa');
 drop table t1;
--- error 1355
+-- error 1356
 select * from v1;
 drop view v1;
 
@@ -907,7 +917,7 @@ create view v1 (a,a) as select 'a','a';
 delimiter //;
 create procedure p1 () begin declare v int; create view v1 as select v; end;//
 delimiter ;//
--- error 1350
+-- error 1351
 call p1();
 drop procedure p1;
 
@@ -973,3 +983,328 @@ select * from t1;
 
 drop view v1;
 drop table t1;
+
+#
+# error on preparation
+#
+-- error 1096
+CREATE VIEW v02 AS SELECT * FROM DUAL;
+SHOW TABLES;
+
+#
+# EXISTS with UNION VIEW
+#
+CREATE VIEW v1 AS SELECT EXISTS (SELECT 1 UNION SELECT 2);
+select * from v1;
+drop view v1;
+
+#
+# using VIEW where table is required
+#
+create table t1 (col1 int,col2 char(22));
+create view v1 as select * from t1;
+-- error 1347
+create index i1 on v1 (col1);
+drop view v1;
+drop table t1;
+
+#
+# connection_id(), pi(), current_user(), version() representation test
+#
+CREATE VIEW v1 (f1,f2,f3,f4) AS SELECT connection_id(), pi(), current_user(), version();
+SHOW CREATE VIEW v1;
+drop view v1;
+
+#
+# VIEW built over UNION
+#
+create table t1 (s1 int);
+create table t2 (s2 int);
+insert into t1 values (1), (2);
+insert into t2 values (2), (3);
+create view v1 as select * from t1,t2 union all select * from t1,t2;
+select * from v1;
+drop view v1;
+drop tables t1, t2;
+
+#
+# Aggregate functions in view list
+#
+create table t1 (col1 int);
+insert into t1 values (1);
+create view v1 as select count(*) from t1;
+insert into t1 values (null);
+select * from v1;
+drop view v1;
+drop table t1;
+
+#
+# Showing VIEW with VIEWs in subquery
+#
+create table t1 (a int);
+create table t2 (a int);
+create view v1 as select a from t1;
+create view v2 as select a from t2 where a in (select a from v1);
+show create view v2;
+drop view v2, v1;
+drop table t1, t2;
+
+#
+# SHOW VIEW view with name with spaces
+#
+CREATE VIEW `v 1` AS select 5 AS `5`;
+show create view `v 1`;
+drop view `v 1`;
+
+#
+# Removing database with .frm archives
+#
+create database mysqltest;
+create table mysqltest.t1 (a int, b int);
+create view mysqltest.v1 as select a from mysqltest.t1;
+alter view mysqltest.v1 as select b from mysqltest.t1;
+alter view mysqltest.v1 as select a from mysqltest.t1;
+drop database mysqltest;
+
+#
+# VIEW with full text
+#
+CREATE TABLE t1 (c1 int not null auto_increment primary key, c2 varchar(20), fulltext(c2));
+insert into t1 (c2) VALUES ('real Beer'),('Water'),('Kossu'),('Coca-Cola'),('Vodka'),('Wine'),('almost real Beer');
+select * from t1 WHERE match (c2) against ('Beer');
+CREATE VIEW v1 AS SELECT  * from t1 WHERE match (c2) against ('Beer');
+select * from v1;
+drop view v1;
+drop table t1;
+
+#
+# distinct in temporary table with a VIEW
+#
+create table t1 (a int);
+insert into t1 values (1),(1),(2),(2),(3),(3);
+create view v1 as select a from t1;
+select distinct a from v1;
+select distinct a from v1 limit 2;
+select distinct a from t1 limit 2;
+prepare stmt1 from "select distinct a from v1 limit 2";
+execute stmt1;
+execute stmt1;
+deallocate prepare stmt1;
+drop view v1;
+drop table t1;
+
+#
+# aggregate function of aggregate function
+#
+create table t1 (tg_column bigint);
+create view v1 as select count(tg_column) as vg_column from t1;
+select avg(vg_column) from v1;
+drop view v1;
+drop table t1;
+
+#
+# VIEW of VIEW with column renaming
+#
+create table t1 (col1 bigint not null, primary key (col1));
+create table t2 (col1 bigint not null, key (col1));
+create view v1 as select * from t1;
+create view v2 as select * from t2;
+insert into v1 values (1);
+insert into v2 values (1);
+create view v3 (a,b) as select v1.col1 as a, v2.col1 as b from v1, v2 where v1.col1 = v2.col1;
+select * from v3;
+show create view v3;
+drop view v3, v2, v1;
+drop table t2, t1;
+
+#
+# VIEW based on functions with  complex names
+#
+create function `f``1` () returns int return 5;
+create view v1 as select test.`f``1` ();
+show create view v1;
+select * from v1;
+drop view v1;
+drop function `f``1`;
+
+#
+# tested problem when function name length close to ALIGN_SIZE
+#
+create function x () returns int return 5;
+create view v1 as select x ();
+select * from v1;
+drop view v1;
+drop function x;
+
+#
+# VIEW with collation
+#
+create table t2 (col1 char collate latin1_german2_ci);
+create view v2 as select col1 collate latin1_german1_ci from t2;
+show create view v2;
+show create view v2;
+drop view v2;
+drop table t2;
+
+#
+# order by refers on integer field
+#
+create table t1 (a int);
+insert into t1 values (1), (2);
+create view v1 as select 5 from t1 order by 1;
+select * from v1;
+drop view v1;
+drop table t1;
+
+#
+# VIEW over droped function
+#
+create function x1 () returns int return 5;
+create table t1 (s1 int);
+create view v1 as select x1() from t1;
+drop function x1;
+-- error 1305
+select * from v1;
+--replace_column 12 # 13 #
+show table status;
+--replace_column 12 # 13 #
+show table status;
+drop view v1;
+drop table t1;
+
+#
+# VIEW with floating point (long bumber) as column
+#
+create view v1 as select 99999999999999999999999999999999999999999999999999999 as col1;
+show create view v1;
+drop view v1;
+
+#
+# VIEWs with national characters
+#
+create table tü (cü char);
+create view vü as select cü from tü;
+insert into vü values ('ü');
+select * from vü;
+drop view vü;
+drop table tü;
+
+#
+# problem with used_tables() of outer reference resolved in VIEW
+#
+create table t1 (a int, b int);
+insert into t1 values (1,2), (1,3), (2,4), (2,5), (3,10);
+create view v1(c) as select a+1 from t1 where b >= 4;
+select c from v1 where exists (select * from t1 where a=2 and b=c);
+drop view v1;
+drop table t1;
+
+#
+# view with cast operation
+#
+create view v1 as select cast(1 as char(3));
+show create view v1;
+select * from v1;
+drop view v1;
+
+#
+# bug handlimg from VIEWs
+#
+create view v1 as select 'a',1;
+create view v2 as select * from v1 union all select * from v1;
+create view v3 as select * from v2 where 1 = (select `1` from v2);
+create view v4 as select * from v3;
+-- error 1242
+select * from v4;
+drop view v4, v3, v2, v1;
+
+#
+# VIEW over SELECT with prohibited clauses
+#
+-- error 1350
+create view v1 as select 5 into @w;
+-- error 1350
+create view v1 as select 5 into outfile 'ttt';
+create table t1 (a int);
+-- error 1350
+create view v1 as select a from t1 procedure analyse();
+drop table t1;
+
+#
+# INSERT into VIEW with ON DUPLICATE
+#
+create table t1 (s1 int, primary key (s1));
+create view v1 as select * from t1;
+insert into v1 values (1) on duplicate key update s1 = 7;
+insert into v1 values (1) on duplicate key update s1 = 7;
+select * from t1;
+drop view v1;
+drop table t1;
+
+#
+# test of updating and fetching from the same table check
+#
+create table t1 (col1 int);
+create table t2 (col1 int);
+create view v1 as select * from t1;
+create view v2 as select * from v1;
+-- error 1093
+update v2 set col1 = (select max(col1) from v1);
+#update v2,t2 set v2.col1 = (select max(col1) from v1) where v2.col1 = t2.col1;
+-- error 1093
+delete from v2 where col1 = (select max(col1) from v1);
+#delete v2 from v2,t2 where (select max(col1) from v1) > 0 and v2.col1 = t2.col1;
+-- error 1093
+insert into v2 values ((select max(col1) from v1));
+drop view v2,v1;
+drop table t1,t2;
+
+#
+# HANDLER with VIEW
+#
+create table t1 (s1 int);
+create view v1 as select * from t1;
+-- error 1347
+handler v1 open as xx;
+drop view v1;
+drop table t1;
+
+#
+# view with WHERE in nested join
+#
+create table t1(a int);
+insert into t1 values (0), (1), (2), (3);
+create table t2 (a int);
+insert into t2 select a from t1 where a > 1;
+create view v1 as select a from t1 where a > 1;
+select * from t1 left join (t2 as t, v1) on v1.a=t1.a;
+select * from t1 left join (t2 as t, t2) on t2.a=t1.a;
+drop view v1;
+drop table t1, t2;
+
+#
+# Collation with view update
+#
+create table t1 (s1 char);
+create view v1 as select s1 collate latin1_german1_ci as s1 from t1;
+insert into v1 values ('a');
+select * from v1;
+update v1 set s1='b';
+select * from v1;
+update v1,t1 set v1.s1='c' where t1.s1=v1.s1;
+select * from v1;
+drop view v1;
+drop table t1;
+
+#
+# test view with LOCK TABLES (work around)
+#
+create table t1 (a int);
+create table t2 (a int);
+create view v1 as select * from t1;
+lock tables t1 read, v1 read;
+select * from v1;
+-- error 1100
+select * from t2;
+drop view v1;
+drop table t1, t2;

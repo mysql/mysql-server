@@ -1,5 +1,26 @@
 # Local macros for automake & autoconf
 
+
+AC_DEFUN(MYSQL_CHECK_READLINE_DECLARES_HIST_ENTRY,[
+    AC_CACHE_CHECK([HIST_ENTRY is declared in readline/readline.h], mysql_cv_hist_entry_declared,
+	AC_TRY_COMPILE(
+	    [
+		#include "stdio.h"
+		#include "readline/readline.h"
+	    ],
+	    [ 
+		HIST_ENTRY entry;
+	    ],
+	    [
+		mysql_cv_hist_entry_declared=yes
+		AC_DEFINE_UNQUOTED(HAVE_HIST_ENTRY, [1],
+                                   [HIST_ENTRY is defined in the outer libeditreadline])
+	    ],
+	    [mysql_cv_libedit_interface=no]
+        )
+    )
+])
+
 AC_DEFUN(MYSQL_CHECK_LIBEDIT_INTERFACE,[
     AC_CACHE_CHECK([libedit variant of rl_completion_entry_function], mysql_cv_libedit_interface,
 	AC_TRY_COMPILE(
@@ -13,7 +34,8 @@ AC_DEFUN(MYSQL_CHECK_LIBEDIT_INTERFACE,[
 	    ],
 	    [
 		mysql_cv_libedit_interface=yes
-		AC_DEFINE_UNQUOTED(USE_LIBEDIT_INTERFACE)
+                AC_DEFINE_UNQUOTED([USE_LIBEDIT_INTERFACE], [1],
+                                   [used libedit interface (can we dereference result of rl_completion_entry_function)])
 	    ],
 	    [mysql_cv_libedit_interface=no]
         )
@@ -33,7 +55,8 @@ AC_DEFUN(MYSQL_CHECK_NEW_RL_INTERFACE,[
 	    ],
 	    [
 		mysql_cv_new_rl_interface=yes
-		AC_DEFINE_UNQUOTED(USE_NEW_READLINE_INTERFACE)
+                AC_DEFINE_UNQUOTED([USE_NEW_READLINE_INTERFACE], [1],
+                                   [used new readline interface (are rl_completion_func_t and rl_compentry_func_t defined)])
 	    ],
 	    [mysql_cv_new_rl_interface=no]
         )
@@ -65,7 +88,7 @@ main()
   exit(0);
 }], AC_CV_NAME=`cat conftestval`, AC_CV_NAME=0, ifelse([$2], , , AC_CV_NAME=$2))])dnl
 AC_MSG_RESULT($AC_CV_NAME)
-AC_DEFINE_UNQUOTED(AC_TYPE_NAME, $AC_CV_NAME)
+AC_DEFINE_UNQUOTED(AC_TYPE_NAME, $AC_CV_NAME, [ ])
 undefine([AC_TYPE_NAME])dnl
 undefine([AC_CV_NAME])dnl
 ])
@@ -105,7 +128,8 @@ if test "$mysql_cv_btype_last_arg_accept" = "none"; then
 mysql_cv_btype_last_arg_accept=int
 fi)
 AC_LANG_RESTORE
-AC_DEFINE_UNQUOTED(SOCKET_SIZE_TYPE, $mysql_cv_btype_last_arg_accept)
+AC_DEFINE_UNQUOTED([SOCKET_SIZE_TYPE], [$mysql_cv_btype_last_arg_accept],
+                   [The base type of the last arg to accept])
 CXXFLAGS="$ac_save_CXXFLAGS"
 ])
 #---END:
@@ -121,10 +145,11 @@ void qsort(void *base, size_t nel, size_t width,
  int (*compar) (const void *, const void *));
 ],
 [int i;], mysql_cv_type_qsort=void, mysql_cv_type_qsort=int)])
-AC_DEFINE_UNQUOTED(RETQSORTTYPE, $mysql_cv_type_qsort)
+AC_DEFINE_UNQUOTED([RETQSORTTYPE], [$mysql_cv_type_qsort],
+                   [The return type of qsort (int or void).])
 if test "$mysql_cv_type_qsort" = "void"
 then
- AC_DEFINE_UNQUOTED(QSORT_TYPE_IS_VOID, 1)
+ AC_DEFINE_UNQUOTED([QSORT_TYPE_IS_VOID], [1], [qsort returns void])
 fi
 ])
 
@@ -142,7 +167,8 @@ abstime.ts_nsec = 0;
 ], mysql_cv_timespec_ts=yes, mysql_cv_timespec_ts=no)])
 if test "$mysql_cv_timespec_ts" = "yes"
 then
-  AC_DEFINE(HAVE_TIMESPEC_TS_SEC)
+  AC_DEFINE([HAVE_TIMESPEC_TS_SEC], [1],
+            [Timespec has a ts_sec instead of tv_sev])
 fi
 ])
 
@@ -158,35 +184,119 @@ extern "C"
 ], mysql_cv_tzname=yes, mysql_cv_tzname=no)])
 if test "$mysql_cv_tzname" = "yes"
 then
-  AC_DEFINE(HAVE_TZNAME)
+  AC_DEFINE([HAVE_TZNAME], [1], [Have the tzname variable])
 fi
 ])
 
-AC_DEFUN(MYSQL_CHECK_ZLIB_WITH_COMPRESS, [
+
+dnl Define zlib paths to point at bundled zlib
+
+AC_DEFUN([MYSQL_USE_BUNDLED_ZLIB], [
+ZLIB_INCLUDES="-I\$(top_srcdir)/zlib"
+ZLIB_LIBS="\$(top_builddir)/zlib/libz.la"
+zlib_dir="zlib"
+AC_SUBST([zlib_dir])
+mysql_cv_compress="yes"
+])
+
+dnl Auxiliary macro to check for zlib at given path
+
+AC_DEFUN([MYSQL_CHECK_ZLIB_DIR], [
+save_INCLUDES="$INCLUDES"
 save_LIBS="$LIBS"
-LIBS="-l$1 $LIBS"
-AC_CACHE_CHECK([if libz with compress], mysql_cv_compress,
-[AC_TRY_RUN([#include <zlib.h>
-#ifdef __cplusplus
-extern "C"
-#endif
-int main(int argv, char **argc)
-{
-  return 0;
-}
-
-int link_test()
-{
-  return compress(0, (unsigned long*) 0, "", 0);
-}
-], mysql_cv_compress=yes, mysql_cv_compress=no)])
-if test "$mysql_cv_compress" = "yes"
-then
-  AC_DEFINE(HAVE_COMPRESS)
-else
-  LIBS="$save_LIBS"
-fi
+INCLUDES="$INCLUDES $ZLIB_INCLUDES"
+LIBS="$LIBS $ZLIB_LIBS"
+AC_CACHE_VAL([mysql_cv_compress],
+  [AC_TRY_LINK([#include <zlib.h>],
+    [int link_test() { return compress(0, (unsigned long*) 0, "", 0); }],
+    [mysql_cv_compress="yes"
+    AC_MSG_RESULT([ok])],
+    [mysql_cv_compress="no"])
+  ])
+INCLUDES="$save_INCLUDES"
+LIBS="$save_LIBS"
 ])
+
+dnl MYSQL_CHECK_ZLIB_WITH_COMPRESS
+dnl ------------------------------------------------------------------------
+dnl @synopsis MYSQL_CHECK_ZLIB_WITH_COMPRESS
+dnl
+dnl Provides the following configure options:
+dnl --with-zlib-dir=DIR
+dnl Possible DIR values are:
+dnl - "no" - the macro will disable use of compression functions
+dnl - "bundled" - means use zlib bundled along with MySQL sources
+dnl - empty, or not specified - the macro will try default system
+dnl   library (if present), and in case of error will fall back to 
+dnl   bundled zlib
+dnl - zlib location prefix - given location prefix, the macro expects
+dnl   to find the library headers in $prefix/include, and binaries in
+dnl   $prefix/lib. If zlib headers or binaries weren't found at $prefix, the
+dnl   macro bails out with error.
+dnl 
+dnl If the library was found, this function #defines HAVE_COMPRESS
+dnl and configure variables ZLIB_INCLUDES (i.e. -I/path/to/zlib/include) and
+dnl ZLIB_LIBS (i. e. -L/path/to/zlib/lib -lz).
+
+AC_DEFUN([MYSQL_CHECK_ZLIB_WITH_COMPRESS], [
+AC_MSG_CHECKING([for zlib compression library])
+case $SYSTEM_TYPE in
+dnl  This is a quick fix for Netware if AC_TRY_LINK for some reason 
+dnl  won't work there. Uncomment in case of failure and on Netware
+dnl  we'll always assume that zlib is present 
+dnl  *netware* | *modesto*)
+dnl     AC_MSG_RESULT(ok)
+dnl     AC_DEFINE([HAVE_COMPRESS], [1], [Define to enable compression support])
+dnl    ;;
+  *)
+    AC_ARG_WITH([zlib-dir],
+                AC_HELP_STRING([--with-zlib-dir=DIR],
+                               [Provide MySQL with a custom location of
+                               compression library. Given DIR, zlib binary is 
+                               assumed to be in $DIR/lib and header files
+                               in $DIR/include.]),
+                [mysql_zlib_dir=${withval}],
+                [mysql_zlib_dir=""])
+    case "$mysql_zlib_dir" in
+      "no")
+        mysql_cv_compress="no"
+        AC_MSG_RESULT([disabled])
+        ;;
+      "bundled")
+        MYSQL_USE_BUNDLED_ZLIB
+        AC_MSG_RESULT([using bundled zlib])
+        ;;
+      "")
+        ZLIB_INCLUDES=""
+        ZLIB_LIBS="-lz"
+        MYSQL_CHECK_ZLIB_DIR
+        if test "$mysql_cv_compress" = "no"; then
+          MYSQL_USE_BUNDLED_ZLIB
+          AC_MSG_RESULT([system-wide zlib not found, using one bundled with MySQL])
+        fi
+        ;;
+      *)
+        if test -f "$mysql_zlib_dir/lib/libz.a" -a \ 
+                -f "$mysql_zlib_dir/include/zlib.h"; then
+          ZLIB_INCLUDES="-I$mysql_zlib_dir/include"
+          ZLIB_LIBS="-L$mysql_zlib_dir/lib -lz"
+          MYSQL_CHECK_ZLIB_DIR
+        fi
+        if test "x$mysql_cv_compress" != "xyes"; then 
+          AC_MSG_ERROR([headers or binaries were not found in $mysql_zlib_dir/{include,lib}])
+        fi
+        ;;
+    esac
+    if test "$mysql_cv_compress" = "yes"; then
+      AC_SUBST([ZLIB_LIBS])
+      AC_SUBST([ZLIB_INCLUDES])
+      AC_DEFINE([HAVE_COMPRESS], [1], [Define to enable compression support])
+    fi
+    ;;
+esac
+])
+
+dnl ------------------------------------------------------------------------
 
 #---START: Used in for client configure
 AC_DEFUN(MYSQL_CHECK_ULONG,
@@ -203,7 +313,7 @@ main()
 AC_MSG_RESULT($ac_cv_ulong)
 if test "$ac_cv_ulong" = "yes"
 then
-  AC_DEFINE(HAVE_ULONG)
+  AC_DEFINE([HAVE_ULONG], [1], [system headers define ulong])
 fi
 ])
 
@@ -221,7 +331,7 @@ main()
 AC_MSG_RESULT($ac_cv_uchar)
 if test "$ac_cv_uchar" = "yes"
 then
-  AC_DEFINE(HAVE_UCHAR)
+  AC_DEFINE([HAVE_UCHAR], [1], [system headers define uchar])
 fi
 ])
 
@@ -239,7 +349,7 @@ main()
 AC_MSG_RESULT($ac_cv_uint)
 if test "$ac_cv_uint" = "yes"
 then
-  AC_DEFINE(HAVE_UINT)
+  AC_DEFINE([HAVE_UINT], [1], [system headers define uint])
 fi
 ])
 
@@ -261,7 +371,7 @@ int main(int argc, char **argv)
 AC_MSG_RESULT($ac_cv_in_addr_t)
 if test "$ac_cv_in_addr_t" = "yes"
 then
-  AC_DEFINE(HAVE_IN_ADDR_T)
+  AC_DEFINE([HAVE_IN_ADDR_T], [1], [system headers define in_addr_t])
 fi
 ])
 
@@ -279,7 +389,8 @@ extern "C"
 ], ac_cv_pthread_yield_zero_arg=yes, ac_cv_pthread_yield_zero_arg=yeso)])
 if test "$ac_cv_pthread_yield_zero_arg" = "yes"
 then
-  AC_DEFINE(HAVE_PTHREAD_YIELD_ZERO_ARG)
+  AC_DEFINE([HAVE_PTHREAD_YIELD_ZERO_ARG], [1],
+            [pthread_yield that doesn't take any arguments])
 fi
 ]
 [AC_CACHE_CHECK([if pthread_yield takes 1 argument], ac_cv_pthread_yield_one_arg,
@@ -294,7 +405,8 @@ extern "C"
 ], ac_cv_pthread_yield_one_arg=yes, ac_cv_pthread_yield_one_arg=no)])
 if test "$ac_cv_pthread_yield_one_arg" = "yes"
 then
-  AC_DEFINE(HAVE_PTHREAD_YIELD_ONE_ARG)
+  AC_DEFINE([HAVE_PTHREAD_YIELD_ONE_ARG], [1],
+            [pthread_yield function with one argument])
 fi
 ]
 )
@@ -318,7 +430,7 @@ main()
 AC_MSG_RESULT($ac_cv_fp_except)
 if test "$ac_cv_fp_except" = "yes"
 then
-  AC_DEFINE(HAVE_FP_EXCEPT)
+  AC_DEFINE([HAVE_FP_EXCEPT], [1], [fp_except from ieeefp.h])
 fi
 ])
 
@@ -459,11 +571,12 @@ AC_CACHE_VAL(mysql_cv_signal_vintage,
 ])
 AC_MSG_RESULT($mysql_cv_signal_vintage)
 if test "$mysql_cv_signal_vintage" = posix; then
-AC_DEFINE(HAVE_POSIX_SIGNALS)
+AC_DEFINE(HAVE_POSIX_SIGNALS, [1],
+          [Signal handling is POSIX (sigset/sighold, etc)])
 elif test "$mysql_cv_signal_vintage" = "4.2bsd"; then
-AC_DEFINE(HAVE_BSD_SIGNALS)
+AC_DEFINE([HAVE_BSD_SIGNALS], [1], [BSD style signals])
 elif test "$mysql_cv_signal_vintage" = svr3; then
-AC_DEFINE(HAVE_USG_SIGHOLD)
+AC_DEFINE(HAVE_USG_SIGHOLD, [1], [sighold() is present and usable])
 fi
 ])
 
@@ -476,7 +589,7 @@ extern struct passwd *getpwent();], [struct passwd *z; z = getpwent();],
   mysql_cv_can_redecl_getpw=yes,mysql_cv_can_redecl_getpw=no)])
 AC_MSG_RESULT($mysql_cv_can_redecl_getpw)
 if test "$mysql_cv_can_redecl_getpw" = "no"; then
-AC_DEFINE(HAVE_GETPW_DECLS)
+AC_DEFINE(HAVE_GETPW_DECLS, [1], [getpwent() declaration present])
 fi
 ])
 
@@ -488,7 +601,8 @@ AC_CACHE_VAL(mysql_cv_tiocgwinsz_in_ioctl,
   mysql_cv_tiocgwinsz_in_ioctl=yes,mysql_cv_tiocgwinsz_in_ioctl=no)])
 AC_MSG_RESULT($mysql_cv_tiocgwinsz_in_ioctl)
 if test "$mysql_cv_tiocgwinsz_in_ioctl" = "yes"; then   
-AC_DEFINE(GWINSZ_IN_SYS_IOCTL)
+AC_DEFINE([GWINSZ_IN_SYS_IOCTL], [1],
+          [READLINE: your system defines TIOCGWINSZ in sys/ioctl.h.])
 fi
 ])
 
@@ -500,7 +614,7 @@ AC_CACHE_VAL(mysql_cv_fionread_in_ioctl,
   mysql_cv_fionread_in_ioctl=yes,mysql_cv_fionread_in_ioctl=no)])
 AC_MSG_RESULT($mysql_cv_fionread_in_ioctl)
 if test "$mysql_cv_fionread_in_ioctl" = "yes"; then   
-AC_DEFINE(FIONREAD_IN_SYS_IOCTL)
+AC_DEFINE([FIONREAD_IN_SYS_IOCTL], [1], [Do we have FIONREAD])
 fi
 ])
 
@@ -512,7 +626,8 @@ AC_CACHE_VAL(mysql_cv_tiocstat_in_ioctl,
   mysql_cv_tiocstat_in_ioctl=yes,mysql_cv_tiocstat_in_ioctl=no)])
 AC_MSG_RESULT($mysql_cv_tiocstat_in_ioctl)
 if test "$mysql_cv_tiocstat_in_ioctl" = "yes"; then   
-AC_DEFINE(TIOCSTAT_IN_SYS_IOCTL)
+AC_DEFINE(TIOCSTAT_IN_SYS_IOCTL, [1],
+          [declaration of TIOCSTAT in sys/ioctl.h])
 fi
 ])
 
@@ -545,9 +660,45 @@ struct dirent d; int z; z = d.d_ino;
 ], mysql_cv_dirent_has_dino=yes, mysql_cv_dirent_has_dino=no)])
 AC_MSG_RESULT($mysql_cv_dirent_has_dino)
 if test "$mysql_cv_dirent_has_dino" = "yes"; then
-AC_DEFINE(STRUCT_DIRENT_HAS_D_INO)
+AC_DEFINE(STRUCT_DIRENT_HAS_D_INO, [1],
+          [d_ino member present in struct dirent])
 fi
 ])
+
+AC_DEFUN(MYSQL_STRUCT_DIRENT_D_NAMLEN,
+[AC_REQUIRE([AC_HEADER_DIRENT])
+AC_MSG_CHECKING(if struct dirent has a d_namlen member)
+AC_CACHE_VAL(mysql_cv_dirent_has_dnamlen,
+[AC_TRY_COMPILE([
+#include <stdio.h>
+#include <sys/types.h>
+#ifdef HAVE_UNISTD_H
+# include <unistd.h>
+#endif /* HAVE_UNISTD_H */
+#if defined(HAVE_DIRENT_H)
+# include <dirent.h>
+#else
+# define dirent direct
+# ifdef HAVE_SYS_NDIR_H
+#  include <sys/ndir.h>
+# endif /* SYSNDIR */
+# ifdef HAVE_SYS_DIR_H
+#  include <sys/dir.h>
+# endif /* SYSDIR */
+# ifdef HAVE_NDIR_H
+#  include <ndir.h>
+# endif
+#endif /* HAVE_DIRENT_H */
+],[
+struct dirent d; int z; z = (int)d.d_namlen;
+], mysql_cv_dirent_has_dnamlen=yes, mysql_cv_dirent_has_dnamlen=no)])
+AC_MSG_RESULT($mysql_cv_dirent_has_dnamlen)
+if test "$mysql_cv_dirent_has_dnamlen" = "yes"; then
+AC_DEFINE(STRUCT_DIRENT_HAS_D_NAMLEN, [1],
+          [d_namlen member present in struct dirent])
+fi
+])
+
 
 AC_DEFUN(MYSQL_TYPE_SIGHANDLER,
 [AC_MSG_CHECKING([whether signal handlers are of type void])
@@ -564,7 +715,7 @@ void (*signal ()) ();],
 [int i;], mysql_cv_void_sighandler=yes, mysql_cv_void_sighandler=no)])dnl
 AC_MSG_RESULT($mysql_cv_void_sighandler)
 if test "$mysql_cv_void_sighandler" = "yes"; then
-AC_DEFINE(VOID_SIGHANDLER)
+AC_DEFINE(VOID_SIGHANDLER, [1], [sighandler type is void (*signal ()) ();])
 fi
 ])
 
@@ -583,7 +734,7 @@ AC_LANG_RESTORE
 ])
 AC_MSG_RESULT($mysql_cv_have_bool)
 if test "$mysql_cv_have_bool" = yes; then
-AC_DEFINE(HAVE_BOOL)
+AC_DEFINE([HAVE_BOOL], [1], [bool is not defined by all C++ compilators])
 fi
 ])dnl
 
@@ -624,7 +775,7 @@ then
    ac_cv_header_alloca_h=yes, ac_cv_header_alloca_h=no)])
  if test "$ac_cv_header_alloca_h" = "yes"
  then
-	AC_DEFINE(HAVE_ALLOCA)
+	AC_DEFINE(HAVE_ALLOCA, 1)
  fi
  
  AC_CACHE_CHECK([for alloca], ac_cv_func_alloca_works,
@@ -647,7 +798,7 @@ then
  ], [char *p = (char *) alloca(1);],
    ac_cv_func_alloca_works=yes, ac_cv_func_alloca_works=no)])
  if test "$ac_cv_func_alloca_works" = "yes"; then
-   AC_DEFINE(HAVE_ALLOCA)
+   AC_DEFINE([HAVE_ALLOCA], [1], [If we have a working alloca() implementation])
  fi
  
  if test "$ac_cv_func_alloca_works" = "no"; then
@@ -656,7 +807,7 @@ then
    # contain a buggy version.  If you still want to use their alloca,
    # use ar to extract alloca.o from them instead of compiling alloca.c.
    ALLOCA=alloca.o
-   AC_DEFINE(C_ALLOCA)
+   AC_DEFINE(C_ALLOCA, 1)
  
  AC_CACHE_CHECK(whether alloca needs Cray hooks, ac_cv_os_cray,
  [AC_EGREP_CPP(webecray,
@@ -761,7 +912,7 @@ AC_DEFUN(MYSQL_CHECK_VIO, [
   then
     vio_dir="vio"
     vio_libs="../vio/libvio.la"
-    AC_DEFINE(HAVE_VIO)
+    AC_DEFINE(HAVE_VIO, 1)
   else
     vio_dir=""
     vio_libs=""
@@ -852,7 +1003,7 @@ AC_MSG_CHECKING(for OpenSSL)
     #force VIO use
     vio_dir="vio"
     vio_libs="../vio/libvio.la"
-    AC_DEFINE(HAVE_VIO)
+    AC_DEFINE([HAVE_VIO], [1], [Virtual IO])
     AC_MSG_RESULT(yes)
     openssl_libs="-L$OPENSSL_LIB -lssl -lcrypto"
     # Don't set openssl_includes to /usr/include as this gives us a lot of
@@ -866,7 +1017,7 @@ AC_MSG_CHECKING(for OpenSSL)
     then
     	openssl_includes="$openssl_includes -I$OPENSSL_KERBEROS_INCLUDE"
     fi
-    AC_DEFINE(HAVE_OPENSSL)
+    AC_DEFINE([HAVE_OPENSSL], [1], [OpenSSL])
 
     # openssl-devel-0.9.6 requires dlopen() and we can't link staticly
     # on many platforms (We should actually test this here, but it's quite
@@ -927,7 +1078,7 @@ then
   orbit_libs=`orbit-config --libs server`
   orbit_idl="$orbit_exec_prefix/bin/orbit-idl"
   AC_MSG_RESULT(found!)
-  AC_DEFINE(HAVE_ORBIT)
+  AC_DEFINE([HAVE_ORBIT], [1], [ORBIT])
 else
   orbit_exec_prefix=
   orbit_includes=
@@ -949,7 +1100,7 @@ AC_DEFUN([MYSQL_CHECK_ISAM], [
   isam_libs=
   if test X"$with_isam" = X"yes"
   then
-    AC_DEFINE(HAVE_ISAM)
+    AC_DEFINE([HAVE_ISAM], [1], [Using old ISAM tables])
     isam_libs="\$(top_builddir)/isam/libnisam.a\
  \$(top_builddir)/merge/libmerge.a"
   fi
@@ -1245,7 +1396,7 @@ AC_DEFUN([MYSQL_CHECK_INNODB], [
   case "$innodb" in
     yes )
       AC_MSG_RESULT([Using Innodb])
-      AC_DEFINE(HAVE_INNOBASE_DB)
+      AC_DEFINE([HAVE_INNOBASE_DB], [1], [Using Innobase DB])
       have_innodb="yes"
       innodb_includes="-I../innobase/include"
       innodb_system_libs=""
@@ -1318,7 +1469,7 @@ AC_DEFUN([MYSQL_CHECK_EXAMPLEDB], [
 
   case "$exampledb" in
     yes )
-      AC_DEFINE(HAVE_EXAMPLE_DB)
+      AC_DEFINE([HAVE_EXAMPLE_DB], [1], [Builds Example DB])
       AC_MSG_RESULT([yes])
       [exampledb=yes]
       ;;
@@ -1348,7 +1499,7 @@ AC_DEFUN([MYSQL_CHECK_ARCHIVEDB], [
 
   case "$archivedb" in
     yes )
-      AC_DEFINE(HAVE_ARCHIVE_DB)
+      AC_DEFINE([HAVE_ARCHIVE_DB], [1], [Builds Archive Storage Engine])
       AC_MSG_RESULT([yes])
       [archivedb=yes]
       ;;
@@ -1362,6 +1513,37 @@ AC_DEFUN([MYSQL_CHECK_ARCHIVEDB], [
 dnl ---------------------------------------------------------------------------
 dnl END OF MYSQL_CHECK_ARCHIVE SECTION
 dnl ---------------------------------------------------------------------------
+
+dnl ---------------------------------------------------------------------------
+dnl Macro: MYSQL_CHECK_CSVDB
+dnl Sets HAVE_CSV_DB if --with-csv-storage-engine is used
+dnl ---------------------------------------------------------------------------
+AC_DEFUN([MYSQL_CHECK_CSVDB], [
+  AC_ARG_WITH([csv-storage-engine],
+              [
+  --with-csv-storage-engine
+                          Enable the CSV Storage Engine],
+              [csvdb="$withval"],
+              [csvdb=no])
+  AC_MSG_CHECKING([for csv storage engine])
+
+  case "$csvdb" in
+    yes )
+      AC_DEFINE([HAVE_CSV_DB], [1], [Builds the CSV Storage Engine])
+      AC_MSG_RESULT([yes])
+      [csvdb=yes]
+      ;;
+    * )
+      AC_MSG_RESULT([no])
+      [csvdb=no]
+      ;;
+  esac
+
+])
+dnl ---------------------------------------------------------------------------
+dnl END OF MYSQL_CHECK_CSV SECTION
+dnl ---------------------------------------------------------------------------
+
 
 dnl ---------------------------------------------------------------------------
 dnl Macro: MYSQL_CHECK_NDBCLUSTER
@@ -1397,7 +1579,8 @@ AC_DEFUN([MYSQL_CHECK_NDB_OPTIONS], [
   case "$ndb_shm" in
     yes )
       AC_MSG_RESULT([-- including shared memory transporter])
-      AC_DEFINE(NDB_SHM_TRANSPORTER)
+      AC_DEFINE([NDB_SHM_TRANSPORTER], [1],
+                [Including Ndb Cluster DB shared memory transporter])
       have_ndb_shm="yes"
       ;;
     * )
@@ -1409,7 +1592,8 @@ AC_DEFUN([MYSQL_CHECK_NDB_OPTIONS], [
   case "$ndb_sci" in
     yes )
       AC_MSG_RESULT([-- including sci transporter])
-      AC_DEFINE(NDB_SCI_TRANSPORTER)
+      AC_DEFINE([NDB_SCI_TRANSPORTER], [1],
+                [Including Ndb Cluster DB sci transporter])
       have_ndb_sci="yes"
       ;;
     * )
@@ -1457,7 +1641,7 @@ AC_DEFUN([MYSQL_CHECK_NDBCLUSTER], [
   case "$ndbcluster" in
     yes )
       AC_MSG_RESULT([Using NDB Cluster])
-      AC_DEFINE(HAVE_NDBCLUSTER_DB)
+      AC_DEFINE([HAVE_NDBCLUSTER_DB], [1], [Using Ndb Cluster DB])
       have_ndbcluster="yes"
       ndbcluster_includes="-I../ndb/include -I../ndb/include/ndbapi"
       ndbcluster_libs="\$(top_builddir)/ndb/src/.libs/libndbclient.a"
@@ -1602,7 +1786,7 @@ AC_DEFUN(MYSQL_SYS_LARGEFILE,
 	esac])
      AC_SYS_LARGEFILE_MACRO_VALUE(_LARGEFILE_SOURCE,
        ac_cv_sys_largefile_source,
-       [Define to make fseeko etc. visible, on some hosts.],
+       [makes fseeko etc. visible, on some hosts.],
        [case "$host_os" in
 	# HP-UX 10.20 and later
 	hpux10.[2-9][0-9]* | hpux1[1-9]* | hpux[2-9][0-9]*)
@@ -1610,7 +1794,7 @@ AC_DEFUN(MYSQL_SYS_LARGEFILE,
 	esac])
      AC_SYS_LARGEFILE_MACRO_VALUE(_LARGE_FILES,
        ac_cv_sys_large_files,
-       [Define for large files, on AIX-style hosts.],
+       [Large files support on AIX-style hosts.],
        [case "$host_os" in
 	# AIX 4.2 and later
 	aix4.[2-9]* | aix4.1[0-9]* | aix[5-9].* | aix[1-9][0-9]*)

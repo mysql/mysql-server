@@ -764,14 +764,6 @@ select * from t1;
 drop table t1, t2;
 
 #
-# correct behavoiur for function from reduced subselect
-#
-create table t1(City VARCHAR(30),Location geometry);
-insert into t1 values("Paris",GeomFromText('POINT(2.33 48.87)'));
-select City from t1 where (select intersects(GeomFromText(AsText(Location)),GeomFromText('Polygon((2 50, 2.5 50, 2.5 47, 2 47, 2 50))'))=0);
-drop table t1;
-
-#
 # reduced subselect in ORDER BY & GROUP BY clauses
 #
 
@@ -1227,3 +1219,56 @@ CREATE TABLE `t2` ( `b` int(11) default NULL, `a` int(11) default NULL) ENGINE=M
 insert into t2 values (1,2);
 select t000.a, count(*) `C` FROM t1 t000 GROUP BY t000.a HAVING count(*) > ALL (SELECT count(*) FROM t2 t001 WHERE t001.a=1);
 drop table t1,t2;
+
+#
+# BUG#4769 - fulltext in subselect
+#
+create table t1 (a int not null auto_increment primary key, b varchar(40), fulltext(b)); 
+insert into t1 (b) values ('ball'),('ball games'), ('games'), ('foo'), ('foobar'), ('Serg'), ('Sergei'),('Georg'), ('Patrik'),('Hakan'); 
+create table t2 (a int); 
+insert into t2 values (1),(3),(2),(7); 
+select a,b from t1 where match(b) against ('Ball') > 0; 
+select a from t2 where a in (select a from t1 where match(b) against ('Ball') > 0); 
+drop table t1,t2;
+
+#
+# BUG#5003 - like in subselect
+#
+CREATE TABLE t1(`IZAVORGANG_ID` VARCHAR(11) CHARACTER SET latin1 COLLATE latin1_bin,`KUERZEL` VARCHAR(10) CHARACTER SET latin1 COLLATE latin1_bin,`IZAANALYSEART_ID` VARCHAR(11) CHARACTER SET latin1 COLLATE latin1_bin,`IZAPMKZ_ID` VARCHAR(11) CHARACTER SET latin1 COLLATE latin1_bin);
+CREATE INDEX AK01IZAVORGANG ON t1(izaAnalyseart_id,Kuerzel);
+INSERT INTO t1(`IZAVORGANG_ID`,`KUERZEL`,`IZAANALYSEART_ID`,`IZAPMKZ_ID`)VALUES('D0000000001','601','D0000000001','I0000000001');
+INSERT INTO t1(`IZAVORGANG_ID`,`KUERZEL`,`IZAANALYSEART_ID`,`IZAPMKZ_ID`)VALUES('D0000000002','602','D0000000001','I0000000001');
+INSERT INTO t1(`IZAVORGANG_ID`,`KUERZEL`,`IZAANALYSEART_ID`,`IZAPMKZ_ID`)VALUES('D0000000003','603','D0000000001','I0000000001');
+INSERT INTO t1(`IZAVORGANG_ID`,`KUERZEL`,`IZAANALYSEART_ID`,`IZAPMKZ_ID`)VALUES('D0000000004','101','D0000000001','I0000000001');
+SELECT `IZAVORGANG_ID` FROM t1 WHERE `KUERZEL` IN(SELECT MIN(`KUERZEL`)`Feld1` FROM t1 WHERE `KUERZEL` LIKE'601%'And`IZAANALYSEART_ID`='D0000000001');
+drop table t1;
+
+#
+# Optimized IN with compound index
+#
+CREATE TABLE `t1` ( `aid` int(11) NOT NULL default '0', `bid` int(11) NOT NULL default '0', PRIMARY KEY  (`aid`,`bid`));
+CREATE TABLE `t2` ( `aid` int(11) NOT NULL default '0', `bid` int(11) NOT NULL default '0', PRIMARY KEY  (`aid`,`bid`));
+insert into t1 values (1,1),(1,2),(2,1),(2,2);
+insert into t2 values (1,2),(2,2);
+select * from t1 where t1.aid not in (select aid from t2 where bid=t1.bid);
+alter table t2 drop primary key;
+alter table t2 add key KEY1 (aid, bid);
+select * from t1 where t1.aid not in (select aid from t2 where bid=t1.bid);
+alter table t2 drop key KEY1;
+alter table t2 add primary key (bid, aid);
+select * from t1 where t1.aid not in (select aid from t2 where bid=t1.bid);
+drop table t1,t2;
+
+#
+# resolving fields of grouped outer SELECT
+#
+CREATE TABLE t1 (howmanyvalues bigint, avalue int);
+INSERT INTO t1 VALUES (1, 1),(2, 1),(2, 2),(3, 1),(3, 2),(3, 3),(4, 1),(4, 2),(4, 3),(4, 4);
+SELECT howmanyvalues, count(*) from t1 group by howmanyvalues;
+SELECT a.howmanyvalues, (SELECT count(*) from t1 b where b.howmanyvalues = a.howmanyvalues) as mycount from t1 a group by a.howmanyvalues;
+CREATE INDEX t1_howmanyvalues_idx ON t1 (howmanyvalues);
+SELECT a.howmanyvalues, (SELECT count(*) from t1 b where b.howmanyvalues+1 = a.howmanyvalues+1) as mycount from t1 a group by a.howmanyvalues;
+SELECT a.howmanyvalues, (SELECT count(*) from t1 b where b.howmanyvalues = a.howmanyvalues) as mycount from t1 a group by a.howmanyvalues;
+-- error 1054
+SELECT a.howmanyvalues, (SELECT count(*) from t1 b where b.howmanyvalues = a.avalue) as mycount from t1 a group by a.howmanyvalues;
+drop table t1;

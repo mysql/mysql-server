@@ -78,7 +78,7 @@ class StartInfoRef {
   Uint32 errorCode;
 
 public:
-  STATIC_CONST( SignalLength = 2 );
+  STATIC_CONST( SignalLength = 3 );
 };
 
 #endif

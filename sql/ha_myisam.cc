@@ -249,7 +249,7 @@ int ha_myisam::close(void)
 
 int ha_myisam::write_row(byte * buf)
 {
-  statistic_increment(ha_write_count,&LOCK_status);
+  statistic_increment(current_thd->status_var.ha_write_count,&LOCK_status);
 
   /* If we have a timestamp column, update it to the current time */
   if (table->timestamp_default_now)
@@ -958,15 +958,21 @@ int ha_myisam::indexes_are_disabled(void)
     start_bulk_insert(rows)
     rows        Rows to be inserted
                 0 if we don't know
+
+  NOTICE
+    Do not forget to call end_bulk_insert() later!
 */
 
 void ha_myisam::start_bulk_insert(ha_rows rows)
 {
+  DBUG_ENTER("ha_myisam::start_bulk_insert");
   THD *thd=current_thd;
   ulong size= min(thd->variables.read_buff_size, table->avg_row_length*rows);
+  DBUG_PRINT("info",("start_bulk_insert: rows %lu size %lu",
+                     (ulong) rows, size));
 
   /* don't enable row cache if too few rows */
-  if (!rows && rows >  MI_MIN_ROWS_TO_USE_WRITE_CACHE)
+  if (! rows || (rows > MI_MIN_ROWS_TO_USE_WRITE_CACHE))
     mi_extra(file, HA_EXTRA_WRITE_CACHE, (void*) &size);
 
   can_enable_indexes= (file->s->state.key_map ==
@@ -990,7 +996,21 @@ void ha_myisam::start_bulk_insert(ha_rows rows)
       mi_init_bulk_insert(file, thd->variables.bulk_insert_buff_size, rows);
     }
   }
+  DBUG_VOID_RETURN;
 }
+
+/*
+  end special bulk-insert optimizations,
+  which have been activated by start_bulk_insert().
+
+  SYNOPSIS
+    end_bulk_insert()
+    no arguments
+
+  RETURN
+    0     OK
+    != 0  Error
+*/
 
 int ha_myisam::end_bulk_insert()
 {
@@ -1050,7 +1070,7 @@ bool ha_myisam::is_crashed() const
 
 int ha_myisam::update_row(const byte * old_data, byte * new_data)
 {
-  statistic_increment(ha_update_count,&LOCK_status);
+  statistic_increment(current_thd->status_var.ha_update_count,&LOCK_status);
   if (table->timestamp_on_update_now)
     update_timestamp(new_data+table->timestamp_on_update_now-1);
   return mi_update(file,old_data,new_data);
@@ -1058,7 +1078,7 @@ int ha_myisam::update_row(const byte * old_data, byte * new_data)
 
 int ha_myisam::delete_row(const byte * buf)
 {
-  statistic_increment(ha_delete_count,&LOCK_status);
+  statistic_increment(current_thd->status_var.ha_delete_count,&LOCK_status);
   return mi_delete(file,buf);
 }
 
@@ -1066,7 +1086,7 @@ int ha_myisam::index_read(byte * buf, const byte * key,
 			  uint key_len, enum ha_rkey_function find_flag)
 {
   DBUG_ASSERT(inited==INDEX);
-  statistic_increment(ha_read_key_count,&LOCK_status);
+  statistic_increment(current_thd->status_var.ha_read_key_count,&LOCK_status);
   int error=mi_rkey(file,buf,active_index, key, key_len, find_flag);
   table->status=error ? STATUS_NOT_FOUND: 0;
   return error;
@@ -1075,7 +1095,7 @@ int ha_myisam::index_read(byte * buf, const byte * key,
 int ha_myisam::index_read_idx(byte * buf, uint index, const byte * key,
 			      uint key_len, enum ha_rkey_function find_flag)
 {
-  statistic_increment(ha_read_key_count,&LOCK_status);
+  statistic_increment(current_thd->status_var.ha_read_key_count,&LOCK_status);
   int error=mi_rkey(file,buf,index, key, key_len, find_flag);
   table->status=error ? STATUS_NOT_FOUND: 0;
   return error;
@@ -1084,7 +1104,7 @@ int ha_myisam::index_read_idx(byte * buf, uint index, const byte * key,
 int ha_myisam::index_read_last(byte * buf, const byte * key, uint key_len)
 {
   DBUG_ASSERT(inited==INDEX);
-  statistic_increment(ha_read_key_count,&LOCK_status);
+  statistic_increment(current_thd->status_var.ha_read_key_count,&LOCK_status);
   int error=mi_rkey(file,buf,active_index, key, key_len, HA_READ_PREFIX_LAST);
   table->status=error ? STATUS_NOT_FOUND: 0;
   return error;
@@ -1093,7 +1113,7 @@ int ha_myisam::index_read_last(byte * buf, const byte * key, uint key_len)
 int ha_myisam::index_next(byte * buf)
 {
   DBUG_ASSERT(inited==INDEX);
-  statistic_increment(ha_read_next_count,&LOCK_status);
+  statistic_increment(current_thd->status_var.ha_read_next_count,&LOCK_status);
   int error=mi_rnext(file,buf,active_index);
   table->status=error ? STATUS_NOT_FOUND: 0;
   return error;
@@ -1102,7 +1122,7 @@ int ha_myisam::index_next(byte * buf)
 int ha_myisam::index_prev(byte * buf)
 {
   DBUG_ASSERT(inited==INDEX);
-  statistic_increment(ha_read_prev_count,&LOCK_status);
+  statistic_increment(current_thd->status_var.ha_read_prev_count,&LOCK_status);
   int error=mi_rprev(file,buf, active_index);
   table->status=error ? STATUS_NOT_FOUND: 0;
   return error;
@@ -1111,7 +1131,8 @@ int ha_myisam::index_prev(byte * buf)
 int ha_myisam::index_first(byte * buf)
 {
   DBUG_ASSERT(inited==INDEX);
-  statistic_increment(ha_read_first_count,&LOCK_status);
+  statistic_increment(current_thd->status_var.ha_read_first_count,
+		      &LOCK_status);
   int error=mi_rfirst(file, buf, active_index);
   table->status=error ? STATUS_NOT_FOUND: 0;
   return error;
@@ -1120,7 +1141,7 @@ int ha_myisam::index_first(byte * buf)
 int ha_myisam::index_last(byte * buf)
 {
   DBUG_ASSERT(inited==INDEX);
-  statistic_increment(ha_read_last_count,&LOCK_status);
+  statistic_increment(current_thd->status_var.ha_read_last_count,&LOCK_status);
   int error=mi_rlast(file, buf, active_index);
   table->status=error ? STATUS_NOT_FOUND: 0;
   return error;
@@ -1131,7 +1152,7 @@ int ha_myisam::index_next_same(byte * buf,
 			       uint length __attribute__((unused)))
 {
   DBUG_ASSERT(inited==INDEX);
-  statistic_increment(ha_read_next_count,&LOCK_status);
+  statistic_increment(current_thd->status_var.ha_read_next_count,&LOCK_status);
   int error=mi_rnext_same(file,buf);
   table->status=error ? STATUS_NOT_FOUND: 0;
   return error;
@@ -1147,7 +1168,8 @@ int ha_myisam::rnd_init(bool scan)
 
 int ha_myisam::rnd_next(byte *buf)
 {
-  statistic_increment(ha_read_rnd_next_count,&LOCK_status);
+  statistic_increment(current_thd->status_var.ha_read_rnd_next_count,
+		      &LOCK_status);
   int error=mi_scan(file, buf);
   table->status=error ? STATUS_NOT_FOUND: 0;
   return error;
@@ -1160,7 +1182,7 @@ int ha_myisam::restart_rnd_next(byte *buf, byte *pos)
 
 int ha_myisam::rnd_pos(byte * buf, byte *pos)
 {
-  statistic_increment(ha_read_rnd_count,&LOCK_status);
+  statistic_increment(current_thd->status_var.ha_read_rnd_count,&LOCK_status);
   int error=mi_rrnd(file, buf, ha_get_ptr(pos,ref_length));
   table->status=error ? STATUS_NOT_FOUND: 0;
   return error;
@@ -1415,7 +1437,7 @@ int ha_myisam::create(const char *name, register TABLE *table_arg,
 	}
       }
     }
-    DBUG_PRINT("loop",("found: %lx  recpos: %d  minpos: %d  length: %d",
+    DBUG_PRINT("loop",("found: 0x%lx  recpos: %d  minpos: %d  length: %d",
 		       found,recpos,minpos,length));
     if (recpos != minpos)
     {						// Reserved space (Null bits?)
@@ -1500,8 +1522,12 @@ int ha_myisam::rename_table(const char * from, const char * to)
 }
 
 
-longlong ha_myisam::get_auto_increment()
+ulonglong ha_myisam::get_auto_increment()
 {
+  ulonglong nr;
+  int error;
+  byte key[MI_MAX_KEY_LENGTH];
+
   if (!table->next_number_key_offset)
   {						// Autoincrement at key-start
     ha_myisam::info(HA_STATUS_AUTO);
@@ -1511,19 +1537,16 @@ longlong ha_myisam::get_auto_increment()
   /* it's safe to call the following if bulk_insert isn't on */
   mi_flush_bulk_insert(file, table->next_number_index);
 
-  longlong nr;
-  int error;
-  byte key[MI_MAX_KEY_LENGTH];
   (void) extra(HA_EXTRA_KEYREAD);
   key_copy(key,table,table->next_number_index,
 	   table->next_number_key_offset);
   error=mi_rkey(file,table->record[1],(int) table->next_number_index,
 		key,table->next_number_key_offset,HA_READ_PREFIX_LAST);
   if (error)
-    nr=1;
+    nr= 1;
   else
-    nr=(longlong)
-      table->next_number_field->val_int_offset(table->rec_buff_length)+1;
+    nr= ((ulonglong) table->next_number_field->
+         val_int_offset(table->rec_buff_length)+1);
   extra(HA_EXTRA_NO_KEYREAD);
   return nr;
 }
@@ -1568,7 +1591,8 @@ int ha_myisam::ft_read(byte * buf)
   if (!ft_handler)
     return -1;
 
-  thread_safe_increment(ha_read_next_count,&LOCK_status); // why ?
+  thread_safe_increment(current_thd->status_var.ha_read_next_count,
+			&LOCK_status); // why ?
 
   error=ft_handler->please->read_next(ft_handler,(char*) buf);
 

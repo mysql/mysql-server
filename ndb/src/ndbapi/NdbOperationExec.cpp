@@ -14,18 +14,7 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-
-/***************************************************************************
-Name:          NdbOperationExec.C 
-Include:
-Link:
-Author:        UABRONM Mikael Ronström UAB/M/MT        Jonas Kamf UAB/M/MT 
-Date:          2001-10-16
-Version:       1.2
-Description:   
-Documentation:
-***************************************************************************/
-
+#include <ndb_global.h>
 #include <NdbOperation.hpp>
 #include <NdbConnection.hpp>
 #include "NdbApiSignal.hpp"
@@ -46,83 +35,6 @@ Documentation:
 #include <NdbOut.hpp>
 
 
-/******************************************************************************
-int doSend()
-
-Return Value:   Return >0 : send was succesful, returns number of signals sent
-                Return -1: In all other case.   
-Parameters:     aProcessorId: Receiving processor node
-Remark:         Sends the ATTRINFO signal(s)
-******************************************************************************/
-int
-NdbOperation::doSendScan(int aProcessorId)
-{
-  Uint32 tSignalCount = 0;
-  NdbApiSignal* tSignal;
- 
-  if (theInterpretIndicator != 1 ||
-      (theOperationType != OpenScanRequest &&
-       theOperationType != OpenRangeScanRequest)) {
-      setErrorCodeAbort(4005);
-    return -1;
-  }
-
-  assert(theSCAN_TABREQ != NULL);
-  tSignal = theSCAN_TABREQ;
-  if (tSignal->setSignal(GSN_SCAN_TABREQ) == -1) {
-    setErrorCode(4001);
-    return -1;
-  }
-  // Update the "attribute info length in words" in SCAN_TABREQ before 
-  // sending it. This could not be done in openScan because 
-  // we created the ATTRINFO signals after the SCAN_TABREQ signal.
-  ScanTabReq * const scanTabReq = CAST_PTR(ScanTabReq, tSignal->getDataPtrSend());
-  scanTabReq->attrLen = theTotalCurrAI_Len;
-  if (theOperationType == OpenRangeScanRequest)
-    scanTabReq->attrLen += theTotalBoundAI_Len;
-  TransporterFacade *tp = TransporterFacade::instance();
-  if (tp->sendSignal(tSignal, aProcessorId) == -1) {
-    setErrorCode(4002);
-    return -1;
-  } 
-  tSignalCount++;
-
-  tSignal = theFirstSCAN_TABINFO_Send;   
-  while (tSignal != NULL){
-    if (tp->sendSignal(tSignal, aProcessorId)) {
-      setErrorCode(4002);
-      return -1;
-    }
-    tSignalCount++;
-    tSignal = tSignal->next();
-  }
-
-  if (theOperationType == OpenRangeScanRequest) {
-    // must have at least one signal since it contains attrLen for bounds
-    assert(theBoundATTRINFO != NULL);
-    tSignal = theBoundATTRINFO;
-    while (tSignal != NULL) {
-      if (tp->sendSignal(tSignal,aProcessorId) == -1){
-        setErrorCode(4002);
-        return -1;
-      }
-      tSignalCount++;
-      tSignal = tSignal->next();
-    }
-  }
-
-  tSignal = theFirstATTRINFO;
-  while (tSignal != NULL) {
-    if (tp->sendSignal(tSignal,aProcessorId) == -1){
-      setErrorCode(4002);
-      return -1;
-    }
-    tSignalCount++;
-    tSignal = tSignal->next();
-  }    
-  theStatus = WaitResponse;  
-  return tSignalCount;
-}//NdbOperation::doSendScan()
 
 void
 NdbOperation::setLastFlag(NdbApiSignal* signal, Uint32 lastFlag)
@@ -176,62 +88,6 @@ NdbOperation::doSend(int aNodeId, Uint32 lastFlag)
   theNdbCon->OpSent();
   return tSignalCount;
 }//NdbOperation::doSend()
-
-/***************************************************************************
-int prepareSendScan(Uint32 aTC_ConnectPtr,
-                    Uint64 aTransactionId)
-
-Return Value:   Return 0 : preparation of send was succesful.
-                Return -1: In all other case.   
-Parameters:     aTC_ConnectPtr: the Connect pointer to TC.
-		aTransactionId:	the Transaction identity of the transaction.
-Remark:         Puts the the final data into ATTRINFO signal(s)  after this 
-                we know the how many signal to send and their sizes
-***************************************************************************/
-int NdbOperation::prepareSendScan(Uint32 aTC_ConnectPtr,
-				   Uint64 aTransactionId){
-
-  if (theInterpretIndicator != 1 ||
-      (theOperationType != OpenScanRequest &&
-       theOperationType != OpenRangeScanRequest)) {
-    setErrorCodeAbort(4005);
-    return -1;
-  }
-
-  if (theStatus == SetBound) {
-    saveBoundATTRINFO();
-    theStatus = GetValue;
-  }
-
-  theErrorLine = 0;
-
-  // In preapareSendInterpreted we set the sizes (word 4-8) in the
-  // first ATTRINFO signal.
-  if (prepareSendInterpreted() == -1)
-    return -1;
-  
-  const Uint32 transId1 = (Uint32) (aTransactionId & 0xFFFFFFFF);
-  const Uint32 transId2 = (Uint32) (aTransactionId >> 32);
-  
-  if (theOperationType == OpenRangeScanRequest) {
-    NdbApiSignal* tSignal = theBoundATTRINFO;
-    do{
-      tSignal->setData(aTC_ConnectPtr, 1);
-      tSignal->setData(transId1, 2);
-      tSignal->setData(transId2, 3);
-      tSignal = tSignal->next();
-    } while (tSignal != NULL);
-  }
-  theCurrentATTRINFO->setLength(theAI_LenInCurrAI);
-  NdbApiSignal* tSignal = theFirstATTRINFO;
-  do{
-    tSignal->setData(aTC_ConnectPtr, 1);
-    tSignal->setData(transId1, 2);
-    tSignal->setData(transId2, 3);
-    tSignal = tSignal->next();
-  } while (tSignal != NULL);
-  return 0;
-}
 
 /***************************************************************************
 int prepareSend(Uint32 aTC_ConnectPtr,
@@ -457,6 +313,7 @@ NdbOperation::prepareSend(Uint32 aTC_ConnectPtr, Uint64 aTransId)
 
   theTCREQ->setLength(tcKeyReq->getAIInTcKeyReq(tReqInfo) +
                       tAttrInfoIndex + TcKeyReq::StaticLength);
+
   tAIDataPtr[0] = Tdata1;
   tAIDataPtr[1] = Tdata2;
   tAIDataPtr[2] = Tdata3;
@@ -479,9 +336,8 @@ NdbOperation::prepareSend(Uint32 aTC_ConnectPtr, Uint64 aTransId)
       tSignal = tnextSignal;
     } while (tSignal != NULL);
   }//if
-  NdbRecAttr* tRecAttrObject = theFirstRecAttr;
   theStatus = WaitResponse;
-  theCurrentRecAttr = tRecAttrObject;
+  theReceiver.prepareSend();
   return 0;
 }//NdbOperation::prepareSend()
 
@@ -648,70 +504,9 @@ NdbOperation::prepareSendInterpreted()
     theFirstATTRINFO->setData(tFinalReadSize, 7);
     theFirstATTRINFO->setData(tSubroutineSize, 8);  
   }//if
+  theReceiver.prepareSend();
   return 0;
 }//NdbOperation::prepareSendInterpreted()
-
-/***************************************************************************
-int TCOPCONF(int anAttrInfoLen)
-
-Return Value:   Return 0 : send was succesful.
-                Return -1: In all other case.   
-Parameters:     anAttrInfoLen: The length of the attribute information from TC.
-Remark:         Handles the reception of the TC[KEY/INDX]CONF signal.
-***************************************************************************/
-void
-NdbOperation::TCOPCONF(Uint32 anAttrInfoLen)
-{
-  Uint32 tCurrRecLen = theCurrRecAI_Len;
-  if (theStatus == WaitResponse) {
-    theTotalRecAI_Len = anAttrInfoLen;
-    if (anAttrInfoLen == tCurrRecLen) {
-      Uint32 tAI_ElemLen = theAI_ElementLen;
-      NdbRecAttr* tCurrRecAttr = theCurrentRecAttr;
-      theStatus = Finished;
-
-      if ((tAI_ElemLen == 0) &&
-          (tCurrRecAttr == NULL)) {
-        NdbRecAttr* tRecAttr = theFirstRecAttr;
-        while (tRecAttr != NULL) {
-          if (tRecAttr->copyoutRequired())	// copy to application buffer
-            tRecAttr->copyout();
-          tRecAttr = tRecAttr->next();
-        }
-        theNdbCon->OpCompleteSuccess();
-        return;
-      } else if (tAI_ElemLen != 0) {
-        setErrorCode(4213);
-        theNdbCon->OpCompleteFailure();
-        return;
-      } else {
-        setErrorCode(4214);
-        theNdbCon->OpCompleteFailure();
-        return;
-      }//if
-    } else if (anAttrInfoLen > tCurrRecLen) {
-      return;
-    } else {
-      theStatus = Finished;
-
-      if (theAI_ElementLen != 0) {
-        setErrorCode(4213);
-        theNdbCon->OpCompleteFailure();
-        return;
-      }//if
-      if (theCurrentRecAttr != NULL) {
-        setErrorCode(4214);
-        theNdbCon->OpCompleteFailure();
-        return;
-      }//if
-      theNdbCon->OpCompleteFailure();
-      return;
-    }//if
-  } else {
-    setErrorCode(4004);
-  }//if
-  return;
-}//NdbOperation::TCKEYOPCONF()
 
 int
 NdbOperation::checkState_TransId(NdbApiSignal* aSignal)
@@ -777,188 +572,13 @@ NdbOperation::receiveTCKEYREF( NdbApiSignal* aSignal)
   
 }//NdbOperation::receiveTCKEYREF()
 
-/***************************************************************************
-int receiveREAD_CONF( NdbApiSignal* aSignal)
-
-Return Value:   Return 0 : send was succesful.
-                Return -1: In all other case.   
-Parameters:     aSignal: the signal object that contains the READCONF signal from TUP.
-Remark:         Handles the reception of the READCONF signal.
-***************************************************************************/
-int
-NdbOperation::receiveREAD_CONF(const Uint32* aDataPtr, Uint32 aDataLength)
-{
-  Uint64 tRecTransId, tCurrTransId;
-  Uint32 tCondFlag = (Uint32)(theStatus - WaitResponse);
-  Uint32 tTotLen = aDataPtr[3];
-
-  tRecTransId = (Uint64)aDataPtr[1] + ((Uint64)aDataPtr[2] << 32);
-  tCurrTransId = theNdbCon->getTransactionId();
-  tCondFlag |= (Uint32)((tRecTransId - tCurrTransId) != (Uint64)0);
-  tCondFlag |= (Uint32)(aDataLength < 4);
-
-  if (tCondFlag == 0) {
-    theTotalRecAI_Len = tTotLen;
-    int tRetValue = receiveREAD_AI((Uint32*)&aDataPtr[4], (aDataLength - 4));
-    if (theStatus == Finished) {
-      return tRetValue;
-    } else {
-      theStatus = Finished;
-      return theNdbCon->OpCompleteFailure();
-    }//if
-  }//if
-#ifdef NDB_NO_DROPPED_SIGNAL
-  abort();
-#endif
-  return -1;
-}//NdbOperation::receiveREAD_CONF()
-
-/***************************************************************************
-int receiveTRANSID_AI( NdbApiSignal* aSignal)
-
-Return Value:   Return 0 : send was succesful.
-                Return -1: In all other case.   
-Parameters:     aSignal: the signal object that contains the TRANSID_AI signal.
-Remark:         Handles the reception of the TRANSID_AI signal.
-***************************************************************************/
-int
-NdbOperation::receiveTRANSID_AI(const Uint32* aDataPtr, Uint32 aDataLength)
-{
-  Uint64 tRecTransId, tCurrTransId;
-  Uint32 tCondFlag = (Uint32)(theStatus - WaitResponse);
-
-  tRecTransId = (Uint64)aDataPtr[1] + ((Uint64)aDataPtr[2] << 32);
-  tCurrTransId = theNdbCon->getTransactionId();
-  tCondFlag |= (Uint32)((tRecTransId - tCurrTransId) != (Uint64)0);
-  tCondFlag |= (Uint32)(aDataLength < 3);
-
-  if (tCondFlag == 0) {
-    return receiveREAD_AI((Uint32*)&aDataPtr[3], (aDataLength - 3));
-  }//if
-#ifdef NDB_NO_DROPPED_SIGNAL
-  abort();
-#endif
-  return -1;
-}//NdbOperation::receiveTRANSID_AI()
-
-/***************************************************************************
-int receiveREAD_AI( NdbApiSignal* aSignal, int aLength, int aStartPos)
-
-Return Value:   Return 0 : send was succesoccurredful.
-                Return -1: In all other case.   
-Parameters:     aSignal: the signal object that contains the LEN_ATTRINFO11 signal.
-                aLength:
-		aStartPos: 
-Remark:         Handles the reception of the LEN_ATTRINFO11 signal.
-***************************************************************************/
-int
-NdbOperation::receiveREAD_AI(Uint32* aDataPtr, Uint32 aLength)
-{
-
-  register Uint32  tAI_ElementLen = theAI_ElementLen;
-  register Uint32* tCurrElemPtr   = theCurrElemPtr;
-  if (theError.code == 0) {
-  // If inconsistency error occurred we will still continue
-  // receiving signals since we need to know whether commit
-  // has occurred.
-
-    register Uint32  tData;
-    for (register Uint32 i = 0; i < aLength ; i++, aDataPtr++)
-    {
-      // Code to receive Attribute Information 
-      tData = *aDataPtr;
-      if (tAI_ElementLen != 0) {
-        tAI_ElementLen--;
-        *tCurrElemPtr = tData;
-        tCurrElemPtr++;
-        continue;
-      } else {
-      // Waiting for a new attribute element
-        NdbRecAttr* tWorkingRecAttr;
-	
-        tWorkingRecAttr = theCurrentRecAttr;
-	AttributeHeader ah(tData);
-        const Uint32 tAttrId = ah.getAttributeId();
-	const Uint32 tAttrSize = ah.getDataSize();
-        if ((tWorkingRecAttr != NULL) &&
-            (tWorkingRecAttr->attrId() == tAttrId)) {
-          ;
-        } else {
-          setErrorCode(4211);
-          break;
-        }//if
-        theCurrentRecAttr = tWorkingRecAttr->next();
-	NdbColumnImpl * col = m_currentTable->getColumn(tAttrId);
-        if (ah.isNULL()) {
-	  // Return a Null value from the NDB to the attribute. 
-	  if(col != 0 && col->m_nullable) {
-	    tWorkingRecAttr->setNULL();
-	    tAI_ElementLen = 0;
-	  } else {
-	    setErrorCode(4212);
-	    break;
-	  }//if
-        } else	{
-	  // Return a value from the NDB to the attribute. 
-	  tWorkingRecAttr->setNotNULL();
-	  const Uint32 sizeInBytes = col->m_attrSize * col->m_arraySize;
-	  const Uint32 sizeInWords = (sizeInBytes + 3) / 4;
-	  tAI_ElementLen = tAttrSize;
-	  tCurrElemPtr = (Uint32*)tWorkingRecAttr->aRef();
-	  if (sizeInWords == tAttrSize){
-            continue;
-          } else {
-	    setErrorCode(4201);
-	    break;
-	  }//if
-        }//if
-      }//if
-    }//for
-  }//if
-  Uint32 tCurrRecLen = theCurrRecAI_Len;
-  Uint32 tTotRecLen = theTotalRecAI_Len;
-  theAI_ElementLen = tAI_ElementLen;
-  theCurrElemPtr = tCurrElemPtr;
-  tCurrRecLen = tCurrRecLen + aLength;
-  theCurrRecAI_Len = tCurrRecLen; // Update Current Received AI Length
-  if (tTotRecLen == tCurrRecLen){		// Operation completed
-    NdbRecAttr* tCurrRecAttr = theCurrentRecAttr;
-    theStatus = Finished;
-    
-    NdbConnection* tNdbCon = theNdbCon;
-    if ((tAI_ElementLen == 0) &&
-        (tCurrRecAttr == NULL)) {
-      NdbRecAttr* tRecAttr = theFirstRecAttr;
-      while (tRecAttr != NULL) {
-	if (tRecAttr->copyoutRequired())	// copy to application buffer
-	  tRecAttr->copyout();
-	tRecAttr = tRecAttr->next();
-      }
-      return tNdbCon->OpCompleteSuccess();
-    } else if (tAI_ElementLen != 0) {
-      setErrorCode(4213);
-      return tNdbCon->OpCompleteFailure();
-    } else {
-      setErrorCode(4214);
-      return tNdbCon->OpCompleteFailure();
-    }//if
-  } 
-  else if ((tCurrRecLen > tTotRecLen) &&
-           (tTotRecLen > 0)) { /* == 0 if TCKEYCONF not yet received */
-    setErrorCode(4215);
-    theStatus = Finished;
-    
-    return theNdbCon->OpCompleteFailure(); 
-  }//if
-  return -1;	// Continue waiting for more signals of this operation
-}//NdbOperation::receiveREAD_AI()
 
 void
 NdbOperation::handleFailedAI_ElemLen()
 {
-  NdbRecAttr* tRecAttr = theFirstRecAttr;
+  NdbRecAttr* tRecAttr = theReceiver.theFirstRecAttr;
   while (tRecAttr != NULL) {
-    tRecAttr->setUNDEFINED();
+    tRecAttr->setNULL();
     tRecAttr = tRecAttr->next();
   }//while
 }//NdbOperation::handleFailedAI_ElemLen()

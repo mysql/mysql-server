@@ -93,10 +93,15 @@ db_find_routine_aux(THD *thd, int type, sp_name *name,
   key[128]= type;
   keylen= sizeof(key);
 
-  for (table= thd->open_tables ; table ; table= table->next)
-    if (strcmp(table->table_cache_key, "mysql") == 0 &&
-	strcmp(table->real_name, "proc") == 0)
-      break;
+  if (thd->lex->proc_table)
+    table= thd->lex->proc_table->table;
+  else
+  {
+    for (table= thd->open_tables ; table ; table= table->next)
+      if (strcmp(table->table_cache_key, "mysql") == 0 &&
+          strcmp(table->real_name, "proc") == 0)
+        break;
+  }
   if (table)
     *opened= FALSE;
   else
@@ -366,6 +371,7 @@ db_create_routine(THD *thd, int type, sp_head *sp)
     table->field[MYSQL_PROC_FIELD_DEFINER]->
       store(definer, (uint)strlen(definer), system_charset_info);
     ((Field_timestamp *)table->field[MYSQL_PROC_FIELD_CREATED])->set_time();
+    ((Field_timestamp *)table->field[MYSQL_PROC_FIELD_MODIFIED])->set_time();
     table->field[MYSQL_PROC_FIELD_SQL_MODE]->
       store((longlong)thd->variables.sql_mode);
     if (sp->m_chistics->comment.str)
@@ -425,6 +431,7 @@ db_update_routine(THD *thd, int type, sp_name *name,
   if (ret == SP_OK)
   {
     store_record(table,record[1]);
+    table->timestamp_on_update_now = 0;	// Don't update create time now.
     ((Field_timestamp *)table->field[MYSQL_PROC_FIELD_MODIFIED])->set_time();
     if (chistics->suid != IS_DEFAULT_SUID)
       table->field[MYSQL_PROC_FIELD_SECURITY_TYPE]->store((longlong)chistics->suid);
@@ -954,6 +961,7 @@ sp_cache_functions(THD *thd, LEX *lex)
       LEX *newlex= new st_lex;
 
       thd->lex= newlex;
+      newlex->proc_table= oldlex->proc_table; // hint if mysql.oper is opened
       name.m_name.str= strchr(name.m_qname.str, '.');
       name.m_db.length= name.m_name.str - name.m_qname.str;
       name.m_db.str= strmake_root(&thd->mem_root,
@@ -1046,6 +1054,8 @@ sp_use_new_db(THD *thd, char *newdb, char *olddb, uint olddblen,
   DBUG_ENTER("sp_use_new_db");
   DBUG_PRINT("enter", ("newdb: %s", newdb));
 
+  if (! newdb)
+    newdb= (char *)"";
   if (thd->db && thd->db[0])
   {
     if (my_strcasecmp(system_charset_info, thd->db, newdb) == 0)

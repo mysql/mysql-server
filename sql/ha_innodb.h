@@ -164,7 +164,7 @@ class ha_innobase: public handler
   	THR_LOCK_DATA **store_lock(THD *thd, THR_LOCK_DATA **to,
 			     		enum thr_lock_type lock_type);
 	void init_table_handle_for_HANDLER(); 
-	longlong get_auto_increment();
+	ulonglong get_auto_increment();
         uint8 table_cache_type() { return HA_CACHE_TBL_ASKTRANSACT; }
         static char *get_mysql_bin_log_name();
         static ulonglong get_mysql_bin_log_pos();
@@ -190,7 +190,8 @@ extern char *innobase_unix_file_flush_method;
 /* The following variables have to be my_bool for SHOW VARIABLES to work */
 extern my_bool innobase_log_archive,
                innobase_use_native_aio, innobase_fast_shutdown,
-	       innobase_file_per_table;
+	       innobase_file_per_table, innobase_locks_unsafe_for_binlog,
+               innobase_create_status_file;
 extern "C" {
 extern ulong srv_max_buf_pool_modified_pct;
 }

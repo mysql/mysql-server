@@ -23,6 +23,8 @@
 #include "mysql_priv.h"
 #include "sql_acl.h"
 #include "sql_select.h"
+#include "sp_head.h"
+#include "sql_trigger.h"
 
 static bool safe_update_on_fly(JOIN_TAB *join_tab, List<Item> *fields);
 
@@ -65,9 +67,10 @@ static bool check_fields(THD *thd, List<Item> &items)
 {
   List_iterator<Item> it(items);
   Item *item;
+  Item_field *field;
   while ((item= it++))
   {
-    if (item->type() != Item::FIELD_ITEM)
+    if (!(field= item->filed_for_view_update()))
     {
       /* as far as item comes from VIEW select list it has name */
       my_error(ER_NONUPDATEABLE_COLUMN, MYF(0), item->name);
@@ -77,7 +80,7 @@ static bool check_fields(THD *thd, List<Item> &items)
       we make temporary copy of Item_field, to avoid influence of changing
       result_field on Item_ref which refer on this field
     */
-    Item_field *field= new Item_field(thd, (Item_field *)item);
+    field= new Item_field(thd, field);
     it.replace(field);
     ((Item_field *)item)->register_item_tree_changing(it.ref());
   }
@@ -113,8 +116,8 @@ int mysql_update(THD *thd,
   LINT_INIT(used_index);
   LINT_INIT(timestamp_query_id);
 
-  if ((open_and_lock_tables(thd, table_list)))
-    DBUG_RETURN(-1);
+  if ((error= open_and_lock_tables(thd, table_list)))
+    DBUG_RETURN(error);
   thd->proc_info="init";
   table= table_list->table;
   table->file->info(HA_STATUS_VARIABLE | HA_STATUS_NO_LOCK);
@@ -346,6 +349,12 @@ int mysql_update(THD *thd,
   thd->proc_info="Updating";
   query_id=thd->query_id;
 
+  transactional_table= table->file->has_transactions();
+  thd->no_trans_update= 0;
+  thd->abort_on_warning= test(thd->variables.sql_mode &
+                              (MODE_STRICT_TRANS_TABLES |
+                               MODE_STRICT_ALL_TABLES));
+
   while (!(error=info.read_record(&info)) && !thd->killed)
   {
     if (!(select && select->skip_record()))
@@ -354,12 +363,17 @@ int mysql_update(THD *thd,
       if (fill_record(fields,values, 0) || thd->net.report_error)
 	break; /* purecov: inspected */
       found++;
+
+      if (table->triggers)
+        table->triggers->process_triggers(thd, TRG_EVENT_UPDATE, TRG_ACTION_BEFORE);
+
       if (compare_record(table, query_id))
       {
 	if (!(error=table->file->update_row((byte*) table->record[1],
 					    (byte*) table->record[0])))
 	{
 	  updated++;
+          thd->no_trans_update= !transactional_table;
 	}
 	else if (handle_duplicates != DUP_IGNORE ||
 		 error != HA_ERR_FOUND_DUPP_KEY)
@@ -369,6 +383,10 @@ int mysql_update(THD *thd,
 	  break;
 	}
       }
+
+      if (table->triggers)
+        table->triggers->process_triggers(thd, TRG_EVENT_UPDATE, TRG_ACTION_AFTER);
+
       if (!--limit && using_limit)
       {
 	error= -1;				// Simulate end of file
@@ -396,7 +414,6 @@ int mysql_update(THD *thd,
     query_cache_invalidate3(thd, table_list, 1);
   }
 
-  transactional_table= table->file->has_transactions();
   log_delayed= (transactional_table || table->tmp_table);
   if ((updated || (error < 0)) && (error <= 0 || !transactional_table))
   {
@@ -450,6 +467,7 @@ err:
     table->key_read=0;
     table->file->extra(HA_EXTRA_NO_KEYREAD);
   }
+  thd->abort_on_warning= 0;
   DBUG_RETURN(-1);
 }
 
@@ -496,8 +514,7 @@ int mysql_prepare_update(THD *thd, TABLE_LIST *table_list,
     DBUG_RETURN(-1);
 
   /* Check that we are not using table that we are updating in a sub select */
-  if (find_real_table_in_list(table_list->next_global, 
-			      table_list->db, table_list->real_name))
+  if (unique_table(table_list, table_list->next_independent()))
   {
     my_error(ER_UPDATE_TABLE_USED, MYF(0), table_list->real_name);
     DBUG_RETURN(-1);
@@ -648,6 +665,11 @@ int mysql_multi_update(THD *thd,
 				 handle_duplicates)))
     DBUG_RETURN(-1);
 
+  thd->no_trans_update= 0;
+  thd->abort_on_warning= test(thd->variables.sql_mode &
+                              (MODE_STRICT_TRANS_TABLES |
+                               MODE_STRICT_ALL_TABLES));
+
   List<Item> total_list;
   res= mysql_select(thd, &select_lex->ref_pointer_array,
 		    table_list, select_lex->with_wild,
@@ -657,6 +679,7 @@ int mysql_multi_update(THD *thd,
 		    options | SELECT_NO_JOIN_CACHE | SELECT_NO_UNLOCK,
 		    result, unit, select_lex);
   delete result;
+  thd->abort_on_warning= 0;
   DBUG_RETURN(res);
 }
 
@@ -788,7 +811,7 @@ int multi_update::prepare(List<Item> &not_used_values,
   {
     TABLE *table=table_ref->table;
     if (!(tables_to_update & table->map) && 
-	find_real_table_in_list(update_tables, table_ref->db,
+	find_table_in_local_list(update_tables, table_ref->db,
 				table_ref->real_name))
       table->no_cache= 1;			// Disable row cache
   }
@@ -1004,6 +1027,8 @@ bool multi_update::send_data(List<Item> &not_used_values)
 	  updated--;
 	  DBUG_RETURN(1);
 	}
+        if (!table->file->has_transactions())
+          thd->no_trans_update= 1;
       }
     }
     else

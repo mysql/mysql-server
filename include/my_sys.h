@@ -251,6 +251,12 @@ typedef struct wild_file_pack	/* Struct to hold info when selecting files */
   my_string	*wild;		/* Pointer to wildcards */
 } WF_PACK;
 
+enum loglevel {
+   ERROR_LEVEL,
+   WARNING_LEVEL,
+   INFORMATION_LEVEL
+};
+
 enum cache_type
 {
   READ_CACHE,WRITE_CACHE,
@@ -506,6 +512,10 @@ my_off_t my_b_safe_tell(IO_CACHE* info); /* picks the correct tell() */
 
 typedef uint32 ha_checksum;
 
+/* Define the type of function to be passed to process_default_option_files */
+typedef int (*Process_option_func)(void *ctx, const char *group_name,
+                                    const char *option);
+
 #include <my_alloc.h>
 
 	/* Prototypes for mysys and my_func functions */
@@ -697,7 +707,8 @@ File create_temp_file(char *to, const char *dir, const char *pfx,
 #define my_init_dynamic_array(A,B,C,D) init_dynamic_array(A,B,C,D CALLER_INFO)
 #define my_init_dynamic_array_ci(A,B,C,D) init_dynamic_array(A,B,C,D ORIG_CALLER_INFO)
 extern my_bool init_dynamic_array(DYNAMIC_ARRAY *array,uint element_size,
-	  uint init_alloc,uint alloc_increment CALLER_INFO_PROTO);
+                                  uint init_alloc,uint alloc_increment
+                                  CALLER_INFO_PROTO);
 extern my_bool insert_dynamic(DYNAMIC_ARRAY *array,gptr element);
 extern byte *alloc_dynamic(DYNAMIC_ARRAY *array);
 extern byte *pop_dynamic(DYNAMIC_ARRAY*);
@@ -740,6 +751,9 @@ extern char *strmake_root(MEM_ROOT *root,const char *str,uint len);
 extern char *memdup_root(MEM_ROOT *root,const char *str,uint len);
 extern int load_defaults(const char *conf_file, const char **groups,
 			 int *argc, char ***argv);
+extern int process_default_option_files(const char *conf_file,
+                                        Process_option_func func,
+                                        void *func_ctx);
 extern void free_defaults(char **argv);
 extern void print_defaults(const char *conf_file, const char **groups);
 extern my_bool my_compress(byte *, ulong *, ulong *);
@@ -773,6 +787,10 @@ extern my_bool init_compiled_charsets(myf flags);
 extern void add_compiled_collation(CHARSET_INFO *cs);
 extern ulong escape_string_for_mysql(CHARSET_INFO *charset_info, char *to,
                                      const char *from, ulong length);
+
+extern void thd_increment_bytes_sent(ulong length);
+extern void thd_increment_bytes_received(ulong length);
+extern void thd_increment_net_big_packet_count(ulong length);
 
 #ifdef __WIN__
 extern my_bool have_tcpip;		/* Is set if tcpip is used */

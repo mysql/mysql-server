@@ -132,9 +132,6 @@ Dbtup::Dbtup(const class Configuration & conf)
   addRecSignal(GSN_TUP_WRITELOG_REQ, &Dbtup::execTUP_WRITELOG_REQ);
 
   // Ordered index related
-  addRecSignal(GSN_TUP_READ_ATTRS, &Dbtup::execTUP_READ_ATTRS);
-  addRecSignal(GSN_TUP_QUERY_TH, &Dbtup::execTUP_QUERY_TH);
-  addRecSignal(GSN_TUP_STORE_TH, &Dbtup::execTUP_STORE_TH);
   addRecSignal(GSN_BUILDINDXREQ, &Dbtup::execBUILDINDXREQ);
 
   initData();
@@ -701,7 +698,8 @@ void Dbtup::initRecords()
 
   page = (Page*)allocRecord("Page", 
 			    sizeof(Page), 
-			    cnoOfPage);
+			    cnoOfPage,
+			    false);
   
   pageRange = (PageRange*)allocRecord("PageRange",
 				      sizeof(PageRange), 
@@ -891,6 +889,7 @@ void Dbtup::initializeAttrbufrec()
   AttrbufrecPtr attrBufPtr;
   for (attrBufPtr.i = 0;
        attrBufPtr.i < cnoOfAttrbufrec; attrBufPtr.i++) {
+    refresh_watch_dog();
     ptrAss(attrBufPtr, attrbufrec);
     attrBufPtr.p->attrbuf[ZBUF_NEXT] = attrBufPtr.i + 1;
   }//for
@@ -947,6 +946,7 @@ void Dbtup::initializeFragrecord()
 {
   FragrecordPtr regFragPtr;
   for (regFragPtr.i = 0; regFragPtr.i < cnoOfFragrec; regFragPtr.i++) {
+    refresh_watch_dog();
     ptrAss(regFragPtr, fragrecord);
     regFragPtr.p->nextfreefrag = regFragPtr.i + 1;
     regFragPtr.p->checkpointVersion = RNIL;
@@ -966,9 +966,7 @@ void Dbtup::initializeHostBuffer()
   for (hostId = 0; hostId < MAX_NODES; hostId++) {
     hostBuffer[hostId].inPackedList = false;
     hostBuffer[hostId].noOfPacketsTA = 0;
-    hostBuffer[hostId].noOfPacketsRC = 0;
     hostBuffer[hostId].packetLenTA = 0;
-    hostBuffer[hostId].packetLenRC = 0;
   }//for
 }//Dbtup::initializeHostBuffer()
 
@@ -987,6 +985,7 @@ void Dbtup::initializeOperationrec()
 {
   OperationrecPtr regOpPtr;
   for (regOpPtr.i = 0; regOpPtr.i < cnoOfOprec; regOpPtr.i++) {
+    refresh_watch_dog();
     ptrAss(regOpPtr, operationrec);
     regOpPtr.p->firstAttrinbufrec = RNIL;
     regOpPtr.p->lastAttrinbufrec = RNIL;
@@ -1041,6 +1040,7 @@ void Dbtup::initializeTablerec()
   TablerecPtr regTabPtr;
   for (regTabPtr.i = 0; regTabPtr.i < cnoOfTablerec; regTabPtr.i++) {
     ljam();
+    refresh_watch_dog();
     ptrAss(regTabPtr, tablerec);
     initTab(regTabPtr.p);
   }//for
@@ -1104,6 +1104,7 @@ void Dbtup::initializeTabDescr()
     cfreeTdList[i] = RNIL;
   }//for
   for (regTabDesPtr.i = 0; regTabDesPtr.i < cnoOfTabDescrRec; regTabDesPtr.i++) {
+    refresh_watch_dog();
     ptrAss(regTabDesPtr, tableDescriptor);
     regTabDesPtr.p->tabDescr = RNIL;
   }//for
@@ -1116,6 +1117,7 @@ void Dbtup::initializeUndoPage()
   for (undoPagep.i = 0;
        undoPagep.i < cnoOfUndoPage;
        undoPagep.i = undoPagep.i + ZUB_SEGMENT_SIZE) {
+    refresh_watch_dog();
     ptrAss(undoPagep, undoPage);
     undoPagep.p->undoPageWord[ZPAGE_NEXT_POS] = undoPagep.i + 
                                                  ZUB_SEGMENT_SIZE;

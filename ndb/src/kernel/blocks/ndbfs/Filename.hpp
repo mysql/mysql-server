@@ -68,7 +68,7 @@ public:
   int levels() const;
   const char* c_str() const;
    
-  void init(const char * fileSystemPath);
+  void init(Uint32 nodeid, const char * fileSystemPath);
 
 private:
   int theLevelDepth;

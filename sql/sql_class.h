@@ -373,6 +373,7 @@ struct system_variables
   ulonglong myisam_max_sort_file_size;
   ha_rows select_limit;
   ha_rows max_join_size;
+  ulong auto_increment_increment, auto_increment_offset;
   ulong bulk_insert_buff_size;
   ulong join_buff_size;
   ulong long_query_time;
@@ -442,6 +443,61 @@ struct system_variables
   DATE_TIME_FORMAT *time_format;
 };
 
+
+/* per thread status variables */
+
+typedef struct system_status_var
+{
+  ulong bytes_received;
+  ulong bytes_sent;
+  ulong com_other;
+  ulong com_stat[(uint) SQLCOM_END];
+  ulong created_tmp_disk_tables;
+  ulong created_tmp_tables;
+  ulong ha_commit_count;
+  ulong ha_delete_count;
+  ulong ha_read_first_count;
+  ulong ha_read_last_count;
+  ulong ha_read_key_count;
+  ulong ha_read_next_count;
+  ulong ha_read_prev_count;
+  ulong ha_read_rnd_count;
+  ulong ha_read_rnd_next_count;
+  ulong ha_rollback_count;
+  ulong ha_update_count;
+  ulong ha_write_count;
+
+  /* KEY_CACHE parts. These are copies of the original */
+  ulong key_blocks_changed;
+  ulong key_blocks_used;
+  ulong key_cache_r_requests;
+  ulong key_cache_read;
+  ulong key_cache_w_requests;
+  ulong key_cache_write;
+  /* END OF KEY_CACHE parts */
+
+  ulong net_big_packet_count;
+  ulong opened_tables;
+  ulong select_full_join_count;
+  ulong select_full_range_join_count;
+  ulong select_range_count;
+  ulong select_range_check_count;
+  ulong select_scan_count;
+  ulong long_query_count;
+  ulong filesort_merge_passes;
+  ulong filesort_range_count;
+  ulong filesort_rows;
+  ulong filesort_scan_count;
+} STATUS_VAR;
+
+/*
+  This is used for 'show status'. It must be updated to the last ulong
+  variable in system_status_var
+*/
+
+#define last_system_status_var filesort_scan_count
+
+
 void free_tmp_table(THD *thd, TABLE *entry);
 
 
@@ -454,12 +510,30 @@ public:
   */
   Item *free_list;
   MEM_ROOT mem_root;
+  enum enum_state 
+  {
+    INITIALIZED= 0, PREPARED= 1, EXECUTED= 3, CONVENTIONAL_EXECUTION= 2, 
+    ERROR= -1
+  };
   
+  enum_state state;
+
+  /* We build without RTTI, so dynamic_cast can't be used. */
+  enum Type
+  {
+    STATEMENT, PREPARED_STATEMENT, STORED_PROCEDURE
+  };
+
   Item_arena(THD *thd);
   Item_arena();
   Item_arena(bool init_mem_root);
-  ~Item_arena();
+  virtual Type type() const;
+  virtual ~Item_arena();
 
+  inline bool is_stmt_prepare() const { return (int)state < (int)PREPARED; }
+  inline bool is_first_stmt_execute() const { return state == PREPARED; }
+  inline bool is_conventional() const
+  { return state == CONVENTIONAL_EXECUTION; }
   inline gptr alloc(unsigned int size) { return alloc_root(&mem_root,size); }
   inline gptr calloc(unsigned int size)
   {
@@ -549,12 +623,6 @@ public:
   Cursor *cursor;
 
 public:
-  /* We build without RTTI, so dynamic_cast can't be used. */
-  enum Type
-  {
-    STATEMENT,
-    PREPARED_STATEMENT
-  };
 
   /*
     This constructor is called when statement is a subobject of THD:
@@ -567,9 +635,16 @@ public:
 
   /* Assign execution context (note: not all members) of given stmt to self */
   void set_statement(Statement *stmt);
+  void set_n_backup_statement(Statement *stmt, Statement *backup);
+  void restore_backup_statement(Statement *stmt, Statement *backup);
   /* return class type */
   virtual Type type() const;
 
+  /*
+    Cleanup statement parse state (parse tree, lex) after execution of
+    a non-prepared SQL statement.
+  */
+  void end_statement();
 };
 
 
@@ -664,6 +739,7 @@ public:
   struct  sockaddr_in remote;		// client socket address
   struct  rand_struct rand;		// used for authentication
   struct  system_variables variables;	// Changeable local variables
+  struct  system_status_var status_var; // Per thread statistic vars
   pthread_mutex_t LOCK_delete;		// Locked before thd is deleted
   /* 
     Note that (A) if we set query = NULL, we must at the same time set
@@ -818,6 +894,8 @@ public:
     generated auto_increment value in handler.cc
   */
   ulonglong  next_insert_id;
+  /* Remember last next_insert_id to reset it if something went wrong */
+  ulonglong  prev_insert_id;
   /*
     The insert_id used for the last statement or set by SET LAST_INSERT_ID=#
     or SELECT LAST_INSERT_ID(#).  Used for binary log and returned by
@@ -862,7 +940,7 @@ public:
   ulong      row_count;  // Row counter, mainly for errors and warnings
   long	     dbug_thread_id;
   pthread_t  real_id;
-  uint	     current_tablenr,tmp_table;
+  uint	     current_tablenr,tmp_table,global_read_lock;
   uint	     server_status,open_options,system_thread;
   uint32     db_length;
   uint       select_number;             //number of select (used for EXPLAIN)
@@ -872,6 +950,9 @@ public:
   /* for user variables replication*/
   DYNAMIC_ARRAY user_var_events;
 
+  enum killed_state { NOT_KILLED=0, KILL_BAD_DATA=1, KILL_CONNECTION=ER_SERVER_SHUTDOWN, KILL_QUERY=ER_QUERY_INTERRUPTED };
+  killed_state volatile killed;
+
   /* scramble - random string sent to client on handshake */
   char	     scramble[SCRAMBLE_LENGTH+1];
 
@@ -879,26 +960,14 @@ public:
   bool	     locked, some_tables_deleted;
   bool       last_cuted_field;
   bool	     no_errors, password, is_fatal_error;
-  bool	     query_start_used,last_insert_id_used,insert_id_used,rand_used;
-  bool	     time_zone_used;
-  bool	     in_lock_tables,global_read_lock;
+  bool	     query_start_used, rand_used, time_zone_used;
+  bool	     last_insert_id_used,insert_id_used, clear_next_insert_id;
+  bool	     in_lock_tables;
   bool       query_error, bootstrap, cleanup_done;
-
-  enum killed_state { NOT_KILLED=0, KILL_CONNECTION=ER_SERVER_SHUTDOWN, KILL_QUERY=ER_QUERY_INTERRUPTED };
-  killed_state volatile killed;
-  inline int killed_errno() const
-  {
-    return killed;
-  }
-  inline void send_kill_message() const
-  {
-    my_error(killed_errno(), MYF(0));
-  }
-
   bool	     tmp_table_used;
   bool	     charset_is_system_charset, charset_is_collation_connection;
   bool       slow_command;
-
+  bool	     no_trans_update, abort_on_warning;
   longlong   row_count_func;	/* For the ROW_COUNT() function */
   sp_rcontext *spcont;		// SP runtime context
   sp_cache   *sp_proc_cache;
@@ -934,6 +1003,7 @@ public:
   void init_for_queries();
   void change_user(void);
   void cleanup(void);
+  void cleanup_after_query();
   bool store_globals();
 #ifdef SIGNAL_WITH_VIO_CLOSE
   inline void set_active_vio(Vio* vio)
@@ -951,6 +1021,12 @@ public:
   void close_active_vio();
 #endif  
   void awake(THD::killed_state state_to_set);
+  /*
+    For enter_cond() / exit_cond() to work the mutex must be got before
+    enter_cond() (in 4.1 an assertion will soon ensure this); this mutex is
+    then released by exit_cond(). Use must be:
+    lock mutex; enter_cond(); your code; exit_cond().
+  */
   inline const char* enter_cond(pthread_cond_t *cond, pthread_mutex_t* mutex,
 			  const char* msg)
   {
@@ -962,6 +1038,13 @@ public:
   }
   inline void exit_cond(const char* old_msg)
   {
+    /*
+      Putting the mutex unlock in exit_cond() ensures that
+      mysys_var->current_mutex is always unlocked _before_ mysys_var->mutex is
+      locked (if that would not be the case, you'll get a deadlock if someone
+      does a THD::awake() on you).
+    */
+    pthread_mutex_unlock(mysys_var->current_mutex);
     pthread_mutex_lock(&mysys_var->mutex);
     mysys_var->current_mutex = 0;
     mysys_var->current_cond = 0;
@@ -1001,6 +1084,10 @@ public:
     return 0;
 #endif
   }
+  inline bool only_prepare()
+  {
+    return command == COM_PREPARE;
+  }
   inline gptr trans_alloc(unsigned int size) 
   { 
     return alloc_root(&transaction.mem_root,size);
@@ -1036,38 +1123,22 @@ public:
   }
   inline CHARSET_INFO *charset() { return variables.character_set_client; }
   void update_charset();
-
-  inline void allocate_temporary_memory_pool_for_ps_preparing()
+  inline int killed_errno() const
   {
-    DBUG_ASSERT(current_arena!=0);
-    /*
-      We do not want to have in PS memory all that junk,
-      which will be created by preparation => substitute memory
-      from original thread pool.
-
-      We know that PS memory pool is now copied to THD, we move it back
-      to allow some code use it.
-    */
-    current_arena->set_item_arena(this);
-    init_sql_alloc(&mem_root,
-		   variables.query_alloc_block_size,
-		   variables.query_prealloc_size);
-    free_list= 0;
+    return killed != KILL_BAD_DATA ? killed : 0;
   }
-  inline void free_temporary_memory_pool_for_ps_preparing()
+  inline void send_kill_message() const
   {
-    DBUG_ASSERT(current_arena!=0);
-    cleanup_items(current_arena->free_list);
-    /* no need to reset free_list as it won't be used anymore */
-    free_items(free_list);
-    close_thread_tables(this); // to close derived tables
-    free_root(&mem_root, MYF(0));
-    set_item_arena(current_arena);
+    my_error(killed_errno(), MYF(0));
   }
-  inline bool only_prepare()
+  /* return TRUE if we will abort query if we make a warning now */
+  inline bool really_abort_on_warning()
   {
-    return command == COM_PREPARE;
+    return (abort_on_warning &&
+            (!no_trans_update ||
+             (variables.sql_mode & MODE_STRICT_ALL_TABLES)));
   }
+  void set_status_var_init();
 };
 
 /* Flags for the THD::system_thread (bitmap) variable */
@@ -1076,9 +1147,32 @@ public:
 #define SYSTEM_THREAD_SLAVE_SQL 4
 
 /*
+  Disables binary logging for one thread, and resets it back to what it was
+  before being disabled. 
+  Some functions (like the internal mysql_create_table() when it's called by
+  mysql_alter_table()) must NOT write to the binlog (binlogging is done at the
+  at a later stage of the command already, and must be, for locking reasons);
+  so we internally disable it temporarily by creating the Disable_binlog
+  object and reset the state by destroying the object (don't forget that! or
+  write code so that the object gets automatically destroyed when leaving a
+  block, see example in sql_table.cc).
+*/
+class Disable_binlog {
+private:
+  THD *thd;
+  ulong save_options;
+public:
+  Disable_binlog(THD *thd_arg);
+  ~Disable_binlog();
+};
+
+
+/*
   Used to hold information about file and file structure in exchainge 
   via non-DB file (...INTO OUTFILE..., ...LOAD DATA...)
+  XXX: We never call destructor for objects of this class.
 */
+
 class sql_exchange :public Sql_alloc
 {
 public:
@@ -1088,7 +1182,6 @@ public:
   bool dumpfile;
   ulong skip_lines;
   sql_exchange(char *name,bool dumpfile_flag);
-  ~sql_exchange() {}
 };
 
 #include "log_event.h"
@@ -1119,6 +1212,11 @@ public:
   virtual void send_error(uint errcode,const char *err);
   virtual bool send_eof()=0;
   virtual void abort() {}
+  /*
+    Cleanup instance of this class for next execution of a prepared
+    statement/stored procedure.
+  */
+  virtual void cleanup();
 };
 
 
@@ -1145,6 +1243,8 @@ public:
   ~select_to_file();
   bool send_fields(List<Item> &list, uint flags) { return 0; }
   void send_error(uint errcode,const char *err);
+  bool send_eof();
+  void cleanup();
 };
 
 
@@ -1157,7 +1257,6 @@ public:
   ~select_export();
   int prepare(List<Item> &list, SELECT_LEX_UNIT *u);
   bool send_data(List<Item> &items);
-  bool send_eof();
 };
 
 
@@ -1166,7 +1265,6 @@ public:
   select_dump(sql_exchange *ex) :select_to_file(ex) {}
   int prepare(List<Item> &list, SELECT_LEX_UNIT *u);
   bool send_data(List<Item> &items);
-  bool send_eof();
 };
 
 
@@ -1194,6 +1292,8 @@ class select_insert :public select_result {
   bool send_data(List<Item> &items);
   void send_error(uint errcode,const char *err);
   bool send_eof();
+  /* not implemented: select_insert is never re-used in prepared statements */
+  void cleanup();
 };
 
 
@@ -1520,4 +1620,9 @@ public:
   bool send_fields(List<Item> &list, uint flags) { return 0; }
   bool send_data(List<Item> &items);
   bool send_eof();
+  void cleanup();
 };
+
+/* Functions in sql_class.cc */
+
+void add_to_status(STATUS_VAR *to_var, STATUS_VAR *from_var);

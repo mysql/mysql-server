@@ -108,9 +108,9 @@ insert into t1 values ('0000-00-00 00:00:00'),('1969-12-31 23:59:59'),
 ('1970-01-01 00:00:00'),('1970-01-01 00:00:01'),
 ('2037-12-31 23:59:59'),('2038-01-01 00:00:00');
 Warnings:
-Warning	1264	Data truncated; out of range for column 'ts' at row 2
-Warning	1264	Data truncated; out of range for column 'ts' at row 3
-Warning	1264	Data truncated; out of range for column 'ts' at row 6
+Warning	1264	Out of range value adjusted for column 'ts' at row 2
+Warning	1264	Out of range value adjusted for column 'ts' at row 3
+Warning	1264	Out of range value adjusted for column 'ts' at row 6
 select * from t1;
 ts
 0000-00-00 00:00:00
@@ -125,9 +125,9 @@ insert into t1 values ('0000-00-00 00:00:00'),('1970-01-01 00:30:00'),
 ('1970-01-01 01:00:00'),('1970-01-01 01:00:01'),
 ('2038-01-01 00:59:59'),('2038-01-01 01:00:00');
 Warnings:
-Warning	1264	Data truncated; out of range for column 'ts' at row 2
-Warning	1264	Data truncated; out of range for column 'ts' at row 3
-Warning	1264	Data truncated; out of range for column 'ts' at row 6
+Warning	1264	Out of range value adjusted for column 'ts' at row 2
+Warning	1264	Out of range value adjusted for column 'ts' at row 3
+Warning	1264	Out of range value adjusted for column 'ts' at row 6
 select * from t1;
 ts
 0000-00-00 00:00:00
@@ -142,9 +142,9 @@ insert into t1 values ('0000-00-00 00:00:00'),('1970-01-01 01:00:00'),
 ('1970-01-01 01:30:00'),('1970-01-01 01:30:01'),
 ('2038-01-01 01:29:59'),('2038-01-01 01:30:00');
 Warnings:
-Warning	1264	Data truncated; out of range for column 'ts' at row 2
-Warning	1264	Data truncated; out of range for column 'ts' at row 3
-Warning	1264	Data truncated; out of range for column 'ts' at row 6
+Warning	1264	Out of range value adjusted for column 'ts' at row 2
+Warning	1264	Out of range value adjusted for column 'ts' at row 3
+Warning	1264	Out of range value adjusted for column 'ts' at row 6
 select * from t1;
 ts
 0000-00-00 00:00:00
@@ -244,3 +244,10 @@ NULL
 select convert_tz( NULL, 'MET', 'UTC');
 convert_tz( NULL, 'MET', 'UTC')
 NULL
+create table t1 (ts timestamp);
+set timestamp=1000000000;
+insert into t1 (ts) values (now());
+select convert_tz(ts, @@time_zone, 'Japan') from t1;
+convert_tz(ts, @@time_zone, 'Japan')
+2001-09-09 10:46:40
+drop table t1;

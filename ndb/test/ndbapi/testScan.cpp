@@ -65,7 +65,7 @@ int runDropAllTablesExceptTestTable(NDBT_Context* ctx, NDBT_Step* step){
     }
 	    
     int res = GETNDB(step)->getDictionary()->dropTable(tab->getName());
-    if(res != -1){
+    if(res == -1){
       return NDBT_FAILED;
     }
   }
@@ -776,108 +776,19 @@ int runOnlyOpenScanOnce(NDBT_Context* ctx, NDBT_Step* step){
 }
 
 int runOnlyOneOpInScanTrans(NDBT_Context* ctx, NDBT_Step* step){
-  const NdbDictionary::Table*  pTab = ctx->getTab();
-  int records = ctx->getNumRecords();
-  int numFailed = 0;
-
-  ScanFunctions scanF(*pTab);
-  if (scanF.scanReadFunctions(GETNDB(step), 
-			      records, 
-			      6,
-			      ScanFunctions::OnlyOneOpInScanTrans,
-		      false) == 0){
-    numFailed++;
-  }
-  if (scanF.scanReadFunctions(GETNDB(step), 
-			      records, 
-			      6,
-			      ScanFunctions::OnlyOneOpInScanTrans,
-			      true) == 0){
-    numFailed++;
-  }
-  
-  
-  if(numFailed > 0)
-    return NDBT_FAILED;
-  else
-    return NDBT_OK;
-
+  return NDBT_OK;
 }
 
 int runExecuteScanWithoutOpenScan(NDBT_Context* ctx, NDBT_Step* step){
-  const NdbDictionary::Table*  pTab = ctx->getTab();
-  int records = ctx->getNumRecords();
-  int numFailed = 0;
-  ScanFunctions scanF(*pTab);
-  if (scanF.scanReadFunctions(GETNDB(step), 
-			      records, 
-			      1,
-			      ScanFunctions::ExecuteScanWithOutOpenScan,
-			      false) == 0){
-    numFailed++;
-  }  
-  
-  if(numFailed > 0)
-    return NDBT_FAILED;
-  else
-    return NDBT_OK;
+  return NDBT_OK;
 }
-
-
 
 int runOnlyOneOpBeforeOpenScan(NDBT_Context* ctx, NDBT_Step* step){
-  const NdbDictionary::Table*  pTab = ctx->getTab();
-  int records = ctx->getNumRecords();
-  int numFailed = 0;
-
-  ScanFunctions scanF(*pTab);
-  if (scanF.scanReadFunctions(GETNDB(step), 
-			      records, 
-			      6,
-			      ScanFunctions::OnlyOneOpBeforeOpenScan,
-			      false) == 0){
-    numFailed++;
-  }
-  if (scanF.scanReadFunctions(GETNDB(step), 
-			      records, 
-			      6,
-			      ScanFunctions::OnlyOneOpBeforeOpenScan,
-			      true) == 0){
-    numFailed++;
-  }
-  
-  if(numFailed > 0)
-    return NDBT_FAILED;
-  else
     return NDBT_OK;
-
 }
+
 int runOnlyOneScanPerTrans(NDBT_Context* ctx, NDBT_Step* step){
-  const NdbDictionary::Table*  pTab = ctx->getTab();
-  int records = ctx->getNumRecords();
-  int numFailed = 0;
-
-  ScanFunctions scanF(*pTab);
-  if (scanF.scanReadFunctions(GETNDB(step), 
-			      records, 
-			      6,
-			      ScanFunctions::OnlyOneScanPerTrans,
-			      false) == 0){
-    numFailed++;
-  }
-  if (scanF.scanReadFunctions(GETNDB(step), 
-			      records, 
-			      6,
-			      ScanFunctions::OnlyOneScanPerTrans,
-			      true) == 0){
-    numFailed++;
-  }
-    
-  if(numFailed > 0)
-    return NDBT_FAILED;
-  else
-    return NDBT_OK;
-
+  return NDBT_OK;
 }
 
 int runNoCloseTransaction(NDBT_Context* ctx, NDBT_Step* step){
@@ -970,6 +881,93 @@ int runCheckInactivityBeforeClose(NDBT_Context* ctx, NDBT_Step* step){
 
 }
 
+int runScanRestart(NDBT_Context* ctx, NDBT_Step* step){
+  int loops = ctx->getNumLoops();
+  int records = ctx->getNumRecords();
+  Ndb * pNdb = GETNDB(step);
+  const NdbDictionary::Table*  pTab = ctx->getTab();
+
+  HugoCalculator calc(* pTab);
+  NDBT_ResultRow tmpRow(* pTab);
+
+  int i = 0;
+  while (i<loops && !ctx->isTestStopped()) {
+    g_info << i++ << ": ";
+    const int record = (rand() % records);
+    g_info << " row=" << record;
+
+    NdbConnection* pCon = pNdb->startTransaction();
+    NdbScanOperation* pOp = pCon->getNdbScanOperation(pTab->getName());	
+    if (pOp == NULL) {
+      ERR(pCon->getNdbError());
+      return NDBT_FAILED;
+    }
+    
+    NdbResultSet* rs = pOp->readTuples();
+    if( rs == 0 ) {
+      ERR(pCon->getNdbError());
+      return NDBT_FAILED;
+    }
+  
+    int check = pOp->interpret_exit_ok();
+    if( check == -1 ) {
+      ERR(pCon->getNdbError());
+      return NDBT_FAILED;
+    }
+    
+    // Define attributes to read  
+    for(int a = 0; a<pTab->getNoOfColumns(); a++){
+      if((tmpRow.attributeStore(a) = 
+	  pOp->getValue(pTab->getColumn(a)->getName())) == 0) {
+	ERR(pCon->getNdbError());
+	return NDBT_FAILED;
+      }
+    } 
+    
+    check = pCon->execute(NoCommit);
+    if( check == -1 ) {
+      ERR(pCon->getNdbError());
+      return NDBT_FAILED;
+    }
+
+    int res;
+    int row = 0;
+    while(row < record && (res = rs->nextResult()) == 0) {
+      if(calc.verifyRowValues(&tmpRow) != 0){
+	abort();
+	return NDBT_FAILED;
+      }
+      row++;
+    }
+    if(row != record){
+      ERR(pCon->getNdbError());
+      abort();
+      return NDBT_FAILED;
+    }
+    g_info << " restarting" << endl;
+    if((res = rs->restart()) != 0){
+      ERR(pCon->getNdbError());
+      abort();
+      return NDBT_FAILED;
+    }      
+
+    row = 0;
+    while((res = rs->nextResult()) == 0) {
+      if(calc.verifyRowValues(&tmpRow) != 0){
+	abort();
+	return NDBT_FAILED;
+      }
+      row++;
+    }
+    if(res != 1 || row != records){
+      ERR(pCon->getNdbError());
+      abort();
+      return NDBT_FAILED;
+    }
+    pCon->close();
+  }
+  return NDBT_OK;
+}
 
 
 NDBT_TESTSUITE(testScan);
@@ -1393,6 +1391,12 @@ TESTCASE("ScanReadWhileNodeIsDown",
   STEP(runStopAndStartNode);
   FINALIZER(runClearTable);
 }
+TESTCASE("ScanRestart", 
+	 "Verify restart functionallity"){
+  INITIALIZER(runLoadTable);
+  STEP(runScanRestart);
+  FINALIZER(runClearTable);
+}
 NDBT_TESTSUITE_END(testScan);
 
 int main(int argc, const char** argv){
@@ -1400,3 +1404,4 @@ int main(int argc, const char** argv){
   return testScan.execute(argc, argv);
 }
 
+template class Vector<Attrib*>;

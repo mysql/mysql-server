@@ -33,6 +33,12 @@ class NdbOperation;    // Forward declaration
 class NdbConnection;   // Forward declaration
 class NdbRecAttr;      // Forward declaration
 class NdbResultSet;    // Forward declaration
+class NdbScanOperation; 
+class NdbIndexScanOperation; 
+class NdbBlob;
+
+// connectstring to cluster if given by mysqld
+extern const char *ndbcluster_connectstring;
 
 typedef enum ndb_index_type {
   UNDEFINED_INDEX = 0,
@@ -43,6 +49,12 @@ typedef enum ndb_index_type {
   ORDERED_INDEX = 5
 } NDB_INDEX_TYPE;
 
+typedef struct ndb_index_data {
+  NDB_INDEX_TYPE type;
+  void *index;
+  const char * unique_name;
+  void *unique_index;
+} NDB_INDEX_DATA;
 
 typedef struct st_ndbcluster_share {
   THR_LOCK lock;
@@ -145,8 +157,9 @@ class ha_ndbcluster: public handler
   int create_index(const char *name, KEY *key_info, bool unique);
   int create_ordered_index(const char *name, KEY *key_info);
   int create_unique_index(const char *name, KEY *key_info);
-  int initialize_autoincrement(const void* table);
-  int build_index_list();
+  int initialize_autoincrement(const void *table);
+  enum ILBP {ILBP_CREATE = 0, ILBP_OPEN = 1}; // Index List Build Phase
+  int build_index_list(TABLE *tab, enum ILBP phase);
   int get_metadata(const char* path);
   void release_metadata();
   const char* get_index_name(uint idx_no) const;
@@ -154,8 +167,8 @@ class ha_ndbcluster: public handler
   NDB_INDEX_TYPE get_index_type(uint idx_no) const;
   NDB_INDEX_TYPE get_index_type_from_table(uint index_no) const;
   
-  int pk_read(const byte *key, uint key_len, 
-	      byte *buf);
+  int pk_read(const byte *key, uint key_len, byte *buf);
+  int complemented_pk_read(const byte *old_data, byte *new_data);
   int unique_index_read(const byte *key, uint key_len, 
 			byte *buf);
   int ordered_index_scan(const key_range *start_key,
@@ -169,6 +182,7 @@ class ha_ndbcluster: public handler
 		    enum ha_rkey_function find_flag);
   int close_scan();
   void unpack_record(byte *buf);
+  int get_ndb_lock_type(enum thr_lock_type type);
 
   void set_dbname(const char *pathname);
   void set_tabname(const char *pathname);
@@ -179,18 +193,20 @@ class ha_ndbcluster: public handler
   int set_ndb_key(NdbOperation*, Field *field,
 		  uint fieldnr, const byte* field_ptr);
   int set_ndb_value(NdbOperation*, Field *field, uint fieldnr);
-  int get_ndb_value(NdbOperation*, uint fieldnr, byte *field_ptr);
+  int get_ndb_value(NdbOperation*, Field *field, uint fieldnr);
+  friend int g_get_ndb_blobs_value(NdbBlob *ndb_blob, void *arg);
+  int get_ndb_blobs_value(NdbBlob *last_ndb_blob);
   int set_primary_key(NdbOperation *op, const byte *key);
   int set_primary_key(NdbOperation *op);
   int set_primary_key_from_old_data(NdbOperation *op, const byte *old_data);
-  int set_bounds(NdbOperation *ndb_op, const key_range *key,
+  int set_bounds(NdbIndexScanOperation *ndb_op, const key_range *key,
 		 int bound);
   int key_cmp(uint keynr, const byte * old_row, const byte * new_row);
   void print_results();
 
-  longlong get_auto_increment();
-
+  ulonglong get_auto_increment();
   int ndb_err(NdbConnection*);
+  bool uses_blob_value(bool all_fields);
 
  private:
   int check_ndb_connection();
@@ -205,15 +221,23 @@ class ha_ndbcluster: public handler
   ulong m_table_flags;
   THR_LOCK_DATA m_lock;
   NDB_SHARE *m_share;
-  NDB_INDEX_TYPE  m_indextype[MAX_KEY];
-  const char*  m_unique_index_name[MAX_KEY];
-  NdbRecAttr *m_value[NDB_MAX_ATTRIBUTES_IN_TABLE];
+  NDB_INDEX_DATA  m_index[MAX_KEY];
+  // NdbRecAttr has no reference to blob
+  typedef union { NdbRecAttr *rec; NdbBlob *blob; void *ptr; } NdbValue;
+  NdbValue m_value[NDB_MAX_ATTRIBUTES_IN_TABLE];
   bool m_use_write;
   bool retrieve_all_fields;
   ha_rows rows_to_insert;
   ha_rows rows_inserted;
   ha_rows bulk_insert_rows;
+  bool bulk_insert_not_flushed;
   ha_rows ops_pending;
+  bool skip_auto_increment;
+  bool blobs_pending;
+  // memory for blobs in one tuple
+  char *blobs_buffer;
+  uint32 blobs_buffer_size;
+  uint dupkey;
 };
 
 bool ndbcluster_init(void);
@@ -228,11 +252,4 @@ int ndbcluster_discover(const char* dbname, const char* name,
 			const void** frmblob, uint* frmlen);
 int ndbcluster_drop_database(const char* path);
 
-void ndbcluster_print_error(int error);
-
-
-
-
-
-
-
+void ndbcluster_print_error(int error, const NdbOperation *error_op);

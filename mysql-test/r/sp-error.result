@@ -1,4 +1,27 @@
 delete from mysql.proc;
+create function .f1() returns int return 1;
+create procedure .p1() select 1, database();
+create procedure p1() select 2, database();
+alter procedure .p1 sql security invoker;
+select .f1();
+.f1()
+1
+call .p1();
+1	database()
+1	test
+call p1();
+2	database()
+2	test
+select f1();
+ERROR 42000: FUNCTION test.f1 does not exist
+select db,name,type,security_type from mysql.proc;
+db	name	type	security_type
+	f1	FUNCTION	DEFINER
+	p1	PROCEDURE	INVOKER
+test	p1	PROCEDURE	DEFINER
+drop function .f1;
+drop procedure .p1;
+drop procedure p1;
 create procedure syntaxerror(t int)|
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '' at line 1
 create procedure syntaxerror(t int)|
@@ -44,7 +67,7 @@ call foo()|
 ERROR 42000: PROCEDURE test.foo does not exist
 drop procedure if exists foo|
 Warnings:
-Warning	1304	PROCEDURE foo does not exist
+Note	1305	PROCEDURE foo does not exist
 show create procedure foo|
 ERROR 42000: PROCEDURE foo does not exist
 create procedure foo()
@@ -63,6 +86,47 @@ iterate foo;
 end|
 ERROR 42000: ITERATE with no matching label: foo
 create procedure foo()
+begin
+goto foo;
+end|
+ERROR 42000: GOTO with no matching label: foo
+create procedure foo()
+begin
+begin
+label foo;
+end;
+goto foo;
+end|
+ERROR 42000: GOTO with no matching label: foo
+create procedure foo()
+begin
+goto foo;
+begin
+label foo;
+end;
+end|
+ERROR 42000: GOTO with no matching label: foo
+create procedure foo()
+begin
+begin
+goto foo;
+end;
+begin
+label foo;
+end;
+end|
+ERROR 42000: GOTO with no matching label: foo
+create procedure foo()
+begin
+begin
+label foo;
+end;
+begin
+goto foo;
+end;
+end|
+ERROR 42000: GOTO with no matching label: foo
+create procedure foo()
 foo: loop
 foo: loop
 set @x=2;
@@ -80,7 +144,7 @@ declare y int;
 set x = y;
 end|
 Warnings:
-Warning	1310	Referring to uninitialized variable y
+Warning	1311	Referring to uninitialized variable y
 drop procedure foo|
 create procedure foo()
 return 42|
@@ -283,6 +347,16 @@ declare continue handler for sqlstate '42S99' set x = 1;
 declare c cursor for select * from t1;
 end|
 ERROR 42000: Cursor declaration after handler declaration
+create procedure p()
+begin
+declare continue handler for sqlexception
+begin
+goto L1;
+end;
+select field from t1;
+label L1;
+end|
+ERROR HY000: GOTO is not allowed in a stored procedure handler
 create procedure bug1965()
 begin
 declare c cursor for select val from t1 order by valname;
@@ -294,12 +368,6 @@ ERROR 42S22: Unknown column 'valname' in 'order clause'
 drop procedure bug1965|
 select 1 into a|
 ERROR 42000: Undeclared variable: a
-create procedure bug336(id char(16))
-begin
-declare x int;
-set x = (select sum(t.data) from test.t2 t);
-end|
-ERROR 0A000: Subselect value not supported
 create function bug1654()
 returns int
 return (select sum(t.data) from test.t2 t)|
@@ -417,4 +485,13 @@ create procedure bug4344() drop procedure bug4344|
 ERROR HY000: Can't drop a PROCEDURE from within another stored routine
 create procedure bug4344() drop function bug4344|
 ERROR HY000: Can't drop a FUNCTION from within another stored routine
+drop procedure if exists bug3294|
+create procedure bug3294()
+begin
+declare continue handler for sqlexception drop table t5;
+drop table t5;
+end|
+call bug3294()|
+ERROR 42S02: Unknown table 't5'
+drop procedure bug3294|
 drop table t1|

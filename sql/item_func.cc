@@ -78,13 +78,16 @@ static void my_coll_agg_error(Item** args, uint count, const char *fname)
 }
 
 
-bool Item_func::agg_arg_collations(DTCollation &c, Item **av, uint count)
+bool Item_func::agg_arg_collations(DTCollation &c, Item **av, uint count,
+                                   bool allow_superset_conversion)
 {
   uint i;
+  c.nagg= 0;
+  c.strong= 0;
   c.set(av[0]->collation);
   for (i= 1; i < count; i++)
   {
-    if (c.aggregate(av[i]->collation))
+    if (c.aggregate(av[i]->collation, allow_superset_conversion))
     {
       my_coll_agg_error(av, count, func_name());
       return TRUE;
@@ -95,9 +98,10 @@ bool Item_func::agg_arg_collations(DTCollation &c, Item **av, uint count)
 
 
 bool Item_func::agg_arg_collations_for_comparison(DTCollation &c,
-						  Item **av, uint count)
+						  Item **av, uint count,
+                                                  bool allow_superset_conv)
 {
-  if (agg_arg_collations(c, av, count))
+  if (agg_arg_collations(c, av, count, allow_superset_conv))
     return TRUE;
 
   if (c.derivation == DERIVATION_NONE)
@@ -428,6 +432,16 @@ void Item_func::fix_num_length_and_dec()
   max_length=float_length(decimals);
 }
 
+void Item_func::signal_divide_by_null()
+{
+  THD *thd= current_thd;
+  if (thd->variables.sql_mode & MODE_ERROR_FOR_DIVISION_BY_ZERO)
+    push_warning(thd, MYSQL_ERROR::WARN_LEVEL_ERROR, ER_DIVISION_BY_ZERO,
+                 ER(ER_DIVISION_BY_ZERO));
+  null_value= 1;
+}
+
+
 Item *Item_func::get_tmp_table_item(THD *thd)
 {
   if (!with_sum_func && !const_item())
@@ -593,10 +607,16 @@ double Item_func_div::val()
   DBUG_ASSERT(fixed == 1);
   double value=args[0]->val();
   double val2=args[1]->val();
-  if ((null_value= val2 == 0.0 || args[0]->null_value || args[1]->null_value))
+  if ((null_value= args[0]->null_value || args[1]->null_value))
     return 0.0;
+  if (val2 == 0.0)
+  {
+    signal_divide_by_null();
+    return 0.0;
+  }
   return value/val2;
 }
+
 
 longlong Item_func_div::val_int()
 {
@@ -605,12 +625,18 @@ longlong Item_func_div::val_int()
   {
     longlong value=args[0]->val_int();
     longlong val2=args[1]->val_int();
-    if ((null_value= val2 == 0 || args[0]->null_value || args[1]->null_value))
+    if ((null_value= args[0]->null_value || args[1]->null_value))
       return 0;
+    if (val2 == 0)
+    {
+      signal_divide_by_null();
+      return 0;
+    }
     return value/val2;
   }
   return (longlong) Item_func_div::val();
 }
+
 
 void Item_func_div::fix_length_and_dec()
 {
@@ -629,8 +655,13 @@ longlong Item_func_int_div::val_int()
   DBUG_ASSERT(fixed == 1);
   longlong value=args[0]->val_int();
   longlong val2=args[1]->val_int();
-  if ((null_value= val2 == 0 || args[0]->null_value || args[1]->null_value))
+  if (args[0]->null_value || args[1]->null_value)
     return 0;
+  if (val2 == 0)
+  {
+    signal_divide_by_null();
+    return 0;
+  }
   return (unsigned_flag ?
 	  (ulonglong) value / (ulonglong) val2 :
 	  value / val2);
@@ -650,8 +681,13 @@ double Item_func_mod::val()
   DBUG_ASSERT(fixed == 1);
   double value= floor(args[0]->val()+0.5);
   double val2=floor(args[1]->val()+0.5);
-  if ((null_value=val2 == 0.0 || args[0]->null_value || args[1]->null_value))
+  if ((null_value= args[0]->null_value || args[1]->null_value))
     return 0.0; /* purecov: inspected */
+  if (val2 == 0.0)
+  {
+    signal_divide_by_null();
+    return 0.0;
+  }
   return fmod(value,val2);
 }
 
@@ -660,8 +696,13 @@ longlong Item_func_mod::val_int()
   DBUG_ASSERT(fixed == 1);
   longlong value=  args[0]->val_int();
   longlong val2= args[1]->val_int();
-  if ((null_value=val2 == 0 || args[0]->null_value || args[1]->null_value))
+  if ((null_value= args[0]->null_value || args[1]->null_value))
     return 0; /* purecov: inspected */
+  if (val2 == 0)
+  {
+    signal_divide_by_null();
+    return 0;
+  }
   return value % val2;
 }
 
@@ -972,7 +1013,7 @@ void Item_func_round::fix_length_and_dec()
     if (tmp < 0)
       decimals=0;
     else
-      decimals=tmp;
+      decimals=min(tmp,NOT_FIXED_DEC);
   }
 }
 
@@ -1438,30 +1479,43 @@ longlong Item_func_find_in_set::val_int()
   int diff;
   if ((diff=buffer->length() - find->length()) >= 0)
   {
-    const char *f_pos=find->ptr();
-    const char *f_end=f_pos+find->length();
-    const char *str=buffer->ptr();
-    const char *end=str+diff+1;
-    const char *real_end=str+buffer->length();
-    uint position=1;
-    do
+    my_wc_t wc;
+    CHARSET_INFO *cs= cmp_collation.collation;
+    const char *str_begin= buffer->ptr();
+    const char *str_end= buffer->ptr();
+    const char *real_end= str_end+buffer->length();
+    const uchar *find_str= (const uchar *) find->ptr();
+    uint find_str_len= find->length();
+    int position= 0;
+    while (1)
     {
-      const char *pos= f_pos;
-      while (pos != f_end)
+      int symbol_len;
+      if ((symbol_len= cs->cset->mb_wc(cs, &wc, (uchar*) str_end, 
+                                       (uchar*) real_end)) > 0)
       {
-	if (my_toupper(cmp_collation.collation,*str) != 
-	    my_toupper(cmp_collation.collation,*pos))
-	  goto not_found;
-	str++;
-	pos++;
+        const char *substr_end= str_end + symbol_len;
+        bool is_last_item= (substr_end == real_end);
+        if (wc == (my_wc_t) separator || is_last_item)
+        {
+          position++;
+          if (is_last_item)
+            str_end= substr_end;
+          if (!my_strnncoll(cs, (const uchar *) str_begin,
+                            str_end - str_begin,
+                            find_str, find_str_len))
+            return (longlong) position;
+          else
+            str_begin= substr_end;
+        }
+        str_end= substr_end;
       }
-      if (str == real_end || str[0] == separator)
-	return (longlong) position;
-  not_found:
-      while (str < end && str[0] != separator)
-	str++;
-      position++;
-    } while (++str <= end);
+      else if (str_end - str_begin == 0 && 
+               find_str_len == 0 && 
+               wc == (my_wc_t) separator)
+        return (longlong) ++position;
+      else
+        return (longlong) 0;
+    }
   }
   return 0;
 }
@@ -1649,7 +1703,7 @@ udf_handler::fix_fields(THD *thd, TABLE_LIST *tables, Item_result_field *func,
     func->max_length=min(initid.max_length,MAX_BLOB_WIDTH);
     func->maybe_null=initid.maybe_null;
     const_item_cache=initid.const_item;
-    func->decimals=min(initid.decimals,31);
+    func->decimals=min(initid.decimals,NOT_FIXED_DEC);
   }
   initialized=1;
   if (error)
@@ -2563,6 +2617,16 @@ void Item_func_set_user_var::print(String *str)
 }
 
 
+void Item_func_set_user_var::print_as_stmt(String *str)
+{
+  str->append("set @", 5);
+  str->append(name.str, name.length);
+  str->append(":=", 2);
+  args[0]->print(str);
+  str->append(')');
+}
+
+
 String *
 Item_func_get_user_var::val_str(String *str)
 {
@@ -3270,8 +3334,24 @@ Item_func_sp::Item_func_sp(sp_name *name, List<Item> &list)
 const char *
 Item_func_sp::func_name() const
 {
-  return m_name->m_name.str;
+  THD *thd= current_thd;
+  /* Calculate length to avoud reallocation of string for sure */
+  uint len= ((m_name->m_db.length +
+              m_name->m_name.length)*2 + //characters*quoting
+             2 +                         // ` and `
+             1 +                         // .
+             1 +                         // end of string
+             ALIGN_SIZE(1));             // to avoid String reallocation
+  String qname((char *)alloc_root(&thd->mem_root, len), len,
+               system_charset_info);
+
+  qname.length(0);
+  append_identifier(thd, &qname, m_name->m_db.str, m_name->m_db.length);
+  qname.append('.');
+  append_identifier(thd, &qname, m_name->m_name.str, m_name->m_name.length);
+  return qname.ptr();
 }
+
 
 int
 Item_func_sp::execute(Item **itp)
@@ -3296,6 +3376,11 @@ Item_func_sp::execute(Item **itp)
   sp_change_security_context(thd, m_sp, &save_ctx);
 #endif
 
+  /*
+    We don't need to surpress senfing of ok packet here (by setting
+    thd->net.no_send_ok to true), because we are not allowing statements
+    in functions now.
+  */
   res= m_sp->execute_function(thd, args, arg_count, itp);
 
 #ifndef NO_EMBEDDED_ACCESS_CHECKS

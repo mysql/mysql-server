@@ -14,9 +14,16 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-/* This defines strtol() if neaded */
+/* This implements strtol() if needed */
 
+/*
+   These includes are mandatory because they check for type sizes and
+   functions, especially they handle tricks for Tru64 where 'long' is
+   64 bit already and our 'longlong' is just a 'long'.
+ */
 #include <my_global.h>
+#include <m_string.h>
+
 #if !defined(MSDOS) && !defined(HAVE_STRTOL) && !defined(__WIN__)
 #include "strto.c"
 #endif
