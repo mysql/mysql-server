@@ -1,0 +1,8 @@
+#!/bin/sh
+
+dst=$1
+shift
+
+out=`echo $* | sed 's!\([^ ]*\)!# Begin Source File\\\nSOURCE=\1\\\n# End Source File\\\n!g'`
+sed -e "s/@sources@/$out/g" $dst > /tmp/$dst.$$
+mv /tmp/$dst.$$ $dst

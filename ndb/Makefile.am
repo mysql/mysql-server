@@ -17,3 +17,8 @@ dist-hook:
 	    done; \
 	  fi; \
 	done
+
+windoze:
+	for i in `find . -name 'Makefile.am'`; do make -C `dirname $$i` windoze-dsp; done
+
+windoze-dsp:
