@@ -2185,7 +2185,7 @@ row_is_mysql_tmp_table_name(
 {
 	ulint	i;
 
-	for (i = 0; i <= ut_strlen(name) - 5; i++) {
+	for (i = 0; i + 5 <= ut_strlen(name); i++) {
 		if (ut_memcmp(name + i, (char*)"/#sql", 5) == 0) {
 
 			return(TRUE);
