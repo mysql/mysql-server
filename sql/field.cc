@@ -4417,6 +4417,7 @@ void Field_string::sort_string(char *to,uint length)
 
 void Field_string::sql_type(String &res) const
 {
+  THD *thd= table->in_use;
   CHARSET_INFO *cs=res.charset();
   ulong length= cs->cset->snprintf(cs,(char*) res.ptr(),
 			    res.alloced_length(), "%s(%d)",
@@ -4427,6 +4428,9 @@ void Field_string::sql_type(String &res) const
 			      (has_charset() ? "char" : "binary")),
 			    (int) field_length / charset()->mbmaxlen);
   res.length(length);
+  if ((thd->variables.sql_mode & (MODE_MYSQL323 | MODE_MYSQL40)) &&
+      has_charset() && (charset()->state & MY_CS_BINSORT))
+    res.append(" binary");
 }
 
 char *Field_string::pack(char *to, const char *from, uint max_length)
