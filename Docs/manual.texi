@@ -46910,7 +46910,16 @@ not yet 100% confident in this code.
 
 @node News-3.23.50, News-3.23.49, News-3.23.x, News-3.23.x
 @appendixsubsec Changes in release 3.23.50
+
 @itemize @bullet
+@item
+@code{InnoDB} now retains foreign key constraints through @code{ALTER TABLE}
+and @code{CREATE/DROP INDEX}.
+@item
+@code{InnoDB} now allows foreign key constraints to be added through the
+@code{ALTER TABLE} syntax.
+@item
+@code{InnoDB} tables can now be set to automatically grow in size (autoextend).
 @item
 Fixed some buffer overflow problems when reading startup parameters.
 @item
