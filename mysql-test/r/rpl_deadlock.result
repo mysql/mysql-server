@@ -8,6 +8,9 @@ create table t1 (a int not null, key(a)) engine=innodb;
 create table t2 (a int not null, key(a)) engine=innodb;
 create table t3 (a int) engine=innodb;
 create table t4 (a int) engine=innodb;
+show variables like 'slave_transaction_retries';
+Variable_name	Value
+slave_transaction_retries	10
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -20,6 +23,9 @@ t2	CREATE TABLE `t2` (
   `a` int(11) NOT NULL,
   KEY `a` (`a`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
+show variables like 'slave_transaction_retries';
+Variable_name	Value
+slave_transaction_retries	2
 stop slave;
 begin;
 insert into t3 select * from t2 for update;
@@ -39,9 +45,9 @@ a
 22
 show slave status;
 Slave_IO_State	Master_Host	Master_User	Master_Port	Connect_Retry	Master_Log_File	Read_Master_Log_Pos	Relay_Log_File	Relay_Log_Pos	Relay_Master_Log_File	Slave_IO_Running	Slave_SQL_Running	Replicate_Do_DB	Replicate_Ignore_DB	Replicate_Do_Table	Replicate_Ignore_Table	Replicate_Wild_Do_Table	Replicate_Wild_Ignore_Table	Last_Errno	Last_Error	Skip_Counter	Exec_Master_Log_Pos	Relay_Log_Space	Until_Condition	Until_Log_File	Until_Log_Pos	Master_SSL_Allowed	Master_SSL_CA_File	Master_SSL_CA_Path	Master_SSL_Cert	Master_SSL_Cipher	Master_SSL_Key	Seconds_Behind_Master
-#	127.0.0.1	root	MASTER_MYPORT	1	master-bin.000001	19118	#	#	master-bin.000001	Yes	Yes							0		0	19118	#	None		0	No						#
+#	127.0.0.1	root	MASTER_MYPORT	1	master-bin.000001	18911	#	#	master-bin.000001	Yes	Yes							0		0	18911	#	None		0	No						#
 stop slave;
-change master to master_log_pos=536;
+change master to master_log_pos=532;
 begin;
 select * from t2 for update;
 a
@@ -57,10 +63,10 @@ a
 22
 show slave status;
 Slave_IO_State	Master_Host	Master_User	Master_Port	Connect_Retry	Master_Log_File	Read_Master_Log_Pos	Relay_Log_File	Relay_Log_Pos	Relay_Master_Log_File	Slave_IO_Running	Slave_SQL_Running	Replicate_Do_DB	Replicate_Ignore_DB	Replicate_Do_Table	Replicate_Ignore_Table	Replicate_Wild_Do_Table	Replicate_Wild_Ignore_Table	Last_Errno	Last_Error	Skip_Counter	Exec_Master_Log_Pos	Relay_Log_Space	Until_Condition	Until_Log_File	Until_Log_Pos	Master_SSL_Allowed	Master_SSL_CA_File	Master_SSL_CA_Path	Master_SSL_Cert	Master_SSL_Cipher	Master_SSL_Key	Seconds_Behind_Master
-#	127.0.0.1	root	MASTER_MYPORT	1	master-bin.000001	19118	#	#	master-bin.000001	Yes	Yes							0		0	19118	#	None		0	No						#
+#	127.0.0.1	root	MASTER_MYPORT	1	master-bin.000001	18911	#	#	master-bin.000001	Yes	Yes							0		0	18911	#	None		0	No						#
 set global max_relay_log_size=0;
 stop slave;
-change master to master_log_pos=536;
+change master to master_log_pos=532;
 begin;
 select * from t2 for update;
 a
@@ -77,5 +83,5 @@ a
 22
 show slave status;
 Slave_IO_State	Master_Host	Master_User	Master_Port	Connect_Retry	Master_Log_File	Read_Master_Log_Pos	Relay_Log_File	Relay_Log_Pos	Relay_Master_Log_File	Slave_IO_Running	Slave_SQL_Running	Replicate_Do_DB	Replicate_Ignore_DB	Replicate_Do_Table	Replicate_Ignore_Table	Replicate_Wild_Do_Table	Replicate_Wild_Ignore_Table	Last_Errno	Last_Error	Skip_Counter	Exec_Master_Log_Pos	Relay_Log_Space	Until_Condition	Until_Log_File	Until_Log_Pos	Master_SSL_Allowed	Master_SSL_CA_File	Master_SSL_CA_Path	Master_SSL_Cert	Master_SSL_Cipher	Master_SSL_Key	Seconds_Behind_Master
-#	127.0.0.1	root	MASTER_MYPORT	1	master-bin.000001	19118	#	#	master-bin.000001	Yes	Yes							0		0	19118	#	None		0	No						#
+#	127.0.0.1	root	MASTER_MYPORT	1	master-bin.000001	18911	#	#	master-bin.000001	Yes	Yes							0		0	18911	#	None		0	No						#
 drop table t1,t2;

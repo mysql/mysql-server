@@ -2040,7 +2040,7 @@ const String *Item_param::query_val_str(String* str) const
       buf= str->c_ptr_quick();
       ptr= buf;
       *ptr++= '\'';
-      ptr+= escape_string_for_mysql(str_value.charset(), ptr,
+      ptr+= escape_string_for_mysql(str_value.charset(), ptr, 0,
                                     str_value.ptr(), str_value.length());
       *ptr++= '\'';
       str->length(ptr - buf);
