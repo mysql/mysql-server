@@ -12,6 +12,7 @@ Created 1/16/1996 Heikki Tuuri
 #include "univ.i"
 
 extern ulint	data_mysql_default_charset_coll;
+extern ulint	data_mysql_latin1_swedish_charset_coll;
 
 /* SQL data type struct */
 typedef struct dtype_struct		dtype_t;
@@ -30,8 +31,8 @@ extern dtype_t* 	dtype_binary;
 #define DATA_BINARY	4	/* binary string */
 #define DATA_BLOB	5	/* binary large object, or a TEXT type;
 				if prtype & DATA_BINARY_TYPE == 0, then this is
-				actually a TEXT column; see also below about
-				the flag DATA_NONLATIN1 */
+				actually a TEXT column (or a BLOB created
+				with < 4.0.14) */
 #define	DATA_INT	6	/* integer: can be any size 1 - 8 bytes */
 #define	DATA_SYS_CHILD	7	/* address of the child page in node pointer */
 #define	DATA_SYS	8	/* system column */
@@ -59,7 +60,7 @@ Tables created by a MySQL user have the following convention:
 code (not applicable for system columns).
 
 - In the second least significant byte we OR flags DATA_NOT_NULL,
-DATA_UNSIGNED, DATA_BINARY_TYPE, DATA_NONLATIN1.
+DATA_UNSIGNED, DATA_BINARY_TYPE.
 
 - In the third least significant byte of the precise type of string types we
 store the MySQL charset-collation code. In DATA_BLOB columns created with
@@ -72,6 +73,23 @@ precise type, since the charset was always the default charset of the MySQL
 installation. If the stored charset code is 0 in the system table SYS_COLUMNS
 of InnoDB, that means that the default charset of this MySQL installation
 should be used.
+
+When loading a table definition from the system tables to the InnoDB data
+dictionary cache in main memory, InnoDB versions >= 4.1.2 and >= 5.0.1 check
+if the stored charset-collation is 0, and if that is the case and the type is
+a non-binary string, replace that 0 by the default charset-collation code of
+this MySQL installation. In short, in old tables, the charset-collation code
+in the system tables on disk can be 0, but in in-memory data structures
+(dtype_t), the charset-collation code is always != 0 for non-binary string
+types.
+
+In new tables, in binary string types, the charset-collation code is the
+MySQL code for the 'binary charset', that is, != 0.
+
+For binary string types and for DATA_CHAR, DATA_VARCHAR, and for those
+DATA_BLOB which are binary or have the charset-collation latin1_swedish_ci,
+InnoDB performs all comparisons internally, without resorting to the MySQL
+comparison functions. This is to save CPU time.
 
 InnoDB's own internal system tables have different precise types for their
 columns, and for them the precise type is usually not used at all.
@@ -112,14 +130,10 @@ be less than 256 */
 				string, this is ORed to the precise type:
 				this only holds for tables created with
 				>= MySQL-4.0.14 */
-#define	DATA_NONLATIN1 2048	/* If the data type is DATA_BLOB with
-				the prtype & DATA_BINARY_TYPE == 0, that is,
-				TEXT, then in versions 4.0.14 - 4.0.xx this
-				flag is set to 1, if the charset is not
-				latin1. In version 4.1.1 this was set
-				to 1 for all TEXT columns. In versions >= 4.1.2
-				this is set to 1 if the charset-collation of a
-				TEXT column is not latin1_swedish_ci. */
+/* #define	DATA_NONLATIN1	2048 This is a relic from < 4.1.2 and < 5.0.1.
+				In earlier versions this was set for some
+				BLOB columns.
+*/
 /*-------------------------------------------*/
 
 /* This many bytes we need to store the type information affecting the
@@ -210,7 +224,7 @@ ulint
 dtype_form_prtype(
 /*==============*/
 	ulint	old_prtype,	/* in: the MySQL type code and the flags
-				DATA_NONLATIN1 etc. */
+				DATA_BINARY_TYPE etc. */
 	ulint	charset_coll);	/* in: MySQL charset-collation code */
 /*************************************************************************
 Gets the type length. */
