@@ -9912,6 +9912,7 @@ CHARSET_INFO my_charset_gbk =
     my_strntoll_8bit,
     my_strntoull_8bit,
     my_strntod_8bit,
+    my_scan_8bit
 };
 
 
