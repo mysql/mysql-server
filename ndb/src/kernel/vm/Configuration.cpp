@@ -141,6 +141,8 @@ Configuration::init(int argc, char** argv)
   else
     _programName = strdup("");
   
+  globalData.ownId= 0;
+
   return true;
 }
 
@@ -215,6 +217,13 @@ Configuration::fetch_configuration(){
 
   ConfigRetriever &cr= *m_config_retriever;
   
+  /**
+   * if we have a nodeid set (e.g in a restart situation)
+   * reuse it
+   */
+  if (globalData.ownId)
+    cr.setNodeId(globalData.ownId);
+
   globalData.ownId = cr.allocNodeId(2 /*retry*/,3 /*delay*/);
   
   if(globalData.ownId == 0){
