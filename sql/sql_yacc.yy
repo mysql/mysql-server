@@ -2174,12 +2174,12 @@ simple_expr:
 	| '@' ident_or_text SET_VAR expr
 	  {
 	    $$= new Item_func_set_user_var($2,$4);
-	    Lex->uncacheable();;
+	    Lex->uncacheable();
 	  }
 	| '@' ident_or_text
 	  {
 	    $$= new Item_func_get_user_var($2);
-	    Lex->uncacheable();;
+	    Lex->uncacheable();
 	  }
 	| '@' '@' opt_var_ident_type ident_or_text
 	  {
@@ -2227,6 +2227,8 @@ simple_expr:
 	  { $$= new Item_func_conv_charset3($3,$7,$5); }
 	| DEFAULT '(' simple_ident ')'
 	  { $$= new Item_default_value($3); }
+	| VALUES '(' simple_ident ')'
+	  { $$= new Item_insert_value($3); }
 	| FUNC_ARG0 '(' ')'
 	  { $$= ((Item*(*)(void))($1.symbol->create_func))();}
 	| FUNC_ARG1 '(' expr ')'
@@ -2276,7 +2278,7 @@ simple_expr:
 	| ENCRYPT '(' expr ')'
 	  {
 	    $$= new Item_func_encrypt($3);
-	    Lex->uncacheable();;
+	    Lex->uncacheable();
 	  }
 	| ENCRYPT '(' expr ',' expr ')'   { $$= new Item_func_encrypt($3,$5); }
 	| DECODE_SYM '(' expr ',' TEXT_STRING_literal ')'

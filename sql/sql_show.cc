@@ -694,7 +694,7 @@ mysqld_show_fields(THD *thd, TABLE_LIST *table_list,const char *wild,
   if (protocol->send_records_num(&field_list, (ulonglong)file->records) ||
       protocol->send_fields(&field_list,0))
     DBUG_RETURN(1);
-  restore_record(table,2);      // Get empty record
+  restore_record(table,default_values);      // Get empty record
 
   Field **ptr,*field;
   String *packet= &thd->packet;
@@ -959,7 +959,7 @@ mysqld_list_fields(THD *thd, TABLE_LIST *table_list, const char *wild)
         !wild_case_compare(system_charset_info, field->field_name,wild))
       field_list.push_back(new Item_field(field));
   }
-  restore_record(table,2);              // Get empty record
+  restore_record(table,default_values);              // Get empty record
   if (thd->protocol->send_fields(&field_list,2))
     DBUG_VOID_RETURN;
   net_flush(&thd->net);
@@ -1041,7 +1041,7 @@ store_create_info(THD *thd, TABLE *table, String *packet)
   DBUG_ENTER("store_create_info");
   DBUG_PRINT("enter",("table: %s",table->real_name));
 
-  restore_record(table,2); // Get empty record
+  restore_record(table,default_values); // Get empty record
 
   List<Item> field_list;
   char tmp[MAX_FIELD_WIDTH];
