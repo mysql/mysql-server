@@ -84,8 +84,8 @@ static int tcap_initialized;
 #  if defined (__EMX__) || defined (NEED_EXTERN_PC)
 extern 
 #  endif /* __EMX__ || NEED_EXTERN_PC */
-const char PC;
-const char *BC, *UP;
+char PC;
+char *BC, *UP;
 #endif /* __linux__ */
 
 /* Some strings to control terminal actions.  These are output by tputs (). */
