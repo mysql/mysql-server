@@ -3306,7 +3306,7 @@ static int create_ndb_column(NDBCOL &col,
     col.setPartSize(0);
     col.setStripeSize(0);
     break;
-  mysql_type_blob:
+  //mysql_type_blob:
   case MYSQL_TYPE_BLOB:    
     if (field->flags & BINARY_FLAG)
       col.setType(NDBCOL::Blob);
@@ -4788,11 +4788,12 @@ ha_ndbcluster::read_multi_range_first(key_multi_range **found_range_p,
     case ORDERED_INDEX:
   range:
       ranges[i].range_flag &= ~(uint)UNIQUE_RANGE;
-      if (sorted && scanOp != 0 && curr != buffer->buffer)
+      if (sorted && scanOp != 0)
       {
 	/**
 	 * We currently don't support batching of ordered range scans
 	 */
+	i--;
 	curr= (byte*)buffer->buffer_end;
 	break;
       }
@@ -4865,12 +4866,47 @@ ha_ndbcluster::read_multi_range_next(key_multi_range ** multi_range_found_p)
     } 
     else if(m_active_cursor)
     {
-      if(m_active_cursor->nextResult())
-	goto found;
-
+      int check;
+      bool contact_ndb= m_lock.type < TL_WRITE_ALLOW_WRITE;
+      do {
+	check= m_active_cursor->nextResult(contact_ndb, m_force_send);
+	if (check == 0)
+	  goto found;
+	else if (check == 1 || check == 2)
+	{
+	  // 1: No more records
+	  // 2: No more cached records
+	  
+	  /*
+	    Before fetching more rows and releasing lock(s),
+	    all pending update or delete operations should 
+	    be sent to NDB
+	  */
+	  DBUG_PRINT("info", ("ops_pending: %d", m_ops_pending));    
+	  if (m_ops_pending)
+	  {
+	    //	if (current_thd->transaction.on)
+	    if (m_transaction_on)
+	    {
+	      if (execute_no_commit(this, m_active_trans) != 0)
+		DBUG_RETURN(ndb_err(m_active_trans));
+	    }
+	    else
+	    {
+	      if (execute_commit(this, m_active_trans) != 0)
+		DBUG_RETURN(ndb_err(m_active_trans));
+	      int res= m_active_trans->restart();
+	      DBUG_ASSERT(res == 0);
+	    }
+	    m_ops_pending= 0;
+	  }
+	  contact_ndb= (check == 2);
+	}
+      } while (check == 2);
+      
       multi_range_curr++;
       m_multi_range_result_ptr += reclength;
-
+      
       m_active_cursor->close();
       m_active_cursor= 0;
     }
@@ -4893,16 +4929,22 @@ ha_ndbcluster::read_multi_range_next(key_multi_range ** multi_range_found_p)
 				     multi_range_sorted,
 				     multi_range_buffer));
   
-found_next:
-  multi_range_curr++;
-  op= m_active_trans->getNextCompletedOperation(op);
-  m_multi_range_result_ptr += reclength;
-  
 found:
   * multi_range_found_p= multi_ranges + multi_range_curr;
   memcpy(table->record[0], m_multi_range_result_ptr, reclength);
   unpack_record(table->record[0]);
   table->status= 0;     
+  DBUG_RETURN(0);
+
+found_next:
+  * multi_range_found_p= multi_ranges + multi_range_curr;
+  memcpy(table->record[0], m_multi_range_result_ptr, reclength);
+  unpack_record(table->record[0]);
+  table->status= 0;     
+
+  multi_range_curr++;
+  op= m_active_trans->getNextCompletedOperation(op);
+  m_multi_range_result_ptr += reclength;
   DBUG_RETURN(0);
 }
 

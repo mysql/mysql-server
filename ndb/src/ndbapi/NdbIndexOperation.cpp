@@ -411,17 +411,5 @@ Remark:         Handles the reception of the TCKEYREF signal.
 int
 NdbIndexOperation::receiveTCINDXREF( NdbApiSignal* aSignal)
 {
-  const TcIndxRef * const tcIndxRef = CAST_CONSTPTR(TcIndxRef, aSignal->getDataPtr());
-
-  if (checkState_TransId(aSignal) == -1) {
-    return -1;
-  }//if
-
-  theStatus = Finished;
-
-  theNdbCon->theReturnStatus = NdbConnection::ReturnFailure;
-  Uint32 errorCode = tcIndxRef->errorCode;
-  theError.code = errorCode;
-  theNdbCon->setOperationErrorCodeAbort(errorCode);
-  return theNdbCon->OpCompleteFailure(theNdbCon->m_abortOption);
+  return NdbOperation::receiveTCKEYREF(aSignal);
 }//NdbIndexOperation::receiveTCINDXREF()
