@@ -13525,7 +13525,7 @@ CREATE TABLE shirt (
     id SMALLINT UNSIGNED NOT NULL AUTO_INCREMENT,
     style ENUM('t-shirt', 'polo', 'dress') NOT NULL,
     color ENUM('red', 'blue', 'orange', 'white', 'black') NOT NULL,
-    owner SMALLINT UNSIGNED NOT NULL REFERENCES persons,
+    owner SMALLINT UNSIGNED NOT NULL REFERENCES person(id),
     PRIMARY KEY (id)
 );
 
