@@ -81,10 +81,12 @@ static void add_hostname(struct in_addr *in,const char *name)
 
       if ((entry=(host_entry*) malloc(sizeof(host_entry)+length+1)))
       {
-	char *new_name= (char *) (entry+1);
+	char *new_name;
 	memcpy_fixed(&entry->ip, &in->s_addr, sizeof(in->s_addr));
-	memcpy(new_name, name, length); // Should work even if name == NULL
-	new_name[length]=0;		// End of string
+	if (length)
+	  memcpy(new_name= (char *) (entry+1), name, length+1);
+	else
+	  new_name=0;
 	entry->hostname=new_name;
 	entry->errors=0;
 	(void) hostname_cache->add(entry);
