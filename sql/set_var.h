@@ -420,28 +420,28 @@ SHOW_TYPE type() { return SHOW_CHAR; }
   virtual void set_default(THD *thd, enum_var_type type)= 0;
 };
 
-class sys_var_client_collation :public sys_var_collation
+class sys_var_collation_client :public sys_var_collation
 {
 public:
-  sys_var_client_collation(const char *name_arg) :sys_var_collation(name_arg) {}
+  sys_var_collation_client(const char *name_arg) :sys_var_collation(name_arg) {}
   bool update(THD *thd, set_var *var);
   void set_default(THD *thd, enum_var_type type);
   byte *value_ptr(THD *thd, enum_var_type type);
 };
 
-class sys_var_connection_collation :public sys_var_collation
+class sys_var_collation_connection :public sys_var_collation
 {
 public:
-  sys_var_connection_collation(const char *name_arg) :sys_var_collation(name_arg) {}
+  sys_var_collation_connection(const char *name_arg) :sys_var_collation(name_arg) {}
   bool update(THD *thd, set_var *var);
   void set_default(THD *thd, enum_var_type type);
   byte *value_ptr(THD *thd, enum_var_type type);
 };
 
-class sys_var_result_collation :public sys_var_collation
+class sys_var_collation_results :public sys_var_collation
 {
 public:
-  sys_var_result_collation(const char *name_arg) :sys_var_collation(name_arg) {}
+  sys_var_collation_results(const char *name_arg) :sys_var_collation(name_arg) {}
   bool update(THD *thd, set_var *var);
   void set_default(THD *thd, enum_var_type type);
   byte *value_ptr(THD *thd, enum_var_type type);
@@ -553,18 +553,18 @@ public:
 
 /* For SET NAMES and SET CHARACTER SET */
 
-class set_var_client_collation: public set_var_base
+class set_var_collation_client: public set_var_base
 {
-  CHARSET_INFO *client_collation;
-  CHARSET_INFO *connection_collation;
-  CHARSET_INFO *result_collation;
+  CHARSET_INFO *collation_client;
+  CHARSET_INFO *collation_connection;
+  CHARSET_INFO *collation_results;
 public:
-  set_var_client_collation(CHARSET_INFO *client_coll_arg,
+  set_var_collation_client(CHARSET_INFO *client_coll_arg,
   			   CHARSET_INFO *connection_coll_arg,
   			   CHARSET_INFO *result_coll_arg)
-    :client_collation(client_coll_arg),
-     connection_collation(connection_coll_arg),
-     result_collation(result_coll_arg)
+    :collation_client(client_coll_arg),
+     collation_connection(connection_coll_arg),
+     collation_results(result_coll_arg)
   {}
   int check(THD *thd);
   int update(THD *thd);
