@@ -70,10 +70,10 @@ int decimal_round(decimal *from, decimal *to, int new_scale, decimal_round_mode 
 
 /*
   returns the length of the buffer to hold string representation
-  of the decimal
+  of the decimal (including decimal dot, possible sign and \0)
 */
 
-#define decimal_string_size(dec) ((dec)->intg + (dec)->frac + ((dec)->frac > 0) + 1)
+#define decimal_string_size(dec) ((dec)->intg + (dec)->frac + ((dec)->frac > 0) + 2)
 
 /* negate a decimal */
 #define decimal_neg(dec) do { (dec)->sign^=1; } while(0)
