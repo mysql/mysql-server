@@ -4,7 +4,7 @@ include $(top_srcdir)/ndb/config/common.mk.am
 
 ndbbin_PROGRAMS = ndbd
 
-ndbd_SOURCES = Main.cpp SimBlockList.cpp
+ndbd_SOURCES = main.cpp SimBlockList.cpp
 
 include $(top_srcdir)/ndb/config/type_kernel.mk.am
 

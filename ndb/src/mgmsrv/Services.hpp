@@ -36,6 +36,7 @@ private:
   InputStream *m_input;
   OutputStream *m_output;
   Parser_t *m_parser;
+  MgmtSrvr::Allocated_resources *m_allocated_resources;
 
   void getConfig_common(Parser_t::Context &ctx,
 			const class Properties &args,
@@ -43,6 +44,7 @@ private:
 
 public:
   MgmApiSession(class MgmtSrvr & mgm, NDB_SOCKET_TYPE sock);  
+  virtual ~MgmApiSession();
   void runSession();
 
   void getStatPort(Parser_t::Context &ctx, const class Properties &args);
@@ -51,6 +53,7 @@ public:
   void getConfig_old(Parser_t::Context &ctx);
 #endif /* MGM_GET_CONFIG_BACKWARDS_COMPAT */
 
+  void get_nodeid(Parser_t::Context &ctx, const class Properties &args);
   void getVersion(Parser_t::Context &ctx, const class Properties &args);
   void getStatus(Parser_t::Context &ctx, const class Properties &args);
   void getInfoClusterLog(Parser_t::Context &ctx, const class Properties &args);
@@ -78,6 +81,8 @@ public:
   void configLock(Parser_t::Context &ctx, const class Properties &args);
   void configUnlock(Parser_t::Context &ctx, const class Properties &args);
   void configChange(Parser_t::Context &ctx, const class Properties &args);
+
+  void setParameter(Parser_t::Context &ctx, const class Properties &args);
 
   void repCommand(Parser_t::Context &ctx, const class Properties &args);
 };

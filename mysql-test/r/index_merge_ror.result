@@ -130,7 +130,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ref	sta_swt12a,sta_swt1a,sta_swt2a,sta_swt21a,stb_swt1a_2b,stb_swt1b,st_b	st_b	4	const	14720	Using where
 explain select * from t1 where st_a=1 and swt1a=1 and swt2a=1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ref	sta_swt12a,sta_swt1a,sta_swt2a,sta_swt21a,st_a	sta_swt12a	12	const,const,const	958	Using where
+1	SIMPLE	t1	ref	sta_swt12a,sta_swt1a,sta_swt2a,sta_swt21a,st_a	sta_swt12a	12	const,const,const	958	
 explain select * from t1 where st_b=1 and swt1b=1 and swt2b=1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ref	stb_swt1a_2b,stb_swt1b,st_b	stb_swt1b	8	const,const	3757	Using where

@@ -1,14 +1,14 @@
 source include/master-slave.inc;
 
 connection slave;
-create database test1;
+create database mysqltest;
 connection master;
-drop database if exists test1;
+drop database if exists mysqltest;
 sync_slave_with_master;
 # can't read dir
 --replace_result "Errcode: 1" "Errcode: X" "Errcode: 2" "Errcode: X"
 --error 12
-show tables from test1;
+show tables from mysqltest;
 
 connection slave;
 create table t1 (a int);

@@ -461,17 +461,6 @@ MY_DIR	*my_dir(const char *path, myf MyFlags)
     else
       finfo.mystat= NULL;
 
-    /*
-      If the directory is the root directory of the drive, Windows sometimes
-      creates hidden or system files there (like RECYCLER); do not show
-      them. We would need to see how this can be achieved with a Borland
-      compiler.
-    */
-#ifndef __BORLANDC__
-    if (attrib & (_A_HIDDEN | _A_SYSTEM))
-      continue;
-#endif
-
     if (push_dynamic(dir_entries_storage, (gptr)&finfo))
       goto error;
     
@@ -624,7 +613,7 @@ MY_STAT *my_stat(const char *path, MY_STAT *stat_area, myf my_flags)
 {
   int m_used;
   DBUG_ENTER("my_stat");
-  DBUG_PRINT("my", ("path: '%s', stat_area: %lx, MyFlags: %d", path,
+  DBUG_PRINT("my", ("path: '%s', stat_area: 0x%lx, MyFlags: %d", path,
 	     (byte *) stat_area, my_flags));
 
   if ((m_used= (stat_area == NULL)))

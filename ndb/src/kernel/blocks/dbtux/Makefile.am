@@ -7,6 +7,7 @@ libdbtux_a_SOURCES = \
 			DbtuxNode.cpp \
 			DbtuxTree.cpp \
 			DbtuxScan.cpp \
+			DbtuxSearch.cpp \
 			DbtuxCmp.cpp \
 			DbtuxDebug.cpp
 

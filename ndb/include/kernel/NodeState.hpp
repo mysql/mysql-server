@@ -18,6 +18,7 @@
 #define NODE_STATE_HPP
 
 #include <NdbOut.hpp>
+#include <NodeBitmask.hpp>
 
 class NodeState {
 public:
@@ -99,7 +100,7 @@ public:
   /**
    * Length in 32-bit words
    */
-  static const Uint32 DataLength = 8;
+  static const Uint32 DataLength = 8 + NdbNodeBitmask::Size;
   
   /**
    * Constructor(s)
@@ -108,7 +109,8 @@ public:
   NodeState(StartLevel);
   NodeState(StartLevel, bool systemShutdown);
   NodeState(StartLevel, Uint32 startPhase, StartType);
-  
+  void init();
+ 
   /**
    * Current start level
    */
@@ -146,6 +148,8 @@ public:
   Uint32 singleUserMode;
   Uint32 singleUserApi;          //the single user node
 
+  BitmaskPOD<NdbNodeBitmask::Size> m_connected_nodes;
+
   void setDynamicId(Uint32 dynamic);
   void setNodeGroup(Uint32 group);
   void setSingleUser(Uint32 s);
@@ -177,16 +181,23 @@ public:
 
 inline
 NodeState::NodeState(){
+  init();
+}
+
+inline
+void
+NodeState::init(){
   startLevel = SL_CMVMI;
   nodeGroup = 0xFFFFFFFF;
   dynamicId = 0xFFFFFFFF;
   singleUserMode = 0;
   singleUserApi = 0xFFFFFFFF;
+  m_connected_nodes.clear();
 }
 
 inline
 NodeState::NodeState(StartLevel sl){
-  NodeState::NodeState();
+  init();
   startLevel = sl;
   singleUserMode = 0;
   singleUserApi = 0xFFFFFFFF;
@@ -194,7 +205,7 @@ NodeState::NodeState(StartLevel sl){
 
 inline
 NodeState::NodeState(StartLevel sl, Uint32 sp, StartType typeOfStart){
-  NodeState::NodeState();
+  init();
   startLevel = sl;
   starting.startPhase = sp;
   starting.restartType = typeOfStart;
@@ -204,7 +215,7 @@ NodeState::NodeState(StartLevel sl, Uint32 sp, StartType typeOfStart){
 
 inline
 NodeState::NodeState(StartLevel sl, bool sys){
-  NodeState::NodeState();
+  init();
   startLevel = sl;
   stopping.systemShutdown = sys;
   singleUserMode = 0;

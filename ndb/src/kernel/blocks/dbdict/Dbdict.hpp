@@ -230,7 +230,7 @@ public:
     Uint32 frmLen;
     char frmData[MAX_FRM_DATA_SIZE];
 
-
+    Uint32 fragmentCount;
   };
 
   typedef Ptr<TableRecord> TableRecordPtr;

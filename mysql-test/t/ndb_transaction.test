@@ -1,0 +1,297 @@
+-- source include/have_ndb.inc
+
+--disable_warnings
+DROP TABLE IF EXISTS t1,t2,t3,t4,t5,t6,t7;
+drop database if exists mysqltest;
+--enable_warnings
+
+#
+# Transactionc test to show that the NDB 
+# table handler is working properly with
+# transactions
+#
+
+#
+# Create a normal table with primary key
+#
+CREATE TABLE t1 (
+  pk1 INT NOT NULL PRIMARY KEY,
+  attr1 INT NOT NULL
+) ENGINE=ndbcluster;
+	
+# insert
+begin;
+insert into t1 values(1,1);
+insert into t1 values(2,2);
+select count(*) from t1;
+select * from t1 where pk1 = 1;
+select t1.attr1 from t1, t1 as t1x where t1.pk1 = t1x.pk1 + 1;
+rollback;
+
+select count(*) from t1;
+select * from t1 where pk1 = 1;
+select t1.attr1 from t1, t1 as t1x where t1.pk1 = t1x.pk1 + 1;
+
+begin;
+insert into t1 values(1,1);
+insert into t1 values(2,2);
+commit;
+
+select count(*) from t1;
+select * from t1 where pk1 = 1;
+select t1.attr1 from t1, t1 as t1x where t1.pk1 = t1x.pk1 + 1;
+
+# update
+begin;
+update t1 set attr1 = attr1 * 2;
+select count(*) from t1;
+select * from t1 where pk1 = 1;
+select * from t1, t1 as t1x where t1x.attr1 = t1.attr1 - 2;
+rollback;
+
+select count(*) from t1;
+select * from t1 where pk1 = 1;
+select * from t1, t1 as t1x where t1x.attr1 = t1.attr1 - 2;
+
+begin;
+update t1 set attr1 = attr1 * 2;
+commit;
+
+select count(*) from t1;
+select * from t1 where pk1 = 1;
+select * from t1, t1 as t1x where t1x.attr1 = t1.attr1 - 2;
+
+# delete
+begin;
+delete from t1 where attr1 = 2;
+select count(*) from t1;
+select * from t1 where pk1 = 1;
+select * from t1, t1 as t1x where t1x.attr1 = t1.attr1 - 2;
+rollback;
+
+select count(*) from t1;
+select * from t1 where pk1 = 1;
+select * from t1, t1 as t1x where t1x.attr1 = t1.attr1 - 2;
+
+begin;
+delete from t1 where attr1 = 2;
+commit;
+
+select count(*) from t1;
+select * from t1 where pk1 = 1;
+select * from t1, t1 as t1x where t1x.attr1 = t1.attr1 - 2;
+
+DROP TABLE t1;
+
+#
+# Create table without primary key
+# a hidden primary key column is created by handler
+#
+CREATE TABLE t1 (id INT, id2 int) engine=ndbcluster;
+
+# insert
+begin;
+insert into t1 values(1,1);
+insert into t1 values(2,2);
+select sum(id) from t1;
+select * from t1 where id = 1;
+select t1.id from t1, t1 as t1x where t1.id2 = t1x.id2 + 1;
+rollback;
+
+select sum(id) from t1;
+select * from t1 where id = 1;
+select t1.id from t1, t1 as t1x where t1.id2 = t1x.id2 + 1;
+
+begin;
+insert into t1 values(1,1);
+insert into t1 values(2,2);
+commit;
+
+select sum(id) from t1;
+select * from t1 where id = 1;
+select t1.id from t1, t1 as t1x where t1.id2 = t1x.id2 + 1;
+
+# update
+begin;
+update t1 set id = id * 2;
+select sum(id) from t1;
+select * from t1 where id = 2;
+select * from t1, t1 as t1x where t1x.id = t1.id - 2;
+rollback;
+
+select sum(id) from t1;
+select * from t1 where id = 2;
+select * from t1, t1 as t1x where t1x.id = t1.id - 2;
+
+begin;
+update t1 set id = id * 2;
+commit;
+
+select sum(id) from t1;
+select * from t1 where id = 2;
+select * from t1, t1 as t1x where t1x.id = t1.id - 2;
+
+# delete
+
+DROP TABLE t1;
+
+#
+# A more extensive test with a lot more records
+#
+
+CREATE TABLE t2 (
+  a bigint unsigned NOT NULL PRIMARY KEY,
+  b int unsigned not null,
+  c int unsigned
+) engine=ndbcluster;
+
+CREATE TABLE t3 (
+  a bigint unsigned NOT NULL,
+  b bigint unsigned not null,
+  c bigint unsigned,
+  PRIMARY KEY(a)
+) engine=ndbcluster;
+
+CREATE TABLE t4 (
+  a bigint unsigned NOT NULL,
+  b bigint unsigned not null,
+  c bigint unsigned NOT NULL,
+  d int unsigned,
+  PRIMARY KEY(a, b, c)
+) engine=ndbcluster;
+
+
+#
+# insert records into tables and rollback
+#
+let $1=100;
+disable_query_log;
+begin;
+while ($1)
+{
+ eval insert into t2 values($1, $1+9, 5);
+ eval insert into t3 values($1, $1+9, 5);
+ eval insert into t4 values($1, $1+9, 5, $1+26000);
+ dec $1;
+}
+rollback;
+enable_query_log;
+
+select count(*) from t2;
+select count(*) from t3;
+select count(*) from t4;
+
+#
+# insert records into tables and commit;
+#
+let $1=100;
+disable_query_log;
+begin;
+while ($1)
+{
+ eval insert into t2 values($1, $1+9, 5);
+ eval insert into t3 values($1, $1+9, 5);
+ eval insert into t4 values($1, $1+9, 5, $1+26000);
+ dec $1;
+}
+commit;
+enable_query_log;
+
+select count(*) from t2;
+select count(*) from t3;
+select count(*) from t4;
+
+#
+# delete every other record in the tables
+#
+let $1=100;
+disable_query_log;
+while ($1)
+{
+ eval delete from t2 where a=$1;
+ eval delete from t3 where a=$1;
+ eval delete from t4 where a=$1 and b=$1+9 and c=5;
+ dec $1;
+ dec $1;
+}
+enable_query_log;
+
+#
+# update records and rollback
+#
+begin;
+let $1=100;
+disable_query_log;
+while ($1)
+{
+ eval update t2 set c=$1 where a=$1;
+ eval update t3 set c=7 where a=$1 and b=$1+9 and c=5;
+ eval update t4 set d=$1+21987 where a=$1 and b=$1+9 and c=5;
+ dec $1;
+ dec $1;
+}
+rollback;
+enable_query_log;
+
+#
+# update records and commit
+#
+begin;
+let $1=100;
+disable_query_log;
+while ($1)
+{
+ eval update t2 set c=$1 where a=$1;
+ eval update t3 set c=7 where a=$1 and b=$1+9 and c=5;
+ eval update t4 set d=$1+21987 where a=$1 and b=$1+9 and c=5;
+ dec $1;
+ dec $1;
+}
+rollback;
+enable_query_log;
+
+drop table t2;
+drop table t3;
+drop table t4;
+
+#
+# Test multiple databases in one transaction
+#
+
+CREATE TABLE t1 (
+  pk1 INT NOT NULL PRIMARY KEY,
+  attr1 INT NOT NULL
+) ENGINE=ndbcluster;
+
+create database mysqltest;
+use mysqltest;
+
+CREATE TABLE t2 (
+  a bigint unsigned NOT NULL PRIMARY KEY,
+  b int unsigned not null,
+  c int unsigned
+) engine=ndbcluster;
+
+begin;
+insert into test.t1 values(1,1);
+insert into t2 values(1,1,1);
+insert into test.t1 values(2,2);
+insert into t2 values(2,2,2);
+select count(*) from test.t1;
+select count(*) from t2;
+select * from test.t1 where pk1 = 1;
+select * from t2 where a = 1;
+select test.t1.attr1 
+from test.t1, test.t1 as t1x where test.t1.pk1 = t1x.pk1 + 1;
+select t2.a 
+from t2, t2 as t2x where t2.a = t2x.a + 1;
+select test.t1.pk1, a from test.t1,t2 where b > test.t1.attr1;
+rollback;
+
+select count(*) from test.t1;
+select count(*) from t2;
+
+drop table test.t1, t2;
+drop database mysqltest;
+
+

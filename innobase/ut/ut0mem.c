@@ -107,7 +107,13 @@ ut_malloc_low(
 
 		/* Make an intentional seg fault so that we get a stack
 		trace */
+		/* Intentional segfault on NetWare causes an abend. Avoid this 
+		by graceful exit handling in ut_a(). */
+#if (!defined __NETWARE__) 
 		if (*ut_mem_null_ptr) ut_mem_null_ptr = 0;
+#else
+		ut_a(0);
+#endif
 	}		
 
 	if (set_to_zero) {

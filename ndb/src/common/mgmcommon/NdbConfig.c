@@ -18,43 +18,93 @@
 #include <NdbConfig.h>
 #include <NdbEnv.h>
 
-const char* 
-NdbConfig_HomePath(char* buf, int buflen){
-  const char* p;
-  p = NdbEnv_GetEnv("NDB_HOME", buf, buflen);
-  if (p == NULL){
-    strlcpy(buf, "", buflen);
-    p = buf;
-  } else {
-    const int len = strlen(buf);
-    if(len != 0 && buf[len-1] != '/'){
-      buf[len]   = '/';
-      buf[len+1] = 0;
-    }
-  }
-  return p;
-}
+static char* 
+NdbConfig_AllocHomePath(int _len)
+{
+  const char *path= NdbEnv_GetEnv("NDB_HOME", 0, 0);
+  int len= _len;
+  int path_len= 0;
+  char *buf;
 
-const char* 
-NdbConfig_NdbCfgName(char* buf, int buflen, int with_ndb_home){
-  if (with_ndb_home)
-    NdbConfig_HomePath(buf, buflen);
+  if (path)
+    path_len= strlen(path);
+
+  len+= path_len;
+  buf= malloc(len);
+  if (path_len > 0)
+    snprintf(buf, len, "%s%s", path, DIR_SEPARATOR);
   else
-    buf[0] = 0;
-  strlcat(buf, "Ndb.cfg", buflen);
+    buf[0]= 0;
+
   return buf;
 }
 
-const char* 
-NdbConfig_ErrorFileName(char* buf, int buflen){
-  NdbConfig_HomePath(buf, buflen);
-  strlcat(buf, "error.log", buflen);
+char* 
+NdbConfig_NdbCfgName(int with_ndb_home){
+  char *buf;
+  int len= 0;
+
+  if (with_ndb_home) {
+    buf= NdbConfig_AllocHomePath(128);
+    len= strlen(buf);
+  } else
+    buf= malloc(128);
+  snprintf(buf+len, 128, "Ndb.cfg");
   return buf;
 }
 
-const char*
-NdbConfig_ClusterLogFileName(char* buf, int buflen){
-  NdbConfig_HomePath(buf, buflen);
-  strlcat(buf, "cluster.log", buflen);
+char* 
+NdbConfig_ErrorFileName(int node_id){
+  char *buf= NdbConfig_AllocHomePath(128);
+  int len= strlen(buf);
+  snprintf(buf+len, 128, "ndb_%u_error.log", node_id);
+  return buf;
+}
+
+char*
+NdbConfig_ClusterLogFileName(int node_id){
+  char *buf= NdbConfig_AllocHomePath(128);
+  int len= strlen(buf);
+  snprintf(buf+len, 128, "ndb_%u_cluster.log", node_id);
+  return buf;
+}
+
+char*
+NdbConfig_SignalLogFileName(int node_id){
+  char *buf= NdbConfig_AllocHomePath(128);
+  int len= strlen(buf);
+  snprintf(buf+len, 128, "ndb_%u_signal.log", node_id);
+  return buf;
+}
+
+char*
+NdbConfig_TraceFileName(int node_id, int file_no){
+  char *buf= NdbConfig_AllocHomePath(128);
+  int len= strlen(buf);
+  snprintf(buf+len, 128, "ndb_%u_trace.log.%u", node_id, file_no);
+  return buf;
+}
+
+char*
+NdbConfig_NextTraceFileName(int node_id){
+  char *buf= NdbConfig_AllocHomePath(128);
+  int len= strlen(buf);
+  snprintf(buf+len, 128, "ndb_%u_trace.log.next", node_id);
+  return buf;
+}
+
+char*
+NdbConfig_PidFileName(int node_id){
+  char *buf= NdbConfig_AllocHomePath(128);
+  int len= strlen(buf);
+  snprintf(buf+len, 128, "ndb_%u.pid", node_id);
+  return buf;
+}
+
+char*
+NdbConfig_StdoutFileName(int node_id){
+  char *buf= NdbConfig_AllocHomePath(128);
+  int len= strlen(buf);
+  snprintf(buf+len, 128, "ndb_%u_out.log", node_id);
   return buf;
 }

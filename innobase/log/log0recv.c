@@ -628,6 +628,9 @@ log_block_checksum_is_ok_or_old_format(
 			format of InnoDB version < 3.23.52 */
 	byte*	block)	/* in: pointer to a log block */
 {
+#ifdef UNIV_LOG_DEBUG
+	return(TRUE);
+#endif /* UNIV_LOG_DEBUG */
 	if (log_block_calc_checksum(block) == log_block_get_checksum(block)) {
 
 		return(TRUE);

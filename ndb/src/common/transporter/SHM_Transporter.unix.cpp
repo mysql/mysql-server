@@ -26,114 +26,37 @@
 #include <sys/ipc.h>
 #include <sys/shm.h>
 
-
-
 bool
-SHM_Transporter::connectServer(Uint32 timeOutMillis){
-  if(!_shmSegCreated){
-    shmId = shmget(shmKey, shmSize, IPC_CREAT | 960);
-    if(shmId == -1){
-      perror("shmget: ");
-      reportThreadError(remoteNodeId, TE_SHM_UNABLE_TO_CREATE_SEGMENT);
-      NdbSleep_MilliSleep(timeOutMillis);
-      return false;
-    }
-    _shmSegCreated = true;
-  }
-
-  if(!_attached){
-    shmBuf = (char *)shmat(shmId, 0, 0);
-    if(shmBuf == 0){
-      perror("shmat: ");
-      reportThreadError(remoteNodeId, TE_SHM_UNABLE_TO_ATTACH_SEGMENT);
-      NdbSleep_MilliSleep(timeOutMillis);
-      return false;
-    }
-    _attached = true;
-  }
-  
-  struct shmid_ds info;
-  const int res = shmctl(shmId, IPC_STAT, &info);
-  if(res == -1){
-    perror("shmctl: ");
-    reportThreadError(remoteNodeId, TE_SHM_IPC_STAT);
-    NdbSleep_MilliSleep(timeOutMillis);
+SHM_Transporter::ndb_shm_create()
+{
+  shmId = shmget(shmKey, shmSize, IPC_CREAT | 960);
+  if(shmId == -1) {
+    perror("shmget: ");
     return false;
   }
-  
-  if(info.shm_nattch == 2 && !setupBuffersDone) {
-    setupBuffers();
-    setupBuffersDone=true;
-  }
-
-  if(setupBuffersDone) {
-    NdbSleep_MilliSleep(timeOutMillis);
-    if(*serverStatusFlag==1 && *clientStatusFlag==1)
-      return true;
-  }
-  
-
-  if(info.shm_nattch > 2){
-    reportThreadError(remoteNodeId, TE_SHM_DISCONNECT);
-    NdbSleep_MilliSleep(timeOutMillis);
-    return false;
-  }
-  
-  NdbSleep_MilliSleep(timeOutMillis);
-  return false;
+  return true;
 }
 
 bool
-SHM_Transporter::connectClient(Uint32 timeOutMillis){
-  if(!_shmSegCreated){
-
-    shmId = shmget(shmKey, shmSize, 0);
-    if(shmId == -1){
-      NdbSleep_MilliSleep(timeOutMillis);
-      return false;
-    }
-    _shmSegCreated = true;
-  }
-
-  if(!_attached){
-    shmBuf = (char *)shmat(shmId, 0, 0);
-    if(shmBuf == 0){
-      reportThreadError(remoteNodeId, TE_SHM_UNABLE_TO_ATTACH_SEGMENT);
-      NdbSleep_MilliSleep(timeOutMillis);
-      return false;
-    }
-    _attached = true;
-  }
-
-  struct shmid_ds info;
-
-  const int res = shmctl(shmId, IPC_STAT, &info);
-  if(res == -1){
-    reportThreadError(remoteNodeId, TE_SHM_IPC_STAT);
-    NdbSleep_MilliSleep(timeOutMillis);
+SHM_Transporter::ndb_shm_get()
+{
+  shmId = shmget(shmKey, shmSize, 0);
+  if(shmId == -1) {
+    perror("shmget: ");
     return false;
   }
-  
+  return true;
+}
 
-  if(info.shm_nattch == 2 && !setupBuffersDone) {
-    setupBuffers();
-    setupBuffersDone=true;
-  }
-
-  if(setupBuffersDone) {
-    NdbSleep_MilliSleep(timeOutMillis);
-    if(*serverStatusFlag==1 && *clientStatusFlag==1)
-      return true;
-  }
-
-  if(info.shm_nattch > 2){
-    reportThreadError(remoteNodeId, TE_SHM_DISCONNECT);
-    NdbSleep_MilliSleep(timeOutMillis);
+bool
+SHM_Transporter::ndb_shm_attach()
+{
+  shmBuf = (char *)shmat(shmId, 0, 0);
+  if(shmBuf == 0) {
+    perror("shmat: ");
     return false;
   }
-
-  NdbSleep_MilliSleep(timeOutMillis);
-  return false;
+  return true;
 }
 
 bool
@@ -141,12 +64,12 @@ SHM_Transporter::checkConnected(){
   struct shmid_ds info;
   const int res = shmctl(shmId, IPC_STAT, &info);
   if(res == -1){
-    reportError(callbackObj, remoteNodeId, TE_SHM_IPC_STAT);
+    report_error(TE_SHM_IPC_STAT);
     return false;
   }
  
   if(info.shm_nattch != 2){
-    reportError(callbackObj, remoteNodeId, TE_SHM_DISCONNECT);
+    report_error(TE_SHM_DISCONNECT);
     return false;
   }
   return true;
@@ -168,11 +91,10 @@ SHM_Transporter::disconnectImpl(){
   if(isServer && _shmSegCreated){
     const int res = shmctl(shmId, IPC_RMID, 0);
     if(res == -1){
-      reportError(callbackObj, remoteNodeId, TE_SHM_UNABLE_TO_REMOVE_SEGMENT);
+      report_error(TE_SHM_UNABLE_TO_REMOVE_SEGMENT);
       return;
     }
     _shmSegCreated = false;
   }
   setupBuffersDone=false;
 }
-

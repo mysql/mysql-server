@@ -75,3 +75,50 @@ select id, sum(qty) as sqty from t1 group by id having sqty>2;
 select sum(qty) as sqty from t1 group by id having count(id) > 0;
 select sum(qty) as sqty from t1 group by id having count(distinct id) > 0;
 drop table t1;
+
+#
+# Test case for Bug #4358 Problem with HAVING clause that uses alias from the
+#              select list and TEXT field 
+#
+
+CREATE TABLE t1 (
+  `id` bigint(20) NOT NULL default '0',
+  `description` text
+) ENGINE=MyISAM;
+
+CREATE TABLE t2 (
+  `id` bigint(20) NOT NULL default '0',
+  `description` varchar(20)
+) ENGINE=MyISAM;
+
+INSERT INTO t1  VALUES (1, 'test');
+INSERT INTO t2 VALUES (1, 'test');
+
+CREATE TABLE t3 (
+  `id`       bigint(20) NOT NULL default '0',
+  `order_id` bigint(20) NOT NULL default '0'
+) ENGINE=MyISAM;
+
+select
+	a.id, a.description,
+	count(b.id) as c 
+from t1 a left join t3 b on a.id=b.order_id 
+group by a.id, a.description 
+having (a.description is not null) and (c=0);
+
+select
+	a.*, 
+	count(b.id) as c 
+from t2 a left join t3 b on a.id=b.order_id 
+group by a.id, a.description
+having (a.description is not null) and (c=0);
+
+INSERT INTO t1  VALUES (2, 'test2');
+
+select
+	a.id, a.description,
+	count(b.id) as c 
+from t1 a left join t3 b on a.id=b.order_id 
+group by a.id, a.description 
+having (a.description is not null) and (c=0);
+drop table t1,t2,t3;

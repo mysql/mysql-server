@@ -98,3 +98,27 @@ explain select * from t1 where a between 2 and 3;
 explain select * from t1 where a between 2 and 3 or b is null;
 drop table t1;
 select cast(NULL as signed);
+
+#
+# IS NULL is unable to use index in range if column is declared not null
+# (Bug #4256)
+#
+create table t1(i int, key(i));
+insert into t1 values(1);
+insert into t1 select i*2 from t1;
+insert into t1 select i*2 from t1;
+insert into t1 select i*2 from t1;
+insert into t1 select i*2 from t1;
+insert into t1 select i*2 from t1;
+insert into t1 select i*2 from t1;
+insert into t1 select i*2 from t1;
+insert into t1 select i*2 from t1;
+insert into t1 select i*2 from t1;
+insert into t1 values(null);
+explain select * from t1 where i=2 or i is null;
+select count(*) from t1 where i=2 or i is null;
+alter table t1 change i i int not null;
+explain select * from t1 where i=2 or i is null;
+select count(*) from t1 where i=2 or i is null;
+drop table t1;
+

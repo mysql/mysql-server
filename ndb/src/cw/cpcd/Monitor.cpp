@@ -75,3 +75,5 @@ void
 CPCD::Monitor::signal() {
   NdbCondition_Signal(m_changeCondition);
 }
+
+template class MutexVector<CPCD::Process*>;

@@ -15,8 +15,6 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 #include <ndb_global.h>
-#include <signal.h>
-
 
 #include <BaseString.hpp>
 #include <InputStream.hpp>
@@ -209,54 +207,50 @@ int
 set_ulimit(const BaseString & pair){
 #ifdef HAVE_GETRLIMIT
   errno = 0;
-  do {
-    Vector<BaseString> list;
-    pair.split(list, ":");
-    if(list.size() != 2){
-      break;
-    }
-
-    int res;
-    rlim_t value = RLIM_INFINITY;
-    if(!(list[1].trim() == "unlimited")){
-      value = atoi(list[1].c_str());
-    }
-
-    struct rlimit rlp;
+  Vector<BaseString> list;
+  pair.split(list, ":");
+  if(list.size() != 2){
+    logger.error("Unable to process ulimit: split >%s< list.size()=%d", 
+		 pair.c_str(), list.size());
+    return -1;
+  }
+  
+  int res;
+  rlim_t value = RLIM_INFINITY;
+  if(!(list[1].trim() == "unlimited")){
+    value = atoi(list[1].c_str());
+  }
+  
+  struct rlimit rlp;
 #define _RLIMIT_FIX(x) { res = getrlimit(x,&rlp); if(!res){ rlp.rlim_cur = value; res = setrlimit(x, &rlp); }}
-
-    if(list[0].trim() == "c"){
-      _RLIMIT_FIX(RLIMIT_CORE);
-    } else if(list[0] == "d"){
-      _RLIMIT_FIX(RLIMIT_DATA);
-    } else if(list[0] == "f"){
-      _RLIMIT_FIX(RLIMIT_FSIZE);
-    } else if(list[0] == "n"){
-      _RLIMIT_FIX(RLIMIT_NOFILE);
-    } else if(list[0] == "s"){
-      _RLIMIT_FIX(RLIMIT_STACK);
-    } else if(list[0] == "t"){
-      _RLIMIT_FIX(RLIMIT_CPU);
-    } else {
-      errno = EINVAL;
-      break;
-    }
-    if(!res)
-      break;
-    
-    return 0;
-  } while(false);
-  logger.error("Unable to process ulimit: %s(%s)", 
-	       pair.c_str(), strerror(errno));
-  return -1;
-#else
-  return 0; // Maybe it's ok anyway...
+  
+  if(list[0].trim() == "c"){
+    _RLIMIT_FIX(RLIMIT_CORE);
+  } else if(list[0] == "d"){
+    _RLIMIT_FIX(RLIMIT_DATA);
+  } else if(list[0] == "f"){
+    _RLIMIT_FIX(RLIMIT_FSIZE);
+  } else if(list[0] == "n"){
+    _RLIMIT_FIX(RLIMIT_NOFILE);
+  } else if(list[0] == "s"){
+    _RLIMIT_FIX(RLIMIT_STACK);
+  } else if(list[0] == "t"){
+    _RLIMIT_FIX(RLIMIT_CPU);
+  } else {
+    errno = EINVAL;
+  }
+  if(res){
+    logger.error("Unable to process ulimit: %s res=%d error=%d(%s)", 
+		 pair.c_str(), res, errno, strerror(errno));
+    return -1;
+  }
 #endif
+  return 0;
 }
 
 void
 CPCD::Process::do_exec() {
-  
+  size_t i; 
   setup_environment(m_env.c_str());
 
   char **argv = BaseString::argify(m_path.c_str(), m_args.c_str());
@@ -272,7 +266,7 @@ CPCD::Process::do_exec() {
 
   Vector<BaseString> ulimit;
   m_ulimit.split(ulimit);
-  for(size_t i = 0; i<ulimit.size(); i++){
+  for(i = 0; i<ulimit.size(); i++){
     if(ulimit[i].trim().length() > 0 && set_ulimit(ulimit[i]) != 0){
       _exit(1);
     }
@@ -286,7 +280,7 @@ CPCD::Process::do_exec() {
   
   BaseString * redirects[] = { &m_stdin, &m_stdout, &m_stderr };
   int fds[3];
-  for(int i = 0; i<3; i++){
+  for(i = 0; i<3; i++){
     if(redirects[i]->empty()){
 #ifndef DEBUG
       dup2(fd, i);
@@ -319,7 +313,7 @@ CPCD::Process::do_exec() {
   }
 
   /* Close all filedescriptors */
-  for(int i = STDERR_FILENO+1; i < getdtablesize(); i++)
+  for(i = STDERR_FILENO+1; i < getdtablesize(); i++)
     close(i);
 
   execv(m_path.c_str(), argv);

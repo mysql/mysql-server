@@ -36,8 +36,6 @@ class Item_subselect :public Item_result_field
 protected:
   /* thread handler, will be assigned in fix_fields only */
   THD *thd;
-  /* Item_arena used or 0 */
-  Item_arena *arena;
   /* substitution instead of subselect in case of optimization */
   Item *substitution;
   /* unit of subquery */
@@ -50,6 +48,8 @@ protected:
   table_map used_tables_cache;
   /* allowed number of columns (1 for single value subqueries) */
   uint max_columns;
+  /* where subquery is placed */
+  enum_parsing_place parsing_place;
   /* work with 'substitution' */
   bool have_to_be_excluded;
   /* cache of constant state */

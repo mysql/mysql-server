@@ -537,6 +537,7 @@ int runTestFragmentTypes(NDBT_Context* ctx, NDBT_Step* step){
   }
   
   const NdbDictionary::Table* pTab = ctx->getTab();
+  pNdb->getDictionary()->dropTable(pTab->getName());
 
   NdbDictionary::Table newTab(* pTab);
   // Set fragment type for table    
