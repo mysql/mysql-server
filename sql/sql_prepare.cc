@@ -174,7 +174,7 @@ static bool send_prep_stmt(PREP_STMT *stmt, uint columns __attribute__((unused))
 
   return 0;
 }
-#endif /*!EMBEDDED_LIBRAYR*/
+#endif /*!EMBEDDED_LIBRARY*/
 
 /*
   Send information about all item parameters
