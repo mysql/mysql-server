@@ -10,7 +10,7 @@ if [ -z $BROWSER ]; then
     echo "BROWSER not set, using $BROWSER"
 fi
 
-function die
+die ()
 {
     echo
     echo $1
@@ -18,7 +18,7 @@ function die
     exit 1
 }
 
-function cleanup
+cleanup ()
 {
     echo "Cleaning up..."
     if [ $needed_flags ]; then
@@ -113,11 +113,12 @@ fi
 
 
 echo -n "Running texi2dvi..."
-texi2dvi --batch --quiet manual.texi
+texi2dvi --batch manual.texi > texi2dvi.out
 
 if [ $? != 0 ]; then
-    die "Manual has errors - fix before you commit"
+    die "Manual has errors - fix before you commit (saved in texi2dvi.out)"
 else
+    rm texi2dvi.out
     echo " Looks good."
 fi
 
@@ -132,5 +133,5 @@ echo
 $BROWSER file:`pwd`/manual_toc.html
 
 echo "-- Press Enter to Continue --"
-read
+read junk
 cleanup
