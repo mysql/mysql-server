@@ -3586,8 +3586,18 @@ static void mysql_rm_tmp_tables(void)
 ** and afterwards delete those marked unused.
 */
 
-void remove_db_from_cache(const my_string db)
+void remove_db_from_cache(const char *db)
 {
+  char name_buff[NAME_LEN+1];
+  if (db && lower_case_table_names)
+  {
+    /*
+      convert database to lower case for comparision.
+    */
+    strmake(name_buff, db, sizeof(name_buff)-1);
+    my_casedn_str(files_charset_info, name_buff);
+    db= name_buff;
+  }
   for (uint idx=0 ; idx < open_cache.records ; idx++)
   {
     TABLE *table=(TABLE*) hash_element(&open_cache,idx);

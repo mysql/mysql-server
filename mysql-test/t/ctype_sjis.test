@@ -68,3 +68,10 @@ SET collation_connection='sjis_japanese_ci';
 -- source include/ctype_filesort.inc
 SET collation_connection='sjis_bin';
 -- source include/ctype_filesort.inc
+
+# Check parsing of string literals in SJIS with multibyte characters that
+# have an embedded \ in them. (Bug #8303)
+
+--character_set sjis
+SET NAMES sjis;
+SELECT HEX('ç≤ìëÅ@\å\') FROM DUAL;
