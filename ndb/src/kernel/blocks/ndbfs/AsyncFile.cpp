@@ -27,6 +27,14 @@
 #include <NdbThread.h>
 #include <signaldata/FsOpenReq.hpp>
 
+// use this to test broken pread code
+//#define HAVE_BROKEN_PREAD 
+
+#ifdef HAVE_BROKEN_PREAD
+#undef HAVE_PWRITE
+#undef HAVE_PREAD
+#endif
+
 #if defined NDB_WIN32 || defined NDB_OSE || defined NDB_SOFTOSE
 #else
 // For readv and writev
@@ -379,9 +387,12 @@ AsyncFile::readBuffer(char * buf, size_t size, off_t offset){
   if(dwSFP != offset) {
     return GetLastError();
   }
-#elif defined NDB_OSE || defined NDB_SOFTOSE
-  return_value = lseek(theFd, offset, SEEK_SET);
-  if (return_value != offset) {
+#elif ! defined(HAVE_PREAD)
+  off_t seek_val;
+  while((seek_val= lseek(theFd, offset, SEEK_SET)) == (off_t)-1 
+	&& errno == EINTR);
+  if(seek_val == (off_t)-1)
+  {
     return errno;
   }
 #endif
@@ -400,10 +411,10 @@ AsyncFile::readBuffer(char * buf, size_t size, off_t offset){
       return GetLastError();
     } 
     bytes_read = dwBytesRead;
-#elif defined NDB_OSE || defined NDB_SOFTOSE
+#elif  ! defined(HAVE_PREAD)
     return_value = ::read(theFd, buf, size);
 #else // UNIX
-    return_value = my_pread(theFd, buf, size, offset,0);
+    return_value = ::pread(theFd, buf, size, offset);
 #endif
 #ifndef NDB_WIN32
     if (return_value == -1 && errno == EINTR) {
@@ -453,7 +464,7 @@ AsyncFile::readReq( Request * request)
 void
 AsyncFile::readvReq( Request * request)
 {
-#if defined NDB_OSE || defined NDB_SOFTOSE
+#if ! defined(HAVE_PREAD)
   readReq(request);
   return;
 #elif defined NDB_WIN32
@@ -483,7 +494,7 @@ AsyncFile::readvReq( Request * request)
 
 int 
 AsyncFile::extendfile(Request* request) {
-#if defined NDB_OSE || defined NDB_SOFTOSE
+#if ! defined(HAVE_PWRITE)
   // Find max size of this file in this request
   int maxOffset = 0;
   int maxSize = 0;
@@ -592,27 +603,13 @@ AsyncFile::writeBuffer(const char * buf, size_t size, off_t offset,
   if(dwSFP != offset) {
     return GetLastError();
   }
-#elif defined NDB_OSE || defined NDB_SOFTOSE
-  return_value = lseek(theFd, offset, SEEK_SET);
-  if (return_value != offset) {
-    DEBUG(ndbout_c("AsyncFile::writeReq, err1: return_value=%d, offset=%d\n", 
-		   return_value, chunk_offset));
-    PRINT_ERRORANDFLAGS(0);
-    if (errno == 78) {
-      // Could not write beyond end of file, try to extend file
-      DEBUG(ndbout_c("AsyncFile::writeReq, Extend. file! filename=\"%s\" \n",
-		     theFileName.c_str()));
-      return_value = extendfile(request);
-      if (return_value == -1) {
-	return errno;
-      }
-      return_value = lseek(theFd, offset, SEEK_SET);
-      if (return_value != offset) {
-	return errno;
-      }
-    } else {
-      return errno;
-    }
+#elif ! defined(HAVE_PWRITE)
+  off_t seek_val;
+  while((seek_val= lseek(theFd, offset, SEEK_SET)) == (off_t)-1 
+	&& errno == EINTR);
+  if(seek_val == (off_t)-1)
+  {
+    return errno;
   }
 #endif
     
@@ -634,10 +631,10 @@ AsyncFile::writeBuffer(const char * buf, size_t size, off_t offset,
       DEBUG(ndbout_c("Warning partial write %d != %d", bytes_written, bytes_to_write));
     }
     
-#elif defined NDB_OSE || defined NDB_SOFTOSE
+#elif ! defined(HAVE_PWRITE)
     return_value = ::write(theFd, buf, bytes_to_write);
 #else // UNIX
-    return_value = my_pwrite(theFd, buf, bytes_to_write, offset, 0);
+    return_value = ::pwrite(theFd, buf, bytes_to_write, offset);
 #endif
 #ifndef NDB_WIN32
     if (return_value == -1 && errno == EINTR) {
