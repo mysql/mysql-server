@@ -95,7 +95,7 @@ class ha_ndbcluster: public handler
   const char * table_type() const { return("ndbcluster");}
   const char ** bas_ext() const;
   ulong table_flags(void) const { return m_table_flags; }
-  ulong index_flags(uint idx, uint part) const;
+  ulong index_flags(uint idx, uint part, bool all_parts) const;
   uint max_supported_record_length() const { return NDB_MAX_TUPLE_SIZE; };
   uint max_supported_keys() const { return MAX_KEY;  }
   uint max_supported_key_parts() const 

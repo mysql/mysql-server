@@ -431,9 +431,9 @@ void Field::store_time(TIME *ltime,timestamp_type type)
 }
 
 
-bool Field::optimize_range(uint idx)
+bool Field::optimize_range(uint idx, uint part)
 {
-  return test(table->file->index_flags(idx) & HA_READ_RANGE);
+  return test(table->file->index_flags(idx, part, 1) & HA_READ_RANGE);
 }
 
 /****************************************************************************

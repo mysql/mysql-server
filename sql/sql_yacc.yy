@@ -1023,7 +1023,7 @@ create:
 	  bzero((char*) &lex->create_info,sizeof(lex->create_info));
 	  lex->create_info.options=$2 | $4;
 	  lex->create_info.db_type= (enum db_type) lex->thd->variables.table_type;
-	  lex->create_info.default_table_charset= thd->variables.collation_database;
+	  lex->create_info.default_table_charset= NULL;
 	  lex->name=0;
 	}
 	create2
@@ -1815,7 +1815,7 @@ alter:
 	  lex->select_lex.db=lex->name=0;
 	  bzero((char*) &lex->create_info,sizeof(lex->create_info));
 	  lex->create_info.db_type= DB_TYPE_DEFAULT;
-	  lex->create_info.default_table_charset= thd->variables.collation_database;
+	  lex->create_info.default_table_charset= NULL;
 	  lex->create_info.row_type= ROW_TYPE_NOT_USED;
 	  lex->alter_info.reset();          
 	  lex->alter_info.is_simple= 1;
@@ -4884,7 +4884,19 @@ IDENT_sys:
 	  {
 	    THD *thd= YYTHD;
 	    if (thd->charset_is_system_charset)
+            {
+              CHARSET_INFO *cs= system_charset_info;
+              uint wlen= cs->cset->well_formed_len(cs, $1.str,
+                                                   $1.str+$1.length,
+                                                   $1.length);
+              if (wlen < $1.length)
+              {
+                net_printf(YYTHD, ER_INVALID_CHARACTER_STRING, cs->csname,
+                           $1.str + wlen);
+                YYABORT;
+              }
 	      $$= $1;
+            }
 	    else
 	      thd->convert_string(&$$, system_charset_info,
 				  $1.str, $1.length, thd->charset());

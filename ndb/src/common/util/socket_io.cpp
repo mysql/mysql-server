@@ -93,8 +93,8 @@ readln_socket(NDB_SOCKET_TYPE socket, int timeout_millis,
     
     FD_ZERO(&readset);
     FD_SET(socket, &readset);
-    timeout.tv_sec  = 1;
-    timeout.tv_usec = 0; // 1 s
+    timeout.tv_sec  = (timeout_millis / 1000);
+    timeout.tv_usec = (timeout_millis % 1000) * 1000;
     const int selectRes = select(socket + 1, &readset, 0, 0, &timeout);
     if(selectRes != 1){
       return -1;

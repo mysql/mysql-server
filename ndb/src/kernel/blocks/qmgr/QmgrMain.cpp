@@ -2311,6 +2311,15 @@ void Qmgr::execPREP_FAILCONF(Signal* signal)
    * Continues via sendCommitFailReq() if successful.
    */
   arbitRec.failureNr = cfailureNr;
+  const NodeState & s = getNodeState();
+  if(s.startLevel == NodeState::SL_STOPPING_3 && s.stopping.systemShutdown){
+    jam();
+    /**
+     * We're performing a system shutdown, 
+     * don't let artibtrator shut us down
+     */
+    return;
+  }
   handleArbitCheck(signal);
   return;
 }//Qmgr::execPREP_FAILCONF()
