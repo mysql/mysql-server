@@ -222,7 +222,7 @@ net_store_length(char *pkg, ulonglong length)
   }
   *packet++=254;
   int8store(packet,length);
-  return (char*) packet+9;
+  return (char*) packet+8;
 }
 
 char *
