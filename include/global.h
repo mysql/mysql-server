@@ -21,6 +21,13 @@
 #ifndef _global_h
 #define _global_h
 
+#if defined( __EMX__) && !defined( MYSQL_SERVER)
+// moved here to use below VOID macro redefinition
+#define INCL_BASE
+#define INCL_NOPMAPI
+#include <os2.h>
+#endif // __EMX__
+
 #if defined(_WIN32) || defined(_WIN64) || defined(__WIN32__) || defined(WIN32)
 #include <config-win.h>
 #else
@@ -381,8 +388,13 @@ typedef SOCKET_SIZE_TYPE size_socket;
 #define FN_DEVCHAR	':'
 
 #ifndef FN_LIBCHAR
+#ifdef __EMX__
+#define FN_LIBCHAR	'\\'
+#define FN_ROOTDIR	"\\"
+#else
 #define FN_LIBCHAR	'/'
 #define FN_ROOTDIR	"/"
+#endif
 #define MY_NFILE	1024	/* This is only used to save filenames */
 #endif
 

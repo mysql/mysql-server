@@ -171,12 +171,23 @@ rl_unget_char (key)
   return (0);
 }
 
+#if defined(__EMX__)
+int waiting_char = -1;
+#endif
+
 /* If a character is available to be read, then read it
    and stuff it into IBUFFER.  Otherwise, just return. */
 static void
 rl_gather_tyi ()
 {
-#if defined (__GO32__)
+#if defined (__EMX__)
+  if (isatty (0) && (waiting_char = _read_kbd(0, 0, 0)) != -1 && ibuffer_space ())
+    {
+      int i;
+      i = (*rl_getc_function) (rl_instream);
+      rl_stuff_char (i);
+    }
+#elif defined (__GO32__)
   char input;
 
   if (isatty (0) && kbhit () && ibuffer_space ())
@@ -263,6 +274,10 @@ rl_gather_tyi ()
 int
 _rl_input_available ()
 {
+#if defined (__EMX__)
+  if (isatty (0) && (waiting_char = _read_kbd(0, 0, 0)) != -1)
+    return 1;
+#else /*  __EMX__ */
 #if defined(HAVE_SELECT)
   fd_set readfds, exceptfds;
   struct timeval timeout;
@@ -288,6 +303,7 @@ _rl_input_available ()
   if (ioctl (tty, FIONREAD, &chars_avail) == 0)
     return (chars_avail);
 #endif
+#endif /* !__EMX__ */
 
   return 0;
 }
@@ -396,6 +412,88 @@ rl_getc (stream)
 {
   int result, flags;
   unsigned char c;
+
+#if defined (__EMX__)
+  if (isatty (0))
+  {
+    int key;
+
+    if (waiting_char != -1)
+    {
+      key = waiting_char;
+      waiting_char = -1;
+    }
+    else
+    {
+#ifdef __RSXNT__
+      pc_flush();
+#endif
+      key = _read_kbd(0, 1, 0);
+    }
+
+    while (key == 0)
+    {
+      key |= (_read_kbd(0, 1, 0) << 8);
+      /* printf("<%04X> ", key);
+      fflush(stdout); */
+
+      switch (key)
+      {
+      case 0x4B00: /* left arrow */
+	key = 'B' - 64;
+	break;
+      case 0x4D00: /* right arrow */
+	key = 'F' - 64;
+	break;
+      case 0x7300: /* ctrl left arrow */
+	key = 27;
+	waiting_char = 'B';
+	break;
+      case 0x7400: /* ctrl right arrow */
+	key = 27;
+	waiting_char = 'F';
+	break;
+      case 0x4800: /* up arrow */
+	key = 'P' - 64;
+	break;
+      case 0x5000: /* down arrow */
+	key = 'N' - 64;
+	break;
+      case 0x8D00: /* ctrl up arrow */
+	key = 'R' - 64;
+	break;
+      case 0x9100: /* ctrl down arrow */
+	key = 'S' - 64;
+	break;
+      case 0x4700: /* home key */
+	key = 'A' - 64;
+	break;
+      case 0x4F00: /* end key */
+	key = 'E' - 64;
+	break;
+      case 0x7700: /* ctrl home key */
+	key = 27;
+	waiting_char = '<';
+	break;
+      case 0x7500: /* ctrl end key */
+	key = 27;
+	waiting_char = '>';
+	break;
+      case 0x5300: /* delete key */
+	key = 'D' - 64;
+	break;
+      case 0x5200: /* insert key */
+	key = 'V' - 64;
+	break;
+      default: /* ignore all other special keys, read next */
+	key = _read_kbd(0, 1, 0);
+	break;
+      }
+    }
+
+    return (key & 0xFF);
+  }
+#endif /* __EMX__ */
 
 #if defined (__GO32__)
   if (isatty (0))

@@ -38,8 +38,7 @@
 
 #if defined(__EMX__)
 #include <sys/ioctl.h>
-#define ioctlsocket(A,B,C) ioctl((A),(B),(void *)(C),sizeof(*(C)))
-#undef HAVE_FCNTL
+#define ioctlsocket ioctl
 #endif				/* defined(__EMX__) */
 
 #if defined(MSDOS) || defined(__WIN__)
@@ -111,7 +110,7 @@ Vio *vio_new(my_socket sd, enum enum_vio_type type, my_bool localhost)
 #else /* !defined(__WIN__) && !defined(__EMX__) */
     {
       /* set to blocking mode by default */
-      ulong arg=0;
+      ulong arg=0, r;
       r = ioctlsocket(vio->sd,FIONBIO,(void*) &arg, sizeof(arg));
     }
 #endif

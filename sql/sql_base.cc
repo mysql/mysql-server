@@ -275,7 +275,7 @@ bool close_cached_tables(THD *thd, bool if_wait_for_refresh,
     bool found=0;
     for (TABLE_LIST *table=tables ; table ; table=table->next)
     {
-      if (remove_table_from_cache(thd, table->db, table->name))
+      if (remove_table_from_cache(thd, table->db, table->name, 1))
 	found=1;
     }
     if (!found)
@@ -1972,7 +1972,8 @@ void flush_tables()
 ** Returns true if the table is in use by another thread
 */
 
-bool remove_table_from_cache(THD *thd, const char *db,const char *table_name)
+bool remove_table_from_cache(THD *thd, const char *db, const char *table_name,
+			     bool return_if_owned_by_thd)
 {
   char key[MAX_DBKEY_LENGTH];
   uint key_length;
@@ -1985,13 +1986,12 @@ bool remove_table_from_cache(THD *thd, const char *db,const char *table_name)
        table;
        table = (TABLE*) hash_next(&open_cache,(byte*) key,key_length))
   {
+    THD *in_use;
     table->version=0L;			/* Free when thread is ready */
-    if (!table->in_use)
+    if (!(in_use=table->in_use))
       relink_unused(table);
-    else if (table->in_use != thd)
+    else if (in_use != thd)
     {
-      THD *in_use=table->in_use;
-
       in_use->some_tables_deleted=1;
       if (table->db_stat)
 	result=1;
@@ -2009,6 +2009,8 @@ bool remove_table_from_cache(THD *thd, const char *db,const char *table_name)
 	pthread_mutex_unlock(&in_use->mysys_var->mutex);
       }
     }
+    else
+      result= result || return_if_owned_by_thd;
   }
   while (unused_tables && !unused_tables->version)
     VOID(hash_delete(&open_cache,(byte*) unused_tables));
