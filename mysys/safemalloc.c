@@ -379,8 +379,10 @@ static int check_ptr(const char *where, byte *ptr, const char *sFile,
 static int legal_leak(struct remember* pPtr)
 {
   /* TODO: This code needs to be made more general */
-  return (pthread_self() == pPtr->thread_id || main_th == pPtr->thread_id ||
-	  shutdown_th == pPtr->thread_id || signal_th == pPtr->thread_id);
+  return (pthread_equal(pthread_self(), pPtr->thread_id) ||
+	  pthread_equal(main_th, pPtr->thread_id) ||
+	  pthread_equal(shutdown_th,pPtr->thread_id) ||
+	  pthread_equal(signal_th,pPtr->thread_id));
 }
 #endif /* THREAD */
 
