@@ -2,6 +2,8 @@
 10	10.0	10	10	10
 6e-05	-6e-05	--6e-05	-6e-05+1.000000
 6e-05	-6e-05	6e-05	0.99994
+1e1	1.e1	1.0e1	1e+1	1.e+1	1.0e+1	1e-1	1.e-1	1.0e-1
+10	10	10	10	10	10	0.1	0.1	0.1
 Field	Type	Null	Key	Default	Extra	Privileges
 f1	float	YES		NULL		select,insert,update,references
 f2	double	YES		NULL		select,insert,update,references
