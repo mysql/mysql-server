@@ -1219,3 +1219,14 @@ create table t1 (a int);
 -- error 1349
 create view v1 as select a from t1 procedure analyse();
 drop table t1;
+
+#
+# INSERT into VIEW with ON DUPLICATE
+#
+create table t1 (s1 int, primary key (s1));
+create view v1 as select * from t1;
+insert into v1 values (1) on duplicate key update s1 = 7;
+insert into v1 values (1) on duplicate key update s1 = 7;
+select * from t1;
+drop view v1;
+drop table t1;

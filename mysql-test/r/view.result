@@ -1261,3 +1261,12 @@ create table t1 (a int);
 create view v1 as select a from t1 procedure analyse();
 ERROR HY000: View's SELECT contains a 'PROCEDURE' clause
 drop table t1;
+create table t1 (s1 int, primary key (s1));
+create view v1 as select * from t1;
+insert into v1 values (1) on duplicate key update s1 = 7;
+insert into v1 values (1) on duplicate key update s1 = 7;
+select * from t1;
+s1
+7
+drop view v1;
+drop table t1;
