@@ -14,7 +14,7 @@ c1  tinyint, c2  smallint, c3  mediumint, c4  int,
 c5  integer, c6  bigint, c7  float, c8  double,
 c9  double precision, c10 real, c11 decimal(7, 4), c12 numeric(8, 4),
 c13 date, c14 datetime, c15 timestamp(14), c16 time,
-c17 year, c18 bit, c19 bool, c20 char,
+c17 year, c18 tinyint, c19 bool, c20 char,
 c21 char(10), c22 varchar(30), c23 tinyblob, c24 tinytext,
 c25 blob, c26 text, c27 mediumblob, c28 mediumtext,
 c29 longblob, c30 longtext, c31 enum('one', 'two', 'three'),
@@ -278,7 +278,7 @@ t2	MyISAM	9	Fixed	0	0	0	64424509439	1024	0	NULL	#	#	#	latin1_swedish_ci	NULL
 prepare stmt4 from ' show table status from test like ''t9%'' ';
 execute stmt4;
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
-t9	MyISAM	10	Dynamic	2	222	444	4294967295	2048	0	NULL	#	#	#	latin1_swedish_ci	NULL		
+t9	MyISAM	10	Dynamic	2	220	440	4294967295	2048	0	NULL	#	#	#	latin1_swedish_ci	NULL		
 prepare stmt4 from ' show status like ''Threads_running'' ';
 execute stmt4;
 Variable_name	Value
@@ -325,6 +325,7 @@ NDB	YES/NO	Alias for NDBCLUSTER
 EXAMPLE	YES/NO	Example storage engine
 ARCHIVE	YES/NO	Archive storage engine
 CSV	YES/NO	CSV storage engine
+FEDERATED	YES/NO	Federated MySQL storage engine
 drop table if exists t5;
 prepare stmt1 from ' drop table if exists t5 ' ;
 execute stmt1 ;

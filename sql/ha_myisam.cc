@@ -926,8 +926,11 @@ int ha_myisam::enable_indexes(uint mode)
     {
       sql_print_warning("Warning: Enabling keys got errno %d, retrying",
                         my_errno);
+      thd->clear_error();
       param.testflag&= ~(T_REP_BY_SORT | T_QUICK);
       error= (repair(thd,param,0) != HA_ADMIN_OK);
+      if (!error && thd->net.report_error)
+        error= HA_ERR_CRASHED;
     }
     info(HA_STATUS_CONST);
     thd->proc_info=save_proc_info;
@@ -1406,7 +1409,8 @@ int ha_myisam::create(const char *name, register TABLE *table_arg,
       keydef[i].seg[j].type=   (int) type;
       keydef[i].seg[j].start=  pos->key_part[j].offset;
       keydef[i].seg[j].length= pos->key_part[j].length;
-      keydef[i].seg[j].bit_start=keydef[i].seg[j].bit_end=0;
+      keydef[i].seg[j].bit_start= keydef[i].seg[j].bit_end=
+        keydef[i].seg[j].bit_pos= 0;
       keydef[i].seg[j].language = field->charset()->number;
 
       if (field->null_ptr)
@@ -1427,6 +1431,13 @@ int ha_myisam::create(const char *name, register TABLE *table_arg,
 	/* save number of bytes used to pack length */
 	keydef[i].seg[j].bit_start= (uint) (field->pack_length() -
 					    table_arg->blob_ptr_size);
+      }
+      else if (field->type() == FIELD_TYPE_BIT)
+      {
+        keydef[i].seg[j].bit_length= ((Field_bit *) field)->bit_len;
+        keydef[i].seg[j].bit_start= ((Field_bit *) field)->bit_ofs;
+        keydef[i].seg[j].bit_pos= (uint) (((Field_bit *) field)->bit_ptr -
+                                          (uchar*) table_arg->record[0]);
       }
     }
     keyseg+=pos->key_parts;
@@ -1471,11 +1482,10 @@ int ha_myisam::create(const char *name, register TABLE *table_arg,
       break;
 
     if (found->flags & BLOB_FLAG)
-    {
       recinfo_pos->type= (int) FIELD_BLOB;
-    }
-    else if (!(options & HA_OPTION_PACK_RECORD) ||
-             found->type() == MYSQL_TYPE_VARCHAR)
+    else if (found->type() == MYSQL_TYPE_VARCHAR)
+      recinfo_pos->type= FIELD_VARCHAR;
+    else if (!(options & HA_OPTION_PACK_RECORD))
       recinfo_pos->type= (int) FIELD_NORMAL;
     else if (found->zero_pack())
       recinfo_pos->type= (int) FIELD_SKIP_ZERO;

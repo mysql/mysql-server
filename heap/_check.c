@@ -123,7 +123,7 @@ static int check_one_key(HP_KEYDEF *keydef, uint keynr, ulong records,
 			        blength, records))
 	    != i)
 	{
-	  DBUG_PRINT("error",("Record in wrong link: Link %d  Record: %lx  Record-link %d", i,hash_info->ptr_to_rec,rec_link));
+	  DBUG_PRINT("error",("Record in wrong link: Link %d  Record: 0x%lx  Record-link %d", i,hash_info->ptr_to_rec,rec_link));
 	  error=1;
 	}
 	else
@@ -180,7 +180,7 @@ static int check_one_rb_key(HP_INFO *info, uint keynr, ulong records,
 		     key_length, SEARCH_FIND | SEARCH_SAME, &not_used))
       {
 	error= 1;
-	DBUG_PRINT("error",("Record in wrong link:  key: %d  Record: %lx\n", 
+	DBUG_PRINT("error",("Record in wrong link:  key: %d  Record: 0x%lx\n", 
 			    keynr, recpos));
       }
       else

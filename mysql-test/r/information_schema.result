@@ -49,7 +49,6 @@ TABLE_PRIVILEGES
 COLUMN_PRIVILEGES
 TABLE_CONSTRAINTS
 KEY_COLUMN_USAGE
-TABLE_NAMES
 columns_priv
 db
 func
@@ -78,7 +77,6 @@ c	table_name
 TABLES	TABLES
 TABLE_PRIVILEGES	TABLE_PRIVILEGES
 TABLE_CONSTRAINTS	TABLE_CONSTRAINTS
-TABLE_NAMES	TABLE_NAMES
 tables_priv	tables_priv
 time_zone	time_zone
 time_zone_leap_second	time_zone_leap_second
@@ -96,7 +94,6 @@ c	table_name
 TABLES	TABLES
 TABLE_PRIVILEGES	TABLE_PRIVILEGES
 TABLE_CONSTRAINTS	TABLE_CONSTRAINTS
-TABLE_NAMES	TABLE_NAMES
 tables_priv	tables_priv
 time_zone	time_zone
 time_zone_leap_second	time_zone_leap_second
@@ -474,7 +471,7 @@ character_sets	CREATE TEMPORARY TABLE `character_sets` (
   `DEFAULT_COLLATE_NAME` varchar(60) NOT NULL default '',
   `DESCRIPTION` varchar(60) NOT NULL default '',
   `MAXLEN` bigint(3) NOT NULL default '0'
-) ENGINE=HEAP DEFAULT CHARSET=utf8 MAX_ROWS=2252
+) ENGINE=HEAP DEFAULT CHARSET=utf8 MAX_ROWS=2267
 set names latin2;
 SHOW CREATE TABLE INFORMATION_SCHEMA.character_sets;
 Table	Create Table
@@ -483,7 +480,7 @@ character_sets	CREATE TEMPORARY TABLE `character_sets` (
   `DEFAULT_COLLATE_NAME` varchar(60) NOT NULL default '',
   `DESCRIPTION` varchar(60) NOT NULL default '',
   `MAXLEN` bigint(3) NOT NULL default '0'
-) ENGINE=HEAP DEFAULT CHARSET=utf8 MAX_ROWS=2252
+) ENGINE=HEAP DEFAULT CHARSET=utf8 MAX_ROWS=2267
 set names latin1;
 create table t1 select * from information_schema.CHARACTER_SETS
 where CHARACTER_SET_NAME like "latin1";
@@ -577,7 +574,6 @@ Tables_in_information_schema (T%)	Table_type
 TABLES	TEMPORARY
 TABLE_PRIVILEGES	TEMPORARY
 TABLE_CONSTRAINTS	TEMPORARY
-TABLE_NAMES	TEMPORARY
 create table t1(a int);
 ERROR 42S02: Unknown table 't1' in information_schema
 use test;
@@ -589,4 +585,59 @@ Tables_in_information_schema (T%)
 TABLES
 TABLE_PRIVILEGES
 TABLE_CONSTRAINTS
-TABLE_NAMES
+select table_name from tables where table_name='user';
+table_name
+user
+select column_name, privileges from columns
+where table_name='user' and column_name like '%o%';
+column_name	privileges
+Host	select,insert,update,references
+Password	select,insert,update,references
+Drop_priv	select,insert,update,references
+Reload_priv	select,insert,update,references
+Shutdown_priv	select,insert,update,references
+Process_priv	select,insert,update,references
+Show_db_priv	select,insert,update,references
+Lock_tables_priv	select,insert,update,references
+Show_view_priv	select,insert,update,references
+max_questions	select,insert,update,references
+max_connections	select,insert,update,references
+use test;
+create function sub1(i int) returns int
+return i+1;
+create table t1(f1 int);
+create view t2 (c) as select f1 from t1;
+create view t3 (c) as select sub1(1);
+create table t4(f1 int, KEY f1_key (f1));
+drop table t1;
+drop function sub1;
+select table_name from information_schema.views
+where table_schema='test';
+table_name
+Warnings:
+Warning	1356	View 'test.t2' references invalid table(s) or column(s) or function(s)
+Warning	1356	View 'test.t3' references invalid table(s) or column(s) or function(s)
+select table_name from information_schema.views
+where table_schema='test';
+table_name
+Warnings:
+Warning	1356	View 'test.t2' references invalid table(s) or column(s) or function(s)
+Warning	1356	View 'test.t3' references invalid table(s) or column(s) or function(s)
+select column_name from information_schema.columns
+where table_schema='test';
+column_name
+f1
+Warnings:
+Warning	1356	View 'test.t2' references invalid table(s) or column(s) or function(s)
+Warning	1356	View 'test.t3' references invalid table(s) or column(s) or function(s)
+select index_name from information_schema.statistics where table_schema='test';
+index_name
+f1_key
+select constraint_name from information_schema.table_constraints
+where table_schema='test';
+constraint_name
+drop view t2;
+drop view t3;
+drop table t4;
+select * from information_schema.table_names;
+ERROR 42S02: Unknown table 'table_names' in information_schema

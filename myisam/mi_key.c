@@ -34,10 +34,20 @@
 
 static int _mi_put_key_in_record(MI_INFO *info,uint keynr,byte *record);
 
-	/*
-	** Make a intern key from a record
-	** Ret: Length of key
-	*/
+/*
+  Make a intern key from a record
+
+  SYNOPSIS
+    _mi_make_key()
+    info		MyiSAM handler
+    keynr		key number
+    key			Store created key here
+    record		Record
+    filepos		Position to record in the data file
+
+  RETURN
+    Length of key
+*/
 
 uint _mi_make_key(register MI_INFO *info, uint keynr, uchar *key,
 		  const byte *record, my_off_t filepos)
@@ -82,6 +92,19 @@ uint _mi_make_key(register MI_INFO *info, uint keynr, uchar *key,
                   length);
 
     pos= (byte*) record+keyseg->start;
+    if (type == HA_KEYTYPE_BIT)
+    {
+      if (keyseg->bit_length)
+      {
+        uchar bits= get_rec_bits((uchar*) record + keyseg->bit_pos,
+                                 keyseg->bit_start, keyseg->bit_length);
+        *key++= bits;
+        length--;
+      }
+      memcpy((byte*) key, pos, length);
+      key+= length;
+      continue;
+    }
     if (keyseg->flag & HA_SPACE_PACK)
     {
       end=pos+length;
@@ -104,8 +127,10 @@ uint _mi_make_key(register MI_INFO *info, uint keynr, uchar *key,
     }
     if (keyseg->flag & HA_VAR_LENGTH_PART)
     {
-      uint tmp_length=uint2korr(pos);
-      pos+=2;					/* Skip VARCHAR length */
+      uint pack_length= keyseg->bit_start;
+      uint tmp_length= (pack_length == 1 ? (uint) *(uchar*) pos :
+                        uint2korr(pos));
+      pos+= pack_length;			/* Skip VARCHAR length */
       set_if_smaller(length,tmp_length);
       FIX_LENGTH(cs, pos, length, char_length);
       store_key_length_inc(key,char_length);
@@ -333,6 +358,26 @@ static int _mi_put_key_in_record(register MI_INFO *info, uint keynr,
       }
       record[keyseg->null_pos]&= ~keyseg->null_bit;
     }
+    if (keyseg->type == HA_KEYTYPE_BIT)
+    {
+      uint length= keyseg->length;
+
+      if (keyseg->bit_length)
+      {
+        uchar bits= *key++;
+        set_rec_bits(bits, record + keyseg->bit_pos, keyseg->bit_start,
+                     keyseg->bit_length);
+        length--;
+      }
+      else
+      {
+        clr_rec_bits(record + keyseg->bit_pos, keyseg->bit_start,
+                     keyseg->bit_length);
+      }
+      memcpy(record + keyseg->start, (byte*) key, length);
+      key+= length;
+      continue;
+    }
     if (keyseg->flag & HA_SPACE_PACK)
     {
       uint length;
@@ -365,9 +410,12 @@ static int _mi_put_key_in_record(register MI_INFO *info, uint keynr,
 	goto err;
 #endif
       /* Store key length */
-      int2store(record+keyseg->start, length);
+      if (keyseg->bit_start == 1)
+        *(uchar*) (record+keyseg->start)= (uchar) length;
+      else
+        int2store(record+keyseg->start, length);
       /* And key data */
-      memcpy(record+keyseg->start+2,(byte*) key, length);
+      memcpy(record+keyseg->start + keyseg->bit_start, (byte*) key, length);
       key+= length;
     }
     else if (keyseg->flag & HA_BLOB_PART)

@@ -100,7 +100,7 @@ private:
   bool shutdown_in_progress;
   pthread_mutex_t LOCK_thread_registry;
   pthread_cond_t COND_thread_registry_is_empty;
-  pid_t sigwait_thread_pid;
+  pthread_t sigwait_thread_pid;
 };
 
 

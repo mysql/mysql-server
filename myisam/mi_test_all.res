@@ -1,3 +1,6 @@
+myisamchk: MyISAM file test1
+myisamchk: warning: Size of indexfile is: 1024          Should be: 2048
+MyISAM-table 'test1' is usable but should be fixed
 mi_test2 -s -L -K -R1 -m2000 ;  Should give error 135
 Error: 135 in write at record: 1105
 got error: 135 when using MyISAM-database
@@ -5,46 +8,46 @@ myisamchk: MyISAM file test2
 myisamchk: warning: Datafile is almost full,      65532 of      65534 used
 MyISAM-table 'test2' is usable but should be fixed
 Commands   Used count    Errors   Recover errors
-open               17         0                0
-write             850         0                0
-update             85         0                0
-delete            850         0                0
-close              17         0                0
-extra             102         0                0
-Total            1921         0                0
+open                1         0                0
+write              50         0                0
+update              5         0                0
+delete             50         0                0
+close               1         0                0
+extra               6         0                0
+Total             113         0                0
 Commands   Used count    Errors   Recover errors
-open               18         0                0
-write             900         0                0
-update             90         0                0
-delete            900         0                0
-close              18         0                0
-extra             108         0                0
-Total            2034         0                0
+open                2         0                0
+write             100         0                0
+update             10         0                0
+delete            100         0                0
+close               2         0                0
+extra              12         0                0
+Total             226         0                0
 
-real	0m1.054s
-user	0m0.410s
-sys	0m0.640s
+real	0m0.791s
+user	0m0.137s
+sys	0m0.117s
 
-real	0m1.077s
-user	0m0.550s
-sys	0m0.530s
+real	0m0.659s
+user	0m0.252s
+sys	0m0.102s
 
-real	0m1.100s
-user	0m0.420s
-sys	0m0.680s
+real	0m0.571s
+user	0m0.188s
+sys	0m0.098s
 
-real	0m0.783s
-user	0m0.590s
-sys	0m0.200s
+real	0m1.111s
+user	0m0.236s
+sys	0m0.037s
 
-real	0m0.764s
-user	0m0.560s
-sys	0m0.210s
+real	0m0.621s
+user	0m0.242s
+sys	0m0.022s
 
-real	0m0.699s
-user	0m0.570s
-sys	0m0.130s
+real	0m0.698s
+user	0m0.248s
+sys	0m0.021s
 
-real	0m0.991s
-user	0m0.630s
-sys	0m0.350s
+real	0m0.683s
+user	0m0.265s
+sys	0m0.079s

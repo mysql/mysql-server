@@ -64,6 +64,7 @@ static void best_extension_by_limited_search(JOIN *join,
                                              uint prune_level);
 static uint determine_search_depth(JOIN* join);
 static int join_tab_cmp(const void* ptr1, const void* ptr2);
+static int join_tab_cmp_straight(const void* ptr1, const void* ptr2);
 /*
   TODO: 'find_best' is here only temporarily until 'greedy_search' is
   tested and approved.
@@ -235,9 +236,7 @@ bool handle_select(THD *thd, LEX *lex, select_result *result)
   res|= thd->net.report_error;
   if (unlikely(res))
   {
-    /*
-      If we have real error reported erly then this will be ignored
-    */
+    /* If we had a another error reported earlier then this will be ignored */
     result->send_error(ER_UNKNOWN_ERROR, ER(ER_UNKNOWN_ERROR));
     result->abort();
   }
@@ -3680,22 +3679,26 @@ choose_plan(JOIN *join, table_map join_tables)
 {
   uint search_depth= join->thd->variables.optimizer_search_depth;
   uint prune_level=  join->thd->variables.optimizer_prune_level;
-
+  bool straight_join= join->select_options & SELECT_STRAIGHT_JOIN;
   DBUG_ENTER("choose_plan");
 
-  if (join->select_options & SELECT_STRAIGHT_JOIN)
+  /*
+    if (SELECT_STRAIGHT_JOIN option is set)
+      reorder tables so dependent tables come after tables they depend 
+      on, otherwise keep tables in the order they were specified in the query 
+    else
+      Apply heuristic: pre-sort all access plans with respect to the number of
+      records accessed.
+  */
+  qsort(join->best_ref + join->const_tables, join->tables - join->const_tables,
+        sizeof(JOIN_TAB*), straight_join?join_tab_cmp_straight:join_tab_cmp);
+  
+  if (straight_join)
   {
     optimize_straight_join(join, join_tables);
   }
   else
   {
-    /*
-      Heuristic: pre-sort all access plans with respect to the number of
-      records accessed.
-    */
-    qsort(join->best_ref + join->const_tables, join->tables - join->const_tables,
-          sizeof(JOIN_TAB*), join_tab_cmp);
-
     if (search_depth == MAX_TABLES+2)
     { /*
         TODO: 'MAX_TABLES+2' denotes the old implementation of find_best before
@@ -3751,6 +3754,23 @@ join_tab_cmp(const void* ptr1, const void* ptr2)
   return jt1 > jt2 ? 1 : (jt1 < jt2 ? -1 : 0);
 }
 
+
+/* 
+  Same as join_tab_cmp, but for use with SELECT_STRAIGHT_JOIN.
+*/
+
+static int
+join_tab_cmp_straight(const void* ptr1, const void* ptr2)
+{
+  JOIN_TAB *jt1= *(JOIN_TAB**) ptr1;
+  JOIN_TAB *jt2= *(JOIN_TAB**) ptr2;
+
+  if (jt1->dependent & jt2->table->map)
+    return 1;
+  if (jt2->dependent & jt1->table->map)
+    return -1;
+  return jt1 > jt2 ? 1 : (jt1 < jt2 ? -1 : 0);
+}
 
 /*
   Heuristic procedure to automatically guess a reasonable degree of
@@ -3834,7 +3854,7 @@ optimize_straight_join(JOIN *join, table_map join_tables)
   uint idx= join->const_tables;
   double    record_count= 1.0;
   double    read_time=    0.0;
-
+ 
   for (JOIN_TAB **pos= join->best_ref + idx ; (s= *pos) ; pos++)
   {
     /* Find the best access method from 's' to the current partial plan */
@@ -4252,7 +4272,7 @@ find_best(JOIN *join,table_map rest_tables,uint idx,double record_count,
     {
       memcpy((gptr) join->best_positions,(gptr) join->positions,
 	     sizeof(POSITION)*idx);
-      join->best_read=read_time;
+      join->best_read= read_time - 0.001;
     }
     return;
   }
@@ -4873,7 +4893,7 @@ static bool create_ref_for_key(JOIN *join, JOIN_TAB *j, KEYUSE *org_keyuse,
 				  &keyinfo->key_part[i],
 				  (char*) key_buff,maybe_null);
       /*
-	Remeber if we are going to use REF_OR_NULL
+	Remember if we are going to use REF_OR_NULL
 	But only if field _really_ can be null i.e. we force JT_REF
 	instead of JT_REF_OR_NULL in case if field can't be null
       */
@@ -7538,7 +7558,7 @@ static Field* create_tmp_field_from_field(THD *thd, Field* org_field,
 {
   Field *new_field;
 
-  if (convert_blob_length && org_field->flags & BLOB_FLAG)
+  if (convert_blob_length && (org_field->flags & BLOB_FLAG))
     new_field= new Field_varstring(convert_blob_length,
                                    org_field->maybe_null(),
                                    org_field->field_name, table,
@@ -7777,6 +7797,7 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
   KEY_PART_INFO *key_part_info;
   Item **copy_func;
   MI_COLUMNDEF *recinfo;
+  uint total_uneven_bit_length= 0;
   DBUG_ENTER("create_tmp_table");
   DBUG_PRINT("enter",("distinct: %d  save_sum_fields: %d  rows_limit: %lu  group: %d",
 		      (int) distinct, (int) save_sum_fields,
@@ -7805,7 +7826,7 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
     else for (ORDER *tmp=group ; tmp ; tmp=tmp->next)
     {
       (*tmp->item)->marker=4;			// Store null in key
-      if ((*tmp->item)->max_length >= MAX_CHAR_WIDTH)
+      if ((*tmp->item)->max_length >= CONVERT_IF_BIGGER_TO_BLOB)
 	using_unique_constraint=1;
     }
     if (param->group_length >= MAX_BLOB_WIDTH)
@@ -7966,6 +7987,8 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
       reclength+=new_field->pack_length();
       if (!(new_field->flags & NOT_NULL_FLAG))
 	null_count++;
+      if (new_field->type() == FIELD_TYPE_BIT)
+        total_uneven_bit_length+= new_field->field_length & 7;
       if (new_field->flags & BLOB_FLAG)
       {
 	*blob_field++= new_field;
@@ -8014,7 +8037,8 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
       null_count++;
   }
   hidden_null_pack_length=(hidden_null_count+7)/8;
-  null_pack_length=hidden_null_count+(null_count+7)/8;
+  null_pack_length= hidden_null_count +
+                    (null_count + total_uneven_bit_length + 7) / 8;
   reclength+=null_pack_length;
   if (!reclength)
     reclength=1;				// Dummy select
@@ -8147,37 +8171,40 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
       key_part_info->null_bit=0;
       key_part_info->field=  field;
       key_part_info->offset= field->offset();
-      key_part_info->length= (uint16) field->pack_length();
+      key_part_info->length= (uint16) field->key_length();
       key_part_info->type=   (uint8) field->key_type();
       key_part_info->key_type =
 	((ha_base_keytype) key_part_info->type == HA_KEYTYPE_TEXT ||
-	 (ha_base_keytype) key_part_info->type == HA_KEYTYPE_VARTEXT) ?
+	 (ha_base_keytype) key_part_info->type == HA_KEYTYPE_VARTEXT1 ||
+	 (ha_base_keytype) key_part_info->type == HA_KEYTYPE_VARTEXT2) ?
 	0 : FIELDFLAG_BINARY;
       if (!using_unique_constraint)
       {
 	group->buff=(char*) group_buff;
-	if (!(group->field=field->new_field(thd->mem_root,table)))
+	if (!(group->field= field->new_key_field(thd->mem_root,table,
+                                                 (char*) group_buff +
+                                                 test(maybe_null),
+                                                 field->null_ptr,
+                                                 field->null_bit)))
 	  goto err; /* purecov: inspected */
 	if (maybe_null)
 	{
 	  /*
-	    To be able to group on NULL, we reserve place in group_buff
-	    for the NULL flag just before the column.
+	    To be able to group on NULL, we reserved place in group_buff
+	    for the NULL flag just before the column. (see above).
 	    The field data is after this flag.
-	    The NULL flag is updated by 'end_update()' and 'end_write()'
+	    The NULL flag is updated in 'end_update()' and 'end_write()'
 	  */
 	  keyinfo->flags|= HA_NULL_ARE_EQUAL;	// def. that NULL == NULL
 	  key_part_info->null_bit=field->null_bit;
 	  key_part_info->null_offset= (uint) (field->null_ptr -
 					      (uchar*) table->record[0]);
-	  group->field->move_field((char*) ++group->buff);
-	  group_buff++;
+          group->buff++;                        // Pointer to field data
+	  group_buff++;                         // Skipp null flag
 	}
-	else
-	  group->field->move_field((char*) group_buff);
         /* In GROUP BY 'a' and 'a ' are equal for VARCHAR fields */
         key_part_info->key_part_flag|= HA_END_SPACE_ARE_EQUAL;
-	group_buff+= key_part_info->length;
+	group_buff+= group->field->pack_length();
       }
       keyinfo->key_length+=  key_part_info->length;
     }
@@ -8241,7 +8268,8 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
       key_part_info->type=     (uint8) (*reg_field)->key_type();
       key_part_info->key_type =
 	((ha_base_keytype) key_part_info->type == HA_KEYTYPE_TEXT ||
-	 (ha_base_keytype) key_part_info->type == HA_KEYTYPE_VARTEXT) ?
+	 (ha_base_keytype) key_part_info->type == HA_KEYTYPE_VARTEXT1 ||
+	 (ha_base_keytype) key_part_info->type == HA_KEYTYPE_VARTEXT2) ?
 	0 : FIELDFLAG_BINARY;
     }
   }
@@ -8291,8 +8319,8 @@ static bool create_myisam_tmp_table(TABLE *table,TMP_TABLE_PARAM *param,
   MI_KEYDEF keydef;
   MI_UNIQUEDEF uniquedef;
   KEY *keyinfo=param->keyinfo;
-
   DBUG_ENTER("create_myisam_tmp_table");
+
   if (table->keys)
   {						// Get keys for ni_create
     bool using_unique_constraint=0;
@@ -8340,19 +8368,18 @@ static bool create_myisam_tmp_table(TABLE *table,TMP_TABLE_PARAM *param,
       {
 	seg->type=
 	((keyinfo->key_part[i].key_type & FIELDFLAG_BINARY) ?
-	 HA_KEYTYPE_VARBINARY : HA_KEYTYPE_VARTEXT);
-	seg->bit_start=seg->length - table->blob_ptr_size;
+	 HA_KEYTYPE_VARBINARY2 : HA_KEYTYPE_VARTEXT2);
+	seg->bit_start= field->pack_length() - table->blob_ptr_size;
 	seg->flag= HA_BLOB_PART;
 	seg->length=0;			// Whole blob in unique constraint
       }
       else
       {
-	seg->type= ((keyinfo->key_part[i].key_type & FIELDFLAG_BINARY) ?
-                    HA_KEYTYPE_BINARY : HA_KEYTYPE_TEXT);
+	seg->type= keyinfo->key_part[i].type;
         /* Tell handler if it can do suffic space compression */
 	if (field->real_type() == MYSQL_TYPE_STRING &&
 	    keyinfo->key_part[i].length > 4)
-	  seg->flag|=HA_SPACE_PACK;
+	  seg->flag|= HA_SPACE_PACK;
       }
       if (!(field->flags & NOT_NULL_FLAG))
       {
@@ -8361,7 +8388,7 @@ static bool create_myisam_tmp_table(TABLE *table,TMP_TABLE_PARAM *param,
 	/*
 	  We are using a GROUP BY on something that contains NULL
 	  In this case we have to tell MyISAM that two NULL should
-	  on INSERT be compared as equal
+	  on INSERT be regarded at the same value
 	*/
 	if (!using_unique_constraint)
 	  keydef.flag|= HA_NULL_ARE_EQUAL;
@@ -8645,21 +8672,19 @@ do_select(JOIN *join,List<Item> *fields,TABLE *table,Procedure *procedure)
   }
   if (table)
   {
-    int tmp;
+    int tmp, new_errno= 0;
     if ((tmp=table->file->extra(HA_EXTRA_NO_CACHE)))
     {
       DBUG_PRINT("error",("extra(HA_EXTRA_NO_CACHE) failed"));
-      my_errno= tmp;
-      error= -1;
+      new_errno= tmp;
     }
     if ((tmp=table->file->ha_index_or_rnd_end()))
     {
       DBUG_PRINT("error",("ha_index_or_rnd_end() failed"));
-      my_errno= tmp;
-      error= -1;
+      new_errno= tmp;
     }
-    if (error == -1)
-      table->file->print_error(my_errno,MYF(0));
+    if (new_errno)
+      table->file->print_error(new_errno,MYF(0));
   }
 #ifndef DBUG_OFF
   if (error)
@@ -9831,13 +9856,19 @@ end_update(JOIN *join, JOIN_TAB *join_tab __attribute__((unused)),
     DBUG_RETURN(0);
   }
 
-  /* The null bits are already set */
+  /*
+    Copy null bits from group key to table
+    We can't copy all data as the key may have different format
+    as the row data (for example as with VARCHAR keys)
+  */
   KEY_PART_INFO *key_part;
   for (group=table->group,key_part=table->key_info[0].key_part;
        group ;
        group=group->next,key_part++)
-    memcpy(table->record[0]+key_part->offset, group->buff, key_part->length);
-
+  {
+    if (key_part->null_bit)
+      memcpy(table->record[0]+key_part->offset, group->buff, 1);
+  }
   init_tmptable_sum_functions(join->sum_funcs);
   copy_funcs(join->tmp_table_param.items_to_copy);
   if ((error=table->file->write_row(table->record[0])))
@@ -11647,15 +11678,30 @@ calc_group_buffer(JOIN *join,ORDER *group)
     {
       if (field->type() == FIELD_TYPE_BLOB)
 	key_length+=MAX_BLOB_WIDTH;		// Can't be used as a key
+      else if (field->type() == MYSQL_TYPE_VARCHAR)
+        key_length+= field->field_length + HA_KEY_BLOB_LENGTH;
       else
-	key_length+=field->pack_length();
+	key_length+= field->pack_length();
     }
     else if ((*group->item)->result_type() == REAL_RESULT)
       key_length+=sizeof(double);
     else if ((*group->item)->result_type() == INT_RESULT)
       key_length+=sizeof(longlong);
+    else if ((*group->item)->result_type() == STRING_RESULT)
+    {
+      /*
+        Group strings are taken as varstrings and require an length field.
+        A field is not yet created by create_tmp_field()
+        and the sizes should match up.
+      */
+      key_length+= (*group->item)->max_length + HA_KEY_BLOB_LENGTH;
+    }
     else
-      key_length+=(*group->item)->max_length;
+    {
+      /* This case should never be choosen */
+      DBUG_ASSERT(0);
+      current_thd->fatal_error();
+    }
     parts++;
     if ((*group->item)->maybe_null)
       null_parts++;

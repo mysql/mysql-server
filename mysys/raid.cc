@@ -185,7 +185,7 @@ extern "C" {
   uint my_raid_write(File fd,const byte *Buffer, uint Count, myf MyFlags)
   {
     DBUG_ENTER("my_raid_write");
-    DBUG_PRINT("enter",("Fd: %d  Buffer: %lx  Count: %u  MyFlags: %d",
+    DBUG_PRINT("enter",("Fd: %d  Buffer: 0x%lx  Count: %u  MyFlags: %d",
 		      fd, Buffer, Count, MyFlags));
     if (is_raid(fd))
     {
@@ -198,7 +198,7 @@ extern "C" {
   uint my_raid_read(File fd, byte *Buffer, uint Count, myf MyFlags)
   {
     DBUG_ENTER("my_raid_read");
-    DBUG_PRINT("enter",("Fd: %d  Buffer: %lx  Count: %u  MyFlags: %d",
+    DBUG_PRINT("enter",("Fd: %d  Buffer: 0x%lx  Count: %u  MyFlags: %d",
 		      fd, Buffer, Count, MyFlags));
     if (is_raid(fd))
     {
@@ -212,8 +212,9 @@ extern "C" {
 		     myf MyFlags)
   {
     DBUG_ENTER("my_raid_pread");
-    DBUG_PRINT("enter",("Fd: %d  Buffer: %lx  Count: %u offset: %u  MyFlags: %d",
-		      Filedes, Buffer, Count, offset, MyFlags));
+    DBUG_PRINT("enter",
+               ("Fd: %d  Buffer: 0x%lx  Count: %u offset: %u  MyFlags: %d",
+                Filedes, Buffer, Count, offset, MyFlags));
      if (is_raid(Filedes))
      {
        assert(offset != MY_FILEPOS_ERROR);
@@ -231,8 +232,9 @@ extern "C" {
 		      my_off_t offset, myf MyFlags)
   {
     DBUG_ENTER("my_raid_pwrite");
-    DBUG_PRINT("enter",("Fd: %d  Buffer: %lx  Count: %u offset: %u  MyFlags: %d",
-		      Filedes, Buffer, Count, offset, MyFlags));
+    DBUG_PRINT("enter",
+               ("Fd: %d  Buffer: 0x %lx  Count: %u offset: %u  MyFlags: %d",
+                Filedes, Buffer, Count, offset, MyFlags));
      if (is_raid(Filedes))
      {
        assert(offset != MY_FILEPOS_ERROR);

@@ -49,7 +49,7 @@ noinst_HEADERS = btr0btr.h btr0btr.ic btr0cur.h btr0cur.ic \
         thr0loc.h thr0loc.ic trx0purge.h trx0purge.ic trx0rec.h \
         trx0rec.ic trx0roll.h trx0roll.ic trx0rseg.h trx0rseg.ic \
         trx0sys.h trx0sys.ic trx0trx.h trx0trx.ic trx0types.h \
-        trx0undo.h trx0undo.ic univ.i \
+        trx0undo.h trx0undo.ic trx0xa.h univ.i \
         usr0sess.h usr0sess.ic usr0types.h ut0byte.h ut0byte.ic \
         ut0dbg.h ut0lst.h ut0mem.h ut0mem.ic ut0rnd.h ut0rnd.ic \
         ut0sort.h ut0ut.h ut0ut.ic
