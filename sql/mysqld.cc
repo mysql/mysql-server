@@ -2644,7 +2644,8 @@ int main(int argc, char **argv)
 	opt_argc= 2;				// Skip service-name
 	opt_argv=argv;
 	start_mode= 1;
-        load_default_groups[3]= argv[2];
+	if (my_strcasecmp(argv[2],"mysql"))
+	  load_default_groups[3]= argv[2];
 	Service.Init(argv[2], mysql_service);
 	return 0;
       }
