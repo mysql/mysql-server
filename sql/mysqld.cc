@@ -1923,7 +1923,7 @@ extern "C" pthread_handler_decl(handle_shutdown,arg)
 #endif
 
 
-const char *load_default_groups[]= { "mysqld","server",0 };
+const char *load_default_groups[]= { "mysqld","server",MYSQL_BASE_VERSION,0 };
 
 bool open_log(MYSQL_LOG *log, const char *hostname,
 	      const char *opt_name, const char *extension,
