@@ -32,8 +32,8 @@
 
 int pthread_cond_init(pthread_cond_t *cond, const pthread_condattr_t *attr)
 {
-   APIRET          rc = 0;
-   HEV             event;
+   APIRET	   rc = 0;
+   HEV		   event;
    cond->waiting=0;
    /* Warp3 FP29 or Warp4 FP4 or better required */
    rc = DosCreateEventSem( NULL, &cond->semaphore, 0x0800, 0);
@@ -61,7 +61,7 @@ int pthread_cond_destroy(pthread_cond_t *cond)
 int pthread_cond_wait(pthread_cond_t *cond, pthread_mutex_t *mutex)
 {
    APIRET   rc;
-   int      rval;
+   int	    rval;
 
    rval = 0;
    cond->waiting++;
@@ -80,13 +80,13 @@ int pthread_cond_wait(pthread_cond_t *cond, pthread_mutex_t *mutex)
 }
 
 int pthread_cond_timedwait(pthread_cond_t *cond, pthread_mutex_t *mutex,
-                           struct timespec *abstime)
+			   struct timespec *abstime)
 {
   struct timeb curtime;
   int result;
   long timeout;
    APIRET   rc;
-   int      rval;
+   int	    rval;
 
    _ftime(&curtime);
    timeout= ((long) (abstime->ts_sec - curtime.time)*1000L +
@@ -123,13 +123,13 @@ int pthread_cond_signal(pthread_cond_t *cond)
 
 int pthread_cond_broadcast(pthread_cond_t *cond)
 {
-   int      i;
+   int	    i;
    APIRET   rc;
 
-                /*
-                 * Enter a loop to bring all threads off the
-                 * condition queue:
-                 */
+		/*
+		 * Enter a loop to bring all threads off the
+		 * condition queue:
+		 */
    i = cond->waiting;
    while (i--) rc = DosPostEventSem(cond->semaphore);
 
@@ -176,9 +176,9 @@ struct tm *localtime_r(const time_t *timep,struct tm *tmp)
   else
   {
     struct tm *res=localtime(timep);
-    if (!res)                                   /* Wrong date */
+    if (!res)					/* Wrong date */
     {
-      bzero(tmp,sizeof(*tmp));                  /* Keep things safe */
+      bzero(tmp,sizeof(*tmp));			/* Keep things safe */
       return 0;
     }
     *tmp= *res;

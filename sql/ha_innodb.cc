@@ -19,7 +19,7 @@
 
 /* TODO list for the InnoDB handler:
   - Ask Monty if strings of different languages can exist in the same
-    database. Answer: in near future yes, but not yet.
+    database. Answer: in 4.1 yes.
 */
 
 #ifdef __GNUC__
@@ -306,7 +306,10 @@ innobase_mysql_print_thd(
 	  *buf++=' ';
 	  buf=strnmov(buf, thd->query, 150);
   	}  
-	*buf='\n';
+	buf[0]='\n';
+	buf[1]=0;
+
+ 	ut_a(strlen(buf) < 400);
 }
 }
 
@@ -390,6 +393,61 @@ ha_innobase::update_thd(
 	user_thd = thd;
 
 	return(0);
+}
+
+/*********************************************************************
+Call this when you have opened a new table handle in HANDLER, before you
+call index_read_idx() etc. Actually, we can let the cursor stay open even
+over a transaction commit! Then you should call this before every operation,
+fecth next etc. This function inits the necessary things even after a
+transaction commit. */
+
+/* TODO: THIS CODE HAS NOT BEEN TESTED!!! */
+
+void
+ha_innobase::init_table_handle_for_HANDLER(void)
+/*============================================*/
+{
+        row_prebuilt_t* prebuilt;
+
+        /* If current thd does not yet have a trx struct, create one.
+        If the current handle does not yet have a prebuilt struct, create
+        one. Update the trx pointers in the prebuilt struct. Normally
+        this operation is done in external_lock. */
+
+        update_thd(current_thd);
+
+        /* Initialize the prebuilt struct much like it would be inited in
+        external_lock */
+
+        prebuilt = (row_prebuilt_t*)innobase_prebuilt;
+
+        /* If the transaction is not started yet, start it */
+
+        trx_start_if_not_started_noninline(prebuilt->trx);
+
+        /* Assign a read view if the transaction does not have it yet */
+
+        trx_assign_read_view(prebuilt->trx);
+
+        /* We did the necessary inits in this function, no need to repeat them
+        in row_search_for_mysql */
+
+        prebuilt->sql_stat_start = FALSE;
+
+        /* We let HANDLER always to do the reads as consistent reads, even
+        if the trx isolation level would have been specified as SERIALIZABLE */
+
+        prebuilt->select_lock_type = LOCK_NONE;
+
+        /* Always fetch all columns in the index record */
+
+        prebuilt->hint_no_need_to_fetch_extra_cols = FALSE;
+
+        /* We want always to fetch all columns in the whole row? Or do
+	we???? */
+
+        prebuilt->read_just_key = FALSE;
 }
 
 /*************************************************************************
@@ -3459,8 +3517,10 @@ innodb_show_status(
 
   	DBUG_ENTER("innodb_show_status");
 
-	/* We let the InnoDB Monitor to output at most 100 kB of text */
-	buf = (char*)ut_malloc(100 * 1024);
+	/* We let the InnoDB Monitor to output at most 100 kB of text, add
+	a safety margin of 10 kB for buffer overruns */
+
+	buf = (char*)ut_malloc(110 * 1024);
 	
 	srv_sprintf_innodb_monitor(buf, 100 * 1024);
 	

@@ -2071,41 +2071,90 @@ String* Item_func_inet_ntoa::val_str(String* str)
   return str;
 }
 
+/*
+  QUOTE() function returns argument string in single quotes suitable for
+  using in a SQL statement.
+
+  DESCRIPTION
+    Adds a \ before all characters that needs to be escaped in a SQL string.
+    We also escape '^Z' (END-OF-FILE in windows) to avoid probelms when
+    running commands from a file in windows. 
+
+    This function is very useful when you want to generate SQL statements
+
+    RETURN VALUES
+    str		Quoted string
+    NULL	Argument to QUOTE() was NULL or out of memory.
+*/
+
 #define get_esc_bit(mask, num) (1 & (*((mask) + ((num) >> 3))) >> ((num) & 7))
 
-/*
-  QUOTE() function returns argument string in single quotes,
-  also adds a \ before \, ' CHAR(0) and CHAR(24)
-*/
 String *Item_func_quote::val_str(String *str)
 {
-  static char escmask[32] = {0x01, 0x00, 0x00, 0x04, 0x80, 0x00, 0x00, 0x00,
-			     0x00, 0x00, 0x00, 0x10, 0x00, 0x00, 0x00, 0x00,
-			     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-			     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
-  String *arg= args[0]->val_str(str);
-  char *from, *to, *end;
-  uint delta= 2; /* for beginning and ending ' signs */
+  /*
+    Bit mask that has 1 for set for the position of the following characters:
+    0, \, ' and ^Z
+  */ 
 
-  if (!arg)
-    goto null;
-
-  for (from= (char*) arg->ptr(), end= from + arg->length(); from < end; from++)
-    delta+= get_esc_bit(escmask, *from);
-
-  if (str->alloc(arg->length() + delta))
-    goto null;
-  to= (char*) str->ptr() + arg->length() + delta - 1;
-  *to--= '\'';
-  for (end= (char*) arg->ptr(), from= end + arg->length() - 1; from >= end; 
-       from--, to--)
+  static char escmask[32]=
   {
-    *to= *from;
-    if (get_esc_bit(escmask, *from))
-      *--to= '\\';
+    0x01, 0x00, 0x00, 0x04, 0x80, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x10, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+  };
+
+  char *from, *to, *end, *start;
+  String *arg= args[0]->val_str(str);
+  uint arg_length, new_length;
+  if (!arg)					// Null argument
+    goto null;
+  arg_length= arg->length();
+  new_length= arg_length+2; /* for beginning and ending ' signs */
+
+  for (from= (char*) arg->ptr(), end= from + arg_length; from < end; from++)
+    new_length+= get_esc_bit(escmask, *from);
+
+  /*
+    We have to use realloc() instead of alloc() as we want to keep the
+    old result in str
+  */
+  if (str->realloc(new_length))
+    goto null;
+
+  /*
+    As 'arg' and 'str' may be the same string, we must replace characters
+    from the end to the beginning
+  */
+  to= (char*) str->ptr() + new_length - 1;
+  *to--= '\'';
+  for (start= (char*) arg->ptr() ; end-- != start; to--)
+  {
+    /*
+      We can't use the bitmask here as we want to replace \O and ^Z with 0
+      and Z
+    */
+    switch (*end)  {
+    case 0:
+      *to--= '0';
+      *to=   '\\';
+      break;
+    case '\032':
+      *to--= 'Z';
+      *to=   '\\';
+      break;
+    case '\'':
+    case '\\':
+      *to--= *end;
+      *to=   '\\';
+      break;
+    default:
+      *to= *end;
+      break;
+    }
   }
   *to= '\'';
-  str->length(arg->length() + delta);
+  str->length(new_length);
   return str;
 
 null:

@@ -1152,7 +1152,6 @@ int mysqld_show(THD *thd, const char *wild, show_var_st *variables,
   String packet2(buff,sizeof(buff));
   List<Item> field_list;
   CONVERT *convert=thd->variables.convert_set;
-  ulong offset;
 
   DBUG_ENTER("mysqld_show");
   field_list.push_back(new Item_empty_string("Variable_name",30));
@@ -1173,7 +1172,7 @@ int mysqld_show(THD *thd, const char *wild, show_var_st *variables,
       if (show_type == SHOW_SYS)
       {
 	show_type= ((sys_var*) value)->type();
-	value=     ((sys_var*) value)->value_ptr(thd, value_type);
+	value=     (char*) ((sys_var*) value)->value_ptr(thd, value_type);
       }
 
       switch (show_type) {

@@ -17,7 +17,6 @@
 /* Synchronization - readers / writer thread locks */
 
 #include "mysys_priv.h"
-#include <my_pthread.h>
 #if defined(THREAD) && !defined(HAVE_PTHREAD_RWLOCK_RDLOCK) && !defined(HAVE_RWLOCK_INIT)
 #include <errno.h>
 

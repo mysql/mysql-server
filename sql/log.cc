@@ -451,7 +451,6 @@ int MYSQL_LOG::find_log_pos(LOG_INFO *linfo, const char *log_name,
     }
   }
 
-err:
   if (need_lock)
     pthread_mutex_unlock(&LOCK_index);
   DBUG_RETURN(error);
@@ -602,15 +601,15 @@ err:
     - Read the first file name from the index file and store in rli->linfo
 
   RETURN VALUES
-    0	ok
-    1	error
+    0			ok
+    LOG_INFO_EOF	End of log-index-file found
+    LOG_INFO_SEEK	Could not allocate IO cache
+    LOG_INFO_IO		Got IO error while reading file
 */
 
 int MYSQL_LOG::purge_first_log(struct st_relay_log_info* rli)
 {
-  File file;
-  bool error= 1;
-  my_off_t offset, init_offset;
+  int error;
   DBUG_ENTER("purge_first_log");
 
   /*

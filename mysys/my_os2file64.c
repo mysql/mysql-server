@@ -18,11 +18,11 @@
    Software Foundation, Inc., 59 Temple Place - Suite 330, Boston,
    MA 02111-1307, USA */
 
-void        _OS2errno( APIRET rc);
+void	    _OS2errno( APIRET rc);
 longlong    _lseek64( int fd, longlong offset, int seektype);
-int         _lock64( int fd, int locktype, my_off_t start,
-                     my_off_t length, myf MyFlags);
-int         _sopen64( const char *name, int oflag, int shflag, int mask);
+int	    _lock64( int fd, int locktype, my_off_t start,
+		     my_off_t length, myf MyFlags);
+int	    _sopen64( const char *name, int oflag, int shflag, int mask);
 
 //
 // this class is used to define a global c++ variable, that
@@ -34,52 +34,52 @@ class File64bit
       File64bit();  /* default constructor */
 } initFile64bit;
 
-static  APIRET (* APIENTRY _DosOpenL)(PCSZ  pszFileName,
-                            PHFILE phf,
-                            PULONG pulAction,
-                            LONGLONG cbFile,
-                            ULONG ulAttribute,
-                            ULONG fsOpenFlags,
-                            ULONG fsOpenMode,
-                            PEAOP2 peaop2);
-static  APIRET (* APIENTRY _DosSetFilePtrL)(HFILE hFile,
-                                   LONGLONG ib,
-                                   ULONG method,
-                                   PLONGLONG ibActual);
-static  APIRET (* APIENTRY _DosSetFileLocksL)(HFILE hFile,
-                                    PFILELOCKL pflUnlock,
-                                    PFILELOCKL pflLock,
-                                    ULONG timeout,
-                                    ULONG flags);
+static	APIRET (* APIENTRY _DosOpenL)(PCSZ  pszFileName,
+			    PHFILE phf,
+			    PULONG pulAction,
+			    LONGLONG cbFile,
+			    ULONG ulAttribute,
+			    ULONG fsOpenFlags,
+			    ULONG fsOpenMode,
+			    PEAOP2 peaop2);
+static	APIRET (* APIENTRY _DosSetFilePtrL)(HFILE hFile,
+				   LONGLONG ib,
+				   ULONG method,
+				   PLONGLONG ibActual);
+static	APIRET (* APIENTRY _DosSetFileLocksL)(HFILE hFile,
+				    PFILELOCKL pflUnlock,
+				    PFILELOCKL pflLock,
+				    ULONG timeout,
+				    ULONG flags);
 
-#define  EIO      EINVAL
+#define  EIO	  EINVAL
 #define  ESPIPE   EBADSEEK
 
 
 static unsigned char const errno_tab[] =
 {
-  0     , EINVAL, ENOENT, ENOENT, EMFILE,  /* 0..4 */
-  EACCES, EBADF,  EIO,    ENOMEM, EIO,     /* 5..9 */
+  0	, EINVAL, ENOENT, ENOENT, EMFILE,  /* 0..4 */
+  EACCES, EBADF,  EIO,	  ENOMEM, EIO,	   /* 5..9 */
   EINVAL, ENOEXEC,EINVAL, EINVAL, EINVAL,  /* 10..14 */
   ENOENT, EBUSY,  EXDEV,  ENOENT, EROFS,   /* 15..19 */
-  EIO,    EIO,    EIO,    EIO,    EIO,     /* 20..24 */
-  EIO,    EIO,    EIO,    ENOSPC, EIO,     /* 25..29 */
-  EIO,    EIO,    EACCES, EACCES, EIO,     /* 30..34 */
-  EIO,    EIO,    EIO,    EIO,    ENOSPC,  /* 35..39 */
-  EIO,    EIO,    EIO,    EIO,    EIO,     /* 40..44 */
-  EIO,    EIO,    EIO,    EIO,    EIO,     /* 45..49 */
-  EIO,    EIO,    EIO,    EIO,    EBUSY,   /* 50..54 */
-  EIO,    EIO,    EIO,    EIO,    EIO,     /* 55..59 */
-  EIO,    ENOSPC, ENOSPC, EIO,    EIO,     /* 60..64 */
-  EACCES, EIO,    EIO,    EIO,    EIO,     /* 65..69 */
-  EIO,    EIO,    EIO,    EROFS,  EIO,     /* 70..74 */
-  EIO,    EIO,    EIO,    EIO,    EIO,     /* 75..79 */
-  EEXIST, EIO,    ENOENT, EIO,    EIO,     /* 80..84 */
-  EIO,    EIO,    EINVAL, EIO,    EAGAIN,  /* 85..89 */
-  EIO,    EIO,    EIO,    EIO,    EIO,     /* 90..94 */
-  EINTR,  EIO,    EIO,    EIO,    EACCES,  /* 95..99 */
+  EIO,	  EIO,	  EIO,	  EIO,	  EIO,	   /* 20..24 */
+  EIO,	  EIO,	  EIO,	  ENOSPC, EIO,	   /* 25..29 */
+  EIO,	  EIO,	  EACCES, EACCES, EIO,	   /* 30..34 */
+  EIO,	  EIO,	  EIO,	  EIO,	  ENOSPC,  /* 35..39 */
+  EIO,	  EIO,	  EIO,	  EIO,	  EIO,	   /* 40..44 */
+  EIO,	  EIO,	  EIO,	  EIO,	  EIO,	   /* 45..49 */
+  EIO,	  EIO,	  EIO,	  EIO,	  EBUSY,   /* 50..54 */
+  EIO,	  EIO,	  EIO,	  EIO,	  EIO,	   /* 55..59 */
+  EIO,	  ENOSPC, ENOSPC, EIO,	  EIO,	   /* 60..64 */
+  EACCES, EIO,	  EIO,	  EIO,	  EIO,	   /* 65..69 */
+  EIO,	  EIO,	  EIO,	  EROFS,  EIO,	   /* 70..74 */
+  EIO,	  EIO,	  EIO,	  EIO,	  EIO,	   /* 75..79 */
+  EEXIST, EIO,	  ENOENT, EIO,	  EIO,	   /* 80..84 */
+  EIO,	  EIO,	  EINVAL, EIO,	  EAGAIN,  /* 85..89 */
+  EIO,	  EIO,	  EIO,	  EIO,	  EIO,	   /* 90..94 */
+  EINTR,  EIO,	  EIO,	  EIO,	  EACCES,  /* 95..99 */
   ENOMEM, EINVAL, EINVAL, ENOMEM, EINVAL,  /* 100..104 */
-  EINVAL, ENOMEM, EIO,    EACCES, EPIPE,   /* 105..109 */
+  EINVAL, ENOMEM, EIO,	  EACCES, EPIPE,   /* 105..109 */
   ENOENT, E2BIG,  ENOSPC, ENOMEM, EBADF,   /* 110..114 */
   EINVAL, EINVAL, EINVAL, EINVAL, EINVAL,  /* 115..119 */
   EINVAL, EINVAL, EINVAL, ENOENT, EINVAL,  /* 120..124 */
@@ -121,16 +121,16 @@ static unsigned char const errno_tab[] =
   EINVAL, EBUSY,  EINVAL, ESRCH,  EINVAL,  /* 300..304 */
   ESRCH,  EINVAL, EINVAL, EINVAL, ESRCH,   /* 305..309 */
   EINVAL, ENOMEM, EINVAL, EINVAL, EINVAL,  /* 310..314 */
-  EINVAL, E2BIG,  ENOENT, EIO,    EIO,     /* 315..319 */
+  EINVAL, E2BIG,  ENOENT, EIO,	  EIO,	   /* 315..319 */
   EINVAL, EINVAL, EINVAL, EINVAL, EAGAIN,  /* 320..324 */
-  EINVAL, EINVAL, EINVAL, EIO,    ENOENT,  /* 325..329 */
+  EINVAL, EINVAL, EINVAL, EIO,	  ENOENT,  /* 325..329 */
   EACCES, EACCES, EACCES, ENOENT, ENOMEM   /* 330..334 */
 };
 
 /*
  * Initialize 64bit file access: dynamic load of WSeB API
 */
-            File64bit :: File64bit()
+	    File64bit :: File64bit()
 {
    HMODULE hDoscalls;
 
@@ -156,7 +156,7 @@ static unsigned char const errno_tab[] =
 #endif
 }
 
-void        _OS2errno( APIRET rc)
+void	    _OS2errno( APIRET rc)
 {
   if (rc >= sizeof (errno_tab))
     errno = EINVAL;
@@ -187,19 +187,19 @@ longlong    _lseek64( int fd, longlong offset, int seektype)
 }
 
 inline _SetFileLocksL(HFILE hFile,
-                          PFILELOCKL pflUnlock,
-                          PFILELOCKL pflLock,
-                          ULONG timeout,
-                          ULONG flags)
+			  PFILELOCKL pflUnlock,
+			  PFILELOCKL pflLock,
+			  ULONG timeout,
+			  ULONG flags)
 {
    if (_DosSetFileLocksL) {
       APIRET rc;
       rc = _DosSetFileLocksL( hFile, pflUnlock, pflLock, timeout, flags);
 
-      // on FAT/HPFS/LAN a INVALID_PARAMETER is returned, seems that 
+      // on FAT/HPFS/LAN a INVALID_PARAMETER is returned, seems that
       // only JFS can handle >2GB ranges.
       if (rc != 87)
-         return rc;
+	 return rc;
 
       // got INVALID_PARAMETER, fallback to standard call
    }
@@ -209,8 +209,8 @@ inline _SetFileLocksL(HFILE hFile,
    return DosSetFileLocks( hFile, &flUnlock, &flLock, timeout, flags);
 }
 
-int         _lock64( int fd, int locktype, my_off_t start,
-                     my_off_t length, myf MyFlags)
+int	    _lock64( int fd, int locktype, my_off_t start,
+		     my_off_t length, myf MyFlags)
 {
    FILELOCKL LockArea = {0,0}, UnlockArea = {0,0};
    ULONG     readonly = 0;
@@ -241,16 +241,16 @@ int         _lock64( int fd, int locktype, my_off_t start,
       //printf( "fd %d, locktype %d, rc %d (dont_wait)\n", fd, locktype, rc);
       if (rc == 33) {  /* Lock Violation */
 
-         DBUG_PRINT("info",("Was locked, trying with timeout"));
-         rc = _SetFileLocksL( fd, &UnlockArea, &LockArea, 1 * 1000, readonly);
-         //printf( "fd %d, locktype %d, rc %d (dont_wait with timeout)\n", fd, locktype, rc);
+	 DBUG_PRINT("info",("Was locked, trying with timeout"));
+	 rc = _SetFileLocksL( fd, &UnlockArea, &LockArea, 1 * 1000, readonly);
+	 //printf( "fd %d, locktype %d, rc %d (dont_wait with timeout)\n", fd, locktype, rc);
       }
 
    } else {
 
       while( rc = _SetFileLocksL( fd, &UnlockArea, &LockArea, 0, readonly) && (rc == 33)) {
-         printf(".");
-         DosSleep(1 * 1000);
+	 printf(".");
+	 DosSleep(1 * 1000);
       }
       //printf( "fd %d, locktype %d, rc %d (wait2)\n", fd, locktype, rc);
    }
@@ -264,9 +264,9 @@ int         _lock64( int fd, int locktype, my_off_t start,
    return(-1);
 }
 
-int         sopen( const char *name, int oflag, int shflag, int mask)
+int	    sopen( const char *name, int oflag, int shflag, int mask)
 {
-   int      fail_errno;
+   int	    fail_errno;
    APIRET   rc = 0;
    HFILE    hf = 0;
    ULONG    ulAction = 0;
@@ -289,18 +289,18 @@ int         sopen( const char *name, int oflag, int shflag, int mask)
    {
       if (oflag & O_EXCL)
       {
-         fsOpenFlags = OPEN_ACTION_FAIL_IF_EXISTS | OPEN_ACTION_CREATE_IF_NEW;
-         fail_errno = EEXIST;
+	 fsOpenFlags = OPEN_ACTION_FAIL_IF_EXISTS | OPEN_ACTION_CREATE_IF_NEW;
+	 fail_errno = EEXIST;
       }
       else if (oflag & O_TRUNC)
-        fsOpenFlags = OPEN_ACTION_REPLACE_IF_EXISTS | OPEN_ACTION_CREATE_IF_NEW;
+	fsOpenFlags = OPEN_ACTION_REPLACE_IF_EXISTS | OPEN_ACTION_CREATE_IF_NEW;
       else
-        fsOpenFlags = OPEN_ACTION_OPEN_IF_EXISTS | OPEN_ACTION_CREATE_IF_NEW;
+	fsOpenFlags = OPEN_ACTION_OPEN_IF_EXISTS | OPEN_ACTION_CREATE_IF_NEW;
 
       if (mask & S_IWRITE)
-         ulAttribute = FILE_NORMAL;
+	 ulAttribute = FILE_NORMAL;
       else
-         ulAttribute = FILE_READONLY;
+	 ulAttribute = FILE_READONLY;
 
    }
    else if (oflag & O_TRUNC)
@@ -311,10 +311,10 @@ int         sopen( const char *name, int oflag, int shflag, int mask)
    /* Try to open the file and handle errors. */
    if (_DosOpenL)
       rc = _DosOpenL( name, &hf, &ulAction, cbFile,
-                     ulAttribute, fsOpenFlags, fsOpenMode, NULL);
+		     ulAttribute, fsOpenFlags, fsOpenMode, NULL);
    else
       rc = DosOpen( name, &hf, &ulAction, (LONG) cbFile,
-                     ulAttribute, fsOpenFlags, fsOpenMode, NULL);
+		     ulAttribute, fsOpenFlags, fsOpenMode, NULL);
 
    if (rc == ERROR_OPEN_FAILED)
    {
@@ -334,7 +334,7 @@ int         sopen( const char *name, int oflag, int shflag, int mask)
    return hf;
 }
 
-int      read( int fd, void *buffer, unsigned int count)
+int	 read( int fd, void *buffer, unsigned int count)
 {
    APIRET   rc;
    ULONG    actual;
@@ -350,7 +350,7 @@ int      read( int fd, void *buffer, unsigned int count)
    return(-1);
 }
 
-int      write( int fd, const void *buffer, unsigned int count)
+int	 write( int fd, const void *buffer, unsigned int count)
 {
    APIRET   rc;
    ULONG    actual;
@@ -366,7 +366,7 @@ int      write( int fd, const void *buffer, unsigned int count)
    return(-1);
 }
 
-int      close( int fd)
+int	 close( int fd)
 {
    APIRET   rc;
    ULONG    actual;

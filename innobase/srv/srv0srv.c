@@ -2228,6 +2228,7 @@ srv_sprintf_innodb_monitor(
 
 	ut_sprintf_timestamp(buf);
 	buf = buf + strlen(buf);
+	ut_a(buf < buf_end + 1500);
 	
 	buf += sprintf(buf, " INNODB MONITOR OUTPUT\n"
 	       	       "=====================================\n");
@@ -2242,6 +2243,7 @@ srv_sprintf_innodb_monitor(
 	sync_print(buf, buf_end);
 
 	buf = buf + strlen(buf);
+	ut_a(buf < buf_end + 1500);
 
 	buf += sprintf(buf, "------------\n"
 		       "TRANSACTIONS\n"
@@ -2254,15 +2256,18 @@ srv_sprintf_innodb_monitor(
 		       "--------\n");
 	os_aio_print(buf, buf_end);
 	buf = buf + strlen(buf);
+	ut_a(buf < buf_end + 1500);
 
 	buf += sprintf(buf, "-------------------------------------\n"
 		       "INSERT BUFFER AND ADAPTIVE HASH INDEX\n"
 		       "-------------------------------------\n");
 	ibuf_print(buf, buf_end);
 	buf = buf + strlen(buf);
+	ut_a(buf < buf_end + 1500);
 
 	ha_print_info(buf, buf_end, btr_search_sys->hash_index);
 	buf = buf + strlen(buf);
+	ut_a(buf < buf_end + 1500);
 
 	buf += sprintf(buf,
 		"%.2f hash searches/s, %.2f non-hash searches/s\n",
@@ -2278,6 +2283,7 @@ srv_sprintf_innodb_monitor(
 		       "---\n");
 	log_print(buf, buf_end);
 	buf = buf + strlen(buf);
+	ut_a(buf < buf_end + 1500);
 	
 	buf += sprintf(buf, "----------------------\n"
 		       "BUFFER POOL AND MEMORY\n"
@@ -2288,6 +2294,7 @@ srv_sprintf_innodb_monitor(
 				mem_pool_get_reserved(mem_comm_pool));
 	buf_print_io(buf, buf_end);
 	buf = buf + strlen(buf);
+	ut_a(buf < buf_end + 1500);
 
 	buf += sprintf(buf, "--------------\n"
 		       "ROW OPERATIONS\n"
@@ -2321,6 +2328,8 @@ srv_sprintf_innodb_monitor(
 	buf += sprintf(buf, "----------------------------\n"
 		       "END OF INNODB MONITOR OUTPUT\n"
 		       "============================\n");
+	ut_a(buf < buf_end + 1900);
+
 	mutex_exit(&srv_innodb_monitor_mutex);
 }
 
@@ -2378,7 +2387,9 @@ loop:
 
 	        buf = mem_alloc(100000);
 
-	        srv_sprintf_innodb_monitor(buf, 100000);
+	        srv_sprintf_innodb_monitor(buf, 90000);
+
+		ut_a(strlen(buf) < 99000);
 
 	    	printf("%s", buf);
 

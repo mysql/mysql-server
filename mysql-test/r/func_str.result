@@ -152,6 +152,9 @@ quote('\'\"\\test')
 select quote(concat('abc\'', '\\cba'));
 quote(concat('abc\'', '\\cba'))
 'abc\'\\cba'
+select quote(1/0), quote('\0\Z');
+quote(1/0)	quote('\0\Z')
+NULL	'\0\Z'
 select reverse("");
 reverse("")
 

@@ -486,6 +486,7 @@ Item_func_ifnull::val_str(String *str)
   return res;
 }
 
+
 void
 Item_func_if::fix_length_and_dec()
 {
@@ -494,16 +495,32 @@ Item_func_if::fix_length_and_dec()
   decimals=max(args[1]->decimals,args[2]->decimals);
   enum Item_result arg1_type=args[1]->result_type();
   enum Item_result arg2_type=args[2]->result_type();
-  binary=1;
-  if (arg1_type == STRING_RESULT || arg2_type == STRING_RESULT)
+  bool null1=args[1]->null_value;
+  bool null2=args[2]->null_value;
+
+  if (null1)
+  {
+    cached_result_type= arg2_type;
+    binary= args[2]->binary;
+  }
+  else if (null2)
+  {
+    cached_result_type= arg1_type;
+    binary= args[1]->binary;
+  }
+  else if (arg1_type == STRING_RESULT || arg2_type == STRING_RESULT)
   {
     cached_result_type = STRING_RESULT;
     binary=args[1]->binary | args[2]->binary;
   }
-  else if (arg1_type == REAL_RESULT || arg2_type == REAL_RESULT)
-    cached_result_type = REAL_RESULT;
   else
-    cached_result_type=arg1_type;		// Should be INT_RESULT
+  {
+    binary=1;					// Number
+    if (arg1_type == REAL_RESULT || arg2_type == REAL_RESULT)
+      cached_result_type = REAL_RESULT;
+    else
+      cached_result_type=arg1_type;		// Should be INT_RESULT
+  }
 }
 
 
