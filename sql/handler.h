@@ -222,9 +222,9 @@ public:
   virtual int index_first(byte * buf)=0;
   virtual int index_last(byte * buf)=0;
   virtual int index_next_same(byte *buf, const byte *key, uint keylen);
-  virtual int ft_init(uint inx,const byte *key, uint keylen, bool presort=1)
+  virtual int ft_init()
                                  { return -1; }
-  virtual void *ft_init_ext(uint inx,const byte *key, uint keylen, bool presort=0)
+  virtual void *ft_init_ext(uint inx,const byte *key, uint keylen, bool presort)
                                  { return (void *)NULL; }
   virtual int ft_read(byte *buf) { return -1; }
   virtual int rnd_init(bool scan=1)=0;
@@ -257,7 +257,7 @@ public:
   virtual int restore(THD* thd, HA_CHECK_OPT* check_opt);
   // assumes .frm file must exist, and you must have already called
   // generate_table() - it will just copy the data file and run repair
-  
+
   virtual int dump(THD* thd, int fd = -1) { return ER_DUMP_NOT_IMPLEMENTED; }
   virtual void deactivate_non_unique_index(ha_rows rows) {}
   virtual bool activate_all_index(THD *thd) {return 0;}

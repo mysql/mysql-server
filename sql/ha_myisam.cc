@@ -353,7 +353,7 @@ int ha_myisam::restore(THD* thd, HA_CHECK_OPT *check_opt)
 
   int error = 0;
   const char* errmsg = "";
-  
+
   if (my_copy(src_path, fn_format(dst_path, table->path, "",
 				  MI_NAME_DEXT, 4), MYF(MY_WME)))
   {
@@ -361,11 +361,11 @@ int ha_myisam::restore(THD* thd, HA_CHECK_OPT *check_opt)
     errmsg = "failed in my_copy( Error %d)";
     goto err;
   }
-  
+
   tmp_check_opt.init();
   tmp_check_opt.quick = 1;
   return repair(thd, &tmp_check_opt);
-  
+
  err:
   {
     MI_CHECK param;
@@ -375,7 +375,7 @@ int ha_myisam::restore(THD* thd, HA_CHECK_OPT *check_opt)
     param.table_name = table->table_name;
     param.testflag = 0;
     mi_check_print_error(&param,errmsg, errno );
-    return error; 
+    return error;
   }
 }
 
@@ -450,7 +450,7 @@ int ha_myisam::repair(THD* thd, HA_CHECK_OPT *check_opt)
 		    llstr(file->state->records, llbuff),
 		    llstr(start_records, llbuff2),
 		    table->path);
-  }    
+  }
   return error;
 }
 
@@ -496,7 +496,7 @@ int ha_myisam::repair(THD *thd, MI_CHECK &param, bool optimize)
     DBUG_RETURN(HA_ADMIN_FAILED);
   }
 
-  if (!optimize || 
+  if (!optimize ||
       ((file->state->del || share->state.split != file->state->records) &&
        (!param.opt_rep_quick ||
 	!(share->state.changed & STATE_NOT_OPTIMIZED_KEYS))))
@@ -621,9 +621,9 @@ bool ha_myisam::check_and_repair(THD *thd)
   {
     sql_print_error("Warning: Recovering table: '%s'",table->path);
     check_opt.quick= !check_opt.retry_without_quick && !marked_crashed;
-    check_opt.flags=(((myisam_recover_options & HA_RECOVER_BACKUP) ? 
+    check_opt.flags=(((myisam_recover_options & HA_RECOVER_BACKUP) ?
 		      T_BACKUP_DATA : 0) |
-		     (!(myisam_recover_options & HA_RECOVER_FORCE) ? 
+		     (!(myisam_recover_options & HA_RECOVER_FORCE) ?
 		      T_SAFE_REPAIR : 0)) | T_AUTO_REPAIR;
     if (repair(thd, &check_opt))
       error=1;
@@ -1077,20 +1077,6 @@ ha_rows ha_myisam::records_in_range(int inx,
 				       start_search_flag,
 				       end_key,end_key_len,
 				       end_search_flag);
-}
-
-int ha_myisam::ft_init(uint inx, const byte *key, uint keylen, bool presort)
-{
-  if (ft_handler)
-    return -1;
-
-  // Do the search!
-  ft_handler=ft_init_search(file,inx,(byte*) key,keylen,presort);
-
-  if (!ft_handler)
-    return (my_errno ? my_errno : -1);
-
-  return 0;
 }
 
 int ha_myisam::ft_read(byte * buf)

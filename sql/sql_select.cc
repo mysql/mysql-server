@@ -486,7 +486,7 @@ mysql_select(THD *thd,TABLE_LIST *tables,List<Item> &fields,COND *conds,
     as in other cases the join is done before the sort.
     */
   if ((order || group) && join.join_tab[join.const_tables].type != JT_ALL &&
-      join.join_tab[join.const_tables].type != JT_FT &&   /* Beware! SerG */
+      join.join_tab[join.const_tables].type != JT_FT &&
       (order && simple_order || group && simple_group))
   {
     if (add_ref_to_table_cond(thd,&join.join_tab[join.const_tables]))
@@ -522,6 +522,19 @@ mysql_select(THD *thd,TABLE_LIST *tables,List<Item> &fields,COND *conds,
     goto err;
   }
 
+  /* Perform FULLTEXT search before all regular searches */
+  if (ftfuncs.elements)
+  {
+    List_iterator<Item_func_match> li(ftfuncs);
+    Item_func_match *ifm;
+    DBUG_PRINT("info",("Performing FULLTEXT search"));
+    thd->proc_info="FULLTEXT searching";
+
+    while ((ifm=li++))
+    {
+      ifm->init_search();
+    }
+  }
   /* Create a tmp table if distinct or if the sort is too complicated */
   if (need_tmp)
   {
@@ -4438,26 +4451,14 @@ join_ft_read_first(JOIN_TAB *tab)
   if (cp_buffer_from_ref(&tab->ref))       // as ft-key doesn't use store_key's
     return -1;                             // see also FT_SELECT::init()
 #endif
-  if ((error=table->file->ft_init(tab->ref.key,
-				  tab->ref.key_buff,
-				  tab->ref.key_length)))
-  {
-    if (error != HA_ERR_KEY_NOT_FOUND)
-    {
-      sql_print_error("ft_read_first/init: Got error %d when reading table %s",error,
-                      table->path);
-      table->file->print_error(error,MYF(0));
-      return 1;
-    }
-    return -1;
-  }
+  table->file->ft_init();
 
   error=table->file->ft_read(table->record[0]);
   if (error)
   {
     if (error != HA_ERR_END_OF_FILE)
     {
-      sql_print_error("ft_read_first/read: Got error %d when reading table %s",
+      sql_print_error("ft_read_first: Got error %d when reading table %s",
                       error, table->path);
       table->file->print_error(error,MYF(0));
       return 1;
