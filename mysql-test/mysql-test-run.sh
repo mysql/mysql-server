@@ -224,7 +224,7 @@ EXTRA_MASTER_OPT=""
 EXTRA_MYSQL_TEST_OPT=""
 EXTRA_MYSQLDUMP_OPT=""
 EXTRA_MYSQLBINLOG_OPT=""
-USE_RUNNING_SERVER=""
+USE_RUNNING_SERVER=0
 USE_NDBCLUSTER=""
 USE_RUNNING_NDBCLUSTER=""
 DO_GCOV=""
@@ -255,7 +255,7 @@ NDBD_EXTRA_OPTS=
 while test $# -gt 0; do
   case "$1" in
     --embedded-server) USE_EMBEDDED_SERVER=1 USE_MANAGER=0 NO_SLAVE=1 ; \
-      USE_RUNNING_SERVER="" RESULT_EXT=".es" TEST_MODE="embedded" ;;
+      USE_RUNNING_SERVER=0 RESULT_EXT=".es" TEST_MODE="embedded" ;;
     --user=*) DBUSER=`$ECHO "$1" | $SED -e "s;--user=;;"` ;;
     --force)  FORCE=1 ;;
     --timer)  USE_TIMER=1 ;;
@@ -265,8 +265,8 @@ while test $# -gt 0; do
       MASTER_MYSQLD=`$ECHO "$1" | $SED -e "s;--master-binary=;;"` ;;
     --slave-binary=*)
       SLAVE_MYSQLD=`$ECHO "$1" | $SED -e "s;--slave-binary=;;"` ;;
-    --local)   USE_RUNNING_SERVER="" ;;
-    --extern)  USE_RUNNING_SERVER="1" ;;
+    --local)   USE_RUNNING_SERVER=0 ;;
+    --extern)  USE_RUNNING_SERVER=1 ;;
     --with-ndbcluster)
       USE_NDBCLUSTER="--ndbcluster" ;;
     --ndb-connectstring=*)
@@ -303,7 +303,7 @@ while test $# -gt 0; do
     --no-manager | --skip-manager) USE_MANAGER=0 ;;
     --manager)
      USE_MANAGER=1
-     USE_RUNNING_SERVER=
+     USE_RUNNING_SERVER=0
      ;;
     --start-and-exit)
      START_AND_EXIT=1
@@ -372,7 +372,7 @@ while test $# -gt 0; do
       EXTRA_SLAVE_MYSQLD_OPT="$EXTRA_SLAVE_MYSQLD_OPT --gdb"
       # This needs to be checked properly
       # USE_MANAGER=1
-      USE_RUNNING_SERVER=""
+      USE_RUNNING_SERVER=0
       ;;
     --client-gdb )
       if [ x$BINARY_DIST = x1 ] ; then
@@ -385,7 +385,7 @@ while test $# -gt 0; do
     --manual-gdb )
       DO_GDB=1
       MANUAL_GDB=1
-      USE_RUNNING_SERVER=""
+      USE_RUNNING_SERVER=0
       EXTRA_MASTER_MYSQLD_OPT="$EXTRA_MASTER_MYSQLD_OPT --gdb"
       EXTRA_SLAVE_MYSQLD_OPT="$EXTRA_SLAVE_MYSQLD_OPT --gdb"
       ;;
@@ -394,7 +394,7 @@ while test $# -gt 0; do
 	$ECHO "Note: you will get more meaningful output on a source distribution compiled with debugging option when running tests with --ddd option"
       fi
       DO_DDD=1
-      USE_RUNNING_SERVER=""
+      USE_RUNNING_SERVER=0
       EXTRA_MASTER_MYSQLD_OPT="$EXTRA_MASTER_MYSQLD_OPT --gdb"
       EXTRA_SLAVE_MYSQLD_OPT="$EXTRA_SLAVE_MYSQLD_OPT --gdb"
       ;;
@@ -412,7 +412,7 @@ while test $# -gt 0; do
       EXTRA_SLAVE_MYSQLD_OPT="$EXTRA_SLAVE_MYSQLD_OPT --skip-safemalloc --skip-bdb"
       SLEEP_TIME_AFTER_RESTART=10
       SLEEP_TIME_FOR_DELETE=60
-      USE_RUNNING_SERVER=""
+      USE_RUNNING_SERVER=0
       if test "$1" = "--valgrind-all"
       then
         VALGRIND="$VALGRIND -v --show-reachable=yes"
@@ -627,9 +627,9 @@ fi
 
 if [ -z "$1" ]
 then
-   USE_RUNNING_SERVER=""
+   USE_RUNNING_SERVER=0
 fi
-if [ -n "$USE_RUNNING_SERVER" ]
+if [ $USE_RUNNING_SERVER -eq 1 ]
 then
    MASTER_MYSOCK=$LOCAL_SOCKET;
    DBUSER=${DBUSER:-test}
@@ -801,7 +801,7 @@ report_stats () {
         $ECHO "http://www.mysql.com/doc/en/MySQL_test_suite.html"
     fi
 
-    if test -z "$USE_RUNNING_SERVER"
+    if [ $USE_RUNNING_SERVER -eq 0 ]
     then
 
     # Report if there was any fatal warnings/errors in the log files
@@ -1511,7 +1511,7 @@ run_testcase ()
    done
  fi
 
- if [ -z "$USE_RUNNING_SERVER" ] ;
+ if [ $USE_RUNNING_SERVER -eq 0 ] ;
  then
    if [ -f $master_opt_file ] ;
    then
@@ -1655,7 +1655,7 @@ run_testcase ()
 	if [ x$FORCE != x1 ] ; then
 	 $ECHO "Aborting: $tname failed in $TEST_MODE mode. To continue, re-run with '--force'."
 	 $ECHO
-         if [ -z "$DO_GDB" ] && [ -z "$USE_RUNNING_SERVER" ] && \
+         if [ -z "$DO_GDB" ] && [ $USE_RUNNING_SERVER -eq 0 ] && \
 	    [ -z "$DO_DDD" ] && [ -z "$USE_EMBEDDED_SERVER" ]
 	 then
 	   mysql_stop
@@ -1664,7 +1664,7 @@ run_testcase ()
 	 exit 1
 	fi
 	FAILED_CASES="$FAILED_CASES $tname"
-        if [ -z "$DO_GDB" ] && [ -z "$USE_RUNNING_SERVER" ] && \
+        if [ -z "$DO_GDB" ] && [ $USE_RUNNING_SERVER -eq 0 ] && \
 	   [ -z "$DO_DDD" ] && [ -z "$USE_EMBEDDED_SERVER" ]
 	then
 	  mysql_restart
@@ -1683,7 +1683,7 @@ run_testcase ()
 [ "$DO_GCOV" ] && gcov_prepare
 [ "$DO_GPROF" ] && gprof_prepare
 
-if [ -z "$USE_RUNNING_SERVER" ]
+if [ $USE_RUNNING_SERVER -eq 0 ]
 then
   if [ -z "$FAST_START" ]
   then
@@ -1743,6 +1743,9 @@ fi
 
 
 $ECHO  "Starting Tests"
+
+# Some test cases need USE_RUNNING_SERVER
+export USE_RUNNING_SERVER
 
 #
 # This can probably be deleted
@@ -1816,7 +1819,7 @@ fi
 $ECHO $DASH72
 $ECHO
 
-if [ -z "$DO_GDB" ] && [ -z "$USE_RUNNING_SERVER" ] && [ -z "$DO_DDD" ]
+if [ -z "$DO_GDB" ] && [ $USE_RUNNING_SERVER -eq 0 ] && [ -z "$DO_DDD" ]
 then
     mysql_stop
 fi
