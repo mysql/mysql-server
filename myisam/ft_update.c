@@ -29,7 +29,8 @@
 
 
 /* parses a document i.e. calls _mi_ft_parse for every keyseg */
-static FT_WORD * _mi_ft_parserecord(MI_INFO *info, uint keynr, byte *keybuf, const byte *record)
+static FT_WORD * _mi_ft_parserecord(MI_INFO *info, uint keynr, byte *keybuf,
+				    const byte *record)
 {
   TREE *parsed=NULL;
   MI_KEYSEG *keyseg;
@@ -62,7 +63,7 @@ static FT_WORD * _mi_ft_parserecord(MI_INFO *info, uint keynr, byte *keybuf, con
       len=keyseg->length;
 
     parsed=ft_parse(parsed, pos, len);
-    if(parsed==NULL) return NULL;
+    if (parsed==NULL) return NULL;
   }
   return ft_linearize(info, keynr, keybuf, parsed);
 }
@@ -150,23 +151,36 @@ int _mi_ft_cmp(MI_INFO *info, uint keynr, const byte *rec1, const byte *rec2)
 }
 
 /* adds a document to the collection */
-int _mi_ft_add(MI_INFO *info, uint keynr, byte *keybuf, const byte *record, my_off_t pos)
+int _mi_ft_add(MI_INFO *info, uint keynr, byte *keybuf, const byte *record,
+	       my_off_t pos)
 {
+  int error= -1;
   FT_WORD *wlist;
 
-  if(!(wlist=_mi_ft_parserecord(info, keynr, keybuf, record))) return -1;
-  return _mi_ft_store(info,keynr,keybuf,wlist,pos);
+  if ((wlist=_mi_ft_parserecord(info, keynr, keybuf, record)))
+  {
+    error=_mi_ft_store(info,keynr,keybuf,wlist,pos);
+    my_free((char*) wlist,MYF(0));
+  }
+  return error;
 }
 
 /* removes a document from the collection */
-int _mi_ft_del(MI_INFO *info, uint keynr, byte *keybuf, const byte *record, my_off_t pos)
+int _mi_ft_del(MI_INFO *info, uint keynr, byte *keybuf, const byte *record,
+	       my_off_t pos)
 {
+  int error= -1;
   FT_WORD *wlist;
-  if(!(wlist=_mi_ft_parserecord(info, keynr, keybuf, record))) return -1;
-  return _mi_ft_erase(info,keynr,keybuf,wlist,pos);
+  if ((wlist=_mi_ft_parserecord(info, keynr, keybuf, record)))
+  {
+    error=_mi_ft_erase(info,keynr,keybuf,wlist,pos);
+    my_free((char*) wlist,MYF(0));
+  }
+  return error;
 }
 
-uint _ft_make_key(MI_INFO *info, uint keynr, byte *keybuf, FT_WORD *wptr, my_off_t filepos)
+uint _ft_make_key(MI_INFO *info, uint keynr, byte *keybuf, FT_WORD *wptr,
+		  my_off_t filepos)
 {
   byte buf[HA_FT_MAXLEN+16];
 

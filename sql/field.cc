@@ -2620,9 +2620,9 @@ bool Field_time::get_time(TIME *ltime)
     ltime->neg= 1;
     tmp=-tmp;
   }
-  ltime->day=tmp/10000;
-  tmp-=ltime->day*10000;
-  ltime->hour=   tmp/100;
+  ltime->hour=tmp/10000;
+  tmp-=ltime->hour*10000;
+  ltime->minute=   tmp/100;
   ltime->second= tmp % 100;
   ltime->second_part=0;
   return 0;

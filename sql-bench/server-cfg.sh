@@ -116,6 +116,7 @@ sub new
   $self->{'blob'}		= "blob";
   $self->{'text'}		= "text";
   $self->{'double_quotes'}	= 1; # Can handle:  'Walker''s'
+  $self->{'vacuum'}		= 1; # When using with --fast
 
   $limits{'max_conditions'}	= 9999; # (Actually not a limit)
   $limits{'max_columns'}	= 2000;	# Max number of columns in table
@@ -307,6 +308,26 @@ sub reconnect_on_errors
 {
   return 0;
 }
+
+#
+# Optimize tables for better performance
+#
+
+sub vacuum
+{
+  my ($self,$full_vacuum,$dbh_ref,@tables)=@_;
+  my ($loop_time,$end_time,$dbh);
+  if ($#tables >= 0)
+  {
+    $dbh=$$dbh_ref;
+    $loop_time=new Benchmark;
+    $dbh->do("OPTIMIZE TABLE " . join(',',@tables)) || die "Got error: $DBI::errstr when executing 'OPTIMIZE TABLE'\n";
+    $end_time=new Benchmark;
+    print "Time for book-keeping (1): " .
+      Benchmark::timestr(Benchmark::timediff($end_time, $loop_time),"all") . "\n\n";
+  }
+}
+
 
 #############################################################################
 #		     Definitions for mSQL

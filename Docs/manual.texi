@@ -3368,7 +3368,7 @@ encounter per year, but we are always very flexible towards our customers!
 * Source install system issues::  System-specific issues
 * Windows::                     Windows notes
 * OS/2::                        OS/2 notes
-* MySQL binaries::              
+* MySQL binaries::              MySQL binaries
 * Post-installation::           Post-installation setup and testing
 * Upgrade::                     Is there anything special to do when upgrading/downgrading @strong{MySQL}?
 @end menu
@@ -6020,9 +6020,14 @@ patch could do - use at your own risk. We have also been told by the
 Linux kernel developers that this problem is fixed in 2.4, although we
 have not yet done any testing.
 
+We have also tested @strong{MySQL} on Linux 2.4 on a 2 CPU machine and
+@strong{MySQL} scales MUCH better on this!  If your plan to set up a
+dedicated Linux SMP machine to run @code{MySQL} under heavy, we
+recommend that you give 2.4 a try!
+
 The current implementation of mutex in Linuxthreads is also very bad for
 programs with many threads that only holds the mutex for a short time.
-We have made a patch availlable for glibc 2.1,
+We have made a patch available for glibc 2.1,
 @uref{http://www.mysql.com/Downloads/Linux/linuxthreads-2.1-patch,linuxthreads-2.1-patch}
 and for glibc 2.2,
 @uref{http://www.mysql.com/Downloads/Linux/linuxthreads-2.2-patch,linuxthreads-2.2-patch}.
@@ -6375,9 +6380,6 @@ Using @code{gcc-2.9-final}:
 @example
 CFLAGS="-O2" CXX=gcc CXXFLAGS="-O2 -felide-constructors -fno-exceptions -fno-rtti" ./configure --prefix=/usr/local/mysql --enable-assembler --with-mysqld-ldflags=-all-static --disable-shared --with-extra-charsets=complex
 @end example
-
-After this you have to edit @file{config.h} and remove the
-@code{HAVE_ATOMIC_ADD} line.
 
 After @code{make} you will get an error that @code{sql/opt_range.cc}
 will not compile (internal compiler error). To fix this, go to the sql
@@ -7540,6 +7542,7 @@ able to mix @code{INSERT} and @code{SELECT}. Currently we use mutexes
 to emulate @code{pread()}/@code{pwrite()}.  We will in the long run
 replace the file level interface with a virtual interface so that we can
 use the @code{readfile()}/@code{writefile()} interface on NT to get more speed.
+
 @item Blocking read
 @strong{MySQL} uses a blocking read for each connection.
 This means that:
@@ -7561,7 +7564,8 @@ If a connection ``hangs,'' it's impossible to break it without killing
 connections.
 @end itemize
 
-We plan to fix this in the near future.
+We plan to fix this when our windows developers have figured out a nice
+workaround for this :)
 
 @item UDF functions
 For the moment, @strong{MySQL}-Windows does not support user definable
@@ -8072,6 +8076,19 @@ The expected results are shown in the @file{./tests/auto_increment.res} file.
 @node mysql_install_db, Starting server, Post-installation, Post-installation
 @subsection Problems running @code{mysql_install_db}
 
+The purpose of the @code{mysql_install_db} script is to generate new
+@strong{MySQL} privilege tables.  It will not affect any other data!
+It will also not do anything if you have already have MySQL privilege
+tables installed!
+
+If you want to recreate your privilege tables, you should take down
+the mysqld server, if its running, and then do something like:
+
+@example
+mv mysql-data-directory/mysql mysql-data-directory/mysql-old
+mysql_install_db
+@end example
+
 This section lists problems you might encounter when you run
 @code{mysql_install_db}:
 
@@ -8152,7 +8169,6 @@ shell> export TMPDIR MYSQL_UNIX_PORT
 
 @file{some_tmp_dir} should be the path to some directory for which you
 have write permission. @xref{Environment variables}.
-
 
 After this you should be able to run @code{mysql_install_db} and start
 the server with these commands:
@@ -11237,7 +11253,7 @@ shell> mysqladmin -u root password new_password
 Only user with write/update access to the mysql database can change the
 password for others user.  All normal users (not anonymous ones) can only
 change his own password with either of the above commands or with
-@code{SET PASSWORD PASSWORD('new password')}
+@code{SET PASSWORD=PASSWORD('new password')}
 
 Note that if you update the password in the @code{user} table directly using
 the first method, you must tell the server to reread the grant tables (with
