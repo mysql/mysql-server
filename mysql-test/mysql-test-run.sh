@@ -323,11 +323,15 @@ while test $# -gt 0; do
 	$ECHO "Note: you will get more meaningful output on a source distribution compiled with debugging option when running tests with --client-gdb option"
       fi
       DO_CLIENT_GDB=1
+      EXTRA_MASTER_MYSQLD_OPT="$EXTRA_MASTER_MYSQLD_OPT --gdb"
+      EXTRA_SLAVE_MYSQLD_OPT="$EXTRA_SLAVE_MYSQLD_OPT --gdb"
       ;;
     --manual-gdb )
       DO_GDB=1
       MANUAL_GDB=1
       USE_RUNNING_SERVER=""
+      EXTRA_MASTER_MYSQLD_OPT="$EXTRA_MASTER_MYSQLD_OPT --gdb"
+      EXTRA_SLAVE_MYSQLD_OPT="$EXTRA_SLAVE_MYSQLD_OPT --gdb"
       ;;
     --ddd )
       if [ x$BINARY_DIST = x1 ] ; then
@@ -335,11 +339,13 @@ while test $# -gt 0; do
       fi
       DO_DDD=1
       USE_RUNNING_SERVER=""
+      EXTRA_MASTER_MYSQLD_OPT="$EXTRA_MASTER_MYSQLD_OPT --gdb"
+      EXTRA_SLAVE_MYSQLD_OPT="$EXTRA_SLAVE_MYSQLD_OPT --gdb"
       ;;
     --valgrind)
       VALGRIND="valgrind --alignment=8 --leak-check=yes --num-callers=16"
-      EXTRA_MASTER_MYSQLD_OPT="$EXTRA_MASTER_MYSQLD_OPT --skip-safemalloc"
-      EXTRA_SLAVE_MYSQLD_OPT="$EXTRA_SLAVE_MYSQLD_OPT --skip-safemalloc"
+      EXTRA_MASTER_MYSQLD_OPT="$EXTRA_MASTER_MYSQLD_OPT --skip-safemalloc --skip-bdb"
+      EXTRA_SLAVE_MYSQLD_OPT="$EXTRA_SLAVE_MYSQLD_OPT --skip-safemalloc --skip-bdb"
       SLEEP_TIME_AFTER_RESTART=10
       SLEEP_TIME_FOR_DELETE=60
       USE_RUNNING_SERVER=""
@@ -567,7 +573,9 @@ error () {
 }
 
 error_is () {
-    $CAT < $TIMEFILE | $SED -e 's/.* At line \(.*\)\: \(.*\)/   \>\> Error at line \1: \2<\</' | $HEAD -1
+    $ECHO "Errors are (from $TIMEFILE) :"
+    $CAT < $TIMEFILE
+    $ECHO "(the last line(s) may be the ones that caused the die() in mysqltest)"
 }
 
 prefix_to_8() {
@@ -990,7 +998,7 @@ start_slave()
 
   if [ x$DO_DDD = x1 ]
   then
-    $ECHO "set args $master_args" > $GDB_SLAVE_INIT
+    $ECHO "set args $slave_args" > $GDB_SLAVE_INIT
     manager_launch $slave_ident ddd -display $DISPLAY --debugger \
      "gdb -x $GDB_SLAVE_INIT" $SLAVE_MYSQLD
   elif [ x$DO_GDB = x1 ]
@@ -1065,6 +1073,16 @@ stop_slave ()
       sleep $SLEEP_TIME_AFTER_RESTART
     fi
     eval "SLAVE$1_RUNNING=0"
+  fi
+}
+
+stop_slave_threads ()
+{
+  eval "this_slave_running=\$SLAVE$1_RUNNING"
+  slave_ident="slave$1"
+  if [ x$this_slave_running = x1 ]
+  then
+    $MYSQLADMIN --no-defaults -uroot --socket=$MYSQL_TMP_DIR/$slave_ident.sock stop-slave > /dev/null 2>&1
   fi
 }
 
@@ -1160,6 +1178,12 @@ run_testcase ()
    skip_test $tname;
    return
  fi
+
+ # Stop all slave threads, so that we don't have useless reconnection attempts
+ # and error messages in case the slave and master servers restart.
+ stop_slave_threads
+ stop_slave_threads 1
+ stop_slave_threads 2
 
  if [ -z "$USE_RUNNING_SERVER" ] ;
  then

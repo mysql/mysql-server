@@ -91,11 +91,11 @@ int mysql_update(THD *thd,
 
   bzero((char*) &tables,sizeof(tables));	// For ORDER BY
   tables.table= table;
+  tables.alias= table_list->alias;
 
   if (setup_tables(update_table_list) ||
       setup_conds(thd,update_table_list,&conds) ||
-      setup_ref_array(thd, &thd->lex.select_lex.ref_pointer_array,
-		      order_num) ||
+      thd->lex.select_lex.setup_ref_array(thd, order_num) ||
       setup_order(thd, thd->lex.select_lex.ref_pointer_array,
 		  &tables, all_fields, all_fields, order) ||
       setup_ftfuncs(&thd->lex.select_lex))
@@ -423,7 +423,7 @@ int mysql_multi_update(THD *thd,
     DBUG_RETURN(res);
   fix_tables_pointers(thd->lex.all_selects_list);
 
-  thd->select_limit=HA_POS_ERROR;
+  select_lex->select_limit= HA_POS_ERROR;
   if (setup_fields(thd, 0, table_list, *fields, 1, 0, 0))
     DBUG_RETURN(-1);
 
@@ -640,7 +640,8 @@ multi_update::initialize_tables(JOIN *join)
 					   temp_fields,
 					   (ORDER*) &group, 0, 0,
 					   TMP_TABLE_ALL_COLUMNS,
-					   HA_POS_ERROR)))
+					   HA_POS_ERROR,
+					   (char *) "")))
       DBUG_RETURN(1);
     tmp_tables[cnt]->file->extra(HA_EXTRA_WRITE_CACHE);
   }

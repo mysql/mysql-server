@@ -1,0 +1,25 @@
+# Test for 
+# Bug #797: If a query is ignored on slave (replicate-ignore-table) the slave
+# still checks that it has the same error as on the master.
+
+source include/master-slave.inc;
+connection master;
+create table t1 (a int primary key);
+# generate an error that goes to the binlog
+--error 1062;
+insert into t1 values (1),(1);
+save_master_pos;
+connection slave;
+# as the t1 table is ignored on the slave, the slave should be able to sync
+sync_with_master;
+# The port number is different when doing the release build with
+# Do-compile, hence we have to replace the port number here accordingly
+--replace_result 3306 MASTER_PORT 9306 MASTER_PORT 3334 MASTER_PORT 3336 MASTER_PORT
+show slave status;
+# check that the table has been ignored, because otherwise the test is nonsense
+show tables like 't1';
+connection master;
+drop table t1;
+save_master_pos;
+connection slave;
+sync_with_master;

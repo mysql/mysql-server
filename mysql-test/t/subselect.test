@@ -9,12 +9,12 @@ SELECT (SELECT 1) UNION SELECT (SELECT 2);
 explain SELECT (SELECT 1) UNION SELECT (SELECT 2);
 SELECT (SELECT (SELECT 0 UNION SELECT 0));
 explain SELECT (SELECT (SELECT 0 UNION SELECT 0));
--- error 1245
+-- error 1246
 SELECT (SELECT 1 FROM (SELECT 1) as b HAVING a=1) as a;
--- error 1245
+-- error 1246
 SELECT (SELECT 1 FROM (SELECT 1) as b HAVING b=1) as a,(SELECT 1 FROM (SELECT 1) as c HAVING a=1) as b;
 SELECT (SELECT 1),MAX(1) FROM (SELECT 1) as a;
--- error 1245
+-- error 1246
 SELECT (SELECT a) as a;
 EXPLAIN SELECT 1 FROM (SELECT 1 as a) as b  HAVING (SELECT a)=1;
 SELECT 1 FROM (SELECT 1 as a) as b HAVING (SELECT a)=1;
@@ -24,7 +24,7 @@ SELECT 1 as a FROM (SELECT 1) as b HAVING (SELECT a)=1;
 -- error 1054
 SELECT 1 FROM (SELECT (SELECT a) b) c;
 SELECT * FROM (SELECT 1 as id) b WHERE id IN (SELECT * FROM (SELECT 1 as id) c ORDER BY id);
--- error 1239
+-- error 1240
 SELECT * FROM (SELECT 1) a  WHERE 1 IN (SELECT 1,1);
 SELECT 1 IN (SELECT 1);
 SELECT 1 FROM (SELECT 1 as a) b WHERE 1 IN (SELECT (SELECT a));
@@ -51,7 +51,7 @@ SELECT (SELECT 'b',2,'a') = ROW(1.5,2,'a');
 SELECT (SELECT 1.5,2,'a') = ROW(1.5,'c','a');
 SELECT (SELECT 1.5,'c','a') = ROW(1.5,2,'a');
 
--- error 1239
+-- error 1240
 SELECT (SELECT * FROM (SELECT 'test' a,'test' b) a);
 
 SELECT 1 as a,(SELECT a+a) b,(SELECT b);
@@ -63,7 +63,7 @@ create table t4 (a int not null, b int not null);
 insert into t1 values (2);
 insert into t2 values (1,7),(2,7);
 insert into t4 values (4,8),(3,8),(5,9);
--- error 1245
+-- error 1246
 select (select a from t1 where t1.a = a1) as a2, (select b from t2 where t2.b=a2) as a1;
 select (select a from t1 where t1.a=t2.a), a from t2;
 select (select a from t1 where t1.a=t2.b), a from t2;
@@ -103,9 +103,9 @@ select * from t3 where a >= any (select b from t2);
 explain select * from t3 where a >= any (select b from t2);
 select * from t3 where a >= all (select b from t2);
 delete from t2 where a=100;
--- error 1239
+-- error 1240
 select * from t3 where a in (select a,b from t2);
--- error 1239
+-- error 1240
 select * from t3 where a in (select * from t2);
 insert into t4 values (12,7),(1,7),(10,9),(9,6),(7,6),(3,9),(1,10);
 -- empty set
@@ -121,7 +121,7 @@ select (select a from t1 where t1.a=t2.a union select a from t5 where t5.a=t2.a)
 insert into t5 values (2);
 select (select a from t1 where t1.a=t2.a union select a from t5 where t5.a=t2.a), a from t2;
 explain select (select a from t1 where t1.a=t2.a union select a from t5 where t5.a=t2.a), a from t2;
--- error 1240
+-- error 1241
 select (select a from t1 where t1.a=t2.a union all select a from t5 where t5.a=t2.a), a from t2;
 create table t6 (patient_uq int, clinic_uq int, index i1 (clinic_uq));
 create table t7( uq int primary key, name char(25));
@@ -158,14 +158,14 @@ INSERT INTO t8 (pseudo,email) VALUES ('joce','test');
 INSERT INTO t8 (pseudo,email) VALUES ('joce1','test1');
 INSERT INTO t8 (pseudo,email) VALUES ('2joce1','2test1');
 EXPLAIN SELECT pseudo,(SELECT email FROM t8 WHERE pseudo=(SELECT pseudo FROM t8 WHERE pseudo='joce')) FROM t8 WHERE pseudo=(SELECT pseudo FROM t8 WHERE pseudo='joce');
--- error 1239
+-- error 1240
 SELECT pseudo FROM t8 WHERE pseudo=(SELECT pseudo,email FROM
 t8 WHERE pseudo='joce');
--- error 1239
+-- error 1240
 SELECT pseudo FROM t8 WHERE pseudo=(SELECT * FROM t8 WHERE
 pseudo='joce');
 SELECT pseudo FROM t8 WHERE pseudo=(SELECT pseudo FROM t8 WHERE pseudo='joce');
--- error 1240
+-- error 1241
 SELECT pseudo FROM t8 WHERE pseudo=(SELECT pseudo FROM t8 WHERE pseudo LIKE '%joce%');
 
 drop table if exists t1,t2,t3,t4,t5,t6,t7,t8;
@@ -185,7 +185,7 @@ EXPLAIN SELECT (SELECT DISTINCT date FROM t1 WHERE date='2002-08-03');
 SELECT DISTINCT date FROM t1 WHERE date='2002-08-03';
 SELECT (SELECT DISTINCT date FROM t1 WHERE date='2002-08-03');
 SELECT 1 FROM t1 WHERE 1=(SELECT 1 UNION SELECT 1) UNION ALL SELECT 1;
--- error 1240
+-- error 1241
 SELECT 1 FROM t1 WHERE 1=(SELECT 1 UNION ALL SELECT 1) UNION SELECT 1;
 EXPLAIN SELECT 1 FROM t1 WHERE 1=(SELECT 1 UNION SELECT 1);
 drop table t1;
@@ -242,9 +242,9 @@ CREATE TABLE `t1` (
 ) TYPE=MyISAM ROW_FORMAT=FIXED;
 
 INSERT INTO t1 (numeropost,maxnumrep) VALUES (1,0),(2,1);
--- error 1240
+-- error 1241
 select numeropost as a FROM t1 GROUP BY (SELECT 1 FROM t1 HAVING a=1);
--- error 1240
+-- error 1241
 select numeropost as a FROM t1 ORDER BY (SELECT 1 FROM t1 HAVING a=1);
 drop table t1;
 
@@ -256,7 +256,7 @@ drop table t1;
 #iftest
 CREATE TABLE t1 (field char(1) NOT NULL DEFAULT 'b');
 INSERT INTO t1 VALUES ();
--- error 1240
+-- error 1241
 SELECT field FROM t1 WHERE 1=(SELECT 1 UNION ALL SELECT 1 FROM (SELECT 1) a HAVING field='b');
 drop table t1;
 
@@ -269,13 +269,13 @@ CREATE TABLE `t1` (
   UNIQUE KEY `numreponse` (`numreponse`),
   KEY `pseudo` (`pseudo`,`numeropost`)
 ) TYPE=MyISAM;
--- error 1245
+-- error 1246
 SELECT (SELECT numeropost FROM t1 HAVING numreponse=a),numreponse FROM (SELECT * FROM t1) as a;
 -- error 1054
 SELECT numreponse, (SELECT numeropost FROM t1 HAVING numreponse=a) FROM (SELECT * FROM t1) as a;
 SELECT numreponse, (SELECT numeropost FROM t1 HAVING numreponse=1) FROM (SELECT * FROM t1) as a;
 INSERT INTO t1 (numeropost,numreponse,pseudo) VALUES (1,1,'joce'),(1,2,'joce'),(1,3,'test');
--- error 1240
+-- error 1241
 EXPLAIN SELECT numreponse FROM t1 WHERE numeropost='1' AND numreponse=(SELECT 1 FROM t1 WHERE numeropost='1');
 EXPLAIN SELECT MAX(numreponse) FROM t1 WHERE numeropost='1';
 EXPLAIN SELECT numreponse FROM t1 WHERE numeropost='1' AND numreponse=(SELECT MAX(numreponse) FROM t1 WHERE numeropost='1');
@@ -294,7 +294,7 @@ insert into t2 values (1, 21),(2, 22),(3, 23);
 select * from t1;
 -- error 1093
 update t1 set b= (select b from t1);
--- error 1240
+-- error 1241
 update t1 set b= (select b from t2);
 update t1 set b= (select b from t2 where t1.a = t2.a);
 select * from t1;
@@ -309,7 +309,7 @@ select * from t1;
 select * from t1 where b = (select b from t2 where t1.a = t2.a);
 -- error 1093
 delete from t1 where b = (select b from t1);
--- error 1240
+-- error 1241
 delete from t1 where b = (select b from t2);
 delete from t1 where b = (select b from t2 where t1.a = t2.a);
 select * from t1;
@@ -327,7 +327,7 @@ select * from t11;
 select * from t12;
 -- error 1093
 delete t11.*, t12.* from t11,t12 where t11.a = t12.a and t11.b = (select b from t12 where t11.a = t12.a);
--- error 1240
+-- error 1241
 delete t11.*, t12.* from t11,t12 where t11.a = t12.a and t11.b = (select b from t2);
 delete t11.*, t12.* from t11,t12 where t11.a = t12.a and t11.b = (select b from t2 where t11.a = t2.a);
 select * from t11;
@@ -342,7 +342,7 @@ insert into t2 values (1);
 insert into t3 values (1),(2);
 -- error 1093
 INSERT INTO t1 (x) VALUES ((SELECT x FROM t1));
--- error 1240
+-- error 1241
 INSERT INTO t1 (x) VALUES ((SELECT b FROM t3));
 INSERT INTO t1 (x) VALUES ((SELECT a FROM t2));
 select * from t1;
@@ -352,7 +352,6 @@ INSERT DELAYED INTO t1 (x) VALUES ((SELECT SUM(a) FROM t2));
 select * from t1;
 INSERT INTO t1 (x) select (SELECT SUM(a)+1 FROM t2) FROM t2;
 select * from t1;
--- error 1093
 INSERT INTO t1 (x) select (SELECT SUM(x)+2 FROM t1) FROM t2;
 -- error 1054
 INSERT DELAYED INTO t1 (x) VALUES ((SELECT SUM(x) FROM t2));
@@ -374,7 +373,7 @@ insert into t3 values (1),(2);
 select * from t1;
 -- error 1093
 replace into t1 (x, y) VALUES ((SELECT x FROM t1), (SELECT a+1 FROM t2));
--- error 1240
+-- error 1241
 replace into t1 (x, y) VALUES ((SELECT a FROM t3), (SELECT a+1 FROM t2));
 replace into t1 (x, y) VALUES ((SELECT a FROM t2), (SELECT a+1 FROM t2));
 select * from t1;
@@ -410,7 +409,7 @@ INSERT INTO t2 VALUES ((SELECT id FROM t2));
 SELECT * FROM t2;
 CREATE TABLE t1 (id int(11) default NULL, KEY id (id)) TYPE=MyISAM CHARSET=latin1;
 INSERT INTO t1 values (1),(1);
--- error 1240
+-- error 1241
 UPDATE t2 SET id=(SELECT * FROM t1);
 drop table t2, t1;
 
@@ -693,7 +692,7 @@ INSERT INTO t1 VALUES (1);
 UPDATE t1 SET i=i+(SELECT MAX(i) FROM (SELECT 1) t) WHERE i=(SELECT MAX(i));
 -- error 1111
 UPDATE t1 SET i=i+1 WHERE i=(SELECT MAX(i));
---error 1109
+-- error 1109
 UPDATE t1 SET t.i=i+(SELECT MAX(i) FROM (SELECT 1) t);
 drop table t1;
 
@@ -783,6 +782,7 @@ SELECT pseudo as a, pseudo as b FROM t1 GROUP BY (SELECT a) ORDER BY (SELECT id*
 drop table if exists t1;
 
 (SELECT 1 as a) UNION (SELECT 1) ORDER BY (SELECT a+0);
+
 #
 # key field overflow test
 #
@@ -877,6 +877,7 @@ insert into t1 values (1);
 insert into t2 values (1);
 select * from t1 where exists (select s1 from t2 having max(t2.s1)=t1.s1);
 drop table t1,t2;
+
 #
 # update subquery with wrong field (to force name resolving
 # in UPDATE name space)
@@ -888,6 +889,18 @@ insert into t2 values (1);
 -- error 1109
 update t1 set  s1 = s1 + 1 where 1 = (select x.s1 as A from t2 WHERE t2.s1 > t1.s1 order by A);
 DROP TABLE t1, t2;
+
+#
+# UNION unlocking test
+#
+create table t1 (a int) type=innodb;
+create table t2 (a int) type=innodb;
+create table t3 (a int) type=innodb;
+insert into t1 values (1),(2),(3),(4);
+insert into t2 values (10),(20),(30),(40);
+insert into t3 values (1),(2),(10),(50);
+select a from t3 where t3.a in (select a from t1 where a <= 3 union select * from t2 where a <= 30);
+drop table t1,t2;
 
 #
 # correct ALL optimisation

@@ -21,7 +21,7 @@
 
     strmake(dst,src,length) moves length characters, or until end, of src to
     dst and appends a closing NUL to dst.
-    Note that is strlen(src) >= length then dst[length] will be set to \0
+    Note that if strlen(src) >= length then dst[length] will be set to \0
     strmake() returns pointer to closing null
 */
 

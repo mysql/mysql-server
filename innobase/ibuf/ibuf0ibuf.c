@@ -170,7 +170,7 @@ dropped! So, there seems to be no problem. */
 
 /**********************************************************************
 Validates the ibuf data structures when the caller owns ibuf_mutex. */
-static
+
 ibool
 ibuf_validate_low(void);
 /*===================*/
@@ -484,8 +484,8 @@ ibuf_data_init_for_space(
 	index = dict_mem_index_create(buf, (char *) "CLUST_IND", space,
 				DICT_CLUSTERED | DICT_UNIVERSAL | DICT_IBUF,2);
 
-	dict_mem_index_add_field(index, (char *) "PAGE_NO", 0);
-	dict_mem_index_add_field(index, (char *) "TYPES", 0);
+	dict_mem_index_add_field(index, (char *) "PAGE_NO", 0, 0);
+	dict_mem_index_add_field(index, (char *) "TYPES", 0, 0);
 
 	index->page_no = FSP_IBUF_TREE_ROOT_PAGE_NO;
 	
@@ -2727,7 +2727,7 @@ reset_bit:
 
 /**********************************************************************
 Validates the ibuf data structures when the caller owns ibuf_mutex. */
-static
+
 ibool
 ibuf_validate_low(void)
 /*===================*/

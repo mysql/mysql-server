@@ -33,8 +33,6 @@
 ** --print-defaults	; Print the modified command line and exit
 ****************************************************************************/
 
-#undef SAFEMALLOC		/* safe_malloc is not yet initailized */
-
 #include "mysys_priv.h"
 #include "m_string.h"
 #include "m_ctype.h"

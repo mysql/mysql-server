@@ -247,6 +247,7 @@
 "Falsche Verwendung oder Platzierung von '%s'",
 "Diese MySQL-Version unterstützt momentan nicht '%s'.",
 "Schwerer Fehler %d: '%-.128s vom Master beim Lesen des Binary Logs.",
+"Slave SQL thread ignored the query because of replicate-*-table rules",
 "Falsche Foreign-Key Definition für '%-64s': %s",
 "Schlüssel- und Tabellenreferenz passen nicht zueinander.",
 "Kardinalitäts-Fehler (mehr/oder weniger als %d Spalten).",

@@ -14,21 +14,24 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 
-INCLUDES =		-I$(top_srcdir)/include $(openssl_includes)
-LDADD =			@CLIENT_EXTRA_LDFLAGS@ libvio.a $(openssl_libs) 
-pkglib_LIBRARIES =	libvio.a
+INCLUDES=		-I$(top_srcdir)/include $(openssl_includes)
+LDADD=			@CLIENT_EXTRA_LDFLAGS@ $(openssl_libs) 
+pkglib_LIBRARIES=	libvio.a
 noinst_PROGRAMS	=	test-ssl test-sslserver test-sslclient
-noinst_HEADERS =	
-test_ssl_SOURCES =   test-ssl.c
-test_ssl_LDADD =   	@CLIENT_EXTRA_LDFLAGS@ ../dbug/libdbug.a libvio.a ../mysys/libmysys.a \
-			../strings/libmystrings.a libvio.a $(openssl_libs)
-test_sslserver_SOURCES =   test-sslserver.c
-test_sslserver_LDADD =   @CLIENT_EXTRA_LDFLAGS@	../dbug/libdbug.a libvio.a ../mysys/libmysys.a \
-			../strings/libmystrings.a libvio.a $(openssl_libs)
-test_sslclient_SOURCES =   test-sslclient.c
-test_sslclient_LDADD =   @CLIENT_EXTRA_LDFLAGS@	../dbug/libdbug.a libvio.a ../mysys/libmysys.a \
-			../strings/libmystrings.a libvio.a $(openssl_libs)
-libvio_a_SOURCES =	vio.c viosocket.c viossl.c viosslfactories.c
+noinst_HEADERS=	
+test_ssl_SOURCES=	test-ssl.c
+test_ssl_LDADD=   	@CLIENT_EXTRA_LDFLAGS@ ../dbug/libdbug.a libvio.a \
+			../mysys/libmysys.a ../strings/libmystrings.a \
+			$(openssl_libs)
+test_sslserver_SOURCES=   test-sslserver.c
+test_sslserver_LDADD=   @CLIENT_EXTRA_LDFLAGS@	../dbug/libdbug.a libvio.a \
+			../mysys/libmysys.a ../strings/libmystrings.a \
+			$(openssl_libs)
+test_sslclient_SOURCES=   test-sslclient.c
+test_sslclient_LDADD=   @CLIENT_EXTRA_LDFLAGS@	../dbug/libdbug.a libvio.a \
+			../mysys/libmysys.a ../strings/libmystrings.a \
+			$(openssl_libs)
+libvio_a_SOURCES=	vio.c viosocket.c viossl.c viosslfactories.c
 
 # Don't update the files from bitkeeper
 %::SCCS/s.%

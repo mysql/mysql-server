@@ -37,7 +37,7 @@ WARNING: THIS PROGRAM IS STILL IN BETA. Comments/patches welcome.
 
 # Documentation continued at end of file
 
-my $VERSION = "1.18";
+my $VERSION = "1.19";
 
 my $opt_tmpdir = $ENV{TMPDIR} || "/tmp";
 
@@ -81,8 +81,11 @@ sub usage {
     die @_, $OPTIONS;
 }
 
+# Do not initialize user or password options; that way, any user/password
+# options specified in option files will be used.  If no values are specified
+# all, the defaults will be used (login name, no password).
+
 my %opt = (
-    user	=> scalar getpwuid($>),
     noindices	=> 0,
     allowold	=> 0,	# for safety
     keepold	=> 0,
@@ -164,6 +167,9 @@ my $dsn;
 $dsn  = ";host=" . (defined($opt{host}) ? $opt{host} : "localhost");
 $dsn .= ";port=$opt{port}" if $opt{port};
 $dsn .= ";mysql_socket=$opt{socket}" if $opt{socket};
+
+# use mysql_read_default_group=mysqlhotcopy so that [client] and
+# [mysqlhotcopy] groups will be read from standard options files.
 
 my $dbh = DBI->connect("dbi:mysql:$dsn;mysql_read_default_group=mysqlhotcopy",
                         $opt{user}, $opt{password},
@@ -563,22 +569,22 @@ sub copy_files {
     print "Copying ".@$files." files...\n" unless $opt{quiet};
 
     if ($method =~ /^s?cp\b/) { # cp or scp with optional flags
-	my @cp = ($method);
+	my $cp = $method;
 	# add option to preserve mod time etc of copied files
 	# not critical, but nice to have
-	push @cp, "-p" if $^O =~ m/^(solaris|linux|freebsd|darwin)$/;
+	$cp.= " -p" if $^O =~ m/^(solaris|linux|freebsd|darwin)$/;
 
 	# add recursive option for scp
-	push @cp, "-r" if $^O =~ /m^(solaris|linux|freebsd|darwin)$/ && $method =~ /^scp\b/;
+	$cp.= " -r" if $^O =~ /m^(solaris|linux|freebsd|darwin)$/ && $method =~ /^scp\b/;
 
 	my @non_raid = map { "'$_'" } grep { ! m:/\d{2}/[^/]+$: } @$files;
 
 	# add files to copy and the destination directory
-	safe_system( @cp, @non_raid, "'$target'" ) if (@non_raid);
+	safe_system( $cp, @non_raid, "'$target'" ) if (@non_raid);
 	
 	foreach my $rd ( @$raid_dirs ) {
 	    my @raid = map { "'$_'" } grep { m:$rd/: } @$files;
-	    safe_system( @cp, @raid, "'$target'/$rd" ) if ( @raid );
+	    safe_system( $cp, @raid, "'$target'/$rd" ) if ( @raid );
 	}
     }
     else
@@ -640,24 +646,52 @@ sub copy_index
 }
 
 
-sub safe_system
-{
-  my @cmd= @_;
+sub safe_system {
+  my @sources= @_;
+  my $method= shift @sources;
+  my $target= pop @sources;
+  ## @sources = list of source file names
 
-  if ( $opt{dryrun} )
-  {
-    print "@cmd\n";
-    return;
+  ## We have to deal with very long command lines, otherwise they may generate 
+  ## "Argument list too long".
+  ## With 10000 tables the command line can be around 1MB, much more than 128kB
+  ## which is the common limit on Linux (can be read from
+  ## /usr/src/linux/include/linux/binfmts.h
+  ## see http://www.linuxjournal.com/article.php?sid=6060).
+ 
+  my $chunk_limit= 100 * 1024; # 100 kB
+  my @chunk= (); 
+  my $chunk_length= 0;
+  foreach (@sources) {
+      push @chunk, $_;
+      $chunk_length+= length($_);
+      if ($chunk_length > $chunk_limit) {
+          safe_simple_system($method, @chunk, $target);
+          @chunk=();
+          $chunk_length= 0;
+      }
   }
+  if ($chunk_length > 0) { # do not forget last small chunk
+      safe_simple_system($method, @chunk, $target); 
+  }
+}
 
-  ## for some reason system fails but backticks works ok for scp...
-  print "Executing '@cmd'\n" if $opt{debug};
-  my $cp_status = system "@cmd > /dev/null";
-  if ($cp_status != 0) {
-    warn "Burp ('scuse me). Trying backtick execution...\n" if $opt{debug}; #'
-    ## try something else
-    `@cmd` && die "Error: @cmd failed ($cp_status) while copying files.\n";
-  }
+sub safe_simple_system {
+    my @cmd= @_;
+
+    if ( $opt{dryrun} ) {
+        print "@cmd\n";
+    }
+    else {
+        ## for some reason system fails but backticks works ok for scp...
+        print "Executing '@cmd'\n" if $opt{debug};
+        my $cp_status = system "@cmd > /dev/null";
+        if ($cp_status != 0) {
+            warn "Executing command failed ($cp_status). Trying backtick execution...\n";
+            ## try something else
+            `@cmd` || die "Error: @cmd failed ($?) while copying files.\n";
+        }
+    }
 }
 
 sub retire_directory {
@@ -770,6 +804,10 @@ sub quote_names {
   my ($db, $table, @cruft) = split( /\./, $name );
   die "Invalid db.table name '$name'" if (@cruft || !defined $db || !defined $table );
 
+  # Earlier versions of DBD return table name non-quoted,
+  # such as DBD-2.1012 and the newer ones, such as DBD-2.9002
+  # returns it quoted. Let's have a support for both.
+  $table=~ s/\`//g;
   return "`$db`.`$table`";
 }
 

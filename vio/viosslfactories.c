@@ -18,8 +18,8 @@
 
 #ifdef HAVE_OPENSSL
 
-#include <my_sys.h>
 #include <mysql_com.h>
+#include <my_sys.h>
 #include <violite.h>
 
 
@@ -178,6 +178,11 @@ vio_verify_callback(int ok, X509_STORE_CTX *ctx)
 
 
 /************************ VioSSLConnectorFd **********************************/
+/*
+  TODO:
+       Add option --verify to mysql to be able to change verification mode
+*/
+
 struct st_VioSSLConnectorFd *
 new_VioSSLConnectorFd(const char* key_file,
 		      const char* cert_file,
@@ -185,7 +190,7 @@ new_VioSSLConnectorFd(const char* key_file,
 		      const char* ca_path,
 		      const char* cipher)
 {
-  int	verify = SSL_VERIFY_PEER;
+  int	verify = SSL_VERIFY_NONE;
   struct st_VioSSLConnectorFd* ptr;
   int result;
   DH *dh=NULL; 
@@ -264,7 +269,10 @@ ctor_failure:
 
 
 /************************ VioSSLAcceptorFd **********************************/
-
+/*
+  TODO:
+       Add option --verify to mysqld to be able to change verification mode
+*/
 struct st_VioSSLAcceptorFd*
 new_VioSSLAcceptorFd(const char *key_file,
 		     const char *cert_file,
@@ -273,7 +281,6 @@ new_VioSSLAcceptorFd(const char *key_file,
 		     const char *cipher)
 {
   int verify = (SSL_VERIFY_PEER			|
-		SSL_VERIFY_FAIL_IF_NO_PEER_CERT	|
 		SSL_VERIFY_CLIENT_ONCE);
   struct st_VioSSLAcceptorFd* ptr;
   int result;

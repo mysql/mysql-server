@@ -33,6 +33,11 @@ log_t*	log_sys	= NULL;
 ibool	log_do_write = TRUE;
 ibool	log_debug_writes = FALSE;
 
+/* These control how often we print warnings if the last checkpoint is too
+old */
+ibool	log_has_printed_chkp_warning = FALSE;
+time_t	log_last_warning_time;
+
 /* Pointer to this variable is used as the i/o-message when we do i/o to an
 archive */
 byte	log_archive_io;
@@ -178,7 +183,8 @@ loop:
 
 		/* Not enough free space, do a syncronous flush of the log
 		buffer */
-		log_write_up_to(ut_dulint_max, LOG_WAIT_ALL_GROUPS, TRUE);
+
+		log_buffer_flush_to_disk();
 
 		count++;
 
@@ -298,6 +304,7 @@ log_close(void)
 	dulint	oldest_lsn;
 	dulint	lsn;
 	log_t*	log	= log_sys;
+	ulint	checkpoint_age;
 
 	ut_ad(mutex_own(&(log->mutex)));
 
@@ -321,8 +328,34 @@ log_close(void)
 		log->check_flush_or_checkpoint = TRUE;
 	}
 
-	if (ut_dulint_minus(lsn, log->last_checkpoint_lsn)
-					<= log->max_modified_age_async) {
+	checkpoint_age = ut_dulint_minus(lsn, log->last_checkpoint_lsn);
+
+	if (checkpoint_age >= log->log_group_capacity) {
+		/* TODO: split btr_store_big_rec_extern_fields() into small
+		steps so that we can release all latches in the middle, and
+		call log_free_check() to ensure we never write over log written
+		after the latest checkpoint. In principle, we should split all
+		big_rec operations, but other operations are smaller. */
+
+		if (!log_has_printed_chkp_warning
+		    || difftime(time(NULL), log_last_warning_time) > 15) {
+
+		        log_has_printed_chkp_warning = TRUE;
+			log_last_warning_time = time(NULL);
+			
+		        ut_print_timestamp(stderr);
+			fprintf(stderr,
+"  InnoDB: ERROR: the age of the last checkpoint is %lu,\n"
+"InnoDB: which exceeds the log group capacity %lu.\n"
+"InnoDB: If you are using big BLOB or TEXT rows, you must set the\n"
+"InnoDB: combined size of log files at least 10 times bigger than the\n"
+"InnoDB: largest such row.\n",
+			checkpoint_age, log->log_group_capacity);
+		}
+	}
+
+	if (checkpoint_age <= log->max_modified_age_async) {
+
 		goto function_exit;
 	}
 
@@ -331,8 +364,7 @@ log_close(void)
 	if (ut_dulint_is_zero(oldest_lsn)
 	    || (ut_dulint_minus(lsn, oldest_lsn)
 					> log->max_modified_age_async)
-	    || (ut_dulint_minus(lsn, log->last_checkpoint_lsn)
-					> log->max_checkpoint_age_async)) {
+	    || checkpoint_age > log->max_checkpoint_age_async) {
 
 		log->check_flush_or_checkpoint = TRUE;
 	}
@@ -375,7 +407,7 @@ log_pad_current_log_block(void)
 	log_close();
 	log_release();
 
-	ut_ad((ut_dulint_get_low(lsn) % OS_FILE_LOG_BLOCK_SIZE)
+	ut_anp((ut_dulint_get_low(lsn) % OS_FILE_LOG_BLOCK_SIZE)
 						== LOG_BLOCK_HDR_SIZE);
 }
 
@@ -468,7 +500,7 @@ log_group_calc_lsn_offset(
 
 	offset = (gr_lsn_size_offset + difference) % group_size;
 
-	ut_a(offset <= 0xFFFFFFFF);
+	ut_a(offset < (((ib_longlong) 1) << 32)); /* offset must be < 4 GB */
 
 	/* printf("Offset is %lu gr_lsn_offset is %lu difference is %lu\n",
 	       (ulint)offset,(ulint)gr_lsn_size_offset, (ulint)difference);
@@ -550,7 +582,6 @@ log_calc_max_ages(void)
 			the database server */
 {
 	log_group_t*	group;
-	ulint		n_threads;
 	ulint		margin;
 	ulint		free;
 	ibool		success		= TRUE;
@@ -559,8 +590,6 @@ log_calc_max_ages(void)
 	ulint		smallest_archive_margin;
 
 	ut_ad(!mutex_own(&(log_sys->mutex)));
-
-	n_threads = srv_get_n_threads();
 
 	mutex_enter(&(log_sys->mutex));
 
@@ -589,12 +618,15 @@ log_calc_max_ages(void)
 		group = UT_LIST_GET_NEXT(log_groups, group);
 	}
 	
+	/* Add extra safety */
+	smallest_capacity = smallest_capacity - smallest_capacity / 10;
+
 	/* For each OS thread we must reserve so much free space in the
 	smallest log group that it can accommodate the log entries produced
 	by single query steps: running out of free log space is a serious
 	system error which requires rebooting the database. */
 	
-	free = LOG_CHECKPOINT_FREE_PER_THREAD * n_threads
+	free = LOG_CHECKPOINT_FREE_PER_THREAD * (10 + srv_thread_concurrency)
 						+ LOG_CHECKPOINT_EXTRA_FREE;
 	if (free >= smallest_capacity / 2) {
 		success = FALSE;
@@ -605,6 +637,10 @@ log_calc_max_ages(void)
 	}
 
 	margin = ut_min(margin, log_sys->adm_checkpoint_interval);
+
+	margin = margin - margin / 10;	/* Add still some extra safety */
+
+	log_sys->log_group_capacity = smallest_capacity;
 
 	log_sys->max_modified_age_async = margin
 				- margin / LOG_POOL_PREFLUSH_RATIO_ASYNC;
@@ -625,7 +661,7 @@ failure:
 
 	if (!success) {
 		fprintf(stderr,
-	  "Error: log file group too small for the number of threads\n");
+"InnoDB: Error: log file group too small for innodb_thread_concurrency\n");
 	}
 
 	return(success);
@@ -1070,8 +1106,8 @@ log_group_write_buf(
 	ulint	i;
 	
 	ut_ad(mutex_own(&(log_sys->mutex)));
-	ut_ad(len % OS_FILE_LOG_BLOCK_SIZE == 0);
-	ut_ad(ut_dulint_get_low(start_lsn) % OS_FILE_LOG_BLOCK_SIZE == 0);
+	ut_anp(len % OS_FILE_LOG_BLOCK_SIZE == 0);
+	ut_anp(ut_dulint_get_low(start_lsn) % OS_FILE_LOG_BLOCK_SIZE == 0);
 
 	if (new_data_offset == 0) {
 		write_header = TRUE;
@@ -1365,6 +1401,24 @@ do_waits:
 }
 
 /********************************************************************
+Does a syncronous flush of the log buffer to disk. */
+
+void
+log_buffer_flush_to_disk(void)
+/*==========================*/
+{
+	dulint	lsn;
+
+	mutex_enter(&(log_sys->mutex));
+
+	lsn = log_sys->lsn;
+
+	mutex_exit(&(log_sys->mutex));
+
+	log_write_up_to(lsn, LOG_WAIT_ALL_GROUPS, TRUE);
+}
+
+/********************************************************************
 Tries to establish a big enough margin of free space in the log buffer, such
 that a new log entry can be catenated without an immediate need for a flush. */
 static
@@ -1374,6 +1428,7 @@ log_flush_margin(void)
 {
 	ibool	do_flush	= FALSE;
 	log_t*	log		= log_sys;
+	dulint	lsn;
 
 	mutex_enter(&(log->mutex));
 
@@ -1384,13 +1439,14 @@ log_flush_margin(void)
 			free space */
 		} else {
 			do_flush = TRUE;
+			lsn = log->lsn;
 		}
 	}
 
 	mutex_exit(&(log->mutex));
 
 	if (do_flush) {
-		log_write_up_to(ut_dulint_max, LOG_NO_WAIT, FALSE);
+		log_write_up_to(lsn, LOG_NO_WAIT, FALSE);
 	}
 }
 
@@ -2123,11 +2179,11 @@ log_group_archive(
 
 	start_lsn = log_sys->archived_lsn;
 
-	ut_ad(ut_dulint_get_low(start_lsn) % OS_FILE_LOG_BLOCK_SIZE == 0);
+	ut_anp(ut_dulint_get_low(start_lsn) % OS_FILE_LOG_BLOCK_SIZE == 0);
 
 	end_lsn = log_sys->next_archived_lsn;
 
-	ut_ad(ut_dulint_get_low(end_lsn) % OS_FILE_LOG_BLOCK_SIZE == 0);
+	ut_anp(ut_dulint_get_low(end_lsn) % OS_FILE_LOG_BLOCK_SIZE == 0);
 
 	buf = log_sys->archive_buf;
 
@@ -2234,7 +2290,7 @@ loop:
 	group->next_archived_file_no = group->archived_file_no + n_files;
 	group->next_archived_offset = next_offset % group->file_size;
 
-	ut_ad(group->next_archived_offset % OS_FILE_LOG_BLOCK_SIZE == 0);
+	ut_anp(group->next_archived_offset % OS_FILE_LOG_BLOCK_SIZE == 0);
 }
 
 /*********************************************************
@@ -2429,8 +2485,8 @@ loop:
 	start_lsn = log_sys->archived_lsn;
 	
 	if (calc_new_limit) {
-		ut_ad(log_sys->archive_buf_size % OS_FILE_LOG_BLOCK_SIZE == 0);
-
+		ut_anp(log_sys->archive_buf_size % OS_FILE_LOG_BLOCK_SIZE
+								== 0);
 		limit_lsn = ut_dulint_add(start_lsn,
 						log_sys->archive_buf_size);
 
@@ -2916,6 +2972,7 @@ loop:
 
 	mutex_enter(&kernel_mutex);
 
+	/* Check that there are no longer transactions */
 	if (trx_n_mysql_transactions > 0
 			|| UT_LIST_GET_LEN(trx_sys->trx_list) > 0) {
 		
@@ -2923,6 +2980,8 @@ loop:
 		
 		goto loop;
 	}
+
+	/* Check that the master thread is suspended */
 
 	if (srv_n_threads_active[SRV_MASTER] != 0) {
 
@@ -2952,7 +3011,6 @@ loop:
 	}
 
 	log_archive_all();
-
 	log_make_checkpoint_at(ut_dulint_max, TRUE);
 
 	mutex_enter(&(log_sys->mutex));
@@ -2961,8 +3019,9 @@ loop:
 
 	if (ut_dulint_cmp(lsn, log_sys->last_checkpoint_lsn) != 0
 	   || (srv_log_archive_on
-		&& ut_dulint_cmp(lsn,
-	    ut_dulint_add(log_sys->archived_lsn, LOG_BLOCK_HDR_SIZE)) != 0)) {
+	       && ut_dulint_cmp(lsn,
+		    ut_dulint_add(log_sys->archived_lsn, LOG_BLOCK_HDR_SIZE))
+		   != 0)) {
 
 	    	mutex_exit(&(log_sys->mutex));
 
@@ -2981,10 +3040,22 @@ loop:
 
 	mutex_exit(&(log_sys->mutex));
 
+	mutex_enter(&kernel_mutex);
+	/* Check that the master thread has stayed suspended */
+	if (srv_n_threads_active[SRV_MASTER] != 0) {
+		fprintf(stderr,
+"InnoDB: Warning: the master thread woke up during shutdown\n");
+
+		mutex_exit(&kernel_mutex);
+
+		goto loop;
+	}
+	mutex_exit(&kernel_mutex);
+
 	fil_flush_file_spaces(FIL_TABLESPACE);
 	fil_flush_file_spaces(FIL_LOG);
 
-	/* The following fil_write_... will pass the buffer pool: therefore
+	/* The next fil_write_... will pass the buffer pool: therefore
 	it is essential that the buffer pool has been completely flushed
 	to disk! */
 
@@ -2993,12 +3064,14 @@ loop:
 		goto loop;
 	}
 
+	/* The lock timeout thread should now have exited */
+
 	if (srv_lock_timeout_and_monitor_active) {
 
 		goto loop;
 	}
 
-	/* We now suspend also the InnoDB error monitor thread */
+	/* We now let also the InnoDB error monitor thread to exit */
 	
 	srv_shutdown_state = SRV_SHUTDOWN_LAST_PHASE;
 
@@ -3008,6 +3081,7 @@ loop:
 	}
 
 	/* Make some checks that the server really is quiet */
+	ut_a(srv_n_threads_active[SRV_MASTER] == 0);
 	ut_a(buf_all_freed());
 	ut_a(0 == ut_dulint_cmp(lsn, log_sys->lsn));
 
@@ -3016,6 +3090,7 @@ loop:
 	fil_flush_file_spaces(FIL_TABLESPACE);
 
 	/* Make some checks that the server really is quiet */
+	ut_a(srv_n_threads_active[SRV_MASTER] == 0);
 	ut_a(buf_all_freed());
 	ut_a(0 == ut_dulint_cmp(lsn, log_sys->lsn));
 }
@@ -3069,6 +3144,28 @@ log_check_log_recs(
 	mem_free(buf1);
 			
 	return(TRUE);
+}
+
+/**********************************************************
+Peeks the current lsn. */
+
+ibool
+log_peek_lsn(
+/*=========*/
+			/* out: TRUE if success, FALSE if could not get the
+			log system mutex */
+	dulint*	lsn)	/* out: if returns TRUE, current lsn is here */
+{
+	if (0 == mutex_enter_nowait(&(log_sys->mutex), (char*)__FILE__,
+								__LINE__)) {
+	        *lsn = log_sys->lsn;
+
+		mutex_exit(&(log_sys->mutex));
+
+		return(TRUE);
+	}
+
+	return(FALSE);
 }
 
 /**********************************************************

@@ -361,21 +361,29 @@ buf_flush_init_for_writing(
 	ulint	space,		/* in: space id */
 	ulint	page_no)	/* in: page number */
 {	
-	/* Write the newest modification lsn to the page */
+	UT_NOT_USED(space);
+
+	/* Write the newest modification lsn to the page header and trailer */
 	mach_write_to_8(page + FIL_PAGE_LSN, newest_lsn);
 
-	mach_write_to_8(page + UNIV_PAGE_SIZE - FIL_PAGE_END_LSN, newest_lsn);
+	mach_write_to_8(page + UNIV_PAGE_SIZE - FIL_PAGE_END_LSN_OLD_CHKSUM,
+								newest_lsn);
+	/* Write the page number */
 
-	/* Write to the page the space id and page number */
-
-	mach_write_to_4(page + FIL_PAGE_SPACE, space);
 	mach_write_to_4(page + FIL_PAGE_OFFSET, page_no);
 
-	/* We overwrite the first 4 bytes of the end lsn field to store
-	a page checksum */
+	/* Store the new formula checksum */
 
-	mach_write_to_4(page + UNIV_PAGE_SIZE - FIL_PAGE_END_LSN,
-					buf_calc_page_checksum(page));
+	mach_write_to_4(page + FIL_PAGE_SPACE_OR_CHKSUM,
+					buf_calc_page_new_checksum(page));
+
+	/* We overwrite the first 4 bytes of the end lsn field to store
+	the old formula checksum. Since it depends also on the field
+	FIL_PAGE_SPACE_OR_CHKSUM, it has to be calculated after storing the
+	new formula checksum. */
+
+	mach_write_to_4(page + UNIV_PAGE_SIZE - FIL_PAGE_END_LSN_OLD_CHKSUM,
+					buf_calc_page_old_checksum(page));
 }
 
 /************************************************************************
