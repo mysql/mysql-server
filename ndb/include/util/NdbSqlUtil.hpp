@@ -45,9 +45,9 @@ public:
   typedef int Cmp(const void* info, const void* p1, unsigned n1, const void* p2, unsigned n2, bool full);
 
   /**
-   * Prototype for "like" comparison.  Defined for the 3 char string
-   * types.  Second argument must have same type-specific format.
-   * Returns >0 on match, 0 on no match, <0 on bad data.
+   * Prototype for "like" comparison.  Defined for string types.  Second
+   * argument must have same type-specific format.  Returns 0 on match,
+   * +1 on no match, and -1 on bad data.
    *
    * Uses default special chars ( \ % _ ).
    *

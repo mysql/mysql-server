@@ -174,14 +174,15 @@ INSERT INTO t1 VALUES(@`a b`);
 set @var1= "';aaa";
 SET @var2=char(ascii('a'));
 insert into t1 values (@var1),(@var2);
-show binlog events from 95;
+show binlog events from 96;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	95	User var	1	136	@`a b`=_latin1 0x68656C6C6F COLLATE latin1_swedish_ci
-master-bin.000001	136	Query	1	229	use `test`; INSERT INTO t1 VALUES(@`a b`)
-master-bin.000001	229	User var	1	271	@`var1`=_latin1 0x273B616161 COLLATE latin1_swedish_ci
-master-bin.000001	271	User var	1	309	@`var2`=_latin1 0x61 COLLATE latin1_swedish_ci
-master-bin.000001	309	Query	1	410	use `test`; insert into t1 values (@var1),(@var2)
+master-bin.000001	96	User var	1	137	@`a b`=_latin1 0x68656C6C6F COLLATE latin1_swedish_ci
+master-bin.000001	137	Query	1	230	use `test`; INSERT INTO t1 VALUES(@`a b`)
+master-bin.000001	230	User var	1	272	@`var1`=_latin1 0x273B616161 COLLATE latin1_swedish_ci
+master-bin.000001	272	User var	1	310	@`var2`=_latin1 0x61 COLLATE latin1_swedish_ci
+master-bin.000001	310	Query	1	411	use `test`; insert into t1 values (@var1),(@var2)
 /*!40019 SET @@session.max_insert_delayed_threads=0*/;
+ROLLBACK;
 SET @`a b`:=_latin1 0x68656C6C6F COLLATE `latin1_swedish_ci`;
 use test;
 SET TIMESTAMP=10000;

@@ -68,4 +68,14 @@ show status like "Qcache_hits";
 
 drop table t1, t2;
 
-
+# Turn off and reset query cache on server1 and server2
+connection server1;
+set GLOBAL query_cache_size=0;
+set GLOBAL ndb_cache_check_time=0;
+reset query cache;
+flush status;
+connection server2;
+set GLOBAL query_cache_size=0;
+set GLOBAL ndb_cache_check_time=0;
+reset query cache;
+flush status;
