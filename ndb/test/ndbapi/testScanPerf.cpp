@@ -196,7 +196,6 @@ int
 clear_table(){
   if(!g_paramters[P_LOAD].value)
     return 0;
-  
   int rows = g_paramters[P_ROWS].value;
   
   UtilTransactions utilTrans(* g_table);
@@ -215,8 +214,8 @@ void err(NdbError e){
 int
 run_scan(){
   int iter = g_paramters[P_LOOPS].value;
-  Uint64 start1;
-  Uint64 sum1 = 0;
+  NDB_TICKS start1, stop;
+  int sum_time= 0;
 
   Uint32 tot = g_paramters[P_ROWS].value;
 
@@ -357,12 +356,15 @@ run_scan(){
 
     pTrans->close();
 
-    Uint64 stop = NdbTick_CurrentMillisecond();
-    start1 = (stop - start1);
-    sum1 += start1;
+    stop = NdbTick_CurrentMillisecond();
+    int time_passed= (int)(stop - start1);
+    g_err.println("Time: %d ms = %u rows/sec", time_passed,
+                  (1000*tot)/time_passed);
+    sum_time+= time_passed;
   }
-  sum1 /= iter;
+  sum_time= sum_time / iter;
   
-  g_err.println("Avg time: %Ldms = %d rows/sec", sum1, (1000*tot)/sum1);
+  g_err.println("Avg time: %d ms = %u rows/sec", sum_time,
+                (1000*tot)/sum_time);
   return 0;
 }
