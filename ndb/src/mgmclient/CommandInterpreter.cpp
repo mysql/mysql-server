@@ -1478,7 +1478,7 @@ CommandInterpreter::executeSet(int /*processId*/,
 	     << endl;
     }
     else {
-      NDB_ASSERT(false, "");
+      assert(false);
     }
   }
   else {
@@ -1497,7 +1497,7 @@ CommandInterpreter::executeSet(int /*processId*/,
     }
     else {
       // The primary is not tried to write if the write of backup file fails
-      NDB_ASSERT(false, "");
+      abort();
     }
   }
   free(newpar);

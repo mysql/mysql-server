@@ -23,35 +23,6 @@
 #include "Error.hpp"
 #include <Emulator.hpp>
 
-
-#ifdef ASSERT
-#undef ASSERT
-#endif
-
-#define REQUIRE(trueToContinue, message) \
-    if ( (trueToContinue) ) { } else { \
-          ErrorReporter::handleAssert(message, __FILE__, __LINE__); }
-
-#define THREAD_REQUIRE(trueToContinue, message) \
-    if ( (trueToContinue) ) { } else { \
-          ErrorReporter::handleThreadAssert(message, __FILE__, __LINE__); }
-
-#ifdef NDEBUG
-#define NDB_ASSERT(trueToContinue, message)
-#else
-#define NDB_ASSERT(trueToContinue, message) \
-    if ( !(trueToContinue) ) { \
-          ErrorReporter::handleAssert(message, __FILE__, __LINE__); }
-#endif
-
-        // Description:
-        //      This macro is used to report programming errors.
-        // Parameters:
-        //      trueToContinue  IN      An expression. If it evaluates to 0
-        //                              execution is stopped.
-        //      message         IN      A message from the programmer 
-        //                              explaining what went wrong.
-
 class ErrorReporter
 {
 public:
