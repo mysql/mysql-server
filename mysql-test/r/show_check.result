@@ -233,3 +233,25 @@ c	decimal(4,3)	YES		NULL
 d	double(4,3)	YES		NULL	
 f	float(4,3)	YES		NULL	
 drop table t1;
+CREATE TABLE t1 ( a VARCHAR(20) );
+INSERT INTO t1 VALUES ('one'),('two'),('three'),('four'),('five');
+CREATE TEMPORARY TABLE t2 ( index (a(20)) ) SELECT a FROM t1 GROUP BY a;
+SHOW INDEX FROM t2;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment
+t2	X	a	X	X	X	NULL	X	X	X	BTREE	
+ANALYZE TABLE t2;
+Table	Op	Msg_type	Msg_text
+test.t2	analyze	status	OK
+SHOW INDEX FROM t2;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment
+t2	X	a	X	X	X	5	X	X	X	BTREE	
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TEMPORARY TABLE `t2` (
+  `a` varchar(20) default NULL,
+  KEY `a` (`a`)
+) TYPE=MyISAM
+SHOW INDEX FROM t2;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment
+t2	X	a	X	X	X	5	X	X	X	BTREE	
+DROP TEMPORARY TABLE t2;
