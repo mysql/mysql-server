@@ -222,7 +222,8 @@ static bool opt_log,opt_update_log,opt_bin_log,opt_slow_log,opt_noacl,
 	    opt_disable_networking=0, opt_bootstrap=0,opt_skip_show_db=0,
             opt_ansi_mode=0,opt_myisam_log=0,
             opt_large_files=sizeof(my_off_t) > 4;
-bool opt_sql_bin_update = 0, opt_log_slave_updates = 0, opt_safe_show_db=0;
+bool opt_sql_bin_update = 0, opt_log_slave_updates = 0, opt_safe_show_db=0,
+  opt_show_slave_auth_info = 0;
 FILE *bootstrap_file=0;
 int segfaulted = 0; // ensure we do not enter SIGSEGV handler twice
 extern MASTER_INFO glob_mi;
@@ -277,7 +278,7 @@ volatile ulong cached_thread_count=0;
 // replication parameters, if master_host is not NULL, we are a slave
 my_string master_user = (char*) "test", master_password = 0, master_host=0,
   master_info_file = (char*) "master.info";
-my_string report_user = (char*) "test", report_password = 0, report_host=0;
+my_string report_user = 0, report_password = 0, report_host=0;
  
 const char *localhost=LOCAL_HOST;
 const char *delayed_user="DELAYED";
@@ -2485,7 +2486,8 @@ enum options {
 	       OPT_GEMINI_FLUSH_LOG, OPT_GEMINI_RECOVER,
                OPT_GEMINI_UNBUFFERED_IO, OPT_SKIP_SAFEMALLOC,
 	       OPT_SKIP_STACK_TRACE, OPT_SKIP_SYMLINKS, OPT_REPORT_HOST,
-	       OPT_REPORT_USER, OPT_REPORT_PASSWORD, OPT_REPORT_PORT
+	       OPT_REPORT_USER, OPT_REPORT_PASSWORD, OPT_REPORT_PORT,
+	       OPT_SHOW_SLAVE_AUTH_INFO
 };
 
 static struct option long_options[] = {
@@ -2604,6 +2606,8 @@ static struct option long_options[] = {
   {"socket",                required_argument, 0, (int) OPT_SOCKET},
   {"server-id",		    required_argument, 0, (int) OPT_SERVER_ID},
   {"set-variable",          required_argument, 0, 'O'},
+  {"show-slave-auth-info",  no_argument,       0,
+     (int) OPT_SHOW_SLAVE_AUTH_INFO},
   {"skip-bdb",              no_argument,       0, (int) OPT_BDB_SKIP},
   {"skip-innodb",           no_argument,       0, (int) OPT_INNODB_SKIP},
   {"skip-gemini",           no_argument,       0, (int) OPT_GEMINI_SKIP},
@@ -3254,6 +3258,9 @@ static void get_options(int argc,char **argv)
 #if !defined(DBUG_OFF) && defined(SAFEMALLOC)      
       safemalloc_mem_limit = atoi(optarg);
 #endif      
+      break;
+    case OPT_SHOW_SLAVE_AUTH_INFO:
+      opt_show_slave_auth_info = 1;
       break;
     case OPT_SOCKET:
       mysql_unix_port= optarg;

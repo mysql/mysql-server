@@ -580,24 +580,16 @@ int register_slave_on_master(MYSQL* mysql)
   int4store(buf, server_id);
   packet.append(buf, 4);
 
-  len = strlen(report_host);
-  packet.append((char)(uchar)len);
-  packet.append(report_host, len);
-
-  len = strlen(report_user);
-  packet.append((char)(uchar)len);
-  packet.append(report_user, len);
-
-  if(report_password)
-  {
-    len = strlen(report_password);
-    packet.append((char)(uchar)len);
-    packet.append(report_password, len);
-  }
+  net_store_data(&packet, report_host); 
+  if(report_user)
+    net_store_data(&packet, report_user);
   else
-  {
     packet.append((char)0);
-  }
+  
+  if(report_password)
+    net_store_data(&packet, report_user);
+  else
+    packet.append((char)0);
 
   int2store(buf, (uint16)report_port);
   packet.append(buf, 2);
