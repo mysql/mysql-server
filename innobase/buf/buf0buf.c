@@ -465,6 +465,7 @@ buf_block_init(
 	block->in_LRU_list = FALSE;
 
 	block->n_pointers = 0;
+	block->hash_nodes = NULL;
 
 	rw_lock_create(&(block->lock));
 	ut_ad(rw_lock_validate(&(block->lock)));
