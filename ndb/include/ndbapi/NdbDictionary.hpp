@@ -915,6 +915,9 @@ public:
     /**
      * Specifies the type of database operations an Event listens to
      */
+#ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
+    /** TableEvent must match 1 << TriggerEvent */
+#endif
     enum TableEvent { 
       TE_INSERT=1, ///< Insert event on table
       TE_DELETE=2, ///< Delete event on table
