@@ -239,7 +239,7 @@ static sys_var_thd_bit	sys_sql_big_tables("sql_big_tables",
 #endif
 static sys_var_thd_bit	sys_big_selects("sql_big_selects",
 					set_option_bit,
-					OPTION_BIG_TABLES);
+					OPTION_BIG_SELECTS);
 static sys_var_thd_bit	sys_log_off("sql_log_off",
 				    set_option_bit,
 				    OPTION_LOG_OFF);
