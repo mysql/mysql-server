@@ -43643,6 +43643,11 @@ Some features:
 @itemize @bullet
 @item Manage servers, databases, tables, columns, indexes, and users
 @item Import wizard to import structure and data from MS Access, MS Excel, Dbase, FoxPro, Paradox, and ODBC Databases.
+
+@item @uref{http://www.mysql.com/Downloads/Contrib/KMYENG113.zip,KMYENG113.zip}
+An administrator GUI for @strong{MySQL}. Works only on windows, no source.
+Available in English and Japanese. By Mitunobu Kaneko.
+Home page: @uref{http://sql.jnts.ne.jp/}
 @end itemize
 
 @item @uref{http://www.mysql.com/Downloads/Contrib/xmysqladmin-1.0.tar.gz, xmysqladmin-1.0.tar.gz}
@@ -43950,6 +43955,11 @@ By Steve Shreeve.
 Perl program to convert Oracle databases to @strong{MySQL}. By Johan Andersson.
 @item @uref{http://www.mysql.com/Downloads/Contrib/excel2mysql, excel2mysql}
 Perl program to import Excel spreadsheets into a @strong{MySQL} database. By Stephen Hurd @email{shurd@@sk.sympatico.ca}
+
+@item @uref{http://www.mysql.com/Downloads/Contrib/T2S_100.ZIP, T2S_100.ZIP}.
+Windows program to convert text files to @strong{MySQL} databases. By
+Asaf Azulay.
+
 @end itemize
 
 @appendixsec Using MySQL with Other Products
