@@ -294,6 +294,13 @@ use information_schema;
 show tables like "T%";
 
 #
+# Bug#7210: information_schema: can't access when table-name = reserved word
+#
+select table_name from tables where table_name='user';
+select column_name, privileges from columns
+where table_name='user' and column_name like '%o%';
+
+#
 # Bug#7212: information_schema: "Can't find file" errors if storage engine gone
 # Bug#7211: information_schema: crash if bad view
 #
@@ -318,3 +325,9 @@ where table_schema='test';
 drop view t2;
 drop view t3;
 drop table t4;
+
+#
+# Bug#7213: information_schema: redundant non-standard TABLE_NAMES table
+#
+--error 1109
+select * from information_schema.table_names;
