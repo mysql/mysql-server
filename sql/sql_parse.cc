@@ -1521,11 +1521,6 @@ mysql_execute_command(void)
       if (error)
 	goto error;
     }
-    if (strlen(tables->real_name) > NAME_LEN)
-    {
-      net_printf(&thd->net,ER_WRONG_TABLE_NAME,tables->real_name);
-      break;
-    }
     LOCK_ACTIVE_MI;
     // fetch_master_table will send the error to the client on failure
     if (!fetch_master_table(thd, tables->db, tables->real_name,
@@ -3223,8 +3218,7 @@ TABLE_LIST *add_table_to_list(Table_ident *table, LEX_STRING *alias,
   if (!table)
     DBUG_RETURN(0);				// End of memory
   alias_str= alias ? alias->str : table->table.str;
-  if (table->table.length > NAME_LEN ||
-      check_table_name(table->table.str,table->table.length) ||
+  if (check_table_name(table->table.str,table->table.length) ||
       table->db.str && check_db_name(table->db.str))
   {
     net_printf(&thd->net,ER_WRONG_TABLE_NAME,table->table.str);
