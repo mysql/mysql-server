@@ -1,11 +1,3 @@
-/*-
- * See the file LICENSE for redistribution information.
- *
- * Copyright (c) 1998-2002
- *	Sleepycat Software.  All rights reserved.
- *
- * $Id: xa.h,v 11.5 2002/01/11 15:52:30 bostic Exp $
- */
 /*
  * Start of xa.h header
  *
