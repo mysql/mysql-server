@@ -1272,12 +1272,7 @@ create:
 	;
 
 sp_name:
-	  '.' IDENT_sys
-	  {
-	    $$= new sp_name($2);
-	    $$->init_qname(YYTHD);
-	  }
-	| IDENT_sys '.' IDENT_sys
+	  IDENT_sys '.' IDENT_sys
 	  {
 	    $$= new sp_name($1, $3);
 	    $$->init_qname(YYTHD);
@@ -4460,18 +4455,6 @@ simple_expr:
 	  { $$= new Item_func_round($3,$5,1); }
 	| TRUE_SYM
 	  { $$= new Item_int((char*) "TRUE",1,1); }
-	| '.' ident '(' udf_expr_list ')'
-	  {
-	    LEX *lex= Lex;
-	    sp_name *name= new sp_name($2);
-
-	    name->init_qname(YYTHD);
-	    sp_add_fun_to_lex(Lex, name);
-	    if ($4)
-	      $$= new Item_func_sp(name, *$4);
-	    else
-	      $$= new Item_func_sp(name);
-	  }
 	| ident '.' ident '(' udf_expr_list ')'
 	  {
 	    LEX *lex= Lex;
