@@ -70,15 +70,16 @@ Item_func::fix_fields(THD *thd,TABLE_LIST *tables)
   {						// Print purify happy
     for (arg=args, arg_end=args+arg_count; arg != arg_end ; arg++)
     {
-      if ((*arg)->fix_fields(thd,tables))
+      Item *item=*arg;
+      if (item->fix_fields(thd,tables))
 	return 1;				/* purecov: inspected */
-      if ((*arg)->maybe_null)
+      if (item->maybe_null)
 	maybe_null=1;
-      if ((*arg)->binary)
+      if (item->binary)
 	binary=1;
-      with_sum_func= with_sum_func || (*arg)->with_sum_func;
-      used_tables_cache|=(*arg)->used_tables();
-      const_item_cache&= (*arg)->const_item();
+      with_sum_func= with_sum_func || item->with_sum_func;
+      used_tables_cache|=item->used_tables();
+      const_item_cache&= item->const_item();
     }
   }
   fix_length_and_dec();
@@ -91,12 +92,13 @@ void Item_func::split_sum_func(List<Item> &fields)
   Item **arg,**arg_end;
   for (arg=args, arg_end=args+arg_count; arg != arg_end ; arg++)
   {
-    if ((*arg)->with_sum_func && (*arg)->type() != SUM_FUNC_ITEM)
-      (*arg)->split_sum_func(fields);
-    else if ((*arg)->used_tables() || (*arg)->type() == SUM_FUNC_ITEM)
+    Item *item=*arg;
+    if (item->with_sum_func && item->type() != SUM_FUNC_ITEM)
+      item->split_sum_func(fields);
+    else if (item->used_tables() || item->type() == SUM_FUNC_ITEM)
     {
       fields.push_front(*arg);
-      *arg=new Item_ref((Item**) fields.head_ref(),0,(*arg)->name);
+      *arg=new Item_ref((Item**) fields.head_ref(),0,item->name);
     }
   }
 }
@@ -1231,16 +1233,17 @@ udf_handler::fix_fields(THD *thd,TABLE_LIST *tables,Item_result_field *func,
 	 arg != arg_end ;
 	 arg++,i++)
     {
-      if ((*arg)->fix_fields(thd,tables))
+      Item *item=*arg;
+      if (item->fix_fields(thd,tables))
 	return 1;
-      if ((*arg)->binary)
+      if (item->binary)
 	func->binary=1;
-      if ((*arg)->maybe_null)
+      if (item->maybe_null)
 	func->maybe_null=1;
-      func->with_sum_func= func->with_sum_func || (*arg)->with_sum_func;
-      used_tables_cache|=(*arg)->used_tables();
-      const_item_cache&=(*arg)->const_item();
-      f_args.arg_type[i]=(*arg)->result_type();
+      func->with_sum_func= func->with_sum_func || item->with_sum_func;
+      used_tables_cache|=item->used_tables();
+      const_item_cache&=item->const_item();
+      f_args.arg_type[i]=item->result_type();
     }
     if (!(buffers=new String[arg_count]) ||
 	!(f_args.args= (char**) sql_alloc(arg_count * sizeof(char *))) ||
