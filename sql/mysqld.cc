@@ -2909,9 +2909,9 @@ CHANGEABLE_VAR changeable_vars[] = {
    (long*) &innobase_additional_mem_pool_size, 1*1024*1024L, 512*1024L,
      ~0L, 0, 1024},
   {"innodb_file_io_threads",
-     (long*) &innobase_file_io_threads, 9, 4, 64, 0, 1},
+     (long*) &innobase_file_io_threads, 4, 4, 64, 0, 1},
   {"innodb_lock_wait_timeout",
-     (long*) &innobase_lock_wait_timeout, 1024 * 1024 * 1024, 1,
+     (long*) &innobase_lock_wait_timeout, 50, 1,
 						1024 * 1024 * 1024, 0, 1},
   {"innodb_thread_concurrency",
      (long*) &innobase_thread_concurrency, 8, 1, 1000, 0, 1},
@@ -4078,6 +4078,7 @@ static void get_options(int argc,char **argv)
       break;
     case OPT_INNODB_FLUSH_LOG_AT_TRX_COMMIT:
       innobase_flush_log_at_trx_commit= optarg ? test(atoi(optarg)) : 1;
+      break;
     case OPT_INNODB_FAST_SHUTDOWN:
       innobase_fast_shutdown= optarg ? test(atoi(optarg)) : 1;
       break;

@@ -3222,7 +3222,7 @@ ha_innobase::update_table_comment(
 {
 	row_prebuilt_t* prebuilt = (row_prebuilt_t*)innobase_prebuilt;
   	uint 		length 	= strlen(comment);
-  	char*		str 	= my_malloc(length + 200, MYF(0));
+  	char*		str 	= my_malloc(length + 550, MYF(0));
   	char*		pos;
 
 	if (!str) {
@@ -3241,7 +3241,7 @@ ha_innobase::update_table_comment(
 
 	/* We assume 150 bytes of space to print info */
 
-  	dict_print_info_on_foreign_keys(pos, 150, prebuilt->table);
+  	dict_print_info_on_foreign_keys(pos, 500, prebuilt->table);
 
   	return(str);
 }

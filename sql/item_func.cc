@@ -1845,6 +1845,16 @@ Item_func_set_user_var::val_str(String *str)
 }
 
 
+void Item_func_set_user_var::print(String *str)
+{
+  str->append('(');
+  str->append(name.str,name.length);
+  str->append(":=",2);
+  args[0]->print(str);
+  str->append(')');
+}
+
+
 user_var_entry *Item_func_get_user_var::get_entry()
 {
   if (!entry  || ! entry->value)
@@ -1936,6 +1946,34 @@ enum Item_result Item_func_get_user_var::result_type() const
     return STRING_RESULT;
   return entry->type;
 }
+
+
+void Item_func_get_user_var::print(String *str)
+{
+  str->append('@');
+  str->append(name.str,name.length);
+  str->append(')');
+}
+
+bool Item_func_get_user_var::eq(const Item *item) const
+{
+  /* Assume we don't have rtti */
+  if (this == item)
+    return 1;					// Same item is same.
+  /* Check if other type is also a get_user_var() object */
+#ifdef FIX_THIS
+  if (item->eq == &Item_func_get_user_var::eq)
+    return 0;
+#else
+  if (item->type() != FUNC_ITEM ||
+      ((Item_func*) item)->func_name() != func_name())
+    return 0;
+#endif
+  Item_func_get_user_var *other=(Item_func_get_user_var*) item;
+  return (name.length == other->name.length &&
+	  !memcmp(name.str, other->name.str, name.length));
+}
+
 
 longlong Item_func_inet_aton::val_int()
 {

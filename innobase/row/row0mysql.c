@@ -1683,6 +1683,8 @@ row_scan_and_check_index(
 	rec_t*		rec;
 	ibool		is_ok	= TRUE;
 	int		cmp;
+	ibool		contains_null;
+	ulint		i;
 	char           	err_buf[1000];
 	
 	*n_rows = 0;
@@ -1728,6 +1730,21 @@ loop:
 		cmp = cmp_dtuple_rec_with_match(prev_entry, rec,
 						&matched_fields,
 						&matched_bytes);
+		contains_null = FALSE;
+
+		/* In a unique secondary index we allow equal key values if
+		they contain SQL NULLs */
+
+	        for (i = 0;
+                     i < dict_index_get_n_ordering_defined_by_user(index);
+		     i++) {
+	                if (UNIV_SQL_NULL == dfield_get_len(
+                                      dtuple_get_nth_field(prev_entry, i))) {
+
+                        	contains_null = TRUE;
+	                }
+	        }
+
 		if (cmp > 0) {
 			fprintf(stderr,
 			"Error: index records in a wrong order in index %s\n",
@@ -1741,6 +1758,7 @@ loop:
 
 			is_ok = FALSE;
 		} else if ((index->type & DICT_UNIQUE)
+			   && !contains_null
 			   && matched_fields >=
 			   dict_index_get_n_ordering_defined_by_user(index)) {
 
