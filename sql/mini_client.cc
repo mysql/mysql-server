@@ -371,6 +371,11 @@ char * STDCALL mc_mysql_error(MYSQL *mysql)
   return (mysql)->net.last_error;
 }
 
+int STDCALL mc_mysql_errno(MYSQL *mysql)
+{
+  return (mysql)->net.last_errno;
+}
+
 my_bool STDCALL mc_mysql_reconnect(MYSQL *mysql)
 {
   MYSQL tmp_mysql;

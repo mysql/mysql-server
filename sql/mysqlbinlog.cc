@@ -321,7 +321,7 @@ static void dump_local_log_entries(const char* logname)
  if(!file)
    die("Could not open log file %s", logname);
 
- if(my_fseek(file, position, MY_SEEK_SET, MYF(MY_WME)))
+ if(my_fseek(file, position, MY_SEEK_SET, MYF(MY_WME)) == MY_FILEPOS_ERROR)
    die("failed on my_fseek()");
 
  if(!position)
