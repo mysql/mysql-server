@@ -1201,7 +1201,8 @@ AC_SUBST(MAKE_SHELL)
 # Already-done: stdlib.h string.h unistd.h termios.h
 AC_CHECK_HEADERS(varargs.h stdarg.h dirent.h locale.h ndir.h sys/dir.h \
  sys/file.h sys/ndir.h sys/ptem.h sys/pte.h sys/select.h sys/stream.h \
- sys/mman.h curses.h termcap.h termio.h termbits.h asm/termbits.h grp.h)
+ sys/mman.h curses.h termcap.h termio.h termbits.h asm/termbits.h grp.h \
+paths.h)
 
 # Already-done: strcasecmp
 AC_CHECK_FUNCS(lstat putenv select setenv setlocale strcoll tcgetattr)
