@@ -29,12 +29,6 @@
 #include <io.h>
 #endif
 
-#define tmp_disable_binlog(A)       \
-  ulong save_options= (A)->options; \
-  (A)->options&= ~OPTION_BIN_LOG;
-
-#define reenable_binlog(A)          (A)->options= save_options;
-
 const char *primary_key_name="PRIMARY";
 
 static bool check_if_keyname_exists(const char *name,KEY *start, KEY *end);
