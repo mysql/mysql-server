@@ -1920,7 +1920,6 @@ void Dbtc::packKeyData000Lab(Signal* signal,
 			     Uint32 totalLen) 
 {
   CacheRecord * const regCachePtr = cachePtr.p;
-  UintR Tmp;
 
   jam();
   Uint32 len = 0;
@@ -8646,14 +8645,16 @@ void Dbtc::execSCAN_TABREQ(Signal* signal)
   apiConnectptr.i = scanTabReq->apiConnectPtr;
   tabptr.i = scanTabReq->tableId;
 
-  if (apiConnectptr.i >= capiConnectFilesize ||
-      tabptr.i >= ctabrecFilesize) {
+  if (apiConnectptr.i >= capiConnectFilesize)
+  {
     jam();
     warningHandlerLab(signal);
     return;
   }//if
+
   ptrAss(apiConnectptr, apiConnectRecord);
   ApiConnectRecord * transP = apiConnectptr.p;
+
   if (transP->apiConnectstate != CS_CONNECTED) {
     jam();
     // could be left over from TCKEYREQ rollback
@@ -8667,9 +8668,16 @@ void Dbtc::execSCAN_TABREQ(Signal* signal)
     } else {
       jam();
       errCode = ZSTATE_ERROR;
-      goto SCAN_TAB_error;
+      goto SCAN_TAB_error_no_state_change;
     }
   }
+
+  if(tabptr.i >= ctabrecFilesize)
+  {
+    errCode = ZUNKNOWN_TABLE_ERROR;
+    goto SCAN_TAB_error;
+  }
+
   ptrAss(tabptr, tableRecord);
   if ((aiLength == 0) ||
       (!tabptr.p->checkTable(schemaVersion)) ||
@@ -8766,8 +8774,18 @@ void Dbtc::execSCAN_TABREQ(Signal* signal)
   errCode = ZNO_SCANREC_ERROR;
   goto SCAN_TAB_error;
  
- SCAN_TAB_error:
+SCAN_TAB_error:
   jam();
+  /**
+   * Prepare for up coming ATTRINFO/KEYINFO
+   */
+  transP->apiConnectstate = CS_ABORTING;
+  transP->abortState = AS_IDLE;
+  transP->transid[0] = transid1;
+  transP->transid[1] = transid2;
+ 
+SCAN_TAB_error_no_state_change:
+  
   ScanTabRef * ref = (ScanTabRef*)&signal->theData[0];
   ref->apiConnectPtr = transP->ndbapiConnect;
   ref->transId1 = transid1;

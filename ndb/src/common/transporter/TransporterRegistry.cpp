@@ -1419,6 +1419,6 @@ NdbOut & operator <<(NdbOut & out, SignalHeader & sh){
 Transporter*
 TransporterRegistry::get_transporter(NodeId nodeId) {
   return theTransporters[nodeId];
-};
+}
 
 template class Vector<TransporterRegistry::Transporter_interface>;
