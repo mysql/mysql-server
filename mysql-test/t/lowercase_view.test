@@ -9,3 +9,4 @@ create table TaB (Field int);
 create view ViE as select * from TAb;
 show create table VIe;
 drop database MySQLTest;
+use test;
