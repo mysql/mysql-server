@@ -19,9 +19,9 @@
 
 #include "heapdef.h"
 
-int _hp_rectest(register HP_INFO *info, register const byte *old)
+int hp_rectest(register HP_INFO *info, register const byte *old)
 {
-  DBUG_ENTER("_hp_rectest");
+  DBUG_ENTER("hp_rectest");
 
   if (memcmp(info->current_ptr,old,(size_t) info->s->reclength))
   {

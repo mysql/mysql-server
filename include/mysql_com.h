@@ -34,14 +34,15 @@
 #define MYSQL_SERVICENAME "MySql"
 #endif /* __WIN__ */
 
-enum enum_server_command {COM_SLEEP,COM_QUIT,COM_INIT_DB,COM_QUERY,
-			  COM_FIELD_LIST,COM_CREATE_DB,COM_DROP_DB,COM_REFRESH,
-			  COM_SHUTDOWN,COM_STATISTICS,
-			  COM_PROCESS_INFO,COM_CONNECT,COM_PROCESS_KILL,
-			  COM_DEBUG,COM_PING,COM_TIME,COM_DELAYED_INSERT,
-			  COM_CHANGE_USER, COM_BINLOG_DUMP,
-                          COM_TABLE_DUMP, COM_CONNECT_OUT,
-			  COM_REGISTER_SLAVE};
+enum enum_server_command
+{
+  COM_SLEEP, COM_QUIT, COM_INIT_DB, COM_QUERY, COM_FIELD_LIST,
+  COM_CREATE_DB, COM_DROP_DB, COM_REFRESH, COM_SHUTDOWN, COM_STATISTICS,
+  COM_PROCESS_INFO, COM_CONNECT, COM_PROCESS_KILL, COM_DEBUG, COM_PING,
+  COM_TIME, COM_DELAYED_INSERT, COM_CHANGE_USER, COM_BINLOG_DUMP,
+  COM_TABLE_DUMP, COM_CONNECT_OUT, COM_REGISTER_SLAVE,
+  COM_PREPARE, COM_EXECUTE, COM_LONG_DATA, COM_CLOSE_STMT
+};
 
 #define NOT_NULL_FLAG	1		/* Field can't be NULL */
 #define PRI_KEY_FLAG	2		/* Field is part of a primary key */
@@ -95,9 +96,11 @@ enum enum_server_command {COM_SLEEP,COM_QUIT,COM_INIT_DB,COM_QUERY,
 #define CLIENT_SSL              2048     /* Switch to SSL after handshake */
 #define CLIENT_IGNORE_SIGPIPE   4096     /* IGNORE sigpipes */
 #define CLIENT_TRANSACTIONS	8192	/* Client knows about transactions */
+#define CLIENT_PROTOCOL_41       16384   /* New 4.1 protocol  */
 
-#define SERVER_STATUS_IN_TRANS  1	/* Transaction has started */
-#define SERVER_STATUS_AUTOCOMMIT 2	/* Server in auto_commit mode */
+#define SERVER_STATUS_IN_TRANS     1	/* Transaction has started */
+#define SERVER_STATUS_AUTOCOMMIT   2	/* Server in auto_commit mode */
+#define SERVER_STATUS_MORE_RESULTS 4	/* More results on server */
 
 #define MYSQL_ERRMSG_SIZE	200
 #define NET_READ_TIMEOUT	30		/* Timeout on read */
@@ -130,33 +133,75 @@ typedef struct st_net {
   unsigned int *return_status;
   unsigned char reading_or_writing;
   char save_char;
+  my_bool report_error; /* We should report error (we have unreported error) */
   my_bool no_send_ok;
-  gptr query_cache_query;
+  /* 
+    Pointer to query object in query cache, do not equal NULL (0) for 
+    queries in cache that have not stored its results yet 
+  */
+  gptr query_cache_query; 
 } NET;
 
 #define packet_error (~(unsigned long) 0)
 
-enum enum_field_types { FIELD_TYPE_DECIMAL, FIELD_TYPE_TINY,
-			FIELD_TYPE_SHORT,  FIELD_TYPE_LONG,
-			FIELD_TYPE_FLOAT,  FIELD_TYPE_DOUBLE,
-			FIELD_TYPE_NULL,   FIELD_TYPE_TIMESTAMP,
-			FIELD_TYPE_LONGLONG,FIELD_TYPE_INT24,
-			FIELD_TYPE_DATE,   FIELD_TYPE_TIME,
-			FIELD_TYPE_DATETIME, FIELD_TYPE_YEAR,
-			FIELD_TYPE_NEWDATE,
-			FIELD_TYPE_ENUM=247,
-			FIELD_TYPE_SET=248,
-			FIELD_TYPE_TINY_BLOB=249,
-			FIELD_TYPE_MEDIUM_BLOB=250,
-			FIELD_TYPE_LONG_BLOB=251,
-			FIELD_TYPE_BLOB=252,
-			FIELD_TYPE_VAR_STRING=253,
-			FIELD_TYPE_STRING=254,
-			FIELD_TYPE_GEOMETRY=255
+enum enum_field_types { MYSQL_TYPE_DECIMAL, MYSQL_TYPE_TINY,
+			MYSQL_TYPE_SHORT,  MYSQL_TYPE_LONG,
+			MYSQL_TYPE_FLOAT,  MYSQL_TYPE_DOUBLE,
+			MYSQL_TYPE_NULL,   MYSQL_TYPE_TIMESTAMP,
+			MYSQL_TYPE_LONGLONG,MYSQL_TYPE_INT24,
+			MYSQL_TYPE_DATE,   MYSQL_TYPE_TIME,
+			MYSQL_TYPE_DATETIME, MYSQL_TYPE_YEAR,
+			MYSQL_TYPE_NEWDATE,      
+			MYSQL_TYPE_ENUM=247,
+			MYSQL_TYPE_SET=248,
+			MYSQL_TYPE_TINY_BLOB=249,
+			MYSQL_TYPE_MEDIUM_BLOB=250,
+			MYSQL_TYPE_LONG_BLOB=251,
+			MYSQL_TYPE_BLOB=252,
+			MYSQL_TYPE_VAR_STRING=253,
+			MYSQL_TYPE_STRING=254,
+			MYSQL_TYPE_GEOMETRY=255
+
 };
 
-#define FIELD_TYPE_CHAR FIELD_TYPE_TINY		/* For compability */
-#define FIELD_TYPE_INTERVAL FIELD_TYPE_ENUM	/* For compability */
+/* For backward compatibility */
+#define FIELD_TYPE_DECIMAL     MYSQL_TYPE_DECIMAL		
+#define FIELD_TYPE_TINY        MYSQL_TYPE_TINY				
+#define FIELD_TYPE_SHORT       MYSQL_TYPE_SHORT				
+#define FIELD_TYPE_LONG        MYSQL_TYPE_LONG			
+#define FIELD_TYPE_FLOAT       MYSQL_TYPE_FLOAT				
+#define FIELD_TYPE_DOUBLE      MYSQL_TYPE_DOUBLE			
+#define FIELD_TYPE_NULL        MYSQL_TYPE_NULL			
+#define FIELD_TYPE_TIMESTAMP   MYSQL_TYPE_TIMESTAMP				
+#define FIELD_TYPE_LONGLONG    MYSQL_TYPE_LONGLONG				
+#define FIELD_TYPE_INT24       MYSQL_TYPE_INT24		
+#define FIELD_TYPE_DATE        MYSQL_TYPE_DATE			
+#define FIELD_TYPE_TIME        MYSQL_TYPE_TIME				
+#define FIELD_TYPE_DATETIME    MYSQL_TYPE_DATETIME				
+#define FIELD_TYPE_YEAR        MYSQL_TYPE_YEAR		
+#define FIELD_TYPE_NEWDATE     MYSQL_TYPE_NEWDATE				
+#define FIELD_TYPE_ENUM        MYSQL_TYPE_ENUM			
+#define FIELD_TYPE_SET         MYSQL_TYPE_SET				
+#define FIELD_TYPE_TINY_BLOB   MYSQL_TYPE_TINY_BLOB				
+#define FIELD_TYPE_MEDIUM_BLOB MYSQL_TYPE_MEDIUM_BLOB	
+#define FIELD_TYPE_LONG_BLOB   MYSQL_TYPE_LONG_BLOB
+#define FIELD_TYPE_BLOB        MYSQL_TYPE_BLOB	
+#define FIELD_TYPE_VAR_STRING  MYSQL_TYPE_VAR_STRING				
+#define FIELD_TYPE_STRING      MYSQL_TYPE_STRING	
+#define FIELD_TYPE_CHAR        MYSQL_TYPE_TINY	
+#define FIELD_TYPE_INTERVAL    MYSQL_TYPE_ENUM
+#define FIELD_TYPE_GEOMETRY    MYSQL_TYPE_GEOMETRY	
+
+#if TO_BE_INCLUDED_LATER
+/* For bind applications, to indicate unsigned buffers */
+#define MYSQL_TYPE_UTINY     -10
+#define MYSQL_TYPE_USHORT    -9
+#define MYSQL_TYPE_ULONG     -8
+#define MYSQL_TYPE_UFLOAT    -7
+#define MYSQL_TYPE_UDOUBLE   -6
+#define MYSQL_TYPE_ULONGLONG -5
+#define MYSQL_TYPE_UINT24    -4
+#endif
 
 #define net_new_transaction(net) ((net)->pkt_nr=0)
 
@@ -164,21 +209,26 @@ enum enum_field_types { FIELD_TYPE_DECIMAL, FIELD_TYPE_TINY,
 extern "C" {
 #endif
 
-int	my_net_init(NET *net, Vio* vio);
+my_bool	my_net_init(NET *net, Vio* vio);
 void	my_net_local_init(NET *net);
 void	net_end(NET *net);
 void	net_clear(NET *net);
-int	net_flush(NET *net);
-int	my_net_write(NET *net,const char *packet,unsigned long len);
-int	net_write_command(NET *net,unsigned char command,const char *packet,
-			  unsigned long len);
+my_bool net_realloc(NET *net, unsigned long length);
+my_bool	net_flush(NET *net);
+my_bool	my_net_write(NET *net,const char *packet,unsigned long len);
+my_bool	net_write_command(NET *net,unsigned char command,
+			  const char *header, unsigned long head_len,
+			  const char *packet, unsigned long len);
 int	net_real_write(NET *net,const char *packet,unsigned long len);
 unsigned long my_net_read(NET *net);
 
-/* The following function is not meant for normal usage */
+/*
+  The following function is not meant for normal usage
+  Currently it's used internally by manager.c
+*/
 struct sockaddr;
-int my_connect(my_socket s, const struct sockaddr *name, unsigned int namelen,
-	       unsigned int timeout);
+my_bool my_connect(my_socket s, const struct sockaddr *name,
+		   unsigned int namelen, unsigned int timeout);
 
 struct rand_struct {
   unsigned long seed1,seed2,max_value;
@@ -252,5 +302,6 @@ void my_thread_end(void);
 #endif
 
 #define NULL_LENGTH ((unsigned long) ~0) /* For net_store_length */
+#define	MYSQL_LONG_DATA_HEADER	8
 
 #endif

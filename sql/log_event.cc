@@ -220,13 +220,13 @@ void Log_event::pack_info(String* packet)
 void Query_log_event::pack_info(String* packet)
 {
   char buf[256];
-  String tmp(buf, sizeof(buf));
+  String tmp(buf, sizeof(buf), system_charset_info);
   tmp.length(0);
   if (db && db_len)
   {
-   tmp.append("use ");
+   tmp.append("use `", 5);
    tmp.append(db, db_len);
-   tmp.append("; ", 2);
+   tmp.append("`; ", 3);
   }
 
   if (query && q_len)
@@ -237,7 +237,7 @@ void Query_log_event::pack_info(String* packet)
 void Start_log_event::pack_info(String* packet)
 {
   char buf1[256];
-  String tmp(buf1, sizeof(buf1));
+  String tmp(buf1, sizeof(buf1), system_charset_info);
   tmp.length(0);
   char buf[22];
 
@@ -251,7 +251,7 @@ void Start_log_event::pack_info(String* packet)
 void Load_log_event::pack_info(String* packet)
 {
   char buf[256];
-  String tmp(buf, sizeof(buf));
+  String tmp(buf, sizeof(buf), system_charset_info);
   tmp.length(0);
   if (db && db_len)
   {
@@ -327,7 +327,7 @@ void Load_log_event::pack_info(String* packet)
 void Rotate_log_event::pack_info(String* packet)
 {
   char buf1[256], buf[22];
-  String tmp(buf1, sizeof(buf1));
+  String tmp(buf1, sizeof(buf1), system_charset_info);
   tmp.length(0);
   tmp.append(new_log_ident, ident_len);
   tmp.append(";pos=");
@@ -340,7 +340,7 @@ void Rotate_log_event::pack_info(String* packet)
 void Intvar_log_event::pack_info(String* packet)
 {
   char buf1[256], buf[22];
-  String tmp(buf1, sizeof(buf1));
+  String tmp(buf1, sizeof(buf1), system_charset_info);
   tmp.length(0);
   tmp.append(get_var_type_name());
   tmp.append('=');
@@ -351,7 +351,7 @@ void Intvar_log_event::pack_info(String* packet)
 void Slave_log_event::pack_info(String* packet)
 {
   char buf1[256], buf[22], *end;
-  String tmp(buf1, sizeof(buf1));
+  String tmp(buf1, sizeof(buf1), system_charset_info);
   tmp.length(0);
   tmp.append("host=");
   tmp.append(master_host);
@@ -1461,7 +1461,7 @@ void Create_file_log_event::print(FILE* file, bool short_form,
 void Create_file_log_event::pack_info(String* packet)
 {
   char buf1[256],buf[22], *end;
-  String tmp(buf1, sizeof(buf1));
+  String tmp(buf1, sizeof(buf1), system_charset_info);
   tmp.length(0);
   tmp.append("db=");
   tmp.append(db, db_len);
@@ -1485,6 +1485,7 @@ Append_block_log_event::Append_block_log_event(THD* thd_arg, char* block_arg,
 {
 }
 #endif  
+
   
 Append_block_log_event::Append_block_log_event(const char* buf, int len)
   :Log_event(buf, 0),block(0)
@@ -1520,16 +1521,20 @@ void Append_block_log_event::print(FILE* file, bool short_form,
 #ifndef MYSQL_CLIENT
 void Append_block_log_event::pack_info(String* packet)
 {
-  char buf1[256];
-  sprintf(buf1, ";file_id=%u;block_len=%u", file_id, block_len);
-  net_store_data(packet, buf1);
+  char buf[256];
+  uint length;
+  length= (uint) my_sprintf(buf,
+			    (buf, ";file_id=%u;block_len=%u", file_id,
+			     block_len));
+  net_store_data(packet, buf, (int32) length);
 }
+
 
 Delete_file_log_event::Delete_file_log_event(THD* thd_arg)
   :Log_event(thd_arg),file_id(thd_arg->file_id)
 {
 }
-#endif  
+#endif
 
 
 Delete_file_log_event::Delete_file_log_event(const char* buf, int len)
@@ -1558,14 +1563,15 @@ void Delete_file_log_event::print(FILE* file, bool short_form,
   fputc('\n', file);
   fprintf(file, "#Delete_file: file_id=%u\n", file_id);
 }
-#endif  
+#endif
 
 #ifndef MYSQL_CLIENT
 void Delete_file_log_event::pack_info(String* packet)
 {
-  char buf1[64];
-  sprintf(buf1, ";file_id=%u", (uint) file_id);
-  net_store_data(packet, buf1);
+  char buf[64];
+  uint length;
+  length= (uint) my_sprintf(buf, (buf, ";file_id=%u", (uint) file_id));
+  net_store_data(packet, buf, (int32) length);
 }
 #endif  
 
@@ -1577,6 +1583,7 @@ Execute_load_log_event::Execute_load_log_event(THD* thd_arg)
 }
 #endif  
   
+
 Execute_load_log_event::Execute_load_log_event(const char* buf,int len)
   :Log_event(buf, 0),file_id(0)
 {
@@ -1584,6 +1591,7 @@ Execute_load_log_event::Execute_load_log_event(const char* buf,int len)
     return;
   file_id = uint4korr(buf + LOG_EVENT_HEADER_LEN + EL_FILE_ID_OFFSET);
 }
+
 
 int Execute_load_log_event::write_data(IO_CACHE* file)
 {
@@ -1608,8 +1616,9 @@ void Execute_load_log_event::print(FILE* file, bool short_form,
 void Execute_load_log_event::pack_info(String* packet)
 {
   char buf[64];
-  sprintf(buf, ";file_id=%u", (uint) file_id);
-  net_store_data(packet, buf);
+  uint length;
+  length= (uint) my_sprintf(buf, (buf, ";file_id=%u", (uint) file_id));
+  net_store_data(packet, buf, (int32) length);
 }
 #endif
 
@@ -1650,7 +1659,9 @@ int Query_log_event::exec_event(struct st_relay_log_info* rli)
       mysql_log.write(thd,COM_QUERY,"%s",thd->query);
       DBUG_PRINT("query",("%s",thd->query));
       mysql_parse(thd, thd->query, q_len);
-      if ((expected_error != (actual_error = thd->net.last_errno)) &&
+      DBUG_PRINT("info",("expected_error: %d  last_errno: %d",
+			 expected_error, thd->net.last_errno));
+      if ((expected_error != (actual_error= thd->net.last_errno)) &&
 	  expected_error &&
 	  !ignored_error_code(actual_error) &&
 	  !ignored_error_code(expected_error))
@@ -1666,6 +1677,7 @@ int Query_log_event::exec_event(struct st_relay_log_info* rli)
       else if (expected_error == actual_error ||
 	       ignored_error_code(actual_error))
       {
+	DBUG_PRINT("info",("error ignored"));
 	thd->query_error = 0;
 	*rli->last_slave_error = 0;
 	rli->last_slave_errno = 0;
@@ -1735,12 +1747,16 @@ int Load_log_event::exec_event(NET* net, struct st_relay_log_info* rli)
 	handle_dup = DUP_REPLACE;
       sql_exchange ex((char*)fname, sql_ex.opt_flags &&
 		      DUMPFILE_FLAG );
-      String field_term(sql_ex.field_term,sql_ex.field_term_len);
-      String enclosed(sql_ex.enclosed,sql_ex.enclosed_len);
-      String line_term(sql_ex.line_term,sql_ex.line_term_len);
-      String line_start(sql_ex.line_start,sql_ex.line_start_len);
-      String escaped(sql_ex.escaped,sql_ex.escaped_len);
-	    
+      String field_term(sql_ex.field_term,sql_ex.field_term_len,
+			system_charset_info);
+      String enclosed(sql_ex.enclosed,sql_ex.enclosed_len,
+		      system_charset_info);
+      String line_term(sql_ex.line_term,sql_ex.line_term_len,
+		       system_charset_info);
+      String line_start(sql_ex.line_start,sql_ex.line_start_len,
+			system_charset_info);
+      String escaped(sql_ex.escaped,sql_ex.escaped_len, system_charset_info);
+
       ex.opt_enclosed = (sql_ex.opt_flags & OPT_ENCLOSED_FLAG);
       if (sql_ex.empty_flags & FIELD_TERM_EMPTY)
 	ex.field_term->length(0);

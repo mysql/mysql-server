@@ -20,19 +20,18 @@
 
 	/* Send a error string to client */
 
-void send_error(NET *net, uint sql_errno, const char *err)
+void send_error(THD *thd, uint sql_errno, const char *err)
 {
   uint length;
   char buff[MYSQL_ERRMSG_SIZE+2];
-  THD *thd=current_thd;
+  NET *net= &thd->net;
   DBUG_ENTER("send_error");
   DBUG_PRINT("enter",("sql_errno: %d  err: %s", sql_errno,
 		      err ? err : net->last_error[0] ?
-		      net->last_error : "NULL")); 
+		      net->last_error : "NULL"));
 
   query_cache_abort(net);
-  if (thd)
-    thd->query_error = 1; // needed to catch query errors during replication
+  thd->query_error=  1; // needed to catch query errors during replication
   if (!err)
   {
     if (sql_errno)
@@ -50,7 +49,7 @@ void send_error(NET *net, uint sql_errno, const char *err)
   }
   if (net->vio == 0)
   {
-    if (thd && thd->bootstrap)
+    if (thd->bootstrap)
     {
       /* In bootstrap it's ok to print on stderr */
       fprintf(stderr,"ERROR: %d  %s\n",sql_errno,err);
@@ -67,46 +66,75 @@ void send_error(NET *net, uint sql_errno, const char *err)
   else
   {
     length=(uint) strlen(err);
-    set_if_smaller(length,MYSQL_ERRMSG_SIZE);
+    set_if_smaller(length,MYSQL_ERRMSG_SIZE-1);
   }
-  VOID(net_write_command(net,(uchar) 255,(char*) err,length));
-  if (thd)
-    thd->fatal_error=0;			// Error message is given
+  VOID(net_write_command(net,(uchar) 255, "", 0, (char*) err,length));
+  thd->fatal_error=0;			// Error message is given
+  thd->net.report_error= 0;
   DBUG_VOID_RETURN;
 }
 
 /*
-  At some point we need to be able to distinguish between warnings and
-  errors; The following function will help make this easier.
+  Send an error to the client when a connection is forced close
+  This is used by mysqld.cc, which doesn't have a THD
 */
 
-void send_warning(NET *net, uint sql_errno, const char *err)
+void net_send_error(NET *net, uint sql_errno, const char *err)
 {
-  DBUG_ENTER("send_warning");
-  send_error(net,sql_errno,err);
+  char buff[2];
+  uint length;
+  DBUG_ENTER("send_net_error");
+
+  int2store(buff,sql_errno);
+  length=(uint) strlen(err);
+  set_if_smaller(length,MYSQL_ERRMSG_SIZE-1);
+  net_write_command(net,(uchar) 255, buff, 2, err, length);
+  DBUG_VOID_RETURN;
+}
+
+
+/*
+  Send a warning to the end user
+
+  SYNOPSIS
+    send_warning()
+    thd			Thread handler
+    sql_errno		Warning number (error message)
+    err			Error string.  If not set, use ER(sql_errno)
+
+  DESCRIPTION
+    Register the warning so that the user can get it with mysql_warnings()
+    Send an ok (+ warning count) to the end user.
+*/
+
+void send_warning(THD *thd, uint sql_errno, const char *err)
+{
+  DBUG_ENTER("send_warning");  
+  push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN, sql_errno,
+	       err ? err : ER(sql_errno));
+  send_ok(thd);
   DBUG_VOID_RETURN;
 }
 
 
 /*
    Write error package and flush to client
-   It's a little too low level, but I don't want to allow another buffer
+   It's a little too low level, but I don't want to use another buffer for
+   this
 */
-/* VARARGS3 */
 
 void
-net_printf(NET *net, uint errcode, ...)
+net_printf(THD *thd, uint errcode, ...)
 {
   va_list args;
   uint length,offset;
   const char *format,*text_pos;
   int head_length= NET_HEADER_SIZE;
-  THD *thd=current_thd;
+  NET *net= &thd->net;
   DBUG_ENTER("net_printf");
   DBUG_PRINT("enter",("message: %u",errcode));
 
-  if (thd)
-    thd->query_error = 1;	// if we are here, something is wrong :-)
+  thd->query_error=  1; // needed to catch query errors during replication
   query_cache_abort(net);	// Safety
   va_start(args,errcode);
   /*
@@ -132,7 +160,7 @@ net_printf(NET *net, uint errcode, ...)
 
   if (net->vio == 0)
   {
-    if (thd && thd->bootstrap)
+    if (thd->bootstrap)
     {
       /* In bootstrap it's ok to print on stderr */
       fprintf(stderr,"ERROR: %d  %s\n",errcode,text_pos);
@@ -147,16 +175,42 @@ net_printf(NET *net, uint errcode, ...)
   if (offset)
     int2store(text_pos-2, errcode);
   VOID(net_real_write(net,(char*) net->buff,length+head_length+1+offset));
-  if (thd)
-    thd->fatal_error=0;			// Error message is given
+  thd->fatal_error=0;			// Error message is given
   DBUG_VOID_RETURN;
 }
 
 
+/*
+  Return ok to the client.
+
+  SYNOPSIS
+    send_ok()
+    thd			Thread handler
+    affected_rows	Number of rows changed by statement
+    id			Auto_increment id for first row (if used)
+    message		Message to send to the client (Used by mysql_status)
+
+  DESCRIPTION
+    The ok packet has the following structure
+
+    0			Marker (1 byte)
+    affected_rows	Stored in 1-9 bytes
+    id			Stored in 1-9 bytes
+    server_status	Copy of thd->server_status;  Can be used by client
+			to check if we are inside an transaction
+			New in 4.0 protocol
+    warning_count	Stored in 2 bytes; New in 4.1 protocol
+    message		Stored as packed length (1-9 bytes) + message
+			Is not stored if no message
+
+   If net->no_send_ok return without sending packet
+*/    
+
 void
-send_ok(NET *net,ha_rows affected_rows,ulonglong id,const char *message)
+send_ok(THD *thd, ha_rows affected_rows, ulonglong id, const char *message)
 {
-  if (net->no_send_ok)				// hack for re-parsing queries
+  NET *net= &thd->net;
+  if (net->no_send_ok || !net->vio)	// hack for re-parsing queries
     return;
 
   char buff[MYSQL_ERRMSG_SIZE+10],*pos;
@@ -164,31 +218,75 @@ send_ok(NET *net,ha_rows affected_rows,ulonglong id,const char *message)
   buff[0]=0;					// No fields
   pos=net_store_length(buff+1,(ulonglong) affected_rows);
   pos=net_store_length(pos, (ulonglong) id);
-  if (net->return_status)
+  if (thd->client_capabilities & CLIENT_PROTOCOL_41)
   {
-    int2store(pos,*net->return_status);
+    int2store(pos,thd->server_status);
+    pos+=2;
+
+    /* We can only return up to 65535 warnings in two bytes */
+    uint tmp= min(thd->total_warn_count, 65535);
+    int2store(pos, tmp);
+    pos+= 2;
+  }
+  else if (net->return_status)			// For 4.0 protocol
+  {
+    int2store(pos,thd->server_status);
     pos+=2;
   }
   if (message)
     pos=net_store_data((char*) pos,message);
-  if (net->vio != 0)
-  {
-    VOID(my_net_write(net,buff,(uint) (pos-buff)));
-    VOID(net_flush(net));
-  }
+  VOID(my_net_write(net,buff,(uint) (pos-buff)));
+  VOID(net_flush(net));
   DBUG_VOID_RETURN;
 }
 
+
+/*
+  Send eof (= end of result set) to the client
+
+  SYNOPSIS
+    send_eof()
+    thd			Thread handler
+    no_flush		Set to 1 if there will be more data to the client,
+			like in send_fields().
+
+  DESCRIPTION
+    The eof packet has the following structure
+
+    254			Marker (1 byte)
+    warning_count	Stored in 2 bytes; New in 4.1 protocol
+    status_flag		Stored in 2 bytes;
+			For flags like SERVER_STATUS_MORE_RESULTS
+
+    Note that the warning count will not be sent if 'no_flush' is set as
+    we don't want to report the warning count until all data is sent to the
+    client.
+*/    
+
 void
-send_eof(NET *net,bool no_flush)
+send_eof(THD *thd, bool no_flush)
 {
   static char eof_buff[1]= { (char) 254 };	/* Marker for end of fields */
+  NET *net= &thd->net;
   DBUG_ENTER("send_eof");
   if (net->vio != 0)
   {
-    VOID(my_net_write(net,eof_buff,1));
-    if (!no_flush)
+    if (!no_flush && (thd->client_capabilities & CLIENT_PROTOCOL_41))
+    {
+      uchar buff[5];
+      uint tmp= min(thd->total_warn_count, 65535);
+      buff[0]=254;
+      int2store(buff+1, tmp);
+      int2store(buff+3, 0);			// No flags yet
+      VOID(my_net_write(net,(char*) buff,5));
       VOID(net_flush(net));
+    }
+    else
+    {
+      VOID(my_net_write(net,eof_buff,1));
+      if (!no_flush)
+	VOID(net_flush(net));
+    }
   }
   DBUG_VOID_RETURN;
 }
@@ -341,7 +439,7 @@ net_store_data(String *packet,struct tm *tmp)
 bool net_store_data(String* packet, I_List<i_string>* str_list)
 {
   char buf[256];
-  String tmp(buf, sizeof(buf));
+  String tmp(buf, sizeof(buf), default_charset_info);
   tmp.length(0);
   I_List_iterator<i_string> it(*str_list);
   i_string* s;

@@ -77,14 +77,15 @@ static void free_var(user_var_entry *entry)
 ** Thread specific functions
 ****************************************************************************/
 
-THD::THD():user_time(0),fatal_error(0),last_insert_id_used(0),
-	   insert_id_used(0),in_lock_tables(0),
-	   global_read_lock(0),bootstrap(0)
+THD::THD():user_time(0), fatal_error(0),
+	   last_insert_id_used(0),
+	   insert_id_used(0), in_lock_tables(0),
+	   global_read_lock(0), bootstrap(0)
 {
   host=user=priv_user=db=query=ip=0;
   host_or_ip="unknown ip";
   locked=killed=count_cuted_fields=some_tables_deleted=no_errors=password=
-    query_start_used=safe_to_cache_query=0;
+    query_start_used=safe_to_cache_query=prepare_command=0;
   pthread_mutex_lock(&LOCK_global_system_variables);
   variables= global_system_variables;
   pthread_mutex_unlock(&LOCK_global_system_variables);
@@ -97,13 +98,14 @@ THD::THD():user_time(0),fatal_error(0),last_insert_id_used(0),
   tmp_table=0;
   lock=locked_tables=0;
   used_tables=0;
-  cuted_fields=sent_row_count=0L;
+  cuted_fields= sent_row_count= current_stmt_id= 0L;
   start_time=(time_t) 0;
   current_linfo =  0;
   slave_thread = 0;
   slave_proxy_id = 0;
   file_id = 0;
   cond_count=0;
+  db_charset=default_charset_info;
   mysys_var=0;
 #ifndef DBUG_OFF
   dbug_sentry=THD_SENTRY_MAGIC;
@@ -143,10 +145,22 @@ THD::THD():user_time(0),fatal_error(0),last_insert_id_used(0),
   /* Initialize sub structures */
   bzero((char*) &mem_root,sizeof(mem_root));
   bzero((char*) &transaction.mem_root,sizeof(transaction.mem_root));
+  bzero((char*) &con_root,sizeof(con_root));
+  bzero((char*) &warn_root,sizeof(warn_root));
+  init_alloc_root(&warn_root, 1024, 0);
+  bzero((char*) warn_count, sizeof(warn_count));
+  warn_list.empty();
   user_connect=(USER_CONN *)0;
-  hash_init(&user_vars, USER_VARS_HASH_SIZE, 0, 0,
+  hash_init(&user_vars, system_charset_info, USER_VARS_HASH_SIZE, 0, 0,
 	    (hash_get_key) get_var_key,
 	    (void (*)(void*)) free_var,0);
+
+  /* Prepared statements */
+  last_prepared_stmt= 0;
+  init_tree(&prepared_statements, 0, 0, sizeof(PREP_STMT),
+	    (qsort_cmp2) compare_prep_stmt, 1,
+	    (tree_element_free) free_prep_stmt, 0);
+
 #ifdef USING_TRANSACTIONS
   bzero((char*) &transaction,sizeof(transaction));
   if (opt_using_transactions)
@@ -222,7 +236,10 @@ THD::~THD()
   safeFree(db);
   safeFree(ip);
   free_root(&mem_root,MYF(0));
+  free_root(&con_root,MYF(0));
+  free_root(&warn_root,MYF(0));
   free_root(&transaction.mem_root,MYF(0));
+  delete_tree(&prepared_statements);
   mysys_var=0;					// Safety (shouldn't be needed)
   pthread_mutex_destroy(&LOCK_delete);
 #ifndef DBUG_OFF
@@ -272,8 +289,7 @@ void THD::awake(bool prepare_to_die)
 bool THD::store_globals()
 {
   if (my_pthread_setspecific_ptr(THR_THD,  this) ||
-      my_pthread_setspecific_ptr(THR_MALLOC, &mem_root) ||
-      my_pthread_setspecific_ptr(THR_NET,  &net))
+      my_pthread_setspecific_ptr(THR_MALLOC, &mem_root))
     return 1;
   mysys_var=my_thread_var;
   dbug_thread_id=my_thread_id();
@@ -368,6 +384,28 @@ CHANGED_TABLE_LIST* THD::changed_table_dup(const char *key, long key_length)
   return new_table;
 }
 
+int THD::send_explain_fields(select_result *result)
+{
+  List<Item> field_list;
+  Item *item;
+  field_list.push_back(new Item_int("id",0,3));
+  field_list.push_back(new Item_empty_string("select_type",19));
+  field_list.push_back(new Item_empty_string("table",NAME_LEN));
+  field_list.push_back(new Item_empty_string("type",10));
+  field_list.push_back(item=new Item_empty_string("possible_keys",
+						  NAME_LEN*MAX_KEY));
+  item->maybe_null=1;
+  field_list.push_back(item=new Item_empty_string("key",NAME_LEN));
+  item->maybe_null=1;
+  field_list.push_back(item=new Item_int("key_len",0,3));
+  item->maybe_null=1;
+  field_list.push_back(item=new Item_empty_string("ref",
+						  NAME_LEN*MAX_REF_PARTS));
+  item->maybe_null=1;
+  field_list.push_back(new Item_real("rows",0.0,0,10));
+  field_list.push_back(new Item_empty_string("Extra",255));
+  return (result->send_fields(field_list,1));
+}
 
 #ifdef SIGNAL_WITH_VIO_CLOSE
 void THD::close_active_vio()
@@ -390,8 +428,10 @@ select_result::select_result()
   thd=current_thd;
 }
 
-static String default_line_term("\n"),default_escaped("\\"),
-	      default_field_term("\t");
+static String
+	default_line_term("\n",default_charset_info),
+	default_escaped("\\",default_charset_info),
+	default_field_term("\t",default_charset_info);
 
 sql_exchange::sql_exchange(char *name,bool flag)
   :file_name(name), opt_enclosed(0), dumpfile(flag), skip_lines(0)
@@ -416,9 +456,9 @@ bool select_send::send_data(List<Item> &items)
   String *packet= &thd->packet;
   DBUG_ENTER("send_data");
 
-  if (thd->offset_limit)
+  if (unit->offset_limit_cnt)
   {						// using limit offset,count
-    thd->offset_limit--;
+    unit->offset_limit_cnt--;
     DBUG_RETURN(0);
   }
   packet->length(0);				// Reset packet
@@ -428,13 +468,19 @@ bool select_send::send_data(List<Item> &items)
     if (item->send(thd, packet))
     {
       packet->free();				// Free used
-      my_error(ER_OUT_OF_RESOURCES,MYF(0));
+      my_message(ER_OUT_OF_RESOURCES, ER(ER_OUT_OF_RESOURCES), MYF(0));
       DBUG_RETURN(1);
     }
   }
   thd->sent_row_count++;
-  bool error=my_net_write(&thd->net,(char*) packet->ptr(),packet->length());
-  DBUG_RETURN(error);
+  if (!thd->net.report_error)
+  {
+    DBUG_RETURN(my_net_write(&thd->net,
+			     (char*) packet->ptr(),
+			     packet->length()));
+  }
+  else
+    DBUG_RETURN(1);
 }
 
 bool select_send::send_eof()
@@ -444,8 +490,13 @@ bool select_send::send_eof()
   {
     mysql_unlock_tables(thd, thd->lock); thd->lock=0;
   }
-  ::send_eof(&thd->net);
-  return 0;
+  if (!thd->net.report_error)
+  {
+    ::send_eof(thd);
+    return 0;
+  }
+  else
+    return 1;
 }
 
 
@@ -466,11 +517,12 @@ select_export::~select_export()
 }
 
 int
-select_export::prepare(List<Item> &list)
+select_export::prepare(List<Item> &list, SELECT_LEX_UNIT *u)
 {
   char path[FN_REFLEN];
   uint option=4;
   bool blob_flag=0;
+  unit= u;
 #ifdef DONT_ALLOW_FULL_LOAD_DATA_PATHS
   option|=1;					// Force use of db directory
 #endif
@@ -480,7 +532,7 @@ select_export::prepare(List<Item> &list)
 		   option);
   if (!access(path,F_OK))
   {
-    my_error(ER_FILE_EXISTS_ERROR,MYF(0),exchange->file_name);
+    my_error(ER_FILE_EXISTS_ERROR, MYF(0), exchange->file_name);
     return 1;
   }
   /* Create the file world readable */
@@ -534,12 +586,12 @@ bool select_export::send_data(List<Item> &items)
   DBUG_ENTER("send_data");
   char buff[MAX_FIELD_WIDTH],null_buff[2],space[MAX_FIELD_WIDTH];
   bool space_inited=0;
-  String tmp(buff,sizeof(buff)),*res;
+  String tmp(buff,sizeof(buff),default_charset_info),*res;
   tmp.length(0);
 
-  if (thd->offset_limit)
+  if (unit->offset_limit_cnt)
   {						// using limit offset,count
-    thd->offset_limit--;
+    unit->offset_limit_cnt--;
     DBUG_RETURN(0);
   }
   row_count++;
@@ -666,9 +718,9 @@ err:
 }
 
 
-void select_export::send_error(uint errcode,const char *err)
+void select_export::send_error(uint errcode, const char *err)
 {
-  ::send_error(&thd->net,errcode,err);
+  my_message(errcode, err, MYF(0));;
   (void) end_io_cache(&cache);
   (void) my_close(file,MYF(0));
   file= -1;
@@ -680,10 +732,8 @@ bool select_export::send_eof()
   int error=test(end_io_cache(&cache));
   if (my_close(file,MYF(MY_WME)))
     error=1;
-  if (error)
-    ::send_error(&thd->net);
-  else
-    ::send_ok(&thd->net,row_count);
+  if (!error)
+    ::send_ok(thd,row_count);
   file= -1;
   return error;
 }
@@ -705,9 +755,11 @@ select_dump::~select_dump()
 }
 
 int
-select_dump::prepare(List<Item> &list __attribute__((unused)))
+select_dump::prepare(List<Item> &list __attribute__((unused)),
+		     SELECT_LEX_UNIT *u)
 {
   uint option=4;
+  unit= u;
 #ifdef DONT_ALLOW_FULL_LOAD_DATA_PATHS
   option|=1;					// Force use of db directory
 #endif
@@ -741,19 +793,19 @@ bool select_dump::send_data(List<Item> &items)
 {
   List_iterator_fast<Item> li(items);
   char buff[MAX_FIELD_WIDTH];
-  String tmp(buff,sizeof(buff)),*res;
+  String tmp(buff,sizeof(buff),default_charset_info),*res;
   tmp.length(0);
   Item *item;
   DBUG_ENTER("send_data");
 
-  if (thd->offset_limit)
+  if (unit->offset_limit_cnt)
   {						// using limit offset,count
-    thd->offset_limit--;
+    unit->offset_limit_cnt--;
     DBUG_RETURN(0);
   }
   if (row_count++ > 1) 
   {
-    my_error(ER_TOO_MANY_ROWS,MYF(0));
+    my_error(ER_TOO_MANY_ROWS, MYF(0));
     goto err;
   }
   while ((item=li++))
@@ -778,23 +830,85 @@ err:
 
 void select_dump::send_error(uint errcode,const char *err)
 {
-  ::send_error(&thd->net,errcode,err);
+  my_message(errcode, err, MYF(0));
   (void) end_io_cache(&cache);
   (void) my_close(file,MYF(0));
   (void) my_delete(path,MYF(0));		// Delete file on error
   file= -1;
 }
 
-
 bool select_dump::send_eof()
 {
   int error=test(end_io_cache(&cache));
   if (my_close(file,MYF(MY_WME)))
     error=1;
-  if (error)
-    ::send_error(&thd->net);
-  else
-    ::send_ok(&thd->net,row_count);
+  if (!error)
+    ::send_ok(thd,row_count);
   file= -1;
   return error;
 }
+
+select_subselect::select_subselect(Item_subselect *item)
+{
+  this->item=item;
+}
+
+bool select_singleval_subselect::send_data(List<Item> &items)
+{
+  DBUG_ENTER("select_singleval_subselect::send_data");
+  Item_singleval_subselect *it= (Item_singleval_subselect *)item;
+  if (it->assigned()){
+    thd->fatal_error= 1;
+    my_message(ER_SUBSELECT_NO_1_ROW, ER(ER_SUBSELECT_NO_1_ROW), MYF(0));
+    DBUG_RETURN(1);
+  }
+  if (unit->offset_limit_cnt)
+  {				          // Using limit offset,count
+    unit->offset_limit_cnt--;
+    DBUG_RETURN(0);
+  }
+  List_iterator_fast<Item> li(items);
+  Item *val_item= li++;                   // Only one (single value subselect)
+  /*
+    Following val() call have to be first, because function AVG() & STD()
+    calculate value on it & determinate "is it NULL?".
+  */
+  it->real_value= val_item->val();
+  if ((it->null_value= val_item->is_null()))
+  {
+    it->assign_null();
+  } 
+  else 
+  {
+    it->max_length= val_item->max_length;
+    it->decimals= val_item->decimals;
+    it->binary= val_item->binary;
+    it->int_value= val_item->val_int();
+    String *s= val_item->val_str(&it->string_value);
+    if (s != &it->string_value)
+    {
+      it->string_value.set(*s, 0, s->length());
+    }
+    // TODO: remove when correct charset handling appeared for Item
+    it->str_value.set(*s, 0, s->length()); // store charset
+
+    it->res_type= val_item->result_type();
+  }
+  it->assigned(1);
+  DBUG_RETURN(0);
+}
+
+bool select_exists_subselect::send_data(List<Item> &items)
+{
+  DBUG_ENTER("select_exists_subselect::send_data");
+  Item_exists_subselect *it= (Item_exists_subselect *)item;
+  if (unit->offset_limit_cnt)
+  {				          // Using limit offset,count
+    unit->offset_limit_cnt--;
+    DBUG_RETURN(0);
+  }
+  it->value= 1;
+  it->assigned(1);
+  DBUG_RETURN(0);
+}
+

@@ -25,20 +25,139 @@
 #include <direct.h>
 #endif
 
+#define MY_DB_OPT_FILE "db.opt"
+
+const char *del_exts[]= {".frm", ".BAK", ".TMD",".opt", NullS};
+static TYPELIB deletable_extentions=
+{array_elements(del_exts)-1,"del_exts", del_exts};
+
+const char *known_exts[]=
+{".ISM",".ISD",".ISM",".MRG",".MYI",".MYD",".db",NullS};
+static TYPELIB known_extentions=
+{array_elements(known_exts)-1,"known_exts", known_exts};
+
 static long mysql_rm_known_files(THD *thd, MY_DIR *dirp,
 				 const char *db, const char *path,
 				 uint level);
 
-/* db-name is already validated when we come here */
+/* 
+  Create database options file:
 
-int mysql_create_db(THD *thd, char *db, uint create_options, bool silent)
+  DESCRIPTION
+    Currently database default charset is only stored there.
+
+  RETURN VALUES
+  0	ok
+  1	Could not create file or write to it.  Error sent through my_error()
+*/
+
+static bool write_db_opt(const char *path, HA_CREATE_INFO *create)
+{
+  register File file;
+  char buf[256]; // Should be enough for one option
+  bool error=1;
+
+  if ((file=my_create(path, CREATE_MODE,O_RDWR | O_TRUNC,MYF(MY_WME))) >= 0)
+  {
+    ulong length;
+    length= my_sprintf(buf,(buf, "default-character-set=%s\n",
+			    (create && create->table_charset) ? 
+			    create->table_charset->name : "DEFAULT"));
+
+    /* Error is written by my_write */
+    if (!my_write(file,(byte*) buf, length, MYF(MY_NABP+MY_WME)))
+      error=0;
+    my_close(file,MYF(0));
+  }
+  return error;
+}
+
+
+/* 
+  Load database options file
+
+  load_db_opt()
+  path		Path for option file
+  create	Where to store the read options
+
+  DESCRIPTION
+    For now, only default-character-set is read.
+
+  RETURN VALUES
+  0	File found
+  1	No database file or could not open it
+
+*/
+
+static bool load_db_opt(const char *path, HA_CREATE_INFO *create)
+{
+  File file;
+  char buf[256];
+  DBUG_ENTER("load_db_opt");
+  bool error=1;
+  uint nbytes;
+
+  bzero((char*) create,sizeof(*create));
+  if ((file=my_open(path, O_RDONLY | O_SHARE, MYF(0))) >= 0)
+  {
+    IO_CACHE cache;
+    init_io_cache(&cache, file, IO_SIZE, READ_CACHE, 0, 0, MYF(0));
+
+    while ((int) (nbytes= my_b_gets(&cache, (char*) buf, sizeof(buf))) > 0)
+    {
+      char *pos= buf+nbytes-1;
+      /* Remove end space and control characters */
+      while (pos > buf && !my_isgraph(system_charset_info, pos[-1]))
+	pos--;
+      *pos=0;
+      if ((pos= strchr(buf, '=')))
+      {
+	if (!strncmp(buf,"default-character-set", (pos-buf)))
+	{
+	  if (!(create->table_charset=get_charset_by_name(pos+1, MYF(0))))
+	  {
+	    sql_print_error(ER(ER_UNKNOWN_CHARACTER_SET),
+			    pos+1);
+	  }
+	}
+      }
+    }
+    error=0;
+    end_io_cache(&cache);
+    my_close(file,MYF(0));
+  }
+  DBUG_RETURN(error);
+}
+
+
+/*
+  Create a database
+
+  SYNOPSIS
+  mysql_create_db()
+  thd		Thread handler
+  db		Name of database to create
+		Function assumes that this is already validated.
+  create_info	Database create options (like character set)
+  silent	Used by replication when internally creating a database.
+		In this case the entry should not be logged.
+
+  RETURN VALUES
+  0	ok
+  -1	Error
+
+*/
+
+int mysql_create_db(THD *thd, char *db, HA_CREATE_INFO *create_info,
+		    bool silent)
 {
   char	 path[FN_REFLEN+16];
   MY_DIR *dirp;
   long result=1;
   int error = 0;
+  uint create_options = create_info ? create_info->options : 0;
   DBUG_ENTER("mysql_create_db");
-
+  
   VOID(pthread_mutex_lock(&LOCK_mysql_create_db));
 
   // do not create database if another thread is holding read lock
@@ -73,28 +192,49 @@ int mysql_create_db(THD *thd, char *db, uint create_options, bool silent)
     }
   }
 
+  unpack_dirname(path, path);
+  strcat(path,MY_DB_OPT_FILE);
+  if (write_db_opt(path, create_info))
+  {
+    /*
+      Could not create options file.
+      Restore things to beginning.
+    */
+    if (rmdir(path) >= 0)
+    {
+      error= -1;
+      goto exit;
+    }
+    /*
+      We come here when we managed to create the database, but not the option
+      file.  In this case it's best to just continue as if nothing has
+      happened.  (This is a very unlikely senario)
+    */
+  }
+  
   if (!silent)
   {
-    if (!thd->query)
+    char *query;
+    uint query_length;
+
+    if (!thd->query)				// Only in replication
     {
-      thd->query = path;
-      thd->query_length = (uint) (strxmov(path,"create database ", db, NullS)-
-				  path);
+      query= 	     path;
+      query_length= (uint) (strxmov(path,"create database ", db, NullS) -
+			    path);
     }
+    else
     {
-      mysql_update_log.write(thd,thd->query, thd->query_length);
-      if (mysql_bin_log.is_open())
-      {
-	Query_log_event qinfo(thd, thd->query, thd->query_length);
-	mysql_bin_log.write(&qinfo);
-      }
+      query= 	    thd->query;
+      query_length= thd->query_length;
     }
-    if (thd->query == path)
+    mysql_update_log.write(thd, query, query_length);
+    if (mysql_bin_log.is_open())
     {
-      thd->query = 0; // just in case
-      thd->query_length = 0;
+      Query_log_event qinfo(thd, query, query_length);
+      mysql_bin_log.write(&qinfo);
     }
-    send_ok(&thd->net, result);
+    send_ok(thd, result);
   }
 
 exit:
@@ -104,14 +244,56 @@ exit2:
   DBUG_RETURN(error);
 }
 
-const char *del_exts[]= {".frm", ".BAK", ".TMD", NullS};
-static TYPELIB deletable_extentions=
-{array_elements(del_exts)-1,"del_exts", del_exts};
 
-const char *known_exts[]=
-{".ISM",".ISD",".ISM",".MRG",".MYI",".MYD",".db",NullS};
-static TYPELIB known_extentions=
-{array_elements(known_exts)-1,"known_exts", known_exts};
+/* db-name is already validated when we come here */
+
+int mysql_alter_db(THD *thd, const char *db, HA_CREATE_INFO *create_info)
+{
+  char path[FN_REFLEN+16];
+  long result=1;
+  int error = 0;
+  uint create_options = create_info ? create_info->options : 0;
+  DBUG_ENTER("mysql_alter_db");
+
+  VOID(pthread_mutex_lock(&LOCK_mysql_create_db));
+
+  // do not alter database if another thread is holding read lock
+  if (wait_if_global_read_lock(thd,0))
+  {
+    error= -1;
+    goto exit2;
+  }
+
+  /* Check directory */
+  (void)sprintf(path,"%s/%s/%s", mysql_data_home, db, MY_DB_OPT_FILE);
+  fn_format(path, path, "", "", MYF(MY_UNPACK_FILENAME));
+  if ((error=write_db_opt(path, create_info)))
+    goto exit;
+
+  /* 
+     Change options if current database is being altered
+     TODO: Delete this code
+  */
+  if (thd->db && !strcmp(thd->db,db))
+  {
+    thd->db_charset= create_info ? create_info->table_charset : NULL;
+  }
+
+  mysql_update_log.write(thd,thd->query, thd->query_length);
+  if (mysql_bin_log.is_open())
+  {
+    Query_log_event qinfo(thd, thd->query, thd->query_length);
+    mysql_bin_log.write(&qinfo);
+  }
+  send_ok(thd, result);
+
+exit:
+  start_waiting_global_read_lock(thd);
+exit2:
+  VOID(pthread_mutex_unlock(&LOCK_mysql_create_db));
+  DBUG_RETURN(error);
+}
+
 
 /*
   Drop all tables in a database.
@@ -150,7 +332,7 @@ int mysql_rm_db(THD *thd,char *db,bool if_exists, bool silent)
       my_error(ER_DB_DROP_EXISTS,MYF(0),db);
     }
     else if (!silent)
-      send_ok(&thd->net,0);
+      send_ok(thd,0);
     goto exit;
   }
   pthread_mutex_lock(&LOCK_open);
@@ -181,7 +363,7 @@ int mysql_rm_db(THD *thd,char *db,bool if_exists, bool silent)
 	thd->query = 0; // just in case
 	thd->query_length = 0;
       }
-      send_ok(&thd->net,(ulong) deleted);
+      send_ok(thd,(ulong) deleted);
     }
     error = 0;
   }
@@ -220,7 +402,8 @@ static long mysql_rm_known_files(THD *thd, MY_DIR *dirp, const char *db,
     DBUG_PRINT("info",("Examining: %s", file->name));
 
     /* Check if file is a raid directory */
-    if (isdigit(file->name[0]) && isdigit(file->name[1]) &&
+    if (my_isdigit(system_charset_info,file->name[0]) && 
+        my_isdigit(system_charset_info,file->name[1]) &&
 	!file->name[2] && !level)
     {
       char newpath[FN_REFLEN];
@@ -245,7 +428,8 @@ static long mysql_rm_known_files(THD *thd, MY_DIR *dirp, const char *db,
       continue;
     }
     strxmov(filePath,org_path,"/",file->name,NullS);
-    if (db && !my_strcasecmp(fn_ext(file->name), reg_ext))
+    if (db && !my_strcasecmp(system_charset_info, 
+                             fn_ext(file->name), reg_ext))
     {
       /* Drop the table nicely */
       *fn_ext(file->name)=0;			// Remove extension
@@ -327,28 +511,47 @@ static long mysql_rm_known_files(THD *thd, MY_DIR *dirp, const char *db,
 }
 
 
-bool mysql_change_db(THD *thd,const char *name)
+/*
+  Change default database.
+
+  SYNOPSIS
+    mysql_change_db()
+    thd		Thread handler
+    name	Databasename
+
+  DESCRIPTION
+    Becasue the database name may have been given directly from the
+    communication packet (in case of 'connect' or 'COM_INIT_DB')
+    we have to do end space removal in this function.
+
+  RETURN VALUES
+    0	ok
+    1	error
+*/
+
+bool mysql_change_db(THD *thd, const char *name)
 {
   int length, db_length;
   char *dbname=my_strdup((char*) name,MYF(MY_WME));
   char	path[FN_REFLEN];
   ulong db_access;
+  HA_CREATE_INFO create;
   DBUG_ENTER("mysql_change_db");
 
   if (!dbname || !(db_length=strip_sp(dbname)))
   {
     x_free(dbname);				/* purecov: inspected */
-    send_error(&thd->net,ER_NO_DB_ERROR);	/* purecov: inspected */
+    send_error(thd,ER_NO_DB_ERROR);	/* purecov: inspected */
     DBUG_RETURN(1);				/* purecov: inspected */
   }
   if ((db_length > NAME_LEN) || check_db_name(dbname))
   {
-    net_printf(&thd->net,ER_WRONG_DB_NAME, dbname);
+    net_printf(thd,ER_WRONG_DB_NAME, dbname);
     x_free(dbname);
     DBUG_RETURN(1);
   }
   if (lower_case_table_names)
-    casedn_str(dbname);
+    my_casedn_str(system_charset_info, dbname);
   DBUG_PRINT("info",("Use database: %s", dbname));
   if (test_all_bits(thd->master_access,DB_ACLS))
     db_access=DB_ACLS;
@@ -358,7 +561,7 @@ bool mysql_change_db(THD *thd,const char *name)
 		thd->master_access);
   if (!(db_access & DB_ACLS) && (!grant_option || check_grant_db(thd,dbname)))
   {
-    net_printf(&thd->net,ER_DBACCESS_DENIED_ERROR,
+    net_printf(thd,ER_DBACCESS_DENIED_ERROR,
 	       thd->priv_user,
 	       thd->host_or_ip,
 	       dbname);
@@ -376,16 +579,96 @@ bool mysql_change_db(THD *thd,const char *name)
     path[length-1]=0;				// remove ending '\'
   if (access(path,F_OK))
   {
-    net_printf(&thd->net,ER_BAD_DB_ERROR,dbname);
+    net_printf(thd,ER_BAD_DB_ERROR,dbname);
     my_free(dbname,MYF(0));
     DBUG_RETURN(1);
   }
-  send_ok(&thd->net);
+  send_ok(thd);
   x_free(thd->db);
-  if (lower_case_table_names)
-    casedn_str(dbname);
-  thd->db=dbname;
+  thd->db=dbname;				// THD::~THD will free this
   thd->db_length=db_length;
   thd->db_access=db_access;
+
+  strmov(path+unpack_dirname(path,path), MY_DB_OPT_FILE);
+  load_db_opt(path, &create);
+  thd->db_charset=create.table_charset;
+
+  DBUG_RETURN(0);
+}
+
+
+int mysqld_show_create_db(THD *thd, const char *dbname)
+{
+  int length;
+  char	path[FN_REFLEN], *to;
+  uint db_access;
+  bool found_libchar;
+  HA_CREATE_INFO create;
+  CONVERT *convert=thd->variables.convert_set;
+  DBUG_ENTER("mysql_show_create_db");
+  
+  if (check_db_name(dbname))
+  {
+    net_printf(thd,ER_WRONG_DB_NAME, dbname);
+    DBUG_RETURN(1);
+  }
+  
+  if (test_all_bits(thd->master_access,DB_ACLS))
+    db_access=DB_ACLS;
+  else
+    db_access= (acl_get(thd->host,thd->ip,(char*) &thd->remote.sin_addr,
+			thd->priv_user,dbname) |
+		thd->master_access);
+  if (!(db_access & DB_ACLS) && (!grant_option || check_grant_db(thd,dbname)))
+  {
+    net_printf(thd,ER_DBACCESS_DENIED_ERROR,
+	       thd->priv_user,
+	       thd->host_or_ip,
+	       dbname);
+    mysql_log.write(thd,COM_INIT_DB,ER(ER_DBACCESS_DENIED_ERROR),
+		    thd->priv_user,
+		    thd->host_or_ip,
+		    dbname);
+    DBUG_RETURN(1);
+  }
+  
+  (void) sprintf(path,"%s/%s",mysql_data_home, dbname);
+  length=unpack_dirname(path,path);		// Convert if not unix
+  found_libchar= 0;
+  if (length && path[length-1] == FN_LIBCHAR)
+  {
+    found_libchar= 1;
+    path[length-1]=0;				// remove ending '\'
+  }
+  if (access(path,F_OK))
+  {
+    net_printf(thd,ER_BAD_DB_ERROR,dbname);
+    DBUG_RETURN(1);
+  }
+  if (found_libchar)
+    path[length-1]= FN_LIBCHAR;
+  strmov(path+length, MY_DB_OPT_FILE);
+  load_db_opt(path, &create);
+  
+  List<Item> field_list;
+  field_list.push_back(new Item_empty_string("Database",NAME_LEN));
+  field_list.push_back(new Item_empty_string("Create Database",1024));
+  
+  if (send_fields(thd,field_list,1))
+    DBUG_RETURN(1);
+  
+  String *packet = &thd->packet;
+  packet->length(0);
+  net_store_data(packet, convert, dbname);
+  to= strxmov(path, "CREATE DATABASE `", dbname, "`", NullS);
+  if (create.table_charset)
+    to= strxmov(to," DEFAULT CHARACTER SET ", create.table_charset->name,
+		NullS);
+  net_store_data(packet, convert, path, (uint) (to-path));
+
+  if (my_net_write(&thd->net,(char*) packet->ptr(), packet->length()))
+    DBUG_RETURN(1);
+  
+  send_eof(thd);
   DBUG_RETURN(0);
 }
