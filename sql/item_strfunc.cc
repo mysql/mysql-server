@@ -1141,7 +1141,7 @@ String *Item_func_ltrim::val_str(String *str)
   }
   if (ptr == res->ptr())
     return res;
-  tmp_value.copy(res->ptr() + (ptr - res->ptr()), (uint32) (end - ptr));
+  tmp_value.set(*res,(uint) (ptr - res->ptr()),(uint) (end-ptr));
   return &tmp_value;
 }
 
@@ -1266,7 +1266,7 @@ String *Item_func_trim::val_str(String *str)
   }
   if (ptr == res->ptr() && end == ptr+res->length())
     return res;
-  tmp_value.copy(res->ptr() + (ptr - res->ptr()), (uint32) (end - ptr));
+  tmp_value.set(*res,(uint) (ptr - res->ptr()),(uint) (end-ptr));
   return &tmp_value;
 }
 
@@ -2185,16 +2185,16 @@ String *Item_func_quote::val_str(String *str)
 
   /*
     We have to use realloc() instead of alloc() as we want to keep the
-    old result in str
+    old result in arg
   */
-  if (str->realloc(new_length))
+  if (arg->realloc(new_length))
     goto null;
 
   /*
     As 'arg' and 'str' may be the same string, we must replace characters
     from the end to the beginning
   */
-  to= (char*) str->ptr() + new_length - 1;
+  to= (char*) arg->ptr() + new_length - 1;
   *to--= '\'';
   for (start= (char*) arg->ptr(),end= start + arg_length; end-- != start; to--)
   {
@@ -2222,9 +2222,9 @@ String *Item_func_quote::val_str(String *str)
     }
   }
   *to= '\'';
-  str->length(new_length);
+  arg->length(new_length);
   null_value= 0;
-  return str;
+  return arg;
 
 null:
   null_value= 1;
