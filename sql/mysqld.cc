@@ -1190,7 +1190,7 @@ Some pointers may be invalid and cause the dump to abort...\n");
     fprintf(stderr, "\n
 Successfully dumped variables, if you ran with --log, take a look at the\n\
 details of what thread %ld did to cause the crash.  In some cases of really\n\
-bad corruption, the above values may be invalid\n\n",
+bad corruption, the values shown above may be invalid\n\n",
 	  thd->thread_id);
   }
   fprintf(stderr, "\
@@ -3011,6 +3011,8 @@ static void usage(void)
 			Start without grant tables. This gives all users\n\
 			FULL ACCESS to all tables!\n\
   --safe-mode		Skip some optimize stages (for testing)\n\
+  --safe-show-database  Don't show databases for which the user has no\n\
+                        privileges\n\
   --skip-concurrent-insert\n\
 		        Don't use concurrent insert with MyISAM\n\
   --skip-delay-key-write\n\

@@ -46425,6 +46425,9 @@ not yet 100% confident in this code.
 Added option @code{--warnings} to @code{mysqld}. Now @code{mysqld}
 only prints the error @code{Aborted connection} if this option is used.
 @item
+Fixed problem with @code{SHOW CREATE TABLE} when you didn't have a
+@code{PRIMARY KEY}.
+@item
 Fixed properly the rename of @code{innodb_unix_file_flush_method} to
 @code{innodb_flush_method}.
 @item
