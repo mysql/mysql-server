@@ -917,6 +917,7 @@ public:
   void sort_string(char *buff,uint length);
   void sql_type(String &str) const;
   char *pack(char *to, const char *from, uint max_length=~(uint) 0);
+  char *pack_key(char *to, const char *from, uint max_length);
   const char *unpack(char* to, const char *from);
   int pack_cmp(const char *a,const char *b,uint key_length);
   int pack_cmp(const char *b,uint key_length);
@@ -965,6 +966,7 @@ public:
   void set_key_image(char *buff,uint length, CHARSET_INFO *cs);
   void sql_type(String &str) const;
   char *pack(char *to, const char *from, uint max_length=~(uint) 0);
+  char *pack_key(char *to, const char *from, uint max_length);
   const char *unpack(char* to, const char *from);
   int pack_cmp(const char *a, const char *b, uint key_length);
   int pack_cmp(const char *b, uint key_length);
