@@ -328,6 +328,7 @@ void THD::change_user(void)
   cleanup();
   cleanup_done= 0;
   init();
+  stmt_map.reset();
   hash_init(&user_vars, &my_charset_bin, USER_VARS_HASH_SIZE, 0, 0,
 	    (hash_get_key) get_var_key,
 	    (hash_free_key) free_user_var, 0);

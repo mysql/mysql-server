@@ -112,7 +112,7 @@ public:
   int external_lock(THD *thd, int lock_type);
   ha_rows records_in_range(uint inx, key_range *min_key, key_range *max_key);
   int create(const char *name, TABLE *form, HA_CREATE_INFO *create_info);
-
+  int optimize(THD* thd, HA_CHECK_OPT* check_opt);
   THR_LOCK_DATA **store_lock(THD *thd, THR_LOCK_DATA **to,
                              enum thr_lock_type lock_type);
 };
