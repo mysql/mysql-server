@@ -64,6 +64,9 @@
 #define SHOW_EXTRA  5
 #define QUOTE_CHAR	'`'
 
+/* Size of buffer for dump's select query */
+#define QUERY_LENGTH 1536
+
 static char *add_load_option(char *ptr, const char *object,
 			     const char *statement);
 
@@ -909,7 +912,7 @@ static char *field_escape(char *to,const char *from,uint length)
 */
 static void dumpTable(uint numFields, char *table)
 {
-  char query[1024], *end, buff[256],table_buff[NAME_LEN+3];
+  char query[QUERY_LENGTH], *end, buff[256],table_buff[NAME_LEN+3];
   MYSQL_RES	*res;
   MYSQL_FIELD  *field;
   MYSQL_ROW    row;
@@ -926,7 +929,8 @@ static void dumpTable(uint numFields, char *table)
     my_delete(filename, MYF(0)); /* 'INTO OUTFILE' doesn't work, if
 				    filename wasn't deleted */
     to_unix_path(filename);
-    sprintf(query, "SELECT * INTO OUTFILE '%s'", filename);
+    sprintf(query, "SELECT /*!40001 SQL_NO_CACHE */ * INTO OUTFILE '%s'",
+	    filename);
     end= strend(query);
     if (replace)
       end= strmov(end, " REPLACE");
@@ -957,7 +961,8 @@ static void dumpTable(uint numFields, char *table)
     if (!opt_xml)
       fprintf(md_result_file,"\n--\n-- Dumping data for table '%s'\n--\n",
 	      table);
-    sprintf(query, "SELECT * FROM %s", quote_name(table,table_buff));
+    sprintf(query, "SELECT /*!40001 SQL_NO_CACHE */ * FROM %s",
+	    quote_name(table,table_buff));
     if (where)
     {
       if (!opt_xml)
@@ -1420,8 +1425,6 @@ int main(int argc, char **argv)
       return(first_error);
     }
   }
-  if(mysql_query(sock, "SET SQL_QUERY_CACHE_TYPE=OFF") && verbose)
-    fprintf(stderr, "-- Can't disable query cache (not supported).\n");
   if (opt_alldbs)
     dump_all_databases();
   /* Only one database and selected table(s) */
