@@ -126,7 +126,6 @@ Backup::Backup(const Configuration & conf) :
   
   addRecSignal(GSN_SCAN_HBREP, &Backup::execSCAN_HBREP);
   addRecSignal(GSN_TRANSID_AI, &Backup::execTRANSID_AI);
-  addRecSignal(GSN_KEYINFO20, &Backup::execKEYINFO20);
   addRecSignal(GSN_SCAN_FRAGREF, &Backup::execSCAN_FRAGREF);
   addRecSignal(GSN_SCAN_FRAGCONF, &Backup::execSCAN_FRAGCONF);
 
