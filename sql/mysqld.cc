@@ -2105,7 +2105,7 @@ int main(int argc, char **argv)
     size_t stack_size= 0;
     pthread_attr_getstacksize(&connection_attrib, &stack_size);
     /* We must check if stack_size = 0 as Solaris 2.9 can return 0 here */
-    if (stack_size && stack_size != thread_stack)
+    if (stack_size && stack_size < thread_stack)
     {
       if (global_system_variables.log_warnings)
 	sql_print_error("Warning: Asked for %ld thread stack, but got %ld",
