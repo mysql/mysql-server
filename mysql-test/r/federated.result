@@ -5,23 +5,40 @@ reset slave;
 drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
 start slave;
 stop slave;
-drop database if exists federated;
-create database federated;
-CREATE TABLE federated.t1 ( `id` int(20) NOT NULL auto_increment, `name` varchar(32) NOT NULL default '', `other` int(20) NOT NULL default '0', created datetime default '2004-04-04 04:04:04', PRIMARY KEY  (`id`), KEY `name` (`name`), KEY `other_key` (`other`)) DEFAULT CHARSET=latin1;
-drop database if exists federated;
-create database federated;
-CREATE TABLE federated.t1 ( `id` int(20) NOT NULL auto_increment, `name` varchar(32) NOT NULL default '', `other` int(20) NOT NULL default '0', created datetime default '2004-04-04 04:04:04', PRIMARY KEY  (`id`), KEY `name` (`name`), KEY `other_key` (`other`)) ENGINE="FEDERATED" DEFAULT CHARSET=latin1 COMMENT='mysql://root@127.0.0.1:9308/federated/t1';
-insert into federated.t1 (name, other) values ('First Name', 11111);
-insert into federated.t1 (name, other) values ('Second Name', 22222);
-insert into federated.t1 (name, other) values ('Third Name', 33333);
-insert into federated.t1 (name, other) values ('Fourth Name', 44444);
-insert into federated.t1 (name, other) values ('Fifth Name', 55555);
-insert into federated.t1 (name, other) values ('Sixth Name', 66666);
-insert into federated.t1 (name, other) values ('Seventh Name', 77777);
-insert into federated.t1 (name, other) values ('Eigth Name', 88888);
-insert into federated.t1 (name, other) values ('Ninth Name', 99999);
-insert into federated.t1 (name, other) values ('Tenth Name', 101010);
-select * from federated.t1;
+DROP DATABASE IF EXISTS federated;
+CREATE DATABASE federated;
+CREATE TABLE federated.t1 (
+`id` int(20) NOT NULL auto_increment,
+`name` varchar(32) NOT NULL default '',
+`other` int(20) NOT NULL default '0',
+`created` datetime default '2004-04-04 04:04:04',
+PRIMARY KEY  (`id`),
+KEY `name` (`name`),
+KEY `other_key` (`other`))
+DEFAULT CHARSET=latin1;
+DROP DATABASE IF EXISTS federated;
+CREATE DATABASE federated;
+CREATE TABLE federated.t1 (
+`id` int(20) NOT NULL auto_increment,
+`name` varchar(32) NOT NULL default '',
+`other` int(20) NOT NULL default '0',
+`created` datetime default '2004-04-04 04:04:04',
+PRIMARY KEY  (`id`),
+KEY `name` (`name`),
+KEY `other_key` (`other`))
+ENGINE="FEDERATED" DEFAULT CHARSET=latin1
+COMMENT='mysql://root@127.0.0.1:SLAVE_PORT/federated/t1';
+INSERT INTO federated.t1 (name, other) VALUES ('First Name', 11111);
+INSERT INTO federated.t1 (name, other) VALUES ('Second Name', 22222);
+INSERT INTO federated.t1 (name, other) VALUES ('Third Name', 33333);
+INSERT INTO federated.t1 (name, other) VALUES ('Fourth Name', 44444);
+INSERT INTO federated.t1 (name, other) VALUES ('Fifth Name', 55555);
+INSERT INTO federated.t1 (name, other) VALUES ('Sixth Name', 66666);
+INSERT INTO federated.t1 (name, other) VALUES ('Seventh Name', 77777);
+INSERT INTO federated.t1 (name, other) VALUES ('Eigth Name', 88888);
+INSERT INTO federated.t1 (name, other) VALUES ('Ninth Name', 99999);
+INSERT INTO federated.t1 (name, other) VALUES ('Tenth Name', 101010);
+SELECT * FROM federated.t1;
 id	name	other	created
 1	First Name	11111	2004-04-04 04:04:04
 2	Second Name	22222	2004-04-04 04:04:04
@@ -33,19 +50,19 @@ id	name	other	created
 8	Eigth Name	88888	2004-04-04 04:04:04
 9	Ninth Name	99999	2004-04-04 04:04:04
 10	Tenth Name	101010	2004-04-04 04:04:04
-select * from federated.t1 where id = 5;
+SELECT * FROM federated.t1 WHERE id = 5;
 id	name	other	created
 5	Fifth Name	55555	2004-04-04 04:04:04
-select * from federated.t1 where name = 'Sixth Name';
+SELECT * FROM federated.t1 WHERE name = 'Sixth Name';
 id	name	other	created
 6	Sixth Name	66666	2004-04-04 04:04:04
-select * from federated.t1 where id = 6 and name = 'Sixth Name';
+SELECT * FROM federated.t1 WHERE id = 6 and name = 'Sixth Name';
 id	name	other	created
 6	Sixth Name	66666	2004-04-04 04:04:04
-select * from federated.t1 where other = 44444;
+SELECT * FROM federated.t1 WHERE other = 44444;
 id	name	other	created
 4	Fourth Name	44444	2004-04-04 04:04:04
-select * from federated.t1 where name like '%th%';
+SELECT * FROM federated.t1 WHERE name like '%th%';
 id	name	other	created
 3	Third Name	33333	2004-04-04 04:04:04
 4	Fourth Name	44444	2004-04-04 04:04:04
@@ -55,15 +72,15 @@ id	name	other	created
 8	Eigth Name	88888	2004-04-04 04:04:04
 9	Ninth Name	99999	2004-04-04 04:04:04
 10	Tenth Name	101010	2004-04-04 04:04:04
-update federated.t1 set name = '3rd name' where id = 3;
-select * from federated.t1 where name = '3rd name';
+UPDATE federated.t1 SET name = '3rd name' WHERE id = 3;
+SELECT * FROM federated.t1 WHERE name = '3rd name';
 id	name	other	created
 3	3rd name	33333	2004-04-04 04:04:04
-update federated.t1 set name = 'Third name' where name = '3rd name';
-select * from federated.t1 where name = 'Third name';
+UPDATE federated.t1 SET name = 'Third name' WHERE name = '3rd name';
+SELECT * FROM federated.t1 WHERE name = 'Third name';
 id	name	other	created
 3	Third name	33333	2004-04-04 04:04:04
-select * from federated.t1 order by id DESC;
+SELECT * FROM federated.t1 ORDER BY id DESC;
 id	name	other	created
 10	Tenth Name	101010	2004-04-04 04:04:04
 9	Ninth Name	99999	2004-04-04 04:04:04
@@ -75,7 +92,7 @@ id	name	other	created
 3	Third name	33333	2004-04-04 04:04:04
 2	Second Name	22222	2004-04-04 04:04:04
 1	First Name	11111	2004-04-04 04:04:04
-select * from federated.t1 order by name;
+SELECT * FROM federated.t1 ORDER BY name;
 id	name	other	created
 8	Eigth Name	88888	2004-04-04 04:04:04
 5	Fifth Name	55555	2004-04-04 04:04:04
@@ -87,7 +104,7 @@ id	name	other	created
 6	Sixth Name	66666	2004-04-04 04:04:04
 10	Tenth Name	101010	2004-04-04 04:04:04
 3	Third name	33333	2004-04-04 04:04:04
-select * from federated.t1 order by name DESC;
+SELECT * FROM federated.t1 ORDER BY name DESC;
 id	name	other	created
 3	Third name	33333	2004-04-04 04:04:04
 10	Tenth Name	101010	2004-04-04 04:04:04
@@ -99,7 +116,7 @@ id	name	other	created
 1	First Name	11111	2004-04-04 04:04:04
 5	Fifth Name	55555	2004-04-04 04:04:04
 8	Eigth Name	88888	2004-04-04 04:04:04
-select * from federated.t1 order by name ASC;
+SELECT * FROM federated.t1 ORDER BY name ASC;
 id	name	other	created
 8	Eigth Name	88888	2004-04-04 04:04:04
 5	Fifth Name	55555	2004-04-04 04:04:04
@@ -111,7 +128,7 @@ id	name	other	created
 6	Sixth Name	66666	2004-04-04 04:04:04
 10	Tenth Name	101010	2004-04-04 04:04:04
 3	Third name	33333	2004-04-04 04:04:04
-select * from federated.t1 group by other;
+SELECT * FROM federated.t1 GROUP BY other;
 id	name	other	created
 1	First Name	11111	2004-04-04 04:04:04
 2	Second Name	22222	2004-04-04 04:04:04
@@ -123,52 +140,65 @@ id	name	other	created
 8	Eigth Name	88888	2004-04-04 04:04:04
 9	Ninth Name	99999	2004-04-04 04:04:04
 10	Tenth Name	101010	2004-04-04 04:04:04
-delete from federated.t1 where id = 5;
-select * from federated.t1 where id = 5;
+DELETE FROM federated.t1 WHERE id = 5;
+SELECT * FROM federated.t1 WHERE id = 5;
 id	name	other	created
-delete from federated.t1;
-select * from federated.t1 where id = 5;
+DELETE FROM federated.t1;
+SELECT * FROM federated.t1 WHERE id = 5;
 id	name	other	created
-drop table if exists federated.t1;
-CREATE TABLE federated.t1 ( `id` int(20) NOT NULL auto_increment, `name` varchar(32), `other` varchar(20), PRIMARY KEY  (`id`) );
-drop table if exists federated.t1;
-CREATE TABLE federated.t1 ( `id` int(20) NOT NULL auto_increment, `name` varchar(32), `other` varchar(20), PRIMARY KEY  (`id`) ) ENGINE="FEDERATED" DEFAULT CHARSET=latin1 COMMENT='mysql://root@127.0.0.1:9308/federated/t1';
-insert into federated.t1 (name, other) values ('First Name', 11111);
-insert into federated.t1 (name, other) values ('Second Name', NULL);
-insert into federated.t1 (name, other) values ('Third Name', 33333);
-insert into federated.t1 (name, other) values (NULL, NULL);
-insert into federated.t1 (name, other) values ('Fifth Name', 55555);
-insert into federated.t1 (name, other) values ('Sixth Name', 66666);
-insert into federated.t1 (name) values ('Seventh Name');
-insert into federated.t1 (name, other) values ('Eigth Name', 88888);
-insert into federated.t1 (name, other) values ('Ninth Name', 99999);
-insert into federated.t1 (other) values ('fee fie foe fum');
-select * from federated.t1 where other IS NULL;
+DROP TABLE IF EXISTS federated.t1;
+CREATE TABLE federated.t1 ( 
+`id` int(20) NOT NULL auto_increment,
+`name` varchar(32),
+`other` varchar(20),
+PRIMARY KEY  (`id`) );
+DROP TABLE IF EXISTS federated.t1;
+CREATE TABLE federated.t1 (
+`id` int(20) NOT NULL auto_increment,
+`name` varchar(32), 
+`other` varchar(20),
+PRIMARY KEY  (`id`) )
+ENGINE="FEDERATED"
+  DEFAULT CHARSET=latin1
+COMMENT='mysql://root@127.0.0.1:SLAVE_PORT/federated/t1';
+INSERT INTO federated.t1 (name, other) VALUES ('First Name', 11111);
+INSERT INTO federated.t1 (name, other) VALUES ('Second Name', NULL);
+INSERT INTO federated.t1 (name, other) VALUES ('Third Name', 33333);
+INSERT INTO federated.t1 (name, other) VALUES (NULL, NULL);
+INSERT INTO federated.t1 (name, other) VALUES ('Fifth Name', 55555);
+INSERT INTO federated.t1 (name, other) VALUES ('Sixth Name', 66666);
+INSERT INTO federated.t1 (name) VALUES ('Seventh Name');
+INSERT INTO federated.t1 (name, other) VALUES ('Eigth Name', 88888);
+INSERT INTO federated.t1 (name, other) VALUES ('Ninth Name', 99999);
+INSERT INTO federated.t1 (other) VALUES ('fee fie foe fum');
+SELECT * FROM federated.t1 WHERE other IS NULL;
 id	name	other
 2	Second Name	NULL
 4	NULL	NULL
 7	Seventh Name	NULL
-select * from federated.t1 where name IS NULL;
+SELECT * FROM federated.t1 WHERE name IS NULL;
 id	name	other
 4	NULL	NULL
 10	NULL	fee fie foe fum
-select * from federated.t1 where name IS NULL and other IS NULL;
+SELECT * FROM federated.t1 WHERE name IS NULL and other IS NULL;
 id	name	other
 4	NULL	NULL
-select * from federated.t1 where name IS NULL or other IS NULL;
+SELECT * FROM federated.t1 WHERE name IS NULL or other IS NULL;
 id	name	other
 2	Second Name	NULL
 4	NULL	NULL
 7	Seventh Name	NULL
 10	NULL	fee fie foe fum
-update federated.t1 set name = 'Fourth Name', other = 'four four four' where name IS NULL and other IS NULL;
-update federated.t1 set other = 'two two two two' where name = 'Second Name';
-update federated.t1 set other = 'seven seven' where name like 'Sec%';
-update federated.t1 set other = 'seven seven' where name = 'Seventh Name';
-update federated.t1 set name = 'Tenth Name' where other like 'fee fie%';
-select * from federated.t1 where name IS NULL or other IS NULL ;
+UPDATE federated.t1
+SET name = 'Fourth Name', other = 'four four four'
+WHERE name IS NULL AND other IS NULL;
+UPDATE federated.t1 SET other = 'two two two two' WHERE name = 'Second Name';
+UPDATE federated.t1 SET other = 'seven seven' WHERE name like 'Sec%';
+UPDATE federated.t1 SET other = 'seven seven' WHERE name = 'Seventh Name';
+UPDATE federated.t1 SET name = 'Tenth Name' WHERE other like 'fee fie%';
+SELECT * FROM federated.t1 WHERE name IS NULL OR other IS NULL ;
 id	name	other
-select * from federated.t1;
+SELECT * FROM federated.t1;
 id	name	other
 1	First Name	11111
 2	Second Name	seven seven
@@ -180,149 +210,206 @@ id	name	other
 8	Eigth Name	88888
 9	Ninth Name	99999
 10	Tenth Name	fee fie foe fum
-drop table if exists federated.t1;
-CREATE TABLE federated.t1 ( `id` int(20) NOT NULL auto_increment, `name`
-varchar(32) NOT NULL DEFAULT '', `other` varchar(20) NOT NULL DEFAULT '', PRIMARY KEY  (`id`), key nameoth (name, other) );
-drop table if exists federated.t1;
-CREATE TABLE federated.t1 ( `id` int(20) NOT NULL auto_increment, `name` varchar(32) NOT NULL DEFAULT '', `other` varchar(20) NOT NULL DEFAULT '', PRIMARY KEY  (`id`), key nameoth (name, other)) ENGINE="FEDERATED" DEFAULT CHARSET=latin1 COMMENT='mysql://root@127.0.0.1:9308/federated/t1';
-insert into federated.t1 (name, other) values ('First Name', '1111');
-insert into federated.t1 (name, other) values ('Second Name', '2222');
-insert into federated.t1 (name, other) values ('Third Name', '3333');
-select * from federated.t1 where name = 'Second Name';
+DROP TABLE IF EXISTS federated.t1;
+CREATE TABLE federated.t1 (
+`id` int(20) NOT NULL auto_increment,
+`name` varchar(32) NOT NULL DEFAULT '',
+`other` varchar(20) NOT NULL DEFAULT '',
+PRIMARY KEY  (`id`),
+KEY nameoth (name, other) );
+DROP TABLE IF EXISTS federated.t1;
+CREATE TABLE federated.t1 (
+`id` int(20) NOT NULL auto_increment,
+`name` varchar(32) NOT NULL DEFAULT '',
+`other` varchar(20) NOT NULL DEFAULT '',
+PRIMARY KEY  (`id`),
+KEY nameoth (name, other))
+ENGINE="FEDERATED" DEFAULT
+CHARSET=latin1
+COMMENT='mysql://root@127.0.0.1:SLAVE_PORT/federated/t1';
+INSERT INTO federated.t1 (name, other) VALUES ('First Name', '1111');
+INSERT INTO federated.t1 (name, other) VALUES ('Second Name', '2222');
+INSERT INTO federated.t1 (name, other) VALUES ('Third Name', '3333');
+SELECT * FROM federated.t1 WHERE name = 'Second Name';
 id	name	other
 2	Second Name	2222
-select * from federated.t1 where other = '2222';
+SELECT * FROM federated.t1 WHERE other = '2222';
 id	name	other
 2	Second Name	2222
-select * from federated.t1 where name = 'Third Name';
+SELECT * FROM federated.t1 WHERE name = 'Third Name';
 id	name	other
 3	Third Name	3333
-select * from federated.t1 where name = 'Third Name' and other = '3333';
+SELECT * FROM federated.t1 WHERE name = 'Third Name' AND other = '3333';
 id	name	other
 3	Third Name	3333
-drop table if exists federated.t1;
-CREATE TABLE federated.t1 
-(id int NOT NULL auto_increment,
-name char(32) NOT NULL DEFAULT '',
-bincol binary(4) NOT NULL,
-floatval decimal(5,2) NOT NULL DEFAULT 0.0,
-other int NOT NULL DEFAULT 0,
-primary key(id),
-key nameoth(name, other),
-key bincol(bincol),
-key floatval(floatval));
-drop table if exists federated.t1;
-CREATE TABLE federated.t1 
-(id int NOT NULL auto_increment,
-name char(32) NOT NULL DEFAULT '',
-bincol binary(4) NOT NULL,
-floatval decimal(5,2) NOT NULL DEFAULT 0.0,
-other int NOT NULL DEFAULT 0,
-primary key(id),
-key nameoth(name,other),
-key bincol(bincol),
-key floatval(floatval))
-ENGINE="FEDERATED" DEFAULT CHARSET=latin1 COMMENT='mysql://root@127.0.0.1:9308/federated/t1';
-insert into federated.t1 (name, bincol, floatval, other) values ('first', 0x65, 11.11, 1111);
-insert into federated.t1 (name, bincol, floatval, other) values ('second', 0x66, 22.22, 2222);
-insert into federated.t1 (name, bincol, floatval, other) values ('third', 'g', 22.22, 2222);
-select * from federated.t1;
+DROP TABLE IF EXISTS federated.t1;
+CREATE TABLE federated.t1 (
+`id` int NOT NULL auto_increment,
+`name` char(32) NOT NULL DEFAULT '',
+`bincol` binary(4) NOT NULL,
+`floatval` decimal(5,2) NOT NULL DEFAULT 0.0,
+`other` int NOT NULL DEFAULT 0,
+PRIMARY KEY (id),
+KEY nameoth(name, other),
+KEY bincol(bincol),
+KEY floatval(floatval));
+DROP TABLE IF EXISTS federated.t1;
+CREATE TABLE federated.t1 (
+`id` int NOT NULL auto_increment,
+`name` char(32) NOT NULL DEFAULT '',
+`bincol` binary(4) NOT NULL,
+`floatval` decimal(5,2) NOT NULL DEFAULT 0.0,
+`other` int NOT NULL DEFAULT 0,
+PRIMARY KEY (id),
+KEY nameoth(name,other),
+KEY bincol(bincol),
+KEY floatval(floatval))
+ENGINE="FEDERATED"
+  DEFAULT CHARSET=latin1
+COMMENT='mysql://root@127.0.0.1:SLAVE_PORT/federated/t1';
+INSERT INTO federated.t1 (name, bincol, floatval, other) 
+VALUES ('first', 0x65, 11.11, 1111);
+INSERT INTO federated.t1 (name, bincol, floatval, other)
+VALUES ('second', 0x66, 22.22, 2222);
+INSERT INTO federated.t1 (name, bincol, floatval, other)
+VALUES ('third', 'g', 22.22, 2222);
+SELECT * FROM federated.t1;
 id	name	bincol	floatval	other
 1	first	e	11.11	1111
 2	second	f	22.22	2222
 3	third	g	22.22	2222
-select * from federated.t1 where name = 'second';
+SELECT * FROM federated.t1 WHERE name = 'second';
 id	name	bincol	floatval	other
 2	second	f	22.22	2222
-select * from federated.t1 where bincol= 'f';
+SELECT * FROM federated.t1 WHERE bincol= 'f';
 id	name	bincol	floatval	other
 2	second	f	22.22	2222
-select * from federated.t1 where bincol= 0x66;
+SELECT * FROM federated.t1 WHERE bincol= 0x66;
 id	name	bincol	floatval	other
 2	second	f	22.22	2222
-select * from federated.t1 where bincol= 0x67;
+SELECT * FROM federated.t1 WHERE bincol= 0x67;
 id	name	bincol	floatval	other
 3	third	g	22.22	2222
-select * from federated.t1 where bincol= 'g';
+SELECT * FROM federated.t1 WHERE bincol= 'g';
 id	name	bincol	floatval	other
 3	third	g	22.22	2222
-select * from federated.t1 where floatval=11.11;
+SELECT * FROM federated.t1 WHERE floatval=11.11;
 id	name	bincol	floatval	other
 1	first	e	11.11	1111
-select * from federated.t1 where name='third';
+SELECT * FROM federated.t1 WHERE name='third';
 id	name	bincol	floatval	other
 3	third	g	22.22	2222
-select * from federated.t1 where other=2222;
+SELECT * FROM federated.t1 WHERE other=2222;
 id	name	bincol	floatval	other
 2	second	f	22.22	2222
 3	third	g	22.22	2222
-select * from federated.t1 where name='third' and other=2222;
+SELECT * FROM federated.t1 WHERE name='third' and other=2222;
 id	name	bincol	floatval	other
 3	third	g	22.22	2222
-drop table if exists federated.t1;
-CREATE TABLE federated.t1 (id int, name varchar(32), floatval float, other int) DEFAULT CHARSET=latin1;
-drop table if exists federated.t1;
-CREATE TABLE federated.t1 (id int, name varchar(32), floatval float, other int) ENGINE="FEDERATED" DEFAULT CHARSET=latin1 COMMENT='mysql://root@127.0.0.1:9308/federated/t1';
-insert into federated.t1 values (NULL, NULL, NULL, NULL);
-insert into federated.t1 values ();
-insert into federated.t1 (id) values (1);
-insert into federated.t1 (name, floatval, other) values ('foo', 33.33333332, NULL);
-insert into federated.t1 (name, floatval, other) values (0, 00.3333, NULL);
-select * from federated.t1;
+DROP TABLE IF EXISTS federated.t1;
+CREATE TABLE federated.t1 (
+`id` int,
+`name` varchar(32),
+`floatval` float,
+`other` int)
+DEFAULT CHARSET=latin1;
+DROP TABLE IF EXISTS federated.t1;
+CREATE TABLE federated.t1 (
+`id` int,
+`name` varchar(32),
+`floatval` float,
+`other` int)
+ENGINE="FEDERATED"
+DEFAULT CHARSET=latin1
+COMMENT='mysql://root@127.0.0.1:SLAVE_PORT/federated/t1';
+INSERT INTO federated.t1 values (NULL, NULL, NULL, NULL);
+INSERT INTO federated.t1 values ();
+INSERT INTO federated.t1 (id) VALUES (1);
+INSERT INTO federated.t1 (name, floatval, other)
+VALUES ('foo', 33.33333332, NULL);
+INSERT INTO federated.t1 (name, floatval, other)
+VALUES (0, 00.3333, NULL);
+SELECT * FROM federated.t1;
 id	name	floatval	other
 NULL	NULL	NULL	NULL
 NULL	NULL	NULL	NULL
 1	NULL	NULL	NULL
 NULL	foo	33.3333	NULL
 NULL	0	0.3333	NULL
-select count(*) from federated.t1 where id IS NULL and name IS NULL and floatval IS NULL and other IS NULL;
+SELECT count(*) FROM federated.t1 
+WHERE id IS NULL 
+AND name IS NULL 
+AND floatval IS NULL
+AND other IS NULL;
 count(*)
 2
-drop table if exists federated.t1;
-CREATE TABLE federated.t1 ( blurb_id int NOT NULL DEFAULT 0, blurb text default '', primary key(blurb_id)) DEFAULT CHARSET=latin1;
-drop table if exists federated.t1;
-CREATE TABLE federated.t1 ( blurb_id int NOT NULL DEFAULT 0, blurb text default '', primary key(blurb_id)) ENGINE="FEDERATED" DEFAULT CHARSET=latin1 COMMENT='mysql://root@127.0.0.1:9308/federated/t1';
+DROP TABLE IF EXISTS federated.t1;
+CREATE TABLE federated.t1 (
+`blurb_id` int NOT NULL DEFAULT 0,
+`blurb` text default '',
+PRIMARY KEY (blurb_id))
+DEFAULT CHARSET=latin1;
+DROP TABLE IF EXISTS federated.t1;
+CREATE TABLE federated.t1 (
+`blurb_id` int NOT NULL DEFAULT 0,
+`blurb` text default '',
+PRIMARY KEY (blurb_id))
+ENGINE="FEDERATED"
+  DEFAULT CHARSET=latin1
+COMMENT='mysql://root@127.0.0.1:SLAVE_PORT/federated/t1';
 INSERT INTO federated.t1 VALUES (1, " MySQL supports a number of column types in several categories: numeric types, date and time types, and string (character) types.  This chapter first gives an overview of these column types, and then provides a more detailed description of the properties of the types in each category, and a summary of the column type storage requirements.  The overview is intentionally brief.  The more detailed descriptions should be consulted for additional information about particular column types, such as the allowable formats in which you can specify values.");
 INSERT INTO federated.t1 VALUES (2, "All arithmetic is done using signed BIGINT or DOUBLE values, so you should not use unsigned big integers larger than 9223372036854775807 (63 bits) except with bit functions! If you do that, some of the last digits in the result may be wrong because of rounding errors when converting a BIGINT value to a DOUBLE.");
 INSERT INTO federated.t1 VALUES (3, " A floating-point number.  p represents the precision. It can be from 0 to 24 for a single-precision floating-point number and from 25 to 53 for a double-precision floating-point number. These types are like the FLOAT and DOUBLE types described immediately following.  FLOAT(p) has the same range as the corresponding FLOAT and DOUBLE types, but the display size and number of decimals are undefined.  ");
 INSERT INTO federated.t1 VALUES(4, "Die Übersetzung einer so umfangreichen technischen Dokumentation wie des MySQL-Referenzhandbuchs ist schon eine besondere Herausforderung.  Zumindest für jemanden, der seine Zielsprache ernst nimmt:");
-select * from federated.t1;
+SELECT * FROM federated.t1;
 blurb_id	blurb
 1	 MySQL supports a number of column types in several categories: numeric types, date and time types, and string (character) types.  This chapter first gives an overview of these column types, and then provides a more detailed description of the properties of the types in each category, and a summary of the column type storage requirements.  The overview is intentionally brief.  The more detailed descriptions should be consulted for additional information about particular column types, such as the allowable formats in which you can specify values.
 2	All arithmetic is done using signed BIGINT or DOUBLE values, so you should not use unsigned big integers larger than 9223372036854775807 (63 bits) except with bit functions! If you do that, some of the last digits in the result may be wrong because of rounding errors when converting a BIGINT value to a DOUBLE.
 3	 A floating-point number.  p represents the precision. It can be from 0 to 24 for a single-precision floating-point number and from 25 to 53 for a double-precision floating-point number. These types are like the FLOAT and DOUBLE types described immediately following.  FLOAT(p) has the same range as the corresponding FLOAT and DOUBLE types, but the display size and number of decimals are undefined.  
 4	Die Übersetzung einer so umfangreichen technischen Dokumentation wie des MySQL-Referenzhandbuchs ist schon eine besondere Herausforderung.  Zumindest für jemanden, der seine Zielsprache ernst nimmt:
-drop table if exists federated.t1;
-create table federated.t1 (a int not null, b int not null, c int not null, primary key (a),key(b));
-drop table if exists federated.t1;
-create table federated.t1 (a int not null, b int not null, c int not null, primary key (a),key(b)) ENGINE="FEDERATED" DEFAULT CHARSET=latin1 COMMENT='mysql://root@127.0.0.1:9308/federated/t1';
-insert into federated.t1 values (3,3,3),(1,1,1),(2,2,2),(4,4,4);
-explain select * from federated.t1 order by a;
+DROP TABLE IF EXISTS federated.t1;
+CREATE TABLE federated.t1 (
+`a` int NOT NULL,
+`b` int NOT NULL,
+`c` int NOT NULL,
+PRIMARY KEY (a),key(b));
+DROP TABLE IF EXISTS federated.t1;
+CREATE TABLE federated.t1 (
+`a` int NOT NULL,
+`b` int NOT NULL,
+`c` int NOT NULL,
+PRIMARY KEY (a),
+KEY (b))
+ENGINE="FEDERATED"
+  DEFAULT CHARSET=latin1
+COMMENT='mysql://root@127.0.0.1:SLAVE_PORT/federated/t1';
+INSERT INTO federated.t1 VALUES (3,3,3),(1,1,1),(2,2,2),(4,4,4);
+EXPLAIN SELECT * FROM federated.t1 ORDER BY a;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	10000	Using filesort
-explain select * from federated.t1 order by b;
+EXPLAIN SELECT * FROM federated.t1 ORDER BY b;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	10000	Using filesort
-explain select * from federated.t1 order by c;
+EXPLAIN SELECT * FROM federated.t1 ORDER BY c;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	10000	Using filesort
-explain select a from federated.t1 order by a;
+EXPLAIN SELECT a FROM federated.t1 ORDER BY a;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	10000	Using filesort
-explain select b from federated.t1 order by b;
+EXPLAIN SELECT b FROM federated.t1 ORDER BY b;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	10000	Using filesort
-explain select a,b from federated.t1 order by b;
+EXPLAIN SELECT a,b FROM federated.t1 ORDER BY b;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	10000	Using filesort
-explain select a,b from federated.t1;
+EXPLAIN SELECT a,b FROM federated.t1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	10000	
-explain select a,b,c from federated.t1;
+EXPLAIN SELECT a,b,c FROM federated.t1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	10000	
-drop table if exists federated.t1;
-create table federated.t1 (i1 int, i2 int, i3 int, i4 int, i5 int, i6 int, i7 int, i8
+DROP TABLE IF EXISTS federated.t1;
+CREATE TABLE federated.t1 (i1 int, i2 int, i3 int, i4 int, i5 int, i6 int, i7 int, i8
 int, i9 int, i10 int, i11 int, i12 int, i13 int, i14 int, i15 int, i16 int, i17
 int, i18 int, i19 int, i20 int, i21 int, i22 int, i23 int, i24 int, i25 int,
 i26 int, i27 int, i28 int, i29 int, i30 int, i31 int, i32 int, i33 int, i34
@@ -447,10 +534,11 @@ int, i975 int, i976 int, i977 int, i978 int, i979 int, i980 int, i981 int, i982
 int, i983 int, i984 int, i985 int, i986 int, i987 int, i988 int, i989 int, i990
 int, i991 int, i992 int, i993 int, i994 int, i995 int, i996 int, i997 int, i998
 int, i999 int, i1000 int, b blob) row_format=dynamic;
-drop table if exists federated.t1;
-create table federated.t1 (i1 int, i2 int, i3 int, i4 int, i5 int, i6 int, i7 int, i8
-int, i9 int, i10 int, i11 int, i12 int, i13 int, i14 int, i15 int, i16 int, i17
-int, i18 int, i19 int, i20 int, i21 int, i22 int, i23 int, i24 int, i25 int,
+DROP TABLE IF EXISTS federated.t1;
+CREATE TABLE federated.t1 
+(i1 int, i2 int, i3 int, i4 int, i5 int, i6 int, i7 int, i8
+int, i9 int, i10 int, i11 int, i12 int, i13 int, i14 int, i15 int, i16 int, 
+i17 int, i18 int, i19 int, i20 int, i21 int, i22 int, i23 int, i24 int, i25 int,
 i26 int, i27 int, i28 int, i29 int, i30 int, i31 int, i32 int, i33 int, i34
 int, i35 int, i36 int, i37 int, i38 int, i39 int, i40 int, i41 int, i42 int,
 i43 int, i44 int, i45 int, i46 int, i47 int, i48 int, i49 int, i50 int, i51
@@ -572,8 +660,13 @@ int, i967 int, i968 int, i969 int, i970 int, i971 int, i972 int, i973 int, i974
 int, i975 int, i976 int, i977 int, i978 int, i979 int, i980 int, i981 int, i982
 int, i983 int, i984 int, i985 int, i986 int, i987 int, i988 int, i989 int, i990
 int, i991 int, i992 int, i993 int, i994 int, i995 int, i996 int, i997 int, i998
-int, i999 int, i1000 int, b blob) row_format=dynamic ENGINE="FEDERATED" DEFAULT CHARSET=latin1 COMMENT='mysql://root@127.0.0.1:9308/federated/t1';
-insert into federated.t1 values (1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+int, i999 int, i1000 int, b blob)
+row_format=dynamic
+ENGINE="FEDERATED"
+DEFAULT CHARSET=latin1
+COMMENT='mysql://root@127.0.0.1:SLAVE_PORT/federated/t1';
+INSERT INTO federated.t1
+values (1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
@@ -612,41 +705,54 @@ insert into federated.t1 values (1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, "PatrickG");
-update federated.t1 set b=repeat('a',256);
-update federated.t1 set i1=0, i2=0, i3=0, i4=0, i5=0, i6=0, i7=0, i8=0, i9=0, i10=0;
-select * from federated.t1 where i9=0 and i10=0;
+UPDATE federated.t1 SET b=repeat('a',256);
+UPDATE federated.t1 SET i1=0, i2=0, i3=0, i4=0, i5=0, i6=0, i7=0, i8=0, i9=0, i10=0;
+SELECT * FROM federated.t1 WHERE i9=0 and i10=0;
 i1	i2	i3	i4	i5	i6	i7	i8	i9	i10	i11	i12	i13	i14	i15	i16	i17	i18	i19	i20	i21	i22	i23	i24	i25	i26	i27	i28	i29	i30	i31	i32	i33	i34	i35	i36	i37	i38	i39	i40	i41	i42	i43	i44	i45	i46	i47	i48	i49	i50	i51	i52	i53	i54	i55	i56	i57	i58	i59	i60	i61	i62	i63	i64	i65	i66	i67	i68	i69	i70	i71	i72	i73	i74	i75	i76	i77	i78	i79	i80	i81	i82	i83	i84	i85	i86	i87	i88	i89	i90	i91	i92	i93	i94	i95	i96	i97	i98	i99	i100	i101	i102	i103	i104	i105	i106	i107	i108	i109	i110	i111	i112	i113	i114	i115	i116	i117	i118	i119	i120	i121	i122	i123	i124	i125	i126	i127	i128	i129	i130	i131	i132	i133	i134	i135	i136	i137	i138	i139	i140	i141	i142	i143	i144	i145	i146	i147	i148	i149	i150	i151	i152	i153	i154	i155	i156	i157	i158	i159	i160	i161	i162	i163	i164	i165	i166	i167	i168	i169	i170	i171	i172	i173	i174	i175	i176	i177	i178	i179	i180	i181	i182	i183	i184	i185	i186	i187	i188	i189	i190	i191	i192	i193	i194	i195	i196	i197	i198	i199	i200	i201	i202	i203	i204	i205	i206	i207	i208	i209	i210	i211	i212	i213	i214	i215	i216	i217	i218	i219	i220	i221	i222	i223	i224	i225	i226	i227	i228	i229	i230	i231	i232	i233	i234	i235	i236	i237	i238	i239	i240	i241	i242	i243	i244	i245	i246	i247	i248	i249	i250	i251	i252	i253	i254	i255	i256	i257	i258	i259	i260	i261	i262	i263	i264	i265	i266	i267	i268	i269	i270	i271	i272	i273	i274	i275	i276	i277	i278	i279	i280	i281	i282	i283	i284	i285	i286	i287	i288	i289	i290	i291	i292	i293	i294	i295	i296	i297	i298	i299	i300	i301	i302	i303	i304	i305	i306	i307	i308	i309	i310	i311	i312	i313	i314	i315	i316	i317	i318	i319	i320	i321	i322	i323	i324	i325	i326	i327	i328	i329	i330	i331	i332	i333	i334	i335	i336	i337	i338	i339	i340	i341	i342	i343	i344	i345	i346	i347	i348	i349	i350	i351	i352	i353	i354	i355	i356	i357	i358	i359	i360	i361	i362	i363	i364	i365	i366	i367	i368	i369	i370	i371	i372	i373	i374	i375	i376	i377	i378	i379	i380	i381	i382	i383	i384	i385	i386	i387	i388	i389	i390	i391	i392	i393	i394	i395	i396	i397	i398	i399	i400	i401	i402	i403	i404	i405	i406	i407	i408	i409	i410	i411	i412	i413	i414	i415	i416	i417	i418	i419	i420	i421	i422	i423	i424	i425	i426	i427	i428	i429	i430	i431	i432	i433	i434	i435	i436	i437	i438	i439	i440	i441	i442	i443	i444	i445	i446	i447	i448	i449	i450	i451	i452	i453	i454	i455	i456	i457	i458	i459	i460	i461	i462	i463	i464	i465	i466	i467	i468	i469	i470	i471	i472	i473	i474	i475	i476	i477	i478	i479	i480	i481	i482	i483	i484	i485	i486	i487	i488	i489	i490	i491	i492	i493	i494	i495	i496	i497	i498	i499	i500	i501	i502	i503	i504	i505	i506	i507	i508	i509	i510	i511	i512	i513	i514	i515	i516	i517	i518	i519	i520	i521	i522	i523	i524	i525	i526	i527	i528	i529	i530	i531	i532	i533	i534	i535	i536	i537	i538	i539	i540	i541	i542	i543	i544	i545	i546	i547	i548	i549	i550	i551	i552	i553	i554	i555	i556	i557	i558	i559	i560	i561	i562	i563	i564	i565	i566	i567	i568	i569	i570	i571	i572	i573	i574	i575	i576	i577	i578	i579	i580	i581	i582	i583	i584	i585	i586	i587	i588	i589	i590	i591	i592	i593	i594	i595	i596	i597	i598	i599	i600	i601	i602	i603	i604	i605	i606	i607	i608	i609	i610	i611	i612	i613	i614	i615	i616	i617	i618	i619	i620	i621	i622	i623	i624	i625	i626	i627	i628	i629	i630	i631	i632	i633	i634	i635	i636	i637	i638	i639	i640	i641	i642	i643	i644	i645	i646	i647	i648	i649	i650	i651	i652	i653	i654	i655	i656	i657	i658	i659	i660	i661	i662	i663	i664	i665	i666	i667	i668	i669	i670	i671	i672	i673	i674	i675	i676	i677	i678	i679	i680	i681	i682	i683	i684	i685	i686	i687	i688	i689	i690	i691	i692	i693	i694	i695	i696	i697	i698	i699	i700	i701	i702	i703	i704	i705	i706	i707	i708	i709	i710	i711	i712	i713	i714	i715	i716	i717	i718	i719	i720	i721	i722	i723	i724	i725	i726	i727	i728	i729	i730	i731	i732	i733	i734	i735	i736	i737	i738	i739	i740	i741	i742	i743	i744	i745	i746	i747	i748	i749	i750	i751	i752	i753	i754	i755	i756	i757	i758	i759	i760	i761	i762	i763	i764	i765	i766	i767	i768	i769	i770	i771	i772	i773	i774	i775	i776	i777	i778	i779	i780	i781	i782	i783	i784	i785	i786	i787	i788	i789	i790	i791	i792	i793	i794	i795	i796	i797	i798	i799	i800	i801	i802	i803	i804	i805	i806	i807	i808	i809	i810	i811	i812	i813	i814	i815	i816	i817	i818	i819	i820	i821	i822	i823	i824	i825	i826	i827	i828	i829	i830	i831	i832	i833	i834	i835	i836	i837	i838	i839	i840	i841	i842	i843	i844	i845	i846	i847	i848	i849	i850	i851	i852	i853	i854	i855	i856	i857	i858	i859	i860	i861	i862	i863	i864	i865	i866	i867	i868	i869	i870	i871	i872	i873	i874	i875	i876	i877	i878	i879	i880	i881	i882	i883	i884	i885	i886	i887	i888	i889	i890	i891	i892	i893	i894	i895	i896	i897	i898	i899	i900	i901	i902	i903	i904	i905	i906	i907	i908	i909	i910	i911	i912	i913	i914	i915	i916	i917	i918	i919	i920	i921	i922	i923	i924	i925	i926	i927	i928	i929	i930	i931	i932	i933	i934	i935	i936	i937	i938	i939	i940	i941	i942	i943	i944	i945	i946	i947	i948	i949	i950	i951	i952	i953	i954	i955	i956	i957	i958	i959	i960	i961	i962	i963	i964	i965	i966	i967	i968	i969	i970	i971	i972	i973	i974	i975	i976	i977	i978	i979	i980	i981	i982	i983	i984	i985	i986	i987	i988	i989	i990	i991	i992	i993	i994	i995	i996	i997	i998	i999	i1000	b
 0	0	0	0	0	0	0	0	0	0	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	PatrickG
-update federated.t1 set i50=20;
-select * from federated.t1;
+UPDATE federated.t1 SET i50=20;
+SELECT * FROM federated.t1;
 i1	i2	i3	i4	i5	i6	i7	i8	i9	i10	i11	i12	i13	i14	i15	i16	i17	i18	i19	i20	i21	i22	i23	i24	i25	i26	i27	i28	i29	i30	i31	i32	i33	i34	i35	i36	i37	i38	i39	i40	i41	i42	i43	i44	i45	i46	i47	i48	i49	i50	i51	i52	i53	i54	i55	i56	i57	i58	i59	i60	i61	i62	i63	i64	i65	i66	i67	i68	i69	i70	i71	i72	i73	i74	i75	i76	i77	i78	i79	i80	i81	i82	i83	i84	i85	i86	i87	i88	i89	i90	i91	i92	i93	i94	i95	i96	i97	i98	i99	i100	i101	i102	i103	i104	i105	i106	i107	i108	i109	i110	i111	i112	i113	i114	i115	i116	i117	i118	i119	i120	i121	i122	i123	i124	i125	i126	i127	i128	i129	i130	i131	i132	i133	i134	i135	i136	i137	i138	i139	i140	i141	i142	i143	i144	i145	i146	i147	i148	i149	i150	i151	i152	i153	i154	i155	i156	i157	i158	i159	i160	i161	i162	i163	i164	i165	i166	i167	i168	i169	i170	i171	i172	i173	i174	i175	i176	i177	i178	i179	i180	i181	i182	i183	i184	i185	i186	i187	i188	i189	i190	i191	i192	i193	i194	i195	i196	i197	i198	i199	i200	i201	i202	i203	i204	i205	i206	i207	i208	i209	i210	i211	i212	i213	i214	i215	i216	i217	i218	i219	i220	i221	i222	i223	i224	i225	i226	i227	i228	i229	i230	i231	i232	i233	i234	i235	i236	i237	i238	i239	i240	i241	i242	i243	i244	i245	i246	i247	i248	i249	i250	i251	i252	i253	i254	i255	i256	i257	i258	i259	i260	i261	i262	i263	i264	i265	i266	i267	i268	i269	i270	i271	i272	i273	i274	i275	i276	i277	i278	i279	i280	i281	i282	i283	i284	i285	i286	i287	i288	i289	i290	i291	i292	i293	i294	i295	i296	i297	i298	i299	i300	i301	i302	i303	i304	i305	i306	i307	i308	i309	i310	i311	i312	i313	i314	i315	i316	i317	i318	i319	i320	i321	i322	i323	i324	i325	i326	i327	i328	i329	i330	i331	i332	i333	i334	i335	i336	i337	i338	i339	i340	i341	i342	i343	i344	i345	i346	i347	i348	i349	i350	i351	i352	i353	i354	i355	i356	i357	i358	i359	i360	i361	i362	i363	i364	i365	i366	i367	i368	i369	i370	i371	i372	i373	i374	i375	i376	i377	i378	i379	i380	i381	i382	i383	i384	i385	i386	i387	i388	i389	i390	i391	i392	i393	i394	i395	i396	i397	i398	i399	i400	i401	i402	i403	i404	i405	i406	i407	i408	i409	i410	i411	i412	i413	i414	i415	i416	i417	i418	i419	i420	i421	i422	i423	i424	i425	i426	i427	i428	i429	i430	i431	i432	i433	i434	i435	i436	i437	i438	i439	i440	i441	i442	i443	i444	i445	i446	i447	i448	i449	i450	i451	i452	i453	i454	i455	i456	i457	i458	i459	i460	i461	i462	i463	i464	i465	i466	i467	i468	i469	i470	i471	i472	i473	i474	i475	i476	i477	i478	i479	i480	i481	i482	i483	i484	i485	i486	i487	i488	i489	i490	i491	i492	i493	i494	i495	i496	i497	i498	i499	i500	i501	i502	i503	i504	i505	i506	i507	i508	i509	i510	i511	i512	i513	i514	i515	i516	i517	i518	i519	i520	i521	i522	i523	i524	i525	i526	i527	i528	i529	i530	i531	i532	i533	i534	i535	i536	i537	i538	i539	i540	i541	i542	i543	i544	i545	i546	i547	i548	i549	i550	i551	i552	i553	i554	i555	i556	i557	i558	i559	i560	i561	i562	i563	i564	i565	i566	i567	i568	i569	i570	i571	i572	i573	i574	i575	i576	i577	i578	i579	i580	i581	i582	i583	i584	i585	i586	i587	i588	i589	i590	i591	i592	i593	i594	i595	i596	i597	i598	i599	i600	i601	i602	i603	i604	i605	i606	i607	i608	i609	i610	i611	i612	i613	i614	i615	i616	i617	i618	i619	i620	i621	i622	i623	i624	i625	i626	i627	i628	i629	i630	i631	i632	i633	i634	i635	i636	i637	i638	i639	i640	i641	i642	i643	i644	i645	i646	i647	i648	i649	i650	i651	i652	i653	i654	i655	i656	i657	i658	i659	i660	i661	i662	i663	i664	i665	i666	i667	i668	i669	i670	i671	i672	i673	i674	i675	i676	i677	i678	i679	i680	i681	i682	i683	i684	i685	i686	i687	i688	i689	i690	i691	i692	i693	i694	i695	i696	i697	i698	i699	i700	i701	i702	i703	i704	i705	i706	i707	i708	i709	i710	i711	i712	i713	i714	i715	i716	i717	i718	i719	i720	i721	i722	i723	i724	i725	i726	i727	i728	i729	i730	i731	i732	i733	i734	i735	i736	i737	i738	i739	i740	i741	i742	i743	i744	i745	i746	i747	i748	i749	i750	i751	i752	i753	i754	i755	i756	i757	i758	i759	i760	i761	i762	i763	i764	i765	i766	i767	i768	i769	i770	i771	i772	i773	i774	i775	i776	i777	i778	i779	i780	i781	i782	i783	i784	i785	i786	i787	i788	i789	i790	i791	i792	i793	i794	i795	i796	i797	i798	i799	i800	i801	i802	i803	i804	i805	i806	i807	i808	i809	i810	i811	i812	i813	i814	i815	i816	i817	i818	i819	i820	i821	i822	i823	i824	i825	i826	i827	i828	i829	i830	i831	i832	i833	i834	i835	i836	i837	i838	i839	i840	i841	i842	i843	i844	i845	i846	i847	i848	i849	i850	i851	i852	i853	i854	i855	i856	i857	i858	i859	i860	i861	i862	i863	i864	i865	i866	i867	i868	i869	i870	i871	i872	i873	i874	i875	i876	i877	i878	i879	i880	i881	i882	i883	i884	i885	i886	i887	i888	i889	i890	i891	i892	i893	i894	i895	i896	i897	i898	i899	i900	i901	i902	i903	i904	i905	i906	i907	i908	i909	i910	i911	i912	i913	i914	i915	i916	i917	i918	i919	i920	i921	i922	i923	i924	i925	i926	i927	i928	i929	i930	i931	i932	i933	i934	i935	i936	i937	i938	i939	i940	i941	i942	i943	i944	i945	i946	i947	i948	i949	i950	i951	i952	i953	i954	i955	i956	i957	i958	i959	i960	i961	i962	i963	i964	i965	i966	i967	i968	i969	i970	i971	i972	i973	i974	i975	i976	i977	i978	i979	i980	i981	i982	i983	i984	i985	i986	i987	i988	i989	i990	i991	i992	i993	i994	i995	i996	i997	i998	i999	i1000	b
 0	0	0	0	0	0	0	0	0	0	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	20	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	PatrickG
-delete from federated.t1 where i51=20;
-select * from federated.t1;
+DELETE FROM federated.t1 WHERE i51=20;
+SELECT * FROM federated.t1;
 i1	i2	i3	i4	i5	i6	i7	i8	i9	i10	i11	i12	i13	i14	i15	i16	i17	i18	i19	i20	i21	i22	i23	i24	i25	i26	i27	i28	i29	i30	i31	i32	i33	i34	i35	i36	i37	i38	i39	i40	i41	i42	i43	i44	i45	i46	i47	i48	i49	i50	i51	i52	i53	i54	i55	i56	i57	i58	i59	i60	i61	i62	i63	i64	i65	i66	i67	i68	i69	i70	i71	i72	i73	i74	i75	i76	i77	i78	i79	i80	i81	i82	i83	i84	i85	i86	i87	i88	i89	i90	i91	i92	i93	i94	i95	i96	i97	i98	i99	i100	i101	i102	i103	i104	i105	i106	i107	i108	i109	i110	i111	i112	i113	i114	i115	i116	i117	i118	i119	i120	i121	i122	i123	i124	i125	i126	i127	i128	i129	i130	i131	i132	i133	i134	i135	i136	i137	i138	i139	i140	i141	i142	i143	i144	i145	i146	i147	i148	i149	i150	i151	i152	i153	i154	i155	i156	i157	i158	i159	i160	i161	i162	i163	i164	i165	i166	i167	i168	i169	i170	i171	i172	i173	i174	i175	i176	i177	i178	i179	i180	i181	i182	i183	i184	i185	i186	i187	i188	i189	i190	i191	i192	i193	i194	i195	i196	i197	i198	i199	i200	i201	i202	i203	i204	i205	i206	i207	i208	i209	i210	i211	i212	i213	i214	i215	i216	i217	i218	i219	i220	i221	i222	i223	i224	i225	i226	i227	i228	i229	i230	i231	i232	i233	i234	i235	i236	i237	i238	i239	i240	i241	i242	i243	i244	i245	i246	i247	i248	i249	i250	i251	i252	i253	i254	i255	i256	i257	i258	i259	i260	i261	i262	i263	i264	i265	i266	i267	i268	i269	i270	i271	i272	i273	i274	i275	i276	i277	i278	i279	i280	i281	i282	i283	i284	i285	i286	i287	i288	i289	i290	i291	i292	i293	i294	i295	i296	i297	i298	i299	i300	i301	i302	i303	i304	i305	i306	i307	i308	i309	i310	i311	i312	i313	i314	i315	i316	i317	i318	i319	i320	i321	i322	i323	i324	i325	i326	i327	i328	i329	i330	i331	i332	i333	i334	i335	i336	i337	i338	i339	i340	i341	i342	i343	i344	i345	i346	i347	i348	i349	i350	i351	i352	i353	i354	i355	i356	i357	i358	i359	i360	i361	i362	i363	i364	i365	i366	i367	i368	i369	i370	i371	i372	i373	i374	i375	i376	i377	i378	i379	i380	i381	i382	i383	i384	i385	i386	i387	i388	i389	i390	i391	i392	i393	i394	i395	i396	i397	i398	i399	i400	i401	i402	i403	i404	i405	i406	i407	i408	i409	i410	i411	i412	i413	i414	i415	i416	i417	i418	i419	i420	i421	i422	i423	i424	i425	i426	i427	i428	i429	i430	i431	i432	i433	i434	i435	i436	i437	i438	i439	i440	i441	i442	i443	i444	i445	i446	i447	i448	i449	i450	i451	i452	i453	i454	i455	i456	i457	i458	i459	i460	i461	i462	i463	i464	i465	i466	i467	i468	i469	i470	i471	i472	i473	i474	i475	i476	i477	i478	i479	i480	i481	i482	i483	i484	i485	i486	i487	i488	i489	i490	i491	i492	i493	i494	i495	i496	i497	i498	i499	i500	i501	i502	i503	i504	i505	i506	i507	i508	i509	i510	i511	i512	i513	i514	i515	i516	i517	i518	i519	i520	i521	i522	i523	i524	i525	i526	i527	i528	i529	i530	i531	i532	i533	i534	i535	i536	i537	i538	i539	i540	i541	i542	i543	i544	i545	i546	i547	i548	i549	i550	i551	i552	i553	i554	i555	i556	i557	i558	i559	i560	i561	i562	i563	i564	i565	i566	i567	i568	i569	i570	i571	i572	i573	i574	i575	i576	i577	i578	i579	i580	i581	i582	i583	i584	i585	i586	i587	i588	i589	i590	i591	i592	i593	i594	i595	i596	i597	i598	i599	i600	i601	i602	i603	i604	i605	i606	i607	i608	i609	i610	i611	i612	i613	i614	i615	i616	i617	i618	i619	i620	i621	i622	i623	i624	i625	i626	i627	i628	i629	i630	i631	i632	i633	i634	i635	i636	i637	i638	i639	i640	i641	i642	i643	i644	i645	i646	i647	i648	i649	i650	i651	i652	i653	i654	i655	i656	i657	i658	i659	i660	i661	i662	i663	i664	i665	i666	i667	i668	i669	i670	i671	i672	i673	i674	i675	i676	i677	i678	i679	i680	i681	i682	i683	i684	i685	i686	i687	i688	i689	i690	i691	i692	i693	i694	i695	i696	i697	i698	i699	i700	i701	i702	i703	i704	i705	i706	i707	i708	i709	i710	i711	i712	i713	i714	i715	i716	i717	i718	i719	i720	i721	i722	i723	i724	i725	i726	i727	i728	i729	i730	i731	i732	i733	i734	i735	i736	i737	i738	i739	i740	i741	i742	i743	i744	i745	i746	i747	i748	i749	i750	i751	i752	i753	i754	i755	i756	i757	i758	i759	i760	i761	i762	i763	i764	i765	i766	i767	i768	i769	i770	i771	i772	i773	i774	i775	i776	i777	i778	i779	i780	i781	i782	i783	i784	i785	i786	i787	i788	i789	i790	i791	i792	i793	i794	i795	i796	i797	i798	i799	i800	i801	i802	i803	i804	i805	i806	i807	i808	i809	i810	i811	i812	i813	i814	i815	i816	i817	i818	i819	i820	i821	i822	i823	i824	i825	i826	i827	i828	i829	i830	i831	i832	i833	i834	i835	i836	i837	i838	i839	i840	i841	i842	i843	i844	i845	i846	i847	i848	i849	i850	i851	i852	i853	i854	i855	i856	i857	i858	i859	i860	i861	i862	i863	i864	i865	i866	i867	i868	i869	i870	i871	i872	i873	i874	i875	i876	i877	i878	i879	i880	i881	i882	i883	i884	i885	i886	i887	i888	i889	i890	i891	i892	i893	i894	i895	i896	i897	i898	i899	i900	i901	i902	i903	i904	i905	i906	i907	i908	i909	i910	i911	i912	i913	i914	i915	i916	i917	i918	i919	i920	i921	i922	i923	i924	i925	i926	i927	i928	i929	i930	i931	i932	i933	i934	i935	i936	i937	i938	i939	i940	i941	i942	i943	i944	i945	i946	i947	i948	i949	i950	i951	i952	i953	i954	i955	i956	i957	i958	i959	i960	i961	i962	i963	i964	i965	i966	i967	i968	i969	i970	i971	i972	i973	i974	i975	i976	i977	i978	i979	i980	i981	i982	i983	i984	i985	i986	i987	i988	i989	i990	i991	i992	i993	i994	i995	i996	i997	i998	i999	i1000	b
 0	0	0	0	0	0	0	0	0	0	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	20	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	PatrickG
-delete from federated.t1 where i50=20;
-select * from federated.t1;
+DELETE FROM federated.t1 WHERE i50=20;
+SELECT * FROM federated.t1;
 i1	i2	i3	i4	i5	i6	i7	i8	i9	i10	i11	i12	i13	i14	i15	i16	i17	i18	i19	i20	i21	i22	i23	i24	i25	i26	i27	i28	i29	i30	i31	i32	i33	i34	i35	i36	i37	i38	i39	i40	i41	i42	i43	i44	i45	i46	i47	i48	i49	i50	i51	i52	i53	i54	i55	i56	i57	i58	i59	i60	i61	i62	i63	i64	i65	i66	i67	i68	i69	i70	i71	i72	i73	i74	i75	i76	i77	i78	i79	i80	i81	i82	i83	i84	i85	i86	i87	i88	i89	i90	i91	i92	i93	i94	i95	i96	i97	i98	i99	i100	i101	i102	i103	i104	i105	i106	i107	i108	i109	i110	i111	i112	i113	i114	i115	i116	i117	i118	i119	i120	i121	i122	i123	i124	i125	i126	i127	i128	i129	i130	i131	i132	i133	i134	i135	i136	i137	i138	i139	i140	i141	i142	i143	i144	i145	i146	i147	i148	i149	i150	i151	i152	i153	i154	i155	i156	i157	i158	i159	i160	i161	i162	i163	i164	i165	i166	i167	i168	i169	i170	i171	i172	i173	i174	i175	i176	i177	i178	i179	i180	i181	i182	i183	i184	i185	i186	i187	i188	i189	i190	i191	i192	i193	i194	i195	i196	i197	i198	i199	i200	i201	i202	i203	i204	i205	i206	i207	i208	i209	i210	i211	i212	i213	i214	i215	i216	i217	i218	i219	i220	i221	i222	i223	i224	i225	i226	i227	i228	i229	i230	i231	i232	i233	i234	i235	i236	i237	i238	i239	i240	i241	i242	i243	i244	i245	i246	i247	i248	i249	i250	i251	i252	i253	i254	i255	i256	i257	i258	i259	i260	i261	i262	i263	i264	i265	i266	i267	i268	i269	i270	i271	i272	i273	i274	i275	i276	i277	i278	i279	i280	i281	i282	i283	i284	i285	i286	i287	i288	i289	i290	i291	i292	i293	i294	i295	i296	i297	i298	i299	i300	i301	i302	i303	i304	i305	i306	i307	i308	i309	i310	i311	i312	i313	i314	i315	i316	i317	i318	i319	i320	i321	i322	i323	i324	i325	i326	i327	i328	i329	i330	i331	i332	i333	i334	i335	i336	i337	i338	i339	i340	i341	i342	i343	i344	i345	i346	i347	i348	i349	i350	i351	i352	i353	i354	i355	i356	i357	i358	i359	i360	i361	i362	i363	i364	i365	i366	i367	i368	i369	i370	i371	i372	i373	i374	i375	i376	i377	i378	i379	i380	i381	i382	i383	i384	i385	i386	i387	i388	i389	i390	i391	i392	i393	i394	i395	i396	i397	i398	i399	i400	i401	i402	i403	i404	i405	i406	i407	i408	i409	i410	i411	i412	i413	i414	i415	i416	i417	i418	i419	i420	i421	i422	i423	i424	i425	i426	i427	i428	i429	i430	i431	i432	i433	i434	i435	i436	i437	i438	i439	i440	i441	i442	i443	i444	i445	i446	i447	i448	i449	i450	i451	i452	i453	i454	i455	i456	i457	i458	i459	i460	i461	i462	i463	i464	i465	i466	i467	i468	i469	i470	i471	i472	i473	i474	i475	i476	i477	i478	i479	i480	i481	i482	i483	i484	i485	i486	i487	i488	i489	i490	i491	i492	i493	i494	i495	i496	i497	i498	i499	i500	i501	i502	i503	i504	i505	i506	i507	i508	i509	i510	i511	i512	i513	i514	i515	i516	i517	i518	i519	i520	i521	i522	i523	i524	i525	i526	i527	i528	i529	i530	i531	i532	i533	i534	i535	i536	i537	i538	i539	i540	i541	i542	i543	i544	i545	i546	i547	i548	i549	i550	i551	i552	i553	i554	i555	i556	i557	i558	i559	i560	i561	i562	i563	i564	i565	i566	i567	i568	i569	i570	i571	i572	i573	i574	i575	i576	i577	i578	i579	i580	i581	i582	i583	i584	i585	i586	i587	i588	i589	i590	i591	i592	i593	i594	i595	i596	i597	i598	i599	i600	i601	i602	i603	i604	i605	i606	i607	i608	i609	i610	i611	i612	i613	i614	i615	i616	i617	i618	i619	i620	i621	i622	i623	i624	i625	i626	i627	i628	i629	i630	i631	i632	i633	i634	i635	i636	i637	i638	i639	i640	i641	i642	i643	i644	i645	i646	i647	i648	i649	i650	i651	i652	i653	i654	i655	i656	i657	i658	i659	i660	i661	i662	i663	i664	i665	i666	i667	i668	i669	i670	i671	i672	i673	i674	i675	i676	i677	i678	i679	i680	i681	i682	i683	i684	i685	i686	i687	i688	i689	i690	i691	i692	i693	i694	i695	i696	i697	i698	i699	i700	i701	i702	i703	i704	i705	i706	i707	i708	i709	i710	i711	i712	i713	i714	i715	i716	i717	i718	i719	i720	i721	i722	i723	i724	i725	i726	i727	i728	i729	i730	i731	i732	i733	i734	i735	i736	i737	i738	i739	i740	i741	i742	i743	i744	i745	i746	i747	i748	i749	i750	i751	i752	i753	i754	i755	i756	i757	i758	i759	i760	i761	i762	i763	i764	i765	i766	i767	i768	i769	i770	i771	i772	i773	i774	i775	i776	i777	i778	i779	i780	i781	i782	i783	i784	i785	i786	i787	i788	i789	i790	i791	i792	i793	i794	i795	i796	i797	i798	i799	i800	i801	i802	i803	i804	i805	i806	i807	i808	i809	i810	i811	i812	i813	i814	i815	i816	i817	i818	i819	i820	i821	i822	i823	i824	i825	i826	i827	i828	i829	i830	i831	i832	i833	i834	i835	i836	i837	i838	i839	i840	i841	i842	i843	i844	i845	i846	i847	i848	i849	i850	i851	i852	i853	i854	i855	i856	i857	i858	i859	i860	i861	i862	i863	i864	i865	i866	i867	i868	i869	i870	i871	i872	i873	i874	i875	i876	i877	i878	i879	i880	i881	i882	i883	i884	i885	i886	i887	i888	i889	i890	i891	i892	i893	i894	i895	i896	i897	i898	i899	i900	i901	i902	i903	i904	i905	i906	i907	i908	i909	i910	i911	i912	i913	i914	i915	i916	i917	i918	i919	i920	i921	i922	i923	i924	i925	i926	i927	i928	i929	i930	i931	i932	i933	i934	i935	i936	i937	i938	i939	i940	i941	i942	i943	i944	i945	i946	i947	i948	i949	i950	i951	i952	i953	i954	i955	i956	i957	i958	i959	i960	i961	i962	i963	i964	i965	i966	i967	i968	i969	i970	i971	i972	i973	i974	i975	i976	i977	i978	i979	i980	i981	i982	i983	i984	i985	i986	i987	i988	i989	i990	i991	i992	i993	i994	i995	i996	i997	i998	i999	i1000	b
-drop table if exists federated.t1;
-create table federated.t1 (id int NOT NULL auto_increment, code char(20) NOT NULL, fileguts blob NOT NULL, creation_date datetime, entered_time datetime default '2004-04-04 04:04:04', primary key(id), index(code), index(fileguts(10))) DEFAULT CHARSET=latin1;
-drop table if exists federated.t1;
-create table federated.t1 (id int NOT NULL auto_increment, code char(20) NOT NULL, fileguts blob NOT NULL, creation_date datetime, entered_time datetime default '2004-04-04 04:04:04', primary key(id), index(code), index(fileguts(10))) ENGINE="FEDERATED" DEFAULT CHARSET=latin1 COMMENT='mysql://root@127.0.0.1:9308/federated/t1';
-insert into federated.t1 (code, fileguts, creation_date) values ('ASDFWERQWETWETAWETA', '*()w*09*$()*#)(*09*^90*d)(*s()d8g)(s*ned)(*)(s*d)(*hn(d*)(*sbn)D((#$*(#*%%&#&^$#&#&#&#&^&#*&*#$*&^*(&#(&Q*&&(*!&!(*&*(#&*(%&#<S-F8>*<S-F8><S-F8><S-F8>#<S-F8>#<S-F8>#<S-F8>[[', '2003-03-03 03:03:03');
-insert into federated.t1 (code, fileguts, creation_date) values ('DEUEUEUEUEUEUEUEUEU', '*()w*09*$()*#)(*09*^90*d)(*s()d8g)(s*ned)(*)(s*d)(*hn(d*)(*sbn)D((#$*(#*%%&#&^$#&#&#&#&^&#*&*#$*&^*(&#(&Q*&&(*!&!(*&*(#&*(%&#<S-F8>*<S-F8><S-F8><S-F8>#<S-F8>#<S-F8>#<S-F8>[[', '2004-04-04 04:04:04');
-insert into federated.t1 (code, fileguts, creation_date) values ('DEUEUEUEUEUEUEUEUEU', 'jimbob', '2004-04-04 04:04:04');
-select * from federated.t1;
+DROP TABLE IF EXISTS federated.t1;
+CREATE TABLE federated.t1 (id int NOT NULL auto_increment, code char(20) NOT NULL, fileguts blob NOT NULL, creation_date datetime, entered_time datetime default '2004-04-04 04:04:04', PRIMARY KEY(id), index(code), index(fileguts(10))) DEFAULT CHARSET=latin1;
+DROP TABLE IF EXISTS federated.t1;
+CREATE TABLE federated.t1 (
+id int NOT NULL auto_increment,
+code char(20) NOT NULL,
+fileguts blob NOT NULL,
+creation_date datetime,
+entered_time datetime default '2004-04-04 04:04:04',
+PRIMARY KEY(id),
+index(code),
+index(fileguts(10)))
+ENGINE="FEDERATED" DEFAULT CHARSET=latin1
+COMMENT='mysql://root@127.0.0.1:SLAVE_PORT/federated/t1';
+INSERT INTO federated.t1 (code, fileguts, creation_date) VALUES ('ASDFWERQWETWETAWETA', '*()w*09*$()*#)(*09*^90*d)(*s()d8g)(s*ned)(*)(s*d)(*hn(d*)(*sbn)D((#$*(#*%%&#&^$#&#&#&#&^&#*&*#$*&^*(&#(&Q*&&(*!&!(*&*(#&*(%&#<S-F8>*<S-F8><S-F8><S-F8>#<S-F8>#<S-F8>#<S-F8>[[', '2003-03-03 03:03:03');
+INSERT INTO federated.t1 (code, fileguts, creation_date) VALUES ('DEUEUEUEUEUEUEUEUEU', '*()w*09*$()*#)(*09*^90*d)(*s()d8g)(s*ned)(*)(s*d)(*hn(d*)(*sbn)D((#$*(#*%%&#&^$#&#&#&#&^&#*&*#$*&^*(&#(&Q*&&(*!&!(*&*(#&*(%&#<S-F8>*<S-F8><S-F8><S-F8>#<S-F8>#<S-F8>#<S-F8>[[', '2004-04-04 04:04:04');
+INSERT INTO federated.t1 (code, fileguts, creation_date) VALUES ('DEUEUEUEUEUEUEUEUEU', 'jimbob', '2004-04-04 04:04:04');
+SELECT * FROM federated.t1;
 id	code	fileguts	creation_date	entered_time
 1	ASDFWERQWETWETAWETA	*()w*09*$()*#)(*09*^90*d)(*s()d8g)(s*ned)(*)(s*d)(*hn(d*)(*sbn)D((#$*(#*%%&#&^$#&#&#&#&^&#*&*#$*&^*(&#(&Q*&&(*!&!(*&*(#&*(%&#<S-F8>*<S-F8><S-F8><S-F8>#<S-F8>#<S-F8>#<S-F8>[[	2003-03-03 03:03:03	2004-04-04 04:04:04
 2	DEUEUEUEUEUEUEUEUEU	*()w*09*$()*#)(*09*^90*d)(*s()d8g)(s*ned)(*)(s*d)(*hn(d*)(*sbn)D((#$*(#*%%&#&^$#&#&#&#&^&#*&*#$*&^*(&#(&Q*&&(*!&!(*&*(#&*(%&#<S-F8>*<S-F8><S-F8><S-F8>#<S-F8>#<S-F8>#<S-F8>[[	2004-04-04 04:04:04	2004-04-04 04:04:04
 3	DEUEUEUEUEUEUEUEUEU	jimbob	2004-04-04 04:04:04	2004-04-04 04:04:04
-select * from federated.t1 where fileguts = 'jimbob';
+SELECT * FROM federated.t1 WHERE fileguts = 'jimbob';
 id	code	fileguts	creation_date	entered_time
 3	DEUEUEUEUEUEUEUEUEU	jimbob	2004-04-04 04:04:04	2004-04-04 04:04:04
-drop table if exists federated.t1;
-CREATE TABLE federated.t1 (a BLOB);
-drop table if exists federated.t1;
-CREATE TABLE federated.t1 (a BLOB) ENGINE="FEDERATED" COMMENT='mysql://root@127.0.0.1:9308/federated/t1';
+DROP TABLE IF EXISTS federated.t1;
+CREATE TABLE federated.t1 (`a` BLOB);
+DROP TABLE IF EXISTS federated.t1;
+CREATE TABLE federated.t1 (
+`a` BLOB)
+ENGINE="FEDERATED"
+COMMENT='mysql://root@127.0.0.1:SLAVE_PORT/federated/t1';
 INSERT INTO federated.t1 VALUES (0x00);
 INSERT INTO federated.t1 VALUES (0x0001);
 INSERT INTO federated.t1 VALUES (0x0100);
@@ -655,33 +761,52 @@ HEX(a)
 00
 0001
 0100
-drop table if exists federated.t1;
-CREATE TABLE federated.t1 ( `id` int(20) NOT NULL auto_increment, `country_id` int(20) NOT NULL DEFAULT 0, `name` varchar(32), `other` varchar(20), PRIMARY KEY  (`id`), key (country_id));
-drop table if exists federated.countries;
+DROP TABLE IF EXISTS federated.t1;
+CREATE TABLE federated.t1 (
+`id` int(20) NOT NULL auto_increment,
+`country_id` int(20) NOT NULL DEFAULT 0,
+`name` varchar(32),
+`other` varchar(20),
+PRIMARY KEY  (`id`),
+key (country_id));
+DROP TABLE IF EXISTS federated.countries;
 Warnings:
 Note	1051	Unknown table 'countries'
-CREATE TABLE federated.countries ( `id` int(20) NOT NULL auto_increment, `country` varchar(32), primary key (id));
-insert into federated.countries (country) values ('India');
-insert into federated.countries (country) values ('Germany');
-insert into federated.countries (country) values ('Italy');
-insert into federated.countries (country) values ('Finland');
-insert into federated.countries (country) values ('Ukraine');
-drop table if exists federated.t1;
-CREATE TABLE federated.t1 ( `id` int(20) NOT NULL auto_increment, `country_id` int(20) NOT NULL DEFAULT 0, `name` varchar(32), `other` varchar(20), PRIMARY KEY  (`id`), key (country_id) ) ENGINE="FEDERATED" DEFAULT CHARSET=latin1 COMMENT='mysql://root@127.0.0.1:9308/federated/t1';
-insert into federated.t1 (name, country_id, other) values ('Kumar', 1, 11111);
-insert into federated.t1 (name, country_id, other) values ('Lenz', 2, 22222);
-insert into federated.t1 (name, country_id, other) values ('Marizio', 3, 33333);
-insert into federated.t1 (name, country_id, other) values ('Monty', 4, 33333);
-insert into federated.t1 (name, country_id, other) values ('Sanja', 5, 33333);
-select federated.t1.*, federated.countries.country from federated.t1 left join federated.countries on federated.t1.country_id = federated.countries.id;
+CREATE TABLE federated.countries (
+`id` int(20) NOT NULL auto_increment,
+`country` varchar(32),
+PRIMARY KEY (id));
+INSERT INTO federated.countries (country) VALUES ('India');
+INSERT INTO federated.countries (country) VALUES ('Germany');
+INSERT INTO federated.countries (country) VALUES ('Italy');
+INSERT INTO federated.countries (country) VALUES ('Finland');
+INSERT INTO federated.countries (country) VALUES ('Ukraine');
+DROP TABLE IF EXISTS federated.t1;
+CREATE TABLE federated.t1 (
+`id` int(20) NOT NULL auto_increment,
+`country_id` int(20) NOT NULL DEFAULT 0,
+`name` varchar(32),
+`other` varchar(20),
+PRIMARY KEY  (`id`),
+KEY (country_id) )
+ENGINE="FEDERATED" DEFAULT CHARSET=latin1
+COMMENT='mysql://root@127.0.0.1:SLAVE_PORT/federated/t1';
+INSERT INTO federated.t1 (name, country_id, other) VALUES ('Kumar', 1, 11111);
+INSERT INTO federated.t1 (name, country_id, other) VALUES ('Lenz', 2, 22222);
+INSERT INTO federated.t1 (name, country_id, other) VALUES ('Marizio', 3, 33333);
+INSERT INTO federated.t1 (name, country_id, other) VALUES ('Monty', 4, 33333);
+INSERT INTO federated.t1 (name, country_id, other) VALUES ('Sanja', 5, 33333);
+SELECT federated.t1.*, federated.countries.country 
+FROM federated.t1 left join federated.countries 
+ON federated.t1.country_id = federated.countries.id;
 id	country_id	name	other	country
 1	1	Kumar	11111	India
 2	2	Lenz	22222	Germany
 3	3	Marizio	33333	Italy
 4	4	Monty	33333	Finland
 5	5	Sanja	33333	Ukraine
-drop table federated.countries;
-drop table if exists federated.t1;
-drop database if exists federated;
-drop table if exists federated.t1;
-drop database if exists federated;
+DROP TABLE federated.countries;
+DROP TABLE IF EXISTS federated.t1;
+DROP DATABASE IF EXISTS federated;
+DROP TABLE IF EXISTS federated.t1;
+DROP DATABASE IF EXISTS federated;
