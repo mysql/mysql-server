@@ -1,4 +1,4 @@
-drop table if exists t1,t2;
+drop table if exists t1,t2,t3;
 create table t1 (a int);
 select count(a) as b from t1 where a=0 having b > 0;
 b
@@ -128,3 +128,203 @@ id	description	c
 1	test	0
 2	test2	0
 drop table t1,t2,t3;
+create table t1 (col1 int, col2 varchar(5), col_t1 int);
+create table t2 (col1 int, col2 varchar(5), col_t2 int);
+create table t3 (col1 int, col2 varchar(5), col_t3 int);
+insert into t1 values(10,'hello',10);
+insert into t1 values(20,'hello',20);
+insert into t1 values(30,'hello',30);
+insert into t1 values(10,'bye',10);
+insert into t1 values(10,'sam',10);
+insert into t1 values(10,'bob',10);
+insert into t2 select * from t1;
+insert into t3 select * from t1;
+select count(*) from t1 group by col1 having col1 = 10;
+count(*)
+4
+select count(*) as count_col1 from t1 group by col1 having col1 = 10;
+count_col1
+4
+select count(*) as count_col1 from t1 as tmp1 group by col1 having col1 = 10;
+count_col1
+4
+select count(*) from t1 group by col2 having col2 = 'hello';
+count(*)
+3
+select count(*) from t1 group by col2 having col1 = 10;
+ERROR 42S22: Unknown column 'col1' in 'having clause'
+select col1 as count_col1 from t1 as tmp1 group by col1 having col1 = 10;
+count_col1
+10
+select col1 as count_col1 from t1 as tmp1 group by col1 having count_col1 = 10;
+count_col1
+10
+select col1 as count_col1 from t1 as tmp1 group by count_col1 having col1 = 10;
+count_col1
+10
+select col1 as count_col1 from t1 as tmp1 group by count_col1 having count_col1 = 10;
+count_col1
+10
+select col1 as count_col1,col2 from t1 as tmp1 group by col1,col2 having col1 = 10;
+count_col1	col2
+10	bob
+10	bye
+10	hello
+10	sam
+select col1 as count_col1,col2 from t1 as tmp1 group by col1,col2 having count_col1 = 10;
+count_col1	col2
+10	bob
+10	bye
+10	hello
+10	sam
+select col1 as count_col1,col2 from t1 as tmp1 group by col1,col2 having col2 = 'hello';
+count_col1	col2
+10	hello
+20	hello
+30	hello
+select col1 as count_col1,col2 as group_col2 from t1 as tmp1 group by col1,col2 having group_col2 = 'hello';
+count_col1	group_col2
+10	hello
+20	hello
+30	hello
+select sum(col1) as co12 from t1 group by col2 having col2 10;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '10' at line 1
+select sum(col1) as co2, count(col2) as cc from t1 group by col1 having col1 =10;
+co2	cc
+40	4
+select t2.col2 from t2 group by t2.col1, t2.col2 having t1.col1 <= 10;
+ERROR 42S22: Unknown column 't1.col1' in 'having clause'
+select t1.col1 from t1
+where t1.col2 in 
+(select t2.col2 from t2 
+group by t2.col1, t2.col2 having t2.col1 <= 10);
+col1
+10
+20
+30
+10
+10
+10
+select t1.col1 from t1
+where t1.col2 in 
+(select t2.col2 from t2
+group by t2.col1, t2.col2
+having t2.col1 <=
+(select min(t3.col1) from t3));
+col1
+10
+20
+30
+10
+10
+10
+select t1.col1 from t1
+where t1.col2 in
+(select t2.col2 from t2 
+group by t2.col1, t2.col2 having t1.col1 <= 10);
+col1
+10
+10
+10
+10
+select t1.col1 as tmp_col from t1
+where t1.col2 in 
+(select t2.col2 from t2 
+group by t2.col1, t2.col2 having tmp_col <= 10);
+tmp_col
+10
+10
+10
+10
+select t1.col1 from t1
+where t1.col2 in 
+(select t2.col2 from t2 
+group by t2.col1, t2.col2 having col_t1 <= 10);
+col1
+10
+10
+10
+10
+select sum(col1) from t1
+group by col_t1
+having (select col_t1 from t2 where col_t1 = col_t2 order by col_t2 limit 1);
+sum(col1)
+40
+20
+30
+select t1.col1 from t1
+where t1.col2 in 
+(select t2.col2 from t2 
+group by t2.col1, t2.col2 having col_t1 <= 10)
+having col_t1 <= 20;
+ERROR 42S22: Unknown column 'col_t1' in 'having clause'
+select t1.col1 from t1
+where t1.col2 in 
+(select t2.col2 from t2 
+group by t2.col1, t2.col2 having col_t1 <= 10)
+group by col_t1
+having col_t1 <= 20;
+col1
+10
+select col_t1, sum(col1) from t1
+group by col_t1
+having col_t1 > 10 and
+exists (select sum(t2.col1) from t2
+group by t2.col2 having t2.col2 > 'b');
+col_t1	sum(col1)
+20	20
+30	30
+select sum(col1) from t1
+group by col_t1
+having col_t1 in (select sum(t2.col1) from t2
+group by t2.col2, t2.col1 having t2.col1 = t1.col1);
+ERROR 42S22: Unknown column 't1.col1' in 'having clause'
+select sum(col1) from t1
+group by col_t1
+having col_t1 in (select sum(t2.col1) from t2
+group by t2.col2, t2.col1 having t2.col1 = col_t1);
+sum(col1)
+40
+20
+30
+select t1.col1, t2.col1 from t1, t2 where t1.col1 = t2.col1
+group by t1.col1, t2.col1 having col1 = 2;
+ERROR 23000: Column 'col1' in having clause is ambiguous
+select t1.col1*10+t2.col1 from t1,t2 where t1.col1=t2.col1
+group by t1.col1, t2.col1 having col1 = 2;
+ERROR 23000: Column 'col1' in having clause is ambiguous
+drop table t1, t2, t3;
+create table t1 (s1 int);
+insert into t1 values (1),(2),(3);
+select count(*) from t1 group by s1 having s1 is null;
+count(*)
+select s1*0 as s1 from t1 group by s1 having s1 <> 0;
+s1
+0
+0
+0
+Warnings:
+Warning	1052	Column 's1' in having clause is ambiguous
+select s1*0 from t1 group by s1 having s1 = 0;
+s1*0
+select s1 from t1 group by 1 having 1 = 0;
+s1
+select count(s1) from t1 group by s1 having count(1+1)=2;
+count(s1)
+select count(s1) from t1 group by s1 having s1*0=0;
+count(s1)
+1
+1
+1
+select * from t1 a, t1 b group by a.s1 having s1 is null;
+ERROR 23000: Column 's1' in having clause is ambiguous
+drop table t1;
+create table t1 (s1 char character set latin1 collate latin1_german1_ci);
+insert into t1 values ('ü'),('y');
+Warnings:
+Warning	1265	Data truncated for column 's1' at row 1
+select s1,count(s1) from t1
+group by s1 collate latin1_swedish_ci having s1 = 'y';
+s1	count(s1)
+y	1
+drop table t1;
