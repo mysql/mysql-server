@@ -218,7 +218,8 @@ int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
       (void) unpack_filename(path,path);
     }
     if (drop_temporary ||
-        (access(path,F_OK) && ha_create_table_from_engine(thd,db,alias,TRUE)) ||
+        (access(path,F_OK) &&
+         ha_create_table_from_engine(thd,db,alias,TRUE)) ||
         (!drop_view && mysql_frm_type(path) != FRMTYPE_TABLE))
     {
       if (if_exists)
@@ -234,34 +235,28 @@ int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
       db_type table_type= get_table_type(path);
       *(end=fn_ext(path))=0;			// Remove extension for delete
       error=ha_delete_table(table_type, path);
-      if (error == ENOENT && if_exists)
-	error = 0;
+      if ((error == ENOENT || error == HA_ERR_NO_SUCH_TABLE) && if_exists)
+      {
+        /* Warn that the table did not exist in engine */
+        if (error == HA_ERR_NO_SUCH_TABLE)
+          push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_NOTE,
+                              ER_BAD_TABLE_ERROR, ER(ER_BAD_TABLE_ERROR),
+                              table->table_name);
+	error= 0;
+      }
       if (error == HA_ERR_ROW_IS_REFERENCED)
       {
 	/* the table is referenced by a foreign key constraint */
 	foreign_key_error=1;
       }
-      if (!error || error == ENOENT)
+      if (!error || error == ENOENT || error == HA_ERR_NO_SUCH_TABLE)
       {
+        int new_error;
 	/* Delete the table definition file */
 	strmov(end,reg_ext);
-	if (!(error=my_delete(path,MYF(MY_WME))))
+	if (!(new_error=my_delete(path,MYF(MY_WME))))
 	  some_tables_deleted=1;
-      }
-      if (error == HA_ERR_NO_SUCH_TABLE)
-      {
-        /* The table did not exist in engine */
-        if (if_exists)
-        {
-          push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_NOTE,
-                              ER_BAD_TABLE_ERROR, ER(ER_BAD_TABLE_ERROR),
-                              table->table_name);
-          error= 0;
-        }
-        /* Delete the table definition file */
-        strmov(end,reg_ext);
-        if (!(my_delete(path,MYF(MY_WME))))
-          some_tables_deleted=1;
+        error|= new_error;
       }
     }
     if (error)
