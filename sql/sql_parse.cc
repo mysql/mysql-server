@@ -17,6 +17,7 @@
 
 #include "mysql_priv.h"
 #include "sql_acl.h"
+#include "sql_repl.h"
 #include <m_ctype.h>
 #include <thr_alarm.h>
 #include <myisam.h>
@@ -24,13 +25,6 @@
 
 #define SCRAMBLE_LENGTH 8
 
-extern pthread_handler_decl(handle_slave,arg);
-extern bool slave_running;
-extern char* master_host;
-extern pthread_t slave_real_id;
-extern MASTER_INFO glob_mi;
-extern my_string opt_bin_logname, master_info_file;
-extern I_List<i_string> binlog_do_db, binlog_ignore_db;
 
 extern int yyparse(void);
 extern "C" pthread_mutex_t THR_LOCK_keycache;
@@ -47,15 +41,8 @@ static void mysql_init_query(THD *thd);
 static void remove_escape(char *name);
 static void kill_one_thread(THD *thd, ulong thread);
 static void refresh_status(void);
-static int start_slave(THD* thd = 0, bool net_report = 1);
-static int stop_slave(THD* thd = 0, bool net_report = 1);
-static int change_master(THD* thd);
-static void reset_slave();
-static void reset_master();
 
-extern int init_master_info(MASTER_INFO* mi);
-
-static const char *any_db="*any*";	// Special symbol for check_access
+const char *any_db="*any*";	// Special symbol for check_access
 
 const char *command_name[]={
   "Sleep", "Quit", "Init DB", "Query", "Field List", "Create DB",
@@ -717,9 +704,14 @@ bool do_command(THD *thd)
 
       ulong pos;
       ushort flags;
+      uint32 slave_server_id;
       pos = uint4korr(packet + 1);
       flags = uint2korr(packet + 5);
-      mysql_binlog_send(thd, thd->strdup(packet + 7), pos, flags);
+      pthread_mutex_lock(&LOCK_server_id);
+      kill_zombie_dump_threads(slave_server_id = uint4korr(packet+7));
+      thd->server_id = slave_server_id;
+      pthread_mutex_unlock(&LOCK_server_id);
+      mysql_binlog_send(thd, strdup(packet + 11), pos, flags);
       break;
     }
   case COM_REFRESH:
@@ -2516,207 +2508,3 @@ static void refresh_status(void)
   pthread_mutex_unlock(&THR_LOCK_keycache);
 }
 
-static int start_slave(THD* thd , bool net_report)
-{
-  if(!thd) thd = current_thd;
-  NET* net = &thd->net;
-  const char* err = 0;
-  if (check_access(thd, PROCESS_ACL, any_db))
-    return 1;
-  pthread_mutex_lock(&LOCK_slave);
-  if(!slave_running)
-    if(glob_mi.inited && glob_mi.host)
-      {
-	pthread_t hThread;
-	if(pthread_create(&hThread, &connection_attrib, handle_slave, 0))
-	  {
-	    err = "cannot create slave thread";
-	  }
-      }
-    else
-      err = "Master host not set or master info not initialized";
-  else
-    err =  "Slave already running";
-
-  pthread_mutex_unlock(&LOCK_slave);
-  if(err)
-    {
-      if(net_report) send_error(net, 0, err);
-      return 1;
-    }
-  else if(net_report)
-    send_ok(net);
-
-  return 0;
-}
-
-static int stop_slave(THD* thd, bool net_report )
-{
-  if(!thd) thd = current_thd;
-  NET* net = &thd->net;
-  const char* err = 0;
-
-  if (check_access(thd, PROCESS_ACL, any_db))
-    return 1;
-
-  pthread_mutex_lock(&LOCK_slave);
-  if (slave_running)
-  {
-    abort_slave = 1;
-    thr_alarm_kill(slave_real_id);
-    // do not abort the slave in the middle of a query, so we do not set
-    // thd->killed for the slave thread
-    thd->proc_info = "waiting for slave to die";
-    pthread_cond_wait(&COND_slave_stopped, &LOCK_slave);
-  }
-  else
-    err = "Slave is not running";
-
-  pthread_mutex_unlock(&LOCK_slave);
-  thd->proc_info = 0;
-
-  if(err)
-    {
-     if(net_report) send_error(net, 0, err);
-     return 1;
-    }
-  else if(net_report)
-    send_ok(net);
-
-  return 0;
-}
-
-static void reset_slave()
-{
-  MY_STAT stat_area;
-  char fname[FN_REFLEN];
-  bool slave_was_running = slave_running;
-
-  if(slave_running)
-    stop_slave(0,0);
-
-  fn_format(fname, master_info_file, mysql_data_home, "", 4+16+32);
-  if(my_stat(fname, &stat_area, MYF(0)))
-    if(my_delete(fname, MYF(MY_WME)))
-        return;
-
-  if(slave_was_running)
-    start_slave(0,0);
-}
-
-static int change_master(THD* thd)
-{
-  bool slave_was_running;
-  // kill slave thread
-  pthread_mutex_lock(&LOCK_slave);
-  if((slave_was_running = slave_running))
-    {
-      abort_slave = 1;
-      thr_alarm_kill(slave_real_id);
-      thd->proc_info = "waiting for slave to die";
-      pthread_cond_wait(&COND_slave_stopped, &LOCK_slave); // wait until done
-    }
-  pthread_mutex_unlock(&LOCK_slave);
-  thd->proc_info = "changing master";
-  LEX_MASTER_INFO* lex_mi = &thd->lex.mi;
-
-  if(!glob_mi.inited)
-    init_master_info(&glob_mi);
-  
-  pthread_mutex_lock(&glob_mi.lock);
-  if((lex_mi->host || lex_mi->port) && !lex_mi->log_file_name && !lex_mi->pos)
-    {
-      // if we change host or port, we must reset the postion
-      glob_mi.log_file_name[0] = 0;
-      glob_mi.pos = 0;
-    }
-
-  if(lex_mi->log_file_name)
-    strmake(glob_mi.log_file_name, lex_mi->log_file_name,
-	    sizeof(glob_mi.log_file_name));
-  if(lex_mi->pos)
-    glob_mi.pos = lex_mi->pos;
-
-  if(lex_mi->host)
-    strmake(glob_mi.host, lex_mi->host, sizeof(glob_mi.host));
-  if(lex_mi->user)
-    strmake(glob_mi.user, lex_mi->user, sizeof(glob_mi.user));
-  if(lex_mi->password)
-    strmake(glob_mi.password, lex_mi->password, sizeof(glob_mi.password));
-  if(lex_mi->port)
-    glob_mi.port = lex_mi->port;
-  if(lex_mi->connect_retry)
-    glob_mi.connect_retry = lex_mi->connect_retry;
-
-  flush_master_info(&glob_mi);
-  pthread_mutex_unlock(&glob_mi.lock);
-  thd->proc_info = "starting slave";
-  if(slave_was_running)
-    start_slave(0,0);
-  thd->proc_info = 0;
-
-  send_ok(&thd->net);
-  return 0;
-}
-
-static void reset_master()
-{
-  if(!mysql_bin_log.is_open())
-  {
-    my_error(ER_FLUSH_MASTER_BINLOG_CLOSED,  MYF(ME_BELL+ME_WAITTANG));
-    return;
-  }
-
-  LOG_INFO linfo;
-  if (mysql_bin_log.find_first_log(&linfo, ""))
-    return;
-
-  for(;;)
-  {
-    my_delete(linfo.log_file_name, MYF(MY_WME));
-    if (mysql_bin_log.find_next_log(&linfo))
-      break;
-  }
-  mysql_bin_log.close(1); // exiting close
-  my_delete(mysql_bin_log.get_index_fname(), MYF(MY_WME));
-  mysql_bin_log.open(opt_bin_logname,LOG_BIN);
-
-}
-
-int show_binlog_info(THD* thd)
-{
-  DBUG_ENTER("show_binlog_info");
-  List<Item> field_list;
-  field_list.push_back(new Item_empty_string("File", FN_REFLEN));
-  field_list.push_back(new Item_empty_string("Position",20));
-  field_list.push_back(new Item_empty_string("Binlog_do_db",20));
-  field_list.push_back(new Item_empty_string("Binlog_ignore_db",20));
-
-  if(send_fields(thd, field_list, 1))
-    DBUG_RETURN(-1);
-  String* packet = &thd->packet;
-  packet->length(0);
-
-  if(mysql_bin_log.is_open())
-    {
-      LOG_INFO li;
-      mysql_bin_log.get_current_log(&li);
-      net_store_data(packet, li.log_file_name);
-      net_store_data(packet, (longlong)li.pos);
-      net_store_data(packet, &binlog_do_db);
-      net_store_data(packet, &binlog_ignore_db);
-    }
-  else
-    {
-      net_store_null(packet);
-      net_store_null(packet);
-      net_store_null(packet);
-      net_store_null(packet);
-    }
-
-  if(my_net_write(&thd->net, (char*)thd->packet.ptr(), packet->length()))
-    DBUG_RETURN(-1);
-
-  send_eof(&thd->net);
-  DBUG_RETURN(0);
-}

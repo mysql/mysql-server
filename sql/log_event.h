@@ -30,6 +30,18 @@
 #define LOG_EVENT_OFFSET 4
 #define BINLOG_VERSION    1
 
+#define LOG_EVENT_HEADER_LEN 13
+#define QUERY_HEADER_LEN     (sizeof(uint32) + sizeof(uint32) + sizeof(uchar))
+#define LOAD_HEADER_LEN      (sizeof(uint32) + sizeof(uint32) + \
+  + sizeof(uint32) + 2 + sizeof(uint32))
+#define EVENT_LEN_OFFSET     9
+#define EVENT_TYPE_OFFSET    4
+#define MAX_EVENT_LEN        4*1024*1024 
+#define QUERY_EVENT_OVERHEAD  LOG_EVENT_HEADER_LEN+QUERY_HEADER_LEN
+#define ROTATE_EVENT_OVERHEAD LOG_EVENT_HEADER_LEN
+#define LOAD_EVENT_OVERHEAD   (LOG_EVENT_HEADER_LEN+LOAD_HEADER_LEN+sizeof(sql_ex_info))
+
+
 enum Log_event_type { START_EVENT = 1, QUERY_EVENT =2,
 		      STOP_EVENT=3, ROTATE_EVENT = 4, INTVAR_EVENT=5,
                       LOAD_EVENT=6};
@@ -101,7 +113,7 @@ public:
 #if !defined(MYSQL_CLIENT)
   THD* thd;
   Query_log_event(THD* thd_arg, const char* query_arg):
-    Log_event(thd_arg->start_time,0,0,thd->server_id), data_buf(0),
+    Log_event(thd_arg->start_time,0,0,thd_arg->server_id), data_buf(0),
     query(query_arg),  db(thd_arg->db), q_len(thd_arg->query_length),
     thread_id(thd_arg->thread_id), thd(thd_arg)
   {

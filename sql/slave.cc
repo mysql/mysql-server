@@ -463,15 +463,16 @@ static int safe_sleep(THD* thd, int sec)
 
 static int request_dump(MYSQL* mysql, MASTER_INFO* mi)
 {
-  char buf[FN_REFLEN + 6];
+  char buf[FN_REFLEN + 10];
   int len;
   int binlog_flags = 0; // for now
   char* logname = mi->log_file_name;
   int4store(buf, mi->pos);
   int2store(buf + 4, binlog_flags);
+  int4store(buf + 6, server_id);
   len = (uint) strlen(logname);
-  memcpy(buf + 6, logname,len);
-  if(mc_simple_command(mysql, COM_BINLOG_DUMP, buf, len + 6, 1))
+  memcpy(buf + 10, logname,len);
+  if(mc_simple_command(mysql, COM_BINLOG_DUMP, buf, len + 10, 1))
 	// something went wrong, so we will just reconnect and retry later
 	// in the future, we should do a better error analysis, but for
 	// now we just fill up the error log :-)
