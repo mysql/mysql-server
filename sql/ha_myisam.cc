@@ -80,9 +80,8 @@ static void mi_check_print_msg(MI_CHECK *param,	const char* msg_type,
 
   net_store_data(packet, msgbuf);
   if (my_net_write(&thd->net, (char*)thd->packet.ptr(), thd->packet.length()))
-    fprintf(stderr,
-            "Failed on my_net_write, writing to stderr instead: %s\n",
-            msgbuf);
+    sql_print_error("Failed on my_net_write, writing to stderr instead: %s\n",
+		    msgbuf);
   return;
 }
 
@@ -121,6 +120,13 @@ void mi_check_print_warning(MI_CHECK *param, const char *fmt,...)
 const char **ha_myisam::bas_ext() const
 { static const char *ext[]= { ".MYD",".MYI", NullS }; return ext; }
 
+
+const char *ha_myisam::index_type(uint key_number)
+{
+  return ((table->key_info[key_number].flags & HA_FULLTEXT) ?
+	  "FULLTEXT" :
+	  "BTREE");
+}
 
 int ha_myisam::net_read_dump(NET* net)
 {
@@ -1170,7 +1176,7 @@ longlong ha_myisam::get_auto_increment()
 
   longlong nr;
   int error;
-  byte key[MAX_KEY_LENGTH];
+  byte key[MI_MAX_KEY_LENGTH];
   (void) extra(HA_EXTRA_KEYREAD);
   key_copy(key,table,table->next_number_index,
 	   table->next_number_key_offset);

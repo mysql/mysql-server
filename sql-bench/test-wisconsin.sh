@@ -242,7 +242,7 @@ sub init_data
 {
   @onek=
     $server->create("onek",
-		    ["unique1 int(4) NOT NULL",
+		    ["unique1 int(5) NOT NULL",
 		     "unique2 int(4) NOT NULL",
 		     "two int(4)",
 		     "four int(4)",

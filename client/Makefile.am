@@ -28,6 +28,7 @@ noinst_HEADERS =		sql_string.h completion_hash.h my_readline.h \
 				client_priv.h
 mysql_SOURCES =			mysql.cc readline.cc sql_string.cc completion_hash.cc
 mysql_LDADD =			@readline_link@ @TERMCAP_LIB@ $(LDADD) $(CXXLDFLAGS)
+mysqlbinlog_LDADD =		$(LDADD) $(CXXLDFLAGS)
 mysql_DEPENDENCIES=		$(LIBRARIES) $(pkglib_LTLIBRARIES)
 mysqladmin_DEPENDENCIES=	$(LIBRARIES) $(pkglib_LTLIBRARIES)
 mysqlcheck_DEPENDENCIES=	$(LIBRARIES) $(pkglib_LTLIBRARIES)

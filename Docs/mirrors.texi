@@ -71,11 +71,6 @@ WWW (@uref{http://ftp.gwdg.de/pub/misc/mysql/})
 FTP (@uref{ftp://ftp.gwdg.de/pub/misc/mysql/})
 
 @item
-@image{Flags/germany} Germany [Kernelnotes.de, Bonn] @@
-WWW (@uref{http://www.kernelnotes.de/mysql/})
-FTP (@uref{ftp://ftp.kernelnotes.de/mysql.com/})
-
-@item
 @image{Flags/germany} Germany [SunSITE Central Europe] @@
 WWW (@uref{http://sunsite.informatik.rwth-aachen.de/mysql/})
 FTP (@uref{ftp://sunsite.informatik.rwth-aachen.de/pub/mirror/www.mysql.com/})
@@ -235,36 +230,41 @@ WWW (@uref{http://mysql.unam.mx/})
 FTP (@uref{ftp://mysql.unam.mx/pub/mysql/})
 
 @item
-@image{Flags/usa} USA [adgrafix.com/Boston, MA] @@
+@image{Flags/usa} USA [adgrafix.com / Boston, MA] @@
 WWW (@uref{http://mysql.adgrafix.com/})
 
 @item
-@image{Flags/usa} USA [Ahaza Systems/Seattle, WA] @@
+@image{Flags/usa} USA [Ahaza Systems / Seattle, WA] @@
 WWW (@uref{http://mysql.mirrortree.com/})
 FTP (@uref{ftp://mysql.mirrortree.com/pub/mysql/})
 
 @item
-@image{Flags/usa} USA [Hurricane Electric/San Jose] @@
+@image{Flags/usa} USA [Hurricane Electric / San Jose, CA] @@
 WWW (@uref{http://mysql.he.net/})
 
 @item
-@image{Flags/usa} USA [netNumina/Cambridge, MA] @@
+@image{Flags/usa} USA [netNumina / Cambridge, MA] @@
 WWW (@uref{http://mysql.mirrors.netnumina.com/})
 
 @item
-@image{Flags/usa} USA [NIXC/Vienna, VA] @@
+@image{Flags/usa} USA [NIXC / Vienna, VA] @@
 WWW (@uref{http://mysql.nixc.net/})
 FTP (@uref{ftp://mysql.nixc.net/pub/mysql/})
 
 @item
-@image{Flags/usa} USA [University of Wisconsin/Wisconsin] @@
+@image{Flags/usa} USA [Oregon State University / Corvallis, OR] @@
+WWW (@uref{http://mysql.orst.edu/})
+FTP (@uref{ftp://ftp.orst.edu/pub/mysql/})
+
+@item
+@image{Flags/usa} USA [University of Wisconsin / Wisconsin] @@
 WWW (@uref{http://mirror.sit.wisc.edu/mysql/})
 FTP (@uref{ftp://mirror.sit.wisc.edu/mirrors/mysql/})
 
 @item
-@image{Flags/usa} USA [ValueClick, Los Angeles CA] @@
+@image{Flags/usa} USA [ValueClick / Los Angeles, CA] @@
 WWW (@uref{http://mysql.valueclick.com/})
-FTP (@uref{ftp://mysql.valueclick.com/pub/mysql/Downloads/})
+FTP (@uref{ftp://mysql.valueclick.com/pub/mysql/})
 
 @end itemize
 

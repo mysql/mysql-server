@@ -11,6 +11,6 @@ die "Usage: $0 datadir\n" unless -d $ARGV[0];
 
 for $a (<$ARGV[0]/*/*.*>) { $_=$a;
   s/\.frm$/.frm/i;
-  s/\.(is[md]|my[id])$/\U$&/;
+  s/\.(is[md]|my[id])$/\U$&/i;
   rename ($a, $_) || warn "Cannot rename $a => $_ : $!";
 }

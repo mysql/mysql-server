@@ -119,20 +119,11 @@ static bool init_line_buffer_from_string(LINE_BUFFER *buffer,my_string str)
 }
 
 
-static void free_line_buffer(LINE_BUFFER *buffer)
-{
-  if (buffer->buffer)
-  {
-    my_free((gptr) buffer->buffer,MYF(0));
-    buffer->buffer=0;
-  }
-}
-
-
-/* Fill the buffer retaining the last n bytes at the beginning of the
-   newly filled buffer (for backward context).	Returns the number of new
-   bytes read from disk. */
-
+/*
+  Fill the buffer retaining the last n bytes at the beginning of the
+  newly filled buffer (for backward context).	Returns the number of new
+  bytes read from disk.
+*/
 
 static uint fill_buffer(LINE_BUFFER *buffer)
 {

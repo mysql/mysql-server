@@ -58,7 +58,7 @@ static void usage(my_bool version)
   -?, --help		Display this help message and exit.\n\
   -V, --version		Output version information and exit.\n",
 	 config_file);
-  printf("\nExample usage: %s --config-file=my client mysql\n",my_progname);
+  printf("\nExample usage:\n%s --config-file=my client mysql\n",my_progname);
 }
 
 static int get_options(int *argc,char ***argv)

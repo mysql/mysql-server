@@ -8,7 +8,7 @@ flush query cache; # This crashed in some versions
 flush query cache; # This crashed in some versions
 reset query cache;
 flush status;
-drop table if exists t1,t2,t3,t11,t21;
+drop table if exists t1,t2,t3,t11,t21, mysqltest.t1;
 
 #
 # First simple test
@@ -235,7 +235,7 @@ drop table t1,t2;
 #
 # noncachable ODBC work around (and prepare cache for drop database)
 #
-create database mysqltest;
+create database if not exists mysqltest;
 create table mysqltest.t1 (i int not null auto_increment, a int, primary key (i));
 insert into mysqltest.t1 (a) values (1);
 select * from mysqltest.t1 where i is null;
@@ -258,12 +258,62 @@ set CHARACTER SET cp1251_koi8;
 select * from t1;
 set CHARACTER SET DEFAULT;
 show status like "Qcache_queries_in_cache";
+show status like "Qcache_hits";
 drop table t1;
 
 # The following tests can't be done as the values differen on 32 and 64 bit
 #  machines :(
 #show variables like "query_cache_size";
 #show status like "Qcache_free_memory";
+
+#
+# same tables in different db
+#
+create database if not exists mysqltest;
+create table mysqltest.t1 (i int not null);
+create table t1 (i int not null);
+insert into mysqltest.t1 (i) values (1);
+insert into t1 (i) values (2);
+
+select * from t1;
+use mysqltest;
+select * from t1;
+select * from t1;
+use test;
+select * from t1;
+show status like "Qcache_queries_in_cache";
+show status like "Qcache_hits";
+
+drop database mysqltest;
+drop table t1;
+
+#
+# FOUND_ROWS()
+#
+
+create table t1 (i int not null);
+insert into t1 (i) values (1),(2),(3),(4);
+
+select SQL_CALC_FOUND_ROWS * from t1 limit 2;
+select FOUND_ROWS();
+show status like "Qcache_hits";
+show status like "Qcache_queries_in_cache";
+
+select * from t1 where i=1;
+select FOUND_ROWS();
+show status like "Qcache_hits";
+show status like "Qcache_queries_in_cache";
+
+select SQL_CALC_FOUND_ROWS * from t1 limit 2;
+select FOUND_ROWS();
+show status like "Qcache_hits";
+show status like "Qcache_queries_in_cache";
+
+select * from t1 where i=1;
+select FOUND_ROWS();
+show status like "Qcache_hits";
+show status like "Qcache_queries_in_cache";
+drop table t1;
 
 #
 # Test insert delayed

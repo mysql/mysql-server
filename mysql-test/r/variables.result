@@ -1,3 +1,4 @@
+drop table if exists t1;
 set @`test`=1,@TEST=3,@select=2,@t5=1.23456;
 select @test,@`select`,@TEST,@not_used;
 @test	@`select`	@TEST	@not_used
@@ -24,3 +25,22 @@ select @t1:=(@t2:=1)+@t3:=4,@t1,@t2,@t3;
 select @t5;
 @t5
 1.23456
+CREATE TABLE t1 (c_id INT(4) NOT NULL, c_name CHAR(20), c_country CHAR(3), PRIMARY KEY(c_id));
+INSERT INTO t1 VALUES (1,'Bozo','USA'),(2,'Ronald','USA'),(3,'Kinko','IRE'),(4,'Mr. Floppy','GB');
+SELECT @min_cid:=min(c_id), @max_cid:=max(c_id) from t1;
+@min_cid:=min(c_id)	@max_cid:=max(c_id)
+1	4
+SELECT * FROM t1 WHERE c_id=@min_cid OR c_id=@max_cid;
+c_id	c_name	c_country
+1	Bozo	USA
+4	Mr. Floppy	GB
+SELECT * FROM t1 WHERE c_id=@min_cid OR c_id=@max_cid OR c_id=666;
+c_id	c_name	c_country
+1	Bozo	USA
+4	Mr. Floppy	GB
+ALTER TABLE t1 DROP PRIMARY KEY;
+select * from t1 where c_id=@min_cid OR c_id=@max_cid;
+c_id	c_name	c_country
+1	Bozo	USA
+4	Mr. Floppy	GB
+drop table t1;

@@ -107,13 +107,16 @@ dtype_get_pad_char(
 				ULINT_UNDEFINED if no padding specified */
 	dtype_t*	type)	/* in: type */
 {
-	if (type->mtype == DATA_CHAR) {
-		/* space is the padding character for all char strings */
+	if (type->mtype == DATA_CHAR
+	    || type->mtype == DATA_VARCHAR
+	    || type->mtype == DATA_BINARY
+	    || type->mtype == DATA_FIXBINARY) {
+
+		/* Space is the padding character for all char and binary
+	        strings */
 
 		return((ulint)' ');
 	}
-
-	ut_ad((type->mtype == DATA_BINARY) || (type->mtype == DATA_VARCHAR));
 
 	/* No padding specified */
 

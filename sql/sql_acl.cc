@@ -58,7 +58,7 @@ class ACL_USER :public ACL_ACCESS
 {
 public:
   acl_host_and_ip host;
-  uint hostname_length;
+  uint hostname_length, questions, updates;
   char *user,*password;
   ulong salt[2];
 #ifdef HAVE_OPENSSL  
@@ -241,6 +241,15 @@ int  acl_init(bool dont_read_acl_tables)
     user.access=get_access(table,3);
     user.sort=get_sort(2,user.host.hostname,user.user);
     user.hostname_length=user.host.hostname ? (uint) strlen(user.host.hostname) : 0;
+    if (table->fields >=23)
+    {
+      char *ptr = get_field(&mem, table, 21);
+      user.questions=atoi(ptr);
+      ptr = get_field(&mem, table, 22);
+      user.updates=atoi(ptr);
+      if (user.questions)
+	mqh_used=true;
+    }
 #ifndef TO_BE_REMOVED
     if (table->fields <= 13)
     {						// Without grant
@@ -424,7 +433,7 @@ static int acl_compare(ACL_ACCESS *a,ACL_ACCESS *b)
 /* Get master privilges for user (priviliges for all tables). Required to connect */
 uint acl_getroot(THD *thd, const char *host, const char *ip, const char *user,
 		 const char *password,const char *message,char **priv_user,
-		 bool old_ver)
+		 bool old_ver, uint *max)
 {
   uint user_access=NO_ACCESS;
   *priv_user=(char*) user;
@@ -537,6 +546,7 @@ uint acl_getroot(THD *thd, const char *host, const char *ip, const char *user,
 #else  /* HAVE_OPENSSL */
 	  user_access=acl_user->access;
 #endif /* HAVE_OPENSSL */
+	  *max=acl_user->questions;
 	  if (!acl_user->user)
 	    *priv_user=(char*) "";	// Change to anonymous user /* purecov: inspected */
 	  break;
@@ -570,6 +580,7 @@ static void acl_update_user(const char *user, const char *host,
 			    const char *ssl_cipher,
 			    const char *x509_issuer,
 			    const char *x509_subject,
+			    unsigned int mqh,
 			    uint privileges)
 {
   for (uint i=0 ; i < acl_users.elements ; i++)
@@ -583,6 +594,7 @@ static void acl_update_user(const char *user, const char *host,
 	  acl_user->host.hostname && !strcmp(host,acl_user->host.hostname))
       {
 	acl_user->access=privileges;
+	acl_user->questions=mqh;
 #ifdef HAVE_OPENSSL
 	acl_user->ssl_type=ssl_type;
         acl_user->ssl_cipher=ssl_cipher;
@@ -612,6 +624,7 @@ static void acl_insert_user(const char *user, const char *host,
 			    const char *ssl_cipher,
 			    const char *x509_issuer,
 			    const char *x509_subject,
+			    unsigned int mqh,
 			    uint privileges)
 {
   ACL_USER acl_user;
@@ -619,6 +632,7 @@ static void acl_insert_user(const char *user, const char *host,
   update_hostname(&acl_user.host,strdup_root(&mem,host));
   acl_user.password=0;
   acl_user.access=privileges;
+  acl_user.questions=mqh;
   acl_user.sort=get_sort(2,acl_user.host.hostname,acl_user.user);
   acl_user.hostname_length=(uint) strlen(acl_user.host.hostname);
 #ifdef HAVE_OPENSSL
@@ -1207,6 +1221,13 @@ static int replace_user_table(THD *thd, TABLE *table, const LEX_USER &combo,
     }
   }
 #endif /* HAVE_OPENSSL */
+  if (table->fields>=23 && thd->lex.mqh)
+  {
+    char buff[33];
+    int len =int2str((long)thd->lex.mqh,buff,10) - buff;
+    table->field[21]->store(buff,len);
+    mqh_used=true;
+  }
   if (old_row_exists)
   {
     /*
@@ -1245,6 +1266,7 @@ end:
 		      thd->lex.ssl_cipher,
 		      thd->lex.x509_issuer,
 		      thd->lex.x509_subject,
+		      thd->lex.mqh,
 		      rights);
     else
       acl_insert_user(combo.user.str,combo.host.str,password,
@@ -1252,6 +1274,7 @@ end:
 		      thd->lex.ssl_cipher,
 		      thd->lex.x509_issuer,
 		      thd->lex.x509_subject,
+		      thd->lex.mqh,
 		      rights);
   }
   table->file->index_end();

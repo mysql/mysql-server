@@ -34,7 +34,8 @@ LTCHARSET_OBJS= ${CHARSET_OBJS:.o=.lo}
 target_sources = libmysql.c net.c  password.c manager.c \
 			    get_password.c errmsg.c
 
-mystringsobjects =	strmov.lo strxmov.lo strnmov.lo strmake.lo strend.lo \
+mystringsobjects =	strmov.lo strxmov.lo strxnmov.lo strnmov.lo \
+			strmake.lo strend.lo \
 			strnlen.lo strfill.lo is_prefix.lo \
 			int2str.lo str2int.lo strinstr.lo strcont.lo \
 			strcend.lo bcmp.lo \

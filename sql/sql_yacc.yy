@@ -1,4 +1,4 @@
-/* Copyright (C) 2000 MySQL AB & MySQL Finland AB & TCX DataKonsult AB
+/* Copyright (C) 2000-2001 MySQL AB
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -58,6 +58,7 @@ inline Item *or_or_concat(Item* A, Item* B)
   enum row_type row_type;
   enum ha_rkey_function ha_rkey_mode;
   enum enum_tx_isolation tx_isolation;
+  enum Item_cast cast_type;
   String *string;
   key_part_spec *key_part;
   TABLE_LIST *table_list;
@@ -156,6 +157,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %token	BY
 %token	CACHE_SYM
 %token	CASCADE
+%token	CAST_SYM
 %token	CHECKSUM_SYM
 %token	CHECK_SYM
 %token	CIPHER
@@ -164,6 +166,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %token	COLUMN_SYM
 %token	CONCURRENT
 %token	CONSTRAINT
+%token	CONVERT_SYM
 %token	DATABASES
 %token	DATA_SYM
 %token	DEFAULT
@@ -238,6 +241,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %token  MASTER_SERVER_ID_SYM
 %token	MATCH
 %token	MAX_ROWS
+%token  MAX_QUERIES_PER_HOUR
 %token	MEDIUM_SYM
 %token	MERGE_SYM
 %token	MIN_ROWS
@@ -351,6 +355,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %token	PRECISION
 %token  QUICK
 %token	REAL
+%token	SIGNED_SYM
 %token	SMALLINT
 %token	STRING_SYM
 %token	TEXT_SYM
@@ -545,6 +550,8 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 
 %type <ha_rkey_mode> handler_rkey_mode
 
+%type <cast_type> cast_type
+
 %type <udf_type> udf_func_type
 
 %type <symbol> FUNC_ARG0 FUNC_ARG1 FUNC_ARG2 FUNC_ARG3 keyword
@@ -570,7 +577,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 	opt_outer table_list table_name opt_option opt_place opt_low_priority
 	opt_attribute opt_attribute_list attribute column_list column_list_id
 	opt_column_list grant_privileges opt_table user_list grant_option
-	grant_privilege grant_privilege_list
+	grant_privilege grant_privilege_list mqh_option
 	flush_options flush_option insert_lock_option replace_lock_option
 	equal optional_braces opt_key_definition key_usage_list2
 	opt_mi_check_type opt_to mi_check_types normal_join
@@ -1009,7 +1016,8 @@ field_opt_list:
 	| field_option {}
 
 field_option:
-	UNSIGNED	{ Lex->type|= UNSIGNED_FLAG;}
+	SIGNED_SYM	{}
+	| UNSIGNED	{ Lex->type|= UNSIGNED_FLAG;}
 	| ZEROFILL	{ Lex->type|= UNSIGNED_FLAG | ZEROFILL_FLAG; }
 
 opt_len:
@@ -1596,8 +1604,10 @@ simple_expr:
           { Select->ftfunc_list.push_back((Item_func_match *)
                    ($$=new Item_func_match_bool(*$2,$5))); }
 	| BINARY expr %prec NEG	{ $$= new Item_func_binary($2); }
+	| CAST_SYM '(' expr AS cast_type ')'  { $$= create_func_cast($3, $5); }
 	| CASE_SYM opt_expr WHEN_SYM when_list opt_else END
 	  { $$= new Item_func_case(* $4, $2, $5 ) }
+	| CONVERT_SYM '(' expr ',' cast_type ')'  { $$= create_func_cast($3, $5); }
 	| FUNC_ARG0 '(' ')'
 	  { $$= ((Item*(*)(void))($1.symbol->create_func))();}
 	| FUNC_ARG1 '(' expr ')'
@@ -1869,6 +1879,16 @@ in_sum_expr:
 	  $$=$2;
 	}
 
+cast_type:
+	BINARY 			{ $$=ITEM_CAST_BINARY; }
+	| SIGNED_SYM		{ $$=ITEM_CAST_SIGNED_INT; }
+	| SIGNED_SYM INT_SYM	{ $$=ITEM_CAST_SIGNED_INT; }
+	| UNSIGNED		{ $$=ITEM_CAST_UNSIGNED_INT; }
+	| UNSIGNED INT_SYM	{ $$=ITEM_CAST_UNSIGNED_INT; }
+	| DATE_SYM		{ $$=ITEM_CAST_DATE; }
+	| TIME_SYM		{ $$=ITEM_CAST_TIME; }
+	| DATETIME		{ $$=ITEM_CAST_DATETIME; }
+
 expr_list:
 	{ Select->expr_list.push_front(new List<Item>); }
 	expr_list2
@@ -2094,7 +2114,13 @@ opt_order_clause:
 	| order_clause
 
 order_clause:
-	ORDER_SYM BY order_list
+	ORDER_SYM BY 
+        { 
+	  LEX *lex=Lex;
+	  if (lex->sql_command == SQLCOM_MULTI_UPDATE)
+	    YYABORT;
+	  lex->select->sort_default=1;
+	} order_list
 
 order_list:
 	order_list ',' order_ident order_dir
@@ -2113,7 +2139,8 @@ limit_clause:
 	| LIMIT ULONG_NUM
 	  {
 	    SELECT_LEX *sel=Select;
-	    sel->select_limit= $2; sel->offset_limit=0L;
+	    sel->select_limit= $2;
+	    sel->offset_limit=0L;
 	  }
 	| LIMIT ULONG_NUM ',' ULONG_NUM
 	  {
@@ -2124,7 +2151,10 @@ limit_clause:
 delete_limit_clause:
 	/* empty */
 	{
-	  Select->select_limit= HA_POS_ERROR;
+	  LEX *lex=Lex;
+	  if (lex->sql_command == SQLCOM_MULTI_UPDATE)
+	    YYABORT;
+	  lex->select->select_limit= HA_POS_ERROR;
 	}
 	| LIMIT ulonglong_num
 	{ Select->select_limit= (ha_rows) $2; }
@@ -2371,7 +2401,7 @@ values:
 /* Update rows in a table */
 
 update:
-	UPDATE_SYM opt_low_priority opt_ignore table_name
+        UPDATE_SYM 
 	{ 
 	  LEX *lex=Lex;
           lex->sql_command = SQLCOM_UPDATE;
@@ -2379,10 +2409,7 @@ update:
           lex->select->order_list.first=0;
           lex->select->order_list.next= (byte**) &lex->select->order_list.first;
         }
-        SET update_list 
-        where_clause 
-        opt_order_clause
-        delete_limit_clause
+        opt_low_priority opt_ignore join_table_list SET update_list where_clause opt_order_clause delete_limit_clause
 
 update_list:
 	update_list ',' simple_ident equal expr
@@ -2417,24 +2444,11 @@ delete:
 single_multi:
  	FROM table_name where_clause opt_order_clause delete_limit_clause {}
 	| table_wild_list
-	  {
-	    LEX *lex=Lex;
-	    lex->sql_command =  SQLCOM_DELETE_MULTI;
-            mysql_init_select(lex);
-            lex->select->select_limit=HA_POS_ERROR;
-            lex->auxilliary_table_list.elements=0; 
-            lex->auxilliary_table_list.first=0;
-            lex->auxilliary_table_list.next= (byte**) &(lex->auxilliary_table_list.first);
-          }
-          FROM 
-          {
-	    LEX *lex=Lex;
-	    lex->auxilliary_table_list=lex->select_lex.table_list;
-	    lex->select->table_list.elements=0; 
-            lex->select->table_list.first=0;
-            lex->select->table_list.next= (byte**) &(lex->select->table_list.first);
-	  } join_table_list where_clause
-
+	  { mysql_init_multi_delete(Lex); }
+	   FROM join_table_list where_clause
+	| FROM table_wild_list
+	  { mysql_init_multi_delete(Lex); }
+	  USING join_table_list where_clause
 
 table_wild_list:
 	  table_wild_one {}
@@ -2980,6 +2994,7 @@ keyword:
 	| MASTER_USER_SYM	{}
 	| MASTER_PASSWORD_SYM	{}
 	| MASTER_CONNECT_RETRY_SYM	{}
+	| MAX_QUERIES_PER_HOUR  {}
 	| MEDIUM_SYM		{}
 	| MERGE_SYM		{}
 	| MINUTE_SYM		{}
@@ -3019,6 +3034,7 @@ keyword:
 	| SECOND_SYM		{}
 	| SERIALIZABLE_SYM	{}
 	| SESSION_SYM		{}
+	| SIGNED_SYM		{}
 	| SHARE_SYM		{}
 	| SHUTDOWN		{}
         | SLAVE		        {}
@@ -3372,9 +3388,10 @@ grant:
 	  lex->select->db=0;
 	  lex->ssl_type=SSL_TYPE_NONE;
 	  lex->ssl_cipher=lex->x509_subject=lex->x509_issuer=0;
+	  lex->mqh=0;	
 	}
 	grant_privileges ON opt_table TO_SYM user_list
-	require_clause grant_option 
+	require_clause grant_option mqh_option 
 
 grant_privileges:
 	grant_privilege_list {}
@@ -3564,6 +3581,15 @@ require_clause: /* empty */
 grant_option:
 	/* empty */ {}
 	| WITH GRANT OPTION { Lex->grant |= GRANT_ACL;}
+
+mqh_option:
+	/* empty */ {}
+        | AND WITH MAX_QUERIES_PER_HOUR EQ NUM
+        { 
+	  Lex->mqh=atoi($5.str);
+	  if (Lex->mqh > 65535)
+	    YYABORT;
+	}
 
 begin:
 	BEGIN_SYM   { Lex->sql_command = SQLCOM_BEGIN;} opt_work

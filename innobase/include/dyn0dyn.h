@@ -18,7 +18,12 @@ typedef dyn_block_t			dyn_array_t;
 
 
 /* Initial 'payload' size in bytes in a dynamic array block */
+#ifndef _AIX
 #define	DYN_ARRAY_DATA_SIZE	1024
+#else
+/* AIX has a quite small stack / thread */
+#define	DYN_ARRAY_DATA_SIZE	128
+#endif
 
 /*************************************************************************
 Initializes a dynamic array. */
