@@ -246,7 +246,7 @@ character-set=latin1
 "Wrong foreign key definition for '%-.64s': %s",
 "Key reference and table reference doesn't match",
 "Cardinality error (more/less than %d columns)",
-"Subselect returns more than 1 record",
+"Subquery returns more than 1 record",
 "Unknown prepared statement handler (%ld) given to %s",
 "Help database is corrupt or does not exist",
 "Cyclic reference on subqueries",

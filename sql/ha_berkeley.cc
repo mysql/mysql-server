@@ -304,11 +304,13 @@ void berkeley_cleanup_log_files(void)
   char **names;
   int error;
 
+// by HF. Sometimes it crashes. TODO - find out why
+#ifndef EMBEDDED_LIBRARY
   /* XXX: Probably this should be done somewhere else, and
    * should be tunable by the user. */
   if ((error = db_env->txn_checkpoint(db_env, 0, 0, 0)))
     my_error(ER_ERROR_DURING_CHECKPOINT, MYF(0), error); /* purecov: inspected */
-
+#endif
   if ((error = db_env->log_archive(db_env, &names, DB_ARCH_ABS)) != 0)
   {
     DBUG_PRINT("error", ("log_archive failed (error %d)", error)); /* purecov: inspected */

@@ -292,7 +292,7 @@ uint my_instr_mb(CHARSET_INFO *cs,
         match->end= 0;
         match->mblen= 0;
       }
-      return 1;		// Empty string is always found
+      return 1;		/* Empty string is always found */
     }
     
     big0= big;
@@ -307,7 +307,7 @@ uint my_instr_mb(CHARSET_INFO *cs,
       {
         if (nmatch)
         {
-          match[0].beg= big0;
+          match[0].beg= 0;
           match[0].end= big-big0;
           match[0].mblen= res;
           if (nmatch > 1)
