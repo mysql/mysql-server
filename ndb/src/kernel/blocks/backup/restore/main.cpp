@@ -206,6 +206,7 @@ free_data_callback()
 int
 main(int argc, const char** argv)
 {
+  ndb_init();
   if (!readArguments(argc, argv))
   {
     return -1;

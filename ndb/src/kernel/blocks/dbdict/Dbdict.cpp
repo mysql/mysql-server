@@ -6317,6 +6317,8 @@ Dbdict::createIndex_toCreateTable(Signal* signal, OpCreateIndexPtr opPtr)
       w.add(DictTabInfo::AttributeStoredInd, (Uint32)DictTabInfo::Stored);
       // ext type overrides
       w.add(DictTabInfo::AttributeExtType, aRec->extType);
+      w.add(DictTabInfo::AttributeExtPrecision, aRec->extPrecision);
+      w.add(DictTabInfo::AttributeExtScale, aRec->extScale);
       w.add(DictTabInfo::AttributeExtLength, aRec->extLength);
       w.add(DictTabInfo::AttributeEnd, (Uint32)true);
     }

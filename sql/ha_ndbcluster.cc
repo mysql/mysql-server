@@ -2897,6 +2897,8 @@ static int create_ndb_column(NDBCOL &col,
 {
   // Set name
   col.setName(field->field_name);
+  // Get char set
+  CHARSET_INFO *cs= field->charset();
   // Set type and sizes
   const enum enum_field_types mysql_type= field->real_type();
   switch (mysql_type) {
@@ -2968,15 +2970,19 @@ static int create_ndb_column(NDBCOL &col,
   case MYSQL_TYPE_STRING:      
     if (field->flags & BINARY_FLAG)
       col.setType(NDBCOL::Binary);
-    else
+    else {
       col.setType(NDBCOL::Char);
+      col.setCharset(cs);
+    }
     col.setLength(field->pack_length());
     break;
   case MYSQL_TYPE_VAR_STRING:
     if (field->flags & BINARY_FLAG)
       col.setType(NDBCOL::Varbinary);
-    else
+    else {
       col.setType(NDBCOL::Varchar);
+      col.setCharset(cs);
+    }
     col.setLength(field->pack_length());
     break;
   // Blob types (all come in as MYSQL_TYPE_BLOB)
@@ -2984,8 +2990,10 @@ static int create_ndb_column(NDBCOL &col,
   case MYSQL_TYPE_TINY_BLOB:
     if (field->flags & BINARY_FLAG)
       col.setType(NDBCOL::Blob);
-    else
+    else {
       col.setType(NDBCOL::Text);
+      col.setCharset(cs);
+    }
     col.setInlineSize(256);
     // No parts
     col.setPartSize(0);
@@ -2995,8 +3003,10 @@ static int create_ndb_column(NDBCOL &col,
   case MYSQL_TYPE_BLOB:    
     if (field->flags & BINARY_FLAG)
       col.setType(NDBCOL::Blob);
-    else
+    else {
       col.setType(NDBCOL::Text);
+      col.setCharset(cs);
+    }
     // Use "<=" even if "<" is the exact condition
     if (field->max_length() <= (1 << 8))
       goto mysql_type_tiny_blob;
@@ -3015,8 +3025,10 @@ static int create_ndb_column(NDBCOL &col,
   case MYSQL_TYPE_MEDIUM_BLOB:   
     if (field->flags & BINARY_FLAG)
       col.setType(NDBCOL::Blob);
-    else
+    else {
       col.setType(NDBCOL::Text);
+      col.setCharset(cs);
+    }
     col.setInlineSize(256);
     col.setPartSize(4000);
     col.setStripeSize(8);
@@ -3025,8 +3037,10 @@ static int create_ndb_column(NDBCOL &col,
   case MYSQL_TYPE_LONG_BLOB:  
     if (field->flags & BINARY_FLAG)
       col.setType(NDBCOL::Blob);
-    else
+    else {
       col.setType(NDBCOL::Text);
+      col.setCharset(cs);
+    }
     col.setInlineSize(256);
     col.setPartSize(8000);
     col.setStripeSize(4);
