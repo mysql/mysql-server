@@ -38,10 +38,6 @@ Name:          Ndb.cpp
 #include <NdbEnv.h>
 #include <BaseString.hpp>
 
-#ifndef MIN
-#define MIN(a,b) ((a) < (b) ? (a) : (b))
-#endif
-
 /****************************************************************************
 void connect();
 
@@ -1013,18 +1009,14 @@ const char * Ndb::getCatalogName() const
 void Ndb::setCatalogName(const char * a_catalog_name)
 {
   if (a_catalog_name) {
-    strncpy(theDataBase, a_catalog_name, NDB_MAX_DATABASE_NAME_SIZE);
-    // Prepare prefix for faster operations
-    uint db_len = MIN(strlen(theDataBase), NDB_MAX_DATABASE_NAME_SIZE - 1);
-    uint schema_len =
-      MIN(strlen(theDataBaseSchema), NDB_MAX_SCHEMA_NAME_SIZE - 1);
-    strncpy(prefixName, theDataBase, NDB_MAX_DATABASE_NAME_SIZE - 1);
-    prefixName[db_len] = table_name_separator;
-    strncpy(prefixName+db_len+1, theDataBaseSchema,
-            NDB_MAX_SCHEMA_NAME_SIZE - 1);
-    prefixName[db_len+schema_len+1] = table_name_separator;
-    prefixName[db_len+schema_len+2] = '\0';
-    prefixEnd = prefixName + db_len+schema_len + 2;
+    snprintf(theDataBase, sizeof(theDataBase), "%s",
+             a_catalog_name ? a_catalog_name : "");
+
+    int len = snprintf(prefixName, sizeof(prefixName), "%s%c%s%c",
+                       theDataBase, table_name_separator,
+                       theDataBaseSchema, table_name_separator);
+    prefixEnd = prefixName + (len < sizeof(prefixName) ? len : 
+                              sizeof(prefixName) - 1);
   }
 }
  
@@ -1036,18 +1028,14 @@ const char * Ndb::getSchemaName() const
 void Ndb::setSchemaName(const char * a_schema_name)
 {
   if (a_schema_name) {
-    strncpy(theDataBaseSchema, a_schema_name, NDB_MAX_SCHEMA_NAME_SIZE);
-    // Prepare prefix for faster operations
-    uint db_len = MIN(strlen(theDataBase), NDB_MAX_DATABASE_NAME_SIZE - 1);
-    uint schema_len =
-      MIN(strlen(theDataBaseSchema), NDB_MAX_SCHEMA_NAME_SIZE - 1);
-    strncpy(prefixName, theDataBase, NDB_MAX_DATABASE_NAME_SIZE - 1);
-    prefixName[db_len] = table_name_separator;
-    strncpy(prefixName+db_len+1, theDataBaseSchema,
-            NDB_MAX_SCHEMA_NAME_SIZE - 1);
-    prefixName[db_len+schema_len+1] = table_name_separator;
-    prefixName[db_len+schema_len+2] = '\0';
-    prefixEnd = prefixName + db_len+schema_len + 2;
+    snprintf(theDataBaseSchema, sizeof(theDataBase), "%s",
+             a_schema_name ? a_schema_name : "");
+
+    int len = snprintf(prefixName, sizeof(prefixName), "%s%c%s%c",
+                       theDataBase, table_name_separator,
+                       theDataBaseSchema, table_name_separator);
+    prefixEnd = prefixName + (len < sizeof(prefixName) ? len : 
+                              sizeof(prefixName) - 1);
   }
 }
  

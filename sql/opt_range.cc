@@ -413,7 +413,8 @@ QUICK_SELECT::~QUICK_SELECT()
 {
   if (!dont_free)
   {
-    file->index_end();
+    if (file->inited)
+      file->ha_index_end();
     free_root(&alloc,MYF(0));
   }
 }
@@ -609,7 +610,6 @@ int SQL_SELECT::test_quick_select(THD *thd, key_map keys_to_use,
 				  table_map prev_tables,
 				  ha_rows limit, bool force_quick_range)
 {
-  uint basflag;
   uint idx;
   double scan_time;
   DBUG_ENTER("test_quick_select");
@@ -623,14 +623,13 @@ int SQL_SELECT::test_quick_select(THD *thd, key_map keys_to_use,
   if (!cond || (specialflag & SPECIAL_SAFE_MODE) && ! force_quick_range ||
       !limit)
     DBUG_RETURN(0); /* purecov: inspected */
-  if (!((basflag= head->file->table_flags()) & HA_KEYPOS_TO_RNDPOS) &&
-      keys_to_use.is_set_all() || keys_to_use.is_clear_all())
-    DBUG_RETURN(0);				/* Not smart database */
+  if (keys_to_use.is_clear_all())
+    DBUG_RETURN(0);
   records=head->file->records;
   if (!records)
     records++;					/* purecov: inspected */
   scan_time=(double) records / TIME_FOR_COMPARE+1;
-  read_time=(double) head->file->scan_time()+ scan_time + 1.0;
+  read_time=(double) head->file->scan_time()+ scan_time + 1.1;
   if (head->force_index)
     scan_time= read_time= DBL_MAX;
   if (limit < records)
@@ -651,7 +650,7 @@ int SQL_SELECT::test_quick_select(THD *thd, key_map keys_to_use,
 
     /* set up parameter that is passed to all functions */
     param.thd= thd;
-    param.baseflag=basflag;
+    param.baseflag=head->file->table_flags();
     param.prev_tables=prev_tables | const_tables;
     param.read_tables=read_tables;
     param.current_table= head->map;
@@ -728,7 +727,7 @@ int SQL_SELECT::test_quick_select(THD *thd, key_map keys_to_use,
 	    found_records=check_quick_select(&param, idx, *key);
 	    if (found_records != HA_POS_ERROR && found_records > 2 &&
 		head->used_keys.is_set(keynr) &&
-		(head->file->index_flags(keynr) & HA_KEY_READ_ONLY))
+		(head->file->index_flags(keynr) & HA_KEYREAD_ONLY))
 	    {
 	      /*
 		We can resolve this by only reading through this key.
@@ -747,6 +746,8 @@ int SQL_SELECT::test_quick_select(THD *thd, key_map keys_to_use,
 						      param.range_count,
 						      found_records)+
 				(double) found_records / TIME_FOR_COMPARE);
+            DBUG_PRINT("info",("read_time: %g  found_read_time: %g",
+                               read_time, found_read_time));
 	    if (read_time > found_read_time && found_records != HA_POS_ERROR)
 	    {
 	      read_time=found_read_time;
@@ -2368,7 +2369,7 @@ get_quick_select(PARAM *param,uint idx,SEL_ARG *key_tree)
 				0);
   else
     quick=new QUICK_SELECT(param->thd, param->table, param->real_keynr[idx]);
-			      
+
   if (quick)
   {
     if (quick->error ||
@@ -2542,7 +2543,6 @@ static bool null_part_in_key(KEY_PART *key_part, const char *key, uint length)
 
 QUICK_SELECT *get_quick_select_for_ref(THD *thd, TABLE *table, TABLE_REF *ref)
 {
-  table->file->index_end();			// Remove old cursor
   QUICK_SELECT *quick=new QUICK_SELECT(thd, table, ref->key, 1);
   KEY *key_info = &table->key_info[ref->key];
   KEY_PART *key_part;
@@ -2703,20 +2703,12 @@ int QUICK_SELECT_GEOM::get_next()
 QUICK_SELECT_DESC::QUICK_SELECT_DESC(QUICK_SELECT *q, uint used_key_parts)
   : QUICK_SELECT(*q), rev_it(rev_ranges)
 {
-  bool not_read_after_key = file->table_flags() & HA_NOT_READ_AFTER_KEY;
   QUICK_RANGE *r;
 
   it.rewind();
   for (r = it++; r; r = it++)
   {
     rev_ranges.push_front(r);
-    if (not_read_after_key && range_reads_after_key(r))
-    {
-      it.rewind();				// Reset range
-      error = HA_ERR_UNSUPPORTED;
-      dont_free=1;				// Don't free memory from 'q'
-      return;
-    }
   }
   /* Remove EQ_RANGE flag for keys that are not using the full key */
   for (r = rev_it++; r; r = rev_it++)
@@ -2786,29 +2778,10 @@ int QUICK_SELECT_DESC::get_next()
     else
     {
       DBUG_ASSERT(range->flag & NEAR_MAX || range_reads_after_key(range));
-#ifndef NOT_IMPLEMENTED_YET
       result=file->index_read(record, (byte*) range->max_key,
 			      range->max_length,
 			      ((range->flag & NEAR_MAX) ?
 			       HA_READ_BEFORE_KEY : HA_READ_PREFIX_LAST_OR_PREV));
-#else
-      /*
-	Heikki changed Sept 11, 2002: since InnoDB does not store the cursor
-	position if READ_KEY_EXACT is used to a primary key with all
-	key columns specified, we must use below HA_READ_KEY_OR_NEXT,
-	so that InnoDB stores the cursor position and is able to move
-	the cursor one step backward after the search.
-      */
-      /*
-	Note: even if max_key is only a prefix, HA_READ_AFTER_KEY will
-	do the right thing - go past all keys which match the prefix
-      */
-      result=file->index_read(record, (byte*) range->max_key,
-			      range->max_length,
-			      ((range->flag & NEAR_MAX) ?
-			       HA_READ_KEY_OR_NEXT : HA_READ_AFTER_KEY));
-      result = file->index_prev(record);
-#endif
     }
     if (result)
     {

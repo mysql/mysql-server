@@ -473,6 +473,8 @@ int mysqld_extend_show_tables(THD *thd,const char *db,const char *wild)
   field_list.push_back(item=new Item_empty_string("Name",NAME_LEN));
   field_list.push_back(item=new Item_empty_string("Engine",10));
   item->maybe_null=1;
+  field_list.push_back(item=new Item_int("Version", (longlong) 0, 21));
+  item->maybe_null=1;
   field_list.push_back(item=new Item_empty_string("Row_format",10));
   item->maybe_null=1;
   field_list.push_back(item=new Item_int("Rows",(longlong) 1,21));
@@ -533,6 +535,7 @@ int mysqld_extend_show_tables(THD *thd,const char *db,const char *wild)
       handler *file=table->file;
       file->info(HA_STATUS_VARIABLE | HA_STATUS_TIME | HA_STATUS_NO_LOCK);
       protocol->store(file->table_type(), system_charset_info);
+      protocol->store((ulonglong) table->frm_version);
       str= ((table->db_options_in_use & HA_OPTION_COMPRESS_RECORD) ?
 	    "Compressed" :
 	    (table->db_options_in_use & HA_OPTION_PACK_RECORD) ?

@@ -1076,13 +1076,14 @@ do { doubleget_union _tmp; \
 
 #if defined(__FLOAT_WORD_ORDER) && (__FLOAT_WORD_ORDER == __BIG_ENDIAN)
 #define doublestore(T,V) do { *(T)= ((byte *) &V)[4];\
-                              *((T)+1)=(char) ((byte *) &V)[5];\
-                              *((T)+2)=(char) ((byte *) &V)[6];\
-                              *((T)+3)=(char) ((byte *) &V)[7];\
-                              *((T)+4)=(char) ((byte *) &V)[0];\
-                              *((T)+5)=(char) ((byte *) &V)[1];\
-                              *((T)+6)=(char) ((byte *) &V)[2];\
-                              *((T)+7)=(char) ((byte *) &V)[3]; } while(0)
+                              *(((char*)T)+1)=(char) ((byte *) &V)[5];\
+                              *(((char*)T)+2)=(char) ((byte *) &V)[6];\
+                              *(((char*)T)+3)=(char) ((byte *) &V)[7];\
+                              *(((char*)T)+4)=(char) ((byte *) &V)[0];\
+                              *(((char*)T)+5)=(char) ((byte *) &V)[1];\
+                              *(((char*)T)+6)=(char) ((byte *) &V)[2];\
+                              *(((char*)T)+7)=(char) ((byte *) &V)[3]; }\
+                         while(0)
 #define doubleget(V,M)   do { double def_temp;\
                               ((byte*) &def_temp)[0]=(M)[4];\
                               ((byte*) &def_temp)[1]=(M)[5];\
@@ -1134,12 +1135,12 @@ do { doubleget_union _tmp; \
                             ((byte*) &def_temp)[3]=(M)[3];\
                             (V)=def_temp; } while(0)
 #define shortstore(T,A) do { uint def_temp=(uint) (A) ;\
-                             *(T+1)=(char)(def_temp); \
-                             *(T+0)=(char)(def_temp >> 8); } while(0)
-#define longstore(T,A)  do { *((T)+3)=((A));\
-                             *((T)+2)=(((A) >> 8));\
-                             *((T)+1)=(((A) >> 16));\
-                             *((T)+0)=(((A) >> 24)); } while(0)
+                             *(((char*)T)+1)=(char)(def_temp); \
+                             *(((char*)T)+0)=(char)(def_temp >> 8); } while(0)
+#define longstore(T,A)  do { *(((char*)T)+3)=((A));\
+                             *(((char*)T)+2)=(((A) >> 8));\
+                             *(((char*)T)+1)=(((A) >> 16));\
+                             *(((char*)T)+0)=(((A) >> 24)); } while(0)
 
 #define floatstore(T,V) memcpy_fixed((byte*)(T), (byte*)(&V), sizeof(float))
 #define doubleget(V,M)	 memcpy_fixed((byte*) &V,(byte*) (M),sizeof(double))

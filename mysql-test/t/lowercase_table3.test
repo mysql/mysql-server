@@ -9,7 +9,7 @@
 disable_query_log;
 show variables like "lower_case_%";
 --require r/true.require
-select @@version_compile_os NOT IN ("NT","WIN2000","Win95/Win98","XP") as "TRUE";
+select convert(@@version_compile_os using latin1) NOT IN ("NT","WIN2000","Win95/Win98","XP") as "TRUE";
 enable_query_log;
 
 --disable_warnings
@@ -31,7 +31,7 @@ flush tables;
 # storing things in lower case.
 #
 
-CREATE TABLE t1 (a int) type=INNODB;
+CREATE TABLE t1 (a int) ENGINE=INNODB;
 --error 1016
 SELECT * from T1;
 drop table t1;

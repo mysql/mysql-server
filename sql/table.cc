@@ -126,6 +126,7 @@ int openfrm(const char *name, const char *alias, uint db_stat, uint prgflag,
     goto err_not_open;				/* purecov: inspected */
   *fn_ext(index_file)='\0';			// Remove .frm extension
 
+  outparam->frm_version= head[2];
   outparam->db_type=ha_checktype((enum db_type) (uint) *(head+3));
   outparam->db_create_options=db_create_options=uint2korr(head+30);
   outparam->db_options_in_use=outparam->db_create_options;
@@ -494,15 +495,13 @@ int openfrm(const char *name, const char *alias, uint db_stat, uint prgflag,
     for (uint key=0 ; key < outparam->keys ; key++,keyinfo++)
     {
       uint usable_parts=0;
-      ulong index_flags;
       keyinfo->name=(char*) outparam->keynames.type_names[key];
       /* Fix fulltext keys for old .frm files */
       if (outparam->key_info[key].flags & HA_FULLTEXT)
 	outparam->key_info[key].algorithm= HA_KEY_ALG_FULLTEXT;
 
       /* This has to be done after the above fulltext correction */
-      index_flags=outparam->file->index_flags(key);
-      if (!(index_flags & HA_KEY_READ_ONLY))
+      if (!(outparam->file->index_flags(key) & HA_KEYREAD_ONLY))
       {
 	outparam->read_only_keys.set_bit(key);
 	outparam->keys_for_keyread.clear_bit(key);
@@ -577,15 +576,9 @@ int openfrm(const char *name, const char *alias, uint db_stat, uint prgflag,
 	  if (field->key_length() == key_part->length &&
 	      !(field->flags & BLOB_FLAG))
 	  {
-	    if ((index_flags & HA_KEY_READ_ONLY) &&
-		(field->key_type() != HA_KEYTYPE_TEXT ||
-		 (!((ha_option & HA_KEY_READ_WRONG_STR) ||
-		    (field->flags & BINARY_FLAG)) &&
-		  !(keyinfo->flags & HA_FULLTEXT))))
+            if (outparam->file->index_flags(key, i) & HA_KEYREAD_ONLY)
 	      field->part_of_key.set_bit(key);
-	    if ((field->key_type() != HA_KEYTYPE_TEXT ||
-		 !(keyinfo->flags & HA_FULLTEXT)) &&
-		!(index_flags & HA_WRONG_ASCII_ORDER))
+	    if (outparam->file->index_flags(key, i) & HA_READ_ORDER)
 	      field->part_of_sortkey.set_bit(key);
 	  }
 	  if (!(key_part->key_part_flag & HA_REVERSE_SORT) &&

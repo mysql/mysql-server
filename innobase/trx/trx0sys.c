@@ -45,6 +45,15 @@ or there was no master log position info inside InnoDB. */
 char 		trx_sys_mysql_master_log_name[TRX_SYS_MYSQL_LOG_NAME_LEN];
 ib_longlong	trx_sys_mysql_master_log_pos	= -1;
 
+/* If this MySQL server uses binary logging, after InnoDB has been inited
+and if it has done a crash recovery, we store the binlog file name and position
+here. If .._pos is -1, it means there was no binlog position info inside
+InnoDB. */
+
+char 		trx_sys_mysql_bin_log_name[TRX_SYS_MYSQL_LOG_NAME_LEN];
+ib_longlong	trx_sys_mysql_bin_log_pos	= -1;
+
+
 /********************************************************************
 Determines if a page number is located inside the doublewrite buffer. */
 
@@ -648,8 +657,8 @@ trx_sys_print_mysql_binlog_offset_from_page(
 }
 
 /*********************************************************************
-Prints to stderr the MySQL binlog offset info in the trx system header if
-the magic number shows it valid. */
+Stores the MySQL binlog offset info in the trx system header if
+the magic number shows it valid, and print the info to stderr */
 
 void
 trx_sys_print_mysql_binlog_offset(void)
@@ -657,7 +666,8 @@ trx_sys_print_mysql_binlog_offset(void)
 {
 	trx_sysf_t*	sys_header;
 	mtr_t		mtr;
-	
+	ulong           trx_sys_mysql_bin_log_pos_high, trx_sys_mysql_bin_log_pos_low;
+
 	mtr_start(&mtr);
 
 	sys_header = trx_sysf_get(&mtr);
@@ -671,14 +681,22 @@ trx_sys_print_mysql_binlog_offset(void)
 		return;
 	}
 
-	fprintf(stderr,
-	"InnoDB: Last MySQL binlog file position %lu %lu, file name %s\n",
-		(ulong) mach_read_from_4(sys_header + TRX_SYS_MYSQL_LOG_INFO
-					+ TRX_SYS_MYSQL_LOG_OFFSET_HIGH),
-		(ulong) mach_read_from_4(sys_header + TRX_SYS_MYSQL_LOG_INFO
-					+ TRX_SYS_MYSQL_LOG_OFFSET_LOW),
-		sys_header + TRX_SYS_MYSQL_LOG_INFO + TRX_SYS_MYSQL_LOG_NAME);
+        trx_sys_mysql_bin_log_pos_high = mach_read_from_4(sys_header + TRX_SYS_MYSQL_LOG_INFO
+                                                    + TRX_SYS_MYSQL_LOG_OFFSET_HIGH);
+        trx_sys_mysql_bin_log_pos_low  = mach_read_from_4(sys_header + TRX_SYS_MYSQL_LOG_INFO
+                                                    + TRX_SYS_MYSQL_LOG_OFFSET_LOW);
 
+        trx_sys_mysql_bin_log_pos      =  (((ib_longlong)trx_sys_mysql_bin_log_pos_high) << 32) +
+          (ib_longlong)trx_sys_mysql_bin_log_pos_low;
+
+        ut_memcpy(trx_sys_mysql_bin_log_name, sys_header + TRX_SYS_MYSQL_LOG_INFO +
+                  TRX_SYS_MYSQL_LOG_NAME, TRX_SYS_MYSQL_LOG_NAME_LEN);
+
+        fprintf(stderr,
+                "InnoDB: Last MySQL binlog file position %lu %lu, file name %s\n",
+                trx_sys_mysql_bin_log_pos_high, trx_sys_mysql_bin_log_pos_low,
+                trx_sys_mysql_bin_log_name);
+        
 	mtr_commit(&mtr);
 }
 
