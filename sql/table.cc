@@ -262,11 +262,6 @@ int openfrm(THD *thd, const char *name, const char *alias, uint db_stat,
       }
       key_part->store_length=key_part->length;
     }
-    set_if_bigger(outparam->max_key_length,keyinfo->key_length+
-		  keyinfo->key_parts);
-    outparam->total_key_length+= keyinfo->key_length;
-    if (keyinfo->flags & HA_NOSAME)
-      set_if_bigger(outparam->max_unique_length,keyinfo->key_length);
   }
   keynames=(char*) key_part;
   strpos+= (strmov(keynames, (char *) strpos) - keynames)+1;
@@ -718,6 +713,12 @@ int openfrm(THD *thd, const char *name, const char *alias, uint db_stat,
 	}
       }
       keyinfo->usable_key_parts=usable_parts; // Filesort
+
+      set_if_bigger(outparam->max_key_length,keyinfo->key_length+
+                    keyinfo->key_parts);
+      outparam->total_key_length+= keyinfo->key_length;
+      if (keyinfo->flags & HA_NOSAME)
+        set_if_bigger(outparam->max_unique_length,keyinfo->key_length);
     }
     if (primary_key < MAX_KEY &&
 	(outparam->keys_in_use.is_set(primary_key)))
