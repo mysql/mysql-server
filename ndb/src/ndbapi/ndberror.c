@@ -172,7 +172,7 @@ ErrorBundle ErrorCodes[] = {
   { 677,  OL, "Index UNDO buffers overloaded" },
   { 891,  OL, "Data UNDO buffers overloaded" },
   { 1221, OL, "REDO log buffers overloaded" },
-  { 4006, AE, "Connect failure - out of connection objects" }, 
+  { 4006, OL, "Connect failure - out of connection objects" }, 
 
 
   
