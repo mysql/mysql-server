@@ -1633,8 +1633,9 @@ int SQL_SELECT::test_quick_select(THD *thd, key_map keys_to_use,
     if (!head->used_keys.is_clear_all())
     {
       int key_for_use= find_shortest_key(head, &head->used_keys);
-      double key_read_time= get_index_only_read_time(&param, records,
-                                                     key_for_use);
+      double key_read_time= (get_index_only_read_time(&param, records,
+                                                     key_for_use) +
+                             (double) records / TIME_FOR_COMPARE);
       DBUG_PRINT("info",  ("'all'+'using index' scan will be using key %d, "
                            "read time %g", key_for_use, key_read_time));
       if (key_read_time < read_time)
@@ -2111,6 +2112,12 @@ skip_to_ror_scan:
   NOTES
     It is assumed that we will read trough the whole key range and that all
     key blocks are half full (normally things are much better).
+
+  TODO:
+    Move this to handler->read_time() by adding a flag 'index-only-read' to
+    this call. The reason for doing this is that the current function doesn't
+    handle the case when the row is stored in the b-tree (like in innodb
+    clustered index)
 */
 
 inline double get_index_only_read_time(const PARAM* param, ha_rows records,
@@ -2124,6 +2131,7 @@ inline double get_index_only_read_time(const PARAM* param, ha_rows records,
              (double) keys_per_block);
   return read_time;
 }
+
 
 typedef struct st_ror_scan_info
 {
@@ -2992,7 +3000,8 @@ static TRP_RANGE *get_key_scans_params(PARAM *param, SEL_TREE *tree,
           !(pk_is_clustered && keynr == param->table->primary_key))
       {
         /* We can resolve this by only reading through this key. */
-        found_read_time= get_index_only_read_time(param,found_records,keynr);
+        found_read_time= (get_index_only_read_time(param,found_records,keynr)+
+                          (double) found_records / TIME_FOR_COMPARE);
       }
       else
       {
@@ -3666,14 +3675,15 @@ tree_and(PARAM *param,SEL_TREE *tree1,SEL_TREE *tree2)
       if (*key2 && !(*key2)->simple_key())
 	flag|=CLONE_KEY2_MAYBE;
       *key1=key_and(*key1,*key2,flag);
-      if ((*key1)->type == SEL_ARG::IMPOSSIBLE)
+      if (*key1 && (*key1)->type == SEL_ARG::IMPOSSIBLE)
       {
 	tree1->type= SEL_TREE::IMPOSSIBLE;
         DBUG_RETURN(tree1);
       }
       result_keys.set_bit(key1 - tree1->keys);
 #ifdef EXTRA_DEBUG
-      (*key1)->test_use_count(*key1);
+      if (*key1)
+        (*key1)->test_use_count(*key1);
 #endif
     }
   }
@@ -3904,6 +3914,13 @@ key_and(SEL_ARG *key1,SEL_ARG *key2,uint clone_flag)
     return key1;
   }
 
+  if ((key1->min_flag | key2->min_flag) & GEOM_FLAG)
+  {
+    key1->free_tree();
+    key2->free_tree();
+    return 0;					// Can't optimize this
+  }
+
   key1->use_count--;
   key2->use_count--;
   SEL_ARG *e1=key1->first(), *e2=key2->first(), *new_tree=0;
@@ -3986,7 +4003,8 @@ key_or(SEL_ARG *key1,SEL_ARG *key2)
   key1->use_count--;
   key2->use_count--;
 
-  if (key1->part != key2->part)
+  if (key1->part != key2->part || 
+      (key1->min_flag | key2->min_flag) & GEOM_FLAG)
   {
     key1->free_tree();
     key2->free_tree();
@@ -4646,7 +4664,7 @@ void SEL_ARG::test_use_count(SEL_ARG *root)
       ulong count=count_key_part_usage(root,pos->next_key_part);
       if (count > pos->next_key_part->use_count)
       {
-	sql_print_error("Note: Use_count: Wrong count for key at %lx, %lu should be %lu",
+	sql_print_error("Note: Use_count: Wrong count for key at 0x%lx, %lu should be %lu",
 			pos,pos->next_key_part->use_count,count);
 	return;
       }
@@ -4654,7 +4672,7 @@ void SEL_ARG::test_use_count(SEL_ARG *root)
     }
   }
   if (e_count != elements)
-    sql_print_error("Warning: Wrong use count: %u (should be %u) for tree at %lx",
+    sql_print_error("Warning: Wrong use count: %u (should be %u) for tree at 0x%lx",
 		    e_count, elements, (gptr) this);
 }
 

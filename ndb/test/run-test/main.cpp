@@ -106,13 +106,6 @@ main(int argc, const char ** argv){
   if(!setup_hosts(g_config))
     goto end;
 
-  if(!start_processes(g_config, atrt_process::NDB_MGM))
-    goto end;
-
-  if(!connect_ndb_mgm(g_config)){
-    goto end;
-  }
-
   /**
    * Main loop
    */
@@ -122,25 +115,32 @@ main(int argc, const char ** argv){
      */
     if(restart){
       g_logger.info("(Re)starting ndb processes");
+      if(!stop_processes(g_config, atrt_process::NDB_MGM))
+	goto end;
+
       if(!stop_processes(g_config, atrt_process::NDB_DB))
 	goto end;
 
-      if(!wait_ndb(g_config, NDB_MGM_NODE_STATUS_NO_CONTACT))
+      if(!start_processes(g_config, atrt_process::NDB_MGM))
 	goto end;
+      
+      if(!connect_ndb_mgm(g_config)){
+	goto end;
+      }
       
       if(!start_processes(g_config, atrt_process::NDB_DB))
 	goto end;
-
+      
       if(!wait_ndb(g_config, NDB_MGM_NODE_STATUS_NOT_STARTED))
         goto end;
-
+      
       for(Uint32 i = 0; i<3; i++)      
         if(wait_ndb(g_config, NDB_MGM_NODE_STATUS_STARTED))
 	  goto started;
-
+      
       goto end;
-
-started:
+      
+    started:
       g_logger.info("Ndb start completed");
     }
     
@@ -211,7 +211,7 @@ started:
 		  (result == 0 ? "OK" : "FAILED"), result);
 
     if(g_report_file != 0){
-      fprintf(g_report_file, "%s %s ; %d ; %d ; %d\n",
+      fprintf(g_report_file, "%s %s ; %d ; %d ; %ld\n",
 	      test_case.m_command.c_str(),
 	      test_case.m_args.c_str(),
 	      test_no, result, elapsed);
@@ -447,7 +447,6 @@ setup_config(atrt_config& config){
       proc.m_proc.m_owner = "atrt";  
       proc.m_proc.m_group = "group";    
       proc.m_proc.m_cwd.assign(dir).append("/run/");
-      proc.m_proc.m_env.assfmt("LD_LIBRARY_PATH=%s/lib/mysql", dir.c_str());
       proc.m_proc.m_stdout = "log.out";
       proc.m_proc.m_stderr = "2>&1";
       proc.m_proc.m_runas = proc.m_host->m_user;
@@ -460,7 +459,7 @@ setup_config(atrt_config& config){
 	proc.m_proc.m_path.assign(dir).append("/libexec/ndb_mgmd");
 	proc.m_proc.m_args = "-n -c initconfig.txt";
 	proc.m_proc.m_cwd.appfmt("%d.ndb_mgmd", index);
-	connect_string.appfmt(";host=%s:%d", 
+	connect_string.appfmt("host=%s:%d;", 
 			      proc.m_hostname.c_str(), proc.m_ndb_mgm_port);
       } else if(split1[0] == "ndb"){
 	proc.m_type = atrt_process::NDB_DB;
@@ -502,10 +501,10 @@ setup_config(atrt_config& config){
 
   // Setup connect string
   for(size_t i = 0; i<config.m_processes.size(); i++){
-    config.m_processes[i].m_proc.m_env.appfmt(" NDB_CONNECTSTRING=nodeid=%d%s", 
-                                              i+1, connect_string.c_str());
+    config.m_processes[i].m_proc.m_env.assfmt("NDB_CONNECTSTRING=%s", 
+                                              connect_string.c_str());
   }
- 
+  
  end:
   fclose(f);
   return result;
@@ -615,11 +614,22 @@ wait_ndb(atrt_config& config, int goal){
     /**
      * 1) retreive current state
      */
-    state = ndb_mgm_get_status(handle);
-    if(state == 0){
-      g_logger.critical("Unable to poll db state");
-      return false;
-    }
+    state = 0;
+    do {
+      state = ndb_mgm_get_status(handle);
+      if(state == 0){
+	const int err = ndb_mgm_get_latest_error(handle);
+	g_logger.error("Unable to poll db state: %d %s %s",
+		       ndb_mgm_get_latest_error(handle),
+		       ndb_mgm_get_latest_error_msg(handle),
+		       ndb_mgm_get_latest_error_desc(handle));
+	if(err == NDB_MGM_SERVER_NOT_CONNECTED && connect_ndb_mgm(config)){
+	  g_logger.error("Reconnected...");
+	  continue;
+	}
+	return false;
+      }
+    } while(state == 0);
     NdbAutoPtr<void> tmp(state);
     
     min2 = goal;
@@ -791,6 +801,10 @@ update_status(atrt_config& config, int){
 		       proc.m_proc.m_id,
 		       proc.m_hostname.c_str(),
 		       proc.m_proc.m_path.c_str());
+	for(size_t j = 0; j<h_procs.size(); j++){
+	  g_logger.error("found: %d %s", h_procs[j].m_id, 
+			 h_procs[j].m_path.c_str());
+	}
 	return false;
       }
     }
@@ -924,9 +938,11 @@ gather_result(atrt_config& config, int * result){
   BaseString tmp = g_gather_progname;
   for(size_t i = 0; i<config.m_processes.size(); i++){
     atrt_process & proc = config.m_processes[i]; 
-    tmp.appfmt(" %s:%s", 
-	       proc.m_hostname.c_str(),
-	       proc.m_proc.m_cwd.c_str());
+    if(proc.m_proc.m_path != ""){
+      tmp.appfmt(" %s:%s", 
+		 proc.m_hostname.c_str(),
+		 proc.m_proc.m_cwd.c_str());
+    }
   }
   
   const int r1 = system(tmp.c_str());
@@ -970,3 +986,7 @@ setup_hosts(atrt_config& config){
   }
   return true;
 }
+
+template class Vector<Vector<SimpleCpcClient::Process> >;
+template class Vector<atrt_host>;
+template class Vector<atrt_process>;

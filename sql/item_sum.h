@@ -94,8 +94,8 @@ public:
   virtual bool setup(THD *thd) {return 0;}
   virtual void make_unique() {}
   Item *get_tmp_table_item(THD *thd);
-  bool save_args_for_prepared_statements(THD *);
-  bool save_args(Item_arena* stmt);
+  bool save_args_for_prepared_statement(THD *);
+  bool save_args(Item_arena *arena);
 
   bool walk (Item_processor processor, byte *argument);
 };
@@ -317,7 +317,11 @@ public:
 
 class Item_sum_avg :public Item_sum_num
 {
-  void fix_length_and_dec() { decimals+=4; maybe_null=1; }
+  void fix_length_and_dec()
+  {
+    decimals=min(decimals+4, NOT_FIXED_DEC);
+    maybe_null=1;
+  }
 
   double sum;
   ulonglong count;
@@ -372,7 +376,11 @@ class Item_sum_variance : public Item_sum_num
 {
   double sum, sum_sqr;
   ulonglong count;
-  void fix_length_and_dec() { decimals+=4; maybe_null=1; }
+  void fix_length_and_dec()
+  {
+    decimals=min(decimals+4, NOT_FIXED_DEC);
+    maybe_null=1;
+  }
 
   public:
   Item_sum_variance(Item *item_par) :Item_sum_num(item_par),count(0) {}

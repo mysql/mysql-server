@@ -63,27 +63,23 @@ ndbstrerror::~ndbstrerror(void)
 #define ndbstrerror strerror
 #endif
 
-TCP_Transporter::TCP_Transporter(int sendBufSize, int maxRecvSize, 
-                                 int portNo, 
-                                 const char *rHostName, 
+TCP_Transporter::TCP_Transporter(TransporterRegistry &t_reg,
+				 int sendBufSize, int maxRecvSize, 
                                  const char *lHostName,
-                                 NodeId rNodeId, NodeId lNodeId, 
+                                 const char *rHostName, 
+                                 int r_port,
+				 NodeId lNodeId,
+                                 NodeId rNodeId,
                                  int byte_order,
                                  bool compr, bool chksm, bool signalId,
                                  Uint32 _reportFreq) :
-  Transporter(lNodeId, rNodeId, byte_order, compr, chksm, signalId),
-  m_sendBuffer(sendBufSize),
-  isServer(lNodeId < rNodeId),
-  port(portNo)
+  Transporter(t_reg, lHostName, rHostName, r_port, lNodeId, rNodeId,
+	      byte_order, compr, chksm, signalId),
+  m_sendBuffer(sendBufSize)
 {
   maxReceiveSize = maxRecvSize;
   
-  strncpy(remoteHostName, rHostName, sizeof(remoteHostName));
-
   // Initialize member variables
-  Ndb_getInAddr(&remoteHostAddress, rHostName);
-
-  Ndb_getInAddr(&localHostAddress, lHostName);
   theSocket     = NDB_INVALID_SOCKET;
   
   sendCount      = receiveCount = 0;
@@ -106,6 +102,24 @@ TCP_Transporter::~TCP_Transporter() {
   
   // Delete receive buffer!!
   receiveBuffer.destroy();
+}
+
+bool TCP_Transporter::connect_server_impl(NDB_SOCKET_TYPE sockfd)
+{
+  return connect_common(sockfd);
+}
+
+bool TCP_Transporter::connect_client_impl(NDB_SOCKET_TYPE sockfd)
+{
+  return connect_common(sockfd);
+}
+
+bool TCP_Transporter::connect_common(NDB_SOCKET_TYPE sockfd)
+{
+  theSocket = sockfd;
+  setSocketOptions();
+  setSocketNonBlocking(theSocket);
+  return true;
 }
 
 bool
@@ -316,7 +330,7 @@ TCP_Transporter::doSend() {
       sendCount ++;
       sendSize  += nBytesSent;
       if(sendCount == reportFreq){
-	reportSendLen(callbackObj,remoteNodeId, sendCount, sendSize);
+	reportSendLen(get_callback_obj(), remoteNodeId, sendCount, sendSize);
 	sendCount = 0;
 	sendSize  = 0;
       }
@@ -331,7 +345,7 @@ TCP_Transporter::doSend() {
 #endif   
       if(DISCONNECT_ERRNO(InetErrno, nBytesSent)){
 	doDisconnect();
-	reportDisconnect(callbackObj, remoteNodeId, InetErrno);
+	report_disconnect(InetErrno);
       }
       
       return false;
@@ -361,14 +375,15 @@ TCP_Transporter::doReceive() {
 #endif
       ndbout_c("receiveBuffer.sizeOfData(%d) > receiveBuffer.sizeOfBuffer(%d)",
                receiveBuffer.sizeOfData, receiveBuffer.sizeOfBuffer);
-      reportError(callbackObj, remoteNodeId, TE_INVALID_MESSAGE_LENGTH);
+      report_error(TE_INVALID_MESSAGE_LENGTH);
       return 0;
     }
     
     receiveCount ++;
     receiveSize  += nBytesRead;
+
     if(receiveCount == reportFreq){
-      reportReceiveLen(callbackObj, remoteNodeId, receiveCount, receiveSize);
+      reportReceiveLen(get_callback_obj(), remoteNodeId, receiveCount, receiveSize);
       receiveCount = 0;
       receiveSize  = 0;
     }
@@ -384,60 +399,17 @@ TCP_Transporter::doReceive() {
     if(DISCONNECT_ERRNO(InetErrno, nBytesRead)){
       // The remote node has closed down
       doDisconnect();
-      reportDisconnect(callbackObj, remoteNodeId,InetErrno);
+      report_disconnect(InetErrno);
     } 
   }
   return nBytesRead;
 }
 
-bool
-TCP_Transporter::connectImpl(Uint32 timeOutMillis){
-  struct timeval timeout = {0, 0};
-  timeout.tv_sec = timeOutMillis / 1000;
-  timeout.tv_usec = (timeOutMillis % 1000)*1000;
-  
-  bool retVal = false;
-
-  if(isServer){
-    if(theSocket == NDB_INVALID_SOCKET){
-      startTCPServer();
-    }
-    if(theSocket == NDB_INVALID_SOCKET) 
-    {
-      NdbSleep_MilliSleep(timeOutMillis);
-      return false;
-    }
-    retVal = acceptClient(&timeout);
-  } else {
-    // Is client
-    retVal = connectClient(&timeout);
-  }
-
-  if(!retVal) {
-    NdbSleep_MilliSleep(timeOutMillis);
-    return false;
-  }
-  
-#if defined NDB_OSE || defined NDB_SOFTOSE
-  if(setsockopt(theSocket, SOL_SOCKET, SO_OSEOWNER, 
-                &theReceiverPid, sizeof(PROCESS)) != 0){
-    
-    ndbout << "Failed to transfer ownership of socket" << endl;
-    NDB_CLOSE_SOCKET(theSocket);
-    theSocket = -1;
-    return false;
-  }
-#endif
-  
-  return true;
-}
-
-
 void
-TCP_Transporter::disconnectImpl() {  
+TCP_Transporter::disconnectImpl() {
   if(theSocket != NDB_INVALID_SOCKET){
     if(NDB_CLOSE_SOCKET(theSocket) < 0){
-      reportError(callbackObj, remoteNodeId, TE_ERROR_CLOSING_SOCKET);
+      report_error(TE_ERROR_CLOSING_SOCKET);
     }
   }
   
@@ -447,155 +419,3 @@ TCP_Transporter::disconnectImpl() {
 
   theSocket = NDB_INVALID_SOCKET;
 }
-
-bool
-TCP_Transporter::startTCPServer() {
-  
-  int bindResult, listenResult;
-  
-  // The server variable is the remote server when we are a client
-  // htonl and htons returns the parameter in network byte order 
-  // INADDR_ANY tells the OS kernel to choose the IP address
-  struct sockaddr_in server;
-  memset((void*)&server, 0, sizeof(server));
-  server.sin_family      = AF_INET;
-  server.sin_addr.s_addr = localHostAddress.s_addr;
-  server.sin_port        = htons(port);
-  
-  if (theSocket != NDB_INVALID_SOCKET) {
-    return true;  // Server socket is already initialized
-  }
-  
-  // Create the socket
-  theSocket = socket(AF_INET, SOCK_STREAM, 0);
-  if (theSocket == NDB_INVALID_SOCKET) {
-    reportThreadError(remoteNodeId, TE_COULD_NOT_CREATE_SOCKET);
-    return false;
-  }
-  
-  // Set the socket reuse addr to true, so we are sure we can bind the
-  // socket
-  int reuseAddr = 1;
-  setsockopt(theSocket, SOL_SOCKET, SO_REUSEADDR,
-             (char*)&reuseAddr, sizeof(reuseAddr));
-  
-  // Set the TCP_NODELAY option so also small packets are sent
-  // as soon as possible
-  int nodelay = 1;
-  setsockopt(theSocket, IPPROTO_TCP, TCP_NODELAY,
-             (char*)&nodelay, sizeof(nodelay));
-  
-  // Bind the socket
-  bindResult = bind(theSocket, (struct sockaddr *) &server, 
-                    sizeof(server));
-  if (bindResult < 0) {
-    reportThreadError(remoteNodeId, TE_COULD_NOT_BIND_SOCKET);
-    NDB_CLOSE_SOCKET(theSocket);
-    theSocket = NDB_INVALID_SOCKET;
-    return false;
-  }
-  
-  // Perform listen. 
-  listenResult = listen(theSocket, 1);
-  if (listenResult == 1) {
-    reportThreadError(remoteNodeId, TE_LISTEN_FAILED);
-    NDB_CLOSE_SOCKET(theSocket);
-    theSocket = NDB_INVALID_SOCKET;
-    return false;
-  }
-
-  return true;
-}
-
-
-bool
-TCP_Transporter::acceptClient (struct timeval * timeout){
-
-  struct sockaddr_in clientAddress;
-  
-  fd_set readset;
-  FD_ZERO(&readset);
-  FD_SET(theSocket, &readset);
-  const int res = select(theSocket + 1, &readset, 0, 0, timeout);
-  if(res == 0)
-    return false;
-  
-  if(res < 0){
-    reportThreadError(remoteNodeId, TE_ERROR_IN_SELECT_BEFORE_ACCEPT);
-    return false;
-  }
-  
-  NDB_SOCKLEN_T clientAddressLen = sizeof(clientAddress);
-  const NDB_SOCKET_TYPE clientSocket = accept(theSocket, 
-                                              (struct sockaddr*)&clientAddress,
-                                              &clientAddressLen);
-  if (clientSocket == NDB_INVALID_SOCKET) {
-    reportThreadError(remoteNodeId, TE_ACCEPT_RETURN_ERROR);
-    return false;
-  } 
-  
-  if (clientAddress.sin_addr.s_addr != remoteHostAddress.s_addr) {
-    ndbout_c("Wrong client connecting!");
-    ndbout_c("connecting address: %s", inet_ntoa(clientAddress.sin_addr));
-    ndbout_c("expecting address:  %s", inet_ntoa(remoteHostAddress));
-    // The newly connected host is not the remote host 
-    // we wanted to connect to. Disconnect it.
-    // XXX This is not valid. We cannot disconnect it.
-    NDB_CLOSE_SOCKET(clientSocket);
-    return false;
-  } else {
-    NDB_CLOSE_SOCKET(theSocket);
-    theSocket = clientSocket;
-    setSocketOptions();
-    setSocketNonBlocking(theSocket);
-    return true;
-  }
-}
-
-bool
-TCP_Transporter::connectClient (struct timeval * timeout){
-  
-  // Create the socket
-  theSocket = socket(AF_INET, SOCK_STREAM, 0);
-  if (theSocket == NDB_INVALID_SOCKET) {
-    reportThreadError(remoteNodeId, TE_COULD_NOT_CREATE_SOCKET);
-    return false;
-  }
-  
-  struct sockaddr_in server;
-  memset((void*)&server, 0, sizeof(server));
-  server.sin_family      = AF_INET;
-  server.sin_addr        = remoteHostAddress;
-  server.sin_port        = htons(port);
-
-  struct sockaddr_in client;
-  memset((void*)&client, 0, sizeof(client));
-  client.sin_family      = AF_INET;
-  client.sin_addr        = localHostAddress;
-  client.sin_port        = 0; // Any port
-  
-  // Bind the socket
-  const int bindResult = bind(theSocket, (struct sockaddr *) &client, 
-                              sizeof(client));
-  if (bindResult < 0) {
-    reportThreadError(remoteNodeId, TE_COULD_NOT_BIND_SOCKET);
-    NDB_CLOSE_SOCKET(theSocket);
-    theSocket = NDB_INVALID_SOCKET;
-    return false;
-  }
-  
-  const int connectRes = ::connect(theSocket, (struct sockaddr *) &server, 
-                                   sizeof(server));
-  if(connectRes == 0){
-    setSocketOptions();
-    setSocketNonBlocking(theSocket);
-    return true;
-  }
-  
-  NDB_CLOSE_SOCKET(theSocket);
-  theSocket = NDB_INVALID_SOCKET;
-  return false;
-}
-
-
-

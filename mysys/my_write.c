@@ -26,7 +26,7 @@ uint my_write(int Filedes, const byte *Buffer, uint Count, myf MyFlags)
   uint writenbytes,errors;
   ulong written;
   DBUG_ENTER("my_write");
-  DBUG_PRINT("my",("Fd: %d  Buffer: %lx  Count: %d  MyFlags: %d",
+  DBUG_PRINT("my",("Fd: %d  Buffer: 0x%lx  Count: %d  MyFlags: %d",
 		   Filedes, Buffer, Count, MyFlags));
   errors=0; written=0L;
 

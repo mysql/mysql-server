@@ -17,7 +17,7 @@
 
 #include <ndb_global.h>
 
-#include "SocketServer.hpp"
+#include <SocketServer.hpp>
 
 #include <NdbTCP.h>
 #include <NdbOut.hpp>
@@ -36,10 +36,11 @@ SocketServer::SocketServer(int maxSessions) :
 }
 
 SocketServer::~SocketServer() {
-  for(unsigned i = 0; i<m_sessions.size(); i++){
+  unsigned i;
+  for(i = 0; i<m_sessions.size(); i++){
     delete m_sessions[i].m_session;
   }
-  for(unsigned i = 0; i<m_services.size(); i++){
+  for(i = 0; i<m_services.size(); i++){
     delete m_services[i].m_service;
   }
 }
@@ -146,7 +147,6 @@ SocketServer::doAccept(){
       ServiceInstance & si = m_services[i];
       
       if(FD_ISSET(si.m_socket, &readSet)){
-	
 	NDB_SOCKET_TYPE childSock = accept(si.m_socket, 0, 0);
 	if(childSock == NDB_INVALID_SOCKET){
 	  continue;
@@ -265,10 +265,11 @@ SocketServer::checkSessions(){
 
 void
 SocketServer::stopSessions(bool wait){
-  for(int i = m_sessions.size() - 1; i>=0; i--)
+  int i;
+  for(i = m_sessions.size() - 1; i>=0; i--)
     m_sessions[i].m_session->m_stop = true;
   
-  for(int i = m_services.size() - 1; i>=0; i--)
+  for(i = m_services.size() - 1; i>=0; i--)
     m_services[i].m_service->stopSessions();
   
   if(wait){
@@ -303,3 +304,6 @@ sessionThread_C(void* _sc){
   NdbThread_Exit(0);
   return 0;
 }
+
+template class MutexVector<SocketServer::ServiceInstance>;
+template class MutexVector<SocketServer::SessionInstance>;

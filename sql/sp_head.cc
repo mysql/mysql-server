@@ -262,6 +262,7 @@ sp_head::sp_head()
 {
   DBUG_ENTER("sp_head::sp_head");
 
+  state= INITIALIZED;
   m_backpatch.empty();
   m_lex.empty();
   DBUG_VOID_RETURN;
@@ -295,20 +296,11 @@ sp_head::init_strings(THD *thd, LEX *lex, sp_name *name)
   /* We have to copy strings to get them into the right memroot */
   if (name)
   {
-    DBUG_PRINT("info", ("name: %*.s%*s",
-                        name->m_db.length, name->m_db.str,
-		        name->m_name.length, name->m_name.str));
-    
+    m_db.length= name->m_db.length;
     if (name->m_db.length == 0)
-    {
-      m_db.length= (thd->db ? strlen(thd->db) : 0);
-      m_db.str= strmake_root(root, (thd->db ? thd->db : ""), m_db.length);
-    }
+      m_db.str= NULL;
     else
-    {
-      m_db.length= name->m_db.length;
       m_db.str= strmake_root(root, name->m_db.str, name->m_db.length);
-    }
     m_name.length= name->m_name.length;
     m_name.str= strmake_root(root, name->m_name.str, name->m_name.length);
 
@@ -317,18 +309,20 @@ sp_head::init_strings(THD *thd, LEX *lex, sp_name *name)
     m_qname.length= name->m_qname.length;
     m_qname.str= strmake_root(root, name->m_qname.str, m_qname.length);
   }
-  else
+  else if (thd->db)
   {
-    m_db.length= (thd->db ? strlen(thd->db) : 0);
-    m_db.str= strmake_root(root, (thd->db ? thd->db : ""), m_db.length);
+    m_db.length= thd->db_length
+    m_db.str= strmake_root(root, thd->db, m_db.length);
+
   }
-  
+
   if (m_param_begin && m_param_end)
   {
     m_params.length= m_param_end - m_param_begin;
     m_params.str= strmake_root(root,
                                (char *)m_param_begin, m_params.length);
   }
+
   if (m_returns_begin && m_returns_end)
   {
     /* QQ KLUDGE: We can't seem to cut out just the type in the parser
@@ -465,7 +459,8 @@ sp_head::execute(THD *thd)
 #endif
 
   dbchanged= FALSE;
-  if ((ret= sp_use_new_db(thd, m_db.str, olddb, sizeof(olddb), 0, &dbchanged)))
+  if (m_db.length &&
+      (ret= sp_use_new_db(thd, m_db.str, olddb, sizeof(olddb), 0, &dbchanged)))
     goto done;
 
   if ((ctx= thd->spcont))
@@ -510,8 +505,7 @@ sp_head::execute(THD *thd)
     }
   } while (ret == 0 && !thd->killed && !thd->query_error);
 
-  if (thd->current_arena)
-    cleanup_items(thd->current_arena->free_list);
+  cleanup_items(thd->current_arena->free_list);
   thd->current_arena= old_arena;
 
  done:
@@ -962,7 +956,9 @@ sp_head::restore_thd_mem_root(THD *thd)
 {
   DBUG_ENTER("sp_head::restore_thd_mem_root");
   Item *flist= free_list;	// The old list
-  set_item_arena(thd);          // Get new fre_list and mem_root
+  set_item_arena(thd);          // Get new free_list and mem_root
+  state= INITIALIZED;
+
   DBUG_PRINT("info", ("mem_root 0x%lx returned from thd mem root 0x%lx",
                       (ulong) &mem_root, (ulong) &thd->mem_root));
   thd->free_list= flist;	// Restore the old one

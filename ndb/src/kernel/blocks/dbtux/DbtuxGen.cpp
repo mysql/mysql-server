@@ -26,7 +26,12 @@ Dbtux::Dbtux(const Configuration& conf) :
 #ifdef VM_TRACE
   debugFile(0),
   debugOut(*new NullOutputStream()),
+  // until ndb_mgm supports dump
+#ifdef DBTUX_DEBUG_TREE
+  debugFlags(DebugTree),
+#else
   debugFlags(0),
+#endif
 #endif
   c_internalStartPhase(0),
   c_typeOfStart(NodeState::ST_ILLEGAL_TYPE),
@@ -187,6 +192,7 @@ Dbtux::execREAD_CONFIG_REQ(Signal* signal)
   IndexPtr indexPtr;
   while (1) {
     jam();
+    refresh_watch_dog();
     c_indexPool.seize(indexPtr);
     if (indexPtr.i == RNIL) {
       jam();
@@ -241,37 +247,14 @@ Dbtux::readKeyAttrs(const Frag& frag, TreeEnt ent, unsigned start, TableData key
 }
 
 void
-Dbtux::copyAttrs(Data dst, ConstData src, CopyPar& copyPar)
+Dbtux::readTablePk(const Frag& frag, TreeEnt ent, unsigned& pkSize, Data pkData)
 {
-  CopyPar c = copyPar;
-  c.m_numitems = 0;
-  c.m_numwords = 0;
-  while (c.m_numitems < c.m_items) {
-    jam();
-    if (c.m_headers) {
-      unsigned i = 0;
-      while (i < AttributeHeaderSize) {
-        if (c.m_numwords >= c.m_maxwords) {
-          copyPar = c;
-          return;
-        }
-        dst[c.m_numwords++] = src[i++];
-      }
-    }
-    unsigned size = src.ah().getDataSize();
-    src += AttributeHeaderSize;
-    unsigned i = 0;
-    while (i < size) {
-      if (c.m_numwords >= c.m_maxwords) {
-        copyPar = c;
-        return;
-      }
-      dst[c.m_numwords++] = src[i++];
-    }
-    src += size;
-    c.m_numitems++;
-  }
-  copyPar = c;
+  const Uint32 tableFragPtrI = frag.m_tupTableFragPtrI[ent.m_fragBit];
+  const TupLoc tupLoc = ent.m_tupLoc;
+  Uint32 size = 0;
+  c_tup->tuxReadKeys(tableFragPtrI, tupLoc.m_pageId, tupLoc.m_pageOffset, &size, pkData);
+  ndbrequire(size != 0);
+  pkSize = size;
 }
 
 /*
@@ -314,6 +297,9 @@ Dbtux::copyAttrs(const Frag& frag, TableData data1, Data data2, unsigned maxlen2
     keyAttrs += 1;
     data1 += 1;
   }
+#ifdef VM_TRACE
+  memset(data2, DataFillByte, len2 << 2);
+#endif
 }
 
 BLOCK_FUNCTIONS(Dbtux);

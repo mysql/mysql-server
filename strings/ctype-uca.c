@@ -6645,7 +6645,7 @@ static const char slovak[]=
     "& H < ch <<< Ch <<< CH"
     "& O < \\u00F4 <<< \\u00D4"
     "& S < \\u0161 <<< \\u0160"
-    "& Z < \\u017E <<< \\017D";
+    "& Z < \\u017E <<< \\u017D";
 
 static const char spanish2[]=	/* Also good for Asturian and Galician */
     "&C <  ch <<< Ch <<< CH"

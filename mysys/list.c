@@ -28,7 +28,7 @@
 LIST *list_add(LIST *root, LIST *element)
 {
   DBUG_ENTER("list_add");
-  DBUG_PRINT("enter",("root: %lx  element: %lx", root, element));
+  DBUG_PRINT("enter",("root: 0x%lx  element: %lx", root, element));
   if (root)
   {
     if (root->prev)			/* If add in mid of list */

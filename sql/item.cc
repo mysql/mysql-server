@@ -64,10 +64,10 @@ Item::Item():
   */
   if (thd->lex->current_select)
   {
-    SELECT_LEX_NODE::enum_parsing_place place= 
+    enum_parsing_place place= 
       thd->lex->current_select->parsing_place;
-    if (place == SELECT_LEX_NODE::SELECT_LIST ||
-	place == SELECT_LEX_NODE::IN_HAVING)
+    if (place == SELECT_LIST ||
+	place == IN_HAVING)
       thd->lex->current_select->select_n_having_items++;
   }
 }
@@ -106,6 +106,15 @@ void Item::print_item_w_name(String *str)
   }
 }
 
+
+void Item::cleanup()
+{
+  DBUG_ENTER("Item::cleanup");
+  DBUG_PRINT("info", ("Item: 0x%lx", this));
+  DBUG_PRINT("info", ("Type: %d", (int)type()));
+  fixed=0;
+  DBUG_VOID_RETURN;
+}
 
 Item_ident::Item_ident(const char *db_name_par,const char *table_name_par,
 		       const char *field_name_par)
@@ -181,10 +190,17 @@ void Item::set_name(const char *str, uint length, CHARSET_INFO *cs)
     name_length= 0;
     return;
   }
-  while (length && !my_isgraph(cs,*str))
-  {						// Fix problem with yacc
-    length--;
-    str++;
+  if (cs->ctype)
+  {
+    /*
+      This will probably need a better implementation in the future:
+      a function in CHARSET_INFO structure.
+    */
+    while (length && !my_isgraph(cs,*str))
+    {						// Fix problem with yacc
+      length--;
+      str++;
+    }
   }
   if (!my_charset_same(cs, system_charset_info))
   {
@@ -293,8 +309,9 @@ Item_splocal::type() const
 }
 
 
-bool DTCollation::aggregate(DTCollation &dt)
+bool DTCollation::aggregate(DTCollation &dt, bool superset_conversion)
 {
+  nagg++;
   if (!my_charset_same(collation, dt.collation))
   {
     /* 
@@ -308,14 +325,38 @@ bool DTCollation::aggregate(DTCollation &dt)
       if (derivation <= dt.derivation)
 	; // Do nothing
       else
-	set(dt);
+      {
+	set(dt); 
+        strong= nagg;
+      }
     }
     else if (dt.collation == &my_charset_bin)
     {
       if (dt.derivation <= derivation)
+      {
         set(dt);
+        strong= nagg;
+      }
       else
        ; // Do nothing
+    }
+    else if (superset_conversion)
+    {
+      if (derivation < dt.derivation &&
+          collation->state & MY_CS_UNICODE)
+        ; // Do nothing
+      else if (dt.derivation < derivation &&
+               dt.collation->state & MY_CS_UNICODE)
+      {
+        set(dt);
+        strong= nagg;
+      }
+      else
+      {
+        // Cannot convert to superset
+        set(0, DERIVATION_NONE);
+        return 1;
+      }
     }
     else
     {
@@ -330,6 +371,7 @@ bool DTCollation::aggregate(DTCollation &dt)
   else if (dt.derivation < derivation)
   {
     set(dt);
+    strong= nagg;
   }
   else
   { 
@@ -981,7 +1023,7 @@ double Item_param::val()
       This works for example when user says SELECT ?+0.0 and supplies
       time value for the placeholder.
     */
-    return (double) TIME_to_ulonglong(&value.time);
+    return ulonglong2double(TIME_to_ulonglong(&value.time));
   case NULL_VALUE:
     return 0.0;
   default:
@@ -1314,12 +1356,24 @@ bool Item_field::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
 	  table_list= (last= sl)->get_table_list();
 	  if (sl->resolve_mode == SELECT_LEX::INSERT_MODE && table_list)
 	  {
-	    // it is primary INSERT st_select_lex => skip first table resolving
+            /*
+              it is primary INSERT st_select_lex => skip first table
+              resolving
+            */
 	    table_list= table_list->next_local;
 	  }
 
 	  Item_subselect *prev_subselect_item= prev_unit->item;
-	  if ((tmp= find_field_in_tables(thd, this,
+          enum_parsing_place place= prev_subselect_item->parsing_place;
+          /*
+            check table fields only if subquery used somewhere out of HAVING
+            or SELECT list or outer SELECT do not use groupping (i.e. tables
+            are accessable)
+          */
+          if (((place != IN_HAVING &&
+                place != SELECT_LIST) ||
+               (sl->with_sum_func == 0 && sl->group_list.elements == 0)) &&
+              (tmp= find_field_in_tables(thd, this,
 					 table_list, ref,
 					 0, 1)) != not_found_field)
 	  {
@@ -1364,9 +1418,9 @@ bool Item_field::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
       }
       if (!tmp)
 	return -1;
-      else if (!refer)
+      if (!refer)
 	return 1;
-      else if (tmp == not_found_field && refer == (Item **)not_found_item)
+      if (tmp == not_found_field && refer == (Item **)not_found_item)
       {
 	if (upward_lookup)
 	{
@@ -1885,7 +1939,7 @@ bool Item::send(Protocol *protocol, String *buffer)
 {
   bool result;
   enum_field_types type;
-  LINT_INIT(result);
+  LINT_INIT(result);                     // Will be set if null_value == 0
 
   switch ((type=field_type())) {
   default:
@@ -2056,7 +2110,16 @@ bool Item_ref::fix_fields(THD *thd, TABLE_LIST *tables, Item **reference)
 	  // it is primary INSERT st_select_lex => skip first table resolving
 	  table_list= table_list->next_local;
 	}
-	if ((tmp= find_field_in_tables(thd, this,
+        enum_parsing_place place= prev_subselect_item->parsing_place;
+        /*
+          Check table fields only if subquery used somewhere out of HAVING
+          or SELECT list or outer SELECT do not use groupping (i.e. tables
+          are accessable)
+        */
+        if (((place != IN_HAVING &&
+              place != SELECT_LIST) ||
+             (sl->with_sum_func == 0 && sl->group_list.elements == 0)) &&
+            (tmp= find_field_in_tables(thd, this,
 				       table_list, reference,
 				       0, 1)) != not_found_field)
 	{

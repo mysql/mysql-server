@@ -38,7 +38,7 @@ class Field
 public:
   static void *operator new(size_t size) {return (void*) sql_alloc((uint) size); }
   static void operator delete(void *ptr_arg, size_t size) {
-#ifdef PEDANTIC_SAFEMALLOC
+#ifdef SAFEMALLOC
     bfill(ptr_arg, size, 0x8F);
 #endif
   }
@@ -343,18 +343,21 @@ public:
 	    struct st_table *table_arg,CHARSET_INFO *charset)
     :Field(ptr_arg, len_arg, null_ptr_arg, null_bit_arg,
 	   unireg_check_arg, field_name_arg, table_arg)
-    { 
+    {
       field_charset=charset;
       if (charset->state & MY_CS_BINSORT)
         flags|=BINARY_FLAG;
     }
   Item_result result_type () const { return STRING_RESULT; }
   uint decimals() const { return NOT_FIXED_DEC; }
+  int  store(double nr);
+  int  store(longlong nr)=0;
+  int  store(const char *to,uint length,CHARSET_INFO *cs)=0;
   void make_field(Send_field *);
   uint size_of() const { return sizeof(*this); }
   CHARSET_INFO *charset(void) const { return field_charset; }
   void set_charset(CHARSET_INFO *charset) { field_charset=charset; }
-  bool binary() const { return field_charset->state & MY_CS_BINSORT ? 1 : 0; }
+  bool binary() const { return field_charset == &my_charset_bin; }
   uint32 max_length() { return field_length; }
   friend class create_field;
 };
@@ -904,8 +907,8 @@ public:
   bool zero_pack() const { return 0; }
   void reset(void) { charset()->cset->fill(charset(),ptr,field_length,' '); }
   int  store(const char *to,uint length,CHARSET_INFO *charset);
-  int  store(double nr);
   int  store(longlong nr);
+  int store(double nr) { return Field_str::store(nr); } /* QQ: To be deleted */
   double val_real(void);
   longlong val_int(void);
   String *val_str(String*,String *);
@@ -913,6 +916,7 @@ public:
   void sort_string(char *buff,uint length);
   void sql_type(String &str) const;
   char *pack(char *to, const char *from, uint max_length=~(uint) 0);
+  char *pack_key(char *to, const char *from, uint max_length);
   const char *unpack(char* to, const char *from);
   int pack_cmp(const char *a,const char *b,uint key_length);
   int pack_cmp(const char *b,uint key_length);
@@ -950,8 +954,8 @@ public:
   uint32 pack_length() const { return (uint32) field_length+2; }
   uint32 key_length() const { return (uint32) field_length; }
   int  store(const char *to,uint length,CHARSET_INFO *charset);
-  int  store(double nr);
   int  store(longlong nr);
+  int  store(double nr) { return Field_str::store(nr); } /* QQ: To be deleted */
   double val_real(void);
   longlong val_int(void);
   String *val_str(String*,String *);
@@ -961,6 +965,7 @@ public:
   void set_key_image(char *buff,uint length, CHARSET_INFO *cs);
   void sql_type(String &str) const;
   char *pack(char *to, const char *from, uint max_length=~(uint) 0);
+  char *pack_key(char *to, const char *from, uint max_length);
   const char *unpack(char* to, const char *from);
   int pack_cmp(const char *a, const char *b, uint key_length);
   int pack_cmp(const char *b, uint key_length);
