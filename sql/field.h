@@ -1340,7 +1340,8 @@ public:
   Create field class for CREATE TABLE
 */
 
-class create_field :public Sql_alloc {
+class create_field :public Sql_alloc
+{
 public:
   const char *field_name;
   const char *change;			// If done with alter table
@@ -1362,6 +1363,11 @@ public:
   create_field() :after(0) {}
   create_field(Field *field, Field *orig_field);
   void create_length_to_internal_length(void);
+
+  /* Init for a tmp table field. To be extended if need be. */
+  void init_for_tmp_table(enum_field_types sql_type_arg,
+                          uint32 max_length, uint32 decimals,
+                          bool maybe_null, bool is_unsigned);
 };
 
 
