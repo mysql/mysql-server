@@ -530,7 +530,6 @@ void SCI_Transporter::setupLocalSegment()
    Uint32 * localReadIndex =  
      (Uint32*)m_SourceSegm[m_ActiveAdapterId].mappedMemory;  
    Uint32 * localWriteIndex =  (Uint32*)(localReadIndex+ 1); 
-   Uint32 * localEndWriteIndex = (Uint32*)(localReadIndex + 2); 
    m_localStatusFlag = (Uint32*)(localReadIndex + 3); 
  
    char * localStartOfBuf = (char*)  
@@ -538,7 +537,6 @@ void SCI_Transporter::setupLocalSegment()
  
    * localReadIndex = 0; 
    * localWriteIndex = 0; 
-   * localEndWriteIndex = 0;
 
    const Uint32 slack = MAX_MESSAGE_SIZE;
 
@@ -546,7 +544,6 @@ void SCI_Transporter::setupLocalSegment()
 			   sizeOfBuffer, 
 			   slack,
 			   localReadIndex, 
-			   localEndWriteIndex, 
 			   localWriteIndex);
     
    reader->clear(); 
@@ -570,7 +567,6 @@ void SCI_Transporter::setupRemoteSegment()
     
    Uint32 * remoteReadIndex = (Uint32*)segPtr;  
    Uint32 * remoteWriteIndex = (Uint32*)(segPtr + 1); 
-   Uint32 * remoteEndWriteIndex = (Uint32*) (segPtr + 2); 
    m_remoteStatusFlag = (Uint32*)(segPtr + 3);
     
    char * remoteStartOfBuf = ( char*)((char*)segPtr+(sharedSize)); 
@@ -579,7 +575,6 @@ void SCI_Transporter::setupRemoteSegment()
 			   sizeOfBuffer, 
 			   slack,
 			   remoteReadIndex, 
-			   remoteEndWriteIndex, 
 			   remoteWriteIndex);
    
    writer->clear(); 
@@ -598,7 +593,6 @@ void SCI_Transporter::setupRemoteSegment()
     
      Uint32 * remoteReadIndex2 = (Uint32*)segPtr;  
      Uint32 * remoteWriteIndex2 = (Uint32*) (segPtr + 1); 
-     Uint32 * remoteEndWriteIndex2 = (Uint32*) (segPtr + 2); 
      m_remoteStatusFlag2 = (Uint32*)(segPtr + 3);
     
      char * remoteStartOfBuf2 = ( char*)((char *)segPtr+sharedSize); 
@@ -613,12 +607,10 @@ void SCI_Transporter::setupRemoteSegment()
                               sizeOfBuffer, 
                               slack,
                               remoteReadIndex2, 
-                              remoteEndWriteIndex2, 
                               remoteWriteIndex2);
 
      * remoteReadIndex = 0; 
      * remoteWriteIndex = 0; 
-     * remoteEndWriteIndex = 0; 
      writer2->clear(); 
      m_TargetSegm[1].writer=writer2; 
      if(createSequence(m_StandbyAdapterId)!=SCI_ERR_OK) { 
@@ -918,14 +910,13 @@ SCI_Transporter::getWritePtr(Uint32 lenBytes, Uint32 prio)
   Uint32 send_buf_size = m_sendBuffer.m_sendBufferSize;
   Uint32 curr_data_size = m_sendBuffer.m_dataSize << 2;
   Uint32 new_curr_data_size = curr_data_size + lenBytes;
-  if ((new_curr_data_size >= send_buf_size) ||
+  if ((curr_data_size >= send_buf_size) ||
       (curr_data_size >= sci_buffer_remaining)) {
     /**
      * The new message will not fit in the send buffer. We need to
      * send the send buffer before filling it up with the new
      * signal data. If current data size will spill over buffer edge
-     * we will also send to avoid writing larger than possible in
-     * buffer.
+     * we will also send to ensure correct operation.
      */  
     if (!doSend()) { 
       /**

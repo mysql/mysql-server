@@ -297,13 +297,12 @@ private:
    */ 
   bool sendIsPossible(struct timeval * timeout); 
    
-
-  void getReceivePtr(Uint32 ** ptr, Uint32 &size){
-    size = reader->getReadPtr(* ptr);
+  void getReceivePtr(Uint32 ** ptr, Uint32 ** eod){
+    reader->getReadPtr(* ptr, * eod);
   }
 
-  void updateReceivePtr(Uint32 size){
-    reader->updateReadPtr(size);
+  void updateReceivePtr(Uint32 *ptr){
+    reader->updateReadPtr(ptr);
   }
  
   /** 
