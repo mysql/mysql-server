@@ -39143,7 +39143,7 @@ Finland
 * BDB characteristics::         Characteristics of @code{BDB} tables:
 * BDB TODO::                    Things we need to fix for BDB in the near future:
 * BDB portability::             Operating systems supported by @strong{BDB}
-* BDB errors::                  Errors You May Get When Using BDB Tables
+* BDB errors::                  Errors That May Occur When Using BDB Tables
 @end menu
 
 @node BDB overview, BDB install, BDB, BDB
@@ -39393,7 +39393,7 @@ Max OS X
 
 
 @node BDB errors,  , BDB portability, BDB
-@subsection Errors You May Get When Using BDB Tables
+@subsection Errors That May Occur When Using BDB Tables
 
 @itemize @bullet
 @item
@@ -43856,8 +43856,8 @@ included the thread libraries on the link/compile line.
 * libmysqld overview::          Overview of the Embedded MySQL Server Library
 * libmysqld compiling::         Compiling Programs with @code{libmysqld}
 * libmysqld restrictions::      Restrictions when Using the Embedded MySQL Server
-* libmysqld options::           Using Option files with the Embedded Server
-* libmysqld TODO::              Things left lo do in Embedded Server (TODO)
+* libmysqld options::           Using Option Files with the Embedded Server
+* libmysqld TODO::              Things left to do in Embedded Server (TODO)
 * libmysqld example::           A Simple Embedded Server Example
 * libmysqld licensing::         Licensing the Embedded Server
 @end menu
@@ -45271,7 +45271,7 @@ You can find all information about procedures by examining the following files:
 
 @menu
 * What is crashing::            How to determine what is causing problems
-* Common errors::               Common errors when using MySQL
+* Common errors::               Common Errors When Using MySQL
 * Installation Issues::         Installation Related Issues
 * Administration Issues::       Administration Related Issues
 * Query Issues::                Query Related Issues
