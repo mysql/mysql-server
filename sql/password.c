@@ -66,7 +66,6 @@
 #define PVERSION41_CHAR '*'
 
 /* Scramble length for new password version */
-#define SCRAMBLE41_LENGTH 20
 
 
 /*
@@ -175,17 +174,12 @@ void create_random_string(int length,struct rand_struct *rand_st,char* target)
     none
 */
 
-inline void password_crypt(const char* from,char* to, const char* password,int length) 
+void password_crypt(const char* from,char* to, const char* password,int length) 
 {
  const char *from_end=from+length;
  
- while(from<from_end)
- {
-   *to=*from^*password;
-   from++;
-   to++; 
-   password++;   
- }
+ while (from < from_end)
+   *to++= *(from++) ^* (password++);
 }
 
 
@@ -286,7 +280,9 @@ void password_hash_stage2(char *to,const char *salt)
     none
 */
 
-void make_scrambled_password(char *to,const char *password,my_bool force_old_scramble,struct rand_struct *rand_st)
+void make_scrambled_password(char *to,const char *password,
+                             my_bool force_old_scramble,
+                             struct rand_struct *rand_st)
 { 
   ulong hash_res[2];   /* Used for pre 4.1 password hashing */
   unsigned short salt; /* Salt for 4.1 version password */
@@ -336,7 +332,6 @@ void get_salt_from_bin_password(ulong *res,unsigned char *password,ulong salt)
   unsigned char* password_end=password+SCRAMBLE41_LENGTH;
   *res=salt;
   res++;
-  bzero(res,5*sizeof(res[0])); 
   
   /* Process password of known length*/
   while (password<password_end)
@@ -364,12 +359,14 @@ void get_salt_from_bin_password(ulong *res,unsigned char *password,ulong salt)
    !0 for invalid password
 */
 
-my_bool validate_password(const char* password, const char* message, ulong* salt)
+my_bool validate_password(const char* password, const char* message,
+                          ulong* salt)
 {
   char buffer[SCRAMBLE41_LENGTH]; /* Used for password validation */
   char tmpsalt[8]; /* Temporary value to convert salt to string form */
-  int i;
   ulong salt_candidate[6]; /* Computed candidate salt */
+  ulong* sc=salt_candidate; /* we need to be able to increment */
+  ulong* salt_end;
   
   /* Now we shall get stage1 encrypted password in buffer*/
   password_crypt(password,buffer,message,SCRAMBLE41_LENGTH);
@@ -381,9 +378,11 @@ my_bool validate_password(const char* password, const char* message, ulong* salt
   /* Convert password to salt to compare */
   get_salt_from_bin_password(salt_candidate,buffer,salt[0]);
   
-  /* Now we shall get exactly the same password as we have stored for user */ 
-  for(i=1;i<6;i++)
-    if (salt[i]!=salt_candidate[i]) return 1;
+  /* Now we shall get exactly the same password as we have stored for user  */ 
+  for (salt_end=salt+5 ; salt < salt_end; )
+    if (*++salt != *++sc)
+      return 1;
+  
   /* Or password correct*/    
   return 0;
 } 
@@ -400,11 +399,9 @@ my_bool validate_password(const char* password, const char* message, ulong* salt
     password length >0
 */
 
-inline int get_password_length(my_bool force_old_scramble)
+int get_password_length(my_bool force_old_scramble)
 {
-  if (force_old_scramble)
-    return 16;
-  else return SHA1_HASH_SIZE*2+4+1;
+  return (force_old_scramble) ? 16 : SHA1_HASH_SIZE*2+4+1;
 }
 
 
@@ -420,9 +417,9 @@ inline int get_password_length(my_bool force_old_scramble)
    !0 password version char for newer passwords
 */
 
-inline char get_password_version(const char* password)
+char get_password_version(const char* password)
 {
-  if (password==NULL) return 0;
+  if (password==NULL) return 0; 
   if (password[0]==PVERSION41_CHAR) return PVERSION41_CHAR;
   return 0;
 }
@@ -467,7 +464,6 @@ inline uint char_val(char X)
 
 void get_salt_from_password(ulong *res,const char *password)
 {
-  bzero(res,6*sizeof(res[0]));
   if (password) /* zero salt corresponds to empty password */
   {
     if (password[0]==PVERSION41_CHAR) /* if new password */
@@ -553,19 +549,17 @@ void get_hash_and_password(ulong* salt, uint8 pversion, char* hash, unsigned cha
   
   if (pversion) /* New password version assumed */
   {
-    salt_end=salt+6;
+    salt_end=salt+5;
     sprintf(hash,"%04x",(unsigned short)salt[0]);
-    salt++; /* position to the second element */
     while (salt<salt_end) /* Iterate over these elements*/
     {
-      val=*salt;
-      for(t=3;t>=0;t--)
+      val=*(++salt);
+      for (t=3; t>=0; t--)
       {
         bin_password[t]=val%256;
         val>>=8; /* Scroll 8 bits to get next part*/
       }
       bin_password+=4; /* Get to next 4 chars*/ 
-      salt++;
     }
   }
   else 
@@ -611,7 +605,7 @@ void get_hash_and_password(ulong* salt, uint8 pversion, char* hash, unsigned cha
 
 void create_key_from_old_password(const char* passwd, char* key)
 {
-  char  buffer[20]; /* Buffer for various needs */
+  char  buffer[SCRAMBLE41_LENGTH]; /* Buffer for various needs */
   ulong salt[6];    /* Salt (large for safety) */
   /* At first hash password to the string stored in password */
   make_scrambled_password(buffer,passwd,1,(struct rand_struct *)NULL);

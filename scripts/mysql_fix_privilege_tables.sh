@@ -170,11 +170,19 @@ fi
 
 @bindir@/mysql -f --user=root --password="$root_password" --host="$host" mysql <<END_OF_DATA
 alter table user
-change password password char(45) not null,
 add max_questions int(11) NOT NULL AFTER x509_subject,
 add max_updates   int(11) unsigned NOT NULL AFTER max_questions,
 add max_connections int(11) unsigned NOT NULL AFTER max_updates;
 END_OF_DATA
+
+# Increase password length to handle new passwords
+
+@bindir@/mysql -f --user=root --password="$root_password" --host="$host" mysql <<END_OF_DATA
+alter table user
+change password password char(45) not null;
+END_OF_DATA
+
+
 
 #
 # Add Create_tmp_table_priv and Lock_tables_priv to db and host

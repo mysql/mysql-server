@@ -490,7 +490,7 @@ mc_mysql_connect(MYSQL *mysql,const char *host, const char *user,
 		 uint net_read_timeout)
 {
   char		buff[NAME_LEN+USERNAME_LENGTH+100],*end,*host_info;
-  char          password_hash[20];
+  char          password_hash[SCRAMBLE41_LENGTH];
   my_socket	sock;
   ulong		ip_addr;
   struct	sockaddr_in sock_addr;
@@ -856,28 +856,29 @@ mc_mysql_connect(MYSQL *mysql,const char *host, const char *user,
         /* Build full password hash as it is required to decode scramble */
         password_hash_stage1(buff, passwd);
         /* Store copy as we'll need it later */
-        memcpy(password_hash,buff,20);
+        memcpy(password_hash,buff,SCRAMBLE41_LENGTH);
         /* Finally hash complete password using hash we got from server */
         password_hash_stage2(password_hash,(char*)net->read_pos);
         /* Decypt and store scramble 4 = hash for stage2 */
-        password_crypt((char*)net->read_pos+4,mysql->scramble_buff,password_hash,20);
-        mysql->scramble_buff[20]=0;
+        password_crypt((char*)net->read_pos+4,mysql->scramble_buff,password_hash,
+                       SCRAMBLE41_LENGTH);
+        mysql->scramble_buff[SCRAMBLE41_LENGTH]=0;
         /* Encode scramble with password. Recycle buffer */
-        password_crypt(mysql->scramble_buff,buff,buff,20);
+        password_crypt(mysql->scramble_buff,buff,buff,SCRAMBLE41_LENGTH);
       }
       else
       {
        /* Create password to decode scramble */
        create_key_from_old_password(passwd,password_hash);
        /* Decypt and store scramble 4 = hash for stage2 */
-       password_crypt((char*)net->read_pos+4,mysql->scramble_buff,password_hash,20);
-       mysql->scramble_buff[20]=0;
+       password_crypt((char*)net->read_pos+4,mysql->scramble_buff,password_hash,
+                      SCRAMBLE41_LENGTH);
+       mysql->scramble_buff[SCRAMBLE41_LENGTH]=0;
        /* Finally scramble decoded scramble with password */
-       scramble(buff, mysql->scramble_buff, passwd,
-                 (my_bool) (mysql->protocol_version == 9));
+       scramble(buff, mysql->scramble_buff, passwd,0);
       }
       /* Write second package of authentication */
-      if (my_net_write(net,buff,20) || net_flush(net))
+      if (my_net_write(net,buff,SCRAMBLE41_LENGTH) || net_flush(net))
       {
         net->last_errno= CR_SERVER_LOST;
         strmov(net->last_error,ER(net->last_errno));
