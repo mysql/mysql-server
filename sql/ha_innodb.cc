@@ -5050,9 +5050,18 @@ ha_innobase::external_lock(
 			prebuilt->select_lock_type = LOCK_S;
 		}
 
+		/* Starting from 4.1.9, no InnoDB table lock is taken in LOCK
+		TABLES if AUTOCOMMIT=1. It does not make much sense to acquire
+		an InnoDB table lock if it is released immediately at the end
+		of LOCK TABLES, and InnoDB's table locks in that case cause
+		VERY easily deadlocks. */
+
 		if (prebuilt->select_lock_type != LOCK_NONE) {
+
 			if (thd->in_lock_tables &&
-			    thd->variables.innodb_table_locks) {
+			    thd->variables.innodb_table_locks &&
+			    (thd->options & OPTION_NOT_AUTOCOMMIT)) {
+
 				ulint	error;
 				error = row_lock_table_for_mysql(prebuilt,
 							NULL, LOCK_TABLE_EXP);

@@ -2945,9 +2945,11 @@ bool sys_var_thd_storage_engine::check(THD *thd, set_var *var)
 
   if (var->value->result_type() == STRING_RESULT)
   {
+    enum db_type db_type;
     if (!(res=var->value->val_str(&str)) ||
 	!(var->save_result.ulong_value=
-	 (ulong) ha_resolve_by_name(res->ptr(), res->length())))
+	 (ulong) db_type= ha_resolve_by_name(res->ptr(), res->length())) ||
+	ha_checktype(db_type) != db_type) 
     {
       value= res ? res->c_ptr() : "NULL";
       goto err;
