@@ -4744,10 +4744,10 @@ optional_order_or_limit:
 	    LEX *lex= &thd->lex;
 	    DBUG_ASSERT(lex->current_select->linkage != GLOBAL_OPTIONS_TYPE);
 	    SELECT_LEX *sel= lex->current_select->select_lex();
-	    sel->master_unit()->global_parameters=
-	      sel->master_unit();
-	    lex->current_select= sel->master_unit();
-	    lex->current_select->no_table_names_allowed= 1;
+	    SELECT_LEX_UNIT *unit= sel->master_unit();
+	    unit->global_parameters= unit;
+	    unit->no_table_names_allowed= 1;
+	    lex->current_select= unit;
 	    thd->where= "global ORDER clause";
 	  }
 	order_or_limit
