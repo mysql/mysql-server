@@ -1506,21 +1506,8 @@ run_testcase ()
  # script soon anyway so it is not worth it spending the time
  if [ "x$USE_EMBEDDED_SERVER" = "x1" -a -z "$DO_TEST" ] ; then
    for t in \
-	"init_connect" \
-	"init_file" \
-	"mix_innodb_myisam_binlog" \
-	"mysqlbinlog2" \
-	"mysqlbinlog" \
-	"mysqldump" \
-	"mysql_protocols" \
-        "packet" \
-	"ps_1general" \
-	"rename" \
-	"show_check" \
-        "system_mysql_db_fix" \
-        "timezone2" \
-	"user_var" \
-	"variables"
+       "init_connect" \
+       "init_file"
    do
      if [ "$tname" = "$t" ] ; then
        skip_test $tname

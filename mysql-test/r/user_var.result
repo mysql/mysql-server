@@ -162,31 +162,6 @@ charset(@a)	collation(@a)	coercibility(@a)
 latin2	latin2_bin	0
 select (@a:=_latin2'test' collate latin2_bin) = _latin2'TEST' collate latin2_general_ci;
 ERROR HY000: Illegal mix of collations (latin2_bin,EXPLICIT) and (latin2_general_ci,EXPLICIT) for operation '='
-create table t1 (a varchar(50));
-reset master;
-SET TIMESTAMP=10000;
-SET @`a b`='hello';
-INSERT INTO t1 VALUES(@`a b`);
-set @var1= "';aaa";
-SET @var2=char(ascii('a'));
-insert into t1 values (@var1),(@var2);
-show binlog events from 79;
-Log_name	Pos	Event_type	Server_id	Orig_log_pos	Info
-master-bin.000001	79	User var	1	79	@`a b`=_latin1 0x68656C6C6F COLLATE latin1_swedish_ci
-master-bin.000001	120	Query	1	120	use `test`; INSERT INTO t1 VALUES(@`a b`)
-master-bin.000001	184	User var	1	184	@`var1`=_latin1 0x273B616161 COLLATE latin1_swedish_ci
-master-bin.000001	226	User var	1	226	@`var2`=_latin1 0x61 COLLATE latin1_swedish_ci
-master-bin.000001	264	Query	1	264	use `test`; insert into t1 values (@var1),(@var2)
-/*!40019 SET @@session.max_insert_delayed_threads=0*/;
-SET @`a b`:=_latin1 0x68656C6C6F COLLATE `latin1_swedish_ci`;
-use test;
-SET TIMESTAMP=10000;
-INSERT INTO t1 VALUES(@`a b`);
-SET @`var1`:=_latin1 0x273B616161 COLLATE `latin1_swedish_ci`;
-SET @`var2`:=_latin1 0x61 COLLATE `latin1_swedish_ci`;
-SET TIMESTAMP=10000;
-insert into t1 values (@var1),(@var2);
-drop table t1;
 set @var= NULL ;
 select FIELD( @var,'1it','Hit') as my_column;
 my_column
