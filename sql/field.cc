@@ -4252,12 +4252,13 @@ int Field_string::cmp(const char *a_ptr, const char *b_ptr)
       like in latin_de 'ae' and 0xe4
     */
     return field_charset->coll->strnncollsp(field_charset,
-				      (const uchar*) a_ptr, field_length,
-				      (const uchar*) b_ptr, field_length);
+                                            (const uchar*) a_ptr, field_length,
+                                            (const uchar*) b_ptr,
+                                            field_length);
   }
   return field_charset->coll->strnncoll(field_charset,
-				  (const uchar*) a_ptr, field_length,
-				  (const uchar*) b_ptr, field_length);
+                                        (const uchar*) a_ptr, field_length,
+                                        (const uchar*) b_ptr, field_length);
 }
 
 void Field_string::sort_string(char *to,uint length)

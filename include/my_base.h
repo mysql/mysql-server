@@ -349,6 +349,16 @@ enum data_file_type {
   STATIC_RECORD,DYNAMIC_RECORD,COMPRESSED_RECORD
 };
 
+/* For key ranges */
+
+typedef struct st_key_range
+{
+  const byte *key;
+  uint length;
+  enum ha_rkey_function flag;
+} key_range;
+
+
 /* For number of records */
 #ifdef BIG_TABLES
 #define rows2double(A)	ulonglong2double(A)
