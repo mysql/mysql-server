@@ -189,7 +189,8 @@ class handler :public Sql_alloc
 public:
   byte *ref;				/* Pointer to current row */
   byte *dupp_ref;			/* Pointer to dupp row */
-  uint ref_length;			/* Length of ref (1-8) */
+  uint ref_length;			/* Length of ref (1-8 or the clustered
+					key length) */
   uint block_size;			/* index block size */
   ha_rows records;			/* Records i datafilen */
   ha_rows deleted;			/* Deleted records */

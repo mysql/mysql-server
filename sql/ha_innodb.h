@@ -76,7 +76,8 @@ class ha_innobase: public handler
 	longlong	auto_inc_counter_for_this_stat;
 	ulong max_row_length(const byte *buf);
 
-	uint store_key_val_for_row(uint keynr, char* buff, const byte* record);
+	uint store_key_val_for_row(uint keynr, char* buff, uint buff_len,
+					       const byte* record);
 	int update_thd(THD* thd);
 	int change_active_index(uint keynr);
 	int general_fetch(byte* buf, uint direction, uint match_mode);

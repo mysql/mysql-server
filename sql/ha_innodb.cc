@@ -43,7 +43,9 @@ InnoDB */
 pthread_mutex_t innobase_mutex;
 
 /* Store MySQL definition of 'byte': in Linux it is char while InnoDB
-uses unsigned char */
+uses unsigned char; the header univ.i which we include next defines
+'byte' as a macro which expands to 'unsigned char' */
+
 typedef byte	mysql_byte;
 
 #define INSIDE_HA_INNOBASE_CC
@@ -1716,8 +1718,7 @@ get_innobase_type_from_mysql_type(
 }
 
 /***********************************************************************
-Stores a key value for a row to a buffer. This must currently only be used
-to store a row reference to the 'ref' buffer of this table handle! */
+Stores a key value for a row to a buffer. */
 
 uint
 ha_innobase::store_key_val_for_row(
@@ -1725,8 +1726,8 @@ ha_innobase::store_key_val_for_row(
 				/* out: key value length as stored in buff */
 	uint 		keynr,	/* in: key number */
 	char*		buff,	/* in/out: buffer for the key value (in MySQL
-				format); currently this MUST be the 'ref'
-				buffer! */
+				format) */
+	uint		buff_len,/* in: buffer length */
 	const mysql_byte* record)/* in: row in MySQL format */
 {
 	KEY*		key_info 	= table->key_info + keynr;
@@ -1757,11 +1758,11 @@ ha_innobase::store_key_val_for_row(
 	for data. For a VARCHAR(n) the max field length is n. If the stored
 	value is the SQL NULL then these data bytes are set to 0. */	
 
-	/* We have to zero-fill the 'ref' buffer so that MySQL is able to
-	use a simple memcmp to compare two key values to determine if they
-	are equal */
+	/* We have to zero-fill the buffer so that MySQL is able to use a
+	simple memcmp to compare two key values to determine if they are
+	equal. MySQL does this to compare contents of two 'ref' values. */
 
-	bzero(buff, ref_length);
+	bzero(buff, buff_len);
 
   	for (; key_part != end; key_part++) {
 	        is_null = FALSE;
@@ -1808,7 +1809,7 @@ ha_innobase::store_key_val_for_row(
 			storage of the number is little-endian */
 
 			ut_a(blob_len < 256);
-			*buff = blob_len;
+			*((byte*)buff) = (byte)blob_len;
 			buff += 2;
 
 			memcpy(buff, blob_data, blob_len);
@@ -1825,6 +1826,8 @@ ha_innobase::store_key_val_for_row(
 			buff += key_part->length;
 		}
   	}
+
+	ut_a(buff <= buff_start + buff_len);
 
 	DBUG_RETURN((uint)(buff - buff_start));
 }
@@ -3122,7 +3125,8 @@ ha_innobase::position(
 
 		memcpy(ref, prebuilt->row_id, len);
 	} else {
-		len = store_key_val_for_row(primary_key, (char*) ref, record);
+		len = store_key_val_for_row(primary_key, (char*)ref,
+							 ref_length, record);
 	}
 
 	/* Since we do not store len to the buffer 'ref', we must assume
