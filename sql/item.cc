@@ -260,8 +260,15 @@ my_decimal *Item::val_decimal_from_string(my_decimal *decimal_value)
     return 0;                                   // NULL or EOM
 
   end_ptr= (char*) res->ptr()+ res->length();
-  str2my_decimal(E_DEC_FATAL_ERROR, res->ptr(), res->length(), res->charset(),
-                 decimal_value);
+  if (str2my_decimal(E_DEC_FATAL_ERROR & ~E_DEC_BAD_NUM,
+                     res->ptr(), res->length(), res->charset(),
+                     decimal_value) & E_DEC_BAD_NUM)
+  {
+    push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+                        ER_TRUNCATED_WRONG_VALUE,
+                        ER(ER_TRUNCATED_WRONG_VALUE), "DECIMAL",
+                        str_value.c_ptr());
+  }
   return decimal_value;
 }
 
@@ -1515,10 +1522,7 @@ longlong Item_string::val_int()
 
 my_decimal *Item_string::val_decimal(my_decimal *decimal_value)
 {
-  /* following assert is redundant, because fixed=1 assigned in constructor */
-  DBUG_ASSERT(fixed == 1);
-  string2my_decimal(E_DEC_FATAL_ERROR, &str_value, decimal_value);
-  return (decimal_value);
+  return val_decimal_from_string(decimal_value);
 }
 
 
