@@ -8704,7 +8704,16 @@ shell> ./bin/mysql_install_db
 shell> ./bin/safe_mysqld --user=mysql &
 @end example
 
-This installs and starts @code{MySQL} without any passwords.
+This creates the @code{mysql} database which will hold all database
+privileges, the @code{test} database which you can use to test
+@strong{MySQL} and also privilege entries for the user that run
+@code{mysql_install_db} and a @code{root} user (without any passwords).
+This also starts the @code{mysqld} server.
+
+@code{mysql_install_db} will not overwrite any old privilege tables, so
+it should be safe to run in any circumstances.  If you don't want to
+have the @code{test} database you can remove it with @code{mysqladmin -u
+root drop test}.
 
 Testing is most easily done from the top-level directory of the @strong{MySQL}
 distribution.  For a binary distribution, this is your installation directory
