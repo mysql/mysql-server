@@ -71,6 +71,11 @@ dict_mem_table_create(
 
 	table->stat_modif_counter = 0;
 	
+	mutex_create(&(table->autoinc_mutex));
+	mutex_set_level(&(table->autoinc_mutex), SYNC_DICT_AUTOINC_MUTEX);
+
+	table->autoinc_inited = FALSE;
+
 	table->magic_n = DICT_TABLE_MAGIC_N;
 	
 	return(table);

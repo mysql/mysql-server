@@ -372,6 +372,7 @@ Memory pool mutex */
 					latching order checking */
 #define	SYNC_LEVEL_NONE		2000	/* default: level not defined */
 #define SYNC_DICT		1000
+#define SYNC_DICT_AUTOINC_MUTEX	999
 #define	SYNC_PURGE_IS_RUNNING	997
 #define SYNC_DICT_HEADER	995
 #define SYNC_IBUF_HEADER	914
