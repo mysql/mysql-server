@@ -844,18 +844,22 @@ store_create_info(THD *thd, TABLE *table, String *packet)
 
   for (uint i=0 ; i < table->keys ; i++,key_info++)
   {
+    KEY_PART_INFO *key_part= key_info->key_part;
+    bool found_primary=0;
     packet->append(",\n  ", 4);
 
-    KEY_PART_INFO *key_part= key_info->key_part;
-    if (i == primary_key)
+    if (i == primary_key && !strcmp(key_info->name,"PRIMARY"))
+    {
+      found_primary=1;
       packet->append("PRIMARY ", 8);
+    }
     else if (key_info->flags & HA_NOSAME)
       packet->append("UNIQUE ", 7);
     else if (key_info->flags & HA_FULLTEXT)
       packet->append("FULLTEXT ", 9);
     packet->append("KEY ", 4);
 
-    if (i != primary_key)
+    if (!found_primary)
      append_identifier(thd,packet,key_info->name);
 
     packet->append(" (", 2);

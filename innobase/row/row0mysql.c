@@ -24,6 +24,7 @@ Created 9/17/2000 Heikki Tuuri
 #include "trx0roll.h"
 #include "trx0purge.h"
 #include "lock0lock.h"
+#include "rem0cmp.h"
 
 /***********************************************************************
 Reads a MySQL format variable-length field (like VARCHAR) length and
