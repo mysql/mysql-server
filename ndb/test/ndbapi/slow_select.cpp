@@ -36,6 +36,7 @@ static void lookup();
 
 int
 main(void){
+  ndb_init();
   Ndb g_ndb("test");
   g_ndb.init(1024);
 

@@ -728,7 +728,8 @@ HugoTransactions::loadTable(Ndb* pNdb,
     if (doSleep > 0)
       NdbSleep_MilliSleep(doSleep);
 
-    if (first_batch || !oneTrans) {
+    //    if (first_batch || !oneTrans) {
+    if (first_batch) {
       first_batch = false;
       pTrans = pNdb->startTransaction();
     
@@ -774,8 +775,10 @@ HugoTransactions::loadTable(Ndb* pNdb,
     
     // Execute the transaction and insert the record
     if (!oneTrans || (c + batch) >= records) {
-      closeTrans = true;
+      //      closeTrans = true;
+      closeTrans = false;
       check = pTrans->execute( Commit );
+      pTrans->restart();
     } else {
       closeTrans = false;
       check = pTrans->execute( NoCommit );

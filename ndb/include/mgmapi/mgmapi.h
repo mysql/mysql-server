@@ -56,24 +56,6 @@ extern "C" {
 #endif
 
   /**
-   * Format of statistical information from the NDB Cluster.
-   * STATISTIC_LINE is sent on the statistical port from the Management server,
-   * each line is timestamped with STATISTIC_DATE.
-   */
-#define STATISTIC_LINE "date=%s epochsecs=%d nodeid=%u trans=%u commit=%u " \
-                        "read=%u insert=%u attrinfo=%u cops=%u abort=%u"
-  /**
-   * Format of statistical information from the NDB Cluster.
-   * STATISTIC_LINE is sent on the statistical port from the Management server,
-   * each line is timestamped with STATISTIC_DATE.
-   */
-#define STATISTIC_DATE "%d-%.2d-%.2d/%.2d:%.2d:%.2d"
-  /**
-   * Format of statistical information from the NDB Cluster.
-   */
-#define OP_STATISTIC_LINE "date=%s epochsecs=%d nodeid=%d operations=%u"
-	
-  /**
    * The NdbMgmHandle.
    */
   typedef struct ndb_mgm_handle * NdbMgmHandle;

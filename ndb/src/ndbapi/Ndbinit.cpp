@@ -16,7 +16,6 @@
 
 
 #include <ndb_global.h>
-#include <my_sys.h>
 
 #include "NdbApiSignal.hpp"
 #include "NdbImpl.hpp"
@@ -62,7 +61,6 @@ Ndb::Ndb( const char* aDataBase , const char* aSchema) {
     abort(); // old and new Ndb constructor used mixed
   theNoOfNdbObjects++;
   if (global_ndb_cluster_connection == 0) {
-    my_init();
     global_ndb_cluster_connection= new Ndb_cluster_connection(ndbConnectString);
     global_ndb_cluster_connection->connect();
   }
