@@ -90,6 +90,12 @@ bool Item_func::agg_arg_collations(DTCollation &c, Item **av, uint count,
       return TRUE;
     }
   }
+  if ((flags & MY_COLL_DISALLOW_NONE) &&
+      c.derivation == DERIVATION_NONE)
+  {
+    my_coll_agg_error(av, count, func_name());
+    return TRUE;
+  }
   return FALSE;
 }
 
@@ -98,15 +104,7 @@ bool Item_func::agg_arg_collations_for_comparison(DTCollation &c,
 						  Item **av, uint count,
                                                   uint flags)
 {
-  if (agg_arg_collations(c, av, count, flags))
-    return TRUE;
-
-  if (c.derivation == DERIVATION_NONE)
-  {
-    my_coll_agg_error(av, count, func_name());
-    return TRUE;
-  }
-  return FALSE;
+  return (agg_arg_collations(c, av, count, flags | MY_COLL_DISALLOW_NONE));
 }
 
 
@@ -117,6 +115,89 @@ eval_const_cond(COND *cond)
 {
   return ((Item_func*) cond)->val_int() ? TRUE : FALSE;
 }
+
+
+
+/* 
+  Collect arguments' character sets together.
+  We allow to apply automatic character set conversion in some cases.
+  The conditions when conversion is possible are:
+  - arguments A and B have different charsets
+  - A wins according to coercibility rules
+    (i.e. a column is stronger than a string constant,
+     an explicit COLLATE clause is stronger than a column)
+  - character set of A is either superset for character set of B,
+    or B is a string constant which can be converted into the
+    character set of A without data loss.
+    
+  If all of the above is true, then it's possible to convert
+  B into the character set of A, and then compare according
+  to the collation of A.
+  
+  For functions with more than two arguments:
+
+    collect(A,B,C) ::= collect(collect(A,B),C)
+*/
+
+bool Item_func::agg_arg_charsets(DTCollation &coll,
+                                 Item **args, uint nargs, uint flags)
+{
+  Item **arg, **last, *safe_args[2];
+  if (agg_arg_collations(coll, args, nargs, flags))
+    return TRUE;
+
+  /*
+    For better error reporting: save the first and the second argument.
+    We need this only if the the number of args is 3 or 2:
+    - for a longer argument list, "Illegal mix of collations"
+      doesn't display each argument's characteristics.
+    - if nargs is 1, then this error cannot happen.
+  */
+  if (nargs >=2 && nargs <= 3)
+  {
+    safe_args[0]= args[0];
+    safe_args[1]= args[1];
+  }
+
+  THD *thd= current_thd;
+  Item_arena *arena= thd->current_arena, backup;
+  bool res= FALSE;
+  /*
+    In case we're in statement prepare, create conversion item
+    in its memory: it will be reused on each execute.
+  */
+  if (arena->is_stmt_prepare())
+    thd->set_n_backup_item_arena(arena, &backup);
+
+  for (arg= args, last= args + nargs; arg < last; arg++)
+  {
+    Item* conv;
+    uint dummy_offset;
+    if (!String::needs_conversion(0, coll.collation,
+                                  (*arg)->collation.collation,
+                                  &dummy_offset))
+      continue;
+
+    if (!(conv= (*arg)->safe_charset_converter(coll.collation)))
+    {
+      if (nargs >=2 && nargs <= 3)
+      {
+        /* restore the original arguments for better error message */
+        args[0]= safe_args[0];
+        args[1]= safe_args[1];
+      }
+      my_coll_agg_error(args, nargs, func_name());
+      res= TRUE;
+      break; // we cannot return here, we need to restore "arena".
+    }
+    conv->fix_fields(thd, 0, &conv);
+    *arg= conv;
+  }
+  if (arena->is_stmt_prepare())
+    thd->restore_backup_item_arena(arena, &backup);
+  return res;
+}
+
 
 
 void Item_func::set_arguments(List<Item> &list)
@@ -1105,7 +1186,7 @@ void Item_func_min_max::fix_length_and_dec()
     cmp_type=item_cmp_type(cmp_type,args[i]->result_type());
   }
   if (cmp_type == STRING_RESULT)
-    agg_arg_collations_for_comparison(collation, args, arg_count);
+    agg_arg_charsets(collation, args, arg_count, MY_COLL_CMP_CONV);
 }
 
 
@@ -1259,7 +1340,7 @@ longlong Item_func_coercibility::val_int()
 void Item_func_locate::fix_length_and_dec()
 {
   maybe_null=0; max_length=11;
-  agg_arg_collations_for_comparison(cmp_collation, args, 2);
+  agg_arg_charsets(cmp_collation, args, 2, MY_COLL_CMP_CONV);
 }
 
 
@@ -1358,7 +1439,7 @@ void Item_func_field::fix_length_and_dec()
   for (uint i=1; i < arg_count ; i++)
     cmp_type= item_cmp_type(cmp_type, args[i]->result_type());
   if (cmp_type == STRING_RESULT)
-    agg_arg_collations_for_comparison(cmp_collation, args, arg_count);
+    agg_arg_charsets(cmp_collation, args, arg_count, MY_COLL_CMP_CONV);
 }
 
 
