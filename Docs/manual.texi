@@ -538,7 +538,7 @@ InnoDB Tables
 
 * InnoDB overview::             InnoDB tables overview
 * InnoDB start::                InnoDB startup options
-* Creating an InnoDB database:: Creating an InnoDB database.  Creating an InnoDB database.  Creating an InnoDB database.  Creating an InnoDB database.  Creating an InnoDB database.  Creating an InnoDB database.  Creating an InnoDB database.
+* Creating an InnoDB database:: Creating an InnoDB database.
 * Using InnoDB tables::         Creating InnoDB tables
 * Adding and removing::         Adding and removing InnoDB data and log files
 * Backing up::                  Backing up and recovering an InnoDB database
@@ -553,7 +553,7 @@ InnoDB Tables
 
 Creating an InnoDB database
 
-* Error createing InnoDB::      
+* Error creating InnoDB::      
 
 Backing up and recovering an InnoDB database
 
@@ -24631,7 +24631,7 @@ NuSphere is working on removing these limitations.
 @menu
 * InnoDB overview::             InnoDB tables overview
 * InnoDB start::                InnoDB startup options
-* Creating an InnoDB database:: Creating an InnoDB database.  Creating an InnoDB database.  Creating an InnoDB database.  Creating an InnoDB database.  Creating an InnoDB database.  Creating an InnoDB database.  Creating an InnoDB database.
+* Creating an InnoDB database:: Creating an InnoDB database.
 * Using InnoDB tables::         Creating InnoDB tables
 * Adding and removing::         Adding and removing InnoDB data and log files
 * Backing up::                  Backing up and recovering an InnoDB database
@@ -24890,10 +24890,10 @@ mysqld: ready for connections
 @end example
 
 @menu
-* Error createing InnoDB::      
+* Error creating InnoDB::      
 @end menu
 
-@node Error createing InnoDB,  , Creating an InnoDB database, Creating an InnoDB database
+@node Error creating InnoDB,  , Creating an InnoDB database, Creating an InnoDB database
 @subsubsection If something goes wrong in database creation
 
 If something goes wrong in an InnoDB database creation, you should
