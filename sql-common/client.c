@@ -1310,7 +1310,8 @@ read_one_row(MYSQL *mysql,uint fields,MYSQL_ROW row, ulong *lengths)
 MYSQL * STDCALL
 mysql_init(MYSQL *mysql)
 {
-  mysql_once_init();
+  if (mysql_server_init(0, NULL, NULL))
+    return 0;
   if (!mysql)
   {
     if (!(mysql=(MYSQL*) my_malloc(sizeof(*mysql),MYF(MY_WME | MY_ZEROFILL))))

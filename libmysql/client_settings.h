@@ -58,3 +58,14 @@ int cli_stmt_execute(MYSQL_STMT *stmt);
 MYSQL_DATA * cli_read_binary_rows(MYSQL_STMT *stmt);
 int cli_unbuffered_fetch(MYSQL *mysql, char **row);
 const char * cli_read_statistic(MYSQL *mysql);
+
+#ifdef EMBEDDED_LIBRARY
+int init_embedded_server(int argc, char **argv, char **groups);
+void end_embedded_server();
+
+#else
+/* Prevent warnings of unused parameters */
+#define init_embedded_server(a,b,c) ((void)a, (void)b, (void)c, 0)
+#define end_embedded_server()
+#endif /*EMBEDDED_LIBRARY*/
+
