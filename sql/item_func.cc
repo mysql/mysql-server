@@ -2772,8 +2772,8 @@ String *Item_func_udf_str::val_str(String *str)
 
 
 /*
-   This has to come last in the udf_handler methods, or the compiler for IBM
-   AIX fails to compile with debugging enabled. (Yes, really.)
+   This has to come last in the udf_handler methods, or C for AIX
+   version 6.0.0.0 fails to compile with debugging enabled. (Yes, really.)
  */
 
 udf_handler::~udf_handler()
