@@ -60,6 +60,12 @@
 #include <sql_common.h>
 #include "client_settings.h"
 
+ulong 		net_buffer_length=8192;
+ulong		max_allowed_packet= 1024L*1024L*1024L;
+ulong		net_read_timeout=  NET_READ_TIMEOUT;
+ulong		net_write_timeout= NET_WRITE_TIMEOUT;
+
+
 #ifdef EMBEDDED_LIBRARY
 #undef net_flush
 my_bool	net_flush(NET *net);
@@ -150,6 +156,7 @@ void STDCALL mysql_server_end()
   else
     mysql_thread_end();
 }
+
 #endif /*EMBEDDED_LIBRARY*/
 
 my_bool STDCALL mysql_thread_init()
@@ -1224,6 +1231,19 @@ uint STDCALL mysql_thread_safe(void)
 /****************************************************************************
   Some support functions
 ****************************************************************************/
+
+/*
+  Functions called my my_net_init() to set some application specific variables
+*/
+
+void my_net_local_init(NET *net)
+{
+  net->max_packet=   (uint) net_buffer_length;
+  net->read_timeout= (uint) net_read_timeout;
+  net->write_timeout=(uint) net_write_timeout;
+  net->retry_count=  1;
+  net->max_packet_size= max(net_buffer_length, max_allowed_packet);
+}
 
 /*
   Add escape characters to a string (blob?) to make it suitable for a insert

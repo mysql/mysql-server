@@ -115,6 +115,7 @@ link_sources:
 	    rm -f $(srcdir)/$$f; \
 	    @LN_CP_F@ $(srcdir)/../libmysql/$$f $(srcdir)/$$f; \
 	  done; \
+	  rm -f $(srcdir)/client_settings.h; \
 	  @LN_CP_F@ $(srcdir)/../libmysql/client_settings.h $(srcdir)/client_settings.h;
 
 

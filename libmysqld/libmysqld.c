@@ -46,7 +46,6 @@
 #define INADDR_NONE	-1
 #endif
 
-const char	*not_error_sqlstate= "00000";
 #define CLIENT_CAPABILITIES	(CLIENT_LONG_PASSWORD | CLIENT_LONG_FLAG | CLIENT_TRANSACTIONS | CLIENT_PROTOCOL_41)
 
 #if defined(MSDOS) || defined(__WIN__)
