@@ -28,6 +28,7 @@
 #include <odbcinst.h>
 #endif
 #include <global.h>
+#include <violite.h>
 #include <my_sys.h>
 #include <mysys_err.h>
 #include <m_string.h>
@@ -37,7 +38,6 @@
 #include "mysql_version.h"
 #include "mysqld_error.h"
 #include "errmsg.h"
-#include <violite.h>
 
 extern "C" {					// Because of SCO 3.2V4.2
 #include <sys/stat.h>
@@ -748,18 +748,18 @@ mc_mysql_connect(MYSQL *mysql,const char *host, const char *user,
 #ifdef HAVE_OPENSSL
   /* Oops.. are we careful enough to not send ANY information */
   /* without encryption? */
-  if (client_flag & CLIENT_SSL)
+/*  if (client_flag & CLIENT_SSL)
   {
     if (my_net_write(net,buff,(uint) (2)) || net_flush(net))
-      goto error;
+      goto error;*/
     /* Do the SSL layering. */
-    DBUG_PRINT("info", ("IO layer change in progress..."));
+ /*   DBUG_PRINT("info", ("IO layer change in progress..."));
     VioSSLConnectorFd* connector_fd = (VioSSLConnectorFd*)
       (mysql->connector_fd);
     VioSocket*	vio_socket = (VioSocket*)(mysql->net.vio);
     VioSSL*	vio_ssl =    connector_fd->connect(vio_socket);
     mysql->net.vio =         (NetVio*)(vio_ssl);
-  }
+  }*/
 #endif /* HAVE_OPENSSL */
 
   int3store(buff+2,max_allowed_packet);
@@ -829,8 +829,8 @@ mc_mysql_close(MYSQL *mysql)
     bzero((char*) &mysql->options,sizeof(mysql->options));
     mysql->net.vio = 0;
 #ifdef HAVE_OPENSSL
-    ((VioConnectorFd*)(mysql->connector_fd))->delete();
-    mysql->connector_fd = 0;
+/*    ((VioConnectorFd*)(mysql->connector_fd))->delete();
+    mysql->connector_fd = 0;*/
 #endif /* HAVE_OPENSSL */
     if (mysql->free_me)
       my_free((gptr) mysql,MYF(0));
