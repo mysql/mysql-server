@@ -629,7 +629,7 @@ UtilTransactions::scanAndCompareUniqueIndex(Ndb* pNdb,
   parallelism = 1;
 
   while (true){
-
+restart:
     if (retryAttempt >= retryMax){
       g_info << "ERROR: has retried this operation " << retryAttempt 
 	     << " times, failing!" << endl;
@@ -719,11 +719,26 @@ UtilTransactions::scanAndCompareUniqueIndex(Ndb* pNdb,
       
       // ndbout << row.c_str().c_str() << endl;
       
-      
       if (readRowFromTableAndIndex(pNdb,
 				   pTrans,
 				   pIndex,
 				   row) != NDBT_OK){	
+	
+	while((eof= pOp->nextResult(false)) == 0);
+	if(eof == 2)
+	  eof = pOp->nextResult(true); // this should give -1
+	if(eof == -1)
+	{
+	  const NdbError err = pTrans->getNdbError();
+	  
+	  if (err.status == NdbError::TemporaryError){
+	    ERR(err);
+	    pNdb->closeTransaction(pTrans);
+	    NdbSleep_MilliSleep(50);
+	    retryAttempt++;
+	    goto restart;
+	  }
+	}
 	pNdb->closeTransaction(pTrans);
 	return NDBT_FAILED;
       }
@@ -736,7 +751,6 @@ UtilTransactions::scanAndCompareUniqueIndex(Ndb* pNdb,
 	pNdb->closeTransaction(pTrans);
 	NdbSleep_MilliSleep(50);
 	retryAttempt++;
-	rows--;
 	continue;
       }
       ERR(err);
@@ -811,7 +825,6 @@ UtilTransactions::readRowFromTableAndIndex(Ndb* pNdb,
     check = pOp->readTuple();
     if( check == -1 ) {
       ERR(pTrans1->getNdbError());
-      pNdb->closeTransaction(pTrans1);
       goto close_all;
     }
     
@@ -943,7 +956,7 @@ UtilTransactions::readRowFromTableAndIndex(Ndb* pNdb,
 #if VERBOSE
     printf("\n");
 #endif
-    
+    scanTrans->refresh();
     check = pTrans1->execute(Commit);
     if( check == -1 ) {
       const NdbError err = pTrans1->getNdbError();

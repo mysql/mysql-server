@@ -509,7 +509,8 @@ int mysql_prepare_table(THD *thd, HA_CREATE_INFO *create_info,
       String conv, *tmp;
       for (uint i= 0; (tmp= it++); i++)
       {
-        if (String::needs_conversion(tmp->length(), tmp->charset(), cs, &dummy))
+        if (String::needs_conversion(tmp->length(), tmp->charset(), cs,
+                                     &dummy))
         {
           uint cnv_errs;
           conv.copy(tmp->ptr(), tmp->length(), tmp->charset(), cs, &cnv_errs);
@@ -3698,7 +3699,7 @@ copy_data_between_tables(TABLE *from,TABLE *to,
   free_io_cache(from);
   delete [] copy;				// This is never 0
 
-  if (to->file->end_bulk_insert() && !error)
+  if (to->file->end_bulk_insert() && error <= 0)
   {
     to->file->print_error(my_errno,MYF(0));
     error=1;

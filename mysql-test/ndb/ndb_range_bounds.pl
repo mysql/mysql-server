@@ -1,6 +1,7 @@
 #
 # test range scan bounds
 # give option --all to test all cases
+# set MYSQL_HOME to installation top
 #
 
 use strict;
@@ -14,8 +15,9 @@ my $opt_verbose = 0;
 GetOptions("all" => \$opt_all, "cnt=i" => \$opt_cnt, "verbose" => \$opt_verbose)
   or die "options are:  --all --cnt=N --verbose";
 
-my $mysql_top = $ENV{MYSQL_TOP};
-my $dsn = "dbi:mysql:database=test;host=localhost;mysql_read_default_file=$mysql_top/.target/var/my.cnf";
+my $mysql_home = $ENV{MYSQL_HOME};
+defined($mysql_home) or die "no MYSQL_HOME";
+my $dsn = "dbi:mysql:database=test;host=localhost;mysql_read_default_file=$mysql_home/var/my.cnf";
 my $opts = { RaiseError => 0, PrintError => 0, AutoCommit => 1, };
 
 my $dbh;
