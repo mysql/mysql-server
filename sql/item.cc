@@ -687,6 +687,7 @@ bool Item_null::send(THD *thd, String *packet)
 /*
   This is used for HAVING clause
   Find field in select list having the same name
+  This is not always called, see also Item_ref::Item_ref
  */
 
 bool Item_ref::fix_fields(THD *thd,TABLE_LIST *tables)
