@@ -1282,3 +1282,30 @@ INSERT INTO `t2` VALUES (6,5,12,7,'a'),(12,0,0,7,'a'),(12,1,0,7,'a'),(12,5,5,7,'
 SELECT b.sc FROM (SELECT (SELECT a.access FROM t1 a WHERE a.map = op.map AND a.slave = op.pid AND a.master = 1) ac FROM t2 op WHERE op.id = 12 AND op.map = 0) b;
 SELECT b.ac FROM (SELECT (SELECT a.access FROM t1 a WHERE a.map = op.map AND a.slave = op.pid AND a.master = 1) ac FROM t2 op WHERE op.id = 12 AND op.map = 0) b;
 drop tables t1,t2;
+
+#
+# Subselect in non-select command just after connection
+#
+connect (root,localhost,root,,test,$MASTER_MYPORT,$MASTER_MYSOCK);
+connection root;
+set @got_val= (SELECT 1 FROM (SELECT 'A' as my_col) as T1 ) ;
+
+#
+# primary query with temporary table and subquery with groupping
+#
+create table t1 (a int, b int);
+create table t2 (a int, b int);
+insert into t1 values (1,1),(1,2),(1,3),(2,4),(2,5);
+insert into t2 values (1,3),(2,1);
+select distinct a,b, (select max(b) from t2 where t1.b=t2.a) from t1 order by t1.b;
+drop table t1, t2;
+
+#
+# subqueries with full text search
+#
+create table t1 (id int);
+create table t2 (id int, body text, fulltext (body));
+insert into t1 values(1),(2),(3);
+insert into t2 values (1,'test'), (2,'mysql'), (3,'test'), (4,'test');
+select count(distinct id) from t1 where id in (select id from t2 where match(body) against ('mysql' in boolean mode));
+drop table t2,t1;
