@@ -1443,7 +1443,8 @@ static bool wait_for_relay_log_space(RELAY_LOG_INFO* rli)
   pthread_mutex_lock(&rli->log_space_lock);
   const char* save_proc_info= thd->enter_cond(&rli->log_space_cond,
                                               &rli->log_space_lock, 
-                                              "Waiting for relay log space to free");
+                                              "Waiting for the SQL slave \
+thread to free enough relay log space");
   while (rli->log_space_limit < rli->log_space_total &&
 	 !(slave_killed=io_slave_killed(thd,mi)) &&
          !rli->ignore_log_space_limit)
@@ -1925,7 +1926,8 @@ int st_relay_log_info::wait_for_pos(THD* thd, String* log_name,
     
     DBUG_PRINT("info",("Waiting for master update"));
     const char* msg = thd->enter_cond(&data_cond, &data_lock,
-                                      "Waiting for master update");
+                                      "Waiting for the SQL slave thread to \
+advance position");
     /*
       We are going to pthread_cond_(timed)wait(); if the SQL thread stops it
       will wake us up.
@@ -1988,7 +1990,14 @@ static int init_slave_thread(THD* thd, SLAVE_THD_TYPE thd_type)
   thd->master_access= ~0;
   thd->priv_user = 0;
   thd->slave_thread = 1;
-  thd->options = (((opt_log_slave_updates) ? OPTION_BIN_LOG:0) | OPTION_AUTO_IS_NULL) ;
+  thd->options = ((opt_log_slave_updates) ? OPTION_BIN_LOG:0) |
+    OPTION_AUTO_IS_NULL |
+    /* 
+       It's nonsense to constraint the slave threads with max_join_size; if a
+       query succeeded on master, we HAVE to execute it.
+    */
+    OPTION_BIG_SELECTS ; 
+    
   thd->client_capabilities = CLIENT_LOCAL_FILES;
   thd->real_id=pthread_self();
   pthread_mutex_lock(&LOCK_thread_count);
@@ -2008,11 +2017,8 @@ static int init_slave_thread(THD* thd, SLAVE_THD_TYPE thd_type)
   VOID(pthread_sigmask(SIG_UNBLOCK,&set,&thd->block_signals));
 #endif
 
-  if (thd->variables.max_join_size == HA_POS_ERROR)
-    thd->options |= OPTION_BIG_SELECTS;
-
   if (thd_type == SLAVE_THD_SQL)
-    thd->proc_info= "Waiting for the next event in slave queue";
+    thd->proc_info= "Waiting for the next event in relay log";
   else
     thd->proc_info= "Waiting for master update";
   thd->version=refresh_version;
@@ -2260,7 +2266,7 @@ static int exec_relay_log_event(THD* thd, RELAY_LOG_INFO* rli)
   }
   else
   {
-    sql_print_error("\
+    slave_print_error(rli, 0, "\
 Could not parse relay log event entry. The possible reasons are: the master's \
 binary log is corrupted (you can check this by running 'mysqlbinlog' on the \
 binary log), the slave's relay log is corrupted (you can check this by running \
@@ -2334,7 +2340,7 @@ slave_begin:
   }
   
 
-  thd->proc_info = "connecting to master";
+  thd->proc_info = "Connecting to master";
   // we can get killed during safe_connect
   if (!safe_connect(thd, mysql, mi))
     sql_print_error("Slave I/O thread: connected to master '%s@%s:%d',\
@@ -2381,7 +2387,7 @@ dump");
 	goto err;
       }
 	  
-      thd->proc_info = "Waiiting to reconnect after a failed dump request";
+      thd->proc_info= "Waiting to reconnect after a failed binlog dump request";
       mc_end_server(mysql);
       /*
 	First time retry immediately, assuming that we can recover
@@ -2402,7 +2408,7 @@ dump");
 	goto err;
       }
 
-      thd->proc_info = "Reconnecting after a failed dump request";
+      thd->proc_info = "Reconnecting after a failed binlog dump request";
       if (!suppress_warnings)
 	sql_print_error("Slave I/O thread: failed dump request, \
 reconnecting to try again, log '%s' at postion %s", IO_RPL_LOG_NAME,
@@ -2421,7 +2427,13 @@ after reconnect");
     while (!io_slave_killed(thd,mi))
     {
       bool suppress_warnings= 0;    
-      thd->proc_info = "Reading master update";
+      /* 
+         We say "waiting" because read_event() will wait if there's nothing to
+         read. But if there's something to read, it will not wait. The important
+         thing is to not confuse users by saying "reading" whereas we're in fact
+         receiving nothing.
+      */
+      thd->proc_info = "Waiting for master to send event";
       ulong event_len = read_event(mysql, mi, &suppress_warnings);
       if (io_slave_killed(thd,mi))
       {
@@ -2448,7 +2460,8 @@ max_allowed_packet",
 			  mc_mysql_error(mysql));
 	  goto err;
 	}
-	thd->proc_info = "Waiting to reconnect after a failed read";
+	thd->proc_info = "Waiting to reconnect after a failed master event \
+read";
 	mc_end_server(mysql);
 	if (retry_count++)
 	{
@@ -2464,7 +2477,7 @@ max_allowed_packet",
 reconnect after a failed read");
 	  goto err;
 	}
-	thd->proc_info = "Reconnecting after a failed read";
+	thd->proc_info = "Reconnecting after a failed master event read";
 	if (!suppress_warnings)
 	  sql_print_error("Slave I/O thread: Failed reading log event, \
 reconnecting to retry, log '%s' position %s", IO_RPL_LOG_NAME,
@@ -2481,7 +2494,7 @@ reconnect done to recover from failed read");
       } // if (event_len == packet_error)
 	  
       retry_count=0;			// ok event, reset retry counter
-      thd->proc_info = "Queueing event from master";
+      thd->proc_info = "Queueing master event to the relay log";
       if (queue_event(mi,(const char*)mysql->net.read_pos + 1,
 		      event_len))
       {
@@ -2663,7 +2676,7 @@ log '%s' at position %s, relay log '%s' position: %s", RPL_LOG_NAME,
 
   while (!sql_slave_killed(thd,rli))
   {
-    thd->proc_info = "Processing master log event"; 
+    thd->proc_info = "Reading event from the relay log"; 
     DBUG_ASSERT(rli->sql_thd == thd);
     THD_CHECK_SENTRY(thd);
     if (exec_relay_log_event(thd,rli))
@@ -2695,6 +2708,12 @@ the slave SQL thread with \"SLAVE START\". We stopped at log \
   DBUG_ASSERT(rli->slave_running == 1); // tracking buffer overrun
   /* When master_pos_wait() wakes up it will check this and terminate */
   rli->slave_running= 0; 
+  /* 
+     Going out of the transaction. Necessary to mark it, in case the user
+     restarts replication from a non-transactional statement (with CHANGE
+     MASTER).
+  */
+  rli->inside_transaction= 0;
   /* Wake up master_pos_wait() */
   pthread_mutex_unlock(&rli->data_lock);
   DBUG_PRINT("info",("Signaling possibly waiting master_pos_wait() functions"));
@@ -3386,7 +3405,7 @@ rli->relay_log_pos=%s rli->pending=%lu",
         pthread_mutex_unlock(&rli->log_space_lock);
         pthread_cond_broadcast(&rli->log_space_cond);
         // Note that wait_for_update unlocks lock_log !
-        rli->relay_log.wait_for_update(rli->sql_thd);
+        rli->relay_log.wait_for_update(rli->sql_thd, 1);
         // re-acquire data lock since we released it earlier
         pthread_mutex_lock(&rli->data_lock);
 	continue;
