@@ -1364,7 +1364,7 @@ HugoTransactions::pkUpdateRecords(Ndb* pNdb,
 
   allocRows(batch);
 
-  g_info << "|- Updating records..." << endl;
+  g_info << "|- Updating records (batch=" << batch << ")..." << endl;
   while (r < records){
     
     if (retryAttempt >= retryMax){
