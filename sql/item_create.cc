@@ -77,7 +77,7 @@ Item *create_func_connection_id(void)
 {
   THD *thd=current_thd;
   thd->safe_to_cache_query=0;
-  return new Item_int("CONNECTION_ID()",(longlong) thd->thread_id,10);
+  return new Item_int(NullS,(longlong) thd->thread_id,10);
 }
 
 Item *create_func_conv(Item* a, Item *b, Item *c)
@@ -145,7 +145,7 @@ Item *create_func_found_rows(void)
 {
   THD *thd=current_thd;
   thd->safe_to_cache_query=0;
-  return new Item_int("FOUND_ROWS()",(longlong) thd->found_rows(),21);
+  return new Item_int(NullS,(longlong) thd->found_rows(),21);
 }
 
 Item *create_func_from_days(Item* a)
@@ -283,7 +283,7 @@ Item *create_func_period_diff(Item* a, Item *b)
 
 Item *create_func_pi(void)
 {
-  return new Item_real("PI()",M_PI,6,8);
+  return new Item_real(NullS,M_PI,6,8);
 }
 
 Item *create_func_pow(Item* a, Item *b)
@@ -299,7 +299,7 @@ Item *create_func_current_user()
 
   length= (uint) (strxmov(buff, thd->priv_user, "@", thd->host_or_ip, NullS) -
 		  buff);
-  return new Item_string("CURRENT_USER()", thd->memdup(buff, length), length);
+  return new Item_string(NullS, thd->memdup(buff, length), length);
 }
 
 Item *create_func_quarter(Item* a)
@@ -405,7 +405,7 @@ Item *create_func_ucase(Item* a)
 
 Item *create_func_version(void)
 {
-  return new Item_string("VERSION()",server_version, strlen(server_version));
+  return new Item_string(NullS,server_version, strlen(server_version));
 }
 
 Item *create_func_weekday(Item* a)
