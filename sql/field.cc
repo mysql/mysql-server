@@ -5667,6 +5667,10 @@ void create_field::create_length_to_internal_length(void)
       pack_length= calc_pack_length(sql_type == FIELD_TYPE_VAR_STRING ?
 				    FIELD_TYPE_STRING : sql_type, length);
       break;
+    case MYSQL_TYPE_ENUM:
+    case MYSQL_TYPE_SET:
+      length*= charset->mbmaxlen;
+      break;
     default:
       /* do nothing */
       break;
