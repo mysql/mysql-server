@@ -304,7 +304,13 @@ protected:
   BlockNumber    number() const;
   BlockReference reference() const;
   NodeId         getOwnNodeId() const;
-  
+
+  /**
+   * Refresh Watch Dog in initialising code
+   *
+   */
+  void refresh_watch_dog();
+
   /**
    * Prog error
    * This function should be called when this node should be shutdown
@@ -344,7 +350,7 @@ protected:
    * Allocates memory for the datastructures where ndb keeps the data
    *
    */
-  void* allocRecord(const char * type, size_t s, size_t n) const ;
+  void* allocRecord(const char * type, size_t s, size_t n);
   
   /**
    * Deallocate record

@@ -633,6 +633,12 @@ typedef struct st_lex
   bool prepared_stmt_code_is_varref;
   /* Names of user variables holding parameters (in EXECUTE) */
   List<LEX_STRING> prepared_stmt_params; 
+  /*
+    If points to fake_time_zone_tables_list indicates that time zone
+    tables are implicitly used by statement, also is used for holding
+    list of those tables after they are opened.
+  */
+  TABLE_LIST *time_zone_tables_used;
   st_lex() {}
   inline void uncacheable(uint8 cause)
   {
@@ -661,6 +667,7 @@ typedef struct st_lex
 				    TABLE_LIST *local_first);
 } LEX;
 
+extern TABLE_LIST fake_time_zone_tables_list;
 
 void lex_init(void);
 void lex_free(void);
