@@ -47,7 +47,7 @@ c29= 'longblob', c30= 'longtext', c31='two', c32= 'tuesday';
 commit ;
 test_sequence
 ------ simple select tests ------
-prepare stmt1 from ' select * from t9 ' ;
+prepare stmt1 from ' select * from t9 order by c1 ' ;
 execute stmt1;
 Catalog	Database	Table	Table_alias	Column	Column_alias	Name	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
 def	test	t9	t9	c1	c1	1	4	1	N	49155	0	63
@@ -83,8 +83,8 @@ def	test	t9	t9	c30	c30	253	100	8	Y	0	0	8
 def	test	t9	t9	c31	c31	254	5	3	Y	256	0	8
 def	test	t9	t9	c32	c32	254	24	7	Y	2048	0	8
 c1	c2	c3	c4	c5	c6	c7	c8	c9	c10	c11	c12	c13	c14	c15	c16	c17	c18	c19	c20	c21	c22	c23	c24	c25	c26	c27	c28	c29	c30	c31	c32
-9	9	9	9	9	9	9	9	9	9	9.0000	9.0000	2004-02-29	2004-02-29 11:11:11	2004-02-29 11:11:11	11:11:11	2004	1	0	a	123456789a	123456789a123456789b123456789c	tinyblob	tinytext	blob	text	mediumblob	mediumtext	longblob	longtext	two	tuesday
 1	1	1	1	1	1	1	1	1	1	1.0000	1.0000	2004-02-29	2004-02-29 11:11:11	2004-02-29 11:11:11	11:11:11	2004	1	1	a	123456789a	123456789a123456789b123456789c	tinyblob	tinytext	blob	text	mediumblob	mediumtext	longblob	longtext	one	monday
+9	9	9	9	9	9	9	9	9	9	9.0000	9.0000	2004-02-29	2004-02-29 11:11:11	2004-02-29 11:11:11	11:11:11	2004	1	0	a	123456789a	123456789a123456789b123456789c	tinyblob	tinytext	blob	text	mediumblob	mediumtext	longblob	longtext	two	tuesday
 set @arg00='SELECT' ;
 prepare stmt1 from ' ? a from t1 where a=1 ';
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '? a from t1 where a=1' at line 1
