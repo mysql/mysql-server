@@ -505,17 +505,10 @@ private:
   struct NodeHandle;
   friend struct NodeHandle;
   struct NodeHandle {
-    enum Flags {
-      // bits 0,1 mark need for left,right prefix
-      DoInsert = (1 << 2),
-      DoDelete = (1 << 3),
-      DoUpdate = (1 << 4)
-    };
     Dbtux& m_tux;               // this block
     Frag& m_frag;               // fragment using the node
     TupLoc m_loc;               // physical node address
     AccSize m_acc;              // accessed size
-    unsigned m_flags;           // flags
     union {
     Uint32 m_next;              // next active node under fragment
     Uint32 nextPool;
@@ -675,7 +668,7 @@ private:
   void insertNode(Signal* signal, Frag& frag, NodeHandlePtr& nodePtr, AccSize acc);
   void deleteNode(Signal* signal, Frag& frag, NodeHandlePtr& nodePtr);
   void accessNode(Signal* signal, Frag& frag, NodeHandlePtr& nodePtr, AccSize acc);
-  void setNodePref(Signal* signal, Frag& frag, NodeHandlePtr& nodePtr, unsigned i);
+  void setNodePref(Signal* signal, Frag& frag, NodeHandle& node, unsigned i);
   void commitNodes(Signal* signal, Frag& frag, bool updateOk);
 
   /*
@@ -1096,7 +1089,6 @@ Dbtux::NodeHandle::NodeHandle(Dbtux& tux, Frag& frag) :
   m_frag(frag),
   m_loc(),
   m_acc(AccNone),
-  m_flags(0),
   m_next(RNIL),
   m_node(0)
 {
@@ -1176,7 +1168,6 @@ Dbtux::NodeHandle::setLink(unsigned i, TupLoc loc)
   ndbrequire(i <= 2);
   m_node->m_linkPI[i] = loc.m_pageId;
   m_node->m_linkPO[i] = loc.m_pageOffset;
-  m_flags |= DoUpdate;
 }
 
 inline void
@@ -1184,7 +1175,6 @@ Dbtux::NodeHandle::setSide(unsigned i)
 {
   ndbrequire(i <= 2);
   m_node->m_side = i;
-  m_flags |= DoUpdate;
 }
 
 inline void
@@ -1193,7 +1183,6 @@ Dbtux::NodeHandle::setOccup(unsigned n)
   TreeHead& tree = m_frag.m_tree;
   ndbrequire(n <= tree.m_maxOccup);
   m_node->m_occup = n;
-  m_flags |= DoUpdate;
 }
 
 inline void
@@ -1201,14 +1190,12 @@ Dbtux::NodeHandle::setBalance(int b)
 {
   ndbrequire(abs(b) <= 1);
   m_node->m_balance = b;
-  m_flags |= DoUpdate;
 }
 
 inline void
 Dbtux::NodeHandle::setNodeScan(Uint32 scanPtrI)
 {
   m_node->m_nodeScan = scanPtrI;
-  m_flags |= DoUpdate;
 }
 
 // parameters for methods
