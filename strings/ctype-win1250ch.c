@@ -624,7 +624,7 @@ CHARSET_INFO my_charset_win1250ch =
     34,				/* number    */
     MY_CS_COMPILED,		/* state     */
     "cp1250",			/* cs name    */
-    "win1250ch",		/* name      */
+    "cp1250_czech",		/* name      */
     "",				/* comment   */
     ctype_win1250ch,
     to_lower_win1250ch,
