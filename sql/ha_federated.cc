@@ -369,7 +369,50 @@ static byte *federated_get_key(FEDERATED_SHARE *share, uint *length,
                                my_bool not_used __attribute__ ((unused)))
 {
   *length= share->table_name_length;
-  return (byte *) share->table_name;
+  return (byte*)share->table_name;
+}
+
+/*
+  Initialize the federated handler.
+
+  SYNOPSIS
+    federated_db_init()
+    void
+
+  RETURN
+    FALSE       OK
+    TRUE        Error
+*/
+
+bool federated_db_init()
+{
+  federated_init= 1;
+  VOID(pthread_mutex_init(&federated_mutex, MY_MUTEX_INIT_FAST));
+  return (hash_init(&federated_open_tables, system_charset_info, 32, 0, 0,
+                    (hash_get_key) federated_get_key, 0, 0));
+}
+
+
+/*
+  Release the federated handler.
+
+  SYNOPSIS
+    federated_db_end()
+    void
+
+  RETURN
+    FALSE       OK
+*/
+
+bool federated_db_end()
+{
+  if (federated_init)
+  {
+    hash_free(&federated_open_tables);
+    VOID(pthread_mutex_destroy(&federated_mutex));
+  }
+  federated_init= 0;
+  return FALSE;
 }
 
 /*
@@ -425,14 +468,11 @@ static int parse_url(FEDERATED_SHARE *share, TABLE *table,
     share->scheme[share->username - share->scheme]= '\0';
     if (strcmp(share->scheme, "mysql") != 0)
     {
-      DBUG_PRINT("ha_federated::parse_url",
-                 ("The federated handler currently only supports connecting\
-                  to a MySQL database!!!\n"));
       my_error(error_num, MYF(0),
                "ERROR: federated handler only supports remote 'mysql://' database");
       DBUG_RETURN(1);
     }
-    share->username += 3;
+    share->username+= 3;
 
     if ((share->hostname= strchr(share->username, '@')))
     {
@@ -447,8 +487,6 @@ static int parse_url(FEDERATED_SHARE *share, TABLE *table,
         // make sure there isn't an extra / or @
         if ((strchr(share->password, '/') || strchr(share->hostname, '@')))
         {
-          DBUG_PRINT("ha_federated::parse_url",
-                     ("this connection string is not in the correct format!!!\n"));
           my_error(error_num, MYF(0),
                    "this connection string is not in the correct format!!!\n");
           DBUG_RETURN(1);
@@ -467,8 +505,6 @@ static int parse_url(FEDERATED_SHARE *share, TABLE *table,
       // make sure there isn't an extra / or @
       if ((strchr(share->username, '/')) || (strchr(share->hostname, '@')))
       {
-        DBUG_PRINT("ha_federated::parse_url",
-                   ("this connection string is not in the correct format!!!\n"));
         my_error(error_num, MYF(0),
                  "this connection string is not in the correct format!!!\n");
         DBUG_RETURN(1);
@@ -496,8 +532,6 @@ static int parse_url(FEDERATED_SHARE *share, TABLE *table,
         }
         else
         {
-          DBUG_PRINT("ha_federated::parse_url",
-                     ("this connection string is not in the correct format!!!\n"));
           my_error(error_num, MYF(0),
                    "this connection string is not in the correct format!!!\n");
           DBUG_RETURN(1);
@@ -505,8 +539,6 @@ static int parse_url(FEDERATED_SHARE *share, TABLE *table,
       }
       else
       {
-        DBUG_PRINT("ha_federated::parse_url",
-                   ("this connection string is not in the correct format!!!\n"));
         my_error(error_num, MYF(0),
                  "this connection string is not in the correct format!!!\n");
         DBUG_RETURN(1);
@@ -514,8 +546,6 @@ static int parse_url(FEDERATED_SHARE *share, TABLE *table,
       // make sure there's not an extra /
       if ((strchr(share->table_base_name, '/')))
       {
-        DBUG_PRINT("ha_federated::parse_url",
-                   ("this connection string is not in the correct format!!!\n"));
         my_error(error_num, MYF(0),
                  "this connection string is not in the correct format!!!\n");
         DBUG_RETURN(1);
@@ -533,12 +563,13 @@ static int parse_url(FEDERATED_SHARE *share, TABLE *table,
 
       DBUG_PRINT("ha_federated::parse_url",
                  ("scheme %s username %s password %s \
-         hostname %s port %d database %s tablename %s\n", share->scheme, share->username, share->password, share->hostname, share->port, share->database, share->table_base_name));
+                  hostname %s port %d database %s tablename %s\n", 
+                  share->scheme, share->username, share->password, 
+                  share->hostname, share->port, share->database,
+                  share->table_base_name));
     }
     else
     {
-      DBUG_PRINT("ha_federated::parse_url",
-                 ("this connection string is not in the correct format!!!\n"));
       my_error(error_num, MYF(0),
                "this connection string is not in the correct format!!!\n");
       DBUG_RETURN(1);
@@ -546,8 +577,6 @@ static int parse_url(FEDERATED_SHARE *share, TABLE *table,
   }
   else
   {
-    DBUG_PRINT("ha_federated::parse_url",
-               ("this connection string is not in the correct format!!!\n"));
     my_error(error_num, MYF(0),
              "this connection string is not in the correct format!!!\n");
     DBUG_RETURN(1);
@@ -573,35 +602,27 @@ static int parse_url(FEDERATED_SHARE *share, TABLE *table,
   RETURN VALUE
     0   After fields have had field values stored from record  
  */
-uint ha_federated::convert_row_to_internal_format(byte *record, MYSQL_ROW row)
+uint ha_federated::convert_row_to_internal_format(byte* record, MYSQL_ROW row)
 {
-  unsigned long *lengths;
-  unsigned int num_fields;
-  unsigned int x= 0;
+  ulong *lengths;
+  uint num_fields;
+  uint x= 0;
 
   DBUG_ENTER("ha_federated::convert_row_to_internal_format");
 
   num_fields= mysql_num_fields(result);
-  lengths= (unsigned long*) my_malloc(num_fields * sizeof(unsigned long),
+  lengths= (ulong*) my_malloc(num_fields * sizeof(ulong),
                                       MYF(0));
-  cli_fetch_lengths((unsigned long*) (lengths), row, num_fields);
+  cli_fetch_lengths((ulong*) (lengths), row, num_fields);
 
   memset(record, 0, table->s->null_bytes);
 
-  for (Field ** field= table->field; *field; field++, x++)
+  for (Field **field= table->field; *field; field++, x++)
   {
     if (!row[x])
-    {
       (*field)->set_null();
-    }
     else
-      /*
-         changed system_charset_info to default_charset_info because
-         testing revealed that german text was not being retrieved properly
-      */
-      DBUG_PRINT("ha_federated::convert_row_to_internal_format",
-                 ("row[%d] %s length %lu", x, row[x], lengths[x]));
-    (*field)->store(row[x], lengths[x], &my_charset_bin);
+      (*field)->store(row[x], lengths[x], &my_charset_bin);
   }
   my_free((gptr) lengths, MYF(0));
   lengths= 0;
@@ -637,11 +658,12 @@ bool ha_federated::create_where_from_key(String *to, KEY *key_info,
       if (*key++)
       {
         if (to->append("IS NULL", 7))
-          DBUG_PRINT("ha_federated::create_where_from_key",
-                     ("NULL type %s", to->c_ptr_quick()));
-        DBUG_RETURN(1);
-        key_length -= key_part->store_length;
-        key += key_part->store_length - 1;
+          DBUG_RETURN(1);
+
+        DBUG_PRINT("ha_federated::create_where_from_key",
+                   ("NULL type %s", to->c_ptr_quick()));
+        key_length-= key_part->store_length;
+        key+= key_part->store_length - 1;
         continue;
       }
       key_length--;
@@ -655,29 +677,29 @@ bool ha_federated::create_where_from_key(String *to, KEY *key_info,
       /* This is can be threated as a hex string */
       Field_bit *field= (Field_bit *) (key_part->field);
       char buff[64 + 2], *ptr;
-      byte *end= (byte *) (key) + length;
+      byte *end= (byte*)(key)+length;
 
       buff[0]= '0';
       buff[1]= 'x';
       for (ptr= buff + 2; key < end; key++)
       {
-        uint tmp= (uint) (uchar) * key;
+        uint tmp= (uint)(uchar) *key;
         *ptr++= _dig_vec_upper[tmp >> 4];
         *ptr++= _dig_vec_upper[tmp & 15];
       }
-      if (to->append(buff, (uint) (ptr - buff)))
+      if (to->append(buff, (uint)(ptr - buff)))
         DBUG_RETURN(1);
 
       DBUG_PRINT("ha_federated::create_where_from_key",
                  ("bit type %s", to->c_ptr_quick()));
-      key_length -= length;
+      key_length-= length;
       continue;
     }
     if (key_part->key_part_flag & HA_BLOB_PART)
     {
       uint blob_length= uint2korr(key);
-      key += HA_KEY_BLOB_LENGTH;
-      key_length -= HA_KEY_BLOB_LENGTH;
+      key+= HA_KEY_BLOB_LENGTH;
+      key_length-= HA_KEY_BLOB_LENGTH;
 
       tmp.set_quick((char*) key, blob_length, &my_charset_bin);
       if (append_escaped(to, &tmp))
@@ -690,7 +712,7 @@ bool ha_federated::create_where_from_key(String *to, KEY *key_info,
     else if (key_part->key_part_flag & HA_VAR_LENGTH_PART)
     {
       length= uint2korr(key);
-      key += HA_KEY_BLOB_LENGTH;
+      key+= HA_KEY_BLOB_LENGTH;
       tmp.set_quick((char*) key, length, &my_charset_bin);
       if (append_escaped(to, &tmp))
         DBUG_RETURN(1);
@@ -722,8 +744,8 @@ bool ha_federated::create_where_from_key(String *to, KEY *key_info,
       DBUG_RETURN(1);
     DBUG_PRINT("ha_federated::create_where_from_key",
                ("final value for 'to' %s", to->c_ptr_quick()));
-    key += length;
-    key_length -= length;
+    key+= length;
+    key_length-= length;
     DBUG_RETURN(0);
   }
   DBUG_RETURN(1);
@@ -744,9 +766,11 @@ static FEDERATED_SHARE *get_share(const char *table_name, TABLE *table)
   uint table_name_length, table_base_name_length;
   char *tmp_table_name, *tmp_table_base_name, *table_base_name, *select_query;
 
-  // share->table_name has the file location - we want the actual table's
-  // name!
-  table_base_name= (char*) table->s->table_name;
+  /* 
+    share->table_name has the file location - we want the actual table's
+    name!
+  */
+  table_base_name= (char*)table->s->table_name;
   DBUG_PRINT("ha_federated::get_share", ("table_name %s", table_base_name));
   /*
      So why does this exist? There is no way currently to init a storage engine.
@@ -754,25 +778,12 @@ static FEDERATED_SHARE *get_share(const char *table_name, TABLE *table)
      do this. Since you will not want to do this, this is probably the next
      best method.
   */
-  if (!federated_init)
-  {
-    /* Hijack a mutex for init'ing the storage engine */
-    pthread_mutex_lock(&LOCK_mysql_create_db);
-    if (!federated_init)
-    {
-      federated_init++;
-      VOID(pthread_mutex_init(&federated_mutex, MY_MUTEX_INIT_FAST));
-      (void) hash_init(&federated_open_tables, system_charset_info, 32, 0, 0,
-                       (hash_get_key) federated_get_key, 0, 0);
-    }
-    pthread_mutex_unlock(&LOCK_mysql_create_db);
-  }
   pthread_mutex_lock(&federated_mutex);
   table_name_length= (uint) strlen(table_name);
   table_base_name_length= (uint) strlen(table_base_name);
 
   if (!(share= (FEDERATED_SHARE *) hash_search(&federated_open_tables,
-                                               (byte *) table_name,
+                                               (byte*) table_name,
                                                table_name_length)))
   {
     query.set_charset(system_charset_info);
@@ -804,7 +815,7 @@ static FEDERATED_SHARE *get_share(const char *table_name, TABLE *table)
     strmov(share->select_query, query.ptr());
     DBUG_PRINT("ha_federated::get_share",
                ("share->select_query %s", share->select_query));
-    if (my_hash_insert(&federated_open_tables, (byte *) share))
+    if (my_hash_insert(&federated_open_tables, (byte*) share))
       goto error;
     thr_lock_init(&share->lock);
     pthread_mutex_init(&share->mutex, MY_MUTEX_INIT_FAST);
@@ -819,7 +830,6 @@ error2:
   pthread_mutex_destroy(&share->mutex);
 error:
   pthread_mutex_unlock(&federated_mutex);
-  hash_delete(&federated_open_tables, (byte *) share);
   if (share->scheme)
     my_free((gptr) share->scheme, MYF(0));
   my_free((gptr) share, MYF(0));
@@ -837,15 +847,14 @@ static int free_share(FEDERATED_SHARE *share)
 {
   pthread_mutex_lock(&federated_mutex);
 
-  if (share->scheme)
-    my_free((gptr) share->scheme, MYF(0));
-
   if (!--share->use_count)
   {
-    hash_delete(&federated_open_tables, (byte *) share);
-    hash_free(&federated_open_tables);
+    if (share->scheme)
+      my_free((gptr) share->scheme, MYF(0));
+
+    hash_delete(&federated_open_tables, (byte*)share);
     thr_lock_delete(&share->lock);
-    pthread_mutex_destroy(&share->mutex);
+    VOID(pthread_mutex_destroy(&share->mutex));
     my_free((gptr) share, MYF(0));
   }
   pthread_mutex_unlock(&federated_mutex);
@@ -900,7 +909,9 @@ int ha_federated::open(const char *name, int mode, uint test_if_locked)
                           share->hostname,
                           share->username,
                           share->password,
-                          share->database, share->port, NULL, 0))
+                          share->database,
+                          share->port,
+                          share->socket, 0))
   {
     my_error(ER_CONNECT_TO_MASTER, MYF(0), mysql_error(mysql));
     DBUG_RETURN(ER_CONNECT_TO_MASTER);
@@ -955,12 +966,9 @@ int ha_federated::close(void)
       1    if NULL
       0    otherwise 
 */
-inline uint field_in_record_is_null(TABLE * table,      /* in: MySQL table
-                                                           object */
-                                    Field * field,      /* in: MySQL field
-                                                           object */
-                                    char *record)       /* in: a row in MySQL
-                                                           format */
+inline uint field_in_record_is_null(TABLE *table, /* in: MySQL table object */
+                                    Field *field, /* in: MySQL field object */
+                                    char *record) /* in: row in MySQL format */
 {
   int null_offset;
   DBUG_ENTER("ha_federated::field_in_record_is_null");
@@ -968,7 +976,7 @@ inline uint field_in_record_is_null(TABLE * table,      /* in: MySQL table
   if (!field->null_ptr)
     DBUG_RETURN(0);
 
-  null_offset= (uint) ((char*) field->null_ptr - (char*) table->record[0]);
+  null_offset= (uint) ((char*)field->null_ptr - (char*)table->record[0]);
 
   if (record[null_offset] & field->null_bit)
     DBUG_RETURN(1);
@@ -989,7 +997,7 @@ inline uint field_in_record_is_null(TABLE * table,      /* in: MySQL table
   Called from item_sum.cc, item_sum.cc, sql_acl.cc, sql_insert.cc,
   sql_insert.cc, sql_select.cc, sql_table.cc, sql_udf.cc, and sql_update.cc.
 */
-int ha_federated::write_row(byte * buf)
+int ha_federated::write_row(byte* buf)
 {
   uint x= 0, num_fields= 0;
   Field **field;
@@ -1075,13 +1083,12 @@ int ha_federated::write_row(byte * buf)
                    ("current query id %d field is not null query ID %d",
                     current_query_id, (*field)->query_id));
         (*field)->val_str(&insert_field_value_string);
+        // quote these fields if they require it
+        (*field)->quote_data(&insert_field_value_string);
       }
       // append the field name
       insert_string.append((*field)->field_name);
 
-      // quote these fields if they require it
-
-      (*field)->quote_data(&insert_field_value_string);
       // append the value
       values_string.append(insert_field_value_string);
       insert_field_value_string.length(0);
@@ -1197,7 +1204,7 @@ int ha_federated::update_row(const byte * old_data, byte * new_data)
    field=oldvalue
  */
 
-  for (Field ** field= table->field; *field; field++, x++)
+  for (Field **field= table->field; *field; field++, x++)
   {
     /*
        In all of these tests for 'has_a_primary_key', what I'm trying to
@@ -1268,8 +1275,8 @@ int ha_federated::update_row(const byte * old_data, byte * new_data)
     old_field_value.length(0);
   }
   update_string.append(" WHERE ");
-  update_string.append(where_string.ptr());
-  if (!has_a_primary_key)
+  update_string.append(where_string.c_ptr_quick());
+  if (! has_a_primary_key)
     update_string.append(" LIMIT 1");
 
   DBUG_PRINT("ha_federated::update_row", ("Final update query: %s",
@@ -1315,7 +1322,7 @@ int ha_federated::delete_row(const byte * buf)
   delete_string.append(share->table_base_name);
   delete_string.append(" WHERE ");
 
-  for (Field ** field= table->field; *field; field++, x++)
+  for (Field **field= table->field; *field; field++, x++)
   {
     delete_string.append((*field)->field_name);
 
@@ -1357,7 +1364,7 @@ int ha_federated::delete_row(const byte * buf)
   index. This method, which is called in the case of an SQL statement having
   a WHERE clause on a non-primary key index, simply calls index_read_idx.
 */
-int ha_federated::index_read(byte * buf, const byte * key,
+int ha_federated::index_read(byte* buf, const byte * key,
                              uint key_len __attribute__ ((unused)),
                              enum ha_rkey_function find_flag
                              __attribute__ ((unused)))
@@ -1375,7 +1382,7 @@ int ha_federated::index_read(byte * buf, const byte * key,
   a regular non-primary key index, OR is called DIRECTLY when the WHERE clause 
   uses a PRIMARY KEY index.
 */
-int ha_federated::index_read_idx(byte * buf, uint index, const byte * key,
+int ha_federated::index_read_idx(byte* buf, uint index, const byte * key,
                                  uint key_len __attribute__ ((unused)),
                                  enum ha_rkey_function find_flag
                                  __attribute__ ((unused)))
@@ -1454,7 +1461,7 @@ int ha_federated::index_init(uint keynr)
 /*
   Used to read forward through the index.
 */
-int ha_federated::index_next(byte * buf)
+int ha_federated::index_next(byte* buf)
 {
   DBUG_ENTER("ha_federated::index_next");
   DBUG_RETURN(rnd_next(buf));
@@ -1546,7 +1553,7 @@ int ha_federated::index_end(void)
   Called from filesort.cc, records.cc, sql_handler.cc, sql_select.cc,
   sql_table.cc, and sql_update.cc.
 */
-int ha_federated::rnd_next(byte *buf)
+int ha_federated::rnd_next(byte* buf)
 {
   MYSQL_ROW row;
   DBUG_ENTER("ha_federated::rnd_next");
@@ -1594,7 +1601,7 @@ void ha_federated::position(const byte *record)
 
   Called from filesort.cc records.cc sql_insert.cc sql_select.cc sql_update.cc.
 */
-int ha_federated::rnd_pos(byte * buf, byte *pos)
+int ha_federated::rnd_pos(byte* buf, byte *pos)
 {
   DBUG_ENTER("ha_federated::rnd_pos");
   /* 
@@ -1606,10 +1613,10 @@ int ha_federated::rnd_pos(byte * buf, byte *pos)
   {
     statistic_increment(table->in_use->status_var.ha_read_rnd_count,
                         &LOCK_status);
-    memcpy_fixed(&current_position, pos, sizeof(MYSQL_ROW_OFFSET));     // pos
-                                                                        // is
-                                                                        // not
-                                                                        // aligned
+    /* 
+      pos is not aligned
+    */
+    memcpy_fixed(&current_position, pos, sizeof(MYSQL_ROW_OFFSET)); 
     result->current_row= 0;
     result->data_cursor= current_position;
     DBUG_RETURN(rnd_next(buf));
@@ -1786,4 +1793,4 @@ int ha_federated::create(const char *name, TABLE *table_arg,
   my_free((gptr) tmp.scheme, MYF(0));
   DBUG_RETURN(0);
 }
-#endif                                          /* HAVE_FEDERATED_DB */
+#endif /* HAVE_FEDERATED_DB */

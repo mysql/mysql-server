@@ -364,6 +364,16 @@ int ha_init()
       opt_using_transactions=1;
   }
 #endif
+#ifdef HAVE_FEDERATED_DB
+  if (have_federated_db == SHOW_OPTION_YES)
+  {
+    if (federated_db_init())
+    {
+      have_federated_db= SHOW_OPTION_DISABLED;
+      error= 1;
+    }
+  }
+#endif
 #ifdef HAVE_ARCHIVE_DB
   if (have_archive_db == SHOW_OPTION_YES)
   {
@@ -404,6 +414,10 @@ int ha_panic(enum ha_panic_function flag)
 #ifdef HAVE_NDBCLUSTER_DB
   if (have_ndbcluster == SHOW_OPTION_YES)
     error|=ndbcluster_end();
+#endif
+#ifdef HAVE_FEDERATED_DB
+  if (have_federated_db == SHOW_OPTION_YES)
+    error|= federated_db_end();
 #endif
 #ifdef HAVE_ARCHIVE_DB
   if (have_archive_db == SHOW_OPTION_YES)
