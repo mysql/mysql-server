@@ -442,16 +442,6 @@ JOIN::optimize()
       thd->fatal_error)
     DBUG_RETURN(1);
 
-  if (select_lex->dependent)
-  {
-    /*
-      Just remove all const-table optimization in case of depended query
-      TODO: optimize
-    */
-    const_table_map= 0;
-    const_tables= 0;
-    found_const_table_map= 0;
-  }
   thd->proc_info= "preparing";
   if (result->initialize_tables(this))
   {
@@ -4681,8 +4671,11 @@ do_select(JOIN *join,List<Item> *fields,TABLE *table,Procedure *procedure)
   join->send_records=0;
   if (join->tables == join->const_tables)
   {
-    if (!(error=(*end_select)(join,join_tab,0)) || error == -3)
-      error=(*end_select)(join,join_tab,1);
+    if (!join->select_lex->dependent ||
+	((!join->conds || join->conds->val_int()) &&
+	 (!join->having || join->having->val_int())))
+      if (!(error=(*end_select)(join,join_tab,0)) || error == -3)
+	error=(*end_select)(join,join_tab,1);
   }
   else
   {

@@ -666,7 +666,12 @@ public:
 
 class Item_cache: public Item
 {
+  table_map used_table_map;
 public:
+  Item_cache(): used_table_map(0) {fixed= 1; null_value= 1;}
+
+  void set_used_tables(table_map map) { used_table_map= map; }
+
   virtual bool allocate(uint i) { return 0; };
   virtual bool setup(Item *) { return 0; };
   virtual void store(Item *)= 0;
@@ -677,13 +682,14 @@ public:
   }
   enum Type type() const { return CACHE_ITEM; }
   static Item_cache* get_cache(Item_result type);
+  table_map used_tables() const { return used_table_map; }
 };
 
 class Item_cache_int: public Item_cache
 {
   longlong value;
 public:
-  Item_cache_int() { fixed= 1; null_value= 1; }
+  Item_cache_int(): Item_cache() {}
   
   void store(Item *item)
   {
@@ -700,7 +706,7 @@ class Item_cache_real: public Item_cache
 {
   double value;
 public:
-  Item_cache_real() { fixed= 1; null_value= 1; }
+  Item_cache_real(): Item_cache() {}
   
   void store(Item *item)
   {
@@ -722,7 +728,7 @@ class Item_cache_str: public Item_cache
   char buffer[80];
   String *value;
 public:
-  Item_cache_str() { fixed= 1; null_value= 1; }
+  Item_cache_str(): Item_cache() { }
   
   void store(Item *item);
   double val();
@@ -737,7 +743,7 @@ class Item_cache_row: public Item_cache
   Item_cache  **values;
   uint item_count;
 public:
-  Item_cache_row(): values(0), item_count(2) { fixed= 1; null_value= 1; }
+  Item_cache_row(): Item_cache(), values(0), item_count(2) {}
   
   /*
     'allocate' used only in row transformer, to preallocate space for row 
