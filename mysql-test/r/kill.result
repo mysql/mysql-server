@@ -9,3 +9,15 @@ select 4;
 4
 4
 drop table t1;
+select get_lock("a", 10);
+get_lock("a", 10)
+1
+ select get_lock("a", 10);
+get_lock("a", 10)
+NULL
+select 1;
+1
+1
+select RELEASE_LOCK("a");
+RELEASE_LOCK("a")
+1

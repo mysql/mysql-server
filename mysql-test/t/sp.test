@@ -2572,7 +2572,7 @@ drop procedure bug7013|
 # BUG#7743: 'Lost connection to MySQL server during query' on Stored Procedure
 #
 --disable_warnings
-drop table if exists t4;
+drop table if exists t4|
 --enable_warnings
 create table t4 (
   a mediumint(8) unsigned not null auto_increment,
@@ -2982,7 +2982,26 @@ select bug5278()|
 select bug5278()|
 drop function bug5278|
 
+#
+# BUG#7992: rolling back temporary Item tree changes in SP
+#
+--disable_warnings
+drop procedure if exists p1|
+--enable_warnings
+create table t3(id int)|
+insert into t3 values(1)|
+create procedure bug7992()
+begin
+  declare i int;
+  select max(id)+1 into i from t3;
+end|
+
+call bug7992()|
+call bug7992()|
+drop procedure bug7992|
+drop table t3|
 
 delimiter ;|
 drop table t1;
 drop table t2;
+

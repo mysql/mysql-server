@@ -2096,8 +2096,7 @@ s1	count(s1)
 1	1
 NULL	2
 drop procedure bug7013|
-drop table if exists t4;
---enable_warnings|
+drop table if exists t4|
 create table t4 (
 a mediumint(8) unsigned not null auto_increment,
 b smallint(5) unsigned not null,
@@ -2480,5 +2479,17 @@ ERROR 42000: Can't find any matching row in the user table
 select bug5278()|
 ERROR 42000: Can't find any matching row in the user table
 drop function bug5278|
+drop procedure if exists p1|
+create table t3(id int)|
+insert into t3 values(1)|
+create procedure bug7992()
+begin
+declare i int;
+select max(id)+1 into i from t3;
+end|
+call bug7992()|
+call bug7992()|
+drop procedure bug7992|
+drop table t3|
 drop table t1;
 drop table t2;

@@ -66,6 +66,12 @@ void net_send_error(THD *thd, uint sql_errno, const char *err)
 		      err ? err : net->last_error[0] ?
 		      net->last_error : "NULL"));
 
+  if (net && net->no_send_error)
+  {
+    thd->clear_error();
+    DBUG_PRINT("info", ("sending error messages prohibited"));
+    DBUG_VOID_RETURN;
+  }
   if (thd->spcont && thd->spcont->find_handler(sql_errno,
                                                MYSQL_ERROR::WARN_LEVEL_ERROR))
   {
@@ -157,6 +163,13 @@ net_printf_error(THD *thd, uint errcode, ...)
 
   DBUG_ENTER("net_printf_error");
   DBUG_PRINT("enter",("message: %u",errcode));
+
+  if (net && net->no_send_error)
+  {
+    thd->clear_error();
+    DBUG_PRINT("info", ("sending error messages prohibited"));
+    DBUG_VOID_RETURN;
+  }
 
   if (thd->spcont && thd->spcont->find_handler(errcode,
                                                MYSQL_ERROR::WARN_LEVEL_ERROR))
@@ -306,6 +319,9 @@ send_ok(THD *thd, ha_rows affected_rows, ulonglong id, const char *message)
   VOID(net_flush(net));
   /* We can't anymore send an error to the client */
   thd->net.report_error= 0;
+  thd->net.no_send_error= 1;
+  DBUG_PRINT("info", ("OK sent, so no more error sendong allowed"));
+
   DBUG_VOID_RETURN;
 }
 
@@ -363,6 +379,8 @@ send_eof(THD *thd, bool no_flush)
       if (!no_flush)
 	VOID(net_flush(net));
     }
+    thd->net.no_send_error= 1;
+    DBUG_PRINT("info", ("EOF sent, so no more error sendong allowed"));
   }
   DBUG_VOID_RETURN;
 }

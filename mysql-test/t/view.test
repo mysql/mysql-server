@@ -1658,9 +1658,62 @@ select * from v3;
 drop view v3;
 drop tables t1,t2;
 
+#
 # View field names should be case insensitive 
+#
 create table t1(f1 int);
 create view v1 as select f1 from t1;
 select * from v1 where F1 = 1;
 drop view v1;
 drop table t1;
+
+#
+# Resolving view fields in subqueries in VIEW (Bug #6394)
+#
+create table t1(c1 int);
+create table t2(c2 int);
+insert into t1 values (1),(2),(3);
+insert into t2 values (1);
+SELECT c1 FROM t1 WHERE c1 IN (SELECT c2 FROM t2);
+SELECT c1 FROM t1 WHERE EXISTS (SELECT c2 FROM t2 WHERE c2 = c1);
+create view v1 as SELECT c1 FROM t1 WHERE c1 IN (SELECT c2 FROM t2);
+create view v2 as SELECT c1 FROM t1 WHERE EXISTS (SELECT c2 FROM t2 WHERE c2 = c1);
+select * from v1;
+select * from v2;
+select * from (select c1 from v2) X;
+drop view v2, v1;
+drop table t1, t2;
+
+#
+# view over other view setup (BUG#7433)
+#
+CREATE TABLE t1 (C1 INT, C2 INT);
+CREATE TABLE t2 (C2 INT);
+CREATE VIEW v1 AS SELECT C2 FROM t2;
+CREATE VIEW v2 AS SELECT C1 FROM t1 LEFT OUTER JOIN v1 USING (C2);
+SELECT * FROM v2;
+drop view v2, v1;
+drop table t1, t2;
+
+#
+# view and group_concat() (BUG#7116)
+#
+create table t1 (col1 char(5),col2 int,col3 int); 
+insert into t1 values ('one',10,25), ('two',10,50), ('two',10,50), ('one',20,25), ('one',30,25); 
+create view v1 as select * from t1;
+select col1,group_concat(col2,col3) from t1 group by col1;
+select col1,group_concat(col2,col3) from v1 group by col1;
+drop view v1;
+drop table t1;
+
+#
+# Item_ref resolved as view field (BUG#6894)
+#
+create table t1 (s1 int, s2 char);
+create view v1 as select s1, s2 from t1;
+-- error 1054
+select s2 from v1 vq1 where 2 = (select count(*) from v1 vq2 having vq1.s2 = vq2.s2);
+select s2 from v1 vq1 where 2 = (select count(*) aa from v1 vq2 having vq1.s2 = aa);
+drop view v1;
+drop table t1;
+
