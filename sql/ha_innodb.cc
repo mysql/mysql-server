@@ -711,6 +711,8 @@ ha_innobase::init_table_handle_for_HANDLER(void)
         prebuilt->read_just_key = FALSE;
 
 	prebuilt->used_in_HANDLER = TRUE;
+
+	prebuilt->keep_other_fields_on_keyread = FALSE;
 }
 
 /*************************************************************************
@@ -4454,9 +4456,11 @@ ha_innobase::extra(
                         if (prebuilt->blob_heap) {
                                 row_mysql_prebuilt_free_blob_heap(prebuilt);
                         }
+                        prebuilt->keep_other_fields_on_keyread = 0;
                         prebuilt->read_just_key = 0;
                         break;
   		case HA_EXTRA_RESET_STATE:
+	        	prebuilt->keep_other_fields_on_keyread = 0;
 	        	prebuilt->read_just_key = 0;
     	        	break;
 		case HA_EXTRA_NO_KEYREAD:
@@ -4468,6 +4472,9 @@ ha_innobase::extra(
 	        case HA_EXTRA_KEYREAD:
 	        	prebuilt->read_just_key = 1;
 	        	break;
+		case HA_EXTRA_KEYREAD_PRESERVE_FIELDS:
+			prebuilt->keep_other_fields_on_keyread = 1;
+			break;
 		default:/* Do nothing */
 			;
 	}
@@ -4526,6 +4533,7 @@ ha_innobase::start_stmt(
 	prebuilt->sql_stat_start = TRUE;
 	prebuilt->hint_no_need_to_fetch_extra_cols = TRUE;
 	prebuilt->read_just_key = 0;
+        prebuilt->keep_other_fields_on_keyread = FALSE;
 
 	if (!prebuilt->mysql_has_locked) {
 	        /* This handle is for a temporary table created inside
@@ -4604,6 +4612,7 @@ ha_innobase::external_lock(
 	prebuilt->hint_no_need_to_fetch_extra_cols = TRUE;
 
 	prebuilt->read_just_key = 0;
+	prebuilt->keep_other_fields_on_keyread = FALSE;
 
 	if (lock_type == F_WRLCK) {
 
@@ -4998,6 +5007,54 @@ ha_innobase::get_auto_increment()
 	}
 
 	return(nr);
+}
+
+int
+ha_innobase::cmp_ref(
+	const mysql_byte *ref1,
+	const mysql_byte *ref2)
+{
+	row_prebuilt_t*	 prebuilt = (row_prebuilt_t*) innobase_prebuilt;
+	enum_field_types mysql_type;
+	Field*		 field;
+	int result;
+
+	if (prebuilt->clust_index_was_generated)
+		return memcmp(ref1, ref2, DATA_ROW_ID_LEN);
+
+	/* Do type-aware comparison of Primary Key members. PK members
+	are always NOT NULL, so no checks for NULL are performed */
+	KEY_PART_INFO *key_part= table->key_info[table->primary_key].key_part;
+	KEY_PART_INFO *key_part_end= 
+	  key_part + table->key_info[table->primary_key].key_parts;
+	for (; key_part != key_part_end; ++key_part) {
+		field = key_part->field;
+		mysql_type = field->type();
+		if (mysql_type == FIELD_TYPE_TINY_BLOB
+		    || mysql_type == FIELD_TYPE_MEDIUM_BLOB
+		    || mysql_type == FIELD_TYPE_BLOB
+		    || mysql_type == FIELD_TYPE_LONG_BLOB) {
+		    
+			ut_a(!ref1[1]);
+			ut_a(!ref2[1]);
+			byte len1= *ref1;
+			byte len2= *ref2;
+			ref1 += 2;
+			ref2 += 2;
+			result =
+			  ((Field_blob*)field)->cmp((const char*)ref1, len1,
+			                            (const char*)ref2, len2);
+		} else {
+			result = 
+			  field->cmp((const char*)ref1, (const char*)ref2);
+		}
+
+		if (result)
+			return result;
+		ref1 += key_part->length;
+		ref2 += key_part->length;
+	}
+	return 0;
 }
 
 #endif /* HAVE_INNOBASE_DB */

@@ -151,6 +151,12 @@ int mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds, SQL_LIST *order,
     select= 0;
   }
 
+  if (select && select->quick && select->quick->reset())
+  {
+    delete select;
+    free_underlaid_joins(thd, &thd->lex->select_lex);
+    DBUG_RETURN(-1);			// This will force out message
+  }
   init_read_record(&info,thd,table,select,1,1);
   deleted=0L;
   init_ftfuncs(thd, &thd->lex->select_lex, 1);
@@ -250,10 +256,10 @@ cleanup:
 
 #define MEM_STRIP_BUF_SIZE current_thd->variables.sortbuff_size
 
-extern "C" int refposcmp2(void* arg, const void *a,const void *b)
+extern "C" int refpos_order_cmp(void* arg, const void *a,const void *b)
 {
-  /* arg is a pointer to file->ref_length */
-  return memcmp(a,b, *(int*) arg);
+  handler *file= (handler*)arg;
+  return file->cmp_ref((const byte*)a, (const byte*)b);
 }
 
 multi_delete::multi_delete(THD *thd_arg, TABLE_LIST *dt,
@@ -317,8 +323,8 @@ multi_delete::initialize_tables(JOIN *join)
   for (walk=walk->next ; walk ; walk=walk->next)
   {
     TABLE *table=walk->table;
-    *tempfiles_ptr++= new Unique (refposcmp2,
-				  (void *) &table->file->ref_length,
+    *tempfiles_ptr++= new Unique (refpos_order_cmp,
+				  (void *) table->file,
 				  table->file->ref_length,
 				  MEM_STRIP_BUF_SIZE);
   }

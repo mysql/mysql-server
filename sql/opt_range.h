@@ -79,14 +79,18 @@ public:
   TABLE   *head;
 
   /*
-    the only index this quick select uses, or MAX_KEY for 
-    QUICK_INDEX_MERGE_SELECT
+    index this quick select uses, or MAX_KEY for quick selects 
+    that use several indexes
   */
-  uint index; 
+  uint index;
+
+  /* applicable iff index!= MAX_KEY */
   uint max_used_key_length, used_key_parts;
 
   QUICK_SELECT_I();
   virtual ~QUICK_SELECT_I(){};
+  
+  /**/
   virtual int  init() = 0;
   virtual int  reset(void) = 0;
   virtual int  get_next() = 0;   /* get next record to retrieve */
@@ -97,27 +101,64 @@ public:
     QS_TYPE_RANGE = 0,
     QS_TYPE_INDEX_MERGE = 1,
     QS_TYPE_RANGE_DESC = 2,
-    QS_TYPE_FULLTEXT   = 3
+    QS_TYPE_FULLTEXT   = 3,
+    QS_TYPE_ROR_INTERSECT = 4,
+    QS_TYPE_ROR_UNION = 5,
   };
 
-  /* Get type of this quick select - one of the QS_* values */
-  virtual int get_type() = 0; 
+  /* Get type of this quick select - one of the QS_TYPE_* values */
+  virtual int get_type() = 0;
+
+  /*
+    Initialize this quick select as a child of a index union or intersection 
+    scan. This call replaces init() call.
+  */
+  virtual int init_ror_child_scan(bool reuse_handler)
+  { DBUG_ASSERT(0); return 1; }
+  
+  virtual void cleanup_ror_child_scan() { DBUG_ASSERT(0); }
+  virtual void save_last_pos(){};
+
+  /* 
+    Fill key_names with list of keys this quick select used;
+    fill used_lenghth with correponding used lengths.
+    This is used by select_describe.
+  */
+  virtual void fill_keys_and_lengths(String *key_names, 
+                                     String *used_lengths)=0;
+
+  virtual bool check_if_keys_used(List<Item> *fields);
+
+  /*
+    rowid of last row retrieved by this quick select. This is used only 
+    when doing ROR-index_merge selects 
+  */
+  byte    *last_rowid;
+  byte    *record;
+#ifndef DBUG_OFF
+  /*
+    Print quick select information to DBUG_FILE. Caller is responsible 
+    for locking DBUG_FILE before this call and unlocking it afterwards.
+  */
+  virtual void dbug_dump(int indent, bool verbose)= 0;
+#endif 
 };
+
 
 struct st_qsel_param;
 class SEL_ARG;
 
-class QUICK_RANGE_SELECT : public QUICK_SELECT_I 
+class QUICK_RANGE_SELECT : public QUICK_SELECT_I
 {
 protected:
   bool next,dont_free;
 public:
   int error;
-  handler *file;
-  byte    *record;
 protected:
-  friend void print_quick_sel_range(QUICK_RANGE_SELECT *quick,
-                                    const key_map* needed_reg);
+  handler *file;
+  bool free_file; /* if true, this quick select "owns" file and will free it */
+
+protected:
   friend
   QUICK_RANGE_SELECT *get_quick_select_for_ref(THD *thd, TABLE *table, 
                                                struct st_table_ref *ref);
@@ -131,17 +172,19 @@ protected:
                                               MEM_ROOT *alloc);
   friend class QUICK_SELECT_DESC;
   friend class QUICK_INDEX_MERGE_SELECT;
+  friend class QUICK_ROR_INTERSECT_SELECT;
 
   DYNAMIC_ARRAY ranges;     /* ordered array of range ptrs */
   QUICK_RANGE **cur_range;  /* current element in ranges  */
 
   QUICK_RANGE *range;
-  MEM_ROOT alloc;
   KEY_PART *key_parts;  
   int cmp_next(QUICK_RANGE *range);
   int cmp_prev(QUICK_RANGE *range);
   bool row_in_ranges();
 public:
+  MEM_ROOT alloc;
+
   QUICK_RANGE_SELECT(THD *thd, TABLE *table,uint index_arg,bool no_alloc=0,
                      MEM_ROOT *parent_alloc=NULL);
   ~QUICK_RANGE_SELECT();
@@ -157,7 +200,16 @@ public:
   int get_next();
   bool reverse_sorted() { return 0; }
   bool unique_key_range();
+  int init_ror_child_scan(bool reuse_handler);
+  void save_last_pos()
+  {
+    file->position(record);
+  };
   int get_type() { return QS_TYPE_RANGE; }
+  void fill_keys_and_lengths(String *key_names, String *used_lengths);
+#ifndef DBUG_OFF
+  virtual void dbug_dump(int indent, bool verbose);
+#endif
 };
 
 
@@ -232,6 +284,11 @@ public:
   bool reverse_sorted() { return false; }
   bool unique_key_range() { return false; }
   int get_type() { return QS_TYPE_INDEX_MERGE; }
+  void fill_keys_and_lengths(String *key_names, String *used_lengths);
+  bool check_if_keys_used(List<Item> *fields);
+#ifndef DBUG_OFF
+  virtual void dbug_dump(int indent, bool verbose);
+#endif
 
   bool push_quick_back(QUICK_RANGE_SELECT *quick_sel_range);
 
@@ -242,9 +299,6 @@ public:
   List_iterator_fast<QUICK_RANGE_SELECT> cur_quick_it;
   QUICK_RANGE_SELECT* cur_quick_select;
   
-  /* last element in quick_selects list */
-  QUICK_RANGE_SELECT* last_quick_select;
-
   /* quick select that uses clustered primary key (NULL if none) */
   QUICK_RANGE_SELECT* pk_quick_select;
   
@@ -261,6 +315,87 @@ public:
   /* used to get rows collected in Unique */
   READ_RECORD read_record;
 };
+
+
+/*
+  Rowid-Ordered Retrieval (ROR) index intersection quick select.
+  This quick select produces an intersection of records returned by several
+  QUICK_RANGE_SELECTs that return data ordered by rowid.
+*/
+class QUICK_ROR_INTERSECT_SELECT : public QUICK_SELECT_I 
+{
+public:
+  QUICK_ROR_INTERSECT_SELECT(THD *thd, TABLE *table, 
+                             bool retrieve_full_rows,
+                             MEM_ROOT *parent_alloc);
+  ~QUICK_ROR_INTERSECT_SELECT();
+
+  int  init();
+  int  reset(void);
+  int  get_next();
+  bool reverse_sorted() { return false; }
+  bool unique_key_range() { return false; }
+  int get_type() { return QS_TYPE_ROR_INTERSECT; }
+  void fill_keys_and_lengths(String *key_names, String *used_lengths);
+  bool check_if_keys_used(List<Item> *fields);
+#ifndef DBUG_OFF
+  virtual void dbug_dump(int indent, bool verbose);
+#endif
+  int init_ror_child_scan(bool reuse_handler);
+  bool push_quick_back(QUICK_RANGE_SELECT *quick_sel_range);
+
+  /* range quick selects this intersection consists of */
+  List<QUICK_RANGE_SELECT> quick_selects;
+  
+  QUICK_RANGE_SELECT *cpk_quick;
+  MEM_ROOT alloc;
+  THD *thd;
+  bool reset_called;    
+  bool need_to_fetch_row;
+};
+
+/*
+  Rowid-Ordered Retrieval index union select.
+
+*/
+class QUICK_ROR_UNION_SELECT : public QUICK_SELECT_I 
+{
+public:
+  QUICK_ROR_UNION_SELECT(THD *thd, TABLE *table);
+  ~QUICK_ROR_UNION_SELECT();
+
+  int  init();
+  int  reset(void);
+  int  get_next();
+  bool reverse_sorted() { return false; }
+  bool unique_key_range() { return false; }
+  int get_type() { return QS_TYPE_ROR_UNION; }
+  void fill_keys_and_lengths(String *key_names, String *used_lengths);
+  bool check_if_keys_used(List<Item> *fields);
+#ifndef DBUG_OFF
+  virtual void dbug_dump(int indent, bool verbose);
+#endif
+
+  bool push_quick_back(QUICK_SELECT_I *quick_sel_range);
+
+  /* range quick selects this index_merge read consists of */
+  List<QUICK_SELECT_I> quick_selects;
+  
+  QUEUE queue;
+  MEM_ROOT alloc;
+
+  THD *thd;
+  byte *cur_rowid;
+  byte *prev_rowid;
+  uint rowid_length;
+  bool reset_called;
+  bool have_prev_rowid;
+  
+private:
+  static int queue_cmp(void *arg, byte *val1, byte *val2);
+};
+
+
 
 class QUICK_SELECT_DESC: public QUICK_RANGE_SELECT
 {
