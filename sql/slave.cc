@@ -2959,6 +2959,62 @@ static int exec_relay_log_event(THD* thd, RELAY_LOG_INFO* rli)
     exec_res = ev->exec_event(rli);
     DBUG_ASSERT(rli->sql_thd==thd);
     delete ev;
+    if (slave_trans_retries)
+    {
+      if (exec_res &&
+          (thd->net.last_errno == ER_LOCK_DEADLOCK ||
+           thd->net.last_errno == ER_LOCK_WAIT_TIMEOUT) &&
+          !thd->is_fatal_error)
+      {
+        const char *errmsg;
+        /*
+          We were in a transaction which has been rolled back because of a
+          deadlock (currently, InnoDB deadlock detected by InnoDB) or lock
+          wait timeout (innodb_lock_wait_timeout exceeded); let's seek back to
+          BEGIN log event and retry it all again.
+          We have to not only seek but also
+          a) init_master_info(), to seek back to hot relay log's start for later
+          (for when we will come back to this hot log after re-processing the
+          possibly existing old logs where BEGIN is: check_binlog_magic() will
+          then need the cache to be at position 0 (see comments at beginning of
+          init_master_info()).
+          b) init_relay_log_pos(), because the BEGIN may be an older relay log.
+        */
+        if (rli->trans_retries--)
+        {
+          sql_print_information("Slave SQL thread retries transaction");
+          if (init_master_info(rli->mi, 0, 0, 0, SLAVE_SQL))
+            sql_print_error("Failed to initialize the master info structure");
+          else if (init_relay_log_pos(rli,
+                                      rli->group_relay_log_name,
+                                      rli->group_relay_log_pos,
+                                      1, &errmsg))
+            sql_print_error("Error initializing relay log position: %s",
+                            errmsg);
+          else
+          {
+            exec_res= 0;
+            sleep(2); // chance for concurrent connection to get more locks
+          }
+        }
+        else
+          sql_print_error("Slave SQL thread retried transaction %lu time(s) "
+                          "in vain, giving up. Consider raising the value of "
+                          "the slave_transaction_retries variable.",
+                          slave_trans_retries);
+      }
+      if (!((thd->options & OPTION_BEGIN) && opt_using_transactions))
+      {
+        rli->trans_retries= slave_trans_retries; // restart from fresh
+        /*
+          TODO: when merged into 5.0, when slave does auto-rollback if
+          corrupted binlog, this should reset the retry counter too
+          (any rollback should). In fact it will work, as here we are just out
+          of a Format_description_log_event::exec_event() which rolled back.
+          But check repl code in 5.0 for new ha_rollback calls, just in case.
+        */
+      }
+    }
     return exec_res;
   }
   else
@@ -3370,6 +3426,7 @@ slave_begin:
   pthread_mutex_lock(&rli->log_space_lock);
   rli->ignore_log_space_limit= 0;
   pthread_mutex_unlock(&rli->log_space_lock);
+  rli->trans_retries= slave_trans_retries; // start from "no error"
 
   if (init_relay_log_pos(rli,
 			 rli->group_relay_log_name,
