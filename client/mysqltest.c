@@ -1630,7 +1630,7 @@ int do_while(struct st_query* q)
 
 my_bool end_of_query(int c, char* p)
 {
-  uint i= 0, j;
+  uint i, j;
   int tmp[MAX_DELIMITER]= {0};
 
   for (i= 0; c == *(delimiter + i) && i < delimiter_length;
@@ -1642,7 +1642,7 @@ my_bool end_of_query(int c, char* p)
     ungetc(tmp[j], *cur_file);
   if (i == delimiter_length)
   {
-    ungetc(tmp[j], *cur_file);
+    ungetc(tmp[i], *cur_file);
     *p= 0;
     return 1;
   }
@@ -2189,7 +2189,7 @@ int run_query(MYSQL* mysql, struct st_query* q, int flags)
     {
       replace_dynstr_append_mem(ds,query, query_len);
       sprintf(buff, "%s\n", delimiter);
-      dynstr_append_mem(ds, buff, strlen(delimiter) + 1);
+      dynstr_append_mem(ds, buff, delimiter_length + 1);
     }
     if (!(flags & QUERY_REAP))
       DBUG_RETURN(0);
