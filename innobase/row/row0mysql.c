@@ -1000,8 +1000,8 @@ row_update_cascade_for_mysql(
 				or set null operation */
 	dict_table_t*	table)	/* in: table where we do the operation */
 {
-	ulint		err;
-	trx_t*		trx;
+	ulint	err;
+	trx_t*	trx;
 
 	trx = thr_get_trx(thr);
 run_again:
@@ -1012,11 +1012,26 @@ run_again:
 
 	err = trx->error_state;
 
-	if (err == DB_LOCK_WAIT) {
-		que_thr_stop_for_mysql(thr);
-	
-		row_mysql_handle_errors(&err, trx, thr, NULL);
+	/* Note that the cascade node is a subnode of another InnoDB
+	query graph node. We do a normal lock wait in this node, but
+	all errors are handled by the parent node. */
 
+	if (err == DB_LOCK_WAIT) {
+		/* Handle lock wait here */
+	
+		que_thr_stop_for_mysql(thr);
+
+		srv_suspend_mysql_thread(thr);
+
+		/* Note that a lock wait may also end in a lock wait timeout */
+
+		if (trx->error_state != DB_SUCCESS) {
+
+			return(trx->error_state);
+		}
+
+		/* Retry operation after a normal lock wait */
+		
 		goto run_again;
 	}
 

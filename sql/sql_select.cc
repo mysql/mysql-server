@@ -1371,15 +1371,15 @@ add_ft_keys(DYNAMIC_ARRAY *keyuse_array,
                 *arg1=(Item_func *)(func->arguments()[1]);
       if ((functype == Item_func::GE_FUNC ||
            functype == Item_func::GT_FUNC)  &&
-     	   arg0->type() == Item::FUNC_ITEM          &&
+	   arg0->type() == Item::FUNC_ITEM          &&
            arg0->functype() == Item_func::FT_FUNC   &&
-           arg1->const_item() && arg1->val()>=0)
+           arg1->const_item() && arg1->val()>0)
         cond_func=(Item_func_match *) arg0;
       else if ((functype == Item_func::LE_FUNC ||
                 functype == Item_func::LT_FUNC)  &&
                 arg1->type() == Item::FUNC_ITEM          &&
                 arg1->functype() == Item_func::FT_FUNC   &&
-                arg0->const_item() && arg0->val()>=0)
+                arg0->const_item() && arg0->val()>0)
         cond_func=(Item_func_match *) arg1;
     }
   }
@@ -4970,6 +4970,8 @@ end_write_group(JOIN *join, JOIN_TAB *join_tab __attribute__((unused)),
     }
     else
     {
+      if (end_of_records)
+	DBUG_RETURN(0);
       join->first_record=1;
       VOID(test_if_group_changed(join->group_fields));
     }
