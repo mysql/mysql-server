@@ -486,6 +486,9 @@ select ROW(1, 1, 'a') IN (select b,a,c from t1 where c='b' or c='a');
 select ROW(1, 1, 'a') IN (select b,a,c from t1 limit 2);
 drop table t1;
 
+#
+# DO & SET
+#
 create table t1 (a int);
 insert into t1 values (1);
 do @a:=(SELECT a from t1);
@@ -498,6 +501,23 @@ drop table t1;
 do (SELECT a from t1);
 -- error 1146
 set @a:=(SELECT a from t1);
+
+#
+# CALL
+#
+create table t1 (a int);
+create table t2 (a int);
+insert into t2 values (1), (2), (3);
+create procedure foo1(x int)
+  insert into test.t1 values (x);
+create function foo2(i int) returns int
+  return i+1;
+call foo1((select max(a) from t2));
+select * from t1;
+select foo2((select max(a) from t2));
+drop table t1, t2;
+drop procedure foo1;
+drop function foo2;
 
 CREATE TABLE t1 (a int, KEY(a)); 
 HANDLER t1 OPEN;

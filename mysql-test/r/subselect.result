@@ -887,6 +887,23 @@ do (SELECT a from t1);
 Table 'test.t1' doesn't exist
 set @a:=(SELECT a from t1);
 Table 'test.t1' doesn't exist
+create table t1 (a int);
+create table t2 (a int);
+insert into t2 values (1), (2), (3);
+create procedure foo1(x int)
+insert into test.t1 values (x);
+create function foo2(i int) returns int
+return i+1;
+call foo1((select max(a) from t2));
+select * from t1;
+a
+3
+select foo2((select max(a) from t2));
+foo2((select max(a) from t2))
+4
+drop table t1, t2;
+drop procedure foo1;
+drop function foo2;
 CREATE TABLE t1 (a int, KEY(a));
 HANDLER t1 OPEN;
 HANDLER t1 READ a=((SELECT 1));

@@ -3060,6 +3060,11 @@ mysql_execute_command(THD *thd)
 	uint smrx;
 	LINT_INIT(smrx);
 
+	if (tables && ((res= check_table_access(thd, SELECT_ACL, tables)) ||
+		       (res= open_and_lock_tables(thd,tables))))
+	  break;
+	fix_tables_pointers(lex->all_selects_list);
+
 #ifndef EMBEDDED_LIBRARY
 	// When executing substatements, they're assumed to send_error when
 	// it happens, but not to send_ok.
