@@ -232,8 +232,7 @@ spawn:
       sigsuspend(&zeromask);
 
     if (is_terminated)
-      log_info("angel got signal %d (%s), exiting",
-               is_terminated, sys_siglist[is_terminated]);
+      log_info("angel got signal %d, exiting", is_terminated);
     else if (child_status == CHILD_NEED_RESPAWN)
     { 
       child_status= CHILD_OK;

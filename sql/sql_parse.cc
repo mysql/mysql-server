@@ -1627,8 +1627,8 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
 	break;
       mysql_log.write(thd,command,packet);
       bzero(&create_info, sizeof(create_info));
-      error= mysql_create_db(thd, (lower_case_table_names == 2 ? alias : db),
-                             &create_info, 0);
+      mysql_create_db(thd, (lower_case_table_names == 2 ? alias : db),
+                      &create_info, 0);
       break;
     }
   case COM_DROP_DB:				// QQ: To be removed
@@ -1651,8 +1651,8 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
 	break;
       }
       mysql_log.write(thd,command,db);
-      error= mysql_rm_db(thd, (lower_case_table_names == 2 ? alias : db),
-                         0, 0) ;
+      mysql_rm_db(thd, (lower_case_table_names == 2 ? alias : db),
+                       0, 0);
       break;
     }
 #ifndef EMBEDDED_LIBRARY

@@ -1211,7 +1211,7 @@ view_store_create_info(THD *thd, TABLE_LIST *table, String *buff)
   if (!foreign_db_mode)
   {
     buff->append("ALGORITHM=", 10);
-    switch(table->algorithm)
+    switch((int8)table->algorithm)
     {
     case VIEW_ALGORITHM_UNDEFINED:
       buff->append("UNDEFINED ", 10);
