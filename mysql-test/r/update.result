@@ -212,3 +212,10 @@ insert into t1 values (1, "t1c2-1", 10), (2, "t1c2-2", 20);
 update t1 left join t2 on t1.c1 = t2.c1 set t2.c2 = "t2c2-1";
 update t1 left join t2 on t1.c1 = t2.c1 set t2.c2 = "t2c2-1" where t1.c3 = 10;
 drop table t1, t2;
+create table t1 (id int not null auto_increment primary key, id_str varchar(32));
+insert into t1 (id_str) values ("test");
+update t1 set id_str = concat(id_str, id) where id = last_insert_id();
+select * from t1;
+id	id_str
+1	test1
+drop table t1;

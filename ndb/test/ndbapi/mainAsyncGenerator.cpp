@@ -274,8 +274,6 @@ threadRoutine(void *arg)
 
   asyncDbDisconnect(pNDB);
 
-  NdbThread_Exit(0);
-
   return NULL;
 }
 

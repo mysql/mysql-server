@@ -2195,27 +2195,27 @@ static my_bool dump_all_views_in_db(char *database)
   RETURN
     void
 */
-static void get_actual_table_name( const char *old_table_name, 
-                                         char *new_table_name, 
-                                         int buf_size )
+
+static void get_actual_table_name(const char *old_table_name, 
+                                  char *new_table_name, 
+                                  int buf_size)
 {
-    MYSQL_RES  *tableRes;
-    MYSQL_ROW  row;
-    char query[ NAME_LEN + 50 ];
+  MYSQL_RES  *tableRes;
+  MYSQL_ROW  row;
+  char query[ NAME_LEN + 50 ];
+  DBUG_ENTER("get_actual_table_name");
 
-    DBUG_ENTER("get_actual_table_name");
+  sprintf( query, "SHOW TABLES LIKE '%s'", old_table_name);
+  if (mysql_query_with_error_report(sock, 0, query))
+  {
+    safe_exit(EX_MYSQLERR);
+  }
 
-	sprintf( query, "SHOW TABLES LIKE '%s'", old_table_name );
-    if (mysql_query_with_error_report(sock, 0, query))
-    {
-        safe_exit(EX_MYSQLERR);
-    }
-
-	tableRes = mysql_store_result( sock );
-    row = mysql_fetch_row( tableRes );
-	strncpy( new_table_name, row[0], buf_size );
-    mysql_free_result(tableRes);
-} /* get_actual_table_name */
+  tableRes= mysql_store_result( sock );
+  row= mysql_fetch_row( tableRes );
+  strmake(new_table_name, row[0], buf_size-1);
+  mysql_free_result(tableRes);
+}
 
 
 static int dump_selected_tables(char *db, char **table_names, int tables)
