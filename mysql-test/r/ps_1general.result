@@ -254,6 +254,7 @@ a int primary key, b char(10)
 prepare stmt4 from ' show databases ';
 execute stmt4;
 Database
+information_schema
 mysql
 test
 prepare stmt4 from ' show tables from test like ''t2%'' ';
@@ -263,7 +264,7 @@ t2
 prepare stmt4 from ' show columns from t2 from test like ''a%'' ';
 execute stmt4;
 Field	Type	Null	Key	Default	Extra
-a	int(11)		PRI		
+a	int(11)	NO	PRI		
 create index t2_idx on t2(b);
 prepare stmt4 from ' show index from t2 from test ';
 execute stmt4;
@@ -410,7 +411,7 @@ drop user drop_user@localhost;
 prepare stmt3 from ' describe t2 ';
 execute stmt3;
 Field	Type	Null	Key	Default	Extra
-a	int(11)		PRI		
+a	int(11)	NO	PRI		
 b	char(10)	YES	MUL	NULL	
 drop table t2 ;
 execute stmt3;
