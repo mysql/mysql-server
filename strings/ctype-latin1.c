@@ -380,6 +380,7 @@ int my_wc_mb_latin1(CHARSET_INFO *cs  __attribute__((unused)),
 
 static MY_CHARSET_HANDLER my_charset_handler=
 {
+    NULL,			/* init */
     NULL,
     my_mbcharlen_8bit,
     my_numchars_8bit,
@@ -426,7 +427,7 @@ CHARSET_INFO my_charset_latin1=
     1,			/* mbminlen   */
     1,			/* mbmaxlen  */
     0,			/* min_sort_char */
-    0,			/* max_sort_char */
+    255,		/* max_sort_char */
     &my_charset_handler,
     &my_collation_8bit_simple_ci_handler
 };
@@ -674,6 +675,7 @@ void my_hash_sort_latin1_de(CHARSET_INFO *cs __attribute__((unused)),
 
 static MY_COLLATION_HANDLER my_collation_german2_ci_handler=
 {
+  NULL,			/* init */
   my_strnncoll_latin1_de,
   my_strnncollsp_latin1_de,
   my_strnxfrm_latin1_de,
@@ -706,7 +708,7 @@ CHARSET_INFO my_charset_latin1_german2_ci=
   1,					/* mbminlen   */
   1,					/* mbmaxlen  */
   0,					/* min_sort_char */
-  0,					/* max_sort_char */
+  247,					/* max_sort_char */
   &my_charset_handler,
   &my_collation_german2_ci_handler
 };
@@ -733,7 +735,7 @@ CHARSET_INFO my_charset_latin1_bin=
   1,					/* mbminlen   */
   1,					/* mbmaxlen  */
   0,					/* min_sort_char */
-  0,					/* max_sort_char */
+  255,					/* max_sort_char */
   &my_charset_handler,
   &my_collation_8bit_bin_handler
 };
