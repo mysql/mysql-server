@@ -150,6 +150,13 @@ int mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds, SQL_LIST *order,
     select= 0;
   }
 
+  /* If quick select is used, initialize it before retrieving rows. */
+  if (select && select->quick && select->quick->reset())
+  {
+    delete select;
+    free_underlaid_joins(thd, &thd->lex->select_lex);
+    DBUG_RETURN(-1);			// This will force out message
+  }
   init_read_record(&info,thd,table,select,1,1);
   deleted=0L;
   init_ftfuncs(thd, &thd->lex->select_lex, 1);
