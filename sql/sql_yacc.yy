@@ -2757,13 +2757,11 @@ simple_expr:
 	| '~' expr %prec NEG	{ $$= new Item_func_bit_neg($2); }
 	| NOT expr %prec NEG
           {
-            if (($$= $2->neg_transformer(YYTHD)) == 0)
-              $$= new Item_func_not($2);
+            $$= negate_expression(YYTHD, $2);
           }
 	| '!' expr %prec NEG
           {
-            if (($$= $2->neg_transformer(YYTHD)) == 0)
-              $$= new Item_func_not($2);
+            $$= negate_expression(YYTHD, $2);
           }
 	| '(' expr ')'		{ $$= $2; }
 	| '(' expr ',' expr_list ')'
@@ -3606,11 +3604,17 @@ opt_all:
 
 where_clause:
 	/* empty */  { Select->where= 0; }
-	| WHERE expr
+	| WHERE
+          {
+            Select->parsing_place= IN_WHERE;
+          }
+          expr
 	  {
-	    Select->where= $2;
-	    if ($2)
-	      $2->top_level_item();
+            SELECT_LEX *select= Select;
+	    select->where= $3;
+            select->parsing_place= NO_MATTER;
+	    if ($3)
+	      $3->top_level_item();
 	  }
  	;
 

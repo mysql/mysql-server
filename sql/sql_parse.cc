@@ -5401,3 +5401,39 @@ int create_table_precheck(THD *thd, TABLE_LIST *tables,
 	       check_grant(thd, want_priv, create_table, 0, UINT_MAX, 0)) ?
 	      1 : 0);
 }
+
+
+/*
+  negate given expression
+
+  SYNOPSIS
+    negate_expression()
+    thd  therad handler
+    expr expression for negation
+
+  RETURN
+    negated expression
+*/
+
+Item *negate_expression(THD *thd, Item *expr)
+{
+  Item *negated;
+  if (expr->type() == Item::FUNC_ITEM &&
+      ((Item_func *) expr)->functype() == Item_func::NOT_FUNC)
+  {
+    /* it is NOT(NOT( ... )) */
+    Item *arg= ((Item_func *) expr)->arguments()[0];
+    enum_parsing_place place= thd->lex->current_select->parsing_place;
+    if (arg->is_bool_func() || place == IN_WHERE || place == IN_HAVING)
+      return arg;
+    /*
+      if it is not boolean function then we have to emulate value of
+      not(not(a)), it will be a != 0
+    */
+    return new Item_func_ne(arg, new Item_int((char*) "0", 0, 1));
+  }
+
+  if ((negated= expr->neg_transformer(thd)) != 0)
+    return negated;
+  return new Item_func_not(expr);
+}
