@@ -823,7 +823,7 @@ class multi_update : public select_result
 {
   TABLE_LIST *all_tables, *update_tables, *table_being_updated;
   THD *thd;
-  TABLE **tmp_tables, *main_table;
+  TABLE **tmp_tables, *main_table, *table_to_update;
   TMP_TABLE_PARAM *tmp_table_param;
   ha_rows updated, found;
   List <Item> *fields, *values;
@@ -831,7 +831,7 @@ class multi_update : public select_result
   uint table_count;
   Copy_field *copy_field;
   enum enum_duplicates handle_duplicates;
-  bool do_update, trans_safe, transactional_tables, log_delayed, on_the_fly;
+  bool do_update, trans_safe, transactional_tables, log_delayed;
 
 public:
   multi_update(THD *thd_arg, TABLE_LIST *ut, List<Item> *fields,
