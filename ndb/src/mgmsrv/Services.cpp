@@ -1268,7 +1268,7 @@ MgmStatService::log(int eventType, const Uint32* theData, NodeId nodeId){
   m_clients.lock();
   for(i = m_clients.size() - 1; i >= 0; i--){
     if(threshold <= m_clients[i].m_logLevel.getLogLevel(cat)){
-      if(m_clients[i].m_socket >= 0 &&
+      if(m_clients[i].m_socket != NDB_INVALID_SOCKET &&
 	 println_socket(m_clients[i].m_socket, 
 			MAX_WRITE_TIMEOUT, m_text) == -1){
 	copy.push_back(m_clients[i].m_socket);
@@ -1318,7 +1318,7 @@ MgmStatService::add_listener(const StatListener& client){
 void
 MgmStatService::stopSessions(){
   for(int i = m_clients.size() - 1; i >= 0; i--){
-    if(m_clients[i].m_socket >= 0){
+    if(m_clients[i].m_socket != NDB_INVALID_SOCKET){
       NDB_CLOSE_SOCKET(m_clients[i].m_socket);
       m_clients.erase(i);
     }
@@ -1404,7 +1404,7 @@ MgmApiSession::listen_event(Parser<MgmApiSession>::Context & ctx,
   m_mgmsrv.m_statisticsListner.add_listener(le);
   
   m_stop = true;
-  m_socket = -1;
+  m_socket = NDB_INVALID_SOCKET;
 
 done:
   m_output->println("listen event");

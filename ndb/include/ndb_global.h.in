@@ -13,11 +13,8 @@
 #define PATH_MAX 256
 #define DIR_SEPARATOR "\\"
 #define MYSQLCLUSTERDIR "c:\\mysql\\mysql-cluster"
-#define snprintf _snprintf
-#define vsnprintf _vsnprintf
 #define HAVE_STRCASECMP
 #define strcasecmp _strcmpi
-#define strncasecmp _strncmpi
 #pragma warning(disable: 4503 4786)
 #else
 #undef NDB_WIN32

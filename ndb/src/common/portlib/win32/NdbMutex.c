@@ -65,7 +65,8 @@ int NdbMutex_Trylock(NdbMutex* p_mutex)
     int result = -1;
     if(p_mutex) 
     {
-        result = (TryEnterCriticalSection(p_mutex) ? 0 : -1);
+        result = NdbMutex_Lock(p_mutex);
+	//(TryEnterCriticalSection(p_mutex) ? 0 : -1);
     }
     return result;
 }
