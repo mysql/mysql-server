@@ -49476,8 +49476,6 @@ specified with the @code{--sql-mode} option for @code{mysqld}.  It disables
 unsigned arithmetic rules when it comes to subtraction. (This will make
 MySQL 4.0 behave more closely to 3.23 with @code{UNSIGNED} columns).
 @item
-Added @code{WITH MAX_QUERIES_PER_HOUR=#} to @code{GRANT} command.
-@item
 The result returned for all bit functions (@code{|}, @code{<<}, ...) is now of
 type @code{unsigned integer}.
 @item
