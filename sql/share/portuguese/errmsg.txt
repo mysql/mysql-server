@@ -304,3 +304,4 @@ character-set=latin1
 "Got temporary error %d '%-.100s' from %s",
 "Unknown or incorrect time zone: '%-.64s'",
 "Invalid TIMESTAMP value in column '%s' at row %ld",
+"Data truncated by function '%s' do to max_allowed_packet"
