@@ -930,6 +930,7 @@ dnl circular references.
  ../innobase/odbc/libodbc.a\
  ../innobase/srv/libsrv.a\
  ../innobase/que/libque.a\
+ ../innobase/srv/libsrv.a\
  ../innobase/dict/libdict.a\
  ../innobase/ibuf/libibuf.a\
  ../innobase/row/librow.a\
