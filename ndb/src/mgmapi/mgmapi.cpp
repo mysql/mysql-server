@@ -15,6 +15,9 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 #include <ndb_global.h>
+#include <my_sys.h>
+
+#include <NdbAutoPtr.hpp>
 
 #include <NdbTCP.h>
 #include "mgmapi.h"
@@ -137,7 +140,8 @@ extern "C"
 NdbMgmHandle
 ndb_mgm_create_handle()
 {
-  NdbMgmHandle h     = (NdbMgmHandle)malloc(sizeof(ndb_mgm_handle));
+  NdbMgmHandle h     =
+    (NdbMgmHandle)my_malloc(sizeof(ndb_mgm_handle),MYF(MY_WME));
   h->connected       = 0;
   h->last_error      = 0;
   h->last_error_line = 0;
@@ -166,16 +170,14 @@ ndb_mgm_destroy_handle(NdbMgmHandle * handle)
   if((* handle)->connected){
     ndb_mgm_disconnect(* handle);
   }
-  if((* handle)->hostname != 0){
-    free((* handle)->hostname);
-  }
+  my_free((* handle)->hostname,MYF(MY_ALLOW_ZERO_PTR));
 #ifdef MGMAPI_LOG
   if ((* handle)->logfile != 0){
     fclose((* handle)->logfile);
     (* handle)->logfile = 0;
   }
 #endif
-  free(* handle);
+  my_free((char*)* handle,MYF(MY_ALLOW_ZERO_PTR));
   * handle = 0;
 }
 
@@ -228,7 +230,8 @@ parse_connect_string(const char * connect_string,
     return -1;
   }
   
-  char * line = strdup(connect_string);
+  char * line = my_strdup(connect_string,MYF(MY_WME));
+  My_auto_ptr<char> ap1(line);
   if(line == 0){
     SET_ERROR(handle, NDB_MGM_OUT_OF_MEMORY, "");
     return -1;
@@ -236,7 +239,6 @@ parse_connect_string(const char * connect_string,
   
   char * tmp = strchr(line, ':');
   if(tmp == 0){
-    free(line);
     SET_ERROR(handle, NDB_MGM_OUT_OF_MEMORY, "");
     return -1;
   }
@@ -244,17 +246,13 @@ parse_connect_string(const char * connect_string,
   
   int port = 0;
   if(sscanf(tmp, "%d", &port) != 1){
-    free(line);
     SET_ERROR(handle, NDB_MGM_ILLEGAL_PORT_NUMBER, "");
     return -1;
   }
   
-  if(handle->hostname != 0)
-    free(handle->hostname);
-
-  handle->hostname = strdup(line);
+  my_free(handle->hostname,MYF(MY_ALLOW_ZERO_PTR));
+  handle->hostname = my_strdup(line,MYF(MY_WME));
   handle->port = port;
-  free(line);
   return 0;
 }
 
@@ -1656,8 +1654,11 @@ ndb_mgm_alloc_nodeid(NdbMgmHandle handle, unsigned int version, unsigned *pnodei
   do {
     const char * buf;
     if(!prop->get("result", &buf) || strcmp(buf, "Ok") != 0){
+      BaseString err;
+      err.assfmt("Could not alloc node id at %s port %d: %s",
+		 handle->hostname, handle->port, buf);
       setError(handle, NDB_MGM_COULD_NOT_CONNECT_TO_SOCKET, __LINE__,
-	       "Could not alloc node id: %s",buf);
+	       err.c_str());
       break;
     }
     if(!prop->get("nodeid", pnodeid) != 0){
