@@ -10,7 +10,7 @@ to_host=`hostname`
 cc=gcc
 ccc=gcc
 EXTRA_CONFIG="--without-perl"
-
+AM_MAKEFLAGS="-j 2"
 echo "Building on $to_host"
 
 rm -rf $BD/*
@@ -34,7 +34,7 @@ umask 002
 CC=$cc CXX=$ccc 
 export CC CXX
 
-gmake -k distclean
+gmake -j 2 -k distclean
 rm -f NEW-RPMS/*
 
 # Stop on error
@@ -61,9 +61,9 @@ aclocal; autoheader; aclocal; automake; autoconf
  --enable-thread-safe-client \
  --without-berkeley-db
 
-gmake -j 2 # --jobs=4 does not work.
+gmake -j 2 .
 
-time gmake distcheck \
+time gmake -j 2 distcheck \
  EXTRA_CONF_ARGS="--with-unix-socket-path=/var/tmp/mysql.sock --with-low-memory $EXTRA_CONFIG"
 
 sh $BD/Build-tools/Do-rpm

@@ -19,6 +19,7 @@ DBD_MYSQL_VERSION="1.2209"
 MAKERPM="$rpmdir/SOURCES/makerpm.pl"
 
 #######################
+AM_MAKEFLAGS="-j 2"
 
 VER=`grep "AM_INIT_AUTOMAKE(mysql, " $bpath/configure.in | \
  sed -e 's;AM_INIT_AUTOMAKE(mysql, ;;' -e 's;);;'`

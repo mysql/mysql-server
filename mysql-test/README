@@ -1,0 +1,29 @@
+This directory contains a test suite for mysql daemon. To run
+the currently existing test cases, simply execute ./mysql-test-run in
+this directory. It will fire up the newly built mysqld and test it.
+Note that you do not have to have to do make install, and you could
+actually have a co-existing MySQL installation - the tests will not
+conflict with it.
+
+All tests must pass. If one or more of them fail on your system, please
+report the details to bugs@lists.mysql.com
+
+You can create your own test cases. To create a test case:
+
+ cd t
+ vi test_case_name.test
+
+ in the file, put a set of SQL commands that will create some tables,
+ load test data, run some queries to manipulate it.
+
+ then do ./mysql-test-run -record test_case_name
+ and look at r/test_case_name.result - edit the result if necessary. If you
+ have to edit it, you have found a bug.
+
+To submit your test case, put your .test file and .result file(s) into
+a tar.gz archive, add a README that explains the problem, ftp the 
+archive to ftp://support.mysql.com/pub/mysql/secret/ and send  a mail
+to bugs@lists.mysql.com
+
+
+
