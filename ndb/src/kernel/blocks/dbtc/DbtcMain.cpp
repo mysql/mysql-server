@@ -8646,9 +8646,9 @@ void Dbtc::initScanrec(ScanRecordPtr scanptr,
   scanptr.p->scanTableref = tabptr.i;
   scanptr.p->scanSchemaVersion = scanTabReq->tableSchemaVersion;
   scanptr.p->scanParallel = scanParallel;
-  scanptr.p->noOprecPerFrag = noOprecPerFrag;
-  scanptr.p->first_batch_size= scanTabReq->first_batch_size;
-  scanptr.p->batch_byte_size= scanTabReq->batch_byte_size;
+  scanptr.p->first_batch_size_rows = scanTabReq->first_batch_size;
+  scanptr.p->batch_byte_size = scanTabReq->batch_byte_size;
+  scanptr.p->batch_size_rows = noOprecPerFrag;
 
   Uint32 tmp = 0;
   const UintR ri = scanTabReq->requestInfo;
@@ -8672,7 +8672,6 @@ void Dbtc::initScanrec(ScanRecordPtr scanptr,
     ndbrequire(list.seize(ptr));
     ptr.p->scanRec = scanptr.i;
     ptr.p->scanFragId = 0;
-    ptr.p->scanFragConcurrency = noOprecPerFrag;
     ptr.p->m_apiPtr = cdata[i];
   }//for
 
@@ -8945,6 +8944,25 @@ void Dbtc::execDIGETPRIMCONF(Signal* signal)
   scanptr.i = scanFragptr.p->scanRec;
   ptrCheckGuard(scanptr, cscanrecFileSize, scanRecord);
 
+  /**
+   * This must be false as select count(*) otherwise
+   *   can "pass" committing on backup fragments and
+   *   get incorrect row count
+   */
+  if(false && ScanFragReq::getReadCommittedFlag(scanptr.p->scanRequestInfo))
+  {
+    jam();
+    Uint32 max = 3+signal->theData[6];
+    Uint32 nodeid = getOwnNodeId();
+    for(Uint32 i = 3; i<max; i++)
+      if(signal->theData[i] ==  nodeid)
+      {
+	jam();
+	tnodeid = nodeid;
+	break;
+      }
+  }
+  
   {
     /**
      * Check table
@@ -9141,6 +9159,7 @@ void Dbtc::execSCAN_FRAGCONF(Signal* signal)
 
   const ScanFragConf * const conf = (ScanFragConf*)&signal->theData[0];
   const Uint32 noCompletedOps = conf->completedOps;
+  const Uint32 status = conf->fragmentCompleted;
 
   scanFragptr.i = conf->senderData;
   c_scan_frag_pool.getPtr(scanFragptr);
@@ -9163,11 +9182,9 @@ void Dbtc::execSCAN_FRAGCONF(Signal* signal)
   
   ndbrequire(scanFragptr.p->scanFragState == ScanFragRec::LQH_ACTIVE);
   
-  const Uint32 status = conf->fragmentCompleted;
-  
   if(scanptr.p->scanState == ScanRecord::CLOSING_SCAN){
     jam();
-    if(status == ZFALSE){
+    if(status == 0){
       /**
        * We have started closing = we sent a close -> ignore this
        */
@@ -9184,11 +9201,11 @@ void Dbtc::execSCAN_FRAGCONF(Signal* signal)
     return;
   }
 
-  if(status == ZCLOSED && scanptr.p->scanNextFragId < scanptr.p->scanNoFrag){
+  if(noCompletedOps == 0 && status != 0 && 
+     scanptr.p->scanNextFragId < scanptr.p->scanNoFrag){
     /**
      * Start on next fragment
      */
-    ndbrequire(noCompletedOps == 0);
     scanFragptr.p->scanFragState = ScanFragRec::WAIT_GET_PRIMCONF; 
     scanFragptr.p->startFragTimer(ctcTimer);
 
@@ -9218,6 +9235,7 @@ void Dbtc::execSCAN_FRAGCONF(Signal* signal)
     scanptr.p->m_queued_count++;
   }
 
+  scanFragptr.p->m_scan_frag_conf_status = status;
   scanFragptr.p->m_ops = noCompletedOps;
   scanFragptr.p->m_totalLen = total_len;
   scanFragptr.p->scanFragState = ScanFragRec::QUEUED_FOR_DELIVERY;
@@ -9311,7 +9329,6 @@ void Dbtc::execSCAN_NEXTREQ(Signal* signal)
     /*********************************************************************
      * APPLICATION IS CLOSING THE SCAN.
      **********************************************************************/
-    ndbrequire(len == 0);
     close_scan_req(signal, scanptr, true);
     return;
   }//if
@@ -9330,11 +9347,12 @@ void Dbtc::execSCAN_NEXTREQ(Signal* signal)
   // Copy op ptrs so I dont overwrite them when sending...
   memcpy(signal->getDataPtrSend()+25, signal->getDataPtr()+4, 4 * len);
 
-  ScanFragNextReq * nextReq = (ScanFragNextReq*)&signal->theData[0];
-  nextReq->closeFlag = ZFALSE;
-  nextReq->transId1 = apiConnectptr.p->transid[0];
-  nextReq->transId2 = apiConnectptr.p->transid[1];
-  nextReq->batch_size_bytes= scanP->batch_byte_size;
+  ScanFragNextReq tmp;
+  tmp.closeFlag = ZFALSE;
+  tmp.transId1 = apiConnectptr.p->transid[0];
+  tmp.transId2 = apiConnectptr.p->transid[1];
+  tmp.batch_size_rows = scanP->batch_size_rows;
+  tmp.batch_size_bytes = scanP->batch_byte_size;
 
   ScanFragList running(c_scan_frag_pool, scanP->m_running_scan_frags);
   ScanFragList delivered(c_scan_frag_pool, scanP->m_delivered_scan_frags);
@@ -9344,15 +9362,37 @@ void Dbtc::execSCAN_NEXTREQ(Signal* signal)
     c_scan_frag_pool.getPtr(scanFragptr);
     ndbrequire(scanFragptr.p->scanFragState == ScanFragRec::DELIVERED);
     
-    scanFragptr.p->scanFragState = ScanFragRec::LQH_ACTIVE;
     scanFragptr.p->startFragTimer(ctcTimer);
-
     scanFragptr.p->m_ops = 0;
-    nextReq->senderData = scanFragptr.i;
-    nextReq->batch_size_rows= scanFragptr.p->scanFragConcurrency;
 
-    sendSignal(scanFragptr.p->lqhBlockref, GSN_SCAN_NEXTREQ, signal, 
-	       ScanFragNextReq::SignalLength, JBB);
+    if(scanFragptr.p->m_scan_frag_conf_status)
+    {
+      /**
+       * last scan was complete
+       */
+      jam();
+      ndbrequire(scanptr.p->scanNextFragId < scanptr.p->scanNoFrag);
+      scanFragptr.p->scanFragState = ScanFragRec::WAIT_GET_PRIMCONF; 
+      
+      tcConnectptr.i = scanptr.p->scanTcrec;
+      ptrCheckGuard(tcConnectptr, ctcConnectFilesize, tcConnectRecord);
+      scanFragptr.p->scanFragId = scanptr.p->scanNextFragId++;
+      signal->theData[0] = tcConnectptr.p->dihConnectptr;
+      signal->theData[1] = scanFragptr.i;
+      signal->theData[2] = scanptr.p->scanTableref;
+      signal->theData[3] = scanFragptr.p->scanFragId;
+      sendSignal(cdihblockref, GSN_DIGETPRIMREQ, signal, 4, JBB);
+    }
+    else
+    {
+      jam();
+      scanFragptr.p->scanFragState = ScanFragRec::LQH_ACTIVE;
+      ScanFragNextReq * req = (ScanFragNextReq*)signal->getDataPtrSend();
+      * req = tmp;
+      req->senderData = scanFragptr.i;
+      sendSignal(scanFragptr.p->lqhBlockref, GSN_SCAN_NEXTREQ, signal, 
+		 ScanFragNextReq::SignalLength, JBB);
+    }
     delivered.remove(scanFragptr);
     running.add(scanFragptr);
   }//for
@@ -9416,7 +9456,7 @@ Dbtc::close_scan_req(Signal* signal, ScanRecordPtr scanPtr, bool req_received){
       ndbrequire(curr.p->scanFragState == ScanFragRec::DELIVERED);
       delivered.remove(curr);
       
-      if(curr.p->m_ops > 0){
+      if(curr.p->m_ops > 0 && curr.p->m_scan_frag_conf_status == 0){
 	jam();
 	running.add(curr);
 	curr.p->scanFragState = ScanFragRec::LQH_ACTIVE;
@@ -9551,7 +9591,7 @@ void Dbtc::sendScanFragReq(Signal* signal,
   req->transId1 = apiConnectptr.p->transid[0];
   req->transId2 = apiConnectptr.p->transid[1];
   req->clientOpPtr = scanFragP->m_apiPtr;
-  req->batch_size_rows= scanFragP->scanFragConcurrency;
+  req->batch_size_rows= scanP->batch_size_rows;
   req->batch_size_bytes= scanP->batch_byte_size;
   sendSignal(scanFragP->lqhBlockref, GSN_SCAN_FRAGREQ, signal,
              ScanFragReq::SignalLength, JBB);
@@ -9573,6 +9613,8 @@ void Dbtc::sendScanTabConf(Signal* signal, ScanRecordPtr scanPtr) {
     jam();
     ops += 21;
   }
+
+  Uint32 left = scanPtr.p->scanNoFrag - scanPtr.p->scanNextFragId;
   
   ScanTabConf * conf = (ScanTabConf*)&signal->theData[0];
   conf->apiConnectPtr = apiConnectptr.p->ndbapiConnect;
@@ -9588,24 +9630,25 @@ void Dbtc::sendScanTabConf(Signal* signal, ScanRecordPtr scanPtr) {
       ScanFragRecPtr curr = ptr; // Remove while iterating...
       queued.next(ptr);
       
+      bool done = curr.p->m_scan_frag_conf_status && --left;
+
       * ops++ = curr.p->m_apiPtr;
-      * ops++ = curr.i;
+      * ops++ = done ? RNIL : curr.i;
       * ops++ = (curr.p->m_totalLen << 10) + curr.p->m_ops;
       
       queued.remove(curr); 
-      if(curr.p->m_ops > 0){
+      if(!done){
 	delivered.add(curr);
 	curr.p->scanFragState = ScanFragRec::DELIVERED;
 	curr.p->stopFragTimer();
       } else {
-	(* --ops) = ScanTabConf::EndOfData; ops++;
 	c_scan_frag_pool.release(curr);
 	curr.p->scanFragState = ScanFragRec::COMPLETED;
 	curr.p->stopFragTimer();
       }
     }
   }
-
+  
   if(scanPtr.p->m_delivered_scan_frags.isEmpty() && 
      scanPtr.p->m_running_scan_frags.isEmpty()){
     conf->requestInfo = op_count | ScanTabConf::EndOfData;    
@@ -10424,9 +10467,8 @@ Dbtc::execDUMP_STATE_ORD(Signal* signal)
 	      sfp.i,
 	      sfp.p->scanFragState,
 	      sfp.p->scanFragId);
-    infoEvent(" nodeid=%d, concurr=%d, timer=%d",
+    infoEvent(" nodeid=%d, timer=%d",
 	      refToNode(sfp.p->lqhBlockref),
-	      sfp.p->scanFragConcurrency,
 	      sfp.p->scanFragTimer);
   }
 
@@ -10504,7 +10546,7 @@ Dbtc::execDUMP_STATE_ORD(Signal* signal)
 	      sp.p->scanAiLength,
 	      sp.p->scanParallel,
 	      sp.p->scanReceivedOperations,
-	      sp.p->noOprecPerFrag);
+	      sp.p->batch_size_rows);
     infoEvent(" schv=%d, tab=%d, sproc=%d",
 	      sp.p->scanSchemaVersion,
 	      sp.p->scanTableref,

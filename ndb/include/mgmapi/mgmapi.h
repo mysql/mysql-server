@@ -356,11 +356,26 @@ extern "C" {
   /** 
    * Create a handle to a management server
    *
-   * @return                A management handle<br>
-   *                        or NULL if no management handle could be created. 
+   * @return                 A management handle<br>
+   *                         or NULL if no management handle could be created. 
    */
   NdbMgmHandle ndb_mgm_create_handle();
   
+  /** 
+   * Set connecst string to management server
+   *
+   * @param   handle         Management handle
+   * @param   connect_string Connect string to the management server, 
+   *
+   * @return                -1 on error.
+   */
+  int ndb_mgm_set_connectstring(NdbMgmHandle handle,
+				const char *connect_string);
+
+  int ndb_mgm_get_configuration_nodeid(NdbMgmHandle handle);
+  int ndb_mgm_get_connected_port(NdbMgmHandle handle);
+  const char *ndb_mgm_get_connected_host(NdbMgmHandle handle);
+
   /**
    * Destroy a management server handle
    *
@@ -378,11 +393,10 @@ extern "C" {
    * Connect to a management server
    *
    * @param   handle        Management handle.
-   * @param   mgmsrv        Hostname and port of the management server, 
-   *                        "hostname:port".
    * @return                -1 on error.
    */
-  int ndb_mgm_connect(NdbMgmHandle handle, const char * mgmsrv);
+  int ndb_mgm_connect(NdbMgmHandle handle, int no_retries,
+		      int retry_delay_in_seconds, int verbose);
   
   /**
    * Disconnect from a management server
@@ -709,9 +723,7 @@ extern "C" {
   void ndb_mgm_destroy_configuration(struct ndb_mgm_configuration *);
 
   int ndb_mgm_alloc_nodeid(NdbMgmHandle handle,
-			   unsigned version,
-			   unsigned *pnodeid,
-			   int nodetype);
+			   unsigned version, int nodetype);
   /**
    * Config iterator
    */

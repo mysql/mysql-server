@@ -17,7 +17,6 @@
 #include <ndb_global.h>
 #include <ndb_opts.h>
 
-#include <LocalConfig.hpp>
 #include "Configuration.hpp"
 #include <ErrorHandlingMacros.hpp>
 #include "GlobalData.hpp"
@@ -35,6 +34,7 @@
 
 #include <kernel_types.h>
 #include <ndb_limits.h>
+#include <ndbapi_limits.h>
 #include "pc.hpp"
 #include <LogLevel.hpp>
 #include <NdbSleep.h>
@@ -108,7 +108,7 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
 bool
 Configuration::init(int argc, char** argv)
 {  
-  const char *load_default_groups[]= { "ndbd",0 };
+  const char *load_default_groups[]= { "mysql_cluster","ndbd",0 };
   load_defaults("my",load_default_groups,&argc,&argv);
 
   int ho_error;
@@ -189,7 +189,7 @@ Configuration::closeConfiguration(){
 }
 
 void
-Configuration::fetch_configuration(LocalConfig &local_config){
+Configuration::fetch_configuration(){
   /**
    * Fetch configuration from management server
    */
@@ -199,8 +199,17 @@ Configuration::fetch_configuration(LocalConfig &local_config){
 
   m_mgmd_port= 0;
   m_mgmd_host= 0;
-  m_config_retriever= new ConfigRetriever(local_config, NDB_VERSION, NODE_TYPE_DB);
-  if(m_config_retriever->do_connect() == -1){    
+  m_config_retriever= new ConfigRetriever(getConnectString(),
+					  NDB_VERSION, NODE_TYPE_DB);
+
+  if (m_config_retriever->hasError())
+  {
+    ERROR_SET(fatal, ERR_INVALID_CONFIG,
+	      "Could not connect initialize handle to management server",
+	      m_config_retriever->getErrorString());
+  }
+
+  if(m_config_retriever->do_connect(12,5,1) == -1){
     const char * s = m_config_retriever->getErrorString();
     if(s == 0)
       s = "No error given!";
@@ -215,13 +224,7 @@ Configuration::fetch_configuration(LocalConfig &local_config){
 
   ConfigRetriever &cr= *m_config_retriever;
   
-  if((globalData.ownId = cr.allocNodeId()) == 0){
-    for(Uint32 i = 0; i<3; i++){
-      NdbSleep_SecSleep(3);
-      if((globalData.ownId = cr.allocNodeId()) != 0)
-	break;
-    }
-  }
+  globalData.ownId = cr.allocNodeId(2 /*retry*/,3 /*delay*/);
   
   if(globalData.ownId == 0){
     ERROR_SET(fatal, ERR_INVALID_CONFIG, 
@@ -452,6 +455,7 @@ Configuration::calcSizeAlt(ConfigValues * ownConfig){
   unsigned int noOfTables = 0;
   unsigned int noOfUniqueHashIndexes = 0;
   unsigned int noOfOrderedIndexes = 0;
+  unsigned int noOfTriggers = 0;
   unsigned int noOfReplicas = 0;
   unsigned int noOfDBNodes = 0;
   unsigned int noOfAPINodes = 0;
@@ -476,6 +480,7 @@ Configuration::calcSizeAlt(ConfigValues * ownConfig){
     { CFG_DB_NO_TABLES, &noOfTables, false },
     { CFG_DB_NO_ORDERED_INDEXES, &noOfOrderedIndexes, false },
     { CFG_DB_NO_UNIQUE_HASH_INDEXES, &noOfUniqueHashIndexes, false },
+    { CFG_DB_NO_TRIGGERS, &noOfTriggers, true },
     { CFG_DB_NO_REPLICAS, &noOfReplicas, false },
     { CFG_DB_NO_ATTRIBUTES, &noOfAttributes, false },
     { CFG_DB_NO_OPS, &noOfOperations, false },
@@ -584,6 +589,18 @@ Configuration::calcSizeAlt(ConfigValues * ownConfig){
   ConfigValues::Iterator it2(*ownConfig, db.m_config);
   it2.set(CFG_DB_NO_TABLES, noOfTables);
   it2.set(CFG_DB_NO_ATTRIBUTES, noOfAttributes);
+  {
+    Uint32 neededNoOfTriggers =   /* types: Insert/Update/Delete/Custom */
+      3 * noOfUniqueHashIndexes + /* for unique hash indexes, I/U/D */
+      3 * NDB_MAX_ACTIVE_EVENTS + /* for events in suma, I/U/D */
+      3 * noOfTables +            /* for backup, I/U/D */
+      noOfOrderedIndexes;         /* for ordered indexes, C */
+    if (noOfTriggers < neededNoOfTriggers)
+    {
+      noOfTriggers= neededNoOfTriggers;
+      it2.set(CFG_DB_NO_TRIGGERS, noOfTriggers);
+    }
+  }
 
   /**
    * Do size calculations

@@ -222,6 +222,10 @@ max-time: 500
 cmd: testScan
 args: -n ScanRead488 -l 10 T6 
 
+max-time: 500
+cmd: testScan
+args: -n ScanRead488Timeout -l 10 T6 
+
 max-time: 600
 cmd: testScan
 args: -n ScanRead40 -l 100 T2 
