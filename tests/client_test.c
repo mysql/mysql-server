@@ -1829,6 +1829,63 @@ static void test_select()
 }
 
 /*
+  Test for BUG#3420 ("select id1,value1 from t where id=? or value=?" 
+  returns all rows in the table)
+*/
+static void test_ps_conj_select()
+{
+  MYSQL_STMT *stmt;
+  int        rc;
+  MYSQL_BIND bind[2];
+  long int   int_data;
+  char       str_data[32]; 
+  unsigned long str_length;
+  myheader("test_ps_conj_select");
+  
+  rc= mysql_query(mysql, "drop table if exists t1");
+  myquery(rc);
+  
+  rc= mysql_query(mysql, "create table t1 (id1 int(11) NOT NULL default '0',"
+                         "value2 varchar(100), value1 varchar(100))");
+  myquery(rc);
+
+  rc= mysql_query(mysql, "insert into t1 values (1,'hh','hh'),(2,'hh','hh'),"
+                  "(1,'ii','ii'),(2,'ii','ii')");
+  myquery(rc);
+	
+  strmov(query, "select id1,value1 from t1 where id1=? or value1=?");
+  stmt= mysql_simple_prepare(mysql, query);
+  check_stmt(stmt);
+
+  verify_param_count(stmt,2);
+
+  bind[0].buffer_type= MYSQL_TYPE_LONG;
+  bind[0].buffer= (char *)&int_data;
+  bind[0].is_null= 0;
+  bind[0].length= 0;
+
+  bind[1].buffer_type= MYSQL_TYPE_VAR_STRING;
+  bind[1].buffer= (char *)str_data;
+  bind[1].buffer_length= array_elements(str_data); 
+  bind[1].is_null= 0;
+  bind[1].length= &str_length;
+		
+  rc = mysql_bind_param(stmt,bind);
+  check_execute(stmt, rc);
+
+  int_data= 1;
+  strcpy(str_data, "hh"); 
+  str_length= strlen(str_data);
+
+  rc = mysql_execute(stmt);
+  check_execute(stmt, rc);
+
+  assert(my_process_stmt_result(stmt) == 3);
+
+  mysql_stmt_close(stmt);
+}
+
+/*
   test BUG#1115 (incorrect string parameter value allocation)
 */
 static void test_bug1115()
@@ -9508,6 +9565,7 @@ int main(int argc, char **argv)
     test_select_prepare();  /* prepare select - protocol_prep debug */
     test_select();          /* simple select test */
     test_select_version();  /* select with variables */
+    test_ps_conj_select();  /* prepare select with "where a=? or b=?" */
     test_select_show_table();/* simple show prepare */
 #if NOT_USED
   /* 
