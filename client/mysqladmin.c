@@ -28,9 +28,9 @@
 #include <my_pthread.h>				/* because of signal()	*/
 #endif
 
-#define ADMIN_VERSION "8.17"
+#define ADMIN_VERSION "8.18"
 #define MAX_MYSQL_VAR 64
-#define MAX_TIME_TO_WAIT 3600			/* Wait for shutdown */
+#define SHUTDOWN_DEF_TIMEOUT 3600		/* Wait for shutdown */
 #define MAX_TRUNC_LENGTH 3
 
 char truncated_var_names[MAX_MYSQL_VAR][MAX_TRUNC_LENGTH];
@@ -40,7 +40,7 @@ static int interval=0;
 static my_bool option_force=0,interrupted=0,new_line=0,
                opt_compress=0, opt_relative=0, opt_verbose=0, opt_vertical=0;
 static uint tcp_port = 0, option_wait = 0, option_silent=0;
-static ulong opt_connect_timeout;
+static ulong opt_connect_timeout, opt_shutdown_timeout;
 static my_string unix_port=0;
 
 /* When using extended-status relatively, ex_val_max_len is the estimated
@@ -134,6 +134,8 @@ static struct option long_options[] = {
 
 CHANGEABLE_VAR changeable_vars[] = {
   { "connect_timeout", (long*) &opt_connect_timeout, 0, 0, 3600*12, 0, 1},
+  { "shutdown_timeout", (long*) &opt_shutdown_timeout, SHUTDOWN_DEF_TIMEOUT, 0,
+    3600*12, 0, 1},
   { 0, 0, 0, 0, 0, 0, 0}  
 };
 
@@ -148,6 +150,7 @@ int main(int argc,char *argv[])
   MY_INIT(argv[0]);
   mysql_init(&mysql);
   load_defaults("my",load_default_groups,&argc,&argv);
+  set_all_changeable_vars( changeable_vars );
 
   while ((c=getopt_long(argc,argv,"h:i:p::u:#::P:sS:Ct:fq?vVw::WrEO:",
 			long_options, &option_index)) != EOF)
@@ -1125,7 +1128,7 @@ static void wait_pidfile(char *pidfile)
   uint count=0;
 
   system_filename(buff,pidfile);
-  while ((fd = open(buff, O_RDONLY)) >= 0 && count++ < MAX_TIME_TO_WAIT)
+  while ((fd = open(buff, O_RDONLY)) >= 0 && count++ < opt_shutdown_timeout)
   {
     close(fd);
     sleep(1);

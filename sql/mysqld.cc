@@ -2716,6 +2716,14 @@ struct show_var_st init_vars[]= {
   {"have_raid",		      (char*) &have_raid,		    SHOW_HAVE},
   {"have_ssl",		      (char*) &have_ssl,		    SHOW_HAVE},
   {"init_file",               (char*) &opt_init_file,               SHOW_CHAR_PTR},
+#ifdef HAVE_INNOBASE_DB
+  {"innobase_data_file_path", innobase_data_file_path,		    SHOW_CHAR},
+  {"innobase_data_home_dir",  innobase_data_home_dir,		    SHOW_CHAR},
+  {"innobase_flush_log_at_trx_commit", (char*) &innobase_flush_log_at_trx_commit, SHOW_MY_BOOL},
+  {"innobase_log_arch_dir",   innobase_log_arch_dir, SHOW_CHAR},
+  {"innobase_log_archive",    (char*) &innobase_log_archive, 	    SHOW_MY_BOOL},
+  {"innobase_log_group_home_dir", innobase_log_group_home_dir,      SHOW_CHAR},
+#endif
   {"interactive_timeout",     (char*) &net_interactive_timeout,     SHOW_LONG},
   {"join_buffer_size",        (char*) &join_buff_size,              SHOW_LONG},
   {"key_buffer_size",         (char*) &keybuff_size,                SHOW_LONG},
@@ -2961,12 +2969,19 @@ static void usage(void)
   --bdb-tmpdir=directory  Berkeley DB tempfile name\n\
   --skip-bdb		  Don't use berkeley db (will save memory)\n\
 ");
-#endif
+#endif /* HAVE_BERKELEY_DB */
 #ifdef HAVE_INNOBASE_DB
   puts("\
-  --skip-innobase	  Don't use innobase (will save memory)\n\
+  --innobase_data_home_dir=dir   The common part for innobase table spaces\n
+  --innobase_data_file_path=dir  Path to individual files and their sizes\n
+  --innobase_flush_log_at_trx_commit[=#]
+				 Set to 0 if you don't want to flush logs\n\
+  --innobase_log_arch_dir=dir	 Where full logs should be archived\n\
+  --innobase_log_archive[=#]	 Set to 1 if you want to have logs archived\n\
+  --innobase_log_group_home_dir=dir  Path to Innobase log files.
+  --skip-innobase	         Don't use innobase (will save memory)\n\
 ");
-#endif
+#endif /* HAVE_INNOBASE_DB */
   print_defaults("my",load_default_groups);
   puts("");
 

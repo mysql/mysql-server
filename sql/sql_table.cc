@@ -1027,6 +1027,7 @@ int mysql_backup_table(THD* thd, TABLE_LIST* table_list)
 				"backup", TL_READ, 0, 0, 0,
 				&handler::backup));
 }
+
 int mysql_restore_table(THD* thd, TABLE_LIST* table_list)
 {
   DBUG_ENTER("mysql_restore_table");
