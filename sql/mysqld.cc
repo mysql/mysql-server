@@ -222,6 +222,7 @@ ulong query_id=1L,long_query_count,long_query_time,aborted_threads,
       delayed_queue_size,delayed_insert_threads,delayed_insert_writes,
       delayed_rows_in_use,delayed_insert_errors,flush_time;
 ulong filesort_rows, filesort_range_count, filesort_scan_count;
+ulong filesort_merge_passes;
 ulong select_range_check_count, select_range_count, select_scan_count;
 ulong select_full_range_join_count,select_full_join_count;
 ulong specialflag=0,opened_tables=0,created_tmp_tables=0,
@@ -2517,6 +2518,7 @@ struct show_var_st status_vars[]= {
   {"Connections",              (char*) &thread_id,              SHOW_LONG_CONST},
   {"Created_tmp_disk_tables",  (char*) &created_tmp_disk_tables,SHOW_LONG},
   {"Created_tmp_tables",       (char*) &created_tmp_tables,     SHOW_LONG},
+  {"Created_tmp_files",	       (char*) &my_tmp_file_created,	SHOW_LONG},
   {"Delayed_insert_threads",   (char*) &delayed_insert_threads, SHOW_LONG},
   {"Delayed_writes",           (char*) &delayed_insert_writes,  SHOW_LONG},
   {"Delayed_errors",           (char*) &delayed_insert_errors,  SHOW_LONG},
@@ -2551,6 +2553,7 @@ struct show_var_st status_vars[]= {
   {"Slave_running",            (char*) &slave_running,          SHOW_BOOL},
   {"Slow_launch_threads",      (char*) &slow_launch_threads,    SHOW_LONG},
   {"Slow_queries",             (char*) &long_query_count,       SHOW_LONG},
+  {"Sort_merge_passes",	       (char*) &filesort_merge_passes,  SHOW_LONG},
   {"Sort_range",	       (char*) &filesort_range_count,   SHOW_LONG},
   {"Sort_rows",		       (char*) &filesort_rows,	        SHOW_LONG},
   {"Sort_scan",		       (char*) &filesort_scan_count,    SHOW_LONG},
