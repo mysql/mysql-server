@@ -1107,6 +1107,7 @@ void Item_sum_count_distinct::make_unique()
 {
   table=0;
   original= 0;
+  use_tree= 0; // to prevent delete_tree call on uninitialized tree
   tree= &tree_base;
 }
 
@@ -1906,6 +1907,7 @@ void Item_func_group_concat::make_unique()
 {
   table=0;
   original= 0;
+  tree_mode= 0; // to prevent delete_tree call on uninitialized tree
   tree= &tree_base;
 }
 
