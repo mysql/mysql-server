@@ -216,7 +216,7 @@ static int find_keyword(LEX *lex, uint len, bool function)
 
 /* make a copy of token before ptr and set yytoklen */
 
-LEX_STRING get_token(LEX *lex,uint length)
+static LEX_STRING get_token(LEX *lex,uint length)
 {
   LEX_STRING tmp;
   yyUnget();			// ptr points now after last token char
@@ -225,8 +225,27 @@ LEX_STRING get_token(LEX *lex,uint length)
   return tmp;
 }
 
-/* Return an unescaped text literal without quotes */
-/* Fix sometimes to do only one scan of the string */
+static LEX_STRING get_quoted_token(LEX *lex,uint length, char quote)
+{
+  LEX_STRING tmp;
+  byte *from, *to, *end;
+  yyUnget();			// ptr points now after last token char
+  tmp.length=lex->yytoklen=length;
+  tmp.str=(char*) lex->thd->alloc(tmp.length+1);
+  for (from= (byte*) lex->tok_start, to= tmp.str, end= to+length ; to != end ;)
+  {
+    if ((*to++= *from++) == quote)
+      from++;					// Skip double quotes
+  }
+  *to= 0;					// End null for safety
+  return tmp;
+}
+
+
+/*
+  Return an unescaped text literal without quotes
+  Fix sometimes to do only one scan of the string
+*/
 
 static char *get_text(LEX *lex)
 {
@@ -663,14 +682,32 @@ int yylex(void *arg)
             lex->ptr += l-1;
           }
         }
+	yylval->lex_str=get_token(lex,yyLength());
       }
       else
 #endif
       {
-	while ((c=yyGet()) && state_map[c] != STATE_USER_VARIABLE_DELIMITER &&
-	       c != (uchar) NAMES_SEP_CHAR) ;
+	uint double_quotes= 0;
+	char quote_char= c;
+	while ((c=yyGet()))
+	{
+	  if (c == quote_char)
+	  {
+	    if (yyPeek() != quote_char)
+	      break;
+	    c=yyGet();
+	    double_quotes++;
+	    continue;
+	  }
+	  if (c == (uchar) NAMES_SEP_CHAR)
+	    break;
+	}
+	if (double_quotes)
+	  yylval->lex_str=get_quoted_token(lex,yyLength() - double_quotes,
+					   quote_char);
+	else
+	  yylval->lex_str=get_token(lex,yyLength());
       }
-      yylval->lex_str=get_token(lex,yyLength());
       if (lex->convert_set)
         lex->convert_set->convert((char*) yylval->lex_str.str,lex->yytoklen);
       if (state_map[c] == STATE_USER_VARIABLE_DELIMITER)
