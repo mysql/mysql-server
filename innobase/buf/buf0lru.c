@@ -125,11 +125,13 @@ buf_LRU_search_and_free_block(
 
 		if (buf_flush_ready_for_replace(block)) {
 
+#ifdef UNIV_DEBUG
 			if (buf_debug_prints) {
 				fprintf(stderr,
 				"Putting space %lu page %lu to free list\n",
 					block->space, block->offset);
 			}
+#endif /* UNIV_DEBUG */
 			
 			buf_LRU_block_remove_hashed_page(block);
 
@@ -705,6 +707,7 @@ buf_LRU_block_free_hashed_page(
 	buf_LRU_block_free_non_file_page(block);
 }
 				
+#ifdef UNIV_DEBUG
 /**************************************************************************
 Validates the LRU list. */
 
@@ -835,3 +838,4 @@ buf_LRU_print(void)
 
 	mutex_exit(&(buf_pool->mutex));
 }
+#endif /* UNIV_DEBUG */

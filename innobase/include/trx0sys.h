@@ -268,6 +268,7 @@ the magic number shows it valid. */
 void
 trx_sys_print_mysql_binlog_offset(void);
 /*===================================*/
+#ifdef UNIV_HOTBACKUP
 /*********************************************************************
 Prints to stderr the MySQL binlog info in the system header if the
 magic number shows it valid. */
@@ -277,6 +278,7 @@ trx_sys_print_mysql_binlog_offset_from_page(
 /*========================================*/
 	byte*	page);	/* in: buffer containing the trx system header page,
 			i.e., page number TRX_SYS_PAGE_NO in the tablespace */
+#endif /* UNIV_HOTBACKUP */
 /*********************************************************************
 Prints to stderr the MySQL master log offset info in the trx system header if
 the magic number shows it valid. */

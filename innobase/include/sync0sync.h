@@ -127,6 +127,7 @@ void
 sync_print(
 /*=======*/
 	FILE*	file);		/* in: file where to print */
+#ifdef UNIV_DEBUG
 /**********************************************************************
 Checks that the mutex has been initialized. */
 
@@ -134,6 +135,7 @@ ibool
 mutex_validate(
 /*===========*/
 	mutex_t*	mutex);
+#endif /* UNIV_DEBUG */
 /**********************************************************************
 Sets the mutex latching level field. */
 

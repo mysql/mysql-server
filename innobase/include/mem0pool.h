@@ -83,6 +83,7 @@ Releases the mem pool mutex. */
 void
 mem_pool_mutex_exit(void);
 /*=====================*/
+#ifdef UNIV_DEBUG
 /************************************************************************
 Validates a memory pool. */
 
@@ -99,7 +100,7 @@ mem_pool_print_info(
 /*================*/
 	FILE*	        outfile,/* in: output file to write to */
 	mem_pool_t*	pool);	/* in: memory pool */
-
+#endif /* UNIV_DEBUG */
 
 #ifndef UNIV_NONINL
 #include "mem0pool.ic"

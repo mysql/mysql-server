@@ -250,6 +250,7 @@ mtr_memo_contains(
 	mtr_t*	mtr,	/* in: mtr */
 	void*	object,	/* in: object to search */
 	ulint	type);	/* in: type of object */
+#ifdef UNIV_DEBUG
 /*************************************************************
 Prints info of an mtr handle. */
 
@@ -257,6 +258,7 @@ void
 mtr_print(
 /*======*/
 	mtr_t*	mtr);	/* in: mtr */
+#endif /* UNIV_DEBUG */
 /*######################################################################*/
 
 #define	MTR_BUF_MEMO_SIZE	200	/* number of slots in memo */
