@@ -125,6 +125,16 @@ int runCreateTheTable(NDBT_Context* ctx, NDBT_Step* step){
   return NDBT_OK;
 }
 
+int runDropTheTable(NDBT_Context* ctx, NDBT_Step* step){
+  Ndb* pNdb = GETNDB(step);  
+  const NdbDictionary::Table* pTab = ctx->getTab();
+  
+  // Try to create table in db
+  pNdb->getDictionary()->dropTable(pTab->getName());
+  
+  return NDBT_OK;
+}
+
 int runCreateTableWhenDbIsFull(NDBT_Context* ctx, NDBT_Step* step){
   Ndb* pNdb = GETNDB(step);
   int result = NDBT_OK;
@@ -547,6 +557,7 @@ int runTestFragmentTypes(NDBT_Context* ctx, NDBT_Step* step){
   if (newTab.createTableInDb(pNdb) != 0){
     ndbout << newTab.getName() << " could not be created"
 	   << ", fragmentType = "<<fragTtype <<endl;
+    ndbout << pNdb->getDictionary()->getNdbError() << endl;
     return NDBT_FAILED;
   }
   
@@ -1583,7 +1594,7 @@ TESTCASE("CreateTableWhenDbIsFull",
   INITIALIZER(runFillTable);
   INITIALIZER(runCreateTableWhenDbIsFull);
   INITIALIZER(runDropTableWhenDbIsFull);
-  FINALIZER(runClearTable);
+  FINALIZER(runDropTheTable);
 }
 TESTCASE("FragmentTypeSingle", 
 	 "Create the table with fragment type Single\n"){

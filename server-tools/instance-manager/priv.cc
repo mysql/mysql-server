@@ -16,6 +16,10 @@
 
 #include "priv.h"
 
+/*
+  The following string must be less then 80 characters, as
+  mysql_connection.cc relies on it
+*/
 const char mysqlmanager_version[] = "0.2-alpha";
 
 const int mysqlmanager_version_length= sizeof(mysqlmanager_version) - 1;

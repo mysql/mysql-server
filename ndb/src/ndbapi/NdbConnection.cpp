@@ -1447,6 +1447,7 @@ NdbConnection::receiveTC_COMMITREF(NdbApiSignal* aSignal)
     setOperationErrorCodeAbort(ref->errorCode);
     theCommitStatus = Aborted;
     theCompletionStatus = CompletedFailure;
+    theReturnStatus = ReturnFailure;
     return 0;
   } else {
 #ifdef NDB_NO_DROPPED_SIGNAL
@@ -1496,6 +1497,7 @@ NdbConnection::receiveTCROLLBACKREF(NdbApiSignal* aSignal)
     setOperationErrorCodeAbort(aSignal->readData(4));
     theCommitStatus = Aborted;
     theCompletionStatus = CompletedFailure;
+    theReturnStatus = ReturnFailure;
     return 0;
   } else {
 #ifdef NDB_NO_DROPPED_SIGNAL
@@ -1584,6 +1586,7 @@ from other transactions.
 	    done = 1;
 	    tOp->setErrorCode(4119);
 	    theCompletionStatus = CompletedFailure;
+	    theReturnStatus = NdbConnection::ReturnFailure;
 	  }	    
 	}
 	tNoComp += done;
@@ -1613,6 +1616,7 @@ from other transactions.
 /**********************************************************************/
       theError.code = 4011;
       theCompletionStatus = CompletedFailure;
+      theReturnStatus = NdbConnection::ReturnFailure;
       theCommitStatus = Aborted;
       return 0;
     }//if
@@ -1672,6 +1676,7 @@ NdbConnection::receiveTCKEY_FAILCONF(const TcKeyFailConf * failConf)
       case NdbOperation::OpenScanRequest:
       case NdbOperation::OpenRangeScanRequest:
 	theCompletionStatus = CompletedFailure;
+	theReturnStatus = NdbConnection::ReturnFailure;
 	setOperationErrorCodeAbort(4115);
 	tOp = NULL;
 	break;
@@ -1720,6 +1725,7 @@ NdbConnection::receiveTCKEY_FAILREF(NdbApiSignal* aSignal)
       */
       theCompletionStatus = NdbConnection::CompletedSuccess;
     } else {
+      theReturnStatus = NdbConnection::ReturnFailure;
       theCompletionStatus = NdbConnection::CompletedFailure;
       theError.code = 4031;
     }//if
@@ -1779,6 +1785,7 @@ NdbConnection::receiveTCINDXCONF(const TcIndxConf * indxConf,
       theError.code = 4011;
       theCompletionStatus = NdbConnection::CompletedFailure;
       theCommitStatus = NdbConnection::Aborted;
+      theReturnStatus = NdbConnection::ReturnFailure;
       return 0;
     }//if
     if (tNoComp >= tNoSent) {
@@ -1818,6 +1825,7 @@ NdbConnection::receiveTCINDXREF( NdbApiSignal* aSignal)
     /**********************************************************************/
     theCompletionStatus = NdbConnection::CompletedFailure;
     theCommitStatus = NdbConnection::Aborted;
+    theReturnStatus = NdbConnection::ReturnFailure;
     return 0;
   } else {
 #ifdef NDB_NO_DROPPED_SIGNAL
@@ -1891,6 +1899,7 @@ NdbConnection::OpCompleteSuccess()
     setOperationErrorCodeAbort(4113);	// Too many operations, 
                                         // stop waiting for more
     theCompletionStatus = NdbConnection::CompletedFailure;
+    theReturnStatus = NdbConnection::ReturnFailure;
     return 0;
   }//if
 }//NdbConnection::OpCompleteSuccess()
@@ -2020,22 +2029,28 @@ NdbConnection::report_node_failure(Uint32 id){
   const Uint32 len = TcKeyConf::SimpleReadBit | id;
   Uint32 tNoComp = theNoOfOpCompleted;
   Uint32 tNoSent = theNoOfOpSent;
+  Uint32 count = 0;
   while(tmp != 0)
   {
     if(tmp->theReceiver.m_expected_result_length == len && 
        tmp->theReceiver.m_received_result_length == 0)
     {
-      tNoComp++;
+      count++;
       tmp->theError.code = 4119;
     }
     tmp = tmp->next();
   }
+  tNoComp += count;
   theNoOfOpCompleted = tNoComp;
-  if(tNoComp == tNoSent)
+  if(count)
   {
-    theError.code = 4119;
-    theCompletionStatus = NdbConnection::CompletedFailure;    
-    return 1;
+    theReturnStatus = NdbConnection::ReturnFailure;
+    if(tNoComp == tNoSent)
+    {
+      theError.code = 4119;
+      theCompletionStatus = NdbConnection::CompletedFailure;    
+      return 1;
+    }
   }
   return 0;
 }

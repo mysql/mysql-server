@@ -458,6 +458,7 @@ int mysql_prepare_table(THD *thd, HA_CREATE_INFO *create_info,
   int		field_no,dup_no;
   int		select_field_pos,auto_increment=0;
   List_iterator<create_field> it(fields),it2(fields);
+  uint total_uneven_bit_length= 0;
   DBUG_ENTER("mysql_prepare_table");
 
   select_field_pos=fields.elements - select_field_count;
@@ -508,7 +509,8 @@ int mysql_prepare_table(THD *thd, HA_CREATE_INFO *create_info,
       String conv, *tmp;
       for (uint i= 0; (tmp= it++); i++)
       {
-        if (String::needs_conversion(tmp->length(), tmp->charset(), cs, &dummy))
+        if (String::needs_conversion(tmp->length(), tmp->charset(), cs,
+                                     &dummy))
         {
           uint cnv_errs;
           conv.copy(tmp->ptr(), tmp->length(), tmp->charset(), cs, &cnv_errs);
@@ -614,6 +616,9 @@ int mysql_prepare_table(THD *thd, HA_CREATE_INFO *create_info,
     if (!(sql_field->flags & NOT_NULL_FLAG))
       null_fields++;
 
+    if (sql_field->sql_type == FIELD_TYPE_BIT)
+      total_uneven_bit_length+= sql_field->length & 7;
+
     if (check_column_name(sql_field->field_name))
     {
       my_error(ER_WRONG_COLUMN_NAME, MYF(0), sql_field->field_name);
@@ -666,7 +671,7 @@ int mysql_prepare_table(THD *thd, HA_CREATE_INFO *create_info,
   /* If fixed row records, we need one bit to check for deleted rows */
   if (!(db_options & HA_OPTION_PACK_RECORD))
     null_fields++;
-  pos=(null_fields+7)/8;
+  pos= (null_fields + total_uneven_bit_length + 7) / 8;
 
   it.rewind();
   while ((sql_field=it++))
@@ -761,6 +766,14 @@ int mysql_prepare_table(THD *thd, HA_CREATE_INFO *create_info,
     case FIELD_TYPE_DATETIME:
     case FIELD_TYPE_NULL:
       sql_field->pack_flag=f_settype((uint) sql_field->sql_type);
+      break;
+    case FIELD_TYPE_BIT:
+      if (!(file->table_flags() & HA_CAN_BIT_FIELD))
+      {
+        my_error(ER_CHECK_NOT_IMPLEMENTED, MYF(0), "BIT FIELD");
+        DBUG_RETURN(-1);
+      }
+      sql_field->pack_flag= FIELDFLAG_NUMBER;
       break;
     case FIELD_TYPE_TIMESTAMP:
       /* We should replace old TIMESTAMP fields with their newer analogs */
@@ -3686,7 +3699,7 @@ copy_data_between_tables(TABLE *from,TABLE *to,
   free_io_cache(from);
   delete [] copy;				// This is never 0
 
-  if (to->file->end_bulk_insert() && !error)
+  if (to->file->end_bulk_insert() && error <= 0)
   {
     to->file->print_error(my_errno,MYF(0));
     error=1;

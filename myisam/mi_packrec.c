@@ -91,8 +91,10 @@ static void uf_zero(MI_COLUMNDEF *rec,MI_BIT_BUFF *bit_buff,
 		    uchar *to,uchar *end);
 static void uf_blob(MI_COLUMNDEF *rec, MI_BIT_BUFF *bit_buff,
 		    uchar *to, uchar *end);
-static void uf_varchar(MI_COLUMNDEF *rec, MI_BIT_BUFF *bit_buff,
-		       uchar *to, uchar *end);
+static void uf_varchar1(MI_COLUMNDEF *rec, MI_BIT_BUFF *bit_buff,
+                        uchar *to, uchar *end);
+static void uf_varchar2(MI_COLUMNDEF *rec, MI_BIT_BUFF *bit_buff,
+                        uchar *to, uchar *end);
 static void decode_bytes(MI_COLUMNDEF *rec,MI_BIT_BUFF *bit_buff,
 			 uchar *to,uchar *end);
 static uint decode_pos(MI_BIT_BUFF *bit_buff,MI_DECODE_TREE *decode_tree);
@@ -522,14 +524,16 @@ static void (*get_unpack_function(MI_COLUMNDEF *rec))
   case FIELD_BLOB:
     return &uf_blob;
   case FIELD_VARCHAR:
-    return &uf_varchar;
+    if (rec->length <= 256)                      /* 255 + 1 byte length */
+      return &uf_varchar1;
+    return &uf_varchar2;
   case FIELD_LAST:
   default:
     return 0;			/* This should never happend */
   }
 }
 
-	/* De different functions to unpack a field */
+	/* The different functions to unpack a field */
 
 static void uf_zerofill_skip_zero(MI_COLUMNDEF *rec, MI_BIT_BUFF *bit_buff,
 				   uchar *to, uchar *end)
@@ -773,7 +777,22 @@ static void uf_blob(MI_COLUMNDEF *rec, MI_BIT_BUFF *bit_buff,
   }
 }
 
-static void uf_varchar(MI_COLUMNDEF *rec, MI_BIT_BUFF *bit_buff,
+
+static void uf_varchar1(MI_COLUMNDEF *rec, MI_BIT_BUFF *bit_buff,
+		       uchar *to, uchar *end __attribute__((unused)))
+{
+  if (get_bit(bit_buff))
+    to[0]= 0;				/* Zero lengths */
+  else
+  {
+    ulong length=get_bits(bit_buff,rec->space_length_bits);
+    *to= (uchar) length;
+    decode_bytes(rec,bit_buff,to+1,to+1+length);
+  }
+}
+
+
+static void uf_varchar2(MI_COLUMNDEF *rec, MI_BIT_BUFF *bit_buff,
 		       uchar *to, uchar *end __attribute__((unused)))
 {
   if (get_bit(bit_buff))
