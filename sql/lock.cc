@@ -779,7 +779,8 @@ void unlock_global_read_lock(THD *thd)
                    (is_not_commit ||                               \
                     global_read_lock_blocks_commit))
 
-bool wait_if_global_read_lock(THD *thd, bool abort_on_refresh, bool is_not_commit)
+bool wait_if_global_read_lock(THD *thd, bool abort_on_refresh,
+                              bool is_not_commit)
 {
   const char *old_message;
   bool result= 0, need_exit_cond;
