@@ -8145,9 +8145,8 @@ int main(int argc, char **argv)
     test_ts();              /* test for timestamp BR#819 */
     test_bug1115();         /* BUG#1115 */
     test_bug1180();         /* BUG#1180 */
-#if NOT_YET_FIXED
     test_bug1644();	    /* BUG#1644 */
-#endif
+
     end_time= time((time_t *)0);
     total_time+= difftime(end_time, start_time);
     
