@@ -174,6 +174,14 @@ NdbDictionary::Column::getIndexOnlyStorage() const {
   return m_impl.m_indexOnly;
 }
 
+const NdbDictionary::Table * 
+NdbDictionary::Column::getBlobTable() const {
+  NdbTableImpl * t = m_impl.m_blobTable;
+  if (t)
+    return t->m_facade;
+  return 0;
+}
+
 void 
 NdbDictionary::Column::setAutoIncrement(bool val){
   m_impl.m_autoIncrement = val;
