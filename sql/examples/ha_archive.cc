@@ -498,7 +498,8 @@ int ha_archive::create(const char *name, TABLE *table_arg,
     goto error3;
   }
 
-  if (gzclose(archive)) {
+  if (gzclose(archive))
+  {
     error= errno;
     goto error2;
   }
