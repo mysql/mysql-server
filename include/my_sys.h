@@ -293,6 +293,16 @@ typedef struct st_dynamic_string {
 struct st_io_cache;
 typedef int (*IO_CACHE_CALLBACK)(struct st_io_cache*);
 
+#ifdef THREAD
+#define lock_append_buffer(info) \
+ pthread_mutex_lock(&(info)->append_buffer_lock)
+#define unlock_append_buffer(info) \
+ pthread_mutex_unlock(&(info)->append_buffer_lock)
+#else
+#define lock_append_buffer(info)
+#define unlock_append_buffer(info)
+#endif
+
 typedef struct st_io_cache		/* Used when cacheing files */
 {
   my_off_t pos_in_file,end_of_file;
@@ -301,7 +311,7 @@ typedef struct st_io_cache		/* Used when cacheing files */
 			     that will use a buffer allocated somewhere
 			     else
 			   */
-  byte *append_buffer, *append_pos, *append_end;
+  byte *append_buffer, *append_read_pos, *append_write_pos, *append_end;
 /* for append buffer used in READ_APPEND cache */
 #ifdef THREAD
   pthread_mutex_t append_buffer_lock;
@@ -348,10 +358,15 @@ typedef int (*qsort2_cmp)(const void *, const void *, const void *);
    _my_b_get(info))
 
 #define my_b_write(info,Buffer,Count) \
+  ((info)->type != SEQ_READ_APPEND) ? (\
   ((info)->rc_pos + (Count) <= (info)->rc_end ?\
    (memcpy((info)->rc_pos,Buffer,(size_t) (Count)), \
     ((info)->rc_pos+=(Count)),0) :\
-   _my_b_write(info,Buffer,Count))
+   _my_b_write(info,Buffer,Count))) : \
+   ((info)->append_write_pos + (Count) <= (info)->append_end ?\
+   (memcpy((info)->append_write_pos,Buffer,(size_t)Count), \
+   ((info)->append_write_pos+=(Count),0)) : \
+   _my_b_append(info,Buffer,Count))
 
 	/* my_b_write_byte dosn't have any err-check */
 #define my_b_write_byte(info,chr) \
@@ -564,6 +579,7 @@ extern int _my_b_net_read(IO_CACHE *info,byte *Buffer,uint Count);
 extern int _my_b_get(IO_CACHE *info);
 extern int _my_b_async_read(IO_CACHE *info,byte *Buffer,uint Count);
 extern int _my_b_write(IO_CACHE *info,const byte *Buffer,uint Count);
+extern int _my_b_append(IO_CACHE *info,const byte *Buffer,uint Count);
 extern int my_block_write(IO_CACHE *info, const byte *Buffer,
 			  uint Count, my_off_t pos);
 extern int flush_io_cache(IO_CACHE *info);
