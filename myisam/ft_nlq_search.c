@@ -147,15 +147,28 @@ static int walk_and_copy(FT_SUPERDOC *from,
     return 0;
 }
 
-FT_DOCLIST *ft_nlq_search(MI_INFO *info, uint keynr, byte *query,
-			    uint query_len)
+static int FT_DOC_cmp(FT_DOC *a, FT_DOC *b)
+{
+    return sgn(b->weight - a->weight);
+}
+
+FT_DOCLIST *ft_nlq_init_search(void *info, uint keynr, byte *query,
+                               uint query_len, my_bool presort)
 {
   TREE	     *wtree, allocated_wtree;
-  ALL_IN_ONE aio;
+  ALL_IN_ONE  aio;
   FT_DOC     *dptr;
   FT_DOCLIST *dlist=NULL;
+  my_off_t    saved_lastpos=((MI_INFO *)info)->lastpos;
 
-  aio.info=info;
+/* black magic ON */
+  if ((int) (keynr = _mi_check_index((MI_INFO *)info,keynr)) < 0)
+    return NULL;
+  if (_mi_readinfo((MI_INFO *)info,F_RDLCK,1))
+    return NULL;
+/* black magic OFF */
+
+  aio.info=(MI_INFO *)info;
   aio.keynr=keynr;
   aio.keybuff=aio.info->lastkey+aio.info->s->base.max_key_length;
   aio.keyinfo=aio.info->s->keyinfo+keynr;
@@ -167,26 +180,55 @@ FT_DOCLIST *ft_nlq_search(MI_INFO *info, uint keynr, byte *query,
             NULL, NULL);
 
   if(!(wtree=ft_parse(&allocated_wtree,query,query_len)))
-    return NULL;
+    goto err;
 
   if(tree_walk(wtree, (tree_walk_action)&walk_and_match, &aio,
-   	     left_root_right))
-    goto err;
+	     left_root_right))
+    goto err2;
 
-  dlist=(FT_DOCLIST *)my_malloc(sizeof(FT_DOCLIST)+sizeof(FT_DOC)*(aio.dtree.elements_in_tree-1),MYF(0));
+  dlist=(FT_DOCLIST *)my_malloc(sizeof(FT_DOCLIST)+
+                     sizeof(FT_DOC)*(aio.dtree.elements_in_tree-1),MYF(0));
   if(!dlist)
-    goto err;
+    goto err2;
 
   dlist->ndocs=aio.dtree.elements_in_tree;
   dlist->curdoc=-1;
   dlist->info=aio.info;
   dptr=dlist->doc;
 
-  tree_walk(&aio.dtree, (tree_walk_action)&walk_and_copy, &dptr, left_root_right);
+  tree_walk(&aio.dtree, (tree_walk_action)&walk_and_copy, &dptr,
+                                                           left_root_right);
 
-err:
+  if(presort)
+    qsort(dlist->doc, dlist->ndocs, sizeof(FT_DOC), (qsort_cmp)&FT_DOC_cmp);
+
+err2:
   delete_tree(wtree);
   delete_tree(&aio.dtree);
+
+err:
+  ((MI_INFO *)info)->lastpos=saved_lastpos;
   return dlist;
+}
+
+int ft_nlq_read_next(FT_DOCLIST *handler, char *record)
+{
+  MI_INFO *info= (MI_INFO *) handler->info;
+
+  if (++handler->curdoc >= handler->ndocs)
+  {
+    --handler->curdoc;
+    return HA_ERR_END_OF_FILE;
+  }
+
+  info->update&= (HA_STATE_CHANGED | HA_STATE_ROW_CHANGED);
+
+  info->lastpos=handler->doc[handler->curdoc].dpos;
+  if (!(*info->read_record)(info,info->lastpos,record))
+  {
+    info->update|= HA_STATE_AKTIV;		/* Record is read */
+    return 0;
+  }
+  return my_errno;
 }
 

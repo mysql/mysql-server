@@ -137,7 +137,7 @@ static int run_test(const char *filename)
     printf("- Reading rows with key\n");
   for (i=0 ; i < NQUERIES ; i++)
   { FT_DOCLIST *result;
-    result=ft_init_search(file,0,(char*) query[i],strlen(query[i]),1);
+    result=ft_nlq_init_search(file,0,(char*) query[i],strlen(query[i]),1);
     if(!result) {
       printf("Query %d: `%s' failed with errno %3d\n",i,query[i],my_errno);
       continue;
@@ -145,7 +145,7 @@ static int run_test(const char *filename)
     printf("Query %d: `%s'. Found: %d. Top five documents:\n",
 	    i,query[i],result->ndocs);
     for(j=0;j<5;j++) { double w; int err;
-	err=ft_read_next(result, read_record);
+	err=ft_nlq_read_next(result, read_record);
 	if(err==HA_ERR_END_OF_FILE) {
 	    printf("No more matches!\n");
 	    break;
@@ -153,7 +153,7 @@ static int run_test(const char *filename)
 	    printf("ft_read_next %d failed with errno %3d\n",j,my_errno);
 	    break;
 	}
-        w=ft_get_relevance(result);
+        w=ft_nlq_get_relevance(result);
 	if(key_field == FIELD_VARCHAR) {
 	    uint l;
 	    char *p;
@@ -164,7 +164,7 @@ static int run_test(const char *filename)
 	    printf("%10.7f: %.*s\n",w,recinfo[1].length,
 			  recinfo[0].length+read_record);
     }
-    ft_close_search(result);
+    ft_nlq_close_search(result);
   }
 
   if (mi_close(file)) goto err;

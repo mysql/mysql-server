@@ -1914,7 +1914,7 @@ double Item_func_match_nl::val()
   if (join_key)
   {
     if (table->file->ft_handler)
-      return ft_get_relevance(ft_handler);
+      return ft_nlq_get_relevance(ft_handler);
 
     join_key=0; // Magic here ! See ha_myisam::ft_read()
   }

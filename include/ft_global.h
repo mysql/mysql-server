@@ -50,12 +50,12 @@ extern uint ft_max_word_len_for_sort;
 int ft_init_stopwords(const char **);
 void ft_free_stopwords(void);
 
-FT_DOCLIST * ft_init_search(void *, uint, byte *, uint, my_bool);
-int          ft_read_next(FT_DOCLIST *, char *);
-#define      ft_close_search(handler)    my_free(((gptr)(handler)),MYF(0))
-#define      ft_get_relevance(handler)   (((FT_DOCLIST *)(handler))->doc[((FT_DOCLIST *)(handler))->curdoc].weight)
-#define      ft_get_docid(handler)       (((FT_DOCLIST *)(handler))->doc[((FT_DOCLIST *)(handler))->curdoc].dpos)
-#define      ft_reinit_search(handler)   (((FT_DOCLIST *)(handler))->curdoc=-1)
+FT_DOCLIST * ft_nlq_init_search(void *, uint, byte *, uint, my_bool);
+int          ft_nlq_read_next(FT_DOCLIST *, char *);
+#define      ft_nlq_close_search(handler)    my_free(((gptr)(handler)),MYF(0))
+#define      ft_nlq_get_relevance(handler)   (((FT_DOCLIST *)(handler))->doc[((FT_DOCLIST *)(handler))->curdoc].weight)
+#define      ft_nlq_get_docid(handler)       (((FT_DOCLIST *)(handler))->doc[((FT_DOCLIST *)(handler))->curdoc].dpos)
+#define      ft_nlq_reinit_search(handler)   (((FT_DOCLIST *)(handler))->curdoc=-1)
 
 #ifdef  __cplusplus
 }

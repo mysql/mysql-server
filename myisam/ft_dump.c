@@ -77,7 +77,7 @@ int main(int argc,char *argv[])
 
     ft_init_stopwords(ft_precompiled_stopwords);
 
-    result=ft_init_search(info,inx,query,strlen(query),1);
+    result=ft_nlq_init_search(info,inx,query,strlen(query),1);
     if(!result)
       goto err;
 
@@ -87,7 +87,7 @@ int main(int argc,char *argv[])
     for(i=0 ; i<result->ndocs ; i++)
       printf("%9qx %20.7f\n",result->doc[i].dpos,result->doc[i].weight);
 
-    ft_close_search(result);
+    ft_nlq_close_search(result);
   }
   else
   {

@@ -893,10 +893,21 @@ class Item_func_match_nl :public Item_func_match
 {
 public:
   Item_func_match_nl(List<Item> &a, Item *b): Item_func_match(a,b) {}
-  const char *func_name() const { return "match_NL"; }
+  const char *func_name() const { return "match_nl"; }
+  double val();
+  int ft_handler_init(const byte *query, uint querylen, bool presort)
+       { ft_handler=table->file->ft_init_ext(key, query, querylen, presort); }
+  int ft_handler_close() { ft_nlq_close_search(ft_handler); ft_handler=0; }
+};
+#if 0
+class Item_func_match_bool :public Item_func_match
+{
+public:
+  Item_func_match_nl(List<Item> &a, Item *b): Item_func_match(a,b) {}
+  const char *func_name() const { return "match_bool"; }
   double val();
   int ft_handler_init(const byte *query, uint querylen, bool presort)
        { ft_handler=table->file->ft_init_ext(key, query, querylen, presort); }
   int ft_handler_close() { ft_close_search(ft_handler); ft_handler=0; }
 };
-
+#endif
