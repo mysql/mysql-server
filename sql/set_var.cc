@@ -62,6 +62,12 @@ TYPELIB bool_typelib=
   array_elements(bool_type_names)-1, "", bool_type_names
 };
 
+const char *delay_key_write_type_names[]= { "OFF", "ON", "ALL", NullS };
+TYPELIB delay_key_write_typelib=
+{
+  array_elements(delay_key_write_type_names)-1, "", delay_key_write_type_names
+};
+
 static bool sys_check_charset(THD *thd, set_var *var);
 static bool sys_update_charset(THD *thd, set_var *var);
 static void sys_set_default_charset(THD *thd, enum_var_type type);
@@ -97,8 +103,10 @@ sys_var_bool_ptr	sys_concurrent_insert("concurrent_insert",
 					      &myisam_concurrent_insert);
 sys_var_long_ptr	sys_connect_timeout("connect_timeout",
 					    &connect_timeout);
-sys_var_bool_ptr	sys_delay_key_write("delay_key_write",
-					    &myisam_delay_key_write);
+sys_var_enum		sys_delay_key_write("delay_key_write",
+					    &delay_key_write_options,
+					    &delay_key_write_typelib,
+					    fix_delay_key_write);
 sys_var_long_ptr	sys_delayed_insert_limit("delayed_insert_limit",
 						 &delayed_insert_limit);
 sys_var_long_ptr	sys_delayed_insert_timeout("delayed_insert_timeout",
@@ -625,6 +633,23 @@ static void fix_key_buffer_size(THD *thd, enum_var_type type)
 }
 
 
+void fix_delay_key_write(THD *thd, enum_var_type type)
+{
+  switch ((enum_delay_key_write) delay_key_write_options) {
+  case DELAY_KEY_WRITE_NONE:
+    myisam_delay_key_write=0;
+    break;
+  case DELAY_KEY_WRITE_ON:
+    myisam_delay_key_write=1;
+    break;
+  case DELAY_KEY_WRITE_ALL:
+    myisam_delay_key_write=1;
+    ha_open_options|= HA_OPEN_DELAY_KEY_WRITE;
+    break;
+  }
+}
+
+
 bool sys_var_long_ptr::update(THD *thd, set_var *var)
 {
   ulonglong tmp= var->value->val_int();
@@ -652,6 +677,19 @@ bool sys_var_bool_ptr::update(THD *thd, set_var *var)
 void sys_var_bool_ptr::set_default(THD *thd, enum_var_type type)
 {
   *value= (my_bool) option_limits->def_value;
+}
+
+
+bool sys_var_enum::update(THD *thd, set_var *var)
+{
+  *value= (uint) var->save_result.ulong_value;
+  return 0;
+}
+
+
+byte *sys_var_enum::value_ptr(THD *thd, enum_var_type type)
+{
+  return (byte*) enum_names->type_names[*value];
 }
 
 
