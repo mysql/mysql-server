@@ -474,7 +474,7 @@ ut_delay(
 	}
 
 	if (ut_always_false) {
-		printf("%lu", j);
+		printf("%lu", (ulong) j);
 	}
 	
 	return(j);
@@ -492,12 +492,12 @@ ut_print_buf(
 	byte*	data;
 	ulint	i;
 
-	printf(" len %lu; hex ", len);
+	printf(" len %lu; hex ", (ulong) len);
 			
 	data = buf;
 
 	for (i = 0; i < len; i++) {
-		printf("%02lx", (ulint)*data);
+		printf("%02lx", (ulong) *data);
 		data++;
 	}
 
@@ -532,12 +532,12 @@ ut_sprintf_buf(
 
 	n = 0;
 	
-	n += sprintf(str + n, " len %lu; hex ", len);
+	n += sprintf(str + n, " len %lu; hex ", (ulong) len);
 			
 	data = buf;
 
 	for (i = 0; i < len; i++) {
-		n += sprintf(str + n, "%02lx", (ulint)*data);
+		n += sprintf(str + n, "%02lx", (ulong) *data);
 		data++;
 	}
 
