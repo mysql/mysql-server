@@ -5933,6 +5933,69 @@ static uint find_shortest_key(TABLE *table, key_map usable_keys)
   return best;
 }
 
+/*
+  SYNOPSIS
+    is_subkey()
+    key_part		- first key parts
+    ref_key_part	- second key parts
+    ref_key_part_end	- last+1 part of the second key
+  DESCRIPTION
+    Test if a second key is the subkey of the first one.
+  NOTE
+    Second key MUST be shorter than the first one.
+  RETURN
+    1	- is the subkey
+    0	- otherwise
+*/
+
+inline bool 
+is_subkey(KEY_PART_INFO *key_part, KEY_PART_INFO *ref_key_part,
+	  KEY_PART_INFO *ref_key_part_end)
+{
+  for (; ref_key_part < ref_key_part_end; key_part++, ref_key_part++)
+    if (!key_part->field->eq(ref_key_part->field))
+      return 0;
+  return 1;
+}
+
+/*
+  SYNOPSIS
+    test_if_subkey()
+    ref		- number of key, used for WHERE clause
+    usable_keys - keys for testing
+  DESCRIPTION
+    Test if we can use one of the 'usable_keys' instead of 'ref' key.
+  RETURN
+    MAX_KEY			- if we can't use other key
+    the number of found key	- otherwise
+*/
+
+static uint
+test_if_subkey(ORDER *order, TABLE *table, uint ref, key_map usable_keys)
+{
+  uint nr;
+  uint min_length= (uint) ~0;
+  uint best= MAX_KEY;
+  uint not_used;
+  KEY_PART_INFO *ref_key_part= table->key_info[ref].key_part;
+  uint ref_key_parts= table->key_info[ref].key_parts;
+  KEY_PART_INFO *ref_key_part_end= ref_key_part + ref_key_parts;
+  
+  for (nr= 0; usable_keys; usable_keys>>= 1, nr++)
+  {
+    if ((usable_keys & 1) &&
+	table->key_info[nr].key_length < min_length &&
+	table->key_info[nr].key_parts >= ref_key_parts &&
+	is_subkey(table->key_info[nr].key_part, ref_key_part,
+		  ref_key_part_end) &&
+	test_if_order_by_key(order, table, nr, &not_used))
+    {
+      min_length= table->key_info[nr].key_length;
+      best= nr;
+    }
+  }
+  return best;
+}
 
 /*
   Test if we can skip the ORDER BY by using an index.
@@ -5980,6 +6043,27 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
     */
     int order_direction;
     uint used_key_parts;
+    if (!(usable_keys & ((key_map) 1 << ref_key)))
+    {
+      /*
+	We come here when ref_key is not among usable_keys
+      */
+      uint a;
+      if ((a= test_if_subkey(order, table, ref_key, usable_keys)) < MAX_KEY)
+      {
+	if (tab->ref.key >= 0)
+	{
+	  tab->ref.key= a;
+	  table->file->index_init(a);
+	}
+	else
+	{
+	  select->quick->index= a;
+	  select->quick->init();
+	}
+	ref_key= a;
+      }  
+    }
     /* Check if we get the rows in requested sorted order by using the key */
     if ((usable_keys & ((key_map) 1 << ref_key)) &&
 	(order_direction = test_if_order_by_key(order,table,ref_key,
