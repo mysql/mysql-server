@@ -3395,7 +3395,10 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
   bzero((char*) from_field,sizeof(Field*)*field_count);
   table->field=reg_field;
   table->real_name=table->path=tmpname;
-  table->table_name=base_name(tmpname);
+  /*
+    This must be "" as field may refer to it after tempory table is dropped
+  */
+  table->table_name= (char*) "";
   table->reginfo.lock_type=TL_WRITE;	/* Will be updated */
   table->db_stat=HA_OPEN_KEYFILE+HA_OPEN_RNDFILE;
   table->blob_ptr_size=mi_portable_sizeof_char_ptr;
@@ -3731,6 +3734,8 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
     if (create_myisam_tmp_table(table,param,select_options))
       goto err;
   }
+  /* Set table_name for easier debugging */
+  table->table_name= base_name(tmpname);
   if (!open_tmp_table(table))
     DBUG_RETURN(table);
 

@@ -46928,6 +46928,12 @@ not yet 100% confident in this code.
 
 @node News-3.23.54, News-3.23.53, News-3.23.x, News-3.23.x
 @appendixsubsec Changes in release 3.23.54
+@itemize
+Fixed reference to freed memory when doing complicated @code{GROUP BY
+... ORDER BY} queries.  Symptom was that @code{mysqld} died in function
+@code{send_fields}.
+queries.
+@end itemize
 
 @node News-3.23.53, News-3.23.52, News-3.23.54, News-3.23.x
 @appendixsubsec Changes in release 3.23.53
