@@ -17,7 +17,7 @@ use DBI;
 use Getopt::Long;
 
 $| = 1;
-$VER = "2.2";
+$VER = "2.3";
 
 $opt_help          = 0;
 $opt_version       = 0;
@@ -517,12 +517,12 @@ Options:
 --user=...         Username for connecting.
 --password=...     Password for the user.
 --stdin            Read mails from stdin.
---max_mail_size=#  Maximum size of a mail.
+--max_mail_size=#  Maximum size of a mail in bytes.
                    Beware of the downside letting this variable be too big;
                    you may easily end up inserting a lot of attached 
                    binary files (like MS Word documents etc), which take
                    space, make the database slower and are not really
-                   searchable anyway.
+                   searchable anyway. (Default $opt_max_mail_size)
 --create           Create the mails table. This can be done with the first run.
 --test		   Dry run. Print the queries and the result as it would be.
 --no_path          When inserting the file name, leave out any paths of
