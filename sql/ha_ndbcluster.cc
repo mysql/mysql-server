@@ -3652,7 +3652,7 @@ static int create_ndb_column(NDBCOL &col,
 
 static void ndb_set_fragmentation(NDBTAB &tab, TABLE *form, uint pk_length)
 {
-  if (form->max_rows == 0) /* default setting, don't set fragmentation */
+  if (form->s->max_rows == 0) /* default setting, don't set fragmentation */
     return;
   /**
    * get the number of fragments right
@@ -3670,7 +3670,7 @@ static void ndb_set_fragmentation(NDBTAB &tab, TABLE *form, uint pk_length)
       acc_row_size+= 4+4;   /* overflow page will set the limit */
 #endif
     ulonglong acc_fragment_size= 512*1024*1024;
-    ulonglong max_rows= form->max_rows;
+    ulonglong max_rows= form->s->max_rows;
     no_fragments= (max_rows*acc_row_size)/acc_fragment_size+1;
   }
   {
