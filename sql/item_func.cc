@@ -107,7 +107,6 @@ Item_func::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
     return 0;					// Fatal error if flag is set!
   if (arg_count)
   {						// Print purify happy
-    bool first_coll= 1;
     for (arg=args, arg_end=args+arg_count; arg != arg_end ; arg++)
     {
       if ((*arg)->fix_fields(thd, tables, arg) ||
@@ -116,38 +115,6 @@ Item_func::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
       if ((*arg)->maybe_null)
 	maybe_null=1;
       
-      if ((*arg)->result_type() == STRING_RESULT)
-      {
-	/*
-	  Set return character set to first argument if we are returning a
-	  string.
-	*/
-	if (first_coll)
-	{
-	  set_charset((*arg)->charset());
-	  coercibility= (*args)->coercibility;
-	  first_coll= 0;
-	}
-	else if ((*arg)->charset() == &my_charset_bin || 
-		 charset() == &my_charset_bin)
-	{
-	  set_charset(&my_charset_bin);
-	  coercibility= COER_NOCOLL;
-	}
-	else if ((*arg)->coercibility < coercibility)
-	{
-	  if (!my_charset_same(charset(),(*arg)->charset()))
-	  {
-	    set_charset(&my_charset_bin);
-	    coercibility= COER_NOCOLL;
-	  }
-	  else
-	  {
-	    coercibility= (*arg)->coercibility;
-	    set_charset((*arg)->charset());
-	  }
-	}
-      }
       with_sum_func= with_sum_func || (*arg)->with_sum_func;
       used_tables_cache|=(*arg)->used_tables();
       const_item_cache&= (*arg)->const_item();

@@ -2401,7 +2401,11 @@ done
 
 dnl Always compile latin1
 AC_DEFINE(HAVE_CHARSET_latin1)
-      
+
+dnl Always compile utf8
+AC_DEFINE(HAVE_CHARSET_utf8)
+use_mb=yes
+
 if test "$use_mb" = "yes"
 then
   AC_DEFINE(USE_MB)

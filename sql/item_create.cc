@@ -433,7 +433,7 @@ Item *create_func_version(void)
 {
   return new Item_string(NullS,server_version, 
 			 (uint) strlen(server_version),
-			 default_charset_info);
+			 system_charset_info);
 }
 
 Item *create_func_weekday(Item* a)
