@@ -27968,7 +27968,6 @@ spreading your tables to different disk.
 The recommended way to do this, is to just symlink databases to a
 different disk and only symlink tables as a last resort.
 
-@cindex databases, symbolic links
 @menu
 * Symbolic links to databases::  Using Symbolic Links for Databases
 * Symbolic links to tables::    Using Symbolic Links for Tables
@@ -27977,6 +27976,8 @@ different disk and only symlink tables as a last resort.
 
 @node Symbolic links to databases, Symbolic links to tables, Symbolic links, Symbolic links
 @subsubsection Using Symbolic Links for Databases
+
+@cindex databases, symbolic links
 
 The way to symlink a database is to first create a directory on some
 disk where you have free space and then create a symlink to it from
@@ -28023,7 +28024,7 @@ databases on different disks. @xref{Windows symbolic links}.
 @node Symbolic links to tables,  , Symbolic links to databases, Symbolic links
 @subsubsection Using Symbolic Links for Tables
 
-@cindex databases, symbolic links
+@cindex tables, symbolic links
 
 Before MySQL 4.0 you should not symlink tables, if you are not
 very careful with them. The problem is that if you run @code{ALTER
