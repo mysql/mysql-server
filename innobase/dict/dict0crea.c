@@ -81,6 +81,17 @@ dict_create_sys_tables_tuple(
 
 	dfield_set_data(dfield, ptr, 8);
 	/* 7: MIX_LEN --------------------------*/
+
+	/* Track corruption reported on mailing list Jan 14, 2005 */
+	if (table->mix_len != 0 && table->mix_len != 0x80000000) {
+		fprintf(stderr,
+"InnoDB: Error: mix_len is %lu in table %s\n", (ulong)table->mix_len,
+							table->name);
+		mem_analyze_corruption((byte*)&(table->mix_len));
+	
+		ut_error;
+	}
+
 	dfield = dtuple_get_nth_field(entry, 5);
 
 	ptr = mem_heap_alloc(heap, 4);
