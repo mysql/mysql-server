@@ -862,6 +862,7 @@ public:
   {
     value= item->val_int_result();
     null_value= item->null_value;
+    collation.set(item->collation);
   }
   double val() { return (double) value; }
   longlong val_int() { return value; }
@@ -879,6 +880,7 @@ public:
   {
     value= item->val_result();
     null_value= item->null_value;
+    collation.set(item->collation);
   }
   double val() { return value; }
   longlong val_int() { return (longlong) (value+(value > 0 ? 0.5 : -0.5)); }
