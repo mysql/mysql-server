@@ -15,13 +15,13 @@
 # Software Foundation, Inc., 59 Temple Place - Suite 330, Boston,
 # MA 02111-1307, USA
 
-BUILT_SOURCES =		my_config.h mysql_version.h m_ctype.h
+BUILT_SOURCES =		mysql_version.h m_ctype.h
 pkginclude_HEADERS =	dbug.h m_string.h my_sys.h mysql.h mysql_com.h \
 			mysqld_error.h my_list.h \
 		        my_pthread.h my_no_pthread.h raid.h errmsg.h \
 			my_config.h my_global.h my_net.h \
 			sslopt-case.h sslopt-longopts.h sslopt-usage.h \
-			sslopt-vars.h $(BUILT_SOURCES)
+			sslopt-vars.h my_config.h $(BUILT_SOURCES)
 noinst_HEADERS =	global.h config-win.h \
 			nisam.h heap.h merge.h \
 			myisam.h myisampack.h myisammrg.h ft_global.h\
@@ -32,15 +32,16 @@ noinst_HEADERS =	global.h config-win.h \
 			mysql_version.h.in
 
 # mysql_version.h are generated
-SUPERCLEANFILES =	mysql_version.h
+SUPERCLEANFILES =	mysql_version.h my_global.h
 
 # Some include files that may be moved and patched by configure
 DISTCLEANFILES =	sched.h
+CLEANFILES =		my_config.h
 
-all-local:	my_config.h my_global.h
+all-local:		my_global.h
 
 # Since we include my_config.h it better exist from the beginning
-my_config.h:  ../config.h
+link_sources:
 	$(CP) ../config.h my_config.h
 
 # This should be changed in the source and removed.
