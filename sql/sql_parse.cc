@@ -2800,7 +2800,7 @@ unsent_create_error:
       target_tbl->table= orig->table;
       /*
 	 Multi-delete can't be constructed over-union => we always have
-	 single SELECT on top and have to check underlaying SELECTs of it
+	 single SELECT on top and have to check underlying SELECTs of it
       */
       if (lex->select_lex.check_updateable_in_subqueries(orig->db,
                                                          orig->real_name))

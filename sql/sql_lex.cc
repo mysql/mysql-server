@@ -1561,8 +1561,8 @@ bool st_select_lex_unit::check_updateable(char *db, char *table)
 
 
 /*
-  Find db.table which will be updated in this select and 
-  underlaying ones (except derived tables)
+  Find db.table which will be updated in this select and
+  underlying ones (except derived tables)
 
   SYNOPSIS
     st_select_lex::check_updateable()
@@ -1583,7 +1583,7 @@ bool st_select_lex::check_updateable(char *db, char *table)
 }
 
 /*
-   Find db.table which will be updated in underlaying subqueries
+   Find db.table which will be updated in underlying subqueries
 
    SYNOPSIS
     st_select_lex::check_updateable_in_subqueries()
