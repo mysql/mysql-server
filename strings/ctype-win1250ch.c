@@ -649,8 +649,8 @@ CHARSET_INFO my_charset_win1250ch =
     NULL,			/* tosort      */
     my_strcasecmp_8bit,
     my_strncasecmp_8bit,
-    NULL,			/* hash_caseup */
-    NULL,			/* hash_sort   */
+    my_hash_caseup_simple,
+    my_hash_sort_simple,
     0
 };
 

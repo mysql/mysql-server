@@ -126,6 +126,14 @@ extern my_bool init_compiled_charsets(myf flags);
 extern int  my_strnxfrm_simple(CHARSET_INFO *, uchar *, uint, const uchar *, uint); 
 extern int  my_strnncoll_simple(CHARSET_INFO *, const uchar *, uint, const uchar *, uint);
 
+extern uint my_hash_caseup_simple(CHARSET_INFO *cs,
+				  const byte *key, uint len);
+				  
+extern void my_hash_sort_simple(CHARSET_INFO *cs,
+				const uchar *key, uint len,
+				ulong *nr1, ulong *nr2); 
+
+
 /* Functions for 8bit */
 extern void my_caseup_str_8bit(CHARSET_INFO *, char *);
 extern void my_casedn_str_8bit(CHARSET_INFO *, char *);

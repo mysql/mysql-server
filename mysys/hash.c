@@ -32,7 +32,6 @@
 static uint hash_mask(uint hashnr,uint buffmax,uint maxlength);
 static void movelink(HASH_LINK *array,uint pos,uint next_link,uint newlink);
 static uint calc_hashnr(CHARSET_INFO *cs,const byte *key,uint length);
-static uint calc_hashnr_caseup(CHARSET_INFO *cs, const byte *key,uint length);
 static int hashcmp(HASH *hash,HASH_LINK *pos,const byte *key,uint length);
 
 
@@ -60,12 +59,7 @@ _hash_init(HASH *hash,CHARSET_INFO *charset,
   hash->flags=flags;
   hash->charset=charset;
   if (flags & HASH_CASE_INSENSITIVE)
-  {
-    if (charset->hash_caseup)
-      hash->calc_hashnr=charset->hash_caseup;
-    else
-      hash->calc_hashnr=calc_hashnr_caseup;
-  }
+    hash->calc_hashnr=charset->hash_caseup;
   else
     hash->calc_hashnr=calc_hashnr;
   DBUG_RETURN(0);
@@ -132,22 +126,6 @@ static uint calc_hashnr(CHARSET_INFO *cs __attribute__((unused)),
   return((uint) nr);
 }
 
-	/* Calc hashvalue for a key, case indepenently */
-
-static uint calc_hashnr_caseup(CHARSET_INFO *cs, const byte *key,uint length)
-{
-  register uint nr=1, nr2=4;
-  register uchar *map=cs->to_upper;
-  
-  while (length--)
-  {
-    nr^= (((nr & 63)+nr2)*
-         ((uint) (uchar) map[(uchar)*key++])) + (nr << 8);
-    nr2+=3;
-  }
-  return((uint) nr);
-}
-
 #else
 
 /*
@@ -171,18 +149,6 @@ uint calc_hashnr(CHARSET_INFO *cs, const byte *key, uint len)
   {
     hash *= 16777619;
     hash ^= (uint) *(uchar*) key;
-  }
-  return (hash);
-}
-
-uint calc_hashnr_caseup(CHARSET_INFO *cs, const byte *key, uint len)
-{
-  const byte *end=key+len;
-  uint hash;
-  for (hash = 0; key < end; key++)
-  {
-    hash *= 16777619;
-    hash ^= (uint) (uchar) my_toupper(cs,*key);
   }
   return (hash);
 }
