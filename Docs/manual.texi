@@ -28637,7 +28637,8 @@ already in production.
 To avoid problems like this, you should put some effort into benchmarking
 your whole application under the worst possible load! You can use Sasha's
 recent hack for this -
-@uref{http://www.mysql.com/Downloads/Contrib/mysql-bench-0.6.tar.gz, mysql-super-smack}.
+@uref{http://www.mysql.com/Downloads/super-smack/super-smack-1.0.tar.gz,
+super-smack}.
 As the name suggests, it can bring your system down to its knees if you ask it,
 so make sure to use it only on your developement systems.
 
@@ -40177,8 +40178,11 @@ Full-text searching with Perl on @code{BLOB}/@code{TEXT} columns by Daniel Koch.
 @appendixsec Performance Benchmarking Tools
 
 @itemize @bullet
-@item @uref{http://www.mysql.com/Downloads/Contrib/mysql-bench-0.6.tar.gz, mysql-super-smack and friends}
-User-customizable multi-threaded tool set to benchmark @strong{MySQL}. By Sasha Pachev.
+@item @uref{http://www.mysql.com/Downloads/super-smack/super-smack-1.0.tar.gz,
+ super-smack}
+Multi-threaded benchmarking tool for @strong{MySQL} and
+@strong{PostgreSQL}. Written in C++. Easy to extend to support other
+databases that have C/C++ client libraries. By Sasha Pachev.
 @end itemize
 
 @cindex tools, authentication
