@@ -1126,3 +1126,20 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	ref	salary	salary	5	const	1	Using where
 2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Select tables optimized away
 drop table t1;
+(SELECT 1 as a) UNION (SELECT 1) ORDER BY (SELECT a+0);
+a
+1
+CREATE TABLE `t1` (
+`id` mediumint(8) unsigned NOT NULL auto_increment,
+`pseudo` varchar(35) NOT NULL default '',
+`email` varchar(60) NOT NULL default '',
+PRIMARY KEY  (`id`),
+UNIQUE KEY `email` (`email`),
+UNIQUE KEY `pseudo` (`pseudo`),
+) TYPE=MyISAM CHARSET=latin1 PACK_KEYS=1 ROW_FORMAT=DYNAMIC;
+INSERT INTO t1 (id,pseudo,email) VALUES (1,'test','test'),(2,'test1','test1');
+SELECT pseudo as a, pseudo as b FROM t1 GROUP BY (SELECT a) ORDER BY (SELECT id*1);
+a	b
+test	test
+test1	test1
+drop table if exists t1;

@@ -7167,9 +7167,11 @@ find_order_in_list(THD *thd, Item **ref_pointer_array,
   }
   order->in_field_list=0;
   Item *it= *order->item;
-  if (it->fix_fields(thd, tables, order->item) || it->check_cols(1) ||
+  if (it->fix_fields(thd, tables, order->item) ||
+      //'it' ressigned because fix_field can change it
+      (it= *order->item), it->check_cols(1) ||
       thd->is_fatal_error)
-    return 1;					// Wrong field
+    return 1;					// Wrong field 
   uint el= all_fields.elements;
   all_fields.push_front(it);		        // Add new field to field list
   ref_pointer_array[el]= it;
