@@ -375,7 +375,6 @@ public:
     if (!t_arg) return result_field;
     return   new Field_time(maybe_null, name, t_arg);
   }  
-
 };
 
 enum interval_type { INTERVAL_YEAR, INTERVAL_MONTH, INTERVAL_DAY,
@@ -413,4 +412,61 @@ class Item_extract :public Item_int_func
   longlong val_int();
   const char *func_name() const { return "extract"; }
   void fix_length_and_dec();
+};
+
+class Item_date_typecast :public Item_str_func
+{
+public:
+  Item_date_typecast(Item *a) :Item_str_func(a) {}
+  const char *func_name() const { return "date_typecast"; }
+  String *val_str(String *a) { return (args[0]->val_str(a)); }
+  void fix_length_and_dec() { max_length=args[0]->max_length; }
+  void print(String *str) { print_op(str); }
+  void make_field(Send_field *tmp_field)
+  {
+    init_make_field(tmp_field,FIELD_TYPE_DATE);
+  }
+  Field *tmp_table_field(TABLE *t_arg)
+  {
+    if (!t_arg) return result_field;
+    return   new Field_date(maybe_null, name, t_arg);
+  }  
+};
+
+class Item_time_typecast :public Item_str_func
+{
+public:
+  Item_time_typecast(Item *a) :Item_str_func(a) {}
+  const char *func_name() const { return "time_typecast"; }
+  String *val_str(String *a) { return (args[0]->val_str(a)); }
+  void fix_length_and_dec() { max_length=args[0]->max_length; }
+  void print(String *str) { print_op(str); }
+  void make_field(Send_field *tmp_field)
+  {
+    init_make_field(tmp_field,FIELD_TYPE_TIME);
+  }
+  Field *tmp_table_field(TABLE *t_arg)
+  {
+    if (!t_arg) return result_field;
+    return   new Field_time(maybe_null, name, t_arg);
+  }  
+};
+
+class Item_datetime_typecast :public Item_str_func
+{
+public:
+  Item_datetime_typecast(Item *a) :Item_str_func(a) {}
+  const char *func_name() const { return "datetime_typecast"; }
+  String *val_str(String *a) { return (args[0]->val_str(a)); }
+  void fix_length_and_dec() { max_length=args[0]->max_length; }
+  void print(String *str) { print_op(str); }
+  void make_field(Send_field *tmp_field)
+  {
+    init_make_field(tmp_field,FIELD_TYPE_DATETIME);
+  }
+  Field *tmp_table_field(TABLE *t_arg)
+  {
+    if (!t_arg) return result_field;
+    return   new Field_datetime(maybe_null, name, t_arg);
+  }  
 };
