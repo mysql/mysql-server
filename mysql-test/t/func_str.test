@@ -152,6 +152,14 @@ select row('A','b','c') = row('a' COLLATE latin1_bin,'b','c');
 --error 1265
 select row('A' COLLATE latin1_general_ci,'b','c') = row('a' COLLATE latin1_bin,'b','c');
 
+--error 1265
+select concat(_latin1'a',_latin2'a');
+--error 1268
+select concat(_latin1'a',_latin2'a',_latin5'a');
+--error 1269
+select concat(_latin1'a',_latin2'a',_latin5'a',_latin7'a');
+
+
 #
 # Test FIELD() and collations
 #
