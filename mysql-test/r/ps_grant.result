@@ -78,5 +78,4 @@ drop user second_user@localhost ;
 commit ;
 show grants for second_user@localhost ;
 ERROR 42000: There is no such grant defined for user 'second_user' on host 'localhost'
-drop table t1,t9 ;
 drop database mysqltest;
