@@ -840,7 +840,9 @@ int chk_data_link(MI_CHECK *param, MI_INFO *info,int extend)
 	  }
 	  if (info->s->base.blobs)
 	  {
-	    if (!(to=mi_fix_rec_buff_for_blob(info,block_info.rec_len)))
+	    if (!(to= mi_alloc_rec_buff(info, block_info.rec_len,
+					&info->rec_buff,
+					&info->alloced_rec_buff_length)))
 	    {
 	      mi_check_print_error(param,"Not enough memory for blob at %s",
 			  llstr(start_recpos,llbuff));
@@ -2791,8 +2793,8 @@ static int sort_get_next_record(MI_SORT_PARAM *sort_param)
 	  if (share->base.blobs)
 	  {
 	    if (!(to=mi_alloc_rec_buff(info,block_info.rec_len,
-                    &(sort_param->rec_buff),
-                    &(sort_param->alloced_rec_buff_length))))
+				       &(sort_param->rec_buff),
+				       &(sort_param->alloced_rec_buff_length))))
 	    {
 	      mi_check_print_error(param,"Not enough memory for blob at %s",
 			  llstr(sort_param->start_recpos,llbuff));

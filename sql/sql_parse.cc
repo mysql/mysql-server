@@ -2684,6 +2684,7 @@ mysql_init_query(THD *thd)
   thd->lex.select_lex.table_list.next= (byte**) &thd->lex.select_lex.table_list.first;
   thd->lex.select_lex.next=0;
   thd->lex.olap=0;
+  thd->lex.select->olap= UNSPECIFIED_OLAP_TYPE;
   thd->fatal_error=0;				// Safety
   thd->last_insert_id_used=thd->query_start_used=thd->insert_id_used=0;
   thd->sent_row_count=thd->examined_row_count=0;
@@ -2700,7 +2701,7 @@ mysql_init_select(LEX *lex)
   select_lex->offset_limit=0;
   select_lex->options=0;
   select_lex->linkage=UNSPECIFIED_TYPE;
-  select_lex->olap= NON_EXISTING_ONE;
+  select_lex->olap=   UNSPECIFIED_OLAP_TYPE;
   lex->exchange = 0;
   lex->proc_list.first=0;
   select_lex->order_list.elements=select_lex->group_list.elements=0;
@@ -2767,7 +2768,11 @@ mysql_parse(THD *thd,char *inBuf,uint length)
       }
     }
     else
+    {
+      DBUG_PRINT("info",("Command aborted. Fatal_error: %d",
+			 thd->fatal_error));
       query_cache_abort(&thd->net);
+    }
     thd->proc_info="freeing items";
     free_items(thd);  /* Free strings used by items */
     lex_end(lex);
@@ -3439,5 +3444,30 @@ static bool append_file_to_dir(THD *thd, char **filename_ptr, char *table_name)
     return 1;					// End of memory
   *filename_ptr=ptr;
   strxmov(ptr,buff,table_name,NullS);
+  return 0;
+}
+
+/*
+  Check if the select is a simple select (not an union)
+
+  SYNOPSIS
+    check_simple_select()
+
+  RETURN VALUES
+    0	ok
+    1	error	; In this case the error messege is sent to the client
+*/
+
+bool check_simple_select()
+{
+  THD *thd= current_thd;
+  if (thd->lex.select != &thd->lex.select_lex)
+  {
+    char command[80];
+    strmake(command, thd->lex.yylval->symbol.str,
+	    min(thd->lex.yylval->symbol.length, sizeof(command)-1));
+    net_printf(&thd->net, ER_CANT_USE_OPTION_HERE, command);
+    return 1;
+  }
   return 0;
 }

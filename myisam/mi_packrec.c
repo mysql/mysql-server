@@ -1057,7 +1057,9 @@ uint _mi_pack_get_block_info(MI_INFO *myisam, MI_BLOCK_INFO *info, File file,
       info->blob_len=uint3korr(header+head_length+1);
       head_length+=4;
     }
-    if (!(mi_fix_rec_buff_for_blob(myisam,info->rec_len + info->blob_len)))
+    if (!(mi_alloc_rec_buff(myisam,info->rec_len + info->blob_len,
+			    &myisam->rec_buff,
+			    &myisam->alloced_rec_buff_length)))
       return BLOCK_FATAL_ERROR;			/* not enough memory */
     myisam->bit_buff.blob_pos=(uchar*) myisam->rec_buff+info->rec_len;
     myisam->blob_length=info->blob_len;
@@ -1231,8 +1233,10 @@ static uchar *_mi_mempack_get_block_info(MI_INFO *myisam,MI_BLOCK_INFO *info,
       info->blob_len=uint3korr(header+1);
       header+=4;
     }
-    /* mi_fix_rec_buff_for_blob sets my_errno on error */
-    if (!(mi_fix_rec_buff_for_blob(myisam,info->blob_len)))
+    /* mi_alloc_rec_buff sets my_errno on error */
+    if (!(mi_alloc_rec_buff(myisam, info->blob_len,
+			    &myisam->rec_buff,
+			    &myisam->alloced_rec_buff_length)))
       return 0;				/* not enough memory */
     myisam->bit_buff.blob_pos=(uchar*) myisam->rec_buff;
   }

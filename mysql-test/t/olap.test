@@ -14,9 +14,14 @@ insert into sales  values ( 'Computer', 'India',2000, 1200),
 ( 'Computer', 'India', 1999,1200),
 ( 'Computer', 'United States', 2000,1500),
 ( 'Calculator', 'United States', 2000,75);
+--error 1235
 select product, country , year, sum(profit) from sales group by product, country, year with cube;
+--error 1235
 explain select product, country , year, sum(profit) from sales group by product, country, year with cube;
+--error 1235
 select product, country , year, sum(profit) from sales group by product, country, year with rollup;
+--error 1235
 explain select product, country , year, sum(profit) from sales group by product, country, year with rollup;
+--error 1235
 select product, country , year, sum(profit) from sales group by product, country, year with cube union all select product, country , year, sum(profit) from sales group by product, country, year with rollup;
 drop table sales;
