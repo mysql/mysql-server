@@ -26,6 +26,23 @@
 /* Intern key cache variables */
 extern "C" pthread_mutex_t THR_LOCK_keycache;
 
+static const char *lock_descriptions[] =
+{
+  "No lock",
+  "Low priority read lock",
+  "Shared Read lock",
+  "High priority read lock",
+  "Read lock  without concurrent inserts",
+  "Write lock that allows other writers",
+  "Write lock, but allow reading",
+  "Concurrent insert lock",
+  "Lock Used by delayed insert",
+  "Low priority write lock",
+  "High priority write lock",
+  "Highest priority write lock"
+};
+
+
 #ifndef DBUG_OFF
 
 void
@@ -45,28 +62,10 @@ print_where(COND *cond,const char *info)
     DBUG_UNLOCK_FILE;
   }
 }
-
 	/* This is for debugging purposes */
 
 extern HASH open_cache;
 extern TABLE *unused_tables;
-
-static const char *lock_descriptions[] =
-{
-  "No lock",
-  "Low priority read lock",
-  "Shared Read lock",
-  "High priority read lock",
-  "Read lock  without concurrent inserts",
-  "Write lock that allows other writers",
-  "Write lock, but allow reading",
-  "Concurrent insert lock",
-  "Lock Used by delayed insert",
-  "Low priority write lock",
-  "High priority write lock",
-  "Highest priority write lock"
-};
-
 
 void print_cached_tables(void)
 {
