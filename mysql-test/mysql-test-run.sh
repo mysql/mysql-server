@@ -438,7 +438,7 @@ SLAVE_MYERR="$MYSQL_TEST_DIR/var/log/slave.err"
 CURRENT_TEST="$MYSQL_TEST_DIR/var/log/current_test"
 SMALL_SERVER="--key_buffer_size=1M --sort_buffer=256K --max_heap_table_size=1M"
 
-export MASTER_MYPORT SLAVE_MYPORT MYSQL_TCP_PORT
+export MASTER_MYPORT SLAVE_MYPORT MYSQL_TCP_PORT MASTER_MYSOCK
 
 if [ x$SOURCE_DIST = x1 ] ; then
  MY_BASEDIR=$MYSQL_TEST_DIR
