@@ -36,8 +36,6 @@
 
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
 
-#define FIRST_NON_YN_FIELD 26
-
 class acl_entry :public hash_filo_element
 {
 public:
@@ -66,7 +64,7 @@ static DYNAMIC_ARRAY acl_wild_hosts;
 static hash_filo *acl_cache;
 static uint grant_version=0;
 static uint priv_version=0; /* Version of priv tables. incremented by acl_init */
-static ulong get_access(TABLE *form,uint fieldnr);
+static ulong get_access(TABLE *form,uint fieldnr, uint *next_field=0);
 static int acl_compare(ACL_ACCESS *a,ACL_ACCESS *b);
 static ulong get_sort(uint count,...);
 static void init_check_host(void);
@@ -301,18 +299,15 @@ my_bool acl_init(THD *org_thd, bool dont_read_acl_tables)
     }
     else                                        // password is correct
     {
-      user.access= get_access(table,3) & GLOBAL_ACLS;
+      uint next_field;
+      user.access= get_access(table,3,&next_field) & GLOBAL_ACLS;
       user.sort= get_sort(2,user.host.hostname,user.user);
       user.hostname_length= (user.host.hostname ?
                              (uint) strlen(user.host.hostname) : 0);
 
       if (table->fields >= 31)	 /* Starting from 4.0.2 we have more fields */
       {
-	uint base_field= 24;
-	if (table->fields > 31) /* Starting from 5.1 we have more privileges */
-	  base_field= 26;
-
-        char *ssl_type=get_field(&mem, table->field[base_field]);
+        char *ssl_type=get_field(&mem, table->field[next_field++]);
         if (!ssl_type)
           user.ssl_type=SSL_TYPE_NONE;
         else if (!strcmp(ssl_type, "ANY"))
@@ -322,16 +317,16 @@ my_bool acl_init(THD *org_thd, bool dont_read_acl_tables)
         else  /* !strcmp(ssl_type, "SPECIFIED") */
           user.ssl_type=SSL_TYPE_SPECIFIED;
 
-        user.ssl_cipher=   get_field(&mem, table->field[base_field+1]);
-        user.x509_issuer=  get_field(&mem, table->field[base_field+2]);
-        user.x509_subject= get_field(&mem, table->field[base_field+3]);
+        user.ssl_cipher=   get_field(&mem, table->field[next_field++]);
+        user.x509_issuer=  get_field(&mem, table->field[next_field++]);
+        user.x509_subject= get_field(&mem, table->field[next_field++]);
 
-        char *ptr = get_field(&mem, table->field[base_field+4]);
-        user.user_resource.questions=atoi(ptr);
-        ptr = get_field(&mem, table->field[base_field+5]);
-        user.user_resource.updates=atoi(ptr);
-        ptr = get_field(&mem, table->field[base_field+6]);
-        user.user_resource.connections=atoi(ptr);
+        char *ptr = get_field(&mem, table->field[next_field++]);
+        user.user_resource.questions=ptr ? atoi(ptr) : 0;
+        ptr = get_field(&mem, table->field[next_field++]);
+        user.user_resource.updates=ptr ? atoi(ptr) : 0;
+        ptr = get_field(&mem, table->field[next_field++]);
+        user.user_resource.connections=ptr ? atoi(ptr) : 0;
         if (user.user_resource.questions || user.user_resource.updates ||
             user.user_resource.connections)
           mqh_used=1;
@@ -496,11 +491,24 @@ void acl_reload(THD *thd)
 
 /*
   Get all access bits from table after fieldnr
+
+  IMPLEMENTATION
   We know that the access privileges ends when there is no more fields
   or the field is not an enum with two elements.
+
+  SYNOPSIS
+    get_access()
+    form        an open table to read privileges from.
+                The record should be already read in table->record[0]
+    fieldnr     number of the first privilege (that is ENUM('N','Y') field
+    next_field  on return - number of the field next to the last ENUM
+                (unless next_field == 0)
+
+  RETURN VALUE
+    privilege mask
 */
 
-static ulong get_access(TABLE *form, uint fieldnr)
+static ulong get_access(TABLE *form, uint fieldnr, uint *next_field)
 {
   ulong access_bits=0,bit;
   char buff[2];
@@ -510,12 +518,14 @@ static ulong get_access(TABLE *form, uint fieldnr)
   for (pos=form->field+fieldnr, bit=1;
        *pos && (*pos)->real_type() == FIELD_TYPE_ENUM &&
 	 ((Field_enum*) (*pos))->typelib->count == 2 ;
-       pos++ , bit<<=1)
+       pos++, fieldnr++, bit<<=1)
   {
     (*pos)->val_str(&res);
     if (my_toupper(&my_charset_latin1, res[0]) == 'Y')
       access_bits|= bit;
   }
+  if (next_field)
+    *next_field=fieldnr;
   return access_bits;
 }
 

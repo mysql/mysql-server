@@ -225,7 +225,8 @@ void del_dbopt(const char *path)
 {
   my_dbopt_t *opt;
   rw_wrlock(&LOCK_dboptions);
-  if ((opt= (my_dbopt_t *)hash_search(&dboptions, (byte*) path, strlen(path))))
+  if ((opt= (my_dbopt_t *)hash_search(&dboptions, (const byte*) path,
+                                      strlen(path))))
     hash_delete(&dboptions, (byte*) opt);
   rw_unlock(&LOCK_dboptions);
 }
