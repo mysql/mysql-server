@@ -2597,13 +2597,15 @@ void ha_ndbcluster::print_results()
       break;
     }
     case NdbDictionary::Column::Datetime: {
-      // todo
-      my_snprintf(buf, sizeof(buf), "Datetime ?");
+      my_snprintf(buf, sizeof(buf), "Datetime ?");      // fix-me
       break;
     }
-    case NdbDictionary::Column::Timespec: {
-      // todo
-      my_snprintf(buf, sizeof(buf), "Timespec ?");
+    case NdbDictionary::Column::Date: {
+      my_snprintf(buf, sizeof(buf), "Date ?");  // fix-me
+      break;
+    }
+    case NdbDictionary::Column::Time: {
+      my_snprintf(buf, sizeof(buf), "Time ?");  // fix-me
       break;
     }
     case NdbDictionary::Column::Blob: {
@@ -3696,9 +3698,15 @@ static int create_ndb_column(NDBCOL &col,
     col.setType(NDBCOL::Datetime);
     col.setLength(1);
     break;
-  case MYSQL_TYPE_DATE:
   case MYSQL_TYPE_NEWDATE:
+    col.setType(NDBCOL::Date);
+    col.setLength(1);
+    break;
   case MYSQL_TYPE_TIME:        
+    col.setType(NDBCOL::Time);
+    col.setLength(1);
+    break;
+  case MYSQL_TYPE_DATE: // ?
   case MYSQL_TYPE_YEAR:        
     col.setType(NDBCOL::Char);
     col.setLength(field->pack_length());

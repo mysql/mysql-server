@@ -1,0 +1,98 @@
+drop table if exists `‚s‚P`;
+drop table if exists `‚s‚Q`;
+drop table if exists `‚s‚R`;
+drop table if exists `‚s‚S`;
+drop table if exists `‚s‚T`;
+drop table if exists `‚s‚U`;
+drop table if exists `‚s‚V`;
+drop table if exists `‚s‚W`;
+drop table if exists `‚s‚X`;
+drop table if exists `‚s‚P‚O`;
+drop table if exists `‚s‚P‚P`;
+drop table if exists `‚s‚P‚Q`;
+SET NAMES sjis;
+SET character_set_database = sjis;
+CREATE TABLE `‚s‚P` (`‚b‚P` char(5), INDEX(`‚b‚P`)) DEFAULT CHARSET = sjis engine = innodb;
+CREATE TABLE `‚s‚Q` (`‚b‚P` char(5), INDEX(`‚b‚P`)) DEFAULT CHARSET = sjis engine = innodb;
+CREATE TABLE `‚s‚R` (`‚b‚P` char(5), INDEX(`‚b‚P`)) DEFAULT CHARSET = sjis engine = innodb;
+CREATE TABLE `‚s‚S` (`‚b‚P` char(5), INDEX(`‚b‚P`)) DEFAULT CHARSET = sjis engine = myisam;
+CREATE TABLE `‚s‚T` (`‚b‚P` char(5), INDEX(`‚b‚P`)) DEFAULT CHARSET = sjis engine = myisam;
+CREATE TABLE `‚s‚U` (`‚b‚P` char(5), INDEX(`‚b‚P`)) DEFAULT CHARSET = sjis engine = myisam;
+CREATE TABLE `‚s‚V` (`‚b‚P` char(5), INDEX(`‚b‚P`)) DEFAULT CHARSET = sjis engine = heap;
+CREATE TABLE `‚s‚W` (`‚b‚P` char(5), INDEX(`‚b‚P`)) DEFAULT CHARSET = sjis engine = heap;
+CREATE TABLE `‚s‚X` (`‚b‚P` char(5), INDEX(`‚b‚P`)) DEFAULT CHARSET = sjis engine = heap;
+CREATE TABLE `‚s‚P‚O` (`‚b‚P` char(5), INDEX(`‚b‚P`)) DEFAULT CHARSET = sjis engine = bdb;
+CREATE TABLE `‚s‚P‚P` (`‚b‚P` char(5), INDEX(`‚b‚P`)) DEFAULT CHARSET = sjis engine = bdb;
+CREATE TABLE `‚s‚P‚Q` (`‚b‚P` char(5), INDEX(`‚b‚P`)) DEFAULT CHARSET = sjis engine = bdb;
+INSERT INTO `‚s‚P` VALUES ('±²³´µ');
+INSERT INTO `‚s‚Q` VALUES ('‚ ‚¢‚¤‚¦‚¨');
+INSERT INTO `‚s‚R` VALUES ('ƒ\\•\—\\');
+INSERT INTO `‚s‚S` VALUES ('±²³´µ');
+INSERT INTO `‚s‚T` VALUES ('‚ ‚¢‚¤‚¦‚¨');
+INSERT INTO `‚s‚U` VALUES ('ƒ\\•\—\\');
+INSERT INTO `‚s‚V` VALUES ('±²³´µ');
+INSERT INTO `‚s‚W` VALUES ('‚ ‚¢‚¤‚¦‚¨');
+INSERT INTO `‚s‚X` VALUES ('ƒ\\•\—\\');
+INSERT INTO `‚s‚P‚O` VALUES ('±²³´µ');
+INSERT INTO `‚s‚P‚P` VALUES ('‚ ‚¢‚¤‚¦‚¨');
+INSERT INTO `‚s‚P‚Q` VALUES ('ƒ\\•\—\\');
+UPDATE `‚s‚P` SET `‚b‚P` = ('¶·¸¹º');
+UPDATE `‚s‚Q` SET `‚b‚P` = ('‚©‚«‚­‚¯‚±');
+UPDATE `‚s‚R` SET `‚b‚P` = ('‰\Ž\\“\”\');
+UPDATE `‚s‚S` SET `‚b‚P` = ('¶·¸¹º');
+UPDATE `‚s‚T` SET `‚b‚P` = ('‚©‚«‚­‚¯‚±');
+UPDATE `‚s‚U` SET `‚b‚P` = ('‰\Ž\\“\”\');
+UPDATE `‚s‚V` SET `‚b‚P` = ('¶·¸¹º');
+UPDATE `‚s‚W` SET `‚b‚P` = ('‚©‚«‚­‚¯‚±');
+UPDATE `‚s‚X` SET `‚b‚P` = ('‰\Ž\\“\”\');
+UPDATE `‚s‚P‚O` SET `‚b‚P` = ('¶·¸¹º');
+UPDATE `‚s‚P‚P` SET `‚b‚P` = ('‚©‚«‚­‚¯‚±');
+UPDATE `‚s‚P‚Q` SET `‚b‚P` = ('‰\Ž\\“\”\');
+SELECT * FROM `‚s‚P`;
+‚b‚P
+¶·¸¹º
+SELECT * FROM `‚s‚Q`;
+‚b‚P
+‚©‚«‚­‚¯‚±
+SELECT * FROM `‚s‚R`;
+‚b‚P
+‰\Ž\\“\”\
+SELECT * FROM `‚s‚S`;
+‚b‚P
+¶·¸¹º
+SELECT * FROM `‚s‚T`;
+‚b‚P
+‚©‚«‚­‚¯‚±
+SELECT * FROM `‚s‚U`;
+‚b‚P
+‰\Ž\\“\”\
+SELECT * FROM `‚s‚V`;
+‚b‚P
+¶·¸¹º
+SELECT * FROM `‚s‚W`;
+‚b‚P
+‚©‚«‚­‚¯‚±
+SELECT * FROM `‚s‚X`;
+‚b‚P
+‰\Ž\\“\”\
+SELECT * FROM `‚s‚P‚O`;
+‚b‚P
+¶·¸¹º
+SELECT * FROM `‚s‚P‚P`;
+‚b‚P
+‚©‚«‚­‚¯‚±
+SELECT * FROM `‚s‚P‚Q`;
+‚b‚P
+‰\Ž\\“\”\
+DROP TABLE `‚s‚P`;
+DROP TABLE `‚s‚Q`;
+DROP TABLE `‚s‚R`;
+DROP TABLE `‚s‚S`;
+DROP TABLE `‚s‚T`;
+DROP TABLE `‚s‚U`;
+DROP TABLE `‚s‚V`;
+DROP TABLE `‚s‚W`;
+DROP TABLE `‚s‚X`;
+DROP TABLE `‚s‚P‚O`;
+DROP TABLE `‚s‚P‚P`;
+DROP TABLE `‚s‚P‚Q`;

@@ -14,6 +14,8 @@
 # General configuration options
 #---------------------------------------------------------------------------
 
+DETAILS_AT_TOP = YES
+
 # The PROJECT_NAME tag is a single word (or a sequence of words surrounded 
 # by quotes) that should identify the project.
 
