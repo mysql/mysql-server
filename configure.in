@@ -688,7 +688,6 @@ int main()
     [USE_PSTACK=yes])
   pstack_libs=
   pstack_dirs=
-  pstack_makefile=
   if test "$USE_PSTACK" = yes -a "$IS_LINUX" = "true" -a "$MACHINE_TYPE" = "i686"
   then
     have_libiberty= have_libbfd=
@@ -704,7 +703,6 @@ dnl I have no idea if this is a good test - can not find docs for libiberty
     then
       pstack_dirs='$(top_srcdir)'/pstack
       pstack_libs="$pstack_dirs/libpstack.a -lbfd -liberty"
-      pstack_makefile=pstack/Makefile
       AC_SUBST([pstack_dirs])
       AC_SUBST([pstack_libs])
       AC_DEFINE([USE_PSTACK])
@@ -2222,7 +2220,7 @@ AC_OUTPUT(Makefile extra/Makefile mysys/Makefile isam/Makefile \
  man/Makefile readline/Makefile vio/Makefile \
  libmysql_r/Makefile libmysqld/Makefile libmysqld/examples/Makefile \
  libmysql/Makefile client/Makefile \
- $pstack_makefile sql/Makefile sql/share/Makefile \
+ pstack/Makefile sql/Makefile sql/share/Makefile \
  merge/Makefile dbug/Makefile scripts/Makefile \
  include/Makefile sql-bench/Makefile tools/Makefile \
  tests/Makefile Docs/Makefile support-files/Makefile \

@@ -2017,8 +2017,6 @@ mysql_execute_command(void)
   case SQLCOM_REVOKE:
   case SQLCOM_GRANT:
   {
-    if (tables && !tables->db)
-      tables->db=thd->db;
     if (check_access(thd, lex->grant | lex->grant_tot_col | GRANT_ACL,
 		     tables && tables->db ? tables->db : select_lex->db,
 		     tables ? &tables->grant.privilege : 0,
@@ -2205,7 +2203,7 @@ check_access(THD *thd,uint want_access,const char *db, uint *save_priv,
   else
     save_priv= &dummy;
 
-  if (!db[0] && !thd->db && !dont_check_global_grants)
+  if ((!db || !db[0]) && !thd->db && !dont_check_global_grants)
   {
     send_error(&thd->net,ER_NO_DB_ERROR);	/* purecov: tested */
     return TRUE;				/* purecov: tested */
