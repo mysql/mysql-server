@@ -29,6 +29,7 @@
 
 #if defined (READLINE_CALLBACKS)
 
+#include <stdlib.h>
 #include <sys/types.h>
 #include <stdio.h>
 

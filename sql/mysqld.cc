@@ -704,10 +704,10 @@ void clean_up(bool print_message)
   end_raid();
 #endif
 #ifdef HAVE_OPENSSL
-  my_free(opt_ssl_key,MYF(0));
-  my_free(opt_ssl_cert,MYF(0));
-  my_free(opt_ssl_ca,MYF(0));
-  my_free(opt_ssl_capath,MYF(0));
+  my_free(opt_ssl_key,MYF(MY_ALLOW_ZERO_PTR));
+  my_free(opt_ssl_cert,MYF(MY_ALLOW_ZERO_PTR));
+  my_free(opt_ssl_ca,MYF(MY_ALLOW_ZERO_PTR));
+  my_free(opt_ssl_capath,MYF(MY_ALLOW_ZERO_PTR));
   opt_ssl_key=opt_ssl_cert=opt_ssl_ca=opt_ssl_capath=0;
 #endif /* HAVE_OPENSSL */
   free_defaults(defaults_argv);
