@@ -1522,13 +1522,16 @@ int run_query(MYSQL* mysql, struct st_query* q, int flags)
   if(!(flags & QUERY_REAP))
     return 0;
   
-  if (mysql_read_query_result(mysql))
+  if (mysql_read_query_result(mysql) ||
+      (!(res = mysql_store_result(mysql)) && mysql_field_count(mysql)))
   {
     if (q->require_file)
       abort_not_supported_test();
     if (q->abort_on_error)
       die("At line %u: query '%s' failed: %d: %s", start_lineno, query,
 	  mysql_errno(mysql), mysql_error(mysql));
+      /*die("At line %u: Failed in mysql_store_result for query '%s' (%d)",
+	  start_lineno, query, mysql_errno(mysql));*/
     else
     {
       for (i=0 ; q->expected_errno[i] ; i++)
@@ -1549,6 +1552,12 @@ int run_query(MYSQL* mysql, struct st_query* q, int flags)
       */
       goto end;
     }
+    /*{
+      verbose_msg("failed in mysql_store_result for query '%s' (%d)", query,
+		  mysql_errno(mysql));
+      error = 1;
+      goto end;
+    }*/
   }
 
   if (q->expected_errno[0])
@@ -1557,23 +1566,6 @@ int run_query(MYSQL* mysql, struct st_query* q, int flags)
     verbose_msg("query '%s' succeeded - should have failed with errno %d...",
 		q->query, q->expected_errno[0]);
     goto end;
-  }
-
-
-  if (!(res = mysql_store_result(mysql)) && mysql_field_count(mysql))
-  {
-    if (q->require_file)
-      abort_not_supported_test();
-    if (q->abort_on_error)
-      die("At line %u: Failed in mysql_store_result for query '%s' (%d)",
-	  start_lineno, query, mysql_errno(mysql));
-    else
-    {
-      verbose_msg("failed in mysql_store_result for query '%s' (%d)", query,
-		  mysql_errno(mysql));
-      error = 1;
-      goto end;
-    }
   }
 
   if (!res) goto end;

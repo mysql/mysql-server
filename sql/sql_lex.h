@@ -53,7 +53,8 @@ enum enum_sql_command {
   SQLCOM_BEGIN, SQLCOM_LOAD_MASTER_TABLE, SQLCOM_CHANGE_MASTER,
   SQLCOM_RENAME_TABLE, SQLCOM_BACKUP_TABLE, SQLCOM_RESTORE_TABLE,
   SQLCOM_RESET, SQLCOM_PURGE, SQLCOM_SHOW_BINLOGS,
-  SQLCOM_SHOW_OPEN_TABLES
+  SQLCOM_SHOW_OPEN_TABLES,
+  SQLCOM_HA_OPEN, SQLCOM_HA_CLOSE, SQLCOM_HA_READ
 };
 
 enum lex_states { STATE_START, STATE_CHAR, STATE_IDENT,
@@ -141,6 +142,8 @@ typedef struct st_lex {
   enum lex_states next_state;
   enum enum_duplicates duplicates;
   enum enum_tx_isolation tx_isolation;
+  enum enum_ha_read_modes ha_read_mode;
+  enum ha_rkey_function ha_rkey_mode;
   uint in_sum_expr,grant,grant_tot_col,which_columns, sort_default;
   thr_lock_type lock_option;
   bool	create_refs,drop_primary,drop_if_exists,local_file;

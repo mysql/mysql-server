@@ -79,7 +79,7 @@ enum db_type ha_checktype(enum db_type database_type)
 #endif
 #ifdef HAVE_INNOBASE_DB
   case DB_TYPE_INNOBASE:
-    return(innobase_skip ? DB_TYPE_MYISAM : database_type);
+    return(innodb_skip ? DB_TYPE_MYISAM : database_type);
 #endif
 #ifdef HAVE_GEMINI_DB
   case DB_TYPE_GEMINI:
@@ -156,14 +156,14 @@ int ha_init()
   }
 #endif
 #ifdef HAVE_INNOBASE_DB
-  if (!innobase_skip)
+  if (!innodb_skip)
   {
     if (innobase_init())
       return -1;
-    if (!innobase_skip)				// If we couldn't use handler
+    if (!innodb_skip)				// If we couldn't use handler
       opt_using_transactions=1;
     else
-      have_innobase=SHOW_OPTION_DISABLED;
+      have_innodb=SHOW_OPTION_DISABLED;
   }
 #endif
 #ifdef HAVE_GEMINI_DB
@@ -201,7 +201,7 @@ int ha_panic(enum ha_panic_function flag)
     error|=berkeley_end();
 #endif
 #ifdef HAVE_INNOBASE_DB
-  if (!innobase_skip)
+  if (!innodb_skip)
     error|=innobase_end();
 #endif
 #ifdef HAVE_GEMINI_DB
@@ -215,7 +215,7 @@ int ha_panic(enum ha_panic_function flag)
 void ha_close_connection(THD* thd)
 {
 #ifdef HAVE_INNOBASE_DB
-  if (!innobase_skip)
+  if (!innodb_skip)
     innobase_close_connection(thd);
 #endif
 #ifdef HAVE_GEMINI_DB
@@ -380,7 +380,7 @@ bool ha_flush_logs()
     result=1;
 #endif
 #ifdef HAVE_INNOBASE_DB
-  if (!innobase_skip && innobase_flush_logs())
+  if (!innodb_skip && innobase_flush_logs())
     result=1;
 #endif
   return result;

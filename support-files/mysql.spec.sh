@@ -127,6 +127,17 @@ Group: Applications/Databases
 This package contains the shared libraries (*.so*) which certain
 languages and applications need to dynamically load and use MySQL.
 
+%package Max
+Release: %{release}
+Summary: MySQL - server with Berkeley DB and Innodb support
+Group: Applications/Databases
+Obsoletes: mysql-Max
+
+%description Max
+Extra MySQL server binary to get support extra features like
+transactional tables. To active these features on only have to install
+this package after the server package.
+
 %prep
 %setup -n mysql-%{mysql_version}
 
@@ -160,8 +171,6 @@ sh -c  "PATH=\"${MYSQL_BUILD_PATH:-/bin:/usr/bin}\" \
             --infodir=/usr/info \
             --includedir=/usr/include \
             --mandir=/usr/man \
-	    --without-berkeley-db \
-	    --without-innobase \
 	    --with-comment=\"Official MySQL RPM\";
 	    # Add this for more debugging support
 	    # --with-debug
@@ -185,12 +194,15 @@ fi
 rm -rf $RBR
 mkdir -p $RBR
 
-BuildMySQL "--enable-shared --enable-thread-safe-client --without-server"
+# Build the shared libraries and mysqld-max
 
-# Save everything for debus
-tar cf $RBR/all.tar .
+BuildMySQL "--enable-shared --enable-thread-safe-client --with-berkeley-db --with-innodb --with-mysqld-ldflags='-all-static' --with-server-suffix='-Max'"
 
-# Save shared libraries
+# Save everything for debug
+# tar cf $RBR/all.tar .
+
+# Save shared libraries and mysqld-max
+mv sql/mysqld sql/mysqld-max
 (cd libmysql/.libs; tar cf $RBR/shared-libs.tar *.so*)
 (cd libmysql_r/.libs; tar rf $RBR/shared-libs.tar *.so*)
 
@@ -201,7 +213,8 @@ mv Docs/manual.ps.save Docs/manual.ps
 
 BuildMySQL "--disable-shared" \
 	   "--with-mysqld-ldflags='-all-static'" \
-	   "--with-client-ldflags='-all-static'"
+	   "--with-client-ldflags='-all-static'" \
+	   "--without-berkeley-db --without-innodb"
 
 %install -n mysql-%{mysql_version}
 RBR=$RPM_BUILD_ROOT
@@ -219,6 +232,9 @@ make install DESTDIR=$RBR benchdir_root=/usr/share/
 
 # Install shared libraries (Disable for architectures that don't support it)
 (cd $RBR/usr/lib; tar xf $RBR/shared-libs.tar)
+
+# install saved mysqld-max
+install -m755 $MBD/sql/mysqld-max $RBR/usr/sbin/mysqld-max
 
 # Install logrotate and autostart
 install -m644 $MBD/support-files/mysql-log-rotate $RBR/etc/logrotate.d/mysql
@@ -370,7 +386,14 @@ fi
 %attr(-, root, root) /usr/share/sql-bench
 %attr(-, root, root) /usr/share/mysql-test
 
+%files Max
+%attr(755, root, root) /usr/sbin/mysqld-max
+
 %changelog 
+
+* Fri Apr 13 2001 Monty
+
+- Added mysqld-max to the distribution
 
 * Tue Jan 2  2001  Monty
 

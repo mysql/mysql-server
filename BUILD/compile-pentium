@@ -3,7 +3,7 @@
 path=`dirname $0`
 . "$path/SETUP.sh"
 
-extra_flags="$pentium_cflags $fast_cflags"
+extra_flags="$pentium_cflags $reckless_cflags"
 extra_configs="$pentium_configs"
 strip=yes
 

@@ -8,6 +8,6 @@ c_warnings="$c_warnings $debug_extra_warnings"
 cxx_warnings="$cxx_warnings $debug_extra_warnings"
 extra_configs="$pentium_configs $debug_configs"
 
-extra_configs="$extra_configs --with-berkeley-db --with-innobase"
+extra_configs="$extra_configs --with-berkeley-db --with-innodb"
 
 . "$path/FINISH.sh"
