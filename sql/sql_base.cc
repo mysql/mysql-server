@@ -818,6 +818,7 @@ TABLE *open_table(THD *thd,const char *db,const char *table_name,
       table->query_id=thd->query_id;
       table->clear_query_id=1;
       thd->tmp_table_used= 1;
+      DBUG_PRINT("info",("Using temporary table"));
       goto reset;
     }
   }
@@ -832,6 +833,7 @@ TABLE *open_table(THD *thd,const char *db,const char *table_name,
 	  table->query_id != thd->query_id)
       {
 	table->query_id=thd->query_id;
+        DBUG_PRINT("info",("Using locked table"));
 	goto reset;
       }
     }

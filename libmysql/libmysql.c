@@ -1544,6 +1544,40 @@ void my_net_local_init(NET *net)
 }
 
 /*
+  This function is used to create HEX string that you
+  can use in a SQL statement in of the either ways:
+    INSERT INTO blob_column VALUES (0xAABBCC);  (any MySQL version)
+    INSERT INTO blob_column VALUES (X'AABBCC'); (4.1 and higher)
+  
+  The string in "from" is encoded to a HEX string.
+  The result is placed in "to" and a terminating null byte is appended.
+  
+  The string pointed to by "from" must be "length" bytes long.
+  You must allocate the "to" buffer to be at least length*2+1 bytes long.
+  Each character needs two bytes, and you need room for the terminating
+  null byte. When mysql_hex_string() returns, the contents of "to" will
+  be a null-terminated string. The return value is the length of the
+  encoded string, not including the terminating null character.
+
+  The return value does not contain any leading 0x or a leading X' and
+  trailing '. The caller must supply whichever of those is desired.
+*/
+
+ulong mysql_hex_string(char *to, const char *from, ulong length)
+{
+  char *to0= to;
+  const char *end;
+            
+  for (end= from + length; from < end; from++)
+  {
+    *to++= _dig_vec[((unsigned char) *from) >> 4];
+    *to++= _dig_vec[((unsigned char) *from) & 0x0F];
+  }
+  *to= '\0';
+  return (ulong) (to-to0);
+}
+
+/*
   Add escape characters to a string (blob?) to make it suitable for a insert
   to should at least have place for length*2+1 chars
   Returns the length of the to string

@@ -1258,7 +1258,7 @@ trx_undo_prev_version_build(
 	ibool		dummy_extern;
 	byte*		buf;
 	ulint		err;
-	ulint		i;
+
 #ifdef UNIV_SYNC_DEBUG
 	ut_ad(rw_lock_own(&(purge_sys->latch), RW_LOCK_SHARED));
 #endif /* UNIV_SYNC_DEBUG */
@@ -1363,7 +1363,18 @@ trx_undo_prev_version_build(
 	}
 
 	if (row_upd_changes_field_size_or_external(rec, index, update)) {
+		ulint*	ext_vect;
+		ulint	n_ext_vect;
 
+		/* We have to set the appropriate extern storage bits in the
+		old version of the record: the extern bits in rec for those
+		fields that update does NOT update, as well as the the bits for
+		those fields that update updates to become externally stored
+		fields. Store the info to ext_vect: */
+
+		ext_vect = mem_alloc(sizeof(ulint) * rec_get_n_fields(rec));
+		n_ext_vect = btr_push_update_extern_fields(ext_vect, rec,
+								update);
 		entry = row_rec_to_index_entry(ROW_COPY_DATA, index, rec,
 								     heap);
 		row_upd_index_replace_new_col_vals(entry, index, update, heap);
@@ -1371,22 +1382,17 @@ trx_undo_prev_version_build(
 		buf = mem_heap_alloc(heap, rec_get_converted_size(entry));
 
 		*old_vers = rec_convert_dtuple_to_rec(buf, entry);
+
+		/* Now set the extern bits in the old version of the record */
+		rec_set_field_extern_bits(*old_vers, ext_vect, n_ext_vect,
+									NULL);
+		mem_free(ext_vect);
 	} else {
 		buf = mem_heap_alloc(heap, rec_get_size(rec));
 
 		*old_vers = rec_copy(buf, rec);
 
 		row_upd_rec_in_place(*old_vers, update);
-	}
-
-	for (i = 0; i < upd_get_n_fields(update); i++) {
-
-		if (upd_get_nth_field(update, i)->extern_storage) {
-
-			rec_set_nth_field_extern_bit(*old_vers,
-				upd_get_nth_field(update, i)->field_no,
-				TRUE, NULL);
-		}
 	}
 
 	return(DB_SUCCESS);
