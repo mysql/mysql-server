@@ -215,7 +215,7 @@ int main(int argc, char *argv[])
   if (!silent)
     printf("- Writing key:s\n");
   if (key_cacheing)
-    init_key_cache(dflt_keycache,key_cache_block_size,key_cache_size,0);		/* Use a small cache */
+    init_key_cache(dflt_key_cache,key_cache_block_size,key_cache_size,0,0);
   if (locking)
     mi_lock_database(file,F_WRLCK);
   if (write_cacheing)
@@ -276,7 +276,7 @@ int main(int argc, char *argv[])
     }
   }
   if (key_cacheing)
-    resize_key_cache(dflt_keycache,key_cache_block_size,key_cache_size*2);
+    resize_key_cache(dflt_key_cache,key_cache_block_size,key_cache_size*2,0,0);
 
   if (!silent)
     printf("- Delete\n");
@@ -829,7 +829,7 @@ reads:      %10lu\n",
 	   my_cache_r_requests, my_cache_read);
 #endif
   }
-  end_key_cache(*dflt_keycache,1);
+  end_key_cache(dflt_key_cache,1);
   if (blob_buffer)
     my_free(blob_buffer,MYF(0));
   my_end(silent ? MY_CHECK_ERROR : MY_CHECK_ERROR | MY_GIVE_INFO);

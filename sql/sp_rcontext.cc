@@ -149,15 +149,15 @@ sp_cursor::pre_open(THD *thd)
   m_oprot= thd->protocol;	// Save the original protocol
   thd->protocol= m_prot;
 
-  m_ovio= thd->net.vio;		// Prevent send_eof()
-  thd->net.vio= 0;
+  m_nseof= thd->net.no_send_eof;
+  thd->net.no_send_eof= TRUE;
   return m_lex;
 }
 
 void
 sp_cursor::post_open(THD *thd, my_bool isopen)
 {
-  thd->net.vio= m_ovio;		// Restore the originals
+  thd->net.no_send_eof= m_nseof; // Restore the originals
   thd->protocol= m_oprot;
   m_isopen= isopen;
   m_current_row= m_prot->data;

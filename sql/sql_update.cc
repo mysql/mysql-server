@@ -468,7 +468,7 @@ int mysql_multi_update(THD *thd,
 		    conds, 0, (ORDER *) NULL, (ORDER *)NULL, (Item *) NULL,
 		    (ORDER *)NULL,
 		    options | SELECT_NO_JOIN_CACHE | SELECT_NO_UNLOCK,
-		    result, unit, select_lex, 0);
+		    result, unit, select_lex);
   delete result;
   DBUG_RETURN(res);
 }
@@ -488,7 +488,8 @@ multi_update::multi_update(THD *thd_arg, TABLE_LIST *table_list,
   Connect fields with tables and create list of tables that are updated
 */
 
-int multi_update::prepare(List<Item> &not_used_values, SELECT_LEX_UNIT *unit)
+int multi_update::prepare(List<Item> &not_used_values,
+			  SELECT_LEX_UNIT *lex_unit)
 {
   TABLE_LIST *table_ref;
   SQL_LIST update;

@@ -35,7 +35,7 @@ call foo();
 ERROR 42000: PROCEDURE foo does not exist
 drop procedure if exists foo;
 Warnings:
-Warning	1286	PROCEDURE foo does not exist
+Warning	1288	PROCEDURE foo does not exist
 show create procedure foo;
 ERROR 42000: PROCEDURE foo does not exist
 create procedure foo()
@@ -71,7 +71,7 @@ declare y int;
 set x = y;
 end;
 Warnings:
-Warning	1292	Referring to uninitialized variable y
+Warning	1294	Referring to uninitialized variable y
 drop procedure foo;
 create procedure foo()
 begin
@@ -79,7 +79,7 @@ select name from mysql.proc;
 select type from mysql.proc;
 end;
 call foo();
-ERROR 04000: SELECT in a stored procedure must have INTO
+ERROR 0A000: SELECT in a stored procedure must have INTO
 drop procedure foo;
 create procedure foo()
 return 42;
@@ -90,7 +90,7 @@ declare x int;
 select max(c) into x from test.t;
 return x;
 end;
-ERROR 04000: Queries, like SELECT, INSERT, UPDATE (and others), are not allowed in a FUNCTION
+ERROR 0A000: Statements like SELECT, INSERT, UPDATE (and others) are not allowed in a FUNCTION
 create procedure p(x int)
 insert into test.t1 values (x);
 create function f(x int) returns int
@@ -259,4 +259,25 @@ declare c cursor for select * from t1;
 declare c cursor for select field from t1;
 end;
 ERROR 42000: Duplicate cursor: c
+create procedure bug1965()
+begin
+declare c cursor for select val from t1 order by valname;
+open c;
+close c;
+end;
+call bug1965();
+ERROR 42S22: Unknown column 'valname' in 'order clause'
+drop procedure bug1965;
+select 1 into a;
+ERROR 42000: Undeclared variable: a
+create procedure bug336(id char(16))
+begin
+declare x int;
+set x = (select sum(t.data) from test.t2 t);
+end;
+ERROR 0A000: Subselect value not supported
+create function bug1654()
+returns int
+return (select sum(t.data) from test.t2 t);
+ERROR 0A000: Statements like SELECT, INSERT, UPDATE (and others) are not allowed in a FUNCTION
 drop table t1;

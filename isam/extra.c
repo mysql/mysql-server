@@ -215,7 +215,7 @@ int nisam_extra(N_INFO *info, enum ha_extra_function function)
     info->s->last_version= 0L;			/* Impossible version */
 #ifdef __WIN__
     /* Close the isam and data files as Win32 can't drop an open table */
-    if (flush_key_blocks(info->s->kfile,FLUSH_RELEASE))
+    if (flush_key_blocks(dflt_key_cache, info->s->kfile, FLUSH_RELEASE))
       error=my_errno;
     if (info->opt_flag & (READ_CACHE_USED | WRITE_CACHE_USED))
     {

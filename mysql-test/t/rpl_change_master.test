@@ -1,0 +1,30 @@
+source include/master-slave.inc;
+
+connection slave;
+select get_lock("a",5);
+connection master;
+create table t1(n int);
+insert into t1 values(1+get_lock("a",15)*0);
+insert into t1 values(2);
+save_master_pos;
+connection slave;
+--real_sleep 3; # can't sync_with_master as we should be blocked
+stop slave;
+select * from t1;
+--replace_result $MASTER_MYPORT MASTER_MYPORT
+--replace_column 1 # 33 #
+show slave status;
+change master to master_user='root';
+--replace_result $MASTER_MYPORT MASTER_MYPORT
+--replace_column 1 # 33 #
+show slave status;
+# Will restart from after the values(2), which is bug
+select release_lock("a");
+start slave;
+sync_with_master;
+select * from t1;
+connection master;
+drop table t1;
+save_master_pos;
+connection slave;
+sync_with_master;

@@ -102,6 +102,7 @@ void mysql_reset_errors(THD *thd)
 MYSQL_ERROR *push_warning(THD *thd, MYSQL_ERROR::enum_warning_level level, 
                           uint code, const char *msg)
 {
+  DBUG_ENTER("push_warning");
   if (thd->query_id != thd->warn_id)
     mysql_reset_errors(thd);
 
@@ -122,7 +123,7 @@ MYSQL_ERROR *push_warning(THD *thd, MYSQL_ERROR::enum_warning_level level,
   }
   thd->warn_count[(uint) level]++;
   thd->total_warn_count++;
-  return err;
+  DBUG_RETURN(err);
 }
 
 /*

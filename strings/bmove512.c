@@ -37,7 +37,7 @@
 #define LONG ulonglong
 #endif
 
-void bmove512(register gptr to, register const gptr from, register uint length)
+void bmove512(gptr to, const gptr from, register uint length)
 {
   reg1 LONG *f,*t,*end= (LONG*) ((char*) from+length);
 

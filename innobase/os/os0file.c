@@ -346,6 +346,7 @@ os_file_handle_error(
 		return(FALSE);
 
 	} else if (err == OS_FILE_AIO_RESOURCES_RESERVED) {
+
 		return(TRUE);
 
 	} else if (err == OS_FILE_ALREADY_EXISTS) {
@@ -366,6 +367,68 @@ os_file_handle_error(
 	}
 
 	return(FALSE);	
+}
+
+/********************************************************************
+Does error handling when a file operation fails. */
+static
+ibool
+os_file_handle_error_no_exit(
+/*=========================*/
+				/* out: TRUE if we should retry the
+				operation */
+	os_file_t	file,	/* in: file pointer */
+	char*		name,	/* in: name of a file or NULL */
+	const char*	operation)/* in: operation */
+{
+	ulint	err;
+
+	UT_NOT_USED(file);
+
+	err = os_file_get_last_error(FALSE);
+	
+	if (err == OS_FILE_DISK_FULL) {
+		/* We only print a warning about disk full once */
+
+		if (os_has_said_disk_full) {
+
+			return(FALSE);
+		}
+	
+		if (name) {
+			ut_print_timestamp(stderr);
+			fprintf(stderr,
+	"  InnoDB: Encountered a problem with file %s\n", name);
+		}
+
+		ut_print_timestamp(stderr);
+	        fprintf(stderr,
+	"  InnoDB: Disk is full. Try to clean the disk to free space.\n");
+
+		os_has_said_disk_full = TRUE;
+
+		fflush(stderr);
+
+		return(FALSE);
+
+	} else if (err == OS_FILE_AIO_RESOURCES_RESERVED) {
+
+		return(TRUE);
+
+	} else if (err == OS_FILE_ALREADY_EXISTS) {
+
+		return(FALSE);
+	} else {
+	        if (name) {
+	                fprintf(stderr, "InnoDB: File name %s\n", name);
+	        }
+	  
+		fprintf(stderr, "InnoDB: File operation call: '%s'.\n",
+							       operation);
+		return (FALSE);
+	}
+
+	return(FALSE);		/* not reached */
 }
 
 /********************************************************************
@@ -409,7 +472,7 @@ os_file_opendir(
 	ut_a(strlen(dirname) < OS_FILE_MAX_PATH);
 
 	strcpy(path, dirname);
-	strcpy(path + strlen(path), "\\");
+	strcpy(path + strlen(path), "\\*");
 
 	/* Note that in Windows opening the 'directory stream' also retrieves
 	the first entry in the directory. Since it is '.', that is no problem,
@@ -457,7 +520,7 @@ os_file_closedir(
 	ret = FindClose(dir);
 
 	if (!ret) {
-	        os_file_handle_error(NULL, NULL, "closedir");
+	        os_file_handle_error_no_exit(NULL, NULL, "closedir");
 		
 		return(-1);
 	}
@@ -469,7 +532,7 @@ os_file_closedir(
 	ret = closedir(dir);
 
 	if (ret) {
-	        os_file_handle_error(0, NULL, "closedir");
+	        os_file_handle_error_no_exit(0, NULL, "closedir");
 	}
 
 	return(ret);
@@ -538,8 +601,8 @@ http://www.mysql.com/doc/en/Windows_symbolic_links.html */
 
 		return(1);
 	} else {
-		os_file_handle_error(NULL, dirname, "readdir_next_file");
-
+		os_file_handle_error_no_exit(NULL, dirname,
+						"readdir_next_file");
 		return(-1);
 	}
 #else
@@ -570,7 +633,7 @@ next_file:
 	ret = stat(full_path, &statinfo);
 
 	if (ret) {
-		os_file_handle_error(0, full_path, "stat");
+		os_file_handle_error_no_exit(0, full_path, "stat");
 
 		ut_free(full_path);
 
@@ -1060,6 +1123,67 @@ try_again:
 	}
 
 	return(file);	
+#endif
+}
+
+/***************************************************************************
+Deletes a file if it exists. The file has to be closed before calling this. */
+
+ibool
+os_file_delete_if_exists(
+/*=====================*/
+			/* out: TRUE if success */
+	char*	name)	/* in: file path as a null-terminated string */
+{
+#ifdef __WIN__
+	BOOL	ret;
+	ulint	count	= 0;
+loop:
+	/* In Windows, deleting an .ibd file may fail if ibbackup is copying
+	it */
+
+	ret = DeleteFile((LPCTSTR)name);
+
+	if (ret) {
+		return(TRUE);
+	}
+
+	if (GetLastError() == ERROR_PATH_NOT_FOUND) {
+		/* the file does not exist, this not an error */
+
+		return(TRUE);
+	}
+
+	count++;
+
+	if (count > 100 && 0 == (count % 10)) {
+		fprintf(stderr,
+"InnoDB: Warning: cannot delete file %s\n"
+"InnoDB: Are you running ibbackup to back up the file?\n", name);
+		
+		os_file_get_last_error(TRUE); /* print error information */
+	}
+
+	os_thread_sleep(1000000);	/* sleep for a second */
+
+	if (count > 2000) {
+
+		return(FALSE);
+	}
+
+	goto loop;
+#else
+	int	ret;
+
+	ret = unlink((const char*)name);
+
+	if (ret != 0 && errno != ENOENT) {
+		os_file_handle_error(0, name, "delete");
+
+		return(FALSE);
+	}
+
+	return(TRUE);
 #endif
 }
 
@@ -1743,6 +1867,92 @@ error_handling:
 
 	ut_error;
 
+	return(FALSE);
+}
+
+/***********************************************************************
+Requests a synchronous positioned read operation. This function does not do
+any error handling. In case of error it returns FALSE. */
+
+ibool
+os_file_read_no_error_handling(
+/*===========================*/
+				/* out: TRUE if request was
+				successful, FALSE if fail */
+	os_file_t	file,	/* in: handle to a file */
+	void*		buf,	/* in: buffer where to read */
+	ulint		offset,	/* in: least significant 32 bits of file
+				offset where to read */
+	ulint		offset_high, /* in: most significant 32 bits of
+				offset */
+	ulint		n)	/* in: number of bytes to read */	
+{
+#ifdef __WIN__
+	BOOL		ret;
+	DWORD		len;
+	DWORD		ret2;
+	DWORD		low;
+	DWORD		high;
+	ibool		retry;
+	ulint		i;
+	
+	ut_a((offset & 0xFFFFFFFFUL) == offset);
+
+	os_n_file_reads++;
+	os_bytes_read_since_printout += n;
+
+try_again:	
+	ut_ad(file);
+	ut_ad(buf);
+	ut_ad(n > 0);
+
+	low = offset;
+	high = offset_high;
+
+	/* Protect the seek / read operation with a mutex */
+	i = ((ulint) file) % OS_FILE_N_SEEK_MUTEXES;
+	
+	os_mutex_enter(os_file_seek_mutexes[i]);
+
+	ret2 = SetFilePointer(file, low, &high, FILE_BEGIN);
+
+	if (ret2 == 0xFFFFFFFF && GetLastError() != NO_ERROR) {
+
+		os_mutex_exit(os_file_seek_mutexes[i]);
+
+		goto error_handling;
+	} 
+	
+	ret = ReadFile(file, buf, n, &len, NULL);
+
+	os_mutex_exit(os_file_seek_mutexes[i]);
+	
+	if (ret && len == n) {
+		return(TRUE);
+	}		
+#else
+	ibool	retry;
+	ssize_t	ret;
+
+	os_bytes_read_since_printout += n;
+
+try_again:
+	ret = os_file_pread(file, buf, n, offset, offset_high);
+
+	if ((ulint)ret == n) {
+
+		return(TRUE);
+	}
+#endif	
+#ifdef __WIN__
+error_handling:
+#endif
+	retry = os_file_handle_error_no_exit(file, NULL, "read"); 
+
+	if (retry) {
+		goto try_again;
+	}
+       
 	return(FALSE);
 }
 

@@ -86,3 +86,14 @@ INSERT INTO t1 (d) values (null),(null);
 select * from t1;
 drop table t1;
 
+#
+# Test to check elimination of IS NULL predicate for a non-nullable attribute
+# (bug #1990)  
+#
+create table t1 (a int not null, b int not null, index idx(a));
+insert into t1 values
+  (1,1), (2,2), (3,3), (4,4), (5,5), (6,6),
+  (7,7), (8,8), (9,9), (10,10), (11,11), (12,12);
+explain select * from t1 where a between 2 and 3;
+explain select * from t1 where a between 2 and 3 or b is null;
+drop table t1;

@@ -363,3 +363,30 @@ t2 rows after big delete	1900001
 select 't1 rows after big delete', count(*) from t1;
 t1 rows after big delete	count(*)
 t1 rows after big delete	1900001
+drop table t1,t2;
+set @ttype_save=@@table_type;
+set @@table_type=innodb;
+create table t1 ( c char(8) not null );
+insert into t1 values ('0'),('1'),('2'),('3'),('4'),('5'),('6'),('7'),('8'),('9');
+insert into t1 values ('A'),('B'),('C'),('D'),('E'),('F');
+alter table t1 add b char(8) not null;
+alter table t1 add a char(8) not null;
+alter table t1 add primary key (a,b,c);
+update t1 set a=c, b=c;
+create table t2 like t1;
+insert into t2 select * from t1;
+delete t1,t2 from t2,t1 where t1.a<'B' and t2.b=t1.b;
+drop table t1,t2;
+set @@table_type=bdb;
+create table t1 ( c char(8) not null );
+insert into t1 values ('0'),('1'),('2'),('3'),('4'),('5'),('6'),('7'),('8'),('9');
+insert into t1 values ('A'),('B'),('C'),('D'),('E'),('F');
+alter table t1 add b char(8) not null;
+alter table t1 add a char(8) not null;
+alter table t1 add primary key (a,b,c);
+update t1 set a=c, b=c;
+create table t2 like t1;
+insert into t2 select * from t1;
+delete t1,t2 from t2,t1 where t1.a<'B' and t2.b=t1.b;
+set @@table_type=@ttype_save;
+drop table t1,t2;

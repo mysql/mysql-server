@@ -110,7 +110,8 @@ int main(int argc, char **argv)
     VOID(fflush(stderr));
     if ((check_param.error_printed | check_param.warning_printed) &&
 	(check_param.testflag & T_FORCE_CREATE) &&
-	(!(check_param.testflag & (T_REP | T_SORT_RECORDS | T_SORT_INDEX))))
+	(!(check_param.testflag & (T_REP | T_REP_BY_SORT | T_SORT_RECORDS |
+				   T_SORT_INDEX))))
     {
       uint old_testflag=check_param.testflag;
       if (!(check_param.testflag & T_REP))
@@ -153,7 +154,7 @@ enum options_mc {
   OPT_KEY_CACHE_BLOCK_SIZE, OPT_MYISAM_BLOCK_SIZE,
   OPT_READ_BUFFER_SIZE, OPT_WRITE_BUFFER_SIZE, OPT_SORT_BUFFER_SIZE,
   OPT_SORT_KEY_BLOCKS, OPT_DECODE_BITS, OPT_FT_MIN_WORD_LEN,
-  OPT_FT_MAX_WORD_LEN, OPT_FT_MAX_WORD_LEN_FOR_SORT
+  OPT_FT_MAX_WORD_LEN, OPT_FT_MAX_WORD_LEN_FOR_SORT, OPT_MAX_RECORD_LENGTH
 };
 
 static struct my_option my_long_options[] =
@@ -215,6 +216,11 @@ static struct my_option my_long_options[] =
    (gptr*) &check_param.keys_in_use,
    (gptr*) &check_param.keys_in_use,
    0, GET_ULL, REQUIRED_ARG, -1, 0, 0, 0, 0, 0},
+  {"max-record-length", OPT_MAX_RECORD_LENGTH,
+   "Skip rows bigger than this if myisamchk can't allocate memory to hold it",
+   (gptr*) &check_param.max_record_length,
+   (gptr*) &check_param.max_record_length,
+   0, GET_ULL, REQUIRED_ARG, LONGLONG_MAX, 0, LONGLONG_MAX, 0, 0, 0},
   {"medium-check", 'm',
    "Faster than extend-check, but only finds 99.99% of all errors. Should be good enough for most cases.",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
@@ -316,18 +322,18 @@ static struct my_option my_long_options[] =
   { "decode_bits", OPT_DECODE_BITS, "", (gptr*) &decode_bits,
     (gptr*) &decode_bits, 0, GET_UINT, REQUIRED_ARG, 9L, 4L, 17L, 0L, 1L, 0},
   { "ft_min_word_len", OPT_FT_MIN_WORD_LEN, "", (gptr*) &ft_min_word_len,
-    (gptr*) &ft_min_word_len, 0, GET_ULONG, REQUIRED_ARG, 4, 1, HA_FT_MAXLEN,
+    (gptr*) &ft_min_word_len, 0, GET_ULONG, REQUIRED_ARG, 4, 1, HA_FT_MAXCHARLEN,
     0, 1, 0},
   { "ft_max_word_len", OPT_FT_MAX_WORD_LEN, "", (gptr*) &ft_max_word_len,
-    (gptr*) &ft_max_word_len, 0, GET_ULONG, REQUIRED_ARG, HA_FT_MAXLEN, 10,
-    HA_FT_MAXLEN, 0, 1, 0},
-  { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}
+    (gptr*) &ft_max_word_len, 0, GET_ULONG, REQUIRED_ARG, HA_FT_MAXCHARLEN, 10,
+    HA_FT_MAXCHARLEN, 0, 1, 0},
+  { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
 
 
 static void print_version(void)
 {
-  printf("%s  Ver 2.6 for %s at %s\n", my_progname, SYSTEM_TYPE,
+  printf("%s  Ver 2.7 for %s at %s\n", my_progname, SYSTEM_TYPE,
 	 MACHINE_TYPE);
 }
 
@@ -394,6 +400,9 @@ static void usage(void)
   -k, --keys-used=#   Tell MyISAM to update only some specific keys. # is a\n\
 	              bit mask of which keys to use. This can be used to\n\
 		      get faster inserts.\n\
+  --max-record-length=#\n\
+                      Skip rows bigger than this if myisamchk can't allocate\n\
+		      memory to hold it.\n\
   -r, --recover       Can fix almost anything except unique keys that aren't\n\
                       unique.\n\
   -n, --sort-recover  Forces recovering with sorting even if the temporary\n\
@@ -1032,8 +1041,8 @@ static int myisamchk(MI_CHECK *param, my_string filename)
 	  !(param->testflag & (T_FAST | T_FORCE_CREATE)))
       {
 	if (param->testflag & (T_EXTEND | T_MEDIUM))
-	  VOID(init_key_cache(dflt_keycache,opt_key_cache_block_size,
-                              param->use_buffers,&dflt_key_cache_var));
+	  VOID(init_key_cache(dflt_key_cache,opt_key_cache_block_size,
+                              param->use_buffers, 0, 0));
 	VOID(init_io_cache(&param->read_cache,datafile,
 			   (uint) param->read_buffer_length,
 			   READ_CACHE,
@@ -1047,7 +1056,7 @@ static int myisamchk(MI_CHECK *param, my_string filename)
 				 HA_OPTION_COMPRESS_RECORD)) ||
 	    (param->testflag & (T_EXTEND | T_MEDIUM)))
 	  error|=chk_data_link(param, info, param->testflag & T_EXTEND);
-	error|=flush_blocks(param, *share->key_cache, share->kfile);
+	error|=flush_blocks(param, share->key_cache, share->kfile);
 	VOID(end_io_cache(&param->read_cache));
       }
       if (!error)
@@ -1456,8 +1465,8 @@ static int mi_sort_records(MI_CHECK *param,
   if (share->state.key_root[sort_key] == HA_OFFSET_ERROR)
     DBUG_RETURN(0);				/* Nothing to do */
 
-  init_key_cache(dflt_keycache, opt_key_cache_block_size, param->use_buffers,
-                 &dflt_key_cache_var);
+  init_key_cache(dflt_key_cache, opt_key_cache_block_size, param->use_buffers,
+                 0, 0);
   if (init_io_cache(&info->rec_cache,-1,(uint) param->write_buffer_length,
 		   WRITE_CACHE,share->pack.header_length,1,
 		   MYF(MY_WME | MY_WAIT_IF_FULL)))
@@ -1571,7 +1580,7 @@ err:
   my_free(sort_info.buff,MYF(MY_ALLOW_ZERO_PTR));
   sort_info.buff=0;
   share->state.sortkey=sort_key;
-  DBUG_RETURN(flush_blocks(param, *share->key_cache, share->kfile) |
+  DBUG_RETURN(flush_blocks(param, share->key_cache, share->kfile) |
 	      got_error);
 } /* sort_records */
 

@@ -961,8 +961,8 @@ void kill_zombie_dump_threads(uint32 slave_server_id)
 int change_master(THD* thd, MASTER_INFO* mi)
 {
   int thread_mask;
-  const char* errmsg=0;
-  bool need_relay_log_purge=1;
+  const char* errmsg= 0;
+  bool need_relay_log_purge= 1;
   DBUG_ENTER("change_master");
 
   lock_slave_threads(mi);
@@ -1055,7 +1055,41 @@ int change_master(THD* thd, MASTER_INFO* mi)
     mi->rli.group_relay_log_pos= mi->rli.event_relay_log_pos= lex_mi->relay_log_pos;
   }
 
-  flush_master_info(mi);
+  /*
+    If user did specify neither host nor port nor any log name nor any log
+    pos, i.e. he specified only user/password/master_connect_retry, he probably
+    wants replication to resume from where it had left, i.e. from the
+    coordinates of the **SQL** thread (imagine the case where the I/O is ahead
+    of the SQL; restarting from the coordinates of the I/O would lose some
+    events which is probably unwanted when you are just doing minor changes
+    like changing master_connect_retry).
+    A side-effect is that if only the I/O thread was started, this thread may
+    restart from ''/4 after the CHANGE MASTER. That's a minor problem (it is a
+    much more unlikely situation than the one we are fixing here).
+    Note: coordinates of the SQL thread must be read here, before the
+    'if (need_relay_log_purge)' block which resets them.
+  */
+  if (!lex_mi->host && !lex_mi->port &&
+      !lex_mi->log_file_name && !lex_mi->pos &&
+      need_relay_log_purge)
+   {
+     /*
+       Sometimes mi->rli.master_log_pos == 0 (it happens when the SQL thread is
+       not initialized), so we use a max().
+       What happens to mi->rli.master_log_pos during the initialization stages
+       of replication is not 100% clear, so we guard against problems using
+       max().
+      */
+     mi->master_log_pos = max(BIN_LOG_HEADER_SIZE,
+			      mi->rli.group_master_log_pos);
+     strmake(mi->master_log_name, mi->rli.group_master_log_name,
+             sizeof(mi->master_log_name)-1);
+  }
+  /*
+    Relay log's IO_CACHE may not be inited, if rli->inited==0 (server was never
+    a slave before).
+  */
+  flush_master_info(mi, 0);
   if (need_relay_log_purge)
   {
     relay_log_purge= 1;
@@ -1087,10 +1121,21 @@ int change_master(THD* thd, MASTER_INFO* mi)
   }
   mi->rli.group_master_log_pos = mi->master_log_pos;
   DBUG_PRINT("info", ("master_log_pos: %d", (ulong) mi->master_log_pos));
-  /* If changing RELAY_LOG_FILE or RELAY_LOG_POS, this will be nonsense: */
+
+  /*
+    Coordinates in rli were spoilt by the 'if (need_relay_log_purge)' block,
+    so restore them to good values. If we left them to ''/0, that would work;
+    but that would fail in the case of 2 successive CHANGE MASTER (without a
+    START SLAVE in between): because first one would set the coords in mi to
+    the good values of those in rli, the set those in rli to ''/0, then
+    second CHANGE MASTER would set the coords in mi to those of rli, i.e. to
+    ''/0: we have lost all copies of the original good coordinates.
+    That's why we always save good coords in rli.
+  */
   mi->rli.group_master_log_pos= mi->master_log_pos;
   strmake(mi->rli.group_master_log_name,mi->master_log_name,
 	  sizeof(mi->rli.group_master_log_name)-1);
+
   if (!mi->rli.group_master_log_name[0]) // uninitialized case
     mi->rli.group_master_log_pos=0;
 
@@ -1251,8 +1296,8 @@ int show_binlog_info(THD* thd)
   field_list.push_back(new Item_empty_string("File", FN_REFLEN));
   field_list.push_back(new Item_return_int("Position",20,
 					   MYSQL_TYPE_LONGLONG));
-  field_list.push_back(new Item_empty_string("Binlog_do_db",255));
-  field_list.push_back(new Item_empty_string("Binlog_ignore_db",255));
+  field_list.push_back(new Item_empty_string("Binlog_Do_DB",255));
+  field_list.push_back(new Item_empty_string("Binlog_Ignore_DB",255));
 
   if (protocol->send_fields(&field_list, 1))
     DBUG_RETURN(-1);
@@ -1291,9 +1336,7 @@ int show_binlogs(THD* thd)
 {
   IO_CACHE *index_file;
   char fname[FN_REFLEN];
-  NET* net = &thd->net;
   List<Item> field_list;
-  String *packet = &thd->packet;
   uint length;
   Protocol *protocol= thd->protocol;
   DBUG_ENTER("show_binlogs");

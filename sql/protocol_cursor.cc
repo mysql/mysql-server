@@ -30,7 +30,7 @@ bool Protocol_cursor::send_fields(List<Item> *list, uint flag)
 {
   List_iterator_fast<Item> it(*list);
   Item                     *item;
-  MYSQL_FIELD              *field, *client_field;
+  MYSQL_FIELD              *client_field;
   
   DBUG_ENTER("send_fields");
   if (prepare_for_send(list))
@@ -73,9 +73,9 @@ bool Protocol_cursor::send_fields(List<Item> *list, uint flag)
       String tmp(buff, sizeof(buff), default_charset_info), *res;
 
       if (!(res=item->val_str(&tmp)))
-	client_field->def= strdup_root(alloc, "");
+	client_field->def= (char*) "";
       else
-	client_field->def= strdup_root(alloc, tmp.ptr());
+	client_field->def= strmake_root(alloc, res->ptr(), res->length());
     }
     else
       client_field->def=0;
@@ -98,23 +98,23 @@ bool Protocol_cursor::write()
   MYSQL_FIELD *cur_field= fields;
   MYSQL_FIELD *fields_end= fields + field_count;
   MYSQL_ROWS *new_record;
-  byte **data;
+  byte **data_tmp;
   byte *to;
 
   new_record= (MYSQL_ROWS *)alloc_root(alloc, 
     sizeof(MYSQL_ROWS) + (field_count + 1)*sizeof(char *) + packet->length());
   if (!new_record)
     goto err;
-  data= (byte **)(new_record + 1);
-  new_record->data= (char **)data;
+  data_tmp= (byte **)(new_record + 1);
+  new_record->data= (char **)data_tmp;
 
-  to= (byte *)data + (field_count + 1)*sizeof(char *);
+  to= (byte *)data_tmp + (field_count + 1)*sizeof(char *);
 
-  for (; cur_field < fields_end; ++cur_field, ++data)
+  for (; cur_field < fields_end; ++cur_field, ++data_tmp)
   {
     if ((len= net_field_length((uchar **)&cp)) == 0)
     {
-      *data= 0;
+      *data_tmp= 0;
     }
     else
     {
@@ -123,7 +123,7 @@ bool Protocol_cursor::write()
 // TODO error signal      send_error(thd, CR_MALFORMED_PACKET);
 	return TRUE;
       }
-      *data= to;
+      *data_tmp= to;
       memcpy(to,(char*) cp,len);
       to[len]=0;
       to+=len+1;
@@ -132,7 +132,7 @@ bool Protocol_cursor::write()
 	cur_field->max_length=len;
     }
   }
-  *data= 0;
+  *data_tmp= 0;
 
   *prev_record= new_record;
   prev_record= &new_record->next;

@@ -279,6 +279,16 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 SELECT * FROM t1 WHERE a IN(1,2) AND b=5;
 a	b
 DROP TABLE t1;
+CREATE TABLE t1 (a int, b int, c int, INDEX (c,a,b));
+INSERT INTO t1 VALUES (1,0,0),(1,0,0),(1,0,0);
+INSERT INTO t1 VALUES (0,1,0),(0,1,0),(0,1,0);
+SELECT COUNT(*) FROM t1 WHERE (c=0 and a=1) or (c=0 and b=1);
+COUNT(*)
+6
+SELECT COUNT(*) FROM t1 WHERE (c=0 and b=1) or (c=0 and a=1);
+COUNT(*)
+6
+DROP TABLE t1;
 create  table t1 (id int(10) primary key);
 insert into t1 values (1),(2),(3),(4),(5),(6),(7),(8),(9);
 select id from t1 where id in (2,5,9) ;

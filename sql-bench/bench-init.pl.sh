@@ -509,7 +509,7 @@ All benchmarks takes the following options:
 
 --socket='socket'
   If the database supports connecting through a Unix socket,
-  use this socket to connect
+  then use this socket to connect
 
 --regions
   This is a test specific option that is only used when debugging a test.
