@@ -383,7 +383,9 @@ struct trx_struct{
 	dulint		commit_lsn;	/* lsn at the time of the commit */
 	ibool		dict_operation;	/* TRUE if the trx is used to create
 					a table, create an index, or drop a
-					table */
+					table.  This is a hint that the table
+					may need to be dropped in crash
+					recovery. */
 	dulint		table_id;	/* table id if the preceding field is
 					TRUE */
 	/*------------------------------*/

@@ -34,19 +34,21 @@ SCI_Transporter::SCI_Transporter(TransporterRegistry &t_reg,
                                  const char *lHostName,
                                  const char *rHostName,
                                  int r_port,
+				 bool isMgmConnection,
                                  Uint32 packetSize,         
 				 Uint32 bufferSize,       
 				 Uint32 nAdapters, 
 				 Uint16 remoteSciNodeId0,        
 				 Uint16 remoteSciNodeId1, 
 				 NodeId _localNodeId,      
-				 NodeId _remoteNodeId,     
+				 NodeId _remoteNodeId,
+				 NodeId serverNodeId,
 				 bool chksm,  
 				 bool signalId, 
 				 Uint32 reportFreq) :  
   Transporter(t_reg, tt_SCI_TRANSPORTER,
-	      lHostName, rHostName, r_port, _localNodeId,
-              _remoteNodeId, 0, false, chksm, signalId) 
+	      lHostName, rHostName, r_port, isMgmConnection, _localNodeId,
+              _remoteNodeId, serverNodeID, 0, false, chksm, signalId) 
 {
   DBUG_ENTER("SCI_Transporter::SCI_Transporter");
   m_PacketSize = (packetSize + 3)/4 ; 

@@ -156,7 +156,7 @@ $ENV{'MYSQL_TCP_PORT'}= $mysql_tcp_port= 3334 + $opt_build_thread*2;
 $ENV{'MYSQL_UNIX_PORT'}=$mysql_unix_port="$opt_tmp/mysql$opt_suffix.build";
 $ENV{"PERL5LIB"}="$pwd/$host/perl5:$pwd/$host/perl5/site_perl";
 $slave_port=$mysql_tcp_port+16;
-$ndbcluster_port= 9350 + $opt_build_thread*2;
+$ndbcluster_port= 9350 + $opt_build_thread*4;
 $manager_port=$mysql_tcp_port+1;
 $mysqladmin_args="--no-defaults -u root --connect_timeout=5 --shutdown_timeout=20";
 

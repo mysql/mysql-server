@@ -515,6 +515,8 @@ public:
 
   int set_connect_string(const char *str);
 
+  void transporter_connect(NDB_SOCKET_TYPE sockfd);
+
   ConfigRetriever *get_config_retriever() { return m_config_retriever; };
 
   const char *get_connect_address(Uint32 node_id) { return inet_ntoa(m_connect_address[node_id]); }

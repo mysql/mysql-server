@@ -15,6 +15,7 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 #include <ndb_global.h>
+#include <ndb_opt_defaults.h>
 
 #include <NdbTCP.h>
 #include "ConfigInfo.hpp"
@@ -1766,6 +1767,18 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     STR_VALUE(MAX_INT_RNIL) },
 
   {
+    CFG_SHM_SIGNUM,
+    "Signum",
+    "SHM",
+    "Signum to be used for signalling",
+    ConfigInfo::CI_USED,
+    false,
+    ConfigInfo::CI_INT,
+    UNDEFINED,
+    "0", 
+    STR_VALUE(MAX_INT_RNIL) },
+
+  {
     CFG_CONNECTION_NODE_1,
     "NodeId1",
     "SHM",
@@ -3119,8 +3132,8 @@ fixPortNumber(InitConfigFileParser::Context & ctx, const char * data){
 
   const Properties * node;
   require(ctx.m_config->get("Node", id1, &node));
+
   BaseString hostname(hostName1);
-  //  require(node->get("HostName", hostname));
   
   if (hostname.c_str()[0] == 0) {
     ctx.reportError("Hostname required on nodeid %d since it will "
@@ -3129,6 +3142,19 @@ fixPortNumber(InitConfigFileParser::Context & ctx, const char * data){
   }
 
   Uint32 port= 0;
+  const char * type1;
+  const char * type2;
+  const Properties * node2;
+
+  node->get("Type", &type1);
+  ctx.m_config->get("Node", id2, &node2);
+  node2->get("Type", &type2);
+
+  if(strcmp(type1, MGM_TOKEN)==0)
+    node->get("PortNumber",&port);
+  else if(strcmp(type2, MGM_TOKEN)==0)
+    node2->get("PortNumber",&port);
+
   if (!node->get("ServerPort", &port) &&
       !ctx.m_userProperties.get("ServerPort_", id1, &port)) {
     ctx.m_currentSection->put("PortNumber", port);
@@ -3159,18 +3185,27 @@ bool
 fixShmKey(InitConfigFileParser::Context & ctx, const char *)
 {
   DBUG_ENTER("fixShmKey");
-  Uint32 id1= 0, id2= 0, key= 0;
-  require(ctx.m_currentSection->get("NodeId1", &id1));
-  require(ctx.m_currentSection->get("NodeId2", &id2));
-  if(ctx.m_currentSection->get("ShmKey", &key))
   {
-    DBUG_RETURN(true);
+    Uint32 signum;
+    if(!ctx.m_currentSection->get("Signum", &signum))
+    {
+      signum= OPT_NDB_SHM_SIGNUM_DEFAULT;
+      ctx.m_currentSection->put("Signum", signum);
+      DBUG_PRINT("info",("Added Signum=%u", signum));
+    }
   }
-
-  require(ctx.m_userProperties.get("ShmUniqueId", &key));
-  key= key << 16 | (id1 > id2 ? id1 << 8 | id2 : id2 << 8 | id1);
-  ctx.m_currentSection->put("ShmKey", key);
-  DBUG_PRINT("info",("Added ShmKey=0x%x", key));
+  {
+    Uint32 id1= 0, id2= 0, key= 0;
+    require(ctx.m_currentSection->get("NodeId1", &id1));
+    require(ctx.m_currentSection->get("NodeId2", &id2));
+    if(!ctx.m_currentSection->get("ShmKey", &key))
+    {
+      require(ctx.m_userProperties.get("ShmUniqueId", &key));
+      key= key << 16 | (id1 > id2 ? id1 << 8 | id2 : id2 << 8 | id1);
+      ctx.m_currentSection->put("ShmKey", key);
+      DBUG_PRINT("info",("Added ShmKey=0x%x", key));
+    }
+  }
   DBUG_RETURN(true);
 }
 

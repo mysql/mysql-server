@@ -1861,7 +1861,7 @@ tz_load_from_open_tables(const String *tz_name, TABLE_LIST *tz_tables)
   {
     ttid= (uint)table->field[1]->val_int();
 
-    if (ttid > TZ_MAX_TYPES)
+    if (ttid >= TZ_MAX_TYPES)
     {
       sql_print_error("Error while loading time zone description from "
                       "mysql.time_zone_transition_type table: too big "

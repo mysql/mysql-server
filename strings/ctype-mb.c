@@ -912,6 +912,7 @@ MY_COLLATION_HANDLER my_collation_mb_bin_handler =
     my_strnncoll_mb_bin,
     my_strnncollsp_mb_bin,
     my_strnxfrm_mb_bin,
+    my_strnxfrmlen_simple,
     my_like_range_simple,
     my_wildcmp_mb_bin,
     my_strcasecmp_mb_bin,

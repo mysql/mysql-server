@@ -36,6 +36,7 @@ public:
     m_servaddr.sin_port = htons(m_port);
   };
   NDB_SOCKET_TYPE connect();
+  NDB_SOCKET_TYPE connect_without_auth();
   bool close();
 };
 

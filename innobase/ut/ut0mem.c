@@ -88,7 +88,9 @@ ut_malloc_low(
 		"InnoDB: Check if you should increase the swap file or\n"
 		"InnoDB: ulimits of your operating system.\n"
 		"InnoDB: On FreeBSD check you have compiled the OS with\n"
-		"InnoDB: a big enough maximum process size.\n",
+		"InnoDB: a big enough maximum process size.\n"
+		"InnoDB: Note that in most 32-bit computers the process\n"
+		"InnoDB: memory space is limited to 2 GB or 4 GB.\n",
 		                  (ulong) n, (ulong) ut_total_allocated_memory,
 #ifdef __WIN__
 			(ulong) GetLastError()

@@ -40,15 +40,19 @@ int my_sync(File fd, myf my_flags)
   DBUG_ENTER("my_sync");
   DBUG_PRINT("my",("Fd: %d  my_flags: %d", fd, my_flags));
 
+  do
+  {
 #if defined(HAVE_FDATASYNC)
-  res= fdatasync(fd);
+    res= fdatasync(fd);
 #elif defined(HAVE_FSYNC)
-  res=fsync(fd);
+    res= fsync(fd);
 #elif defined(__WIN__)
     res= _commit(fd);
 #else
-  res= 0;					/* No sync (strange OS) */
+    res= 0;					/* No sync (strange OS) */
 #endif
+  } while (res == -1 && errno == EINTR);
+
   if (res)
   {
     if (!(my_errno= errno))
