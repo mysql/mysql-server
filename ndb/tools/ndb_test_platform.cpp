@@ -32,19 +32,21 @@ int test_snprintf(const char * fmt, int buf_sz, int result)
   
   if(ret < 0)
   {
-    printf("BaseString::snprint returns %d\n", ret);
+    printf("BaseString::snprint returns %d with size=%d and strlen(fmt)=%d\n",
+	   ret, buf_sz, strlen(fmt));
     return -1;
   }
   
   if(ret+1 == buf_sz)
   {
-    printf("BaseString::snprint truncates\n");
+    printf("BaseString::snprint truncates returns %d with size=%d and strlen(fmt)=%d\n",
+	   ret, buf_sz, strlen(fmt));
     return -1;
   }
   
   if(ret != result)
   {
-    printf("BaseString::snprint returns incorrect value: %d != %d\n",
+    printf("BaseString::snprint returns incorrect value: returned=%d != expected=%d\n",
 	   ret, result);
     return -1;
   }
@@ -54,7 +56,7 @@ int test_snprintf(const char * fmt, int buf_sz, int result)
     if(buf[ret] != fmt[ret])
     {
       printf("BaseString::snprint Incorrect value in output buffer: "
-	     "%d %d %d %d %d\n",
+	     "size=%d returned=expected=%d at pos=%d result=%d  != expected=%d\n",
              buf_sz, result, ret, buf[ret], fmt[ret]);
       return -1;
     }
