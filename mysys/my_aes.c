@@ -74,6 +74,32 @@ static int my_aes_create_key(KEYINSTANCE *aes_key,
       ptr= rkey;  /*  Just loop over tmp_key until we used all key */
     *ptr^= *sptr;
   }
+#ifdef AES_USE_KEY_BITS
+  /*
+   This block is intended to allow more weak encryption if application 
+   build with libmysqld needs to correspond to export regulations
+   It should be never used in normal distribution as does not give 
+   any speed improvement.
+   To get worse security define AES_USE_KEY_BITS to number of bits
+   you want key to be. It should be divisible by 8
+   
+   WARNING: Changing this value results in changing of enryption for 
+   all key lengths  so altering this value will result in impossibility
+   to decrypt data encrypted with previous value       
+  */
+#define AES_USE_KEY_BYTES (AES_USE_KEY_BITS/8)
+  /*
+   To get weaker key we use first AES_USE_KEY_BYTES bytes of created key 
+   and cyclically copy them until we created all required key length
+  */  
+  for (ptr= rkey+AES_USE_KEY_BYTES, sptr=rkey ; ptr < rkey_end; 
+       ptr++,sptr++)
+  {
+    if (sptr == rkey+AES_USE_KEY_BYTES)
+      sptr=rkey;
+    *ptr=*sptr;   
+  }      
+#endif
   if (direction == AES_DECRYPT)
      aes_key->nr = rijndaelKeySetupDec(aes_key->rk, rkey, AES_KEY_LENGTH);
   else
