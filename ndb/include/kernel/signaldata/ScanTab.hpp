@@ -55,7 +55,7 @@ private:
    * DATA VARIABLES
    */
   UintR apiConnectPtr;        // DATA 0
-  UintR attrLen;              // DATA 1
+  UintR attrLenKeyLen;        // DATA 1
   UintR requestInfo;          // DATA 2
   UintR tableId;              // DATA 3
   UintR tableSchemaVersion;   // DATA 4

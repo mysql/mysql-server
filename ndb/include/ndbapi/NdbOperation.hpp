@@ -749,7 +749,6 @@ protected:
     FinalGetValue,
     SubroutineExec,
     SubroutineEnd,
-    SetBound,
     WaitResponse,
     WaitCommitResponse,
     Finished,
@@ -921,9 +920,6 @@ protected:
   Uint16 m_keyInfoGSN;
   Uint16 m_attrInfoGSN;
 
-  // saveBoundATTRINFO() moves ATTRINFO here when setBound() is ready
-  NdbApiSignal*     theBoundATTRINFO;
-  Uint32            theTotalBoundAI_Len;
   // Blobs in this operation
   NdbBlob* theBlobList;
 

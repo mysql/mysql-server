@@ -129,14 +129,14 @@ Dbtux::execTUX_BOUND_INFO(Signal* signal)
   // largest attrId seen plus one
   Uint32 maxAttrId = 0;
   // skip 5 words
-  if (req->boundAiLength < 5) {
+  unsigned offset = 0;
+  if (req->boundAiLength < offset) {
     jam();
     scan.m_state = ScanOp::Invalid;
     sig->errorCode = TuxBoundInfo::InvalidAttrInfo;
     return;
   }
   const Uint32* const data = (Uint32*)sig + TuxBoundInfo::SignalLength;
-  unsigned offset = 5;
   // walk through entries
   while (offset + 2 <= req->boundAiLength) {
     jam();

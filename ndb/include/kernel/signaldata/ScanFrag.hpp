@@ -34,14 +34,16 @@ class ScanFragReq {
   friend class Dblqh;
 public:
   STATIC_CONST( SignalLength = 12 );
-
+  
+  friend bool printSCAN_FRAGREQ(FILE *, const Uint32*, Uint32, Uint16);
+  
 public:
   Uint32 senderData;
   Uint32 resultRef;       // Where to send the result
   Uint32 savePointId;
   Uint32 requestInfo;
   Uint32 tableId;
-  Uint32 fragmentNo;
+  Uint32 fragmentNoKeyLen;
   Uint32 schemaVersion;
   Uint32 transId1;
   Uint32 transId2;
