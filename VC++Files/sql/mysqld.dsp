@@ -1820,6 +1820,10 @@ SOURCE=.\time.cpp
 # End Source File
 # Begin Source File
 
+SOURCE=.\tztime.cpp
+# End Source File
+# Begin Source File
+
 SOURCE=.\uniques.cpp
 # End Source File
 # Begin Source File
