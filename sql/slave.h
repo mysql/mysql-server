@@ -250,20 +250,20 @@ Log_event* next_event(RELAY_LOG_INFO* rli);
 typedef struct st_master_info
 {
   char master_log_name[FN_REFLEN];
+  char host[HOSTNAME_LENGTH+1];
+  char user[USERNAME_LENGTH+1];
+  char password[MAX_PASSWORD_LENGTH+1];
   
   my_off_t master_log_pos;
   File fd; // we keep the file open, so we need to remember the file pointer
   IO_CACHE file;
   
   /* the variables below are needed because we can change masters on the fly */
-  char host[HOSTNAME_LENGTH+1];
-  char user[USERNAME_LENGTH+1];
-  char password[HASH_PASSWORD_LENGTH+1];
   pthread_mutex_t data_lock,run_lock;
   pthread_cond_t data_cond,start_cond,stop_cond;
   THD *io_thd;
   MYSQL* mysql;
-  uint32 file_id; /* for 3.23 load data infile */
+  uint32 file_id;				/* for 3.23 load data infile */
   RELAY_LOG_INFO rli;
   uint port;
   uint connect_retry;
@@ -271,11 +271,10 @@ typedef struct st_master_info
   int events_till_abort;
 #endif
   bool inited;
-  enum enum_binlog_formats old_format;			/* master binlog is in 3.23 format */
+  enum enum_binlog_formats old_format;		/* binlog is in 3.23 format */
   volatile bool abort_slave, slave_running;
   volatile ulong slave_run_id;
   bool ignore_stop_event;
-  
   
   st_master_info()
     :fd(-1), io_thd(0), inited(0), old_format(BINLOG_FORMAT_CURRENT),
