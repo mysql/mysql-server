@@ -3808,10 +3808,6 @@ Add support for sorting on @code{UNICODE}.
 @item
 Character set casts and syntax for handling multiple character sets.
 @item
-When using @code{SET CHARACTER SET} we should translate the whole query
-at once and not only strings. This will enable users to use the translated
-characters in database, table and column names.
-@item
 Help for all commands from the client.
 @item
 New faster client/server protocol which will support prepared statements,
