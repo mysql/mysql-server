@@ -1,26 +1,30 @@
 \input texinfo  @c -*-texinfo-*-
-@c Copyright 1998 TcX AB, Detron HB and Monty Program KB
+@c Copyright 2002 MySQL AB, TcX AB, Detron HB and Monty Program KB
 @c
 @c %**start of header
 @setfilename internals.info
+
 @c We want the types in the same index
-@c @synindex tp fn cp
 @synindex cp fn
+
 @iftex
-@c Well this is normal in Europe. Maybe this should go into the include.texi?
 @afourpaper
 @end iftex
+
 @c Get version and other info
 @include include.texi
+
 @ifclear tex-debug
 @c This removes the black squares in the right margin
 @finalout
 @end ifclear
+
 @c Set background for HTML
 @set _body_tags BGCOLOR=#FFFFFF TEXT=#000000 LINK=#101090 VLINK=#7030B0
-@settitle @strong{MySQL} internals Manual for version @value{mysql_version}.
-@setchapternewpage off
+@settitle @strong{MySQL} Internals Manual for version @value{mysql_version}.
+@setchapternewpage odd
 @paragraphindent 0
+
 @c %**end of header
 
 @ifinfo
@@ -35,67 +39,77 @@ END-INFO-DIR-ENTRY
 @sp 10
 @center @titlefont{@strong{MySQL} Internals Manual}
 @sp 10
-@center Copyright @copyright{} 1998 TcX AB, Detron HB and Monty Program KB
+@center Copyright @copyright{} 1998-2002 MySQL AB
+@page
 @end titlepage
 
-@node Top, Introduction, (dir), (dir)
+@node Top, caching, (dir), (dir)
 
 @ifinfo
 This is a manual about @strong{MySQL} internals.
 @end ifinfo
 
 @menu
+* caching::                     How MySQL Handles Caching
+* flush tables::                How MySQL Handles @code{FLUSH TABLES}
+* filesort::                    How MySQL Does Sorting (@code{filesort})
+* coding guidelines::           Coding Guidelines
+* mysys functions::             Functions In The @code{mysys} Library
+* DBUG::                        DBUG Tags To Use
+* protocol::                    MySQL Client/Server Protocol
 @end menu
 
-@node caching,,,
-@chapter How MySQL handles caching
+
+@node caching, flush tables, Top, Top
+@chapter How MySQL Handles Caching
 
 @strong{MySQL} has the following caches:
 (Note that the some of the filename have a wrong spelling of cache. :)
 
-@itemize @bullet
+@table @strong
 
-@item Key cache
+@item Key Cache
 A shared cache for all B-tree index blocks in the different NISAM
 files. Uses hashing and reverse linked lists for quick caching of the
 last used blocks and quick flushing of changed entries for a specific
 table. (@file{mysys/mf_keycash.c})
 
-@item Record cache
+@item Record Cache
 This is used for quick scanning of all records in a table.
 (@file{mysys/mf_iocash.c} and @file{isam/_cash.c})
 
-@item Table cache
+@item Table Cache
 This holds the last used tables. (@file{sql/sql_base.cc})
 
-@item Hostname cache
+@item Hostname Cache
 For quick lookup (with reverse name resolving). Is a must when one has a
 slow DNS. 
 (@file{sql/hostname.cc})
 
-@item Privilege cache
+@item Privilege Cache
 To allow quick change between databases the last used privileges are
 cached for each user/database combination.
 (@file{sql/sql_acl.cc})
 
-@item Heap table cache
-Many use of GROUP BY or DISTINCT caches all found
-rows in a HEAP table (this is a very quick in-memory table with hash index)
+@item Heap Table Cache
+Many use of @code{GROUP BY} or @code{DISTINCT} caches all found rows in 
+a @code{HEAP} table. (This is a very quick in-memory table with hash index.)
 
-@item Join row cache.
-For every full join in a SELECT statement (a full join here means there
-were no keys that one could use to find the next table in a list), the
-found rows are cached in a join cache.  One SELECT query can use many
-join caches in the worst case.
-@end itemize
+@item Join Row Cache
+For every full join in a @code{SELECT} statement (a full join here means
+there were no keys that one could use to find the next table in a list), 
+the found rows are cached in a join cache.  One @code{SELECT} query can 
+use many join caches in the worst case.
+@end table
 
-@node flush tables,,,
-@chapter How MySQL handles flush tables
+
+@node flush tables, filesort, caching, Top
+@chapter How MySQL Handles @code{FLUSH TABLES}
 
 @itemize @bullet
 
 @item
-Flush tables is handled in @code{sql/sql_base.cc::close_cached_tables()}.
+Flush tables is handled in @file{sql/sql_base.cc::close_cached_tables()}.
 
 @item
 The idea of flush tables is to force all tables to be closed. This
@@ -109,8 +123,8 @@ all tables)!
 When one does a @code{FLUSH TABLES}, the variable @code{refresh_version} 
 will be incremented. Every time a thread releases a table it checks if
 the refresh version of the table (updated at open) is the same as
-the current refresh_version.  If not it will close it and broadcast
-a signal on COND_refresh (to wait any thread that is waiting for
+the current @code{refresh_version}.  If not it will close it and broadcast
+a signal on @code{COND_refresh} (to wait any thread that is waiting for
 all instanses of a table to be closed).
 
 @item
@@ -119,8 +133,8 @@ The current @code{refresh_version} is also compared to the open
 refresh version is different the thread will free all locks, reopen the
 table and try to get the locks again;  This is just to quickly get all 
 tables to use the newest version.  This is handled by
-@code{sql/lock.cc::mysql_lock_tables()} and 
-@code{sql/sql_base.cc::wait_for_tables()}.
+@file{sql/lock.cc::mysql_lock_tables()} and 
+@file{sql/sql_base.cc::wait_for_tables()}.
 
 @item
 When all tables has been closed @code{FLUSH TABLES} will return an ok 
@@ -134,8 +148,8 @@ After this it will give other threads a chance to open the same tables.
 
 @end itemize
 
-@node Filesort,,,
-@chapter How MySQL does sorting (filesort)
+@node filesort, coding guidelines, flush tables, Top
+@chapter How MySQL Does Sorting (@code{filesort})
 
 @itemize @bullet
 
@@ -146,7 +160,7 @@ Read all rows according to key or by table scanning.
 Store the sort-key in a buffer (@code{sort_buffer}).
 
 @item
-When the buffer gets full, run a qsort on it and store the result
+When the buffer gets full, run a @code{qsort} on it and store the result
 in a temporary file.  Save a pointer to the sorted block.
 
 @item
@@ -174,8 +188,9 @@ and then we read the rows in the sorted order into a row buffer
 
 @end itemize
 
-@node Coding guidelines,,,
-@chapter Coding guidelines
+
+@node coding guidelines, mysys functions, filesort, Top
+@chapter Coding Guidelines
 
 @itemize @bullet
 
@@ -225,23 +240,23 @@ Don't use two commands on the same line.
 Do not check the same pointer for @code{NULL} more than once.
 
 @item
-Use long function and variable names in English; This makes your code
+Use long function and variable names in English.  This makes your code
 easier to read. 
 
 @item
-Use my_var as opposed to myVar or MyVar (@samp{_} rather than dancing SHIFT
-to seperate words in identifiers).
+Use @code{my_var} as opposed to @code{myVar} or @code{MyVar} (@samp{_} 
+rather than dancing SHIFT to seperate words in identifiers).
 
 @item
 Think assembly - make it easier for the compiler to optimize your code.
 
 @item
 Comment your code when you do something that someone else may think
-is not ''trivial''.
+is not ``trivial''.
 
 @item
-Use @code{libstring} functions (in the strings directory)
-instead of standard libc string functions whenever possible.
+Use @code{libstring} functions (in the @file{strings} directory)
+instead of standard @code{libc} string functions whenever possible.
 
 @item
 Avoid using @code{malloc()} (its REAL slow);  For memory allocations 
@@ -268,26 +283,25 @@ Any @code{#define}'s are in all-caps.
 Matching @samp{@{} are in the same column.
 
 @item
-Put the @samp{@{} after a 'switch' on the same line
+Put the @samp{@{} after a @code{switch} on the same line, as this gives 
+better overall indentation for the switch statement:
 
 @example
 switch (arg) {
 @end example
 
-Because this gives better overall indentation for the switch statement.
+@item
+In all other cases, @samp{@{} and @samp{@}} should be on their own line, except
+if there is nothing inside @samp{@{} and @samp{@}}.
 
 @item
-In all other cases, @{ and @} should be on their own line, except
-if there is nothing inside @{ @}.
+Have a space after @code{if}
 
 @item
-Have a space after 'if'
+Put a space after @samp{,} for function arguments
 
 @item
-Put a space after ',' for function arguments
-
-@item
-Functions return 0 on success, and non-zero on error, so you can do:
+Functions return @samp{0} on success, and non-zero on error, so you can do:
 
 @example
 if(a() || b() || c()) { error("something went wrong"); }
@@ -335,113 +349,110 @@ Suggested mode in emacs:
 (setq c-default-style "MY")
 @end example
 
-@node mysys functions,,,
-@chapter mysys functions
 
-Functions i mysys: (For flags se my_sys.h)
+@node mysys functions, DBUG, coding guidelines, Top
+@chapter Functions In The @code{mysys} Library
 
- int my_copy _A((const char *from,const char *to,myf MyFlags));
-	- Copy file
+Functions in @code{mysys}: (For flags see @file{my_sys.h})
 
- int my_delete _A((const char *name,myf MyFlags));
-	- Delete file
+@table @code
+@item int my_copy _A((const char *from, const char *to, myf MyFlags));
+Copy file from @code{from} to @code{to}.
 
- int my_getwd _A((string buf,uint size,myf MyFlags));
- int my_setwd _A((const char *dir,myf MyFlags));
-	- Get and set working directory
+@item int my_delete _A((const char *name, myf MyFlags));
+Delete file @code{name}.
 
- string my_tempnam _A((const char *pfx,myf MyFlags));
-	- Make a uniq temp file name by using dir and adding something after
-	 pfx to make name uniq. Name is made by adding a uniq 6 length-string
-	 and TMP_EXT after pfx.
-	 Returns pointer to malloced area for filename. Should be freed by
-	 free().
+@item int my_getwd _A((string buf, uint size, myf MyFlags));
+@item int my_setwd _A((const char *dir, myf MyFlags));
+Get and set working directory.
 
- File my_open _A((const char *FileName,int Flags,myf MyFlags));
- File my_create _A((const char *FileName,int CreateFlags,
-			  int AccsesFlags, myf MyFlags));
- int my_close _A((File Filedes,myf MyFlags));
- uint my_read _A((File Filedes,byte *Buffer,uint Count,myf MyFlags));
- uint my_write _A((File Filedes,const byte *Buffer,uint Count,
-			 myf MyFlags));
- ulong my_seek _A((File fd,ulong pos,int whence,myf MyFlags));
- ulong my_tell _A((File fd,myf MyFlags));
-	- Use instead of open,open-with-create-flag, close read and write
-	  to get automatic error-messages (flag: MYF_WME) and only have
-	  to test for != 0 if error (flag: MY_NABP).
+@item string my_tempnam _A((const char *pfx, myf MyFlags));
+Make a unique temporary file name by using dir and adding something after
+@code{pfx} to make name unique.  The file name is made by adding a unique
+six character string and @code{TMP_EXT} after @code{pfx}.
+Returns pointer to @code{malloc()}'ed area for filename. Should be freed by
+@code{free()}.
 
- int my_rename _A((const char *from,const char *to,myf MyFlags));
-	- Rename file
+@item File my_open _A((const char *FileName,int Flags,myf MyFlags));
+@item File my_create _A((const char *FileName, int CreateFlags, int AccsesFlags, myf MyFlags));
+@item int my_close _A((File Filedes, myf MyFlags));
+@item uint my_read _A((File Filedes, byte *Buffer, uint Count, myf MyFlags));
+@item uint my_write _A((File Filedes, const byte *Buffer, uint Count, myf MyFlags));
+@item ulong my_seek _A((File fd,ulong pos,int whence,myf MyFlags));
+@item ulong my_tell _A((File fd,myf MyFlags));
+Use instead of open, open-with-create-flag, close, read, and write
+to get automatic error messages (flag @code{MYF_WME}) and only have
+to test for != 0 if error (flag @code{MY_NABP}).
 
- FILE *my_fopen _A((const char *FileName,int Flags,myf MyFlags));
- FILE *my_fdopen _A((File Filedes,int Flags,myf MyFlags));
- int my_fclose _A((FILE *fd,myf MyFlags));
- uint my_fread _A((FILE *stream,byte *Buffer,uint Count,myf MyFlags));
- uint my_fwrite _A((FILE *stream,const byte *Buffer,uint Count,
-			  myf MyFlags));
- ulong my_fseek _A((FILE *stream,ulong pos,int whence,myf MyFlags));
- ulong my_ftell _A((FILE *stream,myf MyFlags));
-	- Same read-interface for streams as for files
+@item int my_rename _A((const char *from, const char *to, myf MyFlags));
+Rename file from @code{from} to @code{to}.
 
- gptr _mymalloc _A((uint uSize,const char *sFile,
-			  uint uLine, myf MyFlag));
- gptr _myrealloc _A((string pPtr,uint uSize,const char *sFile,
-			   uint uLine, myf MyFlag));
- void _myfree _A((gptr pPtr,const char *sFile,uint uLine));
- int _sanity _A((const char *sFile,unsigned int uLine));
- gptr _myget_copy_of_memory _A((const byte *from,uint length,
-				      const char *sFile, uint uLine,
-				      myf MyFlag));
-	- malloc(size,myflag) is mapped to this functions if not compiled
-	  with -DSAFEMALLOC
+@item FILE *my_fopen _A((const char *FileName,int Flags,myf MyFlags));
+@item FILE *my_fdopen _A((File Filedes,int Flags,myf MyFlags));
+@item int my_fclose _A((FILE *fd,myf MyFlags));
+@item uint my_fread _A((FILE *stream,byte *Buffer,uint Count,myf MyFlags));
+@item uint my_fwrite _A((FILE *stream,const byte *Buffer,uint Count, myf MyFlags));
+@item ulong my_fseek _A((FILE *stream,ulong pos,int whence,myf MyFlags));
+@item ulong my_ftell _A((FILE *stream,myf MyFlags));
+Same read-interface for streams as for files.
 
- void TERMINATE _A((void));
-	- Writes malloc-info on stdout if compiled with -DSAFEMALLOC.
+@item gptr _mymalloc _A((uint uSize,const char *sFile,uint uLine, myf MyFlag));
+@item gptr _myrealloc _A((string pPtr,uint uSize,const char *sFile,uint uLine, myf MyFlag));
+@item void _myfree _A((gptr pPtr,const char *sFile,uint uLine));
+@item int _sanity _A((const char *sFile,unsigned int uLine));
+@item gptr _myget_copy_of_memory _A((const byte *from,uint length,const char *sFile, uint uLine,myf MyFlag));
+@code{malloc(size,myflag)} is mapped to these functions if not compiled 
+with @code{-DSAFEMALLOC}.
 
- int my_chsize _A((File fd,ulong newlength,myf MyFlags));
-	- Change size of file
+@item void TERMINATE _A((void));
+Writes @code{malloc()} info on @code{stdout} if compiled with 
+@code{-DSAFEMALLOC}.
 
- void my_error _D((int nr,myf MyFlags, ...));
-	- Writes message using error number (se mysys/errors.h) on
-	  stdout or curses if  MYSYS_PROGRAM_USES_CURSES() is called.
+@item int my_chsize _A((File fd, ulong newlength, myf MyFlags));
+Change size of file @code{fd} to @code{newlength}.
 
- void my_message _A((const char *str,myf MyFlags));
-	- Writes message-string on
-	 stdout or curses if  MYSYS_PROGRAM_USES_CURSES() is called.
+@item void my_error _D((int nr, myf MyFlags, ...));
+Writes message using error number (see @file{mysys/errors.h}) on @code{stdout},
+or using curses, if @code{MYSYS_PROGRAM_USES_CURSES()} has been called.
 
- void my_init _A((void ));
-	- Start each program (in main) with this.
- void my_end _A((int infoflag));
-	- Gives info about program.
-	- If infoflag & MY_CHECK_ERROR prints if some files are left open
-	- If infoflag & MY_GIVE_INFO   prints timing info and malloc info
-	  about prog.
+@item void my_message _A((const char *str, myf MyFlags));
+Writes @code{str} on @code{stdout}, or using curses, if 
+@code{MYSYS_PROGRAM_USES_CURSES()} has been called.
 
- int my_redel _A((const char *from, const char *to, int MyFlags));
-	- Delete from before rename of to to from. Copyes state from old
-	  file to new file. If MY_COPY_TIME is set sets old time.
+@item void my_init _A((void ));
+Start each program (in @code{main()}) with this.
 
- int my_copystat _A((const char *from, const char *to, int MyFlags));
-	- Copye state from old file to new file.
-	  If MY_COPY_TIME is set sets copy also time.
+@item void my_end _A((int infoflag));
+Gives info about program.
+If @code{infoflag & MY_CHECK_ERROR}, prints if some files are left open.
+If @code{infoflag & MY_GIVE_INFO}, prints timing info and malloc info
+about program.
 
- string my_filename _A((File fd));
-	- Give filename of open file.
+@item int my_redel _A((const char *from, const char *to, int MyFlags));
+Delete @code{from} before rename of @code{to} to @code{from}.  Copies state
+from old file to new file. If @code{MY_COPY_TIME} is set, sets old time.
 
- int dirname _A((string to,const char *name));
-	- Copy name of directory from filename.
+@item int my_copystat _A((const char *from, const char *to, int MyFlags));
+Copy state from old file to new file.  If @code{MY_COPY_TIME} is set,
+sets old time.
 
- int test_if_hard_path _A((const char *dir_name));
-	- Test if dirname is a hard path (Starts from root)
+@item string my_filename _A((File fd));
+Returns filename of open file.
 
- void convert_dirname _A((string name));
-	- Convert dirname acording to system.
-	  - In MSDOS changes all caracters to capitals and changes '/' to
-	    '\'
- string fn_ext _A((const char *name));
-	- Returns pointer to extension in filename
- string fn_format _A((string to,const char *name,const char *dsk,
-			    const char *form,int flag));
+@item int dirname _A((string to, const char *name));
+Copy name of directory from filename.
+
+@item int test_if_hard_path _A((const char *dir_name));
+Test if @code{dir_name} is a hard path (starts from root).
+
+@item void convert_dirname _A((string name));
+Convert dirname according to system.
+In MSDOS, changes all characters to capitals and changes @samp{/} to @samp{\}.
+
+@item string fn_ext _A((const char *name));
+Returns pointer to extension in filename.
+
+@item string fn_format _A((string to,const char *name,const char *dsk,const char *form,int flag));
 	format a filename with replace of library and extension and
 	converts between different systems.
 	params to and name may be identicall
@@ -455,60 +466,93 @@ Functions i mysys: (For flags se my_sys.h)
 	"open(fn_format(temp_buffe,name,"","",4),...)" to unpack home and
 	convert filename to system-form.
 
- string fn_same _A((string toname,const char *name,int flag));
-	- Copys directory and extension from name to toname if neaded.
-	  copy can be forced by same flags that in fn_format.
+@item string fn_same _A((string toname, const char *name, int flag));
+Copys directory and extension from @code{name} to @code{toname} if neaded.
+Copying can be forced by same flags used in @code{fn_format()}.
 
- int wild_compare _A((const char *str,const char *wildstr));
-	- Compare if str matches wildstr. Wildstr can contain "*" and "?"
-	  as match-characters.
-	  Returns 0 if match.
+@item int wild_compare _A((const char *str, const char *wildstr));
+Compare if @code{str} matches @code{wildstr}. @code{wildstr} can contain 
+@samp{*} and @samp{?} as wildcard characters.
+Returns 0 if @code{str} and @code{wildstr} match.
 
- void get_date _A((string to,int timeflag));
-	- Get current date in a form ready for printing.
+@item void get_date _A((string to, int timeflag));
+Get current date in a form ready for printing.
 
- void soundex _A((string out_pntr, string in_pntr))
-	- Makes in_pntr to a 5 chars long string. All words that sounds
-	  alike have the same string.
+@item void soundex _A((string out_pntr, string in_pntr))
+Makes @code{in_pntr} to a 5 char long string.  All words that sound
+alike have the same string.
 
- int init_key_cache _A((ulong use_mem,ulong leave_this_much_mem));
-	- Use cacheing of keys in MISAM, PISAM, and ISAM.
-	  KEY_CACHE_SIZE is a good size.
-	  - Remember to lock databases for optimal cacheing
+@item int init_key_cache _A((ulong use_mem, ulong leave_this_much_mem));
+Use caching of keys in MISAM, PISAM, and ISAM.
+@code{KEY_CACHE_SIZE} is a good size.
+Remember to lock databases for optimal caching.
 
- void end_key_cache _A((void));
-	- End key-cacheing.
+@item void end_key_cache _A((void));
+End key caching.
 
-@node DBUG,,,
-@chapter The DBUG tags to use:
+
+@node DBUG, protocol, mysys functions, Top
+@chapter DBUG Tags To Use
 
 Here is some of the tags we now use:
 (We should probably add a couple of new ones)
- 
-"enter"	  Arguments to the function.
-"exit"	  Results from the function.
-"info"    is something that may be interesting.
-"warning" is when something doesn't go the usual route or may be wrong.
-"error"   when something went wrong.
-"loop"	  write in a loop, that is probably only useful when debugging
-	  the loop.  These should normally be deleted when on is
-	  satisfied with the code and it has been in real use for a while.
+
+@table @code 
+@item enter
+Arguments to the function.
+
+@item exit
+Results from the function.
+
+@item info
+Something that may be interesting.
+
+@item warning
+When something doesn't go the usual route or may be wrong.
+
+@item error
+When something went wrong.
+
+@item loop
+Write in a loop, that is probably only useful when debugging
+the loop.  These should normally be deleted when one is
+satisfied with the code and it has been in real use for a while.
+@end table
 
 Some specific to mysqld, because we want to watch these carefully:
 
-"trans"	  Starting/stopping transactions.
-"quit"	  'info' when mysqld is preparing to die.
-"query"	  Print query
+@table @code
+@item trans
+Starting/stopping transactions.
 
-@node protocol,,,
-@chapter MySQL client/server protocol
+@item quit
+@code{info} when mysqld is preparing to die.
 
-Raw packet without compression
-============================== 	
+@item query
+Print query.
+@end table
+
+
+@node protocol,  , DBUG, Top
+@chapter MySQL Client/Server Protocol
+
+@menu
+* raw packet without compression::  
+* raw packet with compression::  
+* basic packets::               
+* communication::               
+* fieldtype codes::             
+@end menu
+
+@node raw packet without compression, raw packet with compression, protocol, protocol
+@section Raw Packet Without Compression
+
+@example
 -------------------------------------------------
 | Packet Length	| Packet no 	| Data		|
 | 3 Bytes	| 1 Byte 	| n Bytes	|
 -------------------------------------------------
+@end example
 
 3 Byte packet length
   The length is calculated with int3store
@@ -525,13 +569,16 @@ n Byte data
 
 The packet length can be recalculated with:
 length = byte1 + (256 * byte2) + (256 * 256 * byte3)
-		
-Raw packet with compression
-=========================== 	
+
+@node raw packet with compression, basic packets, raw packet without compression, protocol
+@section Raw Packet With Compression
+
+@example
 -----------------------------------------------------
 | Packet Length	| Packet no | Uncomp. Packet Length |
 | 3 Bytes	| 1 Byte    | 3 Bytes		    |
 -----------------------------------------------------
+@end example
 
 3 Byte packet length
   The length is calculated with int3store
@@ -540,14 +587,23 @@ Raw packet with compression
 1 Byte packet no
 3 Byte uncompressed packet length
 
-If compression is used the first 7 bytes of each paket
-is the header of the paket.
-		
-Basic packets
-==============
-OK-packet	
+If compression is used the first 7 bytes of each packet
+is the header of the packet.
+
+@node basic packets, communication, raw packet with compression, protocol
+@section Basic Packets
+
+@menu
+* ok packet::                   
+* error packet::                
+@end menu
+
+@node ok packet, error packet, basic packets, basic packets
+@subsection OK Packet
+
 	For details see sql/net_pkg.cc
 	function send_ok
+@example
 	-------------------------------------------------
 	| Header	| No of Rows 	| Affected Rows |
 	| 		| 1 Byte 	| 1-8 Byte	|
@@ -558,6 +614,7 @@ OK-packet
 	| Messagetext					|
 	| n Byte					|
 	-------------------------------------------------
+@end example
 
 	Header
 	1 byte number of rows ? (always 0 ?)
@@ -568,7 +625,11 @@ OK-packet
 	1-8 bytes length of message
 	n bytes messagetext
 
-Error-packet	
+
+@node error packet,  , ok packet, basic packets
+@subsection Error Packet	
+
+@example
 	-------------------------------------------------
 	| Header	| Statuscode	| Error no	|
 	| 		| 1 Byte 	| 2 Byte	|
@@ -576,7 +637,8 @@ Error-packet
 	| Messagetext			       | 0x00	|
 	| n Byte			       | 1 Byte |
 	-------------------------------------------------
-	
+@end example
+
 	Header
 	1 byte status code (0xFF = ERROR)
 	2 byte error number (is only sent to new 3.23 clients.
@@ -584,9 +646,8 @@ Error-packet
 	1 byte 0x00
 
 
-
-The communication
-=================
+@node communication, fieldtype codes, basic packets, protocol
+@section Communication
 
 > Packet from server to client
 < Paket from client tor server
@@ -677,9 +738,10 @@ The communication
 		n data
 		
  
-Fieldtype Codes:
-================
+@node fieldtype codes,  , communication, protocol
+@section Fieldtype Codes
 
+@example
 		display_length 	|enum_field_type	|flags
 		----------------------------------------------------
 Blob		03 FF FF 00	|01 FC			|03 90 00 00
@@ -698,7 +760,7 @@ Datetime	03 13 00 00	|01 0C			|03 00 00 00
 Timestamp	03 0E 00 00	|01 07			|03 61 04 00
 Time		03 08 00 00	|01 0B			|03 00 00 00
 Date		03 0A 00 00	|01 0A			|03 00 00 00
-
+@end example
 
 @c The Index was empty, and ugly, so I removed it. (jcole, Sep 7, 2000)
 
