@@ -22530,11 +22530,11 @@ non-transactional table will not change.
 
 If you are using @code{BEGIN} or @code{SET AUTOCOMMIT=0}, you
 should use the @strong{MySQL} binary log for backups instead of the
-old update log;  The transaction is stored in the binary log
-in one chunk, during @code{COMMIT}, the to ensure and @code{ROLLBACK}:ed
-transactions are not stored. @xref{Binary log}.
+older update log.  Transactions are stored in the binary log
+in one chunk, upon @code{COMMIT}, to ensure that transactions which are
+rolled back are not stored.  @xref{Binary log}.
 
-The following commands automatically ends an transaction (as if you had done
+The following commands automatically end a transaction (as if you had done
 a @code{COMMIT} before executing the command):
 
 @multitable @columnfractions .33 .33 .33
