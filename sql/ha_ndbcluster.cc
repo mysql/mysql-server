@@ -1143,6 +1143,8 @@ int ha_ndbcluster::set_bounds(NdbIndexScanOperation *op,
   DBUG_RETURN(0);
 }
 
+#ifndef DBUG_OFF
+
 const char* key_flag_strs[] = 
 {  "HA_READ_KEY_EXACT", 
    "HA_READ_KEY_OR_NEXT",
@@ -1178,7 +1180,7 @@ void print_key(const key_range* key, const char* info)
   }
   return;
 }
-
+#endif
 
 /*
   Start ordered index scan in NDB
