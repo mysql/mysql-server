@@ -88,6 +88,7 @@ int mysql_derived(THD *thd, LEX *lex, SELECT_LEX_UNIT *unit, TABLE_LIST *t)
   
     if ((derived_result=new select_union(table)))
     {
+      derived_result->tmp_table_param=&tmp_table_param;
       unit->offset_limit_cnt= sl->offset_limit;
       unit->select_limit_cnt= sl->select_limit+sl->offset_limit;
       if (unit->select_limit_cnt < sl->select_limit)
@@ -128,8 +129,6 @@ int mysql_derived(THD *thd, LEX *lex, SELECT_LEX_UNIT *unit, TABLE_LIST *t)
       free_tmp_table(thd,table);
 exit:
     close_thread_tables(thd);
-    if (res > 0)
-      send_error(thd, ER_UNKNOWN_COM_ERROR); // temporary only ...
   }
   DBUG_RETURN(res);
 }
