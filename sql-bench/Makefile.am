@@ -37,12 +37,12 @@ dist-hook:
 	mkdir -p $(distdir)/Data/ATIS $(distdir)/Data/Wisconsin \
 		 $(distdir)/Results  $(distdir)/Results-win32 \
 		 $(distdir)/limits $(distdir)/Comments
-	$(INSTALL_DATA) $(srcdir)/Data/ATIS/*.* $(distdir)/Data/ATIS
-	$(INSTALL_DATA) $(srcdir)/Data/Wisconsin/*.* $(distdir)/Data/Wisconsin
-	$(INSTALL_DATA) $(srcdir)/Results/*-* $(distdir)/Results
-	$(INSTALL_DATA) $(srcdir)/Results-win32/*-* $(distdir)/Results-win32
-	$(INSTALL_DATA) $(srcdir)/limits/*.* $(distdir)/limits
-	$(INSTALL_DATA) $(srcdir)/Comments/*.* $(distdir)/Comments
+	for i in $(srcdir)/Data/ATIS/*.* ; do $(INSTALL_DATA) $$i $(distdir)/Data/ATIS ; done
+	for i in $(srcdir)/Data/Wisconsin/*.* ; do $(INSTALL_DATA) $$i $(distdir)/Data/Wisconsin ; done
+	for i in $(srcdir)/Results/*-* ; do $(INSTALL_DATA) $$i $(distdir)/Results; done
+	for i in $(srcdir)/Results-win32/*-* ; do $(INSTALL_DATA) $$i $(distdir)/Results-win32; done
+	for i in $(srcdir)/limits/*.* ; do $(INSTALL_DATA) $$i $(distdir)/limits; done
+	for i in $(srcdir)/Comments/*.* ; do $(INSTALL_DATA) $$i $(distdir)/Comments; done
 
 install-data-local:
 	$(mkinstalldirs) \
@@ -54,12 +54,13 @@ install-data-local:
 		 $(DESTDIR)$(benchdir)/limits \
 		 $(DESTDIR)$(benchdir)/Comments
 	$(INSTALL_DATA) $(srcdir)/README  $(DESTDIR)$(benchdir)
-	$(INSTALL_DATA) $(srcdir)/Data/ATIS/*.* $(DESTDIR)$(benchdir)/Data/ATIS
-	$(INSTALL_DATA) $(srcdir)/Data/Wisconsin/*.* $(DESTDIR)$(benchdir)/Data/Wisconsin
-	$(INSTALL_DATA) $(srcdir)/Results/*-* $(DESTDIR)$(benchdir)/Results
-	$(INSTALL_DATA) $(srcdir)/Results-win32/*-* $(DESTDIR)$(benchdir)/Results-win32
-	$(INSTALL_DATA) $(srcdir)/limits/*.* $(DESTDIR)$(benchdir)/limits
-	$(INSTALL_DATA) $(srcdir)/Comments/*.* $(DESTDIR)$(benchdir)/Comments
+	for i in $(srcdir)/Data/ATIS/*.* ; do $(INSTALL_DATA) $$i $(DESTDIR)$(benchdir)/Data/ATIS ; done
+	for i in $(srcdir)/Data/Wisconsin/*.* ; do $(INSTALL_DATA) $$i $(DESTDIR)$(benchdir)/Data/Wisconsin ; done
+	for i in $(srcdir)/Results/*-* ; do $(INSTALL_DATA) $$i $(DESTDIR)$(benchdir)/Results; done
+	for i in $(srcdir)/Results-win32/*-* ; do $(INSTALL_DATA) $$i $(DESTDIR)$(benchdir)/Results-win32; done
+	for i in $(srcdir)/limits/*.* ; do $(INSTALL_DATA) $$i $(DESTDIR)$(benchdir)/limits; done
+	for i in $(srcdir)/Comments/*.* ; do $(INSTALL_DATA) $$i $(DESTDIR)$(benchdir)/Comments; done
+
 
 SUFFIXES = .sh
 
