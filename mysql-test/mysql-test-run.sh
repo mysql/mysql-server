@@ -1447,7 +1447,7 @@ then
  if [ x$RECORD = x1 ]; then
   $ECHO "Will not run in record mode without a specific test case."
  else
-  for tf in `ls -1 $TESTDIR/*.$TESTSUFFIX | $SORT`
+  for tf in $TESTDIR/*.$TESTSUFFIX
   do
     run_testcase $tf
   done
