@@ -565,7 +565,7 @@ os_mem_alloc_large(
   if (ptr) {
     if (set_to_zero) {
 #ifdef UNIV_SET_MEM_TO_ZERO
-      memset(ret, '\0', size);
+      memset(ptr, '\0', size);
 #endif
     }
 
