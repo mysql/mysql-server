@@ -392,8 +392,8 @@ class sp_instr_set_user_var : public sp_instr
 
 public:
 
-  sp_instr_set_user_var(uint ip, LEX_STRING var, Item *val)
-    : sp_instr(ip), m_set_var_item(var, val)
+  sp_instr_set_user_var(uint ip, sp_pcontext *ctx, LEX_STRING var, Item *val)
+    : sp_instr(ip, ctx), m_set_var_item(var, val)
   {}
 
   virtual ~sp_instr_set_user_var()
@@ -419,8 +419,9 @@ class sp_instr_set_trigger_field : public sp_instr
 
 public:
 
-  sp_instr_set_trigger_field(uint ip, LEX_STRING field_name, Item *val)
-    : sp_instr(ip),
+  sp_instr_set_trigger_field(uint ip, sp_pcontext *ctx,
+                             LEX_STRING field_name, Item *val)
+    : sp_instr(ip, ctx),
       trigger_field(Item_trigger_field::NEW_ROW, field_name.str),
       value(val)
   {}

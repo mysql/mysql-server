@@ -319,18 +319,18 @@ bool Table_triggers_list::check_n_load(THD *thd, const char *db,
     if (!strncmp(triggers_file_type.str, parser->type()->str,
                  parser->type()->length))
     {
-      int i;
-      Table_triggers_list *triggers_info=
+      Field **fld, **old_fld;
+      Table_triggers_list *triggers=
         new (&table->mem_root) Table_triggers_list();
 
-      if (!triggers_info)
+      if (!triggers)
         DBUG_RETURN(1);
 
-      if (parser->parse((gptr)triggers_info, &table->mem_root,
+      if (parser->parse((gptr)triggers, &table->mem_root,
                         triggers_file_parameters, 1))
         DBUG_RETURN(1);
 
-      table->triggers= triggers_info;
+      table->triggers= triggers;
 
       /*
         We have to prepare array of Field objects which will represent OLD.*
@@ -338,27 +338,26 @@ bool Table_triggers_list::check_n_load(THD *thd, const char *db,
 
         TODO: This could be avoided if there is no ON UPDATE trigger.
       */
-      if (!(triggers_info->old_field=
+      if (!(triggers->old_field=
               (Field **)alloc_root(&table->mem_root, (table->fields + 1) *
                                                      sizeof(Field*))))
         DBUG_RETURN(1);
 
-      for (i= 0; i < table->fields; i++)
+      for (fld= table->field, old_fld= triggers->old_field; *fld;
+           fld++, old_fld++)
       {
         /*
           QQ: it is supposed that it is ok to use this function for field
               cloning...
         */
-        if (!(triggers_info->old_field[i]=
-                table->field[i]->new_field(&table->mem_root, table)))
+        if (!(*old_fld= (*fld)->new_field(&table->mem_root, table)))
           DBUG_RETURN(1);
-        triggers_info->old_field[i]->move_field((my_ptrdiff_t)
-                                                (table->record[1] -
-                                                 table->record[0]));
+        (*old_fld)->move_field((my_ptrdiff_t)(table->record[1] -
+                                              table->record[0]));
       }
-      triggers_info->old_field[i]= 0;
+      *old_fld= 0;
 
-      List_iterator_fast<LEX_STRING> it(triggers_info->definitions_list);
+      List_iterator_fast<LEX_STRING> it(triggers->definitions_list);
       LEX_STRING *trg_create_str, *trg_name_str;
       char *trg_name_buff;
       LEX *old_lex= thd->lex, lex;
@@ -367,8 +366,8 @@ bool Table_triggers_list::check_n_load(THD *thd, const char *db,
 
       while ((trg_create_str= it++))
       {
-        lex_start(thd, (uchar*)trg_create_str->str, trg_create_str->length);
-        mysql_init_query(thd, true);
+        mysql_init_query(thd, (uchar*)trg_create_str->str,
+                         trg_create_str->length, true);
         lex.trg_table= table;
         if (yyparse((void *)thd) || thd->is_fatal_error)
         {
@@ -385,7 +384,7 @@ bool Table_triggers_list::check_n_load(THD *thd, const char *db,
           goto err_with_lex_cleanup;
         }
 
-        triggers_info->bodies[lex.trg_chistics.event]
+        triggers->bodies[lex.trg_chistics.event]
                              [lex.trg_chistics.action_time]= lex.sphead;
         lex.sphead= 0;
 
@@ -404,7 +403,7 @@ bool Table_triggers_list::check_n_load(THD *thd, const char *db,
 	old_global_mem_root= my_pthread_getspecific_ptr(MEM_ROOT*, THR_MALLOC);
 	my_pthread_setspecific_ptr(THR_MALLOC, &table->mem_root);
 
-        if (triggers_info->names_list.push_back(trg_name_str))
+        if (triggers->names_list.push_back(trg_name_str))
           goto err_with_lex_cleanup;
 
         my_pthread_setspecific_ptr(THR_MALLOC, old_global_mem_root);
