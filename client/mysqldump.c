@@ -18,26 +18,22 @@
 **
 ** The author's original notes follow :-
 **
-**		******************************************************
-**		*						     *
-**		* AUTHOR: Igor Romanenko (igor@frog.kiev.ua)	     *
-**		* DATE:   December 3, 1994			     *
-**		* WARRANTY: None, expressed, impressed, implied      *
-**		*	    or other				     *
-**		* STATUS: Public domain				     *
-**		* Adapted and optimized for MySQL by		     *
-**		* Michael Widenius, Sinisa Milivojevic, Jani Tolonen *
-**		* -w --where added 9/10/98 by Jim Faucette	     *
-**		* slave code by David Saez Padros <david@ols.es>     *
-**		*						     *
-**		******************************************************
-*/
-/* SSL by
-**   Andrei Errapart <andreie@no.spam.ee>
-**   Tõnu Samuel  <tonu@please.do.not.remove.this.spam.ee>
+** AUTHOR: Igor Romanenko (igor@frog.kiev.ua)
+** DATE:   December 3, 1994
+** WARRANTY: None, expressed, impressed, implied
+**	    or other
+** STATUS: Public domain
+** Adapted and optimized for MySQL by
+** Michael Widenius, Sinisa Milivojevic, Jani Tolonen
+** -w --where added 9/10/98 by Jim Faucette
+** slave code by David Saez Padros <david@ols.es>
+** master/autocommit code by Brian Aker <brian@tangent.org>
+** SSL by
+** Andrei Errapart <andreie@no.spam.ee>
+** Tõnu Samuel  <tonu@please.do.not.remove.this.spam.ee>
 **/
 
-#define DUMP_VERSION "8.16"
+#define DUMP_VERSION "8.17"
 
 #include <my_global.h>
 #include <my_sys.h>
@@ -73,7 +69,7 @@ static my_bool  verbose=0,tFlag=0,cFlag=0,dFlag=0,quick=0, extended_insert = 0,
 		lock_tables=0,ignore_errors=0,flush_logs=0,replace=0,
 		ignore=0,opt_drop=0,opt_keywords=0,opt_lock=0,opt_compress=0,
                 opt_delayed=0,create_options=0,opt_quoted=0,opt_databases=0,
-	        opt_alldbs=0,opt_create_db=0,opt_first_slave=0;
+	        opt_alldbs=0,opt_create_db=0,opt_first_slave=0, opt_autocommit=0, opt_master_data;
 static MYSQL  mysql_connection,*sock=0;
 static char  insert_pat[12 * 1024],*opt_password=0,*current_user=0,
              *current_host=0,*path=0,*fields_terminated=0,
@@ -89,7 +85,8 @@ FILE  *md_result_file;
 
 enum md_options {OPT_FTB=256, OPT_LTB, OPT_ENC, OPT_O_ENC, OPT_ESC,
 		 OPT_KEYWORDS, OPT_LOCKS, OPT_DROP, OPT_OPTIMIZE, OPT_DELAYED,
-		 OPT_TABLES, MD_OPT_CHARSETS_DIR, MD_OPT_DEFAULT_CHARSET};
+		 OPT_TABLES, MD_OPT_CHARSETS_DIR, MD_OPT_DEFAULT_CHARSET,
+		 OPT_AUTOCOMMIT, OPT_MASTER_DATA};
 
 static struct option long_options[] =
 {
@@ -117,6 +114,8 @@ static struct option long_options[] =
   {"host",    		required_argument,	0, 'h'},
   {"lines-terminated-by", required_argument,    0, (int) OPT_LTB},
   {"lock-tables",  	no_argument,    0, 	'l'},
+  {"master-data",  	no_argument,    0, 	OPT_MASTER_DATA},
+  {"no-autocommit",     no_argument,    0,      OPT_AUTOCOMMIT},
   {"no-create-db",      no_argument,    0,      'n'},
   {"no-create-info", 	no_argument,    0, 	't'},
   {"no-data",  		no_argument,    0, 	'd'},
@@ -205,11 +204,15 @@ static void usage(void)
   --add-locks		Add locks around insert statements.\n\
   --allow-keywords	Allow creation of column names that are keywords.\n\
   --delayed-insert      Insert rows with INSERT DELAYED.\n\
+  --master-data         This will cause the master position and filename to \n\
+                        be appended to your output. This will automagically \n\
+                        enable --first-slave.\n\
   -F, --flush-logs	Flush logs file in server before starting dump.\n\
   -f, --force		Continue even if we get an sql-error.\n\
   -h, --host=...	Connect to host.\n");
 puts("\
   -l, --lock-tables     Lock all tables for read.\n\
+  --no-autocommit       Wrap tables with autocommit/commit statements.\n\
   -n, --no-create-db    'CREATE DATABASE /*!32312 IF NOT EXISTS*/ db_name;'\n\
                         will not be put in the output. The above line will\n\
                         be added otherwise, if --databases or\n\
@@ -249,6 +252,7 @@ puts("\
   -v, --verbose		Print info about the various stages.\n\
   -V, --version		Output version information and exit.\n\
   -w, --where=		dump only selected records; QUOTES mandatory!\n\
+  -x, --first-slave     Locks all tables across all databases.\n\
   EXAMPLES: \"--where=user=\'jimf\'\" \"-wuserid>1\" \"-wuserid<1\"\n\
   Use -T (--tab=...) with --fields-...\n\
   --fields-terminated-by=...\n\
@@ -274,7 +278,7 @@ puts("\
 
 static void write_heder(FILE *sql_file, char *db_name)
 {
-  fprintf(sql_file, "-- MySQL dump %s\n#\n", DUMP_VERSION);
+  fprintf(sql_file, "-- MySQL dump %s\n--\n", DUMP_VERSION);
   fprintf(sql_file, "-- Host: %s    Database: %s\n",
 	  current_host ? current_host : "localhost", db_name ? db_name : "");
   fputs("---------------------------------------------------------\n",
@@ -298,6 +302,13 @@ static int get_options(int *argc,char ***argv)
 			long_options, &option_index)) != EOF)
   {
     switch(c) {
+    case OPT_MASTER_DATA:
+      opt_master_data=1;
+      opt_first_slave=1;
+      break;
+    case OPT_AUTOCOMMIT:
+      opt_autocommit=1;
+      break;
     case 'a':
       create_options=1;
       break;
@@ -643,7 +654,7 @@ static uint getTableStructure(char *table, char* db)
         }
         write_heder(sql_file, db);
       }
-      fprintf(sql_file, "\n#\n# Table structure for table '%s'\n#\n\n", table);
+      fprintf(sql_file, "\n--\n-- Table structure for table '%s'\n--\n\n",table);
       if (opt_drop)
         fprintf(sql_file, "DROP TABLE IF EXISTS %s;\n",table_name);
 
@@ -716,7 +727,7 @@ static uint getTableStructure(char *table, char* db)
         }
         write_heder(sql_file, db);
       }
-      fprintf(sql_file, "\n#\n# Table structure for table '%s'\n#\n\n", table);
+      fprintf(sql_file, "\n--\n-- Table structure for table '%s'\n--\n\n",table);
       if (opt_drop)
         fprintf(sql_file, "DROP TABLE IF EXISTS %s;\n",table_name);
       fprintf(sql_file, "CREATE TABLE %s (\n", table_name);
@@ -973,7 +984,7 @@ static void dumpTable(uint numFields, char *table)
   }
   else
   {
-    fprintf(md_result_file,"\n#\n# Dumping data for table '%s'\n", table);
+    fprintf(md_result_file,"\n--\n-- Dumping data for table '%s'\n--\n", table);
     sprintf(query, "SELECT * FROM %s", quote_name(table,table_buff));
     if (where)
     {
@@ -1013,6 +1024,9 @@ static void dumpTable(uint numFields, char *table)
     row_break=0;
     rownr=0;
     init_length=(uint) strlen(insert_pat)+4;
+
+    if (opt_autocommit)
+      fprintf(md_result_file, "set autocommit=0;\n");
 
     while ((row=mysql_fetch_row(res)))
     {
@@ -1140,6 +1154,8 @@ static void dumpTable(uint numFields, char *table)
     if (opt_lock)
       fputs("UNLOCK TABLES;\n", md_result_file);
     mysql_free_result(res);
+    if (opt_autocommit)
+      fprintf(md_result_file, "commit;\n");
   }
 } /* dumpTable */
 
@@ -1214,7 +1230,7 @@ static int init_dumping(char *database)
   {
     if (opt_databases || opt_alldbs)
     {
-      fprintf(md_result_file,"\n#\n# Current Database: %s\n#\n", database);
+      fprintf(md_result_file,"\n--\n-- Current Database: %s\n--\n", database);
       if (!opt_create_db)
 	fprintf(md_result_file,"\nCREATE DATABASE /*!32312 IF NOT EXISTS*/ %s;\n",
 		database);
@@ -1242,7 +1258,7 @@ static int dump_all_tables_in_db(char *database)
     init_dynamic_string(&query, "LOCK TABLES ", 256, 1024);
     for (numrows=0 ; (table = getTableName(1)) ; numrows++)
     {
-      dynstr_append(&query, quote_name(table,table_buff));
+      dynstr_append(&query, quote_name(table, table_buff));
       dynstr_append(&query, " READ /*!32311 LOCAL */,");
     }
     if (numrows && mysql_real_query(sock, query.str, query.length-1))
@@ -1284,7 +1300,7 @@ static int dump_selected_tables(char *db, char **table_names, int tables)
     init_dynamic_string(&query, "LOCK TABLES ", 256, 1024);
     for (i=0 ; i < tables ; i++)
     {
-      dynstr_append(&query, quote_name(table_names[i],table_buff));
+      dynstr_append(&query, quote_name(table_names[i], table_buff));
       dynstr_append(&query, " READ /*!32311 LOCAL */,");
     }
     if (mysql_real_query(sock, query.str, query.length-1))
@@ -1340,6 +1356,9 @@ static void print_value(FILE *file, MYSQL_RES  *result, MYSQL_ROW row,
 
 int main(int argc, char **argv)
 {
+  MYSQL_ROW row;
+  MYSQL_RES *master;
+
   MY_INIT(argv[0]);
   /*
   ** Check out the args
@@ -1376,6 +1395,28 @@ int main(int argc, char **argv)
 
   if (opt_first_slave)
   {
+    if (opt_master_data)
+    {
+      if (mysql_query(sock, "SHOW MASTER STATUS") ||
+	  !(master = mysql_store_result(sock)))
+      {
+	my_printf_error(0, "Error: Couldn't execute 'SHOW MASTER STATUS': %s",
+			MYF(0), mysql_error(sock));
+      } 
+      else 
+      {
+	row = mysql_fetch_row(master);
+	if(row[0] && row[1]) {
+	  fprintf(md_result_file,
+		  "\n--\n-- Position to start replication from\n--\n\n");
+	  fprintf(md_result_file,
+		  "CHANGE MASTER TO MASTER_LOG_FILE='%s' ;\n", row[0]);
+	  fprintf(md_result_file, "CHANGE MASTER TO MASTER_LOG_POS=%s ;\n",
+		  row[1]);
+	}
+	mysql_free_result(master);
+      }
+    }
     if (mysql_query(sock, "FLUSH MASTER"))
     {
       my_printf_error(0, "Error: Couldn't execute 'FLUSH MASTER': %s",
