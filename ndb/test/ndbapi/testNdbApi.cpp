@@ -140,14 +140,19 @@ int runTestMaxTransaction(NDBT_Context* ctx, NDBT_Step* step){
 	pCon = pNdb->startTransaction();
 	break;
       case 1:
+      {
+	BaseString key;
+	key.appfmt("DATA-%d", i);
+	ndbout_c("%s", key.c_str());
 	pCon = pNdb->startTransaction(pTab,
-				      "DATA",
-				      4);
-	break;
+				      key.c_str(),
+				      key.length());
+      }
+      break;
       default:
 	abort();
       }
-
+      
       if (pCon == NULL){
 	ERR(pNdb->getNdbError());
 	errors++;
