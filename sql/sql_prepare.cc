@@ -98,12 +98,15 @@ public:
 #else
   bool (*set_params_data)(Prepared_statement *st);
 #endif
+  bool (*set_params_from_vars)(Prepared_statement *stmt, 
+                               List<LEX_STRING>& varnames);
 public:
   Prepared_statement(THD *thd_arg);
   virtual ~Prepared_statement();
   virtual Statement::Type type() const;
 };
 
+static void execute_stmt(THD *thd, Prepared_statement *stmt);
 
 /******************************************************************************
   Implementation
@@ -132,7 +135,8 @@ find_prepared_statement(THD *thd, ulong id, const char *where,
 
   if (stmt == 0 || stmt->type() != Statement::PREPARED_STATEMENT)
   {
-    my_error(ER_UNKNOWN_STMT_HANDLER, MYF(0), id, where);
+    char llbuf[22];
+    my_error(ER_UNKNOWN_STMT_HANDLER, MYF(0), 22, llstr(id, llbuf), where);
     if (se == SEND_ERROR)
       send_error(thd);
     return 0;
@@ -456,7 +460,7 @@ void set_param_date(Item_param *param, uchar **pos, ulong len)
 void set_param_str(Item_param *param, uchar **pos, ulong len)
 {
   ulong length= get_param_length(pos, len);
-  param->set_value((const char *)*pos, length);
+  param->set_value((const char *)*pos, length, Item::default_charset());
   *pos+= length;
 }
 
@@ -707,6 +711,116 @@ static bool emb_insert_params_withlog(Prepared_statement *stmt)
 #endif /*!EMBEDDED_LIBRARY*/
 
 
+/* 
+  Set prepared statement parameters from user variables.
+  SYNOPSIS
+    insert_params_from_vars()
+      stmt      Statement
+      varnames  List of variables. Caller must ensure that number of variables
+                in the list is equal to number of statement parameters
+
+*/
+
+static bool insert_params_from_vars(Prepared_statement *stmt, 
+                                    List<LEX_STRING>& varnames)
+{
+  Item_param **begin= stmt->param_array;
+  Item_param **end= begin + stmt->param_count;
+  user_var_entry *entry;
+  LEX_STRING *varname;
+  DBUG_ENTER("insert_params_from_vars"); 
+
+  List_iterator<LEX_STRING> var_it(varnames);
+  for (Item_param **it= begin; it < end; ++it)
+  {
+    Item_param *param= *it;
+    varname= var_it++;
+    if ((entry= (user_var_entry*)hash_search(&stmt->thd->user_vars, 
+                                             (byte*) varname->str,
+                                             varname->length))
+        && entry->value)
+    {
+      param->item_result_type= entry->type;
+      switch (entry->type)
+      {
+        case REAL_RESULT:
+          param->set_double(*(double*)entry->value);
+          break;
+        case INT_RESULT:
+          param->set_int(*(longlong*)entry->value);
+          break;
+        case STRING_RESULT:
+          param->set_value(entry->value, entry->length, 
+                           entry->collation.collation);
+          break;
+        default:
+          DBUG_ASSERT(0);
+      }
+    }
+    else
+      param->maybe_null= param->null_value= param->value_is_set= 1;
+  }
+  DBUG_RETURN(0);
+}
+
+static bool insert_params_from_vars_with_log(Prepared_statement *stmt,
+                                             List<LEX_STRING>& varnames)
+{
+  Item_param **begin= stmt->param_array;
+  Item_param **end= begin + stmt->param_count;
+  user_var_entry *entry;
+  LEX_STRING *varname;
+  DBUG_ENTER("insert_params_from_vars"); 
+
+  List_iterator<LEX_STRING> var_it(varnames);
+  String str, query;
+  const String *res;
+  uint32 length= 0;
+  if (query.copy(stmt->query, stmt->query_length, default_charset_info))
+    DBUG_RETURN(1);
+
+  for (Item_param **it= begin; it < end; ++it)
+  {
+    Item_param *param= *it;
+    varname= var_it++;
+    if ((entry= (user_var_entry*)hash_search(&stmt->thd->user_vars, 
+                                             (byte*) varname->str,
+                                             varname->length))
+        && entry->value)
+    {
+      param->item_result_type= entry->type;
+      switch (entry->type)
+      {
+        case REAL_RESULT:
+          param->set_double(*(double*)entry->value);
+          break;
+        case INT_RESULT:
+          param->set_int(*(longlong*)entry->value);
+          break;
+        case STRING_RESULT:
+          param->set_value(entry->value, entry->length, 
+                           entry->collation.collation);
+          break;
+        default:
+          DBUG_ASSERT(0);
+      }
+      res= param->query_val_str(&str);
+    }
+    else
+    {
+      param->maybe_null= param->null_value= param->value_is_set= 1;
+      res= &my_null_string;
+    }
+
+    if (query.replace(param->pos_in_query+length, 1, *res))
+      DBUG_RETURN(1);
+    length+= res->length()-1;
+  }
+  if (alloc_query(stmt->thd, (char *) query.ptr(), query.length()+1))
+    DBUG_RETURN(1);
+  DBUG_RETURN(0);
+}
+
 /*
   Validate INSERT statement: 
 
@@ -903,7 +1017,7 @@ static int mysql_test_delete(Prepared_statement *stmt,
 */
 
 static int mysql_test_select(Prepared_statement *stmt,
-			     TABLE_LIST *tables)
+			     TABLE_LIST *tables, bool text_protocol)
 {
   THD *thd= stmt->thd;
   LEX *lex= stmt->lex;
@@ -935,7 +1049,7 @@ static int mysql_test_select(Prepared_statement *stmt,
 
   if (lex->describe)
   {
-    if (send_prep_stmt(stmt, 0))
+    if (!text_protocol && send_prep_stmt(stmt, 0))
       goto err;
   }
   else
@@ -949,14 +1063,16 @@ static int mysql_test_select(Prepared_statement *stmt,
       goto err_prep;
     }
 
-    if (send_prep_stmt(stmt, lex->select_lex.item_list.elements) ||
+    if (!text_protocol)
+    {
+      if (send_prep_stmt(stmt, lex->select_lex.item_list.elements) ||
         thd->protocol_simple.send_fields(&lex->select_lex.item_list, 0)
 #ifndef EMBEDDED_LIBRARY
-        || net_flush(&thd->net)
+          || net_flush(&thd->net)
 #endif
-       )
-      goto err_prep;
-
+         )
+        goto err_prep;
+    }
     unit->cleanup();
   }
   thd->free_temporary_memory_pool_for_ps_preparing();
@@ -1234,7 +1350,7 @@ static int mysql_test_insert_select(Prepared_statement *stmt,
     0   success
     1   error, sent to client
 */
-static int send_prepare_results(Prepared_statement *stmt)
+static int send_prepare_results(Prepared_statement *stmt, bool text_protocol)
 {   
   THD *thd= stmt->thd;
   LEX *lex= stmt->lex;
@@ -1271,7 +1387,7 @@ static int send_prepare_results(Prepared_statement *stmt)
     break;
 
   case SQLCOM_SELECT:
-    if ((res= mysql_test_select(stmt, tables)))
+    if ((res= mysql_test_select(stmt, tables, text_protocol)))
       goto error;
     /* Statement and field info has already been sent */
     DBUG_RETURN(0);
@@ -1329,7 +1445,7 @@ static int send_prepare_results(Prepared_statement *stmt)
     goto error;
   }
   if (res == 0)
-    DBUG_RETURN(send_prep_stmt(stmt, 0));
+    DBUG_RETURN(text_protocol? 0 : send_prep_stmt(stmt, 0));
 error:
   if (res < 0)
     send_error(thd, thd->killed ? ER_SERVER_SHUTDOWN : 0);
@@ -1370,20 +1486,36 @@ static bool init_param_array(Prepared_statement *stmt)
 
 
 /*
-  Parse the query and send the total number of parameters 
-  and resultset metadata information back to client (if any), 
-  without executing the query i.e. without any log/disk 
-  writes. This will allow the queries to be re-executed 
-  without re-parsing during execute. 
+  Given a query string with parameter markers, create a Prepared Statement
+  from it and send PS info back to the client.
+  
+  SYNOPSIS
+    mysql_stmt_prepare()
+      packet         query to be prepared 
+      packet_length  query string length, including ignored trailing NULL or 
+                     quote char.
+      name           NULL or statement name. For unnamed statements binary PS
+                     protocol is used, for named statements text protocol is 
+                     used.
+  RETURN 
+    0      OK, statement prepared successfully
+    other  Error
+  
+  NOTES
+    This function parses the query and sends the total number of parameters 
+    and resultset metadata information back to client (if any), without 
+    executing the query i.e. without any log/disk writes. This allows the 
+    queries to be re-executed without re-parsing during execute. 
 
-  If parameter markers are found in the query, then store 
-  the information using Item_param along with maintaining a
-  list in lex->param_array, so that a fast and direct
-  retrieval can be made without going through all field
-  items.
+    If parameter markers are found in the query, then store the information
+    using Item_param along with maintaining a list in lex->param_array, so 
+    that a fast and direct retrieval can be made without going through all 
+    field items.
+   
 */
 
-void mysql_stmt_prepare(THD *thd, char *packet, uint packet_length)
+int mysql_stmt_prepare(THD *thd, char *packet, uint packet_length,
+                       LEX_STRING *name)
 {
   LEX *lex;
   Prepared_statement *stmt= new Prepared_statement(thd);
@@ -1395,14 +1527,26 @@ void mysql_stmt_prepare(THD *thd, char *packet, uint packet_length)
   if (stmt == 0)
   {
     send_error(thd, ER_OUT_OF_RESOURCES);
-    DBUG_VOID_RETURN;
+    DBUG_RETURN(1);
+  }
+
+  if (name)
+  {
+    stmt->name.length= name->length;
+    if (!(stmt->name.str= memdup_root(&stmt->mem_root, (byte*)name->str,
+                                      name->length)))
+    {
+      delete stmt;
+      send_error(thd, ER_OUT_OF_RESOURCES);
+      DBUG_RETURN(1);
+    }
   }
 
   if (thd->stmt_map.insert(stmt))
   {
     delete stmt;
     send_error(thd, ER_OUT_OF_RESOURCES);
-    DBUG_VOID_RETURN;
+    DBUG_RETURN(1);
   }
 
   thd->stmt_backup.set_statement(thd);
@@ -1419,7 +1563,7 @@ void mysql_stmt_prepare(THD *thd, char *packet, uint packet_length)
     /* Statement map deletes statement on erase */
     thd->stmt_map.erase(stmt);
     send_error(thd, ER_OUT_OF_RESOURCES);
-    DBUG_VOID_RETURN;
+    DBUG_RETURN(1);
   }
 
   mysql_log.write(thd, COM_PREPARE, "%s", packet);
@@ -1431,7 +1575,7 @@ void mysql_stmt_prepare(THD *thd, char *packet, uint packet_length)
 
   error= yyparse((void *)thd) || thd->is_fatal_error ||
          init_param_array(stmt) ||
-         send_prepare_results(stmt);
+         send_prepare_results(stmt, test(name));
 
   /* restore to WAIT_PRIOR: QUERY_PRIOR is set inside alloc_query */
   if (!(specialflag & SPECIAL_NO_PRIOR))
@@ -1447,6 +1591,7 @@ void mysql_stmt_prepare(THD *thd, char *packet, uint packet_length)
   {
     /* Statement map deletes statement on erase */
     thd->stmt_map.erase(stmt);
+    stmt= NULL;
     /* error is sent inside yyparse/send_prepare_results */
   }
   else
@@ -1461,7 +1606,7 @@ void mysql_stmt_prepare(THD *thd, char *packet, uint packet_length)
       sl->prep_where= sl->where;
     }
   }
-  DBUG_VOID_RETURN;
+  DBUG_RETURN(!stmt);
 }
 
 /* Reinit statement before execution */
@@ -1540,7 +1685,6 @@ static void reset_stmt_params(Prepared_statement *stmt)
     mysql_stmt_execute()
 */
 
-
 void mysql_stmt_execute(THD *thd, char *packet, uint packet_length)
 {
   ulong stmt_id= uint4korr(packet);
@@ -1564,9 +1708,7 @@ void mysql_stmt_execute(THD *thd, char *packet, uint packet_length)
     DBUG_VOID_RETURN;
   }
 
-  thd->stmt_backup.set_statement(thd);
-  thd->set_statement(stmt);
-  reset_stmt_for_execute(stmt);
+  
 #ifndef EMBEDDED_LIBRARY
   if (stmt->param_count)
   {
@@ -1584,42 +1726,87 @@ void mysql_stmt_execute(THD *thd, char *packet, uint packet_length)
   if (stmt->param_count && stmt->set_params_data(stmt))
     goto set_params_data_err;
 #endif
+  thd->protocol= &thd->protocol_prep;           // Switch to binary protocol
+  execute_stmt(thd, stmt);
+  thd->protocol= &thd->protocol_simple;         // Use normal protocol
+  DBUG_VOID_RETURN;
+
+set_params_data_err:
+  reset_stmt_params(stmt); 
+  my_error(ER_WRONG_ARGUMENTS, MYF(0), "mysql_execute");
+  send_error(thd);
+  DBUG_VOID_RETURN;
+}
+
+
+/*
+  Execute prepared statement using parameter values from 
+  lex->prepared_stmt_params and send result to the client using text protocol.
+*/
+
+void mysql_sql_stmt_execute(THD *thd, LEX_STRING *stmt_name)
+{
+  Prepared_statement *stmt;
+  DBUG_ENTER("mysql_sql_stmt_execute");
+    
+  if (!(stmt= (Prepared_statement*)thd->stmt_map.find_by_name(stmt_name)))
+  {
+    my_error(ER_UNKNOWN_STMT_HANDLER, MYF(0), stmt_name->length,
+             stmt_name->str, "EXECUTE");
+    send_error(thd);
+    DBUG_VOID_RETURN;
+  }
+
+  if (stmt->param_count != thd->lex->prepared_stmt_params.elements)
+  {
+    my_error(ER_WRONG_ARGUMENTS, MYF(0), "mysql_execute");
+    send_error(thd);
+    DBUG_VOID_RETURN;
+  }
+  /* Item_param allows setting parameters in COM_EXECUTE only */
+  thd->command= COM_EXECUTE;
+
+  if (stmt->set_params_from_vars(stmt, thd->lex->prepared_stmt_params))
+  {
+    my_error(ER_WRONG_ARGUMENTS, MYF(0), "mysql_execute");
+    send_error(thd);
+  }
+  execute_stmt(thd, stmt);
+  DBUG_VOID_RETURN;
+}
+
+/*
+  Execute prepared statement.
+  Caller must set parameter values and thd::protocol.
+  thd->free_list is assumed to be garbage.
+*/
+static void execute_stmt(THD *thd, Prepared_statement *stmt)
+{
+  DBUG_ENTER("execute_stmt");
+  thd->free_list= NULL;
+  thd->stmt_backup.set_statement(thd);
+  thd->set_statement(stmt);
+  reset_stmt_for_execute(stmt);
 
   if (!(specialflag & SPECIAL_NO_PRIOR))
     my_pthread_setprio(pthread_self(),QUERY_PRIOR);
- 
-  /*
-    TODO:
-    Also, have checks on basic executions such as mysql_insert(), 
-    mysql_delete(), mysql_update() and mysql_select() to not to 
-    have re-check on setup_* and other things ..
-  */
-  thd->protocol= &thd->protocol_prep;           // Switch to binary protocol
   mysql_execute_command(thd);
   thd->lex->unit.cleanup();
-  thd->protocol= &thd->protocol_simple;         // Use normal protocol
-
   if (!(specialflag & SPECIAL_NO_PRIOR))
     my_pthread_setprio(pthread_self(), WAIT_PRIOR);
 
-  cleanup_items(stmt->free_list);
-  reset_stmt_params(stmt);
-  close_thread_tables(thd); // to close derived tables
-  thd->set_statement(&thd->stmt_backup);
   /* 
     Free Items that were created during this execution of the PS by query
     optimizer.
   */
   free_items(thd->free_list); 
-  DBUG_VOID_RETURN;
-
-set_params_data_err:
+  cleanup_items(stmt->free_list);
   reset_stmt_params(stmt);
+  close_thread_tables(thd); // to close derived tables
   thd->set_statement(&thd->stmt_backup);
-  my_error(ER_WRONG_ARGUMENTS, MYF(0), "mysql_execute");
-  send_error(thd);
   DBUG_VOID_RETURN;
 }
+
 
 
 /*
@@ -1762,6 +1949,7 @@ Prepared_statement::Prepared_statement(THD *thd_arg)
   if (mysql_bin_log.is_open())
   {
     log_full_query= 1;
+    set_params_from_vars= insert_params_from_vars_with_log;
 #ifndef EMBEDDED_LIBRARY
     set_params= insert_params_withlog;
 #else
@@ -1769,11 +1957,14 @@ Prepared_statement::Prepared_statement(THD *thd_arg)
 #endif
   }
   else
+  {
+    set_params_from_vars= insert_params_from_vars;
 #ifndef EMBEDDED_LIBRARY
     set_params= insert_params;
 #else
     set_params_data= emb_insert_params;
 #endif
+  }
 }
 
 

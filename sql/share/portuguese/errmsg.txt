@@ -247,7 +247,7 @@ character-set=latin1
 "Referência da chave e referência da tabela não coincidem",
 "Operand should contain %d column(s)",
 "Subconsulta retorna mais que 1 registro",
-"Desconhecido manipulador de declaração preparado (%ld) determinado para %s",
+"Desconhecido manipulador de declaração preparado (%.*s) determinado para %s",
 "Banco de dado de ajuda corrupto ou não existente",
 "Referência cíclica em subconsultas",
 "Convertendo coluna '%s' de %s para %s",
