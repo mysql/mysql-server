@@ -1427,10 +1427,10 @@ int open_tables(THD *thd, TABLE_LIST *start, uint *counter)
   bool refresh;
   int result=0;
   DBUG_ENTER("open_tables");
-  *counter= 0;
 
   thd->current_tablenr= 0;
  restart:
+  *counter= 0;
   thd->proc_info="Opening tables";
   for (tables=start ; tables ; tables=tables->next)
   {
