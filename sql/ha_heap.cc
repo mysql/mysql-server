@@ -446,7 +446,6 @@ int ha_heap::create(const char *name, TABLE *table_arg,
   HA_KEYSEG *seg;
   char buff[FN_REFLEN];
   int error;
-  bool found_real_auto_increment= 0;
 
   for (key= parts= 0; key < table_arg->keys; key++)
     parts+= table_arg->key_info[key].key_parts;
@@ -507,20 +506,23 @@ int ha_heap::create(const char *name, TABLE *table_arg,
 	seg->null_bit= 0;
 	seg->null_pos= 0;
       }
-      // We have to store field->key_type() as seg->type can differ from it
-      if (field->flags & AUTO_INCREMENT_FLAG)
+      if (field->flags & AUTO_INCREMENT_FLAG &&
+          table_arg->found_next_number_field &&
+          key == table_arg->next_number_index)
+      {
+        /*
+          Store key number and type for found auto_increment key
+          We have to store type as seg->type can differ from it
+        */
+        auto_key= key+ 1;
 	auto_key_type= field->key_type();
+      }
     }
-  }
-  if (table_arg->found_next_number_field)
-  {
-    keydef[table_arg->next_number_index].flag|= HA_AUTO_KEY;
-    found_real_auto_increment= table_arg->next_number_key_offset == 0;
   }
   mem_per_row+= MY_ALIGN(table_arg->reclength + 1, sizeof(char*));
   HP_CREATE_INFO hp_create_info;
+  hp_create_info.auto_key= auto_key;
   hp_create_info.auto_key_type= auto_key_type;
-  hp_create_info.with_auto_increment= found_real_auto_increment;
   hp_create_info.auto_increment= (create_info->auto_increment_value ?
 				  create_info->auto_increment_value - 1 : 0);
   hp_create_info.max_table_size=current_thd->variables.max_heap_table_size;
