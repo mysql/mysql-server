@@ -1584,6 +1584,7 @@ void reset_stmt_for_execute(THD *thd, LEX *lex)
       unit->reinit_exec_mechanism();
     }
   }
+  lex->current_select= &lex->select_lex;
 }
 
 
@@ -1666,10 +1667,12 @@ void mysql_stmt_execute(THD *thd, char *packet, uint packet_length)
     mysql_delete(), mysql_update() and mysql_select() to not to 
     have re-check on setup_* and other things ..
   */
+  thd->current_arena= stmt;
   thd->protocol= &thd->protocol_prep;           // Switch to binary protocol
   mysql_execute_command(thd);
   thd->lex->unit.cleanup();
   thd->protocol= &thd->protocol_simple;         // Use normal protocol
+  thd->current_arena= 0;
 
   if (!(specialflag & SPECIAL_NO_PRIOR))
     my_pthread_setprio(pthread_self(), WAIT_PRIOR);
