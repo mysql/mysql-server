@@ -17,23 +17,53 @@
 
 /* HANDLER ... commands - direct access to ISAM */
 
+#include <assert.h>
 #include "mysql_priv.h"
 #include "sql_select.h"
+
+/* TODO:
+  HANDLER blabla OPEN [ AS foobar ] [ (column-list) ]
+  
+  the most natural (easiest, fastest) way to do it is to
+  compute List<Item> field_list not in mysql_ha_read
+  but in mysql_ha_open, and then store it in TABLE structure.
+  
+  The problem here is that mysql_parse calls free_item to free all the
+  items allocated at the end of every query. The workaround would to
+  keep two item lists per THD - normal free_list and handler_items.
+  The second is to be freeed only on thread end. mysql_ha_open should
+  then do { handler_items=concat(handler_items, free_list); free_list=0; }
+  
+  But !!! do_cammand calls free_root at the end of every query and frees up
+  all the sql_alloc'ed memory. It's harder to work around...
+ */
+
+#define HANDLER_TABLES_HACK(thd) {      \
+  TABLE *tmp=thd->open_tables;          \
+  thd->open_tables=thd->handler_tables; \
+  thd->handler_tables=tmp; }
 
 static TABLE *find_table_by_name(THD *thd, char *db, char *table_name);
 
 int mysql_ha_open(THD *thd, TABLE_LIST *tables)
 {
+  HANDLER_TABLES_HACK(thd);
   int err=open_tables(thd,tables);
-  if (!err)
-  {
-    thd->manual_open=1;
-    send_ok(&thd->net);
-  }
+  HANDLER_TABLES_HACK(thd);
+  if (err)
+    return -1;
+  
+  send_ok(&thd->net);
+  return 0;
 }
 
 int mysql_ha_close(THD *thd, TABLE_LIST *tables)
 {
+  /* Perhaps, we should close table here.
+     But it's not easy - *tables is a single-linked list, designed
+     to be closed at all once.
+     So, why bother ? All the tables will be closed at thread exit.
+   */
   send_ok(&thd->net);
   return 0;
 }
@@ -43,27 +73,30 @@ static enum enum_ha_read_modes rkey_to_rnext[]=
     
 int mysql_ha_read(THD *thd, TABLE_LIST *tables,
     enum enum_ha_read_modes mode, char *keyname, List<Item> *key_expr,
-    enum ha_rkey_function ha_rkey_mode,
+    enum ha_rkey_function ha_rkey_mode, Item *cond,
     ha_rows select_limit,ha_rows offset_limit)
 {
-  int err;
+  int err, keyno=-1;
   TABLE *table=find_table_by_name(thd, tables->db, tables->name);
   if (!table)
   {
     my_printf_error(ER_UNKNOWN_TABLE,ER(ER_UNKNOWN_TABLE),MYF(0),
-	tables->name,"HANDLER");
-    // send_error(&thd->net,ER_UNKNOWN_TABLE);
-    // send_ok(&thd->net);
+        tables->name,"HANDLER");
     return -1;
   }
   tables->table=table;
-  
-  int keyno=find_type(keyname, &table->keynames, 1+2)-1;
-  if (keyno<0)
-  {
-    my_printf_error(ER_KEY_DOES_NOT_EXITS,ER(ER_KEY_DOES_NOT_EXITS),MYF(0),
-	keyname,tables->name);
+
+  if (cond && cond->fix_fields(thd,tables))
     return -1;
+  
+  if (keyname)
+  {
+    if ((keyno=find_type(keyname, &table->keynames, 1+2)-1)<0)
+    {
+      my_printf_error(ER_KEY_DOES_NOT_EXITS,ER(ER_KEY_DOES_NOT_EXITS),MYF(0),
+          keyname,tables->name);
+      return -1;
+    }
   }
 
   List<Item> list;
@@ -72,99 +105,121 @@ int mysql_ha_read(THD *thd, TABLE_LIST *tables,
   it++;
 
   insert_fields(thd,tables,tables->name,&it);
-  
-  table->file->index_init(keyno);
-  
-  if (select_limit == thd->default_select_limit) select_limit=1;
 
-  select_limit+=offset_limit;  
-  for (uint num_rows=0; num_rows < select_limit; num_rows++)
+  table->file->index_init(keyno);
+
+  select_limit+=offset_limit;
+  send_fields(thd,list,1);
+  
+  MYSQL_LOCK *lock=mysql_lock_tables(thd,&tables->table,1);
+
+  for (uint num_rows=0; num_rows < select_limit; )
   {
     switch(mode)
     {
       case RFIRST:
-	 err=table->file->index_first(table->record[0]);
-	 mode=RNEXT;
-	 break;
+         err=keyname ?
+             table->file->index_first(table->record[0]) :
+             table->file->rnd_init(1) ||
+             table->file->rnd_next(table->record[0]);
+         mode=RNEXT;
+         break;
       case RLAST:
-	 err=table->file->index_last(table->record[0]);
-	 mode=RPREV;
-	 break;
+         dbug_assert(keyname != 0);
+         err=table->file->index_last(table->record[0]);
+         mode=RPREV;
+         break;
       case RNEXT:
-	 err=table->file->index_next(table->record[0]);
-	 break;
+         err=keyname ?
+             table->file->index_next(table->record[0]) :
+             table->file->rnd_next(table->record[0]);
+         break;
       case RPREV:
-	  err=table->file->index_prev(table->record[0]);
-	  break;
+         dbug_assert(keyname != 0);
+         err=table->file->index_prev(table->record[0]);
+         break;
       case RKEY:
-	{
-	  KEY *keyinfo=table->key_info+keyno;
-	  uint key_len=0, i;
-	  byte *key, *buf;
-	  if (key_expr->elements > keyinfo->key_parts)
-	  {
-	     my_printf_error(ER_TOO_MANY_KEY_PARTS,ER(ER_TOO_MANY_KEY_PARTS),
-		 MYF(0),keyinfo->key_parts);
-             return -1;
-	  }
-	  for (i=0; i < key_expr->elements; i++)
-	    key_len+=keyinfo->key_part[i].store_length;
-	  if (!(key=sql_calloc(ALIGN_SIZE(key_len))))
-	  {
-	    send_error(&thd->net,ER_OUTOFMEMORY);
-	    return -1; 
-	  }
-	  List_iterator<Item> it_ke(*key_expr);
-	  for (i=0, buf=key; i < key_expr->elements; i++)
-	  {
-            uint maybe_null= test(keyinfo->key_part[i].null_bit);
-	    store_key_item ski=store_key_item(keyinfo->key_part[i].field,
-		(char*)buf+maybe_null,maybe_null ? (char*) buf : 0,
-		keyinfo->key_part[i].length, it_ke++);
-	    ski.copy();
-	    buf+=keyinfo->key_part[i].store_length;
-	  }
-	  err=table->file->index_read(table->record[0],
-	      key,key_len,ha_rkey_mode);
-	  mode=rkey_to_rnext[(int)ha_rkey_mode];
-	  break;
-	}
+        {
+          dbug_assert(keyname != 0);
+          KEY *keyinfo=table->key_info+keyno;
+	  KEY_PART_INFO *key_part=keyinfo->key_part;
+          uint key_len;
+          byte *key;
+          if (key_expr->elements > keyinfo->key_parts)
+          {
+             my_printf_error(ER_TOO_MANY_KEY_PARTS,ER(ER_TOO_MANY_KEY_PARTS),
+                 MYF(0),keyinfo->key_parts);
+             goto err;
+          }
+          List_iterator<Item> it_ke(*key_expr);
+	  Item *item;
+          for (key_len=0 ; (item=it_ke++) ; key_part++)
+          {
+            item->save_in_field(key_part->field);
+            key_len+=key_part->store_length;
+          }
+          if (!(key=sql_calloc(ALIGN_SIZE(key_len))))
+          {
+            send_error(&thd->net,ER_OUTOFMEMORY);
+            goto err; 
+          }
+          key_copy(key, table, keyno, key_len);
+          err=table->file->index_read(table->record[0],
+              key,key_len,ha_rkey_mode);
+          mode=rkey_to_rnext[(int)ha_rkey_mode];
+          break;
+        }
       default:
-	  send_error(&thd->net,ER_ILLEGAL_HA);
-	  return -1; 
+          send_error(&thd->net,ER_ILLEGAL_HA);
+          goto err; 
     }
 
-    if (err && err != HA_ERR_KEY_NOT_FOUND && err != HA_ERR_END_OF_FILE)
+    if (err)
     {
-      sql_print_error("mysql_ha_read: Got error %d when reading table",
-                	err);
-      table->file->print_error(err,MYF(0));
-      return -1;
+      if (err != HA_ERR_KEY_NOT_FOUND && err != HA_ERR_END_OF_FILE)
+      {
+        sql_print_error("mysql_ha_read: Got error %d when reading table",
+                        err);
+        table->file->print_error(err,MYF(0));
+        goto err;
+      }
+      goto ok;
+    }
+    if (cond)
+    { 
+      err=err;
+      if(!cond->val_int())
+        continue;
     }
     if (num_rows>=offset_limit)
     {
-      if (num_rows==offset_limit) send_fields(thd,list,1);
       if (!err)
       {
-	String *packet = &thd->packet;
-	Item *item;
-	packet->length(0);
-	it.rewind();
-	while ((item=it++))
-	{
-	  if (item->send(packet))
-	  {
-	    packet->free();				// Free used
-	    my_error(ER_OUT_OF_RESOURCES,MYF(0));
-	    return -1;
-	  }
-	}
-	my_net_write(&thd->net, (char*)packet->ptr(), packet->length());
+        String *packet = &thd->packet;
+        Item *item;
+        packet->length(0);
+        it.rewind();
+        while ((item=it++))
+        {
+          if (item->send(packet))
+          {
+            packet->free();                             // Free used
+            my_error(ER_OUT_OF_RESOURCES,MYF(0));
+            goto err;
+          }
+        }
+        my_net_write(&thd->net, (char*)packet->ptr(), packet->length());
       }
     }
+    num_rows++;
   }
+ok:
+  mysql_unlock_tables(thd,lock);
   send_eof(&thd->net);
   return 0;
+err:
+  mysql_unlock_tables(thd,lock);
+  return -1;
 }
 
 /**************************************************************************
@@ -184,10 +239,10 @@ static TABLE *find_table_by_name(THD *thd, char *db, char *table_name)
   if (!db || ! *db) db="";
   dblen=strlen(db);  
   
-  for (TABLE *table=thd->open_tables; table ; table=table->next)
+  for (TABLE *table=thd->handler_tables; table ; table=table->next)
   {
     if (!memcmp(table->table_cache_key, db, dblen) &&
-	!my_strcasecmp(table->table_name,table_name))
+        !my_strcasecmp(table->table_name,table_name))
       return table;
   }
   return(0);

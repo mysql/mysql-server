@@ -2009,8 +2009,8 @@ mysql_execute_command(void)
   case SQLCOM_HA_READ:
     if (check_db_used(thd,tables) || check_table_access(thd,SELECT_ACL, tables))
       goto error;
-    res = mysql_ha_read(thd, tables, lex->ha_read_mode,
-	            lex->backup_dir, lex->insert_list, lex->ha_rkey_mode,
+    res = mysql_ha_read(thd, tables, lex->ha_read_mode, lex->backup_dir,
+                    lex->insert_list, lex->ha_rkey_mode, lex->where,
 	            lex->select_limit, lex->offset_limit);
     break;
 
@@ -2059,7 +2059,7 @@ mysql_execute_command(void)
   }
   thd->proc_info="query end";			// QQ
   if (res < 0)
-    send_error(&thd->net,thd->killed ? ER_SERVER_SHUTDOWN : 0, 0);
+    send_error(&thd->net,thd->killed ? ER_SERVER_SHUTDOWN : 0);
 
 error:
   DBUG_VOID_RETURN;

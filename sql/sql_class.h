@@ -231,7 +231,7 @@ public:
   const   char *proc_info;
   uint	  client_capabilities,max_packet_length;
   uint	  master_access,db_access;
-  TABLE   *open_tables,*temporary_tables;
+  TABLE   *open_tables,*temporary_tables, *handler_tables;
   MYSQL_LOCK *lock,*locked_tables;
   ULL	  *ull;
   struct st_my_thread_var *mysys_var;
@@ -253,7 +253,7 @@ public:
 #ifdef HAVE_GEMINI_DB
   struct st_gemini gemini;
 #endif
-  Item	     *free_list;
+  Item	     *free_list, *handler_items;
   CONVERT    *convert_set;
   Field      *dupp_field;
 #ifndef __WIN__
@@ -278,7 +278,7 @@ public:
   bool       slave_thread;
   bool	     set_query_id,locked,count_cuted_fields,some_tables_deleted;
   bool	     no_errors, allow_sum_func, password, fatal_error;
-  bool	     query_start_used,last_insert_id_used,insert_id_used,manual_open;
+  bool	     query_start_used,last_insert_id_used,insert_id_used;
   bool	     system_thread,in_lock_tables,global_read_lock;
   bool       query_error, bootstrap;
   bool	     volatile killed;
