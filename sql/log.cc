@@ -1544,7 +1544,6 @@ bool MYSQL_LOG::write(THD *thd,const char *query, uint query_length,
 
 void MYSQL_LOG:: wait_for_update(THD* thd, bool master_or_slave)
 {
-  safe_mutex_assert_owner(&LOCK_log);
   const char* old_msg = thd->enter_cond(&update_cond, &LOCK_log,
                                         master_or_slave ?
                                         "Has read all relay log; waiting for \

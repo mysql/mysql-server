@@ -539,6 +539,7 @@ public:
 			  const char* msg)
   {
     const char* old_msg = proc_info;
+    safe_mutex_assert_owner(mutex);
     mysys_var->current_mutex = mutex;
     mysys_var->current_cond = cond;
     proc_info = msg;
