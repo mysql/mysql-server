@@ -2180,9 +2180,9 @@ convert_search_mode_to_innobase(
 		case HA_READ_BEFORE_KEY:	return(PAGE_CUR_L);
 		case HA_READ_PREFIX:		return(PAGE_CUR_GE);
 		case HA_READ_PREFIX_LAST:
-		        ut_print_timestamp(stderr);
+		  /*		        ut_print_timestamp(stderr);
                         fprintf(stderr,
-			  " InnoDB: Warning: Using HA_READ_PREFIX_LAST\n");
+			" InnoDB: Warning: Using HA_READ_PREFIX_LAST\n"); */
 		        return(PAGE_CUR_LE);
 
 		        /* InnoDB does not yet support ..PREFIX_LAST!
