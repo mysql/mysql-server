@@ -904,6 +904,7 @@ TABLE *delayed_insert::get_local_table(THD* client_thd)
   {
     if (!(*field= (*org_field)->new_field(&client_thd->mem_root,copy)))
       return 0;
+    (*field)->orig_table= copy;			// Remove connection
     (*field)->move_field(adjust_ptrs);		// Point at copy->record[0]
     if (*org_field == found_next_number_field)
       (*field)->table->found_next_number_field= *field;

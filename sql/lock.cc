@@ -445,14 +445,27 @@ static MYSQL_LOCK *get_lock_data(THD *thd, TABLE **table_ptr, uint count,
   return sql_lock;
 }
 
+
 /*****************************************************************************
-**  Lock table based on the name.
-**  This is used when we need total access to a closed, not open table
+  Lock table based on the name.
+  This is used when we need total access to a closed, not open table
 *****************************************************************************/
 
 /*
   Lock and wait for the named lock.
-  Returns 0 on ok
+
+  SYNOPSIS
+    lock_and_wait_for_table_name()
+    thd			Thread handler
+    table_list		Lock first table in this list
+
+
+  NOTES
+    Works together with global read lock.
+
+  RETURN
+    0	ok
+    1	error
 */
 
 int lock_and_wait_for_table_name(THD *thd, TABLE_LIST *table_list)
@@ -482,13 +495,28 @@ end:
 
 /*
   Put a not open table with an old refresh version in the table cache.
-  This will force any other threads that uses the table to release it
-  as soon as possible.
-  One must have a lock on LOCK_open !
-  Return values:
-   < 0 error
-   == 0 table locked
-   > 0  table locked, but someone is using it
+
+  SYNPOSIS
+    lock_table_name()
+    thd			Thread handler
+    table_list		Lock first table in this list
+
+  WARNING
+    If you are going to update the table, you should use
+    lock_and_wait_for_table_name instead of this function as this works
+    together with 'FLUSH TABLES WITH READ LOCK'
+
+  NOTES
+    This will force any other threads that uses the table to release it
+    as soon as possible.
+
+  REQUIREMENTS
+    One must have a lock on LOCK_open !
+
+  RETURN:
+    < 0 error
+    == 0 table locked
+    > 0  table locked, but someone is using it
 */
 
 int lock_table_name(THD *thd, TABLE_LIST *table_list)
@@ -588,6 +616,10 @@ bool wait_for_locked_table_names(THD *thd, TABLE_LIST *table_list)
     table_list		Names of tables to lock
 
   NOTES
+    If you are just locking one table, you should use
+    lock_and_wait_for_table_name().
+
+  REQUIREMENTS
     One must have a lock on LOCK_open when calling this
 
   RETURN
