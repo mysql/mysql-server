@@ -112,6 +112,15 @@ int ha_myisammrg::index_read_idx(byte * buf, uint index, const byte * key,
   return error;
 }
 
+int ha_myisammrg::index_read_last(byte * buf, const byte * key, uint key_len)
+{
+  statistic_increment(ha_read_key_count,&LOCK_status);
+  int error=myrg_rkey(file,buf,active_index, key, key_len,
+		      HA_READ_PREFIX_LAST);
+  table->status=error ? STATUS_NOT_FOUND: 0;
+  return error;
+}
+
 int ha_myisammrg::index_next(byte * buf)
 {
   statistic_increment(ha_read_next_count,&LOCK_status);

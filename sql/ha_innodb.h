@@ -1,7 +1,4 @@
-/* Copyright (C) 2000 MySQL AB & MySQL Finland AB & TCX DataKonsult AB
-   && Innobase Oy
-
-   -This file is modified from ha_berkeley.h of MySQL distribution-
+/* Copyright (C) 2000 MySQL AB && Innobase Oy
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -17,12 +14,16 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
+/*
+  This file is based on ha_berkeley.h of MySQL distribution
+
+  This file defines the Innodb handler: the interface between MySQL and
+  Innodb
+*/
+
 #ifdef __GNUC__
 #pragma interface			/* gcc class implementation */
 #endif
-
-/* This file defines the Innobase handler: the interface between MySQL and
-Innobase */
 
 typedef struct st_innobase_share {
   THR_LOCK lock;
@@ -32,11 +33,11 @@ typedef struct st_innobase_share {
 } INNOBASE_SHARE;
 
 
-/* The class defining a handle to an Innobase table */
+/* The class defining a handle to an Innodb table */
 class ha_innobase: public handler
 {
 	void*	innobase_prebuilt;	/* (row_prebuilt_t*) prebuilt
-					struct in Innobase, used to save
+					struct in Innodb, used to save
 					CPU */
 	THD*		user_thd;	/* the thread handle of the user
 					currently using the handle; this is
@@ -50,7 +51,7 @@ class ha_innobase: public handler
   	byte*		upd_buff;	/* buffer used in updates */
   	byte*		key_val_buff;	/* buffer used in converting
   					search key values from MySQL format
-  					to Innobase format */
+  					to Innodb format */
 	uint		ref_stored_len;	/* length of the key value stored to
 					'ref' buffer of the handle, if any */
   	ulong 		int_option_flag;
@@ -78,11 +79,11 @@ class ha_innobase: public handler
 			  HA_REC_NOT_IN_SEQ |
 			  HA_KEYPOS_TO_RNDPOS | HA_LASTKEY_ORDER |
 			  HA_HAVE_KEY_READ_ONLY | HA_READ_NOT_EXACT_KEY |
-			  HA_LONGLONG_KEYS | HA_NULL_KEY |
+			  HA_NULL_KEY |
 			  HA_NOT_EXACT_COUNT |
 			  HA_NO_WRITE_DELAYED |
 			  HA_PRIMARY_KEY_IN_READ_INDEX |
-			  HA_DROP_BEFORE_CREATE |
+			  HA_DROP_BEFORE_CREATE | HA_NOT_READ_PREFIX_LAST |
 			  HA_NO_PREFIX_CHAR_KEYS),
 	  last_dup_key((uint) -1),
 	  start_of_scan(0)
@@ -122,9 +123,10 @@ class ha_innobase: public handler
   	int index_init(uint index);
   	int index_end();
   	int index_read(byte * buf, const byte * key,
-		 	uint key_len, enum ha_rkey_function find_flag);
+		       uint key_len, enum ha_rkey_function find_flag);
   	int index_read_idx(byte * buf, uint index, const byte * key,
-		     	uint key_len, enum ha_rkey_function find_flag);
+			   uint key_len, enum ha_rkey_function find_flag);
+	int index_read_last(byte * buf, const byte * key, uint key_len);
   	int index_next(byte * buf);
   	int index_next_same(byte * buf, const byte *key, uint keylen);
   	int index_prev(byte * buf);

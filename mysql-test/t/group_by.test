@@ -243,3 +243,26 @@ select sql_big_result spid,sum(userid) from t1 group by spid desc;
 explain select sql_big_result score,count(*) from t1 group by score desc;
 select sql_big_result score,count(*) from t1 group by score desc;
 drop table t1;
+
+#
+# Compare with hash keys
+#
+
+CREATE TABLE t1 (a char(1));
+INSERT INTO t1 VALUES ('A'),('B'),('A'),('B'),('A'),('B'),(NULL),('a'),('b'),(NULL),('A'),('B'),(NULL);
+SELECT a FROM t1 GROUP BY a;
+SELECT a,count(*) FROM t1 GROUP BY a;
+SELECT a FROM t1 GROUP BY binary a;
+SELECT a,count(*) FROM t1 GROUP BY binary a;
+SELECT binary a FROM t1 GROUP BY 1;
+SELECT binary a,count(*) FROM t1 GROUP BY 1;
+# Do the same tests with MyISAM temporary tables
+SET SQL_BIG_TABLES=1;
+SELECT a FROM t1 GROUP BY a;
+SELECT a,count(*) FROM t1 GROUP BY a;
+SELECT a FROM t1 GROUP BY binary a;
+SELECT a,count(*) FROM t1 GROUP BY binary a;
+SELECT binary a FROM t1 GROUP BY 1;
+SELECT binary a,count(*) FROM t1 GROUP BY 1;
+SET SQL_BIG_TABLES=0;
+drop table t1;

@@ -47,7 +47,7 @@ class ha_myisam: public handler
     int_option_flag(HA_READ_NEXT | HA_READ_PREV | HA_READ_RND_SAME |
 		    HA_KEYPOS_TO_RNDPOS | HA_READ_ORDER | HA_LASTKEY_ORDER |
 		    HA_HAVE_KEY_READ_ONLY | HA_READ_NOT_EXACT_KEY |
-		    HA_LONGLONG_KEYS | HA_NULL_KEY |
+		    HA_NULL_KEY |
                     HA_CAN_FULLTEXT | HA_CAN_SQL_HANDLER |
 		    HA_DUPP_POS | HA_BLOB_KEY | HA_AUTO_PART_KEY),
     enable_activate_all_index(1)
@@ -71,6 +71,7 @@ class ha_myisam: public handler
 		 uint key_len, enum ha_rkey_function find_flag);
   int index_read_idx(byte * buf, uint idx, const byte * key,
 		     uint key_len, enum ha_rkey_function find_flag);
+  int index_read_last(byte * buf, const byte * key, uint key_len);
   int index_next(byte * buf);
   int index_prev(byte * buf);
   int index_first(byte * buf);
@@ -78,9 +79,15 @@ class ha_myisam: public handler
   int index_next_same(byte *buf, const byte *key, uint keylen);
   int index_end() { ft_handler=NULL; return 0; }
   int ft_init()
-         { if(!ft_handler) return 1; ft_handler->please->reinit_search(ft_handler); return 0; }
-  FT_INFO *ft_init_ext(uint mode, uint inx,const byte *key, uint keylen, bool presort)
-         { return ft_init_search(mode, file,inx,(byte*) key,keylen,presort); }
+  {
+    if (!ft_handler)
+      return 1;
+    ft_handler->please->reinit_search(ft_handler);
+    return 0;
+  }
+  FT_INFO *ft_init_ext(uint mode, uint inx,const byte *key, uint keylen,
+		       bool presort)
+  { return ft_init_search(mode, file,inx,(byte*) key,keylen,presort); }
   int ft_read(byte *buf);
   int rnd_init(bool scan=1);
   int rnd_next(byte *buf);
