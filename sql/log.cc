@@ -1062,7 +1062,17 @@ bool MYSQL_LOG::write(Log_event* event_info)
     bool should_rotate = 0;
     const char *local_db = event_info->get_db();
 #ifdef USING_TRANSACTIONS    
-    IO_CACHE *file = ((event_info->get_cache_stmt()) ?
+    /*
+      Should we write to the binlog cache or to the binlog on disk?
+      Write to the binlog cache if:
+      - it is already not empty (meaning we're in a transaction; note that the
+     present event could be about a non-transactional table, but still we need
+     to write to the binlog cache in that case to handle updates to mixed
+     trans/non-trans table types the best possible in binlogging)
+      - or if the event asks for it (cache_stmt == true).
+    */
+    IO_CACHE *file = ((event_info->get_cache_stmt() ||
+                       my_b_tell(&thd->transaction.trans_log)) ? 
 		      &thd->transaction.trans_log :
 		      &log_file);
 #else
@@ -1258,6 +1268,13 @@ uint MYSQL_LOG::next_file_id()
 /*
   Write a cached log entry to the binary log
 
+  SYNOPSIS
+    write()
+    thd 		
+    cache		The cache to copy to the binlog
+    commit_or_rollback  If true, will write "COMMIT" in the end, if false will
+                        write "ROLLBACK".
+
   NOTE
     - We only come here if there is something in the cache.
     - The thing in the cache is always a complete transaction
@@ -1265,10 +1282,13 @@ uint MYSQL_LOG::next_file_id()
 
   IMPLEMENTATION
     - To support transaction over replication, we wrap the transaction
-      with BEGIN/COMMIT in the binary log.
+      with BEGIN/COMMIT or BEGIN/ROLLBACK in the binary log.
+      We want to write a BEGIN/ROLLBACK block when a non-transactional table was
+      updated in a transaction which was rolled back. This is to ensure that the
+      same updates are run on the slave.
 */
 
-bool MYSQL_LOG::write(THD *thd, IO_CACHE *cache)
+bool MYSQL_LOG::write(THD *thd, IO_CACHE *cache, bool commit_or_rollback)
 {
   VOID(pthread_mutex_lock(&LOCK_log));
   DBUG_ENTER("MYSQL_LOG::write(cache");
@@ -1322,7 +1342,10 @@ bool MYSQL_LOG::write(THD *thd, IO_CACHE *cache)
     */
 
     {
-      Query_log_event qinfo(thd, "COMMIT", 6, TRUE);
+      Query_log_event qinfo(thd, 
+                            commit_or_rollback ? "COMMIT" : "ROLLBACK",
+                            commit_or_rollback ? 6        : 8, 
+                            TRUE);
       qinfo.set_log_pos(this);
       if (qinfo.write(&log_file) || flush_io_cache(&log_file))
 	goto err;
