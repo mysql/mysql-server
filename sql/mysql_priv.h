@@ -872,10 +872,10 @@ inline void mark_as_null_row(TABLE *table)
 
 #ifdef EMBEDDED_LIBRARY
   int embedded_send_row(THD *thd, int n_fields, char *data, int data_len);
-#define SEND_ROW(thd, net, n_fields, data, data_len)\
+#define SEND_ROW(thd, n_fields, data, data_len)\
   embedded_send_row(thd, n_fields, data, data_len)
 #else
-#define SEND_ROW(thd, net, n_fields, data, data_len)\
-  my_net_write(net, data, data_len)
+#define SEND_ROW(thd, n_fields, data, data_len)\
+  my_net_write(&thd->net, data, data_len)
 #endif
 

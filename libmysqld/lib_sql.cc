@@ -23,6 +23,11 @@
 #define mysql_unix_port mysql_inix_port1
 #define mysql_port mysql_port1
 
+static int fake_argc= 1;
+static char *fake_argv[]= {(char *)"", 0};
+static const char *fake_groups[] = { "server", "embedded", 0 };
+static char inited, org_my_init_done;
+
 #if defined (__WIN__)
 #include "../sql/mysqld.cpp"
 #else
@@ -302,8 +307,8 @@ static bool check_user(THD *thd,enum_server_command command, const char *user,
 extern "C"
 {
 
-static my_bool inited, org_my_init_done;
 ulong		max_allowed_packet, net_buffer_length;
+
 
 int STDCALL mysql_server_init(int argc, char **argv, char **groups)
 {
@@ -586,7 +591,6 @@ int STDCALL mysql_server_init(int argc, char **argv, char **groups)
     global_system_variables.net_buffer_length= net_buffer_length;
   return 0;
 }
-
 
 void STDCALL mysql_server_end()
 {
@@ -1009,14 +1013,12 @@ int embedded_send_row(THD *thd, int n_fields, char *data, int data_len)
   DBUG_ENTER("embedded_send_row");
 
   result->rows++;
-  if (!(cur= (MYSQL_ROWS *)alloc_root(alloc, sizeof(MYSQL_ROWS))) ||
-      !(cur->data= 
-	(MYSQL_ROW)alloc_root(alloc, 
-			      (n_fields + 1) * sizeof(char *) + data_len)))
+  if (!(cur= (MYSQL_ROWS *)alloc_root(alloc, sizeof(MYSQL_ROWS) + (n_fields + 1) * sizeof(char *) + data_len)))
   {
     my_error(ER_OUT_OF_RESOURCES,MYF(0));
     DBUG_RETURN(1);
   }
+  cur->data= (MYSQL_ROW)((char *)cur) + sizeof(MYSQL_ROWS);
 
   *result->prev_ptr= cur;
   result->prev_ptr= &cur->next;
@@ -1024,7 +1026,7 @@ int embedded_send_row(THD *thd, int n_fields, char *data, int data_len)
   cp= (uchar *)data;
   end_field= cur->data + n_fields;
   
-  for (cur_field=cur->data; cur_field<end_field; ++cur_field, ++mysql_fields)
+  for (cur_field=cur->data; cur_field<end_field; cur_field++, mysql_fields++)
   {
     if ((len= (ulong) net_field_length(&cp)) == NULL_LENGTH)
     {
