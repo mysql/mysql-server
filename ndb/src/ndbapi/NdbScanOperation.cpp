@@ -117,6 +117,8 @@ NdbScanOperation::init(const NdbTableImpl* tab, NdbConnection* myConnection)
   
   theStatus = GetValue;
   theOperationType = OpenScanRequest;
+  theNdbCon->theMagicNumber = 0xFE11DF;
+
   return 0;
 }
 
@@ -217,7 +219,10 @@ NdbResultSet* NdbScanOperation::readTuples(NdbScanOperation::LockMode lm,
   req->transId2 = (Uint32) (transId >> 32);
 
   NdbApiSignal* tSignal = 
-    theFirstKEYINFO = theLastKEYINFO = theNdb->getSignal();
+    theFirstKEYINFO;
+
+  theFirstKEYINFO = (tSignal ? tSignal : tSignal = theNdb->getSignal());
+  theLastKEYINFO = tSignal;
   
   tSignal->setSignal(GSN_KEYINFO);
   theKEYINFOptr = ((KeyInfo*)tSignal->getDataPtrSend())->keyData;
@@ -259,18 +264,7 @@ NdbScanOperation::fix_receivers(Uint32 parallel){
     m_allocated_receivers = parallel;
   }
   
-  for(Uint32 i = 0; i<parallel; i++){
-    m_receivers[i]->m_list_index = i;
-    m_prepared_receivers[i] = m_receivers[i]->getId();
-    m_sent_receivers[i] = m_receivers[i];
-    m_conf_receivers[i] = 0;
-    m_api_receivers[i] = 0;
-  }
-  
-  m_api_receivers_count = 0;
-  m_current_api_receiver = 0;
-  m_sent_receivers_count = parallel;
-  m_conf_receivers_count = 0;
+  reset_receivers(parallel, 0);
   return 0;
 }
 
@@ -414,14 +408,22 @@ NdbScanOperation::executeCursor(int nodeId){
   NdbConnection * tCon = theNdbCon;
   TransporterFacade* tp = TransporterFacade::instance();
   Guard guard(tp->theMutexPtr);
+
+  Uint32 magic = tCon->theMagicNumber;
   Uint32 seq = tCon->theNodeSequence;
+
   if (tp->get_node_alive(nodeId) &&
       (tp->getNodeSequence(nodeId) == seq)) {
-    
-    if(prepareSendScan(tCon->theTCConPtr, tCon->theTransactionId) == -1)
-      return -1;
 
+    /**
+     * Only call prepareSendScan first time (incase of restarts)
+     *   - check with theMagicNumber
+     */
     tCon->theMagicNumber = 0x37412619;
+    if(magic != 0x37412619 && 
+       prepareSendScan(tCon->theTCConPtr, tCon->theTransactionId) == -1)
+      return -1;
+    
     
     if (doSendScan(nodeId) == -1)
       return -1;
@@ -718,9 +720,6 @@ int NdbScanOperation::prepareSendScan(Uint32 aTC_ConnectPtr,
     ((NdbIndexScanOperation*)this)->fix_get_values();
   }
   
-  const Uint32 transId1 = (Uint32) (aTransactionId & 0xFFFFFFFF);
-  const Uint32 transId2 = (Uint32) (aTransactionId >> 32);
-  
   theCurrentATTRINFO->setLength(theAI_LenInCurrAI);
 
   /**
@@ -991,13 +990,15 @@ NdbIndexScanOperation::~NdbIndexScanOperation(){
 }
 
 int
-NdbIndexScanOperation::setBound(const char* anAttrName, int type, const void* aValue, Uint32 len)
+NdbIndexScanOperation::setBound(const char* anAttrName, int type, 
+				const void* aValue, Uint32 len)
 {
   return setBound(m_accessTable->getColumn(anAttrName), type, aValue, len);
 }
 
 int
-NdbIndexScanOperation::setBound(Uint32 anAttrId, int type, const void* aValue, Uint32 len)
+NdbIndexScanOperation::setBound(Uint32 anAttrId, int type, 
+				const void* aValue, Uint32 len)
 {
   return setBound(m_accessTable->getColumn(anAttrId), type, aValue, len);
 }
@@ -1522,6 +1523,7 @@ NdbScanOperation::restart()
    */
   reset_receivers(theParallelism, m_ordered);
   
+  theError.code = 0;
   if (doSendScan(nodeId) == -1)
     return -1;
   
@@ -1540,12 +1542,16 @@ NdbIndexScanOperation::reset_bounds(){
 
   if(!res)
   {
+    theError.code = 0;
     reset_receivers(theParallelism, m_ordered);
     
     theLastKEYINFO = theFirstKEYINFO;
     theKEYINFOptr = ((KeyInfo*)theFirstKEYINFO->getDataPtrSend())->keyData;
-    theTotalNrOfKeyWordInSignal= 0;
-    
+    theTupKeyLen = 0;
+    theTotalNrOfKeyWordInSignal = 0;
+    m_transConnection
+      ->remove_list((NdbOperation*)m_transConnection->m_firstExecutedScanOp,
+		    this);
     m_transConnection->define_scan_op(this);
     return 0;
   }

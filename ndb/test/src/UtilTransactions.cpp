@@ -1328,12 +1328,8 @@ UtilTransactions::verifyOrderedIndex(Ndb* pNdb,
       return NDBT_FAILED;
     }
 
-    NdbResultSet* rs;
-    if(transactional){
+    NdbResultSet* 
       rs = pOp->readTuples(NdbScanOperation::LM_Read, 0, parallelism);
-    } else {
-      rs = pOp->readTuples(NdbScanOperation::LM_CommittedRead, 0, parallelism);
-    }
     
     if( rs == 0 ) {
       ERR(pTrans->getNdbError());
@@ -1372,7 +1368,6 @@ UtilTransactions::verifyOrderedIndex(Ndb* pNdb,
     int eof;
     int rows = 0;
     while(check == 0 && (eof = rs->nextResult()) == 0){
-      ndbout_c("Row: %d", rows);
       rows++;
 
       bool null_found= false;
@@ -1397,8 +1392,7 @@ UtilTransactions::verifyOrderedIndex(Ndb* pNdb,
 	if(!iop && (iop= pTrans->getNdbIndexScanOperation(indexName, 
 							  tab.getName())))
 	{
-	  cursor= iop->readTuples(transactional ? NdbScanOperation::LM_Read :
-				  NdbScanOperation::LM_CommittedRead, 
+	  cursor= iop->readTuples(NdbScanOperation::LM_CommittedRead, 
 				  parallelism);
 	  iop->interpret_exit_ok();
 	  if(!cursor || get_values(iop, indexRow))
@@ -1411,11 +1405,9 @@ UtilTransactions::verifyOrderedIndex(Ndb* pNdb,
 	
 	if(equal(pIndex, iop, scanRow))
 	  goto error;
-	else
-	  ndbout_c("equal ok");
       }     
 
-      check = pTrans->execute(Commit); // commit pk read
+      check = pTrans->execute(NoCommit);
       if(check)
 	goto error;
 
@@ -1432,6 +1424,7 @@ UtilTransactions::verifyOrderedIndex(Ndb* pNdb,
 	
 	if((res= cursor->nextResult()) != 0){
 	  g_err << "Failed to find row using index: " << res << endl;
+	  ERR(pTrans->getNdbError());
 	  pNdb->closeTransaction(pTrans);
 	  return NDBT_FAILED;
 	}
@@ -1451,8 +1444,6 @@ UtilTransactions::verifyOrderedIndex(Ndb* pNdb,
 	  return NDBT_FAILED;
 	}
       }
-      pTrans->restart();
-      ndbout_c("row %d ok", rows-1);
     }
     
     if (eof == -1 || check == -1) {
@@ -1461,6 +1452,7 @@ UtilTransactions::verifyOrderedIndex(Ndb* pNdb,
       
       if (err.status == NdbError::TemporaryError){
 	ERR(err);
+	iop = 0;
 	pNdb->closeTransaction(pTrans);
 	NdbSleep_MilliSleep(50);
 	retryAttempt++;

@@ -1129,6 +1129,19 @@ getNdbOp_error1:
 }//NdbConnection::getNdbScanOperation()
 
 void
+NdbConnection::remove_list(NdbOperation*& list, NdbOperation* op){
+  NdbOperation* tmp= list;
+  if(tmp == op)
+    list = op->next();
+  else {
+    while(tmp && tmp->next() != op) tmp = tmp->next();
+    if(tmp)
+      tmp->next(op->next());
+  }
+  op->next(NULL);
+}
+
+void
 NdbConnection::define_scan_op(NdbIndexScanOperation * tOp){
   // Link scan operation into list of cursor operations
   if (m_theLastScanOperation == NULL)

@@ -87,7 +87,7 @@ protected:
   CursorType m_cursor_type;
 
   NdbScanOperation(Ndb* aNdb);
-  ~NdbScanOperation();
+  virtual ~NdbScanOperation();
 
   int nextResult(bool fetchAllowed = true);
   virtual void release();
