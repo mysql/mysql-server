@@ -61,6 +61,7 @@ public:
   bool is_null() { return null_value; }
   void make_field (Send_field *);
   bool fix_fields(THD *thd, TABLE_LIST *tables, Item **ref);
+  virtual void fix_length_and_dec();
   table_map used_tables() const;
 
   friend class select_subselect;
@@ -100,7 +101,7 @@ public:
   String *val_str (String *);
   Item *new_item() { return new Item_singleval_subselect(this); }
   enum Item_result result_type() const { return res_type; }
-
+  void fix_length_and_dec();
   friend class select_singleval_subselect;
 };
 
@@ -128,7 +129,7 @@ public:
   longlong val_int();
   double val();
   String *val_str(String*);
-
+  void fix_length_and_dec();
   friend class select_exists_subselect;
 };
 
@@ -138,6 +139,7 @@ protected:
   select_subselect *result; /* results storage class */
   THD *thd; /* pointer to current THD */
   Item_subselect *item; /* item, that use this engine */
+  enum Item_result res_type; /* type of results */
 public:
   static void *operator new(size_t size)
   {
@@ -150,11 +152,15 @@ public:
     result= res;
     item= si;
     this->thd= thd;
+    res_type= STRING_RESULT;
   }
+
   virtual int prepare()= 0;
+  virtual void fix_length_and_dec()= 0;
   virtual int exec()= 0;
   virtual uint cols()= 0; /* return number of columnss in select */
   virtual bool depended()= 0; /* depended from outer select */
+  enum Item_result type() { return res_type; }
 };
 
 class subselect_single_select_engine: public subselect_engine
@@ -168,6 +174,7 @@ public:
 				 select_subselect *result,
 				 Item_subselect *item);
   virtual int prepare();
+  virtual void fix_length_and_dec();
   virtual int exec();
   virtual uint cols();
   virtual bool depended();
@@ -182,6 +189,7 @@ public:
 			 select_subselect *result,
 			 Item_subselect *item);
   virtual int prepare();
+  virtual void fix_length_and_dec();
   virtual int exec();
   virtual uint cols();
   virtual bool depended();
