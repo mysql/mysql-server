@@ -25,6 +25,7 @@ select substring_index('www.tcx.se','tcx',1),substring_index('www.tcx.se','tcx',
 select substring_index('.tcx.se','.',-2),substring_index('.tcx.se','.tcx',-1);
 
 select concat(':',ltrim('  left  '),':',rtrim('  right  '),':');
+select concat(':',trim(leading from '  left  '),':',trim(trailing from '  right  '),':');
 select concat(':',trim(LEADING FROM ' left'),':',trim(TRAILING FROM ' right '),':');
 select concat(':',trim(' m '),':',trim(BOTH FROM ' y '),':',trim('*' FROM '*s*'),':');
 select concat(':',trim(BOTH 'ab' FROM 'ababmyabab'),':',trim(BOTH '*' FROM '***sql'),':');
@@ -443,3 +444,5 @@ select quote(trim(concat('    ', 'a')));
 #
 select trim(null from 'kate') as "must_be_null";
 select trim('xyz' from null) as "must_be_null";
+select trim(leading NULL from 'kate') as "must_be_null";
+select trim(trailing NULL from 'xyz') as "must_be_null";
