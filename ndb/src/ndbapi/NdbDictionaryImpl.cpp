@@ -114,7 +114,8 @@ NdbColumnImpl::init(Type t)
     m_length = 1;
     m_cs = NULL;
     break;
-  case Decimal:
+  case Olddecimal:
+  case Olddecimalunsigned:
     m_precision = 10;
     m_scale = 0;
     m_length = 1;
@@ -1176,7 +1177,8 @@ columnTypeMapping[] = {
   { DictTabInfo::ExtBigunsigned,     NdbDictionary::Column::Bigunsigned },
   { DictTabInfo::ExtFloat,           NdbDictionary::Column::Float },
   { DictTabInfo::ExtDouble,          NdbDictionary::Column::Double },
-  { DictTabInfo::ExtDecimal,         NdbDictionary::Column::Decimal },
+  { DictTabInfo::ExtOlddecimal,      NdbDictionary::Column::Olddecimal },
+  { DictTabInfo::ExtOlddecimalunsigned, NdbDictionary::Column::Olddecimalunsigned },
   { DictTabInfo::ExtChar,            NdbDictionary::Column::Char },
   { DictTabInfo::ExtVarchar,         NdbDictionary::Column::Varchar },
   { DictTabInfo::ExtBinary,          NdbDictionary::Column::Binary },
