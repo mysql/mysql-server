@@ -562,7 +562,7 @@ int mi_create(const char *name,uint keys,MI_KEYDEF *keydefs,
     if (share.base.raid_type)
     {
       (void) fn_format(filename,name,"",MI_NAME_DEXT,2+4);
-      if ((dfile=my_raid_create(filename, 0, create_mode
+      if ((dfile=my_raid_create(filename, 0, create_mode,
 				share.base.raid_type,
 				share.base.raid_chunks,
 				share.base.raid_chunksize,
