@@ -14738,7 +14738,7 @@ If you need to do this more permanently, you should create an option
 file for each server. @xref{Option files}.  In your startup script that
 is executed at boot time you should specify for both servers:
 
-@code{safe_mysqld --default-file=path-to-option-file}
+@code{safe_mysqld --defaults-file=path-to-option-file}
 
 At least the following options should be different per server:
 
