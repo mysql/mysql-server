@@ -465,6 +465,7 @@ event_thread_run(void* m)
   int fd = ndb_mgm_listen_event(handle, filter);
   if (fd > 0)
   {
+    do_event_thread= 1;
     char *tmp= 0;
     char buf[1024];
     SocketInputStream in(fd,10);
@@ -473,6 +474,10 @@ event_thread_run(void* m)
       if((tmp = in.gets(buf, 1024)))
 	ndbout << tmp;
     } while(do_event_thread);
+  }
+  else
+  {
+    do_event_thread= -1;
   }
 
   my_thread_end();
@@ -494,24 +499,38 @@ CommandInterpreter::connect()
 	 &&
 	 !ndb_mgm_connect(m_mgmsrv2, try_reconnect-1, 5, 1))
       {
-	m_connected= true;
-	if (m_verbose)
+	assert(m_event_thread == 0);
+	assert(do_event_thread == 0);
+	do_event_thread= 0;
+	m_event_thread = NdbThread_Create(event_thread_run,
+					  (void**)&m_mgmsrv2,
+					  32768,
+					  "CommandInterpreted_event_thread",
+					  NDB_THREAD_PRIO_LOW);
+	if (m_event_thread != 0)
 	{
-	  printf("Connected to Management Server at: %s:%d\n",
-		 host, port);
+	  int iter= 1000; // try for 30 seconds
+	  while(do_event_thread == 0 &&
+		iter-- > 0)
+	    NdbSleep_MilliSleep(30);
 	}
+	if (m_event_thread == 0 ||
+	    do_event_thread == 0 ||
+	    do_event_thread == -1)
 	{
-	  do_event_thread= 1;
-	  m_event_thread = NdbThread_Create(event_thread_run,
-					    (void**)&m_mgmsrv2,
-					    32768,
-					    "CommandInterpreted_event_thread",
-					    NDB_THREAD_PRIO_LOW);
+	  printf("Warning, event thread startup failed, degraded printouts as result\n");
+	  do_event_thread= 0;
 	}
       }
       else
       {
-	ndb_mgm_disconnect(m_mgmsrv);
+	printf("Warning, event connect failed, degraded printouts as result\n");
+      }
+      m_connected= true;
+      if (m_verbose)
+      {
+	printf("Connected to Management Server at: %s:%d\n",
+	       host, port);
       }
     }
   }
