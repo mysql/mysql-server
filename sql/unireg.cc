@@ -174,6 +174,17 @@ bool mysql_create_frm(THD *thd, my_string file_name,
     goto err2;
   if (my_close(file,MYF(MY_WME)))
     goto err3;
+
+  {
+    /* Unescape all UCS2 intervals: were escaped in pack_headers */
+    List_iterator<create_field> it(create_fields);
+    create_field *field;
+    while ((field=it++))
+    {
+      if (field->interval && field->charset->mbminlen > 1)
+        unhex_type2(field->interval);
+    }
+  }
   DBUG_RETURN(0);
 
 err:
@@ -423,6 +434,28 @@ static bool pack_header(uchar *forminfo, enum db_type table_type,
     if (field->interval)
     {
       uint old_int_count=int_count;
+
+      if (field->charset->mbminlen > 1)
+      {
+        /* Escape UCS2 intervals using HEX notation */
+        for (uint pos= 0; pos < field->interval->count; pos++)
+        {
+          char *dst;
+          uint length= field->interval->type_lengths[pos], hex_length;
+          const char *src= field->interval->type_names[pos];
+          const char *srcend= src + length;
+          hex_length= length * 2;
+          field->interval->type_lengths[pos]= hex_length;
+          field->interval->type_names[pos]= dst= sql_alloc(hex_length + 1);
+          for ( ; src < srcend; src++)
+          {
+            *dst++= _dig_vec_upper[((uchar) *src) >> 4];
+            *dst++= _dig_vec_upper[((uchar) *src) & 15];
+          }
+          *dst= '\0';
+        }
+      }
+
       field->interval_id=get_interval_id(&int_count,create_fields,field);
       if (old_int_count != int_count)
       {

@@ -1360,7 +1360,8 @@ int my_strnncoll_ucs2_bin(CHARSET_INFO *cs,
 static int my_strnncollsp_ucs2_bin(CHARSET_INFO *cs, 
                                    const uchar *s, uint slen, 
                                    const uchar *t, uint tlen,
-                                   my_bool diff_if_only_endspace_difference)
+                                   my_bool diff_if_only_endspace_difference
+                                   __attribute__((unused)))
 {
   /* TODO: Needs to be fixed to handle end space! */
   return my_strnncoll_ucs2_bin(cs,s,slen,t,tlen,0);

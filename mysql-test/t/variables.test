@@ -83,7 +83,13 @@ show variables like 'concurrent_insert';
 set global concurrent_insert=DEFAULT;
 show variables like 'concurrent_insert';
 
-set storage_engine=MYISAM, storage_engine="HEAP", global storage_engine="INNODB";
+set global timed_mutexes=1;
+show variables like 'timed_mutexes';
+set global timed_mutexes=0;
+show variables like 'timed_mutexes';
+
+
+set storage_engine=MYISAM, storage_engine="HEAP", global storage_engine="MERGE";
 show local variables like 'storage_engine';
 show global variables like 'storage_engine';
 set GLOBAL query_cache_size=100000;
@@ -140,7 +146,7 @@ set max_join_size="hello";
 --error 1286
 set storage_engine=UNKNOWN_TABLE_TYPE;
 --error 1231
-set storage_engine=INNODB, big_tables=2;
+set storage_engine=MERGE, big_tables=2;
 show local variables like 'storage_engine';
 --error 1229
 set SESSION query_cache_size=10000;
@@ -367,3 +373,10 @@ create table t1 as select @arg00 as c1, @arg01 as c2, @arg02 as c3;
 show create table t1;
 drop table t1;
 
+
+#
+# Bug #6993: myisam_data_pointer_size
+#
+
+SET GLOBAL MYISAM_DATA_POINTER_SIZE= 8;
+SHOW VARIABLES LIKE 'MYISAM_DATA_POINTER_SIZE';

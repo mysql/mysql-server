@@ -1140,7 +1140,8 @@ void
 ibuf_dummy_index_add_col(
 /*====================*/
 	dict_index_t*	index,	/* in: dummy index */
-	dtype_t*	type)	/* in: the data type of the column */
+	dtype_t*	type,	/* in: the data type of the column */
+	ulint		len)	/* in: length of the column */
 {
 	ulint	i	= index->table->n_def;
 	dict_mem_table_add_col(index->table, "DUMMY",
@@ -1149,7 +1150,7 @@ ibuf_dummy_index_add_col(
 		dtype_get_len(type),
 		dtype_get_prec(type));
 	dict_index_add_col(index,
-		dict_table_get_nth_col(index->table, i), 0, 0);
+		dict_table_get_nth_col(index->table, i), 0, len);
 }
 /************************************************************************
 Deallocates a dummy index for inserting a record to a non-clustered index.
@@ -1259,7 +1260,7 @@ ibuf_build_entry_from_ibuf_rec(
 			dfield_get_type(field),
 			types + i * DATA_NEW_ORDER_NULL_TYPE_BUF_SIZE);
 
-		ibuf_dummy_index_add_col(index, dfield_get_type(field));
+		ibuf_dummy_index_add_col(index, dfield_get_type(field), len);
 	}
 
 	*pindex = index;

@@ -37,7 +37,11 @@ int scanReadRecords(Ndb*,
 		    bool orderby,
                     bool descending);
 
-static const char* opt_connect_str= 0;
+enum ndb_select_all_options {
+  NDB_STD_OPTS_OPTIONS
+};
+NDB_STD_OPTS_VARS;
+
 static const char* _dbname = "TEST_DB";
 static const char* _delimiter = "\t";
 static int _unqualified, _header, _parallelism, _useHexFormat, _lock,
@@ -120,9 +124,12 @@ int main(int argc, char** argv){
     return NDBT_ProgramExit(NDBT_WRONGARGS);
   }
 
-  Ndb::setConnectString(opt_connect_str);
-  // Connect to Ndb
-  Ndb MyNdb(_dbname);
+  Ndb_cluster_connection con(opt_connect_str);
+  if(con.connect(12, 5, 1) != 0)
+  {
+    return NDBT_ProgramExit(NDBT_FAILED);
+  }
+  Ndb MyNdb(&con, _dbname );
 
   if(MyNdb.init() != 0){
     ERR(MyNdb.getNdbError());

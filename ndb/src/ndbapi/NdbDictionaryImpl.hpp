@@ -28,7 +28,7 @@
 #include <Bitmask.hpp>
 #include <AttributeList.hpp>
 #include <Ndb.hpp>
-#include "NdbImpl.hpp"
+#include "NdbWaiter.hpp"
 #include "DictCache.hpp"
 
 class NdbDictObjectImpl {

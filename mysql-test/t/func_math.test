@@ -51,3 +51,10 @@ SELECT ASIN(1.2-0.2);
 #select floor(log(16)/log(2));
 
 explain extended select degrees(pi()),radians(360);
+
+#
+# Bug #7281: problem with rand()
+#
+
+--error 1054
+select rand(rand);

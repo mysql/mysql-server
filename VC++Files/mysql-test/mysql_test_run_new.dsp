@@ -2,7 +2,7 @@
 # Microsoft Developer Studio Generated Build File, Format Version 6.00
 # ** DO NOT EDIT **
 
-# TARGTYPE "Win32 (x86) Application" 0x0101
+# TARGTYPE "Win32 (x86) Console Application" 0x0103
 
 CFG=mysql_test_run_new - Win32 Debug
 !MESSAGE This is not a valid makefile. To build this project using NMAKE,
@@ -17,8 +17,8 @@ CFG=mysql_test_run_new - Win32 Debug
 !MESSAGE 
 !MESSAGE Possible choices for configuration are:
 !MESSAGE 
-!MESSAGE "mysql_test_run_new - Win32 Debug" (based on "Win32 (x86) Application")
-!MESSAGE "mysql_test_run_new - Win32 Release" (based on "Win32 (x86) Application")
+!MESSAGE "mysql_test_run_new - Win32 Debug" (based on "Win32 (x86) Console Application")
+!MESSAGE "mysql_test_run_new - Win32 Release" (based on "Win32 (x86) Console Application")
 !MESSAGE 
 
 # Begin Project
@@ -33,51 +33,51 @@ RSC=rc.exe
 
 # PROP BASE Use_MFC 0
 # PROP BASE Use_Debug_Libraries 1
-# PROP BASE Output_Dir "Debug"
-# PROP BASE Intermediate_Dir "Debug"
+# PROP BASE Output_Dir ".\Debug"
+# PROP BASE Intermediate_Dir ".\Debug"
 # PROP BASE Target_Dir ""
 # PROP Use_MFC 0
 # PROP Use_Debug_Libraries 1
-# PROP Output_Dir "Debug"
-# PROP Intermediate_Dir "Debug"
+# PROP Output_Dir ".\Debug"
+# PROP Intermediate_Dir ".\Debug"
 # PROP Target_Dir ""
-# ADD BASE CPP /nologo /MTd /I "../include" /I "../" /Z7 /W3 /Od /G6 /D "_DEBUG" /D "_WINDOWS" /D "SAFE_MUTEX" /D "USE_TLS" /D "MYSQL_CLIENT" /D "__WIN__" /D "_WIN32" /Fp".\debug/mysql_test_run.pch" /Fo".\debug/" /Fd".\debug/" /GZ /c /GX 
-# ADD CPP /nologo /MTd /I "../include" /I "../" /Z7 /W3 /Od /G6 /D "_DEBUG" /D "_WINDOWS" /D "SAFE_MUTEX" /D "USE_TLS" /D "MYSQL_CLIENT" /D "__WIN__" /D "_WIN32" /Fp".\debug/mysql_test_run.pch" /Fo".\debug/" /Fd".\debug/" /GZ /c /GX 
-# ADD BASE MTL /nologo /win32 
-# ADD MTL /nologo /win32 
+# ADD BASE CPP /nologo /MTd /I "../include" /I "../" /Z7 /W3 /Od /G6 /D "_DEBUG" /D "_WINDOWS" /D "SAFE_MUTEX" /D "USE_TLS" /D "MYSQL_CLIENT" /D "__WIN__" /D "_WIN32" /Fp".\Debug/mysql_test_run_new.pch" /Fo".\Debug/" /Fd".\Debug/" /GZ /c /GX 
+# ADD CPP /nologo /MTd /I "../include" /I "../" /Z7 /W3 /Od /G6 /D "_DEBUG" /D "_WINDOWS" /D "SAFE_MUTEX" /D "USE_TLS" /D "MYSQL_CLIENT" /D "__WIN__" /D "_WIN32" /Fp".\Debug/mysql_test_run_new.pch" /Fo".\Debug/" /Fd".\Debug/" /GZ /c /GX 
+# ADD BASE MTL /nologo /tlb".\Debug\mysql_test_run_new.tlb" /win32 
+# ADD MTL /nologo /tlb".\Debug\mysql_test_run_new.tlb" /win32 
 # ADD BASE RSC /l 1033 
 # ADD RSC /l 1033 
 BSC32=bscmake.exe
 # ADD BASE BSC32 /nologo 
 # ADD BSC32 /nologo 
 LINK32=link.exe
-# ADD BASE LINK32 kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib Ws2_32.lib /nologo /out:"..\mysql-test\mysql_test_run_new.exe" /debug /pdb:".\debug\mysql_test_run_new.pdb" /pdbtype:sept /map /mapinfo:exports /subsystem:windows 
-# ADD LINK32 kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib Ws2_32.lib /nologo /out:"..\mysql-test\mysql_test_run_new.exe" /debug /pdb:".\debug\mysql_test_run_new.pdb" /pdbtype:sept /map /mapinfo:exports /subsystem:windows 
+# ADD BASE LINK32 kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib odbc32.lib odbccp32.lib Ws2_32.lib /nologo /out:"..\mysql-test\mysql_test_run_new.exe" /incremental:yes /debug /pdb:".\Debug\mysql_test_run_new.pdb" /pdbtype:sept /map:".\Debug\mysql_test_run_new.map" /subsystem:console 
+# ADD LINK32 kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib odbc32.lib odbccp32.lib Ws2_32.lib /nologo /out:"..\mysql-test\mysql_test_run_new.exe" /incremental:yes /debug /pdb:".\Debug\mysql_test_run_new.pdb" /pdbtype:sept /map:".\Debug\mysql_test_run_new.map" /subsystem:console 
 
 !ELSEIF  "$(CFG)" == "mysql_test_run_new - Win32 Release"
 
 # PROP BASE Use_MFC 0
 # PROP BASE Use_Debug_Libraries 0
-# PROP BASE Output_Dir "Release"
-# PROP BASE Intermediate_Dir "Release"
+# PROP BASE Output_Dir ".\Release"
+# PROP BASE Intermediate_Dir ".\Release"
 # PROP BASE Target_Dir ""
 # PROP Use_MFC 0
 # PROP Use_Debug_Libraries 0
-# PROP Output_Dir "Release"
-# PROP Intermediate_Dir "Release"
+# PROP Output_Dir ".\Release"
+# PROP Intermediate_Dir ".\Release"
 # PROP Target_Dir ""
-# ADD BASE CPP /nologo /MTd /I "../include" /I "../" /W3 /Ob1 /G6 /D "DBUG_OFF" /D "_WINDOWS" /D "SAFE_MUTEX" /D "USE_TLS" /D "MYSQL_CLIENT" /D "__WIN__" /D "_WIN32" /GF /Gy /Fo".\release/" /Fd".\release/" /c /GX 
-# ADD CPP /nologo /MTd /I "../include" /I "../" /W3 /Ob1 /G6 /D "DBUG_OFF" /D "_WINDOWS" /D "SAFE_MUTEX" /D "USE_TLS" /D "MYSQL_CLIENT" /D "__WIN__" /D "_WIN32" /GF /Gy /Fo".\release/" /Fd".\release/" /c /GX 
-# ADD BASE MTL /nologo /win32 
-# ADD MTL /nologo /win32 
+# ADD BASE CPP /nologo /MTd /I "../include" /I "../" /W3 /Ob1 /G6 /D "DBUG_OFF" /D "_WINDOWS" /D "SAFE_MUTEX" /D "USE_TLS" /D "MYSQL_CLIENT" /D "__WIN__" /D "_WIN32" /GF /Gy /Fp".\Release/mysql_test_run_new.pch" /Fo".\Release/" /Fd".\Release/" /c /GX 
+# ADD CPP /nologo /MTd /I "../include" /I "../" /W3 /Ob1 /G6 /D "DBUG_OFF" /D "_WINDOWS" /D "SAFE_MUTEX" /D "USE_TLS" /D "MYSQL_CLIENT" /D "__WIN__" /D "_WIN32" /GF /Gy /Fp".\Release/mysql_test_run_new.pch" /Fo".\Release/" /Fd".\Release/" /c /GX 
+# ADD BASE MTL /nologo /tlb".\Release\mysql_test_run_new.tlb" /win32 
+# ADD MTL /nologo /tlb".\Release\mysql_test_run_new.tlb" /win32 
 # ADD BASE RSC /l 1033 
 # ADD RSC /l 1033 
 BSC32=bscmake.exe
 # ADD BASE BSC32 /nologo 
 # ADD BSC32 /nologo 
 LINK32=link.exe
-# ADD BASE LINK32 kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib Ws2_32.lib /nologo /out:"..\mysql-test\mysql_test_run_new.exe" /pdbtype:sept /subsystem:windows 
-# ADD LINK32 kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib Ws2_32.lib /nologo /out:"..\mysql-test\mysql_test_run_new.exe" /pdbtype:sept /subsystem:windows 
+# ADD BASE LINK32 kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib odbc32.lib odbccp32.lib Ws2_32.lib /nologo /out:"..\mysql-test\mysql_test_run_new.exe" /incremental:no /pdb:".\Release\mysql_test_run_new.pdb" /pdbtype:sept /subsystem:windows 
+# ADD LINK32 kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib odbc32.lib odbccp32.lib Ws2_32.lib /nologo /out:"..\mysql-test\mysql_test_run_new.exe" /incremental:no /pdb:".\Release\mysql_test_run_new.pdb" /pdbtype:sept /subsystem:windows 
 
 !ENDIF
 
@@ -87,19 +87,19 @@ LINK32=link.exe
 # Name "mysql_test_run_new - Win32 Release"
 # Begin Source File
 
-SOURCE=my_create_tables.c
+SOURCE=.\my_create_tables.c
 # End Source File
 # Begin Source File
 
-SOURCE=my_manage.c
+SOURCE=.\my_manage.c
 # End Source File
 # Begin Source File
 
-SOURCE=my_manage.h
+SOURCE=.\my_manage.h
 # End Source File
 # Begin Source File
 
-SOURCE=mysql_test_run_new.c
+SOURCE=.\mysql_test_run_new.c
 # End Source File
 # End Target
 # End Project

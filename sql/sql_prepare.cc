@@ -68,7 +68,6 @@ Long data handling:
 ***********************************************************************/
 
 #include "mysql_priv.h"
-#include "sql_acl.h"
 #include "sql_select.h" // for JOIN
 #include <m_ctype.h>  // for isspace()
 #include "sp_head.h"
@@ -906,15 +905,23 @@ static bool mysql_test_insert(Prepared_statement *stmt,
   {
     uint value_count;
     ulong counter= 0;
+    Item *unused_conds= 0;
+
+    if (table_list->table)
+    {
+      // don't allocate insert_values
+      table_list->table->insert_values=(byte *)1;
+    }
 
     if ((res= mysql_prepare_insert(thd, table_list, table_list->table, 
 				   fields, values, update_fields,
-				   update_values, duplic)))
+				   update_values, duplic,
+                                   &unused_conds, FALSE)))
       goto error;
-    
+
     value_count= values->elements;
     its.rewind();
-   
+
     while ((values= its++))
     {
       counter++;
@@ -931,6 +938,7 @@ static bool mysql_test_insert(Prepared_statement *stmt,
   res= 0;
 error:
   lex->unit.cleanup();
+  /* insert_values is cleared in open_table */
   DBUG_RETURN(res);
 }
 
@@ -1382,18 +1390,26 @@ static int mysql_test_multidelete(Prepared_statement *stmt,
     1   error, sent to client
    -1   error, not sent to client
 */
+
 static int mysql_test_insert_select(Prepared_statement *stmt,
 				    TABLE_LIST *tables)
 {
   int res;
   LEX *lex= stmt->lex;
-  if ((res= insert_select_precheck(stmt->thd, tables)))
+  TABLE_LIST *first_local_table;
+
+  if ((res= insert_precheck(stmt->thd, tables)))
     return res;
-  TABLE_LIST *first_local_table=
-    (TABLE_LIST *)lex->select_lex.table_list.first;
+  first_local_table= (TABLE_LIST *)lex->select_lex.table_list.first;
   DBUG_ASSERT(first_local_table != 0);
   /* Skip first table, which is the table we are inserting in */
   lex->select_lex.table_list.first= (byte*) first_local_table->next_local;
+  if (tables->table)
+  {
+    // don't allocate insert_values
+    tables->table->insert_values=(byte *)1;
+  }
+
   /*
     insert/replace from SELECT give its SELECT_LEX for SELECT,
     and item_list belong to SELECT
@@ -1582,7 +1598,6 @@ static bool init_param_array(Prepared_statement *stmt)
   }
   return FALSE;
 }
-
 
 /*
   Given a query string with parameter markers, create a Prepared Statement
@@ -2065,7 +2080,6 @@ void mysql_stmt_fetch(THD *thd, char *packet, uint packet_length)
   int error;
   DBUG_ENTER("mysql_stmt_fetch");
 
-  thd->current_arena= stmt;
   if (!(stmt= thd->stmt_map.find(stmt_id)) ||
       !stmt->cursor ||
       !stmt->cursor->is_open())
@@ -2073,7 +2087,7 @@ void mysql_stmt_fetch(THD *thd, char *packet, uint packet_length)
     my_error(ER_UNKNOWN_STMT_HANDLER, MYF(0), stmt_id, "fetch");
     DBUG_VOID_RETURN;
   }
-
+  thd->current_arena= stmt;
   thd->set_n_backup_statement(stmt, &thd->stmt_backup);
   stmt->cursor->init_thd(thd);
 

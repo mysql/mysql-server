@@ -40,7 +40,7 @@ NdbReceiver::~NdbReceiver()
 {
   DBUG_ENTER("NdbReceiver::~NdbReceiver");
   if (m_id != NdbObjectIdMap::InvalidId) {
-    m_ndb->theNdbObjectIdMap->unmap(m_id, this);
+    m_ndb->theImpl->theNdbObjectIdMap.unmap(m_id, this);
   }
   delete[] m_rows;
   DBUG_VOID_RETURN;
@@ -54,7 +54,7 @@ NdbReceiver::init(ReceiverType type, void* owner)
   m_owner = owner;
   if (m_id == NdbObjectIdMap::InvalidId) {
     if (m_ndb)
-      m_id = m_ndb->theNdbObjectIdMap->map(this);
+      m_id = m_ndb->theImpl->theNdbObjectIdMap.map(this);
   }
 
   theFirstRecAttr = NULL;

@@ -143,6 +143,8 @@ tellThreads(StartType what)
     ThreadStart[i] = what;
 }
 
+static Ndb_cluster_connection *g_cluster_connection= 0;
+
 NDB_COMMAND(flexAsynch, "flexAsynch", "flexAsynch", "flexAsynch", 65535)
 {
   ndb_init();
@@ -200,7 +202,14 @@ NDB_COMMAND(flexAsynch, "flexAsynch", "flexAsynch", "flexAsynch", 65535)
   setAttrNames();
   setTableNames();
 
-  Ndb * pNdb = new Ndb("TEST_DB");      
+  Ndb_cluster_connection con;
+  if(con.connect(12, 5, 1) != 0)
+  {
+    return NDBT_ProgramExit(NDBT_FAILED);
+  }
+  g_cluster_connection= &con;
+
+  Ndb * pNdb = new Ndb(g_cluster_connection, "TEST_DB");      
   pNdb->init();
   tNodeId = pNdb->getNodeId();
 
@@ -225,7 +234,7 @@ NDB_COMMAND(flexAsynch, "flexAsynch", "flexAsynch", "flexAsynch", 65535)
      *  Create NDB objects.                                   *
      ****************************************************************/
     resetThreads();
-    for (int i = 0; i < tNoOfThreads ; i++) {
+    for (i = 0; i < tNoOfThreads ; i++) {
       pThreadData[i].ThreadNo = i
 ;
       threadLife[i] = NdbThread_Create(threadLoop,
@@ -468,7 +477,7 @@ threadLoop(void* ThreadData)
   StartType tType;
   ThreadNdb* tabThread = (ThreadNdb*)ThreadData;
   int threadNo = tabThread->ThreadNo;
-  localNdb = new Ndb("TEST_DB");
+  localNdb = new Ndb(g_cluster_connection, "TEST_DB");
   localNdb->init(1024);
   localNdb->waitUntilReady(10000);
   unsigned int threadBase = (threadNo << 16) + tNodeId ;

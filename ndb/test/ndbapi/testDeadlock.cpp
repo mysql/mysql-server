@@ -49,7 +49,7 @@ printusage()
 static Opt g_opt;
 
 static NdbMutex *ndbout_mutex= NULL;
-
+static Ndb_cluster_connection *g_cluster_connection= 0;
 #define DBG(x) \
   do { \
     if (! g_opt.m_dbg) break; \
@@ -217,7 +217,7 @@ Thr::exit()
 static int
 runstep_connect(Thr& thr)
 {
-  Ndb* ndb = thr.m_ndb = new Ndb("TEST_DB");
+  Ndb* ndb = thr.m_ndb = new Ndb(g_cluster_connection, "TEST_DB");
   CHN(ndb, ndb->init() == 0);
   CHN(ndb, ndb->waitUntilReady() == 0);
   DBG(thr << " connected");
@@ -503,10 +503,18 @@ NDB_COMMAND(testOdbcDriver, "testDeadlock", "testDeadlock", "testDeadlock", 6553
     printusage();
     return NDBT_ProgramExit(NDBT_WRONGARGS);
   }
+
+  Ndb_cluster_connection con;
+  if(con.connect(12, 5, 1) != 0)
+  {
+    return NDBT_ProgramExit(NDBT_FAILED);
+  }
+  g_cluster_connection= &con;
+  
   if (
       strchr(g_opt.m_scan, 't') != 0 && wl1822_main('t') == -1 ||
       strchr(g_opt.m_scan, 'x') != 0 && wl1822_main('x') == -1
-  ) {
+      ) {
     return NDBT_ProgramExit(NDBT_FAILED);
   }
   return NDBT_ProgramExit(NDBT_OK);

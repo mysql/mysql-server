@@ -38,7 +38,8 @@ SHM_Transporter::SHM_Transporter(TransporterRegistry &t_reg,
 				 bool signalId,
 				 key_t _shmKey,
 				 Uint32 _shmSize) :
-  Transporter(t_reg, lHostName, rHostName, r_port, lNodeId, rNodeId,
+  Transporter(t_reg, tt_SHM_TRANSPORTER,
+	      lHostName, rHostName, r_port, lNodeId, rNodeId,
 	      0, false, checksum, signalId),
   shmKey(_shmKey),
   shmSize(_shmSize)
@@ -255,6 +256,9 @@ SHM_Transporter::connect_client_impl(NDB_SOCKET_TYPE sockfd)
   SocketInputStream s_input(sockfd);
   SocketOutputStream s_output(sockfd);
   char buf[256];
+
+#if 1
+#endif
 
   // Wait for server to create and attach
   if (s_input.gets(buf, 256) == 0) {

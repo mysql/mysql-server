@@ -83,7 +83,7 @@ NdbTransaction::NdbTransaction( Ndb* aNdb ) :
 {
   theListState = NotInList;
   theError.code = 0;
-  theId = theNdb->theNdbObjectIdMap->map(this);
+  theId = theNdb->theImpl->theNdbObjectIdMap.map(this);
 
 #define CHECK_SZ(mask, sz) assert((sizeof(mask)/sizeof(mask[0])) == sz)
 
@@ -99,7 +99,7 @@ Remark:        Deletes the connection object.
 NdbTransaction::~NdbTransaction()
 {
   DBUG_ENTER("NdbTransaction::~NdbTransaction");
-  theNdb->theNdbObjectIdMap->unmap(theId, this);
+  theNdb->theImpl->theNdbObjectIdMap.unmap(theId, this);
   DBUG_VOID_RETURN;
 }//NdbTransaction::~NdbTransaction()
 
@@ -346,11 +346,10 @@ NdbTransaction::execute(ExecType aTypeOfExec,
 
     if (executeNoBlobs(tExecType, abortOption, forceSend) == -1)
         ret = -1;
-#ifndef VM_TRACE
-    // can happen in complex abort cases
-    theFirstOpInList = theLastOpInList = NULL;
-#else
+#ifdef ndb_api_crash_on_complex_blob_abort
     assert(theFirstOpInList == NULL && theLastOpInList == NULL);
+#else
+    theFirstOpInList = theLastOpInList = NULL;
 #endif
 
     {

@@ -55,7 +55,6 @@
 #include "mysql_priv.h"
 #include <mysql.h>
 #include "slave.h"
-#include "sql_acl.h"
 #include <my_getopt.h>
 #include <thr_alarm.h>
 #include <myisam.h>
@@ -253,8 +252,7 @@ sys_var_long_ptr	sys_max_relay_log_size("max_relay_log_size",
                                                fix_max_relay_log_size);
 sys_var_thd_ulong	sys_max_sort_length("max_sort_length",
 					    &SV::max_sort_length);
-sys_var_long_ptr	sys_max_user_connections("max_user_connections",
-						 &max_user_connections);
+sys_var_max_user_conn   sys_max_user_connections("max_user_connections");
 sys_var_thd_ulong	sys_max_tmp_tables("max_tmp_tables",
 					   &SV::max_tmp_tables);
 sys_var_long_ptr	sys_max_write_lock_count("max_write_lock_count",
@@ -366,6 +364,8 @@ sys_var_thd_enum	sys_tx_isolation("tx_isolation",
 					 fix_tx_isolation);
 sys_var_thd_ulong	sys_tmp_table_size("tmp_table_size",
 					   &SV::tmp_table_size);
+sys_var_bool_ptr  sys_timed_mutexes("timed_mutexes",
+                                    &timed_mutexes);
 sys_var_thd_ulong	sys_net_wait_timeout("wait_timeout",
 					     &SV::net_wait_timeout);
 
@@ -379,25 +379,21 @@ sys_var_thd_bool	sys_innodb_table_locks("innodb_table_locks",
 sys_var_long_ptr	sys_innodb_autoextend_increment("innodb_autoextend_increment",
 							&srv_auto_extend_increment);
 #endif
+
 #ifdef HAVE_NDBCLUSTER_DB
-// ndb thread specific variable settings
+/* ndb thread specific variable settings */
 sys_var_thd_ulong 
 sys_ndb_autoincrement_prefetch_sz("ndb_autoincrement_prefetch_sz",
 				  &SV::ndb_autoincrement_prefetch_sz);
 sys_var_thd_bool
-sys_ndb_force_send("ndb_force_send",
-		   &SV::ndb_force_send);
+sys_ndb_force_send("ndb_force_send", &SV::ndb_force_send);
 sys_var_thd_bool
-sys_ndb_use_exact_count("ndb_use_exact_count",
-			&SV::ndb_use_exact_count);
+sys_ndb_use_exact_count("ndb_use_exact_count", &SV::ndb_use_exact_count);
 sys_var_thd_bool
-sys_ndb_use_transactions("ndb_use_transactions",
-			 &SV::ndb_use_transactions);
+sys_ndb_use_transactions("ndb_use_transactions", &SV::ndb_use_transactions);
 sys_var_thd_bool
 sys_ndb_condition_pushdown("ndb_condition_pushdown",
 			 &SV::ndb_condition_pushdown);
-// ndb server global variable settings
-// none
 #endif
 
 /* Time/date/datetime formats */
@@ -644,6 +640,7 @@ sys_var *sys_variables[]=
   &sys_table_type,
   &sys_thread_cache_size,
   &sys_time_format,
+  &sys_timed_mutexes,
   &sys_timestamp,
   &sys_time_zone,
   &sys_tmp_table_size,
@@ -914,6 +911,7 @@ struct show_var_st init_vars[]= {
   {"thread_stack",            (char*) &thread_stack,                SHOW_LONG},
   {sys_time_format.name,      (char*) &sys_time_format,		    SHOW_SYS},
   {"time_zone",               (char*) &sys_time_zone,               SHOW_SYS},
+  {sys_timed_mutexes.name,    (char*) &sys_timed_mutexes,       SHOW_SYS},
   {sys_tmp_table_size.name,   (char*) &sys_tmp_table_size,	    SHOW_SYS},
   {"tmpdir",                  (char*) &opt_mysql_tmpdir,            SHOW_CHAR_PTR},
   {sys_trans_alloc_block_size.name, (char*) &sys_trans_alloc_block_size,
@@ -2489,7 +2487,7 @@ bool sys_var_thd_time_zone::check(THD *thd, set_var *var)
 
 bool sys_var_thd_time_zone::update(THD *thd, set_var *var)
 {
-  /* We are using Time_zone object found during check() phase */ 
+  /* We are using Time_zone object found during check() phase */
   *get_tz_ptr(thd,var->type)= var->save_result.time_zone;
   return 0;
 }
@@ -2532,6 +2530,51 @@ void sys_var_thd_time_zone::set_default(THD *thd, enum_var_type type)
  else
    thd->variables.time_zone= global_system_variables.time_zone;
 }
+
+
+bool sys_var_max_user_conn::check(THD *thd, set_var *var)
+{
+  if (var->type == OPT_GLOBAL)
+    return sys_var_thd::check(thd, var);
+  else
+  {
+    /*
+      Per-session values of max_user_connections can't be set directly.
+      QQ: May be we should have a separate error message for this?
+    */
+    my_error(ER_GLOBAL_VARIABLE, MYF(0), name);
+    return TRUE;
+  }
+}
+
+bool sys_var_max_user_conn::update(THD *thd, set_var *var)
+{
+  DBUG_ASSERT(var->type == OPT_GLOBAL);
+  pthread_mutex_lock(&LOCK_global_system_variables);
+  max_user_connections= var->save_result.ulonglong_value;
+  pthread_mutex_unlock(&LOCK_global_system_variables);
+  return 0;
+}
+
+
+void sys_var_max_user_conn::set_default(THD *thd, enum_var_type type)
+{
+  DBUG_ASSERT(type == OPT_GLOBAL);
+  pthread_mutex_lock(&LOCK_global_system_variables);
+  max_user_connections= (ulong) option_limits->def_value;
+  pthread_mutex_unlock(&LOCK_global_system_variables);
+}
+
+
+byte *sys_var_max_user_conn::value_ptr(THD *thd, enum_var_type type,
+                                       LEX_STRING *base)
+{
+  if (type != OPT_GLOBAL &&
+      thd->user_connect && thd->user_connect->user_resources.user_conn)
+    return (byte*) &(thd->user_connect->user_resources.user_conn);
+  return (byte*) &(max_user_connections);
+}
+
 
 /*
   Functions to update thd->options bits
@@ -2869,7 +2912,8 @@ int set_var::check(THD *thd)
     return 0;
   }
 
-  if (value->fix_fields(thd, 0, &value) || value->check_cols(1))
+  if ((!value->fixed && 
+       value->fix_fields(thd, 0, &value)) || value->check_cols(1))
     return -1;
   if (var->check_update_type(value->result_type()))
   {
@@ -2903,7 +2947,8 @@ int set_var::light_check(THD *thd)
   if (type == OPT_GLOBAL && check_global_access(thd, SUPER_ACL))
     return 1;
 
-  if (value && (value->fix_fields(thd, 0, &value) || value->check_cols(1)))
+  if (value && ((!value->fixed && value->fix_fields(thd, 0, &value)) ||
+                value->check_cols(1)))
     return -1;
   return 0;
 }
@@ -3012,9 +3057,11 @@ bool sys_var_thd_storage_engine::check(THD *thd, set_var *var)
 
   if (var->value->result_type() == STRING_RESULT)
   {
+    enum db_type db_type;
     if (!(res=var->value->val_str(&str)) ||
 	!(var->save_result.ulong_value=
-	 (ulong) ha_resolve_by_name(res->ptr(), res->length())))
+	 (ulong) db_type= ha_resolve_by_name(res->ptr(), res->length())) ||
+	ha_checktype(db_type) != db_type) 
     {
       value= res ? res->c_ptr() : "NULL";
       goto err;

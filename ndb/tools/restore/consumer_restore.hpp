@@ -35,6 +35,7 @@ public:
   BackupRestore(Uint32 parallelism=1) 
   {
     m_ndb = 0;
+    m_cluster_connection = 0;
     m_logCount = m_dataCount = 0;
     m_restore = false;
     m_restore_meta = false;
@@ -62,6 +63,7 @@ public:
   virtual bool finalize_table(const TableS &);
   void connectToMysql();
   Ndb * m_ndb;
+  Ndb_cluster_connection * m_cluster_connection;
   bool m_restore;
   bool m_restore_meta;
   Uint32 m_logCount;

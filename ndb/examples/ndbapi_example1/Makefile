@@ -1,6 +1,3 @@
--include .defs.mk
-#NDB_OS = OS_YOU_ARE_RUNNING_ON
-#You need to set the NDB_OS variable here
 TARGET = ndbapi_example1
 SRCS = ndbapi_example1.cpp
 OBJS = ndbapi_example1.o
@@ -9,22 +6,13 @@ CFLAGS = -c -Wall -fno-rtti -fno-exceptions
 DEBUG = 
 LFLAGS = -Wall
 INCLUDE_DIR = ../../include
-LIB_DIR = ../../lib
-ifeq ($(NDB_OS), SOLARIS)
-# Here is the definition of system libraries necessary for Solaris 7
+LIB_DIR = -L../../src/.libs \
+          -L../../../libmysql_r/.libs \
+          -L../../../mysys
 SYS_LIB = 
-endif
-ifeq ($(NDB_OS), LINUX)
-# Here is the definition of system libraries necessary for Linux 2.4
-SYS_LIB = 
-endif
-ifeq ($(NDB_OS), MACOSX)
-# Here is the definition of system libraries necessary for Mac OS X
-SYS_LIB = 
-endif
 
 $(TARGET): $(OBJS)
-	$(CXX) $(LFLAGS) -L$(LIB_DIR) $(OBJS) -lNDB_API $(SYS_LIB) -o $(TARGET)
+	$(CXX) $(LFLAGS) $(LIB_DIR) $(OBJS) -lndbclient -lmysqlclient_r -lmysys -lz $(SYS_LIB) -o $(TARGET)
 
 $(TARGET).o: $(SRCS)
 	$(CXX) $(CFLAGS) -I$(INCLUDE_DIR) -I$(INCLUDE_DIR)/ndbapi $(SRCS)

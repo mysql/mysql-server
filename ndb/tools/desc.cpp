@@ -19,7 +19,11 @@
 #include <NDBT.hpp>
 #include <NdbApi.hpp>
 
-static const char* opt_connect_str= 0;
+enum ndb_desc_options {
+  NDB_STD_OPTS_OPTIONS
+};
+NDB_STD_OPTS_VARS;
+
 static const char* _dbname = "TEST_DB";
 static int _unqualified = 0;
 static struct my_option my_long_options[] =
@@ -73,10 +77,13 @@ int main(int argc, char** argv){
   if ((ho_error=handle_options(&argc, &argv, my_long_options, get_one_option)))
     return NDBT_ProgramExit(NDBT_WRONGARGS);
 
-  Ndb::setConnectString(opt_connect_str);
+  Ndb_cluster_connection con(opt_connect_str);
+  if(con.connect(12, 5, 1) != 0)
+  {
+    return NDBT_ProgramExit(NDBT_FAILED);
+  }
 
-  Ndb* pMyNdb;
-  pMyNdb = new Ndb(_dbname);  
+  Ndb* pMyNdb = new Ndb(&con, _dbname);  
   pMyNdb->init();
   
   ndbout << "Waiting...";

@@ -106,7 +106,7 @@ longlong Item_func_not::val_int()
   DBUG_ASSERT(fixed == 1);
   double value= args[0]->val_real();
   null_value=args[0]->null_value;
-  return !null_value && value == 0 ? 1 : 0;
+  return ((!null_value && value == 0) ? 1 : 0);
 }
 
 /*
@@ -117,13 +117,23 @@ longlong Item_func_not_all::val_int()
 {
   DBUG_ASSERT(fixed == 1);
   double value= args[0]->val_real();
-  if (abort_on_null)
-  {
-    null_value= 0;
-    return (args[0]->null_value || value == 0) ? 1 : 0;
-  }
+
+  /*
+    return TRUE if there was records in underlaying select in max/min
+    optimisation (ALL subquery)
+  */
+  if (empty_underlying_subquery())
+    return 1;
+
   null_value= args[0]->null_value;
-  return (!null_value && value == 0) ? 1 : 0;
+  return ((!null_value && value == 0) ? 1 : 0);
+}
+
+
+bool Item_func_not_all::empty_underlying_subquery()
+{
+  return ((test_sum_item && !test_sum_item->any_value()) ||
+          (test_sub_item && !test_sub_item->any_value()));
 }
 
 void Item_func_not_all::print(String *str)
@@ -133,6 +143,30 @@ void Item_func_not_all::print(String *str)
   else
     args[0]->print(str);
 }
+
+
+/*
+  Special NOP (No OPeration) for ALL subquery it is like  Item_func_not_all
+  (return TRUE if underlaying sudquery do not return rows) but if subquery
+  returns some rows it return same value as argument (TRUE/FALSE).
+*/
+
+longlong Item_func_nop_all::val_int()
+{
+  DBUG_ASSERT(fixed == 1);
+  longlong value= args[0]->val_int();
+
+  /*
+    return FALSE if there was records in underlaying select in max/min
+    optimisation (SAME/ANY subquery)
+  */
+  if (empty_underlying_subquery())
+    return 0;
+
+  null_value= args[0]->null_value;
+  return (null_value || value == 0) ? 0 : 1;
+}
+
 
 /*
   Convert a constant expression or string to an integer.
@@ -627,12 +661,13 @@ longlong Item_in_optimizer::val_int()
 {
   DBUG_ASSERT(fixed == 1);
   cache->store(args[0]);
+  longlong tmp= args[1]->val_int_result();
   if (cache->null_value)
   {
-    null_value= 1;
+    if (tmp)
+      null_value= 1;
     return 0;
   }
-  longlong tmp= args[1]->val_int_result();
   null_value= args[1]->null_value;
   return tmp;
 }
@@ -2076,6 +2111,7 @@ void Item_cond::split_sum_func(THD *thd, Item **ref_pointer_array,
     {
       Item **ref= li.ref();
       uint el= fields.elements;
+      ref_pointer_array[el]= item;
       Item *new_item= new Item_ref(ref_pointer_array + el, 0, item->name);
       fields.push_front(item);
       ref_pointer_array[el]= item;
@@ -2427,8 +2463,10 @@ bool
 Item_func_regex::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
 {
   DBUG_ASSERT(fixed == 0);
-  if (args[0]->fix_fields(thd, tables, args) || args[0]->check_cols(1) ||
-      args[1]->fix_fields(thd,tables, args + 1) || args[1]->check_cols(1))
+  if ((!args[0]->fixed &&
+       args[0]->fix_fields(thd, tables, args)) || args[0]->check_cols(1) ||
+      (!args[1]->fixed && 
+       args[1]->fix_fields(thd,tables, args + 1)) || args[1]->check_cols(1))
     return TRUE;				/* purecov: inspected */
   with_sum_func=args[0]->with_sum_func || args[1]->with_sum_func;
   max_length= 1;

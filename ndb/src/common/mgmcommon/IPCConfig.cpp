@@ -383,6 +383,8 @@ IPCConfig::configureTransporters(Uint32 nodeId,
       if(iter.get(CFG_SHM_BUFFER_MEM, &conf.shmSize)) break;
       
       conf.port= server_port;
+      conf.localHostName  = localHostName;
+      conf.remoteHostName = remoteHostName;
 
       if(!tr.createTransporter(&conf)){
         DBUG_PRINT("error", ("Failed to create SHM Transporter from %d to %d",
