@@ -1438,6 +1438,15 @@ select_create::prepare(List<Item> &values)
   if (!table)
     DBUG_RETURN(-1);				// abort() deletes table
 
+  if (table->fields < values.elements)
+  {
+    do_not_drop=1;
+    my_printf_error(ER_WRONG_VALUE_COUNT_ON_ROW,
+                    ER(ER_WRONG_VALUE_COUNT_ON_ROW),
+		    MYF(0),1);
+    DBUG_RETURN(-1);
+  }
+
   /* First field to copy */
   field=table->field+table->fields - values.elements;
 
@@ -1498,7 +1507,7 @@ bool select_create::send_eof()
     */
     if (!table->tmp_table)
       hash_delete(&open_cache,(byte*) table);
-    lock=0; 
+    lock=0;
     table=0;
     VOID(pthread_mutex_unlock(&LOCK_open));
   }
@@ -1519,7 +1528,8 @@ void select_create::abort()
     enum db_type table_type=table->db_type;
     if (!table->tmp_table)
       hash_delete(&open_cache,(byte*) table);
-    quick_rm_table(table_type,db,name);
+    if (!do_not_drop)
+      quick_rm_table(table_type,db,name);
     table=0;
   }
   VOID(pthread_mutex_unlock(&LOCK_open));

@@ -2693,7 +2693,7 @@ check_access(THD *thd, ulong want_access, const char *db, ulong *save_priv,
   /* grant_option is set if there exists a single table or column grant */
   if (db_access == want_access ||
       ((grant_option && !dont_check_global_grants) &&
-       !(want_access & ~TABLE_ACLS)))
+       !(want_access & ~(db_access | TABLE_ACLS))))
     DBUG_RETURN(FALSE);				/* Ok */
   if (!no_errors)
     net_printf(&thd->net,ER_DBACCESS_DENIED_ERROR,
