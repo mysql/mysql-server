@@ -694,8 +694,10 @@ static void verify_prepare_field(MYSQL_RES *result,
     as utf8. Field length is calculated as number of characters * maximum
     number of bytes a character can occupy.
   */
+#ifndef EMBEDDED_LIBRARY
   if (length)
     DIE_UNLESS(field->length == length * cs->mbmaxlen);
+#endif
   if (def)
     DIE_UNLESS(strcmp(field->def, def) == 0);
 }

@@ -615,7 +615,7 @@ end:
 }
 
 
-static void reset_mqh(THD *thd, LEX_USER *lu, bool get_them= 0)
+static void reset_mqh(LEX_USER *lu, bool get_them= 0)
 {
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   (void) pthread_mutex_lock(&LOCK_user_conn);
@@ -2830,7 +2830,7 @@ create_error:
       if (mysql_bin_log.is_open())
       {
 	thd->clear_error(); // No binlog error generated
-        Query_log_event qinfo(thd, thd->query, thd->query_length, 0);
+        Query_log_event qinfo(thd, thd->query, thd->query_length, 0, FALSE);
         mysql_bin_log.write(&qinfo);
       }
     }
@@ -2860,7 +2860,7 @@ create_error:
       if (mysql_bin_log.is_open())
       {
 	thd->clear_error(); // No binlog error generated
-        Query_log_event qinfo(thd, thd->query, thd->query_length, 0);
+        Query_log_event qinfo(thd, thd->query, thd->query_length, 0, FALSE);
         mysql_bin_log.write(&qinfo);
       }
     }
@@ -2883,7 +2883,7 @@ create_error:
       if (mysql_bin_log.is_open())
       {
 	thd->clear_error(); // No binlog error generated
-        Query_log_event qinfo(thd, thd->query, thd->query_length, 0);
+        Query_log_event qinfo(thd, thd->query, thd->query_length, 0, FALSE);
         mysql_bin_log.write(&qinfo);
       }
     }
@@ -3396,7 +3396,7 @@ create_error:
     {
       if (mysql_bin_log.is_open())
       {
-        Query_log_event qinfo(thd, thd->query, thd->query_length, 0);
+        Query_log_event qinfo(thd, thd->query, thd->query_length, 0, FALSE);
         mysql_bin_log.write(&qinfo);
       }
       send_ok(thd);
@@ -3411,7 +3411,7 @@ create_error:
     {
       if (mysql_bin_log.is_open())
       {
-        Query_log_event qinfo(thd, thd->query, thd->query_length, 0);
+        Query_log_event qinfo(thd, thd->query, thd->query_length, 0, FALSE);
         mysql_bin_log.write(&qinfo);
       }
       send_ok(thd);
@@ -3426,7 +3426,7 @@ create_error:
     {
       if (mysql_bin_log.is_open())
       {
-        Query_log_event qinfo(thd, thd->query, thd->query_length, 0);
+        Query_log_event qinfo(thd, thd->query, thd->query_length, 0, FALSE);
         mysql_bin_log.write(&qinfo);
       }
       send_ok(thd);
@@ -3441,7 +3441,7 @@ create_error:
     {
       if (mysql_bin_log.is_open())
       {
-	Query_log_event qinfo(thd, thd->query, thd->query_length, 0);
+	Query_log_event qinfo(thd, thd->query, thd->query_length, 0, FALSE);
 	mysql_bin_log.write(&qinfo);
       }
       send_ok(thd);
@@ -3484,7 +3484,7 @@ create_error:
           mysql_bin_log.is_open())
       {
         thd->clear_error();
-        Query_log_event qinfo(thd, thd->query, thd->query_length, 0);
+        Query_log_event qinfo(thd, thd->query, thd->query_length, 0, FALSE);
         mysql_bin_log.write(&qinfo);
       }
     }
@@ -3504,7 +3504,7 @@ create_error:
 	if (mysql_bin_log.is_open())
 	{
           thd->clear_error();
-	  Query_log_event qinfo(thd, thd->query, thd->query_length, 0);
+	  Query_log_event qinfo(thd, thd->query, thd->query_length, 0, FALSE);
 	  mysql_bin_log.write(&qinfo);
 	}
 	if (mqh_used && lex->sql_command == SQLCOM_GRANT)
@@ -3512,7 +3512,7 @@ create_error:
 	  List_iterator <LEX_USER> str_list(lex->users_list);
 	  LEX_USER *user;
 	  while ((user=str_list++))
-	    reset_mqh(thd,user);
+	    reset_mqh(user);
 	}
       }
     }
@@ -3544,7 +3544,7 @@ create_error:
       {
         if (mysql_bin_log.is_open())
         {
-          Query_log_event qinfo(thd, thd->query, thd->query_length, 0);
+          Query_log_event qinfo(thd, thd->query, thd->query_length, 0, FALSE);
           mysql_bin_log.write(&qinfo);
         }
       }
@@ -4529,6 +4529,7 @@ mysql_new_select(LEX *lex, bool move_down)
   select_lex->parent_lex= lex;
   if (move_down)
   {
+    lex->subqueries= TRUE;
     /* first select_lex of subselect or derived table */
     SELECT_LEX_UNIT *unit;
     if (!(unit= new(lex->thd->mem_root) SELECT_LEX_UNIT()))
@@ -4717,31 +4718,6 @@ bool mysql_test_parse_for_slave(THD *thd, char *inBuf, uint length)
 
 
 
-/*
-  Calculate interval lengths.
-  Strip trailing spaces from all strings.
-  After this function call:
-  - ENUM uses max_length
-  - SET uses tot_length.
-*/
-void calculate_interval_lengths(THD *thd, TYPELIB *interval,
-                                uint32 *max_length, uint32 *tot_length)
-{
-  const char **pos;
-  uint *len;
-  CHARSET_INFO *cs= thd->variables.character_set_client;
-  *max_length= *tot_length= 0;
-  for (pos= interval->type_names, len= interval->type_lengths;
-       *pos ; pos++, len++)
-  {
-    *len= (uint) strip_sp((char*) *pos);
-    uint length= cs->cset->numchars(cs, *pos, *pos + *len);
-    *tot_length+= length;
-    set_if_bigger(*max_length, (uint32)length);
-  }
-}
-
-
 /*****************************************************************************
 ** Store field definition for create
 ** Return 0 if ok
@@ -4752,7 +4728,8 @@ bool add_field_to_list(THD *thd, char *field_name, enum_field_types type,
 		       uint type_modifier,
 		       Item *default_value, Item *on_update_value,
                        LEX_STRING *comment,
-		       char *change, TYPELIB *interval, CHARSET_INFO *cs,
+		       char *change,
+                       List<String> *interval_list, CHARSET_INFO *cs,
 		       uint uint_geom_type)
 {
   register create_field *new_field;
@@ -5059,62 +5036,39 @@ bool add_field_to_list(THD *thd, char *field_name, enum_field_types type,
     break;
   case FIELD_TYPE_SET:
     {
-      if (interval->count > sizeof(longlong)*8)
+      if (interval_list->elements > sizeof(longlong)*8)
       {
 	my_error(ER_TOO_BIG_SET, MYF(0), field_name); /* purecov: inspected */
-	DBUG_RETURN(1);				/* purecov: inspected */
+	DBUG_RETURN(1);				      /* purecov: inspected */
       }
-      new_field->pack_length=(interval->count+7)/8;
+      new_field->pack_length= (interval_list->elements + 7) / 8;
       if (new_field->pack_length > 4)
-	new_field->pack_length=8;
-      new_field->interval=interval;
-      uint32 dummy_max_length;
-      calculate_interval_lengths(thd, interval,
-                                 &dummy_max_length, &new_field->length);
-      new_field->length+= (interval->count - 1);
-      set_if_smaller(new_field->length,MAX_FIELD_WIDTH-1);
-      if (default_value)
-      {
-	char *not_used;
-	uint not_used2;
-	bool not_used3;
+        new_field->pack_length=8;
 
-	thd->cuted_fields=0;
-	String str,*res;
-	res=default_value->val_str(&str);
-	(void) find_set(interval, res->ptr(), res->length(),
-                        &my_charset_bin,
-                        &not_used, &not_used2, &not_used3);
-	if (thd->cuted_fields)
-	{
-	  my_error(ER_INVALID_DEFAULT, MYF(0), field_name);
-	  DBUG_RETURN(1);
-	}
-      }
+      List_iterator<String> it(*interval_list);
+      String *tmp;
+      while ((tmp= it++))
+        new_field->interval_list.push_back(tmp);
+      /*
+        Set fake length to 1 to pass the below conditions.
+        Real length will be set in mysql_prepare_table()
+        when we know the character set of the column
+      */
+      new_field->length= 1;
     }
     break;
   case FIELD_TYPE_ENUM:
     {
-      new_field->interval=interval;
-      new_field->pack_length=interval->count < 256 ? 1 : 2; // Should be safe
+      // Should be safe
+      new_field->pack_length= interval_list->elements < 256 ? 1 : 2; 
 
-      uint32 dummy_tot_length;
-      calculate_interval_lengths(thd, interval,
-                                 &new_field->length, &dummy_tot_length);
-      set_if_smaller(new_field->length,MAX_FIELD_WIDTH-1);
-      if (default_value)
-      {
-	String str,*res;
-	res=default_value->val_str(&str);
-	res->strip_sp();
-	if (!find_type(interval, res->ptr(), res->length(), 0))
-	{
-	  my_error(ER_INVALID_DEFAULT, MYF(0), field_name);
-	  DBUG_RETURN(1);
-	}
-      }
-      break;
+      List_iterator<String> it(*interval_list);
+      String *tmp;
+      while ((tmp= it++))
+        new_field->interval_list.push_back(tmp);
+      new_field->length= 1; // See comment for FIELD_TYPE_SET above.
     }
+    break;
   }
 
   if ((new_field->length > MAX_FIELD_CHARLENGTH && type != FIELD_TYPE_SET && 
@@ -5683,7 +5637,7 @@ bool reload_acl_and_cache(THD *thd, ulong options, TABLE_LIST *tables,
     acl_reload(thd);
     grant_reload(thd);
     if (mqh_used)
-      reset_mqh(thd,(LEX_USER *) NULL,TRUE);
+      reset_mqh((LEX_USER *) NULL,TRUE);
   }
 #endif
   if (options & REFRESH_LOG)
@@ -5759,7 +5713,7 @@ bool reload_acl_and_cache(THD *thd, ulong options, TABLE_LIST *tables,
   }
   if (options & REFRESH_HOSTS)
     hostname_cache_refresh();
-  if (options & REFRESH_STATUS)
+  if (thd && (options & REFRESH_STATUS))
     refresh_status();
   if (options & REFRESH_THREADS)
     flush_thread_cache();
@@ -5789,7 +5743,7 @@ bool reload_acl_and_cache(THD *thd, ulong options, TABLE_LIST *tables,
  }
 #endif
  if (options & REFRESH_USER_RESOURCES)
-   reset_mqh(thd,(LEX_USER *) NULL);
+   reset_mqh((LEX_USER *) NULL);
  if (write_to_binlog)
    *write_to_binlog= tmp_write_to_binlog;
  return result;
