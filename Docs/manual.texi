@@ -1373,16 +1373,13 @@ still a mystery, even for us.
 While this manual is still the right place for up to date techical
 information, its primary goal is to contain everything there is to know
 about @strong{MySQL}. It is sometimes nice to have a bound book to read
-in bed or while you travel. Here is a list of books about @strong{MySQL} and
-related subjects (in English).
-
-By purchasing a book through these hyperlinks provided herein, you are
-contributing to the development of @strong{MySQL}.
+in bed or while you travel. Here is a list of books about @strong{MySQL} (in
+English):
 
 @emph{MySQL}
 @multitable @columnfractions .3 .7
 @item Available	@tab
-@uref{http://service.bfast.com/bfast/click?bfmid=2181&sourceid=34233559&bfpid=0735709211&bfmtype=book, Barnes and Noble}
+@uref{http://shop.barnesandnoble.com/booksearch/isbnInquiry.asp?isbn=0735709211, Barnes and Noble}
 @item Publisher	@tab		New Riders
 @item Author	@tab		Paul DuBois
 @item Pub Date	@tab		1st Edition December 1999
@@ -1444,7 +1441,7 @@ and PHP's @strong{MySQL}-related functions
 
 @emph{MySQL & mSQL}
 @multitable @columnfractions .3 .7
-@item Available	@tab		@uref{http://service.bfast.com/bfast/click?bfmid=2181&sourceid=34233559&bfpid=1565924347&bfmtype=book, Barnes and Noble}
+@item Available	@tab		@uref{http://shop.barnesandnoble.com/booksearch/isbnInquiry.asp?isbn=1565924347, Barnes and Noble}
 @item Publisher	@tab		O'Reilly
 @item Authors	@tab		Randy Jay Yarger, George Reese & Tim King
 @item Pub Date	@tab		1st Edition July 1999
@@ -1465,7 +1462,7 @@ material.
 
 @emph{Sams' Teach Yourself MySQL in 21 Days}
 @multitable @columnfractions .3 .7
-@item Available @tab            @uref{http://service.bfast.com/bfast/click?bfmid=2181&sourceid=34233559&bfpid=0672319144&bfmtype=book, Barnes and Noble}
+@item Available @tab            @uref{http://shop.barnesandnoble.com/bookSearch/isbnInquiry.asp?isbn=0672319144, Barnes and Noble}
 @item Publisher @tab            Sams
 @item Authors   @tab            Mark Maslakowski and Tony Butcher
 @item Pub Date  @tab            June 2000
@@ -1485,7 +1482,7 @@ hands-on examples to follow.
 
 @emph{E-Commerce Solutions with MySQL}
 @multitable @columnfractions .3 .7
-@item Available @tab            @uref{http://service.bfast.com/bfast/click?bfmid=2181&sourceid=34233559&bfpid=0761524452&bfmtype=book, Barnes and Noble}
+@item Available @tab            @uref{http://shop.barnesandnoble.com/bookSearch/isbnInquiry.asp?isbn=0761524452, Barnes and Noble}
 @item Publisher @tab            Prima Communications, Inc.
 @item Authors   @tab            N/A
 @item Pub Date  @tab            January 2000
@@ -1495,27 +1492,6 @@ hands-on examples to follow.
 @end multitable
 
 No description available.
-@*
-
-@emph{MySQL and PHP from Scratch}
-@multitable @columnfractions .3 .7
-@item Available @tab            @uref{http://service.bfast.com/bfast/click?bfmid=2181&sourceid=34233559&bfpid=0789724405&bfmtype=book, Barnes and Noble}
-@item Publisher @tab            Que
-@item Authors   @tab            N/A
-@item Pub Date  @tab            September 2000
-@item ISBN      @tab            0789724405
-@item Pages     @tab            550
-@item Price     @tab            $34.99
-@end multitable
-
-This book puts together information on installing, setting up, and
-troubleshooting Apache, MySQL, PHP3, and IMP into one complete
-volume. You also learn how each piece is part of a whole by learning,
-step-by-step, how to create a web-based e-mail system. Learn to run
-the equivalent of Active Server Pages (ASP) using PHP3, set up an
-e-commerce site using a database and the Apache web server, and create
-a data entry system (such as sales, product quality tracking, customer
-preferences, etc) that no installation in the PC.
 @*
 
 @emph{Professional MySQL Programming}
@@ -1532,185 +1508,18 @@ preferences, etc) that no installation in the PC.
 No description available.
 @*
 
-@emph{Professional Linux Programming}
+@emph{PHP3 and MySQL Web Development}
 @multitable @columnfractions .3 .7
-@item Available @tab            @uref{http://service.bfast.com/bfast/click?bfmid=2181&sourceid=34233559&bfpid=1861003013&bfmtype=book, Barnes and Noble}
-@item Publisher @tab            Wrox Press, Inc.
-@item Authors   @tab            N/A
-@item Pub Date  @tab            September 2000
-@item ISBN      @tab            1861003013
-@item Pages     @tab            1155
-@item Price     @tab            $47.99
-@end multitable
-
-In this follow-up to the best-selling Beginning Linux Programming, you
-will learn from the authors' real-world knowledge and experience of
-developing software for Linux; you'll be taken through the development
-of a sample 'DVD Store' application, with 'theme' chapters addressing
-different aspects of its implementation. Meanwhile, individual
-'take-a-break' chapters cover important topics that go beyond the
-bounds of the central theme. All focus on the practical aspects of
-programming, showing how crucial it is to choose the right tools for
-the job, use them as they should be used, and get things right first
-time.
-@*
-
-@emph{PHP and MySQL Web Development}
-@multitable @columnfractions .3 .7
-@item Available @tab            @uref{http://service.bfast.com/bfast/click?bfmid=2181&sourceid=34233559&bfpid=0672317842&bfmtype=book, Barnes and Noble}
-@item Publisher @tab            Sams
-@item Authors   @tab            Luke Welling, Laura Thomson
-@item Pub Date  @tab            November 2000
+@item Available @tab            @uref{http://shop.barnesandnoble.com/bookSearch/isbnInquiry.asp?isbn=0672317842, Barnes and Noble}
+@item Publisher @tab            N/A
+@item Authors   @tab            William Jason Gilmore
+@item Pub Date  @tab            October 2000
 @item ISBN      @tab            0672317842
-@item Pages     @tab            700
+@item Pages     @tab            N/A
 @item Price     @tab            $49.99
 @end multitable
 
-PHP3 and MySQL Web Development introduces you to the advantages of
-implementing both MySQL and PHP3. These advantages are detailed
-through the provision of both statistics and several case studies. A
-practical web application is developed throughout the book, providing
-you with the tools necessary to implement a functional online
-database. Each function is developed separately, allowing you the
-choice to incorporate only those parts that you would like to
-implement. Programming concepts of the PHP3 language are highlighted,
-including functions which tie MySQL support into a PHP3 script and
-advanced topics regarding table manipulation.
-@*
-
-@strong{Books recommended by the MySQL Developers}
-
-@emph{SQL-99 Complete, Really}
-@multitable @columnfractions .3 .7
-@item Available @tab            @uref{http://service.bfast.com/bfast/click?bfmid=2181&sourceid=34233559&bfpid=0879305681&bfmtype=book, Barnes and Noble}
-@item Publisher @tab            CMP Books
-@item Authors   @tab            Peter Gulutzan, Trudy Pelzer
-@item Pub Date  @tab            April 1999
-@item ISBN      @tab            0879305681
-@item Pages     @tab            1104
-@item Price     @tab            $55.96
-@end multitable
-
-This book contains complete descriptions of the new standards for
-syntax, data structures, and retrieval processes of SQL databases. As
-an example-based reference manual, it includes all of the CLI
-functions, information, schema tables, and status codes, as well as a
-working SQL database provided on the companion disk.
-@*
-
-@emph{C, A reference manual}
-@multitable @columnfractions .3 .7
-@item Available @tab            @uref{http://service.bfast.com/bfast/click?bfmid=2181&sourceid=34233559&bfpid=0133262243&bfmtype=book, Barnes and Noble}
-@item Publisher @tab            Prentice Hall
-@item Authors   @tab            Samuel P. Harbison, Guy L. Steele
-@item Pub Date  @tab            September 1994
-@item ISBN      @tab            0133262243
-@item Pages     @tab            480
-@item Price     @tab            $35.99
-@end multitable
-
-A new and improved revision of the bestselling C language
-reference. This manual introduces the notion of "Clean C, " writing C
-code that can be compiled as a C++ program, C programming style that
-emphasizes correctness, portability, and maintainability. and
-incorporates the ISO C Amendment 1 (1994) which specifies new
-facilities for writing portable, international programs in C.
-@*
-
-@emph{C++ for Real Programmers}
-@multitable @columnfractions .3 .7
-@item Available @tab            @uref{http://service.bfast.com/bfast/click?bfmid=2181&sourceid=34233559&bfpid=0120499428&bfmtype=book, Barnes and Noble}
-@item Publisher @tab            Academic Press, Incorporated
-@item Authors   @tab            Jeff Alger, Jim Keogh
-@item Pub Date  @tab            February 1998
-@item ISBN      @tab            0120499428
-@item Pages     @tab            388
-@item Price     @tab            $39.95
-@end multitable
-
-C++ For Real Programmers bridges the gap between C++ as described in
-beginner and intermediate-level books and C++ as it is practiced by
-experts. Numerous valuable techniques are described, organized into
-three simple themes: indirection, class hierarchies, and memory
-management. It also provides indepth coverage of template creation,
-exception handling, pointers and optimization techniques. The focus of
-the book is on ANSI C++ and so is compiler independent. C++ For Real
-Programmers is a revision of Secrets of the C++ Masters and includes a
-new appendix comparing C++ with Java. The book comes with a 3.5" disk
-for Windows with source code.
-@*
-
-@emph{Algorithms in C}
-@multitable @columnfractions .3 .7
-@item Available @tab            @uref{http://service.bfast.com/bfast/click?bfmid=2181&sourceid=34233559&bfpid=0201514257&bfmtype=book, Barnes and Noble}
-@item Publisher @tab            Addison Wesley Longman, Inc.
-@item Authors   @tab            Robert Sedgewick
-@item Pub Date  @tab            April 1990
-@item ISBN      @tab            0201514257
-@item Pages     @tab            648
-@item Price     @tab            $45.75
-@end multitable
-
-Algorithms in C describes a variety of algorithms in a number of areas
-of interest, including: sorting, searching, string-processing, and
-geometric, graph and mathematical algorithms. The book emphasizes
-fundamental techniques, providing readers with the tools to
-confidently implement, run, and debug useful algorithms.
-@*
-
-@emph{Multithreaded Programming with Pthreads}
-@multitable @columnfractions .3 .7
-@item Available @tab            @uref{http://service.bfast.com/bfast/click?bfmid=2181&sourceid=34233559&bfpid=0136807291&bfmtype=book, Barnes and Noble}
-@item Publisher @tab            Prentice Hall
-@item Authors   @tab            Bil Lewis, Daniel J. Berg
-@item Pub Date  @tab            October 1997
-@item ISBN      @tab            0136807291
-@item Pages     @tab            432
-@item Price     @tab            $34.95
-@end multitable
-
-Based on the best-selling Threads Primer, Multithreaded Programming
-with Pthreads gives you a solid understanding of Posix threads: what
-they are, how they work, when to use them, and how to optimize
-them. It retains the clarity and humor of the Primer, but includes
-expanded comparisons to Win32 and OS/2 implementations. Code examples
-tested on all of the major UNIX platforms are featured along with
-detailed explanations of how and why they use threads.  
-@*
-
-@emph{Programming the PERL DBI: Database Programming with PERL}
-@multitable @columnfractions .3 .7
-@item Available @tab            @uref{http://service.bfast.com/bfast/click?bfmid=2181&sourceid=34233559&bfpid=1565926994&bfmtype=book, Barnes and Noble}
-@item Publisher @tab            O'Reilly & Associates, Incorporated
-@item Authors   @tab            Alligator Descartes, Tim Bunce
-@item Pub Date  @tab            February 2000
-@item ISBN      @tab            1565926994
-@item Pages     @tab            400
-@item Price     @tab            $27.96
-@end multitable
-
-Programming the Perl DBI is coauthored by Alligator Descartes, one of
-the most active members of the DBI community, and by Tim Bunce, the
-inventor of DBI. For the uninitiated, the book explains the
-architecture of DBI and shows you how to write DBI-based programs. For
-the experienced DBI dabbler, this book explains DBI's nuances and the
-peculiarities of each individual DBD.
-
-The book includes:               
-@itemize @bullet
-@item
-An introduction to DBI and its design                   
-@item
-How to construct queries and bind parameters                   
-@item
-Working with database, driver, and statement handles                   
-@item
-Debugging techniques                   
-@item
-Coverage of each existing DBD                   
-@item
-A complete reference to DBI 
-@end itemize
+No description available.
 @*
 
 @node Features, Stability, MySQL-Books, Introduction
@@ -11833,10 +11642,13 @@ connections:
 @multitable @columnfractions .25 .15 .60
 @item @code{Host} @strong{value} @tab @code{User} @strong{value} @tab @strong{Connections matched by entry}
 @item @code{'thomas.loc.gov'} @tab @code{'fred'} @tab @code{fred}, connecting from @code{thomas.loc.gov}
-@item @code{'thomas.loc.gov'} @tab @code{''} @tab Any user, connecting from @code{thomas.loc.gov}
+@item @code{'thomas.loc.gov'} @tab @code{''}
+@tab Any user, connecting from @code{thomas.loc.gov}
 @item  @code{'%'} @tab @code{'fred'} @tab @code{fred}, connecting from any host
 @item @code{'%'} @tab  @code{''} @tab Any user, connecting from any host
-@item @code{'%.loc.gov'} @tab @code{'fred'} @tab @code{fred}, connecting from any host in the @code{loc.gov} domain
+@item @code{'%.loc.gov'}
+@tab @code{'fred'} @tab @code{fred}, connecting from any host in the 
+@code{loc.gov} domain
 @item @code{'x.y.%'} @tab @code{'fred'} @tab @code{fred}, connecting from @code{x.y.net}, @code{x.y.com},@code{x.y.edu}, etc. (this is probably not useful)
 @item @code{'144.155.166.177'} @tab @code{'fred'} @tab @code{fred}, connecting from the host with IP address @code{144.155.166.177}
 @item @code{'144.155.166.%'} @tab @code{'fred'} @tab @code{fred}, connecting from any host in the @code{144.155.166} class C subnet
@@ -13664,9 +13476,9 @@ where @code{L} < 2^16
 where @code{L} < 2^24
 @item @code{LONGBLOB}, @code{LONGTEXT} @tab @code{L}+4 bytes,
 where @code{L} < 2^32
-@item @code{ENUM('value1','value2',...)} @tab 1 or 2 bytes, depending on
+@item @code{ENUM('val1','val2',...)} @tab 1 or 2 bytes, depending on
 the number of enumeration values (65535 values maximum)
-@item @code{SET('value1','value2',...)} @tab 1, 2, 3, 4 or 8 bytes, depending
+@item @code{SET('val1','val2',...)} @tab 1, 2, 3, 4 or 8 bytes, depending
 on the number of set members (64 members maximum)
 @end multitable
 
@@ -13768,7 +13580,7 @@ For example, for a column declared as @code{INT(5) ZEROFILL}, a value
 of @code{4} is retrieved as @code{00004}.  Note that if you store larger
 values than the display width in an integer column, you may experience
 problems when @strong{MySQL} generates temporary tables for some
-complicated joins, as in these cases @strong{MySQL} will trust that the
+complicated joins, as in these cases @strong{MySQL} trusts that the
 data did fit into the original column width.
 
 All integral types can have an optional (non-standard) attribute
@@ -14869,7 +14681,7 @@ mysql> select (1+2)*3;
 @node Arithmetic functions, Bit functions, Grouping functions, Functions
 @subsection Normal Arithmetic Operations
 
-The usual arithmetic operators are available.  Note that in the case of
+The usual arithmetic operators are available. Note that in the case of
 @samp{-}, @samp{+}, and @samp{*}, the result is calculated with
 @code{BIGINT} (64-bit) precision if both arguments are integers!
 
@@ -15552,7 +15364,8 @@ value, then the result after @code{ELSE} is returned. If there is no
 @code{ELSE} part then @code{NULL} is returned:
 
 @example
-mysql> SELECT CASE 1 WHEN 1 THEN "one" WHEN 2 THEN "two" ELSE "more" END;
+
+mysql> SELECT CASE 1 WHEN 1 THEN "one" WHEN 2 THEN "two" ELSE "more" END; 
        -> "one"
 mysql> SELECT CASE WHEN 1>0 THEN "true" ELSE "false" END;
        -> "true"
@@ -17852,7 +17665,7 @@ automatically be deleted if any errors occur while copying data
 into the table.
 @item
 The @code{RAID_TYPE} option will help you to break the 2G/4G limit on
-Operating Systems that don't support big files. You can get also more speed
+operating systems that don't support big files. You can get also more speed
 from the I/O bottleneck by putting @code{RAID} directories on different
 physical disks. @code{RAID_TYPE} will work on any OS, as long as you have
 configured @strong{MySQL} with @code{--with-raid}.  For now the only allowed
@@ -18986,7 +18799,7 @@ If you specify the keyword @code{IGNORE} in an @code{INSERT} with many value
 rows, any rows that duplicate an existing @code{PRIMARY} or @code{UNIQUE}
 key in the table are ignored and are not inserted.  If you do not specify
 @code{IGNORE}, the insert is aborted if there is any row that duplicates an
-existing key value.  You can check with the C API function
+existing key value.  You can determine with the C API function
 @code{mysql_info()} how many rows were inserted into the table.
 
 @item
@@ -20220,9 +20033,10 @@ higher than your operating system limit will be ineffective.
 The value of the @code{--basedir} option.
 
 @item @code{bdb_cache_size}
-The buffer that is allocated to cache index and rows for @code{BDB} tables.
-If you don't use @code{BDB} tables, you should set this to 0 or
-start @code{mysqld} with @code{--skip-bdb} o not waste memory for this cache.
+The buffer that is allocated to cache index and rows for @code{BDB}
+tables.  If you don't use @code{BDB} tables, you should set this to 0 or
+start @code{mysqld} with @code{--skip-bdb} to not waste memory for this
+cache.
 
 @item @code{bdb_home}
 The value of the @code{--bdb-home} option.
@@ -21144,7 +20958,8 @@ mysql> SET PASSWORD FOR bob@@"%.loc.gov" = PASSWORD("newpass");
 
 or
 
-mysql> UPDATE mysql.user SET password=PASSWORD("newpass") where user="bob' and host="%.loc.gov";
+mysql> UPDATE mysql.user SET password=PASSWORD("newpass") where
+user="bob' and host="%.loc.gov";
 @end example
 
 @item SQL_AUTO_IS_NULL = 0 | 1
@@ -27759,8 +27574,8 @@ SQL servers that it should work with.
 You can use the @strong{MySQL} crash-me program/web-page
 @uref{http://www.mysql.com/information/crash-me.php} to find functions,
 types, and limits you can use with a selection of database
-servers. Crash-me now tests far from everything possible, but it
-is still comprehensive with about 450 things tested.
+servers. Crash-me now tests far from everything possible, but it is
+still comprehensive with about 450 things tested.
 
 For example, you shouldn't have column names longer than 18 characters
 if you want to be able to use Informix or DB2.
@@ -32112,8 +31927,9 @@ You can also start @code{safe_mysqld} with the
 the @code{--socket=/path/to/socket} option.  If you change the socket
 pathname for the server, you must also notify the @strong{MySQL} clients
 about the new path. You can do this by setting the environment variable
-@code{MYSQL_UNIX_PORT} to the socket pathname or by providing the socket path
-as an argument to the clients. You can test the socket with this command:
+@code{MYSQL_UNIX_PORT} to the socket pathname or by providing the socket
+path as an argument to the clients. You can test the socket with this
+command:
 
 @example
 shell> mysqladmin --socket=/path/to/socket version
@@ -33551,7 +33367,8 @@ On some systems, attempting to print a value of type @code{my_ulonglong}
 will not work.  To print such a value, convert it to @code{unsigned long}
 and use a @code{%lu} print format.  Example:
 @example
-printf (Number of rows: %lu\n", (unsigned long) mysql_num_rows(result));
+printf (Number of rows: %lu\n", 
+        (unsigned long) mysql_num_rows(result));
 @end example
 @end table
 
@@ -38421,7 +38238,7 @@ User-customizable multi-threaded tool set to benchmark @strong{MySQL}. By Sasha 
 
 @itemize @bullet
 @item @uref{http://www.mysql.com/Downloads/Contrib/ascend-radius-mysql-0.7.2.patch.gz,ascend-radius-mysql-0.7.2.patch.gz}
-This is authentication and logging patch using @strong{MySQL} for
+This is an authentication and logging patch using @strong{MySQL} for
 Ascend-Radius. By @email{takeshi@@SoftAgency.co.jp}.
 
 @item @uref{http://www.mysql.com/Downloads/Contrib/icradius-0.10.tar.gz, icradius 0.10}
@@ -38605,7 +38422,8 @@ A COM library for @strong{MySQL} by Alok Singh.
 @item @uref{http://www.mysql.com/Downloads/Contrib/MySQLDB-readme.html, MySQLDB-readme.html}.
 
 @item @uref{http://www.mysql.com/Downloads/Contrib/mysql_replicate.pl, mysql_replicate.pl}
-Perl program that handles replication.  By @email{elble@@icculus.nsg.nwu.edu}
+Perl program that handles replication.  By
+@email{elble@@icculus.nsg.nwu.edu}
 
 @item @uref{http://www.mysql.com/Downloads/Contrib/DBIx-TextIndex-0.02.tar.gz, DBIx-TextIndex-0.02.tar.gz}
 Perl script that uses reverse indexing to handle text searching.
