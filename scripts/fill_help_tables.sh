@@ -1,7 +1,19 @@
 #!@PERL@
-# fill_func_tables - parse ../Docs/manual.texi 
-
-# Original version by vva 
+#
+# Usage: fill_help_tables <manual.texi>
+# Example: ./fill_help_tables < ../Docs/manual.texi > fill_help_tables.sql
+#
+# This script generates the SQL statements required by mysql_install_db to
+# fill up the tables for the server-side online function help, which can be
+# invoked with "help <function>" from the MySQL client.
+#
+# Please note, that you first need to update Docs/manual.texi with the
+# manual file from the separate "mysqldoc" BitKeeper-Tree! The manual.texi
+# included in the source tree is just an empty stub file - the full manual
+# is now maintained in a separate tree.
+#
+# Original version by Victor Vagin <vva@mysql.com>
+#
 
 my $cat_name= "";
 my $func_name= "";

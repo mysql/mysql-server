@@ -20,7 +20,7 @@ bin_SCRIPTS =		@server_scripts@ \
 			msql2mysql \
 			mysql_config \
 			mysql_fix_privilege_tables \
-                        mysql_fix_extensions \
+			mysql_fix_extensions \
 			mysql_setpermission \
 			mysql_secure_installation \
 			mysql_zap \
@@ -38,7 +38,7 @@ EXTRA_SCRIPTS =		make_binary_distribution.sh \
 			msql2mysql.sh \
 			mysql_config.sh \
 			mysql_fix_privilege_tables.sh \
-                        mysql_fix_extensions.sh \
+			mysql_fix_extensions.sh \
 			mysql_install_db.sh \
 			mysql_setpermission.sh \
 			mysql_secure_installation.sh \
@@ -48,17 +48,17 @@ EXTRA_SCRIPTS =		make_binary_distribution.sh \
 			mysql_convert_table_format.sh \
 			mysql_find_rows.sh \
 			mysqlhotcopy.sh \
-		        mysqldumpslow.sh \
+			mysqldumpslow.sh \
 			mysql_explain_log.sh \
 			mysqld_multi.sh \
 			mysql_tableinfo.sh \
 			mysqld_safe.sh \
-			fill_func_tables.sh
+			fill_help_tables.sh
 
 EXTRA_DIST =		$(EXTRA_SCRIPTS) \
 			mysqlaccess.conf \
 			mysqlbug \
-                        fill_func_tables.sql
+			fill_help_tables.sql
 
 pkgdata_DATA =		make_binary_distribution
 
@@ -69,7 +69,7 @@ CLEANFILES =		@server_scripts@ \
 			msql2mysql \
 			mysql_config \
 			mysql_fix_privilege_tables \
-                        mysql_fix_extensions \
+			mysql_fix_extensions \
 			mysql_setpermission \
 			mysql_secure_installation \
 			mysql_zap \
@@ -79,7 +79,8 @@ CLEANFILES =		@server_scripts@ \
 			mysqlhotcopy \
 			mysqldumpslow \
 			mysqld_multi \
-                        fill_func_tables.sql
+ 			fill_help_tables \
+ 			fill_help_tables.sql
 
 SUPERCLEANFILES =	mysqlbug
 
@@ -134,7 +135,7 @@ SUFFIXES = .sh
 # Don't update the files from bitkeeper
 %::SCCS/s.%
 
-all: fill_func_tables.sql
+all: fill_help_tables.sql
 
-fill_func_tables.sql: fill_func_tables ../Docs/manual.texi
-	./fill_func_tables < ../Docs/manual.texi > fill_func_tables.sql
+fill_help_tables.sql: fill_help_tables ../Docs/manual.texi
+	./fill_help_tables < ../Docs/manual.texi > fill_help_tables.sql
