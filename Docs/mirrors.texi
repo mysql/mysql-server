@@ -139,10 +139,6 @@ WWW (@uref{http://mysql.oms-net.nl/})
 WWW (@uref{http://mysql.proserve.nl/})
 
 @item
-@image{Flags/netherlands} Netherlands [Silverpoint] @@
-WWW (@uref{http://mysql.silverpoint.nl/})
-
-@item
 @image{Flags/netherlands} Netherlands [WideXS BV] @@
 WWW (@uref{http://mysql.mirror.widexs.nl/})
 FTP (@uref{ftp://mirror.widexs.nl/pub/mysql/})
