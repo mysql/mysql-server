@@ -2238,10 +2238,10 @@ expr_expr:
 	| expr NOT IN_SYM '(' expr_list ')'
 	  { $5->push_front($1); $$= new Item_func_not(new Item_func_in(*$5)); }
         | expr IN_SYM in_subselect
-          { $$= new Item_in_subselect(YYTHD, $1, $3); }
+          { $$= new Item_in_subselect($1, $3); }
 	| expr NOT IN_SYM in_subselect
           {
-            $$= new Item_func_not(new Item_in_subselect(YYTHD, $1, $4));
+            $$= new Item_func_not(new Item_in_subselect($1, $4));
           }
 	| expr BETWEEN_SYM no_and_expr AND expr
 	  { $$= new Item_func_between($1,$3,$5); }
@@ -2263,7 +2263,7 @@ expr_expr:
 	| expr comp_op all_or_any in_subselect %prec EQ
 	{
 	  Item_allany_subselect *it=
-	    new Item_allany_subselect(YYTHD, $1, (*$2)($3), $4);
+	    new Item_allany_subselect($1, (*$2)($3), $4);
 	  if ($3)
 	    $$ = it->upper_not= new Item_func_not_all(it);	/* ALL */
 	  else
@@ -2309,7 +2309,7 @@ no_in_expr:
 	| no_in_expr comp_op all_or_any in_subselect %prec EQ
 	{
 	  Item_allany_subselect *it=
-	    new Item_allany_subselect(YYTHD, $1, (*$2)($3), $4);
+	    new Item_allany_subselect($1, (*$2)($3), $4);
 	  if ($3)
 	    $$ = it->upper_not= new Item_func_not_all(it);	/* ALL */
 	  else
@@ -2340,10 +2340,10 @@ no_and_expr:
 	| no_and_expr NOT IN_SYM '(' expr_list ')'
 	  { $5->push_front($1); $$= new Item_func_not(new Item_func_in(*$5)); }
         | no_and_expr IN_SYM in_subselect
-          { $$= new Item_in_subselect(YYTHD, $1, $3); }
+          { $$= new Item_in_subselect($1, $3); }
 	| no_and_expr NOT IN_SYM in_subselect
           {
-            $$= new Item_func_not(new Item_in_subselect(YYTHD, $1, $4));
+            $$= new Item_func_not(new Item_in_subselect($1, $4));
           }
 	| no_and_expr BETWEEN_SYM no_and_expr AND expr
 	  { $$= new Item_func_between($1,$3,$5); }
@@ -2364,7 +2364,7 @@ no_and_expr:
 	| no_and_expr comp_op all_or_any in_subselect %prec EQ
 	{
 	  Item_allany_subselect *it=
-	    new Item_allany_subselect(YYTHD, $1, (*$2)($3), $4);
+	    new Item_allany_subselect($1, (*$2)($3), $4);
 	  if ($3)
 	    $$ = it->upper_not= new Item_func_not_all(it);	/* ALL */
 	  else
@@ -5356,9 +5356,8 @@ singlerow_subselect:
 singlerow_subselect_init:
 	select_init2
 	{
-	  $$= new Item_singlerow_subselect(YYTHD,
-					   Lex->current_select->master_unit()->
-                                             first_select());
+	  $$= new Item_singlerow_subselect(Lex->current_select->
+					   master_unit()->first_select());
 	};
 
 exists_subselect:
@@ -5371,9 +5370,8 @@ exists_subselect:
 exists_subselect_init:
 	select_init2
 	{
-	  $$= new Item_exists_subselect(YYTHD,
-					Lex->current_select->master_unit()->
-					  first_select());
+	  $$= new Item_exists_subselect(Lex->current_select->master_unit()->
+					first_select());
 	};
 
 in_subselect:
