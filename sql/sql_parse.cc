@@ -1729,7 +1729,7 @@ mysql_execute_command(THD *thd)
     if (unit->select_limit_cnt <
 	(ha_rows) unit->global_parameters->select_limit)
       unit->select_limit_cnt= HA_POS_ERROR;		// no limit
-    if (unit->select_limit_cnt == HA_POS_ERROR)
+    if (unit->select_limit_cnt == HA_POS_ERROR && !select_lex->next_select())
       select_lex->options&= ~OPTION_FOUND_ROWS;
 
     if (!(res=open_and_lock_tables(thd,tables)))

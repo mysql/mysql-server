@@ -409,7 +409,7 @@ found_rows()
 SELECT SQL_CALC_FOUND_ROWS * FROM t1 UNION SELECT * FROM t2 LIMIT 2,2;
 a
 3
-4
+5
 select found_rows();
 found_rows()
 6
@@ -423,7 +423,7 @@ found_rows()
 5
 SELECT * FROM t1 UNION SELECT * FROM t2 ORDER BY a desc LIMIT 1;
 a
-5
+3
 (SELECT * FROM t1 ORDER by a) UNION ALL (SELECT * FROM t2 ORDER BY a) ORDER BY A desc LIMIT 4;
 a
 5
