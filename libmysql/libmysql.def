@@ -112,13 +112,22 @@ EXPORTS
 	mysql_param_count
         mysql_bind_param
         mysql_bind_result
+	mysql_param_result
         mysql_prepare_result
         mysql_stmt_close
         mysql_stmt_error
         mysql_stmt_errno
         mysql_fetch
+	mysql_fetch_column
         mysql_send_long_data
         mysql_next_result
+	mysql_stmt_affected_rows
+	mysql_stmt_store_result
+	mysql_stmt_data_seek
+	mysql_stmt_row_seek
+	mysql_stmt_row_tell
+	mysql_stmt_num_rows
+	mysql_more_results
         mysql_commit
         mysql_rollback
         mysql_autocommit
