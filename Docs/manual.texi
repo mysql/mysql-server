@@ -2,7 +2,7 @@
 @c Copyright 1997-2001 TcX AB, Detron HB and MySQL Finland AB
 @c
 @c *********************************************************
-@c Note that @node names are used on our Website.
+@c Note that @node names are used on our website.
 @c So do not change node names without checking
 @c Makefile.am and SitePages first.
 @c *********************************************************
@@ -122,7 +122,7 @@ distribution for that version.
 * Environment variables::       MySQL environment variables
 * Regexp::                      Description of MySQL regular expression syntax
 * GPL license::                 GNU General Public License
-* LGPL license::                GNU Library General Public License
+* LGPL license::                GNU Lesser General Public License
 * Function Index::              SQL command, type and function index
 * Concept Index::               Concept Index
 @end menu
@@ -134,17 +134,21 @@ distribution for that version.
 @cindex overview
 @cindex general information
 
-MySQL is a very fast, multi-threaded, multi-user, and robust SQL
-(Structured Query Language) database server.
+@code{MySQL (TM)} is a very fast, multi-threaded, multi-user, and robust
+@code{SQL} (@code{Structured Query Language}) database server.
+MySQL is intended for mission-critical, heavy load production systems
+as well as for embedding into mass-deployed software.
+@code{MySQL} is a trademark of @code{MySQL AB}.
 
-You can use MySQL free of charge under the
-@strong{GNU GENERAL PUBLIC LICENSE} @uref{http://www.gnu.org/licenses/}.
-You can also purchase commercial MySQL licenses from MySQL AB if you
-do not wish to be bound by the terms of the GPL.
+MySQL has @code{Dual licensing}, you can use MySQL free of charge
+under the @code{GNU GENERAL PUBLIC LICENSE}
+(@uref{http://www.gnu.org/licenses/}).
+You can also purchase commercial MySQL licenses from @code{MySQL AB}
+if you do not wish to be bound by the terms of the GPL.
 @xref{Licensing and Support}.
 
-@uref{http://www.mysql.com/, The MySQL website}
-provides the latest information about MySQL.
+The MySQL website (@uref{http://www.mysql.com/}) provides the latest
+information about MySQL.
 
 The following list describes some useful sections of the manual:
 
@@ -401,7 +405,7 @@ and provided by @code{MySQL AB}.  MySQL AB is a commercial company
 that builds its business providing services around the MySQL database.
 @xref{What is MySQL AB}.
 
-@uref{http://www.mysql.com/, The MySQL website}
+The MySQL website (@uref{http://www.mysql.com/})
 provides the latest information about MySQL and MySQL AB.
 
 @table @asis
@@ -976,7 +980,7 @@ Are a virtual company, networking with others.
 Work against software patents.
 @end itemize
 
-@uref{http://www.mysql.com/, The MySQL website}
+The MySQL website (@uref{http://www.mysql.com/})
 provides the latest information about MySQL and MySQL AB.
 
 
@@ -1133,7 +1137,7 @@ founders have built over the years.
 
 @node Business Services Advertising,  , Business Services Partnering, MySQL AB business model and services
 @subsubsection Advertising
-The MySQL website (@uref{http://www.mysql.com/}) immensely popular among
+The MySQL website (@uref{http://www.mysql.com/}) is immensely popular among
 developers and users. In October 2001, we served 10 million page views.
 Our visitors represent a group that makes purchase decisions and
 recommendations for both software and hardware. Twelve per cent of our
@@ -1142,8 +1146,9 @@ involved in purchase decisions at all. More than 65% have made one or
 more online business purchase within the last half-year, and 70% plan
 to make one in the next months.
 
-If you are interested in placing banner ads on our website, please send
-an email to @email{advertising@@mysql.com}.
+If you are interested in placing banner ads on our website
+@uref{http://www.mysql.com/}, please send an email to
+@email{advertising@@mysql.com}.
 
 
 @node Contact information,  , MySQL AB business model and services, What is MySQL AB
@@ -1156,7 +1161,7 @@ an email to @email{advertising@@mysql.com}.
 @cindex employment with MySQL
 @cindex jobs at MySQL
 
-@uref{http://www.mysql.com/, The MySQL website}
+The MySQL website (@uref{http://www.mysql.com/})
 provides the latest information about MySQL and MySQL AB.
 
 For press service and inquiries not covered in our News releases
@@ -1192,7 +1197,8 @@ Commercial licenses may be purchased online at
 @uref{https://order.mysql.com/}. There you will also find information
 on how to fax your purchase order to MySQL AB. If you have questions
 regarding licensing or you want a quote for a high-volume license
-deal, please fill in the contact form on our website or send an email
+deal, please fill in the contact form on our website
+(@uref{http://www.mysql.com/}) or send an email
 to @email{licensing@@mysql.com} (for licensing questions) or to 
 @email{sales@@mysql.com} (for sales inquiries).
 @xref{MySQL server licenses}.
@@ -1228,10 +1234,15 @@ security bug in MySQL, you should send an e-mail to
 @email{security@@mysql.com}.
 @xref{Bug reports}.
 
+If you have benchmark results that we can publish, please
+contact us at @email{benchmarks@@mysql.com}.
+@xref{Comparisons}.
+
 If you have any suggestions concerning additions or corrections to this
 manual, please send them to the manual team at @email{docs@@mysql.com}.
 
-For questions or comments about the workings or content of the Website,
+For questions or comments about the workings or content of the
+MySQL website (@uref{http://www.mysql.com/}),
 please send e-mail to @email{webmaster@@mysql.com}.
 
 MySQL AB has a privacy policy, which can be read at
@@ -1251,17 +1262,57 @@ For all other inquires, please send e-mail to @email{info@@mysql.com}.
 This section describes MySQL support and licensing arrangements:
 
 @menu
-* Copyright::                   Copyrights used by MySQL
-* Support::                     
-* MySQL server licenses::       
-* MySQL AB Logos and Trademarks::  
+* Support::                     Support Offered by MySQL AB
+* Copyright::                   Copyrights and Licenses Used by MySQL
+* MySQL server licenses::       MySQL Server Licenses
+* MySQL AB Logos and Trademarks::  MySQL AB Logos and Trademarks
 @end menu
 
 
-@node Copyright, Support, Licensing and Support, Licensing and Support
-@subsection Copyrights Used by MySQL
+@node Support, Copyright, Licensing and Support, Licensing and Support
+@subsection Support Offered by MySQL AB
+
+@cindex support, types
+@cindex types, of support
+@cindex commercial support, types
+@cindex costs, support
+@cindex licensing costs
+@cindex support costs
+@cindex prices, support
+
+Technical support from MySQL AB means individualised answers to your
+unique problems direct from the software engineers who code the MySQL
+database engine.
+
+We try to take a broad and inclusive view of technical support. Almost
+any problem involving MySQL is important to us if it's important to you.
+Typically customers seek help on how to get different commands and
+utilities to work, remove performance bottlenecks, restore crashed
+systems, understand operating system or networking impacts on MySQL,
+set-up best practices for backup and recovery, utilise APIs, etc.
+Our support covers only the MySQL server and our own utilities, not
+third-party products that access MySQL, though we try to help with
+these where we can.
+
+Detailed information about our various support options is given at
+@uref{https://order.mysql.com/} where support contracts can also be
+ordered online. If you have restricted access to the Internet, contact
+our sales staff at @email{sales@@mysql.com}.
+
+Technical support is like life insurance. You can live happily
+without it for years, but when your hour arrives it becomes
+critically important, yet it's too late to buy it!
+If you use MySQL for important applications and encounter sudden
+troubles,  it might take too long to figure out all the answers
+yourself. You may need immediate access to the most experienced
+MySQL troubleshooters available, those employed by MySQL AB.
+
+
+@node Copyright, MySQL server licenses, Support, Licensing and Support
+@subsection Copyrights and Licenses Used by MySQL
 
 @cindex copyrights
+@cindex licenses
 
 @code{MySQL AB} owns the copyright to the MySQL source code,
 the MySQL logo and trademark and this manual.
@@ -1278,7 +1329,7 @@ at the beginning which license it is under.
 
 @item
 The client library, and the GNU @code{getopt} library, are covered
-by the ``GNU LIBRARY GENERAL PUBLIC LICENSE.''  @xref{LGPL license}.
+by the ``GNU LESSER GENERAL PUBLIC LICENSE.''  @xref{LGPL license}.
 The aim of this is to make it possible to add MySQL support (client
 side, i.e. the ability to connect to a MySQL server) into commercial
 products without a license.
@@ -1299,51 +1350,12 @@ Older versions of MySQL (3.22 and earlier) are subject to a more
 See the documentation of the specific version for information.
 @end enumerate
 
-For information about how the MySQL licenses work in practise,
+For information about how the MySQL licenses work in practice,
 please refer to @ref{MySQL server licenses}.
 Also see @ref{MySQL AB Logos and Trademarks}.
 
 
-@node Support, MySQL server licenses, Copyright, Licensing and Support
-@subsection Support offered by MySQL AB
-
-@cindex support, types
-@cindex types, of support
-@cindex commercial support, types
-@cindex costs, support
-@cindex licensing costs
-@cindex support costs
-@cindex prices, support
-
-Technical support from MySQL AB means individualised answers to your
-unique problems direct from the software engineers who code the MySQL
-database engine.
-
-We try to take a broad and inclusive view of technical support. Almost
-any problem involving MySQL is important to us if it's important to you.
-Typically customers seek help on how to get different commands and
-utilities to work, remove performance bottlenecks, restore crashed
-systems, understand operating system or networking impacts on MySQL,
-set-up best practises for backup and recovery, utilise APIs, etc.
-Our support covers only the MySQL server and our own utilities, not
-third-party products that access MySQL, though we try to help with
-these where we can.
-
-Detailed information about our various support options is given at
-@uref{https://order.mysql.com/} where support contracts can also be
-ordered online. If you have restricted access to the Internet, contact
-our sales staff at @email{sales@@mysql.com}.
-
-Technical support is like life insurance. You can live happily
-without it for years, but when your hour arrives it becomes
-critically important, yet it's too late to buy it!
-If you use MySQL for important applications and encounter sudden
-troubles,  it might take too long to figure out all the answers
-yourself. You may need immediate access to the most experienced
-MySQL troubleshooters available, those employed by MySQL AB.
-
-
-@node MySQL server licenses, MySQL AB Logos and Trademarks, Support, Licensing and Support
+@node MySQL server licenses, MySQL AB Logos and Trademarks, Copyright, Licensing and Support
 @subsection MySQL Server Licenses
 
 @cindex licensing policy
@@ -1360,8 +1372,8 @@ of the GPL license can be found at @uref{http://www.gnu.org/licenses/}.
 See also @uref{http://www.gnu.org/licenses/gpl-faq.html}.
 
 Since the MySQL server is released under the GPL, it may often be used
-for free, but for certain uses you need to buy commercial licenses from
-MySQL AB at @uref{http://www.mysql.com/}.
+for free, but for certain uses you may want or need to buy commercial
+licenses from MySQL AB at @uref{https://order.mysql.com/}.
 
 Older versions of MySQL (3.22 and earlier) are subject to a more
 @uref{http://www.mysql.com/support/arrangements/mypl.html, strict license}.
@@ -1448,7 +1460,7 @@ When using the MySQL server internally in your company.
 @item
 When include the MySQL client code in a commercial program.
 The client part of MySQL is licensed under the LGPL
-@code{GNU Library General Public License}. The formal terms of the
+@code{GNU Lesser General Public License}. The formal terms of the
 LGPL license can be found at @uref{http://www.gnu.org/licenses/}.
 
 However, the @code{mysql} command-line client does include code
@@ -1564,7 +1576,7 @@ use the MySQL AB trademark.
 
 @item
 If you use the trademark on a website, make it clickable, leading directly
-to @uref{http://www.mysql.com/}
+to @uref{http://www.mysql.com/}.
 
 @item
 If you are using the MySQL database under GPL in an application, your
@@ -1876,7 +1888,7 @@ address replaced by a @samp{=}.  For example, to subscribe
 Mail to @email{mysql-subscribe@@lists.mysql.com} or
 @email{mysql-unsubscribe@@lists.mysql.com} is handled automatically by the
 ezmlm mailing list processor.  Information about ezmlm is available at
-@uref{http://www.ezmlm.org, The ezmlm Website}.
+@uref{http://www.ezmlm.org, The ezmlm website}.
 
 To post a message to the list itself, send your message to
 @code{mysql@@lists.mysql.com}.  However, please @emph{do not} send mail about
@@ -2482,7 +2494,7 @@ can be retrieved via the Web.
 
 Sams' @emph{Teach Yourself MySQL in 21 Days} is a practical, step-by-step
 tutorial.  The reader will learn to design and employ this open source
-database technology into his or her Website using practical, hands-on 
+database technology into his or her website using practical, hands-on 
 examples to follow.
 @*
 
@@ -2782,6 +2794,16 @@ PHP/MySQL Tutorial.
 Hands on tutorial for MySQL.
 @end table
 
+@subheading MySQL Discussion Forums
+
+@table @asis
+@item @uref{http://www.weberdev.com/}
+Examples using MySQL; (check Top 20)
+
+@item @uref{http://futurerealm.com/forum/futureforum.htm}
+FutureForum Web Discussion Software.
+@end table
+
 @subheading Porting MySQL/Using MySQL on Different Systems
 
 @table @asis
@@ -2813,16 +2835,6 @@ MySQL for Amiga
 @table @asis
 @item @uref{http://dbimysql.photoflux.com/}
 Perl DBI with MySQL FAQ.
-@end table
-
-@subheading MySQL Discussion Forums
-
-@table @asis
-@item @uref{http://www.weberdev.com/}
-Examples using MySQL; (check Top 20)
-
-@item @uref{http://futurerealm.com/forum/futureforum.htm}
-FutureForum Web Discussion Software.
 @end table
 
 @c FIX We should get longer descriptions for things in this category!
@@ -4403,16 +4415,20 @@ For platform-specific bugs, see the sections about compiling and porting.
 * Compare PostgreSQL::          How MySQL compares with PostgreSQL
 @end menu
 
-This section compares MySQL to other databases.  
+Our users have successfully run their own benchmarks against a number
+of @code{Open Source} and traditional database servers. We are aware of
+tests against @code{Oracle}, @code{DB/2}, @code{Microsoft SQL Server}
+and other commercial products. Due to legal reasons we are restricted
+from publishing some of those benchmarks in our reference manual.
 
-This section has been written by the MySQL developers, so it
-should be read with that in mind.  There are no factual errors contained
-in this section that we know of.  If you find something which you believe
-to be an error, please contact us about it at @email{docs@@mysql.com}.
+This section includes a comparison with @code{mSQL} for historical
+reasons and with @code{PostgreSQL} as it is also an Open Source
+database. If you have benchmark results that we can publish, please
+contact us at @email{benchmarks@@mysql.com}.
 
-@c FIX this is bad lingo: "supported limits", etc.
-For a list of all supported limits, functions, and types, see the
-@code{crash-me} Web page at 
+For comparative lists of all supported functions and types as well
+as measured operational limits of many different database systems,
+see the @code{crash-me} web page at
 @uref{http://www.mysql.com/information/crash-me.php}.
 
 
@@ -5527,12 +5543,18 @@ this without sacrifying the speed or compromise the code.
 @subsection Things That Should be in 4.0
 
 We have now shifted development to MySQL Version 4.0.  Most of the basic
-things we want to have in 4.0 is already done.  The target is to quickly
+things we want to have in 4.0 are already done.  The target is to quickly
 implement the rest of the following features and then shift development
 to MySQL 4.1. @xref{MySQL 4.0 In A Nutshell}.
 
 The news section for 4.0 includes a list of the features we have already
 implemented in the 4.0 tree. @xref{News-4.0.x}.
+
+This section lists features not yet implemented in the current
+version of MySQL 4.0, which will however be implemented in 
+later versions of MySQL 4.0. This being very volatile information,
+please consider this list valid only if you are reading it from
+the MySQL website (@uref{http://www.mysql.com/}).
 
 @itemize @bullet
 @item
@@ -6345,7 +6367,7 @@ see @ref{Windows}.
 @cindex mirror sites
 @cindex URLS for downloading MySQL
 
-Check the @uref{http://www.mysql.com/, MySQL home page} for
+Check the MySQL homepage (@uref{http://www.mysql.com/}) for
 information about the current version and for downloading instructions.
 
 Our main download mirror is located at:
@@ -8201,8 +8223,8 @@ running.  @xref{Multiple servers}.
 @cindex applying, patches
 
 Sometimes patches appear on the mailing list or are placed in the
-@uref{http://www.mysql.com/Downloads/Patches, patches area} of the
-MySQL website.
+patches area of the MySQL website
+(@uref{http://www.mysql.com/Downloads/Patches}).
 
 To apply a patch from the mailing list, save the message in which the patch
 appears in a file, change into the top-level directory of your MySQL
@@ -8382,7 +8404,7 @@ CFLAGS="-O3 -mpentiumpro" CXX=gcc CXXFLAGS="-O3 -mpentiumpro -felide-constructor
 @end example
 
 The binaries we provide on the MySQL website at
-@uref{http://www.mysql.com} are all compiled with full optimisation and
+@uref{http://www.mysql.com/} are all compiled with full optimisation and
 should be perfect for most users.  @xref{MySQL binaries}.  There are some
 things you can tweak to make an even faster binary, but this is only for
 advanced users.  @xref{Compile and link options}.
@@ -18298,9 +18320,8 @@ mysql> FLUSH PRIVILEGES;
 
 You can also use @code{xmysqladmin}, @code{mysql_webadmin}, and even
 @code{xmysql} to insert, change, and update values in the grant tables.
-You can find these utilities in the
-@uref{http://www.mysql.com/Downloads/Contrib/,Contrib directory of the MySQL
-Website}.
+You can find these utilities in the Contrib directory of the
+MySQL website (@uref{http://www.mysql.com/Downloads/Contrib/}).
 
 
 @node Passwords, Password security, Adding users, User Account Management
@@ -37477,7 +37498,7 @@ MySQL and MySQL -Max differ only in the server executable.
 
 To compile MySQL with InnoDB support,
 download MySQL-3.23.34a or newer version from
-@uref{http://www.mysql.com}
+@uref{http://www.mysql.com/}
 and configure MySQL with the
 @code{--with-innodb} option. See the
 MySQL manual
@@ -39064,8 +39085,8 @@ the maximum size for a table. The minimum tablespace size is 10 MB.
 @subsection InnoDB Contact Information
 
 Contact information of Innobase Oy, producer of the InnoDB engine.
-Website: @uref{http://www.innodb.com}. Email:
-@email{Heikki.Tuuri@@innodb.com}
+Website: @uref{http://www.innodb.com/}.
+Email: @email{Heikki.Tuuri@@innodb.com}
 
 @example
 phone: 358-9-6969 3250 (office) 358-40-5617367 (mobile)
@@ -39412,8 +39433,8 @@ create dynamic Web pages.  It contains support for accessing several
 databases, including MySQL.  PHP may be run as a separate program
 or compiled as a module for use with the Apache Web server.
 
-The distribution and documentation are available at the
-@uref{http://www.php.net/, PHP website}.
+The distribution and documentation are available at the PHP website
+(@uref{http://www.php.net/}).
 
 @menu
 * PHP problems::                Common problems with MySQL and PHP
@@ -43695,11 +43716,11 @@ have your own alarm that can break a long read to a server.  If you
 install interrupt handlers for the @code{SIGPIPE} interrupt,
 the socket handling should be thread safe.
 
-In the older binaries we distribute on our website, the client
-libraries are not normally compiled with the thread-safe option (the
-Windows binaries are by default compiled to be thread safe).
-Newer binary distributions should have both a normal and a
-thread-safe client library.
+In the older binaries we distribute on our website
+(@uref{http://www.mysql.com/}), the client libraries are not normally
+compiled with the thread-safe option (the Windows binaries are by
+default compiled to be thread safe). Newer binary distributions should
+have both a normal and a thread-safe client library.
 
 To get a threaded client where you can interrupt the client from other
 threads and set timeouts when talking with the MySQL server, you should
@@ -54517,7 +54538,8 @@ This appendix will help you port MySQL to other operationg systems.
 Do check the list of currently supported operating systems first.
 @xref{Which OS}.
 If you have created a new port of MySQL, please let us know so that
-we can list it here and on our website, recommending it to other users.
+we can list it here and on our website (@uref{http://www.mysql.com/}),
+recommending it to other users.
 
 Note: If you create a new port of MySQL, you are free to copy and
 distribute it under the GPL license, but it does not make you a
