@@ -119,7 +119,7 @@ static void simple_cs_init_functions(CHARSET_INFO *cs)
   
   if (cs->state & MY_CS_BINSORT)
   {
-    cs->coll= &my_collation_bin_handler;
+    cs->coll= &my_collation_8bit_bin_handler;
   }
   else
   {
