@@ -43,7 +43,14 @@ int mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds, SQL_LIST *order,
 
   if ((error= open_and_lock_tables(thd, table_list)))
     DBUG_RETURN(error);
-  table= table_list->table;
+  if (!(table= table_list->table))
+  {
+    DBUG_ASSERT(table_list->view &&
+		table_list->ancestor && table_list->ancestor->next_local);
+    my_error(ER_VIEW_DELETE_MERGE_VIEW, MYF(0),
+	     table_list->view_db.str, table_list->view_name.str);
+    DBUG_RETURN(-1);
+  }
   table->file->info(HA_STATUS_VARIABLE | HA_STATUS_NO_LOCK);
   thd->proc_info="init";
   table->map=1;
