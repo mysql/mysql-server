@@ -5782,7 +5782,8 @@ static void mysql_init_variables(void)
   language_ptr= language;
   mysql_data_home= mysql_real_data_home;
   thd_startup_options= (OPTION_UPDATE_LOG | OPTION_AUTO_IS_NULL |
-			OPTION_BIN_LOG | OPTION_QUOTE_SHOW_CREATE);
+			OPTION_BIN_LOG | OPTION_QUOTE_SHOW_CREATE |
+			OPTION_SQL_NOTES);
   protocol_version= PROTOCOL_VERSION;
   what_to_log= ~ (1L << (uint) COM_TIME);
   refresh_version= flush_version= 1L;	/* Increments on each reload */
