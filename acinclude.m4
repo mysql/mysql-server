@@ -196,6 +196,42 @@ then
 fi
 ])
 
+
+AC_DEFUN(MYSQL_PTHREAD_YIELD,
+[AC_CACHE_CHECK([if pthread_yield takes zero arguments], ac_cv_pthread_yield_zero_arg,
+[AC_TRY_COMPILE([#define _GNU_SOURCE
+#include <pthread.h>
+#ifdef __cplusplus
+extern "C"
+#endif
+],
+[
+  pthread_yield();
+], ac_cv_pthread_yield_zero_arg=yes, ac_cv_pthread_yield_zero_arg=yeso)])
+if test "$ac_cv_pthread_yield_zero_arg" = "yes"
+then
+  AC_DEFINE(HAVE_PTHREAD_YIELD_ZERO_ARG)
+fi
+]
+[AC_CACHE_CHECK([if pthread_yield takes 1 argument], ac_cv_pthread_yield_one_arg,
+[AC_TRY_COMPILE([#define _GNU_SOURCE
+#include <pthread.h>
+#ifdef __cplusplus
+extern "C"
+#endif
+],
+[
+  pthread_yield(0);
+], ac_cv_pthread_yield_one_arg=yes, ac_cv_pthread_yield_one_arg=no)])
+if test "$ac_cv_pthread_yield_one_arg" = "yes"
+then
+  AC_DEFINE(HAVE_PTHREAD_YIELD_ONE_ARG)
+fi
+]
+)
+
+
+
 #---END:
 
 AC_DEFUN(MYSQL_CHECK_FP_EXCEPT,

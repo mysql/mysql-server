@@ -528,9 +528,7 @@ mysql_select(THD *thd,TABLE_LIST *tables,List<Item> &fields,COND *conds,
     if (order &&
 	(join.const_tables == join.tables ||
 	 test_if_skip_sort_order(&join.join_tab[join.const_tables], order,
-				 (having || group ||
-				  join.const_tables != join.tables - 1) ?
-				 HA_POS_ERROR : thd->select_limit)))
+				 (group ? HA_POS_ERROR : thd->select_limit))))
       order=0;
     select_describe(&join,need_tmp,
 		    (order != 0 &&
@@ -2527,7 +2525,6 @@ join_free(JOIN *join)
       delete tab->select;
       delete tab->quick;
       x_free(tab->cache.buff);
-      end_read_record(&tab->read_record);
       if (tab->table)
       {
 	if (tab->table->key_read)
@@ -2535,8 +2532,11 @@ join_free(JOIN *join)
 	  tab->table->key_read=0;
 	  tab->table->file->extra(HA_EXTRA_NO_KEYREAD);
 	}
-	tab->table->file->index_end();
+	/* Don't free index if we are using read_record */
+	if (!tab->read_record.table)
+	  tab->table->file->index_end();
       }
+      end_read_record(&tab->read_record);
     }
     join->table=0;
   }

@@ -1399,6 +1399,7 @@ TABLE *open_ltable(THD *thd, TABLE_LIST *table_list, thr_lock_type lock_type)
 			    &refresh)) && refresh) ;
   if (table)
   {
+    int error;
     table_list->table=table;
     table->grant= table_list->grant;
     if (thd->locked_tables)
@@ -1410,7 +1411,12 @@ TABLE *open_ltable(THD *thd, TABLE_LIST *table_list, thr_lock_type lock_type)
 	my_printf_error(ER_TABLE_NOT_LOCKED_FOR_WRITE,
 			ER(ER_TABLE_NOT_LOCKED_FOR_WRITE),
 			MYF(0),table_list->name);
-	DBUG_RETURN(0);
+	table=0;
+      }
+      else if ((error=table->file->start_stmt(thd)))
+      {
+	table->file->print_error(error,MYF(0));
+	table=0;
       }
       thd->proc_info=0;
       DBUG_RETURN(table);
@@ -1437,10 +1443,10 @@ int open_and_lock_tables(THD *thd,TABLE_LIST *tables)
 
 int lock_tables(THD *thd,TABLE_LIST *tables)
 {
+  TABLE_LIST *table;
   if (tables && !thd->locked_tables)
   {
     uint count=0;
-    TABLE_LIST *table;
     for (table = tables ; table ; table=table->next)
       count++;
     TABLE **start,**ptr;
@@ -1450,6 +1456,18 @@ int lock_tables(THD *thd,TABLE_LIST *tables)
       *(ptr++)= table->table;
     if (!(thd->lock=mysql_lock_tables(thd,start,count)))
       return -1;				/* purecov: inspected */
+  }
+  else
+  {
+    for (table = tables ; table ; table=table->next)
+    {
+      int error;
+      if ((error=table->table->file->start_stmt(thd)))
+      {
+	table->table->file->print_error(error,MYF(0));
+	return -1;
+      }
+    }
   }
   return 0;
 }

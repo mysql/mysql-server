@@ -531,10 +531,20 @@ GEMINI Tables
 
 InnoDB Tables
 
-* InnoDB overview::             
+* InnoDB overview::             InnoDB tables overview
 * InnoDB start::                InnoDB startup options
-* Using InnoDB tables::         Using InnoDB tables
-* InnoDB restrictions::         Some restrictions on @code{InnoDB} tables:
+* Creating an InnoDB database:: Creating an InnoDB database.  Creating an InnoDB database
+* Using InnoDB tables::         Creating InnoDB tables
+* Adding and removing::         Adding and removing InnoDB data and log files
+* Backing up::                  Backing up and recovering an InnoDB database
+* Moving::                      Moving an InnoDB database to another machine
+* InnoDB transaction model:: InnoDB transaction model.  InnoDB transaction model
+* Implementation::              Implementation of multiversioning
+* Table and index::             Table and index structures
+* File space management::       File space management and disk i/o
+* Error handling::              Error handling
+* InnoDB restrictions::         Some restrictions on InnoDB tables
+* InnoDB contact information:: InnoDB contact information.  InnoDB contact information
 
 MySQL Tutorial
 
@@ -606,7 +616,6 @@ Replication in MySQL
 
 MySQL Full-text Search
 
-* Fulltext Search::
 * Fulltext Fine-tuning::        
 * Fulltext Features to Appear in MySQL 4.0::  
 * Fulltext TODO::               
@@ -917,6 +926,7 @@ Changes in release 4.0.x (Development; Alpha)
 
 Changes in release 3.23.x  (Stable)
 
+* News-3.23.38::                
 * News-3.23.37::                Changes in release 3.23.37
 * News-3.23.36::                Changes in release 3.23.36
 * News-3.23.35::                Changes in release 3.23.35
@@ -5461,7 +5471,7 @@ shell> ln -s mysql-VERSION-OS mysql
 shell> cd mysql
 shell> scripts/mysql_install_db
 shell> chown -R root  /usr/local/mysql
-shell> chown -R mysql /usr/local/mysql/var
+shell> chown -R mysql /usr/local/mysql/data
 shell> chgrp -R mysql /usr/local/mysql
 shell> chown -R root /usr/local/mysql/bin/
 shell> bin/safe_mysqld --user=mysql &
@@ -22501,6 +22511,9 @@ locks while the thread is waiting for the @code{WRITE} lock. You should only
 use @code{LOW_PRIORITY WRITE} locks if you are sure that there will
 eventually be a time when no threads will have a @code{READ} lock.
 
+@code{LOCK TABLES} and @code{UNLOCK TABLES} both commits any active
+transactions.
+
 When you use @code{LOCK TABLES}, you must lock all tables that you are
 going to use and you must use the same alias that you are going to use
 in your queries!  If you are using a table multiple times in a query
@@ -24354,24 +24367,24 @@ limited by @code{gemini_connection_limit}.  The default is 100 users.
 
 NuSphere is working on removing these limitations.
 
-@node InnoDB, , GEMINI, Table types 
+@node InnoDB,  , GEMINI, Table types
 @section InnoDB Tables
 
 @menu
-* InnoDB overview::        InnoDB tables overview
-* InnoDB start::           InnoDB startup options
-* Creating an InnoDB database:: Creating an InnoDB database
-* Using InnoDB tables::    Creating InnoDB tables
-* Adding and removing::    Adding and removing InnoDB data and log files
-* Backing up::             Backing up and recovering an InnoDB database
-* Moving::                 Moving an InnoDB database to another machine
-* InnoDB transaction model:: InnoDB transaction model
-* Implementation::         Implementation of multiversioning
-* Table and index::        Table and index structures
-* File space management::  File space management and disk i/o
-* Error handling::         Error handling
-* InnoDB restrictions::    Some restrictions on InnoDB tables
-* InnoDB contact information:: InnoDB contact information
+* InnoDB overview::             InnoDB tables overview
+* InnoDB start::                InnoDB startup options
+* Creating an InnoDB database:: Creating an InnoDB database.  Creating an InnoDB database
+* Using InnoDB tables::         Creating InnoDB tables
+* Adding and removing::         Adding and removing InnoDB data and log files
+* Backing up::                  Backing up and recovering an InnoDB database
+* Moving::                      Moving an InnoDB database to another machine
+* InnoDB transaction model:: InnoDB transaction model.  InnoDB transaction model
+* Implementation::              Implementation of multiversioning
+* Table and index::             Table and index structures
+* File space management::       File space management and disk i/o
+* Error handling::              Error handling
+* InnoDB restrictions::         Some restrictions on InnoDB tables
+* InnoDB contact information:: InnoDB contact information.  InnoDB contact information
 @end menu
 
 @node InnoDB overview, InnoDB start, InnoDB, InnoDB
@@ -24413,7 +24426,7 @@ may consist of several files. This is different from, for example,
 InnoDB is distributed under the GNU GPL License Version 2 (of June 1991).
 In the source distribution of MySQL, InnoDB appears as a subdirectory.
 
-@node InnoDB start
+@node InnoDB start, Creating an InnoDB database, InnoDB overview, InnoDB
 @subsection InnoDB startup options
 
 Beginning from MySQL-3.23.37 the prefix of the options is changed
@@ -24551,7 +24564,7 @@ InnoDB cannot notice. In cases like this the timeout is useful to
 resolve the situation.
 @end multitable
  
-@node Creating an InnoDB database
+@node Creating an InnoDB database, Using InnoDB tables, InnoDB start, InnoDB
 @subsection Creating an InnoDB database
 
 Suppose you have installed MySQL and have edited @file{my.cnf} so that
@@ -24621,7 +24634,7 @@ some InnoDB tables, delete also the corresponding @file{.frm}
 files for these tables from the MySQL database directories. Then you can
 try the InnoDB database creation again.
 
-@node Using InnoDB tables
+@node Using InnoDB tables, Adding and removing, Creating an InnoDB database, InnoDB
 @subsection Creating InnoDB tables
 
 Suppose you have started the MySQL client with the command
@@ -24664,7 +24677,7 @@ InnoDB has its own internal data dictionary, and you will get problems
 if the MySQL @file{.frm} files are out of 'sync' with the InnoDB
 internal data dictionary.
 
-@node Adding and removing
+@node Adding and removing, Backing up, Using InnoDB tables, InnoDB
 @subsection Adding and removing InnoDB data and log files
 
 You cannot increase the size of an InnoDB data file. To add more into
@@ -24686,7 +24699,7 @@ database. Delete then the old log files from the log file directory,
 edit @file{my.cnf}, and start MySQL again. InnoDB will tell
 you at the startup that it is creating new log files.
 
-@node Backing up
+@node Backing up, Moving, Adding and removing, InnoDB
 @subsection Backing up and recovering an InnoDB database
 
 The key to safe database management is taking regular backups.
@@ -24798,7 +24811,7 @@ the total size of the log files as big as the buffer pool or even bigger.
 The drawback in big log files is that crash recovery can last longer
 because there will be more log to apply to the database.
 
-@node Moving
+@node Moving, InnoDB transaction model, Backing up, InnoDB
 @subsection Moving an InnoDB database to another machine
 
 InnoDB data and log files are binary-compatible on all platforms
@@ -24818,7 +24831,7 @@ the big rollback segment the big import transaction will generate.
 Do the commit only after importing a whole table or a segment of
 a table.
 
-@node InnoDB transaction model
+@node InnoDB transaction model, Implementation, Moving, InnoDB
 @subsection InnoDB transaction model
 
 In the InnoDB transaction model the goal has been to combine the best
@@ -25046,7 +25059,7 @@ set by the SQL statement may be preserved. This is because InnoDB
 stores row locks in a format where it cannot afterwards know which was
 set by which SQL statement.
 
-@node Implementation
+@node Implementation, Table and index, InnoDB transaction model, InnoDB
 @subsection Implementation of multiversioning
 
 Since InnoDB is a multiversioned database, it must keep information
@@ -25095,7 +25108,7 @@ its index records from the database. This removal operation is
 called a purge, and it is quite fast, usually taking the same order of
 time as the SQL statement which did the deletion.
 
-@node Table and index
+@node Table and index, File space management, Implementation, InnoDB
 @subsection Table and index structures
 
 Every InnoDB table has a special index called the clustered index
@@ -25208,7 +25221,7 @@ If the total length of the fields in a record is < 256 bytes, then
 the pointer is 1 byte, else 2 bytes.
 @end itemize
 
-@node File space management
+@node File space management, Error handling, Table and index, InnoDB
 @subsection File space management and disk i/o
 
 @subsubsection Disk i/o
@@ -25287,7 +25300,7 @@ but remember that deleted rows can be physically removed only in a
 purge operation after they are no longer needed in transaction rollback or
 consistent read.
 
-@node Error handling
+@node Error handling, InnoDB restrictions, File space management, InnoDB
 @subsection Error handling
 
 The error handling in InnoDB is not always the same as
@@ -25373,7 +25386,7 @@ The maximum tablespace size is 4 billion database pages. This is also
 the maximum size for a table.
 @end itemize
 
-@node InnoDB contact information, , InnoDB restrictions, InnoDB
+@node InnoDB contact information,  , InnoDB restrictions, InnoDB
 @subsection InnoDB contact information
 
 Contact information of Innobase Oy, producer of the InnoDB engine:
@@ -29202,7 +29215,7 @@ have been assigned a low semantical value in @strong{a particular dataset}.
 * Fulltext TODO::               
 @end menu
 
-@node Fulltext Fine-tuning, Fulltext Features to Appear in MySQL 4.0, , Fulltext Search
+@node Fulltext Fine-tuning, Fulltext Features to Appear in MySQL 4.0, Fulltext Search, Fulltext Search
 @section Fine-tuning MySQL Full-text Search
 
 Unfortunately, full-text search has no user-tunable parameters yet,
@@ -30038,9 +30051,14 @@ mysql> TRUNCATE TABLE insert_table;
 mysql> UNLOCK TABLES;
 @end example
 
-You can use the @code{LOW_PRIORITY} options with @code{INSERT} if you
-want to prioritize retrieval in some specific cases.  @xref{INSERT, ,
-@code{INSERT}}.
+You can use the @code{LOW_PRIORITY} options with @code{INSERT},
+@code{UPDATE} or @code{DELETE} or @code{HIGH_PRIORITY} with
+@code{SELECT} if you want to prioritize retrieval in some specific
+cases.  You can also start @code{mysqld} with @code{--low-priority-updates}
+to get the same behaveour.
+
+Using @code{SQL_BUFFER_RESULT} can also help making table locks shorter.
+@xref{SELECT}.
 
 You could also change the locking code in @file{mysys/thr_lock.c} to use a
 single queue.  In this case, write locks and read locks would have the same
@@ -30058,9 +30076,11 @@ high lock speed.  For large tables, table locking is MUCH better than
 row locking for most applications, but there are, of course, some
 pitfalls.
 
-For @code{BDB} tables, @strong{MySQL} only uses table locking if you
-explicitely lock the table with @code{LOCK TABLES} or execute a command that
-will modify every row in the table, like @code{ALTER TABLE}.
+For @code{BDB} and @code{InnoDB} tables, @strong{MySQL} only uses table
+locking if you explicitely lock the table with @code{LOCK TABLES} or
+execute a command that will modify every row in the table, like
+@code{ALTER TABLE}.  For these table types we recommend you to not use
+@code{LOCK TABLES} at all.
 
 In @strong{MySQL} Version 3.23.7 and above, you can insert rows into
 @code{MyISAM} tables at the same time other threads are reading from the
@@ -31577,10 +31597,38 @@ the following configure options:
 
 @multitable @columnfractions .3 .7
 @item @strong{Option} @tab @strong{Comment}
-@item --with-server-suffix=-max @tab Add a suffix to the @code{mysqld} version string.
+@item --with-server-suffix=-Max @tab Add a suffix to the @code{mysqld} version string.
 @item --with-bdb @tab Support for Berkeley DB (BDB) tables
 @item --with-innodb @tab Support for InnoDB tables.
 @item CFLAGS=-DUSE_SYMDIR @tab Symbolic links support for Windows.
+@end multitable
+
+Note that as Berkeley DB and InnoDB are not available for all platforms,
+some of the @code{Max} binaries may not have support for both of these.
+You can check which table types are supported by doing the following
+query:
+
+@example
+mysql> show variables like "have_%";
++---------------+-------+
+| Variable_name | Value |
++---------------+-------+
+| have_bdb      | YES   |
+| have_gemini   | NO    |
+| have_innodb   | NO    |
+| have_isam     | YES   |
+| have_raid     | YES   |
+| have_ssl      | NO    |
++---------------+-------+
+@end example
+
+The meaning of the values are:
+
+@multitable @columnfractions .3 .7
+@item @strong{Value} @tab @strong{Meaning}.
+@item YES @tab The option is activated and usable.
+@item NO @tab @strong{MySQL} is not compiled with support for this option.
+@item DISABLED @tab The xxxx option is disabled because one started @code{mysqld} with @code{--skip-xxxx} or because one didn't start @code{mysqld} with all needed options to enable the option.  In this case the @code{hostname.err} file should contain a reason for why the option is disabled.
 @end multitable
 
 @code{safe_mysqld} will automaticly try to start any @code{mysqld} binary
@@ -31590,9 +31638,10 @@ run @code{configure} with the options you want and then install the
 new @code{mysqld} binary as @code{mysqld-max} in the same directory
 where your old @code{mysqld} binary is. @xref{safe_mysqld}.
 
-The @code{mysqld-max} RPM uses this @code{safe_mysqld} feature. It just
-installs the @code{mysqld-max} executable and @code{safe_mysqld} will
-automaticly use this when @code{mysqld} is restarted.
+The @code{mysqld-max} RPM uses the above mentioned @code{safe_mysqld}
+feature. It just installs the @code{mysqld-max} executable and
+@code{safe_mysqld} will automaticly use this executable when
+@code{safe_mysqld} is restarted.
 
 @cindex tools, safe_mysqld
 @cindex scripts
@@ -37469,12 +37518,15 @@ default port number and socket file pathname, and the @code{--prefix} value
 should specify an installation directory different than the one under which
 the existing @strong{MySQL} installation is located.
 
-You can check the socket and port used by any currently executing
-@strong{MySQL} server with this command:
+You can check the socket used by any currently executing @strong{MySQL} server
+with this command:
 
 @example
 shell> mysqladmin -h hostname --port=port_number variables
 @end example
+
+Note that if you specify ``@code{localhost}'' as a hostname, @code{mysqladmin}
+will default to using Unix sockets instead of TCP/IP.
 
 If you have a @strong{MySQL} server running on the port you used, you will
 get a list of some of the most important configurable variables in
@@ -37526,16 +37578,17 @@ can use one of the following methods:
 
 @itemize @bullet
 @item
-Start the client with @code{--host 'hostname' --port=port_numer} or
-@code{[--host localhost] --socket=file_name}.
+Start the client with @code{--host 'hostname' --port=port_number} to connect
+with TCP/IP, or @code{[--host localhost] --socket=file_name} to connect via
+a Unix socket.
 
 @item
-In your C or Perl programs, you can give the port and socket arguments
+In your C or Perl programs, you can give the port or socket arguments
 when connecting to the @strong{MySQL} server.
 
 @item
-If your are using the @strong{MySQL} perl DBD module you can read the options
-from the @strong{MySQL} option files. @xref{Option files}.
+If your are using the Perl @code{DBD::mysql} module you can read the options
+from the @strong{MySQL} option files.  @xref{Option files}.
 
 @example
 $dsn = "DBI:mysql:test;mysql_read_default_group=client;mysql_read_default_file=/usr/local/mysql/data/my.cnf"
@@ -37545,8 +37598,8 @@ $dbh = DBI->connect($dsn, $user, $password);
 @item
 @tindex MYSQL_UNIX_PORT environment variable
 @tindex MYSQL_TCP_PORT environment variable
-@tindex Environment variable, MYSQL_UNIX_PORT
-@tindex Environment variable, MYSQL_TCP_PORT
+@tindex environment variable, MYSQL_UNIX_PORT
+@tindex environment variable, MYSQL_TCP_PORT
 Set the @code{MYSQL_UNIX_PORT} and @code{MYSQL_TCP_PORT} environment variables
 to point to the Unix socket and TCP/IP port before you start your clients.
 If you normally use a specific socket or port, you should place commands
@@ -41788,7 +41841,7 @@ This is a relatively low traffic list, in comparison with
 * MySQL test suite::            MySQL test suite
 @end menu
 
-@node MySQL threads, MySQL test suite, , MySQL internals
+@node MySQL threads, MySQL test suite, MySQL internals, MySQL internals
 @section MySQL Threads
 
 The @strong{MySQL} server creates the following threads:
@@ -43844,6 +43897,7 @@ users uses this code as the rest of the code and because of this we are
 not yet 100% confident in this code.
 
 @menu
+* News-3.23.38::                
 * News-3.23.37::                Changes in release 3.23.37
 * News-3.23.36::                Changes in release 3.23.36
 * News-3.23.35::                Changes in release 3.23.35
@@ -43885,9 +43939,28 @@ not yet 100% confident in this code.
 * News-3.23.0::                 Changes in release 3.23.0
 @end menu
 
-@node News-3.23.37, News-3.23.36, News-3.23.x, News-3.23.x
+@node News-3.23.38, News-3.23.37, News-3.23.x, News-3.23.x
+@appendixsubsec Changes in release 3.23.38
+@itemize @bullet
+@item
+Lots of portability fixes for InnoDB.
+@item
+Changed optimizer so that queries like
+@code{SELECT * FROM table_name,table_name2 ... ORDER BY key_part1 LIMIT #}
+will use index on @code{key_part1} instead of @code{filesort}.
+@item
+Fixed bug when doing
+@code{LOCK TABLE to_table WRITE,...; INSERT INTO to_table... SELECT ...}
+when to_table was empty.
+@item
+Fixed bug with @code{LOCK TABLE} and BDB tables.
+@end itemize
+
+@node News-3.23.37, News-3.23.36, News-3.23.38, News-3.23.x
 @appendixsubsec Changes in release 3.23.37
 @itemize @bullet
+@item
+Fixed a bug when using @code{MATCH} in @code{HAVING} clause.
 @item
 Fixed a bug when using @code{HEAP} tables with @code{LIKE}.
 @item
@@ -43911,7 +43984,7 @@ with @code{SET SQL_SLAVE_SKIP_COUNTER=1; SLAVE START} after a manual sanity
 check/correction of data integrity
 @item
 Fixed bug that erroneously logged a drop of internal temporary table
- on thread termination to the binary log - bug affected replication
+on thread termination to the binary log - bug affected replication
 @item
 Fixed a bug in @code{REGEXP()} on 64-bit machines.
 @item

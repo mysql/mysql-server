@@ -335,11 +335,10 @@ int _mi_readinfo(register MI_INFO *info, int lock_type, int check_keybuffer)
 int _mi_writeinfo(register MI_INFO *info, uint operation)
 {
   int error,olderror;
-  MYISAM_SHARE *share;
+  MYISAM_SHARE *share=info->s;
   DBUG_ENTER("_mi_writeinfo");
 
   error=0;
-  share=info->s;
   if (share->r_locks == 0 && share->w_locks == 0)
   {
     olderror=my_errno;			/* Remember last error */
@@ -368,7 +367,7 @@ int _mi_writeinfo(register MI_INFO *info, uint operation)
   {
     share->changed= 1;			/* Mark keyfile changed */
   }
-    DBUG_RETURN(error);
+  DBUG_RETURN(error);
 } /* _mi_writeinfo */
 
 

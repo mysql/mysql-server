@@ -1068,6 +1068,51 @@ que_thr_stop_for_mysql(
 	mutex_exit(&kernel_mutex);
 }
 
+
+/**************************************************************************
+Moves a thread from another state to the QUE_THR_RUNNING state. Increments
+the n_active_thrs counters of the query graph and transaction if thr was
+not active. */
+void
+que_thr_move_to_run_state_for_mysql(
+/*================================*/
+	que_thr_t*	thr,	/* in: an query thread */
+	trx_t*		trx)	/* in: transaction */
+{
+	if (!thr->is_active) {
+
+		(thr->graph)->n_active_thrs++;
+
+		trx->n_active_thrs++;
+
+		thr->is_active = TRUE;
+
+		ut_ad((thr->graph)->n_active_thrs == 1);
+		ut_ad(trx->n_active_thrs == 1);
+	}
+	
+	thr->state = QUE_THR_RUNNING;
+}
+
+/**************************************************************************
+A patch for MySQL used to 'stop' a dummy query thread used in MySQL
+select, when there is no error or lock wait. */
+void
+que_thr_stop_for_mysql_no_error(
+/*============================*/
+	que_thr_t*	thr,	/* in: query thread */
+	trx_t*		trx)	/* in: transaction */
+{
+	ut_ad(thr->state == QUE_THR_RUNNING);
+		
+	thr->state = QUE_THR_COMPLETED;
+
+	thr->is_active = FALSE;
+	(thr->graph)->n_active_thrs--;
+
+	trx->n_active_thrs--;
+}
+
 /**************************************************************************
 Prints info of an SQL query graph node. */
 

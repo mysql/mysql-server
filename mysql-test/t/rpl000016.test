@@ -1,15 +1,16 @@
 connect (master,localhost,root,,test,0,mysql-master.sock);
 connect (slave,localhost,root,,test,0,mysql-slave.sock);
-source include/have_default_master.inc;
 system cat /dev/null > var/slave-data/master.info;
 system chmod 000 var/slave-data/master.info;
 connection slave;
 !slave start;
 system chmod 600 var/slave-data/master.info;
 !slave start;
-!change master to master_host='127.0.0.1',master_port=9306,master_user='root'; 
+!eval change master to master_host='127.0.0.1',master_port=$MASTER_MYPORT,
+ master_user='root'; 
 reset slave;
-!change master to master_host='127.0.0.1',master_port=9306,master_user='root'; 
+eval change master to master_host='127.0.0.1',master_port=$MASTER_MYPORT,
+ master_user='root'; 
 connection master;
 reset master;
 connection slave;
