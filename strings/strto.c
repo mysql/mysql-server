@@ -124,7 +124,7 @@ function (const char *nptr,char **endptr,int base)
   {
     if (*s == '0')
     {
-      if (my_toupper (system_charset_into, s[1]) == 'X')
+      if (my_toupper (system_charset_info, s[1]) == 'X')
       {
 	s += 2;
 	base = 16;
@@ -149,7 +149,7 @@ function (const char *nptr,char **endptr,int base)
     if (my_isdigit (system_charset_info, c))
       c -= '0';
     else if (my_isalpha (system_charset_info, c))
-      c = my_toupper (system_charset_into, c) - 'A' + 10;
+      c = my_toupper (system_charset_info, c) - 'A' + 10;
     else
       break;
     if (c >= base)
