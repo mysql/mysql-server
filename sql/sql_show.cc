@@ -78,11 +78,11 @@ mysqld_show_dbs(THD *thd,const char *wild)
   List_iterator_fast<char> it(files);
   while ((file_name=it++))
   {
-    if (!opt_safe_show_db || thd->master_access ||
+    if (thd->master_access & (DB_ACLS | SHOW_DB_ACL) ||
 	acl_get(thd->host, thd->ip, (char*) &thd->remote.sin_addr,
 		thd->priv_user, file_name) ||
 	(grant_option && !check_grant_db(thd, file_name)))
-      {
+    {
       thd->packet.length(0);
       net_store_data(&thd->packet, thd->convert_set, file_name);
       if (my_net_write(&thd->net, (char*) thd->packet.ptr(),

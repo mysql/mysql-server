@@ -117,9 +117,9 @@ fi
 if test ! -f $mdata/user.frm
 then
   c_u="$c_u CREATE TABLE user ("
-  c_u="$c_u   Host char(60) DEFAULT '' NOT NULL,"
-  c_u="$c_u   User char(16) DEFAULT '' NOT NULL,"
-  c_u="$c_u   Password char(16) DEFAULT '' NOT NULL,"
+  c_u="$c_u   Host char(60) binary DEFAULT '' NOT NULL,"
+  c_u="$c_u   User char(16) binary DEFAULT '' NOT NULL,"
+  c_u="$c_u   Password char(16) binary DEFAULT '' NOT NULL,"
   c_u="$c_u   Select_priv enum('N','Y') DEFAULT 'N' NOT NULL,"
   c_u="$c_u   Insert_priv enum('N','Y') DEFAULT 'N' NOT NULL,"
   c_u="$c_u   Update_priv enum('N','Y') DEFAULT 'N' NOT NULL,"
@@ -134,20 +134,29 @@ then
   c_u="$c_u   References_priv enum('N','Y') DEFAULT 'N' NOT NULL,"
   c_u="$c_u   Index_priv enum('N','Y') DEFAULT 'N' NOT NULL,"
   c_u="$c_u   Alter_priv enum('N','Y') DEFAULT 'N' NOT NULL,"
-  c_u="$c_u   ssl_type enum('NONE','ANY', 'X509', 'SPECIFIED') NOT NULL,"
-  c_u="$c_u   ssl_cipher char(60) NULL,"
-  c_u="$c_u   x509_issuer blob NULL,"
-  c_u="$c_u   x509_subject blob NULL,"
+  c_u="$c_u   Show_db_priv enum('N','Y') DEFAULT 'N' NOT NULL,"
+  c_u="$c_u   Super_priv enum('N','Y') DEFAULT 'N' NOT NULL,"
+  c_u="$c_u   Create_tmp_table_priv enum('N','Y') DEFAULT 'N' NOT NULL,"
+  c_u="$c_u   Lock_tables_priv enum('N','Y') DEFAULT 'N' NOT NULL,"
+  c_u="$c_u   Execute_priv enum('N','Y') DEFAULT 'N' NOT NULL,"
+  c_u="$c_u   Repl_slave_priv enum('N','Y') DEFAULT 'N' NOT NULL,"
+  c_u="$c_u   Repl_client_priv enum('N','Y') DEFAULT 'N' NOT NULL,"
+  c_u="$c_u   ssl_type enum('','ANY','X509', 'SPECIFIED') DEFAULT '' NOT NULL,"
+  c_u="$c_u   ssl_cipher BLOB NOT NULL,"
+  c_u="$c_u   x509_issuer BLOB NOT NULL,"
+  c_u="$c_u   x509_subject BLOB NOT NULL,"
+  c_u="$c_u   max_questions int(11) unsigned DEFAULT 0  NOT NULL,"
+  c_u="$c_u   max_updates int(11) unsigned DEFAULT 0  NOT NULL,"
+  c_u="$c_u   max_connections int(11) unsigned DEFAULT 0  NOT NULL,"
   c_u="$c_u   PRIMARY KEY Host (Host,User)"
   c_u="$c_u )"
   c_u="$c_u comment='Users and global privileges';"
 
-  i_u="INSERT INTO user VALUES ('localhost','root','','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','none',NULL,NULL,NULL);
-  INSERT INTO user VALUES ('$hostname','root','','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','none',NULL,NULL,NULL);
-  REPLACE INTO user VALUES ('127.0.0.1','root','','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','none',NULL,NULL,NULL);
-  
-  INSERT INTO user VALUES ('localhost','','','N','N','N','N','N','N','N','N','N','N','N','N','N','N','none',NULL,NULL,NULL);
-  INSERT INTO user VALUES ('$hostname','','','N','N','N','N','N','N','N','N','N','N','N','N','N','N','none',NULL,NULL,NULL);"
+  i_u="INSERT INTO user VALUES ('localhost','root','','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','','','','',0,0,0);
+  INSERT INTO user VALUES ('$hostname','root','','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','','','','',0,0,0);
+  REPLACE INTO user VALUES ('127.0.0.1','root','','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','','','','',0,0,0);
+  INSERT INTO user (host,user) values ('localhost','');
+  INSERT INTO user (host,user) values ('$hostname','');"
 fi
 
 if test ! -f $mdata/func.frm

@@ -36,7 +36,8 @@ $|=1;
 
 $tables_cols="Host, Db, User, Table_name, Grantor, Table_priv, Column_priv";
 $columns_cols="Host, Db, User, Table_name, Column_name, Column_priv";
-$tmp_table="/tmp/grant-$$.test";
+$tmp_table="/tmp/mysql-grant.test"; # Can't use $$ as we are logging result
+unlink($tmp_table);
 
 #
 # clear grant tables
@@ -74,6 +75,7 @@ user_connect(0);
 user_query("select * from mysql.user where user = '$opt_user'");
 user_query("select * from mysql.db where user = '$opt_user'");
 safe_query("grant select on *.* to $user,$user");
+safe_query("show grants for $user");
 
 # The following should fail
 user_query("insert into mysql.user (host,user) values ('error','$opt_user')",1);
@@ -384,7 +386,9 @@ safe_query("select $columns_cols from mysql.columns_priv where user = '$opt_user
 # Clear up privileges to make future tests easier
 
 safe_query("delete from user where user='$opt_user'");
+safe_query("delete from db where user='$opt_user'");
 safe_query("flush privileges");
+safe_query("show grants for $user",1);
 
 #
 # Test IDENTIFIED BY
@@ -394,7 +398,9 @@ safe_query("grant ALL PRIVILEGES on $opt_database.test to $user identified by 'd
 user_connect(0,"dummy");
 safe_query("grant SELECT on $opt_database.* to $user identified by ''");
 user_connect(0);
-safe_query("revoke SELECT on $opt_database.* from $user identified by ''");
+safe_query("revoke ALL PRIVILEGES on $opt_database.test from $user identified by ''");
+safe_query("revoke ALL PRIVILEGES on $opt_database.* from $user identified by ''");
+safe_query("show grants for $user");
 
 #
 # Test bug reported in SELECT INTO OUTFILE
@@ -407,7 +413,7 @@ safe_query("insert into $opt_database.test3 values (1)");
 user_connect(0);
 user_query("select * into outfile '$tmp_table' from $opt_database.test3");
 safe_query("revoke SELECT on $opt_database.test3 from $user");
-safe_query("revoke FILE from *.* from $user");
+safe_query("revoke FILE on *.* from $user");
 safe_query("drop table $opt_database.test3");
 
 #
@@ -415,24 +421,36 @@ safe_query("drop table $opt_database.test3");
 #
 
 safe_query("create table $opt_database.test3 (a int)");
+user_connect(1);
+safe_query("grant INSERT on $opt_database.test3 to $user");
 user_connect(0);
 user_query("select * into outfile '$tmp_table' from $opt_database.test3",1);
 safe_query("grant SELECT on $opt_database.test3 to $user");
 user_connect(0);
-user_query("LOCK TABLES $opt_database.test3",1);
-safe_query("grant INSERT,UPDATE,DELETE on $opt_database.test3 to $user");
+user_query("LOCK TABLES $opt_database.test3 READ",1);
+safe_query("grant LOCK TABLES on *.* to $user");
+safe_query("show grants for $user");
+safe_query("select * from mysql.user where user='$opt_user'");
 user_connect(0);
-user_query("LOCK TABLES $opt_database.test3");
-safe_query("revoke SELECT, INSERT,UPDATE,DELETE on $opt_database.test3 from $user");
-safe_query("grant SELECT,INSERT,UPDATE,DELETE on $opt_database.* to $user");
-user_connect(0);
-user_query("LOCK TABLES $opt_database.test3");
-safe_query("revoke SELECT, INSERT,UPDATE,DELETE on $opt_database.* from $user");
-safe_query("grant SELECT,INSERT,UPDATE,DELETE on *.* to $user");
-user_connect(0);
-user_query("LOCK TABLES $opt_database.test3");
+user_query("LOCK TABLES $opt_database.test3 READ");
 user_query("UNLOCK TABLES");
-safe_query("revoke SELECT, INSERT,UPDATE,DELETE on *.* from $user");
+safe_query("revoke SELECT,INSERT,UPDATE,DELETE on $opt_database.test3 from $user");
+user_connect(1);
+safe_query("revoke LOCK TABLES on *.* from $user");
+safe_query("drop table $opt_database.test3");
+
+#
+# test new privileges in 4.0.2
+#
+
+safe_query("show grants for $user");
+safe_query("grant all on *.* to $user WITH MAX_QUERIES_PER_HOUR 1 MAX_UPDATES_PER_HOUR 2 MAX_CONNECTIONS_PER_HOUR 3");
+safe_query("show grants for $user");
+safe_query("revoke LOCK TABLES on *.* from $user");
+safe_query("flush privileges");
+safe_query("show grants for $user");
+safe_query("revoke ALL PRIVILEGES on *.* from $user");
+safe_query("show grants for $user");
 
 #
 # Clean up things

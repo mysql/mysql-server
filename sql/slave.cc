@@ -388,8 +388,9 @@ int terminate_slave_thread(THD* thd, pthread_mutex_t* term_lock,
     }
   }
   DBUG_ASSERT(thd != 0);
-  /* is is criticate to test if the slave is running. Otherwise, we might
-     be referening freed memory trying to kick it
+  /*
+    Is is criticate to test if the slave is running. Otherwise, we might
+    be referening freed memory trying to kick it
   */
   THD_CHECK_SENTRY(thd);
   if (*slave_running)
@@ -398,22 +399,12 @@ int terminate_slave_thread(THD* thd, pthread_mutex_t* term_lock,
   }
   while (*slave_running)
   {
-    /* there is a small chance that slave thread might miss the first
-       alarm. To protect againts it, resend the signal until it reacts
+    /*
+      There is a small chance that slave thread might miss the first
+      alarm. To protect againts it, resend the signal until it reacts
     */
     struct timespec abstime;
-#ifdef HAVE_TIMESPEC_TS_SEC
-    abstime.ts_sec=time(NULL)+2;		
-    abstime.ts_nsec=0;
-#elif defined(__WIN__)
-    abstime.tv_sec=time((time_t*) 0)+2;
-    abstime.tv_nsec=0;
-#else
-    struct timeval tv;
-    gettimeofday(&tv,0);
-    abstime.tv_sec=tv.tv_sec+2;
-    abstime.tv_nsec=tv.tv_usec*1000;
-#endif
+    set_timespec(abstime,2);
     DBUG_ASSERT_LOCK(cond_lock);
     pthread_cond_timedwait(term_cond, cond_lock, &abstime);
     if (*slave_running)
@@ -1881,7 +1872,7 @@ is correct, restart the server with a higher value of max_allowed_packet",
 			  max_allowed_packet);
 	  goto err;
 	}
-	    
+
 	thd->proc_info = "Waiting to reconnect after a failed read";
 	mc_end_server(mysql);
 	if (retried_once)		// punish repeat offender with sleep

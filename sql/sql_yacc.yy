@@ -81,7 +81,6 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %token LAST_SYM
 %token NEXT_SYM
 %token PREV_SYM
-%token SQL_CALC_FOUND_ROWS
 
 %token	EQ
 %token	EQUAL_SYM
@@ -95,50 +94,54 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %token	SHIFT_RIGHT
 %token  SET_VAR
 
-%token	AVG_SYM
-%token	COUNT_SYM
-%token	MAX_SYM
-%token	MIN_SYM
-%token	SUM_SYM
-%token	STD_SYM
-%token  ABORT_SYM
+%token	ABORT_SYM
 %token	ADD
-%token	ALTER
 %token	AFTER_SYM
-%token  ANALYZE_SYM
-%token  BEGIN_SYM
+%token	ALTER
+%token	ANALYZE_SYM
+%token	AVG_SYM
+%token	BEGIN_SYM
+%token	BINLOG_SYM
 %token	CHANGE
-%token  COMMENT_SYM
-%token  COMMIT_SYM
+%token	CLIENT_SYM
+%token	COMMENT_SYM
+%token	COMMIT_SYM
+%token	COUNT_SYM
 %token	CREATE
 %token	CROSS
 %token	DELETE_SYM
 %token	DO_SYM
 %token	DROP
-%token	INSERT
+%token	EVENTS_SYM
+%token	EXECUTE_SYM
 %token	FLUSH_SYM
-%token	SELECT_SYM
-%token  MASTER_SYM
-%token	REPAIR
-%token  RESET_SYM
-%token  PURGE
-%token  SLAVE
-%token  IO_THREAD
-%token  SQL_THREAD
-%token  START_SYM
-%token  STOP_SYM
-%token	TRUNCATE_SYM
-%token  ROLLBACK_SYM
-%token	OPTIMIZE
-%token	SHOW
-%token	UPDATE_SYM
+%token	INSERT
+%token	IO_THREAD
 %token	KILL_SYM
 %token	LOAD
-%token	LOCK_SYM
 %token	LOCKS_SYM
+%token	LOCK_SYM
+%token	MASTER_SYM
+%token	MAX_SYM
+%token	MIN_SYM
+%token	OPTIMIZE
+%token	PURGE
+%token	REPAIR
+%token	REPLICATION
+%token	RESET_SYM
+%token	ROLLBACK_SYM
+%token	SELECT_SYM
+%token	SHOW
+%token	SLAVE
+%token	SQL_THREAD
+%token	START_SYM
+%token	STD_SYM
+%token	STOP_SYM
+%token	SUM_SYM
+%token	SUPER_SYM
+%token	TRUNCATE_SYM
 %token	UNLOCK_SYM
-%token  BINLOG_SYM
-%token  EVENTS_SYM
+%token	UPDATE_SYM
 
 %token	ACTION
 %token	AGGREGATE_SYM
@@ -149,7 +152,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %token	AUTO_INC
 %token	AUTOCOMMIT
 %token	AVG_ROW_LENGTH
-%token  BACKUP_SYM
+%token	BACKUP_SYM
 %token	BERKELEY_DB_SYM
 %token	BINARY
 %token	BIT_SYM
@@ -184,7 +187,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %token	ENABLE_SYM
 %token	ENCLOSED
 %token	ESCAPED
-%token  DIRECTORY_SYM
+%token	DIRECTORY_SYM
 %token	ESCAPE_SYM
 %token	EXISTS
 %token	EXTENDED_SYM
@@ -195,8 +198,8 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %token	FOREIGN
 %token	FROM
 %token	FULL
-%token  FULLTEXT_SYM
-%token  GLOBAL_SYM
+%token	FULLTEXT_SYM
+%token	GLOBAL_SYM
 %token	GRANT
 %token	GRANTS
 %token	GREATEST_SYM
@@ -215,7 +218,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %token	INNOBASE_SYM
 %token	INTO
 %token	IN_SYM
-%token  ISOLATION
+%token	ISOLATION
 %token	ISAM_SYM
 %token	ISSUER
 %token	JOIN_SYM
@@ -223,7 +226,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %token	KEY_SYM
 %token	LEADING
 %token	LEAST_SYM
-%token  LEVEL_SYM
+%token	LEVEL_SYM
 %token	LEX_HOSTNAME
 %token	LIKE
 %token	LINES
@@ -232,35 +235,35 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %token	LONG_NUM
 %token	LONG_SYM
 %token	LOW_PRIORITY
-%token  MASTER_HOST_SYM
-%token  MASTER_USER_SYM
-%token  MASTER_LOG_FILE_SYM
-%token  MASTER_LOG_POS_SYM
-%token  MASTER_LOG_SEQ_SYM
-%token  MASTER_PASSWORD_SYM
-%token  MASTER_PORT_SYM
-%token  MASTER_CONNECT_RETRY_SYM
-%token  MASTER_SERVER_ID_SYM
-%token  RELAY_LOG_FILE_SYM
-%token  RELAY_LOG_POS_SYM
+%token	MASTER_HOST_SYM
+%token	MASTER_USER_SYM
+%token	MASTER_LOG_FILE_SYM
+%token	MASTER_LOG_POS_SYM
+%token	MASTER_LOG_SEQ_SYM
+%token	MASTER_PASSWORD_SYM
+%token	MASTER_PORT_SYM
+%token	MASTER_CONNECT_RETRY_SYM
+%token	MASTER_SERVER_ID_SYM
+%token	RELAY_LOG_FILE_SYM
+%token	RELAY_LOG_POS_SYM
 %token	MATCH
 %token	MAX_ROWS
-%token  MAX_CONNECTIONS_PER_HOUR
-%token  MAX_QUERIES_PER_HOUR
-%token  MAX_UPDATES_PER_HOUR
+%token	MAX_CONNECTIONS_PER_HOUR
+%token	MAX_QUERIES_PER_HOUR
+%token	MAX_UPDATES_PER_HOUR
 %token	MEDIUM_SYM
 %token	MERGE_SYM
 %token	MIN_ROWS
 %token	MYISAM_SYM
 %token	NATIONAL_SYM
 %token	NATURAL
-%token  NEW_SYM
+%token	NEW_SYM
 %token	NCHAR_SYM
 %token	NOT
 %token	NO_SYM
 %token	NULL_SYM
 %token	NUM
-%token  OFF
+%token	OFF
 %token	ON
 %token	OPEN_SYM
 %token	OPTION
@@ -270,7 +273,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %token	ORDER_SYM
 %token	OUTER
 %token	OUTFILE
-%token  DUMPFILE
+%token	DUMPFILE
 %token	PACK_KEYS_SYM
 %token	PARTIAL
 %token	PRIMARY_SYM
@@ -291,8 +294,8 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %token	RENAME
 %token	REPEATABLE_SYM
 %token	REQUIRE_SYM
-%token  RESOURCES
-%token  RESTORE_SYM
+%token	RESOURCES
+%token	RESTORE_SYM
 %token	RESTRICT
 %token	REVOKE
 %token	ROWS_SYM
@@ -302,9 +305,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %token	SERIALIZABLE_SYM
 %token	SESSION_SYM
 %token	SHUTDOWN
-%token	SQL_CACHE_SYM
-%token	SQL_NO_CACHE_SYM
-%token  SSL_SYM
+%token	SSL_SYM
 %token	STARTING
 %token	STATUS_SYM
 %token	STRAIGHT_JOIN
@@ -325,7 +326,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %token	UDF_RETURNS_SYM
 %token	UDF_SONAME_SYM
 %token	UDF_SYM
-%token  UNCOMMITTED_SYM
+%token	UNCOMMITTED_SYM
 %token	UNION_SYM
 %token	UNIQUE_SYM
 %token	USAGE
@@ -337,13 +338,13 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %token	WHERE
 %token	WITH
 %token	WRITE_SYM
-%token  X509_SYM
-%token  COMPRESSED_SYM
+%token	X509_SYM
+%token	COMPRESSED_SYM
 
 %token	BIGINT
 %token	BLOB_SYM
 %token	CHAR_SYM
-%token  CHANGED
+%token	CHANGED
 %token	COALESCE
 %token	DATETIME
 %token	DATE_SYM
@@ -361,7 +362,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %token	MEDIUMTEXT
 %token	NUMERIC_SYM
 %token	PRECISION
-%token  QUICK
+%token	QUICK
 %token	REAL
 %token	SIGNED_SYM
 %token	SMALLINT
@@ -379,14 +380,14 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %token	VARYING
 %token	ZEROFILL
 
-%token  AGAINST
+%token	AGAINST
 %token	ATAN
 %token	BETWEEN_SYM
 %token	BIT_AND
 %token	BIT_OR
 %token	CASE_SYM
 %token	CONCAT
-%token  CONCAT_WS
+%token	CONCAT_WS
 %token	CURDATE
 %token	CURTIME
 %token	DATABASE
@@ -424,7 +425,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %token	MAKE_SET_SYM
 %token	MINUTE_SECOND_SYM
 %token	MINUTE_SYM
-%token  MODE_SYM
+%token	MODE_SYM
 %token	MODIFY_SYM
 %token	MONTH_SYM
 %token	NOW_SYM
@@ -451,29 +452,32 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %token	USER
 %token	WEEK_SYM
 %token	WHEN_SYM
-%token  WORK_SYM
+%token	WORK_SYM
 %token	YEAR_MONTH_SYM
 %token	YEAR_SYM
 %token	YEARWEEK
-%token  BENCHMARK_SYM
-%token  END
-%token  THEN_SYM
+%token	BENCHMARK_SYM
+%token	END
+%token	THEN_SYM
 
-%token	SQL_BIG_TABLES
+%token	SQL_AUTO_IS_NULL
+%token	SQL_BIG_RESULT
 %token	SQL_BIG_SELECTS
-%token	SQL_SELECT_LIMIT
-%token	SQL_MAX_JOIN_SIZE
+%token	SQL_BIG_TABLES
+%token	SQL_CACHE_SYM
+%token	SQL_CALC_FOUND_ROWS
 %token	SQL_LOG_BIN
 %token	SQL_LOG_OFF
 %token	SQL_LOG_UPDATE
 %token	SQL_LOW_PRIORITY_UPDATES
-%token	SQL_SMALL_RESULT
-%token	SQL_BIG_RESULT
-%token  SQL_BUFFER_RESULT
-%token	SQL_WARNINGS
-%token	SQL_AUTO_IS_NULL
-%token	SQL_SAFE_UPDATES
+%token	SQL_MAX_JOIN_SIZE
+%token	SQL_NO_CACHE_SYM
 %token	SQL_QUERY_CACHE_TYPE_SYM
+%token	SQL_SAFE_UPDATES
+%token	SQL_SELECT_LIMIT
+%token	SQL_SMALL_RESULT
+%token	SQL_WARNINGS
+%token  SQL_BUFFER_RESULT
 %token  SQL_QUOTE_SHOW_CREATE
 %token  SQL_SLAVE_SKIP_COUNTER
 
@@ -2990,6 +2994,7 @@ keyword:
 	| CHECKSUM_SYM		{}
 	| CHECK_SYM		{}
 	| CIPHER_SYM		{}
+	| CLIENT_SYM		{}
 	| CLOSE_SYM		{}
 	| COMMENT_SYM		{}
 	| COMMITTED_SYM		{}
@@ -3011,6 +3016,7 @@ keyword:
 	| ENUM			{}
 	| ESCAPE_SYM		{}
 	| EVENTS_SYM		{}
+	| EXECUTE_SYM		{}
 	| EXTENDED_SYM		{}
 	| FAST_SYM		{}
         | DISABLE_SYM           {}
@@ -3078,11 +3084,12 @@ keyword:
 	| RAID_CHUNKSIZE	{}
 	| RAID_STRIPED_SYM      {}
 	| RAID_TYPE		{}
-        | RELAY_LOG_FILE_SYM {}
-        | RELAY_LOG_POS_SYM {}
+        | RELAY_LOG_FILE_SYM	{}
+        | RELAY_LOG_POS_SYM	{}
 	| RELOAD		{}
 	| REPAIR		{}
 	| REPEATABLE_SYM	{}
+	| REPLICATION		{}
 	| RESET_SYM		{}
 	| RESOURCES		{}
 	| RESTORE_SYM		{}
@@ -3100,12 +3107,13 @@ keyword:
 	| SQL_CACHE_SYM		{}
 	| SQL_NO_CACHE_SYM	{}
 	| SQL_QUERY_CACHE_TYPE_SYM {}
-        | SQL_THREAD {}
+        | SQL_THREAD		{}
 	| START_SYM		{}
 	| STATUS_SYM		{}
 	| STOP_SYM		{}
 	| STRING_SYM		{}
 	| SUBJECT_SYM		{}
+	| SUPER_SYM		{}
 	| TEMPORARY		{}
 	| TEXT_SYM		{}
 	| TRANSACTION_SYM	{}
@@ -3318,7 +3326,7 @@ set_option:
 set_isolation:
 	GLOBAL_SYM tx_isolation
 	{
-	  if (check_process_priv())
+	  if (check_global_access(current_thd, SUPER_ACL))
 	    YYABORT;
 	  default_tx_isolation= $2;
 	  default_tx_isolation_name=tx_isolation_typelib.type_names[default_tx_isolation];
@@ -3461,76 +3469,79 @@ grant:
 
 grant_privileges:
 	grant_privilege_list {}
-	| ALL PRIVILEGES	{ Lex->grant = UINT_MAX;}
-	| ALL			{ Lex->grant = UINT_MAX;};
+	| ALL PRIVILEGES	{ Lex->grant = GLOBAL_ACLS;}
+	| ALL			{ Lex->grant = GLOBAL_ACLS;};
 
 grant_privilege_list:
 	grant_privilege
 	| grant_privilege_list ',' grant_privilege;
 
 grant_privilege:
-	SELECT_SYM
-	  { Lex->which_columns = SELECT_ACL;}
-	  opt_column_list
-	| INSERT
-	  { Lex->which_columns = INSERT_ACL; }
-	  opt_column_list
-	| UPDATE_SYM
-	  { Lex->which_columns = UPDATE_ACL; }
-	  opt_column_list
-	| DELETE_SYM { Lex->grant |= DELETE_ACL;}
-	| REFERENCES { Lex->which_columns = REFERENCES_ACL;} opt_column_list
-	| USAGE {}
+	SELECT_SYM 	{ Lex->which_columns = SELECT_ACL;} opt_column_list
+	| INSERT	{ Lex->which_columns = INSERT_ACL;} opt_column_list
+	| UPDATE_SYM	{ Lex->which_columns = UPDATE_ACL; } opt_column_list
+	| REFERENCES	{ Lex->which_columns = REFERENCES_ACL;} opt_column_list
+	| DELETE_SYM	{ Lex->grant |= DELETE_ACL;}
+	| USAGE		{}
 	| INDEX		{ Lex->grant |= INDEX_ACL;}
 	| ALTER		{ Lex->grant |= ALTER_ACL;}
 	| CREATE	{ Lex->grant |= CREATE_ACL;}
 	| DROP		{ Lex->grant |= DROP_ACL;}
+	| EXECUTE_SYM	{ Lex->grant |= EXECUTE_ACL;}
 	| RELOAD	{ Lex->grant |= RELOAD_ACL;}
 	| SHUTDOWN	{ Lex->grant |= SHUTDOWN_ACL;}
 	| PROCESS	{ Lex->grant |= PROCESS_ACL;}
 	| FILE_SYM	{ Lex->grant |= FILE_ACL;}
-	| GRANT OPTION  { Lex->grant |= GRANT_ACL;};
+	| GRANT OPTION  { Lex->grant |= GRANT_ACL;}
+	| SHOW DATABASES { Lex->grant |= SHOW_DB_ACL;}
+	| SUPER_SYM	{ Lex->grant |= SUPER_ACL;}
+	| CREATE TEMPORARY TABLES { Lex->grant |= CREATE_TMP_ACL;}
+	| LOCK_SYM TABLES   { Lex->grant |= LOCK_TABLES_ACL; }
+	| REPLICATION SLAVE  { Lex->grant |= REPL_SLAVE_ACL;}
+	| REPLICATION CLIENT_SYM { Lex->grant |= REPL_CLIENT_ACL;}
+	;
 
 require_list: require_list_element AND require_list
 | require_list_element ;
 
 require_list_element: SUBJECT_SYM TEXT_STRING
- {
-   LEX *lex=Lex;
-   if (lex->x509_subject)
-   {
-     net_printf(&lex->thd->net,ER_DUP_ARGUMENT, "SUBJECT");
-     YYABORT;
-   }
-   lex->x509_subject=$2.str;
- }
- | ISSUER_SYM TEXT_STRING
- {
-   LEX *lex=Lex;
-   if (lex->x509_issuer)
-   {
-     net_printf(&lex->thd->net,ER_DUP_ARGUMENT, "ISSUER");
-     YYABORT;
-   }
-   lex->x509_issuer=$2.str;
- }
- | CIPHER_SYM TEXT_STRING
- {
-   LEX *lex=Lex;
-   if (lex->ssl_cipher)
-   {
-     net_printf(&lex->thd->net,ER_DUP_ARGUMENT, "CIPHER");
-     YYABORT;
-   }
-   lex->ssl_cipher=$2.str;
- };
+	{
+	  LEX *lex=Lex;
+	  if (lex->x509_subject)
+	  {
+	    net_printf(&lex->thd->net,ER_DUP_ARGUMENT, "SUBJECT");
+	    YYABORT;
+	  }
+	  lex->x509_subject=$2.str;
+	}
+	| ISSUER_SYM TEXT_STRING
+	{
+	  LEX *lex=Lex;
+	  if (lex->x509_issuer)
+	  {
+	    net_printf(&lex->thd->net,ER_DUP_ARGUMENT, "ISSUER");
+	    YYABORT;
+	  }
+	  lex->x509_issuer=$2.str;
+	}
+	| CIPHER_SYM TEXT_STRING
+	{
+	  LEX *lex=Lex;
+	  if (lex->ssl_cipher)
+	  {
+	    net_printf(&lex->thd->net,ER_DUP_ARGUMENT, "CIPHER");
+	    YYABORT;
+	  }
+	  lex->ssl_cipher=$2.str;
+	}
+	;
  
 opt_table:
 	'*'
 	  {
 	    LEX *lex=Lex;
 	    lex->select->db=lex->thd->db;
-	    if (lex->grant == UINT_MAX)
+	    if (lex->grant == GLOBAL_ACLS)
 	      lex->grant = DB_ACLS & ~GRANT_ACL;
 	    else if (lex->columns.elements)
 	    {
@@ -3542,7 +3553,7 @@ opt_table:
 	  {
 	    LEX *lex=Lex;
 	    lex->select->db = $1.str;
-	    if (lex->grant == UINT_MAX)
+	    if (lex->grant == GLOBAL_ACLS)
 	      lex->grant = DB_ACLS & ~GRANT_ACL;
 	    else if (lex->columns.elements)
 	    {
@@ -3554,8 +3565,8 @@ opt_table:
 	  {
 	    LEX *lex=Lex;
 	    lex->select->db = NULL;
-	    if (lex->grant == UINT_MAX)
-	      lex->grant = GLOBAL_ACLS & ~GRANT_ACL;
+	    if (lex->grant == GLOBAL_ACLS)
+	      lex->grant= GLOBAL_ACLS & ~GRANT_ACL;
 	    else if (lex->columns.elements)
 	    {
 	      send_error(&lex->thd->net,ER_ILLEGAL_GRANT_FOR_TABLE);
@@ -3567,7 +3578,7 @@ opt_table:
 	    LEX *lex=Lex;
 	    if (!add_table_to_list($1,NULL,0))
 	      YYABORT;
-	    if (lex->grant == UINT_MAX)
+	    if (lex->grant == GLOBAL_ACLS)
 	      lex->grant =  TABLE_ACLS & ~GRANT_ACL;
 	  };
 

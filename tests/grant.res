@@ -19,10 +19,13 @@ Access denied for user: 'grant_user@localhost' (Using password: NO)
 set password FOR grant_user=''
 Connecting grant_user
 select * from mysql.user where user = 'grant_user'
-localhost	grant_user		Y	N	N	N	N	N	N	N	N	N	N	N	N	N	NONE			
+localhost	grant_user		Y	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N					0	0	0
 
 select * from mysql.db where user = 'grant_user'
 grant select on *.* to grant_user@localhost,grant_user@localhost
+show grants for grant_user@localhost
+GRANT SELECT ON *.* TO 'grant_user'@'localhost'
+
 insert into mysql.user (host,user) values ('error','grant_user')
 Error in execute: Access denied for user: 'grant_user@localhost' to database 'mysql'
 update mysql.user set host='error' WHERE user='grant_user'
@@ -93,7 +96,7 @@ delete from user where user='grant_user'
 flush privileges
 grant select on grant_test.* to grant_user@localhost
 select * from mysql.user where user = 'grant_user'
-localhost	grant_user		N	N	N	N	N	N	N	N	N	N	N	N	N	N	NONE			
+localhost	grant_user		N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N					0	0	0
 
 select * from mysql.db where user = 'grant_user'
 localhost	grant_test	grant_user	Y	N	N	N	N	N	N	N	N	N
@@ -152,7 +155,7 @@ insert into mysql.user (host,user) values ('error','grant_user',0)
 Error in execute: Access denied for user: 'grant_user@localhost' to database 'mysql'
 revoke ALL PRIVILEGES on grant_test.* from grant_user@localhost
 select * from mysql.user where user = 'grant_user'
-localhost	grant_user		N	N	N	N	N	N	N	N	N	N	N	N	N	N	NONE			
+localhost	grant_user		N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N					0	0	0
 
 select * from mysql.db where user = 'grant_user'
 Connecting grant_user
@@ -432,18 +435,66 @@ localhost	grant_test	grant_user	N	Y	N	N	N	N	N	N	N	N
 select Host, Db, User, Table_name, Grantor, Table_priv, Column_priv from mysql.tables_priv where user = 'grant_user'
 select Host, Db, User, Table_name, Column_name, Column_priv from mysql.columns_priv where user = 'grant_user'
 delete from user where user='grant_user'
+delete from db where user='grant_user'
 flush privileges
+show grants for grant_user@localhost
+Error in execute: There is no such grant defined for user 'grant_user' on host 'localhost'
 grant ALL PRIVILEGES on grant_test.test to grant_user@localhost identified by 'dummy',  grant_user@127.0.0.1 identified by 'dummy2'
 Connecting grant_user
 grant SELECT on grant_test.* to grant_user@localhost identified by ''
 Connecting grant_user
-revoke SELECT on grant_test.* from grant_user@localhost identified by ''
+revoke ALL PRIVILEGES on grant_test.test from grant_user@localhost identified by ''
+revoke ALL PRIVILEGES on grant_test.* from grant_user@localhost identified by ''
+show grants for grant_user@localhost
 create table grant_test.test3 (a int)
 grant SELECT on grant_test.test3 to grant_user@localhost
 grant FILE on *.* to grant_user@localhost
 insert into grant_test.test3 values (1)
 Connecting grant_user
-select * into outfile '/tmp/grant-11047.test' from grant_test.test3
+select * into outfile '/tmp/mysql-grant.test' from grant_test.test3
+revoke SELECT on grant_test.test3 from grant_user@localhost
+revoke FILE on *.* from grant_user@localhost
+drop table grant_test.test3
+create table grant_test.test3 (a int)
+Connecting grant_user
+Access denied for user: 'grant_user@localhost' to database 'grant_test'
+grant INSERT on grant_test.test3 to grant_user@localhost
+Connecting grant_user
+select * into outfile '/tmp/mysql-grant.test' from grant_test.test3
+Error in execute: Access denied for user: 'grant_user@localhost' (Using password: NO)
+grant SELECT on grant_test.test3 to grant_user@localhost
+Connecting grant_user
+LOCK TABLES grant_test.test3 READ
+Error in execute: Access denied for user: 'grant_user@localhost' (Using password: NO)
+grant LOCK TABLES on *.* to grant_user@localhost
+show grants for grant_user@localhost
+GRANT LOCK TABLES ON *.* TO 'grant_user'@'localhost'
+GRANT SELECT, INSERT ON grant_test.test3 TO 'grant_user'@'localhost'
+
+select * from mysql.user where user='grant_user'
+127.0.0.1	grant_user	7f70e8b858ee6782	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N					0	0	0
+localhost	grant_user		N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	Y	N	N	N					0	0	0
+
+Connecting grant_user
+LOCK TABLES grant_test.test3 READ
+UNLOCK TABLES
+revoke SELECT,INSERT,UPDATE,DELETE on grant_test.test3 from grant_user@localhost
+Connecting grant_user
+Access denied for user: 'grant_user@localhost' to database 'grant_test'
+revoke LOCK TABLES on *.* from grant_user@localhost
+drop table grant_test.test3
+show grants for grant_user@localhost
+grant all on *.* to grant_user@localhost WITH MAX_QUERIES_PER_HOUR 1 MAX_UPDATES_PER_HOUR 2 MAX_CONNECTIONS_PER_HOUR 3
+show grants for grant_user@localhost
+GRANT ALL PRIVILEGES ON *.* TO 'grant_user'@'localhost' WITH MAX_QUERIES_PER_HOUR 1 MAX_UPDATES_PER_HOUR 2 MAX_CONNECTIONS_PER_HOUR 3
+
+revoke LOCK TABLES on *.* from grant_user@localhost
+flush privileges
+show grants for grant_user@localhost
+GRANT SELECT, INSERT, UPDATE, DELETE, CREATE, DROP, RELOAD, SHUTDOWN, PROCESS, FILE, REFERENCES, INDEX, ALTER, SHOW DATABASES, SUPER, CREATE TEMPORARY TABLES, EXECUTE, REPLICATION SLAVE, REPLICATION CLIENT ON *.* TO 'grant_user'@'localhost' WITH MAX_QUERIES_PER_HOUR 1 MAX_UPDATES_PER_HOUR 2 MAX_CONNECTIONS_PER_HOUR 3
+
+revoke ALL PRIVILEGES on *.* from grant_user@localhost
+show grants for grant_user@localhost
 drop database grant_test
 delete from user where user='grant_user'
 delete from db where user='grant_user'

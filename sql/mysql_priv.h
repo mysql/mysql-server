@@ -82,7 +82,7 @@ char* query_table_status(THD *thd,const char *db,const char *table_name);
 #define TEMP_POOL_SIZE          128
 /*
   The following parameters is to decide when to use an extra cache to
-   optimise seeks when reading a big table in sorted order
+  optimise seeks when reading a big table in sorted order
 */
 #define MIN_FILE_LENGTH_TO_USE_ROW_CACHE (16L*1024*1024)
 #define MIN_ROWS_TO_USE_TABLE_CACHE	 100
@@ -321,11 +321,11 @@ void table_cache_free(void);
 uint cached_tables(void);
 void kill_mysql(void);
 void close_connection(NET *net,uint errcode=0,bool lock=1);
-bool check_access(THD *thd,uint access,const char *db=0,uint *save_priv=0,
+bool check_access(THD *thd, ulong access, const char *db=0, ulong *save_priv=0,
 		  bool no_grant=0, bool no_errors=0);
-bool check_table_access(THD *thd,uint want_access, TABLE_LIST *tables,
+bool check_table_access(THD *thd, ulong want_access, TABLE_LIST *tables,
 			bool no_errors=0);
-bool check_process_priv(THD *thd=0);
+bool check_global_access(THD *thd, ulong want_access);
 
 int mysql_backup_table(THD* thd, TABLE_LIST* table_list);
 int mysql_restore_table(THD* thd, TABLE_LIST* table_list);

@@ -24,7 +24,6 @@
 #include "sql_repl.h"
 #include "repl_failsafe.h"
 #include <m_ctype.h>
-#include <thr_alarm.h>
 #include <myisam.h>
 #include <my_dir.h>
 #include <assert.h>
@@ -40,11 +39,11 @@
   Maybe it is better to accept flags other than CLIENT_SSL from the
   second packet?
 */
-#define  SSL_HANDSHAKE_SIZE      2
-#define  NORMAL_HANDSHAKE_SIZE   6
-#define  MIN_HANDSHAKE_SIZE      2
+#define SSL_HANDSHAKE_SIZE      2
+#define NORMAL_HANDSHAKE_SIZE   6
+#define MIN_HANDSHAKE_SIZE      2
 #else
-#define  MIN_HANDSHAKE_SIZE      6
+#define MIN_HANDSHAKE_SIZE      6
 #endif /* HAVE_OPENSSL */
 #define SCRAMBLE_LENGTH 8
 
@@ -225,7 +224,7 @@ static bool check_user(THD *thd,enum_server_command command, const char *user,
   {
     VOID(pthread_mutex_lock(&LOCK_thread_count));
     bool tmp=(thread_count - delayed_insert_threads >= max_connections &&
-	      !(thd->master_access & PROCESS_ACL));
+	      !(thd->master_access & SUPER_ACL));
     VOID(pthread_mutex_unlock(&LOCK_thread_count));
     if (tmp)
     {						// Too many connections
@@ -1076,7 +1075,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     {
       thread_safe_increment(com_other,&LOCK_thread_count);
       slow_command = TRUE;
-      if (check_access(thd, FILE_ACL, any_db))
+      if (check_global_access(thd, REPL_SLAVE_ACL))
 	break;
       mysql_log.write(thd,command, 0);
 
@@ -1101,7 +1100,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     {
       thread_safe_increment(com_stat[SQLCOM_FLUSH],&LOCK_thread_count);
       ulong options= (ulong) (uchar) packet[0];
-      if (check_access(thd,RELOAD_ACL,any_db))
+      if (check_global_access(thd,RELOAD_ACL))
 	break;
       mysql_log.write(thd,command,NullS);
       if (reload_acl_and_cache(thd, options, (TABLE_LIST*) 0))
@@ -1112,7 +1111,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     }
   case COM_SHUTDOWN:
     thread_safe_increment(com_other,&LOCK_thread_count);
-    if (check_access(thd,SHUTDOWN_ACL,any_db))
+    if (check_global_access(thd,SHUTDOWN_ACL))
       break; /* purecov: inspected */
     DBUG_PRINT("quit",("Got shutdown command"));
     mysql_log.write(thd,command,NullS);
@@ -1158,7 +1157,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     break;
   case COM_PROCESS_INFO:
     thread_safe_increment(com_stat[SQLCOM_SHOW_PROCESSLIST],&LOCK_thread_count);
-    if (!thd->priv_user[0] && check_process_priv(thd))
+    if (!thd->priv_user[0] && check_global_access(thd,PROCESS_ACL))
       break;
     mysql_log.write(thd,command,NullS);
     mysqld_list_processes(thd,thd->master_access & PROCESS_ACL ? NullS :
@@ -1173,7 +1172,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
   }
   case COM_DEBUG:
     thread_safe_increment(com_other,&LOCK_thread_count);
-    if (check_process_priv(thd))
+    if (check_global_access(thd, SUPER_ACL))
       break;					/* purecov: inspected */
     mysql_print_status(thd);
     mysql_log.write(thd,command,NullS);
@@ -1360,28 +1359,28 @@ mysql_execute_command(void)
 
   case SQLCOM_PURGE:
   {
-    if (check_process_priv(thd))
+    if (check_global_access(thd, SUPER_ACL))
       goto error;
     res = purge_master_logs(thd, lex->to_log);
     break;
   }
   case SQLCOM_SHOW_NEW_MASTER:
   {
-    if (check_access(thd, FILE_ACL, any_db))
+    if (check_global_access(thd, REPL_SLAVE_ACL))
       goto error;
     res = show_new_master(thd);
     break;
   }
   case SQLCOM_SHOW_SLAVE_HOSTS:
   {
-    if (check_access(thd, FILE_ACL, any_db))
+    if (check_global_access(thd, REPL_SLAVE_ACL))
       goto error;
     res = show_slave_hosts(thd);
     break;
   }
   case SQLCOM_SHOW_BINLOG_EVENTS:
   {
-    if (check_access(thd, FILE_ACL, any_db))
+    if (check_global_access(thd, REPL_SLAVE_ACL))
       goto error;
     res = show_binlog_events(thd);
     break;
@@ -1390,7 +1389,7 @@ mysql_execute_command(void)
   {
     if (check_db_used(thd,tables) ||
 	check_table_access(thd,SELECT_ACL, tables) ||
-	check_access(thd, FILE_ACL, any_db))
+	check_global_access(thd, FILE_ACL))
       goto error; /* purecov: inspected */
     res = mysql_backup_table(thd, tables);
 
@@ -1399,15 +1398,15 @@ mysql_execute_command(void)
   case SQLCOM_RESTORE_TABLE:
   {
     if (check_db_used(thd,tables) ||
-	check_table_access(thd,INSERT_ACL, tables) ||
-	check_access(thd, FILE_ACL, any_db))
+	check_table_access(thd, INSERT_ACL, tables) ||
+	check_global_access(thd, FILE_ACL))
       goto error; /* purecov: inspected */
     res = mysql_restore_table(thd, tables);
     break;
   }
   case SQLCOM_CHANGE_MASTER:
   {
-    if (check_access(thd, PROCESS_ACL, any_db))
+    if (check_global_access(thd, SUPER_ACL))
       goto error;
     LOCK_ACTIVE_MI;
     res = change_master(thd,active_mi);
@@ -1416,7 +1415,7 @@ mysql_execute_command(void)
   }
   case SQLCOM_SHOW_SLAVE_STAT:
   {
-    if (check_process_priv(thd))
+    if (check_global_access(thd, SUPER_ACL))
       goto error;
     LOCK_ACTIVE_MI;
     res = show_master_info(thd,active_mi);
@@ -1425,14 +1424,14 @@ mysql_execute_command(void)
   }
   case SQLCOM_SHOW_MASTER_STAT:
   {
-    if (check_process_priv(thd))
+    if (check_global_access(thd, SUPER_ACL))
       goto error;
     res = show_binlog_info(thd);
     break;
   }
     
   case SQLCOM_LOAD_MASTER_DATA: // sync with master
-    if (check_process_priv(thd))
+    if (check_global_access(thd, SUPER_ACL))
       goto error;
     res = load_master_data(thd);
     break;
@@ -1469,9 +1468,12 @@ mysql_execute_command(void)
     break;
   }
   case SQLCOM_CREATE_TABLE:
+  {
+    ulong want_priv= ((lex->create_info.options & HA_LEX_CREATE_TMP_TABLE) ?
+		      CREATE_TMP_ACL : CREATE_ACL);
     if (!tables->db)
       tables->db=thd->db;
-    if (check_access(thd,CREATE_ACL,tables->db,&tables->grant.privilege) ||
+    if (check_access(thd,want_priv,tables->db,&tables->grant.privilege) ||
 	check_merge_table_access(thd, tables->db,
 				 (TABLE_LIST *)
 				 lex->create_info.merge_list.first))
@@ -1553,6 +1555,7 @@ mysql_execute_command(void)
 	send_ok(&thd->net);
     }
     break;
+  }
   case SQLCOM_CREATE_INDEX:
     if (!tables->db)
       tables->db=thd->db;
@@ -1586,7 +1589,7 @@ mysql_execute_command(void)
     break;
 #else
     {
-      uint priv=0;
+      ulong priv=0;
       if (lex->name && strlen(lex->name) > NAME_LEN)
       {
 	net_printf(&thd->net,ER_WRONG_TABLE_NAME,lex->name);
@@ -1676,7 +1679,7 @@ mysql_execute_command(void)
     DBUG_VOID_RETURN;
 #else
     {
-      if (check_process_priv(thd))
+      if (check_global_access(thd, SUPER_ACL))
 	goto error;
       res = show_binlogs(thd);
       break;
@@ -1778,25 +1781,36 @@ mysql_execute_command(void)
       multi_update  *result;
       uint table_count;
       TABLE_LIST *auxi;
+      const char *msg=0;
+
       lex->sql_command=SQLCOM_MULTI_UPDATE;
       for (auxi=(TABLE_LIST*) tables, table_count=0 ; auxi ; auxi=auxi->next)
       {
 	table_count++;
 	auxi->lock_type=TL_WRITE;
       }
-      if (select_lex->order_list.elements || (select_lex->select_limit && select_lex->select_limit < INT_MAX))
+      if (select_lex->order_list.elements)
+	msg="ORDER BY";
+      else if (select_lex->select_limit && select_lex->select_limit !=
+	       HA_POS_ERROR)
+	msg="LIMIT";
+
+      if (msg)
       {
-	send_error(&thd->net,ER_NOT_ALLOWED_COMMAND); /// will have to come up with something better eventually
-	  DBUG_VOID_RETURN;
+	net_printf(&thd->net, ER_WRONG_USAGE, "UPDATE", msg);
+	res= 1;
+	break;
       }
       tables->grant.want_privilege=(SELECT_ACL & ~tables->grant.privilege);
       if ((res=open_and_lock_tables(thd,tables)))
 	break;
       thd->select_limit=HA_POS_ERROR;
       if (!setup_fields(thd,tables,select_lex->item_list,1,0,0) && 
-	  !setup_fields(thd,tables,lex->value_list,0,0,0) &&  ! thd->fatal_error &&
-	  (result=new multi_update(thd,tables,select_lex->item_list,lex->duplicates,
-				   lex->lock_option, table_count)))
+	  !setup_fields(thd,tables,lex->value_list,0,0,0) &&
+	  ! thd->fatal_error &&
+	  (result=new multi_update(thd,tables,select_lex->item_list,
+				   lex->duplicates, lex->lock_option,
+				   table_count)))
       {
 	List <Item> total_list;
 	List_iterator <Item> field_list(select_lex->item_list);
@@ -1846,11 +1860,13 @@ mysql_execute_command(void)
   case SQLCOM_INSERT_SELECT:
   {
 
-    // Check that we have modify privileges for the first table and
-    // select privileges for the rest
+    /*
+      Check that we have modify privileges for the first table and
+      select privileges for the rest
+    */
     {
-      uint privilege= (lex->sql_command == SQLCOM_INSERT_SELECT ?
-		       INSERT_ACL : INSERT_ACL | UPDATE_ACL | DELETE_ACL);
+      ulong privilege= (lex->sql_command == SQLCOM_INSERT_SELECT ?
+			INSERT_ACL : INSERT_ACL | UPDATE_ACL | DELETE_ACL);
       TABLE_LIST *save_next=tables->next;
       tables->next=0;
       if (check_access(thd, privilege,
@@ -2015,13 +2031,13 @@ mysql_execute_command(void)
     DBUG_VOID_RETURN;
 #else
     if ((specialflag & SPECIAL_SKIP_SHOW_DB) &&
-	check_process_priv(thd))
+	check_global_access(thd, SHOW_DB_ACL))
       goto error;
     res= mysqld_show_dbs(thd, (lex->wild ? lex->wild->ptr() : NullS));
     break;
 #endif
   case SQLCOM_SHOW_PROCESSLIST:
-    if (!thd->priv_user[0] && check_process_priv(thd))
+    if (!thd->priv_user[0] && check_global_access(thd,PROCESS_ACL))
       break;
     mysqld_list_processes(thd,thd->master_access & PROCESS_ACL ? NullS :
 			  thd->priv_user,lex->verbose);
@@ -2034,17 +2050,10 @@ mysql_execute_command(void)
 		     init_vars);
     break;
   case SQLCOM_SHOW_LOGS:
-#ifdef DONT_ALLOW_SHOW_COMMANDS
-    send_error(&thd->net,ER_NOT_ALLOWED_COMMAND);	/* purecov: inspected */
-    DBUG_VOID_RETURN;
-#else
-    {
-      if (grant_option && check_access(thd, FILE_ACL, any_db))
-	goto error;
-      res= mysqld_show_logs(thd);
-      break;
-    }
-#endif
+  {
+    res= mysqld_show_logs(thd);
+    break;
+  }
   case SQLCOM_SHOW_TABLES:
     /* FALL THROUGH */
 #ifdef DONT_ALLOW_SHOW_COMMANDS
@@ -2216,8 +2225,7 @@ mysql_execute_command(void)
     }
     if (check_db_used(thd,tables) || end_active_trans(thd))
       goto error;
-    if (check_table_access(thd, SELECT_ACL | INSERT_ACL | UPDATE_ACL |
-			   DELETE_ACL, tables))
+    if (check_table_access(thd, LOCK_TABLES_ACL | SELECT_ACL, tables))
       goto error;
     thd->in_lock_tables=1;
     thd->options|= OPTION_TABLE_LOCK;
@@ -2289,8 +2297,10 @@ mysql_execute_command(void)
 		     tables ? 0 : 1))
       goto error;
 
-    /* Check that the user isn't trying to change a password for another
-       user if he doesn't have UPDATE privilege to the MySQL database */
+    /*
+      Check that the user isn't trying to change a password for another
+      user if he doesn't have UPDATE privilege to the MySQL database
+    */
 
     if (thd->user)				// If not replication
     {
@@ -2359,7 +2369,7 @@ mysql_execute_command(void)
   }
   case SQLCOM_FLUSH:
   case SQLCOM_RESET:
-    if (check_access(thd,RELOAD_ACL,any_db) || check_db_used(thd, tables))
+    if (check_global_access(thd,RELOAD_ACL) || check_db_used(thd, tables))
       goto error;
     if (reload_acl_and_cache(thd, lex->type, tables))
       send_error(&thd->net,0);
@@ -2461,20 +2471,23 @@ error:
 
 
 /****************************************************************************
-** Get the user (global) and database privileges for all used tables
-** Returns true (error) if we can't get the privileges and we don't use
-** table/column grants.
-** The idea of EXTRA_ACL is that one will be granted access to the table if
-** one has the asked privilege on any column combination of the table; For
-** example to be able to check a table one needs to have SELECT privilege on
-** any column of the table.
+  Get the user (global) and database privileges for all used tables
+  Returns true (error) if we can't get the privileges and we don't use
+  table/column grants.
+  The idea of EXTRA_ACL is that one will be granted access to the table if
+  one has the asked privilege on any column combination of the table; For
+  example to be able to check a table one needs to have SELECT privilege on
+  any column of the table.
 ****************************************************************************/
 
 bool
-check_access(THD *thd,uint want_access,const char *db, uint *save_priv,
+check_access(THD *thd, ulong want_access, const char *db, ulong *save_priv,
 	     bool dont_check_global_grants, bool no_errors)
 {
-  uint db_access,dummy;
+  DBUG_ENTER("check_access");
+  DBUG_PRINT("enter",("want_access: %lu  master_access: %lu", want_access,
+		      thd->master_access));
+  ulong db_access,dummy;
   if (save_priv)
     *save_priv=0;
   else
@@ -2484,13 +2497,13 @@ check_access(THD *thd,uint want_access,const char *db, uint *save_priv,
   {
     if (!no_errors)
       send_error(&thd->net,ER_NO_DB_ERROR);	/* purecov: tested */
-    return TRUE;				/* purecov: tested */
+    DBUG_RETURN(TRUE);				/* purecov: tested */
   }
 
   if ((thd->master_access & want_access) == want_access)
   {
     *save_priv=thd->master_access;
-    return FALSE;
+    DBUG_RETURN(FALSE);
   }
   if (((want_access & ~thd->master_access) & ~(DB_ACLS | EXTRA_ACL)) ||
       ! db && dont_check_global_grants)
@@ -2500,11 +2513,11 @@ check_access(THD *thd,uint want_access,const char *db, uint *save_priv,
 		 thd->priv_user,
 		 thd->host_or_ip,
 		 thd->password ? ER(ER_YES) : ER(ER_NO));/* purecov: tested */
-    return TRUE;				/* purecov: tested */
+    DBUG_RETURN(TRUE);				/* purecov: tested */
   }
 
   if (db == any_db)
-    return FALSE;				// Allow select on anything
+    DBUG_RETURN(FALSE);				// Allow select on anything
 
   if (db && (!thd->db || strcmp(db,thd->db)))
     db_access=acl_get(thd->host, thd->ip, (char*) &thd->remote.sin_addr,
@@ -2519,32 +2532,41 @@ check_access(THD *thd,uint want_access,const char *db, uint *save_priv,
   if (db_access == want_access ||
       ((grant_option && !dont_check_global_grants) &&
        !(want_access & ~TABLE_ACLS)))
-    return FALSE;				/* Ok */
+    DBUG_RETURN(FALSE);				/* Ok */
   if (!no_errors)
     net_printf(&thd->net,ER_DBACCESS_DENIED_ERROR,
 	       thd->priv_user,
 	       thd->host_or_ip,
 	       db ? db : thd->db ? thd->db : "unknown"); /* purecov: tested */
-  return TRUE;					/* purecov: tested */
+  DBUG_RETURN(TRUE);				/* purecov: tested */
 }
 
 
-bool check_process_priv(THD *thd)
+/* check for global access and give descriptive error message if it fails */
+
+bool check_global_access(THD *thd, ulong want_access)
 {
-  return (check_access(thd ? thd : current_thd,PROCESS_ACL,any_db));
+  char command[128];
+  if ((thd->master_access & want_access) == want_access)
+    return 0;
+  get_privilege_desc(command, sizeof(command), want_access);
+  net_printf(&thd->net,ER_SPECIFIC_ACCESS_DENIED_ERROR,
+	     command);
+  return 1;
 }
 
 
 /*
-** Check the privilege for all used tables.  Table privileges are cached
-** in the table list for GRANT checking
+  Check the privilege for all used tables.  Table privileges are cached
+  in the table list for GRANT checking
 */
 
 bool
-check_table_access(THD *thd,uint want_access,TABLE_LIST *tables,
+check_table_access(THD *thd, ulong want_access,TABLE_LIST *tables,
 		   bool no_errors)
 {
-  uint found=0,found_access=0;
+  uint found=0;
+  ulong found_access=0;
   TABLE_LIST *org_tables=tables;
   for (; tables ; tables=tables->next)
   {
@@ -3382,7 +3404,7 @@ void kill_one_thread(THD *thd, ulong id)
   {
     if (tmp->thread_id == id)
     {
-      if ((thd->master_access & PROCESS_ACL) ||
+      if ((thd->master_access & SUPER_ACL) ||
 	  !strcmp(thd->user,tmp->user))
       {
 	tmp->awake(1 /*prepare to die*/);

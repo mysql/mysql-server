@@ -24,7 +24,6 @@
 #include "mini_client.h"
 #include "log_event.h"
 #include <mysql.h>
-#include <thr_alarm.h>
 
 #define SLAVE_LIST_CHUNK 128
 #define SLAVE_ERRMSG_SIZE (FN_REFLEN+64)
@@ -150,7 +149,7 @@ int register_slave(THD* thd, uchar* packet, uint packet_length)
   int res = 1;
   uchar* p = packet, *p_end = packet + packet_length;
 
-  if (check_access(thd, FILE_ACL, any_db))
+  if (check_access(thd, REPL_SLAVE_ACL, any_db))
     return 1;
 
   if (!(si = (SLAVE_INFO*)my_malloc(sizeof(SLAVE_INFO), MYF(MY_WME))))

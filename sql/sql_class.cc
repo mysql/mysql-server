@@ -244,26 +244,30 @@ void THD::awake(bool prepare_to_die)
   close_active_vio();
 #endif    
   if (mysys_var)
+  {
+    pthread_mutex_lock(&mysys_var->mutex);
+    if (!system_thread)		// Don't abort locks
+      mysys_var->abort=1;
+    /*
+      This broadcast could be up in the air if the victim thread
+      exits the cond in the time between read and broadcast, but that is
+      ok since all we want to do is to make the victim thread get out
+      of waiting on current_cond.
+    */
+    if (mysys_var->current_cond)
     {
-      pthread_mutex_lock(&mysys_var->mutex);
-      if (!system_thread)		// Don't abort locks
-	mysys_var->abort=1;
-      // this broadcast could be up in the air if the victim thread
-      // exits the cond in the time between read and broadcast, but that is
-      // ok since all we want to do is to make the victim thread get out
-      // of waiting on  current_cond
-      if (mysys_var->current_cond)
-      {
-	pthread_mutex_lock(mysys_var->current_mutex);
-	pthread_cond_broadcast(mysys_var->current_cond);
-	pthread_mutex_unlock(mysys_var->current_mutex);
-      }
-      pthread_mutex_unlock(&mysys_var->mutex);
+      pthread_mutex_lock(mysys_var->current_mutex);
+      pthread_cond_broadcast(mysys_var->current_cond);
+      pthread_mutex_unlock(mysys_var->current_mutex);
     }
+    pthread_mutex_unlock(&mysys_var->mutex);
+  }
 }
 
-// remember the location of thread info, the structure needed for
-// sql_alloc() and the structure for the net buffer
+/*
+  Remember the location of thread info, the structure needed for
+  sql_alloc() and the structure for the net buffer
+*/
 
 bool THD::store_globals()
 {
@@ -271,6 +275,7 @@ bool THD::store_globals()
 	  my_pthread_setspecific_ptr(THR_MALLOC, &mem_root) ||
 	  my_pthread_setspecific_ptr(THR_NET,  &net));
 }
+
 
 /* routings to adding tables to list of changed in transaction tables */
 
