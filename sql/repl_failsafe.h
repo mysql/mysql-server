@@ -24,11 +24,11 @@ int update_slave_list(MYSQL* mysql, MASTER_INFO* mi);
 
 extern HASH slave_list;
 
-int load_master_data(THD* thd);
+bool load_master_data(THD* thd);
 int connect_to_master(THD *thd, MYSQL* mysql, MASTER_INFO* mi);
 
-int show_new_master(THD* thd);
-int show_slave_hosts(THD* thd);
+bool show_new_master(THD* thd);
+bool show_slave_hosts(THD* thd);
 int translate_master(THD* thd, LEX_MASTER_INFO* mi, char* errmsg);
 void init_slave_list();
 void end_slave_list();

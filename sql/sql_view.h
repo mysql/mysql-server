@@ -16,12 +16,12 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 */
 
-int mysql_create_view(THD *thd,
-		      enum_view_create_mode mode);
+bool mysql_create_view(THD *thd,
+                       enum_view_create_mode mode);
 
 my_bool mysql_make_view(File_parser *parser, TABLE_LIST *table);
 
-int mysql_drop_view(THD *thd, TABLE_LIST *view, enum_drop_mode drop_mode);
+bool mysql_drop_view(THD *thd, TABLE_LIST *view, enum_drop_mode drop_mode);
 
 bool check_key_in_view(THD *thd, TABLE_LIST * view);
 

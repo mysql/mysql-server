@@ -1815,21 +1815,20 @@ int simple_open_n_lock_tables(THD *thd, TABLE_LIST *tables)
     tables	- list of tables for open&locking
 
   RETURN
-    0  - ok
-    -1 - error
-    1  - error reported to user
+    FALSE - ok
+    TRUE  - error
 
   NOTE
     The lock will automaticly be freed by close_thread_tables()
 */
 
-int open_and_lock_tables(THD *thd, TABLE_LIST *tables)
+bool open_and_lock_tables(THD *thd, TABLE_LIST *tables)
 {
   DBUG_ENTER("open_and_lock_tables");
   uint counter;
   if (open_tables(thd, tables, &counter) || lock_tables(thd, tables, counter)
       || mysql_handle_derived(thd->lex))
-    DBUG_RETURN(thd->net.report_error ? -1 : 1); /* purecov: inspected */
+    DBUG_RETURN(TRUE); /* purecov: inspected */
   /*
     Let us propagate pointers to open tables from global table list
     to table lists in particular selects if needed.
@@ -1850,7 +1849,7 @@ int open_and_lock_tables(THD *thd, TABLE_LIST *tables)
       }
     }
   }
-  DBUG_RETURN(0);
+  DBUG_RETURN(FALSE);
 }
 
 
@@ -2609,9 +2608,9 @@ int setup_wild(THD *thd, TABLE_LIST *tables, List<Item> &fields,
 ** Check that all given fields exists and fill struct with current data
 ****************************************************************************/
 
-int setup_fields(THD *thd, Item **ref_pointer_array, TABLE_LIST *tables, 
-		 List<Item> &fields, bool set_query_id,
-		 List<Item> *sum_func_list, bool allow_sum_func)
+bool setup_fields(THD *thd, Item **ref_pointer_array, TABLE_LIST *tables, 
+                  List<Item> &fields, bool set_query_id,
+                  List<Item> *sum_func_list, bool allow_sum_func)
 {
   reg2 Item *item;
   List_iterator<Item> it(fields);
@@ -2629,7 +2628,7 @@ int setup_fields(THD *thd, Item **ref_pointer_array, TABLE_LIST *tables,
 	(item= *(it.ref()))->check_cols(1))
     {
       select_lex->no_wrap_view_item= 0;
-      DBUG_RETURN(-1); /* purecov: inspected */
+      DBUG_RETURN(TRUE); /* purecov: inspected */
     }
     if (ref)
       *(ref++)= item;
@@ -2958,7 +2957,6 @@ insert_fields(THD *thd, TABLE_LIST *tables, const char *db_name,
     my_error(ER_BAD_TABLE_ERROR, MYF(0), table_name);
 
 err:
-  send_error(thd);
   DBUG_RETURN(1);
 }
 

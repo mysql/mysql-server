@@ -23,7 +23,7 @@ drop table if exists t1, t2, t3, t4;
 
 # START SLAVE will fail because it can't read the file (mode 000)
 # (system error 13)
---error 1201
+--error 1105
 start slave;
 system chmod 600 var/slave-data/master.info;
 # It will fail again because the file is empty so the slave cannot get valuable

@@ -30,7 +30,7 @@ db1_secret
 select * from db1_secret.t1;
 ERROR 42000: Access denied for user 'user1'@'localhost' to database 'db1_secret'
 create procedure db1_secret.dummy() begin end;
-ERROR 42000: Unknown database 'db1_secret'
+ERROR 42000: Access denied for user 'user1'@'localhost' to database 'db1_secret'
 drop procedure db1_secret.dummy;
 ERROR 42000: PROCEDURE db1_secret.dummy does not exist
 call db1_secret.stamp(3);
@@ -40,7 +40,7 @@ db1_secret
 select * from db1_secret.t1;
 ERROR 42000: Access denied for user ''@'localhost' to database 'db1_secret'
 create procedure db1_secret.dummy() begin end;
-ERROR 42000: Unknown database 'db1_secret'
+ERROR 42000: Access denied for user ''@'localhost' to database 'db1_secret'
 drop procedure db1_secret.dummy;
 ERROR 42000: PROCEDURE db1_secret.dummy does not exist
 select * from t1;
