@@ -266,3 +266,10 @@ CONCAT("</a>",RPAD("",(55 - LENGTH(title)),"."))
 NULL
 </a>..........................
 DROP TABLE t1;
+CREATE TABLE t1 (i int, j int);
+INSERT INTO t1 VALUES (1,1),(2,2);
+SELECT DISTINCT i, ELT(j, '345', '34') FROM t1;
+i	ELT(j, '345', '34')
+1	345
+2	34
+DROP TABLE t1;
