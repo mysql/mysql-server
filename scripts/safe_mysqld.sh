@@ -161,7 +161,7 @@ then
   then
     if test $NOHUP_NICENESS -gt 0
     then
-      $NOHUP_NICENESS="nice --$NOHUP_NICENESS nohup"
+      NOHUP_NICENESS="nice --$NOHUP_NICENESS nohup"
     else
       NOHUP_NICENESS="nice -$NOHUP_NICENESS nohup"
     fi
