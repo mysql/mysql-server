@@ -378,10 +378,11 @@ int Item_param::save_in_field(Field *field, bool no_conversions)
 
 double Item_param::val() 
 {
+  int err;
   switch (item_result_type) {
   case STRING_RESULT:
     return (double) my_strntod(str_value.charset(), (char*) str_value.ptr(),
-			       str_value.length(), (char**) 0); 
+			       str_value.length(), (char**) 0, &err); 
   case INT_RESULT:
     return (double)int_value;
   default:
@@ -392,9 +393,12 @@ double Item_param::val()
 
 longlong Item_param::val_int() 
 { 
+ int err;
  switch (item_result_type) {
   case STRING_RESULT:
-    return my_strntoll(str_value.charset(),str_value.ptr(),str_value.length(),(char**) 0,10);
+    return my_strntoll(str_value.charset(),
+		       str_value.ptr(),str_value.length(),10,
+		       (char**) 0,&err);
   case REAL_RESULT:
     return (longlong) (real_value+(real_value > 0 ? 0.5 : -0.5));
   default:
@@ -1263,17 +1267,19 @@ void Item_cache_str::store(Item *item)
 }
 double Item_cache_str::val()
 { 
+  int err;
   if (value)
     return my_strntod(value->charset(), (char*) value->ptr(),
-		      value->length(), (char**) 0);
+		      value->length(), (char**) 0, &err);
   else
     return (double)0;
 }
 longlong Item_cache_str::val_int()
 {
+  int err;
   if (value)
     return my_strntoll(value->charset(), value->ptr(),
-		       value->length(), (char**) 0, 10);
+		       value->length(), 10, (char**) 0, &err);
   else
     return (longlong)0;
 }

@@ -1,0 +1,87 @@
+drop table if exists t1;
+CREATE TABLE `t1` (
+a int not null auto_increment,
+`pseudo` varchar(35) character set latin2 NOT NULL default '',
+`email` varchar(60) character set latin2 NOT NULL default '',
+PRIMARY KEY  (a),
+UNIQUE KEY `email` USING BTREE (`email`) 
+) TYPE=HEAP CHARSET=latin1 ROW_FORMAT DYNAMIC;
+set @@sql_mode="";
+show variables like 'sql_mode';
+Variable_name	Value
+sql_mode	
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL auto_increment,
+  `pseudo` varchar(35) character set latin2 NOT NULL default '',
+  `email` varchar(60) character set latin2 NOT NULL default '',
+  PRIMARY KEY  (`a`),
+  UNIQUE KEY `email` TYPE BTREE (`email`)
+) TYPE=HEAP CHARSET=latin1 ROW_FORMAT=DYNAMIC
+set @@sql_mode="ansi_quotes";
+show variables like 'sql_mode';
+Variable_name	Value
+sql_mode	ANSI_QUOTES
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE "t1" (
+  "a" int(11) NOT NULL auto_increment,
+  "pseudo" varchar(35) character set latin2 NOT NULL default '',
+  "email" varchar(60) character set latin2 NOT NULL default '',
+  PRIMARY KEY  ("a"),
+  UNIQUE KEY "email" TYPE BTREE ("email")
+) TYPE=HEAP CHARSET=latin1 ROW_FORMAT=DYNAMIC
+set @@sql_mode="no_table_options";
+show variables like 'sql_mode';
+Variable_name	Value
+sql_mode	NO_TABLE_OPTIONS
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL auto_increment,
+  `pseudo` varchar(35) character set latin2 NOT NULL default '',
+  `email` varchar(60) character set latin2 NOT NULL default '',
+  PRIMARY KEY  (`a`),
+  UNIQUE KEY `email` TYPE BTREE (`email`)
+)
+set @@sql_mode="no_key_options";
+show variables like 'sql_mode';
+Variable_name	Value
+sql_mode	NO_KEY_OPTIONS
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL auto_increment,
+  `pseudo` varchar(35) character set latin2 NOT NULL default '',
+  `email` varchar(60) character set latin2 NOT NULL default '',
+  PRIMARY KEY  (`a`),
+  UNIQUE KEY `email` (`email`)
+) TYPE=HEAP CHARSET=latin1 ROW_FORMAT=DYNAMIC
+set @@sql_mode="no_field_options,mysql323,mysql40";
+show variables like 'sql_mode';
+Variable_name	Value
+sql_mode	NO_FIELD_OPTIONS,MYSQL323,MYSQL40
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL auto_increment,
+  `pseudo` varchar(35) NOT NULL default '',
+  `email` varchar(60) NOT NULL default '',
+  PRIMARY KEY  (`a`),
+  UNIQUE KEY `email` (`email`)
+) TYPE=HEAP ROW_FORMAT=DYNAMIC
+set @@sql_mode="postgresql,oracle,mssql,db2,sapdb";
+show variables like 'sql_mode';
+Variable_name	Value
+sql_mode	POSTGRESQL,ORACLE,MSSQL,DB2,SAPDB
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE "t1" (
+  "a" int(11) NOT NULL,
+  "pseudo" varchar(35) NOT NULL default '',
+  "email" varchar(60) NOT NULL default '',
+  PRIMARY KEY  ("a"),
+  UNIQUE KEY "email" ("email")
+)
+drop table t1;

@@ -21,8 +21,11 @@
 #include <my_global.h>
 #include "m_string.h"
 #include "m_ctype.h"
-#include "my_sys.h"			/* defines errno */
 #include <errno.h>
+
+#ifndef EILSEQ
+#define EILSEQ ENOENT
+#endif
 
 #ifdef HAVE_CHARSET_utf8
 #define HAVE_UNIDATA
@@ -1958,7 +1961,7 @@ static int my_mbcharlen_utf8(CHARSET_INFO *cs  __attribute__((unused)) , uint c)
 CHARSET_INFO my_charset_utf8 =
 {
     33,			/* number       */
-    MY_CS_COMPILED|MY_CS_PRIMARY,	/* state        */
+    MY_CS_COMPILED|MY_CS_PRIMARY|MY_CS_STRNXFRM,	/* state        */
     "utf8",		/* cs name      */
     "utf8",		/* name         */
     "",			/* comment      */
@@ -1990,8 +1993,8 @@ CHARSET_INFO my_charset_utf8 =
     my_hash_sort_utf8,	/* hash_sort    */
     0,
     my_snprintf_8bit,
-    my_l10tostr_8bit,
-    my_ll10tostr_8bit,
+    my_long10_to_str_8bit,
+    my_longlong10_to_str_8bit,
     my_strntol_8bit,
     my_strntoul_8bit,
     my_strntoll_8bit,
@@ -2446,7 +2449,8 @@ static int my_snprintf_ucs2(CHARSET_INFO *cs __attribute__((unused))
 
 
 long        my_strntol_ucs2(CHARSET_INFO *cs,
-			   const char *nptr, uint l, char **endptr, int base)
+			   const char *nptr, uint l, int base,
+			   char **endptr, int *err)
 {
   int      negative=0;
   int      overflow;
@@ -2475,16 +2479,18 @@ long        my_strntol_ucs2(CHARSET_INFO *cs,
     {
       if (endptr !=NULL )
         *endptr = (char*)s;
-      my_errno = (cnv==MY_CS_ILSEQ) ? EILSEQ : EDOM;
+      err[0] = (cnv==MY_CS_ILSEQ) ? EILSEQ : EDOM;
       return 0;
     } 
     s+=cnv;
   } while (1);
   
 bs:
-  
+
+#if 0  
   if (base <= 0 || base == 1 || base > 36)
     base = 10;
+#endif
   
   overflow = 0;
   res = 0;
@@ -2518,7 +2524,7 @@ bs:
     {
       if (endptr !=NULL )
         *endptr = (char*)s;
-      my_errno=EILSEQ;
+      err[0]=EILSEQ;
       return 0;
     } 
     else
@@ -2533,7 +2539,7 @@ bs:
   
   if (s == save)
   {
-    my_errno=EDOM;
+    err[0]=EDOM;
     return 0L;
   }
   
@@ -2547,7 +2553,7 @@ bs:
   
   if (overflow)
   {
-    my_errno=(ERANGE);
+    err[0]=ERANGE;
     return negative ? LONG_MIN : LONG_MAX;
   }
   
@@ -2556,7 +2562,8 @@ bs:
 
 
 ulong      my_strntoul_ucs2(CHARSET_INFO *cs,
-			   const char *nptr, uint l, char **endptr, int base)
+			   const char *nptr, uint l, int base, 
+			   char **endptr, int *err)
 {
   int      negative=0;
   int      overflow;
@@ -2585,17 +2592,19 @@ ulong      my_strntoul_ucs2(CHARSET_INFO *cs,
     {
       if (endptr !=NULL )
         *endptr = (char*)s;
-      my_errno = (cnv==MY_CS_ILSEQ) ? EILSEQ : EDOM;
+      err[0] = (cnv==MY_CS_ILSEQ) ? EILSEQ : EDOM;
       return 0;
     } 
     s+=cnv;
   } while (1);
   
 bs:
-  
+
+#if 0
   if (base <= 0 || base == 1 || base > 36)
     base = 10;
-  
+#endif
+
   overflow = 0;
   res = 0;
   save = s;
@@ -2628,7 +2637,7 @@ bs:
     {
       if (endptr !=NULL )
         *endptr = (char*)s;
-      my_errno=EILSEQ;
+      err[0]=EILSEQ;
       return 0;
     } 
     else
@@ -2643,13 +2652,13 @@ bs:
   
   if (s == save)
   {
-    my_errno=EDOM;
+    err[0]=EDOM;
     return 0L;
   }
   
   if (overflow)
   {
-    my_errno=(ERANGE);
+    err[0]=(ERANGE);
     return ((ulong)~0L);
   }
   
@@ -2660,7 +2669,8 @@ bs:
 
 
 longlong  my_strntoll_ucs2(CHARSET_INFO *cs,
-			   const char *nptr, uint l, char **endptr, int base)
+			   const char *nptr, uint l, int base,
+			   char **endptr, int *err)
 {
   int      negative=0;
   int      overflow;
@@ -2689,17 +2699,19 @@ longlong  my_strntoll_ucs2(CHARSET_INFO *cs,
     {
       if (endptr !=NULL )
         *endptr = (char*)s;
-      my_errno = (cnv==MY_CS_ILSEQ) ? EILSEQ : EDOM;
+      err[0] = (cnv==MY_CS_ILSEQ) ? EILSEQ : EDOM;
       return 0;
     } 
     s+=cnv;
   } while (1);
   
 bs:
-  
+
+#if 0  
   if (base <= 0 || base == 1 || base > 36)
     base = 10;
-  
+#endif
+
   overflow = 0;
   res = 0;
   save = s;
@@ -2732,7 +2744,7 @@ bs:
     {
       if (endptr !=NULL )
         *endptr = (char*)s;
-      my_errno=EILSEQ;
+      err[0]=EILSEQ;
       return 0;
     } 
     else
@@ -2747,7 +2759,7 @@ bs:
   
   if (s == save)
   {
-    my_errno=EDOM;
+    err[0]=EDOM;
     return 0L;
   }
   
@@ -2761,7 +2773,7 @@ bs:
   
   if (overflow)
   {
-    my_errno=(ERANGE);
+    err[0]=ERANGE;
     return negative ? LONGLONG_MIN : LONGLONG_MAX;
   }
   
@@ -2772,7 +2784,8 @@ bs:
 
 
 ulonglong  my_strntoull_ucs2(CHARSET_INFO *cs,
-			   const char *nptr, uint l, char **endptr, int base)
+			   const char *nptr, uint l, int base,
+			   char **endptr, int *err)
 {
   int      negative=0;
   int      overflow;
@@ -2801,7 +2814,7 @@ ulonglong  my_strntoull_ucs2(CHARSET_INFO *cs,
     {
       if (endptr !=NULL )
         *endptr = (char*)s;
-      my_errno = (cnv==MY_CS_ILSEQ) ? EILSEQ : EDOM;
+      err[0]= (cnv==MY_CS_ILSEQ) ? EILSEQ : EDOM;
       return 0;
     } 
     s+=cnv;
@@ -2809,9 +2822,11 @@ ulonglong  my_strntoull_ucs2(CHARSET_INFO *cs,
   
 bs:
   
+#if 0
   if (base <= 0 || base == 1 || base > 36)
     base = 10;
-  
+#endif
+
   overflow = 0;
   res = 0;
   save = s;
@@ -2844,7 +2859,7 @@ bs:
     {
       if (endptr !=NULL )
         *endptr = (char*)s;
-      my_errno=EILSEQ;
+      err[0]= EILSEQ;
       return 0;
     } 
     else
@@ -2859,13 +2874,13 @@ bs:
   
   if (s == save)
   {
-    my_errno=EDOM;
+    err[0]= EDOM;
     return 0L;
   }
   
   if (overflow)
   {
-    my_errno=(ERANGE);
+    err[0]= ERANGE;
     return (~(ulonglong) 0);
   }
 
@@ -2874,7 +2889,8 @@ bs:
 
 
 double      my_strntod_ucs2(CHARSET_INFO *cs __attribute__((unused)),
-			   char *nptr, uint length, char **endptr)
+			   char *nptr, uint length, 
+			   char **endptr, int *err __attribute__ ((unused)))
 {
   char     buf[256];
   double   res;
@@ -3019,7 +3035,7 @@ cnv:
 CHARSET_INFO my_charset_ucs2 =
 {
     35,			/* number       */
-    MY_CS_COMPILED|MY_CS_PRIMARY,	/* state        */
+    MY_CS_COMPILED|MY_CS_PRIMARY|MY_CS_STRNXFRM,	/* state        */
     "ucs2",		/* cs name    */
     "ucs2",		/* name         */
     "",			/* comment      */

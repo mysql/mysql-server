@@ -17,7 +17,6 @@
 #include <my_global.h>
 #include "m_string.h"
 #include "m_ctype.h"
-#include "my_sys.h"			/* defines errno */
 #include <errno.h>
 
 #include "stdarg.h"
@@ -29,11 +28,13 @@ int my_strnxfrm_simple(CHARSET_INFO * cs,
                        const uchar *src, uint srclen)
 {
   uchar *map= cs->sort_order;
+  const uchar *end;
   DBUG_ASSERT(len >= srclen);
   
-  for ( ; len > 0 ; len-- )
+  len= min(len,srclen);
+  for ( end=src+len; src < end ;  )
     *dest++= map[*src++];
-  return srclen;
+  return len;
 }
 
 int my_strnncoll_simple(CHARSET_INFO * cs, const uchar *s, uint slen, 
@@ -201,7 +202,8 @@ void my_hash_sort_simple(CHARSET_INFO *cs,
 
 
 long        my_strntol_8bit(CHARSET_INFO *cs,
-			   const char *nptr, uint l, char **endptr, int base)
+			   const char *nptr, uint l, int base,
+			   char **endptr, int *err)
 {
   int negative;
   register ulong cutoff;
@@ -211,10 +213,12 @@ long        my_strntol_8bit(CHARSET_INFO *cs,
   register unsigned char c;
   const char *save, *e;
   int overflow;
-  
+
+#if 0
   if (base < 0 || base == 1 || base > 36)
     base = 10;
-  
+#endif
+
   s = nptr;
   e = nptr+l;
   
@@ -239,9 +243,12 @@ long        my_strntol_8bit(CHARSET_INFO *cs,
   else
     negative = 0;
 
+#if 0
   if (base == 16 && s[0] == '0' && (s[1]=='X' || s[1]=='x'))
     s += 2;
+#endif
 
+#if 0
   if (base == 0)
   {
     if (*s == '0')
@@ -257,6 +264,7 @@ long        my_strntol_8bit(CHARSET_INFO *cs,
     else
       base = 10;
   }
+#endif
 
   save = s;
   cutoff = ((ulong)~0L) / (unsigned long int) base;
@@ -301,14 +309,14 @@ long        my_strntol_8bit(CHARSET_INFO *cs,
   
   if (overflow)
   {
-    my_errno=(ERANGE);
+    err[0]= ERANGE;
     return negative ? LONG_MIN : LONG_MAX;
   }
   
   return (negative ? -((long) i) : (long) i);
 
 noconv:
-  my_errno=(EDOM);
+  err[0]= EDOM;
   if (endptr != NULL)
     *endptr = (char *) nptr;
   return 0L;
@@ -316,7 +324,8 @@ noconv:
 
 
 ulong      my_strntoul_8bit(CHARSET_INFO *cs,
-			   const char *nptr, uint l, char **endptr, int base)
+			   const char *nptr, uint l, int base,
+			   char **endptr, int *err)
 {
   int negative;
   register ulong cutoff;
@@ -327,9 +336,11 @@ ulong      my_strntoul_8bit(CHARSET_INFO *cs,
   const char *save, *e;
   int overflow;
 
+#if 0
   if (base < 0 || base == 1 || base > 36)
     base = 10;
-  
+#endif
+
   s = nptr;
   e = nptr+l;
   
@@ -353,9 +364,12 @@ ulong      my_strntoul_8bit(CHARSET_INFO *cs,
   else
     negative = 0;
 
+#if 0
   if (base == 16 && s[0] == '0' && (s[1]=='X' || s[1]=='x'))
     s += 2;
+#endif
 
+#if 0
   if (base == 0)
   {
     if (*s == '0')
@@ -371,6 +385,7 @@ ulong      my_strntoul_8bit(CHARSET_INFO *cs,
     else
       base = 10;
   }
+#endif
 
   save = s;
   cutoff = ((ulong)~0L) / (unsigned long int) base;
@@ -407,14 +422,14 @@ ulong      my_strntoul_8bit(CHARSET_INFO *cs,
 
   if (overflow)
   {
-    my_errno=(ERANGE);
+    err[0]= ERANGE;
     return ((ulong)~0L);
   }
   
   return (negative ? -((long) i) : (long) i);
   
 noconv:
-  my_errno=(EDOM);
+  err[0]= EDOM;
   if (endptr != NULL)
     *endptr = (char *) nptr;
   return 0L;
@@ -422,7 +437,8 @@ noconv:
 
 
 longlong   my_strntoll_8bit(CHARSET_INFO *cs __attribute__((unused)),
-			   const char *nptr, uint l, char **endptr, int base)
+			   const char *nptr, uint l, int base,
+			   char **endptr,int *err)
 {
   int negative;
   register ulonglong cutoff;
@@ -433,8 +449,10 @@ longlong   my_strntoll_8bit(CHARSET_INFO *cs __attribute__((unused)),
   const char *save;
   int overflow;
 
+#if 0
   if (base < 0 || base == 1 || base > 36)
     base = 10;
+#endif
 
   s = nptr;
   e = nptr+l;
@@ -459,9 +477,12 @@ longlong   my_strntoll_8bit(CHARSET_INFO *cs __attribute__((unused)),
   else
     negative = 0;
 
+#if 0
   if (base == 16 && s[0] == '0' && (s[1]=='X'|| s[1]=='x'))
     s += 2;
+#endif
 
+#if 0
   if (base == 0)
   {
     if (*s == '0')
@@ -477,6 +498,7 @@ longlong   my_strntoll_8bit(CHARSET_INFO *cs __attribute__((unused)),
     else
       base = 10;
   }
+#endif
 
   save = s;
 
@@ -522,14 +544,14 @@ longlong   my_strntoll_8bit(CHARSET_INFO *cs __attribute__((unused)),
 
   if (overflow)
   {
-    my_errno=(ERANGE);
+    err[0]= ERANGE;
     return negative ? LONGLONG_MIN : LONGLONG_MAX;
   }
 
   return (negative ? -((longlong) i) : (longlong) i);
 
 noconv:
-  my_errno=(EDOM);
+  err[0]= EDOM;
   if (endptr != NULL)
     *endptr = (char *) nptr;
   return 0L;
@@ -537,7 +559,8 @@ noconv:
 
 
 ulonglong my_strntoull_8bit(CHARSET_INFO *cs,
-			   const char *nptr, uint l, char **endptr, int base)
+			   const char *nptr, uint l, int base,
+			   char **endptr, int *err)
 {
   int negative;
   register ulonglong cutoff;
@@ -548,8 +571,10 @@ ulonglong my_strntoull_8bit(CHARSET_INFO *cs,
   const char *save;
   int overflow;
 
+#if 0
   if (base < 0 || base == 1 || base > 36)
     base = 10;
+#endif
 
   s = nptr;
   e = nptr+l;
@@ -574,9 +599,12 @@ ulonglong my_strntoull_8bit(CHARSET_INFO *cs,
   else
     negative = 0;
 
+#if 0
   if (base == 16 && s[0] == '0' && (s[1]=='X' || s[1]=='x'))
     s += 2;
+#endif
 
+#if 0
   if (base == 0)
   {
     if (*s == '0')
@@ -592,6 +620,7 @@ ulonglong my_strntoull_8bit(CHARSET_INFO *cs,
     else
       base = 10;
   }
+#endif
 
   save = s;
 
@@ -629,14 +658,14 @@ ulonglong my_strntoull_8bit(CHARSET_INFO *cs,
 
   if (overflow)
   {
-    my_errno=(ERANGE);
+    err[0]= ERANGE;
     return (~(ulonglong) 0);
   }
 
   return (negative ? -((longlong) i) : (longlong) i);
 
 noconv:
-  my_errno=(EDOM);
+  err[0]= EDOM;
   if (endptr != NULL)
     *endptr = (char *) nptr;
   return 0L;
@@ -665,7 +694,8 @@ noconv:
 
 
 double my_strntod_8bit(CHARSET_INFO *cs __attribute__((unused)),
-		       char *str, uint length, char **end)
+		       char *str, uint length, 
+		       char **end, int *err __attribute__ ((unused)))
 {
   char end_char;
   double result;
@@ -686,7 +716,7 @@ double my_strntod_8bit(CHARSET_INFO *cs __attribute__((unused)),
   Assume len >= 1
 */
 
-int my_l10tostr_8bit(CHARSET_INFO *cs __attribute__((unused)),
+int my_long10_to_str_8bit(CHARSET_INFO *cs __attribute__((unused)),
 		     char *dst, uint len, int radix, long int val)
 {
   char buffer[66];
@@ -725,7 +755,7 @@ int my_l10tostr_8bit(CHARSET_INFO *cs __attribute__((unused)),
 }
 
 
-int my_ll10tostr_8bit(CHARSET_INFO *cs __attribute__((unused)),
+int my_longlong10_to_str_8bit(CHARSET_INFO *cs __attribute__((unused)),
 		      char *dst, uint len, int radix, longlong val)
 {
   char buffer[65];
