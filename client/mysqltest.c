@@ -362,8 +362,7 @@ DYNAMIC_STRING ds_res;
 static void die(const char *fmt, ...);
 static void init_var_hash();
 static VAR* var_from_env(const char *, const char *);
-static byte* get_var_key(const byte* rec, uint* len,
-			 my_bool __attribute__((unused)) t);
+static byte* get_var_key(const byte* rec, uint* len, my_bool t);
 static VAR* var_init(VAR* v, const char *name, int name_len, const char *val,
 		     int val_len);
 
@@ -1807,6 +1806,10 @@ int read_line(char* buf, int size)
       continue;
     }
 
+    /* Line counting is independent of state */
+    if (c == '\n')
+      (*lineno)++;
+
     switch(state) {
     case R_NORMAL:
       /*  Only accept '{' in the beginning of a line */
@@ -1822,14 +1825,12 @@ int read_line(char* buf, int size)
       else if (c == '\n')
       {
 	state = R_LINE_START;
-	(*lineno)++;
       }
       break;
     case R_COMMENT:
       if (c == '\n')
       {
 	*p= 0;
-	(*lineno)++;
 	DBUG_RETURN(0);
       }
       break;
@@ -1841,7 +1842,7 @@ int read_line(char* buf, int size)
       else if (my_isspace(charset_info, c))
       {
 	if (c == '\n')
-	  start_lineno= ++*lineno;		/* Query hasn't started yet */
+	  start_lineno= *lineno;		/* Query hasn't started yet */
 	no_save= 1;
       }
       else if (c == '}')
