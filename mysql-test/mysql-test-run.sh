@@ -468,6 +468,7 @@ if [ x$SOURCE_DIST = x1 ] ; then
  LANGUAGE="$BASEDIR/sql/share/english/"
  CHARSETSDIR="$BASEDIR/sql/share/charsets"
  INSTALL_DB="./install_test_db"
+ MYSQL_FIX_SYSTEM_TABLES="$BASEDIR/scripts/mysql_fix_privilege_tables"
 else
  if test -x "$BASEDIR/libexec/mysqld"
  then
@@ -485,6 +486,7 @@ else
  MYSQL_MANAGER_PWGEN="$BASEDIR/bin/mysqlmanager-pwgen"
  MYSQL="$BASEDIR/bin/mysql"
  INSTALL_DB="./install_test_db -bin"
+ MYSQL_FIX_SYSTEM_TABLES="$BASEDIR/bin/mysql_fix_privilege_tables"
  if test -d "$BASEDIR/share/mysql/english"
  then
    LANGUAGE="$BASEDIR/share/mysql/english/"
@@ -497,8 +499,12 @@ fi
 
 MYSQL_DUMP="$MYSQL_DUMP --no-defaults -uroot --socket=$MASTER_MYSOCK"
 MYSQL_BINLOG="$MYSQL_BINLOG --no-defaults --local-load=$MYSQL_TMP_DIR"
+MYSQL_FIX_SYSTEM_TABLES="$MYSQL_FIX_SYSTEM_TABLES --host=localhost --port=$MASTER_MYPORT --socket=$MASTER_MYSOCK --user=root --password="
+MYSQL="$MYSQL --host=localhost --port=$MASTER_MYPORT --socket=$MASTER_MYSOCK --user=root --password="
+export MYSQL
 export MYSQL_DUMP
 export MYSQL_BINLOG
+export MYSQL_FIX_SYSTEM_TABLES
 
 if [ -z "$MASTER_MYSQLD" ]
 then
@@ -1175,6 +1181,7 @@ run_testcase ()
  master_init_script=$TESTDIR/$tname-master.sh
  slave_init_script=$TESTDIR/$tname-slave.sh
  slave_master_info_file=$TESTDIR/$tname.slave-mi
+ result_file=$tname
  echo $tname > $CURRENT_TEST
  SKIP_SLAVE=`$EXPR \( $tname : rpl \) = 0`
  if [ $USE_MANAGER = 1 ] ; then
@@ -1224,6 +1231,11 @@ run_testcase ()
 	 # Note that this must be set to space, not "" for test-reset to work
 	 EXTRA_MASTER_OPT=" "
 	 ;;
+       --result-file=*)
+         result_file=`$ECHO "$EXTRA_MASTER_OPT" | $SED -e "s;--result-file=;;"`
+	 # Note that this must be set to space, not "" for test-reset to work
+	 EXTRA_MASTER_OPT=" "
+         ;;
      esac
      stop_master
      echo "CURRENT_TEST: $tname" >> $MASTER_MYERR
@@ -1281,7 +1293,7 @@ run_testcase ()
 
  if [ -f $tf ] ; then
     $RM -f r/$tname.*reject
-    mysql_test_args="-R r/$tname.result $EXTRA_MYSQL_TEST_OPT"
+    mysql_test_args="-R r/$result_file.result $EXTRA_MYSQL_TEST_OPT"
     if [ -z "$DO_CLIENT_GDB" ] ; then
       `$MYSQL_TEST  $mysql_test_args < $tf 2> $TIMEFILE`;
     else
@@ -1313,7 +1325,7 @@ run_testcase ()
 	$ECHO "$RES$RES_SPACE [ fail ]"
         $ECHO
 	error_is
-	show_failed_diff $tname
+	show_failed_diff $result_file
 	$ECHO
 	if [ x$FORCE != x1 ] ; then
 	 $ECHO "Aborting. To continue, re-run with '--force'."
