@@ -216,8 +216,6 @@ show create table t1;
 SET SESSION table_type=default;
 drop table t1;
 
-drop table t1;
-
 #
 # Bug # 801
 #
