@@ -1014,6 +1014,25 @@ int ha_ndbcluster::set_primary_key(NdbOperation *op)
   DBUG_RETURN(0);
 }
 
+int 
+ha_ndbcluster::set_index_key(NdbOperation *op, 
+			     const KEY *key_info, 
+			     const byte * key_ptr)
+{
+  DBUG_ENTER("set_index_key");
+  uint i;
+  KEY_PART_INFO* key_part= key_info->key_part;
+  KEY_PART_INFO* end= key_part+key_info->key_parts;
+  
+  for (i= 0; key_part != end; key_part++, i++) 
+  {
+    if (set_ndb_key(op, key_part->field, i, 
+		    key_part->null_bit ? key_ptr + 1 : key_ptr))
+      ERR_RETURN(m_active_trans->getNdbError());
+    key_ptr+= key_part->store_length;
+  }
+  DBUG_RETURN(0);
+}
 
 /*
   Read one record from NDB using primary key
@@ -1158,11 +1177,6 @@ int ha_ndbcluster::unique_index_read(const byte *key,
   int res;
   NdbConnection *trans= m_active_trans;
   NdbIndexOperation *op;
-  THD *thd= current_thd;
-  byte *key_ptr;
-  KEY* key_info;
-  KEY_PART_INFO *key_part, *end;
-  uint i;
   DBUG_ENTER("unique_index_read");
   DBUG_PRINT("enter", ("key_len: %u, index: %u", key_len, active_index));
   DBUG_DUMP("key", (char*)key, key_len);
@@ -1176,19 +1190,9 @@ int ha_ndbcluster::unique_index_read(const byte *key,
     ERR_RETURN(trans->getNdbError());
   
   // Set secondary index key(s)
-  key_ptr= (byte *) key;
-  key_info= table->key_info + active_index;
-  DBUG_ASSERT(key_info->key_length == key_len);
-  end= (key_part= key_info->key_part) + key_info->key_parts;
-
-  for (i= 0; key_part != end; key_part++, i++) 
-  {
-    if (set_ndb_key(op, key_part->field, i, 
-		    key_part->null_bit ? key_ptr + 1 : key_ptr))
-      ERR_RETURN(trans->getNdbError());
-    key_ptr+= key_part->store_length;
-  }
-
+  if((res= set_index_key(op, table->key_info + active_index, key)))
+    DBUG_RETURN(res);
+  
   if((res= define_read_attrs(buf, op)))
     DBUG_RETURN(res);
 
@@ -4819,7 +4823,7 @@ ha_ndbcluster::read_multi_range_first(key_multi_range **found_range_p,
       ranges[i].range_flag |= UNIQUE_RANGE;
       if ((op= m_active_trans->getNdbIndexOperation(unique_idx, tab)) && 
 	  !op->readTuple(lm) && 
-	  !set_primary_key(op, ranges[i].start_key.key) &&
+	  !set_index_key(op, key_info, ranges[i].start_key.key) &&
 	  !define_read_attrs(curr, op) &&
 	  (op->setAbortOption(IgnoreError), true))
 	curr += reclength;
@@ -4834,7 +4838,9 @@ ha_ndbcluster::read_multi_range_first(key_multi_range **found_range_p,
       goto range;
     case UNIQUE_ORDERED_INDEX:
       if (ranges[i].start_key.length == key_info->key_length &&
-	  ranges[i].start_key.flag == HA_READ_KEY_EXACT)
+	  ranges[i].start_key.flag == HA_READ_KEY_EXACT &&
+	  !check_null_in_key(key_info, ranges[i].start_key.key,
+			     ranges[i].start_key.length))
 	goto sk;
       goto range;
     case ORDERED_INDEX:
