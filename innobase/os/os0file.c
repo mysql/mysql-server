@@ -2042,8 +2042,8 @@ try_again:
 	ut_ad(buf);
 	ut_ad(n > 0);
 
-	low = offset;
-	high = offset_high;
+	low = (DWORD) offset;
+	high = (DWORD) offset_high;
 
 	/* Protect the seek / read operation with a mutex */
 	i = ((ulint) file) % OS_FILE_N_SEEK_MUTEXES;
@@ -2059,7 +2059,7 @@ try_again:
 		goto error_handling;
 	} 
 	
-	ret = ReadFile(file, buf, n, &len, NULL);
+	ret = ReadFile(file, buf, (DWORD) n, &len, NULL);
 
 	os_mutex_exit(os_file_seek_mutexes[i]);
 	
@@ -2145,8 +2145,8 @@ try_again:
 	ut_ad(buf);
 	ut_ad(n > 0);
 
-	low = offset;
-	high = offset_high;
+	low = (DWORD) offset;
+	high = (DWORD) offset_high;
 
 	/* Protect the seek / read operation with a mutex */
 	i = ((ulint) file) % OS_FILE_N_SEEK_MUTEXES;
@@ -2162,7 +2162,7 @@ try_again:
 		goto error_handling;
 	} 
 	
-	ret = ReadFile(file, buf, n, &len, NULL);
+	ret = ReadFile(file, buf, (DWORD) n, &len, NULL);
 
 	os_mutex_exit(os_file_seek_mutexes[i]);
 	
@@ -2231,8 +2231,8 @@ os_file_write(
 	ut_ad(buf);
 	ut_ad(n > 0);
 retry:
-	low = offset;
-	high = offset_high;
+	low = (DWORD) offset;
+	high = (DWORD) offset_high;
 	
 	/* Protect the seek / write operation with a mutex */
 	i = ((ulint) file) % OS_FILE_N_SEEK_MUTEXES;
@@ -2259,7 +2259,7 @@ retry:
 		return(FALSE);
 	} 
 
-	ret = WriteFile(file, buf, n, &len, NULL);
+	ret = WriteFile(file, buf, (DWORD) n, &len, NULL);
 	
 	/* Always do fsync to reduce the probability that when the OS crashes,
 	a database page is only partially physically written to disk. */
@@ -3244,7 +3244,7 @@ os_aio(
 #ifdef WIN_ASYNC_IO
 	ibool		retval;
 	BOOL		ret		= TRUE;
-	DWORD		len		= n;
+	DWORD		len		= (DWORD) n;
 	void*		dummy_mess1;
 	void*		dummy_mess2;
 	ulint		dummy_type;
@@ -4091,7 +4091,7 @@ loop:
 	if (os_n_file_reads == os_n_file_reads_old) {
 		avg_bytes_read = 0.0;
 	} else {
-		avg_bytes_read = os_bytes_read_since_printout /
+		avg_bytes_read = (double) os_bytes_read_since_printout /
 				(os_n_file_reads - os_n_file_reads_old);
 	}
 
