@@ -2,8 +2,8 @@
 
 --source include/have_query_cache.inc
 let $LIMIT=`SHOW VARIABLES LIKE 'open_files_limit'`;
-let $MIN_LIMIT=100
-let $MAX_LIMIT=65536
+let $MIN_LIMIT=600;
+let $MAX_LIMIT=65536;
 --source include/check_var_limit.inc
 
 SET @@global.query_cache_size=1355776;

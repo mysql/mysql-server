@@ -136,18 +136,18 @@ int main(int argc, char **argv)
   arguments[0]=my_progname;
   arguments[1]=0;
   if ((error= load_defaults(config_file, (const char **) load_default_groups,
-			   &count, &arguments)) > 1)
+			   &count, &arguments)))
   {
     if (verbose && opt_defaults_file_used)
     {
-      if (error == 2)
-	fprintf(stderr, "WARNING: Defaults file (%s) not found!\n",
+      if (error == 1)
+	fprintf(stderr, "WARNING: Defaults file '%s' not found!\n",
 		config_file);
-      if (error == 3)
-	fprintf(stderr, "WARNING: Defaults file (%s) is not a regular file!\n",
+      if (error == 2)
+	fprintf(stderr, "WARNING: Defaults file '%s' is not a regular file!\n",
 		config_file);
     }
-    exit(2); // Non-fatal error
+    error= 2;
   }
 
   for (argument= arguments+1 ; *argument ; argument++)
@@ -155,5 +155,5 @@ int main(int argc, char **argv)
   my_free((char*) load_default_groups,MYF(0));
   free_defaults(arguments);
 
-  exit(0);
+  exit(error);
 }

@@ -5,5 +5,5 @@
 #
 -- require r/check_var_limit.require
 disable_query_log;
-eval select SUBSTRING_INDEX($LIMIT, "\t", 2) BETWEEN $MIN_LIMIT AND $MAX_LIMIT as "limit";
+eval select SUBSTRING_INDEX("$LIMIT", "\\t", -1) BETWEEN $MIN_LIMIT AND $MAX_LIMIT as "limit";
 enable_query_log;

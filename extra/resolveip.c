@@ -36,6 +36,10 @@
 extern int h_errno;
 #endif
 
+#ifndef HAVE_IN_ADDR_T
+#define in_addr_t u_long
+#endif
+
 
 static my_bool silent;
 
@@ -90,8 +94,6 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
 static int get_options(int *argc,char ***argv)
 {
   int ho_error;
-
-  /*  load_defaults("my",load_default_groups,argc,argv); */
 
   if ((ho_error=handle_options(argc, argv, my_long_options, get_one_option)))
     exit(ho_error);

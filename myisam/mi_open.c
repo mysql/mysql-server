@@ -595,7 +595,7 @@ byte *mi_alloc_rec_buff(MI_INFO *info, ulong length, byte **buf)
     /* to simplify initial init of info->rec_buf in mi_open and mi_extra */
     if (length == (ulong) -1)
     {
-      length= max(info->s->base.pack_reclength+info->s->base.pack_bits,
+      length= max(info->s->base.pack_reclength,
                   info->s->base.max_key_length);
       /* Avoid unnecessary realloc */
       if (newptr && length == old_length)
@@ -650,6 +650,8 @@ void mi_setup_functions(register MYISAM_SHARE *share)
     share->compare_unique=_mi_cmp_dynamic_unique;
     share->calc_checksum= mi_checksum;
 
+    /* add bits used to pack data to pack_reclength for faster allocation */
+    share->base.pack_reclength+= share->base.pack_bits;
     if (share->base.blobs)
     {
       share->update_record=_mi_update_blob_record;
