@@ -141,8 +141,8 @@ static void create_table(MYSQL &mysql)
   if (mysql_query(&mysql, 
 		  "CREATE TABLE"
 		  "  MYTABLENAME"
-		  "    (ATTR1 INT UNSIGNED PRIMARY KEY,"
-		  "     ATTR2 INT UNSIGNED)"
+		  "    (ATTR1 INT UNSIGNED NOT NULL PRIMARY KEY,"
+		  "     ATTR2 INT UNSIGNED NOT NULL)"
 		  "  ENGINE=NDB"))
     MYSQLERROR(mysql);
 }
@@ -234,7 +234,7 @@ static void do_read(Ndb &myNdb)
     NdbOperation *myOperation= myTransaction->getNdbOperation("MYTABLENAME");
     if (myOperation == NULL) APIERROR(myTransaction->getNdbError());
     
-    myOperation->readTuple();
+    myOperation->readTuple(NdbOperation::LM_Read);
     myOperation->equal("ATTR1", i);
 
     NdbRecAttr *myRecAttr= myOperation->getValue("ATTR2", NULL);

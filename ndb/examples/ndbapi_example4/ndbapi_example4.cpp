@@ -31,117 +31,89 @@
 //    8    18
 //    9     9
 
+#include <mysql.h>
 #include <NdbApi.hpp>
 
 // Used for cout
 #include <stdio.h>
 #include <iostream>
 
-#define APIERROR(error) \
-  { std::cout << "Error in " << __FILE__ << ", line:" << __LINE__ << ", code:" \
-              << error.code << ", msg: " << error.message << "." << std::endl; \
-    exit(-1); }
+#define PRINT_ERROR(code,msg) \
+  std::cout << "Error in " << __FILE__ << ", line: " << __LINE__ \
+            << ", code: " << code \
+            << ", msg: " << msg << "." << std::endl
+#define MYSQLERROR(mysql) { \
+  PRINT_ERROR(mysql_errno(&mysql),mysql_error(&mysql)); \
+  exit(-1); }
+#define APIERROR(error) { \
+  PRINT_ERROR(error.code,error.message); \
+  exit(-1); }
 
 int main()
 {
   ndb_init();
+  MYSQL mysql;
+
+  /**************************************************************
+   * Connect to mysql server and create table                   *
+   **************************************************************/
+  {
+    if ( !mysql_init(&mysql) ) {
+      std::cout << "mysql_init failed\n";
+      exit(-1);
+    }
+    if ( !mysql_real_connect(&mysql, "localhost", "root", "", "",
+			     3306, "/tmp/mysql.sock", 0) )
+      MYSQLERROR(mysql);
+
+    mysql_query(&mysql, "CREATE DATABASE TEST_DB_1");
+    if (mysql_query(&mysql, "USE TEST_DB_1") != 0) MYSQLERROR(mysql);
+
+    if (mysql_query(&mysql, 
+		    "CREATE TABLE"
+		    "  MYTABLENAME"
+		    "    (ATTR1 INT UNSIGNED,"
+		    "     ATTR2 INT UNSIGNED NOT NULL,"
+		    "     PRIMARY KEY USING HASH (ATTR1),"
+		    "     UNIQUE MYINDEXNAME USING HASH (ATTR2))"
+		    "  ENGINE=NDB"))
+      MYSQLERROR(mysql);
+  }
+
+  /**************************************************************
+   * Connect to ndb cluster                                     *
+   **************************************************************/
 
   Ndb_cluster_connection *cluster_connection=
     new Ndb_cluster_connection(); // Object representing the cluster
 
-  int r= cluster_connection->connect(5 /* retries               */,
-				     3 /* delay between retries */,
-				     1 /* verbose               */);
-  if (r > 0)
+  if (cluster_connection->connect(5,3,1))
   {
-    std::cout
-      << "Cluster connect failed, possibly resolved with more retries.\n";
+    std::cout << "Connect to cluster management server failed.\n";
     exit(-1);
   }
-  else if (r < 0)
-  {
-    std::cout
-      << "Cluster connect failed.\n";
-    exit(-1);
-  }
-					   
+
   if (cluster_connection->wait_until_ready(30,30))
   {
-    std::cout << "Cluster was not ready within 30 secs." << std::endl;
+    std::cout << "Cluster was not ready within 30 secs.\n";
     exit(-1);
   }
 
   Ndb* myNdb = new Ndb( cluster_connection,
 			"TEST_DB_1" );  // Object representing the database
-  NdbDictionary::Table myTable;
-  NdbDictionary::Column myColumn;
-  NdbDictionary::Index myIndex;
-
-  NdbTransaction	*myTransaction;     // For transactions
-  NdbOperation	 	*myOperation;      // For primary key operations
-  NdbIndexOperation	*myIndexOperation; // For index operations
-  NdbRecAttr     	*myRecAttr;        // Result of reading attribute value
-  
   if (myNdb->init() == -1) { 
     APIERROR(myNdb->getNdbError());
     exit(-1);
   }
 
-  /*********************************************************
-   * Create a table named MYTABLENAME if it does not exist *
-   *********************************************************/
-  NdbDictionary::Dictionary* myDict = myNdb->getDictionary();
-  if (myDict->getTable("MYTABLENAME") != NULL) {
-    std::cout << "NDB already has example table: MYTABLENAME." << std::endl; 
-    exit(-1);
-  } 
-
-  myTable.setName("MYTABLENAME");
-  
-  myColumn.setName("ATTR1");
-  myColumn.setType(NdbDictionary::Column::Unsigned);
-  myColumn.setLength(1);
-  myColumn.setPrimaryKey(true);
-  myColumn.setNullable(false);
-  myTable.addColumn(myColumn);
-
-  myColumn.setName("ATTR2");
-  myColumn.setType(NdbDictionary::Column::Unsigned);
-  myColumn.setLength(1);
-  myColumn.setPrimaryKey(false);
-  myColumn.setNullable(false);
-  myTable.addColumn(myColumn);
-
-  if (myDict->createTable(myTable) == -1) 
-      APIERROR(myDict->getNdbError());
-
-
-  /**********************************************************
-   * Create an index named MYINDEXNAME if it does not exist *
-   **********************************************************/
-  if (myDict->getIndex("MYINDEXNAME", "MYTABLENAME") != NULL) {
-    std::cout << "NDB already has example index: MYINDEXNAME." << std::endl; 
-    exit(-1);
-  } 
-
-  myIndex.setName("MYINDEXNAME");
-  myIndex.setTable("MYTABLENAME");
-  myIndex.setType(NdbDictionary::Index::UniqueHashIndex);
-  const char* attr_arr[] = {"ATTR2"};
-  myIndex.addIndexColumns(1, attr_arr);
-
-  if (myDict->createIndex(myIndex) == -1) 
-      APIERROR(myDict->getNdbError());
-
-
   /**************************************************************************
    * Using 5 transactions, insert 10 tuples in table: (0,0),(1,1),...,(9,9) *
    **************************************************************************/
   for (int i = 0; i < 5; i++) {
-    myTransaction = myNdb->startTransaction();
+    NdbTransaction *myTransaction= myNdb->startTransaction();
     if (myTransaction == NULL) APIERROR(myNdb->getNdbError());
     
-    myOperation = myTransaction->getNdbOperation("MYTABLENAME");	
+    NdbOperation *myOperation= myTransaction->getNdbOperation("MYTABLENAME");
     if (myOperation == NULL) APIERROR(myTransaction->getNdbError());
     
     myOperation->insertTuple();
@@ -167,33 +139,34 @@ int main()
   std::cout << "ATTR1 ATTR2" << std::endl;
   
   for (int i = 0; i < 10; i++) {
-    myTransaction = myNdb->startTransaction();
+    NdbTransaction *myTransaction= myNdb->startTransaction();
     if (myTransaction == NULL) APIERROR(myNdb->getNdbError());
     
-    myIndexOperation = myTransaction->getNdbIndexOperation("MYINDEXNAME",
-							   "MYTABLENAME");
+    NdbIndexOperation *myIndexOperation=
+      myTransaction->getNdbIndexOperation("MYINDEXNAME$unique","MYTABLENAME");
     if (myIndexOperation == NULL) APIERROR(myTransaction->getNdbError());
     
-    myIndexOperation->readTuple();
+    myIndexOperation->readTuple(NdbOperation::LM_Read);
     myIndexOperation->equal("ATTR2", i);
     
-    myRecAttr = myIndexOperation->getValue("ATTR1", NULL);
+    NdbRecAttr *myRecAttr= myIndexOperation->getValue("ATTR1", NULL);
     if (myRecAttr == NULL) APIERROR(myTransaction->getNdbError());
 
     if(myTransaction->execute( Commit ) != -1)
       printf(" %2d    %2d\n", myRecAttr->u_32_value(), i);
-    }
+
     myNdb->closeTransaction(myTransaction);
+  }
 
   /*****************************************************************
    * Update the second attribute in half of the tuples (adding 10) *
    *****************************************************************/
   for (int i = 0; i < 10; i+=2) {
-    myTransaction = myNdb->startTransaction();
+    NdbTransaction *myTransaction= myNdb->startTransaction();
     if (myTransaction == NULL) APIERROR(myNdb->getNdbError());
     
-    myIndexOperation = myTransaction->getNdbIndexOperation("MYINDEXNAME",
-							   "MYTABLENAME");
+    NdbIndexOperation *myIndexOperation=
+      myTransaction->getNdbIndexOperation("MYINDEXNAME$unique", "MYTABLENAME");
     if (myIndexOperation == NULL) APIERROR(myTransaction->getNdbError());
     
     myIndexOperation->updateTuple();
@@ -209,64 +182,61 @@ int main()
   /*************************************************
    * Delete one tuple (the one with primary key 3) *
    *************************************************/
-  myTransaction = myNdb->startTransaction();
-  if (myTransaction == NULL) APIERROR(myNdb->getNdbError());
-  
-  myIndexOperation = myTransaction->getNdbIndexOperation("MYINDEXNAME",
-							 "MYTABLENAME");
-  if (myIndexOperation == NULL) 
-    APIERROR(myTransaction->getNdbError());
-  
-  myIndexOperation->deleteTuple();
-  myIndexOperation->equal( "ATTR2", 3 );
-  
-  if (myTransaction->execute(Commit) == -1) 
-    APIERROR(myTransaction->getNdbError());
-  
-  myNdb->closeTransaction(myTransaction);
-  
-  /*****************************
-   * Read and print all tuples *
-   *****************************/
-  std::cout << "ATTR1 ATTR2" << std::endl;
-  
-  for (int i = 0; i < 10; i++) {
-    myTransaction = myNdb->startTransaction();
+  {
+    NdbTransaction *myTransaction= myNdb->startTransaction();
     if (myTransaction == NULL) APIERROR(myNdb->getNdbError());
-    
-    myOperation = myTransaction->getNdbOperation("MYTABLENAME");	
-    if (myOperation == NULL) APIERROR(myTransaction->getNdbError());
-    
-    myOperation->readTuple();
-    myOperation->equal("ATTR1", i);
-    
-    myRecAttr = myOperation->getValue("ATTR2", NULL);
-    if (myRecAttr == NULL) APIERROR(myTransaction->getNdbError());
-    
-    if(myTransaction->execute( Commit ) == -1)
-      if (i == 3) {
-	std::cout << "Detected that deleted tuple doesn't exist!" << std::endl;
-      } else {
-	APIERROR(myTransaction->getNdbError());
-      }
-    
-    if (i != 3) {
-      printf(" %2d    %2d\n", i, myRecAttr->u_32_value());
-    }
+  
+    NdbIndexOperation *myIndexOperation=
+      myTransaction->getNdbIndexOperation("MYINDEXNAME$unique", "MYTABLENAME");
+    if (myIndexOperation == NULL) APIERROR(myTransaction->getNdbError());
+  
+    myIndexOperation->deleteTuple();
+    myIndexOperation->equal( "ATTR2", 3 );
+  
+    if (myTransaction->execute(Commit) == -1) 
+      APIERROR(myTransaction->getNdbError());
+  
     myNdb->closeTransaction(myTransaction);
   }
 
-  /**************
-   * Drop index *
-   **************/
-  if (myDict->dropIndex("MYINDEXNAME", "MYTABLENAME") == -1) 
-    APIERROR(myDict->getNdbError());
+  /*****************************
+   * Read and print all tuples *
+   *****************************/
+  {
+    std::cout << "ATTR1 ATTR2" << std::endl;
+  
+    for (int i = 0; i < 10; i++) {
+      NdbTransaction *myTransaction= myNdb->startTransaction();
+      if (myTransaction == NULL) APIERROR(myNdb->getNdbError());
+      
+      NdbOperation *myOperation= myTransaction->getNdbOperation("MYTABLENAME");
+      if (myOperation == NULL) APIERROR(myTransaction->getNdbError());
+    
+      myOperation->readTuple(NdbOperation::LM_Read);
+      myOperation->equal("ATTR1", i);
+    
+      NdbRecAttr *myRecAttr= myOperation->getValue("ATTR2", NULL);
+      if (myRecAttr == NULL) APIERROR(myTransaction->getNdbError());
+    
+      if(myTransaction->execute( Commit ) == -1)
+	if (i == 3) {
+	  std::cout << "Detected that deleted tuple doesn't exist!\n";
+	} else {
+	  APIERROR(myTransaction->getNdbError());
+	}
+    
+      if (i != 3) {
+	printf(" %2d    %2d\n", i, myRecAttr->u_32_value());
+      }
+      myNdb->closeTransaction(myTransaction);
+    }
+  }
 
   /**************
    * Drop table *
    **************/
-  if (myDict->dropTable("MYTABLENAME") == -1) 
-    APIERROR(myDict->getNdbError());
+  if (mysql_query(&mysql, "DROP TABLE MYTABLENAME"))
+    MYSQLERROR(mysql);
 
   delete myNdb;
   delete cluster_connection;
