@@ -4,8 +4,8 @@
 # Access Definitions
 #--
 DB=test
-USER=test
-PASSWD=
+DBUSER=test
+DBPASSWD=
 
 #++
 # Misc. Definitions
@@ -21,8 +21,11 @@ TESTSUFFIX=test
 TOT_PASS=0
 TOT_FAIL=0
 TOT_TEST=0
-TIME_FORMAT='%U\t%S\t%E\t%P'
-DASHBLANK="----\t----\t-------\t----"
+USERT=0
+SYST=0
+REALT=0
+TIMEFILE="$CWD/var/tmp/mysqltest-time"
+DASHBLANK="----	----	-------"
 
 [ -z $COLUMNS ] && COLUMNS=80
 E=`expr $COLUMNS - 8`
@@ -47,25 +50,30 @@ MYERR="$CWD/var/log/mysqld.err"
 #++
 # Program Definitions
 #--
+BASENAME=/bin/basename
+CAT=/bin/cat
+CUT=/usr/bin/cut
 ECHO=/bin/echo
 EXPR=/usr/bin/expr
 PRINTF=/usr/bin/printf
+RM=/bin/rm
 TIME=/usr/bin/time
+TR=/usr/bin/tr
 MYSQLD="$BASEDIR/sql/mysqld"
 MYSQL_TEST="$BASEDIR/client/mysqltest"
 MYSQLADMIN="$BASEDIR/client/mysqladmin"
-MYSQL_TEST="$MYSQL_TEST --socket=$MYSOCK --database=$DB --user=$USER --password=$PASSWD --silent"
+MYSQL_TEST="$MYSQL_TEST --socket=$MYSOCK --database=$DB --user=$DBUSER --password=$DBPASSWD --silent"
 INSTALL_DB="$MYBIN/mysql-test_install_db"
 
 
 #++
 # Terminal Modifications
 #--
-MOVE_TO_COL="$ECHO -en \\033[300C\\033[20D"
-SETCOLOR_SUCCESS="$ECHO -en \\033[1;32m"
-SETCOLOR_FAILURE="$ECHO -en \\033[1;31m"
-SETCOLOR_WARNING="$ECHO -en \\033[1;33m"
-SETCOLOR_NORMAL="$ECHO -en \\033[0;39m"
+MOVE_TO_COL="$ECHO -n [300C[20D"
+SETCOLOR_SUCCESS="$ECHO -n [1;32m"
+SETCOLOR_FAILURE="$ECHO -n [1;31m"
+SETCOLOR_WARNING="$ECHO -n [1;33m"
+SETCOLOR_NORMAL="$ECHO -n [0;39m"
 
 
 
@@ -148,7 +156,7 @@ report_stats () {
 	$ECHO "${whole}.${deci}% successful."
     fi
 }
-	
+
 mysql_install_db () {
     `$INSTALL_DB`
     if [ $? != 0 ]; then
@@ -160,14 +168,14 @@ mysql_install_db () {
 
 mysql_start () {
 
-    `$MYSQLD --no-defaults \
-             --skip-networking \
-             --basedir=$CWD \
-             --datadir=$MYDDIR \
-	     --pid-file=$MYPID \
-	     --socket=$MYSOCK \
-             --log=$MYLOG \
-             --language=english >> $MYERR 2>&1 &`
+    $MYSQLD --no-defaults \
+            --skip-networking \
+            --basedir=$CWD \
+            --datadir=$MYDDIR \
+	    --pid-file=$MYPID \
+	    --socket=$MYSOCK \
+            --log=$MYLOG \
+            --language=english >> $MYERR 2>&1 &
 
     return 1
 }
@@ -218,30 +226,42 @@ $SETCOLOR_NORMAL && $ECHO -n "Starting Tests for MySQL $TESTVER Series"
 $SETCOLOR_SUCCESS && echo_ok
 
 $ECHO
-$ECHO -e " TEST\t\t\tUSER\tSYSTEM\tELAPSED\t%CPU\t     RESULT"
+$ECHO " TEST			USER	SYSTEM	ELAPSED		     RESULT"
 $ECHO $DASH72
 
 for tf in $TESTDIR/*.$TESTSUFFIX
 do
  if [ -f $tf ] ; then
-    mytime=`$TIME -f $TIME_FORMAT $MYSQL_TEST < $tf 2>&1`
+    mytime=`$TIME -p $MYSQL_TEST < $tf 2> $TIMEFILE`
     res=$?
 
-    tf=`basename $tf`
+    if [ $res != 1 ]; then
+	mytime=`$CAT $TIMEFILE | $TR '\n' '-'`
 
-    [ $res = 1 ] && mytime=`$ECHO -ne $mytime | cut -b 39-`  
-    $SETCOLOR_NORMAL && $ECHO -ne "$tf\t$mytime"
-    [ $res = 1 ] && fail_inc && echo_fail 
-    [ $res != 1 ] && pass_inc && echo_pass
+	USERT=`$ECHO $mytime | $CUT -d - -f 2 | $CUT -d ' ' -f 2`
+	SYST=`$ECHO $mytime | $CUT -d - -f 3 | $CUT -d ' ' -f 2`
+	REALT=`$ECHO $mytime | $CUT -d - -f 1 | $CUT -d ' ' -f 2`
+    else
+	USERT="...."
+	SYST="...."
+	REALT="...."
+    fi
 
-    total_inc
+	timestr="$USERT	$SYST	$REALT"
+	tf=`$BASENAME $tf`
+	$SETCOLOR_NORMAL && $ECHO -n "$tf		$timestr"
+
+	[ $res != 1 ] && pass_inc && echo_pass
+	[ $res = 1 ] && fail_inc && echo_fail
+
+	total_inc
 
     if [ $res != 0 ]; then
 	$ECHO
-	$SETCOLOR_NORMAL && $ECHO -ne "Restarting mysqld\t$DASHBLANK"
+	$SETCOLOR_NORMAL && $ECHO -n "Restarting mysqld	$DASHBLANK"
 	mysql_restart
 	$SETCOLOR_SUCCESS && echo_ok
-	$SETCOLOR_NORMAL && $ECHO -ne "Resuming Tests\t\t$DASHBLANK"
+	$SETCOLOR_NORMAL && $ECHO -n "Resuming Tests		$DASHBLANK"
 	$SETCOLOR_SUCCESS && echo_ok
 	$ECHO
     fi
@@ -252,6 +272,7 @@ $ECHO $DASH72
 $ECHO
 $SETCOLOR_NORMAL && $ECHO -n "Ending Tests for MySQL $TESTVER Series"
 $SETCOLOR_SUCCESS && echo_ok
+$RM $TIMEFILE
 
 $SETCOLOR_NORMAL && $ECHO -n "Shutdown mysqld"
 mysql_stop
