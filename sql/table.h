@@ -26,6 +26,7 @@ class st_select_lex_unit;
 typedef struct st_order {
   struct st_order *next;
   Item	 **item;			/* Point at item in select fields */
+  Item	 *item_ptr;			/* Storage for initial item */
   bool	 asc;				/* true if ascending */
   bool	 free_me;			/* true if item isn't shared  */
   bool	 in_field_list;			/* true if in select field list */
