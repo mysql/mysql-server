@@ -42,4 +42,5 @@ my_bool send_file_to_server(MYSQL *mysql, const char *filename);
 #endif
 
 MYSQL_RES * STDCALL cli_list_fields(MYSQL *mysql, const char *table, const char *wild);
+my_bool cli_read_prepare_result(MYSQL *mysql, MYSQL_STMT *stmt);
 
