@@ -207,7 +207,7 @@ void start_test(int id)
   {
     mi_status(file1,&isam_info,HA_STATUS_VARIABLE);
     printf("%2d: End of test.  Records:  %ld  Deleted:  %ld\n",
-	   id,isam_info.records,isam_info.deleted);
+	   id,(long) isam_info.records, (long) isam_info.deleted);
     fflush(stdout);
   }
 

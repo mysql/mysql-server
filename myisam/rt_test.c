@@ -297,7 +297,7 @@ int run_test(const char *filename)
   create_record1(record, nrecords*4/5);
   print_record(record,0,"\n");
   hrows=mi_records_in_range(file,0,record+1,0,HA_READ_MBR_INTERSECT,record+1,0,0);
-  printf("     %ld rows\n",hrows);
+  printf("     %ld rows\n", (long) hrows);
 
 
   if (mi_close(file)) goto err;
