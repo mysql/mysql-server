@@ -470,6 +470,15 @@ void Protocol::init(THD *thd_arg)
 }
 
 
+bool Protocol::flush()
+{
+#ifndef EMBEDDED_LIBRARY
+  return net_flush(&thd->net);
+#else
+  return 0;
+#endif
+}
+
 /*
   Send name and type of result to client.
 

@@ -1081,7 +1081,7 @@ mysqld_list_fields(THD *thd, TABLE_LIST *table_list, const char *wild)
   restore_record(table,default_values);              // Get empty record
   if (thd->protocol->send_fields(&field_list,2))
     DBUG_VOID_RETURN;
-  net_flush(&thd->net);
+  thd->protocol->flush();
   DBUG_VOID_RETURN;
 }
 
@@ -1098,13 +1098,11 @@ mysqld_dump_create_info(THD *thd, TABLE *table, int fd)
   if (store_create_info(thd, table, packet))
     DBUG_RETURN(-1);
 
-  //if (protocol->convert)
-  //  protocol->convert->convert((char*) packet->ptr(), packet->length());
   if (fd < 0)
   {
     if (protocol->write())
       DBUG_RETURN(-1);
-    net_flush(&thd->net);
+    protocol->flush();
   }
   else
   {

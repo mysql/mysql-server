@@ -153,6 +153,8 @@ static bool send_prep_stmt(Prepared_statement *stmt, uint columns)
 {
   NET *net= &stmt->thd->net;
   char buff[9];
+  DBUG_ENTER("send_prep_stmt");
+
   buff[0]= 0;                                   /* OK packet indicator */
   int4store(buff+1, stmt->id);
   int2store(buff+5, columns);
@@ -161,12 +163,11 @@ static bool send_prep_stmt(Prepared_statement *stmt, uint columns)
     Send types and names of placeholders to the client
     XXX: fix this nasty upcast from List<Item_param> to List<Item>
   */
-  return my_net_write(net, buff, sizeof(buff)) || 
-         (stmt->param_count &&
-          stmt->thd->protocol_simple.send_fields((List<Item> *)
-                                                 &stmt->lex->param_list, 0)) ||
-         net_flush(net);
-  return 0;
+  DBUG_RETURN(my_net_write(net, buff, sizeof(buff)) || 
+              (stmt->param_count &&
+               stmt->thd->protocol_simple.send_fields((List<Item> *)
+                                                      &stmt->lex->param_list,
+                                                      0)));
 }
 #else
 static bool send_prep_stmt(Prepared_statement *stmt,
@@ -1088,7 +1089,7 @@ static int mysql_test_select(Prepared_statement *stmt,
   {
     if (lex->describe)
     {
-      if (send_prep_stmt(stmt, 0))
+      if (send_prep_stmt(stmt, 0) || thd->protocol->flush())
         goto err_prep;
     }
     else
@@ -1106,11 +1107,8 @@ static int mysql_test_select(Prepared_statement *stmt,
         prepared in unit->prepare call above.
       */
       if (send_prep_stmt(stmt, lex->result->field_count(fields)) ||
-          lex->result->send_fields(fields, 0)
-#ifndef EMBEDDED_LIBRARY
-          || net_flush(&thd->net)
-#endif
-         )
+          lex->result->send_fields(fields, 0) ||
+          thd->protocol->flush())
         goto err_prep;
     }
   }
@@ -1389,7 +1387,6 @@ static int send_prepare_results(Prepared_statement *stmt, bool text_protocol)
   enum enum_sql_command sql_command= lex->sql_command;
   int res= 0;
   DBUG_ENTER("send_prepare_results");
-
   DBUG_PRINT("enter",("command: %d, param_count: %ld",
                       sql_command, stmt->param_count));
 
@@ -1475,7 +1472,8 @@ static int send_prepare_results(Prepared_statement *stmt, bool text_protocol)
     goto error;
   }
   if (res == 0)
-    DBUG_RETURN(text_protocol? 0 : send_prep_stmt(stmt, 0));
+    DBUG_RETURN(text_protocol? 0 : (send_prep_stmt(stmt, 0) ||
+                                    thd->protocol->flush()));
 error:
   if (res < 0)
     send_error(thd, thd->killed ? ER_SERVER_SHUTDOWN : 0);
