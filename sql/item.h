@@ -419,7 +419,7 @@ public:
   {
     collation.set(cs, dv);
     str_value.set(str,length,cs);
-    max_length=length;
+    max_length= str_value.numchars()*cs->mbmaxlen;
     set_name(str, length, cs);
     decimals=NOT_FIXED_DEC;
   }
@@ -428,7 +428,7 @@ public:
   {
     collation.set(cs, dv);
     str_value.set(str,length,cs);
-    max_length=length;
+    max_length= str_value.numchars()*cs->mbmaxlen;
     set_name(name_par,0,cs);
     decimals=NOT_FIXED_DEC;
   }
