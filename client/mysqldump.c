@@ -72,13 +72,13 @@ static char *add_load_option(char *ptr, const char *object,
 
 static char *field_escape(char *to,const char *from,uint length);
 static my_bool  verbose=0,tFlag=0,cFlag=0,dFlag=0,quick=0, extended_insert = 0,
-		lock_tables=0,ignore_errors=0,flush_logs=0,replace=0,
-		ignore=0,opt_drop=0,opt_keywords=0,opt_lock=0,opt_compress=0,
-                opt_delayed=0,create_options=0,opt_quoted=0,opt_databases=0,
-	        opt_alldbs=0,opt_create_db=0,opt_first_slave=0,
-                opt_autocommit=0,opt_master_data,opt_disable_keys=0,opt_xml=0,
-	        opt_delete_master_logs=0, tty_password=0,
-		opt_single_transaction=0, opt_comments= 0;
+  lock_tables=0,ignore_errors=0,flush_logs=0,replace=0,
+  ignore=0,opt_drop=0,opt_keywords=0,opt_lock=0,opt_compress=0,
+  opt_delayed=0,create_options=0,opt_quoted=0,opt_databases=0,
+  opt_alldbs=0,opt_create_db=0,opt_first_slave=0,
+  opt_autocommit=0,opt_master_data,opt_disable_keys=0,opt_xml=0,
+  opt_delete_master_logs=0, tty_password=0,
+  opt_single_transaction=0, opt_comments= 0;
 static MYSQL  mysql_connection,*sock=0;
 static char  insert_pat[12 * 1024],*opt_password=0,*current_user=0,
              *current_host=0,*path=0,*fields_terminated=0,
