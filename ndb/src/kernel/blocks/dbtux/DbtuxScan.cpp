@@ -16,6 +16,7 @@
 
 #define DBTUX_SCAN_CPP
 #include "Dbtux.hpp"
+#include <my_sys.h>
 
 void
 Dbtux::execACC_SCANREQ(Signal* signal)
@@ -112,50 +113,89 @@ Dbtux::execACC_SCANREQ(Signal* signal)
  * keys and that all but possibly last bound is non-strict.
  *
  * Finally save the sets of lower and upper bounds (i.e. start key and
- * end key).  Full bound type (< 4) is included but only the strict bit
- * is used since lower and upper have now been separated.
+ * end key).  Full bound type is included but only the strict bit is
+ * used since lower and upper have now been separated.
  */
 void
 Dbtux::execTUX_BOUND_INFO(Signal* signal)
 {
   jamEntry();
-  struct BoundInfo {
-    int type;
-    unsigned offset;
-    unsigned size;
-  };
-  TuxBoundInfo* const sig = (TuxBoundInfo*)signal->getDataPtrSend();
-  const TuxBoundInfo reqCopy = *(const TuxBoundInfo*)sig;
-  const TuxBoundInfo* const req = &reqCopy;
   // get records
+  TuxBoundInfo* const sig = (TuxBoundInfo*)signal->getDataPtrSend();
+  const TuxBoundInfo* const req = (const TuxBoundInfo*)sig;
   ScanOp& scan = *c_scanOpPool.getPtr(req->tuxScanPtrI);
-  Index& index = *c_indexPool.getPtr(scan.m_indexId);
-  // collect lower and upper bounds
+  const Index& index = *c_indexPool.getPtr(scan.m_indexId);
+  const DescEnt& descEnt = getDescEnt(index.m_descPage, index.m_descOff);
+  // collect normalized lower and upper bounds
+  struct BoundInfo {
+    int type2;     // with EQ -> LE/GE
+    Uint32 offset; // offset in xfrmData
+    Uint32 size;
+  };
   BoundInfo boundInfo[2][MaxIndexAttributes];
+  const unsigned dstSize = 1024 * MAX_XFRM_MULTIPLY;
+  Uint32 xfrmData[dstSize];
+  Uint32 dstPos = 0;
   // largest attrId seen plus one
   Uint32 maxAttrId[2] = { 0, 0 };
-  unsigned offset = 0;
-  const Uint32* const data = (Uint32*)sig + TuxBoundInfo::SignalLength;
   // walk through entries
+  const Uint32* const data = (Uint32*)sig + TuxBoundInfo::SignalLength;
+  Uint32 offset = 0;
   while (offset + 2 <= req->boundAiLength) {
     jam();
     const unsigned type = data[offset];
-    if (type > 4) {
-      jam();
-      scan.m_state = ScanOp::Invalid;
-      sig->errorCode = TuxBoundInfo::InvalidAttrInfo;
-      return;
-    }
     const AttributeHeader* ah = (const AttributeHeader*)&data[offset + 1];
     const Uint32 attrId = ah->getAttributeId();
     const Uint32 dataSize = ah->getDataSize();
-    if (attrId >= index.m_numAttrs) {
+    if (type > 4 || attrId >= index.m_numAttrs || dstPos + 2 + dataSize > dstSize) {
       jam();
       scan.m_state = ScanOp::Invalid;
       sig->errorCode = TuxBoundInfo::InvalidAttrInfo;
       return;
     }
+    // copy header
+    xfrmData[dstPos + 0] = data[offset + 0];
+    xfrmData[dstPos + 1] = data[offset + 1];
+    // copy bound value
+    Uint32 dstWords = 0;
+    if (! ah->isNULL()) {
+      jam();
+      const DescAttr& descAttr = descEnt.m_descAttr[attrId];
+      Uint32 srcBytes = AttributeDescriptor::getSizeInBytes(descAttr.m_attrDesc);
+      Uint32 srcWords = (srcBytes + 3) / 4;
+      if (srcWords != dataSize) {
+        jam();
+        scan.m_state = ScanOp::Invalid;
+        sig->errorCode = TuxBoundInfo::InvalidAttrInfo;
+        return;
+      }
+      uchar* dstPtr = (uchar*)&xfrmData[dstPos + 2];
+      const uchar* srcPtr = (const uchar*)&data[offset + 2];
+      if (descAttr.m_charset == 0) {
+        memcpy(dstPtr, srcPtr, srcWords << 2);
+        dstWords = srcWords;
+      } else {
+        jam();
+        CHARSET_INFO* cs = all_charsets[descAttr.m_charset];
+        Uint32 xmul = cs->strxfrm_multiply;
+        if (xmul == 0)
+          xmul = 1;
+        Uint32 dstLen = xmul * srcBytes;
+        if (dstLen > ((dstSize - dstPos) << 2)) {
+          jam();
+          scan.m_state = ScanOp::Invalid;
+          sig->errorCode = TuxBoundInfo::TooMuchAttrInfo;
+          return;
+        }
+        Uint32 n = (*cs->coll->strnxfrm)(cs, dstPtr, dstLen, srcPtr, srcBytes);
+        while ((n & 3) != 0) {
+          dstPtr[n++] = 0;
+        }
+        dstWords = n / 4;
+      }
+    }
     for (unsigned j = 0; j <= 1; j++) {
+      jam();
       // check if lower/upper bit matches
       const unsigned luBit = (j << 1);
       if ((type & 0x2) != luBit && type != 4)
@@ -164,29 +204,35 @@ Dbtux::execTUX_BOUND_INFO(Signal* signal)
       const unsigned type2 = (type & 0x1) | luBit;
       // fill in any gap
       while (maxAttrId[j] <= attrId) {
+        jam();
         BoundInfo& b = boundInfo[j][maxAttrId[j]++];
-        b.type = -1;
+        b.type2 = -1;
       }
       BoundInfo& b = boundInfo[j][attrId];
-      if (b.type != -1) {
-        // compare with previous bound
-        if (b.type != (int)type2 ||
-            b.size != 2 + dataSize ||
-            memcmp(&data[b.offset + 2], &data[offset + 2], dataSize << 2) != 0) {
+      if (b.type2 != -1) {
+        // compare with previously defined bound
+        if (b.type2 != (int)type2 ||
+            b.size != 2 + dstWords ||
+            memcmp(&xfrmData[b.offset + 2], &xfrmData[dstPos + 2], dstWords << 2) != 0) {
           jam();
           scan.m_state = ScanOp::Invalid;
           sig->errorCode = TuxBoundInfo::InvalidBounds;
           return;
         }
       } else {
+        // fix length
+        AttributeHeader* ah = (AttributeHeader*)&xfrmData[dstPos + 1];
+        ah->setDataSize(dstWords);
         // enter new bound
-        b.type = type2;
-        b.offset = offset;
-        b.size = 2 + dataSize;
+        jam();
+        b.type2 = type2;
+        b.offset = dstPos;
+        b.size = 2 + dstWords;
       }
     }
     // jump to next
     offset += 2 + dataSize;
+    dstPos += 2 + dstWords;
   }
   if (offset != req->boundAiLength) {
     jam();
@@ -200,13 +246,13 @@ Dbtux::execTUX_BOUND_INFO(Signal* signal)
       jam();
       const BoundInfo& b = boundInfo[j][i];
       // check for gap or strict bound before last
-      if (b.type == -1 || (i + 1 < maxAttrId[j] && (b.type & 0x1))) {
+      if (b.type2 == -1 || (i + 1 < maxAttrId[j] && (b.type2 & 0x1))) {
         jam();
         scan.m_state = ScanOp::Invalid;
         sig->errorCode = TuxBoundInfo::InvalidBounds;
         return;
       }
-      bool ok = scan.m_bound[j]->append(&data[b.offset], b.size);
+      bool ok = scan.m_bound[j]->append(&xfrmData[b.offset], b.size);
       if (! ok) {
         jam();
         scan.m_state = ScanOp::Invalid;

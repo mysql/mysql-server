@@ -450,8 +450,12 @@ runReceiveResponse_C(void * me)
   return me;
 }
 
+extern int g_shm_pid;
+
 void TransporterFacade::threadMainReceive(void)
 {
+  g_shm_pid = getpid();
+  
   theTransporterRegistry->startReceiving();
   NdbMutex_Lock(theMutexPtr);
   theTransporterRegistry->update_connections();

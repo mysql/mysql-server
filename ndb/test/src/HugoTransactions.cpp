@@ -865,7 +865,7 @@ HugoTransactions::loadTable(Ndb* pNdb,
   
   g_info << "|- Inserting records..." << endl;
   for (int c=0 ; c<records ; ){
-    bool closeTrans;
+    bool closeTrans = true;
     if (retryAttempt >= retryMax){
       g_info << "Record " << c << " could not be inserted, has retried "
 	     << retryAttempt << " times " << endl;
@@ -983,6 +983,9 @@ HugoTransactions::loadTable(Ndb* pNdb,
     c = c+batch; 
     retryAttempt = 0;
   }
+
+  if(pTrans)
+    pNdb->closeTransaction(pTrans);
   return NDBT_OK;
 }
 

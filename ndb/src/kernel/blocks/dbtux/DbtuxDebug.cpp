@@ -340,7 +340,7 @@ operator<<(NdbOut& out, const Dbtux::ScanOp& scan)
   out << " [savePointId " << dec << scan.m_savePointId << "]";
   out << " [accLockOp " << hex << scan.m_accLockOp << "]";
   out << " [accLockOps";
-  for (unsigned i = 0; i < Dbtux::MaxAccLockOps; i++) {
+  for (unsigned i = 0; i < scan.m_maxAccLockOps; i++) {
     if (scan.m_accLockOps[i] != RNIL)
       out << " " << hex << scan.m_accLockOps[i];
   }
