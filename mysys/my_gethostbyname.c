@@ -18,7 +18,9 @@
 /* Thread safe version of gethostbyname_r() */
 
 #include "mysys_priv.h"
+#ifdef THREAD
 #include "my_pthread.h"
+#endif
 #include <assert.h>
 #if !defined(MSDOS) && !defined(__WIN__)
 #include <netdb.h>
@@ -27,11 +29,6 @@
 
 /* This file is not needed if my_gethostbyname_r is a macro */
 #if !defined(my_gethostbyname_r)
-
-#ifndef THREAD
-#define pthread_mutex_lock(A)
-#define pthread_mutex_unlock(A)
-#endif
 
 /*
   Emulate SOLARIS style calls, not because it's better, but just to make the

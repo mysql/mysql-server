@@ -1069,7 +1069,8 @@ attribute:
 	| AUTO_INC	  { Lex->type|= AUTO_INCREMENT_FLAG | NOT_NULL_FLAG; }
 	| PRIMARY_SYM KEY_SYM { Lex->type|= PRI_KEY_FLAG | NOT_NULL_FLAG; }
 	| UNIQUE_SYM	  { Lex->type|= UNIQUE_FLAG; }
-	| UNIQUE_SYM KEY_SYM { Lex->type|= UNIQUE_KEY_FLAG; };
+	| UNIQUE_SYM KEY_SYM { Lex->type|= UNIQUE_KEY_FLAG; }
+	| COMMENT_SYM text_literal {};
 
 opt_binary:
 	/* empty */	{}
@@ -1203,8 +1204,7 @@ alter_list_item:
 				  lex->length,lex->dec,lex->type,
 				  lex->default_value, $3.str,
 				  lex->interval))
-	     YYABORT;
-             lex->simple_alter=0;
+	      YYABORT;
 	  }
 	  opt_place
 	| DROP opt_column field_ident opt_restrict
@@ -1245,7 +1245,6 @@ alter_list_item:
 	    LEX *lex=Lex;
 	    lex->select->db=$3->db.str;
 	    lex->name= $3->table.str;
-	    lex->simple_alter=0; 
 	  }
         | create_table_options { Lex->simple_alter=0; }
 	| order_clause         { Lex->simple_alter=0; };
