@@ -156,6 +156,7 @@ $opt{allowold} = 1 if $opt{keepold};
 
 # --- connect to the database ---
 my $dsn = ";host=localhost";
+$dsn = ";host=127.0.0.1" if $opt{port};    # use TCP/IP if port was given 
 $dsn .= ";port=$opt{port}" if $opt{port};
 $dsn .= ";mysql_socket=$opt{socket}" if $opt{socket};
 
