@@ -2307,8 +2307,12 @@ mysql_execute_command(void)
       goto error;
     thd->in_lock_tables=1;
     thd->options|= OPTION_TABLE_LOCK;
-    if (!(res=open_and_lock_tables(thd,tables)))
+    if (!(res= open_and_lock_tables(thd, tables)))
     {
+#ifdef HAVE_QUERY_CACHE
+      if (thd->variables.query_cache_wlock_invalidate)
+	query_cache.invalidate_locked_for_write(tables);
+#endif /*HAVE_QUERY_CACHE*/
       thd->locked_tables=thd->lock;
       thd->lock=0;
       send_ok(&thd->net);
