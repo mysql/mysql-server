@@ -714,3 +714,20 @@ create table t1 (id int not null auto_increment primary key, salary int, key(sal
 insert into t1 (salary) values (100),(1000),(10000),(10),(500),(5000),(50000);
 explain SELECT id FROM t1 where salary = (SELECT MAX(salary) FROM t1);
 drop table t1;
+
+#
+# reduced subselect in ORDER BY & GROUP BY clauses
+#
+(SELECT 1 as a) UNION (SELECT 1) ORDER BY (SELECT a+0);
+
+CREATE TABLE `t1` (
+  `id` mediumint(8) unsigned NOT NULL auto_increment,
+  `pseudo` varchar(35) NOT NULL default '',
+  `email` varchar(60) NOT NULL default '',
+  PRIMARY KEY  (`id`),
+  UNIQUE KEY `email` (`email`),
+  UNIQUE KEY `pseudo` (`pseudo`),
+) TYPE=MyISAM CHARSET=latin1 PACK_KEYS=1 ROW_FORMAT=DYNAMIC;
+INSERT INTO t1 (id,pseudo,email) VALUES (1,'test','test'),(2,'test1','test1');
+SELECT pseudo as a, pseudo as b FROM t1 GROUP BY (SELECT a) ORDER BY (SELECT id*1);
+drop table if exists t1;
