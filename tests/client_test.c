@@ -5880,6 +5880,26 @@ static void test_field_misc()
 
   mysql_free_result(result);
   mysql_stmt_close(stmt);
+  
+  stmt = mysql_prepare(mysql, "SELECT @@sql_warnings", 30);
+  mystmt_init(stmt);
+  
+  result = mysql_prepare_result(stmt);
+  mytest(result);
+
+  rc = mysql_execute(stmt);
+  mystmt(stmt,rc);
+
+  myassert(1 == my_process_stmt_result(stmt));
+  
+  verify_prepare_field(result,0,
+                       "@@sql_warnings","",   /* field and its org name */
+                       MYSQL_TYPE_LONGLONG,   /* field type */
+                       "", "",                /* table and its org name */
+                       "",1);                 /* db name, length */
+
+  mysql_free_result(result);
+  mysql_stmt_close(stmt);
 }
 
 /*
@@ -6022,7 +6042,6 @@ int main(int argc, char **argv)
    
     start_time= time((time_t *)0);
    
-    //test_field_misc();      /* check the field info for misc case, bug: #74 */
     test_fetch_nobuffs();   /* to fecth without prior bound buffers */
     test_open_direct();     /* direct execution in the middle of open stmts */
     test_fetch_null();      /* to fetch null data */
