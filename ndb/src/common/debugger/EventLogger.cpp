@@ -421,6 +421,11 @@ EventLogger::getText(char * m_text, size_t m_text_len,
 	  "%sArbitration check lost - less than 1/2 nodes left",
 	  theNodeId);
 	break;
+      case ArbitCode::WinNodes:
+	BaseString::snprintf(m_text, m_text_len,
+	  "%sArbitration check won - all node groups and more than 1/2 nodes left",
+	  theNodeId);
+	break;
       case ArbitCode::WinGroups:
 	BaseString::snprintf(m_text, m_text_len,
 	  "%sArbitration check won - node group majority",
