@@ -87,7 +87,7 @@ for i in libmysql/.libs/libmysqlclient.a libmysql/.libs/libmysqlclient.so* libmy
 do
   if [ -f $i ]
   then
-    cp -p $i $BASE/bin
+    cp -p $i $BASE/lib
    fi
 done
 
