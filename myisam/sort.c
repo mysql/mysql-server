@@ -283,7 +283,7 @@ pthread_handler_decl(thr_find_all_keys,arg)
   int error;
   uint memavl,old_memavl,keys,sort_length;
   uint idx, maxbuffer;
-  uchar **sort_keys;
+  uchar **sort_keys=0;
   
   error=1;
 

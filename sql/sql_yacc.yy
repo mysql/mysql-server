@@ -1435,22 +1435,51 @@ select_option_list:
 
 select_option:
 	STRAIGHT_JOIN { Select->options|= SELECT_STRAIGHT_JOIN; }
-	| HIGH_PRIORITY { if (Select != &Lex->select_lex) YYABORT;  Lex->lock_option= TL_READ_HIGH_PRIORITY; }
+	| HIGH_PRIORITY
+	  {
+	    if (check_simple_select())
+	      YYABORT;
+	    Lex->lock_option= TL_READ_HIGH_PRIORITY;
+	  }
 	| DISTINCT	{ Select->options|= SELECT_DISTINCT; }
 	| SQL_SMALL_RESULT { Select->options|= SELECT_SMALL_RESULT; }
 	| SQL_BIG_RESULT { Select->options|= SELECT_BIG_RESULT; }
-	| SQL_BUFFER_RESULT { if (Select != &Lex->select_lex) YYABORT; Select->options|= OPTION_BUFFER_RESULT; }
-	| SQL_CALC_FOUND_ROWS {  if (Select != &Lex->select_lex) YYABORT; Select->options|= OPTION_FOUND_ROWS; }
-	| SQL_NO_CACHE_SYM {  if (Select != &Lex->select_lex) YYABORT; current_thd->safe_to_cache_query=0; }
-	| SQL_CACHE_SYM {  if (Select != &Lex->select_lex) YYABORT; Select->options |= OPTION_TO_QUERY_CACHE; }
-	| ALL		{};
+	| SQL_BUFFER_RESULT
+	  {
+	    if (check_simple_select())
+	      YYABORT;
+	    Select->options|= OPTION_BUFFER_RESULT;
+	  }
+	| SQL_CALC_FOUND_ROWS
+	  {
+	    if (check_simple_select())
+	      YYABORT;
+	    Select->options|= OPTION_FOUND_ROWS;
+	  }
+	| SQL_NO_CACHE_SYM { current_thd->safe_to_cache_query=0; }
+	| SQL_CACHE_SYM    { Select->options|= OPTION_TO_QUERY_CACHE; }
+	| ALL		{}
+	;
 
 select_lock_type:
 	/* empty */
 	| FOR_SYM UPDATE_SYM
-	  {  if (Select != &Lex->select_lex) YYABORT;  Lex->lock_option= TL_WRITE; current_thd->safe_to_cache_query=0; }
+	  {
+	    LEX *lex=Lex;
+	    if (check_simple_select())
+	      YYABORT;	
+	    lex->lock_option= TL_WRITE;
+	    lex->thd->safe_to_cache_query=0;
+	  }
 	| LOCK_SYM IN_SYM SHARE_SYM MODE_SYM
-	  {  if (Select != &Lex->select_lex) YYABORT;  Lex->lock_option= TL_READ_WITH_SHARED_LOCKS; current_thd->safe_to_cache_query=0; };
+	  {
+	    LEX *lex=Lex;
+	    if (check_simple_select())
+	      YYABORT;	
+	    lex->lock_option= TL_READ_WITH_SHARED_LOCKS;
+	    lex->thd->safe_to_cache_query=0;
+	  }
+	;
 
 select_item_list:
 	  select_item_list ',' select_item
@@ -2047,7 +2076,8 @@ join_table:
 	{
 	  SELECT_LEX *sel=Select;
 	  if (!($$=add_table_to_list($2,$3,0,TL_UNLOCK, sel->use_index_ptr,
-	                             sel->ignore_index_ptr))) YYABORT;
+	                             sel->ignore_index_ptr)))
+	    YYABORT;
 	}
 	| '{' ident join_table LEFT OUTER JOIN_SYM join_table ON expr '}'
 	  { add_join_on($7,$9); $7->outer_join|=JOIN_TYPE_LEFT; $$=$7; };
@@ -2158,14 +2188,21 @@ olap_opt:
 	/* empty */ {}
 	| WITH CUBE_SYM
           {
-	    Lex->olap = true;
-	    Select->olap= CUBE_TYPE;
+	    LEX *lex=Lex;
+	    lex->olap = true;
+	    lex->select->olap= CUBE_TYPE;
+	    net_printf(&lex->thd->net, ER_NOT_SUPPORTED_YET, "CUBE");
+	    YYABORT;	/* To be deleted in 4.1 */
 	  }
 	| WITH ROLLUP_SYM
           {
-	    Lex->olap = true;
-	    Select->olap= ROLLUP_TYPE;
+	    LEX *lex=Lex;
+	    lex->olap = true;
+	    lex->select->olap= ROLLUP_TYPE;
+	    net_printf(&lex->thd->net, ER_NOT_SUPPORTED_YET, "ROLLUP");
+	    YYABORT;	/* To be deleted in 4.1 */
 	  }
+	;
 
 /*
    Order by statement in select
@@ -2180,9 +2217,17 @@ order_clause:
         { 
 	  LEX *lex=Lex;
 	  if (lex->sql_command == SQLCOM_MULTI_UPDATE)
+	  {
+	    net_printf(&lex->thd->net, ER_WRONG_USAGE, "UPDATE", "ORDER BY");
 	    YYABORT;
-	  if (lex->olap)
-            YYABORT;
+	  }	
+	  if (lex->select->olap != UNSPECIFIED_OLAP_TYPE)
+	  {
+	    net_printf(&lex->thd->net, ER_WRONG_USAGE,
+		       "CUBE/ROLLUP",
+		       "ORDER BY");
+	    YYABORT;
+	  }
 	  lex->select->sort_default=1;
 	} order_list;
 
@@ -2203,8 +2248,12 @@ limit_clause:
 	| LIMIT ULONG_NUM
 	  {
 	    LEX *lex=Lex;
-	    if (lex->olap)
+	    if (lex->select->olap != UNSPECIFIED_OLAP_TYPE)
+	    {
+	      net_printf(&lex->thd->net, ER_WRONG_USAGE, "CUBE/ROLLUP",
+		        "LIMIT");
 	      YYABORT;
+	    }
 	    SELECT_LEX *sel=Select;
 	    sel->select_limit= $2;
 	    sel->offset_limit= 0L;
@@ -2212,9 +2261,13 @@ limit_clause:
 	| LIMIT ULONG_NUM ',' ULONG_NUM
 	  {
 	    LEX *lex=Lex;
-	    if (lex->olap)
+	    if (lex->select->olap != UNSPECIFIED_OLAP_TYPE)
+	    {
+	      net_printf(&lex->thd->net, ER_WRONG_USAGE, "CUBE/ROLLUP",
+		        "LIMIT");
 	      YYABORT;
-	    SELECT_LEX *sel=Select;
+	    }	      
+	    SELECT_LEX *sel=lex->select;
 	    sel->select_limit= $4;
 	    sel->offset_limit= $2;
 	  };
@@ -2224,7 +2277,10 @@ delete_limit_clause:
 	{
 	  LEX *lex=Lex;
 	  if (lex->sql_command == SQLCOM_MULTI_UPDATE)
+	  {
+	    net_printf(&lex->thd->net, ER_WRONG_USAGE, "DELETE", "LIMIT");
 	    YYABORT;
+	  }
 	  lex->select->select_limit= HA_POS_ERROR;
 	}
 	| LIMIT ulonglong_num
@@ -3475,8 +3531,8 @@ opt_table:
 	      lex->grant = DB_ACLS & ~GRANT_ACL;
 	    else if (lex->columns.elements)
 	    {
-	       send_error(&lex->thd->net,ER_ILLEGAL_GRANT_FOR_TABLE);
-	       YYABORT;
+	      send_error(&lex->thd->net,ER_ILLEGAL_GRANT_FOR_TABLE);
+	      YYABORT;
 	    }
 	  }
 	| ident '.' '*'
@@ -3514,8 +3570,13 @@ opt_table:
 
 
 user_list:
-	grant_user	     { if (Lex->users_list.push_back($1)) YYABORT;}
-	| user_list ',' grant_user { if (Lex->users_list.push_back($3)) YYABORT;};
+	grant_user  { if (Lex->users_list.push_back($1)) YYABORT;}
+	| user_list ',' grant_user
+	  {
+	    if (Lex->users_list.push_back($3))
+	      YYABORT;
+	  }
+	;
 
 
 grant_user:
@@ -3631,42 +3692,55 @@ rollback:
 
 
 union:	
-  /* empty */ {}
-  | union_list;
+	/* empty */ {}
+	| union_list;
 
 union_list:
-  UNION_SYM    union_option
-  {
-    LEX *lex=Lex;
-    if (lex->exchange)
-    {
-       /* Only the last SELECT can have  INTO...... */
-       net_printf(&lex->thd->net, ER_WRONG_USAGE,"UNION","INTO");
-       YYABORT;
-    } 
-    if (lex->select->linkage == NOT_A_SELECT || mysql_new_select(lex))
-      YYABORT;
-    lex->select->linkage=UNION_TYPE;
-  } 
-  select_init;
+	UNION_SYM union_option
+	{
+	  LEX *lex=Lex;
+	  if (lex->exchange)
+	  {
+	    /* Only the last SELECT can have  INTO...... */
+	    net_printf(&lex->thd->net, ER_WRONG_USAGE,"UNION","INTO");
+	    YYABORT;
+	  }
+	  if (lex->select->linkage == NOT_A_SELECT)
+	  {
+	    send_error(&lex->thd->net, ER_SYNTAX_ERROR);
+	    YYABORT;
+	  }
+	  if (mysql_new_select(lex))
+	    YYABORT;
+	  lex->select->linkage=UNION_TYPE;
+	} 
+	select_init
+	;
 
 union_opt:
-  union {}
-  |  optional_order_or_limit {};
+	union {}
+	| optional_order_or_limit {};
 
 optional_order_or_limit:
-  /* empty */ {}
-  |
-  {
-    LEX *lex=Lex;
-    if (!lex->select->braces || mysql_new_select(lex))
-     YYABORT;
-    mysql_init_select(lex);
-    lex->select->linkage=NOT_A_SELECT;
-    lex->select->select_limit=lex->thd->variables.select_limit;
-  }
-  opt_order_clause limit_clause;
+	/* empty */ {}
+	|
+	  {
+    	    LEX *lex=Lex;
+	    if (!lex->select->braces)
+	    {
+	      send_error(&lex->thd->net, ER_SYNTAX_ERROR);
+	      YYABORT;
+	    }
+	    if (mysql_new_select(lex))
+	      YYABORT;
+	    mysql_init_select(lex);
+	    lex->select->linkage=NOT_A_SELECT;
+	    lex->select->select_limit=lex->thd->variables.select_limit;
+	  }
+	  opt_order_clause limit_clause
+	;
 
 union_option:
-  /* empty */ {}
-  | ALL {Lex->union_option=1;};
+	/* empty */ {}
+	| ALL { Lex->union_option=1; }
+	;

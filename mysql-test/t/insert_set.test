@@ -2,9 +2,9 @@
 # Test of mysqld crash with fully qualified column names
 #
 
-drop database if exists a;
-create database a;
-use a;
+drop database if exists foo;
+create database foo;
+use foo;
 create table b (c int);
-insert into a.b set a.b.c = '1';
-drop database a;
+insert into foo.b set foo.b.c = '1';
+drop database foo;
