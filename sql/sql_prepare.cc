@@ -426,8 +426,10 @@ static bool insert_params_withlog(PREP_STMT *stmt, uchar *pos, uchar *read_pos)
   Item_param *param;
   DBUG_ENTER("insert_params_withlog"); 
   
-  String str, *res, *query= new String(stmt->query->alloced_length());  
-  query->copy(*stmt->query);
+  String str, query, *res;
+
+  if (query.copy(*stmt->query))
+    DBUG_RETURN(1);
   
   ulong param_no= 0;  
   uint32 length= 0;
@@ -451,16 +453,14 @@ static bool insert_params_withlog(PREP_STMT *stmt, uchar *pos, uchar *read_pos)
         res= param->query_val_str(&str);
       }
     }
-    if (query->replace(param->pos_in_query+length, 1, *res))
+    if (query.replace(param->pos_in_query+length, 1, *res))
       DBUG_RETURN(1);
     
     length+= res->length()-1;
     param_no++;
   }
-  if (alloc_query(stmt->thd, (char *)query->ptr(), query->length()+1))
+  if (alloc_query(thd, (char *)query.ptr(), query.length()+1))
     DBUG_RETURN(1);
-  
-  query->free();
   DBUG_RETURN(0);
 }
 
