@@ -190,8 +190,6 @@ que_thr_end_wait(
 	ut_ad(mutex_own(&kernel_mutex));
 #endif /* UNIV_SYNC_DEBUG */
 	ut_ad(thr);
-	ut_ad(next_thr);
-	ut_ad(*next_thr == NULL);
 	ut_ad((thr->state == QUE_THR_LOCK_WAIT)
 	      || (thr->state == QUE_THR_PROCEDURE_WAIT)
 	      || (thr->state == QUE_THR_SIG_REPLY_WAIT));
