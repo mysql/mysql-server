@@ -101,7 +101,7 @@ int openfrm(const char *name, const char *alias, uint db_stat, uint prgflag,
   if (!outparam->real_name || !outparam->table_name)
     goto err_end;
 
-  if ((file=my_open(fn_format(index_file,name,"",reg_ext,4),
+  if ((file=my_open(fn_format(index_file,name,"",reg_ext,MY_UNPACK_FILENAME),
 		    O_RDONLY | O_SHARE,
 		    MYF(0)))
       < 0)
