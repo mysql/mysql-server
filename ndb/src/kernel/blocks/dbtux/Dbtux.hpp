@@ -318,10 +318,9 @@ private:
    * Attribute metadata.  Size must be multiple of word size.
    */
   struct DescAttr {
-    unsigned m_primaryAttrId : 16;
-    unsigned m_typeId : 8;
-    unsigned m_nullable : 1;
-    unsigned pad1 : 7;
+    Uint32 m_attrDesc;          // standard AttributeDescriptor
+    Uint16 m_primaryAttrId;
+    Uint16 m_typeId;
   };
   static const unsigned DescAttrSize = sizeof(DescAttr) >> 2;
 
