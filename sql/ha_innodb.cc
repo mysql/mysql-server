@@ -5272,59 +5272,51 @@ ulonglong ha_innobase::get_mysql_bin_log_pos()
 }
 
 extern "C" {
-/***********************************************************************
-This function finds charset information and returns the character
-length for multibyte character set. */
-
-ulint innobase_get_charset_mbmaxlen(
-	ulint charset_id)	/* in: charset id */
-{
-  CHARSET_INFO*   charset;        /* charset used in the field */
-
-  charset = get_charset(charset_id,MYF(MY_WME));
-
-  ut_ad(charset);
-  ut_ad(charset->mbmaxlen);
-
-  return charset->mbmaxlen;
-}
-}
-
-extern "C" {
-/***********************************************************************
-This function finds charset information and returns position the nth 
-character for multibyte character set.*/
+/**********************************************************************
+This function is used to find storage length of prefix_len characters 
+in bytes for prefix indexes using multibyte character set. 
+Function finds charset information and returns length of
+prefix_len characters in the index field in bytes. */
 
 ulint innobase_get_at_most_n_mbchars(
+/*=================================*/
 	ulint charset_id,	/* in: character set id */
-        ulint nth,		/* in: nth character    */
+	ulint prefix_len,	/* in: prefix length of the index    */
 	ulint data_len,         /* in: length of the sting in bytes */
 	const char *pos)	/* in: character string */
 {
-  ulint byte_length;		/* storage length, in bytes. */
-  ulint char_length;		/* character length in bytes */
-  CHARSET_INFO* charset;	/* charset used in the field */
+	ulint byte_length;	/* storage length, in bytes. */
+	ulint char_length;	/* character length in bytes */
+	CHARSET_INFO* charset;	/* charset used in the field */
 
-  ut_ad(pos);
-  byte_length = data_len;
+	ut_ad(pos);
+	byte_length = data_len;
 
-  charset = get_charset(charset_id,MYF(MY_WME));
+	charset = get_charset(charset_id,MYF(MY_WME));
 
-  ut_ad(charset);
-  ut_ad(charset->mbmaxlen);
+	ut_ad(charset);
+	ut_ad(charset->mbmaxlen);
 
-  char_length= byte_length / charset->mbmaxlen;
-  nth = nth / charset->mbmaxlen;
+	/* Calculate the storage length of the one character in bytes and
+	how many characters the prefix index contains */
 
-  if (byte_length > char_length)
-  {
-	char_length= my_charpos(charset, pos, pos + byte_length, nth);
-	set_if_smaller(char_length, byte_length);
-  } 
-  else
-    char_length = nth;
+	char_length = byte_length / charset->mbmaxlen;
+	prefix_len = prefix_len / charset->mbmaxlen;
 
-  return char_length;
+	/* If length of the string is greater than storage length of the
+	one character, we have to find the storage position of the 
+	prefix_len character in the string */
+
+	if (byte_length > char_length) {
+		char_length = my_charpos(charset, pos, 
+					 pos + byte_length, prefix_len);
+		set_if_smaller(char_length, byte_length);
+	} 
+	else {
+		char_length = prefix_len;
+	}
+
+	return char_length;
 }
 }
 
