@@ -1540,13 +1540,8 @@ void mysqld_list_processes(THD *thd,const char *user, bool verbose)
     while ((tmp=it++))
     {
       struct st_my_thread_var *mysys_var;
-#ifndef EMBEDDED_LIBRARY
-      if ((tmp->net.vio || tmp->system_thread) &&
+      if ((tmp->vio_ok() || tmp->system_thread) &&
           (!user || (tmp->user && !strcmp(tmp->user,user))))
-#else
-      if (tmp->system_thread &&
-          (!user || (tmp->user && !strcmp(tmp->user,user))))
-#endif
       {
         thread_info *thd_info=new thread_info;
 
