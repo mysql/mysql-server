@@ -7971,7 +7971,7 @@ If you are using InnoDB tables, refer to the InnoDB-specific startup
 options.  @xref{InnoDB start}.
 
 If you are using BDB (Berkeley DB) tables, you should familiarise
-yourself with the different BDB specific startup options.  @xref{BDB start}.
+yourself with the different BDB-specific startup options.  @xref{BDB start}.
 
 
 @node Automatic start,  , Starting server, Post-installation
@@ -8328,7 +8328,7 @@ link and the original database are deleted.  (This didn't happen in 3.22
 because configure didn't detect the @code{readlink} system call.)
 
 @item
-@code{OPTIMIZE TABLE} now only works for @code{MyISAM} tables.
+@code{OPTIMIZE TABLE} now works only for @code{MyISAM} tables.
 For other table types, you can use @code{ALTER TABLE} to optimise the table.
 During @code{OPTIMIZE TABLE} the table is now locked from other threads.
 
@@ -13423,7 +13423,7 @@ WHERE  price=19.95
 @end enumerate
 
 Another solution is to sort all rows descending by price and only
-get the first row using the MySQL specific @code{LIMIT} clause:
+get the first row using the MySQL-specific @code{LIMIT} clause:
 
 @example
 SELECT article, dealer, price
@@ -17757,7 +17757,7 @@ BACKUP TABLE tbl_name[,tbl_name...] TO '/path/to/backup/directory'
 
 Copies to the backup directory the minimum number of table files needed
 to restore the table, after flushing any buffered changes to disk. Currently
-only works for @code{MyISAM} tables.
+works only for @code{MyISAM} tables.
 For @code{MyISAM} tables, copies @file{.frm} (definition)  and
 @file{.MYD} (data) files. The index file can be rebuilt from those two.
 
@@ -17821,7 +17821,7 @@ CHECK TABLE tbl_name[,tbl_name...] [option [option...]]
 option = QUICK | FAST | MEDIUM | EXTENDED | CHANGED
 @end example
 
-@code{CHECK TABLE} only works on @code{MyISAM} and @code{InnoDB} tables. On
+@code{CHECK TABLE} works only on @code{MyISAM} and @code{InnoDB} tables. On
 @code{MyISAM} tables it's the same thing as running @code{myisamchk -m
 table_name} on the table.
 
@@ -17928,7 +17928,7 @@ to set the column to some other value than 0.
 REPAIR TABLE tbl_name[,tbl_name...] [QUICK] [EXTENDED] [USE_FRM]
 @end example
 
-@code{REPAIR TABLE} only works on @code{MyISAM} tables and is the same
+@code{REPAIR TABLE} works only on @code{MyISAM} tables and is the same
 as running @code{myisamchk -r table_name} on the table.
 
 Normally you should never have to run this command, but if disaster strikes
@@ -17959,8 +17959,8 @@ If @code{QUICK} is given then MySQL will try to do a
 
 If you use @code{EXTENDED} then MySQL will create the index row
 by row instead of creating one index at a time with sorting; this may be
-better than sorting on fixed-length keys if you have long @code{char()}
-keys that compress very good.
+better than sorting on fixed-length keys if you have long @code{CHAR}
+keys that compress very well.
 
 As of @code{MySQL} 4.0.2 there is a @code{USE_FRM} mode for @code{REPAIR}.
 Use it if the @file{.MYI} file is missing or if its header is corrupted.
@@ -19131,7 +19131,7 @@ Deleted records are maintained in a linked list and subsequent @code{INSERT}
 operations reuse old record positions. You can use @code{OPTIMIZE TABLE} to
 reclaim the unused space and to defragment the datafile.
 
-For the moment, @code{OPTIMIZE TABLE} only works on @code{MyISAM} and
+For the moment, @code{OPTIMIZE TABLE} works only on @code{MyISAM} and
 @code{BDB} tables. For @code{BDB} tables, @code{OPTIMIZE TABLE} is
 currently mapped to @code{ANALYZE TABLE}.
 @xref{ANALYZE TABLE, , @code{ANALYZE TABLE}}.
@@ -19310,7 +19310,7 @@ Otherwise, you can only see and kill your own threads.
 You can also use the @code{mysqladmin processlist} and @code{mysqladmin kill}
 commands to examine and kill threads.
 
-When you do a @code{KILL}, a thread specific @code{kill flag} is set for
+When you do a @code{KILL}, a thread-specific @code{kill flag} is set for
 the thread.
 
 In most cases it may take some time for the thread to die as the kill
@@ -20192,7 +20192,7 @@ want to increase this value.
 @item @code{record_rnd_buffer_size}
 When reading rows in sorted order after a sort, the rows are read
 through this buffer to avoid a disk seeks.  Can improve @code{ORDER BY}
-by a lot if set to a high value.  As this is a thread specific variable,
+by a lot if set to a high value.  As this is a thread-specific variable,
 one should not set this big globally, but just change this when running
 some specific big queries.
 
@@ -28617,16 +28617,18 @@ Starting from MySQL 4.0.3 we provide better access to a lot of system
 and connection variables. One can change most of them without having to take
 down the server.
 
-There are two kind of system variables: Thread (or connection) specific
+There are two kind of system variables: Thread-specific (or
+connection-specific)
 variables that are unique to the current connection and global variables
-that are either used to configure global events or used as initial
-variables for a new connection.
+that are used to configure global events.
+Global variables also are used to set up the initial values of the
+corresponding thread-specific variables for new connections.
 
-When mysqld starts all global variables are initialised from command
-line arguments and option files.  You can change the used value with the
-@code{SET GLOBAL} command. When a new thread is created the thread
-specific variables are initialised from the global variables and they
-will not change even if one issues a new @code{SET GLOBAL} command.
+When @code{mysqld} starts, all global variables are initialised from command
+line arguments and option files.  You can change the value with the
+@code{SET GLOBAL} command. When a new thread is created, the thread-specific
+variables are initialised from the global variables and they
+will not change even if you issue a new @code{SET GLOBAL} command.
 
 To set the value for a @code{GLOBAL} variable, you should use one
 of the following syntaxes:
@@ -28669,15 +28671,15 @@ SHOW SESSION VARIABLES like 'sort_buffer_size';
 
 When you @strong{retrieve} a variable value with the
 @code{@@@@variable_name} syntax and you don't specify @code{GLOBAL} or
-@code{SESSION} then MySQL will return the thread specific
+@code{SESSION} then MySQL will return the thread-specific
 (@code{SESSION}) value if it exists.  If not, MySQL will return the
 global value.
 
 The reason for requiring @code{GLOBAL} for setting @code{GLOBAL} only
 variables but not for retrieving them is to ensure that we don't later
-run into problems if we later would introduce a thread specific variable
-with the same name or remove a thread specific variable.  In this case
-you could accidently change the state for the whole server and not
+run into problems if we later would introduce a thread-specific variable
+with the same name or remove a thread-specific variable.  In this case,
+you could accidentally change the state for the server as a whole, rather than
 just for your own connection.
 
 The following is a full list of all variables that you change and retrieve
@@ -28732,7 +28734,7 @@ and if you can use @code{GLOBAL} or @code{SESSION} with them.
 @item query_cache_size @tab num @tab GLOBAL
 @item query_cache_type @tab enum @tab GLOBAL
 @item read_buffer_size @tab num @tab GLOBAL | SESSION
-@item read_rnd_buffer_size num @tab GLOBAL | SESSION
+@item read_rnd_buffer_size @tab num @tab GLOBAL | SESSION
 @item rpl_recovery_rank @tab num @tab GLOBAL
 @item safe_show_database @tab bool @tab GLOBAL
 @item server_id @tab num @tab GLOBAL
@@ -28779,7 +28781,7 @@ Here is a description of some of the variables:
 @item identity @tab Alias for last_insert_id (Sybase compatiblity)
 @item sql_low_priority_updates @tab Alias for low_priority_updates
 @item sql_max_join_size @tab Alias for max_join_size
-@item delay_key_write_for_all_tables @tab If this and delay_key_write is set then all new MyISAM tables that are opened will use delayed key writes.
+@item delay_key_write_for_all_tables @tab If this and delay_key_write are set, then all new MyISAM tables that are opened will use delayed key writes.
 @item version @tab Alias for VERSION() (Sybase (?) compatability)
 @end multitable
 
@@ -44840,7 +44842,7 @@ None.
 @subsubheading Description
 
 This function needs to be called for each created thread to initialise
-thread specific variables.
+thread-specific variables.
 
 This is automatically called by @code{my_init()} and @code{mysql_connect()}.
 
@@ -45230,12 +45232,12 @@ MySQL functions which did not create the connection to the
 MySQL database:
 
 When you call @code{mysql_init()} or @code{mysql_connect()}, MySQL will
-create a thread specific variable for the thread that is used by the
+create a thread-specific variable for the thread that is used by the
 debug library (among other things).
 
 If you call a MySQL function, before the thread has
 called @code{mysql_init()} or @code{mysql_connect()}, the thread will
-not have the necessary thread specific variables in place and you are
+not have the necessary thread-specific variables in place and you are
 likely to end up with a core dump sooner or later.
 
 The get things to work smoothly you have to do the following:
@@ -45249,8 +45251,8 @@ Call @code{mysql_thread_init()} in the thread handler before calling
 any MySQL function.
 @item
 In the thread, call @code{mysql_thread_end()} before calling
-@code{pthread_exit()}.  This will free the memory used by MySQL thread
-specific variables.
+@code{pthread_exit()}.  This will free the memory used by MySQL
+thread-specific variables.
 @end enumerate
 
 You may get some errors because of undefined symbols when linking your
@@ -45356,11 +45358,11 @@ embedded. @xref{Option files}.
 Put common options in the @code{[server]} section. These will be read by
 both MySQL versions.
 @item
-Put client/server specific options in the @code{[mysqld]} section.
+Put client/server-specific options in the @code{[mysqld]} section.
 @item
-Put embedded MySQL specific options in the @code{[embedded]} section.
+Put embedded MySQL-specific options in the @code{[embedded]} section.
 @item
-Put application specific options in a @code{[ApplicationName_SERVER]}
+Put application-specific options in a @code{[ApplicationName_SERVER]}
 section.
 @end itemize
 
@@ -47246,7 +47248,7 @@ you have to increase this variable both in the client and in the server.
 
 It's safe to increase this variable as memory is only allocated when
 needed; this variable is more a precaution to catch wrong packets
-between the client/server and also to ensure that you don't accidently
+between the client/server and also to ensure that you don't accidentally
 use big packets so that you run out of memory.
 
 If you are using the @code{mysql} client, you may specify a bigger
@@ -50446,7 +50448,7 @@ Fixed client hangup bug when using some SQL commands with wrong syntax.
 @item
 Fixed a timing bug in @code{DROP DATABASE}
 @item
-New @code{SET [GLOBAL | SESSION]} syntax to change thread specific and global
+New @code{SET [GLOBAL | SESSION]} syntax to change thread-specific and global
 server variables at runtime.
 @item
 Added variable @code{slave_compressed_protocol}.
