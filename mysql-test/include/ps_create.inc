@@ -19,7 +19,7 @@
 #---- Please do not alter the following table definitions -------#
 
 --disable_warnings
-drop table if exists t1, t_many_col_types ;
+drop table if exists t1, t9 ;
 --enable_warnings
 
 eval create table t1
@@ -28,7 +28,7 @@ eval create table t1
   primary key(a)
 ) engine = $type ;
 
-eval create table t_many_col_types 
+eval create table t9 
 (
   c1  tinyint, c2  smallint, c3  mediumint, c4  int,
   c5  integer, c6  bigint, c7  float, c8  double,
