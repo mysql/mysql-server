@@ -693,22 +693,26 @@ public:
      */
     unsigned getNoOfColumns() const;
 
+#ifndef DOXYGEN_SHOULD_SKIP_DEPRECATED
     /**
      * Get the number of columns in the index
      * Depricated, use getNoOfColumns instead.
      */
     int getNoOfIndexColumns() const;
+#endif
 
     /**
      * Get a specific column in the index
      */
     const Column * getColumn(unsigned no) const ;
 
+#ifndef DOXYGEN_SHOULD_SKIP_DEPRECATED
     /**
      * Get a specific column name in the index
      * Depricated, use getColumn instead.
      */
     const char * getIndexColumn(int no) const ;
+#endif
 
     /**
      * Add a column to the index definition
@@ -724,6 +728,7 @@ public:
      */
     void addColumnName(const char * name);
 
+#ifndef DOXYGEN_SHOULD_SKIP_DEPRECATED
     /**
      * Add a column name to the index definition
      * Note that the order of indexes will be in
@@ -731,6 +736,7 @@ public:
      * Depricated, use addColumnName instead.
      */
     void addIndexColumn(const char * name);
+#endif
 
     /**
      * Add several column names to the index definition
@@ -739,6 +745,7 @@ public:
      */
     void addColumnNames(unsigned noOfNames, const char ** names);
 
+#ifndef DOXYGEN_SHOULD_SKIP_DEPRECATED
     /**
      * Add several column names to the index definition
      * Note that the order of indexes will be in
@@ -746,6 +753,7 @@ public:
      * Depricated, use addColumnNames instead.
      */
     void addIndexColumns(int noOfNames, const char ** names);
+#endif
 
     /**
      * Represents type of index
