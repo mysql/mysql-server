@@ -12885,8 +12885,9 @@ void st_table_list::print(THD *thd, String *str)
       str->append('.');
       if (schema_table)
       {
-        append_identifier(thd, str, alias, strlen(alias));
-        cmp_name= alias;
+        append_identifier(thd, str, schema_table_name,
+                          strlen(schema_table_name));
+        cmp_name= schema_table_name;
       }
       else
       {
