@@ -1655,6 +1655,19 @@ mysql_execute_command(void)
 	net_printf(&thd->net,ER_INSERT_TABLE_USED,tables->real_name);
 	DBUG_VOID_RETURN;
       }
+      if (lex->create_info.used_fields & HA_CREATE_USED_UNION)
+      {
+        TABLE_LIST *tab;
+        for (tab= tables; tab; tab= tab->next)
+        {
+          if (check_dup(tables->db, tab->real_name,
+                        (TABLE_LIST*)lex->create_info.merge_list.first))
+          {
+            net_printf(&thd->net, ER_INSERT_TABLE_USED, tab->real_name);
+            DBUG_VOID_RETURN;
+          }
+        }  
+      }    
       if (tables->next)
       {
 	TABLE_LIST *table;
