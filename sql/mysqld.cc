@@ -661,7 +661,7 @@ static void close_connections(void)
       break;
     }
 #ifndef __bsdi__				// Bug in BSDI kernel
-    if (tmp->net.vio)
+    if (tmp->vio_ok())
     {
       sql_print_error(ER(ER_FORCING_CLOSE),my_progname,
 		      tmp->thread_id,tmp->user ? tmp->user : "");
