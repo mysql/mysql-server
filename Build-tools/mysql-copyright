@@ -89,7 +89,7 @@ sub main
     }
     
     # everything should be ok, continue with extracting..
-    `gtar xfz ../$distfile`;
+    `tar xfz ../$distfile`;
     $pec= $? >> 8;
     abort($dir, "Extracting from tar failed!\n") if ($pec);
 
@@ -107,7 +107,7 @@ sub main
     `mv -f $destdir $newdistname`;
     
     # tar the new distribution
-    `gtar cz -f $opt_target/$newdistname.tar.gz *`;
+    `tar cz -f $opt_target/$newdistname.tar.gz *`;
     $pec= $? >> 8;
     abort($dir, "Making new tar archive failed!\n") if ($pec);
   
