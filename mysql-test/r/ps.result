@@ -66,8 +66,17 @@ NULL
 NULL
 NULL
 NULL
+set @nullvar=1;
 set @nullvar=NULL;
 execute stmt5 using @nullvar;
+? + a
+NULL
+NULL
+NULL
+NULL
+NULL
+set @nullvar2=NULL;
+execute stmt5 using @nullvar2;
 ? + a
 NULL
 NULL

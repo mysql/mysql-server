@@ -661,7 +661,8 @@ static bool insert_params_from_vars(Prepared_statement *stmt,
     varname= var_it++;
     if ((entry= (user_var_entry*)hash_search(&stmt->thd->user_vars, 
                                              (byte*) varname->str,
-                                             varname->length)))
+                                             varname->length))
+        && entry->value)
     {
       param->item_result_type= entry->type;
       switch (entry->type)
@@ -710,7 +711,8 @@ static bool insert_params_from_vars_with_log(Prepared_statement *stmt,
     varname= var_it++;
     if ((entry= (user_var_entry*)hash_search(&stmt->thd->user_vars, 
                                              (byte*) varname->str,
-                                             varname->length)))
+                                             varname->length))
+        && entry->value)
     {
       param->item_result_type= entry->type;
       switch (entry->type)

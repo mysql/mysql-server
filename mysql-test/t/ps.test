@@ -68,8 +68,12 @@ execute stmt5 using @a;
 
 execute stmt5 using @no_such_var;
 
+set @nullvar=1;
 set @nullvar=NULL;
 execute stmt5 using @nullvar;
+
+set @nullvar2=NULL;
+execute stmt5 using @nullvar2;
 
 drop table t1;
 
