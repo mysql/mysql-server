@@ -181,32 +181,57 @@ end:
 
 /*
   Check if user is ok
-  Updates:
-  thd->user, thd->master_access, thd->priv_user, thd->db, thd->db_access
+
+  SYNOPSIS
+    check_user()
+    thd			Thread handle
+    command		Command for connection (for log)
+    user		Name of user trying to connect
+    passwd		Scrambled password sent from client
+    db			Database to connect to
+    check_count		If set to 1, don't allow too many connection
+    simple_connect	If 1 then client is of old type and we should connect
+			using the old method (no challange)
+    do_send_error	Set to 1 if we should send error to user
+    prepared_scramble	Buffer to store hash password of new connection
+    had_password	Set to 1 if the user gave a password
+    cur_priv_version	Check flag to know if someone flushed the privileges
+			since last code
+    hint_user	        Pointer used by acl_getroot() to remmeber user for
+			next call
+
+  RETURN
+    0		ok
+		thd->user, thd->master_access, thd->priv_user, thd->db and
+		thd->db_access are updated
+    1		Access denied;  Error sent to client
+    -1		If do_send_error == 1:  Failed connect, error sent to client
+		If do_send_error == 0:	Prepare for stage of connect
 */
 
 static int check_user(THD *thd,enum_server_command command, const char *user,
 		       const char *passwd, const char *db, bool check_count,
                        bool simple_connect, bool do_send_error, 
-                       char *crypted_scramble, bool had_password,
+                       char *prepared_scramble, bool had_password,
                        uint *cur_priv_version, ACL_USER** hint_user)
 {
   thd->db=0;
   thd->db_length=0;
   USER_RESOURCES ur;
+  DBUG_ENTER("check_user");
 
   /* We shall avoid dupplicate user allocations here */
   if (!thd->user && !(thd->user = my_strdup(user, MYF(0))))
   {
     send_error(thd,ER_OUT_OF_RESOURCES);
-    return 1;
+    DBUG_RETURN(1);
   }
   thd->master_access=acl_getroot(thd, thd->host, thd->ip, thd->user,
 				 passwd, thd->scramble, &thd->priv_user,
 				 (protocol_version == 9 ||
 				  !(thd->client_capabilities &
 				    CLIENT_LONG_PASSWORD)),
-				 &ur,crypted_scramble,
+				 &ur,prepared_scramble,
 				 cur_priv_version,hint_user);
 
   DBUG_PRINT("info",
@@ -222,8 +247,9 @@ static int check_user(THD *thd,enum_server_command command, const char *user,
   */
   if (thd->master_access & NO_ACCESS)
   {
-    if (do_send_error)
+    if (do_send_error || !had_password || !*hint_user)
     {
+      DBUG_PRINT("info",("Access denied"));
       /*
 	Old client should get nicer error message if password version is
 	not supported
@@ -244,10 +270,10 @@ static int check_user(THD *thd,enum_server_command command, const char *user,
                       thd->host_or_ip,
 	              had_password ? ER(ER_YES) : ER(ER_NO));
       }                
-      return(1);					// Error already given
+      DBUG_RETURN(1);			// Error already given
     }
-    else
-      return(-1); // do not report error in special handshake
+    DBUG_PRINT("info",("Prepare for second part of handshake"));
+    DBUG_RETURN(-1);			// no report error in special handshake
   }
 
   if (check_count)
@@ -259,7 +285,7 @@ static int check_user(THD *thd,enum_server_command command, const char *user,
     if (tmp)
     {						// Too many connections
       send_error(thd, ER_CON_COUNT_ERROR);
-      return(1);
+      DBUG_RETURN(1);
     }
   }
   mysql_log.write(thd,command,
@@ -273,21 +299,20 @@ static int check_user(THD *thd,enum_server_command command, const char *user,
   /* Don't allow user to connect if he has done too many queries */
   if ((ur.questions || ur.updates || ur.connections) &&
       get_or_create_user_conn(thd,user,thd->host_or_ip,&ur))
-    return -1;
+    DBUG_RETURN(1);
   if (thd->user_connect && thd->user_connect->user_resources.connections &&
       check_for_max_user_connections(thd, thd->user_connect))
-    return -1;
+    DBUG_RETURN(1);
 
   if (db && db[0])
   {
-    bool error=test(mysql_change_db(thd,db));
+    int error= test(mysql_change_db(thd,db));
     if (error && thd->user_connect)
       decrease_user_connections(thd->user_connect);
-    return error;
+    DBUG_RETURN(error);
   }
-  else
-    send_ok(thd);				// Ready to handle questions
-  return 0;					// ok
+  send_ok(thd);					// Ready to handle questions
+  DBUG_RETURN(0);				// ok
 }
 
 
@@ -492,24 +517,35 @@ static void reset_mqh(THD *thd, LEX_USER *lu, bool get_them= 0)
 
 
 /*
-  Check connnetion and get priviliges
-  Returns 0 on ok, -1 < if error is given > 0 on error.
+  Check connnectionn and get priviliges
+
+  SYNOPSIS
+    check_connections
+    thd		Thread handle
+
+  RETURN
+    0	ok
+    -1	Error, which is sent to user
+    > 0	 Error code (not sent to user)
 */
 
 #ifndef EMBEDDED_LIBRARY  
 static int
 check_connections(THD *thd)
 {
+  int res;
   uint connect_errors=0;
+  uint cur_priv_version;
+  bool using_password;
   NET *net= &thd->net;
   char *end, *user, *passwd, *db;
   char prepared_scramble[SCRAMBLE41_LENGTH+4];  /* Buffer for scramble&hash */
   ACL_USER* cached_user=NULL; /* Initialise to NULL for first stage */
-  uint cur_priv_version;
   DBUG_PRINT("info",("New connection received on %s",
 		     vio_description(net->vio)));
+
   /* Remove warning from valgrind.  TODO:  Fix it in password.c */
-  bzero((char*) prepared_scramble, sizeof(prepared_scramble));
+  bzero((char*) &prepared_scramble[0], sizeof(prepared_scramble));
   if (!thd->host)                           // If TCP/IP connection
   {
     char ip[30];
@@ -648,11 +684,12 @@ check_connections(THD *thd)
   user=   end;
   passwd= strend(user)+1;
   db=0;
+  using_password= test(passwd[0]);
   if (thd->client_capabilities & CLIENT_CONNECT_WITH_DB)
     db=strend(passwd)+1;
 
   /* We can get only old hash at this point */
-  if (passwd[0] && strlen(passwd)!=SCRAMBLE_LENGTH)
+  if (using_password && strlen(passwd) != SCRAMBLE_LENGTH)
     return ER_HANDSHAKE_ERROR;
 
   if (thd->client_capabilities & CLIENT_INTERACTIVE)
@@ -665,24 +702,23 @@ check_connections(THD *thd)
   /* Simple connect only for old clients. New clients always use secure auth */
   bool simple_connect=(!(thd->client_capabilities & CLIENT_SECURE_CONNECTION));
 
-  /* Store information if we used password. passwd will be dammaged */
-  bool using_password=test(passwd[0]);
-
   /* Check user permissions. If password failure we'll get scramble back */
-  if (check_user(thd, COM_CONNECT, user, passwd, db, 1, simple_connect,
-		 simple_connect, prepared_scramble, using_password,
-		 &cur_priv_version,
-		 &cached_user)<0)
+  if ((res=check_user(thd, COM_CONNECT, user, passwd, db, 1, simple_connect,
+		      simple_connect, prepared_scramble, using_password,
+		      &cur_priv_version,
+		      &cached_user)) < 0)
   {
     /* Store current used and database as they are erased with next packet */
     char tmp_user[USERNAME_LENGTH+1];
     char tmp_db[NAME_LEN+1];
 
-    tmp_user[0]= tmp_db[0]= 0;
-    /* If The client is old we just have to return error */
+    /* If the client is old we just have to return error */
     if (simple_connect)
       return -1;
 
+    DBUG_PRINT("info",("password challenge"));
+
+    tmp_user[0]= tmp_db[0]= 0;
     if (user)
       strmake(tmp_user,user,USERNAME_LENGTH);
     if (db)
@@ -714,9 +750,12 @@ check_connections(THD *thd)
 		   &cached_user))
       return -1;
   }
+  else if (res)
+    return -1;					// Error sent from check_user()
   thd->password=using_password;
   return 0;
 }
+
 
 pthread_handler_decl(handle_one_connection,arg)
 {
@@ -1014,14 +1053,15 @@ bool do_command(THD *thd)
   net->read_timeout=old_timeout;		// restore it
   DBUG_RETURN(dispatch_command(command,thd, packet+1, (uint) packet_length));
 }
-
 #endif  /* EMBEDDED_LIBRARY */
+
 
 bool dispatch_command(enum enum_server_command command, THD *thd,
 		      char* packet, uint packet_length)
 {
+  int res;
   NET *net= &thd->net;
-  bool	error=0;
+  bool error= 0;
   /*
     Commands which will always take a long time should be marked with
     this so that they will not get logged to the slow query log
@@ -1098,6 +1138,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     uint cur_priv_version;                      /* Cached grant version */
     ulong pkt_len=0; /* Length of reply packet */
 
+    bzero((char*) prepared_scramble, sizeof(prepared_scramble));
     /* Small check for incomming packet */
 
     if ((uint) ((uchar*) db - net->read_pos) > packet_length)
@@ -1124,13 +1165,13 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
       Check user permissions. If password failure we'll get scramble back
       Do not retry if we already have sent error (result>0)
     */
-    if (check_user(thd,COM_CHANGE_USER, user, passwd, db, 0, simple_connect,
-        simple_connect, prepared_scramble, using_password, &cur_priv_version,
-        &cached_user) < 0)
+    if ((res=check_user(thd,COM_CHANGE_USER, user, passwd, db, 0,
+			simple_connect, simple_connect, prepared_scramble,
+			using_password, &cur_priv_version, &cached_user)) < 0)
     {
-      /* If The client is old we just have to have auth failure */
+      /* If the client is old we just have to have auth failure */
       if (simple_connect)
-        goto restore_user; /* Error is already reported */
+        goto restore_user;			/* Error is already reported */
 
       /* Store current used and database as they are erased with next packet */
       tmp_user[0]= tmp_db[0]= 0;
@@ -1149,16 +1190,18 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
         goto restore_user_err;
 
       /* We have to get very specific packet size  */
-      if (pkt_len!=SCRAMBLE41_LENGTH)
+      if (pkt_len != SCRAMBLE41_LENGTH)
         goto restore_user;
 
       /* Final attempt to check the user based on reply */
       if (check_user(thd,COM_CHANGE_USER, tmp_user, (char*) net->read_pos,
-          tmp_db, 0, 0, 1, prepared_scramble, using_password,
-		     &cur_priv_version,
-          &cached_user))
+		     tmp_db, 0, 0, 1, prepared_scramble, using_password,
+		     &cur_priv_version, &cached_user))
         goto restore_user;
     }
+    else if (res)
+      goto restore_user;
+
     /* Finally we've authenticated new user */
     if (max_connections && save_uc)
       decrease_user_connections(save_uc);
@@ -1168,10 +1211,10 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     break;
 
     /* Bad luck  we shall restore old user */
-    restore_user_err:
+restore_user_err:
     send_error(thd, ER_UNKNOWN_COM_ERROR);
 
-    restore_user:
+restore_user:
     x_free(thd->user);
     thd->master_access=save_master_access;
     thd->db_access=save_db_access;

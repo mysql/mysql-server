@@ -597,3 +597,4 @@ vio/test-sslclient
 vio/test-sslserver
 vio/viotest-ssl
 scripts/fill_help_tables.sql
+scripts/fill_help_tables

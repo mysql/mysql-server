@@ -373,13 +373,22 @@ bool Protocol::send_fields(List<Item> *list, uint flag)
     Send_field server_field;
     item->make_field(&server_field);
 
+    client_field->db=	  strdup_root(alloc, server_field.db_name);
     client_field->table=  strdup_root(alloc, server_field.table_name);
-    client_field->name=   strdup_root(alloc,server_field.col_name);
+    client_field->name=   strdup_root(alloc, server_field.col_name);
+    client_field->org_table= strdup_root(alloc, server_field.org_table_name);
+    client_field->org_name=  strdup_root(alloc, server_field.org_col_name);
     client_field->length= server_field.length;
     client_field->type=   server_field.type;
     client_field->flags= server_field.flags;
     client_field->decimals= server_field.decimals;
-
+    client_field->db_length=		strlen(client_field->db);
+    client_field->table_length=		strlen(client_field->table);
+    client_field->name_length=		strlen(client_field->name);
+    client_field->org_name_length=	strlen(client_field->org_name);
+    client_field->org_table_length=	strlen(client_field->org_table);
+    client_field->charsetnr=		server_field.charsetnr;
+    
     if (INTERNAL_NUM_FIELD(client_field))
       client_field->flags|= NUM_FLAG;
 

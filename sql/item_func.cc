@@ -2083,7 +2083,8 @@ longlong
 Item_func_set_user_var::val_int()
 {
   longlong value=args[0]->val_int();
-  update_hash((void*) &value,sizeof(longlong),INT_RESULT, default_charset_info);
+  update_hash((void*) &value, sizeof(longlong), INT_RESULT,
+	      default_charset_info);
   return value;
 }
 
@@ -2092,9 +2093,10 @@ Item_func_set_user_var::val_str(String *str)
 {
   String *res=args[0]->val_str(str);
   if (!res)					// Null value
-    update_hash((void*) 0, 0, STRING_RESULT, default_charset_info);
+    update_hash((void*) 0, 0, STRING_RESULT, &my_charset_bin);
   else
-    update_hash(res->c_ptr(),res->length()+1,STRING_RESULT,res->charset());
+    update_hash((void*) res->ptr(), res->length(), STRING_RESULT,
+		res->charset());
   return res;
 }
 
@@ -2129,13 +2131,13 @@ Item_func_get_user_var::val_str(String *str)
     return NULL;
   switch (entry->type) {
   case REAL_RESULT:
-    str->set(*(double*) entry->value,decimals,thd_charset());
+    str->set(*(double*) entry->value,decimals, &my_charset_bin);
     break;
   case INT_RESULT:
-    str->set(*(longlong*) entry->value,thd_charset());
+    str->set(*(longlong*) entry->value, &my_charset_bin);
     break;
   case STRING_RESULT:
-    if (str->copy(entry->value, entry->length-1, entry->var_charset))
+    if (str->copy(entry->value, entry->length, entry->var_charset))
     {
       null_value=1;
       return NULL;
@@ -2191,8 +2193,6 @@ longlong Item_func_get_user_var::val_int()
   return LL(0);					// Impossible
 }
 
-/* From sql_parse.cc */
-extern bool is_update_query(enum enum_sql_command command);
 
 void Item_func_get_user_var::fix_length_and_dec()
 {
@@ -2207,13 +2207,15 @@ void Item_func_get_user_var::fix_length_and_dec()
     if (opt_bin_log && is_update_query(thd->lex.sql_command) &&
 	var_entry->used_query_id != thd->query_id)
     {
+      uint size;
       /*
-	First we need to store value of var_entry, when the next situation appers:
+	First we need to store value of var_entry, when the next situation
+	appers:
         > set @a:=1;
 	> insert into t1 values (@a), (@a:=@a+1), (@a:=@a+1);
 	We have to write to binlog value @a= 1;
       */
-      uint size= ALIGN_SIZE(sizeof(BINLOG_USER_VAR_EVENT)) + var_entry->length;      
+      size= ALIGN_SIZE(sizeof(BINLOG_USER_VAR_EVENT)) + var_entry->length;      
       if (!(user_var_event= (BINLOG_USER_VAR_EVENT *) thd->alloc(size)))
         goto err;
 
@@ -2240,6 +2242,7 @@ void Item_func_get_user_var::fix_length_and_dec()
     }
   }
   return;
+
 err:
   thd->fatal_error();
   return;
@@ -2247,7 +2250,9 @@ err:
 
 
 bool Item_func_get_user_var::const_item() const
-{ return var_entry && current_thd->query_id != var_entry->update_query_id; }
+{
+  return var_entry && current_thd->query_id != var_entry->update_query_id;
+}
 
 
 enum Item_result Item_func_get_user_var::result_type() const
@@ -2275,14 +2280,9 @@ bool Item_func_get_user_var::eq(const Item *item, bool binary_cmp) const
   if (this == item)
     return 1;					// Same item is same.
   /* Check if other type is also a get_user_var() object */
-#ifdef FIX_THIS
-  if (item->eq == &Item_func_get_user_var::eq)
-    return 0;
-#else
   if (item->type() != FUNC_ITEM ||
       ((Item_func*) item)->func_name() != func_name())
     return 0;
-#endif
   Item_func_get_user_var *other=(Item_func_get_user_var*) item;
   return (name.length == other->name.length &&
 	  !memcmp(name.str, other->name.str, name.length));
