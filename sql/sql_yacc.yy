@@ -526,6 +526,9 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %token	UNIQUE_USERS
 %token	UNIX_TIMESTAMP
 %token	USER
+%token	UTC_DATE_SYM
+%token	UTC_TIME_SYM
+%token	UTC_TIMESTAMP_SYM
 %token	WEEK_SYM
 %token	WHEN_SYM
 %token	WORK_SYM
@@ -1915,7 +1918,8 @@ select:
 	  LEX *lex= Lex;
 	  lex->sql_command= SQLCOM_SELECT;
 	  lex->select_lex.resolve_mode= SELECT_LEX::SELECT_MODE;
-	};
+	}
+	;
 
 /* Need select_init2 for subselects. */
 select_init:
@@ -2372,12 +2376,12 @@ simple_expr:
 	| CONCAT_WS '(' expr ',' expr_list ')'
 	  { $$= new Item_func_concat_ws($3, *$5); }
 	| CURDATE optional_braces
-	  { $$= new Item_func_curdate(); Lex->safe_to_cache_query=0; }
+	  { $$= new Item_func_curdate_local(); Lex->safe_to_cache_query=0; }
 	| CURTIME optional_braces
-	  { $$= new Item_func_curtime(); Lex->safe_to_cache_query=0; }
+	  { $$= new Item_func_curtime_local(); Lex->safe_to_cache_query=0; }
 	| CURTIME '(' expr ')'
 	  {
-	    $$= new Item_func_curtime($3);
+	    $$= new Item_func_curtime_local($3);
 	    Lex->safe_to_cache_query=0;
 	  }
 	| DATE_ADD_INTERVAL '(' expr ',' interval_expr interval ')'
@@ -2539,9 +2543,9 @@ simple_expr:
 	  { $$= new Item_func_spatial_collection(* $3,
                        Geometry::wkbMultiPolygon, Geometry::wkbPolygon ); }
 	| NOW_SYM optional_braces
-	  { $$= new Item_func_now(); Lex->safe_to_cache_query=0;}
+	  { $$= new Item_func_now_local(); Lex->safe_to_cache_query=0;}
 	| NOW_SYM '(' expr ')'
-	  { $$= new Item_func_now($3); Lex->safe_to_cache_query=0;}
+	  { $$= new Item_func_now_local($3); Lex->safe_to_cache_query=0;}
 	| PASSWORD '(' expr ')'
 	  { $$= new Item_func_password($3); }
         | PASSWORD '(' expr ',' expr ')'
@@ -2669,6 +2673,12 @@ simple_expr:
 	  { $$= new Item_func_unix_timestamp($3); }
 	| USER '(' ')'
 	  { $$= new Item_func_user(); Lex->safe_to_cache_query=0; }
+	| UTC_DATE_SYM optional_braces
+	  { $$= new Item_func_curdate_utc(); Lex->safe_to_cache_query=0;}
+	| UTC_TIME_SYM optional_braces
+	  { $$= new Item_func_curtime_utc(); Lex->safe_to_cache_query=0;}
+	| UTC_TIMESTAMP_SYM optional_braces
+	  { $$= new Item_func_now_utc(); Lex->safe_to_cache_query=0;}
 	| WEEK_SYM '(' expr ')'
 	  { 
             $$= new Item_func_week($3,new Item_int((char*) "0",

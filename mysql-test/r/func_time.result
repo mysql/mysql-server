@@ -465,3 +465,21 @@ select date_add(time,INTERVAL 1 SECOND) from t1;
 date_add(time,INTERVAL 1 SECOND)
 2006-07-08 00:00:01
 drop table t1;
+select strcmp(date_sub(localtimestamp(), interval 3 hour), utc_timestamp())=0;
+strcmp(date_sub(localtimestamp(), interval 3 hour), utc_timestamp())=0
+1
+select strcmp(date_format(date_sub(localtimestamp(), interval 3 hour),"%T"), utc_time())=0;
+strcmp(date_format(date_sub(localtimestamp(), interval 3 hour),"%T"), utc_time())=0
+1
+select strcmp(date_format(date_sub(localtimestamp(), interval 3 hour),"%Y-%m-%d"), utc_date())=0;
+strcmp(date_format(date_sub(localtimestamp(), interval 3 hour),"%Y-%m-%d"), utc_date())=0
+1
+select strcmp(date_format(utc_timestamp(),"%T"), utc_time())=0;
+strcmp(date_format(utc_timestamp(),"%T"), utc_time())=0
+1
+select strcmp(date_format(utc_timestamp(),"%Y-%m-%d"), utc_date())=0;
+strcmp(date_format(utc_timestamp(),"%Y-%m-%d"), utc_date())=0
+1
+select strcmp(concat(utc_date(),' ',utc_time()),utc_timestamp())=0;
+strcmp(concat(utc_date(),' ',utc_time()),utc_timestamp())=0
+1

@@ -1225,6 +1225,18 @@ SELECT 'c373e9f5ad0791a0dab5444553544200' IN(SELECT t1.FOLDERID FROM t1 WHERE t1
 'c373e9f5ad0791a0dab5444553544200' IN(SELECT t1.FOLDERID FROM t1 WHERE t1.PARENTID='2f6161e879db43c1a5b82c21ddc49089' AND t1.FOLDERNAME = 'Level1')
 0
 drop table t1;
+create table t1 (a int) type=innodb;
+create table t2 (a int) type=innodb;
+create table t3 (a int) type=innodb;
+insert into t1 values (1),(2),(3),(4);
+insert into t2 values (10),(20),(30),(40);
+insert into t3 values (1),(2),(10),(50);
+select a from t3 where t3.a in (select a from t1 where a <= 3 union select * from t2 where a <= 30);
+a
+1
+2
+10
+drop table t1,t2;
 create table t1 (a int not null, b int, primary key (a));
 create table t2 (a int not null, primary key (a));
 create table t3 (a int not null, b int, primary key (a));
