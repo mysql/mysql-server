@@ -695,7 +695,6 @@ sp_head::restore_lex(THD *thd)
   DBUG_ENTER("sp_head::restore_lex");
   LEX *sublex= thd->lex;
   LEX *oldlex= (LEX *)m_lex.pop();
-  SELECT_LEX *sl;
 
   if (! oldlex)
     return;			// Nothing to restore
@@ -866,7 +865,7 @@ sp_head::show_create_procedure(THD *thd)
   if (sql_mode_var)
   {
     sql_mode_str= sql_mode_var->value_ptr(thd, OPT_SESSION, 0);
-    sql_mode_len= strlen(sql_mode_str);
+    sql_mode_len= strlen((char*) sql_mode_str);
   }
 
   field_list.push_back(new Item_empty_string("Procedure", NAME_LEN));
@@ -883,7 +882,7 @@ sp_head::show_create_procedure(THD *thd)
   protocol->prepare_for_resend();
   protocol->store(m_name.str, m_name.length, system_charset_info);
   if (sql_mode_var)
-    protocol->store(sql_mode_str, sql_mode_len, system_charset_info);
+    protocol->store((char*) sql_mode_str, sql_mode_len, system_charset_info);
   protocol->store(m_defstr.str, m_defstr.length, system_charset_info);
   res= protocol->write();
   send_eof(thd);
@@ -931,7 +930,7 @@ sp_head::show_create_function(THD *thd)
   if (sql_mode_var)
   {
     sql_mode_str= sql_mode_var->value_ptr(thd, OPT_SESSION, 0);
-    sql_mode_len= strlen(sql_mode_str);
+    sql_mode_len= strlen((char*) sql_mode_str);
   }
 
   field_list.push_back(new Item_empty_string("Function",NAME_LEN));
@@ -947,7 +946,7 @@ sp_head::show_create_function(THD *thd)
   protocol->prepare_for_resend();
   protocol->store(m_name.str, m_name.length, system_charset_info);
   if (sql_mode_var)
-    protocol->store(sql_mode_str, sql_mode_len, system_charset_info);
+    protocol->store((char*) sql_mode_str, sql_mode_len, system_charset_info);
   protocol->store(m_defstr.str, m_defstr.length, system_charset_info);
   res= protocol->write();
   send_eof(thd);
@@ -990,7 +989,6 @@ int
 sp_instr_stmt::exec_stmt(THD *thd, LEX *lex)
 {
   LEX *olex;			// The other lex
-  SELECT_LEX *sl;
   int res;
 
   olex= thd->lex;		// Save the other lex

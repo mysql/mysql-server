@@ -1882,7 +1882,6 @@ TABLE_READ_PLAN *get_best_disjunct_quick(PARAM *param, SEL_IMERGE *imerge,
   double blocks_in_index_read;
   ha_rows roru_total_records;
   double roru_intersect_part= 1.0;
-  double sweep_cost;
   DBUG_ENTER("get_best_disjunct_quick");
   DBUG_PRINT("info", ("Full table scan cost =%g", read_time));
 
@@ -2449,7 +2448,7 @@ bool ror_intersect_add(const PARAM *param, ROR_INTERSECT_INFO *info,
   DBUG_PRINT("info", ("Adding scan on %s", 
                       info->param->table->key_info[ror_scan->keynr].name));
   SEL_ARG *tuple_arg= NULL;
-  char *key_ptr= key_val;
+  char *key_ptr= (char*) key_val;
   bool cur_covered, prev_covered=
      bitmap_is_set(&info->covered_fields, key_part->fieldnr);
 
@@ -2481,7 +2480,7 @@ bool ror_intersect_add(const PARAM *param, ROR_INTERSECT_INFO *info,
         }
       } 
       ha_rows records;
-      min_range.length= max_range.length= key_ptr - key_val;
+      min_range.length= max_range.length= ((char*) key_ptr - (char*) key_val);
       records= param->table->file->
                  records_in_range(ror_scan->keynr,
                                   &min_range,

@@ -225,7 +225,7 @@ void del_dbopt(const char *path)
 {
   my_dbopt_t *opt;
   rw_wrlock(&LOCK_dboptions);
-  if ((opt= (my_dbopt_t *)hash_search(&dboptions, path, strlen(path))))
+  if ((opt= (my_dbopt_t *)hash_search(&dboptions, (byte*) path, strlen(path))))
     hash_delete(&dboptions, (byte*) opt);
   rw_unlock(&LOCK_dboptions);
 }
@@ -549,7 +549,6 @@ int mysql_rm_db(THD *thd,char *db,bool if_exists, bool silent)
   char	path[FN_REFLEN+16], tmp_db[NAME_LEN+1];
   MY_DIR *dirp;
   uint length;
-  my_dbopt_t *dbopt;
   DBUG_ENTER("mysql_rm_db");
 
   VOID(pthread_mutex_lock(&LOCK_mysql_create_db));
