@@ -1635,21 +1635,24 @@ row_ins_duplicate_error_in_clust(
 			sure that in roll-forward we get the same duplicate
 			errors as in original execution */
 
-			dict_accept(*trx->mysql_query_str, "REPLACE", &success);
+			dict_accept(*trx->mysql_query_str, "REPLACE", 
+				    &success);
 
 			if (success) {
 
-				/* The manual defines the REPLACE semantics that it 
-				is either an INSERT or DELETE(s) for duplicate key
-				+ INSERT. Therefore, we should take X-lock for
-				duplicates */
+				/* The manual defines the REPLACE semantics 
+				that it is either an INSERT or DELETE(s) 
+				for duplicate key + INSERT. Therefore, we 
+				should take X-lock for duplicates */
 				
 				err = row_ins_set_exclusive_rec_lock(
-					LOCK_REC_NOT_GAP,rec,cursor->index,thr);
+					LOCK_REC_NOT_GAP,rec,cursor->index,
+					thr);
 			} else {
 				
 				err = row_ins_set_shared_rec_lock(
-					LOCK_REC_NOT_GAP,rec, cursor->index, thr);
+					LOCK_REC_NOT_GAP,rec, cursor->index, 
+					thr);
 			} 
 
 			if (err != DB_SUCCESS) {
@@ -1673,26 +1676,28 @@ row_ins_duplicate_error_in_clust(
 		if (rec != page_get_supremum_rec(page)) {
 
 
-                        /* The manual defines the REPLACE semantics that it 
-                           is either an INSERT or DELETE(s) for duplicate key
-                           + INSERT. Therefore, we should take X-lock for
-                           duplicates.
+			/* The manual defines the REPLACE semantics that it 
+			is either an INSERT or DELETE(s) for duplicate key
+			+ INSERT. Therefore, we should take X-lock for
+			duplicates.
 		        */
 
-                        
-                        /* Is the first word in MySQL query REPLACE ? */
+			/* Is the first word in MySQL query REPLACE ? */
 
-                        dict_accept(*trx->mysql_query_str, "REPLACE", &success);
+		 	dict_accept(*trx->mysql_query_str, "REPLACE", 
+				    &success);
 
-                        if (success) {
+			if (success) {
 
-		            err = row_ins_set_exclusive_rec_lock(
-			       LOCK_REC_NOT_GAP,rec,cursor->index,thr);
-		        } else {
+				err = row_ins_set_exclusive_rec_lock(
+						LOCK_REC_NOT_GAP,
+						rec,cursor->index,thr);
+			} else {
 
-			    err = row_ins_set_shared_rec_lock(
-                               LOCK_REC_NOT_GAP,rec, cursor->index, thr);
-                        }
+				err = row_ins_set_shared_rec_lock(
+						LOCK_REC_NOT_GAP,rec, 
+						cursor->index, thr);
+			}
 
 			if (err != DB_SUCCESS) {
 					
