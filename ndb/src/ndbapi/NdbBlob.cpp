@@ -97,14 +97,6 @@ NdbBlob::getBlobTable(NdbTableImpl& bt, const NdbTableImpl* t, const NdbColumnIm
   bt.setName(btname);
   bt.setLogging(t->getLogging());
   bt.setFragmentType(t->getFragmentType());
-  { NdbDictionary::Column bc("PK");
-    bc.setType(NdbDictionary::Column::Unsigned);
-    assert(t->m_sizeOfKeysInWords != 0);
-    bc.setLength(t->m_sizeOfKeysInWords);
-    bc.setPrimaryKey(true);
-    bc.setDistributionKey(true);
-    bt.addColumn(bc);
-  }
   { NdbDictionary::Column bc("DIST");
     bc.setType(NdbDictionary::Column::Unsigned);
     bc.setPrimaryKey(true);
@@ -113,6 +105,13 @@ NdbBlob::getBlobTable(NdbTableImpl& bt, const NdbTableImpl* t, const NdbColumnIm
   }
   { NdbDictionary::Column bc("PART");
     bc.setType(NdbDictionary::Column::Unsigned);
+    bc.setPrimaryKey(true);
+    bt.addColumn(bc);
+  }
+  { NdbDictionary::Column bc("PK");
+    bc.setType(NdbDictionary::Column::Unsigned);
+    assert(t->m_sizeOfKeysInWords != 0);
+    bc.setLength(t->m_sizeOfKeysInWords);
     bc.setPrimaryKey(true);
     bt.addColumn(bc);
   }
@@ -309,7 +308,7 @@ inline Uint32
 NdbBlob::getDistKey(Uint32 part)
 {
   assert(theStripeSize != 0);
-  return part / theStripeSize;
+  return (part / theStripeSize) % theStripeSize;
 }
 
 // getters and setters
@@ -393,9 +392,9 @@ NdbBlob::setPartKeyValue(NdbOperation* anOp, Uint32 part)
   Uint32* data = (Uint32*)theKeyBuf.data;
   unsigned size = theTable->m_sizeOfKeysInWords;
   DBG("setPartKeyValue dist=" << getDistKey(part) << " part=" << part << " key=" << ndb_blob_debug(data, size));
-  if (anOp->equal((Uint32)0, theKeyBuf.data) == -1 ||
-      anOp->equal((Uint32)1, getDistKey(part)) == -1 ||
-      anOp->equal((Uint32)2, part) == -1) {
+  if (anOp->equal((Uint32)0, getDistKey(part)) == -1 ||
+      anOp->equal((Uint32)1, part) == -1 ||
+      anOp->equal((Uint32)2, theKeyBuf.data) == -1) {
     setErrorCode(anOp);
     return -1;
   }
