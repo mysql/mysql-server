@@ -73,6 +73,7 @@ static int		    failed = 0 ;
 
 NDB_COMMAND(celloDb, "celloDb", "celloDb", "celloDb", 65535)
 {
+  ndb_init();
 
   int                   tTableId;
   int                   i;

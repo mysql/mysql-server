@@ -214,6 +214,7 @@ TESTCASE("InsertRestartGci",
 NDBT_TESTSUITE_END(testRestartGci);
 
 int main(int argc, const char** argv){
+  ndb_init();
   return testRestartGci.execute(argc, argv);
 }
 

@@ -671,6 +671,7 @@ void print_help_virtual() {
 
 int main(int argc, const char** argv)
 {
+  ndb_init();
   const char* usage = "Usage: ndbsql [-h] [-d dsn] [-f file] [stmt]\n-h help\n-d <database name or connect string>\n-f <file name> batch mode\nstmt single SQL statement\n";
   const char* dsn = "TEST_DB";
   bool helpFlg = false, batchMode = false;
