@@ -113,6 +113,8 @@ public:
 typedef bool (Item::*Item_processor)(byte *arg);
 typedef Item* (Item::*Item_transformer) (byte *arg);
 
+typedef void (*Item_cond_traverser) (const Item *item, void *arg);
+
 class Item {
   Item(const Item &);			/* Prevent use of these */
   void operator=(Item &);
@@ -124,7 +126,7 @@ public:
   static void operator delete(void *ptr,size_t size, MEM_ROOT *mem_root)
   { TRASH(ptr, size); }
 
-  enum Type {FIELD_ITEM, FUNC_ITEM, SUM_FUNC_ITEM, STRING_ITEM,
+  enum Type {FIELD_ITEM= 0, FUNC_ITEM, SUM_FUNC_ITEM, STRING_ITEM,
 	     INT_ITEM, REAL_ITEM, NULL_ITEM, VARBIN_ITEM,
 	     COPY_STR_ITEM, FIELD_AVG_ITEM, DEFAULT_VALUE_ITEM,
 	     PROC_ITEM,COND_ITEM, REF_ITEM, FIELD_STD_ITEM,
@@ -133,6 +135,8 @@ public:
              PARAM_ITEM, TRIGGER_FIELD_ITEM};
 
   enum cond_result { COND_UNDEF,COND_OK,COND_TRUE,COND_FALSE };
+
+  enum traverse_order { POSTFIX, PREFIX };
   
   /*
     str_values's main purpose is to be used to cache the value in
@@ -314,6 +318,13 @@ public:
   {
     return (this->*transformer)(arg);
   }
+
+   virtual void traverse_cond(Item_cond_traverser traverser, 
+			      void *arg,
+			      traverse_order order = POSTFIX)
+   {
+     (*traverser)(this, arg);
+   }
  
   virtual bool remove_dependence_processor(byte * arg) { return 0; }
   virtual bool remove_fixed(byte * arg) { fixed= 0; return 0; }

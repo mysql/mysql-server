@@ -529,7 +529,7 @@ NdbTableImpl::getColumn(const char * name){
     do {
       if(hashValue == (tmp & 0xFFFE)){
 	NdbColumnImpl* col = cols[tmp >> 16];
-	if(strcmp(name, col->m_name.c_str()) == 0){
+	if(strncmp(name, col->m_name.c_str(), NDB_MAX_ATTR_NAME_SIZE-1) == 0){
 	  return col;
 	}
       }
@@ -547,7 +547,7 @@ NdbTableImpl::getColumn(const char * name){
   } else {
     for(Uint32 i = 0; i<sz; i++){
       NdbColumnImpl* col = * cols++;
-      if(col != 0 && strcmp(name, col->m_name.c_str()) == 0)
+      if(col != 0 && strncmp(name, col->m_name.c_str(), NDB_MAX_ATTR_NAME_SIZE-1) == 0)
 	return col;
     }
   }

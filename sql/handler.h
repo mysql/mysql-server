@@ -267,6 +267,9 @@ typedef struct st_table TABLE;
 struct st_foreign_key_info;
 typedef struct st_foreign_key_info FOREIGN_KEY_INFO;
 
+/* Forward declaration for Condition Pushdown to Handler (CPDH) */
+typedef struct Item COND;
+
 typedef struct st_ha_check_opt
 {
   ulong sort_buffer_size;
@@ -591,7 +594,7 @@ public:
 
   /* Type of table for caching query */
   virtual uint8 table_cache_type() { return HA_CACHE_TBL_NONTRANSACT; }
- 
+
  /*
   RETURN
     true  Primary key (if there is one) is clustered key covering all fields
@@ -603,6 +606,12 @@ public:
  {
    return memcmp(ref1, ref2, ref_length);
  }
+ 
+ /*
+   Condition pushdown to storage engines
+ */
+ virtual const COND *cond_push(const COND *cond) { return cond; };
+ virtual void cond_pop() { return; };
 };
 
 	/* Some extern variables used with handlers */
