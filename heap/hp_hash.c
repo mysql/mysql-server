@@ -30,27 +30,27 @@ ha_rows hp_rb_records_in_range(HP_INFO *info, int inx, const byte *start_key,
   TREE *rb_tree = &keyinfo->rb_tree;
   heap_rb_param custom_arg;
 
-  info->lastinx = inx;
-  custom_arg.keyseg = keyinfo->seg;
-  custom_arg.search_flag = SEARCH_FIND | SEARCH_SAME;
-  custom_arg.key_length = start_key_len;
+  info->lastinx= inx;
+  custom_arg.keyseg= keyinfo->seg;
+  custom_arg.search_flag= SEARCH_FIND | SEARCH_SAME;
   if (start_key)
   {
-    hp_rb_pack_key(keyinfo, info->recbuf, start_key);
+    custom_arg.key_length= hp_rb_pack_key(keyinfo, info->recbuf, start_key, 
+					  start_key_len);
     start_pos= tree_record_pos(rb_tree, info->recbuf, start_search_flag, 
-				&custom_arg);
+			       &custom_arg);
   }
   else
   {
     start_pos= 0;
   }
   
-  custom_arg.key_length = end_key_len;
   if (end_key)
   {
-    hp_rb_pack_key(keyinfo, info->recbuf, end_key);
+    custom_arg.key_length= hp_rb_pack_key(keyinfo, info->recbuf, end_key,
+					  end_key_len);
     end_pos= tree_record_pos(rb_tree, info->recbuf, end_search_flag, 
-				&custom_arg);
+			     &custom_arg);
   }
   else
   {
@@ -450,21 +450,26 @@ uint hp_rb_make_key(HP_KEYDEF *keydef, byte *key,
   return key - start_key;
 }
 
-uint hp_rb_pack_key(HP_KEYDEF *keydef, uchar *key, const uchar *old)
+uint hp_rb_pack_key(HP_KEYDEF *keydef, uchar *key, const uchar *old, uint k_len)
 {
   HA_KEYSEG *seg, *endseg;
   uchar *start_key= key;
   
-  for (seg= keydef->seg, endseg= seg + keydef->keysegs; seg < endseg; 
-       old+= seg->length, seg++)
+  for (seg= keydef->seg, endseg= seg + keydef->keysegs;
+       seg < endseg && (int) k_len > 0; old+= seg->length, seg++)
   {
     if (seg->null_bit)
     {
+      k_len--;
       if (!(*key++= (char) 1 - *old++))
+      {
+        k_len-= seg->length;
         continue;
+      }
     }
     memcpy((byte*) key, old, seg->length);
     key+= seg->length;
+    k_len-= seg->length;
   }
   return key - start_key;
 }

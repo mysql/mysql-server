@@ -520,6 +520,10 @@ struct show_var_st init_vars[]= {
   {sys_query_cache_type.name, (char*) &sys_query_cache_type,        SHOW_SYS},
 #endif /* HAVE_QUERY_CACHE */
   {sys_safe_show_db.name,     (char*) &sys_safe_show_db,            SHOW_SYS},
+#ifdef HAVE_SMEM
+  {"shared_memory",           (char*) &opt_enable_shared_memory,    SHOW_MY_BOOL},
+  {"shared_memory_base_name", (char*) &shared_memory_base_name,     SHOW_CHAR_PTR},
+#endif
   {sys_server_id.name,	      (char*) &sys_server_id,		    SHOW_SYS},
   {sys_slave_net_timeout.name,(char*) &sys_slave_net_timeout,	    SHOW_SYS},
   {"skip_external_locking",   (char*) &my_disable_locking,          SHOW_MY_BOOL},

@@ -1313,10 +1313,10 @@ longlong Item_func_like::val_int()
     set_charset(my_charset_bin);
   if (canDoTurboBM)
     return turboBM_matches(res->ptr(), res->length()) ? 1 : 0;
-  if (binary())
-    return wild_compare(*res,*res2,escape) ? 0 : 1;
-  else
-    return wild_case_compare(*res,*res2,escape) ? 0 : 1;
+  return my_wildcmp(charset(),
+		    res->ptr(),res->ptr()+res->length(),
+		    res2->ptr(),res2->ptr()+res2->length(),
+		    escape,wild_one,wild_many) ? 0 : 1;
 }
 
 
