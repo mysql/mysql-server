@@ -347,6 +347,7 @@ typedef struct st_lex
   List<List_item>     many_values;
   List<set_var_base>  var_list;
   List<Item>          param_list;
+  List<LEX_STRING>    select_into_var_list;
   SQL_LIST	      proc_list, auxilliary_table_list;
   TYPELIB	      *interval;
   create_field	      *last_field;
