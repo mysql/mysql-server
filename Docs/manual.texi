@@ -38573,7 +38573,8 @@ to @code{MyISAM} tables where any prefix of the key can be used to find rows.
 @item
 @code{HEAP} doesn't support @code{AUTO_INCREMENT} columns.
 @item
-@code{HEAP} doesn't support an index on a @code{NULL} column.
+Prior to MySQL 4.0.2, @code{HEAP} doesn't support an index on a @code{NULL}
+column.
 @item
 You can have non-unique keys in a @code{HEAP} table (this isn't common for
 hashed tables).
