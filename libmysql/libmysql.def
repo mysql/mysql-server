@@ -47,6 +47,7 @@ EXPORTS
 	mysql_errno
 	mysql_error
 	mysql_escape_string
+	mysql_hex_string
 	mysql_stmt_execute
 	mysql_stmt_fetch
 	mysql_stmt_fetch_column
