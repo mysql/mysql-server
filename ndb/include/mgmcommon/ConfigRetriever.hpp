@@ -78,6 +78,11 @@ public:
    * Get config from file
    */
   struct ndb_mgm_configuration * getConfig(const char * file);
+
+  /**
+   * Verify config
+   */
+  bool verifyConfig(const struct ndb_mgm_configuration *, Uint32 nodeid);
 private:
   BaseString errorString;
   enum ErrorType {
@@ -97,11 +102,6 @@ private:
   Uint32 m_version;
   Uint32 m_node_type;
   NdbMgmHandle m_handle;
-
-  /**
-   * Verify config
-   */
-  bool verifyConfig(const struct ndb_mgm_configuration *);
 };
 
 #endif
