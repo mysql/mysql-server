@@ -5026,7 +5026,7 @@ select_derived:
 	  }
  	;
 
-select_derived:
+select_derived2:
         {
 	  LEX *lex= Lex;
 	  lex->derived_tables|= DERIVED_SUBQUERY;

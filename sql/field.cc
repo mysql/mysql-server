@@ -2452,7 +2452,7 @@ int Field_long::store(const char *from,uint len,CHARSET_INFO *cs)
   from+= tmp;
 
   end= (char*) from+len;
-  tmp= my_strtoll10(from, &end, &error);
+  tmp= cs->cset->my_strtoll10(cs, from, &end, &error);
 
   if (error != MY_ERRNO_EDOM)
   {
