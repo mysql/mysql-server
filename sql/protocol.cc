@@ -831,17 +831,12 @@ bool Protocol_simple::store(TIME *tm)
   field_pos++;
 #endif
   char buff[40];
-  uint length;
-  length= my_sprintf(buff,(buff, "%04d-%02d-%02d %02d:%02d:%02d",
-			   (int) tm->year,
-			   (int) tm->month,
-			   (int) tm->day,
-			   (int) tm->hour,
-			   (int) tm->minute,
-			   (int) tm->second));
-  if (tm->second_part)
-    length+= my_sprintf(buff+length,(buff+length, ".%06d", (int)tm->second_part));
-  return net_store_data((char*) buff, length);
+  String tmp((char*) buff,sizeof(buff),&my_charset_bin);
+  DATETIME_FORMAT *tmp_format= (&t_datetime_frm
+				(current_thd, DATETIME_FORMAT_TYPE).datetime_format);
+  make_datetime(&tmp, tm, 1, tm->second_part,
+		tmp_format->format, tmp_format->format_length, 1);
+  return net_store_data((char*) tmp.ptr(), tmp.length());
 }
 
 
@@ -853,12 +848,12 @@ bool Protocol_simple::store_date(TIME *tm)
   field_pos++;
 #endif
   char buff[40];
-  uint length;
-  length= my_sprintf(buff,(buff, "%04d-%02d-%02d",
-			   (int) tm->year,
-			   (int) tm->month,
-			   (int) tm->day));
-  return net_store_data((char*) buff, length);
+  String tmp((char*) buff,sizeof(buff),&my_charset_bin);
+  DATETIME_FORMAT *tmp_format= (&t_datetime_frm
+				 (current_thd, DATE_FORMAT_TYPE).datetime_format);
+  make_datetime(&tmp, tm, 1, 0,
+		tmp_format->format, tmp_format->format_length, 1);
+  return net_store_data((char*) tmp.ptr(), tmp.length());
 }
 
 
@@ -876,16 +871,14 @@ bool Protocol_simple::store_time(TIME *tm)
   field_pos++;
 #endif
   char buff[40];
-  uint length;
+  String tmp((char*) buff,sizeof(buff),&my_charset_bin);
+  DATETIME_FORMAT *tmp_format= (&t_datetime_frm
+				(current_thd, TIME_FORMAT_TYPE).datetime_format);
   uint day= (tm->year || tm->month) ? 0 : tm->day;
-  length= my_sprintf(buff,(buff, "%s%02ld:%02d:%02d",
-			   tm->neg ? "-" : "",
-			   (long) day*24L+(long) tm->hour,
-			   (int) tm->minute,
-			   (int) tm->second));
-  if (tm->second_part)
-    length+= my_sprintf(buff+length,(buff+length, ".%06d", (int)tm->second_part));
-  return net_store_data((char*) buff, length);
+  tm->hour= (long) day*24L+(long) tm->hour;
+  make_datetime(&tmp, tm, 0, tm->second_part,
+		tmp_format->format, tmp_format->format_length, 1);
+  return net_store_data((char*) tmp.ptr(), tmp.length());
 }
 
 
