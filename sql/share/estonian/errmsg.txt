@@ -258,3 +258,5 @@
 "Client does not support authentication protocol requested by server. Consider upgrading MySQL client"
 "All parts of a SPATIAL KEY must be NOT NULL"
 "COLLATION '%s' is not valid for CHARACTER SET '%s'"
+"The slave was already running"
+"The slave was already stopped"
