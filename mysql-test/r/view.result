@@ -139,7 +139,7 @@ v4
 v5
 v6
 show full tables;
-Tables_in_test	table_type
+Tables_in_test	Table_type
 t1	BASE TABLE
 v1	VIEW
 v2	VIEW
