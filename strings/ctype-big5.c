@@ -251,11 +251,12 @@ static int my_strnncoll_big5_internal(const uchar **a_res,
 
 static int my_strnncoll_big5(CHARSET_INFO *cs __attribute__((unused)), 
 			     const uchar *a, uint a_length,
-			     const uchar *b, uint b_length)
+                             const uchar *b, uint b_length,
+                             my_bool b_is_prefix)
 {
   uint length= min(a_length, b_length);
   int res= my_strnncoll_big5_internal(&a, &b, length);
-  return res ? res : (int) (a_length - b_length);
+  return res ? res : (int)((b_is_prefix ? length : a_length) - b_length);
 }
 
 
@@ -6299,7 +6300,6 @@ static MY_CHARSET_HANDLER my_charset_big5_handler=
   my_long10_to_str_8bit,
   my_longlong10_to_str_8bit,
   my_fill_8bit,
-    
   my_strntol_8bit,
   my_strntoul_8bit,
   my_strntoll_8bit,
@@ -6320,6 +6320,7 @@ CHARSET_INFO my_charset_big5_chinese_ci=
     to_lower_big5,
     to_upper_big5,
     sort_order_big5,
+    NULL,		/* contractions */
     NULL,		/* sort_order_big*/
     NULL,		/* tab_to_uni   */
     NULL,		/* tab_from_uni */
@@ -6347,6 +6348,7 @@ CHARSET_INFO my_charset_big5_bin=
     to_lower_big5,
     to_upper_big5,
     sort_order_big5,
+    NULL,		/* contractions */
     NULL,		/* sort_order_big*/
     NULL,		/* tab_to_uni   */
     NULL,		/* tab_from_uni */
