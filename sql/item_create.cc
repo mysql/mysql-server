@@ -390,7 +390,20 @@ Item *create_func_sha(Item* a)
     
 Item *create_func_space(Item *a)
 {
-  return new Item_func_repeat(new Item_string(" ",1,default_charset_info),a);
+  CHARSET_INFO *cs= current_thd->variables.collation_connection;
+  Item *sp;
+  
+  if (cs->state & MY_CS_NONTEXT)
+  {
+    sp= new Item_string("",0,cs);
+    if (sp)
+      sp->str_value.copy(" ",1,&my_charset_latin1,cs);
+  }
+  else
+  {
+    sp= new Item_string(" ",1,cs);
+  }
+  return new Item_func_repeat(sp, a);
 }
 
 Item *create_func_soundex(Item* a)
