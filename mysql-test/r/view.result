@@ -1193,3 +1193,12 @@ Table	Create Table
 v2	CREATE VIEW `test`.`v2` AS select (`test`.`t2`.`col1` collate latin1_german1_ci) AS `col1 collate latin1_german1_ci` from `test`.`t2`
 drop view v2;
 drop table t2;
+create table t1 (a int);
+insert into t1 values (1), (2);
+create view v1 as select 5 from t1 order by 1;
+select * from v1;
+5
+5
+5
+drop view v1;
+drop table t1;
