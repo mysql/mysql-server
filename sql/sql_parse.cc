@@ -2050,14 +2050,6 @@ mysql_execute_command(THD *thd)
                                      (Table_ident *)lex->name); 
       else
       {
-	List_iterator<create_field> fields(lex->create_list);
-	create_field *field;
-	while ((field= fields++))
-	{
-	  if (!field->charset)
-	    field->charset= lex->create_info.table_charset;
-	  field->create_length_to_internal_length();
-	}
         res= mysql_create_table(thd,tables->db ? tables->db : thd->db,
 			         tables->real_name, &lex->create_info,
 			         lex->create_list,
