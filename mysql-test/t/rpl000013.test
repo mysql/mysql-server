@@ -13,20 +13,24 @@ connection master1;
 create temporary table t1 (n int);
 insert into t1 values (4),(5);
 insert into t2 select * from t1;
+save_master_pos;
 disconnect master;
+connection slave;
+#add 1 to catch drop table
+sync_with_master 1;
 connection master1;
 insert into t2 values(6);
-disconnect master1;
-connect (master2,localhost,root,,test,0,mysql-master.sock);
-connection master2;
 save_master_pos;
+disconnect master1;
 connection slave;
-sync_with_master;
+# same trick to go one more event
+sync_with_master 1;
 @r/rpl000013.result select * from t2;
 @r/rpl000013.status.result show status like 'Slave_open_temp_tables';
 #
 # Clean up
 #
+connect (master2,localhost,root,,test,0,mysql-master.sock);
 connection master2;
 drop table if exists t1,t2;
 save_master_pos;

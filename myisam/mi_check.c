@@ -376,7 +376,7 @@ int chk_key(MI_CHECK *param, register MI_INFO *info)
     if ((!(param->testflag & T_SILENT)))
       printf ("- check data record references index: %d\n",key+1);
     if (share->state.key_root[key] == HA_OFFSET_ERROR &&
-	info->state->records == 0)
+	(info->state->records == 0 || keyinfo->flag & HA_FULLTEXT))
       continue;
     if (!_mi_fetch_keypage(info,keyinfo,share->state.key_root[key],info->buff,
 			   0))
@@ -1462,6 +1462,8 @@ int mi_sort_index(MI_CHECK *param, register MI_INFO *info, my_string name)
   reg1 MI_KEYDEF *keyinfo;
   File new_file;
   my_off_t index_pos[MI_MAX_POSSIBLE_KEY];
+  uint r_locks,w_locks;
+  MYISAM_SHARE *share=info->s;
   DBUG_ENTER("sort_index");
 
   if (!(param->testflag & T_SILENT))
@@ -1475,21 +1477,21 @@ int mi_sort_index(MI_CHECK *param, register MI_INFO *info, my_string name)
 			 param->temp_filename);
     DBUG_RETURN(-1);
   }
-  if (filecopy(param, new_file,info->s->kfile,0L,
-	       (ulong) info->s->base.keystart, "headerblock"))
+  if (filecopy(param, new_file,share->kfile,0L,
+	       (ulong) share->base.keystart, "headerblock"))
     goto err;
 
-  param->new_file_pos=info->s->base.keystart;
-  for (key= 0,keyinfo= &info->s->keyinfo[0]; key < info->s->base.keys ;
+  param->new_file_pos=share->base.keystart;
+  for (key= 0,keyinfo= &share->keyinfo[0]; key < share->base.keys ;
        key++,keyinfo++)
   {
-    if (!(((ulonglong) 1 << key) & info->s->state.key_map))
+    if (!(((ulonglong) 1 << key) & share->state.key_map))
       continue;
 
-    if (info->s->state.key_root[key] != HA_OFFSET_ERROR)
+    if (share->state.key_root[key] != HA_OFFSET_ERROR)
     {
       index_pos[key]=param->new_file_pos;		/* Write first block here */
-      if (sort_one_index(param,info,keyinfo,info->s->state.key_root[key],
+      if (sort_one_index(param,info,keyinfo,share->state.key_root[key],
 			 new_file))
 	goto err;
     }
@@ -1498,19 +1500,24 @@ int mi_sort_index(MI_CHECK *param, register MI_INFO *info, my_string name)
   }
 
   /* Flush key cache for this file if we are calling this outside myisamchk */
-  flush_key_blocks(info->s->kfile, FLUSH_IGNORE_CHANGED);
+  flush_key_blocks(share->kfile, FLUSH_IGNORE_CHANGED);
 
 	/* Put same locks as old file */
-  info->s->state.version=(ulong) time((time_t*) 0);
-  VOID(_mi_writeinfo(info,WRITEINFO_UPDATE_KEYFILE));
-  VOID(my_close(info->s->kfile,MYF(MY_WME)));
-  info->s->kfile = -1;
+  share->state.version=(ulong) time((time_t*) 0);
+  r_locks=share->r_locks; w_locks=share->w_locks;
+  share->r_locks=share->w_locks=0;
+  (void) _mi_writeinfo(info,WRITEINFO_UPDATE_KEYFILE);
+  VOID(my_close(share->kfile,MYF(MY_WME)));
+  share->kfile = -1;
   VOID(my_close(new_file,MYF(MY_WME)));
-  if (change_to_newfile(info->s->filename,MI_NAME_IEXT,INDEX_TMP_EXT,0,
+  if (change_to_newfile(share->filename,MI_NAME_IEXT,INDEX_TMP_EXT,0,
 			MYF(0)) ||
-      mi_open_keyfile(info->s))
+      mi_open_keyfile(share))
     goto err2;
-  _mi_readinfo(info,F_WRLCK,0);
+  info->lock_type=F_UNLCK;			/* Force mi_readinfo to lock */
+  _mi_readinfo(info,F_WRLCK,0);			/* Will lock the table */
+  info->lock_type=F_WRLCK;
+  share->r_locks=r_locks; share->w_locks=w_locks;
 
   info->state->key_file_length=param->new_file_pos;
   info->update= (short) (HA_STATE_CHANGED | HA_STATE_ROW_CHANGED);

@@ -35,7 +35,7 @@ void mysql_create_db(THD *thd, char *db, uint create_options)
   long result=1;
   DBUG_ENTER("mysql_create_db");
   
-  if (!stripp_sp(db) || strlen(db) > NAME_LEN || check_db_name(db))
+  if (!stripp_sp(db) || check_db_name(db))
   {
     net_printf(&thd->net,ER_WRONG_DB_NAME, db);
     DBUG_VOID_RETURN;
@@ -103,7 +103,7 @@ void mysql_rm_db(THD *thd,char *db,bool if_exists)
   MY_DIR *dirp;
   DBUG_ENTER("mysql_rm_db");
 
-  if (!stripp_sp(db) || strlen(db) > NAME_LEN || check_db_name(db))
+  if (!stripp_sp(db) || check_db_name(db))
   {
     net_printf(&thd->net,ER_WRONG_DB_NAME, db);
     DBUG_VOID_RETURN;

@@ -130,6 +130,7 @@ version see the relevant distribution.
 * Common programs::             Using @strong{MySQL} with some common programs
 * Problems::                    Problems
 * Common problems::             Solving some common problems with @strong{MySQL}
+* Log files::                   
 * Clients::                     @strong{MySQL} client tools and APIs
 * Comparisons::                 How does @strong{MySQL} compare with other databases?
 * MySQL internals::             @strong{MySQL} internals
@@ -554,6 +555,7 @@ What Languages Are Supported by MySQL?
 
 * Character sets::              The character set used for data and sorting
 * Adding character set::        Adding a new character set
+* Character arrays::            
 * String collating::            String collating support
 * Multi-byte characters::       Multi-byte character support
 
@@ -566,7 +568,7 @@ Replication in MySQL
 * Replication Options::         Replication Options in my.cnf
 * Replication SQL::             SQL Commands related to replication
 * Replication FAQ::             Frequently Asked Questions about replication
-* Troubleshooting Replication:: Troubleshooting Replication.  Troubleshooting Replication
+* Troubleshooting Replication:: Troubleshooting Replication.  Troubleshooting Replication.  Troubleshooting Replication.  Troubleshooting Replication.  Troubleshooting Replication.  Troubleshooting Replication.  Troubleshooting Replication.  Troubleshooting Replication.  Troubleshooting Replication.  Troubleshooting Replication.  Troubleshooting Replication
 
 Getting Maximum Performance from MySQL
 
@@ -631,7 +633,7 @@ Maintaining a MySQL Installation
 * Maintenance regimen::         Setting up a table maintenance regimen
 * Table-info::                  Getting information about a table
 * Crash recovery::              Using @code{myisamchk} for crash recovery
-* Log files::                   Log file maintenance
+* Log file maintenance::        Log file maintenance
 
 Using @code{myisamchk} for Table Maintenance and Crash Recovery
 
@@ -726,10 +728,15 @@ Solving Some Common Problems with MySQL
 
 * Log Replication::             Database replication with update log
 * Backup::                      Database backups
-* Update log::                  The update log
-* Binary log::                  The binary log
-* Slow query log::              Log of slow queries
 * Multiple servers::            Running multiple @strong{MySQL} servers on the same machine
+
+The MySQL log files
+
+* Error log::                   
+* Query log::                   
+* Update log::                  
+* Binary log::                  
+* Slow query log::              
 
 MySQL Client Tools and APIs
 
@@ -857,6 +864,7 @@ Changes in release 4.0.x (Development; Alpha)
 
 Changes in release 3.23.x  (Stable)
 
+* News-3.23.33::                Changes in release 3.23.33
 * News-3.23.32::                Changes in release 3.23.32
 * News-3.23.31::                Changes in release 3.23.31
 * News-3.23.30::                Changes in release 3.23.30
@@ -1007,6 +1015,14 @@ Comments on porting to other systems
 * RTS-threads::                 Comments about RTS threads
 * Thread packages::             Differences between different thread packages
 
+Debugging a MySQL server
+
+* Compiling for debugging::     
+* Making trace files::          
+* Using stack trace::           
+* Using log files::             
+* Reproducable test case::      
+
 @end detailmenu
 @end menu
 
@@ -1096,7 +1112,9 @@ The @code{mysqlbug} script should be used to generate bug reports.
 @c FIX! RPMs are also binary
 For source distributions, the @code{mysqlbug} script can be found in the
 @file{scripts} directory.  For binary distributions, @code{mysqlbug} can
-be found in the @file{bin} directory.
+be found in the @file{bin} directory. If you have found a sensitive
+security bug in @strong{MySQL}, you should send an email to
+@email{security@@mysql.com}.
 
 @cindex errors, reporting
 @cindex reporting, errors
@@ -2198,7 +2216,6 @@ Apart from the following links, you can find and download a lot of
 @uref{http://www.mysql.com/Downloads/Contrib/, Contrib directory}.
 @cindex @code{Contrib} directory
 
-
 @cindex URLs to MySQL information
 @cindex related information URLs
 @strong{MySQL}
@@ -2207,6 +2224,9 @@ Apart from the following links, you can find and download a lot of
 
 @item @uref{http://www.4t2.com/mysql}@*
 Information about the German MySQL mailing list.
+
+@item @uref{http://www2.rent-a-database.de/mysql/}
+@strong{MySQL} manual in German.
 
 @item @uref{http://www.bitmover.com:8888//home/bk/mysql}@*
 Web access to the @strong{MySQL} BitKeeper repository.
@@ -2246,8 +2266,10 @@ The Mac OS Xclave. Running @strong{MySQL} on Mac OS X
 MySQL for Mac OS X Server.
 @item @uref{http://www.latencyzero.com/macosx/mysql.html}@*
 Bulding MySQL for Mac OS X
+@item @uref{http://www.essencesw.com/Software/mysqllib.html}@*
+New Client libraries for the Mac OS Classic (Macintosh).
 @item @uref{http://www.lilback.com/macsql/}@*
-Client libraries for the Macintosh.
+Client libraries for Mac OS Classic (Macintosh).
 @end itemize
 
 @subheading Perl-related Links
@@ -2336,6 +2358,9 @@ MySQL-Databases, creating of new DBs and tables, editing etc.
 
 @item @uref{http://www.scibit.com/Products/Software/Utils/Mascon.asp}@*
 Mascon is a powerful Win32 GUI for the administering MySQL server databases.
+
+@item @uref{http://www.rtlabs.com/}@*
+MacSQL Monitor.  GUI for MySQL, ODBC, and JDBC databases for the Mac OS.
 @end itemize
 
 @subheading Distributions that Include MySQL
@@ -2514,7 +2539,7 @@ definitive standard for ODBC on the Linux platform. This is to include GUI
 support for KDE.
 
 @item @uref{http://www.sw-soft.com/products/BtrieveODBC/}@*
-A @strong{MySQL}-based ODBC drivers for Btrieve.
+A @strong{MySQL}-based ODBC drivers for Btrieve. From SWsoft.
 @end itemize
 
 @subheading @strong{API}-related Links
@@ -2536,8 +2561,20 @@ any MTA to deliver to users in a @strong{MySQL} database.
 @item @uref{http://www.pbc.ottawa.on.ca}@*
 Visual Basic class generator for Active X.
 
+@item @uref{http://www.essencesw.com/Software/mysqllib.html}@*
+New Client libraries for the Mac OS Classic (Macintosh).
+
 @item @uref{http://www.lilback.com/macsql/}@*
 Client libraries for the Macintosh.
+
+@item @uref{http://www.essencesw.com/Plugins/mysqlplug.html}@*
+Plugin for REALbasic (for Machintosh)
+
+@item @uref{http://www.iis.ee.ethz.ch/~neeri/macintosh/gusi-qa.html}@*
+A library that emulates BSD sockets and pthreads on Macintosh. This can
+be used if you want to compile the @strong{MySQL} client library on Mac. It
+could probably even be sued to port @strong{MySQL} to Macintosh, but we
+don't know of anyone that has tried that.
 
 @c 404 not found
 @c @item @uref{http://tfdec1.fys.kuleuven.ac.be/~michael/fpc-linux/mysql}@*
@@ -3188,7 +3225,7 @@ try repairing your tables with @code{myisamchk} or @code{CHECK TABLE}/
 If you often get corrupted tables you should try to find out when and
 why this happens!  In this case, the
 @file{mysql-data-directory/'hostname'.err} file may contain some
-information about what happened.  Please include any relevant
+information about what happened.  @xref{Error log}. Please include any relevant
 information from this file in your bug report!  Normally @code{mysqld}
 should @strong{NEVER} crash a table if nothing killed it in the middle
 of an update!  If you can find the cause of @code{mysqld} dying,
@@ -3598,7 +3635,7 @@ Payment should be made to:
 Postgirot Bank AB
 105 06 STOCKHOLM, SWEDEN
 
-TCX DataKonsult AB
+MySQL AB
 BOX 6434
 11382 STOCKHOLM, SWEDEN
 
@@ -3615,7 +3652,7 @@ If you want to pay by check, make it payable to ``MySQL Finland AB'' and
 mail it to the address below:
 
 @example
-TCX DataKonsult AB
+MySQL AB
 BOX 6434, Torsgatan 21
 11382 STOCKHOLM, SWEDEN
 @end example
@@ -7565,14 +7602,29 @@ To compile on NetBSD you need GNU @code{make}. Otherwise the compile will crash
 when @code{make} tries to run @code{lint} on C++ files.
 
 @node OpenBSD, BSDI, NetBSD, Source install system issues
-@subsection OpenBSD 2.5 Notes
+@subsection OpenBSD Notes
 
+@menu
+* OpenBSD 2.5::                 OpenBSD 2.5 Notes
+* OpenBSD 2.8::                 OpenBSD 2.8 Notes
+@end menu
+
+@node OpenBSD 2.5
+@subsubsection OpenBSD 2.5 Notes
 On OpenBSD Version 2.5, you can compile @strong{MySQL} with native threads
 with the following options:
 
 @example
 CFLAGS=-pthread CXXFLAGS=-pthread ./configure --with-mit-threads=no
 @end example
+
+@node OpenBSD 2.8
+@subsubsection OpenBSD 2.8 Notes
+Our users have reported that OpenBSD 2.8 has a threading bug which causes
+problems with MySQL.  The OpenBSD Developers have fixed the problem, but as
+of January 25th, 2001, it's only available in the ``-current'' branch.  The
+symptoms of this threading bug are: slow response, high load, high cpu usage,
+and crashes.
 
 @node BSDI, SCO, OpenBSD, Source install system issues
 @subsection BSD/OS Notes
@@ -8482,12 +8534,7 @@ utility in Win95. You must take it down with @code{mysqladmin shutdown}.
 Filenames are case insensitive on Windows, so database and table names
 are also case insensitive in @strong{MySQL} for Windows.  The only
 restriction is that database and table names must be given in the same
-case throughout a given statement.  The following query would not work
-because it refers to a table both as @code{my_table} and as
-@code{MY_TABLE}:
-@example
-SELECT * FROM my_table WHERE MY_TABLE.col=1;
-@end example
+case throughout a given statement.  @xref{Name case sensitivity}.
 
 @item The @samp{\} directory character
 Pathname components in Win95 are separated by the @samp{\} character, which is
@@ -8536,6 +8583,13 @@ While you are doing an @code{ALTER TABLE} the table is locked from usage
 by other threads. This has to do with the fact that you on Windows can't
 delete a file that is in use by another threads. (We may in the future
 find some way to go around this problem).
+
+@item @code{DROP TABLE} on a table that is in use by a @code{MERGE} table will not work.
+The @code{MERGE} handler does it table mapping hidden from @strong{MySQL}.
+Because windows doesn't allow one to drop files that are open, you have
+to first flush all @code{MERGE} tables (with @code{FLUSH TABLES}) or drop the
+@code{MERGE} table before drooping the table.  We will fix this at
+the same time we introduce @code{VIEW}'s.
 @end table
 
 Here are some open issues for anyone who might want to help us with the Windows
@@ -8894,17 +8948,19 @@ below:
 
 @example
 shell> BINDIR/mysqladmin version
-mysqladmin  Ver 6.3 Distrib 3.22.9-beta, for pc-linux-gnu on i686
-TCX Datakonsult AB, by Monty
+mysqladmin  Ver 8.14 Distrib 3.23.32, for linux on i586
+Copyright (C) 2000 MySQL AB & MySQL Finland AB & TCX DataKonsult AB
+This software comes with ABSOLUTELY NO WARRANTY. This is free software,
+and you are welcome to modify and redistribute it under the GPL license
 
-Server version          3.22.9-beta
+Server version          3.23.32-debug
 Protocol version        10
 Connection              Localhost via Unix socket
 TCP port                3306
 UNIX socket             /tmp/mysql.sock
 Uptime:                 16 sec
 
-Running threads: 1  Questions: 20  Reloads: 2  Open tables: 3
+Threads: 1  Questions: 9  Slow queries: 0  Opens: 7  Flush tables: 2  Open tables: 0 Queries per second avg: 0.000  Memory in use: 132K  Max memory used: 16773K
 @end example
 
 To get a feeling for what else you can do with @code{BINDIR/mysqladmin},
@@ -9407,7 +9463,7 @@ Client error messages in given language. May be given as a full path.
 @xref{Languages}.
 
 @item -l, --log[=file]
-Log connections and queries to file.
+Log connections and queries to file. @xref{Query log}.
 
 @item --log-isam[=file]
 Log all ISAM/MyISAM changes to file (only used when debugging ISAM/MyISAM).
@@ -10211,9 +10267,7 @@ This has a few implications:
 @item
 Database names and table names are case sensitive in @strong{MySQL} on
 operating systems that have case-sensitive filenames (like most Unix
-systems). If you have a problem remembering table names, adopt a consistent
-convention, such as always creating databases and tables using lowercase
-names.
+systems). @xref{Name case sensitivity}.
 
 @item
 Database, table, index, column, or alias names may begin with a digit
@@ -13358,7 +13412,7 @@ In @strong{MySQL}, databases and tables correspond to directories and files
 within those directories.  Consequently, the case sensitivity of the
 underlying operating system determines the case sensitivity of database and
 table names.  This means database and table names are case sensitive in Unix
-and case insensitive in Windows.
+and case insensitive in Windows. @xref{Extensions to ANSI}.
 
 @strong{NOTE:} Although database and table names are case insensitive for
 Windows, you should not refer to a given database or table using different
@@ -13380,6 +13434,17 @@ mysql> SELECT col_name FROM tbl_name AS a
 @end example
 
 Aliases on columns are case insensitive.
+
+If you have a problem remembering the used cases for a table names,
+adopt a consistent convention, such as always creating databases and
+tables using lowercase names.
+
+One way to avoid this problem is to start @code{mysqld} with @code{-O
+lower_case_table_names=1}.
+
+In this case @strong{MySQL} will convert all table names to lower case on
+storage and lookup.  Not that you need to first convert your old table
+names to lower case before starting @code{mysqld} with this option.
 
 @cindex variables, user
 @cindex user variables
@@ -15172,7 +15237,8 @@ mysql> select BIT_COUNT(29);
 @node Logical functions, Comparison functions, Bit functions, Functions
 @subsection Logical Operations
 
-All logical functions return @code{1} (TRUE) or @code{0} (FALSE):
+All logical functions return @code{1} (TRUE), @code{0} (FALSE) or
+@code{NULL} (unknown, which is in most cases the same as FALSE):
 
 @table @code
 @findex NOT, logical
@@ -18416,7 +18482,7 @@ swap two tables names, you have to:
 @example
 RENAME TABLE old_table    TO backup_table,
              new_table    TO old_table,
-             backup_table TO old_table;
+             backup_table TO new_table;
 @end example
 
 As long as two databases are on the same disk you can also rename
@@ -18509,7 +18575,7 @@ CHECK TABLE tbl_name[,tbl_name...] [option [option...]]
 option = QUICK | FAST | MEDIUM | EXTEND | CHANGED
 @end example
 
-@code{CHECK TABLE} only works on @code{MyISAM} and @code{BDB} tables. On
+@code{CHECK TABLE} only works on @code{MyISAM} tables. On
 @code{MyISAM} tables it's the same thing as running @code{myisamchk -m
 table_name} on the table.
 
@@ -18547,9 +18613,6 @@ The different check types stand for the following:
 For dynamic sized @code{MyISAM} tables a started check will always
 do a @code{MEDIUM} check. For static size rows we skip the row scan 
 for @code{QUICK} and @code{FAST} as the rows are very seldom corrupted.
-
-Note that for BDB tables the different check options doesn't affect the
-check in any way!
 
 You can combine check options as in:
 
@@ -20264,59 +20327,64 @@ The following columns are returned:
 below, though the format and numbers probably differ:
 
 @example
-+--------------------------+------------+
-| Variable_name            | Value      |
-+--------------------------+------------+
-| Aborted_clients          | 0          |
-| Aborted_connects         | 0          |
-| Bytes_received           | 142160923  |
-| Bytes_sent               | 1161910370 |
-| Connections              | 30022      |
-| Created_tmp_disk_tables  | 0          |
-| Created_tmp_tables       | 8988       |
-| Delayed_insert_threads   | 0          |
-| Delayed_writes           | 0          |
-| Delayed_errors           | 0          |
-| Flush_commands           | 1          |
-| Handler_delete           | 462604     |
-| Handler_read_first       | 95882      |
-| Handler_read_key         | 27681068   |
-| Handler_read_next        | 265008218  |
-| Handler_read_prev        | 3022500    |
-| Handler_read_rnd         | 36900998   |
-| Handler_read_rnd_next    | 252097176  |
-| Handler_update           | 16945404   |
-| Handler_write            | 66826676   |
-| Key_blocks_used          | 14955      |
-| Key_read_requests        | 90131960   |
-| Key_reads                | 163268     |
-| Key_write_requests       | 7573912    |
-| Key_writes               | 3780151    |
-| Max_used_connections     | 0          |
-| Not_flushed_key_blocks   | 0          |
-| Not_flushed_delayed_rows | 0          |
-| Open_tables              | 0          |
-| Open_files               | 0          |
-| Open_streams             | 0          |
-| Opened_tables            | 44598      |
-| Questions                | 1866024    |
-| Select_full_join         | 0          |
-| Select_full_range_join   | 0          |
-| Select_range             | 68187      |
-| Select_range_check       | 0          |
-| Select_scan              | 31440      |
-| Slave_running            | OFF        |
-| Slow_launch_threads      | 0          |
-| Slow_queries             | 0          |
-| Sort_range               | 0          |
-| Sort_rows                | 36650500   |
-| Sort_scan                | 5298       |
-| Threads_cached           | 0          |
-| Threads_connected        | 1          |
-| Threads_created          | 30022      |
-| Threads_running          | 1          |
-| Uptime                   | 39613      |
-+--------------------------+------------+
++--------------------------+--------+
+| Variable_name            | Value  |
++--------------------------+--------+
+| Aborted_clients          | 0      |
+| Aborted_connects         | 0      |
+| Bytes_received           | 629539 |
+| Bytes_sent               | 736394 |
+| Connections              | 62     |
+| Created_tmp_disk_tables  | 0      |
+| Created_tmp_tables       | 0      |
+| Created_tmp_files        | 0      |
+| Delayed_insert_threads   | 0      |
+| Delayed_writes           | 0      |
+| Delayed_errors           | 0      |
+| Flush_commands           | 1      |
+| Handler_delete           | 0      |
+| Handler_read_first       | 1      |
+| Handler_read_key         | 9201   |
+| Handler_read_next        | 0      |
+| Handler_read_prev        | 0      |
+| Handler_read_rnd         | 0      |
+| Handler_read_rnd_next    | 45     |
+| Handler_update           | 5998   |
+| Handler_write            | 0      |
+| Key_blocks_used          | 407    |
+| Key_read_requests        | 27683  |
+| Key_reads                | 407    |
+| Key_write_requests       | 0      |
+| Key_writes               | 0      |
+| Max_used_connections     | 60     |
+| Not_flushed_key_blocks   | 0      |
+| Not_flushed_delayed_rows | 0      |
+| Open_tables              | 60     |
+| Open_files               | 66     |
+| Open_streams             | 0      |
+| Opened_tables            | 66     |
+| Questions                | 9308   |
+| Select_full_join         | 0      |
+| Select_full_range_join   | 0      |
+| Select_range             | 0      |
+| Select_range_check       | 0      |
+| Select_scan              | 0      |
+| Slave_running            | OFF    |
+| Slave_open_temp_tables   | 0      |
+| Slow_launch_threads      | 0      |
+| Slow_queries             | 0      |
+| Sort_merge_passes        | 0      |
+| Sort_range               | 0      |
+| Sort_rows                | 0      |
+| Sort_scan                | 0      |
+| Table_locks_immediate    | 3183   |
+| Table_locks_waited       | 6030   |
+| Threads_cached           | 30     |
+| Threads_created          | 61     |
+| Threads_connected        | 31     |
+| Threads_running          | 31     |
+| Uptime                   | 135    |
++--------------------------+--------+                                          
 @end example
 
 @cindex variables, status
@@ -20379,6 +20447,12 @@ open by the slave thread
 @item @code{Sort_range} @tab Number of sorts that where done with ranges.
 @item @code{Sort_rows}  @tab Number of sorted rows.
 @item @code{Sort_scan}  @tab Number of sorts that where done by scanning the table.
+@item @code{Table_locks_immediate} @tab Number of times a table lock was
+acquired immediately. Available after 3.23.33.
+@item @code{Table_locks_waited} @tab Number of times a table lock could not
+be acquired immediately and a wait was needed. If this is high, and you
+have performance problems, you should first optimize your queries, and then
+either split your table(s) or use replication. Available after 3.23.33.
 @item @code{Threads_cached} @tab Number of threads in the thread cache.
 @item @code{Threads_connected} @tab Number of currently open connections.
 @item @code{Threads_created} @tab Number of threads created to handle connections.
@@ -20710,13 +20784,9 @@ will be incremented. If you are using @code{--log-slow-queries}, the query
 will be logged to the slow query logfile. @xref{Slow query log}.
 
 @item @code{lower_case_table_names}
-Is 1 if table names are stored in lowercase on disk. On @strong{MySQL} on Unix
-tables are always case-sensitive; Is this a big problem for you can
-start @code{mysqld} with @code{-O lower_case_table_names=1}
-
-In this case @strong{MySQL} will convert all table names to lower case on
-storage and lookup.  Not that you need to first convert your old table
-names to lower case before starting @code{mysqld} with this option.
+If set to 1 table names are stored in lowercase on disk. This will enable
+you to access the table names case-insensitive also on Unix.
+@xref{Name case sensitivity}.
 
 @item @code{max_allowed_packet}
 The maximum size of one packet. The message buffer is initialized to
@@ -20730,6 +20800,11 @@ to use.  The current protocol limits @code{max_allowed_packet} to 16M.
 requires more than this amount of memory, one will get the error
 "Multi-statement transaction required more than 'max_binlog_cache_size'
 bytes of storage".
+
+@item @code{max_binlog_size}. Available after 3.23.33. If a write to the
+binary ( replication) log exceeds the given value, rotate the logs. You
+cannot set it to less than 1024 bytes, or more than 1 GB. Default is
+1 GB.
 
 @item @code{max_connections}
 The number of simultaneous clients allowed. Increasing this value increases
@@ -22593,8 +22668,10 @@ that can be used as one.  You can only @code{SELECT}, @code{DELETE}, and
 specification.
 
 With identical tables we mean that all tables are created with identical
-column information.  Some of the tables can be compressed with
-@code{myisampack}. @xref{myisampack}.
+column information.  You can't put a MERGE over tables where the columns
+are packed differently or doesn't have exactly the same columns.
+Some of the tables can however be compressed with @code{myisampack}.
+@xref{myisampack}.
 
 When you create a @code{MERGE} table, you will get a @code{.frm} table
 definition file and a @code{.MRG} table list file.  The @code{.MRG} just
@@ -22635,6 +22712,10 @@ batch, you should instead create a @code{MERGE} table on them on demand.
 This is much faster and will save a lot of disk space.
 @item
 Go around the file size limit for the operating system.
+@item
+You can create an alias/synonym for a table by just using MERGE over one
+table. There shouldn't be any really notable performance impacts of doing this
+(only a couple of indirect calls and memcpy's for each read).
 @end itemize
 
 The disadvantages with @code{MERGE} tables are:
@@ -22683,6 +22764,7 @@ the outside of the @code{MySQL} server:
 @example
 shell> cd /mysql-data-directory/current-database
 shell> ls -1 t1.MYI t2.MYI > total.MRG
+shell> mysqladmin flush-tables
 @end example
 
 Now you can do things like:
@@ -22701,11 +22783,18 @@ mysql> select * from total;
 +---+---------+
 @end example
 
-To remap a @code{MERGE} table you must either @code{DROP} it and
-re-create it, use @code{ALTER TABLE} with a new @code{UNION}
-specification, or change the @code{.MRG} file and issue a @code{FLUSH
-TABLE} on the @code{MERGE} table and all underlying tables to force the
-handler to read the new definition file.
+To remap a @code{MERGE} table you can do one of the following:
+
+@itemize @bullet
+@item
+@code{DROP} the table and re-create it
+@item
+Use @code{ALTER TABLE table_name UNION(...)}
+@item
+Change the @code{.MRG} file and issue a @code{FLUSH TABLE} on the
+@code{MERGE} table and all underlying tables to force the handler to
+read the new definition file.
+@end itemize
 
 @cindex tables, ISAM
 @node ISAM, HEAP, MERGE, Table types
@@ -22820,6 +22909,7 @@ SUM_OVER_ALL_KEYS(max_length_of_key + sizeof(char*) * 2)
 @code{sizeof(char*)} is 4 on 32-bit machines and 8 on 64-bit machines.
 
 @cindex tables, @code{BDB}
+@cindex tables, @code{Berkeley DB}
 @node BDB,  , HEAP, Table types
 @section BDB or Berkeley_db Tables
 
@@ -23006,6 +23096,11 @@ unexpectedly. It should not be fatal even if this number is not 100 %
 correct.  One can update the number of rows by executing @code{ANALYZE
 TABLE} or @code{OPTIMIZE TABLE}. @xref{ANALYZE TABLE} . @xref{OPTIMIZE
 TABLE}.
+@item
+If you get full disk with a @code{BDB} table, you will get an error
+(probably error 28) and the transaction should roll back.  This is in
+contrast with @code{MyISAM} and @code{ISAM} tables where mysqld will
+wait for enough free disk before continuing.
 @end itemize
 
 @node BDB TODO, BDB errors, BDB characteristic, BDB
@@ -24566,7 +24661,8 @@ mysql> SELECT 1 IS NULL, 1 IS NOT NULL;
 +-----------+---------------+
 @end example
 
-In @strong{MySQL}, 0 means false and 1 means true.
+In @strong{MySQL}, 0 or @code{NULL} means false and anything else means true.
+The default trueth value from a boolean operation is 1.
 
 This special treatment of @code{NULL} is why, in the previous section, it
 was necessary to determine which animals are no longer alive using
@@ -25420,6 +25516,7 @@ your changes with the new @file{errmsg.txt} file.
 @menu
 * Character sets::              The character set used for data and sorting
 * Adding character set::        Adding a new character set
+* Character arrays::            
 * String collating::            String collating support
 * Multi-byte characters::       Multi-byte character support
 @end menu
@@ -25478,28 +25575,52 @@ default-character-set=character-set-name
 
 but normally this is never needed.
 
-To add another character set to @strong{MySQL}, use the following procedure.
-
 @cindex character sets, adding
 @cindex adding, character sets
-@node Adding character set, String collating, Character sets, Languages
+@node Adding character set, Character arrays, Character sets, Languages
 @subsection Adding a New Character Set
+
+To add another character set to @strong{MySQL}, use the following procedure.
+
+Decide if the set is simple or complex.  If the character set
+does not need to use special string collating routines for
+sorting and does not need multi-byte character support, it is
+simple.  If it needs either of those features, it is complex.
+
+For example, @code{latin1} and @code{danish} are simple charactersets while
+@code{big5} or @code{czech} are complex character sets.
+
+In the following section, we have assumed that you name your character
+set @code{MYSET}.
+
+For a simple character set do the following:
 
 @enumerate
 @item
-Choose a name for the character set, denoted @code{MYSET} below.
+Add MYSET to the end of the @file{sql/share/charsets/Index} file
+Assign an unique number to it.
 
 @item
-Decide if the set is simple or complex.  If the character set
-does not need to use special string collating routines for
-sorting and does not need mulit-byte character support, it is
-simple.  If it needs either of those features, it is complex.
+Create the file @file{sql/share/charsets/MYSET.conf}.
+(You can use @file{sql/share/charsets/latin1.conf} as a base for this).
 
+The syntax for the file very simple:
+
+@itemize @bullet
 @item
-If the character set is simple, then create the file
-@file{sql/share/charsets/MYSET.conf}, and add MYSET the
-@file{sql/share/charsets/Index} file.  Read the
-@file{sql/share/charsets/README} for more instructions.
+Comments start with a '#' character and proceed to the end of the line.
+@item
+Words are separated by arbitrary amounts of whitespace.
+@item
+When defining the character set, every word must be a number in hexadecimal
+format
+@item
+The @code{ctype} array takes up the first 257 words. The
+@code{to_lower}, @code{to_upper} and @code{sort_order} arrays take up
+256 words each after that.
+@end itemize
+
+@xref{Character arrays}.
 
 @item
 Add the character set name to the @code{CHARSETS_AVAILABLE} and
@@ -25508,20 +25629,28 @@ Add the character set name to the @code{CHARSETS_AVAILABLE} and
 @item
 Reconfigure, recompile, and test.
 
+@end enumerate
+
+For a complex character set do the following:
+
+@enumerate
 @item
-If the character set is complex, create the file
-@file{strings/ctype-MYSET.c} in the @strong{MySQL} source distribution.
+Create the file @file{strings/ctype-MYSET.c} in the @strong{MySQL} source
+distribution.
 
 @item
-Add MYSET to the end of the @file{sql/share/charsets/Index} file.  Take
-note of its position in the file - this is its character set number,
-denoted @code{MYNUMBER} below.
+Add MYSET to the end of the @file{sql/share/charsets/Index} file.
+Assign an unique number to it.
 
 @item
-Look at one of the existing @file{ctype-*.c} files to see what needs to be
-defined. Note that the arrays in your file must have names like
-@code{ctype_MYSET}, @code{to_lower_MYSET}, and so on.
+Look at one of the existing @file{ctype-*.c} files to see what needs to
+be defined, for example @file{strings/ctype-big5.c}. Note that the
+arrays in your file must have names like @code{ctype_MYSET},
+@code{to_lower_MYSET}, and so on.  This corresponds to the arrays
+in the simple character set. @xref{Character arrays}.  For a complex
+character set
 
+@item
 Near the top of the file, place a special comment like this:
 
 @example
@@ -25543,6 +25672,34 @@ the following sections.  Only include them if you the string
 collating functions or the multi-byte character set functions,
 respectively.
 
+@item
+You should then create some of the following functions:
+
+@itemize @bullet
+@item @code{my_strncoll_MYSET()}
+@item @code{my_strcoll_MYSET()}
+@item @code{my_strxfrm_MYSET()}
+@item @code{my_like_range_MYSET()}
+@end itemize
+
+@xref{String collating}.
+
+@item
+Add the character set name to the @code{CHARSETS_AVAILABLE} and
+@code{COMPILED_CHARSETS} lists in @code{configure.in}.
+
+@item
+Reconfigure, recompile, and test.
+@end enumerate
+
+The file @file{sql/share/charsets/README} includes some more instructions.
+
+If you want to have the character set included in the @strong{MySQL}
+distribution, mail a patch to @email{internals@@lists.mysql.com}.
+
+@node Character arrays, String collating, Adding character set, Languages
+@subsection The character definition arrays
+
 @code{to_lower[]} and @code{to_upper[]} are simple arrays that hold the
 lowercase and uppercase characters corresponding to each member of the
 character set.  For example:
@@ -25557,12 +25714,13 @@ comparison and sorting purposes.  For many character sets, this is the same as
 @code{to_upper[]} (which means sorting will be case insensitive).
 @strong{MySQL} will sort characters based on the value of
 @code{sort_order[character]}.  For more complicated sorting rules, see
-the discussion of string collating below.
+the discussion of string collating below. @xref{String collating}.
 
 @code{ctype[]} is an array of bit values, with one element for one character.
 (Note that @code{to_lower[]}, @code{to_upper[]}, and @code{sort_order[]}
 are indexed by character value, but @code{ctype[]} is indexed by character
 value + 1.  This is an old legacy to be able to handle EOF.)
+
 You can find the following bitmask definitions in @file{m_ctype.h}:
 
 @example
@@ -25577,28 +25735,18 @@ You can find the following bitmask definitions in @file{m_ctype.h}:
 @end example
 
 The @code{ctype[]} entry for each character should be the union of the
-applicable bitmask values that describe the character.
-For example, @code{'A'} is an uppercase character (@code{_U}) as well as a
-hexadecimal digit (@code{_X}), so @code{ctype['A'+1]} should contain the value:
+applicable bitmask values that describe the character.  For example,
+@code{'A'} is an uppercase character (@code{_U}) as well as a
+hexadecimal digit (@code{_X}), so @code{ctype['A'+1]} should contain the
+value:
+
 @example
 _U + _X = 01 + 0200 = 0201
 @end example
 
-@item
-Add support for the string collating or multi-byte features needed, as
-described in the following sections.
-
-@item
-Add the character set name to the @code{CHARSETS_AVAILABLE} and
-@code{COMPILED_CHARSETS} lists in @code{configure.in}.
-
-@item
-Reconfigure, recompile, and test.
-@end enumerate
-
 @cindex collating, strings
 @cindex string collating
-@node String collating, Multi-byte characters, Adding character set, Languages
+@node String collating, Multi-byte characters, Character arrays, Languages
 @subsection String Collating Support
 
 If the sorting rules for your language are too complex to be handled
@@ -25611,7 +25759,7 @@ character sets for examples.
 
 You must specify the @code{strxfrm_multiply_MYSET=N} value in the
 special comment at the top of the file.  @code{N} should be set to
-the maximum ratio the strings may grow during my_strxfrm_MYSET (it
+the maximum ratio the strings may grow during @code{my_strxfrm_MYSET} (it
 must be a positive integer).
 
 @cindex characters, multi-byte
@@ -25619,16 +25767,18 @@ must be a positive integer).
 @node Multi-byte characters,  , String collating, Languages
 @subsection Multi-byte Character Support
 
-If your character set includes multi-byte characters, you need to use
-the multi-byte character functions.
+If your want to add support for a new character set that includes
+multi-byte characters, you need to use the multi-byte character
+functions.
 
 Right now the best documentation on this is the character sets that are
 already implemented.  Look at the euc_kr, gb2312, gbk, sjis and ujis
-character sets for examples.
+character sets for examples. These are implemented in the
+@code{ctype-'charset'.c} files in the @file{strings} directory.
 
-You must specify the @code{mbmaxlen_MYSET=N} value in the
-special comment at the top of the file.  @code{N} should be set to
-the size in bytes of the largest character in the set.
+You must specify the @code{mbmaxlen_MYSET=N} value in the special
+comment at the top of the source file.  @code{N} should be set to the
+size in bytes of the largest character in the set.
 
 @cindex tables, maximum size
 @cindex size of tables
@@ -25699,7 +25849,7 @@ tables}.
 * Replication Options::         Replication Options in my.cnf
 * Replication SQL::             SQL Commands related to replication
 * Replication FAQ::             Frequently Asked Questions about replication
-* Troubleshooting Replication:: Troubleshooting Replication.  Troubleshooting Replication
+* Troubleshooting Replication:: Troubleshooting Replication.  Troubleshooting Replication.  Troubleshooting Replication.  Troubleshooting Replication.  Troubleshooting Replication.  Troubleshooting Replication.  Troubleshooting Replication.  Troubleshooting Replication.  Troubleshooting Replication.  Troubleshooting Replication.  Troubleshooting Replication
 @end menu
 
 @node Replication Intro, Replication Implementation, Replication, Replication
@@ -25779,7 +25929,7 @@ below.
 
 @enumerate
 @item
-Make you have a recent version of @strong{MySQL} installed on the master
+Make sure you have a recent version of @strong{MySQL} installed on the master
 and slave(s).
 
 Use Version 3.23.29 or higher. Previous releases used a different binary
@@ -26183,6 +26333,11 @@ summary of commands:
  @tab Re-enables update logging if the user has process privilege.
  Ignored otherwise. (Master)
 
+@item @code{SET SQL_SLAVE_SKIP_COUNTER=n}
+ @tab Skip the next @code{n} events from the master. Only valid when
+the slave thread is not running, otherwise, gives an error. Useful for
+recovering from replication glitches.
+
 @item @code{RESET MASTER}
  @tab Deletes all binary logs listed in the index file, resetting the binlog
 index file to be empty. In pre-3.23.26 versions, @code{FLUSH MASTER} (Master)
@@ -26209,7 +26364,9 @@ CHANGE MASTER TO
   MASTER_HOST='master2.mycompany.com',
   MASTER_USER='replication',
   MASTER_PASSWORD='bigs3cret',
-  MASTER_PORT=3306;
+  MASTER_PORT=3306,
+  MASTER_LOG_FILE='master2-bin.001',
+  MASTER_LOG_POS=4;
 
 @end example
 
@@ -26494,7 +26651,7 @@ the slaves of the master change in case of failure. Some suggestions:
 @item
 To tell a slave to change the master use the @code{CHANGE MASTER TO} command.
 @item
-A good way to keep your applications informed where the master is is by
+A good way to keep your applications informed where the master is by
 having a dynamic DNS entry for the master. With @strong{bind} you can
 use @code{nsupdate} to dynamically update your DNS.
 @item
@@ -26538,11 +26695,35 @@ privileges for the replication user on the master, master host name, your
 DNS setup, whether the master is actually running, whether it is reachable
 from the slave, and if all that seems ok, read the error logs.
 @item
-If the slave was running, but then stopped, check the error logs. It usually
+If the slave was running, but then stopped, look at SHOW SLAVE STATUS
+output andcheck the error logs. It usually
 happens when some query that succeeded on the master fails on the slave. This
 should never happen if you have taken a proper snapshot of the master, and
 never modify the data on the slave outside of the slave thread. If it does,
 it is a bug, read below on how to report it.
+@item
+If a query on that succeeded on the master refuses to run on the slave, and
+a full database resync ( the proper thing to do ) does not seem feasible,
+try the following:
+@itemize bullet
+@item
+First see if there is some stray record in the way. Understand how it got
+there, then delete it and run @code{SLAVE START}
+@item
+If the above does not work or does not apply, try to understand if it would
+be safe to make the update manually ( if needed) and then ignore the next
+query from the master.
+@item
+If you have decided you can skip the next query, do
+@code{SET SQL_SLAVE_SKIP_COUNTER=1; SLAVE START;} to skip a query that
+does not use auto_increment, last_insert_id or timestamp, or
+@code{SET SQL_SLAVE_SKIP_COUNTER=2; SLAVE START;} otherwise
+@item
+If you are sure the slave started out perfectly in sync with the master,
+and no one has updated  the tables involved outside of slave thread,
+report the bug, so
+you will not have to do the above tricks again.
+@end itemize
 @item
 Make sure you are not running into an old bug by upgrading to the most recent
 version.
@@ -30420,7 +30601,7 @@ to start using the new table.
 * Maintenance regimen::         Setting up a table maintenance regimen
 * Table-info::                  Getting information about a table
 * Crash recovery::              Using @code{myisamchk} for crash recovery
-* Log files::                   Log file maintenance
+* Log file maintenance::        Log file maintenance
 @end menu
 
 @node Table maintenance, Maintenance regimen, Maintenance, Maintenance
@@ -31170,7 +31351,7 @@ information and a description of what it means.
 
 @cindex crash, recovery
 @cindex recovery, from crash
-@node Crash recovery, Log files, Table-info, Maintenance
+@node Crash recovery, Log file maintenance, Table-info, Maintenance
 @section Using @code{myisamchk} for Crash Recovery
 
 If you run @code{mysqld} with @code{--skip-locking} (which is the default on
@@ -31361,7 +31542,7 @@ If you are using @strong{MySQL} Version 3.23.16 and above, you can (and should) 
 @code{CHECK} and @code{REPAIR} commands to check and repair @code{MyISAM}
 tables. @xref{CHECK TABLE}. @xref{REPAIR TABLE}.
 
-The manual section about table maintenence includes the options to
+The manual section about table maintenance includes the options to
 @code{isamchk}/@code{myisamchk}. @xref{Table maintenance}.
 
 The following section is for the cases where the above command fails or
@@ -31510,17 +31691,23 @@ For a full description of the option, see @xref{myisamchk syntax}.
 @cindex files, log
 @cindex maintaining, log files
 @cindex log files, maintaining
-@node Log files,  , Crash recovery, Maintenance
+@node Log file maintenance,  , Crash recovery, Maintenance
 @section Log file Maintenance
+
+@strong{MySQL} has a lot of log files which make it easy to see what is
+going. @xref{Log files}. One must however from time to time clean up
+after @code{MysQL} to ensure that the logs doesn't take up too much disk
+space.
 
 When using @strong{MySQL} with log files, you will, from time to time,
 want to remove/backup old log files and tell @strong{MySQL} to start
-logging on new files.  @xref{Update log}.
+logging on new files.  @xref{Backup}.
 
 On a Linux (@code{Redhat}) installation, you can use the
 @code{mysql-log-rotate} script for this. If you installed @strong{MySQL}
 from an RPM distribution, the script should have been installed
-automatically.
+automatically.  Note that you should be careful with this if you are using
+the log for replication!
 
 On other systems you must install a short script yourself that you
 start from @code{cron} to handle log files.
@@ -32167,6 +32354,10 @@ program.
 2 features) driver for connecting an ODBC-aware application to
 @strong{MySQL}.  @strong{MyODBC} works on Windows95, Windows98, NT, and
 on most Unix platforms.
+
+If you have problem with @strong{MyODBC} and your program also works
+with OLEDB, you should try the OLEDB driver that you can find in the
+Contrib section.  @xref{Contrib}.
 
 Normally you only need to install @strong{MyODBC} on Windows machines.
 You only need @strong{MyODBC} for Unix if you have a program like
@@ -32850,7 +33041,7 @@ First, you should try to find out whether the problem is that the
 client.  You can check how long your @code{mysqld} server has been up by
 executing @code{mysqladmin version}.  If @code{mysqld} has died, you may
 find the reason for this in the file
-@file{mysql-data-directory/'hostname'.err}.
+@file{mysql-data-directory/'hostname'.err}. @xref{Error log}.
 
 Many crashes of @strong{MySQL} are caused by corrupted index / data
 files.  @strong{MySQL} will update the data on disk, with the
@@ -32904,67 +33095,27 @@ state.  @xref{Maintenance}.
 Use @code{mysqld --log} and try to determine from the information in the log
 whether or not some specific query kills the server. About 95% of all bugs are
 related to a particular query!  Normally this is one of the last queries in
-the log file just before @strong{MySQL} restarted.
-
-You may be able to verify this using the following procedure:
-
-@itemize @minus
-@item
-Take down the @strong{MySQL} daemon (with @code{mysqladmin shutdown}).
-@item
-Make a backup of files in the @strong{MySQL} database directory.
-(As the server is stopped, you can just copy the files to some other
-directory)
-@item
-Check the tables with @code{myisamchk -s */*.MYI} to verify that all
-tables are correct.  If any table is corrupted, repair it with
-@code{myisamchk -r path-to-table.MYI}.  You should take the backup
-before checking the tables, as the problem could be related to corrupted
-tables.
-@item
-Remove (or move away) any old log files from the @strong{MySQL} data directory.
-@item
-Start the server with @code{safe_mysqld --log-update} or
-@code{safe_mysqld --log --log-update}.
-@item
-If @code{mysqld} now dies, you have two options:
-@itemize @bullet
-@item
-First take a backup of your backup database. (Just copy the file(s)
-somewhere again.) This is because we want to keep the original start
-situation untouched. Start a mysqld process on the other backup database
-(you can do this with option @code{--datadir=/path/to/backup/}).
-@item
-Just restore the backup on your original database and restart @code{mysqld}.
-You will not any lose information, because you have the @code{log-update} file.
-@end itemize
+the log file just before @strong{MySQL} restarted. @xref{Query log}.
+If you can repeatadly kill @strong{MySQL} with one of the queries, even
+when you have checked all tables just before doing the query, then you
+have been able to locate the bug and should do a bug report for this!
+@xref{Bug reports}.
 
 @item
-Now you can test if the problem is a specific update statement by executing
-@code{mysql database_name < path-to-log-update-file}.
-
-You can also use the script @code{mysql_find_rows} to just execute some of the
-update statements if you want to narrow down the problem.
-
-If mysqld now crashes, then you have something repeatable
-available. Please send mail to @email{bugs@@lists.mysql.com} or
-@email{developers@@mysql.com} or (if you are a support customer) to
-@email{support@@mysql.com} about the problem and the @strong{MySQL} team
-will fix it as soon as possible.
-@end itemize
+Try to make a test case that we can use to reproduce the problem.
+@xref{Reproducable test case}.
 
 @item
-Have you tried the benchmarks?  They should test @strong{MySQL} rather well.
-You can also add code that simulates your application!  The benchmarks can be
-found in the @file{bench} directory in the source distribution or, for a
-binary distribution, in the @file{sql-bench} directory under your
-@strong{MySQL} installation directory.
+Try running the included mysql-test test and the @code{MySQL}
+benchmarks.  @xref{MySQL test suite}.  They should test @strong{MySQL}
+rather well.  You can also add code that to the benchmarks to simulates
+your application!  The benchmarks can be found in the @file{bench}
+directory in the source distribution or, for a binary distribution, in
+the @file{sql-bench} directory under your @strong{MySQL} installation
+directory.
 
 @item
 Try @code{fork_test.pl} and @code{fork2_test.pl}.
-
-@item
-Check the file @file{mysql-data-directory/'hostname'.err} for any errors.
 
 @item
 If you configure @strong{MySQL} for debugging, it will be much easier to
@@ -33073,8 +33224,9 @@ symbols that start with @code{mysql_}, like the following:
 you should be able to solve this by adding @code{-Lpath-to-the-mysql-library
 -lmysqlclient} @strong{LAST} on your link line.
 
-If you get @code{undefined reference} errors for the @code{compress} function,
-add @code{-lgz} @strong{LAST} on your link line and try again!
+If you get @code{undefined reference} errors for the @code{uncompress}
+or @code{compress} function, add @code{-lgz} @strong{LAST} on your link
+line and try again!
 
 If you get @code{undefined reference} errors for functions that should
 exist on your system, like @code{connect}, check the man page for the
@@ -33402,7 +33554,7 @@ The client program ended abruptly in the middle of the transfer.
 @end itemize
 
 When the above happens, the mysqld will write a note about an
-@code{Aborted connection} in the @code{hostname.err}
+@code{Aborted connection} in the @code{hostname.err} file. @xref{Error log}.
 
 The server variable @code{Aborted_connects} is incremented when:
 
@@ -34261,16 +34413,13 @@ Drop or rename @code{old_table}.
 @cindex problems, solving
 @cindex solving, problems
 @cindex databases, replicating
-@node Common problems, Clients, Problems, Top
+@node Common problems, Log files, Problems, Top
 @chapter Solving Some Common Problems with MySQL
 
 @cindex replication
 @menu
 * Log Replication::             Database replication with update log
 * Backup::                      Database backups
-* Update log::                  The update log
-* Binary log::                  The binary log
-* Slow query log::              Log of slow queries
 * Multiple servers::            Running multiple @strong{MySQL} servers on the same machine
 @end menu
 
@@ -34319,7 +34468,7 @@ mirror if needed. @code{LAST_INSERT_ID()} is also safe to use.
 
 @cindex databases, backups
 @cindex backups
-@node Backup, Update log, Log Replication, Common problems
+@node Backup, Multiple servers, Log Replication, Common problems
 @section Database Backups
 
 Because @strong{MySQL} tables are stored as files, it is easy to do a
@@ -34400,164 +34549,10 @@ If you get performance problems in making backups on your system, you can
 solve this by setting up replication and do the backups on the slave
 instead of on the master. @xref{Replication Intro}.
 
-@cindex update log
-@cindex files, update log
-@node Update log, Binary log, Backup, Common problems
-@section The Update Log
-
-@strong{NOTE}: The update log is replaced by the binary
-log. @xref{Binary log}.  With this you can do anything that you can do
-with the update log.
-
-When started with the @code{--log-update[=file_name]} option,
-@code{mysqld} writes a log file containing all SQL commands that update
-data. If no filename is given, it defaults to the name of the host
-machine. If a filename is given, but it doesn't contain a path, the file
-is written in the data directory. If file_name doesn't have an
-extension, @code{mysqld} will create log file names of type
-@code{file_name.#}, where @code{#} is a number that is incremented each
-time you execute @code{mysqladmin refresh}, execute @code{mysqladmin
-flush-logs}, execute the @code{FLUSH LOGS} statement, or restart the server.
-
-@strong{NOTE:} For the above scheme to work, you should NOT create
-your own files with the same filename as the update log + some extensions
-that may be regarded as a number, in the directory used by the update log!
-
-If you use the @code{--log} or @code{-l} options, @code{mysqld} writes a
-general log with a filename of @file{hostname.log}, and restarts and
-refreshes do not cause a new log file to be generated (although it is closed
-and reopened). In this case you can copy it (on Unix) by doing:
-
-@example
-mv hostname.log hostname-old.log
-mysqladmin flush-logs
-cp hostname-old.log to-backup-directory
-rm hostname-old.log
-@end example
-
-By default, the @code{mysql.server} script starts the @strong{MySQL}
-server with the @code{-l} option.  If you need better performance when
-you start using @strong{MySQL} in a production environment, you can
-remove the @code{-l} option from @code{mysql.server} or change it to
-@code{--log-update}.
-
-Update logging is smart because it logs only statements that really update
-data. So an @code{UPDATE} or a @code{DELETE} with a @code{WHERE} that finds no
-rows is not written to the log. It even skips @code{UPDATE} statements that
-set a column to the value it already has.
-
-If you want to update a database from update log files, you could do the
-following (assuming your update logs have names of the form
-@file{file_name.###}):
-
-@example
-shell> ls -1 -t -r file_name.[0-9]* | xargs cat | mysql
-@end example
-
-@code{ls} is used to get all the log files in the right order.
-
-This can be useful if you have to revert to backup files after a crash
-and you want to redo the updates that occurred between the time of the backup
-and the crash.
-
-@cindex binary log
-@cindex files, binary log
-@node Binary log, Slow query log, Update log, Common problems
-@section The Binary Log
-
-In the future the binary log will replace the update log, so we
-recommend you to switch to this log format as soon as possible!
-
-The binary log contains all information that is available in the update
-log in a more efficient format. It also contains information about how long
-every query that updated the database took.
-
-The binary log is also used when you are replicating a slave from a master.
-@xref{Replication}.
-
-When started with the @code{--log-bin[=file_name]} option, @code{mysqld}
-writes a log file containing all SQL commands that update data. If no
-file name is given, it defaults to the name of the host machine followed
-by @code{-bin}. If file name is given, but it doesn't contain a path, the
-file is written in the data directory.
-
-To the binary log filename mysqld will append an extension that is a
-number that is incremented each time you execute @code{mysqladmin
-refresh}, execute @code{mysqladmin flush-logs}, execute the @code{FLUSH LOGS}
-statement or restart the server.
-
-To be able to know which different binary log files have been used,
-@code{mysqld} will also create a binary log index file that
-contains the name of all used binary log files. By default this has the
-same name as the binary log file, with the extension @code{'.index'}.
-You can change the name of the binary log index file with the
-@code{--log-bin-index=[filename]} option.
-
-If you are using replication, you should not delete old binary log
-files until you are sure that no slave will ever need to use them.
-One way to do this is to do @code{mysqladmin flush-logs} once a day and then
-remove any logs that are more than 3 days old.
-
-You can examine the binary log file with the @code{mysqlbinlib} command.
-For example, you can update a @strong{MySQL} server from the binary log
-as follows:
-
-@example
-mysqlbinlog log-file | mysql -h server_name
-@end example
-
-You can also use the @file{mysqlbinlog} program to read the binary log
-direct from a remote mysql server!
-
-@code{mysqlbinlog --help} will give you more information of how to use
-this program!
-
-If you are using @code{BEGIN} or @code{SET AUTO_COMMIT=0}, you must use
-the @strong{MySQL} binary log for backups instead of the old update log.
-
-All updates (@code{UPDATE}, @code{DELETE} or @code{INSERT}) that changes
-a transactional table (like BDB tables) is cached until a @code{COMMIT}.
-Any updates to a not transactional table is stored in the binary log at
-once.  Every thread will on start allocate a buffer of
-@code{binlog_cache_size} to buffer queries.  If a query is bigger than
-this, the thread will open a temporary file to handle the bigger cache.
-The temporary file will be deleted when the thread ends.
-
-The @code{max_binlog_cache_size} can be used to restrict the total size used
-to cache a multi-transaction query.
-
-@cindex slow query log
-@cindex files, slow query log
-@node Slow query log, Multiple servers, Binary log, Common problems
-@section The Slow Query Log
-
-When started with the @code{--log-slow-queries[=file_name]} option,
-@code{mysqld} writes a log file containing all SQL commands that took
-more than @code{long_query_time} to execute. The time to get the initial
-table locks are not counted as execution time.
-
-If no file name is given, it defaults to the name of the host machine
-suffixed with @code{-slow.log}. If a filename is given, but doesn't
-contain a path, the file is written in the data directory.
-
-The slow query log can be used to find queries that takes a long time to
-execute and are thus candidates for optimization.
-
-You are using @code{--log-long-format} then also queries that are not
-using indexes are printed. @xref{Command-line options}.
-
-@cindex database replication
-@cindex replication, database
-@cindex database mirroring
-@cindex mirroring, database
-You can also use the update logs when you have a mirrored database on
-another host and you want to replicate the changes that have been made
-to the master database. @xref{Log Replication}.
-
 @cindex multiple servers
 @cindex servers, multiple
 @cindex running, multiple servers
-@node Multiple servers,  , Slow query log, Common problems
+@node Multiple servers,  , Backup, Common problems
 @section Running Multiple MySQL Servers on the Same Machine
 
 There are circumstances when you might want to run multiple servers on the same
@@ -34675,12 +34670,226 @@ Specify the default socket and TCP/IP port in the @file{.my.cnf} file in your
 home directory. @xref{Option files}.
 @end itemize
 
+@cindex Log files
+@node Log files, Clients, Common problems, Top
+@chapter The MySQL log files
+
+@strong{MySQL} has a lot of different log files which can help you find
+out what's going on inside @code{mysqld}:
+
+@multitable @columnfractions .3 .7
+@item The error log @tab Problems encountering starting, running or stopping mysqld.
+@item The isam log @tab Logs all changes to the ISAM tables. Used only for debugging the isam code.
+@item The query log @tab Established connections and executed queries.
+@item The update log @tab Depricated: Stores all statements that changes data
+@item The binary log @tab Stores all statements that changes something. Used also for replication
+@item The slow log @tab Stores all queries that took more than @code{long_query_time} to execute or didn't use indexes.
+@end multitable
+
+All logs can be found in the @code{mysqld} database directory.  You can
+tell force mysqld to switch to reopen the log files (or in some cases
+switch to a new log) by executing @code{FLUSH LOGS}. @xref{FLUSH}.
+
+@cindex error log
+@cindex files, error log
+@menu
+* Error log::                   
+* Query log::                   
+* Update log::                  
+* Binary log::                  
+* Slow query log::              
+@end menu
+
+@node Error log, Query log, Log files, Log files
+@section The Error Log
+
+@code{mysqld} writes all errors to the stderr, which the
+@code{safe_mysqld} script redirects to a file called
+@code{'hostname'.err}.  (On windows @code{mysqld} writes this directly
+to @file{mysql.err}).
+
+This contains information on when mysqld was started and stopped and
+also any critical errors found when running.  If @code{mysqld} dies
+unexpectedly and @code{safe_mysqld} needs to restart @code{mysqld},
+@code{safe_mysqld} will write a @code{restarted mysqld} row in this
+file.  This log also holds a warning if @code{mysqld} notices a table
+that needs to be automaticly checked or repaired.
+
+On some operating systems, the error log will contain a stack trace
+for where mysqld died. This can be used to find out where mysqld died.
+@xref{Using stack trace}.
+
+@cindex query log
+@cindex files, query log
+@node Query log, Update log, Error log, Log files
+@section The Query Log
+
+If you want to know what happens within @code{mysqld}, you should start
+it with @code{--log[=file]}.  This will log all connections and queries
+to the log file (by default named 'hostname.log').  This log can
+be very useful when you suspect an error in a client and want to know
+exactly what @code{mysqld} thought the client send to it.
+
+@cindex update log
+@cindex files, update log
+@node Update log, Binary log, Query log, Log files
+@section The Update Log
+
+@strong{NOTE}: The update log is replaced by the binary
+log. @xref{Binary log}.  With this you can do anything that you can do
+with the update log.
+
+When started with the @code{--log-update[=file_name]} option,
+@code{mysqld} writes a log file containing all SQL commands that update
+data. If no filename is given, it defaults to the name of the host
+machine. If a filename is given, but it doesn't contain a path, the file
+is written in the data directory. If file_name doesn't have an
+extension, @code{mysqld} will create log file names of type
+@code{file_name.#}, where @code{#} is a number that is incremented each
+time you execute @code{mysqladmin refresh}, execute @code{mysqladmin
+flush-logs}, execute the @code{FLUSH LOGS} statement, or restart the server.
+
+@strong{NOTE:} For the above scheme to work, you should NOT create
+your own files with the same filename as the update log + some extensions
+that may be regarded as a number, in the directory used by the update log!
+
+If you use the @code{--log} or @code{-l} options, @code{mysqld} writes a
+general log with a filename of @file{hostname.log}, and restarts and
+refreshes do not cause a new log file to be generated (although it is closed
+and reopened). In this case you can copy it (on Unix) by doing:
+
+@example
+mv hostname.log hostname-old.log
+mysqladmin flush-logs
+cp hostname-old.log to-backup-directory
+rm hostname-old.log
+@end example
+
+By default, the @code{mysql.server} script starts the @strong{MySQL}
+server with the @code{-l} option.  If you need better performance when
+you start using @strong{MySQL} in a production environment, you can
+remove the @code{-l} option from @code{mysql.server} or change it to
+@code{--log-update}.
+
+Update logging is smart because it logs only statements that really update
+data. So an @code{UPDATE} or a @code{DELETE} with a @code{WHERE} that finds no
+rows is not written to the log. It even skips @code{UPDATE} statements that
+set a column to the value it already has.
+
+If you want to update a database from update log files, you could do the
+following (assuming your update logs have names of the form
+@file{file_name.###}):
+
+@example
+shell> ls -1 -t -r file_name.[0-9]* | xargs cat | mysql
+@end example
+
+@code{ls} is used to get all the log files in the right order.
+
+This can be useful if you have to revert to backup files after a crash
+and you want to redo the updates that occurred between the time of the backup
+and the crash.
+
+@cindex binary log
+@cindex files, binary log
+@node Binary log, Slow query log, Update log, Log files
+@section The Binary Log
+
+In the future the binary log will replace the update log, so we
+recommend you to switch to this log format as soon as possible!
+
+The binary log contains all information that is available in the update
+log in a more efficient format. It also contains information about how long
+every query that updated the database took.
+
+The binary log is also used when you are replicating a slave from a master.
+@xref{Replication}.
+
+When started with the @code{--log-bin[=file_name]} option, @code{mysqld}
+writes a log file containing all SQL commands that update data. If no
+file name is given, it defaults to the name of the host machine followed
+by @code{-bin}. If file name is given, but it doesn't contain a path, the
+file is written in the data directory.
+
+To the binary log filename mysqld will append an extension that is a
+number that is incremented each time you execute @code{mysqladmin
+refresh}, execute @code{mysqladmin flush-logs}, execute the @code{FLUSH LOGS}
+statement or restart the server.
+
+To be able to know which different binary log files have been used,
+@code{mysqld} will also create a binary log index file that
+contains the name of all used binary log files. By default this has the
+same name as the binary log file, with the extension @code{'.index'}.
+You can change the name of the binary log index file with the
+@code{--log-bin-index=[filename]} option.
+
+If you are using replication, you should not delete old binary log
+files until you are sure that no slave will ever need to use them.
+One way to do this is to do @code{mysqladmin flush-logs} once a day and then
+remove any logs that are more than 3 days old.
+
+You can examine the binary log file with the @code{mysqlbinlib} command.
+For example, you can update a @strong{MySQL} server from the binary log
+as follows:
+
+@example
+mysqlbinlog log-file | mysql -h server_name
+@end example
+
+You can also use the @file{mysqlbinlog} program to read the binary log
+direct from a remote mysql server!
+
+@code{mysqlbinlog --help} will give you more information of how to use
+this program!
+
+If you are using @code{BEGIN} or @code{SET AUTO_COMMIT=0}, you must use
+the @strong{MySQL} binary log for backups instead of the old update log.
+
+All updates (@code{UPDATE}, @code{DELETE} or @code{INSERT}) that changes
+a transactional table (like BDB tables) is cached until a @code{COMMIT}.
+Any updates to a not transactional table is stored in the binary log at
+once.  Every thread will on start allocate a buffer of
+@code{binlog_cache_size} to buffer queries.  If a query is bigger than
+this, the thread will open a temporary file to handle the bigger cache.
+The temporary file will be deleted when the thread ends.
+
+The @code{max_binlog_cache_size} can be used to restrict the total size used
+to cache a multi-transaction query.
+
+@cindex slow query log
+@cindex files, slow query log
+@node Slow query log,  , Binary log, Log files
+@section The Slow Query Log
+
+When started with the @code{--log-slow-queries[=file_name]} option,
+@code{mysqld} writes a log file containing all SQL commands that took
+more than @code{long_query_time} to execute. The time to get the initial
+table locks are not counted as execution time.
+
+If no file name is given, it defaults to the name of the host machine
+suffixed with @code{-slow.log}. If a filename is given, but doesn't
+contain a path, the file is written in the data directory.
+
+The slow query log can be used to find queries that takes a long time to
+execute and are thus candidates for optimization.
+
+You are using @code{--log-long-format} then also queries that are not
+using indexes are printed. @xref{Command-line options}.
+
+@cindex database replication
+@cindex replication, database
+@cindex database mirroring
+@cindex mirroring, database
+You can also use the update logs when you have a mirrored database on
+another host and you want to replicate the changes that have been made
+to the master database. @xref{Log Replication}.
+
 @cindex client tools
 @cindex APIs
 @cindex @code{mysqlclient} library
 @cindex buffer sizes, client
 @cindex library, @code{mysqlclient}
-@node Clients, Comparisons, Common problems, Top
+@node Clients, Comparisons, Log files, Top
 @chapter MySQL Client Tools and APIs
 
 @menu
@@ -38082,6 +38291,10 @@ This means that your PHP version isn't compiled with @strong{MySQL} support.
 You can either compile a dynamic @strong{MySQL} module and load it into PHP or
 recompile PHP with built-in @strong{MySQL} support.  This is described in
 detail in the PHP manual.
+@item Error: "undefined reference to `uncompress'"
+This means that the client library is compiled with support for a compressed
+client/server protocol. The fix is to add @code{-lz} last when linking
+with @code{-lmysqlclient}.
 @end itemize
 
 @cindex C++ APIs
@@ -38829,7 +39042,7 @@ your @code{FULLTEXT} indexes.
 @end example
 line in @code{myisam/ftdefs.h} to
 @example
-#define GWS_IN_USE GWS_IDF
+#define GWS_IN_USE GWS_FREQ
 @end example
 and recompile @strong{MySQL}.
 There is no need to rebuild the indexes though.
@@ -39560,6 +39773,17 @@ A @strong{MySQL} PMDA. Provides @strong{MySQL} server status and configuration
 variables.
 @end itemize
 
+@cindex OLEDB
+@item OLEDB
+@itemize @bullet
+@item @uref{http://www.mysql.com/Downloads/Win32/MyOLEDB.exe, MyOLEDB.exe}
+OLEDB handler for @code{MySQL}. By SWsoft.
+@item @uref{http://www.mysql.com/Downloads/Win32/MySamples.zip, MySamples.zip}
+Examples and documentation for MyOLEDB. By SWsoft.
+@item @uref{http://www.mysql.com/Downloads/Win32/Myoledb.zip, Myoledb.zip}
+Source for MyOLEDB. By SWsoft.
+@end itemize
+
 @cindex C++
 @item C++
 @itemize @bullet
@@ -39724,8 +39948,8 @@ Windows GUI (binary only) to administrate a database, by David B. Mansel,
 
 @item @uref{http://www.mysql.com/Downloads/Win32/netadmin.zip, netadmin.zip}
 An administrator tool for @strong{MySQL} on Windows 95/98 and Windows NT
-4.0. Only tested with @strong{MySQL} Versions 3.23.5 - 3.23.7. Written using the
-Tmysql components.
+4.0. Only tested with @strong{MySQL} Versions 3.23.5 - 3.23.7. Written
+using the Tmysql components.
 
 You can write queries and show tables, indexes, table syntax, and
 administrate user, host, and database and so on. This is beta and
@@ -39738,6 +39962,12 @@ New version of netadmin. See above for details.
 
 @item @uref{http://www.mysql.com/Downloads/Win32/ARTADMIN203.EXE,Atronic's @strong{MySQL} client for Windows 2.0.3.0}.
 Home page for this can be found at: @uref{http://www.artronic.hr}.
+
+@item @uref{http://www.mysql.com/Downloads/Win32/mysqlfront.zip, mysqlfront}
+Home page: @uref{http://my.anse.de/}.
+Win32-Client for accessing and managing dbs, tables, table-data, indexes,
+import-/export-files. (Freeware).  By Ansgar Becker.
+
 @item @uref{http://www.mysql.com/Downloads/Win32/W9xstop.zip,Utility from Artronic to stop MySQL on win9x}.
 
 @item @uref{http://dbtools.vila.bol.com.br/, Dbtools}
@@ -39777,6 +40007,8 @@ colour coding, dump functionality and much more.
 @uref{http://www.scibit.com/Products/Software/Utils/Mascon.asp,Mascon home page}.
 @item @uref{http://www.virtualbeer.net/dbui/,DBUI}
 DBUI is a Gtk graphical database editor.
+@item @uref{http://www.rtlabs.com/, MacSQL}
+GUI for MySQL, ODBC, and JDBC databases for the Mac OS.
 @end itemize
 
 @cindex Web clients
@@ -40639,6 +40871,10 @@ Our TODO section contains what we plan to have in 4.0. @xref{TODO MySQL 4.0}.
 
 @itemize @bullet
 @item
+Allow @code{SELECT expression LIMIT ...}.
+@item
+Added @code{IDENTITY} as a synonym for @code{AUTO_INCREMENT} (like SyBase).
+@item
 Added @code{ORDER BY} syntax to @code{UPDATE} and @code{DELETE}.
 @item
 Added @code{SELECT .. WITH UPDATE} and @code{SELECT ... IN SHARE MODE} to
@@ -40674,6 +40910,7 @@ users uses this code as the rest of the code and because of this we are
 not yet 100 % confident in this code.
 
 @menu
+* News-3.23.33::                Changes in release 3.23.33
 * News-3.23.32::                Changes in release 3.23.32
 * News-3.23.31::                Changes in release 3.23.31
 * News-3.23.30::                Changes in release 3.23.30
@@ -40709,7 +40946,65 @@ not yet 100 % confident in this code.
 * News-3.23.0::                 Changes in release 3.23.0
 @end menu
 
-@node News-3.23.32, News-3.23.31, News-3.23.x, News-3.23.x
+@node News-3.23.33, News-3.23.32, News-3.23.x, News-3.23.x
+@appendixsubsec Changes in release 3.23.33
+@itemize bullet
+@item
+@code{myisamchk -S} and @code{OPTIMIZE TABLE} now works on Windows.
+@item
+Fixed bug when using @code{DISTINCT} on results from functions that refered to
+a group function, like
+@code{SELECT a,DISTINCT SEC_TO_TIME(sum(a)) from table_name GROUP BY a,b}.
+@item
+Fixed bug in handling @code{STOP} event after @code{ROTATE} event in
+replication.
+@item
+Fixed another buffer overrun in @code{DROP DATABASE}.
+@item
+Added @code{Table_locks_immediate} and @code{Table_locks_waited} status
+variables.
+@item
+Fixed bug in replication that broke slave server start with existing
+@code{master.info}. This fixes a bug introduced in 3.23.32.
+@item
+Added @code{SET SQL_SLAVE_SKIP_COUNTER=n} command to recover from
+replication glitches without a full database copy.
+@item
+Added @code{max_binlog_size} variable; the binary log will be rotated
+automatically when the size crosses the limit.
+@item
+Added @code{Last_error}, @code{Last_errno}, and @code{Slave_skip_counter} to
+@code{SHOW SLAVE STATUS}.
+@item
+Fixed bug in @code{MASTER_POS_WAIT()} function.
+@item
+Execute coredump handler on @code{SIGILL}, and @code{SIGBUS} in addition to
+@code{SIGSEGV}.
+@item
+On x86 Linux, print the current query and thread (connection) id, if
+available, in the coredump handler.
+@item
+Fixed several timing bugs in the test suite.
+@item
+Extended @code{mysqltest} to take care of the timing issues in the test
+suite.
+@item
+@code{ALTER TABLE} can now be used to change the definition for a
+@code{MERGE} table.
+@item
+Fixed creation of @code{MERGE} tables on Windows.
+@item
+Portability fixes for OpenBSD and OS2.
+@item
+Added --temp-pool option to mysqld.  Using this option will cause most
+temporary files created to use a small set of names, rather than a unique
+name for each new file.  This is to work around a problem in the Linux
+kernel dealing with creating a bunch of new files with different names.
+With the old behavior, Linux seems to "leak" memory, as it's being allocated
+to the directory entry cache instead of the disk cache.
+@end itemize
+
+@node News-3.23.32, News-3.23.31, News-3.23.33, News-3.23.x
 @appendixsubsec Changes in release 3.23.32
 @itemize @bullet
 @item
@@ -40717,8 +41012,8 @@ Changed code to get around compiler bug in Compaq C++ on OSF1, that broke
 @code{BACKUP}, @code{RESTORE}, @code{CHECK}, @code{REPAIR}, and
 @code{ANALYZE TABLE}.
 @item
-Added option @code{FULL} to @code{SHOW COLUMNS}. Now we only show the
-privilege list for the columns if this option is given.
+Added option @code{FULL} to @code{SHOW COLUMNS}. Now we show the
+privilege list for the columns only if this option is given.
 @item
 Fixed bug in @code{SHOW LOGS} when there weren't any BDB logs.
 @item
@@ -45639,6 +45934,9 @@ New key cache
 When using @code{SET CHARACTER SET} we should translate the whole query
 at once and not only strings. This will enable users to use the translated
 characters in database, table and column names.
+@item
+Add a portable interface over @code{gethostbyaddr_r()} so that we can change
+@code{ip_to_hostname()} to not block other threads while doing DNS lookups.
 @end itemize
 
 @node TODO future, TODO sometime, TODO MySQL 4.0, TODO
@@ -46057,6 +46355,37 @@ any @code{my.cnf} files that interfere with your setup!
 You can check your @code{my.cnf} arguments with @code{mysqld --print-defaults}
 and avoid using them by starting with @code{mysqld --no-defaults ...}.
 
+If @code{mysqld} starts to eat up CPU or memory or if it ``hangs'', you
+can use @code{mysqladmin processlist status} to find out if someone is
+executing a query that takes a long time.  It may be a good idea to
+run @code{mysqladmin -i10 processlist status} in some window if you are
+experiencing performance problems or problems when new clients can't connect.
+
+The command @code{mysqladmin debug} will dump some information about
+locks in use, used memory and query usage to the mysql log file. This
+may help solve some problems.  This command also provides some useful
+information even if you haven't compiled @strong{MySQL} for debugging!
+
+If the problem is that some tables are getting slower and slower you
+should try to optimize the table with @code{OPTIMIZE TABLE} or
+@code{myisamchk}.  @xref{Maintenance}. You should also check the slow
+queries with @code{EXPLAIN}.
+
+You should also read the OS-specific section in this manual for
+problems that may be unique to your environment.
+@xref{Source install system issues}.
+
+@menu
+* Compiling for debugging::     
+* Making trace files::          
+* Using stack trace::           
+* Using log files::             
+* Reproducable test case::      
+@end menu
+
+@node Compiling for debugging, Making trace files, Debugging server, Debugging server
+@appendixsubsec Compiling MYSQL for debugging.
+
 If you have some very specific problem, you can always try to debug
 @strong{MySQL}.  To do this you must configure @strong{MySQL} with the
 option @code{--with-debug}.  You can check whether or not
@@ -46075,6 +46404,11 @@ This will avoid problems with the @code{libstdc++} library and with C++
 exceptions (many compilers have problems with C++ exceptions in threaded
 code) and compile a @strong{MySQL} version with support for all character sets.
 
+If you suspect a memory overrun error, you can use @code{--with-debug=full},
+which will install a memory allocation checker. This is however quite slow
+so this is not something one should do on a server in a heavy production
+environment.
+
 If @code{mysqld} stops crashing when you compile it with
 @code{--with-debug}, you have probably found a compiler bug or a timing
 bug within @strong{MySQL}.  In this case you can try to add @code{-g} to
@@ -46082,6 +46416,20 @@ the @code{CFLAGS} and @code{CXXFLAGS} variables above and not use
 @code{--with-debug}. If @code{mysqld} now dies, you can at least attach
 to it with @code{gdb} or use @code{gdb} on the core file to find out
 what happened.
+
+When you configure @strong{MySQL} for debugging you automatically enable a
+lot of extra safety check functions that monitor the health of @code{mysqld}.
+If they find something ``unexpected,'' an entry will be written to
+@code{stderr}, which @code{safe_mysqld} directs to the error log!  This also
+means that if you are having some unexpected problems with @strong{MySQL} and
+are using a source distribution, the first thing you should do is to
+configure @strong{MySQL} for debugging!  (The second thing, of course, is to
+send mail to @email{mysql@@lists.mysql.com} and ask for help.  Please use the
+@code{mysqlbug} script for all bug reports or questions regarding the
+@strong{MySQL} version you are using!
+
+@node Making trace files, Using stack trace, Compiling for debugging, Debugging server
+@appendixsubsec Creating trace files and using gdb on mysqld
 
 If you can cause the @code{mysqld} server to crash quickly, you can try to
 create a trace file of this:
@@ -46096,17 +46444,6 @@ or you can start it with
 @code{mysqld --debug=d,info,error,query,general,where:O,/tmp/mysql.trace}
 
 which only prints information with the most interesting tags.
-
-When you configure @strong{MySQL} for debugging you automatically enable a
-lot of extra safety check functions that monitor the health of @code{mysqld}.
-If they find something ``unexpected,'' an entry will be written to
-@code{stderr}, which @code{safe_mysqld} directs to the error log!  This also
-means that if you are having some unexpected problems with @strong{MySQL} and
-are using a source distribution, the first thing you should do is to
-configure @strong{MySQL} for debugging!  (The second thing, of course, is to
-send mail to @email{mysql@@lists.mysql.com} and ask for help.  Please use the
-@code{mysqlbug} script for all bug reports or questions regarding the
-@strong{MySQL} version you are using!
 
 On most system you can also start @code{mysqld} from @code{gdb} to get
 more information if @code{mysqld} crashes.
@@ -46183,11 +46520,79 @@ If @code{mysqld} hangs you can try to use some system tools like
 strace /tmp/log libexec/mysqld
 @end example
 
-If @code{mysqld} starts to eat up CPU or memory or if it ``hangs'', you
-can use @code{mysqladmin processlist status} to find out if someone is
-executing a query that takes a long time.  It may be a good idea to
-run @code{mysqladmin -i10 processlist status} in some window if you are
-experiencing performance problems or problems when new clients can't connect.
+@findex DBI->trace
+@findex trace DBI method
+@tindex DBI_TRACE environment variable
+@tindex Environment variable, DBI_TRACE
+If you are using the Perl @code{DBI} interface, you can turn on
+debugging information by using the @code{trace} method or by
+setting the @code{DBI_TRACE} environment variable.
+@xref{Perl DBI Class, , Perl @code{DBI} Class}.
+
+@node Using stack trace, Using log files, Making trace files, Debugging server
+@appendixsubsec Using a stack trace
+
+On some operating systems, the error log will contain a stack trace if
+@code{mysqld} dies unexpectedly. You can use this to find out where (and
+maybe why) @code{mysqld} died. @xref{Error log}.  To get a stack trace,
+you should NOT compile @code{mysqld} with the
+@code{-fomit-frame-pointer} option to gcc.
+@xref{Compiling for debugging}.
+
+If the error file contains something like the following:
+
+@example
+mysqld got signal 11;
+The manual section 'Debugging a MySQL server' tells you how to use a
+stack trace and/or the core file to produce a readable backtrace that may
+help in finding out why mysqld died
+Attemping backtrace. You can use the following information to find out
+where mysqld died.  If you see no messages after this, something went
+terribly wrong
+stack range sanity check, ok, backtrace follows
+0x40077552
+0x81281a0
+0x8128f47
+0x8127be0
+0x8127995
+0x8104947
+0x80ff28f
+0x810131b
+0x80ee4bc
+0x80c3c91
+0x80c6b43
+0x80c1fd9
+0x80c1686
+@end example
+
+you can find where mysqld died by doing the following:
+
+@enumerate
+@item
+Copy the above numbers to a file, for example @file{mysqld.stack}.
+
+@item
+Make a symbol file for the @code{mysqld} server:
+@example
+nm -n libexec/mysqld > /tmp/mysqld.sym
+@end example
+
+Note that many MySQL binary distributions comes with the above file,
+named @code{mysqld.sym.gz}.  In this case you must unpack this by doing
+@example
+gunzip < bin/mysqld.sym.gz > /tmp/mysqld.sym
+@end example
+
+@item
+Execute @code{resolve_stack_dump -s /tmp/mysqld.sym -n mysqld.stack}.
+
+This will print out where @code{mysqld} died. If this doesn't help you
+find out why @code{mysqld} died, you should make a bug report and include
+the output from the above commend with the bug report. @xref{Bug reports}.
+@end enumerate
+
+@node Using log files, Reproducable test case, Using stack trace, Debugging server
+@appendixsubsec Using log files to find cause of errors in mysqld
 
 If @code{mysqld} dies or hangs, you should start @code{mysqld} with
 @code{--log}.  When @code{mysqld} dies again, you can check in the log
@@ -46218,18 +46623,45 @@ version.  If this doesn't help and you can't find anything in the
 online at the @uref{http://www.mysql.com/documentation/, @strong{MySQL}
 documentation page}.
 
+If you have started @code{mysqld} with @code{--with-myisam-recover},
+@strong{MySQL} will automaticly check and try to repair @code{MyISAM}
+tables if they are marked as 'not closed properly' or 'crashed'.  If
+this happens, @strong{MySQL} will write an entry in the
+@code{hostname.err} file @code{'Warning: Checking table ...'} which is
+followed by @code{Warning: Repairing table} if the table needs to be
+repaired.  If you get a lot of these errors, without @code{mysqld} having
+died unexpectedly just before, then something is wrong and needs to
+be investigated further. @xref{Command-line options}.
+
+It's of course not a good sign if @code{mysqld} did died unexpectedly,
+but in this case one shouldn't investigate the @code{Checking table...} 
+messages but instead try to find out why @code{mysqld} died.
+
+@node Reproducable test case,  , Using log files, Debugging server
+@appendixsubsec Makeing a test case when you get crashed tables
+
 If you get corrupted tables or if @code{mysqld} always fails after some
 update commands, you can test if this bug is reproducible by doing the
 following:
 
 @itemize @bullet
 @item
-Stop the mysqld daemon (with @code{mysqladmin shutdown})
+Take down the @strong{MySQL} daemon (with @code{mysqladmin shutdown}).
+@item
+Make a backup of the tables (to guard against the very unlikely case that
+the repair will do something bad).
 @item
 Check all tables with @code{myisamchk -s database/*.MYI}.  Repair any
 wrong tables with @code{myisamchk -r database/table.MYI}.
 @item
+Make a second backup of the tables.
+@item
+Remove (or move away) any old log files from the @strong{MySQL} data
+directory if you need more space.
+@item
 Start @code{mysqld} with @code{--log-binary}. @xref{Binary log}.
+If you want to find a query that crashes @code{mysqld}, you should use
+@code{--log --log-binary}.
 @item
 When you have gotten a crashed table, stop the @code{mysqld server}.
 @item
@@ -46241,34 +46673,17 @@ Re-execute the commands with @code{mysqlbinlog update-log-file | mysql}.
 The update log is saved in the @strong{MySQL} database directory with
 the name @code{hostname-bin.#}.
 @item
-If the tables are corrupted again, you have found reproducible bug
-in the @code{MyISAM} code!  FTP the tables and the update log to
-@uref{ftp://support.mysql.com/pub/mysql/secret} and we will fix this as soon as
-possible!
+If the tables are corrupted again or you can get @code{mysqld} to die with the
+above command, you have found reproducible bug that should be easy to
+fix! FTP the tables and the binary log to
+@uref{ftp://support.mysql.com/pub/mysql/secret} and send a mail to
+@email{bugs@@lists.mysql.com} or (if you are a support customer) to
+@email{support@@mysql.com} about the problem and the @strong{MySQL} team
+will fix it as soon as possible.
 @end itemize
 
-The command @code{mysqladmin debug} will dump some information about
-locks in use, used memory and query usage to the mysql log file. This
-may help solve some problems.  This command also provides some useful
-information even if you haven't compiled @strong{MySQL} for debugging!
-
-If the problem is that some tables are getting slower and slower you
-should try to optimize the table with @code{OPTIMIZE TABLE} or
-@code{myisamchk}.  @xref{Maintenance}. You should also check the slow
-queries with @code{EXPLAIN}.
-
-You should also read the OS-specific section in this manual for
-problems that may be unique to your environment.
-@xref{Source install system issues}.
-
-@findex DBI->trace
-@findex trace DBI method
-@tindex DBI_TRACE environment variable
-@tindex Environment variable, DBI_TRACE
-If you are using the Perl @code{DBI} interface, you can turn on
-debugging information by using the @code{trace} method or by
-setting the @code{DBI_TRACE} environment variable.
-@xref{Perl DBI Class, , Perl @code{DBI} Class}.
+You can also use the script @code{mysql_find_rows} to just execute some of the
+update statements if you want to narrow down the problem.
 
 @cindex debugging, client
 @cindex clients, debugging
@@ -46382,10 +46797,15 @@ for @code{BDB} tables. @xref{Internal locking}.  With @code{MyISAM}
 tables one can freely mix @code{INSERT} and @code{SELECT} without locks
 (@code{Versioning}).
 
+Starting in version 3.23.33, you can analyze the table lock contention
+on your system by checkining @code{Table_locks_waited} and
+@code{Table_locks_immediate} environemt variables.
+
 Some database users claim that @strong{MySQL} cannot support near the
 number of concurrent users because it lacks row-level locking.  This is
 a may be true for some specific applications, but is' not generally
-true. As always this depends totally on what the application does and what is the access/update pattern of the data.
+true. As always this depends totally on what the application does and what
+is the access/update pattern of the data. 
 
 Pros for row locking:
 

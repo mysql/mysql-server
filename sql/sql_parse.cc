@@ -71,7 +71,7 @@ static void init_signals(void)
 }
 #endif
 
-static inline bool end_active_trans(THD *thd)
+inline bool end_active_trans(THD *thd)
 {
   int error=0;
   if (thd->options & (OPTION_NOT_AUTO_COMMIT | OPTION_BEGIN))
@@ -496,7 +496,7 @@ end:
 }
 
 
-static inline void free_items(THD *thd)
+inline void free_items(THD *thd)
 {
     /* This works because items are allocated with sql_alloc() */
   for (Item *item=thd->free_list ; item ; item=item->next)
@@ -1886,6 +1886,13 @@ check_access(THD *thd,uint want_access,const char *db, uint *save_priv,
 
   if (db == any_db)
     return FALSE;				// Allow select on anything
+  
+  if (strlen(db) > NAME_LEN || check_db_name(db))
+    {
+      net_printf(&thd->net,ER_WRONG_DB_NAME, db);
+      return TRUE;
+    }
+
   if (db && (!thd->db || strcmp(db,thd->db)))
     db_access=acl_get(thd->host, thd->ip, (char*) &thd->remote.sin_addr,
 		      thd->priv_user, db); /* purecov: inspected */

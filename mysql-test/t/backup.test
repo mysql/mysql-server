@@ -26,6 +26,19 @@ select n from t1;
 select m from t2;
 select k from t3;
 drop table t1,t2,t3;
-#restore table t1 from '../tmp';
-#connection con2;
-#lock tables t1 write;
+restore table t1 from '../tmp';
+connection con2;
+send lock tables t1 write;
+connection con1;
+send backup table t1 to '../tmp';
+connection con2;
+reap;
+unlock tables;
+connection con1;
+reap;
+
+
+
+
+
+

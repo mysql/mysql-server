@@ -83,7 +83,7 @@ void hash_free(HASH *hash)
 
 	/* some helper functions */
 
-static inline byte*
+inline byte*
 hash_key(HASH *hash,const byte *record,uint *length,my_bool first)
 {
   if (hash->get_key)
@@ -180,7 +180,7 @@ uint calc_hashnr_caseup(const byte *key, uint len)
 #endif
 
 
-static inline uint rec_hashnr(HASH *hash,const byte *record)
+inline uint rec_hashnr(HASH *hash,const byte *record)
 {
   uint length;
   byte *key=hash_key(hash,record,&length,0);

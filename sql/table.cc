@@ -1033,6 +1033,7 @@ char *get_field(MEM_ROOT *mem, TABLE *table, uint fieldnr)
 
 bool check_db_name(const char *name)
 {
+  const char *start=end;
   while (*name)
   {
 #if defined(USE_MB) && defined(USE_MB_IDENT)
@@ -1050,7 +1051,7 @@ bool check_db_name(const char *name)
       return 1;
     name++;
   }
-  return 0;
+  return (uint) (name - start) > NAME_LEN;
 }
 
 

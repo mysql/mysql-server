@@ -189,3 +189,4 @@ tmp/*
 extra/resolve_stack_dump
 sql/share/*.sys
 BitKeeper/tmp/bkr3sAHD
+BitKeeper/tmp/*

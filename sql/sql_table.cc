@@ -798,7 +798,6 @@ static int send_check_errmsg(THD* thd, TABLE_LIST* table,
 
 static int prepare_for_restore(THD* thd, TABLE_LIST* table)
 {
-  String *packet = &thd->packet;
   DBUG_ENTER("prepare_for_restore");
 
   if (table->table) // do not overwrite existing tables on restore
@@ -1444,10 +1443,13 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
   thd->cuted_fields=0L;
   thd->proc_info="copy to tmp table";
   next_insert_id=thd->next_insert_id;		// Remember for loggin
-  error=copy_data_between_tables(table,new_table,create_list,handle_duplicates,
-				 order, &copied,&deleted);
+  copied=deleted=0;
+  if (!new_table->is_view)
+    error=copy_data_between_tables(table,new_table,create_list,
+				   handle_duplicates,
+				   order, &copied, &deleted);
   thd->last_insert_id=next_insert_id;		// Needed for correct log
-  thd->count_cuted_fields=0;			/* Don`t calc cuted fields */
+  thd->count_cuted_fields=0;			// Don`t calc cuted fields
   new_table->time_stamp=save_time_stamp;
 
   if (table->tmp_table)
@@ -1690,6 +1692,7 @@ copy_data_between_tables(TABLE *from,TABLE *to,
       found_count++;
   }
   end_read_record(&info);
+  free_io_cache(from);
   delete [] copy;
   uint tmp_error;
   if ((tmp_error=to->file->extra(HA_EXTRA_NO_CACHE)))

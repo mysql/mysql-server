@@ -36,11 +36,12 @@ int mode;
 int handle_locking;
 {
   int save_errno,i,errpos;
-  uint files,dir_length;
+  uint files,dir_length,length;
   ulonglong file_offset;
   char name_buff[FN_REFLEN*2],buff[FN_REFLEN],*end;
   MYRG_INFO info,*m_info;
-  FILE *file;
+  File fd;
+  IO_CACHE file;
   MI_INFO *isam,*last_isam;
   DBUG_ENTER("myrg_open");
 
@@ -49,15 +50,18 @@ int handle_locking;
   isam=0;
   errpos=files=0;
   bzero((gptr) &info,sizeof(info));
-  if (!(file=my_fopen(fn_format(name_buff,name,"",MYRG_NAME_EXT,4),
-		      O_RDONLY | O_SHARE,MYF(0))))
+  bzero((char*) &file,sizeof(file));
+  if ((fd=my_open(fn_format(name_buff,name,"",MYRG_NAME_EXT,4),
+		  O_RDONLY | O_SHARE,MYF(0))) < 0 ||
+      init_io_cache(&file, fd, IO_SIZE, READ_CACHE, 0, 0,
+		    MYF(MY_WME | MY_NABP)))
     goto err;
   errpos=1;
   dir_length=dirname_part(name_buff,name);
   info.reclength=0;
-  while (fgets(buff,FN_REFLEN-1,file))
+  while ((length=my_b_gets(&file,buff,FN_REFLEN-1)))
   {
-    if ((end=strend(buff))[-1] == '\n')
+    if ((end=buff+length)[-1] == '\n')
       end[-1]='\0';
     if (buff[0] && buff[0] != '#')	/* Skipp empty lines and comments */
     {
@@ -118,7 +122,8 @@ int handle_locking;
   m_info->end_table=m_info->open_tables+files;
   m_info->last_used_table=m_info->open_tables;
 
-  VOID(my_fclose(file,MYF(0)));
+  VOID(my_close(fd,MYF(0)));
+  end_io_cache(&file);
   m_info->open_list.data=(void*) m_info;
   pthread_mutex_lock(&THR_LOCK_open);
   myrg_open_list=list_add(myrg_open_list,&m_info->open_list);
@@ -132,7 +137,8 @@ err:
     my_free((char*) m_info,MYF(0));
     /* Fall through */
   case 1:
-    VOID(my_fclose(file,MYF(0)));
+    VOID(my_close(fd,MYF(0)));
+    end_io_cache(&file);
     for (i=files ; i-- > 0 ; )
     {
       isam=last_isam;

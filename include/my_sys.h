@@ -41,13 +41,6 @@ extern int NEAR my_errno;		/* Last error in mysys */
 
 #include <stdarg.h>  
 
-#ifdef __EMX__
-/* record loging flags (F_GETLK, F_SETLK, F_SETLKW) */
-#define F_RDLCK     1           /* FreeBSD: shared or read lock */
-#define F_UNLCK     2           /* FreeBSD: unlock */
-#define F_WRLCK     3           /* FreeBSD: exclusive or write lock */
-#endif
-
 #define MYSYS_PROGRAM_USES_CURSES()  { error_handler_hook = my_message_curses;	mysys_uses_curses=1; }
 #define MYSYS_PROGRAM_DONT_USE_CURSES()  { error_handler_hook = my_message_no_curses; mysys_uses_curses=0;}
 #define MY_INIT(name);		{ my_progname= name; my_init(); }
@@ -425,7 +418,7 @@ extern int my_printf_error _VARARGS((uint my_err, const char *format,
 				    __attribute__ ((format (printf, 2, 4))));
 extern int my_vsnprintf( char *str, size_t n,
                                 const char *format, va_list ap );
-
+extern int my_snprintf(char* to, size_t n, const char* fmt, ...);
 extern int my_message(uint my_err, const char *str,myf MyFlags);
 extern int my_message_no_curses(uint my_err, const char *str,myf MyFlags);
 extern int my_message_curses(uint my_err, const char *str,myf MyFlags);

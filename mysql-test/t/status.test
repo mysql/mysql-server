@@ -1,0 +1,23 @@
+connect (con1,localhost,root,,test,0,mysql-master.sock);
+connect (con2,localhost,root,,test,0,mysql-master.sock);
+
+flush status;
+show status like 'Table_lock%';
+connection con1;
+SET SQL_LOG_BIN=0;
+drop table if exists t1;
+create table t1(n int);
+insert into t1 values(1);
+connection con2;
+lock tables t1 read;
+unlock tables;
+lock tables t1 read;
+connection con1;
+send update t1 set n = 3;
+connection con2;
+sleep 0.5;
+unlock tables;
+connection con1;
+reap;
+show status like 'Table_lock%';
+drop table t1;

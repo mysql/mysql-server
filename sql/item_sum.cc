@@ -811,7 +811,7 @@ bool Item_sum_count_distinct::setup(THD *thd)
   for (uint i=0; i < arg_count ; i++)
     if (list.push_back(args[i]))
       return 1;
-  count_field_types(tmp_table_param,list);
+  count_field_types(tmp_table_param,list,0);
   if (table)
   {
     free_tmp_table(thd, table);
