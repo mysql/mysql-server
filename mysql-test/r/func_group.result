@@ -669,12 +669,24 @@ select charset(max(a)), coercibility(max(a)),
 charset(min(a)), coercibility(min(a)) from t1;
 charset(max(a))	coercibility(max(a))	charset(min(a))	coercibility(min(a))
 latin2	2	latin2	2
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` char(1) character set latin2 default NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
 create table t2 select max(a),min(a) from t1;
 show create table t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `max(a)` varchar(1) character set latin2 default NULL,
-  `min(a)` varchar(1) character set latin2 default NULL
+  `max(a)` char(1) character set latin2 default NULL,
+  `min(a)` char(1) character set latin2 default NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+drop table t2;
+create table t2 select concat(a) from t1;
+show create table t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `concat(a)` varchar(1) character set latin2 default NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop table t2,t1;
 create table t1 (a int);
@@ -757,6 +769,15 @@ one	2
 two	2
 three	1
 drop table t1;
+create table t1(a int, b datetime);
+insert into t1 values (1, NOW()), (2, NOW());
+create table t2 select MAX(b) from t1 group by a;
+show create table t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `MAX(b)` datetime default NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+drop table t1, t2;
 create table t1(f1 datetime);
 insert into t1 values (now());
 create table t2 select f2 from (select max(now()) f2 from t1) a;
@@ -804,3 +825,10 @@ select cast(min(ifl) as decimal(5,2)) from t3;
 cast(min(ifl) as decimal(5,2))
 1.00
 drop table t1, t2, t3;
+CREATE TABLE t1 (id int(11),value1 float(10,2));
+INSERT INTO t1 VALUES (1,0.00),(1,1.00), (1,2.00), (2,10.00), (2,11.00), (2,12.00), (2,13.00);
+select id, stddev_pop(value1), var_pop(value1), stddev_samp(value1), var_samp(value1) from t1 group by id;
+id	stddev_pop(value1)	var_pop(value1)	stddev_samp(value1)	var_samp(value1)
+1	0.816497	0.666667	1.000000	1.000000
+2	1.118034	1.250000	1.290994	1.666667
+DROP TABLE t1;

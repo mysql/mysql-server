@@ -360,9 +360,8 @@ bool Item_func::walk (Item_processor processor, byte *argument)
   return (this->*processor)(argument);
 }
 
-void Item_func::traverse_cond(Item_cond_traverser traverser, 
-			      void *argument,
-			      traverse_order order)
+void Item_func::traverse_cond(Cond_traverser traverser,
+                              void *argument, traverse_order order)
 {
   if (arg_count)
   {

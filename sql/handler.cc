@@ -395,6 +395,16 @@ int ha_init()
       ha_was_inited_ok(ht++);
   }
 #endif
+#ifdef HAVE_FEDERATED_DB
+  if (have_federated_db == SHOW_OPTION_YES)
+  {
+    if (federated_db_init())
+    {
+      have_federated_db= SHOW_OPTION_DISABLED;
+      error= 1;
+    }
+  }
+#endif
 #ifdef HAVE_ARCHIVE_DB
   if (have_archive_db == SHOW_OPTION_YES)
   {
@@ -440,6 +450,10 @@ int ha_panic(enum ha_panic_function flag)
 #ifdef HAVE_NDBCLUSTER_DB
   if (have_ndbcluster == SHOW_OPTION_YES)
     error|=ndbcluster_end();
+#endif
+#ifdef HAVE_FEDERATED_DB
+  if (have_federated_db == SHOW_OPTION_YES)
+    error|= federated_db_end();
 #endif
 #ifdef HAVE_ARCHIVE_DB
   if (have_archive_db == SHOW_OPTION_YES)
@@ -735,7 +749,7 @@ int ha_commit_or_rollback_by_xid(LEX_STRING *ident, bool commit)
 */
 int ha_recover(HASH *commit_list)
 {
-  int error= 0, len, got;
+  int len, got;
   handlerton **ht= handlertons, **end_ht=ht+total_ha;
   XID *list=0;
   DBUG_ENTER("ha_recover");
@@ -907,7 +921,7 @@ int ha_rollback_to_savepoint(THD *thd, SAVEPOINT *sv)
   for (; ht < end_ht; ht++)
   {
     int err;
-    DBUG_ASSERT((*ht)->savepoint_set);
+    DBUG_ASSERT((*ht)->savepoint_set != 0);
     if ((err= (*(*ht)->savepoint_rollback)(thd, (byte *)(sv+1)+(*ht)->savepoint_offset)))
     { // cannot happen
       my_error(ER_ERROR_DURING_ROLLBACK, MYF(0), err);
@@ -1606,7 +1620,12 @@ int handler::rename_table(const char * from, const char * to)
 }
 
 /*
-  Tell the handler to turn on or off transaction in the handler
+  Tell the storage engine that it is allowed to "disable transaction" in the
+  handler. It is a hint that ACID is not required - it is used in NDB for
+  ALTER TABLE, for example, when data are copied to temporary table.
+  A storage engine may treat this hint any way it likes. NDB for example
+  starts to commit every now and then automatically.
+  This hint can be safely ignored.
 */
 
 int ha_enable_transaction(THD *thd, bool on)
@@ -1616,7 +1635,15 @@ int ha_enable_transaction(THD *thd, bool on)
   DBUG_ENTER("ha_enable_transaction");
   thd->transaction.on= on;
   if (on)
-    ha_commit(thd);
+  {
+    /*
+      Now all storage engines should have transaction handling enabled.
+      But some may have it enabled all the time - "disabling" transactions
+      is an optimization hint that storage engine is free to ignore.
+      So, let's commit an open transaction (if any) now.
+    */
+    error= end_trans(thd, COMMIT);
+  }
   DBUG_RETURN(error);
 }
 
@@ -2219,7 +2246,7 @@ TYPELIB *ha_known_exts(void)
                                        (found_exts.elements+1),
                                        MYF(MY_WME | MY_FAE));
     
-    DBUG_ASSERT(ext);
+    DBUG_ASSERT(ext != 0);
     known_extensions.count= found_exts.elements;
     known_extensions.type_names= ext;
 

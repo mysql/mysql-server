@@ -640,7 +640,7 @@ bool mysqld_help(THD *thd, const char *mask)
 
   List<String> topics_list, categories_list, subcategories_list;
   String name, description, example;
-  int res, count_topics, count_categories, error;
+  int count_topics, count_categories, error;
   uint mlen= strlen(mask);
   MEM_ROOT *mem_root= thd->mem_root;
 

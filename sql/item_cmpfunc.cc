@@ -283,7 +283,7 @@ int Arg_comparator::set_compare_func(Item_bool_func2 *item, Item_result type)
       comparators= 0;
       return 1;
     }
-    if (!(comparators= (Arg_comparator *) sql_alloc(sizeof(Arg_comparator)*n)))
+    if (!(comparators= new Arg_comparator[n]))
       return 1;
     for (uint i=0; i < n; i++)
     {
@@ -1825,6 +1825,12 @@ in_row::in_row(uint elements, Item * item)
   size= sizeof(cmp_item_row);
   compare= (qsort2_cmp) cmp_row;
   tmp.store_value(item);
+  /*
+    We need to reset these as otherwise we will call sort() with
+    uninitialized (even if not used) elements
+  */
+  used_count= elements;
+  collation= 0;
 }
 
 in_row::~in_row()
@@ -2363,9 +2369,8 @@ Item *Item_cond::transform(Item_transformer transformer, byte *arg)
   return Item_func::transform(transformer, arg);
 }
 
-void Item_cond::traverse_cond(Item_cond_traverser traverser, 
-			      void *arg,
-			      traverse_order order)
+void Item_cond::traverse_cond(Cond_traverser traverser,
+                              void *arg, traverse_order order)
 {
   List_iterator<Item> li(list);
   Item *item;

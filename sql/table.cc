@@ -1800,7 +1800,8 @@ bool st_table_list::setup_ancestor(THD *thd, Item **conds,
                             alloc(select->item_list.elements *
                                   sizeof(Field_translator)))))
   {
-    DBUG_RETURN(TRUE);
+    res= TRUE;
+    goto ok;                                    // Restore thd
   }
 
   select_lex->no_wrap_view_item= 1;

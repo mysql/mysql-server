@@ -49,12 +49,6 @@ bool mysql_union(THD *thd, LEX *lex, select_result *result,
 select_union::select_union(TABLE *table_par)
   :table(table_par)
 {
-  bzero((char*) &info,sizeof(info));
-  /*
-    We can always use IGNORE because the temporary table will only
-    contain a unique key if we are using not using UNION ALL
-  */
-  info.ignore= 1;
 }
 
 select_union::~select_union()
@@ -71,22 +65,21 @@ int select_union::prepare(List<Item> &list, SELECT_LEX_UNIT *u)
 
 bool select_union::send_data(List<Item> &values)
 {
+  int error= 0;
   if (unit->offset_limit_cnt)
   {						// using limit offset,count
     unit->offset_limit_cnt--;
     return 0;
   }
   fill_record(thd, table->field, values, 1);
-  if (thd->net.report_error || write_record(thd, table,&info))
+  if (thd->net.report_error)
+    return 1;
+
+  if ((error= table->file->write_row(table->record[0])))
   {
-    if (thd->net.last_errno == ER_RECORD_FILE_FULL)
-    {
-      thd->clear_error(); // do not report user about table overflow
-      if (create_myisam_from_heap(thd, table, &tmp_table_param,
-				  info.last_errno, 1))
-	return 1;
-    }
-    else
+    /* create_myisam_from_heap will generate error if needed */
+    if (error != HA_ERR_FOUND_DUPP_KEY && error != HA_ERR_FOUND_DUPP_UNIQUE &&
+        create_myisam_from_heap(thd, table, &tmp_table_param, error, 1))
       return 1;
   }
   return 0;
@@ -386,7 +379,7 @@ bool st_select_lex_unit::prepare(THD *thd_arg, select_result *sel_result,
       for (Field **field= table->field; *field; field++)
       {
         Item_field *item_field= (Item_field*) it++;
-        DBUG_ASSERT(item_field);
+        DBUG_ASSERT(item_field != 0);
         item_field->reset_field(*field);
       }
     }

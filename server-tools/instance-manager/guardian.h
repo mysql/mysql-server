@@ -19,15 +19,16 @@
 #include <my_global.h>
 #include <my_sys.h>
 #include <my_list.h>
+#include "thread_registry.h"
 
 #ifdef __GNUC__
 #pragma interface
 #endif
 
+class Instance;
 class Instance_map;
-
-#include "thread_registry.h"
-#include "instance.h"
+class Thread_registry;
+struct GUARD_NODE;
 
 C_MODE_START
 
@@ -35,12 +36,11 @@ pthread_handler_decl(guardian, arg);
 
 C_MODE_END
 
-
 struct Guardian_thread_args
 {
   Thread_registry &thread_registry;
   Instance_map *instance_map;
-  uint monitoring_interval;
+  int monitoring_interval;
 
   Guardian_thread_args(Thread_registry &thread_registry_arg,
                        Instance_map *instance_map_arg,
@@ -60,27 +60,67 @@ struct Guardian_thread_args
 class Guardian_thread: public Guardian_thread_args
 {
 public:
+  /* states of an instance */
+  enum INSTANCE_STATE { NOT_STARTED= 1, STARTING, STARTED, JUST_CRASHED,
+                        CRASHED, CRASHED_AND_ABANDONED, STOPPING };
+
+  /*
+    The Guardian list node structure. Guardian utilizes it to store
+    guarded instances plus some additional info.
+  */
+
+  struct GUARD_NODE
+  {
+    Instance *instance;
+    /* state of an instance (i.e. STARTED, CRASHED, etc.) */
+    INSTANCE_STATE state;
+    /* the amount of attemts to restart instance (cleaned up at success) */
+    int restart_counter;
+    /* triggered at a crash */
+    time_t crash_moment;
+    /* General time field. Used to provide timeouts (at shutdown and restart) */
+    time_t last_checked;
+  };
+
+
   Guardian_thread(Thread_registry &thread_registry_arg,
                   Instance_map *instance_map_arg,
                   uint monitoring_interval_arg);
   ~Guardian_thread();
+  /* Main funtion of the thread */
   void run();
+  /* Initialize or refresh the list of guarded instances */
   int init();
-  int start();
-  int guard(Instance *instance);
+  /* Request guardian shutdown. Stop instances if needed */
+  void request_shutdown(bool stop_instances);
+  /* Start instance protection */
+  int guard(Instance *instance, bool nolock= FALSE);
+  /* Stop instance protection */
   int stop_guard(Instance *instance);
+  /* Returns true if guardian thread is stopped */
+  int is_stopped();
+  int lock();
+  int unlock();
+
+public:
+  pthread_cond_t COND_guardian;
 
 private:
-  int add_instance_to_list(Instance *instance, LIST **list);
-  void move_to_list(LIST **from, LIST **to);
+  /* Prepares Guardian shutdown. Stops instances is needed */
+  int stop_instances(bool stop_instances_arg);
+  /* check instance state and act accordingly */
+  void process_instance(Instance *instance, GUARD_NODE *current_node,
+                        LIST **guarded_instances, LIST *elem);
+  int stopped;
 
 private:
   pthread_mutex_t LOCK_guardian;
   Thread_info thread_info;
   LIST *guarded_instances;
-  LIST *starting_instances;
   MEM_ROOT alloc;
   enum { MEM_ROOT_BLOCK_SIZE= 512 };
+  /* this variable is set to TRUE when we want to stop Guardian thread */
+  bool shutdown_requested;
 };
 
 #endif /* INCLUDES_MYSQL_INSTANCE_MANAGER_GUARDIAN_H */

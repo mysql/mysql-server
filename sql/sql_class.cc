@@ -183,6 +183,7 @@ THD::THD()
   lock=locked_tables=0;
   used_tables=0;
   cuted_fields= sent_row_count= 0L;
+  limit_found_rows= 0;
   statement_id_counter= 0UL;
   // Must be reset to handle error with THD's created for init of mysqld
   lex->current_select= 0;
@@ -204,7 +205,7 @@ THD::THD()
 #endif
   net.last_error[0]=0;				// If error on boot
   ull=0;
-  system_thread= cleanup_done= abort_on_warning= 0;
+  system_thread= cleanup_done= abort_on_warning= no_warnings_for_error= 0;
   peer_port= 0;					// For SHOW PROCESSLIST
 #ifdef	__WIN__
   real_id = 0;

@@ -104,7 +104,6 @@ bool mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
   */
   char *tdb= thd->db ? thd->db : db;		// Result is never null
   ulong skip_lines= ex->skip_lines;
-  int res;
   bool transactional_table;
   DBUG_ENTER("mysql_load");
 
@@ -144,8 +143,6 @@ bool mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
   {						// Part field list
     thd->dupp_field=0;
     /* TODO: use this conds for 'WITH CHECK OPTIONS' */
-    Item *unused_conds= 0;
-    TABLE_LIST *leaves= 0;
     if (setup_fields(thd, 0, table_list, fields, 1, 0, 0))
       DBUG_RETURN(TRUE);
     if (thd->dupp_field)

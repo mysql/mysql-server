@@ -332,13 +332,13 @@ static int create_sys_files(struct languages *lang_head,
     head[30]= csnum;
 
     my_fseek(to, 0l, MY_SEEK_SET, MYF(0));
-    if (my_fwrite(to, head, HEADER_LENGTH, MYF(MY_WME | MY_FNABP)))
+    if (my_fwrite(to, (byte*) head, HEADER_LENGTH, MYF(MY_WME | MY_FNABP)))
       goto err;
 
     for (i= 0; i < row_count; i++)
     {
       int2store(head, file_pos[i]);
-      if (my_fwrite(to, head, 2, MYF(MY_WME | MY_FNABP)))
+      if (my_fwrite(to, (byte*) head, 2, MYF(MY_WME | MY_FNABP)))
 	goto err;
     }
     my_fclose(to, MYF(0));

@@ -797,7 +797,7 @@ bool Field::needs_quotes(void)
 {
   DBUG_ENTER("Field::type_quote");
 
-  switch(type()) {
+  switch (type()) {
     //FIX this when kernel is fixed
   case MYSQL_TYPE_VARCHAR :
   case FIELD_TYPE_STRING :
@@ -827,10 +827,9 @@ bool Field::needs_quotes(void)
   case FIELD_TYPE_SET :
   case FIELD_TYPE_ENUM : 
     DBUG_RETURN(0);
-
-  default: DBUG_RETURN(0);
+  default:
+    DBUG_RETURN(0);
   }
-  DBUG_RETURN(0);
 }
 
 
@@ -5034,7 +5033,7 @@ int Field_str::store(double nr)
   double anr= fabs(nr);
   int neg= (nr < 0.0) ? 1 : 0;
   if (field_length > 4 && field_length < 32 &&
-      (anr < 1.0 ? anr > 1/(log_10[max(0,field_length-neg-2)]) /* -2 for "0." */
+      (anr < 1.0 ? anr > 1/(log_10[max(0,(int) field_length-neg-2)]) /* -2 for "0." */
                  : anr < log_10[field_length-neg]-1))
     use_scientific_notation= FALSE;
 
@@ -5453,7 +5452,6 @@ int Field_varstring::cmp(const char *a_ptr, const char *b_ptr)
 
 int Field_varstring::key_cmp(const byte *key_ptr, uint max_key_length)
 {
-  char *blob1;
   uint length=  length_bytes == 1 ? (uint) (uchar) *ptr : uint2korr(ptr);
   uint char_length= max_key_length / field_charset->mbmaxlen;
 
@@ -5752,8 +5750,6 @@ void Field_varstring::set_key_image(char *buff,uint length)
 int Field_varstring::cmp_binary(const char *a_ptr, const char *b_ptr,
                                 uint32 max_length)
 {
-  char *a,*b;
-  uint diff;
   uint32 a_length,b_length;
 
   if (length_bytes == 1)
@@ -7202,11 +7198,12 @@ uint32 calc_pack_length(enum_field_types type,uint32 length)
   case FIELD_TYPE_GEOMETRY:	return 4+portable_sizeof_char_ptr;
   case FIELD_TYPE_SET:
   case FIELD_TYPE_ENUM:
-  case FIELD_TYPE_NEWDECIMAL:  abort(); return 0;	// This shouldn't happen
+  case FIELD_TYPE_NEWDECIMAL:
+    abort(); return 0;                          // This shouldn't happen
   case FIELD_TYPE_BIT: return length / 8;
-  default: return 0;
+  default:
+    return 0;
   }
-  return 0;					// Keep compiler happy
 }
 
 

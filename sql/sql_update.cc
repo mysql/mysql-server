@@ -141,7 +141,7 @@ int mysql_update(THD *thd,
 
   if (table_list->ancestor && table_list->ancestor->next_local)
   {
-    DBUG_ASSERT(table_list->view);
+    DBUG_ASSERT(table_list->view != 0);
     DBUG_PRINT("info", ("Switch to multi-update"));
     /* pass counter value */
     thd->lex->table_count= table_count;
@@ -191,6 +191,7 @@ int mysql_update(THD *thd,
   table_list->grant.want_privilege= table->grant.want_privilege= want_privilege;
 #endif
   {
+    bool res;
     select_lex->no_wrap_view_item= 1;
     res= setup_fields(thd, 0, table_list, fields, 1, 0, 0);
     select_lex->no_wrap_view_item= 0;
@@ -815,7 +816,6 @@ bool mysql_multi_update(THD *thd,
                         enum enum_duplicates handle_duplicates, bool ignore,
                         SELECT_LEX_UNIT *unit, SELECT_LEX *select_lex)
 {
-  bool res= FALSE;
   multi_update *result;
   DBUG_ENTER("mysql_multi_update");
 
@@ -834,14 +834,14 @@ bool mysql_multi_update(THD *thd,
                                MODE_STRICT_ALL_TABLES));
 
   List<Item> total_list;
-  res= mysql_select(thd, &select_lex->ref_pointer_array,
-		    table_list, select_lex->with_wild,
-		    total_list,
-		    conds, 0, (ORDER *) NULL, (ORDER *)NULL, (Item *) NULL,
-		    (ORDER *)NULL,
-		    options | SELECT_NO_JOIN_CACHE | SELECT_NO_UNLOCK |
-                    OPTION_SETUP_TABLES_DONE,
-		    result, unit, select_lex);
+  (void) mysql_select(thd, &select_lex->ref_pointer_array,
+                      table_list, select_lex->with_wild,
+                      total_list,
+                      conds, 0, (ORDER *) NULL, (ORDER *)NULL, (Item *) NULL,
+                      (ORDER *)NULL,
+                      options | SELECT_NO_JOIN_CACHE | SELECT_NO_UNLOCK |
+                      OPTION_SETUP_TABLES_DONE,
+                      result, unit, select_lex);
   delete result;
   thd->abort_on_warning= 0;
   DBUG_RETURN(TRUE);

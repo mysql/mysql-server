@@ -608,7 +608,7 @@ bool MYSQL_LOG::open(const char *log_name,
       write_file_name_to_index_file= 1;
     }
 
-    DBUG_ASSERT(my_b_inited(&index_file));
+    DBUG_ASSERT(my_b_inited(&index_file) != 0);
     reinit_io_cache(&index_file, WRITE_CACHE,
                     my_b_filelength(&index_file), 0, 0);
     if (need_start_event && !no_auto_events)
@@ -1296,10 +1296,9 @@ void MYSQL_LOG::new_file(bool need_lock)
   }
 
   if (need_lock)
-  {
     pthread_mutex_lock(&LOCK_log);
-    pthread_mutex_lock(&LOCK_index);
-  }
+  pthread_mutex_lock(&LOCK_index);
+
   safe_mutex_assert_owner(&LOCK_log);
   safe_mutex_assert_owner(&LOCK_index);
 
@@ -1377,10 +1376,9 @@ void MYSQL_LOG::new_file(bool need_lock)
 
 end:
   if (need_lock)
-  {
-    pthread_mutex_unlock(&LOCK_index);
     pthread_mutex_unlock(&LOCK_log);
-  }
+  pthread_mutex_unlock(&LOCK_index);
+
   DBUG_VOID_RETURN;
 }
 
@@ -1404,11 +1402,7 @@ bool MYSQL_LOG::append(Log_event* ev)
   bytes_written+= ev->data_written;
   DBUG_PRINT("info",("max_size: %lu",max_size));
   if ((uint) my_b_append_tell(&log_file) > max_size)
-  {
-    pthread_mutex_lock(&LOCK_index);
     new_file(0);
-    pthread_mutex_unlock(&LOCK_index);
-  }
 
 err:
   pthread_mutex_unlock(&LOCK_log);
@@ -1423,9 +1417,9 @@ bool MYSQL_LOG::appendv(const char* buf, uint len,...)
   DBUG_ENTER("MYSQL_LOG::appendv");
   va_list(args);
   va_start(args,len);
-  
+
   DBUG_ASSERT(log_file.type == SEQ_READ_APPEND);
-  
+
   pthread_mutex_lock(&LOCK_log);
   do
   {
@@ -1438,11 +1432,7 @@ bool MYSQL_LOG::appendv(const char* buf, uint len,...)
   } while ((buf=va_arg(args,const char*)) && (len=va_arg(args,uint)));
   DBUG_PRINT("info",("max_size: %lu",max_size));
   if ((uint) my_b_append_tell(&log_file) > max_size)
-  {
-    pthread_mutex_lock(&LOCK_index);
     new_file(0);
-    pthread_mutex_unlock(&LOCK_index);
-  }
 
 err:
   pthread_mutex_unlock(&LOCK_log);
@@ -1774,15 +1764,10 @@ err:
 
 void MYSQL_LOG::rotate_and_purge(uint flags)
 {
-  if (!prepared_xids &&             // see new_file() for the explanation
-      ((flags & RP_FORCE_ROTATE) ||
-       (my_b_tell(&log_file) >= (my_off_t) max_size)))
+  if ((flags & RP_FORCE_ROTATE) ||
+      (my_b_tell(&log_file) >= (my_off_t) max_size))
   {
-    if (flags & RP_LOCK_LOG_IS_ALREADY_LOCKED)
-      pthread_mutex_lock(&LOCK_index);
     new_file(!(flags & RP_LOCK_LOG_IS_ALREADY_LOCKED));
-    if (flags & RP_LOCK_LOG_IS_ALREADY_LOCKED)
-      pthread_mutex_unlock(&LOCK_index);
 #ifdef HAVE_REPLICATION
     // QQ why do we need #ifdef here ???
     if (expire_logs_days)
@@ -1828,9 +1813,8 @@ uint MYSQL_LOG::next_file_id()
 
 bool MYSQL_LOG::write(THD *thd, IO_CACHE *cache, Log_event *commit_event)
 {
-  bool error= 0;
-  VOID(pthread_mutex_lock(&LOCK_log));
   DBUG_ENTER("MYSQL_LOG::write(THD *, IO_CACHE *, Log_event *)");
+  VOID(pthread_mutex_lock(&LOCK_log));
 
   if (likely(is_open()))                       // Should always be true
   {
@@ -1888,12 +1872,22 @@ DBUG_skip_commit:
       goto err;
     }
     signal_update();
-    DBUG_PRINT("info",("max_size: %lu",max_size));
-    rotate_and_purge(RP_LOCK_LOG_IS_ALREADY_LOCKED);
+    /*
+      if commit_event is Xid_log_event, increase the number of
+      prepared_xids (it's decreasd in ::unlog()). Binlog cannot be rotated
+      if there're prepared xids in it - see the comment in new_file() for
+      an explanation.
+      If the commit_event is not Xid_log_event (then it's a Query_log_event)
+      rotate binlog, if necessary.
+    */
+    if (commit_event->get_type_code() == XID_EVENT)
+      thread_safe_increment(prepared_xids, &LOCK_prep_xids);
+    else
+      rotate_and_purge(RP_LOCK_LOG_IS_ALREADY_LOCKED);
   }
   VOID(pthread_mutex_unlock(&LOCK_log));
 
-  DBUG_RETURN(error);
+  DBUG_RETURN(0);
 
 err:
   if (!write_error)
@@ -2461,7 +2455,7 @@ void sql_print_information(const char *format, ...)
 */
 #define TC_LOG_HEADER_SIZE (sizeof(tc_log_magic)+1)
 
-static const char tc_log_magic[]={254, 0x23, 0x05, 0x74};
+static const char tc_log_magic[]={(char) 254, 0x23, 0x05, 0x74};
 
 uint opt_tc_log_size=TC_LOG_MIN_SIZE;
 ulong tc_log_max_pages_used=0, tc_log_page_size=0,
@@ -2928,7 +2922,6 @@ int TC_LOG_BINLOG::open(const char *opt_name)
 
   {
     const char *errmsg;
-    char        last_event_type=UNKNOWN_EVENT;
     IO_CACHE    log;
     File        file;
     Log_event  *ev=0;
@@ -2993,7 +2986,6 @@ int TC_LOG_BINLOG::log(THD *thd, my_xid xid)
 {
   Xid_log_event xle(thd, xid);
   IO_CACHE *trans_log= (IO_CACHE*)thd->ha_data[binlog_hton.slot];
-  thread_safe_increment(prepared_xids, &LOCK_prep_xids);
   return !binlog_end_trans(thd, trans_log, &xle);  // invert return value
 }
 
@@ -3001,7 +2993,7 @@ void TC_LOG_BINLOG::unlog(ulong cookie, my_xid xid)
 {
   if (thread_safe_dec_and_test(prepared_xids, &LOCK_prep_xids))
     pthread_cond_signal(&COND_prep_xids);
-  rotate_and_purge(0);     // in case ::write() was not able to rotate
+  rotate_and_purge(0);     // as ::write() did not rotate
 }
 
 int TC_LOG_BINLOG::recover(IO_CACHE *log, Format_description_log_event *fdle)

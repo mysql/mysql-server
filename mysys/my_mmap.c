@@ -28,8 +28,7 @@ int my_msync(int fd, void *addr, size_t len, int flags)
   return my_sync(fd, MYF(0));
 }
 
-#else
-#ifdef __WIN__
+#elif defined(__WIN__)
 
 static SECURITY_ATTRIBUTES mmap_security_attributes=
   {sizeof(SECURITY_ATTRIBUTES), 0, TRUE};
@@ -83,13 +82,7 @@ int my_msync(int fd, void *addr, size_t len, int flags)
   return FlushViewOfFile(addr, len) ? 0 : -1;
 }
 
-#endif
-
-#ifdef _WINDOWS
-#pragma message "no mmap!"
 #else
 #warning "no mmap!"
-#endif
-
 #endif
 
