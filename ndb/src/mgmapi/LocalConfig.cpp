@@ -226,7 +226,13 @@ LocalConfig::parseString(const char * connectString, BaseString &err){
     return false;
   }
 
-  if (!found_other) {
+  if (b_nodeId && !found_other) 
+  {
+    BaseString tmp;
+    tmp.assfmt("host=localhost:%s", NDB_PORT);
+    if(parseHostName(tmp.c_str()))
+      return true;
+    
     err.appfmt("Missing host/file name extry in \"%s\"", connectString);
     return false;
   }
