@@ -11,7 +11,6 @@ CP="cp -p"
 
 DEBUG=0
 SILENT=0
-TMP=/tmp
 SUFFIX=""
 OUTTAR=0
 
@@ -34,33 +33,33 @@ if [ ! -f sql/sql_yacc.cc ]; then
   exit 1
 fi
 
-
 #
-# Assign the tmp directory if it was set from the environment variables
+# Debug print of the status
 #
 
-for i in $TMPDIR $TEMPDIR $TEMP
-do
-  if [ $i ]; then 
-    TMP=$i 
-    break
-  fi
-done
+print_debug() 
+{
+  for statement 
+  do
+    if [ "$DEBUG" = "1" ] ; then
+      echo $statement
+    fi
+  done
+}
 
-    
 #
 # Usage of the script
 #
 
-show_usage() {
-  
+show_usage() 
+{
   echo "MySQL utility script to create a Windows src package, and it takes"
   echo "the following arguments:"
   echo ""
   echo "  --debug   Debug, without creating the package"
   echo "  --tmp     Specify the temporary location"
   echo "  --silent  Do not list verbosely files processed"
-  echo "  --tar     Create a tar.gz package instead of .zip"
+  echo "  --tar     Create tar.gz package instead of .zip"
   echo "  --help    Show this help message"
 
   exit 0
@@ -90,36 +89,45 @@ parse_arguments() {
 parse_arguments "$@"
 
 #
+# Assign the tmp directory if it was set from the environment variables
+#
+
+for i in $TMP $TMPDIR $TEMPDIR $TEMP /tmp
+do
+  if [ "$i" ]; then 
+    print_debug "Setting TMP to '$i'"
+    TMP=$i 
+    break
+  fi
+done
+
+    
+#
+
+#
 # Create a tmp dest directory to copy files
 #
 
 BASE=$TMP/my_win_dist$SUFFIX
 
 if [ -d $BASE ] ; then
-  if [ x$DEBUG = x1 ]; then
-    echo "Destination directory '$BASE' already exists, deleting it"
-  fi
+  print_debug "Destination directory '$BASE' already exists, deleting it"
   rm -r -f $BASE
 fi
 
 $CP -r $SOURCE/VC++Files $BASE
-
 (
 find $BASE \( -name "*.dsp" -o -name "*.dsw" \) -and -not -path \*SCCS\* -print
 )|(
-while read v 
-do
-  if [ x$DEBUG = x1 ]; then
-    echo "Replacing LF -> CRLF from '$v'"
-  fi
+  while read v 
+  do
+    print_debug "Replacing LF -> CRLF from '$v'"
 
-  # ^M -> type CTRL V + CTRL M 
-  cat $v | sed 's///' | sed 's/$//' > $v.tmp
-  rm $v
-  mv $v.tmp $v
-
-  # awk '!/r\r$/ {print $0"\r"} /r\r$/ {print $0}' $v > $v
-done
+    # ^M -> type CTRL V + CTRL M 
+    cat $v | sed 's///' | sed 's/$//' > $v.tmp
+    rm $v
+    mv $v.tmp $v
+  done
 )
 
 #
@@ -127,6 +135,9 @@ done
 #
 
 $CP -r $SOURCE/sql/share $BASE/
+rm -r -f "$BASE/share/Makefile"
+rm -r -f "$BASE/share/Makefile.in"
+rm -r -f "$BASE/share/Makefile.am"
 
 #
 # Clean up if we did this from a bk tree
@@ -135,7 +146,7 @@ $CP -r $SOURCE/sql/share $BASE/
 if [ -d $BASE/SCCS ]  
 then
   find $BASE/ -name SCCS -print | xargs rm -r -f
-  rm -rf "$BASE/InstallShield/Script Files/SCCS"  
+  rm -r -f "$BASE/InstallShield/Script Files/SCCS"  
 fi
 
 mkdir $BASE/Docs $BASE/extra $BASE/include
@@ -148,9 +159,7 @@ mkdir $BASE/Docs $BASE/extra $BASE/include
 copy_dir_files() {
   
   for arg do
-    if [ x$DEBUG = x1 ]; then
-      echo "Copying files from directory '$arg'"
-    fi
+    print_debug "Copying files from directory '$arg'"
     cd $SOURCE/$arg/
     for i in *.c *.h *.ih *.i *.ic *.asm \
              README INSTALL* LICENSE
@@ -183,7 +192,8 @@ copy_dir_dirs() {
       
     if [ ! -d $BASE/$arg ]; then
       mkdir $BASE/$arg
-    fi    
+    fi
+    
     copy_dir_files $arg
     
     cd $SOURCE/$arg/    
@@ -242,9 +252,7 @@ for i in COPYING ChangeLog README \
          Docs/mysqld_error.txt Docs/INSTALL-BINARY 
          
 do
-  if [ x$DEBUG = x1 ]; then
-    echo "Copying file '$i'"
-  fi
+  print_debug "Copying file '$i'"
   if [ -f $i ] 
   then
     $CP $i $BASE/$i
@@ -256,10 +264,8 @@ done
 #
 
 if [ -f scripts/mysql_install_db ]; then 
-  if [ x$DEBUG = x1 ]; then
-    echo "Initializing the 'data' directory"
-  fi
-  scripts/mysql_install_db -WINDOWS --datadir=$BASE/data
+  print_debug "Initializing the 'data' directory"
+  scripts/mysql_install_db --windows --datadir=$BASE/data
 fi
 
 
@@ -267,8 +273,10 @@ fi
 # Specify the distribution package name and copy it
 #
 
-NEW_NAME=mysql@MYSQL_SERVER_SUFFIX@-$version$SUFFIX-win-src
-BASE2=$TMP/$NEW_NAME
+NEW_DIR_NAME=mysql@MYSQL_SERVER_SUFFIX@-$version$SUFFIX
+NEW_NAME=$NEW_DIR_NAME-win-src
+
+BASE2=$TMP/$NEW_DIR_NAME
 rm -r -f $BASE2
 mv $BASE $BASE2
 BASE=$BASE2
@@ -277,7 +285,7 @@ BASE=$BASE2
 # If debugging, don't create a zip/tar/gz
 #
 
-if [ x$DEBUG = x1 ] ; then
+if [ "$DEBUG" = "1" ] ; then
   echo "Please check the distribution files from $BASE"
   echo "Exiting (without creating the package).."
   exit
@@ -316,13 +324,13 @@ set_tarzip_options()
 {
   for arg 
   do
-    if [ x$arg = x"tar" ]; then
+    if [ "$arg" = "tar" ]; then
       ZIPFILE1=gnutar
       ZIPFILE2=gtar
       OPT=cvf
       EXT=".tar"
       NEED_COMPRESS=1
-      if [ x$SILENT = x1 ] ; then
+      if [ "$SILENT" = "1" ] ; then
         OPT=cf
       fi
     else
@@ -331,14 +339,14 @@ set_tarzip_options()
       OPT="-vr"
       EXT=".zip"
       NEED_COMPRESS=0
-      if [ x$SILENT = x1 ] ; then
+      if [ "$SILENT" = "1" ] ; then
         OPT="-r"
       fi
     fi
   done
 }
 
-if [ x$OUTTAR = x1 ]; then
+if [ "$OUTTAR" = "1" ]; then
   set_tarzip_options 'tar'
 else
   set_tarzip_options 'zip'
@@ -347,6 +355,7 @@ fi
 tar=`which_1 $ZIPFILE1 $ZIPFILE2`
 if test "$?" = "1" -o "$tar" = ""
 then
+  print_debug "Search failed for '$ZIPFILE1', '$ZIPFILE2', using default 'tar'"
   tar=tar
   set_tarzip_options 'tar'
 fi
@@ -355,27 +364,21 @@ fi
 # Create the archive
 #
 
-if [ xDEBUG = x1 ]; then
-  echo "Using $tar to create archive"
-fi
+print_debug "Using $tar to create archive"
 
 cd $TMP
 
-$tar $OPT $SOURCE/$NEW_NAME$EXT $NEW_NAME
+$tar $OPT $SOURCE/$NEW_NAME$EXT $NEW_DIR_NAME
 cd $SOURCE
 
-if [ x$NEED_COMPRESS = x1 ]
+if [ "$NEED_COMPRESS" = "1" ]
 then
-  if [ xDEBUG = x1 ]; then
-    echo "Compressing archive"
-  fi
+  print_debug "Compressing archive"
   gzip -9 $NEW_NAME$EXT
   EXT="$EXT.gz"
 fi
 
-if [ xDEBUG = x1 ]; then
-  echo "Removing temporary directory"
-fi
+print_debug "Removing temporary directory"
 rm -r -f $BASE
 
 echo "$NEW_NAME$EXT created successfully !!"
