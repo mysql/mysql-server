@@ -521,7 +521,7 @@ int _mi_insert(register MI_INFO *info, register MI_KEYDEF *keyinfo,
              we cannot easily dispatch an empty page here */
           b+=blen+ft2len+2;
           for (a=anc_buff+a_length ; b < a ; b+=ft2len+2)
-            insert_dynamic(info->ft1_to_ft2, b);
+            insert_dynamic(info->ft1_to_ft2, (char*) b);
 
           /* fixing the page's length - it contains only one key now */
           mi_putint(anc_buff,2+blen+ft2len+2,0);

@@ -1036,9 +1036,9 @@ bool select_dump::send_eof()
   return error;
 }
 
-select_subselect::select_subselect(Item_subselect *item)
+select_subselect::select_subselect(Item_subselect *item_arg)
 {
-  this->item=item;
+  item= item_arg;
 }
 
 bool select_singlerow_subselect::send_data(List<Item> &items)
@@ -1228,4 +1228,15 @@ bool select_dumpvar::send_eof()
     my_error(ER_EMPTY_QUERY,MYF(0));
     return 1;
   }
+}
+
+/****************************************************************************
+  TMP_TABLE_PARAM
+****************************************************************************/
+
+void TMP_TABLE_PARAM::init()
+{
+  field_count= sum_func_count= func_count= hidden_field_count= 0;
+  group_parts= group_length= group_null_parts= 0;
+  quick_group= 1;
 }

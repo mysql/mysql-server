@@ -41,24 +41,24 @@ public:
   Arg_comparator(Item **a1, Item **a2): a(a1), b(a2) {};
 
   int set_compare_func(Item_bool_func2 *owner, Item_result type);
-  inline int set_compare_func(Item_bool_func2 *owner)
+  inline int set_compare_func(Item_bool_func2 *owner_arg)
   {
-    return set_compare_func(owner, item_cmp_type((*a)->result_type(),
-						 (*b)->result_type()));
+    return set_compare_func(owner_arg, item_cmp_type((*a)->result_type(),
+						     (*b)->result_type()));
   }
-  inline int set_cmp_func(Item_bool_func2 *owner,
+  inline int set_cmp_func(Item_bool_func2 *owner_arg,
 			  Item **a1, Item **a2,
 			  Item_result type)
   {
     a= a1;
     b= a2;
-    return set_compare_func(owner, type);
+    return set_compare_func(owner_arg, type);
   }
-  inline int set_cmp_func(Item_bool_func2 *owner,
+  inline int set_cmp_func(Item_bool_func2 *owner_arg,
 			  Item **a1, Item **a2)
   {
-    return set_cmp_func(owner, a1, a2, item_cmp_type((*a1)->result_type(),
-						     (*a2)->result_type()));
+    return set_cmp_func(owner_arg, a1, a2, item_cmp_type((*a1)->result_type(),
+							 (*a2)->result_type()));
   }
   inline int compare() { return (this->*func)(); }
 

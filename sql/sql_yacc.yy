@@ -688,7 +688,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 	insert_values update delete truncate rename
 	show describe load alter optimize keycache preload flush
 	reset purge begin commit rollback savepoint
-	slave master_def master_defs master_file_def
+	slave master_def master_defs master_file_def slave_until_opts
 	repair restore backup analyze check start checksum
 	field_list field_list_item field_spec kill column_def key_def
 	keycache_list assign_to_keycache preload_list preload_keys

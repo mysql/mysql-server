@@ -895,7 +895,12 @@ public:
 
 class TMP_TABLE_PARAM :public Sql_alloc
 {
- public:
+private:
+  /* Prevent use of these (not safe because of lists and copy_field) */
+  TMP_TABLE_PARAM(const TMP_TABLE_PARAM &);
+  void operator=(TMP_TABLE_PARAM &);
+
+public:
   List<Item> copy_funcs;
   List<Item> save_copy_funcs;
   List_iterator_fast<Item> copy_funcs_it;
@@ -920,6 +925,7 @@ class TMP_TABLE_PARAM :public Sql_alloc
   {
     cleanup();
   }
+  void init(void);
   inline void cleanup(void)
   {
     if (copy_field)				/* Fix for Intel compiler */

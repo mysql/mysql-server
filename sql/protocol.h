@@ -44,9 +44,9 @@ protected:
 #endif
 public:
   Protocol() {}
-  Protocol(THD *thd) { init(thd); }
+  Protocol(THD *thd_arg) { init(thd_arg); }
   virtual ~Protocol() {}
-  void init(THD* thd);
+  void init(THD* thd_arg);
   bool send_fields(List<Item> *list, uint flag);
   bool send_records_num(List<Item> *list, ulonglong records);
   bool store(I_List<i_string> *str_list);
@@ -97,7 +97,7 @@ class Protocol_simple :public Protocol
 {
 public:
   Protocol_simple() {}
-  Protocol_simple(THD *thd) :Protocol(thd) {}
+  Protocol_simple(THD *thd_arg) :Protocol(thd_arg) {}
   virtual void prepare_for_resend();
   virtual bool store_null();
   virtual bool store_tiny(longlong from);
@@ -122,7 +122,7 @@ private:
   uint bit_fields;
 public:
   Protocol_prep() {}
-  Protocol_prep(THD *thd) :Protocol(thd) {}
+  Protocol_prep(THD *thd_arg) :Protocol(thd_arg) {}
   virtual bool prepare_for_send(List<Item> *item_list);
   virtual void prepare_for_resend();
 #ifdef EMBEDDED_LIBRARY
@@ -155,7 +155,7 @@ public:
   ulong row_count;
 
   Protocol_cursor() {}
-  Protocol_cursor(THD *thd, MEM_ROOT *ini_alloc) :Protocol_simple(thd), alloc(ini_alloc) {}
+  Protocol_cursor(THD *thd_arg, MEM_ROOT *ini_alloc) :Protocol_simple(thd_arg), alloc(ini_alloc) {}
   bool prepare_for_send(List<Item> *item_list) 
   {
     fields= NULL;
@@ -173,7 +173,6 @@ void send_ok(THD *thd, ha_rows affected_rows=0L, ulonglong id=0L,
 	     const char *info=0);
 void send_eof(THD *thd, bool no_flush=0);
 bool send_old_password_request(THD *thd);
-char *net_store_length(char *packet,ulonglong length);
 char *net_store_length(char *packet,uint length);
 char *net_store_data(char *to,const char *from, uint length);
 char *net_store_data(char *to,int32 from);

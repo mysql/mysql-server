@@ -1624,7 +1624,7 @@ bool udf_handler::get_arguments()
 
 String *udf_handler::val_str(String *str,String *save_str)
 {
-  uchar is_null=0;
+  uchar is_null_tmp=0;
   ulong res_length;
 
   if (get_arguments())
@@ -1641,9 +1641,9 @@ String *udf_handler::val_str(String *str,String *save_str)
       return 0;
     }
   }
-  char *res=func(&initid, &f_args, (char*) str->ptr(), &res_length, &is_null,
-		&error);
-  if (is_null || !res || error)			// The !res is for safety
+  char *res=func(&initid, &f_args, (char*) str->ptr(), &res_length,
+		 &is_null_tmp, &error);
+  if (is_null_tmp || !res || error)		// The !res is for safety
   {
     return 0;
   }
