@@ -767,7 +767,8 @@ dnl get substituted.
 
 AC_DEFUN(MYSQL_CHECK_ORBIT, [
 AC_MSG_CHECKING(for ORBit)
-if test `which orbit-config`
+orbit_config_path=`which orbit-config`
+if test -n "$orbit_config_path"
 then
   orbit_exec_prefix=`orbit-config --exec-prefix`
   orbit_includes=`orbit-config --cflags server`

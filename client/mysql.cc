@@ -75,7 +75,6 @@ extern "C" {
 #endif
 
 #undef bcmp				// Fix problem with new readline
-#undef bzero
 #if defined( __WIN__) || defined(OS2)
 #include <conio.h>
 #else
