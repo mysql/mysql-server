@@ -1910,3 +1910,39 @@ EXPLAIN SELECT i FROM t1 WHERE i=1;
 EXPLAIN SELECT i FROM t1 WHERE i=1;
 
 DROP TABLE t1;
+
+#
+# Test for bug #6474
+#
+
+CREATE TABLE t1 ( 
+K2C4 varchar(4) character set latin1 collate latin1_bin NOT NULL default '', 
+K4N4 varchar(4) character set latin1 collate latin1_bin NOT NULL default '0000', 
+F2I4 int(11) NOT NULL default '0' 
+) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+
+INSERT INTO t1 VALUES 
+('W%RT', '0100',  1), 
+('W-RT', '0100', 1), 
+('WART', '0100', 1), 
+('WART', '0200', 1), 
+('WERT', '0100', 2), 
+('WORT','0200', 2), 
+('WT', '0100', 2), 
+('W_RT', '0100', 2), 
+('WaRT', '0100', 3), 
+('WART', '0300', 3), 
+('WRT' , '0400', 3), 
+('WURM', '0500', 3), 
+('W%T', '0600', 4), 
+('WA%T', '0700', 4), 
+('WA_T', '0800', 4);
+
+SELECT K2C4, K4N4, F2I4 FROM t1
+  WHERE  K2C4 = 'WART' AND 
+        (F2I4 = 2 AND K2C4 = 'WART' OR (F2I4 = 2 OR K4N4 = '0200'));
+
+SELECT K2C4, K4N4, F2I4 FROM t1
+  WHERE  K2C4 = 'WART' AND (K2C4 = 'WART' OR K4N4 = '0200');
+
+DROP TABLE t1;
