@@ -907,7 +907,8 @@ static bool mysql_test_insert(Prepared_statement *stmt,
     ulong counter= 0;
     Item *unused_conds= 0;
 
-    table_list->table->insert_values=(byte *)1; // don't allocate insert_values
+    if (table_list->table)
+      table_list->table->insert_values=(byte *)1; // don't allocate insert_values
     if ((res= mysql_prepare_insert(thd, table_list, table_list->table, 
 				   fields, values, update_fields,
 				   update_values, duplic,
@@ -933,7 +934,8 @@ static bool mysql_test_insert(Prepared_statement *stmt,
   res= 0;
 error:
   lex->unit.cleanup();
-  table_list->table->insert_values=0;
+  if (table_list->table)
+    table_list->table->insert_values=0;
   DBUG_RETURN(res);
 }
 
@@ -1697,7 +1699,6 @@ bool mysql_stmt_prepare(THD *thd, char *packet, uint packet_length,
   lex_end(lex);
   thd->restore_backup_statement(stmt, &thd->stmt_backup);
   cleanup_items(stmt->free_list);
-  cleanup_stmt_for_execute(stmt);
   close_thread_tables(thd);
   thd->rollback_item_tree_changes();
   thd->cleanup_after_query();
@@ -2042,7 +2043,6 @@ static void execute_stmt(THD *thd, Prepared_statement *stmt,
   cleanup_items(stmt->free_list);
   thd->rollback_item_tree_changes();
   reset_stmt_params(stmt);
-  cleanup_stmt_for_execute(stmt);
   close_thread_tables(thd);                    // to close derived tables
   thd->set_statement(&thd->stmt_backup);
   thd->cleanup_after_query();
