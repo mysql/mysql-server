@@ -4403,16 +4403,14 @@ char *Field_string::pack(char *to, const char *from, uint max_length)
 
 char *Field_string::pack_key(char *to, const char *from, uint max_length)
 {
-  const char *end=from+min(field_length,max_length);
-  int length;
-  while (end > from && end[-1] == ' ')
-    end--;
-  length= end-from;
+  int length=min(field_length,max_length);
   uint char_length= (field_charset->mbmaxlen > 1) ?
               max_length/field_charset->mbmaxlen : max_length;
   if (length > char_length)
-    char_length= my_charpos(field_charset, from, end, char_length);
+    char_length= my_charpos(field_charset, from, from+length, char_length);
   set_if_smaller(length, char_length);
+  while (length && from[length-1] == ' ')
+    length--;
   *to= (uchar)length;
   memcpy(to+1, from, length);
   return to+1+length;
