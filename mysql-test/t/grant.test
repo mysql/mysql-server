@@ -1,5 +1,8 @@
 # Test of GRANT commands
 
+# Grant tests not performed with embedded server
+-- source include/not_embedded.inc
+
 # Cleanup
 --disable_warnings
 drop table if exists t1;
