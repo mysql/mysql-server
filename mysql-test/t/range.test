@@ -236,4 +236,4 @@ SELECT * FROM t1 WHERE a IN(1,2) AND b=5;
 
 DROP TABLE t1;
 
-# we expect that optimizer will choose key on A
+# we expect that optimizer will choose index on A
