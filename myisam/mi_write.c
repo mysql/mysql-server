@@ -770,8 +770,9 @@ int _mi_init_bulk_insert(MI_INFO *info)
   if (info->bulk_insert)
     return 0;
   
-  info->bulk_insert=(TREE *)my_malloc(
-      (sizeof(TREE)+sizeof(bulk_insert_param))*share->base.keys, MYF(0));
+  info->bulk_insert=(TREE *)
+    my_malloc((sizeof(TREE)+sizeof(bulk_insert_param))*share->base.keys,
+	      MYF(0));
 
   if (!info->bulk_insert)
     return HA_ERR_OUT_OF_MEM;
@@ -785,9 +786,10 @@ int _mi_init_bulk_insert(MI_INFO *info)
     if (!(key->flag & HA_NOSAME) && share->base.auto_key != i+1
         && test(share->state.key_map & ((ulonglong) 1 << i)))
     {
-      init_tree(& info->bulk_insert[i], 0, myisam_bulk_insert_tree_size, 0,
-          (qsort_cmp2)keys_compare, 0,
-          (tree_element_free) keys_free, (void *)params);
+      init_tree(& info->bulk_insert[i], 0, 
+		myisam_bulk_insert_tree_size / share->base.keys, 0,
+		(qsort_cmp2)keys_compare, 0,
+		(tree_element_free) keys_free, (void *)params);
     }
     else
      info->bulk_insert[i].root=0; 

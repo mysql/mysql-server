@@ -214,5 +214,4 @@
 "CREATE DATABASE no permitido mientras un thread está ejerciendo un bloqueo de lectura global",
 "Error de coneccion a master: %-128s",
 "Error executando el query en master: %-128%",
-"Error de SHOW BINLOG EVENTS: %-128%",
-"Error de SHOW NEW MASTER: %-128%",
+"Error de %s: %-128%",

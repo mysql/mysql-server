@@ -128,10 +128,12 @@ bool Unique::get(TABLE *table)
     return 1;
   reinit_io_cache(outfile,WRITE_CACHE,0L,0,0);
   
+  bzero((char*) &sort_param,sizeof(sort_param));
   sort_param.max_rows= elements;
   sort_param.sort_form=table;
   sort_param.sort_length=sort_param.ref_length=tree.size_of_element;
   sort_param.keys= max_in_memory_size / sort_param.sort_length;
+  sort_param.not_killable=1;
   
   if (!(sort_buffer=(uchar*) my_malloc((sort_param.keys+1) * 
 				       sort_param.sort_length,
