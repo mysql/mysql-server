@@ -126,3 +126,8 @@ select cast(cast('1.2' as decimal(3,2)) as signed);
 set @v1=1e18;
 select cast(@v1 as decimal(22, 2));
 select cast(-1e18 as decimal(22,2));
+
+create table t1(s1 time);
+insert into t1 values ('11:11:11');
+select cast(s1 as decimal(7,2)) from t1;
+drop table t1;
