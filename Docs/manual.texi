@@ -40591,6 +40591,13 @@ added to 3.23.
 @appendixsubsec Changes in release 3.23.32
 @itemize @bullet
 @item
+Fixed coredump when client aborted connection without mysql_close()
+@item
+Fixed bug in RESTORE TABLE when trying to restore from a non-existing
+directory
+@item
+Fixed coredump on the slave replicating SET PASSWORD
+@item
 Added MASTER_POS_WAIT()
 @end itemize
 
