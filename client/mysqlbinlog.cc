@@ -103,6 +103,22 @@ class Load_log_processor
 {
   char target_dir_name[FN_REFLEN];
   int target_dir_name_len;
+
+  /*
+    When we see first event corresponding to some LOAD DATA statement in
+    binlog, we create temporary file to store data to be loaded.
+    We add name of this file to file_names array using its file_id as index.
+    If we have Create_file event (i.e. we have binary log in pre-5.0.3
+    format) we also store save event object to be able which is needed to
+    emit LOAD DATA statement when we will meet Exec_load_data event.
+    If we have Begin_load_query event we simply store 0 in
+    File_name_record::event field.
+  */
+  struct File_name_record
+  {
+    char *fname;
+    Create_file_log_event *event;
+  };
   DYNAMIC_ARRAY file_names;
 
   /*
@@ -144,7 +160,7 @@ public:
 
   int init()
   {
-    return init_dynamic_array(&file_names,sizeof(Create_file_log_event*),
+    return init_dynamic_array(&file_names, sizeof(File_name_record),
 			      100,100 CALLER_INFO);
   }
 
@@ -161,33 +177,91 @@ public:
     }
   void destroy()
     {
-      Create_file_log_event **ptr= (Create_file_log_event**)file_names.buffer;
-      Create_file_log_event **end= ptr + file_names.elements;
+      File_name_record *ptr= (File_name_record *)file_names.buffer;
+      File_name_record *end= ptr + file_names.elements;
       for (; ptr<end; ptr++)
       {
-	if (*ptr)
+	if (ptr->fname)
 	{
-	  my_free((char*)(*ptr)->fname,MYF(MY_WME));
-	  delete *ptr;
-	  *ptr= 0;
+          my_free(ptr->fname, MYF(MY_WME));
+          delete ptr->event;
+          bzero((char *)ptr, sizeof(File_name_record));
 	}
       }
     }
+
+  /*
+    Obtain Create_file event for LOAD DATA statement by its file_id.
+
+    SYNOPSIS
+      grab_event()
+        file_id - file_id identifiying LOAD DATA statement
+
+    DESCRIPTION
+      Checks whenever we have already seen Create_file event for this file_id.
+      If yes then returns pointer to it and removes it from array describing
+      active temporary files. Since this moment caller is responsible for
+      freeing memory occupied by this event and associated file name.
+
+    RETURN VALUES
+      Pointer to Create_file event or 0 if there was no such event
+      with this file_id.
+  */
   Create_file_log_event *grab_event(uint file_id)
     {
+      File_name_record *ptr;
+      Create_file_log_event *res;
+
       if (file_id >= file_names.elements)
         return 0;
-      Create_file_log_event **ptr= 
-	(Create_file_log_event**)file_names.buffer + file_id;
-      Create_file_log_event *res= *ptr;
-      *ptr= 0;
+      ptr= dynamic_element(&file_names, file_id, File_name_record*);
+      if ((res= ptr->event))
+        bzero((char *)ptr, sizeof(File_name_record));
+      return res;
+    }
+
+  /*
+    Obtain file name of temporary file for LOAD DATA statement by its file_id.
+
+    SYNOPSIS
+      grab_fname()
+        file_id - file_id identifiying LOAD DATA statement
+
+    DESCRIPTION
+      Checks whenever we have already seen Begin_load_query event for this
+      file_id. If yes then returns file name of corresponding temporary file.
+      Removes record about this file from the array of active temporary files.
+      Since this moment caller is responsible for freeing memory occupied by
+      this name.
+
+    RETURN VALUES
+      String with name of temporary file or 0 if we have not seen Begin_load_query
+      event with this file_id.
+  */
+  char *grab_fname(uint file_id)
+    {
+      File_name_record *ptr;
+      char *res= 0;
+
+      if (file_id >= file_names.elements)
+        return 0;
+      ptr= dynamic_element(&file_names, file_id, File_name_record*);
+      if (!ptr->event)
+      {
+        res= ptr->fname;
+        bzero((char *)ptr, sizeof(File_name_record));
+      }
       return res;
     }
   int process(Create_file_log_event *ce);
+  int process(Begin_load_query_log_event *ce);
   int process(Append_block_log_event *ae);
   File prepare_new_file_for_old_format(Load_log_event *le, char *filename);
   int load_old_format_file(NET* net, const char *server_fname,
 			   uint server_fname_len, File file);
+  int process_first_event(const char *bname, uint blen, const char *block,
+                          uint block_len, uint file_id,
+                          Create_file_log_event *ce);
 };
 
 
@@ -265,22 +339,42 @@ int Load_log_processor::load_old_format_file(NET* net, const char*server_fname,
 }
 
 
-int Load_log_processor::process(Create_file_log_event *ce)
+/*
+  Process first event in the sequence of events representing LOAD DATA
+  statement.
+
+  SYNOPSIS
+    process_first_event()
+      bname     - base name for temporary file to be created
+      blen      - base name length
+      block     - first block of data to be loaded
+      block_len - first block length
+      file_id   - identifies LOAD DATA statement
+      ce        - pointer to Create_file event object if we are processing
+                  this type of event.
+
+  DESCRIPTION
+    Creates temporary file to be used in LOAD DATA and writes first block of
+    data to it. Registers its file name (and optional Create_file event)
+    in the array of active temporary files.
+
+  RETURN VALUES
+    0     - success
+    non-0 - error
+*/
+
+int Load_log_processor::process_first_event(const char *bname, uint blen,
+                                            const char *block, uint block_len,
+                                            uint file_id,
+                                            Create_file_log_event *ce)
 {
-  const char *bname= ce->fname+dirname_length(ce->fname);
-  uint blen= ce->fname_len - (bname-ce->fname);
   uint full_len= target_dir_name_len + blen + 9 + 9 + 1;
   int error= 0;
   char *fname, *ptr;
   File file;
-  DBUG_ENTER("Load_log_processor::process");
+  File_name_record rec;
+  DBUG_ENTER("Load_log_processor::process_first_event");
 
-  if (set_dynamic(&file_names,(gptr)&ce,ce->file_id))
-  {
-    sql_print_error("Could not construct local filename %s%s",
-		    target_dir_name,bname);
-    DBUG_RETURN(-1);
-  }
   if (!(fname= my_malloc(full_len,MYF(MY_WME))))
     DBUG_RETURN(-1);
 
@@ -288,7 +382,7 @@ int Load_log_processor::process(Create_file_log_event *ce)
   ptr= fname + target_dir_name_len;
   memcpy(ptr,bname,blen);
   ptr+= blen;
-  ptr+= my_sprintf(ptr,(ptr,"-%x",ce->file_id));
+  ptr+= my_sprintf(ptr, (ptr, "-%x", file_id));
 
   if ((file= create_unique_file(fname,ptr)) < 0)
   {
@@ -296,9 +390,21 @@ int Load_log_processor::process(Create_file_log_event *ce)
 		    target_dir_name,bname);
     DBUG_RETURN(-1);
   }
-  ce->set_fname_outside_temp_buf(fname,strlen(fname));
 
-  if (my_write(file,(byte*) ce->block,ce->block_len,MYF(MY_WME|MY_NABP)))
+  rec.fname= fname;
+  rec.event= ce;
+
+  if (set_dynamic(&file_names, (gptr)&rec, file_id))
+  {
+    sql_print_error("Could not construct local filename %s%s",
+		    target_dir_name, bname);
+    DBUG_RETURN(-1);
+  }
+
+  if (ce)
+    ce->set_fname_outside_temp_buf(fname, strlen(fname));
+
+  if (my_write(file, (byte*)block, block_len, MYF(MY_WME|MY_NABP)))
     error= -1;
   if (my_close(file, MYF(MY_WME)))
     error= -1;
@@ -306,19 +412,35 @@ int Load_log_processor::process(Create_file_log_event *ce)
 }
 
 
+int Load_log_processor::process(Create_file_log_event *ce)
+{
+  const char *bname= ce->fname + dirname_length(ce->fname);
+  uint blen= ce->fname_len - (bname-ce->fname);
+
+  return process_first_event(bname, blen, ce->block, ce->block_len,
+                             ce->file_id, ce);
+}
+
+
+int Load_log_processor::process(Begin_load_query_log_event *blqe)
+{
+  return process_first_event("SQL_LOAD_MB", 11, blqe->block, blqe->block_len,
+                             blqe->file_id, 0);
+}
+
+
 int Load_log_processor::process(Append_block_log_event *ae)
 {
   DBUG_ENTER("Load_log_processor::process");
-  Create_file_log_event* ce= ((ae->file_id < file_names.elements) ?
-			      *((Create_file_log_event**)file_names.buffer +
-				ae->file_id) :
-			      0);
+  const char* fname= ((ae->file_id < file_names.elements) ?
+                       dynamic_element(&file_names, ae->file_id,
+                                       File_name_record*)->fname : 0);
 
-  if (ce)
+  if (fname)
   {
     File file;
     int error= 0;
-    if (((file= my_open(ce->fname,
+    if (((file= my_open(fname,
 			O_APPEND|O_BINARY|O_WRONLY,MYF(MY_WME))) < 0))
       DBUG_RETURN(-1);
     if (my_write(file,(byte*)ae->block,ae->block_len,MYF(MY_WME|MY_NABP)))
@@ -340,6 +462,14 @@ Create_file event for file_id: %u\n",ae->file_id);
 
 
 Load_log_processor load_processor;
+
+
+static bool check_database(const char *log_dbname)
+{
+  return one_database &&
+         (log_dbname != NULL) &&
+         strcmp(log_dbname, database);
+}
 
 
 /*
@@ -395,29 +525,21 @@ int process_event(LAST_EVENT_INFO *last_event_info, Log_event *ev,
     
     switch (ev_type) {
     case QUERY_EVENT:
-      if (one_database)
-      {
-	const char * log_dbname = ((Query_log_event*)ev)->db;
-	if ((log_dbname != NULL) && (strcmp(log_dbname, database)))
-	  goto end;
-      }
+      if (check_database(((Query_log_event*)ev)->db))
+        goto end;
       ev->print(result_file, short_form, last_event_info);
       break;
     case CREATE_FILE_EVENT:
     {
       Create_file_log_event* ce= (Create_file_log_event*)ev;
-      if (one_database)
-      {
-	/*
-	  We test if this event has to be ignored. If yes, we don't save 
-	      this event; this will have the good side-effect of ignoring all 
-	      related Append_block and Exec_load.
-	      Note that Load event from 3.23 is not tested.
-	*/
-	const char * log_dbname = ce->db;            
-	if ((log_dbname != NULL) && (strcmp(log_dbname, database)))
-	  goto end;				// Next event
-      }
+      /*
+        We test if this event has to be ignored. If yes, we don't save
+        this event; this will have the good side-effect of ignoring all
+        related Append_block and Exec_load.
+        Note that Load event from 3.23 is not tested.
+      */
+      if (check_database(ce->db))
+        goto end;                // Next event
       /*
 	We print the event, but with a leading '#': this is just to inform 
 	the user of the original command; the command we want to execute 
@@ -473,6 +595,32 @@ Create_file event for file_id: %u\n",exv->file_id);
       */
       ev= 0;
       break;
+    case BEGIN_LOAD_QUERY_EVENT:
+      ev->print(result_file, short_form, last_event_info);
+      load_processor.process((Begin_load_query_log_event*) ev);
+      break;
+    case EXECUTE_LOAD_QUERY_EVENT:
+    {
+      Execute_load_query_log_event *exlq= (Execute_load_query_log_event*)ev;
+      char *fname= load_processor.grab_fname(exlq->file_id);
+
+      if (check_database(exlq->db))
+      {
+        if (fname)
+          my_free(fname, MYF(MY_WME));
+        goto end;
+      }
+
+      if (fname)
+      {
+	exlq->print(result_file, short_form, last_event_info, fname);
+	my_free(fname, MYF(MY_WME));
+      }
+      else
+	fprintf(stderr,"Warning: ignoring Execute_load_query as there is no \
+Begin_load_query event for file_id: %u\n", exlq->file_id);
+      break;
+    }
     default:
       ev->print(result_file, short_form, last_event_info);
     }
