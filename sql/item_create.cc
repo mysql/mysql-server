@@ -373,7 +373,7 @@ Item *create_func_space(Item *a)
   CHARSET_INFO *cs= current_thd->variables.collation_connection;
   Item *sp;
   
-  if (cs->state & MY_CS_NONTEXT)
+  if (cs->mbminlen > 1)
   {
     sp= new Item_string("",0,cs);
     if (sp)

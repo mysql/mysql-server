@@ -7036,8 +7036,464 @@ int my_wildcmp_uca(CHARSET_INFO *cs,
 }
 
 
+/*
+  Collation language is implemented according to
+  subset of ICU Collation Customization (tailorings):
+  http://oss.software.ibm.com/icu/userguide/Collate_Customization.html
+  
+  Collation language elements:
+  Delimiters:
+    space   - skipped
+  
+  <char> :=  A-Z | a-z | \uXXXX
+  
+  Shift command:
+    <shift>  := &       - reset at this letter. 
+  
+  Diff command:
+    <d1> :=  <     - Identifies a primary difference.
+    <d2> :=  <<    - Identifies a secondary difference.
+    <d3> := <<<    - Idenfifies a tertiary difference.
+  
+  
+  Collation rules:
+    <ruleset> :=  <rule>  { <ruleset> }
+    
+    <rule> :=   <d1>    <string>
+              | <d2>    <string>
+              | <d3>    <string>
+              | <shift> <char>
+    
+    <string> := <char> [ <string> ]
+
+  An example, Polish collation:
+  
+    &A < \u0105 <<< \u0104
+    &C < \u0107 <<< \u0106
+    &E < \u0119 <<< \u0118
+    &L < \u0142 <<< \u0141
+    &N < \u0144 <<< \u0143
+    &O < \u00F3 <<< \u00D3
+    &S < \u015B <<< \u015A
+    &Z < \u017A <<< \u017B    
+*/
+
+
+typedef enum my_coll_lexem_num_en
+{
+  MY_COLL_LEXEM_EOF	= 0,
+  MY_COLL_LEXEM_DIFF	= 1, 
+  MY_COLL_LEXEM_SHIFT	= 4,
+  MY_COLL_LEXEM_CHAR	= 5,
+  MY_COLL_LEXEM_ERROR	= 6
+} my_coll_lexem_num;
+
+
+typedef struct my_coll_lexem_st
+{
+  const char *beg;
+  const char *end;
+  const char *prev;
+  int   diff;
+  int   code;
+} MY_COLL_LEXEM;
+
+
+/*
+  Initialize collation rule lexical anilizer
+  
+  SYNOPSIS
+    my_coll_lexem_init
+    lexem                Lex analizer to init
+    str                  Const string to parse
+    strend               End of the string
+  USAGE
+  
+  RETURN VALUES
+    N/A
+*/
+
+static void my_coll_lexem_init(MY_COLL_LEXEM *lexem,
+                               const char *str, const char *strend)
+{
+  lexem->beg= str;
+  lexem->prev= str;
+  lexem->end= strend;
+  lexem->diff= 0;
+  lexem->code= 0;
+}
+
+
+/*
+  Print collation customization expression parse error, with context.
+  
+  SYNOPSIS
+    my_coll_lexem_print_error
+    lexem                Lex analizer to take context from
+    errstr               sting to write error to
+    errsize              errstr size
+    txt                  error message
+  USAGE
+  
+  RETURN VALUES
+    N/A
+*/
+
+static void my_coll_lexem_print_error(MY_COLL_LEXEM *lexem,
+                                      char *errstr, size_t errsize,
+                                      const char *txt)
+{
+  char tail[30];
+  size_t len= lexem->end - lexem->prev;
+  strmake (tail, lexem->prev, min(len, sizeof(tail)-1));
+  errstr[errsize-1]= '\0';
+  my_snprintf(errstr,errsize-1,"%s at '%s'", txt, tail);
+}
+
+
+/*
+  Convert a hex digit into its numeric value
+  
+  SYNOPSIS
+    ch2x
+    ch                   hex digit to convert
+  USAGE
+  
+  RETURN VALUES
+    an integer value in the range 0..15
+    -1 on error
+*/
+
+static int ch2x(int ch)
+{
+  if (ch >= '0' && ch <= '9')
+    return ch - '0';
+  
+  if (ch >= 'a' && ch <= 'f')
+    return 10 + ch - 'a';
+  
+  if (ch >= 'A' && ch <= 'F')
+    return 10 + ch - 'A';
+  
+  return -1;
+}
+
+
+/*
+  Collation language lexical parser:
+  Scans the next lexem.
+  
+  SYNOPSIS
+    my_coll_lexem_next
+    lexem                Lex analizer, previously initialized by 
+                         my_coll_lexem_init.
+  USAGE
+    Call this function in a loop
+    
+  RETURN VALUES
+    Lexem number: eof, diff, shift, char or error.
+*/
+
+static my_coll_lexem_num my_coll_lexem_next(MY_COLL_LEXEM *lexem)
+{
+  for ( ;lexem->beg < lexem->end ; lexem->beg++)
+  {
+    lexem->prev= lexem->beg;
+    if (lexem->beg[0] == ' '  || lexem->beg[0] == '\t' || 
+        lexem->beg[0] == '\r' || lexem->beg[0] == '\n')
+      continue;
+    
+    if (lexem->beg[0] == '&')
+    {
+      lexem->beg++;
+      return MY_COLL_LEXEM_SHIFT;
+    }
+    
+    if (lexem->beg[0] == '<')
+    {
+      for (lexem->beg++, lexem->diff=1; 
+           (lexem->beg < lexem->end) && 
+           (lexem->beg[0] == '<') && (lexem->diff<3);
+           lexem->beg++, lexem->diff++);
+        return MY_COLL_LEXEM_DIFF;
+    }
+    
+    if ((lexem->beg[0] >= 'a' && lexem->beg[0] <= 'z') ||
+        (lexem->beg[0] >= 'A' && lexem->beg[0] <= 'Z'))
+    {
+      lexem->code= lexem->beg[0];
+      lexem->beg++;
+      return MY_COLL_LEXEM_CHAR;
+    }
+    
+    if ((lexem->beg[0] == '\\') && 
+        (lexem->beg+2 < lexem->end) && 
+        (lexem->beg[1] == 'u'))
+    {
+      int ch;
+      
+      lexem->code= 0;
+      for (lexem->beg+=2; 
+           (lexem->beg < lexem->end) && ((ch= ch2x(lexem->beg[0])) >= 0) ; 
+           lexem->beg++)
+      {
+        lexem->code= (lexem->code << 4) + ch;
+      }
+      return MY_COLL_LEXEM_CHAR;
+    }
+    
+    return MY_COLL_LEXEM_ERROR;
+  }
+  return MY_COLL_LEXEM_EOF;
+}
+
+
+/*
+  Collation rule item
+*/
+
+typedef struct my_coll_rule_item_st
+{
+  uint base;     /* Base character                             */
+  uint curr;     /* Current character                          */
+  int diff[3];   /* Primary, Secondary and Tertiary difference */
+} MY_COLL_RULE;
+
+
+/*
+  Collation language syntax parser.
+  Uses lexical parser.
+  
+  SYNOPSIS
+    my_coll_rule_parse
+    rule                 Collation rule list to load to.
+    str                  A string containin collation language expression.
+    strend               End of the string.
+  USAGE
+    
+  RETURN VALUES
+    0 - OK
+    1 - ERROR, e.g. too many items.
+*/
+
+static int my_coll_rule_parse(MY_COLL_RULE *rule, size_t mitems,
+                              const char *str, const char *strend,
+                              char *errstr, size_t errsize)
+{
+  MY_COLL_LEXEM lexem;
+  my_coll_lexem_num lexnum;
+  my_coll_lexem_num prevlexnum= MY_COLL_LEXEM_ERROR;
+  MY_COLL_RULE item; 
+  int state= 0;
+  size_t nitems= 0;
+  
+  /* Init all variables */
+  errstr[0]= '\0';
+  bzero(&item, sizeof(item));
+  my_coll_lexem_init(&lexem, str, strend);
+  
+  while ((lexnum= my_coll_lexem_next(&lexem)))
+  {
+    if (lexnum == MY_COLL_LEXEM_ERROR)
+    {
+      my_coll_lexem_print_error(&lexem,errstr,errsize-1,"Unknown character");
+      return -1;
+    }
+    
+    switch (state) {
+    case 0:
+      if (lexnum != MY_COLL_LEXEM_SHIFT)
+      {
+        my_coll_lexem_print_error(&lexem,errstr,errsize-1,"& expected");
+        return -1;
+      }
+      prevlexnum= lexnum;
+      state= 2;
+      continue;
+      
+    case 1:
+      if (lexnum != MY_COLL_LEXEM_SHIFT && lexnum != MY_COLL_LEXEM_DIFF)
+      {
+        my_coll_lexem_print_error(&lexem,errstr,errsize-1,"& or < expected");
+        return -1;
+      }
+      prevlexnum= lexnum;
+      state= 2;
+      continue;
+      
+    case 2:
+      if (lexnum != MY_COLL_LEXEM_CHAR)
+      {
+        my_coll_lexem_print_error(&lexem,errstr,errsize-1,"character expected");
+        return -1;
+      }
+      
+      if (prevlexnum == MY_COLL_LEXEM_SHIFT)
+      {
+        item.base= lexem.code;
+        item.diff[0]= 0;
+        item.diff[1]= 0;
+        item.diff[2]= 0;
+      }
+      else if (prevlexnum == MY_COLL_LEXEM_DIFF)
+      {
+        item.curr= lexem.code;
+        if (lexem.diff == 3)
+        {
+          item.diff[2]++;
+        }
+        else if (lexem.diff == 2)
+        {
+          item.diff[1]++;
+          item.diff[2]= 0;
+        }
+        else if (lexem.diff == 1)
+        {
+          item.diff[0]++;
+          item.diff[1]= 0;
+          item.diff[2]= 0;
+        }
+        if (nitems >= mitems)
+        {
+          my_coll_lexem_print_error(&lexem,errstr,errsize-1,"Too many rules");
+          return -1;
+        }
+        rule[nitems++]= item;
+      }
+      else
+      {
+        my_coll_lexem_print_error(&lexem,errstr,errsize-1,"Should never happen");
+        return -1;
+      }
+      state= 1;
+      continue;
+    }
+  }
+  return (size_t) nitems;
+}
+
+#define MY_MAX_COLL_RULE 64
+
+/*
+  This function copies an UCS2 collation from
+  the default Unicode Collation Algorithm (UCA)
+  weights applying tailorings, i.e. a set of
+  alternative weights for some characters. 
+  
+  The default UCA weights are stored in my_charset_ucs2_general_uca.
+  They consist of 256 pages, 256 character each.
+  
+  If a page is not overwritten by tailoring rules,
+  it is copies as is from UCA as is.
+  
+  If a page contains some overwritten characters, it is
+  allocated. Untouched characters are copied from the
+  default weights.
+*/
+
+static my_bool create_tailoring(CHARSET_INFO *cs, void *(*alloc)(uint))
+{
+  MY_COLL_RULE rule[MY_MAX_COLL_RULE];
+  char errstr[128];
+  uchar   *newlengths;
+  uint16 **newweights;
+  const uchar *deflengths= my_charset_ucs2_general_uca.sort_order;
+  uint16     **defweights= my_charset_ucs2_general_uca.sort_order_big;
+  int rc, i;
+
+  if (!cs->tailoring)
+    return 1;
+  
+  /* Parse ICU Collation Customization expression */
+  if ((rc= my_coll_rule_parse(rule, MY_MAX_COLL_RULE,
+                              cs->tailoring,
+                              cs->tailoring + strlen(cs->tailoring),
+                              errstr, sizeof(errstr))) <= 0)
+  {
+    /* 
+      TODO: add error message reporting.
+      printf("Error: %d '%s'\n", rc, errstr);
+    */
+    return 1;
+  }
+  
+  if (!(newweights= (uint16**) alloc(256*sizeof(uint16*))))
+    return 1;
+  bzero(newweights, 256*sizeof(uint16*));
+  
+  if (!(newlengths= (uchar*) alloc(256)))
+    return 1;
+  
+  memcpy(newlengths, deflengths, 256);
+  
+  /*
+    Calculate maximum lenghts for the pages
+    which will be overwritten.
+  */
+  for (i=0; i < rc; i++)
+  {
+    uint pageb= (rule[i].base >> 8) & 0xFF;
+    uint pagec= (rule[i].curr >> 8) & 0xFF;
+    
+    if (newlengths[pagec] < deflengths[pageb])
+      newlengths[pagec]= deflengths[pageb];
+  }
+  
+  for (i=0; i < rc;  i++)
+  {
+    uint pageb= (rule[i].base >> 8) & 0xFF;
+    uint pagec= (rule[i].curr >> 8) & 0xFF;
+    uint chb, chc;
+    
+    if (!newweights[pagec])
+    {
+      /* Alloc new page and copy the default UCA weights */
+      uint size= 256*newlengths[pagec]*sizeof(uint16);
+      
+      if (!(newweights[pagec]= (uint16*) alloc(size)))
+        return 1;
+      bzero((void*) newweights[pagec], size);
+      
+      for (chc=0 ; chc < 256; chc++)
+      {
+        memcpy(newweights[pagec] + chc*newlengths[pagec],
+               defweights[pagec] + chc*deflengths[pagec],
+               deflengths[pagec]*sizeof(uint16));
+      }
+    }
+    
+    /* 
+      Aply the alternative rule:
+      shift to the base character and primary difference.
+    */
+    chc= rule[i].curr & 0xFF;
+    chb= rule[i].base & 0xFF;
+    memcpy(newweights[pagec] + chc*newlengths[pagec],
+           defweights[pageb] + chb*deflengths[pageb],
+           deflengths[pageb]*sizeof(uint16));
+    /* Apply primary difference */
+    newweights[pagec][chc*newlengths[pagec]]+= rule[i].diff[0];
+  }
+  
+  /* Copy non-overwritten pages from the default UCA weights */
+  for (i= 0; i < 256 ; i++)
+    if (!newweights[i])
+      newweights[i]= defweights[i];
+  
+  cs->sort_order= newlengths;
+  cs->sort_order_big= newweights;
+  
+  return 0;
+}
+
+static my_bool my_coll_init_uca(CHARSET_INFO *cs, void *(*alloc)(uint))
+{
+  return create_tailoring(cs, alloc);
+}
+
 MY_COLLATION_HANDLER my_collation_ucs2_uca_handler =
 {
+    my_coll_init_uca,	/* init */
     my_strnncoll_uca,
     my_strnncollsp_uca,
     my_strnxfrm_uca,
@@ -7051,7 +7507,7 @@ MY_COLLATION_HANDLER my_collation_ucs2_uca_handler =
 CHARSET_INFO my_charset_ucs2_general_uca=
 {
     45,0,0,		/* number       */
-    MY_CS_COMPILED|MY_CS_STRNXFRM|MY_CS_UNICODE|MY_CS_NONTEXT,
+    MY_CS_COMPILED|MY_CS_STRNXFRM|MY_CS_UNICODE,
     "ucs2",		/* cs name    */
     "ucs2_general_uca",	/* name         */
     "",			/* comment      */

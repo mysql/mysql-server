@@ -2045,6 +2045,7 @@ static int my_mbcharlen_utf8(CHARSET_INFO *cs  __attribute__((unused)) , uint c)
 
 static MY_COLLATION_HANDLER my_collation_ci_handler =
 {
+    NULL,		/* init */
     my_strnncoll_utf8,
     my_strnncollsp_utf8,
     my_strnxfrm_utf8,
@@ -2057,6 +2058,7 @@ static MY_COLLATION_HANDLER my_collation_ci_handler =
 
 static MY_CHARSET_HANDLER my_charset_handler=
 {
+    NULL,		/* init */
     my_ismbchar_utf8,
     my_mbcharlen_utf8,
     my_numchars_mb,

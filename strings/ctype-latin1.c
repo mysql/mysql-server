@@ -380,6 +380,7 @@ int my_wc_mb_latin1(CHARSET_INFO *cs  __attribute__((unused)),
 
 static MY_CHARSET_HANDLER my_charset_handler=
 {
+    NULL,			/* init */
     NULL,
     my_mbcharlen_8bit,
     my_numchars_8bit,
@@ -674,6 +675,7 @@ void my_hash_sort_latin1_de(CHARSET_INFO *cs __attribute__((unused)),
 
 static MY_COLLATION_HANDLER my_collation_german2_ci_handler=
 {
+  NULL,			/* init */
   my_strnncoll_latin1_de,
   my_strnncollsp_latin1_de,
   my_strnxfrm_latin1_de,
