@@ -4401,9 +4401,13 @@ int Field_string::cmp(const char *a_ptr, const char *b_ptr)
                                             (const uchar*) b_ptr,
                                             field_length);
   }
-  return my_strnncoll(field_charset,(const uchar*) a_ptr, field_length,
-                                    (const uchar*) b_ptr, field_length);
+  uint char_len= field_length/field_charset->mbmaxlen;
+  uint a_len= my_charpos(field_charset, a_ptr, a_ptr + field_length, char_len);
+  uint b_len= my_charpos(field_charset, b_ptr, b_ptr + field_length, char_len);
+  return my_strnncoll(field_charset,(const uchar*) a_ptr, a_len,
+                                    (const uchar*) b_ptr, b_len);
 }
+
 
 void Field_string::sort_string(char *to,uint length)
 {
