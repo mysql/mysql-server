@@ -412,11 +412,15 @@ int mysql_create_table(THD *thd,const char *db, const char *table_name,
     case FIELD_TYPE_ENUM:
       sql_field->pack_flag=pack_length_to_packflag(sql_field->pack_length) |
 	FIELDFLAG_INTERVAL;
+      if (sql_field->charset->state & MY_CS_BINSORT)
+	sql_field->pack_flag|=FIELDFLAG_BINARY;
       sql_field->unireg_check=Field::INTERVAL_FIELD;
       break;
     case FIELD_TYPE_SET:
       sql_field->pack_flag=pack_length_to_packflag(sql_field->pack_length) |
 	FIELDFLAG_BITFIELD;
+      if (sql_field->charset->state & MY_CS_BINSORT)
+	sql_field->pack_flag|=FIELDFLAG_BINARY;
       sql_field->unireg_check=Field::BIT_FIELD;
       break;
     case FIELD_TYPE_DATE:			// Rest of string types

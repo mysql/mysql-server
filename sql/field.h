@@ -936,9 +936,10 @@ public:
 		 uchar null_bit_arg,
 		 enum utype unireg_check_arg, const char *field_name_arg,
 		 struct st_table *table_arg,uint packlength_arg,
-		 TYPELIB *typelib_arg)
+		 TYPELIB *typelib_arg,
+		 CHARSET_INFO *charset_arg)
     :Field_str(ptr_arg, len_arg, null_ptr_arg, null_bit_arg,
-	       unireg_check_arg, field_name_arg, table_arg, default_charset_info),
+	       unireg_check_arg, field_name_arg, table_arg, charset_arg),
     packlength(packlength_arg),typelib(typelib_arg)
   {
       flags|=ENUM_FLAG;
@@ -962,7 +963,6 @@ public:
   enum_field_types real_type() const { return FIELD_TYPE_ENUM; }
   virtual bool zero_pack() const { return 0; }
   bool optimize_range(uint idx) { return 0; }
-  bool binary() const { return 0; }
   bool eq_def(Field *field);
 };
 
@@ -973,11 +973,11 @@ public:
 	    uchar null_bit_arg,
 	    enum utype unireg_check_arg, const char *field_name_arg,
 	    struct st_table *table_arg,uint32 packlength_arg,
-	    TYPELIB *typelib_arg)
+	    TYPELIB *typelib_arg, CHARSET_INFO *charset_arg)
     :Field_enum(ptr_arg, len_arg, null_ptr_arg, null_bit_arg,
 		    unireg_check_arg, field_name_arg,
 		    table_arg, packlength_arg,
-		    typelib_arg)
+		    typelib_arg,charset_arg)
     {
       flags=(flags & ~ENUM_FLAG) | SET_FLAG;
     }
