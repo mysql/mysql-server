@@ -1686,6 +1686,20 @@ Dbtc::TCKEY_abort(Signal* signal, int place)
     return;
   }
 
+  case 59:{
+    jam();
+    const TcKeyReq * const tcKeyReq = (TcKeyReq *)&signal->theData[0];
+    const Uint32 t1 = tcKeyReq->transId1;
+    const Uint32 t2 = tcKeyReq->transId2;
+    signal->theData[0] = apiConnectptr.p->ndbapiConnect;
+    signal->theData[1] = t1;
+    signal->theData[2] = t2;
+    signal->theData[3] = ZABORTINPROGRESS;
+    sendSignal(apiConnectptr.p->ndbapiBlockref, 
+	       GSN_TCROLLBACKREP, signal, 4, JBB);
+    return;
+  }
+    
   default:
     jam();
     systemErrorLab(signal);
@@ -2363,6 +2377,8 @@ void Dbtc::execTCKEYREQ(Signal* signal)
   apiConnectptr.p = regApiPtr;
 
   Uint32 TstartFlag = tcKeyReq->getStartFlag(Treqinfo);
+  Uint32 TexecFlag = TcKeyReq::getExecuteFlag(Treqinfo);
+
   bool isIndexOp = regApiPtr->isIndexOp;
   bool isIndexOpReturn = regApiPtr->indexOpReturn;
   regApiPtr->isIndexOp = false; // Reset marker
@@ -2416,14 +2432,17 @@ void Dbtc::execTCKEYREQ(Signal* signal)
 	//--------------------------------------------------------------------
         jam();
         initApiConnectRec(signal, regApiPtr);
-      } else {
+      } else if(TexecFlag) {
+	TCKEY_abort(signal, 59);
+	return;
+      } else { 
 	//--------------------------------------------------------------------
 	// The current transaction was aborted successfully. 
 	// We will not do anything before we receive an operation 
 	// with a start indicator. We will ignore this signal.
 	//--------------------------------------------------------------------
-        jam();
-	// DEBUG("Drop TCKEYREQ - apiConnectState=CS_ABORTING, ==AS_IDLE");
+	jam();
+	DEBUG("Drop TCKEYREQ - apiConnectState=CS_ABORTING, ==AS_IDLE");
         return;
       }//if
     } else {
@@ -2438,11 +2457,14 @@ void Dbtc::execTCKEYREQ(Signal* signal)
 	//--------------------------------------------------------------------
         TCKEY_abort(signal, 2);
         return;
-      }//if
+      } else if(TexecFlag) {
+        TCKEY_abort(signal, 59);
+        return;
+      }
       //----------------------------------------------------------------------
       // Ignore signals without start indicator set when aborting transaction.
       //----------------------------------------------------------------------
-      // DEBUG("Drop TCKEYREQ - apiConnectState=CS_ABORTING, !=AS_IDLE");
+      DEBUG("Drop TCKEYREQ - apiConnectState=CS_ABORTING, !=AS_IDLE");
       return;
     }//if
     break;
@@ -2532,7 +2554,7 @@ void Dbtc::execTCKEYREQ(Signal* signal)
     regTcPtr->triggeringOperation = TsenderData;
   }
 
-  if (TcKeyReq::getExecuteFlag(Treqinfo)){
+  if (TexecFlag){
     Uint32 currSPId = regApiPtr->currSavePointId;
     regApiPtr->currSavePointId = ++currSPId;
   }
@@ -2553,7 +2575,7 @@ void Dbtc::execTCKEYREQ(Signal* signal)
   Uint8 TDistrGroupFlag     = tcKeyReq->getDistributionGroupFlag(Treqinfo);
   Uint8 TDistrGroupTypeFlag = tcKeyReq->getDistributionGroupTypeFlag(Treqinfo);
   Uint8 TDistrKeyFlag       = tcKeyReq->getDistributionKeyFlag(Treqinfo);
-  Uint8 TexecuteFlag        = tcKeyReq->getExecuteFlag(Treqinfo);
+  Uint8 TexecuteFlag        = TexecFlag;
   
   //RONM_TEST Disable simple reads temporarily
   regCachePtr->opSimple = 0;

@@ -95,6 +95,131 @@ int runTimeoutTrans(NDBT_Context* ctx, NDBT_Step* step){
   return result;
 }
 
+int runTimeoutTrans2(NDBT_Context* ctx, NDBT_Step* step){
+  int result = NDBT_OK;
+  int loops = ctx->getNumLoops();
+  NdbConfig conf(GETNDB(step)->getNodeId()+1);
+  unsigned int nodeId = conf.getMasterNodeId();
+  int stepNo = step->getStepNo();
+  int mul1 = ctx->getProperty("Op1", (Uint32)0);
+  int mul2 = ctx->getProperty("Op2", (Uint32)0);
+  int records = ctx->getNumRecords();
+
+  Uint32 timeoutVal;
+  if (!conf.getProperty(nodeId,
+			NODE_TYPE_DB, 
+			CFG_DB_TRANSACTION_INACTIVE_TIMEOUT,
+			&timeoutVal)){
+    return NDBT_FAILED;
+  }
+
+  int minSleep = (int)(timeoutVal * 1.5);
+  int maxSleep = timeoutVal * 2;
+  
+  HugoOperations hugoOps(*ctx->getTab());
+  Ndb* pNdb = GETNDB(step);
+
+  for (int l = 0; l < loops && !ctx->isTestStopped(); l++){
+    
+    int op1 = 0 + (l + stepNo) * mul1;
+    int op2 = 0 + (l + stepNo) * mul2;
+
+    op1 = (op1 % 5);
+    op2 = (op2 % 5);
+
+    ndbout << stepNo << ": TransactionInactiveTimeout="<<timeoutVal
+	   << ", minSleep="<<minSleep
+	   << ", maxSleep="<<maxSleep
+	   << ", op1=" << op1
+	   << ", op2=" << op2 << endl;;
+    
+    do{
+      // Commit transaction
+      CHECK(hugoOps.startTransaction(pNdb) == 0);
+      
+      switch(op1){
+      case 0:
+	break;
+      case 1:
+	if(hugoOps.pkReadRecord(pNdb, stepNo, true) != 0){
+	  g_err << stepNo << ": Fail" << __LINE__ << endl;
+	  return NDBT_FAILED;
+	}
+	break;
+      case 2:
+	if(hugoOps.pkUpdateRecord(pNdb, stepNo, true) != 0){
+	  g_err << stepNo << ": Fail" << __LINE__ << endl;
+	  return NDBT_FAILED;
+	}
+	break;
+      case 3:
+	if(hugoOps.pkDeleteRecord(pNdb, stepNo, true) != 0){
+	  g_err << stepNo << ": Fail" << __LINE__ << endl;
+	  return NDBT_FAILED;
+	}
+	break;
+      case 4:
+	if(hugoOps.pkInsertRecord(pNdb, stepNo+records+l, true) != 0){
+	  g_err << stepNo << ": Fail" << __LINE__ << endl;
+	  return NDBT_FAILED;
+	}
+	break;
+      }
+      int res = hugoOps.execute_NoCommit(pNdb);
+      if(res != 0){
+	g_err << stepNo << ": Fail" << __LINE__ << endl;
+	return NDBT_FAILED;
+      }
+      
+      int sleep = minSleep + myRandom48(maxSleep-minSleep);   
+      ndbout << stepNo << ": Sleeping for "<< sleep << " milliseconds" << endl;
+      NdbSleep_MilliSleep(sleep);
+      
+      switch(op2){
+      case 0:
+	break;
+      case 1:
+	if(hugoOps.pkReadRecord(pNdb, stepNo, true) != 0){
+	  g_err << stepNo << ": Fail" << __LINE__ << endl;
+	  return NDBT_FAILED;
+	}
+	break;
+      case 2:
+	if(hugoOps.pkUpdateRecord(pNdb, stepNo, true) != 0){
+	  g_err << stepNo << ": Fail" << __LINE__ << endl;
+	  return NDBT_FAILED;
+	}
+	break;
+      case 3:
+	if(hugoOps.pkDeleteRecord(pNdb, stepNo, true) != 0){
+	  g_err << stepNo << ": Fail" << __LINE__ << endl;
+	  return NDBT_FAILED;
+	}
+	break;
+      case 4:
+	if(hugoOps.pkInsertRecord(pNdb, stepNo+2*records+l, true) != 0){
+	  g_err << stepNo << ": Fail" << __LINE__ << endl;
+	  return NDBT_FAILED;
+	}
+	break;
+      }
+
+      // Expect that transaction has timed-out
+      res = hugoOps.execute_Commit(pNdb);
+      if(op1 != 0 && res != 237){
+	g_err << stepNo << ": Fail: " << res << "!= 237, op1=" 
+	      << op1 << ", op2=" << op2 << endl;
+	return NDBT_FAILED;
+      }
+      
+    } while(false);
+    
+    hugoOps.closeTransaction(pNdb);
+  }
+
+  return result;
+}
+
 int runDontTimeoutTrans(NDBT_Context* ctx, NDBT_Step* step){
   int result = NDBT_OK;
   int loops = ctx->getNumLoops();
@@ -229,6 +354,16 @@ TESTCASE("TimeoutTransaction5",
 	 "Five simultaneous threads"){
   INITIALIZER(runLoadTable);
   STEPS(runTimeoutTrans, 5);
+  FINALIZER(runClearTable);
+}
+TESTCASE("TimeoutRandTransaction", 
+	 "Test that the transaction does timeout "\
+	 "if we sleep during the transaction. Use a sleep "\
+	 "value which is larger than TransactionInactiveTimeout"){
+  INITIALIZER(runLoadTable);
+  TC_PROPERTY("Op1", 7);
+  TC_PROPERTY("Op2", 11);
+  STEPS(runTimeoutTrans2, 5);
   FINALIZER(runClearTable);
 }
 TESTCASE("BuddyTransNoTimeout", 
