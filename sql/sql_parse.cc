@@ -3854,7 +3854,23 @@ mysql_parse(THD *thd, char *inBuf, uint length)
   if (query_cache_send_result_to_client(thd, inBuf, length) <= 0)
   {
     LEX *lex=lex_start(thd, (uchar*) inBuf, length);
-    if (!yyparse((void *)thd) && ! thd->is_fatal_error)
+    if (!yyparse((void *)thd) && ! thd->is_fatal_error &&
+        /*
+          If this is not a multiple query, ensure that it has been
+          successfully parsed until the last character. This is to prevent
+          against a wrong (too big) length passed to mysql_real_query(),
+          mysql_prepare()... which can generate garbage characters at the
+          end. If the query was initially multiple, found_colon will be false
+          only when we are in the last query; this last query had already
+          been end-spaces-stripped by alloc_query() in dispatch_command(); as
+          end spaces are the only thing we accept at the end of a query, and
+          they have been stripped already, here we can require that nothing
+          remains after parsing.
+        */
+        (thd->lex->found_colon ||
+         (char*)(thd->lex->ptr) == (thd->query+thd->query_length+1) ||
+         /* yyerror() will show the garbage chars to the user */
+         (yyerror("syntax error"), 0)))
     {
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
       if (mqh_used && thd->user_connect &&
