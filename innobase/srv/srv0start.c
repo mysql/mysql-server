@@ -1351,7 +1351,8 @@ innobase_shutdown_for_mysql(void)
 		srv_conc_n_threads);
 	}
 	
+#ifdef NOT_WORKING_YET
 	ut_free_all_mem();
-	
+#endif	
 	return((int) DB_SUCCESS);
 }

@@ -96,4 +96,7 @@ INSERT INTO t1 (post_text) VALUES ('ceci est un test'),('ceci est un test'),('ce
 REPAIR TABLE t1;
 Table	Op	Msg_type	Msg_text
 test.t1	repair	status	OK
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
 drop table t1;
