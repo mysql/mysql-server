@@ -656,7 +656,7 @@ int ha_ndbcluster::get_metadata(const char *path)
 		    memcmp(pack_data, tab->getFrmData(), pack_length)));      
 	DBUG_DUMP("pack_data", (char*)pack_data, pack_length);
 	DBUG_DUMP("frm", (char*)tab->getFrmData(), tab->getFrmLength());
-	error= HA_ERR_OLD_METADATA;
+	error= 3;
 	invalidating_ndb_table= false;
       }
     }
