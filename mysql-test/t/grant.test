@@ -2,6 +2,8 @@
 drop table if exists t1;
 --enable_warnings
 
+connect (master,localhost,root,,);
+connection master;
 #
 # Test that SSL options works properly
 #
@@ -21,6 +23,23 @@ show grants for mysqltest_1@localhost;
 grant USAGE on mysqltest.* to mysqltest_1@localhost require cipher "EDH-RSA-DES-CBC3-SHA" AND SUBJECT "testsubject" ISSUER "MySQL AB";
 show grants for mysqltest_1@localhost;
 revoke all privileges on mysqltest.* from mysqltest_1@localhost;
+show grants for mysqltest_1@localhost;
+delete from mysql.user where user='mysqltest_1';
+flush privileges;
+
+#
+# Test of GRANTS specifying user limits
+#
+delete from mysql.user where user='mysqltest_1';
+flush privileges;
+grant usage on *.* to mysqltest_1@localhost with max_queries_per_hour 10;
+select * from mysql.user where user="mysqltest_1";
+show grants for mysqltest_1@localhost;
+grant usage on *.* to mysqltest_1@localhost with max_updates_per_hour 20 max_connections_per_hour 30;
+select * from mysql.user where user="mysqltest_1";
+show grants for mysqltest_1@localhost;
+# This is just to double check that one won't ignore results of selects
+flush privileges;
 show grants for mysqltest_1@localhost;
 delete from mysql.user where user='mysqltest_1';
 flush privileges;
@@ -114,3 +133,73 @@ grant usage on db6123.* to test6123 identified by 'magic123';
 select host,db,user,select_priv,insert_priv from mysql.db where db="db6123";
 delete from mysql.user where user='test6123';
 drop database db6123;
+
+#
+# Bug#7391: Cross-database multi-table UPDATE security problem
+#
+create database mysqltest_1;
+create database mysqltest_2;
+create table mysqltest_1.t1 select 1 a, 2 q;
+create table mysqltest_1.t2 select 1 b, 2 r;
+create table mysqltest_2.t1 select 1 c, 2 s;
+create table mysqltest_2.t2 select 1 d, 2 t;
+
+#test the column privileges
+grant update (a) on mysqltest_1.t1 to mysqltest_3@localhost;
+grant select (b) on mysqltest_1.t2 to mysqltest_3@localhost;
+grant select (c) on mysqltest_2.t1 to mysqltest_3@localhost;
+grant update (d) on mysqltest_2.t2 to mysqltest_3@localhost;
+connect (conn1,localhost,mysqltest_3,,);
+connection conn1;
+show grants for mysqltest_3@localhost;
+--error 1143
+update mysqltest_1.t1, mysqltest_1.t2 set q=10 where b=1;
+--error 1142
+update mysqltest_1.t1, mysqltest_2.t2 set d=20 where d=1;
+--error 1143
+update mysqltest_2.t1, mysqltest_1.t2 set c=20 where b=1;
+--error 1143
+update mysqltest_2.t1, mysqltest_2.t2 set d=10 where s=2;
+#the following two should work
+update mysqltest_1.t1, mysqltest_2.t2 set a=10,d=10;
+update mysqltest_1.t1, mysqltest_2.t1 set a=20 where c=20;
+connection master;
+select t1.*,t2.* from mysqltest_1.t1,mysqltest_1.t2;
+select t1.*,t2.* from mysqltest_2.t1,mysqltest_2.t2;
+revoke all on mysqltest_1.t1 from mysqltest_3@localhost;
+revoke all on mysqltest_1.t2 from mysqltest_3@localhost;
+revoke all on mysqltest_2.t1 from mysqltest_3@localhost;
+revoke all on mysqltest_2.t2 from mysqltest_3@localhost;
+
+#test the db/table level privileges
+grant all on mysqltest_2.* to mysqltest_3@localhost;
+grant select on *.* to mysqltest_3@localhost;
+flush privileges;
+disconnect conn1;
+connect (conn2,localhost,mysqltest_3,,);
+connection conn2;
+use mysqltest_1;
+update mysqltest_2.t1, mysqltest_2.t2 set c=500,d=600;
+# the following failed before, should fail now.
+--error 1143
+update mysqltest_1.t1, mysqltest_1.t2 set a=100,b=200;
+use mysqltest_2;
+#the following used to succeed, it must fail now.
+--error 1044
+update mysqltest_1.t1, mysqltest_1.t2 set a=100,b=200;
+--error 1044
+update mysqltest_2.t1, mysqltest_1.t2 set c=100,b=200;
+--error 1044
+update mysqltest_1.t1, mysqltest_2.t2 set a=100,d=200;
+#lets see the result
+connection master;
+select t1.*,t2.* from mysqltest_1.t1,mysqltest_1.t2;
+select t1.*,t2.* from mysqltest_2.t1,mysqltest_2.t2;
+
+delete from mysql.user where user='mysqltest_3';
+delete from mysql.db where user="mysqltest_3";
+delete from mysql.tables_priv where user="mysqltest_3";
+delete from mysql.columns_priv where user="mysqltest_3";
+flush privileges;
+drop database mysqltest_1;
+drop database mysqltest_2;

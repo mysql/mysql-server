@@ -291,3 +291,9 @@ trim(trailing 'foo' from 'foo')
 select trim(leading 'foo' from 'foo');
 trim(leading 'foo' from 'foo')
 
+select quote(ltrim(concat('    ', 'a')));
+quote(ltrim(concat('    ', 'a')))
+'a'
+select quote(trim(concat('    ', 'a')));
+quote(trim(concat('    ', 'a')))
+'a'
