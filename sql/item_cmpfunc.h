@@ -916,7 +916,8 @@ public:
   }
   const char *func_name() const { return "isnotnull"; }
   optimize_type select_optimize() const { return OPTIMIZE_NULL; }
-  table_map not_null_tables() const { return abort_on_null ? used_tables() : 0; }
+  table_map not_null_tables() const
+  { return abort_on_null ? not_null_tables_cache : 0; }
   Item *neg_transformer(THD *thd);
   void print(String *str);
   CHARSET_INFO *compare_collation() { return args[0]->collation.collation; }
