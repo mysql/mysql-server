@@ -25,3 +25,12 @@ FROM t1 GROUP BY new LIMIT 1;
 SELECT number, alpha, CONCAT_WS('<------------------>',number,alpha) AS new
 FROM t1 GROUP BY new LIMIT 1;
 drop table t1;
+
+#
+# Bug #5540: a problem with double type
+#
+
+create table t1 (a char(4), b double, c date, d tinyint(4));
+insert into t1 values ('AAAA', 105, '2003-03-01', 1);
+select * from t1 where concat(A,C,B,D) = 'AAAA2003-03-011051';
+drop table t1;
