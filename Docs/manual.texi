@@ -9017,10 +9017,11 @@ course. For example, using @code{mysqld-opt} under NT will not allow
 named pipe connections.  You should use either @code{mysqld-nt} or
 @code{mysqld-max-nt}.)
 
-If @code{mysqld} doesn't start, please check whether or not the
-@file{\mysql\data\mysql.err} file contains any reason for this.  You can also
-try to start the server with @code{mysqld --standalone};  In this case, you may
-get some useful information on the screen that may help solve the problem.
+If @code{mysqld} doesn't start, please check the
+@file{\mysql\data\mysql.err} file to see if the server wrote any message
+there to indicate the cause of the problem.  You can also try to start
+the server with @code{mysqld --standalone};  In this case, you may get
+some useful information on the screen that may help solve the problem.
 
 The last option is to start @code{mysqld} with @code{--standalone
 --debug}.  In this case @code{mysqld} will write a log file
@@ -9052,9 +9053,9 @@ or
 C:\> C:\mysql\bin\mysqld-max-nt --install
 @end example
 
-(You can also use @code{mysqld} binaries that don't end with
-@code{-nt.exe} on NT, but those cannot be started as a service or use
-named pipes.)
+(Under Windows NT, you can actually install any of the server binaries
+as a service, but only those having names that end with @code{-nt.exe}
+provide support for named pipes.)
 
 You can start and stop the @strong{MySQL} service with these commands:
 
