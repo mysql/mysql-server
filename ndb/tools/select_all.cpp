@@ -116,6 +116,11 @@ int main(int argc, const char** argv){
     ndbout << " Table " << _tabname << " does not exist!" << endl;
     return NDBT_ProgramExit(NDBT_WRONGARGS);
   }
+  
+  if(_order && pIdx == NULL){
+    ndbout << " Order flag given without an index" << endl;
+    return NDBT_ProgramExit(NDBT_WRONGARGS);
+  }
 
   if (scanReadRecords(&MyNdb, 
 		      pTab, 
@@ -146,7 +151,7 @@ int scanReadRecords(Ndb* pNdb,
   int                  check;
   NdbConnection	       *pTrans;
   NdbScanOperation	       *pOp;
-  NdbIndexScanOperation * pIOp;
+  NdbIndexScanOperation * pIOp= 0;
 
   NDBT_ResultRow * row = new NDBT_ResultRow(*pTab, delimiter);
 
