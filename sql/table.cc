@@ -405,8 +405,13 @@ int openfrm(const char *name, const char *alias, uint db_stat, uint prgflag,
       // charset and geometry_type share the same byte in frm
       if (field_type == FIELD_TYPE_GEOMETRY)
       {
+#ifdef HAVE_SPATIAL
 	geom_type= (Field::geometry_type) strpos[14];
 	charset= &my_charset_bin;
+#else
+	error= 4;  // unsupported field type
+	goto err_not_open;
+#endif
       }
       else
       {
