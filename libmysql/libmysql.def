@@ -73,12 +73,4 @@ EXPORTS
 	mysql_odbc_escape_string
 	myodbc_remove_escape
 	mysql_thread_safe
-	mysql_manager_init
-	mysql_manager_connect
-	mysql_manager_close
-	mysql_manager_command
-	mysql_manager_fetch_line
-	mysql_connect
-	mysql_create_db
-	mysql_drop_db
-
+	
