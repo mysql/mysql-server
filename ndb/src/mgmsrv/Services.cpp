@@ -1008,8 +1008,9 @@ MgmApiSession::stop(Parser<MgmApiSession>::Context &,
   }
 
   int stop_self= 0;
+  size_t i;
 
-  for(size_t i=0; i < nodes.size(); i++) {
+  for(i=0; i < nodes.size(); i++) {
     if (nodes[i] == m_mgmsrv.getOwnNodeId()) {
       stop_self= 1;
       if (i != nodes.size()-1) {
@@ -1023,7 +1024,7 @@ MgmApiSession::stop(Parser<MgmApiSession>::Context &,
 
   int stopped = 0, result = 0;
   
-  for(size_t i=0; i < nodes.size(); i++)
+  for(i=0; i < nodes.size(); i++)
     if (nodes[i] != m_mgmsrv.getOwnNodeId()) {
       if((result = m_mgmsrv.stopNode(nodes[i], abort != 0)) == 0)
 	stopped++;
