@@ -68,7 +68,7 @@ SocketServer::Session * TransporterService::newSession(NDB_SOCKET_TYPE sockfd)
     }
 
     //check that nodeid is valid and that there is an allocated transporter
-    if ( nodeId < 0 || nodeId >= m_transporter_registry->maxTransporters) {
+    if ( nodeId < 0 || nodeId >= (int) m_transporter_registry->maxTransporters) {
       NDB_CLOSE_SOCKET(sockfd);
       return 0;
     }
