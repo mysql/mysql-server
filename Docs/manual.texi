@@ -275,7 +275,7 @@ Is there anything special to do when upgrading/downgrading MySQL?
 How standards-compatible is MySQL?
 
 * Extensions to ANSI::          @strong{MySQL} extensions to ANSI SQL92
-* Ansi mode::                   Runnning @strong{MySQL} in ANSI mode
+* Ansi mode::                   Running @strong{MySQL} in ANSI mode
 * Differences from ANSI::       @strong{MySQL} differences compared to ANSI SQL92
 * Missing functions::           Functionality missing from @strong{MySQL}
 * Standards::                   What standards does @strong{MySQL} follow?
@@ -323,7 +323,7 @@ MySQL language reference
 * DROP DATABASE::               @code{DROP DATABASE} syntax
 * CREATE TABLE::                @code{CREATE TABLE} syntax
 * ALTER TABLE::                 @code{ALTER TABLE} syntax
-* RENAME TABLE::                
+* RENAME TABLE::                @code{RENAME TABLE} syntax
 * DROP TABLE::                  @code{DROP TABLE} syntax
 * OPTIMIZE TABLE::              @code{OPTIMIZE TABLE} syntax
 * CHECK TABLE::                 @code{CHECK TABLE} syntax
@@ -609,7 +609,7 @@ Using @code{MySQL} with some common programs
 
 Problems and common errors
 
-* What is crashing::            How to determinate what is causing problems
+* What is crashing::            How to determine what is causing problems
 * Crashing::                    What to do if @strong{MySQL} keeps crashing
 * Link errors::                 Problems when linking with the @strong{MySQL} client library
 * Common errors::               Some common errors when using @strong{MySQL}
@@ -648,7 +648,7 @@ Some common errors when using MySQL
 
 Solving some common problems with MySQL
 
-* Log Replication::             Database replication with  update log
+* Log Replication::             Database replication with update log
 * Backup::                      Database backups
 * Update log::                  The update log
 * Multiple servers::            Running multiple @strong{MySQL} servers on the same machine
@@ -11645,7 +11645,7 @@ to restart @code{mysqld} with @code{--skip-grant-tables} to be able to run
 * DROP DATABASE::               @code{DROP DATABASE} syntax
 * CREATE TABLE::                @code{CREATE TABLE} syntax
 * ALTER TABLE::                 @code{ALTER TABLE} syntax
-* RENAME TABLE::                
+* RENAME TABLE::                @code{RENAME TABLE} syntax
 * DROP TABLE::                  @code{DROP TABLE} syntax
 * OPTIMIZE TABLE::              @code{OPTIMIZE TABLE} syntax
 * CHECK TABLE::                 @code{CHECK TABLE} syntax
@@ -15983,14 +15983,14 @@ mysql> select COUNT(*) from student;
 @findex COUNT(DISTINCT)
 @findex DISTINCT
 @item COUNT(DISTINCT expr,[expr...])
-Returns a count of the number of different not @code{NULL} values.
+Returns a count of the number of different non-@code{NULL} values.
 
 @example
 mysql> select COUNT(DISTINCT results) from student;
 @end example
 
-In @strong{MySQL} you can get the number of distinct expressions
-combinations that doesn't contain NULL by giving a list of expressions.
+In @strong{MySQL} you can get the number of distinct expression
+combinations that don't contain NULL by giving a list of expressions.
 In ANSI SQL you would have to do a concatenation of all expressions
 inside @code{CODE(DISTINCT ..)}.
 
@@ -16792,23 +16792,23 @@ See also @xref{ALTER TABLE problems, , @code{ALTER TABLE} problems}.
 @section @code{RENAME TABLE} syntax
 
 @example
-RENAME TABLE tbl_name as new_table_name[, tbl_name2 as new_table_name2,...]
+RENAME TABLE tbl_name TO new_table_name[, tbl_name2 TO new_table_name2,...]
 @end example
 
-The rename is done atomic, which means that if no other thread can
+The rename is done atomically, which means that if no other thread can
 access any of the tables while the rename is running. This makes it
 possible to replace a table with an empty one:
 
 @example
 CREATE TABLE new_table (...);
-RENAME TABLE old_table TO backup_table, new_table as old_table;
+RENAME TABLE old_table TO backup_table, new_table TO old_table;
 @end example
 
 The rename is done from left to right, which means that if you want to
 swap two tables names, you have to do:
 
 @example
-RENAME TABLE old_table TO backup_table, new_table as old_table, backup_table as old_table;
+RENAME TABLE old_table TO backup_table, new_table TO old_table, backup_table TO old_table;
 @end example
 
 Is long as two databases are on the same disk you can also do a rename
@@ -28347,7 +28347,7 @@ FIELDS TERMINATED BY ',' OPTIONALLY ENCLOSED BY '"' ESCAPED BY '\\'
 @chapter Problems and common errors
 
 @menu
-* What is crashing::            How to determinate what is causing problems
+* What is crashing::            How to determine what is causing problems
 * Crashing::                    What to do if @strong{MySQL} keeps crashing
 * Link errors::                 Problems when linking with the @strong{MySQL} client library
 * Common errors::               Some common errors when using @strong{MySQL}
@@ -28372,7 +28372,7 @@ FIELDS TERMINATED BY ',' OPTIONALLY ENCLOSED BY '"' ESCAPED BY '\\'
 @end menu
 
 @node What is crashing, Crashing, Problems, Problems
-@section How to determinate what is causing problems
+@section How to determine what is causing problems
 
 When you run into problems, the first thing you should do is to find out
 which program / piece of equipment is causing problems.
@@ -29616,14 +29616,14 @@ SELECT id AS "Customer identity" FROM table_name;
 
 Note that you ANSI SQL doesn't allow you to refer to an alias in a
 @code{WHERE} clause.  This is because when the @code{WHERE} code is
-executed the column value may not yet be determinated. For example the
+executed the column value may not yet be determined. For example the
 following query is @strong{illegal}:
 
 @example
 SELECT id,COUNT(*) AS cnt FROM table_name WHERE cnt > 0 GROUP BY id;
 @end example
 
-The @code{WHERE} statement is executed to determinate which rows should
+The @code{WHERE} statement is executed to determine which rows should
 be included in the @code{GROUP BY} part while @code{HAVING} is used to
 decide which rows from the result set should be used.
 
@@ -39536,8 +39536,6 @@ tell us what you want to have done more quickly. @xref{Licensing and Support}.
 Fail safe replication.
 @item
 Optimize, test and document transactions safe tables
-@item
-@code{RENAME table to table, table to table [,...]}
 @item
 Allow users to change startup options.
 @item
