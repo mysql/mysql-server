@@ -133,17 +133,6 @@ distribution for that version.
 
 @cindex overview
 @cindex general information
-@cindex online location of manual
-@cindex manual, online location
-
-This is the MySQL reference manual; it documents MySQL Version
-@value{mysql_version}.  As MySQL is work in progress, the manual gets
-updated frequently.  There is a very good chance that this version is
-out of date, unless you are looking at it online.  The most recent
-version of this manual is available at
-@uref{http://www.mysql.com/documentation/} in many different
-formats.  If you have a hard time finding information in the manual, you
-can try the searchable PHP version at @uref{http://www.mysql.com/doc/}.
 
 MySQL is a very fast, multi-threaded, multi-user, and robust SQL
 (Structured Query Language) database server.
@@ -152,7 +141,7 @@ MySQL is free software.  It is licensed with the @strong{GNU
 GENERAL PUBLIC LICENSE} @uref{http://www.gnu.org/}.
 @xref{Licensing and Support}.
 
-@uref{http://www.mysql.com/, The MySQL home page}
+@uref{http://www.mysql.com/, The MySQL website}
 provides the latest information about MySQL.
 
 The following list describes some useful sections of the manual:
@@ -218,14 +207,6 @@ security bug in MySQL, you should send an e-mail to
 @cindex mailing list address
 @cindex @code{mysqlbug} script, location
 
-If you have any suggestions concerning additions or corrections to this
-manual, please send them to the manual team at @email{docs@@mysql.com}.
-
-This is a reference manual; it does not provide general instruction on SQL
-or relational database concepts.  If you want general information about SQL,
-see @ref{General-SQL}.  For books that focus more specifically on
-MySQL, see @ref{MySQL-Books}.
-
 
 @menu
 * Manual-info::                 
@@ -243,12 +224,31 @@ MySQL, see @ref{MySQL-Books}.
 @node Manual-info, What-is, Introduction, Introduction
 @section About This Manual
 
-This manual is currently available in Texinfo, plain text, Info, HTML,
-PostScript, and PDF versions.  The primary document is the Texinfo file.
+@cindex online location of manual
+@cindex manual, online location
+
+This is the MySQL reference manual; it documents MySQL Version
+@value{mysql_version}. Being a reference manual, it does not provide
+general instruction on SQL or relational database concepts.
+
+As MySQL is work in progress, the manual gets updated frequently.
+The most recent version of this manual is available at
+@uref{http://www.mysql.com/documentation/} in many different formats,
+currently there are Texinfo, plain text, Info, HTML, PostScript, and
+PDF versions.
+
+The primary document is the Texinfo file.
 The HTML version is produced automatically using a modified version of
-@code{texi2html}.  The plain text and Info versions are produced with
-@code{makeinfo}.  The Postscript version is produced using @code{texi2dvi}
-and @code{dvips}.  The PDF version is produced with @code{pdftex}.
+@code{texi2html}.
+The plain text and Info versions are produced with @code{makeinfo}.
+The Postscript version is produced using @code{texi2dvi} and @code{dvips}.
+The PDF version is produced with @code{pdftex}.
+
+If you have a hard time finding information in the manual, you can try
+our searchable PHP version at @uref{http://www.mysql.com/doc/}.
+
+If you have any suggestions concerning additions or corrections to this
+manual, please send them to the manual team at @email{docs@@mysql.com}.
 
 @cindex manual, available formats
 @cindex Texinfo
@@ -392,10 +392,13 @@ alternatives are listed within braces (@samp{@{} and @samp{@}}):
 @cindex MySQL, defined
 @cindex MySQL, introduction
 
-MySQL, the most popular Open Source SQL database, is developed and
-provided by MySQL AB.  MySQL AB is a commercial company that builds
-its business providing services around the MySQL database.
+@code{MySQL}, the most popular Open Source SQL database, is developed
+and provided by @code{MySQL AB}.  MySQL AB is a commercial company
+that builds its business providing services around the MySQL database.
 @xref{What is MySQL AB}.
+
+@uref{http://www.mysql.com/, The MySQL website}
+provides the latest information about MySQL and MySQL AB.
 
 @table @asis
 
@@ -428,11 +431,11 @@ Open Source means that it is possible for anyone to use and modify.
 Anybody can download MySQL from the Internet and use it
 without paying anything.  Anybody so inclined can study the source code
 and change it to fit their needs.  MySQL uses the GPL (GNU
-General Public License) @uref{http://www.gnu.org}, to define what you
+General Public License) @uref{http://www.gnu.org/}, to define what you
 may and may not do with the software in different situations.  If you
-feel uncomfortable with the GPL or need to embed MySQL into a
-commercial application you can buy a commercially licensed version from
-us.
+feel uncomfortable with the GPL or need to embed MySQL into a commercial
+application you can buy a commercially licensed version from us.
+@xref{MySQL server licenses}.
 
 @cindex open source, defined
 @cindex General Public License
@@ -521,7 +524,7 @@ of MySQL:
 @c This list is too technical and should be divided into one feature
 @c list comparable to commercial competition and a very technical on
 @c with max limits (from crash-me) and so on.
-@itemize @asis
+@table @asis
 @item Internals and Portability
 @itemize @bullet
 @item
@@ -674,7 +677,7 @@ All MySQL programs can be invoked with the @code{--help} or @code{-?}
 options to obtain online assistance.
 @end itemize
 
-@end itemize
+@end table
 
 
 @node Stability, Table size, Features, What-is
@@ -1003,16 +1006,20 @@ values).
 
 @cindex MySQL AB, defined
 
-MySQL AB is the company of the MySQL founders and main developers behind
-the MySQL database and this manual. We are dedicated to developing MySQL
-and spreading our database to new users.  MySQL AB owns the copyright to
-the MySQL server source code, the MySQL trademark and this manual.
-@xref{What-is}.
+@code{MySQL AB} is the company of the MySQL founders and main developers
+behind the MySQL database and this manual. We are dedicated to developing
+MySQL and spreading our database to new users.
+MySQL AB owns the copyright to the MySQL source code, the MySQL logo and
+trademark and this manual. @xref{What-is}.
+
+@menu
+* MySQL AB business model and services::  The Business Model and Services of MySQL AB
+* Contact information::         Contact Information
+@end menu
 
 The MySQL core values show our dedication to MySQL and Open Source.
 
 We want MySQL to be:
-
 @itemize @bullet
 @item
 The best and the most widely used database in the world.
@@ -1028,8 +1035,7 @@ Fun to use and improve.
 Free from bugs.
 @end itemize
 
-MySQL AB and the people of MySQL AB:
-
+MySQL AB and the people at MySQL AB:
 @itemize @bullet
 @item
 Promote Open Source Philosophy and support the Open Source Community.
@@ -1045,28 +1051,20 @@ Are a virtual company, networking with others.
 Work against software patents.
 @end itemize
 
-@c FIX: Start new by AGL - Erik's text on business model and services
+@uref{http://www.mysql.com/, The MySQL website}
+provides the latest information about MySQL and MySQL AB.
 
-@menu
-* MySQL AB business model and services::  
-* Contact information::         
-@end menu
 
 @node MySQL AB business model and services, Contact information, What is MySQL AB, What is MySQL AB
 @subsection The Business Model and Services of MySQL AB
 
-One of the most common questions we encounter is: ``
-@emph{How can you make a living from something you give away for free?}''
+One of the most common questions we encounter is:
+``@emph{How can you make a living from something you give away for free?}''
 This is how.
 
 MySQL AB makes money on support, services, commercial licenses and
 royalties, and we use these revenues to fund product development and
 to expand the MySQL business.
-
-The company has been profitable since its inception. In October 2001,
-we accepted venture financing from leading Scandinavian investors and
-a handful of business angels. This investment is used to solidify our
-business model and build a basis for sustainable growth.
 
 @menu
 * Business Services Support::   Support
@@ -1076,6 +1074,11 @@ business model and build a basis for sustainable growth.
 * Business Services Partnering::  Partnering
 * Business Services Advertising::  Advertising
 @end menu
+
+The company has been profitable since its inception. In October 2001,
+we accepted venture financing from leading Scandinavian investors and
+a handful of business angels. This investment is used to solidify our
+business model and build a basis for sustainable growth.
 
 
 @node Business Services Support, Business Services Training, MySQL AB business model and services, MySQL AB business model and services
@@ -1141,6 +1144,7 @@ table handler.
 
 @node Business Services Partnering, Business Services Advertising, Business Services Commercial licenses, MySQL AB business model and services
 @subsubsection Partnering
+@cindex partnering with MySQL
 The word @code{MySQL} and the MySQL dolphin logo are trademarks of
 MySQL AB. @xref{MySQL AB Logos and Trademarks}.
 These trademarks represent a significant value that the MySQL
@@ -1158,9 +1162,9 @@ If you are interested in becoming a MySQL AB partner, please mail to
 
 @node Business Services Advertising,  , Business Services Partnering, MySQL AB business model and services
 @subsubsection Advertising
-The @uref{http://www.mysql.com/} website is highly popular among people
-who make purchase decisions or recommendations. The website has more
-than 10 million page views per month (October 2001).
+The MySQL website (@uref{http://www.mysql.com/}) is highly popular among
+people who make purchase decisions or recommendations. The website has
+more than 10 million page views per month (October 2001).
 
 Banners on @uref{http://www.mysql.com/} will be viewed by numerous
 potential buyers who maintain or set up websites and other database
@@ -1168,54 +1172,75 @@ applications. For more information, please send an email to
 @email{advertising@@mysql.com}.
 
 
-@c FIX: End new by AGL - Erik's text on business model and services
-
-
 @node Contact information,  , MySQL AB business model and services, What is MySQL AB
 @subsection Contact Information
-
-@c FIX AGL 20011023 has heaps of old garbage. Fixup with new info.
 
 @cindex contact information
 @cindex employment, contact information
 @cindex licensing, contact information
 @cindex advertising, contact information
-@cindex partnering with MySQL
 @cindex employment with MySQL
 @cindex jobs at MySQL
 
-For commercial licensing, please contact the MySQL licensing
-team.  The much preferred method is by e-mail to
-@email{licensing@@mysql.com}.  Fax is also possible but handling of
-these may take much longer (Fax +46-8-729 69 05).
+@uref{http://www.mysql.com/, The MySQL website}
+provides the latest information about MySQL and MySQL AB.
+
+For timely, precise answers to technical questions about MySQL,
+consider ordering a @uref{https://order.mysql.com/, support contract}
+from MySQL AB. MySQL support by MySQL is provided directly by the
+MySQL developers so the standard is extremely high. If you have
+restricted access to the Internet, please contact the MySQL AB sales
+staff at @email{sales@@mysql.com}.
+@xref{Support}.
+
+For information about MySQL training, please visit the training
+section at @uref{http://www.mysql.com/training/}. If you have
+restricted access to the Internet, please contact the MySQL AB
+training staff at @email{training@@mysql.com}.
+@xref{Business Services Training}.
+
+If you're interested in consulting, please visit the consulting
+section at @uref{http://www.mysql.com/consulting/}. If you have
+restricted access to the Internet, please contact the MySQL AB
+consulting staff at @email{consulting@@mysql.com}.
+@xref{Business Services Consulting}.
+
+For commercial licensing, please contact the MySQL AB licensing team
+via e-mail at @email{licensing@@mysql.com}. Fax is also possible but
+handling of these may take much longer (Fax +46-8-729 69 05).
+@xref{MySQL server licenses}.
 
 If you represent a business that is interested in partnering with
-MySQL, please send e-mail to @email{partner@@mysql.com}.
+MySQL AB, please send e-mail to @email{partner@@mysql.com}.
+@xref{Business Services Partnering}.
 
-For timely, precise answers to technical questions about MySQL
-you should order one of our
-@uref{https://order.mysql.com/, support contracts}.
-MySQL support is provided by the MySQL developers so the
-standard is extremely high.
-If you have restricted access to the Internet, please contact our sales staff
-at @email{sales@@mysql.com}.
+If you are interested in placing a banner advertisement on the MySQL
+website (@uref{http://www.mysql.com/}), please send e-mail to
+@email{advertising@@mysql.com}.
+@xref{Business Services Advertising}.
 
-If you are interested in placing a banner advertisement on our Web site,
-please send e-mail to @email{advertising@@mysql.com}.
+If you are interested in any of the MySQL AB jobs listed in our
+@uref{http://www.mysql.com/development/jobs/, jobs} section,
+please send an e-mail to @email{jobs@@mysql.com}.
 
-If you are interested in any of the jobs listed in our
-@uref{http://www.mysql.com/development/jobs/, jobs} section, please send e-mail
-to @email{jobs@@mysql.com}.
+For general discussion amongst our many users, please direct your
+attention to the appropriate mailing list.
+@xref{Questions}.
 
-For general discussion amongst our many users, please direct your attention to
-the appropriate @uref{http://www.mysql.com/documentation/lists.html, mailing
-list}.
+Reports of errors (often called bugs), as well as questions and
+comments, should be sent to the mailing list at
+@email{mysql@@lists.mysql.com}. If you have found a sensitive
+security bug in MySQL, you should send an e-mail to
+@email{security@@mysql.com}.
+@xref{Bug reports}.
 
-For general information inquires, please send e-mail to
-@email{info@@mysql.com}.
+If you have any suggestions concerning additions or corrections to this
+manual, please send them to the manual team at @email{docs@@mysql.com}.
 
-For questions or comments about the workings or content of the Web site,
+For questions or comments about the workings or content of the Website,
 please send e-mail to @email{webmaster@@mysql.com}.
+
+For all other inquires, please send e-mail to @email{info@@mysql.com}.
 
 
 @node Licensing and Support, MySQL 4.0 In A Nutshell, What is MySQL AB, Introduction
@@ -1239,27 +1264,45 @@ This section describes MySQL support and licensing arrangements:
 
 @cindex copyrights
 
-There are several different copyrights on the MySQL distribution:
+@code{MySQL AB} owns the copyright to the MySQL source code,
+the MySQL logo and trademark and this manual.
+@xref{What is MySQL AB}.
+There are several different licenses relevant to the MySQL
+distribution:
 
 @enumerate
 @item
 The MySQL-specific source needed to build the @code{mysqlclient}
 library is licensed under the @code{LGPL} and the programs in the
-@file{client} directory are under the @code{GPL}. Each file states at
-the beginning which license it is under.
+@file{client} directory are under the @code{GPL}. Each file states
+at the beginning which license it is under.
 
-@item The client library, and the GNU @code{getopt} library, are covered
+@item
+The client library, and the GNU @code{getopt} library, are covered
 by the ``GNU LIBRARY GENERAL PUBLIC LICENSE.''  @xref{LGPL license}.
-
-@item Some parts of the source (the @code{regexp} library) are covered
-by a Berkeley-style copyright.
+The aim of this is to make it possible to add MySQL support (client
+side, i.e. the ability to connect to a MySQL server) into commercial
+products without a license.
 
 @item
 All the source in the server, and the GNU @code{readline} library,
 are covered by the ``GNU GENERAL PUBLIC LICENSE.''  @xref{GPL license}. 
-This is also available as the file @file{COPYING} in the distributions.
+The text of this license can also be found as the file @file{COPYING}
+in the distributions.
 
+@item
+Some parts of the source (the @code{regexp} library) are covered
+by a Berkeley-style copyright.
+
+@item
+Older versions of MySQL (3.22 and earlier) are subject to a more
+@uref{http://www.mysql.com/support/arrangements/mypl.html, strict license}.
+See the documentation of the specific version for information.
 @end enumerate
+
+For information about how the MySQL licenses work in practise,
+please refer to @ref{MySQL server licenses}.
+Also see @ref{MySQL AB Logos and Trademarks}.
 
 
 @node Support, MySQL server licenses, Copyright, Licensing and Support
@@ -1300,9 +1343,6 @@ If you use MySQL for important applications and encounter sudden
 troubles,  it might take too long to figure out all the answers
 yourself. You may need immediate access to the most experienced
 MySQL troubleshooters available, those employed by MySQL AB.
-
-
-@c FIX: Start new by AGL - Erik's text on MySQL server licenses
 
 
 @node MySQL server licenses, MySQL AB Logos and Trademarks, Support, Licensing and Support
@@ -1413,6 +1453,7 @@ When include the MySQL client code in a commercial program.
 The client part of MySQL is licensed under the LGPL
 @code{GNU Library General Public License}. The formal terms of the
 LGPL license can be found at @uref{http://www.gnu.org/}.
+
 However, the @code{mysql} command-line client does include code
 from the GNU @code{readline} library that is under the @code{GPL}.
 
@@ -1459,13 +1500,6 @@ your business, it is reasonable to ask that you help MySQL.
 (Otherwise, if you ask us support questions, you are not only using
 for free something into which we've put a lot a work, you're asking
 us to provide free support, too.)
-
-
-@c FIX: End new by AGL - Erik's text on MySQL server licenses
-
-
-
-@c FIX: Start new by AGL - Erik's text on logos and trademarks
 
 
 @node MySQL AB Logos and Trademarks,  , MySQL server licenses, Licensing and Support
@@ -1604,13 +1638,6 @@ Use of the word @code{MySQL} in product or company names or in Internet
 domain names is not allowed without written permission from MySQL AB.
 
 
-@c FIX: End new by AGL - Erik's text on logos and trademarks
-
-
-
-@c FIX: Start new by AGL - Kaj's text MySQL 4.0 in a Nutshell
-
-
 @node MySQL 4.0 In A Nutshell, MySQL Information Sources, Licensing and Support, Introduction
 @section MySQL 4.0 In A Nutshell
 
@@ -1627,7 +1654,7 @@ Other new features target the users of embedded databases.
 
 @menu
 * 4.0 NutShell Stepwise Rollout::  Stepwise Rollout
-* 4.0 Nutshell Ready for Immediate Development Use::  Ready for immediate development use
+* 4.0 Nutshell Ready for Immediate Development Use::  Ready for Immediate Development Use
 * 4.0 Nutshell Embedded MySQL::  Embedded MySQL
 * 4.0 Nutshell Other features::  Other Features Available From MySQL 4.0.0
 * 4.0 Nutshell Future features::  Future MySQL 4.0 Features
@@ -1648,7 +1675,7 @@ in December/January.
 
 
 @node 4.0 Nutshell Ready for Immediate Development Use, 4.0 Nutshell Embedded MySQL, 4.0 NutShell Stepwise Rollout, MySQL 4.0 In A Nutshell
-@subsection Ready for immediate development use
+@subsection Ready for Immediate Development Use
 
 Users are not recommended to switch their production systems
 to MySQL 4.0 until it is released in beta version later Q4/2001.
@@ -1673,10 +1700,10 @@ the scenes in internet appliances, public kiosks, turn-key
 hardware/ software combination units, high performance internet
 servers, self-contained databases distributed on CD-ROM etc.
 
-Many embedded MySQL users will benefit from the
-@emph{dual licensing scheme} of MySQL, where besides the GPL license
-also commercial licensing is available for those not wishing to be bound
-by the GPL. The embedded MySQL library uses the same interface as the normal
+Many embedded MySQL users will benefit from the @emph{dual licensing}
+scheme of MySQL, where besides the GPL license also commercial
+licensing is available for those not wishing to be bound by the GPL.
+The embedded MySQL library uses the same interface as the normal
 client library, so it is convenient and easy to use.
 
 
@@ -1790,10 +1817,6 @@ than ever in pointing out deficiencies in the MySQL Database
 Management System. For long already known for its stability,
 speed, and ease of use, MySQL will then match the requirement
 checklist of very demanding buyers.
-
-
-@c FIX: End new by AGL - Kaj's text MySQL 4.0 in a Nutshell
-
 
 
 @node MySQL Information Sources, Compatibility, MySQL 4.0 In A Nutshell, Introduction
@@ -1930,7 +1953,7 @@ can be retrieved via the Web.
 
 Sams' @emph{Teach Yourself MySQL in 21 Days} is a practical, step-by-step
 tutorial.  The reader will learn to design and employ this open source
-database technology into his or her Web site using practical, hands-on 
+database technology into his or her Website using practical, hands-on 
 examples to follow.
 @*
 
@@ -2216,7 +2239,7 @@ A lot of MySQL tutorials.
 MySQL manual in Chinese.
 
 @item @uref{http://www.linuxplanet.com/linuxplanet/tutorials/1046/1/}
-Setting Up a MySQL-based Web site.
+Setting Up a MySQL-based website.
 
 @item @uref{http://www.hotwired.com/webmonkey/backend/tutorials/tutorial1.html}
 MySQL-Perl tutorial.
@@ -2419,7 +2442,7 @@ Hawkeye Internet Server Suite.
 WebGroove Script: HTML compiler and server-side scripting language.
 
 @item @uref{http://www.ihtml.com/}
-A server-side Web site scripting language.
+A server-side website scripting language.
 
 @item @uref{ftp://ftp.igc.apc.org/pub/myodbc/README}
 How to use MySQL with ColdFusion on Solaris.
@@ -2431,7 +2454,7 @@ Calistra's ODBC MySQL Administrator.
 PHPclub - Tips and tricks for PHP.
 
 @item @uref{http://www.widgetchuck.com}
-The Widgetchuck; Web Site Tools and Gadgets
+The Widgetchuck; Website Tools and Gadgets
 
 @item @uref{http://www.adcycle.com/}
 AdCycle - advertising management software.
@@ -2938,6 +2961,9 @@ posted on the @code{bugs} list will be corrected or documented in the next
 MySQL release!  If there are only small code changes involved
 to correct this problem, we will also post a patch that fixes the
 problem.
+
+If you have found a sensitive security bug in MySQL, you should send an
+e-mail to @email{security@@mysql.com}.
 
 Remember that it is possible to respond to a message containing too much
 information, but not to one containing too little.  Often people omit facts
@@ -4644,7 +4670,7 @@ We know that @code{mSQL} has a JDBC driver, but we have too little experience
 with it to compare.
 
 @item Rate of Development
-MySQL has a very small team of developers, but we are quite
+MySQL has a small core team of developers, but we are quite
 used to coding C and C++ very rapidly. Because threads, functions,
 @code{GROUP BY}, and so on are still not implemented in @code{mSQL}, it
 has a lot of catching up to do. To get some perspective on this, you
@@ -5583,7 +5609,7 @@ Allow users to change startup options without taking down the server.
 Fail safe replication.
 @item
 More functions for full-text search.
-@xref{Fulltext Features to Appear in MySQL 4.0}.
+@xref{Fulltext Features in MySQL 4.0}.
 @item
 New key cache
 @item
@@ -8092,7 +8118,7 @@ running.  @xref{Multiple servers}.
 
 Sometimes patches appear on the mailing list or are placed in the
 @uref{http://www.mysql.com/Downloads/Patches, patches area} of the
-MySQL Web site.
+MySQL website.
 
 To apply a patch from the mailing list, save the message in which the patch
 appears in a file, change into the top-level directory of your MySQL
@@ -8271,7 +8297,7 @@ following for all recent gcc versions:
 CFLAGS="-O3 -mpentiumpro" CXX=gcc CXXFLAGS="-O3 -mpentiumpro -felide-constructors -fno-exceptions -fno-rtti" ./configure --prefix=/usr/local/mysql --enable-assembler --with-mysqld-ldflags=-all-static
 @end example
 
-The binaries we provide on the MySQL Web site at
+The binaries we provide on the MySQL website at
 @uref{http://www.mysql.com} are all compiled with full optimization and
 should be perfect for most users.  @xref{MySQL binaries}.  There are some
 things you can tweak to make an even faster binary, but this is only for
@@ -13019,7 +13045,7 @@ to think of real-world situations in which a similar type of database might
 be used.  For example, a database like this could be used by a farmer to keep
 track of livestock, or by a veterinarian to keep track of patient records.
 A menagerie distribution containing some of the queries and sample data used
-in the following sections can be obtained from the MySQL Web site.
+in the following sections can be obtained from the MySQL website.
 It's available in either
 @uref{http://www.mysql.com/Downloads/Contrib/Examples/menagerie.tar.gz,compressed @code{tar} format}
 or
@@ -28038,7 +28064,7 @@ databases on different disks. @xref{Windows symbolic links}.
 @cindex databases, symbolic links
 
 Before MySQL 4.0 you should not symlink tables, if you are not
-very carefully with them. The problem is that if you run @code{ALTER
+very careful with them. The problem is that if you run @code{ALTER
 TABLE}, @code{REPAIR TABLE} or @code{OPTIMIZE TABLE} on a symlinked
 table, the symlinks will be removed and replaced by the original
 files. This happens because the above command works by creating a
@@ -28115,6 +28141,13 @@ Things that are not yet supported:
 @node Reference, Table types, MySQL Optimization, Top
 @chapter MySQL Language Reference
 
+MySQL has a very complex, but intuitive and easy to learn SQL
+interface.  This chapter describes the various commands, types, and functions 
+you will need to know in order to use MySQL efficiently and 
+effectively.  This chapter also serves as a reference to all functionality
+included in MySQL.  In order to use this chapter effectively, you
+may find it useful to refer to the various indexes.
+
 @menu
 * Language Structure::          Language Structure
 * Column types::                Column types
@@ -28125,13 +28158,6 @@ Things that are not yet supported:
 * Transactional Commands::      MySQL Transactional and Locking Commands
 * Fulltext Search::             MySQL Full-text Search
 @end menu
-
-MySQL has a very complex, but intuitive and easy to learn SQL
-interface.  This chapter describes the various commands, types, and functions 
-you will need to know in order to use MySQL efficiently and 
-effectively.  This chapter also serves as a reference to all functionality
-included in MySQL.  In order to use this chapter effectively, you
-may find it useful to refer to the various indexes.
 
 
 @node Language Structure, Column types, Reference, Reference
@@ -36185,7 +36211,7 @@ have been assigned a low semantical value in @strong{this particular dataset}.
 @menu
 * Fulltext restrictions::       Fulltext restrictions
 * Fulltext Fine-tuning::        Fine-tuning MySQL Full-text Search
-* Fulltext Features to Appear in MySQL 4.0::  New Features of Full-text Search to Appear in MySQL 4.0
+* Fulltext Features in MySQL 4.0::  New Features of Full-text Search in MySQL 4.0
 * Fulltext TODO::               Full-text Search TODO
 @end menu
 
@@ -36202,7 +36228,7 @@ The argument to @code{AGAINST} must be a constant string.
 @end itemize
 
 
-@node Fulltext Fine-tuning, Fulltext Features to Appear in MySQL 4.0, Fulltext restrictions, Fulltext Search
+@node Fulltext Fine-tuning, Fulltext Features in MySQL 4.0, Fulltext restrictions, Fulltext Search
 @subsection Fine-tuning MySQL Full-text Search
 
 Unfortunately, full-text search has few user-tunable parameters yet,
@@ -36244,11 +36270,11 @@ There is no need to rebuild the indexes in this case.
 @end itemize
 
 
-@node Fulltext Features to Appear in MySQL 4.0, Fulltext TODO, Fulltext Fine-tuning, Fulltext Search
-@subsection New Features of Full-text Search to Appear in MySQL 4.0
+@node Fulltext Features in MySQL 4.0, Fulltext TODO, Fulltext Fine-tuning, Fulltext Search
+@subsection New Features of Full-text Search in MySQL 4.0
 
 This section includes a list of the fulltext features that are already
-implemented in the 4.0 tree. It explains
+implemented in the 4.0 tree. It explains the
 @strong{More functions for full-text search} entry of @ref{TODO MySQL 4.0}.
 
 @itemize @bullet
@@ -36282,7 +36308,7 @@ that does not have a 50% threshold.
 
 @end itemize
 
-@node Fulltext TODO,  , Fulltext Features to Appear in MySQL 4.0, Fulltext Search
+@node Fulltext TODO,  , Fulltext Features in MySQL 4.0, Fulltext Search
 @subsection Full-text Search TODO
 
 @itemize @bullet
@@ -39069,7 +39095,7 @@ databases, including MySQL.  PHP may be run as a separate program
 or compiled as a module for use with the Apache Web server.
 
 The distribution and documentation are available at the
-@uref{http://www.php.net/, PHP web site}.
+@uref{http://www.php.net/, PHP website}.
 
 @menu
 * PHP problems::                Common problems with MySQL and PHP
@@ -43351,7 +43377,7 @@ have your own alarm that can break a long read to a server.  If you
 install interrupt handlers for the @code{SIGPIPE} interrupt,
 the socket handling should be thread safe.
 
-In the older binaries we distribute on our Web site, the client
+In the older binaries we distribute on our website, the client
 libraries are not normally compiled with the thread-safe option (the
 Windows binaries are by default compiled to be thread safe).
 Newer binary distributions should have both a normal and a
@@ -44854,7 +44880,7 @@ the master, put them in @code{mysql-test/t/test_name-master.opt}.
 If you have a question about the test suite, or have a test case to contribute,
 e-mail to @email{internals@@lists.mysql.com}. As the list does not accept 
 attachments, you should ftp all the relevant files to:
-@url{ftp://support.mysql.com/pub/mysql/Incoming}
+@uref{ftp://support.mysql.com/pub/mysql/Incoming}
 
 @end itemize
 
@@ -46798,7 +46824,7 @@ more than one way to compute}
 Publications at Monash University in Australia}
 
 @item @uref{http://www.ipielle.emr.it/bts/index.html,
-Occupational Health & Safety Web site database (a project for the ECC)}
+Occupational Health & Safety Website database (a project for the ECC)}
 @c c.presutti@ipielle.emr.it
 
 @item @uref{http://data.mch.mcgill.ca/, Bioinformatics databases at the
@@ -46818,8 +46844,8 @@ An online magazine featuring music, literature, arts, and design content.
 @item @uref{http://www.currents.net/ccinfo/aboutcc.html,Computer Currents Magazine}
 @end itemize
 
-@cindex web sites
-@appendixsec Web Sites that Use MySQL as a Backend
+@cindex websites
+@appendixsec Websites that Use MySQL as a Backend
 
 @itemize @bullet
 
@@ -46917,8 +46943,8 @@ Made with MySQL and Modperl, all pages are generated dynamically out of
 the MySQL database
 @end itemize
 
-@cindex PHP, web sites
-@appendixsec Web Sites that Use @code{PHP} and MySQL
+@cindex PHP, websites
+@appendixsec Websites that Use @code{PHP} and MySQL
 
 @itemize @bullet
 @c @item @uref{http://www.wh200th.com,  White House 200th Anniversary site}
@@ -46978,7 +47004,7 @@ Ecommerce site that is selling computers.
 @item @uref{http://www.spring.de, Spring infotainment gmbh & co. kg}
 @c added 990905 "Oliver Pischke" <opischke@spring.de>
 
-@item @uref{http://www.wamdesign.com/, Develops Web sites using MySQL}
+@item @uref{http://www.wamdesign.com/, Develops websites using MySQL}
 @c Added 990905; max@wamdesign.com
 
 @item @uref{http://www.berkeleyconsultants.com, Berkeley Consultants Group}
@@ -47135,8 +47161,8 @@ MySQL users but doesn't provide that much information about how
 they are using MySQL.  @xref{Users}. This section gives you an idea
 of how other MySQL users are using MySQL to solve their problems.
 
-Please note that all new stories are added on the MySQL AB website,
-@url{http://www.mysql.com/}.
+Please note that all new stories are added on the MySQL website,
+@uref{http://www.mysql.com/}.
 Do let us know about @emph{your} success story too!
 
 @itemize @bullet
@@ -47479,7 +47505,7 @@ You can write queries and show tables, indexes, table syntax, and
 administrate user, host, and database and so on. This is beta and
 still has some bugs. You can test the program with all features. Please
 send bugs and hints to Marco Suess @email{ms@@it-netservice.de}. Original
-URL @url{http://www.it-netservice.de/pages/software/index.html}.
+URL @uref{http://www.it-netservice.de/pages/software/index.html}.
 
 @item @uref{http://www.mysql.com/Downloads/Win32/netadmin2.zip, netadmin2.zip}
 New version of netadmin. See above for details.
@@ -47719,7 +47745,7 @@ Apache authentication module for MySQL. By Zeev Suraski,
 @email{bourbon@@netvision.net.il}.
 
 @c @strong{Please} register this module at:
-@c @url{http://bourbon.netvision.net.il/mysql/mod_auth_mysql/register.html}. The
+@c @uref{http://bourbon.netvision.net.il/mysql/mod_auth_mysql/register.html}. The
 @c registering information is only used for statistical purposes and will
 @c encourage further development of this module!
 
@@ -48048,7 +48074,7 @@ Most of crash-me and the foundation for the MySQL benchmarks.
 Coordinator and initial main writer of the @strong{Reference Manual},
 including enhancements to @code{texi2html}.
 @item
-Automatic Web site updating from the manual.
+Automatic website updating from the manual.
 @item
 Initial Autoconf, Automake, and Libtool support.
 @item
@@ -48317,7 +48343,7 @@ Spanish error messages.
 Norwegian error messages and testing of Version 3.21.#.
 @item Timur I. Bakeyev @email{root@@timur.tatarstan.ru}
 Russian error messages.
-@item @email{brenno@@dewinter.com} && Filippo Grassilli @email{phil@@hyppo.com}
+@item @email{brenno@@dewinter.com} & Filippo Grassilli @email{phil@@hyppo.com}
 Italian error messages.
 @item Dirk Munzinger @email{dirk@@trinity.saar.de}
 German error messages.
@@ -48444,7 +48470,7 @@ Funded replication.
 @item NuSphere
 Editing of the MySQL manual.
 @item Stork Design studio
-The MySQL web site in use between 1998-2000.
+The MySQL website in use between 1998-2000.
 @item Intel
 Contributed to development on Windows and Linux platforms.
 @item Compaq
