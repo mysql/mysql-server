@@ -916,5 +916,7 @@ innobase_shutdown_for_mysql(void)
 
 	logs_empty_and_mark_files_at_shutdown();
 
+	ut_free_all_mem();
+
 	return((int) DB_SUCCESS);
 }
