@@ -6293,7 +6293,7 @@ indicates the type of operating system for which the distribution is intended
 (for example, @code{pc-linux-gnu-i586}).
 
 @item
-If you see a binary distribution marked with the @code{-max} prefix, this
+If you see a binary distribution marked with the @code{-max} suffix, this
 means that the binary has support for transaction-safe tables and other
 features. @xref{mysqld-max, , @code{mysqld-max}}.  Note that all binaries
 are built from the same MySQL source distribution.
@@ -21613,7 +21613,7 @@ To get better performance for BDB tables, you should add some configuration
 options for these too. @xref{BDB start}.
 
 @code{safe_mysqld} will automatically try to start any @code{mysqld} binary
-with the @code{-max} prefix. This makes it very easy to test out a
+with the @code{-max} suffix. This makes it very easy to test out a
 another @code{mysqld} binary in an existing installation.  Just
 run @code{configure} with the options you want and then install the
 new @code{mysqld} binary as @code{mysqld-max} in the same directory
