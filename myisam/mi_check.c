@@ -3311,8 +3311,7 @@ static int sort_ft_key_write(MI_SORT_PARAM *sort_param, const void *a)
   }
   get_key_full_length_rdonly(val_off, ft_buf->lastkey);
 
-  if (val_off == a_len &&
-      mi_compare_text(sort_param->seg->charset,
+  if (mi_compare_text(sort_param->seg->charset,
                       ((uchar *)a)+1,a_len-1,
                       ft_buf->lastkey+1,val_off-1, 0, 0)==0)
   {
@@ -3320,11 +3319,11 @@ static int sort_ft_key_write(MI_SORT_PARAM *sort_param, const void *a)
     {
       ft_buf->count++;
       return sort_insert_key(sort_param,key_block,
-                             ((uchar *)a)+val_off, HA_OFFSET_ERROR);
+                             ((uchar *)a)+a_len, HA_OFFSET_ERROR);
     }
 
     /* storing the key in the buffer. */
-    memcpy (ft_buf->buf, (char *)a+val_off, val_len);
+    memcpy (ft_buf->buf, (char *)a+a_len, val_len);
     ft_buf->buf+=val_len;
     if (ft_buf->buf < ft_buf->end)
       return 0;
