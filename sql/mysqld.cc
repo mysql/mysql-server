@@ -19,6 +19,7 @@
 #include <my_dir.h>
 #include "slave.h"
 #include "sql_repl.h"
+#include "table_filter.h"
 #include "repl_failsafe.h"
 #include "stacktrace.h"
 #include "mysqld_suffix.h"
@@ -382,12 +383,10 @@ Le_creator le_creator;
 
 FILE *bootstrap_file;
 
-I_List<i_string_pair> replicate_rewrite_db;
-I_List<i_string> replicate_do_db, replicate_ignore_db;
-// allow the user to tell us which db to replicate and which to ignore
-I_List<i_string> binlog_do_db, binlog_ignore_db;
 I_List<THD> threads,thread_cache;
 I_List<NAMED_LIST> key_caches;
+Table_filter* rpl_filter;
+Table_filter* binlog_filter;
 
 struct system_variables global_system_variables;
 struct system_variables max_system_variables;
@@ -994,11 +993,6 @@ void clean_up(bool print_message)
   free_max_user_conn();
 #ifdef HAVE_REPLICATION
   end_slave_list();
-  free_list(&replicate_do_db);
-  free_list(&replicate_ignore_db);
-  free_list(&binlog_do_db);
-  free_list(&binlog_ignore_db);
-  free_list(&replicate_rewrite_db);
 #endif
 #ifdef HAVE_OPENSSL
   if (ssl_acceptor_fd)
@@ -2967,8 +2961,15 @@ int win_main(int argc, char **argv)
 int main(int argc, char **argv)
 #endif
 {
-
   DEBUGGER_OFF;
+
+  rpl_filter= new Table_filter;
+  binlog_filter= new Table_filter;
+  if (!rpl_filter || !binlog_filter) 
+  {
+    sql_perror("Could not allocate replication and binlog filters");
+    exit(1);
+  }
 
   MY_INIT(argv[0]);		// init my_sys library & pthreads
 
@@ -3214,6 +3215,9 @@ we force server id to 2, but this MySQL server will not act as a slave.");
   clean_up_mutexes();
   my_end(opt_endinfo ? MY_CHECK_ERROR | MY_GIVE_INFO : 0);
  
+  delete rpl_filter;
+  delete binlog_filter;
+
   exit(0);
   return(0);					/* purecov: deadcode */
 }
@@ -3309,7 +3313,6 @@ default_service_handling(char **argv,
 
 int main(int argc, char **argv)
 {
-
   /* When several instances are running on the same machine, we
      need to have an  unique  named  hEventShudown  through the
      application PID e.g.: MySQLShutdown1890; MySQLShutdown2342
@@ -5875,13 +5878,6 @@ static void mysql_init_variables(void)
 					       default_key_cache_base.length)))
     exit(1);
 
-  /* Initialize structures that is used when processing options */
-  replicate_rewrite_db.empty();
-  replicate_do_db.empty();
-  replicate_ignore_db.empty();
-  binlog_do_db.empty();
-  binlog_ignore_db.empty();
-
   /* Set directory paths */
   strmake(language, LANGUAGE, sizeof(language)-1);
   strmake(mysql_real_data_home, get_relative_path(DATADIR),
@@ -6136,14 +6132,12 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
   }
   case (int)OPT_REPLICATE_IGNORE_DB:
   {
-    i_string *db = new i_string(argument);
-    replicate_ignore_db.push_back(db);
+    rpl_filter->add_ignore_db(argument);
     break;
   }
   case (int)OPT_REPLICATE_DO_DB:
   {
-    i_string *db = new i_string(argument);
-    replicate_do_db.push_back(db);
+    rpl_filter->add_do_db(argument);
     break;
   }
   case (int)OPT_REPLICATE_REWRITE_DB:
@@ -6176,71 +6170,54 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
       exit(1);
     }
 
-    i_string_pair *db_pair = new i_string_pair(key, val);
-    replicate_rewrite_db.push_back(db_pair);
+    rpl_filter->add_db_rewrite(key, val);
     break;
   }
 
   case (int)OPT_BINLOG_IGNORE_DB:
   {
-    i_string *db = new i_string(argument);
-    binlog_ignore_db.push_back(db);
+    binlog_filter->add_ignore_db(argument);
     break;
   }
   case (int)OPT_BINLOG_DO_DB:
   {
-    i_string *db = new i_string(argument);
-    binlog_do_db.push_back(db);
+    binlog_filter->add_do_db(argument);
     break;
   }
   case (int)OPT_REPLICATE_DO_TABLE:
   {
-    if (!do_table_inited)
-      init_table_rule_hash(&replicate_do_table, &do_table_inited);
-    if (add_table_rule(&replicate_do_table, argument))
+    if (rpl_filter->add_do_table(argument))
     {
       fprintf(stderr, "Could not add do table rule '%s'!\n", argument);
       exit(1);
     }
-    table_rules_on = 1;
     break;
   }
   case (int)OPT_REPLICATE_WILD_DO_TABLE:
   {
-    if (!wild_do_table_inited)
-      init_table_rule_array(&replicate_wild_do_table,
-			    &wild_do_table_inited);
-    if (add_wild_table_rule(&replicate_wild_do_table, argument))
+    if (rpl_filter->add_wild_do_table(argument))
     {
       fprintf(stderr, "Could not add do table rule '%s'!\n", argument);
       exit(1);
     }
-    table_rules_on = 1;
     break;
   }
   case (int)OPT_REPLICATE_WILD_IGNORE_TABLE:
   {
-    if (!wild_ignore_table_inited)
-      init_table_rule_array(&replicate_wild_ignore_table,
-			    &wild_ignore_table_inited);
-    if (add_wild_table_rule(&replicate_wild_ignore_table, argument))
+    if (rpl_filter->add_wild_ignore_table(argument))
     {
       fprintf(stderr, "Could not add ignore table rule '%s'!\n", argument);
       exit(1);
     }
-    table_rules_on = 1;
     break;
   }
   case (int)OPT_REPLICATE_IGNORE_TABLE:
   {
-    if (!ignore_table_inited)
-      init_table_rule_hash(&replicate_ignore_table, &ignore_table_inited);
-    if (add_table_rule(&replicate_ignore_table, argument))
+    if (rpl_filter->add_ignore_table(argument))
     {
       fprintf(stderr, "Could not add ignore table rule '%s'!\n", argument);
       exit(1);
     }
-    table_rules_on = 1;
     break;
   }
 #endif /* HAVE_REPLICATION */

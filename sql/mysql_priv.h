@@ -1072,7 +1072,6 @@ extern KNOWN_DATE_TIME_FORMAT known_date_time_formats[];
 extern String null_string;
 extern HASH open_cache;
 extern TABLE *unused_tables;
-extern I_List<i_string> binlog_do_db, binlog_ignore_db;
 extern const char* any_db;
 extern struct my_option my_long_options[];
 

@@ -20,8 +20,11 @@
 #include "repl_failsafe.h"
 #include "sql_repl.h"
 #include "slave.h"
+#include "table_filter.h"
 #include "log_event.h"
 #include <mysql.h>
+
+extern Table_filter *rpl_filter;
 
 #define SLAVE_LIST_CHUNK 128
 #define SLAVE_ERRMSG_SIZE (FN_REFLEN+64)
@@ -735,14 +738,14 @@ static int fetch_db_tables(THD *thd, MYSQL *mysql, const char *db,
     TABLE_LIST table;
     const char* table_name= row[0];
     int error;
-    if (table_rules_on)
+    if (rpl_filter->is_on())
     {
       bzero((char*) &table, sizeof(table)); //just for safe
       table.db= (char*) db;
       table.table_name= (char*) table_name;
       table.updating= 1;
 
-      if (!tables_ok(thd, &table))
+      if (!rpl_filter->tables_ok(thd->db, &table))
 	continue;
     }
     /* download master's table and overwrite slave's table */
@@ -860,8 +863,8 @@ bool load_master_data(THD* thd)
 	data from master
       */
 
-      if (!db_ok(db, replicate_do_db, replicate_ignore_db) ||
-          !db_ok_with_wild_table(db) ||
+      if (!rpl_filter->db_ok(db) || 
+	  !rpl_filter->db_ok_with_wild_table(db) || 
 	  !strcmp(db,"mysql"))
       {
 	*cur_table_res = 0;

@@ -24,6 +24,7 @@
 
 #include "mysql_priv.h"
 #include "sql_repl.h"
+#include "table_filter.h"
 #include "ha_innodb.h" // necessary to cut the binlog when crash recovery
 
 #include <my_dir.h>
@@ -33,6 +34,8 @@
 #ifdef __NT__
 #include "message.h"
 #endif
+
+extern Table_filter *binlog_filter;
 
 MYSQL_LOG mysql_log, mysql_slow_log, mysql_bin_log;
 ulong sync_binlog_counter= 0;
@@ -1325,10 +1328,11 @@ bool MYSQL_LOG::write(Log_event* event_info)
         binlog_[wild_]{do|ignore}_table?" (WL#1049)"
     */
     if ((thd && !(thd->options & OPTION_BIN_LOG)) ||
-	(local_db && !db_ok(local_db, binlog_do_db, binlog_ignore_db)))
+	(local_db && !binlog_filter->db_ok(local_db)))
     {
       VOID(pthread_mutex_unlock(&LOCK_log));
-      DBUG_PRINT("error",("!db_ok('%s')", local_db));
+      DBUG_PRINT("info",("db_ok('%s')==%d", local_db, 
+			 binlog_filter->db_ok(local_db)));
       DBUG_RETURN(0);
     }
 #endif /* HAVE_REPLICATION */
