@@ -455,6 +455,13 @@ int yylex(void *arg, void *yythd)
       }
     case MY_LEX_CHAR:			// Unknown or single char token
     case MY_LEX_SKIP:			// This should not happen
+      if (c == '-' && yyPeek() == '-' &&
+          (my_isspace(cs,yyPeek2()) || 
+           my_iscntrl(cs,yyPeek2())))
+      {
+        state=MY_LEX_COMMENT;
+        break;
+      }
       yylval->lex_str.str=(char*) (lex->ptr=lex->tok_start);// Set to first chr
       yylval->lex_str.length=1;
       c=yyGet();
@@ -694,37 +701,6 @@ int yylex(void *arg, void *yythd)
       lex->next_state= MY_LEX_START;
       return(IDENT);
     }
-    case MY_LEX_SIGNED_NUMBER:		// Incomplete signed number
-      if (prev_state == MY_LEX_OPERATOR_OR_IDENT)
-      {
-	if (c == '-' && yyPeek() == '-' &&
-	    (my_isspace(cs,yyPeek2()) || 
-             my_iscntrl(cs,yyPeek2())))
-	  state=MY_LEX_COMMENT;
-	else
-	  state= MY_LEX_CHAR;		// Must be operator
-	break;
-      }
-      if (!my_isdigit(cs,c=yyGet()) || yyPeek() == 'x')
-      {
-	if (c != '.')
-	{
-	  if (c == '-' && my_isspace(cs,yyPeek()))
-	    state= MY_LEX_COMMENT;
-	  else
-	    state= MY_LEX_CHAR;		// Return sign as single char
-	  break;
-	}
-	yyUnget();			// Fix for next loop
-      }
-      while (my_isdigit(cs,c=yyGet())) ;	// Incomplete real or int number
-      if ((c == 'e' || c == 'E') &&
-	  (yyPeek() == '+' || yyPeek() == '-' || my_isdigit(cs,yyPeek())))
-      {					// Real number
-	yyUnget();
-	c= '.';				// Fool next test
-      }
-      // fall through
     case MY_LEX_INT_OR_REAL:		// Compleat int or incompleat real
       if (c != '.')
       {					// Found complete integer number.
