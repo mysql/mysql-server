@@ -32,9 +32,7 @@ LDADD_LOC = $(top_builddir)/ndb/src/libndbclient.la \
 DEFS_LOC =		-DDEFAULT_MYSQL_HOME="\"$(MYSQLBASEdir)\"" \
 			-DDATADIR="\"$(MYSQLDATAdir)\"" \
 			-DSHAREDIR="\"$(MYSQLSHAREdir)\"" \
-			-DMYSQLCLUSTERDIR="\"$(MYSQLCLUSTERdir)\"" \
-			-DNDB_PORT="\"@ndb_port@\"" \
-			-DNDB_BASE_PORT="\"@ndb_port_base@\""
+			-DMYSQLCLUSTERDIR="\"$(MYSQLCLUSTERdir)\""
 
 include $(top_srcdir)/ndb/config/common.mk.am
 include $(top_srcdir)/ndb/config/type_ndbapi.mk.am

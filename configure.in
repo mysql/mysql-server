@@ -3132,6 +3132,7 @@ AC_CONFIG_FILES(ndb/Makefile ndb/include/Makefile dnl
    ndb/test/ndbapi/bank/Makefile dnl
    ndb/test/tools/Makefile dnl
    ndb/test/run-test/Makefile mysql-test/ndb/Makefile dnl
+   ndb/include/ndb_version.h ndb/include/ndb_global.h dnl
    )
 fi
 
@@ -3153,7 +3154,6 @@ AC_CONFIG_FILES(Makefile extra/Makefile mysys/Makefile dnl
  support-files/MacOSX/Makefile mysql-test/Makefile dnl
  netware/Makefile dnl
  include/mysql_version.h dnl
- ndb/include/ndb_version.h dnl
  cmd-line-utils/Makefile dnl
  cmd-line-utils/libedit/Makefile dnl
  zlib/Makefile dnl
