@@ -2083,18 +2083,21 @@ static int dump_all_tables_in_db(char *database)
 
 
 /*
-  get_actual_table_name -- executes a SHOW TABLES LIKE '%s' to get the actual table name
-  from the server for the table name given on the command line.  we do this because
-  the table name given on the command line may be a different case (e.g.  T1 vs t1)
+  get_actual_table_name -- executes a SHOW TABLES LIKE '%s' to get the actual 
+  table name from the server for the table name given on the command line.  
+  we do this because the table name given on the command line may be a 
+  different case (e.g.  T1 vs t1)
   
   RETURN
     void
 */
-static void get_actual_table_name( const char *old_table_name, char *new_table_name, int buf_size )
+static void get_actual_table_name( const char *old_table_name, 
+                                         char *new_table_name, 
+                                         int buf_size )
 {
     MYSQL_RES  *tableRes;
     MYSQL_ROW  row;
-	char query[ NAME_LEN*2+3 + 50 ];
+    char query[ NAME_LEN + 50 ];
 
     DBUG_ENTER("get_actual_table_name");
 
@@ -2144,7 +2147,7 @@ static int dump_selected_tables(char *db, char **table_names, int tables)
     print_xml_tag1(md_result_file, "", "database name=", db, "\n");
   for (; tables > 0 ; tables-- , table_names++)
   {
-     char new_table_name[NAME_LEN*+3];
+     char new_table_name[NAME_LEN];
 
      /* the table name passed on commandline may be wrong case */
      get_actual_table_name( *table_names, new_table_name, sizeof(new_table_name) );
