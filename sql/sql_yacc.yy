@@ -201,6 +201,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %token  LEVEL_SYM
 %token	LEX_HOSTNAME
 %token	LIKE
+%token	LIMIT
 %token	LINES
 %token	LOCAL_SYM
 %token	LOGS_SYM
@@ -312,7 +313,6 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %token	FAST_SYM
 %token	FLOAT_SYM
 %token	INT_SYM
-%token	LIMIT
 %token	LONGBLOB
 %token	LONGTEXT
 %token	MEDIUMBLOB
@@ -2860,7 +2860,7 @@ handler:
 	  if (!add_table_to_list($2,0,0))
 	    YYABORT;
 	}
-	| HANDLER_SYM table_ident READ_SYM ident handler_read_function
+	| HANDLER_SYM table_ident READ_SYM ident handler_read_function limit_clause
 	{
 	  Lex->sql_command = SQLCOM_HA_READ;
 	  Lex->backup_dir= $4.str;

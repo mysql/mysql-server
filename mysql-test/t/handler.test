@@ -45,5 +45,12 @@ handler t2 read a>(18);
 handler t2 read a<=(18);
 handler t2 read a<(18);
 
+handler t2 read a first limit 5;
+handler t2 read a next  limit 3;
+handler t2 read a prev  limit 10;
+
+handler t2 read a>=(16) limit 4;
+handler t2 read a last  limit 3;
+
 handler t2 close;
 drop table if exists t1;

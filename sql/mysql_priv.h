@@ -385,7 +385,7 @@ int mysqld_show(THD *thd, const char *wild, show_var_st *variables);
 int mysql_ha_open(THD *thd, TABLE_LIST *tables);
 int mysql_ha_close(THD *thd, TABLE_LIST *tables);
 int mysql_ha_read(THD *, TABLE_LIST *,enum enum_ha_read_modes,
-                          char *,List<Item> *,enum ha_rkey_function);
+               char *,List<Item> *,enum ha_rkey_function,ha_rows,ha_rows);
 
 /* sql_base.cc */
 void set_item_name(Item *item,char *pos,uint length);
