@@ -30,6 +30,7 @@ SUBDIRS =		share
 bin_PROGRAMS	=	mysqlbinlog
 libexec_PROGRAMS =	mysqld
 noinst_PROGRAMS =	gen_lex_hash
+gen_lex_hash_LDFLAGS =        @NOINST_LDFLAGS@
 LDADD =			../isam/libnisam.a \
 			../merge/libmerge.a \
 			../myisam/libmyisam.a \
@@ -81,7 +82,7 @@ gen_lex_hash_SOURCES =	gen_lex_hash.cc
 gen_lex_hash_LDADD =	$(LDADD) $(CXXLDFLAGS)
 mysqlbinlog_SOURCES =   mysqlbinlog.cc mini_client.cc net_serv.cc \
 			mini_client_errors.c violite.c password.c
-mysqlbinlog_LDADD = $(LDADD) $(CXXLDFLAGS)
+mysqlbinlog_LDADD = $(LDADD) $(CXXLDFLAGS) $(mysqld_LDADD)
 
 DEFS =			-DMYSQL_SERVER \
 			-DDEFAULT_MYSQL_HOME="\"$(MYSQLBASEdir)\"" \

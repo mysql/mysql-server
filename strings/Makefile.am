@@ -39,7 +39,6 @@ endif
 endif
 
 libmystrings_a_SOURCES = @CHARSET_SRCS@ $(ASRCS) $(CSRCS)
-
 noinst_PROGRAMS = conf_to_src
 # Default charset definitions
 EXTRA_DIST =		ctype-big5.c ctype-czech.c ctype-euc_kr.c \
@@ -71,6 +70,9 @@ ctype_extra_sources.c: conf_to_src
 	              $(srcdir)/ctype_extra_sources.c
 conf_to_src_SOURCES = conf_to_src.c
 conf_to_src_LDADD=
+#force static linking of conf_to_src - essential when linking against
+#custom installation of libc
+conf_to_src_LDFLAGS= @NOINST_LDFLAGS@
 
 # This is because the dependency tracking misses @FOO@ vars in sources.
 strtoull.o:		@CHARSET_OBJS@

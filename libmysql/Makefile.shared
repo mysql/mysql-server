@@ -83,6 +83,9 @@ ctype_extra_sources.c: conf_to_src
 	              $(srcdir)/ctype_extra_sources.c
 conf_to_src_SOURCES = conf_to_src.c
 conf_to_src_LDADD=
-
+#for --with-other-libc to ensure static linking
+#note -all-static rather than -static
+#this is needed for libtool to work right
+conf_to_src_LDFLAGS=-all-static
 # Don't update the files from bitkeeper
 %::SCCS/s.%

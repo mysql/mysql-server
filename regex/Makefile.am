@@ -23,6 +23,7 @@ libregex_a_SOURCES =	regerror.c regcomp.c regexec.c regfree.c reginit.c
 noinst_PROGRAMS =	re
 re_SOURCES =		split.c debug.c main.c
 re_DEPENDENCIES=	$(LIBRARIES)
+re_LDFLAGS= @NOINST_LDFLAGS@
 EXTRA_DIST =		tests CHANGES COPYRIGHT WHATSNEW regexp.c \
 			debug.ih engine.ih main.ih regcomp.ih regerror.ih \
 			regex.3 regex.7
