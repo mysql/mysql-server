@@ -259,7 +259,7 @@ void vio_ssl_in_addr(Vio *vio, struct in_addr *in)
 {
   DBUG_ENTER("vio_ssl_in_addr");
   if (vio->localhost)
-    bzero((char*) in, sizeof(*in));	/* This should never be executed */
+    bzero((char*) in, sizeof(*in));
   else
     *in=vio->remote.sin_addr;
   DBUG_VOID_RETURN;
