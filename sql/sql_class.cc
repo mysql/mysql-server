@@ -675,7 +675,8 @@ int THD::send_explain_fields(select_result *result)
   item->maybe_null=1;
   field_list.push_back(new Item_return_int("rows",10, MYSQL_TYPE_LONGLONG));
   field_list.push_back(new Item_empty_string("Extra",255));
-  return (result->send_fields(field_list,1));
+  return (result->send_fields(field_list,
+                              Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF));
 }
 
 #ifdef SIGNAL_WITH_VIO_CLOSE
@@ -722,9 +723,9 @@ sql_exchange::sql_exchange(char *name,bool flag)
   escaped=    &default_escaped;
 }
 
-bool select_send::send_fields(List<Item> &list,uint flag)
+bool select_send::send_fields(List<Item> &list, uint flags)
 {
-  return thd->protocol->send_fields(&list,flag);
+  return thd->protocol->send_fields(&list, flags);
 }
 
 /* Send data to client. Returns 0 if ok */
@@ -1354,7 +1355,8 @@ Statement::Statement(THD *thd)
   allow_sum_func(0),
   lex(&main_lex),
   query(0),
-  query_length(0)
+  query_length(0),
+  cursor(0)
 {
   name.str= NULL;
 }
@@ -1372,7 +1374,8 @@ Statement::Statement()
   allow_sum_func(0),                            /* initialized later */
   lex(&main_lex),
   query(0),                                     /* these two are set */ 
-  query_length(0)                               /* in alloc_query() */
+  query_length(0),                              /* in alloc_query() */
+  cursor(0)
 {
 }
 
@@ -1391,6 +1394,7 @@ void Statement::set_statement(Statement *stmt)
   lex=            stmt->lex;
   query=          stmt->query;
   query_length=   stmt->query_length;
+  cursor=         stmt->cursor;
 }
 
 

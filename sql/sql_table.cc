@@ -1738,7 +1738,8 @@ static int mysql_admin_table(THD* thd, TABLE_LIST* tables,
   item->maybe_null = 1;
   field_list.push_back(item = new Item_empty_string("Msg_text", 255));
   item->maybe_null = 1;
-  if (protocol->send_fields(&field_list, 1))
+  if (protocol->send_fields(&field_list,
+                            Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
     DBUG_RETURN(-1);
 
   mysql_ha_close(thd, tables, /*dont_send_ok*/ 1, /*dont_lock*/ 1);
@@ -3449,7 +3450,8 @@ int mysql_checksum_table(THD *thd, TABLE_LIST *tables, HA_CHECK_OPT *check_opt)
   item->maybe_null= 1;
   field_list.push_back(item=new Item_int("Checksum",(longlong) 1,21));
   item->maybe_null= 1;
-  if (protocol->send_fields(&field_list, 1))
+  if (protocol->send_fields(&field_list,
+                            Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
     DBUG_RETURN(-1);
 
   for (table= tables; table; table= table->next_local)

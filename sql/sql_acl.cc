@@ -3163,7 +3163,8 @@ int mysql_show_grants(THD *thd,LEX_USER *lex_user)
   strxmov(buff,"Grants for ",lex_user->user.str,"@",
 	  lex_user->host.str,NullS);
   field_list.push_back(field);
-  if (protocol->send_fields(&field_list,1))
+  if (protocol->send_fields(&field_list,
+                            Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
     DBUG_RETURN(-1);
 
   rw_wrlock(&LOCK_grant);
