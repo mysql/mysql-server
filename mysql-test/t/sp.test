@@ -4,9 +4,22 @@
 # Please keep this file free of --error cases and other
 # things that will not run in a single debugged mysqld
 # process (e.g. master-slave things).
+#
+# Test cases for bugs are added at the end. See template there.
+#
+# Tests that require --error go into sp-error.test
+# Tests that require inndb go into sp_trans.test
+# Tests that check privilege and security issues go to sp-security.test.
+# Tests that require multiple connections, except security/privilege tests,
+#   go to sp-thread.
 
 use test;
 
+# Test tables
+#
+# t1 and t2 are reused throughout the file, and dropped at the end.
+# t3 and up are created and dropped when needed.
+#
 --disable_warnings
 drop table if exists t1;
 --enable_warnings
@@ -3385,33 +3398,39 @@ drop procedure bug8937|
 delete from t1|
 
 
+#
+# BUG#6600: Stored procedure crash after repeated calls with check table
+#
+--disable_warnings
+drop procedure if exists bug6600|
+drop table if exists t3|
+drop view if exists v1|
+--enable_warnings
+create table t3 (s1 decimal(31,30))|
+create view v1 as select * from t3|
+
+create procedure bug6600()
+  check table v1|
+
+call bug6600()|
+call bug6600()|
+call bug6600()|
+drop procedure bug6600|
+drop view v1|
+drop table t3|
+
+
+#
+# BUG#NNNN: New bug synopsis
+#
+#--disable_warnings
+#drop procedure if exists bugNNNN|
+#--enable_warnings
+#create procedure bugNNNN...
+
+
 # Add bugs above this line. Use existing tables t1 and t2 when
 # practical, or create table t3, t3 etc temporarily (and drop them).
 delimiter ;|
 drop table t1,t2;
 
-#
-# BUG#8850
-#
---disable_warnings
-drop procedure if exists sp1;
---enable_warnings
-delimiter |;
-create table t1 (a int) engine=innodb|
-create procedure sp1 ()
-begin
-  truncate table t1; insert t1 values (1); rollback;
-end
-|
-delimiter ;|
-set autocommit=0;
-insert t1 values (2);
---error 1192
-call sp1();
-commit;
-set autocommit=1;
-select * from t1;
-call sp1();
-select * from t1;
-drop table t1;
-drop procedure sp1;

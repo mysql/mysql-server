@@ -1131,6 +1131,35 @@ public:
 };
 
 
+/*
+  This item represents user variable used as out parameter (e.g in LOAD DATA),
+  and it is supposed to be used only for this purprose. So it is simplified
+  a lot. Actually you should never obtain its value.
+
+  The only two reasons for this thing being an Item is possibility to store it
+  in List<Item> and desire to place this code somewhere near other functions
+  working with user variables.
+*/
+class Item_user_var_as_out_param :public Item
+{
+  LEX_STRING name;
+  user_var_entry *entry;
+public:
+  Item_user_var_as_out_param(LEX_STRING a) : name(a) {}
+  /* We should return something different from FIELD_ITEM here */
+  enum Type type() const { return STRING_ITEM;}
+  double val_real();
+  longlong val_int();
+  String *val_str(String *str);
+  my_decimal *val_decimal(my_decimal *decimal_buffer);
+  /* fix_fields() binds variable name with its entry structure */
+  bool fix_fields(THD *thd, struct st_table_list *tables, Item **ref);
+  void print(String *str);
+  void set_null_value(CHARSET_INFO* cs);
+  void set_value(const char *str, uint length, CHARSET_INFO* cs);
+};
+
+
 class Item_func_inet_aton : public Item_int_func
 {
 public:

@@ -28,6 +28,11 @@
 #include <floatingpoint.h>
 #endif
 
+/*
+  The following extern declarations are ok as these are interface functions
+  required by the string function
+*/
+
 extern gptr sql_alloc(unsigned size);
 extern void sql_element_free(void *ptr);
 
@@ -97,14 +102,7 @@ bool String::set(longlong num, CHARSET_INFO *cs)
 
   if (alloc(l))
     return TRUE;
-  if (cs->cset->snprintf == my_snprintf_8bit)
-  {
-    str_length=(uint32) (longlong10_to_str(num,Ptr,-10)-Ptr);
-  }
-  else
-  {
-    str_length=cs->cset->snprintf(cs,Ptr,l,"%d",num);
-  }
+  str_length=(uint32) (cs->cset->longlong10_to_str)(cs,Ptr,l,-10,num);
   str_charset=cs;
   return FALSE;
 }
@@ -115,14 +113,7 @@ bool String::set(ulonglong num, CHARSET_INFO *cs)
 
   if (alloc(l))
     return TRUE;
-  if (cs->cset->snprintf == my_snprintf_8bit)
-  {
-    str_length=(uint32) (longlong10_to_str(num,Ptr,10)-Ptr);
-  }
-  else
-  {
-    str_length=cs->cset->snprintf(cs,Ptr,l,"%d",num);
-  }
+  str_length=(uint32) (cs->cset->longlong10_to_str)(cs,Ptr,l,10,num);
   str_charset=cs;
   return FALSE;
 }
@@ -130,12 +121,13 @@ bool String::set(ulonglong num, CHARSET_INFO *cs)
 bool String::set(double num,uint decimals, CHARSET_INFO *cs)
 {
   char buff[331];
+  uint dummy_errors;
 
   str_charset=cs;
   if (decimals >= NOT_FIXED_DEC)
   {
-    sprintf(buff,"%.14g",num);			// Enough for a DATETIME
-    return copy(buff, (uint32) strlen(buff), &my_charset_latin1, cs);
+    uint32 len= my_sprintf(buff,(buff, "%.14g",num));// Enough for a DATETIME
+    return copy(buff, len, &my_charset_latin1, cs, &dummy_errors);
   }
 #ifdef HAVE_FCONVERT
   int decpt,sign;
@@ -150,7 +142,8 @@ bool String::set(double num,uint decimals, CHARSET_INFO *cs)
       buff[0]='-';
       pos=buff;
     }
-    return copy(pos,(uint32) strlen(pos), &my_charset_latin1, cs);
+    uint dummy_errors;
+    return copy(pos,(uint32) strlen(pos), &my_charset_latin1, cs, &dummy_errors);
   }
   if (alloc((uint32) ((uint32) decpt+3+decimals)))
     return TRUE;
@@ -200,7 +193,8 @@ end:
 #else
   sprintf(buff,"%.*f",(int) decimals,num);
 #endif
-  return copy(buff,(uint32) strlen(buff), &my_charset_latin1, cs);
+  return copy(buff,(uint32) strlen(buff), &my_charset_latin1, cs,
+              &dummy_errors);
 #endif
 }
 
@@ -237,54 +231,162 @@ bool String::copy(const char *str,uint32 arg_length, CHARSET_INFO *cs)
   return FALSE;
 }
 
-/* Copy with charset convertion */
-bool String::copy(const char *str,uint32 arg_length, CHARSET_INFO *from, CHARSET_INFO *to)
+
+/*
+  Checks that the source string can be just copied to the destination string
+  without conversion.
+
+  SYNPOSIS
+
+  needs_conversion()
+  arg_length		Length of string to copy.
+  from_cs		Character set to copy from
+  to_cs			Character set to copy to
+  uint32 *offset	Returns number of unaligned characters.
+
+  RETURN
+   0  No conversion needed
+   1  Either character set conversion or adding leading  zeros
+      (e.g. for UCS-2) must be done
+*/
+
+bool String::needs_conversion(uint32 arg_length,
+			      CHARSET_INFO *from_cs,
+			      CHARSET_INFO *to_cs,
+			      uint32 *offset)
 {
-  uint32      new_length=to->mbmaxlen*arg_length;
-  int         cnvres;
-  my_wc_t     wc;
-  const uchar *s=(const uchar *)str;
-  const uchar *se=s+arg_length;
-  uchar       *d, *de;
+  *offset= 0;
+  if ((to_cs == &my_charset_bin) || 
+      (to_cs == from_cs) ||
+      my_charset_same(from_cs, to_cs) ||
+      ((from_cs == &my_charset_bin) &&
+       (!(*offset=(arg_length % to_cs->mbminlen)))))
+    return FALSE;
+  return TRUE;
+}
 
-  if (alloc(new_length))
+
+/*
+  Copy a multi-byte character sets with adding leading zeros.
+
+  SYNOPSIS
+
+  copy_aligned()
+  str			String to copy
+  arg_length		Length of string. This should NOT be dividable with
+			cs->mbminlen.
+  offset		arg_length % cs->mb_minlength
+  cs			Character set for 'str'
+
+  NOTES
+    For real multi-byte, ascii incompatible charactser sets,
+    like UCS-2, add leading zeros if we have an incomplete character.
+    Thus, 
+      SELECT _ucs2 0xAA 
+    will automatically be converted into
+      SELECT _ucs2 0x00AA
+
+  RETURN
+    0  ok
+    1  error
+*/
+
+bool String::copy_aligned(const char *str,uint32 arg_length, uint32 offset,
+			  CHARSET_INFO *cs)
+{
+  /* How many bytes are in incomplete character */
+  offset= cs->mbmaxlen - offset; /* How many zeros we should prepend */
+  DBUG_ASSERT(offset && offset != cs->mbmaxlen);
+
+  uint32 aligned_length= arg_length + offset;
+  if (alloc(aligned_length))
     return TRUE;
-
-  d=(uchar *)Ptr;
-  de=d+new_length;
   
-  for (str_length=new_length ; s < se && d < de ; )
-  {
-    if ((cnvres=from->cset->mb_wc(from,&wc,s,se)) > 0 )
-    {
-      s+=cnvres;
-    }
-    else if (cnvres==MY_CS_ILSEQ)
-    {
-      s++;
-      wc='?';
-    }
-    else
-      break;
-
-outp:
-    if((cnvres=to->cset->wc_mb(to,wc,d,de)) >0 )
-    {
-      d+=cnvres;
-    }
-    else if (cnvres==MY_CS_ILUNI && wc!='?')
-    {
-      wc='?';
-      goto outp;
-    }
-    else
-      break;
-  }
-  Ptr[new_length]=0;
-  length((uint32) (d-(uchar *)Ptr));
-  str_charset=to;
+  /*
+    Note, this is only safe for little-endian UCS-2.
+    If we add big-endian UCS-2 sometimes, this code
+    will be more complicated. But it's OK for now.
+  */
+  bzero((char*) Ptr, offset);
+  memcpy(Ptr + offset, str, arg_length);
+  Ptr[aligned_length]=0;
+  /* str_length is always >= 0 as arg_length is != 0 */
+  str_length= aligned_length;
+  str_charset= cs;
   return FALSE;
 }
+
+
+bool String::set_or_copy_aligned(const char *str,uint32 arg_length,
+				 CHARSET_INFO *cs)
+{
+  /* How many bytes are in incomplete character */
+  uint32 offset= (arg_length % cs->mbminlen); 
+  
+  if (!offset) /* All characters are complete, just copy */
+  {
+    set(str, arg_length, cs);
+    return FALSE;
+  }
+  return copy_aligned(str, arg_length, offset, cs);
+}
+
+	/* Copy with charset convertion */
+
+bool String::copy(const char *str, uint32 arg_length,
+		  CHARSET_INFO *from_cs, CHARSET_INFO *to_cs, uint *errors)
+{
+  uint32 offset;
+  if (!needs_conversion(arg_length, from_cs, to_cs, &offset))
+  {
+    *errors= 0;
+    return copy(str, arg_length, to_cs);
+  }
+  if ((from_cs == &my_charset_bin) && offset)
+  {
+    *errors= 0;
+    return copy_aligned(str, arg_length, offset, to_cs);
+  }
+  uint32 new_length= to_cs->mbmaxlen*arg_length;
+  if (alloc(new_length))
+    return TRUE;
+  str_length=copy_and_convert((char*) Ptr, new_length, to_cs,
+                              str, arg_length, from_cs, errors);
+  str_charset=to_cs;
+  return FALSE;
+}
+
+
+/*
+  Set a string to the value of a latin1-string, keeping the original charset
+  
+  SYNOPSIS
+    copy_or_set()
+    str			String of a simple charset (latin1)
+    arg_length		Length of string
+
+  IMPLEMENTATION
+    If string object is of a simple character set, set it to point to the
+    given string.
+    If not, make a copy and convert it to the new character set.
+
+  RETURN
+    0	ok
+    1	Could not allocate result buffer
+
+*/
+
+bool String::set_ascii(const char *str, uint32 arg_length)
+{
+  if (str_charset->mbminlen == 1)
+  {
+    set(str, arg_length, str_charset);
+    return 0;
+  }
+  uint dummy_errors;
+  return copy(str, arg_length, &my_charset_latin1, str_charset, &dummy_errors);
+}
+
 
 /* This is used by mysql.cc */
 
@@ -320,17 +422,80 @@ bool String::append(const String &s)
   return FALSE;
 }
 
+
+/*
+  Append an ASCII string to the a string of the current character set
+*/
+
 bool String::append(const char *s,uint32 arg_length)
 {
-  if (!arg_length)				// Default argument
-    if (!(arg_length= (uint32) strlen(s)))
-      return FALSE;
+  if (!arg_length)
+    return FALSE;
+
+  /*
+    For an ASCII incompatible string, e.g. UCS-2, we need to convert
+  */
+  if (str_charset->mbminlen > 1)
+  {
+    uint32 add_length=arg_length * str_charset->mbmaxlen;
+    uint dummy_errors;
+    if (realloc(str_length+ add_length))
+      return TRUE;
+    str_length+= copy_and_convert(Ptr+str_length, add_length, str_charset,
+				  s, arg_length, &my_charset_latin1,
+                                  &dummy_errors);
+    return FALSE;
+  }
+
+  /*
+    For an ASCII compatinble string we can just append.
+  */
   if (realloc(str_length+arg_length))
     return TRUE;
   memcpy(Ptr+str_length,s,arg_length);
   str_length+=arg_length;
   return FALSE;
 }
+
+
+/*
+  Append a 0-terminated ASCII string
+*/
+
+bool String::append(const char *s)
+{
+  return append(s, strlen(s));
+}
+
+
+/*
+  Append a string in the given charset to the string
+  with character set recoding
+*/
+
+bool String::append(const char *s,uint32 arg_length, CHARSET_INFO *cs)
+{
+  uint32 dummy_offset;
+  
+  if (needs_conversion(arg_length, cs, str_charset, &dummy_offset))
+  {
+    uint32 add_length= arg_length / cs->mbminlen * str_charset->mbmaxlen;
+    uint dummy_errors;
+    if (realloc(str_length + add_length)) 
+      return TRUE;
+    str_length+= copy_and_convert(Ptr+str_length, add_length, str_charset,
+				  s, arg_length, cs, &dummy_errors);
+  }
+  else
+  {
+    if (realloc(str_length + arg_length)) 
+      return TRUE;
+    memcpy(Ptr + str_length, s, arg_length);
+    str_length+= arg_length;
+  }
+  return FALSE;
+}
+
 
 #ifdef TO_BE_REMOVED
 bool String::append(FILE* file, uint32 arg_length, myf my_flags)
@@ -360,48 +525,33 @@ bool String::append(IO_CACHE* file, uint32 arg_length)
   return FALSE;
 }
 
+bool String::append_with_prefill(const char *s,uint32 arg_length,
+		 uint32 full_length, char fill_char)
+{
+  int t_length= arg_length > full_length ? arg_length : full_length;
+
+  if (realloc(str_length + t_length))
+    return TRUE;
+  t_length= full_length - arg_length;
+  if (t_length > 0)
+  {
+    bfill(Ptr+str_length, t_length, fill_char);
+    str_length=str_length + t_length;
+  }
+  append(s, arg_length);
+  return FALSE;
+}
+
 uint32 String::numchars()
 {
-#ifdef USE_MB
-  register uint32 n=0,mblen;
-  register const char *mbstr=Ptr;
-  register const char *end=mbstr+str_length;
-  if (use_mb(str_charset))
-  {
-    while (mbstr < end) {
-        if ((mblen=my_ismbchar(str_charset, mbstr,end))) mbstr+=mblen;
-        else ++mbstr;
-        ++n;
-    }
-    return n;
-  }
-  else
-#endif
-    return str_length;
+  return str_charset->cset->numchars(str_charset, Ptr, Ptr+str_length);
 }
 
 int String::charpos(int i,uint32 offset)
 {
-#ifdef USE_MB
-  register uint32 mblen;
-  register const char *mbstr=Ptr+offset;
-  register const char *end=Ptr+str_length;
-  if (use_mb(str_charset))
-  {
-    if (i<=0) return i;
-    while (i && mbstr < end) {
-       if ((mblen=my_ismbchar(str_charset, mbstr,end))) mbstr+=mblen;
-       else ++mbstr;
-       --i;
-    }
-    if ( INT_MAX32-i <= (int) (mbstr-Ptr-offset)) 
-      return INT_MAX32;
-    else 
-      return (int) ((mbstr-Ptr-offset)+i);
-  }
-  else
-#endif
+  if (i <= 0)
     return i;
+  return str_charset->cset->charpos(str_charset,Ptr+offset,Ptr+str_length,i);
 }
 
 int String::strstr(const String &s,uint32 offset)
@@ -424,40 +574,6 @@ skip:
 	i=(char*) str; j=(char*) search+1;
 	while (j != search_end)
 	  if (*i++ != *j++) goto skip;
-	return (int) (str-Ptr) -1;
-      }
-    }
-  }
-  return -1;
-}
-
-/*
-  Search after a string without regarding to case
-  This needs to be replaced when we have character sets per string
-*/
-
-int String::strstr_case(const String &s,uint32 offset)
-{
-  if (s.length()+offset <= str_length)
-  {
-    if (!s.length())
-      return ((int) offset);	// Empty string is always found
-
-    register const char *str = Ptr+offset;
-    register const char *search=s.ptr();
-    const char *end=Ptr+str_length-s.length()+1;
-    const char *search_end=s.ptr()+s.length();
-skip:
-    while (str != end)
-    {
-      if (str_charset->sort_order[*str++] == str_charset->sort_order[*search])
-      {
-	register char *i,*j;
-	i=(char*) str; j=(char*) search+1;
-	while (j != search_end)
-	  if (str_charset->sort_order[*i++] != 
-              str_charset->sort_order[*j++]) 
-            goto skip;
 	return (int) (str-Ptr) -1;
       }
     }
@@ -504,14 +620,20 @@ skip:
 
 bool String::replace(uint32 offset,uint32 arg_length,const String &to)
 {
-  long diff = (long) to.length()-(long) arg_length;
+  return replace(offset,arg_length,to.ptr(),to.length());
+}
+
+bool String::replace(uint32 offset,uint32 arg_length,
+                     const char *to,uint32 length)
+{
+  long diff = (long) length-(long) arg_length;
   if (offset+arg_length <= str_length)
   {
     if (diff < 0)
     {
-      if (to.length())
-	memcpy(Ptr+offset,to.ptr(),to.length());
-      bmove(Ptr+offset+to.length(),Ptr+offset+arg_length,
+      if (length)
+	memcpy(Ptr+offset,to,length);
+      bmove(Ptr+offset+length,Ptr+offset+arg_length,
 	    str_length-offset-arg_length);
     }
     else
@@ -523,13 +645,14 @@ bool String::replace(uint32 offset,uint32 arg_length,const String &to)
 	bmove_upp(Ptr+str_length+diff,Ptr+str_length,
 		  str_length-offset-arg_length);
       }
-      if (to.length())
-	memcpy(Ptr+offset,to.ptr(),to.length());
+      if (length)
+	memcpy(Ptr+offset,to,length);
     }
     str_length+=(uint32) diff;
   }
   return FALSE;
 }
+
 
 // added by Holyfoot for "geometry" needs
 int String::reserve(uint32 space_needed, uint32 grow_by)
@@ -542,9 +665,8 @@ int String::reserve(uint32 space_needed, uint32 grow_by)
   return FALSE;
 }
 
-void String::qs_append(const char *str)
+void String::qs_append(const char *str, uint32 len)
 {
-  int len = (int)strlen(str);
   memcpy(Ptr + str_length, str, len + 1);
   str_length += len;
 }
@@ -552,8 +674,7 @@ void String::qs_append(const char *str)
 void String::qs_append(double d)
 {
   char *buff = Ptr + str_length;
-  sprintf(buff,"%.14g", d);
-  str_length += (int)strlen(buff);
+  str_length+= my_sprintf(buff, (buff, "%.14g", d));
 }
 
 void String::qs_append(double *d)
@@ -563,90 +684,70 @@ void String::qs_append(double *d)
   qs_append(ld);
 }
 
-void String::qs_append(const char &c)
+void String::qs_append(int i)
 {
-  Ptr[str_length] = c;
-  str_length += sizeof(c);
+  char *buff= Ptr + str_length;
+  char *end= int10_to_str(i, buff, -10);
+  str_length+= (int) (end-buff);
+}
+
+void String::qs_append(uint i)
+{
+  char *buff= Ptr + str_length;
+  char *end= int10_to_str(i, buff, 10);
+  str_length+= (int) (end-buff);
+}
+
+/*
+  Compare strings according to collation, without end space.
+
+  SYNOPSIS
+    sortcmp()
+    s		First string
+    t		Second string
+    cs		Collation
+
+  NOTE:
+    Normally this is case sensitive comparison
+
+  RETURN
+  < 0	s < t
+  0	s == t
+  > 0	s > t
+*/
+
+
+int sortcmp(const String *s,const String *t, CHARSET_INFO *cs)
+{
+ return cs->coll->strnncollsp(cs,
+                              (unsigned char *) s->ptr(),s->length(),
+                              (unsigned char *) t->ptr(),t->length(), 0);
 }
 
 
-int sortcmp(const String *x,const String *y)
+/*
+  Compare strings byte by byte. End spaces are also compared.
+
+  SYNOPSIS
+    stringcmp()
+    s		First string
+    t		Second string
+
+  NOTE:
+    Strings are compared as a stream of unsigned chars
+
+  RETURN
+  < 0	s < t
+  0	s == t
+  > 0	s > t
+*/
+
+
+int stringcmp(const String *s,const String *t)
 {
-  const char *s= x->ptr();
-  const char *t= y->ptr();
-  uint32 x_len=x->length(),y_len=y->length(),len=min(x_len,y_len);
-
-  if (use_strnxfrm(x->str_charset))
-  {
-#ifndef CMP_ENDSPACE
-    while (x_len && my_isspace(x->str_charset,s[x_len-1]))
-      x_len--;
-    while (y_len && my_isspace(x->str_charset,t[y_len-1]))
-      y_len--;
-#endif
-    return my_strnncoll(x->str_charset,
-                        (unsigned char *)s,x_len,(unsigned char *)t,y_len);
-  }
-  else
-  {
-    x_len-=len;					// For easy end space test
-    y_len-=len;
-    if (x->str_charset->sort_order)
-    {
-      while (len--)
-      {
-        if (x->str_charset->sort_order[(uchar) *s++] != 
-          x->str_charset->sort_order[(uchar) *t++])
-            return ((int) x->str_charset->sort_order[(uchar) s[-1]] -
-                  (int) x->str_charset->sort_order[(uchar) t[-1]]);
-      }
-    }
-    else
-    {
-      while (len--)
-      {
-        if (*s++ != *t++)
-            return ((int) s[-1] - (int) t[-1]);
-      }
-    }
-#ifndef CMP_ENDSPACE
-    /* Don't compare end space in strings */
-    {
-      if (y_len)
-      {
-        const char *end=t+y_len;
-        for (; t != end ; t++)
-          if (!my_isspace(x->str_charset,*t))
-            return -1;
-      }
-      else
-      {
-        const char *end=s+x_len;
-        for (; s != end ; s++)
-          if (!my_isspace(x->str_charset,*s))
-            return 1;
-      }
-      return 0;
-    }
-#else
-    return (int) (x_len-y_len);
-#endif /* CMP_ENDSPACE */
-  }
-}
-
-
-int stringcmp(const String *x,const String *y)
-{
-  const char *s= x->ptr();
-  const char *t= y->ptr();
-  uint32 x_len=x->length(),y_len=y->length(),len=min(x_len,y_len);
-
-  while (len--)
-  {
-    if (*s++ != *t++)
-      return ((int) (uchar) s[-1] - (int) (uchar) t[-1]);
-  }
-  return (int) (x_len-y_len);
+  uint32 s_len=s->length(),t_len=t->length(),len=min(s_len,t_len);
+  int cmp= memcmp(s->ptr(), t->ptr(), len);
+  return (cmp) ? cmp : (int) (s_len - t_len);
 }
 
 
@@ -668,4 +769,124 @@ String *copy_if_not_alloced(String *to,String *from,uint32 from_length)
 }
 
 
+/****************************************************************************
+  Help functions
+****************************************************************************/
 
+/*
+  copy a string from one character set to another
+  
+  SYNOPSIS
+    copy_and_convert()
+    to			Store result here
+    to_cs		Character set of result string
+    from		Copy from here
+    from_length		Length of from string
+    from_cs		From character set
+
+  NOTES
+    'to' must be big enough as form_length * to_cs->mbmaxlen
+
+  RETURN
+    length of bytes copied to 'to'
+*/
+
+
+uint32
+copy_and_convert(char *to, uint32 to_length, CHARSET_INFO *to_cs, 
+                 const char *from, uint32 from_length, CHARSET_INFO *from_cs,
+                 uint *errors)
+{
+  int         cnvres;
+  my_wc_t     wc;
+  const uchar *from_end= (const uchar*) from+from_length;
+  char *to_start= to;
+  uchar *to_end= (uchar*) to+to_length;
+  int (*mb_wc)(struct charset_info_st *, my_wc_t *, const uchar *,
+	       const uchar *) = from_cs->cset->mb_wc;
+  int (*wc_mb)(struct charset_info_st *, my_wc_t, uchar *s, uchar *e)=
+    to_cs->cset->wc_mb;
+  uint error_count= 0;
+
+  while (1)
+  {
+    if ((cnvres= (*mb_wc)(from_cs, &wc, (uchar*) from,
+				      from_end)) > 0)
+      from+= cnvres;
+    else if (cnvres == MY_CS_ILSEQ)
+    {
+      error_count++;
+      from++;
+      wc= '?';
+    }
+    else
+      break;					// Impossible char.
+
+outp:
+    if ((cnvres= (*wc_mb)(to_cs, wc, (uchar*) to, to_end)) > 0)
+      to+= cnvres;
+    else if (cnvres == MY_CS_ILUNI && wc != '?')
+    {
+      error_count++;
+      wc= '?';
+      goto outp;
+    }
+    else
+      break;
+  }
+  *errors= error_count;
+  return (uint32) (to - to_start);
+}
+
+
+void String::print(String *str)
+{
+  char *st= (char*)Ptr, *end= st+str_length;
+  for (; st < end; st++)
+  {
+    uchar c= *st;
+    switch (c)
+    {
+    case '\\':
+      str->append("\\\\", 2);
+      break;
+    case '\0':
+      str->append("\\0", 2);
+      break;
+    case '\'':
+      str->append("\\'", 2);
+      break;
+    case '\n':
+      str->append("\\n", 2);
+      break;
+    case '\r':
+      str->append("\\r", 2);
+      break;
+    case 26: //Ctrl-Z
+      str->append("\\z", 2);
+      break;
+    default:
+      str->append(c);
+    }
+  }
+}
+
+
+/*
+  Exchange state of this object and argument.
+
+  SYNOPSIS
+    String::swap()
+
+  RETURN
+    Target string will contain state of this object and vice versa.
+*/
+
+void String::swap(String &s)
+{
+  swap_variables(char *, Ptr, s.Ptr);
+  swap_variables(uint32, str_length, s.str_length);
+  swap_variables(uint32, Alloced_length, s.Alloced_length);
+  swap_variables(bool, alloced, s.alloced);
+  swap_variables(CHARSET_INFO*, str_charset, s.str_charset);
+}

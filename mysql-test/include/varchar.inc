@@ -226,16 +226,3 @@ create table t1 (v varchar(65530), key(v(10)));
 insert into t1 values(repeat('a',65530));
 select length(v) from t1 where v=repeat('a',65530);
 drop table t1;
-
-#
-# Some errors/warnings on create
-#
-
-create table t1 (v varchar(65530), key(v));
-drop table if exists t1;
-create table t1 (v varchar(65536));
-show create table t1;
-drop table t1;
-create table t1 (v varchar(65530) character set utf8);
-show create table t1;
-drop table t1;

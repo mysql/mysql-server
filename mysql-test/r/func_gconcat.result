@@ -166,7 +166,7 @@ set group_concat_max_len = 1024;
 select group_concat(sum(a)) from t1 group by grp;
 ERROR HY000: Invalid use of group function
 select grp,group_concat(c order by 2) from t1 group by grp;
-ERROR 42S22: Unknown column '2' in 'group statement'
+ERROR 42S22: Unknown column '2' in 'order clause'
 drop table t1;
 create table t1 ( URL_ID int(11), URL varchar(80));
 create table t2 ( REQ_ID int(11), URL_ID int(11));
@@ -469,3 +469,10 @@ group_concat(a)
 ABW
 ABW
 drop table t1;
+create table r2 (a int, b int);
+insert into r2 values (1,1), (2,2);
+select  b x, (select group_concat(x) from r2) from  r2;
+x	(select group_concat(x) from r2)
+1	1,1
+2	2,2
+drop table r2;

@@ -2015,3 +2015,13 @@ select a-b , (a-b < 0)  from t1 order by 1;
 select a-b as d, (a-b >= 0), b from t1 group by b having d >= 0;
 select cast((a - b) as unsigned) from t1 order by 1;
 drop table t1;
+
+#
+# Bug#8670
+#
+create table t1 (a int, b int);
+create table t2 like t1;
+select t1.a from (t1 inner join t2 on t1.a=t2.a) where t2.a=1;
+select t1.a from ((t1 inner join t2 on t1.a=t2.a)) where t2.a=1;
+select x.a, y.a, z.a from ( (t1 x inner join t2 y on x.a=y.a) inner join t2 z on y.a=z.a) WHERE x.a=1;
+drop table t1,t2;

@@ -178,7 +178,7 @@ teststring
 teststring
 explain select * from t1 order by text1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	index	NULL	key1	32	NULL	3	Using index
+1	SIMPLE	t1	index	NULL	key1	34	NULL	3	Using index
 alter table t1 modify text1 char(32) binary not null;
 select * from t1 order by text1;
 text1
@@ -201,10 +201,12 @@ teststring
 select text1, length(text1) from t1 where text1='teststring' or text1 like 'teststring_%';
 text1	length(text1)
 teststring		11
+teststring	10
 teststring 	11
 select text1, length(text1) from t1 where text1='teststring' or text1 >= 'teststring\t';
 text1	length(text1)
 teststring		11
+teststring	10
 teststring 	11
 select concat('|', text1, '|') from t1 order by text1;
 concat('|', text1, '|')

@@ -704,14 +704,17 @@ static void append_directory(THD *thd, String *packet, const char *dir_type,
     packet->append(dir_type);
     packet->append(" DIRECTORY='", 12);
 #ifdef __WIN__
-    char *winfilename = thd->memdup(filename, length);
-    for (uint i=0; i < length; i++)
-	    if (winfilename[i] == '\\')
-		    winfilename[i] = '/';
-    packet->append(winfilename, length);
-#else
-    packet->append(filename, length);
+    /* Convert \ to / to be able to create table on unix */
+    char *winfilename= (char*) thd->memdup(filename, length);
+    char *pos, *end;
+    for (pos= winfilename, end= pos+length ; pos < end ; pos++)
+    {
+      if (*pos == '\\')
+        *pos = '/';
+    }
+    filename= winfilename;
 #endif
+    packet->append(filename, length);
     packet->append('\'');
   }
 }
@@ -2489,13 +2492,8 @@ void store_schema_proc(THD *thd, TABLE *table, TABLE *proc_table,
   definer= get_field(thd->mem_root, proc_table->field[11]);
   if (!full_access)
     full_access= !strcmp(sp_user, definer);
-  if (!full_access)
-  {
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
-    if (check_some_routine_access(thd, (char * )sp_db, (char * )sp_name))
-      return;
-#endif
-  }
+  if (!full_access && check_some_routine_access(thd, sp_db, sp_name))
+    return;
 
   if (lex->orig_sql_command == SQLCOM_SHOW_STATUS_PROC &&
       proc_table->field[2]->val_int() == TYPE_ENUM_PROCEDURE ||
@@ -2507,36 +2505,30 @@ void store_schema_proc(THD *thd, TABLE *table, TABLE *proc_table,
     if (!wild || !wild[0] || !wild_compare(sp_name, wild, 0))
     {
       table->field[3]->store(sp_name, strlen(sp_name), cs);
-      tmp_string.length(0);
       get_field(thd->mem_root, proc_table->field[3], &tmp_string);
       table->field[0]->store(tmp_string.ptr(), tmp_string.length(), cs);
       table->field[2]->store(sp_db, strlen(sp_db), cs);
-      tmp_string.length(0);
       get_field(thd->mem_root, proc_table->field[2], &tmp_string);
       table->field[4]->store(tmp_string.ptr(), tmp_string.length(), cs);
       if (proc_table->field[2]->val_int() == TYPE_ENUM_FUNCTION)
       {
-        tmp_string.length(0);
         get_field(thd->mem_root, proc_table->field[9], &tmp_string);
         table->field[5]->store(tmp_string.ptr(), tmp_string.length(), cs);
         table->field[5]->set_notnull();
       }
       if (full_access)
       {
-        tmp_string.length(0);
         get_field(thd->mem_root, proc_table->field[10], &tmp_string);
         table->field[7]->store(tmp_string.ptr(), tmp_string.length(), cs);
       }
       table->field[6]->store("SQL", 3, cs);
       table->field[10]->store("SQL", 3, cs);
-      tmp_string.length(0);
       get_field(thd->mem_root, proc_table->field[6], &tmp_string);
       table->field[11]->store(tmp_string.ptr(), tmp_string.length(), cs);
       if (proc_table->field[5]->val_int() == SP_CONTAINS_SQL)
       {
         table->field[12]->store("CONTAINS SQL", 12 , cs);
       }
-      tmp_string.length(0);
       get_field(thd->mem_root, proc_table->field[7], &tmp_string);
       table->field[14]->store(tmp_string.ptr(), tmp_string.length(), cs);
       bzero((char *)&time, sizeof(time));
@@ -2545,10 +2537,8 @@ void store_schema_proc(THD *thd, TABLE *table, TABLE *proc_table,
       bzero((char *)&time, sizeof(time));
       ((Field_timestamp *) proc_table->field[13])->get_time(&time);
       table->field[16]->store_time(&time, MYSQL_TIMESTAMP_DATETIME);
-      tmp_string.length(0);
       get_field(thd->mem_root, proc_table->field[14], &tmp_string);
       table->field[17]->store(tmp_string.ptr(), tmp_string.length(), cs);
-      tmp_string.length(0);
       get_field(thd->mem_root, proc_table->field[15], &tmp_string);
       table->field[18]->store(tmp_string.ptr(), tmp_string.length(), cs);
       table->field[19]->store(definer, strlen(definer), cs);

@@ -556,7 +556,7 @@ int, i967 int, i968 int, i969 int, i970 int, i971 int, i972 int, i973 int, i974
 int, i975 int, i976 int, i977 int, i978 int, i979 int, i980 int, i981 int, i982
 int, i983 int, i984 int, i985 int, i986 int, i987 int, i988 int, i989 int, i990
 int, i991 int, i992 int, i993 int, i994 int, i995 int, i996 int, i997 int, i998
-int, i999 int, i1000 int, b blob) row_format=dynamic;
+int, i999 int, i1000 int, b varchar(256)) row_format=dynamic;
 
 connection master;
 DROP TABLE IF EXISTS federated.t1;
@@ -686,7 +686,7 @@ int, i967 int, i968 int, i969 int, i970 int, i971 int, i972 int, i973 int, i974
 int, i975 int, i976 int, i977 int, i978 int, i979 int, i980 int, i981 int, i982
 int, i983 int, i984 int, i985 int, i986 int, i987 int, i988 int, i989 int, i990
 int, i991 int, i992 int, i993 int, i994 int, i995 int, i996 int, i997 int, i998
-int, i999 int, i1000 int, b blob)
+int, i999 int, i1000 int, b varchar(256))
 row_format=dynamic
 ENGINE="FEDERATED"
 DEFAULT CHARSET=latin1
