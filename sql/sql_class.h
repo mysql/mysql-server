@@ -427,7 +427,7 @@ class Statement
 public:
   /* FIXME: must be private */
   LEX     main_lex;
-public:
+
   /*
     Uniquely identifies each statement object in thread scope; change during
     statement lifetime. FIXME: must be const
@@ -476,7 +476,7 @@ public:
   char *query;
   uint32 query_length;                          // current query length
   /*
-    List of items created in the parser for this query. Every item puts 
+    List of items created in the parser for this query. Every item puts
     itself to the list on creation (see Item::Item() for details))
   */
   Item *free_list;
@@ -503,6 +503,15 @@ public:
   void set_statement(Statement *stmt);
   /* return class type */
   virtual Type type() const;
+
+  void set_n_backup_item_arena(Statement *set, Statement *backup);
+  inline void restore_backup_item_arena(Statement *backup)
+  {
+    set_item_arena(backup);
+    // reset backup mem_root to avoid its freeing
+    init_alloc_root(&backup->mem_root, 0, 0);
+  }
+  void set_item_arena(Statement *set);
 };
 
 
@@ -688,6 +697,10 @@ public:
 #ifdef SIGNAL_WITH_VIO_CLOSE
   Vio* active_vio;
 #endif
+  /*
+    Current prepared Statement if there one, or 0
+  */
+  Statement *current_statement;
   /*
     next_insert_id is set on SET INSERT_ID= #. This is used as the next
     generated auto_increment value in handler.cc

@@ -966,8 +966,10 @@ bool Item_field::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
 
 void Item_field::cleanup()
 {
+  DBUG_ENTER("Item_field::cleanup");
   Item_ident::cleanup();
   field= result_field= 0;
+  DBUG_VOID_RETURN;
 }
 
 void Item::init_make_field(Send_field *tmp_field,
@@ -1610,9 +1612,11 @@ bool Item_ref::fix_fields(THD *thd,TABLE_LIST *tables, Item **reference)
 
 void Item_ref::cleanup()
 {
+  DBUG_ENTER("Item_ref::cleanup");
   Item_ident::cleanup();
   if (hook_ptr)
     *hook_ptr= orig_item;
+  DBUG_VOID_RETURN;
 }
 
 

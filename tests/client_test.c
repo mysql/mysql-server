@@ -8095,6 +8095,53 @@ static void test_bug1946()
   rc= mysql_query(mysql,"DROP TABLE prepare_command");
 }
 
+static void test_subqueries()
+{
+  MYSQL_STMT *stmt;
+  int rc, i;
+  const char *query= "SELECT (SELECT SUM(a+b) FROM t2 where t1.b=t2.b GROUP BY t1.a LIMIT 1) as scalar_s, exists (select 1 from t2 where t2.a/2=t1.a) as exists_s, a in (select a+3 from t2) as in_s, (a-1,b-1) in (select a,b from t2) as in_row_s FROM t1";
+
+  myheader("test_subquery");
+  
+  rc = mysql_query(mysql, "DROP TABLE IF EXISTS t1,t2");
+  myquery(rc);
+  
+  rc= mysql_query(mysql,"CREATE TABLE t1 (a int , b int);");
+  myquery(rc);
+
+  rc= mysql_query(mysql,
+		  "insert into t1 values (1,1), (2, 2), (3,3), (4,4), (5,5);");
+  myquery(rc);
+
+  rc= mysql_query(mysql,"create table t2 select * from t1;");
+  myquery(rc);
+
+  stmt= mysql_prepare(mysql, query, strlen(query));
+  for (i= 0; i < 3; i++)
+  {
+    rc= mysql_execute(stmt);
+    mystmt(stmt, rc);
+    assert(5 == my_process_stmt_result(stmt));
+  }
+  mysql_stmt_close(stmt);
+
+  rc= mysql_query(mysql, "DROP TABLE t1,t2");
+  myquery(rc);
+}
+
+
+static void test_bad_union()
+{
+  MYSQL_STMT *stmt;
+  const char *query= "SELECT 1, 2 union SELECT 1";
+
+  myheader("test_bad_union");
+  
+  stmt= mysql_prepare(mysql, query, strlen(query));
+  assert(stmt == 0);
+  myerror(NULL); 
+}
+
 
 /*
   Read and parse arguments and MySQL options from my.cnf
@@ -8234,6 +8281,7 @@ int main(int argc, char **argv)
     test_count= 1;
    
     start_time= time((time_t *)0);
+
     client_query();         /* simple client query test */
 #if NOT_YET_WORKING
     /* Used for internal new development debugging */
@@ -8340,6 +8388,9 @@ int main(int argc, char **argv)
     test_bug1644();	    /* BUG#1644 */
     test_bug1946();         /* test that placeholders are allowed only in 
                                prepared queries */
+    test_subqueries();	    /* repeatable subqueries */
+    test_bad_union();       /* correct setup of UNION */
+
 
     end_time= time((time_t *)0);
     total_time+= difftime(end_time, start_time);

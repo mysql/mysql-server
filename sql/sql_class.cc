@@ -83,7 +83,7 @@ extern "C" void free_user_var(user_var_entry *entry)
 ** Thread specific functions
 ****************************************************************************/
 
-THD::THD():user_time(0), is_fatal_error(0),
+THD::THD():user_time(0), current_statement(0), is_fatal_error(0),
 	   last_insert_id_used(0),
 	   insert_id_used(0), rand_used(0), in_lock_tables(0),
 	   global_read_lock(0), bootstrap(0)
@@ -1231,6 +1231,21 @@ void Statement::set_statement(Statement *stmt)
   free_list=      stmt->free_list;
   mem_root=       stmt->mem_root;
 }
+
+void Statement::set_n_backup_item_arena(Statement *set, Statement *backup)
+{
+  backup->mem_root= mem_root;
+  backup->free_list= free_list;
+  set_item_arena(set);
+}
+
+
+void Statement::set_item_arena(Statement *set)
+{
+  mem_root= set->mem_root;
+  free_list= set->free_list;
+}
+
 
 
 Statement::~Statement()
