@@ -9089,8 +9089,9 @@ void Dbacc::writeUndoHeader(Signal* signal,
     (UndoHeader *) &undopageptr.p->undoword[theadundoindex];
 
   undoHeaderPtr->tableId = rootfragrecptr.p->mytabptr;
-  undoHeaderPtr->rootFragId = rootfragrecptr.p->fragmentid[0];
+  undoHeaderPtr->rootFragId = rootfragrecptr.p->fragmentid[0] >> 1;
   undoHeaderPtr->localFragId = fragrecptr.p->myfid;
+  ndbrequire((undoHeaderPtr->localFragId >> 1) ==  undoHeaderPtr->rootFragId);
   Uint32 Ttmp = cundoinfolength;
   Ttmp = (Ttmp << 4) + pageType;
   Ttmp = Ttmp << 14;
@@ -10200,6 +10201,7 @@ void Dbacc::srDoUndoLab(Signal* signal)
 
   // ROOT FRAGMENT ID
   tfid = undoHeaderPtr->rootFragId;
+  ndbrequire((undoHeaderPtr->localFragId >> 1) == undoHeaderPtr->rootFragId);
   if (!getrootfragmentrec(signal, rootfragrecptr, tfid)) {
     jam();
     /*---------------------------------------------------------------------*/
@@ -10209,7 +10211,10 @@ void Dbacc::srDoUndoLab(Signal* signal)
     creadyUndoaddress = cprevUndoaddress;
     // PREVIOUS UNDO LOG RECORD FOR ALL FRAGMENTS
     cprevUndoaddress = undoHeaderPtr->prevUndoAddress;
-    undoNext2Lab(signal);    
+    undoNext2Lab(signal); 
+#ifdef VM_TRACE
+    ndbout_c("ignoring root fid %d", (int)tfid);
+#endif
     return;
   }//if
   /*-----------------------------------------------------------------------*/
