@@ -23,17 +23,17 @@ ctype-ujis.c file.
  * This comment is parsed by configure to create ctype.c,
  * so don't change it unless you know what you are doing.
  *
- * .configure. mbmaxlen_eucjp_ms=3
+ * .configure. mbmaxlen_eucjpms=3
  */
 
 #include <my_global.h>
 #include "m_string.h"
 #include "m_ctype.h"
 
-#ifdef HAVE_CHARSET_eucjp_ms
+#ifdef HAVE_CHARSET_eucjpms
 
 
-static uchar NEAR ctype_eucjp_ms[257] =
+static uchar NEAR ctype_eucjpms[257] =
 {
     0,				/* For standard library */
     0040, 0040, 0040, 0040, 0040, 0040, 0040, 0040,	/* NUL ^A - ^G */
@@ -70,7 +70,7 @@ static uchar NEAR ctype_eucjp_ms[257] =
     0020, 0020, 0020, 0020, 0020, 0020, 0020, 0000,
 };
 
-static uchar NEAR to_lower_eucjp_ms[]=
+static uchar NEAR to_lower_eucjpms[]=
 {
   '\000','\001','\002','\003','\004','\005','\006','\007',
   '\010','\011','\012','\013','\014','\015','\016','\017',
@@ -106,7 +106,7 @@ static uchar NEAR to_lower_eucjp_ms[]=
   (uchar) '\370',(uchar) '\371',(uchar) '\372',(uchar) '\373',(uchar) '\374',(uchar) '\375',(uchar) '\376',(uchar) '\377'
 };
 
-static uchar NEAR to_upper_eucjp_ms[]=
+static uchar NEAR to_upper_eucjpms[]=
 {
   '\000','\001','\002','\003','\004','\005','\006','\007',
   '\010','\011','\012','\013','\014','\015','\016','\017',
@@ -142,7 +142,7 @@ static uchar NEAR to_upper_eucjp_ms[]=
   (uchar) '\370',(uchar) '\371',(uchar) '\372',(uchar) '\373',(uchar) '\374',(uchar) '\375',(uchar) '\376',(uchar) '\377'
 };
 
-static uchar NEAR sort_order_eucjp_ms[]=
+static uchar NEAR sort_order_eucjpms[]=
 {
   '\000','\001','\002','\003','\004','\005','\006','\007',
   '\010','\011','\012','\013','\014','\015','\016','\017',
@@ -179,25 +179,25 @@ static uchar NEAR sort_order_eucjp_ms[]=
 };
 
 
-#define iseucjp_ms(c)     ((0xa1<=((c)&0xff) && ((c)&0xff)<=0xfe))
+#define iseucjpms(c)     ((0xa1<=((c)&0xff) && ((c)&0xff)<=0xfe))
 #define iskata(c)     ((0xa1<=((c)&0xff) && ((c)&0xff)<=0xdf))
-#define iseucjp_ms_ss2(c) (((c)&0xff) == 0x8e)
-#define iseucjp_ms_ss3(c) (((c)&0xff) == 0x8f)
+#define iseucjpms_ss2(c) (((c)&0xff) == 0x8e)
+#define iseucjpms_ss3(c) (((c)&0xff) == 0x8f)
 
 
-static int ismbchar_eucjp_ms(CHARSET_INFO *cs __attribute__((unused)),
+static int ismbchar_eucjpms(CHARSET_INFO *cs __attribute__((unused)),
 		  const char* p, const char *e)
 {
   return ((*(uchar*)(p)<0x80)? 0:\
-    iseucjp_ms(*(p)) && (e)-(p)>1 && iseucjp_ms(*((p)+1))? 2:\
-    iseucjp_ms_ss2(*(p)) && (e)-(p)>1 && iskata(*((p)+1))? 2:\
-    iseucjp_ms_ss3(*(p)) && (e)-(p)>2 && iseucjp_ms(*((p)+1)) && iseucjp_ms(*((p)+2))? 3:\
+    iseucjpms(*(p)) && (e)-(p)>1 && iseucjpms(*((p)+1))? 2:\
+    iseucjpms_ss2(*(p)) && (e)-(p)>1 && iskata(*((p)+1))? 2:\
+    iseucjpms_ss3(*(p)) && (e)-(p)>2 && iseucjpms(*((p)+1)) && iseucjpms(*((p)+2))? 3:\
     0);
 }
 
-static int mbcharlen_eucjp_ms(CHARSET_INFO *cs __attribute__((unused)),uint c)
+static int mbcharlen_eucjpms(CHARSET_INFO *cs __attribute__((unused)),uint c)
 {
-  return (iseucjp_ms(c)? 2: iseucjp_ms_ss2(c)? 2: iseucjp_ms_ss3(c)? 3: 1);
+  return (iseucjpms(c)? 2: iseucjpms_ss2(c)? 2: iseucjpms_ss3(c)? 3: 1);
 }
 
 
@@ -8387,7 +8387,7 @@ my_jisx0212_uni_onechar(int code){
 */
 
 static
-uint my_well_formed_len_eucjp_ms(CHARSET_INFO *cs __attribute__((unused)),
+uint my_well_formed_len_eucjpms(CHARSET_INFO *cs __attribute__((unused)),
                              const char *beg, const char *end, uint pos)
 {
   const uchar *b= (uchar *) beg;
@@ -8646,11 +8646,11 @@ static MY_COLLATION_HANDLER my_collation_ci_handler =
 static MY_CHARSET_HANDLER my_charset_handler=
 {
     NULL,		/* init */
-    ismbchar_eucjp_ms,
-    mbcharlen_eucjp_ms,
+    ismbchar_eucjpms,
+    mbcharlen_eucjpms,
     my_numchars_mb,
     my_charpos_mb,
-    my_well_formed_len_eucjp_ms,
+    my_well_formed_len_eucjpms,
     my_lengthsp_8bit,
     my_numcells_eucjp,
     my_mb_wc_euc_jp,	/* mb_wc       */
@@ -8674,18 +8674,18 @@ static MY_CHARSET_HANDLER my_charset_handler=
 
 
 
-CHARSET_INFO my_charset_eucjp_ms_japanese_ci=
+CHARSET_INFO my_charset_eucjpms_japanese_ci=
 {
     97,0,0,		/* number       */
     MY_CS_COMPILED|MY_CS_PRIMARY,	/* state        */
-    "eucjp_ms",		/* cs name    */
-    "eucjp_ms_japanese_ci",	/* name         */
+    "eucjpms",		/* cs name    */
+    "eucjpms_japanese_ci",	/* name         */
     "",			/* comment      */
     NULL,		/* tailoring    */
-    ctype_eucjp_ms,
-    to_lower_eucjp_ms,
-    to_upper_eucjp_ms,
-    sort_order_eucjp_ms,
+    ctype_eucjpms,
+    to_lower_eucjpms,
+    to_upper_eucjpms,
+    sort_order_eucjpms,
     NULL,		/* sort_order_big*/
     NULL,		/* contractions */
     NULL,		/* tab_to_uni   */
@@ -8702,17 +8702,17 @@ CHARSET_INFO my_charset_eucjp_ms_japanese_ci=
 };
 
 
-CHARSET_INFO my_charset_eucjp_ms_bin=
+CHARSET_INFO my_charset_eucjpms_bin=
 {
     98,0,0,		/* number       */
     MY_CS_COMPILED|MY_CS_BINSORT,	/* state        */
-    "eucjp_ms",		/* cs name    */
-    "eucjp_ms_bin",		/* name         */
+    "eucjpms",		/* cs name    */
+    "eucjpms_bin",		/* name         */
     "",			/* comment      */
     NULL,		/* tailoring    */
-    ctype_eucjp_ms,
-    to_lower_eucjp_ms,
-    to_upper_eucjp_ms,
+    ctype_eucjpms,
+    to_lower_eucjpms,
+    to_upper_eucjpms,
     NULL,		/* sort_order   */
     NULL,		/* contractions */
     NULL,		/* sort_order_big*/
