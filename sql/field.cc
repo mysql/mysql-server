@@ -699,11 +699,13 @@ void Field_decimal::store(double nr)
     return;
   }
   
-  if (isinf(nr)) // Handle infinity as special case
+#ifdef HAVE_FINITE
+  if (!finite(nr)) // Handle infinity as special case
   {
     overflow(nr < 0.0);
     return;      
   }
+#endif
   
   reg4 uint i,length;
   char fyllchar,*to;

@@ -89,19 +89,11 @@ SOURCE=.\ft_boolean_search.c
 # End Source File
 # Begin Source File
 
-SOURCE=.\ft_eval.c
-# End Source File
-# Begin Source File
-
 SOURCE=.\ft_nlq_search.c
 # End Source File
 # Begin Source File
 
 SOURCE=.\ft_parser.c
-# End Source File
-# Begin Source File
-
-SOURCE=.\ft_search.c
 # End Source File
 # Begin Source File
 

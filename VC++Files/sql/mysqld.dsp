@@ -71,8 +71,7 @@ LINK32=link.exe
 # PROP Ignore_Export_Lib 0
 # PROP Target_Dir ""
 # ADD BASE CPP /nologo /W3 /Gm /GX /Zi /Od /D "WIN32" /D "_DEBUG" /D "_CONSOLE" /D "_MBCS" /YX /FD /c
-# ADD CPP /nologo /G6 /MTd /W3 /Gm /ZI /Od /I "../include" /I "../regex" /I "../bdb/build_win32" /D "_DEBUG" /D "SAFEMALLOC" /D "SAFE_MUTEX" /D "MYSQL_SERVER" /D "_WINDOWS" /D "_CONSOLE" /D "_MBCS" /D "HAVE_INNOBASE_DB" /D "HAVE_BERKELEY_DB" /D "USE_SYMDIR" /D "SIGNAL_WITH_VIO_CLOSE" /D "HAVE_DLOPEN" /FD /c
-# SUBTRACT CPP /Fr /YX
+# ADD CPP /nologo /G6 /MTd /W3 /Gm /Zi /Od /I "../include" /I "../regex" /I "../bdb/build_win32" /D "_DEBUG" /D "SAFEMALLOC" /D "SAFE_MUTEX" /D "MYSQL_SERVER" /D "_WINDOWS" /D "_CONSOLE" /D "_MBCS" /D "HAVE_INNOBASE_DB" /D "HAVE_BERKELEY_DB" /D "USE_SYMDIR" /D "SIGNAL_WITH_VIO_CLOSE" /D "HAVE_DLOPEN" /FD /c
 # ADD BASE RSC /l 0x410 /d "_DEBUG"
 # ADD RSC /l 0x409 /d "_DEBUG"
 BSC32=bscmake.exe
@@ -286,7 +285,7 @@ SOURCE=.\ha_heap.cpp
 # End Source File
 # Begin Source File
 
-SOURCE=.\ha_innobase.cpp
+SOURCE=.\ha_innodb.cpp
 # End Source File
 # Begin Source File
 
@@ -615,10 +614,6 @@ SOURCE=.\log_event.cpp
 # End Source File
 # Begin Source File
 
-SOURCE=.\md5.c
-# End Source File
-# Begin Source File
-
 SOURCE=.\mf_iocache.cpp
 
 !IF  "$(CFG)" == "mysqld - Win32 Release"
@@ -924,6 +919,10 @@ SOURCE=.\sql_delete.cpp
 
 !ENDIF 
 
+# End Source File
+# Begin Source File
+
+SOURCE=.\sql_do.cpp
 # End Source File
 # Begin Source File
 
