@@ -23738,6 +23738,33 @@ Updates to a database with a different name than the original
 
 Example: @code{replicate-rewrite-db=master_db_name->slave_db_name}.
 
+@item @code{slave-skip-errors=err_code1,err_code2,..} @tab
+Available only in 3.23.47 and later. Tells the slave thread to continue
+replication when a query returns an error from the provided
+list. Normally, replication will discontinue when an error is
+encountered giving the user a chance to resolve the inconsistency in the
+data manually. Do not use this option unless you fully understand why
+you are getting the errors.  If there are no bugs in your 
+replication setup and client programs, and no bugs in MySQL itself, you
+should never get an abort with error.Indiscriminate use of this option
+will result in slaves being hopelessly out of sync with the master and
+you having no idea how the problem happened.
+
+For error codes, you should use the numbers provided by the error message in
+your slave error log and in the output of @code{SHOW SLAVE STATUS}. Full list
+of error messages can be found in the source distribution in
+@code{Docs/mysqld_error.txt}.
+
+You can ( but should not) also use a very non-recommended value of @code{all}
+which will ignore all error messages and keep barging along regardless.
+Needless to say, if you use it, we make no promises regarding your data
+integrity. Please do not complain if your data on the slave is not anywhere
+close to what it is on the master in this case - you have been warned.
+
+Example:
+
+@code{slave-skip-errors=1062,1053} or @code{slave-skip-errors=all}
+
 @item @code{skip-slave-start} @tab
 Tells the slave server not to start the slave on the startup.  The user
 can start it later with @code{SLAVE START}.
@@ -46839,16 +46866,20 @@ not yet 100% confident in this code.
 @appendixsubsec Changes in release 3.23.47
 @itemize @bullet
 @item
+Added @code{slave-skip-errors} option
+@item
 Fixed that @code{GROUP BY expr DESC} works.
 @item
 Fixed bug when using @code{t1 LEFT JOIN t2 ON t2.key=constant}.
 @item
-@code{mysqlconfig} now also work with binary (relocated) distributions.
+@code{mysql_config} now also work with binary (relocated) distributions.
 @end itemize
 
 @node News-3.23.46, News-3.23.45, News-3.23.47, News-3.23.x
 @appendixsubsec Changes in release 3.23.46
 @itemize @bullet
+@item
+Fixed problem with aliased temporary tables replication
 @item
 InnoDB and BDB tables will now use index when doing an @code{ORDER BY}
 on the whole table.

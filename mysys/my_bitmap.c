@@ -26,14 +26,32 @@
 #include "mysys_priv.h"
 #include <my_bitmap.h>
 #include <assert.h>
+#include <string.h>
 
-my_bool bitmap_init(MY_BITMAP *map, uint bitmap_size)
+inline void bitmap_lock(MY_BITMAP* map)
+{
+#ifdef THREAD
+  if (map->thread_safe)
+    pthread_mutex_lock(&map->mutex);
+#endif
+}
+
+inline void bitmap_unlock(MY_BITMAP* map)
+{
+#ifdef THREAD
+  if (map->thread_safe)
+    pthread_mutex_unlock(&map->mutex);
+#endif
+}
+
+my_bool bitmap_init(MY_BITMAP *map, uint bitmap_size, my_bool thread_safe)
 {
   if (!(map->bitmap=(uchar*) my_malloc((bitmap_size+7)/8,
 				       MYF(MY_WME | MY_ZEROFILL))))
     return 1;
   dbug_assert(bitmap_size != ~(uint) 0);
 #ifdef THREAD
+  map->thread_safe = thread_safe;
   pthread_mutex_init(&map->mutex, MY_MUTEX_INIT_FAST);
 #endif
   map->bitmap_size=bitmap_size;
@@ -56,9 +74,9 @@ void bitmap_set_bit(MY_BITMAP *map, uint bitmap_bit)
 {
   if (bitmap_bit < map->bitmap_size)
   {
-    pthread_mutex_lock(&map->mutex);
+    bitmap_lock(map);
     map->bitmap[bitmap_bit / 8] |= (1 << (bitmap_bit & 7));
-    pthread_mutex_unlock(&map->mutex);
+    bitmap_unlock(map);
   }
 }
 
@@ -70,7 +88,7 @@ uint bitmap_set_next(MY_BITMAP *map)
   uint bitmap_size=map->bitmap_size;
   uint i;
 
-  pthread_mutex_lock(&map->mutex);
+  bitmap_lock(map);
   for (i=0; i < bitmap_size ; i++, bitmap++)
   {
     if (*bitmap != 0xff)
@@ -88,7 +106,7 @@ uint bitmap_set_next(MY_BITMAP *map)
       break;					/* Found bit */
     }
   }
-  pthread_mutex_unlock(&map->mutex);
+  bitmap_unlock(map);
   return bit_found;
 }
 
@@ -97,9 +115,29 @@ void bitmap_clear_bit(MY_BITMAP *map, uint bitmap_bit)
 {
   if (bitmap_bit < map->bitmap_size)
   {
-    pthread_mutex_lock(&map->mutex);
+    bitmap_lock(map);
     map->bitmap[bitmap_bit / 8] &= ~ (1 << (bitmap_bit & 7));
-    pthread_mutex_unlock(&map->mutex);
+    bitmap_unlock(map);
   }
 }
 
+void bitmap_set_all(MY_BITMAP* map)
+{
+  bitmap_lock(map);
+  memset(map->bitmap, 0xff, (map->bitmap_size+7)/8);
+  bitmap_unlock(map);
+}
+
+my_bool bitmap_is_set(MY_BITMAP* map, uint bitmap_bit)
+{
+  return (bitmap_bit < map->bitmap_size) ?
+    (map->bitmap[bitmap_bit / 8] & (1 << (bitmap_bit & 7))) :
+    0;
+}
+
+void bitmap_clear_all(MY_BITMAP* map)
+{
+  bitmap_lock(map);
+  bzero(map->bitmap,(map->bitmap_size+7)/8);
+  bitmap_unlock(map);
+}
