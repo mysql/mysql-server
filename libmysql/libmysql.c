@@ -183,6 +183,14 @@ void STDCALL mysql_server_end()
   mysql_client_init= org_my_init_done= 0;
 }
 
+static MYSQL_PARAMETERS mysql_internal_parameters=
+{&max_allowed_packet, &net_buffer_length};
+
+MYSQL_PARAMETERS *STDCALL mysql_get_parameters()
+{
+  return &mysql_internal_parameters;
+}
+
 my_bool STDCALL mysql_thread_init()
 {
 #ifdef THREAD
