@@ -1394,311 +1394,348 @@ void mysqld_list_processes(THD *thd,const char *user, bool verbose)
   Status functions
 *****************************************************************************/
 
+
+static bool show_status_array(THD *thd, const char *wild,
+                             show_var_st *variables,
+                             enum enum_var_type value_type,
+                             struct system_status_var *status_var,
+                             const char *prefix)
+{
+  char buff[1024], *prefix_end;
+  /* the variable name should not be longer then 80 characters */
+  char name_buffer[80];
+  int len;
+  Protocol *protocol= thd->protocol;
+  LEX_STRING null_lex_str;
+  DBUG_ENTER("show_status_array");
+
+  null_lex_str.str= 0;				// For sys_var->value_ptr()
+  null_lex_str.length= 0;
+
+  prefix_end=strnmov(name_buffer, prefix, sizeof(name_buffer)-1);
+  len=name_buffer + sizeof(name_buffer) - prefix_end;
+
+  for (; variables->name; variables++)
+  {
+    strnmov(prefix_end, variables->name, len);
+    name_buffer[sizeof(name_buffer)-1]=0;       /* Safety */
+    SHOW_TYPE show_type=variables->type;
+    if (show_type == SHOW_VARS)
+    {
+      show_status_array(thd, wild, (show_var_st *) variables->value,
+                        value_type, status_var, variables->name);
+    }
+    else
+    {
+      if (!(wild && wild[0] && wild_case_compare(system_charset_info,
+                                                 name_buffer, wild)))
+      {
+        char *value=variables->value;
+        const char *pos, *end;
+        long nr;
+
+        protocol->prepare_for_resend();
+        protocol->store(name_buffer, system_charset_info);
+
+        if (show_type == SHOW_SYS)
+        {
+          show_type= ((sys_var*) value)->type();
+          value=     (char*) ((sys_var*) value)->value_ptr(thd, value_type,
+                                                           &null_lex_str);
+        }
+
+        pos= end= buff;
+        switch (show_type) {
+        case SHOW_LONG_STATUS:
+        case SHOW_LONG_CONST_STATUS:
+          value= ((char *) status_var + (ulong) value);
+          /* fall through */
+        case SHOW_LONG:
+        case SHOW_LONG_CONST:
+          end= int10_to_str(*(long*) value, buff, 10);
+          break;
+        case SHOW_LONGLONG:
+          end= longlong10_to_str(*(longlong*) value, buff, 10);
+          break;
+        case SHOW_HA_ROWS:
+          end= longlong10_to_str((longlong) *(ha_rows*) value, buff, 10);
+          break;
+        case SHOW_BOOL:
+          end= strmov(buff, *(bool*) value ? "ON" : "OFF");
+          break;
+        case SHOW_MY_BOOL:
+          end= strmov(buff, *(my_bool*) value ? "ON" : "OFF");
+          break;
+        case SHOW_INT_CONST:
+        case SHOW_INT:
+          end= int10_to_str((long) *(uint32*) value, buff, 10);
+          break;
+        case SHOW_HAVE:
+          {
+            SHOW_COMP_OPTION tmp= *(SHOW_COMP_OPTION*) value;
+            pos= show_comp_option_name[(int) tmp];
+            end= strend(pos);
+            break;
+          }
+        case SHOW_CHAR:
+          {
+            if (!(pos= value))
+              pos= "";
+            end= strend(pos);
+            break;
+          }
+        case SHOW_STARTTIME:
+          nr= (long) (thd->query_start() - start_time);
+          end= int10_to_str(nr, buff, 10);
+          break;
+        case SHOW_QUESTION:
+          end= int10_to_str((long) thd->query_id, buff, 10);
+          break;
+#ifdef HAVE_REPLICATION
+        case SHOW_RPL_STATUS:
+          end= strmov(buff, rpl_status_type[(int)rpl_status]);
+          break;
+        case SHOW_SLAVE_RUNNING:
+          {
+            pthread_mutex_lock(&LOCK_active_mi);
+            end= strmov(buff, (active_mi->slave_running &&
+                               active_mi->rli.slave_running) ? "ON" : "OFF");
+            pthread_mutex_unlock(&LOCK_active_mi);
+            break;
+          }
+#endif /* HAVE_REPLICATION */
+        case SHOW_OPENTABLES:
+          end= int10_to_str((long) cached_tables(), buff, 10);
+          break;
+        case SHOW_CHAR_PTR:
+          {
+            if (!(pos= *(char**) value))
+              pos= "";
+            end= strend(pos);
+            break;
+          }
+        case SHOW_DOUBLE:
+          {
+            end= buff + sprintf(buff, "%f", *(double*) value);
+            break;
+          }
+#ifdef HAVE_OPENSSL
+          /* First group - functions relying on CTX */
+        case SHOW_SSL_CTX_SESS_ACCEPT:
+          end= int10_to_str((long) (!ssl_acceptor_fd ? 0 :
+                                    SSL_CTX_sess_accept(ssl_acceptor_fd->
+                                                        ssl_context)),
+                            buff, 10);
+          break;
+        case SHOW_SSL_CTX_SESS_ACCEPT_GOOD:
+          end= int10_to_str((long) (!ssl_acceptor_fd ? 0 :
+                                    SSL_CTX_sess_accept_good(ssl_acceptor_fd->
+                                                             ssl_context)),
+                            buff, 10);
+          break;
+        case SHOW_SSL_CTX_SESS_CONNECT_GOOD:
+          end= int10_to_str((long) (!ssl_acceptor_fd ? 0 :
+                                    SSL_CTX_sess_connect_good(ssl_acceptor_fd->
+                                                              ssl_context)),
+                            buff, 10);
+          break;
+        case SHOW_SSL_CTX_SESS_ACCEPT_RENEGOTIATE:
+          end= int10_to_str((long) (!ssl_acceptor_fd ? 0 :
+                                    SSL_CTX_sess_accept_renegotiate(ssl_acceptor_fd->ssl_context)),
+                            buff, 10);
+          break;
+        case SHOW_SSL_CTX_SESS_CONNECT_RENEGOTIATE:
+          end= int10_to_str((long) (!ssl_acceptor_fd ? 0 :
+                                    SSL_CTX_sess_connect_renegotiate(ssl_acceptor_fd-> ssl_context)),
+                            buff, 10);
+          break;
+        case SHOW_SSL_CTX_SESS_CB_HITS:
+          end= int10_to_str((long) (!ssl_acceptor_fd ? 0 :
+                                    SSL_CTX_sess_cb_hits(ssl_acceptor_fd->
+                                                         ssl_context)),
+                            buff, 10);
+          break;
+        case SHOW_SSL_CTX_SESS_HITS:
+          end= int10_to_str((long) (!ssl_acceptor_fd ? 0 :
+                                    SSL_CTX_sess_hits(ssl_acceptor_fd->
+                                                      ssl_context)),
+                            buff, 10);
+          break;
+        case SHOW_SSL_CTX_SESS_CACHE_FULL:
+          end= int10_to_str((long) (!ssl_acceptor_fd ? 0 :
+                                    SSL_CTX_sess_cache_full(ssl_acceptor_fd->
+                                                            ssl_context)),
+                            buff, 10);
+          break;
+        case SHOW_SSL_CTX_SESS_MISSES:
+          end= int10_to_str((long) (!ssl_acceptor_fd ? 0 :
+                                    SSL_CTX_sess_misses(ssl_acceptor_fd->
+                                                        ssl_context)),
+                            buff, 10);
+          break;
+        case SHOW_SSL_CTX_SESS_TIMEOUTS:
+          end= int10_to_str((long) (!ssl_acceptor_fd ? 0 :
+                                    SSL_CTX_sess_timeouts(ssl_acceptor_fd->ssl_context)),
+                            buff,10);
+          break;
+        case SHOW_SSL_CTX_SESS_NUMBER:
+          end= int10_to_str((long) (!ssl_acceptor_fd ? 0 :
+                                    SSL_CTX_sess_number(ssl_acceptor_fd->ssl_context)),
+                            buff,10);
+          break;
+        case SHOW_SSL_CTX_SESS_CONNECT:
+          end= int10_to_str((long) (!ssl_acceptor_fd ? 0 :
+                                    SSL_CTX_sess_connect(ssl_acceptor_fd->ssl_context)),
+                            buff,10);
+          break;
+        case SHOW_SSL_CTX_SESS_GET_CACHE_SIZE:
+          end= int10_to_str((long) (!ssl_acceptor_fd ? 0 :
+                                    SSL_CTX_sess_get_cache_size(ssl_acceptor_fd->ssl_context)),
+                            buff,10);
+          break;
+        case SHOW_SSL_CTX_GET_VERIFY_MODE:
+          end= int10_to_str((long) (!ssl_acceptor_fd ? 0 :
+                                    SSL_CTX_get_verify_mode(ssl_acceptor_fd->ssl_context)),
+                            buff,10);
+          break;
+        case SHOW_SSL_CTX_GET_VERIFY_DEPTH:
+          end= int10_to_str((long) (!ssl_acceptor_fd ? 0 :
+                                    SSL_CTX_get_verify_depth(ssl_acceptor_fd->ssl_context)),
+                            buff,10);
+          break;
+        case SHOW_SSL_CTX_GET_SESSION_CACHE_MODE:
+          if (!ssl_acceptor_fd)
+          {
+            pos= "NONE";
+            end= pos+4;
+            break;
+          }
+          switch (SSL_CTX_get_session_cache_mode(ssl_acceptor_fd->ssl_context))
+          {
+          case SSL_SESS_CACHE_OFF:
+            pos= "OFF";
+            break;
+          case SSL_SESS_CACHE_CLIENT:
+            pos= "CLIENT";
+            break;
+          case SSL_SESS_CACHE_SERVER:
+            pos= "SERVER";
+            break;
+          case SSL_SESS_CACHE_BOTH:
+            pos= "BOTH";
+            break;
+          case SSL_SESS_CACHE_NO_AUTO_CLEAR:
+            pos= "NO_AUTO_CLEAR";
+            break;
+          case SSL_SESS_CACHE_NO_INTERNAL_LOOKUP:
+            pos= "NO_INTERNAL_LOOKUP";
+            break;
+          default:
+            pos= "Unknown";
+            break;
+          }
+          end= strend(pos);
+          break;
+          /* First group - functions relying on SSL */
+        case SHOW_SSL_GET_VERSION:
+          pos= (thd->net.vio->ssl_arg ?
+                SSL_get_version((SSL*) thd->net.vio->ssl_arg) : "");
+          end= strend(pos);
+          break;
+        case SHOW_SSL_SESSION_REUSED:
+          end= int10_to_str((long) (thd->net.vio->ssl_arg ?
+                                    SSL_session_reused((SSL*) thd->net.vio->
+                                                       ssl_arg) :
+                                    0),
+                            buff, 10);
+          break;
+        case SHOW_SSL_GET_DEFAULT_TIMEOUT:
+          end= int10_to_str((long) (thd->net.vio->ssl_arg ?
+                                    SSL_get_default_timeout((SSL*) thd->net.vio->
+                                                            ssl_arg) :
+                                    0),
+                            buff, 10);
+          break;
+        case SHOW_SSL_GET_VERIFY_MODE:
+          end= int10_to_str((long) (thd->net.vio->ssl_arg ?
+                                    SSL_get_verify_mode((SSL*) thd->net.vio->
+                                                        ssl_arg):
+                                    0),
+                            buff, 10);
+          break;
+        case SHOW_SSL_GET_VERIFY_DEPTH:
+          end= int10_to_str((long) (thd->net.vio->ssl_arg ?
+                                    SSL_get_verify_depth((SSL*) thd->net.vio->
+                                                         ssl_arg):
+                                    0),
+                            buff, 10);
+          break;
+        case SHOW_SSL_GET_CIPHER:
+          pos= (thd->net.vio->ssl_arg ?
+                SSL_get_cipher((SSL*) thd->net.vio->ssl_arg) : "" );
+          end= strend(pos);
+          break;
+        case SHOW_SSL_GET_CIPHER_LIST:
+          if (thd->net.vio->ssl_arg)
+          {
+            char *to= buff;
+            for (int i=0 ; i++ ;)
+            {
+              const char *p= SSL_get_cipher_list((SSL*) thd->net.vio->ssl_arg,i);
+              if (p == NULL)
+                break;
+              to= strmov(to, p);
+              *to++= ':';
+            }
+            if (to != buff)
+              to--;				// Remove last ':'
+            end= to;
+          }
+          break;
+
+#endif /* HAVE_OPENSSL */
+        case SHOW_KEY_CACHE_LONG:
+        case SHOW_KEY_CACHE_CONST_LONG:
+          value= (value-(char*) &dflt_key_cache_var)+ (char*) sql_key_cache;
+          end= int10_to_str(*(long*) value, buff, 10);
+          break;
+        case SHOW_UNDEF:				// Show never happen
+        case SHOW_SYS:
+          break;					// Return empty string
+        default:
+          break;
+        }
+        if (protocol->store(pos, (uint32) (end - pos), system_charset_info) ||
+            protocol->write())
+          DBUG_RETURN(TRUE);                               /* purecov: inspected */
+      }
+    }
+  }
+
+  DBUG_RETURN(FALSE);
+}
+
+
 bool mysqld_show(THD *thd, const char *wild, show_var_st *variables,
                  enum enum_var_type value_type,
                  pthread_mutex_t *mutex,
                  struct system_status_var *status_var)
 {
-  char buff[1024];
   List<Item> field_list;
   Protocol *protocol= thd->protocol;
-  LEX_STRING null_lex_str;
   DBUG_ENTER("mysqld_show");
+
+  ha_update_statistics();                    /* Export engines statistics */
 
   field_list.push_back(new Item_empty_string("Variable_name",30));
   field_list.push_back(new Item_empty_string("Value",256));
   if (protocol->send_fields(&field_list,
                             Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
     DBUG_RETURN(TRUE); /* purecov: inspected */
-  null_lex_str.str= 0;				// For sys_var->value_ptr()
-  null_lex_str.length= 0;
 
   pthread_mutex_lock(mutex);
-  for (; variables->name; variables++)
-  {
-    if (!(wild && wild[0] && wild_case_compare(system_charset_info,
-					       variables->name,wild)))
-    {
-      protocol->prepare_for_resend();
-      protocol->store(variables->name, system_charset_info);
-      SHOW_TYPE show_type=variables->type;
-      char *value=variables->value;
-      const char *pos, *end;
-      long nr;
-
-      if (show_type == SHOW_SYS)
-      {
-	show_type= ((sys_var*) value)->type();
-	value=     (char*) ((sys_var*) value)->value_ptr(thd, value_type,
-							 &null_lex_str);
-      }
-
-      pos= end= buff;
-      switch (show_type) {
-      case SHOW_LONG_STATUS:
-      case SHOW_LONG_CONST_STATUS:
-	value= ((char *) status_var + (ulong) value);
-	  /* fall through */
-      case SHOW_LONG:
-      case SHOW_LONG_CONST:
-	end= int10_to_str(*(long*) value, buff, 10);
-        break;
-      case SHOW_LONGLONG:
-	end= longlong10_to_str(*(longlong*) value, buff, 10);
-	break;
-      case SHOW_HA_ROWS:
-        end= longlong10_to_str((longlong) *(ha_rows*) value, buff, 10);
-        break;
-      case SHOW_BOOL:
-	end= strmov(buff, *(bool*) value ? "ON" : "OFF");
-        break;
-      case SHOW_MY_BOOL:
-	end= strmov(buff, *(my_bool*) value ? "ON" : "OFF");
-        break;
-      case SHOW_INT_CONST:
-      case SHOW_INT:
-	end= int10_to_str((long) *(uint32*) value, buff, 10);
-        break;
-      case SHOW_HAVE:
-      {
-	SHOW_COMP_OPTION tmp= *(SHOW_COMP_OPTION*) value;
-	pos= show_comp_option_name[(int) tmp];
-	end= strend(pos);
-        break;
-      }
-      case SHOW_CHAR:
-      {
-        if (!(pos= value))
-          pos= "";
-        end= strend(pos);
-        break;
-       }
-      case SHOW_STARTTIME:
-	nr= (long) (thd->query_start() - start_time);
-	end= int10_to_str(nr, buff, 10);
-        break;
-      case SHOW_QUESTION:
-	end= int10_to_str((long) thd->query_id, buff, 10);
-        break;
-#ifdef HAVE_REPLICATION
-      case SHOW_RPL_STATUS:
-	end= strmov(buff, rpl_status_type[(int)rpl_status]);
-	break;
-      case SHOW_SLAVE_RUNNING:
-      {
-	pthread_mutex_lock(&LOCK_active_mi);
-	end= strmov(buff, (active_mi->slave_running &&
-			   active_mi->rli.slave_running) ? "ON" : "OFF");
-	pthread_mutex_unlock(&LOCK_active_mi);
-	break;
-      }
-#endif /* HAVE_REPLICATION */
-      case SHOW_OPENTABLES:
-	end= int10_to_str((long) cached_tables(), buff, 10);
-        break;
-      case SHOW_CHAR_PTR:
-      {
-        if (!(pos= *(char**) value))
-          pos= "";
-        end= strend(pos);
-        break;
-      }
-      case SHOW_DOUBLE:
-      {
-        end= buff + sprintf(buff, "%f", *(double*) value);
-        break;
-      }
-#ifdef HAVE_OPENSSL
-	/* First group - functions relying on CTX */
-      case SHOW_SSL_CTX_SESS_ACCEPT:
-	end= int10_to_str((long) (!ssl_acceptor_fd ? 0 :
-				  SSL_CTX_sess_accept(ssl_acceptor_fd->
-						      ssl_context)),
-			  buff, 10);
-        break;
-      case SHOW_SSL_CTX_SESS_ACCEPT_GOOD:
-	end= int10_to_str((long) (!ssl_acceptor_fd ? 0 :
-				  SSL_CTX_sess_accept_good(ssl_acceptor_fd->
-							   ssl_context)),
-			  buff, 10);
-        break;
-      case SHOW_SSL_CTX_SESS_CONNECT_GOOD:
-	end= int10_to_str((long) (!ssl_acceptor_fd ? 0 :
-				  SSL_CTX_sess_connect_good(ssl_acceptor_fd->
-							    ssl_context)),
-			  buff, 10);
-        break;
-      case SHOW_SSL_CTX_SESS_ACCEPT_RENEGOTIATE:
-	end= int10_to_str((long) (!ssl_acceptor_fd ? 0 :
-				  SSL_CTX_sess_accept_renegotiate(ssl_acceptor_fd->ssl_context)),
-			  buff, 10);
-        break;
-      case SHOW_SSL_CTX_SESS_CONNECT_RENEGOTIATE:
-	end= int10_to_str((long) (!ssl_acceptor_fd ? 0 :
-				  SSL_CTX_sess_connect_renegotiate(ssl_acceptor_fd-> ssl_context)),
-			  buff, 10);
-        break;
-      case SHOW_SSL_CTX_SESS_CB_HITS:
-	end= int10_to_str((long) (!ssl_acceptor_fd ? 0 :
-				  SSL_CTX_sess_cb_hits(ssl_acceptor_fd->
-						       ssl_context)),
-			  buff, 10);
-        break;
-      case SHOW_SSL_CTX_SESS_HITS:
-	end= int10_to_str((long) (!ssl_acceptor_fd ? 0 :
-				  SSL_CTX_sess_hits(ssl_acceptor_fd->
-						    ssl_context)),
-			  buff, 10);
-        break;
-      case SHOW_SSL_CTX_SESS_CACHE_FULL:
-	end= int10_to_str((long) (!ssl_acceptor_fd ? 0 :
-				  SSL_CTX_sess_cache_full(ssl_acceptor_fd->
-							  ssl_context)),
-			  buff, 10);
-        break;
-      case SHOW_SSL_CTX_SESS_MISSES:
-	end= int10_to_str((long) (!ssl_acceptor_fd ? 0 :
-				  SSL_CTX_sess_misses(ssl_acceptor_fd->
-						      ssl_context)),
-			  buff, 10);
-        break;
-      case SHOW_SSL_CTX_SESS_TIMEOUTS:
-	end= int10_to_str((long) (!ssl_acceptor_fd ? 0 :
-				  SSL_CTX_sess_timeouts(ssl_acceptor_fd->ssl_context)),
-			  buff,10);
-        break;
-      case SHOW_SSL_CTX_SESS_NUMBER:
-	end= int10_to_str((long) (!ssl_acceptor_fd ? 0 :
-				  SSL_CTX_sess_number(ssl_acceptor_fd->ssl_context)),
-			  buff,10);
-        break;
-      case SHOW_SSL_CTX_SESS_CONNECT:
-	end= int10_to_str((long) (!ssl_acceptor_fd ? 0 :
-				  SSL_CTX_sess_connect(ssl_acceptor_fd->ssl_context)),
-			  buff,10);
-        break;
-      case SHOW_SSL_CTX_SESS_GET_CACHE_SIZE:
-	end= int10_to_str((long) (!ssl_acceptor_fd ? 0 :
-				  SSL_CTX_sess_get_cache_size(ssl_acceptor_fd->ssl_context)),
-				  buff,10);
-        break;
-      case SHOW_SSL_CTX_GET_VERIFY_MODE:
-	end= int10_to_str((long) (!ssl_acceptor_fd ? 0 :
-				  SSL_CTX_get_verify_mode(ssl_acceptor_fd->ssl_context)),
-			  buff,10);
-        break;
-      case SHOW_SSL_CTX_GET_VERIFY_DEPTH:
-	end= int10_to_str((long) (!ssl_acceptor_fd ? 0 :
-				  SSL_CTX_get_verify_depth(ssl_acceptor_fd->ssl_context)),
-			  buff,10);
-        break;
-      case SHOW_SSL_CTX_GET_SESSION_CACHE_MODE:
-	if (!ssl_acceptor_fd)
-	{
-	  pos= "NONE";
-	  end= pos+4;
-	  break;
-	}
-	switch (SSL_CTX_get_session_cache_mode(ssl_acceptor_fd->ssl_context))
-	{
-          case SSL_SESS_CACHE_OFF:
-            pos= "OFF";
-	    break;
-          case SSL_SESS_CACHE_CLIENT:
-            pos= "CLIENT";
-	    break;
-          case SSL_SESS_CACHE_SERVER:
-            pos= "SERVER";
-	    break;
-          case SSL_SESS_CACHE_BOTH:
-            pos= "BOTH";
-	    break;
-          case SSL_SESS_CACHE_NO_AUTO_CLEAR:
-            pos= "NO_AUTO_CLEAR";
-	    break;
-          case SSL_SESS_CACHE_NO_INTERNAL_LOOKUP:
-            pos= "NO_INTERNAL_LOOKUP";
-	    break;
-	  default:
-            pos= "Unknown";
-	    break;
-	}
-	end= strend(pos);
-        break;
-	/* First group - functions relying on SSL */
-      case SHOW_SSL_GET_VERSION:
-	pos= (thd->net.vio->ssl_arg ?
-	      SSL_get_version((SSL*) thd->net.vio->ssl_arg) : "");
-	end= strend(pos);
-        break;
-      case SHOW_SSL_SESSION_REUSED:
-	end= int10_to_str((long) (thd->net.vio->ssl_arg ?
-				  SSL_session_reused((SSL*) thd->net.vio->
-						     ssl_arg) :
-				  0),
-			  buff, 10);
-        break;
-      case SHOW_SSL_GET_DEFAULT_TIMEOUT:
-	end= int10_to_str((long) (thd->net.vio->ssl_arg ?
-				  SSL_get_default_timeout((SSL*) thd->net.vio->
-							  ssl_arg) :
-				  0),
-			  buff, 10);
-        break;
-      case SHOW_SSL_GET_VERIFY_MODE:
-	end= int10_to_str((long) (thd->net.vio->ssl_arg ?
-				  SSL_get_verify_mode((SSL*) thd->net.vio->
-						      ssl_arg):
-				  0),
-			  buff, 10);
-        break;
-      case SHOW_SSL_GET_VERIFY_DEPTH:
-	end= int10_to_str((long) (thd->net.vio->ssl_arg ?
-				  SSL_get_verify_depth((SSL*) thd->net.vio->
-						       ssl_arg):
-				  0),
-			  buff, 10);
-        break;
-      case SHOW_SSL_GET_CIPHER:
-	pos= (thd->net.vio->ssl_arg ?
-	      SSL_get_cipher((SSL*) thd->net.vio->ssl_arg) : "" );
-	end= strend(pos);
-	break;
-      case SHOW_SSL_GET_CIPHER_LIST:
-	if (thd->net.vio->ssl_arg)
-	{
-	  char *to= buff;
-	  for (int i=0 ; i++ ;)
-	  {
-	    const char *p= SSL_get_cipher_list((SSL*) thd->net.vio->ssl_arg,i);
-	    if (p == NULL) 
-	      break;
-	    to= strmov(to, p);
-	    *to++= ':';
-	  }
-	  if (to != buff)
-	    to--;				// Remove last ':'
-	  end= to;
-        }
-        break;
-
-#endif /* HAVE_OPENSSL */
-      case SHOW_KEY_CACHE_LONG:
-      case SHOW_KEY_CACHE_CONST_LONG:
-	value= (value-(char*) &dflt_key_cache_var)+ (char*) sql_key_cache;
-	end= int10_to_str(*(long*) value, buff, 10);
-        break;
-      case SHOW_UNDEF:				// Show never happen
-      case SHOW_SYS:
-	break;					// Return empty string
-      default:
-	break;
-      }
-      if (protocol->store(pos, (uint32) (end - pos), system_charset_info) ||
-	  protocol->write())
-        goto err;                               /* purecov: inspected */
-    }
-  }
+  if (show_status_array(thd, wild, variables, value_type, status_var, ""))
+    goto err;
   pthread_mutex_unlock(mutex);
   send_eof(thd);
   DBUG_RETURN(FALSE);

@@ -186,6 +186,61 @@ that during a time of heavy update/insert activity. */
 
 ulint	srv_max_buf_pool_modified_pct	= 90;
 
+/* variable counts amount of data read in total (in bytes) */
+ulint srv_data_read = 0;
+
+/* here we count the amount of data written in total (in bytes) */
+ulint srv_data_written = 0;
+
+/* the number of the log write requests done */
+ulint srv_log_write_requests = 0;
+
+/* the number of physical writes to the log performed */
+ulint srv_log_writes = 0;
+
+/* amount of data written to the log files in bytes */
+ulint srv_os_log_written = 0;
+
+/* amount of writes being done to the log files */
+ulint srv_os_log_pending_writes = 0;
+
+/* we increase this counter, when there we don't have enough space in the
+log buffer and have to flush it */
+ulint srv_log_waits = 0;
+
+/* this variable counts the amount of times, when the doublewrite buffer
+was flushed */
+ulint srv_dblwr_writes = 0;
+
+/* here we store the number of pages that have been flushed to the
+doublewrite buffer */
+ulint srv_dblwr_pages_written = 0;
+
+/* in this variable we store the number of write requests issued */
+ulint srv_buf_pool_write_requests = 0;
+
+/* here we store the number of times when we had to wait for a free page
+in the buffer pool. It happens when the buffer pool is full and we need
+to make a flush, in order to be able to read or create a page. */
+ulint srv_buf_pool_wait_free = 0;
+
+/* variable to count the number of pages that were written from buffer
+pool to the disk */
+ulint srv_buf_pool_flushed = 0;
+
+/* variable to count the number of buffer pool reads that led to the
+reading of a disk page */
+ulint srv_buf_pool_reads = 0;
+
+/* variable to count the number of sequential read-aheads */
+ulint srv_read_ahead_seq = 0;
+
+/* variable to count the number of random read-aheads */
+ulint srv_read_ahead_rnd = 0;
+
+/* structure to pass status variables to MySQL */
+export_struc export_vars;
+
 /* If the following is != 0 we do not allow inserts etc. This protects
 the user from forgetting the innodb_force_recovery keyword to my.cnf */
 
@@ -1617,6 +1672,57 @@ srv_printf_innodb_monitor(
 
 	mutex_exit(&srv_innodb_monitor_mutex);
 	fflush(file);
+}
+
+/**********************************************************************
+Function to pass InnoDB status variables to MySQL */
+
+void
+srv_export_innodb_status(void)
+{
+
+        mutex_enter(&srv_innodb_monitor_mutex);
+        export_vars.innodb_data_pending_reads= os_n_pending_reads;
+        export_vars.innodb_data_pending_writes= os_n_pending_writes;
+        export_vars.innodb_data_pending_fsyncs= 
+                fil_n_pending_log_flushes + fil_n_pending_tablespace_flushes;
+        export_vars.innodb_data_fsyncs= os_n_fsyncs;
+        export_vars.innodb_data_read= srv_data_read;
+        export_vars.innodb_data_reads= os_n_file_reads;
+        export_vars.innodb_data_writes= os_n_file_writes;
+        export_vars.innodb_data_written= srv_data_written;
+        export_vars.innodb_buffer_pool_read_requests= buf_pool->n_page_gets;
+        export_vars.innodb_buffer_pool_write_requests= srv_buf_pool_write_requests;
+        export_vars.innodb_buffer_pool_wait_free= srv_buf_pool_wait_free;
+        export_vars.innodb_buffer_pool_pages_flushed= srv_buf_pool_flushed;
+        export_vars.innodb_buffer_pool_reads= srv_buf_pool_reads;
+        export_vars.innodb_buffer_pool_read_ahead_rnd= srv_read_ahead_rnd;
+        export_vars.innodb_buffer_pool_read_ahead_seq= srv_read_ahead_seq;
+        export_vars.innodb_buffer_pool_pages_data= UT_LIST_GET_LEN(buf_pool->LRU);
+        export_vars.innodb_buffer_pool_pages_dirty= UT_LIST_GET_LEN(buf_pool->flush_list);
+        export_vars.innodb_buffer_pool_pages_free= UT_LIST_GET_LEN(buf_pool->free);
+        export_vars.innodb_buffer_pool_pages_latched= buf_get_latched_pages_number();
+        export_vars.innodb_buffer_pool_pages_total= buf_pool->curr_size;
+        export_vars.innodb_buffer_pool_pages_misc= buf_pool->max_size -
+          UT_LIST_GET_LEN(buf_pool->LRU) - UT_LIST_GET_LEN(buf_pool->free);
+        export_vars.innodb_page_size= UNIV_PAGE_SIZE;
+        export_vars.innodb_log_waits= srv_log_waits;
+        export_vars.innodb_os_log_written= srv_os_log_written;
+        export_vars.innodb_os_log_fsyncs= fil_n_log_flushes;
+        export_vars.innodb_os_log_pending_fsyncs= fil_n_pending_log_flushes;
+        export_vars.innodb_os_log_pending_writes= srv_os_log_pending_writes;
+        export_vars.innodb_log_write_requests= srv_log_write_requests;
+        export_vars.innodb_log_writes= srv_log_writes;
+        export_vars.innodb_dblwr_pages_written= srv_dblwr_pages_written;
+        export_vars.innodb_dblwr_writes= srv_dblwr_writes;
+        export_vars.innodb_pages_created= buf_pool->n_pages_created;
+        export_vars.innodb_pages_read= buf_pool->n_pages_read;
+        export_vars.innodb_pages_written= buf_pool->n_pages_written;
+        export_vars.innodb_rows_read= srv_n_rows_read;
+        export_vars.innodb_rows_inserted= srv_n_rows_inserted;
+        export_vars.innodb_rows_updated= srv_n_rows_updated;
+        export_vars.innodb_rows_deleted= srv_n_rows_deleted;
+        mutex_exit(&srv_innodb_monitor_mutex);
 }
 
 /*************************************************************************

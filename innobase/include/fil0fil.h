@@ -89,6 +89,8 @@ extern fil_addr_t	fil_addr_null;
 #define FIL_TABLESPACE 		501
 #define FIL_LOG			502
 
+extern ulint	fil_n_log_flushes;
+
 extern ulint	fil_n_pending_log_flushes;
 extern ulint	fil_n_pending_tablespace_flushes;
 
