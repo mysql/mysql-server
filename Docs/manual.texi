@@ -4514,6 +4514,12 @@ Please report bad or out-of-date mirrors to @email{webmaster@@mysql.com}.
 @uref{http://ftp.esat.net/mirrors/download.sourceforge.net/pub/mirrors/mysql/, WWW}
 @uref{ftp://ftp.esat.net/mirrors/download.sourceforge.net/pub/mirrors/mysql/, FTP}
 
+@c @item
+@c Added 20010524
+@c EMAIL: arvids@parks.lv (Arvids)
+@c @image{Flags/latvia} Latvia [linux.lv] @
+@c @uref{ftp://ftp.linux.lv/pub/software/mysql/, FTP}
+
 @item
 @c Added 20001125
 @c EMAIL: mleicher@silverpoint.nl (Marcel Leicher)
@@ -4794,10 +4800,10 @@ Please report bad or out-of-date mirrors to @email{webmaster@@mysql.com}.
 @uref{http://mysql.linuxwired.net/, WWW}
 @uref{ftp://ftp.linuxwired.net/pub/mirrors/mysql/, FTP}
 
-@item
+@c @item
 @c EMAIL: dan@surfsouth.com (Dan Muntz)
-@image{Flags/usa} USA [Venoma.Org/Valdosta, GA] @
-@uref{http://mysql.venoma.org/, WWW}
+@c @image{Flags/usa} USA [Venoma.Org/Valdosta, GA] @
+@c @uref{http://mysql.venoma.org/, WWW}
 
 @item
 @c EMAIL: hkind@adgrafix.com (Hans Kind)
@@ -4997,8 +5003,8 @@ Please report bad or out-of-date mirrors to @email{webmaster@@mysql.com}.
 @c Added 980610
 @c EMAIL: jason@dstc.edu.au (Jason Andrade)
 @image{Flags/australia} Australia [AARNet/Queensland] @
-@uref{http://mirror.aarnet.edu.au/mysql, WWW}
-@uref{ftp://mirror.aarnet.edu.au/pub/mysql, FTP}
+@uref{http://mysql.mirror.aarnet.edu.au/, WWW}
+@uref{ftp://mysql.mirror.aarnet.edu.au/, FTP}
 
 @c @item
 @c Added 980805. Removed 000102 'no such directory'
@@ -43007,6 +43013,9 @@ tickets for this event is implemented using @strong{MySQL} and tcl/tk. More than
 service with millions of users.}
 
 @item @uref{http://f1.tauzero.se, Forza Motorsport}
+
+@item @uref{http://www.dreamhost.com/, DreamHost Web Hosting}
+
 @end itemize
 
 @cindex services
@@ -43344,16 +43353,16 @@ interface, you should fetch the @code{Data-Dumper}, @code{DBI}, and
 Perl @code{Data-Dumper} module.  Useful with @code{DBI}/@code{DBD} support for
 older Perl installations.
 
-@item @uref{http://www.mysql.com/Downloads/Contrib/DBI-1.14.tar.gz, DBI-1.14.tar.gz}
+@item @uref{http://www.mysql.com/Downloads/Contrib/DBI-1.15.tar.gz, DBI-1.15.tar.gz}
 Perl @code{DBI} module.
 
-@item @uref{http://www.mysql.com/Downloads/Contrib/KAMXbase1.0.tar.gz,KAMXbase1.0.tar.gz}
+@item @uref{http://www.mysql.com/Downloads/Contrib/KAMXbase1.2.tar.gz,KAMXbase1.2.tar.gz}
 Convert between @file{.dbf} files and @strong{MySQL} tables.  Perl
 module written by Pratap Pereira @email{pereira@@ee.eng.ohio-state.edu},
 extended by Kevin A. McGrail @email{kmcgrail@@digital1.peregrinehw.com}.
 This converter can handle MEMO fields.
 
-@item @uref{http://www.mysql.com/Downloads/Contrib/Msql-Mysql-modules-1.2215.tar.gz, Msql-Mysql-modules-1.2215.tar.gz}
+@item @uref{http://www.mysql.com/Downloads/Contrib/Msql-Mysql-modules-1.2216.tar.gz, Msql-Mysql-modules-1.2216.tar.gz}
 Perl @code{DBD} module to access mSQL and @strong{MySQL} databases.
 
 @item @uref{http://www.mysql.com/Downloads/Contrib/Data-ShowTable-3.3.tar.gz,  Data-ShowTable-3.3.tar.gz}
