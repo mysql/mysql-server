@@ -6,9 +6,9 @@ id   char(16) not null,
 data int not null
 );
 create table t2 (
-s   char(16) not null,
-i   int not null,
-d   double not null
+s   char(16),
+i   int,
+d   double
 );
 create procedure foo42()
 insert into test.t1 values ("foo", 42);
@@ -777,6 +777,30 @@ a
 2
 drop table t3;
 drop procedure bug1862;
+create procedure bug1874()
+begin
+declare x int;
+declare y double;
+select max(data) into x from t1;
+insert into t2 values ("max", x, 0);
+select min(data) into x from t1;
+insert into t2 values ("min", x, 0);
+select sum(data) into x from t1;
+insert into t2 values ("sum", x, 0);
+select avg(data) into y from t1;
+insert into t2 values ("avg", 0, y);
+end;
+insert into t1 (data) values (3), (1), (5), (9), (4);
+call bug1874();
+select * from t2;
+s	i	d
+max	9	0
+min	1	0
+sum	22	0
+avg	0	4.4
+delete from t1;
+delete from t2;
+drop procedure bug1874;
 drop table if exists fac;
 create table fac (n int unsigned not null primary key, f bigint unsigned);
 create procedure ifac(n int unsigned)

@@ -54,26 +54,40 @@ sp_eval_func_item(THD *thd, Item *it, enum enum_field_types type)
   it= it->this_item();
   DBUG_PRINT("info", ("type: %d", type));
 
-  if (it->fix_fields(thd, 0, &it))
+  if (!it->fixed && it->fix_fields(thd, 0, &it))
   {
     DBUG_PRINT("info", ("fix_fields() failed"));
     DBUG_RETURN(it);		// Shouldn't happen?
   }
 
   /* QQ How do we do this? Is there some better way? */
-  if (type == MYSQL_TYPE_NULL || it->is_null())
+  if (type == MYSQL_TYPE_NULL)
     it= new Item_null();
   else
   {
     switch (sp_map_result_type(type)) {
     case INT_RESULT:
-      DBUG_PRINT("info", ("INT_RESULT: %d", it->val_int()));
-      it= new Item_int(it->val_int());
-      break;
+      {
+	longlong i= it->val_int();
+
+	DBUG_PRINT("info", ("INT_RESULT: %d", i));
+	if (it->null_value)
+	  it= new Item_null();
+	else
+	  it= new Item_int(it->val_int());
+	break;
+      }
     case REAL_RESULT:
-      DBUG_PRINT("info", ("REAL_RESULT: %g", it->val()));
-      it= new Item_real(it->val());
-      break;
+      {
+	double d= it->val();
+
+	DBUG_PRINT("info", ("REAL_RESULT: %g", d));
+	if (it->null_value)
+	  it= new Item_null();
+	else
+	  it= new Item_real(it->val());
+	break;
+      }
     default:
       {
 	char buffer[MAX_FIELD_WIDTH];
@@ -81,8 +95,11 @@ sp_eval_func_item(THD *thd, Item *it, enum enum_field_types type)
 	String *s= it->val_str(&tmp);
 
 	DBUG_PRINT("info",("default result: %*s",s->length(),s->c_ptr_quick()));
-	it= new Item_string(thd->strmake(s->c_ptr_quick(), s->length()),
-			    s->length(), it->collation.collation);
+	if (it->null_value)
+	  it= new Item_null();
+	else
+	  it= new Item_string(thd->strmake(s->c_ptr_quick(), s->length()),
+			      s->length(), it->collation.collation);
 	break;
       }
     }
