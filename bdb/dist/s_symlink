@@ -14,7 +14,7 @@ build btree/tags ../dist/tags
 build build_unix/tags ../dist/tags
 build clib/tags ../dist/tags
 build common/tags ../dist/tags
-build crypto/tags ../dist/tags
+#build crypto/tags ../dist/tags
 build cxx/tags ../dist/tags
 build db/tags ../dist/tags
 build db185/tags ../dist/tags
@@ -34,9 +34,9 @@ build dbinc_auto/tags ../dist/tags
 build dbm/tags ../dist/tags
 build dbreg/tags ../dist/tags
 build env/tags ../dist/tags
-build examples_c/tags ../dist/tags
-build examples_cxx/tags ../dist/tags
-build examples_java java/src/com/sleepycat/examples
+#build examples_c/tags ../dist/tags
+#build examples_cxx/tags ../dist/tags
+#build examples_java java/src/com/sleepycat/examples
 build fileops/tags ../dist/tags
 build hash/tags ../dist/tags
 build hmac/tags ../dist/tags
