@@ -83,7 +83,8 @@ public:
       Datetime,         // Precision down to 1 sec  (size 8 bytes)
       Date,             // Precision down to 1 day (size 4 bytes)
       Blob,             // Blob
-      Text              // Text blob
+      Text,             // Text blob
+      Time = 25         // Time without date
     };
     Enum m_typeId;
     Cmp* m_cmp;         // comparison method
@@ -135,6 +136,7 @@ private:
   static Cmp cmpDate;
   static Cmp cmpBlob;
   static Cmp cmpText;
+  static Cmp cmpTime;
 };
 
 #endif

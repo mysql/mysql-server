@@ -217,3 +217,22 @@ select count(*)-5 from t1 use index (da) where da <  '1970-03-03';
 select count(*)-6 from t1 use index (da) where da <  '2001-01-01';
 select count(*)-8 from t1 use index (da) where da <= '2001-01-02';
 select count(*)-9 from t1 use index (da) where da <= '2055-01-01';
+
+# year
+select count(*)-9 from t1 use index (ye) where ye >  '1900';
+select count(*)-6 from t1 use index (ye) where ye >= '1955';
+select count(*)-5 from t1 use index (ye) where ye >  '1955';
+select count(*)-5 from t1 use index (ye) where ye <  '1970';
+select count(*)-6 from t1 use index (ye) where ye <  '2001';
+select count(*)-8 from t1 use index (ye) where ye <= '2001';
+select count(*)-9 from t1 use index (ye) where ye <= '2055';
+
+# time
+select count(*)-9 from t1 use index (ti) where ti >= '00:00:00';
+select count(*)-7 from t1 use index (ti) where ti >  '00:00:00';
+select count(*)-7 from t1 use index (ti) where ti >  '05:05:05';
+select count(*)-5 from t1 use index (ti) where ti >  '06:06:06';
+select count(*)-5 from t1 use index (ti) where ti <  '10:11:11';
+select count(*)-6 from t1 use index (ti) where ti <= '10:11:11';
+select count(*)-8 from t1 use index (ti) where ti <  '23:59:59';
+select count(*)-9 from t1 use index (ti) where ti <= '23:59:59';

@@ -148,6 +148,12 @@ NdbColumnImpl::init(Type t)
     m_length = 4;
     m_cs = default_cs;
     break;
+  case Time:
+    m_precision = 0;
+    m_scale = 0;
+    m_length = 1;
+    m_cs = NULL;
+    break;
   case Undefined:
     assert(false);
     break;
@@ -1177,6 +1183,7 @@ columnTypeMapping[] = {
   { DictTabInfo::ExtDate,            NdbDictionary::Column::Date },
   { DictTabInfo::ExtBlob,            NdbDictionary::Column::Blob },
   { DictTabInfo::ExtText,            NdbDictionary::Column::Text },
+  { DictTabInfo::ExtTime,            NdbDictionary::Column::Time },
   { -1, -1 }
 };
 
