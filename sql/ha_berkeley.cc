@@ -2125,6 +2125,35 @@ int ha_berkeley::analyze(THD* thd, HA_CHECK_OPT* check_opt)
 {
   DB_BTREE_STAT *stat=0;
   uint i;
+  DB_TXN_STAT *txn_stat_ptr= 0;
+
+  if (!db_env->txn_stat(db_env, &txn_stat_ptr, 0) &&
+      txn_stat_ptr && txn_stat_ptr->st_nactive>=2)
+  {
+    DB_TXN_ACTIVE *atxn_stmt= 0, *atxn_all= 0;
+    
+    DB_TXN *txn_all= (DB_TXN*) thd->transaction.all.bdb_tid;
+    u_int32_t all_id= txn_all->id(txn_all);
+    
+    DB_TXN *txn_stmt= (DB_TXN*) thd->transaction.stmt.bdb_tid;
+    u_int32_t stmt_id= txn_stmt->id(txn_stmt);
+    
+    DB_TXN_ACTIVE *cur= txn_stat_ptr->st_txnarray;
+    DB_TXN_ACTIVE *end= cur + txn_stat_ptr->st_nactive;
+    for (; cur!=end && (!atxn_stmt || !atxn_all); cur++)
+    {
+      if (cur->txnid==all_id) atxn_all= cur;
+      if (cur->txnid==stmt_id) atxn_stmt= cur;
+    }
+    
+    if (atxn_stmt && atxn_all &&
+	log_compare(&atxn_stmt->lsn,&atxn_all->lsn))
+    {
+      free(txn_stat_ptr);
+      return HA_ADMIN_REJECT;
+    }
+    free(txn_stat_ptr);
+  }
 
   for (i=0 ; i < table->keys ; i++)
   {
