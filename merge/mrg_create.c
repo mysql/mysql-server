@@ -33,7 +33,7 @@ int mrg_create(const char *name, const char**table_names)
 
   errpos=0;
   if ((file = my_create(fn_format(buff,name,"",MRG_NAME_EXT,4),0,
-       O_RDWR | O_TRUNC,MYF(MY_WME))) < 0)
+       O_RDWR | O_EXCL | O_NOFOLLOW,MYF(MY_WME))) < 0)
     goto err;
   errpos=1;
   if (table_names)
