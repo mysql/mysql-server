@@ -46,10 +46,8 @@ parse_arguments() {
       # safe_mysqld-specific options - must be set in my.cnf ([safe_mysqld])!
       --ledir=*)   ledir=`echo "$arg" | sed -e "s;--ledir=;;"` ;;
       --err-log=*) err_log=`echo "$arg" | sed -e "s;--err-log=;;"` ;;
-      # QQ The --open-files should be removed
-      --open-files=*) open_files=`echo "$arg" | sed -e "s;--open-files=;;"` ;;
       --open-files-limit=*) open_files=`echo "$arg" | sed -e "s;--open-files-limit=;;"` ;;
-      --core-file-size=*) core_file_size=`echo "$arg" | sed -e "s;--core_file_size=;;"` ;;
+      --core-file-size=*) core_file_size=`echo "$arg" | sed -e "s;--core-file-size=;;"` ;;
       --timezone=*) TZ=`echo "$arg" | sed -e "s;--timezone=;;"` ; export TZ; ;;
       --mysqld=*)   MYSQLD=`echo "$arg" | sed -e "s;--mysqld=;;"` ;;
       --mysqld-version=*)
