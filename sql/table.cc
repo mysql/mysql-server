@@ -1581,27 +1581,47 @@ bool st_table_list::setup_ancestor(THD *thd, Item **conds)
 
     if (arena)
     thd->set_n_backup_item_arena(arena, &backup);
-    if (outer_join)
+
+    if (with_check)
     {
-      /*
-        Store WHERE condition to ON expression for outer join, because we
-        can't use WHERE to correctly execute jeft joins on VIEWs and  this
-        expression will not be moved to WHERE condition (i.e. will be clean
-        correctly for PS/SP)
-      */
-      on_expr= and_conds(on_expr, where);
+      check_option= where->copy_andor_structure(thd);
+      if (with_check == VIEW_CHECK_CASCADED)
+      {
+        check_option= and_conds(check_option, ancestor->check_option);
+      }
     }
-    else
+
+    if (!no_where_clause)
     {
-      /*
-        It is conds of JOIN, but it will be stored in st_select_lex::prep_where
-        for next reexecution
-      */
-      *conds= and_conds(*conds, where);
+      if (outer_join)
+      {
+        /*
+          Store WHERE condition to ON expression for outer join, because we
+          can't use WHERE to correctly execute jeft joins on VIEWs and  this
+          expression will not be moved to WHERE condition (i.e. will be
+          clean correctly for PS/SP)
+        */
+        on_expr= and_conds(on_expr, where);
+      }
+      else
+      {
+        /*
+          It is conds of JOIN, but it will be stored in
+          st_select_lex::prep_where for next reexecution
+        */
+        *conds= and_conds(*conds, where);
+      }
     }
     if (arena)
       thd->restore_backup_item_arena(arena, &backup);
   }
+  /*
+    fix_fields do not need tables, because new are only AND operation and we
+    just need recollect statistics
+  */
+  if (check_option && !check_option->fixed &&
+      check_option->fix_fields(thd, 0, &check_option))
+    goto err;
 
   /* full text function moving to current select */
   if (view->select_lex.ftfunc_list->elements)
