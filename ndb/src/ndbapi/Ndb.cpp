@@ -246,6 +246,7 @@ Ndb::waitUntilReady(int timeout)
   int secondsCounter = 0;
   int milliCounter = 0;
   int noChecksSinceFirstAliveFound = 0;
+  int id;
 
   if (theInitState != Initialised) {
     // Ndb::init is not called
@@ -254,39 +255,48 @@ Ndb::waitUntilReady(int timeout)
   }
 
   do {
-    unsigned int foundAliveNode = 0;
-    TransporterFacade *tp = TransporterFacade::instance();
-    tp->lock_mutex();
-    for (unsigned int i = 0; i < theNoOfDBnodes; i++) {
-      const NodeId nodeId = theDBnodes[i];
-      //************************************************
-      // If any node is answering, ndb is answering
-      //************************************************
-      if (tp->get_node_alive(nodeId) != 0) {
-	foundAliveNode++;
+    if ((id = theNode) != 0) {
+      unsigned int foundAliveNode = 0;
+      TransporterFacade *tp = TransporterFacade::instance();
+      tp->lock_mutex();
+      for (unsigned int i = 0; i < theNoOfDBnodes; i++) {
+	const NodeId nodeId = theDBnodes[i];
+	//************************************************
+	// If any node is answering, ndb is answering
+	//************************************************
+	if (tp->get_node_alive(nodeId) != 0) {
+	  foundAliveNode++;
+	}//if
+      }//for
+      
+      tp->unlock_mutex();
+      if (foundAliveNode == theNoOfDBnodes) {
+	DBUG_RETURN(0);
       }//if
-    }//for
-    
-    tp->unlock_mutex();
-    if (foundAliveNode == theNoOfDBnodes) {
-      DBUG_RETURN(0);
-    }//if
-    if (foundAliveNode > 0) {
-      noChecksSinceFirstAliveFound++;
-    }//if
-    if (noChecksSinceFirstAliveFound > 30) {
-      DBUG_RETURN(0);
-    }//if
+      if (foundAliveNode > 0) {
+	noChecksSinceFirstAliveFound++;
+      }//if
+      if (noChecksSinceFirstAliveFound > 30) {
+	DBUG_RETURN(0);
+      }//if
+    }//if theNode != 0
+    if (secondsCounter >= timeout)
+      break;
     NdbSleep_MilliSleep(100);
     milliCounter += 100;
     if (milliCounter >= 1000) {
       secondsCounter++;
       milliCounter = 0;
     }//if
-  } while ( secondsCounter < timeout );
+  } while (1);
+  if (id == 0) {
+    theError.code = 4269;
+    DBUG_RETURN(-1);
+  }
   if (noChecksSinceFirstAliveFound > 0) {
     DBUG_RETURN(0);
   }//if
+  theError.code = 4009;
   DBUG_RETURN(-1);
 }
 
@@ -789,8 +799,10 @@ Ndb::readAutoIncrementValue(const char* aTableName)
 {
   DEBUG_TRACE("readtAutoIncrementValue");
   const NdbTableImpl* table = theDictionary->getTable(aTableName);
-  if (table == 0)
+  if (table == 0) {
+    theError= theDictionary->getNdbError();
     return ~0;
+  }
   Uint64 tupleId = readTupleIdFromNdb(table->m_tableId);
   return tupleId;
 }
@@ -821,8 +833,10 @@ Ndb::setAutoIncrementValue(const char* aTableName, Uint64 val, bool increase)
 {
   DEBUG_TRACE("setAutoIncrementValue " << val);
   const NdbTableImpl* table = theDictionary->getTable(aTableName);
-  if (table == 0)
+  if (table == 0) {
+    theError= theDictionary->getNdbError();
     return false;
+  }
   return setTupleIdInNdb(table->m_tableId, val, increase);
 }
 
@@ -841,8 +855,10 @@ Ndb::setTupleIdInNdb(const char* aTableName, Uint64 val, bool increase )
 {
   DEBUG_TRACE("setTupleIdInNdb");
   const NdbTableImpl* table = theDictionary->getTable(aTableName);
-  if (table == 0)
+  if (table == 0) {
+    theError= theDictionary->getNdbError();
     return false;
+  }
   return setTupleIdInNdb(table->m_tableId, val, increase);
 }
 
