@@ -28505,14 +28505,14 @@ integers) you may get unexpected results when the result is larger than
 @cindex floating-point number
 @tindex FLOAT
 @tindex FLOAT(precision)
-@item FLOAT(precision) [ZEROFILL]
+@item FLOAT(precision) [UNSIGNED] [ZEROFILL]
 
-A floating-point number. Cannot be unsigned.  @code{precision} can be
+A floating-point number.  @code{precision} can be
 @code{<=24} for a single-precision floating-point number and between 25
 and 53 for a double-precision floating-point number. These types are like
 the @code{FLOAT} and @code{DOUBLE} types described immediately below.
 @code{FLOAT(X)} has the same range as the corresponding @code{FLOAT} and
-@code{DOUBLE} types, but the display size and number of decimals is undefined.
+@code{DOUBLE} types, but the display size and number of decimals are undefined.
 
 In MySQL Version 3.23, this is a true floating-point value.  In
 earlier MySQL versions, @code{FLOAT(precision)} always has 2 decimals.
@@ -28527,38 +28527,40 @@ This syntax is provided for ODBC compatibility.
 
 @tindex FLOAT
 @tindex FLOAT(M,D)
-@item FLOAT[(M,D)] [ZEROFILL]
+@item FLOAT[(M,D)] [UNSIGNED] [ZEROFILL]
 
-A small (single-precision) floating-point number. Cannot be unsigned.
-Allowable values are @code{@w{-3.402823466E+38}} to
-@code{@w{-1.175494351E-38}}, @code{0}, and @code{@w{1.175494351E-38}} to
-@code{3.402823466E+38}.  The @code{M} is the display width and @code{D} is the
-number of decimals.  @code{FLOAT} without arguments or @code{FLOAT(X)} where
-@code{X} <= 24 stands for a single-precision floating-point number.
+A small (single-precision) floating-point number.  Allowable values are
+@code{@w{-3.402823466E+38}} to @code{@w{-1.175494351E-38}}, @code{0},
+and @code{@w{1.175494351E-38}} to @code{3.402823466E+38}.  If
+@code{UNSIGNED} is specified, negative values are disallowed.  The @code{M}
+is the display width and @code{D} is the number of decimals.  @code{FLOAT}
+without arguments or @code{FLOAT(X)} where @code{X} <= 24 stands for a
+single-precision floating-point number.
 
 @tindex DOUBLE
 @tindex FLOAT(precision)
-@item DOUBLE[(M,D)] [ZEROFILL]
+@item DOUBLE[(M,D)] [UNSIGNED] [ZEROFILL]
 
-A normal-size (double-precision) floating-point number. Cannot be
-unsigned. Allowable values are @code{@w{-1.7976931348623157E+308}} to
+A normal-size (double-precision) floating-point number.
+Allowable values are @code{@w{-1.7976931348623157E+308}} to
 @code{@w{-2.2250738585072014E-308}}, @code{0}, and
-@code{2.2250738585072014E-308} to @code{1.7976931348623157E+308}.  The
+@code{2.2250738585072014E-308} to @code{1.7976931348623157E+308}.  If
+@code{UNSIGNED} is specified, negative values are disallowed.  The
 @code{M} is the display width and @code{D} is the number of decimals.
 @code{DOUBLE} without arguments or @code{FLOAT(X)} where 25 <= @code{X}
 <= 53 stands for a double-precision floating-point number.
 
 @tindex DOUBLE PRECISION
 @tindex REAL
-@item DOUBLE PRECISION[(M,D)] [ZEROFILL]
-@itemx REAL[(M,D)] [ZEROFILL]
+@item DOUBLE PRECISION[(M,D)] [UNSIGNED] [ZEROFILL]
+@itemx REAL[(M,D)] [UNSIGNED] [ZEROFILL]
 
 These are synonyms for @code{DOUBLE}.
 
 @tindex DECIMAL
-@item DECIMAL[(M[,D])] [ZEROFILL]
+@item DECIMAL[(M[,D])] [UNSIGNED] [ZEROFILL]
 
-An unpacked floating-point number.  Cannot be unsigned.  Behaves like a
+An unpacked floating-point number.  Behaves like a
 @code{CHAR} column: ``unpacked'' means the number is stored as a string,
 using one character for each digit of the value.  The decimal point and,
 for negative numbers, the @samp{-} sign, are not counted in @code{M} (but
@@ -28566,7 +28568,7 @@ space for these is reserved). If @code{D} is 0, values will have no decimal
 point or fractional part.  The maximum range of @code{DECIMAL} values is
 the same as for @code{DOUBLE}, but the actual range for a given
 @code{DECIMAL} column may be constrained by the choice of @code{M} and
-@code{D}.
+@code{D}.  If @code{UNSIGNED} is specified, negative values are disallowed.  
 
 If @code{D} is omitted, the default is 0.  If @code{M} is omitted, the
 default is 10.
@@ -28576,8 +28578,8 @@ needed for the sign and the decimal point.
 
 @tindex DEC
 @tindex NUMERIC
-@item DEC[(M[,D])] [ZEROFILL]
-@itemx NUMERIC[(M[,D])] [ZEROFILL]
+@item DEC[(M[,D])] [UNSIGNED] [ZEROFILL]
+@itemx NUMERIC[(M[,D])] [UNSIGNED] [ZEROFILL]
 
 These are synonyms for @code{DECIMAL}.
 
@@ -28809,10 +28811,10 @@ MySQL stores the value representing the corresponding end
 point of that range.
 
 As an extension to the ANSI/ISO SQL92 standard, MySQL also
-supports the integral types @code{TINYINT}, @code{MEDIUMINT}, and
+supports the integer types @code{TINYINT}, @code{MEDIUMINT}, and
 @code{BIGINT} as listed in the tables above.  Another extension is
 supported by MySQL for optionally specifying the display width
-of an integral value in parentheses following the base keyword for the
+of an integer value in parentheses following the base keyword for the
 type (for example, @code{INT(4)}).  This optional width specification is
 used to left-pad the display of values whose width is less than the
 width specified for the column, but does not constrain the range of
@@ -28827,10 +28829,15 @@ problems when MySQL generates temporary tables for some
 complicated joins, as in these cases MySQL trusts that the
 data did fit into the original column width.
 
-All integral types can have an optional (non-standard) attribute
+All integer types can have an optional (non-standard) attribute
 @code{UNSIGNED}.  Unsigned values can be used when you want to allow
 only positive numbers in a column and you need a little bigger numeric
 range for the column.
+
+As of MySQL 4.0.2, floating-point types also can be @code{UNSIGNED}.
+As with integer types, this attribute prevents negative values from
+being stored in the column.  Unlike the integer types, the upper range
+of column values remains the same.
 
 The @code{FLOAT} type is used to represent approximate numeric data
 types. The ANSI/ISO SQL92 standard allows an optional specification of
