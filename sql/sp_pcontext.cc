@@ -27,12 +27,14 @@
 #include "sp_head.h"
 
 sp_pcontext::sp_pcontext()
-  : Sql_alloc(), m_params(0), m_framesize(0), m_handlers(0), m_cursmax(0)
+  : Sql_alloc(), m_params(0), m_framesize(0), m_handlers(0), m_cursmax(0),
+    m_hndlrlev(0)
 {
   VOID(my_init_dynamic_array(&m_pvar, sizeof(sp_pvar_t *), 16, 8));
   VOID(my_init_dynamic_array(&m_cond, sizeof(sp_cond_type_t *), 16, 8));
   VOID(my_init_dynamic_array(&m_cursor, sizeof(LEX_STRING), 16, 8));
   VOID(my_init_dynamic_array(&m_scopes, sizeof(sp_scope_t), 16, 8));
+  VOID(my_init_dynamic_array(&m_glabel, sizeof(sp_label_t *), 16, 8));
   m_label.empty();
 }
 
@@ -43,6 +45,7 @@ sp_pcontext::destroy()
   delete_dynamic(&m_cond);
   delete_dynamic(&m_cursor);
   delete_dynamic(&m_scopes);
+  delete_dynamic(&m_glabel);
   m_label.empty();
 }
 
@@ -53,14 +56,46 @@ sp_pcontext::push_scope()
 
   s.vars= m_pvar.elements;
   s.conds= m_cond.elements;
+  s.hndlrs= m_hndlrlev;
   s.curs= m_cursor.elements;
+  s.glab= m_glabel.elements;
   insert_dynamic(&m_scopes, (gptr)&s);
 }
 
 void
-sp_pcontext::pop_scope()
+sp_pcontext::pop_scope(sp_scope_t *sp)
 {
-  (void)pop_dynamic(&m_scopes);
+  byte *p= pop_dynamic(&m_scopes);
+
+  if (sp && p)
+    memcpy(sp, p, sizeof(sp_scope_t));
+}
+
+void
+sp_pcontext::diff_scopes(uint sold, sp_scope_t *diffs)
+{
+  uint snew= m_scopes.elements;
+  sp_scope_t scope;
+
+  diffs->vars= diffs->conds= diffs->hndlrs= diffs->curs= diffs->glab= 0;
+  while (snew-- > sold)
+  {
+    get_dynamic(&m_scopes, (gptr)&scope, snew);
+    diffs->vars+= scope.vars;
+    diffs->conds+= scope.conds;
+    diffs->hndlrs+= scope.hndlrs;
+    diffs->curs+= scope.curs;
+    diffs->glab+= scope.glab;
+  }
+  if (sold)
+  {
+    get_dynamic(&m_scopes, (gptr)&scope, sold-1);
+    diffs->vars-= scope.vars;
+    diffs->conds-= scope.conds;
+    diffs->hndlrs-= scope.hndlrs;
+    diffs->curs-= scope.curs;
+    diffs->glab-= scope.glab;
+  }
 }
 
 
@@ -132,7 +167,8 @@ sp_pcontext::push_label(char *name, uint ip)
   {
     lab->name= name;
     lab->ip= ip;
-    lab->isbegin= FALSE;
+    lab->type= SP_LAB_GOTO;
+    lab->scopes= 0;
     m_label.push_front(lab);
   }
   return lab;
@@ -244,4 +280,42 @@ sp_pcontext::find_cursor(LEX_STRING *name, uint *poff, my_bool scoped)
     }
   }
   return FALSE;
+}
+
+sp_label_t *
+sp_pcontext::push_glabel(char *name, uint ip)
+{
+  sp_label_t *lab = (sp_label_t *)sql_alloc(sizeof(sp_label_t));
+
+  if (lab)
+  {
+    lab->name= name;
+    lab->ip= ip;
+    lab->type= SP_LAB_GOTO;
+    lab->scopes= 0;
+    insert_dynamic(&m_glabel, (gptr)&lab);
+  }
+  return lab;
+}
+
+sp_label_t *
+sp_pcontext::find_glabel(char *name)
+{
+  uint i= m_glabel.elements;
+
+  while (i--)
+  {
+    sp_label_t *lab;
+
+    get_dynamic(&m_glabel, (gptr)&lab, i);
+    if (my_strcasecmp(system_charset_info, name, lab->name) == 0)
+      return lab;
+  }
+  return NULL;
+}
+
+void
+sp_pcontext::pop_glabel(uint count)
+{
+  (void)pop_dynamic(&m_glabel);  
 }
