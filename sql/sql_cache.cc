@@ -759,7 +759,8 @@ void Query_cache::store_query(THD *thd, TABLE_LIST *tables_used)
     DBUG_VOID_RETURN;
 
   if ((local_tables = is_cacheable(thd, thd->query_length,
-			     thd->query, &thd->lex, tables_used)))
+			     thd->query, &thd->lex, tables_used,
+			     &tables_type)))
   {
     NET *net = &thd->net;
     byte flags = (thd->client_capabilities & CLIENT_LONG_FLAG ? 0x80 : 0);
@@ -838,6 +839,7 @@ void Query_cache::store_query(THD *thd, TABLE_LIST *tables_used)
 
 	net->query_cache_query= (gptr) query_block;
 	header->writer(net);
+	header->tables_type(tables_type);
 	// init_n_lock make query block locked
 	BLOCK_UNLOCK_WR(query_block);
       }
@@ -885,15 +887,10 @@ Query_cache::send_result_to_client(THD *thd, char *sql, uint query_length)
   Query_cache_block_table *block_table, *block_table_end;
   ulong tot_length;
   byte flags;
+  bool check_tables;
   DBUG_ENTER("Query_cache::send_result_to_client");
 
-  if (query_cache_size == 0 ||
-      /*
-	it is not possible to check has_transactions() function of handler
-	because tables not opened yet
-      */
-      (thd->options & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN)) ||
-      thd->variables.query_cache_type == 0)
+  if (query_cache_size == 0 || thd->variables.query_cache_type == 0)
 
     goto err;
 
@@ -976,6 +973,7 @@ Query_cache::send_result_to_client(THD *thd, char *sql, uint query_length)
   }
   DBUG_PRINT("qcache", ("Query have result 0x%lx", (ulong) query));
 
+  check_tables= query->tables_type() & HA_CACHE_TBL_ASKTRANSACT;
   // Check access;
   block_table= query_block->table(0);
   block_table_end= block_table+query_block->n_tables;
@@ -1006,6 +1004,19 @@ Query_cache::send_result_to_client(THD *thd, char *sql, uint query_length)
       thd->lex.safe_to_cache_query=0;		// Don't try to cache this
       goto err_unlock;				// Parse query
     }
+    if (check_tables && !handler::caching_allowed(thd, table->db(), 
+						  table->key_length(),
+						  table->type()))
+    {
+      DBUG_PRINT("qcache", ("Handler does not allow caching for %s.%s",
+			    table_list.db, table_list.alias));
+      BLOCK_UNLOCK_RD(query_block);
+      thd->safe_to_cache_query=0;               // Don't try to cache this
+      goto err_unlock;				// Parse query
+    }
+    else
+      DBUG_PRINT("qcache", ("handler allow caching (%d) %s,%s",
+			    check_tables, table_list.db, table_list.alias));
   }
   move_to_query_list_end(query_block);
   hits++;
@@ -1063,7 +1074,8 @@ void Query_cache::invalidate(THD *thd, TABLE_LIST *tables_used,
       {
 	DBUG_ASSERT(!using_transactions || tables_used->table!=0);
 	if (using_transactions && 
-	   tables_used->table->file->has_transactions())
+	   (tables_used->table->file->table_cache_type() == 
+	    HA_CACHE_TBL_TRANSACT))
 	  /* 
 	     Tables_used->table can't be 0 in transaction.
 	     Only 'drop' invalidate not opened table, but 'drop' 
@@ -1117,7 +1129,8 @@ void Query_cache::invalidate(THD *thd, TABLE *table,
     {
       using_transactions = using_transactions &&
 	(thd->options & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN));
-      if (using_transactions && table->file->has_transactions())
+      if (using_transactions && 
+	  (table->file->table_cache_type() == HA_CACHE_TBL_TRANSACT))
 	thd->add_changed_table(table);
       else
 	invalidate_table(table);
@@ -1936,7 +1949,8 @@ my_bool Query_cache::register_all_tables(Query_cache_block *block,
     block_table->n=n;
     if (!insert_table(tables_used->table->key_length,
 		      tables_used->table->table_cache_key, block_table,
-		      tables_used->db_length))
+		      tables_used->db_length,
+		      tables_used->table->file->table_cache_type()))
       break;
 
     if (tables_used->table->db_type == DB_TYPE_MRG_MYISAM)
@@ -1949,11 +1963,12 @@ my_bool Query_cache::register_all_tables(Query_cache_block *block,
       {
 	char key[MAX_DBKEY_LENGTH];
 	uint32 db_length;
-	uint key_length =filename_2_table_key(key, table->table->filename,
+	uint key_length= filename_2_table_key(key, table->table->filename,
 					      &db_length);
 	(++block_table)->n= ++n;
 	if (!insert_table(key_length, key, block_table,
-			  db_length))
+			  db_length,
+			  tables_used->table->file->table_cache_type()))
 	  goto err;
       }
     }
@@ -1980,7 +1995,7 @@ err:
 my_bool
 Query_cache::insert_table(uint key_len, char *key,
 			  Query_cache_block_table *node,
-			  uint32 db_length)
+			  uint32 db_length, uint8 cache_type)
 {
   DBUG_ENTER("Query_cache::insert_table");
   DBUG_PRINT("qcache", ("insert table node 0x%lx, len %d",
@@ -2018,6 +2033,8 @@ Query_cache::insert_table(uint key_len, char *key,
     }
     char *db = header->db();
     header->table(db + db_length + 1);
+    header->key_length(key_len);
+    header->type(cache_type);
   }
 
   Query_cache_block_table *list_root = table_block->table(0);
@@ -2448,7 +2465,9 @@ void Query_cache::double_linked_list_join(Query_cache_block *head_tail,
 
 TABLE_COUNTER_TYPE Query_cache::is_cacheable(THD *thd, uint32 query_len,
 					     char *query,
-					     LEX *lex, TABLE_LIST *tables_used)
+					     LEX *lex,
+					     TABLE_LIST *tables_used,
+					     uint8 *tables_type)
 {
   TABLE_COUNTER_TYPE table_count = 0;
   DBUG_ENTER("Query_cache::is_cacheable");
@@ -2459,7 +2478,6 @@ TABLE_COUNTER_TYPE Query_cache::is_cacheable(THD *thd, uint32 query_len,
 						 OPTION_TO_QUERY_CACHE))) &&
       lex->safe_to_cache_query)
   {
-    my_bool has_transactions = 0;
     DBUG_PRINT("qcache", ("options %lx %lx, type %u",
 			OPTION_TO_QUERY_CACHE,
 			lex->select_lex.options,
@@ -2471,8 +2489,7 @@ TABLE_COUNTER_TYPE Query_cache::is_cacheable(THD *thd, uint32 query_len,
       DBUG_PRINT("qcache", ("table %s, db %s, type %u",
 			  tables_used->real_name,
 			  tables_used->db, tables_used->table->db_type));
-      has_transactions = (has_transactions ||
-			  tables_used->table->file->has_transactions());
+      *tables_type|= tables_used->table->file->table_cache_type();
 
       if (tables_used->table->db_type == DB_TYPE_MRG_ISAM ||
 	  tables_used->table->tmp_table != NO_TMP_TABLE ||
@@ -2496,7 +2513,7 @@ TABLE_COUNTER_TYPE Query_cache::is_cacheable(THD *thd, uint32 query_len,
     }
 
     if ((thd->options & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN)) &&
-	has_transactions)
+	((*tables_type)&HA_CACHE_TBL_TRANSACT))
     {
       DBUG_PRINT("qcache", ("not in autocommin mode"));
       DBUG_RETURN(0);
@@ -2937,7 +2954,7 @@ void Query_cache::bins_dump()
 {
   uint i;
   
-  if (!initialized)
+  if (!initialized || query_cache_size == 0)
   {
     DBUG_PRINT("qcache", ("Query Cache not initialized"));
     return;
@@ -2978,7 +2995,7 @@ void Query_cache::bins_dump()
 
 void Query_cache::cache_dump()
 {
-  if (!initialized)
+  if (!initialized || query_cache_size == 0)
   {
     DBUG_PRINT("qcache", ("Query Cache not initialized"));
     return;
@@ -3067,7 +3084,7 @@ void Query_cache::queries_dump()
 
 void Query_cache::tables_dump()
 {
-  if (!initialized)
+  if (!initialized || query_cache_size == 0)
   {
     DBUG_PRINT("qcache", ("Query Cache not initialized"));
     return;
