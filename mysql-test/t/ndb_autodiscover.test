@@ -452,6 +452,26 @@ drop database test2;
 show databases;
 use test;
 
+#########################################################
+# Bug#8035
+# mysqld would segfault on second select * before bug was fixed
+#
+--disable_warnings
+drop database if exists test_only_ndb_tables;
+--enable_warnings
+create database test_only_ndb_tables;
+use test_only_ndb_tables;
+create table t1 (a int primary key) engine=ndb;
+select * from t1;
+--exec $NDB_MGM --no-defaults -e "all restart -n" > /dev/null
+--exec $NDB_TOOLS_DIR/ndb_waiter --no-defaults --not-started > /dev/null
+--error 1015
+select * from t1;
+--exec $NDB_MGM --no-defaults -e "all start" > /dev/null
+--exec $NDB_TOOLS_DIR/ndb_waiter --no-defaults > /dev/null
+use test;
+drop database test_only_ndb_tables;
+
 ######################################################
 # Note! This should always be the last step in this 
 # file, the table t9 will be used and dropped 
