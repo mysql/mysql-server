@@ -16,7 +16,6 @@
 
 
 #include "NdbApiSignal.hpp"
-#include "AttrType.hpp"
 #include "NdbImpl.hpp"
 #include "NdbOperation.hpp"
 #include "NdbIndexOperation.hpp"
@@ -255,8 +254,8 @@ Ndb::abortTransactionsAfterNodeFailure(Uint16 aNodeId)
   for (int i = tNoSentTransactions - 1; i >= 0; i--) {
     NdbConnection* localCon = theSentTransactionsArray[i];
     if (localCon->getConnectedNodeId() == aNodeId ) {
-      const SendStatusType sendStatus = localCon->theSendStatus;
-      if (sendStatus == sendTC_OP || sendStatus == sendTC_COMMIT) {
+      const NdbConnection::SendStatusType sendStatus = localCon->theSendStatus;
+      if (sendStatus == NdbConnection::sendTC_OP || sendStatus == NdbConnection::sendTC_COMMIT) {
         /*
         A transaction was interrupted in the prepare phase by a node
         failure. Since the transaction was not found in the phase
@@ -264,13 +263,13 @@ Ndb::abortTransactionsAfterNodeFailure(Uint16 aNodeId)
         we report a normal node failure abort.
         */
 	localCon->setOperationErrorCodeAbort(4010);
-        localCon->theCompletionStatus = CompletedFailure;
-      } else if (sendStatus == sendTC_ROLLBACK) {
+        localCon->theCompletionStatus = NdbConnection::CompletedFailure;
+      } else if (sendStatus == NdbConnection::sendTC_ROLLBACK) {
         /*
         We aimed for abort and abort we got even if it was by a node
         failure. We will thus report it as a success.
         */
-        localCon->theCompletionStatus = CompletedSuccess;
+        localCon->theCompletionStatus = NdbConnection::CompletedSuccess;
       } else {
 #ifdef VM_TRACE
         printState("abortTransactionsAfterNodeFailure %x", this);
@@ -282,7 +281,7 @@ Ndb::abortTransactionsAfterNodeFailure(Uint16 aNodeId)
       intact since the node was failing and they were aborted. Thus we
       set commit state to Aborted and set state to release on close.
       */
-      localCon->theCommitStatus = Aborted;
+      localCon->theCommitStatus = NdbConnection::Aborted;
       localCon->theReleaseOnClose = true;
       completedTransaction(localCon);
     }//if
@@ -331,7 +330,7 @@ Ndb::handleReceivedSignal(NdbApiSignal* aSignal, LinearSectionPtr ptr[3])
 
       tCon = void2con(tFirstDataPtr);
       if ((tCon->checkMagicNumber() == 0) &&
-          (tCon->theSendStatus == sendTC_OP)) {
+          (tCon->theSendStatus == NdbConnection::sendTC_OP)) {
         tReturnCode = tCon->receiveTCKEYCONF(keyConf, tLen);
         if (tReturnCode != -1) {
           completedTransaction(tCon);
@@ -402,8 +401,8 @@ Ndb::handleReceivedSignal(NdbApiSignal* aSignal, LinearSectionPtr ptr[3])
       if (tOp->checkMagicNumber() == 0) {
 	tCon = tOp->theNdbCon;
 	if (tCon != NULL) {
-	  if ((tCon->theSendStatus == sendTC_OP) ||
-	      (tCon->theSendStatus == sendTC_COMMIT)) {
+	  if ((tCon->theSendStatus == NdbConnection::sendTC_OP) ||
+	      (tCon->theSendStatus == NdbConnection::sendTC_COMMIT)) {
 	    tReturnCode = tCon->receiveTCKEY_FAILCONF(failConf);
 	    if (tReturnCode != -1) {
 	      completedTransaction(tCon);
@@ -429,8 +428,8 @@ Ndb::handleReceivedSignal(NdbApiSignal* aSignal, LinearSectionPtr ptr[3])
       if (tOp->checkMagicNumber() == 0) {
         tCon = tOp->theNdbCon;
         if (tCon != NULL) {
-          if ((tCon->theSendStatus == sendTC_OP) ||
-              (tCon->theSendStatus == sendTC_ROLLBACK)) {
+          if ((tCon->theSendStatus == NdbConnection::sendTC_OP) ||
+              (tCon->theSendStatus == NdbConnection::sendTC_ROLLBACK)) {
             tReturnCode = tCon->receiveTCKEY_FAILREF(aSignal);
             if (tReturnCode != -1) {
               completedTransaction(tCon);
@@ -450,7 +449,7 @@ Ndb::handleReceivedSignal(NdbApiSignal* aSignal, LinearSectionPtr ptr[3])
       if (tOp->checkMagicNumber() == 0) {
 	tCon = tOp->theNdbCon;
 	if (tCon != NULL) {
-	  if (tCon->theSendStatus == sendTC_OP) {
+	  if (tCon->theSendStatus == NdbConnection::sendTC_OP) {
 	    tReturnCode = tOp->receiveTCKEYREF(aSignal);
 	    if (tReturnCode != -1) {
 	      completedTransaction(tCon);
@@ -472,7 +471,7 @@ Ndb::handleReceivedSignal(NdbApiSignal* aSignal, LinearSectionPtr ptr[3])
       
       tCon = void2con(tFirstDataPtr);
       if ((tCon->checkMagicNumber() == 0) &&
-	  (tCon->theSendStatus == sendTC_COMMIT)) {
+	  (tCon->theSendStatus == NdbConnection::sendTC_COMMIT)) {
 	tReturnCode = tCon->receiveTC_COMMITCONF(commitConf);
 	if (tReturnCode != -1) {
 	  completedTransaction(tCon);
@@ -497,7 +496,7 @@ Ndb::handleReceivedSignal(NdbApiSignal* aSignal, LinearSectionPtr ptr[3])
 
       tCon = void2con(tFirstDataPtr);
       if ((tCon->checkMagicNumber() == 0) &&
-	  (tCon->theSendStatus == sendTC_COMMIT)) {
+	  (tCon->theSendStatus == NdbConnection::sendTC_COMMIT)) {
 	tReturnCode = tCon->receiveTC_COMMITREF(aSignal);
 	if (tReturnCode != -1) {
 	  completedTransaction(tCon);
@@ -513,7 +512,7 @@ Ndb::handleReceivedSignal(NdbApiSignal* aSignal, LinearSectionPtr ptr[3])
 
       tCon = void2con(tFirstDataPtr);
       if ((tCon->checkMagicNumber() == 0) &&
-	  (tCon->theSendStatus == sendTC_ROLLBACK)) {
+	  (tCon->theSendStatus == NdbConnection::sendTC_ROLLBACK)) {
 	tReturnCode = tCon->receiveTCROLLBACKCONF(aSignal);
 	if (tReturnCode != -1) {
 	  completedTransaction(tCon);
@@ -528,7 +527,7 @@ Ndb::handleReceivedSignal(NdbApiSignal* aSignal, LinearSectionPtr ptr[3])
 
       tCon = void2con(tFirstDataPtr);
       if ((tCon->checkMagicNumber() == 0) &&
-	  (tCon->theSendStatus == sendTC_ROLLBACK)) {
+	  (tCon->theSendStatus == NdbConnection::sendTC_ROLLBACK)) {
 	tReturnCode = tCon->receiveTCROLLBACKREF(aSignal);
 	if (tReturnCode != -1) {
 	  completedTransaction(tCon);
@@ -762,7 +761,7 @@ Ndb::handleReceivedSignal(NdbApiSignal* aSignal, LinearSectionPtr ptr[3])
     const BlockReference aTCRef = aSignal->theSendersBlockRef;
     tCon = void2con(tFirstDataPtr);
     if ((tCon->checkMagicNumber() == 0) &&
-	(tCon->theSendStatus == sendTC_OP)) {
+	(tCon->theSendStatus == NdbConnection::sendTC_OP)) {
       tReturnCode = tCon->receiveTCINDXCONF(indxConf, tLen);
       if (tReturnCode != -1) { 
 	completedTransaction(tCon);
@@ -785,7 +784,7 @@ Ndb::handleReceivedSignal(NdbApiSignal* aSignal, LinearSectionPtr ptr[3])
     if (tIndexOp->checkMagicNumber() == 0) {
       tCon = tIndexOp->theNdbCon;
       if (tCon != NULL) {
-	if (tCon->theSendStatus == sendTC_OP) {
+	if (tCon->theSendStatus == NdbConnection::sendTC_OP) {
 	  tReturnCode = tIndexOp->receiveTCINDXREF(aSignal);
 	  if (tReturnCode != -1) {
 	    completedTransaction(tCon);
@@ -839,7 +838,7 @@ Ndb::completedTransaction(NdbConnection* aCon)
   Uint32 tTransArrayIndex = aCon->theTransArrayIndex;
   Uint32 tNoSentTransactions = theNoOfSentTransactions;
   Uint32 tNoCompletedTransactions = theNoOfCompletedTransactions;
-  if ((tNoSentTransactions > 0) && (aCon->theListState == InSendList) &&
+  if ((tNoSentTransactions > 0) && (aCon->theListState == NdbConnection::InSendList) &&
       (tTransArrayIndex < tNoSentTransactions)) {
     NdbConnection* tMoveCon = theSentTransactionsArray[tNoSentTransactions - 1];
 
@@ -853,7 +852,7 @@ Ndb::completedTransaction(NdbConnection* aCon)
     theNoOfCompletedTransactions = tNoCompletedTransactions + 1;
 
     theNoOfSentTransactions = tNoSentTransactions - 1;
-    aCon->theListState = InCompletedList;
+    aCon->theListState = NdbConnection::InCompletedList;
     aCon->handleExecuteCompletion();
     if ((theMinNoOfEventsToWakeUp != 0) &&
         (theNoOfCompletedTransactions >= theMinNoOfEventsToWakeUp)) {
@@ -888,7 +887,7 @@ Ndb::reportCallback(NdbConnection** aCopyArray, Uint32 aNoOfCompletedTrans)
       NdbAsynchCallback aCallback = aCopyArray[i]->theCallbackFunction;
       int tResult = 0;
       if (aCallback != NULL) {
-        if (aCopyArray[i]->theReturnStatus == ReturnFailure) {
+        if (aCopyArray[i]->theReturnStatus == NdbConnection::ReturnFailure) {
           tResult = -1;
         }//if
         (*aCallback)(tResult, aCopyArray[i], anyObject);
@@ -912,13 +911,13 @@ Ndb::pollCompleted(NdbConnection** aCopyArray)
   if (tNoCompletedTransactions > 0) {
     for (i = 0; i < tNoCompletedTransactions; i++) {
       aCopyArray[i] = theCompletedTransactionsArray[i];
-      if (aCopyArray[i]->theListState != InCompletedList) {
+      if (aCopyArray[i]->theListState != NdbConnection::InCompletedList) {
         ndbout << "pollCompleted error ";
         ndbout << aCopyArray[i]->theListState << endl;
 	abort();
       }//if
       theCompletedTransactionsArray[i] = NULL;
-      aCopyArray[i]->theListState = NotInList;
+      aCopyArray[i]->theListState = NdbConnection::NotInList;
     }//for
   }//if
   theNoOfCompletedTransactions = 0;
@@ -940,8 +939,8 @@ Ndb::check_send_timeout()
         a_con->printState();
 #endif
         a_con->setOperationErrorCodeAbort(4012);
-        a_con->theCommitStatus = Aborted;
-        a_con->theCompletionStatus = CompletedFailure;
+        a_con->theCommitStatus = NdbConnection::Aborted;
+        a_con->theCompletionStatus = NdbConnection::CompletedFailure;
         a_con->handleExecuteCompletion();
         remove_sent_list(i);
         insert_completed_list(a_con);
@@ -970,7 +969,7 @@ Ndb::insert_completed_list(NdbConnection* a_con)
   Uint32 no_of_comp = theNoOfCompletedTransactions;
   theCompletedTransactionsArray[no_of_comp] = a_con;
   theNoOfCompletedTransactions = no_of_comp + 1;
-  a_con->theListState = InCompletedList;
+  a_con->theListState = NdbConnection::InCompletedList;
   a_con->theTransArrayIndex = no_of_comp;
   return no_of_comp;
 }
@@ -981,7 +980,7 @@ Ndb::insert_sent_list(NdbConnection* a_con)
   Uint32 no_of_sent = theNoOfSentTransactions;
   theSentTransactionsArray[no_of_sent] = a_con;
   theNoOfSentTransactions = no_of_sent + 1;
-  a_con->theListState = InSendList;
+  a_con->theListState = NdbConnection::InSendList;
   a_con->theTransArrayIndex = no_of_sent;
   return no_of_sent;
 }
@@ -1019,10 +1018,10 @@ Ndb::sendPrepTrans(int forceSend)
     if ((tp->getNodeSequence(node_id) == a_con->theNodeSequence) &&
          tp->get_node_alive(node_id) ||
          (tp->get_node_stopping(node_id) && 
-         ((a_con->theSendStatus == sendABORT) ||
-          (a_con->theSendStatus == sendABORTfail) ||
-          (a_con->theSendStatus == sendCOMMITstate) ||
-          (a_con->theSendStatus == sendCompleted)))) {
+         ((a_con->theSendStatus == NdbConnection::sendABORT) ||
+          (a_con->theSendStatus == NdbConnection::sendABORTfail) ||
+          (a_con->theSendStatus == NdbConnection::sendCOMMITstate) ||
+          (a_con->theSendStatus == NdbConnection::sendCompleted)))) {
       /*
       We will send if
       1) Node is alive and sequences are correct OR
@@ -1054,13 +1053,13 @@ Ndb::sendPrepTrans(int forceSend)
         again and will thus set the state to Aborted to avoid a more or
         less eternal loop of tries.
         */
-        if (a_con->theSendStatus == sendOperations) {
+        if (a_con->theSendStatus == NdbConnection::sendOperations) {
           a_con->setOperationErrorCodeAbort(4021);
-          a_con->theCommitStatus = NeedAbort;
+          a_con->theCommitStatus = NdbConnection::NeedAbort;
           TRACE_DEBUG("Send buffer full and sendOperations");
         } else {
           a_con->setOperationErrorCodeAbort(4026);
-          a_con->theCommitStatus = Aborted;
+          a_con->theCommitStatus = NdbConnection::Aborted;
           TRACE_DEBUG("Send buffer full, set state to Aborted");
         }//if
       }//if
@@ -1077,7 +1076,7 @@ Ndb::sendPrepTrans(int forceSend)
         */
         TRACE_DEBUG("Abort a transaction when stopping a node");
         a_con->setOperationErrorCodeAbort(4023);
-        a_con->theCommitStatus = NeedAbort;
+        a_con->theCommitStatus = NdbConnection::NeedAbort;
       } else {
         /*
         The node is hard dead and we cannot continue. We will also release
@@ -1087,10 +1086,10 @@ Ndb::sendPrepTrans(int forceSend)
         a_con->setOperationErrorCodeAbort(4025);
         a_con->theReleaseOnClose = true;
         a_con->theTransactionIsStarted = false;
-        a_con->theCommitStatus = Aborted;
+        a_con->theCommitStatus = NdbConnection::Aborted;
       }//if
     }//if
-    a_con->theCompletionStatus = CompletedFailure;
+    a_con->theCompletionStatus = NdbConnection::CompletedFailure;
     a_con->handleExecuteCompletion();
     insert_completed_list(a_con);
   }//for

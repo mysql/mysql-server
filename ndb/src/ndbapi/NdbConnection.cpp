@@ -1359,16 +1359,16 @@ NdbConnection::receiveTCKEY_FAILCONF(const TcKeyFailConf * failConf)
        * in committing the transaction.
        */
       switch(tOp->theOperationType){
-      case UpdateRequest:
-      case InsertRequest:
-      case DeleteRequest:
-      case WriteRequest:
+      case NdbOperation::UpdateRequest:
+      case NdbOperation::InsertRequest:
+      case NdbOperation::DeleteRequest:
+      case NdbOperation::WriteRequest:
 	tOp = tOp->next();
 	break;
-      case ReadRequest:
-      case ReadExclusive:
-      case OpenScanRequest:
-      case OpenRangeScanRequest:
+      case NdbOperation::ReadRequest:
+      case NdbOperation::ReadExclusive:
+      case NdbOperation::OpenScanRequest:
+      case NdbOperation::OpenRangeScanRequest:
 	theCompletionStatus = CompletedFailure;
 	setOperationErrorCodeAbort(4115);
 	tOp = NULL;
@@ -1403,18 +1403,18 @@ NdbConnection::receiveTCKEY_FAILREF(NdbApiSignal* aSignal)
       We received an indication of that this transaction was aborted due to a
       node failure.
     */
-    if (theSendStatus == sendTC_ROLLBACK) {
+    if (theSendStatus == NdbConnection::sendTC_ROLLBACK) {
       /*
 	We were in the process of sending a rollback anyways. We will
 	report it as a success.
       */
-      theCompletionStatus = CompletedSuccess;
+      theCompletionStatus = NdbConnection::CompletedSuccess;
     } else {
-      theCompletionStatus = CompletedFailure;
+      theCompletionStatus = NdbConnection::CompletedFailure;
       theError.code = 4031;
     }//if
     theReleaseOnClose = true;
-    theCommitStatus = Aborted;
+    theCommitStatus = NdbConnection::Aborted;
     return 0;
   }
   return -1;
@@ -1463,8 +1463,8 @@ NdbConnection::receiveTCINDXCONF(const TcIndxConf * indxConf,
       // no Commit flag set. This is clearly an anomaly.
       /**********************************************************************/
       theError.code = 4011;
-      theCompletionStatus = CompletedFailure;
-      theCommitStatus = Aborted;
+      theCompletionStatus = NdbConnection::CompletedFailure;
+      theCommitStatus = NdbConnection::Aborted;
       return 0;
     }//if
     if (tNoComp >= tNoSent) {
@@ -1497,8 +1497,8 @@ NdbConnection::receiveTCINDXREF( NdbApiSignal* aSignal)
     /*	and we only need to report completion and return with the     */
     /*	error code to the application.				      */
     /**********************************************************************/
-    theCompletionStatus = CompletedFailure;
-    theCommitStatus = Aborted;
+    theCompletionStatus = NdbConnection::CompletedFailure;
+    theCommitStatus = NdbConnection::Aborted;
     return 0;
   }
   return -1;
@@ -1517,7 +1517,7 @@ NdbConnection::OpCompleteFailure()
 {
   Uint32 tNoComp = theNoOfOpCompleted;
   Uint32 tNoSent = theNoOfOpSent;
-  theCompletionStatus = CompletedFailure;
+  theCompletionStatus = NdbConnection::CompletedFailure;
   tNoComp++;
   theNoOfOpCompleted = tNoComp;
   if (tNoComp == tNoSent) {
@@ -1528,7 +1528,7 @@ NdbConnection::OpCompleteFailure()
     //operation is not really part of that transaction.
     //------------------------------------------------------------------------
     if (theSimpleState == 1) {
-      theCommitStatus = Aborted;
+      theCommitStatus = NdbConnection::Aborted;
     }//if
     return 0;	// Last operation received
   } else if (tNoComp > tNoSent) {
@@ -1556,7 +1556,7 @@ NdbConnection::OpCompleteSuccess()
   theNoOfOpCompleted = tNoComp;
   if (tNoComp == tNoSent) { // Last operation completed
     if (theSimpleState == 1) {
-      theCommitStatus = Committed;
+      theCommitStatus = NdbConnection::Committed;
     }//if
     return 0;
   } else if (tNoComp < tNoSent) {
@@ -1564,7 +1564,7 @@ NdbConnection::OpCompleteSuccess()
   } else {
     setOperationErrorCodeAbort(4113);	// Too many operations, 
                                         // stop waiting for more
-    theCompletionStatus = CompletedFailure;
+    theCompletionStatus = NdbConnection::CompletedFailure;
     return 0;
   }//if
 }//NdbConnection::OpCompleteSuccess()
@@ -1577,7 +1577,7 @@ Remark:		Get global checkpoint identity of the transaction
 int
 NdbConnection::getGCI()
 {
-  if (theCommitStatus == Committed) {
+  if (theCommitStatus == NdbConnection::Committed) {
     return theGlobalCheckpointId;
   }//if
   return 0;
