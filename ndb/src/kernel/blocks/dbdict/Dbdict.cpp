@@ -3661,9 +3661,8 @@ Dbdict::execCREATE_FRAGMENTATION_CONF(Signal* signal){
   req->tableId = tabPtr.i;
   req->tableVersion = tabEntry->m_tableVersion + 1;
   
-  sendSignal(rg, GSN_CREATE_TAB_REQ, signal, 
-	     CreateTabReq::SignalLength, JBB);
-  
+  sendFragmentedSignal(rg, GSN_CREATE_TAB_REQ, signal, 
+		       CreateTabReq::SignalLength, JBB);
 
   return;
 }
