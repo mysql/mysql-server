@@ -1131,25 +1131,31 @@ public:
   double val()
   {
     Item *it;
+    double d;
 
     if (execute(&it))
     {
       null_value= 1;
       return 0.0;
     }
-    return it->val();
+    d= it->val();
+    null_value= it->null_value;
+    return d;
   }
 
   String *val_str(String *str)
   {
     Item *it;
+    String *s;
 
     if (execute(&it))
     {
       null_value= 1;
       return NULL;
     }
-    return it->val_str(str);
+    s= it->val_str(str);
+    null_value= it->null_value;
+    return s;
   }
 
   void fix_length_and_dec();
