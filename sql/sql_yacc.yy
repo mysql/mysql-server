@@ -1820,7 +1820,7 @@ key_part:
 	| ident '(' NUM ')'	
         {
           int key_part_len= atoi($3.str);
-#ifdef MYSQL_VERSION_ID < 50000
+#if MYSQL_VERSION_ID < 50000
           if (!key_part_len)
           {
             my_printf_error(ER_UNKNOWN_ERROR,
