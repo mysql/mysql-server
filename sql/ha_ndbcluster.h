@@ -183,6 +183,7 @@ class ha_ndbcluster: public handler
   
   int pk_read(const byte *key, uint key_len, byte *buf);
   int complemented_pk_read(const byte *old_data, byte *new_data);
+  int peek_row();
   int unique_index_read(const byte *key, uint key_len, 
 			byte *buf);
   int ordered_index_scan(const key_range *start_key,
@@ -242,9 +243,10 @@ class ha_ndbcluster: public handler
   typedef union { NdbRecAttr *rec; NdbBlob *blob; void *ptr; } NdbValue;
   NdbValue m_value[NDB_MAX_ATTRIBUTES_IN_TABLE];
   bool m_use_write;
-  bool m_ignore_dup_key_not_supported;
+  bool m_ignore_dup_key;
   bool m_primary_key_update;
   bool m_retrieve_all_fields;
+  bool m_retrieve_primary_key;
   ha_rows m_rows_to_insert;
   ha_rows m_rows_inserted;
   ha_rows m_bulk_insert_rows;
