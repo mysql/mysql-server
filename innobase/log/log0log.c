@@ -375,7 +375,7 @@ log_pad_current_log_block(void)
 	log_close();
 	log_release();
 
-	ut_ad((ut_dulint_get_low(lsn) % OS_FILE_LOG_BLOCK_SIZE)
+	ut_anp((ut_dulint_get_low(lsn) % OS_FILE_LOG_BLOCK_SIZE)
 						== LOG_BLOCK_HDR_SIZE);
 }
 
@@ -1070,8 +1070,8 @@ log_group_write_buf(
 	ulint	i;
 	
 	ut_ad(mutex_own(&(log_sys->mutex)));
-	ut_ad(len % OS_FILE_LOG_BLOCK_SIZE == 0);
-	ut_ad(ut_dulint_get_low(start_lsn) % OS_FILE_LOG_BLOCK_SIZE == 0);
+	ut_anp(len % OS_FILE_LOG_BLOCK_SIZE == 0);
+	ut_anp(ut_dulint_get_low(start_lsn) % OS_FILE_LOG_BLOCK_SIZE == 0);
 
 	if (new_data_offset == 0) {
 		write_header = TRUE;
@@ -2123,11 +2123,11 @@ log_group_archive(
 
 	start_lsn = log_sys->archived_lsn;
 
-	ut_ad(ut_dulint_get_low(start_lsn) % OS_FILE_LOG_BLOCK_SIZE == 0);
+	ut_anp(ut_dulint_get_low(start_lsn) % OS_FILE_LOG_BLOCK_SIZE == 0);
 
 	end_lsn = log_sys->next_archived_lsn;
 
-	ut_ad(ut_dulint_get_low(end_lsn) % OS_FILE_LOG_BLOCK_SIZE == 0);
+	ut_anp(ut_dulint_get_low(end_lsn) % OS_FILE_LOG_BLOCK_SIZE == 0);
 
 	buf = log_sys->archive_buf;
 
@@ -2234,7 +2234,7 @@ loop:
 	group->next_archived_file_no = group->archived_file_no + n_files;
 	group->next_archived_offset = next_offset % group->file_size;
 
-	ut_ad(group->next_archived_offset % OS_FILE_LOG_BLOCK_SIZE == 0);
+	ut_anp(group->next_archived_offset % OS_FILE_LOG_BLOCK_SIZE == 0);
 }
 
 /*********************************************************
@@ -2429,8 +2429,8 @@ loop:
 	start_lsn = log_sys->archived_lsn;
 	
 	if (calc_new_limit) {
-		ut_ad(log_sys->archive_buf_size % OS_FILE_LOG_BLOCK_SIZE == 0);
-
+		ut_anp(log_sys->archive_buf_size % OS_FILE_LOG_BLOCK_SIZE
+								== 0);
 		limit_lsn = ut_dulint_add(start_lsn,
 						log_sys->archive_buf_size);
 
@@ -2916,6 +2916,7 @@ loop:
 
 	mutex_enter(&kernel_mutex);
 
+	/* Check that there are no longer transactions */
 	if (trx_n_mysql_transactions > 0
 			|| UT_LIST_GET_LEN(trx_sys->trx_list) > 0) {
 		
@@ -2923,6 +2924,8 @@ loop:
 		
 		goto loop;
 	}
+
+	/* Check that the master thread is suspended */
 
 	if (srv_n_threads_active[SRV_MASTER] != 0) {
 
@@ -2952,7 +2955,6 @@ loop:
 	}
 
 	log_archive_all();
-
 	log_make_checkpoint_at(ut_dulint_max, TRUE);
 
 	mutex_enter(&(log_sys->mutex));
@@ -2961,8 +2963,9 @@ loop:
 
 	if (ut_dulint_cmp(lsn, log_sys->last_checkpoint_lsn) != 0
 	   || (srv_log_archive_on
-		&& ut_dulint_cmp(lsn,
-	    ut_dulint_add(log_sys->archived_lsn, LOG_BLOCK_HDR_SIZE)) != 0)) {
+	       && ut_dulint_cmp(lsn,
+		    ut_dulint_add(log_sys->archived_lsn, LOG_BLOCK_HDR_SIZE))
+		   != 0)) {
 
 	    	mutex_exit(&(log_sys->mutex));
 
@@ -2981,10 +2984,22 @@ loop:
 
 	mutex_exit(&(log_sys->mutex));
 
+	mutex_enter(&kernel_mutex);
+	/* Check that the master thread has stayed suspended */
+	if (srv_n_threads_active[SRV_MASTER] != 0) {
+		fprintf(stderr,
+"InnoDB: Warning: the master thread woke up during shutdown\n");
+
+		mutex_exit(&kernel_mutex);
+
+		goto loop;
+	}
+	mutex_exit(&kernel_mutex);
+
 	fil_flush_file_spaces(FIL_TABLESPACE);
 	fil_flush_file_spaces(FIL_LOG);
 
-	/* The following fil_write_... will pass the buffer pool: therefore
+	/* The next fil_write_... will pass the buffer pool: therefore
 	it is essential that the buffer pool has been completely flushed
 	to disk! */
 
@@ -2993,12 +3008,14 @@ loop:
 		goto loop;
 	}
 
+	/* The lock timeout thread should now have exited */
+
 	if (srv_lock_timeout_and_monitor_active) {
 
 		goto loop;
 	}
 
-	/* We now suspend also the InnoDB error monitor thread */
+	/* We now let also the InnoDB error monitor thread to exit */
 	
 	srv_shutdown_state = SRV_SHUTDOWN_LAST_PHASE;
 
@@ -3008,6 +3025,7 @@ loop:
 	}
 
 	/* Make some checks that the server really is quiet */
+	ut_a(srv_n_threads_active[SRV_MASTER] == 0);
 	ut_a(buf_all_freed());
 	ut_a(0 == ut_dulint_cmp(lsn, log_sys->lsn));
 
@@ -3016,6 +3034,7 @@ loop:
 	fil_flush_file_spaces(FIL_TABLESPACE);
 
 	/* Make some checks that the server really is quiet */
+	ut_a(srv_n_threads_active[SRV_MASTER] == 0);
 	ut_a(buf_all_freed());
 	ut_a(0 == ut_dulint_cmp(lsn, log_sys->lsn));
 }

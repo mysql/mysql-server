@@ -364,10 +364,23 @@ to a file. Note that we must be careful to calculate the same value
 on 32-bit and 64-bit architectures. */
 
 ulint
-buf_calc_page_checksum(
-/*===================*/
+buf_calc_page_new_checksum(
+/*=======================*/
 		       /* out: checksum */
 	byte*   page); /* in: buffer page */
+/************************************************************************
+In versions < 4.0.14 and < 4.1.1 there was a bug that the checksum only
+looked at the first few bytes of the page. This calculates that old
+checksum. 
+NOTE: we must first store the new formula checksum to
+FIL_PAGE_SPACE_OR_CHKSUM before calculating and storing this old checksum
+because this takes that field as an input! */
+
+ulint
+buf_calc_page_old_checksum(
+/*=======================*/
+		       /* out: checksum */
+	byte*    page); /* in: buffer page */
 /************************************************************************
 Checks if a page is corrupt. */
 

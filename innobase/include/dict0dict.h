@@ -569,6 +569,19 @@ dict_index_get_nth_col_pos(
 	dict_index_t*	index,	/* in: index */
 	ulint		n);	/* in: column number */
 /************************************************************************
+Looks for a matching field in an index. The column and the prefix len has
+to be the same. */
+
+ulint
+dict_index_get_nth_field_pos(
+/*=========================*/
+				/* out: position in internal representation
+				of the index; if not contained, returns
+				ULINT_UNDEFINED */
+	dict_index_t*	index,	/* in: index from which to search */
+	dict_index_t*	index2,	/* in: index */
+	ulint		n);	/* in: field number in index2 */
+/************************************************************************
 Looks for column n position in the clustered index. */
 
 ulint

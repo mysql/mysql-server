@@ -146,6 +146,21 @@ os_file_create_simple(
 	ulint	access_type,/* in: OS_FILE_READ_ONLY or OS_FILE_READ_WRITE */
 	ibool*	success);/* out: TRUE if succeed, FALSE if error */
 /********************************************************************
+A simple function to open or create a file. */
+
+os_file_t
+os_file_create_simple_no_error_handling(
+/*====================================*/
+			/* out, own: handle to the file, not defined if error,
+			error number can be retrieved with os_get_last_error */
+	char*	name,	/* in: name of the file or path as a null-terminated
+			string */
+	ulint	create_mode,/* in: OS_FILE_OPEN if an existing file is opened
+			(if does not exist, error), or OS_FILE_CREATE if a new
+			file is created (if exists, error) */
+	ulint	access_type,/* in: OS_FILE_READ_ONLY or OS_FILE_READ_WRITE */
+	ibool*	success);/* out: TRUE if succeed, FALSE if error */
+/********************************************************************
 Opens an existing file or creates a new. */
 
 os_file_t
@@ -170,6 +185,14 @@ os_file_get_last_error. */
 ibool
 os_file_close(
 /*==========*/
+				/* out: TRUE if success */
+	os_file_t	file);	/* in, own: handle to a file */
+/***************************************************************************
+Closes a file handle. */
+
+ibool
+os_file_close_no_error_handling(
+/*============================*/
 				/* out: TRUE if success */
 	os_file_t	file);	/* in, own: handle to a file */
 /***************************************************************************

@@ -1364,7 +1364,8 @@ btr_cur_update_sec_rec_in_place(
 }
 
 /*****************************************************************
-Updates a record when the update causes no size changes in its fields. */
+Updates a record when the update causes no size changes in its fields.
+We assume here that the ordering fields of the record do not change. */
 
 ulint
 btr_cur_update_in_place(
@@ -1455,7 +1456,8 @@ btr_cur_update_in_place(
 Tries to update a record on a page in an index tree. It is assumed that mtr
 holds an x-latch on the page. The operation does not succeed if there is too
 little space on the page or if the update would result in too empty a page,
-so that tree compression is recommended. */
+so that tree compression is recommended. We assume here that the ordering
+fields of the record do not change. */
 
 ulint
 btr_cur_optimistic_update(
@@ -1507,10 +1509,11 @@ btr_cur_optimistic_update(
 
 	ut_ad(mtr_memo_contains(mtr, buf_block_align(page),
 							MTR_MEMO_PAGE_X_FIX));
-	if (!row_upd_changes_field_size(rec, index, update)) {
+	if (!row_upd_changes_field_size_or_external(rec, index, update)) {
 
-		/* The simplest and most common case: the update does not
-		change the size of any field */
+		/* The simplest and the most common case: the update does not
+		change the size of any field and none of the updated fields is
+		externally stored in rec or update */
 
 		return(btr_cur_update_in_place(flags, cursor, update,
 							cmpl_info, thr, mtr));
@@ -1539,7 +1542,7 @@ btr_cur_optimistic_update(
 	
 	new_entry = row_rec_to_index_entry(ROW_COPY_DATA, index, rec, heap);
 
-	row_upd_clust_index_replace_new_col_vals(new_entry, update);
+	row_upd_index_replace_new_col_vals(new_entry, index, update, NULL);
 
 	old_rec_size = rec_get_size(rec);
 	new_rec_size = rec_get_converted_size(new_entry);
@@ -1669,54 +1672,13 @@ btr_cur_pess_upd_restore_supremum(
 	lock_rec_reset_and_inherit_gap_locks(page_get_supremum_rec(prev_page),
 									rec);
 }
-		   
-/***************************************************************
-Replaces and copies the data in the new column values stored in the
-update vector to the clustered index entry given. */
-static
-void
-btr_cur_copy_new_col_vals(
-/*======================*/
-	dtuple_t*	entry,	/* in/out: index entry where replaced */
-	upd_t*		update,	/* in: update vector */
-	mem_heap_t*	heap)	/* in: heap where data is copied */
-{
-	upd_field_t*	upd_field;
-	dfield_t*	dfield;
-	dfield_t*	new_val;
-	ulint		field_no;
-	byte*		data;
-	ulint		i;
-
-	dtuple_set_info_bits(entry, update->info_bits);
-
-	for (i = 0; i < upd_get_n_fields(update); i++) {
-
-		upd_field = upd_get_nth_field(update, i);
-
-		field_no = upd_field->field_no;
-
-		dfield = dtuple_get_nth_field(entry, field_no);
-
-		new_val = &(upd_field->new_val);
-
-		if (new_val->len == UNIV_SQL_NULL) {
-			data = NULL;
-		} else {
-			data = mem_heap_alloc(heap, new_val->len);
-
-			ut_memcpy(data, new_val->data, new_val->len);
-		}
-
-		dfield_set_data(dfield, data, new_val->len);
-	}
-}
 
 /*****************************************************************
 Performs an update of a record on a page of a tree. It is assumed
 that mtr holds an x-latch on the tree and on the cursor page. If the
 update is made on the leaf level, to avoid deadlocks, mtr must also
-own x-latches to brothers of page, if those brothers exist. */
+own x-latches to brothers of page, if those brothers exist. We assume
+here that the ordering fields of the record do not change. */
 
 ulint
 btr_cur_pessimistic_update(
@@ -1813,7 +1775,7 @@ btr_cur_pessimistic_update(
 	
 	new_entry = row_rec_to_index_entry(ROW_COPY_DATA, index, rec, heap);
 
-	btr_cur_copy_new_col_vals(new_entry, update, heap);
+	row_upd_index_replace_new_col_vals(new_entry, index, update, heap);
 
 	if (!(flags & BTR_KEEP_SYS_FLAG)) {
 		row_upd_index_entry_sys_field(new_entry, index, DATA_ROLL_PTR,
@@ -3369,8 +3331,8 @@ btr_free_externally_stored_field(
 		page_no = mach_read_from_4(data + local_len
 						+ BTR_EXTERN_PAGE_NO);
 
-		offset = mach_read_from_4(data + local_len + BTR_EXTERN_OFFSET);
-
+		offset = mach_read_from_4(data + local_len
+							+ BTR_EXTERN_OFFSET);
 		extern_len = mach_read_from_4(data + local_len
 						+ BTR_EXTERN_LEN + 4);
 

@@ -52,6 +52,9 @@ class ha_innobase: public handler
   	byte*		key_val_buff;	/* buffer used in converting
   					search key values from MySQL format
   					to Innodb format */
+	ulong		upd_and_key_val_buff_len;
+					/* the length of each of the previous
+					two buffers */
   	ulong 		int_table_flags;
   	uint 		primary_key;
 	uint		last_dup_key;
@@ -83,13 +86,15 @@ class ha_innobase: public handler
  public:
   	ha_innobase(TABLE *table): handler(table),
 	  int_table_flags(HA_REC_NOT_IN_SEQ |
-			  HA_KEYPOS_TO_RNDPOS | HA_LASTKEY_ORDER |
-			  HA_NULL_KEY | HA_CAN_SQL_HANDLER |
+			  HA_KEYPOS_TO_RNDPOS |
+			  HA_LASTKEY_ORDER |
+			  HA_NULL_KEY |
+			  HA_BLOB_KEY |
+			  HA_CAN_SQL_HANDLER |
 			  HA_NOT_EXACT_COUNT |
 			  HA_NO_WRITE_DELAYED |
 			  HA_PRIMARY_KEY_IN_READ_INDEX |
 			  HA_DROP_BEFORE_CREATE |
-			  HA_NO_PREFIX_CHAR_KEYS |
 			  HA_TABLE_SCAN_ON_INDEX),
 	  last_dup_key((uint) -1),
 	  start_of_scan(0)
@@ -217,6 +222,14 @@ int innobase_report_binlog_offset_and_commit(
 int innobase_commit_complete(
         void*   trx_handle);
 int innobase_rollback(THD *thd, void* trx_handle);
+int innobase_rollback_to_savepoint(
+	THD*	thd,
+	char*	savepoint_name,
+	my_off_t* binlog_cache_pos);
+int innobase_savepoint(
+	THD*	thd,
+	char*	savepoint_name,
+	my_off_t binlog_cache_pos);
 int innobase_close_connection(THD *thd);
 int innobase_drop_database(char *path);
 int innodb_show_status(THD* thd);

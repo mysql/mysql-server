@@ -321,8 +321,8 @@ trx_sys_doublewrite_restore_corrupt_pages(void)
 	
 	for (i = 0; i < TRX_SYS_DOUBLEWRITE_BLOCK_SIZE * 2; i++) {
 		
-		space_id = mach_read_from_4(page + FIL_PAGE_SPACE);
 		page_no = mach_read_from_4(page + FIL_PAGE_OFFSET);
+		space_id = 0;
 
 		if (!fil_check_adress_in_tablespace(space_id, page_no)) {
 		  	fprintf(stderr,

@@ -973,7 +973,7 @@ recv_recover_page(
 	ulint	space,		/* in: space id */
 	ulint	page_no)	/* in: page number */
 {
-	buf_block_t*	block;
+	buf_block_t*	block		= NULL;
 	recv_addr_t*	recv_addr;
 	recv_t*		recv;
 	byte*		buf;
@@ -1085,7 +1085,7 @@ recv_recover_page(
 			page_lsn = page_newest_lsn;
 
 			mach_write_to_8(page + UNIV_PAGE_SIZE
-					- FIL_PAGE_END_LSN, ut_dulint_zero);
+				- FIL_PAGE_END_LSN_OLD_CHKSUM, ut_dulint_zero);
 			mach_write_to_8(page + FIL_PAGE_LSN, ut_dulint_zero);
 		}
 		
@@ -1107,7 +1107,7 @@ recv_recover_page(
 			recv_parse_or_apply_log_rec_body(recv->type, buf,
 						buf + recv->len, page, &mtr);
 			mach_write_to_8(page + UNIV_PAGE_SIZE
-					- FIL_PAGE_END_LSN,
+					- FIL_PAGE_END_LSN_OLD_CHKSUM,
 					ut_dulint_add(recv->start_lsn,
 							recv->len));
 			mach_write_to_8(page + FIL_PAGE_LSN,
@@ -1132,6 +1132,8 @@ recv_recover_page(
 	mutex_exit(&(recv_sys->mutex));
 	
 	if (!recover_backup && modification_to_page) {
+		ut_a(block);
+
 		buf_flush_recv_note_modification(block, start_lsn, end_lsn);
 	}
 	
@@ -1339,6 +1341,7 @@ loop:
 	mutex_exit(&(recv_sys->mutex));
 }
 
+#ifdef UNIV_HOTBACKUP
 /***********************************************************************
 Applies log records in the hash table to a backup. */
 
@@ -1520,8 +1523,8 @@ recv_check_identical(
 	for (i = 0; i < len; i++) {
 
 		if (str1[i] != str2[i]) {
-			fprintf(stderr, "Strings do not match at offset %lu\n", i);
-
+			fprintf(stderr,
+				"Strings do not match at offset %lu\n", i);
 			ut_print_buf(str1 + i, 16);
 			fprintf(stderr, "\n");
 			ut_print_buf(str2 + i, 16);
@@ -1654,6 +1657,7 @@ recv_compare_spaces_low(
 
 	recv_compare_spaces(space1, space2, n_pages);
 }
+#endif
 
 /***********************************************************************
 Tries to parse a single log record and returns its length. */
