@@ -74,7 +74,7 @@ int  grant_init(void);
 void grant_free(void);
 void grant_reload(void);
 bool check_grant(THD *thd, uint want_access, TABLE_LIST *tables,
-		 uint show_command=0);
+		 uint show_command=0, bool dont_print_error=0);
 bool check_grant_column (THD *thd,TABLE *table, const char *name,uint length,
 			 uint show_command=0);
 bool check_grant_all_columns(THD *thd, uint want_access, TABLE *table);

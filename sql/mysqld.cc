@@ -1532,9 +1532,13 @@ static void open_log(MYSQL_LOG *log, const char *hostname,
   // get rid of extention if the log is binary to avoid problems
   if (type == LOG_BIN)
   {
-    char* p = strrchr((char*) opt_name, FN_EXTCHAR);
+    char *p = fn_ext(opt_name);
     if (p)
-      *p = 0;
+    {
+      uint length=(uint) (p-opt_name);
+      strmake(tmp,opt_name,min(length,FN_REFLEN));
+      opt_name=tmp;
+    }
   }
   log->open(opt_name,type);
 }
@@ -2818,6 +2822,8 @@ CHANGEABLE_VAR changeable_vars[] = {
       0, MALLOC_OVERHEAD, (long) ~0, MALLOC_OVERHEAD, IO_SIZE },
   { "record_buffer",           (long*) &my_default_record_cache_size,
       128*1024L, IO_SIZE*2+MALLOC_OVERHEAD, ~0L, MALLOC_OVERHEAD, IO_SIZE },
+  { "record_rnd_buffer",           (long*) &record_rnd_cache_size,
+      0, IO_SIZE*2+MALLOC_OVERHEAD, ~0L, MALLOC_OVERHEAD, IO_SIZE },
   { "slave_net_timeout",        (long*) &slave_net_timeout, 
       SLAVE_NET_TIMEOUT, 1, 65535, 0, 1 },
   { "slow_launch_time",        (long*) &slow_launch_time, 
@@ -2907,6 +2913,7 @@ struct show_var_st init_vars[]= {
   {"log_update",              (char*) &opt_update_log,              SHOW_BOOL},
   {"log_bin",                 (char*) &opt_bin_log,                 SHOW_BOOL},
   {"log_slave_updates",       (char*) &opt_log_slave_updates,       SHOW_BOOL},
+  {"log_long_queries",        (char*) &opt_slow_log,                SHOW_BOOL},
   {"long_query_time",         (char*) &long_query_time,             SHOW_LONG},
   {"low_priority_updates",    (char*) &low_priority_updates,        SHOW_BOOL},
   {"lower_case_table_names",  (char*) &lower_case_table_names,      SHOW_LONG},
@@ -2937,6 +2944,7 @@ struct show_var_st init_vars[]= {
   {"port",                    (char*) &mysql_port,                  SHOW_INT},
   {"protocol_version",        (char*) &protocol_version,            SHOW_INT},
   {"record_buffer",           (char*) &my_default_record_cache_size,SHOW_LONG},
+  {"record_rnd_buffer",       (char*) &record_rnd_cache_size,	    SHOW_LONG},
   {"query_buffer_size",       (char*) &query_buff_size,		    SHOW_LONG},
   {"safe_show_database",      (char*) &opt_safe_show_db,            SHOW_BOOL},
   {"server_id",               (char*) &server_id,		    SHOW_LONG},
@@ -2947,7 +2955,7 @@ struct show_var_st init_vars[]= {
   {"slow_launch_time",        (char*) &slow_launch_time,            SHOW_LONG},
   {"socket",                  (char*) &mysql_unix_port,             SHOW_CHAR_PTR},
   {"sort_buffer",             (char*) &sortbuff_size,               SHOW_LONG},
-  {"sql_mode",                (char*) &sql_mode_str,                SHOW_CHAR_PTR},
+  {"sql_mode",                (char*) &opt_sql_mode,                SHOW_LONG},
   {"table_cache",             (char*) &table_cache_size,            SHOW_LONG},
   {"table_type",              (char*) &default_table_type_name,     SHOW_CHAR_PTR},
   {"thread_cache_size",       (char*) &thread_cache_size,           SHOW_LONG},
@@ -3109,6 +3117,8 @@ static void usage(void)
   --safe-mode		Skip some optimize stages (for testing)\n\
   --safe-show-database  Don't show databases for which the user has no\n\
                         privileges\n\
+  --safe-user-create	Don't new users cretaion without privileges to the\n\
+		        mysql.user table\n\
   --skip-concurrent-insert\n\
 		        Don't use concurrent insert with MyISAM\n\
   --skip-delay-key-write\n\
@@ -3817,6 +3827,20 @@ static void get_options(int argc,char **argv)
       ha_open_options|=HA_OPEN_ABORT_IF_CRASHED;
       break;
     }
+    case OPT_SQL_MODE:
+    {
+      sql_mode_str = optarg;
+      if ((opt_sql_mode =
+	   find_bit_type(optarg, &sql_mode_typelib)) == ~(ulong) 0)
+      {
+	fprintf(stderr, "Unknown option to sql-mode: %s\n", optarg);
+	exit(1);
+      }
+      default_tx_isolation= ((opt_sql_mode & MODE_SERIALIZABLE) ?
+			     ISO_SERIALIZABLE :
+			     ISO_READ_COMMITTED);
+      break;
+    }
     case OPT_MASTER_HOST:
       master_host=optarg;
       break;
@@ -3850,6 +3874,9 @@ static void get_options(int argc,char **argv)
     case OPT_SAFE_SHOW_DB:
       opt_safe_show_db=1;
       break;
+    case OPT_SAFE_USER_CREATE:
+      opt_safe_user_create=1;
+      break;
     case OPT_SKIP_SAFEMALLOC:
 #ifdef SAFEMALLOC
       sf_malloc_quick=1;
@@ -3874,6 +3901,9 @@ static void get_options(int argc,char **argv)
   fix_paths();
   default_table_type_name=ha_table_typelib.type_names[default_table_type-1];
   default_tx_isolation_name=tx_isolation_typelib.type_names[default_tx_isolation];
+  /* To be deleted in MySQL 4.0 */
+  if (!record_rnd_cache_size)
+    record_rnd_cache_size=my_default_record_cache_size;
 }
 
 
@@ -4149,7 +4179,7 @@ static int get_service_parameters()
     }
     else if ( lstrcmp(szKeyValueName, TEXT("KeyBufferSize")) == 0 )
     {
-      SET_CHANGEABLE_VARVAL( "key_buffer_size" );
+      SET_CHANGEABLE_VARVAL( "key_buffer" );
     }
     else if ( lstrcmp(szKeyValueName, TEXT("LongQueryTime")) == 0 )
     {
@@ -4463,7 +4493,9 @@ static ulong find_bit_type(const char *x, TYPELIB *bit_lib)
   found=0;
   found_end= 0;
   pos=(my_string) x;
-  do
+  while (*pos == ' ') pos++;
+  found_end= *pos == 0;
+  while (!found_end)
   {
     if (!*(end=strcend(pos,',')))		/* Let end point at fieldend */
     {
@@ -4496,7 +4528,7 @@ skipp: ;
       DBUG_RETURN(~(ulong) 0);				// No unique value
     found|=found_int;
     pos=end+1;
-  } while (! found_end);
+  }
 
   DBUG_PRINT("exit",("bit-field: %ld",(ulong) found));
   DBUG_RETURN(found);
