@@ -398,6 +398,9 @@ ha_innobase::update_thd(
 	return(0);
 }
 
+#ifdef notdefined
+/* The code here appears for documentational purposes only. Not used
+or tested yet. Will be used in 4.1. */
 /*********************************************************************
 Call this when you have opened a new table handle in HANDLER, before you
 call index_read_idx() etc. Actually, we can let the cursor stay open even
@@ -405,13 +408,14 @@ over a transaction commit! Then you should call this before every operation,
 fecth next etc. This function inits the necessary things even after a
 transaction commit. */
 
-/* TODO: THIS CODE HAS NOT BEEN TESTED!!! */
-
 void
 ha_innobase::init_table_handle_for_HANDLER(void)
 /*============================================*/
 {
         row_prebuilt_t* prebuilt;
+
+	ut_a(0); /* the code has not been used or tested yet; to prevent
+		  inadvertent usage we assert an error here */
 
         /* If current thd does not yet have a trx struct, create one.
         If the current handle does not yet have a prebuilt struct, create
@@ -452,6 +456,7 @@ ha_innobase::init_table_handle_for_HANDLER(void)
 
         prebuilt->read_just_key = FALSE;
 }
+#endif
 
 /*************************************************************************
 Opens an InnoDB database. */
