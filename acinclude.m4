@@ -728,7 +728,7 @@ AC_DEFUN(MYSQL_FIND_OPENSSL, [
       fi
       done
       ;;
-    default---* | *---default | yes---* | *---yes )
+    default---* | *---default )
       AC_MSG_ERROR([if either 'includes' or 'libs' is specified, both must be specified])
       ;;
     * )
