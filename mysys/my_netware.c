@@ -20,6 +20,7 @@
 
 #include <mysys_priv.h>
 #ifdef __NETWARE__
+  #include <string.h>
   #include <library.h>
 
 /*
@@ -61,8 +62,8 @@ long PMMeteredUsageRequest
  long *NLSMeterErrCode
 );
 
-ypedef long(*PMUR)(char*, long, char*, char, char*, long, long*, long*,
-		   long*);
+typedef long(*PMUR)(const char*, long, const char*, char,
+        const char*, long, long*, long*, long*);
 
 /* infoType */
 /* indicates that the info in the userInfo param is an NDS user */

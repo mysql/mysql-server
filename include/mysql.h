@@ -595,7 +595,7 @@ my_bool
 simple_command(MYSQL *mysql,enum enum_server_command command, const char *arg,
 	       unsigned long length, my_bool skip_check);
 unsigned long net_safe_read(MYSQL* mysql);
-void STDCALL mysql_once_init(void);
+void mysql_once_init(void);
 
 #ifdef __NETWARE__
 #pragma pack(pop)		/* restore alignment */
