@@ -1115,6 +1115,7 @@ static inline int add_relay_log(RELAY_LOG_INFO* rli,LOG_INFO* linfo)
 static bool wait_for_relay_log_space(RELAY_LOG_INFO* rli)
 {
   bool slave_killed;
+  LINT_INIT(slave_killed);
   MASTER_INFO* mi = rli->mi;
   const char* save_proc_info;
   THD* thd = mi->io_thd;
@@ -2579,6 +2580,7 @@ Log_event* next_event(RELAY_LOG_INFO* rli)
 	    goto err;
 	  }
 	  rli->relay_log_pos = 4;
+	  rli->pending=0;
 	  strnmov(rli->relay_log_name,rli->linfo.log_file_name,
 		  sizeof(rli->relay_log_name));
 	  flush_relay_log_info(rli);
