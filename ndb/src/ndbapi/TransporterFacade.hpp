@@ -35,7 +35,7 @@ class Ndb;
 class NdbApiSignal;
 
 typedef void (* ExecuteFunction)(void *, NdbApiSignal *, LinearSectionPtr ptr[3]);
-typedef void (* NodeStatusFunction)(void *, NodeId, bool nodeAlive, bool nfComplete);
+typedef void (* NodeStatusFunction)(void *, Uint32, bool nodeAlive, bool nfComplete);
 
 extern "C" {
   void* runSendRequest_C(void*);
@@ -55,9 +55,7 @@ public:
   bool init(Uint32, const ndb_mgm_configuration *);
 
   static TransporterFacade* instance();
-  static TransporterFacade* start_instance(int, const ndb_mgm_configuration*);
-  static TransporterFacade* start_instance(const char *connectString);
-  static void close_configuration();
+  int start_instance(int, const ndb_mgm_configuration*);
   static void stop_instance();
   
   /**
@@ -92,6 +90,8 @@ public:
 
   // My own processor id
   NodeId ownId() const;
+
+  void connected();
 
   void doConnect(int NodeId);
   void reportConnected(int NodeId);
@@ -130,6 +130,7 @@ private:
   friend class ExtSender; ///< @todo Hack to be able to sendSignalUnCond
   friend class GrepSS;
   friend class Ndb;
+  friend class Ndb_cluster_connection;
 
   int sendSignalUnCond(NdbApiSignal *, NodeId nodeId);
 

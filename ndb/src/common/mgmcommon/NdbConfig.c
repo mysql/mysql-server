@@ -21,27 +21,34 @@
 
 static char *datadir_path= 0;
 
+const char *
+NdbConfig_get_path(int *_len)
+{
+  const char *path= NdbEnv_GetEnv("NDB_HOME", 0, 0);
+  int path_len= 0;
+  if (path)
+    path_len= strlen(path);
+  if (path_len == 0 && datadir_path) {
+    path= datadir_path;
+    path_len= strlen(path);
+  }
+  if (path_len == 0) {
+    path= ".";
+    path_len= strlen(path);
+  }
+  if (_len)
+    *_len= path_len;
+  return path;
+}
+
 static char* 
 NdbConfig_AllocHomePath(int _len)
 {
-  const char *path= NdbEnv_GetEnv("NDB_HOME", 0, 0);
-  int len= _len;
-  int path_len= 0;
-  char *buf;
-
-  if (path == 0)
-    path= datadir_path;
-
-  if (path)
-    path_len= strlen(path);
-
-  len+= path_len;
-  buf= NdbMem_Allocate(len);
-  if (path_len > 0)
-    snprintf(buf, len, "%s%s", path, DIR_SEPARATOR);
-  else
-    buf[0]= 0;
-
+  int path_len;
+  const char *path= NdbConfig_get_path(&path_len);
+  int len= _len+path_len;
+  char *buf= NdbMem_Allocate(len);
+  snprintf(buf, len, "%s%s", path, DIR_SEPARATOR);
   return buf;
 }
 

@@ -241,7 +241,6 @@ public:
   NdbDictInterface(NdbError& err) : m_error(err) {
     m_reference = 0;
     m_masterNodeId = 0;
-    m_blockNumber = -1;
     m_transporter= NULL;
   }
   ~NdbDictInterface();
@@ -309,7 +308,6 @@ public:
 private:
   Uint32 m_reference;
   Uint32 m_masterNodeId;
-  int m_blockNumber;
   
   NdbWaiter m_waiter;
   class TransporterFacade * m_transporter;
@@ -319,7 +317,7 @@ private:
 			 class NdbApiSignal* signal, 
 			 class LinearSectionPtr ptr[3]);
   
-  static void execNodeStatus(void* dictImpl, NodeId, 
+  static void execNodeStatus(void* dictImpl, Uint32, 
 			     bool alive, bool nfCompleted);  
   
   void execGET_TABINFO_REF(NdbApiSignal *, LinearSectionPtr ptr[3]);

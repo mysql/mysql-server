@@ -74,6 +74,8 @@ NDB_MAIN(ndb_kernel){
     theConfig->fetch_configuration();
   }
   
+  chdir(NdbConfig_get_path(0));
+
   if (theConfig->getDaemonMode()) {
     // Become a daemon
     char *lockfile= NdbConfig_PidFileName(globalData.ownId);

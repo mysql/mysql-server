@@ -37,7 +37,7 @@ public:
    */
   int init();
 
-  int do_connect();
+  int do_connect(int exit_on_connect_failure= false);
   
   /**
    * Get configuration for current (nodeId given in local config file) node.

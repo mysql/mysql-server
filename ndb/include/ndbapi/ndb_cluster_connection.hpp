@@ -14,26 +14,32 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-#ifndef NDB_CONFIG_H
-#define NDB_CONFIG_H
 
-#ifdef	__cplusplus
+#ifndef CLUSTER_CONNECTION_HPP
+#define CLUSTER_CONNECTION_HPP
+
+class TransporterFacade;
+class ConfigRetriever;
+class NdbThread;
+
 extern "C" {
-#endif
-
-const char* NdbConfig_get_path(int *len);
-void NdbConfig_SetPath(const char *path);
-char* NdbConfig_NdbCfgName(int with_ndb_home);
-char* NdbConfig_ErrorFileName(int node_id);
-char* NdbConfig_ClusterLogFileName(int node_id);
-char* NdbConfig_SignalLogFileName(int node_id);
-char* NdbConfig_TraceFileName(int node_id, int file_no);
-char* NdbConfig_NextTraceFileName(int node_id);
-char* NdbConfig_PidFileName(int node_id);
-char* NdbConfig_StdoutFileName(int node_id);
-
-#ifdef	__cplusplus
+  void* run_ndb_cluster_connection_connect_thread(void*);
 }
-#endif
+
+class Ndb_cluster_connection {
+public:
+  Ndb_cluster_connection(const char * connect_string = 0);
+  ~Ndb_cluster_connection();
+  int connect(int reconnect= 0);
+  int start_connect_thread(int (*connect_callback)(void)= 0);
+private:
+  friend void* run_ndb_cluster_connection_connect_thread(void*);
+  void connect_thread();
+  char *m_connect_string;
+  TransporterFacade *m_facade;
+  ConfigRetriever *m_config_retriever;
+  NdbThread *m_connect_thread;
+  int (*m_connect_callback)(void);
+};
 
 #endif
