@@ -2421,7 +2421,10 @@ simple_expr:
 	| USER '(' ')'
 	  { $$= new Item_func_user(); Lex->safe_to_cache_query=0; }
 	| WEEK_SYM '(' expr ')'
-	  { $$= new Item_func_week($3,new Item_int((char*) "0",0,1)); }
+	  { 
+            $$= new Item_func_week($3,new Item_int((char*) "0",
+				   YYTHD->variables.default_week_format,1)); 
+          }
 	| WEEK_SYM '(' expr ',' expr ')'
 	  { $$= new Item_func_week($3,$5); }
 	| YEAR_SYM '(' expr ')'
