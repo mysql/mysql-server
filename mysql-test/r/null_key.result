@@ -228,3 +228,20 @@ alter table t1 add key id (id);
 select * from t1, t2 where t1.id = t2.id;
 id	id
 drop table t1,t2;
+id	id2
+NULL	0
+1	1
+id	id2
+NULL	0
+id	id2
+NULL	0
+1	1
+id	id2
+NULL	0
+1	1
+id	id2
+1	1
+id	id2
+1	1
+id	id2
+1	1
