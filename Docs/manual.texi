@@ -28040,6 +28040,10 @@ slower on Linux.  Note that you still can use a dynamic linked
 performance.
 
 @item
+If you strip your @code{mysqld} binary with @code{strip libexec/mysqld},
+the resulting binary can be up to 4 % faster.
+
+@item
 If you connect using TCP/IP rather than Unix sockets, the result is 7.5%
 slower on the same computer. (If you are connection to @code{localhost},
 @strong{MySQL} will, by default, use sockets).
@@ -42402,6 +42406,9 @@ not yet 100 % confident in this code.
 @item
 Fixed that one can't use database names with @code{.}.  This fixes a serious
 security issue when @code{mysqld} is run as root.
+@item
+Fixed bug when thread creation failed (could happen when doing a LOT
+of connections in a short time).
 @item
 Don't free the key cache on @code{FLUSH TABLES} as this will cause problems
 with temporary tables.
