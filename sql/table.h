@@ -173,7 +173,7 @@ typedef struct st_table_list
  GRANT_INFO	grant;
   thr_lock_type lock_type;
   uint		outer_join;		/* Which join type */
-  uint		shared;			/* Used in union or in multi-upd */
+  uint		shared;			/* Used in multi-upd */
   uint32        db_length, real_name_length;
   bool		straight;		/* optimize with prev table */
   bool          updating;               /* for replicate-do/ignore table */
