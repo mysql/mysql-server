@@ -1144,7 +1144,6 @@ int mi_repair(MI_CHECK *param, register MI_INFO *info,
 		      MYF(MY_WME | MY_WAIT_IF_FULL)))
       goto err;
   info->opt_flag|=WRITE_CACHE_USED;
-  sort_param.rec_buff=info->rec_buff;
   if (!(sort_param.record=(byte*) my_malloc((uint) share->base.pack_reclength,
 					   MYF(0))))
   {
@@ -1343,6 +1342,8 @@ err:
     }
     mi_mark_crashed_on_repair(info);
   }
+  my_free(mi_get_rec_buff_ptr(info, sort_param.rec_buff),
+                            MYF(MY_ALLOW_ZERO_PTR));
   my_free(sort_param.record,MYF(MY_ALLOW_ZERO_PTR));
   my_free(sort_info.buff,MYF(MY_ALLOW_ZERO_PTR));
   VOID(end_io_cache(&param->read_cache));
@@ -1807,7 +1808,6 @@ int mi_repair_by_sort(MI_CHECK *param, register MI_INFO *info,
   info->opt_flag|=WRITE_CACHE_USED;
   info->rec_cache.file=info->dfile;		/* for sort_delete_record */
 
-  sort_param.rec_buff=info->rec_buff;
   if (!(sort_param.record=(byte*) my_malloc((uint) share->base.pack_reclength,
 					   MYF(0))))
   {
@@ -2087,8 +2087,10 @@ err:
     share->state.changed&= ~STATE_NOT_OPTIMIZED_KEYS;
   share->state.changed|=STATE_NOT_SORTED_PAGES;
 
-  my_free((gptr) sort_info.key_block,MYF(MY_ALLOW_ZERO_PTR));
+  my_free(mi_get_rec_buff_ptr(info, sort_param.rec_buff),
+                            MYF(MY_ALLOW_ZERO_PTR));
   my_free(sort_param.record,MYF(MY_ALLOW_ZERO_PTR));
+  my_free((gptr) sort_info.key_block,MYF(MY_ALLOW_ZERO_PTR));
   my_free(sort_info.buff,MYF(MY_ALLOW_ZERO_PTR));
   VOID(end_io_cache(&param->read_cache));
   info->opt_flag&= ~(READ_CACHE_USED | WRITE_CACHE_USED);
