@@ -600,6 +600,7 @@ public:
   longlong val_int(void);
   String *val_str(String*,String *);
   void sql_type(String &str) const;
+  bool store_for_compare() { return 1; }
 };
 
 
