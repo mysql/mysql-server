@@ -1697,7 +1697,7 @@ sys_var *find_sys_var(const char *str, uint length)
 int sql_set_variables(THD *thd, List<set_var_base> *var_list)
 {
   int error= 0;
-  List_iterator<set_var_base> it(*var_list);
+  List_iterator_fast<set_var_base> it(*var_list);
 
   set_var_base *var;
   while ((var=it++))
@@ -1813,5 +1813,5 @@ int set_var_password::update(THD *thd)
 
 #ifdef __GNUC__
 template class List<set_var_base>;
-template class List_iterator<set_var_base>;
+template class List_iterator_fast<set_var_base>;
 #endif
