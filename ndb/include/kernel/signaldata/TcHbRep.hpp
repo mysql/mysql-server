@@ -36,7 +36,7 @@ class TcHbRep {
   /**
    * Sender(s)
    */
-  friend class NdbConnection;      
+  friend class NdbTransaction;      
 
   /**
    * For printing

@@ -16,7 +16,7 @@
 
 #include <ndb_global.h>
 #include <NdbOut.hpp>
-#include <NdbConnection.hpp>
+#include <NdbTransaction.hpp>
 #include <NdbOperation.hpp>
 #include <NdbScanOperation.hpp>
 #include <NdbIndexScanOperation.hpp>
@@ -34,13 +34,13 @@
 #include <signaldata/TcHbRep.hpp>
 
 /*****************************************************************************
-NdbConnection( Ndb* aNdb );
+NdbTransaction( Ndb* aNdb );
 
 Return Value:  None
 Parameters:    aNdb: Pointers to the Ndb object 
 Remark:        Creates a connection object. 
 *****************************************************************************/
-NdbConnection::NdbConnection( Ndb* aNdb ) :
+NdbTransaction::NdbTransaction( Ndb* aNdb ) :
   theSendStatus(NotInit),
   theCallbackFunction(NULL),
   theCallbackObject(NULL),
@@ -89,19 +89,19 @@ NdbConnection::NdbConnection( Ndb* aNdb ) :
 
   CHECK_SZ(m_db_nodes, NdbNodeBitmask::Size);
   CHECK_SZ(m_failed_db_nodes, NdbNodeBitmask::Size);
-}//NdbConnection::NdbConnection()
+}//NdbTransaction::NdbTransaction()
 
 /*****************************************************************************
-~NdbConnection();
+~NdbTransaction();
 
 Remark:        Deletes the connection object. 
 *****************************************************************************/
-NdbConnection::~NdbConnection()
+NdbTransaction::~NdbTransaction()
 {
-  DBUG_ENTER("NdbConnection::~NdbConnection");
+  DBUG_ENTER("NdbTransaction::~NdbTransaction");
   theNdb->theNdbObjectIdMap->unmap(theId, this);
   DBUG_VOID_RETURN;
-}//NdbConnection::~NdbConnection()
+}//NdbTransaction::~NdbTransaction()
 
 /*****************************************************************************
 void init();
@@ -109,7 +109,7 @@ void init();
 Remark:         Initialise connection object for new transaction. 
 *****************************************************************************/
 void	
-NdbConnection::init()
+NdbTransaction::init()
 {
   theListState            = NotInList;
   theInUseState           = true;
@@ -149,7 +149,7 @@ NdbConnection::init()
   //
   theBlobFlag = false;
   thePendingBlobOps = 0;
-}//NdbConnection::init()
+}//NdbTransaction::init()
 
 /*****************************************************************************
 setOperationErrorCode(int error);
@@ -158,9 +158,9 @@ Remark:        Sets an error code on the connection object from an
                operation object. 
 *****************************************************************************/
 void
-NdbConnection::setOperationErrorCode(int error)
+NdbTransaction::setOperationErrorCode(int error)
 {
-  DBUG_ENTER("NdbConnection::setOperationErrorCode");
+  DBUG_ENTER("NdbTransaction::setOperationErrorCode");
   setErrorCode(error);
   DBUG_VOID_RETURN;
 }
@@ -172,9 +172,9 @@ Remark:        Sets an error code on the connection object from an
                operation object. 
 *****************************************************************************/
 void
-NdbConnection::setOperationErrorCodeAbort(int error, int abortOption)
+NdbTransaction::setOperationErrorCodeAbort(int error, int abortOption)
 {
-  DBUG_ENTER("NdbConnection::setOperationErrorCodeAbort");
+  DBUG_ENTER("NdbTransaction::setOperationErrorCodeAbort");
   if (abortOption == -1)
     abortOption = m_abortOption;
   if (theTransactionIsStarted == false) {
@@ -194,20 +194,20 @@ setErrorCode(int anErrorCode);
 Remark:        Sets an error indication on the connection object. 
 *****************************************************************************/
 void
-NdbConnection::setErrorCode(int error)
+NdbTransaction::setErrorCode(int error)
 {
-  DBUG_ENTER("NdbConnection::setErrorCode");
+  DBUG_ENTER("NdbTransaction::setErrorCode");
   DBUG_PRINT("enter", ("error: %d, theError.code: %d", error, theError.code));
 
   if (theError.code == 0)
     theError.code = error;
 
   DBUG_VOID_RETURN;
-}//NdbConnection::setErrorCode()
+}//NdbTransaction::setErrorCode()
 
 int
-NdbConnection::restart(){
-  DBUG_ENTER("NdbConnection::restart");
+NdbTransaction::restart(){
+  DBUG_ENTER("NdbTransaction::restart");
   if(theCompletionStatus == CompletedSuccess){
     releaseCompletedOperations();
     Uint64 tTransid = theNdb->theFirstTransId;
@@ -232,7 +232,7 @@ void handleExecuteCompletion(void);
 Remark:        Handle time-out on a transaction object. 
 *****************************************************************************/
 void
-NdbConnection::handleExecuteCompletion()
+NdbTransaction::handleExecuteCompletion()
 {
   /***************************************************************************
    *	  Move the NdbOperation objects from the list of executing 
@@ -250,7 +250,7 @@ NdbConnection::handleExecuteCompletion()
   }//if
   theSendStatus = InitState;
   return;
-}//NdbConnection::handleExecuteCompletion()
+}//NdbTransaction::handleExecuteCompletion()
 
 /*****************************************************************************
 int execute(ExecType aTypeOfExec, CommitType aTypeOfCommit, int forceSend);
@@ -261,11 +261,11 @@ Parameters :   aTypeOfExec: Type of execute.
 Remark:        Initialise connection object for new transaction. 
 *****************************************************************************/
 int 
-NdbConnection::execute(ExecType aTypeOfExec, 
+NdbTransaction::execute(ExecType aTypeOfExec, 
 		       AbortOption abortOption,
 		       int forceSend)
 {
-  DBUG_ENTER("NdbConnection::execute");
+  DBUG_ENTER("NdbTransaction::execute");
   DBUG_PRINT("enter", ("aTypeOfExec: %d, abortOption: %d", 
 		       aTypeOfExec, abortOption));
 
@@ -396,11 +396,11 @@ NdbConnection::execute(ExecType aTypeOfExec,
 }
 
 int 
-NdbConnection::executeNoBlobs(ExecType aTypeOfExec, 
+NdbTransaction::executeNoBlobs(ExecType aTypeOfExec, 
                               AbortOption abortOption,
                               int forceSend)
 {
-  DBUG_ENTER("NdbConnection::executeNoBlobs");
+  DBUG_ENTER("NdbTransaction::executeNoBlobs");
   DBUG_PRINT("enter", ("aTypeOfExec: %d, abortOption: %d", 
 		       aTypeOfExec, abortOption));
 
@@ -409,7 +409,7 @@ NdbConnection::executeNoBlobs(ExecType aTypeOfExec,
 // since last execute or since beginning. If this works ok we will continue
 // by calling the poll with wait method. This method will return when
 // the NDB kernel has completed its task or when 10 seconds have passed.
-// The NdbConnectionCallBack-method will receive the return code of the
+// The NdbTransactionCallBack-method will receive the return code of the
 // transaction. The normal methods of reading error codes still apply.
 //------------------------------------------------------------------------
   Ndb* tNdb = theNdb;
@@ -457,7 +457,7 @@ NdbConnection::executeNoBlobs(ExecType aTypeOfExec,
   }
   thePendingBlobOps = 0;
   DBUG_RETURN(0);
-}//NdbConnection::execute()
+}//NdbTransaction::execute()
 
 /*****************************************************************************
 void executeAsynchPrepare(ExecType           aTypeOfExec,
@@ -475,12 +475,12 @@ Parameters :   aTypeOfExec:   Type of execute.
 Remark:        Prepare a part of a transaction in an asynchronous manner. 
 *****************************************************************************/
 void 
-NdbConnection::executeAsynchPrepare( ExecType           aTypeOfExec,
+NdbTransaction::executeAsynchPrepare( ExecType           aTypeOfExec,
                                      NdbAsynchCallback  aCallback,
                                      void*              anyObject,
                                      AbortOption abortOption)
 {
-  DBUG_ENTER("NdbConnection::executeAsynchPrepare");
+  DBUG_ENTER("NdbTransaction::executeAsynchPrepare");
   DBUG_PRINT("enter", ("aTypeOfExec: %d, aCallback: %x, anyObject: %x", 
 		       aTypeOfExec, aCallback, anyObject));
 
@@ -643,14 +643,14 @@ NdbConnection::executeAsynchPrepare( ExecType           aTypeOfExec,
   NdbNodeBitmask::clear(m_db_nodes);
   NdbNodeBitmask::clear(m_failed_db_nodes);
   DBUG_VOID_RETURN;
-}//NdbConnection::executeAsynchPrepare()
+}//NdbTransaction::executeAsynchPrepare()
 
-void NdbConnection::close()
+void NdbTransaction::close()
 {
   theNdb->closeTransaction(this);
 }
 
-int NdbConnection::refresh(){
+int NdbTransaction::refresh(){
   return sendTC_HBREP();
 }
 
@@ -662,7 +662,7 @@ Parameters :   None.
 Remark:        Order NDB to refresh the timeout counter of the transaction. 
 ******************************************************************************/
 int 	
-NdbConnection::sendTC_HBREP()		// Send a TC_HBREP signal;
+NdbTransaction::sendTC_HBREP()		// Send a TC_HBREP signal;
 {
   NdbApiSignal* tSignal;
   Ndb* tNdb = theNdb;
@@ -697,7 +697,7 @@ NdbConnection::sendTC_HBREP()		// Send a TC_HBREP signal;
   }    
   
   return 0;
-}//NdbConnection::sendTC_HBREP()
+}//NdbTransaction::sendTC_HBREP()
 
 /*****************************************************************************
 int doSend();
@@ -709,9 +709,9 @@ Remark:        Send all operations belonging to this connection.
                object from the prepared transactions array on the Ndb-object.
 *****************************************************************************/
 int
-NdbConnection::doSend()
+NdbTransaction::doSend()
 {
-  DBUG_ENTER("NdbConnection::doSend");
+  DBUG_ENTER("NdbTransaction::doSend");
 
   /*
   This method assumes that at least one operation have been defined. This
@@ -770,7 +770,7 @@ NdbConnection::doSend()
   theTransactionIsStarted = false;
   theCommitStatus = Aborted;
   DBUG_RETURN(-1);
-}//NdbConnection::doSend()
+}//NdbTransaction::doSend()
 
 /**************************************************************************
 int sendROLLBACK();
@@ -780,7 +780,7 @@ Parameters :   None.
 Remark:        Order NDB to rollback the transaction. 
 **************************************************************************/
 int 	
-NdbConnection::sendROLLBACK()      // Send a TCROLLBACKREQ signal;
+NdbTransaction::sendROLLBACK()      // Send a TCROLLBACKREQ signal;
 {
   Ndb* tNdb = theNdb;
   if ((theTransactionIsStarted == true) &&
@@ -824,7 +824,7 @@ NdbConnection::sendROLLBACK()      // Send a TCROLLBACKREQ signal;
     return 0;
     ;
   }//if
-}//NdbConnection::sendROLLBACK()
+}//NdbTransaction::sendROLLBACK()
 
 /***************************************************************************
 int sendCOMMIT();
@@ -835,7 +835,7 @@ Parameters :   None.
 Remark:        Order NDB to commit the transaction. 
 ***************************************************************************/
 int 	
-NdbConnection::sendCOMMIT()    // Send a TC_COMMITREQ signal;
+NdbTransaction::sendCOMMIT()    // Send a TC_COMMITREQ signal;
 {
   NdbApiSignal tSignal(theNdb->theMyRef);
   Uint32 tTransId1, tTransId2;
@@ -857,7 +857,7 @@ NdbConnection::sendCOMMIT()    // Send a TC_COMMITREQ signal;
   } else {
     return -1;
   }//if
-}//NdbConnection::sendCOMMIT()
+}//NdbTransaction::sendCOMMIT()
 
 /******************************************************************************
 void release();
@@ -865,7 +865,7 @@ void release();
 Remark:         Release all operations.
 ******************************************************************************/
 void 
-NdbConnection::release(){
+NdbTransaction::release(){
   releaseOperations();
   if ( (theTransactionIsStarted == true) &&
        ((theCommitStatus != Committed) &&
@@ -884,10 +884,10 @@ NdbConnection::release(){
     abort();
   }
 #endif
-}//NdbConnection::release()
+}//NdbTransaction::release()
 
 void
-NdbConnection::releaseOps(NdbOperation* tOp){
+NdbTransaction::releaseOps(NdbOperation* tOp){
   while (tOp != NULL) {
     NdbOperation* tmp = tOp;
     tOp->release();
@@ -902,7 +902,7 @@ void releaseOperations();
 Remark:         Release all operations.
 ******************************************************************************/
 void 
-NdbConnection::releaseOperations()
+NdbTransaction::releaseOperations()
 {
   // Release any open scans
   releaseScanOperations(m_theFirstScanOperation);
@@ -922,15 +922,15 @@ NdbConnection::releaseOperations()
   m_theFirstScanOperation = NULL;
   m_theLastScanOperation = NULL;
   m_firstExecutedScanOp = NULL;
-}//NdbConnection::releaseOperations()
+}//NdbTransaction::releaseOperations()
 
 void 
-NdbConnection::releaseCompletedOperations()
+NdbTransaction::releaseCompletedOperations()
 {
   releaseOps(theCompletedFirstOp);
   theCompletedFirstOp = NULL;
   theCompletedLastOp = NULL;
-}//NdbConnection::releaseOperations()
+}//NdbTransaction::releaseOperations()
 
 /******************************************************************************
 void releaseScanOperations();
@@ -939,7 +939,7 @@ Remark:         Release all cursor operations.
                 (NdbScanOperation and NdbIndexOperation)
 ******************************************************************************/
 void 
-NdbConnection::releaseScanOperations(NdbIndexScanOperation* cursorOp)
+NdbTransaction::releaseScanOperations(NdbIndexScanOperation* cursorOp)
 {
   while(cursorOp != 0){
     NdbIndexScanOperation* next = (NdbIndexScanOperation*)cursorOp->next();
@@ -947,7 +947,7 @@ NdbConnection::releaseScanOperations(NdbIndexScanOperation* cursorOp)
     theNdb->releaseScanOperation(cursorOp);
     cursorOp = next;
   }
-}//NdbConnection::releaseScanOperations()
+}//NdbTransaction::releaseScanOperations()
 
 /*****************************************************************************
 NdbOperation* getNdbOperation(const char* aTableName);
@@ -957,13 +957,13 @@ Return Value    Return a pointer to a NdbOperation object if getNdbOperation
                 Return NULL : In all other case. 	
 Parameters:     aTableName : Name of the database table. 	
 Remark:         Get an operation from NdbOperation idlelist and get the 
-                NdbConnection object 
+                NdbTransaction object 
 		who was fetch by startTransaction pointing to this  operation  
 		getOperation will set the theTableId in the NdbOperation object.
                 synchronous
 ******************************************************************************/
 NdbOperation*
-NdbConnection::getNdbOperation(const char* aTableName)
+NdbTransaction::getNdbOperation(const char* aTableName)
 {
   if (theCommitStatus == Started){
     NdbTableImpl* table = theNdb->theDictionary->getTable(aTableName);
@@ -978,7 +978,7 @@ NdbConnection::getNdbOperation(const char* aTableName)
   setOperationErrorCodeAbort(4114);
   
   return NULL;
-}//NdbConnection::getNdbOperation()
+}//NdbTransaction::getNdbOperation()
 
 /*****************************************************************************
 NdbOperation* getNdbOperation(int aTableId);
@@ -988,13 +988,13 @@ Return Value    Return a pointer to a NdbOperation object if getNdbOperation
                 Return NULL: In all other case. 	
 Parameters:     tableId : Id of the database table beeing deleted.
 Remark:         Get an operation from NdbOperation object idlelist and 
-                get the NdbConnection object who was fetch by 
+                get the NdbTransaction object who was fetch by 
                 startTransaction pointing to this operation 
   	        getOperation will set the theTableId in the NdbOperation 
                 object, synchronous.
 *****************************************************************************/
 NdbOperation*
-NdbConnection::getNdbOperation(const NdbTableImpl * tab, NdbOperation* aNextOp)
+NdbTransaction::getNdbOperation(const NdbTableImpl * tab, NdbOperation* aNextOp)
 { 
   NdbOperation* tOp;
 
@@ -1038,15 +1038,15 @@ NdbConnection::getNdbOperation(const NdbTableImpl * tab, NdbOperation* aNextOp)
  getNdbOp_error1:
   setOperationErrorCodeAbort(4000);
   return NULL;
-}//NdbConnection::getNdbOperation()
+}//NdbTransaction::getNdbOperation()
 
-NdbOperation* NdbConnection::getNdbOperation(const NdbDictionary::Table * table)
+NdbOperation* NdbTransaction::getNdbOperation(const NdbDictionary::Table * table)
 {
   if (table)
     return getNdbOperation(& NdbTableImpl::getImpl(*table));
   else
     return NULL;
-}//NdbConnection::getNdbOperation()
+}//NdbTransaction::getNdbOperation()
 
 // NdbScanOperation
 /*****************************************************************************
@@ -1055,12 +1055,12 @@ NdbScanOperation* getNdbScanOperation(const char* aTableName);
 Return Value    Return a pointer to a NdbScanOperation object if getNdbScanOperation was succesful.
                 Return NULL : In all other case. 	
 Parameters:     aTableName : Name of the database table. 	
-Remark:         Get an operation from NdbScanOperation idlelist and get the NdbConnection object 
+Remark:         Get an operation from NdbScanOperation idlelist and get the NdbTransaction object 
 		who was fetch by startTransaction pointing to this  operation  
 		getOperation will set the theTableId in the NdbOperation object.synchronous
 ******************************************************************************/
 NdbScanOperation*
-NdbConnection::getNdbScanOperation(const char* aTableName)
+NdbTransaction::getNdbScanOperation(const char* aTableName)
 {
   if (theCommitStatus == Started){
     NdbTableImpl* tab = theNdb->theDictionary->getTable(aTableName);
@@ -1074,7 +1074,7 @@ NdbConnection::getNdbScanOperation(const char* aTableName)
   
   setOperationErrorCodeAbort(4114);
   return NULL;
-}//NdbConnection::getNdbScanOperation()
+}//NdbTransaction::getNdbScanOperation()
 
 /*****************************************************************************
 NdbScanOperation* getNdbScanOperation(const char* anIndexName, const char* aTableName);
@@ -1083,12 +1083,12 @@ Return Value    Return a pointer to a NdbScanOperation object if getNdbScanOpera
                 Return NULL : In all other case. 	
 Parameters:     anIndexName : Name of the index to use. 	
                 aTableName : Name of the database table. 	
-Remark:         Get an operation from NdbScanOperation idlelist and get the NdbConnection object 
+Remark:         Get an operation from NdbScanOperation idlelist and get the NdbTransaction object 
 		who was fetch by startTransaction pointing to this  operation  
 		getOperation will set the theTableId in the NdbOperation object.synchronous
 ******************************************************************************/
 NdbIndexScanOperation*
-NdbConnection::getNdbIndexScanOperation(const char* anIndexName, 
+NdbTransaction::getNdbIndexScanOperation(const char* anIndexName, 
 					const char* aTableName)
 {
   NdbIndexImpl* index = 
@@ -1099,7 +1099,7 @@ NdbConnection::getNdbIndexScanOperation(const char* anIndexName,
 }
 
 NdbIndexScanOperation*
-NdbConnection::getNdbIndexScanOperation(const NdbIndexImpl* index,
+NdbTransaction::getNdbIndexScanOperation(const NdbIndexImpl* index,
 					const NdbTableImpl* table)
 {
   if (theCommitStatus == Started){
@@ -1119,10 +1119,10 @@ NdbConnection::getNdbIndexScanOperation(const NdbIndexImpl* index,
   
   setOperationErrorCodeAbort(4114);
   return NULL;
-}//NdbConnection::getNdbIndexScanOperation()
+}//NdbTransaction::getNdbIndexScanOperation()
 
 NdbIndexScanOperation* 
-NdbConnection::getNdbIndexScanOperation(const NdbDictionary::Index * index,
+NdbTransaction::getNdbIndexScanOperation(const NdbDictionary::Index * index,
 					const NdbDictionary::Table * table)
 {
   if (index && table)
@@ -1130,7 +1130,7 @@ NdbConnection::getNdbIndexScanOperation(const NdbDictionary::Index * index,
 				    & NdbTableImpl::getImpl(*table));
   else
     return NULL;
-}//NdbConnection::getNdbIndexScanOperation()
+}//NdbTransaction::getNdbIndexScanOperation()
 
 /*****************************************************************************
 NdbScanOperation* getNdbScanOperation(int aTableId);
@@ -1138,12 +1138,12 @@ NdbScanOperation* getNdbScanOperation(int aTableId);
 Return Value    Return a pointer to a NdbOperation object if getNdbOperation was succesful.
                 Return NULL: In all other case. 	
 Parameters:     tableId : Id of the database table beeing deleted.
-Remark:         Get an operation from NdbScanOperation object idlelist and get the NdbConnection 
+Remark:         Get an operation from NdbScanOperation object idlelist and get the NdbTransaction 
                 object who was fetch by startTransaction pointing to this  operation 
   	        getOperation will set the theTableId in the NdbOperation object, synchronous.
 *****************************************************************************/
 NdbIndexScanOperation*
-NdbConnection::getNdbScanOperation(const NdbTableImpl * tab)
+NdbTransaction::getNdbScanOperation(const NdbTableImpl * tab)
 { 
   NdbIndexScanOperation* tOp;
   
@@ -1162,10 +1162,10 @@ NdbConnection::getNdbScanOperation(const NdbTableImpl * tab)
 getNdbOp_error1:
   setOperationErrorCodeAbort(4000);
   return NULL;
-}//NdbConnection::getNdbScanOperation()
+}//NdbTransaction::getNdbScanOperation()
 
 void
-NdbConnection::remove_list(NdbOperation*& list, NdbOperation* op){
+NdbTransaction::remove_list(NdbOperation*& list, NdbOperation* op){
   NdbOperation* tmp= list;
   if(tmp == op)
     list = op->next();
@@ -1178,7 +1178,7 @@ NdbConnection::remove_list(NdbOperation*& list, NdbOperation* op){
 }
 
 void
-NdbConnection::define_scan_op(NdbIndexScanOperation * tOp){
+NdbTransaction::define_scan_op(NdbIndexScanOperation * tOp){
   // Link scan operation into list of cursor operations
   if (m_theLastScanOperation == NULL)
     m_theFirstScanOperation = m_theLastScanOperation = tOp;
@@ -1190,13 +1190,13 @@ NdbConnection::define_scan_op(NdbIndexScanOperation * tOp){
 }
 
 NdbScanOperation* 
-NdbConnection::getNdbScanOperation(const NdbDictionary::Table * table)
+NdbTransaction::getNdbScanOperation(const NdbDictionary::Table * table)
 {
   if (table)
     return getNdbScanOperation(& NdbTableImpl::getImpl(*table));
   else
     return NULL;
-}//NdbConnection::getNdbScanOperation()
+}//NdbTransaction::getNdbScanOperation()
 
 
 // IndexOperation
@@ -1207,12 +1207,12 @@ NdbIndexOperation* getNdbIndexOperation(const char* anIndexName,
 Return Value    Return a pointer to a NdbOperation object if getNdbScanOperation was succesful.
                 Return NULL : In all other case. 	
 Parameters:     aTableName : Name of the database table. 	
-Remark:         Get an operation from NdbScanOperation idlelist and get the NdbConnection object 
+Remark:         Get an operation from NdbScanOperation idlelist and get the NdbTransaction object 
 		who was fetch by startTransaction pointing to this  operation  
 		getOperation will set the theTableId in the NdbScanOperation object.synchronous
 ******************************************************************************/
 NdbIndexOperation*
-NdbConnection::getNdbIndexOperation(const char* anIndexName, 
+NdbTransaction::getNdbIndexOperation(const char* anIndexName, 
                                     const char* aTableName)
 {
   if (theCommitStatus == Started) {
@@ -1235,7 +1235,7 @@ NdbConnection::getNdbIndexOperation(const char* anIndexName,
   
   setOperationErrorCodeAbort(4114);
   return 0;
-}//NdbConnection::getNdbIndexOperation()
+}//NdbTransaction::getNdbIndexOperation()
 
 /*****************************************************************************
 NdbIndexOperation* getNdbIndexOperation(int anIndexId, int aTableId);
@@ -1243,12 +1243,12 @@ NdbIndexOperation* getNdbIndexOperation(int anIndexId, int aTableId);
 Return Value    Return a pointer to a NdbIndexOperation object if getNdbIndexOperation was succesful.
                 Return NULL: In all other case. 	
 Parameters:     tableId : Id of the database table beeing deleted.
-Remark:         Get an operation from NdbIndexOperation object idlelist and get the NdbConnection 
+Remark:         Get an operation from NdbIndexOperation object idlelist and get the NdbTransaction 
                 object who was fetch by startTransaction pointing to this  operation 
   	        getOperation will set the theTableId in the NdbIndexOperation object, synchronous.
 *****************************************************************************/
 NdbIndexOperation*
-NdbConnection::getNdbIndexOperation(const NdbIndexImpl * anIndex, 
+NdbTransaction::getNdbIndexOperation(const NdbIndexImpl * anIndex, 
 				    const NdbTableImpl * aTable,
                                     NdbOperation* aNextOp)
 { 
@@ -1289,10 +1289,10 @@ NdbConnection::getNdbIndexOperation(const NdbIndexImpl * anIndex,
  getNdbOp_error1:
   setOperationErrorCodeAbort(4000);
   return NULL;
-}//NdbConnection::getNdbIndexOperation()
+}//NdbTransaction::getNdbIndexOperation()
 
 NdbIndexOperation* 
-NdbConnection::getNdbIndexOperation(const NdbDictionary::Index * index,
+NdbTransaction::getNdbIndexOperation(const NdbDictionary::Index * index,
 				    const NdbDictionary::Table * table)
 {
   if (index && table)
@@ -1300,7 +1300,7 @@ NdbConnection::getNdbIndexOperation(const NdbDictionary::Index * index,
 				& NdbTableImpl::getImpl(*table));
   else
     return NULL;
-}//NdbConnection::getNdbIndexOperation()
+}//NdbTransaction::getNdbIndexOperation()
 
 
 /*******************************************************************************
@@ -1312,7 +1312,7 @@ Parameters:    aSignal: The signal object pointer.
 Remark:        Sets theRestartGCI in the NDB object. 
 *******************************************************************************/
 int			
-NdbConnection::receiveDIHNDBTAMPER(NdbApiSignal* aSignal)
+NdbTransaction::receiveDIHNDBTAMPER(NdbApiSignal* aSignal)
 {
   if (theStatus != Connecting) {
     return -1;
@@ -1321,7 +1321,7 @@ NdbConnection::receiveDIHNDBTAMPER(NdbApiSignal* aSignal)
     theStatus = Connected;
   }//if
   return 0;  
-}//NdbConnection::receiveDIHNDBTAMPER()
+}//NdbTransaction::receiveDIHNDBTAMPER()
 
 /*******************************************************************************
 int  receiveTCSEIZECONF(NdbApiSignal* aSignal);
@@ -1332,7 +1332,7 @@ Parameters:    aSignal: The signal object pointer.
 Remark:        Sets TC Connect pointer at reception of TCSEIZECONF. 
 *******************************************************************************/
 int			
-NdbConnection::receiveTCSEIZECONF(NdbApiSignal* aSignal)
+NdbTransaction::receiveTCSEIZECONF(NdbApiSignal* aSignal)
 {
   if (theStatus != Connecting)
   {
@@ -1343,7 +1343,7 @@ NdbConnection::receiveTCSEIZECONF(NdbApiSignal* aSignal)
     theStatus = Connected;
   }
   return 0;
-}//NdbConnection::receiveTCSEIZECONF()
+}//NdbTransaction::receiveTCSEIZECONF()
 
 /*******************************************************************************
 int  receiveTCSEIZEREF(NdbApiSignal* aSignal);
@@ -1354,7 +1354,7 @@ Parameters:    aSignal: The signal object pointer.
 Remark:        Sets TC Connect pointer. 
 *******************************************************************************/
 int			
-NdbConnection::receiveTCSEIZEREF(NdbApiSignal* aSignal)
+NdbTransaction::receiveTCSEIZEREF(NdbApiSignal* aSignal)
 {
   if (theStatus != Connecting)
   {
@@ -1365,7 +1365,7 @@ NdbConnection::receiveTCSEIZEREF(NdbApiSignal* aSignal)
     theNdb->theError.code = aSignal->readData(2);
     return 0;
   }
-}//NdbConnection::receiveTCSEIZEREF()
+}//NdbTransaction::receiveTCSEIZEREF()
 
 /*******************************************************************************
 int  receiveTCRELEASECONF(NdbApiSignal* aSignal);
@@ -1376,7 +1376,7 @@ Parameters:    aSignal: The signal object pointer.
 Remark:         DisConnect TC Connect pointer to NDBAPI. 
 *******************************************************************************/
 int			
-NdbConnection::receiveTCRELEASECONF(NdbApiSignal* aSignal)
+NdbTransaction::receiveTCRELEASECONF(NdbApiSignal* aSignal)
 {
   if (theStatus != DisConnecting)
   {
@@ -1386,7 +1386,7 @@ NdbConnection::receiveTCRELEASECONF(NdbApiSignal* aSignal)
     theStatus = NotConnected;
   }
   return 0;
-}//NdbConnection::receiveTCRELEASECONF()
+}//NdbTransaction::receiveTCRELEASECONF()
 
 /*******************************************************************************
 int  receiveTCRELEASEREF(NdbApiSignal* aSignal);
@@ -1397,7 +1397,7 @@ Parameters:    aSignal: The signal object pointer.
 Remark:        DisConnect TC Connect pointer to NDBAPI Failure. 
 *******************************************************************************/
 int			
-NdbConnection::receiveTCRELEASEREF(NdbApiSignal* aSignal)
+NdbTransaction::receiveTCRELEASEREF(NdbApiSignal* aSignal)
 {
   if (theStatus != DisConnecting) {
     return -1;
@@ -1406,7 +1406,7 @@ NdbConnection::receiveTCRELEASEREF(NdbApiSignal* aSignal)
     theNdb->theError.code = aSignal->readData(2);
     return 0;
   }//if
-}//NdbConnection::receiveTCRELEASEREF()
+}//NdbTransaction::receiveTCRELEASEREF()
 
 /******************************************************************************
 int  receiveTC_COMMITCONF(NdbApiSignal* aSignal);
@@ -1417,7 +1417,7 @@ Parameters:    aSignal: The signal object pointer.
 Remark:        
 ******************************************************************************/
 int			
-NdbConnection::receiveTC_COMMITCONF(const TcCommitConf * commitConf)
+NdbTransaction::receiveTC_COMMITCONF(const TcCommitConf * commitConf)
 { 
   if(checkState_TransId(&commitConf->transId1)){
     theCommitStatus = Committed;
@@ -1429,7 +1429,7 @@ NdbConnection::receiveTC_COMMITCONF(const TcCommitConf * commitConf)
 #endif
   }
   return -1;
-}//NdbConnection::receiveTC_COMMITCONF()
+}//NdbTransaction::receiveTC_COMMITCONF()
 
 /******************************************************************************
 int  receiveTC_COMMITREF(NdbApiSignal* aSignal);
@@ -1440,7 +1440,7 @@ Parameters:    aSignal: The signal object pointer.
 Remark:        
 ******************************************************************************/
 int			
-NdbConnection::receiveTC_COMMITREF(NdbApiSignal* aSignal)
+NdbTransaction::receiveTC_COMMITREF(NdbApiSignal* aSignal)
 {
   const TcCommitRef * ref = CAST_CONSTPTR(TcCommitRef, aSignal->getDataPtr());
   if(checkState_TransId(&ref->transId1)){
@@ -1456,7 +1456,7 @@ NdbConnection::receiveTC_COMMITREF(NdbApiSignal* aSignal)
   }
 
   return -1;
-}//NdbConnection::receiveTC_COMMITREF()
+}//NdbTransaction::receiveTC_COMMITREF()
 
 /******************************************************************************
 int  receiveTCROLLBACKCONF(NdbApiSignal* aSignal);
@@ -1467,7 +1467,7 @@ Parameters:    aSignal: The signal object pointer.
 Remark:        
 ******************************************************************************/
 int			
-NdbConnection::receiveTCROLLBACKCONF(NdbApiSignal* aSignal)
+NdbTransaction::receiveTCROLLBACKCONF(NdbApiSignal* aSignal)
 {
   if(checkState_TransId(aSignal->getDataPtr() + 1)){
     theCommitStatus = Aborted;
@@ -1480,7 +1480,7 @@ NdbConnection::receiveTCROLLBACKCONF(NdbApiSignal* aSignal)
   }
 
   return -1;
-}//NdbConnection::receiveTCROLLBACKCONF()
+}//NdbTransaction::receiveTCROLLBACKCONF()
 
 /*******************************************************************************
 int  receiveTCROLLBACKREF(NdbApiSignal* aSignal);
@@ -1491,7 +1491,7 @@ Parameters:    aSignal: The signal object pointer.
 Remark:        
 *******************************************************************************/
 int			
-NdbConnection::receiveTCROLLBACKREF(NdbApiSignal* aSignal)
+NdbTransaction::receiveTCROLLBACKREF(NdbApiSignal* aSignal)
 {
   if(checkState_TransId(aSignal->getDataPtr() + 1)){
     setOperationErrorCodeAbort(aSignal->readData(4));
@@ -1506,7 +1506,7 @@ NdbConnection::receiveTCROLLBACKREF(NdbApiSignal* aSignal)
   }
 
   return -1;
-}//NdbConnection::receiveTCROLLBACKREF()
+}//NdbTransaction::receiveTCROLLBACKREF()
 
 /*****************************************************************************
 int receiveTCROLLBACKREP( NdbApiSignal* aSignal)
@@ -1518,7 +1518,7 @@ Parameters:     aSignal: the signal object that contains the
 Remark:         Handles the reception of the ROLLBACKREP signal.
 *****************************************************************************/
 int
-NdbConnection::receiveTCROLLBACKREP( NdbApiSignal* aSignal)
+NdbTransaction::receiveTCROLLBACKREP( NdbApiSignal* aSignal)
 {
   /****************************************************************************
 Check that we are expecting signals from this transaction and that it doesn't
@@ -1546,7 +1546,7 @@ transactions.
   }
 
   return -1;
-}//NdbConnection::receiveTCROLLBACKREP()
+}//NdbTransaction::receiveTCROLLBACKREP()
 
 /*******************************************************************************
 int  receiveTCKEYCONF(NdbApiSignal* aSignal, Uint32 long_short_ind);
@@ -1557,7 +1557,7 @@ Parameters:    aSignal: The signal object pointer.
 Remark:        
 *******************************************************************************/
 int			
-NdbConnection::receiveTCKEYCONF(const TcKeyConf * keyConf, Uint32 aDataLength)
+NdbTransaction::receiveTCKEYCONF(const TcKeyConf * keyConf, Uint32 aDataLength)
 {
   NdbReceiver* tOp;
   const Uint32 tTemp = keyConf->confInfo;
@@ -1586,7 +1586,7 @@ from other transactions.
 	    done = 1;
 	    tOp->setErrorCode(4119);
 	    theCompletionStatus = CompletedFailure;
-	    theReturnStatus = NdbConnection::ReturnFailure;
+	    theReturnStatus = NdbTransaction::ReturnFailure;
 	  }	    
 	}
 	tNoComp += done;
@@ -1616,7 +1616,7 @@ from other transactions.
 /**********************************************************************/
       theError.code = 4011;
       theCompletionStatus = CompletedFailure;
-      theReturnStatus = NdbConnection::ReturnFailure;
+      theReturnStatus = NdbTransaction::ReturnFailure;
       theCommitStatus = Aborted;
       return 0;
     }//if
@@ -1631,7 +1631,7 @@ from other transactions.
   }
   
   return -1;
-}//NdbConnection::receiveTCKEYCONF()
+}//NdbTransaction::receiveTCKEYCONF()
 
 /*****************************************************************************
 int receiveTCKEY_FAILCONF( NdbApiSignal* aSignal)
@@ -1643,7 +1643,7 @@ Parameters:     aSignal: the signal object that contains the
 Remark:         Handles the reception of the TCKEY_FAILCONF signal.
 *****************************************************************************/
 int
-NdbConnection::receiveTCKEY_FAILCONF(const TcKeyFailConf * failConf)
+NdbTransaction::receiveTCKEY_FAILCONF(const TcKeyFailConf * failConf)
 {
   NdbOperation*	tOp;
   /*
@@ -1676,7 +1676,7 @@ NdbConnection::receiveTCKEY_FAILCONF(const TcKeyFailConf * failConf)
       case NdbOperation::OpenScanRequest:
       case NdbOperation::OpenRangeScanRequest:
 	theCompletionStatus = CompletedFailure;
-	theReturnStatus = NdbConnection::ReturnFailure;
+	theReturnStatus = NdbTransaction::ReturnFailure;
 	setOperationErrorCodeAbort(4115);
 	tOp = NULL;
 	break;
@@ -1694,7 +1694,7 @@ NdbConnection::receiveTCKEY_FAILCONF(const TcKeyFailConf * failConf)
 #endif
   }
   return -1;
-}//NdbConnection::receiveTCKEY_FAILCONF()
+}//NdbTransaction::receiveTCKEY_FAILCONF()
 
 /*************************************************************************
 int receiveTCKEY_FAILREF( NdbApiSignal* aSignal)
@@ -1706,7 +1706,7 @@ Parameters:     aSignal: the signal object that contains the
 Remark:         Handles the reception of the TCKEY_FAILREF signal.
 **************************************************************************/
 int
-NdbConnection::receiveTCKEY_FAILREF(NdbApiSignal* aSignal)
+NdbTransaction::receiveTCKEY_FAILREF(NdbApiSignal* aSignal)
 {
   /*
     Check that we are expecting signals from this transaction and
@@ -1718,19 +1718,19 @@ NdbConnection::receiveTCKEY_FAILREF(NdbApiSignal* aSignal)
       We received an indication of that this transaction was aborted due to a
       node failure.
     */
-    if (theSendStatus == NdbConnection::sendTC_ROLLBACK) {
+    if (theSendStatus == NdbTransaction::sendTC_ROLLBACK) {
       /*
 	We were in the process of sending a rollback anyways. We will
 	report it as a success.
       */
-      theCompletionStatus = NdbConnection::CompletedSuccess;
+      theCompletionStatus = NdbTransaction::CompletedSuccess;
     } else {
-      theReturnStatus = NdbConnection::ReturnFailure;
-      theCompletionStatus = NdbConnection::CompletedFailure;
+      theReturnStatus = NdbTransaction::ReturnFailure;
+      theCompletionStatus = NdbTransaction::CompletedFailure;
       theError.code = 4031;
     }//if
     theReleaseOnClose = true;
-    theCommitStatus = NdbConnection::Aborted;
+    theCommitStatus = NdbTransaction::Aborted;
     return 0;
   } else {
 #ifdef VM_TRACE
@@ -1738,7 +1738,7 @@ NdbConnection::receiveTCKEY_FAILREF(NdbApiSignal* aSignal)
 #endif
   }
   return -1;
-}//NdbConnection::receiveTCKEY_FAILREF()
+}//NdbTransaction::receiveTCKEY_FAILREF()
 
 /******************************************************************************
 int  receiveTCINDXCONF(NdbApiSignal* aSignal, Uint32 long_short_ind);
@@ -1749,7 +1749,7 @@ Parameters:    aSignal: The signal object pointer.
 Remark:        
 ******************************************************************************/
 int			
-NdbConnection::receiveTCINDXCONF(const TcIndxConf * indxConf, 
+NdbTransaction::receiveTCINDXCONF(const TcIndxConf * indxConf, 
 				 Uint32 aDataLength)
 {
   if(checkState_TransId(&indxConf->transId1)){
@@ -1783,9 +1783,9 @@ NdbConnection::receiveTCINDXCONF(const TcIndxConf * indxConf,
       // no Commit flag set. This is clearly an anomaly.
       /**********************************************************************/
       theError.code = 4011;
-      theCompletionStatus = NdbConnection::CompletedFailure;
-      theCommitStatus = NdbConnection::Aborted;
-      theReturnStatus = NdbConnection::ReturnFailure;
+      theCompletionStatus = NdbTransaction::CompletedFailure;
+      theCommitStatus = NdbTransaction::Aborted;
+      theReturnStatus = NdbTransaction::ReturnFailure;
       return 0;
     }//if
     if (tNoComp >= tNoSent) {
@@ -1799,7 +1799,7 @@ NdbConnection::receiveTCINDXCONF(const TcIndxConf * indxConf,
   }
 
   return -1;
-}//NdbConnection::receiveTCINDXCONF()
+}//NdbTransaction::receiveTCINDXCONF()
 
 /*****************************************************************************
 int receiveTCINDXREF( NdbApiSignal* aSignal)
@@ -1811,7 +1811,7 @@ Parameters:     aSignal: the signal object that contains the
 Remark:         Handles the reception of the TCINDXREF signal.
 *****************************************************************************/
 int
-NdbConnection::receiveTCINDXREF( NdbApiSignal* aSignal)
+NdbTransaction::receiveTCINDXREF( NdbApiSignal* aSignal)
 {
   if(checkState_TransId(aSignal->getDataPtr()+1)){
     theError.code = aSignal->readData(4);	// Override any previous errors
@@ -1823,9 +1823,9 @@ NdbConnection::receiveTCINDXREF( NdbApiSignal* aSignal)
     /*	and we only need to report completion and return with the     */
     /*	error code to the application.				      */
     /**********************************************************************/
-    theCompletionStatus = NdbConnection::CompletedFailure;
-    theCommitStatus = NdbConnection::Aborted;
-    theReturnStatus = NdbConnection::ReturnFailure;
+    theCompletionStatus = NdbTransaction::CompletedFailure;
+    theCommitStatus = NdbTransaction::Aborted;
+    theReturnStatus = NdbTransaction::ReturnFailure;
     return 0;
   } else {
 #ifdef NDB_NO_DROPPED_SIGNAL
@@ -1834,7 +1834,7 @@ NdbConnection::receiveTCINDXREF( NdbApiSignal* aSignal)
   }
 
   return -1;
-}//NdbConnection::receiveTCINDXREF()
+}//NdbTransaction::receiveTCINDXREF()
 
 /*******************************************************************************
 int OpCompletedFailure();
@@ -1845,12 +1845,12 @@ Parameters:    aErrorCode: The error code.
 Remark:        An operation was completed with failure.
 *******************************************************************************/
 int 
-NdbConnection::OpCompleteFailure(Uint8 abortOption, bool setFailure)
+NdbTransaction::OpCompleteFailure(Uint8 abortOption, bool setFailure)
 {
   Uint32 tNoComp = theNoOfOpCompleted;
   Uint32 tNoSent = theNoOfOpSent;
   if (setFailure)
-    theCompletionStatus = NdbConnection::CompletedFailure;
+    theCompletionStatus = NdbTransaction::CompletedFailure;
   tNoComp++;
   theNoOfOpCompleted = tNoComp;
   if (tNoComp == tNoSent) {
@@ -1875,7 +1875,7 @@ NdbConnection::OpCompleteFailure(Uint8 abortOption, bool setFailure)
   } else {
     return -1;	// Continue waiting for more signals
   }//if
-}//NdbConnection::OpCompleteFailure()
+}//NdbTransaction::OpCompleteFailure()
 
 /******************************************************************************
 int OpCompleteSuccess();
@@ -1885,7 +1885,7 @@ Return Value:  Return 0 : OpCompleteSuccess was successful.
 Remark:        An operation was completed with success.
 *******************************************************************************/
 int 
-NdbConnection::OpCompleteSuccess()
+NdbTransaction::OpCompleteSuccess()
 {
   Uint32 tNoComp = theNoOfOpCompleted;
   Uint32 tNoSent = theNoOfOpSent;
@@ -1898,11 +1898,11 @@ NdbConnection::OpCompleteSuccess()
   } else {
     setOperationErrorCodeAbort(4113);	// Too many operations, 
                                         // stop waiting for more
-    theCompletionStatus = NdbConnection::CompletedFailure;
-    theReturnStatus = NdbConnection::ReturnFailure;
+    theCompletionStatus = NdbTransaction::CompletedFailure;
+    theReturnStatus = NdbTransaction::ReturnFailure;
     return 0;
   }//if
-}//NdbConnection::OpCompleteSuccess()
+}//NdbTransaction::OpCompleteSuccess()
 
 /******************************************************************************
  int            getGCI();
@@ -1910,13 +1910,13 @@ NdbConnection::OpCompleteSuccess()
 Remark:		Get global checkpoint identity of the transaction
 *******************************************************************************/
 int
-NdbConnection::getGCI()
+NdbTransaction::getGCI()
 {
-  if (theCommitStatus == NdbConnection::Committed) {
+  if (theCommitStatus == NdbTransaction::Committed) {
     return theGlobalCheckpointId;
   }//if
   return 0;
-}//NdbConnection::getGCI()
+}//NdbTransaction::getGCI()
 
 /*******************************************************************************
 Uint64 getTransactionId(void);
@@ -1924,31 +1924,31 @@ Uint64 getTransactionId(void);
 Remark:        Get the transaction identity. 
 *******************************************************************************/
 Uint64
-NdbConnection::getTransactionId()
+NdbTransaction::getTransactionId()
 {
   return theTransactionId;
-}//NdbConnection::getTransactionId()
+}//NdbTransaction::getTransactionId()
 
-NdbConnection::CommitStatusType
-NdbConnection::commitStatus()
+NdbTransaction::CommitStatusType
+NdbTransaction::commitStatus()
 {
   return theCommitStatus;
-}//NdbConnection::commitStatus()
+}//NdbTransaction::commitStatus()
 
 int 
-NdbConnection::getNdbErrorLine()
+NdbTransaction::getNdbErrorLine()
 {
   return theErrorLine;
 }
 
 NdbOperation*
-NdbConnection::getNdbErrorOperation()
+NdbTransaction::getNdbErrorOperation()
 {
   return theErrorOperation;
-}//NdbConnection::getNdbErrorOperation()
+}//NdbTransaction::getNdbErrorOperation()
 
 const NdbOperation * 
-NdbConnection::getNextCompletedOperation(const NdbOperation * current) const {
+NdbTransaction::getNextCompletedOperation(const NdbOperation * current) const {
   if(current == 0)
     return theCompletedFirstOp;
   return current->theNext;
@@ -1957,7 +1957,7 @@ NdbConnection::getNextCompletedOperation(const NdbOperation * current) const {
 #ifdef VM_TRACE
 #define CASE(x) case x: ndbout << " " << #x; break
 void
-NdbConnection::printState()
+NdbTransaction::printState()
 {
   ndbout << "con=" << hex << this << dec;
   ndbout << " node=" << getConnectedNodeId();
@@ -2010,7 +2010,7 @@ NdbConnection::printState()
 #endif
 
 int
-NdbConnection::report_node_failure(Uint32 id){
+NdbTransaction::report_node_failure(Uint32 id){
   NdbNodeBitmask::set(m_failed_db_nodes, id);
   if(!NdbNodeBitmask::get(m_db_nodes, id))
   {
@@ -2044,11 +2044,11 @@ NdbConnection::report_node_failure(Uint32 id){
   theNoOfOpCompleted = tNoComp;
   if(count)
   {
-    theReturnStatus = NdbConnection::ReturnFailure;
+    theReturnStatus = NdbTransaction::ReturnFailure;
     if(tNoComp == tNoSent)
     {
       theError.code = 4119;
-      theCompletionStatus = NdbConnection::CompletedFailure;    
+      theCompletionStatus = NdbTransaction::CompletedFailure;    
       return 1;
     }
   }

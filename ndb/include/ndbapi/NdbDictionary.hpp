@@ -388,8 +388,10 @@ public:
 #endif
     
   private:
+#ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
     friend class NdbRecAttr;
     friend class NdbColumnImpl;
+#endif
     class NdbColumnImpl & m_impl;
     Column(NdbColumnImpl&);
     Column& operator=(const Column&);
@@ -646,7 +648,9 @@ public:
 #endif
 
   private:
+#ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
     friend class NdbTableImpl;
+#endif
     class NdbTableImpl & m_impl;
     Table(NdbTableImpl&);
   };
@@ -798,8 +802,9 @@ public:
     virtual int getObjectVersion() const;
 
   private:
+#ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
     friend class NdbIndexImpl;
-
+#endif
     class NdbIndexImpl & m_impl;
     Index(NdbIndexImpl&);
   };
@@ -851,8 +856,10 @@ public:
     void print();
 
   private:
+#ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
     friend class NdbEventImpl;
     friend class NdbEventOperationImpl;
+#endif
     class NdbEventImpl & m_impl;
     Event(NdbEventImpl&);
   };
@@ -1071,9 +1078,11 @@ public:
     ~Dictionary();
     
   private:
+#ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
     friend class NdbDictionaryImpl;
     friend class UtilTransactions;
     friend class NdbBlob;
+#endif
     class NdbDictionaryImpl & m_impl;
     Dictionary(NdbDictionaryImpl&);
     const Table * getIndexTable(const char * indexName, 

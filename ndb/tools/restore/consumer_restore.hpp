@@ -22,7 +22,7 @@
 struct restore_callback_t {
   class BackupRestore *restore;
   class TupleS tup;
-  class NdbConnection *connection;
+  class NdbTransaction *connection;
   int    retries;
   int error_code;
   restore_callback_t *next;

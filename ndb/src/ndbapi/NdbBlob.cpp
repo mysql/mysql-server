@@ -16,7 +16,7 @@
 
 #include <Ndb.hpp>
 #include <NdbDictionaryImpl.hpp>
-#include <NdbConnection.hpp>
+#include <NdbTransaction.hpp>
 #include <NdbOperation.hpp>
 #include <NdbIndexOperation.hpp>
 #include <NdbRecAttr.hpp>
@@ -1059,7 +1059,7 @@ NdbBlob::invokeActiveHook()
  * data.  For read operation adds read of head+inline.
  */
 int
-NdbBlob::atPrepare(NdbConnection* aCon, NdbOperation* anOp, const NdbColumnImpl* aColumn)
+NdbBlob::atPrepare(NdbTransaction* aCon, NdbOperation* anOp, const NdbColumnImpl* aColumn)
 {
   assert(theState == Idle);
   // ndb api stuff
@@ -1550,7 +1550,7 @@ NdbBlob::setErrorCode(NdbOperation* anOp, bool invalidFlag)
 }
 
 void
-NdbBlob::setErrorCode(NdbConnection* aCon, bool invalidFlag)
+NdbBlob::setErrorCode(NdbTransaction* aCon, bool invalidFlag)
 {
   int code = 0;
   if (theNdbCon != NULL && (code = theNdbCon->theError.code) != 0)

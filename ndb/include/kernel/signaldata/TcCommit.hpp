@@ -33,7 +33,7 @@ class TcCommitConf {
    *  Reciver(s)
    */
   friend class Ndb;
-  friend class NdbConnection;
+  friend class NdbTransaction;
 
 public:
   STATIC_CONST( SignalLength = 3 );
@@ -60,7 +60,7 @@ class TcCommitRef {
   /**
    *  Reciver(s)
    */
-  friend class NdbConnection;
+  friend class NdbTransaction;
 
 public:
   STATIC_CONST( SignalLength = 4 );

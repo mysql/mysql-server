@@ -203,8 +203,10 @@ public:
   void print();
 
 private:
+#ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
   friend class NdbEventOperationImpl;
   friend class Ndb;
+#endif
   NdbEventOperation(Ndb *theNdb, const char* eventName,int bufferLength);
   ~NdbEventOperation();
   static int wait(void *p, int aMillisecondNumber);
