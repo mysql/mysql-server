@@ -26,6 +26,14 @@ Created 3/26/1996 Heikki Tuuri
 trx_sys_t*		trx_sys 	= NULL;
 trx_doublewrite_t*	trx_doublewrite = NULL;
 
+/* In a MySQL replication slave, in crash recovery we store the master log
+file name and position here. We have successfully got the updates to InnoDB
+up to this position. If .._pos is -1, it means no crash recovery was needed,
+or there was no master log position info inside InnoDB. */
+
+char 		trx_sys_mysql_master_log_name[TRX_SYS_MYSQL_LOG_NAME_LEN];
+ib_longlong	trx_sys_mysql_master_log_pos	= -1;
+
 /********************************************************************
 Determines if a page number is located inside the doublewrite buffer. */
 
@@ -427,75 +435,62 @@ trx_sys_flush_max_trx_id(void)
 
 /*********************************************************************
 Updates the offset information about the end of the MySQL binlog entry
-which corresponds to the transaction just being committed. */
+which corresponds to the transaction just being committed. In a MySQL
+replication slave updates the latest master binlog position up to which
+replication has proceeded. */
 
 void
 trx_sys_update_mysql_binlog_offset(
 /*===============================*/
-	trx_t*	trx,	/* in: transaction being committed */
-	mtr_t*	mtr)	/* in: mtr */
+	char*		file_name,/* in: MySQL log file name */
+	ib_longlong	offset,	/* in: position in that log file */
+	ulint		field,	/* in: offset of the MySQL log info field in
+				the trx sys header */
+	mtr_t*		mtr)	/* in: mtr */
 {
 	trx_sysf_t*	sys_header;
-	char		namebuf[TRX_SYS_MYSQL_LOG_NAME_LEN];
-	
-	ut_ad(trx->mysql_log_file_name);
 
-	memset(namebuf, ' ', TRX_SYS_MYSQL_LOG_NAME_LEN - 1);
-	namebuf[TRX_SYS_MYSQL_LOG_NAME_LEN - 1] = '\0';
+	if (ut_strlen(file_name) >= TRX_SYS_MYSQL_LOG_NAME_LEN) {
 
-	/* Copy the whole MySQL log file name to the buffer, or only the
-	last characters, if it does not fit */
+		/* We cannot fit the name to the 512 bytes we have reserved */
 
-	if (ut_strlen(trx->mysql_log_file_name)
-			> TRX_SYS_MYSQL_LOG_NAME_LEN - 1) {
-		ut_memcpy(namebuf, trx->mysql_log_file_name
-			+ ut_strlen(trx->mysql_log_file_name)
-			- (TRX_SYS_MYSQL_LOG_NAME_LEN - 1),
-			TRX_SYS_MYSQL_LOG_NAME_LEN - 1);
-	} else {
-		ut_memcpy(namebuf, trx->mysql_log_file_name,
-				1 + ut_strlen(trx->mysql_log_file_name));
+		return;
 	}
-
-	namebuf[TRX_SYS_MYSQL_LOG_NAME_LEN - 1] = '\0';
 
 	sys_header = trx_sysf_get(mtr);
 
-	if (mach_read_from_4(sys_header + TRX_SYS_MYSQL_LOG_INFO
+	if (mach_read_from_4(sys_header + field
 					+ TRX_SYS_MYSQL_LOG_MAGIC_N_FLD)
 	   != TRX_SYS_MYSQL_LOG_MAGIC_N) {
 
-	   	mlog_write_ulint(sys_header + TRX_SYS_MYSQL_LOG_INFO
+	   	mlog_write_ulint(sys_header + field
 					+ TRX_SYS_MYSQL_LOG_MAGIC_N_FLD,
 				TRX_SYS_MYSQL_LOG_MAGIC_N,
 				MLOG_4BYTES, mtr);
 	}
 
-	if (0 != ut_memcmp(sys_header + TRX_SYS_MYSQL_LOG_INFO
-					+ TRX_SYS_MYSQL_LOG_NAME,
-			 namebuf, TRX_SYS_MYSQL_LOG_NAME_LEN)) {
+	if (0 != ut_memcmp(sys_header + field + TRX_SYS_MYSQL_LOG_NAME,
+			file_name, 1 + ut_strlen(file_name))) {
 
-		mlog_write_string(sys_header + TRX_SYS_MYSQL_LOG_INFO
+		mlog_write_string(sys_header + field
 					+ TRX_SYS_MYSQL_LOG_NAME,
-				namebuf, TRX_SYS_MYSQL_LOG_NAME_LEN, mtr);
+			file_name, 1 + ut_strlen(file_name), mtr);
 	}
 
-	if (mach_read_from_4(sys_header + TRX_SYS_MYSQL_LOG_INFO
+	if (mach_read_from_4(sys_header + field
 					+ TRX_SYS_MYSQL_LOG_OFFSET_HIGH) > 0
-	   || (trx->mysql_log_offset >> 32) > 0) {
+	   || (offset >> 32) > 0) {
 				
-		mlog_write_ulint(sys_header + TRX_SYS_MYSQL_LOG_INFO
+		mlog_write_ulint(sys_header + field
 					+ TRX_SYS_MYSQL_LOG_OFFSET_HIGH,
-				(ulint)(trx->mysql_log_offset >> 32),
+				(ulint)(offset >> 32),
 				MLOG_4BYTES, mtr);
 	}
 
-	mlog_write_ulint(sys_header + TRX_SYS_MYSQL_LOG_INFO
+	mlog_write_ulint(sys_header + field
 					+ TRX_SYS_MYSQL_LOG_OFFSET_LOW,
-				(ulint)(trx->mysql_log_offset & 0xFFFFFFFF),
+				(ulint)(offset & 0xFFFFFFFF),
 				MLOG_4BYTES, mtr);				
-
-	trx->mysql_log_file_name = NULL;
 }
 
 /*********************************************************************
@@ -530,6 +525,58 @@ trx_sys_print_mysql_binlog_offset(void)
 					+ TRX_SYS_MYSQL_LOG_OFFSET_LOW),
 		sys_header + TRX_SYS_MYSQL_LOG_INFO + TRX_SYS_MYSQL_LOG_NAME);
 
+	mtr_commit(&mtr);
+}
+
+/*********************************************************************
+Prints to stderr the MySQL master log offset info in the trx system header if
+the magic number shows it valid. */
+
+void
+trx_sys_print_mysql_master_log_pos(void)
+/*====================================*/
+{
+	trx_sysf_t*	sys_header;
+	mtr_t		mtr;
+	
+	mtr_start(&mtr);
+
+	sys_header = trx_sysf_get(&mtr);
+
+	if (mach_read_from_4(sys_header + TRX_SYS_MYSQL_MASTER_LOG_INFO
+					+ TRX_SYS_MYSQL_LOG_MAGIC_N_FLD)
+	   != TRX_SYS_MYSQL_LOG_MAGIC_N) {
+
+		mtr_commit(&mtr);
+
+		return;
+	}
+
+	fprintf(stderr,
+"InnoDB: In a MySQL replication slave the last master binlog file\n"
+"InnoDB: position %lu %lu, file name %s\n",
+		mach_read_from_4(sys_header + TRX_SYS_MYSQL_MASTER_LOG_INFO
+					+ TRX_SYS_MYSQL_LOG_OFFSET_HIGH),
+		mach_read_from_4(sys_header + TRX_SYS_MYSQL_MASTER_LOG_INFO
+					+ TRX_SYS_MYSQL_LOG_OFFSET_LOW),
+		sys_header + TRX_SYS_MYSQL_MASTER_LOG_INFO
+						+ TRX_SYS_MYSQL_LOG_NAME);
+	/* Copy the master log position info to global variables we can
+	use in ha_innobase.cc to initialize glob_mi to right values */
+
+	ut_memcpy(trx_sys_mysql_master_log_name,
+		sys_header + TRX_SYS_MYSQL_MASTER_LOG_INFO
+						+ TRX_SYS_MYSQL_LOG_NAME,
+			TRX_SYS_MYSQL_LOG_NAME_LEN);
+
+	trx_sys_mysql_master_log_pos = 
+		(((ib_longlong)mach_read_from_4(
+			sys_header + TRX_SYS_MYSQL_MASTER_LOG_INFO
+					+ TRX_SYS_MYSQL_LOG_OFFSET_HIGH))
+		<< 32)
+		+ (ib_longlong)
+		mach_read_from_4(sys_header + TRX_SYS_MYSQL_MASTER_LOG_INFO
+					+ TRX_SYS_MYSQL_LOG_OFFSET_LOW);
 	mtr_commit(&mtr);
 }
 
@@ -660,7 +707,7 @@ trx_sys_init_at_db_start(void)
 
 	if (UT_LIST_GET_LEN(trx_sys->trx_list) > 0) {
 		fprintf(stderr,
-	"InnoDB: %lu uncommitted transaction(s) which must be rolled back\n",
+	"InnoDB: %lu transaction(s) which must be rolled back or cleaned up\n",
 				UT_LIST_GET_LEN(trx_sys->trx_list));
 
 		fprintf(stderr, "InnoDB: Trx id counter is %lu %lu\n", 

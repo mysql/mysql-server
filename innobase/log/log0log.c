@@ -162,6 +162,8 @@ log_reserve_and_open(
 	ulint	archived_lsn_age;
 	ulint	count			= 0;
 	ulint	dummy;
+
+	ut_a(len < log->buf_size / 2);
 loop:
 	mutex_enter(&(log->mutex));
 	
@@ -663,6 +665,8 @@ log_init(void)
 	
 	log_sys->buf_next_to_write = 0;
 
+	log_sys->flush_lsn = ut_dulint_zero;
+
 	log_sys->written_to_some_lsn = log_sys->lsn;
 	log_sys->written_to_all_lsn = log_sys->lsn;
 	
@@ -777,9 +781,15 @@ log_group_init(
 		*(group->file_header_bufs + i) = ut_align(
 			mem_alloc(LOG_FILE_HDR_SIZE + OS_FILE_LOG_BLOCK_SIZE),
 						OS_FILE_LOG_BLOCK_SIZE);
+
+		memset(*(group->file_header_bufs + i), '\0',
+							LOG_FILE_HDR_SIZE);
+
 		*(group->archive_file_header_bufs + i) = ut_align(
 			mem_alloc(LOG_FILE_HDR_SIZE + OS_FILE_LOG_BLOCK_SIZE),
 						OS_FILE_LOG_BLOCK_SIZE);
+		memset(*(group->archive_file_header_bufs + i), '\0',
+							LOG_FILE_HDR_SIZE);
 	}
 	
 	group->archive_space_id = archive_space_id;
@@ -791,6 +801,8 @@ log_group_init(
 				mem_alloc(2 * OS_FILE_LOG_BLOCK_SIZE),
 						OS_FILE_LOG_BLOCK_SIZE);
 	
+	memset(group->checkpoint_buf, '\0', OS_FILE_LOG_BLOCK_SIZE);
+
 	UT_LIST_ADD_LAST(log_groups, log_sys->log_groups, group);
 
 	ut_a(log_calc_max_ages());
@@ -839,7 +851,7 @@ log_group_check_flush_completion(
 {
 	ut_ad(mutex_own(&(log_sys->mutex)));	
 
-	if (!log_sys->one_flushed && (group->n_pending_writes == 0)) {
+	if (!log_sys->one_flushed && group->n_pending_writes == 0) {
 
 		if (log_debug_writes) {
 			printf("Log flushed first to group %lu\n", group->id);
@@ -933,16 +945,20 @@ log_io_complete(
 		return;
 	}
 
+	ut_a(0);	/* We currently use synchronous writing of the
+			logs and cannot end up here! */
+
 	if (srv_unix_file_flush_method != SRV_UNIX_O_DSYNC
-	    && srv_unix_file_flush_method != SRV_UNIX_NOSYNC) {
+	    && srv_unix_file_flush_method != SRV_UNIX_NOSYNC
+	    && srv_flush_log_at_trx_commit != 2) {
 
 	        fil_flush(group->space_id);
 	}
 
 	mutex_enter(&(log_sys->mutex));
 
-	ut_ad(group->n_pending_writes > 0);
-	ut_ad(log_sys->n_pending_writes > 0);
+	ut_a(group->n_pending_writes > 0);
+	ut_a(log_sys->n_pending_writes > 0);
 	
 	group->n_pending_writes--;
 	log_sys->n_pending_writes--;
@@ -952,6 +968,57 @@ log_io_complete(
 	
 	log_flush_do_unlocks(unlock);
 
+	mutex_exit(&(log_sys->mutex));
+}
+
+/**********************************************************
+Flushes the log files to the disk, using, for example, the Unix fsync.
+This function does the flush even if the user has set
+srv_flush_log_at_trx_commit = FALSE. */
+
+void
+log_flush_to_disk(void)
+/*===================*/
+{
+	log_group_t*	group;
+loop:
+	mutex_enter(&(log_sys->mutex));
+
+	if (log_sys->n_pending_writes > 0) {
+		/* A log file write is running */
+		
+		mutex_exit(&(log_sys->mutex));
+
+		/* Wait for the log file write to complete and try again */
+
+		os_event_wait(log_sys->no_flush_event);
+
+		goto loop;
+	}
+
+	group = UT_LIST_GET_FIRST(log_sys->log_groups);
+
+	log_sys->n_pending_writes++;
+	group->n_pending_writes++;
+
+	os_event_reset(log_sys->no_flush_event);
+	os_event_reset(log_sys->one_flushed_event);
+
+	mutex_exit(&(log_sys->mutex));
+	
+	fil_flush(group->space_id);
+
+	mutex_enter(&(log_sys->mutex));
+
+	ut_a(group->n_pending_writes == 1);
+	ut_a(log_sys->n_pending_writes == 1);
+	
+	group->n_pending_writes--;
+	log_sys->n_pending_writes--;
+
+	os_event_set(log_sys->no_flush_event);
+	os_event_set(log_sys->one_flushed_event);
+	
 	mutex_exit(&(log_sys->mutex));
 }
 
@@ -970,7 +1037,6 @@ log_group_file_header_flush(
 {
 	byte*	buf;
 	ulint	dest_offset;
-	ibool	sync;
 
 	ut_ad(mutex_own(&(log_sys->mutex)));
 
@@ -981,15 +1047,11 @@ log_group_file_header_flush(
 	mach_write_to_4(buf + LOG_GROUP_ID, group->id);
 	mach_write_to_8(buf + LOG_FILE_START_LSN, start_lsn);
 
+	/* Wipe over possible label of ibbackup --restore */
+	memcpy(buf + LOG_FILE_WAS_CREATED_BY_HOT_BACKUP, "    ", 4);
+
 	dest_offset = nth_file * group->file_size;
 
-	sync = FALSE;
-
-	if (type == LOG_RECOVER) {
-
-		sync = TRUE;
-	}
-	
 	if (log_debug_writes) {
 		printf(
 		"Writing log file header to group %lu file %lu\n", group->id,
@@ -997,14 +1059,9 @@ log_group_file_header_flush(
 	}
 
 	if (log_do_write) {
-		if (type == LOG_FLUSH) {
-			log_sys->n_pending_writes++;
-			group->n_pending_writes++;
-		}
-
 		log_sys->n_log_ios++;	
 		
-		fil_io(OS_FILE_WRITE | OS_FILE_LOG, sync, group->space_id,
+		fil_io(OS_FILE_WRITE | OS_FILE_LOG, TRUE, group->space_id,
 				dest_offset / UNIV_PAGE_SIZE,
 				dest_offset % UNIV_PAGE_SIZE,
 				OS_FILE_LOG_BLOCK_SIZE,
@@ -1012,6 +1069,31 @@ log_group_file_header_flush(
 	}
 }
 
+/**********************************************************
+Stores a 1-byte checksum to the trailer checksum field of a log block
+before writing it to a log file. This checksum is used in recovery to
+check the consistency of a log block. The checksum is simply the 8 low
+bits of 1 + the sum of the bytes in the log block except the trailer bytes. */
+static
+void
+log_block_store_checksum(
+/*=====================*/
+	byte*	block)	/* in/out: pointer to a log block */
+{
+	ulint	i;
+	ulint	sum;
+
+	sum = 1;
+
+	for (i = 0; i < OS_FILE_LOG_BLOCK_SIZE - LOG_BLOCK_TRL_SIZE; i++) {
+		sum += (ulint)(*(block + i));
+	}
+
+	mach_write_to_1(block + OS_FILE_LOG_BLOCK_SIZE
+						- LOG_BLOCK_TRL_CHECKSUM,
+			0xFF & sum);
+}
+	
 /**********************************************************
 Writes a buffer to a log file group. */
 
@@ -1032,20 +1114,13 @@ log_group_write_buf(
 					header */
 {
 	ulint	write_len;
-	ibool	sync;
 	ibool	write_header;
 	ulint	next_offset;
+	ulint	i;
 	
 	ut_ad(mutex_own(&(log_sys->mutex)));
-	ut_ad(len % OS_FILE_LOG_BLOCK_SIZE == 0);
-	ut_ad(ut_dulint_get_low(start_lsn) % OS_FILE_LOG_BLOCK_SIZE == 0);
-
-	sync = FALSE;
-
-	if (type == LOG_RECOVER) {
-
-		sync = TRUE;
-	}
+	ut_a(len % OS_FILE_LOG_BLOCK_SIZE == 0);
+	ut_a(ut_dulint_get_low(start_lsn) % OS_FILE_LOG_BLOCK_SIZE == 0);
 
 	if (new_data_offset == 0) {
 		write_header = TRUE;
@@ -1076,7 +1151,6 @@ loop:
 	}
 	
 	if (log_debug_writes) {
-		ulint	i;
 
 		printf(
 		"Writing log file segment to group %lu offset %lu len %lu\n"
@@ -1100,15 +1174,17 @@ loop:
 		}
 	}
 
-	if (log_do_write) {
-		if (type == LOG_FLUSH) {
-			log_sys->n_pending_writes++;
-			group->n_pending_writes++;
-		}
+	/* Calculate the checksums for each log block and write them to
+	the trailer fields of the log blocks */
 
+	for (i = 0; i < write_len / OS_FILE_LOG_BLOCK_SIZE; i++) {
+		log_block_store_checksum(buf + i * OS_FILE_LOG_BLOCK_SIZE);
+	}
+
+	if (log_do_write) {
 		log_sys->n_log_ios++;	
 
-		fil_io(OS_FILE_WRITE | OS_FILE_LOG, sync, group->space_id,
+		fil_io(OS_FILE_WRITE | OS_FILE_LOG, TRUE, group->space_id,
 			next_offset / UNIV_PAGE_SIZE,
 			next_offset % UNIV_PAGE_SIZE, write_len, buf, group);
 	}
@@ -1126,15 +1202,15 @@ loop:
 
 /**********************************************************
 This function is called, e.g., when a transaction wants to commit. It checks
-that the log has been flushed to disk up to the last log entry written by the
-transaction. If there is a flush running, it waits and checks if the flush
-flushed enough. If not, starts a new flush. */
+that the log has been written to the log file up to the last log entry written
+by the transaction. If there is a flush running, it waits and checks if the
+flush flushed enough. If not, starts a new flush. */
 
 void
 log_flush_up_to(
 /*============*/
 	dulint	lsn,	/* in: log sequence number up to which the log should
-			be flushed, ut_dulint_max if not specified */
+			be written, ut_dulint_max if not specified */
 	ulint	wait)	/* in: LOG_NO_WAIT, LOG_WAIT_ONE_GROUP,
 			or LOG_WAIT_ALL_GROUPS */
 {
@@ -1144,6 +1220,7 @@ log_flush_up_to(
 	ulint		area_start;
 	ulint		area_end;
 	ulint		loop_count;
+	ulint		unlock;
 
 	if (recv_no_ibuf_operations) {
 		/* Recovery is running and no operations on the log files are
@@ -1209,6 +1286,12 @@ loop:
 					ut_dulint_get_low(log_sys->lsn));
 	}
 
+	log_sys->n_pending_writes++;
+
+	group = UT_LIST_GET_FIRST(log_sys->log_groups);
+	group->n_pending_writes++; 	/* We assume here that we have only
+					one log group! */
+
 	os_event_reset(log_sys->no_flush_event);
 	os_event_reset(log_sys->one_flushed_event);
 
@@ -1254,6 +1337,36 @@ loop:
 		group = UT_LIST_GET_NEXT(log_groups, group);
 	}
 
+	mutex_exit(&(log_sys->mutex));
+
+	if (srv_unix_file_flush_method != SRV_UNIX_O_DSYNC
+	    && srv_unix_file_flush_method != SRV_UNIX_NOSYNC
+	    && srv_flush_log_at_trx_commit != 2) {
+
+		group = UT_LIST_GET_FIRST(log_sys->log_groups);
+
+	        fil_flush(group->space_id);
+	}
+
+	mutex_enter(&(log_sys->mutex));
+
+	group = UT_LIST_GET_FIRST(log_sys->log_groups);
+
+	ut_a(group->n_pending_writes == 1);
+	ut_a(log_sys->n_pending_writes == 1);
+	
+	group->n_pending_writes--;
+	log_sys->n_pending_writes--;
+
+	unlock = log_group_check_flush_completion(group);
+	unlock = unlock | log_sys_check_flush_completion();
+	
+	log_flush_do_unlocks(unlock);
+
+	mutex_exit(&(log_sys->mutex));
+
+	return;
+	
 do_waits:
 	mutex_exit(&(log_sys->mutex));
 
@@ -1539,15 +1652,23 @@ log_reset_first_header_and_checkpoint(
 /*==================================*/
 	byte*	hdr_buf,/* in: buffer which will be written to the start
 			of the first log file */
-	dulint	lsn)	/* in: lsn of the start of the first log file
-			+ LOG_BLOCK_HDR_SIZE */
+	dulint	start)	/* in: lsn of the start of the first log file;
+			we pretend that there is a checkpoint at
+			start + LOG_BLOCK_HDR_SIZE */
 {
 	ulint	fold;
 	byte*	buf;
-
+	dulint	lsn;
+	
 	mach_write_to_4(hdr_buf + LOG_GROUP_ID, 0);
-	mach_write_to_8(hdr_buf + LOG_FILE_START_LSN, lsn);
+	mach_write_to_8(hdr_buf + LOG_FILE_START_LSN, start);
 
+	lsn = ut_dulint_add(start, LOG_BLOCK_HDR_SIZE);
+
+	/* Write the label of ibbackup --restore */
+	sprintf(hdr_buf + LOG_FILE_WAS_CREATED_BY_HOT_BACKUP, "ibbackup ");
+	ut_sprintf_timestamp(hdr_buf + LOG_FILE_WAS_CREATED_BY_HOT_BACKUP
+						+ strlen("ibbackup "));
 	buf = hdr_buf + LOG_CHECKPOINT_1;
 	
 	mach_write_to_8(buf + LOG_CHECKPOINT_NO, ut_dulint_zero);
@@ -2965,15 +3086,22 @@ log_check_log_recs(
 Prints info of the log. */
 
 void
-log_print(void)
-/*===========*/
+log_print(
+/*======*/
+	char*	buf,	/* in/out: buffer where to print */
+	char*	buf_end)/* in: buffer end */
 {
 	double	time_elapsed;
 	time_t	current_time;
 
+	if (buf_end - buf < 300) {
+
+		return;
+	}
+
 	mutex_enter(&(log_sys->mutex));
 
-	printf("Log sequence number %lu %lu\n"
+	buf += sprintf(buf, "Log sequence number %lu %lu\n"
 	       "Log flushed up to   %lu %lu\n"
 	       "Last checkpoint at  %lu %lu\n",
 			ut_dulint_get_high(log_sys->lsn),
@@ -2987,7 +3115,7 @@ log_print(void)
 			
 	time_elapsed = difftime(current_time, log_sys->last_printout_time);
 
-	printf(
+	buf += sprintf(buf,
 	"%lu pending log writes, %lu pending chkp writes\n"
 	"%lu log i/o's done, %.2f log i/o's/second\n",
 	log_sys->n_pending_writes,

@@ -1257,7 +1257,7 @@ int mi_repair(MI_CHECK *param, register MI_INFO *info,
   {
     VOID(fputs("          \r",stdout)); VOID(fflush(stdout));
   }
-  if (my_chsize(share->kfile,info->state->key_file_length,MYF(0)))
+  if (my_chsize(share->kfile,info->state->key_file_length,0,MYF(0)))
   {
     mi_check_print_warning(param,
 			   "Can't change size of indexfile, error: %d",
@@ -2026,7 +2026,7 @@ int mi_repair_by_sort(MI_CHECK *param, register MI_INFO *info,
       skr=share->base.reloc*share->base.min_pack_length;
 #endif
     if (skr != sort_info.filelength && !info->s->base.raid_type)
-      if (my_chsize(info->dfile,skr,MYF(0)))
+      if (my_chsize(info->dfile,skr,0,MYF(0)))
 	mi_check_print_warning(param,
 			       "Can't change size of datafile,  error: %d",
 			       my_errno);
@@ -2034,7 +2034,7 @@ int mi_repair_by_sort(MI_CHECK *param, register MI_INFO *info,
   if (param->testflag & T_CALC_CHECKSUM)
     share->state.checksum=param->glob_crc;
 
-  if (my_chsize(share->kfile,info->state->key_file_length,MYF(0)))
+  if (my_chsize(share->kfile,info->state->key_file_length,0,MYF(0)))
     mi_check_print_warning(param,
 			   "Can't change size of indexfile, error: %d",
 			   my_errno);
@@ -2411,7 +2411,7 @@ int mi_repair_parallel(MI_CHECK *param, register MI_INFO *info,
       skr=share->base.reloc*share->base.min_pack_length;
 #endif
     if (skr != sort_info.filelength && !info->s->base.raid_type)
-      if (my_chsize(info->dfile,skr,MYF(0)))
+      if (my_chsize(info->dfile,skr,0,MYF(0)))
 	mi_check_print_warning(param,
 			       "Can't change size of datafile,  error: %d",
 			       my_errno);
@@ -2419,7 +2419,7 @@ int mi_repair_parallel(MI_CHECK *param, register MI_INFO *info,
   if (param->testflag & T_CALC_CHECKSUM)
     share->state.checksum=param->glob_crc;
 
-  if (my_chsize(share->kfile,info->state->key_file_length,MYF(0)))
+  if (my_chsize(share->kfile,info->state->key_file_length,0,MYF(0)))
     mi_check_print_warning(param,
 			   "Can't change size of indexfile, error: %d", my_errno);
 

@@ -687,21 +687,21 @@ ibuf_bitmap_get_map_page(
 /****************************************************************************
 Sets the free bits of the page in the ibuf bitmap. This is done in a separate
 mini-transaction, hence this operation does not restrict further work to only
-ibuf bitmap operations, which would result if the latch to the bitmap pag
+ibuf bitmap operations, which would result if the latch to the bitmap page
 were kept. */
 UNIV_INLINE
 void
 ibuf_set_free_bits_low(
 /*===================*/
 	ulint	type,	/* in: index type */
-	page_t*	page,	/* in: index page; free bit is reset if the index is
-			a non-clustered non-unique, and page level is 0 */
+	page_t*	page,	/* in: index page; free bit is set if the index is
+			non-clustered and page level is 0 */
 	ulint	val,	/* in: value to set: < 4 */
 	mtr_t*	mtr)	/* in: mtr */
 {
 	page_t*	bitmap_page;
 
-	if (type & (DICT_CLUSTERED | DICT_UNIQUE)) {
+	if (type & DICT_CLUSTERED) {
 
 		return;
 	}
@@ -735,8 +735,8 @@ void
 ibuf_set_free_bits(
 /*===============*/
 	ulint	type,	/* in: index type */
-	page_t*	page,	/* in: index page; free bit is reset if the index is
-			a non-clustered non-unique, and page level is 0 */
+	page_t*	page,	/* in: index page; free bit is set if the index is
+			non-clustered and page level is 0 */
 	ulint	val,	/* in: value to set: < 4 */
 	ulint	max_val)/* in: ULINT_UNDEFINED or a maximum value which
 			the bits must have before setting; this is for
@@ -745,7 +745,7 @@ ibuf_set_free_bits(
 	mtr_t	mtr;
 	page_t*	bitmap_page;
 
-	if (type & (DICT_CLUSTERED | DICT_UNIQUE)) {
+	if (type & DICT_CLUSTERED) {
 
 		return;
 	}
@@ -2026,7 +2026,7 @@ ibuf_insert_low(
 	ulint		n_stored;
 	ulint		bits;
 	
-	ut_a(!(index->type & (DICT_UNIQUE | DICT_CLUSTERED)));
+	ut_a(!(index->type & DICT_CLUSTERED));
 	ut_ad(dtuple_check_typed(entry));
 
 	do_merge = FALSE;
@@ -2256,10 +2256,7 @@ ibuf_insert(
 
 	ut_ad(dtuple_check_typed(entry));
 
-	if (index->type & DICT_CLUSTERED || index->type & DICT_UNIQUE) {
-
-		return(FALSE);
-	}
+	ut_a(!(index->type & DICT_CLUSTERED));
 	
 	if (rec_get_converted_size(entry)
 				>= page_get_free_space_of_empty() / 2) {
@@ -2304,6 +2301,7 @@ ibuf_insert_to_index_page(
 	rec_t*		rec;
 	page_t*		bitmap_page;
 	ulint		old_bits;
+	char		errbuf[1000];
 
 	ut_ad(ibuf_inside());
 	ut_ad(dtuple_check_typed(entry));
@@ -2326,11 +2324,24 @@ ibuf_insert_to_index_page(
 
 			/* This time the record must fit */
 			if (!page_cur_tuple_insert(&page_cur, entry, mtr)) {
-				printf(
-			"Ibuf insert fails; page free %lu, dtuple size %lu\n",
+
+				ut_print_timestamp(stderr);
+
+				fprintf(stderr,
+"InnoDB: Error: Insert buffer insert fails; page free %lu, dtuple size %lu\n",
 				page_get_max_insert_size(page, 1),
 				rec_get_converted_size(entry));
 
+				dtuple_sprintf(errbuf, 900, entry);
+				
+				fprintf(stderr,
+"InnoDB: Cannot insert index record %s\n", errbuf);
+
+				fprintf(stderr,
+"InnoDB: The table where where this index record belongs\n"
+"InnoDB: is now probably corrupt. Please run CHECK TABLE on\n"
+"InnoDB: that table.\n");
+				
 				bitmap_page = ibuf_bitmap_get_map_page(
 						buf_frame_get_space_id(page),
 						buf_frame_get_page_no(page),
@@ -2341,9 +2352,11 @@ ibuf_insert_to_index_page(
 						buf_frame_get_page_no(page),
 						IBUF_BITMAP_FREE, mtr);
 
-				printf("Bitmap bits %lu\n", old_bits);
-						
-				ut_error;
+				fprintf(stderr, "Bitmap bits %lu\n", old_bits);
+
+				fprintf(stderr,
+"InnoDB: Send a detailed bug report to mysql@lists.mysql.com!\n");
+				
 			}	
 		}
 	}
@@ -2692,22 +2705,30 @@ ibuf_validate_low(void)
 Prints info of ibuf. */
 
 void
-ibuf_print(void)
-/*============*/
+ibuf_print(
+/*=======*/
+	char*	buf,	/* in/out: buffer where to print */
+	char*	buf_end)/* in: buffer end */
 {
 	ibuf_data_t*	data;
 #ifdef UNIV_IBUF_DEBUG
 	ulint		i;
 #endif
+	if (buf_end - buf < 500) {
+		return;
+	}
+
 	mutex_enter(&ibuf_mutex);
 
 	data = UT_LIST_GET_FIRST(ibuf->data_list);
 
 	while (data) {
-		printf(
+		buf += sprintf(buf,
   	"Ibuf for space %lu: size %lu, free list len %lu, seg size %lu,\n",
 		data->space, data->size, data->free_list_len, data->seg_size);
-		printf("%lu inserts, %lu merged recs, %lu merges\n",
+
+		buf += sprintf(buf,
+			"%lu inserts, %lu merged recs, %lu merges\n",
 			data->n_inserts, data->n_merged_recs, data->n_merges);
 #ifdef UNIV_IBUF_DEBUG
 		for (i = 0; i < IBUF_COUNT_N_PAGES; i++) {

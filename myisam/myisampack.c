@@ -2046,7 +2046,7 @@ static int save_state(MI_INFO *isam_file,PACK_MRG_INFO *mrg,my_off_t new_length,
   share->changed=1;			/* Force write of header */
   share->state.open_count=0;
   share->global_changed=0;
-  VOID(my_chsize(share->kfile,share->state.state.key_file_length,
+  VOID(my_chsize(share->kfile, share->state.state.key_file_length, 0,
 		 MYF(0)));
   if (share->base.keys)
     isamchk_neaded=1;

@@ -16,14 +16,13 @@
 
 ## Process this file with automake to create Makefile.in
 
-EXTRA_DIST = BldLevel.cmd BldLevel.rc BldLevelInf.cmd ChangeLog.os2 \
-							MySQL-All.icc MySQL-Client.icc MySQL-Client.irs \
-							MySQL-Lib.icc MySQL-Opt.icc MySQL-ReadLine.icc \
-							MySQL-Source.icc MySQL-Sql.icc MySQL-Util.icc MySQL-Util.irs \
-							MySQL-binlog.icc MySQL-binlog.irs MySQL-sql.irs ReadMe.txt \
-							build-all.cmd build-all.log mysql-inf.wis mysql.base \
-							mysql.ih mysql.wis mysqlalt.wis readme.os2 rint.cmd rint.obj \
-							rint.s
+EXTRA_DIST = BldLevel.RES BldLevel.cmd BldLevel.rc \
+						BldLevelInf.cmd ChangeLog.os2 MySQL-Client.icc \
+						MySQL-Opt.icc MySQL-Source.icc MySQL-Sql.icc \
+						MySQL-Sql.irs MySQL-Util.icc MySQL-Util.irs \
+						ReadMe.txt build-all.cmd mysql-inf.wis \
+						mysql.wis mysqlalt.wis rint.cmd rint.obj rint.s 
+SUBDIRS = include
 
 # Don't update the files from bitkeeper
 %::SCCS/s.%

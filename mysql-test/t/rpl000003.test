@@ -1,5 +1,4 @@
 source include/master-slave.inc;
-connection master;
 drop table if exists t1;
 create table t1(n int primary key);
 !insert into t1 values (1),(2),(2);

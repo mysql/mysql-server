@@ -2,12 +2,10 @@
 #the ones on bar
 source include/master-slave.inc;
 connection slave;
-use test;
 drop table if exists foo;
 create table foo (n int);
 insert into foo values(4);
 connection master;
-use test;
 drop table if exists foo;
 create table foo (s char(20));
 load data infile '../../std_data/words.dat' into table foo;

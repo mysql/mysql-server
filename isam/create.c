@@ -294,13 +294,13 @@ int nisam_create(const char *name,uint keys,N_KEYDEF *keyinfo,
       goto err;
 
 	/* Enlarge files */
-  if (my_chsize(file,(ulong) share.base.keystart,MYF(0)))
+  if (my_chsize(file, (ulong) share.base.keystart, 0, MYF(0)))
     goto err;
 
   if (! (flags & HA_DONT_TOUCH_DATA))
   {
 #ifdef USE_RELOC
-    if (my_chsize(dfile,share.base.min_pack_length*reloc,MYF(0)))
+    if (my_chsize(dfile, share.base.min_pack_length*reloc, 0, MYF(0)))
       goto err;
 #endif
     errpos=1;

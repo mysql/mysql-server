@@ -208,9 +208,14 @@ public:
   void fix_length_and_dec() {}
   Field *tmp_table_field(TABLE *t_arg)
   {
-    if (!t_arg) return result_field;
-    return (max_length > 11) ?  (Field *)new Field_longlong(max_length,maybe_null,name, t_arg,unsigned_flag) :  (Field *)new Field_long(max_length,maybe_null,name, t_arg,unsigned_flag);
-  }  
+    if (!t_arg)
+      return result_field;
+    return ((max_length > 11) ?
+	    (Field *)new Field_longlong(max_length, maybe_null, name, t_arg,
+					unsigned_flag) :
+	    (Field *)new Field_long(max_length, maybe_null, name, t_arg,
+				    unsigned_flag));
+  }
 };
 
 class Item_func_signed :public Item_int_func

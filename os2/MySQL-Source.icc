@@ -30,7 +30,7 @@ group server_global_pch =
             'm_string.h', 'm_ctype.h',
             'myisam.h', 'myisampack.h', '.\myisam\myisamdef.h',
             'sql_string.h', 'item.h', 'unireg.h',
-            'field.h', 'sql_lex.h', 'sql_list.h',
+            'field.h', 'sql_lex.h', 'sql_list.h', 'sql_repl.h',
             'md5.h', 'sql_acl.h', 'slave.h',
             'ha_myisam.h', 'procedure.h', 'sql_select.h',
             'errmsg.h', 't_ctype.h', 'direct.h',
@@ -57,12 +57,20 @@ group mysqlclientlib =
                "..\\libmysql\\violite.c"
 
 group zlib =
-               "..\\..\\zlib-1.1.3\\compress.c", "..\\..\\zlib-1.1.3\\crc32.c",
-               "..\\..\\zlib-1.1.3\\deflate.c", "..\\..\\zlib-1.1.3\\gzio.c", "..\\..\\zlib-1.1.3\\infblock.c",
-               "..\\..\\zlib-1.1.3\\infcodes.c", "..\\..\\zlib-1.1.3\\inffast.c",
-               "..\\..\\zlib-1.1.3\\inflate.c", "..\\..\\zlib-1.1.3\\inftrees.c",
-               "..\\..\\zlib-1.1.3\\infutil.c", "..\\..\\zlib-1.1.3\\trees.c", "..\\..\\zlib-1.1.3\\uncompr.c",
-               "..\\..\\zlib-1.1.3\\zutil.c", "..\\..\\zlib-1.1.3\\adler32.c"
+               zlib_dir "/compress.c",
+               zlib_dir "/crc32.c",
+               zlib_dir "/deflate.c",
+               zlib_dir "/gzio.c",
+               zlib_dir "/infblock.c",
+               zlib_dir "/infcodes.c",
+               zlib_dir "/inffast.c",
+               zlib_dir "/inflate.c",
+               zlib_dir "/inftrees.c",
+               zlib_dir "/infutil.c",
+               zlib_dir "/trees.c",
+               zlib_dir "/uncompr.c",
+               zlib_dir "/zutil.c",
+               zlib_dir "/adler32.c"
 
 group ufc =
                "..\\..\\ufc\\crypt.c",
@@ -118,6 +126,7 @@ group sql =
                "..\\sql\\sql_class.cc",
                "..\\sql\\sql_crypt.cc",
                "..\\sql\\sql_db.cc",
+               "..\\sql\\sql_do.cc",
                "..\\sql\\sql_delete.cc",
                "..\\sql\\sql_insert.cc",
                "..\\sql\\sql_lex.cc",
@@ -308,24 +317,32 @@ group strings =
 
    group dbug =   "..\\dbug\\dbug.c", "..\\dbug\\factorial.c", "..\\dbug\\sanity.c"
 
-   group readline = "..\\readline\\bind.c", "..\\readline\\callback.c",
-                          "..\\readline\\complete.c", "..\\readline\\display.c",
-                          //"..\\readline\\emacs_keymap.c",
-                          "..\\readline\\funmap.c", "..\\readline\\histexpand.c",
-                          "..\\readline\\histfile.c", "..\\readline\\history.c",
-                          "..\\readline\\histsearch.c", "..\\readline\\input.c",
-                          "..\\readline\\isearch.c", "..\\readline\\keymaps.c",
-                          "..\\readline\\kill.c", "..\\readline\\macro.c",
-                          "..\\readline\\nls.c", "..\\readline\\parens.c",
-                          "..\\readline\\readline.c", "..\\readline\\rltty.c",
-                          "..\\readline\\search.c", "..\\readline\\shell.c",
-                          "..\\readline\\signals.c", "..\\readline\\terminal.c",
-                          "..\\readline\\tilde.c", "..\\readline\\undo.c",
-                          "..\\readline\\util.c",
-                          //"..\\readline\\vi_keymap.c",
-                          "..\\readline\\vi_mode.c", "..\\readline\\xmalloc.c"
-
    group regex =     "..\\regex\\regcomp.c", "..\\regex\\regerror.c",
                      "..\\regex\\regexec.c", "..\\regex\\regfree.c", "..\\regex\\reginit.c"
 
    group BldLevelInfo = 'os2\BldLevel.rc'
+
+   group GnuReadline =
+          "..\\readline\\bind.c",
+          "..\\readline\\callback.c",
+          "..\\readline\\complete.c",
+          "..\\readline\\display.c",
+          "..\\readline\\funmap.c",
+          "..\\readline\\histexpand.c", "..\\readline\\histfile.c",
+          "..\\readline\\history.c", "..\\readline\\histsearch.c",
+          "..\\readline\\input.c", "..\\readline\\isearch.c",
+          "..\\readline\\keymaps.c",
+          "..\\readline\\kill.c",
+          "..\\readline\\macro.c",
+          "..\\readline\\nls.c", "..\\readline\\parens.c",
+          "..\\readline\\readline.c",
+          "..\\readline\\rltty.c",
+          "..\\readline\\search.c",
+          "..\\readline\\shell.c",
+          "..\\readline\\signals.c",
+          "..\\readline\\terminal.c",
+          "..\\readline\\tilde.c",
+          "..\\readline\\undo.c",
+          "..\\readline\\util.c",
+          "..\\readline\\vi_mode.c",
+          "..\\readline\\xmalloc.c"

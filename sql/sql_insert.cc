@@ -301,7 +301,8 @@ int mysql_insert(THD *thd,TABLE_LIST *table_list, List<Item> &fields,
       mysql_update_log.write(thd, thd->query, thd->query_length);
       if (mysql_bin_log.is_open())
       {
-	Query_log_event qinfo(thd, thd->query, using_transactions);
+	Query_log_event qinfo(thd, thd->query, thd->query_length,
+			      using_transactions);
 	if (mysql_bin_log.write(&qinfo) && using_transactions)
 	  error=1;
       }
@@ -1196,8 +1197,7 @@ bool delayed_insert::handle_inserts(void)
       mysql_update_log.write(&thd,row->query, row->query_length);
       if (using_bin_log)
       {
-	thd.query_length = row->query_length;
-	Query_log_event qinfo(&thd, row->query);
+	Query_log_event qinfo(&thd, row->query, row->query_length);
 	mysql_bin_log.write(&qinfo);
       }
     }
@@ -1377,7 +1377,7 @@ bool select_insert::send_eof()
     mysql_update_log.write(thd,thd->query,thd->query_length);
     if (mysql_bin_log.is_open())
     {
-      Query_log_event qinfo(thd, thd->query,
+      Query_log_event qinfo(thd, thd->query, thd->query_length,
 			    table->file->has_transactions());
       mysql_bin_log.write(&qinfo);
     }

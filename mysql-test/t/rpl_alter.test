@@ -1,6 +1,4 @@
 source include/master-slave.inc;
-connection master;
-use test;
 drop database if exists d1;
 create database d1;
 create table d1.t1 ( n int);

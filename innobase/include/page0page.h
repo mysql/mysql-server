@@ -328,7 +328,7 @@ page_dir_calc_reserved_space(
 	ulint	n_recs);	/* in: number of records */
 /*******************************************************************
 Looks for the directory slot which owns the given record. */
-UNIV_INLINE
+
 ulint
 page_dir_find_owner_slot(
 /*=====================*/

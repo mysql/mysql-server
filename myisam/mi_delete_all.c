@@ -50,7 +50,7 @@ int mi_delete_all_rows(MI_INFO *info)
 
   myisam_log_command(MI_LOG_DELETE_ALL,info,(byte*) 0,0,0);
   VOID(_mi_writeinfo(info,WRITEINFO_UPDATE_KEYFILE));
-  if (my_chsize(info->dfile, 0, MYF(MY_WME)))
+  if (my_chsize(info->dfile, 0, 0, MYF(MY_WME)))
     goto err;
   allow_break();			/* Allow SIGHUP & SIGINT */
   DBUG_RETURN(0);

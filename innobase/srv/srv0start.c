@@ -433,8 +433,7 @@ Normalizes a directory path for Windows: converts slashes to backslashes. */
 void
 srv_normalize_path_for_win(
 /*=======================*/
-	char*	str __attribute__((unused)))
-                 /* in/out: null-terminated character string */
+	char*	str __attribute__((unused)))	/* in/out: null-terminated character string */
 {
 #ifdef __WIN__
 	ulint	i;
@@ -619,8 +618,7 @@ open_or_create_log_file(
 	if (k == 0 && i == 0) {
 		arch_space_id = 2 * k + 1 + SRV_LOG_SPACE_FIRST_ID;
 
-	    	fil_space_create((char *) "arch_log_space", arch_space_id, 
-				 FIL_LOG);
+	    	fil_space_create((char*) "arch_log_space", arch_space_id, FIL_LOG);
 	} else {
 		arch_space_id = ULINT_UNDEFINED;
 	}
@@ -839,7 +837,6 @@ open_or_create_data_files(
 
 /*********************************************************************
 This thread is used to measure contention of latches. */
-#ifdef NOT_USED
 static
 ulint
 test_measure_cont(
@@ -899,7 +896,7 @@ test_measure_cont(
 	"Mutex res. l %lu, p %lu, k %lu s x %lu s s %lu s mut %lu of %lu\n",
 		lcount, pcount, kcount, s_xcount, s_scount, s_mcount, j);
 
-		sync_print_wait_info();
+/*		sync_print_wait_info(); */
 
 		fprintf(stderr, 
     "log i/o %lu n non sea %lu n succ %lu n h fail %lu\n",
@@ -909,7 +906,7 @@ test_measure_cont(
 
 	return(0);
 }
-#endif
+
 /********************************************************************
 Starts InnoDB and creates a new database if database files
 are not found and the user wants. Server parameters are
@@ -935,27 +932,44 @@ innobase_start_or_create_for_mysql(void)
 	ulint	k;
 	mtr_t   mtr;
 
+#ifdef UNIV_DEBUG
+	fprintf(stderr,
+"InnoDB: !!!!!!!!!!!!!! UNIV_DEBUG switched on !!!!!!!!!!!!!!!\n"); 
+#endif
+
+#ifdef UNIV_SYNC_DEBUG
+	fprintf(stderr,
+"InnoDB: !!!!!!!!!!!!!! UNIV_SYNC_DEBUG switched on !!!!!!!!!!!!!!!\n"); 
+#endif
+
+#ifdef UNIV_SEARCH_DEBUG
+	fprintf(stderr,
+"InnoDB: !!!!!!!!!!!!!! UNIV_SEARCH_DEBUG switched on !!!!!!!!!!!!!!!\n"); 
+#endif
+
+#ifdef UNIV_MEM_DEBUG
+	fprintf(stderr,
+"InnoDB: !!!!!!!!!!!!!! UNIV_MEM_DEBUG switched on !!!!!!!!!!!!!!!\n"); 
+#endif
+
 	log_do_write = TRUE;
 /*	yydebug = TRUE; */
 
 	srv_is_being_started = TRUE;
         srv_startup_is_before_trx_rollback_phase = TRUE;
 
-	if (0 == ut_strcmp(srv_unix_file_flush_method_str,
-			   (char *) "fdatasync")) {
-	  srv_unix_file_flush_method = SRV_UNIX_FDATASYNC;
+	if (0 == ut_strcmp(srv_unix_file_flush_method_str, "fdatasync")) {
+	  	srv_unix_file_flush_method = SRV_UNIX_FDATASYNC;
+
+	} else if (0 == ut_strcmp(srv_unix_file_flush_method_str, "O_DSYNC")) {
+	  	srv_unix_file_flush_method = SRV_UNIX_O_DSYNC;
 
 	} else if (0 == ut_strcmp(srv_unix_file_flush_method_str,
-				  (char *)  "O_DSYNC")) {
-	  srv_unix_file_flush_method = SRV_UNIX_O_DSYNC;
+				  "littlesync")) {
+	  	srv_unix_file_flush_method = SRV_UNIX_LITTLESYNC;
 
-	} else if (0 == ut_strcmp(srv_unix_file_flush_method_str,
-				  (char *) "littlesync")) {
-	  srv_unix_file_flush_method = SRV_UNIX_LITTLESYNC;
-
-	} else if (0 == ut_strcmp(srv_unix_file_flush_method_str,
-				  (char *) "nosync")) {
-	  srv_unix_file_flush_method = SRV_UNIX_NOSYNC;
+	} else if (0 == ut_strcmp(srv_unix_file_flush_method_str, "nosync")) {
+	  	srv_unix_file_flush_method = SRV_UNIX_NOSYNC;
 	} else {
 	  	fprintf(stderr, 
           	"InnoDB: Unrecognized value %s for innodb_flush_method\n",
@@ -1005,7 +1019,7 @@ innobase_start_or_create_for_mysql(void)
 	os_aio_use_native_aio = FALSE;
 	
 	if (!os_aio_use_native_aio) {
-		os_aio_init(4 * SRV_N_PENDING_IOS_PER_THREAD
+		os_aio_init(8 * SRV_N_PENDING_IOS_PER_THREAD
 						* srv_n_file_io_threads,
 					srv_n_file_io_threads,
 					SRV_MAX_N_PENDING_SYNC_IOS);
@@ -1350,9 +1364,15 @@ innobase_shutdown_for_mysql(void)
 		"InnoDB: inside InnoDB at shutdown\n",
 		srv_conc_n_threads);
 	}
-	
+
+	/*
+	TODO: We should exit the i/o-handler and other utility threads
+	before freeing all memory. Now this can potentially cause a seg
+	fault!
+	*/
 #ifdef NOT_WORKING_YET
-	ut_free_all_mem();
-#endif	
+        ut_free_all_mem();
+#endif 
+
 	return((int) DB_SUCCESS);
 }

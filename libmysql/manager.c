@@ -90,6 +90,7 @@ MYSQL_MANAGER*  STDCALL mysql_manager_connect(MYSQL_MANAGER* con,
   char msg_buf[MAX_MYSQL_MANAGER_MSG];
   int msg_len;
   Vio* vio;
+  my_bool not_used;
 
   if (!host)
     host="localhost";
@@ -110,7 +111,7 @@ MYSQL_MANAGER*  STDCALL mysql_manager_connect(MYSQL_MANAGER* con,
     strmov(con->last_error,"Cannot create network I/O object");
     goto err;
   }
-  vio_blocking(vio,TRUE);
+  vio_blocking(vio, TRUE, &not_used);
   my_net_init(&con->net,vio);
   bzero((char*) &sock_addr,sizeof(sock_addr));
   sock_addr.sin_family = AF_INET;

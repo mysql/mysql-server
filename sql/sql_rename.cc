@@ -94,7 +94,7 @@ end:
     mysql_update_log.write(thd,thd->query,thd->query_length);
     if (mysql_bin_log.is_open())
     {
-      Query_log_event qinfo(thd, thd->query);
+      Query_log_event qinfo(thd, thd->query, thd->query_length);
       mysql_bin_log.write(&qinfo);
     }
     send_ok(&thd->net);

@@ -1,5 +1,4 @@
 source include/master-slave.inc;
-connection master;
 drop table if exists t1;
 CREATE TABLE t1 (name varchar(64), age smallint(3));
 INSERT INTO  t1 SET name='Andy', age=31;

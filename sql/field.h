@@ -73,6 +73,9 @@ public:
   virtual void set_default()
   {
     memcpy(ptr, ptr + table->rec_buff_length, pack_length());
+    if (null_ptr)
+      *null_ptr= ((*null_ptr & (uchar) ~null_bit) |
+		  null_ptr[table->rec_buff_length] & null_bit);
   }
   virtual bool binary() const { return 1; }
   virtual bool zero_pack() const { return 1; }
@@ -93,12 +96,12 @@ public:
   virtual int key_cmp(const byte *str, uint length)
   { return cmp(ptr,(char*) str); }
   virtual uint decimals() const { return 0; }
-  virtual void sql_type(String &str) const =0;
   /*
     Caller beware: sql_type can change str.Ptr, so check
     ptr() to see if it changed if you are using your own buffer
     in str and restore it with set() if needed
   */
+  virtual void sql_type(String &str) const =0;
   virtual uint size_of() const =0;		// For new field
   inline bool is_null(uint row_offset=0)
   { return null_ptr ? (null_ptr[row_offset] & null_bit ? 1 : 0) : table->null_row; }
