@@ -300,7 +300,7 @@ char* log_error_file_ptr= log_error_file;
 char mysql_real_data_home[FN_REFLEN],
      language[LIBLEN],reg_ext[FN_EXTLEN], mysql_charsets_dir[FN_REFLEN],
      max_sort_char,*mysqld_user,*mysqld_chroot, *opt_init_file;
-char *language_ptr= language;
+char *language_ptr, *default_collation_name;
 char mysql_data_home_buff[2], *mysql_data_home=mysql_real_data_home;
 char server_version[SERVER_VERSION_LENGTH]=MYSQL_SERVER_VERSION;
 char *mysql_unix_port, *opt_mysql_tmpdir;
@@ -2035,8 +2035,8 @@ static int init_common_variables(const char *conf_file_name, int argc,
     return 1;
   if (default_collation_name)
   {
-    CHARSET_INFO *default_collation= get_charset_by_name(default_collation_name,
-							  MYF(0));
+    CHARSET_INFO *default_collation;
+    default_collation= get_charset_by_name(default_collation_name, MYF(0));
     if (!default_collation || !my_charset_same(default_charset_info,
 					       default_collation))
     {
@@ -4631,6 +4631,7 @@ static void mysql_init_variables(void)
   pidfile_name_ptr= pidfile_name;
   log_error_file_ptr= log_error_file;
   language_ptr= language;
+  default_collation_name= 0;
   mysql_data_home= mysql_real_data_home;
   thd_startup_options= (OPTION_UPDATE_LOG | OPTION_AUTO_IS_NULL |
 			OPTION_BIN_LOG | OPTION_QUOTE_SHOW_CREATE);
@@ -4787,7 +4788,7 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     strmake(mysql_home,argument,sizeof(mysql_home)-1);
     break;
   case 'C':
-    default_collation_name= NULL;
+    default_collation_name= 0;
     break;
   case 'l':
     opt_log=1;
