@@ -522,16 +522,15 @@ class Rotate_log_event: public Log_event
 {
 public:
   const char* new_log_ident;
-  uchar ident_len;
   ulonglong pos;
+  uint ident_len;
   bool alloced;
 #ifndef MYSQL_CLIENT  
   Rotate_log_event(THD* thd_arg, const char* new_log_ident_arg,
 		   uint ident_len_arg = 0,ulonglong pos_arg = 4)
     : Log_event(thd_arg), new_log_ident(new_log_ident_arg),
-    ident_len(ident_len_arg ? ident_len_arg :
-	      (uint) strlen(new_log_ident_arg)), pos(pos_arg),
-    alloced(0)
+    pos(pos_arg),ident_len(ident_len_arg ? ident_len_arg :
+			   (uint) strlen(new_log_ident_arg)), alloced(0)
   {}
   void pack_info(String* packet);
   int exec_event(struct st_relay_log_info* rli);

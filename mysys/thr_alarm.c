@@ -655,6 +655,7 @@ sig_handler process_alarm(int sig __attribute__((unused)))
 
 bool thr_alarm(thr_alarm_t *alrm, uint sec, ALARM *alarm)
 {
+  (*alrm)= &alarm->alarmed;
   if (alarm_aborted)
   {
     alarm->alarmed.crono=0;
@@ -663,7 +664,6 @@ bool thr_alarm(thr_alarm_t *alrm, uint sec, ALARM *alarm)
   if (!(alarm->alarmed.crono=SetTimer((HWND) NULL,0, sec*1000,
 				      (TIMERPROC) NULL)))
     return 1;
-  (*alrm)= &alarm->alarmed;
   return 0;
 }
 
@@ -688,7 +688,7 @@ bool thr_got_alarm(thr_alarm_t *alrm_ptr)
 void thr_end_alarm(thr_alarm_t *alrm_ptr)
 {
   thr_alarm_t alrm= *alrm_ptr;
-  if (alrm->crono)
+  if (alrm && alrm->crono)
   {
     KillTimer(NULL, alrm->crono);
     alrm->crono = 0;

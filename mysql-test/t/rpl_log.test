@@ -9,7 +9,6 @@ let $VERSION=`select version()`;
 
 connection master;
 reset master;
-drop table if exists t1;
 create table t1(n int not null auto_increment primary key);
 insert into t1 values (NULL);
 drop table t1;
@@ -22,6 +21,19 @@ show binlog events from 79 limit 1;
 show binlog events from 79 limit 2;
 show binlog events from 79 limit 2,1;
 flush logs;
+
+# Sync slave and force it to start on another binary log
+
+save_master_pos;
+connection slave;
+slave start;
+sync_with_master;
+flush logs;
+slave stop;
+connection master;
+
+# Create some entries for second log
+
 create table t1 (n int);
 insert into t1 values (1);
 drop table t1;
@@ -35,23 +47,19 @@ slave start;
 sync_with_master;
 show master logs;
 --replace_result 3306 MASTER_PORT 9306 MASTER_PORT 3334 MASTER_PORT 3336 MASTER_PORT $VERSION VERSION
-# We can't compare binlog from slave as the result differ between
-# machines based on where the LOAD DATA file is stored.
-disable_result_log;
-
 show binlog events in 'slave-bin.001' from 4;
 --replace_result 3306 MASTER_PORT 9306 MASTER_PORT 3334 MASTER_PORT 3336 MASTER_PORT $VERSION VERSION
-enable_result_log;
 show binlog events in 'slave-bin.002' from 4;
 --replace_result 3306 MASTER_PORT 9306 MASTER_PORT 3334 MASTER_PORT 3336 MASTER_PORT
 show slave status;
-show new master for slave with master_log_file='master-bin.001' and
- master_log_pos=4 and  master_server_id=1;
-show new master for slave with master_log_file='master-bin.001' and
- master_log_pos=79 and master_server_id=1;
-show new master for slave with master_log_file='master-bin.001' and
- master_log_pos=311 and master_server_id=1;
-show new master for slave with master_log_file='master-bin.002' and
- master_log_pos=4 and master_server_id=1;
-show new master for slave with master_log_file='master-bin.002' and
- master_log_pos=122 and master_server_id=1;
+
+# Need to recode the following
+
+#show new master for slave with master_log_file='master-bin.001' and master_log_pos=4 and  master_server_id=1;
+#show new master for slave with master_log_file='master-bin.001' and master_log_pos=79 and master_server_id=1;
+#show new master for slave with master_log_file='master-bin.001' and master_log_pos=311 and master_server_id=1;
+#show new master for slave with master_log_file='master-bin.002' and master_log_pos=4 and master_server_id=1;
+#show new master for slave with master_log_file='master-bin.002' and master_log_pos=122 and master_server_id=1;
+
+--error 1220
+show binlog events in 'slave-bin.005' from 4;

@@ -96,7 +96,7 @@ class ha_innobase: public handler
 	ulong index_flags(uint idx) const
 	{
 	  return (HA_READ_NEXT | HA_READ_PREV | HA_READ_ORDER |
-		  HA_NOT_READ_PREFIX_LAST | HA_KEY_READ_ONLY);
+		  HA_KEY_READ_ONLY);
 	}
   	uint max_record_length() const { return HA_MAX_REC_LENGTH; }
   	uint max_keys()          const { return MAX_KEY; }
@@ -170,6 +170,7 @@ class ha_innobase: public handler
 
 extern bool innodb_skip;
 extern uint innobase_init_flags, innobase_lock_type;
+extern uint innobase_flush_log_at_trx_commit;
 extern ulong innobase_cache_size;
 extern char *innobase_home, *innobase_tmpdir, *innobase_logdir;
 extern long innobase_lock_scan_time;
@@ -182,7 +183,7 @@ extern char *innobase_data_home_dir, *innobase_data_file_path;
 extern char *innobase_log_group_home_dir, *innobase_log_arch_dir;
 extern char *innobase_unix_file_flush_method;
 /* The following variables have to be my_bool for SHOW VARIABLES to work */
-extern my_bool innobase_flush_log_at_trx_commit, innobase_log_archive,
+extern my_bool innobase_log_archive,
                innobase_use_native_aio, innobase_fast_shutdown;
 
 extern TYPELIB innobase_lock_typelib;

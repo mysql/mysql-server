@@ -15,5 +15,3 @@ slave start;
 flush logs;
 sleep 5;
 show slave status;
-
- 

@@ -20,12 +20,11 @@ system chmod 600 var/slave-data/master.info;
 --error 1201
 slave start;
 --replace_result 3306 MASTER_PORT 9306 MASTER_PORT 3334 MASTER_PORT 3336 MASTER_PORT
-!eval change master to master_host='127.0.0.1',master_port=$MASTER_MYPORT,
- master_user='root'; 
+# Will get error 13 on Unix systems becasue file is not readable
+!eval change master to master_host='127.0.0.1',master_port=$MASTER_MYPORT, master_user='root';
 reset slave;
 --replace_result 3306 MASTER_PORT 9306 MASTER_PORT 3334 MASTER_PORT 3336 MASTER_PORT
-eval change master to master_host='127.0.0.1',master_port=$MASTER_MYPORT,
- master_user='root'; 
+eval change master to master_host='127.0.0.1',master_port=$MASTER_MYPORT, master_user='root'; 
 connection master;
 reset master;
 connection slave;

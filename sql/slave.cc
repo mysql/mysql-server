@@ -1468,6 +1468,8 @@ int st_relay_log_info::wait_for_pos(THD* thd, String* log_name,
   int event_count = 0;
   ulong init_abort_pos_wait;
   DBUG_ENTER("wait_for_pos");
+  DBUG_PRINT("enter",("master_log_name: '%s'  pos: %ld",
+		      master_log_name, (ulong) master_log_pos));
 
   pthread_mutex_lock(&data_lock);
   // abort only if master info changes during wait
@@ -1498,6 +1500,7 @@ int st_relay_log_info::wait_for_pos(THD* thd, String* log_name,
     if (pos_reached || thd->killed)
       break;
     
+    DBUG_PRINT("info",("Waiting for master update"));
     const char* msg = thd->enter_cond(&data_cond, &data_lock,
 				      "Waiting for master update");
     pthread_cond_wait(&data_cond, &data_lock);
@@ -2308,21 +2311,44 @@ err:
 }
 
 /*
-  We assume we already locked mi->data_lock
+  Start using a new binary log on the master
+
+  SYNOPSIS
+    process_io_rotate()
+    mi			master_info for the slave
+    rev			The rotate log event read from the binary log
+
+  DESCRIPTION
+    Updates the master info and relay data with the place in the next binary
+    log where we should start reading.
+
+  NOTES
+    We assume we already locked mi->data_lock
+
+  RETURN VALUES
+    0		ok
+    1	        Log event is illegal
 */
 
-static int process_io_rotate(MASTER_INFO* mi, Rotate_log_event* rev)
+static int process_io_rotate(MASTER_INFO *mi, Rotate_log_event *rev)
 {
+  int return_val= 1;
   DBUG_ENTER("process_io_rotate");
+  safe_mutex_assert_owner(&mi->data_lock);
 
   if (unlikely(!rev->is_valid()))
     DBUG_RETURN(1);
-  DBUG_ASSERT(rev->ident_len < sizeof(mi->master_log_name));
-  memcpy(mi->master_log_name,rev->new_log_ident,
-	 rev->ident_len);
-  mi->master_log_name[rev->ident_len] = 0;
-  mi->master_log_pos = rev->pos;
-  DBUG_PRINT("info", ("master_log_pos: %d", (ulong) mi->master_log_pos));
+
+  memcpy(mi->master_log_name, rev->new_log_ident, rev->ident_len+1);
+  mi->master_log_pos= rev->pos;
+
+  pthread_mutex_lock(&mi->rli.data_lock);
+  memcpy(mi->rli.master_log_name, rev->new_log_ident, rev->ident_len+1);
+  mi->rli.master_log_pos= rev->pos;
+  pthread_mutex_unlock(&mi->rli.data_lock);
+
+  DBUG_PRINT("info", ("master_log_pos: '%s' %d",
+		      mi->master_log_name, (ulong) mi->master_log_pos));
 #ifndef DBUG_OFF
   /*
     If we do not do this, we will be getting the first
@@ -2335,23 +2361,24 @@ static int process_io_rotate(MASTER_INFO* mi, Rotate_log_event* rev)
 }
 
 /*
-  TODO: verify the issue with stop events, see if we need them at all
-  in the relay log
-  TODO: test this code before release - it has to be tested on a separte
-  setup with 3.23 master 
+  TODO: 
+    Test this code before release - it has to be tested on a separate
+    setup with 3.23 master 
 */
 
 static int queue_old_event(MASTER_INFO *mi, const char *buf,
 			   ulong event_len)
 {
   const char *errmsg = 0;
-  bool inc_pos = 1;
-  bool processed_stop_event = 0;
-  char* tmp_buf = 0;
+  ulong inc_pos;
+  bool ignore_event= 0;
+  char *tmp_buf = 0;
+  RELAY_LOG_INFO *rli= &mi->rli;
   DBUG_ENTER("queue_old_event");
 
-  /* if we get Load event, we need to pass a non-reusable buffer
-     to read_log_event, so we do a trick
+  /*
+    If we get Load event, we need to pass a non-reusable buffer
+    to read_log_event, so we do a trick
   */
   if (buf[EVENT_TYPE_OFFSET] == LOAD_EVENT)
   {
@@ -2377,54 +2404,52 @@ static int queue_old_event(MASTER_INFO *mi, const char *buf,
   pthread_mutex_lock(&mi->data_lock);
   ev->log_pos = mi->master_log_pos;
   switch (ev->get_type_code()) {
+  case STOP_EVENT:
+    ignore_event= mi->ignore_stop_event;
+    mi->ignore_stop_event=0;
+    inc_pos= event_len;
+    break;
   case ROTATE_EVENT:
     if (unlikely(process_io_rotate(mi,(Rotate_log_event*)ev)))
     {
       delete ev;
       pthread_mutex_unlock(&mi->data_lock);
-      DBUG_ASSERT(!tmp_buf);      
       DBUG_RETURN(1);
     }
     mi->ignore_stop_event=1;
-    inc_pos = 0;
-    break;
-  case STOP_EVENT:
-    processed_stop_event=1;
+    inc_pos= 0;
     break;
   case CREATE_FILE_EVENT:
   {
+    /* We come here when and only when tmp_buf != 0 */
+    DBUG_ASSERT(tmp_buf);
     int error = process_io_create_file(mi,(Create_file_log_event*)ev);
     delete ev;
     mi->master_log_pos += event_len;
     DBUG_PRINT("info", ("master_log_pos: %d", (ulong) mi->master_log_pos));
     pthread_mutex_unlock(&mi->data_lock);
-    DBUG_ASSERT(tmp_buf);
     my_free((char*)tmp_buf, MYF(0));
     DBUG_RETURN(error);
   }
   default:
     mi->ignore_stop_event=0;
+    inc_pos= event_len;
     break;
   }
-  if (likely(!processed_stop_event || !mi->ignore_stop_event))
+  if (likely(!ignore_event))
   {
-    if (unlikely(mi->rli.relay_log.append(ev)))
+    if (unlikely(rli->relay_log.append(ev)))
     {
       delete ev;
       pthread_mutex_unlock(&mi->data_lock);
-      DBUG_ASSERT(!tmp_buf);
       DBUG_RETURN(1);
     }
-    mi->rli.relay_log.harvest_bytes_written(&mi->rli.log_space_total);
+    rli->relay_log.harvest_bytes_written(&rli->log_space_total);
   }
   delete ev;
-  if (likely(inc_pos))
-    mi->master_log_pos += event_len;
+  mi->master_log_pos+= inc_pos;
   DBUG_PRINT("info", ("master_log_pos: %d", (ulong) mi->master_log_pos));
-  if (unlikely(processed_stop_event))
-    mi->ignore_stop_event=1;
   pthread_mutex_unlock(&mi->data_lock);
-  DBUG_ASSERT(!tmp_buf);
   DBUG_RETURN(0);
 }
 
@@ -2435,48 +2460,52 @@ static int queue_old_event(MASTER_INFO *mi, const char *buf,
 
 int queue_event(MASTER_INFO* mi,const char* buf, ulong event_len)
 {
-  int error=0;
-  bool inc_pos = 1;
-  bool processed_stop_event = 0;
+  int error= 0;
+  ulong inc_pos;
+  bool ignore_event= 0;
+  RELAY_LOG_INFO *rli= &mi->rli;
   DBUG_ENTER("queue_event");
 
   if (mi->old_format)
     DBUG_RETURN(queue_old_event(mi,buf,event_len));
 
   pthread_mutex_lock(&mi->data_lock);
-  
+
   /*
     TODO: figure out if other events in addition to Rotate
     require special processing
   */
   switch (buf[EVENT_TYPE_OFFSET]) {
   case STOP_EVENT:
-    processed_stop_event=1;
+    ignore_event= mi->ignore_stop_event;
+    mi->ignore_stop_event= 0;
+    inc_pos= event_len;
     break;
   case ROTATE_EVENT:
   {
     Rotate_log_event rev(buf,event_len,0);
     if (unlikely(process_io_rotate(mi,&rev)))
+    {
+      pthread_mutex_unlock(&mi->data_lock);
       DBUG_RETURN(1);
-    inc_pos=0;
-    mi->ignore_stop_event=1;
+    }
+    mi->ignore_stop_event= 1;
+    inc_pos= 0;
     break;
   }
   default:
-    mi->ignore_stop_event=0;
+    mi->ignore_stop_event= 0;
+    inc_pos= event_len;
     break;
   }
   
-  if (likely((!processed_stop_event || !mi->ignore_stop_event) &&
-	     !(error = mi->rli.relay_log.appendv(buf,event_len,0))))
+  if (likely(!ignore_event &&
+	     !(error= rli->relay_log.appendv(buf,event_len,0))))
   {
-    if (likely(inc_pos))
-      mi->master_log_pos += event_len;
+    mi->master_log_pos+= inc_pos;
     DBUG_PRINT("info", ("master_log_pos: %d", (ulong) mi->master_log_pos));
-    mi->rli.relay_log.harvest_bytes_written(&mi->rli.log_space_total);
+    rli->relay_log.harvest_bytes_written(&rli->log_space_total);
   }
-  if (unlikely(processed_stop_event))
-    mi->ignore_stop_event=1;
   pthread_mutex_unlock(&mi->data_lock);
   DBUG_RETURN(error);
 }

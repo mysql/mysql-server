@@ -690,7 +690,10 @@ void Rotate_log_event::print(FILE* file, bool short_form, char* last_db)
   if (new_log_ident)
     my_fwrite(file, (byte*) new_log_ident, (uint)ident_len, 
 	      MYF(MY_NABP | MY_WME));
-  fprintf(file, " pos: %s\n", llstr(pos, buf));
+  fprintf(file, "  pos: %s", llstr(pos, buf));
+  if (flags & LOG_EVENT_FORCED_ROTATE_F)
+    fprintf(file,"  forced by master");
+  fputc('\n', file);
   fflush(file);
 }
 
@@ -730,20 +733,22 @@ Rotate_log_event::Rotate_log_event(const char* buf, int event_len,
   buf += header_size;
   if (old_format)
   {
-    ident_len = (uchar)(event_len - OLD_HEADER_LEN);
+    ident_len = (uint)(event_len - OLD_HEADER_LEN);
     pos = 4;
     ident_offset = 0;
   }
   else
   {
-    ident_len = (uchar)(event_len - ROTATE_EVENT_OVERHEAD);
+    ident_len = (uint)(event_len - ROTATE_EVENT_OVERHEAD);
     pos = uint8korr(buf + R_POS_OFFSET);
     ident_offset = ROTATE_HEADER_LEN;
   }
-  if (!(new_log_ident = (char*) my_memdup((byte*) buf + ident_offset,
-					  (uint) ident_len, MYF(MY_WME))))
+  set_if_smaller(ident_len,FN_REFLEN-1);
+  if (!(new_log_ident= (char*) my_strdup_with_length((byte*) buf +
+						     ident_offset,
+						     (uint) ident_len,
+						     MYF(MY_WME))))
     return;
-
   alloced = 1;
 }
 
@@ -1614,7 +1619,6 @@ int Query_log_event::exec_event(struct st_relay_log_info* rli)
   int expected_error,actual_error = 0;
   init_sql_alloc(&thd->mem_root, 8192,0);
   thd->db = rewrite_db((char*)db);
-  DBUG_ASSERT(q_len == strlen(query));
 
   /*
     InnoDB internally stores the master log position it has processed so far;
@@ -1643,6 +1647,8 @@ int Query_log_event::exec_event(struct st_relay_log_info* rli)
     if (ignored_error_code((expected_error = error_code)) ||
 	!check_expected_error(thd,rli,expected_error))
     {
+      mysql_log.write(thd,COM_QUERY,"%s",thd->query);
+      DBUG_PRINT("query",("%s",thd->query));
       mysql_parse(thd, thd->query, q_len);
       if ((expected_error != (actual_error = thd->net.last_errno)) &&
 	  expected_error &&
@@ -1861,70 +1867,33 @@ int Stop_log_event::exec_event(struct st_relay_log_info* rli)
   Got a rotate log even from the master
 
   IMPLEMENTATION
-    - Rotate the log file if the name of the log file changed
-      (In practice this should always be the case)
+    This is mainly used so that we can later figure out the logname and
+    position for the master.
 
-  TODO
-    - Investigate/Test if we can't ignore all rotate log events
-      that we get from the master (and not even write it to the local
-      binary log).
+    We can't rotate the slave as this will cause infinitive rotations
+    in a A -> B -> A setup.
 
   RETURN VALUES
-  0	ok
-  1	Impossible new log file name (rotate log event is ignored)
-*/
+    0	ok
+ */
   
 
 int Rotate_log_event::exec_event(struct st_relay_log_info* rli)
 {
-  bool rotate_binlog = 0, write_slave_event = 0;
   char* log_name = rli->master_log_name;
   DBUG_ENTER("Rotate_log_event::exec_event");
 
   pthread_mutex_lock(&rli->data_lock);
-  /*
-    TODO: probably needs re-write    
-    rotate local binlog only if the name of remote has changed
-  */
-  if (!*log_name || (memcmp(log_name, new_log_ident, ident_len) ||
-		     log_name[ident_len] != 0))
-  {
-    write_slave_event = (!(flags & LOG_EVENT_FORCED_ROTATE_F) &&
-			 mysql_bin_log.is_open());
-    rotate_binlog = (*log_name && write_slave_event);
-    if (ident_len >= sizeof(rli->master_log_name))
-    {
-      // This should be impossible
-      pthread_mutex_unlock(&rli->data_lock);
-      DBUG_RETURN(1);
-    }
-    memcpy(log_name, new_log_ident, ident_len);
-    log_name[ident_len] = 0;
-  }
+  memcpy(log_name, new_log_ident, ident_len+1);
   rli->master_log_pos = pos;
   rli->relay_log_pos += get_event_len();
-  if (rotate_binlog)
-  {
-    mysql_bin_log.new_file();
-    rli->master_log_pos = BIN_LOG_HEADER_SIZE;
-  }
   DBUG_PRINT("info", ("master_log_pos: %d", (ulong) rli->master_log_pos));
-  pthread_cond_broadcast(&rli->data_cond);
   pthread_mutex_unlock(&rli->data_lock);
+  pthread_cond_broadcast(&rli->data_cond);
   flush_relay_log_info(rli);
-      
-  if (write_slave_event)
-  {
-    Slave_log_event s(thd, rli);
-    if (s.master_host)
-    {
-      s.set_log_pos(&mysql_bin_log);
-      s.server_id = ::server_id;
-      mysql_bin_log.write(&s);
-    }
-  }
   DBUG_RETURN(0);
 }
+
 
 int Intvar_log_event::exec_event(struct st_relay_log_info* rli)
 {

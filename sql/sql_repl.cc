@@ -910,6 +910,11 @@ int cmp_master_pos(const char* log_file_name1, ulonglong log_pos1,
 		   const char* log_file_name2, ulonglong log_pos2)
 {
   int res;
+  /*
+    TODO: Change compare function to work with file name of type
+          '.999 and .1000'
+  */
+
   if ((res = strcmp(log_file_name1, log_file_name2)))
     return res;
   if (log_pos1 > log_pos2)
@@ -918,6 +923,7 @@ int cmp_master_pos(const char* log_file_name1, ulonglong log_pos1,
     return 0;
   return -1;
 }
+
 
 int show_binlog_events(THD* thd)
 {
@@ -1010,14 +1016,15 @@ err:
 
   if (errmsg)
   {
-    net_printf(&thd->net, ER_ERROR_WHEN_EXECUTING_COMMAND,
-	       "SHOW BINLOG EVENTS", errmsg);
-    DBUG_RETURN(1);
+    my_error(ER_ERROR_WHEN_EXECUTING_COMMAND, MYF(0),
+	     "SHOW BINLOG EVENTS", errmsg);
+    DBUG_RETURN(-1);
   }
 
   send_eof(&thd->net);
   DBUG_RETURN(0);
 }
+
 
 int show_binlog_info(THD* thd)
 {

@@ -236,7 +236,7 @@ static int find_target_pos(LEX_MASTER_INFO *mi, IO_CACHE *log, char *errmsg)
       return 1;
     }
 
-    if (ev->log_pos == log_pos && ev->server_id == target_server_id)
+    if (ev->log_pos >= log_pos && ev->server_id == target_server_id)
     {
       delete ev;
       mi->pos = my_b_tell(log);
@@ -261,23 +261,24 @@ int translate_master(THD* thd, LEX_MASTER_INFO* mi, char* errmsg)
   int error = 1;
   int cmp_res;
   LINT_INIT(cmp_res);
+  DBUG_ENTER("translate_master");
 
   if (!mysql_bin_log.is_open())
   {
     strmov(errmsg,"Binary log is not open");
-    return 1;
+    DBUG_RETURN(1);
   }
 
   if (!server_id_supplied)
   {
     strmov(errmsg, "Misconfigured master - server id was not set");
-    return 1;
+    DBUG_RETURN(1);
   }
 
   if (mysql_bin_log.find_log_pos(&linfo, NullS, 1))
   {
     strmov(errmsg,"Could not find first log");
-    return 1;
+    DBUG_RETURN(1);
   }
   thd->current_linfo = &linfo;
 
@@ -366,7 +367,7 @@ err:
   if (last_file >= 0 && last_file != file)
     (void) my_close(last_file, MYF(MY_WME));
 
-  return error;
+  DBUG_RETURN(error);
 }
 
 
@@ -423,12 +424,9 @@ int show_new_master(THD* thd)
   if (translate_master(thd, lex_mi, errmsg))
   {
     if (errmsg[0])
-      net_printf(&thd->net, ER_ERROR_WHEN_EXECUTING_COMMAND,
-		 "SHOW NEW MASTER", errmsg);
-    else
-      send_error(&thd->net, 0);
-
-    DBUG_RETURN(1);
+      my_error(ER_ERROR_WHEN_EXECUTING_COMMAND, MYF(0),
+	       "SHOW NEW MASTER", errmsg);
+    DBUG_RETURN(-1);
   }
   else
   {
