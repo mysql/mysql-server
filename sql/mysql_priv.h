@@ -636,6 +636,7 @@ int mysqld_show_keys(THD *thd, TABLE_LIST *table);
 int mysqld_show_logs(THD *thd);
 void append_identifier(THD *thd, String *packet, const char *name,
 		       uint length);
+int get_quote_char_for_identifier(THD *thd, const char *name, uint length);
 void mysqld_list_fields(THD *thd,TABLE_LIST *table, const char *wild);
 int mysqld_dump_create_info(THD *thd, TABLE *table, int fd = -1);
 int mysqld_show_create(THD *thd, TABLE_LIST *table_list);

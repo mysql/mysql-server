@@ -1229,7 +1229,7 @@ opt_print_query_plan(
 		}
 
 		fputs("Table ", stderr);
-		dict_index_name_print(stderr, plan->index);
+		dict_index_name_print(stderr, NULL, plan->index);
 		fprintf(stderr,"; exact m. %lu, match %lu, end conds %lu\n",
 		        (unsigned long) plan->n_exact_match,
 		        (unsigned long) n_fields,
