@@ -212,3 +212,5 @@
 "Lock wait timeout exceeded",
 "The total number of locks exceeds the lock table size",
 "Update locks cannot be acquired during a READ UNCOMMITTED transaction",
+"DROP DATABASE not allowed while thread is holding global read lock",
+"CREATE DATABASE not allowed while thread is holding global read lock",
