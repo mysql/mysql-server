@@ -947,11 +947,11 @@ static int myisamchk(MI_CHECK *param, my_string filename)
 	  uint key;
 	  /*
 	    We can't update the index in mi_sort_records if we have a
-	    prefix compressed index
+	    prefix compressed or fulltext index
 	  */
 	  my_bool update_index=1;
 	  for (key=0 ; key < share->base.keys; key++)
-	    if (share->keyinfo[key].flag & HA_BINARY_PACK_KEY)
+	    if (share->keyinfo[key].flag & (HA_BINARY_PACK_KEY|HA_FULLTEXT))
 	      update_index=0;
 
 	  error=mi_sort_records(param,info,filename,param->opt_sort_key,
