@@ -479,3 +479,4 @@ vio/test-sslclient
 vio/test-sslserver
 vio/viotest-ssl
 tests/client_test
+mysys/charset2html
