@@ -4472,9 +4472,17 @@ fn_format_relative_to_data_home(my_string to, const char *name,
 
 static void fix_paths(void)
 {
-  char buff[FN_REFLEN];
+  char buff[FN_REFLEN],*pos;
   convert_dirname(mysql_home,mysql_home,NullS);
+  /* Resolve symlinks to allow 'mysql_home' to be a relative symlink */
   my_realpath(mysql_home,mysql_home,MYF(0));
+  /* Ensure that mysql_home ends in FN_LIBCHAR */
+  pos=strend(mysql_home);
+  if (pos[-1] != FN_LIBCHAR)
+  {
+    pos[0]= FN_LIBCHAR;
+    pos[1]= 0;
+  }
   convert_dirname(mysql_real_data_home,mysql_real_data_home,NullS);
   convert_dirname(language,language,NullS);
   (void) my_load_path(mysql_home,mysql_home,""); // Resolve current dir
