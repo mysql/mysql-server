@@ -1,0 +1,77 @@
+drop table if exists t1,t2;
+create table t1
+(
+a int primary key,
+b char(10),
+);
+insert into t1 values (1,'one');
+insert into t1 values (2,'two');
+insert into t1 values (3,'three');
+insert into t1 values (4,'four');
+set @a=2;
+prepare stmt1 from 'select * from t1 where a <= ?';
+execute stmt1 using @a;
+a	b
+1	one
+2	two
+set @a=3;
+execute stmt1 using @a;
+a	b
+1	one
+2	two
+3	three
+deallocate prepare no_such_statement;
+ERROR HY000: Undefined prepared statement
+execute stmt1;
+ERROR HY000: Wrong arguments to mysql_execute
+prepare stmt2 from 'prepare nested_stmt from "select 1"';
+ERROR 42000: You have an error in your SQL syntax.  Check the manual that corresponds to your MySQL server version for the right syntax to use near '"select 1"' at line 1
+prepare stmt2 from 'execute stmt1';
+ERROR 42000: You have an error in your SQL syntax.  Check the manual that corresponds to your MySQL server version for the right syntax to use near 'stmt1' at line 1
+prepare stmt2 from 'deallocate prepare z';
+ERROR 42000: You have an error in your SQL syntax.  Check the manual that corresponds to your MySQL server version for the right syntax to use near 'z' at line 1
+prepare stmt3 from 'insert into t1 values (?,?)';
+set @arg1=5, @arg2='five';
+execute stmt3 using @arg1, @arg2;
+select * from t1 where a>3;
+a	b
+4	four
+5	five
+prepare stmt4 from 'update t1 set a=? where b=?';
+set @arg1=55, @arg2='five';
+execute stmt4 using @arg1, @arg2;
+select * from t1 where a>3;
+a	b
+4	four
+55	five
+prepare stmt4 from 'create table t2 (a int)';
+execute stmt4;
+prepare stmt4 from 'drop table t2';
+execute stmt4;
+execute stmt4;
+ERROR 42S02: Unknown table 't2'
+prepare stmt5 from 'select ? + a from t1';
+set @a=1;
+execute stmt5 using @a;
+? + a
+2
+3
+4
+5
+56
+execute stmt5 using @no_such_var;
+? + a
+NULL
+NULL
+NULL
+NULL
+NULL
+set @nullvar=NULL;
+execute stmt5 using @nullvar;
+? + a
+NULL
+NULL
+NULL
+NULL
+NULL
+drop table t1;
