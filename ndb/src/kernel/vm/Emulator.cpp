@@ -35,8 +35,6 @@
 #include <NdbSleep.h>
 #include <new>
 
-#include <signal.h>        // For process signals
-
 extern "C" {
   extern void (* ndb_new_handler)();
 }
