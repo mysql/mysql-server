@@ -1090,8 +1090,9 @@ attribute:
 
 opt_binary:
 	/* empty */	{}
-	| BINARY	{ Lex->type|=BINARY_FLAG; };
+	| BINARY	{ Lex->type|=BINARY_FLAG; }
 	| CHAR_SYM SET opt_equal ident {}
+	;
 
 references:
 	REFERENCES table_ident opt_on_delete {}
