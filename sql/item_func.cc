@@ -959,6 +959,7 @@ double Item_func_round::val()
   return tmp2;
 }
 
+
 void Item_func_rand::fix_length_and_dec()
 {
   decimals=NOT_FIXED_DEC; 
