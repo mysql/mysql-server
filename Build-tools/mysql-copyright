@@ -131,13 +131,17 @@ sub main
     rename($destdir, $newdistname);
     
     # tar the new distribution
-    `tar cz -f $opt_target/$newdistname.tar.gz $newdistname`;
+    `tar cz -f $WD/$newdistname.tar.gz $newdistname`;
     $pec= $? >> 8;
     abort($dir, "Making new tar archive failed!\n") if ($pec);
   
     # remove temporary directory
-    chdir "..";
-    `rm -rf $dir/`;
+    chdir($WD) or print "$! Unable to move up one dir\n";
+    print "deleting temp dir $dir\n"; 
+    if (-d "$WD/$dir") {
+      system("rm -rf $WD/$dir") or print "$! Unable to delete $WD/$dir!\n";
+    }
+
   }
   exit(0);
 }  
