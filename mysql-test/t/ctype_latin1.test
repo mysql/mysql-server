@@ -60,3 +60,9 @@ DROP TABLE t1;
 select 'a' regexp 'A' collate latin1_general_ci;
 select 'a' regexp 'A' collate latin1_general_cs;
 select 'a' regexp 'A' collate latin1_bin;
+
+
+SET collation_connection='latin1_swedish_ci';
+-- source include/ctype_filesort.inc
+SET collation_connection='latin1_bin';
+-- source include/ctype_filesort.inc

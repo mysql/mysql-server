@@ -64,7 +64,7 @@ const char *command_name[]={
   "Drop DB", "Refresh", "Shutdown", "Statistics", "Processlist",
   "Connect","Kill","Debug","Ping","Time","Delayed insert","Change user",
   "Binlog Dump","Table Dump",  "Connect Out", "Register Slave",
-  "Prepare", "Prepare Execute", "Long Data", "Close stmt",
+  "Prepare", "Execute", "Long Data", "Close stmt",
   "Reset stmt", "Set option",
   "Error"					// Last command number
 };
@@ -1547,7 +1547,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
 			packet, (uint) (pend-packet), thd->charset());
     table_list.alias= table_list.real_name= conv_name.str;
     packet= pend+1;
-    // command not cachable => no gap for data base name
+    thd->query_length= strlen(packet);       // for simplicity: don't optimize
     if (!(thd->query=fields=thd->memdup(packet,thd->query_length+1)))
       break;
     mysql_log.write(thd,command,"%s %s",table_list.real_name,fields);
@@ -2393,7 +2393,8 @@ mysql_execute_command(THD *thd)
 				      &lex->create_info,
                                       lex->create_list,
                                       lex->key_list,
-                                      select_lex->item_list,lex->duplicates)))
+                                      select_lex->item_list, lex->duplicates,
+                                      lex->ignore)))
         {
           /*
             CREATE from SELECT give its SELECT_LEX for SELECT,
@@ -2532,7 +2533,7 @@ unsent_create_error:
 			       lex->key_list,
 			       select_lex->order_list.elements,
                                (ORDER *) select_lex->order_list.first,
-			       lex->duplicates, &lex->alter_info);
+			       lex->duplicates, lex->ignore, &lex->alter_info);
       }
       break;
     }
@@ -2694,7 +2695,7 @@ unsent_create_error:
 		      select_lex->order_list.elements,
                       (ORDER *) select_lex->order_list.first,
                       select_lex->select_limit,
-                      lex->duplicates);
+                      lex->duplicates, lex->ignore);
     if (thd->net.report_error)
       res= -1;
     break;
@@ -2707,7 +2708,7 @@ unsent_create_error:
 			    &lex->value_list,
 			    select_lex->where,
 			    select_lex->options,
-			    lex->duplicates, unit, select_lex);
+			    lex->duplicates, lex->ignore, unit, select_lex);
     break;
   }
   case SQLCOM_REPLACE:
@@ -2715,9 +2716,9 @@ unsent_create_error:
   {
     if ((res= insert_precheck(thd, tables)))
       break;
-    res = mysql_insert(thd,tables,lex->field_list,lex->many_values,
-                       lex->update_list, lex->value_list,
-                       lex->duplicates);
+    res= mysql_insert(thd,tables,lex->field_list,lex->many_values,
+                      lex->update_list, lex->value_list,
+                      lex->duplicates, lex->ignore);
     if (thd->net.report_error)
       res= -1;
     break;
@@ -2755,7 +2756,7 @@ unsent_create_error:
 				    lex->duplicates)) &&
         (result= new select_insert(tables->table, &lex->field_list,
 				   &lex->update_list, &lex->value_list,
-                                   lex->duplicates)))
+                                   lex->duplicates, lex->ignore)))
     {
       TABLE *table= tables->table;
       /* Skip first table, which is the table we are inserting in */
@@ -3065,7 +3066,7 @@ unsent_create_error:
 	goto error;
     }
     res=mysql_load(thd, lex->exchange, tables, lex->field_list,
-		   lex->duplicates, (bool) lex->local_file, lex->lock_option);
+		   lex->duplicates, lex->ignore, (bool) lex->local_file, lex->lock_option);
     break;
   }
 
@@ -5118,7 +5119,7 @@ int mysql_create_index(THD *thd, TABLE_LIST *table_list, List<Key> &keys)
   DBUG_RETURN(mysql_alter_table(thd,table_list->db,table_list->real_name,
 				&create_info, table_list,
 				fields, keys, 0, (ORDER*)0,
-				DUP_ERROR, &alter_info));
+				DUP_ERROR, 0, &alter_info));
 }
 
 
@@ -5137,7 +5138,7 @@ int mysql_drop_index(THD *thd, TABLE_LIST *table_list, ALTER_INFO *alter_info)
   DBUG_RETURN(mysql_alter_table(thd,table_list->db,table_list->real_name,
 				&create_info, table_list,
 				fields, keys, 0, (ORDER*)0,
-				DUP_ERROR, alter_info));
+				DUP_ERROR, 0, alter_info));
 }
 
 

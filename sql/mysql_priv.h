@@ -538,6 +538,7 @@ int mysql_alter_table(THD *thd, char *new_db, char *new_name,
 		      List<Key> &keys,
 		      uint order_num, ORDER *order,
 		      enum enum_duplicates handle_duplicates,
+                      bool ignore,
 		      ALTER_INFO *alter_info, bool do_send_ok=1);
 int mysql_recreate_table(THD *thd, TABLE_LIST *table_list, bool do_send_ok);
 int mysql_create_like_table(THD *thd, TABLE_LIST *table,
@@ -557,11 +558,11 @@ int mysql_prepare_update(THD *thd, TABLE_LIST *table_list,
 int mysql_update(THD *thd,TABLE_LIST *tables,List<Item> &fields,
 		 List<Item> &values,COND *conds,
                  uint order_num, ORDER *order, ha_rows limit,
-		 enum enum_duplicates handle_duplicates);
+		 enum enum_duplicates handle_duplicates, bool ignore);
 int mysql_multi_update(THD *thd, TABLE_LIST *table_list,
 		       List<Item> *fields, List<Item> *values,
 		       COND *conds, ulong options,
-		       enum enum_duplicates handle_duplicates,
+		       enum enum_duplicates handle_duplicates, bool ignore,
 		       SELECT_LEX_UNIT *unit, SELECT_LEX *select_lex);
 int mysql_prepare_insert(THD *thd, TABLE_LIST *table_list,
 			 TABLE_LIST *insert_table_list, TABLE *table,
@@ -570,7 +571,7 @@ int mysql_prepare_insert(THD *thd, TABLE_LIST *table_list,
 			 List<Item> &update_values, enum_duplicates duplic);
 int mysql_insert(THD *thd,TABLE_LIST *table,List<Item> &fields,
 		 List<List_item> &values, List<Item> &update_fields,
-		 List<Item> &update_values, enum_duplicates flag);
+		 List<Item> &update_values, enum_duplicates flag, bool ignore);
 int mysql_prepare_delete(THD *thd, TABLE_LIST *table_list, Item **conds);
 int mysql_delete(THD *thd, TABLE_LIST *table, COND *conds, SQL_LIST *order,
                  ha_rows rows, ulong options);
@@ -724,6 +725,7 @@ void wait_for_refresh(THD *thd);
 int open_tables(THD *thd, TABLE_LIST *tables, uint *counter);
 int simple_open_n_lock_tables(THD *thd,TABLE_LIST *tables);
 int open_and_lock_tables(THD *thd,TABLE_LIST *tables);
+int open_normal_and_derived_tables(THD *thd, TABLE_LIST *tables);
 void relink_tables_for_derived(THD *thd);
 int lock_tables(THD *thd, TABLE_LIST *tables, uint counter);
 TABLE *open_temporary_table(THD *thd, const char *path, const char *db,
@@ -759,6 +761,7 @@ bool eval_const_cond(COND *cond);
 /* sql_load.cc */
 int mysql_load(THD *thd,sql_exchange *ex, TABLE_LIST *table_list,
 	       List<Item> &fields, enum enum_duplicates handle_duplicates,
+               bool ignore,
 	       bool local_file,thr_lock_type lock_type);
 int write_record(TABLE *table,COPY_INFO *info);
 

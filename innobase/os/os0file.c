@@ -486,7 +486,7 @@ os_io_init_simple(void)
 	}
 }
 
-#ifndef UNIV_HOTBACKUP
+#if !defined(UNIV_HOTBACKUP) && !defined(__NETWARE__)
 /*************************************************************************
 Creates a temporary file. This function is defined in ha_innodb.cc. */
 
@@ -494,7 +494,7 @@ int
 innobase_mysql_tmpfile(void);
 /*========================*/
 			/* out: temporary file descriptor, or < 0 on error */
-#endif /* !UNIV_HOTBACKUP */
+#endif /* !UNIV_HOTBACKUP && !__NETWARE__ */
 
 /***************************************************************************
 Creates a temporary file. */
@@ -504,9 +504,12 @@ os_file_create_tmpfile(void)
 /*========================*/
 			/* out: temporary file handle, or NULL on error */
 {
+#ifdef __NETWARE__
+	FILE*	file	= tmpfile();
+#else /* __NETWARE__ */
 	FILE*	file	= NULL;
 	int	fd	= -1;
-#ifdef UNIV_HOTBACKUP
+# ifdef UNIV_HOTBACKUP
 	int	tries;
 	for (tries = 10; tries--; ) {
 		char*	name = tempnam(fil_path_to_mysql_datadir, "ib");
@@ -515,15 +518,15 @@ os_file_create_tmpfile(void)
 		}
 
 		fd = open(name,
-# ifdef __WIN__
+#  ifdef __WIN__
 			O_SEQUENTIAL | O_SHORT_LIVED | O_TEMPORARY |
-# endif /* __WIN__ */
+#  endif /* __WIN__ */
 			O_CREAT | O_EXCL | O_RDWR,
 			S_IREAD | S_IWRITE);
 		if (fd >= 0) {
-# ifndef __WIN__
+#  ifndef __WIN__
 			unlink(name);
-# endif /* !__WIN__ */
+#  endif /* !__WIN__ */
 			free(name);
 			break;
 		}
@@ -534,22 +537,25 @@ os_file_create_tmpfile(void)
 			name);
 		free(name);
 	}
-#else /* UNIV_HOTBACKUP */
+# else /* UNIV_HOTBACKUP */
 	fd = innobase_mysql_tmpfile();
-#endif /* UNIV_HOTBACKUP */
+# endif /* UNIV_HOTBACKUP */
 
 	if (fd >= 0) {
 		file = fdopen(fd, "w+b");
 	}
+#endif /* __NETWARE__ */
 
 	if (!file) {
 		ut_print_timestamp(stderr);
 		fprintf(stderr,
 			"  InnoDB: Error: unable to create temporary file;"
 			" errno: %d\n", errno);
+#ifndef __NETWARE__
 		if (fd >= 0) {
 			close(fd);
 		}
+#endif /* !__NETWARE__ */
 	}
 
 	return(file);
