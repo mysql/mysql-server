@@ -6411,6 +6411,12 @@ Please report bad or out-of-date mirrors to @email{webmaster@@mysql.com}.
 @uref{http://gd.tuwien.ac.at/db/mysql/, WWW}
 @uref{ftp://gd.tuwien.ac.at/db/mysql/, FTP}
 
+@item
+@c EMAIL: ftpmaint@belnet.be (Antoine Delvaux)
+@image{Flags/belgium} Belgium [BELNET] @
+@uref{http://mysql.belnet.be/, WWW}
+@uref{ftp://ftp.belnet.be/mirror/ftp.mysql.com/pub/mysql/, FTP}
+
 @c @item
 @c Not ok 20000919; Old site (Matt)
 @c EMAIL: delian@naturella.com (Delian Delchev)
@@ -6455,7 +6461,7 @@ Please report bad or out-of-date mirrors to @email{webmaster@@mysql.com}.
 @item
 @c removed 991020 (no DNS entry). New name 991026. Added 991121
 @c Statistics at http://mirror.borsen.dk/
-@c EMAIL: guru@borsen.dk  (Jesper Angelo)
+@c EMAIL: guru@borsen.dk (Jesper Angelo)
 @image{Flags/denmark} Denmark [Borsen] @
 @uref{ http://mysql.borsen.dk/, WWW}
 
