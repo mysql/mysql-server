@@ -375,7 +375,7 @@ The MySQL Access Privilege System
 
 MySQL Language Reference
 
-* Literals::                    Literals: how to write strings and numbers
+* Literals::                    Literals: How to write strings and numbers
 * Variables::                   User variables
 * Column types::                Column types
 * Functions::                   Functions
@@ -400,7 +400,7 @@ MySQL Language Reference
 * LOAD DATA::                   @code{LOAD DATA INFILE} syntax
 * UPDATE::                      @code{UPDATE} syntax
 * USE::                         @code{USE} syntax
-* FLUSH::                       @code{Flush} syntax (clearing caches)
+* FLUSH::                       @code{FLUSH} syntax (clearing caches)
 * KILL::                        @code{KILL} syntax
 * SHOW::                        @code{SHOW} syntax (Get information about tables, columns, ...)
 * EXPLAIN::                     @code{EXPLAIN} syntax (Get information about a @code{SELECT})
@@ -478,7 +478,7 @@ Functions for Use in @code{SELECT} and @code{WHERE} Clauses
 * INSERT SELECT::               
 * INSERT DELAYED::              
 
-@code{SHOW} Syntax (Get Information About Tables, Columns,...)
+@code{SHOW} Syntax
 
 * SHOW DATABASE INFO::          
 * SHOW TABLE STATUS::           
@@ -511,7 +511,7 @@ MyISAM Table Formats
 * Dynamic format::              Dynamic table characteristics
 * Compressed format::           Compressed table characteristics
 
-BDB or Berkeley_db Tables
+BDB or Berkeley_DB Tables
 
 * BDB overview::                
 * BDB install::                 
@@ -529,10 +529,10 @@ GEMINI Tables
 
 INNOBASE Tables
 
-* INNOBASE overview::           INNOBASE overview
+* INNOBASE overview::           
 * INNOBASE start::              INNOBASE startup options
 * Using INNOBASE tables::       Using INNOBASE tables
-* INNOBASE restrictions::       Some restrictions on @code{INNOBASE} tables
+* INNOBASE restrictions::       Some restrictions on @code{INNOBASE} tables:
 
 MySQL Tutorial
 
@@ -782,6 +782,82 @@ MySQL APIs
 * Cplusplus::                   @strong{MySQL} C++ APIs
 * Python::                      @strong{MySQL} Python APIs
 * Tcl::                         @strong{MySQL} Tcl APIs
+
+MySQL C API
+
+* C API datatypes::             C API Datatypes
+* C API function overview::     C API Function Overview
+* C API functions::             C API Function Descriptions
+* C API problems::              
+* Thread-safe clients::         
+
+C API Function Descriptions
+
+* mysql_affected_rows::         @code{mysql_affected_rows()}
+* mysql_close::                 @code{mysql_close()}
+* mysql_connect::               @code{mysql_connect()}
+* mysql_change_user::           @code{mysql_change_user()}
+* mysql_character_set_name::    @code{mysql_character_set_name()}
+* mysql_create_db::             @code{mysql_create_db()}
+* mysql_data_seek::             @code{mysql_data_seek()}
+* mysql_debug::                 @code{mysql_debug()}
+* mysql_drop_db::               @code{mysql_drop_db()}
+* mysql_dump_debug_info::       @code{mysql_dump_debug_info()}
+* mysql_eof::                   @code{mysql_eof()}
+* mysql_errno::                 @code{mysql_errno()}
+* mysql_error::                 @code{mysql_error()}
+* mysql_escape_string::         @code{mysql_escape_string()}
+* mysql_fetch_field::           @code{mysql_fetch_field()}
+* mysql_fetch_fields::          @code{mysql_fetch_fields()}
+* mysql_fetch_field_direct::    @code{mysql_fetch_field_direct()}
+* mysql_fetch_lengths::         @code{mysql_fetch_lengths()}
+* mysql_fetch_row::             @code{mysql_fetch_row()}
+* mysql_field_count::           @code{mysql_field_count()}
+* mysql_field_seek::            @code{mysql_field_seek()}
+* mysql_field_tell::            @code{mysql_field_tell()}
+* mysql_free_result::           @code{mysql_free_result()}
+* mysql_get_client_info::       @code{mysql_get_client_info()}
+* mysql_get_host_info::         @code{mysql_get_host_info()}
+* mysql_get_proto_info::        @code{mysql_get_proto_info()}
+* mysql_get_server_info::       @code{mysql_get_server_info()}
+* mysql_info::                  @code{mysql_info()}
+* mysql_init::                  @code{mysql_init()}
+* mysql_insert_id::             @code{mysql_insert_id()}
+* mysql_kill::                  @code{mysql_kill()}
+* mysql_list_dbs::              @code{mysql_list_dbs()}
+* mysql_list_fields::           @code{mysql_list_fields()}
+* mysql_list_processes::        @code{mysql_list_processes()}
+* mysql_list_tables::           @code{mysql_list_tables()}
+* mysql_num_fields::            @code{mysql_num_fields()}
+* mysql_num_rows::              @code{mysql_num_rows()}
+* mysql_options::               @code{mysql_options()}
+* mysql_ping::                  @code{mysql_ping()}
+* mysql_query::                 @code{mysql_query()}
+* mysql_real_connect::          @code{mysql_real_connect()}
+* mysql_real_escape_string::    @code{mysql_real_escape_string()}
+* mysql_real_query::            @code{mysql_real_query()}
+* mysql_reload::                @code{mysql_reload()}
+* mysql_row_seek::              @code{mysql_row_seek()}
+* mysql_row_tell::              @code{mysql_row_tell()}
+* mysql_select_db::             @code{mysql_select_db()}
+* mysql_shutdown::              @code{mysql_shutdown()}
+* mysql_stat::                  @code{mysql_stat()}
+* mysql_store_result::          @code{mysql_store_result()}
+* mysql_thread_id::             @code{mysql_thread_id()}
+* mysql_use_result::            @code{mysql_use_result()}
+
+Common questions and problems when using the C API
+
+* NULL mysql_store_result::     
+* Query results::               
+* Getting unique ID::           
+* C API linking problems::      
+
+Why Is It that After @code{mysql_query()} Returns Success, @code{mysql_store_result()} Sometimes Returns @code{NULL?}
+
+* Query results::               
+* Getting unique ID::           
+* C API linking problems::      
 
 MySQL Perl API
 
@@ -36318,13 +36394,15 @@ other APIs.
 
 @cindex C API, datatypes
 @cindex datatypes, C API
-@node C, C API datatypes, Clients, Clients
+@node C, Perl, Clients, Clients
 @section MySQL C API
 
 @menu
 * C API datatypes::             C API Datatypes
 * C API function overview::     C API Function Overview
 * C API functions::             C API Function Descriptions
+* C API problems::              
+* Thread-safe clients::         
 @end menu
 
 The C API code is distributed with @strong{MySQL}. It is included in the
@@ -36809,7 +36887,7 @@ functions.  These return the error code or error message for the most
 recently invoked function that can succeed or fail, allowing you to determine
 when an error occurred and what it was.
 
-@node C API functions, Perl, C API function overview, C
+@node C API functions, C API problems, C API function overview, C
 @subsection C API Function Descriptions
 
 @menu
@@ -36865,11 +36943,6 @@ when an error occurred and what it was.
 * mysql_store_result::          @code{mysql_store_result()}
 * mysql_thread_id::             @code{mysql_thread_id()}
 * mysql_use_result::            @code{mysql_use_result()}
-* NULL mysql_store_result::     Why is it that after @code{mysql_query()} returns success, @code{mysql_store_result()} sometimes returns @code{NULL?}
-* Query results::               What results can I get from a query?
-* Getting unique ID::           How can I get the unique ID for the last inserted row?
-* C API linking problems::      Problems linking with the C API
-* Thread-safe clients::         How to make a thread-safe client
 @end menu
 
 In the descriptions below, a parameter or return value of @code{NULL} means
@@ -38828,7 +38901,7 @@ The thread ID of the current connection.
 None.
 
 @findex @code{mysql_use_result()}
-@node mysql_use_result, NULL mysql_store_result, mysql_thread_id, C API functions
+@node mysql_use_result,  , mysql_thread_id, C API functions
 @subsubsection @code{mysql_use_result()}
 
 @code{MYSQL_RES *mysql_use_result(MYSQL *mysql)}
@@ -38890,10 +38963,20 @@ The connection to the server was lost during the query.
 An unknown error occurred.
 @end table
 
+@node C API problems, Thread-safe clients, C API functions, C
+@subsection Common questions and problems when using the C API
+
 @tindex @code{mysql_query()}
 @tindex @code{mysql_store_result()}
-@node NULL mysql_store_result, Query results, mysql_use_result, C API functions
-@subsection Why Is It that After @code{mysql_query()} Returns Success, @code{mysql_store_result()} Sometimes Returns @code{NULL?}
+@menu
+* NULL mysql_store_result::     
+* Query results::               
+* Getting unique ID::           
+* C API linking problems::      
+@end menu
+
+@node NULL mysql_store_result, Query results, C API problems, C API problems
+@subsubsection Why Is It that After @code{mysql_query()} Returns Success, @code{mysql_store_result()} Sometimes Returns @code{NULL?}
 
 It is possible for @code{mysql_store_result()} to return @code{NULL}
 following a successful call to @code{mysql_query()}.  When this happens, it
@@ -38925,8 +39008,14 @@ You can test for an error by calling @code{mysql_error()} or
 @code{mysql_errno()}.
 
 @cindex queries, C API results
-@node Query results, Getting unique ID, NULL mysql_store_result, C API functions
-@subsection What Results Can I Get From a Query?
+@menu
+* Query results::               
+* Getting unique ID::           
+* C API linking problems::      
+@end menu
+
+@node Query results, Getting unique ID, NULL mysql_store_result, C API problems
+@subsubsection What Results Can I Get From a Query?
 
 In addition to the result set returned by a query, you can also get the
 following information:
@@ -38964,8 +39053,8 @@ for the format of the string that it returns.  @code{mysql_info()} returns a
 @cindex last row, unique ID
 @cindex ID, unique
 @cindex tables, unique ID for last row
-@node Getting unique ID, C API linking problems, Query results, C API functions
-@subsection How Can I Get the Unique ID for the Last Inserted Row?
+@node Getting unique ID, C API linking problems, Query results, C API problems
+@subsubsection How Can I Get the Unique ID for the Last Inserted Row?
 
 If you insert a record in a table containing a column that has the
 @code{AUTO_INCREMENT} attribute, you can get the most recently generated
@@ -39004,8 +39093,8 @@ INSERT INTO foo2 (id,text)
 
 @cindex linking, problems
 @cindex C API, linking problems
-@node C API linking problems, Thread-safe clients, Getting unique ID, C API functions
-@subsection Problems Linking with the C API
+@node C API linking problems,  , Getting unique ID, C API problems
+@subsubsection Problems Linking with the C API
 
 When linking with the C API, the following errors may occur on some systems:
 
@@ -39023,7 +39112,7 @@ adding @code{-lm} to the end of the compile/link line.
 
 @cindex clients, thread-safe
 @cindex thread-safe clients
-@node Thread-safe clients,  , C API linking problems, C API functions
+@node Thread-safe clients,  , C API problems, C
 @subsection How to Make a Thread-safe Client
 
 The client library is almost thread safe. The biggest problem is
@@ -39105,7 +39194,7 @@ included the thread libraries on the link/compile line.
 
 @cindex APIs, Perl
 @cindex Perl API
-@node Perl, Eiffel, C API functions, Clients
+@node Perl, Eiffel, C, Clients
 @section MySQL Perl API
 
 This section documents the Perl @code{DBI} interface.  The former interface
