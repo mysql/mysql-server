@@ -13008,7 +13008,21 @@ static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
             extra.append(')');
 	  }
 	  else if (tab->select->cond)
-            extra.append("; Using where");
+          {
+            const COND *pushed_cond= tab->table->file->pushed_cond;
+
+            if (thd->variables.engine_condition_pushdown && pushed_cond)
+            {
+              extra.append("; Using where with pushed condition");
+              if (thd->lex->describe & DESCRIBE_EXTENDED)
+              {
+                extra.append(": ");
+                ((COND *)pushed_cond)->print(&extra);
+              }
+            }
+            else
+              extra.append("; Using where");
+          }
 	}
 	if (key_read)
         {
