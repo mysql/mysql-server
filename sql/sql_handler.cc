@@ -48,7 +48,8 @@ static TABLE **find_table_ptr_by_name(THD *thd,const char *db,
 int mysql_ha_open(THD *thd, TABLE_LIST *tables)
 {
   HANDLER_TABLES_HACK(thd);
-  int err=open_tables(thd,tables);
+  uint counter;
+  int err=open_tables(thd, tables, &counter);
   HANDLER_TABLES_HACK(thd);
   if (err)
     return -1;
