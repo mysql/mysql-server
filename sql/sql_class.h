@@ -131,7 +131,7 @@ public:
     DBUG_VOID_RETURN;
   }
   void set_max_size(ulong max_size_arg);
-  void signal_update() { pthread_cond_broadcast(&update_cond);}
+  void signal_update();
   void wait_for_update(THD* thd, bool master_or_slave);
   void set_need_start_event() { need_start_event = 1; }
   void init(enum_log_type log_type_arg,
