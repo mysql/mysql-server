@@ -369,9 +369,14 @@ const char *Item_ident::full_name() const
   }
   else
   {
-    tmp=(char*) sql_alloc((uint) strlen(table_name)+
-			  (uint) strlen(field_name)+2);
-    strxmov(tmp,table_name,".",field_name,NullS);
+    if (table_name[0])
+    {
+      tmp= (char*) sql_alloc((uint) strlen(table_name) +
+			     (uint) strlen(field_name) + 2);
+      strxmov(tmp, table_name, ".", field_name, NullS);
+    }
+    else
+      tmp= (char*) field_name;
   }
   return tmp;
 }
