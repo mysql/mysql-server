@@ -493,13 +493,13 @@ DASH72=`$ECHO '-------------------------------------------------------'|$CUT -c 
 # on binary, use what is installed
 if [ x$SOURCE_DIST = x1 ] ; then
  if [ "x$USE_EMBEDDED_SERVER" = "x1" ] ; then
-   if [ -f "$BASEDIR/libmysqld/examples/mysqltest" ] ; then
-     MYSQL_TEST="$VALGRIND $BASEDIR/libmysqld/examples/mysqltest"
+   if [ -f "$BASEDIR/libmysqld/examples/mysqltest_embedded" ] ; then
+     MYSQL_TEST="$VALGRIND $BASEDIR/libmysqld/examples/mysqltest_embedded"
    else
-     echo "Fatal error: Cannot find embedded server 'mysqltest'" 1>&2
+     echo "Fatal error: Cannot find embedded server 'mysqltest_embedded'" 1>&2
      exit 1
    fi
-   TESTS_BINDIR="$BASEDIR/libmysqld/examples"
+   MYSQL_CLIENT_TEST="$BASEDIR/libmysqld/examples/mysql_client_test_embedded"
  else
    MYSQLD="$VALGRIND $BASEDIR/sql/mysqld"
    if [ -f "$BASEDIR/client/.libs/lt-mysqltest" ] ; then
@@ -509,7 +509,7 @@ if [ x$SOURCE_DIST = x1 ] ; then
    else
      MYSQL_TEST="$BASEDIR/client/mysqltest"
    fi
-   TESTS_BINDIR="$BASEDIR/tests"
+   MYSQL_CLIENT_TEST="$BASEDIR/tests/mysql_client_test"
  fi
  if [ -f "$BASEDIR/client/.libs/mysqldump" ] ; then
    MYSQL_DUMP="$BASEDIR/client/.libs/mysqldump"
@@ -538,6 +538,14 @@ if [ x$SOURCE_DIST = x1 ] ; then
  MYSQL_FIX_SYSTEM_TABLES="$BASEDIR/scripts/mysql_fix_privilege_tables"
  NDB_TOOLS_DIR="$BASEDIR/ndb/tools"
 else
+
+ # We have a binary installation. Note that this can be both from
+ # unpacking a MySQL AB binary distribution (created using
+ # "scripts/make_binary_distribution", and from a "make install".
+ # Unfortunately the structure differs a bit, for a "make install"
+ # currently all binaries are in "bin", for a MySQL AB packaging
+ # some are in "tests".
+
  if test -x "$BASEDIR/libexec/mysqld"
  then
    MYSQLD="$VALGRIND $BASEDIR/libexec/mysqld"
@@ -545,8 +553,6 @@ else
    MYSQLD="$VALGRIND $BASEDIR/bin/mysqld"
  fi
  CLIENT_BINDIR="$BASEDIR/bin"
- TESTS_BINDIR="$BASEDIR/tests"
- MYSQL_TEST="$CLIENT_BINDIR/mysqltest"
  MYSQL_DUMP="$CLIENT_BINDIR/mysqldump"
  MYSQL_BINLOG="$CLIENT_BINDIR/mysqlbinlog"
  MYSQLADMIN="$CLIENT_BINDIR/mysqladmin"
@@ -565,7 +571,23 @@ else
  else
    LANGUAGE="$BASEDIR/share/english/"
    CHARSETSDIR="$BASEDIR/share/charsets"
-  fi
+ fi
+ if [ "x$USE_EMBEDDED_SERVER" = "x1" ] ; then
+   if [ -f "$CLIENT_BINDIR/mysqltest_embedded" ] ; then
+     MYSQL_TEST="$VALGRIND $CLIENT_BINDIR/mysqltest_embedded"
+   else
+     echo "Fatal error: Cannot find embedded server 'mysqltest_embedded'" 1>&2
+     exit 1
+   fi
+   if [ -d "$BASEDIR/tests/mysql_client_test_embedded" ] ; then
+     MYSQL_CLIENT_TEST="$TESTS_BINDIR/mysql_client_test_embedded"
+   else
+     MYSQL_CLIENT_TEST="$CLIENT_BINDIR/mysql_client_test_embedded"
+   fi
+ else
+   MYSQL_TEST="$CLIENT_BINDIR/mysqltest"
+   MYSQL_CLIENT_TEST="$CLIENT_BINDIR/mysql_client_test"
+ fi
 fi
 
 if [ -z "$MASTER_MYSQLD" ]
@@ -599,13 +621,13 @@ then
   EXTRA_SLAVE_MYSQLD_OPT="$EXTRA_SLAVE_MYSQLD_OPT --user=root"
 fi
 
-
+MYSQL_CLIENT_TEST="$MYSQL_CLIENT_TEST --no-defaults --testcase --user=root --socket=$MASTER_MYSOCK --port=$MYSQL_TCP_PORT --silent"
 MYSQL_DUMP="$MYSQL_DUMP --no-defaults -uroot --socket=$MASTER_MYSOCK --password=$DBPASSWD $EXTRA_MYSQLDUMP_OPT"
 MYSQL_BINLOG="$MYSQL_BINLOG --no-defaults --local-load=$MYSQL_TMP_DIR $EXTRA_MYSQLBINLOG_OPT"
 MYSQL_FIX_SYSTEM_TABLES="$MYSQL_FIX_SYSTEM_TABLES --no-defaults --host=localhost --port=$MASTER_MYPORT --socket=$MASTER_MYSOCK --user=root --password=$DBPASSWD --basedir=$BASEDIR --bindir=$CLIENT_BINDIR --verbose"
 MYSQL="$MYSQL --host=localhost --port=$MASTER_MYPORT --socket=$MASTER_MYSOCK --user=root --password=$DBPASSWD"
 export MYSQL MYSQL_DUMP MYSQL_BINLOG MYSQL_FIX_SYSTEM_TABLES
-export CLIENT_BINDIR TESTS_BINDIR CHARSETSDIR
+export CLIENT_BINDIR MYSQL_CLIENT_TEST CHARSETSDIR
 export NDB_TOOLS_DIR
 
 MYSQL_TEST_ARGS="--no-defaults --socket=$MASTER_MYSOCK --database=$DB \
