@@ -2070,3 +2070,41 @@ String* Item_func_inet_ntoa::val_str(String* str)
   str->length(str->length()-1);			// Remove last '.';
   return str;
 }
+
+/*
+  QUOTE() function returns argument string in single quotes,
+  also adds a \ before \, ' CHAR(0) and CHAR(24)
+*/
+String *Item_func_quote::val_str(String *str)
+{
+  static char escmask[64] = {0x01, 0x00, 0x00, 0x04, 0x80, 0x00, 0x00, 0x00,
+			     0x00, 0x00, 0x00, 0x10, 0x00, 0x00, 0x00, 0x00,
+			     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+			     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
+  String *arg= args[0]->val_str(str);
+  char *from, *to, *end;
+  uint delta= 2; /* for beginning and ending ' signs */
+
+  for (from= (char*) arg->ptr(), end= from + arg->length(); from < end; from++)
+  {
+    if (*(escmask + (*from >> 3)) and (1 << (*from & 7)))
+      delta++;
+  }
+  if (str->alloc(arg->length() + delta))
+  {
+    null_value= 1;
+    return 0;
+  }
+  to= (char*) str->ptr() + arg->length() + delta - 1;
+  *to--= '\'';
+  for (end= (char*) arg->ptr(), from= end + arg->length() - 1; from >= end; 
+       from--, to--)
+  {
+    *to= *from;
+    if (*(escmask + (*from >> 3)) and (1 << (*from & 7)))
+      *--to= '\\';
+  }
+  *to= '\'';
+  str->length(arg->length() + delta);
+  return str;
+}
