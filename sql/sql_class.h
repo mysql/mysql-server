@@ -1050,7 +1050,6 @@ public:
 
 class select_insert :public select_result {
  public:
-  TABLE_LIST *table_list;
   TABLE *table;
   List<Item> *fields;
   ulonglong last_insert_id;

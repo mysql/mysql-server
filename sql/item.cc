@@ -103,8 +103,7 @@ void Item::print_item_w_name(String *str)
 
 Item_ident::Item_ident(const char *db_name_par,const char *table_name_par,
 		       const char *field_name_par)
-  :
-   orig_db_name(db_name_par), orig_table_name(table_name_par), 
+  :orig_db_name(db_name_par), orig_table_name(table_name_par), 
    orig_field_name(field_name_par), changed_during_fix_field(0), 
    db_name(db_name_par), table_name(table_name_par), 
    field_name(field_name_par), cached_field_index(NO_CACHED_FIELD_INDEX), 
@@ -130,6 +129,11 @@ Item_ident::Item_ident(THD *thd, Item_ident *item)
 
 void Item_ident::cleanup()
 {
+  DBUG_ENTER("Item_ident::cleanup");
+  DBUG_PRINT("enter", ("b:%s(%s), t:%s(%s), f:%s(%s)",
+		       db_name, orig_db_name,
+		       table_name, orig_table_name,
+		       field_name, orig_field_name));
   Item::cleanup();
   if (changed_during_fix_field)
   {
@@ -139,6 +143,7 @@ void Item_ident::cleanup()
   db_name= orig_db_name; 
   table_name= orig_table_name;
   field_name= orig_field_name;
+  DBUG_VOID_RETURN;
 }
 
 bool Item_ident::remove_dependence_processor(byte * arg)
