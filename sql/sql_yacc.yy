@@ -302,6 +302,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %token	NEW_SYM
 %token	NCHAR_SYM
 %token	NCHAR_STRING
+%token  NVARCHAR_SYM
 %token	NOT
 %token	NO_SYM
 %token	NULL_SYM
@@ -1339,6 +1340,7 @@ varchar:
 
 nvarchar:
 	NATIONAL_SYM VARCHAR {}
+	| NVARCHAR_SYM {}
 	| NCHAR_SYM VARCHAR {}
 	| NATIONAL_SYM CHAR_SYM VARYING {}
 	| NCHAR_SYM VARYING {}
@@ -4568,6 +4570,7 @@ keyword:
 	| NEW_SYM		{}
 	| NO_SYM		{}
 	| NONE_SYM		{}
+	| NVARCHAR_SYM		{}
 	| OFFSET_SYM		{}
 	| OLD_PASSWORD		{}
 	| OPEN_SYM		{}
