@@ -187,6 +187,7 @@ Dbtux::execREAD_CONFIG_REQ(Signal* signal)
   IndexPtr indexPtr;
   while (1) {
     jam();
+    refresh_watch_dog();
     c_indexPool.seize(indexPtr);
     if (indexPtr.i == RNIL) {
       jam();
