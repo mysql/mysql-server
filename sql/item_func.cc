@@ -148,7 +148,7 @@ void Item_func::print_op(String *str)
   str->append(')');
 }
 
-bool Item_func::eq(const Item *item) const
+bool Item_func::eq(const Item *item, bool binary_cmp) const
 {
   /* Assume we don't have rtti */
   if (this == item)
@@ -160,7 +160,7 @@ bool Item_func::eq(const Item *item) const
       func_name() != item_func->func_name())
     return 0;
   for (uint i=0; i < arg_count ; i++)
-    if (!args[i]->eq(item_func->args[i]))
+    if (!args[i]->eq(item_func->args[i], binary_cmp))
       return 0;
   return 1;
 }
@@ -1975,7 +1975,7 @@ void Item_func_get_user_var::print(String *str)
   str->append(')');
 }
 
-bool Item_func_get_user_var::eq(const Item *item) const
+bool Item_func_get_user_var::eq(const Item *item, bool binary_cmp) const
 {
   /* Assume we don't have rtti */
   if (this == item)
@@ -2198,7 +2198,7 @@ err:
   return 1;
 }
 
-bool Item_func_match::eq(const Item *item) const
+bool Item_func_match::eq(const Item *item, bool binary_cmp) const
 {
   if (item->type() != FUNC_ITEM)
     return 0;
@@ -2209,7 +2209,7 @@ bool Item_func_match::eq(const Item *item) const
   Item_func_match *ifm=(Item_func_match*) item;
 
   if (key == ifm->key && table == ifm->table &&
-      key_item()->eq(ifm->key_item()))
+      key_item()->eq(ifm->key_item(), binary_cmp))
     return 1;
 
   return 0;

@@ -743,7 +743,7 @@ btr_search_guess_on_hash(
 	
 #ifdef notdefined
 	/* These lines of code can be used in a debug version to check
-	correctness of the searched cursor position: */
+	the correctness of the searched cursor position: */
 	
 	info->last_hash_succ = FALSE;
 

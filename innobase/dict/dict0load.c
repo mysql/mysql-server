@@ -688,7 +688,16 @@ dict_load_indexes(
 		
 			dict_load_fields(table, index, heap);
 
-			dict_index_add_to_cache(table, index);
+			if (index->type & DICT_CLUSTERED == 0
+			    && NULL == dict_table_get_first_index(table)) {
+
+				fprintf(stderr,
+	"InnoDB: Error: trying to load index %s for table %s\n"
+	"InnoDB: but the first index was not clustered\n",
+				index->name, table->name);
+			} else {
+				dict_index_add_to_cache(table, index);
+			}
 		}
 
 		btr_pcur_move_to_next_user_rec(&pcur, &mtr);

@@ -121,6 +121,7 @@ ut_malloc(
 {
         return(ut_malloc_low(n, TRUE));
 }
+
 /**************************************************************************
 Frees a memory block allocated with ut_malloc. */
 

@@ -139,4 +139,13 @@ believe in love
 select * from t1 where aString > "believe in love" order by aString;
 aString
 believe in myself
-drop table t1;
+count(*)
+602
+count(*)
+602
+count(*)
+602
+count(*)
+389
+count(*)
+213

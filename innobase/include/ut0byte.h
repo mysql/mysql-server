@@ -55,6 +55,15 @@ ut_dulint_get_low(
 			/* out: 32 bits in ulint */
 	dulint	d);	/* in: dulint */
 /***********************************************************
+Converts a dulint (a struct of 2 ulints) to ib_longlong, which is a 64-bit
+integer type. */
+UNIV_INLINE
+ib_longlong
+ut_conv_dulint_to_longlong(
+/*=======================*/
+			/* out: value in ib_longlong type */
+	dulint	d);	/* in: dulint */
+/***********************************************************
 Tests if a dulint is zero. */
 UNIV_INLINE
 ibool

@@ -430,6 +430,7 @@ void close_thread_tables(THD *thd, bool locked)
 
   while (thd->open_tables)
     found_old_table|=close_thread_table(thd, &thd->open_tables);
+  thd->some_tables_deleted=0;
 
   /* Free tables to hold down open files */
   while (open_cache.records > table_cache_size && unused_tables)
@@ -1692,7 +1693,7 @@ find_item_in_list(Item *find,List<Item> &items)
 	{
 	  if (found)
 	  {
-	    if ((*found)->eq(item))
+	    if ((*found)->eq(item,0))
 	      continue;				// Same field twice (Access?)
 	    if (current_thd->where)
 	      my_printf_error(ER_NON_UNIQ_ERROR,ER(ER_NON_UNIQ_ERROR),MYF(0),
@@ -1708,7 +1709,7 @@ find_item_in_list(Item *find,List<Item> &items)
 	}
       }
     }
-    else if (!table_name && (item->eq(find) ||
+    else if (!table_name && (item->eq(find,0) ||
 			     find->name &&
 			     !my_strcasecmp(item->name,find->name)))
     {
@@ -2186,7 +2187,7 @@ int setup_ftfuncs(THD *thd)
     lj.rewind();
     while ((ftf2=lj++) != ftf)
     {
-      if (ftf->eq(ftf2) && !ftf2->master)
+      if (ftf->eq(ftf2,1) && !ftf2->master)
         ftf2->master=ftf;
     }
   }

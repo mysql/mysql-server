@@ -10,16 +10,21 @@ Created 10/21/1995 Heikki Tuuri
 #include "os0sync.h"
 #include "ut0mem.h"
 #include "srv0srv.h"
-#include "trx0sys.h"
 #include "fil0fil.h"
 
 #undef HAVE_FDATASYNC
+
+#undef UNIV_NON_BUFFERED_IO
 
 #ifdef POSIX_ASYNC_IO
 /* We assume in this case that the OS has standard Posix aio (at least SunOS
 2.6, HP-UX 11i and AIX 4.3 have) */
 
 #endif
+
+/* If the following is set to TRUE, we do not call os_file_flush in every
+os_file_write. We can set this TRUE if the doublewrite buffer is used. */
+ibool	os_do_not_call_flush_at_each_write	= FALSE;
 
 /* We use these mutexes to protect lseek + file i/o operation, if the
 OS does not provide an atomic pread or pwrite, or similar */
@@ -118,6 +123,9 @@ ulint	os_n_file_writes_old	= 0;
 ulint	os_n_fsyncs_old		= 0;
 time_t	os_last_printout;
 
+ibool	os_has_said_disk_full	= FALSE;
+
+
 /***************************************************************************
 Gets the operating system version. Currently works only on Windows. */
 
@@ -167,27 +175,28 @@ os_file_get_last_error(void)
 
 	err = (ulint) GetLastError();
 
-	if (err != ERROR_FILE_EXISTS) {
-	         fprintf(stderr,
-  "InnoDB: Operating system error number %li in a file operation.\n"
+	if (err != ERROR_FILE_EXISTS && err != ERROR_DISK_FULL) {
+		ut_print_timestamp(stderr);
+	     	fprintf(stderr,
+  "  InnoDB: Operating system error number %li in a file operation.\n"
   "InnoDB: See http://www.innodb.com/ibman.html for installation help.\n",
 		(long) err);
 
-		 if (err == ERROR_PATH_NOT_FOUND) {
+		if (err == ERROR_PATH_NOT_FOUND) {
 		         fprintf(stderr,
   "InnoDB: The error means the system cannot find the path specified.\n"
   "InnoDB: In installation you must create directories yourself, InnoDB\n"
   "InnoDB: does not create them.\n");
-		 } else if (err == ERROR_ACCESS_DENIED) {
+		} else if (err == ERROR_ACCESS_DENIED) {
 		         fprintf(stderr,
   "InnoDB: The error means mysqld does not have the access rights to\n"
   "InnoDB: the directory. It may also be you have created a subdirectory\n"
   "InnoDB: of the same name as a data file.\n"); 
-		 } else {
+		} else {
 		         fprintf(stderr,
   "InnoDB: Look from section 13.2 at http://www.innodb.com/ibman.html\n"
   "InnoDB: what the error number means.\n");
-		 }
+		}
 	}
 
 	if (err == ERROR_FILE_NOT_FOUND) {
@@ -202,26 +211,28 @@ os_file_get_last_error(void)
 #else
 	err = (ulint) errno;
 
-	if (err != EEXIST) {
-	         fprintf(stderr,
-  "InnoDB: Operating system error number %li in a file operation.\n"
+	if (err != EEXIST && err != ENOSPC ) {
+		ut_print_timestamp(stderr);
+
+	     	fprintf(stderr,
+  "  InnoDB: Operating system error number %li in a file operation.\n"
   "InnoDB: See http://www.innodb.com/ibman.html for installation help.\n",
 		(long) err);
 
-		 if (err == ENOENT) {
+		if (err == ENOENT) {
 		         fprintf(stderr,
   "InnoDB: The error means the system cannot find the path specified.\n"
   "InnoDB: In installation you must create directories yourself, InnoDB\n"
   "InnoDB: does not create them.\n");
-		 } else if (err == EACCES) {
+		} else if (err == EACCES) {
 		         fprintf(stderr,
   "InnoDB: The error means mysqld does not have the access rights to\n"
   "InnoDB: the directory.\n");
-		 } else {
+		} else {
 		         fprintf(stderr,
   "InnoDB: Look from section 13.2 at http://www.innodb.com/ibman.html\n"
   "InnoDB: what the error number means or use the perror program of MySQL.\n");
-		 }
+		}
 	}
 
 	if (err == ENOSPC ) {
@@ -259,18 +270,26 @@ os_file_handle_error(
 	err = os_file_get_last_error();
 	
 	if (err == OS_FILE_DISK_FULL) {
-		fprintf(stderr, "\n");
-		if (name) {
-		        fprintf(stderr,
-			  "InnoDB: Encountered a problem with file %s.\n",
-									name);
-		}
-	        fprintf(stderr,
-	   "InnoDB: Cannot continue operation.\n"
-	   "InnoDB: Disk is full. Try to clean the disk to free space.\n"
-	   "InnoDB: Delete a possible created file and restart.\n");
+		/* We only print a warning about disk full once */
 
-		exit(1);
+		if (os_has_said_disk_full) {
+
+			return(FALSE);
+		}
+	
+		if (name) {
+			ut_print_timestamp(stderr);
+			fprintf(stderr,
+	"  InnoDB: Encountered a problem with file %s\n", name);
+		}
+
+		ut_print_timestamp(stderr);
+	        fprintf(stderr,
+	"  InnoDB: Disk is full. Try to clean the disk to free space.\n");
+
+		os_has_said_disk_full = TRUE;
+
+		return(FALSE);
 
 	} else if (err == OS_FILE_AIO_RESOURCES_RESERVED) {
 		return(TRUE);
@@ -290,6 +309,130 @@ os_file_handle_error(
 	return(FALSE);	
 }
 
+/********************************************************************
+Creates the seek mutexes used in positioned reads and writes. */
+
+void
+os_io_init_simple(void)
+/*===================*/
+{
+	ulint	i;
+
+	for (i = 0; i < OS_FILE_N_SEEK_MUTEXES; i++) {
+		os_file_seek_mutexes[i] = os_mutex_create(NULL);
+	}
+}
+
+/********************************************************************
+A simple function to open or create a file. */
+
+os_file_t
+os_file_create_simple(
+/*==================*/
+			/* out, own: handle to the file, not defined if error,
+			error number can be retrieved with os_get_last_error */
+	char*	name,	/* in: name of the file or path as a null-terminated
+			string */
+	ulint	create_mode,/* in: OS_FILE_OPEN if an existing file is opened
+			(if does not exist, error), or OS_FILE_CREATE if a new
+			file is created (if exists, error) */
+	ulint	access_type,/* in: OS_FILE_READ_ONLY or OS_FILE_READ_WRITE */
+	ibool*	success)/* out: TRUE if succeed, FALSE if error */
+{
+#ifdef __WIN__
+	os_file_t	file;
+	DWORD		create_flag;
+	DWORD		access;
+	DWORD		attributes	= 0;
+	ibool		retry;
+	
+try_again:	
+	ut_a(name);
+
+	if (create_mode == OS_FILE_OPEN) {
+		create_flag = OPEN_EXISTING;
+	} else if (create_mode == OS_FILE_CREATE) {
+		create_flag = CREATE_NEW;
+	} else {
+		create_flag = 0;
+		ut_error;
+	}
+
+	if (access_type == OS_FILE_READ_ONLY) {
+		access = GENERIC_READ;
+	} else if (access_type == OS_FILE_READ_WRITE) {
+		access = GENERIC_READ | GENERIC_WRITE;
+	} else {
+		access = 0;
+		ut_error;
+	}
+
+	file = CreateFile(name,
+			access,
+			FILE_SHARE_READ | FILE_SHARE_WRITE,
+					/* file can be read and written
+					also by other processes */
+			NULL,	/* default security attributes */
+			create_flag,
+			attributes,
+			NULL);	/* no template file */
+
+	if (file == INVALID_HANDLE_VALUE) {
+		*success = FALSE;
+
+		retry = os_file_handle_error(file, name);
+
+		if (retry) {
+			goto try_again;
+		}
+	} else {
+		*success = TRUE;
+	}
+
+	return(file);
+#else
+	os_file_t	file;
+	int		create_flag;
+	ibool		retry;
+	
+try_again:	
+	ut_a(name);
+
+	if (create_mode == OS_FILE_OPEN) {
+		if (access_type == OS_FILE_READ_ONLY) {
+			create_flag = O_RDONLY;
+		} else {
+			create_flag = O_RDWR;
+		}
+	} else if (create_mode == OS_FILE_CREATE) {
+		create_flag = O_RDWR | O_CREAT | O_EXCL;
+	} else {
+		create_flag = 0;
+		ut_error;
+	}
+
+	if (create_mode == OS_FILE_CREATE) {
+	        file = open(name, create_flag, S_IRUSR | S_IWUSR | S_IRGRP
+			                     | S_IWGRP | S_IROTH | S_IWOTH);
+        } else {
+                file = open(name, create_flag);
+        }
+	
+	if (file == -1) {
+		*success = FALSE;
+
+		retry = os_file_handle_error(file, name);
+
+		if (retry) {
+			goto try_again;
+		}
+	} else {
+		*success = TRUE;
+	}
+
+	return(file);	
+#endif
+}
 /********************************************************************
 Opens an existing file or creates a new. */
 
@@ -355,8 +498,9 @@ try_again:
 	file = CreateFile(name,
 			GENERIC_READ | GENERIC_WRITE, /* read and write
 							access */
-			FILE_SHARE_READ,/* file can be read by other
-					processes */
+			FILE_SHARE_READ | FILE_SHARE_WRITE,
+					/* file can be read and written
+					also by other processes */
 			NULL,	/* default security attributes */
 			create_flag,
 			attributes,
@@ -494,6 +638,11 @@ os_file_get_size(
 
 	offs = lseek(file, 0, SEEK_END);
 
+	if (offs == ((off_t)-1)) {
+
+		return(FALSE);
+	}
+	
 #if SIZEOF_OFF_T > 4
 	*size = (ulint)(offs & 0xFFFFFFFF);
 	*size_high = (ulint)(offs >> 32);
@@ -523,13 +672,11 @@ os_file_set_size(
 	ib_longlong	low;
 	ulint   	n_bytes;
 	ibool		ret;
-	ibool		retry;
 	byte*   	buf;
 	ulint   	i;
 
 	ut_a(size == (size & 0xFFFFFFFF));
 
-try_again:
 	/* We use a very big 8 MB buffer in writing because Linux may be
 	extremely slow in fsync on 1 MB writes */
 
@@ -570,14 +717,6 @@ try_again:
 	}
 
 error_handling:
-	retry = os_file_handle_error(file, name); 
-
-	if (retry) {
-		goto try_again;
-	}
-	
-	ut_error;
-
 	return(FALSE);
 }
 
@@ -722,8 +861,7 @@ os_file_pwrite(
 	64-bit address */
 
         if (sizeof(off_t) > 4) {
-	  offs = (off_t)offset + (((off_t)offset_high) << 32);
-        				
+	  	offs = (off_t)offset + (((off_t)offset_high) << 32);
         } else {
         	offs = (off_t)offset;
 
@@ -740,8 +878,8 @@ os_file_pwrite(
 
 	if (srv_unix_file_flush_method != SRV_UNIX_LITTLESYNC
 	    && srv_unix_file_flush_method != SRV_UNIX_NOSYNC
-	    && !trx_doublewrite) {
-
+	    && !os_do_not_call_flush_at_each_write) {
+	    	
 	        /* Always do fsync to reduce the probability that when
                 the OS crashes, a database page is only partially
                 physically written to disk. */
@@ -771,7 +909,7 @@ os_file_pwrite(
 
 	if (srv_unix_file_flush_method != SRV_UNIX_LITTLESYNC
 	    && srv_unix_file_flush_method != SRV_UNIX_NOSYNC
-	    && !trx_doublewrite) {
+	    && !os_do_not_call_flush_at_each_write) {
 
 	        /* Always do fsync to reduce the probability that when
                 the OS crashes, a database page is only partially
@@ -896,13 +1034,12 @@ os_file_write(
 	DWORD		ret2;
 	DWORD		low;
 	DWORD		high;
-	ibool		retry;
 	ulint		i;
 
 	ut_a((offset & 0xFFFFFFFF) == offset);
 
 	os_n_file_writes++;
-try_again:	
+
 	ut_ad(file);
 	ut_ad(buf);
 	ut_ad(n > 0);
@@ -921,7 +1058,15 @@ try_again:
 
 		os_mutex_exit(os_file_seek_mutexes[i]);
 		
-		goto error_handling;
+		ut_print_timestamp(stderr);
+
+		fprintf(stderr,
+"  InnoDB: Error: File pointer positioning to file %s failed at\n"
+"InnoDB: offset %lu %lu. Operating system error number %lu.\n",
+			name, offset_high, offset,
+			(ulint)GetLastError());
+
+		return(FALSE);
 	} 
 
 	ret = WriteFile(file, buf, n, &len, NULL);
@@ -929,38 +1074,61 @@ try_again:
 	/* Always do fsync to reduce the probability that when the OS crashes,
 	a database page is only partially physically written to disk. */
 
-	if (!trx_doublewrite) {
+	if (!os_do_not_call_flush_at_each_write) {
 		ut_a(TRUE == os_file_flush(file));
 	}
 
 	os_mutex_exit(os_file_seek_mutexes[i]);
 
 	if (ret && len == n) {
+
 		return(TRUE);
 	}
+
+	if (!os_has_said_disk_full) {
+	
+		ut_print_timestamp(stderr);
+
+		fprintf(stderr,
+"  InnoDB: Error: Write to file %s failed at offset %lu %lu.\n"
+"InnoDB: %lu bytes should have been written, only %lu were written.\n"
+"InnoDB: Operating system error number %lu.\n"
+"InnoDB: Check that your OS and file system support files of this size.\n"
+"InnoDB: Check also the disk is not full or a disk quota exceeded.\n",
+			name, offset_high, offset, n, len,
+			(ulint)GetLastError());
+
+		os_has_said_disk_full = TRUE;
+	}
+
+	return(FALSE);
 #else
-	ibool	retry;
 	ssize_t	ret;
 	
-try_again:
 	ret = os_file_pwrite(file, buf, n, offset, offset_high);
 
 	if ((ulint)ret == n) {
+
 		return(TRUE);
 	}
-#endif
-#ifdef __WIN__
-error_handling:		
-#endif
-	retry = os_file_handle_error(file, name); 
 
-	if (retry) {
-		goto try_again;
-	}
+	if (!os_has_said_disk_full) {
 	
-	ut_error;
+		ut_print_timestamp(stderr);
 
-	return(FALSE);
+		fprintf(stderr,
+"  InnoDB: Error: Write to file %s failed at offset %lu %lu.\n"
+"InnoDB: %lu bytes should have been written, only %lu were written.\n"
+"InnoDB: Operating system error number %lu.\n"
+"InnoDB: Check that your OS and file system support files of this size.\n"
+"InnoDB: Check also the disk is not full or a disk quota exceeded.\n",
+			name, offset_high, offset, n, ret, (ulint)errno);
+
+		os_has_said_disk_full = TRUE;
+	}
+
+	return(FALSE);	
+#endif
 }
 
 /********************************************************************
@@ -1031,7 +1199,8 @@ os_aio_array_create(
 }
 
 /****************************************************************************
-Initializes the asynchronous io system. Creates separate aio array for
+Initializes the asynchronous io system. Calls also os_io_init_simple.
+Creates a separate aio array for
 non-ibuf read and write, a third aio array for the ibuf i/o, with just one
 segment, two aio arrays for log reads and writes with one segment, and a
 synchronous aio array of the specified size. The combined number of segments
@@ -1058,6 +1227,8 @@ os_aio_init(
 	ut_ad(n % n_segments == 0);
 	ut_ad(n_segments >= 4);
 
+	os_io_init_simple();
+
 	n_per_seg = n / n_segments;
 	n_write_segs = (n_segments - 2) / 2;
 	n_read_segs = n_segments - 2 - n_write_segs;
@@ -1077,10 +1248,6 @@ os_aio_init(
 	os_aio_n_segments = n_segments;
 
 	os_aio_validate();
-
-	for (i = 0; i < OS_FILE_N_SEEK_MUTEXES; i++) {
-		os_file_seek_mutexes[i] = os_mutex_create(NULL);
-	}
 
 	os_aio_segment_wait_events = ut_malloc(n_segments * sizeof(void*));
 
@@ -1739,7 +1906,8 @@ os_aio_windows_handle(
 	if (ret && len == slot->len) {
 		ret_val = TRUE;
 
-		if (slot->type == OS_FILE_WRITE && !trx_doublewrite) {
+		if (slot->type == OS_FILE_WRITE
+				&& !os_do_not_call_flush_at_each_write) {
 		         ut_a(TRUE == os_file_flush(slot->file));
 		}
 	} else {
@@ -1824,7 +1992,8 @@ os_aio_posix_handle(
 	*message1 = slot->message1;
 	*message2 = slot->message2;
 
-	if (slot->type == OS_FILE_WRITE && !trx_doublewrite) {
+	if (slot->type == OS_FILE_WRITE
+				&& !os_do_not_call_flush_at_each_write) {
 		ut_a(TRUE == os_file_flush(slot->file));
 	}
 

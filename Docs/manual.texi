@@ -5534,9 +5534,11 @@ created and you must have TCP/IP installed.
 Optimised binary with support for symbolic links,
 InnoDB and BDB tables.
 @item @code{mysqld-max-nt} @tab
-Like @code{mysqld-max}, but compiled with support for named
-pipes.
+Like @code{mysqld-max}, but compiled with support for named pipes.
 @end multitable
+
+Starting from 3.23.50, named pipes are only enabled if one starts mysqld with
+@code{--enable-named-pipe}.
 
 All of the above binaries are optimised for the Pentium Pro
 processor but should work on any Intel processor >= i386.
@@ -9321,6 +9323,11 @@ You can force a MySQL client to use named pipes by specifying the
 @code{--pipe} option or by specifying @code{.} as the host name.  Use the
 @code{--socket} option to specify the name of the pipe.
 
+Note that starting from 3.23.50, named pipes are only enabled if start
+mysqld with @code{--enable-named-pipe}.  This is because some users have
+experienced problems shutting down the MySQL server when one uses named
+pipes.
+
 You can test whether or not MySQL is working by executing the
 following commands:
 
@@ -9596,6 +9603,9 @@ option to the new MySQL clients or create an option file
 [client]
 host = localhost
 @end example
+
+Starting from 3.23.50, named pipes are only enabled if start mysqld with
+@code{--enable-named-pipe}.
 
 @item @code{Access denied for user} error
 If you get the error @code{Access denied for user: 'some-user@@unknown'
@@ -14156,6 +14166,10 @@ from this file.
 Enable system locking.  Note that if you use this option on a system
 which a not fully working lockd() (as on Linux) you will easily get
 mysqld to deadlock.
+
+@item --enable-named-pipe
+Enable support for named pipes; This only works on NT and newer windows
+versions.
 
 @item -T, --exit-info
 This is a bit mask of different flags one can use for debugging the
@@ -32743,7 +32757,7 @@ mysql> select INET_ATON("209.207.224.40");
 @end example
 
 The generated number is always in network byte order; For example the
-above number is calculated as @code{209*255^3 + 207*255^2 + 224*255 +40}.
+above number is calculated as @code{209*256^3 + 207*256^2 + 224*256 +40}.
 
 @findex MASTER_POS_WAIT()
 @item MASTER_POS_WAIT(log_name, log_pos)
@@ -45670,12 +45684,13 @@ are used if you don't specify a hostname or if you specify the special
 hostname @code{localhost}.
 
 On Windows you can connect only with TCP/IP if the @code{mysqld} server
-is running on Win95/Win98. If it's running on NT, you can also connect
-with named pipes.  The name of the named pipe is MySQL.  If you
-don't give a hostname when connecting to @code{mysqld}, a MySQL client
-will first try to connect to the named pipe, and if this doesn't work it
-will connect to the TCP/IP port.  You can force the use of named pipes
-on Windows by using @code{.} as the hostname.
+is running on Win95/Win98. If mysqld is running on NT and started with
+@code{enable-named-pipe}, you can also connect with named pipes.  The
+name of the named pipe is MySQL.  If you don't give a hostname when
+connecting to @code{mysqld}, a MySQL client will first try to connect to
+the named pipe, and if this doesn't work it will connect to the TCP/IP
+port.  You can force the use of named pipes on Windows by using @code{.} 
+as the hostname.
 
 The error (2002) @code{Can't connect to ...} normally means that there
 isn't a MySQL server running on the system or that you are
@@ -49143,6 +49158,23 @@ not yet 100% confident in this code.
 Our Linux RPMS and binaries are now compiled with gcc 3.0.4, which should
 make them a bit faster.
 @item
+Fixed some buffer overflow problems when reading startup parameters.
+@item
+Because of problems on shutdown we have now disabled named pipes on
+windows by default.  One can enable this with by starting mysqld with
+@code{--enable-named-pipe}.
+@item
+Fixed bug when using @code{WHERE key_column = 'J' or key_column='j'}.
+@item
+Fixed core-dump bug when using @code{--log-bin} with @code{LOAD DATA
+INFILE} without an active database.
+@item
+Fixed bug in @code{RENAME TABLE} when used with
+@code{lower_case_table_names=1} (default on Windows).
+@item
+Fixed unlikely core-dump bug when using @code{DROP TABLE} on a table
+that was in use by a thread that also used queries on only temporary tables.
+@item
 Fixed problem with @code{SHOW CREATE TABLE} and @code{PRIMARY KEY} when using
 32 indexes.
 @item
@@ -49171,7 +49203,7 @@ Don't give warning for statement that is only a comment;  This is needed for
 @code{mysqldump --disable-keys} to work.
 @item
 Fixed unlikely caching bug when doing a join without keys. In this case
-the last used field for a table always returned @code{NULL}.
+the last used column for a table always returned @code{NULL}.
 @item
 Added options to make @code{LOAD DATA LOCAL INFILE} more secure.
 @item
