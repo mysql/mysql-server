@@ -35,12 +35,10 @@ typedef struct st_ft_docstat {
 
 } FT_DOCSTAT;
 
-static int FT_WORD_cmp(void* cmp_arg, FT_WORD *w1, FT_WORD *w2)
+static int FT_WORD_cmp(CHARSET_INFO* cs, FT_WORD *w1, FT_WORD *w2)
 {
-  return _mi_compare_text(default_charset_info,
-			  (uchar*) w1->pos, w1->len,
-			  (uchar*) w2->pos, w2->len,
-			  (my_bool) (cmp_arg != 0));
+  return _mi_compare_text(cs, (uchar*) w1->pos, w1->len,
+                              (uchar*) w2->pos, w2->len, 0);
 }
 
 static int walk_and_copy(FT_WORD *word,uint32 count,FT_DOCSTAT *docstat)
@@ -207,15 +205,16 @@ byte ft_simple_get_word(byte **start, byte *end, FT_WORD *word)
   return 0;
 }
 
+void ft_parse_init(TREE *wtree, CHARSET_INFO *cs)
+{
+  if (!is_tree_inited(wtree))
+    init_tree(wtree,0,0,sizeof(FT_WORD),(qsort_cmp2)&FT_WORD_cmp,0,NULL, cs);
+}
+
 int ft_parse(TREE *wtree, byte *doc, int doclen)
 {
   byte   *end=doc+doclen;
   FT_WORD w;
-
-  if (!is_tree_inited(wtree))
-  {
-    init_tree(wtree,0,0,sizeof(FT_WORD),(qsort_cmp2)&FT_WORD_cmp,0,NULL, NULL);
-  }
 
   while (ft_simple_get_word(&doc,end,&w))
   {
