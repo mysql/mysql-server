@@ -239,3 +239,4 @@
 "Esta versão de MySQL não suporta ainda '%s'",
 "Obteve fatal erro %d: '%-.128s' do master quando lendo dados do binary log",
 "Slave SQL thread ignorado a consulta devido às normas de replicação-*-tabela"
+"Variable '%-.64s' is a %s variable"

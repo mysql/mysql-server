@@ -188,7 +188,7 @@ $command.= basename($SPECFILE);
 #
 $command= "mv";
 $command.= " -v " if ($opt_verbose);
-$command.= "$SRCRPMDIR/MySQL*$VERSION*.src.rpm $PWD";
+$command.= " $SRCRPMDIR/MySQL*$VERSION*.src.rpm $PWD";
 &logger("Moving source RPM to current dir.");
 &run_command($command, "Error moving source RPM!");
 

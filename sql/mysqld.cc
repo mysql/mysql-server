@@ -4969,7 +4969,7 @@ static void fix_paths(void)
   set how many open files we want to be able to handle
 
   SYNOPSIS
-    set_maximum_open_files()  
+    set_maximum_open_files()
     max_file_limit		Files to open
 
   NOTES
