@@ -84,7 +84,7 @@ MYRG_INFO *myrg_open(const char *name, int mode, int handle_locking)
     last_isam=isam;
     if (info.reclength && info.reclength != isam->s->base.reclength)
     {
-      my_errno=HA_ERR_WRONG_IN_RECORD;
+      my_errno=HA_ERR_WRONG_MRG_TABLE_DEF;
       goto err;
     }
     info.reclength=isam->s->base.reclength;
