@@ -22,16 +22,6 @@
 #include  "mysql_priv.h"
 #endif /* MYSQL_CLIENT */
 
-#define LOG_EVENT_HEADER_LEN 9
-#define QUERY_HEADER_LEN     (sizeof(uint32) + sizeof(uint32) + sizeof(uchar))
-#define LOAD_HEADER_LEN      (sizeof(uint32) + sizeof(uint32) + \
-  + sizeof(uint32) + 2 + sizeof(uint32))
-#define EVENT_LEN_OFFSET     5
-#define EVENT_TYPE_OFFSET    4
-#define MAX_EVENT_LEN        4*1024*1024 
-#define QUERY_EVENT_OVERHEAD  LOG_EVENT_HEADER_LEN+QUERY_HEADER_LEN
-#define ROTATE_EVENT_OVERHEAD LOG_EVENT_HEADER_LEN
-#define LOAD_EVENT_OVERHEAD   (LOG_EVENT_HEADER_LEN+LOAD_HEADER_LEN+sizeof(sql_ex_info))
 
 static void pretty_print_char(FILE* file, int c)
 {
@@ -71,6 +61,8 @@ int Log_event::write_header(FILE* file)
   int4store(pos, when); // timestamp
   pos += 4;
   *pos++ = get_type_code(); // event type code
+  int4store(pos, server_id);
+  pos += 4;
   int4store(pos, get_data_size() + LOG_EVENT_HEADER_LEN);
   pos += 4;
   return (my_fwrite(file, (byte*) buf, (uint) (pos - buf),
@@ -106,16 +98,19 @@ int Log_event::read_log_event(FILE* file, String* packet)
 Log_event* Log_event::read_log_event(FILE* file)
 {
   time_t timestamp;
-  char buf[5];
+  uint32 server_id;
+  
+  char buf[LOG_EVENT_HEADER_LEN-4];
   if (my_fread(file, (byte *) buf, sizeof(buf), MY_NABP))
     return NULL;
   timestamp = uint4korr(buf);
-
+  server_id = uint4korr(buf + 5);
+  
   switch(buf[EVENT_TYPE_OFFSET])
   {
   case QUERY_EVENT:
   {
-    Query_log_event* q = new Query_log_event(file, timestamp);
+    Query_log_event* q = new Query_log_event(file, timestamp, server_id);
     if (!q->query)
     {
       delete q;
@@ -127,7 +122,7 @@ Log_event* Log_event::read_log_event(FILE* file)
   
   case LOAD_EVENT:
   {
-    Load_log_event* l = new Load_log_event(file, timestamp);
+    Load_log_event* l = new Load_log_event(file, timestamp, server_id);
     if (!l->table_name)
     {
       delete l;
@@ -140,7 +135,7 @@ Log_event* Log_event::read_log_event(FILE* file)
 
   case ROTATE_EVENT:
   {
-    Rotate_log_event* r = new Rotate_log_event(file, timestamp);
+    Rotate_log_event* r = new Rotate_log_event(file, timestamp, server_id);
     if (!r->new_log_ident)
     {
       delete r;
@@ -152,7 +147,7 @@ Log_event* Log_event::read_log_event(FILE* file)
 
   case INTVAR_EVENT:
   {
-    Intvar_log_event* e = new Intvar_log_event(file, timestamp);
+    Intvar_log_event* e = new Intvar_log_event(file, timestamp, server_id);
     if (e->type == INVALID_INT_EVENT)
     {
       delete e;
@@ -162,8 +157,8 @@ Log_event* Log_event::read_log_event(FILE* file)
     return e;
   }
   
-  case START_EVENT: return new Start_log_event(file, timestamp);
-  case STOP_EVENT: return new Stop_log_event(file, timestamp);
+  case START_EVENT: return new Start_log_event(file, timestamp, server_id);
+  case STOP_EVENT: return new Stop_log_event(file, timestamp, server_id);
   default: return NULL;
   }
 
@@ -221,12 +216,23 @@ Log_event* Log_event::read_log_event(const char* buf, int max_buf)
   return NULL;
 }
 
-void Log_event::print_timestamp(FILE* file)
+void Log_event::print_header(FILE* file)
+{
+  fputc('#', file);
+  print_timestamp(file);
+  fprintf(file, " server id  %d ", server_id); 
+}
+
+void Log_event::print_timestamp(FILE* file, time_t* ts = 0)
 {
     struct tm tm_tmp;
-    localtime_r(&when,&tm_tmp);
+    if(!ts)
+      {
+        ts = &when;
+      }
+    localtime_r(ts,&tm_tmp);
 
-    fprintf(file,"#%02d%02d%02d %2d:%02d:%02d",
+    fprintf(file,"%02d%02d%02d %2d:%02d:%02d",
 	    tm_tmp.tm_year % 100,
 	    tm_tmp.tm_mon+1,
 	    tm_tmp.tm_mday,
@@ -241,8 +247,11 @@ void Start_log_event::print(FILE* file, bool short_form)
   if (short_form)
     return;
 
-  print_timestamp(file);
-  fprintf(file, "\tStart\n");
+  print_header(file);
+  fprintf(file, "\tStart: binlog v %d, server v %s created ", binlog_version,
+	  server_version);
+  print_timestamp(file, (time_t*)&created);
+  fputc('\n', file);
   fflush(file);
 }
 
@@ -251,7 +260,7 @@ void Stop_log_event::print(FILE* file, bool short_form)
   if (short_form)
     return;
 
-  print_timestamp(file);
+  print_header(file);
   fprintf(file, "\tStop\n");
   fflush(file);
 }
@@ -261,7 +270,7 @@ void Rotate_log_event::print(FILE* file, bool short_form)
   if (short_form)
     return;
 
-  print_timestamp(file);
+  print_header(file);
   fprintf(file, "\tRotate to ");
   if (new_log_ident)
     my_fwrite(file, (byte*) new_log_ident, (uint)ident_len, 
@@ -270,8 +279,9 @@ void Rotate_log_event::print(FILE* file, bool short_form)
   fflush(file);
 }
 
-Rotate_log_event::Rotate_log_event(FILE* file, time_t when_arg):
-  Log_event(when_arg),new_log_ident(NULL),alloced(0)
+Rotate_log_event::Rotate_log_event(FILE* file, time_t when_arg,
+				   uint32 server_id):
+  Log_event(when_arg, 0, 0, server_id),new_log_ident(NULL),alloced(0)
 {
   char *tmp_ident;
   char buf[4];
@@ -298,6 +308,14 @@ Rotate_log_event::Rotate_log_event(FILE* file, time_t when_arg):
   alloced = 1;
 }
 
+Start_log_event::Start_log_event(const char* buf) :Log_event(buf)
+{
+  buf += EVENT_LEN_OFFSET + 4; // skip even length
+  binlog_version = uint2korr(buf);
+  memcpy(server_version, buf + 2, sizeof(server_version));
+  created = uint4korr(buf + 2 + sizeof(server_version));
+}
+
 Rotate_log_event::Rotate_log_event(const char* buf, int max_buf):
   Log_event(buf),new_log_ident(NULL),alloced(0)
 {
@@ -322,8 +340,9 @@ int Rotate_log_event::write_data(FILE* file)
   return 0;
 }
 
-Query_log_event::Query_log_event(FILE* file, time_t when_arg):
-  Log_event(when_arg),data_buf(0),query(NULL),db(NULL)
+Query_log_event::Query_log_event(FILE* file, time_t when_arg,
+				 uint32 server_id):
+  Log_event(when_arg,0,0,server_id),data_buf(0),query(NULL),db(NULL)
 {
   char buf[QUERY_HEADER_LEN + 4];
   ulong data_len;
@@ -382,7 +401,7 @@ void Query_log_event::print(FILE* file, bool short_form)
 {
   if (!short_form)
   {
-    print_timestamp(file);
+    print_header(file);
     fprintf(file, "\tQuery\tthread_id=%lu\texec_time=%lu\n",
 	    (ulong) thread_id, (ulong) exec_time);
   }
@@ -414,8 +433,9 @@ int Query_log_event::write_data(FILE* file)
   return 0;
 }
 
-Intvar_log_event:: Intvar_log_event(FILE* file, time_t when_arg)
-  :Log_event(when_arg), type(INVALID_INT_EVENT)
+Intvar_log_event:: Intvar_log_event(FILE* file, time_t when_arg,
+				    uint32 server_id)
+  :Log_event(when_arg,0,0,server_id), type(INVALID_INT_EVENT)
 {
   my_fseek(file, 4L, MY_SEEK_CUR, MYF(MY_WME)); // skip the event length
   char buf[9];
@@ -444,7 +464,7 @@ void Intvar_log_event::print(FILE* file, bool short_form)
   char llbuff[22];
   if(!short_form)
   {
-    print_timestamp(file);
+    print_header(file);
     fprintf(file, "\tIntvar\n");
   }
 
@@ -493,8 +513,9 @@ int Load_log_event::write_data(FILE* file __attribute__((unused)))
   return 0;
 }
 
-Load_log_event::Load_log_event(FILE* file, time_t when):
-  Log_event(when),data_buf(0),num_fields(0),fields(0),field_lens(0),field_block_len(0),
+Load_log_event::Load_log_event(FILE* file, time_t when, uint32 server_id):
+  Log_event(when,0,0,server_id),data_buf(0),num_fields(0),
+  fields(0),field_lens(0),field_block_len(0),
   table_name(0),db(0),fname(0)
 							
 {
@@ -539,7 +560,8 @@ Load_log_event::Load_log_event(FILE* file, time_t when):
 }
 
 Load_log_event::Load_log_event(const char* buf, int max_buf):
-  Log_event(when),data_buf(0),num_fields(0),fields(0),field_lens(0),field_block_len(0),
+  Log_event(when,0,0,server_id),data_buf(0),num_fields(0),fields(0),
+  field_lens(0),field_block_len(0),
   table_name(0),db(0),fname(0)
 							     
 {
@@ -594,7 +616,7 @@ void Load_log_event::print(FILE* file, bool short_form)
 {
   if (!short_form)
   {
-    print_timestamp(file);
+    print_header(file);
     fprintf(file, "\tQuery\tthread_id=%d\texec_time=%ld\n",
 	    thread_id, exec_time);
   }

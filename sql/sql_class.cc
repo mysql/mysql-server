@@ -83,6 +83,7 @@ THD::THD()
     user_time=bootstrap=in_lock_tables=global_read_lock=0;
   query_length=col_access=0;
   query_error=0;
+  server_id = ::server_id;
   server_status=SERVER_STATUS_AUTOCOMMIT;
   next_insert_id=last_insert_id=0;
   open_tables=temporary_tables=0;
