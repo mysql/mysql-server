@@ -156,13 +156,13 @@ our @mysqld_src_dirs=
 our $glob_win32=                  0; # OS and native Win32 executables
 our $glob_win32_perl=             0; # ActiveState Win32 Perl
 our $glob_cygwin_perl=            0; # Cygwin Perl
+our $glob_cygwin_shell=           undef;
 our $glob_mysql_test_dir=         undef;
 our $glob_mysql_bench_dir=        undef;
 our $glob_hostname=               undef;
 our $glob_scriptname=             undef;
 our $glob_use_running_server=     0;
 our $glob_use_running_ndbcluster= 0;
-our $glob_user=                   'test';
 our $glob_use_embedded_server=    0;
 
 our $glob_basedir;
@@ -280,6 +280,8 @@ our $opt_wait_for_slave;
 our $opt_wait_timeout=  10;
 
 our $opt_warnings;
+
+our $opt_udiff;
 
 our $opt_with_ndbcluster;
 our $opt_with_openssl;
@@ -422,7 +424,9 @@ sub initial_setup () {
   {
     # Windows programs like 'mysqld' needs Windows paths
     $glob_mysql_test_dir= `cygpath -m $glob_mysql_test_dir`;
+    $glob_cygwin_shell=   `cygpath -w $ENV{'SHELL'}`; # The Windows path c:\...
     chomp($glob_mysql_test_dir);
+    chomp($glob_cygwin_shell);
   }
   $glob_basedir=         dirname($glob_mysql_test_dir);
   $glob_mysql_bench_dir= "$glob_basedir/mysql-bench"; # FIXME make configurable
@@ -524,6 +528,7 @@ sub command_line_setup () {
              'start-from=s'             => \$opt_start_from,
              'timer'                    => \$opt_timer,
              'tmpdir=s'                 => \$opt_tmpdir,
+             'unified-diff|udiff'       => \$opt_udiff,
              'user-test=s'              => \$opt_user_test,
              'user=s'                   => \$opt_user,
              'verbose'                  => \$opt_verbose,
@@ -712,17 +717,16 @@ sub command_line_setup () {
   #  }
   #}
 
-  if ( $opt_user )
+  if ( ! $opt_user )
   {
-    $glob_user=  $opt_user;
-  }
-  elsif ( $glob_use_running_server )
-  {
-    $glob_user=  "test";
-  }
-  else
-  {
-    $glob_user=  "root"; # We want to do FLUSH xxx commands
+    if ( $glob_use_running_server )
+    {
+      $opt_user= "test";
+    }
+    else
+    {
+      $opt_user= "root"; # We want to do FLUSH xxx commands
+    }
   }
 
 }
@@ -837,7 +841,7 @@ sub executable_setup () {
       }
       else
       {
-        error("Cannot find embedded server 'mysqltest_embedded'");
+        mtr_error("Cannot find embedded server 'mysqltest_embedded'");
       }
       if ( -d "$path_tests_bindir/mysql_client_test_embedded" )
       {
@@ -859,9 +863,6 @@ sub executable_setup () {
     $path_ndb_tools_dir=  "$glob_basedir/bin";
     $exe_ndb_mgm=         "$glob_basedir/bin/ndb_mgm";
   }
-
-  # FIXME special $exe_master_mysqld and $exe_slave_mysqld
-  # are not used that much....
 
   if ( ! $exe_master_mysqld )
   {
@@ -1102,7 +1103,7 @@ sub run_benchmarks ($) {
   mtr_init_args(\$args);
 
   mtr_add_arg($args, "--socket=%s", $master->[0]->{'path_mysock'});
-  mtr_add_arg($args, "--user=root");
+  mtr_add_arg($args, "--user=%s", $opt_user);
 
   if ( $opt_small_bench )
   {
@@ -1226,10 +1227,35 @@ sub install_db ($$) {
   my $type=      shift;
   my $data_dir=  shift;
 
-  my $init_db_sql=  "lib/init_db.sql"; # FIXME this is too simple maybe
+  my $init_db_sql=     "lib/init_db.sql";
+  my $init_db_sql_tmp= "/tmp/init_db.sql$$";
   my $args;
 
   mtr_report("Installing \u$type Databases");
+
+  open(IN, $init_db_sql)
+    or error("Can't open $init_db_sql: $!");
+  open(OUT, ">", $init_db_sql_tmp)
+    or error("Can't write to $init_db_sql_tmp: $!");
+  while (<IN>)
+  {
+    chomp;
+    s/\@HOSTNAME\@/$glob_hostname/;
+    if ( /^\s*$/ )
+    {
+      print OUT "\n";
+    }
+    elsif (/;$/)
+    {
+      print OUT "$_\n";
+    }
+    else
+    {
+      print OUT $_;
+    }
+  }
+  close OUT;
+  close IN;
 
   mtr_init_args(\$args);
 
@@ -1248,12 +1274,14 @@ sub install_db ($$) {
     mtr_add_arg($args, "--character-sets-dir=%s", $path_charsetsdir);
   }
 
-  if ( mtr_run($exe_mysqld, $args, $init_db_sql,
+  if ( mtr_run($exe_mysqld, $args, $init_db_sql_tmp,
                $path_manager_log, $path_manager_log, "") != 0 )
   {
+    unlink($init_db_sql_tmp);
     mtr_error("Error executing mysqld --bootstrap\n" .
               "Could not install $type test DBs");
   }
+  unlink($init_db_sql_tmp);
 }
 
 
@@ -1502,8 +1530,8 @@ sub do_before_start_master ($$) {
        $tname ne "rpl_crash_binlog_ib_3b")
   {
     # FIXME we really want separate dir for binlogs
-    `rm -fr $glob_mysql_test_dir/var/log/master-bin.*`;
-#    unlink("$glob_mysql_test_dir/var/log/master-bin.*");
+    `rm -f $glob_mysql_test_dir/var/log/master-bin*`;
+#    unlink("$glob_mysql_test_dir/var/log/master-bin*");
   }
 
   # Remove old master.info and relay-log.info files
@@ -1512,8 +1540,7 @@ sub do_before_start_master ($$) {
   unlink("$glob_mysql_test_dir/var/master1-data/master.info");
   unlink("$glob_mysql_test_dir/var/master1-data/relay-log.info");
 
-  #run master initialization shell script if one exists
-
+  # Run master initialization shell script if one exists
   if ( $master_init_script and
        mtr_run($master_init_script, [], "", "", "", "") != 0 )
   {
@@ -1526,9 +1553,6 @@ sub do_before_start_master ($$) {
 sub do_before_start_slave ($$) {
   my $tname=  shift;
   my $slave_init_script=  shift;
-
-  # When testing fail-safe replication, we will have more than one slave
-  # in this case, we start secondary slaves with an argument
 
   # Remove stale binary logs and old master.info files
   # except for too tests which need them
@@ -1544,14 +1568,15 @@ sub do_before_start_slave ($$) {
     unlink("$glob_mysql_test_dir/var/slave-data/relay-log.info");
   }
 
-  #run slave initialization shell script if one exists
+  # Run slave initialization shell script if one exists
   if ( $slave_init_script and
        mtr_run($slave_init_script, [], "", "", "", "") != 0 )
   {
     mtr_error("Can't run $slave_init_script");
   }
 
-  unlink("$glob_mysql_test_dir/var/slave-data/log.*");
+  `rm -f $glob_mysql_test_dir/var/slave-data/log.*`;
+#  unlink("$glob_mysql_test_dir/var/slave-data/log.*");
 }
 
 sub mysqld_arguments ($$$$$) {
@@ -1669,12 +1694,12 @@ sub mysqld_arguments ($$$$$) {
   {
     if ( $type eq 'master' )
     {
-      mtr_add_arg($args, "--debug=d:t:i:A,%s/var/log/master%s.trace",
+      mtr_add_arg($args, "%s--debug=d:t:i:A,%s/var/log/master%s.trace",
                   $prefix, $glob_mysql_test_dir, $sidx);
     }
     if ( $type eq 'slave' )
     {
-      mtr_add_arg($args, "--debug=d:t:i:A,%s/var/log/slave%s.trace",
+      mtr_add_arg($args, "%s--debug=d:t:i:A,%s/var/log/slave%s.trace",
                   $prefix, $glob_mysql_test_dir, $sidx);
     }
   }
@@ -1789,18 +1814,17 @@ sub mysqld_start ($$$$) {
   my $exe;
   my $pid;
 
-  # FIXME code duplication, make up your mind....
-  if ( $opt_source_dist )
+  if ( $type eq 'master' )
   {
-    $exe= "$glob_basedir/sql/mysqld";
+    $exe= $exe_master_mysqld;
+  }
+  elsif ( $type eq 'slave' )
+  {
+    $exe= $exe_slave_mysqld;
   }
   else
   {
-    $exe ="$glob_basedir/libexec/mysqld";
-    if ( ! -x $exe )
-    {
-      $exe ="$glob_basedir/bin/mysqld";
-    }
+    $exe= $exe_mysqld;
   }
 
   mtr_init_args(\$args);
@@ -1983,7 +2007,7 @@ sub run_mysqltest ($$) {
   mtr_add_arg($args, "--no-defaults");
   mtr_add_arg($args, "--socket=%s", $master->[0]->{'path_mysock'});
   mtr_add_arg($args, "--database=test");
-  mtr_add_arg($args, "--user=%s", $glob_user);
+  mtr_add_arg($args, "--user=%s", $opt_user);
   mtr_add_arg($args, "--password=");
   mtr_add_arg($args, "--silent");
   mtr_add_arg($args, "-v");
@@ -2054,7 +2078,7 @@ sub run_mysqltest ($$) {
     mysqld_arguments($args,'master',0,$tinfo->{'master_opt'},[]);
   }
 
-  return mtr_run($exe_mysqltest,$args,$tinfo->{'path'},"",$path_timefile,"");
+  return mtr_run_test($exe_mysqltest,$args,$tinfo->{'path'},"",$path_timefile,"");
 }
 
 ##############################################################################
@@ -2136,6 +2160,7 @@ Misc options
   start-and-exit        Only initiate and start the "mysqld" servers
   fast                  Don't try to cleanup from earlier runs
   help                  Get this help text
+  unified-diff | udiff  When presenting differences, use unified diff
 
 Options not yet described, or that I want to look into more
 
