@@ -60,8 +60,7 @@ int ha_heap::open(const char *name, int mode, uint test_if_locked)
   {
     /* Initialize variables for the opened table */
     set_keys_for_scanning();
-    if (table->s->tmp_table == NO_TMP_TABLE)
-      update_key_stats();
+    update_key_stats();
   }
   return (file ? 0 : 1);
 }
@@ -104,6 +103,8 @@ void ha_heap::update_key_stats()
   for (uint i= 0; i < table->s->keys; i++)
   {
     KEY *key=table->key_info+i;
+    if (!key->rec_per_key)
+      continue;
     if (key->algorithm != HA_KEY_ALG_BTREE)
     {
       ha_rows hash_buckets= file->s->keydef[i].hash_buckets;
@@ -124,8 +125,8 @@ int ha_heap::write_row(byte * buf)
   if (table->next_number_field && buf == table->record[0])
     update_auto_increment();
   res= heap_write(file,buf);
-  if (!res && table->s->tmp_table == NO_TMP_TABLE && 
-      ++records_changed*HEAP_STATS_UPDATE_THRESHOLD > file->s->records)
+  if (!res && (++records_changed*HEAP_STATS_UPDATE_THRESHOLD > 
+               file->s->records))
     update_key_stats();
   return res;
 }
@@ -137,8 +138,8 @@ int ha_heap::update_row(const byte * old_data, byte * new_data)
   if (table->timestamp_field_type & TIMESTAMP_AUTO_SET_ON_UPDATE)
     table->timestamp_field->set_time();
   res= heap_update(file,old_data,new_data);
-  if (!res && table->s->tmp_table == NO_TMP_TABLE && 
-      ++records_changed*HEAP_STATS_UPDATE_THRESHOLD > file->s->records)
+  if (!res && ++records_changed*HEAP_STATS_UPDATE_THRESHOLD > 
+              file->s->records)
     update_key_stats();
   return res;
 }

@@ -1313,7 +1313,7 @@ enum enum_mysql_completiontype {
   SAVEPOINT_NAME_ROLLBACK=2,
   SAVEPOINT_NAME_RELEASE=4,
   COMMIT_AND_CHAIN=6,
-  ROLLBACK_AND_CHAIN=7,
+  ROLLBACK_AND_CHAIN=7
 };
 
 int mysql_endtrans(THD *thd, enum enum_mysql_completiontype completion, 
