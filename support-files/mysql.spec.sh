@@ -348,6 +348,7 @@ fi
 %attr(755, root, root) /usr/bin/perror
 %attr(755, root, root) /usr/bin/replace
 %attr(755, root, root) /usr/bin/resolveip
+%attr(755, root, root) /usr/bin/resolve_stack_dump
 %attr(755, root, root) /usr/bin/safe_mysqld
 %attr(755, root, root) /usr/bin/mysqld_multi
 %attr(755, root, root) /usr/bin/my_print_defaults
