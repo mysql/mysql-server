@@ -602,13 +602,14 @@ int mysql_create_table(THD *thd,const char *db, const char *table_name,
 	  sql_field->flags|= NOT_NULL_FLAG;
 	  sql_field->pack_flag&= ~FIELDFLAG_MAYBE_NULL;
 	}
+        else
+          key_info->flags|= HA_NULL_PART_KEY;
 	if (!(file->table_flags() & HA_NULL_KEY))
 	{
 	  my_printf_error(ER_NULL_COLUMN_IN_INDEX,ER(ER_NULL_COLUMN_IN_INDEX),
 			  MYF(0),column->field_name);
 	  DBUG_RETURN(-1);
 	}
-	key_info->flags|= HA_NULL_PART_KEY;
       }
       if (MTYP_TYPENR(sql_field->unireg_check) == Field::NEXT_NUMBER)
       {
