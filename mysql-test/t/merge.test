@@ -35,9 +35,13 @@ show create table t3;
 
 # The following should give errors
 create table t4 (a int not null, b char(10), key(a)) type=MERGE UNION=(t1,t2);
+--error 1016
+select * from t4;
+--error 1212
+create table t5 (a int not null, b char(10), key(a)) type=MERGE UNION=(test.t1,test_2.t2);
 
 # Because of windows, it's important that we drop the merge tables first!
-drop table if exists t4,t3,t1,t2;
+drop table if exists t5,t4,t3,t1,t2;
 
 create table t1 (c char(10)) type=myisam;
 create table t2 (c char(10)) type=myisam;

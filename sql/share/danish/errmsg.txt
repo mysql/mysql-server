@@ -216,3 +216,4 @@
 "CREATE DATABASE er ikke tilladt mens en tråd holder på globalt read lock",
 "Wrong arguments to %s",
 "%-.32s@%-.64s is not allowed to create new users",
+"Incorrect table definition; All MERGE tables must be in the same database",

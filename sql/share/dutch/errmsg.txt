@@ -217,3 +217,4 @@
 "CREATE DATABASE niet toegestaan terwijl thread een globale 'read lock' bezit",
 "Foutieve parameters voor %s",
 "%-.32s@%-.64s is not allowed to create new users",
+"Incorrect table definition; All MERGE tables must be in the same database",
