@@ -721,7 +721,7 @@ pthread_handler_decl(handle_bootstrap,arg)
 
   thd->proc_info=0;
   thd->version=refresh_version;
-  thd->priv_user=thd->user=(char*)"boot";
+  thd->priv_user=thd->user=(char*) my_strdup("boot", MYF(MY_WME));
 
   buff= (char*) thd->net.buff;
   init_sql_alloc(&thd->mem_root, MEM_ROOT_BLOCK_SIZE, MEM_ROOT_PREALLOC);
@@ -752,7 +752,6 @@ pthread_handler_decl(handle_bootstrap,arg)
     free_root(&thd->mem_root,MYF(MY_KEEP_PREALLOC));
     free_root(&thd->transaction.mem_root,MYF(MY_KEEP_PREALLOC));
   }
-  thd->priv_user=thd->user=0;
 
   /* thd->fatal_error should be set in case something went wrong */
 end:

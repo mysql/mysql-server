@@ -122,6 +122,7 @@ public:
   bool is_null() { (void) val_int(); return null_value; }
   friend class udf_handler;
   unsigned int size_of() { return sizeof(*this);}  
+  Field *tmp_table_field(TABLE *t_arg);
 };
 
 
@@ -136,13 +137,9 @@ public:
   longlong val_int() { return (longlong) val(); }
   enum Item_result result_type () const { return REAL_RESULT; }
   void fix_length_and_dec() { decimals=NOT_FIXED_DEC; max_length=float_length(decimals); }
-  Field *tmp_table_field(TABLE *t_arg)
-  {
-    if (!t_arg) return result_field;
-    return new Field_double(max_length, maybe_null, name,t_arg,decimals);
-  }  
   unsigned int size_of() { return sizeof(*this);}  
 };
+
 
 class Item_num_func :public Item_func
 {
@@ -172,24 +169,6 @@ class Item_num_op :public Item_func
   void fix_length_and_dec() { fix_num_length_and_dec(); find_num_type(); }
   void find_num_type(void);
   bool is_null() { (void) val(); return null_value; }
-  Field *tmp_table_field(TABLE *t_arg)
-  {
-    Field *res;
-    if (!t_arg)
-      return result_field;
-    if (args[0]->result_type() == INT_RESULT)
-    {
-      if (max_length > 11)
-	res= new Field_longlong(max_length, maybe_null, name, t_arg,
-				unsigned_flag);
-      else
-	res= new Field_long(max_length, maybe_null, name, t_arg,
-			    unsigned_flag);
-    }
-    else
-      res= new Field_double(max_length, maybe_null, name, t_arg, decimals);
-    return res;
-  }
   unsigned int size_of() { return sizeof(*this);}  
 };
 
@@ -206,17 +185,8 @@ public:
   String *val_str(String*str);
   enum Item_result result_type () const { return INT_RESULT; }
   void fix_length_and_dec() {}
-  Field *tmp_table_field(TABLE *t_arg)
-  {
-    if (!t_arg)
-      return result_field;
-    return ((max_length > 11) ?
-	    (Field *)new Field_longlong(max_length, maybe_null, name, t_arg,
-					unsigned_flag) :
-	    (Field *)new Field_long(max_length, maybe_null, name, t_arg,
-				    unsigned_flag));
-  }
 };
+
 
 class Item_func_signed :public Item_int_func
 {
@@ -227,6 +197,7 @@ public:
   void fix_length_and_dec()
   { max_length=args[0]->max_length; unsigned_flag=0; }
 };
+
 
 class Item_func_unsigned :public Item_int_func
 {

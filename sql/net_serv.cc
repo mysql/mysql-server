@@ -62,15 +62,12 @@ extern void query_cache_insert(NET *net, const char *packet, ulong length);
 #ifndef NO_ALARM
 #include "my_pthread.h"
 void sql_print_error(const char *format,...);
-#define RETRY_COUNT mysqld_net_retry_count
-extern ulong mysqld_net_retry_count;
 extern ulong bytes_sent, bytes_received;
 extern pthread_mutex_t LOCK_bytes_sent , LOCK_bytes_received;
 #else
 #undef statistic_add
 #define statistic_add(A,B,C)
 #define DONT_USE_THR_ALARM
-#define RETRY_COUNT 1
 #endif /* NO_ALARM */
 
 #include "thr_alarm.h"
@@ -85,11 +82,12 @@ static int net_write_buff(NET *net,const char *packet,ulong len);
 
 int my_net_init(NET *net, Vio* vio)
 {
+  DBUG_ENTER("my_net_init");
   my_net_local_init(net);			/* Set some limits */
   if (!(net->buff=(uchar*) my_malloc((uint32) net->max_packet+
 				     NET_HEADER_SIZE + COMP_HEADER_SIZE,
 				     MYF(MY_WME))))
-    return 1;
+    DBUG_RETURN(1);
   net->buff_end=net->buff+net->max_packet;
   net->vio = vio;
   net->no_send_ok = 0;
@@ -114,14 +112,16 @@ int my_net_init(NET *net, Vio* vio)
 #endif
     vio_fastsend(vio);
   }
-  return 0;
+  DBUG_RETURN(0);
 }
 
 
 void net_end(NET *net)
 {
+  DBUG_ENTER("net_end");
   my_free((gptr) net->buff,MYF(MY_ALLOW_ZERO_PTR));
   net->buff=0;
+  DBUG_VOID_RETURN;
 }
 
 
@@ -385,7 +385,7 @@ net_real_write(NET *net,const char *packet,ulong len)
 	  my_bool old_mode;
 	  while (vio_blocking(net->vio, TRUE, &old_mode) < 0)
 	  {
-	    if (vio_should_retry(net->vio) && retry_count++ < RETRY_COUNT)
+	    if (vio_should_retry(net->vio) && retry_count++ < net->retry_count)
 	      continue;
 #ifdef EXTRA_DEBUG
 	    fprintf(stderr,
@@ -404,7 +404,7 @@ net_real_write(NET *net,const char *packet,ulong len)
 	if (thr_alarm_in_use(&alarmed) && !thr_got_alarm(&alarmed) &&
 	    interrupted)
       {
-	if (retry_count++ < RETRY_COUNT)
+	if (retry_count++ < net->retry_count)
 	    continue;
 #ifdef EXTRA_DEBUG
 	  fprintf(stderr, "%s: write looped, aborting thread\n",
@@ -476,7 +476,7 @@ static void my_net_skip_rest(NET *net, uint32 remain, thr_alarm_t *alarmed)
       my_bool interrupted = vio_should_retry(net->vio);
       if (!thr_got_alarm(&alarmed) && interrupted)
       {					/* Probably in MIT threads */
-	if (retry_count++ < RETRY_COUNT)
+	if (retry_count++ < net->retry_count)
 	  continue;
       }
       return;
@@ -543,7 +543,7 @@ my_real_read(NET *net, ulong *complen)
 	      while (vio_blocking(net->vio, TRUE, &old_mode) < 0)
 	      {
 		if (vio_should_retry(net->vio) &&
-		    retry_count++ < RETRY_COUNT)
+		    retry_count++ < net->retry_count)
 		  continue;
 		DBUG_PRINT("error",
 			   ("fcntl returned error %d, aborting thread",
@@ -568,7 +568,7 @@ my_real_read(NET *net, ulong *complen)
 	  if (thr_alarm_in_use(&alarmed) && !thr_got_alarm(&alarmed) &&
 	      interrupted)
 	  {					/* Probably in MIT threads */
-	    if (retry_count++ < RETRY_COUNT)
+	    if (retry_count++ < net->retry_count)
 	      continue;
 #ifdef EXTRA_DEBUG
 	    fprintf(stderr, "%s: read looped with error %d, aborting thread\n",

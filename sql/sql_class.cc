@@ -208,7 +208,6 @@ THD::~THD()
   hash_free(&user_vars);
 
   DBUG_PRINT("info", ("freeing host"));
-
   if (host != localhost)			// If not pointer to constant
     safeFree(host);
   if (user != delayed_user)

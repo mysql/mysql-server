@@ -5086,7 +5086,7 @@ end_write(JOIN *join, JOIN_TAB *join_tab __attribute__((unused)),
 	    error == HA_ERR_FOUND_DUPP_UNIQUE)
 	  goto end;
 	if (create_myisam_from_heap(table, &join->tmp_table_param, error,1))
-	  DBUG_RETURN(1);			// Not a table_is_full error
+	  DBUG_RETURN(-1);			// Not a table_is_full error
 	table->uniques=0;			// To ensure rows are the same
       }
       if (++join->send_records >= join->tmp_table_param.end_write_records &&
@@ -5258,7 +5258,7 @@ end_write_group(JOIN *join, JOIN_TAB *join_tab __attribute__((unused)),
 	  {
 	    if (create_myisam_from_heap(table, &join->tmp_table_param,
 					error, 0))
-	      DBUG_RETURN(1);			// Not a table_is_full error
+	      DBUG_RETURN(-1);			// Not a table_is_full error
 	  }
 	  else
 	    join->send_records++;
