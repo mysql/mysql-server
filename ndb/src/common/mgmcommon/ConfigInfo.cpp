@@ -146,13 +146,17 @@ const int ConfigInfo::m_NoOfRules = sizeof(m_SectionRules)/sizeof(SectionRule);
 /****************************************************************************
  * Config Rules declarations
  ****************************************************************************/
-bool addNodeConnections(Vector<ConfigInfo::ConfigRuleSection>&sections, 
-			struct InitConfigFileParser::Context &ctx, 
-			const char * ruleData);
+bool add_node_connections(Vector<ConfigInfo::ConfigRuleSection>&sections, 
+			  struct InitConfigFileParser::Context &ctx, 
+			  const char * rule_data);
+bool add_db_ports(Vector<ConfigInfo::ConfigRuleSection>&sections, 
+		  struct InitConfigFileParser::Context &ctx, 
+		  const char * rule_data);
 
 const ConfigInfo::ConfigRule 
 ConfigInfo::m_ConfigRules[] = {
-  { addNodeConnections, 0 },
+  { add_node_connections, 0 },
+  { add_db_ports, 0 },
   { 0, 0 }
 };
 	  
@@ -375,6 +379,18 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     MANDATORY,
     1,
     (MAX_NODES - 1) },
+
+  {
+    CFG_DB_SERVER_PORT,
+    "ServerPort",
+    "DB",
+    "Port used to setup transporter",
+    ConfigInfo::USED,
+    false,
+    ConfigInfo::INT,
+    2202,
+    0,
+    0x7FFFFFFF },
 
   {
     CFG_DB_NO_REPLICAS,
@@ -1231,7 +1247,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::USED,
     false,
     ConfigInfo::STRING,
-    MANDATORY,
+    0,
     0,
     0x7FFFFFFF },
 
@@ -1330,7 +1346,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::USED,
     false,
     ConfigInfo::STRING,
-    MANDATORY,
+    0,
     0,
     0x7FFFFFFF },
   
@@ -2510,10 +2526,14 @@ fixNodeHostname(InitConfigFileParser::Context & ctx, const char * data){
   
   const char * compId;
   if(!ctx.m_currentSection->get("ExecuteOnComputer", &compId)){
+    require(ctx.m_currentSection->put("HostName", ""));
+    return true;
+#if 0
     ctx.reportError("Parameter \"ExecuteOnComputer\" missing from section "
 		    "[%s] starting at line: %d",
 		    ctx.fname, ctx.m_sectionLineno);
     return false;
+#endif
   }
   
   const Properties * computer;
@@ -3158,9 +3178,9 @@ saveInConfigValues(InitConfigFileParser::Context & ctx, const char * data){
 }
 
 bool
-addNodeConnections(Vector<ConfigInfo::ConfigRuleSection>&sections, 
+add_node_connections(Vector<ConfigInfo::ConfigRuleSection>&sections, 
 		   struct InitConfigFileParser::Context &ctx, 
-		   const char * ruleData)
+		   const char * rule_data)
 {
   Properties * props= ctx.m_config;
   Properties p_connections;
@@ -3241,3 +3261,10 @@ addNodeConnections(Vector<ConfigInfo::ConfigRuleSection>&sections,
 
   return true;
 }
+bool add_db_ports(Vector<ConfigInfo::ConfigRuleSection>&sections, 
+		  struct InitConfigFileParser::Context &ctx, 
+		  const char * rule_data)
+{
+  return true;
+}
+
