@@ -334,7 +334,7 @@ bool mysql_change_db(THD *thd,const char *name)
     x_free(dbname);
     DBUG_RETURN(1);
   }
-  DBUG_PRINT("general",("Use database: %s", dbname));
+  DBUG_PRINT("info",("Use database: %s", dbname));
   if (test_all_bits(thd->master_access,DB_ACLS))
     db_access=DB_ACLS;
   else

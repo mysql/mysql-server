@@ -481,6 +481,27 @@ Functions i mysys: (For flags se my_sys.h)
  void end_key_cache _A((void));
 	- End key-cacheing.
 
+@node DBUG,,,
+@chapter The DBUG tags to use:
+
+Here is some of the tags we now use:
+(We should probably add a couple of new ones)
+ 
+"enter"	  Arguments to the function.
+"exit"	  Results from the function.
+"info"    is something that may be interesting.
+"warning" is when something doesn't go the usual route or may be wrong.
+"error"   when something went wrong.
+"loop"	  write in a loop, that is probably only useful when debugging
+	  the loop.  These should normally be deleted when on is
+	  satisfied with the code and it has been in real use for a while.
+
+Some specific to mysqld, because we want to watch these carefully:
+
+"trans"	  Starting/stopping transactions.
+"quit"	  'info' when mysqld is preparing to die.
+"query"	  Print query
+
 @node protocol,,,
 @chapter MySQL client/server protocol
 
