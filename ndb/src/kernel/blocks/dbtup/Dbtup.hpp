@@ -2322,10 +2322,15 @@ private:
   // Counters for num UNDO log records executed
   Uint32 cSrUndoRecords[9];
 
+  STATIC_CONST(MAX_PARALLELL_TUP_SRREQ = 2); 
+  Uint32 c_sr_free_page_0;
+
   Uint32 c_errorInsert4000TableId;
 
   void initGlobalTemporaryVars();
   void reportMemoryUsage(Signal* signal, int incDec);
+
+  
 #ifdef VM_TRACE
   struct Th {
     Uint32 data[1];

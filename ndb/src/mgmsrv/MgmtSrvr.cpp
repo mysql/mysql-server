@@ -172,7 +172,7 @@ MgmtSrvr::signalRecvThreadRun()
   siglist.push_back(SigMatch(GSN_MGM_UNLOCK_CONFIG_REQ,
 			     &MgmtSrvr::handle_MGM_UNLOCK_CONFIG_REQ));
   
-  while(1) {
+  while(!_isStopThread) {
     SigMatch *handler = NULL;
     NdbApiSignal *signal = NULL;
     if(m_signalRecvQueue.waitFor(siglist, handler, signal)) {
@@ -250,14 +250,12 @@ MgmtSrvr::startEventLog()
   }
   ndb_mgm_destroy_iterator(iter);
   
-  if(logdest.length()==0) {
+  if(logdest.length() == 0 || logdest == "") {
     logdest.assfmt("FILE:filename=%s,maxsize=1000000,maxfiles=6", 
 		   clusterLog);
   }
-  
   if(!g_EventLogger.addHandler(logdest)) {
-    ndbout << "ERROR: cannot parse \"" << logdest << "\"" << endl;
-    exit(1);
+    ndbout << "Warning: could not add log destination \"" << logdest.c_str() << "\"" << endl;
   }
 }
 
@@ -415,14 +413,18 @@ MgmtSrvr::getPort() const {
     ndbout << "Local node id " << getOwnNodeId()
 	   << " is not defined as management server" << endl
 	   << "Have you set correct NodeId for this node?" << endl;
+    ndb_mgm_destroy_iterator(iter);
     return 0;
   }
   
   Uint32 port = 0;
   if(ndb_mgm_get_int_parameter(iter, CFG_MGM_PORT, &port) != 0){
     ndbout << "Could not find PortNumber in the configuration file." << endl;
+    ndb_mgm_destroy_iterator(iter);
     return 0;
   }
+
+  ndb_mgm_destroy_iterator(iter);
   
   /*****************
    * Set Stat Port *
@@ -517,6 +519,7 @@ MgmtSrvr::MgmtSrvr(NodeId nodeId,
   _isStopThread        = false;
   _logLevelThread      = NULL;
   _logLevelThreadSleep = 500;
+  m_signalRecvThread   = NULL;
   _startedNodeId       = 0;
 
   theFacade = 0;
@@ -581,16 +584,11 @@ MgmtSrvr::MgmtSrvr(NodeId nodeId,
 
   _ownNodeId= 0;
   NodeId tmp= nodeId;
-  if (getFreeNodeId(&tmp, NDB_MGM_NODE_TYPE_MGM, 0, 0)){
-    _ownNodeId= tmp;
-    if (nodeId != 0 && nodeId != tmp) {
-      ndbout << "Unable to obtain requested nodeid " << nodeId
-	     << " nodeid " << tmp << " available\n";
-      _ownNodeId= 0; // did not get nodeid requested
-    }
-    m_allocated_resources.reserve_node(_ownNodeId);
-  } else
-    NDB_ASSERT(0, "Unable to retrieve own node id");
+  if (!alloc_node_id(&tmp, NDB_MGM_NODE_TYPE_MGM, 0, 0)){
+    ndbout << "Unable to obtain requested nodeid " << nodeId;
+    exit(-1);
+  }
+  _ownNodeId = tmp;
 }
 
 
@@ -695,6 +693,11 @@ MgmtSrvr::~MgmtSrvr()
   if (_logLevelThread != NULL) {
     NdbThread_WaitFor(_logLevelThread, &res);
     NdbThread_Destroy(&_logLevelThread);
+  }
+
+  if (m_signalRecvThread != NULL) {
+    NdbThread_WaitFor(m_signalRecvThread, &res);
+    NdbThread_Destroy(&m_signalRecvThread);
   }
 }
 
@@ -1088,13 +1091,13 @@ MgmtSrvr::version(int * stopCount, bool abort,
 
   m_versionRec.callback = callback;
   m_versionRec.inUse = true ;
-  
-  for(Uint32 i = 0; i<MAX_NODES; i++) {
+  Uint32 i; 
+  for(i = 0; i<MAX_NODES; i++) {
     if (getNodeType(i) == NDB_MGM_NODE_TYPE_MGM) {
       m_versionRec.callback(i, NDB_VERSION, this,0);
     }
   }
-  for(Uint32 i = 0; i<MAX_NODES; i++) {
+  for(i = 0; i<MAX_NODES; i++) {
     if (getNodeType(i) == NDB_MGM_NODE_TYPE_NDB) {
       node = theFacade->theClusterMgr->getNodeInfo(i);
       version = node.m_info.m_version;
@@ -1105,7 +1108,7 @@ MgmtSrvr::version(int * stopCount, bool abort,
       
     }
   }
-  for(Uint32 i = 0; i<MAX_NODES; i++) {
+  for(i = 0; i<MAX_NODES; i++) {
     if (getNodeType(i) == NDB_MGM_NODE_TYPE_API) {
       return sendVersionReq(i);   
     }
@@ -1565,7 +1568,8 @@ MgmtSrvr::setEventReportingLevelImpl(int processId,
 				     const SetLogLevelOrd & ll, 
 				     bool isResend) 
 {
-  for(Uint32 i = 0; i<ll.noOfEntries; i++){
+  Uint32 i;
+  for(i = 0; i<ll.noOfEntries; i++){
     // Save log level for the cluster log
     if (!isResend) {
       NodeLogLevel* n = NULL;
@@ -1596,7 +1600,7 @@ MgmtSrvr::setEventReportingLevelImpl(int processId,
 
   EventSubscribeReq * dst = 
     CAST_PTR(EventSubscribeReq, signal->getDataPtrSend());
-  for(Uint32 i = 0; i<ll.noOfEntries; i++){
+  for(i = 0; i<ll.noOfEntries; i++){
     dst->theCategories[i] = ll.theCategories[i];
     dst->theLevels[i] = ll.theLevels[i];
   }
@@ -1625,7 +1629,8 @@ int
 MgmtSrvr::setNodeLogLevel(int processId, const SetLogLevelOrd & ll,
 			  bool isResend) 
 {
-  for(Uint32 i = 0; i<ll.noOfEntries; i++){
+  Uint32 i;
+  for(i = 0; i<ll.noOfEntries; i++){
     // Save log level for the cluster log
     if (!isResend) {
       NodeLogLevel* n = NULL;
@@ -1656,7 +1661,7 @@ MgmtSrvr::setNodeLogLevel(int processId, const SetLogLevelOrd & ll,
 
   SetLogLevelOrd * dst = CAST_PTR(SetLogLevelOrd, signal->getDataPtrSend());
 
-  for(Uint32 i = 0; i<ll.noOfEntries; i++){
+  for(i = 0; i<ll.noOfEntries; i++){
     dst->theCategories[i] = ll.theCategories[i];
     dst->theLevels[i] = ll.theLevels[i];
   }
@@ -1800,7 +1805,7 @@ MgmtSrvr::setSignalLoggingMode(int processId, LogMode mode,
     logSpec = TestOrd::InputOutputSignals;
     break;
   default:
-    NDB_ASSERT(false, "Unexpected value, MgmtSrvr::setSignalLoggingMode");
+    assert("Unexpected value, MgmtSrvr::setSignalLoggingMode" == 0);
   }
 
   NdbApiSignal* signal = getSignal();
@@ -2289,10 +2294,19 @@ MgmtSrvr::getNodeType(NodeId nodeId) const
   return nodeTypes[nodeId];
 }
 
+#ifdef NDB_WIN32
+static NdbMutex & f_node_id_mutex = * NdbMutex_Create();
+#else
+static NdbMutex f_node_id_mutex = NDB_MUTEX_INITIALIZER;
+#endif
+
 bool
-MgmtSrvr::getFreeNodeId(NodeId * nodeId, enum ndb_mgm_node_type type,
-			struct sockaddr *client_addr, socklen_t *client_addr_len) const 
+MgmtSrvr::alloc_node_id(NodeId * nodeId, 
+			enum ndb_mgm_node_type type,
+			struct sockaddr *client_addr, 
+			socklen_t *client_addr_len)
 {
+  Guard g(&f_node_id_mutex);
 #if 0
   ndbout << "MgmtSrvr::getFreeNodeId type=" << type
 	 << " *nodeid=" << *nodeId << endl;
@@ -2353,6 +2367,7 @@ MgmtSrvr::getFreeNodeId(NodeId * nodeId, enum ndb_mgm_node_type type,
       }
     }
     *nodeId= tmp;
+    m_reserved_nodes.set(tmp);
 #if 0
     ndbout << "MgmtSrvr::getFreeNodeId found type=" << type
 	   << " *nodeid=" << *nodeId << endl;
@@ -2757,6 +2772,7 @@ MgmtSrvr::Allocated_resources::Allocated_resources(MgmtSrvr &m)
 
 MgmtSrvr::Allocated_resources::~Allocated_resources()
 {
+  Guard g(&f_node_id_mutex);
   m_mgmsrv.m_reserved_nodes.bitANDC(m_reserved_nodes); 
 }
 
@@ -2764,6 +2780,106 @@ void
 MgmtSrvr::Allocated_resources::reserve_node(NodeId id)
 {
   m_reserved_nodes.set(id);
-  m_mgmsrv.m_reserved_nodes.set(id);
 }
 
+int
+MgmtSrvr::setDbParameter(int node, int param, const char * value,
+			 BaseString& msg){
+  /**
+   * Check parameter
+   */
+  ndb_mgm_configuration_iterator iter(* _config->m_configValues, 
+				      CFG_SECTION_NODE);
+  if(iter.first() != 0){
+    msg.assign("Unable to find node section (iter.first())");
+    return -1;
+  }
+  
+  Uint32 type = NODE_TYPE_DB + 1;
+  if(node != 0){
+    if(iter.find(CFG_NODE_ID, node) != 0){
+      msg.assign("Unable to find node (iter.find())");
+      return -1;
+    }
+    if(iter.get(CFG_TYPE_OF_SECTION, &type) != 0){
+      msg.assign("Unable to get node type(iter.get(CFG_TYPE_OF_SECTION))");
+      return -1;
+    }
+  } else {
+    do {
+      if(iter.get(CFG_TYPE_OF_SECTION, &type) != 0){
+	msg.assign("Unable to get node type(iter.get(CFG_TYPE_OF_SECTION))");
+	return -1;
+      }
+      if(type == NODE_TYPE_DB)
+	break;
+    } while(iter.next() == 0);
+  }
+  
+  if(type != NODE_TYPE_DB){
+    msg.assfmt("Invalid node type or no such node (%d %d)", 
+	       type, NODE_TYPE_DB);
+    return -1;
+  }
+
+  int p_type;
+  unsigned val_32;
+  unsigned long long val_64;
+  const char * val_char;
+  do {
+    p_type = 0;
+    if(iter.get(param, &val_32) == 0){
+      val_32 = atoi(value);
+      break;
+    }
+    
+    p_type++;
+    if(iter.get(param, &val_64) == 0){
+      val_64 = atoll(value);
+      break;
+    }
+    p_type++;
+    if(iter.get(param, &val_char) == 0){
+      val_char = value;
+      break;
+    }
+    msg.assign("Could not get parameter");
+    return -1;
+  } while(0);
+  
+  bool res = false;
+  do {
+    int ret = iter.get(CFG_TYPE_OF_SECTION, &type);
+    assert(ret == 0);
+    
+    if(type != NODE_TYPE_DB)
+      continue;
+    
+    Uint32 node;
+    ret = iter.get(CFG_NODE_ID, &node);
+    assert(ret == 0);
+    
+    ConfigValues::Iterator i2(_config->m_configValues->m_config, 
+			      iter.m_config);
+    switch(p_type){
+    case 0:
+      res = i2.set(param, val_32);
+      ndbout_c("Updateing node %d param: %d to %d",  node, param, val_32);
+      break;
+    case 1:
+      res = i2.set(param, val_64);
+      ndbout_c("Updateing node %d param: %d to %Ld",  node, param, val_32);
+      break;
+    case 2:
+      res = i2.set(param, val_char);
+      ndbout_c("Updateing node %d param: %d to %s",  node, param, val_char);
+      break;
+    default:
+      abort();
+    }
+    assert(res);
+  } while(node == 0 && iter.next() == 0);
+
+  msg.assign("Success");
+  return 0;
+}

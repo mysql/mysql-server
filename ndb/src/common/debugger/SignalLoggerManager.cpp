@@ -488,31 +488,6 @@ SignalLoggerManager::printLinearSection(FILE * output,
 }
 
 void
-SignalLoggerManager::printSegmentedSection(FILE * output,
-                                           const SignalHeader & sh,
-                                           const SegmentedSectionPtr ptr[3],
-                                           unsigned i)
-{
-  fprintf(output, "SECTION %u type=segmented", i);
-  if (i >= 3) {
-    fprintf(output, " *** invalid ***\n");
-    return;
-  }
-  const Uint32 len = ptr[i].sz;
-  SectionSegment * ssp = ptr[i].p;
-  Uint32 pos = 0;
-  fprintf(output, " size=%u\n", (unsigned)len);
-  while (pos < len) {
-    if (pos > 0 && pos % SectionSegment::DataLength == 0) {
-      ssp = g_sectionSegmentPool.getPtr(ssp->m_nextSegment);
-    }
-    printDataWord(output, pos, ssp->theData[pos % SectionSegment::DataLength]);
-  }
-  if (len > 0)
-    putc('\n', output);
-}
-
-void
 SignalLoggerManager::printDataWord(FILE * output, Uint32 & pos, const Uint32 data)
 {
   const char* const hex = "0123456789abcdef";

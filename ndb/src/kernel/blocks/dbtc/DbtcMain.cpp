@@ -4959,6 +4959,7 @@ void Dbtc::execLQHKEYREF(Signal* signal)
 	}
       }
       
+      Uint32 marker = regTcPtr->commitAckMarker;
       markOperationAborted(regApiPtr, regTcPtr);
       
       if(regApiPtr->apiConnectstate == CS_ABORTING){
@@ -4978,7 +4979,7 @@ void Dbtc::execLQHKEYREF(Signal* signal)
 	return;
       }//if
 
-      if (regTcPtr->commitAckMarker != RNIL){
+      if (marker != RNIL){
 	/**
 	 * This was an insert/update/delete/write which failed
 	 *   that contained the marker
@@ -5003,6 +5004,7 @@ void Dbtc::execLQHKEYREF(Signal* signal)
       setApiConTimer(apiConnectptr.i, ctcTimer, __LINE__);
       if (isIndexOp) {
         jam();
+	regApiPtr->lqhkeyreqrec--; // Compensate for extra during read
 	tcKeyRef->connectPtr = indexOp;
 	EXECUTE_DIRECT(DBTC, GSN_TCKEYREF, signal, TcKeyRef::SignalLength);
       } else {
@@ -5042,11 +5044,11 @@ void Dbtc::execLQHKEYREF(Signal* signal)
 	  jam();
 	  diverify010Lab(signal);
 	  return;
-	} else if (regApiPtr->tckeyrec > 0) {
+	} else if (regApiPtr->tckeyrec > 0 || regApiPtr->m_exec_flag) {
 	  jam();
 	  sendtckeyconf(signal, 2);
 	  return;
-	}//if
+	}
       }//if
       return;
       
@@ -5280,8 +5282,9 @@ void Dbtc::execTCROLLBACKREQ(Signal* signal)
     signal->theData[1] = apiConnectptr.p->transid[0];
     signal->theData[2] = apiConnectptr.p->transid[1];
     signal->theData[3] = ZROLLBACKNOTALLOWED;
+    signal->theData[4] = apiConnectptr.p->apiConnectstate;
     sendSignal(apiConnectptr.p->ndbapiBlockref, GSN_TCROLLBACKREF, 
-	       signal, 4, JBB);
+	       signal, 5, JBB);
     break;
                                                  /* SEND A REFUSAL SIGNAL*/
   case CS_ABORTING:
@@ -6721,7 +6724,8 @@ void Dbtc::execNODE_FAILREP(Signal* signal)
 
   tcNodeFailptr.i = 0;
   ptrAss(tcNodeFailptr, tcFailRecord);
-  for (Uint32 tindex = 0; tindex < tnoOfNodes; tindex++) {
+  Uint32 tindex;
+  for (tindex = 0; tindex < tnoOfNodes; tindex++) {
     jam();
     hostptr.i = cdata[tindex];
     ptrCheckGuard(hostptr, chostFilesize, hostRecord);
@@ -6838,8 +6842,7 @@ void Dbtc::execNODE_FAILREP(Signal* signal)
       }//if
     }//for
   }//if
-
-  for (Uint32 tindex = 0; tindex < tnoOfNodes; tindex++) {
+  for (tindex = 0; tindex < tnoOfNodes; tindex++) {
     jam();
     hostptr.i = cdata[tindex];
     ptrCheckGuard(hostptr, chostFilesize, hostRecord);
@@ -10529,6 +10532,13 @@ Dbtc::execDUMP_STATE_ORD(Signal* signal)
     jam();
     if(signal->getLength() > 1){
       set_timeout_value(signal->theData[1]);
+    }
+  }
+
+  if (dumpState->args[0] == DumpStateOrd::TcSetApplTransactionTimeout){
+    jam();
+    if(signal->getLength() > 1){
+      set_appl_timeout_value(signal->theData[1]);
     }
   }
 }//Dbtc::execDUMP_STATE_ORD()

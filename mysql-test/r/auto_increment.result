@@ -201,6 +201,24 @@ a	b
 202	5
 203	6
 204	7
+alter table t1 modify b mediumint;
+select * from t1 order by b;
+a	b
+1	1
+200	2
+0	3
+201	4
+202	5
+203	6
+204	7
+create table t2 (a int);
+insert t2 values (1),(2);
+alter table t2 add b int auto_increment primary key;
+select * from t2;
+a	b
+1	1
+2	2
+drop table t2;
 delete from t1 where a=0;
 update t1 set a=0 where b=5;
 select * from t1 order by b;

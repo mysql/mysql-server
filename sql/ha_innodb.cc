@@ -117,6 +117,7 @@ my_bool innobase_log_archive			= FALSE;/* unused */
 my_bool	innobase_use_native_aio			= FALSE;
 my_bool	innobase_fast_shutdown			= TRUE;
 my_bool	innobase_file_per_table			= FALSE;
+my_bool innobase_locks_unsafe_for_binlog        = FALSE;
 
 static char *internal_innobase_data_file_path	= NULL;
 
@@ -908,6 +909,7 @@ innobase_init(void)
 	srv_fast_shutdown = (ibool) innobase_fast_shutdown;
 
 	srv_file_per_table = (ibool) innobase_file_per_table;
+        srv_locks_unsafe_for_binlog = (ibool) innobase_locks_unsafe_for_binlog;
 
 	srv_max_n_open_files = (ulint) innobase_open_files;
 
@@ -3640,11 +3642,19 @@ ha_innobase::create(
   	}
 
 	if (current_thd->query != NULL) {
-  	
-		error = row_table_add_foreign_constraints(trx,
-					current_thd->query, norm_name);
 
-		error = convert_error_code_to_mysql(error, NULL);
+		LEX_STRING q;
+		if (thd->convert_string(&q, system_charset_info,
+					current_thd->query,
+					current_thd->query_length,
+					current_thd->charset())) {
+			error = HA_ERR_OUT_OF_MEM;
+		} else {
+			error = row_table_add_foreign_constraints(trx,
+					q.str, norm_name);
+
+			error = convert_error_code_to_mysql(error, NULL);
+		}
 
 		if (error) {
 			innobase_commit_low(trx);

@@ -268,8 +268,8 @@ void Item_bool_func2::fix_length_and_dec()
 int Arg_comparator::set_compare_func(Item_bool_func2 *item, Item_result type)
 {
   owner= item;
-  func= comparator_matrix[type][(owner->functype() == Item_func::EQUAL_FUNC)?
-				1:0];
+  func= comparator_matrix[type]
+                         [test(owner->functype() == Item_func::EQUAL_FUNC)];
   if (type == ROW_RESULT)
   {
     uint n= (*a)->cols();

@@ -301,9 +301,10 @@ public:
   }
   ~LogEntry()
   {
-    for(Uint32 i= 0; i< m_values.size(); i++)
+    Uint32 i;
+    for(i= 0; i< m_values.size(); i++)
       delete m_values[i];
-    for(Uint32 i= 0; i< m_values_e.size(); i++)
+    for(i= 0; i< m_values_e.size(); i++)
       delete m_values_e[i];
   }
   Uint32 size() const { return m_values.size(); }

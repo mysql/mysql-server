@@ -78,6 +78,7 @@ public:
     // methods to reserve/allocate resources which
     // will be freed when running destructor
     void reserve_node(NodeId id);
+    bool is_reserved(NodeId nodeId) { return m_reserved_nodes.get(nodeId);}
   private:
     MgmtSrvr &m_mgmsrv;
     NodeBitmask m_reserved_nodes;
@@ -465,8 +466,8 @@ public:
    *   @return false if none found
    */
   bool getNextNodeId(NodeId * _nodeId, enum ndb_mgm_node_type type) const ;
-  bool getFreeNodeId(NodeId * _nodeId, enum ndb_mgm_node_type type,
-		     struct sockaddr *client_addr, socklen_t *client_addr_len) const ;
+  bool alloc_node_id(NodeId * _nodeId, enum ndb_mgm_node_type type,
+		     struct sockaddr *client_addr, socklen_t *client_addr_len);
   
   /**
    *
@@ -517,6 +518,8 @@ public:
    */
   int getPort() const;
 
+  int setDbParameter(int node, int parameter, const char * value, BaseString&);
+  
   //**************************************************************************
 private:
   //**************************************************************************

@@ -46,7 +46,7 @@ HugoTransactions::scanReadRecords(Ndb* pNdb,
   
   int                  retryAttempt = 0;
   const int            retryMax = 100;
-  int                  check;
+  int                  check, a;
   NdbConnection	       *pTrans;
   NdbScanOperation	       *pOp;
 
@@ -96,7 +96,7 @@ HugoTransactions::scanReadRecords(Ndb* pNdb,
       return NDBT_FAILED;
     }
   
-    for(int a = 0; a<tab.getNoOfColumns(); a++){
+    for(a = 0; a<tab.getNoOfColumns(); a++){
       if((row.attributeStore(a) = 
 	  pOp->getValue(tab.getColumn(a)->getName())) == 0) {
 	ERR(pTrans->getNdbError());
@@ -220,7 +220,7 @@ HugoTransactions::scanUpdateRecords1(Ndb* pNdb,
 #else
   int                  retryAttempt = 0;
   const int            retryMax = 100;
-  int check;
+  int check, a;
   NdbConnection		*pTrans;
   NdbOperation		*pOp;
 
@@ -269,7 +269,7 @@ HugoTransactions::scanUpdateRecords1(Ndb* pNdb,
     }
 
     // Read all attributes from this table    
-    for(int a=0; a<tab.getNoOfColumns(); a++){
+    for(a=0; a<tab.getNoOfColumns(); a++){
       if((row.attributeStore(a) = pOp->getValue(tab.getColumn(a)->getName())) == NULL){
 	ERR(pTrans->getNdbError());
 	pNdb->closeTransaction(pTrans);
@@ -387,7 +387,7 @@ HugoTransactions::scanUpdateRecords2(Ndb* pNdb,
 #else
   int                  retryAttempt = 0;
   const int            retryMax = 100;
-  int check;
+  int check, a;
   NdbConnection		*pTrans;
   NdbOperation		*pOp;
 
@@ -436,7 +436,7 @@ HugoTransactions::scanUpdateRecords2(Ndb* pNdb,
     }
 
     // Read all attributes from this table    
-    for(int a=0; a<tab.getNoOfColumns(); a++){
+    for(a=0; a<tab.getNoOfColumns(); a++){
       if((row.attributeStore(a) = pOp->getValue(tab.getColumn(a)->getName())) == NULL){
 	ERR(pTrans->getNdbError());
 	pNdb->closeTransaction(pTrans);
@@ -553,7 +553,7 @@ HugoTransactions::scanUpdateRecords3(Ndb* pNdb,
 				     int parallelism){
   int                  retryAttempt = 0;
   const int            retryMax = 100;
-  int check;
+  int check, a;
   NdbConnection	*pTrans;
   NdbScanOperation *pOp;
 
@@ -592,7 +592,7 @@ HugoTransactions::scanUpdateRecords3(Ndb* pNdb,
     }
     
     // Read all attributes from this table    
-    for(int a=0; a<tab.getNoOfColumns(); a++){
+    for(a=0; a<tab.getNoOfColumns(); a++){
       if((row.attributeStore(a) = pOp->getValue(tab.getColumn(a)->getName())) == NULL){
 	ERR(pTrans->getNdbError());
 	pNdb->closeTransaction(pTrans);
@@ -634,7 +634,7 @@ HugoTransactions::scanUpdateRecords3(Ndb* pNdb,
 	}
 	const int updates = calc.getUpdatesValue(&row) + 1;
 	const int r = calc.getIdValue(&row);
-  	for(int a = 0; a<tab.getNoOfColumns(); a++){
+  	for(a = 0; a<tab.getNoOfColumns(); a++){
 	  if (tab.getColumn(a)->getPrimaryKey() == false){
 	    if(setValueForAttr(pUp, a, r, updates ) != 0){
 	      ERR(pTrans->getNdbError());
@@ -693,12 +693,14 @@ HugoTransactions::loadTable(Ndb* pNdb,
 			    int records,
 			    int batch,
 			    bool allowConstraintViolation,
-			    int doSleep){
-  int             check;
+			    int doSleep,
+                            bool oneTrans){
+  int             check, a;
   int             retryAttempt = 0;
   int             retryMax = 5;
   NdbConnection   *pTrans;
   NdbOperation	  *pOp;
+  bool            first_batch = true;
 
   const int org = batch;
   const int cols = tab.getNoOfColumns();
@@ -707,7 +709,7 @@ HugoTransactions::loadTable(Ndb* pNdb,
   batch = (batch * 256); // -> 512 -> 65536k per commit
   batch = batch/bytes;   // 
   batch = batch == 0 ? 1 : batch;
-  
+ 
   if(batch != org){
     g_info << "batch = " << org << " rowsize = " << bytes
 	   << " -> rows/commit = " << batch << endl;
@@ -715,7 +717,7 @@ HugoTransactions::loadTable(Ndb* pNdb,
   
   g_info << "|- Inserting records..." << endl;
   for (int c=0 ; c<records ; ){
-
+    bool closeTrans;
     if (retryAttempt >= retryMax){
       g_info << "Record " << c << " could not be inserted, has retried "
 	     << retryAttempt << " times " << endl;
@@ -726,19 +728,22 @@ HugoTransactions::loadTable(Ndb* pNdb,
     if (doSleep > 0)
       NdbSleep_MilliSleep(doSleep);
 
-    pTrans = pNdb->startTransaction();
+    if (first_batch || !oneTrans) {
+      first_batch = false;
+      pTrans = pNdb->startTransaction();
+    
+      if (pTrans == NULL) {
+        const NdbError err = pNdb->getNdbError();
 
-    if (pTrans == NULL) {
-      const NdbError err = pNdb->getNdbError();
-
-      if (err.status == NdbError::TemporaryError){
-	ERR(err);
-	NdbSleep_MilliSleep(50);
-	retryAttempt++;
-	continue;
+        if (err.status == NdbError::TemporaryError){
+          ERR(err);
+	  NdbSleep_MilliSleep(50);
+	  retryAttempt++;
+	  continue;
+        }
+        ERR(err);
+        return NDBT_FAILED;
       }
-      ERR(err);
-      return NDBT_FAILED;
     }
 
     for(int b = 0; b < batch && c+b<records; b++){ 
@@ -758,7 +763,7 @@ HugoTransactions::loadTable(Ndb* pNdb,
       }
 
       // Set a calculated value for each attribute in this table	 
-      for (int a = 0; a<tab.getNoOfColumns(); a++){
+      for (a = 0; a<tab.getNoOfColumns(); a++){
 	if(setValueForAttr(pOp, a, c+b, 0 ) != 0){	  
 	  ERR(pTrans->getNdbError());
 	  pNdb->closeTransaction(pTrans);
@@ -768,7 +773,13 @@ HugoTransactions::loadTable(Ndb* pNdb,
     }
     
     // Execute the transaction and insert the record
-    check = pTrans->execute( Commit ); 
+    if (!oneTrans || (c + batch) >= records) {
+      closeTrans = true;
+      check = pTrans->execute( Commit );
+    } else {
+      closeTrans = false;
+      check = pTrans->execute( NoCommit );
+    }
     if(check == -1 ) {
       const NdbError err = pTrans->getNdbError();
       pNdb->closeTransaction(pTrans);
@@ -811,8 +822,10 @@ HugoTransactions::loadTable(Ndb* pNdb,
 	break;
       }
     }
-    else{      
-      pNdb->closeTransaction(pTrans);
+    else{
+      if (closeTrans) {
+        pNdb->closeTransaction(pTrans);
+      }
     }
     
     // Step to next record
@@ -825,7 +838,7 @@ HugoTransactions::loadTable(Ndb* pNdb,
 int
 HugoTransactions::fillTable(Ndb* pNdb, 
 			    int batch){
-  int             check;
+  int             check, a, b;
   int             retryAttempt = 0;
   int             retryMax = 5;
   NdbConnection   *pTrans;
@@ -856,7 +869,7 @@ HugoTransactions::fillTable(Ndb* pNdb,
       return NDBT_FAILED;
     }
 
-    for(int b = 0; b < batch; b++){ 
+    for(b = 0; b < batch; b++){ 
 
       pOp = pTrans->getNdbOperation(tab.getName());	
       if (pOp == NULL) {
@@ -873,7 +886,7 @@ HugoTransactions::fillTable(Ndb* pNdb,
       }
 
       // Set a calculated value for each attribute in this table	 
-      for (int a = 0; a<tab.getNoOfColumns(); a++){
+      for (a = 0; a<tab.getNoOfColumns(); a++){
 	if(setValueForAttr(pOp, a, c+b, 0 ) != 0){	  
 	  ERR(pTrans->getNdbError());
 	  pNdb->closeTransaction(pTrans);
@@ -1012,7 +1025,7 @@ int
 HugoTransactions::eventOperation(Ndb* pNdb, void* pstats,
 				 int records) {
   int myXXXXX = XXXXX++;
-
+  Uint32 i;
   const char function[] = "HugoTransactions::eventOperation: ";
   struct receivedEvent* recInsertEvent;
   NdbAutoObjArrayPtr<struct receivedEvent>
@@ -1029,7 +1042,7 @@ HugoTransactions::eventOperation(Ndb* pNdb, void* pstats,
   stats.n_duplicates = 0;
   stats.n_inconsistent_gcis = 0;
 
-  for (int i = 0; i < records; i++) {
+  for (i = 0; i < records; i++) {
     recInsertEvent[i].pk    = 0xFFFFFFFF;
     recInsertEvent[i].count = 0;
     recInsertEvent[i].event = 0xFFFFFFFF;
@@ -1137,7 +1150,7 @@ HugoTransactions::eventOperation(Ndb* pNdb, void* pstats,
 	}
 
 	g_info << "overrun " << overrun << " pk " << pk;
-	for (int i = 1; i < noEventColumnName; i++) {
+	for (i = 1; i < noEventColumnName; i++) {
 	  if (recAttr[i]->isNULL() >= 0) { // we have a value
 	    g_info << " post[" << i << "]=";
 	    if (recAttr[i]->isNULL() == 0) // we have a non-null value
@@ -1180,7 +1193,7 @@ HugoTransactions::eventOperation(Ndb* pNdb, void* pstats,
   if (stats.n_updates > 0) {
     stats.n_consecutive++;
   }
-  for (Uint32 i = 0; i < (Uint32)records/3; i++) {
+  for (i = 0; i < (Uint32)records/3; i++) {
     if (recInsertEvent[i].pk != i) {
       stats.n_consecutive ++;
       ndbout << "missing insert pk " << i << endl;
@@ -1219,7 +1232,7 @@ HugoTransactions::pkReadRecords(Ndb* pNdb,
   int                  r = 0;
   int                  retryAttempt = 0;
   const int            retryMax = 100;
-  int                  check;
+  int                  check, a;
   NdbConnection	       *pTrans;
   NdbOperation	       *pOp;
 
@@ -1271,7 +1284,7 @@ HugoTransactions::pkReadRecords(Ndb* pNdb,
       }
 
       // Define primary keys
-      for(int a = 0; a<tab.getNoOfColumns(); a++){
+      for(a = 0; a<tab.getNoOfColumns(); a++){
 	if (tab.getColumn(a)->getPrimaryKey() == true){
 	  if(equalForAttr(pOp, a, r+b) != 0){
 	    ERR(pTrans->getNdbError());
@@ -1282,7 +1295,7 @@ HugoTransactions::pkReadRecords(Ndb* pNdb,
       }
     
       // Define attributes to read  
-      for(int a = 0; a<tab.getNoOfColumns(); a++){
+      for(a = 0; a<tab.getNoOfColumns(); a++){
 	if((rows[b]->attributeStore(a) = 
 	    pOp->getValue(tab.getColumn(a)->getName())) == 0) {
 	  ERR(pTrans->getNdbError());
@@ -1345,13 +1358,13 @@ HugoTransactions::pkUpdateRecords(Ndb* pNdb,
   int                  r = 0;
   int                  retryAttempt = 0;
   const int            retryMax = 100;
-  int                  check;
+  int                  check, a, b;
   NdbConnection	       *pTrans;
   NdbOperation	       *pOp;
 
   allocRows(batch);
 
-  g_info << "|- Updating records..." << endl;
+  g_info << "|- Updating records (batch=" << batch << ")..." << endl;
   while (r < records){
     
     if (retryAttempt >= retryMax){
@@ -1377,7 +1390,7 @@ HugoTransactions::pkUpdateRecords(Ndb* pNdb,
       return NDBT_FAILED;
     }
 
-    for(int b = 0; b<batch && (r+b) < records; b++){
+    for(b = 0; b<batch && (r+b) < records; b++){
       pOp = pTrans->getNdbOperation(tab.getName());	
       if (pOp == NULL) {
 	ERR(pTrans->getNdbError());
@@ -1393,7 +1406,7 @@ HugoTransactions::pkUpdateRecords(Ndb* pNdb,
       }
 
       // Define primary keys
-      for(int a = 0; a<tab.getNoOfColumns(); a++){
+      for(a = 0; a<tab.getNoOfColumns(); a++){
 	if (tab.getColumn(a)->getPrimaryKey() == true){
 	  if(equalForAttr(pOp, a, r+b) != 0){
 	    ERR(pTrans->getNdbError());
@@ -1404,7 +1417,7 @@ HugoTransactions::pkUpdateRecords(Ndb* pNdb,
       }
       
       // Define attributes to read  
-      for(int a = 0; a<tab.getNoOfColumns(); a++){
+      for(a = 0; a<tab.getNoOfColumns(); a++){
 	if((rows[b]->attributeStore(a) = 
 	    pOp->getValue(tab.getColumn(a)->getName())) == 0) {
 	  ERR(pTrans->getNdbError());
@@ -1430,7 +1443,7 @@ HugoTransactions::pkUpdateRecords(Ndb* pNdb,
       return NDBT_FAILED;
     }
     
-    for(int b = 0; b<batch && (b+r)<records; b++){
+    for(b = 0; b<batch && (b+r)<records; b++){
       if (calc.verifyRowValues(rows[b]) != 0){
 	pNdb->closeTransaction(pTrans);
 	return NDBT_FAILED;
@@ -1453,7 +1466,7 @@ HugoTransactions::pkUpdateRecords(Ndb* pNdb,
 	return NDBT_FAILED;
       }
       
-      for(int a = 0; a<tab.getNoOfColumns(); a++){
+      for(a = 0; a<tab.getNoOfColumns(); a++){
 	if (tab.getColumn(a)->getPrimaryKey() == true){
 	  if(equalForAttr(pUpdOp, a, r+b) != 0){
 	    ERR(pTrans->getNdbError());
@@ -1463,7 +1476,7 @@ HugoTransactions::pkUpdateRecords(Ndb* pNdb,
 	}
       }
 
-      for(int a = 0; a<tab.getNoOfColumns(); a++){
+      for(a = 0; a<tab.getNoOfColumns(); a++){
 	if (tab.getColumn(a)->getPrimaryKey() == false){
 	  if(setValueForAttr(pUpdOp, a, r+b, updates ) != 0){
 	    ERR(pTrans->getNdbError());
@@ -1513,7 +1526,7 @@ HugoTransactions::pkInterpretedUpdateRecords(Ndb* pNdb,
   int r = 0;
   int retryAttempt = 0;
   const int retryMax = 100;
-  int check;
+  int check, a;
   NdbConnection	*pTrans;
 
   while (r < records){
@@ -1553,7 +1566,7 @@ HugoTransactions::pkInterpretedUpdateRecords(Ndb* pNdb,
    }
    
    // Define primary keys
-   for(int a = 0; a<tab.getNoOfColumns(); a++){
+   for(a = 0; a<tab.getNoOfColumns(); a++){
      if (tab.getColumn(a)->getPrimaryKey() == true){
        if(equalForAttr(pOp, a, r) != 0){
 	 ERR(pTrans->getNdbError());
@@ -1564,7 +1577,7 @@ HugoTransactions::pkInterpretedUpdateRecords(Ndb* pNdb,
    }
    
    // Read update value
-   for(int a = 0; a<tab.getNoOfColumns(); a++){
+   for(a = 0; a<tab.getNoOfColumns(); a++){
      if (calc.isUpdateCol(a) == true){
        if((row.attributeStore(a) = 
 	   pOp->getValue(tab.getColumn(a)->getName())) == 0) {
@@ -1609,7 +1622,7 @@ HugoTransactions::pkInterpretedUpdateRecords(Ndb* pNdb,
     }
 
     // PKs
-    for(int a = 0; a<tab.getNoOfColumns(); a++){
+    for(a = 0; a<tab.getNoOfColumns(); a++){
       if (tab.getColumn(a)->getPrimaryKey() == true){
 	if(equalForAttr(pUpdOp, a, r) != 0){
 	  ERR(pTrans->getNdbError());
@@ -1620,7 +1633,7 @@ HugoTransactions::pkInterpretedUpdateRecords(Ndb* pNdb,
     }
 
     // Update col
-    for(int a = 0; a<tab.getNoOfColumns(); a++){
+    for(a = 0; a<tab.getNoOfColumns(); a++){
       if ((tab.getColumn(a)->getPrimaryKey() == false) && 
 	  (calc.isUpdateCol(a) == true)){
 	
@@ -1637,7 +1650,7 @@ HugoTransactions::pkInterpretedUpdateRecords(Ndb* pNdb,
     }
 
     // Remaining attributes
-    for(int a = 0; a<tab.getNoOfColumns(); a++){
+    for(a = 0; a<tab.getNoOfColumns(); a++){
       if ((tab.getColumn(a)->getPrimaryKey() == false) && 
 	  (calc.isUpdateCol(a) == false)){
 	if(setValueForAttr(pUpdOp, a, r, updates ) != 0){
@@ -1692,7 +1705,7 @@ HugoTransactions::pkDelRecords(Ndb* pNdb,
   int                  r = 0;
   int                  retryAttempt = 0;
   const int            retryMax = 100;
-  int                  check;
+  int                  check, a;
   NdbConnection	       *pTrans;
   NdbOperation	       *pOp;
 
@@ -1737,7 +1750,7 @@ HugoTransactions::pkDelRecords(Ndb* pNdb,
     }
 
     // Define primary keys
-    for(int a = 0; a<tab.getNoOfColumns(); a++){
+    for(a = 0; a<tab.getNoOfColumns(); a++){
       if (tab.getColumn(a)->getPrimaryKey() == true){
 	if(equalForAttr(pOp, a, r) != 0){
 	  ERR(pTrans->getNdbError());
@@ -1807,7 +1820,7 @@ HugoTransactions::lockRecords(Ndb* pNdb,
   int                  r = 0;
   int                  retryAttempt = 0;
   const int            retryMax = 100;
-  int                  check;
+  int                  check, a, b;
   NdbConnection	       *pTrans;
   NdbOperation	       *pOp;
 
@@ -1844,7 +1857,7 @@ HugoTransactions::lockRecords(Ndb* pNdb,
       return NDBT_FAILED;
     }
 
-    for(int b = 0; (b<lockBatch) && (r+b < records); b++){ 
+    for(b = 0; (b<lockBatch) && (r+b < records); b++){ 
       pOp = pTrans->getNdbOperation(tab.getName());	
       if (pOp == NULL) {
 	ERR(pTrans->getNdbError());
@@ -1860,7 +1873,7 @@ HugoTransactions::lockRecords(Ndb* pNdb,
       }
       
       // Define primary keys
-      for(int a = 0; a<tab.getNoOfColumns(); a++){
+      for(a = 0; a<tab.getNoOfColumns(); a++){
 	if (tab.getColumn(a)->getPrimaryKey() == true){
 	  if(equalForAttr(pOp, a, r+b) != 0){
 	    ERR(pTrans->getNdbError());
@@ -1871,7 +1884,7 @@ HugoTransactions::lockRecords(Ndb* pNdb,
       }
           
       // Define attributes to read  
-      for(int a = 0; a<tab.getNoOfColumns(); a++){
+      for(a = 0; a<tab.getNoOfColumns(); a++){
 	if((rows[b]->attributeStore(a) = 
 	    pOp->getValue(tab.getColumn(a)->getName())) == 0) {
 	  ERR(pTrans->getNdbError());
@@ -1954,7 +1967,7 @@ HugoTransactions::indexReadRecords(Ndb* pNdb,
   int                  r = 0;
   int                  retryAttempt = 0;
   const int            retryMax = 100;
-  int                  check;
+  int                  check, a;
   NdbConnection	       *pTrans;
   NdbOperation *pOp;
   NdbIndexScanOperation *sOp;
@@ -2026,7 +2039,7 @@ HugoTransactions::indexReadRecords(Ndb* pNdb,
       }
       
       // Define primary keys
-      for(int a = 0; a<tab.getNoOfColumns(); a++){
+      for(a = 0; a<tab.getNoOfColumns(); a++){
 	if (tab.getColumn(a)->getPrimaryKey() == true){
 	  if(equalForAttr(pOp, a, r+b) != 0){
 	    ERR(pTrans->getNdbError());
@@ -2037,7 +2050,7 @@ HugoTransactions::indexReadRecords(Ndb* pNdb,
       }
       
       // Define attributes to read  
-      for(int a = 0; a<tab.getNoOfColumns(); a++){
+      for(a = 0; a<tab.getNoOfColumns(); a++){
 	if((rows[b]->attributeStore(a) = 
 	    pOp->getValue(tab.getColumn(a)->getName())) == 0) {
 	  ERR(pTrans->getNdbError());
@@ -2105,7 +2118,7 @@ HugoTransactions::indexUpdateRecords(Ndb* pNdb,
   int                  r = 0;
   int                  retryAttempt = 0;
   const int            retryMax = 100;
-  int                  check;
+  int                  check, a, b;
   NdbConnection	       *pTrans;
   NdbOperation *pOp;
   NdbScanOperation * sOp;
@@ -2142,7 +2155,7 @@ HugoTransactions::indexUpdateRecords(Ndb* pNdb,
       return NDBT_FAILED;
     }
 
-    for(int b = 0; b<batchsize && (b+r)<records; b++){
+    for(b = 0; b<batchsize && (b+r)<records; b++){
       if(!ordered){
 	pOp = pTrans->getNdbIndexOperation(idxName, tab.getName());	
 	if (pOp == NULL) {
@@ -2170,7 +2183,7 @@ HugoTransactions::indexUpdateRecords(Ndb* pNdb,
       }	
       
       // Define primary keys
-      for(int a = 0; a<tab.getNoOfColumns(); a++){
+      for(a = 0; a<tab.getNoOfColumns(); a++){
 	if (tab.getColumn(a)->getPrimaryKey() == true){
 	  if(equalForAttr(pOp, a, r+b) != 0){
 	    ERR(pTrans->getNdbError());
@@ -2181,7 +2194,7 @@ HugoTransactions::indexUpdateRecords(Ndb* pNdb,
       }
       
       // Define attributes to read  
-      for(int a = 0; a<tab.getNoOfColumns(); a++){
+      for(a = 0; a<tab.getNoOfColumns(); a++){
 	if((rows[b]->attributeStore(a) = 
 	    pOp->getValue(tab.getColumn(a)->getName())) == 0) {
 	  ERR(pTrans->getNdbError());
@@ -2212,7 +2225,7 @@ HugoTransactions::indexUpdateRecords(Ndb* pNdb,
       return NDBT_FAILED;    
     }
     
-    for(int b = 0; b<batchsize && (b+r)<records; b++){
+    for(b = 0; b<batchsize && (b+r)<records; b++){
       if (calc.verifyRowValues(rows[b]) != 0){
 	pNdb->closeTransaction(pTrans);
 	return NDBT_FAILED;
@@ -2241,7 +2254,7 @@ HugoTransactions::indexUpdateRecords(Ndb* pNdb,
       }
       
       if(!ordered){
-	for(int a = 0; a<tab.getNoOfColumns(); a++){
+	for(a = 0; a<tab.getNoOfColumns(); a++){
 	  if (tab.getColumn(a)->getPrimaryKey() == true){
 	    if(equalForAttr(pUpdOp, a, r+b) != 0){
 	      ERR(pTrans->getNdbError());
@@ -2252,7 +2265,7 @@ HugoTransactions::indexUpdateRecords(Ndb* pNdb,
 	}
       }
       
-      for(int a = 0; a<tab.getNoOfColumns(); a++){
+      for(a = 0; a<tab.getNoOfColumns(); a++){
 	if (tab.getColumn(a)->getPrimaryKey() == false){
 	  if(setValueForAttr(pUpdOp, a, r+b, updates ) != 0){
 	    ERR(pTrans->getNdbError());
@@ -2289,4 +2302,4 @@ HugoTransactions::indexUpdateRecords(Ndb* pNdb,
   return NDBT_OK;
 }
 
-
+template class Vector<NDBT_ResultRow*>;

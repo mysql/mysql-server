@@ -35,6 +35,7 @@
 #include <ndb_limits.h>
 #include "pc.hpp"
 #include <LogLevel.hpp>
+#include <NdbSleep.h>
 
 extern "C" {
   void ndbSetOwnVersion();
@@ -153,39 +154,82 @@ Configuration::closeConfiguration(){
 }
 
 void
-Configuration::setupConfiguration(){
+Configuration::fetch_configuration(){
   /**
    * Fetch configuration from management server
    */
   if (m_config_retriever) {
     delete m_config_retriever;
   }
-  m_config_retriever= new ConfigRetriever();
-  ConfigRetriever &cr= *m_config_retriever;
 
-  cr.setConnectString(_connectString);
-  stopOnError(true); 
-  ndb_mgm_configuration * p = cr.getConfig(NDB_VERSION, NODE_TYPE_DB);
+  m_config_retriever= new ConfigRetriever(NDB_VERSION, NODE_TYPE_DB);
+  m_config_retriever->setConnectString(_connectString ? _connectString : "");
+  if(m_config_retriever->init() == -1 ||
+     m_config_retriever->do_connect() == -1){
+    
+    const char * s = m_config_retriever->getErrorString();
+    if(s == 0)
+      s = "No error given!";
+    
+    /* Set stop on error to true otherwise NDB will
+       go into an restart loop...
+    */
+    ERROR_SET(fatal, ERR_INVALID_CONFIG, "Could connect to ndb_mgmd", s);
+  }
+  
+  ConfigRetriever &cr= *m_config_retriever;
+  
+  if((globalData.ownId = cr.allocNodeId()) == 0){
+    for(Uint32 i = 0; i<3; i++){
+      NdbSleep_SecSleep(3);
+      if(globalData.ownId = cr.allocNodeId())
+	break;
+    }
+  }
+  
+  if(globalData.ownId == 0){
+    ERROR_SET(fatal, ERR_INVALID_CONFIG, 
+	      "Unable to alloc node id", m_config_retriever->getErrorString());
+  }
+  
+  ndb_mgm_configuration * p = cr.getConfig();
   if(p == 0){
     const char * s = cr.getErrorString();
     if(s == 0)
       s = "No error given!";
-
+    
     /* Set stop on error to true otherwise NDB will
        go into an restart loop...
-     */
-
+    */
+    
     ERROR_SET(fatal, ERR_INVALID_CONFIG, "Could not fetch configuration"
 	      "/invalid configuration", s);
   }
+  if(m_clusterConfig)
+    free(m_clusterConfig);
+  
+  m_clusterConfig = p;
+  
+  ndb_mgm_configuration_iterator iter(* p, CFG_SECTION_NODE);
+  if (iter.find(CFG_NODE_ID, globalData.ownId)){
+    ERROR_SET(fatal, ERR_INVALID_CONFIG, "Invalid configuration fetched", "DB missing");
+  }
+  
+  if(iter.get(CFG_DB_STOP_ON_ERROR, &_stopOnError)){
+    ERROR_SET(fatal, ERR_INVALID_CONFIG, "Invalid configuration fetched", 
+	      "StopOnError missing");
+  }
+}
 
-  Uint32 nodeId = globalData.ownId = cr.getOwnNodeId();
+void
+Configuration::setupConfiguration(){
+  ndb_mgm_configuration * p = m_clusterConfig;
 
   /**
    * Configure transporters
    */
   {  
-    int res = IPCConfig::configureTransporters(nodeId, 
+    int res = IPCConfig::configureTransporters(globalData.ownId,
 					       * p, 
 					       globalTransporterRegistry);
     if(res <= 0){
@@ -247,11 +291,6 @@ Configuration::setupConfiguration(){
     }
   }
   
-  if(iter.get(CFG_DB_STOP_ON_ERROR, &_stopOnError)){
-    ERROR_SET(fatal, ERR_INVALID_CONFIG, "Invalid configuration fetched", 
-	      "StopOnError missing");
-  }
-  
   if(iter.get(CFG_DB_STOP_ON_ERROR_INSERT, &m_restartOnErrorInsert)){
     ERROR_SET(fatal, ERR_INVALID_CONFIG, "Invalid configuration fetched", 
 	      "RestartOnErrorInsert missing");
@@ -268,7 +307,6 @@ Configuration::setupConfiguration(){
   
   ConfigValues* cf = ConfigValuesFactory::extractCurrentSection(iter.m_config);
 
-  m_clusterConfig = p;
   m_clusterConfigIter = ndb_mgm_create_configuration_iterator
     (p, CFG_SECTION_NODE);
 
@@ -510,7 +548,7 @@ Configuration::calcSizeAlt(ConfigValues * ownConfig){
     // The remainder are allowed for use by the scan processes.
     /*-----------------------------------------------------------------------*/
     cfg.put(CFG_ACC_OP_RECS,
-	    noOfReplicas*((16 * noOfOperations) / 10 + 50) + 
+	    ((11 * noOfOperations) / 10 + 50) + 
 	    (noOfLocalScanRecords * MAX_PARALLEL_SCANS_PER_FRAG) +
 	    NODE_RECOVERY_SCAN_OP_RECORDS);
     
@@ -535,18 +573,9 @@ Configuration::calcSizeAlt(ConfigValues * ownConfig){
      */
     cfg.put(CFG_DICT_ATTRIBUTE, 
 	    noOfAttributes);
-    
-    cfg.put(CFG_DICT_CONNECT, 
-	    noOfOperations + 32);   
-    
-    cfg.put(CFG_DICT_FRAG_CONNECT, 
-	    NO_OF_FRAG_PER_NODE * noOfDBNodes * noOfReplicas);
 
     cfg.put(CFG_DICT_TABLE, 
 	    noOfTables);
-    
-    cfg.put(CFG_DICT_TC_CONNECT, 
-	    2* noOfOperations);
   }
   
   {
@@ -557,7 +586,7 @@ Configuration::calcSizeAlt(ConfigValues * ownConfig){
 	    2 * noOfTransactions);
     
     cfg.put(CFG_DIH_CONNECT, 
-	    noOfOperations + 46);
+	    noOfOperations + noOfTransactions + 46);
     
     cfg.put(CFG_DIH_FRAG_CONNECT, 
 	    NO_OF_FRAG_PER_NODE *  noOfTables *  noOfDBNodes);
@@ -587,18 +616,12 @@ Configuration::calcSizeAlt(ConfigValues * ownConfig){
     cfg.put(CFG_LQH_FRAG, 
 	    NO_OF_FRAG_PER_NODE * noOfTables * noOfReplicas);
     
-    cfg.put(CFG_LQH_CONNECT, 
-	    noOfReplicas*((11 * noOfOperations) / 10 + 50));
-    
     cfg.put(CFG_LQH_TABLE, 
 	    noOfTables);
 
     cfg.put(CFG_LQH_TC_CONNECT, 
-	    noOfReplicas*((16 * noOfOperations) / 10 + 50));
+	    (11 * noOfOperations) / 10 + 50);
     
-    cfg.put(CFG_LQH_REPLICAS, 
-	    noOfReplicas);
-
     cfg.put(CFG_LQH_SCAN, 
 	    noOfLocalScanRecords);
   }
@@ -611,7 +634,7 @@ Configuration::calcSizeAlt(ConfigValues * ownConfig){
 	    3 * noOfTransactions);
     
     cfg.put(CFG_TC_TC_CONNECT, 
-	    noOfOperations + 16 + noOfTransactions);
+	    (2 * noOfOperations) + 16 + noOfTransactions);
     
     cfg.put(CFG_TC_TABLE, 
 	    noOfTables);
@@ -631,7 +654,7 @@ Configuration::calcSizeAlt(ConfigValues * ownConfig){
 	    2 * NO_OF_FRAG_PER_NODE * noOfTables* noOfReplicas);
     
     cfg.put(CFG_TUP_OP_RECS, 
-	    noOfReplicas*((16 * noOfOperations) / 10 + 50));
+	    (11 * noOfOperations) / 10 + 50);
     
     cfg.put(CFG_TUP_PAGE, 
 	    noOfDataPages);

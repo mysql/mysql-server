@@ -177,7 +177,8 @@ Dbtux::treeRemove(Signal* signal, Frag& frag, TreePos treePos)
   nodePopDown(signal, node, pos, ent);
   ndbrequire(node.getChilds() <= 1);
   // handle half-leaf
-  for (unsigned i = 0; i <= 1; i++) {
+  unsigned i;
+  for (i = 0; i <= 1; i++) {
     jam();
     TupLoc childLoc = node.getLink(i);
     if (childLoc != NullTupLoc) {
@@ -191,7 +192,7 @@ Dbtux::treeRemove(Signal* signal, Frag& frag, TreePos treePos)
   // get parent if any
   TupLoc parentLoc = node.getLink(2);
   NodeHandle parentNode(frag);
-  unsigned i = node.getSide();
+  i = node.getSide();
   // move all that fits into parent
   if (parentLoc != NullTupLoc) {
     jam();

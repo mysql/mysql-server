@@ -69,9 +69,10 @@ NDB_MAIN(ndb_kernel){
   }
   
   { // Do configuration
-    theConfig->setupConfiguration();
+    signal(SIGPIPE, SIG_IGN);
+    theConfig->fetch_configuration();
   }
-
+  
   if (theConfig->getDaemonMode()) {
     // Become a daemon
     char *lockfile= NdbConfig_PidFileName(globalData.ownId);
@@ -88,8 +89,6 @@ NDB_MAIN(ndb_kernel){
     /**
      * Parent
      */
-    theConfig->closeConfiguration();
-
     catchsigs(true);
 
     int status = 0;
@@ -132,18 +131,20 @@ NDB_MAIN(ndb_kernel){
       exit(0);
     }
     g_eventLogger.info("Ndb has terminated (pid %d) restarting", child);
+    theConfig->fetch_configuration();
   }
 
   g_eventLogger.info("Angel pid: %d ndb pid: %d", getppid(), getpid());
+  theConfig->setupConfiguration();
   systemInfo(* theConfig, * theConfig->m_logLevel); 
-
+  
     // Load blocks
   globalEmulatorData.theSimBlockList->load(* theConfig);
     
   // Set thread concurrency for Solaris' light weight processes
   int status;
   status = NdbThread_SetConcurrencyLevel(30);
-  NDB_ASSERT(status == 0, "Can't set appropriate concurrency level.");
+  assert(status == 0);
   
 #ifdef VM_TRACE
   // Create a signal logger
@@ -168,18 +169,22 @@ NDB_MAIN(ndb_kernel){
     globalEmulatorData.theThreadConfig->doStart(NodeState::SL_STARTING);
     break;
   default:
-    NDB_ASSERT(0, "Illegal state globalData.theRestartFlag");
+    assert("Illegal state globalData.theRestartFlag" == 0);
   }
 
   SocketServer socket_server;
 
   globalTransporterRegistry.startSending();
   globalTransporterRegistry.startReceiving();
-  if (!globalTransporterRegistry.start_service(socket_server))
-    NDB_ASSERT(0, "globalTransporterRegistry.start_service() failed");
+  if (!globalTransporterRegistry.start_service(socket_server)){
+    ndbout_c("globalTransporterRegistry.start_service() failed");
+    exit(-1);
+  }
 
-  if (!globalTransporterRegistry.start_clients())
-    NDB_ASSERT(0, "globalTransporterRegistry.start_clients() failed");
+  if (!globalTransporterRegistry.start_clients()){
+    ndbout_c("globalTransporterRegistry.start_clients() failed");
+    exit(-1);
+  }
 
   globalEmulatorData.theWatchDog->doStart();
   

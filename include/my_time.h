@@ -28,6 +28,15 @@ C_MODE_START
 
 extern ulonglong log_10_int[20];
 
+/*
+  Portable time_t replacement.
+  Should be signed and hold seconds for 1902-2038 range.
+*/
+typedef long my_time_t;
+
+#define MY_TIME_T_MAX LONG_MAX
+#define MY_TIME_T_MIN LONG_MIN
+
 #define YY_PART_YEAR	   70
 
 /* Flags to str_to_datetime */
@@ -40,6 +49,13 @@ str_to_datetime(const char *str, uint length, MYSQL_TIME *l_time,
 
 bool str_to_time(const char *str,uint length, MYSQL_TIME *l_time,
                  int *was_cut);
+
+long calc_daynr(uint year,uint month,uint day);
+
+void init_time(void);
+
+my_time_t 
+my_system_gmt_sec(const MYSQL_TIME *t, long *my_timezone, bool *in_dst_time_gap);
 
 C_MODE_END
 

@@ -46,21 +46,21 @@ NdbRestarter::NdbRestarter(const char* _addr):
       return;
     }
 
-    if (lcfg.items == 0){
+    if (lcfg.ids.size() == 0){
       g_err << "NdbRestarter - No management servers configured in local config file" << endl;
       return;
     }
   
-    for (int i = 0; i<lcfg.items; i++){
-      MgmtSrvrId * m = lcfg.ids[i];
+    for (int i = 0; i<lcfg.ids.size(); i++){
+      MgmtSrvrId * m = &lcfg.ids[i];
       
       switch(m->type){
       case MgmId_TCP:
 	char buf[255];
-	snprintf(buf, 255, "%s:%d", m->data.tcp.remoteHost, m->data.tcp.port);
+	snprintf(buf, 255, "%s:%d", m->name.c_str(), m->port);
 	addr.assign(buf);
-	host.assign(m->data.tcp.remoteHost);
-	port = m->data.tcp.port;
+	host.assign(m->name.c_str());
+	port = m->port;
 	return;
 	break;
       case MgmId_File:
@@ -670,3 +670,5 @@ NdbRestarter::getConfig(){
   m_config = ndb_mgm_get_configuration(handle, 0);
   return m_config;
 }
+
+template class Vector<ndb_mgm_node_state>;

@@ -333,11 +333,11 @@ int ha_ndbcluster::set_ndb_value(NdbOperation *ndb_op, Field *field,
   - TODO allocate blob part aligned buffers
 */
 
-NdbBlob::ActiveHook get_ndb_blobs_value;
+NdbBlob::ActiveHook g_get_ndb_blobs_value;
 
-int get_ndb_blobs_value(NdbBlob *ndb_blob, void *arg)
+int g_get_ndb_blobs_value(NdbBlob *ndb_blob, void *arg)
 {
-  DBUG_ENTER("get_ndb_blobs_value [callback]");
+  DBUG_ENTER("g_get_ndb_blobs_value");
   if (ndb_blob->blobsNextBlob() != NULL)
     DBUG_RETURN(0);
   ha_ndbcluster *ha= (ha_ndbcluster *)arg;
@@ -428,7 +428,7 @@ int ha_ndbcluster::get_ndb_value(NdbOperation *ndb_op, Field *field,
       {
         // Set callback
         void *arg= (void *)this;
-        DBUG_RETURN(ndb_blob->setActiveHook(::get_ndb_blobs_value, arg) != 0);
+        DBUG_RETURN(ndb_blob->setActiveHook(g_get_ndb_blobs_value, arg) != 0);
       }
       DBUG_RETURN(1);
     }
@@ -554,7 +554,7 @@ int ha_ndbcluster::build_index_list()
   DBUG_ENTER("build_index_list");
   
   // Save information about all known indexes
-  for (uint i= 0; i < table->keys; i++)
+  for (i= 0; i < table->keys; i++)
   {
     NDB_INDEX_TYPE idx_type= get_index_type_from_table(i);
     m_indextype[i]= idx_type;
@@ -1946,11 +1946,25 @@ int ha_ndbcluster::rnd_init(bool scan)
 int ha_ndbcluster::close_scan()
 {
   NdbResultSet *cursor= m_active_cursor;
+  NdbConnection *trans= m_active_trans;
   DBUG_ENTER("close_scan");
 
   if (!cursor)
     DBUG_RETURN(1);
 
+  
+  if (ops_pending)
+  {
+    /*
+      Take over any pending transactions to the 
+      deleteing/updating transaction before closing the scan    
+    */
+    DBUG_PRINT("info", ("ops_pending: %d", ops_pending));    
+    if (trans->execute(NoCommit) != 0)
+      DBUG_RETURN(ndb_err(trans));
+    ops_pending= 0;
+  }
+  
   cursor->close();
   m_active_cursor= NULL;
   DBUG_RETURN(0);
