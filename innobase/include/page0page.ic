@@ -153,6 +153,19 @@ page_header_reset_last_insert(
 }
 
 /****************************************************************
+Determine whether the page is in new-style compact format. */
+UNIV_INLINE
+ibool
+page_is_comp(
+/*=========*/
+			/* out: TRUE if the page is in compact format
+			FALSE if it is in old-style format */
+	page_t* page)	/* in: index page */
+{
+	return(!!(page_header_get_field(page, PAGE_N_HEAP) & 0x8000));
+}
+
+/****************************************************************
 Gets the first record on the page. */
 UNIV_INLINE
 rec_t*
@@ -512,19 +525,6 @@ page_dir_calc_reserved_space(
 	return((PAGE_DIR_SLOT_SIZE * n_recs + PAGE_DIR_SLOT_MIN_N_OWNED - 1)
 						/ PAGE_DIR_SLOT_MIN_N_OWNED);
 } 
-
-/****************************************************************
-Determine whether the page is in new-style compact format. */
-UNIV_INLINE
-ibool
-page_is_comp(
-/*=========*/
-			/* out: TRUE if the page is in compact format
-			FALSE if it is in old-style format */
-	page_t* page)	/* in: index page */
-{
-	return(!!(page_header_get_field(page, PAGE_N_HEAP) & 0x8000));
-}
 
 /****************************************************************
 Gets the pointer to the next record on the page. */

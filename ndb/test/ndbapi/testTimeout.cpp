@@ -87,45 +87,6 @@ int runClearTable(NDBT_Context* ctx, NDBT_Step* step){
   result = NDBT_FAILED; \
   break; }
 
-int runTimeoutTrans(NDBT_Context* ctx, NDBT_Step* step){
-  int result = NDBT_OK;
-  int loops = ctx->getNumLoops();
-  NdbConfig conf(GETNDB(step)->getNodeId()+1);
-  unsigned int nodeId = conf.getMasterNodeId();
-  int stepNo = step->getStepNo();
-
-  int minSleep = (int)(TIMEOUT * 1.5);
-  int maxSleep = TIMEOUT * 2;
-  ndbout << "TransactionInactiveTimeout="<< TIMEOUT
-	 << ", minSleep="<<minSleep
-	 << ", maxSleep="<<maxSleep<<endl;
-
-  HugoOperations hugoOps(*ctx->getTab());
-  Ndb* pNdb = GETNDB(step);
-
-  for (int l = 0; l < loops && result == NDBT_OK; l++){
-
-    do{
-      // Commit transaction
-      CHECK(hugoOps.startTransaction(pNdb) == 0);
-      CHECK(hugoOps.pkReadRecord(pNdb, stepNo) == 0);
-      CHECK(hugoOps.execute_NoCommit(pNdb) == 0);
-      
-      int sleep = minSleep + myRandom48(maxSleep-minSleep);   
-      ndbout << "Sleeping for " << sleep << " milliseconds" << endl;
-      NdbSleep_MilliSleep(sleep);
-      
-      // Expect that transaction has timed-out
-      CHECK(hugoOps.execute_Commit(pNdb) == 237); 
-
-    } while(false);
-
-    hugoOps.closeTransaction(pNdb);
-  }
-
-  return result;
-}
-
 int runTimeoutTrans2(NDBT_Context* ctx, NDBT_Step* step){
   int result = NDBT_OK;
   int loops = ctx->getNumLoops();
@@ -342,27 +303,6 @@ TESTCASE("DontTimeoutTransaction5",
   INITIALIZER(runLoadTable);
   INITIALIZER(setTransactionTimeout);
   STEPS(runDontTimeoutTrans, 5); 
-  FINALIZER(resetTransactionTimeout);
-  FINALIZER(runClearTable);
-}
-TESTCASE("TimeoutTransaction", 
-	 "Test that the transaction does timeout "\
-	 "if we sleep during the transaction. Use a sleep "\
-	 "value which is larger than TransactionInactiveTimeout"){
-  INITIALIZER(runLoadTable);
-  INITIALIZER(setTransactionTimeout);
-  STEPS(runTimeoutTrans, 1);
-  FINALIZER(resetTransactionTimeout);
-  FINALIZER(runClearTable);
-}
-TESTCASE("TimeoutTransaction5", 
-	 "Test that the transaction does timeout " \
-	 "if we sleep during the transaction. Use a sleep " \
-	 "value which is larger than TransactionInactiveTimeout" \
-	 "Five simultaneous threads"){
-  INITIALIZER(runLoadTable);
-  INITIALIZER(setTransactionTimeout);
-  STEPS(runTimeoutTrans, 5);
   FINALIZER(resetTransactionTimeout);
   FINALIZER(runClearTable);
 }

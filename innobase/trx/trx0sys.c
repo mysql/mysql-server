@@ -125,6 +125,22 @@ trx_doublewrite_init(
 }
 
 /********************************************************************
+Frees the doublewrite buffer. */
+static
+void
+trx_doublewrite_free(void)
+/*======================*/
+{
+  mutex_free(&(trx_doublewrite->mutex));
+
+  mem_free(trx_doublewrite->buf_block_arr);
+  ut_free(trx_doublewrite->write_buf_unaligned);
+
+  mem_free(trx_doublewrite);
+  trx_doublewrite = NULL;
+}
+
+/********************************************************************
 Marks the trx sys header when we have successfully upgraded to the >= 4.1.x
 multiple tablespace format. */
 
@@ -512,6 +528,9 @@ trx_sys_doublewrite_init_or_restore_pages(
 
 	fil_flush_file_spaces(FIL_TABLESPACE);
 	
+  if (!srv_use_doublewrite_buf)
+    trx_doublewrite_free();
+
 leave_func:
 	ut_free(unaligned_read_buf);
 }

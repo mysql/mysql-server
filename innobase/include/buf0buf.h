@@ -52,6 +52,8 @@ Created 11/5/1995 Heikki Tuuri
 /* Modes for buf_page_get_known_nowait */
 #define BUF_MAKE_YOUNG	51
 #define BUF_KEEP_OLD	52
+/* Magic value to use instead of checksums when they are disabled */
+#define BUF_NO_CHECKSUM_MAGIC 0xDEADBEEFUL
 
 extern buf_pool_t* 	buf_pool; 	/* The buffer pool of the database */
 extern ibool		buf_debug_prints;/* If this is set TRUE, the program
