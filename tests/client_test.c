@@ -10044,6 +10044,53 @@ static void test_bug4030()
 }
 
 
+static void test_bug5126()
+{
+  MYSQL_STMT *stmt;
+  MYSQL_BIND bind[2];
+  long c1, c2;
+  const char *stmt_text;
+  int rc;
+
+  myheader("test_bug5126");
+
+  stmt_text= "DROP TABLE IF EXISTS t1";
+  rc= mysql_real_query(mysql, stmt_text, strlen(stmt_text));
+  myquery(rc);
+
+  stmt_text= "CREATE TABLE t1 (a mediumint, b int)";
+  rc= mysql_real_query(mysql, stmt_text, strlen(stmt_text));
+  myquery(rc);
+
+  stmt_text= "INSERT INTO t1 VALUES (8386608, 1)";
+  rc= mysql_real_query(mysql, stmt_text, strlen(stmt_text));
+  myquery(rc);
+
+  stmt= mysql_stmt_init(mysql);
+  stmt_text= "SELECT a, b FROM t1";
+  rc= mysql_stmt_prepare(stmt, stmt_text, strlen(stmt_text));
+  check_execute(stmt, rc);
+  rc= mysql_stmt_execute(stmt);
+  check_execute(stmt, rc);
+
+  /* Bind output buffers */
+  bzero(bind, sizeof(bind));
+
+  bind[0].buffer_type= MYSQL_TYPE_LONG;
+  bind[0].buffer= &c1;
+  bind[1].buffer_type= MYSQL_TYPE_LONG;
+  bind[1].buffer= &c2;
+
+  mysql_stmt_bind_result(stmt, bind);
+
+  rc= mysql_stmt_fetch(stmt);
+  assert(rc == 0);
+  assert(c1 == 8386608 && c2 == 1);
+  printf("%ld, %ld\n", c1, c2);
+  mysql_stmt_close(stmt);
+}
+
+
 /*
   Read and parse arguments and MySQL options from my.cnf
 */
@@ -10341,6 +10388,7 @@ int main(int argc, char **argv)
     test_bug4236();         /* init -> execute */
     test_bug4030();         /* test conversion string -> time types in
                                libmysql */
+    test_bug5126();         /* support for mediumint type in libmysql */
     /*
       XXX: PLEASE RUN THIS PROGRAM UNDER VALGRIND AND VERIFY THAT YOUR TEST
       DOESN'T CONTAIN WARNINGS/ERRORS BEFORE YOU PUSH.
