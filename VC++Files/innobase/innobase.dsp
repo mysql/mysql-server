@@ -4,7 +4,7 @@
 
 # TARGTYPE "Win32 (x86) Static Library" 0x0104
 
-CFG=innobase - Win32 Max
+CFG=INNOBASE - WIN32 RELEASE
 !MESSAGE This is not a valid makefile. To build this project using NMAKE,
 !MESSAGE use the Export Makefile command and run
 !MESSAGE 
@@ -13,12 +13,10 @@ CFG=innobase - Win32 Max
 !MESSAGE You can specify a configuration when running NMAKE
 !MESSAGE by defining the macro CFG on the command line. For example:
 !MESSAGE 
-!MESSAGE NMAKE /f "innobase.mak" CFG="innobase - Win32 Max"
+!MESSAGE NMAKE /f "innobase.mak" CFG="INNOBASE - WIN32 RELEASE"
 !MESSAGE 
 !MESSAGE Possible choices for configuration are:
 !MESSAGE 
-!MESSAGE "innobase - Win32 Max" (based on "Win32 (x86) Static Library")
-!MESSAGE "innobase - Win32 Max nt" (based on "Win32 (x86) Static Library")
 !MESSAGE "innobase - Win32 Debug" (based on "Win32 (x86) Static Library")
 !MESSAGE "innobase - Win32 Release" (based on "Win32 (x86) Static Library")
 !MESSAGE 
@@ -30,53 +28,7 @@ CFG=innobase - Win32 Max
 CPP=cl.exe
 RSC=rc.exe
 
-!IF  "$(CFG)" == "innobase - Win32 Max"
-
-# PROP BASE Use_MFC 0
-# PROP BASE Use_Debug_Libraries 0
-# PROP BASE Output_Dir "innobase___Win32_Max"
-# PROP BASE Intermediate_Dir "innobase___Win32_Max"
-# PROP BASE Target_Dir ""
-# PROP Use_MFC 0
-# PROP Use_Debug_Libraries 0
-# PROP Output_Dir "innobase___Win32_Max"
-# PROP Intermediate_Dir "innobase___Win32_Max"
-# PROP Target_Dir ""
-# ADD BASE CPP /nologo /G6 /MT /W3 /GX /O2 /I "../innobase/include" /D "NDEBUG" /D "_LIB" /D "_WIN32" /D "__NT__" /D "WIN32" /D "_MBCS" /YX /FD /c
-# ADD CPP /nologo /G6 /MT /W3 /GX /O2 /I "../innobase/include" /I "../include" /D "NDEBUG" /D "_LIB" /D "_WIN32" /D "WIN32" /D "_MBCS" /D "MYSQL_SERVER" /YX /FD /c
-# ADD BASE RSC /l 0x416 /d "NDEBUG"
-# ADD RSC /l 0x416 /d "NDEBUG"
-BSC32=bscmake.exe
-# ADD BASE BSC32 /nologo
-# ADD BSC32 /nologo
-LIB32=link.exe -lib
-# ADD BASE LIB32 /nologo /out:"..\lib_release\innobase-nt.lib"
-# ADD LIB32 /nologo /out:"..\lib_release\innodb.lib"
-
-!ELSEIF  "$(CFG)" == "innobase - Win32 Max nt"
-
-# PROP BASE Use_MFC 0
-# PROP BASE Use_Debug_Libraries 0
-# PROP BASE Output_Dir "innobase___Win32_Max_nt"
-# PROP BASE Intermediate_Dir "innobase___Win32_Max_nt"
-# PROP BASE Target_Dir ""
-# PROP Use_MFC 0
-# PROP Use_Debug_Libraries 0
-# PROP Output_Dir "innobase___Win32_Max_nt"
-# PROP Intermediate_Dir "innobase___Win32_Max_nt"
-# PROP Target_Dir ""
-# ADD BASE CPP /nologo /G6 /MT /W3 /GX /O2 /I "../innobase/include" /D "NDEBUG" /D "_LIB" /D "_WIN32" /D "__NT__" /D "WIN32" /D "_MBCS" /YX /FD /c
-# ADD CPP /nologo /G6 /MT /W3 /GX /O2 /I "../innobase/include" /I "../include" /D "NDEBUG" /D "_LIB" /D "_WIN32" /D "__NT__" /D "WIN32" /D "_MBCS" /D "MYSQL_SERVER" /YX /FD /c
-# ADD BASE RSC /l 0x416 /d "NDEBUG"
-# ADD RSC /l 0x416 /d "NDEBUG"
-BSC32=bscmake.exe
-# ADD BASE BSC32 /nologo
-# ADD BSC32 /nologo
-LIB32=link.exe -lib
-# ADD BASE LIB32 /nologo /out:"..\lib_release\innobase-nt.lib"
-# ADD LIB32 /nologo /out:"..\lib_release\innodb-nt.lib"
-
-!ELSEIF  "$(CFG)" == "innobase - Win32 Debug"
+!IF  "$(CFG)" == "innobase - Win32 Debug"
 
 # PROP BASE Use_MFC 0
 # PROP BASE Use_Debug_Libraries 0
@@ -103,13 +55,13 @@ LIB32=link.exe -lib
 
 # PROP BASE Use_MFC 0
 # PROP BASE Use_Debug_Libraries 0
-# PROP BASE Output_Dir "innobase___Win32_Release"
-# PROP BASE Intermediate_Dir "innobase___Win32_Release"
+# PROP BASE Output_Dir "innobase___Win32_Release0"
+# PROP BASE Intermediate_Dir "innobase___Win32_Release0"
 # PROP BASE Target_Dir ""
 # PROP Use_MFC 0
 # PROP Use_Debug_Libraries 0
-# PROP Output_Dir "innobase___Win32_Release"
-# PROP Intermediate_Dir "innobase___Win32_Release"
+# PROP Output_Dir "innobase___Win32_Release0"
+# PROP Intermediate_Dir "innobase___Win32_Release0"
 # PROP Target_Dir ""
 # ADD BASE CPP /nologo /G6 /MT /W3 /GX /O2 /I "../innobase/include" /I "../include" /D "NDEBUG" /D "_LIB" /D "_WIN32" /D "WIN32" /D "_MBCS" /D "MYSQL_SERVER" /YX /FD /c
 # ADD CPP /nologo /G6 /MT /W3 /GX /O2 /I "../innobase/include" /I "../include" /D "NDEBUG" /D "_LIB" /D "_WIN32" /D "WIN32" /D "_MBCS" /D "MYSQL_SERVER" /YX /FD /c
@@ -126,8 +78,6 @@ LIB32=link.exe -lib
 
 # Begin Target
 
-# Name "innobase - Win32 Max"
-# Name "innobase - Win32 Max nt"
 # Name "innobase - Win32 Debug"
 # Name "innobase - Win32 Release"
 # Begin Source File
