@@ -147,12 +147,7 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
 
   if (read_file_from_client && (thd->client_capabilities & CLIENT_LOCAL_FILES))
   {
-    char tmp [FN_REFLEN+1],*end;
-    DBUG_PRINT("info",("reading local file"));
-    tmp[0] = (char) 251;				/* NULL_LENGTH */
-    end=strnmov(tmp+1,ex->file_name,sizeof(tmp)-2);
-    (void) my_net_write(&thd->net,tmp,(uint) (end-tmp));
-    (void) net_flush(&thd->net);
+    (void)net_request_file(&thd->net,ex->file_name);
     file = -1;
   }
   else

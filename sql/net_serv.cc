@@ -814,3 +814,14 @@ my_net_read(NET *net)
 #endif /* HAVE_COMPRESS */
   return len;
 }
+
+int net_request_file(NET* net, const char* fname)
+{
+  char tmp [FN_REFLEN+1],*end;
+  DBUG_ENTER("net_request_file");
+  tmp[0] = (char) 251;				/* NULL_LENGTH */
+  end=strnmov(tmp+1,fname,sizeof(tmp)-2);
+  DBUG_RETURN(my_net_write(net,tmp,(uint) (end-tmp)) ||
+     net_flush(net));
+}
+
