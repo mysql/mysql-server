@@ -52,7 +52,7 @@ rw_lock_t	dict_operation_lock;	/* table create, drop, etc. reserve
 					hash table fixed size in bytes */
 #define DICT_POOL_PER_VARYING	4	/* buffer pool max size per data
 					dictionary varying size in bytes */
-
+ 
 /**************************************************************************
 Adds a column to the data dictionary hash table. */
 static
