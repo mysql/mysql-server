@@ -119,7 +119,7 @@ static bool check_user(THD *thd,enum_server_command command, const char *user,
 	       thd->user,
 	       thd->host ? thd->host : thd->ip,
 	       passwd[0] ? ER(ER_YES) : ER(ER_NO));
-    mysql_log.write(COM_CONNECT,ER(ER_ACCESS_DENIED_ERROR),
+    mysql_log.write(thd,COM_CONNECT,ER(ER_ACCESS_DENIED_ERROR),
 		    thd->user,
 		    thd->host ? thd->host : thd->ip ? thd->ip : "unknown ip",
 		    passwd[0] ? ER(ER_YES) : ER(ER_NO));
@@ -137,7 +137,7 @@ static bool check_user(THD *thd,enum_server_command command, const char *user,
       return(1);
     }
   }
-  mysql_log.write(command,
+  mysql_log.write(thd,command,
 		  (thd->priv_user == thd->user ?
 		   (char*) "%s@%s on %s" :
 		   (char*) "%s@%s as anonymous on %s"),
@@ -578,7 +578,7 @@ bool do_command(THD *thd)
   switch(command) {
   case COM_INIT_DB:
     if (!mysql_change_db(thd,packet+1))
-      mysql_log.write(command,"%s",thd->db);
+      mysql_log.write(thd,command,"%s",thd->db);
     break;
   case COM_TABLE_DUMP:
     {
@@ -646,7 +646,7 @@ bool do_command(THD *thd)
     thd->packet.shrink(net_buffer_length);	// Reclaim some memory
     if (!(specialflag & SPECIAL_NO_PRIOR))
       my_pthread_setprio(pthread_self(),QUERY_PRIOR);
-    mysql_log.write(command,"%s",thd->query);
+    mysql_log.write(thd,command,"%s",thd->query);
     DBUG_PRINT("query",("%s",thd->query));
     mysql_parse(thd,thd->query,packet_length-1);
     if (!(specialflag & SPECIAL_NO_PRIOR))
@@ -671,7 +671,7 @@ bool do_command(THD *thd)
     thd->free_list=0;
     table_list.name=table_list.real_name=thd->strdup(packet+1);
     thd->query=fields=thd->strdup(strend(packet+1)+1);
-    mysql_log.write(command,"%s %s",table_list.real_name,fields);
+    mysql_log.write(thd,command,"%s %s",table_list.real_name,fields);
     remove_escape(table_list.real_name);	// This can't have wildcards
 
     if (check_access(thd,SELECT_ACL,table_list.db,&thd->col_access))
@@ -685,7 +685,7 @@ bool do_command(THD *thd)
   }
 #endif
   case COM_QUIT:
-    mysql_log.write(command,NullS);
+    mysql_log.write(thd,command,NullS);
     net->error=0;				// Don't give 'abort' message
     error=TRUE;					// End server
     break;
@@ -695,7 +695,7 @@ bool do_command(THD *thd)
       char *db=thd->strdup(packet+1);
       if (check_access(thd,CREATE_ACL,db,0,1))
 	break;
-      mysql_log.write(command,packet+1);
+      mysql_log.write(thd,command,packet+1);
       mysql_create_db(thd,db,0);
       break;
     }
@@ -704,7 +704,7 @@ bool do_command(THD *thd)
       char *db=thd->strdup(packet+1);
       if (check_access(thd,DROP_ACL,db,0,1))
 	break;
-      mysql_log.write(command,db);
+      mysql_log.write(thd,command,db);
       mysql_rm_db(thd,db,0);
       break;
     }
@@ -712,7 +712,7 @@ bool do_command(THD *thd)
     {
       if(check_access(thd, FILE_ACL, any_db))
 	break;
-      mysql_log.write(command, 0);
+      mysql_log.write(thd,command, 0);
 
       ulong pos;
       ushort flags;
@@ -726,7 +726,7 @@ bool do_command(THD *thd)
       uint options=(uchar) packet[1];
       if (check_access(thd,RELOAD_ACL,any_db))
 	break;
-      mysql_log.write(command,NullS);
+      mysql_log.write(thd,command,NullS);
       if (reload_acl_and_cache(thd, options, (TABLE_LIST*) 0))
 	send_error(net,0);
       else
@@ -737,7 +737,7 @@ bool do_command(THD *thd)
     if (check_access(thd,SHUTDOWN_ACL,any_db))
       break; /* purecov: inspected */
     DBUG_PRINT("quit",("Got shutdown command"));
-    mysql_log.write(command,NullS);
+    mysql_log.write(thd,command,NullS);
     send_eof(net);
 #ifdef __WIN__
     sleep(1);					// must wait after eof()
@@ -752,7 +752,7 @@ bool do_command(THD *thd)
 
   case COM_STATISTICS:
   {
-    mysql_log.write(command,NullS);
+    mysql_log.write(thd,command,NullS);
     char buff[200];
     ulong uptime = (ulong) (time((time_t*) 0) - start_time);
     sprintf((char*) buff,
@@ -776,7 +776,7 @@ bool do_command(THD *thd)
   case COM_PROCESS_INFO:
     if (!thd->priv_user[0] && check_access(thd,PROCESS_ACL,any_db))
       break;
-    mysql_log.write(command,NullS);
+    mysql_log.write(thd,command,NullS);
     mysqld_list_processes(thd,thd->master_access & PROCESS_ACL ? NullS :
 			  thd->priv_user,0);
     break;
@@ -790,7 +790,7 @@ bool do_command(THD *thd)
     if (check_access(thd,PROCESS_ACL,any_db))
       break;					/* purecov: inspected */
     mysql_print_status(thd);
-    mysql_log.write(command,NullS);
+    mysql_log.write(thd,command,NullS);
     send_eof(net);
     break;
   case COM_SLEEP:
@@ -816,8 +816,7 @@ bool do_command(THD *thd)
   if ((ulong) (thd->start_time - start_of_query) > long_query_time)
   {
     long_query_count++;
-    mysql_slow_log.write(thd->query, thd->query_length,
-			 (ulong) (thd->start_time - start_of_query));
+    mysql_slow_log.write(thd, thd->query, thd->query_length, start_of_query);
   }
   VOID(pthread_mutex_lock(&LOCK_thread_count)); // For process list
   thd->proc_info=0;
@@ -1625,11 +1624,14 @@ mysql_execute_command(void)
        res = mysql_table_grant(thd,tables,lex->users_list, lex->columns,
 			       lex->grant, lex->sql_command == SQLCOM_REVOKE);
        if(!res)
+       {
+	 mysql_update_log.write(thd, thd->query,thd->query_length);
+	 if (mysql_bin_log.is_open())
 	 {
-           mysql_update_log.write(thd->query,thd->query_length);
-           Query_log_event qinfo(thd, thd->query);
-           mysql_bin_log.write(&qinfo);
+	   Query_log_event qinfo(thd, thd->query);
+	   mysql_bin_log.write(&qinfo);
 	 }
+       }
      }
      else
      {
@@ -1643,9 +1645,12 @@ mysql_execute_command(void)
 			   lex->sql_command == SQLCOM_REVOKE);
        if(!res)
        {
-	 mysql_update_log.write(thd->query,thd->query_length);
-	 Query_log_event qinfo(thd, thd->query);
-	 mysql_bin_log.write(&qinfo);
+	 mysql_update_log.write(thd, thd->query,thd->query_length);
+	 if (mysql_bin_log.is_open())
+	 {
+	   Query_log_event qinfo(thd, thd->query);
+	   mysql_bin_log.write(&qinfo);
+	 }
        }
      }
      break;
@@ -1905,6 +1910,7 @@ mysql_init_query(THD *thd)
   thd->lex.table_list.next= (byte**) &thd->lex.table_list.first;
   thd->fatal_error=0;				// Safety
   thd->last_insert_id_used=thd->query_start_used=thd->insert_id_used=0;
+  thd->sent_row_count=0;
   DBUG_VOID_RETURN;
 }
 
@@ -2625,37 +2631,23 @@ static int change_master(THD* thd)
 static void reset_master()
 {
   if(!mysql_bin_log.is_open())
-    {
-      my_error(ER_FLUSH_MASTER_BINLOG_CLOSED,  MYF(ME_BELL+ME_WAITTANG));
-      return;
-    }
+  {
+    my_error(ER_FLUSH_MASTER_BINLOG_CLOSED,  MYF(ME_BELL+ME_WAITTANG));
+    return;
+  }
 
   LOG_INFO linfo;
-
-  if(mysql_bin_log.find_first_log(&linfo, ""))
+  if (mysql_bin_log.find_first_log(&linfo, ""))
     return;
 
   for(;;)
-    {
-      my_delete(linfo.log_file_name, MYF(MY_WME));
-      if(mysql_bin_log.find_next_log(&linfo))
-	break;
-    }
+  {
+    my_delete(linfo.log_file_name, MYF(MY_WME));
+    if (mysql_bin_log.find_next_log(&linfo))
+      break;
+  }
   mysql_bin_log.close(1); // exiting close
   my_delete(mysql_bin_log.get_index_fname(), MYF(MY_WME));
-
-  char tmp[FN_REFLEN];
-  if (!opt_bin_logname || !opt_bin_logname[0])
-  {
-    char hostname[FN_REFLEN];
-    if (gethostname(hostname,sizeof(hostname)-4) < 0)
-      strmov(hostname,"mysql");
-
-    strnmov(tmp,hostname,FN_REFLEN-5);
-    strmov(strcend(tmp,'.'),"-bin");
-    opt_bin_logname=tmp;
-  }
-
   mysql_bin_log.open(opt_bin_logname,LOG_BIN);
 
 }

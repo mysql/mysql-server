@@ -338,7 +338,7 @@ void MYSQL_LOG::new_file()
     close();
     open(old_name, log_type, new_name);
     my_free(old_name,MYF(0));
-    if (!file)					// Something got wrong
+    if (!file)					// Something went wrong
       log_type=LOG_CLOSED;
     last_time=query_start=0;
     write_error=0;
@@ -347,10 +347,10 @@ void MYSQL_LOG::new_file()
 }
 
 
-void MYSQL_LOG::write(enum enum_server_command command,
+void MYSQL_LOG::write(THD *thd,enum enum_server_command command,
 		      const char *format,...)
 {
-  if (name && (what_to_log & (1L << (uint) command)))
+  if (is_open() && (what_to_log & (1L << (uint) command)))
   {
     va_list args;
     va_start(args,format);
@@ -359,7 +359,6 @@ void MYSQL_LOG::write(enum enum_server_command command,
     {
       time_t skr;
       ulong id;
-      THD *thd=current_thd;
       int error=0;
       if (thd)
       {						// Normal thread
@@ -423,14 +422,14 @@ void MYSQL_LOG::write(enum enum_server_command command,
 
 void MYSQL_LOG::write(Query_log_event* event_info)
 {
-  if (name)
+  if (is_open())
   {
     VOID(pthread_mutex_lock(&LOCK_log));
-    if(file)
+    if (file)
     {
       THD *thd=event_info->thd;
       if ((!(thd->options & OPTION_BIN_LOG) &&
-	  thd->master_access & PROCESS_ACL) ||
+	   thd->master_access & PROCESS_ACL) ||
 	  !db_ok(event_info->db, binlog_do_db, binlog_ignore_db))
       {
 	VOID(pthread_mutex_unlock(&LOCK_log));
@@ -457,57 +456,50 @@ void MYSQL_LOG::write(Query_log_event* event_info)
 	}
       }
 	  
-      if(event_info->write(file))
+      if (event_info->write(file))
       {
 	sql_print_error(ER(ER_ERROR_ON_WRITE), name, errno);
       }
   err:
       VOID(pthread_cond_broadcast(&COND_binlog_update));
-
-      VOID(pthread_mutex_unlock(&LOCK_log));
     }
+    VOID(pthread_mutex_unlock(&LOCK_log));
   }
-  
 }
 
 void MYSQL_LOG::write(Load_log_event* event_info)
 {
-  if(name)
+  if (is_open())
   {
     VOID(pthread_mutex_lock(&LOCK_log));
-    if(file)
+    if (file)
     {
       THD *thd=event_info->thd;
-      if (!(thd->options & OPTION_BIN_LOG) &&
-	  (thd->master_access & PROCESS_ACL))
+      if ((thd->options & OPTION_BIN_LOG) ||
+	  !(thd->master_access & PROCESS_ACL))
       {
-	VOID(pthread_mutex_unlock(&LOCK_log));
-	return;
+	if (event_info->write(file))
+	  sql_print_error(ER(ER_ERROR_ON_WRITE), name, errno);
+	VOID(pthread_cond_broadcast(&COND_binlog_update));
       }
-	  
-	  
-      if (event_info->write(file))
-	sql_print_error(ER(ER_ERROR_ON_WRITE), name, errno);
-      VOID(pthread_cond_broadcast(&COND_binlog_update));
-
-      VOID(pthread_mutex_unlock(&LOCK_log));
     }
+    VOID(pthread_mutex_unlock(&LOCK_log));
   }
 }
 
 
 /* Write update log in a format suitable for incremental backup */
 
-void MYSQL_LOG::write(const char *query, uint query_length,
-		      ulong time_for_query)
+void MYSQL_LOG::write(THD *thd,const char *query, uint query_length,
+		      time_t query_start)
 {
-  if (name)
+  if (is_open())
   {
+    time_t current_time;
     VOID(pthread_mutex_lock(&LOCK_log));
     if (file)
     {						// Safety agains reopen
       int error=0;
-      THD *thd=current_thd;
       char buff[80],*end;
       end=buff;
       if (!(thd->options & OPTION_UPDATE_LOG) &&
@@ -518,13 +510,13 @@ void MYSQL_LOG::write(const char *query, uint query_length,
       }
       if (specialflag & SPECIAL_LONG_LOG_FORMAT)
       {
-	time_t skr=time(NULL);
-	if (skr != last_time)
+	current_time=time(NULL);
+	if (current_time != last_time)
 	{
-	  last_time=skr;
+	  last_time=current_time;
 	  struct tm tm_tmp;
 	  struct tm *start;
-	  localtime_r(&skr,&tm_tmp);
+	  localtime_r(&current_time,&tm_tmp);
 	  start=&tm_tmp;
 	  if (fprintf(file,"# Time: %02d%02d%02d %2d:%02d:%02d\n",
 		      start->tm_year % 100,
@@ -542,8 +534,16 @@ void MYSQL_LOG::write(const char *query, uint query_length,
 		    thd->ip ? thd->ip : "") < 0)
 	  error=errno;;
       }
-      if (time_for_query)
-	fprintf(file,"# Time: %lu\n",time_for_query);
+      if (query_start)
+      {
+	/* For slow query log */
+	if (!(specialflag & SPECIAL_LONG_LOG_FORMAT))
+	  current_time=time(NULL);
+	fprintf(file,"# Time: %lu  Lock_time: %lu  Rows_sent %lu\n",
+		(ulong) (current_time - query_start),
+		(ulong) (thd->time_after_lock - query_start),
+		(ulong) thd->sent_row_count);
+      }
       if (thd->db && strcmp(thd->db,db))
       {						// Database changed
 	if (fprintf(file,"use %s;\n",thd->db) < 0)
@@ -637,16 +637,15 @@ void MYSQL_LOG::close(bool exiting)
     name=0;
   }
 
-  if(exiting && index_file)
+  if (exiting && index_file)
+  {
+    if (my_fclose(index_file,MYF(0)) < 0 && ! write_error)
     {
-      if (my_fclose(index_file,MYF(0)) < 0 && ! write_error)
-	{
-	  write_error=1;
-	  sql_print_error(ER(ER_ERROR_ON_WRITE),name,errno);
-	}
-      index_file=0;
-     
+      write_error=1;
+      sql_print_error(ER(ER_ERROR_ON_WRITE),name,errno);
     }
+    index_file=0;
+  }
 }
 
 

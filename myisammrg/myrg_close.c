@@ -18,8 +18,7 @@
 
 #include "mymrgdef.h"
 
-int myrg_close(info)
-register MYRG_INFO *info;
+int myrg_close(MYRG_INFO *info)
 {
   int error=0,new_error;
   MYRG_TABLE *file;
@@ -28,6 +27,7 @@ register MYRG_INFO *info;
   for (file=info->open_tables ; file != info->end_table ; file++)
     if ((new_error=mi_close(file->table)))
       error=new_error;
+  delete_queue(&info->by_key);
   pthread_mutex_lock(&THR_LOCK_open);
   myrg_open_list=list_delete(myrg_open_list,&info->open_list);
   pthread_mutex_unlock(&THR_LOCK_open);

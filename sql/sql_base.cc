@@ -29,7 +29,6 @@
 #include <io.h>
 #endif
 
-static int key_cache_used=0;
 TABLE *unused_tables;				/* Used by mysql_test */
 HASH open_cache;				/* Used by mysql_test */
 
@@ -550,10 +549,9 @@ bool close_cached_tables(THD *thd, bool if_wait_for_refresh,
       VOID(hash_delete(&open_cache,(byte*) unused_tables));
 #endif
     }
-    if (!open_cache.records)
+    if (!open_cache.records && ! locked_in_memory)
     {
       end_key_cache();				/* No tables in memory */
-      key_cache_used=0;
     }
     refresh_version++;				// Force close of open tables
   }
@@ -980,11 +978,8 @@ TABLE *open_table(THD *thd,const char *db,const char *table_name,
     table->key_length=key_length;
     table->version=refresh_version;
     table->flush_version=flush_version;
-    if (!key_cache_used)
-    {
-      key_cache_used=1;
+    if (!key_cache_inited)
       ha_key_cache();
-    }
     DBUG_PRINT("info", ("inserting table %p into the cache", table));
     VOID(hash_insert(&open_cache,(byte*) table));
   }

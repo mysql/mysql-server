@@ -820,7 +820,7 @@ bool change_password(THD *thd, const char *host, const char *user,
 		acl_user->user,
 		acl_user->host.hostname ? acl_user->host.hostname : "",
 		new_password));
-  mysql_update_log.write(buff,(uint) strlen(buff));
+  mysql_update_log.write(thd,buff,qinfo.q_len);
   mysql_bin_log.write(&qinfo);
   return 0;
 }

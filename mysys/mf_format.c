@@ -31,6 +31,7 @@
 	/*		8   Pack filename as short as possibly */
 	/*		16  Resolve symbolic links for filename */
 	/*		32  Resolve filename to full path */
+	/*		64  Return NULL if too long path */
 
 #ifdef MAXPATHLEN
 #define BUFF_LEN MAXPATHLEN
@@ -80,7 +81,10 @@ my_string fn_format(my_string to, const char *name, const char *dsk,
 
   if (strlen(dev)+length+strlen(ext) >= FN_REFLEN || length >= FN_LEN )
   {				/* To long path, return original */
-    uint tmp_length=strlength(startpos);
+    uint tmp_length;
+    if (flag & 64)
+      return 0;
+    tmp_length=strlength(startpos);
     DBUG_PRINT("error",("dev: '%s'  ext: '%s'  length: %d",dev,ext,length));
     (void) strmake(to,startpos,min(tmp_length,FN_REFLEN-1));
   }
