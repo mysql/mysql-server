@@ -31,11 +31,14 @@
 #define UNIQUE_RANGE	16
 #define EQ_RANGE	32
 #define NULL_RANGE	64
+#define GEOM_FLAG      128
+
 
 typedef struct st_key_part {
-  uint16 key,part,part_length;
-  uint8  null_bit;
-  Field *field;
+  uint16           key,part,part_length;
+  uint8            null_bit;
+  Field            *field;
+  Field::imagetype image_type;
 } KEY_PART;
 
 class QUICK_RANGE :public Sql_alloc {

@@ -24,6 +24,7 @@
 #include "mysql_priv.h"
 #include <m_ctype.h>
 
+
 /*
 ** Test functions
 ** These returns 0LL if false and 1LL if true and null if some arg is null
@@ -1348,3 +1349,83 @@ Item_func_regex::~Item_func_regex()
 }
 
 #endif /* USE_REGEX */
+
+
+/****************************************************************
+ Classes and functions for spatial relations
+*****************************************************************/
+
+longlong Item_func_spatial_rel::val_int()
+{
+  String *res1=args[0]->val_str(&tmp_value1);
+  String *res2=args[1]->val_str(&tmp_value2);
+  Geometry g1, g2;
+  MBR mbr1,mbr2;
+
+  if ((null_value=(args[0]->null_value ||
+                   args[1]->null_value ||
+                   g1.create_from_wkb(res1->ptr(),res1->length()) || 
+                   g2.create_from_wkb(res2->ptr(),res2->length()) ||
+                   g1.get_mbr(&mbr1) || 
+                   g2.get_mbr(&mbr2))))
+   return 0;
+
+  switch (spatial_rel)
+  {
+    case SP_CONTAINS_FUNC:
+      return mbr1.contains(&mbr2);
+    case SP_WITHIN_FUNC:
+      return mbr1.within(&mbr2);
+    case SP_EQUALS_FUNC:
+      return mbr1.equals(&mbr2);
+    case SP_DISJOINT_FUNC:
+      return mbr1.disjoint(&mbr2);
+    case SP_INTERSECTS_FUNC:
+      return mbr1.intersects(&mbr2);
+    case SP_TOUCHES_FUNC:
+      return mbr1.touches(&mbr2);
+    case SP_OVERLAPS_FUNC:
+      return mbr1.overlaps(&mbr2);
+    case SP_CROSSES_FUNC:
+      return 0;
+    default:
+      break;
+  }
+
+  null_value=1;
+  return 0;
+}
+
+longlong Item_func_isempty::val_int()
+{
+  String tmp; 
+  null_value=0;
+  return args[0]->null_value ? 1 : 0;
+}
+
+longlong Item_func_issimple::val_int()
+{
+  String tmp;
+  String *wkb=args[0]->val_str(&tmp);
+
+  if ((null_value= (!wkb || args[0]->null_value )))
+    return 0;
+  /* TODO: Ramil or Holyfoot, add real IsSimple calculation */
+  return 0;
+}
+
+longlong Item_func_isclosed::val_int()
+{
+  String tmp;
+  String *wkb=args[0]->val_str(&tmp);
+  Geometry geom;
+  int isclosed;
+
+  null_value= (!wkb || 
+               args[0]->null_value ||
+               geom.create_from_wkb(wkb->ptr(),wkb->length()) ||
+               !GEOM_METHOD_PRESENT(geom,is_closed) ||
+               geom.is_closed(&isclosed));
+
+  return (longlong) isclosed;
+}

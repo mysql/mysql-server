@@ -357,6 +357,7 @@ public:
 };
 
 
+#include "spatial.h"
 #include "item_sum.h"
 #include "item_func.h"
 #include "item_cmpfunc.h"

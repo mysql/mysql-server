@@ -1953,3 +1953,333 @@ String* Item_func_inet_ntoa::val_str(String* str)
   str->length(str->length()-1);			// Remove last '.';
   return str;
 }
+
+/*******************************************************
+General functions for spatial objects
+********************************************************/
+
+#include "gstream.h"
+
+String *Item_func_geometry_from_text::val_str(String *str)
+{
+  Geometry geom;
+  String *wkt = args[0]->val_str(str);
+  GTextReadStream trs(wkt->ptr(), wkt->length());
+
+  str->length(0);
+  if ((null_value=(args[0]->null_value || geom.create_from_wkt(&trs, str, 0))))
+    return 0;
+  return str;
+}
+
+
+void Item_func_geometry_from_text::fix_length_and_dec()
+{
+  max_length=MAX_BLOB_WIDTH;
+}
+
+
+String *Item_func_as_text::val_str(String *str)
+{
+  String *wkt = args[0]->val_str(str);
+  Geometry geom;
+  
+  str->length(0);
+  if ((null_value=(args[0]->null_value ||
+                   geom.create_from_wkb(wkt->ptr(),wkt->length()) || 
+                   geom.as_wkt(str))))
+    return 0;
+  return str;
+}
+
+void Item_func_as_text::fix_length_and_dec()
+{
+  max_length=MAX_BLOB_WIDTH;
+}
+
+String *Item_func_geometry_type::val_str(String *str)
+{
+  String *wkt = args[0]->val_str(str);
+  Geometry geom;
+
+  if ((null_value=(args[0]->null_value ||
+                   geom.create_from_wkb(wkt->ptr(),wkt->length()))))
+    return 0;
+  str->copy(geom.get_class_info()->m_name);
+  return str;
+}
+
+
+String *Item_func_envelope::val_str(String *str)
+{
+  String *wkb = args[0]->val_str(str);
+  Geometry geom;
+
+  null_value = args[0]->null_value ||
+               geom.create_from_wkb(wkb->ptr(),wkb->length()) || 
+               geom.envelope(str);
+
+  return null_value ? 0 : str;
+}
+
+
+String *Item_func_centroid::val_str(String *str)
+{
+  String *wkb = args[0]->val_str(str);
+  Geometry geom;
+
+  null_value = args[0]->null_value ||
+               geom.create_from_wkb(wkb->ptr(),wkb->length()) || 
+               !GEOM_METHOD_PRESENT(geom,centroid) ||
+               geom.centroid(str);
+
+  return null_value ? 0: str;
+}
+
+
+/***********************************************
+  Spatial decomposition functions
+***********************************************/
+
+String *Item_func_spatial_decomp::val_str(String *str)
+{
+  String *wkb = args[0]->val_str(str);
+  Geometry geom;
+
+  if ((null_value = (args[0]->null_value ||
+                     geom.create_from_wkb(wkb->ptr(),wkb->length()))))
+    return 0;
+
+  null_value=1;
+  switch(decomp_func)
+  {
+    case SP_STARTPOINT:
+      if (!GEOM_METHOD_PRESENT(geom,start_point) || geom.start_point(str))
+        goto ret;
+      break;
+
+    case SP_ENDPOINT:
+      if (!GEOM_METHOD_PRESENT(geom,end_point) || geom.end_point(str))
+        goto ret;
+      break;
+
+    case SP_EXTERIORRING:
+      if (!GEOM_METHOD_PRESENT(geom,exterior_ring) || geom.exterior_ring(str))
+        goto ret;
+      break;
+
+    default:
+      goto ret;
+  }
+  null_value=0;
+
+ret:  
+  return null_value ? 0 : str;
+}
+
+
+String *Item_func_spatial_decomp_n::val_str(String *str)
+{
+  String *wkb  =        args[0]->val_str(str);
+  long n       = (long) args[1]->val_int();
+  Geometry geom;
+
+  if ((null_value = (args[0]->null_value || 
+                     args[1]->null_value ||
+                     geom.create_from_wkb(wkb->ptr(),wkb->length()) )))
+    return 0;
+
+  null_value=1;
+
+  switch(decomp_func_n)
+  {
+    case SP_POINTN:
+      if (!GEOM_METHOD_PRESENT(geom,point_n) || 
+          geom.point_n(n,str))
+        goto ret;
+      break;
+
+    case SP_GEOMETRYN:
+      if (!GEOM_METHOD_PRESENT(geom,geometry_n) || 
+          geom.geometry_n(n,str))
+        goto ret;
+      break;
+
+    case SP_INTERIORRINGN:
+      if (!GEOM_METHOD_PRESENT(geom,interior_ring_n) || 
+          geom.interior_ring_n(n,str))
+        goto ret;
+      break;
+
+    default:
+      goto ret;
+  }
+  null_value=0;
+
+ret:
+  return null_value ? 0 : str;
+}
+
+
+
+/***********************************************
+Functions to concatinate various spatial objects
+************************************************/
+
+
+/*
+*  Concatinate doubles into Point
+*/
+
+
+String *Item_func_point::val_str(String *str)
+{
+  if ( (null_value = (args[0]->null_value || 
+                     args[1]->null_value ||
+                     str->realloc(1+4+8+8))))
+    return 0;
+
+  str->length(0);
+  str->q_append((char)Geometry::wkbNDR);
+  str->q_append((uint32)Geometry::wkbPoint);
+  str->q_append((double)args[0]->val());
+  str->q_append((double)args[1]->val());
+  return str;
+}
+
+
+/*
+  Concatinates various items into various collections 
+  with checkings for valid wkb type of items.
+  For example, MultiPoint can be a collection of Points only.
+  coll_type contains wkb type of target collection.
+  item_type contains a valid wkb type of items.
+  In the case when coll_type is wkbGeometryCollection, 
+  we do not check wkb type of items, any is valid.
+*/
+
+String *Item_func_spatial_collection::val_str(String *str)
+{
+  uint i;
+
+  null_value=1;
+
+  str->length(0);
+  if(str->reserve(9,512))
+    return 0;
+
+  str->q_append((char)Geometry::wkbNDR);
+  str->q_append((uint32)coll_type);
+  str->q_append((uint32)arg_count);
+
+  for (i = 0; i < arg_count; ++i)
+  {
+    if (args[i]->null_value)
+      goto ret;
+
+    String *res = args[i]->val_str(str);
+
+    if ( coll_type == Geometry::wkbGeometryCollection )
+    {
+      /* 
+         In the case of GeometryCollection we don't need 
+         any checkings for item types, so just copy them
+         into target collection
+      */
+      if ((null_value=(str->reserve(res->length(),512))))
+        goto ret;
+        
+      str->q_append(res->ptr(),res->length());
+    }
+    else
+    {
+      uint32 wkb_type, len=res->length();
+      const char *data=res->ptr()+1;
+
+      /* 
+         In the case of named collection we must to 
+         check that items are of specific type, let's
+         do this checking now
+      */
+      
+      if (len<5)
+        goto ret;
+      wkb_type=uint4korr(data);
+      data+=4;
+      len-=5;
+      if ( wkb_type != item_type )
+        goto ret;
+      
+      switch(coll_type)
+      {
+         case Geometry::wkbMultiPoint:
+         case Geometry::wkbMultiLineString:
+         case Geometry::wkbMultiPolygon:
+           if (len<WKB_HEADER_SIZE) 
+             goto ret;
+           
+           data+=WKB_HEADER_SIZE;
+           len-=WKB_HEADER_SIZE;
+           if (str->reserve(len,512))
+             goto ret;
+           str->q_append(data,len);
+           break;
+
+         case Geometry::wkbLineString:
+           if (str->reserve(POINT_DATA_SIZE,512))
+             goto ret;
+           str->q_append(data,POINT_DATA_SIZE);
+           break;
+
+         case Geometry::wkbPolygon:
+           { 
+             uint32 n_points;
+             double x1, y1, x2, y2;
+
+             if (len < WKB_HEADER_SIZE + 4 + 8 + 8) 
+               goto ret;
+             data+=WKB_HEADER_SIZE;
+             len-=WKB_HEADER_SIZE;
+
+             uint32 llen=len;
+             const char *ldata=data;
+             
+             n_points=uint4korr(data);
+             data+=4;
+             float8get(x1,data);
+             data+=8;
+             float8get(y1,data);
+             data+=8;
+             
+             len-= 4 + 8 + 8;
+             
+             if (len < n_points * POINT_DATA_SIZE)
+               goto ret;
+             data+=(n_points-2) * POINT_DATA_SIZE;
+
+             float8get(x2,data);
+             float8get(y2,data+8);
+             
+             if ((x1 != x2) || (y1 != y2))
+               goto ret;
+             
+             if (str->reserve(llen,512))
+               goto ret;
+             str->q_append(ldata, llen);
+           }
+           break;
+         
+         default:
+           goto ret;
+      }
+    }
+  }
+
+  if (str->length() > max_allowed_packet)
+    goto ret;
+
+  null_value = 0;
+
+ret:
+  return null_value ? 0 : str;
+}
