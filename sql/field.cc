@@ -4279,7 +4279,7 @@ int Field_str::store(double nr)
 {
   bool use_scientific_notation=TRUE;
   char buff[DOUBLE_TO_STRING_CONVERSION_BUFFER_SIZE];
-  int length;
+  uint length;
   if (field_length < 32 && nr > 1) // TODO: negative numbers
   {
     if (ceiling == 0)
@@ -4295,11 +4295,19 @@ int Field_str::store(double nr)
     }
     use_scientific_notation= (ceiling < nr);
   }
-  length= sprintf(buff, "%-.*g",
-                  use_scientific_notation ? max(0,field_length-5) : field_length,
-                  nr);
-  DBUG_ASSERT(length <= field_length);
-  return store((const char *)buff, (uint) length, charset());
+  length= (uint)sprintf(buff, "%-.*g",
+              use_scientific_notation ? max(0,(int)field_length-5) : field_length,
+              nr);
+  /*
+    +1 below is because "precision" in %g above means the
+    max. number of significant digits, not the output width.
+    Thus the width can be larger than number of significant digits by 1
+    (for decimal point)
+    the test for field_length < 5 is for extreme cases,
+    like inserting 500.0 in char(1)
+  */
+  DBUG_ASSERT(field_length < 5 || length <= field_length+1);
+  return store((const char *)buff, min(length, field_length), charset());
 }
 
 int Field_string::store(longlong nr)
