@@ -1045,15 +1045,18 @@ void Item_func_in::fix_length_and_dec()
       array= new in_double(arg_count);
       break;
     }
-    uint j=0;
-    for (uint i=0 ; i < arg_count ; i++)
+    if (array && !(current_thd->fatal_error))		// If not EOM
     {
-      array->set(j,args[i]);
-      if (!args[i]->null_value)			// Skip NULL values
-	j++;
+      uint j=0;
+      for (uint i=0 ; i < arg_count ; i++)
+      {
+	array->set(j,args[i]);
+	if (!args[i]->null_value)			// Skip NULL values
+	  j++;
+      }
+      if ((array->used_count=j))
+	array->sort();
     }
-    if ((array->used_count=j))
-      array->sort();
   }
   else
   {

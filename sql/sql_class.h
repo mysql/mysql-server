@@ -472,7 +472,6 @@ public:
   */
   ulong	     slave_proxy_id;
   NET*       slave_net;			// network connection from slave -> m.
-  my_off_t   log_pos;
    
   /* Used by the sys_var class to store temporary values */
   union

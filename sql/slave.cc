@@ -2253,7 +2253,6 @@ static int exec_relay_log_event(THD* thd, RELAY_LOG_INFO* rli)
     if (!ev->when)
       ev->when = time(NULL);
     ev->thd = thd;
-    thd->log_pos = ev->log_pos;
     exec_res = ev->exec_event(rli);
     DBUG_ASSERT(rli->sql_thd==thd);
     delete ev;
@@ -2758,7 +2757,7 @@ static int process_io_create_file(MASTER_INFO* mi, Create_file_log_event* cev)
   if (unlikely(net_request_file(net,cev->fname)))
   {
     sql_print_error("Slave I/O: failed requesting download of '%s'",
-		    cev->fname);
+                   cev->fname);
     goto err;
   }
 
@@ -2768,56 +2767,56 @@ static int process_io_create_file(MASTER_INFO* mi, Create_file_log_event* cev)
     in the loop
   */
   {
-    Append_block_log_event aev(thd,0,0,0);
+    Append_block_log_event aev(thd,0,0,0,0);
   
     for (;;)
     {
       if (unlikely((num_bytes=my_net_read(net)) == packet_error))
       {
-	sql_print_error("Network read error downloading '%s' from master",
-			cev->fname);
-	goto err;
+       sql_print_error("Network read error downloading '%s' from master",
+                       cev->fname);
+       goto err;
       }
       if (unlikely(!num_bytes)) /* eof */
       {
-	send_ok(net); /* 3.23 master wants it */
-	Execute_load_log_event xev(thd,0);
-	xev.log_pos = mi->master_log_pos;
-	if (unlikely(mi->rli.relay_log.append(&xev)))
-	{
-	  sql_print_error("Slave I/O: error writing Exec_load event to \
+       send_ok(net); /* 3.23 master wants it */
+       Execute_load_log_event xev(thd,0,0);
+       xev.log_pos = mi->master_log_pos;
+       if (unlikely(mi->rli.relay_log.append(&xev)))
+       {
+         sql_print_error("Slave I/O: error writing Exec_load event to \
 relay log");
-	  goto err;
-	}
-	mi->rli.relay_log.harvest_bytes_written(&mi->rli.log_space_total);
-	break;
+         goto err;
+       }
+       mi->rli.relay_log.harvest_bytes_written(&mi->rli.log_space_total);
+       break;
       }
       if (unlikely(cev_not_written))
       {
-	cev->block = (char*)net->read_pos;
-	cev->block_len = num_bytes;
-	cev->log_pos = mi->master_log_pos;
-	if (unlikely(mi->rli.relay_log.append(cev)))
-	{
-	  sql_print_error("Slave I/O: error writing Create_file event to \
+       cev->block = (char*)net->read_pos;
+       cev->block_len = num_bytes;
+       cev->log_pos = mi->master_log_pos;
+       if (unlikely(mi->rli.relay_log.append(cev)))
+       {
+         sql_print_error("Slave I/O: error writing Create_file event to \
 relay log");
-	  goto err;
-	}
-	cev_not_written=0;
-	mi->rli.relay_log.harvest_bytes_written(&mi->rli.log_space_total);
+         goto err;
+       }
+       cev_not_written=0;
+       mi->rli.relay_log.harvest_bytes_written(&mi->rli.log_space_total);
       }
       else
       {
-	aev.block = (char*)net->read_pos;
-	aev.block_len = num_bytes;
-	aev.log_pos = mi->master_log_pos;
-	if (unlikely(mi->rli.relay_log.append(&aev)))
-	{
-	  sql_print_error("Slave I/O: error writing Append_block event to \
+       aev.block = (char*)net->read_pos;
+       aev.block_len = num_bytes;
+       aev.log_pos = mi->master_log_pos;
+       if (unlikely(mi->rli.relay_log.append(&aev)))
+       {
+         sql_print_error("Slave I/O: error writing Append_block event to \
 relay log");
-	  goto err;
-	}
-	mi->rli.relay_log.harvest_bytes_written(&mi->rli.log_space_total) ;
+         goto err;
+       }
+       mi->rli.relay_log.harvest_bytes_written(&mi->rli.log_space_total) ;
       }
     }
   }
@@ -2901,6 +2900,12 @@ static int queue_old_event(MASTER_INFO *mi, const char *buf,
     tmp_buf[event_len]=0; // Create_file constructor wants null-term buffer
     buf = (const char*)tmp_buf;
   }
+  /*
+    This will transform LOAD_EVENT into CREATE_FILE_EVENT, ask the master to
+    send the loaded file, and write it to the relay log in the form of
+    Append_block/Exec_load (the SQL thread needs the data, as that thread is not
+    connected to the master).
+  */
   Log_event *ev = Log_event::read_log_event(buf,event_len, &errmsg,
 					    1 /*old format*/ );
   if (unlikely(!ev))
@@ -2930,6 +2935,12 @@ static int queue_old_event(MASTER_INFO *mi, const char *buf,
     inc_pos= 0;
     break;
   case CREATE_FILE_EVENT:
+    /*
+      Yes it's possible to have CREATE_FILE_EVENT here, even if we're in
+      queue_old_event() which is for 3.23 events which don't comprise
+      CREATE_FILE_EVENT. This is because read_log_event() above has just
+      transformed LOAD_EVENT into CREATE_FILE_EVENT.
+    */
   {
     /* We come here when and only when tmp_buf != 0 */
     DBUG_ASSERT(tmp_buf);
