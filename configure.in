@@ -5,8 +5,9 @@ AC_PREREQ(2.50)dnl		Minimum Autoconf version required.
 
 AC_INIT(sql/mysqld.cc)
 AC_CANONICAL_SYSTEM
+# The Docs Makefile.am parses this line!
 # Don't forget to also update the NDB lines below.
-AM_INIT_AUTOMAKE(mysql, 5.0.3-alpha)
+AM_INIT_AUTOMAKE(mysql, 5.1.0-alpha)
 AM_CONFIG_HEADER(config.h)
 
 PROTOCOL_VERSION=10
