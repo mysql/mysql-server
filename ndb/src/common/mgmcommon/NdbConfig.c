@@ -17,6 +17,7 @@
 #include <ndb_global.h>
 #include <NdbConfig.h>
 #include <NdbEnv.h>
+#include <NdbMem.h>
 
 static char* 
 NdbConfig_AllocHomePath(int _len)
@@ -30,7 +31,7 @@ NdbConfig_AllocHomePath(int _len)
     path_len= strlen(path);
 
   len+= path_len;
-  buf= malloc(len);
+  buf= NdbMem_Allocate(len);
   if (path_len > 0)
     snprintf(buf, len, "%s%c", path, DIR_SEPARATOR);
   else
@@ -48,7 +49,7 @@ NdbConfig_NdbCfgName(int with_ndb_home){
     buf= NdbConfig_AllocHomePath(128);
     len= strlen(buf);
   } else
-    buf= malloc(128);
+    buf= NdbMem_Allocate(128);
   snprintf(buf+len, 128, "Ndb.cfg");
   return buf;
 }
