@@ -8904,7 +8904,8 @@ static bool add_ref_to_table_cond(THD *thd, JOIN_TAB *join_tab)
   if (thd->is_fatal_error)
     DBUG_RETURN(TRUE);
 
-  cond->fix_fields(thd,(TABLE_LIST *) 0, (Item**)&cond);
+  if (!cond->fixed)
+    cond->fix_fields(thd,(TABLE_LIST *) 0, (Item**)&cond);
   if (join_tab->select)
   {
     error=(int) cond->add(join_tab->select->cond);

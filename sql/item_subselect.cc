@@ -766,7 +766,8 @@ Item_in_subselect::single_value_transformer(JOIN *join,
     // left expression belong to outer select
     SELECT_LEX *current= thd->lex->current_select, *up;
     thd->lex->current_select= up= current->return_after_parsing();
-    if (left_expr->fix_fields(thd, up->get_table_list(), &left_expr))
+    if (!left_expr->fixed && 
+        left_expr->fix_fields(thd, up->get_table_list(), &left_expr))
     {
       thd->lex->current_select= current;
       goto err;
