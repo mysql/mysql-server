@@ -396,6 +396,45 @@ select 't1 rows after big delete', count(*) from t1;
 t1 rows after big delete	count(*)
 t1 rows after big delete	1900001
 drop table t1,t2;
+CREATE TABLE t1 ( a int );
+CREATE TABLE t2 ( a int );
+DELETE t1 FROM t1, t2 AS t3;
+DELETE t4 FROM t1, t1 AS t4;
+DELETE t3 FROM t1 AS t3, t1 AS t4;
+DELETE t1 FROM t1 AS t3, t2 AS t4;
+ERROR 42000: Not unique table/alias: 't1'
+INSERT INTO t1 values (1),(2);
+INSERT INTO t2 values (1),(2);
+DELETE t1 FROM t1 AS t2, t2 AS t1 where t1.a=t2.a and t1.a=1;
+SELECT * from t1;
+a
+1
+2
+SELECT * from t2;
+a
+2
+DELETE t2 FROM t1 AS t2, t2 AS t1 where t1.a=t2.a and t1.a=2;
+SELECT * from t1;
+a
+1
+SELECT * from t2;
+a
+2
+DROP TABLE t1,t2;
+create table `t1` (`p_id` int(10) unsigned NOT NULL auto_increment, `p_code` varchar(20) NOT NULL default '', `p_active` tinyint(1) unsigned NOT NULL default '1', PRIMARY KEY (`p_id`) );
+create table `t2` (`c2_id` int(10) unsigned NULL auto_increment, `c2_p_id` int(10) unsigned NOT NULL default '0', `c2_note` text NOT NULL, `c2_active` tinyint(1) unsigned NOT NULL default '1', PRIMARY KEY (`c2_id`), KEY `c2_p_id` (`c2_p_id`) );
+insert into t1 values (0,'A01-Comp',1);
+insert into t1 values (0,'B01-Comp',1);
+insert into t2 values (0,1,'A Note',1);
+update t1 left join t2 on p_id = c2_p_id set c2_note = 'asdf-1' where p_id = 2;
+select * from t1;
+p_id	p_code	p_active
+1	A01-Comp	1
+2	B01-Comp	1
+select * from t2;
+c2_id	c2_p_id	c2_note	c2_active
+1	1	A Note	1
+drop table t1, t2;
 set @ttype_save=@@storage_engine;
 set @@storage_engine=innodb;
 create table t1 ( c char(8) not null );

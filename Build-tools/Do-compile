@@ -282,7 +282,7 @@ if ($opt_stage <= 3)
 {
   my $flags= "";
   log_timestamp();
-  log_system("rm -fr mysql-3* mysql-4* $pwd/$host/*.tar.gz");
+  log_system("rm -fr mysql-{3,4,5}* $pwd/$host/mysql*.t*gz");
   # No need to add the debug symbols, if the binaries are not stripped (saves space)
   unless ($opt_with_debug || $opt_no_strip)
   {
@@ -291,7 +291,7 @@ if ($opt_stage <= 3)
 
   $flags.= "--no-strip" if ($opt_no_strip || $opt_with_debug);
   check_system("scripts/make_binary_distribution --tmp=$opt_tmp --suffix=$opt_suffix $flags",".tar.gz created");
-  safe_system("mv mysql*.tar.gz $pwd/$host");
+  safe_system("mv mysql*.t*gz $pwd/$host");
   if (-f "client/.libs/mysqladmin")
   {
     safe_system("cp client/.libs/mysqladmin $pwd/$host/bin");
@@ -303,11 +303,8 @@ if ($opt_stage <= 3)
   safe_system("$make clean") if ($opt_with_small_disk);
 }
 
-$tar_file=<$pwd/$host/*.tar.gz>;
-if (!defined($tar_file))
-{
-  $tar_file=<$pwd/$host/*.tgz>;
-}
+$tar_file=<$pwd/$host/mysql*.t*gz>;
+abort ("Could not find tarball!") unless ($tar_file);
 
 #
 # Unpack the binary distribution
@@ -320,7 +317,7 @@ if ($opt_stage <= 4 && !$opt_no_test)
   safe_system("gunzip < $tar_file | $tar xf -");
 }
 
-$tar_file =~ /(mysql[^\/]*)\.tar/;
+$tar_file =~ /(mysql[^\/]*)\.(tar\.gz|tgz)/;
 $ver=$1;
 $test_dir="$pwd/$host/test/$ver";
 $ENV{"LD_LIBRARY_PATH"}= ("$test_dir/lib" .

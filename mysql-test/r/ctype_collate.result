@@ -337,15 +337,12 @@ SELECT latin1_f,count(*) FROM t1 GROUP BY latin1_f COLLATE latin1_german2_ci;
 latin1_f	count(*)
 A	4
 AD	2
-AE	2
-Ä	2
+AE	4
 AF	2
 B	2
-SS	2
-ß	1
+SS	3
 U	2
-UE	2
-Ü	2
+UE	4
 Y	2
 Z	2
 SELECT latin1_f,count(*) FROM t1 GROUP BY latin1_f COLLATE latin1_general_ci;
@@ -431,13 +428,10 @@ A
 AD
 AE
 AF
-Ä
 B
 U
 UE
-Ü
 SS
-ß
 Y
 Z
 SELECT DISTINCT latin1_f COLLATE latin1_general_ci FROM t1;
@@ -509,8 +503,8 @@ ALTER TABLE t1 CHARACTER SET latin1 COLLATE latin1_bin;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `latin1_f` char(32) character set latin1 collate latin1_bin default NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+  `latin1_f` char(32) collate latin1_bin default NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1 COLLATE=latin1_bin
 SHOW FIELDS FROM  t1;
 Field	Type	Null	Key	Default	Extra
 latin1_f	char(32)	YES		NULL	

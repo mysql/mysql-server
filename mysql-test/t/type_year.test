@@ -11,3 +11,12 @@ select * from t1;
 select * from t1 order by y;
 select * from t1 order by y2;
 drop table t1;
+
+#
+# Bug 2335
+#
+
+create table t1 (y year);
+insert into t1 values (now());
+select if(y = now(), 1, 0) from t1;
+drop table t1;

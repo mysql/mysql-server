@@ -8653,7 +8653,7 @@ static MY_CHARSET_HANDLER my_charset_handler=
   mbcharlen_euc_kr,
   my_numchars_mb,
   my_charpos_mb,
-  my_wellformedlen_mb,
+  my_well_formed_len_mb,
   my_lengthsp_8bit,
   my_mb_wc_euc_kr,	/* mb_wc   */
   my_wc_mb_euc_kr,	/* wc_mb   */
@@ -8692,7 +8692,8 @@ CHARSET_INFO my_charset_euckr_korean_ci=
     1,			/* strxfrm_multiply */
     1,			/* mbminlen   */
     2,			/* mbmaxlen   */
-    0,
+    0,			/* min_sort_char */
+    0,			/* max_sort_char */
     &my_charset_handler,
     &my_collation_ci_handler
 };
@@ -8716,7 +8717,8 @@ CHARSET_INFO my_charset_euckr_bin=
     1,			/* strxfrm_multiply */
     1,			/* mbminlen   */
     2,			/* mbmaxlen   */
-    0,
+    0,			/* min_sort_char */
+    0,			/* max_sort_char */
     &my_charset_handler,
     &my_collation_mb_bin_handler
 };

@@ -27,7 +27,7 @@ typedef struct st_ft_docstat {
 static int FT_WORD_cmp(CHARSET_INFO* cs, FT_WORD *w1, FT_WORD *w2)
 {
   return mi_compare_text(cs, (uchar*) w1->pos, w1->len,
-                         (uchar*) w2->pos, w2->len, 0);
+                         (uchar*) w2->pos, w2->len, 0, 0);
 }
 
 static int walk_and_copy(FT_WORD *word,uint32 count,FT_DOCSTAT *docstat)
@@ -73,6 +73,26 @@ FT_WORD * ft_linearize(TREE *wtree)
   DBUG_RETURN(wlist);
 }
 
+my_bool ft_boolean_check_syntax_string(const byte *str)
+{
+  uint i, j;
+
+  if (!str ||
+      (strlen(str)+1 != sizeof(ft_boolean_syntax)) ||
+      (str[0] != ' ' && str[1] != ' '))
+    return 1;
+  for (i=0; i<sizeof(ft_boolean_syntax); i++)
+  {
+    /* limiting to 7-bit ascii only */
+    if ((unsigned char)(str[i]) > 127 || my_isalnum(default_charset_info, str[i]))
+      return 1;
+    for (j=0; j<i; j++)
+      if (str[i] == str[j] && (i != 11 || j != 10))
+        return 1;
+  }
+  return 0;
+}
+
 /* returns:
  * 0 - eof
  * 1 - word found
@@ -93,27 +113,30 @@ byte ft_get_word(CHARSET_INFO *cs, byte **start, byte *end,
     for (;doc<end;doc++)
     {
       if (true_word_char(cs,*doc)) break;
-      if (*doc == FTB_RQUOT && param->quot) {
+      if (*doc == FTB_RQUOT && param->quot)
+      {
         param->quot=doc;
         *start=doc+1;
         return 3; /* FTB_RBR */
       }
-      if ((*doc == FTB_LBR || *doc == FTB_RBR || *doc == FTB_LQUOT)
-          && !param->quot)
+      if (!param->quot)
       {
-        /* param->prev=' '; */
-        *start=doc+1;
-        if (*doc == FTB_LQUOT) param->quot=*start;
-        return (*doc == FTB_RBR)+2;
-      }
-      if (param->prev == ' ' && !param->quot)
-      {
-        if (*doc == FTB_YES ) { param->yesno=+1;    continue; } else
-        if (*doc == FTB_EGAL) { param->yesno= 0;    continue; } else
-        if (*doc == FTB_NO  ) { param->yesno=-1;    continue; } else
-        if (*doc == FTB_INC ) { param->plusminus++; continue; } else
-        if (*doc == FTB_DEC ) { param->plusminus--; continue; } else
-        if (*doc == FTB_NEG ) { param->pmsign=!param->pmsign; continue; }
+        if (*doc == FTB_LBR || *doc == FTB_RBR || *doc == FTB_LQUOT)
+        {
+          /* param->prev=' '; */
+          *start=doc+1;
+          if (*doc == FTB_LQUOT) param->quot=*start;
+          return (*doc == FTB_RBR)+2;
+        }
+        if (param->prev == ' ')
+        {
+          if (*doc == FTB_YES ) { param->yesno=+1;    continue; } else
+          if (*doc == FTB_EGAL) { param->yesno= 0;    continue; } else
+          if (*doc == FTB_NO  ) { param->yesno=-1;    continue; } else
+          if (*doc == FTB_INC ) { param->plusminus++; continue; } else
+          if (*doc == FTB_DEC ) { param->plusminus--; continue; } else
+          if (*doc == FTB_NEG ) { param->pmsign=!param->pmsign; continue; }
+        }
       }
       param->prev=*doc;
       param->yesno=(FTB_YES==' ') ? 1 : (param->quot != 0);
@@ -138,6 +161,11 @@ byte ft_get_word(CHARSET_INFO *cs, byte **start, byte *end,
       *start=doc;
       return 1;
     }
+  }
+  if (param->quot)
+  {
+    param->quot=*start=doc;
+    return 3; /* FTB_RBR */
   }
   return 0;
 }

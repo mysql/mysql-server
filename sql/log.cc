@@ -207,7 +207,7 @@ bool MYSQL_LOG::open(const char *log_name, enum_log_type log_type_arg,
     open_flags |= O_RDWR;
   else
     open_flags |= O_WRONLY;
-  
+
   db[0]=0;
   open_count++;
   if ((file=my_open(log_file_name,open_flags,
@@ -220,14 +220,19 @@ bool MYSQL_LOG::open(const char *log_name, enum_log_type log_type_arg,
   case LOG_NORMAL:
   {
     char *end;
+    int len=my_snprintf(buff, sizeof(buff), "%s, Version: %s. "
 #ifdef EMBEDDED_LIBRARY
-    sprintf(buff, "%s, Version: %s, embedded library\n", my_progname, server_version);
+		        "embedded library\n", my_progname, server_version
 #elif __NT__
-    sprintf(buff, "%s, Version: %s, started with:\nTCP Port: %d, Named Pipe: %s\n", my_progname, server_version, mysqld_port, mysqld_unix_port);
+			"started with:\nTCP Port: %d, Named Pipe: %s\n",
+			my_progname, server_version, mysqld_port, mysqld_unix_port
 #else
-    sprintf(buff, "%s, Version: %s, started with:\nTcp port: %d  Unix socket: %s\n", my_progname,server_version,mysqld_port,mysqld_unix_port);
+			"started with:\nTcp port: %d  Unix socket: %s\n",
+			my_progname,server_version,mysqld_port,mysqld_unix_port
 #endif
-    end=strmov(strend(buff),"Time                 Id Command    Argument\n");
+                        );
+    end=strnmov(buff+len,"Time                 Id Command    Argument\n",
+                sizeof(buff)-len);
     if (my_b_write(&log_file, (byte*) buff,(uint) (end-buff)) ||
 	flush_io_cache(&log_file))
       goto err;
@@ -235,21 +240,21 @@ bool MYSQL_LOG::open(const char *log_name, enum_log_type log_type_arg,
   }
   case LOG_NEW:
   {
+    uint len;
     time_t skr=time(NULL);
     struct tm tm_tmp;
+
     localtime_r(&skr,&tm_tmp);
-    ulong length;
-    length= my_sprintf(buff,
-		       (buff,
-			"# %s, Version: %s at %02d%02d%02d %2d:%02d:%02d\n",
-			my_progname,server_version,
-			tm_tmp.tm_year % 100,
-			tm_tmp.tm_mon+1,
-			tm_tmp.tm_mday,
-			tm_tmp.tm_hour,
-			tm_tmp.tm_min,
-			tm_tmp.tm_sec));
-    if (my_b_write(&log_file, (byte*) buff, length) ||
+    len= my_snprintf(buff,sizeof(buff),
+		     "# %s, Version: %s at %02d%02d%02d %2d:%02d:%02d\n",
+		     my_progname,server_version,
+		     tm_tmp.tm_year % 100,
+		     tm_tmp.tm_mon+1,
+		     tm_tmp.tm_mday,
+		     tm_tmp.tm_hour,
+		     tm_tmp.tm_min,
+		     tm_tmp.tm_sec);
+    if (my_b_write(&log_file, (byte*) buff, len) ||
 	flush_io_cache(&log_file))
       goto err;
     break;
@@ -264,7 +269,7 @@ bool MYSQL_LOG::open(const char *log_name, enum_log_type log_type_arg,
       index_file_name_arg= name;	// Use same basename for index file
       opt= MY_UNPACK_FILENAME | MY_REPLACE_EXT;
     }
-  
+
     if (!my_b_filelength(&log_file))
     {
       /*
@@ -547,7 +552,6 @@ int MYSQL_LOG::find_log_pos(LOG_INFO *linfo, const char *log_name,
   RETURN VALUES
     0			ok
     LOG_INFO_EOF	End of log-index-file found
-    LOG_INFO_SEEK	Could not allocate IO cache
     LOG_INFO_IO		Got IO error while reading file
 */
 
@@ -1257,8 +1261,7 @@ bool MYSQL_LOG::write(Log_event* event_info)
        "do the involved tables match (to be implemented)
         binlog_[wild_]{do|ignore}_table?" (WL#1049)"
     */
-    if ((thd && !(thd->options & OPTION_BIN_LOG) &&
-	 (thd->master_access & SUPER_ACL)) ||
+    if ((thd && !(thd->options & OPTION_BIN_LOG)) ||
 	(local_db && !db_ok(local_db, binlog_do_db, binlog_ignore_db)))
     {
       VOID(pthread_mutex_unlock(&LOCK_log));

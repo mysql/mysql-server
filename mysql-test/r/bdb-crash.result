@@ -30,3 +30,10 @@ ChargeID	ServiceID	ChargeDate	ChargeAmount	FedTaxes	ProvTaxes	ChargeStatus	Charg
 1	1	2001-03-01	1.00	1.00	1.00	New	blablabla	NULL	now
 2	1	2001-03-01	1.00	1.00	1.00	New	NULL	NULL	now
 drop table t1;
+create table t1 (a int) engine=bdb;
+set autocommit=0;
+insert into t1 values(1);
+analyze table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	Operation need committed state
+drop table t1;

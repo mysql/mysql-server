@@ -48,7 +48,9 @@ buf_flush_insert_into_flush_list(
 /*=============================*/
 	buf_block_t*	block)	/* in: block which is modified */
 {
+#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&(buf_pool->mutex)));
+#endif /* UNIV_SYNC_DEBUG */
 
 	ut_a(block->state == BUF_BLOCK_FILE_PAGE);
 
@@ -76,7 +78,9 @@ buf_flush_insert_sorted_into_flush_list(
 	buf_block_t*	prev_b;
 	buf_block_t*	b;
 	
+#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&(buf_pool->mutex)));
+#endif /* UNIV_SYNC_DEBUG */
 
 	prev_b = NULL;
 	b = UT_LIST_GET_FIRST(buf_pool->flush_list);
@@ -108,7 +112,9 @@ buf_flush_ready_for_replace(
 	buf_block_t*	block)	/* in: buffer control block, must be in state
 				BUF_BLOCK_FILE_PAGE and in the LRU list */
 {
+#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&(buf_pool->mutex)));
+#endif /* UNIV_SYNC_DEBUG */
 	ut_a(block->state == BUF_BLOCK_FILE_PAGE);
 
 	if ((ut_dulint_cmp(block->oldest_modification, ut_dulint_zero) > 0)
@@ -132,7 +138,9 @@ buf_flush_ready_for_flush(
 				BUF_BLOCK_FILE_PAGE */
 	ulint		flush_type)/* in: BUF_FLUSH_LRU or BUF_FLUSH_LIST */
 {
+#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&(buf_pool->mutex)));
+#endif /* UNIV_SYNC_DEBUG */
 	ut_a(block->state == BUF_BLOCK_FILE_PAGE);
 
 	if ((ut_dulint_cmp(block->oldest_modification, ut_dulint_zero) > 0)
@@ -163,8 +171,9 @@ buf_flush_write_complete(
 	buf_block_t*	block)	/* in: pointer to the block in question */
 {
 	ut_ad(block);
+#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&(buf_pool->mutex)));
-
+#endif /* UNIV_SYNC_DEBUG */
 	ut_a(block->state == BUF_BLOCK_FILE_PAGE);
 
 	block->oldest_modification = ut_dulint_zero;
@@ -248,7 +257,7 @@ buf_flush_buffered_writes(void)
 	"InnoDB: files.\n",
 			(ulong) block->offset, (ulong) block->space);
 
-			ut_a(0);
+			ut_error;
 		}
 	}
 

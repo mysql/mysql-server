@@ -23,4 +23,9 @@
 
 /* mysqld compile time options */
 #endif /* _CUSTOMCONFIG_ */
+
+#ifndef LICENSE
+#define LICENSE "GPL"
+#endif /* LICENSE */
+
 #endif /* _mysql_version_h */

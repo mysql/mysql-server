@@ -57,17 +57,38 @@ static SORT_ADDON_FIELD *get_addon_fields(THD *thd, Field **ptabfield,
 static void unpack_addon_fields(struct st_sort_addon_field *addon_field,
                                 byte *buff);
 
-	/*
-	  Creates a set of pointers that can be used to read the rows
-	  in sorted order. This should be done with the functions
-	  in records.cc
+/*
+  Sort a table
 
-	  Before calling filesort, one must have done
-	  table->file->info(HA_STATUS_VARIABLE)
+  SYNOPSIS
+    filesort()
+    table		Table to sort
+    sortorder		How to sort the table
+    s_length		Number of elements in sortorder	
+    select		condition to apply to the rows
+    special		Not used.
+			(This could be used to sort the rows pointed on by
+			select->file)
+   examined_rows	Store number of examined rows here
 
-	  The result set is stored in table->io_cache or
-	  table->record_pointers
-	*/
+  IMPLEMENTATION
+    Creates a set of pointers that can be used to read the rows
+    in sorted order. This should be done with the functions
+    in records.cc
+  
+  REQUIREMENTS
+    Before calling filesort, one must have done
+    table->file->info(HA_STATUS_VARIABLE)
+
+  RETURN
+    HA_POS_ERROR	Error
+    #			Number of rows
+
+    examined_rows	will be set to number of examined rows
+
+    The result set is stored in table->io_cache or
+    table->record_pointers
+*/
 
 ha_rows filesort(THD *thd, TABLE *table, SORT_FIELD *sortorder, uint s_length,
 		 SQL_SELECT *select, ha_rows max_rows, ha_rows *examined_rows)
@@ -543,6 +564,8 @@ static void make_sortkey(register SORTPARAM *param,
       case STRING_RESULT:
 	{
           CHARSET_INFO *cs=item->collation.collation;
+	  char fill_char= ((cs->state & MY_CS_BINSORT) ? (char) 0 : ' ');
+
 	  if ((maybe_null=item->maybe_null))
 	    *to++=1;
 	  /* All item->str() to use some extra byte for end null.. */
@@ -579,14 +602,16 @@ static void make_sortkey(register SORTPARAM *param,
 	    uint tmp_length=my_strnxfrm(cs,to,sort_field->length,
 					(unsigned char *) from, length);
 	    if (tmp_length < sort_field->length)
-	      bzero((char*) to+tmp_length,sort_field->length-tmp_length);
+	      cs->cset->fill(cs, (char*) to+tmp_length,
+			     sort_field->length-tmp_length,
+			     fill_char);
           }
           else
           {
              my_strnxfrm(cs,(uchar*)to,length,(const uchar*)res->ptr(),length);
-             bzero((char *)to+length,diff);
+             cs->cset->fill(cs, (char *)to+length,diff,fill_char);
           }
-		break;
+	  break;
 	}
       case INT_RESULT:
 	{
@@ -674,9 +699,22 @@ static void make_sortkey(register SORTPARAM *param,
     for ( ; (field= addonf->field) ; addonf++)
     {
       if (addonf->null_bit && field->is_null())
+      {
         nulls[addonf->null_offset]|= addonf->null_bit;
+#ifdef HAVE_purify
+	bzero(to, addonf->length);
+#endif
+      }
       else
-        field->pack((char *) to, field->ptr);
+      {
+        uchar *end= (uchar*) field->pack((char *) to, field->ptr);
+#ifdef HAVE_purify
+	uint length= (uint) ((to + addonf->length) - end);
+	DBUG_ASSERT((int) length >= 0);
+	if (length)
+	  bzero(end, length);
+#endif
+      }
       to+= addonf->length;
     }
   }
@@ -863,7 +901,8 @@ int merge_buffers(SORTPARAM *param, IO_CACHE *from_file,
     strpos+= (uint) (error= (int) read_to_buffer(from_file, buffpek,
                                                                          rec_length));
     if (error == -1)
-      goto err;                                        /* purecov: inspected */
+      goto err;					/* purecov: inspected */
+    buffpek->max_keys= buffpek->mem_count;	// If less data in buffers than expected
     queue_insert(&queue, (byte*) buffpek);
   }
 

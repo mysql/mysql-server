@@ -189,8 +189,9 @@ static int emb_stmt_execute(MYSQL_STMT *stmt)
     thd->data= 0;
   }
   if (emb_advanced_command(stmt->mysql, COM_EXECUTE,0,0,
-			   (const char*)&stmt->stmt_id,sizeof(stmt->stmt_id),1)
-      || emb_mysql_read_query_result(stmt->mysql))
+			   (const char*)&stmt->stmt_id,sizeof(stmt->stmt_id),
+			   1) ||
+      emb_mysql_read_query_result(stmt->mysql))
   {
     NET *net= &stmt->mysql->net;
     set_stmt_errmsg(stmt, net->last_error, net->last_errno, net->sqlstate);
@@ -199,9 +200,14 @@ static int emb_stmt_execute(MYSQL_STMT *stmt)
   DBUG_RETURN(0);
 }
 
-MYSQL_DATA *emb_read_binary_rows(MYSQL_STMT *stmt)
+int emb_read_binary_rows(MYSQL_STMT *stmt)
 {
-  return emb_read_rows(stmt->mysql, 0, 0);
+  MYSQL_DATA *data;
+  if (!(data= emb_read_rows(stmt->mysql, 0, 0)))
+    return 1;
+  stmt->result= *data;
+  my_free((char *) data, MYF(0));
+  return 0;
 }
 
 int emb_unbuffered_fetch(MYSQL *mysql, char **row)
@@ -233,7 +239,7 @@ static void emb_free_embedded_thd(MYSQL *mysql)
   delete thd;
 }
 
-static const char * emb_read_statistic(MYSQL *mysql)
+static const char * emb_read_statistics(MYSQL *mysql)
 {
   THD *thd= (THD*)mysql->thd;
   return thd->net.last_error;
@@ -245,17 +251,24 @@ static MYSQL_RES * emb_mysql_store_result(MYSQL *mysql)
   return mysql_store_result(mysql);
 }
 
-int emb_next_result(MYSQL *mysql)
+my_bool emb_next_result(MYSQL *mysql)
 {
   THD *thd= (THD*)mysql->thd;
   DBUG_ENTER("emb_next_result");
 
   if (emb_advanced_command(mysql, COM_QUERY,0,0,
-			   thd->query_rest.ptr(),thd->query_rest.length(),1)
-      || emb_mysql_read_query_result(mysql))
+			   thd->query_rest.ptr(),thd->query_rest.length(),1) ||
+      emb_mysql_read_query_result(mysql))
     DBUG_RETURN(1);
 
   DBUG_RETURN(0);				/* No more results */
+}
+
+int emb_read_change_user_result(MYSQL *mysql, 
+				char *buff __attribute__((unused)),
+				const char *passwd __attribute__((unused)))
+{
+  return mysql_errno(mysql);
 }
 
 MYSQL_METHODS embedded_methods= 
@@ -271,8 +284,9 @@ MYSQL_METHODS embedded_methods=
   emb_read_binary_rows,
   emb_unbuffered_fetch,
   emb_free_embedded_thd,
-  emb_read_statistic,
-  emb_next_result
+  emb_read_statistics,
+  emb_next_result,
+  emb_read_change_user_result
 };
 
 C_MODE_END
@@ -318,10 +332,10 @@ char **		copy_arguments_ptr= 0;
 
 int init_embedded_server(int argc, char **argv, char **groups)
 {
-  char glob_hostname[FN_REFLEN];
-
-  /* This mess is to allow people to call the init function without
-   * having to mess with a fake argv */
+  /*
+    This mess is to allow people to call the init function without
+    having to mess with a fake argv
+   */
   int *argcp;
   char ***argvp;
   int fake_argc = 1;
@@ -389,28 +403,11 @@ int init_embedded_server(int argc, char **argv, char **groups)
     udf_init();
 #endif
 
-  if (opt_bin_log)
-  {
-    if (!opt_bin_logname)
-    {
-      char tmp[FN_REFLEN];
-      /* TODO: The following should be using fn_format();  We just need to
-	 first change fn_format() to cut the file name if it's too long.
-      */
-      strmake(tmp,glob_hostname,FN_REFLEN-5);
-      strmov(strcend(tmp,'.'),"-bin");
-      opt_bin_logname=my_strdup(tmp,MYF(MY_WME));
-    }
-    open_log(&mysql_bin_log, glob_hostname, opt_bin_logname, "-bin",
-	     opt_binlog_index_name, LOG_BIN, 0, 0, max_binlog_size);
-    using_update_log=1;
-  }
-
   (void) thr_setconcurrency(concurrency);	// 10 by default
 
   if (
 #ifdef HAVE_BERKELEY_DB
-      !berkeley_skip ||
+      (have_berkeley_db == SHOW_OPTION_YES) ||
 #endif
       (flush_time && flush_time != ~(ulong) 0L))
   {
@@ -499,6 +496,7 @@ int check_embedded_connection(MYSQL *mysql)
   thd->host= (char*)my_localhost;
   thd->host_or_ip= thd->host;
   thd->user= my_strdup(mysql->user, MYF(0));
+  check_user(thd, COM_CONNECT, NULL, 0, thd->db, true);
   return 0;
 }
 
@@ -612,8 +610,8 @@ bool Protocol::send_fields(List<Item> *list, uint flag)
       }
       else
       {
-	client_field->def= strdup_root(field_alloc, tmp.ptr());
-	client_field->def_length= tmp.length();
+	client_field->def= strdup_root(field_alloc, res->ptr());
+	client_field->def_length= res->length();
       }
     }
     else

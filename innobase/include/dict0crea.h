@@ -17,15 +17,6 @@ Created 1/8/1996 Heikki Tuuri
 #include "mtr0mtr.h"
 					
 /*************************************************************************
-Creates the default clustered index for a table: the records are ordered
-by row id. */
-
-void
-dict_create_default_index(
-/*======================*/
-	dict_table_t*	table,	/* in: table */
-	trx_t*		trx);	/* in: transaction handle */
-/*************************************************************************
 Creates a table create graph. */
 
 tab_node_t*
@@ -81,12 +72,25 @@ dict_create_or_check_foreign_constraint_tables(void);
 /*================================================*/
 				/* out: DB_SUCCESS or error code */
 /************************************************************************
-Adds foreign key definitions to data dictionary tables in the database. */
+Adds foreign key definitions to data dictionary tables in the database. We
+look at table->foreign_list, and also generate names to constraints that were
+not named by the user. A generated constraint has a name of the format
+databasename/tablename_ibfk_<number>, where the numbers start from 1, and are
+given locally for this table, that is, the number is not global, as in the
+old format constraints < 4.0.18 it used to be. */
 
 ulint
 dict_create_add_foreigns_to_dictionary(
 /*===================================*/
 				/* out: error code or DB_SUCCESS */
+	ulint		start_id,/* in: if we are actually doing ALTER TABLE
+				ADD CONSTRAINT, we want to generate constraint
+				numbers which are bigger than in the table so
+				far; we number the constraints from
+				start_id + 1 up; start_id should be set to 0 if
+				we are creating a new table, or if the table
+				so far has no constraints for which the name
+				was generated here */
 	dict_table_t*	table,	/* in: table */
 	trx_t*		trx);	/* in: transaction */
 

@@ -38,7 +38,7 @@ This prototype is copied from /mysql/sql/ha_innodb.cc.
 Invalidates the MySQL query cache for the table.
 NOTE that the exact prototype of this function has to be in
 /innobase/row/row0ins.c! */
-
+extern
 void
 innobase_invalidate_query_cache(
 /*============================*/
@@ -80,9 +80,9 @@ ins_node_create(
 	node->trx_id = ut_dulint_zero;
 	
 	node->entry_sys_heap = mem_heap_create(128);
-
-	node->magic_n = INS_NODE_MAGIC_N;	
-	
+#ifdef UNIV_DEBUG
+	node->magic_n = INS_NODE_MAGIC_N;
+#endif /* UNIV_DEBUG */
 	return(node);
 }
 
@@ -194,6 +194,7 @@ ins_node_set_new_row(
 	ins_node_t*	node,	/* in: insert node */
 	dtuple_t*	row)	/* in: new row (or first row) for the node */
 {
+	ut_ad(node->magic_n == INS_NODE_MAGIC_N);
 	node->state = INS_NODE_SET_IX_LOCK;
 	node->index = NULL;
 	node->entry = NULL;
@@ -682,14 +683,6 @@ row_ins_foreign_check_on_constraint(
 			(DICT_FOREIGN_ON_DELETE_CASCADE
 			 | DICT_FOREIGN_ON_DELETE_SET_NULL))) {
 
-		/* No action is defined: return a foreign key error if
-		NO ACTION is not specified */
-
-		if (foreign->type & DICT_FOREIGN_ON_DELETE_NO_ACTION) {
-
-			return(DB_SUCCESS);
-		}
-
 		row_ins_foreign_report_err((char*)"Trying to delete",
 					thr, foreign,
 					btr_pcur_get_rec(pcur), entry);
@@ -703,14 +696,6 @@ row_ins_foreign_check_on_constraint(
 
 		/* This is an UPDATE */
 			 
-		/* No action is defined: return a foreign key error if
-		NO ACTION is not specified */
-
-		if (foreign->type & DICT_FOREIGN_ON_UPDATE_NO_ACTION) {
-
-			return(DB_SUCCESS);
-		}
-
 		row_ins_foreign_report_err((char*)"Trying to update",
 					thr, foreign,
 					btr_pcur_get_rec(pcur), entry);
@@ -871,7 +856,7 @@ row_ins_foreign_check_on_constraint(
 			"InnoDB: Make a detailed bug report and send it\n");
 	  	fprintf(stderr, "InnoDB: to mysql@lists.mysql.com\n");
 
-		ut_a(0);
+		ut_error;
 */
 		err = DB_SUCCESS;		
 
@@ -1047,8 +1032,10 @@ row_ins_check_foreign_constraint(
 	mtr_t		mtr;
 
 run_again:
+#ifdef UNIV_SYNC_DEBUG
 	ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_SHARED));
-	
+#endif /* UNIV_SYNC_DEBUG */
+
 	err = DB_SUCCESS;
 
 	if (thr_get_trx(thr)->check_foreigns == FALSE) {
@@ -1365,58 +1352,6 @@ row_ins_check_foreign_constraints(
 	return(DB_SUCCESS);
 }
 
-/*************************************************************************
-Reports a UNIQUE key error to dict_unique_err_buf so that SHOW INNODB
-STATUS can print it. */
-static
-void
-row_ins_unique_report_err(
-/*======================*/
-	que_thr_t*	thr,	/* in: query thread */
-	rec_t*		rec,	/* in: a record in the index */
-	dtuple_t*	entry,	/* in: index entry to insert in the index */
-	dict_index_t*	index)	/* in: index */
-{
-	UT_NOT_USED(thr);
-	UT_NOT_USED(rec);
-	UT_NOT_USED(entry);
-	UT_NOT_USED(index);
-
-#ifdef notdefined
-        /* Disable reporting to test if the slowdown of REPLACE in 4.0.13 was
-	caused by this! */
-
-	char*	buf	= dict_unique_err_buf;
-
-	/* The foreign err mutex protects also dict_unique_err_buf */
-
-	mutex_enter(&dict_foreign_err_mutex);
-
-	ut_sprintf_timestamp(buf);
-	sprintf(buf + strlen(buf), " Transaction:\n");
-	trx_print(buf + strlen(buf), thr_get_trx(thr));			
-
-	sprintf(buf + strlen(buf),
-"Unique key constraint fails for table %.500s.\n", index->table_name);
-	sprintf(buf + strlen(buf),
-"Trying to add in index %.500s (%lu fields unique) tuple:\n", index->name,
-	  				dict_index_get_n_unique(index));
-		
-	dtuple_sprintf(buf + strlen(buf), 1000, entry);
-
-	sprintf(buf + strlen(buf),
-"\nBut there is already a record:\n");
-
-	rec_sprintf(buf + strlen(buf), 1000, rec);
-
-	sprintf(buf + strlen(buf), "\n");
-
-	ut_a(strlen(buf) < DICT_FOREIGN_ERR_BUF_LEN);
-
-	mutex_exit(&dict_foreign_err_mutex);
-#endif
-}
-
 /*******************************************************************
 Checks if a unique key violation to rec would occur at the index entry
 insert. */
@@ -1547,8 +1482,6 @@ row_ins_scan_sec_index_for_duplicate(
 
 		if (cmp == 0) {
 			if (row_ins_dupl_error_with_rec(rec, entry, index)) {
-				row_ins_unique_report_err(thr, rec, entry,
-								   index);
 				err = DB_DUPLICATE_KEY;
 
 				thr_get_trx(thr)->error_info = index;
@@ -1643,8 +1576,6 @@ row_ins_duplicate_error_in_clust(
 			if (row_ins_dupl_error_with_rec(rec, entry,
 							cursor->index)) {
 				trx->error_info = cursor->index;
-				row_ins_unique_report_err(thr, rec, entry,
-							  cursor->index);
 				return(DB_DUPLICATE_KEY);
 			}
 		}
@@ -1667,9 +1598,6 @@ row_ins_duplicate_error_in_clust(
 			if (row_ins_dupl_error_with_rec(rec, entry,
 							cursor->index)) {
 				trx->error_info = cursor->index;
-
-				row_ins_unique_report_err(thr, rec, entry,
-							  cursor->index);
 				return(DB_DUPLICATE_KEY);
 			}
 		}
@@ -2115,6 +2043,7 @@ row_ins(
 	ulint	err;
 	
 	ut_ad(node && thr);
+	ut_ad(node->magic_n == INS_NODE_MAGIC_N);
 
 	if (node->state == INS_NODE_ALLOC_ROW_ID) {
 
@@ -2179,7 +2108,7 @@ row_ins_step(
 	trx_start_if_not_started(trx);
 	
 	node = thr->run_node;
-
+	ut_ad(node->magic_n == INS_NODE_MAGIC_N);
 	ut_ad(que_node_get_type(node) == QUE_NODE_INSERT);
 
 	parent = que_node_get_parent(node);

@@ -25,7 +25,7 @@
  *   Matt Wagner   <matt@mysql.com>
  *   Jeremy Cole   <jcole@mysql.com>
  *   Tonu Samuel   <tonu@mysql.com>
- *   Harrison Fisk <hcfisk@buffalo.edu>
+ *   Harrison Fisk <harrison@mysql.com>
  *
  **/
 
@@ -289,10 +289,25 @@ static const char *server_default_groups[]=
 { "server", "embedded", "mysql_SERVER", 0 };
 
 #ifdef HAVE_READLINE
+/*
+ HIST_ENTRY is defined for libedit, but not for the real readline
+ Need to redefine it for real readline to find it
+*/
+#if !defined(USE_LIBEDIT_INTERFACE)
+typedef struct _hist_entry {
+  const char      *line;
+  const char      *data;
+} HIST_ENTRY; 
+#endif
+
 extern "C" int add_history(const char *command); /* From readline directory */
 extern "C" int read_history(const char *command);
 extern "C" int write_history(const char *command);
+extern "C" HIST_ENTRY *history_get(int num);
+extern "C" int history_length;
+static int not_in_history(const char *line);
 static void initialize_readline (char *name);
+static void fix_history(String *final_command);
 #endif
 
 static COMMANDS *find_command (char *name,char cmd_name);
@@ -410,8 +425,9 @@ int main(int argc,char *argv[])
   }
 #endif
   sprintf(buff, "%s",
+#ifndef NOT_YET
 	  "Type 'help;' or '\\h' for help. Type '\\c' to clear the buffer.\n");
-#ifdef NOT_YET
+#else
 	  "Type 'help [[%]function name[%]]' to get help on usage of function.\n");
 #endif
   put_info(buff,INFO_INFO);
@@ -604,10 +620,10 @@ static struct my_option my_long_options[] =
    (gptr*) &current_user, 0, GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
 #endif
   {"safe-updates", 'U', "Only allow UPDATE and DELETE that uses keys.",
-   (gptr*) &safe_updates, (gptr*) &safe_updates, 0, GET_BOOL, OPT_ARG, 0, 0,
+   (gptr*) &safe_updates, (gptr*) &safe_updates, 0, GET_BOOL, NO_ARG, 0, 0,
    0, 0, 0, 0},
   {"i-am-a-dummy", 'U', "Synonym for option --safe-updates, -U.",
-   (gptr*) &safe_updates, (gptr*) &safe_updates, 0, GET_BOOL, OPT_ARG, 0, 0,
+   (gptr*) &safe_updates, (gptr*) &safe_updates, 0, GET_BOOL, NO_ARG, 0, 0,
    0, 0, 0, 0},
   {"verbose", 'v', "Write more. (-v -v -v gives the table output format).", 0,
    0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
@@ -937,7 +953,7 @@ static int read_lines(bool execute_commands)
       if (glob_buffer.is_empty())		// If buffer was emptied
 	in_string=0;
 #ifdef HAVE_READLINE
-      if (status.add_to_history)
+      if (status.add_to_history && not_in_history(line))
 	add_history(line);
 #endif
       continue;
@@ -1014,7 +1030,7 @@ static bool add_line(String &buffer,char *line,char *in_string,
   if (!line[0] && buffer.is_empty())
     return 0;
 #ifdef HAVE_READLINE
-  if (status.add_to_history && line[0])
+  if (status.add_to_history && line[0] && not_in_history(line))
     add_history(line);
 #endif
 #ifdef USE_MB
@@ -1167,6 +1183,75 @@ int no_completion()
 #endif
 {
   return 0;					/* No filename completion */
+}
+
+/*	glues pieces of history back together if in pieces   */
+static void fix_history(String *final_command) 
+{
+  int total_lines = 1;
+  char *ptr = final_command->c_ptr();
+  String fixed_buffer; 	/* Converted buffer */
+  char str_char = '\0';  /* Character if we are in a string or not */
+  
+  /* find out how many lines we have and remove newlines */
+  while (*ptr != '\0') 
+  {
+    switch (*ptr) {
+      /* string character */
+    case '"':
+    case '\'':
+    case '`':
+      if (str_char == '\0')	/* open string */
+	str_char = *ptr;
+      else if (str_char == *ptr)   /* close string */
+	str_char = '\0';
+      fixed_buffer.append(ptr,1);
+      break;
+    case '\n':
+      /* 
+	 not in string, change to space
+	 if in string, leave it alone 
+      */
+      fixed_buffer.append(str_char == '\0' ? " " : "\n");
+      total_lines++;
+      break;
+    case '\\':
+      fixed_buffer.append('\\');
+      /* need to see if the backslash is escaping anything */
+      if (str_char) 
+      {
+	ptr++;
+	/* special characters that need escaping */
+	if (*ptr == '\'' || *ptr == '"' || *ptr == '\\')
+	  fixed_buffer.append(ptr,1);
+	else
+	  ptr--;
+      }
+      break;
+      
+    default:
+      fixed_buffer.append(ptr,1);
+    }
+    ptr++;
+  }
+  if (total_lines > 1)			
+    add_history(fixed_buffer.ptr());
+}
+
+/*	
+  returns 0 if line matches the previous history entry
+  returns 1 if the line doesn't match the previous history entry
+*/
+static int not_in_history(const char *line) 
+{
+  HIST_ENTRY *oldhist = history_get(history_length);
+  int num;
+  
+  if (oldhist == 0)
+    return 1;
+  if (strcmp(oldhist->line,line) == 0)
+    return 0;
+  return 1;
 }
 
 static void initialize_readline (char *name)
@@ -1631,6 +1716,10 @@ com_help(String *buffer __attribute__((unused)),
 static int
 com_clear(String *buffer,char *line __attribute__((unused)))
 {
+#ifdef HAVE_READLINE
+  if (status.add_to_history)
+    fix_history(buffer);
+#endif
   buffer->length(0);
   return 0;
 }
@@ -1690,6 +1779,16 @@ com_go(String *buffer,char *line __attribute__((unused)))
   timer=start_timer();
 
   error= mysql_real_query_for_lazy(buffer->ptr(),buffer->length());
+
+#ifdef HAVE_READLINE
+  if (status.add_to_history) 
+  {  
+    buffer->append(vertical ? "\\G" : delimiter);
+    /* Append final command onto history */
+    fix_history(buffer);
+  }
+#endif
+
   if (error)
   {
     buffer->length(0); // Remove query on error
@@ -3088,6 +3187,8 @@ static const char* construct_prompt()
 	processed_prompt.append(' ');
 	break;
       case 'R':
+	if (t->tm_hour < 10)
+	  processed_prompt.append('0');
 	add_int_to_prompt(t->tm_hour);
 	break;
       case 'r':
@@ -3095,6 +3196,8 @@ static const char* construct_prompt()
 	getHour = t->tm_hour % 12;
 	if (getHour == 0)
 	  getHour=12;
+	if (getHour < 10)
+	  processed_prompt.append('0');
 	add_int_to_prompt(getHour);
 	break;
       case 'm':
@@ -3120,6 +3223,8 @@ static const char* construct_prompt()
 	processed_prompt.append(strtok(dateTime,"\n"));
 	break;
       case 's':
+	if (t->tm_sec < 10)
+	  processed_prompt.append('0');
 	add_int_to_prompt(t->tm_sec);
 	break;
       case 'w':

@@ -300,7 +300,9 @@ C_MODE_END
 #ifndef CONFIG_SMP
 #define CONFIG_SMP
 #endif
+C_MODE_START
 #include <asm/atomic.h>
+C_MODE_END
 #endif
 #include <errno.h>				/* Recommended by debian */
 /* We need the following to go around a problem with openssl on solaris */
@@ -389,8 +391,8 @@ typedef unsigned short ushort;
 #define sgn(a)		(((a) < 0) ? -1 : ((a) > 0) ? 1 : 0)
 #define swap(t,a,b)	{ register t dummy; dummy = a; a = b; b = dummy; }
 #define test(a)		((a) ? 1 : 0)
-#define set_if_bigger(a,b)  { if ((a) < (b)) (a)=(b); }
-#define set_if_smaller(a,b) { if ((a) > (b)) (a)=(b); }
+#define set_if_bigger(a,b)  do { if ((a) < (b)) (a)=(b); } while(0)
+#define set_if_smaller(a,b) do { if ((a) > (b)) (a)=(b); } while(0)
 #define test_all_bits(a,b) (((a) & (b)) == (b))
 #define set_bits(type, bit_count) (sizeof(type)*8 <= (bit_count) ? ~(type) 0 : ((((type) 1) << (bit_count)) - (type) 1))
 #define array_elements(A) ((uint) (sizeof(A)/sizeof(A[0])))
@@ -529,7 +531,7 @@ typedef SOCKET_SIZE_TYPE size_socket;
 #define FN_EXTCHAR	'.'
 #define FN_HOMELIB	'~'	/* ~/ is used as abbrev for home dir */
 #define FN_CURLIB	'.'	/* ./ is used as abbrev for current dir */
-#define FN_PARENTDIR	".."	/* Parentdirectory; Must be a string */
+#define FN_PARENTDIR	".."	/* Parent directory; Must be a string */
 #define FN_DEVCHAR	':'
 
 #ifndef FN_LIBCHAR
@@ -540,7 +542,10 @@ typedef SOCKET_SIZE_TYPE size_socket;
 #define FN_LIBCHAR	'/'
 #define FN_ROOTDIR	"/"
 #endif
-#define MY_NFILE	1024	/* This is only used to save filenames */
+#endif
+#define MY_NFILE	64	/* This is only used to save filenames */
+#ifndef OS_FILE_LIMIT
+#define OS_FILE_LIMIT	65535
 #endif
 
 /* #define EXT_IN_LIBNAME     */
@@ -588,14 +593,6 @@ typedef SOCKET_SIZE_TYPE size_socket;
 
 /* Some defines of functions for portability */
 
-#ifndef HAVE_ATOD
-#define atod		atof
-#endif
-#ifdef USE_MY_ATOF
-#define atof		my_atof
-extern void		init_my_atof(void);
-extern double		my_atof(const char*);
-#endif
 #undef remove		/* Crashes MySQL on SCO 5.0.0 */
 #ifndef __WIN__
 #ifdef OS2
@@ -684,6 +681,10 @@ extern double		my_atof(const char*);
 #define FLT_MAX		((float)3.40282346638528860e+38)
 #endif
 
+#ifndef HAVE_ISINF
+#define isinf(X)    0
+#endif
+
 /* Define missing math constants. */
 #ifndef M_PI
 #define M_PI 3.14159265358979323846
@@ -709,7 +710,7 @@ typedef long long	my_ptrdiff_t;
 #define ALIGN_SIZE(A)	MY_ALIGN((A),sizeof(double))
 /* Size to make adressable obj. */
 #define ALIGN_PTR(A, t) ((t*) MY_ALIGN((A),sizeof(t)))
-			 /* Offset of filed f in structure t */
+			 /* Offset of field f in structure t */
 #define OFFSET(t, f)	((size_t)(char *)&((t *)0)->f)
 #define ADD_TO_PTR(ptr,size,type) (type) ((byte*) (ptr)+size)
 #define PTR_BYTE_DIFF(A,B) (my_ptrdiff_t) ((byte*) (A) - (byte*) (B))
@@ -856,6 +857,14 @@ typedef char		bool;	/* Ordinary boolean values 0 1 */
 #define LL(A) A ## LL
 #else
 #define LL(A) A ## L
+#endif
+#endif
+
+#ifndef ULL
+#ifdef HAVE_LONG_LONG
+#define ULL(A) A ## ULL
+#else
+#define ULL(A) A ## UL
 #endif
 #endif
 
@@ -1129,10 +1138,10 @@ typedef union {
 			  *((T)+1)=(((A) >> 16));\
 			  *((T)+0)=(((A) >> 24)); }
 
-#define doubleget(V,M)	 memcpy((byte*) &V,(byte*) (M),sizeof(double))
-#define doublestore(T,V) memcpy((byte*) (T),(byte*) &V,sizeof(double))
-#define longlongget(V,M) memcpy((byte*) &V,(byte*) (M),sizeof(ulonglong))
-#define longlongstore(T,V) memcpy((byte*) (T),(byte*) &V,sizeof(ulonglong))
+#define doubleget(V,M)	 memcpy_fixed((byte*) &V,(byte*) (M),sizeof(double))
+#define doublestore(T,V) memcpy_fixed((byte*) (T),(byte*) &V,sizeof(double))
+#define longlongget(V,M) memcpy_fixed((byte*) &V,(byte*) (M),sizeof(ulonglong))
+#define longlongstore(T,V) memcpy_fixed((byte*) (T),(byte*) &V,sizeof(ulonglong))
 
 #else
 

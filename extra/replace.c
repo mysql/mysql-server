@@ -14,12 +14,16 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-/* Replace strings in textfile
-  This program replace strings in a file or on stdin/stdout.
-  It accepts a list of from-strings and to-strings and replaces all
-  occurents of from-strings to to-strings.
-  The first occurents of a found string is matched. If there are more than
-  one possibly replace the longer from-string is replaced.
+/*
+  Replace strings in textfile
+
+  This program replaces strings in files or from stdin to stdout.
+  It accepts a list of from-string/to-string pairs and replaces
+  each occurrence of a from-string with the corresponding to-string.
+  The first occurrence of a found string is matched. If there is more
+  than one possibility for the string to replace, longer matches
+  are preferred before shorter matches.
+
   Special characters in from string:
   \^    Match start of line.
   \$	Match end of line.
@@ -167,7 +171,7 @@ register char **argv[];
 	break;
       case '#':
 	DBUG_PUSH (++pos);
-	pos= (char*) " ";			/* Skipp rest of arguments */
+	pos= (char*) " ";			/* Skip rest of arguments */
 	break;
       case 'V':
 	version=1;
@@ -179,12 +183,13 @@ register char **argv[];
 	if (version)
 	  break;
 	puts("This software comes with ABSOLUTELY NO WARRANTY. This is free software,\nand you are welcome to modify and redistribute it under the GPL license\n");
-	puts("This program replace strings in a file or on stdin/stdout.\n"
-	     "It accepts a list of from-strings and to-strings and replaces\n"
-	     "all occurents of from-strings to to-strings.\n"
-	     "The first occurents of a found string is matched. Longer matches\n"
-	     "are prefered before shorter matches.\n\n"
-	     "Special characters in from string:\n"
+	puts("This program replaces strings in files or from stdin to stdout.\n"
+	     "It accepts a list of from-string/to-string pairs and replaces\n"
+	     "each occurrence of a from-string with the corresponding to-string.\n"
+         "The first occurrence of a found string is matched. If there is\n"
+         "more than one possibility for the string to replace, longer\n"
+         "matches are preferred before shorter matches.\n\n"
+	     "A from-string can contain these special characters:\n"
 	     "  \\^      Match start of line.\n"
 	     "  \\$      Match end of line.\n"
 	     "  \\b      Match space-character, start of line or end of line.\n"
@@ -237,7 +242,7 @@ POINTER_ARRAY *from_array,*to_array;
     (*argv)++;
   }
   if (*argc)
-  {					/* Skipp "--" argument */
+  {					/* Skip "--" argument */
     (*argc)--;
     (*argv)++;
   }
@@ -949,9 +954,11 @@ static void free_buffer()
 }
 
 
-/* Fill the buffer retaining the last n bytes at the beginning of the
-   newly filled buffer (for backward context).  Returns the number of new
-   bytes read from disk. */
+/*
+  Fill the buffer retaining the last n bytes at the beginning of the
+  newly filled buffer (for backward context).  Returns the number of new
+  bytes read from disk.
+*/
 
 static int fill_buffer_retaining(fd,n)
 File fd;

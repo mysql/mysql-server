@@ -25,6 +25,11 @@ Created 1/8/1996 Heikki Tuuri
 #include "trx0roll.h"
 #include "usr0sess.h"
 
+/* Maximum lengths of identifiers in MySQL, in bytes */
+#define MAX_TABLE_NAME_LEN	64
+#define MAX_COLUMN_NAME_LEN	64
+#define MAX_IDENTIFIER_LEN	255
+
 /*********************************************************************
 Based on a table object, this function builds the entry to be inserted
 in the SYS_TABLES system table. */
@@ -153,7 +158,7 @@ dict_create_sys_tables_tuple(
  	if (table->type == DICT_TABLE_CLUSTER_MEMBER) {
 		dfield_set_data(dfield, table->cluster_name,
 				ut_strlen(table->cluster_name));
-		ut_a(0); /* Oracle-style clusters are not supported yet */
+		ut_error; /* Oracle-style clusters are not supported yet */
 	} else {
 		dfield_set_data(dfield, NULL, UNIV_SQL_NULL);
 	}
@@ -267,9 +272,10 @@ dict_build_table_def_step(
 	ulint		error;
 	mtr_t		mtr;
 
-	UT_NOT_USED(thr);
+#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&(dict_sys->mutex)));
-	
+#endif /* UNIV_SYNC_DEBUG */
+
 	table = node->table;
 
 	table->id = dict_hdr_get_new_id(DICT_HDR_TABLE_ID);
@@ -344,33 +350,6 @@ dict_build_col_def_step(
 	return(DB_SUCCESS);
 }
 
-#ifdef notdefined
-/*************************************************************************
-Creates the single index for a cluster: it contains all the columns of
-the cluster definition in the order they were defined. */
-static
-void
-dict_create_index_for_cluster_step(
-/*===============================*/
-	tab_node_t*	node)	/* in: table create node */
-{
-	dict_index_t*	index;
-	ulint		i;
-	dict_col_t*	col;
-	
-	index = dict_mem_index_create(table->name, "IND_DEFAULT_CLUSTERED",
-				table->space, DICT_CLUSTERED,
-				table->n_cols);
-
-	for (i = 0; i < table->n_cols; i++) {
-		col = dict_table_get_nth_col(table, i);
-		dict_mem_index_add_field(index, col->name, 0, 0);
-	}
-				
-	(node->cluster)->index = index;
-}
-#endif
-
 /*********************************************************************
 Based on an index object, this function builds the entry to be inserted
 in the SYS_INDEXES system table. */
@@ -391,7 +370,9 @@ dict_create_sys_indexes_tuple(
 	byte*		ptr;
 
 	UT_NOT_USED(trx);
+#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&(dict_sys->mutex)));
+#endif /* UNIV_SYNC_DEBUG */
 	ut_ad(index && heap);
 
 	sys_indexes = dict_sys->sys_indexes;
@@ -584,8 +565,9 @@ dict_build_index_def_step(
 	dict_index_t*	index;
 	dtuple_t*	row;
 
-	UT_NOT_USED(thr);
+#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&(dict_sys->mutex)));
+#endif /* UNIV_SYNC_DEBUG */
 
 	index = node->index;
 
@@ -657,8 +639,10 @@ dict_create_index_tree_step(
 	dtuple_t*	search_tuple;
 	btr_pcur_t	pcur;
 	mtr_t		mtr;
-	
+
+#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&(dict_sys->mutex)));
+#endif /* UNIV_SYNC_DEBUG */
 	UT_NOT_USED(thr);
 
 	index = node->index;	
@@ -723,7 +707,9 @@ dict_drop_index_tree(
 	byte*	ptr;
 	ulint	len;
 	
+#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&(dict_sys->mutex)));
+#endif /* UNIV_SYNC_DEBUG */
 	
 	ptr = rec_get_nth_field(rec, DICT_SYS_INDEXES_PAGE_NO_FIELD, &len);
 
@@ -766,26 +752,6 @@ dict_drop_index_tree(
 	page_rec_write_index_page_no(rec, DICT_SYS_INDEXES_PAGE_NO_FIELD,
 							FIL_NULL, mtr);
 }
-	
-#ifdef notdefined
-/*************************************************************************
-Creates the default clustered index for a table: the records are ordered
-by row id. */
-
-void
-dict_create_default_index(
-/*======================*/
-	dict_table_t*	table,	/* in: table */
-	trx_t*		trx)	/* in: transaction handle */
-{
-	dict_index_t*	index;
-	
-	index = dict_mem_index_create(table->name, "IND_DEFAULT_CLUSTERED",
-				table->space, DICT_CLUSTERED, 0);
-
-	dict_create_index(index, trx); 
-}
-#endif
 
 /*************************************************************************
 Creates a table create graph. */
@@ -873,8 +839,10 @@ dict_create_table_step(
 	trx_t*		trx;
 
 	ut_ad(thr);
+#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&(dict_sys->mutex)));
-	
+#endif /* UNIV_SYNC_DEBUG */
+
 	trx = thr_get_trx(thr);
 	
 	node = thr->run_node;
@@ -981,7 +949,9 @@ dict_create_index_step(
 	trx_t*		trx;
 
 	ut_ad(thr);
+#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&(dict_sys->mutex)));
+#endif /* UNIV_SYNC_DEBUG */
 
 	trx = thr_get_trx(thr);
 	
@@ -1170,7 +1140,7 @@ dict_create_or_check_foreign_constraint_tables(void)
 
 	graph->fork_type = QUE_FORK_MYSQL_INTERFACE;
 
-	ut_a(thr = que_fork_start_command(graph, SESS_COMM_EXECUTE, 0));
+	ut_a(thr = que_fork_start_command(graph));
 
 	que_run_threads(thr);
 
@@ -1210,26 +1180,42 @@ dict_create_or_check_foreign_constraint_tables(void)
 }
 
 /************************************************************************
-Adds foreign key definitions to data dictionary tables in the database. */
+Adds foreign key definitions to data dictionary tables in the database. We
+look at table->foreign_list, and also generate names to constraints that were
+not named by the user. A generated constraint has a name of the format
+databasename/tablename_ibfk_<number>, where the numbers start from 1, and are
+given locally for this table, that is, the number is not global, as in the
+old format constraints < 4.0.18 it used to be. */
 
 ulint
 dict_create_add_foreigns_to_dictionary(
 /*===================================*/
 				/* out: error code or DB_SUCCESS */
+	ulint		start_id,/* in: if we are actually doing ALTER TABLE
+				ADD CONSTRAINT, we want to generate constraint
+				numbers which are bigger than in the table so
+				far; we number the constraints from
+				start_id + 1 up; start_id should be set to 0 if
+				we are creating a new table, or if the table
+				so far has no constraints for which the name
+				was generated here */
 	dict_table_t*	table,	/* in: table */
 	trx_t*		trx)	/* in: transaction */
 {
 	dict_foreign_t*	foreign;
 	que_thr_t*	thr;
 	que_t*		graph;
-	dulint		id;	
+	ulint		number	= start_id + 1;
 	ulint		len;
+	ulint		namelen;
 	ulint		error;
+	char*		ebuf	= dict_foreign_err_buf;
 	ulint		i;
-	char		buf2[50];
 	char		buf[10000];
 
-	ut_ad(mutex_own(&(dict_sys->mutex)));	
+#ifdef UNIV_SYNC_DEBUG
+	ut_ad(mutex_own(&(dict_sys->mutex)));
+#endif /* UNIV_SYNC_DEBUG */
 
 	if (NULL == dict_table_get_low((char *) "SYS_FOREIGN")) {
 		fprintf(stderr,
@@ -1254,34 +1240,43 @@ loop:
 	"PROCEDURE ADD_FOREIGN_DEFS_PROC () IS\n"
 	"BEGIN\n");
 
-	/* We allocate the new id from the sequence of table id's */
-	id = dict_hdr_get_new_id(DICT_HDR_TABLE_ID);
+	namelen = strlen(table->name);
+	ut_a(namelen < MAX_TABLE_NAME_LEN);
 
-	sprintf(buf2, "%lu_%lu", (ulong) ut_dulint_get_high(id),
-		                 (ulong) ut_dulint_get_low(id));
-	foreign->id = mem_heap_alloc(foreign->heap, ut_strlen(buf2) + 1);
-	ut_memcpy(foreign->id, buf2, ut_strlen(buf2) + 1);
-	
+	if (foreign->id == NULL) {
+		/* Generate a new constraint id */
+		foreign->id = mem_heap_alloc(foreign->heap, namelen + 20);
+		/* no overflow if number < 1e13 */
+		sprintf(foreign->id, "%s_ibfk_%lu", table->name, (ulong) number);
+		number++;
+	}
+
+	ut_a(strlen(foreign->id) < MAX_IDENTIFIER_LEN);
+	ut_a(len < (sizeof buf)
+		- 46 - 2 * MAX_TABLE_NAME_LEN - MAX_IDENTIFIER_LEN - 20);
+
 	len += sprintf(buf + len,
-	"INSERT INTO SYS_FOREIGN VALUES('%lu_%lu', '%s', '%s', %lu);\n",
-					(ulong) ut_dulint_get_high(id),
-					(ulong) ut_dulint_get_low(id),
+	"INSERT INTO SYS_FOREIGN VALUES('%s', '%s', '%s', %lu);\n",
+					foreign->id,
 					table->name,
 					foreign->referenced_table_name,
 					(ulong) (foreign->n_fields
 					+ (foreign->type << 24)));
 
 	for (i = 0; i < foreign->n_fields; i++) {
+		ut_a(len < (sizeof buf)
+			- 51 - 2 * MAX_COLUMN_NAME_LEN
+			- MAX_IDENTIFIER_LEN - 20);
 
 		len += sprintf(buf + len,
-	"INSERT INTO SYS_FOREIGN_COLS VALUES('%lu_%lu', %lu, '%s', '%s');\n",
-					(ulong) ut_dulint_get_high(id),
-					(ulong) ut_dulint_get_low(id),
+	"INSERT INTO SYS_FOREIGN_COLS VALUES('%s', %lu, '%s', '%s');\n",
+					foreign->id,
 					(ulong) i,
 					foreign->foreign_col_names[i],
 					foreign->referenced_col_names[i]);
 	}
 
+	ut_a(len < (sizeof buf) - 19);
 	len += sprintf(buf + len,"COMMIT WORK;\nEND;\n");
 
 	graph = pars_sql(buf);
@@ -1293,7 +1288,7 @@ loop:
 
 	graph->fork_type = QUE_FORK_MYSQL_INTERFACE;
 
-	ut_a(thr = que_fork_start_command(graph, SESS_COMM_EXECUTE, 0));
+	ut_a(thr = que_fork_start_command(graph));
 
 	que_run_threads(thr);
 
@@ -1301,30 +1296,33 @@ loop:
 
 	que_graph_free(graph);
 
+	if (error == DB_DUPLICATE_KEY) {
+		mutex_enter(&dict_foreign_err_mutex);
+		ut_sprintf_timestamp(ebuf);
+		ut_a(strlen(ebuf) < DICT_FOREIGN_ERR_BUF_LEN
+			- MAX_TABLE_NAME_LEN - MAX_IDENTIFIER_LEN - 201);
+		sprintf(ebuf + strlen(ebuf),
+" Error in foreign key constraint creation for table %s.\n"
+"A foreign key constraint of name %s\n"
+"already exists (note that internally InnoDB adds 'databasename/'\n"
+"in front of the user-defined constraint name).\n", table->name, foreign->id);
+
+		mutex_exit(&dict_foreign_err_mutex);
+
+		return(error);
+	}
+
 	if (error != DB_SUCCESS) {
 	        fprintf(stderr,
 			"InnoDB: Foreign key constraint creation failed:\n"
 			"InnoDB: internal error number %lu\n", (ulong) error);
 
-		if (error == DB_DUPLICATE_KEY) {
-			fprintf(stderr,
-	"InnoDB: Duplicate key error in system table %s index %s\n",
-			((dict_index_t*)trx->error_info)->table_name,
-			((dict_index_t*)trx->error_info)->name);
-
-			fprintf(stderr, "%s\n", buf);
-			
-			fprintf(stderr,
-	"InnoDB: Maybe the internal data dictionary of InnoDB is\n"
-	"InnoDB: out-of-sync from the .frm files of your tables.\n"
-	"InnoDB: See section 15.1 Troubleshooting data dictionary operations\n"
-	"InnoDB: at http://www.innodb.com/ibman.html\n");
-		}
-
 		mutex_enter(&dict_foreign_err_mutex);
-		ut_sprintf_timestamp(buf);
-		sprintf(buf + strlen(buf),
-" Internal error in foreign key constraint creation for table %.500s.\n"
+		ut_sprintf_timestamp(ebuf);
+		ut_a(strlen(ebuf) < DICT_FOREIGN_ERR_BUF_LEN
+			- MAX_TABLE_NAME_LEN - 124);
+		sprintf(ebuf + strlen(ebuf),
+" Internal error in foreign key constraint creation for table %s.\n"
 "See the MySQL .err log in the datadir for more information.\n", table->name);
 		mutex_exit(&dict_foreign_err_mutex);
 

@@ -86,7 +86,7 @@ int my_close(File fd, myf MyFlags)
     if (MyFlags & (MY_FAE | MY_WME))
       my_error(EE_BADCLOSE, MYF(ME_BELL+ME_WAITTANG),my_filename(fd),errno);
   }
-  if ((uint) fd < MY_NFILE && my_file_info[fd].type != UNOPEN)
+  if ((uint) fd < my_file_limit && my_file_info[fd].type != UNOPEN)
   {
     my_free(my_file_info[fd].name, MYF(0));
 #if defined(THREAD) && !defined(HAVE_PREAD)
@@ -115,7 +115,7 @@ File my_register_filename(File fd, const char *FileName, enum file_type
 {
   if ((int) fd >= 0)
   {
-    if ((int) fd >= MY_NFILE)
+    if ((uint) fd >= my_file_limit)
     {
 #if defined(THREAD) && !defined(HAVE_PREAD)
       (void) my_close(fd,MyFlags);

@@ -16,7 +16,7 @@ drop table if exists t1,t2,t3,t4,t5,t6,t7;
 
 CREATE TABLE t1 (a blob, b text, c blob(250), d text(70000), e text(70000000));
 show columns from t1;
-CREATE TABLE t2 (a char(257), b varchar(70000) binary, c varchar(70000000));
+CREATE TABLE t2 (a char(257), b varbinary(70000), c varchar(70000000));
 show columns from t2;
 create table t3 (a long, b long byte);
 show create TABLE t3;
@@ -62,7 +62,7 @@ drop table t1;
 #
 # test of blob, text, char and char binary
 #
-create table t1 (t text,c char(10),b blob, d char(10) binary);
+create table t1 (t text,c char(10),b blob, d binary(10));
 insert into t1 values (NULL,NULL,NULL,NULL);
 insert into t1 values ("","","","");
 insert into t1 values ("hello","hello","hello","hello");
@@ -121,8 +121,10 @@ select c,count(*) from t1 group by c;
 select d,count(*) from t1 group by d;
 drop table t1;
 
-!$1089 create table t1 (a text, key (a(300))); # should give an error
-create table t1 (a text, key (a(255)));
+-- error 1071
+create table t1 (a text, unique (a(2100))); # should give an error
+create table t1 (a text, key (a(2100)));    # key is auto-truncated
+show create table t1;
 drop table t1;
 
 #
@@ -357,3 +359,9 @@ select * from t1 where txt <= 'Chevy';
 select * from t1 where txt > 'Chevy';
 select * from t1 where txt >= 'Chevy';
 drop table t1;
+CREATE TABLE t1 ( i int(11) NOT NULL default '0',    c text NOT NULL, PRIMARY KEY  (i), KEY (c(1),c(1)));
+INSERT t1 VALUES (1,''),(2,''),(3,'asdfh'),(4,'');
+select max(i) from t1 where c = '';
+drop table t1;
+
+

@@ -28,9 +28,22 @@ connect (con3,localhost,zedjzlcsjhd,,);
 # check that it requires the SUPER privilege.
 
 connection con3;
+SET @save_select_limit=@@session.sql_select_limit;
 --error 1227
+SET @@session.sql_select_limit=10, @@session.pseudo_thread_id=100;
+SELECT @@session.sql_select_limit = @save_select_limit; #shouldn't have changed
+# While we are here we also test that SQL_LOG_BIN can't be set
+--error 1227
+SET @@session.sql_select_limit=10, @@session.sql_log_bin=0;
+SELECT @@session.sql_select_limit = @save_select_limit; #shouldn't have changed
+# Now as root, to be sure it works
+connection con2;
 SET @@session.pseudo_thread_id=100;
+SET @@session.pseudo_thread_id=connection_id();
+SET @@session.sql_log_bin=0;
+SET @@session.sql_log_bin=1;
 
+connection con3;
 let $VERSION=`select version()`;
 
 --disable_warnings

@@ -59,9 +59,9 @@ static bool write_db_opt(THD *thd, const char *path, HA_CREATE_INFO *create)
   if ((file=my_create(path, CREATE_MODE,O_RDWR | O_TRUNC,MYF(MY_WME))) >= 0)
   {
     ulong length;
-    CHARSET_INFO *cs= (create && create->default_table_charset) ? 
-		     create->default_table_charset :
-		     thd->variables.collation_server;
+    CHARSET_INFO *cs= ((create && create->default_table_charset) ? 
+		       create->default_table_charset :
+		       thd->variables.collation_server);
     length= my_sprintf(buf,(buf,
 			    "default-character-set=%s\ndefault-collation=%s\n",
 			    cs->csname,cs->name));
@@ -117,10 +117,12 @@ bool load_db_opt(THD *thd, const char *path, HA_CREATE_INFO *create)
       {
 	if (!strncmp(buf,"default-character-set", (pos-buf)))
 	{
-	  if (!(create->default_table_charset= get_charset_by_csname(pos+1, 
-								    MY_CS_PRIMARY,
-								    MYF(0))))
+	  if (!(create->default_table_charset=
+		get_charset_by_csname(pos+1, 
+				      MY_CS_PRIMARY,
+				      MYF(0))))
 	  {
+	    sql_print_error("Error while loading database options: '%s':",path);
 	    sql_print_error(ER(ER_UNKNOWN_CHARACTER_SET),pos+1);
 	  }
 	}
@@ -129,6 +131,7 @@ bool load_db_opt(THD *thd, const char *path, HA_CREATE_INFO *create)
 	  if (!(create->default_table_charset= get_charset_by_name(pos+1,
 								   MYF(0))))
 	  {
+	    sql_print_error("Error while loading database options: '%s':",path);
 	    sql_print_error(ER(ER_UNKNOWN_COLLATION),pos+1);
 	  }
 	}
@@ -164,9 +167,9 @@ int mysql_create_db(THD *thd, char *db, HA_CREATE_INFO *create_info,
 		    bool silent)
 {
   char	 path[FN_REFLEN+16];
-  MY_DIR *dirp;
   long result=1;
   int error = 0;
+  MY_STAT stat_info;
   uint create_options = create_info ? create_info->options : 0;
   DBUG_ENTER("mysql_create_db");
   
@@ -180,12 +183,12 @@ int mysql_create_db(THD *thd, char *db, HA_CREATE_INFO *create_info,
   }
 
   /* Check directory */
-  (void)sprintf(path,"%s/%s", mysql_data_home, db);
+  strxmov(path, mysql_data_home, "/", db, NullS);
   unpack_dirname(path,path);			// Convert if not unix
-  if ((dirp = my_dir(path,MYF(MY_DONT_SORT))))
+
+  if (my_stat(path,&stat_info,MYF(MY_WME)))
   {
-    my_dirend(dirp);
-    if (!(create_options & HA_LEX_CREATE_IF_NOT_EXISTS))
+   if (!(create_options & HA_LEX_CREATE_IF_NOT_EXISTS))
     {
       my_error(ER_DB_CREATE_EXISTS,MYF(0),db);
       error = -1;
@@ -306,11 +309,19 @@ exit2:
 
 
 /*
-  Drop all tables in a database.
+  Drop all tables in a database and the database itself
 
-  db-name is already validated when we come here
-  If thd == 0, do not write any messages; This is useful in replication
-  when we want to remove a stale database before replacing it with the new one
+  SYNOPSIS
+    mysql_rm_db()
+    thd			Thread handle
+    db			Database name in the case given by user
+		        It's already validated when we come here
+    if_exists		Don't give error if database doesn't exists
+    silent		Don't generate errors
+
+  RETURN
+    0   ok (Database dropped)
+    -1	Error generated
 */
 
 
@@ -318,7 +329,7 @@ int mysql_rm_db(THD *thd,char *db,bool if_exists, bool silent)
 {
   long deleted=0;
   int error = 0;
-  char	path[FN_REFLEN+16];
+  char	path[FN_REFLEN+16], tmp_db[NAME_LEN+1];
   MY_DIR *dirp;
   DBUG_ENTER("mysql_rm_db");
 
@@ -350,6 +361,14 @@ int mysql_rm_db(THD *thd,char *db,bool if_exists, bool silent)
     }
     goto exit;
   }
+  if (lower_case_table_names)
+  {
+    /* Convert database to lower case */
+    strmov(tmp_db, db);
+    my_casedn_str(system_charset_info, tmp_db);
+    db= tmp_db;
+  }
+
   pthread_mutex_lock(&LOCK_open);
   remove_db_from_cache(db);
   pthread_mutex_unlock(&LOCK_open);
@@ -425,7 +444,7 @@ exit2:
 
 /*
   Removes files with known extensions plus all found subdirectories that
-  are 2 digits (raid directories).
+  are 2 hex digits (raid directories).
   thd MUST be set when calling this function!
 */
 
@@ -447,88 +466,83 @@ static long mysql_rm_known_files(THD *thd, MY_DIR *dirp, const char *db,
        idx++)
   {
     FILEINFO *file=dirp->dir_entry+idx;
+    char *extension;
     DBUG_PRINT("info",("Examining: %s", file->name));
 
     /* Check if file is a raid directory */
-    if (my_isdigit(&my_charset_latin1,file->name[0]) && 
-        my_isdigit(&my_charset_latin1,file->name[1]) &&
+    if ((my_isdigit(&my_charset_latin1, file->name[0]) ||
+	 (file->name[0] >= 'a' && file->name[0] <= 'f')) &&
+	(my_isdigit(&my_charset_latin1, file->name[1]) ||
+	 (file->name[1] >= 'a' && file->name[1] <= 'f')) &&
 	!file->name[2] && !level)
     {
-      char newpath[FN_REFLEN];
+      char newpath[FN_REFLEN], *copy_of_path;
       MY_DIR *new_dirp;
       String *dir;
+      uint length;
 
       strxmov(newpath,org_path,"/",file->name,NullS);
-      unpack_filename(newpath,newpath);
+      length= unpack_filename(newpath,newpath);
       if ((new_dirp = my_dir(newpath,MYF(MY_DONT_SORT))))
       {
 	DBUG_PRINT("my",("New subdir found: %s", newpath));
 	if ((mysql_rm_known_files(thd, new_dirp, NullS, newpath,1)) < 0)
-	{
-	  my_dirend(dirp);
-	  DBUG_RETURN(-1);
-	}
-	raid_dirs.push_back(dir=new String(newpath, &my_charset_latin1));
-	dir->copy();
+	  goto err;
+	if (!(copy_of_path= thd->memdup(newpath, length+1)) ||
+	    !(dir= new (&thd->mem_root) String(copy_of_path, length,
+					       &my_charset_bin)) ||
+	    raid_dirs.push_back(dir))
+	  goto err;
 	continue;
       }
       found_other_files++;
       continue;
     }
-    if (find_type(fn_ext(file->name),&deletable_extentions,1+2) <= 0)
+    extension= fn_ext(file->name);
+    if (find_type(extension, &deletable_extentions,1+2) <= 0)
     {
-      if (find_type(fn_ext(file->name),&known_extentions,1+2) <= 0)
+      if (find_type(extension, &known_extentions,1+2) <= 0)
 	found_other_files++;
       continue;
     }
-    strxmov(filePath,org_path,"/",file->name,NullS);
-    if (db && !my_strcasecmp(&my_charset_latin1,
-                             fn_ext(file->name), reg_ext))
+    // just for safety we use files_charset_info
+    if (db && !my_strcasecmp(files_charset_info,
+                             extension, reg_ext))
     {
       /* Drop the table nicely */
-      *fn_ext(file->name)=0;			// Remove extension
+      *extension= 0;			// Remove extension
       TABLE_LIST *table_list=(TABLE_LIST*)
 	thd->calloc(sizeof(*table_list)+ strlen(db)+strlen(file->name)+2);
       if (!table_list)
-      {
-	my_dirend(dirp);
-	DBUG_RETURN(-1);
-      }
+	goto err;
       table_list->db= (char*) (table_list+1);
-      strmov(table_list->real_name=strmov(table_list->db,db)+1,
-	     file->name);
+      strmov(table_list->real_name= strmov(table_list->db,db)+1, file->name);
+      table_list->alias= table_list->real_name;	// If lower_case_table_names=2
       /* Link into list */
       (*tot_list_next)= table_list;
       tot_list_next= &table_list->next;
+      deleted++;
     }
     else
     {
-
+      strxmov(filePath, org_path, "/", file->name, NullS);
       if (my_delete_with_symlink(filePath,MYF(MY_WME)))
       {
-	my_dirend(dirp);
-	DBUG_RETURN(-1);
+	goto err;
       }
-      deleted++;
     }
   }
-  List_iterator<String> it(raid_dirs);
-  String *dir;
-
   if (thd->killed ||
       (tot_list && mysql_rm_table_part2_with_lock(thd, tot_list, 1, 0, 1)))
+    goto err;
+
+  /* Remove RAID directories */
   {
-    /* Free memory for allocated raid dirs */
+    List_iterator<String> it(raid_dirs);
+    String *dir;
     while ((dir= it++))
-      delete dir;
-    my_dirend(dirp);
-    DBUG_RETURN(-1);
-  }
-  while ((dir= it++))
-  {
-    if (rmdir(dir->c_ptr()) < 0)
-      found_other_files++;
-    delete dir;
+      if (rmdir(dir->c_ptr()) < 0)
+	found_other_files++;
   }
   my_dirend(dirp);  
   
@@ -539,7 +553,8 @@ static long mysql_rm_known_files(THD *thd, MY_DIR *dirp, const char *db,
   if (!found_other_files)
   {
     char tmp_path[FN_REFLEN], *pos;
-    char *path=unpack_filename(tmp_path,org_path);
+    char *path= tmp_path;
+    unpack_filename(tmp_path,org_path);
 #ifdef HAVE_READLINK
     int error;
     
@@ -576,6 +591,10 @@ static long mysql_rm_known_files(THD *thd, MY_DIR *dirp, const char *db,
     }
   }
   DBUG_RETURN(deleted);
+
+err:
+  my_dirend(dirp);
+  DBUG_RETURN(-1);
 }
 
 
@@ -606,13 +625,13 @@ bool mysql_change_db(THD *thd, const char *name)
   HA_CREATE_INFO create;
   DBUG_ENTER("mysql_change_db");
 
-  if (!dbname || !(db_length=strip_sp(dbname)))
+  if (!dbname || !(db_length= strlen(dbname)))
   {
     x_free(dbname);				/* purecov: inspected */
     send_error(thd,ER_NO_DB_ERROR);	/* purecov: inspected */
     DBUG_RETURN(1);				/* purecov: inspected */
   }
-  if ((db_length > NAME_LEN) || check_db_name(dbname))
+  if (check_db_name(dbname))
   {
     net_printf(thd, ER_WRONG_DB_NAME, dbname);
     x_free(dbname);

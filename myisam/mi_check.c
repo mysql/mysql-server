@@ -98,7 +98,9 @@ int chk_status(MI_CHECK *param, register MI_INFO *info)
     /* Don't count this as a real warning, as check can correct this ! */
     uint save=param->warning_printed;
     mi_check_print_warning(param,
-			   "%d clients is using or hasn't closed the table properly",
+			   share->state.open_count==1 ? 
+			   "%d client is using or hasn't closed the table properly" : 
+			   "%d clients are using or haven't closed the table properly",
 			   share->state.open_count);
     /* If this will be fixed by the check, forget the warning */
     if (param->testflag & T_UPDATE_STATE)
@@ -409,7 +411,7 @@ int chk_key(MI_CHECK *param, register MI_INFO *info)
     if (chk_index(param,info,keyinfo,share->state.key_root[key],info->buff,
 		  &keys, param->key_crc+key,1))
       DBUG_RETURN(-1);
-    if(!(keyinfo->flag & HA_FULLTEXT))
+    if(!(keyinfo->flag & (HA_FULLTEXT | HA_SPATIAL)))
     {
       if (keys != info->state->records)
       {
@@ -557,6 +559,10 @@ static int chk_index(MI_CHECK *param, MI_INFO *info, MI_KEYDEF *keyinfo,
   char llbuff[22];
   DBUG_ENTER("chk_index");
   DBUG_DUMP("buff",(byte*) buff,mi_getint(buff));
+
+  /* TODO: implement appropriate check for RTree keys */
+  if (keyinfo->flag & HA_SPATIAL)
+    DBUG_RETURN(0);
 
   if (!(temp_buff=(uchar*) my_alloca((uint) keyinfo->block_length)))
   {
@@ -947,7 +953,7 @@ int chk_data_link(MI_CHECK *param, MI_INFO *info,int extend)
 	  info->checksum=mi_checksum(info,record);
 	  if (param->testflag & (T_EXTEND | T_MEDIUM | T_VERBOSE))
 	  {
-	    if (_mi_rec_check(info,record, info->rec_buff))
+	    if (_mi_rec_check(info,record, info->rec_buff,block_info.rec_len))
 	    {
 	      mi_check_print_error(param,"Found wrong packed record at %s",
 			  llstr(start_recpos,llbuff));
@@ -1073,7 +1079,7 @@ int chk_data_link(MI_CHECK *param, MI_INFO *info,int extend)
     for (key=0 ; key < info->s->base.keys;  key++)
     {
       if (key_checksum[key] != param->key_crc[key] &&
-          !(info->s->keyinfo[key].flag & HA_FULLTEXT))
+          !(info->s->keyinfo[key].flag & (HA_FULLTEXT | HA_SPATIAL)))
       {
 	mi_check_print_error(param,"Checksum for key: %2d doesn't match checksum for records",
 		    key+1);
@@ -1268,11 +1274,12 @@ int mi_repair(MI_CHECK *param, register MI_INFO *info,
     I think mi_repair and mi_repair_by_sort should do the same
     (according, e.g. to ha_myisam::repair), but as mi_repair doesn't
     touch key_map it cannot be used to T_CREATE_MISSING_KEYS.
-    That is what the next line is for... (serg)
+    That is what the next line is for
   */
 
-  share->state.key_map= ((((ulonglong) 1L << share->base.keys)-1) &
-			 param->keys_in_use);
+  if (param->testflag & T_CREATE_MISSING_KEYS)
+    share->state.key_map= ((((ulonglong) 1L << share->base.keys)-1) &
+			   param->keys_in_use);
 
   info->state->key_file_length=share->base.keystart;
 
@@ -2389,6 +2396,11 @@ int mi_repair_parallel(MI_CHECK *param, register MI_INFO *info,
 
     sort_param[i].record= (((char *)(sort_param+share->base.keys))+
 			   (share->base.pack_reclength * i));
+    if (!mi_alloc_rec_buff(info, -1, &sort_param[i].rec_buff))
+    {
+      mi_check_print_error(param,"Not enough memory!");
+      goto err;
+    }
 
     sort_param[i].key_length=share->rec_reflength;
     for (keyseg=sort_param[i].seg; keyseg->type != HA_KEYTYPE_END;
@@ -2966,7 +2978,8 @@ static int sort_get_next_record(MI_SORT_PARAM *sort_param)
 	  info->checksum=mi_checksum(info,sort_param->record);
 	if ((param->testflag & (T_EXTEND | T_REP)) || searching)
 	{
-	  if (_mi_rec_check(info, sort_param->record, sort_param->rec_buff))
+	  if (_mi_rec_check(info, sort_param->record, sort_param->rec_buff,
+                            sort_param->find_length))
 	  {
 	    mi_check_print_info(param,"Found wrong packed record at %s",
 				llstr(sort_param->start_recpos,llbuff));
@@ -3301,7 +3314,7 @@ static int sort_ft_key_write(MI_SORT_PARAM *sort_param, const void *a)
   if (val_off == a_len &&
       mi_compare_text(sort_param->seg->charset,
                       ((uchar *)a)+1,a_len-1,
-                      ft_buf->lastkey+1,val_off-1, 0)==0)
+                      ft_buf->lastkey+1,val_off-1, 0, 0)==0)
   {
     if (!ft_buf->buf) /* store in second-level tree */
     {
@@ -3823,7 +3836,7 @@ int update_state_info(MI_CHECK *param, MI_INFO *info,uint update)
       return 0;
   }
 err:
-  mi_check_print_error(param,"%d when updateing keyfile",my_errno);
+  mi_check_print_error(param,"%d when updating keyfile",my_errno);
   return 1;
 }
 
@@ -3953,18 +3966,18 @@ static my_bool mi_too_big_key_for_sort(MI_KEYDEF *key, ha_rows rows)
 void mi_disable_non_unique_index(MI_INFO *info, ha_rows rows)
 {
   MYISAM_SHARE *share=info->s;
-  uint i;
-  if (!info->state->records)			/* Don't do this if old rows */
+  MI_KEYDEF    *key=share->keyinfo;
+  uint          i;
+
+  DBUG_ASSERT(info->state->records == 0 &&
+              (!rows || rows >= MI_MIN_ROWS_TO_DISABLE_INDEXES));
+  for (i=0 ; i < share->base.keys ; i++,key++)
   {
-    MI_KEYDEF *key=share->keyinfo;
-    for (i=0 ; i < share->base.keys ; i++,key++)
+    if (!(key->flag & (HA_NOSAME | HA_SPATIAL | HA_AUTO_KEY)) &&
+        ! mi_too_big_key_for_sort(key,rows) && info->s->base.auto_key != i+1)
     {
-      if (!(key->flag & (HA_NOSAME | HA_SPATIAL | HA_AUTO_KEY)) &&
-	  ! mi_too_big_key_for_sort(key,rows) && info->s->base.auto_key != i+1)
-      {
-	share->state.key_map&= ~ ((ulonglong) 1 << i);
-	info->update|= HA_STATE_CHANGED;
-      }
+      share->state.key_map&= ~ ((ulonglong) 1 << i);
+      info->update|= HA_STATE_CHANGED;
     }
   }
 }

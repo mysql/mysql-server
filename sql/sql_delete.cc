@@ -96,6 +96,7 @@ int mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds, SQL_LIST *order,
   {
     delete select;
     free_underlaid_joins(thd, &thd->lex->select_lex);
+    thd->row_count_func= 0;
     send_ok(thd,0L);
     DBUG_RETURN(0);				// Nothing to delete
   }
@@ -194,6 +195,8 @@ int mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds, SQL_LIST *order,
     else
       table->file->unlock_row();  // Row failed selection, release lock on it
   }
+  if (thd->killed && !error)
+    error= 1;					// Aborted
   thd->proc_info="end";
   end_read_record(&info);
   free_io_cache(table);				// Will not do any harm
@@ -243,6 +246,7 @@ cleanup:
     send_error(thd,thd->killed_errno());
   else
   {
+    thd->row_count_func= deleted;
     send_ok(thd,deleted);
     DBUG_PRINT("info",("%d records deleted",deleted));
   }
@@ -376,7 +380,7 @@ bool multi_delete::send_data(List<Item> &values)
       table->status|= STATUS_DELETED;
       if (!(error=table->file->delete_row(table->record[0])))
 	deleted++;
-      else if (!table_being_deleted->next)
+      else if (!table_being_deleted->next || table_being_deleted->table->file->has_transactions())
       {
 	table->file->print_error(error,MYF(0));
 	DBUG_RETURN(1);
@@ -394,6 +398,7 @@ bool multi_delete::send_data(List<Item> &values)
   }
   DBUG_RETURN(0);
 }
+
 
 void multi_delete::send_error(uint errcode,const char *err)
 {
@@ -484,6 +489,8 @@ int multi_delete::do_deletes(bool from_send_error)
       deleted++;
     }
     end_read_record(&info);
+    if (thd->killed && !local_error)
+      local_error= 1;
     if (local_error == -1)				// End of file
       local_error = 0;
   }
@@ -545,7 +552,10 @@ bool multi_delete::send_eof()
   if (local_error)
     ::send_error(thd);
   else
+  {
+    thd->row_count_func= deleted;
     ::send_ok(thd, deleted);
+  }
   return 0;
 }
 

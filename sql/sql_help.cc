@@ -140,7 +140,7 @@ void memorize_variant_topic(THD *thd, TABLE *topics, int count,
   {
     if (count == 1)
       names->push_back(name);
-    String *new_name= new String;
+    String *new_name= new (&thd->mem_root) String;
     get_field(mem_root,find_fields[help_topic_name].field,new_name);
     names->push_back(new_name);
   }
@@ -391,7 +391,7 @@ int search_categories(THD *thd, TABLE *categories,
   {
     if (select && !select->cond->val_int())
       continue;
-    String *lname= new String;
+    String *lname= new (&thd->mem_root) String;
     get_field(&thd->mem_root,pfname,lname);
     if (++count == 1 && res_id)
       *res_id= (int16) pcat_id->val_int();
@@ -425,7 +425,7 @@ void get_all_items_for_category(THD *thd, TABLE *items, Field *pfname,
   {
     if (!select->cond->val_int()) 
       continue;
-    String *name= new String();
+    String *name= new (&thd->mem_root) String();
     get_field(&thd->mem_root,pfname,name);
     res->push_back(name);
   }
@@ -659,20 +659,17 @@ int mysqld_help(THD *thd, const char *mask)
   bzero((gptr)tables,sizeof(tables));
   tables[0].alias= tables[0].real_name= (char*) "help_topic";
   tables[0].lock_type= TL_READ;
-  tables[0].db= (char*) "mysql";
   tables[0].next= &tables[1];
   tables[1].alias= tables[1].real_name= (char*) "help_category";
   tables[1].lock_type= TL_READ;
-  tables[1].db= (char*) "mysql";
   tables[1].next= &tables[2];
   tables[2].alias= tables[2].real_name= (char*) "help_relation";
   tables[2].lock_type= TL_READ;
-  tables[2].db= (char*) "mysql";
   tables[2].next=  &tables[3];
   tables[3].alias= tables[3].real_name= (char*) "help_keyword";
   tables[3].lock_type= TL_READ;
-  tables[3].db= (char*) "mysql";
   tables[3].next= 0;
+  tables[0].db= tables[1].db= tables[2].db= tables[3].db= (char*) "mysql";
   
   List<String> topics_list, categories_list, subcategories_list;
   String name, description, example;
@@ -686,7 +683,7 @@ int mysqld_help(THD *thd, const char *mask)
     goto end;
   }
   /* Init tables and fields to be usable from items */
-  setup_tables(tables, 0);
+  setup_tables(tables);
   memcpy((char*) used_fields, (char*) init_used_fields, sizeof(used_fields)); 
   if (init_fields(thd, tables, used_fields, array_elements(used_fields)))
   {
@@ -731,27 +728,30 @@ int mysqld_help(THD *thd, const char *mask)
 					&categories_list,&category_id);
     if (!count_categories)
     {
-      if (send_header_2(protocol,false))
+      if (send_header_2(protocol,FALSE))
 	goto end;
     }
     else if (count_categories > 1)
     {
-      if (send_header_2(protocol,false) ||
+      if (send_header_2(protocol,FALSE) ||
 	  send_variant_2_list(mem_root,protocol,&categories_list,"Y",0))
 	goto end;
     }
     else
     {
       Field *topic_cat_id= used_fields[help_topic_help_category_id].field;
-      Item *cond_topic_by_cat= new Item_func_equal(new Item_field(topic_cat_id),
-						   new Item_int((int32)category_id));
-      Item *cond_cat_by_cat= new Item_func_equal(new Item_field(cat_cat_id),
-						 new Item_int((int32)category_id));
+      Item *cond_topic_by_cat=
+	new Item_func_equal(new Item_field(topic_cat_id),
+			    new Item_int((int32)category_id));
+      Item *cond_cat_by_cat=
+	new Item_func_equal(new Item_field(cat_cat_id),
+			    new Item_int((int32)category_id));
       if (!(select_topics_by_cat= prepare_simple_select(thd,cond_topic_by_cat,
 							tables,tables[0].table,
 							&error)) ||
-	  !(select_cat_by_cat= prepare_simple_select(thd,cond_cat_by_cat,tables,
-						     tables[1].table,&error)))
+	  !(select_cat_by_cat=
+	    prepare_simple_select(thd,cond_cat_by_cat,tables,
+				  tables[1].table,&error)))
       {
 	res= -1;
 	goto end;
@@ -777,7 +777,7 @@ int mysqld_help(THD *thd, const char *mask)
   else
   {
     /* First send header and functions */
-    if (send_header_2(protocol, false) ||
+    if (send_header_2(protocol, FALSE) ||
 	send_variant_2_list(mem_root,protocol, &topics_list, "N", 0))
       goto end;
     search_categories(thd, tables[1].table, used_fields, 

@@ -215,7 +215,7 @@ character-set=latin1
 "Deze operatie kan niet worden uitgevoerd met een actieve slave, doe eerst STOP SLAVE",
 "Deze operatie vereist een actieve slave, configureer slave en doe dan START SLAVE",
 "De server is niet geconfigureerd als slave, fix in configuratie bestand of met CHANGE MASTER TO",
-"Kon master info structuur niet initialiseren, controleer permissies in master.info",
+"Could not initialize master info structure, more error messages can be found in the MySQL error log",
 "Kon slave thread niet aanmaken, controleer systeem resources",
 "Gebruiker %-.64s heeft reeds meer dan 'max_user_connections' actieve verbindingen",
 "U mag alleen constante expressies gebruiken bij SET",
@@ -242,7 +242,7 @@ character-set=latin1
 "Optie '%s' tweemaal gebruikt in opdracht",
 "Gebruiker '%-.64s' heeft het maximale gebruik van de '%s' faciliteit overschreden (huidige waarde: %ld)",
 "Toegang geweigerd. U moet het %-.128s privilege hebben voor deze operatie",
-"Variabele '%-.64s' is LOCAL en kan niet worden gebruikt met SET GLOBAL",
+"Variabele '%-.64s' is SESSION en kan niet worden gebruikt met SET GLOBAL",
 "Variabele '%-.64s' is GLOBAL en dient te worden gewijzigd met SET GLOBAL",
 "Variabele '%-.64s' heeft geen standaard waarde",
 "Variabele '%-.64s' kan niet worden gewijzigd naar de waarde '%-.64s'",
@@ -252,6 +252,7 @@ character-set=latin1
 "Deze versie van MySQL ondersteunt nog geen '%s'",
 "Kreeg fatale fout %d: '%-.128s' van master tijdens lezen van data uit binaire log",
 "Slave SQL thread ignored the query because of replicate-*-table rules",
+"Variable '%-.64s' is a %s variable",
 "Wrong foreign key definition for '%-.64s': %s",
 "Key reference and table reference doesn't match",
 "Operand should contain %d column(s)",
@@ -275,7 +276,7 @@ character-set=latin1
 "Z_DATA_ERROR: Input data was corrupted for zlib",
 "%d line(s) was(were) cut by group_concat()",
 "Row %ld doesn't contain data for all columns",
-"Row %ld was truncated; It contained more data than there where input columns",
+"Row %ld was truncated; It contained more data than there were input columns",
 "Data truncated, NULL supplied to NOT NULL column '%s' at row %ld",
 "Data truncated, out of range for column '%s' at row %ld",
 "Data truncated for column '%s' at row %ld",
@@ -287,8 +288,8 @@ character-set=latin1
 "Illegal mix of collations for operation '%s'",
 "Variable '%-.64s' is not a variable component (Can't be used as XXXX.variable_name)",
 "Unknown collation: '%-.64s'",
-"SSL parameters in CHANGE MASTER are ignored because this MySQL slave was compiled without SSL support. They can be used later when MySQL slave with SSL will be started.",
-"Server is running in --secure-auth mode, but '%s@%s' has a password in the old format; please change the password to the new format",
+"SSL parameters in CHANGE MASTER are ignored because this MySQL slave was compiled without SSL support; they can be used later when MySQL slave with SSL will be started",
+"Server is running in --secure-auth mode, but '%s'@'%s' has a password in the old format; please change the password to the new format",
 "Field or reference '%-.64s%s%-.64s%s%-.64s' of SELECT #%d was resolved in SELECT #%d",
 "Wrong parameter or combination of parameters for START SLAVE UNTIL",
 "It is recommended to run with --skip-slave-start when doing step-by-step replication with START SLAVE UNTIL, otherwise you are not safe in case of unexpected slave's mysqld restart",
@@ -300,10 +301,14 @@ character-set=latin1
 "Unknown key cache '%-.100s'",
 "MySQL is started in --skip-name-resolve mode. You need to restart it without this switch for this grant to work",
 "Unknown table engine '%s'",
-"'%s' is deprecated. Use '%s' instead.",
-"The target table %-.100s of the %s is not updatable.",
-"The '%s' feature was disabled. You need MySQL built with '%s' define to have it working"
-"MySQL is started in --skip-grant-tables mode. You can't use this command"
+"'%s' is deprecated, use '%s' instead",
+"The target table %-.100s of the %s is not updateable",
+"The '%s' feature was disabled; you need MySQL built with '%s' to have it working",
+"The MySQL server is running with the %s option so it cannot execute this statement",
+"Column '%-.100s' has duplicated value '%-.64s' in %s"
+"Truncated wrong %-.32s value: '%-.128s'"
+"Incorrect table definition; There can only be one TIMESTAMP column with CURRENT_TIMESTAMP in DEFAULT or ON UPDATE clause"
+"Invalid ON UPDATE clause for '%-.64s' field",
 "Can't create a %s from within another stored routine"
 "%s %s already exists"
 "%s %s does not exist"
