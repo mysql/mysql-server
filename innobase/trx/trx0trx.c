@@ -99,6 +99,7 @@ trx_create(
 	trx->check_unique_secondary = TRUE;
 
 	trx->flush_log_later = FALSE;
+	trx->must_flush_log_later = FALSE;
 
 	trx->dict_operation = FALSE;
 
@@ -710,6 +711,8 @@ trx_commit_off_kernel(
 	ut_ad(mutex_own(&kernel_mutex));
 #endif /* UNIV_SYNC_DEBUG */
 
+	trx->must_flush_log_later = FALSE;
+
 	rseg = trx->rseg;
 	
 	if (trx->insert_undo != NULL || trx->update_undo != NULL) {
@@ -875,6 +878,7 @@ trx_commit_off_kernel(
 
                 if (trx->flush_log_later) {
                         /* Do nothing yet */
+			trx->must_flush_log_later = TRUE;
                 } else if (srv_flush_log_at_trx_commit == 0) {
                         /* Do nothing */
                 } else if (srv_flush_log_at_trx_commit == 1) {
@@ -1594,7 +1598,9 @@ trx_commit_complete_for_mysql(
 	
 	trx->op_info = "flushing log";
 
-        if (srv_flush_log_at_trx_commit == 0) {
+	if (!trx->must_flush_log_later) {
+                /* Do nothing */
+        } else if (srv_flush_log_at_trx_commit == 0) {
                 /* Do nothing */
         } else if (srv_flush_log_at_trx_commit == 1) {
                 if (srv_unix_file_flush_method == SRV_UNIX_NOSYNC) {
@@ -1615,6 +1621,8 @@ trx_commit_complete_for_mysql(
         } else {
                 ut_error;
         }
+	
+	trx->must_flush_log_later = FALSE;
 
 	trx->op_info = "";
 
