@@ -16,6 +16,7 @@
 
 #include "myisamdef.h"
 
+#ifdef HAVE_RTREE_KEYS
 #include "rt_index.h"
 #include "rt_key.h"
 #include "rt_mbr.h"
@@ -137,3 +138,5 @@ uchar *rtree_choose_key(MI_INFO *info, MI_KEYDEF *keyinfo, uchar *key,
   }
   return best_key;
 }
+
+#endif /*HAVE_RTREE_KEYS*/

@@ -327,9 +327,14 @@ MI_INFO *mi_open(const char *name, int mode, uint open_flags)
 	}
 	if (share->keyinfo[i].flag & HA_SPATIAL)
 	{
+#ifdef HAVE_SPATIAL
 	  uint sp_segs=SPDIMS*2;
 	  share->keyinfo[i].seg=pos-sp_segs;
 	  share->keyinfo[i].keysegs--;
+#else
+	  my_errno=HA_ERR_UNSUPPORTED;
+	  goto err;
+#endif
 	}
         else if (share->keyinfo[i].flag & HA_FULLTEXT)
 	{
@@ -726,8 +731,10 @@ static void setup_key_functions(register MI_KEYDEF *keyinfo)
 {
   if (keyinfo->key_alg == HA_KEY_ALG_RTREE)
   {
+#ifdef HAVE_RTREE_KEYS
     keyinfo->ck_insert = rtree_insert;
     keyinfo->ck_delete = rtree_delete;
+#endif
   }
   else
   {
