@@ -2115,15 +2115,23 @@ find_field_in_table(THD *thd, TABLE_LIST *table_list,
 		       table_list->alias, name, item_name, (ulong) ref));
   if (table_list->field_translation)
   {
-    DBUG_ASSERT(ref != 0 && table_list->view != 0);
-    uint num= table_list->view->select_lex.item_list.elements;
+    uint num;
+    if (table_list->schema_table_reformed)
+    {
+      num= thd->lex->current_select->item_list.elements;
+    }
+    else
+    {
+      DBUG_ASSERT(ref != 0 && table_list->view != 0);
+      num= table_list->view->select_lex.item_list.elements;
+    }
     Field_translator *trans= table_list->field_translation;
     for (uint i= 0; i < num; i ++)
     {
       if (!my_strcasecmp(system_charset_info, trans[i].name, name))
       {
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
-	if (check_grants_view &&
+	if (check_grants_view && !table_list->schema_table_reformed &&
 	    check_grant_column(thd, &table_list->grant,
 			       table_list->view_db.str,
 			       table_list->view_name.str,
