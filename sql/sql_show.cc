@@ -1142,13 +1142,16 @@ void mysqld_list_processes(THD *thd,const char *user, bool verbose)
 *****************************************************************************/
 
 
-int mysqld_show(THD *thd, const char *wild, show_var_st *variables)
+int mysqld_show(THD *thd, const char *wild, show_var_st *variables,
+		struct system_variables *values)
 {
   uint i;
   char buff[8192];
   String packet2(buff,sizeof(buff));
   List<Item> field_list;
   CONVERT *convert=thd->convert_set;
+  ulong offset;
+
   DBUG_ENTER("mysqld_show");
   field_list.push_back(new Item_empty_string("Variable_name",30));
   field_list.push_back(new Item_empty_string("Value",256));
@@ -1168,6 +1171,11 @@ int mysqld_show(THD *thd, const char *wild, show_var_st *variables)
       case SHOW_LONG_CONST:
         net_store_data(&packet2,(uint32) *(ulong*) variables[i].value);
         break;
+      case SHOW_LONG_OFFSET:
+	offset= (ulong) variables[i].value;
+        net_store_data(&packet2,
+		       (uint32) *(ulong*) (((char*) values) + offset));
+	break;
       case SHOW_BOOL:
         net_store_data(&packet2,(ulong) *(bool*) variables[i].value ?
                        "ON" : "OFF");
@@ -1176,9 +1184,20 @@ int mysqld_show(THD *thd, const char *wild, show_var_st *variables)
         net_store_data(&packet2,(ulong) *(my_bool*) variables[i].value ?
                        "ON" : "OFF");
         break;
+      case SHOW_MY_BOOL_OFFSET:
+	offset= (ulong) variables[i].value;
+        net_store_data(&packet2,
+		       ((ulong) *(my_bool*) (((char*) values) + offset)) ?
+                       "ON" : "OFF");
+        break;
       case SHOW_INT_CONST:
       case SHOW_INT:
         net_store_data(&packet2,(uint32) *(int*) variables[i].value);
+        break;
+      case SHOW_INT_OFFSET:
+	offset= (ulong) variables[i].value;
+        net_store_data(&packet2,
+		       (uint32) *(int*) (((char*) values) + offset));
         break;
       case SHOW_HAVE:
       {
