@@ -2052,7 +2052,7 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
     thd->no_warnings_for_error= 0;
     table->next_global= next_global_table;
     /* if view are unsupported */
-    if (table->view && !view_operator_func)
+    if (table->view && view_operator_func == NULL)
     {
       result_code= HA_ADMIN_NOT_IMPLEMENTED;
       goto send_result;
