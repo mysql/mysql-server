@@ -1,3 +1,4 @@
+
 /* Copyright (C) 2000 MySQL AB
 
    This program is free software; you can redistribute it and/or modify
@@ -428,7 +429,7 @@ struct tm *localtime_r(const time_t *clock, struct tm *res);
 
 #endif /* defined(__WIN__) */
 
-#if defined(HPUX10) && !defined(DONT_REMAP_PTHREAD_FUNCTIONS)
+#if defined(HPUX) && !defined(DONT_REMAP_PTHREAD_FUNCTIONS)
 #undef pthread_cond_timedwait
 #define pthread_cond_timedwait(a,b,c) my_pthread_cond_timedwait((a),(b),(c))
 int my_pthread_cond_timedwait(pthread_cond_t *cond, pthread_mutex_t *mutex,
@@ -581,13 +582,9 @@ extern int pthread_dummy(int);
 
 #define THREAD_NAME_SIZE 10
 #if defined(__ia64__)
-/*
-  MySQL can survive with 32K, but some glibc libraries require > 128K stack
-  To resolve hostnames
-*/
-#define DEFAULT_THREAD_STACK	(192*1024L)
+#define DEFAULT_THREAD_STACK	(128*1024)
 #else
-#define DEFAULT_THREAD_STACK	(192*1024L)
+#define DEFAULT_THREAD_STACK	(64*1024)
 #endif
 
 struct st_my_thread_var
@@ -601,6 +598,8 @@ struct st_my_thread_var
   long id;
   int cmp_length;
   int volatile abort;
+  struct st_my_thread_var *next,**prev;
+  void *opt_info;
 #ifndef DBUG_OFF
   gptr dbug;
   char name[THREAD_NAME_SIZE+1];
