@@ -1275,9 +1275,10 @@ mysql_execute_command(void)
       break;					// Error message is given
     }
 
-    unit->offset_limit_cnt =select_lex->offset_limit;
-    unit->select_limit_cnt =select_lex->select_limit+select_lex->offset_limit;
-    if (unit->select_limit_cnt < select_lex->select_limit)
+    unit->offset_limit_cnt= unit->global_parameters->offset_limit;
+    unit->select_limit_cnt= unit->global_parameters->select_limit+
+      unit->global_parameters->offset_limit;
+    if (unit->select_limit_cnt < unit->global_parameters->select_limit)
       unit->select_limit_cnt= HA_POS_ERROR;		// no limit
     if (unit->select_limit_cnt == HA_POS_ERROR)
       select_lex->options&= ~OPTION_FOUND_ROWS;
@@ -2672,7 +2673,7 @@ mysql_init_query(THD *thd)
   thd->lex.unit.init_select();
   thd->lex.select_lex.init_query();
   thd->lex.unit.slave= &thd->lex.select_lex;
-  thd->lex.unit.select_limit= thd->default_select_limit; //Global limit
+  thd->lex.unit.global_parameters= &thd->lex.select_lex; //Global limit & order
   thd->lex.select_lex.master= &thd->lex.unit;
   thd->lex.select_lex.prev= &thd->lex.unit.slave;
   thd->lex.value_list.empty();
