@@ -311,3 +311,21 @@ test.t1	check	status	OK
 drop table t1;
 create table t1 (c char(10), index (c(0)));
 ERROR HY000: Key part 'c' length cannot be 0
+create table t1 (c char(10), index (c,c));
+ERROR 42S21: Duplicate column name 'c'
+create table t1 (c1 char(10), c2 char(10), index (c1,c2,c1));
+ERROR 42S21: Duplicate column name 'c1'
+create table t1 (c1 char(10), c2 char(10), index (c1,c1,c2));
+ERROR 42S21: Duplicate column name 'c1'
+create table t1 (c1 char(10), c2 char(10), index (c2,c1,c1));
+ERROR 42S21: Duplicate column name 'c1'
+create table t1 (c1 char(10), c2 char(10));
+alter table t1 add key (c1,c1);
+ERROR 42S21: Duplicate column name 'c1'
+alter table t1 add key (c2,c1,c1);
+ERROR 42S21: Duplicate column name 'c1'
+alter table t1 add key (c1,c2,c1);
+ERROR 42S21: Duplicate column name 'c1'
+alter table t1 add key (c1,c1,c2);
+ERROR 42S21: Duplicate column name 'c1'
+drop table t1;

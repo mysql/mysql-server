@@ -129,7 +129,6 @@ NdbResultSet* NdbScanOperation::readTuples(NdbScanOperation::LockMode lm,
 					   Uint32 parallel)
 {
   m_ordered = 0;
-
   Uint32 fragCount = m_currentTable->m_fragmentCount;
 
   if (parallel > fragCount || parallel == 0) {
@@ -232,7 +231,7 @@ NdbResultSet* NdbScanOperation::readTuples(NdbScanOperation::LockMode lm,
   tSignal->setSignal(GSN_KEYINFO);
   theKEYINFOptr = ((KeyInfo*)tSignal->getDataPtrSend())->keyData;
   theTotalNrOfKeyWordInSignal= 0;
-  
+
   getFirstATTRINFOScan();
   return getResultSet();
 }
@@ -1205,6 +1204,9 @@ NdbIndexScanOperation::readTuples(LockMode lm,
 #endif
     }
   }
+  m_this_bound_start = 0;
+  m_first_bound_word = theKEYINFOptr;
+  
   return rs;
 }
 
@@ -1573,7 +1575,8 @@ NdbScanOperation::restart()
 }
 
 int
-NdbIndexScanOperation::reset_bounds(){
+NdbIndexScanOperation::reset_bounds()
+{
   int res;
   
   {
@@ -1593,6 +1596,8 @@ NdbIndexScanOperation::reset_bounds(){
     theTotalNrOfKeyWordInSignal = 0;
     theNoOfTupKeyLeft = m_accessTable->m_noOfDistributionKeys;
     theDistrKeyIndicator_ = 0;
+    m_this_bound_start = 0;
+    m_first_bound_word = theKEYINFOptr;
     m_transConnection
       ->remove_list((NdbOperation*&)m_transConnection->m_firstExecutedScanOp,
 		    this);
@@ -1600,4 +1605,15 @@ NdbIndexScanOperation::reset_bounds(){
     return 0;
   }
   return res;
+}
+
+int
+NdbIndexScanOperation::set_new_bound()
+{
+  Uint32 bound_head = * m_first_bound_word;
+  bound_head |= (theTupKeyLen - m_this_bound_start) << 16;
+  * m_first_bound_word = bound_head;
+
+  m_first_bound_word = theKEYINFOptr;
+  m_this_bound_start = theTupKeyLen;
 }

@@ -347,7 +347,6 @@ operator<<(NdbOut& out, const Dbtux::ScanOp& scan)
   out << "]";
   out << " [readCommitted " << dec << scan.m_readCommitted << "]";
   out << " [lockMode " << dec << scan.m_lockMode << "]";
-  out << " [keyInfo " << dec << scan.m_keyInfo << "]";
   out << " [pos " << scan.m_scanPos << "]";
   out << " [ent " << scan.m_scanEnt << "]";
   for (unsigned i = 0; i <= 1; i++) {

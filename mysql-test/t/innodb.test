@@ -1180,6 +1180,28 @@ select count(*) from t1 where x = 18446744073709551601;
 
 drop table t1;
 
+#
+# Bug #6126: Duplicate columns in keys gives misleading error message
+#
+--error 1060
+create table t1 (c char(10), index (c,c)) engine=innodb;
+--error 1060
+create table t1 (c1 char(10), c2 char(10), index (c1,c2,c1)) engine=innodb;
+--error 1060
+create table t1 (c1 char(10), c2 char(10), index (c1,c1,c2)) engine=innodb;
+--error 1060
+create table t1 (c1 char(10), c2 char(10), index (c2,c1,c1)) engine=innodb;
+create table t1 (c1 char(10), c2 char(10)) engine=innodb;
+--error 1060
+alter table t1 add key (c1,c1);
+--error 1060
+alter table t1 add key (c2,c1,c1);
+--error 1060
+alter table t1 add key (c1,c2,c1);
+--error 1060
+alter table t1 add key (c1,c1,c2);
+drop table t1;
+
 # Test for testable InnoDB status variables. This test
 # uses previous ones(pages_created, rows_deleted, ...).
 show status like "Innodb_buffer_pool_pages_total";

@@ -55,6 +55,7 @@ NdbConnection::NdbConnection( Ndb* aNdb ) :
   theFirstExecOpInList(NULL),
   theLastExecOpInList(NULL),
   theCompletedFirstOp(NULL),
+  theCompletedLastOp(NULL),
   theNoOfOpSent(0),
   theNoOfOpCompleted(0),
   theNoOfOpFetched(0),
@@ -124,6 +125,7 @@ NdbConnection::init()
   theLastExecOpInList	  = NULL;
 
   theCompletedFirstOp	  = NULL;
+  theCompletedLastOp	  = NULL;
 
   theGlobalCheckpointId   = 0;
   theCommitStatus         = Started;
@@ -241,6 +243,8 @@ NdbConnection::handleExecuteCompletion()
   if (tLastExecOp != NULL) {
     tLastExecOp->next(theCompletedFirstOp);
     theCompletedFirstOp = tFirstExecOp;
+    if (theCompletedLastOp == NULL)
+      theCompletedLastOp = tLastExecOp;
     theFirstExecOpInList = NULL;
     theLastExecOpInList = NULL;
   }//if
@@ -277,6 +281,8 @@ NdbConnection::execute(ExecType aTypeOfExec,
 
   ExecType tExecType;
   NdbOperation* tPrepOp;
+  NdbOperation* tCompletedFirstOp = NULL;
+  NdbOperation* tCompletedLastOp = NULL;
 
   int ret = 0;
   do {
@@ -299,6 +305,7 @@ NdbConnection::execute(ExecType aTypeOfExec,
       }
       tPrepOp = tPrepOp->next();
     }
+
     // save rest of prepared ops if batch
     NdbOperation* tRestOp= 0;
     NdbOperation* tLastOp= 0;
@@ -308,6 +315,7 @@ NdbConnection::execute(ExecType aTypeOfExec,
       tLastOp = theLastOpInList;
       theLastOpInList = tPrepOp;
     }
+
     if (tExecType == Commit) {
       NdbOperation* tOp = theCompletedFirstOp;
       while (tOp != NULL) {
@@ -321,6 +329,19 @@ NdbConnection::execute(ExecType aTypeOfExec,
         }
         tOp = tOp->next();
       }
+    }
+
+    // completed ops are in unspecified order
+    if (theCompletedFirstOp != NULL) {
+      if (tCompletedFirstOp == NULL) {
+        tCompletedFirstOp = theCompletedFirstOp;
+        tCompletedLastOp = theCompletedLastOp;
+      } else {
+        tCompletedLastOp->next(theCompletedFirstOp);
+        tCompletedLastOp = theCompletedLastOp;
+      }
+      theCompletedFirstOp = NULL;
+      theCompletedLastOp = NULL;
     }
 
     if (executeNoBlobs(tExecType, abortOption, forceSend) == -1)
@@ -347,6 +368,7 @@ NdbConnection::execute(ExecType aTypeOfExec,
         tOp = tOp->next();
       }
     }
+
     // add saved prepared ops if batch
     if (tPrepOp != NULL && tRestOp != NULL) {
       if (theFirstOpInList == NULL)
@@ -358,6 +380,18 @@ NdbConnection::execute(ExecType aTypeOfExec,
     assert(theFirstOpInList == NULL || tExecType == NoCommit);
   } while (theFirstOpInList != NULL || tExecType != aTypeOfExec);
 
+  if (tCompletedFirstOp != NULL) {
+    tCompletedLastOp->next(theCompletedFirstOp);
+    theCompletedFirstOp = tCompletedFirstOp;
+    if (theCompletedLastOp == NULL)
+      theCompletedLastOp = tCompletedLastOp;
+  }
+#if ndb_api_count_completed_ops_after_blob_execute
+  { NdbOperation* tOp; unsigned n = 0;
+    for (tOp = theCompletedFirstOp; tOp != NULL; tOp = tOp->next()) n++;
+    ndbout << "completed ops: " << n << endl;
+  }
+#endif
   DBUG_RETURN(ret);
 }
 
@@ -879,6 +913,7 @@ NdbConnection::releaseOperations()
   releaseOps(theFirstExecOpInList);
 
   theCompletedFirstOp = NULL;
+  theCompletedLastOp = NULL;
   theFirstOpInList = NULL;
   theFirstExecOpInList = NULL;
   theLastOpInList = NULL;
@@ -894,6 +929,7 @@ NdbConnection::releaseCompletedOperations()
 {
   releaseOps(theCompletedFirstOp);
   theCompletedFirstOp = NULL;
+  theCompletedLastOp = NULL;
 }//NdbConnection::releaseOperations()
 
 /******************************************************************************
@@ -1070,8 +1106,11 @@ NdbConnection::getNdbIndexScanOperation(const NdbIndexImpl* index,
     const NdbTableImpl * indexTable = index->getIndexTable();
     if (indexTable != 0){
       NdbIndexScanOperation* tOp = getNdbScanOperation(indexTable);
-      tOp->m_currentTable = table;
-      if(tOp) tOp->m_cursor_type = NdbScanOperation::IndexCursor;
+      if(tOp)
+      {
+	tOp->m_currentTable = table;
+	tOp->m_cursor_type = NdbScanOperation::IndexCursor;
+      }
       return tOp;
     } else {
       setOperationErrorCodeAbort(theNdb->theError.code);

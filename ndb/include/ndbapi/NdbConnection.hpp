@@ -650,8 +650,8 @@ private:
   NdbOperation*	theLastExecOpInList;	    // Last executing operation in list.
 
 
-  NdbOperation*	theCompletedFirstOp;	    // First operation in completed 
-                                            // operation list.
+  NdbOperation*	theCompletedFirstOp;	    // First & last operation in completed 
+  NdbOperation*	theCompletedLastOp;         // operation list.
 
   Uint32	theNoOfOpSent;				// How many operations have been sent	    
   Uint32	theNoOfOpCompleted;			// How many operations have completed
