@@ -4496,6 +4496,7 @@ struct show_var_st status_vars[]= {
   {"Com_truncate",	       (char*) (com_stat+(uint) SQLCOM_TRUNCATE),SHOW_LONG},
   {"Com_unlock_tables",	       (char*) (com_stat+(uint) SQLCOM_UNLOCK_TABLES),SHOW_LONG},
   {"Com_update",	       (char*) (com_stat+(uint) SQLCOM_UPDATE),SHOW_LONG},
+  {"Com_update_multi",	       (char*) (com_stat+(uint) SQLCOM_MULTI_UPDATE),SHOW_LONG},
   {"Connections",              (char*) &thread_id,              SHOW_LONG_CONST},
   {"Created_tmp_disk_tables",  (char*) &created_tmp_disk_tables,SHOW_LONG},
   {"Created_tmp_tables",       (char*) &created_tmp_tables,     SHOW_LONG},
