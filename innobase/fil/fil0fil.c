@@ -614,9 +614,9 @@ fil_try_to_close_file_in_LRU(
 			fputs("InnoDB: cannot close file ", stderr);
 			ut_print_filename(stderr, node->name);
 			fprintf(stderr,
-				", because mod_count %lld != fl_count %lld\n",
-				node->modification_counter,
-				node->flush_counter);
+				", because mod_count %ld != fl_count %ld\n",
+				(long) node->modification_counter,
+				(long) node->flush_counter);
 		}
 
 		node = UT_LIST_GET_PREV(LRU, node);

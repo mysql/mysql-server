@@ -356,8 +356,8 @@ typedef struct st_mi_sort_param
 #define mi_mark_crashed_on_repair(x) { (x)->s->state.changed|=STATE_CRASHED|STATE_CRASHED_ON_REPAIR ; (x)->update|= HA_STATE_CHANGED; }
 #define mi_is_crashed(x) ((x)->s->state.changed & STATE_CRASHED)
 #define mi_is_crashed_on_repair(x) ((x)->s->state.changed & STATE_CRASHED_ON_REPAIR)
-#define mi_print_error(INFO, ERRNO)                     \
-        mi_report_error((ERRNO), (INFO)->s->index_file_name)
+#define mi_print_error(SHARE, ERRNO)                     \
+        mi_report_error((ERRNO), (SHARE)->index_file_name)
 
 /* Functions to store length of space packed keys, VARCHAR or BLOB keys */
 

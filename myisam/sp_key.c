@@ -50,6 +50,11 @@ uint sp_make_key(register MI_INFO *info, uint keynr, uchar *key,
   
   dlen = _mi_calc_blob_length(keyseg->bit_start, pos);
   memcpy_fixed(&dptr, pos + keyseg->bit_start, sizeof(char*));
+  if (!dptr)
+  {
+    my_errno= HA_ERR_NULL_IN_SPATIAL;
+    return 0;
+  }
   sp_mbr_from_wkb(dptr + 4, dlen - 4, SPDIMS, mbr);	/* SRID */
   
   for (i = 0, keyseg = keyinfo->seg; keyseg->type; keyseg++, i++)

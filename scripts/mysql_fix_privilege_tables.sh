@@ -15,6 +15,7 @@ socket=""
 database="mysql"
 bindir="."
 pkgdatadir="@pkgdatadir@"
+print_defaults_bindir="."
 
 file=mysql_fix_privilege_tables.sql
 
@@ -58,7 +59,9 @@ parse_arguments() {
       --port=*) port=`echo "$arg" | sed -e "s;--port=;;"` ;;
       --socket=*) socket=`echo "$arg" | sed -e "s;--socket=;;"` ;;
       --database=*) database=`echo "$arg" | sed -e "s;--database=;;"` ;;
-      --bindir=*) bindir=`echo "$arg" | sed -e "s;--bindir=;;"` ;;
+      --bindir=*) bindir=`echo "$arg" | sed -e "s;--bindir=;;"`
+                  print_defaults_bindir=$bindir
+		  ;;
       *)
         if test -n "$pick_args"
         then
@@ -75,7 +78,7 @@ parse_arguments() {
 # [mysql_install_db], and then merge with the command line arguments
 
 print_defaults=my_print_defaults
-for dir in ./bin @bindir@ @bindir@ extra $bindir/../bin $bindir/../extra
+for dir in ./bin @bindir@ @bindir@ extra $print_defaults_bindir/../bin $print_defaults_bindir/../extra
 do
   if test -x $dir/my_print_defaults
   then

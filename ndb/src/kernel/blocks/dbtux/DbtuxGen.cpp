@@ -314,4 +314,4 @@ Dbtux::copyAttrs(const Frag& frag, ConstData data1, Data data2, unsigned maxlen2
 #endif
 }
 
-BLOCK_FUNCTIONS(Dbtux);
+BLOCK_FUNCTIONS(Dbtux)

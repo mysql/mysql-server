@@ -51,6 +51,7 @@
 
 #include <my_global.h>
 #include <m_string.h>
+#include <my_pthread.h>
 
 static char *my_name;
 static int verbose;
@@ -246,7 +247,7 @@ char *m_name;
 	modules[n_items].m_stkuse = 0;
 	DBUG_RETURN (n_items++);
     }
-    while (cmp = strcmp (m_name,modules[ind].name)) {
+    while ((cmp = strcmp (m_name,modules[ind].name))) {
 	if (cmp < 0) {	/* In left subtree */
 	    if (s_table[ind].lchild == MAXPROCS) {
 		/* Add as left child */
@@ -392,7 +393,7 @@ FILE *inf;
       }
       break;
     default:
-      fprintf (stderr, "unknown record type '%s'\n", buf[0]);
+      fprintf (stderr, "unknown record type '%c'\n", buf[0]);
       break;
     }
   next_line:;
@@ -450,10 +451,11 @@ FILE *outf;
 unsigned long int sum_calls, sum_time;
 {
     DBUG_ENTER ("out_trailer");
-    if (verbose) {
-	fprintf (outf, "======\t==========\t===========\t==========\t========\n");
-	fprintf (outf, "%6d\t%10.2f\t%11d\t%10.2f\t\t%-15s\n",
-		sum_calls, 100.0, sum_time, 100.0, "Totals");
+    if (verbose)
+    {
+      fprintf(outf, "======\t==========\t===========\t==========\t========\n");
+      fprintf(outf, "%6ld\t%10.2f\t%11ld\t%10.2f\t\t%-15s\n",
+              sum_calls, 100.0, sum_time, 100.0, "Totals");
     }
     DBUG_VOID_RETURN;
 }
@@ -488,16 +490,16 @@ unsigned long int *called, *timed;
     import = (unsigned int) (per_time * per_calls);
 
     if (verbose) {
-	fprintf (outf, "%6d\t%10.2f\t%11d\t%10.2f  %10d\t%-15s\n",
+	fprintf (outf, "%6d\t%10.2f\t%11ld\t%10.2f  %10d\t%-15s\n",
 		calls, per_calls, time, per_time, import, name);
     } else {
 	ms_per_call = time;
 	ms_per_call /= calls;
 	ftime = time;
 	ftime /= 1000;
-	fprintf (outf, "%8.2f%8.3f%8u%8.3f%8.2f%8u%8u  %-s\n",
-		per_time, ftime, calls, ms_per_call, per_calls, import,
-		 stkuse, name);
+	fprintf(outf, "%8.2f%8.3f%8u%8.3f%8.2f%8u%8lu  %-s\n",
+                per_time, ftime, calls, ms_per_call, per_calls, import,
+                stkuse, name);
     }
     *called = calls;
     *timed = time;
