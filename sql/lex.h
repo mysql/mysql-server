@@ -170,6 +170,7 @@ static SYMBOL symbols[] = {
   { "IGNORE",		SYM(IGNORE_SYM),0,0},
   { "IN",		SYM(IN_SYM),0,0},
   { "INDEX",		SYM(INDEX),0,0},
+  { "INDEXES",		SYM(INDEXES),0,0},
   { "INFILE",		SYM(INFILE),0,0},
   { "INNER",		SYM(INNER_SYM),0,0},
   { "INNOBASE",		SYM(INNOBASE_SYM),0,0},

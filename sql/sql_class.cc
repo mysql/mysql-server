@@ -49,6 +49,8 @@ template class List<Alter_drop>;
 template class List_iterator<Alter_drop>;
 template class List<Alter_column>;
 template class List_iterator<Alter_column>;
+template class List<Set_option>;
+template class List_iterator<Set_option>;
 #endif
 
 /****************************************************************************
