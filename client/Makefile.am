@@ -34,7 +34,8 @@ mysqltest_SOURCES=		mysqltest.c $(top_srcdir)/mysys/my_getsystime.c
 mysqltest_LDADD =		$(top_builddir)/regex/libregex.a $(LDADD)
 mysqlbinlog_SOURCES =   mysqlbinlog.cc $(top_srcdir)/mysys/mf_tempdir.c
 mysqlmanagerc_SOURCES =   mysqlmanagerc.c 
-sql_src=log_event.h mysql_priv.h log_event.cc
+sql_src=log_event.h mysql_priv.h log_event.cc my_decimal.h my_decimal.cc
+strings_src=decimal.c
 
 # Fix for mit-threads
 DEFS =			-DUNDEF_THREADS_HACK
@@ -43,7 +44,11 @@ link_sources:
 	for f in $(sql_src) ; do \
 	  rm -f $(srcdir)/$$f; \
 	  @LN_CP_F@ $(top_srcdir)/sql/$$f $(srcdir)/$$f; \
-        done;
+         done; \
+        for f in $(strings_src) ; do \
+          rm -f $(srcdir)/$$f; \
+          @LN_CP_F@ $(top_srcdir)/strings/$$f $(srcdir)/$$f; \
+         done;
 
 # Don't update the files from bitkeeper
 %::SCCS/s.%

@@ -1672,7 +1672,7 @@ fld1	count(*)
 158402	4181
 select sum(Period)/count(*) from t1;
 sum(Period)/count(*)
-9410.00
+9410.00000
 select companynr,count(price) as "count",sum(price) as "sum" ,abs(sum(price)/count(price)-avg(price)) as "diff",(0+count(price))*companynr as func from t3 group by companynr;
 companynr	count	sum	diff	func
 37	12543	309394878010	0.0000	464091
@@ -2109,7 +2109,7 @@ select @b;
 aaaa
 select @c;
 @c
-6.26
+6.260
 create table t1 (a int not null auto_increment primary key);
 insert into t1 values ();
 insert into t1 values ();
