@@ -297,6 +297,7 @@ ulong bytes_sent = 0L, bytes_received = 0L;
 
 bool opt_endinfo,using_udf_functions,low_priority_updates, locked_in_memory;
 bool opt_using_transactions, using_update_log, opt_warnings=0;
+bool opt_local_infile=1;
 bool volatile abort_loop,select_thread_in_use,grant_option;
 bool volatile ready_to_exit,shutdown_in_progress;
 ulong refresh_version=1L,flush_version=1L;	/* Increments on each reload */
@@ -708,8 +709,9 @@ static pthread_handler_decl(kill_server_thread,arg __attribute__((unused)))
 
 static sig_handler print_signal_warning(int sig)
 {
-  sql_print_error("Warning: Got signal %d from thread %d",
-		  sig,my_thread_id());
+  if (opt_warnings)
+    sql_print_error("Warning: Got signal %d from thread %d",
+		    sig,my_thread_id());
 #ifdef DONT_REMEMBER_SIGNAL
   sigset(sig,print_signal_warning);		/* int. thread system calls */
 #endif
@@ -2686,7 +2688,7 @@ enum options {
                OPT_SLAVE_LOAD_TMPDIR, OPT_NO_MIX_TYPE,
 	       OPT_RPL_RECOVERY_RANK,OPT_INIT_RPL_ROLE,
 	       OPT_RELAY_LOG, OPT_RELAY_LOG_INDEX, OPT_RELAY_LOG_INFO_FILE,
-               OPT_SLAVE_SKIP_ERRORS, OPT_DES_KEY_FILE
+               OPT_SLAVE_SKIP_ERRORS, OPT_DES_KEY_FILE, OPT_LOCAL_INFILE
 };
 
 static struct option long_options[] = {
@@ -2748,6 +2750,7 @@ static struct option long_options[] = {
   {"init-file",             required_argument, 0, (int) OPT_INIT_FILE},
   {"log",                   optional_argument, 0, 'l'},
   {"language",              required_argument, 0, 'L'},
+  {"local-infile",	    optional_argument, 0, (int) OPT_LOCAL_INFILE},
   {"log-bin",               optional_argument, 0, (int) OPT_BIN_LOG},
   {"log-bin-index",         required_argument, 0, (int) OPT_BIN_LOG_INDEX},
   {"log-isam",              optional_argument, 0, (int) OPT_ISAM_LOG},
@@ -3614,6 +3617,9 @@ static void get_options(int argc,char **argv)
       break;
     case 'P':
       mysql_port= (unsigned int) atoi(optarg);
+      break;
+    case OPT_LOCAL_INFILE:
+      opt_local_infile= test(!optarg || atoi(optarg) != 0);
       break;
     case OPT_SLAVE_SKIP_ERRORS:
       init_slave_skip_errors(optarg);

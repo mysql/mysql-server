@@ -486,11 +486,11 @@ static bool pack_fields(File file,List<create_field> &create_fields)
       if (field->interval_id > int_count)
       {
 	int_count=field->interval_id;
-	tmp.append('\377');
+	tmp.append(NAMES_SEP_CHAR);
 	for (const char **pos=field->interval->type_names ; *pos ; pos++)
 	{
 	  tmp.append(*pos);
-	  tmp.append('\377');
+	  tmp.append(NAMES_SEP_CHAR);
 	}
 	tmp.append('\0');			// End of intervall
       }

@@ -596,9 +596,17 @@ END_OF_INPUT
 query:
 	END_OF_INPUT
 	{
-	   if (!current_thd->bootstrap)
+	   THD *thd=current_thd;
+	   if (!thd->bootstrap &&
+	      (!(thd->lex.options & OPTION_FOUND_COMMENT)))
+	   {
 	     send_error(&current_thd->net,ER_EMPTY_QUERY);
-	   YYABORT;
+	     YYABORT;
+ 	   }
+	   else
+	   {
+	     thd->lex.sql_command = SQLCOM_EMPTY_QUERY;
+	   }
 	}
 	| verb_clause END_OF_INPUT {}
 

@@ -273,8 +273,6 @@ row_create_prebuilt(
 	ulint		ref_len;
 	ulint		i;
 	
-	dict_table_increment_handle_count(table);
-
 	heap = mem_heap_create(128);
 
 	prebuilt = mem_heap_alloc(heap, sizeof(row_prebuilt_t));
@@ -1468,6 +1466,13 @@ loop:
 	table = dict_table_get_low(drop->table_name);
 	mutex_exit(&(dict_sys->mutex));
 
+	if (table == NULL) {
+	        /* If for some reason the table has already been dropped
+		through some other mechanism, do not try to drop it */
+
+	        goto already_dropped;
+	}
+
 	if (table->n_mysql_handles_opened > 0) {
 
 		return(n_tables + n_tables_dropped);
@@ -1477,9 +1482,15 @@ loop:
 							
 	row_drop_table_for_mysql_in_background(drop->table_name);
 
+already_dropped:
 	mutex_enter(&kernel_mutex);
 
 	UT_LIST_REMOVE(row_mysql_drop_list, row_mysql_drop_list, drop);
+
+        ut_print_timestamp(stderr);
+        fprintf(stderr,
+		"  InnoDB: Dropped table %s in background drop queue.\n",
+		drop->table_name);
 
 	mem_free(drop->table_name);
 
@@ -1746,6 +1757,13 @@ row_drop_table_for_mysql(
 
 	if (table->n_mysql_handles_opened > 0) {
 		
+	        ut_print_timestamp(stderr);
+	        fprintf(stderr,
+		  "  InnoDB: Warning: MySQL is trying to drop table %s\n"
+		  "InnoDB: though there are still open handles to it.\n"
+		  "InnoDB: Adding the table to the background drop queue.\n",
+		  table->name);
+
 		row_add_table_to_background_drop_list(table);
 
 		err = DB_SUCCESS;
@@ -1807,6 +1825,7 @@ row_drop_database_for_mysql(
 	char*	name,	/* in: database name which ends to '/' */
 	trx_t*	trx)	/* in: transaction handle */
 {
+        dict_table_t* table;
 	char*	table_name;
 	int	err	= DB_SUCCESS;
 	
@@ -1817,11 +1836,34 @@ row_drop_database_for_mysql(
 	trx->op_info = (char *) "dropping database";
 	
 	trx_start_if_not_started(trx);
-
+loop:
 	mutex_enter(&(dict_sys->mutex));
 
 	while ((table_name = dict_get_first_table_name_in_db(name))) {
 		ut_a(memcmp(table_name, name, strlen(name)) == 0);
+
+		table = dict_table_get_low(table_name);
+
+		ut_a(table);
+
+		/* Wait until MySQL does not have any queries running on
+		the table */
+
+		if (table->n_mysql_handles_opened > 0) {
+		        mutex_exit(&(dict_sys->mutex));
+
+			ut_print_timestamp(stderr);
+			fprintf(stderr,
+		"  InnoDB: Warning: MySQL is trying to drop database %s\n"
+	    	"InnoDB: though there are still open handles to table %s.\n",
+				name, table_name);
+
+		        os_thread_sleep(1000000);
+
+		        mem_free(table_name);
+
+		        goto loop;
+		}
 
 		err = row_drop_table_for_mysql(table_name, trx, TRUE);
 
