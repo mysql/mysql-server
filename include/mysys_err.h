@@ -21,7 +21,7 @@ extern "C" {
 #endif
 
 #define GLOB		0	/* Error maps */
-#define GLOBERRS	28	/* Max number of error messages in map's */
+#define GLOBERRS	29	/* Max number of error messages in map's */
 #define EE(X)	globerrs[ X ]	/* Defines to add error to right map */
 
 extern const char * NEAR globerrs[];	/* my_error_messages is here */
@@ -54,6 +54,7 @@ extern const char * NEAR globerrs[];	/* my_error_messages is here */
 #define EE_CANT_SYMLINK		25
 #define EE_REALPATH		26
 #define EE_SYNC			27
+#define EE_UNKNOWN_COLLATION	28
 
   /* exit codes for all MySQL programs */
 

@@ -402,4 +402,5 @@ inline double ulonglong2double(ulonglong value)
 #define HAVE_CHARSET_ucs2 1
 #define HAVE_CHARSET_ujis 1
 #define HAVE_CHARSET_utf8 1
+#define HAVE_UCA_COLLATIONS 1
 
