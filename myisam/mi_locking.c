@@ -21,19 +21,6 @@
   isamdatabase.
 */
 
-/*
-  state.open_count in the .MYI file is used the following way:
-  - For the first change of the file in this process it's incremented with
-    mi_mark_file_change(). (We have a write lock on the file in this case)
-  - In mi_close() it's decremented by _mi_decrement_open_count() if it
-    was incremented in the same process.
-
-  This mean that if we are the only process using the file, the open_count
-  tells us if the MYISAM file wasn't properly closed. (This is true if
-  my_disable_locking is set).
-*/
-
-
 #include "myisamdef.h"
 
 	/* lock table by F_UNLCK, F_RDLCK or F_WRLCK */
@@ -439,7 +426,24 @@ int _mi_test_if_changed(register MI_INFO *info)
 } /* _mi_test_if_changed */
 
 
-/* Put a mark in the .MYI file that someone is updating the table */
+/*
+  Put a mark in the .MYI file that someone is updating the table
+
+
+  DOCUMENTATION
+
+  state.open_count in the .MYI file is used the following way:
+  - For the first change of the .MYI file in this process open_count is
+    incremented by mi_mark_file_change(). (We have a write lock on the file
+    when this happens)
+  - In mi_close() it's decremented by _mi_decrement_open_count() if it
+    was incremented in the same process.
+
+  This mean that if we are the only process using the file, the open_count
+  tells us if the MYISAM file wasn't properly closed. (This is true if
+  my_disable_locking is set).
+*/
+
 
 int _mi_mark_file_changed(MI_INFO *info)
 {
