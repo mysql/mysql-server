@@ -524,6 +524,13 @@ int ha_ndbcluster::set_ndb_value(NdbOperation *ndb_op, Field *field,
           DBUG_RETURN((ndb_op->setValue(fieldnr, (char*)NULL, pack_len) != 0));
         DBUG_PRINT("info", ("bit field"));
         DBUG_DUMP("value", (char*)&bits, pack_len);
+#ifdef WORDS_BIGENDIAN
+	if (pack_len < 5)
+	{
+	  DBUG_RETURN(ndb_op->setValue(fieldnr, 
+				       ((char*)&bits)+4, pack_len) != 0);
+	}
+#endif
 	DBUG_RETURN(ndb_op->setValue(fieldnr, (char*)&bits, pack_len) != 0);
       }
     }
@@ -3898,7 +3905,7 @@ ha_ndbcluster::ha_ndbcluster(TABLE *table_arg):
 		HA_AUTO_PART_KEY |
 		HA_NO_PREFIX_CHAR_KEYS |
 		HA_NEED_READ_RANGE_BUFFER |
-                                HA_CAN_BIT_FIELD),
+		HA_CAN_BIT_FIELD),
   m_share(0),
   m_use_write(FALSE),
   m_ignore_dup_key(FALSE),
