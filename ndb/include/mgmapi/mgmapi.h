@@ -669,6 +669,15 @@ extern "C" {
 			       struct ndb_mgm_reply* reply);
   
   /**
+   * Listen event
+   *
+   * @param filter pairs of { level, category } that will be
+   *        pushed to fd, level=0 ends lists
+   * @return fd which events will be pushed to
+   */
+  int ndb_mgm_listen_event(NdbMgmHandle handle, int filter[]);
+  
+  /**
    * Get configuration
    * @param   handle     NDB management handle.
    * @param   version    Version of configuration, 0 means latest
