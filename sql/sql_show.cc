@@ -1086,7 +1086,7 @@ mysqld_dump_create_info(THD *thd, TABLE *table, int fd)
   DBUG_RETURN(0);
 }
 
-static bool require_quotes(const char *name, uint length)
+static inline const char *require_quotes(const char *name, uint length)
 {
   uint i, d, c;
   for (i=0; i<length; i+=d)
@@ -1094,7 +1094,7 @@ static bool require_quotes(const char *name, uint length)
     c=((uchar *)name)[i];
     d=my_mbcharlen(system_charset_info, c);
     if (d==1 && !system_charset_info->ident_map[c])
-      return 1;
+      return name+i;
   }
   return 0;
 }
@@ -1113,7 +1113,8 @@ static bool require_quotes(const char *name, uint length)
     0 string doesn't contain required char
 */
 
-static const char *look_for_char(const char *name, uint length, char q)
+static inline const char *look_for_char(const char *name, 
+					uint length, char q)
 {
   const char *cur= name;
   const char *end= cur+length;
@@ -1141,27 +1142,29 @@ append_identifier(THD *thd, String *packet, const char *name, uint length)
 
   if (is_keyword(name,length))
   {
-    packet->append(&qtype, 1);
+    packet->append(&qtype, 1, system_charset_info);
     packet->append(name, length, system_charset_info);
-    packet->append(&qtype, 1);
+    packet->append(&qtype, 1, system_charset_info);
   }
   else
   {
-    if (!require_quotes(name, length))
+    if (!(qplace= require_quotes(name, length)))
     {
       if (!(thd->options & OPTION_QUOTE_SHOW_CREATE))
 	packet->append(name, length, system_charset_info);
       else
       {
-	packet->append(&qtype, 1);
+	packet->append(&qtype, 1, system_charset_info);
 	packet->append(name, length, system_charset_info);
-	packet->append(&qtype, 1);
+	packet->append(&qtype, 1, system_charset_info);
       }
     }
     else
     {
-      packet->append(&qtype, 1);
-      qplace= look_for_char(name,length,qtype);
+      packet->shrink(packet->length()+length+2);
+      packet->append(&qtype, 1, system_charset_info);
+      if (*qplace != qtype)
+	qplace= look_for_char(qplace+1,length-(qplace-name)-1,qtype);
       while (qplace)
       {
 	if ((part_len= qplace-name))
@@ -1174,7 +1177,7 @@ append_identifier(THD *thd, String *packet, const char *name, uint length)
 	qplace= look_for_char(name+1,length-1,qtype);
       }
       packet->append(name, length, system_charset_info);
-      packet->append(&qtype, 1);
+      packet->append(&qtype, 1, system_charset_info);
     }
   }
 }
