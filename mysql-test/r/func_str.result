@@ -496,7 +496,7 @@ insert(_latin2'abcd',2,3,_latin2'ef'),
 replace(_latin2'abcd',_latin2'b',_latin2'B')
 ;
 Warnings:
-Warning	1263	Data truncated for column 'format(130,10)' at row 1
+Warning	1264	Data truncated for column 'format(130,10)' at row 1
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -571,9 +571,7 @@ elt(status_wnio,data_podp)
 NULL
 NULL
 DROP TABLE t1;
-CREATE TABLE t1 (
-title text
-) TYPE=MyISAM;
+CREATE TABLE t1 (title text) TYPE=MyISAM;
 INSERT INTO t1 VALUES ('Congress reconvenes in September to debate welfare and adult education');
 INSERT INTO t1 VALUES ('House passes the CAREERS bill');
 SELECT CONCAT("</a>",RPAD("",(55 - LENGTH(title)),".")) from t1;

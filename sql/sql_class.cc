@@ -385,6 +385,59 @@ bool THD::store_globals()
 }
 
 
+/*
+  Convert a string to another character set
+
+  SYNOPSIS
+    convert_string()
+    to				Store new allocated string here
+    to_cs			New character set for allocated string
+    from			String to convert
+    from_length			Length of string to convert
+    from_cs			Original character set
+
+  NOTES
+    to will be 0-terminated to make it easy to pass to system funcs
+
+  RETURN
+    0	ok
+    1	End of memory.
+        In this case to->str will point to 0 and to->length will be 0.
+*/
+
+bool THD::convert_string(LEX_STRING *to, CHARSET_INFO *to_cs,
+			 const char *from, uint from_length,
+			 CHARSET_INFO *from_cs)
+{
+  DBUG_ENTER("convert_string");
+  size_s new_length= to_cs->mbmaxlen * from_length;
+  if (!(to->str= alloc(new_length+1)))
+  {
+    to->length= 0;				// Safety fix
+    DBUG_RETURN(1);				// EOM
+  }
+  to->length= copy_and_convert((char*) to->str, new_length, to_cs,
+			       from, from_length, from_cs);
+  to->str[to->length]=0;			// Safety
+  DBUG_RETURN(0);
+}
+
+
+/*
+  Update some cache variables when character set changes
+*/
+
+void THD::update_charset()
+{
+  charset_is_system_charset= my_charset_same(charset(),system_charset_info);
+  charset_is_collation_connection= my_charset_same(charset(),
+						   variables.
+						   collation_connection);
+}
+
+
+
+
 /* routings to adding tables to list of changed in transaction tables */
 
 inline static void list_include(CHANGED_TABLE_LIST** prev,

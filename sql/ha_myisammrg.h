@@ -40,8 +40,7 @@ class ha_myisammrg: public handler
   }
   ulong index_flags(uint inx) const
   {
-    ulong flags=(HA_READ_NEXT | HA_READ_PREV | HA_READ_ORDER |
-        HA_NOT_READ_PREFIX_LAST); // This - last - flag is ONLY for 4.0 !!!
+    ulong flags=(HA_READ_NEXT | HA_READ_PREV | HA_READ_ORDER);
     return (flags | ((table->key_info[inx].algorithm == HA_KEY_ALG_FULLTEXT) ?
 		     0 : HA_KEY_READ_ONLY));
   }

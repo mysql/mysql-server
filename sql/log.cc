@@ -763,9 +763,6 @@ int MYSQL_LOG::purge_logs(const char *to_log,
   DBUG_ENTER("purge_logs");
   DBUG_PRINT("info",("to_log= %s",to_log));
 
-  if (no_rotate)
-    DBUG_RETURN(LOG_INFO_PURGE_NO_ROTATE);
-
   if (need_mutex)
     pthread_mutex_lock(&LOCK_index);
   if ((error=find_log_pos(&log_info, to_log, 0 /*no mutex*/)))

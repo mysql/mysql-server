@@ -3905,7 +3905,8 @@ int Field_string::store(const char *from,uint length,CHARSET_INFO *cs)
   {
     memcpy(ptr,from,length);
     if (length < field_length)
-      field_charset->cset->fill(field_charset,ptr+length,field_length-length,' ');
+      field_charset->cset->fill(field_charset,ptr+length,field_length-length,
+				' ');
   }
   else
   {
@@ -3914,7 +3915,8 @@ int Field_string::store(const char *from,uint length,CHARSET_INFO *cs)
     {						// Check if we loosed some info
       const char *end=from+length;
       from+= field_length;
-      from+= field_charset->cset->scan(field_charset, from, end, MY_SEQ_SPACES);
+      from+= field_charset->cset->scan(field_charset, from, end,
+				       MY_SEQ_SPACES);
       if (from != end)
       {
         set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, ER_WARN_DATA_TRUNCATED);
@@ -5147,7 +5149,8 @@ int Field_set::store(const char *from,uint length,CHARSET_INFO *cs)
     from= tmpstr.ptr();
     length=  tmpstr.length();
   }
-  ulonglong tmp= find_set(typelib, from, length, &not_used, &not_used2, &set_warning);
+  ulonglong tmp= find_set(typelib, from, length, &not_used, &not_used2,
+			  &set_warning);
   if (!tmp && length && length < 22)
   {
     /* This is for reading numbers with LOAD DATA INFILE */
@@ -5157,10 +5160,14 @@ int Field_set::store(const char *from,uint length,CHARSET_INFO *cs)
 	tmp > (ulonglong) (((longlong) 1 << typelib->count) - (longlong) 1))
     {
       tmp=0;      
-      current_thd->cuted_fields++;
-      push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN, 
-                          ER_WARN_DATA_TRUNCATED, ER(ER_WARN_DATA_TRUNCATED),
-                          field_name, 0);
+      THD *thd= current_thd;
+      if (thd->count_cuted_fields)
+      {
+	thd->cuted_fields++;
+	push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN, 
+			    ER_WARN_DATA_TRUNCATED, ER(ER_WARN_DATA_TRUNCATED),
+			    field_name, 0);
+      }
     }
   }
   store_type(tmp);
@@ -5496,7 +5503,10 @@ create_field::create_field(Field *old_field,Field *orig_field)
 void Field::set_warning(const uint level, const uint code)
 {
   THD *thd= current_thd;
-  thd->cuted_fields++;
-  push_warning_printf(thd, (MYSQL_ERROR::enum_warning_level) level, 
-                      code, ER(code), field_name, thd->row_count);
+  if (thd->count_cuted_fields)
+  {
+    thd->cuted_fields++;
+    push_warning_printf(thd, (MYSQL_ERROR::enum_warning_level) level, 
+			code, ER(code), field_name, thd->row_count);
+  }
 }

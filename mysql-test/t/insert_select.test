@@ -87,7 +87,6 @@ let $VERSION=`select version()`;
 --replace_result $VERSION VERSION
 show binlog events;
 drop table t1, t2;
-drop table if exists t1, t2;
 
 #
 # Test of insert ... select from same table

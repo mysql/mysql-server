@@ -2583,36 +2583,36 @@ explain select t2.companynr,companyname from t4 left join t2 using (companynr) w
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t4	ALL	NULL	NULL	NULL	NULL	12	
 1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	1200	Using where; Not exists
+delete from t2 where fld1=999999;
+explain select t2.companynr,companyname from t4 left join t2 using (companynr) where t2.companynr > 0;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	1199	Using where
+1	SIMPLE	t4	eq_ref	PRIMARY	PRIMARY	1	test.t2.companynr	1	
+explain select t2.companynr,companyname from t4 left join t2 using (companynr) where t2.companynr > 0 or t2.companynr < 0;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	1199	Using where
+1	SIMPLE	t4	eq_ref	PRIMARY	PRIMARY	1	test.t2.companynr	1	
+explain select t2.companynr,companyname from t4 left join t2 using (companynr) where t2.companynr > 0 and t4.companynr > 0;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	1199	Using where
+1	SIMPLE	t4	eq_ref	PRIMARY	PRIMARY	1	test.t2.companynr	1	Using where
+explain select t2.companynr,companyname from t4 left join t2 using (companynr) where t2.companynr > 0 or t2.companynr is null;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t4	ALL	NULL	NULL	NULL	NULL	12	
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	1199	Using where
+explain select t2.companynr,companyname from t4 left join t2 using (companynr) where t2.companynr > 0 or t2.companynr < 0 or t4.companynr > 0;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t4	ALL	PRIMARY	NULL	NULL	NULL	12	
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	1199	Using where
+explain select t2.companynr,companyname from t4 left join t2 using (companynr) where ifnull(t2.companynr,1)>0;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t4	ALL	NULL	NULL	NULL	NULL	12	
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	1199	Using where
 select distinct t2.companynr,t4.companynr from t2,t4 where t2.companynr=t4.companynr+1;
 companynr	companynr
 37	36
 41	40
-delete from t2 where fld1=999999;
-explain select t2.companynr,companyname from t4 left join t2 using (companynr) where t2.companynr > 0;
-table	type	possible_keys	key	key_len	ref	rows	Extra
-t2	ALL	NULL	NULL	NULL	NULL	1199	Using where
-t4	eq_ref	PRIMARY	PRIMARY	1	test.t2.companynr	1	
-explain select t2.companynr,companyname from t4 left join t2 using (companynr) where t2.companynr > 0 or t2.companynr < 0;
-table	type	possible_keys	key	key_len	ref	rows	Extra
-t2	ALL	NULL	NULL	NULL	NULL	1199	Using where
-t4	eq_ref	PRIMARY	PRIMARY	1	test.t2.companynr	1	
-explain select t2.companynr,companyname from t4 left join t2 using (companynr) where t2.companynr > 0 and t4.companynr > 0;
-table	type	possible_keys	key	key_len	ref	rows	Extra
-t2	ALL	NULL	NULL	NULL	NULL	1199	Using where
-t4	eq_ref	PRIMARY	PRIMARY	1	test.t2.companynr	1	Using where
-explain select t2.companynr,companyname from t4 left join t2 using (companynr) where t2.companynr > 0 or t2.companynr is null;
-table	type	possible_keys	key	key_len	ref	rows	Extra
-t4	ALL	NULL	NULL	NULL	NULL	12	
-t2	ALL	NULL	NULL	NULL	NULL	1199	Using where
-explain select t2.companynr,companyname from t4 left join t2 using (companynr) where t2.companynr > 0 or t2.companynr < 0 or t4.companynr > 0;
-table	type	possible_keys	key	key_len	ref	rows	Extra
-t4	ALL	PRIMARY	NULL	NULL	NULL	12	
-t2	ALL	NULL	NULL	NULL	NULL	1199	Using where
-explain select t2.companynr,companyname from t4 left join t2 using (companynr) where ifnull(t2.companynr,1)>0;
-table	type	possible_keys	key	key_len	ref	rows	Extra
-t4	ALL	NULL	NULL	NULL	NULL	12	
-t2	ALL	NULL	NULL	NULL	NULL	1199	Using where
-plain select distinct t2.companynr,t4.companynr from t2,t4 where t2.companynr=t4.companynr+1;
+explain select distinct t2.companynr,t4.companynr from t2,t4 where t2.companynr=t4.companynr+1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	1199	Using temporary
 1	SIMPLE	t4	index	NULL	PRIMARY	1	NULL	12	Using where; Using index
@@ -3527,11 +3527,11 @@ insert into t2 values (1);
 insert into t4 values (1,1);
 explain select * from t1 left join t2 on id1 = id2 left join t3 on id1 = id3
 left join t4 on id3 = id4 where id2 = 1 or id4 = 1;
-table	type	possible_keys	key	key_len	ref	rows	Extra
-t3	system	NULL	NULL	NULL	NULL	0	const row not found
-t1	ALL	NULL	NULL	NULL	NULL	2	
-t2	ALL	NULL	NULL	NULL	NULL	1	
-t4	ALL	id4	NULL	NULL	NULL	1	Using where
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t3	system	NULL	NULL	NULL	NULL	0	const row not found
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	2	
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	1	
+1	SIMPLE	t4	ALL	id4	NULL	NULL	NULL	1	Using where
 select * from t1 left join t2 on id1 = id2 left join t3 on id1 = id3
 left join t4 on id3 = id4 where id2 = 1 or id4 = 1;
 id1	id2	id3	id4	id44

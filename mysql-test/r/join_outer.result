@@ -663,5 +663,5 @@ create table t3 (f3 integer,f5 integer);
 select * from t1
 left outer join t2 using (f2)
 left outer join t3 using (f3);
-Unknown column 'test.t2.f3' in 'on clause'
+ERROR 42S22: Unknown column 'test.t2.f3' in 'on clause'
 drop table t1,t2,t3;

@@ -67,9 +67,9 @@ inline Item *or_or_concat(THD *thd, Item* A, Item* B)
   TABLE_LIST *table_list;
   udf_func *udf;
   LEX_USER *lex_user;
-  sys_var *variable;
+  struct sys_var_with_base variable;
   Key::Keytype key_type;
-  enum ha_key_alg  key_alg;
+  enum ha_key_alg key_alg;
   enum db_type db_type;
   enum row_type row_type;
   enum ha_rkey_function ha_rkey_mode;
@@ -879,7 +879,7 @@ create:
 	  lex->name=0;
 	}
 	create2
-	  { Lex->select= &Lex->select_lex; }
+	  { Lex->current_select= &Lex->select_lex; }
 	| CREATE opt_unique_or_fulltext INDEX ident key_alg ON table_ident
 	  {
 	    LEX *lex=Lex;
@@ -942,15 +942,15 @@ create2:
 
 create2a:
         field_list ')' opt_create_table_options create3 {}
-	|  create_select ')' { Select->braces= 1;} union_opt {}
+	|  create_select ')' { Select->set_braces(1);} union_opt {}
         ;
 
 create3:
 	/* empty */ {}
 	| opt_duplicate opt_as     create_select
-          { Select->braces= 0;} opt_union {}
+          { Select->set_braces(0);} union_clause {}
 	| opt_duplicate opt_as '(' create_select ')'
-          { Select->braces= 1;} union_opt {}
+          { Select->set_braces(1);} union_opt {}
         ;
 
 create_select:
@@ -962,7 +962,7 @@ create_select:
 	      lex->sql_command= SQLCOM_INSERT_SELECT;
 	    else if (lex->sql_command == SQLCOM_REPLACE)
 	      lex->sql_command= SQLCOM_REPLACE_SELECT;
-	    lex->select->table_list.save_and_clear(&lex->save_list);
+	    lex->current_select->select_lex()->table_list.save_and_clear(&lex->save_list);
 	    mysql_init_select(lex);
 	    lex->current_select->parsing_place= SELECT_LEX_NODE::SELECT_LIST;
           }
@@ -971,7 +971,7 @@ create_select:
 	    Select->parsing_place= SELECT_LEX_NODE::NO_MATTER;
 	  }
 	  opt_select_from
-	  { Lex->select->table_list.push_front(&Lex->save_list); }
+	  { Lex->current_select->select_lex()->table_list.push_front(&Lex->save_list); }
         ;
 
 opt_as:
@@ -3434,7 +3434,7 @@ insert:
 	opt_ignore insert2
 	{
 	  Select->set_lock_for_tables($3);
-	  Lex->select= &Lex->select_lex;
+	  Lex->current_select= &Lex->select_lex;
 	}
 	insert_field_spec opt_insert_update
 	{}
@@ -3451,7 +3451,7 @@ replace:
 	replace_lock_option insert2
 	{
 	  Select->set_lock_for_tables($3);
-	  Lex->select= &Lex->select_lex;
+	  Lex->current_select= &Lex->select_lex;
 	}
 	insert_field_spec
 	{}
@@ -3507,8 +3507,8 @@ fields:
 insert_values:
 	VALUES	values_list  {}
 	| VALUE_SYM values_list  {}
-	|     create_select     { Select->braces= 0;} opt_union {}
-	| '(' create_select ')' { Select->braces= 1;} union_opt {}
+	|     create_select     { Select->set_braces(0);} union_clause {}
+	| '(' create_select ')' { Select->set_braces(1);} union_opt {}
         ;
 
 values_list:
@@ -4266,17 +4266,11 @@ IDENT_sys:
 	IDENT
 	{
 	  THD *thd= YYTHD;
-	  if (my_charset_same(thd->charset(),system_charset_info))
-	  {
-	    $$=$1;
-	  }
+	  if (thd->charset_is_system_charset)
+	    $$= $1;
 	  else
-	  {
-	    String ident;
-	    ident.copy($1.str,$1.length,thd->charset(),system_charset_info);
-	    $$.str= thd->strmake(ident.ptr(),ident.length());
-	    $$.length= ident.length();
-	  }
+	    thd->convert_string(&$$, system_charset_info,
+				$1.str, $1.length, thd->charset());
 	}
 	;
 
@@ -4284,17 +4278,11 @@ TEXT_STRING_sys:
 	TEXT_STRING
 	{
 	  THD *thd= YYTHD;
-	  if (my_charset_same(thd->charset(),system_charset_info))
-	  {
-	    $$=$1;
-	  }
+	  if (thd->charset_is_system_charset)
+	    $$= $1;
 	  else
-	  {
-	    String ident;
-	    ident.copy($1.str,$1.length,thd->charset(),system_charset_info);
-	    $$.str= thd->strmake(ident.ptr(),ident.length());
-	    $$.length= ident.length();
-	  }
+	    thd->convert_string(&$$, system_charset_info,
+				$1.str, $1.length, thd->charset());
 	}
 	;
 
@@ -4302,17 +4290,11 @@ TEXT_STRING_literal:
 	TEXT_STRING
 	{
 	  THD *thd= YYTHD;
-	  if (my_charset_same(thd->charset(),thd->variables.collation_connection))
-	  {
-	    $$=$1;
-	  }
+	  if (thd->charset_is_collation_connection)
+	    $$= $1;
 	  else
-	  {
-	    String ident;
-	    ident.copy($1.str,$1.length,thd->charset(),thd->variables.collation_connection);
-	    $$.str= thd->strmake(ident.ptr(),ident.length());
-	    $$.length= ident.length();
-	  }
+	    thd->convert_string(&$$, thd->variables.collation_connection,
+				$1.str, $1.length, thd->charset());
 	}
 	;
 
@@ -4321,9 +4303,9 @@ ident:
 	IDENT_sys	    { $$=$1; }
 	| keyword
 	{
-	  LEX *lex= Lex;
-	  $$.str= lex->thd->strmake($1.str,$1.length);
-	  $$.length=$1.length;
+	  THD *thd= YYTHD;
+	  $$.str=    thd->strmake($1.str, $1.length);
+	  $$.length= $1.length;
 	}
 	;
 
@@ -4590,18 +4572,24 @@ option_value:
 	| internal_variable_name equal set_expr_or_default
 	  {
 	    LEX *lex=Lex;
-	    lex->var_list.push_back(new set_var(lex->option_type, $1, $3));
+	    lex->var_list.push_back(new set_var(lex->option_type, $1.var,
+						&$1.base_name, $3));
 	  }
 	| '@' '@' opt_var_ident_type internal_variable_name equal set_expr_or_default
 	  {
 	    LEX *lex=Lex;
-	    lex->var_list.push_back(new set_var((enum_var_type) $3, $4, $6));
+	    lex->var_list.push_back(new set_var((enum_var_type) $3, $4.var,
+						&$4.base_name, $6));
 	  }
 	| TRANSACTION_SYM ISOLATION LEVEL_SYM isolation_types
 	  {
 	    LEX *lex=Lex;
+	    LEX_STRING tmp;
+	    tmp.str=0;
+	    tmp.length=0;
 	    lex->var_list.push_back(new set_var(lex->option_type,
 						find_sys_var("tx_isolation"),
+						&tmp,
 						new Item_int((int32) $4)));
 	  }
 	| charset old_or_new_charset_name_or_default
@@ -4646,7 +4634,9 @@ internal_variable_name:
 	  sys_var *tmp=find_sys_var($1.str, $1.length);
 	  if (!tmp)
 	    YYABORT;
-	  $$=tmp;
+	  $$.var= tmp;
+	  $$.base_name.str=0;
+	  $$.base_name.length=0;
 	}
 	| ident '.' ident
 	  {
@@ -4655,8 +4645,8 @@ internal_variable_name:
 	      YYABORT;
 	    if (!tmp->is_struct())
 	      net_printf(YYTHD, ER_VARIABLE_IS_NOT_STRUCT, $3.str);
-	    tmp->base_name= $1;
-	    $$=tmp;
+	    $$.var= tmp;
+	    $$.base_name= $1;
 	  }
 	| DEFAULT '.' ident
 	  {
@@ -4665,9 +4655,9 @@ internal_variable_name:
 	      YYABORT;
 	    if (!tmp->is_struct())
 	      net_printf(YYTHD, ER_VARIABLE_IS_NOT_STRUCT, $3.str);
-	    tmp->base_name.str= (char*) "default";
-	    tmp->base_name.length= 7;
-	    $$=tmp;
+	    $$.var= tmp;
+	    $$.base_name.str=    (char*) "default";
+	    $$.base_name.length= 7;
 	  }
         ;
 

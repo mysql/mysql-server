@@ -5,6 +5,7 @@
 --disable_warnings
 drop table if exists t1,t2,t3;
 --enable_warnings
+SET SQL_WARNINGS=1;
 
 CREATE TABLE t1 (
   auto int(5) unsigned NOT NULL auto_increment,

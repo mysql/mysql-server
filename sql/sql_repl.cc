@@ -295,14 +295,14 @@ int purge_master_logs(THD* thd, const char* to_log)
   char search_file_name[FN_REFLEN];
   if (!mysql_bin_log.is_open())
   {
-    send_ok();
+    send_ok(current_thd);
     return 0;
   }
 
   mysql_bin_log.make_log_name(search_file_name, to_log);
   return purge_error_message(thd,
 			     mysql_bin_log.purge_logs(search_file_name, 0, 1,
-						      1, NULL);
+						      1, NULL));
 }
 
 
@@ -998,7 +998,7 @@ int change_master(THD* thd, MASTER_INFO* mi)
   mi->rli.group_master_log_pos = mi->master_log_pos;
   DBUG_PRINT("info", ("master_log_pos: %d", (ulong) mi->master_log_pos));
   /* If changing RELAY_LOG_FILE or RELAY_LOG_POS, this will be nonsense: */
-  mi->rli.master_log_pos = mi->master_log_pos;
+  mi->rli.group_master_log_pos= mi->master_log_pos;
   strmake(mi->rli.group_master_log_name,mi->master_log_name,
 	  sizeof(mi->rli.group_master_log_name)-1);
   if (!mi->rli.group_master_log_name[0]) // uninitialized case
@@ -1210,7 +1210,7 @@ int show_binlogs(THD* thd)
   if (!mysql_bin_log.is_open())
   {
     //TODO:  Replace with ER() error message
-    send_error(net, 0, "You are not using binary logging");
+    send_error(thd, 0, "You are not using binary logging");
     return 1;
   }
 

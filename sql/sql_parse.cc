@@ -549,8 +549,8 @@ check_connections(THD *thd)
   NET *net= &thd->net;
   char *end, *user, *passwd, *db;
   char prepared_scramble[SCRAMBLE41_LENGTH+4];  /* Buffer for scramble&hash */
+  char db_buff[NAME_LEN+1];
   ACL_USER* cached_user=NULL; /* Initialise to NULL for first stage */
-  String convdb;
   DBUG_PRINT("info",("New connection received on %s",
 		     vio_description(net->vio)));
 
@@ -667,8 +667,18 @@ check_connections(THD *thd)
   {
     thd->client_capabilities|= ((ulong) uint2korr(net->read_pos+2)) << 16;
     thd->max_client_packet_length= uint4korr(net->read_pos+4);
+    DBUG_PRINT("info", ("client_character_set: %d", (uint) net->read_pos[8]));
+    /*
+      Use server character set and collation if
+      - client has not specified a character set
+      - client character set is the same as the servers
+      - client character set doesn't exists in server
+    */
     if (!(thd->variables.character_set_client=
-	  get_charset((uint) net->read_pos[8], MYF(0))))
+	  get_charset((uint) net->read_pos[8], MYF(0))) ||
+	!my_strcasecmp(&my_charset_latin1,
+		       global_system_variables.character_set_client->name,
+		       thd->variables.character_set_client->name))
     {
       thd->variables.character_set_client=
 	global_system_variables.character_set_client;
@@ -683,6 +693,7 @@ check_connections(THD *thd)
       thd->variables.collation_connection= 
 	thd->variables.character_set_client;
     }
+    thd->update_charset();
     end= (char*) net->read_pos+32;
   }
   else
@@ -735,10 +746,13 @@ check_connections(THD *thd)
   using_password= test(passwd[0]);
   if (thd->client_capabilities & CLIENT_CONNECT_WITH_DB)
   {
-    db=strend(passwd)+1;
-    convdb.copy(db, strlen(db), 
-		thd->variables.character_set_client, system_charset_info);
-    db= convdb.c_ptr();
+    db= strend(passwd)+1;
+    uint32 length= copy_and_convert(db_buff, sizeof(db_buff)-1,
+				    system_charset_info,
+				    db, strlen(db),
+				    thd->charset());
+    db_buff[length]= 0;
+    db= db_buff;
   }
 
   /* We can get only old hash at this point */
@@ -1140,15 +1154,15 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
   thd->lex.select_lex.options=0;		// We store status here
   switch (command) {
   case COM_INIT_DB:
-    {
-      String convname;
-      statistic_increment(com_stat[SQLCOM_CHANGE_DB],&LOCK_status);
-      convname.copy(packet, strlen(packet),
-		    thd->variables.character_set_client, system_charset_info);
-      if (!mysql_change_db(thd,convname.c_ptr()))
-	mysql_log.write(thd,command,"%s",thd->db);
-      break;
-    }
+  {
+    LEX_STRING tmp;
+    statistic_increment(com_stat[SQLCOM_CHANGE_DB],&LOCK_status);
+    thd->convert_string(&tmp, system_charset_info,
+			packet, strlen(packet), thd->charset());
+    if (!mysql_change_db(thd, tmp.str))
+      mysql_log.write(thd,command,"%s",thd->db);
+    break;
+  }
 #ifndef EMBEDDED_LIBRARY
   case COM_REGISTER_SLAVE:
   {
@@ -1360,8 +1374,9 @@ restore_user:
 #else
   {
     char *fields, *pend;
-    String convname;
     TABLE_LIST table_list;
+    LEX_STRING conv_name;
+
     statistic_increment(com_stat[SQLCOM_SHOW_FIELDS],&LOCK_status);
     bzero((char*) &table_list,sizeof(table_list));
     if (!(table_list.db=thd->db))
@@ -1371,9 +1386,9 @@ restore_user:
     }
     thd->free_list=0;
     pend= strend(packet);
-    convname.copy(packet, pend-packet, 
-		  thd->variables.character_set_client, system_charset_info);
-    table_list.alias= table_list.real_name= convname.c_ptr();
+    thd->convert_string(&conv_name, system_charset_info,
+			packet, (uint) (pend-packet), thd->charset());
+    table_list.alias= table_list.real_name= conv_name.str;
     packet= pend+1;
     // command not cachable => no gap for data base name
     if (!(thd->query=fields=thd->memdup(packet,thd->query_length+1)))
@@ -2697,7 +2712,7 @@ mysql_execute_command(THD *thd)
 	goto error;				/* purecov: inspected */
       if (!thd->col_access && check_grant_db(thd,db))
       {
-	net_printf(&thd->net,ER_DBACCESS_DENIED_ERROR,
+	net_printf(thd, ER_DBACCESS_DENIED_ERROR,
 		   thd->priv_user,
 		   thd->priv_host,
 		   db);
@@ -3195,16 +3210,16 @@ mysql_execute_command(THD *thd)
     if (!ha_rollback_to_savepoint(thd, lex->savepoint_name))
     {
       if (thd->options & OPTION_STATUS_NO_TRANS_UPDATE)
-	send_warning(&thd->net,ER_WARNING_NOT_COMPLETE_ROLLBACK,0);
+	send_warning(thd, ER_WARNING_NOT_COMPLETE_ROLLBACK, 0);
       else
-	send_ok(&thd->net);
+	send_ok(thd);
     }
     else
       res= -1;
     break;
   case SQLCOM_SAVEPOINT:
     if (!ha_savepoint(thd, lex->savepoint_name))
-      send_ok(&thd->net);
+      send_ok(thd);
     else
       res= -1;
     break;
@@ -3584,7 +3599,7 @@ mysql_init_select(LEX *lex)
 bool
 mysql_new_select(LEX *lex, bool move_down)
 {
-  SELECT_LEX *select_lex = new SELECT_LEX();
+  SELECT_LEX *select_lex = new(&lex->thd->mem_root) SELECT_LEX();
   if (!select_lex)
     return 1;
   select_lex->select_number= ++lex->thd->select_number;
@@ -3658,7 +3673,7 @@ void mysql_init_multi_delete(LEX *lex)
   mysql_init_select(lex);
   lex->select_lex.select_limit= lex->unit.select_limit_cnt=
     HA_POS_ERROR;
-  lex->select->table_list.save_and_clear(&lex->auxilliary_table_list);
+  lex->select_lex.table_list.save_and_clear(&lex->auxilliary_table_list);
 }
 
 

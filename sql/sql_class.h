@@ -571,6 +571,7 @@ public:
   bool	     volatile killed;
   bool       prepare_command;
   bool	     tmp_table_used;
+  bool	     charset_is_system_charset, charset_is_collation_connection;
 
   /*
     If we do a purge of binary logs, log index info of the threads
@@ -678,6 +679,9 @@ public:
       memcpy(ptr,str,size);
     return ptr;
   }
+  bool convert_string(LEX_STRING *to, CHARSET_INFO *to_cs,
+		      const char *from, uint from_length,
+		      CHARSET_INFO *from_cs);
   inline gptr trans_alloc(unsigned int size) 
   { 
     return alloc_root(&transaction.mem_root,size);
@@ -703,6 +707,7 @@ public:
     DBUG_PRINT("error",("Fatal error set"));
   }
   inline CHARSET_INFO *charset() { return variables.character_set_client; }
+  void update_charset();
 };
 
 /*

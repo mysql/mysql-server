@@ -115,7 +115,7 @@ groupset bigint(20) DEFAULT '0' NOT NULL,
 assigned_to mediumint(9) DEFAULT '0' NOT NULL,
 bug_file_loc text,
 bug_severity enum('blocker','critical','major','normal','minor','trivial','enhancement') DEFAULT 'blocker' NOT NULL,
-bug_status enum('NEW','ASSIGNED','REOPENED','RESOLVED','VERIFIED','CLOSED') DEFAULT 'NEW' NOT NULL,
+bug_status enum('','NEW','ASSIGNED','REOPENED','RESOLVED','VERIFIED','CLOSED') DEFAULT 'NEW' NOT NULL,
 creation_ts datetime DEFAULT '0000-00-00 00:00:00' NOT NULL,
 delta_ts timestamp(14),
 short_desc mediumtext,
@@ -150,92 +150,34 @@ KEY qa_contact (qa_contact),
 KEY votes (votes)
 );
 INSERT INTO t1 VALUES (1,0,0,'','normal','','2000-02-10 09:25:12',20000321114747,'','','Linux','P1','TestProduct','PC',3,'other','TestComponent','','M1',0,'',0);
-Warnings:
-Warning	1263	Data truncated for column 'bug_status' at row 1
 INSERT INTO t1 VALUES (9,0,0,'','enhancement','','2000-03-10 11:49:36',20000321114747,'','','All','P5','AAAAA','PC',3,'2.00 CD - Pre','BBBBBBBBBBBBB - conversion','','',0,'',0);
-Warnings:
-Warning	1263	Data truncated for column 'bug_status' at row 1
 INSERT INTO t1 VALUES (10,0,0,'','enhancement','','2000-03-10 18:10:16',20000321114747,'','','All','P4','AAAAA','PC',3,'2.00 CD - Pre','BBBBBBBBBBBBB - conversion','','',0,'',0);
-Warnings:
-Warning	1263	Data truncated for column 'bug_status' at row 1
 INSERT INTO t1 VALUES (7,0,0,'','critical','','2000-03-09 10:50:21',20000321114747,'','','All','P1','AAAAA','PC',3,'2.00 CD - Pre','BBBBBBBBBBBBB - generic','','',0,'',0);
-Warnings:
-Warning	1263	Data truncated for column 'bug_status' at row 1
 INSERT INTO t1 VALUES (6,0,0,'','normal','','2000-03-09 10:42:44',20000321114747,'','','All','P2','AAAAA','PC',3,'2.00 CD - Pre','kkkkkkkkkkk lllllllllll','','',0,'',0);
-Warnings:
-Warning	1263	Data truncated for column 'bug_status' at row 1
 INSERT INTO t1 VALUES (8,0,0,'','major','','2000-03-09 11:32:14',20000321114747,'','','All','P3','AAAAA','PC',3,'2.00 CD - Pre','kkkkkkkkkkk lllllllllll','','',0,'',0);
-Warnings:
-Warning	1263	Data truncated for column 'bug_status' at row 1
 INSERT INTO t1 VALUES (5,0,0,'','enhancement','','2000-03-09 10:38:59',20000321114747,'','','All','P5','CCC/CCCCCC','PC',5,'7.00','Administration','','',0,'',0);
-Warnings:
-Warning	1263	Data truncated for column 'bug_status' at row 1
 INSERT INTO t1 VALUES (4,0,0,'','normal','','2000-03-08 18:32:14',20000321114747,'','','other','P2','TestProduct','Other',3,'other','TestComponent2','','',0,'',0);
-Warnings:
-Warning	1263	Data truncated for column 'bug_status' at row 1
 INSERT INTO t1 VALUES (3,0,0,'','normal','','2000-03-08 18:30:52',20000321114747,'','','other','P2','TestProduct','Other',3,'other','TestComponent','','',0,'',0);
-Warnings:
-Warning	1263	Data truncated for column 'bug_status' at row 1
 INSERT INTO t1 VALUES (2,0,0,'','enhancement','','2000-03-08 18:24:51',20000321114747,'','','All','P2','TestProduct','Other',4,'other','TestComponent2','','',0,'',0);
-Warnings:
-Warning	1263	Data truncated for column 'bug_status' at row 1
 INSERT INTO t1 VALUES (11,0,0,'','blocker','','2000-03-13 09:43:41',20000321114747,'','','All','P2','CCC/CCCCCC','PC',5,'7.00','DDDDDDDDD','','',0,'',0);
-Warnings:
-Warning	1263	Data truncated for column 'bug_status' at row 1
 INSERT INTO t1 VALUES (12,0,0,'','normal','','2000-03-13 16:14:31',20000321114747,'','','All','P2','AAAAA','PC',3,'2.00 CD - Pre','kkkkkkkkkkk lllllllllll','','',0,'',0);
-Warnings:
-Warning	1263	Data truncated for column 'bug_status' at row 1
 INSERT INTO t1 VALUES (13,0,0,'','normal','','2000-03-15 16:20:44',20000321114747,'','','other','P2','TestProduct','Other',3,'other','TestComponent','','',0,'',0);
-Warnings:
-Warning	1263	Data truncated for column 'bug_status' at row 1
 INSERT INTO t1 VALUES (14,0,0,'','blocker','','2000-03-15 18:13:47',20000321114747,'','','All','P1','AAAAA','PC',3,'2.00 CD - Pre','BBBBBBBBBBBBB - generic','','',0,'',0);
-Warnings:
-Warning	1263	Data truncated for column 'bug_status' at row 1
 INSERT INTO t1 VALUES (15,0,0,'','minor','','2000-03-16 18:03:28',20000321114747,'','','All','P2','CCC/CCCCCC','Other',5,'7.00','DDDDDDDDD','','',0,'',0);
-Warnings:
-Warning	1263	Data truncated for column 'bug_status' at row 1
 INSERT INTO t1 VALUES (16,0,0,'','normal','','2000-03-16 18:33:41',20000321114747,'','','All','P2','CCC/CCCCCC','Other',5,'7.00','Administration','','',0,'',0);
-Warnings:
-Warning	1263	Data truncated for column 'bug_status' at row 1
 INSERT INTO t1 VALUES (17,0,0,'','normal','','2000-03-16 18:34:18',20000321114747,'','','All','P2','CCC/CCCCCC','Other',5,'7.00','Administration','','',0,'',0);
-Warnings:
-Warning	1263	Data truncated for column 'bug_status' at row 1
 INSERT INTO t1 VALUES (18,0,0,'','normal','','2000-03-16 18:34:56',20000321114747,'','','All','P2','CCC/CCCCCC','Other',5,'7.00','Administration','','',0,'',0);
-Warnings:
-Warning	1263	Data truncated for column 'bug_status' at row 1
 INSERT INTO t1 VALUES (19,0,0,'','enhancement','','2000-03-16 18:35:34',20000321114747,'','','All','P2','CCC/CCCCCC','Other',5,'7.00','Administration','','',0,'',0);
-Warnings:
-Warning	1263	Data truncated for column 'bug_status' at row 1
 INSERT INTO t1 VALUES (20,0,0,'','enhancement','','2000-03-16 18:36:23',20000321114747,'','','All','P2','CCC/CCCCCC','Other',5,'7.00','Administration','','',0,'',0);
-Warnings:
-Warning	1263	Data truncated for column 'bug_status' at row 1
 INSERT INTO t1 VALUES (21,0,0,'','enhancement','','2000-03-16 18:37:23',20000321114747,'','','All','P2','CCC/CCCCCC','Other',5,'7.00','Administration','','',0,'',0);
-Warnings:
-Warning	1263	Data truncated for column 'bug_status' at row 1
 INSERT INTO t1 VALUES (22,0,0,'','enhancement','','2000-03-16 18:38:16',20000321114747,'','','All','P2','CCC/CCCCCC','Other',5,'7.00','Administration','','',0,'',0);
-Warnings:
-Warning	1263	Data truncated for column 'bug_status' at row 1
 INSERT INTO t1 VALUES (23,0,0,'','normal','','2000-03-16 18:58:12',20000321114747,'','','All','P2','CCC/CCCCCC','Other',5,'7.00','DDDDDDDDD','','',0,'',0);
-Warnings:
-Warning	1263	Data truncated for column 'bug_status' at row 1
 INSERT INTO t1 VALUES (24,0,0,'','normal','','2000-03-17 11:08:10',20000321114747,'','','All','P2','AAAAAAAA-AAA','PC',3,'2.8','Web Interface','','',0,'',0);
-Warnings:
-Warning	1263	Data truncated for column 'bug_status' at row 1
 INSERT INTO t1 VALUES (25,0,0,'','normal','','2000-03-17 11:10:45',20000321114747,'','','All','P2','AAAAAAAA-AAA','PC',3,'2.8','Web Interface','','',0,'',0);
-Warnings:
-Warning	1263	Data truncated for column 'bug_status' at row 1
 INSERT INTO t1 VALUES (26,0,0,'','normal','','2000-03-17 11:15:47',20000321114747,'','','All','P2','AAAAAAAA-AAA','PC',3,'2.8','Web Interface','','',0,'',0);
-Warnings:
-Warning	1263	Data truncated for column 'bug_status' at row 1
 INSERT INTO t1 VALUES (27,0,0,'','normal','','2000-03-17 17:45:41',20000321114747,'','','All','P2','CCC/CCCCCC','PC',5,'7.00','DDDDDDDDD','','',0,'',0);
-Warnings:
-Warning	1263	Data truncated for column 'bug_status' at row 1
 INSERT INTO t1 VALUES (28,0,0,'','normal','','2000-03-20 09:51:45',20000321114747,'','','Windows NT','P2','TestProduct','PC',8,'other','TestComponent','','',0,'',0);
-Warnings:
-Warning	1263	Data truncated for column 'bug_status' at row 1
 INSERT INTO t1 VALUES (29,0,0,'','normal','','2000-03-20 11:15:09',20000321114747,'','','All','P5','AAAAAAAA-AAA','PC',3,'2.8','Web Interface','','',0,'',0);
-Warnings:
-Warning	1263	Data truncated for column 'bug_status' at row 1
 CREATE TABLE t2 (
 value tinytext,
 program varchar(64),
