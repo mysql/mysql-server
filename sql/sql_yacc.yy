@@ -909,7 +909,13 @@ create2:
      	    if (!(lex->name= (char *)$2))
               YYABORT;
     	  }
-  	  ;
+	| '(' LIKE table_ident ')'
+      	  {
+      	    LEX *lex=Lex;
+     	    if (!(lex->name= (char *)$3))
+              YYABORT;
+    	  }
+          ;
 
 create3:
 	/* empty */ {}

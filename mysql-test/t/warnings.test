@@ -26,3 +26,8 @@ show count(*) warnings;
 create table t1(id int);
 create table if not exists t1(id int);
 select @@warning_count;
+drop table t1;
+
+create table t1 (id int) type=isam;
+alter table t1 type=isam;
+drop table t1;

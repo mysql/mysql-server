@@ -772,10 +772,9 @@ bool Item_field::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
 					 (last= sl)->get_table_list(), &where,
 					 0)) != not_found_field)
 	    break;
-	  if (sl->item_list.elements &&
-	      ((refer= find_item_in_list(this, sl->item_list, &counter, 
+	  if ((refer= find_item_in_list(this, sl->item_list, &counter, 
 					 REPORT_EXCEPT_NOT_FOUND)) != 
-	       (Item **)not_found_item))
+	       (Item **) not_found_item)
 	    break;
 	  if (sl->master_unit()->first_select()->linkage ==
 	      DERIVED_TABLE_TYPE)

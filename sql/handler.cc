@@ -88,7 +88,12 @@ enum db_type ha_checktype(enum db_type database_type)
 #endif
 #ifdef HAVE_ISAM
   case DB_TYPE_ISAM:
+    return (isam_skip ? DB_TYPE_MYISAM : database_type);
   case DB_TYPE_MRG_ISAM:
+    return (isam_skip ? DB_TYPE_MRG_MYISAM : database_type);
+#else
+  case DB_TYPE_MRG_ISAM:
+    return (DB_TYPE_MRG_MYISAM);
 #endif
   case DB_TYPE_HEAP:
   case DB_TYPE_MYISAM:
@@ -112,6 +117,9 @@ handler *get_new_handler(TABLE *table, enum db_type db_type)
     return new ha_isammrg(table);
   case DB_TYPE_ISAM:
     return new ha_isam(table);
+#else
+  case DB_TYPE_MRG_ISAM:
+    return new ha_myisammrg(table);
 #endif
 #ifdef HAVE_BERKELEY_DB
   case DB_TYPE_BERKELEY_DB:

@@ -1093,6 +1093,8 @@ UPDATE t1 SET i=i+(SELECT MAX(i) FROM (SELECT 1) t) WHERE i=(SELECT MAX(i));
 Invalid use of group function
 UPDATE t1 SET i=i+1 WHERE i=(SELECT MAX(i));
 Invalid use of group function
+UPDATE t1 SET t.i=i+(SELECT MAX(i) FROM (SELECT 1) t);
+Unknown table 't' in field list
 drop table t1;
 CREATE TABLE t1 (
 id int(11) default NULL
