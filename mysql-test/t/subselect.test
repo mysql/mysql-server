@@ -1073,3 +1073,11 @@ create table t1(val varchar(10));
 insert into t1 values ('aaa'), ('bbb'),('eee'),('mmm'),('ppp');
 select count(*) from t1 as w1 where w1.val in (select w2.val from t1 as w2 where w2.val like 'm%') and w1.val in (select w3.val from t1 as w3 where w3.val like 'e%');
 drop table if exists t1;
+
+#
+# Static tables & rund() in subqueries
+#
+create table t1 (a int);
+insert into t1 values (1);
+explain select benchmark(1000, (select a from t1 where a=sha(rand())));
+drop table t1;
