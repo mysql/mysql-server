@@ -284,7 +284,6 @@ int handle_options(int *argc, char ***argv,
 	}
 	if (optp->arg_type == NO_ARG)
 	{
-	  //	  if (optend && special_used)
 	  if (optend && optp->var_type != GET_BOOL)
 	  {
 	    if (my_getopt_print_errors)
