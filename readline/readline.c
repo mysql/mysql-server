@@ -280,7 +280,7 @@ int _rl_mark_modified_lines = 0;
 /* The style of `bell' notification preferred.  This can be set to NO_BELL,
    AUDIBLE_BELL, or VISIBLE_BELL. */
 int _rl_bell_preference = AUDIBLE_BELL;
-     
+
 /* String inserted into the line by rl_insert_comment (). */
 char *_rl_comment_begin;
 
@@ -755,7 +755,7 @@ readline_initialize_everything ()
 
   /* Decide whether we should automatically go into eight-bit mode. */
   _rl_init_eightbit ();
-      
+
   /* Read in the init file. */
   rl_read_init_file ((char *)NULL);
 
@@ -1547,7 +1547,7 @@ rl_rubout_or_delete (count, key)
     return (rl_rubout (count, key));
   else
     return (rl_delete (count, key));
-}  
+}
 
 /* Delete all spaces and tabs around point. */
 int

@@ -15,7 +15,7 @@ main (int argc, char *argv[])
     CorbaFS_Buffer *buffer;
     CorbaFS_DirEntSeq *dirents;
     CorbaFS_dirent *dirent;
-    
+
     CORBA_unsigned_short mode;
     CORBA_unsigned_long uid;
     CORBA_unsigned_long gid;
@@ -25,9 +25,9 @@ main (int argc, char *argv[])
     CORBA_long atime;
     CORBA_long mtime;
     CORBA_long ctime;
-    
+
     int i;
-    
+
     int niters = 10;
 
     CORBA_exception_init(&ev);
@@ -45,12 +45,12 @@ main (int argc, char *argv[])
 	printf("Cannot bind to %s\n", argv[1]);
 	return 1;
     }
-    
+
     if (argc >= 3)
             inode = CorbaFS_FileSystem_getInode(fs, argv[2], &ev);
     else
             inode = CorbaFS_FileSystem_getInode(fs, "/proc/cpuinfo", &ev);
-    
+
     if (!inode)
     {
             printf("Cannot get inode\n");
@@ -67,7 +67,7 @@ main (int argc, char *argv[])
                             &mtime,
                             &ctime,
                             &ev);
-    
+
     printf("inode = %x\n", inode);
     CorbaFS_Inode_readpage(inode, &buffer, 100000, 100, &ev);
     printf("readpage got %d bytes\n", buffer->_length);
@@ -84,7 +84,7 @@ main (int argc, char *argv[])
             printf("%d = %s\n", dirent->inode, dirent->name);
             dirent++;
     }
-    
+
     CORBA_Object_release(fs, &ev);
     CORBA_Object_release((CORBA_Object)orb, &ev);
 

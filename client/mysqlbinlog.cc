@@ -1,19 +1,18 @@
-/* Copyright (C) 2000 MySQL AB & MySQL Finland AB & TCX DataKonsult AB
-   
+/* Copyright (C) 2000 MySQL AB
+
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
    the Free Software Foundation; either version 2 of the License, or
    (at your option) any later version.
-   
+
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
    GNU General Public License for more details.
-   
+
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
-
 
 #define MYSQL_CLIENT
 #undef MYSQL_SERVER
@@ -198,12 +197,12 @@ static int parse_args(int *argc, char*** argv)
       use_remote = 1;
       host = my_strdup(optarg, MYF(0));
       break;
-      
+
     case 'P':
       use_remote = 1;
       port = atoi(optarg);
       break;
-      
+
     case 'p':
       use_remote = 1;
       pass = my_strdup(optarg, MYF(0));
@@ -269,13 +268,13 @@ static void dump_remote_table(NET* net, const char* db, const char* table)
   uint db_len = (uint) strlen(db);
   if(table_len + db_len > sizeof(buf) - 2)
     die("Buffer overrun");
-  
+
   *p++ = db_len;
   memcpy(p, db, db_len);
   p += db_len;
   *p++ = table_len;
   memcpy(p, table, table_len);
-  
+
   if(simple_command(mysql, COM_TABLE_DUMP, buf, p - buf + table_len, 1))
     die("Error sending the table dump command");
 
@@ -296,7 +295,7 @@ static int check_master_version(MYSQL* mysql)
   MYSQL_ROW row;
   const char* version;
   int old_format = 0;
-  
+
   if (mysql_query(mysql, "SELECT VERSION()")
       || !(res = mysql_store_result(mysql)))
   {
@@ -317,7 +316,7 @@ static int check_master_version(MYSQL* mysql)
     mysql_close(mysql);
     die("Master reported NULL for the version");
   }
-  
+
   switch (*version)
   {
   case '3':
@@ -345,7 +344,7 @@ static void dump_remote_log_entries(const char* logname)
   NET* net = &mysql->net;
   int old_format;
   old_format = check_master_version(mysql);
-  
+
   if(!position) position = 4; // protect the innocent from spam
   if (position < 4)
   {
@@ -360,7 +359,7 @@ static void dump_remote_log_entries(const char* logname)
   memcpy(buf + 10, logname,len);
   if (simple_command(mysql, COM_BINLOG_DUMP, buf, len + 10, 1))
     die("Error sending the log dump command");
-  
+
   for(;;)
   {
     const char *error;
@@ -390,7 +389,7 @@ static int check_header (IO_CACHE* file)
 {
   char buf[PROBE_HEADER_LEN];
   int old_format;
-  
+
   my_off_t pos = my_b_tell(file);
   my_b_seek(file, (my_off_t)0);
   if (my_b_read(file, buf, sizeof(buf)))
@@ -454,7 +453,7 @@ static void dump_local_log_entries(const char* logname)
     if(memcmp(magic, BINLOG_MAGIC, 4))
       die("Bad magic number;  The file is probably not a MySQL binary log");
   }
- 
+
   for (;;)
   {
     char llbuff[21];

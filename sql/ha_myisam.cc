@@ -426,7 +426,7 @@ int ha_myisam::backup(THD* thd, HA_CHECK_OPT *check_opt)
     error = HA_ADMIN_INVALID;
     goto err;
   }
-  
+
   if (my_copy(fn_format(src_path, table->path,"", reg_ext, MY_UNPACK_FILENAME),
 	      dst_path,
 	      MYF(MY_WME | MY_HOLD_ORIGINAL_MODES)))
@@ -883,7 +883,7 @@ void ha_myisam::info(uint flag)
     raid_type=info.raid_type;
     raid_chunks=info.raid_chunks;
     raid_chunksize=info.raid_chunksize;
-    
+
    /*
      Set data_file_name and index_file_name to point at the symlink value
      if table is symlinked (Ie;  Real name is not same as generated name)
@@ -1214,4 +1214,3 @@ int ha_myisam::ft_read(byte * buf)
   table->status=error ? STATUS_NOT_FOUND: 0;
   return error;
 }
-

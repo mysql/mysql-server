@@ -533,7 +533,7 @@ static int set_exec_param(struct manager_thd* thd, char* args_start,
   char* arg_p;
   char* param;
   int param_size;
-  
+
   if ((num_args=tokenize_args(args_start,&args_end))<2)
   {
     error="Too few arguments";
@@ -722,7 +722,7 @@ HANDLE_DECL(handle_query)
     pthread_mutex_unlock(&e->lock);
     goto err;
   }
-  
+
   if (mysql_query(&e->mysql,query))
   {
     error=mysql_error(&e->mysql);
@@ -743,7 +743,7 @@ HANDLE_DECL(handle_query)
     }
     *p=0;
     client_msg_pre(&thd->net,MANAGER_OK,buf);
-    
+
     while ((row=mysql_fetch_row(res)))
     {
       p=buf;
@@ -840,10 +840,10 @@ static void manager_exec_connect(struct manager_exec* e)
 {
   int i;
   int connect_retries;
-  
+
   if (!(connect_retries=e->start_wait_timeout))
     connect_retries=manager_connect_retries;
-  
+
   for (i=0;i<connect_retries;i++)
   {
     if (mysql_real_connect(&e->mysql,e->con_host,e->con_user,e->con_pass,0,
@@ -915,7 +915,7 @@ static void manager_exec_print(NET* net,struct manager_exec* e)
   char buf[MAX_MYSQL_MANAGER_MSG];
   char* p=buf,*buf_end=buf+sizeof(buf)-1;
   char** args=e->args;
-  
+
   p=arg_strmov(p,e->ident,(int)(buf_end-p)-1);
   *p++='\t';
   if (p>buf_end-15)
@@ -924,7 +924,7 @@ static void manager_exec_print(NET* net,struct manager_exec* e)
   *p++='\t';
   p=int10_to_str(e->exit_code,p,10);
   *p++='\t';
-  
+
   p=arg_strmov(p,e->con_user,(int)(buf_end-p)-1);
   *p++='@';
   if (p==buf_end)
@@ -950,7 +950,7 @@ static void manager_exec_print(NET* net,struct manager_exec* e)
   if (p==buf_end-1)
     goto end;
   *p++='\t';
-  
+
   for(;p<buf_end && *args;args++)
   {
     p=arg_strmov(p,*args,(int)(buf_end-p)-1);
@@ -969,7 +969,7 @@ static int authenticate(struct manager_thd* thd)
   uchar digest[MD5_LEN];
   struct manager_user* u;
   char c;
-  
+
   client_msg(&thd->net,MANAGER_INFO, manager_greeting);
   if (!(buf_end=read_line(thd)))
     return -1;
@@ -990,7 +990,7 @@ static int authenticate(struct manager_thd* thd)
 					    (uint)(p-thd->user))))
     return 1;
   for (;isspace(*buf) && buf<buf_end;buf++) /* empty */;
-  
+
   my_MD5Init(&context);
   my_MD5Update(&context,(uchar*) buf,(uint)(buf_end-buf));
   my_MD5Final(digest,&context);
@@ -1155,7 +1155,7 @@ static int client_msg_raw(NET* net, int err_code, int pre, const char* fmt,
     p=buf_end - 2;
   *p++='\r';
   *p++='\n';
-  
+
   if (my_net_write(net,buf,(uint)(p-buf)) || net_flush(net))
   {
     p[-2]=0;
@@ -1198,7 +1198,7 @@ static char* read_line(struct manager_thd* thd)
       *p=0;
       break;
     }
-  
+
   return p;
 }
 
@@ -1206,7 +1206,7 @@ static void handle_child(int __attribute__((unused)) sig)
 {
   pid_t child;
   int child_status;
-  
+
   for(;(child=waitpid(-1,&child_status,WNOHANG))>0;)
   {
     char msg_buf[1+sizeof(int)+sizeof(int)];
@@ -1642,7 +1642,7 @@ static struct manager_user* manager_user_new(char* buf)
   {
     *p=hex_val(*buf)*16+hex_val(buf[1]);
   }
-  
+
   return tmp;
 }
 
@@ -1741,7 +1741,7 @@ static void run_launcher_loop()
     pid_t pid;
     char* exec_path,*ident,*stdout_path,*stderr_path;
     char** args=0;
-    
+
     if (my_read(to_launcher_pipe[0],(byte*)&req_len,
 		sizeof(int),MYF(MY_NABP|MY_FULL_IO)) ||
 	my_read(to_launcher_pipe[0],(byte*)&num_args,
@@ -1768,7 +1768,7 @@ stdout_path=%s,stderr_path=%s",
 	      num_args,
 	      req_len,ident,ident_len,exec_path,stdout_path,stderr_path);
     init_arg_array(exec_path,args,num_args-1);    
-        
+
     switch ((pid=fork()))
     {
     case -1:
@@ -1856,12 +1856,3 @@ int main(int argc, char** argv)
   else
     return daemonize();
 }
-
-
-
-
-
-
-
-
-

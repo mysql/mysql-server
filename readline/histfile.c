@@ -92,7 +92,7 @@ history_filename (filename)
 
   if (return_val)
     return (return_val);
-  
+
   home = get_env_value ("HOME");
 
   if (home == 0)

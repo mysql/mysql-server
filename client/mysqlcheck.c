@@ -1,4 +1,4 @@
-/* Copyright (C) 2000 MySQL AB & MySQL Finland AB & TCX DataKonsult AB
+/* Copyright (C) 2000 MySQL AB
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -198,7 +198,7 @@ printf("\
   print_defaults("my", load_default_groups);
 } /* usage */
 
- 
+
 static int get_options(int *argc, char ***argv)
 {
   int c, option_index;
@@ -412,7 +412,7 @@ static int process_selected_tables(char *db, char **table_names, int tables)
 
     for (i = 0; i < tables; i++)
       tot_length += strlen(*(table_names + i)) + 1;
-    
+
     if (!(table_names_comma_sep = (char *)
 	  my_malloc((sizeof(char) * tot_length) + 1, MYF(MY_WME))))
       return 1;
@@ -445,7 +445,7 @@ static int process_all_tables_in_db(char *database)
   if (!(mysql_query(sock, "SHOW TABLES") ||
 	(res = mysql_store_result(sock))))
     return 1;
-  
+
   if (opt_all_in_1)
   {
     char *tables, *end;
@@ -454,7 +454,7 @@ static int process_all_tables_in_db(char *database)
     while ((row = mysql_fetch_row(res)))
       tot_length += strlen(row[0]) + 1;
     mysql_data_seek(res, 0);
-    
+
     if (!(tables=(char *) my_malloc(sizeof(char)*tot_length+1, MYF(MY_WME))))
     {
       mysql_free_result(res);

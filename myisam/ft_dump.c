@@ -66,7 +66,7 @@ int main(int argc,char *argv[])
     printf("Key %d in table %s is not a FULLTEXT key\n", inx, info->filename);
     goto err;
   }
-  
+
   if (query)
   {
 #if 0
@@ -230,4 +230,3 @@ static void complain(int val) /* Kinda assert :-)  */
     exit(1);
   }
 }
-
