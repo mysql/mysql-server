@@ -4128,6 +4128,8 @@ return_zero_rows(JOIN *join, select_result *result,TABLE_LIST *tables,
     DBUG_RETURN(0);
   }
 
+  join->join_free(0);
+
   if (send_row)
   {
     for (TABLE_LIST *table=tables; table ; table=table->next)
