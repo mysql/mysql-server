@@ -111,7 +111,8 @@ static void check_unused(void)
 #define check_unused()
 #endif
 
-int list_open_tables(THD *thd,List<char> *tables, const char *db,const char *wild)
+int list_open_tables(THD *thd,List<char> *tables, const char *db,
+		     const char *wild)
 {
   int result = 0;
   uint col_access=thd->col_access;
@@ -940,23 +941,27 @@ bool reopen_table(TABLE *table,bool locked)
     goto end;
   }
 
-  tmp.key_length=table->key_length;
-  tmp.in_use=table->in_use;
-  tmp.used_keys=tmp.keys_in_use;
-  tmp.reginfo.lock_type=table->reginfo.lock_type;
-  tmp.version=refresh_version;
-  tmp.next=table->next;
-  tmp.prev=table->prev;
-
-  /* This list copies varibles set by open_table */
+  /* This list copies variables set by open_table */
   tmp.tablenr=		table->tablenr;
-  tmp.tmp_table=	table->tmp_table;
   tmp.used_fields=	table->used_fields;
   tmp.const_table=	table->const_table;
   tmp.outer_join=	table->outer_join;
   tmp.null_row=		table->null_row;
+  tmp.maybe_null=	table->maybe_null;
   tmp.status=		table->status;
+  tmp.keys_in_use_for_query=tmp.used_keys=tmp.keys_in_use;
+
+  /* Get state */
+  tmp.key_length=	table->key_length;
+  tmp.in_use=    	table->in_use;
+  tmp.reginfo.lock_type=table->reginfo.lock_type;
+  tmp.version=		refresh_version;
+  tmp.tmp_table=	table->tmp_table;
   tmp.grant=		table->grant;
+
+  /* Replace table in open list */
+  tmp.next=table->next;
+  tmp.prev=table->prev;
 
   if (table->file)
     VOID(closefrm(table));		// close file, free everything

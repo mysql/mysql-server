@@ -271,6 +271,8 @@ ulong max_connections,max_insert_delayed_threads,max_used_connections,
       max_connect_errors, max_user_connections = 0;
 ulong thread_id=1L,current_pid;
 ulong slow_launch_threads = 0;
+ulong myisam_max_sort_file_size, myisam_max_extra_sort_file_size;
+  
 char mysql_real_data_home[FN_REFLEN],
      mysql_data_home[2],language[LIBLEN],reg_ext[FN_EXTLEN],
      default_charset[LIBLEN],mysql_charsets_dir[FN_REFLEN], *charsets_list,
@@ -584,7 +586,6 @@ static void __cdecl kill_server(int sig_ptr)
   my_thread_init();				// If this is a new thread
 #endif
   close_connections();
-  sql_print_error(ER(ER_SHUTDOWN_COMPLETE),my_progname);
   if (sig != MYSQL_KILL_SIGNAL && sig != 0)
     unireg_abort(1);				/* purecov: inspected */
   else
@@ -634,7 +635,7 @@ void unireg_abort(int exit_code)
 }
 
 
-void clean_up(void)
+void clean_up(bool print_message)
 {
   DBUG_PRINT("exit",("clean_up"));
   if (cleanup_done++)
@@ -655,17 +656,19 @@ void clean_up(void)
 #ifdef USE_RAID
   end_raid();
 #endif
-  x_free((gptr) my_errmsg[ERRMAPP]);	/* Free messages */
   free_defaults(defaults_argv);
   my_free(mysql_tmpdir,MYF(0));
   x_free(opt_bin_logname);
   bitmap_free(&temp_pool);
   free_max_user_conn();
+  end_slave();
 #ifndef __WIN__
   if (!opt_bootstrap)
     (void) my_delete(pidfile_name,MYF(0));	// This may not always exist
 #endif
-  end_slave();
+  if (print_message)
+    sql_print_error(ER(ER_SHUTDOWN_COMPLETE),my_progname);
+  x_free((gptr) my_errmsg[ERRMAPP]);	/* Free messages */
   my_thread_end();
 
   /* Tell main we are ready */
@@ -1214,6 +1217,7 @@ help in finding out why mysqld died.\n",sig);
 #if defined(HAVE_LINUXTHREADS)
 #ifdef __i386__
   trace_stack();
+  fflush(stderr);
 #endif /* __i386__ */
  if (test_flags & TEST_CORE_ON_SIGNAL)
    write_core(sig);
@@ -1245,11 +1249,7 @@ static void init_signals(void)
   sigprocmask(SIG_SETMASK,&sa.sa_mask,NULL);
   if (!(test_flags & TEST_NO_STACKTRACE))
   {
-#ifdef HAVE_DARWIN_THREADS
-    sa.sa_handler=( void (*)() ) handle_segfault;
-#else
     sa.sa_handler=handle_segfault;
-#endif
     sigaction(SIGSEGV, &sa, NULL);
 #ifdef SIGBUS
     sigaction(SIGBUS, &sa, NULL);
@@ -1697,6 +1697,10 @@ int main(int argc, char **argv)
   randominit(&sql_rand,(ulong) start_time,(ulong) start_time/2);
   reset_floating_point_exceptions();
   init_thr_lock();
+
+  /* Fix varibles that are base 1024*1024 */
+  myisam_max_temp_length= (my_off_t) min(((ulonglong) myisam_max_sort_file_size)*1024*1024, (ulonglong) MAX_FILE_SIZE);
+  myisam_max_extra_temp_length= (my_off_t) min(((ulonglong) myisam_max_extra_sort_file_size)*1024*1024, (ulonglong) MAX_FILE_SIZE);
 
   /* Setup log files */
   if (opt_log)
@@ -2460,7 +2464,7 @@ enum options {
 	       OPT_GEMINI_SKIP, OPT_INNOBASE_SKIP,
                OPT_TEMP_POOL, OPT_TX_ISOLATION,
 	       OPT_GEMINI_FLUSH_LOG, OPT_GEMINI_RECOVER,
-               OPT_GEMINI_UNBUFFERED_IO
+               OPT_GEMINI_UNBUFFERED_IO, OPT_SKIP_SAFEMALLOC,
 };
 
 static struct option long_options[] = {
@@ -2583,6 +2587,7 @@ static struct option long_options[] = {
   {"skip-host-cache",       no_argument,       0, (int) OPT_SKIP_HOST_CACHE},
   {"skip-name-resolve",     no_argument,       0, (int) OPT_SKIP_RESOLVE},
   {"skip-new",              no_argument,       0, (int) OPT_SKIP_NEW},
+  {"skip-safemalloc",	    no_argument,       0, (int) OPT_SKIP_SAFEMALLOC},
   {"skip-show-database",    no_argument,       0, (int) OPT_SKIP_SHOW_DB},
   {"skip-slave-start",      no_argument,       0, (int) OPT_SKIP_SLAVE_START},
   {"skip-networking",       no_argument,       0, (int) OPT_SKIP_NETWORKING},
@@ -2705,6 +2710,11 @@ CHANGEABLE_VAR changeable_vars[] = {
       ~0L, 1, ~0L, 0, 1 },
   { "myisam_sort_buffer_size", (long*) &myisam_sort_buffer_size,
       8192*1024, 4, ~0L, 0, 1 },
+  { "myisam_max_extra_sort_file_size",
+    (long*) &myisam_max_extra_sort_file_size,
+    (long) (MI_MAX_TEMP_LENGTH/(1024L*1024L)), 0, ~0L, 0, 1 },
+  { "myisam_max_sort_file_size", (long*) &myisam_max_sort_file_size,
+    (long) (LONG_MAX/(1024L*1024L)), 0, ~0L, 0, 1 },
   { "net_buffer_length",       (long*) &net_buffer_length,
       16384, 1024, 1024*1024L, MALLOC_OVERHEAD, 1024 },
   { "net_retry_count",         (long*) &mysqld_net_retry_count,
@@ -2818,6 +2828,9 @@ struct show_var_st init_vars[]= {
   {"max_tmp_tables",          (char*) &max_tmp_tables,              SHOW_LONG},
   {"max_write_lock_count",    (char*) &max_write_lock_count,        SHOW_LONG},
   {"myisam_recover_options",  (char*) &myisam_recover_options_str,  SHOW_CHAR_PTR},
+  {"myisam_max_extra_sort_file_size", (char*) &myisam_max_extra_sort_file_size,
+   SHOW_LONG},
+  {"myisam_max_sort_file_size",(char*) &myisam_max_sort_file_size,  SHOW_LONG},
   {"myisam_sort_buffer_size", (char*) &myisam_sort_buffer_size,     SHOW_LONG},
   {"net_buffer_length",       (char*) &net_buffer_length,           SHOW_LONG},
   {"net_read_timeout",        (char*) &net_read_timeout,	    SHOW_LONG},
@@ -2950,6 +2963,10 @@ static void usage(void)
 #ifndef DBUG_OFF
   printf("\
   -#, --debug[=...]     Debug log. Default is '%s'\n",default_dbug_option);
+#ifdef SAFEMALLOC
+  puts("\
+  --skip-safemalloc     Don't use the memory allocation checking");
+#endif
 #endif
   puts("\
   --default-character-set=charset\n\
@@ -3042,7 +3059,7 @@ static void usage(void)
 #ifdef HAVE_GEMINI_DB
   puts("\
   --gemini-recovery=mode  Set Crash Recovery operating mode\n\
-                          (FULL, NONE, FORCE - default FULL)
+                          (FULL, NONE, FORCE - default FULL)\n\
   --gemini-flush-log-at-commit\n\
                           Every commit forces a write to the reovery log\n\
   --gemini-unbuffered-io  Use unbuffered i/o\n\
@@ -3051,13 +3068,13 @@ static void usage(void)
 #endif
 #ifdef HAVE_INNOBASE_DB
   puts("\
-  --innobase_data_home_dir=dir   The common part for innobase table spaces\n
-  --innobase_data_file_path=dir  Path to individual files and their sizes\n
-  --innobase_flush_log_at_trx_commit[=#]
+  --innobase_data_home_dir=dir   The common part for innobase table spaces\n\
+  --innobase_data_file_path=dir  Path to individual files and their sizes\n\
+  --innobase_flush_log_at_trx_commit[=#]\n\
 				 Set to 0 if you don't want to flush logs\n\
   --innobase_log_arch_dir=dir	 Where full logs should be archived\n\
   --innobase_log_archive[=#]	 Set to 1 if you want to have logs archived\n\
-  --innobase_log_group_home_dir=dir  Path to Innobase log files.
+  --innobase_log_group_home_dir=dir  Path to Innobase log files.\n\
   --skip-innobase	         Don't use innobase (will save memory)\n\
 ");
 #endif /* HAVE_INNOBASE_DB */
@@ -3677,10 +3694,14 @@ static void get_options(int argc,char **argv)
     case OPT_MASTER_CONNECT_RETRY:
       master_connect_retry= atoi(optarg);
       break;
-    case (int) OPT_SAFE_SHOW_DB:
+    case OPT_SAFE_SHOW_DB:
       opt_safe_show_db=1;
       break;
-
+    case OPT_SKIP_SAFEMALLOC:
+#ifdef SAFEMALLOC
+      sf_malloc_quick=1;
+#endif
+      break;
     default:
       fprintf(stderr,"%s: Unrecognized option: %c\n",my_progname,c);
       use_help();

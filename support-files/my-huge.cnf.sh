@@ -47,9 +47,9 @@ server-id	= 1
 #set-variable	= bdb_max_lock=100000
 
 # Uncomment the following if you are using Innobase tables
-#innobase_data_home_dir = @datadir@
-#innobase_log_group_home_dir = @datadir@
-#innobase_log_arch_dir = @datadir@
+#innobase_data_home_dir = @localstatedir@/
+#innobase_log_group_home_dir = @localstatedir@/
+#innobase_log_arch_dir = @localstatedir@/
 #innobase_data_file_path = ibdata1:25M;ibdata2:37M;ibdata3:100M;ibdata4:300M
 #set-variable = innobase_mirrored_log_groups=1
 #set-variable = innobase_log_files_in_group=3
