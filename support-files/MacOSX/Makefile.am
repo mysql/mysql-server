@@ -17,19 +17,34 @@
 
 ## Process this file with automake to create Makefile.in
 
-EXTRA_DIST =	Info.plist.sh Description.plist.sh
+EXTRA_DIST =	Info.plist.sh \
+		Description.plist.sh \
+		StartupParameters.plist.sh \
+		postinstall.sh \
+		preinstall.sh \
+		ReadMe.txt
 
-pkgdata_DATA =	Info.plist Description.plist
+pkgdata_DATA =	Info.plist \
+		Description.plist \
+		StartupParameters.plist \
+		postinstall \
+		preinstall
 
-CLEANFILES =	Info.plist Description.plist
+CLEANFILES =	Info.plist \
+		Description.plist \
+		StartupParameters.plist \
+		postinstall \
+		preinstall
 
 SUFFIXES = .sh
 
 .sh:
 	@RM@ -f $@ $@-t
 	@SED@ \
+		-e 's!@''prefix''@!$(prefix)!g' \
 	  -e 's!@''VERSION''@!@VERSION@!' \
 	  -e 's!@''MYSQL_SERVER_SUFFIX''@!@MYSQL_SERVER_SUFFIX@!' \
+		-e 's!@''MYSQLD_USER''@!@MYSQLD_USER@!' \
 	$< > $@-t
 	@MV@ $@-t $@
 
