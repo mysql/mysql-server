@@ -532,7 +532,7 @@ int decimal2longlong(decimal *from, longlong *to)
 {
   dec1 *buf=from->buf;
   longlong x=0;
-  int intg;
+  int intg, frac;
 
   for (intg=from->intg; intg > 0; intg-=DIG_PER_DEC1)
   {
@@ -540,11 +540,11 @@ int decimal2longlong(decimal *from, longlong *to)
     /*
       Attention: trick!
       we're calculating -|from| instead of |from| here
-      because |MIN_LONGLONG| > MAX_LONGLONG
+      because |LONGLONG_MIN| > LONGLONG_MAX
       so we can convert -9223372036854775808 correctly
     */
     x=x*DIG_BASE - *buf++;
-    if (unlikely(x > y))
+    if (unlikely(y < (LONGLONG_MAX/DIG_BASE) || x > y))
     {
       *to= from->sign ? y : -y;
       return E_DEC_OVERFLOW;
@@ -558,7 +558,10 @@ int decimal2longlong(decimal *from, longlong *to)
   }
 
   *to=from->sign ? x : -x;
-  return from->frac ? E_DEC_TRUNCATED : E_DEC_OK;
+  for (frac=from->frac; unlikely(frac > 0); frac-=DIG_PER_DEC1)
+    if (*buf++)
+      return E_DEC_TRUNCATED;
+  return E_DEC_OK;
 }
 
 /*
