@@ -46,7 +46,7 @@ select_test_DEPENDENCIES=	$(LIBRARIES) $(pkglib_LTLIBRARIES)
 DEFS =			-DUNDEF_THREADS_HACK
 
 thread_test.o:		thread_test.c
-			$(COMPILE) -c @MT_INCLUDES@ $(INCLUDES) $<
+			$(COMPILE) -c $(INCLUDES) $<
 
 # Don't update the files from bitkeeper
 %::SCCS/s.%

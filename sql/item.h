@@ -790,6 +790,17 @@ public:
   Item *safe_charset_converter(CHARSET_INFO *tocs);
 };
 
+class Item_null_result :public Item_null
+{
+public:
+  Field *result_field;
+  Item_null_result() : Item_null(), result_field(0) {}
+  bool is_result_field() { return result_field != 0; }
+  void save_in_result_field(bool no_conversions)
+  {
+    save_in_field(result_field, no_conversions);
+  }
+};  
 
 /* Item represents one placeholder ('?') of prepared statement */
 
@@ -1274,12 +1285,12 @@ public:
   void save_org_in_field(Field *field)	{ (*ref)->save_org_in_field(field); }
   enum Item_result result_type () const { return (*ref)->result_type(); }
   enum_field_types field_type() const   { return (*ref)->field_type(); }
+  Field *get_tmp_table_field() { return result_field; }
   table_map used_tables() const		
   { 
     return depended_from ? OUTER_REF_TABLE_BIT : (*ref)->used_tables(); 
   }
   void set_result_field(Field *field)	{ result_field= field; }
-  Field *get_tmp_table_field() { return result_field; }
   bool is_result_field() { return 1; }
   void save_in_result_field(bool no_conversions)
   {

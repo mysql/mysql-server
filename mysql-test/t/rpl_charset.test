@@ -107,7 +107,7 @@ connection master;
 drop database mysqltest2;
 drop database mysqltest3;
 --replace_column 2 # 5 #
-show binlog events from 96;
+show binlog events from 98;
 sync_slave_with_master;
 
 # Check that we can change global.collation_server (since 5.0.3)

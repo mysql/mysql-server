@@ -37,8 +37,7 @@ select * from information_schema.STATISTICS where TABLE_SCHEMA = "testtets";
 show keys from t3 where Key_name = "a_data";
 
 show tables like 't%';
---replace_column 12 # 13 #
---replace_result "2147483647	" "21474836479	"
+--replace_column 8 # 12 # 13 #
 show table status;
 show full columns from t3 like "a%";
 show full columns from mysql.db like "Insert%";

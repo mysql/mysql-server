@@ -4144,7 +4144,8 @@ static my_bool is_binary_compatible(enum enum_field_types type1,
     range4[]= { MYSQL_TYPE_ENUM, MYSQL_TYPE_SET, MYSQL_TYPE_TINY_BLOB,
                 MYSQL_TYPE_MEDIUM_BLOB, MYSQL_TYPE_LONG_BLOB, MYSQL_TYPE_BLOB,
                 MYSQL_TYPE_VAR_STRING, MYSQL_TYPE_STRING, MYSQL_TYPE_GEOMETRY,
-                MYSQL_TYPE_DECIMAL, MYSQL_TYPE_NULL },
+                MYSQL_TYPE_DECIMAL, MYSQL_TYPE_NULL };
+  static const enum enum_field_types
    *range_list[]= { range1, range2, range3, range4 },
    **range_list_end= range_list + sizeof(range_list)/sizeof(*range_list);
    const enum enum_field_types **range, *type;

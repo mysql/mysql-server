@@ -110,14 +110,14 @@ static char *init_syms(udf_func *tmp, char *nm)
   */
   if (!tmp->func_init && !tmp->func_deinit && tmp->type != UDFTYPE_AGGREGATE)
   {
-    if (opt_allow_suspicious_udfs)
-      sql_print_error(ER(ER_CANT_FIND_DL_ENTRY), nm);
-    else
+    if (!opt_allow_suspicious_udfs)
       return nm;
+    if (current_thd->variables.log_warnings)
+      sql_print_warning(ER(ER_CANT_FIND_DL_ENTRY), nm);
   }
-
   return 0;
 }
+
 
 extern "C" byte* get_hash_key(const byte *buff,uint *length,
 			      my_bool not_used __attribute__((unused)))
@@ -127,9 +127,10 @@ extern "C" byte* get_hash_key(const byte *buff,uint *length,
   return (byte*) udf->name.str;
 }
 
+
 /*
-** Read all predeclared functions from mysql.func and accept all that
-** can be used.
+  Read all predeclared functions from mysql.func and accept all that
+  can be used.
 */
 
 void udf_init()
