@@ -322,29 +322,6 @@ typedef struct st_io_cache_share
   my_bool alloced;
 #endif
 } IO_CACHE_SHARE;
-
-#define lock_io_cache(info)                                              \
-  (                                                                      \
-    (errno=pthread_mutex_lock(&((info)->share->mutex))) ? -1 : (         \
-      (info)->share->count ? (                                           \
-        --((info)->share->count),                                        \
-        pthread_cond_wait(&((info)->share->cond),                        \
-                          &((info)->share->mutex)),                      \
-        (++((info)->share->count) ?                                      \
-          pthread_mutex_unlock(&((info)->share->mutex)) : 0))            \
-        : 1 )                                                            \
-  )
-
-#define unlock_io_cache(info)                                            \
-  (                                                                      \
-    pthread_cond_broadcast(&((info)->share->cond)),                      \
-    pthread_mutex_unlock  (&((info)->share->mutex))                      \
-  )
-/* -- to catch errors
-#else
-#define lock_io_cache(info)
-#define unlock_io_cache(info)
-*/
 #endif
 
 typedef struct st_io_cache		/* Used when cacheing files */
@@ -686,9 +663,11 @@ extern my_bool reinit_io_cache(IO_CACHE *info,enum cache_type type,
 extern int _my_b_read(IO_CACHE *info,byte *Buffer,uint Count);
 #ifdef THREAD
 extern int _my_b_read_r(IO_CACHE *info,byte *Buffer,uint Count);
-extern int init_io_cache_share(IO_CACHE *info,
-                             IO_CACHE_SHARE *s, uint num_threads);
-extern int remove_io_thread(IO_CACHE *info);
+extern void init_io_cache_share(IO_CACHE *info,
+				IO_CACHE_SHARE *s, uint num_threads);
+extern void remove_io_thread(IO_CACHE *info);
+int lock_io_cache(IO_CACHE *);
+void unlock_io_cache(IO_CACHE *);
 #endif
 extern int _my_b_seq_read(IO_CACHE *info,byte *Buffer,uint Count);
 extern int _my_b_net_read(IO_CACHE *info,byte *Buffer,uint Count);
