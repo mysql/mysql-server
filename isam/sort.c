@@ -122,7 +122,10 @@ uint	  sortbuff_size;
 					  MYF(0))))
 	break;
       else
+      {
 	my_free((gptr) sort_keys,MYF(0));
+        sort_keys= 0;
+      }
     }
     old_memavl=memavl;
     if ((memavl=memavl/4*3) < MIN_SORT_MEMORY && old_memavl > MIN_SORT_MEMORY)

@@ -717,11 +717,7 @@ static int check_master_version(MYSQL* mysql)
 
   if (mysql_query(mysql, "SELECT VERSION()") ||
       !(res = mysql_store_result(mysql)))
-  {
-    mysql_close(mysql);
-    die("Error checking master version: %s",
-		    mysql_error(mysql));
-  }
+    die("Error checking master version: %s", mysql_error(mysql));
   if (!(row = mysql_fetch_row(res)))
   {
     mysql_free_result(res);

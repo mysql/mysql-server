@@ -1685,9 +1685,6 @@ void st_select_lex::print_order(String *str, ORDER *order)
 
 void st_select_lex::print_limit(THD *thd, String *str)
 {
-  if (!thd)
-    thd= current_thd;
-
   if (explicit_limit)
   {
     str->append(" limit ", 7);

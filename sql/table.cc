@@ -99,11 +99,11 @@ int openfrm(const char *name, const char *alias, uint db_stat, uint prgflag,
   *root_ptr= &outparam->mem_root;
 
   outparam->real_name=strdup_root(&outparam->mem_root,
-				  name+dirname_length(name));
-  *fn_ext(outparam->real_name)='\0';		// Remove extension
+                                  name+dirname_length(name));
   outparam->table_name=my_strdup(alias,MYF(MY_WME));
   if (!outparam->real_name || !outparam->table_name)
     goto err_end;
+  *fn_ext(outparam->real_name)='\0';		// Remove extension
 
   if ((file=my_open(fn_format(index_file,name,"",reg_ext,MY_UNPACK_FILENAME),
 		    O_RDONLY | O_SHARE,
@@ -305,12 +305,14 @@ int openfrm(const char *name, const char *alias, uint db_stat, uint prgflag,
 
   VOID(my_seek(file,pos,MY_SEEK_SET,MYF(0)));
   if (my_read(file,(byte*) head,288,MYF(MY_NABP))) goto err_not_open;
+#ifdef HAVE_CRYPTED_FRM
   if (crypted)
   {
     crypted->decode((char*) head+256,288-256);
     if (sint2korr(head+284) != 0)		// Should be 0
       goto err_not_open;			// Wrong password
   }
+#endif
 
   outparam->fields= uint2korr(head+258);
   pos=uint2korr(head+260);			/* Length of all screens */
@@ -339,12 +341,14 @@ int openfrm(const char *name, const char *alias, uint db_stat, uint prgflag,
 		      pos+ (uint) (n_length+int_length+com_length));
   if (read_string(file,(gptr*) &disk_buff,read_length))
     goto err_not_open; /* purecov: inspected */
+#ifdef HAVE_CRYPTED_FRM
   if (crypted)
   {
     crypted->decode((char*) disk_buff,read_length);
     delete crypted;
     crypted=0;
   }
+#endif
   strpos= disk_buff+pos;
 
   outparam->intervals= (TYPELIB*) (field_ptr+outparam->fields+1);
@@ -1453,7 +1457,7 @@ bool check_column_name(const char *name)
 {
   const char *start= name;
   bool last_char_is_space= TRUE;
-  
+
   while (*name)
   {
 #if defined(USE_MB) && defined(USE_MB_IDENT)
