@@ -1810,16 +1810,14 @@ mysql_execute_command(void)
     DBUG_VOID_RETURN;
 #else
     {
-      char *db=tables->db ? tables->db : thd->db;
-      if (!db)
+      char *db=tables->db;
+      if (!*db)
       {
 	send_error(&thd->net,ER_NO_DB_ERROR);	/* purecov: inspected */
 	goto error;				/* purecov: inspected */
       }
       remove_escape(db);			// Fix escaped '_'
       remove_escape(tables->name);
-      if (!tables->db)
-	tables->db=thd->db;
       if (check_access(thd,SELECT_ACL | EXTRA_ACL,db,&thd->col_access))
 	goto error;				/* purecov: inspected */
       tables->grant.privilege=thd->col_access;
@@ -1837,7 +1835,7 @@ mysql_execute_command(void)
     DBUG_VOID_RETURN;
 #else
     {
-      char *db=tables->db ? tables->db : thd->db;
+      char *db=tables->db;
       if (!db)
       {
 	send_error(&thd->net,ER_NO_DB_ERROR);	/* purecov: inspected */
@@ -2178,7 +2176,7 @@ check_access(THD *thd,uint want_access,const char *db, uint *save_priv,
   else
     save_priv= &dummy;
 
-  if (!db && !thd->db && !dont_check_global_grants)
+  if (!db[0] && !thd->db && !dont_check_global_grants)
   {
     send_error(&thd->net,ER_NO_DB_ERROR);	/* purecov: tested */
     return TRUE;				/* purecov: tested */
@@ -2725,6 +2723,8 @@ add_proc_to_list(Item *item)
 
 static void remove_escape(char *name)
 {
+  if (!*name)					// For empty DB names
+    return;
   char *to;
 #ifdef USE_MB
   char *strend=name+(uint) strlen(name);
