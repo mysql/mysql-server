@@ -8,7 +8,7 @@ create temporary table t1 (a int, b int);
 create view v1 (c) as select b+1 from t1;
 ERROR HY000: View's SELECT contains a temporary table 't1'
 drop table t1;
-create table t1 (a int, b int);
+create table t1 (a int, b int) max_rows=1000000;
 insert into t1 values (1,2), (1,3), (2,4), (2,5), (3,10);
 create view v1 (c,d) as select a,b+@@global.max_user_connections from t1;
 ERROR HY000: View's SELECT contains a variable or parameter
@@ -149,7 +149,7 @@ v5	VIEW
 v6	VIEW
 show table status;
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
-t1	MyISAM	9	Fixed	5	9	45	38654705663	1024	0	NULL	#	#	NULL	latin1_swedish_ci	NULL		
+t1	MyISAM	9	Fixed	5	9	45	150994943	1024	0	NULL	#	#	NULL	latin1_swedish_ci	NULL	max_rows=1000000	
 v1	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	#	#	NULL	NULL	NULL	NULL	view
 v2	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	#	#	NULL	NULL	NULL	NULL	view
 v3	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	#	#	NULL	NULL	NULL	NULL	view
