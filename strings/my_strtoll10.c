@@ -15,6 +15,7 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 #include <my_global.h>
+#include <my_sys.h>
 #include <m_string.h>
 
 #define ULONGLONG_MAX		(~(ulonglong) 0)
