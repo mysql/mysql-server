@@ -21,6 +21,7 @@
 #include "sql_acl.h"
 #include "sp_head.h"
 #include "sql_trigger.h"
+#include "sql_select.h"
 
 static int check_null_fields(THD *thd,TABLE *entry);
 #ifndef EMBEDDED_LIBRARY
@@ -31,6 +32,7 @@ static void end_delayed_insert(THD *thd);
 extern "C" pthread_handler_decl(handle_delayed_insert,arg);
 static void unlink_blobs(register TABLE *table);
 #endif
+static bool check_view_insertability(TABLE_LIST *view, ulong query_id);
 
 /* Define to force use of my_malloc() if the allocated memory block is big */
 
@@ -54,8 +56,22 @@ check_insert_fields(THD *thd, TABLE_LIST *table_list, List<Item> &fields,
 {
   TABLE *table= table_list->table;
 
+  if (!table_list->updatable)
+  {
+    my_error(ER_NON_UPDATABLE_TABLE, MYF(0), table_list->alias, "INSERT");
+    return -1;
+  }
+
   if (fields.elements == 0 && values.elements != 0)
   {
+    if (!table)
+    {
+      DBUG_ASSERT(table_list->view &&
+                  table_list->ancestor && table_list->ancestor->next_local);
+      my_error(ER_VIEW_NO_INSERT_FIELD_LIST, MYF(0),
+               table_list->view_db.str, table_list->view_name.str);
+      return -1;
+    }
     if (values.elements != table->fields)
     {
       my_error(ER_WRONG_VALUE_COUNT_ON_ROW, MYF(0), counter);
@@ -93,6 +109,23 @@ check_insert_fields(THD *thd, TABLE_LIST *table_list, List<Item> &fields,
     thd->lex->select_lex.no_wrap_view_item= 0;
     if (res)
       return -1;
+    if (table == 0)
+    {
+      /* it is join view => we need to find table for update */
+      List_iterator_fast<Item> it(fields);
+      Item *item;
+      TABLE_LIST *tbl= 0;
+      table_map map= 0;
+      while (item= it++)
+        map|= item->used_tables();
+      if (table_list->check_single_table(&tbl, map) || tbl == 0)
+      {
+        my_error(ER_VIEW_MULTIUPDATE, MYF(0),
+                 table_list->view_db.str, table_list->view_name.str);
+        return -1;
+      }
+      table_list->table= table= tbl->table;
+    }
 
     if (check_unique && thd->dupp_field)
     {
@@ -107,6 +140,15 @@ check_insert_fields(THD *thd, TABLE_LIST *table_list, List<Item> &fields,
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   table->grant.want_privilege=(SELECT_ACL & ~table->grant.privilege);
 #endif
+
+  if (check_key_in_view(thd, table_list) ||
+      (table_list->view &&
+       check_view_insertability(table_list, thd->query_id)))
+  {
+    my_error(ER_NON_UPDATABLE_TABLE, MYF(0), table_list->alias, "INSERT");
+    return -1;
+  }
+
   return 0;
 }
 
@@ -131,7 +173,7 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
   ulong counter = 1;
   ulonglong id;
   COPY_INFO info;
-  TABLE *table;
+  TABLE *table= 0;
   List_iterator_fast<List_item> its(values_list);
   List_item *values;
 #ifndef EMBEDDED_LIBRARY
@@ -197,23 +239,23 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
   if (res || thd->is_fatal_error)
     DBUG_RETURN(TRUE);
 
-  table= table_list->table;
   thd->proc_info="init";
   thd->used_tables=0;
   values= its++;
 
-  if (duplic == DUP_UPDATE && !table->insert_values)
+  if (duplic == DUP_UPDATE)
   {
     /* it should be allocated before Item::fix_fields() */
-    table->insert_values=
-      (byte *)alloc_root(thd->mem_root, table->rec_buff_length);
-    if (!table->insert_values)
+    if (table_list->set_insert_values(thd->mem_root))
       goto abort;
   }
 
   if (mysql_prepare_insert(thd, table_list, table, fields, values,
 			   update_fields, update_values, duplic))
     goto abort;
+
+  /* mysql_prepare_insert set table_list->table if it was not set */
+  table= table_list->table;
 
   // is table which we are changing used somewhere in other parts of query
   value_count= values->elements;
@@ -464,7 +506,7 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
     ::send_ok(thd, (ulong) thd->row_count_func, id, buff);
   }
   free_underlaid_joins(thd, &thd->lex->select_lex);
-  table->insert_values=0;
+  table_list->clear_insert_values();
   thd->abort_on_warning= 0;
   DBUG_RETURN(FALSE);
 
@@ -474,7 +516,7 @@ abort:
     end_delayed_insert(thd);
 #endif
   free_underlaid_joins(thd, &thd->lex->select_lex);
-  table->insert_values=0;
+  table_list->clear_insert_values();
   thd->abort_on_warning= 0;
   DBUG_RETURN(TRUE);
 }
@@ -505,8 +547,9 @@ static bool check_view_insertability(TABLE_LIST *view, ulong query_id)
 {
   uint num= view->view->select_lex.item_list.elements;
   TABLE *table= view->table;
-  Item **trans_start= view->field_translation, **trans_end=trans_start+num;
-  Item **trans;
+  Field_translator *trans_start= view->field_translation,
+		   *trans_end= trans_start + num;
+  Field_translator *trans;
   Field **field_ptr= table->field;
   ulong other_query_id= query_id - 1;
   DBUG_ENTER("check_key_in_view");
@@ -519,19 +562,23 @@ static bool check_view_insertability(TABLE_LIST *view, ulong query_id)
   {
     Item_field *field;
     /* simple SELECT list entry (field without expression) */
-    if (!(field= (*trans)->filed_for_view_update()))
+    if (!(field= trans->item->filed_for_view_update()))
       DBUG_RETURN(TRUE);
     if (field->field->unireg_check == Field::NEXT_NUMBER)
       view->contain_auto_increment= 1;
     /* prepare unique test */
     field->field->query_id= other_query_id;
-    *trans= field; // remove collation if we have it
+    /*
+      remove collation (or other transparent for update function) if we have
+      it
+    */
+    trans->item= field;
   }
   /* unique test */
   for (trans= trans_start; trans != trans_end; trans++)
   {
     /* Thanks to test above, we know that all columns are of type Item_field */
-    Item_field *field= (Item_field *)(*trans);
+    Item_field *field= (Item_field *)trans->item;
     if (field->field->query_id == query_id)
       DBUG_RETURN(TRUE);
     field->field->query_id= query_id;
@@ -550,7 +597,7 @@ static bool check_view_insertability(TABLE_LIST *view, ulong query_id)
       {
         if (trans == trans_end)
           DBUG_RETURN(TRUE);                    // Field was not part of view
-        if (((Item_field *)(*trans))->field == *field_ptr)
+        if (((Item_field *)trans->item)->field == *field_ptr)
           break;                                // ok
       }
     }
@@ -565,39 +612,42 @@ static bool check_view_insertability(TABLE_LIST *view, ulong query_id)
   SYNOPSIS
      mysql_prepare_insert_check_table()
      thd		Thread handle
-     table_list		Table list (only one table)
+     table_list		Table list
      fields		List of fields to be updated
      where		Pointer to where clause
+     select_insert      Check is making for SELECT ... INSERT
 
    RETURN
-     0	ok
-     1  ERROR
+     FALSE ok
+     TRUE  ERROR
 */
 
 static bool mysql_prepare_insert_check_table(THD *thd, TABLE_LIST *table_list,
-                                             List<Item> &fields, COND **where)
+                                             List<Item> &fields, COND **where,
+                                             bool select_insert)
 {
   bool insert_into_view= (table_list->view != 0);
   DBUG_ENTER("mysql_prepare_insert_check_table");
 
-  if (setup_tables(thd, table_list, where))
-    DBUG_RETURN(1);
+  if (setup_tables(thd, table_list, where, &thd->lex->select_lex.leaf_tables,
+		   FALSE, select_insert))
+    DBUG_RETURN(TRUE);
 
   if (insert_into_view && !fields.elements)
   {
     thd->lex->empty_field_list_on_rset= 1;
-    insert_view_fields(&fields, table_list);
+    if (!table_list->table)
+    {
+      DBUG_ASSERT(table_list->view &&
+                  table_list->ancestor && table_list->ancestor->next_local);
+      my_error(ER_VIEW_NO_INSERT_FIELD_LIST, MYF(0),
+               table_list->view_db.str, table_list->view_name.str);
+      DBUG_RETURN(TRUE);
+    }
+    DBUG_RETURN(insert_view_fields(&fields, table_list));
   }
 
-  if (!table_list->updatable ||
-      check_key_in_view(thd, table_list) ||
-      (insert_into_view &&
-       check_view_insertability(table_list, thd->query_id)))
-  {
-    my_error(ER_NON_UPDATABLE_TABLE, MYF(0), table_list->alias, "INSERT");
-    DBUG_RETURN(1);
-  }
-  DBUG_RETURN(0);
+  DBUG_RETURN(FALSE);
 }
 
 
@@ -625,8 +675,12 @@ bool mysql_prepare_insert(THD *thd, TABLE_LIST *table_list, TABLE *table,
   bool res;
   DBUG_ENTER("mysql_prepare_insert");
 
-  if (mysql_prepare_insert_check_table(thd, table_list, fields, &unused_conds))
-    DBUG_RETURN(-1);
+  DBUG_PRINT("enter", ("table_list 0x%lx, table 0x%lx, view %d",
+		       (ulong)table_list, (ulong)table,
+		       (int)insert_into_view));
+  if (mysql_prepare_insert_check_table(thd, table_list, fields, &unused_conds,
+                                       FALSE))
+    DBUG_RETURN(TRUE);
 
   if (check_insert_fields(thd, table_list, fields, *values, 1,
                           !insert_into_view) ||
@@ -638,6 +692,9 @@ bool mysql_prepare_insert(THD *thd, TABLE_LIST *table_list, TABLE *table,
          res) ||
         setup_fields(thd, 0, table_list, update_values, 1, 0, 0))))
     DBUG_RETURN(TRUE);
+
+  if (!table)
+    table= table_list->table;
 
   if (unique_table(table_list, table_list->next_global))
   {
@@ -1654,6 +1711,10 @@ bool delayed_insert::handle_inserts(void)
 bool mysql_insert_select_prepare(THD *thd)
 {
   LEX *lex= thd->lex;
+  TABLE_LIST* first_select_table=
+    (TABLE_LIST*)lex->select_lex.table_list.first;
+  TABLE_LIST* first_select_leaf_table;
+  int res;
   DBUG_ENTER("mysql_insert_select_prepare");
   /*
     SELECT_LEX do not belong to INSERT statement, so we can't add WHERE
@@ -1662,8 +1723,30 @@ bool mysql_insert_select_prepare(THD *thd)
   lex->query_tables->no_where_clause= 1;
   if (mysql_prepare_insert_check_table(thd, lex->query_tables,
                                        lex->field_list,
-                                       &lex->select_lex.where))
+                                       &lex->select_lex.where,
+                                       TRUE))
     DBUG_RETURN(TRUE);
+  /*
+    setup was done in mysql_insert_select_prepare, but we have to mark
+    first local table
+  */
+  if (first_select_table)
+    first_select_table->setup_is_done= 1;
+  /*
+    exclude first table from leaf tables list, because it belong to
+    INSERT
+  */
+  DBUG_ASSERT(lex->select_lex.leaf_tables);
+  lex->leaf_tables_insert= lex->select_lex.leaf_tables;
+  /* skip all leaf tables belonged to view where we are insert */
+  for (first_select_leaf_table= lex->select_lex.leaf_tables->next_leaf;
+       first_select_leaf_table &&
+       first_select_leaf_table->belong_to_view &&
+       first_select_leaf_table->belong_to_view ==
+       lex->leaf_tables_insert->belong_to_view;
+       first_select_leaf_table= first_select_leaf_table->next_leaf)
+  {}
+  lex->select_lex.leaf_tables= first_select_leaf_table;
   DBUG_RETURN(FALSE);
 }
 
@@ -1692,6 +1775,23 @@ select_insert::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
   if (check_insert_fields(thd, table_list, *fields, values, 1,
                           !insert_into_view))
     DBUG_RETURN(1);
+  /*
+    if it is INSERT into join view then check_insert_fields already found
+    real table for insert
+  */
+  table= table_list->table;
+
+  /*
+    Is table which we are changing used somewhere in other parts of
+    query
+  */
+  if (!(thd->lex->current_select->options & OPTION_BUFFER_RESULT) &&
+      unique_table(table_list, table_list->next_global))
+  {
+    /* Using same table for INSERT and SELECT */
+    thd->lex->current_select->options|= OPTION_BUFFER_RESULT;
+    thd->lex->current_select->join->select_options|= OPTION_BUFFER_RESULT;
+  }
 
   restore_record(table,default_values);			// Get empty record
   table->next_number_field=table->found_next_number_field;

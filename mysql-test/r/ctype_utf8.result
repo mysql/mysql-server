@@ -814,3 +814,6 @@ t2	CREATE TABLE `t2` (
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop table t2;
 drop table t1;
+select 'c' like '\_' as want0;
+want0
+0

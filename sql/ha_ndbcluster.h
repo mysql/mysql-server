@@ -247,10 +247,12 @@ class ha_ndbcluster: public handler
   char *m_blobs_buffer;
   uint32 m_blobs_buffer_size;
   uint m_dupkey;
+  // set from thread variables at external lock
   bool m_ha_not_exact_count;
   bool m_force_send;
   ha_rows m_autoincrement_prefetch;
   bool m_transaction_on;
+  bool m_use_local_query_cache;
 
   bool m_disable_multi_read;
   byte* m_multi_range_result_ptr;

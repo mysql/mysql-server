@@ -935,22 +935,45 @@ error:
     tables	list of tables queries
 
   RETURN VALUE
-    FALSE success
-    TRUE  error
+    0   success
+    2   convert to multi_update
+    1   error
 */
-static bool mysql_test_update(Prepared_statement *stmt,
+static int mysql_test_update(Prepared_statement *stmt,
                               TABLE_LIST *table_list)
 {
-  bool res;
+  int res;
   THD *thd= stmt->thd;
+  uint table_count= 0;
   SELECT_LEX *select= &stmt->lex->select_lex;
   DBUG_ENTER("mysql_test_update");
 
-  if ((res= update_precheck(thd, table_list)))
-    DBUG_RETURN(res);
+  if (update_precheck(thd, table_list))
+    DBUG_RETURN(1);
 
-  if (!(res=open_and_lock_tables(thd, table_list)))
+  if (!open_tables(thd, table_list, &table_count))
   {
+    if (table_list->ancestor && table_list->ancestor->next_local)
+    {
+      DBUG_ASSERT(table_list->view);
+      DBUG_PRINT("info", ("Switch to multi-update"));
+      /* pass counter value */
+      thd->lex->table_count= table_count;
+      /*
+	give correct value to multi_lock_option, because it will be used
+	in multiupdate
+      */
+      thd->lex->multi_lock_option= table_list->lock_type;
+      /* convert to multiupdate */
+      return 2;
+    }
+
+    if (lock_tables(thd, table_list, table_count) ||
+	mysql_handle_derived(thd->lex, &mysql_derived_prepare) ||
+	(thd->fill_derived_tables() &&
+	 mysql_handle_derived(thd->lex, &mysql_derived_filling)))
+      DBUG_RETURN(1);
+
     if (!(res= mysql_prepare_update(thd, table_list,
 				    &select->where,
 				    select->order_list.elements,
@@ -959,7 +982,7 @@ static bool mysql_test_update(Prepared_statement *stmt,
       thd->lex->select_lex.no_wrap_view_item= 1;
       if (setup_fields(thd, 0, table_list, select->item_list, 1, 0, 0))
       {
-        res= -1;
+        res= 1;
         thd->lex->select_lex.no_wrap_view_item= 0;
       }
       else
@@ -967,11 +990,13 @@ static bool mysql_test_update(Prepared_statement *stmt,
         thd->lex->select_lex.no_wrap_view_item= 0;
         if (setup_fields(thd, 0, table_list,
                          stmt->lex->value_list, 0, 0, 0))
-          res= -1;
+          res= 1;
       }
     }
     stmt->lex->unit.cleanup();
   }
+  else
+    res= 1;
   /* TODO: here we should send types of placeholders to the client. */ 
   DBUG_RETURN(res);
 }
@@ -1001,6 +1026,15 @@ static int mysql_test_delete(Prepared_statement *stmt,
 
   if (!open_and_lock_tables(thd, table_list))
   {
+    if (!table_list->table)
+    {
+      DBUG_ASSERT(table_list->view &&
+                  table_list->ancestor && table_list->ancestor->next_local);
+      my_error(ER_VIEW_DELETE_MERGE_VIEW, MYF(0),
+               table_list->view_db.str, table_list->view_name.str);
+      DBUG_RETURN(-1);
+    }
+
     mysql_prepare_delete(thd, table_list, &lex->select_lex.where);
     lex->unit.cleanup();
     DBUG_RETURN(FALSE);
@@ -1195,7 +1229,10 @@ static bool select_like_statement_test(Prepared_statement *stmt,
   LEX *lex= stmt->lex;
   bool res= 0;
 
-  if (tables && (res= open_and_lock_tables(thd, tables)))
+  /* check that tables was not opened during conversion from usual update */
+  if (tables &&
+      (!tables->table && !tables->view) &&
+      (res= open_and_lock_tables(thd, tables)))
     goto end;
 
   if (specific_prepare && (res= (*specific_prepare)(thd)))
@@ -1261,6 +1298,7 @@ static int mysql_test_create_table(Prepared_statement *stmt)
     mysql_test_multiupdate()
     stmt	prepared statemen handler
     tables	list of tables queries
+    converted   converted to multi-update from usual update
 
   RETURN VALUE
     FALSE success
@@ -1268,9 +1306,11 @@ static int mysql_test_create_table(Prepared_statement *stmt)
 */
 
 static bool mysql_test_multiupdate(Prepared_statement *stmt,
-				  TABLE_LIST *tables)
+				  TABLE_LIST *tables,
+                                  bool converted)
 {
-  if (multi_update_precheck(stmt->thd, tables))
+  /* if we switched from normal update, rights are checked */
+  if (!converted && multi_update_precheck(stmt->thd, tables))
     return TRUE;
   /*
     here we do not pass tables for opening, tables will be opened and locked
@@ -1304,7 +1344,19 @@ static int mysql_test_multidelete(Prepared_statement *stmt,
   uint fake_counter;
   if ((res= multi_delete_precheck(stmt->thd, tables, &fake_counter)))
     return res;
-  return select_like_statement_test(stmt, tables, &mysql_multi_delete_prepare);
+  if ((res= select_like_statement_test(stmt, tables,
+                                       &mysql_multi_delete_prepare)))
+    return res;
+  if (!tables->table)
+  {
+    DBUG_ASSERT(tables->view &&
+		tables->ancestor && tables->ancestor->next_local);
+    my_error(ER_VIEW_DELETE_MERGE_VIEW, MYF(0),
+	     tables->view_db.str, tables->view_name.str);
+    return -1;
+  }
+  return 0;
+
 }
 
 
@@ -1406,6 +1458,12 @@ static int check_prepared_statement(Prepared_statement *stmt,
 
   case SQLCOM_UPDATE:
     res= mysql_test_update(stmt, tables);
+    /* mysql_test_update return 2 if we need to switch to multi-update */
+    if (res != 2)
+      break;
+
+  case SQLCOM_UPDATE_MULTI:
+    res= mysql_test_multiupdate(stmt, tables, res == 2);
     break;
 
   case SQLCOM_DELETE:
@@ -1432,10 +1490,6 @@ static int check_prepared_statement(Prepared_statement *stmt,
 
   case SQLCOM_DELETE_MULTI:
     res= mysql_test_multidelete(stmt, tables);
-    break;
-  
-  case SQLCOM_UPDATE_MULTI:
-    res= mysql_test_multiupdate(stmt, tables);
     break;
 
   case SQLCOM_INSERT_SELECT:
@@ -1720,8 +1774,15 @@ void reset_stmt_for_execute(THD *thd, LEX *lex)
       were closed in the end of previous prepare or execute call.
     */
     tables->table= 0;
+    if (tables->nested_join)
+      tables->nested_join->counter= 0;
   }
   lex->current_select= &lex->select_lex;
+
+  /* restore original list used in INSERT ... SELECT */
+  if (lex->leaf_tables_insert)
+    lex->select_lex.leaf_tables= lex->leaf_tables_insert;
+
   if (lex->result)
     lex->result->cleanup();
 
