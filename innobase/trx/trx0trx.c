@@ -701,11 +701,13 @@ trx_commit_off_kernel(
 				TRX_SYS_MYSQL_MASTER_LOG_INFO, &mtr);
 		}
 				
-		/* If we did not take the shortcut, the following call
-		commits the mini-transaction, making the whole transaction
-		committed in the file-based world at this log sequence number;
-		otherwise, we get the commit lsn from the call of
-		trx_undo_update_cleanup_by_discard above.
+		/* The following call commits the mini-transaction, making the
+		whole transaction committed in the file-based world, at this
+		log sequence number. The transaction becomes 'durable' when
+		we write the log to disk, but in the logical sense the commit
+		in the file-based data structures (undo logs etc.) happens
+		here.
+
 		NOTE that transaction numbers, which are assigned only to
 		transactions with an update undo log, do not necessarily come
 		in exactly the same order as commit lsn's, if the transactions
