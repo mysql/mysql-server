@@ -58,6 +58,7 @@ int mysql_ha_open(THD *thd, TABLE_LIST *tables)
   if (!(tables->table->file->option_flag() & HA_CAN_SQL_HANDLER))
   {
     my_printf_error(ER_ILLEGAL_HA,ER(ER_ILLEGAL_HA),MYF(0), tables->name);
+    mysql_ha_close(thd, tables,1);
     return -1;
   }
 
@@ -65,7 +66,7 @@ int mysql_ha_open(THD *thd, TABLE_LIST *tables)
   return 0;
 }
 
-int mysql_ha_close(THD *thd, TABLE_LIST *tables)
+int mysql_ha_close(THD *thd, TABLE_LIST *tables, bool dont_send_ok)
 {
   TABLE **ptr=find_table_ptr_by_name(thd, tables->db, tables->name);
 
@@ -75,8 +76,8 @@ int mysql_ha_close(THD *thd, TABLE_LIST *tables)
     close_thread_table(thd, ptr);
     VOID(pthread_mutex_unlock(&LOCK_open));
   }
-
-  send_ok(&thd->net);
+  if (!dont_send_ok)
+    send_ok(&thd->net);
   return 0;
 }
 
