@@ -746,16 +746,9 @@ int stop_slave(THD* thd, MASTER_INFO* mi, bool net_report )
     thd			Thread handler
     mi			Master info for the slave
 
-
-  NOTES
-    We don't send ok in this functions as this is called from
-    reload_acl_and_cache() which may have done other tasks, which may
-    have failed for which we want to send and error.
-
   RETURN
     0	ok
     1	error
-	In this case error is sent to the client with send_error()
 */
 
 
@@ -804,8 +797,8 @@ int reset_slave(THD *thd, MASTER_INFO* mi)
 
 err:
   unlock_slave_threads(mi);
-  if (thd && error) 
-    send_error(thd, sql_errno, errmsg);
+  if (error) 
+    my_error(sql_errno, MYF(0), errmsg);
   DBUG_RETURN(error);
 }
 
