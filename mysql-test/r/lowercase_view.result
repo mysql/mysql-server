@@ -7,7 +7,7 @@ create table TaB (Field int);
 create view ViE as select * from TAb;
 show create table VIe;
 View	Create View
-vie	CREATE VIEW `mysqltest`.`vie` AS select `mysqltest`.`tab`.`Field` AS `Field` from `mysqltest`.`tab`
+vie	CREATE ALGORITHM=UNDEFINED VIEW `mysqltest`.`vie` AS select `mysqltest`.`tab`.`Field` AS `Field` from `mysqltest`.`tab`
 drop database MySQLTest;
 use test;
 create table t1Aa (col1 int);
