@@ -16,7 +16,7 @@ n
 2002
 show slave hosts;
 Server_id	Host	Port
-2	127.0.0.1	9307
+2	127.0.0.1	$SLAVE_MYPORT
 drop table t1;
 slave stop;
 drop table if exists t2;

@@ -1,9 +1,9 @@
 slave start;
 slave start;
- change master to master_host='127.0.0.1',master_port=9306,
+ change master to master_host='127.0.0.1',master_port=$MASTER_MYPORT,
 master_user='root';
 reset slave;
- change master to master_host='127.0.0.1',master_port=9306,
+ change master to master_host='127.0.0.1',master_port=$MASTER_MYPORT,
 master_user='root';
 reset master;
 slave start;
