@@ -1138,14 +1138,4 @@ typedef union {
 #define statistic_add(V,C,L)       (V)+=(C)
 #endif
 
-#ifdef HAVE_OPENSSL
-#include <openssl/opensslv.h>
-#if OPENSSL_VERSION_NUMBER < 0x0090700f
-#define DES_cblock des_cblock
-#define DES_key_schedule des_key_schedule
-#define DES_set_key_unchecked(k,ks) des_set_key_unchecked((k),*(ks))
-#define DES_ede3_cbc_encrypt(i,o,l,k1,k2,k3,iv,e) des_ede3_cbc_encrypt((i),(o),(l),*(k1),*(k2),*(k3),(iv),(e))
-#endif
-#endif
-
 #endif /* my_global_h */
