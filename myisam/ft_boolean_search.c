@@ -198,7 +198,7 @@ FT_DOCLIST *ft_boolean_search(MI_INFO *info, uint keynr, byte *query,
   aio.end=query+query_len;
   aio.total_yes=aio.total_no=0;
 
-  init_tree(&aio.dtree,0,sizeof(FT_SUPERDOC),(qsort_cmp)&FT_SUPERDOC_cmp,0,
+  init_tree(&aio.dtree,0,sizeof(FT_SUPERDOC),(qsort_cmp2)&FT_SUPERDOC_cmp,0,
             NULL);
 
   if (do_boolean(&aio,0,0,0,0))
