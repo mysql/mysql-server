@@ -17,6 +17,7 @@ set SQL_WARNINGS=0;
 
 #
 # Test other warnings
+#
 
 drop temporary table if exists not_exists;
 drop table if exists not_exists_table;
@@ -26,3 +27,14 @@ show count(*) warnings;
 create table t1(id int);
 create table if not exists t1(id int);
 select @@warning_count;
+drop table t1;
+
+#
+# Test warnings for LOAD DATA INFILE
+#
+
+create table t1(a tinyint, b int not null, c date, d char(5));
+load data infile '../../std_data/warnings_loaddata.dat' into table t1 fields terminated by ',';
+select @@warning_count;
+show warnings;
+drop table t1;
