@@ -688,158 +688,164 @@ of MySQL:
 @c This list is too technical and should be divided into one feature
 @c list comparable to commercial competition and a very technical on
 @c with max limits (from crash-me) and so on.
+@itemize @asis
+@item
+Internals and portability
 @itemize @bullet
+@item
+Written in C and C++.  Tested with a broad range of different compilers.
+@item
+No memory leaks.  MySQL has been tested with Purify, a commercial
+memory leakage detector.
+@item
+Works on many different platforms.  @xref{Which OS}.
+@item
+Uses GNU Automake, Autoconf, and Libtool for portability.
+@item
+APIs for C, C++, Eiffel, Java, Perl, PHP, Python and Tcl.  @xref{Clients}.
 @item
 Fully multi-threaded using kernel threads.  This means it can easily
 use multiple CPUs if available.
+@item
+Very fast B-tree disk tables with index compression.
+@item
+A very fast thread-based memory allocation system.
+@item
+Very fast joins using an optimized one-sweep multi-join.
+@item
+In-memory hash tables which are used as temporary tables.
+@item
+SQL functions are implemented through a highly optimized class library and
+should be as fast as possible!  Usually there isn't any memory allocation 
+at all after query initialization.
+@end itemize
 
 @item
-C, C++, Eiffel, Java, Perl, PHP, Python and Tcl APIs.  @xref{Clients}.
-
-@item
-Works on many different platforms.  @xref{Which OS}.
-
+Column types
+@itemize @bullet
 @item
 Many column types: signed/unsigned integers 1, 2, 3, 4, and 8 bytes
 long, @code{FLOAT}, @code{DOUBLE}, @code{CHAR}, @code{VARCHAR},
 @code{TEXT}, @code{BLOB}, @code{DATE}, @code{TIME}, @code{DATETIME},
 @code{TIMESTAMP}, @code{YEAR}, @code{SET}, and @code{ENUM} types. 
 @xref{Column types}.
-
-@item
-Very fast joins using an optimized one-sweep multi-join.
-
-@item
-Full operator and function support in the @code{SELECT} and @code{WHERE}
-parts of queries.  For example:
-
-@example
-mysql> SELECT CONCAT(first_name, " ", last_name) FROM tbl_name
-           WHERE income/dependents > 10000 AND age > 30;
-@end example
-
-@item
-SQL functions are implemented through a highly optimized class library and
-should be as fast as possible!  Usually there isn't any memory allocation 
-at all after query initialization.
-
-@item
-Full support for SQL @code{GROUP BY} and @code{ORDER BY} clauses.  Support 
-for group functions (@code{COUNT()}, @code{COUNT(DISTINCT ...)}, 
-@code{AVG()}, @code{STD()}, @code{SUM()}, @code{MAX()} and @code{MIN()}).
-
-@item
-Support for @code{LEFT OUTER JOIN} and @code{RIGHT OUTER JOIN} with ANSI
-SQL and ODBC syntax.
-
-@item
-You can mix tables from different databases in the same query (as of
-Version 3.22).
-
-@item
-A privilege and password system that is very flexible and secure, and
-allows host-based verification.  Passwords are secure because all
-password traffic is encrypted when you connect to a server.
-
-@item
-ODBC (Open-DataBase-Connectivity) support for Win32 (with source).  All
-ODBC 2.5 functions and many others.  For example, you can use MS Access to
-connect to your MySQL server.  @xref{ODBC}.
-
-@item
-Very fast B-tree disk tables with index compression.
-
-@item
-Up to 32 indexes per table are allowed.  Each index may consist of 1 to 16
-columns or parts of columns.  The maximum index width is 500 bytes
-(this may be changed when compiling MySQL).  An index may use a prefix
-of a @code{CHAR} or @code{VARCHAR} field.
-
 @item
 Fixed-length and variable-length records.
-
-@item
-In-memory hash tables which are used as temporary tables.
-
-@item
-Handles large databases.  We are using MySQL with some
-databases that contain 50,000,000 records and we know of users that
-uses MySQL with 60,000 tables and about 5,000,000,000 rows
-
 @item
 @cindex default values
 All columns have default values.
 You can use @code{INSERT} to insert a subset of a table's columns; those
 columns that are not explicitly given values are set to their default
 values.
+@end itemize
 
 @item
-Uses GNU Automake, Autoconf, and Libtool for portability.
+Commands and functions
+@itemize @bullet
+@item
+Full operator and function support in the @code{SELECT} and @code{WHERE}
+parts of queries.  For example:
+@example
+mysql> SELECT CONCAT(first_name, " ", last_name) FROM tbl_name
+           WHERE income/dependents > 10000 AND age > 30;
+@end example
+@item
+Full support for SQL @code{GROUP BY} and @code{ORDER BY} clauses.  Support 
+for group functions (@code{COUNT()}, @code{COUNT(DISTINCT ...)}, 
+@code{AVG()}, @code{STD()}, @code{SUM()}, @code{MAX()} and @code{MIN()}).
+@item
+Support for @code{LEFT OUTER JOIN} and @code{RIGHT OUTER JOIN} with ANSI
+SQL and ODBC syntax.
+@item
+Aliases on tables and columns are allowed as in the SQL92 standard.
+@item
+@code{DELETE}, @code{INSERT}, @code{REPLACE}, and @code{UPDATE} return
+the number of rows that were changed (affected).  It is possible to return
+the number of rows matched instead by setting a flag when connecting to the
+server.
+@item
+The MySQL-specific @code{SHOW} command can be used to retrieve
+information about databases, tables, and indexes.  The @code{EXPLAIN} command
+can be used to determine how the optimizer resolves a query.
+@item
+Function names do not clash with table or column names.  For example, 
+@code{ABS} is a valid column name.  The only restriction is that for a 
+function call, no spaces are allowed between the function name and the 
+@samp{(} that follows it.  @xref{Reserved words}.
+@item
+You can mix tables from different databases in the same query (as of
+Version 3.22).
+@end itemize
 
 @item
-Written in C and C++.  Tested with a broad range of different compilers.
+Security
+@itemize @bullet
+@item
+A privilege and password system that is very flexible and secure, and
+allows host-based verification.  Passwords are secure because all
+password traffic is encrypted when you connect to a server.
+@end itemize
 
 @item
-A very fast thread-based memory allocation system.
+@itemize @bullet
+Scalability and limits
+@item
+Handles large databases.  We are using MySQL with some
+databases that contain 50,000,000 records and we know of users that
+uses MySQL with 60,000 tables and about 5,000,000,000 rows.
+@item
+Up to 32 indexes per table are allowed.  Each index may consist of 1 to 16
+columns or parts of columns.  The maximum index width is 500 bytes
+(this may be changed when compiling MySQL).  An index may use a prefix
+of a @code{CHAR} or @code{VARCHAR} field.
+@end itemize
 
 @item
-No memory leaks.  MySQL has been tested with Purify, a commercial
-memory leakage detector.
-
+Clients and tools
+@izemize @bullet
 @item
 Includes @code{myisamchk}, a very fast utility for table checking,
 optimization, and repair.  All of the functionality of @code{myisamchk}
 is also available through the SQL interface as well.  
 @xref{MySQL Database Administration}.
+@item
+All MySQL programs can be invoked with the @code{--help} or @code{-?}
+options to obtain online assistance.
+@end itemize
+@item
+Connectivity
+@itemize @bullet
+@item
+ODBC (Open-DataBase-Connectivity) support for Win32 (with source).  All
+ODBC 2.5 functions and many others.  For example, you can use MS Access to
+connect to your MySQL server.  @xref{ODBC}.
+@item
+Clients may connect to the MySQL server using TCP/IP Sockets,
+Unix Sockets (Unix), or Named Pipes (NT).
+@end itemize
 
+@item
+Localization
+@itemize @bullet
+@item
+The server can provide error messages to clients in many languages. 
+@xref{Languages}.
 @item
 Full support for several different character sets, including
 ISO-8859-1 (Latin1), german, big5, ujis, and more.  For example, the
 Scandinavian characters `@ringaccent{a}', `@"a' and `@"o' are allowed
 in table and column names.
-
 @item
-All data are saved in the chosen character set.  All comparisons for normal
+All data is saved in the chosen character set.  All comparisons for normal
 string columns are case insensitive.
-
 @item
 Sorting is done according to the chosen character set (the Swedish
 way by default).  It is possible to change this when the MySQL server
 is started up.  To see an example of very advanced sorting, look at the
 Czech sorting code.  MySQL supports many different character sets
 that can be specified at compile and run time.
+@end itemize
 
-@item
-Aliases on tables and columns are allowed as in the SQL92 standard.
-
-@item
-@code{DELETE}, @code{INSERT}, @code{REPLACE}, and @code{UPDATE} return
-the number of rows that were changed (affected).  It is possible to return
-the number of rows matched instead by setting a flag when connecting to the
-server.
-
-@item
-Function names do not clash with table or column names.  For example, 
-@code{ABS} is a valid column name.  The only restriction is that for a 
-function call, no spaces are allowed between the function name and the 
-@samp{(} that follows it.  @xref{Reserved words}.
-
-@item
-All MySQL programs can be invoked with the @code{--help} or @code{-?}
-options to obtain online assistance.
-
-@item
-The server can provide error messages to clients in many languages. 
-@xref{Languages}.
-
-@item
-Clients may connect to the MySQL server using TCP/IP Sockets,
-Unix Sockets (Unix), or Named Pipes (NT).
-
-@item
-The MySQL-specific @code{SHOW} command can be used to retrieve
-information about databases, tables, and indexes.  The @code{EXPLAIN} command
-can be used to determine how the optimizer resolves a query.
 @end itemize
 
 
