@@ -329,7 +329,7 @@ bool multi_delete::send_data(List<Item> &values)
       table->status|= STATUS_DELETED;
       if (!(error=table->file->delete_row(table->record[0])))
 	deleted++;
-      else
+      else if (!table_being_deleted->next)
       {
 	table->file->print_error(error,MYF(0));
 	DBUG_RETURN(1);

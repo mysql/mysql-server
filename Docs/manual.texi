@@ -50797,6 +50797,11 @@ each individual 4.0.x release.
 @appendixsubsec Changes in release 4.0.5
 @itemize
 @item
+Fixed a bug in multi-table deletes when outer join is used on an empty
+table, which get's first to be deleted
+@item
+Fixed a bug in multi-table updates when a single table is updated
+@item
 Updated source tree to be built using @code{automake 1.5} and 
 @code{libtool 1.4}.
 @item
