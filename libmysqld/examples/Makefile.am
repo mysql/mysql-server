@@ -7,7 +7,7 @@ link_sources:
 	  @LN_CP_F@ $(srcdir)/../../client/$$f $(srcdir)/$$f; \
 	done;
 
-DEFS = -DEMBEDDED_SERVER
+DEFS = 		-DEMBEDDED_LIBRARY
 INCLUDES =	-I$(top_srcdir)/include $(openssl_includes) \
 		-I$(srcdir) -I$(top_srcdir) -I$(top_srcdir)/client
 LIBS =	@LIBS@

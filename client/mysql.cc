@@ -303,6 +303,7 @@ int main(int argc,char *argv[])
     exit(1);
   glob_buffer.realloc(512);
   completion_hash_init(&ht,50);
+  bzero((char*) &mysql, sizeof(mysql));
   if (sql_connect(current_host,current_db,current_user,opt_password,
 		  opt_silent))
   {
@@ -326,11 +327,13 @@ int main(int argc,char *argv[])
   put_info((char*) glob_buffer.ptr(),INFO_INFO);
 
 #ifdef HAVE_OPENSSL
-  if(mysql.net.vio->ssl_ && SSL_get_cipher(mysql.net.vio->ssl_)) {
+  if (mysql.net.vio->ssl_ && SSL_get_cipher(mysql.net.vio->ssl_))
+  {
     sprintf((char*) glob_buffer.ptr(),
-  	  "SSL cipher in use is %s\n", SSL_get_cipher(mysql.net.vio->ssl_));
+	    "SSL cipher in use is %s\n", SSL_get_cipher(mysql.net.vio->ssl_));
     put_info((char*) glob_buffer.ptr(),INFO_INFO);
-  } else
+  }
+  else
     put_info("SSL is not in use\n",INFO_INFO);
 #endif /* HAVE_OPENSSL */
 
@@ -373,13 +376,7 @@ int main(int argc,char *argv[])
 
 sig_handler mysql_end(int sig)
 {
-  if (connected)
-    mysql_close(&mysql);
-#ifdef HAVE_OPENSSL
-  else
-    mysql_ssl_clear(&mysql); /* SSL data structres should be freed 
-				even if connection was not made */
-#endif
+  mysql_close(&mysql);
 #ifdef HAVE_READLINE
   if (!status.batch && !quick && !opt_html && !opt_xml)
   {
@@ -2208,16 +2205,8 @@ static int
 sql_real_connect(char *host,char *database,char *user,char *password,
 		 uint silent)
 {
-  if (connected)
-  {					/* if old is open, close it first */
-    mysql_close(&mysql);
-    connected= 0;
-  }
-#ifdef HAVE_OPENSSL
-  else
-    mysql_ssl_clear(&mysql); /* SSL data structres should be freed 
-				even if connection was not made */
-#endif
+  mysql_close(&mysql);
+  connected= 0;
   mysql_init(&mysql);
   if (opt_connect_timeout)
   {
@@ -2569,7 +2558,7 @@ static void mysql_end_timer(ulong start_time,char *buff)
   strmov(strend(buff),")");
 }
 
-#ifndef EMBEDDED_SERVER
+#ifndef EMBEDDED_LIBRARY
 /* Keep sql_string library happy */
 
 gptr sql_alloc(unsigned int Size)
@@ -2581,4 +2570,4 @@ void sql_element_free(void *ptr)
 {
   my_free((gptr) ptr,MYF(0));
 }
-#endif /* EMBEDDED_SERVER */
+#endif /* EMBEDDED_LIBRARY */

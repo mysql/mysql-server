@@ -104,6 +104,8 @@ enum enum_server_command {COM_SLEEP,COM_QUIT,COM_INIT_DB,COM_QUERY,
 struct st_vio;					/* Only C */
 typedef struct st_vio Vio;
 
+#define MAX_BLOB_WIDTH		8192	// Default width for blob
+
 typedef struct st_net {
   Vio* vio;
   my_socket fd;					/* For Perl DBI/dbd */
@@ -113,10 +115,12 @@ typedef struct st_net {
   unsigned int last_errno,max_packet,timeout,pkt_nr;
   unsigned char error;
   my_bool return_errno,compress;
-  my_bool no_send_ok; /* needed if we are doing several
-   queries in one command ( as in LOAD TABLE ... FROM MASTER ),
-   and do not want to confuse the client with OK at the wrong time
-		      */
+  /*
+    The following variable is set if we are doing several queries in one
+    command ( as in LOAD TABLE ... FROM MASTER ),
+    and do not want to confuse the client with OK at the wrong time
+  */
+  my_bool no_send_ok;
   unsigned long remain_in_buf,length, buf_length, where_b;
   unsigned int *return_status;
   unsigned char reading_or_writing;

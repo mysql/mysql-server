@@ -65,7 +65,6 @@ aclocal; autoheader; aclocal; automake; autoconf
  --enable-thread-safe-client \
  --with-berkeley-db \
  --with-innodb \
- --with-openssl \
  --with-vio \
  --without-pstack \
  --with-extra-tools \

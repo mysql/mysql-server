@@ -4368,6 +4368,7 @@ precision, @code{IF}, and @code{ELT()} with @code{BIGINT} or @code{DOUBLE}
 precision and the rest with @code{DOUBLE} precision.  One should try to
 avoid using bigger unsigned long long values than 63 bits
 (9223372036854775807) for anything else than bit fields!
+MySQL 4.0 has better @code{BIGINT} handling than 3.23.
 
 @item
 All string columns, except @code{BLOB} and @code{TEXT} columns, automatically
@@ -5690,6 +5691,15 @@ implemented in the 4.0 tree. @xref{News-4.0.x}.
 
 @itemize @bullet
 @item
+Allow users to change startup options without taking down the server.
+@item
+Fail safe replication.
+@item
+More functions for full-text search.
+@xref{Fulltext Features to Appear in MySQL 4.0}.
+@item
+New key cache
+@item
 New table definition file format (@code{.frm} files) This will enable us
 to not run out of bits when adding more table options.  One will still
 be able to use the old @code{.frm} file format with 4.0.  All newly created
@@ -5697,19 +5707,6 @@ tables will, however, use the new format.
 
 The new file format will enable us to add new column types, more options
 for keys and @code{FOREIGN KEY} support.
-@item
-@code{mysqld} as a library.  This will have the same interface as the
-standard MySQL client (with an extra function to just set up
-startup parameters) but will be faster (no TCP/IP or socket overhead),
-smaller and much easier to use for embedded products.
-
-One will be able to define at link time if one wants to use the
-client/server model or a stand-alone application just by defining which
-library to link with.
-
-The @code{mysqld} will support all standard MySQL features and
-one can use it in a threaded client to run different queries in each
-thread.
 @item
 Replication should work with @code{RAND()} and user variables @code{@@var}.
 @item
@@ -5720,14 +5717,7 @@ Allow @code{DELETE} on @code{MyISAM} tables to use the record cache.
 To do this, we need to update the threads record cache when we update
 the @code{.MYD} file.
 @item
-Better replication.
-@item
-More functions for full-text search.
-@xref{Fulltext Features to Appear in MySQL 4.0}.
-@item
 Character set casts and syntax for handling multiple character sets.
-@item
-Allow users to change startup options without taking down the server.
 @item
 Help for all commands from the client.
 @item
@@ -5736,8 +5726,6 @@ Secure connections (with SSL).
 @code{SHOW COLUMNS FROM table_name} (used by @code{mysql} client to allow
 expansions of column names) should not open the table, but only the
 definition file. This will require less memory and be much faster.
-@item
-New key cache
 @item
 When using @code{SET CHARACTER SET} we should translate the whole query
 at once and not only strings. This will enable users to use the translated
@@ -5760,10 +5748,11 @@ of @code{analyze} is run on all sub tables.
 
 @itemize @bullet
 @item
-Fail safe replication.
-@item
 Subqueries.
 @code{select id from t where grp in (select grp from g where u > 100)}
+@item
+Atomic multi-table updates, eg @code{update items,month set
+items.price=month.price where items.id=month.id;};
 @item
 Derived tables.
 @example
@@ -6046,9 +6035,6 @@ if it exists and @code{INSERT} a new row if the row didn't exist.
 @item
 Implement function: @code{get_changed_tables(timeout,table1,table2,...)}
 @item
-Atomic multi-table updates, eg @code{update items,month set
-items.price=month.price where items.id=month.id;};
-@item
 Change reading through tables to use memmap when possible. Now only
 compressed tables use memmap.
 @item
@@ -6142,8 +6128,6 @@ Time is given according to amount of work, not real time.
 @item
 Nothing;  In the long run we plan to be fully ANSI 92 / ANSI 99 compliant.
 @end itemize
-
-
 
 
 @node Installing, Tutorial, Introduction, Top
@@ -9349,7 +9333,7 @@ you have to use @code{mysqldump}.
 Old clients should work with a Version 4.0 server without any problems.
 
 The following lists tell what you have to watch out for when upgrading to
-Version 4.0;
+version 4.0;
 
 @itemize @bullet
 @item
@@ -9366,6 +9350,15 @@ from a table and you don't care of how many rows where deleted.
 You will get an error if you have an active @code{LOCK TABLES} or
 transaction when trying to execute @code{TRUNCATE TABLE} or @code{DROP
 DATABASE}.
+@item
+You should use integers to store values in BIGINT columns (instead of using
+strings as you did in MySQL 3.23).  Using strings will still work, but using
+integers is more efficient.
+@item
+Format of @code{SHOW OPEN TABLE} has changed.
+@item
+Multithreaded clients should use @code{mysql_thread_init()} and
+@code{mysql_thread_end()}. @xref{Threaded clients}.
 @end itemize
 
 @node Upgrading-from-3.22, Upgrading-from-3.21, Upgrading-from-3.23, Upgrade
@@ -12844,7 +12837,7 @@ this may be different than what you are used to.)
 @item Claws @tab Gwen @tab cat @tab m @tab 1994-03-17 @tab
 @item Buffy @tab Harold @tab dog @tab f @tab 1989-05-13 @tab
 @item Fang @tab Benny @tab dog @tab m @tab 1990-08-27 @tab
-@item Bowser @tab Diane @tab dog @tab m @tab 1989-08-31 @tab 1995-07-29
+@item Bowser @tab Diane @tab dog @tab m @tab 1998-08-31 @tab 1995-07-29
 @item Chirpy @tab Gwen @tab bird @tab f @tab 1998-09-11 @tab
 @item Whistler @tab Gwen @tab bird @tab @tab 1997-12-09 @tab
 @item Slim @tab Benny @tab snake @tab m @tab 1996-04-29 @tab
@@ -17248,7 +17241,7 @@ knowing your 'scrambled' password is enough to be able to connect to
 the MySQL server!
 @end itemize
 
-MySQL users and they privileges are normally created with the
+MySQL users and their privileges are normally created with the
 @code{GRANT} command. @xref{GRANT}.
 
 When you login to a MySQL server with a command line client you
@@ -17274,13 +17267,14 @@ mysql -u monty -p database_name
 
 Note that in the last example the password is @strong{NOT} 'database_name'.
 
-If you want to use the @code{-p} option to supply a password you should do like this:
+If you want to use the @code{-p} option to supply a password you should do so
+like this:
 
 @example
 mysql -u monty -pguess database_name
 @end example
 
-On some system the library call that MySQL uses to prompt for a
+On some systems, the library call that MySQL uses to prompt for a
 password will automatically cut the password to 8 characters. Internally
 MySQL doesn't have any limit for the length of the password.
 
@@ -19784,6 +19778,10 @@ joins that don't use keys properly.
 @item
 If @code{Threads_created} is big, you may want to increase the
 @code{thread_cache_size} variable.
+@item
+If @code{Created_tmp_disk_tables} is big, you may want to increase the
+@code{tmp_table_size} variable to get the temporary tables memory based
+instead of disk based.
 @end itemize
 
 
@@ -20270,19 +20268,13 @@ operations.
 @item @code{table_cache}
 The number of open tables for all threads. Increasing this value
 increases the number of file descriptors that @code{mysqld} requires.
-MySQL needs two file descriptors for each unique open table.
-See below for comments on file descriptor limits. You can check if you
-need to increase the table cache by checking the @code{Opened_tables}
-variable. @xref{SHOW}.  If this variable is big and you don't do
-@code{FLUSH TABLES} a lot (which just forces all tables to be closed and
-reopenend), then you should increase the value of this variable.
+You can check if you need to increase the table cache by checking the
+@code{Opened_tables} variable. @xref{SHOW}.  If this variable is big and
+you don't do @code{FLUSH TABLES} a lot (which just forces all tables to
+be closed and reopenend), then you should increase the value of this
+variable.
 
-Make sure that your operating system can handle the number of open file
-descriptors implied by the @code{table_cache} setting.  If @code{table_cache}
-is set too high, MySQL may run out of file descriptors and refuse
-connections, fail to perform queries, and be very unreliable.
-
-For information about how the table cache works, see @ref{Table cache}.
+For more information about the table cache, see @ref{Table cache}.
 
 @item @code{table_type}
 The default table type
@@ -20424,6 +20416,7 @@ Create Table: CREATE TABLE t (
 * Character arrays::            The character definition arrays
 * String collating::            String Collating Support
 * Multi-byte characters::       Multi-byte Character Support
+* Problems with character sets::  
 @end menu
 
 
@@ -20757,7 +20750,7 @@ the maximum ratio the strings may grow during @code{my_strxfrm_MYSET} (it
 must be a positive integer).
 
 
-@node Multi-byte characters,  , String collating, Localization
+@node Multi-byte characters, Problems with character sets, String collating, Localization
 @subsection Multi-byte Character Support
 
 @cindex characters, multi-byte
@@ -20775,6 +20768,41 @@ character sets for examples. These are implemented in the
 You must specify the @code{mbmaxlen_MYSET=N} value in the special
 comment at the top of the source file.  @code{N} should be set to the
 size in bytes of the largest character in the set.
+
+@node Problems with character sets,  , Multi-byte characters, Localization
+@subsection Problems With Character Sets
+
+If you try to use a character set that is not compiled into your binary,
+you can run into a couple of different problems:
+
+@itemize @bullet
+@item
+Your program has a wrong path to where the character sets are stored.
+(Default @file{/usr/local/mysql/share/mysql/charsets}).  
+This can be fixed by using the @code{--character-sets-dir}
+option to the program in question.
+@item
+The character set is a multi-byte-character set that can't be loaded
+dynamicly.  In this case you have to recompiled the program with the
+support for the character set.
+@item
+The character set is a dynamic character set, but you don't have a
+configure file for it.  In this case you should install the configure
+file for the character set from a new MySQL distribution.
+@item
+Your @file{Index} file doesn't contain the name for the character set.
+
+@example
+ERROR 1105: File '/usr/local/share/mysql/charsets/?.conf' not found
+(Errcode: 2)
+@end example
+
+In this case you should either get a new @code{Index} file or add
+by hand the name of any missing character sets.
+@end itemize
+
+For MyISAM tables, you can check the character set name and number for a
+table with @code{myisamchk -dvv table_name}.
 
 
 @node Server-Side Scripts, Client-Side Scripts, Localization, MySQL Database Administration
@@ -26430,6 +26458,16 @@ at least @code{200 * n}, where @code{n} is the maximum number of tables
 in a join.  You also need to reserve some extra file descriptors for
 temporary tables and files.
 
+Make sure that your operating system can handle the number of open file
+descriptors implied by the @code{table_cache} setting.  If
+@code{table_cache} is set too high, MySQL may run out of file
+descriptors and refuse connections, fail to perform queries, and be very
+unreliable.  You also have to take into account that the MyISAM table
+handler needs two file descriptors for each unique open table. You can
+in increase the number of file descriptors available for MySQL with
+the @code{--open-files-limit=#} startup option. @xref{Not enough file
+handles}.
+
 The cache of open tables can grow to a maximum of @code{table_cache}
 (default 64; this can be changed with the @code{-O table_cache=#}
 option to @code{mysqld}).  A table is never closed, except when the
@@ -26460,6 +26498,12 @@ The first open of any table takes two file descriptors; each additional
 use of the table takes only one file descriptor.  The extra descriptor
 for the first open is used for the index file; this descriptor is shared
 among all threads.
+
+If you are opening a table with the @code{HANDLER table_name OPEN}
+statement, a dedicated table object is allocated for the thread.
+This table object is not shared by other threads an will not be closed
+until the thread calls @code{HANDLER table_name CLOSE} or the thread dies.
+@xref{HANDLER}.
 
 You can check if your table cache is too small by checking the mysqld
 variable @code{opened_tables}.  If this is quite big, even if you
@@ -28116,13 +28160,22 @@ values, so you shouldn't use unsigned big integers larger than
 @code{9223372036854775807} (63 bits) except with bit functions! If you
 do that, some of the last digits in the result may be wrong because of
 rounding errors when converting the @code{BIGINT} to a @code{DOUBLE}.
+
+MySQL 4.0 can handle @code{BIGINT} in the following cases:
+@itemize @bullet
+@item
+Use integers to store big unsigned values in a @code{BIGINT} column.
+@item
+In @code{MIN(big_int_column)} and @code{MAX(big_int_column)}.
+@item
+When using operators (@code{+}, @code{-}, @code{*} etc) where
+both operands are integers.
+@end itemize
+
 @item
 You can always store an exact integer value in a @code{BIGINT} column by
 storing it as a string, as there is in this case there will be no
 intermediate double representation.
-@item
-In MySQL 4.0 you can use integers to store big unsigned values in a
-@code{BIGINT} string.
 @item
 @samp{-}, @samp{+}, and @samp{*} will use @code{BIGINT} arithmetic when
 both arguments are @code{INTEGER} values!  This means that if you
@@ -33818,6 +33871,7 @@ or	DELAY_KEY_WRITE = @{0 | 1@}
 or      ROW_FORMAT= @{ default | dynamic | fixed | compressed @}
 or	RAID_TYPE= @{1 | STRIPED | RAID0 @} RAID_CHUNKS=#  RAID_CHUNKSIZE=#
 or	UNION = (table_name,[table_name...])
+or	INSERT_METHOD= @{NO | FIRST | LAST @}
 or      DATA DIRECTORY="directory"
 or      INDEX DIRECTORY="directory"
 
@@ -34160,13 +34214,13 @@ original tables, MySQL will not allow concurrent inserts during
 @code{CREATE TABLE .... SELECT}.
 @item
 The @code{RAID_TYPE} option will help you to break the 2G/4G limit for
-the MyISAM data file (not the index file) on
-operating systems that don't support big files. You can get also more speed
-from the I/O bottleneck by putting @code{RAID} directories on different
-physical disks. @code{RAID_TYPE} will work on any OS, as long as you have
-configured MySQL with @code{--with-raid}.  For now the only allowed
-@code{RAID_TYPE} is @code{STRIPED} (@code{1} and @code{RAID0} are aliases
-for this).
+the MyISAM data file (not the index file) on operating systems that
+don't support big files.
+You can get more speed from the I/O bottleneck by putting
+@code{RAID} directories on different physical disks. @code{RAID_TYPE}
+will work on any OS, as long as you have configured MySQL with
+@code{--with-raid}.  For now the only allowed @code{RAID_TYPE} is
+@code{STRIPED} (@code{1} and @code{RAID0} are aliases for this).
 
 If you specify @code{RAID_TYPE=STRIPED} for a @code{MyISAM} table,
 @code{MyISAM} will create @code{RAID_CHUNKS} subdirectories named 00,
@@ -34182,6 +34236,12 @@ tables as one. This only works with MERGE tables. @xref{MERGE}.
 For the moment you need to have @code{SELECT}, @code{UPDATE}, and
 @code{DELETE} privileges on the tables you map to a @code{MERGE} table.
 All mapped tables must be in the same database as the @code{MERGE} table.
+
+@item
+If you want to insert data in a @code{MERGE} table, you have to specify with
+@code{INSERT_METHOD} into with table the row should be inserted.
+@xref{MERGE}.
+
 @item
 In the created table the @code{PRIMARY} key will be placed first, followed
 by all @code{UNIQUE} keys and then the normal keys.  This helps the
@@ -35005,6 +35065,8 @@ interface, bypassing SQL optimizer. Thus, it is faster then SELECT.
 
 The first form of @code{HANDLER} statement opens a table, making
 in accessible via the following @code{HANDLER ... READ} routines.
+This table object is not shared by other threads an will not be closed
+until the thread calls @code{HANDLER table_name CLOSE} or the thread dies.
 
 The second form fetches one (or, specified by @code{LIMIT} clause) row
 where the index specified complies to the condition and @code{WHERE}
@@ -35023,8 +35085,8 @@ in data file) matching @code{WHERE} condition. It is faster than
 The last form closes the table, opened with @code{HANDLER ... OPEN}.
 
 @code{HANDLER} is somewhat low-level statement, for example it does not
-provide consistency. That is @code{HANDLER ... OPEN} does @strong{not}
-takes a snapshot of the table, and does @strong{not} locks the table. The
+provide consistency. That is @code{HANDLER ... OPEN} does @strong{NOT}
+takes a snapshot of the table, and does @strong{NOT} locks the table. The
 above means,  that after @code{HANDLER ... OPEN} table data can be
 modified (by this or other thread) and these modifications may appear only
 partially in @code{HANDLER ... NEXT} or @code{HANDLER ... PREV} scans.
@@ -35885,7 +35947,7 @@ specification.
 
 Note that @code{DELETE FROM merge_table} used without a @code{WHERE}
 will only clear the mapping for the table, not delete everything in the
-mapped tables. (We plan to fix this in 4.0).
+mapped tables. (We plan to fix this in 4.1).
 
 With identical tables we mean that all tables are created with identical
 column and key information.  You can't put a MERGE over tables where the
@@ -35945,10 +36007,11 @@ The disadvantages with @code{MERGE} tables are:
 
 @itemize @bullet
 @item
-You can't use @code{INSERT} on @code{MERGE} tables, as MySQL
-can't know in which of the tables we should insert the row.
-@item
 You can only use identical @code{MyISAM} tables for a @code{MERGE} table.
+@item
+@code{AUTO_INCREMENT} columns are not automaticly updated on @code{INSERT}.
+@item
+@code{REPLACE} doesn't work.
 @item
 @code{MERGE} tables uses more file descriptors. If you are using a
 @strong{MERGE} that maps over 10 tables and 10 users are using this, you
@@ -35971,6 +36034,14 @@ mapped by a @code{MERGE} table that is 'open'.  If you do this, the
 get unexpected results.
 @end itemize
 
+When you create a @code{MERGE} table you have to specify with
+@code{UNION(list-of-tables)} which tables you want to use as
+one. Optionally you can specify with @code{INSERT_METHOD} if you want
+insert for the @code{MERGE} table to happen in the first or last table
+in the @code{UNION} list. If you don't specify @code{INSERT_METHOD} or
+specify @code{NO}, then all @code{INSERT} commands on the @code{MERGE}
+table will return an error.
+
 The following example shows you how to use @code{MERGE} tables:
 
 @example
@@ -35978,7 +36049,7 @@ CREATE TABLE t1 (a INT AUTO_INCREMENT PRIMARY KEY, message CHAR(20));
 CREATE TABLE t2 (a INT AUTO_INCREMENT PRIMARY KEY, message CHAR(20));
 INSERT INTO t1 (message) VALUES ("Testing"),("table"),("t1");
 INSERT INTO t2 (message) VALUES ("Testing"),("table"),("t2");
-CREATE TABLE total (a INT NOT NULL, message CHAR(20), KEY(a)) TYPE=MERGE UNION=(t1,t2);
+CREATE TABLE total (a INT NOT NULL, message CHAR(20), KEY(a)) TYPE=MERGE UNION=(t1,t2) INSERT_METHOD=LAST;
 @end example
 
 Note that we didn't create a @code{UNIQUE} or @code{PRIMARY KEY} in the
@@ -38908,19 +38979,37 @@ Note that if you are using MySQL Version 3.22, you must to apply the
 MDAC patch and use MyODBC 2.50.32 or 2.50.34 and above to go around
 this problem.
 @item
-Set the ``Return matching rows'' MyODBC option field when connecting to
-MySQL.
-@item
-You should have a primary key in the table. If not, new or updated rows
-may show up as @code{#Deleted#}.
+For all Access versions, you should enable the MyODBC option flag
+@code{Return matching rows}. For Access 2.0, you should additionally enable
+@code{Simulate ODBC 1.0}.
 @item
 You should have a timestamp in all tables you want to be able to update.
 For maximum portability @code{TIMESTAMP(14)} or simple @code{TIMESTAMP}
 is recommended instead of other @code{TIMESTAMP(X)} variations.
 @item
-Only use double float fields. Access fails when comparing with single floats.
-The symptom usually is that new or updated rows may show up as @code{#Deleted#}
-or that you can't find or update rows.
+You should have a primary key in the table. If not, new or updated rows
+may show up as @code{#DELETED#}.
+@item
+Only use @code{DOUBLE} float fields. Access fails when comparing with
+single floats.  The symptom usually is that new or updated rows may show
+up as @code{#DELETED#} or that you can't find or update rows.
+@item
+If you are linking a table through MyODBC, which has @code{BIGINT} as
+one of the column, then the results will be displayed as @code{#DELETED}. The
+work around solution is:
+@itemize @bullet
+@item
+Have one more dummy column with @code{TIMESTAMP} as the data type, preferably
+@code{TIMESTAMP(14)}.
+@item
+Check the @code{'Change BIGINT columns to INT'} in connection options dialog in
+ODBC DSN Administrator
+@item
+Delete the table link from access and re-create it.
+@end itemize
+
+It still displays the previous records as @code{#DELETED#}, but newly
+added/updated records will be displayed properly.
 @item
 If you still get the error @code{Another user has changed your data} after
 adding a @code{TIMESTAMP} column, the following trick may help you:
@@ -38931,6 +39020,10 @@ set the @code{DefaultValue} property for the @code{TIMESTAMP} column to
 @code{NOW()}.  It may be a good idea to hide the @code{TIMESTAMP} column
 from view so your users are not confused.
 @item
+In some cases, Access may generate illegal SQL queries that
+MySQL can't understand. You can fix this by selecting
+@code{"Query|SQLSpecific|Pass-Through"} from the Access menu.
+@item
 Access on NT will report @code{BLOB} columns as @code{OLE OBJECTS}. If
 you want to have @code{MEMO} columns instead, you should change the
 column to @code{TEXT} with @code{ALTER TABLE}.
@@ -38938,19 +39031,9 @@ column to @code{TEXT} with @code{ALTER TABLE}.
 Access can't always handle @code{DATE} columns properly. If you have a problem
 with these, change the columns to @code{DATETIME}.
 @item
-In some cases, Access may generate illegal SQL queries that
-MySQL can't understand. You can fix this by selecting
-@code{"Query|SQLSpecific|Pass-Through"} from the Access menu.
-@item
-If you have in Access a column defined as BYTE, Access will try to export this
-as @code{TINYINT} instead of @code{TINYINT UNSIGNED}.  This will give you
-problems if you have values > 127 in the column!
-@item
-If you are using Access 7.0, You should use the option flag @code{Return
-matching rows}.
-@item
-If you are using Access 2.0, You should use the option flags @code{Return
-matching rows} and @code{Simulate ODBC 1.0}.
+If you have in Access a column defined as @code{BYTE}, Access will try
+to export this as @code{TINYINT} instead of @code{TINYINT UNSIGNED}.
+This will give you problems if you have values > 127 in the column!
 @end itemize
 
 @cindex ADO program
@@ -39271,7 +39354,7 @@ likely it is that we can fix the problem!
 * C API function overview::     C API Function Overview
 * C API functions::             C API Function Descriptions
 * C Thread functions::          C Thread Functions
-* C Embedded Server functions:: C Embedded Server Functions
+* C Embedded Server functions:: C Embedded Server functions.  C Embedded Server Functions
 * C API problems::              Common questions and problems when using the C API
 * Building clients::            Building Client Programs
 * Threaded clients::            How to Make a Threaded Client
@@ -41972,9 +42055,9 @@ You need to use the following functions when you want to create a
 threaded client. @xref{Threaded clients}.
 
 @menu
-* my_init()::                     @code{my_init()}
-* mysql_thread_init()::           @code{mysql_thread_init()}
-* mysql_thread_end()::            @code{mysql_thread_end()}
+* my_init()::                   @code{my_init()}
+* mysql_thread_init()::         @code{mysql_thread_init()}
+* mysql_thread_end()::          @code{mysql_thread_end()}
 @end menu
 
 @node my_init(), mysql_thread_init(), C Thread functions, C Thread functions
@@ -42042,8 +42125,8 @@ possible to choose between using the embedded MySQL server and
 a stand-alone server without modifying any code.
 
 @menu
-* mysql_server_init()::
-* mysql_server_end()::
+* mysql_server_init()::         
+* mysql_server_end()::          
 @end menu
 
 @node mysql_server_init(), mysql_server_end(), C Embedded Server functions, C Embedded Server functions
@@ -42296,7 +42379,7 @@ For clients that use MySQL header files, you may need to specify a
 files.
 
 
-@node Threaded clients, libmysqld , Building clients, C
+@node Threaded clients, libmysqld, Building clients, C
 @subsection How to Make a Threaded Client
 
 @cindex clients, threaded
@@ -42770,7 +42853,7 @@ clean:
 	rm -f $(targets) $(objects) *.core
 @end example
 
-@node libmysqld licensing, , libmysqld example, libmysqld
+@node libmysqld licensing,  , libmysqld example, libmysqld
 @subsubsection Licensing the Embedded Server
 
 The MySQL source code is covered by the GNU GPL license
@@ -42971,6 +43054,10 @@ functions}.  For the UDF mechanism to work, functions must be written in C or
 C++, your operating system must support dynamic loading and you must have
 compiled @code{mysqld} dynamically (not statically).
 
+Note that to make @code{AGGREGATE} work, you must have a
+@code{mysql.func} table that contains the column @code{type}.  If this
+is not the case, you should run the script
+@code{mysql_fix_privilege_tables} to get this fixed.
 
 
 @node Adding UDF, Adding native function, CREATE FUNCTION, Adding functions
@@ -43135,6 +43222,10 @@ digits.  For real functions, the default is 13 plus the number of decimals
 indicated by @code{initid->decimals}.  (For numeric functions, the length
 includes any sign or decimal point characters.)
 
+If you want to return a blob, you can set this to 65K or 16M; This
+memory is not allocated but used to decide which column type to use if
+there is a need to temporary store the data.
+
 @item char *ptr
 A pointer that the function can use for its own purposes.  For example,
 functions can use @code{initid->ptr} to communicate allocated memory
@@ -43275,7 +43366,8 @@ terminal screen.
 The return value of the main function @code{xxx()} is the function value, for
 @code{long long} and @code{double} functions.  A string functions should
 return a pointer to the result and store the length of the string in the
-@code{length} arguments. @code{result} is a buffer at least 255 bytes long.
+@code{length} arguments.
+
 Set these to the contents and length of the return value.  For example:
 
 @example
@@ -43283,8 +43375,12 @@ memcpy(result, "result string", 13);
 *length = 13;
 @end example
 
-If your string functions that needs to return a string longer than 255
-bytes, you must allocate the space for it with @code{malloc()} in your
+The @code{result} buffer that is passed to the calc function is 255 byte
+big. If your result fits in this, you don't have to worry about memory
+allocation for results.
+
+If your string function needs to return a string longer than 255 bytes,
+you must allocate the space for it with @code{malloc()} in your
 @code{xxx_init()} function or your @code{xxx()} function and free it in
 your @code{xxx_deinit()} function.  You can store the allocated memory
 in the @code{ptr} slot in the @code{UDF_INIT} structure for reuse by
@@ -43389,6 +43485,7 @@ mysql> CREATE FUNCTION myfunc_double RETURNS REAL SONAME "udf_example.so";
 mysql> CREATE FUNCTION myfunc_int RETURNS INTEGER SONAME "udf_example.so";
 mysql> CREATE FUNCTION lookup RETURNS STRING SONAME "udf_example.so";
 mysql> CREATE FUNCTION reverse_lookup RETURNS STRING SONAME "udf_example.so";
+mysql> CREATE AGGREGATE FUNCTION avgcost RETURNS REAL SONAME "udf_example.so";
 @end example
 
 Functions can be deleted using @code{DROP FUNCTION}:
@@ -43399,6 +43496,7 @@ mysql> DROP FUNCTION myfunc_double;
 mysql> DROP FUNCTION myfunc_int;
 mysql> DROP FUNCTION lookup;
 mysql> DROP FUNCTION reverse_lookup;
+mysql> DROP FUNCTION avgcost;
 @end example
 
 The @code{CREATE FUNCTION} and @code{DROP FUNCTION} statements update the
@@ -47308,6 +47406,9 @@ Configure updates for Tru64, large file support and better TCP wrappers
 support.
 @item John Birrell
 Emulation of pthread_mutex() for OS/2.
+@item Benjamin Pflugmann
+Extended @code{MERGE} tables to handle @code{INSERTS}. Active member
+on the MySQL mailing lists.
 @end table
 
 Other contributors, bugfinders, and testers: James H. Thompson, Maurizio
@@ -47434,16 +47535,16 @@ Our TODO section contains what we plan to have in 4.0. @xref{TODO MySQL 4.0}.
 
 @itemize @bullet
 @item
-Added documentation for @code{libmysqld}, the embedded
-MySQL server library.  Also added example programs (a
-@code{mysql} client and @code{mysqltest} test program) which use
-@code{libmysqld}.
+Added documentation for @code{libmysqld}, the embedded MySQL server
+library.  Also added example programs (a @code{mysql} client and
+@code{mysqltest} test program) which use @code{libmysqld}.
 @item
 Removed @code{my_thread_init()} and @code{my_thread_end()}
 from mysql_com.h, and added @code{mysql_thread_init()} and
 @code{mysql_thread_end()} to mysql.h.
 @item
-Fixed handling of big unsigned bigint constants.
+Unsigned @code{BIGINT} constants now work. @code{MIN()} and @code{MAX()}
+now handles signed and unsigned @code{BIGINT} numbers correctly.
 @item
 New character set @code{latin_de} which provides correct German sorting.
 @item
@@ -47454,44 +47555,39 @@ the number of deleted rows.
 @code{DROP DATABASE} now executes a @code{DROP TABLE} on all tables in
 the database, which fixes a problem with InnoDB tables.
 @item
+Added support for @code{UNION}.
+@item
+A new @code{HANDLER} interface to @code{MyISAM} tables.
+@item
+Added support for @code{INSERT} on @code{MERGE} tables. Patch from
+Benjamin Pflugmann.
+@item
 Changed @code{WEEK(#,0)} to match the calender in the USA.
 @item
-Cleaned up global lock handling for @code{FLUSH TABLES WITH READ LOCK}
-@item
-Fixed problem with @code{DATETIME = constant} in @code{WHERE} optimization.
+@code{COUNT(DISTINCT)} is about 30% faster.
 @item
 Speed up all internal list handling.
 @item
-Added support for @code{UNION}.
-@item
-Allow ANSI SQL syntax @code{X'hexadecimal-number'}
+Creating full text indexes are now much faster.
 @item
 Tree-like cache to speed up bulk inserts and
 @code{myisam_bulk_insert_tree_size} variable.
 @item
-Added @code{ALTER TABLE table_name DISABLE KEYS} and
-@code{ALTER TABLE table_name ENABLE KEYS} commands.
+Searching on packed (@code{CHAR}/@code{VARCHAR}) keys are now much faster.
+@item
+Optimized queries of type:
+@code{SELECT DISTINCT * from table_name ORDER by key_part1 LIMIT #}
+@item
+@code{ORDER BY ... DESC} can now use keys.
 @item
 @code{LOAD DATA FROM MASTER} "auto-magically" sets up a slave.
 @item
 Renamed @code{safe_mysqld} to @code{mysqld_safe}.
 @item
-Allow one to use @code{IN} instead of @code{FROM} in @code{SHOW} commands.
-@item
-@code{SHOW INDEXES} is now a synonym for @code{SHOW INDEX}.
-@item
 Added support for symbolic links to @code{MyISAM} tables. Symlink handling is
 now enabled by default for Windows.
 @item
 @code{LOAD DATA FROM MASTER} "auto-magically" sets up a slave.
-@item
-A new @code{HANDLER} interface to @code{MyISAM} tables.
-@item
-@code{COUNT(DISTINCT)} is about 30% faster.
-@item
-Creating full text indexes are now much faster.
-@item
-Searching on packed (@code{CHAR}/@code{VARCHAR}) keys are now much faster.
 @item
 Added @code{SQL_CALC_FOUND_ROWS} and @code{FOUND_ROWS()}. This makes it
 possible to know how many rows a query would have returned
@@ -47505,8 +47601,18 @@ Added @code{IDENTITY} as a synonym for @code{AUTO_INCREMENT} (like Sybase).
 @item
 Added @code{ORDER BY} syntax to @code{UPDATE} and @code{DELETE}.
 @item
-Optimized queries of type:
-@code{SELECT DISTINCT * from table_name ORDER by key_part1 LIMIT #}
+@code{SHOW INDEXES} is now a synonym for @code{SHOW INDEX}.
+@item
+Added @code{ALTER TABLE table_name DISABLE KEYS} and
+@code{ALTER TABLE table_name ENABLE KEYS} commands.
+@item
+Allow one to use @code{IN} instead of @code{FROM} in @code{SHOW} commands.
+@item
+Allow ANSI SQL syntax @code{X'hexadecimal-number'}
+@item
+Cleaned up global lock handling for @code{FLUSH TABLES WITH READ LOCK}
+@item
+Fixed problem with @code{DATETIME = constant} in @code{WHERE} optimization.
 @end itemize
 
 
@@ -47602,6 +47708,15 @@ not yet 100% confident in this code.
 @node News-3.23.43, News-3.23.42, News-3.23.x, News-3.23.x
 @appendixsubsec Changes in release 3.23.43
 @itemize @bullet
+@item
+Fixed unlikely bug, which returned not matching rows, in SELECT with
+many tables and multi-column indexes and 'range' type.
+@item
+Fixed a unlikely core-dump bug when doing @code{EXPLAIN SELECT} when using
+many tables and @code{ORDER BY}.
+@item
+Fixed bug in @code{LOAD DATA FROM MASTER} when using table with
+@code{CHECKSUM=1}.
 @item
 Added unique error message when one gets a DEADLOCK during a transaction with
 BDB tables.

@@ -27,6 +27,7 @@
 #include "sql_acl.h"
 #include "lex_symbol.h"
 #include <myisam.h>
+#include <myisammrg.h>
 
 extern void yyerror(const char*);
 int yylex(void *yylval);
@@ -390,6 +391,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %token	IDENTIFIED_SYM
 %token	IF
 %token	INSERT_ID
+%token	INSERT_METHOD
 %token	INTERVAL_SYM
 %token	LAST_INSERT_ID
 %token	LEFT
@@ -490,7 +492,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 	table_option opt_if_not_exists 
 
 %type <ulong_num>
-	ULONG_NUM raid_types
+	ULONG_NUM raid_types merge_insert_types
 
 %type <ulonglong_number>
 	ulonglong_num
@@ -796,6 +798,7 @@ create_table_option:
 	    table_list->next=0;
 	    lex->create_info.used_fields|= HA_CREATE_USED_UNION;
 	  }
+	| INSERT_METHOD EQ merge_insert_types   { Lex->create_info.merge_insert_method= $3; Lex->create_info.used_fields|= HA_CREATE_USED_INSERT_METHOD;}
 	| DATA_SYM DIRECTORY_SYM EQ TEXT_STRING	{ Lex->create_info.data_file_name= $4.str; }
 	| INDEX DIRECTORY_SYM EQ TEXT_STRING	{ Lex->create_info.index_file_name= $4.str; }
 
@@ -818,6 +821,11 @@ raid_types:
 	RAID_STRIPED_SYM { $$= RAID_TYPE_0; }
 	| RAID_0_SYM	 { $$= RAID_TYPE_0; }
 	| ULONG_NUM	 { $$=$1;}
+
+merge_insert_types:
+       NO_SYM            { $$= MERGE_INSERT_DISABLED; }
+       | FIRST_SYM       { $$= MERGE_INSERT_TO_FIRST; }
+       | LAST_SYM        { $$= MERGE_INSERT_TO_LAST; }
 
 opt_select_from:
 	/* empty */
@@ -2862,6 +2870,7 @@ keyword:
 	| ISAM_SYM		{}
 	| ISSUER_SYM		{}
 	| INNOBASE_SYM		{}
+	| INSERT_METHOD		{}
 	| LAST_SYM		{}
 	| LEVEL_SYM		{}
 	| LOCAL_SYM		{}

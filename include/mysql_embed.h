@@ -22,5 +22,8 @@
 
 #undef HAVE_PSTACK				/* No stacktrace */
 #undef HAVE_DLOPEN				/* No udf functions */
+#undef HAVE_OPENSSL
+#undef HAVE_VIO
 
+#define DONT_USE_RAID
 #endif /* EMBEDDED_LIBRARY */

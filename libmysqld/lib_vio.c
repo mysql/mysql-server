@@ -23,12 +23,13 @@
 */
 
 #include <my_global.h>
+#include "mysql_embed.h"
+#include "mysql.h"
 
 #ifndef HAVE_VIO			/* is Vio suppored by the Vio lib ? */
 
 #include <errno.h>
 #include <my_sys.h>
-#include "mysql.h"
 #include <violite.h>
 #include <my_sys.h>
 #include <my_net.h>

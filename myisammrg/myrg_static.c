@@ -24,3 +24,7 @@
 #endif
 
 LIST	*myrg_open_list=0;
+static const char *merge_insert_methods[] =
+{ "FIRST", "LAST", NullS };
+TYPELIB merge_insert_method= { array_elements(merge_insert_methods)-1,"",
+			       merge_insert_methods};

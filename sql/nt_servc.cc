@@ -246,7 +246,8 @@ void NTService::ServiceMain(DWORD argc, LPTSTR *argv)
   WaitForSingleObject (pService->hExitEvent, INFINITE);
 
   // wait for thread to exit
-  WaitForSingleObject (pService->hThreadHandle, 30000);
+  if (WaitForSingleObject (pService->hThreadHandle, 1000)==WAIT_TIMEOUT)
+   CloseHandle(pService->hThreadHandle);
 
   pService->Exit(0);
 }

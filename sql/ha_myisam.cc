@@ -36,7 +36,7 @@ ulong myisam_recover_options= HA_RECOVER_NONE;
 /* bits in myisam_recover_options */
 const char *myisam_recover_names[] =
 { "DEFAULT", "BACKUP", "FORCE", "QUICK", NullS};
-TYPELIB myisam_recover_typelib= {array_elements(myisam_recover_names),"",
+TYPELIB myisam_recover_typelib= {array_elements(myisam_recover_names)-1,"",
 				 myisam_recover_names};
 
 
