@@ -360,3 +360,4 @@ character-set=latin1
 "View being updated does not have complete key of underlying table in it"
 "View '%-.64s.%-.64s' references invalid table(s) or column(s)"
 "Can't drop a %s from within another stored routine"
+"GOTO is not allowed in a stored procedure handler"
