@@ -18,7 +18,6 @@
 
 #include "heapdef.h"
 #include <m_ctype.h>
-#include <assert.h>
 
 
 

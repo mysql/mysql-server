@@ -312,7 +312,6 @@ static int my_mbcharlen_ucs2(CHARSET_INFO *cs  __attribute__((unused)) ,
 
 #include <m_string.h>
 #include <stdarg.h>
-#include <assert.h>
 
 static int my_vsnprintf_ucs2(char *dst, uint n, const char* fmt, va_list ap)
 {
