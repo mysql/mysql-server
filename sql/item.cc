@@ -322,6 +322,15 @@ String *Item_copy_string::val_str(String *str)
   return &str_value;
 }
 
+bool Item_copy_string::save_in_field(Field *field, bool no_conversions)
+{
+  if (null_value)
+    return set_field_to_null(field);
+  field->set_notnull();
+  field->store(str_value.ptr(), str_value.length());
+  return 0;
+}
+
 /*
 ** Functions to convert item to field (for send_fields)
 */
@@ -520,7 +529,10 @@ bool Item::save_in_field(Field *field, bool no_conversions)
     str_value.set_quick(buff,sizeof(buff));
     result=val_str(&str_value);
     if (null_value)
+    {
+      str_value.set_quick(0, 0);
       return set_field_to_null_with_conversions(field, no_conversions);
+    }
     field->set_notnull();
     field->store(result->ptr(),result->length());
     str_value.set_quick(0, 0);

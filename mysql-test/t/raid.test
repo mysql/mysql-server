@@ -11,6 +11,15 @@ create database test_raid;
 create table test_raid.r1 (i int) raid_type=1;
 create table test_raid.r2 (i int) raid_type=1 raid_chunks=32;
 drop database test_raid;
+
+#
+# Bug #3182: Test using more than 257 raid chunks
+#
+create database test_raid;
+create table test_raid.r2 (i int) raid_type=1 raid_chunks=257;
+show create table test_raid.r2;
+drop database test_raid;
+
 DROP TABLE IF EXISTS t1,t2;
 CREATE TABLE t1 (
 id int unsigned not null auto_increment primary key,
