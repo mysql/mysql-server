@@ -567,7 +567,8 @@ convertColumnTypeToAttrType(NdbDictionary::Column::Type _type)
   case NdbDictionary::Column::Unsigned:
     return UnSigned;
   case NdbDictionary::Column::Float:
-  case NdbDictionary::Column::Decimal:
+  case NdbDictionary::Column::Olddecimal:
+  case NdbDictionary::Column::Olddecimalunsigned:
   case NdbDictionary::Column::Double:
     return Float;
   case NdbDictionary::Column::Char:
