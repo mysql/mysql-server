@@ -369,3 +369,8 @@ character-set=latin2
 "View '%-.64s.%-.64s' references invalid table(s) or column(s)"
 "Can't drop a %s from within another stored routine"
 "GOTO is not allowed in a stored procedure handler"
+"Trigger already exists"
+"Trigger does not exist"
+"Trigger's '%-.64s' is view or temporary table"
+"Updating of %s row is not allowed in %strigger"
+"There is no %s row in %s trigger"

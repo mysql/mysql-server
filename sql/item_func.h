@@ -945,6 +945,7 @@ public:
   bool fix_fields(THD *thd, struct st_table_list *tables, Item **ref);
   void fix_length_and_dec();
   void print(String *str);
+  void print_as_stmt(String *str);
   const char *func_name() const { return "set_user_var"; }
 };
 
