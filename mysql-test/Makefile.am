@@ -38,6 +38,7 @@ CLEANFILES = 		$(test_SCRIPTS) $(test_DATA)
 
 INCLUDES =			-I$(srcdir)/../include -I../include -I..
 bin_PROGRAMS =		mysql_test_run_new
+noinst_HEADERS =	my_manage.h
 mysql_test_run_new_SOURCES=		mysql_test_run_new.c my_manage.c
 
 
