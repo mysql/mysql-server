@@ -2558,6 +2558,7 @@ mysql_options(MYSQL *mysql,enum mysql_option option, const char *arg)
     break;
   case MYSQL_SET_CLIENT_IP:
     mysql->options.client_ip= my_strdup(arg, MYF(MY_WME));
+    break;
   case MYSQL_SECURE_AUTH:
     mysql->options.secure_auth= *(my_bool *) arg;
     break;
