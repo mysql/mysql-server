@@ -239,3 +239,13 @@ INSERT INTO t1 VALUES (0,'traktor','1111111111111');
 INSERT INTO t1 VALUES (1,'traktor','1111111111111111111111111');
 select count(*) from t1 where f2='traktor';
 drop table t1;
+
+#
+# Test of found bug when blob is first key part
+#
+
+create table t1 (foobar tinyblob not null, boggle smallint not null, key (foobar(32), boggle));
+insert into t1 values ('fish', 10),('bear', 20);
+select foobar, boggle from t1 where foobar = 'fish';
+select foobar, boggle from t1 where foobar = 'fish' and boggle = 10;
+drop table t1;

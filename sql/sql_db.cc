@@ -28,6 +28,8 @@
 static long mysql_rm_known_files(THD *thd, MY_DIR *dirp, const char *path,
 				 uint level);
 
+/* db-name is already validated when we come here */
+
 void mysql_create_db(THD *thd, char *db, uint create_options)
 {
   char	 path[FN_REFLEN+16];
@@ -35,11 +37,6 @@ void mysql_create_db(THD *thd, char *db, uint create_options)
   long result=1;
   DBUG_ENTER("mysql_create_db");
   
-  if (!stripp_sp(db) || check_db_name(db))
-  {
-    net_printf(&thd->net,ER_WRONG_DB_NAME, db);
-    DBUG_VOID_RETURN;
-  }
   VOID(pthread_mutex_lock(&LOCK_mysql_create_db));
 
   /* Check directory */
@@ -96,6 +93,8 @@ static TYPELIB deletable_extentions=
 {array_elements(del_exts)-1,"del_exts", del_exts};
 
 
+/* db-name is already validated when we come here */
+
 void mysql_rm_db(THD *thd,char *db,bool if_exists)
 {
   long deleted=0;
@@ -103,12 +102,6 @@ void mysql_rm_db(THD *thd,char *db,bool if_exists)
   MY_DIR *dirp;
   DBUG_ENTER("mysql_rm_db");
 
-  if (!stripp_sp(db) || check_db_name(db))
-  {
-    net_printf(&thd->net,ER_WRONG_DB_NAME, db);
-    DBUG_VOID_RETURN;
-  }
-  
   VOID(pthread_mutex_lock(&LOCK_mysql_create_db));
   VOID(pthread_mutex_lock(&LOCK_open));
 

@@ -510,7 +510,7 @@ int mysql_table_dump(THD* thd, char* db, char* tbl_name, int fd)
   int error = 0;
   DBUG_ENTER("mysql_table_dump");
   db = (db && db[0]) ? db : thd->db;
-  if(!(table_list = (TABLE_LIST*) sql_calloc(sizeof(TABLE_LIST))))
+  if (!(table_list = (TABLE_LIST*) sql_calloc(sizeof(TABLE_LIST))))
      DBUG_RETURN(1); // out of memory
   table_list->db = db;
   table_list->real_name = table_list->name = tbl_name;
@@ -518,9 +518,14 @@ int mysql_table_dump(THD* thd, char* db, char* tbl_name, int fd)
   table_list->next = 0;
   remove_escape(table_list->real_name);
 
-  if(!(table=open_ltable(thd, table_list, TL_READ_NO_INSERT)))
+  if (!(table=open_ltable(thd, table_list, TL_READ_NO_INSERT)))
     DBUG_RETURN(1);
 
+  if (!db || check_db_name(db))
+  {
+    net_printf(&thd->net,ER_WRONG_DB_NAME, db ? db : "NULL");
+    goto err;
+  }
   if (check_access(thd, SELECT_ACL, db, &table_list->grant.privilege))
     goto err;
   if (grant_option && check_grant(thd, SELECT_ACL, table_list))
@@ -710,6 +715,12 @@ bool do_command(THD *thd)
   case COM_CREATE_DB:
     {
       char *db=thd->strdup(packet+1);
+      // null test to handle EOM
+      if (!db || !stripp_sp(db) || check_db_name(db))
+      {
+	net_printf(&thd->net,ER_WRONG_DB_NAME, db ? db : "NULL");
+	break;
+      }
       if (check_access(thd,CREATE_ACL,db,0,1))
 	break;
       mysql_log.write(thd,command,packet+1);
@@ -719,6 +730,12 @@ bool do_command(THD *thd)
   case COM_DROP_DB:
     {
       char *db=thd->strdup(packet+1);
+      // null test to handle EOM
+      if (!db || !stripp_sp(db) || check_db_name(db))
+      {
+	net_printf(&thd->net,ER_WRONG_DB_NAME, db ? db : "NULL");
+	break;
+      }
       if (check_access(thd,DROP_ACL,db,0,1) || end_active_trans(thd))
 	break;
       mysql_log.write(thd,command,db);
@@ -1503,10 +1520,10 @@ mysql_execute_command(void)
 	goto error;				/* purecov: inspected */
       }
       remove_escape(db);				// Fix escaped '_'
-      if (strlen(db) > NAME_LEN)
+      if (check_db_name(db))
       {
-	net_printf(&thd->net,ER_WRONG_DB_NAME, db);
-	goto error;
+        net_printf(&thd->net,ER_WRONG_DB_NAME, db);
+        goto error;
       }
       if (check_access(thd,SELECT_ACL,db,&thd->col_access))
 	goto error;				/* purecov: inspected */
@@ -1666,6 +1683,11 @@ mysql_execute_command(void)
     break;
   case SQLCOM_CREATE_DB:
     {
+      if (!stripp_sp(lex->name) || check_db_name(lex->name))
+      {
+	net_printf(&thd->net,ER_WRONG_DB_NAME, lex->name);
+	break;
+      }
       if (check_access(thd,CREATE_ACL,lex->name,0,1))
 	break;
       mysql_create_db(thd,lex->name,lex->create_info.options);
@@ -1673,6 +1695,11 @@ mysql_execute_command(void)
     }
   case SQLCOM_DROP_DB:
     {
+      if (!stripp_sp(lex->name) || check_db_name(lex->name))
+      {
+	net_printf(&thd->net,ER_WRONG_DB_NAME, lex->name);
+	break;
+      }
       if (check_access(thd,DROP_ACL,lex->name,0,1) ||
 	  end_active_trans(thd))
 	break;
@@ -1887,12 +1914,6 @@ check_access(THD *thd,uint want_access,const char *db, uint *save_priv,
   if (db == any_db)
     return FALSE;				// Allow select on anything
   
-  if (strlen(db) > NAME_LEN || check_db_name(db))
-    {
-      net_printf(&thd->net,ER_WRONG_DB_NAME, db);
-      return TRUE;
-    }
-
   if (db && (!thd->db || strcmp(db,thd->db)))
     db_access=acl_get(thd->host, thd->ip, (char*) &thd->remote.sin_addr,
 		      thd->priv_user, db); /* purecov: inspected */
@@ -1970,7 +1991,8 @@ static bool check_db_used(THD *thd,TABLE_LIST *tables)
 }
 
 
-static bool check_merge_table_access(THD *thd, char *db, TABLE_LIST *table_list)
+static bool check_merge_table_access(THD *thd, char *db,
+				     TABLE_LIST *table_list)
 {
   int error=0;
   if (table_list)
@@ -2463,8 +2485,8 @@ TABLE_LIST *add_table_to_list(Table_ident *table, LEX_STRING *alias,
     DBUG_RETURN(0);				// End of memory
   alias_str= alias ? alias->str : table->table.str;
   if (table->table.length > NAME_LEN ||
-      table->db.str && table->db.length > NAME_LEN ||
-      check_table_name(table->table.str,table->table.length))
+      check_table_name(table->table.str,table->table.length) ||
+      table->db.str && check_db_name(table->db.str))
   {
     net_printf(&thd->net,ER_WRONG_TABLE_NAME,table->table.str);
     DBUG_RETURN(0);

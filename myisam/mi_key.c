@@ -184,8 +184,9 @@ uint _mi_pack_key(register MI_INFO *info, uint keynr, uchar *key, uchar *old,
       /* Length of key-part used with mi_rkey() always 2 */
       uint tmp_length=uint2korr(pos);
       k_length-= 2+length;
-      set_if_smaller(length,tmp_length);
+      set_if_smaller(length,tmp_length);	/* Safety */
       store_key_length_inc(key,length);
+      old+=2;					/* Skipp length */
       memcpy((byte*) key, pos+2,(size_t) length);
       key+= length;
       continue;

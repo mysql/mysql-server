@@ -254,6 +254,7 @@ public:
   longlong val_int();
   String *val_str(String *);
   void fix_length_and_dec();
+  void update_used_tables();
   enum Item_result result_type () const { return cached_result_type; }
   const char *func_name() const { return "case"; }
   void print(String *str);
