@@ -501,7 +501,7 @@ check_connections(THD *thd)
 #if !defined(HAVE_SYS_UN_H) || defined(HAVE_mit_thread)
     /* Fast local hostname resolve for Win32 */
     if (!strcmp(thd->ip,"127.0.0.1"))
-      thd->host=(char*) localhost;
+      thd->host= thd->host_or_ip= (char*) localhost;
     else
 #endif
     if (!(specialflag & SPECIAL_NO_RESOLVE))
