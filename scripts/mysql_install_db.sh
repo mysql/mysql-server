@@ -342,7 +342,7 @@ fi
 echo "Installing all prepared tables"
 if eval "$mysqld $defaults $mysqld_opt --bootstrap --skip-grant-tables \
          --basedir=$basedir --datadir=$ldata --skip-innodb --skip-bdb \
-         $extra_arg $args" << END_OF_DATA
+         $args" << END_OF_DATA
 use mysql;
 $c_d
 $i_d
