@@ -51,6 +51,7 @@ GetOptions(
 	"with-low-memory",
 	"with-other-libc=s",
 	"with-small-disk",
+	"without-embedded",
 ) || usage();
 
 usage() if ($opt_help);
