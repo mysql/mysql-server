@@ -1083,6 +1083,11 @@ byte *sys_var_thd_conv_charset::value_ptr(THD *thd, enum_var_type type)
 }
 
 
+void sys_var_thd_conv_charset::set_default(THD *thd, enum_var_type type)
+{
+  thd->variables.convert_set= global_system_variables.convert_set; 
+}
+
 
 bool sys_var_timestamp::update(THD *thd,  set_var *var)
 {
