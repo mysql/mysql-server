@@ -17,16 +17,16 @@ else
  fix_bin=.
 fi
 
+vardir=var
+logdir=$vardir/log
 if [ x$1 = x"-slave" ] 
 then
  shift 1
  data=var/slave-data
  ldata=$fix_bin/var/slave-data
- logdir=var/log
 else
  data=var/lib
  ldata=$fix_bin/var/lib
- logdir=var/log
 fi
 
 mdata=$data/mysql
@@ -45,9 +45,13 @@ hostname=`hostname`		# Install this too in the user table
 resolved=127.0.0.1
 
 
+#create the directories
+[ -d $vardir ] || mkdir $vardir
+[ -d $logdir ] || mkdir $logdir
+
 # Create database directories mysql & test
 if [ -d $data ] ; then rm -rf $data ; fi
-mkdir -p $data $data/mysql $data/test 
+mkdir $data $data/mysql $data/test 
 
 #for error messages
 if [ x$BINARY_DIST = x1 ] ; then
@@ -58,9 +62,6 @@ rm -rf share
 mkdir  share
 ln -sf ../../sql/share share/mysql 
 fi
-
-#create the directory for logs
-mkdir -p $logdir
 
 # Initialize variables
 c_d="" i_d=""

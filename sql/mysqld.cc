@@ -2351,7 +2351,8 @@ enum options {
 	       OPT_INNOBASE_DATA_HOME_DIR,OPT_INNOBASE_DATA_FILE_PATH,
 	       OPT_INNOBASE_LOG_GROUP_HOME_DIR,
 	       OPT_INNOBASE_LOG_ARCH_DIR, OPT_INNOBASE_LOG_ARCHIVE,
-	       OPT_INNOBASE_FLUSH_LOG_AT_TRX_COMMIT, OPT_SAFE_SHOW_DB
+	       OPT_INNOBASE_FLUSH_LOG_AT_TRX_COMMIT, OPT_SAFE_SHOW_DB,
+	       OPT_GEMINI_SKIP,
 };
 
 static struct option long_options[] = {
@@ -2462,6 +2463,9 @@ static struct option long_options[] = {
 #endif
 #ifdef HAVE_INNOBASE_DB
   {"skip-innobase",         no_argument,       0, (int) OPT_INNOBASE_SKIP},
+#endif
+#ifdef HAVE_GEMINI_DB
+  {"skip-gemini",           no_argument,       0, (int) OPT_GEMINI_SKIP},
 #endif
   {"skip-concurrent-insert", no_argument,      0, (int) OPT_SKIP_CONCURRENT_INSERT},
   {"skip-delay-key-write",  no_argument,       0, (int) OPT_SKIP_DELAY_KEY_WRITE},
@@ -3385,6 +3389,12 @@ static void get_options(int argc,char **argv)
     case OPT_BDB_SKIP:
       berkeley_skip=1;
       have_berkeley_db=SHOW_OPTION_DISABLED;
+      break;
+#endif
+#ifdef HAVE_GEMINI_DB
+    case OPT_GEMINI_SKIP:
+      gemini_skip=1;
+      have_gemini_db=SHOW_OPTION_DISABLED;  
       break;
 #endif
 #ifdef HAVE_INNOBASE_DB

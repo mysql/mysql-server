@@ -38289,10 +38289,11 @@ To be consistent with our setup, you should put your result files in
 test produces more than one result, you should use @code{test_name.a.result},
 @code{test_name.b.result}, etc
 @item
-Failed test results are put in a file with the same name as the result file
-followed by @code{.reject} extenstion. If your test case is failing, you
-should do a diff on the two files. If you cannot see how they are different,
-examine both with @code{od -c} and also check their lengths.
+Failed test results are put in a file with the same base name as the
+result file with the @code{.reject} extenstion. If your test case is
+failing, you should do a diff on the two files. If you cannot see how
+they are different, examine both with @code{od -c} and also check their
+lengths.
 @item
 You can prefix a query with @code{!} if the test can continue after that query
 returns an error.
@@ -40057,7 +40058,8 @@ though, so Version 3.23 is not released as a stable version yet.
 @itemize @bullet
 @item
 Allow hex constants in the @code{--fields-*-by} and
-@code{--lines-terminated-by} options to @code{mysqldump}. By Paul DuBois.
+@code{--lines-terminated-by} options to @code{mysqldump} and
+@code{mysqlimport}. By Paul DuBois.
 @item
 Added option @code{--safe-show-databases}.
 @item
