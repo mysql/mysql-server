@@ -791,8 +791,9 @@ err:
 }
 
 
-	/* Execute one command from socket (query or simple command) */
+#ifndef EMBEDDED_LIBRARY
 
+	/* Execute one command from socket (query or simple command) */
 bool do_command(THD *thd)
 {
   char *packet;
@@ -830,6 +831,7 @@ bool do_command(THD *thd)
   DBUG_RETURN(dispatch_command(command,thd, packet+1, (uint) packet_length));
 }
 
+#endif  /* EMBEDDED_LIBRARY */
 
 bool dispatch_command(enum enum_server_command command, THD *thd,
 		      char* packet, uint packet_length)
