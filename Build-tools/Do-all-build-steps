@@ -14,6 +14,7 @@ EXTRA_CONFIG="--without-perl"
 echo "Building on $to_host"
 
 rm -rf $BD/*
+rm -f $WD/binary/*
 mkdir -p $WD/Logs
 mkdir -p $BD/Logs
 
@@ -86,3 +87,7 @@ fi
 cd "$BD"
 DIST=`ls -t mysql-*.tar.gz | head -1`
 $BD/Build-tools/mysql-copyright --target=. $DIST
+
+# move the binaries to the 'binary' directory
+mv $BD/mysql*tar.gz $WD/binary
+mv $BD/NEW-RPMS/* $WD/binary

@@ -66,6 +66,7 @@ if ($opt_stage == 0)
   system("mkdir $host/test") if (! -d "$host/test");
   system("mkdir $host/bin") if (! -d "$host/bin");
   system("mkdir Logs") if (! -d "Logs");
+  system("mv $log ${log}-old") if (-f $log);
   unlink($log);
 }
 
