@@ -14265,7 +14265,7 @@ The following options affects how the repair works.
 @item BACKUP   @tab If the data table was changed during recover, save a
                     backup of the @file{table_name.MYD} datafile as
                     @file{table_name-datetime.BAK}.
-@item FORCE    @tab Run recover even if we will loose more than one row
+@item FORCE    @tab Run recover even if we will lose more than one row
                     from the .MYD file.
 @item QUICK    @tab Don't check the rows in the table if there isn't any
                     delete blocks.
@@ -27368,10 +27368,10 @@ When running our benchmark tests using secure connections (all data
 encrypted with internal SSL support) things were 55% slower.
 
 @item
-If you compile with @code{--with-debug=full}, then you will loose 20%
+If you compile with @code{--with-debug=full}, then you will lose 20%
 for most queries, but some queries may take substantially longer (The
 MySQL benchmarks ran 35% slower)
-If you use @code{--with-debug}, then you will only loose 15%.
+If you use @code{--with-debug}, then you will only lose 15%.
 By starting a @code{mysqld} version compiled with @code{--with-debug=full}
 with @code{--skip-safemalloc} the end result should be close to when
 configuring with @code{--with-debug}.
