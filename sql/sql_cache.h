@@ -394,6 +394,9 @@ protected:
   my_bool check_integrity(bool not_locked);
   my_bool in_list(Query_cache_block * root, Query_cache_block * point,
 		  const char *name);
+  my_bool in_table_list(Query_cache_block_table * root,
+			Query_cache_block_table * point,
+			const char *name);
   my_bool in_blocks(Query_cache_block * point);
 };
 
