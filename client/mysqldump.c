@@ -493,7 +493,7 @@ static void write_header(FILE *sql_file, char *db_name)
 ");
     }
     fprintf(sql_file,
-	    "/*!40101 SET @OLD_SQL_MODE=@@SQL_MODE, SQL_MODE=\"%s%s%s\" */;\n",
+	    "/*!40101 SET @OLD_SQL_MODE=@@SQL_MODE, SQL_MODE='%s%s%s' */;\n",
 	    path?"":"NO_AUTO_VALUE_ON_ZERO",compatible_mode_normal_str[0]==0?"":",",
 	    compatible_mode_normal_str);
     check_io(sql_file);
@@ -867,7 +867,7 @@ static int dbConnect(char *host, char *user,char *passwd)
     cannot reconnect.
   */
   sock->reconnect= 0;
-  sprintf(buff, "/*!40100 SET @@SQL_MODE=\"%s\" */",
+  sprintf(buff, "/*!40100 SET @@SQL_MODE='%s' */",
 	  compatible_mode_normal_str);
   if (mysql_query_with_error_report(sock, 0, buff))
   {

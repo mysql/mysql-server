@@ -777,6 +777,8 @@ void Query_cache::store_query(THD *thd, TABLE_LIST *tables_used)
     bzero(&flags, QUERY_CACHE_FLAGS_SIZE);
     flags.client_long_flag= (thd->client_capabilities & CLIENT_LONG_FLAG ?
 			     1 : 0);
+    flags.client_protocol_41= (thd->client_capabilities & CLIENT_PROTOCOL_41 ?
+			     1 : 0);
     flags.character_set_client_num=
       thd->variables.character_set_client->number;
     flags.character_set_results_num=
@@ -974,6 +976,8 @@ Query_cache::send_result_to_client(THD *thd, char *sql, uint query_length)
   bzero(&flags, QUERY_CACHE_FLAGS_SIZE);
   flags.client_long_flag= (thd->client_capabilities & CLIENT_LONG_FLAG ?
 			   1 : 0);
+  flags.client_protocol_41= (thd->client_capabilities & CLIENT_PROTOCOL_41 ?
+                           1 : 0);
   flags.character_set_client_num= thd->variables.character_set_client->number;
   flags.character_set_results_num=
     (thd->variables.character_set_results ?
