@@ -2167,7 +2167,7 @@ simple_expr:
  	| simple_expr COLLATE_SYM ident_or_text %prec NEG
 	  { 
 	    $$= new Item_func_set_collation($1,new Item_string($3.str,$3.length,
-					    YYTHD->variables.thd_charset));
+					    YYTHD->charset()));
 	  }
 	| literal
 	| param_marker

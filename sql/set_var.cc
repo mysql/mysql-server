@@ -133,6 +133,7 @@ sys_var_thd_ulong	sys_join_buffer_size("join_buffer_size",
 sys_var_ulonglong_ptr	sys_key_buffer_size("key_buffer_size",
 					    &keybuff_size,
 					    fix_key_buffer_size);
+sys_var_literal_collation sys_literal_collation("literal_collation");
 sys_var_bool_ptr	sys_local_infile("local_infile",
 					 &opt_local_infile);
 sys_var_thd_bool	sys_log_warnings("log_warnings", &SV::log_warnings);
@@ -363,6 +364,7 @@ sys_var *sys_variables[]=
   &sys_interactive_timeout,
   &sys_join_buffer_size,
   &sys_key_buffer_size,
+  &sys_literal_collation,
   &sys_last_insert_id,
   &sys_local_infile,
   &sys_log_binlog,
@@ -507,6 +509,7 @@ struct show_var_st init_vars[]= {
   {sys_key_buffer_size.name,	(char*) &sys_key_buffer_size,	    SHOW_SYS},
   {"language",                language,                             SHOW_CHAR},
   {"large_files_support",     (char*) &opt_large_files,             SHOW_BOOL},	
+  {sys_literal_collation.name,(char*) &sys_literal_collation,	    SHOW_SYS},
   {sys_local_infile.name,     (char*) &sys_local_infile,	    SHOW_SYS},
 #ifdef HAVE_MLOCKALL
   {"locked_in_memory",	      (char*) &locked_in_memory,	    SHOW_BOOL},
@@ -1155,7 +1158,8 @@ byte *sys_var_thd_bit::value_ptr(THD *thd, enum_var_type type)
 }
 
 
-typedef struct old_names_map_st {
+typedef struct old_names_map_st
+{
   const char *old_name;
   const char *new_name;
 } my_old_conv;
@@ -1187,19 +1191,11 @@ CHARSET_INFO *get_old_charset_by_name(const char *name)
   return NULL;
 }
 
-bool sys_var_client_collation::check(THD *thd, set_var *var)
+bool sys_var_collation::check(THD *thd, set_var *var)
 {
   CHARSET_INFO *tmp;
   char buff[80];
   String str(buff,sizeof(buff), system_charset_info), *res;
-
-  if (!var->value)					// Default value
-  {
-    var->save_result.charset= (var->type != OPT_GLOBAL ?
-			       global_system_variables.thd_charset
-			       : thd->db_charset);
-    return 0;
-  }
 
   if (!(res=var->value->val_str(&str)))
     res= &empty_string;
@@ -1217,26 +1213,89 @@ bool sys_var_client_collation::check(THD *thd, set_var *var)
 bool sys_var_client_collation::update(THD *thd, set_var *var)
 {
   if (var->type == OPT_GLOBAL)
-    global_system_variables.thd_charset= var->save_result.charset;
+    global_system_variables.client_collation= var->save_result.charset;
   else
   {
-    thd->variables.thd_charset= var->save_result.charset;
+    thd->variables.client_collation= var->save_result.charset;
     thd->protocol_simple.init(thd);
     thd->protocol_prep.init(thd);
   }
   return 0;
 }
 
-
 byte *sys_var_client_collation::value_ptr(THD *thd, enum_var_type type)
 {
   CHARSET_INFO *cs= ((type == OPT_GLOBAL) ?
-		  global_system_variables.thd_charset :
-		  thd->variables.thd_charset);
+		  global_system_variables.client_collation :
+		  thd->variables.client_collation);
   return cs ? (byte*) cs->name : (byte*) "";
 }
 
+void sys_var_client_collation::set_default(THD *thd, enum_var_type type)
+{
+ if (type == OPT_GLOBAL)
+   global_system_variables.client_collation= default_charset_info;
+ else
+ {
+   thd->variables.client_collation= thd->db_charset;
+ }
+}
 
+
+bool sys_var_literal_collation::update(THD *thd, set_var *var)
+{
+  if (var->type == OPT_GLOBAL)
+    global_system_variables.literal_collation= var->save_result.charset;
+  else
+    thd->variables.literal_collation= var->save_result.charset;
+  return 0;
+}
+
+byte *sys_var_literal_collation::value_ptr(THD *thd, enum_var_type type)
+{
+  CHARSET_INFO *cs= ((type == OPT_GLOBAL) ?
+		  global_system_variables.literal_collation :
+		  thd->variables.literal_collation);
+  return cs ? (byte*) cs->name : (byte*) "";
+}
+
+void sys_var_literal_collation::set_default(THD *thd, enum_var_type type)
+{
+ if (type == OPT_GLOBAL)
+   global_system_variables.literal_collation= default_charset_info;
+ else
+   thd->variables.literal_collation= thd->db_charset;
+}
+
+
+/*****************************************************************************
+  Functions to handle SET NAMES and SET CHARACTER SET
+*****************************************************************************/
+
+int set_var_client_collation::check(THD *thd)
+{
+  client_charset= client_charset ? client_charset : thd->db_charset;
+  client_collation= client_collation ? client_collation : client_charset;
+  if (!my_charset_same(client_charset, client_collation))
+  {
+    my_error(ER_COLLATION_CHARSET_MISMATCH, MYF(0),
+	     client_collation->name, client_charset->csname);
+    return -1;
+  }
+  return 0;
+}
+
+int set_var_client_collation::update(THD *thd)
+{
+  thd->variables.client_collation= client_collation;
+  thd->variables.literal_collation= client_collation;
+  thd->variables.convert_result_charset= convert_result_charset;
+  thd->protocol_simple.init(thd);
+  thd->protocol_prep.init(thd);
+  return 0;
+}
+
+/****************************************************************************/
 
 bool sys_var_timestamp::update(THD *thd,  set_var *var)
 {
@@ -1656,31 +1715,6 @@ int set_var_password::update(THD *thd)
 }
 
 
-/*****************************************************************************
-  Functions to handle SET NAMES and SET CHARACTER SET
-*****************************************************************************/
-
-int set_var_client_collation::check(THD *thd)
-{
-  client_charset= client_charset ? client_charset : thd->db_charset;
-  client_collation= client_collation ? client_collation : client_charset;
-  if (!my_charset_same(client_charset, client_collation))
-  {
-    my_error(ER_COLLATION_CHARSET_MISMATCH, MYF(0),
-	     client_collation->name, client_charset->csname);
-    return -1;
-  }
-  return 0;
-}
-
-int set_var_client_collation::update(THD *thd)
-{
-  thd->variables.thd_charset= client_collation;
-  thd->variables.convert_result_charset= convert_result_charset;
-  thd->protocol_simple.init(thd);
-  thd->protocol_prep.init(thd);
-  return 0;
-}
 
 
 
