@@ -35,7 +35,8 @@ getTable(Ndb* pNdb, int i){
 
 int runLoadTable(NDBT_Context* ctx, NDBT_Step* step){
   
-  int records = ctx->getNumRecords();
+  int records = ctx->getProperty("Rows", ctx->getNumRecords());
+
   HugoTransactions hugoTrans(*ctx->getTab());
   if (hugoTrans.loadTable(GETNDB(step), records) != 0){
     return NDBT_FAILED;
@@ -264,7 +265,7 @@ int runVerifyTable(NDBT_Context* ctx, NDBT_Step* step){
 
 int runScanRead(NDBT_Context* ctx, NDBT_Step* step){
   int loops = ctx->getNumLoops();
-  int records = ctx->getNumRecords();
+  int records = ctx->getProperty("Rows", ctx->getNumRecords());
   int parallelism = ctx->getProperty("Parallelism", 240);
   int abort = ctx->getProperty("AbortProb", 5);
 
@@ -375,7 +376,20 @@ int runScanReadError(NDBT_Context* ctx, NDBT_Step* step){
   restarter.insertErrorInAllNodes(0);
   return result;
 }
-		     
+
+int
+runInsertError(NDBT_Context* ctx, NDBT_Step* step){
+  int error = ctx->getProperty("ErrorCode");
+  NdbRestarter restarter;
+
+  ctx->setProperty("ErrorCode", (Uint32)0);
+  if (restarter.insertErrorInAllNodes(error) != 0){
+    ndbout << "Could not insert error in all nodes "<<endl;
+    return NDBT_FAILED;
+  }
+  return NDBT_OK;
+}     
+
 int runScanReadErrorOneNode(NDBT_Context* ctx, NDBT_Step* step){
   int result = NDBT_OK;
   int loops = ctx->getNumLoops();
@@ -1256,6 +1270,16 @@ TESTCASE("ScanRead100",
 	 "Verify scan requirement: Scan with 100 simultaneous threads"){
   INITIALIZER(runLoadTable);
   STEPS(runScanRead, 100);
+  FINALIZER(runClearTable);
+}
+TESTCASE("Scan-bug8262", 
+	 ""){
+  TC_PROPERTY("Rows", 1);
+  TC_PROPERTY("ErrorCode", 8035);
+  INITIALIZER(runLoadTable);
+  INITIALIZER(runInsertError); // Will reset error code
+  STEPS(runScanRead, 25);
+  FINALIZER(runInsertError);
   FINALIZER(runClearTable);
 }
 TESTCASE("ScanRead40RandomTable", 
