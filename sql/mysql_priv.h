@@ -194,6 +194,7 @@ char* query_table_status(THD *thd,const char *db,const char *table_name);
 #define MODE_SERIALIZABLE		16
 #define MODE_ONLY_FULL_GROUP_BY		32
 #define MODE_NO_UNSIGNED_SUBTRACTION	64
+#define MODE_NO_DIR_IN_CREATE		128
 
 #define RAID_BLOCK_SIZE 1024
 
