@@ -20,19 +20,22 @@
 #include "mysys_priv.h"
 #include <m_string.h>
 
-	/* Formaterar ett filnamn i avsende p} ett annat namn */
-	/* Klarar {ven to = name */
-	/* Denna funktion r|r inte p} utg}ngsnamnet */
+        /*
+	  Copy directory and/or extension between filenames.
+	  (For the meaning of 'flag', check mf_format.c)
+	  'to' may be equal to 'name'.
+	  Returns 'to'.
+	*/
 
-my_string fn_same(my_string toname, const char *name, int flag)
+my_string fn_same(char *to, const char *name, int flag)
 {
   char dev[FN_REFLEN];
   const char *ext;
   DBUG_ENTER("fn_same");
-  DBUG_PRINT("mfunkt",("to: %s  name: %s  flag: %d",toname,name,flag));
+  DBUG_PRINT("enter",("to: %s  name: %s  flag: %d",to,name,flag));
 
   if ((ext=strrchr(name+dirname_part(dev,name),FN_EXTCHAR)) == 0)
     ext="";
 
-  DBUG_RETURN(fn_format(toname,toname,dev,ext,flag));
+  DBUG_RETURN(fn_format(to,to,dev,ext,flag));
 } /* fn_same */
