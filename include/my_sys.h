@@ -425,7 +425,7 @@ extern int my_printf_error _VARARGS((uint my_err, const char *format,
 				    __attribute__ ((format (printf, 2, 4))));
 extern int my_vsnprintf( char *str, size_t n,
                                 const char *format, va_list ap );
-
+extern int my_snprintf(char* to, size_t n, const char* fmt, ...);
 extern int my_message(uint my_err, const char *str,myf MyFlags);
 extern int my_message_no_curses(uint my_err, const char *str,myf MyFlags);
 extern int my_message_curses(uint my_err, const char *str,myf MyFlags);

@@ -28,6 +28,7 @@
 
 MYSQL_LOG mysql_log,mysql_update_log,mysql_slow_log,mysql_bin_log;
 extern I_List<i_string> binlog_do_db, binlog_ignore_db;
+extern ulong max_binlog_size;
 
 static bool test_if_number(const char *str,
 			   long *res, bool allow_wildcards);
@@ -609,6 +610,8 @@ bool MYSQL_LOG::write(Query_log_event* event_info)
 {
   /* In most cases this is only called if 'is_open()' is true */
   bool error=0;
+  bool should_rotate = 0;
+  
   if (!inited)					// Can't use mutex if not init
     return 0;
   VOID(pthread_mutex_lock(&LOCK_log));
@@ -655,7 +658,7 @@ bool MYSQL_LOG::write(Query_log_event* event_info)
 	file == &log_file && flush_io_cache(file))
       goto err;
     error=0;
-
+    should_rotate = (file == &log_file && my_b_tell(file) >= max_binlog_size); 
 err:
     if (error)
     {
@@ -669,6 +672,8 @@ err:
       VOID(pthread_cond_broadcast(&COND_binlog_update));
   }
   VOID(pthread_mutex_unlock(&LOCK_log));
+  if(should_rotate)
+    new_file();
   return error;
 }
 
@@ -682,6 +687,7 @@ bool MYSQL_LOG::write(IO_CACHE *cache)
 {
   VOID(pthread_mutex_lock(&LOCK_log));
   bool error=1;
+  
   if (is_open())
   {
     uint length;
@@ -722,7 +728,8 @@ err:
   else
     VOID(pthread_cond_broadcast(&COND_binlog_update));
     
-  VOID(pthread_mutex_unlock(&LOCK_log));    
+  VOID(pthread_mutex_unlock(&LOCK_log));
+  
   return error;
 }
 
@@ -730,6 +737,8 @@ err:
 bool MYSQL_LOG::write(Load_log_event* event_info)
 {
   bool error=0;
+  bool should_rotate = 0;
+  
   if (inited)
   {
     VOID(pthread_mutex_lock(&LOCK_log));
@@ -745,11 +754,16 @@ bool MYSQL_LOG::write(Load_log_event* event_info)
 	    sql_print_error(ER(ER_ERROR_ON_WRITE), name, errno);
 	  error=write_error=1;
 	}
+	should_rotate = (my_b_tell(&log_file) >= max_binlog_size);
 	VOID(pthread_cond_broadcast(&COND_binlog_update));
       }
     }
     VOID(pthread_mutex_unlock(&LOCK_log));
   }
+
+  if(should_rotate)
+    new_file();
+  
   return error;
 }
 

@@ -238,7 +238,7 @@ ulong keybuff_size,sortbuff_size,max_item_sort_length,table_cache_size,
       query_buff_size, lower_case_table_names, mysqld_net_retry_count,
       net_interactive_timeout, slow_launch_time = 2L,
       net_read_timeout,net_write_timeout,slave_open_temp_tables=0,
-      open_files_limit=0;
+      open_files_limit=0, max_binlog_size;
 ulong thread_cache_size=0, binlog_cache_size=0, max_binlog_cache_size=0;
 volatile ulong cached_thread_count=0;
 
@@ -2571,6 +2571,8 @@ CHANGEABLE_VAR changeable_vars[] = {
       1024*1024L, 80, 64*1024*1024L, MALLOC_OVERHEAD, 1024 },
   { "max_binlog_cache_size",   (long*) &max_binlog_cache_size,
       ~0L, IO_SIZE, ~0L, 0, IO_SIZE },
+  { "max_binlog_size",           (long*) &max_binlog_size,
+      1024*1024L*1024L, 1024, 1024*1024L*1024L, 0, 1 },
   { "max_connections",         (long*) &max_connections,
       100, 1, 16384, 0, 1 },
   { "max_connect_errors",      (long*) &max_connect_errors,
@@ -2672,7 +2674,8 @@ struct show_var_st init_vars[]= {
   {"low_priority_updates",    (char*) &low_priority_updates,        SHOW_BOOL},
   {"lower_case_table_names",  (char*) &lower_case_table_names,      SHOW_LONG},
   {"max_allowed_packet",      (char*) &max_allowed_packet,          SHOW_LONG},
-  {"max_binlog_cache_size",  (char*) &max_binlog_cache_size,	    SHOW_LONG},
+  {"max_binlog_cache_size",   (char*) &max_binlog_cache_size,	    SHOW_LONG},
+  {"max_binlog_size",         (char*) &max_binlog_size,	            SHOW_LONG},
   {"max_connections",         (char*) &max_connections,             SHOW_LONG},
   {"max_connect_errors",      (char*) &max_connect_errors,          SHOW_LONG},
   {"max_delayed_threads",     (char*) &max_insert_delayed_threads,  SHOW_LONG},

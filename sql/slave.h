@@ -93,6 +93,11 @@ extern bool opt_log_slave_updates ;
 pthread_handler_decl(handle_slave,arg);
 extern bool volatile abort_loop, abort_slave;
 extern bool slave_running;
+extern uint32 slave_skip_counter;
+// needed for problems when slave stops and
+// we want to restart it skipping one or more events in the master log that
+// have caused errors, and have been manually applied by DBA already
+
 extern pthread_t slave_real_id;
 extern MASTER_INFO glob_mi;
 extern HASH replicate_do_table, replicate_ignore_table;
