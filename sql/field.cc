@@ -2332,6 +2332,33 @@ String *Field_double::val_str(String *val_buffer,
 
   if (dec >= NOT_FIXED_DEC)
   {
+    /*
+      Let's try to pretty print a floating point number. Here we use
+      '%-*.*g' conversion string:
+        '-' stands for left-padding with spaces, if such padding will take
+      place
+        '*' is a placeholder for the first argument, field_length, and
+      signifies minimal width of result string. If result is less than
+      field length it will be space-padded. Note, however, that we'll not
+      pass spaces to Field_string::store(const char *, ...), due to
+      strcend in the next line.
+        '.*' is a placeholder for DBL_DIG and defines maximum number of
+      significant digits in the result string. DBL_DIG is a hardware
+      specific C define for maximum number of decimal digits of a floating
+      point number, such that rounding to hardware floating point
+      representation and back to decimal will not lead to loss of
+      precision. I.e if DBL_DIG is 15, number 123456789111315 can be
+      represented as double without precision loss.  As one can judge from
+      this description, chosing DBL_DIG here is questionable, especially
+      because it introduces a system dependency.
+        'g' means that conversion will use [-]ddd.ddd (conventional) style,
+      and fall back to [-]d.ddde[+|i]ddd (scientific) style if there is no
+      enough space for all digits.
+      Maximum length of result string (not counting spaces) is (I guess)
+      DBL_DIG + 8, where 8 is 1 for sign, 1 for decimal point, 1 for
+      exponent sign, 1 for exponent, and 4 for exponent value.
+      XXX: why do we use space-padding and trim spaces in the next line?
+    */
     sprintf(to,"%-*.*g",(int) field_length,DBL_DIG,nr);
     to=strcend(to,' ');
   }
