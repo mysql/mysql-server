@@ -3057,7 +3057,6 @@ int ha_ndbcluster::external_lock(THD *thd, int lock_type)
       m_transaction_on= FALSE;
     else
       m_transaction_on= thd->variables.ndb_use_transactions;
-    //     m_use_local_query_cache= thd->variables.ndb_use_local_query_cache;
 
     m_active_trans= thd->transaction.all.ndb_tid ? 
       (NdbConnection*)thd->transaction.all.ndb_tid:
@@ -3789,9 +3788,8 @@ ha_ndbcluster::ha_ndbcluster(TABLE *table_arg):
   m_ha_not_exact_count(FALSE),
   m_force_send(TRUE),
   m_autoincrement_prefetch(32),
-  m_transaction_on(TRUE),
-  m_use_local_query_cache(FALSE)
-{ 
+  m_transaction_on(TRUE)
+{
   int i;
   
   DBUG_ENTER("ha_ndbcluster");
@@ -4506,10 +4504,129 @@ const char* ha_ndbcluster::index_type(uint key_number)
 }
 uint8 ha_ndbcluster::table_cache_type()
 {
-  if (m_use_local_query_cache)
-    return HA_CACHE_TBL_TRANSACT;
+  DBUG_ENTER("ha_ndbcluster::table_cache_type=HA_CACHE_TBL_ASKTRANSACT");
+  DBUG_RETURN(HA_CACHE_TBL_ASKTRANSACT);
+}
+
+static
+my_bool
+ndbcluster_cache_retrieval_allowed(
+/*======================================*/
+				/* out: TRUE if permitted, FALSE if not;
+				note that the value FALSE means invalidation
+				of query cache if *engine_data is changed */
+	THD*	thd,		/* in: thd of the user who is trying to
+				store a result to the query cache or
+				retrieve it */
+	char*	full_name,	/* in: concatenation of database name,
+				the null character '\0', and the table
+				name */
+	uint	full_name_len,	/* in: length of the full name, i.e.
+				len(dbname) + len(tablename) + 1 */
+        ulonglong *engine_data) /* in: value set in call to 
+				ha_ndbcluster::cached_table_registration
+				   out: if return FALSE this is used to invalidate 
+				all cached queries with this table*/
+{
+  DBUG_ENTER("ndbcluster_cache_retrieval_allowed");
+  char tabname[128];
+  char *dbname= full_name;
+  my_bool is_autocommit;
+  {
+    int dbname_len= strlen(full_name);
+    int tabname_len= full_name_len-dbname_len-1;
+    memcpy(tabname, full_name+dbname_len+1, tabname_len);
+    tabname[tabname_len]= '\0';
+  }
+  if (thd->options & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN))
+    is_autocommit = FALSE;
   else
-    return HA_CACHE_TBL_NOCACHE;
+    is_autocommit = TRUE;
+  DBUG_PRINT("enter",("dbname=%s, tabname=%s, autocommit=%d",
+		      dbname,tabname,is_autocommit));
+  if (!is_autocommit)
+  {
+    DBUG_PRINT("info",("OPTION_NOT_AUTOCOMMIT=%d OPTION_BEGIN=%d",
+		       thd->options & OPTION_NOT_AUTOCOMMIT,
+		       thd->options & OPTION_BEGIN));
+    // ToDo enable cache inside a transaction
+    // no need to invalidate though so leave *engine_data
+    DBUG_RETURN(FALSE);
+  }
+  {
+    Ndb *ndb;
+    Uint64 commit_count;
+    if (!(ndb= check_ndb_in_thd(thd)))
+    {
+      *engine_data= *engine_data+1; // invalidate
+      DBUG_RETURN(FALSE);
+    }
+    ndb->setDatabaseName(dbname);
+    if (ndb_get_table_statistics(ndb, tabname, 0, &commit_count))
+    {
+      *engine_data= *engine_data+1; // invalidate
+      DBUG_RETURN(FALSE);
+    }
+    if (*engine_data != commit_count)
+    {
+      *engine_data= commit_count; // invalidate
+      DBUG_RETURN(FALSE);
+    }
+  }
+  DBUG_PRINT("exit",("*engine_data=%d ok, use cache",*engine_data));
+  DBUG_RETURN(TRUE);
+}
+
+my_bool
+ha_ndbcluster::cached_table_registration(
+/*======================================*/
+				/* out: TRUE if permitted, FALSE if not;
+				note that the value FALSE means invalidation
+				of query cache if *engine_data is changed */
+	THD*	thd,		/* in: thd of the user who is trying to
+				store a result to the query cache or
+				retrieve it */
+	char*	full_name,	/* in: concatenation of database name,
+				the null character '\0', and the table
+				name */
+	uint	full_name_len,	/* in: length of the full name, i.e.
+				len(dbname) + len(tablename) + 1 */
+	qc_engine_callback 
+	*engine_callback,       /* out: function to be called before using
+				   cache on this table */
+        ulonglong *engine_data) /* out: if return FALSE this is used to 
+				   invalidate all cached queries with this table*/
+{
+  DBUG_ENTER("ha_ndbcluster::cached_table_registration");
+  my_bool is_autocommit;
+  if (thd->options & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN))
+    is_autocommit = FALSE;
+  else
+    is_autocommit = TRUE;
+  DBUG_PRINT("enter",("dbname=%s, tabname=%s, is_autocommit=%d",
+		      m_dbname,m_tabname,is_autocommit));
+  if (!is_autocommit)
+  {
+    DBUG_PRINT("info",("OPTION_NOT_AUTOCOMMIT=%d OPTION_BEGIN=%d",
+		       thd->options & OPTION_NOT_AUTOCOMMIT,
+		       thd->options & OPTION_BEGIN));
+    // ToDo enable cache inside a transaction
+    // no need to invalidate though so leave *engine_data
+    DBUG_RETURN(FALSE);
+  }
+  {
+    Uint64 commit_count;
+    m_ndb->setDatabaseName(m_dbname);
+    if (ndb_get_table_statistics(m_ndb, m_tabname, 0, &commit_count))
+    {
+      *engine_data= 0;
+      DBUG_RETURN(FALSE);
+    }
+    *engine_data= commit_count;
+  }
+  *engine_callback= ndbcluster_cache_retrieval_allowed;
+  DBUG_PRINT("exit",("*engine_data=%d", *engine_data));
+  DBUG_RETURN(TRUE);
 }
 
 /*

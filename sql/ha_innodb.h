@@ -33,6 +33,10 @@ typedef struct st_innobase_share {
 } INNOBASE_SHARE;
 
 
+my_bool innobase_query_caching_of_table_permitted(THD* thd, char* full_name,
+                                                  uint full_name_len,
+                                                  ulonglong *unused);
+
 /* The class defining a handle to an Innodb table */
 class ha_innobase: public handler
 {
@@ -168,6 +172,20 @@ class ha_innobase: public handler
 	void init_table_handle_for_HANDLER(); 
 	longlong get_auto_increment();
         uint8 table_cache_type() { return HA_CACHE_TBL_ASKTRANSACT; }
+        /*
+          ask handler about permission to cache table during query registration
+        */
+        my_bool cached_table_registration(THD *thd, char *table_key,
+                                          uint key_length,
+                                          qc_engine_callback *call_back,
+                                          ulonglong *engine_data)
+        {
+          *call_back= innobase_query_caching_of_table_permitted;
+          *engine_data= 0;
+          return innobase_query_caching_of_table_permitted(thd, table_key,
+                                                           key_length,
+                                                           engine_data);
+        }
 
         static char      *get_mysql_bin_log_name();
         static ulonglong get_mysql_bin_log_pos();
@@ -233,8 +251,6 @@ int innobase_close_connection(THD *thd);
 int innobase_drop_database(char *path);
 int innodb_show_status(THD* thd);
 
-my_bool innobase_query_caching_of_table_permitted(THD* thd, char* full_name,
-						uint full_name_len);
 void innobase_release_temporary_latches(void* innobase_tid);
 
 void innobase_store_binlog_offset_and_flush_log(char *binlog_name,longlong offset);

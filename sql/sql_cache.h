@@ -145,6 +145,10 @@ struct Query_cache_table
   char *tbl;
   uint32 key_len;
   uint8 table_type;
+  /* unique for every engine reference */
+  qc_engine_callback callback_func;
+  /* data need by some engines */
+  ulonglong engine_data_buff;
 
   inline char *db()			     { return (char *) data(); }
   inline char *table()			     { return tbl; }
@@ -153,6 +157,10 @@ struct Query_cache_table
   inline void key_length(uint32 len)         { key_len= len; }
   inline uint8 type()                        { return table_type; }
   inline void type(uint8 t)                  { table_type= t; }
+  inline qc_engine_callback callback()       { return callback_func; }
+  inline void callback(qc_engine_callback fn){ callback_func= fn; }
+  inline ulonglong engine_data()             { return engine_data_buff; }
+  inline void engine_data(ulonglong data)    { engine_data_buff= data; }
   inline gptr data()
   {
     return (gptr)(((byte*)this)+
@@ -281,7 +289,9 @@ protected:
 			      TABLE_COUNTER_TYPE tables);
   my_bool insert_table(uint key_len, char *key,
 		       Query_cache_block_table *node,
-		       uint32 db_length, uint8 cache_type);
+		       uint32 db_length, uint8 cache_type,
+		       qc_engine_callback callback,
+		       ulonglong engine_data);
   void unlink_table(Query_cache_block_table *node);
   Query_cache_block *get_free_block (ulong len, my_bool not_less,
 				      ulong min);
