@@ -19,10 +19,10 @@ cd $CWD
 if [ -d ../sql ] ; then
    SOURCE_DIST=1
    ndbtop=$BASEDIR/ndb
-   exec_ndb=$ndbtop/src/kernel/ndb-main/ndbd
+   exec_ndb=$ndbtop/src/kernel/ndbd
    exec_mgmtsrvr=$ndbtop/src/mgmsrv/ndb_mgmd
    exec_waiter=$ndbtop/tools/ndb_waiter
-   exec_mgmtclient=$ndbtop/src/mgmclient/ndb_mgmclient
+   exec_mgmtclient=$ndbtop/src/mgmclient/ndb_mgm
 else
    BINARY_DIST=1
    if test -x "$BASEDIR/libexec/ndbd"
@@ -34,7 +34,7 @@ else
      exec_mgmtsrvr=$BASEDIR/bin/ndb_mgmd
    fi
    exec_waiter=$BASEDIR/bin/ndb_waiter
-   exec_mgmtclient=$BASEDIR/bin/ndb_mgmclient
+   exec_mgmtclient=$BASEDIR/bin/ndb_mgm
 fi
 
 pidfile=ndbcluster.pid
