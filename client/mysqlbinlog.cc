@@ -169,6 +169,8 @@ public:
     }
   Create_file_log_event *grab_event(uint file_id)
     {
+      if (file_id >= file_names.elements)
+        return 0;
       Create_file_log_event **ptr= 
 	(Create_file_log_event**)file_names.buffer + file_id;
       Create_file_log_event *res= *ptr;
@@ -182,8 +184,14 @@ public:
     }
   void process(Append_block_log_event *ae)
     {
-      if (ae->file_id >= file_names.elements)
-      {
+      Create_file_log_event* ce= 0;
+      
+      if (ae->file_id < file_names.elements)
+        ce= *((Create_file_log_event**)file_names.buffer + ae->file_id);
+        
+      if (ce)
+        append_to_file(ce->fname,O_APPEND|O_BINARY|O_WRONLY,ae->block,ae->block_len);
+      else
         /*
           There is no Create_file event (a bad binlog or a big
           --position). Assuming it's a big --position, we just do nothing and
@@ -191,11 +199,6 @@ public:
         */
 	fprintf(stderr,"Warning: ignoring Append_block as there is no \
 Create_file event for file_id: %u\n",ae->file_id);
-        return;
-      }
-      Create_file_log_event* ce= 
-	*((Create_file_log_event**)file_names.buffer + ae->file_id);
-      append_to_file(ce->fname,O_APPEND|O_BINARY|O_WRONLY,ae->block,ae->block_len);
     }
 };
 
