@@ -733,7 +733,7 @@ int openfrm(const char *name, const char *alias, uint db_stat, uint prgflag,
   outparam->db_low_byte_first=outparam->file->low_byte_first();
 
   my_pthread_setspecific_ptr(THR_MALLOC,old_root);
-  opened_tables++;
+  current_thd->status_var.opened_tables++;
 #ifndef DBUG_OFF
   if (use_hash)
     (void) hash_check(&outparam->name_hash);

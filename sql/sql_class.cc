@@ -298,6 +298,7 @@ void THD::init(void)
   bzero((char*) warn_count, sizeof(warn_count));
   total_warn_count= 0;
   update_charset();
+  bzero((char *) &status_var, sizeof(status_var));
 }
 
 
@@ -388,6 +389,7 @@ THD::~THD()
   /* Ensure that no one is using THD */
   pthread_mutex_lock(&LOCK_delete);
   pthread_mutex_unlock(&LOCK_delete);
+  add_to_status(&global_status_var, &status_var);
 
   /* Close connection */
 #ifndef EMBEDDED_LIBRARY  
@@ -427,6 +429,27 @@ THD::~THD()
   /* Reset stmt_backup.mem_root to not double-free memory from thd.mem_root */
   clear_alloc_root(&stmt_backup.mem_root);
   DBUG_VOID_RETURN;
+}
+
+
+/*
+  Add to one status variable another status variable
+
+  NOTES
+    This function assumes that all variables are long/ulong.
+    If this assumption will change, then we have to explictely add
+    the other variables after the while loop
+*/
+
+void add_to_status(STATUS_VAR *to_var, STATUS_VAR *from_var)
+{
+  ulong *end= (ulong*) ((byte*) to_var + offsetof(STATUS_VAR,
+						  last_system_status_var) +
+			sizeof(ulong));
+  ulong *to= (ulong*) to_var, *from= (ulong*) from_var;
+
+  while (to != end)
+    *(to++)+= *(from++);
 }
 
 
@@ -1627,4 +1650,28 @@ void TMP_TABLE_PARAM::init()
   field_count= sum_func_count= func_count= hidden_field_count= 0;
   group_parts= group_length= group_null_parts= 0;
   quick_group= 1;
+}
+
+
+void thd_increment_bytes_sent(ulong length)
+{
+  current_thd->status_var.bytes_sent+= length;
+}
+
+
+void thd_increment_bytes_received(ulong length)
+{
+  current_thd->status_var.bytes_received+= length;
+}
+
+
+void thd_increment_net_big_packet_count(ulong length)
+{
+  current_thd->status_var.net_big_packet_count+= length;
+}
+
+
+void THD::set_status_var_init()
+{
+  bzero((char*) &status_var, sizeof(status_var));
 }

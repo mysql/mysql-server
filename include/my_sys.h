@@ -788,6 +788,10 @@ extern void add_compiled_collation(CHARSET_INFO *cs);
 extern ulong escape_string_for_mysql(CHARSET_INFO *charset_info, char *to,
                                      const char *from, ulong length);
 
+extern void thd_increment_bytes_sent(ulong length);
+extern void thd_increment_bytes_received(ulong length);
+extern void thd_increment_net_big_packet_count(ulong length);
+
 #ifdef __WIN__
 extern my_bool have_tcpip;		/* Is set if tcpip is used */
 #endif

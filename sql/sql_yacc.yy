@@ -5937,8 +5937,12 @@ show_param:
           { Lex->sql_command = SQLCOM_SHOW_WARNS;}
         | ERRORS opt_limit_clause_init
           { Lex->sql_command = SQLCOM_SHOW_ERRORS;}
-	| STATUS_SYM wild
-	  { Lex->sql_command= SQLCOM_SHOW_STATUS; }
+	| opt_var_type STATUS_SYM wild
+          {
+	    THD *thd= YYTHD;
+	    thd->lex->sql_command= SQLCOM_SHOW_STATUS;
+	    thd->lex->option_type= (enum_var_type) $1;
+	  }	
         | INNOBASE_SYM STATUS_SYM
           { Lex->sql_command = SQLCOM_SHOW_INNODB_STATUS; WARN_DEPRECATED("SHOW INNODB STATUS", "SHOW ENGINE INNODB STATUS"); }
 	| opt_full PROCESSLIST_SYM

@@ -1874,7 +1874,8 @@ err:
 
 int mysqld_show(THD *thd, const char *wild, show_var_st *variables,
 		enum enum_var_type value_type,
-		pthread_mutex_t *mutex)
+		pthread_mutex_t *mutex,
+		struct system_status_var *status_var)
 {
   char buff[1024];
   List<Item> field_list;
@@ -1912,6 +1913,10 @@ int mysqld_show(THD *thd, const char *wild, show_var_st *variables,
 
       pos= end= buff;
       switch (show_type) {
+      case SHOW_LONG_STATUS:
+      case SHOW_LONG_CONST_STATUS:
+	value= ((char *) status_var + (uint) value);
+	  /* fall through */
       case SHOW_LONG:
       case SHOW_LONG_CONST:
 	end= int10_to_str(*(long*) value, buff, 10);
@@ -2180,6 +2185,31 @@ int mysqld_show(THD *thd, const char *wild, show_var_st *variables,
   pthread_mutex_unlock(mutex);
   DBUG_RETURN(1);
 }
+
+
+/* collect status for all running threads */
+
+void calc_sum_of_all_status(STATUS_VAR *to)
+{
+  DBUG_ENTER("calc_sum_of_all_status");
+
+  /* Ensure that thread id not killed during loop */
+  VOID(pthread_mutex_lock(&LOCK_thread_count)); // For unlink from list
+
+  I_List_iterator<THD> it(threads);
+  THD *tmp;
+  
+  /* Get global values as base */
+  *to= global_status_var;
+  
+  /* Add to this status from existing threads */
+  while ((tmp= it++))
+    add_to_status(to, &tmp->status_var);
+  
+  VOID(pthread_mutex_unlock(&LOCK_thread_count));
+  DBUG_VOID_RETURN;
+}
+
 
 #ifdef __GNUC__
 template class List_iterator_fast<char>;
