@@ -1162,6 +1162,44 @@ void mysqld_list_processes(THD *thd,const char *user, bool verbose)
 ** Status functions
 *****************************************************************************/
 
+int mysqld_show_charsets(THD *thd, const char *wild)
+{
+  uint i;
+  char buff[8192];
+  String packet2(buff,sizeof(buff),default_charset_info);
+  List<Item> field_list;
+  CONVERT *convert=thd->convert_set;
+  CHARSET_INFO *cs;
+  DBUG_ENTER("mysqld_show_charsets");
+
+  field_list.push_back(new Item_empty_string("Name",30));
+  field_list.push_back(new Item_int("Id",0,7));
+  field_list.push_back(new Item_int("strx_maxlen",0,7));
+  field_list.push_back(new Item_int("mb_maxlen",0,7));
+
+  if (send_fields(thd,field_list,1))
+    DBUG_RETURN(1);
+
+  for (cs=compiled_charsets ; cs->name ; cs++ )
+  {
+    if (!(wild && wild[0] && wild_case_compare(system_charset_info,cs->name,wild)))
+    {
+      packet2.length(0);
+      net_store_data(&packet2,convert,cs->name);
+      net_store_data(&packet2,(uint32) cs->number);
+      net_store_data(&packet2,(uint32) cs->strxfrm_multiply);
+      net_store_data(&packet2,(uint32) cs->mbmaxlen);
+
+      if (my_net_write(&thd->net, (char*) packet2.ptr(),packet2.length()))
+         goto err;                               /* purecov: inspected */
+    }
+  }
+  send_eof(&thd->net); 
+  DBUG_RETURN(0);
+err:
+  DBUG_RETURN(1);
+}
+
 
 int mysqld_show(THD *thd, const char *wild, show_var_st *variables)
 {

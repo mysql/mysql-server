@@ -2801,6 +2801,8 @@ show_param:
 	  { Lex->sql_command= SQLCOM_SHOW_PROCESSLIST;}
 	| VARIABLES wild
 	  { Lex->sql_command= SQLCOM_SHOW_VARIABLES; }
+	| CHAR_SYM SET wild
+	  { Lex->sql_command= SQLCOM_SHOW_CHARSETS; }
 	| LOGS_SYM
 	  { Lex->sql_command= SQLCOM_SHOW_LOGS; }
 	| GRANTS FOR_SYM user

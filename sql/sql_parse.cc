@@ -2101,6 +2101,9 @@ mysql_execute_command(void)
   case SQLCOM_SHOW_OPEN_TABLES:
     res= mysqld_show_open_tables(thd,(lex->wild ? lex->wild->ptr() : NullS));
     break;
+  case SQLCOM_SHOW_CHARSETS:
+    res= mysqld_show_charsets(thd,(lex->wild ? lex->wild->ptr() : NullS));
+    break;
   case SQLCOM_SHOW_FIELDS:
 #ifdef DONT_ALLOW_SHOW_COMMANDS
     send_error(&thd->net,ER_NOT_ALLOWED_COMMAND);	/* purecov: inspected */

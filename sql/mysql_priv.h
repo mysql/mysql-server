@@ -472,6 +472,7 @@ void mysqld_list_processes(THD *thd,const char *user,bool verbose);
 int mysqld_show_status(THD *thd);
 int mysqld_show_variables(THD *thd,const char *wild);
 int mysqld_show(THD *thd, const char *wild, show_var_st *variables);
+int mysqld_show_charsets(THD *thd,const char *wild);
 
 /* sql_handler.cc */
 int mysql_ha_open(THD *thd, TABLE_LIST *tables);
