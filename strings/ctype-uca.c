@@ -6521,6 +6521,104 @@ NULL       ,page0F9data,page0FAdata,page0FBdata,
 page0FCdata,page0FDdata,page0FEdata,page0FFdata
 };
 
+/*
+  Some sources treat LETTER A WITH DIARESIS (00E4,00C4)
+  secondary greater than LETTER AE (00E6,00C6).
+  http://www.evertype.com/alphabets/icelandic.pdf
+  http://developer.mimer.com/collations/charts/icelandic.htm
+
+  Other sources do not provide any special rules
+  for LETTER A WITH DIARESIS:
+  http://www.omniglot.com/writing/icelandic.htm
+  http://en.wikipedia.org/wiki/Icelandic_alphabet
+  http://oss.software.ibm.com/icu/charts/collation/is.html
+
+  Let's go the first way.
+*/
+
+static const char icelandic[]=
+    "& A < \\u00E1 <<< \\u00C1 "
+    "& D < \\u00F0 <<< \\u00D0 "
+    "& E < \\u00E9 <<< \\u00C9 "
+    "& I < \\u00ED <<< \\u00CD "
+    "& O < \\u00F3 <<< \\u00D3 "
+    "& U < \\u00FA <<< \\u00DA "
+    "& Y < \\u00FD <<< \\u00DD "
+    "& Z < \\u00FE <<< \\u00DE "
+        "< \\u00E6 <<< \\u00C6 << \\u00E4 <<< \\u00C4 "
+        "< \\u00F6 <<< \\u00D6 << \\u00F8 <<< \\u00D8 "
+        "< \\u00E5 <<< \\u00C5 ";
+
+/*
+  Some sources treat I and Y primary different.
+  Other sources treat I and Y the same on primary level.
+  We'll go the first way.
+*/
+
+static const char latvian[]=
+    "& C < \\u010D <<< \\u010C "
+    "& G < \\u0123 <<< \\u0122 "
+    "& I < \\u0079 <<< \\u0059 "
+    "& K < \\u0137 <<< \\u0136 "
+    "& L < \\u013C <<< \\u013B "
+    "& N < \\u0146 <<< \\u0145 "
+    "& R < \\u0157 <<< \\u0156 "
+    "& S < \\u0161 <<< \\u0160 "
+    "& Z < \\u017E <<< \\u017D ";
+
+
+static const char romanian[]=
+    "& A < \\u0103 <<< \\u0102 < \\u00E2 <<< \\u00C2 "
+    "& I < \\u00EE <<< \\u00CE "
+    "& S < \\u0219 <<< \\u0218 << \\u015F <<< \\u015E "
+    "& T < \\u021B <<< \\u021A << \\u0163 <<< \\u0162 ";
+
+static const char slovenian[]=
+    "& C < \\u010D <<< \\u010C "
+    "& S < \\u0161 <<< \\u0160 "
+    "& Z < \\u017E <<< \\u017D ";
+    
+
+static const char polish[]=
+    "& A < \\u0105 <<< \\u0104 "
+    "& C < \\u0107 <<< \\u0106 "
+    "& E < \\u0119 <<< \\u0118 "
+    "& L < \\u0142 <<< \\u0141 "
+    "& N < \\u0144 <<< \\u0143 "
+    "& O < \\u00F3 <<< \\u00D3 "
+    "& S < \\u015B <<< \\u015A "
+    "& Z < \\u017A <<< \\u017B ";
+
+static const char estonian[]=
+    "& S < \\u0161 <<< \\u0160 "
+       " < \\u007A <<< \\u005A "
+       " < \\u017E <<< \\u017D "
+    "& W < \\u00F5 <<< \\u00D5 "
+        "< \\u00E4 <<< \\u00C4 "
+        "< \\u00F6 <<< \\u00D6 "
+        "< \\u00FC <<< \\u00DC ";
+
+static const char spanish[]= "& N < \\u00F1 <<< \\u00D1 ";
+
+/*
+  Some sources treat V and W as similar on primary level.
+  We'll treat V and W as different on primary level.
+*/
+    
+static const char swedish[]=
+    "& Y <<\\u00FC <<< \\u00DC "
+    "& Z < \\u00E5 <<< \\u00C5 "
+        "< \\u00E4 <<< \\u00C4 << \\u00E6 <<< \\u00C6 "
+        "< \\u00F6 <<< \\u00D6 << \\u00F8 <<< \\u00D8 ";
+
+static const char turkish[]=
+    "& C < \\u00E7 <<< \\u00C7 "
+    "& G < \\u011F <<< \\u011E "
+    "& H < \\u0131 <<< \\u0049 "
+    "& O < \\u00F6 <<< \\u00D6 "
+    "& S < \\u015F <<< \\u015E "
+    "& U < \\u00FC <<< \\u00DC ";
+    
 
 /*
   Unicode Collation Algorithm:
@@ -7509,7 +7607,7 @@ CHARSET_INFO my_charset_ucs2_general_uca=
     45,0,0,		/* number       */
     MY_CS_COMPILED|MY_CS_STRNXFRM|MY_CS_UNICODE,
     "ucs2",		/* cs name    */
-    "ucs2_general_uca",	/* name         */
+    "ucs2_uca_ci",	/* name         */
     "",			/* comment      */
     NULL,		/* tailoring    */
     NULL,		/* ctype        */
@@ -7530,5 +7628,239 @@ CHARSET_INFO my_charset_ucs2_general_uca=
     &my_collation_ucs2_uca_handler
 };
 
+
+CHARSET_INFO my_charset_ucs2_icelandic_uca_ci=
+{
+    128,0,0,		/* number       */
+    MY_CS_COMPILED|MY_CS_STRNXFRM|MY_CS_UNICODE,
+    "ucs2",		/* cs name    */
+    "ucs2_icelandic_ci",/* name         */
+    "",			/* comment      */
+    icelandic,		/* tailoring    */
+    NULL,		/* ctype        */
+    NULL,		/* to_lower     */
+    NULL,		/* to_upper     */
+    NULL,		/* sort_order   */
+    NULL,		/* sort_order_big*/
+    NULL,		/* tab_to_uni   */
+    NULL,		/* tab_from_uni */
+    NULL,		/* state_map    */
+    NULL,		/* ident_map    */
+    8,			/* strxfrm_multiply */
+    2,			/* mbminlen     */
+    2,			/* mbmaxlen     */
+    9,			/* min_sort_char */
+    0xFFFF,		/* max_sort_char */
+    &my_charset_ucs2_handler,
+    &my_collation_ucs2_uca_handler
+};
+
+CHARSET_INFO my_charset_ucs2_latvian_uca_ci=
+{
+    129,0,0,		/* number       */
+    MY_CS_COMPILED|MY_CS_STRNXFRM|MY_CS_UNICODE,
+    "ucs2",		/* cs name    */
+    "ucs2_latvian_ci",	/* name         */
+    "",			/* comment      */
+    latvian,		/* tailoring    */
+    NULL,		/* ctype        */
+    NULL,		/* to_lower     */
+    NULL,		/* to_upper     */
+    NULL,		/* sort_order   */
+    NULL,		/* sort_order_big*/
+    NULL,		/* tab_to_uni   */
+    NULL,		/* tab_from_uni */
+    NULL,		/* state_map    */
+    NULL,		/* ident_map    */
+    8,			/* strxfrm_multiply */
+    2,			/* mbminlen     */
+    2,			/* mbmaxlen     */
+    9,			/* min_sort_char */
+    0xFFFF,		/* max_sort_char */
+    &my_charset_ucs2_handler,
+    &my_collation_ucs2_uca_handler
+};
+
+CHARSET_INFO my_charset_ucs2_romanian_uca_ci=
+{
+    130,0,0,		/* number       */
+    MY_CS_COMPILED|MY_CS_STRNXFRM|MY_CS_UNICODE,
+    "ucs2",		/* cs name    */
+    "ucs2_romanian_ci",	/* name         */
+    "",			/* comment      */
+    romanian,		/* tailoring    */
+    NULL,		/* ctype        */
+    NULL,		/* to_lower     */
+    NULL,		/* to_upper     */
+    NULL,		/* sort_order   */
+    NULL,		/* sort_order_big*/
+    NULL,		/* tab_to_uni   */
+    NULL,		/* tab_from_uni */
+    NULL,		/* state_map    */
+    NULL,		/* ident_map    */
+    8,			/* strxfrm_multiply */
+    2,			/* mbminlen     */
+    2,			/* mbmaxlen     */
+    9,			/* min_sort_char */
+    0xFFFF,		/* max_sort_char */
+    &my_charset_ucs2_handler,
+    &my_collation_ucs2_uca_handler
+};
+
+CHARSET_INFO my_charset_ucs2_slovenian_uca_ci=
+{
+    131,0,0,		/* number       */
+    MY_CS_COMPILED|MY_CS_STRNXFRM|MY_CS_UNICODE,
+    "ucs2",		/* cs name    */
+    "ucs2_slovenian_ci",/* name         */
+    "",			/* comment      */
+    slovenian,		/* tailoring    */
+    NULL,		/* ctype        */
+    NULL,		/* to_lower     */
+    NULL,		/* to_upper     */
+    NULL,		/* sort_order   */
+    NULL,		/* sort_order_big*/
+    NULL,		/* tab_to_uni   */
+    NULL,		/* tab_from_uni */
+    NULL,		/* state_map    */
+    NULL,		/* ident_map    */
+    8,			/* strxfrm_multiply */
+    2,			/* mbminlen     */
+    2,			/* mbmaxlen     */
+    9,			/* min_sort_char */
+    0xFFFF,		/* max_sort_char */
+    &my_charset_ucs2_handler,
+    &my_collation_ucs2_uca_handler
+};
+
+CHARSET_INFO my_charset_ucs2_polish_uca_ci=
+{
+    132,0,0,		/* number       */
+    MY_CS_COMPILED|MY_CS_STRNXFRM|MY_CS_UNICODE,
+    "ucs2",		/* cs name    */
+    "ucs2_polish_ci",	/* name         */
+    "",			/* comment      */
+    polish,		/* tailoring    */
+    NULL,		/* ctype        */
+    NULL,		/* to_lower     */
+    NULL,		/* to_upper     */
+    NULL,		/* sort_order   */
+    NULL,		/* sort_order_big*/
+    NULL,		/* tab_to_uni   */
+    NULL,		/* tab_from_uni */
+    NULL,		/* state_map    */
+    NULL,		/* ident_map    */
+    8,			/* strxfrm_multiply */
+    2,			/* mbminlen     */
+    2,			/* mbmaxlen     */
+    9,			/* min_sort_char */
+    0xFFFF,		/* max_sort_char */
+    &my_charset_ucs2_handler,
+    &my_collation_ucs2_uca_handler
+};
+
+CHARSET_INFO my_charset_ucs2_estonian_uca_ci=
+{
+    133,0,0,		/* number       */
+    MY_CS_COMPILED|MY_CS_STRNXFRM|MY_CS_UNICODE,
+    "ucs2",		/* cs name    */
+    "ucs2_estonian_ci",	/* name         */
+    "",			/* comment      */
+    estonian,		/* tailoring    */
+    NULL,		/* ctype        */
+    NULL,		/* to_lower     */
+    NULL,		/* to_upper     */
+    NULL,		/* sort_order   */
+    NULL,		/* sort_order_big*/
+    NULL,		/* tab_to_uni   */
+    NULL,		/* tab_from_uni */
+    NULL,		/* state_map    */
+    NULL,		/* ident_map    */
+    8,			/* strxfrm_multiply */
+    2,			/* mbminlen     */
+    2,			/* mbmaxlen     */
+    9,			/* min_sort_char */
+    0xFFFF,		/* max_sort_char */
+    &my_charset_ucs2_handler,
+    &my_collation_ucs2_uca_handler
+};
+
+CHARSET_INFO my_charset_ucs2_spanish_uca_ci=
+{
+    134,0,0,		/* number       */
+    MY_CS_COMPILED|MY_CS_STRNXFRM|MY_CS_UNICODE,
+    "ucs2",		/* cs name    */
+    "ucs2_spanish_ci",	/* name         */
+    "",			/* comment      */
+    spanish,		/* tailoring    */
+    NULL,		/* ctype        */
+    NULL,		/* to_lower     */
+    NULL,		/* to_upper     */
+    NULL,		/* sort_order   */
+    NULL,		/* sort_order_big*/
+    NULL,		/* tab_to_uni   */
+    NULL,		/* tab_from_uni */
+    NULL,		/* state_map    */
+    NULL,		/* ident_map    */
+    8,			/* strxfrm_multiply */
+    2,			/* mbminlen     */
+    2,			/* mbmaxlen     */
+    9,			/* min_sort_char */
+    0xFFFF,		/* max_sort_char */
+    &my_charset_ucs2_handler,
+    &my_collation_ucs2_uca_handler
+};
+
+CHARSET_INFO my_charset_ucs2_swedish_uca_ci=
+{
+    135,0,0,		/* number       */
+    MY_CS_COMPILED|MY_CS_STRNXFRM|MY_CS_UNICODE,
+    "ucs2",		/* cs name    */
+    "ucs2_swedish_ci",	/* name         */
+    "",			/* comment      */
+    swedish,		/* tailoring    */
+    NULL,		/* ctype        */
+    NULL,		/* to_lower     */
+    NULL,		/* to_upper     */
+    NULL,		/* sort_order   */
+    NULL,		/* sort_order_big*/
+    NULL,		/* tab_to_uni   */
+    NULL,		/* tab_from_uni */
+    NULL,		/* state_map    */
+    NULL,		/* ident_map    */
+    8,			/* strxfrm_multiply */
+    2,			/* mbminlen     */
+    2,			/* mbmaxlen     */
+    9,			/* min_sort_char */
+    0xFFFF,		/* max_sort_char */
+    &my_charset_ucs2_handler,
+    &my_collation_ucs2_uca_handler
+};
+
+CHARSET_INFO my_charset_ucs2_turkish_uca_ci=
+{
+    136,0,0,		/* number       */
+    MY_CS_COMPILED|MY_CS_STRNXFRM|MY_CS_UNICODE,
+    "ucs2",		/* cs name    */
+    "ucs2_turkish_ci",	/* name         */
+    "",			/* comment      */
+    turkish,		/* tailoring    */
+    NULL,		/* ctype        */
+    NULL,		/* to_lower     */
+    NULL,		/* to_upper     */
+    NULL,		/* sort_order   */
+    NULL,		/* sort_order_big*/
+    NULL,		/* tab_to_uni   */
+    NULL,		/* tab_from_uni */
+    NULL,		/* state_map    */
+    NULL,		/* ident_map    */
+    8,			/* strxfrm_multiply */
+    2,			/* mbminlen     */
+    2,			/* mbmaxlen     */
+    9,			/* min_sort_char */
+    0xFFFF,		/* max_sort_char */
+    &my_charset_ucs2_handler,
+    &my_collation_ucs2_uca_handler
+};
 
 #endif
