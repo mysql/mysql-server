@@ -38138,6 +38138,8 @@ though, so 3.23 is not released as a stable version yet.
 @appendixsubsec Changes in release 3.23.27
 @itemize @bullet
 @item
+Added the latin5 (turkish) character set
+@item
 You can now have sockets even with @code{mit-pthreads}
 @item
 Small portability fixes
