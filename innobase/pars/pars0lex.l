@@ -26,6 +26,8 @@ How to make the InnoDB parser and lexer C files:
 
 5. Rename lex.yy.c to lexyy.c.
 
+6. Remove the #include of unistd.h from about line 2500 of lexyy.c
+
 These instructions seem to work at least with bison-1.28 and flex-2.5.4 on
 Linux.
 *******************************************************/
