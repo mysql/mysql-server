@@ -602,6 +602,11 @@ struct st_my_thread_var
 extern struct st_my_thread_var *_my_thread_var(void) __attribute__ ((const));
 #define my_thread_var (_my_thread_var())
 #define my_errno my_thread_var->thr_errno
+/*
+  Keep track of shutdown,signal, and main threads so that my_end() will not
+  report errors with them
+*/
+extern pthread_t shutdown_th, main_th, signal_th;
 
 	/* statistics_xxx functions are for not essential statistic */
 
