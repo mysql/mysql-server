@@ -531,7 +531,7 @@ int rea_create_table(my_string file_name,HA_CREATE_INFO *create_info,
 int format_number(uint inputflag,uint max_length,my_string pos,uint length,
 		  my_string *errpos);
 int openfrm(const char *name,const char *alias,uint filestat,uint prgflag,
-	    TABLE *outparam);
+	    uint ha_open_flags, TABLE *outparam);
 int closefrm(TABLE *table);
 db_type get_table_type(const char *name);
 int read_string(File file, gptr *to, uint length);

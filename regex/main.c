@@ -103,7 +103,7 @@ char *argv[];
 		len = (int)(subs[0].rm_eo - subs[0].rm_so);
 		if (subs[0].rm_so != -1) {
 			if (len != 0)
-				printf("match `%.*s'\n", len,
+				printf("match `%.*s'\n", (int)len,
 					argv[optind] + subs[0].rm_so);
 			else
 				printf("match `'@%.1s\n",

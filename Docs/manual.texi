@@ -8984,6 +8984,24 @@ Lock the @code{mysqld} process in memory.  This works only if your system
 supports the @code{mlockall()} system call.  This may help if you have
 a problem where the opearting system is causing @code{mysqld} to swap on disk.
 
+@item --myisam-recover [=option[,option...]]] where option is one of DEFAULT, BACKUP or FORCE.
+If this option is used, @code{mysqld} will on open check if the table is
+marked as crashed or if if the table wasn't closed properly
+(The last option only works if you are running with @code{--skip-locking}).
+If this is the case mysqld will run check on the table. If the table was
+corrupted, @code{mysqld} will attempt to repair it.
+
+The following options affects how the repair works.
+
+@multitable @columnfractions .3 .7
+@item DEFAULT @tab The same as not giving any option to @code{--myisam-recover}.
+@item BACKUP @tab If the data table was changed during recover, save a backup of the @file{table_name.MYD} data file as @file{table_name-datetime.BAK}.
+@item FORCE @tab Run recover even if we will loose more than one row from the .MYD file.
+@end multitable
+
+Before a table is automaticly repaired, mysqld will add a note about this
+in the error log.
+
 @item --pid-file=path
 Path to pid file used by @code{safe_mysqld}.
 
@@ -21065,6 +21083,9 @@ The following is new in @code{MyISAM}:
 
 @itemize @bullet
 @item
+If @code{mysqld} is started with @code{--myisam-recover}, @code{MyISAM} tables
+will automaticly be repaired on open if the table wasn't closed properly.
+@item
 You can @code{INSERT} new rows in a table without deleted rows,
 while other threads are reading from the table.
 @item
@@ -21147,6 +21168,18 @@ Note that index files are usually much smaller with @code{MyISAM} than with
 @code{ISAM}. This means that @code{MyISAM} will normally use less
 system resources than @code{ISAM}, but will need more CPU when inserting
 data into compressed index.
+
+The following options to @code{mysqld} can be used to change the behavior of
+@code{MyISAM} tables:
+
+@multitable @columnfractions .40 .60
+@item @strong{Option} @tab @strong{Meaning}
+@item @code{--myisam-recover} @tab Automatic recover of crashed tables.
+@item @code{-O myisam_sort_buffer_size=#} @tab Buffer used when recovering tables.
+@item @code{--delay-key-write-for-all-tables} @tab Don't flush key buffers between writes for any MyISAM table
+@end multitable
+
+@xref{Command-line options}.
 
 @menu
 * Key space::                   Space needed for keys
@@ -37416,7 +37449,14 @@ though, so 3.23 is not released as a stable version yet.
 @appendixsubsec Changes in release 3.23.26
 @itemize @bullet
 @item
-Fixed bug in @code{FULLTEXT} index when inserting a NULL column.
+Automatic repair of @code{MyISAM} tables.
+@item
+Columns referenced in @code{INSERT} are are now properly initialized.
+@item
+@code{UPDATE} didn't always work when used with a range on a timestamp that
+was part of the key that was used to find rows.
+@item
+Fixed bug in @code{FULLTEXT} index when inserting a NULL value.
 @item
 Changed to use @code{mkstemp()} instead of @code{tempnam()}.
 @end itemize

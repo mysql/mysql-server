@@ -675,7 +675,7 @@ void close_thread_tables(THD *thd, bool locked)
   }
   thd->open_tables=0;
   /* Free tables to hold down open files */
-  while (open_cache.records >= table_cache_size && unused_tables)
+  while (open_cache.records > table_cache_size && unused_tables)
     VOID(hash_delete(&open_cache,(byte*) unused_tables)); /* purecov: tested */
   check_unused();
   if (found_old_table)
@@ -987,7 +987,7 @@ TABLE *open_table(THD *thd,const char *db,const char *table_name,
   else
   {
     /* Free cache if too big */
-    while (open_cache.records >= table_cache_size && unused_tables)
+    while (open_cache.records > table_cache_size && unused_tables)
       VOID(hash_delete(&open_cache,(byte*) unused_tables)); /* purecov: tested */
 
     /* make a new table */
@@ -1410,6 +1410,7 @@ static int open_unireg_entry(TABLE *entry,const char *db,const char *name,
 	      (uint) (HA_OPEN_KEYFILE | HA_OPEN_RNDFILE | HA_GET_INDEX |
 		      HA_TRY_READ_ONLY),
 	      READ_KEYINFO | COMPUTE_TYPES | EXTRA_RECORD,
+	      ha_open_options,
 	      entry))
   {
     DBUG_RETURN(1);
@@ -1575,6 +1576,7 @@ TABLE *open_temporary_table(THD *thd, const char *path, const char *db,
 	      (uint) (HA_OPEN_KEYFILE | HA_OPEN_RNDFILE | HA_GET_INDEX |
 		      HA_TRY_READ_ONLY),
 	      READ_KEYINFO | COMPUTE_TYPES | EXTRA_RECORD,
+	      ha_open_options,
 	      tmp_table))
   {
     DBUG_RETURN(0);
@@ -1859,6 +1861,7 @@ int setup_fields(THD *thd, TABLE_LIST *tables, List<Item> &fields,
 	DBUG_RETURN(-1); /* purecov: inspected */
       if (item->with_sum_func && item->type() != Item::SUM_FUNC_ITEM)
 	item->split_sum_func(*sum_func_list);
+      thd->used_tables|=item->used_tables();
     }
   }
   DBUG_RETURN(test(thd->fatal_error));
