@@ -224,9 +224,8 @@ typedef struct st_table_list
   LEX_STRING	view_db;		/* save view database */
   LEX_STRING	view_name;		/* save view name */
   LEX_STRING	timestamp;		/* GMT time stamp of last operation */
-  LEX_STRING    syscharset;             /* charset of VIEW query text*/
   ulonglong	file_version;		/* version of file's field set */
-  ulonglong     updatable_view;        /* VIEW can be updated */
+  ulonglong     updatable_view;         /* VIEW can be updated */
   ulonglong	revision;		/* revision control number */
   ulonglong	algorithm;		/* 0 any, 1 tmp tables , 2 merging */
   uint          effective_algorithm;    /* which algorithm was really used */
