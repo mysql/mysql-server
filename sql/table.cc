@@ -465,7 +465,6 @@ int openfrm(const char *name, const char *alias, uint db_stat, uint prgflag,
       goto err_not_open;			/* purecov: inspected */
     }
     reg_field->comment=comment;
-    reg_field->set_charset(charset);
     if (!(reg_field->flags & NOT_NULL_FLAG))
     {
       if ((null_bit<<=1) == 256)
