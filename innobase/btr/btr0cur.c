@@ -1022,7 +1022,8 @@ calculate_sizes_again:
 
 	/* Now, try the insert */
 
-	*rec = page_cur_insert_rec_low(page_cursor, entry, index, NULL, mtr);
+	*rec = page_cur_insert_rec_low(page_cursor, entry, index,
+							NULL, NULL, mtr);
 	if (!(*rec)) {
 		/* If the record did not fit, reorganize */
 		btr_page_reorganize(page, index, mtr);
