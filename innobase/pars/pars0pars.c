@@ -1729,8 +1729,8 @@ Parses an SQL string returning the query graph. */
 que_t*
 pars_sql(
 /*=====*/
-			/* out, own: the query graph */
-	char*	str)	/* in: SQL string */
+				/* out, own: the query graph */
+	const char*	str)	/* in: SQL string */
 {
 	sym_node_t*	sym_node;
 	mem_heap_t*	heap;
