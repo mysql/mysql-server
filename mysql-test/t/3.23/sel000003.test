@@ -1,0 +1,7 @@
+use test;
+drop table if exists t;
+create table t(name char(20) not null primary key,
+  score smallint not null, key(score));
+insert into t values ('Sasha', 20), ('Matt', 20), ('Monty', 10),
+ ('David', 10), ('Tim', 10),('Jeremy', 10);
+@r/3.23/sel000003.result select count(*) as n,score from t group by score;
