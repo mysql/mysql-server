@@ -94,7 +94,7 @@ class ha_berkeley: public handler
     changed_rows(0),last_dup_key((uint) -1),version(0),using_ignore(0) {}
   ~ha_berkeley() {}
   const char *table_type() const { return "BerkeleyDB"; }
-  ulong ha_berkeley::index_flags(uint idx, uint part) const
+  ulong index_flags(uint idx, uint part) const
   {
     ulong flags=HA_READ_NEXT | HA_READ_PREV;
     if (part == (uint)~0 ||
