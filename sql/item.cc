@@ -47,11 +47,6 @@ Item::Item():
   loop_id= 0;
 }
 
-Item_ref_in_optimizer::Item_ref_in_optimizer(Item_in_optimizer *master,
-					     char *table_name_par,
-					     char *field_name_par):
-  Item_ref(master->args, table_name_par, field_name_par), owner(master) {}
-
 
 bool Item::check_loop(uint id)
 {
@@ -437,20 +432,6 @@ String *Item_copy_string::val_str(String *str)
   return &str_value;
 }
 
-double Item_ref_in_optimizer::val()
-{
-  return owner->get_cache();
-}
-longlong Item_ref_in_optimizer::val_int()
-{
-  return owner->get_cache_int();
-}
-String* Item_ref_in_optimizer::val_str(String* s)
-{
-  return owner->get_cache_str(s);
-}
-
-
 /*
   Functions to convert item to field (for send_fields)
 */
@@ -462,18 +443,6 @@ bool Item::fix_fields(THD *thd,
 {
   fixed= 1;
   return 0;
-}
-
-bool Item_outer_select_context_saver::fix_fields(THD *thd,
-						 struct st_table_list *list,
-						 Item ** ref)
-{
-  DBUG_ENTER("Item_outer_select_context_saver::fix_fields");
-  bool res= item->fix_fields(thd,
-			     0, // do not show current subselect fields
-			     &item);
-  *ref= item;
-  DBUG_RETURN(res);
 }
 
 bool Item_asterisk_remover::fix_fields(THD *thd,

@@ -85,25 +85,20 @@ public:
   void fix_length_and_dec() { decimals=0; max_length=1; }
 };
 
+class Item_cache;
 class Item_in_optimizer: public Item_bool_func
 {
 protected:
-  char buffer[80];
-  longlong int_cache;
-  double flt_cache;
-  String *str_cache;
-  bool int_cache_ok, flt_cache_ok, str_cache_ok;
+  Item_cache *cache;
 public:
   Item_in_optimizer(Item *a,Item *b):
-    Item_bool_func(a,b), int_cache_ok(0), flt_cache_ok(0), str_cache_ok(0) {}
-  bool is_null() { return test(args[0]->is_null() || args[1]->is_null()); }
+    Item_bool_func(a,b), cache(0) {}
+  bool fix_fields(THD *, struct st_table_list *, Item **);
+  bool is_null();
   longlong val_int();
+  
+  Item **get_cache() { return (Item**)&cache; }
 
-  double get_cache();
-  longlong get_cache_int();
-  String *get_cache_str(String *s);
-
-  friend class Item_ref_in_optimizer;
 };
 
 class Item_bool_func2 :public Item_int_func
