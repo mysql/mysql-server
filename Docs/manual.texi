@@ -14205,9 +14205,10 @@ system supports the @code{mlockall()} system call (like Solaris).  This
 may help if you have a problem where the operating system is causing
 @code{mysqld} to swap on disk.
 
-@item --myisam-recover [=option[,option...]]] where option is any combination
+@item --myisam-recover [=option[,option...]]]
+Option is any combination
 of @code{DEFAULT}, @code{BACKUP}, @code{FORCE} or @code{QUICK}.  You can
-also set this explicitely to @code{""} if you want to disable this
+also set this explicitly to @code{""} if you want to disable this
 option. If this option is used, @code{mysqld} will on open check if the
 table is marked as crashed or if if the table wasn't closed properly.
 (The last option only works if you are running with
@@ -14339,7 +14340,7 @@ Option can be any combination of: @code{REAL_AS_FLOAT},
 By specifying all of the above options is same as using --ansi.
 With this option one can turn on only needed SQL modes. @xref{ANSI mode}.
 
-@item transaction-isolation= @{ READ-UNCOMMITTED | READ-COMMITTED | REPEATABLE-READ | SERIALIZABLE @}
+@item --transaction-isolation= @{ READ-UNCOMMITTED | READ-COMMITTED | REPEATABLE-READ | SERIALIZABLE @}
 Sets the default transaction isolation level.  @xref{SET TRANSACTION}.
 
 @item -t, --tmpdir=path
@@ -17661,7 +17662,7 @@ Some things reported by check table, can't be corrected automatically:
 This means that you have in the table a row where the
 @code{auto_increment} index column contains the value 0.
 (It's possible to create a row where the auto_increment column is 0 by
-explicitely setting the column to 0 with an @code{UPDATE} statement)
+explicitly setting the column to 0 with an @code{UPDATE} statement)
 
 This isn't an error in itself, but could cause trouble if you decide to
 dump the table and restore it or do an @code{ALTER TABLE} on the
@@ -18022,7 +18023,7 @@ temporary files should be very big.
 Directory where character sets are stored.
 @item --set-character-set=name
 Change the character set used by the index
-@item .t or --tmpdir=path
+@item -t or --tmpdir=path
 Path for storing temporary files. If this is not set, @code{myisamchk} will
 use the environment variable @code{TMPDIR} for this.
 @item -q or --quick
@@ -18434,9 +18435,9 @@ and the server, because the server does all the work when you use
 the performance of a table:
 
 @itemize
-@item -S, --sort-index
-@item -R index_num, --sort-records=index_num
-@item -a, --analyze
+@item @code{-S}, @code{--sort-index}
+@item @code{-R index_num}, @code{--sort-records=index_num}
+@item @code{-a}, @code{--analyze}
 @end itemize
 
 For a full description of the option. @xref{myisamchk syntax}.
@@ -20784,7 +20785,7 @@ Most of the options to @code{safe_mysqld} are the same as the options to
 
 @code{safe_mysqld} supports the following options:
 
-@itemize
+@table @code
 @item --basedir=path
 @item --core-file-size=#
 Size of the core file @code{mysqld} should be able to create. Passed to @code{ulimit -c}.
@@ -20811,7 +20812,7 @@ Number of files @code{mysqld} should be able to open. Passed to @code{ulimit -n}
 @item --timezone=#
 Set the timezone (the @code{TZ}) variable to the value of this parameter.
 @item --user=#
-@end itemize
+@end table
 
 The @code{safe_mysqld} script is written so that it normally is able to start
 a server that was installed from either a source or a binary version of
@@ -20891,7 +20892,7 @@ list. Anything after a white space is ignored.
 
 @code{mysqld_multi} supports the following options:
 
-@itemize
+@table @code
 @cindex config-file option
 @item --config-file=...
 Alternative config file. Note: This will not affect this program's own
@@ -20936,7 +20937,7 @@ MySQL user for @code{mysqladmin}.
 @cindex version option
 @item --version
 Print the version number and exit.
-@end itemize
+@end table
 
 Some notes about @code{mysqld_multi}:
 
@@ -21109,7 +21110,7 @@ file.  It is permissible to omit the @file{.MYI} extension.
 
 @code{myisampack} supports the following options:
 
-@itemize @bullet
+@table @code
 @item -b, --backup
 Make a backup of the table as @code{tbl_name.OLD}.
 
@@ -21163,7 +21164,7 @@ Wait and retry if table is in use.  If the @code{mysqld} server was
 invoked with the @code{--skip-locking} option, it is not a good idea to
 invoke @code{myisampack} if the table might be updated during the
 packing process.
-@end itemize
+@end table
 
 @cindex examples, compressed tables
 The sequence of commands shown below illustrates a typical table compression
@@ -34921,7 +34922,7 @@ column in a table, the default value is the current date and time.
 @item
 For string types other than @code{ENUM}, the default value is the empty
 string.  For @code{ENUM}, the default is the first enumeration value (if
-you haven't explicitely specified another default value with the
+you haven't explicitly specified another default value with the
 @code{DEFAULT} directive).
 @end itemize
 
@@ -36734,7 +36735,7 @@ The following options to @code{mysqld} can be used to change the behavior of
 
 @multitable @columnfractions .40 .60
 @item @strong{Option} @tab @strong{Description}
-@item @code{--myisam-recover=#} @tab Automatic recover of crashed tables.
+@item @code{--myisam-recover=#} @tab Automatic recovery of crashed tables.
 @item @code{-O myisam_sort_buffer_size=#} @tab Buffer used when recovering tables.
 @item @code{--delay-key-write-for-all-tables} @tab Don't flush key buffers between writes for any MyISAM table
 @item @code{-O myisam_max_extra_sort_file_size=#} @tab Used to help MySQL to decide when to use the slow but safe key cache index create method. @strong{Note} that this parameter is given in megabytes!
