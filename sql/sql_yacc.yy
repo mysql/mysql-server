@@ -3399,8 +3399,8 @@ update:
 	UPDATE_SYM
 	{
 	  LEX *lex= Lex;
+	  mysql_init_select(lex);
           lex->sql_command= SQLCOM_UPDATE;
-          lex->select_lex.init_order();
         }
         opt_low_priority opt_ignore join_table_list
 	SET update_list where_clause opt_order_clause delete_limit_clause
@@ -3408,7 +3408,7 @@ update:
 	  LEX *lex= Lex;
 	  Select->set_lock_for_tables($3);
           if (lex->select_lex.table_list.elements > 1)
-            lex->sql_command=SQLCOM_UPDATE_MULTI;
+            lex->sql_command= SQLCOM_UPDATE_MULTI;
 	}
 	;
 
