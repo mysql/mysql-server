@@ -1630,6 +1630,24 @@ mysql_execute_command(void)
     break;
   }
   case SQLCOM_SLAVE_STOP:
+  /*
+    If the client thread has locked tables, a deadlock is possible.
+    Assume that
+    - the client thread does LOCK TABLE t READ.
+    - then the master updates t.
+    - then the SQL slave thread wants to update t,
+      so it waits for the client thread because t is locked by it.
+    - then the client thread does SLAVE STOP.
+      SLAVE STOP waits for the SQL slave thread to terminate its
+      update t, which waits for the client thread because t is locked by it.
+    To prevent that, refuse SLAVE STOP if the
+    client thread has locked tables
+  */
+  if (thd->locked_tables || thd->active_transaction())
+  {
+    send_error(&thd->net,ER_LOCK_OR_ACTIVE_TRANSACTION);
+    break;
+  }
   {
     LOCK_ACTIVE_MI;
     stop_slave(thd,active_mi,1/* net report*/);
