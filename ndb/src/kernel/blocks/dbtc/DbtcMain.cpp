@@ -5203,6 +5203,7 @@ void Dbtc::execTCROLLBACKREQ(Signal* signal)
     return;
   }//if
 
+  apiConnectptr.p->m_exec_flag = 1;
   switch (apiConnectptr.p->apiConnectstate) {
   case CS_STARTED:
   case CS_RECEIVING:
