@@ -27,51 +27,10 @@ BackupPrinter::table(const TableS & tab)
   return true;
 }
 
-#ifdef USE_MYSQL
-bool
-BackupPrinter::table(const TableS & tab, MYSQL * mysql)
-{
-  if (m_print || m_print_meta) 
-  {
-    
-    char tmpTabName[MAX_TAB_NAME_SIZE*2];
-    sprintf(tmpTabName, "%s", tab.getTableName());
-    char * database = strtok(tmpTabName, "/");
-    char * schema   = strtok( NULL , "/");
-    char * tableName    = strtok( NULL , "/");
-    
-    /**
-     * this means that the user did not specify schema
-     * and it is a v2x backup
-     */
-    if(database == NULL)
-      return false;
-    if(schema == NULL)
-      return false;
-    if(tableName==NULL)
-      tableName = schema; 
-    
-    char stmtCreateDB[255];
-    
-    sprintf(stmtCreateDB,"CREATE DATABASE %s", database);
-    ndbout_c("%s", stmtCreateDB);
-    
-    
-    char buf [2048];
-    create_table_string(tab, tableName,  buf);
-    ndbout_c("%s", buf);
-    
-    ndbout_c("Successfully printed table: %s", tab.m_dictTable->getName());
-  }
-  return true;
-}
-
-#endif 
-
 void
 BackupPrinter::tuple(const TupleS & tup)
 {
-  m_dataCount++;  
+  m_dataCount++;
   if (m_print || m_print_data)
     m_ndbout << tup << endl;  
 }
