@@ -503,6 +503,22 @@ Item *Item_field::get_tmp_table_item(THD *thd)
 }
 
 
+/*
+  Create an item from a string we KNOW points to a valid longlong/ulonglong
+  end \0 terminated number string
+*/
+
+Item_int::Item_int(const char *str_arg, uint length)
+{
+  char *end_ptr= (char*) str_arg + length;
+  int error;
+  value= my_strtoll10(str_arg, &end_ptr, &error);
+  max_length= (uint) (end_ptr - str_arg);
+  name= (char*) str_arg;
+  fixed= 1;
+}
+
+
 String *Item_int::val_str(String *str)
 {
   // following assert is redundant, because fixed=1 assigned in constructor
@@ -516,6 +532,13 @@ void Item_int::print(String *str)
   // my_charset_bin is good enough for numbers
   str_value.set(value, &my_charset_bin);
   str->append(str_value);
+}
+
+
+Item_uint::Item_uint(const char *str_arg, uint length):
+  Item_int(str_arg, length)
+{
+  unsigned_flag= 1;
 }
 
 
