@@ -194,6 +194,7 @@ enum olap_type
     Base class for st_select_lex (SELECT_LEX) & 
     st_select_lex_unit (SELECT_LEX_UNIT)
 */
+struct st_lex;
 class st_select_lex;
 class st_select_lex_unit;
 class st_select_lex_node {
@@ -252,6 +253,7 @@ public:
   void mark_as_dependent(st_select_lex *last);
 
   friend class st_select_lex_unit;
+  friend bool mysql_new_select(struct st_lex *lex, bool move_down);
 private:
   void fast_exclude();
 };

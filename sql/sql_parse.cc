@@ -2991,11 +2991,13 @@ mysql_init_query(THD *thd)
   lex->select_lex.init_query();
   lex->value_list.empty();
   lex->param_list.empty();
+  lex->unit.next= lex->unit.master= lex->unit.link_next= 0;
+  lex->unit.prev= lex->unit.link_prev= 0;
   lex->unit.global_parameters= lex->unit.slave= lex->current_select=
     lex->all_selects_list= &lex->select_lex;
   lex->select_lex.master= &lex->unit;
   lex->select_lex.prev= &lex->unit.slave;
-  lex->select_lex.link_next= 0;
+  lex->select_lex.link_next= lex->select_lex.slave= lex->select_lex.next= 0;
   lex->select_lex.link_prev= (st_select_lex_node**)&(lex->all_selects_list);
   lex->olap=lex->describe=0;
   lex->derived_tables= false;
@@ -3045,6 +3047,8 @@ mysql_new_select(LEX *lex, bool move_down)
     unit->init_query();
     unit->init_select();
     unit->include_down(lex->current_select);
+    unit->link_next= 0;
+    unit->link_prev= 0;
     select_lex->include_down(unit);
   }
   else
