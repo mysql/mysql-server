@@ -558,6 +558,7 @@ static sig_handler print_signal_warning(int sig)
 
 void unireg_end(int signal_number __attribute__((unused)))
 {
+  (void) my_delete(pidfile_name,MYF(0));	// This may not always exist
   clean_up();
   pthread_exit(0);				// Exit is in main thread
 }
@@ -1435,8 +1436,8 @@ int main(int argc, char **argv)
     uint files=set_maximum_open_files(wanted_files);
     if (files && files < wanted_files)		// Some systems return 0
     {
-      max_connections=	(ulong) (files-10)/5;
-      table_cache_size= (ulong) (files-10-max_connections)/2;
+      max_connections=	(ulong) min((files-10),max_connections);
+      table_cache_size= (ulong) max((files-10-max_connections)/2,64);
       DBUG_PRINT("warning",
 		 ("Changed limits: max_connections: %ld  table_cache: %ld",
 		  max_connections,table_cache_size));
@@ -1682,7 +1683,7 @@ int main(int argc, char **argv)
   }
   (void) pthread_mutex_unlock(&LOCK_thread_count);
 #ifndef __WIN__
-  (void) my_delete(pidfile_name,MYF(MY_WME));	// Not neaded anymore
+  (void) my_delete(pidfile_name,MYF(0));	// Not neaded anymore
 #endif
   my_thread_end();
   exit(0);
@@ -2200,7 +2201,7 @@ enum options {
                OPT_REPLICATE_DO_DB,      OPT_REPLICATE_IGNORE_DB, 
                OPT_LOG_SLAVE_UPDATES,    OPT_BINLOG_DO_DB, 
                OPT_BINLOG_IGNORE_DB,     OPT_WANT_CORE,
-	       OPT_SKIP_CONCURRENT_INSERT, OPT_MEMLOCK, OPT_MYISAM_RECOVER,
+	       OPT_SKIP_CONCURRENT_INSERT, OPT_MEMLOCK, OPT_MYISAM_RECOVER
 };
 
 static struct option long_options[] = {
