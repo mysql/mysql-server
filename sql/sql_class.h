@@ -325,7 +325,7 @@ typedef struct st_prep_stmt
   uint param_count;
   uint last_errno;
   char last_error[MYSQL_ERRMSG_SIZE];
-  bool error_in_prepare, long_data_used;
+  bool error_in_prepare, long_data_used, param_inited;
 } PREP_STMT;
 
 
@@ -510,7 +510,6 @@ public:
   bool	     safe_to_cache_query;
   bool	     volatile killed;
   bool       prepare_command;
-  Item_param *params;			// Pointer to array of params
 
   /*
     If we do a purge of binary logs, log index info of the threads

@@ -115,7 +115,7 @@ static const char *warning_level_names[]= {"Note", "Warning", "Error", "?"};
 my_bool mysqld_show_warnings(THD *thd, ulong levels_to_show)
 {  
   List<Item> field_list;
-  DBUG_ENTER("mysqld_show_errors");
+  DBUG_ENTER("mysqld_show_warnings");
 
   field_list.push_back(new Item_empty_string("Level", 7));
   field_list.push_back(new Item_int("Code",0,4));
