@@ -2177,7 +2177,7 @@ extern "C" pthread_handler_decl(handle_slave_io,arg)
   DBUG_ENTER("handle_slave_io");
 
 #ifndef DBUG_OFF
-slave_begin:  
+slave_begin:
 #endif  
   DBUG_ASSERT(mi->inited);
   mysql= NULL ;
@@ -2218,7 +2218,7 @@ slave_begin:
   
   if (!(mi->mysql = mysql = mysql_init(NULL)))
   {
-    sql_print_error("Slave I/O thread: error in mc_mysql_init()");
+    sql_print_error("Slave I/O thread: error in mysql_init()");
     goto err;
   }
   
@@ -2270,7 +2270,7 @@ dump");
 	goto err;
       }
 	  
-      thd->proc_info = "Waiiting to reconnect after a failed dump request";
+      thd->proc_info = "Waiting to reconnect after a failed dump request";
       end_server(mysql);
       /*
 	First time retry immediately, assuming that we can recover
@@ -3075,7 +3075,8 @@ replication resumed in log '%s' at position %s", mi->user,
 static int safe_reconnect(THD* thd, MYSQL* mysql, MASTER_INFO* mi,
 			  bool suppress_warnings)
 {
-  return connect_to_master(thd, mysql, mi, 1, suppress_warnings);
+  DBUG_ENTER("safe_reconnect");
+  DBUG_RETURN(connect_to_master(thd, mysql, mi, 1, suppress_warnings));
 }
 
 
