@@ -32,15 +32,16 @@
 #include <ndbapi/NdbApi.hpp>
 #include <ndbapi/NdbScanFilter.hpp>
 
+// options from from mysqld.cc
+extern my_bool opt_ndb_optimized_node_selection;
+extern const char *opt_ndbcluster_connectstring;
+
 // Default value for parallelism
 static const int parallelism= 240;
 
 // Default value for max number of transactions
 // createable against NDB from this handler
 static const int max_transactions= 256;
-
-// connectstring to cluster if given by mysqld
-const char *ndbcluster_connectstring= 0;
 
 static const char *ha_ndb_ext=".ndb";
 
@@ -4233,14 +4234,18 @@ bool ndbcluster_init()
   int res;
   DBUG_ENTER("ndbcluster_init");
   // Set connectstring if specified
-  if (ndbcluster_connectstring != 0)
-    DBUG_PRINT("connectstring", ("%s", ndbcluster_connectstring));     
+  if (opt_ndbcluster_connectstring != 0)
+    DBUG_PRINT("connectstring", ("%s", opt_ndbcluster_connectstring));     
   if ((g_ndb_cluster_connection=
-       new Ndb_cluster_connection(ndbcluster_connectstring)) == 0)
+       new Ndb_cluster_connection(opt_ndbcluster_connectstring)) == 0)
   {
-    DBUG_PRINT("error",("Ndb_cluster_connection(%s)",ndbcluster_connectstring));
+    DBUG_PRINT("error",("Ndb_cluster_connection(%s)",
+			opt_ndbcluster_connectstring));
     goto ndbcluster_init_error;
   }
+
+  g_ndb_cluster_connection->set_optimized_node_selection
+    (opt_ndb_optimized_node_selection);
 
   // Create a Ndb object to open the connection  to NDB
   g_ndb= new Ndb(g_ndb_cluster_connection, "sys");
@@ -4256,7 +4261,7 @@ bool ndbcluster_init()
     DBUG_PRINT("info",("NDBCLUSTER storage engine at %s on port %d",
 		       g_ndb_cluster_connection->get_connected_host(),
 		       g_ndb_cluster_connection->get_connected_port()));
-    g_ndb->waitUntilReady(10);
+    g_ndb_cluster_connection->wait_until_ready(10,0);
   } 
   else if(res == 1)
   {

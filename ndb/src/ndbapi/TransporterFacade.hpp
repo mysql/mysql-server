@@ -127,7 +127,7 @@ private:
   friend class ExtSender; ///< @todo Hack to be able to sendSignalUnCond
   friend class GrepSS;
   friend class Ndb;
-  friend class Ndb_cluster_connection;
+  friend class Ndb_cluster_connection_impl;
 
   int sendSignalUnCond(NdbApiSignal *, NodeId nodeId);
 

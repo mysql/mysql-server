@@ -285,3 +285,21 @@ create table t3 engine=merge union=(t1, t2) select * from t1;
 --error 1093
 create table t3 engine=merge union=(t1, t2) select * from t2;
 drop table t1, t2;
+
+# BUG#6699 : no sorting on 'ref' retrieval 
+create table t1 (a int,b int,c int, index (a,b,c));
+create table t2 (a int,b int,c int, index (a,b,c));
+create table t3 (a int,b int,c int, index (a,b,c))
+  engine=merge union=(t1 ,t2);
+insert into t1 (a,b,c) values (1,1,0),(1,2,0);
+insert into t2 (a,b,c) values (1,1,1),(1,2,1);
+
+explain select a,b,c from t3 force index (a) where a=1 order by a,b,c;
+select a,b,c from t3 force index (a) where a=1 order by a,b,c;
+
+# this actually wasn't affected:
+explain select a,b,c from t3 force index (a) where a=1 order by a desc, b desc, c desc;
+select a,b,c from t3 force index (a) where a=1 order by a desc, b desc, c desc;
+
+drop table t1, t2, t3;
+
