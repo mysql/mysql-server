@@ -15,7 +15,6 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 #include "mysql_priv.h"
-#include "sql_acl.h"
 #include "sql_repl.h"
 #include "repl_failsafe.h"
 #include <m_ctype.h>
@@ -3571,7 +3570,7 @@ error:
 
 /*
   Check grants for commands which work only with one table and all other
-  tables belong to subselects.
+  tables belonging to subselects or implicitly opened tables.
 
   SYNOPSIS
     check_one_table_access()
@@ -3593,7 +3592,7 @@ int check_one_table_access(THD *thd, ulong privilege, TABLE_LIST *tables)
   if (grant_option && check_grant(thd, privilege, tables, 0, 1, 0))
     return 1;
 
-  /* Check rights on tables of subselect (if exists) */
+  /* Check rights on tables of subselects and implictly opened tables */
   TABLE_LIST *subselects_tables;
   if ((subselects_tables= tables->next))
   {
@@ -5229,7 +5228,10 @@ int multi_update_precheck(THD *thd, TABLE_LIST *tables)
     DBUG_PRINT("info",("Checking sub query list"));
     for (table= tables; table; table= table->next)
     {
-      if (table->table_in_update_from_clause)
+      if (my_tz_check_n_skip_implicit_tables(&table,
+                                             lex->time_zone_tables_used))
+        continue;
+      else if (table->table_in_update_from_clause)
       {
 	/*
 	  If we check table by local TABLE_LIST copy then we should copy

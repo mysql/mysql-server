@@ -19,7 +19,6 @@
 
 #include "mysql_priv.h"
 #include <mysys_err.h>
-#include "sql_acl.h"
 #include <my_dir.h>
 #include <m_ctype.h>
 #ifdef __WIN__
