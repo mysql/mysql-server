@@ -18,6 +18,7 @@
 #include <ndb_global.h>
 
 #include <NdbApi.hpp>
+#include <NdbSchemaCon.hpp>
 #include <NdbMain.h>
 #include <md5_hash.hpp>
 
@@ -662,7 +663,7 @@ createTables(Ndb* pMyNdb){
 
   if (theTableCreateFlag == 0) {
     ndbout << "Creating Table: vpn_users " << "..." << endl;
-    MySchemaTransaction = pMyNdb->startSchemaTransaction();
+    MySchemaTransaction = NdbSchemaCon::startSchemaTrans(pMyNdb);
       
     if(MySchemaTransaction == NULL && 
        (!error_handler(MySchemaTransaction->getNdbError())))
@@ -748,7 +749,7 @@ createTables(Ndb* pMyNdb){
         (!error_handler(MySchemaTransaction->getNdbError())))
       return -1;
       
-    pMyNdb->closeSchemaTransaction(MySchemaTransaction);
+    NdbSchemaCon::closeSchemaTrans(MySchemaTransaction);
   }//if
   
   return 0;

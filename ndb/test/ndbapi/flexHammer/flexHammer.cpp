@@ -58,6 +58,7 @@ Revision history:
 #include <NdbTick.h>
 #include <NdbTest.hpp>
 #include <NDBT_Error.hpp>
+#include <NdbSchemaCon.hpp>
 
 ErrorData * flexHammerErrorData;
 
@@ -754,7 +755,7 @@ createTables(Ndb* pMyNdb)
       } // if
       ndbout << endl;
       
-      MySchemaTransaction = pMyNdb->startSchemaTransaction();
+      MySchemaTransaction = NdbSchemaCon::startSchemaTrans(pMyNdb);
       if (MySchemaTransaction == NULL) {
 	return(-1);
       } // if
@@ -762,7 +763,7 @@ createTables(Ndb* pMyNdb)
       MySchemaOp = MySchemaTransaction->getNdbSchemaOp();	
       if (MySchemaOp == NULL) {
 	// Clean up opened schema transaction
-	pMyNdb->closeSchemaTransaction(MySchemaTransaction);
+	NdbSchemaCon::closeSchemaTrans(MySchemaTransaction);
 	return(-1);
       } // if
       
@@ -787,7 +788,7 @@ createTables(Ndb* pMyNdb)
 #endif
       if (check == -1) { 
 	// Clean up opened schema transaction
-	pMyNdb->closeSchemaTransaction(MySchemaTransaction);
+	NdbSchemaCon::closeSchemaTrans(MySchemaTransaction);
 	return(-1);
       } // if
       
@@ -798,7 +799,7 @@ createTables(Ndb* pMyNdb)
 					   NotNullAttribute );
       if (check == -1) { 
 	// Clean up opened schema transaction
-	pMyNdb->closeSchemaTransaction(MySchemaTransaction);
+	NdbSchemaCon::closeSchemaTrans(MySchemaTransaction);
 	return(-1);
       } // if
 
@@ -810,7 +811,7 @@ createTables(Ndb* pMyNdb)
 					     NotNullAttribute );
 	if (check == -1) {
 	  // Clean up opened schema transaction
-	  pMyNdb->closeSchemaTransaction(MySchemaTransaction);
+	  NdbSchemaCon::closeSchemaTrans(MySchemaTransaction);
 	  return(-1);
 	} // if
       } // for
@@ -819,11 +820,11 @@ createTables(Ndb* pMyNdb)
       check = MySchemaTransaction->execute();
       if (check == -1) {
 	// Clean up opened schema transaction
-	pMyNdb->closeSchemaTransaction(MySchemaTransaction);
+	NdbSchemaCon::closeSchemaTrans(MySchemaTransaction);
 	return(-1);
       } // if
       
-      pMyNdb->closeSchemaTransaction(MySchemaTransaction);
+      NdbSchemaCon::closeSchemaTrans(MySchemaTransaction);
     } // for
   } // if
 
