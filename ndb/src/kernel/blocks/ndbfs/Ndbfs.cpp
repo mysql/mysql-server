@@ -66,10 +66,10 @@ Ndbfs::Ndbfs(const Configuration & conf) :
   ndbrequire(p != 0);
 
   m_maxFiles = 40;
-  //ndb_mgm_get_int_parameter(p, CFG_DB_MAX_OPEN_FILES, &m_maxFiles);
-
+  ndb_mgm_get_int_parameter(p, CFG_DB_MAX_OPEN_FILES, &m_maxFiles);
+  
   // Create idle AsyncFiles
-  Uint32 noIdleFiles = 27;
+  Uint32 noIdleFiles = m_maxFiles > 27  ? 27 : m_maxFiles ;
   for (Uint32 i = 0; i < noIdleFiles; i++){
     theIdleFiles.push_back(createAsyncFile());
   }
