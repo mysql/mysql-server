@@ -153,6 +153,7 @@ trx_create(
 
 	trx->auto_inc_lock = NULL;
 	trx->n_lock_table_exp = 0;
+	trx->n_lock_table_transactional = 0;
 	
 	trx->read_view_heap = mem_heap_create(256);
 	trx->read_view = NULL;
@@ -285,6 +286,7 @@ trx_free(
 	ut_a(!trx->has_search_latch);
 	ut_a(!trx->auto_inc_lock);
 	ut_a(!trx->n_lock_table_exp);
+	ut_a(!trx->n_lock_table_transactional);
 
 	ut_a(trx->dict_operation_lock_mode == 0);
 
@@ -1645,10 +1647,15 @@ trx_print(
 	putc('\n', f);
   	
         if (trx->n_mysql_tables_in_use > 0 || trx->mysql_n_tables_locked > 0) {
+		fprintf(f, "mysql tables in use %lu, locked %lu\n",
+					(ulong) trx->n_mysql_tables_in_use,
+					(ulong) trx->mysql_n_tables_locked);
+	}
 
-                fprintf(f, "mysql tables in use %lu, locked %lu\n",
-                           (ulong) trx->n_mysql_tables_in_use,
-                           (ulong) trx->mysql_n_tables_locked);
+	if (trx->n_lock_table_transactional > 0 || trx->n_lock_table_exp > 0) {
+fprintf(f, "mysql explicit table locks %lu, transactional table locks %lu\n",
+				(ulong) trx->n_lock_table_exp,
+				(ulong) trx->n_lock_table_transactional);
         }
 
 	newline = TRUE;
