@@ -1824,7 +1824,7 @@ ER_READY
 	cze "%s: p-BЬipraven na spojenМ"
 	dan "%s: klar til tilslutninger"
 	nla "%s: klaar voor verbindingen"
-	eng "%s: ready for connections.\nVersion: '%s'  socket: '%s'  port: %d"
+	eng "%s: ready for connections.\nVersion: '%s'  socket: '%s'  port: %d  %s"
 	jps "%s: ▐─■У┼╝≈╧",
 	est "%s: ootab Эhendusi"
 	fre "%s: PrЙt pour des connections"
@@ -1839,7 +1839,7 @@ ER_READY
 	pol "%s: gotowe do poЁ?czenia"
 	por "%s: Pronto para conexУes"
 	rum "%s: sint gata pentru conectii"
-	rus "%s: Готов принимать соединения.\nВерсия: '%s'  сокет: '%s'  порт: %d"
+	rus "%s: Готов принимать соединения.\nВерсия: '%s'  сокет: '%s'  порт: %d  %s"
 	serbian "%s: Spreman za konekcije\n"
 	slo "%s: pripravenЩ na spojenie"
 	spa "%s: preparado para conexiones"
