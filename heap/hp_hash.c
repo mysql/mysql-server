@@ -443,6 +443,43 @@ uint hp_rb_make_key(HP_KEYDEF *keydef, byte *key,
       if (!(*key++= 1 - test(rec[seg->null_pos] & seg->null_bit)))
         continue;
     }
+    if (seg->flag & HA_SWAP_KEY)
+    {
+      uint length= seg->length;
+      byte *pos= (byte*) rec + seg->start;
+      
+#ifdef HAVE_ISNAN
+      if (seg->type == HA_KEYTYPE_FLOAT)
+      {
+	float nr;
+	float4get(nr, pos);
+	if (isnan(nr))
+	{
+	  /* Replace NAN with zero */
+ 	  bzero(key, length);
+	  key+= length;
+	  continue;
+	}
+      }
+      else if (seg->type == HA_KEYTYPE_DOUBLE)
+      {
+	double nr;
+	float8get(nr, pos);
+	if (isnan(nr))
+	{
+ 	  bzero(key, length);
+	  key+= length;
+	  continue;
+	}
+      }
+#endif
+      pos+= length;
+      while (length--)
+      {
+	*key++= *--pos;
+      }
+      continue;
+    }
     memcpy(key, rec + seg->start, (size_t) seg->length);
     key+= seg->length;
   }
@@ -466,6 +503,18 @@ uint hp_rb_pack_key(HP_KEYDEF *keydef, uchar *key, const uchar *old, uint k_len)
         k_len-= seg->length;
         continue;
       }
+    }
+    if (seg->flag & HA_SWAP_KEY)
+    {
+      uint length= seg->length;
+      byte *pos= (byte*) old + length;
+      
+      k_len-= length;
+      while (length--)
+      {
+	*key++= *--pos;
+      }
+      continue;
     }
     memcpy((byte*) key, old, seg->length);
     key+= seg->length;
