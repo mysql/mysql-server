@@ -9380,8 +9380,8 @@ the @code{mysql.user} table that has @code{Host='localhost'} and
 @code{User=''}.
 
 You should also add a password for the @code{root} user. The following
-example starts by removing the anonymous user that can be used by anyone
-to access the @code{test} database, then sets a @code{root} user password:
+example starts by removing the anonymous user that has all privileges,
+then sets a @code{root} user password:
 
 @example
 C:\> C:\mysql\bin\mysql mysql
