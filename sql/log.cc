@@ -231,18 +231,21 @@ bool MYSQL_LOG::open(const char *log_name, enum_log_type log_type_arg,
   }
   case LOG_NEW:
   {
+    uint len;
     time_t skr=time(NULL);
     struct tm tm_tmp;
+
     localtime_r(&skr,&tm_tmp);
-    my_snprintf(buff,sizeof(buff),"# %s, Version: %s at %02d%02d%02d %2d:%02d:%02d\n",
-	    my_progname,server_version,
-	    tm_tmp.tm_year % 100,
-	    tm_tmp.tm_mon+1,
-	    tm_tmp.tm_mday,
-	    tm_tmp.tm_hour,
-	    tm_tmp.tm_min,
-	    tm_tmp.tm_sec);
-    if (my_b_write(&log_file, (byte*) buff,(uint) strlen(buff)) ||
+    len= my_snprintf(buff,sizeof(buff),
+		     "# %s, Version: %s at %02d%02d%02d %2d:%02d:%02d\n",
+		     my_progname,server_version,
+		     tm_tmp.tm_year % 100,
+		     tm_tmp.tm_mon+1,
+		     tm_tmp.tm_mday,
+		     tm_tmp.tm_hour,
+		     tm_tmp.tm_min,
+		     tm_tmp.tm_sec);
+    if (my_b_write(&log_file, (byte*) buff, len) ||
 	flush_io_cache(&log_file))
       goto err;
     break;
