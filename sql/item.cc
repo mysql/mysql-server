@@ -829,12 +829,14 @@ bool Item_field::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
 	    // it is primary INSERT st_select_lex => skip first table resolving
 	    table_list= table_list->next;
 	  }
+
+	  Item_subselect *prev_subselect_item= prev_unit->item;
 	  if ((tmp= find_field_in_tables(thd, this,
 					 table_list, &where,
 					 0)) != not_found_field)
 	  {
-	    prev_unit->item->used_tables_cache|= tmp->table->map;
-	    prev_unit->item->const_item_cache= 0;
+	    prev_subselect_item->used_tables_cache|= tmp->table->map;
+	    prev_subselect_item->const_item_cache= 0;
 	    break;
 	  }
 	  if (sl->resolve_mode == SELECT_LEX::SELECT_MODE &&
@@ -844,15 +846,15 @@ bool Item_field::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
 	  {
 	    if (*refer && (*refer)->fixed) // Avoid crash in case of error
 	    {
-	      prev_unit->item->used_tables_cache|= (*refer)->used_tables();
-	      prev_unit->item->const_item_cache&= (*refer)->const_item();
+	      prev_subselect_item->used_tables_cache|= (*refer)->used_tables();
+	      prev_subselect_item->const_item_cache&= (*refer)->const_item();
 	    }
 	    break;
 	  }
 
 	  // Reference is not found => depend from outer (or just error)
-	  prev_unit->item->used_tables_cache|= OUTER_REF_TABLE_BIT;
-	  prev_unit->item->const_item_cache= 0;
+	  prev_subselect_item->used_tables_cache|= OUTER_REF_TABLE_BIT;
+	  prev_subselect_item->const_item_cache= 0;
 
 	  if (sl->master_unit()->first_select()->linkage ==
 	      DERIVED_TABLE_TYPE)
@@ -1401,6 +1403,7 @@ bool Item_ref::fix_fields(THD *thd,TABLE_LIST *tables, Item **reference)
       for ( ; sl ; sl= (prev_unit= sl->master_unit())->outer_select())
       {
 	last= sl;
+	Item_subselect *prev_subselect_item= prev_unit->item;
 	if (sl->resolve_mode == SELECT_LEX::SELECT_MODE &&
 	    (ref= find_item_in_list(this, sl->item_list,
 				    &counter,
@@ -1409,8 +1412,8 @@ bool Item_ref::fix_fields(THD *thd,TABLE_LIST *tables, Item **reference)
 	{
 	  if (*ref && (*ref)->fixed) // Avoid crash in case of error
 	  {
-	    prev_unit->item->used_tables_cache|= (*ref)->used_tables();
-	    prev_unit->item->const_item_cache&= (*ref)->const_item();
+	    prev_subselect_item->used_tables_cache|= (*ref)->used_tables();
+	    prev_subselect_item->const_item_cache&= (*ref)->const_item();
 	  }
 	  break;
 	}
@@ -1424,14 +1427,14 @@ bool Item_ref::fix_fields(THD *thd,TABLE_LIST *tables, Item **reference)
 				       table_list, &where,
 				       0)) != not_found_field)
 	{
-	  prev_unit->item->used_tables_cache|= tmp->table->map;
-	  prev_unit->item->const_item_cache= 0;
+	  prev_subselect_item->used_tables_cache|= tmp->table->map;
+	  prev_subselect_item->const_item_cache= 0;
 	  break;
 	}
 
 	// Reference is not found => depend from outer (or just error)
-	prev_unit->item->used_tables_cache|= OUTER_REF_TABLE_BIT;
-	prev_unit->item->const_item_cache= 0;
+	prev_subselect_item->used_tables_cache|= OUTER_REF_TABLE_BIT;
+	prev_subselect_item->const_item_cache= 0;
 
 	if (sl->master_unit()->first_select()->linkage ==
 	    DERIVED_TABLE_TYPE)
