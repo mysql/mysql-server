@@ -118,8 +118,8 @@ db_find_routine(THD *thd, int type, char *name, uint namelen, sp_head **sphp)
     goto done;
   }
 
-  created= table->field[4]->val_int();
-  modified= table->field[5]->val_int();
+  modified= table->field[4]->val_int();
+  created= table->field[5]->val_int();
 
   if ((ptr= get_field(&thd->mem_root, table->field[6])) == NULL)
   {
@@ -130,14 +130,9 @@ db_find_routine(THD *thd, int type, char *name, uint namelen, sp_head **sphp)
     suid= 0;
 
   table->field[7]->val_str(&str,&str);
-  length=str.length();
   ptr= 0;
-  if (length)
-  {
-    ptr= (char*) alloc_root(&thd->mem_root,length+1);
-    memcpy(ptr,str.ptr(),(uint) length);
-    ptr[length]=0;
-  }
+  if ((length= str.length()))
+    ptr= strmake_root(&thd->mem_root, str.ptr(),length);
 
   if (opened)
   {
@@ -203,6 +198,7 @@ db_create_routine(THD *thd, int type,
     table->field[1]->store((longlong)type);
     table->field[2]->store(def, deflen, system_charset_info);
     table->field[3]->store(creator, (uint) strlen(creator), system_charset_info);
+    ((Field_timestamp*) table->field[5])->set_time();
     if (suid)
       table->field[6]->store((longlong) suid);
     if (comment)
