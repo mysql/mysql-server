@@ -1221,7 +1221,7 @@ unpack_fields(MYSQL_DATA *data,MEM_ROOT *alloc,uint fields,
         field->flags|= NUM_FLAG;
       if (default_value && row->data[6])
       {
-        field->def=strdup_root(alloc,(char*) row->data[8]);
+        field->def=strdup_root(alloc,(char*) row->data[6]);
 	field->def_length= lengths[6];
       }
     }
