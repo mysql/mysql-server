@@ -4128,7 +4128,10 @@ static void free_share(INNOBASE_SHARE *share)
 }
 
 /*********************************************************************
-Stores a MySQL lock into a 'lock' field in a handle. */
+Converts a MySQL table lock stored in the 'lock' field of the handle to
+a proper type before storing the lock. MySQL also calls this when it
+releases a lock. */
+
 
 THR_LOCK_DATA**
 ha_innobase::store_lock(
@@ -4154,8 +4157,13 @@ ha_innobase::store_lock(
 		binlog) requires the use of a locking read */
 
 		prebuilt->select_lock_type = LOCK_S;
-	} else {
-		/* We set possible LOCK_X value in external_lock, not yet
+	} else if (lock_type != TL_IGNORE) {
+
+	        /* In ha_berkeley.cc there is a comment that MySQL
+	        may in exceptional cases call this with TL_IGNORE also
+	        when it is NOT going to release the lock. */
+
+	        /* We set possible LOCK_X value in external_lock, not yet
 		here even if this would be SELECT ... FOR UPDATE */
 
 		prebuilt->select_lock_type = LOCK_NONE;
