@@ -687,6 +687,12 @@ int mysql_create_table(THD *thd,const char *db, const char *table_name,
       DBUG_RETURN(-1);
     }
     key_parts+=key->columns.elements;
+    if (key->name && !tmp_table &&
+	!my_strcasecmp(system_charset_info,key->name,primary_key_name))
+    {
+      my_error(ER_WRONG_NAME_FOR_INDEX, MYF(0), key->name);
+      DBUG_RETURN(-1);
+    }
   }
   tmp=min(file->max_keys(), MAX_KEY);
   if (key_count > tmp)
@@ -1127,7 +1133,8 @@ make_unique_key_name(const char *field_name,KEY *start,KEY *end)
 {
   char buff[MAX_FIELD_NAME],*buff_end;
 
-  if (!check_if_keyname_exists(field_name,start,end))
+  if (!check_if_keyname_exists(field_name,start,end) &&
+      my_strcasecmp(system_charset_info,field_name,primary_key_name))
     return (char*) field_name;			// Use fieldname
   buff_end=strmake(buff,field_name,MAX_FIELD_NAME-4);
   for (uint i=2 ; ; i++)
@@ -2451,6 +2458,12 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
     {
       if (key->type != Key::FOREIGN_KEY)
 	key_list.push_back(key);
+      if (key->name &&
+	  !my_strcasecmp(system_charset_info,key->name,primary_key_name))
+      {
+	my_error(ER_WRONG_NAME_FOR_INDEX, MYF(0), key->name);
+	DBUG_RETURN(-1);
+      }
     }
   }
 

@@ -482,3 +482,44 @@ NULL
 select database();
 database()
 NULL
+use test;
+create table t1 (a int, index `primary` (a));
+ERROR 42000: Incorrect index name 'primary'
+create table t1 (a int, index `PRIMARY` (a));
+ERROR 42000: Incorrect index name 'PRIMARY'
+create table t1 (`primary` int, index(`primary`));
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `primary` int(11) default NULL,
+  KEY `primary_2` (`primary`)
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+create table t2 (`PRIMARY` int, index(`PRIMARY`));
+show create table t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `PRIMARY` int(11) default NULL,
+  KEY `PRIMARY_2` (`PRIMARY`)
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+create table t3 (a int);
+alter table t3 add index `primary` (a);
+ERROR 42000: Incorrect index name 'primary'
+alter table t3 add index `PRIMARY` (a);
+ERROR 42000: Incorrect index name 'PRIMARY'
+create table t4 (`primary` int);
+alter table t4 add index(`primary`);
+show create table t4;
+Table	Create Table
+t4	CREATE TABLE `t4` (
+  `primary` int(11) default NULL,
+  KEY `primary_2` (`primary`)
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+create table t5 (`PRIMARY` int);
+alter table t5 add index(`PRIMARY`);
+show create table t5;
+Table	Create Table
+t5	CREATE TABLE `t5` (
+  `PRIMARY` int(11) default NULL,
+  KEY `PRIMARY_2` (`PRIMARY`)
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+drop table t1, t2, t3, t4, t5;
