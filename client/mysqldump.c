@@ -37,7 +37,7 @@
 ** 10 Jun 2003: SET NAMES and --no-set-names by Alexander Barkov
 */
 
-#define DUMP_VERSION "10.5"
+#define DUMP_VERSION "10.6"
 
 #include <my_global.h>
 #include <my_sys.h>
@@ -78,7 +78,7 @@ static my_bool  verbose=0,tFlag=0,cFlag=0,dFlag=0,quick= 1, extended_insert= 1,
 		lock_tables=1,ignore_errors=0,flush_logs=0,replace=0,
 		ignore=0,opt_drop=1,opt_keywords=0,opt_lock=1,opt_compress=0,
                 opt_delayed=0,create_options=1,opt_quoted=0,opt_databases=0,
-	        opt_alldbs=0,opt_create_db=0,opt_first_slave=0,opt_set_names=0,
+                opt_alldbs=0,opt_create_db=0,opt_first_slave=0,opt_set_charset,
 		opt_autocommit=0,opt_master_data,opt_disable_keys=1,opt_xml=0,
 		opt_delete_master_logs=0, tty_password=0,
 		opt_single_transaction=0, opt_comments= 0, opt_compact= 0;
@@ -234,9 +234,12 @@ static struct my_option my_long_options[] =
   {"no-data", 'd', "No row information.", (gptr*) &dFlag, (gptr*) &dFlag, 0,
    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"no-set-names", 'N',
-   "'SET NAMES charset_name' will not be put in the output.",
-   (gptr*) &opt_set_names, (gptr*) &opt_set_names, 0, GET_BOOL, NO_ARG, 0, 0,
-   0, 0, 0, 0},
+   "'SET NAMES charset_name' will not be put in the output. Deprecated, use --set-charset or --skip-set-charset to enable/disable charset settings instead",
+   0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"set-charset", OPT_SET_CHARSET,
+   "'SET NAMES charset_name' will be put in the output",
+   (gptr*) &opt_set_charset, (gptr*) &opt_set_charset, 0, GET_BOOL, NO_ARG, 1,
+   0, 0, 0, 0, 0},
   {"set-variable", 'O',
    "Change the value of a variable. Please note that this option is deprecated; you can set variables directly with --variable-name=value.",
    0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
@@ -378,7 +381,7 @@ static void write_header(FILE *sql_file, char *db_name)
       fprintf(sql_file, "-- Server version\t%s\n",
 	      mysql_get_server_info(&mysql_connection));
     }
-    if (!opt_set_names)
+    if (opt_set_charset)
       fprintf(sql_file,"\n/*!40101 SET @OLD_CHARACTER_SET_CLIENT=@@CHARACTER_SET_CLIENT, CHARACTER_SET_CLIENT=%s */;\n",default_charset);
     if (!path)
     {
@@ -408,7 +411,7 @@ static void write_footer(FILE *sql_file)
 /*!40014 SET FOREIGN_KEY_CHECKS=@OLD_FOREIGN_KEY_CHECKS */;\n\
 /*!40014 SET UNIQUE_CHECKS=@OLD_UNIQUE_CHECKS */;\n");
     }
-    if (!opt_set_names)
+    if (opt_set_charset)
       fprintf(sql_file,
 	      "/*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;\n");
     fputs("\n", sql_file);
@@ -453,6 +456,9 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     opt_protocol = MYSQL_PROTOCOL_PIPE;
 #endif
     break;
+  case 'N':
+    opt_set_charset= 0;
+    break;
   case 'T':
     opt_disable_keys=0;
     break;
@@ -472,7 +478,7 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     exit(0);
   case (int) OPT_OPTIMIZE:
     extended_insert= opt_drop= opt_lock= quick= create_options=
-      opt_disable_keys= lock_tables= 1;
+      opt_disable_keys= lock_tables= opt_set_charset= 1;
     if (opt_single_transaction) lock_tables=0;
     break;
   case (int) OPT_SKIP_OPTIMIZATION:
@@ -483,7 +489,7 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
   if (opt_compact)
   {
     opt_comments= opt_drop= opt_disable_keys= opt_lock= 0;
-    opt_set_names= 1;
+    opt_set_charset= 0;
   }
   case (int) OPT_TABLES:
     opt_databases=0;
@@ -496,7 +502,7 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
       ulong mode;
 
       opt_quoted= 1;
-      opt_set_names= 1;
+      opt_set_charset= 0;
       opt_compatible_mode_str= argument;
       opt_compatible_mode= find_set(&compatible_mode_typelib,
 				    argument, strlen(argument),
@@ -649,7 +655,7 @@ static int dbConnect(char *host, char *user,char *passwd)
   if (shared_memory_base_name)
     mysql_options(&mysql_connection,MYSQL_SHARED_MEMORY_BASE_NAME,shared_memory_base_name);
 #endif
-  if (!opt_set_names)
+  if (opt_set_charset)
     mysql_options(&mysql_connection, MYSQL_SET_CHARSET_NAME, default_charset);
   if (!(sock= mysql_real_connect(&mysql_connection,host,user,passwd,
          NULL,opt_mysql_port,opt_mysql_unix_port,
