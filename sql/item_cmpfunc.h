@@ -965,6 +965,9 @@ public:
   void copy_andor_arguments(THD *thd, Item_cond *item);
   bool walk(Item_processor processor, byte *arg);
   Item *transform(Item_transformer transformer, byte *arg);
+  void traverse_cond(Item_cond_traverser, 
+		     void *arg,
+		     traverse_order order = POSTFIX);
   void neg_arguments(THD *thd);
 };
 
