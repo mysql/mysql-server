@@ -175,7 +175,6 @@ public:
   inline void unlock_index() { pthread_mutex_unlock(&LOCK_index);}
   inline IO_CACHE *get_index_file() { return &index_file;}
   inline uint32 get_open_count() { return open_count; }
-  inline void set_no_rotate(bool no_rotate_arg) {no_rotate= no_rotate_arg;}
 };
 
 /* character conversion tables */
