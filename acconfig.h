@@ -155,6 +155,12 @@
 /* Using Ndb Cluster DB */
 #undef HAVE_NDBCLUSTER_DB
 
+/* Including Ndb Cluster DB shared memory transporter */
+#undef NDB_SHM_TRANSPORTER
+
+/* Including Ndb Cluster DB sci transporter */
+#undef NDB_SCI_TRANSPORTER
+
 /* For some non posix threads */
 #undef HAVE_NONPOSIX_PTHREAD_GETSPECIFIC
 

@@ -1120,7 +1120,7 @@ dnl Is this the right match for DEC OSF on alpha?
         sql/Makefile.in)
           # Use gen_lex_hash.linux instead of gen_lex_hash
           # Add library dependencies to mysqld_DEPENDENCIES
-          lib_DEPENDENCIES="\$(bdb_libs_with_path) \$(innodb_libs) \$(pstack_libs) \$(innodb_system_libs) \$(openssl_libs)"
+          lib_DEPENDENCIES="\$(bdb_libs_with_path) \$(innodb_libs) \$(ndbcluster_libs) \$(pstack_libs) \$(innodb_system_libs) \$(openssl_libs)"
           cat > $filesed << EOF
 s,\(^.*\$(MAKE) gen_lex_hash\)\$(EXEEXT),#\1,
 s,\(\./gen_lex_hash\)\$(EXEEXT),\1.linux,
@@ -2924,9 +2924,6 @@ AC_SUBST(mgmapiincludedir)
   #AC_SUBST(NDB_TYPE_NDBAPITEST)
   #AC_SUBST(NDB_TYPE_KERNEL)
   #AC_SUBST(NDB_TYPE_UTIL)
-
-#  define(NDB_MAKEFILES, [ dnl
-#   ])
 
 AC_SUBST(MAKE_BINARY_DISTRIBUTION_OPTIONS)
 
