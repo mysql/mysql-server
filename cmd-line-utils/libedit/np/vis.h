@@ -1,11 +1,8 @@
-/*	$NetBSD: sig.h,v 1.4 2003/03/10 00:58:05 christos Exp $	*/
+/*	$NetBSD: vis.h,v 1.12 2002/03/23 17:39:05 christos Exp $	*/
 
 /*-
- * Copyright (c) 1992, 1993
+ * Copyright (c) 1990, 1993
  *	The Regents of the University of California.  All rights reserved.
- *
- * This code is derived from software contributed to Berkeley by
- * Christos Zoulas of Cornell University.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -35,39 +32,65 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)sig.h	8.1 (Berkeley) 6/4/93
+ *	@(#)vis.h	8.1 (Berkeley) 6/2/93
  */
+
+#ifndef _VIS_H_
+#define	_VIS_H_
+
+#ifdef HAVE_SYS_CDEFS_H
+#include <sys/cdefs.h>
+#endif
 
 /*
- * el.sig.h: Signal handling functions
+ * to select alternate encoding format
  */
-#ifndef _h_el_sig
-#define	_h_el_sig
-
-#include <signal.h>
-
-#include "histedit.h"
+#define	VIS_OCTAL	0x01	/* use octal \ddd format */
+#define	VIS_CSTYLE	0x02	/* use \[nrft0..] where appropiate */
 
 /*
- * Define here all the signals we are going to handle
- * The _DO macro is used to iterate in the source code
+ * to alter set of characters encoded (default is to encode all
+ * non-graphic except space, tab, and newline).
  */
-#define	ALLSIGS		\
-	_DO(SIGINT)	\
-	_DO(SIGTSTP)	\
-	_DO(SIGSTOP)	\
-	_DO(SIGQUIT)	\
-	_DO(SIGHUP)	\
-	_DO(SIGTERM)	\
-	_DO(SIGCONT)	\
-	_DO(SIGWINCH)
+#define	VIS_SP		0x04	/* also encode space */
+#define	VIS_TAB		0x08	/* also encode tab */
+#define	VIS_NL		0x10	/* also encode newline */
+#define	VIS_WHITE	(VIS_SP | VIS_TAB | VIS_NL)
+#define	VIS_SAFE	0x20	/* only encode "unsafe" characters */
 
-typedef void (*el_signalhandler_t)(int);
-typedef el_signalhandler_t *el_signal_t;
+/*
+ * other
+ */
+#define	VIS_NOSLASH	0x40	/* inhibit printing '\' */
+#define	VIS_HTTPSTYLE	0x80	/* http-style escape % HEX HEX */
 
-protected void	sig_end(EditLine*);
-protected int	sig_init(EditLine*);
-protected void	sig_set(EditLine*);
-protected void	sig_clr(EditLine*);
+/*
+ * unvis return codes
+ */
+#define	UNVIS_VALID	 1	/* character valid */
+#define	UNVIS_VALIDPUSH	 2	/* character valid, push back passed char */
+#define	UNVIS_NOCHAR	 3	/* valid sequence, no character produced */
+#define	UNVIS_SYNBAD	-1	/* unrecognized escape sequence */
+#define	UNVIS_ERROR	-2	/* decoder in unknown state (unrecoverable) */
 
-#endif /* _h_el_sig */
+/*
+ * unvis flags
+ */
+#define	UNVIS_END	1	/* no more characters */
+
+char	*vis(char *, int, int, int);
+char	*svis(char *, int, int, int, const char *);
+int	strvis(char *, const char *, int);
+int	strsvis(char *, const char *, int, const char *);
+int	strvisx(char *, const char *, size_t, int);
+int	strsvisx(char *, const char *, size_t, int, const char *);
+int	strunvis(char *, const char *);
+int	strunvisx(char *, const char *, int);
+#ifdef __LIBC12_SOURCE__
+int	unvis(char *, int, int *, int);
+int	__unvis13(char *, int, int *, int);
+#else
+int	unvis(char *, int, int *, int)	__RENAME(__unvis13);
+#endif
+
+#endif /* !_VIS_H_ */
