@@ -460,7 +460,7 @@ public:
   long	     dbug_thread_id;
   pthread_t  real_id;
   uint	     current_tablenr,tmp_table,cond_count;
-  uint	     server_status,open_options;
+  uint	     server_status,open_options,system_thread;
   uint32     query_length;
   uint32     db_length;
   /* variables.transaction_isolation is reset to this after each commit */
@@ -470,7 +470,7 @@ public:
   bool	     set_query_id,locked,count_cuted_fields,some_tables_deleted;
   bool	     no_errors, allow_sum_func, password, fatal_error;
   bool	     query_start_used,last_insert_id_used,insert_id_used,rand_used;
-  bool	     system_thread,in_lock_tables,global_read_lock;
+  bool	     in_lock_tables,global_read_lock;
   bool       query_error, bootstrap, cleanup_done;
   bool	     safe_to_cache_query;
   bool	     volatile killed;
@@ -591,6 +591,11 @@ public:
   void add_changed_table(const char *key, long key_length);
   CHANGED_TABLE_LIST * changed_table_dup(const char *key, long key_length);
 };
+
+/* Flags for the THD::system_thread (bitmap) variable */
+#define SYSTEM_THREAD_DELAYED_INSERT 1
+#define SYSTEM_THREAD_SLAVE_IO 2
+#define SYSTEM_THREAD_SLAVE_SQL 4
 
 /*
   Used to hold information about file and file structure in exchainge 

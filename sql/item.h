@@ -238,7 +238,7 @@ public:
     return 0;
   }
   void print(String *str);
-  unsigned int size_of() { return sizeof(*this);}  
+  unsigned int size_of() { return sizeof(*this);}
 };
 
 

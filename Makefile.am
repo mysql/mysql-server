@@ -19,8 +19,7 @@
 AUTOMAKE_OPTIONS =	foreign
 
 # These are built from source in the Docs directory
-EXTRA_DIST =		INSTALL-SOURCE README \
-			COPYING COPYING.LIB
+EXTRA_DIST =		INSTALL-SOURCE README COPYING 
 SUBDIRS =		. include @docs_dirs@ @readline_dir@ \
 			@thread_dirs@ pstack @sql_client_dirs@ \
 			@sql_server_dirs@ scripts man tests \

@@ -1,0 +1,32 @@
+slave stop;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+reset master;
+reset slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+slave start;
+select get_lock("a",5);
+get_lock("a",5)
+1
+create table t1(n int);
+insert into t1 values(1+get_lock("a",15)*0);
+insert into t1 values(2);
+stop slave;
+select * from t1;
+n
+1
+show slave status;
+Master_Host	Master_User	Master_Port	Connect_retry	Master_Log_File	Read_Master_Log_Pos	Relay_Log_File	Relay_Log_Pos	Relay_Master_Log_File	Slave_IO_Running	Slave_SQL_Running	Replicate_do_db	Replicate_ignore_db	Last_errno	Last_error	Skip_counter	Exec_master_log_pos	Relay_log_space
+127.0.0.1	root	MASTER_MYPORT	1	master-bin.001	273	slave-relay-bin.002	255	master-bin.001	No	No			0		0	214	314
+change master to master_user='root';
+show slave status;
+Master_Host	Master_User	Master_Port	Connect_retry	Master_Log_File	Read_Master_Log_Pos	Relay_Log_File	Relay_Log_Pos	Relay_Master_Log_File	Slave_IO_Running	Slave_SQL_Running	Replicate_do_db	Replicate_ignore_db	Last_errno	Last_error	Skip_counter	Exec_master_log_pos	Relay_log_space
+127.0.0.1	root	MASTER_MYPORT	1	master-bin.001	214	slave-relay-bin.001	4	master-bin.001	No	No			0		0	214	4
+select release_lock("a");
+release_lock("a")
+1
+start slave;
+select * from t1;
+n
+1
+2
+drop table t1;

@@ -2573,7 +2573,7 @@ default_service_handling(char **argv,
   }
   /* We must have servicename last */
   *pos++= ' ';
-  strmake(pos, servicename, (uint) (end+2 - pos));
+  (void) add_quoted_string(pos, servicename, end);
 
   if (Service.got_service_option(argv, "install"))
   {
@@ -4278,8 +4278,8 @@ struct show_var_st status_vars[]= {
 
 static void print_version(void)
 {
-  printf("%s  Ver %s for %s on %s\n",my_progname,
-	 server_version,SYSTEM_TYPE,MACHINE_TYPE);
+  printf("%s  Ver %s for %s on %s (%s)\n",my_progname,
+	 server_version,SYSTEM_TYPE,MACHINE_TYPE, MYSQL_COMPILATION_COMMENT);
 }
 
 static void use_help(void)

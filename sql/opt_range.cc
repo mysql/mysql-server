@@ -70,7 +70,7 @@ public:
   {}
   inline bool is_same(SEL_ARG *arg)
   {
-    if (type != arg->type)
+    if (type != arg->type || part != arg->part)
       return 0;
     if (type != KEY_RANGE)
       return 1;
