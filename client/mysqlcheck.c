@@ -16,7 +16,7 @@
 
 /* By Jani Tolonen, 2001-04-20, MySQL Development Team */
 
-#define CHECK_VERSION "1.01"
+#define CHECK_VERSION "1.02"
 
 #include <global.h>
 #include <my_sys.h>
@@ -503,25 +503,24 @@ static int use_db(char *database)
 
 static int handle_request_for_tables(char *tables, uint length)
 {
-  char *query, *end, options[100];
+  char *query, *end, options[100], message[100];
   const char *op = 0;
 
   options[0] = 0;
+  end = options;
   switch (what_to_do) {
   case DO_CHECK:
     op = "CHECK";
-    end = options;
-    if (opt_quick)              end = strmov(end, "QUICK");
-    if (opt_fast)               end = strmov(end, "FAST");
-    if (opt_medium_check)       end = strmov(end, "MEDIUM"); /* Default */
-    if (opt_extended)           end = strmov(end, "EXTENDED");
-    if (opt_check_only_changed) end = strmov(end, "CHANGED");
+    if (opt_quick)              end = strmov(end, " QUICK");
+    if (opt_fast)               end = strmov(end, " FAST");
+    if (opt_medium_check)       end = strmov(end, " MEDIUM"); /* Default */
+    if (opt_extended)           end = strmov(end, " EXTENDED");
+    if (opt_check_only_changed) end = strmov(end, " CHANGED");
     break;
   case DO_REPAIR:
     op = "REPAIR";
-    end = options;
-    if (opt_quick)              end = strmov(end, "QUICK");
-    if (opt_extended)           end = strmov(end, "EXTENDED");
+    if (opt_quick)              end = strmov(end, " QUICK");
+    if (opt_extended)           end = strmov(end, " EXTENDED");
     break;
   case DO_ANALYZE:
     op = "ANALYZE";
@@ -533,11 +532,11 @@ static int handle_request_for_tables(char *tables, uint length)
 
   if (!(query =(char *) my_malloc((sizeof(char)*(length+110)), MYF(MY_WME))))
     return 1;
-  sprintf(query, "%s TABLE %s %s", op, options, tables);
+  sprintf(query, "%s TABLE %s %s", op, tables, options);
   if (mysql_query(sock, query))
   {
-    sprintf(options, "when executing '%s TABLE'", op);
-    DBerror(sock, options);
+    sprintf(message, "when executing '%s TABLE ... %s", op, options);
+    DBerror(sock, message);
     return 1;
   }
   print_result();
@@ -551,23 +550,34 @@ static void print_result()
   MYSQL_RES *res;
   MYSQL_ROW row;
   char prev[NAME_LEN*2+2];
-  int i;
+  uint i;
+  my_bool found_error=0;
 
   res = mysql_use_result(sock);
   prev[0] = '\0';
   for (i = 0; (row = mysql_fetch_row(res)); i++)
   {
     int changed = strcmp(prev, row[0]);
-    int status = !strcmp(row[2], "status");
-    if (opt_silent && status)
-      continue;
+    my_bool status = !strcmp(row[2], "status");
+
+    if (status)
+    {
+      if (found_error)
+      {
+	if (what_to_do != DO_REPAIR && opt_auto_repair &&
+	    (!opt_fast || strcmp(row[3],"OK")))
+	  insert_dynamic(&tables4repair, row[0]);
+      }
+      found_error=0;
+      if (opt_silent)
+	continue;
+    }
     if (status && changed)
       printf("%-50s %s", row[0], row[3]);
     else if (!status && changed)
     {
       printf("%s\n%-9s: %s", row[0], row[2], row[3]);
-      if (what_to_do != DO_REPAIR && opt_auto_repair)
-	insert_dynamic(&tables4repair, row[0]);
+      found_error=1;
     }
     else
       printf("%-9s: %s", row[2], row[3]);
