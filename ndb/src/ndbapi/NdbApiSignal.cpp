@@ -168,7 +168,7 @@ NdbApiSignal::setSignal(int aNdbSignalType)
       theTrace                = TestOrd::TraceAPI;
       theReceiversBlockNumber = DBTC;
       theVerId_signalNumber   = GSN_TC_COMMITREQ;
-      theLength               = 5;
+      theLength               = 3;
     }
     break;
 

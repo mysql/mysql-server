@@ -22,6 +22,7 @@
 #include <AttributeHeader.hpp>
 #include <NdbConnection.hpp>
 #include <TransporterFacade.hpp>
+#include <signaldata/TcKeyConf.hpp>
 
 NdbReceiver::NdbReceiver(Ndb *aNdb) :
   theMagicNumber(0),
@@ -249,10 +250,11 @@ NdbReceiver::execTRANSID_AI(const Uint32* aDataPtr, Uint32 aLength)
   /**
    * Update m_received_result_length
    */
+  Uint32 exp = m_expected_result_length; 
   Uint32 tmp = m_received_result_length + aLength;
   m_received_result_length = tmp;
 
-  return (tmp == m_expected_result_length ? 1 : 0);
+  return (tmp == exp || (exp > TcKeyConf::SimpleReadBit) ? 1 : 0);
 }
 
 int
