@@ -319,7 +319,10 @@ int mysql_insert(THD *thd,TABLE_LIST *table_list,
 	break;
       }
     }
-    if ((res= table_list->view_check_option(thd, ignore_err)) ==
+    if ((res= table_list->view_check_option(thd,
+					    (values_list.elements == 1 ?
+					     0 :
+					     ignore_err))) ==
         VIEW_CHECK_SKIP)
       continue;
     else if (res == VIEW_CHECK_ERROR)
