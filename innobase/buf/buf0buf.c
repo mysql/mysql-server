@@ -1613,7 +1613,7 @@ buf_pool_invalidate(void)
 	freed = TRUE;
 
 	while (freed) {
-		freed = buf_LRU_search_and_free_block(0);
+		freed = buf_LRU_search_and_free_block(100);
 	}
 	
 	mutex_enter(&(buf_pool->mutex));
@@ -1898,8 +1898,10 @@ buf_print_io(
 
 	buf += sprintf(buf,
 		"Pending writes: LRU %lu, flush list %lu, single page %lu\n",
-		buf_pool->n_flush[BUF_FLUSH_LRU],
-		buf_pool->n_flush[BUF_FLUSH_LIST],
+		buf_pool->n_flush[BUF_FLUSH_LRU]
+				+ buf_pool->init_flush[BUF_FLUSH_LRU],
+		buf_pool->n_flush[BUF_FLUSH_LIST]
+				+ buf_pool->init_flush[BUF_FLUSH_LIST],
 		buf_pool->n_flush[BUF_FLUSH_SINGLE_PAGE]);
 
 	current_time = time(NULL);
