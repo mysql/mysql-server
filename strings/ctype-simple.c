@@ -946,7 +946,7 @@ my_bool my_like_range_simple(CHARSET_INFO *cs,
     if (*ptr == w_one)				/* '_' in SQL */
     {
       *min_str++='\0';				/* This should be min char */
-      *max_str++=cs->max_sort_char;
+      *max_str++= (char) cs->max_sort_char;
       continue;
     }
     if (*ptr == w_many)				/* '%' in SQL */
@@ -955,7 +955,7 @@ my_bool my_like_range_simple(CHARSET_INFO *cs,
       *max_length=res_length;
       do {
 	*min_str++ = ' ';		/* Because if key compression */
-	*max_str++ = cs->max_sort_char;
+	*max_str++ = (char) cs->max_sort_char;
       } while (min_str != min_end);
       return 0;
     }
