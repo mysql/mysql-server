@@ -1247,12 +1247,14 @@ static void init_signals(void)
 
   sigset(THR_KILL_SIGNAL,end_thread_signal);
   sigset(THR_SERVER_ALARM,print_signal_warning); // Should never be called!
-  struct sigaction sa; sa.sa_flags = 0;
-  sigemptyset(&sa.sa_mask);
-  sigprocmask(SIG_SETMASK,&sa.sa_mask,NULL);
 
   if (!(test_flags & TEST_NO_STACKTRACE) || (test_flags & TEST_CORE_ON_SIGNAL))
   {
+    struct sigaction sa;
+    sa.sa_flags = SA_RESETHAND | SA_NODEFER;
+    sigemptyset(&sa.sa_mask);
+    sigprocmask(SIG_SETMASK,&sa.sa_mask,NULL);
+
     init_stacktrace();
     sa.sa_handler=handle_segfault;
     sigaction(SIGSEGV, &sa, NULL);

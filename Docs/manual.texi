@@ -1129,6 +1129,9 @@ values).
 @node MySQL-Books, General-SQL, MySQL Information Sources, MySQL Information Sources
 @subsection Books About MySQL
 
+For the latest book information, with user comments, please visit
+@uref{http://www.mysql.com/portal/books/html/index.html}.
+
 While this manual is still the right place for up to date technical
 information, its primary goal is to contain everything there is to know
 about MySQL.  It is sometimes nice to have a bound book to read
@@ -36066,12 +36069,22 @@ installing a binary version of MySQL. @xref{Installing binary}.
 @xref{mysqld-max, , @code{mysqld-max}}.
 
 To compile MySQL with InnoDB support, download MySQL-3.23.37 or newer
-and configure @code{MySQL} with the @code{--with-innodb} option.
+and configure MySQL with the @code{--with-innodb} option.
 @xref{Installing source}.
 
 @example
 cd /path/to/source/of/mysql-3.23.37
 ./configure --with-innodb
+@end example
+
+To get InnoDB to work you have to specify where the data for InnoDB
+tables should be stored by specifying the @code{innodb_data_file_path}
+option on the command line or in an MySQL option file. @xref{InnoDB
+start}.  If you have configured MySQL for InnoDB but you have not
+specified the above option, @code{mysqld} will print at start:
+
+@example
+Can't initialize InnoDB as 'innodb_data_file_path' is not set
 @end example
 
 InnoDB provides MySQL with a transaction-safe table handler with
