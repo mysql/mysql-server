@@ -30,9 +30,6 @@
 #include "ha_innodb.h"
 #endif
 #include "ha_myisam.h"
-#ifdef HAVE_ISAM
-#include "ha_isam.h"
-#endif
 #ifdef HAVE_NDBCLUSTER_DB
 #include "ha_ndbcluster.h"
 #endif
@@ -47,11 +44,6 @@
 #else
 #define OPT_BDB_DEFAULT 0
 #endif
-#ifdef HAVE_ISAM_DB
-#define OPT_ISAM_DEFAULT 1
-#else
-#define OPT_ISAM_DEFAULT 0
-#endif
 #ifdef HAVE_NDBCLUSTER_DB
 #define OPT_NDBCLUSTER_DEFAULT 0
 #if defined(NOT_ENOUGH_TESTED) \
@@ -64,7 +56,6 @@
 #define OPT_NDBCLUSTER_DEFAULT 0
 #endif
 
-#include <nisam.h>
 #include <thr_alarm.h>
 #include <ft_global.h>
 #include <errmsg.h>
@@ -4342,7 +4333,7 @@ Disable with --skip-bdb (will save memory).",
    "Don't try to recover Berkeley DB tables on start.", 0, 0, 0, GET_NO_ARG,
    NO_ARG, 0, 0, 0, 0, 0, 0},
   {"bdb-no-sync", OPT_BDB_NOSYNC,
-   "Disable synchronously flushing logs. This option is deprecated, use --skip-sync-bdb-logs or sync-bdb-logs=0 instead",
+   "This option is deprecated, use --skip-sync-bdb-logs instead",
    //   (gptr*) &opt_sync_bdb_logs, (gptr*) &opt_sync_bdb_logs, 0, GET_BOOL,
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"bdb-shared-data", OPT_BDB_SHARED,
@@ -4551,9 +4542,8 @@ Disable with --skip-innodb-doublewrite.", (gptr*) &innobase_use_doublewrite,
    (gptr*) &global_system_variables.innodb_support_xa,
    0, GET_BOOL, OPT_ARG, 1, 0, 0, 0, 0, 0},
 #endif /* End HAVE_INNOBASE_DB */
-  {"isam", OPT_ISAM, "Enable ISAM (if this version of MySQL supports it). \
-Disable with --skip-isam.",
-   (gptr*) &opt_isam, (gptr*) &opt_isam, 0, GET_BOOL, NO_ARG, OPT_ISAM_DEFAULT, 0, 0,
+  {"isam", OPT_ISAM, "Obsolete. ISAM storage engine is no longer supported.",
+   (gptr*) &opt_isam, (gptr*) &opt_isam, 0, GET_BOOL, NO_ARG, 0, 0, 0,
    0, 0, 0},
   {"language", 'L',
    "Client error messages in given language. May be given as a full path.",
@@ -5469,36 +5459,35 @@ The minimum value for this variable is 4096.",
    1, 0},
 #ifdef HAVE_BERKELEY_DB
   {"sync-bdb-logs", OPT_BDB_SYNC,
-   "Synchronously flush logs. Enabled by default",
+   "Synchronously flush Berkeley DB logs. Enabled by default",
    (gptr*) &opt_sync_bdb_logs, (gptr*) &opt_sync_bdb_logs, 0, GET_BOOL,
    NO_ARG, 1, 0, 0, 0, 0, 0},
 #endif /* HAVE_BERKELEY_DB */
   {"sync-binlog", OPT_SYNC_BINLOG,
-   "Sync the binlog to disk after every #th event. \
-#=0 (the default) does no sync. Syncing slows MySQL down",
-   (gptr*) &sync_binlog_period,
-   (gptr*) &sync_binlog_period, 0, GET_ULONG, REQUIRED_ARG, 0, 0, ~0L, 0, 1,
-   0},
+   "Synchronously flush binary log to disk after every #th event. "
+   "Use 0 (default) to disable synchronous flushing.",
+   (gptr*) &sync_binlog_period, (gptr*) &sync_binlog_period, 0, GET_ULONG,
+   REQUIRED_ARG, 1, 0, ~0L, 0, 1, 0},
+  {"sync-frm", OPT_SYNC_FRM, "Sync .frm to disk on create. Enabled by default.",
+   (gptr*) &opt_sync_frm, (gptr*) &opt_sync_frm, 0, GET_BOOL, NO_ARG, 1, 0,
+   0, 0, 0, 0},
 #ifdef DOES_NOTHING_YET
   {"sync-replication", OPT_SYNC_REPLICATION,
-   "Enable synchronous replication",
+   "Enable synchronous replication.",
    (gptr*) &global_system_variables.sync_replication,
    (gptr*) &global_system_variables.sync_replication,
    0, GET_ULONG, REQUIRED_ARG, 0, 0, 1, 0, 1, 0},
   {"sync-replication-slave-id", OPT_SYNC_REPLICATION_SLAVE_ID,
-   "Synchronous replication is wished for this slave",
+   "Synchronous replication is wished for this slave.",
    (gptr*) &global_system_variables.sync_replication_slave_id,
    (gptr*) &global_system_variables.sync_replication_slave_id,
    0, GET_ULONG, REQUIRED_ARG, 0, 0, ~0L, 0, 1, 0},
   {"sync-replication-timeout", OPT_SYNC_REPLICATION_TIMEOUT,
-   "Synchronous replication timeout",
+   "Synchronous replication timeout.",
    (gptr*) &global_system_variables.sync_replication_timeout,
    (gptr*) &global_system_variables.sync_replication_timeout,
    0, GET_ULONG, REQUIRED_ARG, 10, 0, ~0L, 0, 1, 0},
 #endif
-  {"sync-frm", OPT_SYNC_FRM, "Sync .frm to disk on create. Enabled by default",
-   (gptr*) &opt_sync_frm, (gptr*) &opt_sync_frm, 0, GET_BOOL, NO_ARG, 1, 0,
-   0, 0, 0, 0},
   {"table_cache", OPT_TABLE_CACHE,
    "The number of open tables for all threads.", (gptr*) &table_cache_size,
    (gptr*) &table_cache_size, 0, GET_ULONG, REQUIRED_ARG, 64, 1, 512*1024L,
@@ -5962,11 +5951,7 @@ static void mysql_init_variables(void)
 #else
   have_innodb=SHOW_OPTION_NO;
 #endif
-#ifdef HAVE_ISAM
-  have_isam=SHOW_OPTION_YES;
-#else
   have_isam=SHOW_OPTION_NO;
-#endif
 #ifdef HAVE_EXAMPLE_DB
   have_example_db= SHOW_OPTION_YES;
 #else
@@ -6375,9 +6360,6 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
       opt_error_log= 0;			// Force logs to stdout
     break;
   case (int) OPT_FLUSH:
-#ifdef HAVE_ISAM
-    nisam_flush=1;
-#endif
     myisam_flush=1;
     flush_time=0;			// No auto flush
     break;
@@ -6482,14 +6464,6 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
       have_berkeley_db= SHOW_OPTION_YES;
     else
       have_berkeley_db= SHOW_OPTION_DISABLED;
-#endif
-    break;
-  case OPT_ISAM:
-#ifdef HAVE_ISAM
-    if (opt_isam)
-      have_isam= SHOW_OPTION_YES;
-    else
-      have_isam= SHOW_OPTION_DISABLED;
 #endif
     break;
   case OPT_NDBCLUSTER:
