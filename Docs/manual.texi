@@ -4033,8 +4033,13 @@ If the date is totally wrong, MySQL will store the special
 0000-00-00 date value in the column.
 
 @item
-If you set an @code{enum} to an unsupported value, it will be set to
+If you set an @code{ENUM} column to an unsupported value, it will be set to
 the error value 'empty string', with numeric value 0.
+
+@item
+If you set an @cod{SET} column to an unsupported value, the value will
+be ignored. @xref{Bugs}.
+
 @end itemize
 
 @item
@@ -4933,6 +4938,18 @@ Standard usage in PostgreSQL is closer to ANSI SQL in some cases.
 
 @item
 One can speed up PostgreSQL by coding things as stored procedures.
+
+@item
+For geographical data, R-TREES makes PostgreSQL better than MySQL.
+
+@item
+The PostgreSQL optimizer can do some optimization that the current MySQL
+optimizer can't do.  Most notable is doing joins when you don't have the
+proper keys in place and doing a join where you are using different keys
+combined with OR.  The MySQL benchmark suite at
+@uref{http://www.mysql.com/information/benchmarks.html} shows you what
+kind of constructs you should watch out for when using different
+databases.
 
 @item
 PostgreSQL has a bigger team of developers that contribute to the server.
@@ -29146,6 +29163,9 @@ specified at table creation time.  For example, if a column is specified as
 @code{SET("a","b","c","d")}, then @code{"a,d"}, @code{"d,a"}, and
 @code{"d,a,a,d,d"} will all appear as @code{"a,d"} when retrieved.
 
+If you set a @code{SET} column to an unsupported value, the value will
+be ignored.
+
 @code{SET} values are sorted numerically.  @code{NULL} values sort before
 non-@code{NULL} @code{SET} values.
 
@@ -33790,8 +33810,10 @@ column in a table, the default value is the current date and time.
 @xref{Date and time types}.
 
 @item
-For string types other than @code{ENUM}, the default value is the empty string.
-For @code{ENUM}, the default is the first enumeration value.
+For string types other than @code{ENUM}, the default value is the empty
+string.  For @code{ENUM}, the default is the first enumeration value (if
+you haven't explicitely specified another default value with the
+@code{DEFAULT} directive).
 @end itemize
 
 Default values must be constants. This means, for example, that you cannot
@@ -47362,6 +47384,8 @@ Our TODO section contains what we plan to have in 4.0. @xref{TODO MySQL 4.0}.
 Added documentation for @code{libmysqld}, the embedded MySQL server
 library.  Also added example programs (a @code{mysql} client and
 @code{mysqltest} test program) which use @code{libmysqld}.
+@item
+Removed all Gemini hooks from MySQL.
 @item
 Removed @code{my_thread_init()} and @code{my_thread_end()}
 from mysql_com.h, and added @code{mysql_thread_init()} and
