@@ -103,6 +103,7 @@ function (const char *nptr,char **endptr,int base)
   }
 
   /* Check for a sign.	*/
+  negative= 0;
   if (*s == '-')
   {
     negative = 1;
@@ -110,11 +111,9 @@ function (const char *nptr,char **endptr,int base)
   }
   else if (*s == '+')
   {
-    negative = 0;
     ++s;
   }
-  else
-    negative = 0;
+    
 
   if (base == 16 && s[0] == '0' && toupper (s[1]) == 'X')
     s += 2;

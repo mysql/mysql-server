@@ -19,7 +19,7 @@ TZ=GMT-3; export TZ # for UNIX_TIMESTAMP tests to work
 # Program Definitions
 #--
 
-PATH=/bin:/usr/bin:/usr/local/bin:/usr/bsd:/usr/X11R6/bin:/usr/openwin/bin:/usr/bin/X11
+PATH=/bin:/usr/bin:/usr/local/bin:/usr/bsd:/usr/X11R6/bin:/usr/openwin/bin:/usr/bin/X11:$PATH
 MASTER_40_ARGS="--rpl-recovery-rank=1 --init-rpl-role=master"
 
 # Standard functions
@@ -47,13 +47,17 @@ which ()
 
 sleep_until_file_deleted ()
 {
-  file=$1
+  pid=$1;
+  file=$2
   loop=$SLEEP_TIME_FOR_DELETE
   while (test $loop -gt 0)
   do
     if [ ! -r $file ]
     then
-      sleep $SLEEP_TIME_AFTER_RESTART
+      if test $pid != "0"
+      then
+        wait_for_pid $pid
+      fi
       return
     fi
     sleep 1
@@ -77,6 +81,13 @@ sleep_until_file_created ()
   done
   echo "ERROR: $file was not created in $org_time seconds;  Aborting"
   exit 1;
+}
+
+# For the future
+
+wait_for_pid()
+{
+  pid=$1
 }
 
 # No paths below as we can't be sure where the program is!
@@ -152,6 +163,7 @@ TOT_TEST=0
 USERT=0
 SYST=0
 REALT=0
+FAST_START=""
 MYSQL_TMP_DIR=$MYSQL_TEST_DIR/var/tmp
 SLAVE_LOAD_TMPDIR=../../var/tmp #needs to be same length to test logging
 RES_SPACE="      "
@@ -314,7 +326,7 @@ while test $# -gt 0; do
       VALGRIND="valgrind --alignment=8 --leak-check=yes"
       EXTRA_MASTER_MYSQLD_OPT="$EXTRA_MASTER_MYSQLD_OPT --skip-safemalloc"
       EXTRA_SLAVE_MYSQLD_OPT="$EXTRA_SLAVE_MYSQLD_OPT --skip-safemalloc"
-      SLEEP_TIME_AFTER_RESTART=120
+      #SLEEP_TIME_AFTER_RESTART=120
       SLEEP_TIME_FOR_DELETE=120
       ;;
     --valgrind-options=*)
@@ -334,6 +346,9 @@ while test $# -gt 0; do
       EXTRA_SLAVE_MYSQLD_OPT="$EXTRA_SLAVE_MYSQLD_OPT \
        --debug=d:t:i:O,$MYSQL_TEST_DIR/var/log/slave.trace"
       EXTRA_MYSQL_TEST_OPT="$EXTRA_MYSQL_TEST_OPT --debug"
+      ;;
+    --fast)
+      FAST_START=1
       ;;
     -- )  shift; break ;;
     --* ) $ECHO "Unrecognized option: $1"; exit 1 ;;
@@ -731,12 +746,19 @@ EOF
 
 manager_term()
 {
-  ident=$1
+  pid=$1
+  ident=$2
   shift
   if [ $USE_MANAGER = 0 ] ; then
-    $MYSQLADMIN --no-defaults -uroot --socket=$MYSQL_TMP_DIR/$ident.sock -O \
-    connect_timeout=5 -O shutdown_timeout=20 shutdown >> $MYSQL_MANAGER_LOG 2>&1
-    return
+    $MYSQLADMIN --no-defaults -uroot --socket=$MYSQL_TMP_DIR/$ident.sock --connect_timeout=5 --shutdown_timeout=20 shutdown >> $MYSQL_MANAGER_LOG 2>&1
+    res=$?
+    # Some systems require an extra connect
+    $MYSQLADMIN --no-defaults -uroot --socket=$MYSQL_TMP_DIR/$ident.sock --connect_timeout=1 ping >> $MYSQL_MANAGER_LOG 2>&1
+    if test $res = 0
+    then
+      wait_for_pid $pid
+    fi
+    return $res
   fi
   $MYSQL_MANAGER_CLIENT $MANAGER_QUIET_OPT --user=$MYSQL_MANAGER_USER \
    --password=$MYSQL_MANAGER_PW  --port=$MYSQL_MANAGER_PORT <<EOF
@@ -978,12 +1000,13 @@ stop_slave ()
   fi
   if [ x$this_slave_running = x1 ]
   then
-    manager_term $slave_ident
+    pid=`$CAT $slave_pid`
+    manager_term $pid $slave_ident
     if [ $? != 0 ] && [ -f $slave_pid ]
     then # try harder!
       $ECHO "slave not cooperating with mysqladmin, will try manual kill"
-      kill `$CAT $slave_pid`
-      sleep_until_file_deleted $slave_pid
+      kill $pid
+      sleep_until_file_deleted $pid $slave_pid
       if [ -f $slave_pid ] ; then
         $ECHO "slave refused to die. Sending SIGKILL"
         kill -9 `$CAT $slave_pid`
@@ -1002,12 +1025,13 @@ stop_master ()
 {
   if [ x$MASTER_RUNNING = x1 ]
   then
-    manager_term master
+    pid=`$CAT $MASTER_MYPID`
+    manager_term $pid master
     if [ $? != 0 ] && [ -f $MASTER_MYPID ]
     then # try harder!
       $ECHO "master not cooperating with mysqladmin, will try manual kill"
-      kill `$CAT $MASTER_MYPID`
-      sleep_until_file_deleted $MASTER_MYPID
+      kill $pid
+      sleep_until_file_deleted $pid $MASTER_MYPID
       if [ -f $MASTER_MYPID ] ; then
         $ECHO "master refused to die. Sending SIGKILL"
         kill -9 `$CAT $MASTER_MYPID`
@@ -1228,14 +1252,19 @@ run_testcase ()
 
 if [ -z "$USE_RUNNING_SERVER" ]
 then
-  # Ensure that no old mysqld test servers are running
-  $MYSQLADMIN --no-defaults --socket=$MASTER_MYSOCK -u root -O connect_timeout=5 -O shutdown_timeout=20 shutdown > /dev/null 2>&1
-  $MYSQLADMIN --no-defaults --socket=$SLAVE_MYSOCK -u root -O connect_timeout=5 -O shutdown_timeout=20 shutdown > /dev/null 2>&1
-  $MYSQLADMIN --no-defaults --host=$hostname --port=$MASTER_MYPORT -u root -O connect_timeout=5 -O shutdown_timeout=20 shutdown > /dev/null 2>&1
-  $MYSQLADMIN --no-defaults --host=$hostname --port=$SLAVE_MYPORT -u root -O connect_timeout=5 -O shutdown_timeout=20 shutdown > /dev/null 2>&1
-  $MYSQLADMIN --no-defaults --host=$hostname --port=`expr $SLAVE_MYPORT + 1` -u root -O connect_timeout=5 -O shutdown_timeout=20 shutdown > /dev/null 2>&1
-  sleep_until_file_deleted $MASTER_MYPID
-  sleep_until_file_deleted $SLAVE_MYPID
+  if [ -z "$FAST_START" ]
+  then
+    # Ensure that no old mysqld test servers are running
+    $MYSQLADMIN --no-defaults --socket=$MASTER_MYSOCK -u root -O connect_timeout=5 -O shutdown_timeout=20 shutdown > /dev/null 2>&1
+    $MYSQLADMIN --no-defaults --socket=$SLAVE_MYSOCK -u root -O connect_timeout=5 -O shutdown_timeout=20 shutdown > /dev/null 2>&1
+    $MYSQLADMIN --no-defaults --host=$hostname --port=$MASTER_MYPORT -u root -O connect_timeout=5 -O shutdown_timeout=20 shutdown > /dev/null 2>&1
+    $MYSQLADMIN --no-defaults --host=$hostname --port=$SLAVE_MYPORT -u root -O connect_timeout=5 -O shutdown_timeout=20 shutdown > /dev/null 2>&1
+    $MYSQLADMIN --no-defaults --host=$hostname --port=`expr $SLAVE_MYPORT + 1` -u root -O connect_timeout=5 -O shutdown_timeout=20 shutdown > /dev/null 2>&1
+    sleep_until_file_deleted 0 $MASTER_MYPID
+    sleep_until_file_deleted 0 $SLAVE_MYPID
+  else
+    rm $MASTER_MYPID $SLAVE_MYPID
+  fi
 
   # Kill any running managers
   if [ -f "$MANAGER_PID_FILE" ]

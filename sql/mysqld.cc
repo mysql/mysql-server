@@ -32,6 +32,7 @@
 #include <nisam.h>
 #include <thr_alarm.h>
 #include <ft_global.h>
+#include <assert.h>
 
 #ifndef DBUG_OFF
 #define ONE_THREAD
@@ -2091,6 +2092,7 @@ int main(int argc, char **argv)
     (void) grant_init((THD*) 0);
   init_max_user_conn();
   init_update_queries();
+  DBUG_ASSERT(current_thd == 0);
 
 #ifdef HAVE_DLOPEN
   if (!opt_noacl)
@@ -2099,6 +2101,7 @@ int main(int argc, char **argv)
   /* init_slave() must be called after the thread keys are created */
   init_slave();
   
+  DBUG_ASSERT(current_thd == 0);
   if (opt_bin_log && !server_id)
   {
     server_id= !master_host ? 1 : 2;
