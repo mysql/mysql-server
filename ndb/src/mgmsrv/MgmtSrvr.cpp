@@ -534,6 +534,12 @@ MgmtSrvr::MgmtSrvr(NodeId nodeId,
     m_statisticsListner.m_logLevel = se.m_logLevel;
   }
   
+  if ((m_node_id_mutex = NdbMutex_Create()) == 0)
+  {
+    ndbout << "mutex creation failed line = " << __LINE__ << endl;
+    exit(-1);
+  }
+
   DBUG_VOID_RETURN;
 }
 
@@ -627,7 +633,9 @@ MgmtSrvr::~MgmtSrvr()
 
   stopEventLog();
 
-  NdbCondition_Destroy(theMgmtWaitForResponseCondPtr);  NdbMutex_Destroy(m_configMutex);
+  NdbMutex_Destroy(m_node_id_mutex);
+  NdbCondition_Destroy(theMgmtWaitForResponseCondPtr);
+  NdbMutex_Destroy(m_configMutex);
 
   if(m_newConfig != NULL)
     free(m_newConfig);
@@ -2087,12 +2095,6 @@ MgmtSrvr::getNodeType(NodeId nodeId) const
   return nodeTypes[nodeId];
 }
 
-#ifdef NDB_WIN32
-static NdbMutex & f_node_id_mutex = * NdbMutex_Create();
-#else
-static NdbMutex f_node_id_mutex = NDB_MUTEX_INITIALIZER;
-#endif
-
 bool
 MgmtSrvr::alloc_node_id(NodeId * nodeId, 
 			enum ndb_mgm_node_type type,
@@ -2111,7 +2113,7 @@ MgmtSrvr::alloc_node_id(NodeId * nodeId,
     }
     DBUG_RETURN(true);
   }
-  Guard g(&f_node_id_mutex);
+  Guard g(m_node_id_mutex);
   int no_mgm= 0;
   NodeBitmask connected_nodes(m_reserved_nodes);
   for(Uint32 i = 0; i < MAX_NODES; i++)
@@ -2528,7 +2530,7 @@ MgmtSrvr::Allocated_resources::Allocated_resources(MgmtSrvr &m)
 
 MgmtSrvr::Allocated_resources::~Allocated_resources()
 {
-  Guard g(&f_node_id_mutex);
+  Guard g(m_mgmsrv.m_node_id_mutex);
   if (!m_reserved_nodes.isclear()) {
     // node has been reserved, force update signal to ndb nodes
     global_flag_send_heartbeat_now= 1;
