@@ -5,7 +5,7 @@
 # connection in a separate thread.
 #
 
-#-- source include/not_embedded.inc
+-- source include/not_embedded.inc
 -- source include/have_bdb.inc
 
 connect (con1,localhost,root,,);

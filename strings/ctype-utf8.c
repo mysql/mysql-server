@@ -2148,12 +2148,7 @@ int my_strcasecmp_utf8(CHARSET_INFO *cs, const char *s, const char *t)
   {
     my_wc_t s_wc,t_wc;
     
-    /*
-      Cast to int8 for extra safety.
-      char can be unsigned by default
-      on some platforms.
-    */
-    if (((int8)s[0]) >= 0)
+    if ((uchar) s[0] < 128)
     {
       /* 
         s[0] is between 0 and 127.
@@ -2200,7 +2195,7 @@ int my_strcasecmp_utf8(CHARSET_INFO *cs, const char *s, const char *t)
     
     /* Do the same for the second string */
     
-    if (((int8)t[0]) >= 0)
+    if ((uchar) t[0] < 128)
     {
       /* Convert single byte character into weight */
       t_wc= plane00[(uchar) t[0]].tolower;
@@ -2276,7 +2271,7 @@ static int my_strnxfrm_utf8(CHARSET_INFO *cs,
   }
   
   if (dst < de)  /* Clear the last byte, if "dstlen" was an odd number */
-    *de= 0x00;
+    *dst= 0x00;
   
   return dstlen;
 }
@@ -2409,6 +2404,172 @@ CHARSET_INFO my_charset_utf8_bin=
     &my_charset_utf8_handler,
     &my_collation_mb_bin_handler
 };
+
+#ifdef HAVE_CYBOZU_COLLATION
+
+/*
+ * These functions bacically do the same as their original, except
+ * that they return 0 only when two comparing unicode strings are
+ * strictly the same in case-sensitive way.  See "save_diff" local
+ * variable to what they actually do.
+ */
+
+static int my_strnncoll_utf8_cs(CHARSET_INFO *cs, 
+                                const uchar *s, uint slen,
+                                const uchar *t, uint tlen,
+                                my_bool t_is_prefix)
+{
+  int s_res,t_res;
+  my_wc_t s_wc,t_wc;
+  const uchar *se=s+slen;
+  const uchar *te=t+tlen;
+  int save_diff = 0;
+  int diff;
+
+  while ( s < se && t < te )
+  {
+    int plane;
+    s_res=my_utf8_uni(cs,&s_wc, s, se);
+    t_res=my_utf8_uni(cs,&t_wc, t, te);
+    
+    if ( s_res <= 0 || t_res <= 0 )
+
+    {
+      /* Incorrect string, compare by char value */
+      return ((int)s[0]-(int)t[0]); 
+    }
+    
+    if ( save_diff == 0 )
+    {
+      save_diff = ((int)s_wc) - ((int)t_wc);
+    }
+    plane=(s_wc>>8) & 0xFF;
+    s_wc = uni_plane[plane] ? uni_plane[plane][s_wc & 0xFF].sort : s_wc;
+    plane=(t_wc>>8) & 0xFF;
+    t_wc = uni_plane[plane] ? uni_plane[plane][t_wc & 0xFF].sort : t_wc;
+    if ( s_wc != t_wc )
+    {
+      return  ((int) s_wc) - ((int) t_wc);
+    }
+    
+    s+=s_res;
+    t+=t_res;
+  }
+  diff = ( (se-s) - (te-t) );
+  return t_is_prefix ? t-te : ((diff == 0) ? save_diff : diff);
+}
+
+static int my_strnncollsp_utf8_cs(CHARSET_INFO *cs, 
+                                  const uchar *s, uint slen,
+                                  const uchar *t, uint tlen)
+{
+  int s_res,t_res;
+  my_wc_t s_wc,t_wc;
+  const uchar *se= s+slen;
+  const uchar *te= t+tlen;
+  int save_diff = 0;
+  
+  while ( s < se && t < te )
+  {
+    int plane;
+    s_res=my_utf8_uni(cs,&s_wc, s, se);
+    t_res=my_utf8_uni(cs,&t_wc, t, te);
+    
+    if ( s_res <= 0 || t_res <= 0 )
+    {
+      /* Incorrect string, compare by char value */
+      return ((int)s[0]-(int)t[0]); 
+    }
+    
+    if ( save_diff == 0 )
+    {
+      save_diff = ((int)s_wc) - ((int)t_wc);
+    }
+    plane=(s_wc>>8) & 0xFF;
+    s_wc = uni_plane[plane] ? uni_plane[plane][s_wc & 0xFF].sort : s_wc;
+    plane=(t_wc>>8) & 0xFF;
+    t_wc = uni_plane[plane] ? uni_plane[plane][t_wc & 0xFF].sort : t_wc;
+    if ( s_wc != t_wc )
+    {
+      return  ((int) s_wc) - ((int) t_wc);
+    }
+    
+    s+=s_res;
+    t+=t_res;
+  }
+  
+  slen= se-s;
+  tlen= te-t;
+  
+  if (slen != tlen)
+  {
+    int swap= 0;
+    if (slen < tlen)
+    {
+      slen= tlen;
+      s= t;
+      se= te;
+      swap= -1;
+    }
+    /*
+      This following loop uses the fact that in UTF-8
+      all multibyte characters are greater than space,
+      and all multibyte head characters are greater than
+      space. It means if we meet a character greater
+      than space, it always means that the longer string
+      is greater. So we can reuse the same loop from the
+      8bit version, without having to process full multibute
+      sequences.
+    */
+    for ( ; s < se; s++)
+    {
+      if (*s != ' ')
+        return ((int)*s -  (int) ' ') ^ swap;
+    }
+  }
+  return save_diff;
+}
+
+static MY_COLLATION_HANDLER my_collation_cs_handler =
+{
+    NULL,		/* init */
+    my_strnncoll_utf8_cs,
+    my_strnncollsp_utf8_cs,
+    my_strnxfrm_utf8,
+    my_like_range_simple,
+    my_wildcmp_mb,
+    my_strcasecmp_utf8,
+    my_instr_mb,
+    my_hash_sort_utf8
+};
+
+CHARSET_INFO my_charset_utf8_general_cs=
+{
+    254,0,0,		/* number       */
+    MY_CS_COMPILED|MY_CS_UNICODE,	/* state  */
+    "utf8",		/* cs name      */
+    "utf8_general_cs",	/* name         */
+    "",			/* comment      */
+    NULL,		/* tailoring    */
+    ctype_utf8,		/* ctype        */
+    to_lower_utf8,	/* to_lower     */
+    to_upper_utf8,	/* to_upper     */
+    to_upper_utf8,	/* sort_order   */
+    NULL,		/* contractions */
+    NULL,		/* sort_order_big*/
+    NULL,		/* tab_to_uni   */
+    NULL,		/* tab_from_uni */
+    NULL,		/* state_map    */
+    NULL,		/* ident_map    */
+    1,			/* strxfrm_multiply */
+    1,			/* mbminlen     */
+    3,			/* mbmaxlen     */
+    0,			/* min_sort_char */
+    255,		/* max_sort_char */
+    &my_charset_utf8_handler,
+    &my_collation_cs_handler
+};
+#endif	/* Cybozu Hack */
 
 
 #ifdef MY_TEST_UTF8

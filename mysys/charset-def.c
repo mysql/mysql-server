@@ -62,6 +62,9 @@ extern CHARSET_INFO my_charset_utf8_slovak_uca_ci;
 extern CHARSET_INFO my_charset_utf8_spanish2_uca_ci;
 extern CHARSET_INFO my_charset_utf8_roman_uca_ci;
 extern CHARSET_INFO my_charset_utf8_persian_uca_ci;
+#ifdef HAVE_CYBOZU_COLLATION
+extern CHARSET_INFO my_charset_utf8_general_cs;
+#endif
 #endif
 
 #endif /* HAVE_UCA_COLLATIONS */
@@ -156,6 +159,9 @@ my_bool init_compiled_charsets(myf flags __attribute__((unused)))
 #ifdef HAVE_CHARSET_utf8
   add_compiled_collation(&my_charset_utf8_general_ci);
   add_compiled_collation(&my_charset_utf8_bin);
+#ifdef HAVE_CYBOZU_COLLATION
+  add_compiled_collation(&my_charset_utf8_general_cs);
+#endif
 #ifdef HAVE_UCA_COLLATIONS
   add_compiled_collation(&my_charset_utf8_general_uca_ci);
   add_compiled_collation(&my_charset_utf8_icelandic_uca_ci);

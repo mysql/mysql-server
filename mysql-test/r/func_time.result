@@ -304,6 +304,8 @@ NULL
 select date_sub("0000-00-00 00:00:00",INTERVAL 1 SECOND);
 date_sub("0000-00-00 00:00:00",INTERVAL 1 SECOND)
 NULL
+Warnings:
+Warning	1292	Truncated incorrect datetime value: '0000-00-00 00:00:00'
 select date_add('1998-01-30',Interval 1 month);
 date_add('1998-01-30',Interval 1 month)
 1998-02-28
@@ -424,6 +426,9 @@ insert into t1 values ("0000-00-00", "0000-00-00", "0000-00-00", "0000-00-00");
 select dayofyear("0000-00-00"),dayofyear(d),dayofyear(dt),dayofyear(t),dayofyear(c) from t1;
 dayofyear("0000-00-00")	dayofyear(d)	dayofyear(dt)	dayofyear(t)	dayofyear(c)
 NULL	NULL	NULL	NULL	NULL
+Warnings:
+Warning	1292	Truncated incorrect datetime value: '0000-00-00'
+Warning	1292	Truncated incorrect datetime value: '0000-00-00'
 select dayofmonth("0000-00-00"),dayofmonth(d),dayofmonth(dt),dayofmonth(t),dayofmonth(c) from t1;
 dayofmonth("0000-00-00")	dayofmonth(d)	dayofmonth(dt)	dayofmonth(t)	dayofmonth(c)
 0	0	0	0	0
@@ -436,15 +441,24 @@ quarter("0000-00-00")	quarter(d)	quarter(dt)	quarter(t)	quarter(c)
 select week("0000-00-00"),week(d),week(dt),week(t),week(c) from t1;
 week("0000-00-00")	week(d)	week(dt)	week(t)	week(c)
 NULL	NULL	NULL	NULL	NULL
+Warnings:
+Warning	1292	Truncated incorrect datetime value: '0000-00-00'
+Warning	1292	Truncated incorrect datetime value: '0000-00-00'
 select year("0000-00-00"),year(d),year(dt),year(t),year(c) from t1;
 year("0000-00-00")	year(d)	year(dt)	year(t)	year(c)
 0	0	0	0	0
 select yearweek("0000-00-00"),yearweek(d),yearweek(dt),yearweek(t),yearweek(c) from t1;
 yearweek("0000-00-00")	yearweek(d)	yearweek(dt)	yearweek(t)	yearweek(c)
 NULL	NULL	NULL	NULL	NULL
+Warnings:
+Warning	1292	Truncated incorrect datetime value: '0000-00-00'
+Warning	1292	Truncated incorrect datetime value: '0000-00-00'
 select to_days("0000-00-00"),to_days(d),to_days(dt),to_days(t),to_days(c) from t1;
 to_days("0000-00-00")	to_days(d)	to_days(dt)	to_days(t)	to_days(c)
 NULL	NULL	NULL	NULL	NULL
+Warnings:
+Warning	1292	Truncated incorrect datetime value: '0000-00-00'
+Warning	1292	Truncated incorrect datetime value: '0000-00-00'
 select extract(MONTH FROM "0000-00-00"),extract(MONTH FROM d),extract(MONTH FROM dt),extract(MONTH FROM t),extract(MONTH FROM c) from t1;
 extract(MONTH FROM "0000-00-00")	extract(MONTH FROM d)	extract(MONTH FROM dt)	extract(MONTH FROM t)	extract(MONTH FROM c)
 0	0	0	0	0

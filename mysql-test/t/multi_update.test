@@ -2,6 +2,9 @@
 # Test of update statement that uses many tables.
 #
 
+# Requires grants, so won't work with embedded server test
+-- source include/not_embedded.inc
+
 --disable_warnings
 drop table if exists t1,t2,t3;
 drop database if exists mysqltest;

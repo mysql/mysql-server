@@ -1214,30 +1214,30 @@ ER_TABLE_EXISTS_ERROR 42S01
 	swe "Tabellen '%-.64s' finns redan"
 	ukr "Таблиця '%-.64s' вже ╕сну╓"
 ER_BAD_TABLE_ERROR 42S02 
-	cze "Nezn-BАmА tabulka '%-.64s'"
-	dan "Ukendt tabel '%-.64s'"
-	nla "Onbekende tabel '%-.64s'"
-	eng "Unknown table '%-.64s'"
-	jps "table '%-.64s' ┌м┌═┌Х┌э┌╧┌Я.",
-	est "Tundmatu tabel '%-.64s'"
-	fre "Table '%-.64s' inconnue"
-	ger "Unbekannte Tabelle '%-.64s'"
-	greek "аЦМЫСТОР ПъМАЙАР '%-.64s'"
-	hun "Ervenytelen tabla: '%-.64s'"
-	ita "Tabella '%-.64s' sconosciuta"
-	jpn "table '%-.64s' ╓о╓╒╓Й╓ч╓╩╓С."
-	kor "евюл╨М '%-.64s'╢б ╬к╪Ж ╬Ью╫"
-	nor "Ukjent tabell '%-.64s'"
-	norwegian-ny "Ukjent tabell '%-.64s'"
-	pol "Nieznana tabela '%-.64s'"
-	por "Tabela '%-.64s' desconhecida"
-	rum "Tabela '%-.64s' este invalida"
-	rus "Неизвестная таблица '%-.64s'"
-	serbian "Nepoznata tabela '%-.64s'"
-	slo "NeznАma tabu╣ka '%-.64s'"
-	spa "Tabla '%-.64s' desconocida"
-	swe "OkДnd tabell '%-.64s'"
-	ukr "Нев╕дома таблиця '%-.64s'"
+	cze "Nezn-BАmА tabulka '%-.180s'"
+	dan "Ukendt tabel '%-.180s'"
+	nla "Onbekende tabel '%-.180s'"
+	eng "Unknown table '%-.180s'"
+	jps "table '%-.180s' ┌м┌═┌Х┌э┌╧┌Я.",
+	est "Tundmatu tabel '%-.180s'"
+	fre "Table '%-.180s' inconnue"
+	ger "Unbekannte Tabelle '%-.180s'"
+	greek "аЦМЫСТОР ПъМАЙАР '%-.180s'"
+	hun "Ervenytelen tabla: '%-.180s'"
+	ita "Tabella '%-.180s' sconosciuta"
+	jpn "table '%-.180s' ╓о╓╒╓Й╓ч╓╩╓С."
+	kor "евюл╨М '%-.180s'╢б ╬к╪Ж ╬Ью╫"
+	nor "Ukjent tabell '%-.180s'"
+	norwegian-ny "Ukjent tabell '%-.180s'"
+	pol "Nieznana tabela '%-.180s'"
+	por "Tabela '%-.180s' desconhecida"
+	rum "Tabela '%-.180s' este invalida"
+	rus "Неизвестная таблица '%-.180s'"
+	serbian "Nepoznata tabela '%-.180s'"
+	slo "NeznАma tabu╣ka '%-.180s'"
+	spa "Tabla '%-.180s' desconocida"
+	swe "OkДnd tabell '%-.180s'"
+	ukr "Нев╕дома таблиця '%-.180s'"
 ER_NON_UNIQ_ERROR 23000 
 	cze "Sloupec '%-.64s' v %s nen-BМ zcela jasnЩ"
 	dan "Felt: '%-.64s' i tabel %s er ikke entydigt"
@@ -1774,7 +1774,7 @@ ER_TOO_BIG_FIELDLENGTH 42000 S1009
 	cze "P-BЬМli╧ velkА dИlka sloupce '%-.64s' (nejvМce %d). Pou╬ijte BLOB"
 	dan "For stor feltlФngde for kolonne '%-.64s' (maks = %d). Brug BLOB i stedet"
 	nla "Te grote kolomlengte voor '%-.64s' (max = %d). Maak hiervoor gebruik van het type BLOB"
-	eng "Column length too big for column '%-.64s' (max = %d); use BLOB instead"
+	eng "Column length too big for column '%-.64s' (max = %d); use BLOB or TEXT instead"
 	jps "column '%-.64s' ┌м,┼m∙ш┌╥┌И column ┌л▒Е┌╚┌Ё┌╙▒╫┌╥┌╛┌э┌╥. (█е▒Е %d ┌э┌е). BLOB ┌П┌╘┌М┌Х┌и▌g≈p┌╣┌д┌╜┌╬┌Ё┌╒.",
 	est "Tulba '%-.64s' pikkus on liiga pikk (maksimaalne pikkus: %d). Kasuta BLOB vДljatЭЭpi"
 	fre "Champ '%-.64s' trop long (max = %d). Utilisez un BLOB"
@@ -1789,7 +1789,7 @@ ER_TOO_BIG_FIELDLENGTH 42000 S1009
 	pol "Zbyt du©a dЁugo?Ф kolumny '%-.64s' (maks. = %d). W zamian u©yj typu BLOB"
 	por "Comprimento da coluna '%-.64s' grande demais (max = %d); use BLOB em seu lugar"
 	rum "Lungimea coloanei '%-.64s' este prea lunga (maximum = %d). Foloseste BLOB mai bine"
-	rus "Слишком большая длина столбца '%-.64s' (максимум = %d). Используйте тип BLOB вместо текущего"
+	rus "Слишком большая длина столбца '%-.64s' (максимум = %d). Используйте тип BLOB или TEXT вместо текущего"
 	serbian "Previ e podataka za kolonu '%-.64s' (maksimum je %d). Upotrebite BLOB polje"
 	slo "PrМli╧ ve╣kА dЕ╬ka pre pole '%-.64s' (maximum = %d). Pou╬ite BLOB"
 	spa "Longitud de columna demasiado grande para la columna '%-.64s' (maximo = %d).Usar BLOB en su lugar"
@@ -4637,7 +4637,7 @@ ER_USER_LIMIT_REACHED 42000
 	rus "Пользователь '%-.64s' превысил использование ресурса '%s' (текущее значение: %ld)"
 	spa "Usuario '%-.64s' ha excedido el recurso '%s' (actual valor: %ld)"
 	swe "AnvДndare '%-.64s' har Жverskridit '%s' (nuvarande vДrde: %ld)"
-ER_SPECIFIC_ACCESS_DENIED_ERROR  
+ER_SPECIFIC_ACCESS_DENIED_ERROR 42000 
 	nla "Toegang geweigerd. U moet het %-.128s privilege hebben voor deze operatie"
 	eng "Access denied; you need the %-.128s privilege for this operation"
 	ger "Befehl nicht zulДssig. HierfЭr wird die Berechtigung %-.128s benЖtigt"
@@ -5094,7 +5094,7 @@ ER_SP_BADSELECT 0A000
 ER_SP_BADRETURN 42000 
 	eng "RETURN is only allowed in a FUNCTION"
 ER_SP_BADSTATEMENT 0A000 
-	eng "LOCK and UNLOCK tables are not allowed in stored procedures"
+	eng "%s is not allowed in stored procedures"
 ER_UPDATE_LOG_DEPRECATED_IGNORED 42000 
 	eng "The update log is deprecated and replaced by the binary log; SET SQL_LOG_UPDATE has been ignored"
 ER_UPDATE_LOG_DEPRECATED_TRANSLATED 42000 
@@ -5332,5 +5332,7 @@ ER_STARTUP
 	eng "%s: ready for connections.\nVersion: '%s'  socket: '%s'  port: %d  %s"
 ER_LOAD_FROM_FIXED_SIZE_ROWS_TO_VAR
         eng "Can't load value from file with fixed size rows to variable"
-ER_CANT_CREATE_USER_WITH_GRANT
+ER_CANT_CREATE_USER_WITH_GRANT 42000
 	eng "You are not allowed to create a user with GRANT"
+ER_WRONG_VALUE_FOR_TYPE  
+	eng "Incorrect %-.32s value: '%-.128s' for function %-.32s"

@@ -291,6 +291,18 @@ UPDATE db SET Create_routine_priv=Create_priv, Alter_routine_priv=Alter_priv, Ex
 ALTER TABLE user ADD max_user_connections int(11) unsigned DEFAULT '0' NOT NULL AFTER max_connections;
 
 #
+# user.Create_user_priv
+#
+
+SET @hadCreateUserPriv:=0;
+SELECT @hadCreateUserPriv:=1 FROM user WHERE Create_user_priv LIKE '%';
+
+ALTER TABLE user ADD Create_user_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL AFTER Alter_routine_priv;
+UPDATE user LEFT JOIN db USING (Host,User) SET Create_user_priv='Y'
+  WHERE @hadCreateUserPriv = 0 AND
+        (user.Grant_priv = 'Y' OR db.Grant_priv = 'Y');
+
+#
 # Create some possible missing tables
 #
 CREATE TABLE IF NOT EXISTS procs_priv (

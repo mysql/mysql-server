@@ -1,5 +1,8 @@
 # We are using .opt file since we need small binlog size
 
+# Embedded server doesn't support binlogging
+-- source include/not_embedded.inc
+
 # we need this for getting fixed timestamps inside of this test
 set timestamp=1000000000;
 
@@ -60,7 +63,7 @@ select "--- --database --" as "";
 select "--- --position --" as "";
 --enable_query_log
 --replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR
---exec $MYSQL_BINLOG --short-form --local-load=$MYSQL_TEST_DIR/var/tmp/ --position=232 $MYSQL_TEST_DIR/var/log/master-bin.000002
+--exec $MYSQL_BINLOG --short-form --local-load=$MYSQL_TEST_DIR/var/tmp/ --position=231 $MYSQL_TEST_DIR/var/log/master-bin.000002
 
 # These are tests for remote binlog.
 # They should return the same as previous test.
@@ -92,7 +95,7 @@ select "--- --database --" as "";
 select "--- --position --" as "";
 --enable_query_log
 --replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR
---exec $MYSQL_BINLOG --short-form --local-load=$MYSQL_TEST_DIR/var/tmp/ --read-from-remote-server --position=232 --user=root --host=127.0.0.1 --port=$MASTER_MYPORT master-bin.000002
+--exec $MYSQL_BINLOG --short-form --local-load=$MYSQL_TEST_DIR/var/tmp/ --read-from-remote-server --position=231 --user=root --host=127.0.0.1 --port=$MASTER_MYPORT master-bin.000002
 
 # Bug#7853 (mysqlbinlog does not accept input from stdin)
 --disable_query_log
