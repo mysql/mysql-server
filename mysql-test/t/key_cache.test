@@ -75,7 +75,7 @@ select * from t2;
 update t1 set p=2 where p=1;
 update t2 set i=2 where i=1;
 
-cache index t1 keys (`primary`) in keycache1;
+cache index t1 key (`primary`) in keycache1;
 
 explain select p from t1;
 select p from t1;
@@ -101,7 +101,7 @@ select a from t2;
 # Test some error conditions
 --error 1283
 cache index t1 in unknown_key_cache;
-cache index t1 keys (unknown_key) in keycache1;
+cache index t1 key (unknown_key) in keycache1;
 
 select @@keycache2.key_buffer_size;
 select @@keycache2.key_cache_block_size;
