@@ -91,25 +91,29 @@ bool String::realloc(uint32 alloc_length)
   return FALSE;
 }
 
-bool String::set(longlong num)
+bool String::set(longlong num, CHARSET_INFO *cs)
 {
   if (alloc(21))
     return TRUE;
   str_length=(uint32) (longlong10_to_str(num,Ptr,-10)-Ptr);
+  str_charset=cs;
   return FALSE;
 }
 
-bool String::set(ulonglong num)
+bool String::set(ulonglong num, CHARSET_INFO *cs)
 {
   if (alloc(21))
     return TRUE;
   str_length=(uint32) (longlong10_to_str(num,Ptr,10)-Ptr);
+  str_charset=cs;
   return FALSE;
 }
 
-bool String::set(double num,uint decimals)
+bool String::set(double num,uint decimals, CHARSET_INFO *cs)
 {
   char buff[331];
+
+  str_charset=cs;
   if (decimals >= NOT_FIXED_DEC)
   {
     sprintf(buff,"%.14g",num);			// Enough for a DATETIME
