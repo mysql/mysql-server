@@ -36,7 +36,7 @@ extern int NEAR my_errno;		/* Last error in mysys */
 #include <m_ctype.h>                    /* for CHARSET_INFO */
 #endif
 
-#include <stdarg.h>  
+#include <stdarg.h>
 
 #define MYSYS_PROGRAM_USES_CURSES()  { error_handler_hook = my_message_curses;	mysys_uses_curses=1; }
 #define MYSYS_PROGRAM_DONT_USE_CURSES()  { error_handler_hook = my_message_no_curses; mysys_uses_curses=0;}
@@ -278,7 +278,7 @@ extern struct my_file_info
 {
   my_string		name;
   enum file_type	type;
-#if defined(THREAD) && !defined(HAVE_PREAD)  
+#if defined(THREAD) && !defined(HAVE_PREAD)
   pthread_mutex_t	mutex;
 #endif
 } my_file_info[MY_NFILE];
@@ -299,6 +299,45 @@ typedef struct st_dynamic_string {
 struct st_io_cache;
 typedef int (*IO_CACHE_CALLBACK)(struct st_io_cache*);
 
+#ifdef THREAD
+typedef struct st_io_cache_share
+{
+  /* to sync on reads into buffer */
+  pthread_mutex_t mutex;
+  pthread_cond_t  cond;
+  int             count;
+  /* actual IO_CACHE that filled the buffer */
+  struct st_io_cache *active;
+  /* the following will go implemented whenever the need arises */
+#ifdef NOT_IMPLEMENTED
+  /* whether the structure should be free'd */
+  my_bool alloced;
+#endif
+} IO_CACHE_SHARE;
+
+#define lock_io_cache(info)                                              \
+  (                                                                      \
+    (errno=pthread_mutex_lock(&((info)->share->mutex))) ? -1 : (         \
+      (info)->share->count ? (                                           \
+        --((info)->share->count),                                        \
+        pthread_cond_wait(&((info)->share->cond),                        \
+                          &((info)->share->mutex)),                      \
+        (++((info)->share->count) ?                                      \
+          pthread_mutex_unlock(&((info)->share->mutex)) : 0))            \
+        : 1 )                                                            \
+  )
+
+#define unlock_io_cache(info)                                            \
+  (                                                                      \
+    pthread_cond_broadcast(&((info)->share->cond)),                      \
+    pthread_mutex_unlock  (&((info)->share->mutex))                      \
+  )
+/* -- to catch errors
+#else
+#define lock_io_cache(info)
+#define unlock_io_cache(info)
+*/
+#endif
 
 typedef struct st_io_cache		/* Used when cacheing files */
 {
@@ -331,10 +370,16 @@ typedef struct st_io_cache		/* Used when cacheing files */
      WRITE_CACHE, and &read_pos and &read_end respectively otherwise
   */
   byte  **current_pos, **current_end;
-/* The lock is for append buffer used in SEQ_READ_APPEND cache */
 #ifdef THREAD
+  /* The lock is for append buffer used in SEQ_READ_APPEND cache
+     need mutex copying from append buffer to read buffer. */
   pthread_mutex_t append_buffer_lock;
-  /* need mutex copying from append buffer to read buffer */
+  /* The following is used when several threads are reading the
+     same file in parallel. They are synchronized on disk
+     accesses reading the cached part of the file asynchronously.
+     It should be set to NULL to disable the feature.  Only
+     READ_CACHE mode is supported. */
+  IO_CACHE_SHARE *share;
 #endif
   /* a caller will use my_b_read() macro to read from the cache
      if the data is already in cache, it will be simply copied with
@@ -626,6 +671,12 @@ extern my_bool reinit_io_cache(IO_CACHE *info,enum cache_type type,
 			       my_off_t seek_offset,pbool use_async_io,
 			       pbool clear_cache);
 extern int _my_b_read(IO_CACHE *info,byte *Buffer,uint Count);
+#ifdef THREAD
+extern int _my_b_read_r(IO_CACHE *info,byte *Buffer,uint Count);
+extern int init_io_cache_share(IO_CACHE *info,
+                             IO_CACHE_SHARE *s, uint num_threads);
+extern int remove_io_thread(IO_CACHE *info);
+#endif
 extern int _my_b_seq_read(IO_CACHE *info,byte *Buffer,uint Count);
 extern int _my_b_net_read(IO_CACHE *info,byte *Buffer,uint Count);
 extern int _my_b_get(IO_CACHE *info);

@@ -658,7 +658,7 @@ int _mi_init_bulk_insert(MI_INFO *info);
 void mi_check_print_error _VARARGS((MI_CHECK *param, const char *fmt,...));
 void mi_check_print_warning _VARARGS((MI_CHECK *param, const char *fmt,...));
 void mi_check_print_info _VARARGS((MI_CHECK *param, const char *fmt,...));
-int flush_pending_blocks(MI_CHECK *param);
+int flush_pending_blocks(MI_SORT_PARAM *param);
 
 #ifdef __cplusplus
 }
