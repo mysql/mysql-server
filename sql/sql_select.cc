@@ -3872,12 +3872,8 @@ JOIN::join_free(bool full)
     {
       for (tab= join_tab, end= tab+tables; tab != end; tab++)
       {
-	if (tab->table)
-	{
-	  /* Don't free index if we are using read_record */
-	  if (tab->table->file->inited==handler::RND)
+	if (tab->table && tab->table->file->inited == handler::RND)
 	    tab->table->file->ha_rnd_end();
-	}
       }
     }
   }

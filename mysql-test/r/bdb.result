@@ -1181,3 +1181,12 @@ a
 A
 a
 drop table t1;
+set autocommit=0;
+create table t1(b varchar(30)) engine=bdb;
+insert into t1 values ('one');
+commit;
+select b FROM t1 outer_table where
+exists (select 'two' from t1 where 'two' = outer_table.b);
+b
+drop table t1;
+set autocommit=1;
