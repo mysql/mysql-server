@@ -1600,6 +1600,8 @@ build_template(
 	ibool		fetch_all_in_key	= FALSE;
 	ulint		i;
 
+	ut_a(templ_type != ROW_MYSQL_REC_FIELDS || thd == current_thd);
+
 	clust_index = dict_table_get_first_index_noninline(prebuilt->table);
 
 	if (!prebuilt->hint_no_need_to_fetch_extra_cols) {
@@ -2466,7 +2468,9 @@ ha_innobase::index_read_last(
 }
 
 /************************************************************************
-Changes the active index of a handle. */
+Changes the active index of a handle. Note that since we build also the
+template for a search, update_thd() must already have been called, in
+::external_lock, for example. */
 
 int
 ha_innobase::change_active_index(
@@ -2480,6 +2484,10 @@ ha_innobase::change_active_index(
   KEY*		key=0;
   statistic_increment(ha_read_key_count, &LOCK_status);
   DBUG_ENTER("change_active_index");
+
+  ut_a(prebuilt->trx ==
+		(trx_t*) current_thd->transaction.all.innobase_tid);
+  ut_a(user_thd == current_thd);
 
   active_index = keynr;
 
