@@ -1723,6 +1723,7 @@ byte *sys_var_insert_id::value_ptr(THD *thd, enum_var_type type,
 
 bool sys_var_pseudo_thread_id::check(THD *thd, set_var *var)
 {
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
   if (thd->master_access & SUPER_ACL)
     return 0;
   else
@@ -1730,6 +1731,9 @@ bool sys_var_pseudo_thread_id::check(THD *thd, set_var *var)
     my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0), "SUPER");
     return 1;
   }
+#else
+  return 0;
+#endif
 }
 
 
@@ -2026,7 +2030,6 @@ int set_var::check(THD *thd)
   }
   if ((type == OPT_GLOBAL && check_global_access(thd, SUPER_ACL)))
     return 1;
-
   /* value is a NULL pointer if we are using SET ... = DEFAULT */
   if (!value)
   {
@@ -2089,17 +2092,25 @@ int set_var_user::update(THD *thd)
 
 int set_var_password::check(THD *thd)
 {
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
   if (!user->host.str)
     user->host.str= (char*) thd->host_or_ip;
   /* Returns 1 as the function sends error to client */
   return check_change_password(thd, user->host.str, user->user.str) ? 1 : 0;
+#else 
+  return 0;
+#endif
 }
 
 int set_var_password::update(THD *thd)
 {
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
   /* Returns 1 as the function sends error to client */
   return (change_password(thd, user->host.str, user->user.str, password) ?
 	  1 : 0);
+#else
+  return 0;
+#endif
 }
 
 /****************************************************************************

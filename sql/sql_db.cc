@@ -592,6 +592,7 @@ bool mysql_change_db(THD *thd, const char *name)
     DBUG_RETURN(1);
   }
   DBUG_PRINT("info",("Use database: %s", dbname));
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
   if (test_all_bits(thd->master_access,DB_ACLS))
     db_access=DB_ACLS;
   else
@@ -611,7 +612,7 @@ bool mysql_change_db(THD *thd, const char *name)
     my_free(dbname,MYF(0));
     DBUG_RETURN(1);
   }
-
+#endif
   (void) sprintf(path,"%s/%s",mysql_data_home,dbname);
   length=unpack_dirname(path,path);		// Convert if not unix
   if (length && path[length-1] == FN_LIBCHAR)
@@ -626,8 +627,9 @@ bool mysql_change_db(THD *thd, const char *name)
   x_free(thd->db);
   thd->db=dbname;				// THD::~THD will free this
   thd->db_length=db_length;
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
   thd->db_access=db_access;
-
+#endif
   strmov(path+unpack_dirname(path,path), MY_DB_OPT_FILE);
   load_db_opt(thd, path, &create);
   thd->db_charset= create.table_charset ?
@@ -656,6 +658,7 @@ int mysqld_show_create_db(THD *thd, char *dbname,
     DBUG_RETURN(1);
   }
 
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
   if (test_all_bits(thd->master_access,DB_ACLS))
     db_access=DB_ACLS;
   else
@@ -674,6 +677,7 @@ int mysqld_show_create_db(THD *thd, char *dbname,
 		    dbname);
     DBUG_RETURN(1);
   }
+#endif
 
   (void) sprintf(path,"%s/%s",mysql_data_home, dbname);
   length=unpack_dirname(path,path);		// Convert if not unix

@@ -60,9 +60,11 @@ check_insert_fields(THD *thd,TABLE *table,List<Item> &fields,
 		      MYF(0),counter);
       return -1;
     }
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
     if (grant_option &&
 	check_grant_all_columns(thd,INSERT_ACL,table))
       return -1;
+#endif
     table->time_stamp=0;			// This is saved by caller
   }
   else
@@ -96,7 +98,9 @@ check_insert_fields(THD *thd,TABLE *table,List<Item> &fields,
       table->time_stamp= table->timestamp_field->offset()+1;
   }
   // For the values we need select_priv
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
   table->grant.want_privilege=(SELECT_ACL & ~table->grant.privilege);
+#endif
   return 0;
 }
 
@@ -130,14 +134,15 @@ int mysql_insert(THD *thd,TABLE_LIST *table_list,
     thd->lex.select_lex.table_list.first;
   DBUG_ENTER("mysql_insert");
 
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
   if (thd->master_access & SUPER_ACL)
+#endif
   {
     if (!(thd->options & OPTION_UPDATE_LOG))
       log_on&= ~(int) DELAYED_LOG_UPDATE;
     if (!(thd->options & OPTION_BIN_LOG))
       log_on&= ~(int) DELAYED_LOG_BIN;
   }
-
   /*
     in safe mode or with skip-new change delayed insert to be regular
     if we are told to replace duplicates, the insert cannot be concurrent
@@ -626,7 +631,7 @@ public:
      group_count(0)
   {
     thd.user=thd.priv_user=(char*) delayed_user;
-    thd.host=(char*) localhost;
+    thd.host=(char*) my_localhost;
     thd.current_tablenr=0;
     thd.version=refresh_version;
     thd.command=COM_DELAYED_INSERT;

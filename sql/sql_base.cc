@@ -158,7 +158,6 @@ OPEN_TABLE_LIST *list_open_tables(THD *thd, const char *wild)
     table_list.grant.privilege=0;
     if (check_table_access(thd,SELECT_ACL | EXTRA_ACL,&table_list,1))
       continue;
-
     /* need to check if we haven't already listed it */
     for (table= open_list  ; table ; table=table->next)
     {
@@ -1696,8 +1695,10 @@ Field *find_field_in_table(THD *thd,TABLE *table,const char *name,uint length,
     else
       thd->dupp_field=field;
   }
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
   if (check_grants && check_grant_column(thd,table,name,length))
     return WRONG_GRANT;
+#endif
   return field;
 }
 
@@ -2099,11 +2100,12 @@ insert_fields(THD *thd,TABLE_LIST *tables, const char *db_name,
 				       tables->alias) &&
 			(!db_name || !strcmp(tables->db,db_name))))
     {
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
       /* Ensure that we have access right to all columns */
       if (!(table->grant.privilege & SELECT_ACL) &&
 	  check_grant_all_columns(thd,SELECT_ACL,table))
 	DBUG_RETURN(-1);
-
+#endif
       Field **ptr=table->field,*field;
       thd->used_tables|=table->map;
       while ((field = *ptr++))

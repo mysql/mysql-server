@@ -1092,8 +1092,11 @@ bool MYSQL_LOG::write(THD *thd,enum enum_server_command command,
 
       if (thd)
       {						// Normal thread
-	if ((thd->options & OPTION_LOG_OFF) &&
-	    (thd->master_access & SUPER_ACL))
+	if ((thd->options & OPTION_LOG_OFF)
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
+	    && (thd->master_access & SUPER_ACL)
+#endif
+)
 	{
 	  VOID(pthread_mutex_unlock(&LOCK_log));
 	  return 0;				// No logging
@@ -1552,8 +1555,11 @@ bool MYSQL_LOG::write(THD *thd,const char *query, uint query_length,
     int tmp_errno=0;
     char buff[80],*end;
     end=buff;
-    if (!(thd->options & OPTION_UPDATE_LOG) &&
-        (thd->master_access & SUPER_ACL))
+    if (!(thd->options & OPTION_UPDATE_LOG)
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
+	&& (thd->master_access & SUPER_ACL)
+#endif
+	)
     {
       VOID(pthread_mutex_unlock(&LOCK_log));
       return 0;
