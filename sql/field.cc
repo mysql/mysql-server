@@ -290,23 +290,23 @@ void Field::store_time(TIME *ltime,timestamp_type type)
   char buff[25];
   switch (type)  {
   case TIMESTAMP_NONE:
-    store("",0,default_charset_info);	// Probably an error
+    store("",0,my_charset_latin1);	// Probably an error
     break;
   case TIMESTAMP_DATE:
     sprintf(buff,"%04d-%02d-%02d", ltime->year,ltime->month,ltime->day);
-    store(buff,10,default_charset_info);
+    store(buff,10,my_charset_latin1);
     break;
   case TIMESTAMP_FULL:
     sprintf(buff,"%04d-%02d-%02d %02d:%02d:%02d",
 	    ltime->year,ltime->month,ltime->day,
 	    ltime->hour,ltime->minute,ltime->second);
-    store(buff,19,default_charset_info);
+    store(buff,19,my_charset_latin1);
     break;
   case TIMESTAMP_TIME:
   {
     ulong length= my_sprintf(buff, (buff, "%02d:%02d:%02d",
 				    ltime->hour,ltime->minute,ltime->second));
-    store(buff,(uint) length, default_charset_info);
+    store(buff,(uint) length, my_charset_latin1);
     break;
   }
   }
@@ -326,7 +326,7 @@ bool Field::optimize_range(uint idx)
 void
 Field_decimal::reset(void)
 {
-  Field_decimal::store("0",1,default_charset_info);
+  Field_decimal::store("0",1,my_charset_latin1);
 }
 
 void Field_decimal::overflow(bool negative)
@@ -3785,7 +3785,7 @@ int Field_string::store(double nr)
   int width=min(field_length,DBL_DIG+5);
   sprintf(buff,"%-*.*g",width,max(width-5,0),nr);
   end=strcend(buff,' ');
-  return Field_string::store(buff,(uint) (end - buff), default_charset_info);
+  return Field_string::store(buff,(uint) (end - buff), my_charset_latin1);
 }
 
 
@@ -3984,7 +3984,7 @@ int Field_varstring::store(double nr)
   int width=min(field_length,DBL_DIG+5);
   sprintf(buff,"%-*.*g",width,max(width-5,0),nr);
   end=strcend(buff,' ');
-  return Field_varstring::store(buff,(uint) (end - buff), default_charset_info);
+  return Field_varstring::store(buff,(uint) (end - buff), my_charset_latin1);
 }
 
 
@@ -4550,7 +4550,7 @@ void Field_blob::sql_type(String &res) const
   case 3:  str="medium"; break;
   case 4:  str="long"; break;
   }
-  res.set(str,(uint) strlen(str),default_charset_info);
+  res.set(str,(uint) strlen(str),my_charset_latin1);
   res.append(binary() ? "blob" : "text");
   if (!binary())
   {
@@ -5314,7 +5314,7 @@ create_field::create_field(Field *old_field,Field *orig_field)
       orig_field)
   {
     char buff[MAX_FIELD_WIDTH],*pos;
-    CHARSET_INFO *field_charset= charset ? charset : default_charset_info;
+    CHARSET_INFO *field_charset= charset;
     String tmp(buff,sizeof(buff),field_charset);
 
     /* Get the value from record[2] (the default value row) */

@@ -263,7 +263,8 @@ static void do_conv_blob(Copy_field *copy)
 {
   copy->from_field->val_str(&copy->tmp,&copy->tmp);
   ((Field_blob *) copy->to_field)->store(copy->tmp.ptr(),
-					 copy->tmp.length(),default_charset_info);
+					 copy->tmp.length(),
+					 copy->tmp.charset());
 }
 
 /* Save blob in copy->tmp for GROUP BY */
@@ -275,7 +276,8 @@ static void do_save_blob(Copy_field *copy)
   copy->from_field->val_str(&res,&res);
   copy->tmp.copy(res);
   ((Field_blob *) copy->to_field)->store(copy->tmp.ptr(),
-					 copy->tmp.length(),default_charset_info);
+					 copy->tmp.length(),
+					 copy->tmp.charset());
 }
 
 
@@ -284,7 +286,7 @@ static void do_field_string(Copy_field *copy)
   char buff[MAX_FIELD_WIDTH];
   copy->tmp.set_quick(buff,sizeof(buff),default_charset_info);
   copy->from_field->val_str(&copy->tmp,&copy->tmp);
-  copy->to_field->store(copy->tmp.c_ptr_quick(),copy->tmp.length(),default_charset_info);
+  copy->to_field->store(copy->tmp.c_ptr_quick(),copy->tmp.length(),copy->tmp.charset());
 }
 
 
