@@ -422,6 +422,10 @@ int mysql_create_table(THD *thd,const char *db, const char *table_name,
 
   for (field_no=0; (sql_field=it++) ; field_no++)
   {
+    if (!sql_field->charset)
+      sql_field->charset= create_info->table_charset;
+    sql_field->create_length_to_internal_length();
+    
     /* Don't pack keys in old tables if the user has requested this */
     if ((sql_field->flags & BLOB_FLAG) ||
 	sql_field->sql_type == FIELD_TYPE_VAR_STRING &&
@@ -1915,19 +1919,6 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
   List<create_field> create_list;		// Add new fields here
   List<Key> key_list;				// Add new keys here
   create_field *def;
-
-  /* 
-    For each column set charset to the table 
-    default if the column charset hasn't been specified
-    explicitely. Change CREATE length into internal length
-  */
-  def_it.rewind();
-  while ((def= def_it++))
-  {
-    if (!def->charset)
-      def->charset= create_info->table_charset;
-    def->create_length_to_internal_length();
-  }
 
   /*
     First collect all fields from table which isn't in drop_list
