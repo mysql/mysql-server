@@ -1053,7 +1053,7 @@ case $SYSTEM_TYPE in
       echo "Using --with-named-thread=-lpthread"
       with_named_thread="-lpthread"
     fi
-    CXXFLAGS="-D_BOOL"
+    CXXFLAGS="$CXXFLAGS -D_BOOL"
     ;;
     *aix4.3*)
       echo "Adding defines for AIX"
