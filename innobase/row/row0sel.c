@@ -94,16 +94,13 @@ row_sel_sec_rec_is_for_clust_rec(
 		if (ifield->prefix_len > 0
 		    && clust_len != UNIV_SQL_NULL) {
 
-			/* For prefix keys get the storage length
-			for the prefix_len characters. */
-
 			cur_type = dict_col_get_type(
 				dict_field_get_col(ifield));
 
-			clust_len = innobase_get_at_most_n_mbchars(
-				dtype_get_charset_coll(cur_type->prtype),
+			clust_len = dtype_get_at_most_n_mbchars(
+				cur_type,
 				ifield->prefix_len,
-				clust_len,clust_field);
+				clust_len, clust_field);
 		}
 
                 if (0 != cmp_data_data(dict_col_get_type(col),
