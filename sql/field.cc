@@ -4414,12 +4414,19 @@ void Field_string::sql_type(String &res) const
 char *Field_string::pack(char *to, const char *from, uint max_length)
 {
   const char *end=from+min(field_length,max_length);
-  uchar length;
+  uint length;
   while (end > from && end[-1] == ' ')
     end--;
-  *to= length=(uchar) (end-from);
-  memcpy(to+1, from, (int) length);
-  return to+1+length;
+  length= (end-from);
+  if (field_length > 255)
+  {
+    int2store(to, length);
+    to+= 2;
+  }
+  else
+    *to++= (char) (uchar) length;
+  memcpy(to, from, (int) length);
+  return to+length;
 }
 
 
@@ -4432,15 +4439,28 @@ char *Field_string::pack_key(char *to, const char *from, uint max_length)
   set_if_smaller(length, char_length);
   while (length && from[length-1] == ' ')
     length--;
-  *to= (uchar)length;
-  memcpy(to+1, from, length);
-  return to+1+length;
+  if (field_length > 255)
+  {
+    int2store(to, length);
+    to+= 2;
+  }
+  else
+    *to++= (char) (uchar) length;
+  memcpy(to, from, length);
+  return to+length;
 }
 
 
 const char *Field_string::unpack(char *to, const char *from)
 {
-  uint length= (uint) (uchar) *from++;
+  uint length;
+  if (field_length > 255)
+  {
+    length= uint2korr(from);
+    from+= 2;
+  }
+  else
+    length= (uint) (uchar) *from++;
   memcpy(to, from, (int) length);
   bfill(to+length, field_length - length, ' ');
   return from+length;
@@ -4449,8 +4469,19 @@ const char *Field_string::unpack(char *to, const char *from)
 
 int Field_string::pack_cmp(const char *a, const char *b, uint length)
 {
-  uint a_length= (uint) (uchar) *a++;
-  uint b_length= (uint) (uchar) *b++;
+  uint a_length, b_length;
+  if (field_length > 255)
+  {
+    a_length= uint2korr(a);
+    b_length= uint2korr(b);
+    a+= 2;
+    b+= 2;
+  }
+  else
+  {
+    a_length= (uint) (uchar) *a++;
+    b_length= (uint) (uchar) *b++;
+  }
   return my_strnncoll(field_charset,
 		      (const uchar*)a,a_length,
 		      (const uchar*)b,b_length);
@@ -4459,7 +4490,14 @@ int Field_string::pack_cmp(const char *a, const char *b, uint length)
 
 int Field_string::pack_cmp(const char *b, uint length)
 {
-  uint b_length= (uint) (uchar) *b++;
+  uint b_length;
+  if (field_length > 255)
+  {
+    b_length= uint2korr(b);
+    b+= 2;
+  }
+  else
+    b_length= (uint) (uchar) *b++;
   char *end= ptr + field_length;
   while (end > ptr && end[-1] == ' ')
     end--;
