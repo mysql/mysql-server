@@ -234,7 +234,7 @@
 #undef SPRINTF_RETURNS_INT
 #undef SPRINTF_RETURNS_GARBAGE
 
-/* Needed to get large file supportat HPUX 10.20 */
+/* Needed to get large file support on HPUX 10.20 */
 #undef __STDC_EXT__
 
 #undef STACK_DIRECTION

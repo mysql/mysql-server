@@ -240,7 +240,7 @@
 #ifdef DONT_USE_FINITE		/* HPUX 11.x has is_finite() */
 #undef HAVE_FINITE
 #endif
-#if defined(HPUX) && defined(_LARGEFILE64_SOURCE) && defined(THREAD)
+#if defined(HPUX10) && defined(_LARGEFILE64_SOURCE) && defined(THREAD)
 /* Fix bug in setrlimit */
 #undef setrlimit
 #define setrlimit cma_setrlimit64
