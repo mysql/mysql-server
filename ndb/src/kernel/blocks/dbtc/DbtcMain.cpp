@@ -6433,7 +6433,6 @@ void Dbtc::execSCAN_HBREP(Signal* signal)
   c_scan_frag_pool.getPtr(scanFragptr);
   switch (scanFragptr.p->scanFragState){
   case ScanFragRec::LQH_ACTIVE:
-    //case ScanFragRec::LQH_ACTIVE_CLOSE:
     break;
   default:
     DEBUG("execSCAN_HBREP: scanFragState="<<scanFragptr.p->scanFragState);
@@ -6514,7 +6513,6 @@ void Dbtc::timeOutFoundFragLab(Signal* signal, UintR TscanConPtr)
       /**
        * The node has died
        */
-      ndbout_c("Node %d has died", nodeId);
       ptr.p->scanFragState = ScanFragRec::COMPLETED;
       ScanFragList run(c_scan_frag_pool, scanptr.p->m_running_scan_frags);
       ScanFragList comp(c_scan_frag_pool, scanptr.p->m_completed_scan_frags);
@@ -8358,10 +8356,6 @@ void Dbtc::execSCAN_TABREQ(Signal* signal)
     scanParallel = (scanConcurrency + 15) / 16;
     noOprecPerFrag = (scanConcurrency >= 16 ? 16 : scanConcurrency & 15);
   }
-#ifdef VM_TRACE
-  ndbout_c("noOprecPerFrag=%d", noOprecPerFrag);
-  ndbout_c("scanParallel=%d", scanParallel);
-#endif
 
   jamEntry();  
   apiConnectptr.i = scanTabReq->apiConnectPtr;
@@ -8708,11 +8702,6 @@ void Dbtc::execDI_FCOUNTCONF(Signal* signal)
   for (list.first(ptr); !ptr.isNull(); list.next(ptr)){
     jam();
 
-#ifdef VM_TRACE    
-    ndbout_c("DIGETPRIMREQ(%d, %d)", 
-	     scanptr.p->scanTableref, scanptr.p->scanNextFragId);
-#endif    
-
     ptr.p->lqhBlockref = 0;
     ptr.p->startFragTimer(ctcTimer);
     ptr.p->scanFragId = scanptr.p->scanNextFragId++;
@@ -8759,9 +8748,6 @@ void Dbtc::abortScanLab(Signal* signal, ScanRecordPtr scanptr, Uint32 errCode)
 
 void Dbtc::releaseScanResources(ScanRecordPtr scanPtr)
 {
-#ifdef VM_TRACE
-  ndbout_c("releaseScanResources: %d", scanPtr.i);
-#endif
   if (apiConnectptr.p->cachePtr != RNIL) {
     cachePtr.i = apiConnectptr.p->cachePtr;
     ptrCheckGuard(cachePtr, ccacheFilesize, cacheRecord);
@@ -9041,26 +9027,15 @@ void Dbtc::execSCAN_FRAGCONF(Signal* signal)
   
   const Uint32 status = conf->fragmentCompleted;
   
-  DEBUG(apiConnectptr.i << " " << scanFragptr.i << 
-	" execSCAN_FRAGCONF() status: " << status 
-	<< " ops: " << noCompletedOps << " from: " << refToNode(signal->getSendersBlockRef()));
-  
   if(scanptr.p->scanState == ScanRecord::CLOSING_SCAN){
     jam();
     if(status == ZFALSE){
       /**
        * We have started closing = we sent a close -> ignore this
        */
-      DEBUG(apiConnectptr.i << " " << scanFragptr.i << 
-	    " Received SCANFRAG_CONF wo/ close when in "
-	    " CLOSING_SCAN:" << status << " " << noCompletedOps);
       return;
     } else {
       jam();
-      DEBUG(apiConnectptr.i << " " << scanFragptr.i 
-	    << " Received SCANFRAG_CONF w/ close when in "
-	    " CLOSING_SCAN:" << status << " " << noCompletedOps);
-      
       ScanFragList run(c_scan_frag_pool, scanptr.p->m_running_scan_frags);
       ScanFragList comp(c_scan_frag_pool, scanptr.p->m_completed_scan_frags);
       
@@ -9249,9 +9224,6 @@ void Dbtc::execSCAN_NEXTREQ(Signal* signal)
 
 void
 Dbtc::close_scan_req(Signal* signal, ScanRecordPtr scanPtr, bool req_received){
-#ifdef VM_TRACE
-  ndbout_c("%d close_scan_req", apiConnectptr.i);
-#endif
   ScanRecord* scanP = scanPtr.p;
   scanPtr.p->scanState = ScanRecord::CLOSING_SCAN;
   scanPtr.p->m_close_scan_req = req_received;
@@ -9295,7 +9267,6 @@ Dbtc::close_scan_req(Signal* signal, ScanRecordPtr scanPtr, bool req_received){
       nextReq->senderData = curr.i;
       sendSignal(curr.p->lqhBlockref, GSN_SCAN_NEXTREQ, signal, 
 		 ScanFragNextReq::SignalLength, JBB);
-      ndbout_c("%d running -> closing", curr.i);
     }
 
     // Close delivered
@@ -9316,13 +9287,11 @@ Dbtc::close_scan_req(Signal* signal, ScanRecordPtr scanPtr, bool req_received){
 	sendSignal(curr.p->lqhBlockref, GSN_SCAN_NEXTREQ, signal, 
 		   ScanFragNextReq::SignalLength, JBB);
 	
-	ndbout_c("%d delivered -> closing (%d)", curr.i, curr.p->m_ops);
       } else {
 	jam();
 	completed.add(curr);
 	curr.p->scanFragState = ScanFragRec::COMPLETED;
 	curr.p->stopFragTimer();
-	ndbout_c("%d delivered -> completed", curr.i);
       }
     }//for
 
@@ -9346,14 +9315,11 @@ Dbtc::close_scan_req(Signal* signal, ScanRecordPtr scanPtr, bool req_received){
 	nextReq->senderData = curr.i;
 	sendSignal(curr.p->lqhBlockref, GSN_SCAN_NEXTREQ, signal, 
 		   ScanFragNextReq::SignalLength, JBB);
-
-	ndbout_c("%d queued -> closing", curr.i);
       } else {
 	jam();
 	completed.add(curr);
 	curr.p->scanFragState = ScanFragRec::COMPLETED;
 	curr.p->stopFragTimer();
-	ndbout_c("%d queued -> completed", curr.i);
       }
     }
   }
@@ -9369,7 +9335,7 @@ Dbtc::close_scan_req_send_conf(Signal* signal, ScanRecordPtr scanPtr){
   ndbrequire(scanPtr.p->m_delivered_scan_frags.isEmpty());
   //ndbrequire(scanPtr.p->m_running_scan_frags.isEmpty());
 
-#if 1
+#if 0
   {
     ScanFragList comp(c_scan_frag_pool, scanPtr.p->m_completed_scan_frags);
     ScanFragRecPtr ptr;
@@ -9382,8 +9348,6 @@ Dbtc::close_scan_req_send_conf(Signal* signal, ScanRecordPtr scanPtr){
   
   if(!scanPtr.p->m_running_scan_frags.isEmpty()){
     jam();
-
-    ndbout_c("%d close_scan_req_send_conf: not ready", apiConnectptr.i);
     return;
   }
 
@@ -9394,12 +9358,9 @@ Dbtc::close_scan_req_send_conf(Signal* signal, ScanRecordPtr scanPtr){
     /**
      * The API hasn't order closing yet
      */
-    ndbout_c("%d close_scan_req_send_conf: api not ready", apiConnectptr.i);
     return;
   }
 
-  ndbout_c("%d close_scan_req_send_conf: ready", apiConnectptr.i);
-  
   if(!apiFail){
     jam();
     Uint32 ref = apiConnectptr.p->ndbapiBlockref;

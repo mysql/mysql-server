@@ -67,7 +67,6 @@ NdbConnection::receiveSCAN_TABREF(NdbApiSignal* aSignal){
       return 0;
     }
     assert(theScanningOp->m_sent_receivers_count);
-    theScanningOp->m_sent_receivers_count--;
     theScanningOp->m_conf_receivers_count++;
     return 0;
   }
