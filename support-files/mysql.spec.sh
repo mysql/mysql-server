@@ -694,8 +694,8 @@ fi
 %changelog 
 * Fri Mar 18 2005 Lenz Grimmer <lenz@mysql.com>
 
-- Disabled RAID in the Max binares once and for all (it has finally been removed
-  from the source tree)
+- Disabled RAID in the Max binaries once and for all (it has finally been
+  removed from the source tree)
 
 * Sun Feb 20 2005 Petr Chardin <petr@mysql.com>
 
