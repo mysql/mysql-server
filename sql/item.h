@@ -252,7 +252,7 @@ public:
   longlong val_int();
   String *val_str(String*);
   void make_field(Send_field *field);
-  int  save_in_field(Field *field);
+  int  save_in_field(Field *field, bool no_conversions);
   void set_null();
   void set_int(longlong i);
   void set_double(double i);

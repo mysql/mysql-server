@@ -351,7 +351,7 @@ void Item_param::set_longdata(const char *str, ulong length)
 }
 
 
-int Item_param::save_in_field(Field *field)
+int Item_param::save_in_field(Field *field, bool no_conversions)
 {
   if (null_value)
     return (int) set_field_to_null(field);   

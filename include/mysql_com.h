@@ -323,6 +323,6 @@ void my_thread_end(void);
 
 #define NULL_LENGTH ((unsigned long) ~0) /* For net_store_length */
 #define MYSQL_STMT_HEADER       4
-#define	MYSQL_LONG_DATA_HEADER	8
+#define	MYSQL_LONG_DATA_HEADER	6
 
 #endif

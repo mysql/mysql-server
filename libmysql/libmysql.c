@@ -4333,7 +4333,6 @@ mysql_send_long_data(MYSQL_STMT *stmt, uint param_number,
     packet= extra_data;
     int4store(packet, stmt->stmt_id);	   packet+=4;
     int2store(packet, param_number);	   packet+=2;
-    int2store(packet, param->buffer_type); packet+=2;
 
     /*
       Note that we don't get any ok packet from the server in this case
