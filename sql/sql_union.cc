@@ -33,7 +33,7 @@ int mysql_union(THD *thd, LEX *lex,select_result *result)
   TABLE *table;
   int describe=(lex->select_lex.options & SELECT_DESCRIBE) ? 1 : 0;
   int res;
-  bool found_rows_for_union= 0;
+  bool found_rows_for_union= lex->select_lex.options & OPTION_FOUND_ROWS;
   TABLE_LIST result_table_list;
   TABLE_LIST *first_table=(TABLE_LIST *)lex->select_lex.table_list.first;
   TMP_TABLE_PARAM tmp_table_param;
@@ -63,7 +63,6 @@ int mysql_union(THD *thd, LEX *lex,select_result *result)
     */
     lex_sl= sl;
     order=  (ORDER *) lex_sl->order_list.first;
-    found_rows_for_union = lex->select_lex.options & OPTION_FOUND_ROWS && sl->select_limit;
     // This is done to eliminate unnecessary slowing down of the first query 
     if (!order || !describe) 
       last_sl->next=0;				// Remove this extra element

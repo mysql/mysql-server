@@ -106,3 +106,5 @@ delete from mysql.tables_priv where user='mysqltest_1';
 delete from mysql.columns_priv where user='mysqltest_1';
 flush privileges;
 drop table t1;
+GRANT FILE on mysqltest.*  to mysqltest_1@localhost;
+Wrong usage of DB GRANT and GLOBAL PRIVILEGES

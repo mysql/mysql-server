@@ -3386,14 +3386,18 @@ TABLE_LIST *add_table_to_list(Table_ident *table, LEX_STRING *alias,
 	 tables ;
 	 tables=tables->next)
     {
-      if (!strcmp(alias_str,tables->alias) && !strcmp(ptr->db, tables->db))
+      if (ptr->db_length == tables->db_length && !memcmp(ptr->db, tables->db, ptr->db_length))
       {
 	if ((thd->lex.sql_command & (SQLCOM_INSERT_SELECT | SQLCOM_REPLACE_SELECT))
 	    && (tables->lock_type & (TL_WRITE_CONCURRENT_INSERT |  
 				     TL_WRITE_LOW_PRIORITY |    TL_WRITE_DELAYED | 
 				     TL_WRITE)))
-	  thd->lex.select->options |= OPTION_BUFFER_RESULT;
-	else
+	{
+	  if (ptr->real_name_length == tables->real_name_length &&
+	      !memcmp(ptr->real_name, tables->real_name,ptr->real_name_length))
+	    thd->lex.select->options |= OPTION_BUFFER_RESULT;
+	}
+	else if (!strcmp(alias_str,tables->alias))
 	{
 	  net_printf(&thd->net,ER_NONUNIQ_TABLE,alias_str); /* purecov: tested */
 	  DBUG_RETURN(0);				/* purecov: tested */
