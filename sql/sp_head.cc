@@ -1193,7 +1193,7 @@ sp_instr_set::execute(THD *thd, uint *nextp)
   if (tables &&
       ((res= check_table_access(thd, SELECT_ACL, tables, 0)) ||
        (res= open_and_lock_tables(thd, tables))))
-    DBUG_RETURN(-1);
+    DBUG_RETURN(res);
 
   it= sp_eval_func_item(thd, m_value, m_type);
   if (! it)
@@ -1294,7 +1294,7 @@ sp_instr_jump_if::execute(THD *thd, uint *nextp)
   if (tables &&
       ((res= check_table_access(thd, SELECT_ACL, tables, 0)) ||
        (res= open_and_lock_tables(thd, tables))))
-    DBUG_RETURN(-1);
+    DBUG_RETURN(res);
 
   it= sp_eval_func_item(thd, m_expr, MYSQL_TYPE_TINY);
   if (!it)
@@ -1351,7 +1351,7 @@ sp_instr_jump_if_not::execute(THD *thd, uint *nextp)
   if (tables &&
       ((res= check_table_access(thd, SELECT_ACL, tables, 0)) ||
        (res= open_and_lock_tables(thd, tables))))
-    DBUG_RETURN(-1);
+    DBUG_RETURN(res);
 
   it= sp_eval_func_item(thd, m_expr, MYSQL_TYPE_TINY);
   if (! it)
@@ -1407,7 +1407,7 @@ sp_instr_freturn::execute(THD *thd, uint *nextp)
   if (tables &&
       ((res= check_table_access(thd, SELECT_ACL, tables, 0)) ||
        (res= open_and_lock_tables(thd, tables))))
-    DBUG_RETURN(-1);
+    DBUG_RETURN(res);
 
   it= sp_eval_func_item(thd, m_value, m_type);
   if (! it)

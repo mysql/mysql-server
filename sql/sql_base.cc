@@ -1751,6 +1751,7 @@ int simple_open_n_lock_tables(THD *thd, TABLE_LIST *tables)
   RETURN
     0  - ok
     -1 - error
+    1  - error reported to user
 
   NOTE
     The lock will automaticly be freed by close_thread_tables()
@@ -1760,9 +1761,9 @@ int open_and_lock_tables(THD *thd, TABLE_LIST *tables)
 {
   DBUG_ENTER("open_and_lock_tables");
   uint counter;
-  if (open_tables(thd, tables, &counter) || lock_tables(thd, tables, counter))
+  if (open_tables(thd, tables, &counter) || lock_tables(thd, tables, counter)
+      || mysql_handle_derived(thd->lex))
     DBUG_RETURN(thd->net.report_error ? -1 : 1); /* purecov: inspected */
-  DBUG_RETURN(mysql_handle_derived(thd->lex));
 }
 
 

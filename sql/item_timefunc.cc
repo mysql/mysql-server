@@ -2011,7 +2011,7 @@ void Item_char_typecast::print(String *str)
   if (cast_cs)
   {
     str->append(" charset ", 9);
-    str->append(cast_cs->name);
+    str->append(cast_cs->csname);
   }
   str->append(')');
 }

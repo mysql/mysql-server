@@ -108,7 +108,7 @@ explain extended select _koi8r'a' = _koi8r'A' COLLATE koi8r_general_ci;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Note	1003	select (_koi8r'a' = (_koi8r'A' collate _latin1'koi8r_general_ci')) AS `_koi8r'a' = _koi8r'A' COLLATE koi8r_general_ci`
+Note	1003	select (_koi8r'a' = (_koi8r'A' collate koi8r_general_ci)) AS `_koi8r'a' = _koi8r'A' COLLATE koi8r_general_ci`
 select _koi8r'a' = _koi8r'A' COLLATE koi8r_bin;
 _koi8r'a' = _koi8r'A' COLLATE koi8r_bin
 0

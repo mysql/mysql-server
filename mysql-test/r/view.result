@@ -940,7 +940,7 @@ grant update,select(b) on mysqltest.t2 to mysqltest_1@localhost;
 create view v4 as select b+1 from mysqltest.t2;
 REVOKE ALL PRIVILEGES, GRANT OPTION FROM mysqltest_1@localhost;
 drop database mysqltest;
-drop view v1,v2;
+drop view v1,v2,v4;
 set sql_mode='ansi';
 create table t1 ("a*b" int);
 create view v1 as select "a*b" from t1;
@@ -1040,7 +1040,6 @@ CREATE VIEW v02 AS SELECT * FROM DUAL;
 ERROR HY000: No tables used
 SHOW TABLES;
 Tables_in_test	table_type
-v4	VIEW
 CREATE VIEW v1 AS SELECT EXISTS (SELECT 1 UNION SELECT 2);
 select * from v1;
 EXISTS (SELECT 1 UNION SELECT 2)
@@ -1166,3 +1165,91 @@ Table	Create Table
 v3	CREATE VIEW `test`.`v3` AS select `v1`.`col1` AS `a`,`v2`.`col1` AS `b` from `test`.`v1` join `test`.`v2` where (`v1`.`col1` = `v2`.`col1`)
 drop view v3, v2, v1;
 drop table t2, t1;
+create function `f``1` () returns int return 5;
+create view v1 as select test.`f``1` ();
+show create view v1;
+Table	Create Table
+v1	CREATE VIEW `test`.`v1` AS select `test`.`f``1`() AS `test.``f````1`` ()`
+select * from v1;
+test.`f``1` ()
+5
+drop view v1;
+drop function `f``1`;
+create function x () returns int return 5;
+create view v1 as select x ();
+select * from v1;
+x ()
+5
+drop view v1;
+drop function x;
+create table t2 (col1 char collate latin1_german2_ci);
+create view v2 as select col1 collate latin1_german1_ci from t2;
+show create view v2;
+Table	Create Table
+v2	CREATE VIEW `test`.`v2` AS select (`test`.`t2`.`col1` collate latin1_german1_ci) AS `col1 collate latin1_german1_ci` from `test`.`t2`
+show create view v2;
+Table	Create Table
+v2	CREATE VIEW `test`.`v2` AS select (`test`.`t2`.`col1` collate latin1_german1_ci) AS `col1 collate latin1_german1_ci` from `test`.`t2`
+drop view v2;
+drop table t2;
+create table t1 (a int);
+insert into t1 values (1), (2);
+create view v1 as select 5 from t1 order by 1;
+select * from v1;
+5
+5
+5
+drop view v1;
+drop table t1;
+create function x1 () returns int return 5;
+create table t1 (s1 int);
+create view v1 as select x1() from t1;
+drop function x1;
+select * from v1;
+ERROR 42000: FUNCTION test.x1 does not exist
+show table status;
+Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
+t1	MyISAM	9	Fixed	0	0	0	21474836479	1024	0	NULL	#	#	NULL	latin1_swedish_ci	NULL		
+v1	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	#	#	NULL	NULL	NULL	NULL	view
+show table status;
+Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
+t1	MyISAM	9	Fixed	0	0	0	21474836479	1024	0	NULL	#	#	NULL	latin1_swedish_ci	NULL		
+v1	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	#	#	NULL	NULL	NULL	NULL	view
+drop view v1;
+drop table t1;
+create view v1 as select 99999999999999999999999999999999999999999999999999999 as col1;
+show create view v1;
+Table	Create Table
+v1	CREATE VIEW `test`.`v1` AS select 99999999999999999999999999999999999999999999999999999 AS `col1`
+drop view v1;
+create table tü (cü char);
+create view vü as select cü from tü;
+insert into vü values ('ü');
+select * from vü;
+cü
+ü
+drop view vü;
+drop table tü;
+create table t1 (a int, b int);
+insert into t1 values (1,2), (1,3), (2,4), (2,5), (3,10);
+create view v1(c) as select a+1 from t1 where b >= 4;
+select c from v1 where exists (select * from t1 where a=2 and b=c);
+c
+4
+drop view v1;
+drop table t1;
+create view v1 as select cast(1 as char(3));
+show create view v1;
+Table	Create Table
+v1	CREATE VIEW `test`.`v1` AS select cast(1 as char(3) charset latin1) AS `cast(1 as char(3))`
+select * from v1;
+cast(1 as char(3))
+1
+drop view v1;
+create view v1 as select 'a',1;
+create view v2 as select * from v1 union all select * from v1;
+create view v3 as select * from v2 where 1 = (select `1` from v2);
+create view v4 as select * from v3;
+select * from v4;
+ERROR 21000: Subquery returns more than 1 row
+drop view v4, v3, v2, v1;
