@@ -96,72 +96,26 @@ static bool convert_constant_item(Field *field, Item **item)
   return 0;
 }
 
-bool Item_bool_func2::set_cmp_charset(CHARSET_INFO *cs1, Derivation co1,
-				      CHARSET_INFO *cs2, Derivation co2)
-{
-  if (cs1 == &my_charset_bin || cs2 == &my_charset_bin)
-  {
-    cmp_charset= &my_charset_bin;
-    //coercibility= co1 > co2 ? co1 : co2;
-    return 0;
-  }
-
-  if (!my_charset_same(cs1, cs2))
-  {
-    /* 
-       We do allow to use BLOBS together with character strings
-       BLOBS have more precedance
-    */
-    if ((co1 <= co2) && (cs1==&my_charset_bin))
-    {
-      cmp_charset= cs1;
-      //coercibility= co1;
-    }
-    else if ((co2 <= co1) && (cs2==&my_charset_bin))
-    {
-      cmp_charset= cs2;
-      //coercibility= co2;
-    }
-    else
-    {
-      cmp_charset= 0;
-      //coercibility= DERIVATION_NOCOLL;
-      return 1; 
-    }
-  }
-  else if (co1 < co2)
-  {
-    cmp_charset= cs1;
-    //coercibility= co1;
-  }
-  else if (co2 < co1)
-  {
-    cmp_charset= cs2;
-    //coercibility= co1;
-  }
-  else
-  { 
-    if (cs1 == cs2)
-    {
-      cmp_charset= cs1;
-      //coercibility= co1;
-    }
-    else 
-    {
-      //coercibility= DERIVATION_NOCOLL;
-      cmp_charset= 0;
-      return  (co1 == DERIVATION_EXPLICIT) ? 1 : 0;
-    }
-  }
-  return 0;
-}
-
 
 bool Item_bool_func2::fix_fields(THD *thd, struct st_table_list *tables,
 				 Item ** ref)
 {
   if (Item_int_func::fix_fields(thd, tables, ref))
     return 1;
+  return 0;
+}
+
+
+void Item_bool_func2::fix_length_and_dec()
+{
+  max_length= 1;				     // Function returns 0 or 1
+
+  /*
+    As some compare functions are generated after sql_yacc,
+    we have to check for out of memory conditions here
+  */
+  if (!args[0] || !args[1])
+    return;
 
   /* 
     We allow to convert to Unicode character sets in some cases.
@@ -209,35 +163,12 @@ bool Item_bool_func2::fix_fields(THD *thd, struct st_table_list *tables,
       else
       {
 	conv= new Item_func_conv_charset(args[weak],args[strong]->charset());
-        //conv->coercibility= args[weak]->derivation();
+        conv->collation.set(args[weak]->derivation());
       }
       args[weak]= conv ? conv : args[weak];
-      set_cmp_charset(args[0]->charset(), args[0]->derivation(),
-		      args[1]->charset(), args[1]->derivation());
     }
   }
-  if (!cmp_charset)
-  {
-    /* set_cmp_charset() failed */
-    my_coll_agg_error(args[0]->collation, args[1]->collation, func_name());
-    return 1;
-  }
-  return 0;
-}
-
-
-void Item_bool_func2::fix_length_and_dec()
-{
-  max_length= 1;				     // Function returns 0 or 1
-
-  /*
-    As some compare functions are generated after sql_yacc,
-    we have to check for out of memory conditions here
-  */
-  if (!args[0] || !args[1])
-    return;
-
-
+  
   // Make a special case of compare with fields to get nicer DATE comparisons
   if (args[0]->type() == FIELD_ITEM)
   {
@@ -248,7 +179,8 @@ void Item_bool_func2::fix_length_and_dec()
       {
 	cmp.set_cmp_func(this, tmp_arg, tmp_arg+1,
 			 INT_RESULT);		// Works for all types.
-	cmp_charset= &my_charset_bin;		// For test in fix_fields
+	cmp_collation.set(&my_charset_bin, 
+			  DERIVATION_NONE);	// For test in fix_fields
 	return;
       }
     }
@@ -262,7 +194,8 @@ void Item_bool_func2::fix_length_and_dec()
       {
 	cmp.set_cmp_func(this, tmp_arg, tmp_arg+1,
 			 INT_RESULT); // Works for all types.
-	cmp_charset= &my_charset_bin;		// For test in fix_fields
+	cmp_collation.set(&my_charset_bin,
+			  DERIVATION_NONE);	// For test in fix_fields
 	return;
       }
     }
@@ -272,8 +205,12 @@ void Item_bool_func2::fix_length_and_dec()
     We must set cmp_charset here as we may be called from for an automatic
     generated item, like in natural join
   */
-  set_cmp_charset(args[0]->charset(), args[0]->derivation(),
-		  args[1]->charset(), args[1]->derivation());
+  if (cmp_collation.set(args[0]->collation, args[1]->collation))
+  {
+    /* set_cmp_charset() failed */
+    my_coll_agg_error(args[0]->collation, args[1]->collation, func_name());
+    return;
+  }
 }
 
 
@@ -315,7 +252,7 @@ int Arg_comparator::compare_string()
     if ((res2= (*b)->val_str(&owner->tmp_value2)))
     {
       owner->null_value= 0;
-      return sortcmp(res1,res2,owner->cmp_charset);
+      return sortcmp(res1,res2,owner->cmp_collation.collation);
     }
   }
   owner->null_value= 1;
@@ -329,7 +266,7 @@ int Arg_comparator::compare_e_string()
   res2= (*b)->val_str(&owner->tmp_value2);
   if (!res1 || !res2)
     return test(res1 == res2);
-  return test(sortcmp(res1, res2, owner->cmp_charset) == 0);
+  return test(sortcmp(res1, res2, owner->cmp_collation.collation) == 0);
 }
 
 
@@ -558,7 +495,7 @@ longlong Item_func_strcmp::val_int()
     null_value=1;
     return 0;
   }
-  int value= sortcmp(a,b,cmp_charset);
+  int value= sortcmp(a,b,cmp_collation.collation);
   null_value=0;
   return !value ? 0 : (value < 0 ? (longlong) -1 : (longlong) 1);
 }
@@ -750,8 +687,7 @@ Item_func_ifnull::fix_length_and_dec()
 					  args[1]->result_type())) !=
       REAL_RESULT)
     decimals= 0;
-  if (set_charset(args[0]->charset(),args[0]->derivation(),
-		  args[1]->charset(),args[1]->derivation()))
+  if (collation.set(args[0]->collation,args[1]->collation))
     my_coll_agg_error(args[0]->collation, args[1]->collation, func_name());
 }
 
@@ -828,8 +764,7 @@ Item_func_if::fix_length_and_dec()
   else if (arg1_type == STRING_RESULT || arg2_type == STRING_RESULT)
   {
     cached_result_type = STRING_RESULT;
-    if (set_charset(args[1]->charset(), args[1]->derivation(),
-		args[2]->charset(), args[2]->derivation()))
+    if (collation.set(args[1]->collation, args[2]->collation))
     {
       my_coll_agg_error(args[0]->collation, args[1]->collation, func_name());
       return;
@@ -1944,7 +1879,7 @@ longlong Item_func_like::val_int()
   null_value=0;
   if (canDoTurboBM)
     return turboBM_matches(res->ptr(), res->length()) ? 1 : 0;
-  return my_wildcmp(cmp_charset,
+  return my_wildcmp(cmp_collation.collation,
 		    res->ptr(),res->ptr()+res->length(),
 		    res2->ptr(),res2->ptr()+res2->length(),
 		    escape,wild_one,wild_many) ? 0 : 1;
@@ -2148,7 +2083,7 @@ void Item_func_like::turboBM_compute_suffixes(int *suff)
 
   *splm1 = pattern_len;
 
-  if (cmp_charset == &my_charset_bin)
+  if (cmp_collation.collation == &my_charset_bin)
   {
     int i;
     for (i = pattern_len - 2; i >= 0; i--)
@@ -2251,7 +2186,7 @@ void Item_func_like::turboBM_compute_bad_character_shifts()
   for (i = bmBc; i < end; i++)
     *i = pattern_len;
 
-  if (cmp_charset == &my_charset_bin)
+  if (cmp_collation.collation == &my_charset_bin)
   {
     for (j = 0; j < plm1; j++)
       bmBc[(uint) (uchar) pattern[j]] = plm1 - j;
@@ -2282,7 +2217,7 @@ bool Item_func_like::turboBM_matches(const char* text, int text_len) const
   const int tlmpl= text_len - pattern_len;
 
   /* Searching */
-  if (cmp_charset == &my_charset_bin)
+  if (cmp_collation.collation == &my_charset_bin)
   {
     while (j <= tlmpl)
     {

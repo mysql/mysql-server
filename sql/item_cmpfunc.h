@@ -112,25 +112,25 @@ class Item_bool_func2 :public Item_int_func
 protected:
   Arg_comparator cmp;
   String tmp_value1,tmp_value2;
-  CHARSET_INFO *cmp_charset;
+  DTCollation cmp_collation;
 
 public:
   Item_bool_func2(Item *a,Item *b):
-    Item_int_func(a,b), cmp(tmp_arg, tmp_arg+1), cmp_charset(0) {}
+    Item_int_func(a,b), cmp(tmp_arg, tmp_arg+1)
+    { cmp_collation.set(0,DERIVATION_NONE);}
   bool fix_fields(THD *thd, TABLE_LIST *tlist, Item ** ref);
   void fix_length_and_dec();
   void set_cmp_func()
   {
     cmp.set_cmp_func(this, tmp_arg, tmp_arg+1);
   }
-  bool set_cmp_charset(CHARSET_INFO *cs1, Derivation co1, 
-  		       CHARSET_INFO *cs2, Derivation co2);
   optimize_type select_optimize() const { return OPTIMIZE_OP; }
   virtual enum Functype rev_functype() const { return UNKNOWN_FUNC; }
   bool have_rev_func() const { return rev_functype() != UNKNOWN_FUNC; }
   void print(String *str) { Item_func::print_op(str); }
   bool is_null() { return test(args[0]->is_null() || args[1]->is_null()); }
-  virtual bool binary() const { return test(cmp_charset->state & MY_CS_BINSORT); }
+  virtual bool binary() const 
+  { return test(cmp_collation.collation->state & MY_CS_BINSORT); }
 
   static Item_bool_func2* eq_creator(Item *a, Item *b);
   static Item_bool_func2* ne_creator(Item *a, Item *b);

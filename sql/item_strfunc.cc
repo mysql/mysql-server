@@ -324,12 +324,11 @@ void Item_func_concat::fix_length_and_dec()
   bool first_coll= 1;
   max_length=0;
 
-  set_charset(*args[0]);
+  collation.set(args[0]->collation);
   for (uint i=0 ; i < arg_count ; i++)
   {
     max_length+=args[i]->max_length;
-    if (set_charset(charset(), derivation(),
-		args[i]->charset(), args[i]->derivation()))
+    if (collation.aggregate(args[i]->collation))
     {
       my_coll_agg_error(collation, args[i]->collation, func_name());
       break;
@@ -627,13 +626,12 @@ void Item_func_concat_ws::split_sum_func(Item **ref_pointer_array,
 
 void Item_func_concat_ws::fix_length_and_dec()
 {
-  set_charset(*separator);
+  collation.set(separator->collation);
   max_length=separator->max_length*(arg_count-1);
   for (uint i=0 ; i < arg_count ; i++)
   {
     max_length+=args[i]->max_length;
-    if (set_charset(charset(), derivation(),
-		    args[i]->charset(), args[i]->derivation()))
+    if (collation.aggregate(args[i]->collation))
     {
       my_coll_agg_error(collation, args[i]->collation, func_name());
       break;
@@ -828,12 +826,11 @@ void Item_func_replace::fix_length_and_dec()
     max_length=MAX_BLOB_WIDTH;
     maybe_null=1;
   }
-  set_charset(*args[0]);
   
+  collation.set(args[0]->collation);
   for (i=1; i<3; i++)
   {
-    if (set_charset(charset(), derivation(),
-        args[i]->charset(), args[i]->derivation()))
+    if (collation.aggregate(args[i]->collation))
     {
       my_coll_agg_error(collation, args[i]->collation, func_name());
       break;
@@ -875,10 +872,10 @@ null:
 
 void Item_func_insert::fix_length_and_dec()
 {
-  if (set_charset(args[0]->charset(), args[0]->derivation(),
-      		  args[3]->charset(), args[3]->derivation()))
+  if (collation.set(args[0]->collation, args[3]->collation))
   {
       my_coll_agg_error(args[0]->collation, args[3]->collation, func_name());
+      return;
   }
   max_length=args[0]->max_length+args[3]->max_length;
   if (max_length > MAX_BLOB_WIDTH)
@@ -1316,13 +1313,12 @@ void Item_func_trim::fix_length_and_dec()
   max_length= args[0]->max_length;
   if (arg_count == 1)
   {
-    set_charset(*args[0]);
+    collation.set(args[0]->collation);
     remove.set_charset(charset());
     remove.set_ascii(" ",1);
   }
   else
-  if (set_charset(args[1]->charset(), args[1]->derivation(),
-		  args[0]->charset(), args[0]->derivation()))
+  if (collation.set(args[1]->collation, args[0]->collation))
   {
     my_coll_agg_error(args[1]->collation, args[0]->collation, func_name());
   }
@@ -1668,11 +1664,10 @@ void Item_func_elt::fix_length_and_dec()
     set_if_bigger(max_length,args[i]->max_length);
     set_if_bigger(decimals,args[i]->decimals);
     if (i == 0)
-      set_charset(*args[0]);
+      collation.set(args[0]->collation);
     else
     {
-      if (set_charset(charset(), derivation(),
-		      args[i]->charset(), args[i]->derivation()))
+      if (collation.aggregate(args[i]->collation))
       {
         my_coll_agg_error(collation, args[i]->collation, func_name());
         break;
@@ -1770,12 +1765,11 @@ void Item_func_make_set::split_sum_func(Item **ref_pointer_array,
 void Item_func_make_set::fix_length_and_dec()
 {
   max_length=arg_count-1;
-  set_charset(*args[0]);
+  collation.set(args[0]->collation);
   for (uint i=0 ; i < arg_count ; i++)
   {
     max_length+=args[i]->max_length;
-    if (set_charset(charset(), derivation(),
-		    args[i]->charset(), args[i]->derivation()))
+    if (collation.aggregate(args[i]->collation))
     {
       my_coll_agg_error(collation, args[i]->collation, func_name());
       break;
@@ -1963,10 +1957,10 @@ err:
 
 void Item_func_rpad::fix_length_and_dec()
 {
-  if (set_charset(args[0]->charset(), args[0]->derivation(),
- 		  args[2]->charset(), args[2]->derivation()))
+  if (collation.set(args[0]->collation, args[2]->collation))
   {
     my_coll_agg_error(args[0]->collation, args[2]->collation, func_name());
+    return;
   }
   
   if (args[1]->const_item())
@@ -2029,10 +2023,10 @@ String *Item_func_rpad::val_str(String *str)
 
 void Item_func_lpad::fix_length_and_dec()
 {
-  if (set_charset(args[0]->charset(), args[0]->derivation(),
- 		  args[2]->charset(), args[2]->derivation()))
+  if (collation.set(args[0]->collation, args[2]->collation))
   {
     my_coll_agg_error(args[0]->collation, args[2]->collation, func_name());
+    return;
   }
   
   if (args[1]->const_item())
@@ -2152,9 +2146,8 @@ String *Item_func_conv_charset::val_str(String *str)
 
 void Item_func_conv_charset::fix_length_and_dec()
 {
-  set_charset(conv_charset);
-  max_length = args[0]->max_length*conv_charset->mbmaxlen;
   set_charset(conv_charset, DERIVATION_IMPLICIT);
+  max_length = args[0]->max_length*conv_charset->mbmaxlen;
 }
 
 
@@ -2449,11 +2442,10 @@ void Item_func_export_set::fix_length_and_dec()
   uint sep_length=(arg_count > 3 ? args[3]->max_length : 1);
   max_length=length*64+sep_length*63;
 
-  set_charset(*args[1]);
+  collation.set(args[1]->collation);
   for (i=2 ; i < 4 && i < arg_count ; i++)
   {
-    if (set_charset(charset(), derivation(),
-		    args[i]->charset(), args[i]->derivation()))
+    if (collation.aggregate(args[i]->collation))
     {
       my_coll_agg_error(collation, args[i]->collation, func_name());
       break;

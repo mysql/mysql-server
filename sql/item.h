@@ -52,10 +52,10 @@ public:
     collation= collation_arg;
     derivation= derivation_arg;
   }
-  void set(DTCollation *dt)
+  void set(DTCollation &dt)
   { 
-    collation= dt->collation;
-    derivation= dt->derivation;
+    collation= dt.collation;
+    derivation= dt.derivation;
   }
   void set(CHARSET_INFO *collation_arg, Derivation derivation_arg)
   {
@@ -66,7 +66,9 @@ public:
   { collation= collation_arg; }
   void set(Derivation derivation_arg)
   { derivation= derivation_arg; }
-  bool aggregate(DTCollation *dt);
+  bool aggregate(DTCollation &dt);
+  bool set(DTCollation &dt1, DTCollation &dt2)
+  { set(dt1); return aggregate(dt2); }
   const char *derivation_name() const
   {
     switch(derivation)
@@ -183,8 +185,6 @@ public:
     collation.collation= collation_arg->collation; 
     collation.derivation= collation_arg->derivation;
   }
-  bool set_charset(CHARSET_INFO *cs1, Derivation dv1, 
-  		   CHARSET_INFO *cs2, Derivation dv2);
   bool binary() const
   { return charset()->state & MY_CS_BINSORT ? 1 : 0 ; }
   
