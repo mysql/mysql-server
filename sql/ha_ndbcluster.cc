@@ -698,11 +698,11 @@ int ha_ndbcluster::get_metadata(const char *path)
 
 int ha_ndbcluster::build_index_list(TABLE *tab, enum ILBP phase)
 {
+  uint i;
   int error= 0;
-  char *name;
-  const char *index_name;
+  const char *name, *index_name;
+  char unique_index_name[FN_LEN];
   static const char* unique_suffix= "$unique";
-  uint i, name_len;
   KEY* key_info= tab->key_info;
   const char **key_name= tab->keynames.type_names;
   NdbDictionary::Dictionary *dict= m_ndb->getDictionary();
@@ -716,21 +716,15 @@ int ha_ndbcluster::build_index_list(TABLE *tab, enum ILBP phase)
     m_index[i].type= idx_type;
     if (idx_type == UNIQUE_ORDERED_INDEX || idx_type == UNIQUE_INDEX)
     {
-      name_len= strlen(index_name)+strlen(unique_suffix)+1;
-      // Create name for unique index by appending "$unique";     
-      if (!(name= my_malloc(name_len, MYF(MY_WME))))
-	DBUG_RETURN(2);
-      strxnmov(name, name_len, index_name, unique_suffix, NullS);
-      m_index[i].unique_name= name;
-      DBUG_PRINT("info", ("Created unique index name: %s for index %d",
-			  name, i));
+      strxnmov(unique_index_name, FN_LEN, index_name, unique_suffix, NullS);
+      DBUG_PRINT("info", ("Created unique index name \'%s\' for index %d",
+			  unique_index_name, i));
     }
     // Create secondary indexes if in create phase
     if (phase == ILBP_CREATE)
     {
-      DBUG_PRINT("info", ("Creating index %u: %s", i, index_name));
-      
-      switch (m_index[i].type){
+      DBUG_PRINT("info", ("Creating index %u: %s", i, index_name));      
+      switch (idx_type){
 	
       case PRIMARY_KEY_INDEX:
 	// Do nothing, already created
@@ -740,10 +734,10 @@ int ha_ndbcluster::build_index_list(TABLE *tab, enum ILBP phase)
 	break;
       case UNIQUE_ORDERED_INDEX:
 	if (!(error= create_ordered_index(index_name, key_info)))
-	  error= create_unique_index(get_unique_index_name(i), key_info);
+	  error= create_unique_index(unique_index_name, key_info);
 	break;
       case UNIQUE_INDEX:
-	error= create_unique_index(get_unique_index_name(i), key_info);
+	error= create_unique_index(unique_index_name, key_info);
 	break;
       case ORDERED_INDEX:
 	error= create_ordered_index(index_name, key_info);
@@ -760,21 +754,20 @@ int ha_ndbcluster::build_index_list(TABLE *tab, enum ILBP phase)
       }
     }
     // Add handles to index objects
-    DBUG_PRINT("info", ("Trying to add handle to index %s", index_name));
-    if ((m_index[i].type != PRIMARY_KEY_INDEX) &&
-	(m_index[i].type != UNIQUE_INDEX))
+    if (idx_type != PRIMARY_KEY_INDEX && idx_type != UNIQUE_INDEX)
     {
+      DBUG_PRINT("info", ("Get handle to index %s", index_name));
       const NDBINDEX *index= dict->getIndex(index_name, m_tabname);
       if (!index) DBUG_RETURN(1);
       m_index[i].index= (void *) index;
     }
-    if (m_index[i].unique_name)
+    if (idx_type == UNIQUE_ORDERED_INDEX || idx_type == UNIQUE_INDEX)
     {
-      const NDBINDEX *index= dict->getIndex(m_index[i].unique_name, m_tabname);
+      DBUG_PRINT("info", ("Get handle to unique_index %s", unique_index_name));
+      const NDBINDEX *index= dict->getIndex(unique_index_name, m_tabname);
       if (!index) DBUG_RETURN(1);
       m_index[i].unique_index= (void *) index;
     }      
-    DBUG_PRINT("info", ("Added handle to index %s", index_name));
   }
   
   DBUG_RETURN(error);
@@ -810,9 +803,6 @@ void ha_ndbcluster::release_metadata()
   // Release index list 
   for (i= 0; i < MAX_KEY; i++)
   {
-    if (m_index[i].unique_name)
-      my_free((char*)m_index[i].unique_name, MYF(0));
-    m_index[i].unique_name= NULL;
     m_index[i].unique_index= NULL;      
     m_index[i].index= NULL;      
   }
@@ -867,16 +857,6 @@ static const ulong index_type_flags[]=
 };
 
 static const int index_flags_size= sizeof(index_type_flags)/sizeof(ulong);
-
-inline const char* ha_ndbcluster::get_index_name(uint idx_no) const
-{
-  return table->keynames.type_names[idx_no];
-}
-
-inline const char* ha_ndbcluster::get_unique_index_name(uint idx_no) const
-{
-  return m_index[idx_no].unique_name;
-}
 
 inline NDB_INDEX_TYPE ha_ndbcluster::get_index_type(uint idx_no) const
 {
@@ -1094,7 +1074,6 @@ int ha_ndbcluster::unique_index_read(const byte *key,
   DBUG_ENTER("unique_index_read");
   DBUG_PRINT("enter", ("key_len: %u, index: %u", key_len, active_index));
   DBUG_DUMP("key", (char*)key, key_len);
-  DBUG_PRINT("enter", ("name: %s", get_unique_index_name(active_index)));
   
   NdbOperation::LockMode lm=
     (NdbOperation::LockMode)get_ndb_lock_type(m_lock.type);
@@ -1350,7 +1329,6 @@ int ha_ndbcluster::ordered_index_scan(const key_range *start_key,
   NdbConnection *trans= m_active_trans;
   NdbResultSet *cursor;
   NdbIndexScanOperation *op;
-  const char *index_name;
 
   DBUG_ENTER("ordered_index_scan");
   DBUG_PRINT("enter", ("index: %u, sorted: %d", active_index, sorted));  
@@ -1359,7 +1337,6 @@ int ha_ndbcluster::ordered_index_scan(const key_range *start_key,
   DBUG_EXECUTE("enter", print_key(start_key, "start_key"););
   DBUG_EXECUTE("enter", print_key(end_key, "end_key"););
   
-  index_name= get_index_name(active_index);
 
   NdbOperation::LockMode lm=
     (NdbOperation::LockMode)get_ndb_lock_type(m_lock.type);
@@ -3304,7 +3281,6 @@ int ha_ndbcluster::create_index(const char *name,
   DBUG_ENTER("create_index");
   DBUG_PRINT("enter", ("name: %s ", name));
 
-  //  NdbDictionary::Index ndb_index(name);
   NdbDictionary::Index ndb_index(name);
   if (unique)
     ndb_index.setType(NdbDictionary::Index::UniqueHashIndex);
@@ -3502,7 +3478,6 @@ ha_ndbcluster::ha_ndbcluster(TABLE *table_arg):
   for (i= 0; i < MAX_KEY; i++)
   {
     m_index[i].type= UNDEFINED_INDEX;   
-    m_index[i].unique_name= NULL;      
     m_index[i].unique_index= NULL;      
     m_index[i].index= NULL;      
   }
