@@ -306,3 +306,5 @@ character-set=koi8u
 "This command is not supported in the prepared statement protocol yet",
 "Got error %d '%-.100s' from %s",
 "Got temporary error %d '%-.100s' from %s",
+"Unknown or incorrect time zone: '%-.64s'",
+"Invalid TIMESTAMP value in column '%s' at row %ld",
