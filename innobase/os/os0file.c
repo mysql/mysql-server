@@ -603,6 +603,7 @@ os_file_pread(
 #ifdef HAVE_PREAD
 	return(pread(file, buf, n, offs));
 #else
+	{
 	ssize_t	ret;
 	ulint	i;
 
@@ -624,6 +625,7 @@ os_file_pread(
 	os_mutex_exit(os_file_seek_mutexes[i]);
 
 	return(ret);
+	}
 #endif
 }
 
@@ -660,6 +662,7 @@ os_file_pwrite(
 
         return(ret);
 #else
+	{
 	ulint	i;
 
 	/* Protect the seek / write operation with a mutex */
@@ -691,6 +694,7 @@ os_file_pwrite(
 	os_mutex_exit(os_file_seek_mutexes[i]);
 
 	return(ret);
+	}
 #endif
 }
 #endif

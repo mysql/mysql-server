@@ -134,8 +134,8 @@ Table	Op	Msg_type	Msg_text
 test.t1	optimize	error	The handler for the table doesn't support check/repair
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Comment
 t1	0	PRIMARY	1	id	A	2	NULL	NULL	
-t1	1	parent_id	1	parent_id	A	4	NULL	NULL	
-t1	1	level	1	level	A	4	NULL	NULL	
+t1	1	parent_id	1	parent_id	A	2	NULL	NULL	
+t1	1	level	1	level	A	2	NULL	NULL	
 gesuchnr	benutzer_id
 1	1
 2	1
@@ -150,7 +150,7 @@ a	b
 Table	Op	Msg_type	Msg_text
 test.t1	analyze	error	The handler for the table doesn't support check/repair
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Comment
-t1	1	skr	1	a	A	3	NULL	NULL	
+t1	1	skr	1	a	A	1	NULL	NULL	
 a	b
 1	
 n	after rollback
