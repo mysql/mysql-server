@@ -454,7 +454,7 @@ int             STDCALL mysql_add_slave(MYSQL* mysql, const char* host,
 					const char* passwd);
 
 int		STDCALL mysql_shutdown(MYSQL *mysql,
-                                       enum enum_shutdown_level
+                                       enum mysql_enum_shutdown_level
                                        shutdown_level);
 int		STDCALL mysql_dump_debug_info(MYSQL *mysql);
 int		STDCALL mysql_refresh(MYSQL *mysql,
@@ -627,6 +627,7 @@ typedef struct st_mysql_methods
   MYSQL_RES * (*use_result)(MYSQL *mysql);
   void (*fetch_lengths)(unsigned long *to, 
 			MYSQL_ROW column, unsigned int field_count);
+  void (*flush_use_result)(MYSQL *mysql);
 #if !defined(MYSQL_SERVER) || defined(EMBEDDED_LIBRARY)
   MYSQL_FIELD * (*list_fields)(MYSQL *mysql);
   my_bool (*read_prepare_result)(MYSQL *mysql, MYSQL_STMT *stmt);

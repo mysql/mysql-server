@@ -340,8 +340,10 @@ static void do_cut_string(Copy_field *copy)
 
 static void do_expand_string(Copy_field *copy)
 {
+  CHARSET_INFO *cs= copy->from_field->charset();
   memcpy(copy->to_ptr,copy->from_ptr,copy->from_length);
-  bfill(copy->to_ptr+copy->from_length,copy->to_length-copy->from_length,' ');
+  cs->cset->fill(cs, copy->to_ptr+copy->from_length,
+                     copy->to_length-copy->from_length, ' ');
 }
 
 static void do_varstring(Copy_field *copy)

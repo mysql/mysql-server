@@ -14,6 +14,7 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
+#include <NdbTCP.h>
 #include "ConfigInfo.hpp"
 #include <mgmapi_config_parameters.h>
 #include <ndb_limits.h>
@@ -48,24 +49,25 @@ sizeof(m_sectionNames)/sizeof(char*);
 /****************************************************************************
  * Section Rules declarations
  ****************************************************************************/
-bool transformComputer(InitConfigFileParser::Context & ctx, const char *);
-bool transformSystem(InitConfigFileParser::Context & ctx, const char *);
-bool transformExternalSystem(InitConfigFileParser::Context & ctx, const char *);
-bool transformNode(InitConfigFileParser::Context & ctx, const char *);
-bool transformExtNode(InitConfigFileParser::Context & ctx, const char *);
-bool transformConnection(InitConfigFileParser::Context & ctx, const char *);
-bool applyDefaultValues(InitConfigFileParser::Context & ctx, const char *);
-bool checkMandatory(InitConfigFileParser::Context & ctx, const char *);
-bool fixPortNumber(InitConfigFileParser::Context & ctx, const char *);
-bool fixShmkey(InitConfigFileParser::Context & ctx, const char *);
-bool checkDbConstraints(InitConfigFileParser::Context & ctx, const char *);
-bool checkConnectionConstraints(InitConfigFileParser::Context &, const char *);
-bool fixNodeHostname(InitConfigFileParser::Context & ctx, const char * data);
-bool fixHostname(InitConfigFileParser::Context & ctx, const char * data);
-bool fixNodeId(InitConfigFileParser::Context & ctx, const char * data);
-bool fixExtConnection(InitConfigFileParser::Context & ctx, const char * data);
-bool fixDepricated(InitConfigFileParser::Context & ctx, const char *);
-bool saveInConfigValues(InitConfigFileParser::Context & ctx, const char *);
+static bool transformComputer(InitConfigFileParser::Context & ctx, const char *);
+static bool transformSystem(InitConfigFileParser::Context & ctx, const char *);
+static bool transformExternalSystem(InitConfigFileParser::Context & ctx, const char *);
+static bool transformNode(InitConfigFileParser::Context & ctx, const char *);
+static bool transformExtNode(InitConfigFileParser::Context & ctx, const char *);
+static bool transformConnection(InitConfigFileParser::Context & ctx, const char *);
+static bool applyDefaultValues(InitConfigFileParser::Context & ctx, const char *);
+static bool checkMandatory(InitConfigFileParser::Context & ctx, const char *);
+static bool fixPortNumber(InitConfigFileParser::Context & ctx, const char *);
+static bool fixShmkey(InitConfigFileParser::Context & ctx, const char *);
+static bool checkDbConstraints(InitConfigFileParser::Context & ctx, const char *);
+static bool checkConnectionConstraints(InitConfigFileParser::Context &, const char *);
+static bool checkTCPConstraints(InitConfigFileParser::Context &, const char *);
+static bool fixNodeHostname(InitConfigFileParser::Context & ctx, const char * data);
+static bool fixHostname(InitConfigFileParser::Context & ctx, const char * data);
+static bool fixNodeId(InitConfigFileParser::Context & ctx, const char * data);
+static bool fixExtConnection(InitConfigFileParser::Context & ctx, const char * data);
+static bool fixDepricated(InitConfigFileParser::Context & ctx, const char *);
+static bool saveInConfigValues(InitConfigFileParser::Context & ctx, const char *);
 
 const ConfigInfo::SectionRule 
 ConfigInfo::m_SectionRules[] = {
@@ -130,7 +132,9 @@ ConfigInfo::m_SectionRules[] = {
   { "SCI",  checkConnectionConstraints, 0 },
   { "OSE",  checkConnectionConstraints, 0 },
 
-
+  { "TCP",  checkTCPConstraints, "HostName1" },
+  { "TCP",  checkTCPConstraints, "HostName2" },
+  
   { "*",    checkMandatory, 0 },
   
   { "DB",   saveInConfigValues, 0 },
@@ -148,13 +152,13 @@ const int ConfigInfo::m_NoOfRules = sizeof(m_SectionRules)/sizeof(SectionRule);
 /****************************************************************************
  * Config Rules declarations
  ****************************************************************************/
-bool add_node_connections(Vector<ConfigInfo::ConfigRuleSection>&sections, 
+static bool add_node_connections(Vector<ConfigInfo::ConfigRuleSection>&sections, 
 			  struct InitConfigFileParser::Context &ctx, 
 			  const char * rule_data);
-bool add_server_ports(Vector<ConfigInfo::ConfigRuleSection>&sections, 
+static bool add_server_ports(Vector<ConfigInfo::ConfigRuleSection>&sections, 
 		      struct InitConfigFileParser::Context &ctx, 
 		      const char * rule_data);
-bool check_node_vs_replicas(Vector<ConfigInfo::ConfigRuleSection>&sections, 
+static bool check_node_vs_replicas(Vector<ConfigInfo::ConfigRuleSection>&sections, 
 			    struct InitConfigFileParser::Context &ctx, 
 			    const char * rule_data);
 
@@ -812,7 +816,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     1},
 
   {
-    CFG_DB_DISCLESS,
+    KEY_INTERNAL,
     "Discless",
     "DB",
     "Diskless",
@@ -2255,22 +2259,13 @@ fixNodeHostname(InitConfigFileParser::Context & ctx, const char * data){
     require(ctx.m_currentSection->put("HostName", ""));
 
     const char * type;
-    if(ctx.m_currentSection->get("Type", &type) &&
-       strcmp(type,"DB") == 0) 
-    {
-      ctx.reportError("Parameter \"ExecuteOnComputer\" missing from DB section "
-			"[%s] starting at line: %d",
-			ctx.fname, ctx.m_sectionLineno);
+    if(ctx.m_currentSection->get("Type", &type) && strcmp(type,"DB") == 0) {
+      ctx.reportError("Parameter \"ExecuteOnComputer\" missing from DB section"
+		      " [%s] starting at line: %d",
+		      ctx.fname, ctx.m_sectionLineno);
       return false;
     }
-
     return true;
-#if 0
-    ctx.reportError("Parameter \"ExecuteOnComputer\" missing from section "
-		    "[%s] starting at line: %d",
-		    ctx.fname, ctx.m_sectionLineno);
-    return false;
-#endif
   }
   
   const Properties * computer;
@@ -2398,6 +2393,22 @@ transformComputer(InitConfigFileParser::Context & ctx, const char * data){
   ctx.m_userProperties.get("NoOfComputers", &computers);
   ctx.m_userProperties.put("NoOfComputers", ++computers, true);
   
+  const char * hostname = 0;
+  ctx.m_currentSection->get("HostName", &hostname);
+  if(!hostname){
+    return true;
+  }
+  
+  if(!strcmp(hostname, "localhost") || !strcmp(hostname, "127.0.0.1")){
+    if(ctx.m_userProperties.get("$computer-localhost", &hostname)){
+      ctx.reportError("Mixing of localhost with other hostname(%s) is illegal",
+		      hostname);
+      return false;
+    }
+  } else {
+    ctx.m_userProperties.put("$computer-localhost", hostname);
+  }
+  
   return true;
 }
 
@@ -2485,7 +2496,7 @@ checkMandatory(InitConfigFileParser::Context & ctx, const char * data){
  * Transform a string "NodeidX" (e.g. "uppsala.32") 
  * into a Uint32 "NodeIdX" (e.g. 32) and a string "SystemX" (e.g. "uppsala").
  */
-bool fixNodeId(InitConfigFileParser::Context & ctx, const char * data)
+static bool fixNodeId(InitConfigFileParser::Context & ctx, const char * data)
 {
   char buf[] = "NodeIdX";  buf[6] = data[sizeof("NodeI")];
   char sysbuf[] = "SystemX";  sysbuf[6] = data[sizeof("NodeI")];
@@ -2521,7 +2532,7 @@ bool fixNodeId(InitConfigFileParser::Context & ctx, const char * data)
  * - name of external system in parameter extSystemName, and 
  * - nodeId of external node in parameter extSystemNodeId.
  */
-bool 
+static bool 
 isExtConnection(InitConfigFileParser::Context & ctx, 
 		const char **extSystemName, Uint32 * extSystemNodeId){
 
@@ -2549,7 +2560,7 @@ isExtConnection(InitConfigFileParser::Context & ctx,
  * If connection is to an external system, then move connection into
  * external system configuration (i.e. a sub-property).
  */
-bool
+static bool
 fixExtConnection(InitConfigFileParser::Context & ctx, const char * data){
 
   const char * extSystemName;
@@ -2604,7 +2615,7 @@ fixExtConnection(InitConfigFileParser::Context & ctx, const char * data){
  * -# Via Node's ExecuteOnComputer lookup Hostname
  * -# Add HostName to Connection
  */
-bool
+static bool
 fixHostname(InitConfigFileParser::Context & ctx, const char * data){
   
   char buf[] = "NodeIdX"; buf[6] = data[sizeof("HostNam")];
@@ -2627,7 +2638,7 @@ fixHostname(InitConfigFileParser::Context & ctx, const char * data){
 /**
  * Connection rule: Fix port number (using a port number adder)
  */
-bool
+static bool
 fixPortNumber(InitConfigFileParser::Context & ctx, const char * data){
 
   Uint32 id1= 0, id2= 0;
@@ -2681,7 +2692,7 @@ fixPortNumber(InitConfigFileParser::Context & ctx, const char * data){
 /**
  * DB Node rule: Check various constraints
  */
-bool
+static bool
 checkDbConstraints(InitConfigFileParser::Context & ctx, const char *){
 
   Uint32 t1 = 0, t2 = 0;
@@ -2714,7 +2725,7 @@ checkDbConstraints(InitConfigFileParser::Context & ctx, const char *){
 /**
  * Connection rule: Check varius constraints
  */
-bool
+static bool
 checkConnectionConstraints(InitConfigFileParser::Context & ctx, const char *){
 
   Uint32 id1 = 0, id2 = 0;
@@ -2770,6 +2781,22 @@ checkConnectionConstraints(InitConfigFileParser::Context & ctx, const char *){
 		    ctx.fname, ctx.m_sectionLineno);
     return false;
   }
+
+  return true;
+}
+
+static bool
+checkTCPConstraints(InitConfigFileParser::Context & ctx, const char * data){
+  
+  const char * host;
+  struct in_addr addr;
+  if(ctx.m_currentSection->get(data, &host) && strlen(host) && 
+     Ndb_getInAddr(&addr, host)){
+    ctx.reportError("Unable to lookup/illegal hostname %s"
+		    " - [%s] starting at line: %d",
+		    host, ctx.fname, ctx.m_sectionLineno);
+    return false;
+  }
   return true;
 }
 
@@ -2813,15 +2840,15 @@ transform(InitConfigFileParser::Context & ctx,
     return false;
   }
 
-  if(newType == ConfigInfo::INT){
+  if(newType == ConfigInfo::INT || newType == ConfigInfo::BOOL){
     require(dst.put(newName, (Uint32)newVal));
-  } else {
+  } else if(newType == ConfigInfo::INT64) {
     require(dst.put64(newName, newVal));    
   }
   return true;
 }
 
-bool
+static bool
 fixDepricated(InitConfigFileParser::Context & ctx, const char * data){
   const char * name;
   /**
@@ -2881,7 +2908,7 @@ fixDepricated(InitConfigFileParser::Context & ctx, const char * data){
   return true;
 }
 
-bool
+static bool
 saveInConfigValues(InitConfigFileParser::Context & ctx, const char * data){
   const Properties * sec;
   if(!ctx.m_currentInfo->get(ctx.fname, &sec)){
@@ -2946,13 +2973,14 @@ saveInConfigValues(InitConfigFileParser::Context & ctx, const char * data){
       default:
 	abort();
       }
+      require(ok);
     }
     ctx.m_configValues.closeSection();
   } while(0);
   return true;
 }
 
-bool
+static bool
 add_node_connections(Vector<ConfigInfo::ConfigRuleSection>&sections, 
 		   struct InitConfigFileParser::Context &ctx, 
 		   const char * rule_data)
@@ -3039,7 +3067,7 @@ add_node_connections(Vector<ConfigInfo::ConfigRuleSection>&sections,
 }
 
 
-bool add_server_ports(Vector<ConfigInfo::ConfigRuleSection>&sections, 
+static bool add_server_ports(Vector<ConfigInfo::ConfigRuleSection>&sections, 
 		      struct InitConfigFileParser::Context &ctx, 
 		      const char * rule_data)
 {
@@ -3078,7 +3106,7 @@ bool add_server_ports(Vector<ConfigInfo::ConfigRuleSection>&sections,
   return true;
 }
 
-bool
+static bool
 check_node_vs_replicas(Vector<ConfigInfo::ConfigRuleSection>&sections, 
 		       struct InitConfigFileParser::Context &ctx, 
 		       const char * rule_data)

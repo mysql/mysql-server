@@ -729,6 +729,10 @@ JOIN::optimize()
 		     (select_lex->ftfunc_list->elements ?
 		      SELECT_NO_JOIN_CACHE : 0));
 
+  /* Perform FULLTEXT search before all regular searches */
+  if (!(select_options & SELECT_DESCRIBE))
+    init_ftfuncs(thd, select_lex, test(order));
+
   /*
     is this simple IN subquery?
   */
@@ -784,7 +788,7 @@ JOIN::optimize()
 	join_tab->info= "Using index; Using where";
       else
 	join_tab->info= "Using index";
- 
+
       DBUG_RETURN(unit->item->
 		  change_engine(new subselect_indexsubquery_engine(thd,
 								   join_tab,
@@ -849,8 +853,6 @@ JOIN::optimize()
   }
   having= 0;
 
-  /* Perform FULLTEXT search before all regular searches */
-  init_ftfuncs(thd, select_lex, test(order));
   /* Create a tmp table if distinct or if the sort is too complicated */
   if (need_tmp)
   {
@@ -858,7 +860,7 @@ JOIN::optimize()
     thd->proc_info="Creating tmp table";
 
     init_items_ref_array();
-    
+
     tmp_table_param.hidden_field_count= (all_fields.elements -
 					 fields_list.elements);
     if (!(exec_tmp_table1 =
@@ -7992,13 +7994,18 @@ find_order_in_list(THD *thd, Item **ref_pointer_array,
     return 0;
   }
   uint counter;
-  Item **item= find_item_in_list(itemptr, fields, &counter, IGNORE_ERRORS);
-  if (item)
+  Item **item= find_item_in_list(itemptr, fields, &counter,
+                                 REPORT_EXCEPT_NOT_FOUND);
+  if (!item)
+    return 1;
+
+  if (item != not_found_item)
   {
     order->item= ref_pointer_array + counter;
     order->in_field_list=1;
     return 0;
   }
+
   order->in_field_list=0;
   Item *it= *order->item;
   /*

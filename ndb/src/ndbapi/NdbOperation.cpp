@@ -14,20 +14,9 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-
-/*****************************************************************************
- * Name:          NdbOperation.C
- * Include:
- * Link:
- * Author:        UABMNST Mona Natterkvist UAB/B/SD                         
- * Date:          970829
- * Version:       0.1
- * Description:   Interface between TIS and NDB
- * Documentation:
- * Adjust:  971022  UABMNST   First version.
- ****************************************************************************/
-#include "NdbConnection.hpp"
-#include "NdbOperation.hpp"
+#include <ndb_global.h>
+#include <NdbConnection.hpp>
+#include <NdbOperation.hpp>
 #include "NdbApiSignal.hpp"
 #include "NdbRecAttr.hpp"
 #include "NdbUtil.hpp"
