@@ -652,3 +652,5 @@ ulong fix_sql_mode(ulong sql_mode);
 
 extern sys_var_str sys_charset_system;
 CHARSET_INFO *get_old_charset_by_name(const char *old_name);
+
+extern sys_var_thd_bool sys_old_passwords;

@@ -268,3 +268,4 @@
 "Can't revoke all privileges, grant for one or more of the requested users"
 "Illegal mix of collations (%s,%s), (%s,%s), (%s,%s) for operation '%s'",
 "Illegal mix of collations for operation '%s'",
+"Сервер запущен в режиме --secure-auth (безопасной авторизации), но для пользователя '%s@%s' пароль сохранён в старом формате; необходимо обновить формат пароля"
