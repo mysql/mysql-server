@@ -447,6 +447,7 @@ int write_record(TABLE *table,COPY_INFO *info)
 err:
   if (key)
     my_afree(key);
+  info->errorno= error;
   table->file->print_error(error,MYF(0));
   return 1;
 }

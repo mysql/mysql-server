@@ -132,7 +132,7 @@ int mysql_union(THD *thd, LEX *lex,select_result *result)
     goto exit;
   }
   union_result->save_time_stamp=!describe;
-
+  union_result->tmp_table_param=&tmp_table_param;
   for (sl= &lex->select_lex; sl; sl=sl->next)
   {
     lex->select=sl;
@@ -253,7 +253,12 @@ bool select_union::send_data(List<Item> &values)
     return 0;
   }
   fill_record(table->field,values);
-  return write_record(table,&info) ? 1 : 0;
+  if ((write_record(table,&info)))
+  {
+    if (create_myisam_from_heap(table, tmp_table_param, info.errorno, 0))
+      return 1;
+  }
+  return 0;
 }
 
 bool select_union::send_eof()
