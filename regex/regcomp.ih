@@ -16,7 +16,7 @@ static void p_b_cclass(register struct parse *p, register cset *cs);
 static void p_b_eclass(register struct parse *p, register cset *cs);
 static char p_b_symbol(register struct parse *p);
 static char p_b_coll_elem(register struct parse *p, int endc);
-static char othercase(int ch);
+static char othercase(CHARSET_INFO *charset,int ch);
 static void bothcases(register struct parse *p, int ch);
 static void ordinary(register struct parse *p, register int ch);
 static void nonnewline(register struct parse *p);

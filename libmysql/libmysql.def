@@ -1,6 +1,6 @@
 LIBRARY		LIBMYSQL
-DESCRIPTION	'MySQL 4.0 Client Library'
-VERSION		5.0
+DESCRIPTION	'MySQL 4.1 Client Library'
+VERSION		6.0
 EXPORTS
 	mysql_affected_rows
 	mysql_close
@@ -59,7 +59,6 @@ EXPORTS
 	list_add
 	list_delete
 	max_allowed_packet
-	my_casecmp
 	my_init
 	my_end
 	my_strdup
@@ -101,8 +100,8 @@ EXPORTS
 	mysql_rpl_probe
 	mysql_set_master
 	mysql_add_slave
-
-	
+	mysql_warning_count
+	mysql_warnings
 	
 	
 	

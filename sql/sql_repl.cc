@@ -283,11 +283,11 @@ binlog purge"; break;
 
   if (errmsg)
   {
-    send_error(&thd->net, 0, errmsg);
+    send_error(thd, 0, errmsg);
     return 1;
   }
   else
-    send_ok(&thd->net);
+    send_ok(thd);
 
   return 0;
 }
@@ -372,7 +372,7 @@ impossible position";
     We need to start a packet with something other than 255
     to distiquish it from error
   */
-  packet->set("\0", 1);
+  packet->set("\0", 1, system_charset_info);
 
   // if we are at the start of the log
   if (pos == BIN_LOG_HEADER_SIZE)
@@ -383,7 +383,7 @@ impossible position";
       my_errno= ER_MASTER_FATAL_ERROR_READING_BINLOG;
       goto err;
     }
-    packet->set("\0", 1);
+    packet->set("\0", 1, system_charset_info);
   }
 
   while (!net->error && net->vio != 0 && !thd->killed)
@@ -418,7 +418,7 @@ impossible position";
 	  goto err;
 	}
       }
-      packet->set("\0", 1);
+      packet->set("\0", 1, system_charset_info);
     }
     /*
       TODO: now that we are logging the offset, check to make sure
@@ -538,7 +538,7 @@ Increase max_allowed_packet on master";
 	      goto err;
 	    }
 	  }
-	  packet->set("\0", 1);
+	  packet->set("\0", 1, system_charset_info);
 	  /*
 	    No need to net_flush because we will get to flush later when
 	    we hit EOF pretty quick
@@ -593,7 +593,7 @@ Increase max_allowed_packet on master";
   end_io_cache(&log);
   (void)my_close(file, MYF(MY_WME));
 
-  send_eof(&thd->net);
+  send_eof(thd);
   thd->proc_info = "waiting to finalize termination";
   pthread_mutex_lock(&LOCK_thread_count);
   thd->current_linfo = 0;
@@ -615,15 +615,15 @@ Increase max_allowed_packet on master";
   pthread_mutex_unlock(&LOCK_thread_count);
   if (file >= 0)
     (void) my_close(file, MYF(MY_WME));
-  send_error(&thd->net, my_errno, errmsg);
+  send_error(thd, my_errno, errmsg);
   DBUG_VOID_RETURN;
 }
 
 int start_slave(THD* thd , MASTER_INFO* mi,  bool net_report)
 {
   int slave_errno = 0;
-  if (!thd) thd = current_thd;
-  NET* net = &thd->net;
+  if (!thd)
+    thd = current_thd;
   int thread_mask;
   DBUG_ENTER("start_slave");
   
@@ -654,20 +654,21 @@ int start_slave(THD* thd , MASTER_INFO* mi,  bool net_report)
   if (slave_errno)
   {
     if (net_report)
-      send_error(net, slave_errno);
+      send_error(thd, slave_errno);
     DBUG_RETURN(1);
   }
   else if (net_report)
-    send_ok(net);
+    send_ok(thd);
 
   DBUG_RETURN(0);
 }
 
+
 int stop_slave(THD* thd, MASTER_INFO* mi, bool net_report )
 {
   int slave_errno = 0;
-  if (!thd) thd = current_thd;
-  NET* net = &thd->net;
+  if (!thd)
+    thd = current_thd;
 
   if (check_access(thd, SUPER_ACL, any_db))
     return 1;
@@ -686,11 +687,11 @@ int stop_slave(THD* thd, MASTER_INFO* mi, bool net_report )
   if (slave_errno)
   {
     if (net_report)
-      send_error(net, slave_errno);
+      send_error(thd, slave_errno);
     return 1;
   }
   else if (net_report)
-    send_ok(net);
+    send_ok(thd);
 
   return 0;
 }
@@ -779,7 +780,7 @@ int change_master(THD* thd, MASTER_INFO* mi)
 				     restart_thread_mask,
 				     1 /*skip lock*/)))
   {
-    send_error(&thd->net,error);
+    send_error(thd,error);
     unlock_slave_threads(mi);
     DBUG_RETURN(1);
   }
@@ -788,7 +789,7 @@ int change_master(THD* thd, MASTER_INFO* mi)
   // TODO: see if needs re-write
   if (init_master_info(mi, master_info_file, relay_log_info_file, 0))
   {
-    send_error(&thd->net, 0, "Could not initialize master info");
+    send_error(thd, 0, "Could not initialize master info");
     unlock_slave_threads(mi);
     DBUG_RETURN(1);
   }
@@ -850,7 +851,7 @@ int change_master(THD* thd, MASTER_INFO* mi)
 			 0 /* not only reset, but also reinit */,
 			 &errmsg))
     {
-      net_printf(&thd->net, 0, "Failed purging old relay logs: %s",errmsg);
+      net_printf(thd, 0, "Failed purging old relay logs: %s",errmsg);
       DBUG_RETURN(1);
     }
   }
@@ -864,7 +865,7 @@ int change_master(THD* thd, MASTER_INFO* mi)
 			   0 /*no data lock*/,
 			   &msg))
     {
-      net_printf(&thd->net,0,"Failed initializing relay log position: %s",msg);
+      net_printf(thd,0,"Failed initializing relay log position: %s",msg);
       unlock_slave_threads(mi);
       DBUG_RETURN(1);
     }
@@ -890,9 +891,9 @@ int change_master(THD* thd, MASTER_INFO* mi)
   unlock_slave_threads(mi);
   thd->proc_info = 0;
   if (error)
-    send_error(&thd->net,error);
+    send_error(thd,error);
   else
-    send_ok(&thd->net);
+    send_ok(thd);
   DBUG_RETURN(0);
 }
 
@@ -1021,7 +1022,7 @@ err:
     DBUG_RETURN(-1);
   }
 
-  send_eof(&thd->net);
+  send_eof(thd);
   DBUG_RETURN(0);
 }
 
@@ -1052,7 +1053,7 @@ int show_binlog_info(THD* thd)
     if (my_net_write(&thd->net, (char*)thd->packet.ptr(), packet->length()))
       DBUG_RETURN(-1);
   }
-  send_eof(&thd->net);
+  send_eof(thd);
   DBUG_RETURN(0);
 }
 
@@ -1105,11 +1106,11 @@ int show_binlogs(THD* thd)
       goto err;
   }
   mysql_bin_log.unlock_index();
-  send_eof(net);
+  send_eof(thd);
   return 0;
 
 err_with_msg:
-  send_error(net, 0, errmsg);
+  send_error(thd, ER_UNKNOWN_ERROR, errmsg);
 err:
   mysql_bin_log.unlock_index();
   return 1;

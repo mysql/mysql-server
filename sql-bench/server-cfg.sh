@@ -115,7 +115,6 @@ sub new
   $self->{'data_source'}	= "DBI:mysql:database=$database;host=$host";
   $self->{'data_source'} .= ";mysql_socket=$socket" if($socket);
   $self->{'limits'}		= \%limits;
-  $self->{'smds'}		= \%smds;
   $self->{'blob'}		= "blob";
   $self->{'text'}		= "text";
   $self->{'double_quotes'}	= 1; # Can handle:  'Walker''s'
@@ -177,7 +176,6 @@ sub new
   if (defined($main::opt_create_options) &&
       $main::opt_create_options =~ /type=innodb/i)
   {
-    $limits{'max_text_size'}	= 8000; # Limit in Innobase
     $self->{'transactions'}	= 1;	# Transactions enabled
   }
   if (defined($main::opt_create_options) &&

@@ -40,13 +40,15 @@ typedef struct st_hash {
   DYNAMIC_ARRAY array;				/* Place for hash_keys */
   hash_get_key get_key;
   void (*free)(void *);
-  uint (*calc_hashnr)(const byte *key,uint length);
+  uint (*calc_hashnr)(CHARSET_INFO *cs, const byte *key,uint length);
+  CHARSET_INFO *charset;
 } HASH;
 
-#define hash_init(A,B,C,D,E,F,G) _hash_init(A,B,C,D,E,F,G CALLER_INFO)
-my_bool _hash_init(HASH *hash,uint default_array_elements, uint key_offset,
-		  uint key_length, hash_get_key get_key,
-		  void (*free_element)(void*), uint flags CALLER_INFO_PROTO);
+#define hash_init(A,B,C,D,E,F,G,H) _hash_init(A,B,C,D,E,F,G, H CALLER_INFO)
+my_bool _hash_init(HASH *hash, CHARSET_INFO *charset,
+		   uint default_array_elements, uint key_offset,
+		   uint key_length, hash_get_key get_key,
+		   void (*free_element)(void*), uint flags CALLER_INFO_PROTO);
 void hash_free(HASH *tree);
 byte *hash_element(HASH *hash,uint idx);
 gptr hash_search(HASH *info,const byte *key,uint length);

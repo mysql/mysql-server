@@ -240,6 +240,8 @@ SHOW_COMP_OPTION have_query_cache=SHOW_OPTION_YES;
 SHOW_COMP_OPTION have_query_cache=SHOW_OPTION_NO;
 #endif
 
+const char *show_comp_option_name[]= {"YES", "NO", "DISABLED"};
+
 bool opt_large_files= sizeof(my_off_t) > 4;
 
 /*
@@ -393,7 +395,8 @@ const char *myisam_recover_options_str="OFF";
 const char *sql_mode_str="OFF";
 ulong rpl_recovery_rank=0;
 
-my_string mysql_unix_port=NULL, opt_mysql_tmpdir=NULL, mysql_tmpdir=NULL;
+my_string mysql_unix_port=NULL, opt_mysql_tmpdir=NULL;
+MY_TMPDIR mysql_tmpdir_list;
 ulong my_bind_addr;			/* the address we bind to */
 char *my_bind_addr_str;
 DATE_FORMAT dayord;
@@ -413,15 +416,14 @@ my_bool use_temp_pool=0;
 
 pthread_key(MEM_ROOT*,THR_MALLOC);
 pthread_key(THD*, THR_THD);
-pthread_key(NET*, THR_NET);
 pthread_mutex_t LOCK_mysql_create_db, LOCK_Acl, LOCK_open, LOCK_thread_count,
-		LOCK_mapped_file, LOCK_status, LOCK_grant,
+		LOCK_mapped_file, LOCK_status,
 		LOCK_error_log,
 		LOCK_delayed_insert, LOCK_delayed_status, LOCK_delayed_create,
 		LOCK_crypt, LOCK_bytes_sent, LOCK_bytes_received,
 	        LOCK_global_system_variables,
 		LOCK_user_conn, LOCK_slave_list, LOCK_active_mi;
-
+rw_lock_t	LOCK_grant;
 pthread_cond_t COND_refresh,COND_thread_count, COND_slave_stopped,
 	       COND_slave_start;
 pthread_cond_t COND_thread_cache,COND_flush_thread_cache;
@@ -851,7 +853,7 @@ void clean_up(bool print_message)
   if (defaults_argv)
     free_defaults(defaults_argv);
   my_free(charsets_list, MYF(MY_ALLOW_ZERO_PTR));
-  my_free(mysql_tmpdir,MYF(MY_ALLOW_ZERO_PTR));
+  free_tmpdir(&mysql_tmpdir_list);
   my_free(slave_load_tmpdir,MYF(MY_ALLOW_ZERO_PTR));
   x_free(opt_bin_logname);
   x_free(opt_relay_logname);
@@ -939,7 +941,7 @@ static void set_user(const char *user)
   {
     // allow a numeric uid to be used
     const char *pos;
-    for (pos=user; isdigit(*pos); pos++) ;
+    for (pos=user; my_isdigit(system_charset_info,*pos); pos++) ;
     if (*pos)					// Not numeric id
     {
       fprintf(stderr,"Fatal error: Can't change to run as user '%s' ;  Please check that the user exists!\n",user);
@@ -1042,7 +1044,7 @@ static void server_init(void)
   if (Service.IsNT() && mysql_unix_port[0] && !opt_bootstrap &&
       opt_enable_named_pipe)
   {
-    sprintf( szPipeName, "\\\\.\\pipe\\%s", mysql_unix_port );
+    sprintf(szPipeName, "\\\\.\\pipe\\%s", mysql_unix_port );
     ZeroMemory( &saPipeSecurity, sizeof(saPipeSecurity) );
     ZeroMemory( &sdPipeDescriptor, sizeof(sdPipeDescriptor) );
     if ( !InitializeSecurityDescriptor(&sdPipeDescriptor,
@@ -1127,12 +1129,12 @@ static void server_init(void)
 
 void yyerror(const char *s)
 {
-  NET *net=my_pthread_getspecific_ptr(NET*,THR_NET);
-  char *yytext=(char*) current_lex->tok_start;
+  THD *thd=current_thd;
+  char *yytext=(char*) thd->lex.tok_start;
   if (!strcmp(s,"parse error"))
     s=ER(ER_SYNTAX_ERROR);
-  net_printf(net,ER_PARSE_ERROR, s, yytext ? (char*) yytext : "",
-	     current_lex->yylineno);
+  net_printf(thd,ER_PARSE_ERROR, s, yytext ? (char*) yytext : "",
+	     thd->lex.yylineno);
 }
 
 
@@ -1148,7 +1150,7 @@ void close_connection(NET *net,uint errcode,bool lock)
   if ((vio=net->vio) != 0)
   {
     if (errcode)
-      send_error(net,errcode,ER(errcode));	/* purecov: inspected */
+      net_send_error(net,errcode,ER(errcode));	/* purecov: inspected */
     vio_close(vio);			/* vio is freed in delete thd */
   }
   if (lock)
@@ -1541,8 +1543,8 @@ static void *signal_hand(void *arg __attribute__((unused)))
     if ((pidFile = my_create(pidfile_name,0664, O_WRONLY, MYF(MY_WME))) >= 0)
     {
       char buff[21];
-      sprintf(buff,"%lu",(ulong) getpid());
-      (void) my_write(pidFile, buff,strlen(buff),MYF(MY_WME));
+      ulong length= my_sprintf(buff, (buff,"%lu",(ulong) getpid()));
+      (void) my_write(pidFile, buff, length, MYF(MY_WME));
       (void) my_close(pidFile,MYF(0));
     }
   }
@@ -1640,11 +1642,13 @@ static void *signal_hand(void *arg __attribute__((unused)))
 static int my_message_sql(uint error, const char *str,
 			  myf MyFlags __attribute__((unused)))
 {
-  NET *net;
+  THD *thd;
   DBUG_ENTER("my_message_sql");
   DBUG_PRINT("error",("Message: '%s'",str));
-  if ((net=my_pthread_getspecific_ptr(NET*,THR_NET)))
+  if ((thd=current_thd))
   {
+    NET *net= &thd->net;
+    net->report_error= 1;
     if (!net->last_error[0])			// Return only first message
     {
       strmake(net->last_error,str,sizeof(net->last_error)-1);
@@ -1831,17 +1835,6 @@ int main(int argc, char **argv)
   load_defaults(MYSQL_CONFIG_NAME,load_default_groups,&argc,&argv);
   defaults_argv=argv;
 
-  /* Get default temporary directory */
-  opt_mysql_tmpdir=getenv("TMPDIR");	/* Use this if possible */
-#if defined( __WIN__) || defined(OS2)
-  if (!opt_mysql_tmpdir)
-    opt_mysql_tmpdir=getenv("TEMP");
-  if (!opt_mysql_tmpdir)
-    opt_mysql_tmpdir=getenv("TMP");
-#endif
-  if (!opt_mysql_tmpdir || !opt_mysql_tmpdir[0])
-    opt_mysql_tmpdir=(char*) P_tmpdir;		/* purecov: inspected */
-
   set_options();
   get_options(argc,argv);
   if (opt_log || opt_update_log || opt_slow_log || opt_bin_log)
@@ -1853,7 +1846,6 @@ int main(int argc, char **argv)
 
   (void) pthread_mutex_init(&LOCK_mysql_create_db,MY_MUTEX_INIT_SLOW);
   (void) pthread_mutex_init(&LOCK_Acl,MY_MUTEX_INIT_SLOW);
-  (void) pthread_mutex_init(&LOCK_grant,MY_MUTEX_INIT_FAST);
   (void) pthread_mutex_init(&LOCK_open,MY_MUTEX_INIT_FAST);
   (void) pthread_mutex_init(&LOCK_thread_count,MY_MUTEX_INIT_FAST);
   (void) pthread_mutex_init(&LOCK_mapped_file,MY_MUTEX_INIT_SLOW);
@@ -1871,6 +1863,7 @@ int main(int argc, char **argv)
   (void) pthread_mutex_init(&LOCK_rpl_status, MY_MUTEX_INIT_FAST);
   (void) pthread_mutex_init(&LOCK_active_mi, MY_MUTEX_INIT_FAST);
   (void) pthread_mutex_init(&LOCK_global_system_variables, MY_MUTEX_INIT_FAST);
+  (void) my_rwlock_init(&LOCK_grant, NULL);
   (void) pthread_cond_init(&COND_thread_count,NULL);
   (void) pthread_cond_init(&COND_refresh,NULL);
   (void) pthread_cond_init(&COND_thread_cache,NULL);
@@ -1881,7 +1874,7 @@ int main(int argc, char **argv)
 
   if (set_default_charset_by_name(sys_charset.value, MYF(MY_WME)))
     exit(1);
-  charsets_list = list_charsets(MYF(MY_COMPILED_SETS|MY_CONFIG_SETS));
+  charsets_list= list_charsets(MYF(MY_CS_COMPILED | MY_CS_CONFIG));
 
 #ifdef HAVE_OPENSSL
   if (opt_use_ssl)
@@ -2025,7 +2018,7 @@ int main(int argc, char **argv)
     After this we can't quit by a simple unireg_abort
   */
   error_handler_hook = my_message_sql;
-  if (pthread_key_create(&THR_THD,NULL) || pthread_key_create(&THR_NET,NULL) ||
+  if (pthread_key_create(&THR_THD,NULL) ||
       pthread_key_create(&THR_MALLOC,NULL))
   {
     sql_print_error("Can't create thread-keys");
@@ -2470,7 +2463,7 @@ static void create_new_thread(THD *thd)
 	thread_count--;
 	thd->killed=1;				// Safety
 	(void) pthread_mutex_unlock(&LOCK_thread_count);
-	net_printf(net,ER_CANT_CREATE_THREAD,error);
+	net_printf(thd,ER_CANT_CREATE_THREAD,error);
 	(void) pthread_mutex_lock(&LOCK_thread_count);
 	close_connection(net,0,0);
 	delete thd;
@@ -2875,6 +2868,7 @@ enum options {
   OPT_MAX_JOIN_SIZE, OPT_MAX_SORT_LENGTH,
   OPT_MAX_TMP_TABLES, OPT_MAX_USER_CONNECTIONS,
   OPT_MAX_WRITE_LOCK_COUNT, OPT_BULK_INSERT_BUFFER_SIZE,
+  OPT_MAX_ERROR_COUNT, OPT_MAX_PREP_STMT,
   OPT_MYISAM_BLOCK_SIZE, OPT_MYISAM_MAX_EXTRA_SORT_FILE_SIZE,
   OPT_MYISAM_MAX_SORT_FILE_SIZE, OPT_MYISAM_SORT_BUFFER_SIZE,
   OPT_NET_BUFFER_LENGTH, OPT_NET_RETRY_COUNT,
@@ -2937,13 +2931,13 @@ struct my_option my_long_options[] =
 #endif /* HAVE_BERKELEY_DB */
   {"skip-bdb", OPT_BDB_SKIP, "Don't use berkeley db (will save memory)",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
-  {"big-tables", OPT_BIG_TABLES, 
+  {"big-tables", OPT_BIG_TABLES,
    "Allow big result sets by saving all temporary sets on file (Solves most 'table full' errors)",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"binlog-do-db", OPT_BINLOG_DO_DB,
    "Tells the master it should log updates for the specified database, and exclude all others not explicitly mentioned.",
    0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-  {"binlog-ignore-db", OPT_BINLOG_IGNORE_DB, 
+  {"binlog-ignore-db", OPT_BINLOG_IGNORE_DB,
    "Tells the master that updates to the given database should not be logged tothe binary log",
    0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"bind-address", OPT_BIND_ADDRESS, "IP address to bind to",
@@ -3312,14 +3306,23 @@ struct my_option my_long_options[] =
 #ifdef HAVE_OPENSSL
 #include "sslopt-longopts.h"
 #endif
-  {"temp-pool", OPT_TEMP_POOL, 
+  {"temp-pool", OPT_TEMP_POOL,
    "Using this option will cause most temporary files created to use a small set of names, rather than a unique name for each new file.",
    (gptr*) &use_temp_pool, (gptr*) &use_temp_pool, 0, GET_BOOL, NO_ARG, 1,
    0, 0, 0, 0, 0},
-  {"tmpdir", 't', "Path for temporary files", (gptr*) &opt_mysql_tmpdir,
+  {"tmpdir", 't',
+   "Path for temporary files. Several paths may be specified, separated by a "
+#if defined( __WIN__) || defined(OS2)
+   "semicolon (;)"
+#else
+   "colon (:)"
+#endif
+   ", in this case they are used in a round-robin fashion.",
+   (gptr*) &opt_mysql_tmpdir,
    (gptr*) &opt_mysql_tmpdir, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"transaction-isolation", OPT_TX_ISOLATION,
    "Default transaction isolation level", 0, 0, 0, GET_STR, REQUIRED_ARG, 0,
+   0, 0, 0, 0, 0},
    0, 0, 0, 0, 0},
   {"external-locking", OPT_USE_LOCKING, "Use system (external) locking.  With this option enabled you can run myisamchk to test (not repair) tables while the MySQL server is running",
    (gptr*) &opt_external_locking, (gptr*) &opt_external_locking,
@@ -3494,6 +3497,11 @@ struct my_option my_long_options[] =
    "Don't start more than this number of threads to handle INSERT DELAYED statements.",
    (gptr*) &max_insert_delayed_threads, (gptr*) &max_insert_delayed_threads,
    0, GET_ULONG, REQUIRED_ARG, 20, 1, 16384, 0, 1, 0},
+  {"max_error_count", OPT_MAX_ERROR_COUNT,
+   "Max number of errors/warnings to store for a statement",
+   (gptr*) &global_system_variables.max_error_count,
+   (gptr*) &max_system_variables.max_error_count,
+   0, GET_ULONG, REQUIRED_ARG, DEFAULT_ERROR_COUNT, 1, 65535, 0, 1, 0},
   {"max_heap_table_size", OPT_MAX_HEP_TABLE_SIZE,
    "Don't allow creation of heap tables bigger than this.",
    (gptr*) &global_system_variables.max_heap_table_size,
@@ -3504,6 +3512,11 @@ struct my_option my_long_options[] =
    (gptr*) &global_system_variables.max_join_size,
    (gptr*) &max_system_variables.max_join_size, 0, GET_ULONG, REQUIRED_ARG,
    ~0L, 1, ~0L, 0, 1, 0},
+  {"max_prepared_statements", OPT_MAX_PREP_STMT,
+   "Max number of prepared_statements for a thread",
+   (gptr*) &global_system_variables.max_prep_stmt_count,
+   (gptr*) &max_system_variables.max_prep_stmt_count, 0, GET_ULONG,
+   REQUIRED_ARG, DEFAULT_PREP_STMT_COUNT, 0, ~0L, 0, 1, 0},
   {"max_sort_length", OPT_MAX_SORT_LENGTH,
    "The number of bytes to use when sorting BLOB or TEXT values (only the first max_sort_length bytes of each value are used; the rest are ignored).",
    (gptr*) &global_system_variables.max_sort_length,
@@ -4025,7 +4038,7 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
       exit(1);
     }
     val= p--;
-    while (isspace(*p) && p > argument)
+    while (my_isspace(system_charset_info, *p) && p > argument)
       *p-- = 0;
     if (p == argument)
     {
@@ -4035,7 +4048,7 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     }
     *val= 0;
     val+= 2;
-    while (*val && isspace(*val))
+    while (*val && my_isspace(system_charset_info, *val))
       *val++;
     if (!*val)
     {
@@ -4177,7 +4190,7 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     have_symlink=SHOW_OPTION_DISABLED;
     break;
   case (int) OPT_BIND_ADDRESS:
-    if (argument && isdigit(argument[0]))
+    if (argument && my_isdigit(system_charset_info, argument[0]))
     {
       my_bind_addr = (ulong) inet_addr(argument);
     }
@@ -4482,9 +4495,7 @@ static void fix_paths(void)
     charsets_dir=mysql_charsets_dir;
   }
 
-  char *end=convert_dirname(buff, opt_mysql_tmpdir, NullS);
-  if (!(mysql_tmpdir= my_memdup((byte*) buff,(uint) (end-buff)+1,
-				MYF(MY_FAE))))
+  if (init_tmpdir(&mysql_tmpdir_list, opt_mysql_tmpdir))
     exit(1);
   if (!slave_load_tmpdir)
   {
@@ -4585,7 +4596,8 @@ static ulong find_bit_type(const char *x, TYPELIB *bit_lib)
       j=pos;
       while (j != end)
       {
-	if (toupper(*i++) != toupper(*j++))
+	if (my_toupper(system_charset_info,*i++) != 
+            my_toupper(system_charset_info,*j++))
 	  goto skipp;
       }
       found_int=bit;

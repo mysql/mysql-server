@@ -20,47 +20,63 @@
 
 int heap_update(HP_INFO *info, const byte *old, const byte *heap_new)
 {
-  uint key;
+  HP_KEYDEF *keydef, *end, *p_lastinx;
   byte *pos;
-  HP_SHARE *share=info->s;
+  bool auto_key_changed= 0;
+  HP_SHARE *share= info->s;
   DBUG_ENTER("heap_update");
 
   test_active(info);
   pos=info->current_ptr;
 
-  if (info->opt_flag & READ_CHECK_USED && _hp_rectest(info,old))
+  if (info->opt_flag & READ_CHECK_USED && hp_rectest(info,old))
     DBUG_RETURN(my_errno);				/* Record changed */
   if (--(share->records) < share->blength >> 1) share->blength>>= 1;
   share->changed=1;
 
-  for (key=0 ; key < share->keys ; key++)
+  p_lastinx= share->keydef + info->lastinx;
+  for (keydef= share->keydef, end= keydef + share->keys; keydef < end; keydef++)
   {
-    if (_hp_rec_key_cmp(share->keydef+key,old,heap_new))
+    if (hp_rec_key_cmp(keydef, old, heap_new))
     {
-      if (_hp_delete_key(info,share->keydef+key,old,pos,key ==
-			 (uint) info->lastinx) ||
-	  _hp_write_key(share,share->keydef+key,heap_new,pos))
-	goto err;
+      if ((*keydef->delete_key)(info, keydef, old, pos, keydef == p_lastinx) ||
+          (*keydef->write_key)(info, keydef, heap_new, pos))
+        goto err;
+      if (share->auto_key == (uint) (keydef - share->keydef + 1))
+        auto_key_changed= 1;
     }
   }
 
   memcpy(pos,heap_new,(size_t) share->reclength);
   if (++(share->records) == share->blength) share->blength+= share->blength;
+  if (auto_key_changed)
+    heap_update_auto_increment(info, heap_new);
   DBUG_RETURN(0);
 
  err:
   if (my_errno == HA_ERR_FOUND_DUPP_KEY)
   {
-    info->errkey=key;
-    do
+    info->errkey = keydef - share->keydef;
+    if (keydef->algorithm == HA_KEY_ALG_BTREE)
     {
-      if (_hp_rec_key_cmp(share->keydef+key,old,heap_new))
+      /* we don't need to delete non-inserted key from rb-tree */
+      if ((*keydef->write_key)(info, keydef, old, pos))
       {
-	if (_hp_delete_key(info,share->keydef+key,heap_new,pos,0) ||
-	    _hp_write_key(share,share->keydef+key,old,pos))
+        if (++(share->records) == share->blength) share->blength+= share->blength;
+        DBUG_RETURN(my_errno);
+      }
+      keydef--;
+    }
+    while (keydef >= share->keydef)
+    {
+      if (hp_rec_key_cmp(keydef, old, heap_new))
+      {
+	if ((*keydef->delete_key)(info, keydef, heap_new, pos, 0) ||
+	    (*keydef->write_key)(info, keydef, old, pos))
 	  break;
       }
-    } while (key-- > 0);
+      keydef--;
+    }
   }
   if (++(share->records) == share->blength) share->blength+= share->blength;
   DBUG_RETURN(my_errno);

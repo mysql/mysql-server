@@ -16,6 +16,8 @@
 
 #include "myisamdef.h"
 
+#include "rt_index.h"
+
 	/*
 	   Read next row with the same key as previous read
 	   One may have done a write, update or delete of the previous row.
@@ -42,27 +44,55 @@ int mi_rnext(MI_INFO *info, byte *buf, int inx)
   changed=_mi_test_if_changed(info);
   if (!flag)
   {
-    error=_mi_search_first(info,info->s->keyinfo+inx,
-			   info->s->state.key_root[inx]);
+    switch(info->s->keyinfo[inx].key_alg){
+    case HA_KEY_ALG_RTREE:
+      error=rtree_get_first(info,inx,info->lastkey_length);
+      break;
+    case HA_KEY_ALG_BTREE:
+    default:
+      error=_mi_search_first(info,info->s->keyinfo+inx,
+    			   info->s->state.key_root[inx]);
+      break;
+    }
   }
-  else if (!changed)
-    error=_mi_search_next(info,info->s->keyinfo+inx,info->lastkey,
+  else
+  {
+    switch(info->s->keyinfo[inx].key_alg)
+    {
+      case HA_KEY_ALG_RTREE:
+      /* 
+         Note that rtree doesn't support that the table
+         may be changed since last call, so we do need
+         to skip rows inserted by other threads like in btree
+      */
+        error=rtree_get_next(info,inx,info->lastkey_length);
+        break;
+    
+      case HA_KEY_ALG_BTREE:
+      default:
+        if (!changed) 
+        {
+          error=_mi_search_next(info,info->s->keyinfo+inx,info->lastkey,
 			  info->lastkey_length,flag,
 			  info->s->state.key_root[inx]);
-  else
-    error=_mi_search(info,info->s->keyinfo+inx,info->lastkey,
+        }
+        else
+        {
+          error=_mi_search(info,info->s->keyinfo+inx,info->lastkey,
 		     USE_WHOLE_KEY,flag, info->s->state.key_root[inx]);
-
-  if (!error)
-  {
-    while (info->lastpos >= info->state->data_file_length)
-    {
-      /* Skip rows that are inserted by other threads since we got a lock */
-      if  ((error=_mi_search_next(info,info->s->keyinfo+inx,info->lastkey,
+        }
+        if (!error)
+        {
+          while (info->lastpos >= info->state->data_file_length)
+          {
+          /* Skip rows that are inserted by other threads since we got a lock */
+          if  ((error=_mi_search_next(info,info->s->keyinfo+inx,info->lastkey,
 				  info->lastkey_length,
 				  SEARCH_BIGGER,
 				  info->s->state.key_root[inx])))
-	break;
+	    break;
+          }
+        }
     }
   }
 

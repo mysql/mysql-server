@@ -31,7 +31,7 @@ int heap_panic(enum ha_panic_function flag)
     next_open=element->next;	/* Save if close */
     switch (flag) {
     case HA_PANIC_CLOSE:
-      _hp_close(info);
+      hp_close(info);
       break;
     default:
       break;
@@ -45,7 +45,7 @@ int heap_panic(enum ha_panic_function flag)
     case HA_PANIC_CLOSE:
     {
       if (!share->open_count)
-	_hp_free(share);
+	hp_free(share);
       break;
     }
     default:

@@ -113,7 +113,7 @@ char *argv[];
     exit(1);
 
   for (i=1,pos=word_end_chars ; i < 256 ; i++)
-    if (isspace(i))
+    if (my_isspace(system_charset_info,i))
       *pos++=i;
   *pos=0;
   if (!(replace=init_replace((char**) from.typelib.type_names,
