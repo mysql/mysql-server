@@ -528,8 +528,8 @@ and @code{dvips}.  The PDF version is produced with @code{pdftex}.
 @cindex Texinfo
 
 This manual is written and maintained by David Axmark, Michael (Monty)
-Widenius, Jeremy Cole, and Paul DuBois.  For other contributors,
-see @ref{Credits}.
+Widenius, Jeremy Cole, Arjen Lentz, and Paul DuBois. For other
+contributors, see @ref{Credits}.
 
 
 @node Manual conventions, History, Manual-info, MySQL and MySQL AB
@@ -16848,36 +16848,38 @@ SSL we need to explain some basics about SSL and X509. People who are already
 aware of it can skip this chapter.
 
 By default, MySQL uses unencrypted connections between client and server. This means
-that anyone on the way can listen and read all your data which moves there. Even
-more, some people can change content of data while it is moving between client and
-server. Sometime you may need to move really secret data over public networks and 
-such publicity is unacceptable. 
+that someone could watch all your traffic and look at the data being sent/received.
+Actually, they could even change the data while it is in transit between client
+and server. Sometimes you need to move really secret data over public networks and 
+in such a case using an unencrypted connection is unacceptable.
 
 SSL is a protocol which uses different encryption algorithms to ensure that data 
-which comes from public network can be trusted. It have mechanisms to detect any
+which comes from public network can be trusted. It has mechanisms to detect any
 change, loss or replay of data. SSL also incorpores algorithms to recognize and 
-verification of identity using X509 standard.
+provide identity verification using the X509 standard.
 
 @cindex What is encryption
-Encryption is the way to make any kind of data unreadable. Even more, today's 
-practice require many additional security elements from encryption algorithms.
+Encryption is the way to make any kind of data unreadable. In fact, today's 
+practice requires many additional security elements from encryption algorithms.
 They should resist many kind of known attacks like just messing with order 
 of encrypted messages or replaying data twice.
 
 @cindex What is X509/Certificate?
-X509 is standard which makes possible to identity someone in the Internet. Mostly
-it is used in e-commerce over the Internet. Shortly speaking there should be some
-company called "Certificate Authority" which assigns electronic certificates to
-everyone who needs. Certificates rely on asymmetric encryption algorithms which
-have two encryption keys - public and secret. Certificate owner can prove his
-identity showing certificate to other party. Certificate consists his owner public
-key. Any data encrypted with it can be decrypted only by secret key holder. 
+X509 is a standard that makes it possible to identify someone in the Internet.
+It is most commonly used in e-commerce applications. In basic terms, there should
+be some company called "Certificate Authority" which assigns electronic certificates
+to anyone who needs them. Certificates rely on asymmetric encryption algorithms
+which have two encryption keys - public and secret. A certificate owner can prove
+his identity by showing his certificate to other party. A certificate consists of
+his owner's public key. Any data encrypted with this public key can only be
+decrypted using the corresponding secret key, which is held by the owner of the
+certificate.
 
 @cindex Possible questions:
-Q: Why MySQL not uses encrypted connections by default?
+Q: Why doesn't MySQL use encrypted connections by default?
 A: Because it makes MySQL slower. Any kind of additional functionality requires 
 computer to do additional work and encrypting data is CPU-intensive operation which
-can overcome MySQL own work and consumed time. MySQL is tuned to be fast by default.
+require time and can delay MySQL main tasks. MySQL is tuned to be fast by default.
 
 Q: I need more information about SSL/X509/encrpytion/whatever
 A: Use your favourite internet search engine and search for keywords you are interested in.
@@ -16888,14 +16890,15 @@ A: Use your favourite internet search engine and search for keywords you are int
 @cindex SSL related options
 
 MySQL can check x509 certificate attributes additionally to most used username/password 
-cheme. All usual options are still required (username, password, IP address mask, database/table name).
+scheme. All the usual options are still required (username, password, IP address mask,
+database/table name).
 
 There are different possibilities to limit connections:
 
 @itemize @bullet
 @item
 Without any SSL/X509 options all kind of encrypted/unencrypted connections are allowed if
-  username and password are valid.
+username and password are valid.
 
 @item
 @code{REQUIRE SSL} option makes SSL encrypted connection must. Note that this requirement
@@ -16928,8 +16931,9 @@ GRANT ALL PRIVILEGES ON test.* TO root@@localhost IDENTIFIED BY "goodsecret" REQ
 @end example
 
 @item
-@code{REQUIRE SUBJECT subject} requires client to have valid x509 certificate with subject "subject" on it. If client have valid certificate but having different "subject" then connection is still
-not allowed.
+@code{REQUIRE SUBJECT subject} requires clients to have valid x509 certificate with
+subject "subject" on it. If client have valid certificate but having different
+"subject" then connection is still not allowed.
 
 Example:
 @example
