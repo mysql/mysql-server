@@ -313,7 +313,7 @@ int tree_delete(TREE *tree, void *key)
   if (remove_colour == BLACK)
     rb_delete_fixup(tree,parent);
   if (tree->free)
-    (*tree->free)(ELEMENT_KEY(tree,element));
+    (*tree->free)(ELEMENT_KEY(tree,element), free_free, tree->custom_arg);
   my_free((gptr) element,MYF(0));
   tree->elements_in_tree--;
   return 0;
