@@ -41,7 +41,8 @@ uint my_write(int Filedes, const byte *Buffer, uint Count, myf MyFlags)
       Count-=writenbytes;
     }
     my_errno=errno;
-    DBUG_PRINT("error",("Write only %d bytes",writenbytes));
+    DBUG_PRINT("error",("Write only %d bytes, error: %d",
+			writenbytes,my_errno));
 #ifndef NO_BACKGROUND
 #ifdef THREAD
     if (my_thread_var->abort)
@@ -56,8 +57,18 @@ uint my_write(int Filedes, const byte *Buffer, uint Count, myf MyFlags)
       VOID(sleep(MY_WAIT_FOR_USER_TO_FIX_PANIC));
       continue;
     }
-    if ((writenbytes == 0 && my_errno == EINTR) ||
-	(writenbytes > 0 && (uint) writenbytes != (uint) -1))
+    if (!writenbytes)
+    {
+      /* We may come here on an interrupt or if the file quote is exeeded */
+      if (my_errno == EINTR)
+	continue;
+      if (!errors++)				/* Retry once */
+      {
+	errno=EFBIG;				/* Assume this is the error */
+	continue;
+      }
+    }
+    else if ((uint) writenbytes != (uint) -1)
       continue;					/* Retry */
 #endif
     if (MyFlags & (MY_NABP | MY_FNABP))

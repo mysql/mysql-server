@@ -185,6 +185,22 @@ MI_INFO *mi_open(const char *name, int mode, uint open_flags)
 		HA_ERR_CRASHED_ON_REPAIR : HA_ERR_CRASHED_ON_USAGE);
       goto err;
     }
+
+    /* sanity check */
+    if (share->base.keystart > 65535 || share->base.rec_reflength > 8)
+    {
+      my_errno=HA_ERR_CRASHED;
+      goto err;
+    }
+
+    if (share->base.max_key_length > MI_MAX_KEY_BUFF || keys > MI_MAX_KEY ||
+	key_parts >= MI_MAX_KEY * MI_MAX_KEY_SEG)
+    {
+      DBUG_PRINT("error",("Wrong key info:  Max_key_length: %d  keys: %d  key_parts: %d", share->base.max_key_length, keys, key_parts));
+      my_errno=HA_ERR_UNSUPPORTED;
+      goto err;
+    }
+
     /* Correct max_file_length based on length of sizeof_t */
     max_data_file_length=
       (share->options & (HA_OPTION_PACK_RECORD | HA_OPTION_COMPRESS_RECORD)) ?
@@ -220,13 +236,6 @@ MI_INFO *mi_open(const char *name, int mode, uint open_flags)
     share->base.max_data_file_length=(my_off_t) max_data_file_length;
     share->base.max_key_file_length=(my_off_t) max_key_file_length;
 
-    if (share->base.max_key_length > MI_MAX_KEY_BUFF || keys > MI_MAX_KEY ||
-	key_parts >= MI_MAX_KEY * MI_MAX_KEY_SEG)
-    {
-      DBUG_PRINT("error",("Wrong key info:  Max_key_length: %d  keys: %d  key_parts: %d", share->base.max_key_length, keys, key_parts));
-      my_errno=HA_ERR_UNSUPPORTED;
-      goto err;
-    }
     if (share->options & HA_OPTION_COMPRESS_RECORD)
       share->base.max_key_length+=2;	/* For safety */
 

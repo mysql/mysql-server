@@ -44,8 +44,8 @@ int my_chsize(File fd, my_off_t newlength, myf MyFlags)
     my_off_t oldsize;
     char buff[IO_SIZE];
 
-    bzero(buff,IO_SIZE);
     oldsize = my_seek(fd, 0L, MY_SEEK_END, MYF(MY_WME+MY_FAE));
+    DBUG_PRINT("info",("old_size: %ld", (ulong) oldsize));
 
 #ifdef HAVE_FTRUNCATE
     if (oldsize > newlength)
@@ -64,9 +64,12 @@ int my_chsize(File fd, my_off_t newlength, myf MyFlags)
     if (oldsize > newlength)
     {				/* Fill diff with null */
       VOID(my_seek(fd, newlength, MY_SEEK_SET, MYF(MY_WME+MY_FAE)));
-      swap(long, newlength, oldsize);
+      swap(my_off_t, newlength, oldsize);
     }
 #endif
+    /* Full file with 0 until it's as big as requested */
+    bzero(buff,IO_SIZE);
+    my_seek(fd, old_length, MY_SEEK_SET, MYF(MY_WME+MY_FAE));
     while (newlength-oldsize > IO_SIZE)
     {
       if (my_write(fd,(byte*) buff,IO_SIZE,MYF(MY_NABP)))

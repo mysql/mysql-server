@@ -677,6 +677,7 @@ MySQL ODBC Support
 Using MySQL with Some Common Programs
 
 * Apache::                      Using @strong{MySQL} with Apache
+* Borland C++::                 
 
 Problems and Common Errors
 
@@ -18682,7 +18683,7 @@ TRUNCATE table_name
 Is in 3.23 and the same thing as @code{DELETE FROM table_name}. @xref{DELETE}.
 The differences are:
 
-@table @bullet
+@itemize @bullet
 @item
 Implemented as a drop and re-create of the table, which makes this
 much faster when deleting many rows.
@@ -18695,7 +18696,7 @@ Doesn't return the number of deleted rows.
 As long as the table definition file @file{table_name.frm} is
 valid, the table can be re-created this way, even if the data or index
 files have become corrupted.
-@end table
+@end itemize
 
 @findex SELECT
 @node SELECT, JOIN, TRUNCATE, Reference
@@ -32332,10 +32333,11 @@ likely it is that we can fix the problem!
 
 @menu
 * Apache::                      Using @strong{MySQL} with Apache
+* Borland C++::                 
 @end menu
 
 @cindex Apache
-@node Apache,  , Common programs, Common programs
+@node Apache, Borland C++, Common programs, Common programs
 @section Using MySQL with Apache
 
 The contrib section includes programs that let you authenticate your
@@ -32357,6 +32359,29 @@ In @strong{MySQL} you can do something like this:
 LOAD DATA INFILE '/local/access_log' INTO TABLE table_name
 FIELDS TERMINATED BY ',' OPTIONALLY ENCLOSED BY '"' ESCAPED BY '\\'
 @end example
+
+@cindex Borland C++ compiler
+@node Borland C++,  , Apache, Common programs
+@section Borland C++
+
+You can compile the @strong{MySQL} windows source with Borland C++ 5.02.
+(The windows source includes only projects for Microsoft VC++, for
+Borland C++ you have to do the project files yourself).
+
+One known problem with Borland C++ is that it uses a different structure
+alignment than VC++.  This means that you will run into problems if you
+try to use the default @code{libmysql.dll} libraries (that was compiled
+with VC++) with Borland C++. You can do one of the following to avoid
+this problem.
+
+@itemize @bullet
+@item
+You can use the static @strong{MySQL} libraries for Borland C++ that you
+can find on @uref{http://www.mysql.net/downloads/os-win32.html}.
+@item
+Only call @code{mysql_init()} with @code{NULL} as an argument, not a
+pre-allocated MYSQL struct.
+@end itemize
 
 @cindex problems, common errors
 @cindex errors, common
@@ -37108,7 +37133,7 @@ This will create a thread-safe client library @code{libmysqlclient_r}.
 connection.  You can let two threads share the same connection as long
 as you do the following:
 
-@table @bullet
+@itemize @bullet
 @item
 Two threads can't send a query to the @strong{MySQL} at the same time on
 the same connection.  In particular, you have to ensure that between a
@@ -37132,7 +37157,7 @@ threads may query the same connection.
 If you program with POSIX threads, you can use
 @code{pthread_mutex_lock()} and @code{pthread_mutex_unlock()} to
 establish and release a mutex lock.
-@end table
+@end itemize
 
 You may get some errors because of undefined symbols when linking your
 client with @code{mysqlclient_r}. In most cases this is because you haven't
