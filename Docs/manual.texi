@@ -3593,12 +3593,12 @@ Czech Republic [Masaryk University in Brno] @
 @uref{http://mysql.linux.cz/index.html, WWW}
 @uref{ftp://ftp.fi.muni.cz/pub/mysql/, FTP}
 
-@c @item
+@item
 @c Added: 990920
-@c Not ok 20000919; Old site (Matt)
 @c EMAIL: <radek@sopik.cz> (Radek Libovicky)
-@c @image{Flags/czech-republic} Czech Republic [www.sopik.cz] @
-@c @uref{http://www.mysql.cz/, WWW}
+@c @image{Flags/czech-republic}
+Czech Republic [www.sopik.cz] @
+@uref{http://www.mysql.cz/, WWW}
 
 @item
 @c Added: 000418
@@ -3692,12 +3692,12 @@ Greece [NTUA, Athens] @
 @uref{http://www.ntua.gr/mysql/, WWW}
 @uref{ftp://ftp.ntua.gr/pub/databases/mysql/, FTP}
 
-@c @item
-@c File not found 990730
+@item
 @c EMAIL: torlasz@xenia.sote.hu (Laszlo L. Tornoc)
-@c @image{Flags/hungary} Hungary [Xenia] @
-@c @uref{http://xenia.sote.hu/ftp/mirrors/www.mysql.com/, WWW}
-@c @uref{ftp://xenia.sote.hu/pub/mirrors/www.mysql.com/,FTP}
+@c @image{Flags/hungary}
+Hungary [Xenia] @
+@uref{http://mysql.sote.hu/, WWW}
+@uref{ftp://xenia.sote.hu/pub/mirrors/www.mysql.com/, FTP}
 
 @item
 @c EMAIL: mirrors@gm.is (Tomas Edwardsson)
@@ -3753,12 +3753,12 @@ Poland [Sunsite] @
 @c @uref{http://mysql.leirianet.pt, WWW}
 @c @uref{ftp://ftp.leirianet.pt/pub/mysql/,FTP}
 
-@c @item
-@c Not ok 20000919; Old site (Matt)
+@item
 @c EMAIL: kuzmin@dn.ru (Roma Kuzmin)
-@c @image{Flags/russia} Russia [DirectNet] @
-@c @uref{http://mysql.directnet.ru/, WWW}
-@c @uref{ftp://ftp.dn.ru/pub/MySQL/, FTP}
+@c @image{Flags/russia}
+Russia [DirectNet] @
+@uref{http://mysql.directnet.ru/, WWW}
+@uref{ftp://ftp.dn.ru/pub/MySQL/, FTP}
 
 @c @item
 @c down 990113
@@ -3987,6 +3987,13 @@ USA [LinuxWired/Scottsdale, AZ] @
 @c jpabuyer@vision.cl
 @c @image{Flags/chile} Chile [Vision] @
 @c @uref{http://mysql.vision.cl/, WWW}
+
+@item
+@c EMAIL: bartschm@psi.com (Marcelo Bartsch)
+@c @image{Flags/chile}
+Chile [PSINet] @
+@uref{http://mysql.psinet.cl/, WWW}
+@uref{ftp://ftp.psinet.cl/pub/database/mysql/, FTP}
 
 @c @item
 @c Removed 990730
