@@ -23,6 +23,7 @@ create table t1 (s set ('a','A') character set latin1 collate latin1_bin);
 show create table t1;
 insert into t1 values ('a'),('a,A'),('A,a'),('A');
 select s from t1 order by s;
+select s from t1 order by concat(s);
 drop table t1;
 
 #
@@ -34,4 +35,5 @@ INSERT INTO t1 VALUES ('ae'),('oe'),('ue'),('ss');
 INSERT INTO t1 VALUES ('ä,ö,ü,ß');
 INSERT INTO t1 VALUES ('ae,oe,ue,ss');
 SELECT c FROM t1 ORDER BY c;
+SELECT c FROM t1 ORDER BY concat(c);
 DROP TABLE t1;

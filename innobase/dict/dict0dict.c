@@ -2719,7 +2719,8 @@ scan_more:
 			/* Starting quote: remember the quote character. */
 			quote = *sptr;
 		} else if (*sptr == '#'
-		    || (0 == memcmp("-- ", sptr, 3))) {
+                           || (sptr[0] == '-' && sptr[1] == '-' &&
+                               sptr[2] == ' ')) {
 			for (;;) {
 				/* In Unix a newline is 0x0A while in Windows
 				it is 0x0D followed by 0x0A */
