@@ -873,7 +873,14 @@ disabled by DBUG_OFF togeher with the
 .I dbug
 library. So there will be no need to disable asserts separately with NDEBUG.
 .SP 1
-EX:\ \fCDBUG_ASSERT(\ a\ >\ 0);\fR
+EX:\ \fCDBUG_ASSERT(\ a\ >\ 0\ );\fR
+.SP 1
+.LI DBUG_OUTPUT\ 
+In multi-threaded environment disables (or enables) any
+.I dbug
+output from the current thread.
+.SP 1
+EX:\ \fCDBUG_OUTPUT(\ 0\ );\fR
 .SP 1
 .LE
 

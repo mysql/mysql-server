@@ -1,6 +1,3 @@
-
-#include <my_global.h>
-
 main (argc, argv)
 int argc;
 char *argv[];
