@@ -247,7 +247,9 @@ extern CHARSET_INFO *national_charset_info, *table_alias_charset;
 // uncachable cause
 #define UNCACHEABLE_DEPENDENT   1
 #define UNCACHEABLE_RAND        2
-#define UNCACHEABLE_SIDEEFFECT 4
+#define UNCACHEABLE_SIDEEFFECT	4
+// forcing to save JOIN for explain
+#define UNCACHEABLE_EXPLAIN     8
 
 #ifdef EXTRA_DEBUG
 /*

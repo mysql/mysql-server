@@ -62,6 +62,15 @@ mysql_handle_derived(LEX *lex)
 	  return 1;
 	}
       }
+      if (lex->describe)
+      {
+	/*
+	  Force join->join_tmp creation, because we will use this JOIN
+	  twice for EXPLAIN and we have to have unchanged join for EXPLAINing
+	*/
+	sl->uncacheable|= UNCACHEABLE_EXPLAIN;
+	sl->master_unit()->uncacheable|= UNCACHEABLE_EXPLAIN;
+      }
     }
   }
   return 0;
