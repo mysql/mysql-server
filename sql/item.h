@@ -106,6 +106,120 @@ public:
   }
 };
 
+
+/*************************************************************************/
+/*
+  A framework to easily handle different return types for hybrid items
+  (hybrid item is an item whose operand can be of any type, e.g. integer,
+  real, decimal).
+*/
+
+struct Hybrid_type_traits;
+
+struct Hybrid_type
+{
+  longlong integer;
+
+  double real;
+  /*
+    Use two decimal buffers interchangeably to speed up += operation
+    which has no native support in decimal library.
+    Hybrid_type+= arg is implemented as dec_buf[1]= dec_buf[0] + arg.
+    The third decimal is used as a handy temporary storage.
+  */
+  my_decimal dec_buf[3];
+  int used_dec_buf_no;
+
+  /*
+    Traits moved to a separate class to
+      a) be able to easily change object traits in runtime
+      b) they work as a differentiator for the union above
+  */
+  const Hybrid_type_traits *traits;
+
+  Hybrid_type() {}
+  /* XXX: add traits->copy() when needed */
+  Hybrid_type(const Hybrid_type &rhs) :traits(rhs.traits) {}
+};
+
+
+/* Hybryd_type_traits interface + default implementation for REAL_RESULT */
+
+struct Hybrid_type_traits
+{
+  virtual Item_result type() const { return REAL_RESULT; }
+
+  virtual void
+  fix_length_and_dec(Item *item, Item *arg) const;
+
+  /* Hybrid_type operations. */
+  virtual void set_zero(Hybrid_type *val) const { val->real= 0.0; }
+  virtual void add(Hybrid_type *val, Field *f) const
+  { val->real+= f->val_real(); }
+  virtual void div(Hybrid_type *val, ulonglong u) const
+  { val->real/= ulonglong2double(u); }
+
+  virtual longlong val_int(Hybrid_type *val, bool unsigned_flag) const
+  { return (longlong) val->real; }
+  virtual double val_real(Hybrid_type *val) const { return val->real; }
+  virtual my_decimal *val_decimal(Hybrid_type *val, my_decimal *buf) const;
+  virtual String *val_str(Hybrid_type *val, String *buf, uint8 decimals) const;
+  static const Hybrid_type_traits *instance();
+};
+
+
+struct Hybrid_type_traits_decimal: public Hybrid_type_traits
+{
+  virtual Item_result type() const { return DECIMAL_RESULT; }
+
+  virtual void
+  fix_length_and_dec(Item *arg, Item *item) const;
+
+  /* Hybrid_type operations. */
+  virtual void set_zero(Hybrid_type *val) const;
+  virtual void add(Hybrid_type *val, Field *f) const;
+  virtual void div(Hybrid_type *val, ulonglong u) const;
+
+  virtual longlong val_int(Hybrid_type *val, bool unsigned_flag) const;
+  virtual double val_real(Hybrid_type *val) const;
+  virtual my_decimal *val_decimal(Hybrid_type *val, my_decimal *buf) const
+  { return &val->dec_buf[val->used_dec_buf_no]; }
+  virtual String *val_str(Hybrid_type *val, String *buf, uint8 decimals) const;
+  static const Hybrid_type_traits_decimal *instance();
+};
+
+
+struct Hybrid_type_traits_integer: public Hybrid_type_traits
+{
+  virtual Item_result type() const { return INT_RESULT; }
+
+  virtual void
+  fix_length_and_dec(Item *arg, Item *item) const;
+
+  /* Hybrid_type operations. */
+  virtual void set_zero(Hybrid_type *val) const
+  { val->integer= 0; }
+  virtual void add(Hybrid_type *val, Field *f) const
+  { val->integer+= f->val_int(); }
+  virtual void div(Hybrid_type *val, ulonglong u) const
+  { val->integer/= (longlong) u; }
+
+  virtual longlong val_int(Hybrid_type *val, bool unsigned_flag) const
+  { return val->integer; }
+  virtual double val_real(Hybrid_type *val) const
+  { return (double) val->integer; }
+  virtual my_decimal *val_decimal(Hybrid_type *val, my_decimal *buf) const
+  {
+    int2my_decimal(E_DEC_FATAL_ERROR, val->integer, 0, &val->dec_buf[2]);
+    return &val->dec_buf[2];
+  }
+  virtual String *val_str(Hybrid_type *val, String *buf, uint8 decimals) const
+  { buf->set(val->integer, &my_charset_bin); return buf;}
+  static const Hybrid_type_traits_integer *instance();
+};
+
+/*************************************************************************/
+
 typedef bool (Item::*Item_processor)(byte *arg);
 typedef Item* (Item::*Item_transformer) (byte *arg);
 
