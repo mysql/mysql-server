@@ -53,3 +53,45 @@ lock tables t1 write;
 check table t2;
 unlock tables;
 drop table t1,t2;
+
+#test to see if select will get the lock ahead of low priority update
+connect (locker,localhost,root,,);
+connect (reader,localhost,root,,);
+connect (writer,localhost,root,,);
+
+connection locker;
+create table t1(n int);
+insert into t1 values (1);
+lock tables t1 write;
+connection writer;
+send update low_priority t1 set n = 4;
+connection reader;
+--sleep 2
+send select n from t1;
+connection locker;
+--sleep 2
+unlock tables;
+connection writer;
+reap;
+connection reader;
+reap;
+drop table t1;
+
+connection locker;
+create table t1(n int);
+insert into t1 values (1);
+lock tables t1 read;
+connection writer;
+send update low_priority t1 set n = 4;
+connection reader;
+--sleep 2
+send select n from t1;
+connection locker;
+--sleep 2
+unlock tables;
+connection writer;
+reap;
+connection reader;
+reap;
+drop table t1;
+

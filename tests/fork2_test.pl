@@ -6,6 +6,9 @@
 # the last 3 does different selects on the tables.
 # Er, hmmm..., something like that :^)
 # Modified to do crazy-join, à la Nasdaq.
+#
+# This test uses the old obsolete mysql interface. For a test that uses
+# DBI, please take a look at fork_big.pl
 
 $opt_loop_count=10000; # Change this to make test harder/easier
 
@@ -26,8 +29,8 @@ GetOptions("host=s","db=s","loop-count=i","skip-create","skip-in",
 	   "force") || die "Aborted";
 $opt_verbose=$opt_debug=$opt_lock_tables=$opt_fast_insert=$opt_fast=$opt_skip_in=$Mysql::db_errstr=$opt_force=undef;  # Ignore warnings from these
 
-print "Testing 9 multiple connections to a server with 1 insert/update\n";
-print "and 8 select connections.\n";
+print "Testing 10 multiple connections to a server with 1 insert/update\n";
+print "and 8 select connections and one ALTER TABLE.\n";
 
 
 @testtables = qw(bench_f21 bench_f22 bench_f23 bench_f24 bench_f25);
@@ -83,6 +86,7 @@ test_2() if (($pid=fork()) == 0); $work{$pid}="simple3";
 test_3() if (($pid=fork()) == 0); $work{$pid}="funny3";
 test_2() if (($pid=fork()) == 0); $work{$pid}="simple4";
 test_3() if (($pid=fork()) == 0); $work{$pid}="funny4";
+alter_test() if (($pid=fork()) == 0); $work{$pid}="alter";
 
 $errors=0;
 while (($pid=wait()) != -1)
@@ -205,6 +209,33 @@ sub test_3
     exit(0);
 }
 
+#
+# Do an ALTER TABLE every 20 seconds
+#
 
+sub alter_test
+{
+    my ($dbh,$count,$old_row_count,$row_count,$id,@row,$sth);
 
+    $dbh = Mysql->Connect($opt_host, $opt_db) || die $Mysql::db_errstr;
+    $id=$count=$row_count=0; $old_row_count= -1;
 
+    # Execute the test as long as we get more data into the table
+    while ($row_count != $old_row_count)
+    {
+      sleep(10);
+      $sth=$dbh->Query("ALTER TABLE $testtables[$id] modify info varchar(32)") or die "Couldn't execute ALTER TABLE\n";
+      $sth=0;
+      $id=($id+1) % $numtables;
+
+      # Test if insert test has ended
+      $sth=$dbh->query("select count(*) from $testtables[0]") or die "Couldn't execute count(*)\n";
+      @row = $sth->FetchRow();
+      $old_row_count= $row_count;
+      $row_count=$row[0];
+      $count++;
+    }
+    $dbh=0;
+    print "alter: Executed $count ALTER TABLE commands\n";
+    exit(0);
+}

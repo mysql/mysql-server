@@ -64,3 +64,14 @@ create table t1 (ordid int(8) not null auto_increment, ord  varchar(50) not null
 insert into t1 values (NULL,'sdj'),(NULL,'sdj'),(NULL,"abc"),(NULL,'abc'),(NULL,'zzz'),(NULL,'sdj'),(NULL,'abc');
 select * from t1;
 drop table t1;
+
+#
+# Test of auto_increment columns when they are set to 0
+#
+
+create table t1 (a int not null primary key auto_increment);
+insert into t1 values (0);
+update t1 set a=0;
+select * from t1;
+check table t1;
+drop table t1;

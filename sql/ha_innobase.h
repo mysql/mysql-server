@@ -147,6 +147,7 @@ class ha_innobase: public handler
 
   	THR_LOCK_DATA **store_lock(THD *thd, THR_LOCK_DATA **to,
 			     		enum thr_lock_type lock_type);
+	longlong get_auto_increment();
 };
 
 extern bool innodb_skip;

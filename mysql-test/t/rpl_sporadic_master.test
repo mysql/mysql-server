@@ -1,16 +1,18 @@
-#test to see if replication can continue when master sporadically fails on
+# test to see if replication can continue when master sporadically fails on
 # COM_BINLOG_DUMP and additionally limits the number of events per dump
+
 source include/master-slave.inc;
 connection master;
 drop table if exists t1;
 create table t1(n int not null auto_increment primary key);
 insert into t1 values (NULL),(NULL);
-truncate table t1;
-insert into t1 values (NULL),(NULL);
+delete from t1;
+# We have to use 4 in the following to make this test work with all table types
+insert into t1 values (4),(NULL);
 insert into t1 values (NULL),(NULL);
 flush logs;
-truncate table t1;
-insert into t1 values (NULL),(NULL);
+delete from t1;
+insert into t1 values (10),(NULL);
 insert into t1 values (NULL),(NULL);
 insert into t1 values (NULL),(NULL);
 save_master_pos;

@@ -110,7 +110,8 @@ my_bool init_thr_lock()
 }
 
 #ifdef EXTRA_DEBUG
-static int found_errors=0;
+#define MAX_FOUND_ERRORS	10		/* Report 10 first errors */
+static uint found_errors=0;
 
 static int check_lock(struct st_lock_list *list, const char* lock_type,
 		      const char *where, my_bool same_thread)
@@ -167,15 +168,16 @@ static int check_lock(struct st_lock_list *list, const char* lock_type,
 static void check_locks(THR_LOCK *lock, const char *where,
 			my_bool allow_no_locks)
 {
-  if (!found_errors)
+  uint old_found_errors=found_errors;
+  if (found_errors < MAX_FOUND_ERRORS)
   {
     if (check_lock(&lock->write,"write",where,1) |
 	check_lock(&lock->write_wait,"write_wait",where,0) |
 	check_lock(&lock->read,"read",where,0) |
 	check_lock(&lock->read_wait,"read_wait",where,0))
-      found_errors=1;
+      found_errors++;
 
-    if (!found_errors)
+    if (found_errors < MAX_FOUND_ERRORS)
     {
       uint count=0;
       THR_LOCK_DATA *data;
@@ -186,7 +188,7 @@ static void check_locks(THR_LOCK *lock, const char *where,
       }
       if (count != lock->read_no_write_count)
       {
-	found_errors=1;
+	found_errors++;
 	fprintf(stderr,
 		"Warning at '%s': Locks read_no_write_count was %u when it should have been %u\n", where, lock->read_no_write_count,count);
       }      
@@ -196,7 +198,7 @@ static void check_locks(THR_LOCK *lock, const char *where,
 	if (!allow_no_locks && !lock->read.data &&
 	    (lock->write_wait.data || lock->read_wait.data))
 	{
-	  found_errors=1;
+	  found_errors++;
 	  fprintf(stderr,
 		  "Warning at '%s': No locks in use but locks are in wait queue\n",
 		  where);
@@ -205,7 +207,7 @@ static void check_locks(THR_LOCK *lock, const char *where,
 	{
 	  if (!allow_no_locks && lock->read_wait.data)
 	  {
-	    found_errors=1;
+	    found_errors++;
 	    fprintf(stderr,
 		    "Warning at '%s': No write locks and waiting read locks\n",
 		    where);
@@ -221,7 +223,7 @@ static void check_locks(THR_LOCK *lock, const char *where,
 	       (lock->write_wait.data->type == TL_WRITE_DELAYED &&
 		!lock->read.data)))
 	  {
-	    found_errors=1;
+	    found_errors++;
 	    fprintf(stderr,
 		    "Warning at '%s': Write lock %d waiting while no exclusive read locks\n",where,(int) lock->write_wait.data->type);
 	  }
@@ -235,7 +237,7 @@ static void check_locks(THR_LOCK *lock, const char *where,
 	      lock->write.data->type == TL_WRITE_ALLOW_WRITE &&
 	      lock->write_wait.data->type == TL_WRITE_ALLOW_WRITE)
 	  {
-	    found_errors=1;
+	    found_errors++;
 	    fprintf(stderr,
 		    "Warning at '%s': Found WRITE_ALLOW_WRITE lock waiting for WRITE_ALLOW_WRITE lock\n",
 		    where);
@@ -243,16 +245,18 @@ static void check_locks(THR_LOCK *lock, const char *where,
 	}
 	if (lock->read.data)
 	{
-	  if ((!pthread_equal(lock->write.data->thread,lock->read.data->thread) &&
-	       lock->write.data->type > TL_WRITE_DELAYED) ||
+	  if ((!pthread_equal(lock->write.data->thread,
+			      lock->read.data->thread) &&
+	       lock->write.data->type > TL_WRITE_DELAYED &&
+	       lock->write.data->type != TL_WRITE_ONLY) ||
 	      ((lock->write.data->type == TL_WRITE_CONCURRENT_INSERT ||
 		lock->write.data->type == TL_WRITE_ALLOW_WRITE) &&
 	       lock->read_no_write_count))
 	  {
-	    found_errors=1;
+	    found_errors++;
 	    fprintf(stderr,
-		    "Warning at '%s': Found lock that is write and read locked\n",
-		    where);
+		    "Warning at '%s': Found lock of type %d that is write and read locked\n",
+		    where, lock->write.data->type);
 	  }
 	}
 	if (lock->read_wait.data)
@@ -260,7 +264,7 @@ static void check_locks(THR_LOCK *lock, const char *where,
 	  if (!allow_no_locks && lock->write.data->type <= TL_WRITE_DELAYED &&
 	      lock->read_wait.data->type <= TL_READ_HIGH_PRIORITY)
 	  {
-	    found_errors=1;
+	    found_errors++;
 	    fprintf(stderr,
 		    "Warning at '%s': Found read lock of type %d waiting for write lock of type %d\n",
 		    where,
@@ -270,7 +274,7 @@ static void check_locks(THR_LOCK *lock, const char *where,
 	}
       }
     }
-    if (found_errors)
+    if (found_errors != old_found_errors)
     {
       DBUG_PRINT("error",("Found wrong lock"));
     }
