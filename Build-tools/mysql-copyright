@@ -3,8 +3,11 @@
 # Untar a MySQL distribution, change the copyright texts,
 # pack it up again to a given directory
 
-$VER="1.2";
+$VER="1.3";
 
+use Cwd;
+use File::Basename;
+use File::Copy;
 use Getopt::Long;
 
 $opt_help    = 0;
@@ -17,8 +20,7 @@ GetOptions("help","version","target=s") || error();
 
 # fix the directory prefix for target dir
 
-$WD= `pwd`;
-chop $WD;
+$WD= cwd();
 $opt_target= $WD . '/' . $opt_target;
 
 &main();
@@ -73,11 +75,11 @@ sub main
       $newdistname= $1."com".$2.$3;
     }
     # find out the extract path (should be same as distname!)
-    $destdir= `tar tvzf ../$distfile | head -1`;
-    # remove leading crab
-    $destdir =~ s/.*\d+:\d+:\d+[ ]//;
-    # remove newline and slash from the end
-    $destdir= substr($destdir, 0, -2);
+    chomp($destdir= `tar ztf ../$distfile | head -1`);
+    # remove slash from the end
+    $destdir= substr($destdir, 0, -1);
+		print "destdir: $destdir\n";
+		print "distname: $distname\n";
     
     if ("$destdir" ne "$distname")
     {
@@ -96,15 +98,18 @@ sub main
     # remove the 'PUBLIC' file from distribution and copy MySQLEULA.txt
     # on the toplevel of the directory instead. file 'PUBLIC' shouldn't
     # exist in the new mysql distributions, but let's be sure..
-    `rm -f $destdir/PUBLIC $destdir/README`;
-    `cp -p $WD/Docs/MySQLEULA.txt $destdir/`;
+    unlink("$destdir/PUBLIC", "$destdir/README");
+    copy("$WD/Docs/MySQLEULA.txt", "$destdir");
     
+    # remove readline subdir
+    `rm -rf $destdir/cmd-line-utils/readline`;
+
     # fix file copyrights
     &fix_usage_copyright();
     &add_copyright();
     
     # rename the directory with new distribution name
-    `mv -f $destdir $newdistname`;
+    rename($destdir, $newdistname);
     
     # tar the new distribution
     `tar cz -f $opt_target/$newdistname.tar.gz *`;
