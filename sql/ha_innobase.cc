@@ -3700,7 +3700,7 @@ ha_innobase::store_lock(
 		binlog) requires the use of a locking read */
 
 		prebuilt->select_lock_type = LOCK_S;
-	} else {
+	} else if (lock_type != TL_IGNORE) {
 		/* We set possible LOCK_X value in external_lock, not yet
 		here even if this would be SELECT ... FOR UPDATE */
 
