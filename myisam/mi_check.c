@@ -192,7 +192,7 @@ int chk_del(MI_CHECK *param, register MI_INFO *info, uint test_flag)
   }
   DBUG_RETURN(0);
 wrong:
-  param->retry_without_quick=1;		// Don't use quick repair
+  param->retry_without_quick=1;		/* Don't use quick repair */
   if (test_flag & T_VERBOSE) puts("");
   mi_check_print_error(param,"record delete-link-chain corrupted");
   DBUG_RETURN(1);
@@ -292,7 +292,7 @@ int chk_size(MI_CHECK *param, register MI_INFO *info)
       error=1;
       mi_check_print_error(param,"Size of datafile is: %-8s         Should be: %s",
 		    llstr(size,buff), llstr(skr,buff2));
-      param->retry_without_quick=1;		// Don't use quick repair
+      param->retry_without_quick=1;		/* Don't use quick repair */
     }
     else
     {

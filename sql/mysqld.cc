@@ -809,7 +809,7 @@ static void server_init(void)
   }
 #endif
 
-#if defined(HAVE_SYS_UN_H) && !defined(HAVE_mit_thread)
+#if defined(HAVE_SYS_UN_H)
   /*
   ** Create the UNIX socket
   */
@@ -2694,7 +2694,7 @@ The default values (after parsing the command line arguments) are:\n\n");
   if (opt_slow_logname)
     printf("update log:  %s\n",opt_slow_logname);
   printf("TCP port:    %d\n",mysql_port);
-#if defined(HAVE_SYS_UN_H) && !defined(HAVE_mit_thread)
+#if defined(HAVE_SYS_UN_H)
   printf("Unix socket: %s\n",mysql_unix_port);
 #endif
   if (my_disable_locking)

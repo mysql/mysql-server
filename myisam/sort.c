@@ -291,9 +291,9 @@ static int NEAR_F merge_many_buff(MI_SORT_PARAM *info, uint keys,
     temp=from_file; from_file=to_file; to_file=temp;
     *maxbuffer= (int) (lastbuff-buffpek)-1;
   }
-  close_cached_file(to_file);			// This holds old result
+  close_cached_file(to_file);			/* This holds old result */
   if (to_file == t_file)
-    *t_file=t_file2;				// Copy result file
+    *t_file=t_file2;				/* Copy result file */
 
   DBUG_RETURN(*maxbuffer >= MERGEBUFF2);	/* Return 1 if interrupted */
 } /* merge_many_buff */

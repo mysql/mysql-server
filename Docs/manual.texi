@@ -267,7 +267,7 @@ System-specific Issues
 * HP-UX 10.20::                 HP-UX 10.20 notes
 * HP-UX 11.x::                  HP-UX 11.x notes
 * Mac OS X::                    Mac OS X notes
-* BEOS::
+* BEOS::                        
 
 Linux Notes (All Linux Versions)
 
@@ -278,7 +278,7 @@ Linux Notes (All Linux Versions)
 * Linux-Alpha::                 Linux-Alpha notes
 * MKLinux::                     MkLinux notes
 * Qube2::                       Qube2 Linux notes
-* Linux-Ia64::
+* Linux-Ia64::                  
 
 BSD/OS Notes
 
@@ -295,7 +295,7 @@ Windows Notes
 * Windows and SSH::             Connecting to a remote @strong{MySQL} from Windows with SSH
 * Windows symbolic links::      Splitting data across different disks under Win32
 * Windows compiling::           Compiling MySQL clients on Windows.
-* Windows and BDB tables.::
+* Windows and BDB tables.::     
 * Windows vs Unix::             @strong{MySQL}-Windows compared to Unix @strong{MySQL}
 
 Post-installation Setup and Testing
@@ -454,18 +454,18 @@ Functions for Use in @code{SELECT} and @code{WHERE} Clauses
 
 @code{SHOW} syntax (Get information about tables, columns,...)
 
-* SHOW DATABASE INFO::
-* SHOW TABLE STATUS::
-* SHOW STATUS::
-* SHOW VARIABLES::
-* SHOW PROCESSLIST::
-* SHOW GRANTS::
-* SHOW CREATE TABLE::
+* SHOW DATABASE INFO::          
+* SHOW TABLE STATUS::           
+* SHOW STATUS::                 
+* SHOW VARIABLES::              
+* SHOW PROCESSLIST::            
+* SHOW GRANTS::                 
+* SHOW CREATE TABLE::           
 
 MySQL table types
 
 * MyISAM::                      MyISAM tables
-* MERGE::
+* MERGE::                       MERGE tables
 * ISAM::                        ISAM tables
 * HEAP::                        HEAP tables
 * BDB::                         BDB or Berkeley_db tables
@@ -581,7 +581,7 @@ Speed of queries that access or update data
 * Estimating performance::      Estimating query performance
 * SELECT speed::                Speed of @code{SELECT} queries
 * Where optimizations::         How MySQL optimizes @code{WHERE} clauses
-* DISTINCT optimization::
+* DISTINCT optimization::       
 * LEFT JOIN optimization::      How MySQL optimizes @code{LEFT JOIN}
 * LIMIT optimization::          How MySQL optimizes @code{LIMIT}
 * Insert speed::                Speed of @code{INSERT} queries
@@ -613,10 +613,10 @@ Using @code{myisamchk} for table maintenance and crash recovery
 
 @code{myisamchk} invocation syntax
 
-* myisamchk general options::
-* myisamchk check options::
-* myisamchk repair options::
-* myisamchk other options::
+* myisamchk general options::   
+* myisamchk check options::     
+* myisamchk repair options::    
+* myisamchk other options::     
 
 Using @code{myisamchk} for crash recovery
 
@@ -689,7 +689,7 @@ Some common errors when using MySQL
 * Packet too large::            @code{Packet too large} error
 * Communication errors::        Communication errors / Aborted connection
 * Full table::                  @code{The table is full} error
-* Cannot create::
+* Cannot create::               
 * Commands out of sync::        @code{Commands out of sync} error in client
 * Ignoring user::               @code{Ignoring user} error
 * Cannot find table::           @code{Table 'xxx' doesn't exist} error
@@ -699,7 +699,7 @@ Solving some common problems with MySQL
 * Log Replication::             Database replication with  update log
 * Backup::                      Database backups
 * Update log::                  The update log
-* Binary log::
+* Binary log::                  
 * Slow query log::              Log of slow queries
 * Multiple servers::            Running multiple @strong{MySQL} servers on the same machine
 
@@ -813,6 +813,7 @@ MySQL change history
 
 Changes in release 3.23.x  (Recommended; beta)
 
+* News-3.23.27::                
 * News-3.23.26::                Changes in release 3.23.26
 * News-3.23.25::                Changes in release 3.23.25
 * News-3.23.24::                Changes in release 3.23.24
@@ -838,7 +839,7 @@ Changes in release 3.23.x  (Recommended; beta)
 * News-3.23.4::                 Changes in release 3.23.4
 * News-3.23.3::                 Changes in release 3.23.3
 * News-3.23.2::                 Changes in release 3.23.2
-* News-3.23.1::
+* News-3.23.1::                 Changes in release 3.23.1
 * News-3.23.0::                 Changes in release 3.23.0
 
 Changes in release 3.22.x
@@ -952,7 +953,7 @@ Comments on porting to other systems
 * Debugging server::            Debugging a @strong{MySQL} server
 * Debugging client::            Debugging a @strong{MySQL} client
 * The DBUG package::            The DBUG package
-* Locking methods::
+* Locking methods::             
 * RTS-threads::                 Comments about RTS threads
 * Thread packages::             Differences between different thread packages
 
@@ -5885,16 +5886,6 @@ Building in a non-source directory is not supported when using
 MIT-pthreads, because we want to minimize our changes to this code.
 
 @item
-MIT-pthreads doesn't support the @code{AF_UNIX} protocol used to implement
-UNIX sockets.  This means that if you compile using MIT-pthreads, all
-connections must be made using TCP/IP (which is a little slower).  If you
-find after building @strong{MySQL} that you cannot connect to the local
-server, it may be that your client is attempting to connect to
-@code{localhost} using a UNIX socket as the default. Try making a TCP/IP
-connection with @code{mysql} by using a host option (@code{-h} or
-@code{--host}) to specify the local host name explicitly.
-
-@item
 The checks that determine whether or not to use MIT-pthreads occur only
 during the part of the configuration process that deals with the server
 code.  If you have configured the distribution using @code{--without-server}
@@ -6230,7 +6221,7 @@ distribution.
 * HP-UX 10.20::                 HP-UX 10.20 notes
 * HP-UX 11.x::                  HP-UX 11.x notes
 * Mac OS X::                    Mac OS X notes
-* BEOS::
+* BEOS::                        
 @end menu
 
 
@@ -6674,7 +6665,7 @@ CC=fcc CFLAGS="-O -K fast -K lib -K omitfp -Kpreex -D_GNU_SOURCE -DCONST=const -
 * Linux-Alpha::                 Linux-Alpha notes
 * MKLinux::                     MkLinux notes
 * Qube2::                       Qube2 Linux notes
-* Linux-Ia64::
+* Linux-Ia64::                  
 @end menu
 
 @node Linux-x86, Linux-RedHat50, Linux, Linux
@@ -7732,7 +7723,7 @@ is also described in the @file{README} file that comes with the
 * Windows and SSH::             Connecting to a remote @strong{MySQL} from Windows with SSH
 * Windows symbolic links::      Splitting data across different disks under Win32
 * Windows compiling::           Compiling MySQL clients on Windows.
-* Windows and BDB tables.::
+* Windows and BDB tables.::     
 * Windows vs Unix::             @strong{MySQL}-Windows compared to Unix @strong{MySQL}
 @end menu
 
@@ -19531,13 +19522,13 @@ and @samp{_} wildcard characters.
 @findex SHOW INDEX
 @findex SHOW KEYS
 @menu
-* SHOW DATABASE INFO::
-* SHOW TABLE STATUS::
-* SHOW STATUS::
-* SHOW VARIABLES::
-* SHOW PROCESSLIST::
-* SHOW GRANTS::
-* SHOW CREATE TABLE::
+* SHOW DATABASE INFO::          
+* SHOW TABLE STATUS::           
+* SHOW STATUS::                 
+* SHOW VARIABLES::              
+* SHOW PROCESSLIST::            
+* SHOW GRANTS::                 
+* SHOW CREATE TABLE::           
 @end menu
 
 @cindex displaying, information, @code{SHOW}
@@ -21365,7 +21356,7 @@ of both worlds.
 
 @menu
 * MyISAM::                      MyISAM tables
-* MERGE::			MERGE tables
+* MERGE::                       MERGE tables
 * ISAM::                        ISAM tables
 * HEAP::                        HEAP tables
 * BDB::                         BDB or Berkeley_db tables
@@ -26429,7 +26420,7 @@ great tool to find out if this is a problem with your query.
 * Estimating performance::      Estimating query performance
 * SELECT speed::                Speed of @code{SELECT} queries
 * Where optimizations::         How MySQL optimizes @code{WHERE} clauses
-* DISTINCT optimization::
+* DISTINCT optimization::       
 * LEFT JOIN optimization::      How MySQL optimizes @code{LEFT JOIN}
 * LIMIT optimization::          How MySQL optimizes @code{LIMIT}
 * Insert speed::                Speed of @code{INSERT} queries
@@ -28653,10 +28644,10 @@ shell> myisamchk /path/to/datadir/*/*.MYI
 @code{myisamchk} supports the following options:
 
 @menu
-* myisamchk general options::
-* myisamchk check options::
-* myisamchk repair options::
-* myisamchk other options::
+* myisamchk general options::   
+* myisamchk check options::     
+* myisamchk repair options::    
+* myisamchk other options::     
 @end menu
 
 @cindex options, @code{myisamchk}
@@ -31142,7 +31133,7 @@ sure that no other programs is using the dynamic libraries!
 * Packet too large::            @code{Packet too large} error
 * Communication errors::        Communication errors / Aborted connection
 * Full table::                  @code{The table is full} error
-* Cannot create::
+* Cannot create::               
 * Commands out of sync::        @code{Commands out of sync} error in client
 * Ignoring user::               @code{Ignoring user} error
 * Cannot find table::           @code{Table 'xxx' doesn't exist} error
@@ -32232,7 +32223,7 @@ Drop or rename @code{old_table}
 * Log Replication::             Database replication with  update log
 * Backup::                      Database backups
 * Update log::                  The update log
-* Binary log::
+* Binary log::                  
 * Slow query log::              Log of slow queries
 * Multiple servers::            Running multiple @strong{MySQL} servers on the same machine
 @end menu
@@ -38113,6 +38104,7 @@ version.  The replication and BerkeleyDB code is still under development,
 though, so 3.23 is not released as a stable version yet.
 
 @menu
+* News-3.23.27::                Changes in release 3.23.27
 * News-3.23.26::                Changes in release 3.23.26
 * News-3.23.25::                Changes in release 3.23.25
 * News-3.23.24::                Changes in release 3.23.24
@@ -38142,7 +38134,16 @@ though, so 3.23 is not released as a stable version yet.
 * News-3.23.0::                 Changes in release 3.23.0
 @end menu
 
-@node News-3.23.26, News-3.23.25, News-3.23.x, News-3.23.x
+@node News-3.23.27, News-3.23.26, News-3.23.x, News-3.23.x
+@appendixsubsec Changes in release 3.23.27
+@itemize @bullet
+@item
+You can now have sockets even with @code{mit-pthreads}
+@item
+Small portability fixes
+@end itemize
+
+@node News-3.23.26, News-3.23.25, News-3.23.27, News-3.23.x
 @appendixsubsec Changes in release 3.23.26
 @itemize @bullet
 @item
@@ -42912,7 +42913,7 @@ will ensure that your thread installation has even a remote chance to work!
 * Debugging server::            Debugging a @strong{MySQL} server
 * Debugging client::            Debugging a @strong{MySQL} client
 * The DBUG package::            The DBUG package
-* Locking methods::
+* Locking methods::             
 * RTS-threads::                 Comments about RTS threads
 * Thread packages::             Differences between different thread packages
 @end menu
