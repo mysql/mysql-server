@@ -245,7 +245,7 @@ character-set=koi8r
 "Slave SQL thread ignored the query because of replicate-*-table rules",
 "Wrong foreign key definition for '%-.64s': %s",
 "Key reference and table reference doesn't match",
-"Ошибка мощьности множества (больше/меньше %d колонок)",
+"Операнд должен содержать %d колонок",
 "Подзапрос возвращает более одной записи",
 "Unknown prepared statement handler (%ld) given to %s",
 "Help database is corrupt or does not exist",

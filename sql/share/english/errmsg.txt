@@ -243,7 +243,7 @@ character-set=latin1
 "Slave SQL thread ignored the query because of replicate-*-table rules",
 "Wrong foreign key definition for '%-.64s': %s",
 "Key reference and table reference doesn't match",
-"Cardinality error (more/less than %d columns)",
+"Operand should contain %d column(s)",
 "Subquery returns more than 1 row",
 "Unknown prepared statement handler (%ld) given to %s",
 "Help database is corrupt or does not exist",
