@@ -951,7 +951,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     }
   case COM_REFRESH:
     {
-      uint options=(uchar) packet[0];
+      ulong options= (ulong) (uchar) packet[0];
       if (check_access(thd,RELOAD_ACL,any_db))
 	break;
       mysql_log.write(thd,command,NullS);
@@ -1432,7 +1432,6 @@ mysql_execute_command(void)
                                (ORDER *) select_lex->order_list.first,
 			       lex->drop_primary, lex->duplicates,
 			       lex->alter_keys_onoff, lex->simple_alter);
-	query_cache.invalidate(tables);
       }
       break;
     }
@@ -2984,7 +2983,7 @@ static bool check_dup(const char *db, const char *name, TABLE_LIST *tables)
   return 0;
 }
 
-bool reload_acl_and_cache(THD *thd, uint options, TABLE_LIST *tables)
+bool reload_acl_and_cache(THD *thd, ulong options, TABLE_LIST *tables)
 {
   bool result=0;
 
@@ -3006,12 +3005,12 @@ bool reload_acl_and_cache(THD *thd, uint options, TABLE_LIST *tables)
   }
   if (options & REFRESH_QUERY_CACHE_FREE)
   {
-    query_cache.pack();
+    query_cache.pack();				// FLUSH QUERY CACHE
     options &= ~REFRESH_QUERY_CACHE; //don't flush all cache, just free memory
   }
   if (options & (REFRESH_TABLES | REFRESH_QUERY_CACHE))
   {
-    query_cache.flush();
+    query_cache.flush();			// RESET QUERY CACHE
   }
   if (options & (REFRESH_TABLES | REFRESH_READ_LOCK))
   {

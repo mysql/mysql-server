@@ -17477,6 +17477,7 @@ information and a description of what it means.
 * OPTIMIZE TABLE::              @code{OPTIMIZE TABLE} Syntax
 * ANALYZE TABLE::               @code{ANALYZE TABLE} Syntax
 * FLUSH::                       @code{FLUSH} Syntax
+* RESET::                       @code{RESET} Syntax
 * KILL::                        @code{KILL} Syntax
 * SHOW::                        @code{SHOW} Syntax
 @end menu
@@ -17564,7 +17565,7 @@ If the table hasn't changed since the last @code{ANALYZE TABLE} command,
 the table will not be analysed again.
 
 
-@node FLUSH, KILL, ANALYZE TABLE, Database Administration
+@node FLUSH, RESET, ANALYZE TABLE, Database Administration
 @subsection @code{FLUSH} Syntax
 
 @findex FLUSH
@@ -17605,7 +17606,9 @@ signal to the @code{mysqld} server.
 @item @code{PRIVILEGES} @tab Reloads the privileges from the grant tables in
 the @code{mysql} database.
 
-@item @code{TABLES} @tab Closes all open tables and force all tables in use to be closed.
+@item @code{QUERY CACHE} @tab Defragment the query cache to better utilize the memory.  This command will not remove any queries from the cache.
+
+@item @code{TABLES} @tab Closes all open tables and force all tables in use to be closed. This also flushes the query cache.
 
 @item @code{[TABLE | TABLES] table_name [,table_name...]} @tab Flushes only the given tables.
 
@@ -17618,12 +17621,34 @@ You can also access each of the commands shown above with the @code{mysqladmin}
 utility, using the @code{flush-hosts}, @code{flush-logs}, @code{reload},
 or @code{flush-tables} commands.
 
-Take also a look at the @code{RESET} command used with
-replication. @xref{Replication SQL}.
+Take also a look at the @code{RESET} command used with replication.
+@xref{RESET}.
 
+@node RESET, KILL, FLUSH, Database Administration
+@subsection @code{RESET} Syntax
 
+@example
+FLUSH flush_option [,flush_option]
+@end example
 
-@node KILL, SHOW, FLUSH, Database Administration
+The @code{RESET} command is used to clear things. It also acts as an stronger
+version of the @code{FLUSH} command.  @xref{FLUSH}.
+
+@multitable @columnfractions .15 .85
+@item @code{MASTER}
+@tab Deletes all binary logs listed in the index file, resetting the binlog
+index file to be empty. In pre-3.23.26 versions, @code{FLUSH MASTER} (Master)
+
+@item @code{SLAVE}
+@tab Makes the slave forget its replication position in the master
+logs. In pre 3.23.26 versions the command was called
+@code{FLUSH SLAVE}(Slave)
+
+@item @code{QUERY CACHE}
+@tab Removes all query results from the query cache.
+@end multitable
+
+@node KILL, SHOW, RESET, Database Administration
 @subsection @code{KILL} Syntax
 
 @findex KILL
