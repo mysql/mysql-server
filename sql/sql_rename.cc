@@ -46,6 +46,8 @@ bool mysql_rename_tables(THD *thd, TABLE_LIST *table_list)
     DBUG_RETURN(1);
   }
 
+  if (wait_if_global_read_lock(thd,0))
+    DBUG_RETURN(1);
   VOID(pthread_mutex_lock(&LOCK_open));
   if (lock_table_names(thd, table_list))
     goto err;
@@ -93,6 +95,7 @@ bool mysql_rename_tables(THD *thd, TABLE_LIST *table_list)
 
 err:
   pthread_mutex_unlock(&LOCK_open);
+  start_waiting_global_read_lock(thd);
   DBUG_RETURN(error);
 }
 
