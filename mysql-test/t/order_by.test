@@ -393,3 +393,28 @@ select * from t1 where b=1 or b is null order by a;
 explain select * from t1 where b=2 or b is null order by a;
 select * from t1 where b=2 or b is null order by a;
 drop table t1;
+
+#
+# Bug #3155
+#
+
+create table t1 (a int not null auto_increment, b int not null, c int not null, d int not null,
+key(a,b,d), key(c,b,a));
+create table t2 like t1;
+insert into t1 values (NULL, 1, 2, 0), (NULL, 2, 1, 1), (NULL, 3, 4, 2), (NULL, 4, 3, 3);
+insert into t2 select null, b, c, d from t1;
+insert into t1 select null, b, c, d from t2;
+insert into t2 select null, b, c, d from t1;
+insert into t1 select null, b, c, d from t2;
+insert into t2 select null, b, c, d from t1;
+insert into t1 select null, b, c, d from t2;
+insert into t2 select null, b, c, d from t1;
+insert into t1 select null, b, c, d from t2;
+insert into t2 select null, b, c, d from t1;
+insert into t1 select null, b, c, d from t2;
+optimize table t1;
+set @row=10;
+insert into t1 select 1, b, c + (@row:=@row - 1) * 10, d - @row from t2 limit 10;
+select * from t1 where a=1 and b in (1) order by c, b, a;
+select * from t1 where a=1 and b in (1);
+drop table t1, t2;
