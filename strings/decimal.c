@@ -206,7 +206,7 @@ int decimal2string(decimal *from, char *to, int *to_len)
   char *s=to;
   dec1 *buf, *buf0=from->buf, tmp;
 
-  DBUG_ASSERT(*to_len > 2+from->sign);
+  DBUG_ASSERT(*to_len >= 2+from->sign);
 
   /* removing leading zeroes */
   i=((intg-1) % DIG_PER_DEC1)+1;
@@ -1511,6 +1511,11 @@ static int do_div_mod(decimal *from1, decimal *from2,
     intg0=ROUND_UP(prec1-frac1)-(start1-tmp1);
     frac0=ROUND_UP(to->frac);
     error=E_DEC_OK;
+    if (unlikely(frac0==0 && intg0==0))
+    {
+      decimal_make_zero(to);
+      goto done;
+    }
     if (intg0<=0)
     {
       if (unlikely(-intg0 >= to->len))
