@@ -448,8 +448,10 @@ struct hostent *my_gethostbyname_r(const char *name,
 
 #if defined(HPUX) && !defined(DONT_REMAP_PTHREAD_FUNCTIONS)
 #define pthread_cond_timedwait(a,b,c) my_pthread_cond_timedwait((a),(b),(c))
+#define pthread_mutex_trylock(a) my_pthread_mutex_trylock((a)) 
 int my_pthread_cond_timedwait(pthread_cond_t *cond, pthread_mutex_t *mutex,
 			      struct timespec *abstime);
+int my_pthread_mutex_trylock(pthread_mutex_t *mutex);
 #endif
 
 	/* safe_mutex adds checking to mutex for easier debugging */
