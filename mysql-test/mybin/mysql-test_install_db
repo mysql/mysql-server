@@ -6,6 +6,7 @@
 # columns_priv in the mysql database, as well as the func table.
 
 ldata=var/lib
+logdir=var/log
 mdata=$ldata/mysql
 execdir=../sql
 bindir=../client
@@ -51,12 +52,28 @@ hostname=`hostname`		# Install this too in the user table
 resolved=127.0.0.1
 
 # Create database directories mysql & test
-if test ! -d $ldata; then mkdir $ldata; chmod 700 $ldata ; fi
-if test ! -d $ldata/mysql; then mkdir $ldata/mysql;  chmod 700 $ldata/mysql ; fi
-if test ! -d $ldata/test; then mkdir $ldata/test;  chmod 700 $ldata/test ; fi
+if test ! -d $ldata; then (mkdir -p $ldata || exit 1) && \
+ (chmod 700  $ldata || exit 1) ; fi
+if test ! -d $ldata/mysql;
+then
+ mkdir -p $ldata/mysql || exit 1;
+ chmod 700 $ldata/mysql || exit 1 ; fi
+if test ! -d $ldata/test;
+then
+ mkdir -p $ldata/test || exit 1;
+ chmod 700 $ldata/test || exit 1 ;
+ fi
 if test -w / -a ! -z "$user"; then
-  chown $user $ldata $ldata/mysql $ldata/test;
+  chown $user $ldata $ldata/mysql $ldata/test || exit 1;
 fi
+
+#for error messages
+rm -rf share
+mkdir  share
+ln -sf ../../sql/share share/mysql 
+
+#create the directory for logs
+mkdir -p $logdir
 
 # Initialize variables
 c_d="" i_d=""
