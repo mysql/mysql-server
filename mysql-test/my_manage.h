@@ -21,8 +21,8 @@
 
 /******************************************************************************
 
-	includes
-	
+        includes
+        
 ******************************************************************************/
 
 #include <stdlib.h>
@@ -36,7 +36,7 @@
 
 #ifndef __WIN__
 #define strnicmp strncasecmp
-char *strlwr(const char *s);
+#define strlwr(STRARG) (STRARG)
 #else
 int my_vsnprintf_(char *to, size_t n, const char* value, ...);
 #endif
@@ -44,12 +44,12 @@ int my_vsnprintf_(char *to, size_t n, const char* value, ...);
 
 /******************************************************************************
 
-	macros
-	
+        macros
+        
 ******************************************************************************/
 
-#define ARG_BUF			10
-#define TRY_MAX			5
+#define ARG_BUF                 10
+#define TRY_MAX                 5
 
 #ifdef __WIN__
 #define PATH_MAX _MAX_PATH
@@ -71,8 +71,8 @@ bool skip_first_param;
 
 /******************************************************************************
 
-	structures
-	
+        structures
+        
 ******************************************************************************/
 
 typedef struct
@@ -90,14 +90,14 @@ typedef int pid_t;
 #endif
 /******************************************************************************
 
-	global variables
-	
+        global variables
+        
 ******************************************************************************/
 
 /******************************************************************************
 
-	prototypes
-	
+        prototypes
+        
 ******************************************************************************/
 
 void init_args(arg_list_t *);

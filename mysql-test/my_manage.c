@@ -30,6 +30,7 @@
 #ifndef __WIN__
 #include <sys/wait.h>
 #include <unistd.h>
+#include <fnmatch.h>
 #else
 #include <direct.h>
 #include <stdlib.h>
@@ -52,36 +53,37 @@ extern char **environ;
 
 /******************************************************************************
 
-	macros
-	
+        macros
+
 ******************************************************************************/
 
 /******************************************************************************
 
-	global variables
-	
+        global variables
+
 ******************************************************************************/
 
 /******************************************************************************
 
-	functions
-	
+        functions
+
 ******************************************************************************/
 
 /******************************************************************************
 
-	init_args()
-	
-	Init an argument list.
+        init_args()
+
+        Init an argument list.
 
 ******************************************************************************/
+
 void init_args(arg_list_t *al)
 {
   ASSERT(al != NULL);
-  
-  al->argc = 0;
-  al->size = ARG_BUF;
-  al->argv = malloc(al->size * sizeof(char *));
+
+  al->argc= 0;
+  al->size= ARG_BUF;
+  al->argv= malloc(al->size * sizeof(char *));
   ASSERT(al->argv != NULL);
 
   return;
@@ -89,11 +91,12 @@ void init_args(arg_list_t *al)
 
 /******************************************************************************
 
-	add_arg()
-	
-	Add an argument to a list.
+        add_arg()
+
+        Add an argument to a list.
 
 ******************************************************************************/
+
 void add_arg(arg_list_t *al, const char *format, ...)
 {
   va_list ap;
@@ -101,11 +104,11 @@ void add_arg(arg_list_t *al, const char *format, ...)
 
   ASSERT(al != NULL);
 
-  // increase size
+  /* increase size */
   if (al->argc >= (int)al->size)
   {
-    al->size += ARG_BUF;
-    al->argv = realloc(al->argv, al->size * sizeof(char *));
+    al->size+= ARG_BUF;
+    al->argv= realloc(al->argv, al->size * sizeof(char *));
     ASSERT(al->argv != NULL);
   }
 
@@ -115,7 +118,7 @@ void add_arg(arg_list_t *al, const char *format, ...)
     vsprintf(temp, format, ap);
     va_end(ap);
 
-    al->argv[al->argc] = malloc(strlen(temp)+1);
+    al->argv[al->argc]= malloc(strlen(temp)+1);
     ASSERT(al->argv[al->argc] != NULL);
     strcpy(al->argv[al->argc], temp);
 
@@ -123,7 +126,7 @@ void add_arg(arg_list_t *al, const char *format, ...)
   }
   else
   {
-    al->argv[al->argc] = NULL;
+    al->argv[al->argc]= NULL;
   }
 
   return;
@@ -131,102 +134,108 @@ void add_arg(arg_list_t *al, const char *format, ...)
 
 /******************************************************************************
 
-	free_args()
-	
-	Free an argument list.
+        free_args()
+
+        Free an argument list.
 
 ******************************************************************************/
+
 void free_args(arg_list_t *al)
 {
   int i;
 
   ASSERT(al != NULL);
 
-  for(i = 0; i < al->argc; i++)
+  for (i= 0; i < al->argc; i++)
   {
     ASSERT(al->argv[i] != NULL);
     free(al->argv[i]);
-    al->argv[i] = NULL;
+    al->argv[i]= NULL;
   }
 
   free(al->argv);
-  al->argc = 0;
-  al->argv = NULL;
+  al->argc= 0;
+  al->argv= NULL;
 
   return;
 }
 
 /******************************************************************************
 
-	sleep_until_file_deleted()
-	
-	Sleep until the given file is no longer found.
+        sleep_until_file_deleted()
+
+        Sleep until the given file is no longer found.
 
 ******************************************************************************/
+
 #ifndef __WIN__
 int sleep_until_file_deleted(char *pid_file)
 #else
 int sleep_until_file_deleted(HANDLE pid_file)
 #endif
 {
-  int err;
+  int err= 0;            /* Initiate to supress warning */
 #ifndef __WIN__
-	struct stat buf;
-	int i;
-	
-	for(i = 0; (i < TRY_MAX) && (err = !stat(pid_file, &buf)); i++) sleep(1);
-	
-	if (err != 0) err = errno;
+  struct stat buf;
+  int i;
+
+  for (i= 0; (i < TRY_MAX) && (err= !stat(pid_file, &buf)); i++) sleep(1);
+
+  if (err != 0) err= errno;
 #else
   err= (WaitForSingleObject(pid_file, TRY_MAX*1000) == WAIT_TIMEOUT);
 #endif
-	return err;
+  return err;
 }
 
 /******************************************************************************
 
-	sleep_until_file_exists()
+        sleep_until_file_exists()
 
-	Sleep until the given file exists.
+        Sleep until the given file exists.
 
 ******************************************************************************/
+
 #ifndef __WIN__
 int sleep_until_file_exists(char *pid_file)
 #else
 int sleep_until_file_exists(HANDLE pid_file)
 #endif
 {
-  int err;
+  int err= 0;            /* Initiate to supress warning */
 #ifndef __WIN__
-	struct stat buf;
-	int i;
-	
-	for(i = 0; (i < TRY_MAX) && (err = stat(pid_file, &buf)); i++) sleep(1);
-	
-	if (err != 0) err = errno;
+  struct stat buf;
+  int i;
+
+  for (i= 0; (i < TRY_MAX) && (err= stat(pid_file, &buf)); i++) sleep(1);
+
+  if (err != 0) err= errno;
 #else
   err= (WaitForSingleObject(pid_file, TRY_MAX*1000) == WAIT_TIMEOUT);
 #endif
-	return err;
+  return err;
 }
 
 /******************************************************************************
 
-	wait_for_server_start()
-	
-	Wait for the server on the given port to start.
+        wait_for_server_start()
+
+        Wait for the server on the given port to start.
 
 ******************************************************************************/
-int wait_for_server_start(char *bin_dir, char *mysqladmin_file, char *user, char *password, int port,char *tmp_dir)
+
+int wait_for_server_start(char *bin_dir __attribute__((unused)),
+                          char *mysqladmin_file,
+                          char *user, char *password, int port,char *tmp_dir)
 {
   arg_list_t al;
-  int err, i;
+  int err= 0, i;
   char trash[PATH_MAX];
-  
-	// mysqladmin file
+
+  /* mysqladmin file */
   snprintf(trash, PATH_MAX, "%s/trash.out",tmp_dir);
-	
-  // args
+
+  /* args */
   init_args(&al);
   add_arg(&al, "%s", mysqladmin_file);
   add_arg(&al, "--no-defaults");
@@ -235,7 +244,7 @@ int wait_for_server_start(char *bin_dir, char *mysqladmin_file, char *user, char
   add_arg(&al, "--password=%s", password);
   add_arg(&al, "--silent");
 
-//#ifdef NOT_USED
+/* #ifdef NOT_USED */
 #ifndef __NETWARE__
   add_arg(&al, "-O");
   add_arg(&al, "connect_timeout=10");
@@ -245,20 +254,22 @@ int wait_for_server_start(char *bin_dir, char *mysqladmin_file, char *user, char
   add_arg(&al, "--host=localhost");
 #ifndef __NETWARE__
   add_arg(&al, "--protocol=tcp");
-#endif  
+#endif
   add_arg(&al, "ping");
 
-	// NetWare does not support the connect timeout in the TCP/IP stack
-	// -- we will try the ping multiple times
+  /*
+    NetWare does not support the connect timeout in the TCP/IP stack
+    -- we will try the ping multiple times
+  */
 #ifndef __WIN__
-	for(i = 0; (i < TRY_MAX)
-       && (err = spawn(mysqladmin_file, &al, TRUE, NULL,
-                       trash, NULL, NULL)); i++) sleep(1);
+  for (i= 0; (i < TRY_MAX)
+         && (err= spawn(mysqladmin_file, &al, TRUE, NULL,
+                        trash, NULL, NULL)); i++) sleep(1);
 #else
-  err = spawn(mysqladmin_file, &al, TRUE, NULL,trash, NULL, NULL);
+  err= spawn(mysqladmin_file, &al, TRUE, NULL,trash, NULL, NULL);
 #endif
 
-  // free args
+  /* free args */
   free_args(&al);
 
   return err;
@@ -266,38 +277,39 @@ int wait_for_server_start(char *bin_dir, char *mysqladmin_file, char *user, char
 
 /******************************************************************************
 
-	spawn()
-	
-	Spawn the given path with the given arguments.
+        spawn()
+
+        Spawn the given path with the given arguments.
 
 ******************************************************************************/
+
 #ifdef __NETWARE__
 int spawn(char *path, arg_list_t *al, int join, char *input,
           char *output, char *error, char *pid_file)
 {
-	pid_t pid;
-  int result = 0;
-  wiring_t wiring = { FD_UNUSED, FD_UNUSED, FD_UNUSED };
-  unsigned long flags = PROC_CURRENT_SPACE | PROC_INHERIT_CWD;
+  pid_t pid;
+  int result= 0;
+  wiring_t wiring= { FD_UNUSED, FD_UNUSED, FD_UNUSED };
+  unsigned long flags= PROC_CURRENT_SPACE | PROC_INHERIT_CWD;
 
-  // open wiring
+  /* open wiring */
   if (input)
-    wiring.infd = open(input, O_RDONLY);
+    wiring.infd= open(input, O_RDONLY);
 
   if (output)
-    wiring.outfd = open(output, O_WRONLY | O_CREAT | O_TRUNC);
+    wiring.outfd= open(output, O_WRONLY | O_CREAT | O_TRUNC);
 
   if (error)
-    wiring.errfd = open(error, O_WRONLY | O_CREAT | O_TRUNC);
+    wiring.errfd= open(error, O_WRONLY | O_CREAT | O_TRUNC);
 
-  // procve requires a NULL
+  /* procve requires a NULL */
   add_arg(al, NULL);
 
-  // go
-  pid = procve(path, flags, NULL, &wiring, NULL, NULL, 0,
-               NULL, (const char **)al->argv);
+  /* go */
+  pid= procve(path, flags, NULL, &wiring, NULL, NULL, 0,
+              NULL, (const char **)al->argv);
 
-  // close wiring
+  /* close wiring */
   if (wiring.infd != -1)
     close(wiring.infd);
 
@@ -307,7 +319,7 @@ int spawn(char *path, arg_list_t *al, int join, char *input,
   if (wiring.errfd != -1)
     close(wiring.errfd);
 
-	return result;
+  return result;
 }
 #elif __WIN__
 
@@ -322,18 +334,16 @@ int spawn(char *path, arg_list_t *al, int join, char *input,
   char win_args[1024]= "";
   char command_line[1024]= "";
 
-  /*
-    Skip the first parameter
-  */
-  for(i = 1; i < al->argc; i++)
+  /* Skip the first parameter */
+  for (i= 1; i < al->argc; i++)
   {
     ASSERT(al->argv[i] != NULL);
     strcat(win_args,al->argv[i]);
     strcat(win_args," ");
-  } 
+  }
 
   memset(&startup_info,0,sizeof(STARTUPINFO));
-  startup_info.cb = sizeof(STARTUPINFO);
+  startup_info.cb= sizeof(STARTUPINFO);
 
   if (input)
     freopen(input, "rb", stdin);
@@ -361,7 +371,8 @@ int spawn(char *path, arg_list_t *al, int join, char *input,
   {
     if (join)
     {
-      if (WaitForSingleObject(process_information.hProcess, mysqld_timeout) == WAIT_TIMEOUT)
+      if (WaitForSingleObject(process_information.hProcess, mysqld_timeout)
+          == WAIT_TIMEOUT)
       {
         exit_code= -1;
       }
@@ -393,76 +404,60 @@ int spawn(char *path, arg_list_t *al, int join, char *input,
 }
 #else
 int spawn(char *path, arg_list_t *al, int join, char *input,
-          char *output, char *error, char *pid_file)
+          char *output, char *error, char *pid_file __attribute__((unused)))
 {
   pid_t pid;
-  int res_exec = 0;
-  int result = 0;
-  
-  pid = fork();
-  
+  int res_exec= 0;
+  int result= 0;
+
+  pid= fork();
+
   if (pid == -1)
   {
     fprintf(stderr, "fork was't created\n");
-    /*
-	  We can't create the fork...exit with error
-    */
-	return EXIT_FAILURE;
+    /* We can't create the fork...exit with error */
+    return EXIT_FAILURE;
   }
-    
+
   if (pid  > 0)
   {
-    /* 
-	  The parent process is waiting for child process if join is not zero
-	*/
+    /* The parent process is waiting for child process if join is not zero */
     if (join)
     {
-	  waitpid(pid, &result, 0);
-	  if (WIFEXITED(result) != 0)
-	  {
-		result = WEXITSTATUS(result);
-	  }
-	  else
-	  { 
-		result = EXIT_FAILURE;
-	  }
-	}
+      waitpid(pid, &result, 0);
+      if (WIFEXITED(result) != 0)
+      {
+        result= WEXITSTATUS(result);
+      }
+      else
+      {
+        result= EXIT_FAILURE;
+      }
+    }
   }
   else
   {
-  
-    /* 
-	  Child process 
-	*/
 
-	add_arg(al, NULL);
+    /* Child process */
+    add_arg(al, NULL);
 
-	
-    /* 
-	  Reassign streams 
-	*/
+    /* Reassign streams */
     if (input)
-	  freopen(input, "r", stdin);
-	
+      freopen(input, "r", stdin);
 
     if (output)
       freopen(output, "w", stdout);
-	
 
     if (error)
       freopen(error, "w", stderr);
 
     /* Spawn the process */
-    if ((res_exec = execve(path, al->argv, environ)) < 0) 
-    {
+    if ((res_exec= execve(path, al->argv, environ)) < 0)
       exit(EXIT_FAILURE);
-    }
 
-    /* 
-	  Restore streams 
-	*/
+    /* Restore streams */
     if (input)
-	  freopen("/dev/tty", "r", stdin);
+      freopen("/dev/tty", "r", stdin);
 
     if (output)
       freopen("/dev/tty", "w", stdout);
@@ -472,32 +467,34 @@ int spawn(char *path, arg_list_t *al, int join, char *input,
 
     exit(0);
   }
-  
+
   return result;
 }
 #endif
 /******************************************************************************
 
-	stop_server()
-	
-	Stop the server with the given port and pid file.
+        stop_server()
+
+        Stop the server with the given port and pid file.
 
 ******************************************************************************/
+
+int stop_server(char *bin_dir __attribute__((unused)), char *mysqladmin_file,
+                char *user, char *password, int port,
 #ifndef __WIN__
-int stop_server(char *bin_dir, char *mysqladmin_file, char *user, char *password, int port,
-                char *pid_file,char *tmp_dir)
+                char *pid_file,
 #else
-int stop_server(char *bin_dir, char *mysqladmin_file, char *user, char *password, int port,
-                HANDLE pid_file,char *tmp_dir)
+                HANDLE pid_file,
 #endif
+                char *tmp_dir)
 {
   arg_list_t al;
-  int err = 0;
+  int err= 0;
   char trash[PATH_MAX];
-  
+
   snprintf(trash, PATH_MAX, "%s/trash.out",tmp_dir);
-	
-  // args
+
+  /* args */
   init_args(&al);
   add_arg(&al, "%s", mysqladmin_file);
   add_arg(&al, "--no-defaults");
@@ -508,33 +505,33 @@ int stop_server(char *bin_dir, char *mysqladmin_file, char *user, char *password
   add_arg(&al, "shutdown_timeout=20");
 #ifndef __NETWARE__
   add_arg(&al, "--protocol=tcp");
-#endif  
+#endif
   add_arg(&al, "shutdown");
 
-	// spawn
-  if ((err = spawn(mysqladmin_file, &al, TRUE, NULL,
-                   trash, NULL, NULL)) == 0)
+  /* spawn */
+  if ((err= spawn(mysqladmin_file, &al, TRUE, NULL,
+                  trash, NULL, NULL)) == 0)
   {
     sleep_until_file_deleted(pid_file);
   }
   else
   {
 #ifndef __WIN__
-    pid_t pid = get_server_pid(pid_file);
-		
-    // shutdown failed - kill server
+    pid_t pid= get_server_pid(pid_file);
+
+    /* shutdown failed - kill server */
    kill_server(pid);
-	
+
    sleep(TRY_MAX);
-    
-    // remove pid file if possible
-   err = remove(pid_file);
+
+   /* remove pid file if possible */
+   err= remove(pid_file);
 #else
   TerminateProcess(pid_file,err);
 #endif
   }
-  
-  // free args
+
+  /* free args */
   free_args(&al);
 
   return err;
@@ -542,57 +539,59 @@ int stop_server(char *bin_dir, char *mysqladmin_file, char *user, char *password
 
 /******************************************************************************
 
-	get_server_pid()
-	
-	Get the VM id with the given pid file.
+        get_server_pid()
+
+        Get the VM id with the given pid file.
 
 ******************************************************************************/
+
 #ifndef __WIN__
 pid_t get_server_pid(char *pid_file)
 {
   char buf[PATH_MAX];
   int fd, err;
   char *p;
-  pid_t id = 0;
-	
-  // discover id
-  fd = open(pid_file, O_RDONLY);
-	
-	err = read(fd, buf, PATH_MAX);
-	
-	close(fd);
-	
-	if (err > 0)
-	{
-		// terminate string
-		if ((p = strchr(buf, '\n')) != NULL)
-		{
-			*p = '\0';
-			
-			// check for a '\r'
-			if ((p = strchr(buf, '\r')) != NULL)
-			{
-				*p = '\0';
-			}
-		}
-		else
-		{
-			buf[err] = '\0';
-		}
-		
-		id = strtol(buf, NULL, 0);
-	}
-  
+  pid_t id= 0;
+
+  /* discover id */
+  fd= open(pid_file, O_RDONLY);
+
+  err= read(fd, buf, PATH_MAX);
+
+  close(fd);
+
+  if (err > 0)
+  {
+    /* terminate string */
+    if ((p= strchr(buf, '\n')) != NULL)
+    {
+      *p= '\0';
+
+      /* check for a '\r' */
+      if ((p= strchr(buf, '\r')) != NULL)
+      {
+        *p= '\0';
+      }
+    }
+    else
+    {
+      buf[err]= '\0';
+    }
+
+    id= strtol(buf, NULL, 0);
+  }
+
   return id;
 }
 
 /******************************************************************************
 
-	kill_server()
-	
-	Force a kill of the server with the given pid.
+        kill_server()
+
+        Force a kill of the server with the given pid.
 
 ******************************************************************************/
+
 void kill_server(pid_t pid)
 {
   if (pid > 0)
@@ -603,51 +602,52 @@ void kill_server(pid_t pid)
 #else /* __NETWARE__ */
     /* destroy vm */
     NXVmDestroy(pid);
-#endif 
+#endif
   }
 }
 #endif
 /******************************************************************************
 
-	del_tree()
-	
-	Delete the directory and subdirectories.
+        del_tree()
+
+        Delete the directory and subdirectories.
 
 ******************************************************************************/
+
 void del_tree(char *dir)
 {
 #ifndef __WIN__
-  DIR *parent = opendir(dir);
+  DIR *parent= opendir(dir);
   struct dirent *entry;
   char temp[PATH_MAX];
-	
+
   if (parent == NULL)
   {
     return;
   }
 
-  while((entry = readdir(parent)) != NULL)
+  while ((entry= readdir(parent)) != NULL)
   {
-    // create long name
+    /* create long name */
     snprintf(temp, PATH_MAX, "%s/%s", dir, entry->d_name);
 
     if (entry->d_name[0] == '.')
     {
-      // Skip
+      /* Skip */
     }
-    else 
+    else
     if (S_ISDIR(entry->d_type))
     {
-      // delete subdirectory
+      /* delete subdirectory */
       del_tree(temp);
     }
     else
     {
-      // remove file
+      /* remove file */
       remove(temp);
     }
   }
-  // remove directory
+  /* remove directory */
   rmdir(dir);
 #else
   struct _finddata_t parent;
@@ -664,50 +664,51 @@ void del_tree(char *dir)
 
   do
   {
-    // create long name
-    snprintf(temp, PATH_MAX, "%s/%s", dir, parent.name); 
+    /* create long name */
+    snprintf(temp, PATH_MAX, "%s/%s", dir, parent.name);
     if (parent.name[0] == '.')
     {
-      // Skip
+      /* Skip */
     }
-    else 
+    else
     if (parent.attrib & _A_SUBDIR)
     {
-      // delete subdirectory
+      /* delete subdirectory */
       del_tree(temp);
     }
     else
     {
-      // remove file
+      /* remove file */
       remove(temp);
     }
   } while (_findnext(handle,&parent) == 0);
 
    _findclose(handle);
 
-  // remove directory
+   /* remove directory */
    _rmdir(dir);
 #endif
 }
 
 /******************************************************************************
 
-	removef()
-	
+        removef()
+
 ******************************************************************************/
+
 int removef(const char *format, ...)
 {
-#ifdef __NETWARE__  
+#ifdef __NETWARE__
   va_list ap;
   char path[PATH_MAX];
-	
+
   va_start(ap, format);
 
   vsnprintf(path, PATH_MAX, format, ap);
-	
+
   va_end(ap);
   return remove(path);
-   
+
 #eldef __WIN__
   {
     va_list ap;
@@ -716,25 +717,23 @@ int removef(const char *format, ...)
     intptr_t handle;
     char temp[PATH_MAX];
     char *p;
-	
+
     va_start(ap, format);
 
     vsnprintf(path, PATH_MAX, format, ap);
-	
+
     va_end(ap);
-    
-    p = path + strlen(path);
+
+    p= path + strlen(path);
     while (*p != '\\' && *p != '/' && p > path) p--;
 
     if ((handle=_findfirst(path,&parent)) == -1L)
     {
-      /*
-        if there is not files....it's ok.
-      */
+      /* if there is not files....it's ok */
       return 0;
     }
 
-    *p = '\0';
+    *p= '\0';
 
     do
     {
@@ -754,89 +753,80 @@ int removef(const char *format, ...)
   va_list ap;
   char path[PATH_MAX];
   char *p;
-  /*
-    Get path with mask
-  */	
+  /* Get path with mask */
   va_start(ap, format);
 
   vsnprintf(path, PATH_MAX, format, ap);
-	
+
   va_end(ap);
-  
-  p = path + strlen(path);
+
+  p= path + strlen(path);
   while (*p != '\\' && *p != '/' && p > path) p--;
-  *p = '\0';
+  *p= '\0';
   p++;
-  
-  parent = opendir(path);
+
+  parent= opendir(path);
 
   if (parent == NULL)
   {
-    return;
+    return 1;            /* Error, directory missing */
   }
-	
-  while((entry = readdir(parent)) != NULL)
+
+  while ((entry= readdir(parent)) != NULL)
   {
-    /* 
-     entry is not directory and entry matches with mask
-    */
+    /* entry is not directory and entry matches with mask */
     if (!S_ISDIR(entry->d_type) && !fnmatch(p, entry->d_name,0))
     {
-      // create long name
+      /* create long name */
       snprintf(temp, PATH_MAX, "%s/%s", path, entry->d_name);
-      // Delete only files
+      /* Delete only files */
       remove(temp);
     }
   }
 #endif
-  return 0; 
+  return 0;
 }
 
 /******************************************************************************
 
-	get_basedir()
-	
+        get_basedir()
+
 ******************************************************************************/
+
 void get_basedir(char *argv0, char *basedir)
 {
   char temp[PATH_MAX];
   char *p;
   int position;
-	
+
   ASSERT(argv0 != NULL);
   ASSERT(basedir != NULL);
 
   strcpy(temp, strlwr(argv0));
-  while((p = strchr(temp, '\\')) != NULL) *p = '/';
-	
-  if ((position = strinstr(temp, "/bin/")) != 0)
+  while ((p= strchr(temp, '\\')) != NULL) *p= '/';
+
+  if ((position= strinstr(temp, "/bin/")) != 0)
   {
-    p = temp + position;
-    *p = '\0';
+    p= temp + position;
+    *p= '\0';
     strcpy(basedir, temp);
   }
 }
 
-#if !defined(__NETWARE__) && !defined(__WIN__)
-char *strlwr(const char *s)
-{
-  return s;
-}
-#endif
-
 uint strinstr(reg1 const char *str,reg4 const char *search)
 {
   reg2 my_string i,j;
-  my_string start = (my_string) str;
+  my_string start= (my_string) str;
 
  skipp:
   while (*str != '\0')
   {
     if (*str++ == *search)
     {
-      i=(my_string) str; j= (my_string) search+1;
+      i=(my_string) str;
+      j= (my_string) search+1;
       while (*j)
-	if (*i++ != *j++) goto skipp;
+        if (*i++ != *j++) goto skipp;
       return ((uint) (str - start));
     }
   }
@@ -845,13 +835,14 @@ uint strinstr(reg1 const char *str,reg4 const char *search)
 
 /******************************************************************************
 
-	remove_empty_file()
-	
+        remove_empty_file()
+
 ******************************************************************************/
+
 void remove_empty_file(const char *file_name)
 {
   struct stat file;
-  
+
   if (!stat(file_name,&file))
   {
     if (!file.st_size)
