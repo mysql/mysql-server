@@ -231,8 +231,8 @@ security bug in @code{MySQL Server}, you should send an e-mail to
 
 @menu
 * Manual-info::                 About This Manual
-* What-is::                     What Is MySQL?
-* What is MySQL AB::            What Is MySQL AB?
+* What-is::                     What Is MySQL
+* What is MySQL AB::            What Is MySQL AB
 * Licensing and Support::       MySQL Support and Licensing
 * MySQL 4.0 In A Nutshell::     MySQL 4.0 In A Nutshell
 * MySQL Information Sources::   MySQL Information Sources
@@ -397,7 +397,7 @@ alternatives are listed within braces (@samp{@{} and @samp{@}}):
 
 
 @node What-is, What is MySQL AB, Manual-info, Introduction
-@section What Is MySQL?
+@section What Is MySQL
 
 @cindex MySQL, defined
 @cindex MySQL, introduction
@@ -948,7 +948,7 @@ year values).
 
 
 @node What is MySQL AB, Licensing and Support, What-is, Introduction
-@section What Is MySQL AB?
+@section What Is MySQL AB
 
 @cindex MySQL AB, defined
 
@@ -1423,7 +1423,8 @@ The @code{MySQL} software is released under the
 which probably is the best known @code{Open Source} license.
 The formal terms of the @code{GPL} license can be found at
 @uref{http://www.gnu.org/licenses/}.
-See also @uref{http://www.gnu.org/licenses/gpl-faq.html}.
+See also @uref{http://www.gnu.org/licenses/gpl-faq.html} and
+@uref{http://www.gnu.org/philosophy/enforcing-gpl.html}.
 
 Since the @code{MySQL} software is released under the @code{GPL},
 it may often be used for free, but for certain uses you may want
@@ -12761,12 +12762,6 @@ whereas @samp{[0-9]} matches any digit.
 example, @samp{x*} matches any number of @samp{x} characters,
 @samp{[0-9]*} matches any number of digits, and @samp{.*} matches any
 number of anything.
-
-@item
-Regular expressions are case sensitive, but you can use a character class to
-match both lettercases if you wish.  For example, @samp{[aA]} matches
-lowercase or uppercase @samp{a} and @samp{[a-zA-Z]} matches any letter in
-either case.
 
 @item
 The pattern matches if it occurs anywhere in the value being tested.
@@ -33188,20 +33183,6 @@ select fields which are not mentioned in the @code{GROUP BY} clause.
 If you are not getting the results you expect from your query, please
 read the @code{GROUP BY} description.
 @xref{Group by functions}.
-
-@item
-@cindex hints
-@code{SQL_BUFFER_RESULT} will force the result to be put into a temporary
-table. This will help MySQL free the table locks early and will help
-in cases where it takes a long time to send the result set to the client.
-
-@item
-@cindex hints
-@code{SQL_SMALL_RESULT}, a MySQL-specific option, can be used
-with @code{GROUP BY} or @code{DISTINCT} to tell the optimiser that the
-result set will be small.  In this case, MySQL will use fast
-temporary tables to store the resulting table instead of using sorting. In
-MySQL Version 3.23 this shouldn't normally be needed.
 
 @item
 @cindex hints
