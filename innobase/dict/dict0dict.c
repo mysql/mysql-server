@@ -4195,5 +4195,5 @@ dict_index_name_print(
 	fputs("index ", file);
 	ut_print_name(file, index->name);
 	fputs(" of table ", file);
-	ut_print_name(stderr, index->table_name);
+	ut_print_name(file, index->table_name);
 }
