@@ -25,7 +25,7 @@ char ft_boolean_syntax[]="+ -><()~*:\"\"&|";
 
 const HA_KEYSEG ft_keysegs[FT_SEGS]={
 {
-  NullS,                                        /* charset  */
+  0,                                            /* charset  */
   HA_FT_WLEN,                                   /* start */
   0,                                            /* null_pos */
   0,                                            /* Bit pos */
@@ -42,7 +42,7 @@ const HA_KEYSEG ft_keysegs[FT_SEGS]={
       be packed in any way, otherwise w_search() won't be able to
       update key entry 'in vivo'
     */
-  NullS, 0, 0, 0, HA_NO_SORT, HA_FT_WLEN, HA_FT_WTYPE, 63, 0, 0, 0, 0
+  0, 0, 0, 0, HA_NO_SORT, HA_FT_WLEN, HA_FT_WTYPE, 63, 0, 0, 0, 0
 }
 };
 
