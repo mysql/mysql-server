@@ -73,3 +73,11 @@ select * from t1 where 'a' collate latin1_general_ci in (a,b,c);
 select * from t1 where 'a' collate latin1_bin in (a,b,c);
 select * from t1 where 'a' in (a,b,c collate latin1_bin);
 drop table t1;
+
+select '1.0' in (1,2);
+select 1 in ('1.0',2);
+select 1 in (1,'2.0');
+select 1 in ('1.0',2.0);
+select 1 in (1.0,'2.0');
+select 1 in ('1.1',2);
+select 1 in ('1.1',2.0);
