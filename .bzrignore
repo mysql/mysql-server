@@ -159,3 +159,7 @@ PENDING/2000-10-11.06
 BitKeeper/etc/csets-out
 BitKeeper/etc/csets-in
 support-files/mysql-3.23.26-beta.spec
+include/.my_sys.h.swp
+PENDING/2000-10-25.01
+PENDING/2000-10-25.02
+support-files/mysql-3.23.27-beta.spec

@@ -93,6 +93,87 @@ static int send_file(THD *thd)
   DBUG_RETURN(error);
 }
 
+void adjust_linfo_offsets(my_off_t purge_offset)
+{
+  THD *tmp;
+  
+  pthread_mutex_lock(&LOCK_thread_count);
+  I_List_iterator<THD> it(threads);
+  
+  while((tmp=it++))
+    {
+      LOG_INFO* linfo;
+	if((linfo = tmp->current_linfo))
+	{
+	  pthread_mutex_lock(&linfo->lock);
+	  // no big deal if we just started reading the log
+	  // nothing to adjust
+	  if(linfo->index_file_offset < purge_offset)
+	    linfo->fatal = (linfo->index_file_offset != 0);
+	  else
+	    linfo->index_file_offset -= purge_offset;
+	  pthread_mutex_unlock(&linfo->lock);
+	}
+   }
+
+  pthread_mutex_unlock(&LOCK_thread_count);
+}
+
+bool log_in_use(const char* log_name)
+{
+  int log_name_len = strlen(log_name) + 1;
+  THD *tmp;
+  bool result = 0;
+  
+  pthread_mutex_lock(&LOCK_thread_count);
+  I_List_iterator<THD> it(threads);
+  
+  while((tmp=it++))
+    {
+      LOG_INFO* linfo;
+      if((linfo = tmp->current_linfo))
+	{
+	  pthread_mutex_lock(&linfo->lock);
+	  result = !memcmp(log_name, linfo->log_file_name, log_name_len);
+	  pthread_mutex_unlock(&linfo->lock);
+	  if(result) break;
+	}
+   }
+
+  pthread_mutex_unlock(&LOCK_thread_count);
+  return result;
+}
+
+int purge_master_logs(THD* thd, const char* to_log)
+{
+  char search_file_name[FN_REFLEN];
+  mysql_bin_log.make_log_name(search_file_name, to_log);
+  int res = mysql_bin_log.purge_logs(thd, search_file_name);
+  char* errmsg = 0;
+  switch(res)
+    {
+    case 0: break;
+    case LOG_INFO_EOF: errmsg = "Target log not found in binlog index"; break;
+    case LOG_INFO_IO: errmsg = "I/O error reading log index file"; break;
+    case LOG_INFO_INVALID: errmsg = "Server configuration does not permit \
+binlog purge"; break;
+    case LOG_INFO_SEEK: errmsg = "Failed on fseek()"; break;
+    case LOG_INFO_PURGE_NO_ROTATE: errmsg = "Cannot purge unrotatable log";
+      break;
+    case LOG_INFO_MEM: errmsg = "Out of memory"; break;
+    case LOG_INFO_FATAL: errmsg = "Fatal error during purge"; break;
+    case LOG_INFO_IN_USE: errmsg = "A purgable log is in use, will not purge";
+      break;
+    default:
+      errmsg = "Unknown error during purge"; break;
+    }
+  
+  if(errmsg)
+   send_error(&thd->net, 0, errmsg);
+  else
+    send_ok(&thd->net);
+}
+
 void mysql_binlog_send(THD* thd, char* log_ident, ulong pos, ushort flags)
 {
   LOG_INFO linfo;
@@ -117,6 +198,9 @@ void mysql_binlog_send(THD* thd, char* log_ident, ulong pos, ushort flags)
     mysql_bin_log.make_log_name(search_file_name, log_ident);
   else
     search_file_name[0] = 0;
+  
+  linfo.index_file_offset = 0;
+  thd->current_linfo = &linfo;
 
   if(mysql_bin_log.find_first_log(&linfo, search_file_name))
     {
@@ -366,9 +450,20 @@ sweepstakes if you report the bug";
   
   send_eof(&thd->net);
   thd->proc_info = "waiting to finalize termination";
+  pthread_mutex_lock(&LOCK_thread_count);
+  thd->current_linfo = 0;
+  pthread_mutex_unlock(&LOCK_thread_count);
   DBUG_VOID_RETURN;
  err:
   thd->proc_info = "waiting to finalize termination";
+  pthread_mutex_lock(&LOCK_thread_count);
+  // exclude  iteration through thread list
+  // this is needed for purge_logs() - it will iterate through
+  // thread list and update thd->current_linfo->index_file_offset
+  // this mutex will make sure that it never tried to update our linfo
+  // after we return from this stack frame
+  thd->current_linfo = 0;
+  pthread_mutex_unlock(&LOCK_thread_count);
   if(log)
    (void) my_fclose(log, MYF(MY_WME));
   send_error(&thd->net, 0, errmsg);
@@ -594,7 +689,8 @@ int show_binlog_info(THD* thd)
     {
       LOG_INFO li;
       mysql_bin_log.get_current_log(&li);
-      net_store_data(packet, li.log_file_name);
+      int dir_len = dirname_length(li.log_file_name);
+      net_store_data(packet, li.log_file_name + dir_len);
       net_store_data(packet, (longlong)li.pos);
       net_store_data(packet, &binlog_do_db);
       net_store_data(packet, &binlog_ignore_db);
@@ -613,3 +709,71 @@ int show_binlog_info(THD* thd)
   send_eof(&thd->net);
   DBUG_RETURN(0);
 }
+
+int show_binlogs(THD* thd)
+{
+  const char* errmsg = 0;
+  FILE* index_file;
+  char fname[FN_REFLEN];
+  NET* net = &thd->net;
+  List<Item> field_list;
+  String* packet = &thd->packet;
+  
+  if(!mysql_bin_log.is_open())
+    {
+     errmsg = "binlog is not open";
+     goto err;
+    }
+
+  field_list.push_back(new Item_empty_string("Log_name", 128));
+  if(send_fields(thd, field_list, 1))
+    {
+      sql_print_error("Failed in send_fields");
+      return 1;
+    }
+  
+  mysql_bin_log.lock_index();
+  index_file = mysql_bin_log.get_index_file();
+  if(!index_file)
+    {
+	errmsg = "Uninitialized index file pointer";
+	mysql_bin_log.unlock_index();
+	goto err;
+    }
+  if(my_fseek(index_file, 0, MY_SEEK_SET, MYF(MY_WME)))
+    {
+	errmsg = "Failed on fseek()";
+	mysql_bin_log.unlock_index();
+	goto err;
+    }
+  
+  while(fgets(fname, sizeof(fname), index_file))
+    {
+      char* fname_end;
+      *(fname_end = (strend(fname) - 1)) = 0;
+      int dir_len = dirname_length(fname);
+      packet->length(0);
+      net_store_data(packet, fname + dir_len, (fname_end - fname)-dir_len);
+      if(my_net_write(net, (char*) packet->ptr(), packet->length()))
+	{
+	  sql_print_error("Failed in my_net_write");
+	  mysql_bin_log.unlock_index();
+	  return 1;
+	}
+    }
+  
+  mysql_bin_log.unlock_index();
+  send_eof(net);   
+ err:
+  if(errmsg)
+    {
+     send_error(net, 0, errmsg);
+     return 1;
+    }
+
+  send_ok(net);
+  return 0;
+}
+
+
+

@@ -24857,6 +24857,11 @@ propogation. @code{LOAD LOCAL DATA INFILE} will be skipped.
 @item
 Update queries that use user variables are not replication-safe (yet)
 @item
+Temporary tables will not work if the  table with the same name
+ is used in more than one thread - we plan on fixing this soon. For
+now the only thing you can do is turn off logging of the trouble
+queries with @code{SET SQL_LOG_BIN=0}
+@item
 Starting in 3.23.26, it is safe to connect servers in a circular
 master-slave relationship with @code{log-slave-updates} enabled.
 Note, however, that many queries will not work right in this kind of
@@ -24918,6 +24923,9 @@ databases should not be logged to the binary log with @code{binlog-ignore-db}
 Starting in 3.23.26, you can use @code{replicate-rewrite-db} to tell
 the slave to apply updates from one database on the master to the one
 with a different name on the slave
+@item
+Starting in 3.23.28, you can use @code{PURGE MASTER LOGS TO 'log-name'}
+to get rid of old logs while the slave is running
 @end itemize
 
 @node Replication Options, Replication SQL, Replication Features, Replication
@@ -25125,6 +25133,34 @@ command line. (Slave)
 
 @item @code{SHOW SLAVE STATUS}
  @tab Provides status info on essential parameters of the slave thread. (Slave)
+@item @code{SHOW MASTER LOGS}
+ @tab Only available starting in 3.23.28. Lists the binary logs on the master. You should use this command
+prior to @code{PURGE MASTER LOGS TO} to find out how far you should go.
+
+@item @code{PURGE MASTER LOGS TO 'logname'} 
+ @tab  Available starting in 3.23.28. Deletes all the 
+replication logs that are listed in the log
+index as being prior to the specified log, and removed them from the
+log index, so that the given log now becomes first. Example:
+
+@example
+PURGE MASTER LOGS TO 'mysql-bin.010'
+@end example
+
+This command will do nothing and  fail with an error 
+if you have an active slave that
+is currently reading one of the logs you are trying to delete. However,
+if you have a dormant slave, and happen to purge one of the logs it
+wants to read, the slave will be unable to replicate once it comes up.
+The command is safe to run while slaves are replicating - you do not
+need to stop them.
+
+You must first check all the slaves with @code{SHOW SLAVE STATUS} to
+see which log they are on, then do a listing of the logs on the 
+master with @code{SHOW MASTER LOGS}, find the earliest log among all
+the slaves ( if all the slaves are up to date, this will be the 
+last log on the list), backup all the logs you are about to delete 
+(optional) and purge up to the target log.
 
 @end multitable
 
@@ -25164,7 +25200,20 @@ In 3.23.26 we added @code{server-id} to each replication server, and
 now all the old zombie threads are killed on the master when a new replication thread
 connects from the same slave
 
+@strong{Q}: How do I rotate replication logs?
+
+@strong{A}: In 3.23.28 you should use @code{PURGE MASTER LOGS TO} 
+command after determining which logs can be deleted, and optionally
+backing them up first. In earlier versions the process is much more
+painful, and cannot be safely done without stopping all the slaves in
+the case that you plan to re-use log names  . 
+You will need  to stop the slave threads,  edit the binary log index
+ file, delete all the old logs, restart the master, start slave threads,
+and then remove the old log files.
+
+
 @strong{Q}: How do I upgrade on a hot replication setup?
+
 @strong{A}: If you are upgrading  pre-3.23.26 versions, you should just
 lock the master tables, let the slave catch up, then run @code{FLUSH
 MASTER} on the master, and @code{FLUSH SLAVE} on the slave to reset the
@@ -38194,6 +38243,17 @@ though, so 3.23 is not released as a stable version yet.
 Fixed bug in a BDB key compare function when comparing part keys.
 @item
 Added variable @code{bdb_lock_max} to @code{mysqld}.
+@item
+@code{SLAVE START} did not work if you started with 
+ @code{--skip-slave-start} and had not explicitly run @code{CHANGE
+MASTER TO}
+@item
+Fixed the output of @code{SHOW MASTER STATUS} to be consistent with
+@code{SHOW SLAVE STATUS} ( no directory in the log name)
+@item
+Added @code{PURGE MASTER LOGS TO} 
+@item
+Added @code{SHOW MASTER LOGS} 
 @end itemize
 
 @node News-3.23.27, News-3.23.26, News-3.23.28, News-3.23.x

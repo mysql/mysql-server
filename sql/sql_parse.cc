@@ -927,6 +927,13 @@ mysql_execute_command(void)
 #endif
     break;
   }
+  case SQLCOM_PURGE:
+    {
+      if(check_access(thd, PROCESS_ACL, any_db))
+	goto error;
+      res = purge_master_logs(thd, lex->to_log);
+      break;
+    }
   case SQLCOM_BACKUP_TABLE:
     {
       if (check_db_used(thd,tables) ||
@@ -1183,6 +1190,18 @@ mysql_execute_command(void)
       res= -1;
     break;
   }
+  case SQLCOM_SHOW_BINLOGS:
+#ifdef DONT_ALLOW_SHOW_COMMANDS
+    send_error(&thd->net,ER_NOT_ALLOWED_COMMAND); /* purecov: inspected */
+    DBUG_VOID_RETURN;
+#else
+    {
+      if(check_access(thd, PROCESS_ACL, any_db))
+	goto error;
+      res = show_binlogs(thd);
+      break;
+    }
+#endif    
   case SQLCOM_SHOW_CREATE:
 #ifdef DONT_ALLOW_SHOW_COMMANDS
     send_error(&thd->net,ER_NOT_ALLOWED_COMMAND); /* purecov: inspected */
