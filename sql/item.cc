@@ -930,6 +930,12 @@ bool Item::embedded_send(const CONVERT *convert, CHARSET_INFO *charset, MEM_ROOT
   String s(buff, sizeof(buff), charset), *value;
   if (!(value=val_str(&s)) ||
       !(*result=alloc_root(alloc, value->length() + 1)))
+  {
+    *result= NULL;
+    *length= 0;
+    return false;
+  }
+  if (!(*result=alloc_root(alloc, value->length() + 1)))
     return true;
   *length= value->length();
   if (convert)
@@ -944,6 +950,7 @@ bool Item_null::embedded_send(const CONVERT *convert, CHARSET_INFO *charset, MEM
 			     char **result, ulong *length)
 {
   *result= NULL;
+  *length= 0;
   return false;
 }
 
@@ -952,7 +959,8 @@ bool Item_field::embedded_send(const CONVERT *convert, CHARSET_INFO *charset, ME
 {
   if (result_field->is_null())
   {
-    result= NULL;
+    *result= NULL;
+    *length= 0;
     return false;
   }
 

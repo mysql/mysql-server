@@ -683,13 +683,14 @@ mysqld_show_fields(THD *thd, TABLE_LIST *table_list,const char *wild,
     field_list.push_back(new Item_empty_string("Comment",255));
   }
         // Send first number of fields and records
+#ifndef EMBEDDED_LIBRARY
   {
     char *pos;
     pos=net_store_length(tmp, (uint) field_list.elements);
     pos=net_store_length(pos,(ulonglong) file->records);
     (void) my_net_write(&thd->net,tmp,(uint) (pos-tmp));
   }
-
+#endif
   if (send_fields(thd,field_list,0))
     DBUG_RETURN(1);
   restore_record(table,2);      // Get empty record

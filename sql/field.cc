@@ -5216,12 +5216,11 @@ Field *make_field(char *ptr, uint32 field_length,
     if (f_is_geom(pack_flag))
       return new Field_geom(ptr,null_pos,null_bit,
 			    unireg_check, field_name, table,
-			    pack_length,f_is_binary(pack_flag) != 0);
+			    pack_length);
     if (f_is_blob(pack_flag))
       return new Field_blob(ptr,null_pos,null_bit,
 			    unireg_check, field_name, table,
-			    pack_length,f_is_binary(pack_flag) != 0,
-			    default_charset_info);
+			    pack_length, field_charset);
     if (interval)
     {
       if (f_is_enum(pack_flag))

@@ -219,7 +219,7 @@ int create_vio(NET *net, int separate_thread)
   Vio * v  = net->vio;
   if (!v)
   {
-    v = vio_new(0, separate_thread ? VIO_SHARED_MEMORY : VIO_BUFFER, 0);
+    v = vio_new(0, separate_thread ? VIO_TYPE_SHARED_MEMORY : VIO_TYPE_BUFFER, 0);
     net->vio = v;
   }
   return !v;

@@ -380,13 +380,13 @@ int STDCALL mysql_server_init(int argc, char **argv, char **groups)
   error_handler_hook = my_message_sql;
 
   opt_noacl = 1;				// No permissions
-  if (acl_init(opt_noacl))
+  if (acl_init((THD *)0, opt_noacl))
   {
     mysql_server_end();
     return 1;
   }
   if (!opt_noacl)
-    (void) grant_init();
+    (void) grant_init((THD *)0);
   init_max_user_conn();
   init_update_queries();
 
@@ -664,13 +664,13 @@ int STDCALL mysql_server_init(int argc, char **argv, char **groups)
     exit(1);
   }
   opt_noacl = 1;				// No permissions
-  if (acl_init((THD*) 0,opt_noacl))
+  if (acl_init(opt_noacl))
   {
     mysql_server_end();
     return 1;
   }
   if (!opt_noacl)
-    (void) grant_init((THD*) 0);
+    (void) grant_init();
   init_max_user_conn();
   init_update_queries();
 
@@ -1148,9 +1148,10 @@ bool send_fields(THD *thd, List<Item> &list, uint flag)
   MYSQL                    *mysql= thd->mysql;
   
   if (!(mysql->result=(MYSQL_RES*) my_malloc(sizeof(MYSQL_RES)+
-				      sizeof(ulong) * field_count,
+				      sizeof(ulong) * (field_count + 1),
 				      MYF(MY_WME | MY_ZEROFILL))))
     goto err;
+  mysql->result->lengths= (ulong *)(mysql->result + 1);
 
   mysql->field_count=field_count;
   alloc= &mysql->field_alloc;
@@ -1240,83 +1241,6 @@ net_field_length(uchar **packet)
   (*packet)+=9;					/* Must be 254 when here */
   return (ulong) uint4korr(pos+1);
 }
-
-#ifdef __DUMMY
-bool select_send___send_data(List<Item> &items)
-{
-  List_iterator_fast<Item> li(items);
-  Item                     *item;
-  String                   *packet= &thd->packet;
-  MYSQL                    *mysql= thd->mysql;
-  MYSQL_DATA               *result= mysql->result->data;
-  MYSQL_ROWS               **prev_ptr= &mysql->result->data->data;
-  MYSQL_ROWS               *cur;
-  MEM_ROOT                 *alloc= &mysql->result->data->alloc;
-  char                     *to;
-  int                      n_fields= items.elements;
-  uchar                    *cp;
-  MYSQL_FIELD              *mysql_fields= mysql->result->fields;
-  MYSQL_ROW                cur_field, end_field;
-  ulong                    len;
-
-
-  DBUG_ENTER("send_data");
-
-  if (unit->offset_limit_cnt)
-  {						// using limit offset,count
-    unit->offset_limit_cnt--;
-    DBUG_RETURN(0);
-  }
-
-  thd->packet.length(0);
-  while ((item=li++))
-  {
-    if (item->send(thd, packet))
-    {
-      packet->free();
-      my_error(ER_OUT_OF_RESOURCES, MYF(0));
-      DBUG_RETURN(1);
-    }
-  }
-
-  result->rows++;
-  if (!(cur= (MYSQL_ROWS *)alloc_root(alloc, sizeof(MYSQL_ROWS))) ||
-      !(cur->data= (MYSQL_ROW)alloc_root(alloc, 
-					 (n_fields + 1) * sizeof(char *) + packet->length())))
-  {
-    my_error(ER_OUT_OF_RESOURCES,MYF(0));
-    DBUG_RETURN(1);
-  }
-
-  *result->prev_ptr= cur;
-  result->prev_ptr= &cur->next;
-  to= (char*) (cur->data+n_fields+1);
-  cp= (uchar *)packet->ptr();
-  end_field= cur->data + n_fields;
-
-  for (cur_field=cur->data; cur_field<end_field; ++cur_field, ++mysql_fields)
-  {
-    if ((len= (ulong) net_field_length(&cp)) == NULL_LENGTH)
-    {
-      *cur_field = 0;
-    }
-    else
-    {
-      *cur_field= to;
-      memcpy(to,(char*) cp,len);
-      to[len]=0;
-      to+=len+1;
-      cp+=len;
-      if (mysql_fields->max_length < len)
-	mysql_fields->max_length=len;
-    }
-  }
-
-  *cur_field= to;
-
-  DBUG_RETURN(0);
-}
-#endif
 
 bool select_send::send_data(List<Item> &items)
 {
@@ -1474,12 +1398,12 @@ int embedded_send_row(THD *thd, int n_fields, char *data, int data_len)
   DBUG_ENTER("embedded_send_row");
 
   result->rows++;
-  if (!(cur= (MYSQL_ROWS *)alloc_root(alloc, sizeof(MYSQL_ROWS) + (n_fields + 1) * sizeof(char *) + data_len)))
+  if (!(cur= (MYSQL_ROWS *)alloc_root(alloc, sizeof(MYSQL_ROWS) + (n_fields + 1) * sizeof(MYSQL_ROW) + data_len)))
   {
     my_error(ER_OUT_OF_RESOURCES,MYF(0));
     DBUG_RETURN(1);
   }
-  cur->data= (MYSQL_ROW)((char *)cur) + sizeof(MYSQL_ROWS);
+  cur->data= (MYSQL_ROW)(cur + 1);
 
   *result->prev_ptr= cur;
   result->prev_ptr= &cur->next;
