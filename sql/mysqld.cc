@@ -3944,11 +3944,11 @@ replicating a LOAD DATA INFILE command",
    0, 0, 0, 0},
   {"log-warnings", 'W', "Log some not critical warnings to the log file",
    (gptr*) &global_system_variables.log_warnings,
-   (gptr*) &max_system_variables.log_warnings, 0, GET_BOOL, NO_ARG, 1, 0, 0,
+   (gptr*) &max_system_variables.log_warnings, 0, GET_ULONG, OPT_ARG, 1, 0, 0,
    0, 0, 0},
   {"warnings", 'W', "Deprecated ; Use --log-warnings instead",
    (gptr*) &global_system_variables.log_warnings,
-   (gptr*) &max_system_variables.log_warnings, 0, GET_BOOL, NO_ARG, 1, 0, 0,
+   (gptr*) &max_system_variables.log_warnings, 0, GET_ULONG, OPT_ARG, 1, 0, 0,
    0, 0, 0},
   { "back_log", OPT_BACK_LOG,
     "The number of outstanding connection requests MySQL can have. This comes into play when the main MySQL thread gets very many connection requests in a very short time.",
@@ -4656,6 +4656,14 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
   case 'V':
     print_version();
     exit(0);
+  case 'W':
+    if (!argument)
+      global_system_variables.log_warnings++;
+    else if (argument == disabled_my_option)
+      global_system_variables.log_warnings= 0L;
+    else
+      global_system_variables.log_warnings= atoi(argument);
+    break;
   case 'I':
   case '?':
     usage();
