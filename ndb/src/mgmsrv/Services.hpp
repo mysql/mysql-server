@@ -82,6 +82,8 @@ public:
   void configUnlock(Parser_t::Context &ctx, const class Properties &args);
   void configChange(Parser_t::Context &ctx, const class Properties &args);
 
+  void setParameter(Parser_t::Context &ctx, const class Properties &args);
+
   void repCommand(Parser_t::Context &ctx, const class Properties &args);
 };
 
