@@ -58,8 +58,8 @@
 #define NDB_TYPE_BLOB                   20
 #define NDB_TYPE_TEXT                   21
 #define NDB_TYPE_BIT                    22
-#define NDB_TYPE_LONG_VARCHAR           23
-#define NDB_TYPE_LONG_VARBINARY         24
+#define NDB_TYPE_LONGVARCHAR            23
+#define NDB_TYPE_LONGVARBINARY          24
 #define NDB_TYPE_TIME                   25
 #define NDB_TYPE_YEAR                   26
 #define NDB_TYPE_TIMESTAMP              27
