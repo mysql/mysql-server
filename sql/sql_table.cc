@@ -266,7 +266,7 @@ int mysql_create_table(THD *thd,const char *db, const char *table_name,
   DBUG_ENTER("mysql_create_table");
 
   /*
-  ** Check for duplicate fields and check type of table to create
+    Check for duplicate fields and check type of table to create
   */
 
   if (!fields.elements)
@@ -398,34 +398,49 @@ int mysql_create_table(THD *thd,const char *db, const char *table_name,
   /* Create keys */
 
   List_iterator<Key> key_iterator(keys);
-  uint key_parts=0,key_count=keys.elements;
+  uint key_parts=0, key_count=0, fk_key_count=0;
   List<Key> keys_in_order;			// Add new keys here
   bool primary_key=0,unique_key=0;
   Key *key;
   uint tmp, key_number;
-  tmp=min(file->max_keys(), MAX_KEY);
-  if (key_count > tmp)
-  {
-    my_error(ER_TOO_MANY_KEYS,MYF(0),tmp);
-    DBUG_RETURN(-1);
-  }
 
   /* Calculate number of key segements */
 
   while ((key=key_iterator++))
   {
+    if (key->type == Key::FOREIGN_KEY)
+    {
+      fk_key_count++;
+      foreign_key *fk_key= (foreign_key*) key;
+      if (fk_key->ref_columns.elements &&
+	  fk_key->ref_columns.elements != fk_key->columns.elements)
+      {
+	my_error(ER_WRONG_FK_DEF, MYF(0), fk_key->name ? fk_key->name :
+		 "foreign key without name",
+		 ER(ER_KEY_REF_DO_NOT_MATCH_TABLE_REF));
+	DBUG_RETURN(-1);
+      }
+      continue;
+    }
+    key_count++;
     tmp=max(file->max_key_parts(),MAX_REF_PARTS);
     if (key->columns.elements > tmp)
     {
       my_error(ER_TOO_MANY_KEY_PARTS,MYF(0),tmp);
       DBUG_RETURN(-1);
     }
-    if (key->name() && strlen(key->name()) > NAME_LEN)
+    if (key->name && strlen(key->name) > NAME_LEN)
     {
-      my_error(ER_TOO_LONG_IDENT, MYF(0), key->name());
+      my_error(ER_TOO_LONG_IDENT, MYF(0), key->name);
       DBUG_RETURN(-1);
     }
     key_parts+=key->columns.elements;
+  }
+  tmp=min(file->max_keys(), MAX_KEY);
+  if (key_count > tmp)
+  {
+    my_error(ER_TOO_MANY_KEYS,MYF(0),tmp);
+    DBUG_RETURN(-1);
   }
 
   key_info_buffer=key_info=(KEY*) sql_calloc(sizeof(KEY)*key_count);
@@ -450,7 +465,10 @@ int mysql_create_table(THD *thd,const char *db, const char *table_name,
       case Key::SPATIAL:
         key_info->flags = HA_SPATIAL;
         break;
-      default:
+    case Key::FOREIGN_KEY:
+      key_number--;				// Skip this key
+      continue;
+    default:
         key_info->flags = HA_NOSAME;
     }
 
@@ -623,7 +641,7 @@ int mysql_create_table(THD *thd,const char *db, const char *table_name,
 	  key_name=primary_key_name;
 	  primary_key=1;
 	}
-	else if (!(key_name = key->name()))
+	else if (!(key_name = key->name))
 	  key_name=make_unique_key_name(sql_field->field_name,
 					key_info_buffer,key_info);
 	if (check_if_keyname_exists(key_name,key_info_buffer,key_info))
@@ -1395,7 +1413,7 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
   List<Key> key_list;				// Add new keys here
 
   /*
-  ** First collect all fields from table which isn't in drop_list
+    First collect all fields from table which isn't in drop_list
   */
 
   create_field *def;
@@ -1511,8 +1529,8 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
   }
 
   /*
-  ** Collect all keys which isn't in drop list. Add only those
-  ** for which some fields exists.
+    Collect all keys which isn't in drop list. Add only those
+    for which some fields exists.
   */
 
   List_iterator<Key> key_it(keys);
@@ -1583,18 +1601,20 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
 				 (!my_strcasecmp(system_charset_info,
                                                  key_name, "PRIMARY") ?
 				  Key::PRIMARY  : Key::UNIQUE) :
-                                 (key_info->flags & HA_FULLTEXT ?
-                                 Key::FULLTEXT : Key::MULTIPLE)),
+				  (key_info->flags & HA_FULLTEXT ?
+				   Key::FULLTEXT : Key::MULTIPLE)),
+				 key_name,
                                  key_info->algorithm,
-				 key_name,key_parts));
+				 key_parts));
   }
-  key_it.rewind();
   {
     Key *key;
     while ((key=key_it++))			// Add new keys
-      key_list.push_back(key);
+    {
+      if (key->type != Key::FOREIGN_KEY)
+	key_list.push_back(key);
+    }
   }
-
   if (drop_list.elements)
   {
     my_error(ER_CANT_DROP_FIELD_OR_KEY,MYF(0),drop_list.head()->name);
@@ -1764,9 +1784,9 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
     goto err;
   }
   /*
-  ** Data is copied.  Now we rename the old table to a temp name,
-  ** rename the new one to the old name, remove all entries from the old table
-  ** from the cash, free all locks, close the old table and remove it.
+    Data is copied.  Now we rename the old table to a temp name,
+    rename the new one to the old name, remove all entries from the old table
+    from the cash, free all locks, close the old table and remove it.
   */
 
   thd->proc_info="rename result table";

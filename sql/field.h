@@ -41,6 +41,7 @@ public:
   uchar		*null_ptr;		// Byte where null_bit is
   struct st_table *table;		// Pointer for table
   const char	*table_name,*field_name;
+  LEX_STRING	comment;
   ulong		query_id;		// For quick test of used fields
   // Field is part of the following keys
   key_map 	key_start,part_of_key,part_of_sortkey;
@@ -1013,6 +1014,7 @@ public:
   const char *field_name;
   const char *change;				// If done with alter table
   const char *after;				// Put column after this one
+  LEX_STRING comment;				// Comment for field
   Item	*def;					// Default value
   enum	enum_field_types sql_type;
   uint32 length;
@@ -1020,6 +1022,7 @@ public:
   Field::utype unireg_check;
   TYPELIB *interval;				// Which interval to use
   Field *field;					// For alter table
+  CHARSET_INFO *charset;
 
   uint8 row,col,sc_length,interval_id;		// For rea_create_table
   uint	offset,pack_flag;
@@ -1067,7 +1070,8 @@ public:
 
 Field *make_field(char *ptr, uint32 field_length,
 		  uchar *null_pos, uchar null_bit,
-		  uint pack_flag, Field::utype unireg_check,
+		  uint pack_flag, enum_field_types field_type,
+		  Field::utype unireg_check,
 		  TYPELIB *interval, const char *field_name,
 		  struct st_table *table);
 uint pack_length_to_packflag(uint type);

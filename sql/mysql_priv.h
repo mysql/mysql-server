@@ -474,8 +474,9 @@ int mysql_ha_read(THD *, TABLE_LIST *,enum enum_ha_read_modes,char *,
 void set_item_name(Item *item,char *pos,uint length);
 bool add_field_to_list(char *field_name, enum enum_field_types type,
 		       char *length, char *decimal,
-		       uint type_modifier, Item *default_value,char *change,
-		       TYPELIB *interval);
+		       uint type_modifier,
+		       Item *default_value, Item *comment,
+		       char *change, TYPELIB *interval);
 void store_position_for_column(const char *name);
 bool add_to_list(SQL_LIST &list,Item *group,bool asc=0);
 TABLE_LIST *add_table_to_list(Table_ident *table,LEX_STRING *alias,
@@ -726,7 +727,7 @@ ulong get_form_pos(File file, uchar *head, TYPELIB *save_names);
 ulong make_new_entry(File file,uchar *fileinfo,TYPELIB *formnames,
 		     const char *newname);
 ulong next_io_size(ulong pos);
-void append_unescaped(String *res,const char *pos);
+void append_unescaped(String *res, const char *pos, uint length);
 int create_frm(char *name,uint reclength,uchar *fileinfo,
 	       HA_CREATE_INFO *create_info, uint keys);
 void update_create_info_from_table(HA_CREATE_INFO *info, TABLE *form);

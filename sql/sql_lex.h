@@ -154,6 +154,7 @@ typedef struct st_lex {
   sql_exchange *exchange;
 
   List<key_part_spec> col_list;
+  List<key_part_spec> ref_list;
   List<Alter_drop>    drop_list;
   List<Alter_column>  alter_list;
   List<String>	      interval_list;
@@ -167,7 +168,7 @@ typedef struct st_lex {
   SQL_LIST	      proc_list, auxilliary_table_list;
   TYPELIB	      *interval;
   create_field	      *last_field;
-  Item *default_value;
+  Item *default_value, *comment;
   CONVERT *convert_set;
   LEX_USER *grant_user;
   gptr yacc_yyss,yacc_yyvs;
@@ -178,14 +179,15 @@ typedef struct st_lex {
   LEX_MASTER_INFO mi;				// used by CHANGE MASTER
   ulong thread_id,type;
   enum_sql_command sql_command;
+  thr_lock_type lock_option;
   enum lex_states next_state;
   enum enum_duplicates duplicates;
   enum enum_tx_isolation tx_isolation;
   enum enum_ha_read_modes ha_read_mode;
   enum ha_rkey_function ha_rkey_mode;
   enum enum_enable_or_disable alter_keys_onoff;
-  uint grant,grant_tot_col,which_columns, union_option, mqh;
-  thr_lock_type lock_option;
+  uint grant, grant_tot_col, which_columns, union_option, mqh;
+  uint fk_delete_opt, fk_update_opt, fk_match_option;
   bool	drop_primary,drop_if_exists,local_file;
   bool  in_comment,ignore_space,verbose,simple_alter, option_type, derived_tables;
   uint slave_thd_opt;
