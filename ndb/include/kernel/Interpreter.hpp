@@ -83,7 +83,7 @@ public:
   static Uint32 LoadConst64(Uint32 Register); // Value in next 2 words
   static Uint32 Add(Uint32 DstReg, Uint32 SrcReg1, Uint32 SrcReg2);
   static Uint32 Sub(Uint32 DstReg, Uint32 SrcReg1, Uint32 SrcReg2);
-  static Uint32 Branch(Uint32 Inst, Uint32 R1, Uint32 R2);
+  static Uint32 Branch(Uint32 Inst, Uint32 Reg1, Uint32 Reg2);
   static Uint32 ExitOK();
 
   /**
@@ -184,8 +184,8 @@ Interpreter::Sub(Uint32 Dcoleg, Uint32 SrcReg1, Uint32 SrcReg2){
 
 inline
 Uint32
-Interpreter::Branch(Uint32 Inst, Uint32 R1, Uint32 R2){
-  return (R1 << 9) + (R2 << 6) + Inst;
+Interpreter::Branch(Uint32 Inst, Uint32 Reg1, Uint32 Reg2){
+  return (Reg1 << 9) + (Reg2 << 6) + Inst;
 }
 
 inline

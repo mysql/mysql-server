@@ -82,7 +82,7 @@ character-set=latin1
 "BLOB feltet '%-.64s' kan ikke bruges ved specifikation af indeks",
 "For stor feltlængde for kolonne '%-.64s' (maks = %d). Brug BLOB i stedet",
 "Der kan kun specificeres eet AUTO_INCREMENT-felt, og det skal være indekseret",
-"%s: klar til tilslutninger\n",
+"%s: klar til tilslutninger",
 "%s: Normal nedlukning\n",
 "%s: Fangede signal %d. Afslutter!!\n",
 "%s: Server lukket\n",

@@ -101,6 +101,7 @@ sub main
     # on the toplevel of the directory instead. file 'PUBLIC' shouldn't
     # exist in the new mysql distributions, but let's be sure..
     unlink("$destdir/PUBLIC", "$destdir/README");
+    unlink("$destdir/COPYING", "$destdir/EXCEPTIONS-CLIENT");
     copy("$WD/Docs/MySQLEULA.txt", "$destdir");
 
     # remove readline, bdb subdirs and update 'configure'

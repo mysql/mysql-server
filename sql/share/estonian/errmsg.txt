@@ -84,7 +84,7 @@ character-set=latin7
 "BLOB-tüüpi tulpa '%-.64s' ei saa kasutada võtmena",
 "Tulba '%-.64s' pikkus on liiga pikk (maksimaalne pikkus: %d). Kasuta BLOB väljatüüpi",
 "Vigane tabelikirjeldus; Tabelis tohib olla üks auto_increment tüüpi tulp ning see peab olema defineeritud võtmena",
-"%s: ootab ühendusi\n",
+"%s: ootab ühendusi",
 "%s: MySQL lõpetas\n",
 "%s: sain signaali %d. Lõpetan!\n",
 "%s: Lõpp\n",

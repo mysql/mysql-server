@@ -45,6 +45,7 @@ mysqld_LDADD =		@MYSQLD_EXTRA_LDFLAGS@ \
                         @innodb_system_libs@ \
 			@ndbcluster_libs@ @ndbcluster_system_libs@ \
 			$(LDADD)  $(CXXLDFLAGS) $(WRAPLIBS) @LIBDL@ @openssl_libs@
+mysqld_DEPENDENCIES = 	@ndbcluster_libs@ @ndbcluster_system_libs@
 noinst_HEADERS =	item.h item_func.h item_sum.h item_cmpfunc.h \
 			item_strfunc.h item_timefunc.h item_uniq.h \
 			item_create.h item_subselect.h item_row.h \
@@ -153,8 +154,8 @@ sql_lex.o:	lex_hash.h
 udf_example.so:	udf_example.cc
 		$(CXXCOMPILE) -shared -o $@ $<
 
-#distclean:
-#		rm -f lex_hash.h
+distclean:
+		rm -f lex_hash.h
 
 # Don't update the files from bitkeeper
 %::SCCS/s.%

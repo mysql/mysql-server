@@ -559,3 +559,4 @@ SimpleCpcClient::ParserDummy::ParserDummy(NDB_SOCKET_TYPE sock)
 }
  
 template class Vector<SimpleCpcClient::Process>; 
+template class Vector<ParserRow<SimpleCpcClient::ParserDummy> const*>;

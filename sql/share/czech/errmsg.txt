@@ -88,7 +88,7 @@ character-set=latin2
 "Blob sloupec '%-.64s' nem-Bù¾e být pou¾it jako klíè",
 "P-Bøíli¹ velká délka sloupce '%-.64s' (nejvíce %d). Pou¾ijte BLOB",
 "M-Bù¾ete mít pouze jedno AUTO pole a to musí být definováno jako klíè",
-"%s: p-Bøipraven na spojení\n",
+"%s: p-Bøipraven na spojení",
 "%s: norm-Bální ukonèení\n",
 "%s: p-Bøijat signal %d, konèím\n",
 "%s: ukon-Bèení práce hotovo\n",

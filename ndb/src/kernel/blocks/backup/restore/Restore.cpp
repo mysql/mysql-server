@@ -937,3 +937,8 @@ operator<<(NdbOut& ndbout, const TableS & table){
   } // for
   return ndbout;
 }
+
+template class Vector<TableS*>;
+template class Vector<AttributeS*>;
+template class Vector<AttributeDesc*>;
+

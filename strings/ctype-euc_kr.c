@@ -8715,7 +8715,7 @@ CHARSET_INFO my_charset_euckr_bin=
     ctype_euc_kr,
     to_lower_euc_kr,
     to_upper_euc_kr,
-    sort_order_euc_kr,
+    NULL,		/* sort_order   */
     NULL,		/* contractions */
     NULL,		/* sort_order_big*/
     NULL,		/* tab_to_uni   */

@@ -969,7 +969,7 @@ void Item_func_round::fix_length_and_dec()
     if (tmp < 0)
       decimals=0;
     else
-      decimals=tmp;
+      decimals=min(tmp,NOT_FIXED_DEC);
   }
 }
 
@@ -1639,7 +1639,7 @@ udf_handler::fix_fields(THD *thd, TABLE_LIST *tables, Item_result_field *func,
     func->max_length=min(initid.max_length,MAX_BLOB_WIDTH);
     func->maybe_null=initid.maybe_null;
     const_item_cache=initid.const_item;
-    func->decimals=min(initid.decimals,31);
+    func->decimals=min(initid.decimals,NOT_FIXED_DEC);
   }
   initialized=1;
   if (error)
