@@ -14,4 +14,3 @@ ALTER TABLE T2 ADD new_col int not null;
 ALTER TABLE T2 RENAME T3;
 show tables like 't_';
 drop table t3;
-

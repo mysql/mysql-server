@@ -41,7 +41,7 @@ public:
     :Item_sum_num(thd, item) {}
   double val() { return 0.0; }  
   enum Sumfunctype sum_func () const {return UNIQUE_USERS_FUNC;}
-  void reset() {}
+  bool reset() { return 0;}
   bool add() { return 0; }
   void reset_field() {}
   void update_field(int offset) {}

@@ -208,9 +208,9 @@ const char *show_comp_option_name[]= {"YES", "NO", "DISABLED"};
 const char *sql_mode_names[] =
 {
   "REAL_AS_FLOAT", "PIPES_AS_CONCAT", "ANSI_QUOTES", "IGNORE_SPACE",
-  "SERIALIZE", "ONLY_FULL_GROUP_BY", "NO_UNSIGNED_SUBTRACTION",
+  "?", "ONLY_FULL_GROUP_BY", "NO_UNSIGNED_SUBTRACTION",
   "POSTGRESQL", "ORACLE", "MSSQL", "DB2", "SAPDB", "NO_KEY_OPTIONS",
-  "NO_TABLE_OPTIONS", "NO_FIELD_OPTIONS", "MYSQL323", "MYSQL40",
+  "NO_TABLE_OPTIONS", "NO_FIELD_OPTIONS", "MYSQL323", "MYSQL40", "ANSI",
   NullS
 };
 TYPELIB sql_mode_typelib= { array_elements(sql_mode_names)-1,"",
@@ -323,6 +323,9 @@ struct system_variables max_system_variables;
 MY_TMPDIR mysql_tmpdir_list;
 DATE_FORMAT dayord;
 MY_BITMAP temp_pool;
+
+CHARSET_INFO *system_charset_info, *files_charset_info ;
+CHARSET_INFO *national_charset_info, *table_alias_charset;
 
 SHOW_COMP_OPTION have_berkeley_db, have_innodb, have_isam;
 SHOW_COMP_OPTION have_raid, have_openssl, have_symlink, have_query_cache;
@@ -2281,9 +2284,7 @@ static void handle_connections_methods()
 #endif /* __NT__ */
   if (have_tcpip && !opt_disable_networking)
   {
-#ifdef __NT__
     handler_count++;
-#endif    
     if (pthread_create(&hThread,&connection_attrib,
 		       handle_connections_sockets, 0))
     {
@@ -2294,9 +2295,7 @@ static void handle_connections_methods()
 #ifdef HAVE_SMEM
   if (opt_enable_shared_memory)
   {
-#ifdef __NT__
     handler_count++;
-#endif    
     if (pthread_create(&hThread,&connection_attrib,
 		       handle_connections_shared_memory, 0))
     {
@@ -2311,6 +2310,16 @@ static void handle_connections_methods()
   pthread_mutex_unlock(&LOCK_thread_count);
   DBUG_VOID_RETURN;
 }
+
+void decrement_handler_count()
+{
+  pthread_mutex_lock(&LOCK_thread_count);
+  handler_count--;
+  pthread_mutex_unlock(&LOCK_thread_count);
+  pthread_cond_signal(&COND_handler_count);
+}
+#else
+#define decrement_handler_count()
 #endif /* defined(__NT__) || defined(HAVE_SMEM) */
 
 
@@ -2428,7 +2437,7 @@ The server will not act as a slave.");
 #endif
   /* init_slave() must be called after the thread keys are created */
   init_slave();
-  
+
   if (opt_bootstrap)
   {
     int error=bootstrap(stdin);
@@ -3019,13 +3028,7 @@ extern "C" pthread_handler_decl(handle_connections_sockets,
   // kill server must be invoked from thread 1!
   kill_server(MYSQL_KILL_SIGNAL);
 #endif
-
-#ifdef __NT__
-  pthread_mutex_lock(&LOCK_thread_count);
-  handler_count--;
-  pthread_mutex_unlock(&LOCK_thread_count);
-  pthread_cond_signal(&COND_handler_count);
-#endif
+  decrement_handler_count();
   DBUG_RETURN(0);
 }
 
@@ -3105,10 +3108,7 @@ extern "C" pthread_handler_decl(handle_connections_namedpipes,arg)
     create_new_thread(thd);
   }
 
-  pthread_mutex_lock(&LOCK_thread_count);
-  handler_count--;
-  pthread_mutex_unlock(&LOCK_thread_count);
-  pthread_cond_signal(&COND_handler_count);
+  decrement_handler_count();
   DBUG_RETURN(0);
 }
 #endif /* __NT__ */
@@ -3322,12 +3322,8 @@ error:
   if (!handle_connect_file_map) CloseHandle(handle_connect_file_map);
   if (!event_connect_answer) CloseHandle(event_connect_answer);
   if (!event_connect_request) CloseHandle(event_connect_request);
-#ifdef __NT__  
-  pthread_mutex_lock(&LOCK_thread_count);
-  handler_count--;
-  pthread_mutex_unlock(&LOCK_thread_count);
-  pthread_cond_signal(&COND_handler_count);
-#endif  
+
+  decrement_handler_count();
   DBUG_RETURN(0);
 }
 #endif /* HAVE_SMEM */
@@ -3921,7 +3917,7 @@ replicating a LOAD DATA INFILE command",
    (gptr*) &opt_sql_bin_update, (gptr*) &opt_sql_bin_update, 0, GET_BOOL,
    NO_ARG, 0, 0, 0, 0, 0, 0},
   {"sql-mode", OPT_SQL_MODE,
-   "Syntax: sql-mode=option[,option[,option...]] where option can be one of: REAL_AS_FLOAT, PIPES_AS_CONCAT, ANSI_QUOTES, IGNORE_SPACE, SERIALIZE, ONLY_FULL_GROUP_BY, NO_UNSIGNED_SUBTRACTION.",
+   "Syntax: sql-mode=option[,option[,option...]] where option can be one of: REAL_AS_FLOAT, PIPES_AS_CONCAT, ANSI_QUOTES, IGNORE_SPACE, ONLY_FULL_GROUP_BY, NO_UNSIGNED_SUBTRACTION.",
    (gptr*) &sql_mode_str, (gptr*) &sql_mode_str, 0, GET_STR, REQUIRED_ARG, 0,
    0, 0, 0, 0, 0},
 #ifdef HAVE_OPENSSL
@@ -4634,6 +4630,12 @@ static void mysql_init_variables(void)
   bzero((gptr) &mysql_tmpdir_list, sizeof(mysql_tmpdir_list));
   bzero((gptr) &com_stat, sizeof(com_stat));
 
+  /* Character sets */
+  system_charset_info= &my_charset_utf8_general_ci;
+  files_charset_info= &my_charset_utf8_general_ci;
+  national_charset_info= &my_charset_utf8_general_ci;
+  table_alias_charset= &my_charset_bin;
+
   /* Things with default values that are not zero */
   delay_key_write_options= (uint) DELAY_KEY_WRITE_ON;
   opt_specialflag= SPECIAL_ENGLISH;
@@ -4683,6 +4685,7 @@ static void mysql_init_variables(void)
   charsets_dir= 0;
   sys_charset.value= (char*) MYSQL_CHARSET;
   sys_charset_system.value= (char*) system_charset_info->csname;
+
 
   /* Set default values for some option variables */
   global_system_variables.character_set_results= NULL;
@@ -4789,10 +4792,7 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     opt_endinfo=1;				/* unireg: memory allocation */
     break;
   case 'a':
-    global_system_variables.sql_mode=
-      (MODE_REAL_AS_FLOAT | MODE_PIPES_AS_CONCAT |
-       MODE_ANSI_QUOTES | MODE_IGNORE_SPACE | MODE_SERIALIZABLE |
-       MODE_ONLY_FULL_GROUP_BY);
+    global_system_variables.sql_mode= fix_sql_mode(MODE_ANSI);
     global_system_variables.tx_isolation= ISO_SERIALIZABLE;
     break;
   case 'b':
@@ -5270,11 +5270,8 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
       fprintf(stderr, "Unknown option to sql-mode: %s\n", argument);
       exit(1);
     }
-    global_system_variables.tx_isolation=
-      ((global_system_variables.sql_mode & MODE_SERIALIZABLE) ?
-       ISO_SERIALIZABLE :
-       ISO_REPEATABLE_READ);
-    break;
+    global_system_variables.sql_mode= fix_sql_mode(global_system_variables.
+						   sql_mode);
   }
   case OPT_MASTER_PASSWORD:
     master_password=argument;
@@ -5332,6 +5329,9 @@ static void get_options(int argc,char **argv)
 
   /* Set global variables based on startup options */
   myisam_block_size=(uint) 1 << my_bit_log2(opt_myisam_block_size);
+  table_alias_charset= (lower_case_table_names ?
+			files_charset_info :
+			&my_charset_bin);
 }
 
 

@@ -42,7 +42,7 @@
 
 **********************************************************************/
 
-#define MTEST_VERSION "1.27"
+#define MTEST_VERSION "1.28"
 
 #include <my_global.h>
 #include <mysql_embed.h>
@@ -2147,6 +2147,10 @@ int run_query(MYSQL* mysql, struct st_query* q, int flags)
 	  if (i == 0 && q->expected_errors == 1)
 	  {
 	    /* Only log error if there is one possible error */
+	    dynstr_append_mem(ds,"ERROR ",6);
+	    replace_dynstr_append_mem(ds, mysql_sqlstate(mysql),
+				      strlen(mysql_sqlstate(mysql)));
+	    dynstr_append_mem(ds,": ",2);
 	    replace_dynstr_append_mem(ds,mysql_error(mysql),
 				      strlen(mysql_error(mysql)));
 	    dynstr_append_mem(ds,"\n",1);

@@ -17,3 +17,8 @@ SELECT id,NULL,1,1.1,'a' FROM t1 GROUP BY id;
 --error 1055
 SELECT id FROM t1 GROUP BY id2;
 drop table t1;
+
+set sql_mode="MySQL40";
+select @@sql_mode;
+set sql_mode="ANSI";
+select @@sql_mode;

@@ -89,6 +89,7 @@ static void fix_query_cache_min_res_unit(THD *thd, enum_var_type type);
 static void fix_key_buffer_size(THD *thd, enum_var_type type);
 static void fix_myisam_max_extra_sort_file_size(THD *thd, enum_var_type type);
 static void fix_myisam_max_sort_file_size(THD *thd, enum_var_type type);
+void fix_sql_mode_var(THD *thd, enum_var_type type);
 static byte *get_error_count(THD *thd);
 static byte *get_warning_count(THD *thd);
 
@@ -1164,40 +1165,6 @@ byte *sys_var_thd_enum::value_ptr(THD *thd, enum_var_type type)
 }
 
 
-byte *sys_var_thd_sql_mode::value_ptr(THD *thd, enum_var_type type)
-{
-  ulong val;
-  char buff[256];
-  String tmp(buff, sizeof(buff), &my_charset_latin1);
-  my_bool found= 0;
-
-  tmp.length(0);
-  val= ((type == OPT_GLOBAL) ? global_system_variables.*offset :
-        thd->variables.*offset);
-  for (uint i= 0; val; val>>= 1, i++)
-  {
-    if (val & 1)
-    {
-      tmp.append(enum_names->type_names[i]);
-      tmp.append(',');
-    }
-  }
-  if (tmp.length())
-    tmp.length(tmp.length() - 1);
-  return (byte*) thd->strmake(tmp.ptr(), tmp.length());
-}
-
-
-void sys_var_thd_sql_mode::set_default(THD *thd, enum_var_type type)
-{
-  if (type == OPT_GLOBAL)
-    global_system_variables.*offset= 0;
-  else
-    thd->variables.*offset= global_system_variables.*offset;
-}
-
-
-
 bool sys_var_thd_bit::update(THD *thd, set_var *var)
 {
   int res= (*update_func)(thd, var);
@@ -1803,7 +1770,105 @@ int set_var_password::update(THD *thd)
 	  1 : 0);
 }
 
+/****************************************************************************
+ Functions to handle sql_mode
+****************************************************************************/
 
+byte *sys_var_thd_sql_mode::value_ptr(THD *thd, enum_var_type type)
+{
+  ulong val;
+  char buff[256];
+  String tmp(buff, sizeof(buff), &my_charset_latin1);
+  my_bool found= 0;
+
+  tmp.length(0);
+  val= ((type == OPT_GLOBAL) ? global_system_variables.*offset :
+        thd->variables.*offset);
+  for (uint i= 0; val; val>>= 1, i++)
+  {
+    if (val & 1)
+    {
+      tmp.append(enum_names->type_names[i]);
+      tmp.append(',');
+    }
+  }
+  if (tmp.length())
+    tmp.length(tmp.length() - 1);
+  return (byte*) thd->strmake(tmp.ptr(), tmp.length());
+}
+
+
+void sys_var_thd_sql_mode::set_default(THD *thd, enum_var_type type)
+{
+  if (type == OPT_GLOBAL)
+    global_system_variables.*offset= 0;
+  else
+    thd->variables.*offset= global_system_variables.*offset;
+}
+
+void fix_sql_mode_var(THD *thd, enum_var_type type)
+{
+  if (type == OPT_GLOBAL)
+    global_system_variables.sql_mode=
+      fix_sql_mode(global_system_variables.sql_mode);
+  else
+    thd->variables.sql_mode= fix_sql_mode(thd->variables.sql_mode);
+}
+
+/* Map database specific bits to function bits */
+
+ulong fix_sql_mode(ulong sql_mode)
+{
+  /*
+    Note that we dont set 
+    MODE_NO_KEY_OPTIONS | MODE_NO_TABLE_OPTIONS | MODE_NO_FIELD_OPTIONS
+    to allow one to get full use of MySQL in this mode.
+  */
+
+  if (sql_mode & MODE_ANSI)
+    sql_mode|= (MODE_REAL_AS_FLOAT | MODE_PIPES_AS_CONCAT | MODE_ANSI_QUOTES |
+		MODE_IGNORE_SPACE | MODE_ONLY_FULL_GROUP_BY);
+  if (sql_mode & MODE_ORACLE)
+    sql_mode|= (MODE_PIPES_AS_CONCAT | MODE_ANSI_QUOTES |
+		MODE_IGNORE_SPACE |
+		MODE_NO_KEY_OPTIONS | MODE_NO_TABLE_OPTIONS |
+		MODE_NO_FIELD_OPTIONS);
+  if (sql_mode & MODE_MSSQL)
+    sql_mode|= (MODE_PIPES_AS_CONCAT | MODE_ANSI_QUOTES |
+		MODE_IGNORE_SPACE |
+		MODE_NO_KEY_OPTIONS | MODE_NO_TABLE_OPTIONS |
+		MODE_NO_FIELD_OPTIONS);
+  if (sql_mode & MODE_MSSQL)
+    sql_mode|= (MODE_PIPES_AS_CONCAT | MODE_ANSI_QUOTES |
+		MODE_IGNORE_SPACE |
+		MODE_NO_KEY_OPTIONS | MODE_NO_TABLE_OPTIONS |
+		MODE_NO_FIELD_OPTIONS);
+  if (sql_mode & MODE_POSTGRESQL)
+    sql_mode|= (MODE_PIPES_AS_CONCAT | MODE_ANSI_QUOTES |
+		MODE_IGNORE_SPACE |
+		MODE_NO_KEY_OPTIONS | MODE_NO_TABLE_OPTIONS |
+		MODE_NO_FIELD_OPTIONS);
+  if (sql_mode & MODE_DB2)
+    sql_mode|= (MODE_PIPES_AS_CONCAT | MODE_ANSI_QUOTES |
+		MODE_IGNORE_SPACE |
+		MODE_NO_KEY_OPTIONS | MODE_NO_TABLE_OPTIONS |
+		MODE_NO_FIELD_OPTIONS);
+  if (sql_mode & MODE_DB2)
+    sql_mode|= (MODE_PIPES_AS_CONCAT | MODE_ANSI_QUOTES |
+		MODE_IGNORE_SPACE |
+		MODE_NO_KEY_OPTIONS | MODE_NO_TABLE_OPTIONS |
+		MODE_NO_FIELD_OPTIONS);
+  if (sql_mode & MODE_SAPDB)
+    sql_mode|= (MODE_PIPES_AS_CONCAT | MODE_ANSI_QUOTES |
+		MODE_IGNORE_SPACE |
+		MODE_NO_KEY_OPTIONS | MODE_NO_TABLE_OPTIONS |
+		MODE_NO_FIELD_OPTIONS);
+  if (sql_mode & MODE_MYSQL40)
+    sql_mode|= MODE_NO_FIELD_OPTIONS;
+  if (sql_mode & MODE_MYSQL323)
+    sql_mode|= MODE_NO_FIELD_OPTIONS;
+  return sql_mode;
+}
 
 
 

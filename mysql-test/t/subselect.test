@@ -59,7 +59,7 @@ SELECT 1 as a,(SELECT a+a) b,(SELECT b);
 create table t1 (a int);
 create table t2 (a int, b int);
 create table t3 (a int);
-create table t4 (a int, b int);
+create table t4 (a int not null, b int not null);
 insert into t1 values (2);
 insert into t2 values (1,7),(2,7);
 insert into t4 values (4,8),(3,8),(5,9);
@@ -106,11 +106,13 @@ delete from t2 where a=100;
 select * from t3 where a in (select a,b from t2);
 -- error 1239
 select * from t3 where a in (select * from t2);
-insert into t4 values (12,7),(1,7),(10,9),(9,6),(7,6),(3,9);
-select b,max(a) as ma from t4 group by b having b < (select max(t2.a)
-from t2 where t2.b=t4.b);
-select b,max(a) as ma from t4 group by b having b >= (select max(t2.a)
-from t2 where t2.b=t4.b);
+insert into t4 values (12,7),(1,7),(10,9),(9,6),(7,6),(3,9),(1,10);
+-- empty set
+select b,max(a) as ma from t4 group by b having b < (select max(t2.a) from t2 where t2.b=t4.b);
+insert into t2 values (2,10);
+select b,max(a) as ma from t4 group by b having ma < (select max(t2.a) from t2 where t2.b=t4.b);
+delete from t2 where a=2 and b=10;
+select b,max(a) as ma from t4 group by b having b >= (select max(t2.a) from t2 where t2.b=t4.b);
 create table t5 (a int);
 select (select a from t1 where t1.a=t2.a union select a from t5 where t5.a=t2.a), a from t2;
 insert into t5 values (5);

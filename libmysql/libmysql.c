@@ -64,7 +64,8 @@ ulong 		net_buffer_length=8192;
 ulong		max_allowed_packet= 1024L*1024L*1024L;
 ulong		net_read_timeout=  NET_READ_TIMEOUT;
 ulong		net_write_timeout= NET_WRITE_TIMEOUT;
-const char	*unknown_sqlstate= "000000";
+const char	*unknown_sqlstate= "HY000";
+const char	*not_error_sqlstate= "00000";
 
 #define CLIENT_CAPABILITIES (CLIENT_LONG_PASSWORD | CLIENT_LONG_FLAG	  \
                              | CLIENT_LOCAL_FILES   | CLIENT_TRANSACTIONS \
@@ -91,9 +92,9 @@ const char *def_shared_memory_base_name=default_shared_memory_base_name;
 #endif
 
 const char *sql_protocol_names_lib[] =
-{ "TCP", "SOCKET", "PIPE", "MEMORY",NullS };
+{ "TCP", "SOCKET", "PIPE", "MEMORY", NullS };
 TYPELIB sql_protocol_typelib = {array_elements(sql_protocol_names_lib)-1,"",
-			   sql_protocol_names_lib};
+				sql_protocol_names_lib};
 /*
   If allowed through some configuration, then this needs to
   be changed
@@ -141,16 +142,16 @@ void STDCALL mysql_server_end()
 my_bool STDCALL mysql_thread_init()
 {
 #ifdef THREAD
-    return my_thread_init();
+  return my_thread_init();
 #else
-    return 0;
+  return 0;
 #endif
 }
 
 void STDCALL mysql_thread_end()
 {
 #ifdef THREAD
-    my_thread_end();
+  my_thread_end();
 #endif
 }
 
@@ -160,7 +161,7 @@ void STDCALL mysql_thread_end()
 */
 
 #if !defined(__WIN__) && defined(SIGPIPE) && !defined(THREAD)
-#define init_sigpipe_variables  sig_return old_signal_handler=(sig_return) 0;
+#define init_sigpipe_variables  sig_return old_signal_handler=(sig_return) 0
 #define set_sigpipe(mysql)     if ((mysql)->client_flag & CLIENT_IGNORE_SIGPIPE) old_signal_handler=signal(SIGPIPE,pipe_sig_handler)
 #define reset_sigpipe(mysql) if ((mysql)->client_flag & CLIENT_IGNORE_SIGPIPE) signal(SIGPIPE,old_signal_handler);
 #else
@@ -409,13 +410,14 @@ HANDLE create_shared_memory(MYSQL *mysql,NET *net, uint connect_timeout)
   DWORD error_code = 0;
   char *shared_memory_base_name = mysql->options.shared_memory_base_name;
 
-/*
-  The name of event and file-mapping events create agree next rule:
-            shared_memory_base_name+unique_part
-  Where:
+  /*
+    The name of event and file-mapping events create agree next rule:
+    shared_memory_base_name+unique_part
+
+    Where:
     shared_memory_base_name is unique value for each server
     unique_part is uniquel value for each object (events and file-mapping)
-*/
+  */
   suffix_pos = strxmov(tmp,shared_memory_base_name,"_",NullS);
   strmov(suffix_pos, "CONNECT_REQUEST");
   if (!(event_connect_request= OpenEvent(EVENT_ALL_ACCESS,FALSE,tmp)))
@@ -441,36 +443,34 @@ HANDLE create_shared_memory(MYSQL *mysql,NET *net, uint connect_timeout)
     error_allow = CR_SHARED_MEMORY_CONNECT_MAP_ERROR;
     goto err;
   }
-  /*
-    Send to server request of connection
-  */
+
+  /* Send to server request of connection */
   if (!SetEvent(event_connect_request))
   {
     error_allow = CR_SHARED_MEMORY_CONNECT_SET_ERROR;
     goto err;
   }
-  /*
-    Wait of answer from server
-  */
+
+  /*  Wait of answer from server */
   if (WaitForSingleObject(event_connect_answer,connect_timeout*1000) !=
       WAIT_OBJECT_0)
   {
     error_allow = CR_SHARED_MEMORY_CONNECT_ABANDODED_ERROR;
     goto err;
   }
-  /*
-    Get number of connection
-  */
+
+  /* Get number of connection */
   connect_number = uint4korr(handle_connect_map);/*WAX2*/
   p= int2str(connect_number, connect_number_char, 10);
 
   /*
     The name of event and file-mapping events create agree next rule:
     shared_memory_base_name+unique_part+number_of_connection
+
     Where:
-      shared_memory_base_name is uniquel value for each server
-      unique_part is uniquel value for each object (events and file-mapping)
-      number_of_connection is number of connection between server and client
+    shared_memory_base_name is uniquel value for each server
+    unique_part is uniquel value for each object (events and file-mapping)
+    number_of_connection is number of connection between server and client
   */
   suffix_pos = strxmov(tmp,shared_memory_base_name,"_",connect_number_char,
 		       "_",NullS);
@@ -579,7 +579,7 @@ net_safe_read(MYSQL *mysql)
 {
   NET *net= &mysql->net;
   ulong len=0;
-  init_sigpipe_variables
+  init_sigpipe_variables;
 
   /* Don't give sigpipe errors if the client doesn't want them */
   set_sigpipe(mysql);
@@ -645,7 +645,7 @@ advanced_command(MYSQL *mysql, enum enum_server_command command,
 {
   NET *net= &mysql->net;
   my_bool result= 1;
-  init_sigpipe_variables
+  init_sigpipe_variables;
 
   /* Don't give sigpipe errors if the client doesn't want them */
   set_sigpipe(mysql);
@@ -663,8 +663,8 @@ advanced_command(MYSQL *mysql, enum enum_server_command command,
   }
 
   net->last_error[0]=0;
-  net->last_errno=0;
-  strmov(net->sqlstate, unknown_sqlstate);
+  net->last_errno= 0;
+  strmov(net->sqlstate, not_error_sqlstate);
   mysql->info=0;
   mysql->affected_rows= ~(my_ulonglong) 0;
   net_clear(&mysql->net);			/* Clear receive buffer */
@@ -695,7 +695,7 @@ advanced_command(MYSQL *mysql, enum enum_server_command command,
   if (!skip_check)
     result= ((mysql->packet_length=net_safe_read(mysql)) == packet_error ?
 	     1 : 0);
- end:
+end:
   reset_sigpipe(mysql);
   return result;
 }
@@ -870,7 +870,7 @@ end_server(MYSQL *mysql)
   DBUG_ENTER("end_server");
   if (mysql->net.vio != 0)
   {
-    init_sigpipe_variables
+    init_sigpipe_variables;
     DBUG_PRINT("info",("Net: %s", vio_description(mysql->net.vio)));
     set_sigpipe(mysql);
     vio_delete(mysql->net.vio);
@@ -1402,7 +1402,7 @@ read_one_row(MYSQL *mysql,uint fields,MYSQL_ROW row, ulong *lengths)
 
 /* perform query on master */
 my_bool STDCALL mysql_master_query(MYSQL *mysql, const char *q,
-			       unsigned long length)
+				   unsigned long length)
 {
   DBUG_ENTER("mysql_master_query");
   if (mysql_master_send_query(mysql, q, length))
@@ -1449,7 +1449,7 @@ my_bool STDCALL mysql_slave_send_query(MYSQL *mysql, const char *q,
   */
   mysql->last_used_con = mysql->last_used_slave = slave_to_use;
   if (!slave_to_use->net.vio && !mysql_real_connect(slave_to_use, 0,0,0,
-						   0,0,0,0))
+						    0,0,0,0))
     DBUG_RETURN(1);
   DBUG_RETURN(simple_command(slave_to_use, COM_QUERY, q, length, 1));
 }
@@ -1586,7 +1586,7 @@ static my_bool get_slaves_from_master(MYSQL* mysql)
     }
 
     if (!(slave = spawn_init(mysql, row[1], atoi(row[port_ind]),
-			    tmp_user, tmp_pass)))
+			     tmp_user, tmp_pass)))
       goto err;
 
     /* Now add slave into the circular linked list */
@@ -1596,7 +1596,7 @@ static my_bool get_slaves_from_master(MYSQL* mysql)
   error = 0;
 err:
   if (res)
-   mysql_free_result(res);
+    mysql_free_result(res);
   DBUG_RETURN(error);
 }
 
@@ -1966,7 +1966,7 @@ mysql_real_connect(MYSQL *mysql,const char *host, const char *user,
 #ifdef HAVE_SYS_UN_H
   struct	sockaddr_un UNIXaddr;
 #endif
-  init_sigpipe_variables
+  init_sigpipe_variables;
   DBUG_ENTER("mysql_real_connect");
   LINT_INIT(host_info);
 
@@ -2529,7 +2529,7 @@ static my_bool mysql_reconnect(MYSQL *mysql)
   if (!mysql->reconnect ||
       (mysql->server_status & SERVER_STATUS_IN_TRANS) || !mysql->host_info)
   {
-   /* Allow reconnect next time */
+    /* Allow reconnect next time */
     mysql->server_status&= ~SERVER_STATUS_IN_TRANS;
     strmov(mysql->net.sqlstate, unknown_sqlstate);
     mysql->net.last_errno=CR_SERVER_GONE_ERROR;
@@ -2575,7 +2575,7 @@ my_bool	STDCALL mysql_change_user(MYSQL *mysql, const char *user,
   if (!passwd)
     passwd="";
 
-   /* Store user into the buffer */
+  /* Store user into the buffer */
   end=strmov(end,user)+1;
 
   /*
@@ -2592,15 +2592,15 @@ my_bool	STDCALL mysql_change_user(MYSQL *mysql, const char *user,
       *end=0;
 
     }
-    else  /* For empty password*/
-      *end=0; /* Store zero length scramble */
+    else					/* For empty password */
+      *end=0;					/* zero length scramble */
   }
   else
   {
-   /*
-     Real scramble is only sent to old servers. This can be blocked 
-     by calling mysql_options(MYSQL *, MYSQL_SECURE_CONNECT, (char*) &1);
-   */
+    /*
+      Real scramble is only sent to old servers. This can be blocked 
+      by calling mysql_options(MYSQL *, MYSQL_SECURE_CONNECT, (char*) &1);
+    */
     end=scramble(end, mysql->scramble_buff, passwd,
                  (my_bool) (mysql->protocol_version == 9));
   }
@@ -2793,9 +2793,9 @@ STDCALL mysql_set_master(MYSQL* mysql, const char* host,
 
 int
 STDCALL mysql_add_slave(MYSQL* mysql, const char* host,
-					   unsigned int port,
-					   const char* user,
-					   const char* passwd)
+			unsigned int port,
+			const char* user,
+			const char* passwd)
 {
   MYSQL* slave;
   if (!(slave = spawn_init(mysql, host, port, user, passwd)))
@@ -3670,7 +3670,7 @@ mysql_sub_escape_string(CHARSET_INFO *charset_info, char *to,
     if (use_mb_flag && (l = my_ismbchar(charset_info, from, end)))
     {
       while (l--)
-	  *to++ = *from++;
+	*to++ = *from++;
       from--;
       continue;
     }
@@ -4045,13 +4045,15 @@ unsigned int alloc_stmt_fields(MYSQL_STMT *stmt)
     like SHOW and DESCRIBE commands
   */
   if (!(stmt->fields= (MYSQL_FIELD *) alloc_root(alloc, 
-        sizeof(MYSQL_FIELD) * stmt->field_count)) || 
+						 sizeof(MYSQL_FIELD) *
+						 stmt->field_count)) || 
       !(stmt->bind= (MYSQL_BIND *) alloc_root(alloc, 
-        sizeof(MYSQL_BIND ) * stmt->field_count)))
+					      sizeof(MYSQL_BIND) *
+					      stmt->field_count)))
     return 0;
   
   for (fields= mysql->fields, end= fields+stmt->field_count, 
-       field= stmt->fields;
+	 field= stmt->fields;
        field && fields < end; fields++, field++)
   {
     field->db       = strdup_root(alloc,fields->db);
@@ -4781,7 +4783,7 @@ static void send_data_long(MYSQL_BIND *param, longlong value)
 {  
   char *buffer= param->buffer;
   
-  switch(param->buffer_type) {
+  switch (param->buffer_type) {
   case MYSQL_TYPE_NULL: /* do nothing */
     break;
   case MYSQL_TYPE_TINY:
@@ -4797,33 +4799,34 @@ static void send_data_long(MYSQL_BIND *param, longlong value)
     int8store(buffer, value);
     break;
   case MYSQL_TYPE_FLOAT:
-    {
-      float data= (float)value;
-      float4store(buffer, data);
-      break;
-    }
+  {
+    float data= (float)value;
+    float4store(buffer, data);
+    break;
+  }
   case MYSQL_TYPE_DOUBLE:
-    {
-      double data= (double)value;
-      float8store(buffer, data);
-      break;
-    }
+  {
+    double data= (double)value;
+    float8store(buffer, data);
+    break;
+  }
   default:
-    {
-      char tmp[NAME_LEN];
-      uint length= (uint)(longlong10_to_str(value,(char *)tmp,10)-tmp);
-      ulong copy_length= min((ulong)length-param->offset, param->buffer_length);
-      memcpy(buffer, (char *)tmp+param->offset, copy_length);
-      *param->length= length;		
+  {
+    char tmp[NAME_LEN];
+    uint length= (uint)(longlong10_to_str(value,(char *)tmp,10)-tmp);
+    ulong copy_length= min((ulong)length-param->offset, param->buffer_length);
+    memcpy(buffer, (char *)tmp+param->offset, copy_length);
+    *param->length= length;		
   
-      if (copy_length != param->buffer_length)
-        *(buffer+copy_length)= '\0';
-    }
-  } 
+    if (copy_length != param->buffer_length)
+      *(buffer+copy_length)= '\0';
+  }
+  }
 }
 
 
 /* Convert Double to buffer types */
+
 static void send_data_double(MYSQL_BIND *param, double value)
 {  
   char *buffer= param->buffer;
@@ -4969,7 +4972,7 @@ static void send_data_time(MYSQL_BIND *param, MYSQL_TIME ltime,
     switch (ltime.time_type) {
     case MYSQL_TIMESTAMP_DATE:
       length= my_sprintf(buff,(buff, "%04d-%02d-%02d", ltime.year,
-                         ltime.month,ltime.day));      
+			       ltime.month,ltime.day));      
       break;
     case MYSQL_TIMESTAMP_FULL:
       length= my_sprintf(buff,(buff, "%04d-%02d-%02d %02d:%02d:%02d",
@@ -4978,7 +4981,7 @@ static void send_data_time(MYSQL_BIND *param, MYSQL_TIME ltime,
       break;
     case MYSQL_TIMESTAMP_TIME:
       length= my_sprintf(buff, (buff, "%02d:%02d:%02d",
-	                 	     ltime.hour,ltime.minute,ltime.second));
+				ltime.hour,ltime.minute,ltime.second));
       break;
     default:
       length= 0;
@@ -4990,8 +4993,8 @@ static void send_data_time(MYSQL_BIND *param, MYSQL_TIME ltime,
 }
                               
 
-
 /* Fetch data to buffers */
+
 static void fetch_results(MYSQL_BIND *param, uint field_type, uchar **row, 
                           my_bool field_is_unsigned)
 {
@@ -5001,8 +5004,8 @@ static void fetch_results(MYSQL_BIND *param, uint field_type, uchar **row,
   case MYSQL_TYPE_TINY:
   {
     char value= (char) **row;
-    longlong data= (field_is_unsigned) ? (longlong) (unsigned char) value:
-                                         (longlong) value;
+    longlong data= ((field_is_unsigned) ? (longlong) (unsigned char) value:
+		    (longlong) value);
     send_data_long(param,data);
     length= 1;
     break;
@@ -5011,8 +5014,8 @@ static void fetch_results(MYSQL_BIND *param, uint field_type, uchar **row,
   case MYSQL_TYPE_YEAR:
   {
     short value= sint2korr(*row);
-    longlong data= (field_is_unsigned) ? (longlong) (unsigned short) value:
-                                         (longlong) value;
+    longlong data= ((field_is_unsigned) ? (longlong) (unsigned short) value:
+		    (longlong) value);
     send_data_long(param,data);
     length= 2;    
     break;
@@ -5020,8 +5023,8 @@ static void fetch_results(MYSQL_BIND *param, uint field_type, uchar **row,
   case MYSQL_TYPE_LONG:
   {
     long value= sint4korr(*row);
-    longlong data= (field_is_unsigned) ? (longlong) (unsigned long) value:
-                                         (longlong) value;
+    longlong data= ((field_is_unsigned) ? (longlong) (unsigned long) value:
+		    (longlong) value);
     send_data_long(param,data);
     length= 4;
     break;
@@ -5316,8 +5319,8 @@ static int stmt_fetch_row(MYSQL_STMT *stmt, uchar *row)
   
   /* Copy complete row to application buffers */
   for (bind= stmt->bind, end= (MYSQL_BIND *) bind + stmt->field_count, 
-       field= stmt->fields, 
-       field_end= (MYSQL_FIELD *)stmt->fields+stmt->field_count;
+	 field= stmt->fields, 
+	 field_end= (MYSQL_FIELD *)stmt->fields+stmt->field_count;
        bind < end && field < field_end;
        bind++, field++)
   {         
@@ -5509,7 +5512,7 @@ no_data:
 }
 
 
-/* 
+/*
   Read all rows of data from server  (binary format)
 */
 
@@ -5578,6 +5581,7 @@ static MYSQL_DATA *read_binary_rows(MYSQL_STMT *stmt)
   DBUG_RETURN(result);
 }
 
+
 /*
   Store or buffer the binary results to stmt
 */
@@ -5599,9 +5603,9 @@ int STDCALL mysql_stmt_store_result(MYSQL_STMT *stmt)
   }
   mysql->status= MYSQL_STATUS_READY;		/* server is ready */
   if (!(result= (MYSQL_RES*) my_malloc((uint) (sizeof(MYSQL_RES)+
-					      sizeof(ulong) *
-					      stmt->field_count),
-				      MYF(MY_WME | MY_ZEROFILL))))
+					       sizeof(ulong) *
+					       stmt->field_count),
+				       MYF(MY_WME | MY_ZEROFILL))))
   {
     set_stmt_error(stmt, CR_OUT_OF_MEMORY, unknown_sqlstate);
     DBUG_RETURN(1);
@@ -5619,6 +5623,7 @@ int STDCALL mysql_stmt_store_result(MYSQL_STMT *stmt)
   stmt->result= result;
   DBUG_RETURN(0); /* Data buffered, must be fetched with mysql_fetch() */
 }
+
 
 /*
   Seek to desired row in the statement result set
@@ -5641,6 +5646,7 @@ mysql_stmt_row_seek(MYSQL_STMT *stmt, MYSQL_ROW_OFFSET row)
   DBUG_PRINT("exit", ("stmt doesn't contain any resultset"));
   DBUG_RETURN(0);
 }
+
 
 /*
   Return the current statement row cursor position
@@ -5842,15 +5848,15 @@ my_bool STDCALL mysql_autocommit(MYSQL * mysql, my_bool auto_mode)
 
 my_bool STDCALL mysql_more_results(MYSQL *mysql)
 {
-  my_bool result;
+  my_bool res;
   DBUG_ENTER("mysql_more_results");
   
-  result= (mysql->last_used_con->server_status & SERVER_MORE_RESULTS_EXISTS) ? 
-          1: 0;
-  
-  DBUG_PRINT("exit",("More results exists ? %d", result)); 
-  DBUG_RETURN(result);
+  res= ((mysql->last_used_con->server_status & SERVER_MORE_RESULTS_EXISTS) ? 
+	1: 0);
+  DBUG_PRINT("exit",("More results exists ? %d", res)); 
+  DBUG_RETURN(res);
 }
+
 
 /*
   Reads and returns the next query results
@@ -5862,7 +5868,7 @@ my_bool STDCALL mysql_next_result(MYSQL *mysql)
   
   mysql->net.last_error[0]= 0;
   mysql->net.last_errno= 0;
-  strmov(mysql->net.sqlstate, unknown_sqlstate);
+  strmov(mysql->net.sqlstate, not_error_sqlstate);
   mysql->affected_rows= ~(my_ulonglong) 0;
 
   if (mysql->last_used_con->server_status & SERVER_MORE_RESULTS_EXISTS)

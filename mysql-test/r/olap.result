@@ -1,27 +1,256 @@
-drop table if exists t1;
-create table t1 ( product varchar(32), country varchar(32), year int, profit int);
-insert into t1  values ( 'Computer', 'India',2000, 1200),
-( 'TV', 'United States', 1999, 150),
-( 'Calculator', 'United States', 1999,50),
-( 'Computer', 'United States', 1999,1500),
-( 'Computer', 'United States', 2000,1500),
-( 'TV', 'United States', 2000, 150),
-( 'TV', 'India', 2000, 100),
-( 'TV', 'India', 2000, 100),
-( 'Calculator', 'United States', 2000,75),
-( 'Calculator', 'India', 2000,75),
-( 'TV', 'India', 1999, 100),
-( 'Computer', 'India', 1999,1200),
-( 'Computer', 'United States', 2000,1500),
-( 'Calculator', 'United States', 2000,75);
-select product, country , year, sum(profit) from t1 group by product, country, year with cube;
-This version of MySQL doesn't yet support 'CUBE'
-explain select product, country , year, sum(profit) from t1 group by product, country, year with cube;
-This version of MySQL doesn't yet support 'CUBE'
-select product, country , year, sum(profit) from t1 group by product, country, year with rollup;
-This version of MySQL doesn't yet support 'ROLLUP'
-explain select product, country , year, sum(profit) from t1 group by product, country, year with rollup;
-This version of MySQL doesn't yet support 'ROLLUP'
-select product, country , year, sum(profit) from t1 group by product, country, year with cube union all select product, country , year, sum(profit) from t1 group by product, country, year with rollup;
-This version of MySQL doesn't yet support 'CUBE'
-drop table t1;
+drop table if exists t1,t2;
+create table t1 (product varchar(32), country_id int not null, year int, profit int);
+insert into t1  values ( 'Computer', 2,2000, 1200),
+( 'TV', 1, 1999, 150),
+( 'Calculator', 1, 1999,50),
+( 'Computer', 1, 1999,1500),
+( 'Computer', 1, 2000,1500),
+( 'TV', 1, 2000, 150),
+( 'TV', 2, 2000, 100),
+( 'TV', 2, 2000, 100),
+( 'Calculator', 1, 2000,75),
+( 'Calculator', 2, 2000,75),
+( 'TV', 1, 1999, 100),
+( 'Computer', 1, 1999,1200),
+( 'Computer', 2, 2000,1500),
+( 'Calculator', 2, 2000,75),
+( 'Phone', 3, 2003,10)
+;
+create table t2 (country_id int primary key, country char(20) not null);
+insert into t2 values (1, 'USA'),(2,'India'), (3,'Finland');
+select product, sum(profit) from t1 group by product;
+product	sum(profit)
+Calculator	275
+Computer	6900
+Phone	10
+TV	600
+select product, sum(profit) from t1 group by product with rollup;
+product	sum(profit)
+Calculator	275
+Computer	6900
+Phone	10
+TV	600
+NULL	7785
+select product, sum(profit) from t1 group by 1 with rollup;
+product	sum(profit)
+Calculator	275
+Computer	6900
+Phone	10
+TV	600
+NULL	7785
+select product, sum(profit),avg(profit) from t1 group by product with rollup;
+product	sum(profit)	avg(profit)
+Calculator	275	68.7500
+Computer	6900	1380.0000
+Phone	10	10.0000
+TV	600	120.0000
+NULL	7785	519.0000
+select product, country_id , year, sum(profit) from t1 group by product, country_id, year;
+product	country_id	year	sum(profit)
+Calculator	1	1999	50
+Calculator	1	2000	75
+Calculator	2	2000	150
+Computer	1	1999	2700
+Computer	1	2000	1500
+Computer	2	2000	2700
+Phone	3	2003	10
+TV	1	1999	250
+TV	1	2000	150
+TV	2	2000	200
+select product, country_id , year, sum(profit) from t1 group by product, country_id, year with rollup;
+product	country_id	year	sum(profit)
+Calculator	1	1999	50
+Calculator	1	2000	75
+Calculator	1	NULL	125
+Calculator	2	2000	150
+Calculator	2	NULL	150
+Calculator	NULL	NULL	275
+Computer	1	1999	2700
+Computer	1	2000	1500
+Computer	1	NULL	4200
+Computer	2	2000	2700
+Computer	2	NULL	2700
+Computer	NULL	NULL	6900
+Phone	3	2003	10
+Phone	3	NULL	10
+Phone	NULL	NULL	10
+TV	1	1999	250
+TV	1	2000	150
+TV	1	NULL	400
+TV	2	2000	200
+TV	2	NULL	200
+TV	NULL	NULL	600
+NULL	NULL	NULL	7785
+explain select product, country_id , year, sum(profit) from t1 group by product, country_id, year with rollup;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	15	Using temporary; Using filesort
+select product, country_id , sum(profit) from t1 group by product desc, country_id with rollup;
+product	country_id	sum(profit)
+TV	1	400
+TV	2	200
+TV	NULL	600
+Phone	3	10
+Phone	NULL	10
+Computer	1	4200
+Computer	2	2700
+Computer	NULL	6900
+Calculator	1	125
+Calculator	2	150
+Calculator	NULL	275
+NULL	NULL	7785
+select product, country_id , year, sum(profit) from t1 group by product, country_id, year with rollup limit 5;
+product	country_id	year	sum(profit)
+Calculator	1	1999	50
+Calculator	1	2000	75
+Calculator	1	NULL	125
+Calculator	2	2000	150
+Calculator	2	NULL	150
+select product, country_id , year, sum(profit) from t1 group by product, country_id, year with rollup limit 3,3;
+product	country_id	year	sum(profit)
+Calculator	2	2000	150
+Calculator	2	NULL	150
+Calculator	NULL	NULL	275
+select product, country_id, count(*), count(distinct year) from t1 group by product, country_id;
+product	country_id	count(*)	count(distinct year)
+Calculator	1	2	2
+Calculator	2	2	1
+Computer	1	3	2
+Computer	2	2	1
+Phone	3	1	1
+TV	1	3	2
+TV	2	2	1
+select product, country_id, count(*), count(distinct year) from t1 group by product, country_id with rollup;
+product	country_id	count(*)	count(distinct year)
+Calculator	1	2	2
+Calculator	2	2	1
+Calculator	NULL	4	2
+Computer	1	3	2
+Computer	2	2	1
+Computer	NULL	5	2
+Phone	3	1	1
+Phone	NULL	1	1
+TV	1	3	2
+TV	2	2	1
+TV	NULL	5	2
+NULL	NULL	15	3
+select product, country_id , year, sum(profit) from t1 group by product, country_id, year with rollup having country_id = 1;
+product	country_id	year	sum(profit)
+Calculator	1	1999	50
+Calculator	1	2000	75
+Calculator	1	NULL	125
+Computer	1	1999	2700
+Computer	1	2000	1500
+Computer	1	NULL	4200
+TV	1	1999	250
+TV	1	2000	150
+TV	1	NULL	400
+select product, country_id , year, sum(profit) from t1 group by product, country_id, year with rollup having sum(profit) > 200;
+product	country_id	year	sum(profit)
+Calculator	NULL	NULL	275
+Computer	1	1999	2700
+Computer	1	2000	1500
+Computer	1	NULL	4200
+Computer	2	2000	2700
+Computer	2	NULL	2700
+Computer	NULL	NULL	6900
+TV	1	1999	250
+TV	1	NULL	400
+TV	NULL	NULL	600
+NULL	NULL	NULL	7785
+select product, country_id , year, sum(profit) from t1 group by product, country_id, year with rollup having sum(profit) > 7000;
+product	country_id	year	sum(profit)
+NULL	NULL	NULL	7785
+select concat(product,':',country_id) as 'prod', concat(":",year,":") as 'year',1+1, sum(profit)/count(*) from t1 group by 1,2 with rollup;
+prod	year	1+1	sum(profit)/count(*)
+Calculator:1	:1999:	2	50.00
+Calculator:1	:2000:	2	75.00
+Calculator:1	NULL	2	62.50
+Calculator:2	:2000:	2	75.00
+Calculator:2	NULL	2	75.00
+Computer:1	:1999:	2	1350.00
+Computer:1	:2000:	2	1500.00
+Computer:1	NULL	2	1400.00
+Computer:2	:2000:	2	1350.00
+Computer:2	NULL	2	1350.00
+Phone:3	:2003:	2	10.00
+Phone:3	NULL	2	10.00
+TV:1	:1999:	2	125.00
+TV:1	:2000:	2	150.00
+TV:1	NULL	2	133.33
+TV:2	:2000:	2	100.00
+TV:2	NULL	2	100.00
+NULL	NULL	2	519.00
+select product, sum(profit)/count(*) from t1 group by product with rollup;
+product	sum(profit)/count(*)
+Calculator	68.75
+Computer	1380.00
+Phone	10.00
+TV	120.00
+NULL	519.00
+select left(product,4) as prod, sum(profit)/count(*) from t1 group by prod with rollup;
+prod	sum(profit)/count(*)
+Calc	68.75
+Comp	1380.00
+Phon	10.00
+TV	120.00
+NULL	519.00
+select concat(product,':',country_id), 1+1, sum(profit)/count(*) from t1 group by concat(product,':',country_id) with rollup;
+concat(product,':',country_id)	1+1	sum(profit)/count(*)
+Calculator:1	2	62.50
+Calculator:2	2	75.00
+Computer:1	2	1400.00
+Computer:2	2	1350.00
+Phone:3	2	10.00
+TV:1	2	133.33
+TV:2	2	100.00
+NULL	2	519.00
+select product, country , year, sum(profit) from t1,t2 where t1.country_id=t2.country_id group by product, country, year with rollup;
+product	country	year	sum(profit)
+Calculator	India	2000	150
+Calculator	India	NULL	150
+Calculator	USA	1999	50
+Calculator	USA	2000	75
+Calculator	USA	NULL	125
+Calculator	NULL	NULL	275
+Computer	India	2000	2700
+Computer	India	NULL	2700
+Computer	USA	1999	2700
+Computer	USA	2000	1500
+Computer	USA	NULL	4200
+Computer	NULL	NULL	6900
+Phone	Finland	2003	10
+Phone	Finland	NULL	10
+Phone	NULL	NULL	10
+TV	India	2000	200
+TV	India	NULL	200
+TV	USA	1999	250
+TV	USA	2000	150
+TV	USA	NULL	400
+TV	NULL	NULL	600
+NULL	NULL	NULL	7785
+select product, `sum` from (select product, sum(profit) as 'sum' from t1 group by product with rollup) as tmp where product is null;
+product	sum
+NULL	7785
+select product from t1 where exists (select product, country_id , sum(profit) from t1 as t2 where t1.product=t2.product group by product, country_id with rollup having sum(profit) > 6000);
+product
+Computer
+Computer
+Computer
+Computer
+Computer
+select product, country_id , year, sum(profit) from t1 group by product, country_id, year having country_id is NULL;
+product	country_id	year	sum(profit)
+select concat(':',product,':'), sum(profit),avg(profit) from t1 group by product with rollup;
+concat(':',product,':')	sum(profit)	avg(profit)
+:Calculator:	275	68.7500
+:Computer:	6900	1380.0000
+:Phone:	10	10.0000
+:TV:	600	120.0000
+:TV:	7785	519.0000
+select product, country_id , year, sum(profit) from t1 group by product, country_id, year with cube;
+ERROR 42000: This version of MySQL doesn't yet support 'CUBE'
+explain select product, country_id , year, sum(profit) from t1 group by product, country_id, year with cube;
+ERROR 42000: This version of MySQL doesn't yet support 'CUBE'
+select product, country_id , year, sum(profit) from t1 group by product, country_id, year with cube union all select product, country_id , year, sum(profit) from t1 group by product, country_id, year with rollup;
+ERROR 42000: This version of MySQL doesn't yet support 'CUBE'
+drop table t1,t2;

@@ -1432,7 +1432,8 @@ ulong Query_cache::init_cache()
 #else
   // windows, OS/2 or other case insensitive file names work around
   VOID(hash_init(&tables,
-		 lower_case_table_names ? &my_charset_bin : system_charset_info,
+		 lower_case_table_names ? &my_charset_bin :
+		 system_charset_info,
 		 def_table_hash_size, 0, 0,query_cache_table_get_key, 0, 0));
 #endif
 

@@ -60,7 +60,7 @@ EXTRA_DIST =		$(EXTRA_SCRIPTS) \
 			mysqlaccess.conf \
 			mysqlbug
 
-pkgdata_DATA =		fill_help_tables.sql
+pkgdata_DATA =		fill_help_tables.sql mysql_fix_privilege_tables.sql
 
 # mysqlbug should be distributed built so that people can report build
 # failures with it.
