@@ -951,7 +951,13 @@ retry:
 
 		trx->op_info = "sleeping before joining InnoDB queue";
 
-		os_thread_sleep(50000);
+		/* Peter Zaitsev suggested that we take the sleep away
+		altogether. But the sleep may be good in pathological
+		situations of lots of thread switches. Simply put some
+		threads aside for a while to reduce the number of thread
+		switches. */
+
+		os_thread_sleep(10000);
 
 		trx->op_info = "";
 
