@@ -34,6 +34,7 @@ static void init_variables(const struct my_option *options);
 static const char *special_opt_prefix[]=
 {"skip", "disable", "enable", "maximum", 0};
 
+char *disabled_my_option= (char*) "0";
 
 /* Return error values from handle_options */
 
@@ -65,7 +66,7 @@ int handle_options(int *argc, char ***argv,
 					     char *))
 {
   uint opt_found, argvpos= 0, length, spec_len, i;
-  int err;
+  int err= 0;
   my_bool end_of_options= 0, must_be_var, set_maximum_value, special_used;
   char *progname= *(*argv), **pos, *optend, *prev_found;
   const struct my_option *optp;
@@ -176,7 +177,7 @@ int handle_options(int *argc, char ***argv,
 		  We were called with a special prefix, we can reuse opt_found
 		*/
 		special_used= 1;
-		cur_arg += (spec_len + 1);
+		cur_arg+= (spec_len + 1);
 		if ((opt_found= findopt(cur_arg, length - (spec_len + 1),
 					&optp, &prev_found)))
 		{
@@ -189,7 +190,7 @@ int handle_options(int *argc, char ***argv,
 		    return ERR_AMBIGUOUS_OPTION;
 		  }
 		  if (i < DISABLE_OPTION_COUNT)
-		    optend= (char*) "0";
+		    optend= disabled_my_option;
 		  else if (!compare_strings(special_opt_prefix[i],"enable",6))
 		    optend= (char*) "1";
 		  else if (!compare_strings(special_opt_prefix[i],"maximum",7))
@@ -235,15 +236,44 @@ int handle_options(int *argc, char ***argv,
 	}
 	if (must_be_var && !optp->value)
 	{
-	  fprintf(stderr, "%s: the argument '%s' is not an variable\n",
+	  fprintf(stderr, "%s: argument '%s' is not a variable\n",
 		  progname, *pos);
 	  return ERR_MUST_BE_VARIABLE;
 	}
-	if (optp->arg_type == NO_ARG && optend && !special_used)
+	if (optp->arg_type == NO_ARG)
 	{
-	  fprintf(stderr, "%s: option '--%s' cannot take an argument\n",
-		  progname, optp->name);
-	  return ERR_NO_ARGUMENT_ALLOWED;
+	  if (optend && !special_used)
+	  {
+	    fprintf(stderr, "%s: option '--%s' cannot take an argument\n",
+		    progname, optp->name);
+	    return ERR_NO_ARGUMENT_ALLOWED;
+	  }
+	  if (optp->var_type == GET_BOOL)
+	  {
+	    /*
+	      Set bool to 1 if no argument or if the user has used
+	      --enable-'option-name'.
+	      *optend was set to '0' if one used --disable-option
+	    */
+	    *((my_bool*) optp->value)= 	(my_bool) (!optend || *optend == '1');
+	    (*argc)--;	    
+	    continue;
+	  }
+	  argument= optend;
+	}
+	else if (optp->arg_type == OPT_ARG && optp->var_type == GET_BOOL)
+	{
+	  if (optend == disabled_my_option)
+	    *((my_bool*) optp->value)= (my_bool) 0;
+	  else
+	  {
+	    if (!optend) /* No argument -> enable option */
+	      *((my_bool*) optp->value)= (my_bool) 1;
+	    else /* If argument differs from 0, enable option, else disable */
+	      *((my_bool*) optp->value)= (my_bool) atoi(optend) != 0;
+	  }
+	  (*argc)--;	    
+	  continue;
 	}
 	else if (optp->arg_type == REQUIRED_ARG && !optend)
 	{
@@ -311,6 +341,7 @@ int handle_options(int *argc, char ***argv,
       {
 	gptr *result_pos= (set_maximum_value) ?
 	  optp->u_max_value : optp->value;
+
 	if (!result_pos)
 	{
 	  fprintf(stderr,
@@ -320,14 +351,13 @@ int handle_options(int *argc, char ***argv,
 	if (optp->var_type == GET_LONG)
 	 *((long*) result_pos)= (long) getopt_ll(argument, optp, &err);
 	else if (optp->var_type == GET_LL)
-	  *((longlong*) result_pos)=   getopt_ll(argument, optp, &err);
+	  *((longlong*) result_pos)= getopt_ll(argument, optp, &err);
 	else if (optp->var_type == GET_STR)
 	  *((char**) result_pos)= argument;
 	if (err)
 	  return ERR_UNKNOWN_SUFFIX;
       }
-      else
-	get_one_option(optp->id, optp, argument);
+      get_one_option(optp->id, optp, argument);
 
       (*argc)--; /* option handled (short or long), decrease argument count */
     }
@@ -488,17 +518,19 @@ void my_print_help(const struct my_option *options)
     col+= 2 + strlen(optp->name);
     if (optp->var_type == GET_STR)
     {
-      printf("=name ");
+      printf("%s=name%s ", optp->arg_type == OPT_ARG ? "[" : "",
+	     optp->arg_type == OPT_ARG ? "]" : "");
       col+= 6;
     }
-    else if (optp->var_type == GET_NO_ARG)
+    else if (optp->var_type == GET_NO_ARG || optp->var_type == GET_BOOL)
     {
       putchar(' ');
       col++;
     }
     else
     {
-      printf("=# ");
+      printf("%s=#%s ", optp->arg_type == OPT_ARG ? "[" : "",
+	     optp->arg_type == OPT_ARG ? "]" : "");
       col+= 3;
     }
     if (col > name_space)
@@ -545,7 +577,7 @@ void my_print_variables(const struct my_option *options)
   printf("--------------------------------- -------------\n");
   for (optp= options; optp->id; optp++)
   {
-    if (optp->value)
+    if (optp->value && optp->var_type != GET_BOOL)
     {
       printf("%s", optp->name);
       length= strlen(optp->name);
@@ -553,10 +585,10 @@ void my_print_variables(const struct my_option *options)
 	putchar(' ');
       if (optp->var_type == GET_STR)
       {
-	if (!optp->def_value && !*((char**) optp->value))
-	  printf("(No default value)\n");
-	else
+	if (*((char**) optp->value))
 	  printf("%s\n", *((char**) optp->value));
+	else
+	  printf("(No default value)\n");
       }
       else if (optp->var_type == GET_LONG)
       {
@@ -565,7 +597,7 @@ void my_print_variables(const struct my_option *options)
 	else
 	  printf("%lu\n", *((long*) optp->value));
       }
-      else
+      else 
       {
 	if (!optp->def_value && !*((longlong*) optp->value))
 	  printf("(No default value)\n");
