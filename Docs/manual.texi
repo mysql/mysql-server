@@ -27671,7 +27671,7 @@ If you want to set a @code{SESSION} variable to the @code{GLOBAL} value or a
 SET max_join_size=DEFAULT;
 @end example
 
-This is idential to:
+This is identical to:
 
 @example
 SET @@@@session.max_join_size=@@@@global.max_join_size;
@@ -28632,7 +28632,7 @@ SET GLOBAL sort_buffer_size=value;
 SET @@@@global.sort_buffer_size=value;
 @end example
 
-To set the value for @code{SESSION} variable, you can use on of the
+To set the value for @code{SESSION} variable, you can use one of the
 following syntaxes:
 
 @example
