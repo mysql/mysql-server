@@ -255,7 +255,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %token	IDENT_QUOTED
 %token	IGNORE_SYM
 %token	IMPORT
-%token	INDEX
+%token	INDEX_SYM
 %token	INDEXES
 %token	INFILE
 %token	INNER_SYM
@@ -1028,7 +1028,7 @@ create:
 	}
 	create2
 	  { Lex->current_select= &Lex->select_lex; }
-	| CREATE opt_unique_or_fulltext INDEX ident key_alg ON table_ident
+	| CREATE opt_unique_or_fulltext INDEX_SYM ident key_alg ON table_ident
 	  {
 	    LEX *lex=Lex;
 	    lex->sql_command= SQLCOM_CREATE_INDEX;
@@ -1212,7 +1212,7 @@ create_table_option:
 	| INSERT_METHOD opt_equal merge_insert_types   { Lex->create_info.merge_insert_method= $3; Lex->create_info.used_fields|= HA_CREATE_USED_INSERT_METHOD;}
 	| DATA_SYM DIRECTORY_SYM opt_equal TEXT_STRING_sys
 	  { Lex->create_info.data_file_name= $4.str; }
-	| INDEX DIRECTORY_SYM opt_equal TEXT_STRING_sys { Lex->create_info.index_file_name= $4.str; };
+	| INDEX_SYM DIRECTORY_SYM opt_equal TEXT_STRING_sys { Lex->create_info.index_file_name= $4.str; };
 
 storage_engines:
 	ident_or_text
@@ -1733,7 +1733,7 @@ constraint_key_type:
 
 key_or_index:
 	KEY_SYM {}
-	| INDEX {};
+	| INDEX_SYM {};
 
 opt_key_or_index:
 	/* empty */ {}
@@ -1742,7 +1742,7 @@ opt_key_or_index:
 
 keys_or_index:
 	KEYS {}
-	| INDEX {}
+	| INDEX_SYM {}
 	| INDEXES {};
 
 opt_unique_or_fulltext:
@@ -2221,7 +2221,7 @@ table_to_table:
 	};
 
 keycache:
-        CACHE_SYM INDEX keycache_list IN_SYM key_cache_name
+        CACHE_SYM INDEX_SYM keycache_list IN_SYM key_cache_name
         {
           LEX *lex=Lex;
           lex->sql_command= SQLCOM_ASSIGN_TO_KEYCACHE;
@@ -2252,7 +2252,7 @@ key_cache_name:
 	;
 
 preload:
-	LOAD INDEX INTO CACHE_SYM
+	LOAD INDEX_SYM INTO CACHE_SYM
 	{
 	  LEX *lex=Lex;
 	  lex->sql_command=SQLCOM_PRELOAD_KEYS;
@@ -3859,7 +3859,7 @@ drop:
 	  lex->drop_temporary= $2;
 	  lex->drop_if_exists= $4;
 	}
-	| DROP INDEX ident ON table_ident {}
+	| DROP INDEX_SYM ident ON table_ident {}
 	  {
 	     LEX *lex=Lex;
 	     lex->sql_command= SQLCOM_DROP_INDEX;
@@ -5527,7 +5527,7 @@ grant_privilege:
 	| REFERENCES	{ Lex->which_columns = REFERENCES_ACL;} opt_column_list {}
 	| DELETE_SYM	{ Lex->grant |= DELETE_ACL;}
 	| USAGE		{}
-	| INDEX		{ Lex->grant |= INDEX_ACL;}
+	| INDEX_SYM	{ Lex->grant |= INDEX_ACL;}
 	| ALTER		{ Lex->grant |= ALTER_ACL;}
 	| CREATE	{ Lex->grant |= CREATE_ACL;}
 	| DROP		{ Lex->grant |= DROP_ACL;}

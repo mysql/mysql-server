@@ -442,7 +442,6 @@ berkeley_key_cmp(TABLE *table, KEY *key_info, const char *key, uint key_length)
   return 0;					// Identical keys
 }
 
-
 int ha_berkeley::open(const char *name, int mode, uint test_if_locked)
 {
   char name_buff[FN_REFLEN];
@@ -1350,6 +1349,7 @@ int ha_berkeley::index_end()
     error=cursor->c_close(cursor);
     cursor=0;
   }
+  active_index=MAX_KEY;
   DBUG_RETURN(error);
 }
 
@@ -1411,7 +1411,7 @@ int ha_berkeley::index_read_idx(byte * buf, uint keynr, const byte * key,
   statistic_increment(ha_read_key_count,&LOCK_status);
   DBUG_ENTER("index_read_idx");
   current_row.flags=DB_DBT_REALLOC;
-  active_index= (uint) -1;
+  active_index=MAX_KEY;
   DBUG_RETURN(read_row(key_file[keynr]->get(key_file[keynr], transaction,
 				 pack_key(&last_key, keynr, key_buff, key,
 					  key_len),
@@ -1482,7 +1482,7 @@ int ha_berkeley::index_read(byte * buf, const byte * key,
     bzero((char*) &row, sizeof(row));
     error= read_row(cursor->c_get(cursor, &last_key, &row, DB_PREV),
                          (char*) buf, active_index, &row, &last_key, 1);
-  }   
+  }
   DBUG_RETURN(error);
 }
 
@@ -1583,12 +1583,14 @@ int ha_berkeley::index_last(byte * buf)
 int ha_berkeley::rnd_init(bool scan)
 {
   DBUG_ENTER("rnd_init");
+  DBUG_ASSERT(active_index==MAX_KEY);
   current_row.flags=DB_DBT_REALLOC;
   DBUG_RETURN(index_init(primary_key));
 }
 
 int ha_berkeley::rnd_end()
 {
+  active_index= MAX_KEY;
   return index_end();
 }
 
@@ -1630,7 +1632,7 @@ int ha_berkeley::rnd_pos(byte * buf, byte *pos)
   statistic_increment(ha_read_rnd_count,&LOCK_status);
   DBUG_ENTER("ha_berkeley::rnd_pos");
 
-  active_index= (uint) -1;			// Don't delete via cursor
+  active_index= MAX_KEY;
   DBUG_RETURN(read_row(file->get(file, transaction,
 				 get_pos(&db_pos, pos),
 				 &current_row, 0),

@@ -72,6 +72,7 @@ int mysql_ha_close(THD *thd, TABLE_LIST *tables, bool dont_send_ok)
 
   if (*ptr)
   {
+    (*ptr)->file->ha_index_or_rnd_end();
     VOID(pthread_mutex_lock(&LOCK_open));
     if (close_thread_table(thd, ptr))
     {
@@ -94,10 +95,14 @@ int mysql_ha_close(THD *thd, TABLE_LIST *tables, bool dont_send_ok)
 int mysql_ha_closeall(THD *thd, TABLE_LIST *tables)
 {
   TABLE **ptr=find_table_ptr_by_name(thd, tables->db, tables->real_name, 0);
-  if (*ptr && close_thread_table(thd, ptr))
+  if (*ptr)
   {
-    /* Tell threads waiting for refresh that something has happened */
-    VOID(pthread_cond_broadcast(&COND_refresh));
+    (*ptr)->file->ha_index_or_rnd_end();
+    if (close_thread_table(thd, ptr))
+    {
+      /* Tell threads waiting for refresh that something has happened */
+      VOID(pthread_cond_broadcast(&COND_refresh));
+    }
   }
   return 0;
 }
@@ -136,7 +141,8 @@ int mysql_ha_read(THD *thd, TABLE_LIST *tables,
           keyname,tables->alias);
       return -1;
     }
-    table->file->index_init(keyno);
+    table->file->ha_index_or_rnd_end();
+    table->file->ha_index_init(keyno);
   }
 
   List<Item> list;
@@ -148,8 +154,8 @@ int mysql_ha_read(THD *thd, TABLE_LIST *tables,
   uint num_rows;
   byte *key;
   uint key_len;
-  LINT_INIT(key); 
-  LINT_INIT(key_len); 
+  LINT_INIT(key);
+  LINT_INIT(key_len);
 
   it++;                                         // Skip first NULL field
 
@@ -180,7 +186,8 @@ int mysql_ha_read(THD *thd, TABLE_LIST *tables,
         err=table->file->index_first(table->record[0]);
       else
       {
-	if (!(err=table->file->rnd_init(1)))
+        table->file->ha_index_or_rnd_end();
+	if (!(err=table->file->ha_rnd_init(1)))
           err=table->file->rnd_next(table->record[0]);
       }
       mode=RNEXT;
