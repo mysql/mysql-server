@@ -1574,6 +1574,22 @@ static int reconnect(void)
   return 0;
 }
 
+static void get_current_db()
+{
+  MYSQL_RES *res;
+
+  my_free(current_db, MYF(MY_ALLOW_ZERO_PTR));
+  current_db= NULL;
+  /* In case of error below current_db will be NULL */
+  if (!mysql_query(&mysql, "SELECT DATABASE()") &&
+      (res= mysql_use_result(&mysql)))
+  {
+    MYSQL_ROW row= mysql_fetch_row(res);
+    if (row[0])
+      current_db= my_strdup(row[0], MYF(MY_WME));
+    mysql_free_result(res);
+  }
+}
 
 /***************************************************************************
  The different commands
@@ -1898,6 +1914,9 @@ com_go(String *buffer,char *line __attribute__((unused)))
   } while (!(err= mysql_next_result(&mysql)));
   if (err >= 1)
     error= put_error(&mysql);
+
+  if (!status.batch && (mysql.server_status & SERVER_STATUS_DB_DROPPED))
+    get_current_db();
 
   return error;				/* New command follows */
 }
@@ -2614,24 +2633,7 @@ com_use(String *buffer __attribute__((unused)), char *line)
     under our feet, for example if DROP DATABASE or RENAME DATABASE
     (latter one not yet available by the time the comment was written)
   */
-  /*  Let's reset current_db, assume it's gone */
-  my_free(current_db, MYF(MY_ALLOW_ZERO_PTR));
-  current_db= 0;
-  /*
-    We don't care about in case of an error below because current_db
-    was just set to 0.
-  */
-  if (!mysql_query(&mysql, "SELECT DATABASE()") &&
-      (res= mysql_use_result(&mysql)))
-  {
-    row= mysql_fetch_row(res);
-    if (row[0])
-    {
-      current_db= my_strdup(row[0], MYF(MY_WME));
-    }
-    (void) mysql_fetch_row(res);               // Read eof
-    mysql_free_result(res);
-  }
+  get_current_db();
 
   if (!current_db || cmp_database(charset_info, current_db,tmp))
   {
