@@ -2337,10 +2337,12 @@ insert_fields(THD *thd,TABLE_LIST *tables, const char *db_name,
 
       while ((field = *ptr++))
       {
+        uint not_used_field_index= NO_CACHED_FIELD_INDEX;
         /* Skip duplicate field names if NATURAL JOIN is used */
         if (!natural_join_table ||
             !find_field_in_table(thd, natural_join_table, field->field_name, 
-                                 strlen(field->field_name), 0, 0))
+                                 strlen(field->field_name), 0, 0,
+                                 &not_used_field_index))
         {
           Item_field *item= new Item_field(thd, field);
           if (!found++)
@@ -2434,9 +2436,11 @@ int setup_conds(THD *thd,TABLE_LIST *tables,COND **conds)
       for (t1_field= t1->field; (*t1_field); t1_field++)
       {
         const char *t1_field_name= (*t1_field)->field_name;
+        uint not_used_field_index= NO_CACHED_FIELD_INDEX;
 
         if ((t2_field= find_field_in_table(thd, t2, t1_field_name,
-                                           strlen(t1_field_name), 0, 0)))
+                                           strlen(t1_field_name), 0, 0,
+                                           &not_used_field_index)))
         {
           Item_func_eq *tmp=new Item_func_eq(new Item_field(*t1_field),
                                              new Item_field(t2_field));
