@@ -35,6 +35,12 @@ CREATE AGGREGATE FUNCTION avgcost RETURNS REAL SONAME "udf_example.so"
 Query OK, 0 rows affected
 
 --------------
+CREATE FUNCTION myfunc_argument_name RETURNS STRING SONAME "udf_example.so"
+--------------
+
+Query OK, 0 rows affected
+
+--------------
 select metaphon("hello")
 --------------
 
@@ -107,6 +113,18 @@ avgcost(a,b)
 4 rows in set
 
 --------------
+select a, myfunc_argument_name(a) from t1;
+--------------
+
+a       myfunc_argument_name(a) myfunc_argument_name(a as b)
+1       a       b
+1       a       b
+2       a       b
+3       a       b
+4       a       b
+5 rows in set
+
+--------------
 drop table t1
 --------------
 
@@ -144,6 +162,12 @@ Query OK, 0 rows affected
 
 --------------
 DROP FUNCTION avgcost
+--------------
+
+Query OK, 0 rows affected
+
+--------------
+DROP FUNCTION myfunc_argument_name;
 --------------
 
 Query OK, 0 rows affected

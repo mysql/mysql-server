@@ -89,9 +89,9 @@ static void mi_check_print_msg(MI_CHECK *param,	const char* msg_type,
 
 extern "C" {
 
-volatile bool *killed_ptr(MI_CHECK *param)
+int *killed_ptr(void *thd)
 {
-  return &(((THD *)(param->thd))->killed);
+  return (int*)&((THD *)thd)->killed;
 }
 
 void mi_check_print_error(MI_CHECK *param, const char *fmt,...)
@@ -391,7 +391,7 @@ int ha_myisam::analyze(THD *thd, HA_CHECK_OPT* check_opt)
 int ha_myisam::restore(THD* thd, HA_CHECK_OPT *check_opt)
 {
   HA_CHECK_OPT tmp_check_opt;
-  char* backup_dir = thd->lex.backup_dir;
+  char* backup_dir = thd->lex->backup_dir;
   char src_path[FN_REFLEN], dst_path[FN_REFLEN];
   char* table_name = table->real_name;
   int error;
@@ -431,7 +431,7 @@ int ha_myisam::restore(THD* thd, HA_CHECK_OPT *check_opt)
 
 int ha_myisam::backup(THD* thd, HA_CHECK_OPT *check_opt)
 {
-  char* backup_dir = thd->lex.backup_dir;
+  char* backup_dir = thd->lex->backup_dir;
   char src_path[FN_REFLEN], dst_path[FN_REFLEN];
   char* table_name = table->real_name;
   int error;

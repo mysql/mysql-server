@@ -28,6 +28,9 @@
 #include <time.h>
 #include <ft_global.h>
 
+#include "sp_head.h"
+#include "sp_rcontext.h"
+#include "sp.h"
 
 static void my_coll_agg_error(DTCollation &c1, DTCollation &c2,
 			      const char *fname)
@@ -1492,11 +1495,16 @@ udf_handler::fix_fields(THD *thd, TABLE_LIST *tables, Item_result_field *func,
       const_item_cache&=item->const_item();
       f_args.arg_type[i]=item->result_type();
     }
+    //TODO: why all folowing memory is not allocated with 1 call of sql_alloc?
     if (!(buffers=new String[arg_count]) ||
 	!(f_args.args= (char**) sql_alloc(arg_count * sizeof(char *))) ||
-	!(f_args.lengths=(ulong*) sql_alloc(arg_count * sizeof(long))) ||
-	!(f_args.maybe_null=(char*) sql_alloc(arg_count * sizeof(char))) ||
-	!(num_buffer= (char*) sql_alloc(ALIGN_SIZE(sizeof(double))*arg_count)))
+	!(f_args.lengths= (ulong*) sql_alloc(arg_count * sizeof(long))) ||
+	!(f_args.maybe_null= (char*) sql_alloc(arg_count * sizeof(char))) ||
+	!(num_buffer= (char*) sql_alloc(arg_count *
+					ALIGN_SIZE(sizeof(double)))) ||
+	!(f_args.attributes= (char**) sql_alloc(arg_count * sizeof(char *))) ||
+	!(f_args.attribute_lengths= (ulong*) sql_alloc(arg_count *
+						       sizeof(long))))
     {
       free_udf(u_d);
       DBUG_RETURN(1);
@@ -1515,8 +1523,10 @@ udf_handler::fix_fields(THD *thd, TABLE_LIST *tables, Item_result_field *func,
     for (uint i=0; i < arg_count; i++)
     {
       f_args.args[i]=0;
-      f_args.lengths[i]=arguments[i]->max_length;
-      f_args.maybe_null[i]=(char) arguments[i]->maybe_null;
+      f_args.lengths[i]= arguments[i]->max_length;
+      f_args.maybe_null[i]= (char) arguments[i]->maybe_null;
+      f_args.attributes[i]= arguments[i]->name;
+      f_args.attribute_lengths[i]= arguments[i]->name_length;
 
       switch(arguments[i]->type()) {
       case Item::STRING_ITEM:			// Constant string !
@@ -2486,8 +2496,7 @@ void Item_func_get_user_var::fix_length_and_dec()
 
   if (!(var_entry= get_variable(&thd->user_vars, name, 0)))
     null_value= 1;
-
-  if (!(opt_bin_log && is_update_query(thd->lex.sql_command)))
+  if (!(opt_bin_log && is_update_query(thd->lex->sql_command)))
     return;
 
   if (!var_entry)
@@ -2950,7 +2959,7 @@ Item *get_system_var(THD *thd, enum_var_type var_type, LEX_STRING name,
   }
   if (!(item=var->item(thd, var_type, component_name)))
     return 0;					// Impossible
-  thd->lex.uncacheable(UNCACHEABLE_SIDEEFFECT);
+  thd->lex->uncacheable(UNCACHEABLE_SIDEEFFECT);
   buff[0]='@';
   buff[1]='@';
   pos=buff+2;
@@ -2990,7 +2999,7 @@ Item *get_system_var(THD *thd, enum_var_type var_type, const char *var_name,
   DBUG_ASSERT(var != 0);
   if (!(item=var->item(thd, var_type, &null_lex_string)))
     return 0;						// Impossible
-  thd->lex.uncacheable(UNCACHEABLE_SIDEEFFECT);
+  thd->lex->uncacheable(UNCACHEABLE_SIDEEFFECT);
   item->set_name(item_name, 0, system_charset_info);	// Will use original name
   return item;
 }
@@ -3050,4 +3059,75 @@ longlong Item_func_is_used_lock::val_int()
 
   null_value=0;
   return ull->thread_id;
+}
+
+int
+Item_func_sp::execute(Item **itp)
+{
+  DBUG_ENTER("Item_func_sp::execute");
+  THD *thd= current_thd;
+
+  if (! m_sp)
+    m_sp= sp_find_function(thd, &m_name);
+  if (! m_sp)
+    DBUG_RETURN(-1);
+
+  DBUG_RETURN(m_sp->execute_function(thd, args, arg_count, itp));
+}
+
+enum enum_field_types
+Item_func_sp::field_type() const
+{
+  DBUG_ENTER("Item_func_sp::field_type");
+
+  if (! m_sp)
+    m_sp= sp_find_function(current_thd, const_cast<LEX_STRING*>(&m_name));
+  if (m_sp)
+  {
+    DBUG_PRINT("info", ("m_returns = %d", m_sp->m_returns));
+    DBUG_RETURN(m_sp->m_returns);
+  }
+  DBUG_RETURN(MYSQL_TYPE_STRING);
+}
+
+Item_result
+Item_func_sp::result_type() const
+{
+  DBUG_ENTER("Item_func_sp::result_type");
+  DBUG_PRINT("info", ("m_sp = %p", m_sp));
+
+  if (! m_sp)
+    m_sp= sp_find_function(current_thd, const_cast<LEX_STRING*>(&m_name));
+  if (m_sp)
+  {
+    DBUG_RETURN(m_sp->result());
+  }
+  DBUG_RETURN(STRING_RESULT);
+}
+
+void
+Item_func_sp::fix_length_and_dec()
+{
+  DBUG_ENTER("Item_func_sp::fix_length_and_dec");
+
+  if (! m_sp)
+    m_sp= sp_find_function(current_thd, &m_name);
+  if (m_sp)
+  {
+    switch (m_sp->result()) {
+    case STRING_RESULT:
+      maybe_null= 1;
+      max_length= 0;
+      break;
+    case REAL_RESULT:
+      decimals= NOT_FIXED_DEC;
+      max_length= float_length(decimals);
+      break;
+    case INT_RESULT:
+      decimals= 0;
+      max_length= 21;
+      break;
+    }
+  }
+  DBUG_VOID_RETURN;
 }

@@ -832,7 +832,7 @@ Query_log_event::Query_log_event(THD* thd_arg, const char* query_arg,
 	     0 : LOG_EVENT_THREAD_SPECIFIC_F, using_trans),
    data_buf(0), query(query_arg),
    db(thd_arg->db), q_len((uint32) query_length),
-   error_code(thd_arg->killed ? ER_SERVER_SHUTDOWN: thd_arg->net.last_errno),
+  error_code(thd_arg->killed != THD::NOT_KILLED ? thd->killed_errno() : thd_arg->net.last_errno),
    thread_id(thd_arg->thread_id),
    /* save the original thread id; we already know the server id */
    slave_proxy_id(thd_arg->variables.pseudo_thread_id)

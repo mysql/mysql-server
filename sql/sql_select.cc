@@ -208,7 +208,8 @@ int handle_select(THD *thd, LEX *lex, select_result *result)
       send_error(thd, 0, NullS);
     res= 1;					// Error sent to client
   }
-  delete result;
+  if (result != lex->result)
+    delete result;
   DBUG_RETURN(res);
 }
 
@@ -504,8 +505,8 @@ JOIN::optimize()
   optimized= 1;
 
   // Ignore errors of execution if option IGNORE present
-  if (thd->lex.duplicates == DUP_IGNORE)
-    thd->lex.current_select->no_error= 1;
+  if (thd->lex->duplicates == DUP_IGNORE)
+    thd->lex->current_select->no_error= 1;
 #ifdef HAVE_REF_TO_FIELDS			// Not done yet
   /* Add HAVING to WHERE if possible */
   if (having && !group_list && !sum_func_count)
@@ -2449,7 +2450,7 @@ update_ref_and_keys(THD *thd, DYNAMIC_ARRAY *keyuse,JOIN_TAB *join_tab,
 
   if (!(key_fields=(KEY_FIELD*)
 	thd->alloc(sizeof(key_fields[0])*
-		   (thd->lex.current_select->cond_count+1)*2)))
+		   (thd->lex->current_select->cond_count+1)*2)))
     return TRUE; /* purecov: inspected */
   and_level=0; end=key_fields;
   if (cond)
@@ -3527,7 +3528,7 @@ static void
 make_join_readinfo(JOIN *join, uint options)
 {
   uint i;
-  SELECT_LEX *select_lex = &(join->thd->lex.select_lex);
+  SELECT_LEX *select_lex = &(join->thd->lex->select_lex);
   DBUG_ENTER("make_join_readinfo");
 
   for (i=join->const_tables ; i < join->tables ; i++)
@@ -5365,7 +5366,7 @@ bool create_myisam_from_heap(THD *thd, TABLE *table, TMP_TABLE_PARAM *param,
   thd->proc_info="converting HEAP to MyISAM";
 
   if (create_myisam_tmp_table(&new_table,param,
-			      thd->lex.select_lex.options | thd->options))
+			      thd->lex->select_lex.options | thd->options))
     goto err2;
   if (open_tmp_table(&new_table))
     goto err1;
@@ -5563,7 +5564,7 @@ sub_select_cache(JOIN *join,JOIN_TAB *join_tab,bool end_of_records)
   }
   if (join->thd->killed)		// If aborted by user
   {
-    my_error(ER_SERVER_SHUTDOWN,MYF(0)); /* purecov: inspected */
+    join->thd->send_kill_message();
     return -2;				 /* purecov: inspected */
   }
   if (join_tab->use_quick != 2 || test_if_quick_select(join_tab) <= 0)
@@ -5604,7 +5605,7 @@ sub_select(JOIN *join,JOIN_TAB *join_tab,bool end_of_records)
     {
       if (join->thd->killed)			// Aborted by user
       {
-	my_error(ER_SERVER_SHUTDOWN,MYF(0));	/* purecov: inspected */
+	join->thd->send_kill_message();
 	return -2;				/* purecov: inspected */
       }
       join->examined_rows++;
@@ -5685,7 +5686,7 @@ flush_cached_records(JOIN *join,JOIN_TAB *join_tab,bool skipp_last)
   {
     if (join->thd->killed)
     {
-      my_error(ER_SERVER_SHUTDOWN,MYF(0)); /* purecov: inspected */
+      join->thd->send_kill_message();
       return -2;				// Aborted by user /* purecov: inspected */
     }
     SQL_SELECT *select=join_tab->select;
@@ -6310,7 +6311,7 @@ end_write(JOIN *join, JOIN_TAB *join_tab __attribute__((unused)),
 
   if (join->thd->killed)			// Aborted by user
   {
-    my_error(ER_SERVER_SHUTDOWN,MYF(0));	/* purecov: inspected */
+    join->thd->send_kill_message();
     DBUG_RETURN(-2);				/* purecov: inspected */
   }
   if (!end_of_records)
@@ -6378,7 +6379,7 @@ end_update(JOIN *join, JOIN_TAB *join_tab __attribute__((unused)),
     DBUG_RETURN(0);
   if (join->thd->killed)			// Aborted by user
   {
-    my_error(ER_SERVER_SHUTDOWN,MYF(0));	/* purecov: inspected */
+    join->thd->send_kill_message();
     DBUG_RETURN(-2);				/* purecov: inspected */
   }
 
@@ -6448,7 +6449,7 @@ end_unique_update(JOIN *join, JOIN_TAB *join_tab __attribute__((unused)),
     DBUG_RETURN(0);
   if (join->thd->killed)			// Aborted by user
   {
-    my_error(ER_SERVER_SHUTDOWN,MYF(0));	/* purecov: inspected */
+    join->thd->send_kill_message();
     DBUG_RETURN(-2);				/* purecov: inspected */
   }
 
@@ -6495,7 +6496,7 @@ end_write_group(JOIN *join, JOIN_TAB *join_tab __attribute__((unused)),
 
   if (join->thd->killed)
   {						// Aborted by user
-    my_error(ER_SERVER_SHUTDOWN,MYF(0));	/* purecov: inspected */
+    join->thd->send_kill_message();
     DBUG_RETURN(-2);				/* purecov: inspected */
   }
   if (!join->first_record || end_of_records ||
@@ -7261,7 +7262,7 @@ static int remove_dup_with_compare(THD *thd, TABLE *table, Field **first_field,
   {
     if (thd->killed)
     {
-      my_error(ER_SERVER_SHUTDOWN,MYF(0));
+      thd->send_kill_message();
       error=0;
       goto err;
     }
@@ -7373,7 +7374,7 @@ static int remove_dup_with_hash_index(THD *thd, TABLE *table,
   {
     if (thd->killed)
     {
-      my_error(ER_SERVER_SHUTDOWN,MYF(0));
+      thd->send_kill_message();
       error=0;
       goto err;
     }
@@ -8848,7 +8849,7 @@ static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
   List<Item> field_list;
   List<Item> item_list;
   THD *thd=join->thd;
-  SELECT_LEX *select_lex = &(join->thd->lex.select_lex);
+  SELECT_LEX *select_lex = &(join->thd->lex->select_lex);
   select_result *result=join->result;
   Item *item_null= new Item_null();
   CHARSET_INFO *cs= &my_charset_latin1;
@@ -9035,8 +9036,8 @@ int mysql_explain_union(THD *thd, SELECT_LEX_UNIT *unit, select_result *result)
        sl= sl->next_select())
   {
     res= mysql_explain_select(thd, sl,
-			      (((&thd->lex.select_lex)==sl)?
-			       ((thd->lex.all_selects_list != sl)?"PRIMARY":
+			      (((&thd->lex->select_lex)==sl)?
+			       ((thd->lex->all_selects_list != sl)?"PRIMARY":
 				"SIMPLE"):
 			       ((sl == first)?
 				((sl->linkage == DERIVED_TABLE_TYPE) ?
@@ -9066,7 +9067,7 @@ int mysql_explain_select(THD *thd, SELECT_LEX *select_lex, char const *type,
   DBUG_ENTER("mysql_explain_select");
   DBUG_PRINT("info", ("Select 0x%lx, type %s", (ulong)select_lex, type))
   select_lex->type= type;
-  thd->lex.current_select= select_lex;
+  thd->lex->current_select= select_lex;
   SELECT_LEX_UNIT *unit=  select_lex->master_unit();
   int res= mysql_select(thd, &select_lex->ref_pointer_array,
 			(TABLE_LIST*) select_lex->table_list.first,
@@ -9077,7 +9078,7 @@ int mysql_explain_select(THD *thd, SELECT_LEX *select_lex, char const *type,
 			(ORDER*) select_lex->order_list.first,
 			(ORDER*) select_lex->group_list.first,
 			select_lex->having,
-			(ORDER*) thd->lex.proc_list.first,
+			(ORDER*) thd->lex->proc_list.first,
 			select_lex->options | thd->options | SELECT_DESCRIBE,
 			result, unit, select_lex, 0);
   DBUG_RETURN(res);

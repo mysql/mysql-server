@@ -253,7 +253,7 @@ Item_singlerow_subselect::select_transformer(JOIN *join)
   {
     
     have_to_be_excluded= 1;
-    if (join->thd->lex.describe)
+    if (join->thd->lex->describe)
     {
       char warn_buff[MYSQL_ERRMSG_SIZE];
       sprintf(warn_buff, ER(ER_SELECT_REDUCED), select_lex->select_number);
@@ -609,14 +609,14 @@ Item_in_subselect::single_value_transformer(JOIN *join,
       subs= new Item_maxmin_subselect(this, select_lex, func->l_op());
     }
     // left expression belong to outer select
-    SELECT_LEX *current= thd->lex.current_select, *up;
-    thd->lex.current_select= up= current->return_after_parsing();
+    SELECT_LEX *current= thd->lex->current_select, *up;
+    thd->lex->current_select= up= current->return_after_parsing();
     if (left_expr->fix_fields(thd, up->get_table_list(), &left_expr))
     {
-      thd->lex.current_select= current;
+      thd->lex->current_select= current;
       DBUG_RETURN(RES_ERROR);
     }
-    thd->lex.current_select= current;
+    thd->lex->current_select= current;
     substitution= func->create(left_expr, subs);
     DBUG_RETURN(RES_OK);
   }
@@ -627,16 +627,16 @@ Item_in_subselect::single_value_transformer(JOIN *join,
     SELECT_LEX_UNIT *unit= select_lex->master_unit();
     substitution= optimizer= new Item_in_optimizer(left_expr, this);
 
-    SELECT_LEX *current= thd->lex.current_select, *up;
+    SELECT_LEX *current= thd->lex->current_select, *up;
 
-    thd->lex.current_select= up= current->return_after_parsing();
+    thd->lex->current_select= up= current->return_after_parsing();
     //optimizer never use Item **ref => we can pass 0 as parameter
     if (!optimizer || optimizer->fix_left(thd, up->get_table_list(), 0))
     {
-      thd->lex.current_select= current;
+      thd->lex->current_select= current;
       DBUG_RETURN(RES_ERROR);
     }
-    thd->lex.current_select= current;
+    thd->lex->current_select= current;
 
     /*
       As far as  Item_ref_in_optimizer do not substitude itself on fix_fields
@@ -725,7 +725,7 @@ Item_in_subselect::single_value_transformer(JOIN *join,
 	// fix_field of item will be done in time of substituting 
 	substitution= item;
 	have_to_be_excluded= 1;
-	if (thd->lex.describe)
+	if (thd->lex->describe)
 	{
 	  char warn_buff[MYSQL_ERRMSG_SIZE];
 	  sprintf(warn_buff, ER(ER_SELECT_REDUCED), select_lex->select_number);
@@ -761,15 +761,15 @@ Item_in_subselect::row_value_transformer(JOIN *join)
     SELECT_LEX_UNIT *unit= select_lex->master_unit();
     substitution= optimizer= new Item_in_optimizer(left_expr, this);
 
-    SELECT_LEX *current= thd->lex.current_select, *up;
-    thd->lex.current_select= up= current->return_after_parsing();
+    SELECT_LEX *current= thd->lex->current_select, *up;
+    thd->lex->current_select= up= current->return_after_parsing();
     //optimizer never use Item **ref => we can pass 0 as parameter
     if (!optimizer || optimizer->fix_left(thd, up->get_table_list(), 0))
     {
-      thd->lex.current_select= current;
+      thd->lex->current_select= current;
       DBUG_RETURN(RES_ERROR);
     }
-    thd->lex.current_select= current;
+    thd->lex->current_select= current;
     unit->uncacheable|= UNCACHEABLE_DEPENDENT;
   }
 
@@ -912,8 +912,8 @@ int subselect_single_select_engine::prepare()
     return 1;
   }
   prepared= 1;
-  SELECT_LEX *save_select= thd->lex.current_select;
-  thd->lex.current_select= select_lex;
+  SELECT_LEX *save_select= thd->lex->current_select;
+  thd->lex->current_select= select_lex;
   if (join->prepare(&select_lex->ref_pointer_array,
 		    (TABLE_LIST*) select_lex->table_list.first,
 		    select_lex->with_wild,
@@ -926,7 +926,7 @@ int subselect_single_select_engine::prepare()
 		    (ORDER*) 0, select_lex, 
 		    select_lex->master_unit(), 0))
     return 1;
-  thd->lex.current_select= save_select;
+  thd->lex->current_select= save_select;
   return 0;
 }
 
@@ -1032,8 +1032,8 @@ int subselect_single_select_engine::exec()
 {
   DBUG_ENTER("subselect_single_select_engine::exec");
   char const *save_where= join->thd->where;
-  SELECT_LEX *save_select= join->thd->lex.current_select;
-  join->thd->lex.current_select= select_lex;
+  SELECT_LEX *save_select= join->thd->lex->current_select;
+  join->thd->lex->current_select= select_lex;
   if (!optimized)
   {
     optimized=1;
@@ -1041,7 +1041,7 @@ int subselect_single_select_engine::exec()
     {
       join->thd->where= save_where;
       executed= 1;
-      join->thd->lex.current_select= save_select;
+      join->thd->lex->current_select= save_select;
       DBUG_RETURN(join->error?join->error:1);
     }
     if (item->engine_changed)
@@ -1054,7 +1054,7 @@ int subselect_single_select_engine::exec()
     if (join->reinit())
     {
       join->thd->where= save_where;
-      join->thd->lex.current_select= save_select;
+      join->thd->lex->current_select= save_select;
       DBUG_RETURN(1);
     }
     item->reset();
@@ -1065,11 +1065,11 @@ int subselect_single_select_engine::exec()
     join->exec();
     executed= 1;
     join->thd->where= save_where;
-    join->thd->lex.current_select= save_select;
+    join->thd->lex->current_select= save_select;
     DBUG_RETURN(join->error||thd->is_fatal_error);
   }
   join->thd->where= save_where;
-  join->thd->lex.current_select= save_select;
+  join->thd->lex->current_select= save_select;
   DBUG_RETURN(0);
 }
 

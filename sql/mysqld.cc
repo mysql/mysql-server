@@ -22,6 +22,7 @@
 #include "sql_repl.h"
 #include "repl_failsafe.h"
 #include "stacktrace.h"
+#include "mysys_err.h"
 #ifdef HAVE_BERKELEY_DB
 #include "ha_berkeley.h"
 #endif
@@ -36,6 +37,8 @@
 #include <thr_alarm.h>
 #include <ft_global.h>
 #include <errmsg.h>
+#include "sp_rcontext.h"
+#include "sp_cache.h"
 
 #define mysqld_charset &my_charset_latin1
 
@@ -613,7 +616,7 @@ static void close_connections(void)
   {
     DBUG_PRINT("quit",("Informing thread %ld that it's time to die",
 		       tmp->thread_id));
-    tmp->killed=1;
+    tmp->killed= THD::KILL_CONNECTION;
     if (tmp->mysys_var)
     {
       tmp->mysys_var->abort=1;
@@ -796,6 +799,7 @@ static void __cdecl kill_server(int sig_ptr)
     unireg_abort(1);				/* purecov: inspected */
   else
     unireg_end();
+
 #ifdef __NETWARE__
   pthread_join(select_thread, NULL);		// wait for main thread
 #endif /* __NETWARE__ */
@@ -887,7 +891,6 @@ void clean_up(bool print_message)
 
   mysql_log.cleanup();
   mysql_slow_log.cleanup();
-  mysql_update_log.cleanup();
   mysql_bin_log.cleanup();
 
 #ifdef HAVE_REPLICATION
@@ -1268,12 +1271,12 @@ static void server_init(void)
 void yyerror(const char *s)
 {
   THD *thd=current_thd;
-  char *yytext=(char*) thd->lex.tok_start;
+  char *yytext=(char*) thd->lex->tok_start;
   /* "parse error" changed into "syntax error" between bison 1.75 and 1.875 */
   if (strcmp(s,"parse error") == 0 || strcmp(s,"syntax error") == 0)
     s=ER(ER_SYNTAX_ERROR);
   net_printf(thd,ER_PARSE_ERROR, s, yytext ? (char*) yytext : "",
-	     thd->lex.yylineno);
+	     thd->lex->yylineno);
 }
 
 
@@ -1403,7 +1406,7 @@ extern "C" sig_handler abort_thread(int sig __attribute__((unused)))
   THD *thd=current_thd;
   DBUG_ENTER("abort_thread");
   if (thd)
-    thd->killed=1;
+    thd->killed= THD::KILL_CONNECTION;
   DBUG_VOID_RETURN;
 }
 #endif
@@ -1887,12 +1890,16 @@ extern "C" int my_message_sql(uint error, const char *str,
   DBUG_PRINT("error", ("Message: '%s'", str));
   if ((thd= current_thd))
   {
+    if (thd->spcont && thd->spcont->find_handler(error))
+    {
+      DBUG_RETURN(0);
+    }
     /*
       thd->lex.current_select == 0 if lex structure is not inited
       (not query command (COM_QUERY))
     */
-    if (thd->lex.current_select &&
-	thd->lex.current_select->no_error && !thd->is_fatal_error)
+    if (thd->lex->current_select &&
+	thd->lex->current_select->no_error && !thd->is_fatal_error)
     {
       DBUG_PRINT("error", ("above error converted to warning"));
       push_warning(thd, MYSQL_ERROR::WARN_LEVEL_ERROR, error, str);
@@ -2093,7 +2100,6 @@ static int init_common_variables(const char *conf_file_name, int argc,
     before MY_INIT(). So we do it here.
   */
   mysql_log.init_pthread_objects();
-  mysql_update_log.init_pthread_objects();
   mysql_slow_log.init_pthread_objects();
   mysql_bin_log.init_pthread_objects();
   
@@ -2211,6 +2217,7 @@ static int init_thread_environment()
   (void) pthread_mutex_init(&LOCK_rpl_status, MY_MUTEX_INIT_FAST);
   (void) pthread_cond_init(&COND_rpl_status, NULL);
 #endif
+  sp_cache_init();
   /* Parameter for threads created for connections */
   (void) pthread_attr_init(&connection_attrib);
   (void) pthread_attr_setdetachstate(&connection_attrib,
@@ -2268,9 +2275,55 @@ static int init_server_components()
 	     LOG_NORMAL, 0, 0, 0);
   if (opt_update_log)
   {
-    open_log(&mysql_update_log, glob_hostname, opt_update_logname, "",
-	     NullS, LOG_NEW, 0, 0, 0);
-    using_update_log=1;
+    /*
+      Update log is removed since 5.0. But we still accept the option.
+      The idea is if the user already uses the binlog and the update log,
+      we completely ignore any option/variable related to the update log, like
+      if the update log did not exist. But if the user uses only the update log, 
+      then we translate everything into binlog for him (with warnings).
+      Implementation of the above :
+      - If mysqld is started with --log-update and --log-bin,
+      ignore --log-update (print a warning), push a warning when SQL_LOG_UPDATE
+      is used, and turn off --sql-bin-update-same.
+      This will completely ignore SQL_LOG_UPDATE
+      - If mysqld is started with --log-update only,
+      change it to --log-bin (with the filename passed to log-update,
+      plus '-bin') (print a warning), push a warning when SQL_LOG_UPDATE is
+      used, and turn on --sql-bin-update-same.
+      This will translate SQL_LOG_UPDATE to SQL_LOG_BIN.
+
+      Note that we tell the user that --sql-bin-update-same is deprecated and
+      does nothing, and we don't take into account if he used this option or
+      not; but internally we give this variable a value to have the behaviour we
+      want (i.e. have SQL_LOG_UPDATE influence SQL_LOG_BIN or not).
+      As sql-bin-update-same, log-update and log-bin cannot be changed by the user 
+      after starting the server (they are not variables), the user will not
+      later interfere with the settings we do here.
+    */
+    if (opt_bin_log)
+    {
+      opt_sql_bin_update= 0;
+      sql_print_error("The update log is no longer supported by MySQL in \
+version 5.0 and above. It is replaced by the binary log.");
+    }
+    else
+    {
+      opt_sql_bin_update= 1;
+      opt_bin_log= 1;
+      if (opt_update_logname)
+      {
+        // as opt_bin_log==0, no need to free opt_bin_logname
+        if (!(opt_bin_logname= my_strdup(opt_update_logname, MYF(MY_WME))))
+          exit(EXIT_OUT_OF_MEMORY);
+        sql_print_error("The update log is no longer supported by MySQL in \
+version 5.0 and above. It is replaced by the binary log. Now starting MySQL \
+with --log-bin='%s' instead.",opt_bin_logname);
+      }
+      else
+        sql_print_error("The update log is no longer supported by MySQL in \
+version 5.0 and above. It is replaced by the binary log. Now starting MySQL \
+with --log-bin instead.");
+    }
   }
   if (opt_slow_log)
     open_log(&mysql_slow_log, glob_hostname, opt_slow_logname, "-slow.log",
@@ -2968,7 +3021,7 @@ static void create_new_thread(THD *thd)
 		   ("Can't create thread to handle request (error %d)",
 		    error));
 	thread_count--;
-	thd->killed=1;				// Safety
+	thd->killed= THD::KILL_CONNECTION;				// Safety
 	(void) pthread_mutex_unlock(&LOCK_thread_count);
 	statistic_increment(aborted_connects,&LOCK_status);
 	net_printf(thd,ER_CANT_CREATE_THREAD,error);
@@ -3863,7 +3916,8 @@ Disable with --skip-bdb (will save memory).",
    (gptr*) &myisam_log_filename, (gptr*) &myisam_log_filename, 0, GET_STR,
    OPT_ARG, 0, 0, 0, 0, 0, 0},
   {"log-update", OPT_UPDATE_LOG,
-   "Log updates to file.# where # is a unique number if not given.",
+   "The update log is deprecated since version 5.0, is replaced by the binary \
+log and this option justs turns on --log-bin instead.",
    (gptr*) &opt_update_logname, (gptr*) &opt_update_logname, 0, GET_STR,
    OPT_ARG, 0, 0, 0, 0, 0, 0},
   {"log-slow-queries", OPT_SLOW_QUERY_LOG,
@@ -4141,9 +4195,9 @@ replicating a LOAD DATA INFILE command.",
    (gptr*) &mysqld_unix_port, (gptr*) &mysqld_unix_port, 0, GET_STR,
    REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"sql-bin-update-same", OPT_SQL_BIN_UPDATE_SAME,
-   "If set, setting SQL_LOG_BIN to a value will automatically set SQL_LOG_UPDATE to the same value and vice versa.",
-   (gptr*) &opt_sql_bin_update, (gptr*) &opt_sql_bin_update, 0, GET_BOOL,
-   NO_ARG, 0, 0, 0, 0, 0, 0},
+   "The update log is deprecated since version 5.0, is replaced by the binary \
+log and this option does nothing anymore.",
+   0, 0, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"sql-mode", OPT_SQL_MODE,
    "Syntax: sql-mode=option[,option[,option...]] where option can be one of: REAL_AS_FLOAT, PIPES_AS_CONCAT, ANSI_QUOTES, IGNORE_SPACE, ONLY_FULL_GROUP_BY, NO_UNSIGNED_SUBTRACTION.",
    (gptr*) &sql_mode_str, (gptr*) &sql_mode_str, 0, GET_STR, REQUIRED_ARG, 0,

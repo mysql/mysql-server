@@ -21,6 +21,9 @@
 class Table_ident;
 class sql_exchange;
 class LEX_COLUMN;
+class sp_head;
+class sp_instr;
+class sp_pcontext;
 
 /*
   The following hack is needed because mysql_yacc.cc does not define
@@ -75,6 +78,10 @@ enum enum_sql_command {
   SQLCOM_SHOW_WARNS, SQLCOM_EMPTY_QUERY, SQLCOM_SHOW_ERRORS,
   SQLCOM_SHOW_COLUMN_TYPES, SQLCOM_SHOW_TABLE_TYPES, SQLCOM_SHOW_PRIVILEGES,
   SQLCOM_HELP, SQLCOM_DROP_USER, SQLCOM_REVOKE_ALL, SQLCOM_CHECKSUM,
+  SQLCOM_CREATE_PROCEDURE, SQLCOM_CREATE_SPFUNCTION, SQLCOM_CALL,
+  SQLCOM_DROP_PROCEDURE, SQLCOM_ALTER_PROCEDURE,SQLCOM_ALTER_FUNCTION,
+  SQLCOM_SHOW_CREATE_PROC, SQLCOM_SHOW_CREATE_FUNC,
+  SQLCOM_SHOW_STATUS_PROC, SQLCOM_SHOW_STATUS_FUNC,
 
   /* This should be the last !!! */
   SQLCOM_END
@@ -84,6 +91,10 @@ enum enum_sql_command {
 #define DESCRIBE_NORMAL		1
 #define DESCRIBE_EXTENDED	2
 
+enum suid_behaviour
+{
+  IS_DEFAULT_SUID= 0, IS_NOT_SUID, IS_SUID
+};
 
 typedef List<Item> List_item;
 
@@ -348,7 +359,7 @@ public:
 
   void print(String *str);
 
-  friend void mysql_init_query(THD *thd);
+  friend void mysql_init_query(THD *thd, bool lexonly);
   friend int subselect_union_engine::exec();
 private:
   bool create_total_list_n_last_return(THD *thd, st_lex *lex,
@@ -369,6 +380,8 @@ public:
   enum olap_type olap;
   SQL_LIST	      table_list, group_list;   /* FROM & GROUP BY clauses */
   List<Item>          item_list; /* list of fields & expressions */
+  List<Item>          item_list_copy; /* For SPs */
+  byte                *table_list_first_copy; /* For SPs */
   List<String>        interval_list, use_index, *use_index_ptr,
 		      ignore_index, *ignore_index_ptr;
   /* 
@@ -480,7 +493,7 @@ public:
   
   bool test_limit();
 
-  friend void mysql_init_query(THD *thd);
+  friend void mysql_init_query(THD *thd, bool lexonly);
   st_select_lex() {}
   void make_empty_select()
   {
@@ -507,6 +520,7 @@ typedef struct st_lex
   SELECT_LEX *current_select;
   /* list of all SELECT_LEX */
   SELECT_LEX *all_selects_list;
+  uchar *buf;			/* The beginning of string, used by SPs */
   uchar *ptr,*tok_start,*tok_end,*end_of_query;
   char *length,*dec,*change,*name;
   char *help_arg;
@@ -560,6 +574,7 @@ typedef struct st_lex
   enum enum_enable_or_disable alter_keys_onoff;
   enum enum_var_type option_type;
   enum tablespace_op_type tablespace_op;
+  enum suid_behaviour suid;
   uint uint_geom_type;
   uint grant, grant_tot_col, which_columns;
   uint fk_delete_opt, fk_update_opt, fk_match_option;
@@ -570,7 +585,22 @@ typedef struct st_lex
   bool in_comment, ignore_space, verbose, simple_alter, no_write_to_binlog;
   bool derived_tables;
   bool safe_to_cache_query;
-  st_lex() {}
+  sp_head *sphead;
+  bool sp_lex_in_use;	/* Keep track on lex usage in SPs for error handling */
+  sp_pcontext *spcont;
+  HASH spfuns;		/* Called functions */
+
+  st_lex()
+  {
+    bzero((char *)&spfuns, sizeof(spfuns));
+  }
+  
+  ~st_lex()
+  {
+    if (spfuns.array.buffer)
+      hash_free(&spfuns);
+  }
+
   inline void uncacheable(uint8 cause)
   {
     safe_to_cache_query= 0;
@@ -602,4 +632,4 @@ extern pthread_key(LEX*,THR_LEX);
 
 extern LEX_STRING tmp_table_alias;
 
-#define current_lex (&current_thd->lex)
+#define current_lex (current_thd->lex)

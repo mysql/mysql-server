@@ -255,15 +255,11 @@ int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
   if (some_tables_deleted || tmp_table_deleted)
   {
     query_cache_invalidate3(thd, tables, 0);
-    if (!dont_log_query)
+    if (!dont_log_query && mysql_bin_log.is_open())
     {
-      mysql_update_log.write(thd, thd->query,thd->query_length);
-      if (mysql_bin_log.is_open())
-      {
-	Query_log_event qinfo(thd, thd->query, thd->query_length,
-			      tmp_table_deleted && !some_tables_deleted);
-	mysql_bin_log.write(&qinfo);
-      }
+      Query_log_event qinfo(thd, thd->query, thd->query_length,
+                            tmp_table_deleted && !some_tables_deleted);
+      mysql_bin_log.write(&qinfo);
     }
   }
 
@@ -987,17 +983,13 @@ int mysql_create_table(THD *thd,const char *db, const char *table_name,
     }
     thd->tmp_table_used= 1;
   }
-  if (!tmp_table && !no_log)
-  {
+  if (!tmp_table && !no_log && mysql_bin_log.is_open())
     // Must be written before unlock
-    mysql_update_log.write(thd,thd->query, thd->query_length);
-    if (mysql_bin_log.is_open())
-    {
-      Query_log_event qinfo(thd, thd->query, thd->query_length,
-			    test(create_info->options &
-				 HA_LEX_CREATE_TMP_TABLE));
-      mysql_bin_log.write(&qinfo);
-    }
+  {
+    Query_log_event qinfo(thd, thd->query, thd->query_length,
+                          test(create_info->options &
+                               HA_LEX_CREATE_TMP_TABLE));
+    mysql_bin_log.write(&qinfo);
   }
   error=0;
 end:
@@ -1244,7 +1236,7 @@ static int prepare_for_restore(THD* thd, TABLE_LIST* table,
   }
   else
   {
-    char* backup_dir = thd->lex.backup_dir;
+    char* backup_dir = thd->lex->backup_dir;
     char src_path[FN_REFLEN], dst_path[FN_REFLEN];
     char* table_name = table->real_name;
     char* db = thd->db ? thd->db : table->db;
@@ -1916,7 +1908,6 @@ int mysql_discard_or_import_tablespace(THD *thd,
     error=1;
   if (error)
     goto err;
-  mysql_update_log.write(thd, thd->query,thd->query_length);
   if (mysql_bin_log.is_open())
   {
     Query_log_event qinfo(thd, thd->query, thd->query_length, 0);
@@ -2081,7 +2072,6 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
     }
     if (!error)
     {
-      mysql_update_log.write(thd, thd->query, thd->query_length);
       if (mysql_bin_log.is_open())
       {
 	Query_log_event qinfo(thd, thd->query, thd->query_length, 0);
@@ -2464,7 +2454,6 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
       my_free((gptr) new_table,MYF(0));
       goto err;
     }
-    mysql_update_log.write(thd, thd->query,thd->query_length);
     if (mysql_bin_log.is_open())
     {
       Query_log_event qinfo(thd, thd->query, thd->query_length, 0);
@@ -2595,7 +2584,6 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
     goto err;
   }
   thd->proc_info="end";
-  mysql_update_log.write(thd, thd->query,thd->query_length);
   if (mysql_bin_log.is_open())
   {
     Query_log_event qinfo(thd, thd->query, thd->query_length, 0);
@@ -2693,8 +2681,8 @@ copy_data_between_tables(TABLE *from,TABLE *to,
     tables.db	 = from->table_cache_key;
     error=1;
 
-    if (thd->lex.select_lex.setup_ref_array(thd, order_num) ||
-	setup_order(thd, thd->lex.select_lex.ref_pointer_array,
+    if (thd->lex->select_lex.setup_ref_array(thd, order_num) ||
+	setup_order(thd, thd->lex->select_lex.ref_pointer_array,
 		    &tables, fields, all_fields, order) ||
         !(sortorder=make_unireg_sortorder(order, &length)) ||
         (from->sort.found_records = filesort(thd, from, sortorder, length, 
@@ -2724,7 +2712,7 @@ copy_data_between_tables(TABLE *from,TABLE *to,
   {
     if (thd->killed)
     {
-      my_error(ER_SERVER_SHUTDOWN,MYF(0));
+      thd->send_kill_message();
       error= 1;
       break;
     }

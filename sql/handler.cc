@@ -70,6 +70,37 @@ const char *tx_isolation_names[] =
 TYPELIB tx_isolation_typelib= {array_elements(tx_isolation_names)-1,"",
 			       tx_isolation_names};
 
+enum db_type ha_resolve_by_name(char *name, uint namelen)
+{
+  enum db_type result = DB_TYPE_UNKNOWN;
+  if (!my_strcasecmp(&my_charset_latin1, name, "HEAP") ||
+      !my_strcasecmp(&my_charset_latin1, name, "MEMORY")) {
+    result = DB_TYPE_HEAP;
+  } else
+  if (!my_strcasecmp(&my_charset_latin1, name, "MRG_MYISAM") ||
+      !my_strcasecmp(&my_charset_latin1, name, "MERGE")) {
+    result = DB_TYPE_MRG_MYISAM;
+  } else
+  if (!my_strcasecmp(&my_charset_latin1, name, "MYISAM")) {
+    result = DB_TYPE_MYISAM;
+  } else
+  if (!my_strcasecmp(&my_charset_latin1, name, "BDB") ||
+      !my_strcasecmp(&my_charset_latin1, name, "BERKELEYDB")) {
+    result = DB_TYPE_BERKELEY_DB;
+  } else
+  if (!my_strcasecmp(&my_charset_latin1, name, "INNODB") ||
+      !my_strcasecmp(&my_charset_latin1, name, "INNOBASE")) {
+    result = DB_TYPE_INNODB;
+  } else
+  if (!my_strcasecmp(&my_charset_latin1, name, "ISAM")) {
+    result = DB_TYPE_ISAM;
+  } else
+  if (!my_strcasecmp(&my_charset_latin1, name, "DEFAULT")) {
+    result = (enum db_type) current_thd->variables.table_type;
+  }
+  return result;
+}
+
 	/* Use other database handler if databasehandler is not incompiled */
 
 enum db_type ha_checktype(enum db_type database_type)
@@ -77,18 +108,21 @@ enum db_type ha_checktype(enum db_type database_type)
   switch (database_type) {
 #ifdef HAVE_BERKELEY_DB
   case DB_TYPE_BERKELEY_DB:
-    return(berkeley_skip ? DB_TYPE_MYISAM : database_type);
+    if (berkeley_skip) break;
+    return (database_type);
 #endif
 #ifdef HAVE_INNOBASE_DB
   case DB_TYPE_INNODB:
-    return(innodb_skip ? DB_TYPE_MYISAM : database_type);
+    if (innodb_skip) break;
+    return (database_type);
 #endif
 #ifndef NO_HASH
   case DB_TYPE_HASH:
 #endif
 #ifdef HAVE_ISAM
   case DB_TYPE_ISAM:
-    return (isam_skip ? DB_TYPE_MYISAM : database_type);
+    if (isam_skip) break;
+    return (database_type);
   case DB_TYPE_MRG_ISAM:
     return (isam_skip ? DB_TYPE_MRG_MYISAM : database_type);
 #else
@@ -102,7 +136,12 @@ enum db_type ha_checktype(enum db_type database_type)
   default:
     break;
   }
-  return(DB_TYPE_MYISAM);			/* Use this as default */
+  /* Use this as default */
+#if 0
+  return((enum db_type) current_thd->variables.table_type);
+#else
+  return(DB_TYPE_MYISAM);
+#endif
 } /* ha_checktype */
 
 

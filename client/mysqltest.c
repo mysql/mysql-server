@@ -91,6 +91,7 @@
 
 #define SLAVE_POLL_INTERVAL 300000 /* 0.3 of a sec */
 
+#define DEFAULT_DELIMITER  ';'
 
 enum {OPT_MANAGER_USER=256,OPT_MANAGER_HOST,OPT_MANAGER_PASSWD,
       OPT_MANAGER_PORT,OPT_MANAGER_WAIT_TIMEOUT, OPT_SKIP_SAFEMALLOC,
@@ -136,6 +137,8 @@ static const char *embedded_server_groups[] = {
   "mysqltest_SERVER",
   NullS
 };
+
+static char delimiter= DEFAULT_DELIMITER;
 
 DYNAMIC_ARRAY q_lines;
 
@@ -215,6 +218,7 @@ Q_REQUIRE_VERSION,
 Q_ENABLE_WARNINGS, Q_DISABLE_WARNINGS,
 Q_ENABLE_INFO, Q_DISABLE_INFO,
 Q_EXEC,
+Q_DELIMITER,
 Q_UNKNOWN,			       /* Unknown command.   */
 Q_COMMENT,			       /* Comments, ignored. */
 Q_COMMENT_WITH_COMMAND
@@ -286,6 +290,7 @@ const char *command_names[]=
   "enable_info",
   "disable_info",
   "exec",
+  "delimiter",
   0
 };
 
@@ -1627,6 +1632,17 @@ int do_while(struct st_query* q)
   return 0;
 }
 
+int do_delimiter(char *p)
+{
+  while (*p && my_isspace(charset_info,*p))
+    p++;
+  if (!*p)
+    die("Missing delimiter character\n");
+  delimiter=*p;
+
+  return 0;
+}
+
 
 int read_line(char* buf, int size)
 {
@@ -1656,7 +1672,7 @@ int read_line(char* buf, int size)
     switch(state) {
     case R_NORMAL:
       /*  Only accept '{' in the beginning of a line */
-      if (c == ';')
+      if (c == delimiter)
       {
 	*p = 0;
 	return 0;
@@ -1696,7 +1712,7 @@ int read_line(char* buf, int size)
 	*buf = 0;
 	return 0;
       }
-      else if (c == ';' || c == '{')
+      else if (c == delimiter || c == '{')
       {
 	*p = 0;
 	return 0;
@@ -1716,7 +1732,7 @@ int read_line(char* buf, int size)
 	state = R_ESC_SLASH_Q1;
       break;
     case R_ESC_Q_Q1:
-      if (c == ';')
+      if (c == delimiter)
       {
 	*p = 0;
 	return 0;
@@ -1737,7 +1753,7 @@ int read_line(char* buf, int size)
 	state = R_ESC_SLASH_Q2;
       break;
     case R_ESC_Q_Q2:
-      if (c == ';')
+      if (c == delimiter)
       {
 	*p = 0;
 	return 0;
@@ -2609,6 +2625,9 @@ int main(int argc, char **argv)
 	do_sync_with_master2("");
 	break;
       }
+      case Q_DELIMITER: 
+	do_delimiter(q->first_argument);
+	break;
       case Q_COMMENT:				/* Ignore row */
       case Q_COMMENT_WITH_COMMAND:
 	break;

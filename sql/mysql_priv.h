@@ -54,7 +54,7 @@ char *sql_strmake_with_convert(const char *str, uint32 arg_length,
 			       CHARSET_INFO *from_cs,
 			       uint32 max_res_length,
 			       CHARSET_INFO *to_cs, uint32 *result_length);
-void kill_one_thread(THD *thd, ulong id);
+void kill_one_thread(THD *thd, ulong id, bool only_kill_query);
 bool net_request_file(NET* net, const char* fname);
 char* query_table_status(THD *thd,const char *db,const char *table_name);
 
@@ -408,7 +408,7 @@ bool is_update_query(enum enum_sql_command command);
 void free_items(Item *item);
 bool alloc_query(THD *thd, char *packet, ulong packet_length);
 void mysql_init_select(LEX *lex);
-void mysql_init_query(THD *thd);
+void mysql_init_query(THD *thd, bool lexonly=0);
 bool mysql_new_select(LEX *lex, bool move_down);
 void create_select_for_variable(const char *var_name);
 void mysql_init_multi_delete(LEX *lex);
@@ -419,7 +419,7 @@ extern "C" pthread_handler_decl(handle_one_connection,arg);
 extern "C" pthread_handler_decl(handle_bootstrap,arg);
 void end_thread(THD *thd,bool put_in_cache);
 void flush_thread_cache();
-void mysql_execute_command(THD *thd);
+int mysql_execute_command(THD *thd);
 bool do_command(THD *thd);
 bool dispatch_command(enum enum_server_command command, THD *thd,
 		      char* packet, uint packet_length);
@@ -1045,22 +1045,22 @@ SQL_CRYPT *get_crypt_for_frm(void);
 
 inline bool add_item_to_list(THD *thd, Item *item)
 {
-  return thd->lex.current_select->add_item_to_list(thd, item);
+  return thd->lex->current_select->add_item_to_list(thd, item);
 }
 
 inline bool add_value_to_list(THD *thd, Item *value)
 {
-  return thd->lex.value_list.push_back(value);
+  return thd->lex->value_list.push_back(value);
 }
 
 inline bool add_order_to_list(THD *thd, Item *item, bool asc)
 {
-  return thd->lex.current_select->add_order_to_list(thd, item, asc);
+  return thd->lex->current_select->add_order_to_list(thd, item, asc);
 }
 
 inline bool add_group_to_list(THD *thd, Item *item, bool asc)
 {
-  return thd->lex.current_select->add_group_to_list(thd, item, asc);
+  return thd->lex->current_select->add_group_to_list(thd, item, asc);
 }
 
 inline void mark_as_null_row(TABLE *table)
