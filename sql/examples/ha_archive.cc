@@ -70,7 +70,6 @@
    Allow users to set compression level.
    Add truncate table command.
    Implement versioning, should be easy.
-   Implement optimize so we can fix broken tables.
    Allow for errors, find a way to mark bad rows.
    See if during an optimize you can make the table smaller.
    Talk to the gzip guys, come up with a writable format so that updates are doable
@@ -88,6 +87,7 @@ static int archive_init= 0;
 
 /* The file extension */
 #define ARZ ".ARZ"
+#define ARN ".ARN"
 
 /*
   Used for hash table that tracks open tables.
@@ -117,7 +117,7 @@ static ARCHIVE_SHARE *get_share(const char *table_name, TABLE *table)
     if (!archive_init)
     {
       VOID(pthread_mutex_init(&archive_mutex,MY_MUTEX_INIT_FAST));
-      if (!hash_init(&archive_open_tables,system_charset_info,32,0,0,
+      if (hash_init(&archive_open_tables,system_charset_info,32,0,0,
                        (hash_get_key) archive_get_key,0,0))
       {
         pthread_mutex_unlock(&LOCK_mysql_create_db);
@@ -205,7 +205,7 @@ static int free_share(ARCHIVE_SHARE *share)
   We just implement one additional file extension.
 */
 const char **ha_archive::bas_ext() const
-{ static const char *ext[]= { ARZ, NullS }; return ext; }
+{ static const char *ext[]= { ARZ, ARN, NullS }; return ext; }
 
 
 /* 
@@ -322,6 +322,11 @@ err:
 /* 
   Look at ha_archive::open() for an explanation of the row format.
   Here we just write out the row.
+
+  Wondering about start_bulk_insert()? We don't implement it for
+  archive since it optimizes for lots of writes. The only save
+  for implementing start_bulk_insert() is that we could skip 
+  setting dirty to true each time.
 */
 int ha_archive::write_row(byte * buf)
 {
@@ -380,17 +385,7 @@ int ha_archive::rnd_init(bool scan)
     pthread_mutex_lock(&share->mutex);
     if (share->dirty == TRUE)
     {
-/* I was having problems with OSX, but it worked for 10.3 so I am wrapping this with and ifdef */
-#ifdef BROKEN_GZFLUSH
-      gzclose(share->archive_write);
-      if ((share->archive_write= gzopen(share->data_file_name, "ab")) == NULL)
-      {
-        pthread_mutex_unlock(&share->mutex);
-        DBUG_RETURN(errno ? errno : -1);
-      }
-#else
       gzflush(share->archive_write, Z_SYNC_FLUSH);
-#endif
       share->dirty= FALSE;
     }
     pthread_mutex_unlock(&share->mutex);
@@ -502,6 +497,54 @@ int ha_archive::rnd_pos(byte * buf, byte *pos)
   z_off_t seek= gzseek(archive, current_position, SEEK_SET);
 
   DBUG_RETURN(get_row(buf));
+}
+
+/*
+  The table can become fragmented if data was inserted, read, and then
+  inserted again. What we do is open up the file and recompress it completely. 
+  */
+int ha_archive::optimize(THD* thd, HA_CHECK_OPT* check_opt)
+{
+  DBUG_ENTER("ha_archive::optimize");
+  int read; // Bytes read, gzread() returns int
+  gzFile reader, writer;
+  char block[IO_SIZE];
+  char writer_filename[FN_REFLEN];
+
+  /* Lets create a file to contain the new data */
+  fn_format(writer_filename,share->table_name,"",ARN, MY_REPLACE_EXT|MY_UNPACK_FILENAME);
+
+  /* Closing will cause all data waiting to be flushed, to be flushed */
+  gzclose(share->archive_write);
+
+  if ((reader= gzopen(share->data_file_name, "rb")) == NULL)
+    DBUG_RETURN(-1); 
+
+  if ((writer= gzopen(writer_filename, "wb")) == NULL)
+  {
+    gzclose(reader);
+    DBUG_RETURN(-1); 
+  }
+
+  while (read= gzread(reader, block, IO_SIZE))
+    gzwrite(writer, block, read);
+
+  gzclose(reader);
+  gzclose(writer);
+
+  my_rename(writer_filename,share->data_file_name,MYF(0));
+
+  /* 
+    We reopen the file in case some IO is waiting to go through.
+    In theory the table is closed right after this operation,
+    but it is possible for IO to still happen.
+    I may be being a bit too paranoid right here.
+  */
+  if ((share->archive_write= gzopen(share->data_file_name, "ab")) == NULL)
+    DBUG_RETURN(errno ? errno : -1);
+  share->dirty= FALSE;
+
+  DBUG_RETURN(0); 
 }
 
 /******************************************************************************
