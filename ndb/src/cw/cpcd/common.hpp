@@ -19,7 +19,9 @@
 
 #include <ndb_global.h>
 #include <logger/Logger.hpp>
+#if 0
 #include <getarg.h>
+#endif
 
 extern int debug;
 
@@ -30,6 +32,5 @@ int insert(const char * pair, class Properties & p);
 
 int insert_file(const char * filename, class Properties&);
 int insert_file(FILE *, class Properties&, bool break_on_empty = false);
-int parse_config_file(struct getargs args[], int num_arg, const Properties& p);
 
 #endif /* ! __CPCD_COMMON_HPP_INCLUDED__ */
