@@ -1238,3 +1238,11 @@ c
 4
 drop view v1;
 drop table t1;
+create view v1 as select cast(1 as char(3));
+show create view v1;
+Table	Create Table
+v1	CREATE VIEW `test`.`v1` AS select cast(1 as char(3) charset latin1) AS `cast(1 as char(3))`
+select * from v1;
+cast(1 as char(3))
+1
+drop view v1;
