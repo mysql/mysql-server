@@ -1415,7 +1415,7 @@ type:
 	| YEAR_SYM opt_len field_options { $$=FIELD_TYPE_YEAR; }
 	| DATE_SYM			{ $$=FIELD_TYPE_DATE; }
 	| TIME_SYM			{ $$=FIELD_TYPE_TIME; }
-	| TIMESTAMP
+	| TIMESTAMP opt_len
 	  {
 	    if (YYTHD->variables.sql_mode & MODE_MAXDB)
 	      $$=FIELD_TYPE_DATETIME;
@@ -1428,13 +1428,6 @@ type:
 	      $$=FIELD_TYPE_TIMESTAMP;
             }
 	   }
-	| TIMESTAMP '(' NUM ')'
-          { 
-            LEX *lex= Lex;
-            lex->length= $3.str;
-            lex->type|= NOT_NULL_FLAG;
-            $$= FIELD_TYPE_TIMESTAMP;
-          }
 	| DATETIME			{ $$=FIELD_TYPE_DATETIME; }
 	| TINYBLOB			{ Lex->charset=&my_charset_bin;
 					  $$=FIELD_TYPE_TINY_BLOB; }
