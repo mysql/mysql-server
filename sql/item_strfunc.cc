@@ -813,6 +813,7 @@ null:
 
 void Item_func_replace::fix_length_and_dec()
 {
+  uint i;
   max_length=args[0]->max_length;
   int diff=(int) (args[2]->max_length - args[1]->max_length);
   if (diff > 0 && args[1]->max_length)
@@ -824,6 +825,20 @@ void Item_func_replace::fix_length_and_dec()
   {
     max_length=MAX_BLOB_WIDTH;
     maybe_null=1;
+  }
+  set_charset(args[0]->charset(), args[0]->coercibility);
+  
+  for (i=1; i<3; i++)
+  {
+    if (set_charset(charset(), coercibility,
+        args[i]->charset(), args[i]->coercibility))
+    {
+      my_error(ER_CANT_AGGREGATE_COLLATIONS,MYF(0),
+	       charset()->name,coercion_name(coercibility),
+	       args[i]->charset()->name,coercion_name(args[i]->coercibility),
+	       func_name());
+      break;
+    }
   }
 }
 

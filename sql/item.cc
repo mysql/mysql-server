@@ -39,7 +39,7 @@ Item::Item():
 {
   marker= 0;
   maybe_null=null_value=with_sum_func=unsigned_flag=0;
-  coercibility=COER_IMPLICIT;
+  coercibility=COER_COERCIBLE;
   name= 0;
   decimals= 0; max_length= 0;
   THD *thd= current_thd;
