@@ -17,6 +17,13 @@
 
 /*
   Handling of uchar arrays as large bitmaps.
+  We assume that the size of the used bitmap is less than ~(uint) 0
+
+  TODO:
+
+  create an unique structure for this that includes the mutex and bitmap size
+  make a init function that will allocate the bitmap and init the mutex
+  make an end function that will free everything
 */
 
 #include "mysys_priv.h"
@@ -24,37 +31,51 @@
 
 pthread_mutex_t LOCK_bitmap;
 
-void bitmap_set_bit(uchar *bitmap, uint bitmap_size, uint bitmap_bit) {
-  if((bitmap_bit != MY_BIT_NONE) && (bitmap_bit < bitmap_size*8)) {
+void bitmap_set_bit(uchar *bitmap, uint bitmap_size, uint bitmap_bit)
+{
+  if (bitmap_bit < bitmap_size*8)
+  {
     pthread_mutex_lock(&LOCK_bitmap);
-    bitmap[bitmap_bit / 8] |= (1 << bitmap_bit % 8);
+    bitmap[bitmap_bit / 8] |= (1 << (bitmap_bit & 7));
     pthread_mutex_unlock(&LOCK_bitmap);
-  };
-};
+  }
+}
 
-uint bitmap_set_next(uchar *bitmap, uint bitmap_size) {
+uint bitmap_set_next(uchar *bitmap, uint bitmap_size)
+{
   uint bit_found = MY_BIT_NONE;
-  int i, b;
+  uint i;
 
   pthread_mutex_lock(&LOCK_bitmap);
-  for(i=0; (i<bitmap_size) && (bit_found==MY_BIT_NONE); i++) {
-    if(bitmap[i] == 0xff) continue;
-    for(b=0; (b<8) && (bit_found==MY_BIT_NONE); b++)
-      if((bitmap[i] & 1<<b) == 0) {
-        bit_found = (i*8)+b;
-        bitmap[i] |= 1<<b;
-      };
-  };
+  for (i=0; i < bitmap_size ; i++, bitmap++)
+  {
+    if (*bitmap != 0xff)
+    {						/* Found slot with free bit */
+      uint b;
+      for (b=0; ; b++)
+      {
+	if (!(*bitmap & (1 << b)))
+	{
+	  *bitmap |= 1<<b;
+	  bit_found = (i*8)+b;
+	  break;
+	}
+      }
+      break;					/* Found bit */
+    }
+  }
   pthread_mutex_unlock(&LOCK_bitmap);
-
   return bit_found;
-};
+}
 
-void bitmap_clear_bit(uchar *bitmap, uint bitmap_size, uint bitmap_bit) {
-  if((bitmap_bit != MY_BIT_NONE) && (bitmap_bit < bitmap_size*8)) {
+
+void bitmap_clear_bit(uchar *bitmap, uint bitmap_size, uint bitmap_bit)
+{
+  if (bitmap_bit < bitmap_size*8)
+  {
     pthread_mutex_lock(&LOCK_bitmap);
-    bitmap[bitmap_bit / 8] &= ~(1 << bitmap_bit % 8);
+    bitmap[bitmap_bit / 8] &= ~ (1 << (bitmap_bit & 7));
     pthread_mutex_unlock(&LOCK_bitmap);
-  };
-};
+  }
+}
 

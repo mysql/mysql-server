@@ -135,7 +135,11 @@ String* Item_func_monthname::val_str(String* str)
 {
   uint month=(uint) Item_func_month::val_int();
   if (!month)					// This is also true for NULL
+  {
+    null_value=1;
     return (String*) 0;
+  }
+  null_value=0;
   return &month_names[month-1];
 }
 

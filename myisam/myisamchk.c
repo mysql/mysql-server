@@ -189,6 +189,7 @@ static struct option long_options[] =
   {"silent",	       no_argument,	  0, 's'},
   {"sort-index",       no_argument,	  0, 'S'},
   {"sort-records",     required_argument, 0, 'R'},
+  {"sort-recover",     no_argument,	  0, 'n'},
   {"tmpdir",	       required_argument, 0, 't'},
   {"update-state",     no_argument,	  0, 'U'},
   {"unpack",	       no_argument,	  0, 'u'},
@@ -200,7 +201,7 @@ static struct option long_options[] =
 
 static void print_version(void)
 {
-  printf("%s  Ver 1.41 for %s at %s\n",my_progname,SYSTEM_TYPE,
+  printf("%s  Ver 1.42 for %s at %s\n",my_progname,SYSTEM_TYPE,
 	 MACHINE_TYPE);
 }
 
@@ -255,9 +256,11 @@ static void usage(void)
 		      myisamchk repairs the table a symlink points at.\n\
   -r, --recover       Can fix almost anything except unique keys that aren't\n\
                       unique.\n\
+  -n, --sort-recover  Force recovering with sorting even if the temporary\n\
+		      file would be very big.\n\
   -o, --safe-recover  Uses old recovery method; Slower than '-r' but can\n\
-		      handle a couple of cases where '-r' reports that it can't\n\
-		      fix the data file.\n\
+		      handle a couple of cases where '-r' reports that it\n\
+		      can't fix the data file.\n\
   --character-sets-dir=...\n\
                       Directory where character sets are\n\
   --set-character-set=name\n\
@@ -306,7 +309,8 @@ static void get_options(register int *argc,register char ***argv)
   set_all_changeable_vars(changeable_vars);
   if (isatty(fileno(stdout)))
     check_param.testflag|=T_WRITE_LOOP;
-  while ((c=getopt_long(*argc,*argv,"aBcCdeifF?lqrmosSTuUvVw#:b:D:k:O:R:A::t:",
+  while ((c=getopt_long(*argc,*argv,
+			"aBcCdeifF?lqrmnosSTuUvVw#:b:D:k:O:R:A::t:",
 			long_options, &option_index)) != EOF)
   {
     switch(c) {
@@ -374,7 +378,12 @@ static void get_options(register int *argc,register char ***argv)
       break;
     case 'o':
       check_param.testflag= (check_param.testflag & ~T_REP_BY_SORT) | T_REP;
+      check_param.force_sort=0;
       my_disable_async_io=1;		/* More safety */
+      break;
+    case 'n':
+      check_param.testflag= (check_param.testflag & ~T_REP) | T_REP_BY_SORT;
+      check_param.force_sort=1;
       break;
     case 'q':
       check_param.opt_rep_quick++;
@@ -683,7 +692,8 @@ static int myisamchk(MI_CHECK *param, my_string filename)
 	if ((param->testflag & T_REP_BY_SORT) &&
 	    (share->state.key_map ||
 	     (rep_quick && !param->keys_in_use && !recreate)) &&
-	    mi_test_if_sort_rep(info, info->state->records, 1))
+	    mi_test_if_sort_rep(info, info->state->records,
+				check_param.force_sort))
 	{
 	  error=mi_repair_by_sort(&check_param,info,fixed_name,rep_quick);
 	  state_updated=1;
