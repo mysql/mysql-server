@@ -1631,6 +1631,8 @@ void Item_func_group_concat::reset_field()
 bool
 Item_func_group_concat::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
 {
+  int i;			/* for loop variable */ 
+
   if (!thd->allow_sum_func)
   {
     my_error(ER_INVALID_GROUP_FUNC_USE,MYF(0));
@@ -1639,13 +1641,13 @@ Item_func_group_concat::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
   
   thd->allow_sum_func= 0;
   maybe_null= 0;
-  for (uint i= 0 ; i < arg_count ; i++)
+  for (uint ui= 0 ; ui < arg_count ; ui++)
   {
-    if (args[i]->fix_fields(thd, tables, args + i) || args[i]->check_cols(1))
+    if (args[ui]->fix_fields(thd, tables, args + ui) || args[ui]->check_cols(1))
       return 1;
-    maybe_null |= args[i]->maybe_null;
+    maybe_null |= args[ui]->maybe_null;
   }
-  for (int i= 0 ; i < arg_count_field ; i++)
+  for (i= 0 ; i < arg_count_field ; i++)
   {
     if (expr[i]->fix_fields(thd, tables, expr + i) || expr[i]->check_cols(1))
       return 1;
@@ -1655,7 +1657,7 @@ Item_func_group_concat::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
     Fix fields for order clause in function:
     GROUP_CONCAT(expr,... ORDER BY col,... )
   */
-  for (int i= 0 ; i < arg_count_order ; i++)
+  for (i= 0 ; i < arg_count_order ; i++)
   {
     ORDER *order_item= order[i];
     Item *item=*order_item->item;
