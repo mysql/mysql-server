@@ -1751,6 +1751,7 @@ void Dbtc::execKEYINFO(Signal* signal)
   switch (apiConnectptr.p->apiConnectstate) {
   case CS_RECEIVING:
   case CS_REC_COMMITTING:
+  case CS_START_SCAN:
     jam();
     /*empty*/;
     break;
@@ -1804,12 +1805,54 @@ void Dbtc::execKEYINFO(Signal* signal)
     jam();
     tckeyreq020Lab(signal);
     return;
+  case OS_WAIT_SCAN:
+    break;
   default:
     jam();
     terrorCode = ZSTATE_ERROR;
     abortErrorLab(signal);
     return;
   }//switch
+
+  UintR TdataPos = 0;
+  UintR TkeyLen = regCachePtr->keylen;
+  UintR Tlen = regCachePtr->save1;
+
+  do {
+    if (cfirstfreeDatabuf == RNIL) {
+      jam();
+      abort();
+      seizeDatabuferrorLab(signal);
+      return;
+    }//if
+    linkKeybuf(signal);
+    arrGuard(TdataPos, 19);
+    databufptr.p->data[0] = signal->theData[TdataPos + 3];
+    databufptr.p->data[1] = signal->theData[TdataPos + 4];
+    databufptr.p->data[2] = signal->theData[TdataPos + 5];
+    databufptr.p->data[3] = signal->theData[TdataPos + 6];
+    Tlen = Tlen + 4;
+    TdataPos = TdataPos + 4;
+    if (Tlen < TkeyLen) {
+      jam();
+      if (TdataPos >= tmaxData) {
+        jam();
+	/*----------------------------------------------------*/
+	/** EXIT AND WAIT FOR SIGNAL KEYINFO OR KEYINFO9     **/
+	/** WHEN EITHER OF THE SIGNALS IS RECEIVED A JUMP    **/
+	/** TO LABEL "KEYINFO_LABEL" IS DONE. THEN THE       **/
+	/** PROGRAM RETURNS TO LABEL TCKEYREQ020             **/
+	/*----------------------------------------------------*/
+        setApiConTimer(apiConnectptr.i, ctcTimer, __LINE__);
+        regCachePtr->save1 = Tlen;
+        return;
+      }//if
+    } else {
+      jam();
+      return;
+    }//if
+  } while (1);
+  return;
 }//Dbtc::execKEYINFO()
 
 /*---------------------------------------------------------------------------*/
@@ -1818,45 +1861,45 @@ void Dbtc::execKEYINFO(Signal* signal)
 /* WE WILL ALWAYS PACK 4 WORDS AT A TIME.                                    */
 /*---------------------------------------------------------------------------*/
 void Dbtc::packKeyData000Lab(Signal* signal,
-                             BlockReference TBRef) 
+                             BlockReference TBRef,
+			     Uint32 totalLen) 
 {
   CacheRecord * const regCachePtr = cachePtr.p;
   UintR Tmp;
-  Uint16 tdataPos;
 
   jam();
-  tdataPos = 0;
-  Tmp = regCachePtr->keylen;
+  Uint32 len = 0;
   databufptr.i = regCachePtr->firstKeybuf;
+  signal->theData[0] = tcConnectptr.i;
+  signal->theData[1] = apiConnectptr.p->transid[0];
+  signal->theData[2] = apiConnectptr.p->transid[1];
+  Uint32 * dst = signal->theData+3;
+  ptrCheckGuard(databufptr, cdatabufFilesize, databufRecord);
+  
   do {
     jam();
-    if (tdataPos == 20) {
-      jam();
-      /*---------------------------------------------------------------------*/
-      /* 4 MORE WORDS WILL NOT FIT IN THE 24 DATA WORDS IN A SIGNAL          */
-      /*---------------------------------------------------------------------*/
-      sendKeyinfo(signal, TBRef, 20);
-      tdataPos = 0;
-    }//if
-    Tmp = Tmp - 4;
-    ptrCheckGuard(databufptr, cdatabufFilesize, databufRecord);
-    cdata[tdataPos    ] = databufptr.p->data[0];
-    cdata[tdataPos + 1] = databufptr.p->data[1];
-    cdata[tdataPos + 2] = databufptr.p->data[2];
-    cdata[tdataPos + 3] = databufptr.p->data[3];
-    tdataPos = tdataPos + 4;
-    if (Tmp <= 4) {
+    databufptr.i = databufptr.p->nextDatabuf;
+    dst[len + 0] = databufptr.p->data[0];
+    dst[len + 1] = databufptr.p->data[1];
+    dst[len + 2] = databufptr.p->data[2];
+    dst[len + 3] = databufptr.p->data[3];
+    len += 4;
+    if (totalLen <= 4) {
       jam();
       /*---------------------------------------------------------------------*/
       /*       LAST PACK OF KEY DATA HAVE BEEN SENT                          */
       /*---------------------------------------------------------------------*/
       /*       THERE WERE UNSENT INFORMATION, SEND IT.                       */
       /*---------------------------------------------------------------------*/
-      sendKeyinfo(signal, TBRef, tdataPos);
-      releaseKeys();
+      sendSignal(TBRef, GSN_KEYINFO, signal, 3 + len, JBB);
       return;
-    }//if
-    databufptr.i = databufptr.p->nextDatabuf;
+    } else if(len == KeyInfo::DataLength){
+      jam();
+      len = 0;
+      sendSignal(TBRef, GSN_KEYINFO, signal, 3 + KeyInfo::DataLength, JBB);
+    }
+    totalLen -= 4;
+    ptrCheckGuard(databufptr, cdatabufFilesize, databufRecord);
   } while (1);
 }//Dbtc::packKeyData000Lab()
 
@@ -3006,7 +3049,8 @@ void Dbtc::packLqhkeyreq(Signal* signal,
   UintR TfirstAttrbuf = regCachePtr->firstAttrbuf;
   sendlqhkeyreq(signal, TBRef);
   if (Tkeylen > 4) {
-    packKeyData000Lab(signal, TBRef);
+    packKeyData000Lab(signal, TBRef, Tkeylen - 4);
+    releaseKeys();
   }//if
   packLqhkeyreq040Lab(signal,
                       TfirstAttrbuf,
@@ -8398,7 +8442,8 @@ void Dbtc::execSCAN_TABREQ(Signal* signal)
 {
   const ScanTabReq * const scanTabReq = (ScanTabReq *)&signal->theData[0];
   const Uint32 reqinfo = scanTabReq->requestInfo;
-  const Uint32 aiLength = scanTabReq->attrLen;
+  const Uint32 aiLength = (scanTabReq->attrLenKeyLen & 0xFFFF);
+  const Uint32 keyLen = scanTabReq->attrLenKeyLen >> 16;
   const Uint32 schemaVersion = scanTabReq->tableSchemaVersion;
   const Uint32 transid1 = scanTabReq->transId1;
   const Uint32 transid2 = scanTabReq->transId2;
@@ -8472,8 +8517,12 @@ void Dbtc::execSCAN_TABREQ(Signal* signal)
   
   seizeTcConnect(signal);
   tcConnectptr.p->apiConnect = apiConnectptr.i;
+  tcConnectptr.p->tcConnectstate = OS_WAIT_SCAN;
+  apiConnectptr.p->lastTcConnect = tcConnectptr.i;
 
   seizeCacheRecord(signal);
+  cachePtr.p->keylen = keyLen;
+  cachePtr.p->save1 = 0;
   scanptr = seizeScanrec(signal);
 
   ndbrequire(transP->apiScanRec == RNIL);
@@ -8554,7 +8603,8 @@ void Dbtc::initScanrec(ScanRecordPtr scanptr,
 
   scanptr.p->scanTcrec = tcConnectptr.i;
   scanptr.p->scanApiRec = apiConnectptr.i;
-  scanptr.p->scanAiLength = scanTabReq->attrLen;
+  scanptr.p->scanAiLength = scanTabReq->attrLenKeyLen & 0xFFFF;
+  scanptr.p->scanKeyLen = scanTabReq->attrLenKeyLen >> 16;
   scanptr.p->scanTableref = tabptr.i;
   scanptr.p->scanSchemaVersion = scanTabReq->tableSchemaVersion;
   scanptr.p->scanParallel = scanParallel;
@@ -8799,6 +8849,7 @@ void Dbtc::releaseScanResources(ScanRecordPtr scanPtr)
   if (apiConnectptr.p->cachePtr != RNIL) {
     cachePtr.i = apiConnectptr.p->cachePtr;
     ptrCheckGuard(cachePtr, ccacheFilesize, cacheRecord);
+    releaseKeys();
     releaseAttrinfo();
   }//if
   tcConnectptr.i = scanPtr.p->scanTcrec;
@@ -9458,7 +9509,7 @@ void Dbtc::sendScanFragReq(Signal* signal,
   ptrCheckGuard(apiConnectptr, capiConnectFilesize, apiConnectRecord);
   req->senderData = scanFragptr.i;
   req->requestInfo = requestInfo;
-  req->fragmentNo = scanFragP->scanFragId;
+  req->fragmentNoKeyLen = scanFragP->scanFragId | (scanP->scanKeyLen << 16);
   req->resultRef = apiConnectptr.p->ndbapiBlockref;
   req->savePointId = apiConnectptr.p->currSavePointId;
   req->transId1 = apiConnectptr.p->transid[0];
@@ -9468,6 +9519,11 @@ void Dbtc::sendScanFragReq(Signal* signal,
   req->batch_size_bytes= scanP->batch_byte_size;
   sendSignal(scanFragP->lqhBlockref, GSN_SCAN_FRAGREQ, signal,
              ScanFragReq::SignalLength, JBB);
+  if(scanP->scanKeyLen > 0)
+  {
+    tcConnectptr.i = scanFragptr.i;
+    packKeyData000Lab(signal, scanFragP->lqhBlockref, scanP->scanKeyLen);
+  }
   updateBuddyTimer(apiConnectptr);
   scanFragP->startFragTimer(ctcTimer);
 }//Dbtc::sendScanFragReq()
