@@ -60,6 +60,7 @@ This file contains the implementation of error and warnings related
 
 void mysql_reset_errors(THD *thd)
 {
+  DBUG_ENTER("mysql_reset_errors");
   if (thd->query_id != thd->warn_id)
   {
     thd->warn_id= thd->query_id;
@@ -67,6 +68,7 @@ void mysql_reset_errors(THD *thd)
     bzero((char*) thd->warn_count, sizeof(thd->warn_count));
     thd->warn_list.empty();
   }
+  DBUG_VOID_RETURN;
 }
 
 
@@ -180,9 +182,9 @@ my_bool mysqld_show_warnings(THD *thd, ulong levels_to_show)
     }
     protocol->prepare_for_resend();
     protocol->store(warning_level_names[err->level],
-		    warning_level_length[err->level]);
+		    warning_level_length[err->level], system_charset_info);
     protocol->store((uint32) err->code);
-    protocol->store(err->msg, strlen(err->msg));
+    protocol->store(err->msg, strlen(err->msg), system_charset_info);
     if (protocol->write())
       DBUG_RETURN(1);
     if (!--limit)

@@ -592,11 +592,10 @@ static bool mysql_test_select_fields(PREP_STMT *stmt, TABLE_LIST *tables,
     JOIN *join= new JOIN(thd, fields, select_options, result);
     thd->used_tables= 0;	// Updated by setup_fields  
 
-    if (join->prepare(&select_lex->ref_pointer_array, tables, 
-                      wild_num, conds, og_num, order, group, having, proc,
-                      select_lex, unit, 0, 0))
-      DBUG_RETURN(1);
-
+  if (join->prepare(&select_lex->ref_pointer_array, tables, 
+		    wild_num, conds, og_num, order, group, having, proc, 
+                    select_lex, unit, 0))
+    DBUG_RETURN(1);
     if (send_prep_stmt(stmt, fields.elements) ||
         thd->protocol_simple.send_fields(&fields, 0) ||
         send_item_params(stmt))

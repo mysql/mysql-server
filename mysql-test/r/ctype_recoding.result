@@ -1,0 +1,43 @@
+SET NAMES koi8r;
+DROP TABLE IF EXISTS таблица;
+CREATE TABLE таблица 
+(
+поле CHAR(32) CHARACTER SET koi8r NOT NULL
+);
+SHOW TABLES;
+Tables_in_test
+таблица
+SHOW CREATE TABLE таблица;
+Table	Create Table
+таблица	CREATE TABLE `таблица` (
+  `поле` char(32) character set koi8r NOT NULL default ''
+) TYPE=MyISAM CHARSET=latin1
+SHOW FIELDS FROM таблица;
+Field	Type	Collation	Null	Key	Default	Extra
+поле	char(32) character set koi8r	koi8r				
+SET NAMES cp1251;
+SHOW TABLES;
+Tables_in_test
+РЮАКХЖЮ
+SHOW CREATE TABLE РЮАКХЖЮ;
+Table	Create Table
+РЮАКХЖЮ	CREATE TABLE `РЮАКХЖЮ` (
+  `ОНКЕ` char(32) character set koi8r NOT NULL default ''
+) TYPE=MyISAM CHARSET=latin1
+SHOW FIELDS FROM РЮАКХЖЮ;
+Field	Type	Collation	Null	Key	Default	Extra
+ОНКЕ	char(32) character set koi8r	koi8r				
+SET NAMES utf8;
+SHOW TABLES;
+Tables_in_test
+я┌п╟п╠п╩п╦я├п╟
+SHOW CREATE TABLE я┌п╟п╠п╩п╦я├п╟;
+Table	Create Table
+я┌п╟п╠п╩п╦я├п╟	CREATE TABLE `я┌п╟п╠п╩п╦я├п╟` (
+  `п©п╬п╩п╣` char(32) character set koi8r NOT NULL default ''
+) TYPE=MyISAM CHARSET=latin1
+SHOW FIELDS FROM я┌п╟п╠п╩п╦я├п╟;
+Field	Type	Collation	Null	Key	Default	Extra
+п©п╬п╩п╣	char(32) character set koi8r	koi8r				
+SET NAMES koi8r;
+DROP TABLE таблица;

@@ -7,7 +7,7 @@
 -- source include/not_embedded.inc
 
 --disable_warnings
-drop table if exists t1;
+drop table if exists t1,t2;
 --enable_warnings
 
 # Test to see if select will get the lock ahead of low priority update
@@ -50,4 +50,23 @@ connection writer;
 reap;
 connection reader;
 reap;
+drop table t1;
+
+#
+# Test problem when using locks on many tables and droping a table that
+# is to-be-locked by another thread
+#
+
+connection locker;
+create table t1 (a int);
+create table t2 (a int);
+lock table t1 write, t2 write;
+connection reader;
+send insert t1 select * from t2;
+connection locker;
+drop table t2;
+connection reader;
+--error 1146
+reap;
+connection locker;
 drop table t1;

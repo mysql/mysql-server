@@ -37,6 +37,14 @@ static void setup_key_functions(MI_KEYDEF *keyinfo);
 					pos+=size;}
 
 
+#define disk_pos_assert(pos, end_pos) \
+if (pos > end_pos)             \
+{                              \
+  my_errno=HA_ERR_CRASHED;     \
+  goto err;                    \
+}
+
+
 /******************************************************************************
 ** Return the shared struct if the table is already open.
 ** In MySQL the server will handle version issues.
@@ -72,7 +80,7 @@ MI_INFO *mi_open(const char *name, int mode, uint open_flags)
     key_parts,unique_key_parts,fulltext_keys,uniques;
   char name_buff[FN_REFLEN], org_name [FN_REFLEN], index_name[FN_REFLEN],
        data_name[FN_REFLEN];
-  char *disk_cache,*disk_pos;
+  char *disk_cache, *disk_pos, *end_pos;
   MI_INFO info,*m_info,*old_info;
   MYISAM_SHARE share_buff,*share;
   ulong rec_per_key_part[MI_MAX_POSSIBLE_KEY*MI_MAX_KEY_SEG];
@@ -139,11 +147,12 @@ MI_INFO *mi_open(const char *name, int mode, uint open_flags)
 
     info_length=mi_uint2korr(share->state.header.header_length);
     base_pos=mi_uint2korr(share->state.header.base_pos);
-    if (!(disk_cache=(char*) my_alloca(info_length)))
+    if (!(disk_cache=(char*) my_alloca(info_length+128)))
     {
       my_errno=ENOMEM;
       goto err;
     }
+    end_pos=disk_cache+info_length;
     errpos=2;
 
     VOID(my_seek(kfile,0L,MY_SEEK_SET,MYF(0)));
@@ -288,6 +297,8 @@ MI_INFO *mi_open(const char *name, int mode, uint open_flags)
       for (i=0 ; i < keys ; i++)
       {
 	disk_pos=mi_keydef_read(disk_pos, &share->keyinfo[i]);
+        disk_pos_assert(disk_pos + share->keyinfo[i].keysegs * HA_KEYSEG_SIZE,
+ 			end_pos);
         if (share->keyinfo[i].key_alg == HA_KEY_ALG_RTREE)
           have_rtree=1;
 	set_if_smaller(share->blocksize,share->keyinfo[i].block_length);
@@ -361,6 +372,8 @@ MI_INFO *mi_open(const char *name, int mode, uint open_flags)
       for (i=0 ; i < uniques ; i++)
       {
 	disk_pos=mi_uniquedef_read(disk_pos, &share->uniqueinfo[i]);
+        disk_pos_assert(disk_pos + share->uniqueinfo[i].keysegs *
+			HA_KEYSEG_SIZE, end_pos);
 	share->uniqueinfo[i].seg=pos;
 	for (j=0 ; j < share->uniqueinfo[i].keysegs; j++,pos++)
 	{
@@ -384,6 +397,7 @@ MI_INFO *mi_open(const char *name, int mode, uint open_flags)
       }
     }
 
+    disk_pos_assert(disk_pos + share->base.fields *MI_COLUMNDEF_SIZE, end_pos);
     for (i=j=offset=0 ; i < share->base.fields ; i++)
     {
       disk_pos=mi_recinfo_read(disk_pos,&share->rec[i]);

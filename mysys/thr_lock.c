@@ -945,6 +945,54 @@ void thr_abort_locks(THR_LOCK *lock)
 }
 
 
+/*
+  Abort all locks for specific table/thread combination
+
+  This is used to abort all locks for a specific thread
+*/
+
+void thr_abort_locks_for_thread(THR_LOCK *lock, pthread_t thread)
+{
+  THR_LOCK_DATA *data;
+  DBUG_ENTER("thr_abort_locks_for_thread");
+
+  pthread_mutex_lock(&lock->mutex);
+  for (data= lock->read_wait.data; data ; data= data->next)
+  {
+    if (pthread_equal(thread, data->thread))
+    {
+      DBUG_PRINT("info",("Aborting read-wait lock"));
+      data->type= TL_UNLOCK;			/* Mark killed */
+      pthread_cond_signal(data->cond);
+      data->cond= 0;				/* Removed from list */
+
+      if (((*data->prev)= data->next))
+	data->next->prev= data->prev;
+      else
+	lock->read_wait.last= data->prev;
+    }
+  }
+  for (data= lock->write_wait.data; data ; data= data->next)
+  {
+    if (pthread_equal(thread, data->thread))
+    {
+      DBUG_PRINT("info",("Aborting write-wait lock"));
+      data->type= TL_UNLOCK;
+      pthread_cond_signal(data->cond);
+      data->cond= 0;
+
+      if (((*data->prev)= data->next))
+	data->next->prev= data->prev;
+      else
+	lock->write_wait.last= data->prev;
+    }
+  }
+  pthread_mutex_unlock(&lock->mutex);
+  DBUG_VOID_RETURN;
+}
+
+
+
 /* Upgrade a WRITE_DELAY lock to a WRITE_LOCK */
 
 my_bool thr_upgrade_write_delay_lock(THR_LOCK_DATA *data)

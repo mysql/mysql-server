@@ -346,13 +346,21 @@ buf_page_print(
 			ut_dulint_get_high(btr_page_get_index_id(read_buf)),
 			ut_dulint_get_low(btr_page_get_index_id(read_buf)));
 
-		index = dict_index_find_on_id_low(
+		/* If the code is in ibbackup, dict_sys may be uninitialized,
+		i.e., NULL */
+
+		if (dict_sys != NULL) {
+
+		        index = dict_index_find_on_id_low(
 					btr_page_get_index_id(read_buf));
-		if (index) {
-			fprintf(stderr, "InnoDB: and table %s index %s\n",
+		        if (index) {
+			        fprintf(stderr,
+					"InnoDB: and table %s index %s\n",
 						index->table_name,
 						index->name);
+			}
 		}
+	  
 	} else if (fil_page_get_type(read_buf) == FIL_PAGE_INODE) {
 		fprintf(stderr, "InnoDB: Page may be an 'inode' page\n");
 	} else if (fil_page_get_type(read_buf) == FIL_PAGE_IBUF_FREE_LIST) {

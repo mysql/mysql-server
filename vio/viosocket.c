@@ -251,13 +251,14 @@ my_socket vio_fd(Vio* vio)
 }
 
 
-my_bool vio_peer_addr(Vio * vio, char *buf)
+my_bool vio_peer_addr(Vio * vio, char *buf, uint16 *port)
 {
   DBUG_ENTER("vio_peer_addr");
   DBUG_PRINT("enter", ("sd: %d", vio->sd));
   if (vio->localhost)
   {
     strmov(buf,"127.0.0.1");
+    *port= 0;
   }
   else
   {
@@ -269,6 +270,7 @@ my_bool vio_peer_addr(Vio * vio, char *buf)
       DBUG_RETURN(1);
     }
     my_inet_ntoa(vio->remote.sin_addr,buf);
+    *port= ntohs(vio->remote.sin_port);
   }
   DBUG_PRINT("exit", ("addr: %s", buf));
   DBUG_RETURN(0);

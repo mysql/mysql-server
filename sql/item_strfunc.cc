@@ -321,9 +321,21 @@ null:
 
 void Item_func_concat::fix_length_and_dec()
 {
+  bool first_coll= 1;
   max_length=0;
+
+  set_charset(args[0]->charset(),args[0]->coercibility);
   for (uint i=0 ; i < arg_count ; i++)
+  {
     max_length+=args[i]->max_length;
+    if (set_charset(charset(), coercibility,
+		args[i]->charset(), args[i]->coercibility))
+    {
+      my_error(ER_WRONG_ARGUMENTS,MYF(0),func_name());
+      break;
+    }
+  }
+
   if (max_length > MAX_BLOB_WIDTH)
   {
     max_length=MAX_BLOB_WIDTH;
@@ -650,7 +662,7 @@ String *Item_func_reverse::val_str(String *str)
   ptr = (char *) res->ptr();
   end=ptr+res->length();
 #ifdef USE_MB
-  if (use_mb(res->charset()) && !binary())
+  if (use_mb(res->charset()))
   {
     String tmpstr;
     tmpstr.copy(*res);
@@ -978,6 +990,7 @@ void Item_func_substr::fix_length_and_dec()
 {
   max_length=args[0]->max_length;
 
+  set_charset(args[0]->charset(), args[0]->coercibility);
   if (args[1]->const_item())
   {
     int32 start=(int32) args[1]->val_int()-1;
@@ -1015,7 +1028,7 @@ String *Item_func_substr_index::val_str(String *str)
     return &empty_string;		// Wrong parameters
 
 #ifdef USE_MB
-  if (use_mb(res->charset()) && !binary())
+  if (use_mb(res->charset()))
   {
     const char *ptr=res->ptr();
     const char *strend = ptr+res->length();
@@ -1169,7 +1182,7 @@ String *Item_func_rtrim::val_str(String *str)
   {
     char chr=(*remove_str)[0];
 #ifdef USE_MB
-    if (use_mb(res->charset()) && !binary())
+    if (use_mb(res->charset()))
     {
       while (ptr < end)
       {
@@ -1186,7 +1199,7 @@ String *Item_func_rtrim::val_str(String *str)
   {
     const char *r_ptr=remove_str->ptr();
 #ifdef USE_MB
-    if (use_mb(res->charset()) && !binary())
+    if (use_mb(res->charset()))
     {
   loop:
       while (ptr + remove_length < end)
@@ -1237,7 +1250,7 @@ String *Item_func_trim::val_str(String *str)
   while (ptr+remove_length <= end && !memcmp(ptr,r_ptr,remove_length))
     ptr+=remove_length;
 #ifdef USE_MB
-  if (use_mb(res->charset()) && !binary())
+  if (use_mb(res->charset()))
   {
     char *p=ptr;
     register uint32 l;
@@ -1791,6 +1804,7 @@ inline String* alloc_buffer(String *res,String *str,String *tmp_value,
 
 void Item_func_repeat::fix_length_and_dec()
 {
+  set_charset(args[0]->charset(), args[0]->coercibility);
   if (args[1]->const_item())
   {
     max_length=(long) (args[0]->max_length * args[1]->val_int());
@@ -2015,72 +2029,21 @@ String *Item_func_conv::val_str(String *str)
 
 String *Item_func_conv_charset::val_str(String *str)
 {
-  my_wc_t wc;
-  int cnvres;
-  const uchar *s, *se;
-  uchar *d, *d0, *de;
-  uint32 dmaxlen;
   String *arg= args[0]->val_str(str);
-  CHARSET_INFO *from,*to;
-
   if (!arg)
   {
     null_value=1;
     return 0;
   }
-  null_value=0;
-
-  from=arg->charset();
-  to=conv_charset;
-
-  s=(const uchar*)arg->ptr();
-  se=s+arg->length();
-
-  dmaxlen=arg->length()*to->mbmaxlen+1;
-  str->alloc(dmaxlen);
-  d0=d=(unsigned char*)str->ptr();
-  de=d+dmaxlen;
-
-  while (1)
-  {
-    cnvres=from->mb_wc(from,&wc,s,se);
-    if (cnvres>0)
-    {
-      s+=cnvres;
-    }
-    else if (cnvres==MY_CS_ILSEQ)
-    {
-      s++;
-      wc='?';
-    }
-    else
-      break;
-
-outp:
-    cnvres=to->wc_mb(to,wc,d,de);
-    if (cnvres>0)
-    {
-      d+=cnvres;
-    }
-    else if (cnvres==MY_CS_ILUNI && wc!='?')
-    {
-        wc='?';
-        goto outp;
-    }
-    else
-      break;
-  };
-
-  str->length((uint32) (d-d0));
-  str->set_charset(to);
-  return str;
+  null_value= str->copy(arg->ptr(),arg->length(),arg->charset(),conv_charset);
+  return null_value ? 0 : str;
 }
 
 void Item_func_conv_charset::fix_length_and_dec()
 {
-  max_length = args[0]->max_length*conv_charset->mbmaxlen;
-  coercibility= COER_IMPLICIT;
   set_charset(conv_charset);
+  max_length = args[0]->max_length*conv_charset->mbmaxlen;
+  set_charset(conv_charset, COER_IMPLICIT);
 }
 
 
@@ -2152,25 +2115,6 @@ outp:
 }
 
 
-bool Item_func_conv_charset::fix_fields(THD *thd,struct st_table_list *tables, Item **ref)
-{
-  char buff[STACK_BUFF_ALLOC];			// Max argument in function
-  used_tables_cache=0;
-  const_item_cache=1;
-
-  if (thd && check_stack_overrun(thd,buff))
-    return 0;					// Fatal error if flag is set!
-  if (args[0]->fix_fields(thd, tables, args) || args[0]->check_cols(1))
-    return 1;
-  maybe_null=args[0]->maybe_null;
-  const_item_cache=args[0]->const_item();
-  set_charset(conv_charset);
-  fix_length_and_dec();
-  fixed= 1;
-  return 0;
-}
-
-
 void Item_func_conv_charset3::fix_length_and_dec()
 {
   max_length = args[0]->max_length;
@@ -2185,24 +2129,11 @@ String *Item_func_set_collation::val_str(String *str)
   return str;
 }
 
-bool Item_func_set_collation::fix_fields(THD *thd,struct st_table_list *tables, Item **ref)
+void Item_func_set_collation::fix_length_and_dec()
 {
   CHARSET_INFO *set_collation;
-  String tmp, *str;
   const char *colname;
-  char buff[STACK_BUFF_ALLOC];			// Max argument in function
-  used_tables_cache=0;
-  const_item_cache=1;
-
-  if (thd && check_stack_overrun(thd,buff))
-    return 0;					// Fatal error if flag is set!
-  if (args[0]->fix_fields(thd, tables, args) || args[0]->check_cols(1))
-    return 1;
-  if (args[0]->fix_fields(thd, tables, args) || args[0]->check_cols(1))
-    return 2;
-  maybe_null=args[0]->maybe_null || args[1]->maybe_null;
-
-  str= args[1]->val_str(&tmp);
+  String tmp, *str= args[1]->val_str(&tmp);
   colname= str->c_ptr();
   if (!strncmp(colname,"BINARY",6))
     set_collation= get_charset_by_csname(args[0]->charset()->csname,
@@ -2213,25 +2144,19 @@ bool Item_func_set_collation::fix_fields(THD *thd,struct st_table_list *tables, 
   if (!set_collation)
   {
     my_error(ER_UNKNOWN_CHARACTER_SET, MYF(0), str->c_ptr());
-    return 1;
+    return;
   }
   
-  if (strcmp(args[0]->charset()->csname,set_collation->csname))
+  if (!my_charset_same(args[0]->charset(),set_collation))
   {
     my_error(ER_COLLATION_CHARSET_MISMATCH, MYF(0), 
       set_collation->name,args[0]->charset()->csname);
-    return 1;
+    return;
   }
-  set_charset(set_collation);
-  
-  coercibility= COER_EXPLICIT;
-  with_sum_func= with_sum_func || args[0]->with_sum_func;
-  used_tables_cache=args[0]->used_tables();
-  const_item_cache=args[0]->const_item();
-  fix_length_and_dec();
-  fixed= 1;
-  return 0;
+  set_charset(set_collation, COER_EXPLICIT);
+  max_length= args[0]->max_length;
 }
+
 
 bool Item_func_set_collation::eq(const Item *item, bool binary_cmp) const
 {
@@ -2560,10 +2485,19 @@ String *Item_func_geometry_from_text::val_str(String *str)
 {
   Geometry geom;
   String arg_val;
-  String *wkt = args[0]->val_str(&arg_val);
+  String *wkt= args[0]->val_str(&arg_val);
   GTextReadStream trs(wkt->ptr(), wkt->length());
+  uint32 srid;
 
+  if ((arg_count == 2) && !args[1]->null_value)
+    srid= args[1]->val_int();
+  else
+    srid= 0;
+
+  if (str->reserve(SRID_SIZE, 512))
+    return 0;
   str->length(0);
+  str->q_append(srid);
   if ((null_value=(args[0]->null_value || geom.create_from_wkt(&trs, str, 0))))
     return 0;
   return str;
@@ -2576,19 +2510,51 @@ void Item_func_geometry_from_text::fix_length_and_dec()
 }
 
 
+String *Item_func_geometry_from_wkb::val_str(String *str)
+{
+  String arg_val;
+  String *wkb= args[0]->val_str(&arg_val);
+  Geometry geom;
+  uint32 srid;
+
+  if ((arg_count == 2) && !args[1]->null_value)
+    srid= args[1]->val_int();
+  else
+    srid= 0;
+
+  if (str->reserve(SRID_SIZE, 512))
+    return 0;
+  str->length(0);
+  str->q_append(srid);
+  if ((null_value= (args[0]->null_value ||
+		    geom.create_from_wkb(wkb->ptr(), wkb->length()))))
+    return 0;
+
+  str->append(*wkb);
+  return str;
+}
+
+
+void Item_func_geometry_from_wkb::fix_length_and_dec()
+{
+  max_length=MAX_BLOB_WIDTH;
+}
+
+
 String *Item_func_as_text::val_str(String *str)
 {
   String arg_val;
-  String *wkt = args[0]->val_str(&arg_val);
+  String *swkb= args[0]->val_str(&arg_val);
   Geometry geom;
 
-  if ((null_value=(args[0]->null_value ||
-                   geom.create_from_wkb(wkt->ptr(),wkt->length()))))
+  if ((null_value= (args[0]->null_value ||
+		    geom.create_from_wkb(swkb->ptr() + SRID_SIZE,
+					 swkb->length() - SRID_SIZE))))
     return 0;
 
   str->length(0);
 
-  if ((null_value=geom.as_wkt(str)))
+  if ((null_value= geom.as_wkt(str)))
     return 0;
 
   return str;
@@ -2601,11 +2567,12 @@ void Item_func_as_text::fix_length_and_dec()
 
 String *Item_func_geometry_type::val_str(String *str)
 {
-  String *wkt = args[0]->val_str(str);
+  String *swkb= args[0]->val_str(str);
   Geometry geom;
 
-  if ((null_value=(args[0]->null_value ||
-                   geom.create_from_wkb(wkt->ptr(),wkt->length()))))
+  if ((null_value= (args[0]->null_value ||
+		    geom.create_from_wkb(swkb->ptr() + SRID_SIZE,
+					 swkb->length() - SRID_SIZE))))
     return 0;
   str->copy(geom.get_class_info()->m_name,
 	    strlen(geom.get_class_info()->m_name),
@@ -2616,14 +2583,19 @@ String *Item_func_geometry_type::val_str(String *str)
 
 String *Item_func_envelope::val_str(String *str)
 {
-  String *res = args[0]->val_str(str);
+  String *res= args[0]->val_str(str);
   Geometry geom;
   
-  if ((null_value = args[0]->null_value ||
-               geom.create_from_wkb(res->ptr(),res->length())))
+  if ((null_value= args[0]->null_value ||
+		   geom.create_from_wkb(res->ptr() + SRID_SIZE,
+					res->length() - SRID_SIZE)))
     return 0;
   
+  uint32 srid= uint4korr(res->ptr());
+  if (res->reserve(SRID_SIZE, 512))
+    return 0;
   res->length(0);
+  res->q_append(srid);
   return (null_value= geom.envelope(res)) ? 0 : res;
 }
 
@@ -2631,15 +2603,22 @@ String *Item_func_envelope::val_str(String *str)
 String *Item_func_centroid::val_str(String *str)
 {
   String arg_val;
-  String *wkb = args[0]->val_str(&arg_val);
+  String *swkb= args[0]->val_str(&arg_val);
   Geometry geom;
 
-  null_value = args[0]->null_value ||
-               geom.create_from_wkb(wkb->ptr(),wkb->length()) ||
-               !GEOM_METHOD_PRESENT(geom,centroid) ||
-               geom.centroid(str);
+  if ((null_value= args[0]->null_value ||
+		   geom.create_from_wkb(swkb->ptr() + SRID_SIZE,
+					swkb->length() - SRID_SIZE) ||
+		   !GEOM_METHOD_PRESENT(geom, centroid)))
+    return 0;
 
-  return null_value ? 0: str;
+  if (str->reserve(SRID_SIZE, 512))
+    return 0;
+  str->length(0);
+  uint32 srid= uint4korr(swkb->ptr());
+  str->q_append(srid);
+
+  return (null_value= geom.centroid(str)) ? 0 : str;
 }
 
 
@@ -2650,15 +2629,20 @@ String *Item_func_centroid::val_str(String *str)
 String *Item_func_spatial_decomp::val_str(String *str)
 {
   String arg_val;
-  String *wkb = args[0]->val_str(&arg_val);
+  String *swkb= args[0]->val_str(&arg_val);
   Geometry geom;
 
-  if ((null_value = (args[0]->null_value ||
-                     geom.create_from_wkb(wkb->ptr(),wkb->length()))))
+  if ((null_value= (args[0]->null_value ||
+		    geom.create_from_wkb(swkb->ptr() + SRID_SIZE,
+					 swkb->length() - SRID_SIZE))))
     return 0;
 
-  null_value=1;
+  null_value= 1;
+  if (str->reserve(SRID_SIZE, 512))
+    return 0;
   str->length(0);
+  uint32 srid= uint4korr(swkb->ptr());
+  str->q_append(srid);
   switch(decomp_func)
   {
     case SP_STARTPOINT:
@@ -2679,7 +2663,7 @@ String *Item_func_spatial_decomp::val_str(String *str)
     default:
       goto ret;
   }
-  null_value=0;
+  null_value= 0;
 
 ret:
   return null_value ? 0 : str;
@@ -2689,28 +2673,30 @@ ret:
 String *Item_func_spatial_decomp_n::val_str(String *str)
 {
   String arg_val;
-  String *wkb  =        args[0]->val_str(&arg_val);
-  long n       = (long) args[1]->val_int();
+  String *swkb= args[0]->val_str(&arg_val);
+  long n= (long) args[1]->val_int();
   Geometry geom;
 
-  if ((null_value = (args[0]->null_value ||
-                     args[1]->null_value ||
-                     geom.create_from_wkb(wkb->ptr(),wkb->length()) )))
+  if ((null_value= (args[0]->null_value || args[1]->null_value ||
+		    geom.create_from_wkb(swkb->ptr() + SRID_SIZE,
+					 swkb->length() - SRID_SIZE))))
     return 0;
 
-  null_value=1;
-
+  null_value= 1;
+  if (str->reserve(SRID_SIZE, 512))
+    return 0;
+  str->length(0);
+  uint32 srid= uint4korr(swkb->ptr());
+  str->q_append(srid);
   switch(decomp_func_n)
   {
     case SP_POINTN:
-      if (!GEOM_METHOD_PRESENT(geom,point_n) ||
-          geom.point_n(n,str))
+      if (!GEOM_METHOD_PRESENT(geom,point_n) || geom.point_n(n,str))
         goto ret;
       break;
 
     case SP_GEOMETRYN:
-      if (!GEOM_METHOD_PRESENT(geom,geometry_n) ||
-          geom.geometry_n(n,str))
+      if (!GEOM_METHOD_PRESENT(geom,geometry_n) || geom.geometry_n(n,str))
         goto ret;
       break;
 
@@ -2723,7 +2709,7 @@ String *Item_func_spatial_decomp_n::val_str(String *str)
     default:
       goto ret;
   }
-  null_value=0;
+  null_value= 0;
 
 ret:
   return null_value ? 0 : str;
@@ -2746,9 +2732,9 @@ String *Item_func_point::val_str(String *str)
   double x= args[0]->val();
   double y= args[1]->val();
 
-  if ( (null_value = (args[0]->null_value ||
-                     args[1]->null_value ||
-                     str->realloc(1+4+8+8))))
+  if ( (null_value= (args[0]->null_value ||
+		     args[1]->null_value ||
+		     str->realloc(1 + 4 + 8 + 8))))
     return 0;
 
   str->length(0);
@@ -2775,19 +2761,19 @@ String *Item_func_spatial_collection::val_str(String *str)
   String arg_value;
   uint i;
 
-  null_value=1;
+  null_value= 1;
 
   str->length(0);
-  if (str->reserve(9,512))
+  if (str->reserve(1 + 4 + 4, 512))
     return 0;
 
-  str->q_append((char)Geometry::wkbNDR);
-  str->q_append((uint32)coll_type);
-  str->q_append((uint32)arg_count);
+  str->q_append((char) Geometry::wkbNDR);
+  str->q_append((uint32) coll_type);
+  str->q_append((uint32) arg_count);
 
-  for (i = 0; i < arg_count; ++i)
+  for (i= 0; i < arg_count; ++i)
   {
-    String *res = args[i]->val_str(&arg_value);
+    String *res= args[i]->val_str(&arg_value);
     if (args[i]->null_value)
       goto ret;
 
@@ -2798,16 +2784,16 @@ String *Item_func_spatial_collection::val_str(String *str)
          any checkings for item types, so just copy them
          into target collection
       */
-      if ((null_value=(str->reserve(res->length(),512))))
+      if ((null_value= str->reserve(res->length(), 512)))
         goto ret;
 
-      str->q_append(res->ptr(),res->length());
+      str->q_append(res->ptr(), res->length());
     }
     else
     {
       enum Geometry::wkbType wkb_type;
       uint32 len=res->length();
-      const char *data=res->ptr()+1;
+      const char *data= res->ptr() + 1;
 
       /*
          In the case of named collection we must to
@@ -2818,8 +2804,8 @@ String *Item_func_spatial_collection::val_str(String *str)
       if (len < 5)
         goto ret;
       wkb_type= (Geometry::wkbType) uint4korr(data);
-      data+=4;
-      len-=5;
+      data+= 4;
+      len-= 5;
       if (wkb_type != item_type)
         goto ret;
 
@@ -2830,17 +2816,17 @@ String *Item_func_spatial_collection::val_str(String *str)
 	if (len < WKB_HEADER_SIZE)
 	  goto ret;
 
-	data-=WKB_HEADER_SIZE;
-	len+=WKB_HEADER_SIZE;
-	if (str->reserve(len,512))
+	data-= WKB_HEADER_SIZE;
+	len+= WKB_HEADER_SIZE;
+	if (str->reserve(len, 512))
 	  goto ret;
-	str->q_append(data,len);
+	str->q_append(data, len);
 	break;
 
       case Geometry::wkbLineString:
-	if (str->reserve(POINT_DATA_SIZE,512))
+	if (str->reserve(POINT_DATA_SIZE, 512))
 	  goto ret;
-	str->q_append(data,POINT_DATA_SIZE);
+	str->q_append(data, POINT_DATA_SIZE);
 	break;
 
       case Geometry::wkbPolygon:
@@ -2851,25 +2837,25 @@ String *Item_func_spatial_collection::val_str(String *str)
 	if (len < 4 + 2 * POINT_DATA_SIZE)
 	  goto ret;
 
-	uint32 llen=len;
-	const char *ldata=data;
+	uint32 llen= len;
+	const char *ldata= data;
 
-	n_points=uint4korr(data);
-	data+=4;
-	float8get(x1,data);
-	data+=8;
-	float8get(y1,data);
-	data+=8;
+	n_points= uint4korr(data);
+	data+= 4;
+	float8get(x1, data);
+	data+= 8;
+	float8get(y1, data);
+	data+= 8;
 
-	data+=(n_points-2) * POINT_DATA_SIZE;
+	data+= (n_points - 2) * POINT_DATA_SIZE;
 
-	float8get(x2,data);
-	float8get(y2,data+8);
+	float8get(x2, data);
+	float8get(y2, data + 8);
 
 	if ((x1 != x2) || (y1 != y2))
 	  goto ret;
 
-	if (str->reserve(llen,512))
+	if (str->reserve(llen, 512))
 	  goto ret;
 	str->q_append(ldata, llen);
       }

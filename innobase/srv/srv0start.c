@@ -577,8 +577,11 @@ open_or_create_log_file(
 		    || size_high != srv_calc_high32(srv_log_file_size)) {
 		    	
 			fprintf(stderr,
-			"InnoDB: Error: log file %s is of different size\n"
-			"InnoDB: than specified in the .cnf file!\n", name);
+"InnoDB: Error: log file %s is of different size %lu %lu bytes\n"
+"InnoDB: than specified in the .cnf file %lu %lu bytes!\n",
+				name, size_high, size,
+				srv_calc_high32(srv_log_file_size),
+				srv_calc_low32(srv_log_file_size));
 				
 			return(DB_ERROR);
 		}					
@@ -770,8 +773,13 @@ open_or_create_data_files(
 				    	       rounded_size_pages)) {
 				    	       	
 						fprintf(stderr,
-			"InnoDB: Error: data file %s is of a different size\n"
-			"InnoDB: than specified in the .cnf file!\n", name);	
+"InnoDB: Error: auto-extending data file %s is of a different size\n"
+"InnoDB: %lu pages (rounded down to MB) than specified in the .cnf file:\n"
+"InnoDB: initial %lu pages, max %lu (relevant if non-zero) pages!\n",
+		  name, rounded_size_pages,
+		  srv_data_file_sizes[i], srv_last_file_size_max);
+
+						return(DB_ERROR);
 					}
 				    	     
 				    	srv_data_file_sizes[i] =
@@ -782,8 +790,11 @@ open_or_create_data_files(
 						!= srv_data_file_sizes[i]) {
 
 					fprintf(stderr,
-			"InnoDB: Error: data file %s is of a different size\n"
-			"InnoDB: than specified in the .cnf file!\n", name);
+"InnoDB: Error: data file %s is of a different size\n"
+"InnoDB: %lu pages (rounded down to MB)\n"
+"InnoDB: than specified in the .cnf file %lu pages!\n", name,
+						rounded_size_pages,
+						srv_data_file_sizes[i]);
 				
 					return(DB_ERROR);
 				}

@@ -23,7 +23,6 @@
 #include "mysql.h"
 #include <m_string.h>
 #include <m_ctype.h>
-#include <dbug.h>
 
 #if defined(HAVE_BROKEN_GETPASS) && !defined(HAVE_GETPASSPHRASE)
 #undef HAVE_GETPASS

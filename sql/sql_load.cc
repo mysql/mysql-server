@@ -41,8 +41,9 @@ public:
   bool error,line_cuted,found_null,enclosed;
   byte	*row_start,			/* Found row starts here */
 	*row_end;			/* Found row ends here */
+  CHARSET_INFO *read_charset;
 
-  READ_INFO(File file,uint tot_length,
+  READ_INFO(File file,uint tot_length,CHARSET_INFO *cs,
 	    String &field_term,String &line_start,String &line_term,
 	    String &enclosed,int escape,bool get_it_from_net, bool is_fifo);
   ~READ_INFO();
@@ -214,8 +215,8 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
   info.handle_duplicates=handle_duplicates;
   info.escape_char=escaped->length() ? (*escaped)[0] : INT_MAX;
 
-  READ_INFO read_info(file,tot_length,*field_term,
-		      *ex->line_start, *ex->line_term, *enclosed,
+  READ_INFO read_info(file,tot_length,thd->db_charset,
+		      *field_term,*ex->line_start, *ex->line_term, *enclosed,
 		      info.escape_char, read_file_from_client, is_fifo);
   if (read_info.error)
   {
@@ -402,7 +403,7 @@ read_fixed_length(THD *thd,COPY_INFO &info,TABLE *table,List<Item> &fields,
 	    field->field_length)
 	  length=field->field_length;
 	save_chr=pos[length]; pos[length]='\0'; // Safeguard aganst malloc
-	field->store((char*) pos,length,default_charset_info);
+	field->store((char*) pos,length,read_info.read_charset);
 	pos[length]=save_chr;
 	if ((pos+=length) > read_info.row_end)
 	  pos= read_info.row_end;	/* Fills rest with space */
@@ -483,7 +484,7 @@ read_sep_field(THD *thd,COPY_INFO &info,TABLE *table,
       }
       field->set_notnull();
       read_info.row_end[0]=0;			// Safe to change end marker
-      field->store((char*) read_info.row_start,length,default_charset_info);
+      field->store((char*) read_info.row_start,length,read_info.read_charset);
     }
     if (read_info.error)
       break;
@@ -547,12 +548,13 @@ READ_INFO::unescape(char chr)
 */
 
 
-READ_INFO::READ_INFO(File file_par, uint tot_length, String &field_term,
-		     String &line_start, String &line_term,
+READ_INFO::READ_INFO(File file_par, uint tot_length, CHARSET_INFO *cs,
+		     String &field_term, String &line_start, String &line_term,
 		     String &enclosed_par, int escape, bool get_it_from_net,
 		     bool is_fifo)
   :file(file_par),escape_char(escape)
 {
+  read_charset= cs;
   field_term_ptr=(char*) field_term.ptr();
   field_term_length= field_term.length();
   line_term_ptr=(char*) line_term.ptr();
@@ -699,13 +701,13 @@ int READ_INFO::read_field()
     {
       chr = GET;
 #ifdef USE_MB
-      if (use_mb(default_charset_info) &&
-          my_ismbhead(default_charset_info, chr) &&
-          to+my_mbcharlen(default_charset_info, chr) <= end_of_buff)
+      if (use_mb(read_charset) &&
+          my_ismbhead(read_charset, chr) &&
+          to+my_mbcharlen(read_charset, chr) <= end_of_buff)
       {
 	  uchar* p = (uchar*)to;
 	  *to++ = chr;
-	  int ml = my_mbcharlen(default_charset_info, chr);
+	  int ml = my_mbcharlen(read_charset, chr);
 	  int i;
 	  for (i=1; i<ml; i++) {
 	      chr = GET;
@@ -713,7 +715,7 @@ int READ_INFO::read_field()
 		  goto found_eof;
 	      *to++ = chr;
 	  }
-	  if (my_ismbchar(default_charset_info,
+	  if (my_ismbchar(read_charset,
                           (const char *)p,
                           (const char *)to))
 	    continue;
@@ -882,10 +884,10 @@ int READ_INFO::next_line()
   {
     int chr = GET;
 #ifdef USE_MB
-   if (use_mb(default_charset_info) && my_ismbhead(default_charset_info, chr))
+   if (use_mb(read_charset) && my_ismbhead(read_charset, chr))
    {
        for (int i=1;
-            chr != my_b_EOF && i<my_mbcharlen(default_charset_info, chr);
+            chr != my_b_EOF && i<my_mbcharlen(read_charset, chr);
             i++)
 	   chr = GET;
        if (chr == escape_char)

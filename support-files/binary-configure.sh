@@ -14,11 +14,11 @@ echo "and start the MySQL server for you.  If you run into any trouble, please"
 echo "consult the MySQL manual, that you can find in the Docs directory."
 echo ""
 
-./scripts/mysql_install_db
+./scripts/mysql_install_db --no-defaults
 if [ $? = 0 ]
 then
   echo "Starting the mysqld server.  You can test that it is up and running"
   echo "with the command:"
   echo "./bin/mysqladmin version"
-  ./bin/mysqld_safe &
+  ./bin/mysqld_safe --no-defaults &
 fi

@@ -373,6 +373,7 @@ void ha_resize_key_cache(void);
 int ha_start_stmt(THD *thd); 
 int ha_report_binlog_offset_and_commit(THD *thd, char *log_file_name,
 				       my_off_t end_offset);
+int ha_release_temporary_latches(THD *thd);
 int ha_commit_trans(THD *thd, THD_TRANS *trans);
 int ha_rollback_trans(THD *thd, THD_TRANS *trans);
 int ha_autocommit_or_rollback(THD *thd, int error);

@@ -108,7 +108,7 @@ static bool load_db_opt(const char *path, HA_CREATE_INFO *create)
     {
       char *pos= buf+nbytes-1;
       /* Remove end space and control characters */
-      while (pos > buf && !my_isgraph(system_charset_info, pos[-1]))
+      while (pos > buf && !my_isgraph(&my_charset_latin1, pos[-1]))
 	pos--;
       *pos=0;
       if ((pos= strchr(buf, '=')))
@@ -414,8 +414,8 @@ static long mysql_rm_known_files(THD *thd, MY_DIR *dirp, const char *db,
     DBUG_PRINT("info",("Examining: %s", file->name));
 
     /* Check if file is a raid directory */
-    if (my_isdigit(system_charset_info,file->name[0]) && 
-        my_isdigit(system_charset_info,file->name[1]) &&
+    if (my_isdigit(&my_charset_latin1,file->name[0]) && 
+        my_isdigit(&my_charset_latin1,file->name[1]) &&
 	!file->name[2] && !level)
     {
       char newpath[FN_REFLEN];
@@ -440,7 +440,7 @@ static long mysql_rm_known_files(THD *thd, MY_DIR *dirp, const char *db,
       continue;
     }
     strxmov(filePath,org_path,"/",file->name,NullS);
-    if (db && !my_strcasecmp(system_charset_info, 
+    if (db && !my_strcasecmp(&my_charset_latin1, 
                              fn_ext(file->name), reg_ext))
     {
       /* Drop the table nicely */
@@ -615,7 +615,6 @@ int mysqld_show_create_db(THD *thd, char *dbname,
   uint db_access;
   bool found_libchar;
   HA_CREATE_INFO create;
-  CONVERT *convert=thd->variables.convert_set;
   uint create_options = create_info ? create_info->options : 0;
   Protocol *protocol=thd->protocol;
   DBUG_ENTER("mysql_show_create_db");
@@ -671,7 +670,7 @@ int mysqld_show_create_db(THD *thd, char *dbname,
     DBUG_RETURN(1);
   
   protocol->prepare_for_resend();
-  protocol->store(dbname, strlen(dbname));
+  protocol->store(dbname, strlen(dbname), system_charset_info);
   to= strxmov(path, "CREATE DATABASE ", NullS);
   if (create_options & HA_LEX_CREATE_IF_NOT_EXISTS)
     to= strxmov(to,"/*!32312 IF NOT EXISTS*/ ", NullS);
@@ -685,7 +684,7 @@ int mysqld_show_create_db(THD *thd, char *dbname,
 		cl ? " COLLATE " : "", cl ? create.table_charset->name : "",
 		" */",NullS);
   }
-  protocol->store(path, (uint) (to-path));
+  protocol->store(path, (uint) (to-path), system_charset_info);
   
   if (protocol->write())
     DBUG_RETURN(1);

@@ -406,23 +406,6 @@ public:
 };
 
 
-class sys_var_thd_conv_charset :public sys_var_thd
-{
-public:
-  sys_var_thd_conv_charset(const char *name_arg)
-    :sys_var_thd(name_arg)
-  {}
-  bool check(THD *thd, set_var *var);
-  bool update(THD *thd, set_var *var);
-  SHOW_TYPE type() { return SHOW_CHAR; }
-  byte *value_ptr(THD *thd, enum_var_type type);
-  bool check_update_type(Item_result type)
-  {
-    return type != STRING_RESULT;		/* Only accept strings */
-  }
-  bool check_default(enum_var_type type) { return 0; }
-};
-
 class sys_var_client_collation :public sys_var_thd
 {
 public:
@@ -490,7 +473,6 @@ public:
   union
   {
     CHARSET_INFO *charset;
-    CONVERT *convert;
     ulong ulong_value;
   } save_result;
 

@@ -108,6 +108,7 @@ static void print_cs(CHARSET_INFO *cs)
 int main(int argc, char **argv) {
   const char *the_set = MYSQL_CHARSET;
   int argcnt = 1;
+  CHARSET_INFO *cs;
 
   my_init();
 
@@ -120,10 +121,10 @@ int main(int argc, char **argv) {
   if (argc > argcnt)
     charsets_dir = argv[argcnt++];
 
-  if (set_default_charset_by_name(the_set, MYF(MY_WME)))
+  if (!(cs= get_charset_by_name(the_set, MYF(MY_WME))))
     return 1;
 
-  print_cs(default_charset_info);
+  print_cs(cs);
 
   return 0;
 }

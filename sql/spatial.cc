@@ -78,17 +78,17 @@ int Geometry::create_from_wkb(const char *data, uint32 data_len)
 {
   uint32 geom_type;
 
-  if (data_len < 1+4)
+  if (data_len < 1 + 4)
     return 1;
-  data += sizeof(char);
-
+  data++;
 //FIXME: check byte ordering
-  geom_type = uint4korr(data);
-  data += 4;
-  m_vmt = find_class(geom_type);
-  if (!m_vmt) return -1;
-  m_data = data;
-  m_data_end = data + data_len;
+  geom_type= uint4korr(data);
+  data+= 4;
+  m_vmt= find_class(geom_type);
+  if (!m_vmt) 
+    return -1;
+  m_data= data;
+  m_data_end= data + data_len;
   return 0;
 }
 

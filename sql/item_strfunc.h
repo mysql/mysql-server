@@ -151,7 +151,11 @@ class Item_str_conv :public Item_str_func
 {
 public:
   Item_str_conv(Item *item) :Item_str_func(item) {}
-  void fix_length_and_dec() { max_length = args[0]->max_length; }
+  void fix_length_and_dec()
+  { 
+    set_charset(args[0]->charset(), args[0]->coercibility);
+    max_length = args[0]->max_length;
+  }
 };
 
 
@@ -573,7 +577,6 @@ class Item_func_conv_charset :public Item_str_func
 public:
   Item_func_conv_charset(Item *a, CHARSET_INFO *cs) :Item_str_func(a) 
   { conv_charset=cs; }
-  bool fix_fields(THD *thd,struct st_table_list *tables,Item **ref);
   String *val_str(String *);
   void fix_length_and_dec();
   const char *func_name() const { return "conv_charset"; }
@@ -584,9 +587,7 @@ class Item_func_set_collation :public Item_str_func
 public:
   Item_func_set_collation(Item *a, Item *b) :Item_str_func(a,b) {};
   String *val_str(String *);
-  bool fix_fields(THD *thd,struct st_table_list *tables, Item **ref);
-  void fix_length_and_dec() 
-  { max_length = args[0]->max_length; }
+  void fix_length_and_dec();
   bool eq(const Item *item, bool binary_cmp) const;
   const char *func_name() const { return "set_collation"; }
 };
@@ -632,11 +633,24 @@ public:
 Spatial functions
 ********************************************************/
 
+#define SRID_SIZE sizeof(uint32)
+
 class Item_func_geometry_from_text :public Item_str_func
 {
 public:
   Item_func_geometry_from_text(Item *a) :Item_str_func(a) {}
+  Item_func_geometry_from_text(Item *a, Item *srid) :Item_str_func(a, srid) {}
   const char *func_name() const { return "geometryfromtext"; }
+  String *val_str(String *);
+  void fix_length_and_dec();
+};
+
+class Item_func_geometry_from_wkb: public Item_str_func
+{
+public:
+  Item_func_geometry_from_wkb(Item *a) :Item_str_func(a) {}
+  Item_func_geometry_from_wkb(Item *a, Item *srid) :Item_str_func(a, srid) {}
+  const char *func_name() const { return "geometryfromwkb"; }
   String *val_str(String *);
   void fix_length_and_dec();
 };
@@ -683,7 +697,8 @@ public:
 class Item_func_point :public Item_str_func
 {
 public:
-  Item_func_point(Item *a,Item *b) :Item_str_func(a,b) {}
+  Item_func_point(Item *a, Item *b) :Item_str_func(a, b) {}
+  Item_func_point(Item *a, Item *b, Item *srid) :Item_str_func(a, b, srid) {}
   const char *func_name() const { return "point"; }
   String *val_str(String *);
   void fix_length_and_dec(){max_length=MAX_BLOB_WIDTH;}

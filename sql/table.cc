@@ -515,6 +515,7 @@ int openfrm(const char *name, const char *alias, uint db_stat, uint prgflag,
 	    keyinfo->key_length+= HA_KEY_NULL_LENGTH;
 	  }
 	  if (field->type() == FIELD_TYPE_BLOB ||
+	      field->type() == FIELD_TYPE_GEOMETRY ||
 	      field->real_type() == FIELD_TYPE_VAR_STRING)
 	  {
 	    if (field->type() == FIELD_TYPE_BLOB)
@@ -531,7 +532,7 @@ int openfrm(const char *name, const char *alias, uint db_stat, uint prgflag,
 	  if (i == 0)
 	    field->key_start|= ((key_map) 1 << key);
 	  if (field->key_length() == key_part->length &&
-	      field->type() != FIELD_TYPE_BLOB)
+	      !(field->flags & BLOB_FLAG))
 	  {
 	    if ((index_flags & HA_KEY_READ_ONLY) &&
 		(field->key_type() != HA_KEYTYPE_TEXT ||
@@ -560,7 +561,7 @@ int openfrm(const char *name, const char *alias, uint db_stat, uint prgflag,
 	  if (field->key_length() != key_part->length)
 	  {
 	    key_part->key_part_flag|= HA_PART_KEY;
-	    if (field->type() != FIELD_TYPE_BLOB)
+	    if (!(field->flags & BLOB_FLAG))
 	    {					// Create a new field
 	      field=key_part->field=field->new_field(&outparam->mem_root,
 						     outparam);
@@ -1162,7 +1163,7 @@ rename_file_ext(const char * from,const char * to,const char * ext)
 char *get_field(MEM_ROOT *mem, Field *field)
 {
   char buff[MAX_FIELD_WIDTH];
-  String str(buff,sizeof(buff),default_charset_info);
+  String str(buff,sizeof(buff),&my_charset_bin);
   field->val_str(&str,&str);
   uint length=str.length();
   if (!length)
@@ -1229,6 +1230,8 @@ bool check_db_name(char *name)
 bool check_table_name(const char *name, uint length)
 {
   const char *end= name+length;
+  if (!length || length > NAME_LEN)
+    return 1;
 
   while (name != end)
   {
@@ -1243,7 +1246,7 @@ bool check_table_name(const char *name, uint length)
       }
     }
 #endif
-    if (*name == '/' || *name == FN_LIBCHAR || *name == FN_EXTCHAR)
+    if (*name == '/' || *name == '\\' || *name == FN_EXTCHAR)
       return 1;
     name++;
   }
@@ -1252,6 +1255,8 @@ bool check_table_name(const char *name, uint length)
 
 bool check_column_name(const char *name)
 {
+  const char *start= name;
+
   while (*name)
   {
 #if defined(USE_MB) && defined(USE_MB_IDENT)
@@ -1270,7 +1275,8 @@ bool check_column_name(const char *name)
       return 1;
     name++;
   }
-  return 0;
+  /* Error if empty or too long column name */
+  return (name == start || (uint) (name - start) > NAME_LEN);
 }
 
 /*

@@ -54,6 +54,13 @@ insert into t1 values (NULL,'sdj'),(NULL,'sdj'),(NULL,"abc"),(NULL,'abc'),(NULL,
 select * from t1;
 drop table t1;
 
+create table t1 (sid char(5), id int(2) NOT NULL auto_increment, key(sid,  id));
+create table t2 (sid char(20), id int(2));
+insert into t2 values ('skr',NULL),('skr',NULL),('test',NULL);
+insert into t1 select * from t2;
+select * from t1;
+drop table t1,t2;
+
 #
 # Test of auto_increment columns when they are set to 0
 #
@@ -64,3 +71,4 @@ update t1 set a=0;
 select * from t1;
 check table t1;
 drop table t1;
+

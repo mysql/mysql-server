@@ -235,8 +235,6 @@ int init_relay_log_pos(RELAY_LOG_INFO* rli,const char* log,
   DBUG_ENTER("init_relay_log_pos");
 
   *errmsg=0;
-  if (rli->log_pos_current)			// TODO: When can this happen ?
-    DBUG_RETURN(0);
   pthread_mutex_t *log_lock=rli->relay_log.get_log_lock();
   pthread_mutex_lock(log_lock);
   if (need_data_lock)
@@ -265,7 +263,7 @@ int init_relay_log_pos(RELAY_LOG_INFO* rli,const char* log,
   if (log)					// If not first log
   {
     if (strcmp(log, rli->linfo.log_file_name))
-      rli->skip_log_purge=1;			// Different name; Don't purge
+      rli->skip_log_purge= 1;			// Different name; Don't purge
     if (rli->relay_log.find_log_pos(&rli->linfo, log, 1))
     {
       *errmsg="Could not find target log during relay log initialization";
@@ -298,9 +296,14 @@ int init_relay_log_pos(RELAY_LOG_INFO* rli,const char* log,
   }
   if (pos > BIN_LOG_HEADER_SIZE)
     my_b_seek(rli->cur_log,(off_t)pos);
-  rli->log_pos_current=1;
 
 err:
+  /*
+    If we don't purge, we can't honour relay_log_space_limit ;
+    silently discard it
+  */
+  if (rli->skip_log_purge)
+    rli->log_space_limit= 0;
   pthread_cond_broadcast(&rli->data_cond);
   if (need_data_lock)
     pthread_mutex_unlock(&rli->data_lock);
@@ -361,17 +364,37 @@ int purge_relay_logs(RELAY_LOG_INFO* rli, THD *thd, bool just_reset,
 {
   int error=0;
   DBUG_ENTER("purge_relay_logs");
+
+  /*
+    Even if rli->inited==0, we still try to empty rli->master_log_* variables.
+    Indeed, rli->inited==0 does not imply that they already are empty.
+    It could be that slave's info initialization partly succeeded : 
+    for example if relay-log.info existed but *relay-bin*.*
+    have been manually removed, init_relay_log_info reads the old 
+    relay-log.info and fills rli->master_log_*, then init_relay_log_info
+    checks for the existence of the relay log, this fails and
+    init_relay_log_info leaves rli->inited to 0.
+    In that pathological case, rli->master_log_pos* will be properly reinited
+    at the next START SLAVE (as RESET SLAVE or CHANGE
+    MASTER, the callers of purge_relay_logs, will delete bogus *.info files
+    or replace them with correct files), however if the user does SHOW SLAVE
+    STATUS before START SLAVE, he will see old, confusing rli->master_log_*.
+    In other words, we reinit rli->master_log_* for SHOW SLAVE STATUS 
+    to display fine in any case.
+  */
+
+  rli->master_log_name[0]= 0;
+  rli->master_log_pos= 0;
+  rli->pending= 0;
+
   if (!rli->inited)
-    DBUG_RETURN(0); /* successfully do nothing */
+    DBUG_RETURN(0);
 
   DBUG_ASSERT(rli->slave_running == 0);
   DBUG_ASSERT(rli->mi->slave_running == 0);
 
   rli->slave_skip_counter=0;
   pthread_mutex_lock(&rli->data_lock);
-  rli->pending=0;
-  rli->master_log_name[0]=0;
-  rli->master_log_pos=0;			// 0 means uninitialized
   if (rli->relay_log.reset_logs(thd))
   {
     *errmsg = "Failed during log reset";
@@ -385,7 +408,6 @@ int purge_relay_logs(RELAY_LOG_INFO* rli, THD *thd, bool just_reset,
   rli->log_space_total= BIN_LOG_HEADER_SIZE;
   rli->relay_log_pos=   BIN_LOG_HEADER_SIZE;
   rli->relay_log.reset_bytes_written();
-  rli->log_pos_current=0;
   if (!just_reset)
     error= init_relay_log_pos(rli, rli->relay_log_name, rli->relay_log_pos,
 			      0 /* do not need data lock */, errmsg);
@@ -421,9 +443,9 @@ int terminate_slave_threads(MASTER_INFO* mi,int thread_mask,bool skip_lock)
     DBUG_PRINT("info",("Terminating IO thread"));
     mi->abort_slave=1;
     if ((error=terminate_slave_thread(mi->io_thd,io_lock,
-				        io_cond_lock,
-					&mi->stop_cond,
-					&mi->slave_running)) &&
+				      io_cond_lock,
+				      &mi->stop_cond,
+				      &mi->slave_running)) &&
 	!force_all)
       DBUG_RETURN(error);
   }
@@ -463,12 +485,10 @@ int terminate_slave_thread(THD* thd, pthread_mutex_t* term_lock,
     be referening freed memory trying to kick it
   */
   THD_CHECK_SENTRY(thd);
-  if (*slave_running)
+
+  while (*slave_running)			// Should always be true
   {
     KICK_SLAVE(thd);
-  }
-  while (*slave_running)
-  {
     /*
       There is a small chance that slave thread might miss the first
       alarm. To protect againts it, resend the signal until it reacts
@@ -476,10 +496,6 @@ int terminate_slave_thread(THD* thd, pthread_mutex_t* term_lock,
     struct timespec abstime;
     set_timespec(abstime,2);
     pthread_cond_timedwait(term_cond, cond_lock, &abstime);
-    if (*slave_running)
-    {
-      KICK_SLAVE(thd);
-    }
   }
   if (term_lock)
     pthread_mutex_unlock(term_lock);
@@ -1225,7 +1241,6 @@ int init_relay_log_info(RELAY_LOG_INFO* rli, const char* info_fname)
   rli->pending = 0;
   rli->cur_log_fd = -1;
   rli->slave_skip_counter=0;
-  rli->log_pos_current=0;
   rli->abort_pos_wait=0;
   rli->skip_log_purge=0;
   rli->log_space_limit = relay_log_space_limit;
@@ -1270,8 +1285,9 @@ int init_relay_log_info(RELAY_LOG_INFO* rli, const char* info_fname)
     if (init_relay_log_pos(rli,NullS,BIN_LOG_HEADER_SIZE,0 /* no data lock */,
 			   &msg))
       goto err;
-    rli->master_log_pos = 0;			// uninitialized
-    rli->info_fd = info_fd;
+    rli->master_log_name[0]= 0;
+    rli->master_log_pos= 0;		
+    rli->info_fd= info_fd;
   }
   else // file exists
   {
@@ -1376,7 +1392,8 @@ static bool wait_for_relay_log_space(RELAY_LOG_INFO* rli)
   thd->proc_info = "Waiting for relay log space to free";
 
   while (rli->log_space_limit < rli->log_space_total &&
-	 !(slave_killed=io_slave_killed(thd,mi)))
+	 !(slave_killed=io_slave_killed(thd,mi)) &&
+         !rli->ignore_log_space_limit)
   {
     pthread_cond_wait(&rli->log_space_cond, &rli->log_space_lock);
   }
@@ -1608,22 +1625,22 @@ int show_master_info(THD* thd, MASTER_INFO* mi)
   
     pthread_mutex_lock(&mi->data_lock);
     pthread_mutex_lock(&mi->rli.data_lock);
-    protocol->store(mi->host);
-    protocol->store(mi->user);
+    protocol->store(mi->host, &my_charset_bin);
+    protocol->store(mi->user, &my_charset_bin);
     protocol->store((uint32) mi->port);
     protocol->store((uint32) mi->connect_retry);
-    protocol->store(mi->master_log_name);
+    protocol->store(mi->master_log_name, &my_charset_bin);
     protocol->store((ulonglong) mi->master_log_pos);
     protocol->store(mi->rli.relay_log_name +
-		   dirname_length(mi->rli.relay_log_name));
+		   dirname_length(mi->rli.relay_log_name), &my_charset_bin);
     protocol->store((ulonglong) mi->rli.relay_log_pos);
-    protocol->store(mi->rli.master_log_name);
-    protocol->store(mi->slave_running ? "Yes":"No");
-    protocol->store(mi->rli.slave_running ? "Yes":"No");
+    protocol->store(mi->rli.master_log_name, &my_charset_bin);
+    protocol->store(mi->slave_running ? "Yes":"No", &my_charset_bin);
+    protocol->store(mi->rli.slave_running ? "Yes":"No", &my_charset_bin);
     protocol->store(&replicate_do_db);
     protocol->store(&replicate_ignore_db);
     protocol->store((uint32) mi->rli.last_slave_errno);
-    protocol->store(mi->rli.last_slave_error);
+    protocol->store(mi->rli.last_slave_error, &my_charset_bin);
     protocol->store((uint32) mi->rli.slave_skip_counter);
     protocol->store((ulonglong) mi->rli.master_log_pos);
     protocol->store((ulonglong) mi->rli.log_space_total);
@@ -1657,10 +1674,10 @@ bool flush_master_info(MASTER_INFO* mi)
 
 st_relay_log_info::st_relay_log_info()
   :info_fd(-1), cur_log_fd(-1), master_log_pos(0), save_temporary_tables(0),
-   cur_log_old_open_count(0), log_space_total(0), 
+   cur_log_old_open_count(0), log_space_total(0), ignore_log_space_limit(0),
    slave_skip_counter(0), abort_pos_wait(0), slave_run_id(0),
    sql_thd(0), last_slave_errno(0), inited(0), abort_slave(0),
-   slave_running(0), log_pos_current(0), skip_log_purge(0),
+   slave_running(0), skip_log_purge(0),
    inside_transaction(0) /* the default is autocommit=1 */
 {
   relay_log_name[0] = master_log_name[0] = 0;
@@ -1882,7 +1899,8 @@ static int init_slave_thread(THD* thd, SLAVE_THD_TYPE thd_type)
 
   if (init_thr_lock() || thd->store_globals())
   {
-    end_thread(thd,0);
+    thd->cleanup();
+    delete thd;
     DBUG_RETURN(-1);
   }
 
@@ -2088,7 +2106,6 @@ point. If you are sure that your master is ok, run this query manually on the\
 
 static int exec_relay_log_event(THD* thd, RELAY_LOG_INFO* rli)
 {
-  DBUG_ASSERT(rli->sql_thd==thd);
   Log_event * ev = next_event(rli);
   DBUG_ASSERT(rli->sql_thd==thd);
   if (sql_slave_killed(thd,rli))
@@ -2163,6 +2180,7 @@ extern "C" pthread_handler_decl(handle_slave_io,arg)
   
   // needs to call my_thread_init(), otherwise we get a coredump in DBUG_ stuff
   my_thread_init();
+  DBUG_ENTER("handle_slave_io");
 
 #ifndef DBUG_OFF
 slave_begin:  
@@ -2180,7 +2198,6 @@ slave_begin:
 #endif  
   
   thd= new THD; // note that contructor of THD uses DBUG_ !
-  DBUG_ENTER("handle_slave_io");
   THD_CHECK_SENTRY(thd);
 
   pthread_detach_this_thread();
@@ -2240,7 +2257,7 @@ connected:
       on with life.
     */
     thd->proc_info = "Registering slave on master";
-    if (register_slave_on_master(mysql) ||  update_slave_list(mysql))
+    if (register_slave_on_master(mysql) ||  update_slave_list(mysql, mi))
       goto err;
   }
   
@@ -2368,7 +2385,8 @@ reconnect done to recover from failed read");
       }
       flush_master_info(mi);
       if (mi->rli.log_space_limit && mi->rli.log_space_limit <
-	  mi->rli.log_space_total)
+	  mi->rli.log_space_total &&
+          !mi->rli.ignore_log_space_limit)
 	if (wait_for_relay_log_space(&mi->rli))
 	{
 	  sql_print_error("Slave I/O thread aborted while waiting for relay \
@@ -2437,6 +2455,7 @@ extern "C" pthread_handler_decl(handle_slave_sql,arg)
 
   // needs to call my_thread_init(), otherwise we get a coredump in DBUG_ stuff
   my_thread_init();
+  DBUG_ENTER("handle_slave_sql");
 
 #ifndef DBUG_OFF
 slave_begin:  
@@ -2449,10 +2468,10 @@ slave_begin:
 #ifndef DBUG_OFF  
   rli->events_till_abort = abort_slave_event_count;
 #endif  
-  DBUG_ENTER("handle_slave_sql");
 
   thd = new THD; // note that contructor of THD uses DBUG_ !
-  THD_CHECK_SENTRY(thd);
+  thd->thread_stack = (char*)&thd; // remember where our stack is
+  
   /* Inform waiting threads that slave has started */
   rli->slave_run_id++;
 
@@ -2468,9 +2487,9 @@ slave_begin:
     sql_print_error("Failed during slave thread initialization");
     goto err;
   }
+  thd->init_for_queries();
   rli->sql_thd= thd;
   thd->temporary_tables = rli->save_temporary_tables; // restore temp tables
-  thd->thread_stack = (char*)&thd; // remember where our stack is
   pthread_mutex_lock(&LOCK_thread_count);
   threads.append(thd);
   pthread_mutex_unlock(&LOCK_thread_count);
@@ -2480,6 +2499,10 @@ slave_begin:
   pthread_cond_broadcast(&rli->start_cond);
   // This should always be set to 0 when the slave thread is started
   rli->pending = 0;
+
+  //tell the I/O thread to take relay_log_space_limit into account from now on
+  rli->ignore_log_space_limit= 0;
+
   if (init_relay_log_pos(rli,
 			 rli->relay_log_name,
 			 rli->relay_log_pos,
@@ -2542,7 +2565,6 @@ the slave SQL thread with \"SLAVE START\". We stopped at log \
     TODO: see if we can do this conditionally in next_event() instead
     to avoid unneeded position re-init
   */
-  rli->log_pos_current=0; 
   thd->temporary_tables = 0; // remove tempation from destructor to close them
   DBUG_ASSERT(thd->net.buff != 0);
   net_end(&thd->net); // destructor will not free it, because we are weird
@@ -2889,7 +2911,6 @@ void end_relay_log_info(RELAY_LOG_INFO* rli)
     rli->cur_log_fd = -1;
   }
   rli->inited = 0;
-  rli->log_pos_current=0;
   rli->relay_log.close(1);
   DBUG_VOID_RETURN;
 }
@@ -3190,11 +3211,41 @@ Log_event* next_event(RELAY_LOG_INFO* rli)
 	  update. If we do not, show slave status will block
 	*/
 	pthread_mutex_unlock(&rli->data_lock);
- 	/* Note that wait_for_update unlocks lock_log ! */
-	rli->relay_log.wait_for_update(rli->sql_thd);
-	
-	// re-acquire data lock since we released it earlier
-	pthread_mutex_lock(&rli->data_lock);
+
+        /*
+          Possible deadlock : 
+          - the I/O thread has reached log_space_limit
+          - the SQL thread has read all relay logs, but cannot purge for some
+          reason:
+            * it has already purged all logs except the current one
+            * there are other logs than the current one but they're involved in
+            a transaction that finishes in the current one (or is not finished)
+          Solution :
+          Wake up the possibly waiting I/O thread, and set a boolean asking
+          the I/O thread to temporarily ignore the log_space_limit
+          constraint, because we do not want the I/O thread to block because of
+          space (it's ok if it blocks for any other reason (e.g. because the
+          master does not send anything). Then the I/O thread stops waiting 
+          and reads more events.
+          The SQL thread decides when the I/O thread should take log_space_limit
+          into account again : ignore_log_space_limit is reset to 0 
+          in purge_first_log (when the SQL thread purges the just-read relay
+          log), and also when the SQL thread starts. We should also reset
+          ignore_log_space_limit to 0 when the user does RESET SLAVE, but in
+          fact, no need as RESET SLAVE requires that the slave
+          be stopped, and when the SQL thread is later restarted
+          ignore_log_space_limit will be reset to 0.
+        */
+        pthread_mutex_lock(&rli->log_space_lock);
+        // prevent the I/O thread from blocking next times
+        rli->ignore_log_space_limit= 1; 
+        // If the I/O thread is blocked, unblock it
+        pthread_cond_broadcast(&rli->log_space_cond);
+        pthread_mutex_unlock(&rli->log_space_lock);
+        // Note that wait_for_update unlocks lock_log !
+        rli->relay_log.wait_for_update(rli->sql_thd);
+        // re-acquire data lock since we released it earlier
+        pthread_mutex_lock(&rli->data_lock);
 	continue;
       }
       /*

@@ -39,12 +39,12 @@ public:
   String()
   { 
     Ptr=0; str_length=Alloced_length=0; alloced=0; 
-    str_charset=default_charset_info; 
+    str_charset= &my_charset_latin1;
   }
   String(uint32 length_arg)
   { 
     alloced=0; Alloced_length=0; (void) real_alloc(length_arg); 
-    str_charset=default_charset_info;
+    str_charset= &my_charset_latin1;
   }
   String(const char *str, CHARSET_INFO *cs)
   { 

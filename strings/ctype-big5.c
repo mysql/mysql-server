@@ -6244,6 +6244,7 @@ CHARSET_INFO my_charset_big5 =
     sort_order_big5,
     NULL,		/* tab_to_uni   */
     NULL,		/* tab_from_uni */
+    "","",
     1,			/* strxfrm_multiply */
     my_strnncoll_big5,
     my_strnncollsp_big5,

@@ -43,11 +43,6 @@ bool Protocol::net_store_data(const char *from, uint length)
   packet->length((uint) (to+length-packet->ptr()));
   return 0;
 }
-
-inline bool Protocol::convert_str(const char *from, uint length)
-{
-  return convert->store(packet, from, length);
-}
 #endif
 
 
@@ -472,7 +467,6 @@ char *net_store_data(char *to,longlong from)
 void Protocol::init(THD *thd_arg)
 {
   thd=thd_arg;
-  convert=thd->variables.convert_set;
   packet= &thd->packet;
 #ifndef DEBUG_OFF
   field_types= 0;
@@ -487,15 +481,12 @@ void Protocol::init(THD *thd_arg)
     send_fields()
     THD		Thread data object
     list	List of items to send to client
-    convert	object used to convertation to another character set
     flag	Bit mask with the following functions:
 		1 send number of rows
 		2 send default values
 
   DESCRIPTION
     Sum fields has table name empty and field_name.
-    Uses send_fields_convert() and send_fields() depending on
-    if we have an active character set convert or not.
 
   RETURN VALUES
     0	ok
@@ -528,18 +519,20 @@ bool Protocol::send_fields(List<Item> *list, uint flag)
   while ((item=it++))
   {
     char *pos;
+    CHARSET_INFO *cs= system_charset_info;
     Send_field field;
     item->make_field(&field);
     prot.prepare_for_resend();
 
     if (thd->client_capabilities & CLIENT_PROTOCOL_41)
     {
-      if (prot.store(field.db_name, (uint) strlen(field.db_name)) ||
-	  prot.store(field.table_name, (uint) strlen(field.table_name)) ||
+      if (prot.store(field.db_name, (uint) strlen(field.db_name), cs) ||
+	  prot.store(field.table_name, (uint) strlen(field.table_name), cs) ||
 	  prot.store(field.org_table_name,
-		     (uint) strlen(field.org_table_name)) ||
-	  prot.store(field.col_name, (uint) strlen(field.col_name)) ||
-	  prot.store(field.org_col_name, (uint) strlen(field.org_col_name)) ||
+		     (uint) strlen(field.org_table_name), cs) ||
+	  prot.store(field.col_name, (uint) strlen(field.col_name), cs) ||
+	  prot.store(field.org_col_name, 
+		     (uint) strlen(field.org_col_name), cs) ||
 	  packet->realloc(packet->length()+12))
 	goto err;
       /* Store fixed length fields */
@@ -556,8 +549,8 @@ bool Protocol::send_fields(List<Item> *list, uint flag)
     }
     else
     {
-      if (prot.store(field.table_name, (uint) strlen(field.table_name)) ||
-	  prot.store(field.col_name, (uint) strlen(field.col_name)) ||
+      if (prot.store(field.table_name, (uint) strlen(field.table_name), cs) ||
+	  prot.store(field.col_name, (uint) strlen(field.col_name), cs) ||
 	  packet->realloc(packet->length()+10))
 	goto err;
       pos= (char*) packet->ptr()+packet->length();
@@ -639,12 +632,12 @@ bool Protocol::write()
     1		error
 */
 
-bool Protocol::store(const char *from)
+bool Protocol::store(const char *from, CHARSET_INFO *cs)
 {
   if (!from)
     return store_null();
   uint length= strlen(from);
-  return store(from, length);
+  return store(from, length, cs);
 }
 
 
@@ -668,7 +661,7 @@ bool Protocol::store(I_List<i_string>* str_list)
   }
   if ((len= tmp.length()))
     len--;					// Remove last ','
-  return store((char*) tmp.ptr(), len);
+  return store((char*) tmp.ptr(), len,  tmp.charset());
 }
 
 
@@ -701,7 +694,7 @@ bool Protocol_simple::store_null()
 #endif
 
 
-bool Protocol_simple::store(const char *from, uint length)
+bool Protocol_simple::store(const char *from, uint length, CHARSET_INFO *cs)
 {
 #ifndef DEBUG_OFF
   DBUG_ASSERT(field_types == 0 ||
@@ -710,16 +703,24 @@ bool Protocol_simple::store(const char *from, uint length)
 	       field_types[field_pos] <= MYSQL_TYPE_GEOMETRY));
   field_pos++;
 #endif
-  if (convert)
-    return convert_str(from, length);
-  return net_store_data(from, length);
+  if (!my_charset_same(cs, this->thd->charset()) &&
+      (cs != &my_charset_bin) &&
+      (this->thd->charset() != &my_charset_bin) &&
+      (this->thd->variables.convert_result_charset))
+  {
+    convert.copy(from, length, cs, this->thd->charset());
+    return net_store_data(convert.ptr(), convert.length());
+  }
+  else
+    return net_store_data(from, length);
 }
 
 
 bool Protocol_simple::store_tiny(longlong from)
 {
 #ifndef DEBUG_OFF
-  DBUG_ASSERT(field_types == 0 || field_types[field_pos++] == MYSQL_TYPE_TINY);
+  DBUG_ASSERT(field_types == 0 || field_types[field_pos] == MYSQL_TYPE_TINY);
+  field_pos++;
 #endif
   char buff[20];
   return net_store_data((char*) buff,
@@ -731,7 +732,8 @@ bool Protocol_simple::store_short(longlong from)
 {
 #ifndef DEBUG_OFF
   DBUG_ASSERT(field_types == 0 ||
-	      field_types[field_pos++] == MYSQL_TYPE_SHORT);
+	      field_types[field_pos] == MYSQL_TYPE_SHORT);
+  field_pos++;
 #endif
   char buff[20];
   return net_store_data((char*) buff,
@@ -742,7 +744,10 @@ bool Protocol_simple::store_short(longlong from)
 bool Protocol_simple::store_long(longlong from)
 {
 #ifndef DEBUG_OFF
-  DBUG_ASSERT(field_types == 0 || field_types[field_pos++] == MYSQL_TYPE_LONG);
+  DBUG_ASSERT(field_types == 0 ||
+              field_types[field_pos] == MYSQL_TYPE_INT24 ||
+              field_types[field_pos] == MYSQL_TYPE_LONG);
+  field_pos++;
 #endif
   char buff[20];
   return net_store_data((char*) buff,
@@ -754,7 +759,8 @@ bool Protocol_simple::store_longlong(longlong from, bool unsigned_flag)
 {
 #ifndef DEBUG_OFF
   DBUG_ASSERT(field_types == 0 ||
-	      field_types[field_pos++] == MYSQL_TYPE_LONGLONG);
+	      field_types[field_pos] == MYSQL_TYPE_LONGLONG);
+  field_pos++;
 #endif
   char buff[22];
   return net_store_data((char*) buff,
@@ -768,7 +774,8 @@ bool Protocol_simple::store(float from, uint32 decimals, String *buffer)
 {
 #ifndef DEBUG_OFF
   DBUG_ASSERT(field_types == 0 ||
-	      field_types[field_pos++] == MYSQL_TYPE_FLOAT);
+	      field_types[field_pos] == MYSQL_TYPE_FLOAT);
+  field_pos++;
 #endif
   buffer->set((double) from, decimals, thd->variables.thd_charset);
   return net_store_data((char*) buffer->ptr(), buffer->length());
@@ -779,7 +786,8 @@ bool Protocol_simple::store(double from, uint32 decimals, String *buffer)
 {
 #ifndef DEBUG_OFF
   DBUG_ASSERT(field_types == 0 ||
-	      field_types[field_pos++] == MYSQL_TYPE_DOUBLE);
+	      field_types[field_pos] == MYSQL_TYPE_DOUBLE);
+  field_pos++;
 #endif
   buffer->set(from, decimals, thd->variables.thd_charset);
   return net_store_data((char*) buffer->ptr(), buffer->length());
@@ -794,11 +802,18 @@ bool Protocol_simple::store(Field *field)
   field_pos++;
 #endif
   char buff[MAX_FIELD_WIDTH];
-  String tmp(buff,sizeof(buff), &my_charset_bin);
-  field->val_str(&tmp,&tmp);
-  if (convert)
-    return convert_str(tmp.ptr(), tmp.length());
-  return net_store_data(tmp.ptr(), tmp.length());
+  String str(buff,sizeof(buff), &my_charset_bin);
+  field->val_str(&str,&str);
+  if (!my_charset_same(field->charset(), this->thd->charset()) &&
+      (field->charset() != &my_charset_bin) &&
+      (this->thd->charset() != &my_charset_bin) &&
+      (this->thd->variables.convert_result_charset))
+  {
+    convert.copy(str.ptr(), str.length(), str.charset(), this->thd->charset());
+    return net_store_data(convert.ptr(), convert.length());
+  }
+  else
+    return net_store_data(str.ptr(), str.length());
 }
 
 
@@ -827,7 +842,8 @@ bool Protocol_simple::store_date(TIME *tm)
 {
 #ifndef DEBUG_OFF
   DBUG_ASSERT(field_types == 0 ||
-	      field_types[field_pos++] == MYSQL_TYPE_DATE);
+	      field_types[field_pos] == MYSQL_TYPE_DATE);
+  field_pos++;
 #endif
   char buff[40];
   uint length;
@@ -843,7 +859,8 @@ bool Protocol_simple::store_time(TIME *tm)
 {
 #ifndef DEBUG_OFF
   DBUG_ASSERT(field_types == 0 ||
-	      field_types[field_pos++] == MYSQL_TYPE_TIME);
+	      field_types[field_pos] == MYSQL_TYPE_TIME);
+  field_pos++;
 #endif
   char buff[40];
   uint length;
@@ -894,7 +911,7 @@ void Protocol_prep::prepare_for_resend()
 }
 
 
-bool Protocol_prep::store(const char *from,uint length)
+bool Protocol_prep::store(const char *from,uint length, CHARSET_INFO *cs)
 {
 #ifndef DEBUG_OFF
   DBUG_ASSERT(field_types == 0 ||
@@ -903,8 +920,6 @@ bool Protocol_prep::store(const char *from,uint length)
 	       field_types[field_pos] <= MYSQL_TYPE_GEOMETRY));
 #endif
   field_pos++;
-  if (convert)
-    return convert_str(from, length);
   return net_store_data(from, length);
 }
 
@@ -1033,7 +1048,7 @@ bool Protocol_prep::store(TIME *tm)
   uint length;
   field_pos++;
   pos= buff+1;
-  
+
   int2store(pos, tm->year);
   pos[2]= (uchar) tm->month;
   pos[3]= (uchar) tm->day;
@@ -1072,7 +1087,7 @@ bool Protocol_prep::store_time(TIME *tm)
   field_pos++;
   pos= buff+1;
   pos[0]= tm->neg ? 1 : 0;
-  int4store(pos+1, tm->day); 
+  int4store(pos+1, tm->day);
   pos[5]= (uchar) tm->hour;
   pos[6]= (uchar) tm->minute;
   pos[7]= (uchar) tm->second;

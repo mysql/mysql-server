@@ -71,7 +71,7 @@ public:
   virtual String *val_str(String*,String *)=0;
   virtual Item_result result_type () const=0;
   virtual Item_result cmp_type () const { return result_type(); }
-  bool eq(Field *field) { return ptr == field->ptr; }
+  bool eq(Field *field) { return ptr == field->ptr && null_ptr == field->null_ptr; }
   virtual bool eq_def(Field *field);
   virtual uint32 pack_length() const { return (uint32) field_length; }
   virtual void reset(void) { bzero(ptr,pack_length()); }
@@ -843,9 +843,10 @@ public:
 
 
 class Field_blob :public Field_str {
+  bool geom_flag;
+protected:
   uint packlength;
   String value;				// For temporaries
-  bool geom_flag;
 public:
   Field_blob(char *ptr_arg, uchar *null_ptr_arg, uchar null_bit_arg,
 	     enum utype unireg_check_arg, const char *field_name_arg,
@@ -855,7 +856,7 @@ public:
 	     struct st_table *table_arg, CHARSET_INFO *cs)
     :Field_str((char*) 0,len_arg, maybe_null_arg ? (uchar*) "": 0,0,
 	       NONE, field_name_arg, table_arg, cs),
-    packlength(3), geom_flag(true)
+    geom_flag(true), packlength(3)
     {
       flags|= BLOB_FLAG;
     }
@@ -940,8 +941,11 @@ public:
      :Field_blob(len_arg, maybe_null_arg, field_name_arg,
                  table_arg, &my_charset_bin) {}
   enum ha_base_keytype key_type() const { return HA_KEYTYPE_VARBINARY; }
-  enum_field_types type() const { return FIELD_TYPE_GEOMETRY;}
+  enum_field_types type() const { return FIELD_TYPE_GEOMETRY; }
   void sql_type(String &str) const;
+  int  store(const char *to, uint length, CHARSET_INFO *charset);
+  int  store(double nr) { return 1; }
+  int  store(longlong nr) { return 1; }
 
   void get_key_image(char *buff,uint length, CHARSET_INFO *cs,imagetype type);
   void set_key_image(char *buff,uint length, CHARSET_INFO *cs);

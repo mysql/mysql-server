@@ -122,6 +122,8 @@ public:
   {
     cmp.set_cmp_func(this, tmp_arg, tmp_arg+1);
   }
+  bool set_cmp_charset(CHARSET_INFO *cs1, enum coercion co1, 
+  		       CHARSET_INFO *cs2, enum coercion co2);
   optimize_type select_optimize() const { return OPTIMIZE_OP; }
   virtual enum Functype rev_functype() const { return UNKNOWN_FUNC; }
   bool have_rev_func() const { return rev_functype() != UNKNOWN_FUNC; }
@@ -482,7 +484,7 @@ public:
   int cmp(Item *arg)
   {
     char buff[80];
-    String tmp(buff, sizeof(buff), default_charset_info), *res;
+    String tmp(buff, sizeof(buff), cmp_charset), *res;
     if (!(res= arg->val_str(&tmp)))
       return 1;				/* Can't be right */
     return sortcmp(value_res, res, cmp_charset);

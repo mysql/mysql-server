@@ -63,6 +63,13 @@
 
 #define MAX_SORT_MEMORY (2048*1024-MALLOC_OVERHEAD)
 #define MIN_SORT_MEMORY (32*1024-MALLOC_OVERHEAD)
+
+/* Memory allocated when parsing a statement / saving a statement */
+#define MEM_ROOT_BLOCK_SIZE       8192
+#define MEM_ROOT_PREALLOC         8192
+#define TRANS_MEM_ROOT_BLOCK_SIZE 4096
+#define TRANS_MEM_ROOT_PREALLOC   4096
+
 #define DEFAULT_ERROR_COUNT	64
 #define DEFAULT_PREP_STMT_COUNT	64
 #define EXTRA_RECORDS	10			/* Extra records in sort */
@@ -84,7 +91,7 @@
 
 #define SPECIAL_USE_LOCKS	1		/* Lock used databases */
 #define SPECIAL_NO_NEW_FUNC	2		/* Skip new functions */
-#define SPECIAL_NEW_FUNC	4		/* New nonstandard functions */
+#define SPECIAL_SKIP_SHOW_DB    4               /* Don't allow 'show db' */
 #define SPECIAL_WAIT_IF_LOCKED	8		/* Wait if locked database */
 #define SPECIAL_SAME_DB_NAME   16		/* form name = file name */
 #define SPECIAL_ENGLISH        32		/* English error messages */
@@ -94,7 +101,6 @@
 #define SPECIAL_NO_HOST_CACHE	512		/* Don't cache hosts */
 #define SPECIAL_LONG_LOG_FORMAT 1024
 #define SPECIAL_SAFE_MODE	2048
-#define SPECIAL_SKIP_SHOW_DB	4096		/* Don't allow 'show db' */
 
 	/* Extern defines */
 #define store_record(A,B) bmove_allign((A)->record[B],(A)->record[0],(size_t) (A)->reclength)

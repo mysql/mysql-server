@@ -4486,6 +4486,7 @@ CHARSET_INFO my_charset_sjis =
     sort_order_sjis,
     NULL,		/* tab_to_uni   */
     NULL,		/* tab_from_uni */
+    "","",
     1,			/* strxfrm_multiply */
     my_strnncoll_sjis,
     my_strnncollsp_sjis,

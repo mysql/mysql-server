@@ -39,7 +39,7 @@
 # as such, and clarify ones such as "mediumint" with comments such as
 # "3-byte int" or "same as xxx".
 
-$version="1.60";
+$version="1.61";
 
 use DBI;
 use Getopt::Long;
@@ -74,7 +74,7 @@ usage() if ($opt_help || $opt_Information);
 version() && exit(0) if ($opt_version);
 
 $opt_suffix = '-'.$opt_suffix if (length($opt_suffix) != 0);
-$opt_config_file = "$pwd/$opt_dir/$opt_server$opt_suffix.cfg"  
+$opt_config_file = "$pwd/$opt_dir/$opt_server$opt_suffix.cfg"
   if (length($opt_config_file) == 0);
 $log_prefix='   ###';  # prefix for log lines in result file
 $safe_query_log='';
@@ -540,7 +540,7 @@ else
           "  Please start it and try again\n";
     exit 1;
   }
-  $dbh=safe_connect();
+  $dbh=retry_connect();
 }
 
 
@@ -2880,9 +2880,10 @@ As all used queries are legal according to some SQL standard. any
 reasonable SQL server should be able to run this test without any
 problems.
 
-All questions is cached in $opt_dir/'server_name'.cfg that future runs will use
-limits found in previous runs. Remove this file if you want to find the
-current limits for your version of the database server.
+All questions is cached in $opt_dir/'server_name'[-suffix].cfg that
+future runs will use limits found in previous runs. Remove this file
+if you want to find the current limits for your version of the
+database server.
 
 This program uses some table names while testing things. If you have any
 tables with the name of 'crash_me' or 'crash_qxxxx' where 'x' is a number,
@@ -3152,7 +3153,29 @@ sub safe_connect
 }
 
 #
-# Check if the server is upp and running. If not, ask the user to restart it
+# Test connecting a couple of times before giving an error
+# This is needed to get the server time to free old connections
+# after the connect test
+#
+
+sub retry_connect
+{
+  my ($dbh, $i);
+  for ($i=0 ; $i < 10 ; $i++)
+  {
+    if (($dbh=DBI->connect($server->{'data_source'},$opt_user,$opt_password,
+			 { PrintError => 0, AutoCommit => 1})))
+    {
+      $dbh->{LongReadLen}= 16000000; # Set max retrieval buffer
+      return $dbh;
+    }
+    sleep(1);
+  }
+  return safe_connect();
+}
+
+#
+# Check if the server is up and running. If not, ask the user to restart it
 #
 
 sub check_connect

@@ -328,7 +328,7 @@ int Log_event::exec_event(struct st_relay_log_info* rli)
  ****************************************************************************/
 void Log_event::pack_info(Protocol *protocol)
 {
-  protocol->store("",0);
+  protocol->store("", &my_charset_bin);
 }
 
 
@@ -348,10 +348,10 @@ int Log_event::net_send(Protocol *protocol, const char* log_name, my_off_t pos)
     log_name = p + 1;
   
   protocol->prepare_for_resend();
-  protocol->store(log_name);
+  protocol->store(log_name, &my_charset_bin);
   protocol->store((ulonglong) pos);
   event_type = get_type_str();
-  protocol->store(event_type, strlen(event_type));
+  protocol->store(event_type, strlen(event_type), &my_charset_bin);
   protocol->store((uint32) server_id);
   protocol->store((ulonglong) log_pos);
   pack_info(protocol);
@@ -550,6 +550,15 @@ err:
     sql_print_error("Error in Log_event::read_log_event(): '%s', \
 data_len=%d,event_type=%d",error,data_len,head[EVENT_TYPE_OFFSET]);
     my_free(buf, MYF(MY_ALLOW_ZERO_PTR));
+    /*
+      The SQL slave thread will check if file->error<0 to know
+      if there was an I/O error. Even if there is no "low-level" I/O errors
+      with 'file', any of the high-level above errors is worrying
+      enough to stop the SQL thread now ; as we are skipping the current event,
+      going on with reading and successfully executing other events can
+      only corrupt the slave's databases. So stop.
+    */
+    file->error= -1;
   }
   return res;
 }
@@ -722,7 +731,7 @@ void Query_log_event::pack_info(Protocol *protocol)
     memcpy(pos, query, q_len);
     pos+= q_len;
   }
-  protocol->store(buf, pos-buf);
+  protocol->store(buf, pos-buf, &my_charset_bin);
   my_free(buf, MYF(MY_ALLOW_ZERO_PTR));
 }
 #endif
@@ -866,7 +875,6 @@ void Query_log_event::print(FILE* file, bool short_form, char* last_db)
 int Query_log_event::exec_event(struct st_relay_log_info* rli)
 {
   int expected_error,actual_error = 0;
-  init_sql_alloc(&thd->mem_root, 8192,0);
   thd->db = rewrite_db((char*)db);
 
   /*
@@ -943,7 +951,7 @@ int Query_log_event::exec_event(struct st_relay_log_info* rli)
       VOID(pthread_mutex_lock(&LOCK_thread_count));
       thd->db = thd->query = 0;
       VOID(pthread_mutex_unlock(&LOCK_thread_count));
-      thd->variables.convert_set = 0;
+      //thd->variables.convert_set = 0;
       close_thread_tables(thd);
       free_root(&thd->mem_root,0);
       return 1;
@@ -954,7 +962,7 @@ int Query_log_event::exec_event(struct st_relay_log_info* rli)
   thd->query= 0;			// just to be sure
   VOID(pthread_mutex_unlock(&LOCK_thread_count));
   // assume no convert for next query unless set explictly
-  thd->variables.convert_set = 0;
+  //thd->variables.convert_set = 0;
   close_thread_tables(thd);
       
   if (thd->query_error || thd->is_fatal_error)
@@ -992,7 +1000,7 @@ void Start_log_event::pack_info(Protocol *protocol)
   pos= strmov(pos, server_version);
   pos= strmov(pos, ", Binlog ver: ");
   pos=int10_to_str(binlog_version, pos, 10);
-  protocol->store(buf, pos-buf);
+  protocol->store(buf, pos-buf, &my_charset_bin);
 }
 #endif
 
@@ -1066,6 +1074,7 @@ int Start_log_event::write_data(IO_CACHE* file)
 #if defined(HAVE_REPLICATION) && !defined(MYSQL_CLIENT)
 int Start_log_event::exec_event(struct st_relay_log_info* rli)
 {
+  DBUG_ENTER("Start_log_event::exec_event");
   /* All temporary tables was deleted on the master */
   close_temporary_tables(thd);
   /*
@@ -1073,7 +1082,7 @@ int Start_log_event::exec_event(struct st_relay_log_info* rli)
   */
   if (!rli->mi->old_format)
     cleanup_load_tmpdir();
-  return Log_event::exec_event(rli);
+  DBUG_RETURN(Log_event::exec_event(rli));
 }
 #endif
 
@@ -1191,7 +1200,7 @@ void Load_log_event::pack_info(Protocol *protocol)
     *pos++= ')';
   }
 
-  protocol->store(buf, pos-buf);
+  protocol->store(buf, pos-buf, &my_charset_bin);
   my_free(buf, MYF(MY_ALLOW_ZERO_PTR));
 }
 #endif
@@ -1526,7 +1535,6 @@ void Load_log_event::set_fields(List<Item> &field_list)
 int Load_log_event::exec_event(NET* net, struct st_relay_log_info* rli, 
 			       bool use_rli_only_for_errors)
 {
-  init_sql_alloc(&thd->mem_root, 8192,0);
   thd->db = rewrite_db((char*)db);
   DBUG_ASSERT(thd->query == 0);
   thd->query = 0;				// Should not be needed
@@ -1545,6 +1553,7 @@ int Load_log_event::exec_event(NET* net, struct st_relay_log_info* rli,
     tables.db = thd->db;
     tables.alias = tables.real_name = (char*)table_name;
     tables.lock_type = TL_WRITE;
+    tables.updating= 1;
     // the table will be opened in mysql_load    
     if (table_rules_on && !tables_ok(thd, &tables))
     {
@@ -1665,7 +1674,7 @@ void Rotate_log_event::pack_info(Protocol *protocol)
   b_pos=longlong10_to_str(pos, b_pos, 10);
   if (flags & LOG_EVENT_FORCED_ROTATE_F)
     b_pos= strmov(b_pos ,"; forced by master");
-  protocol->store(buf, b_pos-buf);
+  protocol->store(buf, b_pos-buf, &my_charset_bin);
   my_free(buf, MYF(MY_ALLOW_ZERO_PTR));
 }
 #endif
@@ -1800,7 +1809,7 @@ void Intvar_log_event::pack_info(Protocol *protocol)
   pos= strmov(buf, get_var_type_name());
   *(pos++)='=';
   pos= longlong10_to_str(val, pos, -10);
-  protocol->store(buf, pos-buf);
+  protocol->store(buf, pos-buf, &my_charset_bin);
 }
 #endif
 
@@ -1911,7 +1920,7 @@ void Rand_log_event::pack_info(Protocol *protocol)
   pos= int10_to_str((long) seed1, pos, 10);
   pos= strmov(pos, ",rand_seed2=");
   pos= int10_to_str((long) seed2, pos, 10);
-  protocol->store(buf1, (uint) (pos-buf1));
+  protocol->store(buf1, (uint) (pos-buf1), &my_charset_bin);
 }
 #endif
 
@@ -2013,7 +2022,7 @@ void User_var_log_event::pack_info(Protocol* protocol)
   buf[0]= '@';
   buf[1+name_len]= '=';
   memcpy(buf+1, name, name_len);
-  protocol->store(buf, event_len);
+  protocol->store(buf, event_len, &my_charset_bin);
   my_free(buf, MYF(MY_ALLOW_ZERO_PTR));
 }
 #endif // !MYSQL_CLIENT
@@ -2154,9 +2163,6 @@ int User_var_log_event::exec_event(struct st_relay_log_info* rli)
   double real_val;
   longlong int_val;
 
-  if (type != ROW_RESULT)
-    init_sql_alloc(&thd->mem_root, 8192,0);
-
   if (is_null)
   {
     it= new Item_null();
@@ -2213,7 +2219,7 @@ void Slave_log_event::pack_info(Protocol *protocol)
   pos= strmov(pos, master_log);
   pos= strmov(pos, ",pos=");
   pos= longlong10_to_str(master_pos, pos, 10);
-  protocol->store(buf, pos-buf);
+  protocol->store(buf, pos-buf, &my_charset_bin);
 }
 #endif // !MYSQL_CLIENT
 
@@ -2547,7 +2553,7 @@ void Create_file_log_event::pack_info(Protocol *protocol)
   pos= int10_to_str((long) file_id, pos, 10);
   pos= strmov(pos, ";block_len=");
   pos= int10_to_str((long) block_len, pos, 10);
-  protocol->store(buf, pos-buf);
+  protocol->store(buf, pos-buf, &my_charset_bin);
 }
 #endif
 
@@ -2698,7 +2704,7 @@ void Append_block_log_event::pack_info(Protocol *protocol)
   length= (uint) my_sprintf(buf,
 			    (buf, ";file_id=%u;block_len=%u", file_id,
 			     block_len));
-  protocol->store(buf, (int32) length);
+  protocol->store(buf, (int32) length, &my_charset_bin);
 }
 #endif
 
@@ -2811,7 +2817,7 @@ void Delete_file_log_event::pack_info(Protocol *protocol)
   char buf[64];
   uint length;
   length= (uint) my_sprintf(buf, (buf, ";file_id=%u", (uint) file_id));
-  protocol->store(buf, (int32) length);
+  protocol->store(buf, (int32) length, &my_charset_bin);
 }
 #endif
 
@@ -2910,7 +2916,7 @@ void Execute_load_log_event::pack_info(Protocol *protocol)
   char buf[64];
   uint length;
   length= (uint) my_sprintf(buf, (buf, ";file_id=%u", (uint) file_id));
-  protocol->store(buf, (int32) length);
+  protocol->store(buf, (int32) length, &my_charset_bin);
 }
 
 /*****************************************************************************

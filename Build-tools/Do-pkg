@@ -3,6 +3,15 @@
 # Do-pkg - convert a binary distribution into a Mac OS X PKG and put it
 # inside a Disk Image (.dmg)
 #
+# The script currently assumes the following environment (which should exist
+# like that, if the Do-compile script was used to build the binary
+# distribution)
+#
+# - there must be a binary distribution (*.tar.gz) in the directory
+#   `hostname` of the current directory
+# - the extracted and compiled source tree should be located in the
+#   `hostname` directory, too
+#
 # Use the "--help" option for more info!
 #
 # written by Lenz Grimmer <lenz@mysql.com>
@@ -15,6 +24,7 @@ $opt_dry_run= undef;
 $opt_help= undef;
 $opt_log= undef;
 $opt_mail= "";
+$opt_skip_dmg= undef;
 $opt_suffix= undef;
 $opt_verbose= undef;
 $opt_version= undef;
@@ -24,6 +34,7 @@ GetOptions(
 	"help|h",
 	"log|l:s",
 	"mail|m=s",
+	"skip-dmg|skip-disk-image|s",
 	"suffix=s",
 	"verbose|v",
 	"version=s",
@@ -32,7 +43,7 @@ GetOptions(
 # Include helper functions
 chomp($PWD= `pwd`);
 $LOGGER= "$PWD/logger.pm";
-if (-f $LOGGER)
+if (-f "$LOGGER")
 {
 	do "$LOGGER";
 }
@@ -42,7 +53,8 @@ else
 }
 
 $PM= "/Developer/Applications/PackageMaker.app/Contents/MacOS/PackageMaker";
-$TMP= "/tmp/PKGBUILD";
+$TMP= $ENV{TMPDIR};
+$TMP eq "" ?  $TMP= $TMP . "/PKGBUILD": $TMP= "/tmp/PKGBUILD";
 $PKGROOT= "$TMP/PMROOT";
 $PKGDEST= "$TMP/PKG";
 $RESOURCE_DIR= "$TMP/Resources";
@@ -56,11 +68,13 @@ $HOST=~ /^([^.-]*)/;
 $HOST= $1;
 $LOGFILE= "$PWD/Logs/$HOST-$MAJOR.$MINOR$SUFFIX.log";
 $BUILDDIR= "$PWD/$HOST";
-$SUPFILEDIR= <$BUILDDIR/mysql*-$VERSION/support-files/MacOSX>;
+$SRCBASEDIR= <$BUILDDIR/mysql*-$VERSION>;
+$SUPFILEDIR= <$SRCBASEDIR/support-files/MacOSX>;
 $TAR= <$BUILDDIR/$NAME-apple-darwin*-powerpc.tar.gz>;
 $INFO= <$SUPFILEDIR/Info.plist>;
 $DESC= <$SUPFILEDIR/Description.plist>;
 @RESOURCES= qw/ ReadMe.txt postinstall preinstall /;
+@LICENSES= ("$SRCBASEDIR/COPYING","$SRCBASEDIR/MySQLEULA.txt");
 
 &print_help("") if ($opt_help || !$opt_suffix || !$opt_version);
 
@@ -87,7 +101,7 @@ die("You must be root to run this script!") if ($ID ne "root" && !$opt_dry_run);
 
 foreach $file ($TAR, $INFO, $DESC)
 {
-	&abort("Unable to find $file!") if (!-f $file);
+	&abort("Unable to find $file!") unless (-f "$file");
 }
 
 # Remove old temporary build directories first
@@ -108,6 +122,18 @@ foreach $resfile (@RESOURCES)
 	&run_command($command, "Error while copying $SUPFILEDIR/$resfile to $RESOURCE_DIR");
 }
 
+# Search for license file
+foreach $license (@LICENSES)
+{
+	if (-f "$license")
+	{
+		$command= "cp $license $RESOURCE_DIR/License.txt";
+		&run_command($command, "Error while copying $license to $RESOURCE_DIR");
+	}
+}
+
+&abort("Could not find a license file!") unless (-f "$RESOURCE_DIR/License.txt");
+
 # Extract the binary tarball and create the "mysql" symlink
 &logger("Extracting $TAR to $PKGROOT");
 &run_command("gnutar zxf $TAR -C $PKGROOT", "Unable to extract $TAR!");
@@ -123,6 +149,12 @@ $command= "$PM -build -p $PKGDEST/$NAME.pkg -f $PKGROOT -r $RESOURCE_DIR -i $INF
 
 &logger("Removing $PKGROOT");
 &run_command("rm -rf $PKGROOT", "Unable to remove $PKGROOT!");
+
+if ($opt_skip_dmg)
+{
+	&logger("SUCCESS: Package $PKGDEST/$NAME.pkg created");
+	exit 0;
+}
 
 # Determine the size of the Disk image to be created and add a 5% safety
 # margin for filesystem overhead
@@ -198,6 +230,8 @@ Options:
                               is enabled)
                               Note that the \@-Sign needs to be quoted!
                               Example: --mail=user\\\@domain.com
+-s, --skip-disk-image         Just build the PKG, don't put it into a
+                              disk image afterwards
     --suffix=<suffix>         The package suffix (e.g. "-standard" or "-pro)
     --version=<version>       The MySQL version number (e.g. 4.0.11-gamma)
 -v, --verbose                 Verbose execution

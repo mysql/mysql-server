@@ -34,8 +34,7 @@ pkgdata_DATA =		my-small.cnf \
 			my-large.cnf \
 			my-huge.cnf \
 			mysql-log-rotate \
-			mysql-@VERSION@.spec \
-			binary-configure
+			mysql-@VERSION@.spec
 
 pkgdata_SCRIPTS =	mysql.server
 
@@ -48,7 +47,6 @@ CLEANFILES =		my-small.cnf \
 			mysql-log-rotate \
 			mysql.server \
 			binary-configure
-			 
 
 mysql-@VERSION@.spec:	mysql.spec
 			rm -f $@
@@ -97,6 +95,8 @@ SUFFIXES = .sh
 	  -e 's!@''PERL_DATA_DUMPER''@!@PERL_DATA_DUMPER@!' \
 	$< > $@-t
 	@MV@ $@-t $@
+
+all:	binary-configure
 
 # Don't update the files from bitkeeper
 %::SCCS/s.%

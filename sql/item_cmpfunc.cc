@@ -87,6 +87,49 @@ static bool convert_constant_item(Field *field, Item **item)
   return 0;
 }
 
+bool Item_bool_func2::set_cmp_charset(CHARSET_INFO *cs1, enum coercion co1,
+				      CHARSET_INFO *cs2, enum coercion co2)
+{
+  if((cs1 == &my_charset_bin) || (cs2 == &my_charset_bin))
+  {
+    cmp_charset= &my_charset_bin;
+    return 0;
+  }
+
+  if ((co1 == COER_NOCOLL) || (co2 == COER_NOCOLL))
+    return 1;
+
+  if (!my_charset_same(cs1,cs2))
+    return 1;
+
+  if (co1 < co2)
+    cmp_charset= cs1;
+  else if (co2 < co1)
+    cmp_charset= cs2;
+  else // co1==co2
+  {
+    if (cs1 == cs2)
+      cmp_charset= cs1;
+    else
+    {
+      if (co1 == COER_COERCIBLE)
+      {
+        CHARSET_INFO *c= get_charset_by_csname(cs1->csname,MY_CS_PRIMARY,MYF(0));
+	if (c)
+	{
+	  cmp_charset= c;
+	  return 0;
+	}
+	else
+	  return 1;
+      }
+       else
+	return 1;
+    }
+  }
+  return 0;
+}
+
 void Item_bool_func2::fix_length_and_dec()
 {
   max_length= 1;				     // Function returns 0 or 1
@@ -124,10 +167,13 @@ void Item_bool_func2::fix_length_and_dec()
       }
     }
   }
+  if (set_cmp_charset(args[0]->charset(), args[0]->coercibility,
+		      args[1]->charset(), args[1]->coercibility))
+  {
+    my_error(ER_WRONG_ARGUMENTS,MYF(0),func_name());
+    return;
+  }
   set_cmp_func();
-  /* QQ: COERCIBILITY */
-  cmp_charset= (args[0]->binary() || args[1]->binary()) ? 
-	      &my_charset_bin : args[0]->charset();
 }
 
 
@@ -266,8 +312,8 @@ int Arg_comparator::compare_e_row()
   uint n= (*a)->cols();
   for (uint i= 0; i<n; i++)
   {
-    if ((res= comparators[i].compare()))
-      return 1;
+    if ((res= !comparators[i].compare()))
+      return 0;
   }
   return 1;
 }
@@ -298,12 +344,22 @@ bool Item_in_optimizer::fix_fields(THD *thd, struct st_table_list *tables,
     return 1;
   cache->setup(args[0]);
   if (cache->cols() == 1)
-    cache->set_used_tables(RAND_TABLE_BIT);
+  {
+    if (args[0]->used_tables())
+      cache->set_used_tables(RAND_TABLE_BIT);
+    else
+      cache->set_used_tables(0);
+  }
   else
   {
     uint n= cache->cols();
     for (uint i= 0; i < n; i++)
-      ((Item_cache *)cache->el(i))->set_used_tables(RAND_TABLE_BIT);
+    {
+      if (args[0]->el(i)->used_tables())
+	((Item_cache *)cache->el(i))->set_used_tables(RAND_TABLE_BIT);
+      else
+	((Item_cache *)cache->el(i))->set_used_tables(0);
+    }
   }
   if (args[1]->fix_fields(thd, tables, args))
     return 1;
@@ -352,7 +408,6 @@ void Item_func_equal::fix_length_and_dec()
 {
   Item_bool_func2::fix_length_and_dec();
   maybe_null=null_value=0;
-  set_cmp_func();
 }
 
 longlong Item_func_equal::val_int()
@@ -595,6 +650,9 @@ Item_func_ifnull::fix_length_and_dec()
 					  args[1]->result_type())) !=
       REAL_RESULT)
     decimals= 0;
+  if (set_charset(args[0]->charset(),args[0]->coercibility,
+		  args[1]->charset(),args[1]->coercibility))
+    my_error(ER_WRONG_ARGUMENTS,MYF(0),func_name());
 }
 
 
@@ -635,11 +693,13 @@ Item_func_ifnull::val_str(String *str)
   if (!args[0]->null_value)
   {
     null_value=0;
+    res->set_charset(charset());
     return res;
   }
   res=args[1]->val_str(str);
   if ((null_value=args[1]->null_value))
     return 0;
+  res->set_charset(charset());
   return res;
 }
 
@@ -668,8 +728,12 @@ Item_func_if::fix_length_and_dec()
   else if (arg1_type == STRING_RESULT || arg2_type == STRING_RESULT)
   {
     cached_result_type = STRING_RESULT;
-    set_charset((args[1]->binary() || args[2]->binary()) ? 
-		&my_charset_bin : args[1]->charset());
+    if (set_charset(args[1]->charset(), args[1]->coercibility,
+		args[2]->charset(), args[2]->coercibility))
+    {
+      my_error(ER_WRONG_ARGUMENTS,MYF(0),func_name());
+      return;
+    }
   }
   else
   {
@@ -705,6 +769,7 @@ Item_func_if::val_str(String *str)
 {
   Item *arg= args[0]->val_int() ? args[1] : args[2];
   String *res=arg->val_str(str);
+  res->set_charset(charset());
   null_value=arg->null_value;
   return res;
 }
@@ -1114,7 +1179,7 @@ int in_vector::find(Item *item)
 
 in_string::in_string(uint elements,qsort_cmp cmp_func)
   :in_vector(elements, sizeof(String), cmp_func),
-   tmp(buff, sizeof(buff), default_charset_info)
+   tmp(buff, sizeof(buff), &my_charset_bin)
 {}
 
 in_string::~in_string()
@@ -1137,7 +1202,7 @@ void in_string::set(uint pos,Item *item)
   {
     CHARSET_INFO *cs;
     if (!(cs= item->charset()))
-      cs= default_charset_info;		// Should never happen for STR items
+      cs= &my_charset_bin;		// Should never happen for STR items
     str->set_charset(cs);
   }
 }
@@ -1739,7 +1804,7 @@ longlong Item_func_like::val_int()
   null_value=0;
   if (canDoTurboBM)
     return turboBM_matches(res->ptr(), res->length()) ? 1 : 0;
-  return my_wildcmp(charset(),
+  return my_wildcmp(cmp_charset,
 		    res->ptr(),res->ptr()+res->length(),
 		    res2->ptr(),res2->ptr()+res2->length(),
 		    escape,wild_one,wild_many) ? 0 : 1;
@@ -1750,12 +1815,16 @@ longlong Item_func_like::val_int()
 
 Item_func::optimize_type Item_func_like::select_optimize() const
 {
-  if (args[1]->type() == STRING_ITEM)
+  if (args[1]->const_item())
   {
-    if (((Item_string *) args[1])->str_value[0] != wild_many)
+    String* res2= args[1]->val_str((String *)&tmp_value2);
+
+    if (!res2)
+      return OPTIMIZE_NONE;
+
+    if (*res2->ptr() != wild_many)
     {
-      if ((args[0]->result_type() != STRING_RESULT) ||
-	  ((Item_string *) args[1])->str_value[0] != wild_one)
+      if (args[0]->result_type() != STRING_RESULT || *res2->ptr() != wild_one)
 	return OPTIMIZE_OP;
     }
   }
@@ -1768,14 +1837,12 @@ bool Item_func_like::fix_fields(THD *thd, TABLE_LIST *tlist, Item ** ref)
   if (Item_bool_func2::fix_fields(thd, tlist, ref))
     return 1;
 
-  /*
-    Comparision is by default done according to character set of LIKE
-    QQ: COERCIBILITY
-  */
-  if (cmp_charset == &my_charset_bin)
-    set_charset(&my_charset_bin);
-  else
-    set_charset(args[1]->charset());
+  if (set_cmp_charset(args[0]->charset(), args[0]->coercibility,
+		      args[1]->charset(), args[1]->coercibility))
+  {
+    my_error(ER_WRONG_ARGUMENTS,MYF(0),func_name());
+    return 1;
+  }
 
   /*
     We could also do boyer-more for non-const items, but as we would have to
@@ -1840,7 +1907,7 @@ Item_func_regex::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
   if (!regex_compiled && args[1]->const_item())
   {
     char buff[MAX_FIELD_WIDTH];
-    String tmp(buff,sizeof(buff),default_charset_info);
+    String tmp(buff,sizeof(buff),&my_charset_bin);
     String *res=args[1]->val_str(&tmp);
     if (args[1]->null_value)
     {						// Will always return NULL
@@ -1870,7 +1937,7 @@ Item_func_regex::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
 longlong Item_func_regex::val_int()
 {
   char buff[MAX_FIELD_WIDTH];
-  String *res, tmp(buff,sizeof(buff),default_charset_info);
+  String *res, tmp(buff,sizeof(buff),&my_charset_bin);
 
   res=args[0]->val_str(&tmp);
   if (args[0]->null_value)
@@ -1881,7 +1948,7 @@ longlong Item_func_regex::val_int()
   if (!regex_is_const)
   {
     char buff2[MAX_FIELD_WIDTH];
-    String *res2, tmp2(buff2,sizeof(buff2),default_charset_info);
+    String *res2, tmp2(buff2,sizeof(buff2),&my_charset_bin);
 
     res2= args[1]->val_str(&tmp2);
     if (args[1]->null_value)
@@ -2191,17 +2258,19 @@ longlong Item_cond_xor::val_int()
 
 longlong Item_func_spatial_rel::val_int()
 {
-  String *res1=args[0]->val_str(&tmp_value1);
-  String *res2=args[1]->val_str(&tmp_value2);
+  String *res1= args[0]->val_str(&tmp_value1);
+  String *res2= args[1]->val_str(&tmp_value2);
   Geometry g1, g2;
-  MBR mbr1,mbr2;
+  MBR mbr1, mbr2;
 
-  if ((null_value=(args[0]->null_value ||
-                   args[1]->null_value ||
-                   g1.create_from_wkb(res1->ptr(),res1->length()) || 
-                   g2.create_from_wkb(res2->ptr(),res2->length()) ||
-                   g1.get_mbr(&mbr1) || 
-                   g2.get_mbr(&mbr2))))
+  if ((null_value= (args[0]->null_value ||
+		    args[1]->null_value ||
+		    g1.create_from_wkb(res1->ptr() + SRID_SIZE,
+				       res1->length() - SRID_SIZE) || 
+		    g2.create_from_wkb(res2->ptr() + SRID_SIZE,
+				       res2->length() - SRID_SIZE) ||
+		    g1.get_mbr(&mbr1) || 
+		    g2.get_mbr(&mbr2))))
    return 0;
 
   switch (spatial_rel)
@@ -2251,15 +2320,16 @@ longlong Item_func_issimple::val_int()
 longlong Item_func_isclosed::val_int()
 {
   String tmp;
-  String *wkb=args[0]->val_str(&tmp);
+  String *swkb= args[0]->val_str(&tmp);
   Geometry geom;
   int isclosed;
 
-  null_value= (!wkb || 
-               args[0]->null_value ||
-               geom.create_from_wkb(wkb->ptr(),wkb->length()) ||
-               !GEOM_METHOD_PRESENT(geom,is_closed) ||
-               geom.is_closed(&isclosed));
+  null_value= (!swkb || 
+	       args[0]->null_value ||
+	       geom.create_from_wkb(swkb->ptr() + SRID_SIZE,
+				    swkb->length() - SRID_SIZE) ||
+	       !GEOM_METHOD_PRESENT(geom,is_closed) ||
+	       geom.is_closed(&isclosed));
 
   return (longlong) isclosed;
 }

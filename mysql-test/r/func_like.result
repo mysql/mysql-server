@@ -1,7 +1,17 @@
 drop table if exists t1;
 create table t1 (a varchar(10), key(a));
 insert into t1 values ("a"),("abc"),("abcd"),("hello"),("test");
+explain select * from t1 where a like 'abc%';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	a	a	11	NULL	1	Using where; Using index
+explain select * from t1 where a like concat('abc','%');
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	a	a	11	NULL	1	Using where; Using index
 select * from t1 where a like "abc%";
+a
+abc
+abcd
+select * from t1 where a like concat("abc","%");
 a
 abc
 abcd
