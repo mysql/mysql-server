@@ -435,3 +435,11 @@ drop table t1;
 
 select quote(ltrim(concat('    ', 'a')));
 select quote(trim(concat('    ', 'a')));
+
+#
+# Bug#7455 unexpected result: TRIM(<NULL> FROM <whatever>) gives NOT NULL
+# According to ANSI if one of the TRIM arguments is NULL, then the result
+# must be NULL too.
+#
+select trim(null from 'kate') as "must_be_null";
+select trim('xyz' from null) as "must_be_null";
