@@ -213,14 +213,21 @@ void Item_bool_func2::fix_length_and_dec()
       {
         THD *thd= current_thd;
         /*
-          In case we're in statement prepare, create conversion item
-          in its memory: it will be reused on each execute.
+          In case we're in prepared statement, create conversion
+          item in its memory: it will be reused on each execute.
+          (and don't juggle with mem_root's if it is ordinary statement).
+          We come here only during first fix_fields() because after creating
+          conversion item we will have arguments with compatible collations.
         */
         Item_arena *arena= thd->current_arena, backup;
-        thd->set_n_backup_item_arena(arena, &backup);
+        if (arena->is_conventional())
+          arena= 0;
+        else
+          thd->set_n_backup_item_arena(arena, &backup);
 	conv= new Item_func_conv_charset(args[weak],
                                          args[strong]->collation.collation);
-        thd->restore_backup_item_arena(arena, &backup);
+        if (arena)
+          thd->restore_backup_item_arena(arena, &backup);
         conv->collation.set(args[weak]->collation.derivation);
         conv->fix_fields(thd, 0, &conv);
       }
