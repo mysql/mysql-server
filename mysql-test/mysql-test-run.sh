@@ -239,11 +239,12 @@ MYSQL_TEST_SSL_OPTS=""
 USE_TIMER=""
 USE_EMBEDDED_SERVER=""
 RESULT_EXT=""
+TEST_MODE="default"
 
 while test $# -gt 0; do
   case "$1" in
-    --embedded-server) USE_EMBEDDED_SERVER=1 ; USE_MANAGER=0 ; NO_SLAVE=1 ; \
-      USE_RUNNING_SERVER="" RESULT_EXT=".es" ;;
+    --embedded-server) USE_EMBEDDED_SERVER=1 USE_MANAGER=0 NO_SLAVE=1 ; \
+      USE_RUNNING_SERVER="" RESULT_EXT=".es" TEST_MODE="embedded" ;;
     --user=*) DBUSER=`$ECHO "$1" | $SED -e "s;--user=;;"` ;;
     --force)  FORCE=1 ;;
     --timer)  USE_TIMER=1 ;;
@@ -323,7 +324,7 @@ while test $# -gt 0; do
       SLEEP_TIME_AFTER_RESTART=`$ECHO "$1" | $SED -e "s;--sleep=;;"`
       ;;
     --ps-protocol)
-      EXTRA_MYSQL_TEST_OPT="$EXTRA_MYSQL_TEST_OPT $1" ;;
+      TEST_MODE="ps-protocol" EXTRA_MYSQL_TEST_OPT="$EXTRA_MYSQL_TEST_OPT $1" ;;
     --user-test=*)
       USER_TEST=`$ECHO "$1" | $SED -e "s;--user-test=;;"`
       ;;
@@ -1561,7 +1562,7 @@ run_testcase ()
 	show_failed_diff $tname
 	$ECHO
 	if [ x$FORCE != x1 ] ; then
-	 $ECHO "Aborting: $tname failed. To continue, re-run with '--force'."
+	 $ECHO "Aborting: $tname failed in $TEST_MODE mode. To continue, re-run with '--force'."
 	 $ECHO
          if [ -z "$DO_GDB" ] && [ -z "$USE_RUNNING_SERVER" ] && \
 	    [ -z "$DO_DDD" ] && [ -z "$USE_EMBEDDED_SERVER" ]
@@ -1742,7 +1743,7 @@ $ECHO
 [ "$DO_GPROF" ] && gprof_collect # collect coverage information
 
 if [ $TOT_FAIL -ne 0 ]; then
-  $ECHO "mysql-test-run: *** Failing the test(s):$FAILED_CASES"
+  $ECHO "mysql-test-run in $TEST_MODE mode: *** Failing the test(s):$FAILED_CASES"
   $ECHO
   exit 1
 else
