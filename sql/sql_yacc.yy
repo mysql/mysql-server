@@ -664,7 +664,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 	handler_rkey_function handler_read_or_scan
 	single_multi table_wild_list table_wild_one opt_wild
 	union_clause union_list union_option
-	precision opt_on_delete_item subselect_start opt_and
+	precision subselect_start opt_and
 	subselect_end select_var_list select_var_list_init help opt_len
 END_OF_INPUT
 
@@ -921,7 +921,7 @@ create_table_options_space_separated:
 
 create_table_options:
 	create_table_option
-	| create_table_option     create_table_options;
+	| create_table_option     create_table_options
 	| create_table_option ',' create_table_options;
 
 create_table_option:
@@ -1387,7 +1387,6 @@ alter:
 	}
 	alter_list
 	{}
-	;
 	| ALTER DATABASE ident opt_db_default_character_set
 	  {
 	    LEX *lex=Lex;
@@ -2811,6 +2810,7 @@ select_var_list_init:
 	        YYABORT;
 	   }
 	   select_var_list
+	   {}
            ;
 
 select_var_list:
@@ -2942,6 +2942,7 @@ insert:
 	  Select->set_lock_for_tables($3);
 	}
 	insert_field_spec opt_insert_update
+	{}
 	;
 
 replace:
