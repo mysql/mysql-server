@@ -2461,6 +2461,7 @@ mysql_execute_command(THD *thd)
           select_lex->resolve_mode= SELECT_LEX::SELECT_MODE;
           res=handle_select(thd, lex, result);
           select_lex->resolve_mode= SELECT_LEX::NOMATTER_MODE;
+          delete result;
         }
 	/* reset for PS */
 	lex->create_list.empty();
@@ -2818,6 +2819,7 @@ unsent_create_error:
         break;
       if ((result= new select_insert(first_table, first_table->table,
                                      &lex->field_list, lex->duplicates)))
+      {
 	/* Skip first table, which is the table we are inserting in */
 	lex->select_lex.table_list.first= (byte*) first_table->next_local;
         /*
@@ -2829,6 +2831,8 @@ unsent_create_error:
 	/* revert changes for SP */
 	lex->select_lex.table_list.first= (byte*) first_table;
 	lex->select_lex.resolve_mode= SELECT_LEX::INSERT_MODE;
+        delete result;
+      }
       if (thd->net.report_error)
         res= -1;
     }

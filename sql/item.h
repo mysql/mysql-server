@@ -152,6 +152,7 @@ public:
   */
   inline void quick_fix_field() { fixed= 1; }
   /* Function returns 1 on overflow and -1 on fatal errors */
+  int save_in_field_no_warnings(Field *field, bool no_conversions);
   virtual int save_in_field(Field *field, bool no_conversions);
   virtual void save_org_in_field(Field *field)
   { (void) save_in_field(field, 1); }

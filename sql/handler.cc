@@ -1362,7 +1362,7 @@ int ha_create_table(const char *name, HA_CREATE_INFO *create_info,
   char name_buff[FN_REFLEN];
   DBUG_ENTER("ha_create_table");
 
-  if (openfrm(name,"",0,(uint) READ_ALL, 0, &table))
+  if (openfrm(current_thd, name,"",0,(uint) READ_ALL, 0, &table))
     DBUG_RETURN(1);
   if (update_create_info)
   {

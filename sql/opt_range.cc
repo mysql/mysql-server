@@ -3481,7 +3481,7 @@ get_mm_leaf(PARAM *param, COND *conf_func, Field *field, KEY_PART *key_part,
       field->cmp_type() != value->result_type())
     DBUG_RETURN(0);
 
-  if (value->save_in_field(field, 1) < 0)
+  if (value->save_in_field_no_warnings(field, 1) < 0)
   {
     /* This happens when we try to insert a NULL field in a not null column */
     DBUG_RETURN(&null_element);			// cmp with NULL is never TRUE
