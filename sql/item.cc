@@ -914,7 +914,7 @@ bool Item_field::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
 
     set_field(tmp);
   }
-  else if (thd && thd->set_query_id && field->query_id != thd->query_id)
+  else if (thd->set_query_id && field->query_id != thd->query_id)
   {
     /* We only come here in unions */
     TABLE *table=field->table;

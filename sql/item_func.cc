@@ -197,7 +197,7 @@ Item_func::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
   used_tables_cache= not_null_tables_cache= 0;
   const_item_cache=1;
 
-  if (thd && check_stack_overrun(thd,buff))
+  if (check_stack_overrun(thd, buff))
     return 1;					// Fatal error if flag is set!
   if (arg_count)
   {						// Print purify happy
@@ -219,7 +219,7 @@ Item_func::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
     }
   }
   fix_length_and_dec();
-  if (thd && thd->net.last_errno) // An error inside fix_length_and_dec accured
+  if (thd->net.last_errno) // An error inside fix_length_and_dec occured
     return 1;
   fixed= 1;
   return 0;
@@ -1396,13 +1396,9 @@ udf_handler::fix_fields(THD *thd, TABLE_LIST *tables, Item_result_field *func,
 #endif
   DBUG_ENTER("Item_udf_func::fix_fields");
 
-  if (thd)
-  {
-    if (check_stack_overrun(thd,buff))
-      DBUG_RETURN(1);				// Fatal error flag is set!
-  }
-  else
-    thd=current_thd;				// In WHERE / const clause
+  if (check_stack_overrun(thd, buff))
+    DBUG_RETURN(1);				// Fatal error flag is set!
+
   udf_func *tmp_udf=find_udf(u_d->name.str,(uint) u_d->name.length,1);
 
   if (!tmp_udf)
