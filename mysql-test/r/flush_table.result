@@ -42,11 +42,11 @@ table_id
 test.t2
 
 handler t1 open as a1;
-Not unique table/alias: 'a1'
+ERROR 42000: Not unique table/alias: 'a1'
 handler t1 open as a2;
-Not unique table/alias: 'a2'
+ERROR 42000: Not unique table/alias: 'a2'
 handler t2 open;
-Not unique table/alias: 't2'
+ERROR 42000: Not unique table/alias: 't2'
 handler a1 read first limit 9;
 table_id
 test.t1
@@ -74,7 +74,6 @@ test.t2
 
 flush table t2;
 handler t2 close;
-ERROR 42S02: Unknown table 't2' in HANDLER
 drop table t1;
 drop table t2;
 create table t1(table_id char(20) primary key);

@@ -159,7 +159,8 @@ int mysql_ha_open(THD *thd, TABLE_LIST *tables, bool reopen)
     /*
       HASH entries are of type TABLE_LIST.
     */
-    if (hash_init(&thd->handler_tables_hash, HANDLER_TABLES_HASH_SIZE, 0, 0,
+    if (hash_init(&thd->handler_tables_hash, &my_charset_latin1,
+                  HANDLER_TABLES_HASH_SIZE, 0, 0,
                   (hash_get_key) mysql_ha_hash_get_key,
                   (hash_free_key) mysql_ha_hash_free, 0))
       goto err;
@@ -223,7 +224,7 @@ int mysql_ha_open(THD *thd, TABLE_LIST *tables, bool reopen)
     memcpy(hash_tables->alias, tables->alias, aliaslen);
 
     /* add to hash */
-    if (hash_insert(&thd->handler_tables_hash, (byte*) hash_tables))
+    if (my_hash_insert(&thd->handler_tables_hash, (byte*) hash_tables))
     {
       mysql_ha_close(thd, tables);
       goto err;
@@ -293,7 +294,7 @@ int mysql_ha_close(THD *thd, TABLE_LIST *tables)
     {
       if (*table_ptr)
       {
-        table_ptr->file->ha_index_or_rnd_end();
+        (*table_ptr)->file->ha_index_or_rnd_end();
         VOID(pthread_mutex_lock(&LOCK_open));
         if (close_thread_table(thd, table_ptr))
         {
@@ -582,7 +583,7 @@ int mysql_ha_read(THD *thd, TABLE_LIST *tables,
   }
 ok:
   mysql_unlock_tables(thd,lock);
-  send_eof(&thd->net);
+  send_eof(thd);
   DBUG_PRINT("exit",("mysql_ha_read: OK"));
   DBUG_RETURN(0);
 err:
@@ -645,8 +646,10 @@ int mysql_ha_flush(THD *thd, TABLE_LIST *tables, int mode_flags)
       while (*table_ptr)
       {
         if ((! *tmp_tables->db ||
-             ! my_strcasecmp((*table_ptr)->table_cache_key, tmp_tables->db)) &&
-            ! my_strcasecmp((*table_ptr)->real_name, tmp_tables->real_name))
+             ! my_strcasecmp(&my_charset_latin1, (*table_ptr)->table_cache_key,
+                             tmp_tables->db)) &&
+            ! my_strcasecmp(&my_charset_latin1, (*table_ptr)->real_name,
+                            tmp_tables->real_name))
         {
           DBUG_PRINT("info",("mysql_ha_flush: *table_ptr '%s'.'%s' as '%s'",
                              (*table_ptr)->table_cache_key,
@@ -725,7 +728,7 @@ static int mysql_ha_flush_table(THD *thd, TABLE **table_ptr, int mode_flags)
     }
   }    
 
-  table_ptr->file->ha_index_or_rnd_end();
+  (*table_ptr)->file->ha_index_or_rnd_end();
   if (close_thread_table(thd, table_ptr))
   {
     /* Tell threads waiting for refresh that something has happened */

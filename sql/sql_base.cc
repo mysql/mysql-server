@@ -1695,10 +1695,18 @@ int open_and_lock_tables(THD *thd, TABLE_LIST *tables)
   uint counter;
   if (open_tables(thd, tables, &counter) || lock_tables(thd, tables, counter))
     DBUG_RETURN(-1);				/* purecov: inspected */
-  /*
-    Let us propagate pointers to open tables from global table list
-    to table lists in particular selects if needed.
-  */
+  relink_tables_for_derived(thd);
+  DBUG_RETURN(mysql_handle_derived(thd->lex));
+}
+
+
+/*
+  Let us propagate pointers to open tables from global table list
+  to table lists in particular selects if needed.
+*/
+
+void relink_tables_for_derived(THD *thd)
+{
   if (thd->lex->all_selects_list->next_select_in_list() ||
       thd->lex->time_zone_tables_used)
   {
@@ -1711,7 +1719,6 @@ int open_and_lock_tables(THD *thd, TABLE_LIST *tables)
         if (cursor->table_list)
           cursor->table= cursor->table_list->table;
   }
-  DBUG_RETURN(mysql_handle_derived(thd->lex));
 }
 
 
@@ -1751,7 +1758,7 @@ int lock_tables(THD *thd, TABLE_LIST *tables, uint count)
       if (!table->derived)
 	*(ptr++)= table->table;
     }
-    if (!(thd->lock=mysql_lock_tables(thd,start,count)))
+    if (!(thd->lock=mysql_lock_tables(thd,start, (uint) (ptr - start))))
       return -1;				/* purecov: inspected */
   }
   else

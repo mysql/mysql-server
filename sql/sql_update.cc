@@ -303,6 +303,7 @@ int mysql_update(THD *thd,
 	else if (handle_duplicates != DUP_IGNORE ||
 		 error != HA_ERR_FOUND_DUPP_KEY)
 	{
+          thd->fatal_error();                   // Force error message
 	  table->file->print_error(error,MYF(0));
 	  error= 1;
 	  break;
@@ -484,6 +485,8 @@ int mysql_multi_update(THD *thd,
   TABLE_LIST *tl;
   TABLE_LIST *update_list= (TABLE_LIST*) thd->lex->select_lex.table_list.first;
   List<Item> total_list;
+  const bool using_lock_tables= thd->locked_tables != 0;
+  bool initialized_dervied= 0;
   DBUG_ENTER("mysql_multi_update");
 
   select_lex->select_limit= HA_POS_ERROR;
@@ -495,14 +498,23 @@ int mysql_multi_update(THD *thd,
   for (;;)
   {
     table_map update_tables, derived_tables=0;
-    uint tnr, counter;
+    uint tnr, table_count;
 
-    if ((res=open_tables(thd,table_list, &counter)))
+    if ((res=open_tables(thd, table_list, &table_count)))
       DBUG_RETURN(res);
 
     /* Only need to call lock_tables if we are not using LOCK TABLES */
-    if (!using_lock_tables && ((res= lock_tables(thd, table_list))))
+    if (!using_lock_tables &&
+        ((res= lock_tables(thd, table_list, table_count))))
       DBUG_RETURN(res);
+
+    if (!initialized_dervied)
+    {
+      initialized_dervied= 1;
+      relink_tables_for_derived(thd);
+      if ((res= mysql_handle_derived(thd->lex)))
+        DBUG_RETURN(res);
+    }
 
     /*
       Ensure that we have update privilege for all tables and columns in the
@@ -558,7 +570,7 @@ int mysql_multi_update(THD *thd,
           DBUG_RETURN(-1);
         }
 	DBUG_PRINT("info",("setting table `%s` for update", tl->alias));
-	tl->lock_type= thd->lex.lock_option;
+	tl->lock_type= thd->lex->multi_lock_option;
 	tl->updating= 1;
       }
       else
@@ -569,6 +581,8 @@ int mysql_multi_update(THD *thd,
       }
       if (tl->derived)
         derived_tables|= table->map;
+      else if (!using_lock_tables)
+	tl->table->reginfo.lock_type= tl->lock_type;
     }
 
     if (thd->lex->derived_tables && (update_tables & derived_tables))
@@ -586,7 +600,7 @@ int mysql_multi_update(THD *thd,
     }
 
     /* Relock the tables with the correct modes */
-    res= lock_tables(thd,table_list);
+    res= lock_tables(thd, table_list, table_count);
     if (using_lock_tables)
     {
       if (res)
@@ -608,7 +622,7 @@ int mysql_multi_update(THD *thd,
         item->cleanup();
       }
     }
-    if (setup_fields(thd, table_list, *fields, 1, 0, 0))
+    if (setup_fields(thd, 0, update_list, *fields, 1, 0, 0))
       DBUG_RETURN(-1);
     /*
       If lock succeded and the table map didn't change since the above lock
@@ -624,9 +638,7 @@ int mysql_multi_update(THD *thd,
     close_thread_tables(thd);
   }
 
-  /*
-    Setup timestamp handling
-  */
+  /* Setup timestamp handling */
   for (tl= update_list; tl; tl= tl->next)
   {
     TABLE *table= tl->table;
@@ -634,6 +646,9 @@ int mysql_multi_update(THD *thd,
     if (table->timestamp_field &&
         table->timestamp_field->query_id == thd->query_id)
       table->timestamp_field_type= TIMESTAMP_NO_AUTO_SET;
+
+    /* We only need SELECT privilege for columns in the values list */
+    table->grant.want_privilege= (SELECT_ACL & ~table->grant.privilege);
   }
 
   if (!(result=new multi_update(thd, update_list, fields, values,
@@ -994,6 +1009,7 @@ bool multi_update::send_data(List<Item> &not_used_values)
 	  if (handle_duplicates != DUP_IGNORE ||
 	      error != HA_ERR_FOUND_DUPP_KEY)
 	  {
+            thd->fatal_error();                 // Force error message
 	    table->file->print_error(error,MYF(0));
 	    DBUG_RETURN(1);
 	  }
@@ -1149,7 +1165,10 @@ int multi_update::do_updates(bool from_send_error)
 
 err:
   if (!from_send_error)
+  {
+    thd->fatal_error();
     table->file->print_error(local_error,MYF(0));
+  }
 
   (void) table->file->ha_rnd_end();
   (void) tmp_table->file->ha_rnd_end();

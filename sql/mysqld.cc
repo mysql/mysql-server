@@ -2118,7 +2118,7 @@ static void check_data_home(const char *path)
 
 
 /* ARGSUSED */
-! extern "C" int my_message_sql(uint error, const char *str, myf MyFlags)
+extern "C" int my_message_sql(uint error, const char *str, myf MyFlags)
 {
   THD *thd;
   DBUG_ENTER("my_message_sql");
@@ -2132,7 +2132,11 @@ static void check_data_home(const char *path)
     if (thd->lex->current_select &&
 	thd->lex->current_select->no_error && !thd->is_fatal_error)
     {
-      DBUG_PRINT("error", ("above error converted to warning"));
+      DBUG_PRINT("error", ("Error converted to warning: current_select: no_error %d  fatal_error: %d",
+                           (thd->lex->current_select ?
+                            thd->lex->current_select->no_error : 0),
+                           (int) thd->is_fatal_error));
+                           
       push_warning(thd, MYSQL_ERROR::WARN_LEVEL_ERROR, error, str);
     }
     else

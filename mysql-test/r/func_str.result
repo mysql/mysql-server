@@ -321,6 +321,7 @@ trim(trailing 'foo' from 'foo')
 
 select trim(leading 'foo' from 'foo');
 trim(leading 'foo' from 'foo')
+
 select 1=_latin1'1';
 1=_latin1'1'
 1
