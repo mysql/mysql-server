@@ -87,7 +87,7 @@ bool printCREATE_TRIG_REQ(FILE * output, const Uint32 * theData, Uint32 len, Uin
   fprintf(output, "Monitor all attributes: %s ", (sig->getMonitorAllAttributes())?"true":"false");
   const AttributeMask& attributeMask = sig->getAttributeMask();
 
-  char buf[attributeMask.TextLength + 1];
+  char buf[MAXNROFATTRIBUTESINWORDS * 8 + 1];
   fprintf(output, "Attribute mask: %s", attributeMask.getText(buf));
   fprintf(output, "\n");  
 
