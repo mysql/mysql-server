@@ -84,6 +84,17 @@ class MYSQL_LOG {
   bool no_rotate;
   bool need_start_event;
   bool no_auto_events; // for relay binlog
+  /* 
+     The max size before rotation (usable only if log_type == LOG_BIN: binary
+     logs and relay logs).
+     For a binlog, max_size should be max_binlog_size.
+     For a relay log, it should be max_relay_log_size if this is non-zero,
+     max_binlog_size otherwise.
+     max_size is set in init(), and dynamically changed (when one does SET
+     GLOBAL MAX_BINLOG_SIZE|MAX_RELAY_LOG_SIZE) by fix_max_binlog_size and
+     fix_max_relay_log_size). 
+  */
+  ulong max_size;
   friend class Log_event;
 
 public:
@@ -105,17 +116,18 @@ public:
     bytes_written=0;
     DBUG_VOID_RETURN;
   }
+  void set_max_size(ulong max_size_arg);
   void signal_update() { pthread_cond_broadcast(&update_cond);}
   void wait_for_update(THD* thd);
   void set_need_start_event() { need_start_event = 1; }
   void init(enum_log_type log_type_arg,
-	    enum cache_type io_cache_type_arg = WRITE_CACHE,
-	    bool no_auto_events_arg = 0);
+	    enum cache_type io_cache_type_arg,
+	    bool no_auto_events_arg, ulong max_size);
   void cleanup();
   bool open(const char *log_name,enum_log_type log_type,
 	    const char *new_name, const char *index_file_name_arg,
 	    enum cache_type io_cache_type_arg,
-	    bool no_auto_events_arg);
+	    bool no_auto_events_arg, ulong max_size);
   void new_file(bool need_lock= 1);
   bool write(THD *thd, enum enum_server_command command,
 	     const char *format,...);

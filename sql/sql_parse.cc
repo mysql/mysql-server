@@ -3571,10 +3571,18 @@ bool reload_acl_and_cache(THD *thd, ulong options, TABLE_LIST *tables)
   }
   if (options & REFRESH_LOG)
   {
+    /*
+      Flush the normal query log, the update log, the binary log, the slow query
+      log, and the relay log (if it exists).
+    */
     mysql_log.new_file(1);
     mysql_update_log.new_file(1);
     mysql_bin_log.new_file(1);
     mysql_slow_log.new_file(1);
+    LOCK_ACTIVE_MI;
+    rotate_relay_log(active_mi);
+    UNLOCK_ACTIVE_MI;
+
     if (ha_flush_logs())
       result=1;
     if (flush_error_log())

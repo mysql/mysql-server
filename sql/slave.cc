@@ -1235,7 +1235,17 @@ int init_relay_log_info(RELAY_LOG_INFO* rli, const char* info_fname)
   if (open_log(&rli->relay_log, glob_hostname, opt_relay_logname,
 	       "-relay-bin", opt_relaylog_index_name,
 	       LOG_BIN, 1 /* read_append cache */,
-	       1 /* no auto events */))
+	       1 /* no auto events */,
+               /*
+                 For the maximum size, we choose max_relay_log_size if it is
+                 non-zero, max_binlog_size otherwise. If later the user does SET
+                 GLOBAL on one of these variables, fix_max_binlog_size and
+                 fix_max_relay_log_size will reconsider the choice (for example
+                 if the user changes max_relay_log_size to zero, we have to
+                 switch to using max_binlog_size for the relay log) and update
+                 rli->relay_log.max_size (and mysql_bin_log.max_size).
+               */
+               max_relay_log_size ? max_relay_log_size : max_binlog_size))
   {
     sql_print_error("Failed in open_log() called from init_relay_log_info()");
     DBUG_RETURN(1);
@@ -3419,6 +3429,46 @@ err:
   if (errmsg)
     sql_print_error("Error reading relay log event: %s", errmsg);
   DBUG_RETURN(0);
+}
+
+/*
+  Rotate a relay log (this is used only by FLUSH LOGS; the automatic rotation
+  because of size is simpler because when we do it we already have all relevant
+  locks; here we don't, so this function is mainly taking locks). 
+  Returns nothing as we cannot catch any error (MYSQL_LOG::new_file() is void).
+*/
+
+void rotate_relay_log(MASTER_INFO* mi)
+{
+  DBUG_ENTER("rotate_relay_log");
+  RELAY_LOG_INFO* rli= &mi->rli;
+  /* If this server is not a slave (or RESET SLAVE has just been run) */
+  if (!rli->inited)
+  {
+    DBUG_PRINT("info", ("rli->inited=0"));
+    DBUG_VOID_RETURN;
+  }
+  lock_slave_threads(mi);
+  pthread_mutex_lock(&rli->data_lock);
+  /* If the relay log is closed, new_file() will do nothing. */
+  rli->relay_log.new_file(1);
+  /*
+    We harvest now, because otherwise BIN_LOG_HEADER_SIZE will not immediately
+    be counted, so imagine a succession of FLUSH LOGS  and assume the slave
+    threads are started:
+    relay_log_space decreases by the size of the deleted relay log, but does not
+    increase, so flush-after-flush we may become negative, which is wrong.
+    Even if this will be corrected as soon as a query is replicated on the slave
+    (because the I/O thread will then call harvest_bytes_written() which will
+    harvest all these BIN_LOG_HEADER_SIZE we forgot), it may give strange output
+    in SHOW SLAVE STATUS meanwhile. So we harvest now.
+    If the log is closed, then this will just harvest the last writes, probably
+    0 as they probably have been harvested.
+  */
+  rli->relay_log.harvest_bytes_written(&rli->log_space_total);
+  pthread_mutex_unlock(&rli->data_lock);
+  unlock_slave_threads(mi);
+  DBUG_VOID_RETURN;
 }
 
 

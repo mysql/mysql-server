@@ -354,7 +354,7 @@ ulong table_cache_size,
       query_buff_size,
       slow_launch_time = 2L,
       slave_open_temp_tables=0,
-      open_files_limit=0, max_binlog_size;
+      open_files_limit=0, max_binlog_size, max_relay_log_size;
 ulong com_stat[(uint) SQLCOM_END], com_other;
 ulong slave_net_timeout;
 ulong thread_cache_size=0, binlog_cache_size=0, max_binlog_cache_size=0;
@@ -1950,7 +1950,7 @@ bool open_log(MYSQL_LOG *log, const char *hostname,
 	      const char *opt_name, const char *extension,
 	      const char *index_file_name,
 	      enum_log_type type, bool read_append,
-	      bool no_auto_events)
+	      bool no_auto_events, ulong max_size)
 {
   char tmp[FN_REFLEN];
   if (!opt_name || !opt_name[0])
@@ -1976,7 +1976,7 @@ bool open_log(MYSQL_LOG *log, const char *hostname,
   }
   return log->open(opt_name, type, 0, index_file_name,
 		   (read_append) ? SEQ_READ_APPEND : WRITE_CACHE,
-		   no_auto_events);
+		   no_auto_events, max_size);
 }
 
 
@@ -2196,17 +2196,17 @@ int main(int argc, char **argv)
   /* Setup log files */
   if (opt_log)
     open_log(&mysql_log, glob_hostname, opt_logname, ".log", NullS,
-	     LOG_NORMAL);
+	     LOG_NORMAL, 0, 0, 0);
   if (opt_update_log)
   {
     open_log(&mysql_update_log, glob_hostname, opt_update_logname, "",
-	     NullS, LOG_NEW);
+	     NullS, LOG_NEW, 0, 0, 0);
     using_update_log=1;
   }
  
   if (opt_slow_log)
     open_log(&mysql_slow_log, glob_hostname, opt_slow_logname, "-slow.log",
-	     NullS, LOG_NORMAL);
+	     NullS, LOG_NORMAL, 0, 0, 0);
 
   if (opt_error_log)
   {
@@ -2321,7 +2321,7 @@ The server will not act as a slave.");
   if (opt_bin_log)
   {
     open_log(&mysql_bin_log, glob_hostname, opt_bin_logname, "-bin",
-	     opt_binlog_index_name,LOG_BIN);
+	     opt_binlog_index_name, LOG_BIN, 0, 0, max_binlog_size);
     using_update_log=1;
   }
   else if (opt_log_slave_updates)
@@ -3156,8 +3156,8 @@ enum options {
   OPT_MAX_BINLOG_CACHE_SIZE, OPT_MAX_BINLOG_SIZE,
   OPT_MAX_CONNECTIONS, OPT_MAX_CONNECT_ERRORS,
   OPT_MAX_DELAYED_THREADS, OPT_MAX_HEP_TABLE_SIZE,
-  OPT_MAX_JOIN_SIZE, OPT_MAX_SORT_LENGTH, OPT_MAX_SEEKS_FOR_KEY,
-  OPT_MAX_TMP_TABLES, OPT_MAX_USER_CONNECTIONS,
+  OPT_MAX_JOIN_SIZE, OPT_MAX_RELAY_LOG_SIZE, OPT_MAX_SORT_LENGTH, 
+  OPT_MAX_SEEKS_FOR_KEY, OPT_MAX_TMP_TABLES, OPT_MAX_USER_CONNECTIONS,
   OPT_MAX_WRITE_LOCK_COUNT, OPT_BULK_INSERT_BUFFER_SIZE,
   OPT_MYISAM_BLOCK_SIZE, OPT_MYISAM_MAX_EXTRA_SORT_FILE_SIZE,
   OPT_MYISAM_MAX_SORT_FILE_SIZE, OPT_MYISAM_SORT_BUFFER_SIZE,
@@ -3809,9 +3809,11 @@ replicating a LOAD DATA INFILE command",
    (gptr*) &max_binlog_cache_size, (gptr*) &max_binlog_cache_size, 0,
    GET_ULONG, REQUIRED_ARG, ~0L, IO_SIZE, ~0L, 0, IO_SIZE, 0},
   {"max_binlog_size", OPT_MAX_BINLOG_SIZE,
-   "Binary log will be rotated automatically when the size crosses the limit.",
+   "Binary log will be rotated automatically when the size exceeds this \
+value. Will also apply to relay logs if max_relay_log_size is 0. \
+The minimum value for this variable is 4096.",
    (gptr*) &max_binlog_size, (gptr*) &max_binlog_size, 0, GET_ULONG,
-   REQUIRED_ARG, 1024*1024L*1024L, 1024, 1024*1024L*1024L, 0, 1, 0},
+   REQUIRED_ARG, 1024*1024L*1024L, IO_SIZE, 1024*1024L*1024L, 0, IO_SIZE, 0},
   {"max_connections", OPT_MAX_CONNECTIONS,
    "The number of simultaneous clients allowed.", (gptr*) &max_connections,
    (gptr*) &max_connections, 0, GET_ULONG, REQUIRED_ARG, 100, 1, 16384, 0, 1,
@@ -3834,6 +3836,12 @@ replicating a LOAD DATA INFILE command",
    (gptr*) &global_system_variables.max_join_size,
    (gptr*) &max_system_variables.max_join_size, 0, GET_HA_ROWS, REQUIRED_ARG,
    ~0L, 1, ~0L, 0, 1, 0},
+  {"max_relay_log_size", OPT_MAX_RELAY_LOG_SIZE,
+   "If non-zero: relay log will be rotated automatically when the size exceeds \
+this value; if zero (the default): when the size exceeds max_binlog_size. \
+0 expected, the minimum value for this variable is 4096.",
+   (gptr*) &max_relay_log_size, (gptr*) &max_relay_log_size, 0, GET_ULONG,
+   REQUIRED_ARG, 0L, 0L, 1024*1024L*1024L, 0, IO_SIZE, 0},
   { "max_seeks_for_key", OPT_MAX_SEEKS_FOR_KEY,
     "Limit assumed max number of seeks when looking up rows based on a key",
     (gptr*) &global_system_variables.max_seeks_for_key,
