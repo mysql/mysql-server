@@ -601,8 +601,29 @@ int yylex(void *arg)
 
     case STATE_USER_VARIABLE_DELIMITER:
       lex->tok_start=lex->ptr;			// Skipp first `
-      while ((c=yyGet()) && state_map[c] != STATE_USER_VARIABLE_DELIMITER &&
-	     c != (uchar) NAMES_SEP_CHAR) ;
+#ifdef USE_MB
+      if (use_mb(default_charset_info))
+      {
+	while ((c=yyGet()) && state_map[c] != STATE_USER_VARIABLE_DELIMITER &&
+	       c != (uchar) NAMES_SEP_CHAR)
+	{
+          if (my_ismbhead(default_charset_info, c))
+          {
+            int l;
+            if ((l = my_ismbchar(default_charset_info,
+                                 (const char *)lex->ptr-1,
+                                 (const char *)lex->end_of_query)) == 0)
+              break;
+            lex->ptr += l-1;
+          }
+        }
+      }
+      else
+#endif
+      {
+	while ((c=yyGet()) && state_map[c] != STATE_USER_VARIABLE_DELIMITER &&
+	       c != (uchar) NAMES_SEP_CHAR) ;
+      }
       yylval->lex_str=get_token(lex,yyLength());
       if (state_map[c] == STATE_USER_VARIABLE_DELIMITER)
 	yySkip();				// Skipp end `
