@@ -176,8 +176,9 @@ extern long innobase_force_recovery, innobase_thread_concurrency;
 extern char *innobase_data_home_dir, *innobase_data_file_path;
 extern char *innobase_log_group_home_dir, *innobase_log_arch_dir;
 extern char *innobase_unix_file_flush_method;
+extern int innobase_flush_log_at_trx_commit;
 /* The following variables have to be my_bool for SHOW VARIABLES to work */
-extern my_bool innobase_flush_log_at_trx_commit, innobase_log_archive,
+extern my_bool innobase_log_archive,
                innobase_use_native_aio, innobase_fast_shutdown;
 
 extern TYPELIB innobase_lock_typelib;
