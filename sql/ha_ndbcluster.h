@@ -33,6 +33,8 @@ class NdbOperation;    // Forward declaration
 class NdbConnection;   // Forward declaration
 class NdbRecAttr;      // Forward declaration
 class NdbResultSet;    // Forward declaration
+class NdbScanOperation; 
+class NdbIndexScanOperation; 
 
 typedef enum ndb_index_type {
   UNDEFINED_INDEX = 0,
@@ -182,7 +184,7 @@ class ha_ndbcluster: public handler
   int set_primary_key(NdbOperation *op, const byte *key);
   int set_primary_key(NdbOperation *op);
   int set_primary_key_from_old_data(NdbOperation *op, const byte *old_data);
-  int set_bounds(NdbOperation *ndb_op, const key_range *key,
+  int set_bounds(NdbIndexScanOperation *ndb_op, const key_range *key,
 		 int bound);
   int key_cmp(uint keynr, const byte * old_row, const byte * new_row);
   void print_results();

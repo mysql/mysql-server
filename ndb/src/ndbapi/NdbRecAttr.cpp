@@ -220,5 +220,4 @@ NdbOut& operator<<(NdbOut& ndbout, const NdbRecAttr &r)
   }
 
   return ndbout;
->>>>>>>
 }
