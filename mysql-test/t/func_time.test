@@ -14,6 +14,7 @@ select date_format("1997-01-02 03:04:05", "%M %W %D %Y %y %m %d %h %i %s %w");
 select date_format("1997-01-02", concat("%M %W %D ","%Y %y %m %d %h %i %s %w"));
 select dayofmonth("1997-01-02"),dayofmonth(19970323);
 select month("1997-01-02"),year("98-02-03"),dayofyear("1997-12-31");
+select month("2001-02-00"),year("2001-00-00");
 select DAYOFYEAR("1997-03-03"), WEEK("1998-03-03"), QUARTER(980303);
 select HOUR("1997-03-03 23:03:22"), MINUTE("23:03:22"), SECOND(230322);
 select week(19980101),week(19970101),week(19980101,1),week(19970101,1);
@@ -100,6 +101,7 @@ select extract(HOUR_SECOND FROM "10:11:12");
 select extract(MINUTE FROM "10:11:12");
 select extract(MINUTE_SECOND FROM "10:11:12");
 select extract(SECOND FROM "1999-01-02 10:11:12");
+select extract(MONTH FROM "2001-02-00");
 
 create table t1 (ctime varchar(20));
 insert into t1 values ('2001-01-12 12:23:40');

@@ -2473,6 +2473,7 @@ enum options {
                OPT_INNODB_LOG_ARCH_DIR, 
                OPT_INNODB_LOG_ARCHIVE, 
                OPT_INNODB_FLUSH_LOG_AT_TRX_COMMIT, 
+               OPT_INNODB_UNIX_FILE_FLUSH_METHOD, 
                OPT_SAFE_SHOW_DB,
 	       OPT_GEMINI_SKIP, OPT_INNODB_SKIP,
                OPT_TEMP_POOL, OPT_DO_PSTACK, OPT_TX_ISOLATION,
@@ -2535,6 +2536,8 @@ static struct option long_options[] = {
      OPT_INNODB_LOG_ARCHIVE},
   {"innodb_flush_log_at_trx_commit", optional_argument, 0,
      OPT_INNODB_FLUSH_LOG_AT_TRX_COMMIT},
+  {"innodb_unix_file_flush_method", required_argument, 0,
+    OPT_INNODB_UNIX_FILE_FLUSH_METHOD},
 #endif
   {"help",                  no_argument,       0, '?'},
   {"init-file",             required_argument, 0, (int) OPT_INIT_FILE},
@@ -2821,6 +2824,7 @@ struct show_var_st init_vars[]= {
   {"innodb_log_arch_dir",   (char*) &innobase_log_arch_dir, 	    SHOW_CHAR_PTR},
   {"innodb_log_archive",    (char*) &innobase_log_archive, 	    SHOW_MY_BOOL},
   {"innodb_log_group_home_dir", (char*) &innobase_log_group_home_dir, SHOW_CHAR_PTR},
+  {"innodb_unix_file_flush_method", (char*) &innobase_unix_file_flush_method, SHOW_CHAR_PTR},
 #endif
   {"interactive_timeout",     (char*) &net_interactive_timeout,     SHOW_LONG},
   {"join_buffer_size",        (char*) &join_buff_size,              SHOW_LONG},
@@ -3680,6 +3684,9 @@ static void get_options(int argc,char **argv)
       break;
     case OPT_INNODB_FLUSH_LOG_AT_TRX_COMMIT:
       innobase_flush_log_at_trx_commit= optarg ? test(atoi(optarg)) : 1;
+      break;
+    case OPT_INNODB_UNIX_FILE_FLUSH_METHOD:
+      innobase_unix_file_flush_method=optarg;
       break;
 #endif /* HAVE_INNOBASE_DB */
     case OPT_DO_PSTACK:
