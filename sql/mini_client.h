@@ -17,30 +17,32 @@
 #ifndef _MINI_CLIENT_H
 #define _MINI_CLIENT_H
 
+MYSQL *
+mysql_real_connect(MYSQL *mysql,const char *host, const char *user,
+		   const char *passwd, const char *db,
+		   uint port, const char *unix_socket,ulong client_flag,
+		   uint net_read_timeout);
 
-MYSQL* mc_mysql_connect(MYSQL *mysql,const char *host, const char *user,
-			const char *passwd, const char *db,
-			uint port, const char *unix_socket,uint client_flag,
-			uint net_read_timeout);
-int mc_simple_command(MYSQL *mysql,enum enum_server_command command,
-		      const char *arg, uint length, my_bool skipp_check);
-void mc_mysql_close(MYSQL *mysql);
-MYSQL *mc_mysql_init(MYSQL *mysql);
-void mc_mysql_debug(const char *debug);
-ulong mc_net_safe_read(MYSQL *mysql);
-char *mc_mysql_error(MYSQL *mysql);
-int  mc_mysql_errno(MYSQL *mysql);
-my_bool mc_mysql_reconnect(MYSQL* mysql);
-int mc_mysql_send_query(MYSQL* mysql, const char* query, uint length);
-int mc_mysql_read_query_result(MYSQL *mysql);
-int mc_mysql_query(MYSQL *mysql, const char *query, uint length);
-MYSQL_RES * mc_mysql_store_result(MYSQL *mysql);
-void mc_mysql_free_result(MYSQL_RES *result);
-void mc_mysql_data_seek(MYSQL_RES *result, my_ulonglong row);
-my_ulonglong mc_mysql_num_rows(MYSQL_RES *res);
-unsigned int mc_mysql_num_fields(MYSQL_RES *res);
-MYSQL_ROW STDCALL mc_mysql_fetch_row(MYSQL_RES *res);
-int mc_mysql_select_db(MYSQL *mysql, const char *db);
-void mc_end_server(MYSQL *mysql); 
+my_bool simple_command(MYSQL *mysql,enum enum_server_command command,
+		       const char *arg, unsigned long length, 
+		       my_bool skip_check);
+void mysql_close(MYSQL *mysql);
+MYSQL *mysql_init(MYSQL *mysql);
+void mysql_debug(const char *debug);
+ulong net_safe_read(MYSQL *mysql);
+const char *mysql_error(MYSQL *mysql);
+unsigned int  mysql_errno(MYSQL *mysql);
+my_bool mysql_reconnect(MYSQL* mysql);
+int mysql_send_query(MYSQL* mysql, const char* query, uint length);
+my_bool mysql_read_query_result(MYSQL *mysql);
+int mysql_real_query(MYSQL *mysql, const char *q, unsigned long length);
+MYSQL_RES * mysql_store_result(MYSQL *mysql);
+void mysql_free_result(MYSQL_RES *result);
+void mysql_data_seek(MYSQL_RES *result, my_ulonglong row);
+my_ulonglong mysql_num_rows(MYSQL_RES *res);
+unsigned int mysql_num_fields(MYSQL_RES *res);
+MYSQL_ROW STDCALL mysql_fetch_row(MYSQL_RES *res);
+int mysql_select_db(MYSQL *mysql, const char *db);
+void end_server(MYSQL *mysql); 
 
 #endif
