@@ -393,7 +393,8 @@ public:
   int listIndexes(List& list, Uint32 indexId);
   
   NdbTableImpl * getTable(const char * tableName, void **data= 0);
-  Ndb_local_table_info * get_local_table_info(const char * internalName);
+  Ndb_local_table_info * get_local_table_info(const char * internalName,
+					      bool do_add_blob_tables);
   NdbIndexImpl * getIndex(const char * indexName,
 			  const char * tableName);
   NdbIndexImpl * getIndexImpl(const char * name, const char * internalName);
@@ -613,8 +614,8 @@ inline
 NdbTableImpl * 
 NdbDictionaryImpl::getTable(const char * tableName, void **data)
 {
-  const char * internalTableName = m_ndb.internalizeTableName(tableName);
-  Ndb_local_table_info *info= get_local_table_info(internalTableName);
+  Ndb_local_table_info *info=
+    get_local_table_info(m_ndb.internalizeTableName(tableName), true);
   if (info == 0) {
     return 0;
   }
@@ -626,13 +627,22 @@ NdbDictionaryImpl::getTable(const char * tableName, void **data)
 
 inline
 Ndb_local_table_info * 
-NdbDictionaryImpl::get_local_table_info(const char * internalTableName)
+NdbDictionaryImpl::get_local_table_info(const char * internalTableName,
+					bool do_add_blob_tables)
 {
   Ndb_local_table_info *info= m_localHash.get(internalTableName);
-  if (info != 0) {
-    return info; // autoincrement already initialized
+  if (info == 0) {
+    info= fetchGlobalTableImpl(internalTableName);
+    if (info == 0) {
+      return 0;
+    }
   }
-  return fetchGlobalTableImpl(internalTableName);
+  if (do_add_blob_tables &&
+      info->m_table_impl->m_noOfBlobs &&
+      addBlobTables(*(info->m_table_impl))) {
+    return 0;
+  }
+  return info; // autoincrement already initialized
 }
 
 inline
@@ -647,10 +657,12 @@ NdbDictionaryImpl::getIndex(const char * indexName,
       if (t != 0)
         internalIndexName = m_ndb.internalizeIndexName(t, indexName);
     } else {
-      internalIndexName = m_ndb.internalizeTableName(indexName); // Index is also a table
+      internalIndexName =
+	m_ndb.internalizeTableName(indexName); // Index is also a table
     }
     if (internalIndexName) {
-      Ndb_local_table_info * info = get_local_table_info(internalIndexName);
+      Ndb_local_table_info * info = get_local_table_info(internalIndexName,
+							 false);
       if (info) {
 	NdbTableImpl * tab = info->m_table_impl;
         if (tab->m_index == 0)
