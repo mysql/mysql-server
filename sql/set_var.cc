@@ -3077,7 +3077,7 @@ ulong fix_sql_mode(ulong sql_mode)
     sql_mode|= (MODE_PIPES_AS_CONCAT | MODE_ANSI_QUOTES |
 		MODE_IGNORE_SPACE |
 		MODE_NO_KEY_OPTIONS | MODE_NO_TABLE_OPTIONS |
-		MODE_NO_FIELD_OPTIONS);
+		MODE_NO_FIELD_OPTIONS | MODE_NO_AUTO_CREATE_USER);
   if (sql_mode & MODE_MSSQL)
     sql_mode|= (MODE_PIPES_AS_CONCAT | MODE_ANSI_QUOTES |
 		MODE_IGNORE_SPACE |
@@ -3097,7 +3097,7 @@ ulong fix_sql_mode(ulong sql_mode)
     sql_mode|= (MODE_PIPES_AS_CONCAT | MODE_ANSI_QUOTES |
 		MODE_IGNORE_SPACE |
 		MODE_NO_KEY_OPTIONS | MODE_NO_TABLE_OPTIONS |
-		MODE_NO_FIELD_OPTIONS);
+		MODE_NO_FIELD_OPTIONS | MODE_NO_AUTO_CREATE_USER);
   if (sql_mode & MODE_MYSQL40)
     sql_mode|= MODE_NO_FIELD_OPTIONS;
   if (sql_mode & MODE_MYSQL323)
@@ -3105,7 +3105,7 @@ ulong fix_sql_mode(ulong sql_mode)
   if (sql_mode & MODE_TRADITIONAL)
     sql_mode|= (MODE_STRICT_TRANS_TABLES | MODE_STRICT_ALL_TABLES |
                 MODE_NO_ZERO_IN_DATE | MODE_NO_ZERO_DATE |
-                MODE_ERROR_FOR_DIVISION_BY_ZERO);
+                MODE_ERROR_FOR_DIVISION_BY_ZERO | MODE_NO_AUTO_CREATE_USER);
   return sql_mode;
 }
 
