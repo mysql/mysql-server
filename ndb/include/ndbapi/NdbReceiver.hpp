@@ -26,14 +26,12 @@ class NdbTransaction;
 
 class NdbReceiver
 {
-#ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
   friend class Ndb;
   friend class NdbOperation;
   friend class NdbScanOperation;
   friend class NdbIndexOperation;
   friend class NdbIndexScanOperation;
   friend class NdbTransaction;
-#endif
 public:
   enum ReceiverType	{ NDB_UNINITIALIZED,
 			  NDB_OPERATION = 1,
@@ -147,5 +145,5 @@ NdbReceiver::execSCANOPCONF(Uint32 tcPtrI, Uint32 len, Uint32 rows){
   return (tmp == len ? 1 : 0);
 }
 
-#endif
+#endif // DOXYGEN_SHOULD_SKIP_INTERNAL
 #endif

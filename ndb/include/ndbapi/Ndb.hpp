@@ -52,12 +52,15 @@
 
    The execute can be of two different types, 
    <em>Commit</em> or <em>NoCommit</em>.
+*/
 #ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
+/**
    (The execute can also be divided into three 
    steps: prepare, send, and poll to get asynchronous
    transactions.  More about this later.)
+*/
 #endif
-   
+/** 
    If the execute is of type NoCommit, 
    then the application program executes part of a transaction,
    but without committing the transaction.
@@ -91,22 +94,27 @@
    To execute several parallel synchronous transactions, one can either 
    use multiple Ndb objects in several threads or start multiple 
    applications programs.  
-
+*/
 #ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
+/**
    Another way to execute several parallel transactions is to use
    asynchronous transactions.
+*/
 #endif  
-  
+/**  
    @section secNdbOperations            Operations
 
    Each transaction (NdbTransaction object) consist of a list of 
    operations (Ndb*Operation objects).
+*/
 #ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
+/**
    Operations are of two different kinds:
    -# standard operations, and
    -# interpreted program operations.
+*/
 #endif
-
+/**
    <h3>Single row operations</h3>
    After the operation is created using NdbTransaction::getNdbOperation
    (or NdbTransaction::getNdbIndexOperation),
@@ -208,8 +216,9 @@
    Ndb::closeTransaction have been called.
    The result of reading data from an NdbRecAttr object before
    calling NdbTransaction::execute is undefined.
-
+*/
 #ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
+/**
    <h3>Interpreted Program Operations</h3>
    The following types of interpreted program operations exist:
     -# NdbOperation::interpretedUpdateTuple :
@@ -270,8 +279,9 @@
       There might be zero NdbOperation::getValue calls.
    -# The fifth step is possible subroutine definitions using
       NdbOperation::def_subroutine and NdbOperation::ret_sub.
+*/
 #endif
-
+/**
    @subsection secScan              Scanning 
    The most common use of interpreted programs is for scanning
    tables.  Scanning is a search of all tuples in a table.  
@@ -386,8 +396,9 @@
 
        See the scan example program in @ref ndbapi_scan.cppn for example
        usage of the new scan api.
-
+*/
 #ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
+/**
    <h3>Interpreted Programs</h3>
    Interpretation programs are executed in a
    register-based virtual machine.
@@ -458,9 +469,11 @@
          The parameter used by NdbOperation::def_subroutine 
 	 should match the automatic numbering to make it easier to 
 	 debug the interpreted program.
+*/
 #endif
 
 #ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
+/**
    @section secAsync                    Asynchronous Transactions
    The asynchronous interface is used to increase the speed of
    transaction executing by better utilizing the connection
@@ -560,8 +573,10 @@
 
    More about how transactions are send the NDB Kernel is 
    available in section @ref secAdapt.
+*/
 #endif
 
+/**
    @section secError                    Error Handling
 
    Errors can occur when
@@ -1012,8 +1027,7 @@ public:
   Ndb(Ndb_cluster_connection *ndb_cluster_connection,
       const char* aCatalogName = "", const char* aSchemaName = "def");
 
-#ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
-  // depricated
+#ifndef DOXYGEN_SHOULD_SKIP_DEPRECATED
   Ndb(const char* aCatalogName = "", const char* aSchemaName = "def");
 #endif
   ~Ndb();
@@ -1091,8 +1105,7 @@ public:
    */
   int init(int maxNoOfTransactions = 4);
 
-#ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
-  // depricated
+#ifndef DOXYGEN_SHOULD_SKIP_DEPRECATED
   /**
    * Wait for Ndb object to successfully set-up connections to 
    * the NDB kernel. 
@@ -1230,8 +1243,9 @@ public:
    *
    * @note should be called after the transaction has completed, irrespective
    *       of success or failure
-   *
+   */
 #ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
+  /**
    * @note It is not allowed to call Ndb::closeTransaction after sending the
    *       transaction asynchronously with either 
    *       Ndb::sendPreparedTransactions or
@@ -1240,8 +1254,8 @@ public:
    *       outstanding transactions and wait until all of them 
    *       has completed before calling Ndb::closeTransaction).
    *       If the transaction is not committed it will be aborted.
-#endif
    */
+#endif
   void closeTransaction(NdbTransaction*);
 
   /** @} *********************************************************************/
