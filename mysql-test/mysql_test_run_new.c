@@ -90,10 +90,20 @@ static char slave_socket[FN_REFLEN]=  "./var/tmp/slave.sock";
 #endif
 
 #define MAX_COUNT_TESTES 1024
+
+#ifdef __WIN__
+#  define sting_compare_func _stricmp
+#else
+#  ifdef HAVE_STRCASECMP
+#    define sting_compare_func strcasecmp
+#  else
+#    define sting_compare_func strcmp
+#  endif
+#endif
+
 /* comma delimited list of tests to skip or empty string */
 #ifndef __WIN__
 static char skip_test[FN_REFLEN]= " lowercase_table3 , system_mysql_db_fix ";
-#define _stricmp strcasecmp
 #else
 /*
   The most ignore testes contain the calls of system command
@@ -1439,7 +1449,7 @@ void setup(char *file __attribute__((unused)))
 */
 int compare( const void *arg1, const void *arg2 )
 {
-  return _stricmp( * ( char** ) arg1, * ( char** ) arg2 );
+  return sting_compare_func( * ( char** ) arg1, * ( char** ) arg2 );
 }
 
 
@@ -1520,7 +1530,9 @@ int main(int argc, char **argv)
   else
   {
     /* run all tests */
-    names= malloc(MAX_COUNT_TESTES*4);
+    names= malloc(MAX_COUNT_TESTES*sizeof(void*));
+    if (!names)
+      die("can not allcate memory for sorting");
     testes= names;
     name_index= 0;
 #ifndef __WIN__
@@ -1540,57 +1552,69 @@ int main(int argc, char **argv)
         /* find the test suffix */
         if ((position= strinstr(test, TEST_SUFFIX)) != 0)
         {
-          /* null terminate at the suffix */
-          *(test + position - 1)= '\0';
-          /* insert test */
-          *names= malloc(FN_REFLEN);
-          strcpy(*names,test);
-          names++;
-          name_index++;
+	  if (name_index < MAX_COUNT_TESTES)
+	  {
+            /* null terminate at the suffix */
+            *(test + position - 1)= '\0';
+            /* insert test */
+            *names= malloc(FN_REFLEN);
+            strcpy(*names,test);
+            names++;
+            name_index++;
+          }
+	  else
+	    die("can not sort files, array is overloaded");
         }
       }
       closedir(parent);
     }
 #else
-    struct _finddata_t dir;
-    intptr_t handle;
-    char test[FN_LEN];
-    char mask[FN_REFLEN];
-    char *p;
-    int position;
-
-    /* single test */
-    single_test= FALSE;
-
-    snprintf(mask,FN_REFLEN,"%s/*.test",test_dir);
-
-    if ((handle=_findfirst(mask,&dir)) == -1L)
     {
-      die("Unable to open tests directory.");
-    }
+      struct _finddata_t dir;
+      int* handle;
+      char test[FN_LEN];
+      char mask[FN_REFLEN];
+      char *p;
+      int position;
 
+      /* single test */
+      single_test= FALSE;
 
-    do
-    {
-      if (!(dir.attrib & _A_SUBDIR))
+      snprintf(mask,FN_REFLEN,"%s/*.test",test_dir);
+
+      if ((handle=_findfirst(mask,&dir)) == -1L)
       {
-        strcpy(test, strlwr(dir.name));
-
-        /* find the test suffix */
-        if ((position= strinstr(test, TEST_SUFFIX)) != 0)
-        {
-          /* null terminate at the suffix */
-          *(test + position - 1)= '\0';
-          /* insert test */
-          *names= malloc(FN_REFLEN);
-          strcpy(*names,test);
-          names++;
-          name_index++;
-        }
+        die("Unable to open tests directory.");
       }
-    }while (_findnext(handle,&dir) == 0);
 
-    _findclose(handle);
+
+      do
+      {
+        if (!(dir.attrib & _A_SUBDIR))
+        {
+          strcpy(test, strlwr(dir.name));
+
+          /* find the test suffix */
+          if ((position= strinstr(test, TEST_SUFFIX)) != 0)
+          {
+            if (name_index < MAX_COUNT_TESTES)
+	    {
+              /* null terminate at the suffix */
+              *(test + position - 1)= '\0';
+              /* insert test */
+              *names= malloc(FN_REFLEN);
+              strcpy(*names,test);
+              names++;
+              name_index++;
+	    }
+	    else
+	      die("can not sort files, array is overloaded");
+          }
+        }
+      }while (_findnext(handle,&dir) == 0);
+
+      _findclose(handle);
+    }
 #endif
     qsort( (void *)testes, name_index, sizeof( char * ), compare );
 
