@@ -141,3 +141,21 @@ select * from T1;
 a	b
 1	abc
 drop table T1;
+create database mysqltest_LC2;
+use mysqltest_LC2;
+create table myUC (i int);
+insert into myUC values (1),(2),(3);
+select * from myUC;
+i
+1
+2
+3
+use test;
+drop database mysqltest_LC2;
+create database mysqltest_LC2;
+use mysqltest_LC2;
+create table myUC (i int);
+select * from myUC;
+i
+use test;
+drop database mysqltest_LC2;
