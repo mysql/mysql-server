@@ -64,7 +64,7 @@ NdbBackup::start(unsigned int & _backup_id){
 
 
 const char * 
-NdbBackup::getFileSystemPathForNode(int _node_id){
+NdbBackup::getBackupDataDirForNode(int _node_id){
 
   /**
    * Fetch configuration from management server
@@ -106,8 +106,8 @@ NdbBackup::getFileSystemPathForNode(int _node_id){
   }  
   
   const char * path;
-  if (iter.get(CFG_DB_FILESYSTEM_PATH, &path)){
-    ndbout << "FileSystemPath not found" << endl;
+  if (iter.get(CFG_DB_BACKUP_DATADIR, &path)){
+    ndbout << "BackupDataDir not found" << endl;
     return NULL;
   }
 
@@ -123,9 +123,9 @@ NdbBackup::execRestore(bool _restore_data,
   const int buf_len = 1000;
   char buf[buf_len];
 
-  ndbout << "getFileSystemPathForNode "<< _node_id <<endl;
+  ndbout << "getBackupDataDir "<< _node_id <<endl;
 
-  const char* path = getFileSystemPathForNode(_node_id);
+  const char* path = getBackupDataDirForNode(_node_id);
   if (path == NULL)
     return -1;  
 

@@ -33,15 +33,15 @@
  * Section names
  ****************************************************************************/
 
-#define DB_TOKEN "NDBD"
-#define MGM_TOKEN "NDB_MGMD"
-#define API_TOKEN "MYSQLD"
+#define DB_TOKEN "DB"
+#define MGM_TOKEN "MGM"
+#define API_TOKEN "API"
 
 const ConfigInfo::AliasPair
 ConfigInfo::m_sectionNameAliases[]={
-  {API_TOKEN, "API"},
-  {DB_TOKEN,  "DB"},
-  {MGM_TOKEN, "MGM"},
+  {API_TOKEN, "MYSQLD"},
+  {DB_TOKEN,  "NDBD"},
+  {MGM_TOKEN, "NDB_MGMD"},
   {0, 0}
 };
 
@@ -975,7 +975,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::USED,
     false,
     ConfigInfo::STRING,
-    DATADIR,
+    MYSQLCLUSTERDIR,
     0, 0 },
 
   {
@@ -1349,7 +1349,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::USED,
     false,
     ConfigInfo::STRING,
-    DATADIR,
+    MYSQLCLUSTERDIR,
     0, 0 },
 
   {

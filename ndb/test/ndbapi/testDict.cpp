@@ -1305,7 +1305,7 @@ runTableRenameNF(NDBT_Context* ctx, NDBT_Step* step){
     const int numNodes = restarter.getNumDbNodes();
     for(int i = 0; i<numNodes; i++){
       int nodeId = restarter.getDbNodeId(i);
-      int error = NF_codes[i];
+      int error = NF_codes[i].error_id;
 
       g_info << "NF1: node = " << nodeId << " error code = " << error << endl;
 

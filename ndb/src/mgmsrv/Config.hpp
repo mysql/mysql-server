@@ -24,7 +24,7 @@
 #include <NdbOut.hpp>
 #include <ndb_limits.h>
 #include <Properties.hpp>
-#include "ConfigInfo.hpp"
+#include <ConfigInfo.hpp>
 
 class ConfigInfo;
 
