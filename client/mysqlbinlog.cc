@@ -1249,6 +1249,14 @@ int main(int argc, char** argv)
     fprintf(result_file,
             "/*!32316 SET @OLD_SQL_LOG_BIN=@@SQL_LOG_BIN, SQL_LOG_BIN=0*/;\n");
 
+  /*
+    In mysqlbinlog|mysql, don't want mysql to be disconnected after each
+    transaction (which would be the case with GLOBAL.COMPLETION_TYPE==2).
+  */
+  fprintf(result_file,
+          "/*!50003 SET @OLD_COMPLETION_TYPE=@@COMPLETION_TYPE,"
+          "COMPLETION_TYPE=0*/;\n");
+
   for (save_stop_position= stop_position, stop_position= ~(my_off_t)0 ;
        (--argc >= 0) && !stop_passed ; )
   {
@@ -1263,6 +1271,13 @@ int main(int argc, char** argv)
     start_position= BIN_LOG_HEADER_SIZE;
   }
 
+  /*
+    Issue a ROLLBACK in case the last printed binlog was crashed and had half
+    of transaction.
+  */
+  fprintf(result_file,
+          "ROLLBACK;\n"
+          "/*!50003 SET COMPLETION_TYPE=@OLD_COMPLETION_TYPE*/;\n");
   if (disable_log_bin)
     fprintf(result_file, "/*!32316 SET SQL_LOG_BIN=@OLD_SQL_LOG_BIN*/;\n");
 
