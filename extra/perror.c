@@ -184,6 +184,7 @@ int main(int argc,char *argv[])
 {
   int error,code,found;
   const char *msg;
+  char *unknown_error = 0;
   MY_INIT(argv[0]);
 
   if (get_options(&argc,&argv))
@@ -212,7 +213,12 @@ int main(int argc,char *argv[])
       string 'Unknown Error'.  To avoid printing it we try to find the
       error string by asking for an impossible big error message.
     */
-    const char *unknown_error= strerror(10000);
+    msg = strerror(10000);
+
+    /* allocate a buffer for unknown_error since strerror always returns the same pointer 
+      on some platforms such as Windows */
+    unknown_error = malloc( strlen(msg)+1 );
+    strcpy( unknown_error, msg );
 
     for ( ; argc-- > 0 ; argv++)
     {
@@ -262,6 +268,11 @@ int main(int argc,char *argv[])
       }
     }
   }
+
+  /* if we allocated a buffer for unknown_error, free it now */
+  if (unknown_error)
+	  free(unknown_error);
+
   exit(error);
   return error;
 }
