@@ -615,7 +615,7 @@ void handler::print_error(int error, myf errflag)
 
 uint handler::get_dup_key(int error)
 {
-  DBUG_ENTER("key_error");
+  DBUG_ENTER("get_dup_key");
   table->file->errkey  = (uint) -1;
   if (error == HA_ERR_FOUND_DUPP_KEY || error == HA_ERR_FOUND_DUPP_UNIQUE)
     info(HA_STATUS_ERRKEY | HA_STATUS_NO_LOCK);
