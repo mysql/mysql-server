@@ -167,7 +167,7 @@ static my_bool net_realloc(NET *net, ulong length)
 
 void net_clear(NET *net)
 {
-#ifndef EXTRA_DEBUG
+#if !defined(EXTRA_DEBUG) && !defined(EMBEDDED_LIBRARY)
   int count;					/* One may get 'unused' warn */
   bool is_blocking=vio_is_blocking(net->vio);
   if (is_blocking)

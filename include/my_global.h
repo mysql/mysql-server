@@ -216,8 +216,13 @@
 #ifdef DONT_USE_FINITE		/* HPUX 11.x has is_finite() */
 #undef HAVE_FINITE
 #endif
+#if defined(HPUX) && defined(_LARGEFILE64_SOURCE) && defined(THREAD)
+/* Fix bug in setrlimit */
+#undef setrlimit
+#define setrlimit cma_setrlimit64
+#endif
 
-/* We can not live without these */
+/* We can not live without the following defines */
 
 #define USE_MYFUNC 1		/* Must use syscall indirection */
 #define MASTER 1		/* Compile without unireg */
@@ -226,7 +231,7 @@
 #define USE_REGEX 1		/* We want the use the regex library */
 /* Do not define for ultra sparcs */
 #ifndef OS2
-#define USE_BMOVE512 1		/* Use this unless the system bmove is faster */
+#define USE_BMOVE512 1		/* Use this unless system bmove is faster */
 #endif
 
 /* Paranoid settings. Define I_AM_PARANOID if you are paranoid */
@@ -611,8 +616,8 @@ typedef unsigned long	ulong;	/* Short for unsigned long */
 #endif
 #ifndef longlong_defined
 #if defined(HAVE_LONG_LONG) && SIZEOF_LONG != 8
-typedef unsigned long long ulonglong;	/* ulong or unsigned long long */
-typedef long long	longlong;
+typedef unsigned long long int ulonglong; /* ulong or unsigned long long */
+typedef long long int	longlong;
 #else
 typedef unsigned long	ulonglong;	/* ulong or unsigned long long */
 typedef long		longlong;
@@ -712,6 +717,20 @@ typedef char		bool;	/* Ordinary boolean values 0 1 */
 #define SCALE_USEC	10000
 #define MY_HOW_OFTEN_TO_ALARM	2	/* How often we want info on screen */
 #define MY_HOW_OFTEN_TO_WRITE	1000	/* How often we want info on screen */
+
+#ifdef HAVE_TIMESPEC_TS_SEC
+#define set_timespec(ABSTIME,SEC) { (ABSTIME).ts_sec=time(0) + (time_t) (SEC); (ABSTIME).ts_nsec=0; }
+#elif defined(__WIN__)
+#define set_timespec(ABSTIME,SEC) { (ABSTIME).tv_sec=time((time_t*)0) + (time_t) (SEC); (ABSTIME).tv_nsec=0; }
+#else
+#define set_timespec(ABSTIME,SEC) \
+{\
+  struct timeval tv;\
+  gettimeofday(&tv,0);\
+  (ABSTIME).tv_sec=tv.tv_sec+(time_t) (SEC);\
+  (ABSTIME).tv_nsec=tv.tv_usec*1000;\
+}
+#endif
 
 /*
 ** Define-funktions for reading and storing in machine independent format

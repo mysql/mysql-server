@@ -143,7 +143,15 @@ $longreadlen=16000000;		# For retrieval buffer
 #
 use sigtrap;		       # Must be removed with perl5.005_2 on Win98
 $SIG{PIPE} = 'IGNORE';
-$SIG{SEGV} = sub {warn('SEGFAULT')};
+$problem_counter=0;
+$SIG{SEGV} = sub {
+  $problem_counter +=1;
+  if ($problem_counter >= 100) {
+    die("Too many problems, try to restart");
+  } else {
+    warn('SEGFAULT');
+  };    
+};
 $dbh=safe_connect();
 
 #
@@ -252,6 +260,8 @@ report("Functions",'functions',"select 1+1 $end_query");
 report("Group functions",'group_functions',"select count(*) from crash_me");
 report("Group functions with distinct",'group_distinct_functions',
        "select count(distinct a) from crash_me");
+report("Group functions with several distinct",'group_many_distinct_functions',
+       "select count(distinct a), count(distinct b) from crash_me");
 report("Group by",'group_by',"select a from crash_me group by a");
 report("Group by position",'group_by_position',
        "select a from crash_me group by 1");
@@ -1438,6 +1448,14 @@ if (!report("case independent table names","table_name_case",
   safe_query("drop table crash_q $drop_attr");
 }
 
+if (!report("case independent field names","field_name_case",
+	    "create table crash_q (q integer)",
+	    "insert into crash_q(Q) values (1)",
+	    "drop table crash_q $drop_attr"))
+{
+  safe_query("drop table crash_q $drop_attr");
+}
+
 if (!report("drop table if exists","drop_if_exists",
 	    "create table crash_q (q integer)",
 	    "drop table if exists crash_q $drop_attr"))
@@ -2450,6 +2468,7 @@ sub report
   print "$prompt: ";
   if (!defined($limits{$limit}))
   {
+    save_config_data($limit,"incompleted",$prompt);
     save_config_data($limit,safe_query(\@queries) ? "yes" : "no",$prompt);
   }
   print "$limits{$limit}\n";
@@ -2462,6 +2481,7 @@ sub report_fail
   print "$prompt: ";
   if (!defined($limits{$limit}))
   {
+    save_config_data($limit,"incompleted",$prompt);
     save_config_data($limit,safe_query(\@queries) ? "no" : "yes",$prompt);
   }
   print "$limits{$limit}\n";
@@ -2478,6 +2498,7 @@ sub report_one
   print "$prompt: ";
   if (!defined($limits{$limit}))
   {
+    save_config_data($limit,"incompleted",$prompt);
     $result="no";
     foreach $query (@$queries)
     {
@@ -2503,6 +2524,7 @@ sub report_result
   print "$prompt: ";
   if (!defined($limits{$limit}))
   {
+    save_config_data($limit,"incompleted",$prompt);
     $error=safe_query_result($query,"1",2);
     save_config_data($limit,$error ? "not supported" : $last_result,$prompt);
   }
@@ -2515,6 +2537,7 @@ sub report_trans
   my ($limit,$queries,$check,$clear)=@_;
   if (!defined($limits{$limit}))
   {
+    save_config_data($limit,"incompleted",$prompt);
     eval {undef($dbh->{AutoCommit})};
     if (!$@)
     {
@@ -2556,9 +2579,11 @@ sub check_and_report
   print "$prompt: " if (!defined($skip_prompt));
   if (!defined($limits{$limit}))
   {
+    save_config_data($limit,"incompleted",$prompt);
     $tmp=1-safe_query(\@$pre);
     $tmp=safe_query_result($query,$answer,$string_type) if (!$tmp);
     safe_query(\@$post);
+    delete $limits{$limit};
     if ($function == 3)		# Report error as 'no'.
     {
       $function=0;
@@ -2587,8 +2612,10 @@ sub try_and_report
   my ($tmp,$test,$type);
 
   print "$prompt: ";
+
   if (!defined($limits{$limit}))
   {
+    save_config_data($limit,"incompleted",$prompt);
     $type="no";			# Not supported
     foreach $test (@tests)
     {
@@ -2699,7 +2726,7 @@ sub safe_query_result
   elsif ($result_type == 5)	# Result should have given prefix
   {
     $result= -1 if (length($row->[0]) < length($answer) &&
-		    substring($row->[0],1,length($answer)) ne $answer);
+		    substr($row->[0],1,length($answer)) ne $answer);
   }
   elsif ($result_type == 6)	# Exact match but ignore errors
   {
@@ -2760,6 +2787,8 @@ sub find_limit()
     print "$end (cache)\n";
     return $end;
   }
+  save_config_data($limit,"incompleted",$prompt);
+
   if (defined($query->{'init'}) && !defined($end=$limits{'restart'}{'tohigh'}))
   {
     if (!safe_query($query->{'init'}))

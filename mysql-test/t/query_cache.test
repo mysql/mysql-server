@@ -288,6 +288,34 @@ drop database mysqltest;
 drop table t1;
 
 #
+# FOUND_ROWS()
+#
+
+create table t1 (i int not null);
+insert into t1 (i) values (1),(2),(3),(4);
+
+select SQL_CALC_FOUND_ROWS * from t1 limit 2;
+select FOUND_ROWS();
+show status like "Qcache_hits";
+show status like "Qcache_queries_in_cache";
+
+select * from t1 where i=1;
+select FOUND_ROWS();
+show status like "Qcache_hits";
+show status like "Qcache_queries_in_cache";
+
+select SQL_CALC_FOUND_ROWS * from t1 limit 2;
+select FOUND_ROWS();
+show status like "Qcache_hits";
+show status like "Qcache_queries_in_cache";
+
+select * from t1 where i=1;
+select FOUND_ROWS();
+show status like "Qcache_hits";
+show status like "Qcache_queries_in_cache";
+drop table t1;
+
+#
 # Test insert delayed
 #
 

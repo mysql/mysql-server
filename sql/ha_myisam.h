@@ -54,12 +54,13 @@ class ha_myisam: public handler
   {}
   ~ha_myisam() {}
   const char *table_type() const { return "MyISAM"; }
+  const char *index_type(uint key_number);
   const char **bas_ext() const;
   ulong option_flag() const { return int_option_flag; }
   uint max_record_length() const { return HA_MAX_REC_LENGTH; }
   uint max_keys()          const { return MI_MAX_KEY; }
   uint max_key_parts()     const { return MAX_REF_PARTS; }
-  uint max_key_length()    const { return MAX_KEY_LENGTH; }
+  uint max_key_length()    const { return MI_MAX_KEY_LENGTH; }
 
   int open(const char *name, int mode, uint test_if_locked);
   int close(void);

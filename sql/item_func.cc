@@ -1496,14 +1496,7 @@ void debug_sync_point(const char* lock_name, uint lock_timeout)
   thd->mysys_var->current_mutex= &LOCK_user_locks;
   thd->mysys_var->current_cond=  &ull->cond;
 
-#ifdef HAVE_TIMESPEC_TS_SEC
-  abstime.ts_sec=time((time_t*) 0)+(time_t) lock_timeout;
-  abstime.ts_nsec=0;
-#else
-  abstime.tv_sec=time((time_t*) 0)+(time_t) lock_timeout;
-  abstime.tv_nsec=0;
-#endif
-
+  set_timespec(abstime,lock_timeout);
   while (!thd->killed &&
 	 (error=pthread_cond_timedwait(&ull->cond,&LOCK_user_locks,&abstime))
 	 != ETIME && error != ETIMEDOUT && ull->locked) ;
@@ -1591,14 +1584,7 @@ longlong Item_func_get_lock::val_int()
   thd->mysys_var->current_mutex= &LOCK_user_locks;
   thd->mysys_var->current_cond=  &ull->cond;
 
-#ifdef HAVE_TIMESPEC_TS_SEC
-  abstime.ts_sec=time((time_t*) 0)+(time_t) timeout;
-  abstime.ts_nsec=0;
-#else
-  abstime.tv_sec=time((time_t*) 0)+(time_t) timeout;
-  abstime.tv_nsec=0;
-#endif
-
+  set_timespec(abstime,timeout);
   while (!thd->killed &&
 	 (error=pthread_cond_timedwait(&ull->cond,&LOCK_user_locks,&abstime))
 	 != ETIME && error != ETIMEDOUT && ull->locked) ;

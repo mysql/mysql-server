@@ -27,7 +27,7 @@ static int count=0, stats=0, dump=0, verbose=0, lstats=0;
 static char *query=NULL;
 static uint lengths[256];
 
-#define MAX (HA_FT_MAXLEN+10)
+#define MAX_LEN (HA_FT_MAXLEN+10)
 #define HOW_OFTEN_TO_WRITE 10000
 
 int main(int argc,char *argv[])
@@ -37,7 +37,7 @@ int main(int argc,char *argv[])
   float weight;
   double gws, min_gws=0, avg_gws=0;
   MI_INFO *info;
-  char buf[MAX], buf2[MAX], buf_maxlen[MAX], buf_min_gws[MAX];
+  char buf[MAX_LEN], buf2[MAX_LEN], buf_maxlen[MAX_LEN], buf_min_gws[MAX_LEN];
   ulong total=0, maxlen=0, uniq=0, max_doc_cnt=0;
   struct { MI_INFO *info; } aio0, *aio=&aio0; /* for GWS_IN_USE */
 
@@ -105,7 +105,7 @@ int main(int argc,char *argv[])
 #error
 #endif
 
-      snprintf(buf,MAX,"%.*s",(int) keylen,info->lastkey+1);
+      snprintf(buf,MAX_LEN,"%.*s",(int) keylen,info->lastkey+1);
       casedn_str(buf);
       total++;
       lengths[keylen]++;

@@ -44,7 +44,7 @@ static void read_texts(const char *file_name,const char ***point,
 		       uint error_messages)
 {
   register uint i;
-  uint ant,funktpos,length,textant;
+  uint count,funktpos,length,textcount;
   File file;
   char name[FN_REFLEN];
   const char *buff;
@@ -64,36 +64,38 @@ static void read_texts(const char *file_name,const char ***point,
   if (head[0] != (uchar) 254 || head[1] != (uchar) 254 ||
       head[2] != 2 || head[3] != 1)
     goto err; /* purecov: inspected */
-  textant=head[4];
-  length=uint2korr(head+6); ant=uint2korr(head+8);
+  textcount=head[4];
+  length=uint2korr(head+6); count=uint2korr(head+8);
 
-  if (ant < error_messages)
+  if (count < error_messages)
   {
-    fprintf(stderr,"\n%s: Fatal error: Error message file '%s' had only %d error messages, but it should have at least %d error messages.\n\
-Check that the above file is the right version for this program!\n\n",
-	    my_progname,name,ant,error_messages);
+    sql_print_error("\
+Error message file '%s' had only %d error messages,\n\
+but it should contain at least %d error messages.\n\
+Check that the above file is the right version for this program!",
+		    name,count,error_messages);
     VOID(my_close(file,MYF(MY_WME)));
     unireg_abort(1);
   }
 
   x_free((gptr) *point);		/* Free old language */
   if (!(*point= (const char**)
-	my_malloc((uint) (length+ant*sizeof(char*)),MYF(0))))
+	my_malloc((uint) (length+count*sizeof(char*)),MYF(0))))
   {
     funktpos=2;					/* purecov: inspected */
     goto err;					/* purecov: inspected */
   }
-  buff= (char*) (*point + ant);
+  buff= (char*) (*point + count);
 
-  if (my_read(file,(byte*) buff,(uint) ant*2,MYF(MY_NABP))) goto err;
-  for (i=0, pos= (uchar*) buff ; i< ant ; i++)
+  if (my_read(file,(byte*) buff,(uint) count*2,MYF(MY_NABP))) goto err;
+  for (i=0, pos= (uchar*) buff ; i< count ; i++)
   {
     (*point)[i]=buff+uint2korr(pos);
     pos+=2;
   }
   if (my_read(file,(byte*) buff,(uint) length,MYF(MY_NABP))) goto err;
 
-  for (i=1 ; i < textant ; i++)
+  for (i=1 ; i < textcount ; i++)
   {
     point[i]= *point +uint2korr(head+10+i+i);
   }
@@ -103,18 +105,18 @@ Check that the above file is the right version for this program!\n\n",
 err:
   switch (funktpos) {
   case 2:
-    buff="\n%s: Fatal error: Not enough memory for messagefile '%s'\n\n";
+    buff="Not enough memory for messagefile '%s'";
     break;
   case 1:
-    buff="\n%s: Fatal error: Can't read from messagefile '%s'\n\n";
+    buff="Can't read from messagefile '%s'";
     break;
   default:
-    buff="\n%s: Fatal error: Can't find messagefile '%s'\n\n";
+    buff="Can't find messagefile '%s'";
     break;
   }
   if (file != FERR)
     VOID(my_close(file,MYF(MY_WME)));
-  fprintf(stderr,buff,my_progname,name);
+  sql_print_error(buff,name);
   unireg_abort(1);
 } /* read_texts */
 

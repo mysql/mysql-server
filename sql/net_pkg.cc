@@ -52,6 +52,7 @@ void send_error(NET *net, uint sql_errno, const char *err)
   {
     if (thd && thd->bootstrap)
     {
+      /* In bootstrap it's ok to print on stderr */
       fprintf(stderr,"ERROR: %d  %s\n",sql_errno,err);
     }
     DBUG_VOID_RETURN;
@@ -120,6 +121,7 @@ net_printf(NET *net, uint errcode, ...)
   {
     if (thd && thd->bootstrap)
     {
+      /* In bootstrap it's ok to print on stderr */
       fprintf(stderr,"ERROR: %d  %s\n",errcode,text_pos);
       thd->fatal_error=1;
     }

@@ -406,6 +406,59 @@ Variable_name	Value
 Qcache_hits	6
 drop database mysqltest;
 drop table t1;
+create table t1 (i int not null);
+insert into t1 (i) values (1),(2),(3),(4);
+select SQL_CALC_FOUND_ROWS * from t1 limit 2;
+i
+1
+2
+select FOUND_ROWS();
+FOUND_ROWS()
+4
+show status like "Qcache_hits";
+Variable_name	Value
+Qcache_hits	6
+show status like "Qcache_queries_in_cache";
+Variable_name	Value
+Qcache_queries_in_cache	1
+select * from t1 where i=1;
+i
+1
+select FOUND_ROWS();
+FOUND_ROWS()
+1
+show status like "Qcache_hits";
+Variable_name	Value
+Qcache_hits	6
+show status like "Qcache_queries_in_cache";
+Variable_name	Value
+Qcache_queries_in_cache	2
+select SQL_CALC_FOUND_ROWS * from t1 limit 2;
+i
+1
+2
+select FOUND_ROWS();
+FOUND_ROWS()
+4
+show status like "Qcache_hits";
+Variable_name	Value
+Qcache_hits	7
+show status like "Qcache_queries_in_cache";
+Variable_name	Value
+Qcache_queries_in_cache	2
+select * from t1 where i=1;
+i
+1
+select FOUND_ROWS();
+FOUND_ROWS()
+1
+show status like "Qcache_hits";
+Variable_name	Value
+Qcache_hits	8
+show status like "Qcache_queries_in_cache";
+Variable_name	Value
+Qcache_queries_in_cache	2
+drop table t1;
 flush query cache;
 reset query cache;
 create table t1 (a int not null);

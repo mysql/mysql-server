@@ -580,7 +580,7 @@ innobase_init(void)
 	ret = innobase_parse_data_file_paths_and_sizes();
 
 	if (ret == FALSE) {
-	  fprintf(stderr, "InnoDB: syntax error in innodb_data_file_path\n");
+	  sql_print_error("InnoDB: syntax error in innodb_data_file_path");
 	  DBUG_RETURN(TRUE);
 	}
 
@@ -928,13 +928,13 @@ ha_innobase::open(
 
  	if (NULL == (ib_table = dict_table_get(norm_name, NULL))) {
 
-	  fprintf(stderr,
-"InnoDB: Error: cannot find table %s from the internal data dictionary\n"
-"InnoDB: of InnoDB though the .frm file for the table exists. Maybe you\n"
-"InnoDB: have deleted and recreated InnoDB data files but have forgotten\n"
-"InnoDB: to delete the corresponding .frm files of InnoDB tables, or you\n"
-"InnoDB: have moved .frm files to another database?\n",
-		  norm_name);
+	  sql_print_error("InnoDB error:\n\
+Cannot find table %s from the internal data dictionary\n\
+of InnoDB though the .frm file for the table exists. Maybe you\n\
+have deleted and recreated InnoDB data files but have forgotten\n\
+to delete the corresponding .frm files of InnoDB tables, or you\n\
+have moved .frm files to another database?",
+			  norm_name);
 
 	        free_share(share);
     		my_free((char*) upd_buff, MYF(0));
@@ -2034,10 +2034,7 @@ ha_innobase::change_active_index(
     prebuilt->index=dict_table_get_index_noninline(prebuilt->table, key->name);
     if (!prebuilt->index)
     {
-      fprintf(stderr,
-	      "InnoDB: Could not find key n:o %u with name %s from dict cache\n"
-	      "InnoDB: for table %s\n", keynr, key->name,
-	      prebuilt->table->name);
+      sql_print_error("Innodb could not find key n:o %u with name %s from dict cache for table %s", keynr, key->name, prebuilt->table->name);
       return(1);
     }
   }
