@@ -236,7 +236,11 @@ class MYSQL_LOG: public TC_LOG
 
 public:
   MYSQL_LOG();
-  ~MYSQL_LOG();
+  /*
+    note that there's no destructor ~MYSQL_LOG() !
+    The reason is that we don't want it to be automatically called
+    on exit() - but only during the correct shutdown process
+  */
 
   int open(const char *opt_name);
   void close();
@@ -574,6 +578,7 @@ struct system_variables
 #endif /* HAVE_REPLICATION */
 #ifdef HAVE_INNOBASE_DB
   my_bool innodb_table_locks;
+  my_bool innodb_support_xa;
 #endif /* HAVE_INNOBASE_DB */
 #ifdef HAVE_NDBCLUSTER_DB
   ulong ndb_autoincrement_prefetch_sz;
@@ -1146,7 +1151,6 @@ public:
   table_map  used_tables;
   USER_CONN *user_connect;
   CHARSET_INFO *db_charset;
-  List<TABLE> temporary_tables_should_be_free; // list of temporary tables
   /*
     FIXME: this, and some other variables like 'count_cuted_fields'
     maybe should be statement/cursor local, that is, moved to Statement
@@ -1826,6 +1830,7 @@ public:
   Unique(qsort_cmp2 comp_func, void *comp_func_fixed_arg,
 	 uint size_arg, ulong max_in_memory_size_arg);
   ~Unique();
+  ulong elements_in_tree() { return tree.elements_in_tree; }
   inline bool unique_add(void *ptr)
   {
     DBUG_ENTER("unique_add");

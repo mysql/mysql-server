@@ -24,7 +24,11 @@ extern dtype_t* 	dtype_binary;
 /*-------------------------------------------*/
 /* The 'MAIN TYPE' of a column */
 #define	DATA_VARCHAR	1	/* character varying of the
-				latin1_swedish_ci charset-collation */
+				latin1_swedish_ci charset-collation; note
+				that the MySQL format for this, DATA_BINARY,
+				DATA_VARMYSQL, is also affected by whether the
+				'precise type' contains
+				DATA_MYSQL_TRUE_VARCHAR */
 #define DATA_CHAR	2	/* fixed length character of the
 				latin1_swedish_ci charset-collation */
 #define DATA_FIXBINARY	3	/* binary string of fixed length */
@@ -102,6 +106,8 @@ columns, and for them the precise type is usually not used at all.
 
 #define DATA_MYSQL_TYPE_MASK 255 /* AND with this mask to extract the MySQL
 				 type from the precise type */
+#define DATA_MYSQL_TRUE_VARCHAR 15 /* MySQL type code for the >= 5.0.3
+				   format true VARCHAR */
 
 /* Precise data types for system columns and the length of those columns;
 NOTE: the values must run from 0 up in the order given! All codes must
@@ -134,6 +140,10 @@ be less than 256 */
 				In earlier versions this was set for some
 				BLOB columns.
 */
+#define	DATA_LONG_TRUE_VARCHAR 4096	/* this is ORed to the precise data
+				type when the column is true VARCHAR where
+				MySQL uses 2 bytes to store the data len;
+				for shorter VARCHARs MySQL uses only 1 byte */
 /*-------------------------------------------*/
 
 /* This many bytes we need to store the type information affecting the
@@ -144,6 +154,15 @@ SQL null*/
 store the charset-collation number; one byte is left unused, though */
 #define DATA_NEW_ORDER_NULL_TYPE_BUF_SIZE	6
 
+/*************************************************************************
+Gets the MySQL type code from a dtype. */
+UNIV_INLINE
+ulint
+dtype_get_mysql_type(
+/*=================*/
+				/* out: MySQL type code; this is NOT an InnoDB
+				type code! */
+	dtype_t*	type);	/* in: type struct */
 /*************************************************************************
 Determine how many bytes the first n characters of the given string occupy.
 If the string is shorter than n characters, returns the number of bytes

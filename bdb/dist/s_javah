@@ -8,7 +8,7 @@
 # Using Sun's JDK rather than some other installation ensures
 # that the header files will not be constantly changed.
 
-. RELEASE
+. ./RELEASE
 
 JAVAC=javac
 JAVAH=javah

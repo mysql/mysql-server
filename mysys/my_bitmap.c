@@ -28,8 +28,8 @@
     * when both arguments are bitmaps, they must be of the same size
     * bitmap_intersect() is an exception :)
       (for for Bitmap::intersect(ulonglong map2buff))
-  
-  If THREAD is defined all bitmap operations except bitmap_init/bitmap_free 
+
+  If THREAD is defined all bitmap operations except bitmap_init/bitmap_free
   are thread-safe.
 
   TODO:
@@ -40,7 +40,6 @@
 #include <my_bitmap.h>
 #include <m_string.h>
 
-
 static inline void bitmap_lock(MY_BITMAP *map)
 {
 #ifdef THREAD
@@ -48,7 +47,6 @@ static inline void bitmap_lock(MY_BITMAP *map)
     pthread_mutex_lock(map->mutex);
 #endif
 }
-
 
 static inline void bitmap_unlock(MY_BITMAP *map)
 {

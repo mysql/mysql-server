@@ -224,7 +224,7 @@ EXTRA_MYSQL_TEST_OPT=""
 EXTRA_MYSQLDUMP_OPT=""
 EXTRA_MYSQLBINLOG_OPT=""
 USE_RUNNING_SERVER=0
-USE_NDBCLUSTER=""
+USE_NDBCLUSTER=@USE_NDBCLUSTER@
 USE_RUNNING_NDBCLUSTER=""
 USE_PURIFY=""
 PURIFY_LOGS=""
@@ -431,6 +431,11 @@ while test $# -gt 0; do
     --valgrind-options=*)
       TMP=`$ECHO "$1" | $SED -e "s;--valgrind-options=;;"`
       VALGRIND="$VALGRIND $TMP"
+      ;;
+    --skip-ndbcluster)
+      USE_NDBCLUSTER=""
+      EXTRA_MASTER_MYSQLD_OPT="$EXTRA_MASTER_MYSQLD_OPT $1"
+      EXTRA_SLAVE_MYSQLD_OPT="$EXTRA_SLAVE_MYSQLD_OPT $1"
       ;;
     --skip-*)
       EXTRA_MASTER_MYSQLD_OPT="$EXTRA_MASTER_MYSQLD_OPT $1"
@@ -856,7 +861,7 @@ report_stats () {
 	whole=`$PRINTF %.2s $raw`
 	xwhole=`$EXPR $whole \* 100`
 	deci=`$EXPR $raw - $xwhole`
-	$ECHO  "Failed ${TOT_FAIL}/${TOT_TEST} tests, ${whole}.${deci}% successful."
+	$ECHO  "Failed ${TOT_FAIL}/${TOT_TEST} tests, ${whole}.${deci}% were successful."
 	$ECHO ""
         $ECHO "The log files in $MY_LOG_DIR may give you some hint"
 	$ECHO "of what when wrong."
@@ -1501,12 +1506,6 @@ run_testcase ()
  if [ -n "$RESULT_EXT" -a \( x$RECORD = x1 -o -f "$result_file$RESULT_EXT" \) ] ; then
    result_file="$result_file$RESULT_EXT"
  fi
- if [ -f "$TESTDIR/$tname.disabled" ]
- then
-   comment=`$CAT $TESTDIR/$tname.disabled`;
-   disable_test $tname "$comment"
-   return
- fi
  if [ "$USE_MANAGER" = 1 ] ; then
   many_slaves=`$EXPR \( \( $tname : rpl_failsafe \) != 0 \) \| \( \( $tname : rpl_chain_temp_table \) != 0 \)`
  fi
@@ -1533,6 +1532,20 @@ run_testcase ()
 
  if [ x${NO_SLAVE}x$SKIP_SLAVE = x1x0 ] ; then
    skip_test $tname
+   return
+ fi
+
+ if [ -f "$TESTDIR/$tname.disabled" ]
+ then
+   comment=`$CAT $TESTDIR/$tname.disabled`;
+   disable_test $tname "$comment"
+   return
+ fi
+ comment=`$GREP "^$tname *: *" $TESTDIR/disabled.def`;
+ if [ -n "$comment" ]
+ then
+   comment=`echo $comment | sed 's/^[^:]*: *//'`
+   disable_test $tname "$comment"
    return
  fi
 

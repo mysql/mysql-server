@@ -1230,7 +1230,7 @@ static bool mysql_test_do_fields(Prepared_statement *stmt,
   if (tables && check_table_access(thd, SELECT_ACL, tables, 0))
     DBUG_RETURN(TRUE);
 
-  if (tables && open_and_lock_tables(thd, tables))
+  if (open_and_lock_tables(thd, tables))
   {
     DBUG_RETURN(TRUE);
   }
@@ -1261,12 +1261,12 @@ static bool mysql_test_set_fields(Prepared_statement *stmt,
   List_iterator_fast<set_var_base> it(*var_list);
   THD *thd= stmt->thd;
   set_var_base *var;
-  bool res= 0;
+  bool res;
 
   if (tables && check_table_access(thd, SELECT_ACL, tables, 0))
     DBUG_RETURN(TRUE);
 
-  if (tables && (res= open_and_lock_tables(thd, tables)))
+  if ((res= open_and_lock_tables(thd, tables)))
     goto error;
   while ((var= it++))
   {
@@ -1287,30 +1287,30 @@ error:
   Check internal SELECT of the prepared command
 
   SYNOPSIS
-    select_like_statement_test()
-      stmt              - prepared table handler
-      tables            - global list of tables
-      specific_prepare  - function of command specific prepare
+    select_like_stmt_test()
+      stmt                      - prepared statement handler
+      specific_prepare          - function of command specific prepare
+      setup_tables_done_option  - options to be passed to LEX::unit.prepare()
+
+  NOTE
+    This function won't directly open tables used in select. They should
+    be opened either by calling function (and in this case you probably
+    should use select_like_stmt_test_with_open_n_lock()) or by
+    "specific_prepare" call (like this happens in case of multi-update).
 
   RETURN VALUE
     FALSE success
     TRUE  error
 */
-static bool select_like_statement_test(Prepared_statement *stmt,
-                                       TABLE_LIST *tables,
-                                       bool (*specific_prepare)(THD *thd),
-                                       ulong setup_tables_done_option)
+
+static bool select_like_stmt_test(Prepared_statement *stmt,
+                                  bool (*specific_prepare)(THD *thd),
+                                  ulong setup_tables_done_option)
 {
-  DBUG_ENTER("select_like_statement_test");
+  DBUG_ENTER("select_like_stmt_test");
   THD *thd= stmt->thd;
   LEX *lex= stmt->lex;
-  bool res= 0;
-
-  /* check that tables was not opened during conversion from usual update */
-  if (tables &&
-      (!tables->table && !tables->view) &&
-      (res= open_and_lock_tables(thd, tables)))
-    goto end;
+  bool res= FALSE;
 
   if (specific_prepare && (res= (*specific_prepare)(thd)))
     goto end;
@@ -1325,6 +1325,44 @@ static bool select_like_statement_test(Prepared_statement *stmt,
 end:
   lex->unit.cleanup();
   DBUG_RETURN(res);
+}
+
+
+/*
+  Check internal SELECT of the prepared command (with opening and
+  locking tables used).
+
+  SYNOPSIS
+    select_like_stmt_test_with_open_n_lock()
+      stmt                      - prepared statement handler
+      tables                    - list of tables to be opened and locked
+                                  before calling specific_prepare function
+      specific_prepare          - function of command specific prepare
+      setup_tables_done_option  - options to be passed to LEX::unit.prepare()
+
+  RETURN VALUE
+    FALSE success
+    TRUE  error
+*/
+
+static bool
+select_like_stmt_test_with_open_n_lock(Prepared_statement *stmt,
+                                       TABLE_LIST *tables,
+                                       bool (*specific_prepare)(THD *thd),
+                                       ulong setup_tables_done_option)
+{
+  DBUG_ENTER("select_like_stmt_test_with_open_n_lock");
+
+  /*
+    We should not call LEX::unit.cleanup() after this open_and_lock_tables()
+    call because we don't allow prepared EXPLAIN yet so derived tables will
+    clean up after themself.
+  */
+  if (open_and_lock_tables(stmt->thd, tables))
+    DBUG_RETURN(TRUE);
+
+  DBUG_RETURN(select_like_stmt_test(stmt, specific_prepare,
+                                    setup_tables_done_option));
 }
 
 
@@ -1358,7 +1396,7 @@ static int mysql_test_create_table(Prepared_statement *stmt)
       select_lex->item_list.elements)
   {
     select_lex->resolve_mode= SELECT_LEX::SELECT_MODE;
-    res= select_like_statement_test(stmt, tables, 0, 0);
+    res= select_like_stmt_test_with_open_n_lock(stmt, tables, 0, 0);
     select_lex->resolve_mode= SELECT_LEX::NOMATTER_MODE;
   }
 
@@ -1389,12 +1427,9 @@ static bool mysql_test_multiupdate(Prepared_statement *stmt,
   /* if we switched from normal update, rights are checked */
   if (!converted && multi_update_precheck(stmt->thd, tables))
     return TRUE;
-  /*
-    here we do not pass tables for opening, tables will be opened and locked
-    by mysql_multi_update_prepare
-  */
-  return select_like_statement_test(stmt, 0, &mysql_multi_update_prepare,
-                                    OPTION_SETUP_TABLES_DONE);
+
+  return select_like_stmt_test(stmt, &mysql_multi_update_prepare,
+                               OPTION_SETUP_TABLES_DONE);
 }
 
 
@@ -1422,9 +1457,9 @@ static int mysql_test_multidelete(Prepared_statement *stmt,
   uint fake_counter;
   if ((res= multi_delete_precheck(stmt->thd, tables, &fake_counter)))
     return res;
-  if ((res= select_like_statement_test(stmt, tables,
-                                       &mysql_multi_delete_prepare,
-                                       OPTION_SETUP_TABLES_DONE)))
+  if ((res= select_like_stmt_test_with_open_n_lock(stmt, tables,
+                                                   &mysql_multi_delete_prepare,
+                                                   OPTION_SETUP_TABLES_DONE)))
     return res;
   if (!tables->table)
   {
@@ -1500,9 +1535,9 @@ static int mysql_test_insert_select(Prepared_statement *stmt,
   first_local_table= (TABLE_LIST *)lex->select_lex.table_list.first;
   DBUG_ASSERT(first_local_table != 0);
 
-  res= select_like_statement_test(stmt, tables,
-                                  &mysql_insert_select_prepare_tester,
-                                  OPTION_SETUP_TABLES_DONE);
+  res= select_like_stmt_test_with_open_n_lock(stmt, tables,
+                                              &mysql_insert_select_prepare_tester,
+                                              OPTION_SETUP_TABLES_DONE);
   /* revert changes  made by mysql_insert_select_prepare_tester */
   lex->select_lex.table_list.first= (byte*) first_local_table;
   lex->select_lex.resolve_mode= SELECT_LEX::INSERT_MODE;

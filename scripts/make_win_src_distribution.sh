@@ -16,12 +16,25 @@ OUTTAR="0"
 OUTZIP="0"
 
 #
+# An "abort" function taking a variable number of strings (one per line)
+#
+
+abort()
+{
+  for line
+  do
+    echo "$line"
+  done
+  exit 1
+}
+
+
+#
 # This script must run from MySQL top directory
 #
 
 if [ ! -f scripts/make_win_src_distribution ]; then
-  echo "ERROR : You must run this script from the MySQL top-level directory"
-  exit 1
+  abort "ERROR : You must run this script from the MySQL top-level directory"
 fi
 SOURCE=`pwd`
 
@@ -30,9 +43,8 @@ SOURCE=`pwd`
 #
 
 if [ ! -f sql/sql_yacc.cc ]; then
-  echo "ERROR : Sorry, you must run this script after the complete build,"
-  echo "        hope you know what you are trying to do !!"
-  exit 1
+  abort "ERROR : Sorry, you must run this script after the complete build," \
+        "        hope you know what you are trying to do !!"
 fi
 
 #
@@ -86,9 +98,7 @@ parse_arguments() {
       --tar)      OUTTAR=1 ;;
       --zip)      OUTZIP=1 ;;
       --help)     show_usage ;;
-      *)
-  echo "Unknown argument '$arg'"
-  exit 1
+      *)          abort "Unknown argument '$arg'"
       ;;
     esac
   done
@@ -138,6 +148,7 @@ if [ -d $BASE ] ; then
 fi
 
 $CP -r $SOURCE/VC++Files $BASE
+# This includes an implicit 'mkdir $BASE' !
 
 #
 # Process version tags in InstallShield files
@@ -255,7 +266,7 @@ make -C $SOURCE/ndb windoze
 # Input directories to be copied recursively
 #
 
-for i in bdb innobase mysql-test ndb
+for i in bdb innobase ndb
 do
   copy_dir_dirs $i
 done
@@ -307,12 +318,17 @@ done
 # Raw dirs from source tree
 #
 
-for i in scripts sql-bench SSL tests
+for i in scripts sql-bench mysql-test SSL tests
 do
   print_debug "Copying directory '$i'"
   if [ -d $i ]
   then
-    $CP -R $i $BASE/$i
+    if [ -d $BASE/$i ]
+    then
+      $CP -R $i $BASE
+    else
+      $CP -R $i $BASE/$i
+    fi
   fi
 done
 

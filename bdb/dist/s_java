@@ -5,7 +5,7 @@
 
 msgjava="/* DO NOT EDIT: automatically built by dist/s_java. */"
 
-. RELEASE
+. ./RELEASE
 
 t=/tmp/__java
 c=/tmp/__javajnic

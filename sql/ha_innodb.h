@@ -1,4 +1,4 @@
-/* Copyright (C) 2000 MySQL AB && Innobase Oy
+/* Copyright (C) 2000-2005 MySQL AB && Innobase Oy
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -40,9 +40,10 @@ my_bool innobase_query_caching_of_table_permitted(THD* thd, char* full_name,
 /* The class defining a handle to an Innodb table */
 class ha_innobase: public handler
 {
-	void*	innobase_prebuilt;	/* (row_prebuilt_t*) prebuilt
-					struct in Innodb, used to save
-					CPU */
+	void*		innobase_prebuilt;/* (row_prebuilt_t*) prebuilt
+					struct in InnoDB, used to save
+					CPU time with prebuilt data
+					structures*/
 	THD*		user_thd;	/* the thread handle of the user
 					currently using the handle; this is
 					set in external_lock function */
@@ -83,12 +84,12 @@ class ha_innobase: public handler
  public:
   	ha_innobase(TABLE *table): handler(table),
 	  int_table_flags(HA_REC_NOT_IN_SEQ |
-			  HA_NULL_IN_KEY | HA_FAST_KEY_READ |
+			  HA_NULL_IN_KEY |
+			  HA_FAST_KEY_READ |
 			  HA_CAN_INDEX_BLOBS |
 			  HA_CAN_SQL_HANDLER |
 			  HA_NOT_EXACT_COUNT |
 			  HA_PRIMARY_KEY_IN_READ_INDEX |
-                          HA_NO_VARCHAR |
 			  HA_TABLE_SCAN_ON_INDEX),
 	  last_dup_key((uint) -1),
 	  start_of_scan(0),
@@ -108,7 +109,10 @@ class ha_innobase: public handler
  	ulong table_flags() const { return int_table_flags; }
 	ulong index_flags(uint idx, uint part, bool all_parts) const
 	{
-	  return (HA_READ_NEXT | HA_READ_PREV | HA_READ_ORDER | HA_READ_RANGE |
+	  return (HA_READ_NEXT |
+		  HA_READ_PREV |
+		  HA_READ_ORDER |
+		  HA_READ_RANGE |
                   HA_KEYREAD_ONLY);
 	}
   	uint max_supported_keys()          const { return MAX_KEY; }
@@ -163,7 +167,8 @@ class ha_innobase: public handler
 	int start_stmt(THD *thd);
 
   	void position(byte *record);
-  	ha_rows records_in_range(uint inx, key_range *min_key, key_range *max_key);
+  	ha_rows records_in_range(uint inx, key_range *min_key, key_range
+								*max_key);
 	ha_rows estimate_rows_upper_bound();
 
   	int create(const char *name, register TABLE *form,
