@@ -1568,9 +1568,6 @@ command");
 static ulong read_event(MYSQL* mysql, MASTER_INFO *mi)
 {
   ulong len = packet_error;
-  // for convinience lets think we start by
-  // being in the interrupted state :-)
-  int read_errno = EINTR;
 
   // my_real_read() will time us out
   // we check if we were told to die, and if not, try reading again
@@ -1579,27 +1576,21 @@ static ulong read_event(MYSQL* mysql, MASTER_INFO *mi)
     return packet_error;      
 #endif
   
-  while (!abort_loop && !mi->abort_slave && len == packet_error &&
-	 read_errno == EINTR )
-  {
-    len = mc_net_safe_read(mysql);
-    read_errno = errno;
-  }
-  if (abort_loop || mi->abort_slave)
-    return packet_error;
+  len = mc_net_safe_read(mysql);
+
   if (len == packet_error || (long) len < 1)
   {
-    sql_print_error("Error reading packet from server: %s (read_errno %d,\
+    sql_print_error("Error reading packet from server: %s (\
 server_errno=%d)",
-		    mc_mysql_error(mysql), read_errno, mc_mysql_errno(mysql));
+		    mc_mysql_error(mysql), mc_mysql_errno(mysql));
     return packet_error;
   }
 
   if (len == 1)
   {
      sql_print_error("Slave: received 0 length packet from server, apparent\
- master shutdown: %s (%d)",
-		     mc_mysql_error(mysql), read_errno);
+ master shutdown: %s",
+		     mc_mysql_error(mysql));
      return packet_error;
   }
   
