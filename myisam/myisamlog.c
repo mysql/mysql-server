@@ -413,8 +413,16 @@ static int examine_log(my_string file_name, char **table_names)
       VOID(tree_walk(&tree,(tree_walk_action) test_if_open,(void*) &open_param,
 		     left_root_right));
       file_info.id=open_param.max_id+1;
+      /*
+       * In the line below +10 is added to accomodate '<' and '>' chars
+       * plus '\0' at the end, so that there is place for 7 digits.
+       * It is  improbable that same table can have that many entries in 
+       * the table cache.
+       * The additional space is needed for the sprintf commands two lines
+       * below.
+       */ 
       file_info.show_name=my_memdup(isam_file_name,
-				    (uint) strlen(isam_file_name)+6,
+				    (uint) strlen(isam_file_name)+10,
 				    MYF(MY_WME));
       if (file_info.id > 1)
 	sprintf(strend(file_info.show_name),"<%d>",file_info.id);
