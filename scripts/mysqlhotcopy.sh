@@ -660,9 +660,9 @@ sub safe_system
   print "Executing '@cmd'\n" if $opt{debug};
   my $cp_status = system "@cmd > /dev/null";
   if ($cp_status != 0) {
-    warn "Burp ('scuse me). Trying backtick execution...\n" if $opt{debug}; #'
+    warn "Executing command failed ($cp_status). Trying backtick execution...\n";
     ## try something else
-    `@cmd` && die "Error: @cmd failed ($cp_status) while copying files.\n";
+    `@cmd` || die "Error: @cmd failed ($?) while copying files.\n";
   }
 }
 
