@@ -137,7 +137,7 @@ EOF
 echo ""
 
 #
-# Change the user table to MySQL 4.0 format
+# Change the user,db and host tables to MySQL 4.0 format
 #
 
 echo "Adding new fields used by MySQL 4.0.2 to the privilege tables"
@@ -173,4 +173,17 @@ alter table user
 add max_questions int(11) NOT NULL AFTER x509_subject,
 add max_updates   int(11) unsigned NOT NULL AFTER max_questions,
 add max_connections int(11) unsigned NOT NULL AFTER max_updates;
+END_OF_DATA
+
+#
+# Add Create_tmp_table_priv and Lock_tables_priv to db and host
+#
+
+@bindir@/mysql --user=root --password="$root_password" --host="$host" mysql <<END_OF_DATA
+alter table db
+add Create_tmp_table_priv enum('N','Y') DEFAULT 'N' NOT NULL,
+add Lock_tables_priv enum('N','Y') DEFAULT 'N' NOT NULL;
+alter table host
+add Create_tmp_table_priv enum('N','Y') DEFAULT 'N' NOT NULL,
+add Lock_tables_priv enum('N','Y') DEFAULT 'N' NOT NULL;
 END_OF_DATA

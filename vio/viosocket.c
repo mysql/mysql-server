@@ -120,7 +120,6 @@ int vio_blocking(Vio * vio __attribute__((unused)), my_bool set_blocking_mode,
   DBUG_PRINT("enter", ("set_blocking_mode: %d  old_mode: %d",
 		       (int) set_blocking_mode, (int) *old_mode));
 
-#if !defined(HAVE_OPENSSL)
 #if !defined(___WIN__) && !defined(__EMX__)
 #if !defined(NO_FCNTL_NONBLOCK)
   if (vio->sd >= 0)
@@ -161,7 +160,6 @@ int vio_blocking(Vio * vio __attribute__((unused)), my_bool set_blocking_mode,
     r=  test(!(vio->fcntl_mode & O_NONBLOCK)) != set_blocking_mode;
 #endif /* __EMX__ */
 #endif /* !defined(__WIN__) && !defined(__EMX__) */
-#endif /* !defined (HAVE_OPENSSL) */ 
   DBUG_PRINT("exit", ("%d", r));
   DBUG_RETURN(r);
 }

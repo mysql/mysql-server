@@ -20,3 +20,22 @@ revoke all privileges on mysqltest.* from mysqltest_1@localhost;
 show grants for mysqltest_1@localhost;
 delete from mysql.user where user='mysqltest_1';
 flush privileges;
+
+#
+# Test that the new db privileges are stored/retrieved correctly
+#
+
+grant CREATE TEMPORARY TABLES, LOCK TABLES on mysqltest.* to mysqltest_1@localhost;
+show grants for mysqltest_1@localhost;
+flush privileges;
+show grants for mysqltest_1@localhost;
+revoke CREATE TEMPORARY TABLES on mysqltest.* from mysqltest_1@localhost;
+show grants for mysqltest_1@localhost;
+grant ALL PRIVILEGES on mysqltest.* to mysqltest_1@localhost with GRANT OPTION;
+flush privileges;
+show grants for mysqltest_1@localhost;
+revoke LOCK TABLES, ALTER on mysqltest.* from mysqltest_1@localhost;
+show grants for mysqltest_1@localhost;
+revoke all privileges on mysqltest.* from mysqltest_1@localhost;
+delete from mysql.user where user='mysqltest_1';
+flush privileges;

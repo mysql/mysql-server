@@ -1,5 +1,5 @@
 #!/bin/sh
-# Copyright (C) 1997, 1998, 1999 TCX DataKonsult AB & Monty Program KB & Detron HB
+# Copyright (C) 1997-2002 MySQL AB
 # For a more info consult the file COPYRIGHT distributed with this file
 
 # This scripts creates the privilege tables db, host, user, tables_priv,
@@ -85,13 +85,15 @@ then
   c_d="$c_d   References_priv enum('N','Y') DEFAULT 'N' NOT NULL,"
   c_d="$c_d   Index_priv enum('N','Y') DEFAULT 'N' NOT NULL,"
   c_d="$c_d   Alter_priv enum('N','Y') DEFAULT 'N' NOT NULL,"
+  c_d="$c_d   Create_tmp_table_priv enum('N','Y') DEFAULT 'N' NOT NULL,"
+  c_d="$c_d   Lock_tables_priv enum('N','Y') DEFAULT 'N' NOT NULL,"
   c_d="$c_d PRIMARY KEY Host (Host,Db,User),"
   c_d="$c_d KEY User (User)"
   c_d="$c_d )"
   c_d="$c_d comment='Database privileges';"
   
-  i_d="INSERT INTO db VALUES ('%','test','','Y','Y','Y','Y','Y','Y','N','Y','Y','Y');
-  INSERT INTO db VALUES ('%','test\_%','','Y','Y','Y','Y','Y','Y','N','Y','Y','Y');"
+  i_d="INSERT INTO db VALUES ('%','test','','Y','Y','Y','Y','Y','Y','N','Y','Y','Y','Y','Y');
+  INSERT INTO db VALUES ('%','test\_%','','Y','Y','Y','Y','Y','Y','N','Y','Y','Y','Y','Y');"
 fi
 
 if test ! -f $mdata/host.frm
@@ -109,6 +111,8 @@ then
   c_h="$c_h  References_priv enum('N','Y') DEFAULT 'N' NOT NULL,"
   c_h="$c_h  Index_priv enum('N','Y') DEFAULT 'N' NOT NULL,"
   c_h="$c_h  Alter_priv enum('N','Y') DEFAULT 'N' NOT NULL,"
+  c_h="$c_h  Create_tmp_table_priv enum('N','Y') DEFAULT 'N' NOT NULL,"
+  c_h="$c_h  Lock_tables_priv enum('N','Y') DEFAULT 'N' NOT NULL,"
   c_h="$c_h  PRIMARY KEY Host (Host,Db)"
   c_h="$c_h )"
   c_h="$c_h comment='Host privileges;  Merged with database privileges';"
