@@ -785,7 +785,7 @@ Table	Op	Msg_type	Msg_text
 test.t1	optimize	status	OK
 show keys from t1;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment
-t1	0	PRIMARY	1	a	A	2	NULL	NULL		BTREE	
+t1	0	PRIMARY	1	a	NULL	2	NULL	NULL		BTREE	
 drop table t1;
 create table t1 (i int, j int )ENGINE=BDB;
 insert into t1 values (1,2);
