@@ -585,7 +585,7 @@ char* getlogin(void);
 
 
 #if defined(__NETWARE__)
-/* default to "root" on NetWare */
+/* Default to value of USER on NetWare, if unset use "UNKNOWN_USER" */
 static void read_user_name(char *name)
 {
   char *str=getenv("USER");
