@@ -3433,7 +3433,7 @@ bool add_field_to_list(THD *thd, char *field_name, enum_field_types type,
     }
     else if (type_modifier & AUTO_INCREMENT_FLAG)
     {
-      net_printf(&thd, ER_INVALID_DEFAULT, field_name);
+      net_printf(thd, ER_INVALID_DEFAULT, field_name);
       DBUG_RETURN(1);
     }
   }
