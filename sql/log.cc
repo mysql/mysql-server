@@ -1067,6 +1067,7 @@ void sql_print_error(const char *format,...)
     char buff[1024];
     my_vsnprintf(buff,sizeof(buff)-1,format,args);
     DBUG_PRINT("error",("%s",buff));
+    va_end(args);
     va_start(args,format);
   }
 #endif

@@ -953,7 +953,7 @@ int ha_myisam::create(const char *name, register TABLE *form,
 			&keydef, form->keys*sizeof(MI_KEYDEF),
 			&keyseg,
 			((form->key_parts + form->keys) * sizeof(MI_KEYSEG)),
-			0)))
+			NullS)))
     DBUG_RETURN(1);
 
   pos=form->key_info;
