@@ -7,7 +7,7 @@ test.t1	repair	status	OK
 alter table t1 TYPE=HEAP;
 repair table t1 use_frm;
 Table	Op	Msg_type	Msg_text
-test.t1	repair	error	The handler for the table doesn't support repair
+test.t1	repair	error	The storage enginge for the table doesn't support repair
 drop table t1;
 repair table t1 use_frm;
 Table	Op	Msg_type	Msg_text

@@ -1590,11 +1590,10 @@ int mysqld_show(THD *thd, const char *wild, show_var_st *variables,
       case SHOW_QUESTION:
 	end= int10_to_str((long) thd->query_id, buff, 10);
         break;
-#ifndef EMBEDDED_LIBRARY
+#ifdef HAVE_REPLICATION
       case SHOW_RPL_STATUS:
 	end= strmov(buff, rpl_status_type[(int)rpl_status]);
 	break;
-#ifdef HAVE_REPLICATION
       case SHOW_SLAVE_RUNNING:
       {
 	LOCK_ACTIVE_MI;

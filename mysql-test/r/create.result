@@ -183,18 +183,20 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) NOT NULL default '0'
-) TYPE=HEAP
+) TYPE=HEAP CHARSET=latin1
 drop table t1;
 SET SESSION table_type="gemini";
 SELECT @@table_type;
 @@table_type
 GEMINI
 CREATE TABLE t1 (a int not null);
+Warnings:
+Warning	1259	Using storage engine MYISAM for table 't1'
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) NOT NULL default '0'
-) TYPE=MyISAM
+) TYPE=MyISAM CHARSET=latin1
 SET SESSION table_type=default;
 drop table t1;
 create table t1 ( k1 varchar(2), k2 int, primary key(k1,k2));

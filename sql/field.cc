@@ -3977,23 +3977,19 @@ String *Field_string::val_str(String *val_buffer __attribute__((unused)),
 
 int Field_string::cmp(const char *a_ptr, const char *b_ptr)
 {
-#ifdef USE_STRCOLL
-  if (field_charset->mbmaxlen > 1)
+  if (field_charset->strxfrm_multiply > 1)
   {
     /*
       We have to remove end space to be able to compare multi-byte-characters
       like in latin_de 'ae' and 0xe4
     */
-    uint a_length= field_length_without_space(a_ptr, field_length);
-    uint b_length= field_length_without_space(b_ptr, field_length);
-    return my_strnncoll(field_charset,
-			(const uchar*) a_ptr, a_length,
-			(const uchar*) b_ptr, b_length);
+    return field_charset->strnncollsp(field_charset,
+				      (const uchar*) a_ptr, field_length,
+				      (const uchar*) b_ptr, field_length);
   }
-#endif
-    return my_strnncoll(field_charset,
-                        (const uchar*) a_ptr, field_length,
-                        (const uchar*) b_ptr, field_length);
+  return field_charset->strnncoll(field_charset,
+				  (const uchar*) a_ptr, field_length,
+				  (const uchar*) b_ptr, field_length);
 }
 
 void Field_string::sort_string(char *to,uint length)

@@ -116,7 +116,7 @@ int deny_severity = LOG_WARNING;
 #define my_fromhost(A)	   fromhost()
 #define my_hosts_access(A) hosts_access()
 #define my_eval_client(A)  eval_client()
-#endif
+#endif /* __STDC__ */
 #endif /* HAVE_LIBWRAP */
 
 #ifdef HAVE_SYS_MMAN_H
@@ -128,8 +128,8 @@ int deny_severity = LOG_WARNING;
 #include <library.h>
 #include <monitor.h>
 
-event_handle_t eh;
-Report_t ref;
+static event_handle_t eh;
+static Report_t ref;
 #endif /* __NETWARE__ */
 
 #ifdef _AIX41
@@ -169,6 +169,7 @@ inline void reset_floating_point_exceptions()
 #else
 #define THR_KILL_SIGNAL SIGUSR2		// Can't use this with LinuxThreads
 #endif
+#define MYSQL_KILL_SIGNAL SIGTERM
 
 #ifdef HAVE_GLIBC2_STYLE_GETHOSTBYNAME_R
 #include <sys/types.h>
@@ -183,26 +184,6 @@ inline void reset_floating_point_exceptions()
 extern "C" int gethostname(char *name, int namelen);
 #endif
 
-#define MYSQL_KILL_SIGNAL SIGTERM
-
-#ifndef DBUG_OFF
-static const char* default_dbug_option=IF_WIN("d:t:i:O,\\mysqld.trace",
-					      "d:t:i:o,/tmp/mysqld.trace");
-#endif
-
-#ifdef __NT__
-static char szPipeName [ 257 ];
-static SECURITY_ATTRIBUTES saPipeSecurity;
-static SECURITY_DESCRIPTOR sdPipeDescriptor;
-static HANDLE hPipe = INVALID_HANDLE_VALUE;
-#endif
-#ifdef __WIN__
-static pthread_cond_t COND_handler_count;
-static uint handler_count;
-static bool start_mode=0, use_opt_args;
-static int opt_argc;
-static char **opt_argv;
-#endif
 
 /* Set prefix for windows binary */
 #ifdef __WIN__
@@ -220,192 +201,78 @@ static char **opt_argv;
 #endif /* __NT__ */
 #endif /* __WIN__ */
 
-#ifdef HAVE_BERKELEY_DB
-SHOW_COMP_OPTION have_berkeley_db=SHOW_OPTION_YES;
-#else
-SHOW_COMP_OPTION have_berkeley_db=SHOW_OPTION_NO;
-#endif
-#ifdef HAVE_INNOBASE_DB
-SHOW_COMP_OPTION have_innodb=SHOW_OPTION_YES;
-#else
-SHOW_COMP_OPTION have_innodb=SHOW_OPTION_NO;
-#endif
-#ifdef HAVE_ISAM
-SHOW_COMP_OPTION have_isam=SHOW_OPTION_YES;
-#else
-SHOW_COMP_OPTION have_isam=SHOW_OPTION_NO;
-#endif
-#ifdef USE_RAID
-SHOW_COMP_OPTION have_raid=SHOW_OPTION_YES;
-#else
-SHOW_COMP_OPTION have_raid=SHOW_OPTION_NO;
-#endif
-#ifdef HAVE_OPENSSL
-SHOW_COMP_OPTION have_openssl=SHOW_OPTION_YES;
-#else
-SHOW_COMP_OPTION have_openssl=SHOW_OPTION_NO;
-#endif
-#ifdef HAVE_BROKEN_REALPATH
-SHOW_COMP_OPTION have_symlink=SHOW_OPTION_NO;
-#else
-SHOW_COMP_OPTION have_symlink=SHOW_OPTION_YES;
-#endif
-#ifdef HAVE_QUERY_CACHE
-SHOW_COMP_OPTION have_query_cache=SHOW_OPTION_YES;
-#else
-SHOW_COMP_OPTION have_query_cache=SHOW_OPTION_NO;
-#endif
-#ifdef HAVE_CRYPT
-SHOW_COMP_OPTION have_crypt=SHOW_OPTION_YES;
-#else
-SHOW_COMP_OPTION have_crypt=SHOW_OPTION_NO;
-#endif
-#ifdef HAVE_COMPRESS
-SHOW_COMP_OPTION have_compress= SHOW_OPTION_YES;
-#else
-SHOW_COMP_OPTION have_compress= SHOW_OPTION_NO;
-#endif
+
+/* Constants */
 
 const char *show_comp_option_name[]= {"YES", "NO", "DISABLED"};
-
-bool opt_large_files= sizeof(my_off_t) > 4;
+const char *sql_mode_names[] =
+{
+  "REAL_AS_FLOAT", "PIPES_AS_CONCAT", "ANSI_QUOTES", "IGNORE_SPACE",
+  "SERIALIZE", "ONLY_FULL_GROUP_BY", "NO_UNSIGNED_SUBTRACTION",
+  "POSTGRESQL", "ORACLE", "MSSQL", "DB2", "SAPDB", "NO_KEY_OPTIONS",
+  "NO_TABLE_OPTIONS", "NO_FIELD_OPTIONS", "MYSQL323", "MYSQL40",
+  NullS
+};
+TYPELIB sql_mode_typelib= { array_elements(sql_mode_names)-1,"",
+			    sql_mode_names };
+const char *first_keyword= "first", *binary_keyword= "BINARY";
+const char *localhost= "localhost", *delayed_user= "DELAYED";
 #if SIZEOF_OFF_T > 4 && defined(BIG_TABLES)
 #define GET_HA_ROWS GET_ULL
 #else
 #define GET_HA_ROWS GET_ULONG
 #endif
 
-#ifdef HAVE_LIBWRAP
-char *libwrapName= NULL;
-#endif
-
-/*
-  Variables to store startup options
-*/
-
-my_bool opt_skip_slave_start = 0; // If set, slave is not autostarted
-/*
-  If set, some standard measures to enforce slave data integrity will not
-  be performed
-*/
-my_bool opt_reckless_slave = 0;
-
-ulong back_log, connect_timeout, concurrency;
-char mysql_home[FN_REFLEN], pidfile_name[FN_REFLEN], time_zone[30];
-char log_error_file[FN_REFLEN];
-bool opt_log, opt_update_log, opt_bin_log, opt_slow_log;
-bool opt_error_log= IF_WIN(1,0);
-bool opt_disable_networking=0, opt_skip_show_db=0;
-my_bool opt_enable_named_pipe= 0;
-my_bool opt_local_infile, opt_external_locking, opt_slave_compressed_protocol;
-uint delay_key_write_options= (uint) DELAY_KEY_WRITE_ON;
-
-static my_bool opt_do_pstack = 0;
-static ulong opt_specialflag=SPECIAL_ENGLISH;
-
-static ulong opt_myisam_block_size;
-static my_socket unix_sock= INVALID_SOCKET,ip_sock= INVALID_SOCKET;
-static my_string opt_logname=0,opt_update_logname=0,
-       opt_binlog_index_name = 0,opt_slow_logname=0;
-
-static char* mysql_home_ptr= mysql_home;
-static char* pidfile_name_ptr= pidfile_name;
-char* log_error_file_ptr= log_error_file;
-static pthread_t select_thread;
-static my_bool opt_noacl=0, opt_bootstrap=0, opt_myisam_log=0;
-my_bool opt_safe_user_create = 0, opt_no_mix_types = 0;
-my_bool lower_case_table_names, opt_old_rpl_compat;
-my_bool opt_show_slave_auth_info, opt_sql_bin_update = 0;
-my_bool opt_log_slave_updates= 0, opt_old_passwords=0, use_old_passwords=0;
-my_bool	opt_console= 0, opt_bdb, opt_innodb, opt_isam;
-
-volatile bool  mqh_used = 0;
-FILE *bootstrap_file=0;
-
-static bool kill_in_progress=0, segfaulted= 0;
-struct rand_struct sql_rand; // used by sql_class.cc:THD::THD()
-static int cleanup_done;
-static char **defaults_argv;
-char glob_hostname[FN_REFLEN];
-
-#include "sslopt-vars.h"
-#ifdef HAVE_OPENSSL
-char *des_key_file = 0;
-struct st_VioSSLAcceptorFd *ssl_acceptor_fd= 0;
-#endif /* HAVE_OPENSSL */
-
-I_List <i_string_pair> replicate_rewrite_db;
-I_List<i_string> replicate_do_db, replicate_ignore_db;
-// allow the user to tell us which db to replicate and which to ignore
-I_List<i_string> binlog_do_db, binlog_ignore_db;
-
-/* if we guessed server_id , we need to know about it */
-ulong server_id= 0;			// Must be long becasue of set_var.cc
-bool server_id_supplied = 0;
-
-uint mysql_port;
-uint test_flags = 0, select_errors=0, dropping_tables=0,ha_open_options=0;
-uint volatile thread_count=0, thread_running=0, kill_cached_threads=0,
-	      wake_thread=0;
-ulong thd_startup_options=(OPTION_UPDATE_LOG | OPTION_AUTO_IS_NULL |
-			   OPTION_BIN_LOG | OPTION_QUOTE_SHOW_CREATE );
-uint protocol_version=PROTOCOL_VERSION;
-struct system_variables global_system_variables;
-struct system_variables max_system_variables;
-ulonglong keybuff_size;
-ulong table_cache_size,
-      thread_stack,
-      thread_stack_min,what_to_log= ~ (1L << (uint) COM_TIME),
-      query_buff_size,
-      slow_launch_time = 2L,
-      slave_open_temp_tables=0,
-      open_files_limit=0, max_binlog_size;
-ulong com_stat[(uint) SQLCOM_END], com_other;
-ulong slave_net_timeout;
-ulong thread_cache_size=0, binlog_cache_size=0, max_binlog_cache_size=0;
-ulong query_cache_size=0;
-#ifdef HAVE_QUERY_CACHE
-ulong query_cache_limit= 0;
-ulong query_cache_min_res_unit= QUERY_CACHE_MIN_RESULT_DATA_SIZE;
-Query_cache query_cache;
-#endif
+bool opt_large_files= sizeof(my_off_t) > 4;
 arg_cmp_func Arg_comparator::comparator_matrix[4][2] =
 {{&Arg_comparator::compare_string, &Arg_comparator::compare_e_string},
  {&Arg_comparator::compare_real, &Arg_comparator::compare_e_real},
  {&Arg_comparator::compare_int, &Arg_comparator::compare_e_int},
  {&Arg_comparator::compare_row, &Arg_comparator::compare_e_row}};
-#ifdef HAVE_SMEM
-char *shared_memory_base_name=default_shared_memory_base_name;
-my_bool opt_enable_shared_memory = 0;
-#endif
 
-volatile ulong cached_thread_count=0;
 
-// replication parameters, if master_host is not NULL, we are a slave
-my_string master_user = (char*) "test", master_password = 0, master_host=0,
-  master_info_file = (char*) "master.info",
-  relay_log_info_file = (char*) "relay-log.info",
-  master_ssl_key=0, master_ssl_cert=0, master_ssl_capath=0, master_ssl_cipher=0;
-my_string report_user = 0, report_password = 0, report_host=0;
+/* Global variables */
 
-const char *localhost=LOCAL_HOST;
-const char *delayed_user="DELAYED";
-uint master_port = MYSQL_PORT, master_connect_retry = 60;
-uint report_port = MYSQL_PORT;
-my_bool master_ssl = 0;
-
-ulong master_retry_count=0;
-ulong bytes_sent = 0L, bytes_received = 0L;
-
+bool opt_log, opt_update_log, opt_bin_log, opt_slow_log;
+bool opt_error_log= IF_WIN(1,0);
+bool opt_disable_networking=0, opt_skip_show_db=0;
+bool server_id_supplied = 0;
 bool opt_endinfo,using_udf_functions, locked_in_memory;
 bool opt_using_transactions, using_update_log;
 bool volatile abort_loop, select_thread_in_use, signal_thread_in_use;
 bool volatile ready_to_exit, shutdown_in_progress, grant_option;
+
+my_bool opt_skip_slave_start = 0; // If set, slave is not autostarted
+my_bool opt_reckless_slave = 0;
+my_bool opt_enable_named_pipe= 0;
+my_bool opt_local_infile, opt_external_locking, opt_slave_compressed_protocol;
+my_bool opt_safe_user_create = 0, opt_no_mix_types = 0;
+my_bool lower_case_table_names, opt_old_rpl_compat;
+my_bool opt_show_slave_auth_info, opt_sql_bin_update = 0;
+my_bool opt_log_slave_updates= 0, opt_old_passwords=0, use_old_passwords=0;
+my_bool	opt_console= 0, opt_bdb, opt_innodb, opt_isam;
+my_bool opt_readonly, use_temp_pool, relay_log_purge;
+volatile bool mqh_used = 0;
+
+uint mysql_port, test_flags, select_errors, dropping_tables, ha_open_options;
+uint delay_key_write_options, protocol_version;
+uint volatile thread_count, thread_running, kill_cached_threads, wake_thread;
+
+ulong back_log, connect_timeout, concurrency;
+ulong server_id, thd_startup_options;
+ulong table_cache_size, thread_stack, thread_stack_min, what_to_log;
+ulong query_buff_size, slow_launch_time, slave_open_temp_tables;
+ulong open_files_limit, max_binlog_size;
+ulong slave_net_timeout;
+ulong thread_cache_size=0, binlog_cache_size=0, max_binlog_cache_size=0;
+ulong query_cache_size=0;
+ulong com_stat[(uint) SQLCOM_END], com_other;
+ulong bytes_sent, bytes_received;
 ulong refresh_version=1L,flush_version=1L;	/* Increments on each reload */
-ulong query_id=1L,long_query_count,aborted_threads,
-      aborted_connects,delayed_insert_timeout,delayed_insert_limit,
-      delayed_queue_size,delayed_insert_threads,delayed_insert_writes,
-      delayed_rows_in_use,delayed_insert_errors,flush_time, thread_created;
+ulong query_id, long_query_count, aborted_threads, aborted_connects;
+ulong delayed_insert_timeout, delayed_insert_limit, delayed_queue_size;
+ulong delayed_insert_threads, delayed_insert_writes, delayed_rows_in_use;
+ulong delayed_insert_errors,flush_time, thread_created;
 ulong filesort_rows, filesort_range_count, filesort_scan_count;
 ulong filesort_merge_passes;
 ulong select_range_check_count, select_range_count, select_scan_count;
@@ -417,51 +284,52 @@ ulong max_connections,max_insert_delayed_threads,max_used_connections,
 ulong thread_id=1L,current_pid;
 ulong slow_launch_threads = 0;
 ulong expire_logs_days = 0;
+ulong rpl_recovery_rank=0;
+ulong my_bind_addr;			/* the address we bind to */
+volatile ulong cached_thread_count= 0;
 
+ulonglong keybuff_size;
+
+double log_10[32];			/* 10 potences */
+
+time_t start_time;
+
+char mysql_home[FN_REFLEN], pidfile_name[FN_REFLEN], time_zone[30];
+char log_error_file[FN_REFLEN], glob_hostname[FN_REFLEN];
+char* log_error_file_ptr= log_error_file;
 char mysql_real_data_home[FN_REFLEN],
      language[LIBLEN],reg_ext[FN_EXTLEN],
      mysql_charsets_dir[FN_REFLEN], *charsets_list,
      max_sort_char,*mysqld_user,*mysqld_chroot, *opt_init_file;
 char *language_ptr= language;
 char mysql_data_home_buff[2], *mysql_data_home=mysql_real_data_home;
-#ifndef EMBEDDED_LIBRARY
-bool mysql_embedded=0;
-#else
-bool mysql_embedded=1;
-#endif
-
-static char *opt_bin_logname = 0;
-char *opt_relay_logname = 0, *opt_relaylog_index_name=0;
 char server_version[SERVER_VERSION_LENGTH]=MYSQL_SERVER_VERSION;
-const char *first_keyword="first";
+char *mysql_unix_port, *opt_mysql_tmpdir;
+char *my_bind_addr_str;
 const char **errmesg;			/* Error messages */
 const char *myisam_recover_options_str="OFF";
 const char *sql_mode_str="OFF";
-ulong rpl_recovery_rank=0;
-my_bool relay_log_purge=1;
 
-my_string mysql_unix_port=NULL, opt_mysql_tmpdir=NULL;
-MY_TMPDIR mysql_tmpdir_list;
-ulong my_bind_addr;			/* the address we bind to */
-char *my_bind_addr_str;
-DATE_FORMAT dayord;
-double log_10[32];			/* 10 potences */
+FILE *bootstrap_file;
+
+I_List <i_string_pair> replicate_rewrite_db;
+I_List<i_string> replicate_do_db, replicate_ignore_db;
+// allow the user to tell us which db to replicate and which to ignore
+I_List<i_string> binlog_do_db, binlog_ignore_db;
 I_List<THD> threads,thread_cache;
-time_t start_time;
 
-const char *sql_mode_names[] =
-{
-  "REAL_AS_FLOAT", "PIPES_AS_CONCAT", "ANSI_QUOTES", "IGNORE_SPACE",
-  "SERIALIZE", "ONLY_FULL_GROUP_BY", "NO_UNSIGNED_SUBTRACTION",
-  "POSTGRESQL", "ORACLE", "MSSQL", "DB2", "SAPDB", "NO_KEY_OPTIONS",
-  "NO_TABLE_OPTIONS", "NO_FIELD_OPTIONS", "MYSQL323", "MYSQL40",
-  NullS
-};
-TYPELIB sql_mode_typelib= {array_elements(sql_mode_names)-1,"",
-			   sql_mode_names};
+struct system_variables global_system_variables;
+struct system_variables max_system_variables;
 
+MY_TMPDIR mysql_tmpdir_list;
+DATE_FORMAT dayord;
 MY_BITMAP temp_pool;
-my_bool use_temp_pool=0;
+
+SHOW_COMP_OPTION have_berkeley_db, have_innodb, have_isam;
+SHOW_COMP_OPTION have_raid, have_openssl, have_symlink, have_query_cache;
+SHOW_COMP_OPTION have_crypt, have_compress;
+
+/* Thread specific variables */
 
 pthread_key(MEM_ROOT*,THR_MALLOC);
 pthread_key(THD*, THR_THD);
@@ -479,24 +347,98 @@ pthread_cond_t COND_thread_cache,COND_flush_thread_cache;
 pthread_t signal_thread;
 pthread_attr_t connection_attrib;
 
+/* replication parameters, if master_host is not NULL, we are a slave */
+my_bool master_ssl;
+uint master_port= MYSQL_PORT, master_connect_retry = 60;
+uint report_port= MYSQL_PORT;
+ulong master_retry_count=0;
+char *master_user, *master_password, *master_host, *master_info_file;
+char *relay_log_info_file, *master_ssl_key, *master_ssl_cert;
+char *master_ssl_capath, *master_ssl_cipher, *report_user;
+char *report_password, *report_host;
+char *opt_relay_logname = 0, *opt_relaylog_index_name=0;
+
+/* Static variables */
+
+static bool kill_in_progress, segfaulted;
+static my_bool opt_do_pstack, opt_noacl, opt_bootstrap, opt_myisam_log;
+static int cleanup_done;
+static ulong opt_specialflag, opt_myisam_block_size;
+static char *opt_logname, *opt_update_logname, *opt_binlog_index_name;
+static char *opt_slow_logname;
+static char *mysql_home_ptr, *pidfile_name_ptr;
+static char **defaults_argv;
+static char *opt_bin_logname;
+
+static my_socket unix_sock,ip_sock;
+static pthread_t select_thread;
+struct rand_struct sql_rand; // used by sql_class.cc:THD::THD()
+
+/* OS specific variables */
+
 #ifdef __WIN__
 #undef	 getpid
 #include <process.h>
+
+static pthread_cond_t COND_handler_count;
+static uint handler_count;
+static bool start_mode=0, use_opt_args;
+static int opt_argc;
+static char **opt_argv;
+
 #if !defined(EMBEDDED_LIBRARY)
-HANDLE hEventShutdown;
+static HANDLE hEventShutdown;
 static char shutdown_event_name[40];
 #include "nt_servc.h"
 static	 NTService  Service;	      // Service object for WinNT
-#endif
+#endif /* EMBEDDED_LIBRARY */
+#endif /* __WIN__ */
+
+#ifdef __NT__
+static char szPipeName [ 257 ];
+static SECURITY_ATTRIBUTES saPipeSecurity;
+static SECURITY_DESCRIPTOR sdPipeDescriptor;
+static HANDLE hPipe = INVALID_HANDLE_VALUE;
 #endif
 
 #ifdef OS2
 pthread_cond_t eventShutdown;
 #endif
 
+#ifndef EMBEDDED_LIBRARY
+bool mysql_embedded=0;
+#else
+bool mysql_embedded=1;
+#endif
+
+#ifndef DBUG_OFF
+static const char* default_dbug_option;
+#endif
+#ifdef HAVE_LIBWRAP
+char *libwrapName= NULL;
+#endif
+#ifdef HAVE_QUERY_CACHE
+ulong query_cache_limit= 0;
+ulong query_cache_min_res_unit= QUERY_CACHE_MIN_RESULT_DATA_SIZE;
+Query_cache query_cache;
+#endif
+#ifdef HAVE_SMEM
+char *shared_memory_base_name= default_shared_memory_base_name;
+my_bool opt_enable_shared_memory;
+#endif
+
+#include "sslopt-vars.h"
+#ifdef HAVE_OPENSSL
+char *des_key_file;
+struct st_VioSSLAcceptorFd *ssl_acceptor_fd;
+#endif /* HAVE_OPENSSL */
+
+
+/* Function declarations */
+
 static void start_signal_handler(void);
 extern "C" pthread_handler_decl(signal_hand, arg);
-static void set_options(void);
+static void mysql_init_variables(void);
 static void get_options(int argc,char **argv);
 static int init_thread_environment();
 static char *get_relative_path(const char *path);
@@ -1998,6 +1940,7 @@ static int init_common_variables(const char *conf_file_name, int argc,
 
   max_system_variables.pseudo_thread_id= (ulong)~0;
   start_time=time((time_t*) 0);
+  mysql_init_variables();
 
 #ifdef OS2
   {
@@ -2036,7 +1979,6 @@ static int init_common_variables(const char *conf_file_name, int argc,
 
   load_defaults(conf_file_name, groups, &argc, &argv);
   defaults_argv=argv;
-  set_options();
   get_options(argc,argv);
   if (init_thread_environment())
     return 1;
@@ -4610,18 +4552,110 @@ To see what values a running MySQL server is using, type\n\
 }
 
 
-static void set_options(void)
+/*
+  Initialize all MySQL global variables to default values
+
+  SYNOPSIS
+    mysql_init_variables()
+
+  NOTES
+    The reason to set a lot of global variables to zero is to allow one to
+    restart the embedded server with a clean environment
+    It's also needed on some exotic platforms where global variables are
+    not set to 0 when a program starts.
+
+    We don't need to set numeric variables refered to in my_long_options
+    as these are initialized by my_getopt.
+*/
+
+static void mysql_init_variables(void)
 {
-#if !defined( my_pthread_setprio ) && !defined( HAVE_PTHREAD_SETSCHEDPARAM )
-  opt_specialflag |= SPECIAL_NO_PRIOR;
-#endif
+  /* Things reset to zero */
+  opt_skip_slave_start= opt_reckless_slave = 0;
+  mysql_home[0]= pidfile_name[0]= log_error_file[0]= 0;
+  opt_log= opt_update_log= opt_bin_log= opt_slow_log= 0;
+  opt_disable_networking= opt_skip_show_db=0;
+  opt_logname= opt_update_logname= opt_binlog_index_name= opt_slow_logname=0;
+  opt_bootstrap= opt_myisam_log= use_old_passwords= 0;
+  mqh_used= 0;
+  segfaulted= kill_in_progress= 0;
+  cleanup_done= 0;
+  defaults_argv= 0;
+  server_id_supplied= 0;
+  test_flags= select_errors= dropping_tables= ha_open_options=0;
+  thread_count= thread_running= kill_cached_threads= wake_thread=0;
+  slave_open_temp_tables= 0;
+  com_other= 0;
+  cached_thread_count= 0;
+  bytes_sent= bytes_received= 0;
+  opt_endinfo= using_udf_functions= 0;
+  opt_using_transactions= using_update_log= 0;
+  abort_loop= select_thread_in_use= signal_thread_in_use= 0;
+  ready_to_exit= shutdown_in_progress= grant_option= 0;
+  long_query_count= aborted_threads= aborted_connects= 0;
+  delayed_insert_threads= delayed_insert_writes= delayed_rows_in_use= 0;
+  delayed_insert_errors= thread_created= 0;
+  filesort_rows= filesort_range_count= filesort_scan_count= 0;
+  filesort_merge_passes= select_range_check_count= select_range_count= 0;
+  select_scan_count= select_full_range_join_count= select_full_join_count= 0;
+  specialflag= opened_tables= created_tmp_tables= created_tmp_disk_tables= 0;
+  max_used_connections= slow_launch_threads = 0;
+  max_sort_char= 0;
+  mysqld_user= mysqld_chroot= opt_init_file= opt_bin_logname = 0;
+  errmesg= 0;
+  mysql_unix_port= opt_mysql_tmpdir= my_bind_addr_str= NullS;
+  bzero((gptr) &mysql_tmpdir_list, sizeof(mysql_tmpdir_list));
+  bzero((gptr) &com_stat, sizeof(com_stat));
 
+  /* Things with default values that are not zero */
+  delay_key_write_options= (uint) DELAY_KEY_WRITE_ON;
+  opt_specialflag= SPECIAL_ENGLISH;
+  unix_sock= ip_sock= INVALID_SOCKET;
+  mysql_home_ptr= mysql_home;
+  pidfile_name_ptr= pidfile_name;
+  log_error_file_ptr= log_error_file;
+  language_ptr= language;
+  mysql_data_home= mysql_real_data_home;
+  thd_startup_options= (OPTION_UPDATE_LOG | OPTION_AUTO_IS_NULL |
+			OPTION_BIN_LOG | OPTION_QUOTE_SHOW_CREATE);
+  protocol_version= PROTOCOL_VERSION;
+  what_to_log= ~ (1L << (uint) COM_TIME);
+  refresh_version= flush_version= 1L;	/* Increments on each reload */
+  thread_id= 1L;
+  strmov(server_version, MYSQL_SERVER_VERSION);
+  myisam_recover_options_str= sql_mode_str= "OFF";
+  my_bind_addr = htonl(INADDR_ANY);
+  threads.empty();
+  thread_cache.empty();
+
+  /* Initialize structures that is used when processing options */
+  replicate_rewrite_db.empty();
+  replicate_do_db.empty();
+  replicate_ignore_db.empty();
+  binlog_do_db.empty();
+  binlog_ignore_db.empty();
+
+  /* Set directory paths */
+  strmake(language, LANGUAGE, sizeof(language)-1);
+  strmake(mysql_real_data_home, get_relative_path(DATADIR),
+	  sizeof(mysql_real_data_home)-1);
+  mysql_data_home_buff[0]=FN_CURLIB;	// all paths are relative from here
+  mysql_data_home_buff[1]=0;
+
+  /* Replication parameters */
+  master_user= (char*) "test";
+  master_password= master_host= 0;
+  master_info_file= (char*) "master.info",
+    relay_log_info_file= (char*) "relay-log.info",
+    master_ssl_key= master_ssl_cert= master_ssl_capath= master_ssl_cipher= 0;
+  report_user= report_password = report_host= 0;	/* TO BE DELETED */
+  opt_relay_logname= opt_relaylog_index_name= 0;
+
+  /* Variables in libraries */
+  charsets_dir= 0;
   sys_charset.value= (char*) MYSQL_CHARSET;
-  (void) strmake(language, LANGUAGE, sizeof(language)-1);
-  (void) strmake(mysql_real_data_home, get_relative_path(DATADIR),
-		 sizeof(mysql_real_data_home)-1);
 
-  /* Set default values for some variables */
+  /* Set default values for some option variables */
   global_system_variables.collation_results= default_charset_info;
   global_system_variables.collation_client= default_charset_info;
   global_system_variables.collation_connection= default_charset_info;
@@ -4631,6 +4665,71 @@ static void set_options(void)
   max_system_variables.select_limit=    (ulonglong) HA_POS_ERROR;
   global_system_variables.max_join_size= (ulonglong) HA_POS_ERROR;
   max_system_variables.max_join_size=   (ulonglong) HA_POS_ERROR;
+
+  /* Variables that depends on compile options */
+#ifndef DBUG_OFF
+  default_dbug_option=IF_WIN("d:t:i:O,\\mysqld.trace",
+			     "d:t:i:o,/tmp/mysqld.trace");
+#endif
+  opt_error_log= IF_WIN(1,0);
+#ifdef HAVE_BERKELEY_DB
+  have_berkeley_db= SHOW_OPTION_YES;
+#else
+  have_berkeley_db= SHOW_OPTION_NO;
+#endif
+#ifdef HAVE_INNOBASE_DB
+  have_innodb=SHOW_OPTION_YES;
+#else
+  have_innodb=SHOW_OPTION_NO;
+#endif
+#ifdef HAVE_ISAM
+  have_isam=SHOW_OPTION_YES;
+#else
+  have_isam=SHOW_OPTION_NO;
+#endif
+#ifdef USE_RAID
+  have_raid=SHOW_OPTION_YES;
+#else
+  have_raid=SHOW_OPTION_NO;
+#endif
+#ifdef HAVE_OPENSSL
+  have_openssl=SHOW_OPTION_YES;
+#else
+  have_openssl=SHOW_OPTION_NO;
+#endif
+#ifdef HAVE_BROKEN_REALPATH
+  have_symlink=SHOW_OPTION_NO;
+#else
+  have_symlink=SHOW_OPTION_YES;
+#endif
+#ifdef HAVE_QUERY_CACHE
+  have_query_cache=SHOW_OPTION_YES;
+#else
+  have_query_cache=SHOW_OPTION_NO;
+#endif
+#ifdef HAVE_CRYPT
+  have_crypt=SHOW_OPTION_YES;
+#else
+  have_crypt=SHOW_OPTION_NO;
+#endif
+#ifdef HAVE_COMPRESS
+  SHOW_COMP_OPTION have_compress= SHOW_OPTION_YES;
+#else
+  SHOW_COMP_OPTION have_compress= SHOW_OPTION_NO;
+#endif
+#ifdef HAVE_LIBWRAP
+  libwrapName= NullS;
+#endif
+#ifdef HAVE_OPENSSL
+  des_key_file = 0;
+  ssl_acceptor_fd= 0;
+#endif
+#ifdef HAVE_SMEM
+  shared_memory_base_name= default_shared_memory_base_name;
+#endif
+#if !defined(my_pthread_setprio) && !defined(HAVE_PTHREAD_SETSCHEDPARAM)
+  opt_specialflag |= SPECIAL_NO_PRIOR;
+#endif
 
 #if defined(__WIN__) || defined(__NETWARE__)
   /* Allow Win32 and NetWare users to move MySQL anywhere */
@@ -4646,10 +4745,6 @@ static void set_options(void)
     tmpenv = DEFAULT_MYSQL_HOME;
   (void) strmake(mysql_home, tmpenv, sizeof(mysql_home)-1);
 #endif
-
-  my_disable_locking=myisam_single_user= 1;
-  opt_external_locking=0;
-  my_bind_addr = htonl( INADDR_ANY );
 }
 
 

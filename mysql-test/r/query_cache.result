@@ -382,14 +382,14 @@ a
 set CHARACTER SET cp1251_koi8;
 select * from t1;
 a
-?
+á
 set CHARACTER SET DEFAULT;
 show status like "Qcache_queries_in_cache";
 Variable_name	Value
-Qcache_queries_in_cache	2
+Qcache_queries_in_cache	1
 show status like "Qcache_hits";
 Variable_name	Value
-Qcache_hits	4
+Qcache_hits	5
 drop table t1;
 create database if not exists mysqltest;
 create table mysqltest.t1 (i int not null);
@@ -415,7 +415,7 @@ Variable_name	Value
 Qcache_queries_in_cache	2
 show status like "Qcache_hits";
 Variable_name	Value
-Qcache_hits	6
+Qcache_hits	7
 drop database mysqltest;
 drop table t1;
 create table t1 (i int not null);
@@ -429,7 +429,7 @@ FOUND_ROWS()
 4
 show status like "Qcache_hits";
 Variable_name	Value
-Qcache_hits	6
+Qcache_hits	7
 show status like "Qcache_queries_in_cache";
 Variable_name	Value
 Qcache_queries_in_cache	1
@@ -441,7 +441,7 @@ FOUND_ROWS()
 1
 show status like "Qcache_hits";
 Variable_name	Value
-Qcache_hits	6
+Qcache_hits	7
 show status like "Qcache_queries_in_cache";
 Variable_name	Value
 Qcache_queries_in_cache	2
@@ -454,7 +454,7 @@ FOUND_ROWS()
 4
 show status like "Qcache_hits";
 Variable_name	Value
-Qcache_hits	7
+Qcache_hits	8
 show status like "Qcache_queries_in_cache";
 Variable_name	Value
 Qcache_queries_in_cache	2
@@ -466,7 +466,7 @@ FOUND_ROWS()
 1
 show status like "Qcache_hits";
 Variable_name	Value
-Qcache_hits	8
+Qcache_hits	9
 show status like "Qcache_queries_in_cache";
 Variable_name	Value
 Qcache_queries_in_cache	2
@@ -535,7 +535,7 @@ a
 3
 show status like "Qcache_hits";
 Variable_name	Value
-Qcache_hits	11
+Qcache_hits	12
 show status like "Qcache_queries_in_cache";
 Variable_name	Value
 Qcache_queries_in_cache	2
@@ -552,7 +552,7 @@ a
 3
 show status like "Qcache_hits";
 Variable_name	Value
-Qcache_hits	12
+Qcache_hits	13
 show status like "Qcache_queries_in_cache";
 Variable_name	Value
 Qcache_queries_in_cache	2

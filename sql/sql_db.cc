@@ -434,7 +434,7 @@ static long mysql_rm_known_files(THD *thd, MY_DIR *dirp, const char *db,
 	  my_dirend(dirp);
 	  DBUG_RETURN(-1);
 	}
-	raid_dirs.push_back(dir=new String(newpath));
+	raid_dirs.push_back(dir=new String(newpath, &my_charset_latin1));
 	dir->copy();
 	continue;
       }
@@ -448,7 +448,7 @@ static long mysql_rm_known_files(THD *thd, MY_DIR *dirp, const char *db,
       continue;
     }
     strxmov(filePath,org_path,"/",file->name,NullS);
-    if (db && !my_strcasecmp(&my_charset_latin1, 
+    if (db && !my_strcasecmp(&my_charset_latin1,
                              fn_ext(file->name), reg_ext))
     {
       /* Drop the table nicely */

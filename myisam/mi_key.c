@@ -164,7 +164,7 @@ uint _mi_make_key(register MI_INFO *info, uint keynr, uchar *key,
 */
 
 uint _mi_pack_key(register MI_INFO *info, uint keynr, uchar *key, uchar *old,
-		  uint k_length, MI_KEYSEG **last_used_keyseg)
+		  uint k_length, HA_KEYSEG **last_used_keyseg)
 {
   uint length;
   uchar *pos,*end,*start_key=key;

@@ -1209,7 +1209,8 @@ SET AUTOCOMMIT=0;
 INSERT INTO t1 ( B_ID ) VALUES ( 1 );
 INSERT INTO t2 ( NEXT_T ) VALUES ( 1 );
 ROLLBACK;
-Warning:  Some non-transactional changed tables couldn't be rolled back
+Warnings:
+Warning	1196	Some non-transactional changed tables couldn't be rolled back
 SELECT * FROM t1;
 B_ID
 drop table  t1,t2;
@@ -1247,12 +1248,12 @@ select count(*) from t1;
 count(*)
 29267
 explain select * from t1 where c between 1 and 10000;
-table	type	possible_keys	key	key_len	ref	rows	Extra
-t1	range	c	c	5	NULL	1	Using where
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	c	c	5	NULL	1	Using where
 update t1 set c=a;
 explain select * from t1 where c between 1 and 10000;
-table	type	possible_keys	key	key_len	ref	rows	Extra
-t1	ALL	c	NULL	NULL	NULL	29537	Using where
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ALL	c	NULL	NULL	NULL	29537	Using where
 drop table t1,t2;
 create table t1 (id int primary key auto_increment, fk int, index index_fk (fk)) type=innodb;
 insert into t1 (id) values (null),(null),(null),(null),(null);
@@ -1286,6 +1287,7 @@ a	b
 13	2
 111	100
 111	100
+drop table t1;
 CREATE TABLE t1 (col1 int(1))TYPE=InnoDB;
 CREATE TABLE t2 (col1 int(1),stamp TIMESTAMP(+0),INDEX stamp_idx
 (stamp))TYPE=InnoDB;

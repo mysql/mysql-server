@@ -483,7 +483,8 @@ int write_record(TABLE *table,COPY_INFO *info)
 	key_copy((byte*) key,table,key_nr,0);
 	if ((error=(table->file->index_read_idx(table->record[1],key_nr,
 						(byte*) key,
-						table->key_info[key_nr].key_length,
+						table->key_info[key_nr].
+						key_length,
 						HA_READ_KEY_EXACT))))
 	  goto err;
       }
@@ -495,7 +496,7 @@ int write_record(TABLE *table,COPY_INFO *info)
         */
         store_record(table,insert_values);
         restore_record(table,record[1]);
-        if (fill_record(*info->update_fields,*info->update_values))
+        if (fill_record(*info->update_fields, *info->update_values, 0))
           goto err;
         if ((error=table->file->update_row(table->record[1],table->record[0])))
           goto err;
@@ -506,10 +507,11 @@ int write_record(TABLE *table,COPY_INFO *info)
       {
         if (last_uniq_key(table,key_nr))
         {
-          if ((error=table->file->update_row(table->record[1],table->record[0])))
+          if ((error=table->file->update_row(table->record[1],
+					     table->record[0])))
             goto err;
           info->deleted++;
-          break;					/* Update logfile and count */
+          break;				/* Update logfile and count */
         }
         else if ((error=table->file->delete_row(table->record[1])))
           goto err;

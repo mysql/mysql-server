@@ -280,6 +280,7 @@ int opt_sum_query(TABLE_LIST *tables, List<Item> &all_fields,COND *conds)
 	    if (!error && reckey_in_range(1, &ref, item_field->field, 
 					  conds, range_fl, prefix_len))
 	      error= HA_ERR_KEY_NOT_FOUND;
+	  }
           if (table->key_read)
           {
             table->key_read=0;

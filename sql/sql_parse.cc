@@ -213,7 +213,7 @@ static int check_user(THD *thd,enum_server_command command, const char *user,
   thd->db=0;
   thd->db_length=0;
   USER_RESOURCES ur;
-  char tmp_passwd[SCRAMBL41_LENGTH];
+  char tmp_passwd[SCRAMBLE41_LENGTH];
   DBUG_ENTER("check_user");
   
   /*
@@ -231,7 +231,7 @@ static int check_user(THD *thd,enum_server_command command, const char *user,
   }
   thd->master_access=acl_getroot(thd, thd->host, thd->ip, thd->user,
 				 passwd, thd->scramble,
-				 &thd->priv_user, &thd->priv_host,
+				 &thd->priv_user, thd->priv_host,
 				 (protocol_version == 9 ||
 				  !(thd->client_capabilities &
 				    CLIENT_LONG_PASSWORD)),
@@ -1666,7 +1666,7 @@ mysql_execute_command(THD *thd)
       !(thd->slave_thread || (thd->master_access & SUPER_ACL)) &&
       (uc_update_queries[lex->sql_command] > 0))
   {
-    send_error(&thd->net,ER_CANT_UPDATE_WITH_READLOCK);
+    send_error(thd, ER_CANT_UPDATE_WITH_READLOCK);
     DBUG_VOID_RETURN;
   }
 
