@@ -109,11 +109,12 @@ bool mysql_rm_table(THD *thd,TABLE_LIST *tables, my_bool if_exists,
  delete (drop) tables.
 
   SYNOPSIS
-   mysql_rm_table_part2_with_lock()
-   thd			Thread handle
-   tables		List of tables to delete
-   if_exists		If 1, don't give error if one table doesn't exists
-   dont_log_query	Don't write query to log files
+    mysql_rm_table_part2_with_lock()
+    thd			Thread handle
+    tables		List of tables to delete
+    if_exists		If 1, don't give error if one table doesn't exists
+    dont_log_query	Don't write query to log files. This will also not
+			generate warnings if the handler files doesn't exists  
 
  NOTES
    Works like documented in mysql_rm_table(), but don't check
@@ -157,7 +158,8 @@ int mysql_rm_table_part2_with_lock(THD *thd,
 			In this case we give an warning of level 'NOTE'
     drop_temporary	Only drop temporary tables
     drop_view		Allow to delete VIEW .frm
-    dont_log_query	Don't log the query
+    dont_log_query	Don't write query to log files. This will also not
+			generate warnings if the handler files doesn't exists  
 
   TODO:
     When logging to the binary log, we should log
@@ -218,7 +220,8 @@ int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
       (void) unpack_filename(path,path);
     }
     if (drop_temporary ||
-        (access(path,F_OK) && ha_create_table_from_engine(thd,db,alias,TRUE)) ||
+        (access(path,F_OK) &&
+         ha_create_table_from_engine(thd,db,alias,TRUE)) ||
         (!drop_view && mysql_frm_type(path) != FRMTYPE_TABLE))
     {
       if (if_exists)
@@ -233,35 +236,23 @@ int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
       char *end;
       db_type table_type= get_table_type(path);
       *(end=fn_ext(path))=0;			// Remove extension for delete
-      error=ha_delete_table(table_type, path);
-      if (error == ENOENT && if_exists)
-	error = 0;
+      error= ha_delete_table(thd, table_type, path, table->table_name,
+                             !dont_log_query);
+      if ((error == ENOENT || error == HA_ERR_NO_SUCH_TABLE) && if_exists)
+	error= 0;
       if (error == HA_ERR_ROW_IS_REFERENCED)
       {
 	/* the table is referenced by a foreign key constraint */
 	foreign_key_error=1;
       }
-      if (!error || error == ENOENT)
+      if (!error || error == ENOENT || error == HA_ERR_NO_SUCH_TABLE)
       {
+        int new_error;
 	/* Delete the table definition file */
 	strmov(end,reg_ext);
-	if (!(error=my_delete(path,MYF(MY_WME))))
+	if (!(new_error=my_delete(path,MYF(MY_WME))))
 	  some_tables_deleted=1;
-      }
-      if (error == HA_ERR_NO_SUCH_TABLE)
-      {
-        /* The table did not exist in engine */
-        if (if_exists)
-        {
-          push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_NOTE,
-                              ER_BAD_TABLE_ERROR, ER(ER_BAD_TABLE_ERROR),
-                              table->table_name);
-          error= 0;
-        }
-        /* Delete the table definition file */
-        strmov(end,reg_ext);
-        if (!(my_delete(path,MYF(MY_WME))))
-          some_tables_deleted=1;
+        error|= new_error;
       }
     }
     if (error)
@@ -311,7 +302,7 @@ int quick_rm_table(enum db_type base,const char *db,
     error=1; /* purecov: inspected */
   my_snprintf(path, sizeof(path), "%s/%s/%s", mysql_data_home, db, table_name);
   unpack_filename(path,path);
-  return ha_delete_table(base,path) || error;
+  return ha_delete_table(current_thd, base, path, table_name, 0) || error;
 }
 
 /*

@@ -180,7 +180,7 @@ select * from t4;
 ERROR 42S02: Table 'test.t4' doesn't exist
 drop table if exists t4;
 Warnings:
-Note	1051	Unknown table 't4'
+Error	155	Table 'test.t4' doesn't exist
 drop table t5;
 ERROR 42S02: Unknown table 't5'
 drop table if exists t5;
