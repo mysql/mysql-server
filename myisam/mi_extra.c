@@ -165,6 +165,10 @@ int mi_extra(MI_INFO *info, enum ha_extra_function function, void *extra_arg)
 			 HA_STATE_EXTEND_BLOCK);
       }
     break;
+  case HA_EXTRA_PREPARE_FOR_UPDATE:
+    if (info->s->data_file_type != DYNAMIC_RECORD)
+      break;
+    /* Remove read/write cache if dynamic rows */
   case HA_EXTRA_NO_CACHE:
     if (info->opt_flag & (READ_CACHE_USED | WRITE_CACHE_USED))
     {

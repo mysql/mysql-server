@@ -325,7 +325,7 @@ public:
     decimals=0;
     max_length=10*thd_charset()->mbmaxlen;
   }
-  int  save_in_field(Field *to);
+  int save_in_field(Field *to, bool no_conversions);
   void make_field(Send_field *tmp_field)
   {
     init_make_field(tmp_field,FIELD_TYPE_DATE);
@@ -406,7 +406,7 @@ public:
   enum Item_result result_type () const { return STRING_RESULT; }
   double val()	     { return (double) value; }
   longlong val_int() { return value; }
-  int  save_in_field(Field *to);
+  int save_in_field(Field *to, bool no_conversions);
   String *val_str(String *str);
   const char *func_name() const { return "now"; }
   void fix_length_and_dec();

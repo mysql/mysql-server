@@ -494,9 +494,11 @@ class Item_func_in :public Item_int_func
   longlong val_int();
   bool fix_fields(THD *thd, struct st_table_list *tlist, Item **ref)
   {
-    return (item->check_cols(1) ||
-	    item->fix_fields(thd, tlist, &item) ||
-	    Item_func::fix_fields(thd, tlist, ref));
+    bool res=(item->check_cols(1) ||
+	      item->fix_fields(thd, tlist, &item) ||
+	      Item_func::fix_fields(thd, tlist, ref));
+    with_sum_func= with_sum_func || item->with_sum_func;
+    return res;
   }
   void fix_length_and_dec();
   ~Item_func_in() { delete item; delete array; delete in_item; }
@@ -507,6 +509,7 @@ class Item_func_in :public Item_int_func
   enum Functype functype() const { return IN_FUNC; }
   const char *func_name() const { return " IN "; }
   void update_used_tables();
+  void split_sum_func(List<Item> &fields);
   bool check_loop(uint id)
   {
     DBUG_ENTER("Item_func_in::check_loop");

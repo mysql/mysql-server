@@ -578,85 +578,86 @@ ulong acl_getroot(THD *thd, const char *host, const char *ip, const char *user,
 
   /* OK. User found and password checked continue validation */
 
-
 #ifdef HAVE_OPENSSL
-  Vio *vio=thd->net.vio;
-  /*
-    In this point we know that user is allowed to connect
-    from given host by given username/password pair. Now
-    we check if SSL is required, if user is using SSL and
-    if X509 certificate attributes are OK
-  */
-  switch (acl_user->ssl_type) {
-  case SSL_TYPE_NOT_SPECIFIED:		// Impossible
-  case SSL_TYPE_NONE: /* SSL is not required to connect */
-    user_access=acl_user->access;
-    break;
-  case SSL_TYPE_ANY: /* Any kind of SSL is good enough */
-    if (vio_type(vio) == VIO_TYPE_SSL)
-    user_access=acl_user->access;
-    break;
-  case SSL_TYPE_X509: /* Client should have any valid certificate. */
-  /*
-    Connections with non-valid certificates are dropped already
-    in sslaccept() anyway, so we do not check validity here.
-  */
-    if (SSL_get_peer_certificate(vio->ssl_))
+  {
+    Vio *vio=thd->net.vio;
+    /*
+      In this point we know that user is allowed to connect
+      from given host by given username/password pair. Now
+      we check if SSL is required, if user is using SSL and
+      if X509 certificate attributes are OK
+    */
+    switch (acl_user->ssl_type) {
+    case SSL_TYPE_NOT_SPECIFIED:		// Impossible
+    case SSL_TYPE_NONE: /* SSL is not required to connect */
       user_access=acl_user->access;
-    break;
-  case SSL_TYPE_SPECIFIED: /* Client should have specified attrib */
-  /*
-    We do not check for absence of SSL because without SSL it does
-    not pass all checks here anyway.
-    If cipher name is specified, we compare it to actual cipher in
-    use.
-  */
-    if (acl_user->ssl_cipher)
-    {
-      DBUG_PRINT("info",("comparing ciphers: '%s' and '%s'",
-        	 acl_user->ssl_cipher,SSL_get_cipher(vio->ssl_)));
-      if (!strcmp(acl_user->ssl_cipher,SSL_get_cipher(vio->ssl_)))
-        user_access=acl_user->access;
-      else
+      break;
+    case SSL_TYPE_ANY: /* Any kind of SSL is good enough */
+      if (vio_type(vio) == VIO_TYPE_SSL)
+	user_access=acl_user->access;
+      break;
+    case SSL_TYPE_X509: /* Client should have any valid certificate. */
+      /*
+	Connections with non-valid certificates are dropped already
+	in sslaccept() anyway, so we do not check validity here.
+      */
+      if (SSL_get_peer_certificate(vio->ssl_))
+	user_access=acl_user->access;
+      break;
+    case SSL_TYPE_SPECIFIED: /* Client should have specified attrib */
+      /*
+	We do not check for absence of SSL because without SSL it does
+	not pass all checks here anyway.
+	If cipher name is specified, we compare it to actual cipher in
+	use.
+      */
+      if (acl_user->ssl_cipher)
       {
-        user_access=NO_ACCESS;
-        break;
+	DBUG_PRINT("info",("comparing ciphers: '%s' and '%s'",
+			   acl_user->ssl_cipher,SSL_get_cipher(vio->ssl_)));
+	if (!strcmp(acl_user->ssl_cipher,SSL_get_cipher(vio->ssl_)))
+	  user_access=acl_user->access;
+	else
+	{
+	  user_access=NO_ACCESS;
+	  break;
+	}
       }
-    }
-    /* Prepare certificate (if exists) */
-    DBUG_PRINT("info",("checkpoint 1"));
-    X509* cert=SSL_get_peer_certificate(vio->ssl_);
-    DBUG_PRINT("info",("checkpoint 2"));
-    /* If X509 issuer is speified, we check it... */
-    if (acl_user->x509_issuer)
-    {
-      DBUG_PRINT("info",("checkpoint 3"));
-      char *ptr = X509_NAME_oneline(X509_get_issuer_name(cert), 0, 0);
-      DBUG_PRINT("info",("comparing issuers: '%s' and '%s'",
-    		 acl_user->x509_issuer, ptr));
-      if (strcmp(acl_user->x509_issuer, ptr))
+      /* Prepare certificate (if exists) */
+      DBUG_PRINT("info",("checkpoint 1"));
+      X509* cert=SSL_get_peer_certificate(vio->ssl_);
+      DBUG_PRINT("info",("checkpoint 2"));
+      /* If X509 issuer is speified, we check it... */
+      if (acl_user->x509_issuer)
       {
-        user_access=NO_ACCESS;
-        free(ptr);
-        break;
+	DBUG_PRINT("info",("checkpoint 3"));
+	char *ptr = X509_NAME_oneline(X509_get_issuer_name(cert), 0, 0);
+	DBUG_PRINT("info",("comparing issuers: '%s' and '%s'",
+			   acl_user->x509_issuer, ptr));
+	if (strcmp(acl_user->x509_issuer, ptr))
+	{
+	  user_access=NO_ACCESS;
+	  free(ptr);
+	  break;
+	}
+	user_access=acl_user->access;
+	free(ptr);
       }
-      user_access=acl_user->access;
-      free(ptr);
+      DBUG_PRINT("info",("checkpoint 4"));
+      /* X509 subject is specified, we check it .. */
+      if (acl_user->x509_subject)
+      {
+	char *ptr= X509_NAME_oneline(X509_get_subject_name(cert), 0, 0);
+	DBUG_PRINT("info",("comparing subjects: '%s' and '%s'",
+			   acl_user->x509_subject, ptr));
+	if (strcmp(acl_user->x509_subject,ptr))
+	  user_access=NO_ACCESS;
+	else
+	  user_access=acl_user->access;
+	free(ptr);
+      }
+      break;
     }
-    DBUG_PRINT("info",("checkpoint 4"));
-    /* X509 subject is specified, we check it .. */
-    if (acl_user->x509_subject)
-    {
-      char *ptr= X509_NAME_oneline(X509_get_subject_name(cert), 0, 0);
-      DBUG_PRINT("info",("comparing subjects: '%s' and '%s'",
-		 acl_user->x509_subject, ptr));
-      if (strcmp(acl_user->x509_subject,ptr))
-        user_access=NO_ACCESS;
-      else
-        user_access=acl_user->access;
-      free(ptr);
-    }
-    break;
   }
 #else  /* HAVE_OPENSSL */
   user_access=acl_user->access;

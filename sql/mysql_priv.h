@@ -251,6 +251,20 @@ typedef struct st_sql_list {
   uint elements;
   byte *first;
   byte **next;
+
+  inline void empty()
+  {
+    elements=0;
+    first=0;
+    next= &first;
+  }
+  inline void link_in_list(byte *element,byte **next_ptr)
+  {
+    elements++;
+    (*next)=element;
+    next= next_ptr;
+    *next=0;
+  }
 } SQL_LIST;
 
 
@@ -444,6 +458,11 @@ int mysql_update(THD *thd,TABLE_LIST *tables,List<Item> &fields,
 		 List<Item> &values,COND *conds,
                  ORDER *order, ha_rows limit,
 		 enum enum_duplicates handle_duplicates);
+int mysql_multi_update(THD *thd, TABLE_LIST *table_list,
+		       List<Item> *fields, List<Item> *values,
+		       COND *conds, ulong options,
+		       enum enum_duplicates handle_duplicates,
+		       SELECT_LEX_UNIT *unit, SELECT_LEX *select_lex);
 int mysql_insert(THD *thd,TABLE_LIST *table,List<Item> &fields,
 		 List<List_item> &values, List<Item> &update_fields,
 		 List<Item> &update_values, enum_duplicates flag);
@@ -539,16 +558,16 @@ int mysql_ha_read(THD *, TABLE_LIST *,enum enum_ha_read_modes,char *,
 
 /* sql_base.cc */
 void set_item_name(Item *item,char *pos,uint length);
-bool add_field_to_list(char *field_name, enum enum_field_types type,
+bool add_field_to_list(THD *thd, char *field_name, enum enum_field_types type,
 		       char *length, char *decimal,
 		       uint type_modifier,
 		       Item *default_value, Item *comment,
 		       char *change, TYPELIB *interval,CHARSET_INFO *cs);
 void store_position_for_column(const char *name);
-bool add_to_list(SQL_LIST &list,Item *group,bool asc=0);
+bool add_to_list(THD *thd, SQL_LIST &list,Item *group,bool asc=0);
 void add_join_on(TABLE_LIST *b,Item *expr);
 void add_join_natural(TABLE_LIST *a,TABLE_LIST *b);
-bool add_proc_to_list(Item *item);
+bool add_proc_to_list(THD *thd, Item *item);
 TABLE *unlink_open_table(THD *thd,TABLE *list,TABLE *find);
 
 SQL_SELECT *make_select(TABLE *head, table_map const_tables,
@@ -667,6 +686,7 @@ extern char glob_hostname[FN_REFLEN], mysql_home[FN_REFLEN];
 extern char pidfile_name[FN_REFLEN], time_zone[30], *opt_init_file;
 extern char blob_newline;
 extern double log_10[32];
+extern ulonglong keybuff_size;
 extern ulong refresh_version,flush_version, thread_id,query_id,opened_tables;
 extern ulong created_tmp_tables, created_tmp_disk_tables;
 extern ulong aborted_threads,aborted_connects;
@@ -685,8 +705,7 @@ extern ulong ha_read_count, ha_write_count, ha_delete_count, ha_update_count;
 extern ulong ha_read_key_count, ha_read_next_count, ha_read_prev_count;
 extern ulong ha_read_first_count, ha_read_last_count;
 extern ulong ha_read_rnd_count, ha_read_rnd_next_count;
-extern ulong ha_commit_count, ha_rollback_count;
-extern ulong keybuff_size,table_cache_size;
+extern ulong ha_commit_count, ha_rollback_count,table_cache_size;
 extern ulong max_connections,max_connect_errors, connect_timeout;
 extern ulong max_insert_delayed_threads, max_user_connections;
 extern ulong long_query_count, what_to_log,flush_time,opt_sql_mode;
@@ -735,6 +754,7 @@ extern SHOW_COMP_OPTION have_innodb;
 extern SHOW_COMP_OPTION have_berkeley_db;
 extern struct system_variables global_system_variables;
 extern struct system_variables max_system_variables;
+extern struct rand_struct sql_rand;
 
 /* optional things, have_* variables */
 
@@ -855,22 +875,26 @@ Item *get_system_var(enum_var_type var_type, const char *var_name, uint length,
 
 /* Some inline functions for more speed */
 
-inline bool add_item_to_list(Item *item)
+inline bool add_item_to_list(THD *thd, Item *item)
 {
-  return current_lex->current_select->add_item_to_list(item);
+  return thd->lex.current_select->add_item_to_list(thd, item);
 }
-inline bool add_value_to_list(Item *value)
+
+inline bool add_value_to_list(THD *thd, Item *value)
 {
-  return current_lex->value_list.push_back(value);
+  return thd->lex.value_list.push_back(value);
 }
-inline bool add_order_to_list(Item *item, bool asc)
+
+inline bool add_order_to_list(THD *thd, Item *item, bool asc)
 {
-  return current_lex->current_select->add_order_to_list(item, asc);
+  return thd->lex.current_select->add_order_to_list(thd, item, asc);
 }
-inline bool add_group_to_list(Item *item, bool asc)
+
+inline bool add_group_to_list(THD *thd, Item *item, bool asc)
 {
-  return current_lex->current_select->add_group_to_list(item, asc);
+  return thd->lex.current_select->add_group_to_list(thd, item, asc);
 }
+
 inline void mark_as_null_row(TABLE *table)
 {
   table->null_row=1;

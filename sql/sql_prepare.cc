@@ -310,11 +310,8 @@ static bool setup_params_data(PREP_STMT *stmt)
     */
     while ((param= (Item_param *)param_iterator++))
     {       
-      if (!param->long_data_supplied)
-      {
-        setup_param_functions(param,*read_pos);
-        read_pos+= 2;
-      }
+      setup_param_functions(param,*read_pos);
+      read_pos+= 2;
     }
     param_iterator.rewind();
   }    
@@ -615,7 +612,7 @@ static bool parse_prepare_query(PREP_STMT *stmt,
   mysql_log.write(thd,COM_PREPARE,"%s",packet);       
   mysql_init_query(thd);   
   thd->prepare_command=true; 
-  thd->lex.param_count=0;
+  thd->lex.param_count= 0;
 
   LEX *lex=lex_start(thd, (uchar*) packet, length);
   lex->safe_to_cache_query= 0;
@@ -630,18 +627,13 @@ static bool parse_prepare_query(PREP_STMT *stmt,
 */
 static bool init_param_items(THD *thd, PREP_STMT *stmt)
 {
-#if TO_BE_TESTED
   Item_param **to;
-  if (!(to= (Item_param *)
-        my_malloc(sizeof(Item_param*) * stmt->param_count, MYF(MY_WME))))
+  if (!(stmt->param= to= (Item_param **)
+        my_malloc(sizeof(Item_param *)*(stmt->param_count+1), 
+                  MYF(MY_WME))))
     return 1;
-  List<Item> &params= thd->lex.param_list;
-  List_iterator<Item> param_iterator(params);
-  while ((to++ = (Item_param *)param_iterator++))
-  {
-    DBUG_PRINT("info",("param: %lx", to));
-  }
-#endif
+  List_iterator<Item> param_iterator(thd->lex.param_list);
+  while ((*(to++) = (Item_param *)param_iterator++));
   return 0;
 }
 
@@ -678,10 +670,10 @@ bool mysql_stmt_prepare(THD *thd, char *packet, uint packet_length)
 
   if (!(specialflag & SPECIAL_NO_PRIOR))
     my_pthread_setprio(pthread_self(),WAIT_PRIOR);
-#if 0
+  
   if (init_param_items(thd, &stmt))
     goto err;
-#endif
+  
   stmt.mem_root= thd->mem_root;  
   tree_insert(&thd->prepared_statements, (void *)&stmt, 0, (void *)0);
   thd->mem_root= thd_root; // restore main mem_root
@@ -769,8 +761,8 @@ void mysql_stmt_reset(THD *thd, char *packet)
     DBUG_VOID_RETURN;
   }
 
-  stmt->error_in_prepare=0;
-  Item_param *item= stmt->param, *end= item + stmt->param_count;
+  stmt->error_in_prepare= 0;
+  Item_param *item= *stmt->param, *end= item + stmt->param_count;
 
   /* Free long data if used */
   if (stmt->long_data_used)
@@ -795,12 +787,10 @@ void mysql_stmt_free(THD *thd, char *packet)
 
   if (!(stmt=find_prepared_statement(thd, stmt_id, "close")))
   {
-    send_error(thd);
+    send_error(thd); // Not seen by the client
     DBUG_VOID_RETURN;
   }
-  stmt->param= 0;
   my_free((char *)stmt->param, MYF(MY_ALLOW_ZERO_PTR));
-  /* Will call free_prep_stmt() */
   tree_delete(&thd->prepared_statements, (void*) &stmt, (void *)0);
   thd->last_prepared_stmt=0;
   DBUG_VOID_RETURN;
@@ -840,8 +830,7 @@ void mysql_stmt_get_longdata(THD *thd, char *pos, ulong packet_length)
 
   ulong stmt_id=     uint4korr(pos);
   uint param_number= uint2korr(pos+4);
-  uint param_type=   uint2korr(pos+6);
-  pos+=MYSQL_LONG_DATA_HEADER;	// Point to data
+  pos+= MYSQL_LONG_DATA_HEADER;	// Point to data
 
   if (!(stmt=find_prepared_statement(thd, stmt_id, "get_longdata")))
   {
@@ -855,12 +844,14 @@ void mysql_stmt_get_longdata(THD *thd, char *pos, ulong packet_length)
 
   if (param_number >= stmt->param_count)
   {
-    stmt->error_in_prepare=1;
-    stmt->last_errno=ER_WRONG_ARGUMENTS;
+    /* Error will be sent in execute call */
+    stmt->error_in_prepare= 1;
+    stmt->last_errno= ER_WRONG_ARGUMENTS;
     sprintf(stmt->last_error, ER(ER_WRONG_ARGUMENTS), "get_longdata");
     DBUG_VOID_RETURN;
   }
-  stmt->param[param_number].set_longdata(pos, packet_length-9);
+  Item_param *param= *(stmt->param+param_number);
+  param->set_longdata(pos, packet_length-MYSQL_LONG_DATA_HEADER-1);
   stmt->long_data_used= 1;
   DBUG_VOID_RETURN;
 }

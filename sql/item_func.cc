@@ -779,21 +779,20 @@ double Item_func_round::val()
 }
 
 
-double Item_func_rand::val()
+void Item_func_rand::fix_length_and_dec()
 {
-  THD* thd = current_thd;
+  decimals=NOT_FIXED_DEC; 
+  max_length=float_length(decimals);
   if (arg_count)
   {					// Only use argument once in query
     uint32 tmp= (uint32) (args[0]->val_int());
-    randominit(&thd->rand,(uint32) (tmp*0x10001L+55555555L),
-	       (uint32) (tmp*0x10000001L));
-#ifdef DELETE_ITEMS
-    delete args[0];
-#endif
-    arg_count=0;
+    if ((rand= (struct rand_struct*) sql_alloc(sizeof(*rand))))
+      randominit(rand,(uint32) (tmp*0x10001L+55555555L),
+		 (uint32) (tmp*0x10000001L));
   }
-  else if (!thd->rand_used)
+  else
   {
+    THD *thd= current_thd;
     /*
       No need to send a Rand log event if seed was given eg: RAND(seed),
       as it will be replicated in the query as such.
@@ -805,8 +804,14 @@ double Item_func_rand::val()
     thd->rand_used=1;
     thd->rand_saved_seed1=thd->rand.seed1;
     thd->rand_saved_seed2=thd->rand.seed2;
+    rand= &thd->rand;
   }
-  return rnd(&thd->rand);
+}
+
+
+double Item_func_rand::val()
+{
+  return rnd(rand);
 }
 
 longlong Item_func_sign::val_int()
