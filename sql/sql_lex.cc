@@ -1540,6 +1540,7 @@ bool st_lex::can_be_merged()
 	  select_lex.order_list.elements == 0 &&
 	  select_lex.group_list.elements == 0 &&
 	  select_lex.having == 0 &&
+          select_lex.with_sum_func == 0 &&
 	  select_lex.table_list.elements == 1 &&
 	  !(select_lex.options & SELECT_DISTINCT) &&
           select_lex.select_limit == HA_POS_ERROR);
