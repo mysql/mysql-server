@@ -564,9 +564,8 @@ void mysql_server_init(int argc, char **argv, const char **groups)
     sql_print_error("Can't create thread-keys");
     exit(1);
   }
-//  init_signals();				// Creates pidfile
-//SWSOFT+
-	opt_noacl = 1;
+  //init_signals();
+  opt_noacl = 1;
   if (acl_init(opt_noacl))
   {
     select_thread_in_use=0;
@@ -640,13 +639,14 @@ void mysql_server_end()
   sql_print_error("After lock_thread_count");
 #endif
 
-  /* Wait until cleanup is done */
-  (void) pthread_mutex_lock(&LOCK_thread_count);
-  while (!ready_to_exit)
-  {
-    pthread_cond_wait(&COND_thread_count,&LOCK_thread_count);
-  }
-  (void) pthread_mutex_unlock(&LOCK_thread_count);
+//  /* Wait until cleanup is done */
+//  (void) pthread_mutex_lock(&LOCK_thread_count);
+//  while (!ready_to_exit)
+//  {
+//    pthread_cond_wait(&COND_thread_count,&LOCK_thread_count);
+//  }
+//  (void) pthread_mutex_unlock(&LOCK_thread_count);
+  unireg_end(0);
   my_thread_end();
 }
 
