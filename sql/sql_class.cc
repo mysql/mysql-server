@@ -221,7 +221,6 @@ THD::THD()
 
   init();
   /* Initialize sub structures */
-  clear_alloc_root(&transaction.mem_root);
   init_alloc_root(&warn_root, WARN_ALLOC_BLOCK_SIZE, WARN_ALLOC_PREALLOC_SIZE);
   user_connect=(USER_CONN *)0;
   hash_init(&user_vars, &my_charset_bin, USER_VARS_HASH_SIZE, 0, 0,
@@ -258,6 +257,7 @@ THD::THD()
     transaction.trans_log.end_of_file= max_binlog_cache_size;
   }
 #endif
+  init_alloc_root(&transaction.mem_root, ALLOC_ROOT_MIN_BLOCK_SIZE, 0);
   {
     ulong tmp=sql_rnd_with_mutex();
     randominit(&rand, tmp + (ulong) &rand, tmp + (ulong) ::query_id);
@@ -303,12 +303,12 @@ void THD::init(void)
 void THD::init_for_queries()
 {
   ha_enable_transaction(this,TRUE);
-  init_sql_alloc(&mem_root,
-                 variables.query_alloc_block_size,
-                 variables.query_prealloc_size);
-  init_sql_alloc(&transaction.mem_root,         
-		 variables.trans_alloc_block_size, 
-		 variables.trans_prealloc_size);
+
+  reset_root_defaults(&mem_root, variables.query_alloc_block_size,
+                      variables.query_prealloc_size);
+  reset_root_defaults(&transaction.mem_root,
+                      variables.trans_alloc_block_size,
+                      variables.trans_prealloc_size);
 }
 
 
@@ -1332,6 +1332,17 @@ void select_dumpvar::cleanup()
 }
 
 
+/*
+  Create arena for already constructed THD.
+
+  SYNOPSYS
+    Item_arena()
+      thd - thread for which arena is created
+
+  DESCRIPTION
+    Create arena for already existing THD using its variables as parameters
+    for memory root initialization.
+*/
 Item_arena::Item_arena(THD* thd)
   :free_list(0),
   state(INITIALIZED)
@@ -1342,33 +1353,36 @@ Item_arena::Item_arena(THD* thd)
 }
 
 
-/* This constructor is called when Item_arena is a subobject of THD */
+/*
+  Create arena and optionally initialize memory root.
 
-Item_arena::Item_arena()
+  SYNOPSYS
+    Item_arena()
+      init_mem_root - whenever we need to initialize memory root
+
+  DESCRIPTION
+    Create arena and optionally initialize memory root with minimal
+    possible parameters.
+
+  NOTE
+    We use this constructor when arena is part of THD, but reinitialize
+    its memory root in THD::init_for_queries() before execution of real
+    statements.
+*/
+Item_arena::Item_arena(bool init_mem_root)
   :free_list(0),
   state(CONVENTIONAL_EXECUTION)
 {
-  clear_alloc_root(&mem_root);
-}
-
-
-Item_arena::Item_arena(bool init_mem_root)
-  :free_list(0),
-  state(INITIALIZED)
-{
   if (init_mem_root)
-    clear_alloc_root(&mem_root);
+    init_alloc_root(&mem_root, ALLOC_ROOT_MIN_BLOCK_SIZE, 0);
 }
+
 
 Item_arena::Type Item_arena::type() const
 {
   DBUG_ASSERT("Item_arena::type()" == "abstract");
   return STATEMENT;
 }
-
-
-Item_arena::~Item_arena()
-{}
 
 
 /*
@@ -1394,7 +1408,8 @@ Statement::Statement(THD *thd)
 */
 
 Statement::Statement()
-  :id(0),
+  :Item_arena((bool)TRUE),
+  id(0),
   set_query_id(1),
   allow_sum_func(0),                            /* initialized later */
   lex(&main_lex),
@@ -1462,8 +1477,16 @@ void Item_arena::restore_backup_item_arena(Item_arena *set, Item_arena *backup)
 {
   set->set_item_arena(this);
   set_item_arena(backup);
-  // reset backup mem_root to avoid its freeing
-  init_alloc_root(&backup->mem_root, 0, 0);
+#ifdef NOT_NEEDED_NOW
+  /*
+    Reset backup mem_root to avoid its freeing.
+    Since Item_arena's mem_root is freed only when it is part of Statement
+    we need this only if we use some Statement's arena as backup storage.
+    But we do this only with THD::stmt_backup and this Statement is specially
+    handled in this respect. So this code is not really needed now.
+  */
+  clear_alloc_root(&backup->mem_root);
+#endif
 }
 
 void Item_arena::set_item_arena(Item_arena *set)
