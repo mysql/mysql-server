@@ -42,7 +42,7 @@ struct NdbThread* NdbThread_Create(NDB_THREAD_FUNC *p_thread_func,
   int result;
   pthread_attr_t thread_attr;
 
-  (void)thread_prio; // remove warning for unused parameter
+  (void)thread_prio; /* remove warning for unused parameter */
 
   if (p_thread_func == NULL)
     return 0;
@@ -110,7 +110,7 @@ int NdbThread_SetConcurrencyLevel(int level)
 #ifdef USE_PTHREAD_EXTRAS
   return pthread_setconcurrency(level);
 #else
-  (void)level; // remove warning for unused parameter
+  (void)level; /* remove warning for unused parameter */
   return 0;
 #endif
 }
