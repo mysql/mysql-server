@@ -6618,6 +6618,7 @@ To install the @strong{MySQL} @code{DBD} module with ActiveState Perl on
 Windows, you should do the following:
 
 @itemize @bullet
+@item Get activestate perl from @uref{http://www.activestate.com/Products/ActivePerl/index.html} and install it.
 @item Open a DOS shell.
 @item If required, set the HTTP_proxy variable. For example, you might try:
 @code{set HTTP_proxy=my.proxy.com:3128}
@@ -33693,7 +33694,7 @@ If you find out something is wrong, please only send the relevant rows
 send the whole MyODBC or ODBC log file!
 
 If you are unable to find out what's wrong, the last option is to
-make an archive (tar or zip) that contains a MyODBC log file, the ODBC
+make an archive (tar or zip) that contains a MyODBC trace file, the ODBC
 log file, and a README file that explains the problem.  You can send this
 to @uref{ftp://support.mysql.com/pub/mysql/secret}.  Only we at MySQL AB
 will have access to the files you upload, and we will be very discrete
