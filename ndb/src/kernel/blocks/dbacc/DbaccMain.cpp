@@ -2449,14 +2449,14 @@ void Dbacc::execACC_COMMITREQ(Signal* signal)
   operationRecPtr.p->transactionstate = IDLE;
   operationRecPtr.p->operation = ZUNDEFINED_OP;
   if(Toperation != ZREAD){
+    rootfragrecptr.i = fragrecptr.p->myroot;
+    ptrCheckGuard(rootfragrecptr, crootfragmentsize, rootfragmentrec);
     rootfragrecptr.p->m_commit_count++;
     if (Toperation != ZINSERT) {
       if (Toperation != ZDELETE) {
 	return;
       } else {
 	jam();
-	rootfragrecptr.i = fragrecptr.p->myroot;
-	ptrCheckGuard(rootfragrecptr, crootfragmentsize, rootfragmentrec);
 	rootfragrecptr.p->noOfElements--;
 	fragrecptr.p->slack += operationRecPtr.p->insertDeleteLen;
 	if (fragrecptr.p->slack > fragrecptr.p->slackCheck) { 
@@ -2476,8 +2476,6 @@ void Dbacc::execACC_COMMITREQ(Signal* signal)
       }//if
     } else {
       jam();  /* EXPAND PROCESS HANDLING */
-      rootfragrecptr.i = fragrecptr.p->myroot;
-      ptrCheckGuard(rootfragrecptr, crootfragmentsize, rootfragmentrec);
       rootfragrecptr.p->noOfElements++;
       fragrecptr.p->slack -= operationRecPtr.p->insertDeleteLen;
       if (fragrecptr.p->slack >= (1u << 31)) { 
