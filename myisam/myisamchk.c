@@ -201,7 +201,7 @@ static struct option long_options[] =
 
 static void print_version(void)
 {
-  printf("%s  Ver 1.48 for %s at %s\n",my_progname,SYSTEM_TYPE,
+  printf("%s  Ver 1.49 for %s at %s\n",my_progname,SYSTEM_TYPE,
 	 MACHINE_TYPE);
 }
 
@@ -468,7 +468,7 @@ static void get_options(register int *argc,register char ***argv)
   if ((check_param.testflag & T_READONLY) &&
       (check_param.testflag &
        (T_REP_BY_SORT | T_REP | T_STATISTICS | T_AUTO_INC |
-	T_SORT_RECORDS | T_SORT_INDEX)))
+	T_SORT_RECORDS | T_SORT_INDEX | T_FORCE_CREATE)))
   {
     VOID(fprintf(stderr,
 		 "%s: Can't use --readonly when repairing or sorting\n",
