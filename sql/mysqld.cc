@@ -6105,6 +6105,9 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
       have_berkeley_db= SHOW_OPTION_YES;
     else
       have_berkeley_db= SHOW_OPTION_DISABLED;
+#else
+    push_warning(current_thd, MYSQL_ERROR::WARN_LEVEL_ERROR,
+		 0,"this binary does not contain DBD storage engine");
 #endif
     break;
   case OPT_ISAM:
@@ -6113,6 +6116,9 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
       have_isam= SHOW_OPTION_YES;
     else
       have_isam= SHOW_OPTION_DISABLED;
+#else
+    push_warning(current_thd, MYSQL_ERROR::WARN_LEVEL_ERROR,
+		 0,"this binary does not contain ISAM storage engine");
 #endif
     break;
   case OPT_NDBCLUSTER:
@@ -6123,7 +6129,7 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
       have_ndbcluster= SHOW_OPTION_DISABLED;
 #else
     push_warning(current_thd, MYSQL_ERROR::WARN_LEVEL_ERROR,
-		 0,"this binary does not contain ndbcluster storage engine");
+		 0,"this binary does not contain NDBCLUSTER storage engine");
 #endif
     break;
   case OPT_INNODB:
@@ -6132,6 +6138,9 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
       have_innodb= SHOW_OPTION_YES;
     else
       have_innodb= SHOW_OPTION_DISABLED;
+#else
+    push_warning(current_thd, MYSQL_ERROR::WARN_LEVEL_ERROR,
+		 0,"this binary does not contain INNODB storage engine");
 #endif
     break;
   case OPT_INNODB_DATA_FILE_PATH:
