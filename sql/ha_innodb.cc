@@ -328,6 +328,8 @@ innobase_mysql_print_thd(
 
         thd = (const THD*) input_thd;
 
+	VOID(pthread_mutex_lock(&LOCK_thread_count));
+
   	fprintf(f, "MySQL thread id %lu, query id %lu",
 		thd->thread_id, thd->query_id);
 	if (thd->host) {
@@ -351,11 +353,16 @@ innobase_mysql_print_thd(
 	}
 
 	if ((s = thd->query)) {
-		putc(' ', f);
-		fputs(s, f);
+		/* determine the length of the query string */
+		uint32 i, len = thd->query_length;
+		for (i = 0; i < len && s[i]; i++);
+		putc('\n', f);
+		fwrite(s, 1, i, f);
 	}
 
 	putc('\n', f);
+
+	VOID(pthread_mutex_unlock(&LOCK_thread_count));
 }
 
 /*************************************************************************
