@@ -119,3 +119,12 @@ insert into t2 values (2, "2000-01-01");
 select monthname(date) from t1 inner join t2 on t1.id = t2.id;
 select monthname(date) from t1 inner join t2 on t1.id = t2.id order by t1.id;
 drop table t1,t2;
+
+#
+# Test bug with month() and year() on text fields with wrong information
+
+CREATE TABLE t1 (updated text) TYPE=MyISAM;
+INSERT INTO t1 VALUES ('');
+SELECT month(updated) from t1;
+SELECT year(updated) from t1;
+drop table t1;

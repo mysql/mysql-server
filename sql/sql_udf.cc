@@ -35,10 +35,28 @@
 #endif
 
 #include "mysql_priv.h"
+
 #ifdef HAVE_DLOPEN
 extern "C"
 {
+#if defined(__WIN__)
+  void* dlsym(void* lib,const char* name)
+  {
+    return GetProcAddress((HMODULE)lib,name);
+  }
+  void* dlopen(const char* libname,int unused)
+  {
+    return LoadLibraryEx(libname,NULL,0);
+  }
+  void dlclose(void* lib)
+  {
+    FreeLibrary((HMODULE)lib);
+  }
+  
+#else
 #include <dlfcn.h>
+#endif
+  
 #include <stdarg.h>
 #include <hash.h>
 }
@@ -61,6 +79,7 @@ static udf_func *add_udf(char *name, Item_result ret, char *dl,
 			 Item_udftype typ);
 static void del_udf(udf_func *udf);
 static void *find_udf_dl(const char *dl);
+
 
 static void init_syms(udf_func *tmp)
 {
@@ -232,7 +251,7 @@ static void del_udf(udf_func *udf)
     uint name_length=udf->name_length;
     udf->name=(char*) "*";
     udf->name_length=1;
-    hash_update(&udf_hash,(byte*) udf,name,name_length);
+    hash_update(&udf_hash,(byte*) udf,(byte*) name,name_length);
   }
   DBUG_VOID_RETURN;
 }
@@ -262,7 +281,7 @@ udf_func *find_udf(const char *name,uint length,bool mark_used)
 
   /* TODO: This should be changed to reader locks someday! */
   pthread_mutex_lock(&THR_LOCK_udf);
-  udf=(udf_func*) hash_search(&udf_hash,name,
+  udf=(udf_func*) hash_search(&udf_hash,(byte*) name,
 			      length ? length : (uint) strlen(name));
   if (mark_used)
     udf->usage_count++;
@@ -304,7 +323,7 @@ static udf_func *add_udf(char *name, Item_result ret, char *dl,
   tmp->returns = ret;
   tmp->type = type;
   tmp->usage_count=1;
-  if (hash_insert(&udf_hash,(char*) tmp))
+  if (hash_insert(&udf_hash,(byte*)  tmp))
     return 0;
   using_udf_functions=1;
   return tmp;
@@ -344,7 +363,7 @@ int mysql_create_function(THD *thd,udf_func *udf)
   }
 
   pthread_mutex_lock(&THR_LOCK_udf);
-  if (hash_search(&udf_hash,udf->name, udf->name_length))
+  if (hash_search(&udf_hash,(byte*) udf->name, udf->name_length))
   {
     net_printf(&thd->net, ER_UDF_EXISTS, udf->name);
     goto err;
@@ -430,7 +449,7 @@ int mysql_drop_function(THD *thd,const char *udf_name)
     DBUG_RETURN(1);
   }
   pthread_mutex_lock(&THR_LOCK_udf);
-  if (!(udf=(udf_func*) hash_search(&udf_hash,udf_name, (uint) strlen(udf_name))))
+  if (!(udf=(udf_func*) hash_search(&udf_hash,(byte*) udf_name, (uint) strlen(udf_name))))
   {
     net_printf(&thd->net, ER_FUNCTION_NOT_DEFINED, udf_name);
     goto err;

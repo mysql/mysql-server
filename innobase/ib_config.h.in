@@ -19,3 +19,6 @@
 /* Version number of package */
 #undef VERSION
 
+/* No inlining because gcc broken on HP-UX */
+#undef UNIV_MUST_NOT_INLINE
+

@@ -14029,12 +14029,13 @@ adopt a consistent convention, such as always creating databases and
 tables using lowercase names.
 
 One way to avoid this problem is to start @code{mysqld} with @code{-O
-lower_case_table_names=1}. 
+lower_case_table_names=1}. By default this option is 1 on windows and 0 on
+Unix.
 
-In this case @strong{MySQL} will on Windows/NT convert all table names
-to lower case on storage and lookup.  Note that you need to first
-convert your old table names to lower case before starting @code{mysqld}
-with this option.
+If @code{lower_case_table_names} is 1 @strong{MySQL} will convert all
+table names to lower case on storage and lookup.  Note that if you
+change this option, you need to first convert your old table names to
+lower case before starting @code{mysqld}.
 
 @cindex variables, user
 @cindex user variables
@@ -42640,6 +42641,10 @@ Our TODO section contains what we plan to have in 4.0. @xref{TODO MySQL 4.0}.
 
 @itemize @bullet
 @item
+Added @code{SQL_CALC_FOUND_ROWS} and @code{FOUND_ROWS()}. This make it
+possible to know how many rows a query would have returned if one hadn't
+used @code{LIMIT}.
+@item
 Changed output format of @code{SHOW OPEN TABLES}.
 @item
 Allow @code{SELECT expression LIMIT ...}.
@@ -42737,6 +42742,13 @@ not yet 100% confident in this code.
 @node News-3.23.37, News-3.23.36, News-3.23.x, News-3.23.x
 @appendixsubsec Changes in release 3.23.37
 @itemize @bullet
+@item
+Disabled @code{INSERT DELAYED} for tables that supports transactions.
+@item
+Fixed bug when using date functions on @code{TEXT}/@code{BLOB} column
+with wrong date format.
+@item
+UDF's now also works on windows. (Patch by Ralph Mason)
 @item
 Fixed bug in @code{ALTER TABLE} and @code{LOAD DATA INFILE} that disabled
 key-sorting. These command should now be faster in most cases.
@@ -47973,6 +47985,16 @@ Change @code{INSERT ... SELECT} to use concurrent inserts.
 @item
 Return the original field types() when doing @code{SELECT MIN(column)
 ... GROUP BY}.
+@item
+Multiple result sets.
+@item
+Change the protocol to allow binary transfer of values. To do this
+efficiently, we need to add an API to allow binding of variables.
+@item
+Add @code{PREPARE} of statements and sending of parameters to @code{mysqld}.
+@item
+Make it possible to specify @code{long_query_time} with a granularity
+in microseconds.
 @item
 Add range checking to @code{MERGE} tables.
 @item

@@ -35,6 +35,9 @@ Innobase */
 
 #define MAX_ULONG_BIT ((ulong) 1 << (sizeof(ulong)*8-1))
 
+/* The following must be declared here so that we can handle SAFE_MUTEX */
+pthread_mutex_t innobase_mutex;
+
 #include "ha_innobase.h"
 
 /* Store MySQL definition of 'byte': in Linux it is char while Innobase
@@ -42,6 +45,9 @@ uses unsigned char */
 typedef byte	mysql_byte;
 
 #define INSIDE_HA_INNOBASE_CC
+#ifdef SAFE_MUTEX
+#undef pthread_mutex_t
+#endif
 
 /* Include necessary Innobase headers */
 extern "C" {
@@ -90,8 +96,6 @@ it every INNOBASE_WAKE_INTERVAL'th step. */
 ulong	innobase_active_counter	= 0;
 
 char*	innobase_home 	= NULL;
-
-pthread_mutex_t innobase_mutex;
 
 static HASH 	innobase_open_tables;
 
@@ -2601,14 +2605,19 @@ ha_innobase::update_table_comment(
 {
   uint length=strlen(comment);
 
-  char *str=my_malloc(length + 100,MYF(0));
+  char *str=my_malloc(length + 100,MYF(0)), *pos;
 
   if (!str)
     return (char*)comment;
 
-  sprintf(str,
-    "%s; Innobase free: %lu kB",
-	  comment, (ulong) innobase_get_free_space());
+  pos=str;
+  if (length)
+  {
+    pos=strmov(str,comment);
+    *pos++=';';
+    *pos++=' ';
+  }
+  sprintf(pos, "Innobase free: %lu kB", (ulong) innobase_get_free_space());
 
   return(str);
 }
