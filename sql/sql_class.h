@@ -848,6 +848,8 @@ class multi_delete : public select_result
   uint num_of_tables;
   int error;
   bool do_delete, transactional_tables, log_delayed, normal_tables;
+  bool tempfiles_inited;
+
 public:
   multi_delete(THD *thd, TABLE_LIST *dt, uint num_of_tables);
   ~multi_delete();
@@ -874,6 +876,7 @@ class multi_update : public select_result
   Copy_field *copy_field;
   enum enum_duplicates handle_duplicates;
   bool do_update, trans_safe, transactional_tables, log_delayed;
+  bool tmp_tables_inited;
 
 public:
   multi_update(THD *thd_arg, TABLE_LIST *ut, List<Item> *fields,
