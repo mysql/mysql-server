@@ -615,9 +615,18 @@ void Item_sum_avg::reset_field()
 
 void Item_sum_bit::reset_field()
 {
+  char *res= result_field->ptr;
+  bits= reset_bits;
+  add();
+  int8store(res, bits);
+}
+
+void Item_sum_bit::update_field()
+{
   char *res=result_field->ptr;
-  ulonglong nr=(ulonglong) args[0]->val_int();
-  int8store(res,nr);
+  bits= uint8korr(res);
+  add();
+  int8store(res, bits);
 }
 
 /*
@@ -756,28 +765,6 @@ Item_sum_hybrid::min_max_update_int_field()
 }
 
 
-void Item_sum_or::update_field()
-{
-  ulonglong nr;
-  char *res=result_field->ptr;
-
-  nr=uint8korr(res);
-  nr|= (ulonglong) args[0]->val_int();
-  int8store(res,nr);
-}
-
-
-void Item_sum_and::update_field()
-{
-  ulonglong nr;
-  char *res=result_field->ptr;
-
-  nr=uint8korr(res);
-  nr&= (ulonglong) args[0]->val_int();
-  int8store(res,nr);
-}
-
-
 Item_avg_field::Item_avg_field(Item_sum_avg *item)
 {
   name=item->name;
@@ -786,6 +773,7 @@ Item_avg_field::Item_avg_field(Item_sum_avg *item)
   field=item->result_field;
   maybe_null=1;
 }
+
 
 double Item_avg_field::val()
 {
