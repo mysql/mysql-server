@@ -132,42 +132,6 @@ extern "C" {
 				   const char * value,
 				   struct ndb_mgm_reply* reply);
 
-  /**
-   * Set an integer parameter for a connection
-   *
-   * @param handle the NDB management handle.
-   * @param node1 the node1 id
-   * @param node2 the node2 id
-   * @param param the parameter (e.g. CFG_CONNECTION_SERVER_PORT)
-   * @param value what to set it to
-   * @param reply from ndb_mgmd
-   */
-  int ndb_mgm_set_connection_int_parameter(NdbMgmHandle handle,
-					   int node1,
-					   int node2,
-					   int param,
-					   int value,
-					   struct ndb_mgm_reply* reply);
-
-  /**
-   * Get an integer parameter for a connection
-   *
-   * @param handle the NDB management handle.
-   * @param node1 the node1 id
-   * @param node2 the node2 id
-   * @param param the parameter (e.g. CFG_CONNECTION_SERVER_PORT)
-   * @param value where to store the retreived value. In the case of 
-   * error, value is not changed.
-   * @param reply from ndb_mgmd
-   * @return 0 on success. < 0 on error.
-   */
-  int ndb_mgm_get_connection_int_parameter(NdbMgmHandle handle,
-					   int node1,
-					   int node2,
-					   int param,
-					   int *value,
-					   struct ndb_mgm_reply* reply);
-
 #ifdef __cplusplus
 }
 #endif
