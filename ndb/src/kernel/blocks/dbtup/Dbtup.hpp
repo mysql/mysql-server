@@ -515,6 +515,7 @@ struct Fragrecord {
   Uint32 emptyPrimPage;
 
   Uint32 firstusedOprec;
+  Uint32 lastusedOprec;
 
   Uint32 thFreeFirst;
   Uint32 thFreeCopyFirst;
@@ -1653,7 +1654,7 @@ private:
 
 //------------------------------------------------------------------
 //------------------------------------------------------------------
-  void initOpConnection(Operationrec* const regOperPtr);
+  void initOpConnection(Operationrec* regOperPtr, Fragrecord*);
 
 //------------------------------------------------------------------
 //------------------------------------------------------------------
