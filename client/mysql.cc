@@ -2593,6 +2593,8 @@ static void mysql_end_timer(ulong start_time,char *buff)
 static const char* construct_prompt()
 {
   //erase the old prompt
+  if (!mysql_get_host_info(&mysql))
+    return  processed_prompt.ptr();
   processed_prompt.free();
   //get the date struct
   time_t  lclock = time(NULL);
