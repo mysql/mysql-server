@@ -514,6 +514,12 @@ Item_in_subselect::single_value_transformer(JOIN *join,
   THD *thd= join->thd;
   thd->where= "scalar IN/ALL/ANY subquery";
 
+  if (select_lex->item_list.elements > 1)
+  {
+    my_error(ER_OPERAND_COLUMNS, MYF(0), 1);
+    DBUG_RETURN(RES_ERROR);
+  }
+
   if ((abort_on_null || (upper_not && upper_not->top_level())) &&
       !select_lex->master_unit()->dependent &&
       (func == &Item_bool_func2::gt_creator ||
@@ -606,11 +612,6 @@ Item_in_subselect::single_value_transformer(JOIN *join,
 
   select_lex->dependent= 1;
   Item *item;
-  if (select_lex->item_list.elements > 1)
-  {
-    my_error(ER_OPERAND_COLUMNS, MYF(0), 1);
-    DBUG_RETURN(RES_ERROR);
-  }
 
   item= (Item*) select_lex->item_list.head();
 
@@ -709,6 +710,12 @@ Item_in_subselect::row_value_transformer(JOIN *join,
   thd->where= "row IN/ALL/ANY subquery";
 
   SELECT_LEX *select_lex= join->select_lex;
+
+  if (select_lex->item_list.elements != left_expr->cols())
+  {
+    my_error(ER_OPERAND_COLUMNS, MYF(0), left_expr->cols());
+    DBUG_RETURN(RES_ERROR);
+  }
 
   if (!substitution)
   {
