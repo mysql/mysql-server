@@ -126,11 +126,6 @@ public:
     return m_offset;
   }
 
-  virtual Item_result result_type() const
-  {
-    return this_const_item()->result_type();
-  }
-
   // Abstract methods inherited from Item. Just defer the call to
   // the item in the frame
   inline enum Type type() const
