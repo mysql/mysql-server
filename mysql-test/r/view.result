@@ -999,3 +999,18 @@ select b from v1 use index (some_index) where b=1;
 ERROR 42000: Key column 'some_index' doesn't exist in table
 drop view v1;
 drop table t1;
+create table t1 (col1 char(5),col2 char(5));
+create view v1 (col1,col2) as select col1,col2 from t1;
+insert into v1 values('s1','p1'),('s1','p2'),('s1','p3'),('s1','p4'),('s2','p1'),('s3','p2'),('s4','p4');
+select distinct first.col2 from t1 first where first.col2 in (select second.col2 from t1 second where second.col1<>first.col1);
+col2
+p1
+p2
+p4
+select distinct first.col2 from v1 first where first.col2 in (select second.col2 from t1 second where second.col1<>first.col1);
+col2
+p1
+p2
+p4
+drop view v1;
+drop table t1;

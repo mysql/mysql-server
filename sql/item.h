@@ -887,15 +887,15 @@ public:
   Item *orig_item;                       /* things in 'cleanup()' */
   Item_ref(Item **hook, Item *original,const char *db_par,
 	   const char *table_name_par, const char *field_name_par)
-    :Item_ident(db_par,table_name_par,field_name_par),ref(0), hook_ptr(hook),
-    orig_item(original) {}
-  Item_ref(Item **item, Item **hook, 
+    :Item_ident(db_par, table_name_par, field_name_par), result_field(0),
+     ref(0), hook_ptr(hook), orig_item(original) {}
+  Item_ref(Item **item, Item **hook,
 	   const char *table_name_par, const char *field_name_par)
-    :Item_ident(NullS,table_name_par,field_name_par),
+    :Item_ident(NullS, table_name_par, field_name_par), result_field(0),
     ref(item), hook_ptr(hook), orig_item(hook ? *hook:0) {}
   // Constructor need to process subselect with temporary tables (see Item)
   Item_ref(THD *thd, Item_ref *item, Item **hook)
-    :Item_ident(thd, item), ref(item->ref), 
+    :Item_ident(thd, item), result_field(item->result_field), ref(item->ref),
     hook_ptr(hook), orig_item(hook ? *hook : 0) {}
   enum Type type() const		{ return REF_ITEM; }
   bool eq(const Item *item, bool binary_cmp) const
@@ -940,6 +940,7 @@ public:
     return depended_from ? OUTER_REF_TABLE_BIT : (*ref)->used_tables(); 
   }
   void set_result_field(Field *field)	{ result_field= field; }
+  Field *get_tmp_table_field() { return result_field; }
   bool is_result_field() { return 1; }
   void save_in_result_field(bool no_conversions)
   {
