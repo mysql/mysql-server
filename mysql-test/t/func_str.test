@@ -195,6 +195,18 @@ select trim(trailing 'foo' from 'foo');
 select trim(leading 'foo' from 'foo');
 
 #
+# crashing bug with QUOTE() and LTRIM() or TRIM() fixed
+# Bug #7495
+#
+
+select quote(ltrim(concat('    ', 'a')));
+select quote(trim(concat('    ', 'a')));
+
+# Bad results from QUOTE(). Bug #8248
+CREATE TABLE t1 SELECT 1 UNION SELECT 2 UNION SELECT 3;
+SELECT QUOTE('A') FROM t1;
+DROP TABLE t1;
+
 # Test collation and coercibility
 #
 
@@ -429,12 +441,6 @@ create table t1 (a int not null primary key, b varchar(40), c datetime);
 insert into t1 (a,b,c) values (1,'Tom','2004-12-10 12:13:14'),(2,'ball games','2004-12-10 12:13:14'), (3,'Basil','2004-12-10 12:13:14'), (4,'Dean','2004-12-10 12:13:14'),(5,'Ellis','2004-12-10 12:13:14'), (6,'Serg','2004-12-10 12:13:14'), (7,'Sergei','2004-12-10 12:13:14'),(8,'Georg','2004-12-10 12:13:14'),(9,'Salle','2004-12-10 12:13:14'),(10,'Sinisa','2004-12-10 12:13:14'); 
 select count(*) as total, left(c,10) as reg from t1 group by reg order by reg desc limit 0,12;
 drop table t1;
-# crashing bug with QUOTE() and LTRIM() or TRIM() fixed
-# Bug #7495
-#
-
-select quote(ltrim(concat('    ', 'a')));
-select quote(trim(concat('    ', 'a')));
 
 #
 # Bug#7455 unexpected result: TRIM(<NULL> FROM <whatever>) gives NOT NULL
