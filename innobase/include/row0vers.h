@@ -79,7 +79,11 @@ row_vers_build_for_consistent_read(
 	mtr_t*		mtr,	/* in: mtr holding the latch on rec; it will
 				also hold the latch on purge_view */
 	dict_index_t*	index,	/* in: the clustered index */
+	ulint**		offsets,/* in/out: offsets returned by
+				rec_get_offsets(rec, index) */
 	read_view_t*	view,	/* in: the consistent read view */
+	mem_heap_t**	offset_heap,/* in/out: memory heap from which
+				the offsets are allocated */
 	mem_heap_t*	in_heap,/* in: memory heap from which the memory for
 				old_vers is allocated; memory for possible
 				intermediate versions is allocated and freed

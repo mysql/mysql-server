@@ -510,6 +510,10 @@ row_sel_build_prev_vers(
 	read_view_t*	read_view,	/* in: read view */
 	plan_t*		plan,		/* in: plan node for table */
 	rec_t*		rec,		/* in: record in a clustered index */
+	ulint**		offsets,	/* in/out: offsets returned by
+					rec_get_offsets(rec, plan->index) */
+	mem_heap_t**	offset_heap,	/* in/out: memory heap from which
+					the offsets are allocated */
 	rec_t**		old_vers,	/* out: old version, or NULL if the
 					record does not exist in the view:
 					i.e., it was freshly inserted
@@ -525,8 +529,8 @@ row_sel_build_prev_vers(
 	}
 	
 	err = row_vers_build_for_consistent_read(rec, mtr, plan->index,
-					read_view, plan->old_vers_heap,
-					old_vers);
+					offsets, read_view, offset_heap,
+					plan->old_vers_heap, old_vers);
 	return(err);
 }
 
@@ -697,7 +701,8 @@ row_sel_get_clust_rec(
 							node->read_view)) {
 
 			err = row_sel_build_prev_vers(node->read_view, plan,
-					clust_rec, &old_vers, mtr);
+						clust_rec, &offsets, &heap,
+						&old_vers, mtr);
 			if (err != DB_SUCCESS) {
 
 				goto err_exit;
@@ -1396,14 +1401,18 @@ rec_loop:
 							node->read_view)) {
 
 				err = row_sel_build_prev_vers(node->read_view,
-							plan, rec, &old_vers,
-							&mtr);
+							plan, rec,
+							&offsets, &heap,
+							&old_vers, &mtr);
 				if (err != DB_SUCCESS) {
 
 					goto lock_wait_or_error;
 				}
 
 				if (old_vers == NULL) {
+					offsets = rec_get_offsets(
+						rec, index, offsets,
+						ULINT_UNDEFINED, &heap);
 					row_sel_fetch_columns(index, rec,
 					    offsets,
 					    UT_LIST_GET_FIRST(plan->columns));
@@ -1417,8 +1426,6 @@ rec_loop:
 				}
 
 				rec = old_vers;
-				offsets = rec_get_offsets(rec, index, offsets,
-						ULINT_UNDEFINED, &heap);
 			}
 		} else if (!lock_sec_rec_cons_read_sees(rec, index,
 							node->read_view)) {
@@ -2535,6 +2542,10 @@ row_sel_build_prev_vers_for_mysql(
 	dict_index_t*	clust_index,	/* in: clustered index */
 	row_prebuilt_t*	prebuilt,	/* in: prebuilt struct */
 	rec_t*		rec,		/* in: record in a clustered index */
+	ulint**		offsets,	/* in/out: offsets returned by
+					rec_get_offsets(rec, clust_index) */
+	mem_heap_t**	offset_heap,	/* in/out: memory heap from which
+					the offsets are allocated */
 	rec_t**		old_vers,	/* out: old version, or NULL if the
 					record does not exist in the view:
 					i.e., it was freshly inserted
@@ -2550,8 +2561,8 @@ row_sel_build_prev_vers_for_mysql(
 	}
 	
 	err = row_vers_build_for_consistent_read(rec, mtr, clust_index,
-					read_view, prebuilt->old_vers_heap,
-					old_vers);
+					offsets, read_view, offset_heap,
+					prebuilt->old_vers_heap, old_vers);
 	return(err);
 }
 
@@ -2575,6 +2586,10 @@ row_sel_get_clust_rec_for_mysql(
 				it, NULL if the old version did not exist
 				in the read view, i.e., it was a fresh
 				inserted version */
+	ulint**		offsets,/* out: offsets returned by
+				rec_get_offsets(out_rec, clust_index) */
+	mem_heap_t**	offset_heap,/* in/out: memory heap from which
+				the offsets are allocated */
 	mtr_t*		mtr)	/* in: mtr used to get access to the
 				non-clustered record; the same mtr is used to
 				access the clustered index */
@@ -2584,9 +2599,6 @@ row_sel_get_clust_rec_for_mysql(
 	rec_t*		old_vers;
 	ulint		err;
 	trx_t*		trx;
-	mem_heap_t*	heap		= NULL;
-	ulint		offsets_[100]	= { 100, };
-	ulint*		offsets		= offsets_;
 
 	*out_rec = NULL;
 	trx = thr_get_trx(thr);
@@ -2642,8 +2654,8 @@ row_sel_get_clust_rec_for_mysql(
 		goto func_exit;
 	}
 
-	offsets = rec_get_offsets(clust_rec, clust_index, offsets,
-					ULINT_UNDEFINED, &heap);
+	*offsets = rec_get_offsets(clust_rec, clust_index, *offsets,
+					ULINT_UNDEFINED, offset_heap);
 
 	if (prebuilt->select_lock_type != LOCK_NONE) {
 		/* Try to place a lock on the index record; we are searching
@@ -2651,7 +2663,7 @@ row_sel_get_clust_rec_for_mysql(
 		we set a LOCK_REC_NOT_GAP type lock */
 		
 		err = lock_clust_rec_read_check_and_lock(0, clust_rec,
-					clust_index, offsets,
+					clust_index, *offsets,
 					prebuilt->select_lock_type,
 					LOCK_REC_NOT_GAP, thr);
 		if (err != DB_SUCCESS) {
@@ -2669,11 +2681,12 @@ row_sel_get_clust_rec_for_mysql(
 
 		if (trx->isolation_level > TRX_ISO_READ_UNCOMMITTED
 		    && !lock_clust_rec_cons_read_sees(clust_rec, clust_index,
-						offsets, trx->read_view)) {
+						*offsets, trx->read_view)) {
 
 			err = row_sel_build_prev_vers_for_mysql(
 					trx->read_view, clust_index,
 					prebuilt, clust_rec,
+					offsets, offset_heap,
 					&old_vers, mtr);
 						
 			if (err != DB_SUCCESS) {
@@ -2722,9 +2735,6 @@ func_exit:
 
 	err = DB_SUCCESS;
 err_exit:
-	if (heap) {
-		mem_heap_free(heap);
-	}
 	return(err);
 }
 
@@ -3671,6 +3681,7 @@ rec_loop:
 				err = row_sel_build_prev_vers_for_mysql(
 						trx->read_view, clust_index,
 						prebuilt, rec,
+						&offsets, &heap,
 						&old_vers, &mtr);
 						
 				if (err != DB_SUCCESS) {
@@ -3723,7 +3734,8 @@ rec_loop:
 		mtr_has_extra_clust_latch = TRUE;
 		
 		err = row_sel_get_clust_rec_for_mysql(prebuilt, index, rec,
-							thr, &clust_rec, &mtr);
+							thr, &clust_rec,
+							&offsets, &heap, &mtr);
 		if (err != DB_SUCCESS) {
 
 			goto lock_wait_or_error;
@@ -3745,20 +3757,18 @@ rec_loop:
 		
 		if (prebuilt->need_to_access_clustered) {
 		        rec = clust_rec;
+			ut_ad(rec_offs_validate(rec, clust_index, offsets));
+		} else {
+			offsets = rec_get_offsets(rec, index, offsets,
+						ULINT_UNDEFINED, &heap);
 		}
 	}
 
-	if (prebuilt->need_to_access_clustered) {
-		ut_ad(rec == clust_rec || index == clust_index);
-		offsets = rec_get_offsets(rec, clust_index, offsets,
-						ULINT_UNDEFINED, &heap);
-	} else {
-		offsets = rec_get_offsets(rec, index, offsets,
-						ULINT_UNDEFINED, &heap);
-	}
-
 	/* We found a qualifying row */
-	
+	ut_ad(rec_offs_validate(rec,
+				rec == clust_rec ? clust_index : index,
+				offsets));
+
 	if (prebuilt->n_rows_fetched >= MYSQL_FETCH_CACHE_THRESHOLD
 			&& prebuilt->select_lock_type == LOCK_NONE
 			&& !prebuilt->templ_contains_blob
@@ -3800,8 +3810,11 @@ rec_loop:
 		}
 
 		if (prebuilt->clust_index_was_generated) {
-			offsets = rec_get_offsets(index_rec, index, offsets,
+			if (rec != index_rec) {
+				offsets = rec_get_offsets(
+						index_rec, index, offsets,
 						ULINT_UNDEFINED, &heap);
+			}
 			row_sel_store_row_id_to_prebuilt(prebuilt, index_rec,
 							index, offsets);
 		}
