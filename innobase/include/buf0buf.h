@@ -378,6 +378,14 @@ buf_calc_page_checksum(
 /*===================*/
 		       /* out: checksum */
 	byte*   page); /* in: buffer page */
+/************************************************************************
+Checks if a page is corrupt. */
+
+ibool
+buf_page_is_corrupted(
+/*==================*/
+				/* out: TRUE if corrupted */
+	byte*	read_buf);	/* in: a database page */
 /**************************************************************************
 Gets the page number of a pointer pointing within a buffer frame containing
 a file page. */

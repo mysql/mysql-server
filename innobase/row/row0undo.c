@@ -124,6 +124,8 @@ row_undo_node_create(
 	undo->state = UNDO_NODE_FETCH_NEXT;
 	undo->trx = trx;
 
+	btr_pcur_init(&(undo->pcur));
+
 	undo->heap = mem_heap_create(256);
 
 	return(undo);
@@ -303,6 +305,16 @@ row_undo_step(
 	if (err != DB_SUCCESS) {
 		/* SQL error detected */
 
+		fprintf(stderr, "InnoDB: Fatal error %lu in rollback.\n", err);
+
+		if (err == DB_OUT_OF_FILE_SPACE) {
+			fprintf(stderr,
+			"InnoDB: Error 13 means out of tablespace.\n"
+			"InnoDB: Consider increasing your tablespace.\n");
+
+			exit(1);			
+		}
+		
 		ut_a(0);
 
 		return(NULL);

@@ -2036,7 +2036,8 @@ row_sel_store_mysql_rec(
 					which was described in prebuilt's
 					template */
 {
-	mysql_row_templ_t*	templ;	
+	mysql_row_templ_t*	templ;
+	mem_heap_t*		extern_field_heap	= NULL;
 	byte*			data;
 	ulint			len;
 	byte*			blob_buf;
@@ -2058,6 +2059,24 @@ row_sel_store_mysql_rec(
 		templ = prebuilt->mysql_template + i;
 
 		data = rec_get_nth_field(rec, templ->rec_field_no, &len);
+
+		if (rec_get_nth_field_extern_bit(rec, templ->rec_field_no)) {
+			/* Copy an externally stored field to the temporary
+			heap */
+
+			if (prebuilt->trx->has_search_latch) {
+				rw_lock_s_unlock(&btr_search_latch);
+				prebuilt->trx->has_search_latch = FALSE;
+			}
+
+			extern_field_heap = mem_heap_create(UNIV_PAGE_SIZE);
+
+			data = btr_rec_copy_externally_stored_field(rec,
+					templ->rec_field_no, &len,
+					extern_field_heap);
+
+			ut_a(len != UNIV_SQL_NULL);
+		}
 
 		if (len != UNIV_SQL_NULL) {
 			if (templ->type == DATA_BLOB) {
@@ -2081,6 +2100,10 @@ row_sel_store_mysql_rec(
 				mysql_rec + templ->mysql_col_offset,
 				templ->mysql_col_len, data, len,
 				templ->type, templ->is_unsigned);
+
+			if (extern_field_heap) {
+ 				mem_heap_free(extern_field_heap);
+ 			}
 		} else {
 			mysql_rec[templ->mysql_null_byte_offset] |=
 					(byte) (templ->mysql_null_bit_mask);
@@ -2450,6 +2473,7 @@ row_search_for_mysql(
 	ibool		unique_search_from_clust_index	= FALSE;
 	ibool		mtr_has_extra_clust_latch 	= FALSE;
 	ibool		moves_up 			= FALSE;
+	ulint		cnt				= 0;
 	mtr_t		mtr;
 	
 	ut_ad(index && pcur && search_tuple);
@@ -2457,6 +2481,11 @@ row_search_for_mysql(
 	
 	ut_ad(sync_thread_levels_empty_gen(FALSE));
 	
+/*	printf("Match mode %lu\n search tuple ", match_mode);
+	dtuple_print(search_tuple);
+	
+	printf("N tables locked %lu\n", trx->mysql_n_tables_locked);
+*/
 	if (direction == 0) {
 		prebuilt->n_rows_fetched = 0;
 		prebuilt->n_fetch_cached = 0;
@@ -2528,6 +2557,8 @@ row_search_for_mysql(
 
  			mtr_commit(&mtr);
 
+			/* printf("%s record not found 1\n", index->name); */
+	
 			return(DB_RECORD_NOT_FOUND);
 		}
 
@@ -2565,17 +2596,18 @@ row_search_for_mysql(
 	
  				mtr_commit(&mtr);
 
+ 				/* printf("%s shortcut\n", index->name); */
+
 				return(DB_SUCCESS);
 			
 			} else if (shortcut == SEL_EXHAUSTED) {
 
  				mtr_commit(&mtr);
 
+				/* printf("%s record not found 2\n",
+							index->name); */
 				return(DB_RECORD_NOT_FOUND);
 			}
-			
-			/* Commit the mini-transaction since it can
-			hold latches */
 
 			mtr_commit(&mtr);
 			mtr_start(&mtr);
@@ -2659,7 +2691,12 @@ rec_loop:
 	cons_read_requires_clust_rec = FALSE;
 
 	rec = btr_pcur_get_rec(pcur);
-
+/*
+	printf("Using index %s cnt %lu ", index->name, cnt);
+	printf("; Page no %lu\n",
+			buf_frame_get_page_no(buf_frame_align(rec)));
+	rec_print(rec);
+*/
 	if (rec == page_get_infimum_rec(buf_frame_align(rec))) {
 
 		/* The infimum record on a page cannot be in the result set,
@@ -2700,12 +2737,15 @@ rec_loop:
 		/* Test if the index record matches completely to search_tuple
 		in prebuilt: if not, then we return with DB_RECORD_NOT_FOUND */
 
+		/* printf("Comparing rec and search tuple\n"); */
+		
 		if (0 != cmp_dtuple_rec(search_tuple, rec)) {
 
 			btr_pcur_store_position(pcur, &mtr);
 
 			ret = DB_RECORD_NOT_FOUND;
-
+ 			/* printf("%s record not found 3\n", index->name); */
+			
 			goto normal_return;
 		}
 
@@ -2716,6 +2756,7 @@ rec_loop:
 			btr_pcur_store_position(pcur, &mtr);
 
 			ret = DB_RECORD_NOT_FOUND;
+ 			/* printf("%s record not found 4\n", index->name); */
 
 			goto normal_return;
 		}
@@ -2884,6 +2925,8 @@ next_rec:
 		moved = sel_restore_position_for_mysql(BTR_SEARCH_LEAF, pcur,
 							moves_up, &mtr);
 		if (moved) {
+			cnt++;
+
 			goto rec_loop;
 		}
 	}
@@ -2905,6 +2948,8 @@ next_rec:
 
 		goto normal_return;
 	}
+
+	cnt++;
 
 	goto rec_loop;
 	/*-------------------------------------------------------------*/
@@ -2931,7 +2976,9 @@ lock_wait_or_error:
 
 		goto rec_loop;
 	}
-	
+
+	/* printf("Using index %s cnt %lu ret value %lu err\n", index->name,
+							cnt, err); */
 	return(err);
 
 normal_return:
@@ -2945,5 +2992,7 @@ normal_return:
 		ret = DB_SUCCESS;
 	}
 
+	/* printf("Using index %s cnt %lu ret value %lu\n", index->name,
+							cnt, err); */
 	return(ret);
 }

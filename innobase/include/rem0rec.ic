@@ -25,12 +25,6 @@ significant bytes and bits are written below less significant.
 				4 bits info bits
 */
 
-
-/* Maximum lengths for the data in a physical record if the offsets
-are given as one byte (resp. two byte) format. */
-#define REC_1BYTE_OFFS_LIMIT	0x7F
-#define REC_2BYTE_OFFS_LIMIT	0x7FFF
-
 /* We list the byte offsets from the origin of the record, the mask,
 and the shift needed to obtain each bit-field of the record. */
 
@@ -65,6 +59,11 @@ one-byte and two-byte offsets */
 
 #define REC_1BYTE_SQL_NULL_MASK	0x80
 #define REC_2BYTE_SQL_NULL_MASK	0x8000
+
+/* In a 2-byte offset the second most significant bit denotes
+a field stored to another page: */
+
+#define REC_2BYTE_EXTERN_MASK	0x4000
 
 /***************************************************************
 Sets the value of the ith field SQL null bit. */
@@ -489,7 +488,7 @@ ulint
 rec_2_get_field_end_info(
 /*=====================*/
  			/* out: offset of the start of the field, SQL null
- 			flag ORed */
+ 			flag and extern storage flag ORed */
  	rec_t*	rec, 	/* in: record */
  	ulint	n)	/* in: field index */
 {
@@ -497,6 +496,63 @@ rec_2_get_field_end_info(
 	ut_ad(n < rec_get_n_fields(rec));
 
 	return(mach_read_from_2(rec - (REC_N_EXTRA_BYTES + 2 * n + 2)));
+}
+
+/***************************************************************
+Gets the value of the ith field extern storage bit. If it is TRUE
+it means that the field is stored on another page. */
+UNIV_INLINE
+ibool
+rec_get_nth_field_extern_bit(
+/*=========================*/
+			/* in: TRUE or FALSE */
+	rec_t*	rec,	/* in: record */
+	ulint	i)	/* in: ith field */
+{
+	ulint	info;
+
+	if (rec_get_1byte_offs_flag(rec)) {
+
+		return(FALSE);
+	}
+
+	info = rec_2_get_field_end_info(rec, i);
+
+	if (info & REC_2BYTE_EXTERN_MASK) {
+		return(TRUE);
+	}
+
+	return(FALSE);
+}
+
+/**********************************************************
+Returns TRUE if the extern bit is set in any of the fields
+of rec. */
+UNIV_INLINE
+ibool
+rec_contains_externally_stored_field(
+/*=================================*/
+			/* out: TRUE if a field is stored externally */
+	rec_t*	rec)	/* in: record */
+{
+	ulint	n;
+	ulint	i;
+	
+	if (rec_get_1byte_offs_flag(rec)) {
+
+		return(FALSE);
+	}
+
+	n = rec_get_n_fields(rec);
+
+	for (i = 0; i < n; i++) {
+		if (rec_get_nth_field_extern_bit(rec, i)) {
+
+			return(TRUE);
+		}
+	}
+
+	return(FALSE);
 }
 
 /**********************************************************
@@ -616,7 +672,7 @@ rec_2_get_field_start_offs(
 	}
 
 	return(rec_2_get_prev_field_end_info(rec, n)
-						& ~REC_2BYTE_SQL_NULL_MASK);
+		& ~(REC_2BYTE_SQL_NULL_MASK | REC_2BYTE_EXTERN_MASK));
 }
 						
 /**********************************************************

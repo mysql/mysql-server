@@ -3239,8 +3239,8 @@ fsp_validate(
 	
 	ut_a(descr_count * FSP_EXTENT_SIZE == free_limit);
 	ut_a(n_used + n_full_frag_pages
-		== n_used2 + (free_limit + XDES_DESCRIBED_PER_PAGE - 1)
-				 / XDES_DESCRIBED_PER_PAGE
+		== n_used2 + 2* ((free_limit + XDES_DESCRIBED_PER_PAGE - 1)
+				 / XDES_DESCRIBED_PER_PAGE)
 		   + seg_inode_len_full + seg_inode_len_free);
 	ut_a(frag_n_used == n_used);
 

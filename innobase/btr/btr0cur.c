@@ -12,7 +12,7 @@ many pages in the tablespace before we start the operation, because
 if leaf splitting has been started, it is difficult to undo, except
 by crashing the database and doing a roll-forward.
 
-(c) 1994-1996 Innobase Oy
+(c) 1994-2001 Innobase Oy
 
 Created 10/16/1994 Heikki Tuuri
 *******************************************************/
@@ -49,6 +49,15 @@ can be released by page reorganize, then it is reorganized */
 this many index pages */
 #define BTR_KEY_VAL_ESTIMATE_N_PAGES	8
 
+/* The structure of a BLOB part header */
+/*--------------------------------------*/
+#define BTR_BLOB_HDR_PART_LEN		0	/* BLOB part len on this
+						page */
+#define BTR_BLOB_HDR_NEXT_PAGE_NO	4	/* next BLOB part page no,
+						FIL_NULL if none */
+/*--------------------------------------*/
+#define BTR_BLOB_HDR_SIZE		8
+
 /***********************************************************************
 Adds path information to the cursor for the current page, for which
 the binary search has been performed. */
@@ -60,6 +69,19 @@ btr_cur_add_path_info(
 	ulint		height,		/* in: height of the page in tree;
 					0 means leaf node */
 	ulint		root_height);	/* in: root node height in tree */
+/***************************************************************
+Frees the externally stored fields for a record, if the field is mentioned
+in the update vector. */
+static
+void
+btr_rec_free_updated_extern_fields(
+/*===============================*/
+	dict_index_t*	index,	/* in: index of rec; the index tree MUST be
+				X-latched */
+	rec_t*		rec,	/* in: record */
+	upd_t*		update,	/* in: update vector */
+	mtr_t*		mtr);	/* in: mini-transaction handle which contains
+				an X-latch to record page and to the tree */
 
 /*==================== B-TREE SEARCH =========================*/
 	
@@ -745,9 +767,13 @@ btr_cur_optimistic_insert(
 	dtuple_t*	entry,	/* in: entry to insert */
 	rec_t**		rec,	/* out: pointer to inserted record if
 				succeed */
+	big_rec_t**	big_rec,/* out: big rec vector whose fields have to
+				be stored externally by the caller, or
+				NULL */
 	que_thr_t*	thr,	/* in: query thread or NULL */
 	mtr_t*		mtr)	/* in: mtr */
 {
+	big_rec_t*	big_rec_vec	= NULL;
 	dict_index_t*	index;
 	page_cur_t*	page_cursor;
 	page_t*		page;
@@ -764,6 +790,8 @@ btr_cur_optimistic_insert(
 	
 	ut_ad(dtuple_check_typed(entry));
 
+	*big_rec = NULL;
+
 	page = btr_cur_get_page(cursor);
 	index = cursor->index;
 
@@ -772,15 +800,27 @@ btr_cur_optimistic_insert(
 	max_size = page_get_max_insert_size_after_reorganize(page, 1);
 	level = btr_page_get_level(page, mtr);
 
+calculate_sizes_again:
 	/* Calculate the record size when entry is converted to a record */
 	data_size = dtuple_get_data_size(entry);
 	extra_size = rec_get_converted_extra_size(data_size,
 						dtuple_get_n_fields(entry));
 	rec_size = data_size + extra_size;
 
-	if (rec_size >= page_get_free_space_of_empty() / 2) {
+	if ((rec_size >= page_get_free_space_of_empty() / 2)
+	    || (rec_size >= REC_MAX_DATA_SIZE)) {
 
-		return(DB_TOO_BIG_RECORD);
+		/* The record is so big that we have to store some fields
+		externally on separate database pages */
+		
+                big_rec_vec = dtuple_convert_big_rec(index, entry);
+
+		if (big_rec_vec == NULL) {
+		
+			return(DB_TOO_BIG_RECORD);
+		}
+
+		goto calculate_sizes_again;
 	}
 
 	/* If there have been many consecutive inserts, and we are on the leaf
@@ -795,7 +835,11 @@ btr_cur_optimistic_insert(
 	    && (0 == level)
 	    && (btr_page_get_split_rec_to_right(cursor, &dummy_rec)
 	        || btr_page_get_split_rec_to_left(cursor, &dummy_rec))) {
-	    	
+
+	        if (big_rec_vec) {
+			dtuple_convert_back_big_rec(index, entry, big_rec_vec);
+		}
+
 		return(DB_FAIL);
 	}
 	
@@ -804,6 +848,9 @@ btr_cur_optimistic_insert(
 	      || (page_get_max_insert_size(page, 1) >= rec_size)
 	      || (page_get_n_recs(page) <= 1))) {
 
+	        if (big_rec_vec) {
+			dtuple_convert_back_big_rec(index, entry, big_rec_vec);
+		}
 		return(DB_FAIL);
 	}
 
@@ -812,6 +859,9 @@ btr_cur_optimistic_insert(
 
 	if (err != DB_SUCCESS) {
 
+	        if (big_rec_vec) {
+			dtuple_convert_back_big_rec(index, entry, big_rec_vec);
+		}
 		return(err);
 	}
 
@@ -835,6 +885,19 @@ btr_cur_optimistic_insert(
 
 		*rec = page_cur_tuple_insert(page_cursor, entry, mtr);
 
+		if (!(*rec)) {
+			char* err_buf = mem_alloc(1000);
+
+			dtuple_sprintf(err_buf, 900, entry);
+			
+			fprintf(stderr,
+	"InnoDB: Error: cannot insert tuple %s to index %s of table %s\n"
+	"InnoDB: max insert size %lu\n",
+			err_buf, index->name, index->table->name, max_size);
+
+			mem_free(err_buf);
+		}
+		
 		ut_a(*rec); /* <- We calculated above the record would fit */
 	}
 
@@ -845,6 +908,7 @@ btr_cur_optimistic_insert(
 		btr_search_update_hash_on_insert(cursor);
 	}
 #endif
+
 	if (!(flags & BTR_NO_LOCKING_FLAG) && inherit) {
 
 		lock_update_insert(*rec);
@@ -859,6 +923,8 @@ btr_cur_optimistic_insert(
 		ibuf_update_free_bits_if_full(cursor->index, page, max_size,
 					rec_size + PAGE_DIR_SLOT_SIZE);
 	}
+
+	*big_rec = big_rec_vec;
 
 	return(DB_SUCCESS);
 }
@@ -884,16 +950,23 @@ btr_cur_pessimistic_insert(
 	dtuple_t*	entry,	/* in: entry to insert */
 	rec_t**		rec,	/* out: pointer to inserted record if
 				succeed */
+	big_rec_t**	big_rec,/* out: big rec vector whose fields have to
+				be stored externally by the caller, or
+				NULL */
 	que_thr_t*	thr,	/* in: query thread or NULL */
 	mtr_t*		mtr)	/* in: mtr */
 {
-	page_t*	page;
-	ulint	err;
-	ibool	dummy_inh;
-	ibool	success;
-	ulint	n_extents	= 0;
+	dict_index_t*	index		= cursor->index;
+	big_rec_t*	big_rec_vec	= NULL;
+	page_t*		page;
+	ulint		err;
+	ibool		dummy_inh;
+	ibool		success;
+	ulint		n_extents	= 0;
 	
 	ut_ad(dtuple_check_typed(entry));
+
+	*big_rec = NULL;
 
 	page = btr_cur_get_page(cursor);
 
@@ -908,8 +981,8 @@ btr_cur_pessimistic_insert(
 
 	cursor->flag = BTR_CUR_BINARY;
 
-	err = btr_cur_optimistic_insert(flags, cursor, entry, rec, thr, mtr);	
-
+	err = btr_cur_optimistic_insert(flags, cursor, entry, rec, big_rec,
+								thr, mtr);	
 	if (err != DB_FAIL) {
 
 		return(err);
@@ -932,7 +1005,7 @@ btr_cur_pessimistic_insert(
 
 		n_extents = cursor->tree_height / 16 + 3;
 
-		success = fsp_reserve_free_extents(cursor->index->space,
+		success = fsp_reserve_free_extents(index->space,
 						n_extents, FSP_NORMAL, mtr);
 		if (!success) {
 			err = DB_OUT_OF_FILE_SPACE;
@@ -941,7 +1014,22 @@ btr_cur_pessimistic_insert(
 		}
 	}
 
-	if (dict_tree_get_page(cursor->index->tree)
+	if ((rec_get_converted_size(entry)
+				>= page_get_free_space_of_empty() / 2)
+	    || (rec_get_converted_size(entry) >= REC_MAX_DATA_SIZE)) {
+
+		/* The record is so big that we have to store some fields
+		externally on separate database pages */
+		
+                big_rec_vec = dtuple_convert_big_rec(index, entry);
+
+		if (big_rec_vec == NULL) {
+		
+			return(DB_TOO_BIG_RECORD);
+		}
+	}
+
+	if (dict_tree_get_page(index->tree)
 					== buf_frame_get_page_no(page)) {
 
 		/* The page is the root page */
@@ -950,7 +1038,7 @@ btr_cur_pessimistic_insert(
 		*rec = btr_page_split_and_insert(cursor, entry, mtr);
 	}
 
-	btr_cur_position(cursor->index, page_rec_get_prev(*rec), cursor);	
+	btr_cur_position(index, page_rec_get_prev(*rec), cursor);	
 
 #ifdef BTR_CUR_ADAPT
 	btr_search_update_hash_on_insert(cursor);
@@ -963,9 +1051,11 @@ btr_cur_pessimistic_insert(
 	err = DB_SUCCESS;
 
 	if (n_extents > 0) {
-		fil_space_release_free_extents(cursor->index->space, n_extents);
+		fil_space_release_free_extents(index->space, n_extents);
 	}
-	
+
+	*big_rec = big_rec_vec;
+
 	return(err);
 }
 
@@ -1227,7 +1317,8 @@ btr_cur_optimistic_update(
 	dulint		roll_ptr;
 	trx_t*		trx;
 	mem_heap_t*	heap;
-	ibool		reorganized		= FALSE;
+	ibool		reorganized	= FALSE;
+	ulint		i;
 
 	/* Only clustered index records are updated using this function */
 	ut_ad((cursor->index)->type & DICT_CLUSTERED);
@@ -1247,6 +1338,23 @@ btr_cur_optimistic_update(
 							cmpl_info, thr, mtr));
 	}
 
+	for (i = 0; i < upd_get_n_fields(update); i++) {
+		if (upd_get_nth_field(update, i)->extern_storage) {
+
+			/* Externally stored fields are treated in pessimistic
+			update */
+
+			return(DB_OVERFLOW);
+		}
+	}
+
+	if (rec_contains_externally_stored_field(btr_cur_get_rec(cursor))) {
+		/* Externally stored fields are treated in pessimistic
+		update */
+
+		return(DB_OVERFLOW);
+	}
+	
 	page_cursor = btr_cur_get_page_cur(cursor);
 	
 	heap = mem_heap_create(1024);
@@ -1260,9 +1368,9 @@ btr_cur_optimistic_update(
 	
 	if (new_rec_size >= page_get_free_space_of_empty() / 2) {
 
-		mem_heap_free(heap);
+		mem_heap_free(heap);		
 
-		return(DB_TOO_BIG_RECORD);
+		return(DB_OVERFLOW);
 	}
 
 	max_size = old_rec_size
@@ -1377,6 +1485,48 @@ btr_cur_pess_upd_restore_supremum(
 									rec);
 }
 		   
+/***************************************************************
+Replaces and copies the data in the new column values stored in the
+update vector to the clustered index entry given. */
+static
+void
+btr_cur_copy_new_col_vals(
+/*======================*/
+	dtuple_t*	entry,	/* in/out: index entry where replaced */
+	upd_t*		update,	/* in: update vector */
+	mem_heap_t*	heap)	/* in: heap where data is copied */
+{
+	upd_field_t*	upd_field;
+	dfield_t*	dfield;
+	dfield_t*	new_val;
+	ulint		field_no;
+	byte*		data;
+	ulint		i;
+
+	dtuple_set_info_bits(entry, update->info_bits);
+
+	for (i = 0; i < upd_get_n_fields(update); i++) {
+
+		upd_field = upd_get_nth_field(update, i);
+
+		field_no = upd_field->field_no;
+
+		dfield = dtuple_get_nth_field(entry, field_no);
+
+		new_val = &(upd_field->new_val);
+
+		if (new_val->len == UNIV_SQL_NULL) {
+			data = NULL;
+		} else {
+			data = mem_heap_alloc(heap, new_val->len);
+
+			ut_memcpy(data, new_val->data, new_val->len);
+		}
+
+		dfield_set_data(dfield, data, new_val->len);
+	}
+}
+
 /*****************************************************************
 Performs an update of a record on a page of a tree. It is assumed
 that mtr holds an x-latch on the tree and on the cursor page. If the
@@ -1389,8 +1539,9 @@ btr_cur_pessimistic_update(
 				/* out: DB_SUCCESS or error code */
 	ulint		flags,	/* in: undo logging, locking, and rollback
 				flags */
-	btr_cur_t*	cursor,	/* in: cursor on the record to update;
-				cursor does not stay valid */
+	btr_cur_t*	cursor,	/* in: cursor on the record to update */
+	big_rec_t**	big_rec,/* out: big rec vector whose fields have to
+				be stored externally by the caller, or NULL */
 	upd_t*		update,	/* in: update vector; this is allowed also
 				contain trx id and roll ptr fields, but
 				the values in update vector have no effect */
@@ -1399,6 +1550,8 @@ btr_cur_pessimistic_update(
 	que_thr_t*	thr,	/* in: query thread */
 	mtr_t*		mtr)	/* in: mtr */
 {
+	big_rec_t*	big_rec_vec	= NULL;
+	big_rec_t*	dummy_big_rec;
 	dict_index_t*	index;
 	page_t*		page;
 	dict_tree_t*	tree;
@@ -1414,6 +1567,11 @@ btr_cur_pessimistic_update(
 	ibool		was_first;
 	ibool		success;
 	ulint		n_extents	= 0;
+	ulint*		ext_vect;
+	ulint		n_ext_vect;
+	ulint		reserve_flag;
+	
+	*big_rec = NULL;
 	
 	page = btr_cur_get_page(cursor);
 	rec = btr_cur_get_rec(cursor);
@@ -1449,8 +1607,14 @@ btr_cur_pessimistic_update(
 
 		n_extents = cursor->tree_height / 16 + 3;
 
+		if (flags & BTR_NO_UNDO_LOG_FLAG) {
+			reserve_flag = FSP_CLEANING;
+		} else {
+			reserve_flag = FSP_NORMAL;
+		}
+		
 		success = fsp_reserve_free_extents(cursor->index->space,
-						n_extents, FSP_NORMAL, mtr);
+						n_extents, reserve_flag, mtr);
 		if (!success) {
 			err = DB_OUT_OF_FILE_SPACE;
 
@@ -1464,7 +1628,7 @@ btr_cur_pessimistic_update(
 	
 	new_entry = row_rec_to_index_entry(ROW_COPY_DATA, index, rec, heap);
 
-	row_upd_clust_index_replace_new_col_vals(new_entry, update);
+	btr_cur_copy_new_col_vals(new_entry, update, heap);
 
 	if (!(flags & BTR_KEEP_SYS_FLAG)) {
 		row_upd_index_entry_sys_field(new_entry, index, DATA_ROLL_PTR,
@@ -1487,17 +1651,49 @@ btr_cur_pessimistic_update(
 	lock_rec_store_on_page_infimum(rec);
 
 	btr_search_update_hash_on_delete(cursor);
+
+	if (flags & BTR_NO_UNDO_LOG_FLAG) {
+		/* We are in a transaction rollback undoing a row
+		update: we must free possible externally stored fields
+		which got new values in the update */
+
+		ut_a(big_rec_vec == NULL);
+		
+		btr_rec_free_updated_extern_fields(index, rec, update, mtr);
+	}
+
+	/* We have to set appropriate extern storage bits in the new
+	record to be inserted: we have to remember which fields were such */
+
+	ext_vect = mem_heap_alloc(heap, sizeof(ulint) * rec_get_n_fields(rec));
+	n_ext_vect = btr_push_update_extern_fields(ext_vect, rec, update);
+	
 	page_cur_delete_rec(page_cursor, mtr);
 
 	page_cur_move_to_prev(page_cursor);
 
-	if (optim_err == DB_UNDERFLOW) {
-		rec = btr_cur_insert_if_possible(cursor, new_entry,
+	if ((rec_get_converted_size(new_entry) >=
+				page_get_free_space_of_empty() / 2)
+	    || (rec_get_converted_size(new_entry) >= REC_MAX_DATA_SIZE)) {
+
+                big_rec_vec = dtuple_convert_big_rec(index, new_entry);
+
+		if (big_rec_vec == NULL) {
+
+			mem_heap_free(heap);
+		
+			goto return_after_reservations;
+		}
+	}
+
+	rec = btr_cur_insert_if_possible(cursor, new_entry,
 						&dummy_reorganized, mtr);
-		ut_a(rec); /* <- We knew the insert would fit */
+	ut_a(rec || optim_err != DB_UNDERFLOW);
 
+	if (rec) {
 		lock_rec_restore_from_page_infimum(rec, page);
-
+		rec_set_field_extern_bits(rec, ext_vect, n_ext_vect, mtr);
+		
 		btr_cur_compress_if_useful(cursor, mtr);
 
 		err = DB_SUCCESS;
@@ -1521,9 +1717,13 @@ btr_cur_pessimistic_update(
 	err = btr_cur_pessimistic_insert(BTR_NO_UNDO_LOG_FLAG
 					| BTR_NO_LOCKING_FLAG
 					| BTR_KEEP_SYS_FLAG,
-					cursor, new_entry, &rec, NULL, mtr);
+					cursor, new_entry, &rec,
+					&dummy_big_rec, NULL, mtr);
 	ut_a(rec);
 	ut_a(err == DB_SUCCESS);
+	ut_a(dummy_big_rec == NULL);
+
+	rec_set_field_extern_bits(rec, ext_vect, n_ext_vect, mtr);
 
 	lock_rec_restore_from_page_infimum(rec, page);
 
@@ -1541,8 +1741,11 @@ btr_cur_pessimistic_update(
 return_after_reservations:
 
 	if (n_extents > 0) {
-		fil_space_release_free_extents(cursor->index->space, n_extents);
+		fil_space_release_free_extents(cursor->index->space,
+							n_extents);
 	}
+
+	*big_rec = big_rec_vec;
 
 	return(err);
 }
@@ -1932,6 +2135,11 @@ btr_cur_optimistic_delete(
 	
 	ut_ad(btr_page_get_level(page, mtr) == 0);
 
+	if (rec_contains_externally_stored_field(btr_cur_get_rec(cursor))) {
+
+		return(FALSE);
+	}
+
 	if (btr_cur_can_delete_without_compress(cursor, mtr)) {
 
 		lock_update_delete(btr_cur_get_rec(cursor));
@@ -2009,6 +2217,8 @@ btr_cur_pessimistic_delete(
 		}
 	}
 
+	btr_rec_free_externally_stored_fields(cursor->index,
+					btr_cur_get_rec(cursor), mtr);
 	if ((page_get_n_recs(page) < 2)
 	    && (dict_tree_get_page(btr_cur_get_tree(cursor))
 					!= buf_frame_get_page_no(page))) {
@@ -2079,7 +2289,7 @@ return_after_reservations:
 		fil_space_release_free_extents(cursor->index->space, n_extents);
 	}
 
-	return(ret);	
+	return(ret);
 }
 
 /***********************************************************************
@@ -2291,4 +2501,554 @@ btr_estimate_number_of_different_key_vals(
 	}
 
 	return(index->table->stat_n_rows / (total_n_recs / n_diff));
+}
+
+/*================== EXTERNAL STORAGE OF BIG FIELDS ===================*/
+
+/***********************************************************************
+Stores the positions of the fields marked as extern storage in the update
+vector, and also those fields who are marked as extern storage in rec
+and not mentioned in updated fields. We use this function to remember
+which fields we must mark as extern storage in a record inserted for an
+update. */
+
+ulint
+btr_push_update_extern_fields(
+/*==========================*/
+				/* out: number of values stored in ext_vect */
+	ulint*	ext_vect,	/* in: array of ulints, must be preallocated
+				to have space for all fields in rec */
+	rec_t*	rec,		/* in: record */
+	upd_t*	update)		/* in: update vector or NULL */
+{
+	ulint	n_pushed	= 0;
+	ibool	is_updated;
+	ulint	n;
+	ulint	j;
+	ulint	i;
+
+	if (update) {
+		n = upd_get_n_fields(update);
+	
+		for (i = 0; i < n; i++) {
+
+			if (upd_get_nth_field(update, i)->extern_storage) {
+
+				ext_vect[n_pushed] =
+					upd_get_nth_field(update, i)->field_no;
+
+				n_pushed++;
+			}
+		}
+	}
+
+	n = rec_get_n_fields(rec);
+
+	for (i = 0; i < n; i++) {
+		if (rec_get_nth_field_extern_bit(rec, i)) {
+			
+			/* Check it is not in updated fields */
+			is_updated = FALSE;
+
+			if (update) {
+				for (j = 0; j < upd_get_n_fields(update);
+								j++) {
+					if (upd_get_nth_field(update, j)
+							->field_no == i) {
+						is_updated = TRUE;
+					}
+				}
+			}
+
+			if (!is_updated) {
+				ext_vect[n_pushed] = i;
+				n_pushed++;
+			}
+		}
+	}		
+
+	return(n_pushed);
+}
+
+/***********************************************************************
+Returns the length of a BLOB part stored on the header page. */
+static
+ulint
+btr_blob_get_part_len(
+/*==================*/
+				/* out: part length */
+	byte*	blob_header)	/* in: blob header */
+{
+	return(mach_read_from_4(blob_header + BTR_BLOB_HDR_PART_LEN));
+}
+
+/***********************************************************************
+Returns the page number where the next BLOB part is stored. */
+static
+ulint
+btr_blob_get_next_page_no(
+/*======================*/
+				/* out: page number or FIL_NULL if
+				no more pages */
+	byte*	blob_header)	/* in: blob header */
+{
+	return(mach_read_from_4(blob_header + BTR_BLOB_HDR_NEXT_PAGE_NO));
+}
+
+/***********************************************************************
+Stores the fields in big_rec_vec to the tablespace and puts pointers to
+them in rec. The fields are stored on pages allocated from leaf node
+file segment of the index tree. */
+
+ulint
+btr_store_big_rec_extern_fields(
+/*============================*/
+					/* out: DB_SUCCESS or error */
+	dict_index_t*	index,		/* in: index of rec; the index tree
+					MUST be X-latched */
+	rec_t*		rec,		/* in: record */
+	big_rec_t*	big_rec_vec,	/* in: vector containing fields
+					to be stored externally */
+	mtr_t*		local_mtr)	/* in: mtr containing the latch to
+					rec and to the tree */
+{
+	byte*	data;
+	ulint	local_len;
+	ulint	extern_len;
+	ulint	store_len;
+	ulint	page_no;
+	page_t*	page;
+	ulint	space_id;
+	page_t*	prev_page;
+	page_t*	rec_page;
+	ulint	prev_page_no;
+	ulint	hint_page_no;
+	ulint	i;
+	mtr_t	mtr;
+
+	ut_ad(mtr_memo_contains(local_mtr, dict_tree_get_lock(index->tree),
+							MTR_MEMO_X_LOCK));
+	ut_ad(mtr_memo_contains(local_mtr, buf_block_align(data),
+							MTR_MEMO_PAGE_X_FIX));	
+	ut_a(index->type & DICT_CLUSTERED);
+							
+	space_id = buf_frame_get_space_id(rec);
+	
+	/* We have to create a file segment to the tablespace
+	for each field and put the pointer to the field in rec */
+
+	for (i = 0; i < big_rec_vec->n_fields; i++) {
+
+		data = rec_get_nth_field(rec, big_rec_vec->fields[i].field_no,
+								&local_len);
+		ut_a(local_len >= BTR_EXTERN_FIELD_REF_SIZE);
+		local_len -= BTR_EXTERN_FIELD_REF_SIZE;
+		extern_len = big_rec_vec->fields[i].len;
+
+		ut_a(extern_len > 0);
+
+		prev_page_no = FIL_NULL;
+
+		while (extern_len > 0) {
+			mtr_start(&mtr);
+
+			if (prev_page_no == FIL_NULL) {
+				hint_page_no = buf_frame_get_page_no(rec) + 1;
+			} else {
+				hint_page_no = prev_page_no + 1;
+			}
+			
+			page = btr_page_alloc(index->tree, hint_page_no,
+						FSP_NO_DIR, 0, &mtr);
+			if (page == NULL) {
+
+				mtr_commit(&mtr);
+
+				return(DB_OUT_OF_FILE_SPACE);
+			}
+
+			page_no = buf_frame_get_page_no(page);
+
+			if (prev_page_no != FIL_NULL) {
+				prev_page = buf_page_get(space_id,
+						prev_page_no,
+						RW_X_LATCH, &mtr);
+
+				buf_page_dbg_add_level(prev_page,
+							SYNC_EXTERN_STORAGE);
+							
+				mlog_write_ulint(prev_page + FIL_PAGE_DATA
+						+ BTR_BLOB_HDR_NEXT_PAGE_NO,
+						page_no, MLOG_4BYTES, &mtr);
+			}
+
+			if (extern_len > (UNIV_PAGE_SIZE - FIL_PAGE_DATA
+						- BTR_BLOB_HDR_SIZE
+						- FIL_PAGE_DATA_END)) {
+				store_len = UNIV_PAGE_SIZE - FIL_PAGE_DATA
+						- BTR_BLOB_HDR_SIZE
+						- FIL_PAGE_DATA_END;
+			} else {
+				store_len = extern_len;
+			}
+
+			mlog_write_string(page + FIL_PAGE_DATA
+						+ BTR_BLOB_HDR_SIZE,
+					big_rec_vec->fields[i].data
+						+ big_rec_vec->fields[i].len
+						- extern_len,
+					store_len, &mtr);
+			mlog_write_ulint(page + FIL_PAGE_DATA
+						+ BTR_BLOB_HDR_PART_LEN,
+					store_len, MLOG_4BYTES, &mtr);
+			mlog_write_ulint(page + FIL_PAGE_DATA
+						+ BTR_BLOB_HDR_NEXT_PAGE_NO,
+					FIL_NULL, MLOG_4BYTES, &mtr);
+					
+			extern_len -= store_len;
+
+			rec_page = buf_page_get(space_id,
+						buf_frame_get_page_no(data),
+							RW_X_LATCH, &mtr);
+
+			buf_page_dbg_add_level(rec_page, SYNC_NO_ORDER_CHECK);
+
+			mlog_write_ulint(data + local_len + BTR_EXTERN_LEN, 0,
+						MLOG_4BYTES, &mtr);
+			mlog_write_ulint(data + local_len + BTR_EXTERN_LEN + 4,
+					big_rec_vec->fields[i].len
+								- extern_len,
+					MLOG_4BYTES, &mtr);
+
+			if (prev_page_no == FIL_NULL) {
+				mlog_write_ulint(data + local_len
+							+ BTR_EXTERN_SPACE_ID,
+						space_id,
+						MLOG_4BYTES, &mtr);
+
+				mlog_write_ulint(data + local_len
+							+ BTR_EXTERN_PAGE_NO,
+						page_no,
+						MLOG_4BYTES, &mtr);
+				
+				mlog_write_ulint(data + local_len
+							+ BTR_EXTERN_OFFSET,
+						FIL_PAGE_DATA,
+						MLOG_4BYTES, &mtr);
+
+				/* Set the bit denoting that this field
+				in rec is stored externally */
+
+				rec_set_nth_field_extern_bit(rec,
+					big_rec_vec->fields[i].field_no,
+					TRUE, &mtr);
+			}
+
+			prev_page_no = page_no;
+
+			mtr_commit(&mtr);
+		}
+	}
+
+	return(DB_SUCCESS);
+}
+
+/***********************************************************************
+Frees the space in an externally stored field to the file space
+management. */
+
+void
+btr_free_externally_stored_field(
+/*=============================*/
+	dict_index_t*	index,		/* in: index of the data, the index
+					tree MUST be X-latched */
+	byte*		data,		/* in: internally stored data
+					+ reference to the externally
+					stored part */
+	ulint		local_len,	/* in: length of data */
+	mtr_t*		local_mtr)	/* in: mtr containing the latch to
+					data an an X-latch to the index
+					tree */
+{
+	page_t*	page;
+	page_t*	rec_page;
+	ulint	space_id;
+	ulint	page_no;
+	ulint	offset;
+	ulint	extern_len;
+	ulint	next_page_no;
+	ulint	part_len;
+	mtr_t	mtr;
+
+	ut_a(local_len >= BTR_EXTERN_FIELD_REF_SIZE);
+	ut_ad(mtr_memo_contains(local_mtr, dict_tree_get_lock(index->tree),
+							MTR_MEMO_X_LOCK));
+	ut_ad(mtr_memo_contains(local_mtr, buf_block_align(data),
+							MTR_MEMO_PAGE_X_FIX));	
+	ut_a(local_len >= BTR_EXTERN_FIELD_REF_SIZE);
+	local_len -= BTR_EXTERN_FIELD_REF_SIZE;
+	
+	for (;;) {
+		mtr_start(&mtr);
+
+		rec_page = buf_page_get(buf_frame_get_space_id(data),
+				buf_frame_get_page_no(data), RW_X_LATCH, &mtr);
+
+		buf_page_dbg_add_level(rec_page, SYNC_NO_ORDER_CHECK);
+
+		space_id = mach_read_from_4(data + local_len
+						+ BTR_EXTERN_SPACE_ID);
+
+		page_no = mach_read_from_4(data + local_len
+						+ BTR_EXTERN_PAGE_NO);
+
+		offset = mach_read_from_4(data + local_len + BTR_EXTERN_OFFSET);
+
+		extern_len = mach_read_from_4(data + local_len
+						+ BTR_EXTERN_LEN + 4);
+
+		/* If extern len is 0, then there is no external storage data
+		at all */
+
+		if (extern_len == 0) {
+
+			mtr_commit(&mtr);
+
+			return;
+		}
+
+		page = buf_page_get(space_id, page_no, RW_X_LATCH, &mtr);
+		
+		buf_page_dbg_add_level(page, SYNC_EXTERN_STORAGE);
+
+		next_page_no = mach_read_from_4(page + FIL_PAGE_DATA
+						+ BTR_BLOB_HDR_NEXT_PAGE_NO);
+
+		part_len = btr_blob_get_part_len(page + FIL_PAGE_DATA);
+
+		ut_a(extern_len >= part_len);
+
+		/* We must supply the page level (= 0) as an argument
+		because we did not store it on the page (we save the space
+		overhead from an index page header. */
+
+		btr_page_free_low(index->tree, page, 0, &mtr);
+
+		mlog_write_ulint(data + local_len + BTR_EXTERN_PAGE_NO,
+						next_page_no,
+						MLOG_4BYTES, &mtr);
+		mlog_write_ulint(data + local_len + BTR_EXTERN_LEN + 4,
+						extern_len - part_len,
+						MLOG_4BYTES, &mtr);
+		if (next_page_no == FIL_NULL) {
+			ut_a(extern_len - part_len == 0);
+		}
+
+		if (extern_len - part_len == 0) {
+			ut_a(next_page_no == FIL_NULL);
+		}
+
+		mtr_commit(&mtr);
+	}
+}
+
+/***************************************************************
+Frees the externally stored fields for a record. */
+
+void
+btr_rec_free_externally_stored_fields(
+/*==================================*/
+	dict_index_t*	index,	/* in: index of the data, the index
+				tree MUST be X-latched */
+	rec_t*		rec,	/* in: record */
+	mtr_t*		mtr)	/* in: mini-transaction handle which contains
+				an X-latch to record page and to the index
+				tree */
+{
+	ulint	n_fields;
+	byte*	data;
+	ulint	len;
+	ulint	i;
+
+	ut_ad(mtr_memo_contains(mtr, buf_block_align(rec),
+							MTR_MEMO_PAGE_X_FIX));
+	if (rec_get_data_size(rec) <= REC_1BYTE_OFFS_LIMIT) {
+
+		return;
+	}
+	
+	/* Free possible externally stored fields in the record */
+
+	n_fields = rec_get_n_fields(rec);
+
+	for (i = 0; i < n_fields; i++) {
+		if (rec_get_nth_field_extern_bit(rec, i)) {
+
+			data = rec_get_nth_field(rec, i, &len);
+			btr_free_externally_stored_field(index, data, len, mtr);
+		}
+	}
+}
+
+/***************************************************************
+Frees the externally stored fields for a record, if the field is mentioned
+in the update vector. */
+static
+void
+btr_rec_free_updated_extern_fields(
+/*===============================*/
+	dict_index_t*	index,	/* in: index of rec; the index tree MUST be
+				X-latched */
+	rec_t*		rec,	/* in: record */
+	upd_t*		update,	/* in: update vector */
+	mtr_t*		mtr)	/* in: mini-transaction handle which contains
+				an X-latch to record page and to the tree */
+{
+	upd_field_t*	ufield;
+	ulint		n_fields;
+	byte*		data;
+	ulint		len;
+	ulint		i;
+
+	ut_ad(mtr_memo_contains(mtr, buf_block_align(rec),
+							MTR_MEMO_PAGE_X_FIX));
+	if (rec_get_data_size(rec) <= REC_1BYTE_OFFS_LIMIT) {
+
+		return;
+	}
+	
+	/* Free possible externally stored fields in the record */
+
+	n_fields = upd_get_n_fields(update);
+
+	for (i = 0; i < n_fields; i++) {
+		ufield = upd_get_nth_field(update, i);
+	
+		if (rec_get_nth_field_extern_bit(rec, ufield->field_no)) {
+
+			data = rec_get_nth_field(rec, ufield->field_no, &len);
+			btr_free_externally_stored_field(index, data, len, mtr);
+		}
+	}
+}
+
+/***********************************************************************
+Copies an externally stored field of a record to mem heap. Parameter
+data contains a pointer to 'internally' stored part of the field:
+possibly some data, and the reference to the externally stored part in
+the last 20 bytes of data. */
+
+byte*
+btr_copy_externally_stored_field(
+/*=============================*/
+				/* out: the whole field copied to heap */
+	ulint*		len,	/* out: length of the whole field */
+	byte*		data,	/* in: 'internally' stored part of the
+				field containing also the reference to
+				the external part */
+	ulint		local_len,/* in: length of data */
+	mem_heap_t*	heap)	/* in: mem heap */
+{
+	page_t*	page;
+	ulint	space_id;
+	ulint	page_no;
+	ulint	offset;
+	ulint	extern_len;
+	byte*	blob_header;
+	ulint	part_len;
+	byte*	buf;
+	ulint	copied_len;
+	mtr_t	mtr;
+
+	ut_a(local_len >= BTR_EXTERN_FIELD_REF_SIZE);
+
+	local_len -= BTR_EXTERN_FIELD_REF_SIZE;
+
+	space_id = mach_read_from_4(data + local_len + BTR_EXTERN_SPACE_ID);
+
+	page_no = mach_read_from_4(data + local_len + BTR_EXTERN_PAGE_NO);
+
+	offset = mach_read_from_4(data + local_len + BTR_EXTERN_OFFSET);
+
+	/* Currently a BLOB cannot be bigger that 4 GB; we
+	leave the 4 upper bytes in the length field unused */
+	
+	extern_len = mach_read_from_4(data + local_len + BTR_EXTERN_LEN + 4);
+
+	buf = mem_heap_alloc(heap, local_len + extern_len);
+
+	ut_memcpy(buf, data, local_len);
+	copied_len = local_len;
+
+	if (extern_len == 0) {
+		*len = copied_len;
+		
+		return(buf);
+	}
+
+	for (;;) {	
+		mtr_start(&mtr);
+
+		page = buf_page_get(space_id, page_no, RW_S_LATCH, &mtr);
+	
+		buf_page_dbg_add_level(page, SYNC_EXTERN_STORAGE);
+
+		blob_header = page + offset;
+
+		part_len = btr_blob_get_part_len(blob_header);
+
+		ut_memcpy(buf + copied_len, blob_header + BTR_BLOB_HDR_SIZE,
+							part_len);
+		copied_len += part_len;
+
+		page_no = btr_blob_get_next_page_no(blob_header);
+
+		/* On other BLOB pages except the first the BLOB header
+		always is at the page data start: */
+
+		offset = FIL_PAGE_DATA;
+
+		mtr_commit(&mtr);
+
+		if (page_no == FIL_NULL) {
+			ut_a(copied_len == local_len + extern_len);
+
+			*len = copied_len;
+		
+			return(buf);
+		}
+
+		ut_a(copied_len < local_len + extern_len);
+	}
+}
+
+/***********************************************************************
+Copies an externally stored field of a record to mem heap. */
+
+byte*
+btr_rec_copy_externally_stored_field(
+/*=================================*/
+				/* out: the field copied to heap */
+	rec_t*		rec,	/* in: record */	
+	ulint		no,	/* in: field number */
+	ulint*		len,	/* out: length of the field */
+	mem_heap_t*	heap)	/* in: mem heap */
+{
+	ulint	local_len;
+	byte*	data;
+
+	ut_a(rec_get_nth_field_extern_bit(rec, no));
+
+	/* An externally stored field can contain some initial
+	data from the field, and in the last 20 bytes it has the
+	space id, page number, and offset where the rest of the
+	field data is stored, and the data length in addition to
+	the data stored locally. We may need to store some data
+	locally to get the local record length above the 128 byte
+	limit so that field offsets are stored in two bytes, and
+	the extern bit is available in those two bytes. */
+
+	data = rec_get_nth_field(rec, no, &local_len);
+
+	return(btr_copy_externally_stored_field(len, data, local_len, heap));
 }
