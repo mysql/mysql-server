@@ -664,7 +664,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 	when_list2 expr_list2  handler
 	opt_precision opt_ignore opt_column opt_restrict
 	grant revoke set lock unlock string_list field_options field_option
-	field_opt_list opt_binary table_lock_list table_lock varchar
+	field_opt_list opt_binary table_lock_list table_lock varchar nchar
 	ref_list opt_on_delete opt_on_delete_list opt_on_delete_item use
 	opt_delete_options opt_delete_option
 	opt_outer table_list table_name opt_option opt_place
@@ -1130,6 +1130,12 @@ type:
 					  $$=FIELD_TYPE_STRING; }
 	| char opt_binary		{ Lex->length=(char*) "1";
 					  $$=FIELD_TYPE_STRING; }
+	| nchar '(' NUM ')'		{ Lex->length=$3.str;
+					  $$=FIELD_TYPE_STRING; 
+					  Lex->charset=&my_charset_utf8; }
+	| nchar				{ Lex->length=(char*) "1";
+					  $$=FIELD_TYPE_STRING; 
+					  Lex->charset=&my_charset_utf8; }
 	| BINARY '(' NUM ')'		{ Lex->length=$3.str;
 					  Lex->charset=&my_charset_bin;
 					  $$=FIELD_TYPE_STRING; }
@@ -1211,8 +1217,12 @@ type:
 
 char:
 	CHAR_SYM {}
-	| NCHAR_SYM {}
-	| NATIONAL_SYM CHAR_SYM {};
+	;
+
+nchar:
+	NCHAR_SYM {}
+	| NATIONAL_SYM CHAR_SYM {}
+	;
 
 varchar:
 	char VARYING {}
