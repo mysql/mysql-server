@@ -254,7 +254,7 @@ static int find_target_pos(LEX_MASTER_INFO *mi, IO_CACHE *log, char *errmsg)
   it is reworked. Event's log_pos used to be preserved through 
   log-slave-updates to make code in repl_failsafe.cc work (this 
   function, SHOW NEW MASTER); but on the other side it caused unexpected
-  values in Exec_master_log_pos in A->B->C replication setup, 
+  values in Exec_Master_Log_Pos in A->B->C replication setup, 
   synchronization problems in master_pos_wait(), ... So we 
   (Dmitri & Guilhem) removed it.
   
