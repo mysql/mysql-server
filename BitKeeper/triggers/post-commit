@@ -1,7 +1,7 @@
 #!/bin/sh
 
 #shift
-TO=dev@mysql.com
+TO=dev-public@mysql.com
 FROM=$USER@mysql.com
 LIMIT=10000
 
