@@ -22,6 +22,7 @@
 #include "slave.h"
 #include <thr_alarm.h>
 #include <my_dir.h>
+#include <assert.h>
 
 #define RPL_LOG_NAME (glob_mi.log_file_name[0] ? glob_mi.log_file_name :\
  "FIRST")
@@ -362,6 +363,7 @@ static int create_table_from_dump(THD* thd, NET* net, const char* db,
   TABLE_LIST tables;
   int error= 1;
   handler *file;
+  char *query;
   
   if (packet_len == packet_error)
   {
@@ -375,15 +377,23 @@ static int create_table_from_dump(THD* thd, NET* net, const char* db,
     return 1;
   }
   thd->command = COM_TABLE_DUMP;
-  thd->query = sql_alloc(packet_len + 1);
-  if (!thd->query)
+  /* Note that we should not set thd->query until the area is initalized */
+  if (!(query = sql_alloc(packet_len + 1)))
   {
     sql_print_error("create_table_from_dump: out of memory");
     net_printf(&thd->net, ER_GET_ERRNO, "Out of memory");
     return 1;
   }
-  memcpy(thd->query, net->read_pos, packet_len);
-  thd->query[packet_len] = 0;
+  memcpy(query, net->read_pos, packet_len);
+  query[packet_len]= 0;
+  thd->query_length= packet_len;
+  /*
+    We make the following lock in an attempt to ensure that the compiler will
+    not rearrange the code so that thd->query is set too soon
+  */
+  VOID(pthread_mutex_lock(&LOCK_thread_count));
+  thd->query= query;
+  VOID(pthread_mutex_unlock(&LOCK_thread_count));
   thd->current_tablenr = 0;
   thd->query_error = 0;
   thd->net.no_send_ok = 1;
@@ -967,10 +977,11 @@ static int exec_event(THD* thd, NET* net, MASTER_INFO* mi, int event_len)
       thd->db = rewrite_db((char*)qev->db);
       if (db_ok(thd->db, replicate_do_db, replicate_ignore_db))
       {
-	thd->query = (char*)qev->query;
+	thd->query_length= q_len;
 	thd->set_time((time_t)qev->when);
 	thd->current_tablenr = 0;
 	VOID(pthread_mutex_lock(&LOCK_thread_count));
+	thd->query = (char*)qev->query;
 	thd->query_id = query_id++;
 	VOID(pthread_mutex_unlock(&LOCK_thread_count));
 	thd->last_nx_table = thd->last_nx_db = 0;
@@ -1008,7 +1019,9 @@ static int exec_event(THD* thd, NET* net, MASTER_INFO* mi, int event_len)
 	else
 	{
 	  // master could be inconsistent, abort and tell DBA to check/fix it
+	  VOID(pthread_mutex_lock(&LOCK_thread_count));
 	  thd->db = thd->query = 0;
+	  VOID(pthread_mutex_unlock(&LOCK_thread_count));
 	  thd->convert_set = 0;
 	  close_thread_tables(thd);
 	  free_root(&thd->mem_root,0);
@@ -1017,7 +1030,9 @@ static int exec_event(THD* thd, NET* net, MASTER_INFO* mi, int event_len)
 	}
       }
       thd->db = 0;				// prevent db from being freed
+      VOID(pthread_mutex_lock(&LOCK_thread_count));
       thd->query = 0;				// just to be sure
+      VOID(pthread_mutex_unlock(&LOCK_thread_count));
       // assume no convert for next query unless set explictly
       thd->convert_set = 0;
       close_thread_tables(thd);
@@ -1059,10 +1074,11 @@ static int exec_event(THD* thd, NET* net, MASTER_INFO* mi, int event_len)
       Load_log_event* lev = (Load_log_event*)ev;
       init_sql_alloc(&thd->mem_root, 8192,0);
       thd->db = rewrite_db((char*)lev->db);
+      DBUG_ASSERT(thd->query == 0);
       thd->query = 0;
       thd->query_error = 0;
 	    
-      if(db_ok(thd->db, replicate_do_db, replicate_ignore_db))
+      if (db_ok(thd->db, replicate_do_db, replicate_ignore_db))
       {
 	thd->set_time((time_t)lev->when);
 	thd->current_tablenr = 0;
@@ -1490,9 +1506,11 @@ the slave thread with \"mysqladmin start-slave\". We stopped at log \
   sql_print_error("Slave thread exiting, replication stopped in log '%s' at \
 position %s",
 		  RPL_LOG_NAME, llstr(glob_mi.pos,llbuff));
+  VOID(pthread_mutex_lock(&LOCK_thread_count));
   thd->query = thd->db = 0; // extra safety
-  if(mysql)
-      mc_mysql_close(mysql);
+  VOID(pthread_mutex_unlock(&LOCK_thread_count));
+  if (mysql)
+    mc_mysql_close(mysql);
   thd->proc_info = "Waiting for slave mutex on exit";
   pthread_mutex_lock(&LOCK_slave);
   slave_running = 0;
