@@ -1,0 +1,16 @@
+slave stop;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+reset master;
+reset slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+slave start;
+create table t1 (a int) type=myisam;
+flush tables;
+drop table t1;
+create table t1 (a int, unique(a)) type=myisam;
+set sql_log_bin=0;
+insert into t1 values(2);
+set sql_log_bin=1;
+insert into t1 values(1),(2);
+Duplicate entry '2' for key 1
+drop table t1;

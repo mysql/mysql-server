@@ -237,6 +237,7 @@ int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
       mysql_update_log.write(thd, thd->query,thd->query_length);
       if (mysql_bin_log.is_open())
       {
+        thd->clear_error();
 	Query_log_event qinfo(thd, thd->query, thd->query_length,
 			      tmp_table_deleted && !some_tables_deleted);
 	mysql_bin_log.write(&qinfo);
@@ -779,6 +780,7 @@ int mysql_create_table(THD *thd,const char *db, const char *table_name,
     mysql_update_log.write(thd,thd->query, thd->query_length);
     if (mysql_bin_log.is_open())
     {
+      thd->clear_error();
       Query_log_event qinfo(thd, thd->query, thd->query_length,
 			    test(create_info->options &
 				 HA_LEX_CREATE_TMP_TABLE));
@@ -1561,6 +1563,7 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
       mysql_update_log.write(thd, thd->query, thd->query_length);
       if (mysql_bin_log.is_open())
       {
+        thd->clear_error();
 	Query_log_event qinfo(thd, thd->query, thd->query_length, 0);
 	mysql_bin_log.write(&qinfo);
       }
@@ -1931,6 +1934,7 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
     mysql_update_log.write(thd, thd->query,thd->query_length);
     if (mysql_bin_log.is_open())
     {
+      thd->clear_error();
       Query_log_event qinfo(thd, thd->query, thd->query_length, 0);
       mysql_bin_log.write(&qinfo);
     }
@@ -2063,6 +2067,7 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
   mysql_update_log.write(thd, thd->query,thd->query_length);
   if (mysql_bin_log.is_open())
   {
+    thd->clear_error();
     Query_log_event qinfo(thd, thd->query, thd->query_length, 0);
     mysql_bin_log.write(&qinfo);
   }
