@@ -14,12 +14,13 @@
    License along with this library; if not, write to the Free
    Software Foundation, Inc., 59 Temple Place - Suite 330, Boston,
    MA 02111-1307, USA */
+
 #define DONT_USE_RAID
+#include <global.h>
 #if defined(__WIN__) || defined(_WIN32) || defined(_WIN64)
 #include <winsock.h>
 #include <odbcinst.h>
 #endif
-#include <global.h>
 #include <my_sys.h>
 #include <mysys_err.h>
 #include <m_string.h>
@@ -95,20 +96,9 @@ static sig_handler pipe_sig_handler(int sig);
 static ulong mysql_sub_escape_string(CHARSET_INFO *charset_info, char *to,
 				     const char *from, ulong length);
 
-/*
-  Let the user specify that we don't want SIGPIPE;  This doesn't however work
-  with threaded applications as we can have multiple read in progress.
-*/
-
-#if !defined(__WIN__) && defined(SIGPIPE) && !defined(THREAD)
-#define init_sigpipe_variables  sig_return old_signal_handler=(sig_return) 0;
-#define set_sigpipe(mysql)     if ((mysql)->client_flag & CLIENT_IGNORE_SIGPIPE) old_signal_handler=signal(SIGPIPE,pipe_sig_handler)
-#define reset_sigpipe(mysql) if ((mysql)->client_flag & CLIENT_IGNORE_SIGPIPE) signal(SIGPIPE,old_signal_handler);
-#else
 #define init_sigpipe_variables
 #define set_sigpipe(mysql)
 #define reset_sigpipe(mysql)
-#endif
 
 #if 0
 /****************************************************************************
@@ -211,78 +201,6 @@ static int connect2(my_socket s, const struct sockaddr *name, uint namelen,
 #endif
 }
 #endif /* 0 */
-
-/*
-** Create a named pipe connection
-*/
-
-#ifdef __WIN__
-
-HANDLE create_named_pipe(NET *net, uint connect_timeout, char **arg_host,
-			 char **arg_unix_socket)
-{
-  HANDLE hPipe=INVALID_HANDLE_VALUE;
-  char szPipeName [ 257 ];
-  DWORD dwMode;
-  int i;
-  my_bool testing_named_pipes=0;
-  char *host= *arg_host, *unix_socket= *arg_unix_socket;
-
-  if ( ! unix_socket || (unix_socket)[0] == 0x00)
-    unix_socket = mysql_unix_port;
-  if (!host || !strcmp(host,LOCAL_HOST))
-    host=LOCAL_HOST_NAMEDPIPE;
-
-  sprintf( szPipeName, "\\\\%s\\pipe\\%s", host, unix_socket);
-  DBUG_PRINT("info",("Server name: '%s'.  Named Pipe: %s",
-		     host, unix_socket));
-
-  for (i=0 ; i < 100 ; i++)			/* Don't retry forever */
-  {
-    if ((hPipe = CreateFile(szPipeName,
-			    GENERIC_READ | GENERIC_WRITE,
-			    0,
-			    NULL,
-			    OPEN_EXISTING,
-			    0,
-			    NULL )) != INVALID_HANDLE_VALUE)
-      break;
-    if (GetLastError() != ERROR_PIPE_BUSY)
-    {
-      net->last_errno=CR_NAMEDPIPEOPEN_ERROR;
-      sprintf(net->last_error,ER(net->last_errno),host, unix_socket,
-	      (ulong) GetLastError());
-      return INVALID_HANDLE_VALUE;
-    }
-    /* wait for for an other instance */
-    if (! WaitNamedPipe(szPipeName, connect_timeout*1000) )
-    {
-      net->last_errno=CR_NAMEDPIPEWAIT_ERROR;
-      sprintf(net->last_error,ER(net->last_errno),host, unix_socket,
-	      (ulong) GetLastError());
-      return INVALID_HANDLE_VALUE;
-    }
-  }
-  if (hPipe == INVALID_HANDLE_VALUE)
-  {
-    net->last_errno=CR_NAMEDPIPEOPEN_ERROR;
-    sprintf(net->last_error,ER(net->last_errno),host, unix_socket,
-	    (ulong) GetLastError());
-    return INVALID_HANDLE_VALUE;
-  }
-  dwMode = PIPE_READMODE_BYTE | PIPE_WAIT;
-  if ( !SetNamedPipeHandleState(hPipe, &dwMode, NULL, NULL) )
-  {
-    CloseHandle( hPipe );
-    net->last_errno=CR_NAMEDPIPESETSTATE_ERROR;
-    sprintf(net->last_error,ER(net->last_errno),host, unix_socket,
-	    (ulong) GetLastError());
-    return INVALID_HANDLE_VALUE;
-  }
-  *arg_host=host ; *arg_unix_socket=unix_socket;	/* connect arg */
-  return (hPipe);
-}
-#endif
 
 
 /*****************************************************************************
@@ -1010,6 +928,7 @@ static void mysql_once_init()
     embedded_srv_init();
     init_client_errs();
     mysql_port = MYSQL_PORT;
+    DEBUGGER_ON;
     mysql_debug(NullS);
   }
 #ifdef THREAD
@@ -1052,7 +971,6 @@ mysql_real_connect(MYSQL *mysql,const char *host, const char *user,
 		   uint port, const char *unix_socket,uint client_flag)
 {
   char		buff[100],charset_name_buff[16],*end,*host_info, *charset_name;
-  my_socket	sock;
   uint		pkt_length;
   NET		*net= &mysql->net;
   DBUG_ENTER("mysql_real_connect");
@@ -1082,40 +1000,14 @@ mysql_real_connect(MYSQL *mysql,const char *host, const char *user,
   if (!passwd)
   {
     passwd=mysql->options.password;
-#ifndef DONT_USE_MYSQL_PWD
-    if (!passwd)
-      passwd=getenv("MYSQL_PWD");  /* get it from environment (haneke) */
-#endif
   }
   if (!db || !db[0])
     db=mysql->options.db;
-  if (!port)
-    port=mysql->options.port;
-  if (!unix_socket)
-    unix_socket=mysql->options.unix_socket;
-
+  port=0;
+  unix_socket=0;
   mysql->reconnect=1;			/* Reconnect as default */
   mysql->server_status=SERVER_STATUS_AUTOCOMMIT;
-
-  /*
-  ** Grab a socket and connect it to the server
-  */
-
-    unix_socket=0;				/* This is not used */
-    if (!port)
-      port=mysql_port;
-    if (!host)
-      host=LOCAL_HOST;
-    sprintf(host_info=buff,ER(CR_TCP_CONNECTION),host);
-    DBUG_PRINT("info",("Server name: '%s'.  TCP sock: %d", host,port));
-    /* _WIN64 ;  Assume that the (int) range is enough for socket() */
-    if ((sock = (my_socket) socket(AF_INET,SOCK_STREAM,0)) == SOCKET_ERROR)
-    {
-      net->last_errno=CR_IPSOCK_ERROR;
-      sprintf(net->last_error,ER(net->last_errno),ERRNO);
-      goto error;
-    }
-
+  host_info=(char*) ER(CR_EMBEDDED_CONNECTION);
   if (my_net_init(net, net->vio))
   {
     vio_delete(net->vio);
@@ -1199,6 +1091,7 @@ mysql_real_connect(MYSQL *mysql,const char *host, const char *user,
   /* Save connection information */
   if (!user) user="";
   if (!passwd) passwd="";
+  host=LOCAL_HOST;
   if (!my_multi_malloc(MYF(0),
 		       &mysql->host_info, (uint) strlen(host_info)+1,
 		       &mysql->host,      (uint) strlen(host)+1,
@@ -1228,14 +1121,9 @@ mysql_real_connect(MYSQL *mysql,const char *host, const char *user,
 
   /* Send client information for access check */
   client_flag|=CLIENT_CAPABILITIES;
-
-
+  client_flag&= ~CLIENT_COMPRESS;
   if (db)
     client_flag|=CLIENT_CONNECT_WITH_DB;
-
-  client_flag&= ~CLIENT_COMPRESS;
-
-
   int2store(buff,client_flag);
   mysql->client_flag=client_flag;
 
@@ -1251,7 +1139,8 @@ mysql_real_connect(MYSQL *mysql,const char *host, const char *user,
   DBUG_PRINT("info",("user: %s",buff+5));
   end=scramble(strend(buff+5)+1, mysql->scramble_buff, passwd,
 	       (my_bool) (mysql->protocol_version == 9));
-  if (db && (mysql->server_capabilities & CLIENT_CONNECT_WITH_DB))
+
+  if (db)
   {
     end=strmov(end+1,db);
     mysql->db=my_strdup(db,MYF(MY_WME));
@@ -1264,8 +1153,6 @@ mysql_real_connect(MYSQL *mysql,const char *host, const char *user,
    
   if( net_safe_read(mysql) == packet_error)
     goto error;
-  if (client_flag & CLIENT_COMPRESS)		/* We will use compression */
-    net->compress=1;
   if (db && mysql_select_db(mysql,db))
     goto error;
   if (mysql->options.init_command)

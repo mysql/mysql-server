@@ -157,6 +157,10 @@ extern unsigned long net_buffer_length;
 
 #define net_new_transaction(net) ((net)->pkt_nr=0)
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 int	my_net_init(NET *net, Vio* vio);
 void	net_end(NET *net);
 void	net_clear(NET *net);
@@ -171,6 +175,10 @@ struct rand_struct {
   unsigned long seed1,seed2,max_value;
   double max_value_dbl;
 };
+
+#ifdef __cplusplus
+}
+#endif
 
   /* The following is for user defined functions */
 

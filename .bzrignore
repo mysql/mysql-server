@@ -315,3 +315,4 @@ libmysqld/time.cc
 libmysqld/unireg.cc
 linked_libmysqld_sources
 sql-bench/bench-count-distinct
+libmysqld/sql_handler.cc
