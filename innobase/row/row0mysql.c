@@ -818,12 +818,19 @@ row_create_table_for_mysql(
 
 	if (err != DB_SUCCESS) {
 		/* We have special error handling here */
-		ut_a(err == DB_OUT_OF_FILE_SPACE);
+		
 		trx->error_state = DB_SUCCESS;
 		
 		trx_general_rollback_for_mysql(trx, FALSE, NULL);
 
-		row_drop_table_for_mysql(table->name, trx, TRUE);
+		if (err == DB_OUT_OF_FILE_SPACE) {
+		         row_drop_table_for_mysql(table->name, trx, TRUE);
+		} else {
+		         assert(err == DB_DUPLICATE_KEY);
+			 fprintf(stderr, 
+     "Innobase: error: table %s already exists in Innobase data dictionary\n",
+				 table->name);
+		}
 
 		trx->error_state = DB_SUCCESS;
 	}
