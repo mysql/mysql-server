@@ -3,6 +3,7 @@ connect (slave,localhost,root,,test,0,mysql-slave.sock);
 connection master;
 reset master;
 grant file on *.* to replicate@localhost identified by 'aaaaaaaaaaaaaaab';
+grant file on *.* to replicate@127.0.0.1 identified by 'aaaaaaaaaaaaaaab';
 connection slave;
 slave start;
 connection master;

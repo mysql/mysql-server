@@ -107,7 +107,6 @@ static uint find_shortest_key(TABLE *table, key_map usable_keys);
 static bool test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,
 				    ha_rows select_limit, bool no_changes);
 static int create_sort_index(JOIN_TAB *tab,ORDER *order,ha_rows select_limit);
-static bool fix_having(JOIN *join, Item **having);
 static int remove_duplicates(JOIN *join,TABLE *entry,List<Item> &fields,
 			     Item *having);
 static int remove_dup_with_compare(THD *thd, TABLE *entry, Field **field,
@@ -5442,39 +5441,6 @@ create_sort_index(JOIN_TAB *tab,ORDER *order,ha_rows select_limit)
 err:
   DBUG_RETURN(-1);
 }
-
-
-/*
-** Add the HAVING criteria to table->select
-*/
-
-static bool fix_having(JOIN *join, Item **having)
-{
-  (*having)->update_used_tables();	// Some tables may have been const
-  JOIN_TAB *table=&join->join_tab[join->const_tables];
-  table_map used_tables= join->const_table_map | table->table->map;
-
-  Item* sort_table_cond=make_cond_for_table(*having,used_tables,used_tables);
-  if (sort_table_cond)
-  {
-    if (!table->select)
-      if (!(table->select=new SQL_SELECT))
-	return 1;
-    if (!table->select->cond)
-      table->select->cond=sort_table_cond;
-    else					// This should never happen
-      if (!(table->select->cond=new Item_cond_and(table->select->cond,
-						  sort_table_cond)))
-	return 1;
-    table->select_cond=table->select->cond;
-    DBUG_EXECUTE("where",print_where(table->select_cond,
-				     "select and having"););
-    *having=make_cond_for_table(*having,~ (table_map) 0,~used_tables);
-    DBUG_EXECUTE("where",print_where(*having,"having after make_cond"););
-  }
-  return 0;
-}
-
 
 /*****************************************************************************
 ** Remove duplicates from tmp table

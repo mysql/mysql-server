@@ -143,7 +143,7 @@ if ($opt_stage <= 1)
 
 if ($opt_stage <= 2)
 {
-  unlink($opt_distribution) if (!$opt_delete && !$opt_use_old_distribution);
+  unlink($opt_distribution) if ($opt_delete && !$opt_use_old_distribution);
   safe_system("$make");
 }
 
