@@ -871,8 +871,8 @@ static int dbConnect(char *host, char *user,char *passwd)
     cannot reconnect.
   */
   sock->reconnect= 0;
-  sprintf(buff, "/*!40100 SET @@SQL_MODE='%s' */",
-	  compatible_mode_normal_str);
+  my_snprintf(buff, sizeof(buff), "/*!40100 SET @@SQL_MODE='%s' */",
+	      compatible_mode_normal_str);
   if (mysql_query_with_error_report(sock, 0, buff))
   {
     mysql_close(sock);
@@ -1107,8 +1107,9 @@ static uint getTableStructure(char *table, char* db)
   if (verbose)
     fprintf(stderr, "-- Retrieving table structure for table %s...\n", table);
 
-  sprintf(insert_pat,"SET OPTION SQL_QUOTE_SHOW_CREATE=%d",
-	  (opt_quoted || opt_keywords));
+  my_snprintf(insert_pat, sizeof(insert_pat), 
+	      "SET OPTION SQL_QUOTE_SHOW_CREATE=%d",
+	      (opt_quoted || opt_keywords));
   if (!create_options)
     strmov(strend(insert_pat), "/*!40102 ,SQL_MODE=concat(@@sql_mode, _utf8 ',NO_KEY_OPTIONS,NO_TABLE_OPTIONS,NO_FIELD_OPTIONS') */");
 
@@ -1126,7 +1127,7 @@ static uint getTableStructure(char *table, char* db)
       /* Make an sql-file, if path was given iow. option -T was given */
       char buff[20+FN_REFLEN];
 
-      sprintf(buff,"show create table %s", result_table);
+      my_snprintf(buff, sizeof(buff), "show create table %s", result_table);
       if (mysql_query_with_error_report(sock, 0, buff))
       {
         safe_exit(EX_MYSQLERR);
@@ -1164,7 +1165,8 @@ static uint getTableStructure(char *table, char* db)
       check_io(sql_file);
       mysql_free_result(tableRes);
     }
-    sprintf(insert_pat,"show fields from %s", result_table);
+    my_snprintf(insert_pat, sizeof(insert_pat), "show fields from %s", 
+		result_table);
     if (mysql_query_with_error_report(sock, &tableRes, insert_pat))
     {
       if (path)
@@ -1174,11 +1176,12 @@ static uint getTableStructure(char *table, char* db)
     }
 
     if (cFlag)
-      sprintf(insert_pat, "INSERT %sINTO %s (", delayed, opt_quoted_table);
+      my_snprintf(insert_pat, sizeof(insert_pat), "INSERT %sINTO %s (", 
+		  delayed, opt_quoted_table);
     else
     {
-      sprintf(insert_pat, "INSERT %sINTO %s VALUES ", delayed,
-	      opt_quoted_table);
+      my_snprintf(insert_pat, sizeof(insert_pat), "INSERT %sINTO %s VALUES ", 
+		  delayed, opt_quoted_table);
       if (!extended_insert)
         strcat(insert_pat,"(");
     }
@@ -1205,7 +1208,8 @@ static uint getTableStructure(char *table, char* db)
               "%s: Warning: Can't set SQL_QUOTE_SHOW_CREATE option (%s)\n",
               my_progname, mysql_error(sock));
 
-    sprintf(insert_pat,"show fields from %s", result_table);
+    my_snprintf(insert_pat, sizeof(insert_pat), "show fields from %s", 
+		result_table);
     if (mysql_query_with_error_report(sock, &tableRes, insert_pat))
     {
       safe_exit(EX_MYSQLERR);
@@ -1240,10 +1244,12 @@ static uint getTableStructure(char *table, char* db)
       check_io(sql_file);
     }
     if (cFlag)
-      sprintf(insert_pat, "INSERT %sINTO %s (", delayed, result_table);
+      my_snprintf(insert_pat, sizeof(insert_pat), "INSERT %sINTO %s (", 
+		  delayed, result_table);
     else
     {
-      sprintf(insert_pat, "INSERT %sINTO %s VALUES ", delayed, result_table);
+      my_snprintf(insert_pat, sizeof(insert_pat), "INSERT %sINTO %s VALUES ",
+		  delayed, result_table);
       if (!extended_insert)
         strcat(insert_pat,"(");
     }
@@ -1300,7 +1306,7 @@ static uint getTableStructure(char *table, char* db)
       /* Make an sql-file, if path was given iow. option -T was given */
       char buff[20+FN_REFLEN];
       uint keynr,primary_key;
-      sprintf(buff,"show keys from %s", result_table);
+      my_snprintf(buff, sizeof(buff), "show keys from %s", result_table);
       if (mysql_query_with_error_report(sock, &tableRes, buff))
       {
         if (path)
@@ -1370,8 +1376,12 @@ static uint getTableStructure(char *table, char* db)
       if (create_options)
       {
 	char show_name_buff[FN_REFLEN];
-        sprintf(buff,"show table status like %s",
-		quote_for_like(table, show_name_buff));
+
+	/* Check memory for quote_for_like() */
+	DBUG_ASSERT(2*sizeof(table) < sizeof(show_name_buff));
+        my_snprintf(buff, sizeof(buff), "show table status like %s",
+		    quote_for_like(table, show_name_buff));
+
         if (mysql_query_with_error_report(sock, &tableRes, buff))
         {
 	  if (mysql_errno(sock) != ER_PARSE_ERROR)
@@ -1531,8 +1541,9 @@ static void dumpTable(uint numFields, char *table)
     my_delete(filename, MYF(0)); /* 'INTO OUTFILE' doesn't work, if
 				    filename wasn't deleted */
     to_unix_path(filename);
-    sprintf(query, "SELECT /*!40001 SQL_NO_CACHE */ * INTO OUTFILE '%s'",
-	    filename);
+    my_snprintf(query, QUERY_LENGTH, 
+		"SELECT /*!40001 SQL_NO_CACHE */ * INTO OUTFILE '%s'",
+		filename);
     end= strend(query);
 
     if (fields_terminated || enclosed || opt_enclosed || escaped)
@@ -1544,7 +1555,7 @@ static void dumpTable(uint numFields, char *table)
     end= add_load_option(end, lines_terminated, " LINES TERMINATED BY");
     *end= '\0';
 
-    sprintf(buff," FROM %s", result_table);
+    my_snprintf(buff, sizeof(buff), " FROM %s", result_table);
     end= strmov(end,buff);
     if (where || order_by)
     {
@@ -1572,8 +1583,9 @@ static void dumpTable(uint numFields, char *table)
 	      result_table);
       check_io(md_result_file);
     }
-    sprintf(query, "SELECT /*!40001 SQL_NO_CACHE */ * FROM %s",
-	    result_table);
+    my_snprintf(query, QUERY_LENGTH,
+		"SELECT /*!40001 SQL_NO_CACHE */ * FROM %s",
+		result_table);
     if (where || order_by)
     {
       query = alloc_query_str((ulong) (strlen(query) + 1 +
@@ -1671,8 +1683,9 @@ static void dumpTable(uint numFields, char *table)
         int is_blob;
 	if (!(field = mysql_fetch_field(res)))
 	{
-	  sprintf(query,"%s: Not enough fields from table %s! Aborting.\n",
-		  my_progname, result_table);
+	  my_snprintf(query, QUERY_LENGTH,
+		      "%s: Not enough fields from table %s! Aborting.\n",
+		      my_progname, result_table);
 	  fputs(query,stderr);
 	  error= EX_CONSCHECK;
 	  goto err;
@@ -1873,12 +1886,13 @@ static void dumpTable(uint numFields, char *table)
     check_io(md_result_file);
     if (mysql_errno(sock))
     {
-      sprintf(query,"%s: Error %d: %s when dumping table %s at row: %ld\n",
-	      my_progname,
-	      mysql_errno(sock),
-	      mysql_error(sock),
-	      result_table,
-	      rownr);
+      my_snprintf(query, QUERY_LENGTH,
+		  "%s: Error %d: %s when dumping table %s at row: %ld\n",
+		  my_progname,
+		  mysql_errno(sock),
+		  mysql_error(sock),
+		  result_table,
+		  rownr);
       fputs(query,stderr);
       error= EX_CONSCHECK;
       goto err;
@@ -1994,8 +2008,9 @@ static int init_dumping(char *database)
         MYSQL_ROW row;
         MYSQL_RES *dbinfo;
 
-        sprintf(qbuf,"SHOW CREATE DATABASE IF NOT EXISTS %s",
-		qdatabase);
+        my_snprintf(qbuf, sizeof(qbuf), 
+		    "SHOW CREATE DATABASE IF NOT EXISTS %s",
+		    qdatabase);
 
         if (mysql_query(sock, qbuf) || !(dbinfo = mysql_store_result(sock)))
         {
@@ -2107,12 +2122,15 @@ static void get_actual_table_name(const char *old_table_name,
 {
   MYSQL_RES  *tableRes;
   MYSQL_ROW  row;
-  char query[2*NAME_LEN+50];
+  char query[50 + 2*NAME_LEN];
   char show_name_buff[FN_REFLEN];
   DBUG_ENTER("get_actual_table_name");
 
-  sprintf(query, "SHOW TABLES LIKE %s", 
-	  quote_for_like(old_table_name, show_name_buff));
+  /* Check memory for quote_for_like() */
+  DBUG_ASSERT(2*sizeof(old_table_name) < sizeof(show_name_buff));
+  my_snprintf(query, sizeof(query), "SHOW TABLES LIKE %s", 
+	      quote_for_like(old_table_name, show_name_buff));
+
   if (mysql_query_with_error_report(sock, 0, query))
   {
     safe_exit(EX_MYSQLERR);
@@ -2357,8 +2375,10 @@ static const char *check_if_ignore_table(const char *table_name)
   MYSQL_ROW row;
   const char *result= 0;
 
-  sprintf(buff,"show table status like %s",
-	  quote_for_like(table_name, show_name_buff));
+  /* Check memory for quote_for_like() */
+  DBUG_ASSERT(2*sizeof(table_name) < sizeof(show_name_buff));
+  my_snprintf(buff, sizeof(buff), "show table status like %s",
+	      quote_for_like(table_name, show_name_buff));
   if (mysql_query_with_error_report(sock, &res, buff))
   {
     if (mysql_errno(sock) != ER_PARSE_ERROR)
@@ -2411,7 +2431,8 @@ static char *primary_key_fields(const char *table_name)
   uint result_length = 0;
   char *result = 0;
 
-  sprintf(show_keys_buff, "SHOW KEYS FROM %s", table_name);
+  my_snprintf(show_keys_buff, sizeof(show_keys_buff), 
+	      "SHOW KEYS FROM %s", table_name);
   if (mysql_query(sock, show_keys_buff) ||
       !(res = mysql_store_result(sock)))
   {
