@@ -640,7 +640,8 @@ multi_update::initialize_tables(JOIN *join)
 					   temp_fields,
 					   (ORDER*) &group, 0, 0,
 					   TMP_TABLE_ALL_COLUMNS,
-					   HA_POS_ERROR)))
+					   HA_POS_ERROR,
+					   (char *) "")))
       DBUG_RETURN(1);
     tmp_tables[cnt]->file->extra(HA_EXTRA_WRITE_CACHE);
   }
