@@ -80,14 +80,14 @@ Dbtux::preallocNode(Signal* signal, Frag& frag, Uint32& errorCode)
  * Find node in the cache.  XXX too slow, use direct links instead
  */
 void
-Dbtux::findNode(Signal* signal, Frag& frag, NodeHandlePtr& nodePtr, TupAddr addr)
+Dbtux::findNode(Signal* signal, Frag& frag, NodeHandlePtr& nodePtr, TupLoc loc)
 {
   NodeHandlePtr tmpPtr;
   tmpPtr.i = frag.m_nodeList;
   while (tmpPtr.i != RNIL) {
     jam();
     c_nodeHandlePool.getPtr(tmpPtr);
-    if (tmpPtr.p->m_addr == addr) {
+    if (tmpPtr.p->m_loc == loc) {
       jam();
       nodePtr = tmpPtr;
       return;
@@ -102,18 +102,18 @@ Dbtux::findNode(Signal* signal, Frag& frag, NodeHandlePtr& nodePtr, TupAddr addr
  * Get handle for existing node.
  */
 void
-Dbtux::selectNode(Signal* signal, Frag& frag, NodeHandlePtr& nodePtr, TupAddr addr, AccSize acc)
+Dbtux::selectNode(Signal* signal, Frag& frag, NodeHandlePtr& nodePtr, TupLoc loc, AccSize acc)
 {
-  ndbrequire(addr != NullTupAddr && acc > AccNone);
+  ndbrequire(loc != NullTupLoc && acc > AccNone);
   NodeHandlePtr tmpPtr;
   // search in cache
-  findNode(signal, frag, tmpPtr, addr);
+  findNode(signal, frag, tmpPtr, loc);
   if (tmpPtr.i == RNIL) {
     jam();
     // add new node
     seizeNode(signal, frag, tmpPtr);
     ndbrequire(tmpPtr.i != RNIL);
-    tmpPtr.p->m_addr = addr;
+    tmpPtr.p->m_loc = loc;
   }
   if (tmpPtr.p->m_acc < acc) {
     jam();
@@ -276,7 +276,7 @@ Dbtux::NodeHandle::pushUp(Signal* signal, unsigned pos, const TreeEnt& ent)
     jam();
     m_tux.c_scanOpPool.getPtr(scanPtr);
     TreePos& scanPos = scanPtr.p->m_scanPos;
-    ndbrequire(scanPos.m_addr == m_addr && scanPos.m_pos < occup);
+    ndbrequire(scanPos.m_loc == m_loc && scanPos.m_pos < occup);
     if (scanPos.m_pos >= pos) {
       jam();
 #ifdef VM_TRACE
@@ -329,7 +329,7 @@ Dbtux::NodeHandle::popDown(Signal* signal, unsigned pos, TreeEnt& ent)
     jam();
     m_tux.c_scanOpPool.getPtr(scanPtr);
     TreePos& scanPos = scanPtr.p->m_scanPos;
-    ndbrequire(scanPos.m_addr == m_addr && scanPos.m_pos < occup);
+    ndbrequire(scanPos.m_loc == m_loc && scanPos.m_pos < occup);
     const Uint32 nextPtrI = scanPtr.p->m_nodeScan;
     if (scanPos.m_pos == pos) {
       jam();
@@ -349,7 +349,7 @@ Dbtux::NodeHandle::popDown(Signal* signal, unsigned pos, TreeEnt& ent)
     jam();
     m_tux.c_scanOpPool.getPtr(scanPtr);
     TreePos& scanPos = scanPtr.p->m_scanPos;
-    ndbrequire(scanPos.m_addr == m_addr && scanPos.m_pos < occup);
+    ndbrequire(scanPos.m_loc == m_loc && scanPos.m_pos < occup);
     ndbrequire(scanPos.m_pos != pos);
     if (scanPos.m_pos > pos) {
       jam();
@@ -403,7 +403,7 @@ Dbtux::NodeHandle::pushDown(Signal* signal, unsigned pos, TreeEnt& ent)
     jam();
     m_tux.c_scanOpPool.getPtr(scanPtr);
     TreePos& scanPos = scanPtr.p->m_scanPos;
-    ndbrequire(scanPos.m_addr == m_addr && scanPos.m_pos < occup);
+    ndbrequire(scanPos.m_loc == m_loc && scanPos.m_pos < occup);
     const Uint32 nextPtrI = scanPtr.p->m_nodeScan;
     if (scanPos.m_pos == 0) {
       jam();
@@ -424,7 +424,7 @@ Dbtux::NodeHandle::pushDown(Signal* signal, unsigned pos, TreeEnt& ent)
     jam();
     m_tux.c_scanOpPool.getPtr(scanPtr);
     TreePos& scanPos = scanPtr.p->m_scanPos;
-    ndbrequire(scanPos.m_addr == m_addr && scanPos.m_pos < occup);
+    ndbrequire(scanPos.m_loc == m_loc && scanPos.m_pos < occup);
     ndbrequire(scanPos.m_pos != 0);
     if (scanPos.m_pos <= pos) {
       jam();
@@ -480,7 +480,7 @@ Dbtux::NodeHandle::popUp(Signal* signal, unsigned pos, TreeEnt& ent)
     jam();
     m_tux.c_scanOpPool.getPtr(scanPtr);
     TreePos& scanPos = scanPtr.p->m_scanPos;
-    ndbrequire(scanPos.m_addr == m_addr && scanPos.m_pos < occup);
+    ndbrequire(scanPos.m_loc == m_loc && scanPos.m_pos < occup);
     const Uint32 nextPtrI = scanPtr.p->m_nodeScan;
     if (scanPos.m_pos == pos) {
       jam();
@@ -501,7 +501,7 @@ Dbtux::NodeHandle::popUp(Signal* signal, unsigned pos, TreeEnt& ent)
     jam();
     m_tux.c_scanOpPool.getPtr(scanPtr);
     TreePos& scanPos = scanPtr.p->m_scanPos;
-    ndbrequire(scanPos.m_addr == m_addr && scanPos.m_pos < occup);
+    ndbrequire(scanPos.m_loc == m_loc && scanPos.m_pos < occup);
     ndbrequire(scanPos.m_pos != pos);
     if (scanPos.m_pos < pos) {
       jam();

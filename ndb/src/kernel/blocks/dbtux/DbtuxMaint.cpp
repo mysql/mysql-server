@@ -285,8 +285,8 @@ Dbtux::tupStoreTh(Signal* signal, const Frag& frag, NodeHandlePtr nodePtr, Store
   req->tableId = frag.m_indexId;
   req->fragId = frag.m_fragId;
   req->fragPtrI = frag.m_tupIndexFragPtrI;
-  req->tupAddr = nodePtr.p->m_addr;
-  req->tupVersion = 0;
+  req->tupAddr = RNIL;  // no longer used
+  req->tupVersion = 0;  // no longer used
   req->pageId = nodePtr.p->m_loc.m_pageId;
   req->pageOffset = nodePtr.p->m_loc.m_pageOffset;
   req->bufferId = 0;
@@ -346,21 +346,18 @@ Dbtux::tupStoreTh(Signal* signal, const Frag& frag, NodeHandlePtr nodePtr, Store
       const Uint32* src = (const Uint32*)buffer + storePar.m_offset;
       memcpy(dst, src, storePar.m_size << 2);
     }
-    // fallthru
+    break;
   case TupStoreTh::OpInsert:
     jam();
-    // fallthru
-  case TupStoreTh::OpUpdate:
-    jam();
-    nodePtr.p->m_addr = req->tupAddr;
     nodePtr.p->m_loc.m_pageId = req->pageId;
     nodePtr.p->m_loc.m_pageOffset = req->pageOffset;
     break;
+  case TupStoreTh::OpUpdate:
+    jam();
+    break;
   case TupStoreTh::OpDelete:
     jam();
-    nodePtr.p->m_addr = NullTupAddr;
-    nodePtr.p->m_loc.m_pageId = RNIL;
-    nodePtr.p->m_loc.m_pageOffset = 0;
+    nodePtr.p->m_loc = NullTupLoc;
     break;
   default:
     ndbrequire(false);

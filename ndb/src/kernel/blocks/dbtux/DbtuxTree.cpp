@@ -30,9 +30,9 @@ Dbtux::treeSearch(Signal* signal, Frag& frag, SearchPar searchPar, TreePos& tree
 {
   const TreeHead& tree = frag.m_tree;
   const unsigned numAttrs = frag.m_numAttrs;
-  treePos.m_addr = tree.m_root;
+  treePos.m_loc = tree.m_root;
   NodeHandlePtr nodePtr;
-  if (treePos.m_addr == NullTupAddr) {
+  if (treePos.m_loc == NullTupLoc) {
     // empty tree
     jam();
     treePos.m_pos = 0;
@@ -41,7 +41,7 @@ Dbtux::treeSearch(Signal* signal, Frag& frag, SearchPar searchPar, TreePos& tree
   }
 loop: {
     jam();
-    selectNode(signal, frag, nodePtr, treePos.m_addr, AccPref);
+    selectNode(signal, frag, nodePtr, treePos.m_loc, AccPref);
     const unsigned occup = nodePtr.p->getOccup();
     ndbrequire(occup != 0);
     // number of equal initial attributes in bounding node
@@ -82,15 +82,14 @@ loop: {
       }
       if (i == 0 ? (ret < 0) : (ret > 0)) {
         jam();
-        const TupAddr tupAddr = nodePtr.p->getLink(i);
-        if (tupAddr != NullTupAddr) {
+        const TupLoc loc = nodePtr.p->getLink(i);
+        if (loc != NullTupLoc) {
           jam();
           // continue to left/right subtree
-          treePos.m_addr = tupAddr;
+          treePos.m_loc = loc;
           goto loop;
         }
         // position is immediately before/after this node
-        // XXX disallow second case
         treePos.m_pos = (i == 0 ? 0 : occup);
         treePos.m_match = false;
         return;
@@ -159,16 +158,16 @@ Dbtux::treeAdd(Signal* signal, Frag& frag, TreePos treePos, TreeEnt ent)
   unsigned pos = treePos.m_pos;
   NodeHandlePtr nodePtr;
   // check for empty tree
-  if (treePos.m_addr == NullTupAddr) {
+  if (treePos.m_loc == NullTupLoc) {
     jam();
     insertNode(signal, frag, nodePtr, AccPref);
     nodePtr.p->pushUp(signal, 0, ent);
     nodePtr.p->setSide(2);
-    tree.m_root = nodePtr.p->m_addr;
+    tree.m_root = nodePtr.p->m_loc;
     return;
   }
   // access full node
-  selectNode(signal, frag, nodePtr, treePos.m_addr, AccFull);
+  selectNode(signal, frag, nodePtr, treePos.m_loc, AccFull);
   // check if it is bounding node
   if (pos != 0 && pos != nodePtr.p->getOccup()) {
     jam();
@@ -181,18 +180,18 @@ Dbtux::treeAdd(Signal* signal, Frag& frag, TreePos treePos, TreeEnt ent)
     // returns min entry
     nodePtr.p->pushDown(signal, pos - 1, ent);
     // find position to add the removed min entry
-    TupAddr childAddr = nodePtr.p->getLink(0);
-    if (childAddr == NullTupAddr) {
+    TupLoc childLoc = nodePtr.p->getLink(0);
+    if (childLoc == NullTupLoc) {
       jam();
       // left child will be added
       pos = 0;
     } else {
       jam();
       // find glb node
-      while (childAddr != NullTupAddr) {
+      while (childLoc != NullTupLoc) {
         jam();
-        selectNode(signal, frag, nodePtr, childAddr, AccHead);
-        childAddr = nodePtr.p->getLink(1);
+        selectNode(signal, frag, nodePtr, childLoc, AccHead);
+        childLoc = nodePtr.p->getLink(1);
       }
       // access full node again
       accessNode(signal, frag, nodePtr, AccFull);
@@ -202,7 +201,7 @@ Dbtux::treeAdd(Signal* signal, Frag& frag, TreePos treePos, TreeEnt ent)
   }
   // adding new min or max
   unsigned i = (pos == 0 ? 0 : 1);
-  ndbrequire(nodePtr.p->getLink(i) == NullTupAddr);
+  ndbrequire(nodePtr.p->getLink(i) == NullTupLoc);
   // check if the half-leaf/leaf has room for one more
   if (nodePtr.p->getOccup() < tree.m_maxOccup) {
     jam();
@@ -214,8 +213,8 @@ Dbtux::treeAdd(Signal* signal, Frag& frag, TreePos treePos, TreeEnt ent)
   insertNode(signal, frag, childPtr, AccPref);
   childPtr.p->pushUp(signal, 0, ent);
   // connect parent and child
-  nodePtr.p->setLink(i, childPtr.p->m_addr);
-  childPtr.p->setLink(2, nodePtr.p->m_addr);
+  nodePtr.p->setLink(i, childPtr.p->m_loc);
+  childPtr.p->setLink(2, nodePtr.p->m_loc);
   childPtr.p->setSide(i);
   // re-balance tree at each node
   while (true) {
@@ -254,14 +253,14 @@ Dbtux::treeAdd(Signal* signal, Frag& frag, TreePos treePos, TreeEnt ent)
     } else {
       ndbrequire(false);
     }
-    TupAddr parentAddr = nodePtr.p->getLink(2);
-    if (parentAddr == NullTupAddr) {
+    TupLoc parentLoc = nodePtr.p->getLink(2);
+    if (parentLoc == NullTupLoc) {
       jam();
       // root node - done
       break;
     }
     i = nodePtr.p->getSide();
-    selectNode(signal, frag, nodePtr, parentAddr, AccHead);
+    selectNode(signal, frag, nodePtr, parentLoc, AccHead);
   }
 }
 
@@ -275,7 +274,7 @@ Dbtux::treeRemove(Signal* signal, Frag& frag, TreePos treePos)
   unsigned pos = treePos.m_pos;
   NodeHandlePtr nodePtr;
   // access full node
-  selectNode(signal, frag, nodePtr, treePos.m_addr, AccFull);
+  selectNode(signal, frag, nodePtr, treePos.m_loc, AccFull);
   TreeEnt ent;
   // check interior node first
   if (nodePtr.p->getChilds() == 2) {
@@ -290,11 +289,11 @@ Dbtux::treeRemove(Signal* signal, Frag& frag, TreePos treePos)
     // save current handle
     NodeHandlePtr parentPtr = nodePtr;
     // find glb node
-    TupAddr childAddr = nodePtr.p->getLink(0);
-    while (childAddr != NullTupAddr) {
+    TupLoc childLoc = nodePtr.p->getLink(0);
+    while (childLoc != NullTupLoc) {
       jam();
-      selectNode(signal, frag, nodePtr, childAddr, AccHead);
-      childAddr = nodePtr.p->getLink(1);
+      selectNode(signal, frag, nodePtr, childLoc, AccHead);
+      childLoc = nodePtr.p->getLink(1);
     }
     // access full node again
     accessNode(signal, frag, nodePtr, AccFull);
@@ -311,21 +310,21 @@ Dbtux::treeRemove(Signal* signal, Frag& frag, TreePos treePos)
   // handle half-leaf
   for (unsigned i = 0; i <= 1; i++) {
     jam();
-    TupAddr childAddr = nodePtr.p->getLink(i);
-    if (childAddr != NullTupAddr) {
+    TupLoc childLoc = nodePtr.p->getLink(i);
+    if (childLoc != NullTupLoc) {
       // move to child
-      selectNode(signal, frag, nodePtr, childAddr, AccFull);
+      selectNode(signal, frag, nodePtr, childLoc, AccFull);
       // balance of half-leaf parent requires child to be leaf
       break;
     }
   }
   ndbrequire(nodePtr.p->getChilds() == 0);
   // get parent if any
-  TupAddr parentAddr = nodePtr.p->getLink(2);
+  TupLoc parentLoc = nodePtr.p->getLink(2);
   NodeHandlePtr parentPtr;
   unsigned i = nodePtr.p->getSide();
   // move all that fits into parent
-  if (parentAddr != NullTupAddr) {
+  if (parentLoc != NullTupLoc) {
     jam();
     selectNode(signal, frag, parentPtr, nodePtr.p->getLink(2), AccFull);
     parentPtr.p->slide(signal, nodePtr, i);
@@ -338,36 +337,36 @@ Dbtux::treeRemove(Signal* signal, Frag& frag, TreePos treePos)
   }
   // remove empty leaf
   deleteNode(signal, frag, nodePtr);
-  if (parentAddr == NullTupAddr) {
+  if (parentLoc == NullTupLoc) {
     jam();
     // tree is now empty
-    tree.m_root = NullTupAddr;
+    tree.m_root = NullTupLoc;
     return;
   }
   nodePtr = parentPtr;
-  nodePtr.p->setLink(i, NullTupAddr);
+  nodePtr.p->setLink(i, NullTupLoc);
 #ifdef dbtux_min_occup_less_max_occup
   // check if we created a half-leaf
   if (nodePtr.p->getBalance() == 0) {
     jam();
     // move entries from the other child
-    TupAddr childAddr = nodePtr.p->getLink(1 - i);
+    TupLoc childLoc = nodePtr.p->getLink(1 - i);
     NodeHandlePtr childPtr;
-    selectNode(signal, frag, childPtr, childAddr, AccFull);
+    selectNode(signal, frag, childPtr, childLoc, AccFull);
     nodePtr.p->slide(signal, childPtr, 1 - i);
     if (childPtr.p->getOccup() == 0) {
       jam();
       deleteNode(signal, frag, childPtr);
-      nodePtr.p->setLink(1 - i, NullTupAddr);
+      nodePtr.p->setLink(1 - i, NullTupLoc);
       // we are balanced again but our parent balance changes by -1
-      parentAddr = nodePtr.p->getLink(2);
-      if (parentAddr == NullTupAddr) {
+      parentLoc = nodePtr.p->getLink(2);
+      if (parentLoc == NullTupLoc) {
         jam();
         return;
       }
       // fix side and become parent
       i = nodePtr.p->getSide();
-      selectNode(signal, frag, nodePtr, parentAddr, AccHead);
+      selectNode(signal, frag, nodePtr, parentLoc, AccHead);
     }
   }
 #endif
@@ -411,14 +410,14 @@ Dbtux::treeRemove(Signal* signal, Frag& frag, TreePos treePos)
     } else {
       ndbrequire(false);
     }
-    TupAddr parentAddr = nodePtr.p->getLink(2);
-    if (parentAddr == NullTupAddr) {
+    TupLoc parentLoc = nodePtr.p->getLink(2);
+    if (parentLoc == NullTupLoc) {
       jam();
       // root node - done
       return;
     }
     i = nodePtr.p->getSide();
-    selectNode(signal, frag, nodePtr, parentAddr, AccHead);
+    selectNode(signal, frag, nodePtr, parentLoc, AccHead);
   }
 }
 
@@ -451,7 +450,7 @@ Dbtux::treeRotateSingle(Signal* signal,
   Verify that n5Bal is 1 if RR rotate and -1 if LL rotate.
   */
   NodeHandlePtr n5Ptr = nodePtr;
-  const TupAddr n5Addr = n5Ptr.p->m_addr;
+  const TupLoc n5Loc = n5Ptr.p->m_loc;
   const int n5Bal = n5Ptr.p->getBalance();
   const int n5side = n5Ptr.p->getSide();
   ndbrequire(n5Bal + (1 - i) == i);
@@ -460,36 +459,36 @@ Dbtux::treeRotateSingle(Signal* signal,
   node 5. For an insert to cause this it must have the same balance as 5.
   For deletes it can have the balance 0.
   */
-  TupAddr n3Addr = n5Ptr.p->getLink(i);
+  TupLoc n3Loc = n5Ptr.p->getLink(i);
   NodeHandlePtr n3Ptr;
-  selectNode(signal, frag, n3Ptr, n3Addr, AccHead);
+  selectNode(signal, frag, n3Ptr, n3Loc, AccHead);
   const int n3Bal = n3Ptr.p->getBalance();
   /*
   2 must always be there but is not changed. Thus we mereley check that it
   exists.
   */
-  ndbrequire(n3Ptr.p->getLink(i) != NullTupAddr);
+  ndbrequire(n3Ptr.p->getLink(i) != NullTupLoc);
   /*
   4 is not necessarily there but if it is there it will move from one
   side of 3 to the other side of 5. For LL it moves from the right side
   to the left side and for RR it moves from the left side to the right
   side. This means that it also changes parent from 3 to 5.
   */
-  TupAddr n4Addr = n3Ptr.p->getLink(1 - i);
+  TupLoc n4Loc = n3Ptr.p->getLink(1 - i);
   NodeHandlePtr n4Ptr;
-  if (n4Addr != NullTupAddr) {
+  if (n4Loc != NullTupLoc) {
     jam();
-    selectNode(signal, frag, n4Ptr, n4Addr, AccHead);
+    selectNode(signal, frag, n4Ptr, n4Loc, AccHead);
     ndbrequire(n4Ptr.p->getSide() == (1 - i) &&
-               n4Ptr.p->getLink(2) == n3Addr);
+               n4Ptr.p->getLink(2) == n3Loc);
     n4Ptr.p->setSide(i);
-    n4Ptr.p->setLink(2, n5Addr);
+    n4Ptr.p->setLink(2, n5Loc);
   }//if
 
   /*
   Retrieve the address of 5's parent before it is destroyed
   */
-  TupAddr n0Addr = n5Ptr.p->getLink(2);
+  TupLoc n0Loc = n5Ptr.p->getLink(2);
 
   /*
   The next step is to perform the rotation. 3 will inherit 5's parent 
@@ -503,22 +502,22 @@ Dbtux::treeRotateSingle(Signal* signal,
   1. 3 must have had 5 as parent before the change.
   2. 3's side is left for LL and right for RR before change.
   */
-  ndbrequire(n3Ptr.p->getLink(2) == n5Addr);
+  ndbrequire(n3Ptr.p->getLink(2) == n5Loc);
   ndbrequire(n3Ptr.p->getSide() == i);
-  n3Ptr.p->setLink(1 - i, n5Addr);
-  n3Ptr.p->setLink(2, n0Addr);
+  n3Ptr.p->setLink(1 - i, n5Loc);
+  n3Ptr.p->setLink(2, n0Loc);
   n3Ptr.p->setSide(n5side);
-  n5Ptr.p->setLink(i, n4Addr);
-  n5Ptr.p->setLink(2, n3Addr);
+  n5Ptr.p->setLink(i, n4Loc);
+  n5Ptr.p->setLink(2, n3Loc);
   n5Ptr.p->setSide(1 - i);
-  if (n0Addr != NullTupAddr) {
+  if (n0Loc != NullTupLoc) {
     jam();
     NodeHandlePtr n0Ptr;
-    selectNode(signal, frag, n0Ptr, n0Addr, AccHead);
-    n0Ptr.p->setLink(n5side, n3Addr);
+    selectNode(signal, frag, n0Ptr, n0Loc, AccHead);
+    n0Ptr.p->setLink(n5side, n3Loc);
   } else {
     jam();
-    frag.m_tree.m_root = n3Addr;
+    frag.m_tree.m_root = n3Loc;
   }//if
   /* The final step of the change is to update the balance of 3 and
   5 that changed places. There are two cases here. The first case is
@@ -655,36 +654,36 @@ Dbtux::treeRotateDouble(Signal* signal, Frag& frag, NodeHandlePtr& nodePtr, unsi
 {
   // old top node
   NodeHandlePtr n6Ptr = nodePtr;
-  const TupAddr n6Addr = n6Ptr.p->m_addr;
+  const TupLoc n6Loc = n6Ptr.p->m_loc;
   // the un-updated balance
   const int n6Bal = n6Ptr.p->getBalance();
   const unsigned n6Side = n6Ptr.p->getSide();
 
   // level 1
-  TupAddr n2Addr = n6Ptr.p->getLink(i);
+  TupLoc n2Loc = n6Ptr.p->getLink(i);
   NodeHandlePtr n2Ptr;
-  selectNode(signal, frag, n2Ptr, n2Addr, AccHead);
+  selectNode(signal, frag, n2Ptr, n2Loc, AccHead);
   const int n2Bal = n2Ptr.p->getBalance();
 
   // level 2
-  TupAddr n4Addr = n2Ptr.p->getLink(1 - i);
+  TupLoc n4Loc = n2Ptr.p->getLink(1 - i);
   NodeHandlePtr n4Ptr;
-  selectNode(signal, frag, n4Ptr, n4Addr, AccHead);
+  selectNode(signal, frag, n4Ptr, n4Loc, AccHead);
   const int n4Bal = n4Ptr.p->getBalance();
 
   ndbrequire(i <= 1);
   ndbrequire(n6Bal + (1 - i) == i);
   ndbrequire(n2Bal == -n6Bal);
-  ndbrequire(n2Ptr.p->getLink(2) == n6Addr);
+  ndbrequire(n2Ptr.p->getLink(2) == n6Loc);
   ndbrequire(n2Ptr.p->getSide() == i);
-  ndbrequire(n4Ptr.p->getLink(2) == n2Addr);
+  ndbrequire(n4Ptr.p->getLink(2) == n2Loc);
 
   // level 3
-  TupAddr n3Addr = n4Ptr.p->getLink(i);
-  TupAddr n5Addr = n4Ptr.p->getLink(1 - i);
+  TupLoc n3Loc = n4Ptr.p->getLink(i);
+  TupLoc n5Loc = n4Ptr.p->getLink(1 - i);
 
   // fill up leaf before it becomes internal
-  if (n3Addr == NullTupAddr && n5Addr == NullTupAddr) {
+  if (n3Loc == NullTupLoc && n5Loc == NullTupLoc) {
     jam();
     TreeHead& tree = frag.m_tree;
     accessNode(signal, frag, n2Ptr, AccFull);
@@ -694,44 +693,44 @@ Dbtux::treeRotateDouble(Signal* signal, Frag& frag, NodeHandlePtr& nodePtr, unsi
     ndbrequire(n4Ptr.p->getOccup() >= tree.m_minOccup);
     ndbrequire(n2Ptr.p->getOccup() != 0);
   } else {
-    if (n3Addr != NullTupAddr) {
+    if (n3Loc != NullTupLoc) {
       jam();
       NodeHandlePtr n3Ptr;
-      selectNode(signal, frag, n3Ptr, n3Addr, AccHead);
-      n3Ptr.p->setLink(2, n2Addr);
+      selectNode(signal, frag, n3Ptr, n3Loc, AccHead);
+      n3Ptr.p->setLink(2, n2Loc);
       n3Ptr.p->setSide(1 - i);
     }
-    if (n5Addr != NullTupAddr) {
+    if (n5Loc != NullTupLoc) {
       jam();
       NodeHandlePtr n5Ptr;
-      selectNode(signal, frag, n5Ptr, n5Addr, AccHead);
-      n5Ptr.p->setLink(2, n6Ptr.p->m_addr);
+      selectNode(signal, frag, n5Ptr, n5Loc, AccHead);
+      n5Ptr.p->setLink(2, n6Ptr.p->m_loc);
       n5Ptr.p->setSide(i);
     }
   }
   // parent
-  TupAddr n0Addr = n6Ptr.p->getLink(2);
+  TupLoc n0Loc = n6Ptr.p->getLink(2);
   NodeHandlePtr n0Ptr;
   // perform the rotation
-  n6Ptr.p->setLink(i, n5Addr);
-  n6Ptr.p->setLink(2, n4Addr);
+  n6Ptr.p->setLink(i, n5Loc);
+  n6Ptr.p->setLink(2, n4Loc);
   n6Ptr.p->setSide(1 - i);
 
-  n2Ptr.p->setLink(1 - i, n3Addr);
-  n2Ptr.p->setLink(2, n4Addr);
+  n2Ptr.p->setLink(1 - i, n3Loc);
+  n2Ptr.p->setLink(2, n4Loc);
 
-  n4Ptr.p->setLink(i, n2Addr);
-  n4Ptr.p->setLink(1 - i, n6Addr);
-  n4Ptr.p->setLink(2, n0Addr);
+  n4Ptr.p->setLink(i, n2Loc);
+  n4Ptr.p->setLink(1 - i, n6Loc);
+  n4Ptr.p->setLink(2, n0Loc);
   n4Ptr.p->setSide(n6Side);
 
-  if (n0Addr != NullTupAddr) {
+  if (n0Loc != NullTupLoc) {
     jam();
-    selectNode(signal, frag, n0Ptr, n0Addr, AccHead);
-    n0Ptr.p->setLink(n6Side, n4Addr);
+    selectNode(signal, frag, n0Ptr, n0Loc, AccHead);
+    n0Ptr.p->setLink(n6Side, n4Loc);
   } else {
     jam();
-    frag.m_tree.m_root = n4Addr;
+    frag.m_tree.m_root = n4Loc;
   }
   // set balance of changed nodes
   n4Ptr.p->setBalance(0);

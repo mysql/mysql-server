@@ -97,7 +97,7 @@ Dbtux::printTree(Signal* signal, Frag& frag, NdbOut& out)
   PrintPar par;
   strcpy(par.m_path, ".");
   par.m_side = 2;
-  par.m_parent = NullTupAddr;
+  par.m_parent = NullTupLoc;
   printNode(signal, frag, out, tree.m_root, par);
   out.m_out->flush();
   if (! par.m_ok) {
@@ -116,15 +116,15 @@ Dbtux::printTree(Signal* signal, Frag& frag, NdbOut& out)
 }
 
 void
-Dbtux::printNode(Signal* signal, Frag& frag, NdbOut& out, TupAddr addr, PrintPar& par)
+Dbtux::printNode(Signal* signal, Frag& frag, NdbOut& out, TupLoc loc, PrintPar& par)
 {
-  if (addr == NullTupAddr) {
+  if (loc == NullTupLoc) {
     par.m_depth = 0;
     return;
   }
   TreeHead& tree = frag.m_tree;
   NodeHandlePtr nodePtr;
-  selectNode(signal, frag, nodePtr, addr, AccFull);
+  selectNode(signal, frag, nodePtr, loc, AccFull);
   out << par.m_path << " " << *nodePtr.p << endl;
   // check children
   PrintPar cpar[2];
@@ -133,7 +133,7 @@ Dbtux::printNode(Signal* signal, Frag& frag, NdbOut& out, TupAddr addr, PrintPar
     sprintf(cpar[i].m_path, "%s%c", par.m_path, "LR"[i]);
     cpar[i].m_side = i;
     cpar[i].m_depth = 0;
-    cpar[i].m_parent = addr;
+    cpar[i].m_parent = loc;
     printNode(signal, frag, out, nodePtr.p->getLink(i), cpar[i]);
     if (! cpar[i].m_ok) {
       par.m_ok = false;
@@ -143,7 +143,7 @@ Dbtux::printNode(Signal* signal, Frag& frag, NdbOut& out, TupAddr addr, PrintPar
   if (nodePtr.p->getLink(2) != par.m_parent) {
     par.m_ok = false;
     out << par.m_path << " *** ";
-    out << "parent addr " << hex << nodePtr.p->getLink(2);
+    out << "parent loc " << hex << nodePtr.p->getLink(2);
     out << " should be " << hex << par.m_parent << endl;
   }
   if (nodePtr.p->getSide() != par.m_side) {
@@ -181,8 +181,8 @@ Dbtux::printNode(Signal* signal, Frag& frag, NdbOut& out, TupAddr addr, PrintPar
   }
   // check missed half-leaf/leaf merge
   for (unsigned i = 0; i <= 1; i++) {
-    if (nodePtr.p->getLink(i) != NullTupAddr &&
-        nodePtr.p->getLink(1 - i) == NullTupAddr &&
+    if (nodePtr.p->getLink(i) != NullTupLoc &&
+        nodePtr.p->getLink(1 - i) == NullTupLoc &&
         nodePtr.p->getOccup() + cpar[i].m_occup <= tree.m_maxOccup) {
       par.m_ok = false;
       out << par.m_path << " *** ";
@@ -192,6 +192,18 @@ Dbtux::printNode(Signal* signal, Frag& frag, NdbOut& out, TupAddr addr, PrintPar
   // return values
   par.m_depth = 1 + max(cpar[0].m_depth, cpar[1].m_depth);
   par.m_occup = nodePtr.p->getOccup();
+}
+
+NdbOut&
+operator<<(NdbOut& out, const Dbtux::TupLoc& loc)
+{
+  if (loc == Dbtux::NullTupLoc) {
+    out << "null";
+  } else {
+    out << hex << loc.m_pageId;
+    out << "." << dec << loc.m_pageOffset;
+  }
+  return out;
 }
 
 NdbOut&
@@ -206,10 +218,13 @@ operator<<(NdbOut& out, const Dbtux::TreeEnt& ent)
 NdbOut&
 operator<<(NdbOut& out, const Dbtux::TreeNode& node)
 {
+  Dbtux::TupLoc link0(node.m_linkPI[0], node.m_linkPO[0]);
+  Dbtux::TupLoc link1(node.m_linkPI[1], node.m_linkPO[1]);
+  Dbtux::TupLoc link2(node.m_linkPI[2], node.m_linkPO[2]);
   out << "[TreeNode " << hex << &node;
-  out << " [left " << hex << node.m_link[0] << "]";
-  out << " [right " << hex << node.m_link[1] << "]";
-  out << " [up " << hex << node.m_link[2] << "]";
+  out << " [left " << link0 << "]";
+  out << " [right " << link1 << "]";
+  out << " [up " << link2 << "]";
   out << " [side " << dec << node.m_side << "]";
   out << " [occup " << dec << node.m_occup << "]";
   out << " [balance " << dec << (int)node.m_balance << "]";
@@ -238,7 +253,7 @@ NdbOut&
 operator<<(NdbOut& out, const Dbtux::TreePos& pos)
 {
   out << "[TreePos " << hex << &pos;
-  out << " [addr " << hex << pos.m_addr << "]";
+  out << " [loc " << pos.m_loc << "]";
   out << " [pos " << dec << pos.m_pos << "]";
   out << " [match " << dec << pos.m_match << "]";
   out << " [dir " << dec << pos.m_dir << "]";
@@ -338,7 +353,7 @@ operator<<(NdbOut& out, const Dbtux::NodeHandle& node)
   const Dbtux::Frag& frag = node.m_frag;
   const Dbtux::TreeHead& tree = frag.m_tree;
   out << "[NodeHandle " << hex << &node;
-  out << " [addr " << hex << node.m_addr << "]";
+  out << " [loc " << node.m_loc << "]";
   out << " [acc " << dec << node.m_acc << "]";
   out << " [flags " << hex << node.m_flags << "]";
   out << " [node " << *node.m_node << "]";
