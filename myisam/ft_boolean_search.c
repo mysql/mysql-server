@@ -84,6 +84,7 @@ typedef struct st_ft_info {
   struct _ft_vft *please;
   MI_INFO   *info;
   uint       keynr;
+  CHARSET_INFO *charset;
   enum { UNINITIALIZED, READY, INDEX_SEARCH, INDEX_DONE /*, SCAN*/ } state;
   uint       with_scan;
   FTB_EXPR  *root;
@@ -101,11 +102,11 @@ int FTB_WORD_cmp(void *v __attribute__((unused)), FTB_WORD *a, FTB_WORD *b)
   return i;
 }
 
-int FTB_WORD_cmp_list(void *v __attribute__((unused)), FTB_WORD **a, FTB_WORD **b)
+int FTB_WORD_cmp_list(CHARSET_INFO *cs, FTB_WORD **a, FTB_WORD **b)
 {
   /* ORDER BY word DESC, ndepth DESC */
-  int i=_mi_compare_text(default_charset_info, (*b)->word+1,(*b)->len-1,
-                                               (*a)->word+1,(*a)->len-1,0);
+  int i=_mi_compare_text(cs, (*b)->word+1,(*b)->len-1,
+                             (*a)->word+1,(*a)->len-1,0);
   if (!i)
     i=CMP_NUM((*b)->ndepth,(*a)->ndepth);
   return i;
@@ -203,7 +204,7 @@ void  _ftb_init_index_search(FT_INFO *ftb)
                               SEARCH_FIND | SEARCH_BIGGER, keyroot);
     if (!r)
     {
-      r=_mi_compare_text(default_charset_info,
+      r=_mi_compare_text(ftb->charset,
                          info->lastkey + (ftbw->flags&FTB_FLAG_TRUNC),
                          ftbw->len     - (ftbw->flags&FTB_FLAG_TRUNC),
                          ftbw->word    + (ftbw->flags&FTB_FLAG_TRUNC),
@@ -241,6 +242,9 @@ FT_INFO * ft_init_boolean_search(MI_INFO *info, uint keynr, byte *query,
   ftb->state=UNINITIALIZED;
   ftb->info=info;
   ftb->keynr=keynr;
+  ftb->charset= ((keynr==NO_SUCH_KEY) ?
+    default_charset_info              :
+    info->s->keyinfo[keynr].seg->charset);
   ftb->with_scan=0;
 
   init_alloc_root(&ftb->mem_root, 1024, 1024);
@@ -265,7 +269,7 @@ FT_INFO * ft_init_boolean_search(MI_INFO *info, uint keynr, byte *query,
                                      sizeof(FTB_WORD *)*ftb->queue.elements);
   memcpy(ftb->list, ftb->queue.root+1, sizeof(FTB_WORD *)*ftb->queue.elements);
   qsort2(ftb->list, ftb->queue.elements, sizeof(FTB_WORD *),
-                                           (qsort2_cmp)FTB_WORD_cmp_list, 0);
+                              (qsort2_cmp)FTB_WORD_cmp_list, ftb->charset);
   if (ftb->queue.elements<2) ftb->with_scan=0;
   ftb->state=READY;
   return ftb;
@@ -359,7 +363,7 @@ int ft_boolean_read_next(FT_INFO *ftb, char *record)
                    SEARCH_BIGGER , keyroot);
       if (!r)
       {
-        r=_mi_compare_text(default_charset_info,
+        r=_mi_compare_text(ftb->charset,
                            info->lastkey + (ftbw->flags&FTB_FLAG_TRUNC),
                            ftbw->len     - (ftbw->flags&FTB_FLAG_TRUNC),
                            ftbw->word    + (ftbw->flags&FTB_FLAG_TRUNC),
@@ -443,7 +447,7 @@ float ft_boolean_find_relevance(FT_INFO *ftb, byte *record, uint length)
       for (a=0, b=ftb->queue.elements, c=(a+b)/2; b-a>1; c=(a+b)/2)
       {
         ftbw=(FTB_WORD *)(ftb->list[c]);
-        if (_mi_compare_text(default_charset_info, word.pos,word.len,
+        if (_mi_compare_text(ftb->charset, word.pos,word.len,
                          (uchar*) ftbw->word+1,ftbw->len-1,
                          (ftbw->flags&FTB_FLAG_TRUNC) ) >0)
           b=c;
@@ -453,7 +457,7 @@ float ft_boolean_find_relevance(FT_INFO *ftb, byte *record, uint length)
       for (; c>=0; c--)
       {
         ftbw=(FTB_WORD *)(ftb->list[c]);
-        if (_mi_compare_text(default_charset_info, word.pos,word.len,
+        if (_mi_compare_text(ftb->charset, word.pos,word.len,
                          (uchar*) ftbw->word+1,ftbw->len-1,
                          (ftbw->flags&FTB_FLAG_TRUNC) ))
           break;
