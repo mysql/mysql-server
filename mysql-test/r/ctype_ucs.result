@@ -480,3 +480,10 @@ a	0061
 b	0062
 c	0063
 drop table t1;
+set @ivar= 1234;
+set @str1 = 'select ?';
+set @str2 = convert(@str1 using ucs2);
+prepare stmt1 from @str2;
+execute stmt1 using @ivar;
+?
+1234
