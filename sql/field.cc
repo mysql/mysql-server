@@ -287,7 +287,7 @@ uint Field::fill_cache_field(CACHE_FIELD *copy)
 bool Field::get_date(TIME *ltime,bool fuzzydate)
 {
   char buff[40];
-  String tmp(buff,sizeof(buff),default_charset_info),tmp2,*res;
+  String tmp(buff,sizeof(buff),my_charset_latin1),tmp2,*res;
   if (!(res=val_str(&tmp,&tmp2)) ||
       str_to_TIME(res->ptr(),res->length(),ltime,fuzzydate) == TIMESTAMP_NONE)
     return 1;
@@ -297,7 +297,7 @@ bool Field::get_date(TIME *ltime,bool fuzzydate)
 bool Field::get_time(TIME *ltime)
 {
   char buff[40];
-  String tmp(buff,sizeof(buff),default_charset_info),tmp2,*res;
+  String tmp(buff,sizeof(buff),my_charset_latin1),tmp2,*res;
   if (!(res=val_str(&tmp,&tmp2)) ||
       str_to_time(res->ptr(),res->length(),ltime))
     return 1;
@@ -404,6 +404,12 @@ void Field_decimal::overflow(bool negative)
 
 int Field_decimal::store(const char *from, uint len, CHARSET_INFO *cs)
 {
+  String l1from;
+
+  l1from.copy(from,len,cs,my_charset_latin1);
+  from=l1from.ptr();
+  len=l1from.length();
+
   const char *end= from+len;
   /* The pointer where the field value starts (i.e., "where to write") */
   char *to=ptr;
@@ -463,7 +469,7 @@ int Field_decimal::store(const char *from, uint len, CHARSET_INFO *cs)
     tmp_dec++;
 
   /* skip pre-space */
-  while (from != end && my_isspace(system_charset_info,*from))
+  while (from != end && my_isspace(my_charset_latin1,*from))
     from++;
   if (from == end)
   {
@@ -500,13 +506,13 @@ int Field_decimal::store(const char *from, uint len, CHARSET_INFO *cs)
   for (; from!=end && *from == '0'; from++) ;	// Read prezeros
   pre_zeros_end=int_digits_from=from;      
   /* Read non zero digits at the left of '.'*/
-  for (; from != end && my_isdigit(system_charset_info, *from) ; from++) ;
+  for (; from != end && my_isdigit(my_charset_latin1, *from) ; from++) ;
   int_digits_end=from;
   if (from!=end && *from == '.')		// Some '.' ?
     from++;
   frac_digits_from= from;
   /* Read digits at the right of '.' */
-  for (;from!=end && my_isdigit(system_charset_info, *from); from++) ;
+  for (;from!=end && my_isdigit(my_charset_latin1, *from); from++) ;
   frac_digits_end=from;
   // Some exponentiation symbol ?
   if (from != end && (*from == 'e' || *from == 'E'))
@@ -522,7 +528,7 @@ int Field_decimal::store(const char *from, uint len, CHARSET_INFO *cs)
       exponents will become small (e.g. 1e4294967296 will become 1e0, and the 
       field will finally contain 1 instead of its max possible value).
     */
-    for (;from!=end && my_isdigit(system_charset_info, *from); from++)
+    for (;from!=end && my_isdigit(my_charset_latin1, *from); from++)
     {
       exponent=10*exponent+(*from-'0');
       if (exponent>MAX_EXPONENT)
@@ -540,7 +546,7 @@ int Field_decimal::store(const char *from, uint len, CHARSET_INFO *cs)
   if (current_thd->count_cuted_fields)
   {
     // Skip end spaces
-    for (;from != end && my_isspace(system_charset_info, *from); from++) ;
+    for (;from != end && my_isspace(my_charset_latin1, *from); from++) ;
     if (from != end)                     // If still something left, warn
     {
       current_thd->cuted_fields++; 
@@ -871,9 +877,9 @@ int Field_decimal::cmp(const char *a_ptr,const char *b_ptr)
   for (end=a_ptr+field_length;
        a_ptr != end &&
 	 (*a_ptr == *b_ptr ||
-	  ((my_isspace(system_charset_info,*a_ptr)  || *a_ptr == '+' || 
+	  ((my_isspace(my_charset_latin1,*a_ptr)  || *a_ptr == '+' || 
             *a_ptr == '0') &&
-	   (my_isspace(system_charset_info,*b_ptr) || *b_ptr == '+' || 
+	   (my_isspace(my_charset_latin1,*b_ptr) || *b_ptr == '+' || 
             *b_ptr == '0')));
        a_ptr++,b_ptr++)
   {
@@ -901,7 +907,7 @@ void Field_decimal::sort_string(char *to,uint length)
   char *str,*end;
   for (str=ptr,end=ptr+length;
        str != end &&
-	 ((my_isspace(system_charset_info,*str) || *str == '+' ||
+	 ((my_isspace(my_charset_latin1,*str) || *str == '+' ||
 	   *str == '0')) ;
        str++)
     *to++=' ';
@@ -913,7 +919,7 @@ void Field_decimal::sort_string(char *to,uint length)
     *to++=1;					// Smaller than any number
     str++;
     while (str != end)
-      if (my_isdigit(system_charset_info,*str))
+      if (my_isdigit(my_charset_latin1,*str))
 	*to++= (char) ('9' - *str++);
       else
 	*to++= *str++;
