@@ -443,15 +443,6 @@ typedef struct st_master_info
 
 int queue_event(MASTER_INFO* mi,const char* buf,ulong event_len);
 
-typedef struct st_table_rule_ent
-{
-  char* db;
-  char* tbl_name;
-  uint key_len;
-} TABLE_RULE_ENT;
-
-#define TABLE_RULE_HASH_SIZE   16
-#define TABLE_RULE_ARR_SIZE   16
 #define MAX_SLAVE_ERRMSG      1024
 
 #define RPL_LOG_NAME (rli->group_master_log_name[0] ? rli->group_master_log_name :\
@@ -505,27 +496,9 @@ int mysql_table_dump(THD* thd, const char* db,
 int fetch_master_table(THD* thd, const char* db_name, const char* table_name,
 		       MASTER_INFO* mi, MYSQL* mysql, bool overwrite);
 
-void table_rule_ent_hash_to_str(String* s, HASH* h);
-void table_rule_ent_dynamic_array_to_str(String* s, DYNAMIC_ARRAY* a);
 bool show_master_info(THD* thd, MASTER_INFO* mi);
 bool show_binlog_info(THD* thd);
 
-/* See if the query uses any tables that should not be replicated */
-bool tables_ok(THD* thd, TABLE_LIST* tables);
-
-/*
-  Check to see if the database is ok to operate on with respect to the
-  do and ignore lists - used in replication
-*/
-int db_ok(const char* db, I_List<i_string> &do_list,
-	  I_List<i_string> &ignore_list );
-int db_ok_with_wild_table(const char *db);
-
-int add_table_rule(HASH* h, const char* table_spec);
-int add_wild_table_rule(DYNAMIC_ARRAY* a, const char* table_spec);
-void init_table_rule_hash(HASH* h, bool* h_inited);
-void init_table_rule_array(DYNAMIC_ARRAY* a, bool* a_inited);
-const char *rewrite_db(const char* db, uint32 *new_db_len);
 const char *print_slave_db_safe(const char *db);
 int check_expected_error(THD* thd, RELAY_LOG_INFO* rli, int error_code);
 void skip_load_data_infile(NET* net);
@@ -559,11 +532,7 @@ extern "C" pthread_handler_decl(handle_slave_sql,arg);
 extern bool volatile abort_loop;
 extern MASTER_INFO main_mi, *active_mi; /* active_mi for multi-master */
 extern LIST master_list;
-extern HASH replicate_do_table, replicate_ignore_table;
-extern DYNAMIC_ARRAY  replicate_wild_do_table, replicate_wild_ignore_table;
-extern bool do_table_inited, ignore_table_inited,
-	    wild_do_table_inited, wild_ignore_table_inited;
-extern bool table_rules_on, replicate_same_server_id;
+extern bool replicate_same_server_id;
 
 extern int disconnect_slave_event_count, abort_slave_event_count ;
 
@@ -577,8 +546,6 @@ extern my_bool master_ssl;
 extern my_string master_ssl_ca, master_ssl_capath, master_ssl_cert,
        master_ssl_cipher, master_ssl_key;
        
-extern I_List<i_string> replicate_do_db, replicate_ignore_db;
-extern I_List<i_string_pair> replicate_rewrite_db;
 extern I_List<THD> threads;
 
 #endif

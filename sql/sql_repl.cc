@@ -19,7 +19,10 @@
 
 #include "sql_repl.h"
 #include "log_event.h"
+#include "table_filter.h"
 #include <my_dir.h>
+
+extern Table_filter *binlog_filter;
 
 int max_binlog_dump_events = 0; // unlimited
 my_bool opt_sporadic_binlog_dump_fail = 0;
@@ -1442,8 +1445,8 @@ bool show_binlog_info(THD* thd)
     int dir_len = dirname_length(li.log_file_name);
     protocol->store(li.log_file_name + dir_len, &my_charset_bin);
     protocol->store((ulonglong) li.pos);
-    protocol->store(&binlog_do_db);
-    protocol->store(&binlog_ignore_db);
+    protocol->store(binlog_filter->get_do_db());
+    protocol->store(binlog_filter->get_ignore_db());
     if (protocol->write())
       DBUG_RETURN(TRUE);
   }
