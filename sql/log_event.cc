@@ -1826,8 +1826,8 @@ int Query_log_event::exec_event(struct st_relay_log_info* rli)
     thd->set_time((time_t)when);
     thd->current_tablenr = 0;
     thd->query_length= q_len;
+    thd->query= (char *) query;
     VOID(pthread_mutex_lock(&LOCK_thread_count));
-    thd->query = (char*)query;
     thd->query_id = query_id++;
     VOID(pthread_mutex_unlock(&LOCK_thread_count));
     thd->query_error = 0;			// clear error
