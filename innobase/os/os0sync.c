@@ -17,6 +17,7 @@ Created 9/6/1995 Heikki Tuuri
 #endif
 
 #include "ut0mem.h"
+#include "srv0start.h"
 
 /* Type definition for an operating system mutex struct */
 struct os_mutex_struct{ 
@@ -26,8 +27,74 @@ struct os_mutex_struct{
 				recursively lock the mutex: we
 				do not assume that the OS mutex
 				supports recursive locking, though
-				NT seems to do that */				
+				NT seems to do that */
+	UT_LIST_NODE_T(os_mutex_str_t) os_mutex_list;
+				/* list of all 'slow' OS mutexes created */
 };
+
+/* Mutex protecting the thread count and the lists of OS mutexes
+and events */
+os_mutex_t	os_sync_mutex;
+ibool		os_sync_mutex_inited	= FALSE;
+
+/* This is incremented by 1 in os_thread_create and decremented by 1 in
+os_thread_exit */
+ulint		os_thread_count		= 0;
+
+/* The list of all events created (not in Windows) */
+UT_LIST_BASE_NODE_T(os_event_struct_t)	os_event_list;
+
+/* The list of all OS 'slow' mutexes */
+UT_LIST_BASE_NODE_T(os_mutex_str_t)	os_mutex_list;
+
+/* The following are approximate counters for debugging in Unix */
+ulint		os_event_count		= 0;
+ulint		os_mutex_count		= 0;
+
+
+/*************************************************************
+Initializes global event and OS 'slow' mutex lists. */
+
+void
+os_sync_init(void)
+/*==============*/
+{
+	UT_LIST_INIT(os_event_list);
+	UT_LIST_INIT(os_mutex_list);
+
+	os_sync_mutex = os_mutex_create(NULL);
+
+	os_sync_mutex_inited = TRUE;
+}
+
+/*************************************************************
+Frees created events (not in Windows) and OS 'slow' mutexes. */
+
+void
+os_sync_free(void)
+/*==============*/
+{
+	os_event_t	event;
+	os_mutex_t	mutex;
+
+	event = UT_LIST_GET_FIRST(os_event_list);
+
+	while (event) {
+
+	      os_event_free(event);
+
+	      event = UT_LIST_GET_FIRST(os_event_list);
+	}
+
+	mutex = UT_LIST_GET_FIRST(os_mutex_list);
+
+	while (mutex) {
+
+	      os_mutex_free(mutex);
+
+	      mutex = UT_LIST_GET_FIRST(os_mutex_list);
+	}
+}
 
 /*************************************************************
 Creates an event semaphore, i.e., a semaphore which may
@@ -43,8 +110,8 @@ os_event_create(
 			the event is created without a name */
 {
 #ifdef __WIN__
-	HANDLE	event;
-	
+        os_event_t event;
+
 	event = CreateEvent(NULL,	/* No security attributes */
 			TRUE,		/* Manual reset */
 			FALSE,		/* Initial state nonsignaled */
@@ -75,6 +142,14 @@ os_event_create(
 #endif
 	event->is_set = FALSE;
 
+	os_mutex_enter(os_sync_mutex);
+
+	UT_LIST_ADD_FIRST(os_event_list, os_event_list, event);
+
+	os_event_count++;
+
+	os_mutex_exit(os_sync_mutex);
+
 	return(event);
 #endif
 }
@@ -92,7 +167,7 @@ os_event_create_auto(
 			the event is created without a name */
 {
 #ifdef __WIN__
-	HANDLE	event;
+        os_event_t event;
 
 	event = CreateEvent(NULL,	/* No security attributes */
 			FALSE,		/* Auto-reset */
@@ -105,6 +180,8 @@ os_event_create_auto(
 	/* Does nothing in Posix because we do not need this with MySQL  */
 
 	UT_NOT_USED(name);
+
+	ut_a(0);
 
 	return(NULL);
 #endif
@@ -185,12 +262,23 @@ os_event_free(
 	os_fast_mutex_free(&(event->os_mutex));
 	ut_a(0 == pthread_cond_destroy(&(event->cond_var)));
 
+	os_mutex_enter(os_sync_mutex);
+
+	UT_LIST_REMOVE(os_event_list, os_event_list, event);
+
+	os_event_count--;
+
+	os_mutex_exit(os_sync_mutex);
+
 	ut_free(event);
 #endif
 }
 
 /**************************************************************
-Waits for an event object until it is in the signaled state. */
+Waits for an event object until it is in the signaled state. If
+srv_shutdown_state == SRV_SHUTDOWN_EXIT_THREADS this also exits the
+waiting thread when the event becomes signaled (or immediately if the
+event is already in the signaled state). */
 
 void
 os_event_wait(
@@ -206,12 +294,20 @@ os_event_wait(
 	err = WaitForSingleObject(event, INFINITE);
 
 	ut_a(err == WAIT_OBJECT_0);
+
+	if (srv_shutdown_state == SRV_SHUTDOWN_EXIT_THREADS) {
+	        os_thread_exit(NULL);
+	}
 #else
 	os_fast_mutex_lock(&(event->os_mutex));
 loop:
 	if (event->is_set == TRUE) {
 		os_fast_mutex_unlock(&(event->os_mutex));
 
+		if (srv_shutdown_state == SRV_SHUTDOWN_EXIT_THREADS) {
+
+		        os_thread_exit(NULL);
+		}
 		/* Ok, we may return */
 
 		return;
@@ -291,13 +387,16 @@ os_event_wait_multiple(
 	ut_a(event_array);
 	ut_a(n > 0);
 
-	index = WaitForMultipleObjects(n,
-					event_array,
+	index = WaitForMultipleObjects(n, event_array,
 					FALSE,	   /* Wait for any 1 event */
 					INFINITE); /* Infinite wait time
 						   limit */
 	ut_a(index >= WAIT_OBJECT_0);
 	ut_a(index < WAIT_OBJECT_0 + n);
+
+	if (srv_shutdown_state == SRV_SHUTDOWN_EXIT_THREADS) {
+	        os_thread_exit(NULL);
+	}
 
 	return(index - WAIT_OBJECT_0);
 #else
@@ -337,6 +436,16 @@ os_mutex_create(
 	mutex_str->handle = mutex;
 	mutex_str->count = 0;
 
+	if (os_sync_mutex_inited) {
+	        os_mutex_enter(os_sync_mutex);
+	}
+
+	UT_LIST_ADD_FIRST(os_mutex_list, os_mutex_list, mutex_str);
+
+	if (os_sync_mutex_inited) {
+		os_mutex_exit(os_sync_mutex);
+	}
+
 	return(mutex_str);
 #else
 	os_fast_mutex_t*	os_mutex;
@@ -352,6 +461,16 @@ os_mutex_create(
 
 	mutex_str->handle = os_mutex;
 	mutex_str->count = 0;
+
+	if (os_sync_mutex_inited) {
+	        os_mutex_enter(os_sync_mutex);
+	}
+
+	UT_LIST_ADD_FIRST(os_mutex_list, os_mutex_list, mutex_str);
+
+	if (os_sync_mutex_inited) {
+		os_mutex_exit(os_sync_mutex);
+	}
 
 	return(mutex_str);
 #endif	
@@ -424,9 +543,22 @@ os_mutex_free(
 #ifdef __WIN__
 	ut_a(mutex);
 
+	os_mutex_enter(os_sync_mutex);
+
+	UT_LIST_REMOVE(os_mutex_list, os_mutex_list, mutex);
+
+	os_mutex_exit(os_sync_mutex);
+
 	ut_a(CloseHandle(mutex->handle));
+
 	ut_free(mutex);
 #else
+	os_mutex_enter(os_sync_mutex);
+
+	UT_LIST_REMOVE(os_mutex_list, os_mutex_list, mutex);
+
+	os_mutex_exit(os_sync_mutex);
+
 	os_fast_mutex_free(mutex->handle);
 	ut_free(mutex->handle);
 	ut_free(mutex);
@@ -451,6 +583,7 @@ os_fast_mutex_init(
 #else
 	ut_a(0 == pthread_mutex_init(fast_mutex, MY_MUTEX_INIT_FAST));
 #endif
+	os_mutex_count++;
 #endif
 }
 
@@ -498,5 +631,6 @@ os_fast_mutex_free(
 	DeleteCriticalSection((LPCRITICAL_SECTION) fast_mutex);
 #else
 	ut_a(0 == pthread_mutex_destroy(fast_mutex));
+	os_mutex_count--;
 #endif
 }

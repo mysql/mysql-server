@@ -64,7 +64,8 @@ mysqld_SOURCES =	sql_lex.cc sql_handler.cc \
 			thr_malloc.cc item_create.cc item_subselect.cc \
 			item_row.cc item_geofunc.cc \
 			field.cc key.cc sql_class.cc sql_list.cc \
-			net_serv.cc protocol.cc lock.cc my_lock.c \
+			net_serv.cc protocol.cc sql_state.c \
+			lock.cc my_lock.c \
 			sql_string.cc sql_manager.cc sql_map.cc \
 			mysqld.cc password.c hash_filo.cc hostname.cc \
 			set_var.cc sql_parse.cc sql_yacc.yy \

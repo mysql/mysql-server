@@ -72,6 +72,7 @@ static my_bool search_default_file(DYNAMIC_ARRAY *args,MEM_ROOT *alloc,
 				   const char *dir, const char *config_file,
 				   const char *ext, TYPELIB *group);
 
+static char *remove_end_comment(char *ptr);
 
 void load_defaults(const char *conf_file, const char **groups,
 		   int *argc, char ***argv)
@@ -297,8 +298,9 @@ static my_bool search_default_file(DYNAMIC_ARRAY *args, MEM_ROOT *alloc,
     }
     if (!read_values)
       continue;
-    if (!(end=value=strchr(ptr,'=')))
-      end=strend(ptr);				/* Option without argument */
+    end= remove_end_comment(ptr);
+    if ((value= strchr(ptr, '=')))
+      end= value;				/* Option without argument */
     for ( ; my_isspace(&my_charset_latin1,end[-1]) ; end--) ;
     if (!value)
     {
@@ -365,6 +367,29 @@ static my_bool search_default_file(DYNAMIC_ARRAY *args, MEM_ROOT *alloc,
  err:
   my_fclose(fp,MYF(0));
   return 1;
+}
+
+
+static char *remove_end_comment(char *ptr)
+{
+  char quote= 0;
+
+  for (; *ptr; ptr++)
+  {
+    if (*ptr == '\'' || *ptr == '\"')
+    {
+      if (!quote)
+	quote= *ptr;
+      else if (quote == *ptr)
+	quote= 0;
+    }
+    if (!quote && *ptr == '#') /* We are not inside a comment */
+    {
+      *ptr= 0;
+      return ptr;
+    }
+  }
+  return ptr;
 }
 
 

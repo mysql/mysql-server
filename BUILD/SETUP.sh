@@ -71,6 +71,22 @@ else
   make=make
 fi
 
-if test -z $CXX ; then
+if test -z "$CXX" ; then
   CXX=gcc
+fi
+
+# If ccache (a compiler cache which reduces build time)
+# (http://samba.org/ccache) is installed, use it.
+# We use 'grep' and hope 'grep' will work as expected
+# (returns 0 if finds lines)
+if ccache -V > /dev/null 2>&1
+then
+  if ! (echo "$CC" | grep "ccache" > /dev/null)
+  then
+    CC="ccache $CC"
+  fi
+  if ! (echo "$CXX" | grep "ccache" > /dev/null)
+  then
+    CXX="ccache $CXX"
+  fi
 fi

@@ -8,9 +8,9 @@ NULL	1
 update t1 set id=-1 where id=1;
 LOCK TABLE t1 READ;
 update t1 set id=1 where id=1;
-Table 't1' was locked with a READ lock and can't be updated
+ERROR HY000: Table 't1' was locked with a READ lock and can't be updated
 create table t2 SELECT * from t1;
-Table 't2' was not locked with LOCK TABLES
+ERROR HY000: Table 't2' was not locked with LOCK TABLES
 create temporary table t2 SELECT * from t1;
 drop table if exists t2;
 unlock tables;

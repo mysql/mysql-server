@@ -1006,12 +1006,7 @@ static void
 append_identifier(THD *thd, String *packet, const char *name)
 {
   char qtype;
-  if ((thd->variables.sql_mode & MODE_ANSI_QUOTES) ||
-      (thd->variables.sql_mode & MODE_POSTGRESQL) ||
-      (thd->variables.sql_mode & MODE_ORACLE) ||
-      (thd->variables.sql_mode & MODE_MSSQL) ||
-      (thd->variables.sql_mode & MODE_DB2) ||
-      (thd->variables.sql_mode & MODE_SAPDB))
+  if (thd->variables.sql_mode & MODE_ANSI_QUOTES)
     qtype= '\"';
   else
     qtype= '`';
@@ -1033,16 +1028,16 @@ append_identifier(THD *thd, String *packet, const char *name)
 static int
 store_create_info(THD *thd, TABLE *table, String *packet)
 {
-  my_bool foreign_db_mode=    ((thd->variables.sql_mode & MODE_POSTGRESQL) ||
-			       (thd->variables.sql_mode & MODE_ORACLE) ||
-			       (thd->variables.sql_mode & MODE_MSSQL) ||
-			       (thd->variables.sql_mode & MODE_DB2) ||
-			       (thd->variables.sql_mode & MODE_SAPDB));
-  my_bool limited_mysql_mode= ((thd->variables.sql_mode & 
-				MODE_NO_FIELD_OPTIONS) ||
-			       (thd->variables.sql_mode & MODE_MYSQL323) ||
-			       (thd->variables.sql_mode & MODE_MYSQL40));
-
+  my_bool foreign_db_mode=    (thd->variables.sql_mode & (MODE_POSTGRESQL |
+							  MODE_ORACLE |
+							  MODE_MSSQL |
+							  MODE_DB2 |
+							  MODE_SAPDB |
+							  MODE_ANSI)) != 0;
+  my_bool limited_mysql_mode= (thd->variables.sql_mode &
+			       (MODE_NO_FIELD_OPTIONS | MODE_MYSQL323 |
+				MODE_MYSQL40)) != 0;
+			       
   DBUG_ENTER("store_create_info");
   DBUG_PRINT("enter",("table: %s",table->real_name));
 

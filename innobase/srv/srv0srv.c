@@ -1705,7 +1705,17 @@ srv_init(void)
 		ut_a(conc_slot->event);
 	}
 }	
-	
+
+/*************************************************************************
+Frees the OS fast mutex created in srv_init(). */
+
+void
+srv_free(void)
+/*==========*/
+{
+	os_fast_mutex_free(&srv_conc_mutex);
+}
+
 /*************************************************************************
 Initializes the synchronization primitives, memory system, and the thread
 local storage. */
@@ -1714,67 +1724,14 @@ void
 srv_general_init(void)
 /*==================*/
 {
+	os_sync_init();
 	sync_init();
 	mem_init(srv_mem_pool_size);
 	thr_local_init();
 }
 
-
-#if defined(__NETWARE__) || defined(SAFE_MUTEX_DETECT_DESTROY)
-/* NetWare requires some cleanup of mutexes */
-
-/*************************************************************************
-Deinitializes the synchronization primitives, memory system, and the thread
-local storage. */
-
-void
-srv_general_free(void)
-/*==================*/
-{
-  sync_close();
-}
-#endif /* __NETWARE__ */
-
-
 /*======================= InnoDB Server FIFO queue =======================*/
 
-#if defined(__NETWARE__) || defined(SAFE_MUTEX_DETECT_DESTROY)
-/* NetWare requires some cleanup of mutexes */
-
-/*************************************************************************
-Deinitializes the server. */
-
-void
-srv_free(void)
-/*==========*/
-{
-  srv_conc_slot_t* conc_slot;
-  srv_slot_t* slot;
-  ulint i;
-
-  for (i = 0; i < OS_THREAD_MAX_N; i++)
-  {
-    slot = srv_table_get_nth_slot(i);
-    os_event_free(slot->event);
-  }
-
-  /* TODO: free(srv_sys->threads); */
-
-  for (i = 0; i < OS_THREAD_MAX_N; i++)
-  {
-    slot = srv_mysql_table + i;
-    os_event_free(slot->event);
-  }
-
-  /* TODO: free(srv_mysql_table); */
-
-  for (i = 0; i < OS_THREAD_MAX_N; i++)
-  {
-    conc_slot = srv_conc_slots + i;
-    os_event_free(conc_slot->event);
-  }
-}
-#endif /* __NETWARE__ */
 
 /*************************************************************************
 Puts an OS thread to wait if there are too many concurrent threads
@@ -2734,6 +2691,8 @@ loop:
 
 	srv_error_monitor_active = FALSE;
 
+	os_thread_exit(NULL);
+
 #ifndef __WIN__
         return(NULL);
 #else
@@ -3172,6 +3131,13 @@ suspend_thread:
 	srv_main_thread_op_info = (char*)"waiting for server activity";
 
 	os_event_wait(event);
+
+	if (srv_shutdown_state == SRV_SHUTDOWN_EXIT_THREADS) {
+	        /* This is only extra safety, the thread should exit
+		already when the event wait ends */
+
+	        os_thread_exit(NULL);
+	}
 
 	/* When there is user activity, InnoDB will set the event and the main
 	thread goes back to loop: */

@@ -17,29 +17,29 @@ b
 
 drop table t1;
 create table t2 type=heap select * from t1;
-Table 'test.t1' doesn't exist
+ERROR 42S02: Table 'test.t1' doesn't exist
 create table t2 select auto+1 from t1;
-Table 'test.t1' doesn't exist
+ERROR 42S02: Table 'test.t1' doesn't exist
 drop table if exists t1,t2;
 Warnings:
 Note	1051	Unknown table 't1'
 Note	1051	Unknown table 't2'
 create table t1 (b char(0) not null, index(b));
-The used storage engine can't index column 'b'
+ERROR 42000: The used storage engine can't index column 'b'
 create table t1 (a int not null auto_increment,primary key (a)) type=heap;
 create table t1 (a int not null,b text) type=heap;
-The used table type doesn't support BLOB/TEXT columns
+ERROR 42000: The used table type doesn't support BLOB/TEXT columns
 drop table if exists t1;
 create table t1 (ordid int(8) not null auto_increment, ord  varchar(50) not null, primary key (ord,ordid)) type=heap;
-Incorrect table definition; There can only be one auto column and it must be defined as a key
+ERROR 42000: Incorrect table definition; There can only be one auto column and it must be defined as a key
 create table not_existing_database.test (a int);
 Got one of the listed errors
 create table `a/a` (a int);
-Incorrect table name 'a/a'
+ERROR 42000: Incorrect table name 'a/a'
 create table `aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa` (aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa int);
-Incorrect table name 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'
+ERROR 42000: Incorrect table name 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'
 create table a (`aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa` int);
-Identifier name 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' is too long
+ERROR 42000: Identifier name 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' is too long
 create table 1ea10 (1a20 int,1e int);
 insert into 1ea10 values(1,1);
 select 1ea10.1a20,1e+ 1e+10 from 1ea10;
@@ -61,11 +61,11 @@ create table test_$1.test2$ (a int);
 drop table test_$1.test2$;
 drop database test_$1;
 create table `` (a int);
-Incorrect table name ''
+ERROR 42000: Incorrect table name ''
 drop table if exists ``;
-Incorrect table name ''
+ERROR 42000: Incorrect table name ''
 create table t1 (`` int);
-Incorrect column name ''
+ERROR 42000: Incorrect column name ''
 drop table if exists t1;
 Warnings:
 Note	1051	Unknown table 't1'
@@ -115,17 +115,17 @@ Field	Type	Null	Key	Default	Extra
 a	int(11)	YES		NULL	
 drop table if exists t2;
 create table t2 (a int, a float) select * from t1;
-Duplicate column name 'a'
+ERROR 42S21: Duplicate column name 'a'
 drop table if exists t2;
 Warnings:
 Note	1051	Unknown table 't2'
 create table t2 (a int) select a as b, a+1 as b from t1;
-Duplicate column name 'b'
+ERROR 42S21: Duplicate column name 'b'
 drop table if exists t2;
 Warnings:
 Note	1051	Unknown table 't2'
 create table t2 (b int) select a as b, a+1 as b from t1;
-Duplicate column name 'b'
+ERROR 42S21: Duplicate column name 'b'
 drop table if exists t1,t2;
 Warnings:
 Note	1051	Unknown table 't2'
@@ -204,11 +204,11 @@ drop table t1;
 create table t1 ( k1 varchar(2), k2 int, primary key(k1,k2));
 insert into t1 values ("a", 1), ("b", 2);
 insert into t1 values ("c", NULL);
-Column 'k2' cannot be null
+ERROR 23000: Column 'k2' cannot be null
 insert into t1 values (NULL, 3);
-Column 'k1' cannot be null
+ERROR 23000: Column 'k1' cannot be null
 insert into t1 values (NULL, NULL);
-Column 'k1' cannot be null
+ERROR 23000: Column 'k1' cannot be null
 drop table t1;
 create table t1 (a int, key(a));
 create table t2 (b int, foreign key(b) references t1(a), key(b));
@@ -273,15 +273,15 @@ select * from t2;
 id	name
 create table t3 like t1;
 create table t3 like test_$1.t3;
-Table 't3' already exists
+ERROR 42S01: Table 't3' already exists
 create table non_existing_database.t1 like t1;
 Got one of the listed errors
 create table t3 like non_existing_table;
-Unknown table 'non_existing_table'
+ERROR 42S02: Unknown table 'non_existing_table'
 create temporary table t3 like t1;
-Table 't3' already exists
+ERROR 42S01: Table 't3' already exists
 create table t3 like `a/a`;
-Incorrect table name 'a/a'
+ERROR 42000: Incorrect table name 'a/a'
 drop table t1, t2, t3;
 drop table t3;
 drop database test_$1;
