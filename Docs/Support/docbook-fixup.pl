@@ -1,158 +1,165 @@
 #!/usr/bin/perl -w
-# 2002-02-15 zak@mysql.com
-# Use -w to make perl print useful warnings about the script being run
 
-sub fix_underscore {
-  $str = shift;
-  $str =~ tr/_/-/;
-  return $str;
-};
+# Fix the output of `makeinfo --docbook` version 4.0c
+# Convert the broken docbook output to well-formed XML that conforms to the O'Reilly idiom
+# See code for detailed comments
+# Authors: Arjen Lentz and Zak Greant
 
-sub strip_emph {
-  $str = shift;
-  $str =~ s{<emphasis>(.+?)</emphasis>}
-           {$1}gs;
-  return $str;
-};
+use strict;
 
-print STDERR "\n--Post-processing makeinfo output--\n";
+my $data  = '';
+my @apx   = ();
+my $apx   = '';
+my @nodes = ();
+my $nodes = '';
 
-# 2002-02-15 zak@mysql.com
-print STDERR "Discard DTD - ORA can add the appropriate DTD for their flavour of DocBook\n";
-<STDIN>;
+msg ("\n-- Post-processing `makeinfo --docbook` output --");
+msg ("** Written to work with makeinfo version 4.0c **\n");
 
-print STDERR "Slurp! In comes the rest of the file. :)\n";
-$data = join "", <STDIN>;
+msg ("Discarding DTD - not required by subsequent scripts");
+# <> is a magic filehandle - either reading lines from stdin or from file(s) specified on the command line
+<>;
 
-# 2002-02-15 zak@mysql.com
-print STDERR "Add an XML processing instruction with the right character encoding\n";
-$data = "<?xml version='1.0' encoding='ISO-8859-1'?>" . $data;
+msg ("Create an XML PI with ISO-8859-1 character encoding");
+$data = "<?xml version='1.0' encoding='ISO-8859-1'?>";
 
-# 2002-02-15 zak@mysql.com
-# Less than optimal - should be fixed in makeinfo
-print STDERR "Put in missing <bookinfo> and <abstract>\n";
-$data =~ s/<book lang="en">/<book lang="en"><bookinfo><abstract>/gs;
+msg ("Get the rest of the data");
+$data = $data . join "", <>;
 
-# 2002-02-15 zak@mysql.com
-print STDERR "Convert existing ampersands to escape sequences \n";
-$data =~ s/&(?!\w+;)/&amp;/gs;
+msg ("Add missing <bookinfo> and <abstract> opening tags");
+# Note the absence of the g (global) pattern modified. This situation can only happen once.
+# ...as soon as we find the first instance, we can stop looking.
+$data =~ s/<book lang="en">/<book lang="en"><bookinfo><abstract>/;
 
-# 2002-02-15 zak@mysql.com
-# Need to talk to Arjen about what the <n> bits are for
-print STDERR "Rework references of the notation '<n>'\n";
-$data =~ s/<(\d)>/[$1]/gs;
-  
-# 2002-02-15 zak@mysql.com
-# We might need to encode the high-bit characters to ensure proper representation
-# print STDERR "Converting high-bit characters to entities\n";
-# $data =~ s/([\200-\400])/&get_entity($1)>/gs;
-# There is no get_entity function yet - no point writing it til we need it :)
+msg ("Removing mailto: from email addresses...");
+$data =~ s/mailto://g;
 
-print STDERR "Changing @@ to @...\n";
-$data =~ s/@@/@/gs;
-
-print STDERR "Changing '_' to '-' in references...\n";
-$data =~ s{id=\"(.+?)\"}
-          {"id=\"".&fix_underscore($1)."\""}gsex;
-$data =~ s{linkend=\"(.+?)\"}
-          {"linkend=\"".&fix_underscore($1)."\""}gsex;
-
-print STDERR "Changing ULINK to SYSTEMITEM...\n";
-$data =~ s{<ulink url=\"(.+?)\"></ulink>}
-          {<systemitem role=\"url\">$1</systemitem>}gs;
-
-print STDERR "Removing INFORMALFIGURE...\n";
-$data =~ s{<informalfigure>(.+?)</informalfigure>}
+msg ("Removing INFORMALFIGURE...");
+$data =~ s{<informalfigure>.+?</informalfigure>}
           {}gs;
 
-print STDERR "Adding PARA inside ENTRY...\n";
+msg ("Convert ampersands to XML escape sequences ");
+$data =~ s/&(?!\w+;)/&amp;/g;
+  
+msg ("Changing @@ to @...");
+$data =~ s/@@/@/g;
+
+msg ("Rework references of the notation '<n>'");
+# Need to talk to Arjen about what the <n> bits are for
+$data =~ s/<(\d)>/[$1]/g;
+
+msg ("Changing '_' to '-' in references...");
+$data =~ s{((?:id|linkend)=\".+?\")}
+          {&underscore2hyphen($1)}gex;
+
+msg ("Changing ULINK to SYSTEMITEM...");
+$data =~ s{<ulink url=\"(.+?)\">\s*</ulink>}
+          {<systemitem role=\"url\">$1</systemitem>}gs;
+
+msg ("Adding PARA inside ENTRY...");
 $data =~ s{<entry>(.*?)</entry>}
           {<entry><para>$1</para></entry>}gs;
 
-print STDERR "Removing mailto: from email addresses...\n";
-$data =~ s{mailto:}
-          {}gs;
+msg ("Fixing spacing problem with titles...");
+$data =~ s{(</\w+>)(\w{2,})}
+          {$1 $2}gs;
 
-print STDERR "Fixing spacing problem with titles...\n";
-$data =~ s{</(\w+)>(\w{2,})}
-          {</$1> $2}gs;
+msg ("Adding closing / to XREF and COLSPEC tags...");
+$data =~ s{<(xref|colspec) (.+?)>}
+          {<$1 $2 />}gs;
 
-# 2002-02-15 arjen@mysql.com
-print STDERR "Adding closing / to XREF...\n";
-$data =~ s{<xref (.+?)>}
-          {<xref $1 />}gs;
-
-# 2002-02-22 arjen@mysql.com
-print STDERR "Adding \"See \" to XREFs that used to be \@xref...\n";
-$data =~ s{([\.\'\!\)])[\n ]*<xref }
+# Probably need to strip these
+msg ('Adding "See " to XREFs that used to be @xref...');
+$data =~ s{([.'!)])\s*<xref }
           {$1 See <xref }gs;
 
-# 2002-02-22 arjen@mysql.com
-print STDERR "Adding \"see \" to (XREFs) that used to be (\@pxref)...\n";
-$data =~ s{(\(|[[,;])([\n]*[ ]*)<xref }
+msg ('Adding "see " to (XREFs) that used to be (@pxref)...');
+$data =~ s{([([,;])(\s*)<xref }
           {$1$2see <xref }gs;
 
-# 2002-01-30 arjen@mysql.com
-print STDERR "Removing COLSPEC...\n";
-$data =~ s{\n *<colspec colwidth=\"[0-9]+\*\">}
+msg ("Making first row in table THEAD...");
+$data =~ s{( *)<tbody>(\s*<row>.+?</row>)}
+          {$1<thead>$2\n$1</thead>\n$1<tbody>}gs;
+
+msg ("Removing EMPHASIS inside THEAD...");
+$data =~ s{<thead>(.+?)</thead>}
+          {"<thead>".&strip_tag($1, 'emphasis')."</thead>"}gsex;
+
+msg ("Removing empty PARA...");
+$data =~ s{<para>\s*</para>}
           {}gs;
 
-# 2002-01-31 arjen@mysql.com
-print STDERR "Making first row in table THEAD...\n";
-$data =~ s{([ ]*)<tbody>\n([ ]*<row>(.+?)</row>)}
-          {$1<thead>\n$2\n$1</thead>\n$1<tbody>}gs;
+msg ("Removing lf before /PARA in ENTRY...");
+$data =~ s{\n(</para></entry>)}
+          {$1}gs;
 
-# 2002-01-31 arjen@mysql.com
-print STDERR "Removing EMPHASIS inside THEAD...\n";
-$data =~ s{<thead>(.+?)</thead>}
-          {"<thead>".&strip_emph($1)."</thead>"}gsex;
+msg ("Removing whitespace before /PARA if not on separate line...");
+$data =~ s{(\S+)[\t ]+</para>}
+          {$1</para>}g;
 
-# 2002-01-31 arjen@mysql.com
-print STDERR "Removing lf before /PARA in ENTRY...\n";
-$data =~ s{(<entry><para>(.+?))\n(</para></entry>)}
-          {$1$3}gs;
+msg ("Removing PARA around INDEXTERM if no text in PARA...");
+$data =~ s{<para>((?:<indexterm role=\"(?:cp|fn)\">(?:<(primary|secondary)>[^>]+</\2>)+?</indexterm>)+?)\s*</para>}
+          {$1}gs;
 
-# 2002-01-31 arjen@mysql.com (2002-02-15 added \n stuff)
-print STDERR "Removing whitespace before /PARA if not on separate line...\n";
-$data =~ s{([^\n ])[ ]+</para>}
-          {$1</para>}gs;
-
-# 2002-01-31 arjen@mysql.com
-print STDERR "Removing empty PARA in ENTRY...\n";
-$data =~ s{<entry><para></para></entry>}
-          {<entry></entry>}gs;
-
-# 2002-01-31 arjen@mysql.com
-print STDERR "Removing PARA around INDEXENTRY if no text in PARA...\n";
-$data =~ s{<para>((<indexterm role=\"(cp|fn)\">(<(primary|secondary)>[^<]+?</(primary|secondary)>)+?</indexterm>)+?)[\n]*</para>[\n]*}
-          {$1\n}gs;
-
-# -----
-
-@apx = ("Users", "MySQL Testimonials", "News",
-        "GPL-license", "LGPL-license");
+@apx = ("Users", "MySQL Testimonials", "News", "GPL-license", "LGPL-license");
 
 foreach $apx (@apx) {
-  print STDERR "Removing appendix $apx...\n";
-  $data =~ s{<appendix id=\"$apx\">(.+?)</appendix>}
-            {}gs;
+    msg ("Removing appendix $apx...");
+    $data =~ s{<appendix id=\"$apx\">(.+?)</appendix>}
+              {}gs;
 
-  print STDERR " ... Building list of removed nodes ...\n";
-  foreach(split "\n", $&) {
-    push @nodes, $2 if(/<(\w+) id=\"(.+?)\">/)
-  };
-};
+    # Skip to next appendix regex if the regex did not match anything
+    next unless (defined $&);
+    
+    msg ("...Building list of removed nodes...");
+    
+    # Split the last bracketed regex match into an array
+    # Extract the node names from the tags and push them into an array
+    foreach (split "\n", $&) {
+        push @nodes, $1 if /<\w+ id=\"(.+?)\">/
+    }
+}
 
 # 2002-02-22 arjen@mysql.com (added fix " /" to end of regex, to make it match)
-print STDERR "Fixing references to removed nodes...\n";
-foreach $node (@nodes) {
-  $web = $node;
-  $web =~ s/[ ]/_/;
-  $web = "http://www.mysql.com/doc/" .
-         (join "/", (split //, $web)[0..1])."/$web.html";
-  print STDERR "$node -> $web\n";
-  $data =~ s{<(\w+) linkend=\"$node\" />}
-            {$web}gs;
-};
+msg ("Fixing references to removed nodes...");
+# Merge the list of node names into a set of regex alternations
+$nodes = join "|", @nodes;
+
+# Find all references to removed nodes and convert them to absolute URLs
+$data =~ s{<\w+ linkend="($nodes)" />}
+          {&xref2link($1)}ges;
 
 print STDOUT $data;
+exit;
+
+#
+# Definitions for helper sub-routines
+#
+
+sub msg {
+    print STDERR shift, "\n";
+}
+
+sub strip_tag($$) {
+    (my $str, my $tag) = @_;
+    $str =~ s{<$tag>(.+?)</$tag>}{$1}gs;
+    return $str;
+}
+
+sub underscore2hyphen($) {
+    my $str = shift;
+    $str =~ tr/_/-/;
+    return $str;
+}
+
+sub xref2link {
+    my $ref = shift;
+    $ref =~ tr/ /_/;
+    $ref =~ s{^((.)(.).+)$}{$2/$3/$1.html};
+    return "http://www.mysql.com/doc/" . $ref;
+}
+
+# We might need to encode the high-bit characters to ensure proper representation
+# msg ("Converting high-bit characters to entities");
+# $data =~ s/([\200-\400])/&get_entity($1)>/gs;
+# There is no get_entity function yet - no point writing it til we need it :)
