@@ -286,7 +286,10 @@ public:
 
   ulong slave_proxy_id; // in slave thread we need to know in behalf of which
   // thread the query is being run to replicate temp tables properly 
-  
+
+  // thread-specific state map for lex parser
+  uchar state_map[256];
+
   THD();
   ~THD();
   bool store_globals();
