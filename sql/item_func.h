@@ -342,12 +342,32 @@ public:
   const char *func_name() const { return "exp"; }
 };
 
+
+class Item_func_ln :public Item_dec_func
+{
+public:
+  Item_func_ln(Item *a) :Item_dec_func(a) {}
+  double val();
+  const char *func_name() const { return "ln"; }
+};
+
+
 class Item_func_log :public Item_dec_func
 {
 public:
   Item_func_log(Item *a) :Item_dec_func(a) {}
+  Item_func_log(Item *a,Item *b) :Item_dec_func(a,b) {}
   double val();
   const char *func_name() const { return "log"; }
+};
+
+
+class Item_func_log2 :public Item_dec_func
+{
+public:
+  Item_func_log2(Item *a) :Item_dec_func(a) {}
+  double val();
+  const char *func_name() const { return "log2"; }
 };
 
 

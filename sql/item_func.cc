@@ -437,12 +437,41 @@ void Item_func_abs::fix_length_and_dec()
   hybrid_type= args[0]->result_type() == INT_RESULT ? INT_RESULT : REAL_RESULT;
 }
 
+/* Gateway to natural LOG function */
+double Item_func_ln::val()
+{
+  double value=args[0]->val();
+  if ((null_value=(args[0]->null_value || value <= 0.0)))
+    return 0.0;
+  return log(value);
+}
+
+/* 
+ Extended but so slower LOG function
+ We have to check if all values are > zero and first one is not one
+ as these are the cases then result is not a number.
+*/ 
 double Item_func_log::val()
 {
   double value=args[0]->val();
   if ((null_value=(args[0]->null_value || value <= 0.0)))
-    return 0.0; /* purecov: inspected */
+    return 0.0;
+  if (arg_count == 2)
+  {
+    double value2= args[1]->val();
+    if ((null_value=(args[1]->null_value || value2 <= 0.0 || value == 1.0)))
+      return 0.0;
+    return log(value2) / log(value);
+  }
   return log(value);
+}
+
+double Item_func_log2::val()
+{
+  double value=args[0]->val();
+  if ((null_value=(args[0]->null_value || value <= 0.0)))
+    return 0.0;
+  return log(value) / log(2.0);
 }
 
 double Item_func_log10::val()
