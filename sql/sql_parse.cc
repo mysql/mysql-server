@@ -664,8 +664,17 @@ check_connections(THD *thd)
     thd->max_client_packet_length= uint4korr(net->read_pos+4);
     if (!(thd->variables.character_set_client=
 	  get_charset((uint) net->read_pos[8], MYF(0))))
+    {
       thd->variables.character_set_client=
 	global_system_variables.character_set_client;
+      thd->variables.collation_connection=
+	global_system_variables.collation_connection;
+    }
+    else
+    {
+      thd->variables.collation_connection= 
+	thd->variables.character_set_client;
+    }
     end= (char*) net->read_pos+32;
   }
   else
