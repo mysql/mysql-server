@@ -1,11 +1,9 @@
 # Replication of character sets.
 # This test will fail if the server/client does not support enough charsets.
 
-# Remember that there currently exists
-# Bug #2326: Charset of table is determined by charset of db only if "USE db;"
-
 source include/master-slave.inc;
 --disable_warnings
+set timestamp=1000000000;
 drop database if exists mysqltest2;
 drop database if exists mysqltest3;
 --enable_warnings
@@ -46,7 +44,7 @@ set character_set_client=cp850, collation_connection=latin2_croatian_ci;
 insert into t1 (b) values(@@character_set_server);
 insert into t1 (b) values(@@collation_server);
 # character_set_database and collation_database are not tested as they
-# are not replicated (Bar said that this variable may be removed shortly).
+# needn't be replicated (Bar said in Jan 2005).
 insert into t1 (b) values(@@character_set_client);
 # collation_client does not exist
 insert into t1 (b) values(@@character_set_connection);
@@ -79,9 +77,10 @@ select "--- --slave--" as "";
 --enable_query_log
 select * from mysqltest2.t1 order by a;
 
-# See if SET ONE_SHOT gets into binlog when LOAD DATA
-connection master;
-load data infile '../../std_data/words.dat' into table t1 (b);
+# Presently charset info is not logged with LOAD DATA but it will
+# change in Jan 2005 when Dmitri pushes his new LOAD DATA,
+# before 5.0.3 goes out. When done, LOAD DATA INFILE should be tested
+# here.
 
 # See if user var is prefixed with collation in binlog and replicated well.
 # Note: replication of user variables is broken as far as derivation is
@@ -90,6 +89,7 @@ load data infile '../../std_data/words.dat' into table t1 (b);
 # know if the collation was explicit or not, so we use DERIVATION_NONE,
 # which provokes error messages (like 'Illegal mix of collation') when
 # we replay the master's INSERT/etc statements.
+connection master;
 set @a= _cp850 'Müller' collate cp850_general_ci;
 truncate table t1;
 insert into t1 (b) values(collation(@a));
@@ -110,13 +110,13 @@ drop database mysqltest3;
 show binlog events from 95;
 sync_slave_with_master;
 
-# Check that we can't change global.collation_server
+# Check that we can change global.collation_server (since 5.0.3)
 
-error 1387;
 set global character_set_server=latin2;
+set global character_set_server=latin1; # back
 connection master;
-error 1387;
 set global character_set_server=latin2;
+set global character_set_server=latin1; # back
 
 # Check that SET ONE_SHOT is really one shot
 
@@ -150,35 +150,9 @@ select hex(c1), hex(c2) from t1;
 sync_slave_with_master;
 select hex(c1), hex(c2) from t1;
 
-# Now test for BUG##5705: SET CHARACTER_SET_SERVER etc will be lost if
-# STOP SLAVE before following query
-
-stop slave;
-delete from t1;
-# Slave is now supposed to have stopped _after_ the INSERT
-
-# Note that the following positions may change between MySQL versions!
-
-# This position should be position for the SET ONE SHOT CHARACTER_SET_CLIENT
-# command just before the INSERT.
-# You can find it by doing:
-# ../client/mysqlbinlog var/log/master-bin.000001 | grep -3 CHARACTER_SET | tail -7
-change master to master_log_pos=6809;
-
-# This position should be position of the INSERT command.
-# You can find it by doing:
-#
-# ../client/mysqlbinlog var/log/master-bin.000001 | grep -3 INSERT | tail -4
-
-start slave until master_log_file='master-bin.000001', master_log_pos=6967;
-
-# Slave is supposed to stop _after_ the INSERT, even though 'master_log_pos' is
-# the position of the beginning of the INSERT; after SET slave is not
-# supposed to increment position.
-wait_for_slave_to_stop;
-start slave;
-sync_with_master;
-select hex(c1), hex(c2) from t1;
 connection master;
+# Let's have a look at generated SETs.
+--replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR
+--exec $MYSQL_BINLOG --short-form $MYSQL_TEST_DIR/var/log/master-bin.000001 
 drop table t1;
 sync_slave_with_master;
