@@ -1,4 +1,14 @@
-MySQL Manual style guidelines
+OriginalAuthor: PaulDuBois
+
+!!! ManualStyleGuidelines
+
+''Version 1.0''
+
+!! Revision History
+
+* 2002-05-17 ArjenLentz - Version 1.0, Posted to Wiki
+
+!! MySQL Manual Style Guidelines
 
 Paul DuBois <paul@snake.net>
 
@@ -9,15 +19,16 @@ do reflect current working practice. Arjen asked me to post this
 on the list some time ago so that it can be discussed with a view
 to adding it (or something like it) to the source tree. So here it is!
 
-MySQL Reference Manual Style Guidelines
+Present in the mysql-4.0 source tree: Docs/ManualStyleGuidelines.wiki
+
 
 The manual is written in UK English, not American English. This means:
 
-colour, not color
-behaviour, not behavior
-authorise, not authorize
-optimise, not optimize
-etc.
+ colour, not color
+ behaviour, not behavior
+ authorise, not authorize
+ optimise, not optimize
+ etc.
 
 Write MySQL, not @strong{MySQL} (the manual used to use the latter, but no
 more).
@@ -28,12 +39,12 @@ Use uppercase for SQL keywords, functions names, etc., when writing
 SQL statement examples.
 
 To write a list of items, add commas after all items preceding the last one:
-Correct: Features, products, and services
-Incorrect: Features, products and services
+ Correct: Features, products, and services
+ Incorrect: Features, products and services
 
 How to pluralize keywords that are enclosed in @code:
-Correct: @code{SELECT}s
-Incorrect: @code{SELECTs} or @code{SELECT}'s or @code{SELECT}:s
+ Correct: @code{SELECT}s
+ Incorrect: @code{SELECTs} or @code{SELECT}'s or @code{SELECT}:s
 
 Use "its" and "it's" correctly. These words are exceptions to
 the normal use of "'s" to indicate possession:
@@ -44,7 +55,9 @@ its = possession (e.g., "MySQL is fast, which is one of its strengths")
 "a lot" is two words. "alot" is rebarbative.
 
 Write lowercase, not lower case
+
 Write uppercase, not upper case
+
 Write lettercase, not letter case
 
 Write "web site" (two words), not "website", and "web page" rather
@@ -64,12 +77,9 @@ typos. Don't "fix" it. (If the output is produced by a MySQL program, then
 fix the source for the program to write the output correctly without the
 typo, then update the manual to match.)
 
-Use "okay" rather than "ok" or "Ok" or "OK" in sentences.
-Exceptions:
-- When describing instructions for a GUI with buttons that say
-"OK", then use "OK". That is, use the label that the GUI uses.
-- When showing the output from a program, show the output exactly;
-don't change "ok" to "okay", etc.
+Use "okay" rather than "ok" or "Ok" or "OK" in sentences. Exceptions:
+* When describing instructions for a GUI with buttons that say "OK", then use "OK". That is, use the label that the GUI uses.
+* When showing the output from a program, show the output exactly; don't change "ok" to "okay", etc.
 
 Write "Open Source" (inside @code{}), not "open source".
 
@@ -87,14 +97,14 @@ For example, use "item" rather than "items", or "person" rather than
 "people". Sometimes you can add "_list" (as in "item_list") to make it
 more clear that the name refers to a collection of items.
 
-Some commonly occurring misspelling:
+ Some commonly occurring misspelling:
 
-Correct         Incorrect
----------------------------
-publicly        publically
-statically      staticly
-dynamically     dynamicly
-automatically   automaticly
+ Correct         Incorrect
+ ---------------------------
+ publicly        publically
+ statically      staticly
+ dynamically     dynamicly
+ automatically   automaticly
 
 There is no hyphen after "ly" words. Write statically linked, not
 statically-linked.
@@ -102,8 +112,8 @@ statically-linked.
 To refer to ASCII codes, use ASCII n, not ASCII(n), unless you're
 referring to the ASCII() function, which case you use @code{ASCII()}.
 
-ASCII 13             indicates ASCII character code 13
-@code{ASCII(13)}     indicates a function call
+ ASCII 13             indicates ASCII character code 13
+ @code{ASCII(13)}     indicates a function call
 
 backup is a noun or adjective (as in "a backup file"), back up is a verb
 (as in "to back up a database")
@@ -118,11 +128,11 @@ Write character set names in @code{}, e.g., @code{latin1}, @code{win1251}.
 
 To prevent problems with various output formats, there should be no link
 titles in a @uref{}. So @uref{url} is allowed, @uref{url,blabla} is not.
-Use this format:
+ Use this format:
 		@uref{url} (WWW)
-Not this format:
+ Not this format:
 		@uref{url, WWW}
-Similarly for FTP sites.
+ Similarly for FTP sites.
 
 URLs ending in a domain name or directory should have a "/" at the end.
 (For example, the URLs for all mirror sites should be written that way.)
@@ -188,7 +198,9 @@ Write low-volume <something> (when used as an adjective).
 Write platform-dependent, not platform dependent.
 
 Write something like "mentioned previously" instead of "above", and "later in this section" instead of "below" when making such relative references in your text.
+
 Write "... shown here", not "... shown below".
+
 Write "following some", not "something [shown] below".
 
 Write high-priority <something> (when used as an adjective), not high priority.
