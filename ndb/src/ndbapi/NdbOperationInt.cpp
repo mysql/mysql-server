@@ -888,6 +888,18 @@ NdbOperation::interpret_exit_ok()
   return 0;
 }
 
+int
+NdbOperation::interpret_exit_last_row()
+{
+  INT_DEBUG(("interpret_exit_last_row"));
+  if (initial_interpreterCheck() == -1)
+    return -1;
+  if (insertATTRINFO(Interpreter::EXIT_OK_LAST) == -1)
+    return -1;
+  theErrorLine++;
+  return 0;
+}
+
 /************************************************************************************************
 int NdbOperation::interpret_exit_nok(Uint32 ErrorCode)
 

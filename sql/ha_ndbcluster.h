@@ -37,6 +37,8 @@ class NdbScanOperation;
 class NdbIndexScanOperation; 
 class NdbBlob;
 
+// connectstring to cluster if given by mysqld
+extern const char *ndbcluster_connectstring;
 
 typedef enum ndb_index_type {
   UNDEFINED_INDEX = 0,

@@ -27,8 +27,8 @@
  * A MANDATORY parameters must be specified in the config file
  * An UNDEFINED parameter may or may not be specified in the config file
  */
-static const Uint64 MANDATORY = ~0;     // Default value for mandatory params.
-static const Uint64 UNDEFINED = (~0)-1; // Default value for undefined params.
+static const char* MANDATORY = (char*)~(UintPtr)0;     // Default value for mandatory params.
+static const char* UNDEFINED = 0; // Default value for undefined params.
 
 /**
  * @class  ConfigInfo
@@ -56,9 +56,14 @@ public:
     Status         _status;
     bool           _updateable;    
     Type           _type;          
-    Uint64         _default;
-    Uint64         _min;
-    Uint64         _max;
+    const char*    _default;
+    const char*    _min;
+    const char*    _max;
+  };
+
+  struct AliasPair{
+    const char * name;
+    const char * alias;
   };
 
   /**
@@ -100,6 +105,7 @@ public:
    *   @note Result is not defined if section/name are wrong!
    */
   bool verify(const Properties* secti, const char* fname, Uint64 value) const;
+  const char* getAlias(const char*) const;
   bool isSection(const char*) const;
 
   const char*  getDescription(const Properties * sec, const char* fname) const;
@@ -123,6 +129,7 @@ private:
   static const ParamInfo   m_ParamInfo[];
   static const int         m_NoOfParams;
   
+  static const AliasPair   m_sectionNameAliases[];
   static const char*       m_sectionNames[];
   static const int         m_noOfSectionNames;
 

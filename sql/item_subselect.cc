@@ -63,12 +63,21 @@ void Item_subselect::init(st_select_lex *select_lex,
       => we do not copy old_engine here
     */
     engine= unit->item->engine;
+    parsing_place= unit->item->parsing_place;
     unit->item->engine= 0;
     unit->item= this;
     engine->change_item(this, result);
   }
   else
   {
+    SELECT_LEX *outer_select= unit->outer_select();
+    /*
+      do not take into account expression inside aggregate functions because
+      they can access original table fields
+    */
+    parsing_place= (outer_select->in_sum_expr ?
+                    NO_MATTER :
+                    outer_select->parsing_place);
     if (select_lex->next_select())
       engine= new subselect_union_engine(unit, result, this);
     else
@@ -76,7 +85,7 @@ void Item_subselect::init(st_select_lex *select_lex,
   }
   {
     SELECT_LEX *upper= unit->outer_select();
-    if (upper->parsing_place == SELECT_LEX_NODE::IN_HAVING)
+    if (upper->parsing_place == IN_HAVING)
       upper->subquery_in_having= 1;
   }
   DBUG_VOID_RETURN;
@@ -125,7 +134,6 @@ bool Item_subselect::fix_fields(THD *thd_param, TABLE_LIST *tables, Item **ref)
 {
   DBUG_ASSERT(fixed == 0);
   engine->set_thd((thd= thd_param));
-  stmt= thd->current_statement;
 
   char const *save_where= thd->where;
   int res;
@@ -306,7 +314,10 @@ Item_singlerow_subselect::select_transformer(JOIN *join)
     return RES_OK;
 
   SELECT_LEX *select_lex= join->select_lex;
-  Statement backup;
+
+  /* Juggle with current arena only if we're in prepared statement prepare */
+  Item_arena *arena= join->thd->current_arena;
+  Item_arena backup;
 
   if (!select_lex->master_unit()->first_select()->next_select() &&
       !select_lex->table_list.elements &&
@@ -341,8 +352,8 @@ Item_singlerow_subselect::select_transformer(JOIN *join)
     if (join->conds || join->having)
     {
       Item *cond;
-      if (stmt)
-	thd->set_n_backup_item_arena(stmt, &backup);
+      if (arena->is_stmt_prepare())
+	thd->set_n_backup_item_arena(arena, &backup);
 
       if (!join->having)
 	cond= join->conds;
@@ -355,15 +366,15 @@ Item_singlerow_subselect::select_transformer(JOIN *join)
 					   new Item_null())))
 	goto err;
     }
-    if (stmt)
-      thd->restore_backup_item_arena(stmt, &backup);
+    if (arena->is_stmt_prepare())
+      thd->restore_backup_item_arena(arena, &backup);
     return RES_REDUCE;
   }
   return RES_OK;
 
 err:
-  if (stmt)
-    thd->restore_backup_item_arena(stmt, &backup);
+  if (arena->is_stmt_prepare())
+    thd->restore_backup_item_arena(arena, &backup);
   return RES_ERROR;
 }
 
@@ -640,11 +651,11 @@ Item_in_subselect::single_value_transformer(JOIN *join,
   }
 
   SELECT_LEX *select_lex= join->select_lex;
-  Statement backup;
+  Item_arena *arena= join->thd->current_arena, backup;
 
   thd->where= "scalar IN/ALL/ANY subquery";
-  if (stmt)
-    thd->set_n_backup_item_arena(stmt, &backup);
+  if (arena->is_stmt_prepare())
+    thd->set_n_backup_item_arena(arena, &backup);
 
   if (select_lex->item_list.elements > 1)
   {
@@ -857,21 +868,21 @@ Item_in_subselect::single_value_transformer(JOIN *join,
 	  push_warning(thd, MYSQL_ERROR::WARN_LEVEL_NOTE,
 		       ER_SELECT_REDUCED, warn_buff);
 	}
-	if (stmt)
-	  thd->restore_backup_item_arena(stmt, &backup);
+	if (arena->is_stmt_prepare())
+	  thd->restore_backup_item_arena(arena, &backup);
 	DBUG_RETURN(RES_REDUCE);
       }
     }
   }
 
 ok:
-  if (stmt)
-    thd->restore_backup_item_arena(stmt, &backup);
+  if (arena->is_stmt_prepare())
+    thd->restore_backup_item_arena(arena, &backup);
   DBUG_RETURN(RES_OK);
 
 err:
-  if (stmt)
-    thd->restore_backup_item_arena(stmt, &backup);
+  if (arena->is_stmt_prepare())
+    thd->restore_backup_item_arena(arena, &backup);
   DBUG_RETURN(RES_ERROR);
 }
 
@@ -885,12 +896,12 @@ Item_in_subselect::row_value_transformer(JOIN *join)
   {
     DBUG_RETURN(RES_OK);
   }
-  Statement backup;
+  Item_arena *arena= join->thd->current_arena, backup;
   Item *item= 0;
 
   thd->where= "row IN/ALL/ANY subquery";
-  if (stmt)
-    thd->set_n_backup_item_arena(stmt, &backup);
+  if (arena->is_stmt_prepare())
+    thd->set_n_backup_item_arena(arena, &backup);
 
   SELECT_LEX *select_lex= join->select_lex;
 
@@ -974,13 +985,13 @@ Item_in_subselect::row_value_transformer(JOIN *join)
     if (join->conds->fix_fields(thd, join->tables_list, 0))
       goto err;
   }
-  if (stmt)
-    thd->restore_backup_item_arena(stmt, &backup);
+  if (arena->is_stmt_prepare())
+    thd->restore_backup_item_arena(arena, &backup);
   DBUG_RETURN(RES_OK);
 
 err:
-  if (stmt)
-    thd->restore_backup_item_arena(stmt, &backup);
+  if (arena->is_stmt_prepare())
+    thd->restore_backup_item_arena(arena, &backup);
   DBUG_RETURN(RES_ERROR);
 }
 
@@ -1243,29 +1254,31 @@ int subselect_uniquesubquery_engine::exec()
   DBUG_ENTER("subselect_uniquesubquery_engine::exec");
   int error;
   TABLE *table= tab->table;
-  if ((tab->ref.key_err= (*tab->ref.key_copy)->copy()))
+  for (store_key **copy=tab->ref.key_copy ; *copy ; copy++)
   {
-    table->status= STATUS_NOT_FOUND;
-    error= -1;
-  }
-  else
-  {
-    if (!table->file->inited)
-      table->file->ha_index_init(tab->ref.key);
-    error= table->file->index_read(table->record[0],
-				   tab->ref.key_buff,
-				   tab->ref.key_length,HA_READ_KEY_EXACT);
-    if (error && error != HA_ERR_KEY_NOT_FOUND)
-      error= report_error(table, error);
-    else
+    if (tab->ref.key_err= (*copy)->copy())
     {
-      error= 0;
-      table->null_row= 0;
-      ((Item_in_subselect *) item)->value= (!table->status &&
-					    (!cond || cond->val_int()) ? 1 :
-					    0);
+      table->status= STATUS_NOT_FOUND;
+      DBUG_RETURN(1);
     }
   }
+
+  if (!table->file->inited)
+    table->file->ha_index_init(tab->ref.key);
+  error= table->file->index_read(table->record[0],
+                                 tab->ref.key_buff,
+                                 tab->ref.key_length,HA_READ_KEY_EXACT);
+  if (error && error != HA_ERR_KEY_NOT_FOUND)
+    error= report_error(table, error);
+  else
+  {
+    error= 0;
+    table->null_row= 0;
+    ((Item_in_subselect *) item)->value= (!table->status &&
+                                          (!cond || cond->val_int()) ? 1 :
+                                          0);
+  }
+
   DBUG_RETURN(error != 0);
 }
 
@@ -1293,55 +1306,56 @@ int subselect_indexsubquery_engine::exec()
     ((Item_in_subselect *) item)->was_null= 0;
   }
 
-  if ((*tab->ref.key_copy) && (tab->ref.key_err= (*tab->ref.key_copy)->copy()))
+  for (store_key **copy=tab->ref.key_copy ; *copy ; copy++)
   {
-    table->status= STATUS_NOT_FOUND;
-    error= -1;
+    if (tab->ref.key_err= (*copy)->copy())
+    {
+      table->status= STATUS_NOT_FOUND;
+      DBUG_RETURN(1);
+    }
   }
+
+  if (!table->file->inited)
+    table->file->ha_index_init(tab->ref.key);
+  error= table->file->index_read(table->record[0],
+                                 tab->ref.key_buff,
+                                 tab->ref.key_length,HA_READ_KEY_EXACT);
+  if (error && error != HA_ERR_KEY_NOT_FOUND)
+    error= report_error(table, error);
   else
   {
-    if (!table->file->inited)
-      table->file->ha_index_init(tab->ref.key);
-    error= table->file->index_read(table->record[0],
-				   tab->ref.key_buff,
-				   tab->ref.key_length,HA_READ_KEY_EXACT);
-    if (error && error != HA_ERR_KEY_NOT_FOUND)
-      error= report_error(table, error);
-    else
+    for (;;)
     {
-      for (;;)
+      error= 0;
+      table->null_row= 0;
+      if (!table->status)
       {
-	error= 0;
-	table->null_row= 0;
-	if (!table->status)
-	{
-	  if (!cond || cond->val_int())
-	  {
-	    if (null_finding)
-	      ((Item_in_subselect *) item)->was_null= 1;
-	    else
-	      ((Item_in_subselect *) item)->value= 1;
-	    break;
-	  }
-	  error= table->file->index_next_same(table->record[0],
-					      tab->ref.key_buff,
-					      tab->ref.key_length);
-	  if (error && error != HA_ERR_END_OF_FILE)
-	  {
-	    error= report_error(table, error);
-	    break;
-	  }
-	}
-	else
-	{
-	  if (!check_null || null_finding)
-	    break;			/* We don't need to check nulls */
-	  *tab->ref.null_ref_key= 1;
-	  null_finding= 1;
-	  /* Check if there exists a row with a null value in the index */
-	  if ((error= (safe_index_read(tab) == 1)))
-	    break;
-	}
+        if (!cond || cond->val_int())
+        {
+          if (null_finding)
+            ((Item_in_subselect *) item)->was_null= 1;
+          else
+            ((Item_in_subselect *) item)->value= 1;
+          break;
+        }
+        error= table->file->index_next_same(table->record[0],
+                                            tab->ref.key_buff,
+                                            tab->ref.key_length);
+        if (error && error != HA_ERR_END_OF_FILE)
+        {
+          error= report_error(table, error);
+          break;
+        }
+      }
+      else
+      {
+        if (!check_null || null_finding)
+          break;			/* We don't need to check nulls */
+        *tab->ref.null_ref_key= 1;
+        null_finding= 1;
+        /* Check if there exists a row with a null value in the index */
+        if ((error= (safe_index_read(tab) == 1)))
+          break;
       }
     }
   }

@@ -27,7 +27,7 @@ gptr my_realloc(gptr oldpoint, uint size, myf my_flags)
 {
   gptr point;
   DBUG_ENTER("my_realloc");
-  DBUG_PRINT("my",("ptr: %lx  size: %u  my_flags: %d",oldpoint, size,
+  DBUG_PRINT("my",("ptr: 0x%lx  size: %u  my_flags: %d",oldpoint, size,
 		   my_flags));
 
   if (!oldpoint && (my_flags & MY_ALLOW_ZERO_PTR))
@@ -60,6 +60,6 @@ gptr my_realloc(gptr oldpoint, uint size, myf my_flags)
       my_error(EE_OUTOFMEMORY, MYF(ME_BELL+ME_WAITTANG), size);
   }
 #endif
-  DBUG_PRINT("exit",("ptr: %lx",point));
+  DBUG_PRINT("exit",("ptr: 0x%lx",point));
   DBUG_RETURN(point);
 } /* my_realloc */

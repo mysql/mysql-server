@@ -2,6 +2,7 @@
 
 --disable_warnings
 drop table if exists t1;
+drop database if exists test2;
 --enable_warnings
 
 #
@@ -202,6 +203,31 @@ update t1 set b=concat(a,'x',b),d=concat(a,'x',d)
 where c >= 100;
 commit;
 select * from t1 where c >= 100 order by a;
+
+# alter table
+
+select * from t1 order by a;
+alter table t1 add x int;
+select * from t1 order by a;
+alter table t1 drop x;
+select * from t1 order by a;
+
+# multi db
+
+create database test2;
+use test2;
+
+CREATE TABLE t2 (
+  a bigint unsigned NOT NULL PRIMARY KEY,
+  b int unsigned not null,
+  c int unsigned
+) engine=ndbcluster;
+
+insert into t2 values (1,1,1),(2,2,2);
+select * from test.t1,t2 where test.t1.a = t2.a order by test.t1.a;
+
+drop table t2;
+use test;
 
 # alter table
 

@@ -296,6 +296,7 @@ Remark:         Start transaction. Synchronous.
 NdbConnection* 
 Ndb::startTransaction(Uint32 aPriority, const char * keyData, Uint32 keyLen)
 {
+  DBUG_ENTER("Ndb::startTransaction");
 
   if (theInitState == Initialised) {
     theError.code = 0;
@@ -312,9 +313,9 @@ Ndb::startTransaction(Uint32 aPriority, const char * keyData, Uint32 keyLen)
     } else {
       nodeId = 0;
     }//if
-    return startTransactionLocal(aPriority, nodeId);
+    DBUG_RETURN(startTransactionLocal(aPriority, nodeId));
   } else {
-    return NULL;
+    DBUG_RETURN(NULL);
   }//if
 }//Ndb::startTransaction()
 
@@ -329,9 +330,11 @@ Remark:         Start transaction. Synchronous.
 NdbConnection* 
 Ndb::hupp(NdbConnection* pBuddyTrans)
 {
+  DBUG_ENTER("Ndb::hupp");
+
   Uint32 aPriority = 0;
   if (pBuddyTrans == NULL){
-    return startTransaction();
+    DBUG_RETURN(startTransaction());
   }
 
   if (theInitState == Initialised) {
@@ -341,19 +344,19 @@ Ndb::hupp(NdbConnection* pBuddyTrans)
     Uint32 nodeId = pBuddyTrans->getConnectedNodeId();
     NdbConnection* pCon = startTransactionLocal(aPriority, nodeId);
     if(pCon == NULL)
-      return NULL;
+      DBUG_RETURN(NULL);
 
     if (pCon->getConnectedNodeId() != nodeId){
       // We could not get a connection to the desired node
       // release the connection and return NULL
       closeTransaction(pCon);
-      return NULL;
+      DBUG_RETURN(NULL);
     }
     pCon->setTransactionId(pBuddyTrans->getTransactionId());
     pCon->setBuddyConPtr((Uint32)pBuddyTrans->getTC_ConnectPtr());
-    return pCon;
+    DBUG_RETURN(pCon);
   } else {
-    return NULL;
+    DBUG_RETURN(NULL);
   }//if
 }//Ndb::hupp()
 
@@ -404,11 +407,14 @@ Ndb::startTransactionLocal(Uint32 aPriority, Uint32 nodeId)
   }
 #endif
 
+  DBUG_ENTER("Ndb::startTransactionLocal");
+  DBUG_PRINT("enter", ("nodeid: %d", nodeId));
+
   NdbConnection* tConnection;
   Uint64 tFirstTransId = theFirstTransId;
   tConnection = doConnect(nodeId);
   if (tConnection == NULL) {
-    return NULL;
+    DBUG_RETURN(NULL);
   }//if
   NdbConnection* tConNext = theTransactionList;
   tConnection->init();
@@ -431,7 +437,8 @@ Ndb::startTransactionLocal(Uint32 aPriority, Uint32 nodeId)
     abort();
   }
 #endif
-  return tConnection;
+  DBUG_PRINT("exit", ("transaction id: %d", tConnection->getTransactionId()));
+  DBUG_RETURN(tConnection);
 }//Ndb::startTransactionLocal()
 
 /*****************************************************************************
@@ -443,6 +450,8 @@ Remark:         Close transaction by releasing the connection and all operations
 void
 Ndb::closeTransaction(NdbConnection* aConnection)
 {
+  DBUG_ENTER("Ndb::closeTransaction");
+
   NdbConnection* tCon;
   NdbConnection* tPreviousCon;
 
@@ -454,7 +463,7 @@ Ndb::closeTransaction(NdbConnection* aConnection)
 #ifdef VM_TRACE
     printf("NULL into closeTransaction\n");
 #endif
-    return;
+    DBUG_VOID_RETURN;
   }//if
   CHECK_STATUS_MACRO_VOID;
   
@@ -479,14 +488,14 @@ Ndb::closeTransaction(NdbConnection* aConnection)
 	  printf("Scan timeout:ed NdbConnection-> "
 		 "not returning it-> memory leak\n");
 #endif
-	  return;
+	  DBUG_VOID_RETURN;
 	}
 
 #ifdef VM_TRACE
 	printf("Non-existing transaction into closeTransaction\n");
 	abort();
 #endif
-	return;
+	DBUG_VOID_RETURN;
       }//if
       tPreviousCon = tCon;
       tCon = tCon->next();
@@ -505,7 +514,7 @@ Ndb::closeTransaction(NdbConnection* aConnection)
 #ifdef VM_TRACE
     printf("Con timeout:ed NdbConnection-> not returning it-> memory leak\n");
 #endif
-    return;
+    DBUG_VOID_RETURN;
   }
   
   if (aConnection->theReleaseOnClose == false) {
@@ -515,11 +524,12 @@ Ndb::closeTransaction(NdbConnection* aConnection)
     Uint32 nodeId = aConnection->getConnectedNodeId();
     aConnection->theNext = theConnectionArray[nodeId];
     theConnectionArray[nodeId] = aConnection;
-    return;
+    DBUG_VOID_RETURN;
   } else {
     aConnection->theReleaseOnClose = false;
     releaseNdbCon(aConnection);
   }//if
+  DBUG_VOID_RETURN;
 }//Ndb::closeTransaction()
 
 /*****************************************************************************

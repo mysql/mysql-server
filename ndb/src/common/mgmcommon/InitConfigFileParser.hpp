@@ -86,6 +86,9 @@ public:
     void reportWarning(const char * msg, ...);
   };
 
+  static bool convertStringToUint64(const char* s, Uint64& val, Uint32 log10base = 0);
+  static bool convertStringToBool(const char* s, bool& val);
+
 private:
   /**
    *   Check if line only contains space/comments
@@ -111,8 +114,6 @@ private:
   bool parseNameValuePair(Context&, const char* line);
   bool storeNameValuePair(Context&, const char* fname, const char* value);
   
-  bool convertStringToUint64(const char* s, Uint64& val, Uint32 log10base = 0);
-  bool convertStringToBool(const char* s, bool& val);
   bool storeSection(Context&);
 
   const Properties* getSection(const char * name, const Properties* src); 

@@ -21,8 +21,7 @@ INCLUDES =		@MT_INCLUDES@ -I$(top_srcdir)/include
 LDADD =			@CLIENT_EXTRA_LDFLAGS@ libmyisam.a \
 			$(top_builddir)/mysys/libmysys.a \
 			$(top_builddir)/dbug/libdbug.a \
-			@ZLIB_LIBS@ \
-			$(top_builddir)/strings/libmystrings.a
+			$(top_builddir)/strings/libmystrings.a @ZLIB_LIBS@
 pkglib_LIBRARIES =	libmyisam.a
 bin_PROGRAMS =		myisamchk myisamlog myisampack myisam_ftdump
 myisamchk_DEPENDENCIES=	$(LIBRARIES)

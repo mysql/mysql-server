@@ -26,7 +26,7 @@ drop table t1;
 truncate non_existing_table;
 
 #
-# test autoincrement with TRUNCATE
+# test autoincrement with TRUNCATE; verifying difference with DELETE
 #
 
 create table t1 (a integer auto_increment primary key);
@@ -34,5 +34,19 @@ insert into t1 (a) values (NULL),(NULL);
 truncate table t1;
 insert into t1 (a) values (NULL),(NULL);
 SELECT * from t1;
+delete from t1;
+insert into t1 (a) values (NULL),(NULL);
+SELECT * from t1;
 drop table t1;
 
+# Verifying that temp tables are handled the same way
+
+create temporary table t1 (a integer auto_increment primary key);
+insert into t1 (a) values (NULL),(NULL);
+truncate table t1;
+insert into t1 (a) values (NULL),(NULL);
+SELECT * from t1;
+delete from t1;
+insert into t1 (a) values (NULL),(NULL);
+SELECT * from t1;
+drop table t1;

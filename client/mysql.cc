@@ -294,7 +294,7 @@ static const char *server_default_groups[]=
  HIST_ENTRY is defined for libedit, but not for the real readline
  Need to redefine it for real readline to find it
 */
-#if !defined(USE_LIBEDIT_INTERFACE)
+#if !defined(HAVE_HIST_ENTRY)
 typedef struct _hist_entry {
   const char      *line;
   const char      *data;
@@ -753,8 +753,7 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     opt_nopager= 1;
   case OPT_MYSQL_PROTOCOL:
   {
-    if ((opt_protocol = find_type(argument, &sql_protocol_typelib,0)) ==
-	~(ulong) 0)
+    if ((opt_protocol= find_type(argument, &sql_protocol_typelib,0)) <= 0)
     {
       fprintf(stderr, "Unknown option to protocol: %s\n", argument);
       exit(1);

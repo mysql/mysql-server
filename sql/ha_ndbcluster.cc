@@ -46,6 +46,9 @@ static const int max_transactions= 256;
 // Default value for prefetch of autoincrement values
 static const ha_rows autoincrement_prefetch= 32;
 
+// connectstring to cluster if given by mysqld
+const char *ndbcluster_connectstring= 0;
+
 #define NDB_HIDDEN_PRIMARY_KEY_LENGTH 8
 
 
@@ -1420,7 +1423,8 @@ int ha_ndbcluster::write_row(byte *record)
   {
     Uint64 next_val= (Uint64) table->next_number_field->val_int() + 1;
     DBUG_PRINT("info", 
-	       ("Trying to set next auto increment value to %u", next_val));
+	       ("Trying to set next auto increment value to %lu",
+                (ulong) next_val));
     if (m_ndb->setAutoIncrementValue((NDBTAB *) m_table, next_val, true))
       DBUG_PRINT("info", 
 		 ("Setting next auto increment value to %u", next_val));  
@@ -2009,10 +2013,12 @@ int ha_ndbcluster::rnd_init(bool scan)
   DBUG_ENTER("rnd_init");
   DBUG_PRINT("enter", ("scan: %d", scan));
   // Check if scan is to be restarted
-  if (cursor && scan)
+  if (cursor)
+  {
+    if (!scan)
+      DBUG_RETURN(1);
     cursor->restart();    
-  else
-    DBUG_RETURN(1);
+  }
   index_init(table->primary_key);
   DBUG_RETURN(0);
 }
@@ -3375,6 +3381,12 @@ int ndb_discover_tables()
 bool ndbcluster_init()
 {
   DBUG_ENTER("ndbcluster_init");
+  // Set connectstring if specified
+  if (ndbcluster_connectstring != 0)
+  {
+    DBUG_PRINT("connectstring", ("%s", ndbcluster_connectstring));     
+    Ndb::setConnectString(ndbcluster_connectstring);
+  }
   // Create a Ndb object to open the connection  to NDB
   g_ndb= new Ndb("sys");
   if (g_ndb->init() != 0)
