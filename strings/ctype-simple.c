@@ -1171,6 +1171,15 @@ static my_bool create_fromuni(CHARSET_INFO *cs, void *(*alloc)(uint))
   uni_idx	idx[PLANE_NUM];
   int		i,n;
   
+  /*
+    Check that Unicode map is loaded.
+    It can be not loaded when the collation is
+    listed in Index.xml but not specified
+    in the character set specific XML file.
+  */
+  if (!cs->tab_to_uni)
+    return TRUE;
+  
   /* Clear plane statistics */
   bzero(idx,sizeof(idx));
   

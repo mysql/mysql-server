@@ -29,10 +29,10 @@
   to disk, if neccessary. This is handled in find_key_block().
   With the new free list, the blocks can have three temperatures:
   hot, warm and cold (which is free). This is remembered in the block header
-  by the enum BLOCK_TEMPERATURE temperature variable. Remembering the 
-  temperature is neccessary to correctly count the number of warm blocks, 
-  which is required to decide when blocks are allowed to become hot. Whenever 
-  a block is inserted to another (sub-)chain, we take the old and new 
+  by the enum BLOCK_TEMPERATURE temperature variable. Remembering the
+  temperature is neccessary to correctly count the number of warm blocks,
+  which is required to decide when blocks are allowed to become hot. Whenever
+  a block is inserted to another (sub-)chain, we take the old and new
   temperature into account to decide if we got one more or less warm block.
   blocks_unused is the sum of never used blocks in the pool and of currently
   free blocks. blocks_used is the number of blocks fetched from the pool and
@@ -475,13 +475,13 @@ int resize_key_cache(KEY_CACHE *keycache, uint key_cache_block_size,
 
   if (!keycache->key_cache_inited)
     DBUG_RETURN(keycache->disk_blocks);
-  
+
   if(key_cache_block_size == keycache->key_cache_block_size &&
      use_mem == keycache->key_cache_mem_size)
   {
     change_key_cache_param(keycache, division_limit, age_threshold);
     DBUG_RETURN(keycache->disk_blocks);
-  }    
+  }
 
   keycache_pthread_mutex_lock(&keycache->cache_lock);
 
@@ -504,7 +504,7 @@ int resize_key_cache(KEY_CACHE *keycache, uint key_cache_block_size,
     goto finish;
   }
   keycache->resize_in_flush= 0;
-  keycache->can_be_used= 0;   
+  keycache->can_be_used= 0;
   while (keycache->cnt_for_resize_op)
   {
     keycache_pthread_cond_wait(&thread->suspend, &keycache->cache_lock);
@@ -540,9 +540,9 @@ static inline void inc_counter_for_resize_op(KEY_CACHE *keycache)
 */
 static inline void dec_counter_for_resize_op(KEY_CACHE *keycache)
 {
-  struct st_my_thread_var *last_thread;  
+  struct st_my_thread_var *last_thread;
   if (!--keycache->cnt_for_resize_op &&
-      (last_thread= keycache->resize_queue.last_thread)) 
+      (last_thread= keycache->resize_queue.last_thread))
     keycache_pthread_cond_signal(&last_thread->next->suspend);
 }
 
@@ -551,7 +551,7 @@ static inline void dec_counter_for_resize_op(KEY_CACHE *keycache)
 
   SYNOPSIS
     change_key_cache_param()
-    keycache			pointer to a key cache data structure 
+    keycache			pointer to a key cache data structure
     division_limit		new division limit (if not zero)
     age_threshold		new age threshold (if not zero)
 
@@ -625,7 +625,7 @@ writes: %ld  r_requests: %ld  reads: %ld",
   if (cleanup)
   {
     pthread_mutex_destroy(&keycache->cache_lock);
-    keycache->key_cache_inited= 0;
+    keycache->key_cache_inited= keycache->can_be_used= 0;
     KEYCACHE_DEBUG_CLOSE;
   }
   DBUG_VOID_RETURN;
@@ -1315,7 +1315,7 @@ restart:
       return 0;
     }
     if (!(block->status & BLOCK_IN_FLUSH))
-    { 
+    {
       hash_link->requests--;
       /*
         Remove block to invalidate the page in the block buffer
@@ -1326,9 +1326,9 @@ restart:
         buffer. Still we are guaranteed not to have any readers
         of the key part we are writing into until the block is
         removed from the cache as we set the BLOCL_REASSIGNED
-        flag (see the code below that handles reading requests). 
+        flag (see the code below that handles reading requests).
       */
-      free_block(keycache, block); 
+      free_block(keycache, block);
       return 0;
     }
     /* Wait intil the page is flushed on disk */
@@ -1348,7 +1348,7 @@ restart:
       free_block(keycache, block);
     return 0;
   }
-    
+
   if (page_status == PAGE_READ &&
       (block->status & (BLOCK_IN_SWITCH | BLOCK_REASSIGNED)))
   {
@@ -1693,7 +1693,7 @@ byte *key_cache_read(KEY_CACHE *keycache,
     do
     {
       keycache_pthread_mutex_lock(&keycache->cache_lock);
-      if (!keycache->can_be_used)	
+      if (!keycache->can_be_used)
       {
 	keycache_pthread_mutex_unlock(&keycache->cache_lock);
 	goto no_key_cache;
@@ -1829,7 +1829,7 @@ int key_cache_insert(KEY_CACHE *keycache,
     {
       uint offset;
       keycache_pthread_mutex_lock(&keycache->cache_lock);
-      if (!keycache->can_be_used)	
+      if (!keycache->can_be_used)
       {
 	keycache_pthread_mutex_unlock(&keycache->cache_lock);
 	DBUG_RETURN(0);
@@ -1873,7 +1873,7 @@ int key_cache_insert(KEY_CACHE *keycache,
 
       error= (block->status & BLOCK_ERROR);
 
-      dec_counter_for_resize_op(keycache);      
+      dec_counter_for_resize_op(keycache);
 
       keycache_pthread_mutex_unlock(&keycache->cache_lock);
 
@@ -1953,7 +1953,7 @@ int key_cache_write(KEY_CACHE *keycache,
     {
       uint offset;
       keycache_pthread_mutex_lock(&keycache->cache_lock);
-      if (!keycache->can_be_used)	
+      if (!keycache->can_be_used)
       {
 	keycache_pthread_mutex_unlock(&keycache->cache_lock);
 	goto no_key_cache;
@@ -2028,7 +2028,7 @@ int key_cache_write(KEY_CACHE *keycache,
       dec_counter_for_resize_op(keycache);
 
       keycache_pthread_mutex_unlock(&keycache->cache_lock);
-    
+
     next_block:
       buff+= read_length;
       filepos+= read_length;
@@ -2149,7 +2149,7 @@ static int flush_cached_blocks(KEY_CACHE *keycache,
       if (!last_errno)
         last_errno= errno ? errno : -1;
     }
-    /* 
+    /*
       Let to proceed for possible waiting requests to write to the block page.
       It might happen only during an operation to resize the key cache.
     */
