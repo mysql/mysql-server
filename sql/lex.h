@@ -513,6 +513,7 @@ static SYMBOL sql_functions[] = {
   { "NUMPOINTS",	SYM(FUNC_ARG1),0,CREATE_FUNC(create_func_numpoints)},
   { "OCTET_LENGTH",	SYM(FUNC_ARG1),0,CREATE_FUNC(create_func_length)},
   { "OCT",		SYM(FUNC_ARG1),0,CREATE_FUNC(create_func_oct)},
+  { "OLD_PASSWORD",     SYM(FUNC_ARG1),0,CREATE_FUNC(create_func_old_password)},
   { "ORD",              SYM(FUNC_ARG1),0,CREATE_FUNC(create_func_ord)},
   { "OVERLAPS",		SYM(FUNC_ARG2),0,CREATE_FUNC(create_func_overlaps)},
   { "PERIOD_ADD",	SYM(FUNC_ARG2),0,CREATE_FUNC(create_func_period_add)},
