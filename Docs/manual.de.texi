@@ -47852,7 +47852,7 @@ angeben. Ansonsten kann jeder beliebige Benutzer mit einem Konto auf der
 Maschine @code{mysql -u root datenbank} eingeben und tun, was er will.
 
 
-@node File permissions ,  , Changing MySQL user, Installation Issues
+@node File permissions,  , Changing MySQL user, Installation Issues
 @c German node Dateirechte 
 @appendixsubsec Probleme mit Dateirechten
 
