@@ -4,13 +4,32 @@
 
 # This scripts stops the table handler ndbcluster
 
+#BASEDIR is always one above mysql-test directory
+CWD=`pwd`
+cd ..
+BASEDIR=`pwd`
+cd $CWD
+
+# Are we using a source or a binary distribution?
 if [ -d ../sql ] ; then
    SOURCE_DIST=1
-   ndbtop=`pwd`/../ndb
+   ndbtop=$BASEDIR/ndb
+   exec_ndb=$ndbtop/src/kernel/ndb-main/ndb
+   exec_mgmtsrvr=$ndbtop/src/mgmsrv/mgmtsrvr
+   exec_waiter=$ndbtop/tools/ndb_waiter
    exec_mgmtclient=$ndbtop/src/mgmclient/mgmtclient
 else
    BINARY_DIST=1
-   exec_mgmtclient=@ndbbindir@/mgmtclient
+   if test -x "$BASEDIR/libexec/ndb"
+   then
+     exec_ndb=$BASEDIR/libexec/ndb
+     exec_mgmtsrvr=$BASEDIR/libexec/mgmtsrvr
+   else
+     exec_ndb=$BASEDIR/bin/ndb
+     exec_mgmtsrvr=$BASEDIR/bin/mgmtsrvr
+   fi
+   exec_waiter=$BASEDIR/bin/ndb_waiter
+   exec_mgmtclient=$BASEDIR/bin/mgmtclient
 fi
 
 pidfile=ndbcluster.pid
