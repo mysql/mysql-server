@@ -3060,9 +3060,10 @@ THR_LOCK_DATA **ha_ndbcluster::store_lock(THD *thd,
  
   When a table lock is held one transaction will be started which holds
   the table lock and for each statement a hupp transaction will be started  
-  If we are locken the table then:
+  If we are locking the table then:
   - save the NdbDictionary::Table for easy access
-  - build a list of the indexes for the table
+  - save reference to table statistics
+  - refresh list of the indexes for the table if needed (if altered)
  */
 
 int ha_ndbcluster::external_lock(THD *thd, int lock_type)
