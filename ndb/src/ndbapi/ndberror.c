@@ -303,7 +303,8 @@ ErrorBundle ErrorCodes[] = {
 
   { 4707,  AE, "Too many event have been defined"},
   { 4708,  AE, "Event name is too long"},
-  { 4709,  AE, "Event already exists"},
+  { 4709,  AE, "Can't accept more subscribers"},
+  { NDBERR_EVENT_NAME_ALEADY_EXISTS,  AE, "Event name already exists"},
   { 4710,  AE, "Event not found"},
   { 4711,  AE, "Creation of event failed"},
 

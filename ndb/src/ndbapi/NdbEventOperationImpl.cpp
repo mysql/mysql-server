@@ -223,13 +223,17 @@ NdbEventOperationImpl::execute()
 
 
   int hasSubscriber;
-  m_bufferId = 
+  int r=
     m_bufferHandle->prepareAddSubscribeEvent(m_eventImpl->m_eventId,
 					     hasSubscriber /* return value */);
+  m_error.code= 4709;
 
-  m_eventImpl->m_bufferId = m_bufferId;
+  if (r < 0)
+    return -1;
 
-  int r = -1;
+  m_eventImpl->m_bufferId = m_bufferId = (Uint32)r;
+
+  r = -1;
   if (m_bufferId >= 0) {
     // now we check if there's already a subscriber
 
@@ -363,11 +367,11 @@ NdbEventOperationImpl::next(int *pOverrun)
 
 #ifdef EVENT_DEBUG
     printf("after values sz=%u\n", ptr[1].sz);
-    for(int i=0; i < ptr[1].sz; i++)
+    for(int i=0; i < (int)ptr[1].sz; i++)
       printf ("H'%.8X ",ptr[1].p[i]);
     printf("\n");
     printf("before values sz=%u\n", ptr[2].sz);
-    for(int i=0; i < ptr[2].sz; i++)
+    for(int i=0; i < (int)ptr[2].sz; i++)
       printf ("H'%.8X ",ptr[2].p[i]);
     printf("\n");
 #endif
@@ -871,6 +875,7 @@ int
 NdbGlobalEventBuffer::real_prepareAddSubscribeEvent
 (NdbGlobalEventBufferHandle *aHandle, Uint32 eventId, int& hasSubscriber)
 {
+  DBUG_ENTER("NdbGlobalEventBuffer::real_prepareAddSubscribeEvent");
   int i;
   int bufferId = -1;
 
@@ -900,7 +905,10 @@ NdbGlobalEventBuffer::real_prepareAddSubscribeEvent
     } else {
       ndbout_c("prepareAddSubscribeEvent: Can't accept more subscribers");
       //      add_drop_unlock();
-      return -1;
+      DBUG_PRINT("error",("Can't accept more subscribers:"
+			  " bufferId=%d, m_no=%d, m_max=%d",
+			  bufferId, m_no, m_max));
+      DBUG_RETURN(-1);
     }
   }
 
@@ -976,7 +984,7 @@ NdbGlobalEventBuffer::real_prepareAddSubscribeEvent
   /* we now have a lock on the prepare so that no one can mess with this
    * unlock comes in unprepareAddSubscribeEvent or addSubscribeEvent
    */
-  return bufferId;
+  DBUG_RETURN(bufferId);
 }
 
 void
