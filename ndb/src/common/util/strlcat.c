@@ -39,6 +39,7 @@
 //#include <NdbString.h>
 
 #ifndef HAVE_STRLCAT
+
 size_t
 strlcat (char *dst, const char *src, size_t dst_sz)
 {

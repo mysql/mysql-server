@@ -26,7 +26,6 @@
 
 #include <rep/rep_version.hpp>
 
-
 /**
  * Connection data
  */

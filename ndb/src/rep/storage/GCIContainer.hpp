@@ -17,6 +17,8 @@
 #ifndef GCI_CONTAINER_HPP
 #define GCI_CONTAINER_HPP
 
+#undef swap
+
 #include <Vector.hpp>
 
 #include "LogRecord.hpp"
