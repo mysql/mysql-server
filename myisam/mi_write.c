@@ -44,11 +44,12 @@ int _mi_ck_write_btree(register MI_INFO *info, uint keynr, uchar *key,
 
 int mi_write(MI_INFO *info, byte *record)
 {
+  MYISAM_SHARE *share=info->s;
   uint i;
   int save_errno;
   my_off_t filepos;
   uchar *buff;
-  MYISAM_SHARE *share=info->s;
+  my_bool lock_tree= share->concurrent_insert;
   DBUG_ENTER("mi_write");
   DBUG_PRINT("enter",("isam: %d  data: %d",info->s->kfile,info->dfile));
 
@@ -99,7 +100,10 @@ int mi_write(MI_INFO *info, byte *record)
   {
     if (((ulonglong) 1 << i) & share->state.key_map)
     {
-      if (share->concurrent_insert && ! info->bulk_insert)
+      bool local_lock_tree= (lock_tree &&
+			     !(info->bulk_insert &&
+			       is_tree_inited(& info->bulk_insert[i])));
+      if (local_lock_tree)
       {
 	rw_wrlock(&share->key_root_lock[i]);
 	share->keyinfo[i].version++;
@@ -108,7 +112,7 @@ int mi_write(MI_INFO *info, byte *record)
       {
         if (_mi_ft_add(info,i,(char*) buff,record,filepos))
         {
-	  if (share->concurrent_insert)
+	  if (local_lock_tree)
 	    rw_unlock(&share->key_root_lock[i]);
           DBUG_PRINT("error",("Got error: %d on write",my_errno));
           goto err;
@@ -119,13 +123,13 @@ int mi_write(MI_INFO *info, byte *record)
 	uint key_length=_mi_make_key(info,i,buff,record,filepos);
 	if (_mi_ck_write(info,i,buff,key_length))
 	{
-	  if (share->concurrent_insert && ! info->bulk_insert)
+	  if (local_lock_tree)
 	    rw_unlock(&share->key_root_lock[i]);
 	  DBUG_PRINT("error",("Got error: %d on write",my_errno));
 	  goto err;
 	}
       }
-      if (share->concurrent_insert)
+      if (local_lock_tree)
 	rw_unlock(&share->key_root_lock[i]);
     }
   }
@@ -157,13 +161,16 @@ err:
     {
       if (((ulonglong) 1 << i) & share->state.key_map)
       {
-	if (share->concurrent_insert)
+	bool local_lock_tree= (lock_tree &&
+			       !(info->bulk_insert &&
+				 is_tree_inited(& info->bulk_insert[i])));
+	if (local_lock_tree)
 	  rw_wrlock(&share->key_root_lock[i]);
 	if (share->keyinfo[i].flag & HA_FULLTEXT)
         {
           if (_mi_ft_del(info,i,(char*) buff,record,filepos))
 	  {
-	    if (share->concurrent_insert)
+	    if (local_lock_tree)
 	      rw_unlock(&share->key_root_lock[i]);
             break;
 	  }
@@ -173,12 +180,12 @@ err:
 	  uint key_length=_mi_make_key(info,i,buff,record,filepos);
 	  if (_mi_ck_delete(info,i,buff,key_length))
 	  {
-	    if (share->concurrent_insert)
+	    if (local_lock_tree)
 	      rw_unlock(&share->key_root_lock[i]);
 	    break;
 	  }
 	}
-	if (share->concurrent_insert)
+	if (local_lock_tree)
 	  rw_unlock(&share->key_root_lock[i]);
       }
     }
@@ -211,6 +218,7 @@ int _mi_ck_write(MI_INFO *info, uint keynr, uchar *key, uint key_length)
     DBUG_RETURN(_mi_ck_write_btree(info, keynr, key, key_length));
   }
 } /* _mi_ck_write */
+
 
 /**********************************************************************
  *                Normal insert code                                  *
@@ -724,6 +732,7 @@ int _mi_ck_write_tree(register MI_INFO *info, uint keynr, uchar *key,
   DBUG_RETURN(error);
 } /* _mi_ck_write_tree */
 
+
 /* typeof(_mi_keys_compare)=qsort_cmp2 */
 static int keys_compare(bulk_insert_param *param, uchar *key1, uchar *key2)
 {
@@ -731,6 +740,7 @@ static int keys_compare(bulk_insert_param *param, uchar *key1, uchar *key2)
   return _mi_key_cmp(param->info->s->keyinfo[param->keynr].seg,
               key1, key2, USE_WHOLE_KEY, SEARCH_SAME, &not_used);
 }
+
 
 static int keys_free(uchar *key, TREE_FREE mode, bulk_insert_param *param)
 {
