@@ -379,6 +379,13 @@ int main(int argc,char *argv[])
 sig_handler mysql_end(int sig)
 {
   mysql_close(&mysql);
+#ifdef HAVE_OPENSSL
+  my_free(opt_ssl_key,MYF(MY_ALLOW_ZERO_PTR));
+  my_free(opt_ssl_cert,MYF(MY_ALLOW_ZERO_PTR));
+  my_free(opt_ssl_ca,MYF(MY_ALLOW_ZERO_PTR));
+  my_free(opt_ssl_capath,MYF(MY_ALLOW_ZERO_PTR));
+  my_free(opt_ssl_cipher,MYF(MY_ALLOW_ZERO_PTR));
+#endif  
 #ifdef HAVE_READLINE
   if (!status.batch && !quick && !opt_html && !opt_xml)
   {
