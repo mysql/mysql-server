@@ -115,11 +115,15 @@ int my_realpath(char *to, const char *filename, myf MyFlags)
       (!lstat(filename,&stat_buff) && S_ISLNK(stat_buff.st_mode)))
   {
     char *ptr;
+    DBUG_PRINT("info",("executing realpath"));
     if ((ptr=realpath(filename,buff)))
+    {
       strmake(to,ptr,FN_REFLEN-1);
+    }
     else
     {
       /* Realpath didn't work;  Use original name */
+      DBUG_PRINT("error",("realpath failed with errno: %d", errno));
       my_errno=errno;
       if (MyFlags & MY_WME)
 	my_error(EE_REALPATH, MYF(0), filename, my_errno);
