@@ -73,7 +73,8 @@ static my_bool  verbose=0,tFlag=0,cFlag=0,dFlag=0,quick=0, extended_insert = 0,
 		ignore=0,opt_drop=0,opt_keywords=0,opt_lock=0,opt_compress=0,
                 opt_delayed=0,create_options=0,opt_quoted=0,opt_databases=0,
 	        opt_alldbs=0,opt_create_db=0,opt_first_slave=0,
-                opt_autocommit=0,opt_master_data,opt_disable_keys=0,opt_xml=0;
+                opt_autocommit=0,opt_master_data,opt_disable_keys=0,opt_xml=0,
+                opt_delete_master_logs=0;
 static MYSQL  mysql_connection,*sock=0;
 static char  insert_pat[12 * 1024],*opt_password=0,*current_user=0,
              *current_host=0,*path=0,*fields_terminated=0,
@@ -101,6 +102,7 @@ static struct option long_options[] =
   {"debug",		optional_argument,	0, '#'},
   {"default-character-set", required_argument,  0, OPT_DEFAULT_CHARSET},
   {"delayed-insert",	no_argument,    0,	OPT_DELAYED},
+  {"delete-master-logs", no_argument,    0,	OPT_DELETE_MASTER_LOGS},
   {"disable-keys",	no_argument,    0,	'K'},
   {"extended-insert",   no_argument,    0,	'e'},
   {"fields-terminated-by", required_argument,   0, (int) OPT_FTB},
@@ -206,9 +208,12 @@ static void usage(void)
   --add-locks		Add locks around insert statements.\n\
   --allow-keywords	Allow creation of column names that are keywords.\n\
   --delayed-insert      Insert rows with INSERT DELAYED.\n\
+  --delete-master-logs  Issue RESET MASTER on the master just after taking\n\
+                        the dump, and before unlocking tables.\n\
+                        This will automatically enable --first-slave.\n\
   --master-data         This will cause the master position and filename to \n\
-                        be appended to your output. This will automagically \n\
-                        enable --first-slave.\n\
+                        be appended to your output, before unlocking tables.\n\
+                        This will automatically enable --first-slave.\n\
   -F, --flush-logs	Flush logs file in server before starting dump.\n\
   -f, --force		Continue even if we get an sql-error.\n\
   -h, --host=...	Connect to host.\n");
@@ -315,6 +320,10 @@ static int get_options(int *argc,char ***argv)
     switch(c) {
     case OPT_MASTER_DATA:
       opt_master_data=1;
+      opt_first_slave=1;
+      break;
+    case OPT_DELETE_MASTER_LOGS:
+      opt_delete_master_logs=1;
       opt_first_slave=1;
       break;
     case OPT_AUTOCOMMIT:
@@ -1489,6 +1498,11 @@ int main(int argc, char **argv)
 
   if (opt_first_slave)
   {
+    if (opt_delete_master_logs && mysql_query(sock, "FLUSH MASTER"))
+    {
+      my_printf_error(0, "Error: Couldn't execute 'FLUSH MASTER': %s",
+		      MYF(0), mysql_error(sock));
+    }
     if (opt_master_data)
     {
       if (mysql_query(sock, "SHOW MASTER STATUS") ||
@@ -1510,11 +1524,6 @@ int main(int argc, char **argv)
 	}
 	mysql_free_result(master);
       }
-    }
-    if (mysql_query(sock, "FLUSH MASTER"))
-    {
-      my_printf_error(0, "Error: Couldn't execute 'FLUSH MASTER': %s",
-		      MYF(0), mysql_error(sock));
     }
     if (mysql_query(sock, "UNLOCK TABLES"))
     {
