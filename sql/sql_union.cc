@@ -257,7 +257,7 @@ int st_select_lex_unit::exec()
     for (SELECT_LEX *sl= select_cursor; sl; sl= sl->next_select())
     {
       ha_rows rows= 0;
-      thd->lex.current_select= sl;
+      thd->lex->current_select= sl;
 
       if (optimized)
 	res= sl->join->reinit();

@@ -3867,7 +3867,7 @@ void create_select_for_variable(const char *var_name)
   DBUG_ENTER("create_select_for_variable");
 
   thd= current_thd;
-  lex= &thd->lex;
+  lex= thd->lex;
   mysql_init_select(lex);
   lex->sql_command= SQLCOM_SELECT;
   tmp.str= (char*) var_name;

@@ -501,7 +501,7 @@ Item_in_subselect::single_value_transformer(JOIN *join,
     SELECT_LEX_UNIT *unit= select_lex->master_unit();
     substitution= optimizer= new Item_in_optimizer(left_expr, this);
 
-    SELECT_LEX *current= thd->lex.current_select, *up;
+    SELECT_LEX *current= thd->lex->current_select, *up;
 
     thd->lex->current_select= up= current->return_after_parsing();
     //optimizer never use Item **ref => we can pass 0 as parameter
@@ -603,7 +603,7 @@ Item_in_subselect::single_value_transformer(JOIN *join,
 	// fix_field of item will be done in time of substituting 
 	substitution= item;
 	have_to_be_excluded= 1;
-	if (thd->lex.describe)
+	if (thd->lex->describe)
 	{
 	  char warn_buff[MYSQL_ERRMSG_SIZE];
 	  sprintf(warn_buff, ER(ER_SELECT_REDUCED), select_lex->select_number);
@@ -634,15 +634,15 @@ Item_in_subselect::row_value_transformer(JOIN *join,
     SELECT_LEX_UNIT *unit= select_lex->master_unit();
     substitution= optimizer= new Item_in_optimizer(left_expr, this);
 
-    SELECT_LEX *current= thd->lex.current_select, *up;
-    thd->lex.current_select= up= current->return_after_parsing();
+    SELECT_LEX *current= thd->lex->current_select, *up;
+    thd->lex->current_select= up= current->return_after_parsing();
     //optimizer never use Item **ref => we can pass 0 as parameter
     if (!optimizer || optimizer->fix_left(thd, up->get_table_list(), 0))
     {
-      thd->lex.current_select= current;
+      thd->lex->current_select= current;
       DBUG_RETURN(ERROR);
     }
-    thd->lex.current_select= current;
+    thd->lex->current_select= current;
 
     unit->dependent= 1;
   }

@@ -95,7 +95,7 @@ int mysql_update(THD *thd,
 
   if (setup_tables(update_table_list) ||
       setup_conds(thd,update_table_list,&conds) ||
-      thd->lex.select_lex->setup_ref_array(thd, order_num) ||
+      thd->lex->select_lex.setup_ref_array(thd, order_num) ||
       setup_order(thd, thd->lex->select_lex.ref_pointer_array,
 		  &tables, all_fields, all_fields, order) ||
       setup_ftfuncs(&thd->lex->select_lex))

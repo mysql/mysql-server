@@ -5251,10 +5251,27 @@ opt_var_ident_type:
 option_value:
 	  '@' ident_or_text equal expr
 	  {
- Lex->var_list.push_back(new set_var_user(new Item_func_set_user_var($2,$4)));
+	    Lex->var_list.push_back(new set_var_user(new Item_func_set_user_var($2,$4)));
 	  }
-	| internal_or_splocal
-	  {}
+	| internal_variable_name equal set_expr_or_default
+	  {
+	    LEX *lex=Lex;
+
+	    if ($1.var)
+	    { /* System variable */
+	      lex->var_list.push_back(new set_var(lex->option_type, $1.var,
+						  &$1.base_name, $3));
+	    }
+            else
+	    { /* An SP local variable */
+	      sp_pvar_t *spv= lex->spcont->find_pvar(&$1.base_name);
+              sp_instr_set *i= new sp_instr_set(lex->sphead->instructions(),
+	                                        spv->offset, $3, spv->type);
+
+	      lex->sphead->add_instr(i);
+	      spv->isset= TRUE;
+	    }
+	  }
 	| '@' '@' opt_var_ident_type internal_variable_name equal set_expr_or_default
 	  {
 	    LEX *lex=Lex;
@@ -5311,12 +5328,25 @@ option_value:
 internal_variable_name:
 	ident
 	{
-	  sys_var *tmp=find_sys_var($1.str, $1.length);
-	  if (!tmp)
-	    YYABORT;
-	  $$.var= tmp;
-	  $$.base_name.str=0;
-	  $$.base_name.length=0;
+	  LEX *lex= Lex;
+          sp_pcontext *spc= lex->spcont;
+	  sp_pvar_t *spv;
+
+	  /* We have to lookup here since local vars can shadow sysvars */
+	  if (!spc || !(spv = spc->find_pvar(&$1)))
+	  { /* Not an SP local variable */
+	    sys_var *tmp=find_sys_var($1.str, $1.length);
+	    if (!tmp)
+	      YYABORT;
+	    $$.var= tmp;
+	    $$.base_name.str=0;
+	    $$.base_name.length=0;
+	  }
+	  else
+	  { /* An SP local variable */
+	    $$.var= NULL;
+	    $$.base_name= $1;
+	  }
 	}
 	| ident '.' ident
 	  {
