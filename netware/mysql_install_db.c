@@ -312,20 +312,6 @@ void create_paths()
   {
     mkdir(datadir, 0);
   }
-  
-  // mysql directory
-  snprintf(temp, PATH_MAX, "%s/mysql", datadir);
-  if (stat(temp, &info))
-  {
-    mkdir(temp, 0);
-  }
-
-  // test directory
-  snprintf(temp, PATH_MAX, "%s/test", datadir);
-  if (stat(temp, &info))
-  {
-    mkdir(temp, 0);
-  }
 }
 
 /******************************************************************************

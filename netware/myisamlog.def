@@ -2,7 +2,7 @@
 # MyISAM Log
 #------------------------------------------------------------------------------
 MODULE	libc.nlm
-COPYRIGHT "(c) 2002 Novell, Inc. Portions (c) 2002 MySQL AB. All Rights Reserved."
+COPYRIGHT "(c) 2003 Novell, Inc. Portions (c) 2003 MySQL AB. All Rights Reserved."
 DESCRIPTION "MySQL MyISAM Table Log Tool"
 VERSION 4, 0
 #DEBUG

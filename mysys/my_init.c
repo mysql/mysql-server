@@ -350,7 +350,7 @@ static my_bool win32_init_tcp_ip()
 
 static void netware_init()
 {
-  char cwd[PATH_MAX], *name
+  char cwd[PATH_MAX], *name;
 
   /* init only if we are not a client library */
   if (my_progname)
