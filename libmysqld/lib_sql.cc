@@ -210,6 +210,14 @@ int STDCALL emb_unbuffered_fetch(MYSQL *mysql, char **row)
   return 0;
 }
 
+static void STDCALL emb_free_embedded_thd(MYSQL *mysql)
+{
+  THD *thd= (THD*)mysql->thd;
+  if (thd->data)
+    free_rows(thd->data);
+  delete thd;
+}
+
 MYSQL_METHODS embedded_methods= 
 {
   emb_mysql_read_query_result,
@@ -221,7 +229,8 @@ MYSQL_METHODS embedded_methods=
   emb_read_prepare_result,
   emb_stmt_execute,
   emb_read_binary_rows,
-  emb_unbuffered_fetch
+  emb_unbuffered_fetch,
+  emb_free_embedded_thd
 };
 
 C_MODE_END
@@ -492,16 +501,6 @@ err:
   return result;
 }
 #endif
-
-void free_embedded_thd(MYSQL *mysql)
-{
-  THD *thd= (THD*)mysql->thd;
-  if (!thd)
-    return;
-  if (thd->data)
-    free_rows(thd->data);
-  delete thd;
-}
 
 C_MODE_END
 

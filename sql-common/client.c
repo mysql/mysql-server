@@ -1409,7 +1409,8 @@ static MYSQL_METHODS client_methods=
   cli_read_prepare_result,
   cli_stmt_execute,
   cli_read_binary_rows,
-  cli_unbuffered_fetch
+  cli_unbuffered_fetch,
+  NULL
 #endif
 };
 
@@ -2207,6 +2208,10 @@ void STDCALL mysql_close(MYSQL *mysql)
 #endif
     if (mysql != mysql->master)
       mysql_close(mysql->master);
+#ifndef MYSQL_SERVER
+    if (mysql->thd)
+      (*mysql->methods->free_embedded_thd)(mysql);
+#endif
     if (mysql->free_me)
       my_free((gptr) mysql,MYF(0));
   }
