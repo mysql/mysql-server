@@ -85,6 +85,10 @@ class MYSQL_LOG {
   char time_buff[20],db[NAME_LEN+1];
   char log_file_name[FN_REFLEN],index_file_name[FN_REFLEN];
   bool write_error,inited;
+  bool no_rotate; // for binlog - if log name can never change
+  // we should not try to rotate it or write any rotation events
+  // the user should use FLUSH MASTER instead of FLUSH LOGS for
+  // purging
 
 public:
   MYSQL_LOG();

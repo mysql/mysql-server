@@ -23935,8 +23935,13 @@ of the are available starting in 3.23.15 unless indicated otherwise.
 @code{log-bin} 
  @tab Should be set on the master. Tells it to keep a binary update log. 
 If a parameter is specified, the log will be written to the specified 
-location.
-(Set on @strong{Master}, Example: @code{log-bin})
+location. Note that if you give it a parameter with an extention 
+(eg. @code{log-bin=/mysql/logs/replication.log} ) versions up to 
+3.23.24 will not work right during replication if you do 
+@code{FLUSH LOGS} . The problem is fixed
+in 3.23.25. If you are using this kind of log name, @code{FLUSH LOGS}
+will be ignored on binlog. To clear the log, run @code{FLUSH MASTER},
+and do not forget to run @code{FLUSH SLAVE} on all slaves. 
 
 @item 
 @code{log-bin-index} 
@@ -36741,6 +36746,9 @@ though, so 3.23 is not released as a stable version yet.
 @node News-3.23.25, News-3.23.24, News-3.23.x, News-3.23.x
 @appendixsubsec Changes in release 3.23.25
 @itemize @bullet
+@item
+@code{FLUSH LOGS} broke replication if one had @code{log-bin} with 
+a log with explicit extension 
 @item
 Fixed a bug in MyISAM with packed multi-part keys.
 @item

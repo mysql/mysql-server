@@ -77,7 +77,8 @@ static int find_uniq_filename(char *name)
 
 
 MYSQL_LOG::MYSQL_LOG(): file(0),index_file(0),last_time(0),query_start(0),
-			name(0), log_type(LOG_CLOSED),write_error(0),inited(0)
+			name(0), log_type(LOG_CLOSED),write_error(0),inited(0),
+			no_rotate(0)
 {
   /*
     We don't want to intialize LOCK_Log here as the thread system may
@@ -133,6 +134,8 @@ void MYSQL_LOG::open(const char *log_name, enum_log_type log_type_arg,
     inited=1;
     (void) pthread_mutex_init(&LOCK_log,NULL);
     (void) pthread_mutex_init(&LOCK_index, NULL);
+    if(log_type_arg == LOG_BIN && *fn_ext(log_name))
+      no_rotate = 1;
   }
 
   log_type=log_type_arg;
@@ -320,6 +323,9 @@ void MYSQL_LOG::new_file()
 {
   if (file)
   {
+    if(no_rotate) // do not rotate logs that are marked non-rotatable
+      return;     // ( for binlog with constant name)
+    
     char new_name[FN_REFLEN], *old_name=name;
     VOID(pthread_mutex_lock(&LOCK_log));
     if (generate_new_name(new_name, name))
