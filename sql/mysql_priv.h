@@ -772,6 +772,7 @@ TABLE_LIST *find_table_in_list(TABLE_LIST *table,
                                uint offset_to_list,
                                const char *db_name,
                                const char *table_name);
+bool unique_table(TABLE_LIST *table, TABLE_LIST *table_list);
 TABLE **find_temporary_table(THD *thd, const char *db, const char *table_name);
 bool close_temporary_table(THD *thd, const char *db, const char *table_name);
 void close_temporary(TABLE *table, bool delete_table=1);

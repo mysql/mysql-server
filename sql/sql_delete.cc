@@ -282,8 +282,7 @@ int mysql_prepare_delete(THD *thd, TABLE_LIST *table_list, Item **conds)
     my_error(ER_NON_UPDATABLE_TABLE, MYF(0), table_list->alias, "DELETE");
     DBUG_RETURN(-1);
   }
-  if (find_table_in_global_list(table_list->next_global,
-			      table_list->db, table_list->real_name))
+  if (unique_table(table_list, table_list->next_independent()))
   {
     my_error(ER_UPDATE_TABLE_USED, MYF(0), table_list->real_name);
     DBUG_RETURN(-1);

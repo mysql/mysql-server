@@ -618,7 +618,7 @@ mysql_make_view(File_parser *parser, TABLE_LIST *table)
     if (lex->spfuns.array.buffer)
       hash_free(&lex->spfuns);
 
-    old_next= table->next_global;
+    old_next= table->old_next= table->next_global;
     if ((table->next_global= lex->query_tables))
       table->next_global->prev_global= &table->next_global;
 
