@@ -100,7 +100,10 @@ extern ulint	srv_max_n_threads;
 extern lint	srv_conc_n_threads;
 
 extern ibool	srv_fast_shutdown;
-
+extern ibool	srv_very_fast_shutdown;  /* if this TRUE, do not flush the
+					 buffer pool to data files at the
+					 shutdown; we effectively 'crash'
+					 InnoDB */
 extern ibool	srv_innodb_status;
 
 extern ibool	srv_use_doublewrite_buf;
