@@ -337,6 +337,8 @@ void st_relay_log_info::close_temporary_tables()
     */
     close_temporary(table, 0);
   }
+  save_temporary_tables= 0;
+  slave_open_temp_tables= 0;
 }
 
 /*
