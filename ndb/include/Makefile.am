@@ -28,6 +28,7 @@ ndbapi/NdbIndexScanOperation.hpp \
 ndbapi/ndberror.h
 
 mgmapiinclude_HEADERS = \
+mgmapi/LocalConfig.hpp \
 mgmapi/mgmapi.h \
 mgmapi/mgmapi_debug.h
 

@@ -86,9 +86,9 @@ create table t1 (
 # ok
 insert into t1 values(1, 'aAa');
 # fail
---error 1169
+--error 1062
 insert into t1 values(2, 'aaa');
---error 1169
+--error 1062
 insert into t1 values(3, 'AAA');
 # 1
 select * from t1 order by p;

@@ -26,7 +26,7 @@ ndb_select_all_SOURCES = select_all.cpp \
                          ../test/src/NDBT_ResultRow.cpp \
                          $(tools_common_sources)
 ndb_select_count_SOURCES = select_count.cpp $(tools_common_sources)
-ndb_restore_SOURCES = restore/main.cpp \
+ndb_restore_SOURCES = restore/restore_main.cpp \
                       restore/consumer.cpp \
                       restore/consumer_restore.cpp \
                       restore/consumer_printer.cpp \
