@@ -1909,3 +1909,18 @@ EXPLAIN SELECT i FROM t1 WHERE i=1;
 EXPLAIN SELECT i FROM t1 WHERE i=1;
 
 DROP TABLE t1;
+
+#
+# Test case for bug 7520: a wrong cost of the index for a BLOB field
+#
+
+CREATE TABLE t1 ( a BLOB, INDEX (a(20)) );
+CREATE TABLE t2 ( a BLOB, INDEX (a(20)) );
+
+INSERT INTO t1 VALUES ('one'),('two'),('three'),('four'),('five');
+INSERT INTO t2 VALUES ('one'),('two'),('three'),('four'),('five');
+
+EXPLAIN SELECT * FROM t1 LEFT JOIN t2 USE INDEX (a) ON t1.a=t2.a;
+EXPLAIN SELECT * FROM t1 LEFT JOIN t2 FORCE INDEX (a) ON t1.a=t2.a;
+
+DROP TABLE t1, t2;
