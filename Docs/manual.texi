@@ -48829,6 +48829,8 @@ Indexes are now used with @code{ORDER BY} on a whole @code{InnoDB} table.
 
 @itemize @bullet
 @item
+Added @code{--xml} option to @code{mysql} for producing XML output.
+@item
 Added variables @code{ft_min_word_len}, @code{ft_max_word_len}, and
 @code{ft_max_word_len_for_sort}.
 @item
@@ -49059,6 +49061,8 @@ release doesn't have this problem.
 @node News-3.23.48, News-3.23.47, News-3.23.49, News-3.23.x
 @appendixsubsec Changes in release 3.23.48
 @itemize @bullet
+@item
+Added @code{--xml} option to @code{mysqldump} for producing XML output.
 @item
 Changed to use @code{autoconf} 2.52 (from @code{autoconf} 2.13)
 @item
