@@ -629,7 +629,7 @@ my_bool	STDCALL mysql_change_user(MYSQL *mysql, const char *user,
     }
   }
   else
-    *end++= '\0';                               // empty password
+    *end++= '\0';                               /* empty password */
   /* Add database if needed */
   end= strmov(end, db ? db : "") + 1;
 

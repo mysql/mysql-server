@@ -460,7 +460,7 @@ net_real_write(NET *net,const char *packet,ulong len)
 #ifdef MYSQL_SERVER
       net->last_errno= ER_OUT_OF_RESOURCES;
       net->error= 2;
-      //TODO is it needed to set this variable if we have no socket
+      /* TODO is it needed to set this variable if we have no socket */
       net->report_error= 1;
 #endif
       net->reading_or_writing= 0;
@@ -889,7 +889,7 @@ my_net_read(NET *net)
 
     if (net->remain_in_buf)
     {
-      buf_length= net->buf_length;		// Data left in old packet
+      buf_length= net->buf_length;		/* Data left in old packet */
       first_packet_offset= start_of_packet= (net->buf_length -
 					     net->remain_in_buf);
       /* Restore the character that was overwritten by the end 0 */

@@ -272,7 +272,7 @@ int my_instr_bin(CHARSET_INFO *cs __attribute__((unused)),
   if (s_length <= b_length)
   {
     if (!s_length)
-      return 0;		// Empty string is always found
+      return 0;		/* Empty string is always found */
     
     str= (const uchar*) big;
     search= (const uchar*) small;
