@@ -648,8 +648,11 @@ int mysql_truncate(THD *thd, TABLE_LIST *table_list, bool dont_send_ok)
     {
       /* Probably InnoDB table */
       table_list->lock_type= TL_WRITE;
-      DBUG_RETURN(mysql_delete(thd, table_list, (COND*) 0, (SQL_LIST*) 0,
-			       HA_POS_ERROR, 0));
+      ha_enable_transaction(thd, FALSE);
+      error= mysql_delete(thd, table_list, (COND*) 0, (SQL_LIST*) 0,
+			  HA_POS_ERROR, 0);
+      ha_enable_transaction(thd, TRUE);
+      DBUG_RETURN(error);
     }
     if (lock_and_wait_for_table_name(thd, table_list))
       DBUG_RETURN(-1);
