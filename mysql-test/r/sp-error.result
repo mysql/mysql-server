@@ -194,8 +194,8 @@ create table t1 (val int, x float)|
 insert into t1 values (42, 3.1), (19, 1.2)|
 create procedure p()
 begin
-declare c cursor for select * from t1;
 declare x int;
+declare c cursor for select * from t1;
 open c;
 fetch c into x, y;
 close c;
@@ -203,8 +203,8 @@ end|
 ERROR 42000: Undeclared variable: y
 create procedure p()
 begin
-declare c cursor for select * from t1;
 declare x int;
+declare c cursor for select * from t1;
 open c;
 fetch c into x;
 close c;
@@ -214,10 +214,10 @@ ERROR HY000: Wrong number of FETCH variables
 drop procedure p|
 create procedure p()
 begin
-declare c cursor for select * from t1;
 declare x int;
 declare y float;
 declare z int;
+declare c cursor for select * from t1;
 open c;
 fetch c into x, y, z;
 close c;
@@ -252,9 +252,28 @@ declare c cursor for select field from t1;
 end|
 ERROR 42000: Duplicate cursor: c
 create procedure u()
-use sptmp;
-#|
+use sptmp|
 ERROR 42000: USE is not allowed in a stored procedure
+create procedure p()
+begin
+declare c cursor for select * from t1;
+declare x int;
+end|
+ERROR 42000: Variable or condition declaration after cursor or handler declaration
+create procedure p()
+begin
+declare x int;
+declare continue handler for sqlstate '42S99' set x = 1;
+declare foo condition for sqlstate '42S99';
+end|
+ERROR 42000: Variable or condition declaration after cursor or handler declaration
+create procedure p()
+begin
+declare x int;
+declare continue handler for sqlstate '42S99' set x = 1;
+declare c cursor for select * from t1;
+end|
+ERROR 42000: Cursor declaration after handler declaration
 create procedure bug1965()
 begin
 declare c cursor for select val from t1 order by valname;

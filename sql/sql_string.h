@@ -270,6 +270,8 @@ public:
   void qs_append(double d);
   void qs_append(double *d);
   void qs_append(const char &c);
+  void qs_append(int i);
+  void qs_append(uint i);
 
   /* Inline (general) functions used by the protocol functions */
 

@@ -262,12 +262,9 @@ public:
   // instruction to execute. (For most instruction this will be the
   // instruction following this one.)
   // Returns 0 on success, non-zero if some error occured.
-  virtual int
-  execute(THD *thd, uint *nextp)
-  {				// Default is a no-op.
-    *nextp = m_ip+1;		// Next instruction
-    return 0;
-  }
+  virtual int execute(THD *thd, uint *nextp) = 0;
+
+  virtual void print(String *str) = 0;
 
 protected:
 
@@ -293,6 +290,8 @@ public:
   virtual ~sp_instr_stmt();
 
   virtual int execute(THD *thd, uint *nextp);
+
+  virtual void print(String *str);
 
   inline void
   set_lex(LEX *lex)
@@ -333,6 +332,8 @@ public:
 
   virtual int execute(THD *thd, uint *nextp);
 
+  virtual void print(String *str);
+
 private:
 
   uint m_offset;		// Frame offset
@@ -361,6 +362,8 @@ public:
   {}
 
   virtual int execute(THD *thd, uint *nextp);
+
+  virtual void print(String *str);
 
   virtual void
   set_destination(uint dest)
@@ -395,6 +398,8 @@ public:
 
   virtual int execute(THD *thd, uint *nextp);
 
+  virtual void print(String *str);
+
 private:
 
   Item *m_expr;			// The condition
@@ -422,6 +427,8 @@ public:
 
   virtual int execute(THD *thd, uint *nextp);
 
+  virtual void print(String *str);
+
 private:
 
   Item *m_expr;			// The condition
@@ -444,6 +451,8 @@ public:
   {}
 
   virtual int execute(THD *thd, uint *nextp);
+
+  virtual void print(String *str);
 
 protected:
 
@@ -473,6 +482,8 @@ public:
   }
 
   virtual int execute(THD *thd, uint *nextp);
+
+  virtual void print(String *str);
 
   inline void add_condition(struct sp_cond_type *cond)
   {
@@ -505,6 +516,8 @@ public:
 
   virtual int execute(THD *thd, uint *nextp);
 
+  virtual void print(String *str);
+
 private:
 
   uint m_count;
@@ -528,6 +541,8 @@ public:
 
   virtual int execute(THD *thd, uint *nextp);
 
+  virtual void print(String *str);
+
 private:
 
   uint m_frame;
@@ -549,6 +564,8 @@ public:
   virtual ~sp_instr_cpush();
 
   virtual int execute(THD *thd, uint *nextp);
+
+  virtual void print(String *str);
 
 private:
 
@@ -573,6 +590,8 @@ public:
 
   virtual int execute(THD *thd, uint *nextp);
 
+  virtual void print(String *str);
+
 private:
 
   uint m_count;
@@ -596,6 +615,8 @@ public:
 
   virtual int execute(THD *thd, uint *nextp);
 
+  virtual void print(String *str);
+
 private:
 
   uint m_cursor;		// Stack index
@@ -618,6 +639,8 @@ public:
   {}
 
   virtual int execute(THD *thd, uint *nextp);
+
+  virtual void print(String *str);
 
 private:
 
@@ -644,6 +667,8 @@ public:
 
   virtual int execute(THD *thd, uint *nextp);
 
+  virtual void print(String *str);
+
   void add_to_varlist(struct sp_pvar *var)
   {
     m_varlist.push_back(var);
@@ -655,6 +680,31 @@ private:
   List<struct sp_pvar> m_varlist;
 
 }; // class sp_instr_cfetch : public sp_instr
+
+
+class sp_instr_error : public sp_instr
+{
+  sp_instr_error(const sp_instr_error &); /* Prevent use of these */
+  void operator=(sp_instr_error &);
+
+public:
+
+  sp_instr_error(uint ip, int errcode)
+    : sp_instr(ip), m_errcode(errcode)
+  {}
+
+  virtual ~sp_instr_error()
+  {}
+
+  virtual int execute(THD *thd, uint *nextp);
+
+  virtual void print(String *str);
+
+private:
+
+  int m_errcode;
+
+}; // class sp_instr_error : public sp_instr
 
 
 struct st_sp_security_context

@@ -339,3 +339,5 @@ character-set=latin1
 "Failed to ALTER %s %s"
 "Subselect value not supported"
 "USE is not allowed in a stored procedure"
+"Variable or condition declaration after cursor or handler declaration"
+"Cursor declaration after handler declaration"
