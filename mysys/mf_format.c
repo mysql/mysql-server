@@ -96,13 +96,14 @@ my_string fn_format(my_string to, const char *name, const char *dsk,
       bmove(buff,(char*) name,length);		/* Save name for last copy */
       name=buff;
     }
-    (void) strmov(strnmov(strmov(to,dev),name,length),ext);
+    pos=strnmov(strmov(to,dev),name,length);
 #ifdef FN_UPPER_CASE
     caseup_str(to);
 #endif
 #ifdef FN_LOWER_CASE
     casedn_str(to);
 #endif
+    (void) strmov(pos,ext);			/* Don't convert extension */
   }
   /* Purify gives a lot of UMR errors when using realpath */
 #if defined(HAVE_REALPATH) && !defined(HAVE_purify)

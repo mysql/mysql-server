@@ -158,9 +158,9 @@ void MYSQL_LOG::open(const char *log_name, enum_log_type log_type_arg,
   if (log_type == LOG_NORMAL)
   {
 #ifdef __NT__
-    fprintf( file, "%s, Version: %s, started with:\nTCP Port: %d, Named Pipe: %s\n", my_progname, server_version, mysql_port, mysql_unix_port);
+    fprintf(file, "%s, Version: %s, started with:\nTCP Port: %d, Named Pipe: %s\n", my_progname, server_version, mysql_port, mysql_unix_port);
 #else
-    fprintf(file,"%s, Version: %s, started with:\nTcp port: %d  Unix socket: %s\n", my_progname,server_version,mysql_port,mysql_unix_port);
+    fprintf(file, "%s, Version: %s, started with:\nTcp port: %d  Unix socket: %s\n", my_progname,server_version,mysql_port,mysql_unix_port);
 #endif
     fprintf(file,"Time                 Id Command    Argument\n");
     (void) fflush(file);

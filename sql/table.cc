@@ -44,7 +44,7 @@ int openfrm(const char *name, const char *alias, uint db_stat, uint prgflag,
 {
   reg1 uint i;
   reg2 uchar *strpos;
-  int	 j,flag,error;
+  int	 j,error;
   uint	 rec_buff_length,n_length,int_length,records,key_parts,keys,
     interval_count,interval_parts,read_length,db_create_options;
   ulong  pos;
@@ -80,8 +80,8 @@ int openfrm(const char *name, const char *alias, uint db_stat, uint prgflag,
   if (!outparam->real_name || !outparam->table_name)
     goto err_end;
 
-  flag= (prgflag & CHANGE_FRM) ? O_RDWR : O_RDONLY | O_SHARE;
-  if ((file=my_open(fn_format(index_file,name,"",reg_ext,4),flag,
+  if ((file=my_open(fn_format(index_file,name,"",reg_ext,4),
+		    O_RDONLY | O_SHARE,
 		    MYF(0)))
       < 0)
   {

@@ -40,12 +40,10 @@
 
 void bmove512(register gptr to, register const gptr from, register uint length)
 {
-  reg1 LONG *f,*t;
-  reg3 int len;
+  reg1 LONG *f,*t,*end= (LONG*) ((char*) from+length);
 
   f= (LONG*) from;
   t= (LONG*) to;
-  len= (int) length;
 
 #if defined(m88k) || defined(sparc) || defined(HAVE_LONG_LONG)
   do {
@@ -86,7 +84,7 @@ void bmove512(register gptr to, register const gptr from, register uint length)
     t[124]=f[124];  t[125]=f[125];  t[126]=f[126];  t[127]=f[127];
     t+=128; f+=128;
 #endif
-  } while ((len-=512) > 0);
+  } while (f < end);
 #else
   do {
     *t++ = *f++;    *t++ = *f++;    *t++ = *f++;    *t++ = *f++;
@@ -121,7 +119,7 @@ void bmove512(register gptr to, register const gptr from, register uint length)
     *t++ = *f++;    *t++ = *f++;    *t++ = *f++;    *t++ = *f++;
     *t++ = *f++;    *t++ = *f++;    *t++ = *f++;    *t++ = *f++;
     *t++ = *f++;    *t++ = *f++;    *t++ = *f++;    *t++ = *f++;
-  } while ((len-=512) > 0);
+  } while (f < end);
 #endif
   return;
 } /* bmove512 */

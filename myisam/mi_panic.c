@@ -14,7 +14,7 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-#include "myisamdef.h"
+#include "fulltext.h"
 
 	/* if flag == HA_PANIC_CLOSE then all misam files are closed */
 	/* if flag == HA_PANIC_WRITE then all misam files are unlocked and
@@ -103,7 +103,10 @@ int mi_panic(enum ha_panic_function flag)
     }
   }
   if (flag == HA_PANIC_CLOSE)
+  {
     VOID(mi_log(0));				/* Close log if neaded */
+    ft_free_stopwords();
+  }
   pthread_mutex_unlock(&THR_LOCK_myisam);
   if (!error)
     DBUG_RETURN(0);

@@ -501,6 +501,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 	grant revoke set lock unlock string_list field_options field_option
 	field_opt_list opt_binary table_lock_list table_lock varchar
 	references opt_on_delete opt_on_delete_list opt_on_delete_item use
+	opt_delete_options opt_delete_option
 	opt_outer table_list table opt_option opt_place opt_low_priority
 	opt_attribute opt_attribute_list attribute column_list column_list_id
 	opt_column_list grant_privileges opt_table user_list grant_option
@@ -2085,9 +2086,20 @@ opt_low_priority:
 /* Delete rows from a table */
 
 delete:
-	DELETE_SYM opt_low_priority FROM table where_clause delete_limit_clause
-	{ Lex->sql_command= SQLCOM_DELETE; }
+	DELETE_SYM 
+	{ Lex->sql_command= SQLCOM_DELETE; Lex->options=0;
+	  Lex->lock_option= current_thd->update_lock_default; }
+        opt_delete_options FROM table
+	where_clause delete_limit_clause
 
+
+opt_delete_options:
+	/* empty */	    {}
+	| opt_delete_option opt_delete_options {}
+
+opt_delete_option:
+	QUICK		{ Lex->options|= OPTION_QUICK; }
+	| LOW_PRIORITY	{ Lex->lock_option= TL_WRITE_LOW_PRIORITY; }
 
 /* Show things */
 
