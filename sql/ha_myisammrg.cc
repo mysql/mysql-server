@@ -238,3 +238,20 @@ int ha_myisammrg::create(const char *name, register TABLE *form,
   DBUG_RETURN(myrg_create(fn_format(buff,name,"","",2+4+16),
 			  (const char **) table_names, (my_bool) 0));
 }
+
+void ha_myisammrg::append_create_info(String *packet)
+{
+  char buff[FN_REFLEN];
+  packet->append(" UNION=(",8);
+  MYRG_TABLE *table,*first;
+
+  for (first=table=file->open_tables ; table != file->end_table ; table++)
+  {
+    char *name=table->table->s->filename;
+    fn_format(buff,name,"","",3);
+    if (table != first)
+      packet->append(',');
+    packet->append(buff,(uint) strlen(buff));
+  }
+  packet->append(')');
+}

@@ -860,7 +860,7 @@ end2:
 		   filename));
       if (check_param.testflag & (T_REP_BY_SORT | T_REP))
 	VOID(fprintf(stderr,
-		     "Try fixing it by using the --safe-recover (-o) option\n"));
+		     "Try fixing it by using the --safe-recover (-o) or the --force (-f) option\n"));
     }
     else if (!(param->error_printed & 2) &&
 	     !(param->testflag & T_FORCE_CREATE))
