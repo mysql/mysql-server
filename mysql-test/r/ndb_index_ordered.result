@@ -375,3 +375,48 @@ count(*)-8
 select count(*)-9 from t1 use index (da) where da <= '2055-01-01';
 count(*)-9
 0
+select count(*)-9 from t1 use index (ye) where ye >  '1900';
+count(*)-9
+0
+select count(*)-6 from t1 use index (ye) where ye >= '1955';
+count(*)-6
+0
+select count(*)-5 from t1 use index (ye) where ye >  '1955';
+count(*)-5
+0
+select count(*)-5 from t1 use index (ye) where ye <  '1970';
+count(*)-5
+0
+select count(*)-6 from t1 use index (ye) where ye <  '2001';
+count(*)-6
+0
+select count(*)-8 from t1 use index (ye) where ye <= '2001';
+count(*)-8
+0
+select count(*)-9 from t1 use index (ye) where ye <= '2055';
+count(*)-9
+0
+select count(*)-9 from t1 use index (ti) where ti >= '00:00:00';
+count(*)-9
+0
+select count(*)-7 from t1 use index (ti) where ti >  '00:00:00';
+count(*)-7
+0
+select count(*)-7 from t1 use index (ti) where ti >  '05:05:05';
+count(*)-7
+0
+select count(*)-5 from t1 use index (ti) where ti >  '06:06:06';
+count(*)-5
+0
+select count(*)-5 from t1 use index (ti) where ti <  '10:11:11';
+count(*)-5
+0
+select count(*)-6 from t1 use index (ti) where ti <= '10:11:11';
+count(*)-6
+0
+select count(*)-8 from t1 use index (ti) where ti <  '23:59:59';
+count(*)-8
+0
+select count(*)-9 from t1 use index (ti) where ti <= '23:59:59';
+count(*)-9
+0

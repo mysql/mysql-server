@@ -74,6 +74,9 @@ BackupConsumer::create_table_string(const TableS & table,
     case NdbDictionary::Column::Date:
       pos += sprintf(buf+pos, "%s", "date");
       break;
+    case NdbDictionary::Column::Time:
+      pos += sprintf(buf+pos, "%s", "time");
+      break;
     case NdbDictionary::Column::Undefined:
       //      pos += sprintf(buf+pos, "%s", "varchar binary");
       return -1;

@@ -163,6 +163,22 @@ NdbSqlUtil::m_typeList[] = {
   {
     Type::Text,
     cmpText
+  },
+  {
+    Type::Undefined,    // 5.0 Bit
+    NULL
+  },
+  {
+    Type::Undefined,    // 5.0 Longvarchar
+    NULL
+  },
+  {
+    Type::Undefined,    // 5.0 Longvarbinary
+    NULL
+  },
+  {
+    Type::Time,
+    cmpTime
   }
 };
 
@@ -557,6 +573,23 @@ NdbSqlUtil::cmpText(const void* info, const Uint32* p1, const Uint32* p2, Uint32
     return k < 0 ? -1 : k > 0 ? +1 : 0;
   }
   return CmpUnknown;
+}
+
+int
+NdbSqlUtil::cmpTime(const void* info, const Uint32* p1, const Uint32* p2, Uint32 full, Uint32 size)
+{
+  assert(full >= size && size > 0);
+  union { const Uint32* p; const unsigned char* v; } u1, u2;
+  u1.p = p1;
+  u2.p = p2;
+  // from Field_time::val_int
+  Int32 j1 = sint3korr(u1.v);
+  Int32 j2 = sint3korr(u2.v);
+  if (j1 < j2)
+    return -1;
+  if (j1 > j2)
+    return +1;
+  return 0;
 }
 
 // check charset
