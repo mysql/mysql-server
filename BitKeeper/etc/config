@@ -42,7 +42,7 @@ single_host:
 # discovers a problem which requires local intervention.  Please make the
 # contact information accurate so we can support you.
 # 
-contact: Sasha Pachev <sasha@mysql.com> 
+contact: sys@mysql.com
 # 
 # It is very important that this email address is filled out and accurate.
 # If someone converts your repository to open logging (which you may not
@@ -51,7 +51,7 @@ contact: Sasha Pachev <sasha@mysql.com>
 # response from anyone else at your location after 90 days, then open logging
 # will be implicitly approved.
 # 
-email: sasha@mysql.com 
+email: sys@mysql.com
 # 
 # Add your street address if you like, it is optional.
 # 
