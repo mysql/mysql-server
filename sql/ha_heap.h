@@ -86,10 +86,7 @@ class ha_heap: public handler
   int disable_indexes(uint mode);
   int enable_indexes(uint mode);
   int indexes_are_disabled(void);
-  ha_rows records_in_range(int inx, const byte *start_key,uint start_key_len,
-			   enum ha_rkey_function start_search_flag,
-			   const byte *end_key,uint end_key_len,
-			   enum ha_rkey_function end_search_flag);
+  ha_rows records_in_range(uint inx, key_range *min_key, key_range *max_key);
   int delete_table(const char *from);
   int rename_table(const char * from, const char * to);
   int create(const char *name, TABLE *form, HA_CREATE_INFO *create_info);
