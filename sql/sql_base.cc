@@ -1050,8 +1050,11 @@ TABLE *open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
   table->reginfo.lock_type=TL_READ;		/* Assume read */
 
  reset:
+  if (thd->lex->need_correct_ident())
+    table->alias_name_used= my_strcasecmp(table_alias_charset,
+                                          table->real_name, alias);
   /* Fix alias if table name changes */
-  if (strcmp(table->table_name,alias))
+  if (strcmp(table->table_name, alias))
   {
     uint length=(uint) strlen(alias)+1;
     table->table_name= (char*) my_realloc(table->table_name,length,
