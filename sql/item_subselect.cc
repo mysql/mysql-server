@@ -112,6 +112,11 @@ bool Item_subselect::fix_fields(THD *thd_param, TABLE_LIST *tables, Item **ref)
     }
     fix_length_and_dec();
   }
+  if (engine->uncacheable())
+  {
+    const_item_cache= 0;
+    used_tables_cache|= RAND_TABLE_BIT;
+  }
   fixed= 1;
   thd->where= save_where;
   return res;
@@ -149,13 +154,12 @@ void Item_subselect::fix_length_and_dec()
 
 table_map Item_subselect::used_tables() const
 {
-  return (table_map) (engine->dependent() ? used_tables_cache :
-		      (engine->uncacheable() ? RAND_TABLE_BIT : 0L));
+  return (table_map) (engine->dependent() ? used_tables_cache : 0L);
 }
 
 bool Item_subselect::const_item() const
 {
-  return engine->uncacheable()? 0 : const_item_cache;
+  return const_item_cache;
 }
 
 void Item_subselect::update_used_tables()
@@ -163,7 +167,7 @@ void Item_subselect::update_used_tables()
   if (!engine->uncacheable())
   {
     // did all used tables become ststic?
-    if ((used_tables_cache & ~engine->upper_select_const_tables()) == 0)
+    if ((used_tables_cache & ~engine->upper_select_const_tables()))
       const_item_cache= 1;
   }
 }
