@@ -3077,19 +3077,22 @@ ha_innobase::create(
       		}
   	}
 
-	error = row_table_add_foreign_constraints(trx,
-				create_info->create_statement, norm_name);
+	if (current_thd->query != NULL) {
+  	
+		error = row_table_add_foreign_constraints(trx,
+					current_thd->query, norm_name);
 
-	error = convert_error_code_to_mysql(error, NULL);
+		error = convert_error_code_to_mysql(error, NULL);
 
-	if (error) {
-		innobase_commit_low(trx);
+		if (error) {
+			innobase_commit_low(trx);
 
-		row_mysql_unlock_data_dictionary(trx);
+			row_mysql_unlock_data_dictionary(trx);
 
-  		trx_free_for_mysql(trx);
+  			trx_free_for_mysql(trx);
 
-		DBUG_RETURN(error);
+			DBUG_RETURN(error);
+		}
 	}
 
   	innobase_commit_low(trx);
@@ -3751,7 +3754,7 @@ ha_innobase::start_stmt(
 	prebuilt->hint_no_need_to_fetch_extra_cols = TRUE;
 	prebuilt->read_just_key = 0;
 
-	if (prebuilt->select_lock_type == LOCK_NONE) {
+	if (!prebuilt->mysql_has_locked) {
 	        /* This handle is for a temporary table created inside
 	        this same LOCK TABLES; since MySQL does NOT call external_lock
 	        in this case, we must use x-row locks inside InnoDB to be
@@ -3829,6 +3832,7 @@ ha_innobase::external_lock(
 
 		thd->transaction.all.innodb_active_trans = 1;
 		trx->n_mysql_tables_in_use++;
+		prebuilt->mysql_has_locked = TRUE;
 
 		if (thd->variables.tx_isolation != ISO_REPEATABLE_READ) {
 			trx->isolation_level = innobase_map_isolation_level(
@@ -3852,6 +3856,7 @@ ha_innobase::external_lock(
 		}
 	} else {
 		trx->n_mysql_tables_in_use--;
+		prebuilt->mysql_has_locked = FALSE;
 		auto_inc_counter_for_this_stat = 0;
 
 		if (trx->n_mysql_tables_in_use == 0) {

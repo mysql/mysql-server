@@ -320,6 +320,8 @@ row_create_prebuilt(
 
 	prebuilt->sql_stat_start = TRUE;
 
+	prebuilt->mysql_has_locked = FALSE;
+
 	prebuilt->index = NULL;
 	prebuilt->n_template = 0;
 	prebuilt->mysql_template = NULL;
