@@ -315,7 +315,7 @@ int write_record(TABLE *table,COPY_INFO *info)
 {
   int error;
   char *key=0;
-
+ 
   info->records++;
   if (info->handle_duplicates == DUP_REPLACE)
   {
