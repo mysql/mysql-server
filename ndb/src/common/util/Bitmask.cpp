@@ -23,9 +23,12 @@ BitmaskImpl::getFieldImpl(const Uint32 src[],
 			  unsigned shiftL, unsigned len, Uint32 dst[])
 {
   assert(shiftL < 32);
-  
+
   unsigned shiftR = 32 - shiftL;
   unsigned undefined = shiftL ? ~0 : 0;
+
+  * dst = shiftL ? * dst : 0;
+  
   while(len >= 32)
   {
     * dst++ |= (* src) << shiftL;
@@ -168,6 +171,69 @@ void simple(int pos, int size)
   printf("dst: "); print(dst, size+31); printf("\n");
   require(cmp(src, dst, size+31));
 };
+
+static
+void simple2(int size, int loops)
+{
+  ndbout_c("simple2 %d - ", size);
+  Vector<Uint32> _mask;
+  Vector<Uint32> _src;
+  Vector<Uint32> _dst;
+
+  Uint32 sz32 = (size + 32) >> 5;
+  Uint32 sz = sz32 << 2;
+  
+  Uint32 zero = 0;
+  _mask.fill(sz32+1, zero);
+  _src.fill(sz32+1, zero);
+  _dst.fill(sz32+1, zero);
+
+  Uint32 * src = _src.getBase();
+  Uint32 * dst = _dst.getBase();
+  Uint32 * mask = _mask.getBase();
+
+  Vector<Uint32> save;
+  for(int i = 0; i<loops; i++)
+  {
+    memset(mask, 0xFF, sz);
+    memset(dst, 0xFF, sz);
+    int len;
+    int pos = 0;
+    while(pos+1 < size)
+    {
+      memset(src, 0xFF, sz);
+      while(!(len = rand() % (size - pos)));
+      BitmaskImpl::setField(sz32, mask, pos, len, src);
+      if(memcmp(dst, mask, sz))
+      {
+	ndbout_c("pos: %d len: %d", pos, len);
+	print(mask, size);
+	abort();
+      }
+      printf("[ %d %d ]", pos, len);
+      save.push_back(pos);
+      save.push_back(len);
+      pos += len;
+    }
+
+    for(int j = 0; j<save.size(); )
+    {
+      pos = save[j++];
+      len = save[j++];
+      memset(src, 0xFF, sz);
+      BitmaskImpl::getField(sz32, mask, pos, len, src);
+      if(memcmp(dst, src, sz))
+      {
+	ndbout_c("pos: %d len: %d", pos, len);
+	printf("src: "); print(src, size); printf("\n");
+	printf("dst: "); print(dst, size); printf("\n");
+	printf("msk: "); print(mask, size); printf("\n");
+	abort();
+      }
+    }
+    ndbout_c("");
+  }
+}
 
 static void 
 do_test(int bitmask_size)

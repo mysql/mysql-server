@@ -506,6 +506,10 @@ max-time: 2500
 cmd: testOIBasic
 args: 
 
+max-time: 2500
+cmd: testBitfield
+args:
+
 #
 #
 # SYSTEM RESTARTS
