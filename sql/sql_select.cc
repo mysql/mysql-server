@@ -2304,7 +2304,8 @@ make_join_statistics(JOIN *join,TABLE_LIST *tables,COND *conds,
     if (s->worst_seeks < 2.0)			// Fix for small tables
       s->worst_seeks=2.0;
 
-    if (! s->const_keys.is_clear_all())
+    if (!s->const_keys.is_clear_all() &&
+        !s->table->pos_in_table_list->embedding)
     {
       ha_rows records;
       SQL_SELECT *select;
@@ -6077,10 +6078,8 @@ simplify_joins(JOIN *join, List<TABLE_LIST> *join_list, COND *conds, bool top)
       table->embedding->nested_join->used_tables|= used_tables;
       table->embedding->nested_join->not_null_tables|= not_null_tables;
     }
-   
-    if (!table->outer_join || (used_tables & not_null_tables) ||
-        (table->outer_join &&
-         !(table->on_expr->used_tables() & ~used_tables)))
+
+    if (!table->outer_join || (used_tables & not_null_tables))
     {
       /* 
         For some of the inner tables there are conjunctive predicates
@@ -6130,7 +6129,20 @@ simplify_joins(JOIN *join, List<TABLE_LIST> *join_list, COND *conds, bool top)
       if (prev_table->straight)
         prev_table->dep_tables|= used_tables;
       if (prev_table->on_expr)
+      {
         prev_table->dep_tables|= table->on_expr_dep_tables;
+        table_map prev_used_tables= prev_table->nested_join ?
+	                            prev_table->nested_join->used_tables :
+	                            prev_table->table->map;
+        /* 
+          If on expression contains only references to inner tables
+          we still make the inner tables dependent on the outer tables.
+          It would be enough to set dependency only on one outer table
+          for them. Yet this is really a rare case.
+	*/  
+        if (!(prev_table->on_expr->used_tables() & ~prev_used_tables))
+          prev_table->dep_tables|= used_tables;
+      }
     }
     prev_table= table;
   }
