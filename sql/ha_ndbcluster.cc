@@ -1281,7 +1281,7 @@ int ha_ndbcluster::define_read_attrs(byte* buf, NdbOperation* op)
 
 int ha_ndbcluster::write_row(byte *record)
 {
-  bool has_auto_increment, auto_increment_field_not_null;
+  bool has_auto_increment;
   uint i;
   NdbConnection *trans= m_active_trans;
   NdbOperation *op;
@@ -1292,8 +1292,8 @@ int ha_ndbcluster::write_row(byte *record)
   if (table->timestamp_default_now)
     update_timestamp(record+table->timestamp_default_now-1);
   has_auto_increment= (table->next_number_field && record == table->record[0]);
-  auto_increment_field_not_null= table->auto_increment_field_not_null;
-  if ((has_auto_increment) && (!auto_increment_field_not_null))
+  skip_auto_increment= table->auto_increment_field_not_null;
+  if ((has_auto_increment) && (!skip_auto_increment))
     update_auto_increment();
 
   if (!(op= trans->getNdbOperation(m_tabname)))
@@ -1347,7 +1347,7 @@ int ha_ndbcluster::write_row(byte *record)
     if (trans->execute(NoCommit) != 0)
       DBUG_RETURN(ndb_err(trans));
   }
-  if ((has_auto_increment) && (auto_increment_field_not_null))
+  if ((has_auto_increment) && (skip_auto_increment))
   {
     Uint64 next_val= (Uint64) table->next_number_field->val_int() + 1;
     DBUG_PRINT("info", 
@@ -1356,6 +1356,7 @@ int ha_ndbcluster::write_row(byte *record)
       DBUG_PRINT("info", 
 		 ("Setting next auto increment value to %u", next_val));  
   }
+  skip_auto_increment= true;
 
   DBUG_RETURN(0);
 }
@@ -3049,7 +3050,9 @@ longlong ha_ndbcluster::get_auto_increment()
     rows_to_insert 
     : autoincrement_prefetch;
   Uint64 auto_value= 
-    m_ndb->getAutoIncrementValue(m_tabname, cache_size);
+    (skip_auto_increment) ? 
+    m_ndb->readAutoIncrementValue(m_tabname)
+    : m_ndb->getAutoIncrementValue(m_tabname, cache_size);
   DBUG_RETURN((longlong)auto_value);
 }
 
@@ -3074,6 +3077,7 @@ ha_ndbcluster::ha_ndbcluster(TABLE *table_arg):
   bulk_insert_rows(1024),
   bulk_insert_not_flushed(false),
   ops_pending(0),
+  skip_auto_increment(true),
   blobs_buffer(0),
   blobs_buffer_size(0)
 { 
