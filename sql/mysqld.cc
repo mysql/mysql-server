@@ -610,13 +610,20 @@ void kill_mysql(void)
   {
     DBUG_PRINT("error",("Got error %d from pthread_kill",errno)); /* purecov: inspected */
   }
-#else
+#elif !defined(SIGNALS_DONT_BREAK_READ)
   kill(current_pid,MYSQL_KILL_SIGNAL);
 #endif
   DBUG_PRINT("quit",("After pthread_kill"));
   shutdown_in_progress=1;			// Safety if kill didn't work
 #ifdef SIGNALS_DONT_BREAK_READ    
+  if (!abort_loop)
+  {
+    pthread_t tmp;
     abort_loop=1;
+    if (pthread_create(&tmp,&connection_attrib, kill_server_thread,
+			   (void*) 0))
+      sql_print_error("Error: Can't create thread to kill server");
+  }
 #endif    
   DBUG_VOID_RETURN;
 }
