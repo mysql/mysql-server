@@ -5,6 +5,7 @@
 #include "my_list.h"
 #define SLAVE_NET_TIMEOUT  3600
 #define MAX_SLAVE_ERRMSG   1024
+#define MAX_SLAVE_ERROR    2000
 
 /*
   The replication is accomplished by starting two threads - I/O
@@ -24,12 +25,16 @@
  */
 
 extern ulong slave_net_timeout, master_retry_count;
+extern MY_BITMAP slave_error_mask;
+extern bool use_slave_mask;
 extern char* slave_load_tmpdir;
 extern my_string master_info_file,relay_log_info_file;
 extern my_string opt_relay_logname, opt_relaylog_index_name;
 extern bool opt_skip_slave_start;
 struct st_master_info;
 
+// TODO: this needs to be redone, but for now it does not matter since
+// we do not have multi-master yet.
 #define LOCK_ACTIVE_MI { pthread_mutex_lock(&LOCK_active_mi); \
  ++active_mi_in_use; \
  pthread_mutex_unlock(&LOCK_active_mi);}
@@ -286,6 +291,7 @@ typedef struct st_table_rule_ent
 				*/
 
 int init_slave();
+void init_slave_skip_errors(char* arg);
 int flush_master_info(MASTER_INFO* mi);
 int flush_relay_log_info(RELAY_LOG_INFO* rli);
 int register_slave_on_master(MYSQL* mysql);

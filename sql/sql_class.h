@@ -312,7 +312,6 @@ public:
   struct st_my_thread_var *mysys_var;
   enum enum_server_command command;
   uint32 server_id;
-  uint32 file_id; // for LOAD DATA INFILE
   uint32     file_id;			// for LOAD DATA INFILE
   const char *where;
   time_t     start_time,time_after_lock,user_time;

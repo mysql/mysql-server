@@ -53,6 +53,11 @@ static void pretty_print_str(FILE* file, char* str, int len)
 
 #ifndef MYSQL_CLIENT
 
+inline int ignored_error_code(int err_code)
+{
+  return use_slave_mask && bitmap_is_set(&slave_error_mask, err_code);
+}
+
 
 static void pretty_print_str(String* packet, char* str, int len)
 {
@@ -1564,7 +1569,8 @@ int Query_log_event::exec_event(struct st_relay_log_info* rli)
 	
     // sanity check to make sure the master did not get a really bad
     // error on the query
-    if (!check_expected_error(thd,rli,(expected_error = error_code)))
+    if (ignored_error_code((expected_error = error_code)) ||
+	!check_expected_error(thd,rli,expected_error))
     {
       mysql_parse(thd, thd->query, q_len);
       if (expected_error !=
@@ -1578,7 +1584,8 @@ int Query_log_event::exec_event(struct st_relay_log_info* rli)
 			actual_error);
 	thd->query_error = 1;
       }
-      else if (expected_error == actual_error)
+      else if (expected_error == actual_error
+	       || ignored_error_code(actual_error))
       {
 	thd->query_error = 0;
 	*rli->last_slave_error = 0;

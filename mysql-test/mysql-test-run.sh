@@ -149,6 +149,7 @@ SLAVE_LOAD_TMPDIR=../../var/tmp #needs to be same length to test logging
 RES_SPACE="      "
 MYSQLD_SRC_DIRS="strings mysys include extra regex isam merge myisam \
  myisammrg heap sql"
+MY_LOG_DIR="$MYSQL_TEST_DIR/var/log" 
 #
 # Set LD_LIBRARY_PATH if we are using shared libraries
 #
@@ -181,8 +182,8 @@ SLEEP_TIME_FOR_FIRST_SLAVE=400
 SLEEP_TIME_FOR_SECOND_SLAVE=30
 CHARACTER_SET=latin1
 DBUSER=""
-START_WAIT_TIMEOUT=3
-STOP_WAIT_TIMEOUT=3
+START_WAIT_TIMEOUT=10
+STOP_WAIT_TIMEOUT=10
 
 while test $# -gt 0; do
   case "$1" in
@@ -521,7 +522,7 @@ report_stats () {
 	deci=`$EXPR $raw - $xwhole`
 	$ECHO  "Failed ${TOT_FAIL}/${TOT_TEST} tests, ${whole}.${deci}% successful."
 	$ECHO ""
-        $ECHO "The log files in $MYSQL_TEST_DIR/var/log may give you some hint"
+        $ECHO "The log files in $MY_LOG_DIR may give you some hint"
 	$ECHO "of what when wrong."
 	$ECHO "If you want to report this error, please read first the documentation at"
         $ECHO "http://www.mysql.com/doc/M/y/MySQL_test_suite.html"
@@ -530,8 +531,7 @@ report_stats () {
 
 mysql_install_db () {
     $ECHO "Removing Stale Files"
-    $RM -rf $MASTER_MYDDIR $SLAVE_MYDDIR $SLAVE_MYLOG $MASTER_MYLOG \
-     $SLAVE_MYERR $MASTER_MYERR
+    $RM -rf $MASTER_MYDDIR $SLAVE_MYDDIR $MY_LOG_DIR/* 
     $ECHO "Installing Master Databases"
     $INSTALL_DB
     if [ $? != 0 ]; then

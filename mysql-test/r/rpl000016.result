@@ -2,11 +2,11 @@ slave start;
 Could not initialize master info structure, check permisions on master.info
 slave start;
 Could not initialize master info structure, check permisions on master.info
-change master to master_host='127.0.0.1',master_port=9306,
+change master to master_host='127.0.0.1',master_port=MASTER_PORT,
 master_user='root';
 Could not initialize master info
 reset slave;
-change master to master_host='127.0.0.1',master_port=9306,
+change master to master_host='127.0.0.1',master_port=MASTER_PORT,
 master_user='root';
 reset master;
 slave start;
@@ -15,7 +15,7 @@ create table t1 (s text);
 insert into t1 values('Could not break slave'),('Tried hard');
 show slave status;
 Master_Host	Master_User	Master_Port	Connect_retry	Master_Log_File	Read_Master_Log_Pos	Relay_Log_File	Relay_Log_Pos	Relay_Master_Log_File	Slave_IO_Running	Slave_SQL_Running	Replicate_do_db	Replicate_ignore_db	Last_errno	Last_error	Skip_counter	Exec_master_log_pos
-127.0.0.1	root	9306	60	master-bin.001	234	mysql-relay-bin.001	275	master-bin.001	Yes	Yes			0		0	234
+127.0.0.1	root	MASTER_PORT	60	master-bin.001	234	mysql-relay-bin.001	275	master-bin.001	Yes	Yes			0		0	234
 select * from t1;
 s
 Could not break slave
@@ -43,7 +43,7 @@ master-bin.003
 insert into t2 values (65);
 show slave status;
 Master_Host	Master_User	Master_Port	Connect_retry	Master_Log_File	Read_Master_Log_Pos	Relay_Log_File	Relay_Log_Pos	Relay_Master_Log_File	Slave_IO_Running	Slave_SQL_Running	Replicate_do_db	Replicate_ignore_db	Last_errno	Last_error	Skip_counter	Exec_master_log_pos
-127.0.0.1	root	9306	60	master-bin.003	155	mysql-relay-bin.001	793	master-bin.003	Yes	Yes			0		0	155
+127.0.0.1	root	MASTER_PORT	60	master-bin.003	155	mysql-relay-bin.001	793	master-bin.003	Yes	Yes			0		0	155
 select * from t2;
 m
 34
@@ -66,7 +66,7 @@ slave stop;
 slave start;
 show slave status;
 Master_Host	Master_User	Master_Port	Connect_retry	Master_Log_File	Read_Master_Log_Pos	Relay_Log_File	Relay_Log_Pos	Relay_Master_Log_File	Slave_IO_Running	Slave_SQL_Running	Replicate_do_db	Replicate_ignore_db	Last_errno	Last_error	Skip_counter	Exec_master_log_pos
-127.0.0.1	root	9306	60	master-bin.006	445	mysql-relay-bin.004	1376	master-bin.006	Yes	Yes			0		0	445
+127.0.0.1	root	MASTER_PORT	60	master-bin.006	445	mysql-relay-bin.004	1312	master-bin.006	Yes	Yes			0		0	445
 lock tables t3 read;
 select count(*) from t3 where n >= 4;
 count(*)

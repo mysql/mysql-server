@@ -402,9 +402,6 @@ int STDCALL mysql_server_init(int argc, char **argv, char **groups)
   (void) pthread_mutex_init(&LOCK_bytes_sent,MY_MUTEX_INIT_FAST);
   (void) pthread_mutex_init(&LOCK_bytes_received,MY_MUTEX_INIT_FAST);
   (void) pthread_mutex_init(&LOCK_timezone,MY_MUTEX_INIT_FAST);
-  (void) pthread_mutex_init(&LOCK_slave_io, MY_MUTEX_INIT_FAST);
-  (void) pthread_mutex_init(&LOCK_slave_sql, MY_MUTEX_INIT_FAST);
-  (void) pthread_mutex_init(&LOCK_server_id, MY_MUTEX_INIT_FAST);
   (void) pthread_mutex_init(&LOCK_user_conn, MY_MUTEX_INIT_FAST);
   (void) pthread_cond_init(&COND_thread_count,NULL);
   (void) pthread_cond_init(&COND_refresh,NULL);
@@ -412,11 +409,6 @@ int STDCALL mysql_server_init(int argc, char **argv, char **groups)
   (void) pthread_cond_init(&COND_flush_thread_cache,NULL);
   (void) pthread_cond_init(&COND_manager,NULL);
   (void) pthread_cond_init(&COND_binlog_update, NULL);
-  (void) pthread_cond_init(&COND_slave_log_update, NULL);
-  (void) pthread_cond_init(&COND_slave_sql_stop, NULL);
-  (void) pthread_cond_init(&COND_slave_sql_start, NULL);
-  (void) pthread_cond_init(&COND_slave_sql_stop, NULL);
-  (void) pthread_cond_init(&COND_slave_sql_start, NULL);
 
   if (set_default_charset_by_name(default_charset, MYF(MY_WME)))
   {
