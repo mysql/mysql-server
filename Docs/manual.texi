@@ -48953,6 +48953,8 @@ Our TODO section contains what we plan to have in 4.0. @xref{TODO MySQL 4.0}.
 
 @itemize @bullet
 @item
+Fixed problem on win98 that made sending of results very slow.
+@item
 Boolean fulltext search weighting scheme changed to something more reasonable.
 @item
 Fixed bug in boolean fulltext search, that caused MySQL to ignore queries of
