@@ -1251,7 +1251,7 @@ sub install_db ($$) {
     }
     else
     {
-      print OUT $_;
+      print OUT "$_ ";
     }
   }
   close OUT;
@@ -1520,8 +1520,8 @@ sub report_failure_and_restart ($) {
 # but stop before actually running mysqld or anything.
 
 sub do_before_start_master ($$) {
-  my $tname=  shift;
-  my $master_init_script=  shift;
+  my $tname=       shift;
+  my $init_script= shift;
 
   # FIXME what about second master.....
 
@@ -1542,18 +1542,18 @@ sub do_before_start_master ($$) {
   unlink("$glob_mysql_test_dir/var/master1-data/relay-log.info");
 
   # Run master initialization shell script if one exists
-  if ( $master_init_script and
-       mtr_run($master_init_script, [], "", "", "", "") != 0 )
+  if ( $init_script )
   {
-    mtr_error("Can't run $master_init_script");
+    # We ignore the return code
+    mtr_run("/bin/sh", ["-c",$init_script], "", "", "", "");
   }
   # for gcov  FIXME needed? If so we need more absolute paths
 # chdir($glob_basedir);
 }
 
 sub do_before_start_slave ($$) {
-  my $tname=  shift;
-  my $slave_init_script=  shift;
+  my $tname=       shift;
+  my $init_script= shift;
 
   # Remove stale binary logs and old master.info files
   # except for too tests which need them
@@ -1570,10 +1570,10 @@ sub do_before_start_slave ($$) {
   }
 
   # Run slave initialization shell script if one exists
-  if ( $slave_init_script and
-       mtr_run($slave_init_script, [], "", "", "", "") != 0 )
+  if ( $init_script )
   {
-    mtr_error("Can't run $slave_init_script");
+    # We ignore the return code
+    mtr_run("/bin/sh", ["-c",$init_script], "", "", "", "");
   }
 
   `rm -f $glob_mysql_test_dir/var/slave-data/log.*`;
