@@ -1115,8 +1115,20 @@ bool MYSQL_LOG::write(Log_event* event_info)
 
     if (file == &log_file)
     {
-      error = ha_report_binlog_offset_and_commit(thd, log_file_name,
+      /*
+	LOAD DATA INFILE in AUTOCOMMIT=1 mode writes to the binlog
+	chunks also before it is successfully completed. We only report
+	the binlog write and do the commit inside the transactional table
+	handler if the log event type is appropriate.
+      */
+
+      if (event_info->get_type_code() == QUERY_EVENT
+          || event_info->get_type_code() == EXEC_LOAD_EVENT)
+      {
+	error = ha_report_binlog_offset_and_commit(thd, log_file_name,
                                                  file->pos_in_file);
+      }
+
       should_rotate= (my_b_tell(file) >= (my_off_t) max_binlog_size); 
     }
 
@@ -1159,7 +1171,7 @@ uint MYSQL_LOG::next_file_id()
 
   NOTE
     - We only come here if there is something in the cache.
-    - The thing in the cache is always a complete transcation
+    - The thing in the cache is always a complete transaction
     - 'cache' needs to be reinitialized after this functions returns.
 
   IMPLEMENTATION
