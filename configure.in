@@ -426,6 +426,7 @@ fi
 
 NOINST_LDFLAGS=
 
+
 AC_ARG_WITH(other-libc,
  [ --with-other-libc=/path/to/other/libc/dir Link against libc and other standard libraries installed in the specified non-standard location overriding default. Originally added to be able to link against glibc 2.2 without making the user upgrade the standard libc installation ],
  [
@@ -439,8 +440,27 @@ AC_ARG_WITH(other-libc,
 #There seems to be a feature in gcc that treats system and libc headers
 #leniently when they violatate ANSI C++ standard, but it is strict otherwise
 #since gcc cannot now recognize that our headers are libc, we work around
-#by telling it to be permissive   
-   LDFLAGS="$LDFLAGS -static -L$other_libc_lib "
+#by telling it to be permissive
+   static_nss=
+   if test -f "$other_libc_lib/libnss_files.a"
+   then
+   # libc has been compiled with --enable-static-nss
+   # we need special flags, but we will have to add those later
+     STATIC_NSS_FLAGS="-Wl,--start-group -lc -lnss_files -lnss_dns -lresolv \
+  -Wl,--end-group"
+     static_nss=1
+   else
+     # this is a dirty hack. We if we detect static nss glibc in the special
+     # location, we do not re-direct the linker to get libraries from there
+     # during check. The reason is that if we did, we would have to find a
+     # way to append the special static nss flags to LIBS every time we do
+     # any check - this is definitely feasible, but not worthwhile the risk
+     # of breaking other things. So for our purposes it would be sufficient
+     # to assume that whoever is using static NSS knows what he is doing and
+     # has sensible libraries in the regular location
+     LDFLAGS="$LDFLAGS -static -L$other_libc_lib "
+   fi
+   
    with_mysqld_ldflags="-all-static"
    with_client_ldflags="-all-static"
    NOINST_LDFLAGS="-all-static"
@@ -2023,6 +2043,12 @@ then
   linked_client_targets="$linked_client_targets linked_libmysql_r_sources"
   AC_DEFINE(THREAD_SAFE_CLIENT)
 fi
+
+if test "$static_nss" = "1"
+then
+  CLIENT_LIBS="$CLIENT_LIBS $STATIC_NSS_FLAGS"
+fi  
+
 AC_SUBST(CLIENT_LIBS)
 AC_SUBST(sql_client_dirs)
 AC_SUBST(linked_client_targets)
@@ -2166,6 +2192,17 @@ then
     LIBS="$MT_LD_ADD $LIBS"
   fi
 fi
+
+#IMPORTANT - do not modify LIBS past this line - this hack is the only way
+# I know to add the static NSS magic if we have static NSS libraries with
+# glibc - Sasha
+
+if test "$static_nss" = "1"
+then
+ LDFLAGS="$LDFLAGS -static -L$other_libc_lib " 
+ LIBS="$LIBS $STATIC_NSS_FLAGS"
+fi  
+
 AC_SUBST(sql_server_dirs)
 AC_SUBST(thread_dirs)
 AC_SUBST(server_scripts)
