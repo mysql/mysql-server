@@ -232,6 +232,8 @@ our $opt_local_master;
 our $master;                    # Will be struct in C
 our $slave;
 
+our $opt_master_myport;
+our $opt_slave_myport;
 our $opt_ndbcluster_port;
 our $opt_ndbconnectstring;
 
@@ -248,16 +250,10 @@ our $opt_skip_rpl;
 our $opt_skip_test;
 
 our $opt_sleep;
-
 our $opt_ps_protocol;
 
-# FIXME all of the sleep time handling needs cleanup
-our $opt_sleep_time_after_restart=        1;
-our $opt_sleep_time_for_delete=          10;
-our $opt_sleep_time_for_first_master=   400; # enough time create innodb tables
-our $opt_sleep_time_for_second_master=  400;
-our $opt_sleep_time_for_first_slave=    400;
-our $opt_sleep_time_for_second_slave=    30;
+our $opt_sleep_time_after_restart= 1;
+our $opt_sleep_time_for_delete=    10;
 
 our $opt_socket;
 
@@ -270,7 +266,7 @@ our $opt_strace_client;
 
 our $opt_timer;
 
-
+our $opt_user;
 our $opt_user_test;
 
 our $opt_valgrind;
@@ -299,6 +295,7 @@ sub main ();
 sub initial_setup ();
 sub command_line_setup ();
 sub executable_setup ();
+sub environment_setup ();
 sub kill_and_cleanup ();
 sub collect_test_cases ($);
 sub sleep_until_file_created ($$);
@@ -332,6 +329,7 @@ sub main () {
   initial_setup();
   command_line_setup();
   executable_setup();
+  environment_setup();
   signal_setup();
 
   if ( $opt_gcov )
@@ -449,12 +447,9 @@ sub command_line_setup () {
   $path_manager_log= "$glob_mysql_test_dir/var/log/manager.log";
   $opt_current_test= "$glob_mysql_test_dir/var/log/current_test";
 
-  my $opt_master_myport=       9306;
-  my $opt_slave_myport=        9308;
-  $opt_ndbcluster_port=        9350;
-  $opt_sleep_time_for_delete=  10;
-
-  my $opt_user;
+  $opt_master_myport=   9306;
+  $opt_slave_myport=    9308;
+  $opt_ndbcluster_port= 9350;
 
   # Read the command line
   # Note: Keep list, and the order, in sync with usage at end of this file
@@ -545,6 +540,7 @@ sub command_line_setup () {
   $master->[0]->{'path_mypid'}=   "$glob_mysql_test_dir/var/run/master.pid";
   $master->[0]->{'path_mysock'}=  "$opt_tmpdir/master.sock";
   $master->[0]->{'path_myport'}=   $opt_master_myport;
+  $master->[0]->{'start_timeout'}= 400; # enough time create innodb tables
 
   $master->[1]->{'path_myddir'}=  "$glob_mysql_test_dir/var/master1-data";
   $master->[1]->{'path_myerr'}=   "$glob_mysql_test_dir/var/log/master1.err";
@@ -552,6 +548,7 @@ sub command_line_setup () {
   $master->[1]->{'path_mypid'}=   "$glob_mysql_test_dir/var/run/master1.pid";
   $master->[1]->{'path_mysock'}=  "$opt_tmpdir/master1.sock";
   $master->[1]->{'path_myport'}=   $opt_master_myport + 1;
+  $master->[1]->{'start_timeout'}= 400; # enough time create innodb tables
 
   $slave->[0]->{'path_myddir'}=   "$glob_mysql_test_dir/var/slave-data";
   $slave->[0]->{'path_myerr'}=    "$glob_mysql_test_dir/var/log/slave.err";
@@ -559,6 +556,7 @@ sub command_line_setup () {
   $slave->[0]->{'path_mypid'}=    "$glob_mysql_test_dir/var/run/slave.pid";
   $slave->[0]->{'path_mysock'}=   "$opt_tmpdir/slave.sock";
   $slave->[0]->{'path_myport'}=    $opt_slave_myport;
+  $slave->[0]->{'start_timeout'}= 400;
 
   $slave->[1]->{'path_myddir'}=   "$glob_mysql_test_dir/var/slave1-data";
   $slave->[1]->{'path_myerr'}=    "$glob_mysql_test_dir/var/log/slave1.err";
@@ -566,6 +564,7 @@ sub command_line_setup () {
   $slave->[1]->{'path_mypid'}=    "$glob_mysql_test_dir/var/run/slave1.pid";
   $slave->[1]->{'path_mysock'}=   "$opt_tmpdir/slave1.sock";
   $slave->[1]->{'path_myport'}=    $opt_slave_myport + 1;
+  $slave->[1]->{'start_timeout'}=  30;
 
   $slave->[2]->{'path_myddir'}=   "$glob_mysql_test_dir/var/slave2-data";
   $slave->[2]->{'path_myerr'}=    "$glob_mysql_test_dir/var/log/slave2.err";
@@ -573,6 +572,7 @@ sub command_line_setup () {
   $slave->[2]->{'path_mypid'}=    "$glob_mysql_test_dir/var/run/slave2.pid";
   $slave->[2]->{'path_mysock'}=   "$opt_tmpdir/slave2.sock";
   $slave->[2]->{'path_myport'}=    $opt_slave_myport + 2;
+  $slave->[2]->{'start_timeout'}=  30;
 
   # Do sanity checks of command line arguments
 
@@ -593,16 +593,6 @@ sub command_line_setup () {
     $opt_skip_rpl= 1;                   # We don't run rpl test cases
     $master->[0]->{'path_mysock'}=  $opt_socket;
   }
-
-  # --------------------------------------------------------------------------
-  # Set LD_LIBRARY_PATH if we are using shared libraries
-  # --------------------------------------------------------------------------
-  $ENV{'LD_LIBRARY_PATH'}=
-    "$glob_basedir/lib:$glob_basedir/libmysql/.libs" .
-      ($ENV{'LD_LIBRARY_PATH'} ? ":$ENV{'LD_LIBRARY_PATH'}" : "");
-  $ENV{'DYLD_LIBRARY_PATH'}=
-    "$glob_basedir/lib:$glob_basedir/libmysql/.libs" .
-      ($ENV{'DYLD_LIBRARY_PATH'} ? ":$ENV{'DYLD_LIBRARY_PATH'}" : "");
 
   # --------------------------------------------------------------------------
   # Look at the command line options and set script flags
@@ -741,7 +731,7 @@ sub executable_setup () {
       }
       else
       {
-        mtr_error("Cannot find embedded server 'mysqltest'");
+        mtr_error("Can't find embedded server 'mysqltest'");
       }
       $path_tests_bindir= "$glob_basedir/libmysqld/examples";
     }
@@ -828,6 +818,41 @@ sub executable_setup () {
   {
     $exe_slave_mysqld=  $exe_mysqld;
   }
+}
+
+
+##############################################################################
+#
+#  Set environment to be used by childs of this process
+#
+##############################################################################
+
+# Note that some env is setup in spawn/run, in "mtr_process.pl"
+
+sub environment_setup () {
+
+  # --------------------------------------------------------------------------
+  # Set LD_LIBRARY_PATH if we are using shared libraries
+  # --------------------------------------------------------------------------
+
+  $ENV{'LD_LIBRARY_PATH'}=
+    "$glob_basedir/lib:$glob_basedir/libmysql/.libs" .
+      ($ENV{'LD_LIBRARY_PATH'} ? ":$ENV{'LD_LIBRARY_PATH'}" : "");
+  $ENV{'DYLD_LIBRARY_PATH'}=
+    "$glob_basedir/lib:$glob_basedir/libmysql/.libs" .
+      ($ENV{'DYLD_LIBRARY_PATH'} ? ":$ENV{'DYLD_LIBRARY_PATH'}" : "");
+
+  # --------------------------------------------------------------------------
+  # Also command lines in .opt files may contain env vars
+  # --------------------------------------------------------------------------
+
+  $ENV{'LC_COLLATE'}=     "C";
+  $ENV{'MYSQL_TEST_DIR'}= $glob_mysql_test_dir;
+  $ENV{'MASTER_MYPORT'}=  $opt_master_myport;
+  $ENV{'SLAVE_MYPORT'}=   $opt_slave_myport;
+# $ENV{'MYSQL_TCP_PORT'}= '@MYSQL_TCP_PORT@'; # FIXME
+  $ENV{'MYSQL_TCP_PORT'}= 3306;
+  $ENV{'MASTER_MYSOCK'}=  $master->[0]->{'path_mysock'};
 }
 
 
@@ -922,6 +947,7 @@ sub collect_test_cases ($) {
     # ----------------------------------------------------------------------
 
     $tinfo->{'path'}= $path;
+    $tinfo->{'timezone'}= "GMT-3"; # for UNIX_TIMESTAMP tests to work
 
     if ( defined mtr_match_prefix($tname,"rpl") )
     {
@@ -967,7 +993,7 @@ sub collect_test_cases ($) {
 
         if ( defined $value )
         {
-          $ENV{'TZ'}= $value;           # FIXME pass this on somehow....
+          $tinfo->{'timezone'}= $value;
           $extra_master_opt= [];
           $tinfo->{'master_restart'}= 0;
           last;
@@ -1071,6 +1097,7 @@ sub kill_and_cleanup () {
     # leftovers from previous runs.
 
     mtr_report("Killing Possible Leftover Processes");
+    mkpath("$glob_mysql_test_dir/var/log"); # Needed for mysqladmin log
     mtr_kill_leftovers();
   }
 
@@ -1092,52 +1119,28 @@ sub kill_and_cleanup () {
   mkpath("$glob_mysql_test_dir/var/tmp");
   mkpath($opt_tmpdir);
 
+  # FIXME do we really need to create these all, or are they
+  # created for us when tables are created?
+
   rmtree("$master->[0]->{'path_myddir'}");
-  mkpath("$master->[0]->{'path_myddir'}/mysql"); # Need to create subdir?!
+  mkpath("$master->[0]->{'path_myddir'}/mysql");
   mkpath("$master->[0]->{'path_myddir'}/test");
 
   rmtree("$master->[1]->{'path_myddir'}");
-  mkpath("$master->[1]->{'path_myddir'}/mysql"); # Need to create subdir?!
+  mkpath("$master->[1]->{'path_myddir'}/mysql");
   mkpath("$master->[1]->{'path_myddir'}/test");
 
   rmtree("$slave->[0]->{'path_myddir'}");
-  mkpath("$slave->[0]->{'path_myddir'}/mysql"); # Need to create subdir?!
+  mkpath("$slave->[0]->{'path_myddir'}/mysql");
   mkpath("$slave->[0]->{'path_myddir'}/test");
 
   rmtree("$slave->[1]->{'path_myddir'}");
-  mkpath("$slave->[1]->{'path_myddir'}/mysql"); # Need to create subdir?!
+  mkpath("$slave->[1]->{'path_myddir'}/mysql");
   mkpath("$slave->[1]->{'path_myddir'}/test");
 
   rmtree("$slave->[2]->{'path_myddir'}");
-  mkpath("$slave->[2]->{'path_myddir'}/mysql"); # Need to create subdir?!
+  mkpath("$slave->[2]->{'path_myddir'}/mysql");
   mkpath("$slave->[2]->{'path_myddir'}/test");
-
-  $opt_wait_for_master=  $opt_sleep_time_for_first_master;
-  $opt_wait_for_slave=   $opt_sleep_time_for_first_slave;
-}
-
-
-# FIXME
-
-sub sleep_until_file_created ($$) {
-  my $pidfile= shift;
-  my $timeout= shift;
-
-  my $loop=  $timeout * 2;
-  while ( $loop-- )
-  {
-    if ( -r $pidfile )
-    {
-      return;
-    }
-    mtr_debug("Sleep for 1 second waiting for creation of $pidfile");
-    sleep(1);
-  }
-
-  if ( ! -r $pidfile )
-  {
-    mtr_error("No $pidfile was created");
-  }
 }
 
 
@@ -1251,11 +1254,11 @@ sub run_suite () {
 
   mtr_print_thick_line();
 
-  mtr_report("Finding Tests in $suite suite");
+  mtr_report("Finding Tests in the '$suite' suite");
 
   my $tests= collect_test_cases($suite);
 
-  mtr_report("Starting Tests in $suite suite");
+  mtr_report("Starting Tests in the '$suite' suite");
 
   mtr_print_header();
 
@@ -1411,6 +1414,8 @@ sub run_testcase ($) {
   # Prepare to start masters. Even if we use embedded, we want to run
   # the preparation.
   # ----------------------------------------------------------------------
+
+  $ENV{'TZ'}= $tinfo->{'timezone'};
 
   mtr_report_test_name($tinfo);
 
@@ -1778,6 +1783,7 @@ sub mysqld_arguments ($$$$$) {
     }
 
     # FIXME strange,.....
+    # FIXME MYSQL_MYPORT is not set anythere?!
     if ( $opt_local_master )
     {
       mtr_add_arg($args, "%s--host=127.0.0.1", $prefix);
@@ -1888,8 +1894,7 @@ sub mysqld_start ($$$$) {
                          $master->[$idx]->{'path_myerr'}, "") )
     {
       sleep_until_file_created($master->[$idx]->{'path_mypid'},
-                               $opt_wait_for_master);
-      $opt_wait_for_master= $opt_sleep_time_for_second_master;
+                               $master->[$idx]->{'start_timeout'});
       return $pid;
     }
   }
@@ -1901,8 +1906,7 @@ sub mysqld_start ($$$$) {
                          $slave->[$idx]->{'path_myerr'}, "") )
     {
       sleep_until_file_created($slave->[$idx]->{'path_mypid'},
-                               $opt_wait_for_slave);
-      $opt_wait_for_slave= $opt_sleep_time_for_second_slave;
+                               $master->[$idx]->{'start_timeout'});
       return $pid;
     }
   }
@@ -1970,7 +1974,6 @@ sub run_mysqltest ($$) {
   my $tinfo=       shift;
   my $master_opts= shift;
 
-  # FIXME set where????
   my $cmdline_mysqldump= "$exe_mysqldump --no-defaults -uroot " .
                          "--socket=$master->[0]->{'path_mysock'} --password=";
   if ( $opt_debug )
@@ -1991,6 +1994,9 @@ sub run_mysqltest ($$) {
   my $cmdline_mysql=
     "$exe_mysql --host=localhost --port=$master->[0]->{'path_myport'} " .
     "--socket=$master->[0]->{'path_mysock'} --user=root --password=";
+
+  # FIXME really needing a PATH???
+  # $ENV{'PATH'}= "/bin:/usr/bin:/usr/local/bin:/usr/bsd:/usr/X11R6/bin:/usr/openwin/bin:/usr/bin/X11:$ENV{'PATH'}";
 
   $ENV{'MYSQL'}=                    $exe_mysql;
   $ENV{'MYSQL_DUMP'}=               $cmdline_mysqldump;

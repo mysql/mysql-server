@@ -86,6 +86,53 @@
  *   int filter[] = { 15, NDB_MGM_EVENT_CATEGORY_BACKUP, 0 };
  *   int fd = ndb_mgm_listen_event(handle, filter);
  * @endcode
+ *
+ *
+ * @section secSLogEvents  Structured Log Events
+ *
+ * The following steps are involved:
+ * - Create a NdbEventLogHandle using ndb_mgm_create_logevent_handle()
+ * - Wait and store log events using ndb_logevent_get_next()
+ * - The log event data is available in the struct ndb_logevent. The
+ *   data which is specific to a particular event is stored in a union
+ *   between structs so use ndb_logevent::type to decide which struct
+ *   is valid.
+ *
+ * Sample code for listening to Backup related events.  The availaable log
+ * events are listed in @ref ndb_logevent.h
+ *
+ * @code
+ *   int filter[] = { 15, NDB_MGM_EVENT_CATEGORY_BACKUP, 0 };
+ *   NdbEventLogHandle le_handle= ndb_mgm_create_logevent_handle(handle, filter);
+ *   struct ndb_logevent le;
+ *   int r= ndb_logevent_get_next(le_handle,&le,0);
+ *   if (r < 0) error
+ *   else if (r == 0) no event
+ *
+ *   switch (le.type)
+ *   {
+ *   case NDB_LE_BackupStarted:
+ *     ... le.BackupStarted.starting_node;
+ *     ... le.BackupStarted.backup_id;
+ *     break;
+ *   case NDB_LE_BackupFailedToStart:
+ *     ... le.BackupFailedToStart.error;
+ *     break;
+ *   case NDB_LE_BackupCompleted:
+ *     ... le.BackupCompleted.stop_gci;
+ *     break;
+ *   case NDB_LE_BackupAborted:
+ *     ... le.BackupStarted.backup_id;
+ *     break;
+ *   default:
+ *     break;
+ *   }
+ * @endcode
+ */
+
+/*
+ * @page ndb_logevent.h ndb_logevent.h
+ * @include ndb_logevent.h
  */
 
 /** @addtogroup MGM_C_API
@@ -93,6 +140,7 @@
  */
 
 #include <ndb_types.h>
+#include "ndb_logevent.h"
 #include "mgmapi_config_parameters.h"
 
 #ifdef __cplusplus
@@ -347,97 +395,6 @@ extern "C" {
     NDB_MGM_SIGNAL_LOG_MODE_OFF
   };
 #endif
-
-  /**
-   *   Log event severities (used to filter the cluster log, 
-   *   ndb_mgm_set_clusterlog_severity_filter(), and filter listening to events
-   *   ndb_mgm_listen_event())
-   */
-  enum ndb_mgm_event_severity {
-    NDB_MGM_ILLEGAL_EVENT_SEVERITY = -1,
-    /*  Must be a nonnegative integer (used for array indexing) */
-    /** Cluster log on */
-    NDB_MGM_EVENT_SEVERITY_ON    = 0,
-    /** Used in NDB Cluster developement */
-    NDB_MGM_EVENT_SEVERITY_DEBUG = 1,
-    /** Informational messages*/
-    NDB_MGM_EVENT_SEVERITY_INFO = 2,
-    /** Conditions that are not error condition, but might require handling.
-     */
-    NDB_MGM_EVENT_SEVERITY_WARNING = 3,
-    /** Conditions that, while not fatal, should be corrected. */
-    NDB_MGM_EVENT_SEVERITY_ERROR = 4,
-    /** Critical conditions, like device errors or out of resources */
-    NDB_MGM_EVENT_SEVERITY_CRITICAL = 5,
-    /** A condition that should be corrected immediately,
-     *  such as a corrupted system
-     */
-    NDB_MGM_EVENT_SEVERITY_ALERT = 6,
-    /* must be next number, works as bound in loop */
-    /** All severities */
-    NDB_MGM_EVENT_SEVERITY_ALL = 7
-  };
-
-  /**
-   *  Log event categories, used to set filter level on the log events using
-   *  ndb_mgm_set_clusterlog_loglevel() and ndb_mgm_listen_event()
-   */
-  enum ndb_mgm_event_category {
-    /**
-     * Invalid log event category
-     */
-    NDB_MGM_ILLEGAL_EVENT_CATEGORY = -1,
-    /**
-     * Log events during all kinds of startups
-     */
-    NDB_MGM_EVENT_CATEGORY_STARTUP = CFG_LOGLEVEL_STARTUP,
-    /**
-     * Log events during shutdown
-     */
-    NDB_MGM_EVENT_CATEGORY_SHUTDOWN = CFG_LOGLEVEL_SHUTDOWN,
-    /**
-     * Statistics log events
-     */
-    NDB_MGM_EVENT_CATEGORY_STATISTIC = CFG_LOGLEVEL_STATISTICS,
-    /**
-     * Log events related to checkpoints
-     */
-    NDB_MGM_EVENT_CATEGORY_CHECKPOINT = CFG_LOGLEVEL_CHECKPOINT,
-    /**
-     * Log events during node restart
-     */
-    NDB_MGM_EVENT_CATEGORY_NODE_RESTART = CFG_LOGLEVEL_NODERESTART,
-    /**
-     * Log events related to connections between cluster nodes
-     */
-    NDB_MGM_EVENT_CATEGORY_CONNECTION = CFG_LOGLEVEL_CONNECTION,
-    /**
-     * Backup related log events
-     */
-    NDB_MGM_EVENT_CATEGORY_BACKUP = CFG_LOGLEVEL_BACKUP,
-    /**
-     * Congestion related log events
-     */
-    NDB_MGM_EVENT_CATEGORY_CONGESTION = CFG_LOGLEVEL_CONGESTION,
-#ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
-    /**
-     * Loglevel debug
-     */
-    NDB_MGM_EVENT_CATEGORY_DEBUG = CFG_LOGLEVEL_DEBUG,
-#endif
-    /**
-     * Uncategorized log events (severity info)
-     */
-    NDB_MGM_EVENT_CATEGORY_INFO = CFG_LOGLEVEL_INFO,
-    /**
-     * Uncategorized log events (severity warning or higher)
-     */
-    NDB_MGM_EVENT_CATEGORY_ERROR = CFG_LOGLEVEL_ERROR,
-#ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
-    NDB_MGM_MIN_EVENT_CATEGORY = CFG_MIN_LOGLEVEL,
-    NDB_MGM_MAX_EVENT_CATEGORY = CFG_MAX_LOGLEVEL
-#endif
-  };
 
   /***************************************************************************/
   /**
@@ -870,6 +827,64 @@ extern "C" {
   int ndb_mgm_get_stat_port(NdbMgmHandle handle,
 			    struct ndb_mgm_reply* reply);
 #endif
+
+  /**
+   * The NdbLogEventHandle
+   */
+  typedef struct ndb_logevent_handle * NdbLogEventHandle;
+
+  /**
+   * Listen to log events.
+   *
+   * @param handle NDB management handle.
+   * @param filter pairs of { level, ndb_mgm_event_category } that will be
+   *               pushed to fd, level=0 ends list.
+   *
+   * @return       NdbLogEventHandle
+   */
+  NdbLogEventHandle ndb_mgm_create_logevent_handle(NdbMgmHandle,
+						   const int filter[]);
+  void ndb_mgm_destroy_logevent_handle(NdbLogEventHandle*);
+
+  /**
+   * Retrieve filedescriptor from NdbLogEventHandle.  May be used in
+   * e.g. an application select() statement.
+   *
+   * @note Do not attemt to read from it, it will corrupt the parsing.
+   *
+   * @return       filedescriptor, -1 on failure.
+   */
+  int ndb_logevent_get_fd(const NdbLogEventHandle);
+
+  /**
+   * Attempt to retrieve next log event and will fill in the supplied
+   * struct dst
+   *
+   * @param dst Pointer to struct to fill in event information
+   * @param timeout_in_milliseconds Timeout for waiting for event
+   *
+   * @return     >0 if event exists, 0 no event (timed out), or -1 on error.
+   *
+   * @note Return value <=0 will leave dst untouched
+   */
+  int ndb_logevent_get_next(const NdbLogEventHandle,
+			    struct ndb_logevent *dst,
+			    unsigned timeout_in_milliseconds);
+
+  /**
+   * Retrieve laterst error code
+   *
+   * @return     error code
+   */
+  int ndb_logevent_get_latest_error(const NdbLogEventHandle);
+
+  /**
+   * Retrieve laterst error message
+   *
+   * @return     error message
+   */
+  const char *ndb_logevent_get_latest_error_msg(const NdbLogEventHandle);
+
 
   /** @} *********************************************************************/
   /**
