@@ -33,8 +33,8 @@ EXPORTS
 	myodbc_remove_escape
 	mysql_affected_rows
 	mysql_autocommit
-	mysql_bind_param
-	mysql_bind_result
+	mysql_stmt_bind_param
+	mysql_stmt_bind_result
 	mysql_change_user
 	mysql_character_set_name
 	mysql_close
@@ -46,9 +46,9 @@ EXPORTS
 	mysql_errno
 	mysql_error
 	mysql_escape_string
-	mysql_execute
-	mysql_fetch
-	mysql_fetch_column
+	mysql_stmt_execute
+	mysql_stmt_fetch
+	mysql_stmt_fetch_column
 	mysql_fetch_field
 	mysql_fetch_field_direct
 	mysql_fetch_fields
@@ -78,11 +78,11 @@ EXPORTS
 	mysql_num_rows
 	mysql_odbc_escape_string
 	mysql_options
-	mysql_param_count
-	mysql_param_result
+	mysql_stmt_param_count
+	mysql_stmt_param_metadata
 	mysql_ping
 	mysql_prepare
-	mysql_get_metadata
+	mysql_stmt_result_metadata
 	mysql_query
 	mysql_read_query_result
 	mysql_real_connect
@@ -93,7 +93,7 @@ EXPORTS
 	mysql_row_seek
 	mysql_row_tell
 	mysql_select_db
-	mysql_send_long_data
+	mysql_stmt_send_long_data
 	mysql_send_query
 	mysql_shutdown
 	mysql_ssl_set
