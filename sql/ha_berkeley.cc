@@ -107,6 +107,7 @@ static int berkeley_commit(THD *thd, bool all);
 static int berkeley_rollback(THD *thd, bool all);
 
 static handlerton berkeley_hton = {
+  "BerkeleyDB",
   0, /* slot */
   0, /* savepoint size */
   berkeley_close_connection,

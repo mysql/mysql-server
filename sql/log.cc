@@ -46,6 +46,7 @@ static int binlog_rollback(THD *thd, bool all);
 static int binlog_prepare(THD *thd, bool all);
 
 static handlerton binlog_hton = {
+  "binlog",
   0,
   sizeof(my_off_t),             /* savepoint size = binlog offset */
   binlog_close_connection,

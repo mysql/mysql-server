@@ -50,6 +50,7 @@ static int ndbcluster_commit(THD *thd, bool all);
 static int ndbcluster_rollback(THD *thd, bool all);
 
 static handlerton ndbcluster_hton = {
+  "ndbcluster",
   0, /* slot */
   0, /* savepoint size */
   ndbcluster_close_connection,
