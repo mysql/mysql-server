@@ -1358,12 +1358,15 @@ mysql_init(MYSQL *mysql)
     Only enable LOAD DATA INFILE by default if configured with
     --enable-local-infile
   */
+
 #if defined(ENABLED_LOCAL_INFILE) && !defined(MYSQL_SERVER)
   mysql->options.client_flag|= CLIENT_LOCAL_FILES;
 #endif
+
 #ifdef HAVE_SMEM
   mysql->options.shared_memory_base_name= (char*) def_shared_memory_base_name;
 #endif
+
   mysql->options.methods_to_use= MYSQL_OPT_GUESS_CONNECTION;
   return mysql;
 }
@@ -2282,7 +2285,7 @@ get_info:
 #ifdef MYSQL_CLIENT
   if (field_count == NULL_LENGTH)		/* LOAD DATA LOCAL INFILE */
   {
-    int error=send_file_to_server(mysql,(char*) pos);
+    int error=handle_local_infile(mysql,(char*) pos);
     if ((length=net_safe_read(mysql)) == packet_error || error)
       DBUG_RETURN(1);
     goto get_info;				/* Get info packet */

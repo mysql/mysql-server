@@ -185,6 +185,12 @@ struct st_mysql_options {
   char *client_ip;
   /* Refuse client connecting to server if it uses old (pre-4.1.1) protocol */
   my_bool secure_auth;
+
+  /* function pointers for local infile support */
+  int (*local_infile_init)(void **, char *);
+  int (*local_infile_read)(void *, char *, uint);
+  int (*local_infile_end)(void *);
+  int (*local_infile_error)(void *, char *, uint);
 };
 
 enum mysql_status 
@@ -383,6 +389,21 @@ my_bool		STDCALL mysql_slave_query(MYSQL *mysql, const char *q,
 					  unsigned long length);
 my_bool		STDCALL mysql_slave_send_query(MYSQL *mysql, const char *q,
 					       unsigned long length);
+
+/* local infile support */
+
+#define LOCAL_INFILE_ERROR_LEN 512
+
+int
+mysql_set_local_infile_handler(MYSQL *mysql,
+                               int (*local_infile_init)(void **, char *),       
+                               int (*local_infile_read)(void *, char *, uint),
+                               int (*local_infile_end)(void *),
+                               int (*local_infile_error)(void *, char *, uint));
+
+void
+mysql_set_local_infile_default(MYSQL *mysql);
+
 
 /*
   enable/disable parsing of all queries to decide if they go on master or
