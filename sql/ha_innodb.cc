@@ -2269,8 +2269,9 @@ build_template(
 					get_field_offset(table, field);
 
 		templ->mysql_col_len = (ulint) field->pack_length();
-		templ->type = get_innobase_type_from_mysql_type(
-					&templ->is_unsigned, field);
+		templ->type = index->table->cols[i].type.mtype;
+		templ->is_unsigned = index->table->cols[i].type.prtype
+							& DATA_UNSIGNED;
 		templ->charset = dtype_get_charset_coll_noninline(
 				index->table->cols[i].type.prtype);
 
@@ -2698,8 +2699,9 @@ calc_row_difference(
 		o_len = field->pack_length();
 		n_len = field->pack_length();
 
-		col_type = get_innobase_type_from_mysql_type(&is_unsigned,
-									field);
+		col_type = prebuilt->table->cols[i].type.mtype;
+		is_unsigned = prebuilt->table->cols[i].type.prtype &
+								DATA_UNSIGNED;
 		switch (col_type) {
 
 		case DATA_BLOB:
@@ -2741,8 +2743,7 @@ calc_row_difference(
 					  (mysql_byte*)n_ptr, n_len, col_type,
 						is_unsigned);
 			ufield->exp = NULL;
-			ufield->field_no =
-					(prebuilt->table->cols + i)->clust_pos;
+			ufield->field_no = prebuilt->table->cols[i].clust_pos;
 			n_changed++;
 		}
 	}
