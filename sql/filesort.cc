@@ -685,7 +685,6 @@ int merge_buffers(SORTPARAM *param, IO_CACHE *from_file,
   uchar *strpos;
   BUFFPEK *buffpek,**refpek;
   QUEUE queue;
-  volatile bool *killed= &current_thd->killed;
   qsort2_cmp    cmp;
   DBUG_ENTER("merge_buffers");
 
@@ -739,10 +738,6 @@ int merge_buffers(SORTPARAM *param, IO_CACHE *from_file,
 
   while (queue.elements > 1)
   {
-    if (*killed)
-    {
-      error=1; goto err;			/* purecov: inspected */
-    }
     for (;;)
     {
       buffpek=(BUFFPEK*) queue_top(&queue);
