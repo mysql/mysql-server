@@ -7041,13 +7041,11 @@ static inline uint
 get_field_keypart(KEY *index, Field *field)
 {
   KEY_PART_INFO *part, *end;
-  uint key_part_num= 0;
 
   for (part= index->key_part, end= part + index->key_parts; part < end; part++)
   {
-    key_part_num++;
     if (field->eq(part->field))
-      return key_part_num;
+      return part - index->key_part + 1;
   }
   return 0;
 }
