@@ -130,9 +130,13 @@ bfill((A)->null_flags,(A)->null_bytes,255);\
  */
 #define MIN_TURBOBM_PATTERN_LEN 3
 
-/* Defines for binary logging */
+/* 
+   Defines for binary logging.
+   Do not decrease the value of BIN_LOG_HEADER_SIZE.
+   Do not even increase it before checking code.
+*/
 
-#define BIN_LOG_HEADER_SIZE	4
+#define BIN_LOG_HEADER_SIZE    4 
 
 	/* Include prototypes for unireg */
 

@@ -1886,9 +1886,27 @@ int Load_log_event::exec_event(NET* net, struct st_relay_log_info* rli,
     else
     {
       char llbuff[22];
-      enum enum_duplicates handle_dup = DUP_IGNORE;
+      enum enum_duplicates handle_dup;
       if (sql_ex.opt_flags & REPLACE_FLAG)
 	handle_dup= DUP_REPLACE;
+      else if (sql_ex.opt_flags & IGNORE_FLAG)
+        handle_dup= DUP_IGNORE;
+      else
+        /*
+          Note that when replication is running fine, if it was DUP_ERROR on the 
+          master then we could choose DUP_IGNORE here, because if DUP_ERROR
+          suceeded on master, and data is identical on the master and slave,
+          then there should be no uniqueness errors on slave, so DUP_IGNORE is
+          the same as DUP_ERROR. But in the unlikely case of uniqueness errors
+          (because the data on the master and slave happen to be different (user
+          error or bug), we want LOAD DATA to print an error message on the
+          slave to discover the problem.
+
+          If reading from net (a 3.23 master), mysql_load() will change this
+          to DUP_IGNORE.
+        */
+        handle_dup= DUP_ERROR;
+
       sql_exchange ex((char*)fname, sql_ex.opt_flags & DUMPFILE_FLAG);
       String field_term(sql_ex.field_term,sql_ex.field_term_len);
       String enclosed(sql_ex.enclosed,sql_ex.enclosed_len);
@@ -1949,12 +1967,19 @@ int Load_log_event::exec_event(NET* net, struct st_relay_log_info* rli,
   close_thread_tables(thd);
   if (thd->query_error)
   {
-    int sql_error= thd->net.last_errno;
-    if (!sql_error)
-      sql_error= ER_UNKNOWN_ERROR;
-    slave_print_error(rli,sql_error,
+    /* this err/sql_errno code is copy-paste from send_error() */
+    const char *err;
+    int sql_errno;
+    if ((err=thd->net.last_error)[0])
+      sql_errno=thd->net.last_errno;
+    else
+    {
+      sql_errno=ER_UNKNOWN_ERROR;
+      err=ER(sql_errno);       
+    }
+    slave_print_error(rli,sql_errno,
 		      "Error '%s' running load data infile",
-		      ER_SAFE(sql_error));
+		      err);
     free_root(&thd->mem_root,0);
     return 1;
   }

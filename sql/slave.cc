@@ -269,7 +269,7 @@ int init_relay_log_pos(RELAY_LOG_INFO* rli,const char* log,
       goto err;
     rli->cur_log = &rli->cache_buf;
   }
-  if (pos > BIN_LOG_HEADER_SIZE)
+  if (pos >= BIN_LOG_HEADER_SIZE)
     my_b_seek(rli->cur_log,(off_t)pos);
 
 err:
