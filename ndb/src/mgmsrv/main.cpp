@@ -83,7 +83,6 @@ struct MgmGlobals {
 int g_no_nodeid_checks= 0;
 static MgmGlobals glob;
 
-
 /******************************************************************************
  * Function prototypes
  ******************************************************************************/
@@ -203,7 +202,7 @@ int main(int argc, char** argv)
   if (!readGlobalConfig())
     goto error_end;
 
-  glob.mgmObject = new MgmtSrvr(glob.localNodeId,
+  glob.mgmObject = new MgmtSrvr(glob.localNodeId, glob.socketServer,
 				BaseString(glob.config_filename),
 				local_config,
 				glob.cluster_config);

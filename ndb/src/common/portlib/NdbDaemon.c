@@ -55,18 +55,21 @@ NdbDaemon_Make(const char* lockfile, const char* logfile, unsigned flags)
 	"%s: lseek failed: %s", lockfile, strerror(errno));
     return -1;
   }
+#ifdef F_TLOCK
   /* Test for lock before becoming daemon */
-  if (lockf(lockfd, F_TEST, 0) == -1) {
-    if (errno == EACCES || errno == EAGAIN) {	/* results may vary */
+  if (lockf(lockfd, F_TLOCK, 0) == -1) 
+  {
+    if (errno == EACCES || errno == EAGAIN) {   /* results may vary */
       snprintf(NdbDaemon_ErrorText, NdbDaemon_ErrorSize,
-	  "%s: already locked by pid=%ld", lockfile, NdbDaemon_DaemonPid);
+	       "%s: already locked by pid=%ld", lockfile, NdbDaemon_DaemonPid);
       return -1;
     }
     NdbDaemon_ErrorCode = errno;
     snprintf(NdbDaemon_ErrorText, NdbDaemon_ErrorSize,
-	"%s: lock test failed: %s", lockfile, strerror(errno));
+        "%s: lock test failed: %s", lockfile, strerror(errno));
     return -1;
   }
+#endif
   /* Test open log file before becoming daemon */
   if (logfile != NULL) {
     logfd = open(logfile, O_CREAT|O_WRONLY|O_APPEND, 0644);
@@ -77,6 +80,15 @@ NdbDaemon_Make(const char* lockfile, const char* logfile, unsigned flags)
       return -1;
     }
   }
+#ifdef F_TLOCK
+  if (lockf(lockfd, F_ULOCK, 0) == -1) 
+  {
+    snprintf(NdbDaemon_ErrorText, NdbDaemon_ErrorSize,
+	     "%s: fail to unlock", lockfile);
+    return -1;
+  }
+#endif
+  
   /* Fork */
   n = fork();
   if (n == -1) {

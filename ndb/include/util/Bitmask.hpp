@@ -105,6 +105,11 @@ public:
   static void bitXOR(unsigned size, Uint32 data[], const Uint32 data2[]);
 
   /**
+   * bitXORC - Bitwise (x ^ ~y) into first operand.
+   */
+  static void bitXORC(unsigned size, Uint32 data[], const Uint32 data2[]);
+
+  /**
    * contains - Check if all bits set in data2 are set in data
    */
   static bool contains(unsigned size, Uint32 data[], const Uint32 data2[]);
@@ -258,6 +263,14 @@ BitmaskImpl::bitXOR(unsigned size, Uint32 data[], const Uint32 data2[])
 {
   for (unsigned i = 0; i < size; i++) {
     data[i] ^= data2[i];
+  }
+}
+
+inline void
+BitmaskImpl::bitXORC(unsigned size, Uint32 data[], const Uint32 data2[])
+{
+  for (unsigned i = 0; i < size; i++) {
+    data[i] ^= ~data2[i];
   }
 }
 
@@ -450,6 +463,12 @@ public:
    */
   static void bitXOR(Uint32 data[], const Uint32 data2[]);
   BitmaskPOD<size>& bitXOR(const BitmaskPOD<size>& mask2);
+
+  /**
+   * bitXORC - Bitwise (x ^ ~y) into first operand.
+   */
+  static void bitXORC(Uint32 data[], const Uint32 data2[]);
+  BitmaskPOD<size>& bitXORC(const BitmaskPOD<size>& mask2);
 
   /**
    * contains - Check if all bits set in data2 (that) are also set in data (this)
@@ -709,6 +728,21 @@ inline BitmaskPOD<size>&
 BitmaskPOD<size>::bitXOR(const BitmaskPOD<size>& mask2)
 {
   BitmaskPOD<size>::bitXOR(rep.data, mask2.rep.data);
+  return *this;
+}
+
+template <unsigned size>
+inline void
+BitmaskPOD<size>::bitXORC(Uint32 data[], const Uint32 data2[])
+{
+  BitmaskImpl::bitXORC(size,data, data2);
+}
+
+template <unsigned size>
+inline BitmaskPOD<size>&
+BitmaskPOD<size>::bitXORC(const BitmaskPOD<size>& mask2)
+{
+  BitmaskPOD<size>::bitXORC(rep.data, mask2.rep.data);
   return *this;
 }
 

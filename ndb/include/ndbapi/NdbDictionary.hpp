@@ -369,7 +369,7 @@ public:
      */
     bool getDistributionKey() const;
     /** @} *******************************************************************/
-    
+
 #ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
     void setTupleKey(bool);
     bool getTupleKey() const;
@@ -485,6 +485,18 @@ public:
      * @return null if none existing name
      */
     const Column* getColumn(const char * name) const;
+    
+    /**
+     * Get column definition via index in table.
+     * @return null if none existing name
+     */
+    Column* getColumn(const int attributeId);
+
+    /**
+     * Get column definition via name.
+     * @return null if none existing name
+     */
+    Column* getColumn(const char * name);
     
     /**
      * Get column definition via index in table.

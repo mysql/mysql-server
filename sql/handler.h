@@ -138,6 +138,8 @@
 #define HA_CACHE_TBL_ASKTRANSACT 2
 #define HA_CACHE_TBL_TRANSACT    4
 
+/* Options of START TRANSACTION statement (and later of SET TRANSACTION stmt) */
+#define MYSQL_START_TRANS_OPT_WITH_CONS_SNAPSHOT 1
 
 enum db_type
 {
@@ -590,5 +592,5 @@ int ha_discover(THD* thd, const char* dbname, const char* name,
 int ha_find_files(THD *thd,const char *db,const char *path,
 		  const char *wild, bool dir,List<char>* files);
 int ha_table_exists(THD* thd, const char* db, const char* name);
-
-
+TYPELIB *ha_known_exts(void);
+int ha_start_consistent_snapshot(THD *thd);

@@ -54,7 +54,11 @@
 
 static int NEAR_F delete_file(const char *name,const char *ext,int extflag);
 
-ulong ha_read_count, ha_discover_count;
+ulong ha_read_count, ha_write_count, ha_delete_count, ha_update_count,
+      ha_read_key_count, ha_read_next_count, ha_read_prev_count,
+      ha_read_first_count, ha_read_last_count,
+      ha_commit_count, ha_rollback_count,
+      ha_read_rnd_count, ha_read_rnd_next_count, ha_discover_count;
 
 static SHOW_COMP_OPTION have_yes= SHOW_OPTION_YES;
 
@@ -105,9 +109,12 @@ const char *tx_isolation_names[] =
 TYPELIB tx_isolation_typelib= {array_elements(tx_isolation_names)-1,"",
 			       tx_isolation_names, NULL};
 
+static TYPELIB known_extensions= {0,"known_exts", NULL, NULL};
+uint known_extensions_id= 0;
+
 enum db_type ha_resolve_by_name(const char *name, uint namelen)
 {
-  THD *thd= current_thd;
+  THD *thd=current_thd;
   if (thd && !my_strcasecmp(&my_charset_latin1, name, "DEFAULT")) {
     return (enum db_type) thd->variables.table_type;
   }
@@ -138,7 +145,6 @@ const char *ha_get_storage_engine(enum db_type db_type)
 enum db_type ha_checktype(enum db_type database_type)
 {
   show_table_type_st *types;
-  THD *thd= current_thd;
   for (types= sys_table_types; types->type; types++)
   {
     if ((database_type == types->db_type) && 
@@ -157,11 +163,12 @@ enum db_type ha_checktype(enum db_type database_type)
     break;
   }
   
-  return ((enum db_type) thd->variables.table_type != DB_TYPE_UNKNOWN ?
-          (enum db_type) thd->variables.table_type :
-          (enum db_type) global_system_variables.table_type !=
-          DB_TYPE_UNKNOWN ?
-          (enum db_type) global_system_variables.table_type : DB_TYPE_MYISAM);
+  return 
+    DB_TYPE_UNKNOWN != (enum db_type) current_thd->variables.table_type ?
+    (enum db_type) current_thd->variables.table_type :
+    DB_TYPE_UNKNOWN != (enum db_type) global_system_variables.table_type ?
+    (enum db_type) global_system_variables.table_type :
+    DB_TYPE_MYISAM;
 } /* ha_checktype */
 
 
@@ -558,7 +565,7 @@ int ha_commit_trans(THD *thd, THD_TRANS* trans)
     thd->variables.tx_isolation=thd->session_tx_isolation;
     if (operation_done)
     {
-      statistic_increment(thd->status_var.ha_commit_count,&LOCK_status);
+      statistic_increment(ha_commit_count,&LOCK_status);
       thd->transaction.cleanup();
     }
     if (need_start_waiters)
@@ -577,6 +584,12 @@ int ha_rollback_trans(THD *thd, THD_TRANS *trans)
   if (opt_using_transactions)
   {
     bool operation_done=0;
+    /*
+      As rollback can be 30 times slower than insert in InnoDB, and user may
+      not know there's rollback (if it's because of a dupl row), better warn.
+    */
+    const char *save_proc_info= thd->proc_info;
+    thd->proc_info= "Rolling back";
 #ifdef HAVE_NDBCLUSTER_DB
     if (trans->ndb_tid)
     {
@@ -647,7 +660,8 @@ int ha_rollback_trans(THD *thd, THD_TRANS *trans)
     }
     thd->variables.tx_isolation=thd->session_tx_isolation;
     if (operation_done)
-      statistic_increment(thd->status_var.ha_rollback_count,&LOCK_status);
+      statistic_increment(ha_rollback_count,&LOCK_status);
+    thd->proc_info= save_proc_info;
   }
 #endif /* USING_TRANSACTIONS */
   DBUG_RETURN(error);
@@ -720,7 +734,7 @@ int ha_rollback_to_savepoint(THD *thd, char *savepoint_name)
     operation_done=1;
 #endif
     if (operation_done)
-      statistic_increment(thd->status_var.ha_rollback_count,&LOCK_status);
+      statistic_increment(ha_rollback_count,&LOCK_status);
   }
 #endif /* USING_TRANSACTIONS */
 
@@ -760,6 +774,25 @@ int ha_savepoint(THD *thd, char *savepoint_name)
   DBUG_RETURN(error);
 }
 
+
+int ha_start_consistent_snapshot(THD *thd)
+{
+#ifdef HAVE_INNOBASE_DB
+  if ((have_innodb == SHOW_OPTION_YES) &&
+      !innobase_start_trx_and_assign_read_view(thd))
+    return 0;
+#endif
+  /*
+    Same idea as when one wants to CREATE TABLE in one engine which does not
+    exist:
+  */
+  push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN, ER_UNKNOWN_ERROR,
+               "This MySQL server does not support any "
+               "consistent-read capable storage engine");
+  return 0;
+}
+
+
 bool ha_flush_logs()
 {
   bool result=0;
@@ -783,14 +816,10 @@ bool ha_flush_logs()
 
 int ha_delete_table(enum db_type table_type, const char *path)
 {
-  handler *file;
   char tmp_path[FN_REFLEN];
-
-  /* DB_TYPE_UNKNOWN is used in ALTER TABLE when renaming only .frm files */
-  if (table_type == DB_TYPE_UNKNOWN ||
-      ! (file=get_new_handler((TABLE*) 0, table_type)))
+  handler *file=get_new_handler((TABLE*) 0, table_type);
+  if (!file)
     return ENOENT;
-
   if (lower_case_table_names == 2 && !(file->table_flags() & HA_FILE_BASED))
   {
     /* Ensure that table handler get path in lower case */
@@ -919,7 +948,7 @@ int handler::read_first_row(byte * buf, uint primary_key)
   register int error;
   DBUG_ENTER("handler::read_first_row");
 
-  statistic_increment(current_thd->status_var.ha_read_first_count,&LOCK_status);
+  statistic_increment(ha_read_first_count,&LOCK_status);
 
   /*
     If there is very few deleted rows in the table, find the first row by
@@ -943,163 +972,41 @@ int handler::read_first_row(byte * buf, uint primary_key)
 
 
 /*
-  Generate the next auto-increment number based on increment and offset
-  
-  In most cases increment= offset= 1, in which case we get:
-  1,2,3,4,5,...
-  If increment=10 and offset=5 and previous number is 1, we get:
-  1,5,15,25,35,...
-*/
-
-inline ulonglong
-next_insert_id(ulonglong nr,struct system_variables *variables)
-{
-  nr= (((nr+ variables->auto_increment_increment -
-         variables->auto_increment_offset)) /
-       (ulonglong) variables->auto_increment_increment);
-  return (nr* (ulonglong) variables->auto_increment_increment +
-          variables->auto_increment_offset);
-}
-
-
-/*
-  Updates columns with type NEXT_NUMBER if:
-
-  - If column value is set to NULL (in which case
-    auto_increment_field_not_null is 0)
-  - If column is set to 0 and (sql_mode & MODE_NO_AUTO_VALUE_ON_ZERO) is not
-    set. In the future we will only set NEXT_NUMBER fields if one sets them
-    to NULL (or they are not included in the insert list).
-
-
-  There are two different cases when the above is true:
-
-  - thd->next_insert_id == 0  (This is the normal case)
-    In this case we set the set the column for the first row to the value
-    next_insert_id(get_auto_increment(column))) which is normally
-    max-used-column-value +1.
-
-    We call get_auto_increment() only for the first row in a multi-row
-    statement. For the following rows we generate new numbers based on the
-    last used number.
-
-  - thd->next_insert_id != 0.  This happens when we have read a statement
-    from the binary log or when one has used SET LAST_INSERT_ID=#.
-
-    In this case we will set the column to the value of next_insert_id.
-    The next row will be given the id
-    next_insert_id(next_insert_id)
-
-    The idea is that generated auto_increment values are predictable and
-    independent of the column values in the table.  This is needed to be
-    able to replicate into a table that already has rows with a higher
-    auto-increment value than the one that is inserted.
-
-    After we have already generated an auto-increment number and the user
-    inserts a column with a higher value than the last used one, we will
-    start counting from the inserted value.
-
-    thd->next_insert_id is cleared after it's been used for a statement.
+  Updates field with field_type NEXT_NUMBER according to following:
+  if field = 0 change field to the next free key in database.
 */
 
 void handler::update_auto_increment()
 {
-  ulonglong nr;
-  THD *thd= table->in_use;
-  struct system_variables *variables= &thd->variables;
+  longlong nr;
+  THD *thd;
   DBUG_ENTER("handler::update_auto_increment");
-
-  /*
-    We must save the previous value to be able to restore it if the
-    row was not inserted
-  */
-  thd->prev_insert_id= thd->next_insert_id;
-
-  if ((nr= table->next_number_field->val_int()) != 0 ||
+  if (table->next_number_field->val_int() != 0 ||
       table->auto_increment_field_not_null &&
-      thd->variables.sql_mode & MODE_NO_AUTO_VALUE_ON_ZERO)
+      current_thd->variables.sql_mode & MODE_NO_AUTO_VALUE_ON_ZERO)
   {
-    /* Clear flag for next row */
     table->auto_increment_field_not_null= FALSE;
-    /* Mark that we didn't generate a new value **/
     auto_increment_column_changed=0;
-
-    /* Update next_insert_id if we have already generated a value */
-    if (thd->clear_next_insert_id && nr >= thd->next_insert_id)
-    {
-      if (variables->auto_increment_increment != 1)
-        nr= next_insert_id(nr, variables);
-      else
-        nr++;
-      thd->next_insert_id= nr;
-      DBUG_PRINT("info",("next_insert_id: %lu", (ulong) nr));
-    }
     DBUG_VOID_RETURN;
   }
   table->auto_increment_field_not_null= FALSE;
-  if (!(nr= thd->next_insert_id))
-  {
-    nr= get_auto_increment();
-    if (variables->auto_increment_increment != 1)
-      nr= next_insert_id(nr-1, variables);
-    /*
-      Update next row based on the found value. This way we don't have to
-      call the handler for every generated auto-increment value on a
-      multi-row statement
-    */
-    thd->next_insert_id= nr;
-  }
-
-  DBUG_PRINT("info",("auto_increment: %lu", (ulong) nr));
-
-  /* Mark that we should clear next_insert_id before next stmt */
-  thd->clear_next_insert_id= 1;
-
-  if (!table->next_number_field->store((longlong) nr))
+  thd=current_thd;
+  if ((nr=thd->next_insert_id))
+    thd->next_insert_id=0;			// Clear after use
+  else
+    nr=get_auto_increment();
+  if (!table->next_number_field->store(nr))
     thd->insert_id((ulonglong) nr);
   else
     thd->insert_id(table->next_number_field->val_int());
-
-  /*
-    We can't set next_insert_id if the auto-increment key is not the
-    first key part, as there is no guarantee that the first parts will be in
-    sequence
-  */
-  if (!table->next_number_key_offset)
-  {
-    /*
-      Set next insert id to point to next auto-increment value to be able to
-      handle multi-row statements
-      This works even if auto_increment_increment > 1
-    */
-    thd->next_insert_id= next_insert_id(nr, variables);
-  }
-  else
-    thd->next_insert_id= 0;
-
-  /* Mark that we generated a new value */
   auto_increment_column_changed=1;
   DBUG_VOID_RETURN;
 }
 
-/*
-  restore_auto_increment
 
-  In case of error on write, we restore the last used next_insert_id value
-  because the previous value was not used.
-*/
-
-void handler::restore_auto_increment()
+longlong handler::get_auto_increment()
 {
-  THD *thd= table->in_use;
-  if (thd->next_insert_id)
-    thd->next_insert_id= thd->prev_insert_id;
-}
-
-
-ulonglong handler::get_auto_increment()
-{
-  ulonglong nr;
+  longlong nr;
   int error;
 
   (void) extra(HA_EXTRA_KEYREAD);
@@ -1111,8 +1018,7 @@ ulonglong handler::get_auto_increment()
   else
   {
     byte key[MAX_KEY_LENGTH];
-    key_copy(key, table->record[0],
-             table->key_info + table->next_number_index,
+    key_copy(key,table,table->next_number_index,
              table->next_number_key_offset);
     error=index_read(table->record[1], key, table->next_number_key_offset,
                      HA_READ_PREFIX_LAST);
@@ -1121,8 +1027,8 @@ ulonglong handler::get_auto_increment()
   if (error)
     nr=1;
   else
-    nr=((ulonglong) table->next_number_field->
-        val_int_offset(table->rec_buff_length)+1);
+    nr=(longlong) table->next_number_field->
+      val_int_offset(table->rec_buff_length)+1;
   index_end();
   (void) extra(HA_EXTRA_NO_KEYREAD);
   return nr;
@@ -1365,7 +1271,7 @@ int ha_create_table(const char *name, HA_CREATE_INFO *create_info,
   char name_buff[FN_REFLEN];
   DBUG_ENTER("ha_create_table");
 
-  if (openfrm(current_thd, name,"",0,(uint) READ_ALL, 0, &table))
+  if (openfrm(name,"",0,(uint) READ_ALL, 0, &table))
     DBUG_RETURN(1);
   if (update_create_info)
   {
@@ -1430,7 +1336,7 @@ int ha_create_table_from_engine(THD* thd,
     if ((error = writefrm(path, frmblob, frmlen)))
       goto err_end;
 
-    if (openfrm(thd, path,"",0,(uint) READ_ALL, 0, &table))
+    if (openfrm(path,"",0,(uint) READ_ALL, 0, &table))
       DBUG_RETURN(1);
 
     update_create_info_from_table(&create_info, &table);
@@ -1754,4 +1660,66 @@ int handler::index_read_idx(byte * buf, uint index, const byte * key,
   if (!error)
     error= ha_index_end();
   return error;
+}
+
+
+/*
+  Returns a list of all known extensions.
+
+  SYNOPSIS
+    ha_known_exts()
+ 
+  NOTES
+    No mutexes, worst case race is a minor surplus memory allocation
+    We have to recreate the extension map if mysqld is restarted (for example
+    within libmysqld)
+
+  RETURN VALUE
+    pointer		pointer to TYPELIB structure
+*/
+
+TYPELIB *ha_known_exts(void)
+{
+  if (!known_extensions.type_names || mysys_usage_id != known_extensions_id)
+  {
+    show_table_type_st *types;
+    List<char> found_exts;
+    List_iterator_fast<char> it(found_exts);
+    const char **ext, *old_ext;
+
+    known_extensions_id= mysys_usage_id;
+    found_exts.push_back((char*) ".db");
+    for (types= sys_table_types; types->type; types++)
+    {      
+      if (*types->value == SHOW_OPTION_YES)
+      {
+	handler *file= get_new_handler(0,(enum db_type) types->db_type);
+	for (ext= file->bas_ext(); *ext; ext++)
+	{
+	  while ((old_ext= it++))
+          {
+	    if (!strcmp(old_ext, *ext))
+	      break;
+          }
+	  if (!old_ext)
+	    found_exts.push_back((char *) *ext);
+
+	  it.rewind();
+	}
+	delete file;
+      }
+    }
+    ext= (const char **) my_once_alloc(sizeof(char *)*
+                                       (found_exts.elements+1),
+                                       MYF(MY_WME | MY_FAE));
+    
+    DBUG_ASSERT(ext);
+    known_extensions.count= found_exts.elements;
+    known_extensions.type_names= ext;
+
+    while ((old_ext= it++))
+      *ext++= old_ext;
+    *ext= 0;
+  }
+  return &known_extensions;
 }
