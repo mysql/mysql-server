@@ -991,8 +991,8 @@ searchable PHP version at @uref{http://www.mysql.com/documentation/manual.php}.
 (Structured Query Language) database server.
 
 @strong{MySQL} is free software. It is licensed with the @strong{GNU
-GENERAL PUBLIC LICENSE} @uref{http://www.gnu.org/}. @xref{Licensing and
-Support}.
+GENERAL PUBLIC LICENSE} @uref{http://www.gnu.org/}. 
+ @xref{Licensing and Support}.
 
 @uref{http://www.mysql.com/, The @strong{MySQL} home page}
 provides the latest information about @strong{MySQL}.
@@ -1356,15 +1356,18 @@ English):
 
 @emph{MySQL}
 @multitable @columnfractions .3 .7
-@item Available	@tab		@uref{http://shop.barnesandnoble.com/booksearch/isbnInquiry.asp?isbn=0735709211, Barnes and Noble}
+@item Available	@tab		
+@uref{http://shop.barnesandnoble.com/booksearch/isbnInquiry.asp?isbn=0735709211, Barnes and Noble}
 @item Publisher	@tab		New Riders
 @item Author	@tab		Paul DuBois
 @item Pub Date	@tab		1st Edition December 1999
 @item ISBN	@tab		0735709211
 @item Pages	@tab		800
 @item Price	@tab		$49.99 US
-@item Downloadable examples  @tab            @uref{http://www.mysql.com/Contrib/Examples/samp_db.tar.gz, @code{samp_db.tar.gz}}
-@item Errata  @tab            @uref{http://www.mysql.com/documentation/pauls-mysql-book-errata.html, are available here}
+@item Downloadable examples  @tab            
+ @uref{http://www.mysql.com/Contrib/Examples/samp_db.tar.gz, @code{samp_db.tar.gz}}
+@item Errata  @tab            
+ @uref{http://www.mysql.com/documentation/pauls-mysql-book-errata.html, are available here}
 @end multitable
 Foreword by Michael ``Monty'' Widenius, @strong{MySQL} Moderator.@*
 
@@ -37918,6 +37921,7 @@ though, so 3.23 is not released as a stable version yet.
 * News-3.23.4::                 Changes in release 3.23.4
 * News-3.23.3::                 Changes in release 3.23.3
 * News-3.23.2::                 Changes in release 3.23.2
+* News-3.23.1::                 Changes in release 3.23.2
 * News-3.23.0::                 Changes in release 3.23.0
 @end menu
 
