@@ -125,3 +125,7 @@ public:
   THR_LOCK_DATA **store_lock(THD *thd, THR_LOCK_DATA **to,
                              enum thr_lock_type lock_type);
 };
+
+bool archive_db_init(void);
+bool archive_db_end(void);
+
