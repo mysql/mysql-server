@@ -31867,24 +31867,9 @@ mysql> SELECT EXP(2);
 mysql> SELECT EXP(-2);
         -> 0.135335
 @end example
-
-@findex LN()
-@item LN(X)
-Returns the natural logarithm of @code{X}:
-@example
-mysql> SELECT LN(2);
-        -> 0.693147
-mysql> SELECT LN(-2);
-        -> NULL
-@end example
-
-This function was added in MySQL version 4.0.3.
-It is synonymous with @code{LOG(X)} in MySQL.
-
 @findex LOG()
-@item LOG([B,]X)
-When called with one parameter, this function returns the natural logarithm
-of @code{X}:
+@item LOG(X)
+Returns the natural logarithm of @code{X}:
 @example
 mysql> SELECT LOG(2);
         -> 0.693147
@@ -31892,33 +31877,7 @@ mysql> SELECT LOG(-2);
         -> NULL
 @end example
 If you want the log of a number @code{X} to some arbitrary base @code{B}, use
-
-When called with two parameters, this function returns the logarithm of
-@code{X} for an arbitary base @code{B}:
-@example
-mysql> SELECT LOG(2,65536);
-        -> 16.000000
-mysql> SELECT LOG(1,100);
-        -> NULL
-@end example
-
-The arbitrary base option was added in MySQL version 4.0.3.
-@code{LOG(B,X)} is equivalent to @code{LOG(X)/LOG(B)}.
-
-@findex LOG2()
-@item LOG2(X)
-Returns the base-2 logarithm of @code{X}:
-@example
-mysql> SELECT LOG2(65536);
-        -> 16.000000
-mysql> SELECT LOG2(-100);
-        -> NULL
-@end example
-
-@code{LOG2()} is useful for finding out how many bits a number would
-require for storage.
-This function was added in MySQL version 4.0.3.
-In earlier versions, you can use @code{LOG(X)/LOG(2)} instead.
+the formula @code{LOG(X)/LOG(B)}.
 
 @findex LOG10()
 @item LOG10(X)
@@ -49880,148 +49839,11 @@ Our TODO section contains what we plan to have in 4.0. @xref{TODO MySQL 4.0}.
 @itemize @bullet
 @item
 Fixed a bug that made the pager option in the mysql client non-functional.
-@end itemize
 @item
 Added full @code{AUTO_INCREMENT} support to @code{MERGE} tables.
-Added OLAP functionality.
-
-@c Arjen , please add the following text somewhere appropriate in the 
-text above:
-
--------------------------------------------------------------------------
-
-Documentation for OLAP extension
-
-Introduction 
-------------
-
-MySQL will first support CUBE and ROLLUP operators from entire OLAP
-functionality.  
-
-The  CUBE  and ROLLUP extensions  to  SQL make querying  and reporting
-easier  in data warehousing  environments. ROLLUP creates subtotals at
-increasing levels of aggregation, from the most detailed up to a grand
-total. CUBE  is an extension   similar to  ROLLUP,  enabling a  single
-statement to calculate all possible combinations of subtotals.
-
-
-Syntax: 
-------	
-
-The syntax supported by the enhanced mysql for CUBE and ROLLUP
-operators.  
-
-CUBE 
----- 
-
-SELECT field1, field2, ... AGGR(fieldn) FROM
-table GROUP BY field1, field2 field(n-1) WITH CUBE 
-
-This would generate the aggregates with group bys of all the
-combinations of dimensions.
-
-ROLLUP:
------        
-
-	SELECT field1, field2, ... AGGR(fieldn) FROM table 
-	GROUP BY field1, field2 field(n-1) WITH ROLLUP 
-
-Example:
--------
-
-mysql> select * from sales;
-+------------+---------------+------+--------+
-| product    | country       | year | profit |
-+------------+---------------+------+--------+
-| Computer   | India         | 2000 |   1200 |
-| TV         | United States | 1999 |    150 |
-| Calculator | United States | 1999 |     50 |
-| Computer   | United States | 1999 |   1500 |
-| Computer   | United States | 2000 |   1500 |
-| TV         | United States | 2000 |    150 |
-| TV         | India         | 2000 |    100 |
-| TV         | India         | 2000 |    100 |
-| Calculator | United States | 2000 |     75 |
-| Calculator | India         | 2000 |     75 |
-| TV         | India         | 1999 |    100 |
-| Computer   | India         | 1999 |   1200 |
-| Computer   | United States | 2000 |   1500 |
-| Calculator | United States | 2000 |     75 |
-+------------+---------------+------+--------+
-14 rows in set (0.00 sec)
-
-
- 
-mysql> Select sales.product, sales.country , sales.year, sum(profit) from 
-sales group by product, country, year with cube;
-
-+------------+---------------+------+-------------+
-| product    | country       | year | sum(profit) |
-+------------+---------------+------+-------------+
-| Calculator | India         | 2000 |          75 |
-| Calculator | United States | 1999 |          50 |
-| Calculator | United States | 2000 |         150 |
-| Computer   | India         | 1999 |        1200 |
-| Computer   | India         | 2000 |        1200 |
-| Computer   | United States | 1999 |        1500 |
-| Computer   | United States | 2000 |        3000 |
-| TV         | India         | 1999 |         100 |
-| TV         | India         | 2000 |         200 |
-| TV         | United States | 1999 |         150 |
-| TV         | United States | 2000 |         150 |
-| ALL        | India         | 1999 |        1300 |
-| ALL        | India         | 2000 |        1475 |
-| ALL        | United States | 1999 |        1700 |
-| ALL        | United States | 2000 |        3300 |
-| Calculator | ALL           | 1999 |          50 |
-| Calculator | ALL           | 2000 |         225 |
-| Computer   | ALL           | 1999 |        2700 |
-| Computer   | ALL           | 2000 |        4200 |
-| TV         | ALL           | 1999 |         250 |
-| TV         | ALL           | 2000 |         350 |
-| Calculator | India         | 0    |          75 |
-| Calculator | United States | 0    |         200 |
-| Computer   | India         | 0    |        2400 |
-| Computer   | United States | 0    |        4500 |
-| TV         | India         | 0    |         300 |
-| TV         | United States | 0    |         300 |
-| ALL        | ALL           | 1999 |        3000 |
-| ALL        | ALL           | 2000 |        4775 |
-| ALL        | India         | 0    |        2775 |
-| ALL        | United States | 0    |        5000 |
-| Calculator | ALL           | 0    |         275 |
-| Computer   | ALL           | 0    |        6900 |
-| TV         | ALL           | 0    |         600 |
-| ALL        | ALL           | 0    |        7775 |
-+------------+---------------+------+-------------+
-35 rows in set (0.00 sec)
-
-
-MySQL supports now CUBE and ROLLUP extensions, with all  functions
-that one wishes to use with them.
-
-Those extensions already work in all tested combinations. They work
-with UNION's, should work with sub-selects in 4.1 and derived tables. 
-
-TODO
-----
-
-For the moment, ORDER and LIMIT are disabled for CUBE and ROLLUP. This
-however remains to be added later.
-
-Another feature that has to be added later is grouping of select list
-itmes in order to alleviate user errors. For the moment, missing
-(hidden) columns are not used at all.
-
-Third feature to be done is to make  SQL SET OPTION to set values for
-all values of the column optionally to:
-
-* ALL (as it is now)
-* NULL 
-* blank
-
--------------------------------------------------------------------------
-
+@item
+Added support for @code{CUBE} and @code{ROLLUP}.
+@end itemize
 
 @node News-4.0.2, News-4.0.1, News-4.0.3, News-4.0.x
 @appendixsubsec Changes in release 4.0.2 (01 July 2002)
