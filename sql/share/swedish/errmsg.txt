@@ -294,3 +294,4 @@ character-set=latin1
 "'%s' är inte aktiverad; För att aktivera detta måste du bygga om MySQL med '%s' definerad",
 "MySQL är started i --skip-grant-tables mod. Pga av detta kan du inte använda detta program",
 
+"Column '%-.100s' has duplicated value '%-.64s' in %s"
