@@ -147,7 +147,25 @@ int execute_no_commit(ha_ndbcluster *h, NdbConnection *trans)
   int m_batch_execute= 0;
   if (false && m_batch_execute)
     return 0;
-  return trans->execute(NoCommit);
+  return trans->execute(NoCommit,AbortOnError,1);
+}
+
+inline
+int execute_commit(ha_ndbcluster *h, NdbConnection *trans)
+{
+  int m_batch_execute= 0;
+  if (false && m_batch_execute)
+    return 0;
+  return trans->execute(Commit,AbortOnError,1);
+}
+
+inline
+int execute_no_commit_ie(ha_ndbcluster *h, NdbConnection *trans)
+{
+  int m_batch_execute= 0;
+  if (false && m_batch_execute)
+    return 0;
+  return trans->execute(NoCommit,IgnoreError,1);
 }
 
 /*
@@ -1006,7 +1024,7 @@ int ha_ndbcluster::pk_read(const byte *key, uint key_len, byte *buf)
     }
   }
   
-  if (trans->execute(NoCommit, IgnoreError) != 0) 
+  if (execute_no_commit_ie(this,trans) != 0) 
   {
     table->status= STATUS_NOT_FOUND;
     DBUG_RETURN(ndb_err(trans));
@@ -1127,7 +1145,7 @@ int ha_ndbcluster::unique_index_read(const byte *key,
     }
   }
 
-  if (trans->execute(NoCommit, IgnoreError) != 0) 
+  if (execute_no_commit_ie(this,trans) != 0) 
   {
     table->status= STATUS_NOT_FOUND;
     DBUG_RETURN(ndb_err(trans));
@@ -1197,18 +1215,20 @@ inline int ha_ndbcluster::next_result(byte *buf)
 	be sent to NDB
       */
       DBUG_PRINT("info", ("ops_pending: %d", ops_pending));    
-      if (current_thd->transaction.on)
       {
-	if (ops_pending && (execute_no_commit(this,trans) != 0))
-	  DBUG_RETURN(ndb_err(trans));
+	if (current_thd->transaction.on)
+	{
+	  if (execute_no_commit(this,trans) != 0)
+	    DBUG_RETURN(ndb_err(trans));
+	}
+	else
+	{
+	  if  (execute_commit(this,trans) != 0)
+	    DBUG_RETURN(ndb_err(trans));
+	  DBUG_ASSERT(trans->restart() == 0);
+	}
+	ops_pending= 0;
       }
-      else
-      {
-	if (ops_pending && (trans->execute(Commit) != 0))
-	  DBUG_RETURN(ndb_err(trans));
-	trans->restart();
-      }
-      ops_pending= 0;
       
       contact_ndb= (check == 2);
     }
@@ -1639,13 +1659,13 @@ int ha_ndbcluster::write_row(byte *record)
     }
     else
     {
-      if (trans->execute(Commit) != 0)
+      if (execute_commit(this,trans) != 0)
       {
 	skip_auto_increment= true;
 	no_uncommitted_rows_execute_failure();
 	DBUG_RETURN(ndb_err(trans));
       }
-      trans->restart();
+      DBUG_ASSERT(trans->restart() == 0);
     }
   }
   if ((has_auto_increment) && (skip_auto_increment))
@@ -2282,7 +2302,7 @@ int ha_ndbcluster::rnd_init(bool scan)
   {
     if (!scan)
       DBUG_RETURN(1);
-    cursor->restart();    
+    DBUG_ASSERT(cursor->restart() == 0);
   }
   index_init(table->primary_key);
   DBUG_RETURN(0);
@@ -2929,7 +2949,7 @@ int ndbcluster_commit(THD *thd, void *ndb_transaction)
                             "stmt" : "all"));
   DBUG_ASSERT(ndb && trans);
 
-  if (trans->execute(Commit) != 0)
+  if (execute_commit(0,trans) != 0)
   {
     const NdbError err= trans->getNdbError();
     const NdbOperation *error_op= trans->getNdbErrorOperation();

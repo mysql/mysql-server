@@ -309,6 +309,7 @@ select count(*) from t1;
 drop table t1;
 drop database mysqltest;
 
+# bug #5349
 set autocommit=1;
 use test;
 CREATE TABLE t1 (
@@ -324,5 +325,9 @@ INSERT INTO t1 VALUES
 
 select * from t1 order by a;
 alter table t1 engine=ndb;
+select * from t1 order by a;
+
+# bug #5872
+alter table t1 engine=myisam;
 select * from t1 order by a;
 drop table t1;
