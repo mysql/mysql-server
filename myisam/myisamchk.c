@@ -354,7 +354,7 @@ static void usage(void)
   puts("Description, check and repair of MyISAM tables.");
   puts("Used without options all tables on the command will be checked for errors");
   printf("Usage: %s [OPTIONS] tables[.MYI]\n", my_progname_short);
-  puts("\nGlobal options:\n\
+  printf("\nGlobal options:\n\
   -#, --debug=...     Output debug log. Often this is 'd:t:o,filename'.\n\
   -?, --help          Display this help and exit.\n\
   -O, --set-variable var=option.\n\
@@ -364,18 +364,18 @@ static void usage(void)
   -t, --tmpdir=path   Path for temporary files. Multiple paths can be\n\
                       specified, separated by ");
 #if defined( __WIN__) || defined(OS2) || defined(__NETWARE__)
-   puts("semicolon (;)");
+   printf("semicolon (;)");
 #else
-   puts("colon (:)");
+   printf("colon (:)");
 #endif
-                      puts(", they will be used\n\
+                      printf(", they will be used\n\
                       in a round-robin fashion.\n\
   -s, --silent	      Only print errors.  One can use two -s to make\n\
 		      myisamchk very silent.\n\
   -v, --verbose       Print more information. This can be used with\n\
                       --description and --check. Use many -v for more verbosity.\n\
   -V, --version       Print version and exit.\n\
-  -w, --wait          Wait if table is locked.\n");
+  -w, --wait          Wait if table is locked.\n\n");
 #ifdef DEBUG
   puts("  --start-check-pos=# Start reading file at given offset.\n");
 #endif
