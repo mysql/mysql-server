@@ -16319,7 +16319,8 @@ Version 3.22.  @code{ADDDATE()} and @code{SUBDATE()} are synonyms for
 @code{DATE_ADD()} and @code{DATE_SUB()}.
 
 In @strong{MySQL} Version 3.23, you can use @code{+} and @code{-} instead of
-@code{DATE_ADD()} and @code{DATE_SUB()}. (See example)
+@code{DATE_ADD()} and @code{DATE_SUB()} if the expression on the right side is
+a date or datetime column. (See example)
 
 @code{date} is a @code{DATETIME} or @code{DATE} value specifying the starting
 date.  @code{expr} is an expression specifying the interval value to be added
@@ -20221,7 +20222,9 @@ this join type is good.
 
 @item range
 Only rows that are in a given range will be retrieved, using an index to
-select the rows.  The @code{ref} column indicates which index is used.
+select the rows.  The @code{key} column indicates which index is used.
+The @code{key_len} contains the longest key part that was used.
+The @code{ref} column will be NULL for this type.
 
 @item index
 This is the same as @code{ALL}, except that only the index tree is

@@ -1165,6 +1165,10 @@ static int open_unireg_entry(THD *thd, TABLE *entry, const char *db,
 		entry) ||
 	(entry->file->is_crashed() && entry->file->check_and_repair(thd)))
     {
+      /* Give right error message */
+      thd->net.last_error[0]=0;
+      thd->net.last_errno=0;
+      entry->file->print_error(HA_ERR_CRASHED,MYF(0));
       sql_print_error("Error: Couldn't repair table: %s.%s",db,name);
       closefrm(entry);
       error=1;

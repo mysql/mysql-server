@@ -57,6 +57,8 @@ static void mi_check_print_msg(MI_CHECK *param,	const char* msg_type,
   my_vsnprintf(msgbuf, sizeof(msgbuf), fmt, args);
   msgbuf[sizeof(msgbuf) - 1] = 0; // healthy paranoia
 
+  DBUG_PRINT(msg_type,("message: %s",msgbuf));
+
   if (thd->net.vio == 0)
   {
     sql_print_error(msgbuf);
@@ -413,8 +415,8 @@ int ha_myisam::repair(THD* thd, HA_CHECK_OPT *check_opt)
   myisamchk_init(&param);
   param.thd = thd;
   param.op_name = (char*) "repair";
-  param.testflag = (check_opt->flags | T_SILENT | T_FORCE_CREATE |
-		    T_REP_BY_SORT);
+  param.testflag = ((check_opt->flags | T_SILENT | T_FORCE_CREATE) |
+		    (check_opt->flags & T_EXTEND ? T_REP : T_REP_BY_SORT));
   if (check_opt->quick)
     param.opt_rep_quick++;
   param.sort_buffer_length=  check_opt->sort_buffer_size;
@@ -429,8 +431,8 @@ int ha_myisam::repair(THD* thd, HA_CHECK_OPT *check_opt)
     }
     if ((param.testflag & T_REP_BY_SORT))
     {
-      param.testflag= (param.testflag & ~T_REP_BY_SORT) | T_REP;      
-      sql_print_error("Warning: Retrying recover of:  %s with safe repair",
+      param.testflag= (param.testflag & ~T_REP_BY_SORT) | T_REP;
+      sql_print_error("Warning: Retrying recover of:  %s with keycache",
 		      table->path);
       continue;
     }
@@ -463,13 +465,14 @@ int ha_myisam::repair(THD *thd, MI_CHECK &param, bool optimize)
   char fixed_name[FN_REFLEN];
   const char *old_proc_info=thd->proc_info;
   MYISAM_SHARE* share = file->s;
+  DBUG_ENTER("ha_myisam::repair");
 
   param.table_name = table->table_name;
   param.tmpfile_createflag = O_RDWR | O_TRUNC;
   param.using_global_keycache = 1;
   param.thd=thd;
   param.tmpdir=mysql_tmpdir;
-    
+  param.out_flag=0;
   VOID(fn_format(fixed_name,file->filename,"",MI_NAME_IEXT,
 		     4+ (param.opt_follow_links ? 16 : 0)));
 
@@ -479,15 +482,16 @@ int ha_myisam::repair(THD *thd, MI_CHECK &param, bool optimize)
 	!(share->state.changed & STATE_NOT_OPTIMIZED_KEYS))))
   {
     optimize_done=1;
-    if (mi_test_if_sort_rep(file,file->state->records,0))
+    if (mi_test_if_sort_rep(file,file->state->records,0) &&
+	(param.testflag & T_REP_BY_SORT))
     {
       param.testflag|= T_STATISTICS;		// We get this for free
-      thd->proc_info="Repairing by sorting";
+      thd->proc_info="Repair by sorting";
       error = mi_repair_by_sort(&param, file, fixed_name, param.opt_rep_quick);
     }
     else
     {
-      thd->proc_info="Repairing";
+      thd->proc_info="Repair with keycache";
       error=  mi_repair(&param, file, fixed_name, param.opt_rep_quick);
     }
   }
@@ -558,8 +562,9 @@ int ha_myisam::repair(THD *thd, MI_CHECK &param, bool optimize)
       }
       if (param.out_flag & O_NEW_DATA)
 	error|=change_to_newfile(fixed_name,MI_NAME_DEXT,
-				 DATA_TMP_EXT, 0, MYF(0));
-
+				 DATA_TMP_EXT, 0,
+				 (param.testflag & T_BACKUP_DATA ?
+				  MYF(MY_REDEL_MAKE_BACKUP): MYF(0)));
       if (param.out_flag & O_NEW_INDEX)
 	error|=change_to_newfile(fixed_name,MI_NAME_IEXT,
 				 INDEX_TMP_EXT, 0, MYF(0));
@@ -574,8 +579,8 @@ int ha_myisam::repair(THD *thd, MI_CHECK &param, bool optimize)
     }
   }
   thd->proc_info=old_proc_info;
-  return (error ? HA_ADMIN_FAILED :
-          !optimize_done ? HA_ADMIN_ALREADY_DONE : HA_ADMIN_OK);
+  DBUG_RETURN(error ? HA_ADMIN_FAILED :
+	      !optimize_done ? HA_ADMIN_ALREADY_DONE : HA_ADMIN_OK);
 }
 
 

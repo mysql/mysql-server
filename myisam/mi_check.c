@@ -504,7 +504,8 @@ static int chk_index(MI_CHECK *param, MI_INFO *info, MI_KEYDEF *keyinfo,
 
   if (used_length > keyinfo->block_length)
   {
-    mi_check_print_error(param,"Wrong pageinfo at page: %s", llstr(page,llbuff));
+    mi_check_print_error(param,"Wrong pageinfo at page: %s",
+			 llstr(page,llbuff));
     goto err;
   }
   for ( ;; )
