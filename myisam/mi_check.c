@@ -230,7 +230,8 @@ static int check_k_link(MI_CHECK *param, register MI_INFO *info, uint nr)
     if (next_link > info->state->key_file_length ||
 	next_link & (info->s->blocksize-1))
       DBUG_RETURN(1);
-    if (!(buff=key_cache_read(info->s->kfile, next_link, (byte*) info->buff,
+    if (!(buff=key_cache_read(dflt_keycache,
+                              info->s->kfile, next_link, (byte*) info->buff,
 			      myisam_block_size, block_size, 1)))
       DBUG_RETURN(1);
     next_link=mi_sizekorr(buff);
@@ -259,7 +260,8 @@ int chk_size(MI_CHECK *param, register MI_INFO *info)
 
   if (!(param->testflag & T_SILENT)) puts("- check file-size");
 
-  flush_key_blocks(info->s->kfile, FLUSH_FORCE_WRITE); /* If called externally */
+  flush_key_blocks(dflt_keycache,
+                info->s->kfile, FLUSH_FORCE_WRITE); /* If called externally */
 
   size=my_seek(info->s->kfile,0L,MY_SEEK_END,MYF(0));
   if ((skr=(my_off_t) info->state->key_file_length) != size)
@@ -1119,7 +1121,8 @@ int mi_repair(MI_CHECK *param, register MI_INFO *info,
   param->testflag|=T_REP; /* for easy checking */
 
   if (!param->using_global_keycache)
-    VOID(init_key_cache(param->use_buffers));
+    VOID(init_key_cache(&dflt_keycache,dflt_key_block_size,
+                        param->use_buffers));
 
   if (init_io_cache(&param->read_cache,info->dfile,
 		    (uint) param->read_buffer_length,
@@ -1477,13 +1480,13 @@ void lock_memory(MI_CHECK *param __attribute__((unused)))
 
 int flush_blocks(MI_CHECK *param, File file)
 {
-  if (flush_key_blocks(file,FLUSH_RELEASE))
+  if (flush_key_blocks(dflt_keycache,file,FLUSH_RELEASE))
   {
     mi_check_print_error(param,"%d when trying to write bufferts",my_errno);
     return(1);
   }
   if (!param->using_global_keycache)
-    end_key_cache();
+    end_key_cache(&dflt_keycache,1);
   return 0;
 } /* flush_blocks */
 
@@ -1537,7 +1540,7 @@ int mi_sort_index(MI_CHECK *param, register MI_INFO *info, my_string name)
   }
 
   /* Flush key cache for this file if we are calling this outside myisamchk */
-  flush_key_blocks(share->kfile, FLUSH_IGNORE_CHANGED);
+  flush_key_blocks(dflt_keycache,share->kfile, FLUSH_IGNORE_CHANGED);
 
   share->state.version=(ulong) time((time_t*) 0);
   old_state=share->state;			/* save state if not stored */
@@ -1843,7 +1846,7 @@ int mi_repair_by_sort(MI_CHECK *param, register MI_INFO *info,
       Flush key cache for this file if we are calling this outside
       myisamchk
     */
-    flush_key_blocks(share->kfile, FLUSH_IGNORE_CHANGED);
+    flush_key_blocks(dflt_keycache,share->kfile, FLUSH_IGNORE_CHANGED);
     /* Clear the pointers to the given rows */
     for (i=0 ; i < share->base.keys ; i++)
       share->state.key_root[i]= HA_OFFSET_ERROR;
@@ -1853,7 +1856,7 @@ int mi_repair_by_sort(MI_CHECK *param, register MI_INFO *info,
   }
   else
   {
-    if (flush_key_blocks(share->kfile, FLUSH_FORCE_WRITE))
+    if (flush_key_blocks(dflt_keycache,share->kfile, FLUSH_FORCE_WRITE))
       goto err;
     key_map= ~key_map;				/* Create the missing keys */
   }
@@ -2206,7 +2209,7 @@ int mi_repair_parallel(MI_CHECK *param, register MI_INFO *info,
       Flush key cache for this file if we are calling this outside
       myisamchk
     */
-    flush_key_blocks(share->kfile, FLUSH_IGNORE_CHANGED);
+    flush_key_blocks(dflt_keycache,share->kfile, FLUSH_IGNORE_CHANGED);
     /* Clear the pointers to the given rows */
     for (i=0 ; i < share->base.keys ; i++)
       share->state.key_root[i]= HA_OFFSET_ERROR;
@@ -2216,7 +2219,7 @@ int mi_repair_parallel(MI_CHECK *param, register MI_INFO *info,
   }
   else
   {
-    if (flush_key_blocks(share->kfile, FLUSH_FORCE_WRITE))
+    if (flush_key_blocks(dflt_keycache,share->kfile, FLUSH_FORCE_WRITE))
       goto err;
     key_map= ~key_map;				/* Create the missing keys */
   }
