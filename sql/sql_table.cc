@@ -3375,7 +3375,8 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
     }
     /* Remove link to old table and rename the new one */
     close_temporary_table(thd, table->s->db, table_name);
-    if (rename_temporary_table(thd, new_table, new_db, new_alias))
+    /* Should pass the 'new_name' as we store table name in the cache */
+    if (rename_temporary_table(thd, new_table, new_db, new_name))
     {						// Fatal error
       close_temporary_table(thd,new_db,tmp_name);
       my_free((gptr) new_table,MYF(0));
