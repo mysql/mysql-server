@@ -1078,8 +1078,8 @@ void Dblqh::execLQHFRAGREQ(Signal* signal)
   if (DictTabInfo::isOrderedIndex(tableType)) {
     jam();
     // NOTE: next 2 lines stolen from ACC
-    addfragptr.p->fragid1 = (0 << tlhstar) | fragId;
-    addfragptr.p->fragid2 = (1 << tlhstar) | fragId;
+    addfragptr.p->fragid1 = (fragId << 1) | 0;
+    addfragptr.p->fragid2 = (fragId << 1) | 1;
     addfragptr.p->addfragStatus = AddFragRecord::WAIT_TWO_TUP;
     sendAddFragReq(signal);
     return;
@@ -1268,7 +1268,7 @@ Dblqh::sendAddFragReq(Signal* signal)
       tuxreq->noOfAttr = addfragptr.p->noOfAttr - 1; /* skip NDB$TNODE */
       tuxreq->fragId =
         addfragptr.p->addfragStatus == AddFragRecord::WAIT_TWO_TUX
-        ? addfragptr.p->fragid1 : addfragptr.p->fragid2;
+        ? addfragptr.p->fragid1: addfragptr.p->fragid2;
       tuxreq->fragOff = addfragptr.p->lh3DistrBits;
       tuxreq->tableType = addfragptr.p->tableType;
       tuxreq->primaryTableId = addfragptr.p->primaryTableId;
@@ -3420,7 +3420,7 @@ void Dblqh::execLQHKEYREQ(Signal* signal)
     LQHKEY_error(signal, 6);
     return;
   }//if
-  regTcPtr->localFragptr = (regTcPtr->hashValue >> fragptr.p->hashCheckBit) & 1;
+  regTcPtr->localFragptr = regTcPtr->hashValue & 1;
   Uint8 TcopyType = fragptr.p->fragCopy;
   tfragDistKey = fragptr.p->fragDistributionKey;
   if (fragptr.p->fragStatus == Fragrecord::ACTIVE_CREATION) {
@@ -8023,13 +8023,7 @@ void Dblqh::nextScanConfLoopLab(Signal* signal)
   ptrCheckGuard(fragptr, cfragrecFileSize, fragrecord);
   if (! scanptr.p->rangeScan) {
     tableRef = tcConnectptr.p->tableref;
-    if (fragptr.p->fragId == scanptr.p->scanLocalFragid) {
-      jam();
-      tupFragPtr = fragptr.p->tupFragptr[0];
-    } else {
-      jam();
-      tupFragPtr = fragptr.p->tupFragptr[1];
-    }//if
+    tupFragPtr = fragptr.p->tupFragptr[scanptr.p->scanLocalFragid & 1];
   } else {
     jam();
     // for ordered index use primary table
@@ -8037,13 +8031,7 @@ void Dblqh::nextScanConfLoopLab(Signal* signal)
     tFragPtr.i = fragptr.p->tableFragptr;
     ptrCheckGuard(tFragPtr, cfragrecFileSize, fragrecord);
     tableRef = tFragPtr.p->tabRef;
-    if (tFragPtr.p->fragId == scanptr.p->scanLocalFragid) {
-      jam();
-      tupFragPtr = tFragPtr.p->tupFragptr[0];
-    } else {
-      jam();
-      tupFragPtr = tFragPtr.p->tupFragptr[1];
-    }//if
+    tupFragPtr = tFragPtr.p->tupFragptr[scanptr.p->scanLocalFragid & 1];
   }
   {
     jam();
@@ -9122,13 +9110,7 @@ void Dblqh::copySendTupkeyReqLab(Signal* signal)
   scanptr.p->scanState = ScanRecord::WAIT_TUPKEY_COPY;
   fragptr.i = tcConnectptr.p->fragmentptr;
   ptrCheckGuard(fragptr, cfragrecFileSize, fragrecord);
-  if (fragptr.p->fragId == scanptr.p->scanLocalFragid) {
-    jam();
-    tupFragPtr = fragptr.p->tupFragptr[0];
-  } else {
-    jam();
-    tupFragPtr = fragptr.p->tupFragptr[1];
-  }//if
+  tupFragPtr = fragptr.p->tupFragptr[scanptr.p->scanLocalFragid & 1];
   {
     TupKeyReq * const tupKeyReq = (TupKeyReq *)signal->getDataPtrSend(); 
 
