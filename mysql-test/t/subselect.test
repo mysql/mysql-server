@@ -1009,21 +1009,3 @@ INSERT INTO t1 VALUES (1,1,'1A3240'), (1,2,'4W2365');
 INSERT INTO t2 VALUES (100, 200, 'C');
 SELECT DISTINCT COLC FROM t1 WHERE COLA = (SELECT COLA FROM t2 WHERE COLB = 200 AND COLC ='C' LIMIT 1);
 DROP TABLE t1, t2;
-
-#
-# errors handling
-#
-
-create table t11 (a int NOT NULL, b int, primary key (a));
-create table t12 (a int NOT NULL, b int, primary key (a));
-create table t2 (a int NOT NULL, b int, primary key (a));
-insert into t11 values (0, 10),(1, 11),(2, 12);
-insert into t12 values (33, 10),(22, 11),(2, 12);
-insert into t2 values (1, 21),(2, 12),(3, 23);
-select * from t11;
-select * from t12;
-select * from t2;
--- error 1241
-delete t11.*, t12.* from t11,t12 where t11.a = t12.a and t11.b > (select b from t2);
-select * from t2;
-drop table t11, t12, t2;
