@@ -149,14 +149,20 @@ public:
   
   /**
    * @class Column
-   * @brief Represents an column in an NDB Cluster table
+   * @brief Represents a column in an NDB Cluster table
    *
-   * Each column has a type. The type of a column is determind by a number 
+   * Each column has a type. The type of a column is determined by a number 
    * of type specifiers.
    * The type specifiers are:
    * - Builtin type
    * - Array length or max length
-   * - Precision and scale
+   * - Precision and scale (not used yet)
+   * - Character set for string types
+   * - Inline and part sizes for blobs
+   *
+   * Types in general correspond to MySQL types and their variants.
+   * Data formats are same as in MySQL.  NDB API provides no support for
+   * constructing such formats.  NDB kernel checks them however.
    */
   class Column {
   public:
@@ -179,14 +185,16 @@ public:
       Double = NDB_TYPE_DOUBLE,        ///< 64-bit float. 8 byte float, can be used in array
       Decimal = NDB_TYPE_DECIMAL,       ///< Precision, Scale are applicable
       Char = NDB_TYPE_CHAR,          ///< Len. A fixed array of 1-byte chars
-      Varchar = NDB_TYPE_VARCHAR,       ///< Max len
+      Varchar = NDB_TYPE_VARCHAR,       ///< Length bytes: 1, Max: 255
       Binary = NDB_TYPE_BINARY,        ///< Len
-      Varbinary = NDB_TYPE_VARBINARY,     ///< Max len
+      Varbinary = NDB_TYPE_VARBINARY,     ///< Length bytes: 1, Max: 255
       Datetime = NDB_TYPE_DATETIME,    ///< Precision down to 1 sec (sizeof(Datetime) == 8 bytes )
       Timespec = NDB_TYPE_TIMESPEC,    ///< Precision down to 1 nsec(sizeof(Datetime) == 12 bytes )
       Blob = NDB_TYPE_BLOB,        ///< Binary large object (see NdbBlob)
-      Text = NDB_TYPE_TEXT,         ///< Text blob,
-      Bit = NDB_TYPE_BIT           ///< Bit, length specifies no of bits
+      Text = NDB_TYPE_TEXT,         ///< Text blob
+      Bit = NDB_TYPE_BIT,          ///< Bit, length specifies no of bits
+      Longvarchar = NDB_TYPE_LONG_VARCHAR,  ///< Length bytes: 2, little-endian
+      Longvarbinary = NDB_TYPE_LONG_VARBINARY  ///< Length bytes: 2, little-endian
     };
 
     /** 

@@ -21,7 +21,7 @@
  * Changing the values makes database upgrade impossible.
  *
  * New or removed definitions must be replicated to
- * NdbDictionary.hpp and NdbSqlUtil.cpp.
+ * NdbDictionary.hpp and NdbSqlUtil.hpp.
  *
  * Not for use by application programs.
  * Use the enums provided by NdbDictionary instead.
@@ -58,7 +58,9 @@
 #define NDB_TYPE_BLOB                   20
 #define NDB_TYPE_TEXT                   21
 #define NDB_TYPE_BIT                    22
+#define NDB_TYPE_LONG_VARCHAR           23
+#define NDB_TYPE_LONG_VARBINARY         24
 
-#define NDB_TYPE_MAX                    23
+#define NDB_TYPE_MAX                    25
  
 #endif

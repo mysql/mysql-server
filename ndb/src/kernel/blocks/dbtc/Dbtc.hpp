@@ -1446,7 +1446,7 @@ private:
   void gcpTcfinished(Signal* signal);
   void handleGcp(Signal* signal);
   void hash(Signal* signal);
-  Uint32 handle_special_hash(Uint32 dstHash[4], 
+  bool handle_special_hash(Uint32 dstHash[4], 
 			     Uint32* src, Uint32 srcLen, 
 			     Uint32 tabPtrI, bool distr);
   
