@@ -82,7 +82,7 @@ flag value must give the length also! */
 						predefined minimum record */
 #define MLOG_IBUF_BITMAP_INIT	((byte)27)	/* initialize an ibuf bitmap
 						page */
-#define	MLOG_FULL_PAGE		((byte)28)	/* full contents of a page */
+/*#define	MLOG_FULL_PAGE	((byte)28)	full contents of a page */
 #define MLOG_INIT_FILE_PAGE	((byte)29)	/* this means that a file page
 						is taken into use and the prior
 						contents of the page should be
@@ -236,16 +236,6 @@ mtr_memo_release(
 	mtr_t*	mtr,	/* in: mtr */
 	void*	object,	/* in: object */
 	ulint	type);	/* in: object type: MTR_MEMO_S_LOCK, ... */
-/****************************************************************
-Parses a log record which contains the full contents of a page. */
-
-byte*
-mtr_log_parse_full_page(
-/*====================*/
-			/* out: end of log record or NULL */
-	byte*	ptr,	/* in: buffer */
-	byte*	end_ptr,/* in: buffer end */
-	page_t*	page);	/* in: page or NULL */
 /**************************************************************
 Checks if memo contains the given item. */
 UNIV_INLINE

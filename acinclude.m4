@@ -1337,6 +1337,45 @@ dnl Macro: MYSQL_CHECK_NDBCLUSTER
 dnl Sets HAVE_NDBCLUSTER_DB if --with-ndbcluster is used
 dnl ---------------------------------------------------------------------------
                                                                                 
+AC_DEFUN([MYSQL_CHECK_NDB_OPTIONS], [
+  AC_ARG_WITH([ndb-shm],
+              [
+  --with-ndb-shm        Include the NDB Cluster shared memory transporter],
+              [ndb-shm="$withval"],
+              [ndb-shm=no])
+  AC_ARG_WITH([ndb-sci],
+              [
+  --with-ndb-sci        Include the NDB Cluster sci transporter],
+              [ndb-sci="$withval"],
+              [ndb-sci=no])
+                                                                                
+  AC_MSG_CHECKING([for NDB Cluster options])
+                                                                                
+  have_ndb_shm=no
+  case "$ndb-shm" in
+    yes )
+      AC_MSG_RESULT([Including NDB Cluster shared memory transporter])
+      AC_DEFINE(NDB_SHM_TRANSPORTER)
+      have_ndb_shm="yes"
+      ;;
+    * )
+      AC_MSG_RESULT([Not including NDB Cluster shared memory transporter])
+      ;;
+  esac
+
+  have_ndb_sci=no
+  case "$ndb-sci" in
+    yes )
+      AC_MSG_RESULT([Including NDB Cluster sci transporter])
+      AC_DEFINE(NDB_SCI_TRANSPORTER)
+      have_ndb_sci="yes"
+      ;;
+    * )
+      AC_MSG_RESULT([Not including NDB Cluster sci transporter])
+      ;;
+  esac
+])
+
 AC_DEFUN([MYSQL_CHECK_NDBCLUSTER], [
   AC_ARG_WITH([ndbcluster],
               [
@@ -1355,7 +1394,7 @@ AC_DEFUN([MYSQL_CHECK_NDBCLUSTER], [
       AC_DEFINE(HAVE_NDBCLUSTER_DB)
       have_ndbcluster="yes"
       ndbcluster_includes="-I../ndb/include -I../ndb/include/ndbapi"
-      ndbcluster_libs="\$(top_builddir)/ndb/src/ndbapi/libNDB_API.la"
+      ndbcluster_libs="\$(top_builddir)/ndb/src/libndbclient.la"
       ndbcluster_system_libs=""
       ;;
     * )
