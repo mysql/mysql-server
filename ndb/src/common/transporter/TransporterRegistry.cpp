@@ -1211,7 +1211,7 @@ TransporterRegistry::start_clients_thread()
       switch(performStates[nodeId]){
       case CONNECTING:
 	if(!t->isConnected() && !t->isServer) {
-	  if(t->get_r_port() <= 0) {		// Port is dynamic
+	  if(t->get_s_port() <= 0) {		// Port is dynamic
 	    int server_port= 0;
 	    struct ndb_mgm_reply mgm_reply;
 	    int res;
@@ -1222,27 +1222,24 @@ TransporterRegistry::start_clients_thread()
 						     CFG_CONNECTION_SERVER_PORT,
 						     &server_port,
 						     &mgm_reply);
-	    DBUG_PRINT("info",("Got %s port %u for %d -> %d (ret: %d)",
-			       (server_port<=0)?"dynamic":"static",
+	    DBUG_PRINT("info",("Got dynamic port %d for %d -> %d (ret: %d)",
 			       server_port,t->getRemoteNodeId(),
 			       t->getLocalNodeId(),res));
-	    if(server_port<0)
-	      server_port = -server_port; // was a dynamic port
 
-	    if(res>=0)
-	      t->set_r_port(server_port);
+	    if(res>=0 && server_port)
+	      t->set_s_port(server_port);
 	    else
 	      ndbout_c("Failed to get dynamic port to connect to: %d", res);
 	  }
 	  if (theTransporterTypes[nodeId] != tt_TCP_TRANSPORTER
-             || t->get_r_port() > 0) {
+             || t->get_s_port() > 0) {
 	    int result = t->connect_client();
 	    if (result<0)
 	      ndbout_c("Error while trying to make connection (Node %u to"
 		       " %u via port %u) error: %d. Retrying...",
 		       t->getRemoteNodeId(),
 		       t->getLocalNodeId(),
-		       t->get_r_port());
+		       t->get_s_port());
 	  } else
 	    NdbSleep_MilliSleep(400); // wait before retrying
 	}
