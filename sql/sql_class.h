@@ -550,7 +550,8 @@ public:
     return alloc_root(&transaction.mem_root,size);
   }
   void add_changed_table(TABLE *table);
-  CHANGED_TABLE_LIST * changed_table_dup(TABLE *table);
+  void add_changed_table(const char *key, long key_length);
+  CHANGED_TABLE_LIST * changed_table_dup(const char *key, long key_length);
 };
 
 /*

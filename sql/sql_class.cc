@@ -301,28 +301,33 @@ void THD::add_changed_table(TABLE *table)
 
   DBUG_ASSERT((options & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN)) &&
 	      table->file->has_transactions());
+  DBUG_RETURN(add_changed_table(table->table_cache_key, table->key_length));
+}
 
+void THD::add_changed_table(const char *key, long key_length)
+{
+  DBUG_ENTER("THD::add_changed_table(key)");
   CHANGED_TABLE_LIST** prev = &transaction.changed_tables;
   CHANGED_TABLE_LIST* curr = transaction.changed_tables;
 
   for (; curr; prev = &(curr->next), curr = curr->next)
   {
-    int cmp =  (long)curr->key_length - (long)table->key_length;
+    int cmp =  (long)curr->key_length - (long)key_length;
     if (cmp < 0)
     {
-      list_include(prev, curr, changed_table_dup(table));
+      list_include(prev, curr, changed_table_dup(key, key_length));
       DBUG_PRINT("info", 
-		 ("key_length %u %u", table->key_length, (*prev)->key_length));
+		 ("key_length %u %u", key_length, (*prev)->key_length));
       DBUG_VOID_RETURN;
     }
     else if (cmp == 0)
     {
-      cmp = memcmp(curr->key ,table->table_cache_key, curr->key_length);
+      cmp = memcmp(curr->key, key, curr->key_length);
       if (cmp < 0)
       {
-	list_include(prev, curr, changed_table_dup(table));
+	list_include(prev, curr, changed_table_dup(key, key_length));
 	DBUG_PRINT("info", 
-		   ("key_length %u %u", table->key_length,
+		   ("key_length %u %u", key_length,
 		    (*prev)->key_length));
 	DBUG_VOID_RETURN;
       }
@@ -333,22 +338,22 @@ void THD::add_changed_table(TABLE *table)
       }
     }
   }
-  *prev = changed_table_dup(table);
-  DBUG_PRINT("info", ("key_length %u %u", table->key_length,
+  *prev = changed_table_dup(key, key_length);
+  DBUG_PRINT("info", ("key_length %u %u", key_length,
 		      (*prev)->key_length));
   DBUG_VOID_RETURN;
 }
 
 
-CHANGED_TABLE_LIST* THD::changed_table_dup(TABLE *table)
+CHANGED_TABLE_LIST* THD::changed_table_dup(const char *key, long key_length)
 {
   CHANGED_TABLE_LIST* new_table = 
     (CHANGED_TABLE_LIST*) trans_alloc(ALIGN_SIZE(sizeof(CHANGED_TABLE_LIST))+
-				      table->key_length + 1);
+				      key_length + 1);
   if (!new_table)
   {
     my_error(EE_OUTOFMEMORY, MYF(ME_BELL),
-	     ALIGN_SIZE(sizeof(TABLE_LIST)) + table->key_length + 1);
+	     ALIGN_SIZE(sizeof(TABLE_LIST)) + key_length + 1);
     killed= 1;
     return 0;
   }
@@ -356,8 +361,8 @@ CHANGED_TABLE_LIST* THD::changed_table_dup(TABLE *table)
   new_table->key = (char *) (((byte*)new_table)+
 			     ALIGN_SIZE(sizeof(CHANGED_TABLE_LIST)));
   new_table->next = 0;
-  new_table->key_length = table->key_length;
-  ::memcpy(new_table->key, table->table_cache_key, table->key_length);
+  new_table->key_length = key_length;
+  ::memcpy(new_table->key, key, key_length);
   return new_table;
 }
 
