@@ -1,5 +1,5 @@
-#ifndef INCLUDES_MYSQL_INSTANCE_MANAGER_MANAGER_H
-#define INCLUDES_MYSQL_INSTANCE_MANAGER_MANAGER_H
+#ifndef INCLUDES_MYSQL_INSTANCE_MANAGER_MESSAGES_H
+#define INCLUDES_MYSQL_INSTANCE_MANAGER_MESSAGES_H
 /* Copyright (C) 2003 MySQL AB & MySQL Finland AB & TCX DataKonsult AB
 
    This program is free software; you can redistribute it and/or modify
@@ -16,8 +16,11 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-class Options;
+#include "mysqld_error.h"
+#include "mysql_manager_error.h"
 
-void manager(const Options &options);
+const char *message(unsigned sql_errno);
 
-#endif // INCLUDES_MYSQL_INSTANCE_MANAGER_MANAGER_H
+const char *errno_to_sqlstate(unsigned sql_errno);
+
+#endif // INCLUDES_MYSQL_INSTANCE_MANAGER_MESSAGES_H
