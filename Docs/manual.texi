@@ -13019,7 +13019,7 @@ select * from shop where price=@@min_price or price=@@max_price;
 
 In MySQL 3.23.44 and up, @code{InnoDB} tables supports checking of
 foreign key constraints. @xref{InnoDB}.
-See also @ref{example-Foreign keys}.
+See also @ref{ANSI diff Foreign Keys}.
 
 You don't actually need foreign keys to join 2 tables.
 The only thing MySQL currently doesn't do (in type types other than
