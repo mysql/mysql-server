@@ -147,7 +147,7 @@ select * from t1 where b = 'two';
 connection server1;
 alter table t1 drop index c;
 connection server2;
---error 1146
+--error 1105
 select * from t1 where b = 'two';
 select * from t1 where b = 'two';
 connection server1;
