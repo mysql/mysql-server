@@ -428,3 +428,5 @@ select * from t1 where i=1 and j=2;
 create index ax1 on t1 (i,j);
 select * from t1 where i=1 and j=2;
 drop table t1;
+
+

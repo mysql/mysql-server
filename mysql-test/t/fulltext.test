@@ -54,4 +54,3 @@ show create table t2;
 select * from t2 where MATCH inhalt AGAINST (NULL);
 
 drop table t1,t2;
-
