@@ -2427,7 +2427,7 @@ dict_scan_id(
 		*id = s;
 	}
 
-	if (heap) {
+	if (heap && !quote) {
 		/* EMS MySQL Manager sometimes adds characters 0xA0 (in
 		latin1, a 'non-breakable space') to the end of a table name.
 		But isspace(0xA0) is not true, which confuses our foreign key
