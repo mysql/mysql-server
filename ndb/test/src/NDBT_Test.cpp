@@ -14,6 +14,9 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
+#include <ndb_global.h>
+#include <my_sys.h>
+
 #include "NDBT.hpp"
 #include "NDBT_Test.hpp"
 
@@ -953,6 +956,9 @@ int NDBT_TestSuite::execute(int argc, const char** argv){
 
   int _print_cases = false;
   int _verbose = false;
+#ifndef DBUG_OFF
+  const char *debug_option= 0;
+#endif
 
   struct getargs args[] = {
     { "print", '\0', arg_flag, &_print, "Print execution tree", "" },
@@ -964,6 +970,10 @@ int NDBT_TestSuite::execute(int argc, const char** argv){
     { "remote_mgm", 'm', arg_string, &_remote_mgm, 
       "host:port to mgmsrv of remote cluster", "host:port" },
     { "timer", 't', arg_flag, &_timer, "Print execution time", "time" },
+#ifndef DBUG_OFF
+    { "debug", 0, arg_string, &debug_option,
+      "Specify debug options e.g. d:t:i:o,out.trace", "options" },
+#endif
     { "verbose", 'v', arg_flag, &_verbose, "Print verbose status", "verbose" }
   };
   int num_args = sizeof(args) / sizeof(args[0]);
@@ -973,6 +983,13 @@ int NDBT_TestSuite::execute(int argc, const char** argv){
     arg_printusage(args, num_args, argv[0], "tabname1 tabname2 ... tabnameN\n");
     return NDBT_WRONGARGS;
   }
+
+#ifndef DBUG_OFF
+  my_init();
+  if (debug_option)
+    DBUG_PUSH(debug_option);
+#endif
+
   // Check if table name is supplied
   if (argv[optind] != NULL)
     _tabname = argv[optind];
