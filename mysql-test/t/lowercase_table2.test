@@ -10,7 +10,7 @@ show variables like "lower_case_table_names";
 enable_query_log;
 
 --disable_warnings
-DROP TABLE IF EXISTS t1,t2,T1,T2,t3,T3;
+DROP TABLE IF EXISTS t1,t2,T1,T2,t3,T3,tT;
 DROP DATABASE IF EXISTS `TEST_$1`;
 DROP DATABASE IF EXISTS `test_$1`;
 --enable_warnings
@@ -100,3 +100,14 @@ show tables like 'T1%';
 alter table t1 add index (A);
 show tables like 't1%';
 drop table t1;
+
+#
+# Bug #7261: Alter table loses temp table
+#
+
+create temporary table tT(a int(11), b varchar(8));
+insert into tT values (1, 'abc');
+select * from tT;
+alter table tT add index (a);
+select * from tT;
+drop table tT;
