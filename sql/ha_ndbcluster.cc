@@ -2845,7 +2845,7 @@ static int create_ndb_column(NDBCOL &col,
   {
     col.setAutoIncrement(TRUE);
     ulonglong value= info->auto_increment_value ?
-      info->auto_increment_value -1 : (ulonglong) 0;
+      info->auto_increment_value : (ulonglong) 1;
     DBUG_PRINT("info", ("Autoincrement key, initial: %llu", value));
     col.setAutoIncrementInitialValue(value);
   }
