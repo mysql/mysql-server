@@ -854,6 +854,7 @@ ok2:
 err:
   if (arena)
     thd->restore_backup_item_arena(arena, &backup);
+  delete table->view;
   table->view= 0;	// now it is not VIEW placeholder
   thd->lex= old_lex;
   DBUG_RETURN(1);
