@@ -381,7 +381,7 @@ static SEC_LINK *find_key_block(int file, my_off_t filepos, int *error)
   reg1 SEC_LINK *next,**start;
 
 #if !defined(DBUG_OFF) && defined(EXTRA_DEBUG)
-  DBUG_EXECUTE("check_keycache",test_key_cache("start of find_key_block",0););
+  DBUG_EXECUTE("check_keycache2",test_key_cache("start of find_key_block",0););
 #endif
 
   *error=0;
@@ -459,7 +459,7 @@ static SEC_LINK *find_key_block(int file, my_off_t filepos, int *error)
   }
   _my_used_last=next;
 #if !defined(DBUG_OFF) && defined(EXTRA_DEBUG)
-  DBUG_EXECUTE("check_keycache",test_key_cache("end of find_key_block",0););
+  DBUG_EXECUTE("check_keycache2",test_key_cache("end of find_key_block",0););
 #endif
   return next;
 } /* find_key_block */

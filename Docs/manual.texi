@@ -10265,9 +10265,10 @@ the priority of only one query, or by
 thread.  @xref{Table locking}.
 
 @item --memlock
-Lock the @code{mysqld} process in memory.  This works only if your system
-supports the @code{mlockall()} system call.  This may help if you have
-a problem where the operating system is causing @code{mysqld} to swap on disk.
+Lock the @code{mysqld} process in memory.  This works only if your
+system supports the @code{mlockall()} system call (like Solaris).  This
+may help if you have a problem where the operating system is causing
+@code{mysqld} to swap on disk.
 
 @item --myisam-recover [=option[,option...]]] where option is one of DEFAULT, BACKUP, FORCE or QUICK.
 If this option is used, @code{mysqld} will on open check if the table is
@@ -33010,10 +33011,10 @@ Flush logs once all tables are locked.
 Temporary directory (instead of /tmp).
 @end table
 
-You can use 'perldoc mysqlhotcopy' to get a more complete documentation for
-@code{mysqlhotcopy}.
+You can use @code{perldoc mysqlhotcopy} to get a more complete
+documentation for @code{mysqlhotcopy}.
 
-@code{mysqlhotcopy} reads the groups @code[client] and  @code{[mysqlhotcopy]}
+@code{mysqlhotcopy} reads the groups @code{client} and  @code{mysqlhotcopy}
 from the option files.
 
 To be able to execute @code{mysqlhotcopy} you need write access to the
@@ -44400,6 +44401,8 @@ not yet 100% confident in this code.
 @appendixsubsec Changes in release 3.23.39
 @itemize @bullet
 @item
+Extended argument length in option files from 256 to 512 chars.
+@item
 Fixed problem with shutdown when @code{INSERT DELAYED} was waiting for
 a @code{LOCK TABLE}.
 @item
@@ -50385,10 +50388,7 @@ On some operating systems, the error log will contain a stack trace if
 @code{mysqld} dies unexpectedly. You can use this to find out where (and
 maybe why) @code{mysqld} died. @xref{Error log}.  To get a stack trace,
 you should NOT compile @code{mysqld} with the @code{-fomit-frame-pointer}
-option to gcc. On Linux-x86 you can use
-@code{-fomit-frame-pointer -ffixed-ebp} to get both speed and a reasonable
-accurate stack trace.
-@xref{Compiling for debugging}.
+option to gcc. @xref{Compiling for debugging}.
 
 If the error file contains something like the following:
 
