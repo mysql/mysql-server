@@ -2758,6 +2758,7 @@ row_search_for_mysql(
 	ulint		cnt				= 0;
 	ulint		next_offs;
 	mtr_t		mtr;
+	char		err_buf[1000];
 	
 	ut_ad(index && pcur && search_tuple);
 	ut_ad(trx->mysql_thread_id == os_thread_get_curr_id());
@@ -2770,6 +2771,17 @@ row_search_for_mysql(
 
 		mem_analyze_corruption((byte*)prebuilt);
 
+		ut_a(0);
+	}
+
+	if (trx->n_mysql_tables_in_use == 0) {
+	
+		trx_print(err_buf, trx);
+
+		fprintf(stderr,
+"InnoDB: Error: MySQL is trying to perform a SELECT\n"
+"InnoDB: but it has not locked any tables in ::external_lock()!\n%s\n",
+			err_buf);
 		ut_a(0);
 	}
 
@@ -3072,6 +3084,16 @@ shortcut_fails_too_big_rec:
 	if (!prebuilt->sql_stat_start) {
 		/* No need to set an intention lock or assign a read view */
 
+		if (trx->read_view == NULL
+		    && prebuilt->select_lock_type == LOCK_NONE) {
+			trx_print(err_buf, trx);
+
+			fprintf(stderr,
+"InnoDB: Error: MySQL is trying to perform a consistent read\n"
+"InnoDB: but the read view is not assigned!\n%s\n", err_buf);
+			
+			ut_a(0);
+		}
 	} else if (prebuilt->select_lock_type == LOCK_NONE) {
 		/* This is a consistent read */	
 		/* Assign a read view for the query */
