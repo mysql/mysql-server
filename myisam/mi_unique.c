@@ -109,7 +109,7 @@ ha_checksum mi_unique_hash(MI_UNIQUEDEF *def, const byte *record)
     if (type == HA_KEYTYPE_TEXT || type == HA_KEYTYPE_VARTEXT)
     {
       ulong nr=1, nr2=4;
-      keyseg->charset->hash_sort(keyseg->charset,(const uchar*)pos,length,&nr, &nr2);
+      keyseg->charset->coll->hash_sort(keyseg->charset,(const uchar*)pos,length,&nr, &nr2);
       crc=nr;
     }
     else

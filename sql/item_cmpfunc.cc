@@ -1491,7 +1491,7 @@ bool Item_func_in::nulls_in_row()
 static int srtcmp_in(const String *x,const String *y)
 {
   CHARSET_INFO *cs= x->charset();
-  return cs->strnncollsp(cs,
+  return cs->coll->strnncollsp(cs,
                         (unsigned char *) x->ptr(),x->length(),
 			(unsigned char *) y->ptr(),y->length());
 }
@@ -1499,7 +1499,7 @@ static int srtcmp_in(const String *x,const String *y)
 static int bincmp_in(const String *x,const String *y)
 {
   CHARSET_INFO *cs= &my_charset_bin;
-  return cs->strnncollsp(cs,
+  return cs->coll->strnncollsp(cs,
                         (unsigned char *) x->ptr(),x->length(),
 			(unsigned char *) y->ptr(),y->length());
 }

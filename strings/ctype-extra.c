@@ -32,34 +32,8 @@ CHARSET_INFO compiled_charsets[] = {
     NULL,		/* tab_from_uni */
     "","",
     0,
-    NULL,		/* strnncoll    */
-    NULL,		/* strnncollsp  */
-    NULL,		/* strnxfrm     */
-    NULL,		/* like_range   */
-    NULL,		/* wildcmp      */
     0,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,		 /* mb_wc      */
-    NULL,		 /* wc_mb      */
-    
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,		/* hash_sort   */
     0,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
     NULL,
     NULL
   }

@@ -688,6 +688,43 @@ void ThNormalize(uchar* ptr, uint field_length, const uchar* from, uint length)
 }
 
 
+static MY_COLLATION_HANDLER my_collation_ci_handler =
+{
+    my_strnncoll_tis620,
+    my_strnncollsp_tis620,
+    my_strnxfrm_tis620,
+    my_like_range_tis620,
+    my_wildcmp_8bit,	/* wildcmp   */
+    my_strcasecmp_8bit,
+    my_hash_sort_simple,
+};
+
+static MY_CHARSET_HANDLER my_charset_handler=
+{
+    NULL,		/* ismbchar  */
+    NULL,		/* mbcharlen */
+    my_numchars_8bit,
+    my_charpos_8bit,
+    my_mb_wc_8bit,	/* mb_wc     */
+    my_wc_mb_8bit,	/* wc_mb     */
+    my_caseup_str_8bit,
+    my_casedn_str_8bit,
+    my_caseup_8bit,
+    my_casedn_8bit,
+    my_snprintf_8bit,
+    my_long10_to_str_8bit,
+    my_longlong10_to_str_8bit,
+    my_fill_8bit,
+    my_strntol_8bit,
+    my_strntoul_8bit,
+    my_strntoll_8bit,
+    my_strntoull_8bit,
+    my_strntod_8bit,
+    my_scan_8bit
+};
+
+
+
 CHARSET_INFO my_charset_tis620_thai_ci =
 {
     18,0,0,		/* number    */
@@ -703,35 +740,10 @@ CHARSET_INFO my_charset_tis620_thai_ci =
     NULL,		/* tab_from_uni */
     "","",
     4,			/* strxfrm_multiply */
-    my_strnncoll_tis620,
-    my_strnncollsp_tis620,
-    my_strnxfrm_tis620,
-    my_like_range_tis620,
-    my_wildcmp_8bit,	/* wildcmp   */
     1,			/* mbmaxlen  */
-    NULL,		/* ismbchar  */
-    NULL,		/* mbcharlen */
-    my_numchars_8bit,
-    my_charpos_8bit,
-    my_mb_wc_8bit,	/* mb_wc     */
-    my_wc_mb_8bit,	/* wc_mb     */
-    my_caseup_str_8bit,
-    my_casedn_str_8bit,
-    my_caseup_8bit,
-    my_casedn_8bit,
-    my_strcasecmp_8bit,
-    my_hash_sort_simple,
     0,
-    my_snprintf_8bit,
-    my_long10_to_str_8bit,
-    my_longlong10_to_str_8bit,
-    my_fill_8bit,
-    my_strntol_8bit,
-    my_strntoul_8bit,
-    my_strntoll_8bit,
-    my_strntoull_8bit,
-    my_strntod_8bit,
-    my_scan_8bit
+    &my_charset_handler,
+    &my_collation_ci_handler
 };
 
 
