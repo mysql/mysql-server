@@ -2743,9 +2743,9 @@ server.");
     unireg_abort(1);
   }
 
-  if (opt_bin_log)
-    mysql_bin_log.open(opt_bin_logname, LOG_BIN, 0,
-                       WRITE_CACHE, 0, max_binlog_size, 0);
+  if (opt_bin_log && mysql_bin_log.open(opt_bin_logname, LOG_BIN, 0,
+                                        WRITE_CACHE, 0, max_binlog_size, 0))
+      unireg_abort(1);
 
 #ifdef HAVE_REPLICATION
   if (opt_bin_log && expire_logs_days)

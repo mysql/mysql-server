@@ -154,6 +154,7 @@ static int innobase_commit(THD* thd, bool all);
 static int innobase_rollback(THD* thd, bool all);
 static int innobase_rollback_to_savepoint(THD* thd, void *savepoint);
 static int innobase_savepoint(THD* thd, void *savepoint);
+static int innobase_release_savepoint(THD* thd, void *savepoint);
 
 static handlerton innobase_hton = {
   0,				/* slot */
@@ -161,7 +162,7 @@ static handlerton innobase_hton = {
   innobase_close_connection,
   innobase_savepoint,
   innobase_rollback_to_savepoint,
-  innobase_release_savepoint
+  innobase_release_savepoint,
   innobase_commit,		/* commit */
   innobase_rollback,		/* rollback */
   innobase_xa_prepare,		/* prepare */
@@ -1701,7 +1702,7 @@ innobase_rollback_to_savepoint(
 /*********************************************************************
 Release transaction savepoint name. */
 
-int
+static int
 innobase_release_savepoint(
 /*===========================*/
 				/* out: 0 if success, HA_ERR_NO_SAVEPOINT if
@@ -5575,12 +5576,16 @@ ha_innobase::transactional_table_lock(
 	/* MySQL is setting a new transactional table lock */
 
 	/* Set the MySQL flag to mark that there is an active transaction */
-	thd->transaction.all.innodb_active_trans = 1;
+        if (trx->active_trans == 0) {
+
+                register_trans(thd);
+                trx->active_trans = 1;
+        }
 
 	if (thd->in_lock_tables && thd->variables.innodb_table_locks) {
 		ulint	error = DB_SUCCESS;
 
-		error = row_lock_table_for_mysql(prebuilt,NULL, 
+		error = row_lock_table_for_mysql(prebuilt,NULL,
 						LOCK_TABLE_TRANSACTIONAL);
 
 		if (error != DB_SUCCESS) {
@@ -6299,9 +6304,9 @@ innobase_xa_prepare(
 	}
 
 	if (all || (!(thd->options & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN)))) {
-	        
- 		/* We were instructed to prepare the whole transaction, or
-		this is an SQL statement end and autocommit is on */
+
+                /* We were instructed to prepare the whole transaction, or
+                this is an SQL statement end and autocommit is on */
 
 		error = trx_prepare_for_mysql(trx);
 	} else {

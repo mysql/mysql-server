@@ -833,17 +833,6 @@ static int check_connection(THD *thd)
     return(ER_OUT_OF_RESOURCES);
 
   thd->client_capabilities=uint2korr(net->read_pos);
-#ifdef TO_BE_REMOVED_IN_4_1_RELEASE
-  /*
-    This is just a safety check against any client that would use the old
-    CLIENT_CHANGE_USER flag
-  */
-  if ((thd->client_capabilities & CLIENT_PROTOCOL_41) &&
-      !(thd->client_capabilities & (CLIENT_RESERVED |
-				    CLIENT_SECURE_CONNECTION |
-				    CLIENT_MULTI_RESULTS)))
-    thd->client_capabilities&= ~CLIENT_PROTOCOL_41;
-#endif
   if (thd->client_capabilities & CLIENT_PROTOCOL_41)
   {
     thd->client_capabilities|= ((ulong) uint2korr(net->read_pos+2)) << 16;
@@ -1351,36 +1340,15 @@ int end_trans_and_send_ok(THD *thd, enum enum_mysql_completiontype completion)
   case ROLLBACK:
   case ROLLBACK_AND_CHAIN:
   {
-    bool warn= 0;
     thd->server_status&= ~SERVER_STATUS_IN_TRANS;
-    if (!ha_rollback(thd))
-    {
-      /*
-        If a non-transactional table was updated, warn; don't warn if this is a
-        slave thread (because when a slave thread executes a ROLLBACK, it has
-        been read from the binary log, so it's 100% sure and normal to produce
-        error ER_WARNING_NOT_COMPLETE_ROLLBACK. If we sent the warning to the
-        slave SQL thread, it would not stop the thread but just be printed in
-        the error log; but we don't want users to wonder why they have this
-        message in the error log, so we don't send it.
-      */
-      warn= (thd->options & OPTION_STATUS_NO_TRANS_UPDATE) &&
-            !thd->slave_thread;
-    }
-    else
+    if (ha_rollback(thd))
       res= -1;
     thd->options&= ~(ulong) (OPTION_BEGIN | OPTION_STATUS_NO_TRANS_UPDATE);
     if (!res && (completion == ROLLBACK_AND_CHAIN))
       res= begin_trans(thd);
 
     if (!res)
-    {
-      if (warn)
-        push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
-                     ER_WARNING_NOT_COMPLETE_ROLLBACK,
-                     ER(ER_WARNING_NOT_COMPLETE_ROLLBACK));
       send_ok(thd);
-    }
     break;
   }
   default:
@@ -3886,16 +3854,16 @@ unsent_create_error:
     break;
   case SQLCOM_COMMIT:
     if (end_trans_and_send_ok(thd, lex->tx_release ? COMMIT_RELEASE :
-                              lex->tx_chain ? COMMIT_AND_CHAIN : COMMIT, 0))
+                              lex->tx_chain ? COMMIT_AND_CHAIN : COMMIT))
       goto error;
     break;
   case SQLCOM_ROLLBACK:
     if (end_trans_and_send_ok(thd, lex->tx_release ? ROLLBACK_RELEASE :
-                              lex->tx_chain ? ROLLBACK_AND_CHAIN : ROLLBACK,
-                              0))
+                              lex->tx_chain ? ROLLBACK_AND_CHAIN : ROLLBACK))
       goto error;
     break;
   case SQLCOM_RELEASE_SAVEPOINT:
+  {
     SAVEPOINT **sv;
     for (sv=&thd->transaction.savepoints; *sv; sv=&(*sv)->prev)
     {
@@ -3908,7 +3876,9 @@ unsent_create_error:
     {
       if (ha_release_savepoint(thd, *sv))
         res= TRUE; // cannot happen
-      *sv= 0;
+      else
+        send_ok(thd);
+      *sv=(*sv)->prev;
     }
     else
     {
@@ -3918,6 +3888,7 @@ unsent_create_error:
     break;
   }
   case SQLCOM_ROLLBACK_TO_SAVEPOINT:
+  {
     SAVEPOINT **sv;
     for (sv=&thd->transaction.savepoints; *sv; sv=&(*sv)->prev)
     {
@@ -3939,7 +3910,7 @@ unsent_create_error:
                        ER(ER_WARNING_NOT_COMPLETE_ROLLBACK));
         send_ok(thd);
       }
-      *sv= 0;
+      *sv=(*sv)->prev;
     }
     else
     {

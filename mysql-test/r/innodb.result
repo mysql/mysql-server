@@ -249,6 +249,30 @@ n
 4
 5
 6
+set autocommit=0;
+begin;
+savepoint `my_savepoint`;
+insert into t1 values (7);
+savepoint `savept2`;
+insert into t1 values (3);
+select n from t1;
+n
+3
+4
+5
+6
+7
+rollback to savepoint `savept2`;
+release savepoint `my_savepoint`;
+select n from t1;
+n
+4
+5
+6
+7
+rollback to savepoint `my_savepoint`;
+ERROR 42000: SAVEPOINT my_savepoint does not exist
+set autocommit=1;
 rollback;
 drop table t1;
 create table t1 (n int not null primary key) engine=innodb;
@@ -1326,8 +1350,8 @@ truncate table t1;
 insert into t1 (a) values (NULL),(NULL);
 SELECT * from t1;
 a
-3
-4
+1
+2
 drop table t1;
 CREATE TABLE t1 (`id 1` INT NOT NULL, PRIMARY KEY (`id 1`)) ENGINE=INNODB;
 CREATE TABLE t2 (id INT PRIMARY KEY, t1_id INT, INDEX par_ind (t1_id), FOREIGN KEY (`t1_id`) REFERENCES `t1`(`id 1`)  ON DELETE CASCADE ) ENGINE=INNODB;
@@ -1421,19 +1445,19 @@ insert t2 select * from t1;
 insert t3 select * from t1;
 checksum table t1, t2, t3, t4 quick;
 Table	Checksum
-test.t1	272226711
+test.t1	2948697075
 test.t2	NULL
 test.t3	NULL
 test.t4	NULL
 checksum table t1, t2, t3, t4;
 Table	Checksum
-test.t1	272226711
+test.t1	2948697075
 test.t2	968604391
 test.t3	968604391
 test.t4	NULL
 checksum table t1, t2, t3, t4 extended;
 Table	Checksum
-test.t1	272226711
+test.t1	3092701434
 test.t2	968604391
 test.t3	968604391
 test.t4	NULL
@@ -1609,14 +1633,14 @@ t2	CREATE TABLE `t2` (
 drop table t2, t1;
 show status like "binlog_cache_use";
 Variable_name	Value
-Binlog_cache_use	150
+Binlog_cache_use	152
 show status like "binlog_cache_disk_use";
 Variable_name	Value
 Binlog_cache_disk_use	0
 create table t1 (a int) engine=innodb;
 show status like "binlog_cache_use";
 Variable_name	Value
-Binlog_cache_use	151
+Binlog_cache_use	153
 show status like "binlog_cache_disk_use";
 Variable_name	Value
 Binlog_cache_disk_use	1
@@ -1625,7 +1649,7 @@ delete from t1;
 commit;
 show status like "binlog_cache_use";
 Variable_name	Value
-Binlog_cache_use	152
+Binlog_cache_use	154
 show status like "binlog_cache_disk_use";
 Variable_name	Value
 Binlog_cache_disk_use	1
@@ -1690,15 +1714,90 @@ Variable_name	Value
 Innodb_page_size	16384
 show status like "Innodb_rows_deleted";
 Variable_name	Value
-Innodb_rows_deleted	2078
+Innodb_rows_deleted	2070
 show status like "Innodb_rows_inserted";
 Variable_name	Value
-Innodb_rows_inserted	31706
+Innodb_rows_inserted	31708
 show status like "Innodb_rows_read";
 Variable_name	Value
-Innodb_rows_read	80161
+Innodb_rows_read	80162
 show status like "Innodb_rows_updated";
 Variable_name	Value
 Innodb_rows_updated	29530
+show status like "Innodb_row_lock_waits";
+Variable_name	Value
+Innodb_row_lock_waits	0
+show status like "Innodb_row_lock_current_waits";
+Variable_name	Value
+Innodb_row_lock_current_waits	0
+show status like "Innodb_row_lock_time";
+Variable_name	Value
+Innodb_row_lock_time	0
+show status like "Innodb_row_lock_time_max";
+Variable_name	Value
+Innodb_row_lock_time_max	0
+show status like "Innodb_row_lock_time_avg";
+Variable_name	Value
+Innodb_row_lock_time_avg	0
+show variables like "innodb_sync_spin_loops";
+Variable_name	Value
+innodb_sync_spin_loops	20
+set global innodb_sync_spin_loops=1000;
+show variables like "innodb_sync_spin_loops";
+Variable_name	Value
+innodb_sync_spin_loops	1000
+set global innodb_sync_spin_loops=0;
+show variables like "innodb_sync_spin_loops";
+Variable_name	Value
+innodb_sync_spin_loops	0
+set global innodb_sync_spin_loops=20;
+show variables like "innodb_sync_spin_loops";
+Variable_name	Value
+innodb_sync_spin_loops	20
+show variables like "innodb_thread_concurrency";
+Variable_name	Value
+innodb_thread_concurrency	8
+set global innodb_thread_concurrency=1000;
+show variables like "innodb_thread_concurrency";
+Variable_name	Value
+innodb_thread_concurrency	1000
+set global innodb_thread_concurrency=0;
+show variables like "innodb_thread_concurrency";
+Variable_name	Value
+innodb_thread_concurrency	1
+set global innodb_thread_concurrency=16;
+show variables like "innodb_thread_concurrency";
+Variable_name	Value
+innodb_thread_concurrency	16
+show variables like "innodb_concurrency_tickets";
+Variable_name	Value
+innodb_concurrency_tickets	500
+set global innodb_concurrency_tickets=1000;
+show variables like "innodb_concurrency_tickets";
+Variable_name	Value
+innodb_concurrency_tickets	1000
+set global innodb_concurrency_tickets=0;
+show variables like "innodb_concurrency_tickets";
+Variable_name	Value
+innodb_concurrency_tickets	1
+set global innodb_concurrency_tickets=500;
+show variables like "innodb_concurrency_tickets";
+Variable_name	Value
+innodb_concurrency_tickets	500
+show variables like "innodb_thread_sleep_delay";
+Variable_name	Value
+innodb_thread_sleep_delay	10000
+set global innodb_thread_sleep_delay=100000;
+show variables like "innodb_thread_sleep_delay";
+Variable_name	Value
+innodb_thread_sleep_delay	100000
+set global innodb_thread_sleep_delay=0;
+show variables like "innodb_thread_sleep_delay";
+Variable_name	Value
+innodb_thread_sleep_delay	0
+set global innodb_thread_sleep_delay=10000;
+show variables like "innodb_thread_sleep_delay";
+Variable_name	Value
+innodb_thread_sleep_delay	10000
 create table t1 (v varchar(16384)) engine=innodb;
 ERROR 42000: Column length too big for column 'v' (max = 255); use BLOB instead
