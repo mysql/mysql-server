@@ -907,8 +907,8 @@ drop table t1,t2;
 CREATE TABLE t1 (s1 CHAR(5) COLLATE latin1_german1_ci,
                  s2 CHAR(5) COLLATE latin1_swedish_ci);
 INSERT INTO t1 VALUES ('z','?');
--- error 1265
+-- error 1266
 select * from t1 where s1 > (select max(s2) from t1);
--- error 1265
+-- error 1266
 select * from t1 where s1 > any (select max(s2) from t1);
 drop table t1;
