@@ -938,8 +938,8 @@ static int exec_event(THD* thd, NET* net, MASTER_INFO* mi, int event_len)
 	return 1;
       }
       
-      free_root(&thd->mem_root,0);
       delete ev;
+      free_root(&thd->mem_root,0);
 	    
       if(thd->fatal_error)
       {
@@ -957,12 +957,14 @@ static int exec_event(THD* thd, NET* net, MASTER_INFO* mi, int event_len)
       close_temporary_tables(thd);
       mi->inc_pos(event_len);
       flush_master_info(mi);
+      delete ev;
       break;
                   
     case STOP_EVENT:
       close_temporary_tables(thd);
       mi->inc_pos(event_len);
       flush_master_info(mi);
+      delete ev;
       break;
     case ROTATE_EVENT:
     {
@@ -1013,15 +1015,18 @@ pthread_handler_decl(handle_slave,arg __attribute__((unused)))
   THD *thd; // needs to be first for thread_stack
   MYSQL *mysql = NULL ;
 
+  pthread_mutex_lock(&LOCK_slave);
   if(!server_id)
     {
+     pthread_cond_broadcast(&COND_slave_start);
+     pthread_mutex_unlock(&LOCK_slave);
      sql_print_error("Server id not set, will not start slave");
      pthread_exit((void*)1);
     }
   
-  pthread_mutex_lock(&LOCK_slave);
   if(slave_running)
     {
+      pthread_cond_broadcast(&COND_slave_start);
       pthread_mutex_unlock(&LOCK_slave);
       pthread_exit((void*)1);  // safety just in case
     }
@@ -1030,7 +1035,8 @@ pthread_handler_decl(handle_slave,arg __attribute__((unused)))
 #ifndef DBUG_OFF  
   events_till_abort = abort_slave_event_count;
 #endif  
-  pthread_mutex_unlock(&LOCK_slave);
+ pthread_cond_broadcast(&COND_slave_start);
+ pthread_mutex_unlock(&LOCK_slave);
   
   int error = 1;
   bool retried_once = 0;

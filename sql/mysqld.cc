@@ -263,7 +263,7 @@ pthread_mutex_t LOCK_mysql_create_db, LOCK_Acl, LOCK_open, LOCK_thread_count,
                 LOCK_binlog_update, LOCK_slave, LOCK_server_id;
 
 pthread_cond_t COND_refresh,COND_thread_count,COND_binlog_update,
-  COND_slave_stopped;
+  COND_slave_stopped, COND_slave_start;
 pthread_cond_t COND_thread_cache,COND_flush_thread_cache;
 pthread_t signal_thread;
 pthread_attr_t connection_attrib;
@@ -1414,6 +1414,7 @@ int main(int argc, char **argv)
   (void) pthread_mutex_init(&LOCK_server_id, NULL);
   (void) pthread_cond_init(&COND_binlog_update, NULL);
   (void) pthread_cond_init(&COND_slave_stopped, NULL);
+  (void) pthread_cond_init(&COND_slave_start, NULL);
 
   if (set_default_charset_by_name(default_charset, MYF(MY_WME)))
     unireg_abort(1);
