@@ -57,11 +57,10 @@ public:
   int pkDeleteRecord(Ndb*,
 		     int recordNo,
 		     int numRecords = 1);
-
-  int scanReadRecords(Ndb* pNdb, 
-		      Uint32 parallelism = 240, ScanLock lock = SL_Read);
-  int executeScanRead(Ndb*);
   
+  NdbResultSet* scanReadRecords(Ndb* pNdb, ScanLock lock = SL_Read);
+  int readTuples(NdbResultSet*);
+
   int execute_Commit(Ndb*, 
 		     AbortOption ao = AbortOnError);
   int execute_NoCommit(Ndb*,
@@ -104,46 +103,6 @@ protected:
   Vector<BaseString> savedRecords;
 private:
   NdbConnection* pTrans;
-
-  struct ScanTmp {
-    ScanTmp() { 
-      pTrans = 0; 
-      m_tmpRow = 0; 
-      m_delete = true; 
-      m_op = DONE;
-    }
-    ScanTmp(NdbConnection* a, NDBT_ResultRow* b){ 
-      pTrans = a; 
-      m_tmpRow = b; 
-      m_delete = true; 
-      m_op = DONE;
-    }
-    ScanTmp(const ScanTmp& org){
-      * this = org;
-    }
-    ScanTmp& operator=(const ScanTmp& org){
-      pTrans = org.pTrans; 
-      m_tmpRow = org.m_tmpRow; 
-      m_delete = org.m_delete;
-      m_op = org.m_op;
-      return * this;
-    }
-    
-    ~ScanTmp() { 
-      if(m_delete && pTrans)
-	pTrans->close(); 
-      if(m_delete && m_tmpRow)
-	delete m_tmpRow;
-    }
-    
-    NdbConnection * pTrans;
-    NDBT_ResultRow * m_tmpRow;
-    bool m_delete;
-    enum { DONE, READ, UPDATE, DELETE } m_op;
-  };
-  Vector<ScanTmp> m_scans;
-  int run(ScanTmp & tmp);
-
 };
 
 #endif
