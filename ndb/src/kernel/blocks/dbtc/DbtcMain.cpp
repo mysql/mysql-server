@@ -29,8 +29,6 @@
 #include <signaldata/AttrInfo.hpp>
 #include <signaldata/TransIdAI.hpp>
 #include <signaldata/TcRollbackRep.hpp>
-#include <signaldata/TcSizeAltReq.hpp>
-#include <signaldata/SetVarReq.hpp>
 #include <signaldata/NodeFailRep.hpp>
 #include <signaldata/ReadNodesConf.hpp>
 #include <signaldata/NFCompleteRep.hpp>
@@ -108,6 +106,7 @@ void Dbtc::execCONTINUEB(Signal* signal)
   tcase = signal->theData[0];
   UintR Tdata0 = signal->theData[1];
   UintR Tdata1 = signal->theData[2];
+  UintR Tdata2 = signal->theData[3];
   switch (tcase) {
   case TcContinueB::ZRETURN_FROM_QUEUED_DELIVERY:
     jam();
@@ -138,7 +137,7 @@ void Dbtc::execCONTINUEB(Signal* signal)
     return;
   case TcContinueB::ZINITIALISE_RECORDS:
     jam();
-    initialiseRecordsLab(signal, Tdata0);
+    initialiseRecordsLab(signal, Tdata0, Tdata2, signal->theData[4]);
     return;
   case TcContinueB::ZSEND_COMMIT_LOOP:
     jam();
@@ -497,15 +496,30 @@ void Dbtc::execALTER_TAB_REQ(Signal * signal)
 /* ***************************************************************************/
 /*                                START / RESTART                            */
 /* ***************************************************************************/
-void Dbtc::execSIZEALT_REP(Signal* signal) 
+void Dbtc::execREAD_CONFIG_REQ(Signal* signal) 
 {
+  const ReadConfigReq * req = (ReadConfigReq*)signal->getDataPtr();
+  Uint32 ref = req->senderRef;
+  Uint32 senderData = req->senderData;
+  ndbrequire(req->noOfParameters == 0);
+  
   jamEntry();
-  tblockref = signal->theData[TcSizeAltReq::IND_BLOCK_REF];
-  const UintR apiConnect = signal->theData[TcSizeAltReq::IND_API_CONNECT];
-  const UintR tcConnect  = signal->theData[TcSizeAltReq::IND_TC_CONNECT];
-  const UintR tables     = signal->theData[TcSizeAltReq::IND_TABLE];
-  const UintR localScan  = signal->theData[TcSizeAltReq::IND_LOCAL_SCAN];
-  const UintR tcScan     = signal->theData[TcSizeAltReq::IND_TC_SCAN];
+  
+  const ndb_mgm_configuration_iterator * p = 
+    theConfiguration.getOwnConfigIterator();
+  ndbrequire(p != 0);
+  
+  UintR apiConnect;
+  UintR tcConnect;
+  UintR tables;
+  UintR localScan;
+  UintR tcScan;
+
+  ndbrequire(!ndb_mgm_get_int_parameter(p, CFG_TC_API_CONNECT, &apiConnect));
+  ndbrequire(!ndb_mgm_get_int_parameter(p, CFG_TC_TC_CONNECT, &tcConnect));
+  ndbrequire(!ndb_mgm_get_int_parameter(p, CFG_TC_TABLE, &tables));
+  ndbrequire(!ndb_mgm_get_int_parameter(p, CFG_TC_LOCAL_SCAN, &localScan));
+  ndbrequire(!ndb_mgm_get_int_parameter(p, CFG_TC_SCAN, &tcScan));
 
   ccacheFilesize = (apiConnect/3) + 1;
   capiConnectFilesize = apiConnect;
@@ -516,14 +530,22 @@ void Dbtc::execSIZEALT_REP(Signal* signal)
   cscanFragrecFileSize = localScan;
 
   initRecords();
-  initialiseRecordsLab(signal, (UintR)0);
-}//Dbtc::execSIZEALT_REP()
+  initialiseRecordsLab(signal, 0, ref, senderData);
 
-void Dbtc::returnInitialiseRecordsLab(Signal* signal) 
-{
-  signal->theData[0] = DBTC_REF;
-  sendSignal(CMVMI_REF, GSN_SIZEALT_ACK, signal, 2, JBB);
-}//Dbtc::returnInitialiseRecordsLab()
+  Uint32 val = 3000;
+  ndb_mgm_get_int_parameter(p, CFG_DB_TRANSACTION_DEADLOCK_TIMEOUT, &val);
+  set_timeout_value(val);
+
+  val = 3000;
+  ndb_mgm_get_int_parameter(p, CFG_DB_TRANSACTION_INACTIVE_TIMEOUT, &val);
+  set_appl_timeout_value(val);
+
+  val = 1;
+  //ndb_mgm_get_int_parameter(p, CFG_DB_PARALLEL_TRANSACTION_TAKEOVER, &val);
+  set_no_parallel_takeover(val);
+
+  ctimeOutCheckDelay = 50; // 500ms
+}//Dbtc::execSIZEALT_REP()
 
 void Dbtc::execSTTOR(Signal* signal) 
 {
@@ -568,19 +590,13 @@ void Dbtc::execNDB_STTOR(Signal* signal)
   tnodeid = signal->theData[1];
   tndbstartphase = signal->theData[2];   /* START PHASE      */
   tstarttype = signal->theData[3];       /* START TYPE       */
-  Uint32 config1 = signal->theData[12];  /* CONFIG INFO TC   */
-  Uint32 config2 = signal->theData[13];  /* CONFIG INFO TC   */
   switch (tndbstartphase) {
   case ZINTSPH1:
     jam();
-    ctimeOutCheckDelay = 50; // 500ms
-    set_timeout_value(config1);
-    set_no_parallel_takeover(config2);
     intstartphase1x010Lab(signal);
     return;
   case ZINTSPH2:
     jam();
-    set_appl_timeout_value(config2);
     intstartphase2x010Lab(signal);
     return;
   case ZINTSPH3:
@@ -747,10 +763,8 @@ void Dbtc::execREAD_NODESCONF(Signal* signal)
     if (NodeBitmask::get(readNodes->allNodes, i)) {
       hostptr.i = i;
       ptrCheckGuard(hostptr, chostFilesize, hostRecord);
-      
+
       hostptr.p->takeOverStatus = TOS_IDLE;
-      hostptr.p->ndbVersion = ReadNodesConf::getVersionId
-        (i, readNodes->theVersionIds);
       
       if (NodeBitmask::get(readNodes->inactiveNodes, i)) {
         jam();
@@ -10032,7 +10046,6 @@ void Dbtc::inithost(Signal* signal)
     hostptr.p->inPackedList = false;
     hostptr.p->takeOverStatus = TOS_NOT_DEFINED;
     hostptr.p->lqhTransStatus = LTS_IDLE;
-    hostptr.p->ndbVersion = ZNIL;
     hostptr.p->noOfWordsTCKEYCONF = 0;
     hostptr.p->noOfWordsTCINDXCONF = 0;
     hostptr.p->noOfPackedWordsLqh = 0;
@@ -10040,7 +10053,8 @@ void Dbtc::inithost(Signal* signal)
   }//for
 }//Dbtc::inithost()
 
-void Dbtc::initialiseRecordsLab(Signal* signal, UintR Tdata0) 
+void Dbtc::initialiseRecordsLab(Signal* signal, UintR Tdata0, 
+				Uint32 retRef, Uint32 retData) 
 {
   switch (Tdata0) {
   case 0:
@@ -10090,7 +10104,14 @@ void Dbtc::initialiseRecordsLab(Signal* signal, UintR Tdata0)
   case 11:
     jam();
     initTcFail(signal);
-    returnInitialiseRecordsLab(signal);
+
+    {
+      ReadConfigConf * conf = (ReadConfigConf*)signal->getDataPtrSend();
+      conf->senderRef = reference();
+      conf->senderData = retData;
+      sendSignal(retRef, GSN_READ_CONFIG_CONF, signal, 
+		 ReadConfigConf::SignalLength, JBB);
+    }
     return;
     break;
   default:
@@ -10099,10 +10120,19 @@ void Dbtc::initialiseRecordsLab(Signal* signal, UintR Tdata0)
     return;
     break;
   }//switch
-  sendInitialiseRecords(signal, (Tdata0 + 1));
-  return;
-}//Dbtc::initialiseRecordsLab()
 
+  signal->theData[0] = TcContinueB::ZINITIALISE_RECORDS;
+  signal->theData[1] = Tdata0 + 1;
+  signal->theData[2] = 0;
+  signal->theData[3] = retRef;
+  signal->theData[4] = retData;
+  sendSignal(DBTC_REF, GSN_CONTINUEB, signal, 5, JBB);
+}
+
+/* ========================================================================= */
+/* =======                       INITIALISE_SCANREC                  ======= */
+/*                                                                           */
+/* ========================================================================= */
 void Dbtc::initialiseScanrec(Signal* signal) 
 {
   ndbrequire(cscanrecFileSize > 0);
@@ -10529,18 +10559,6 @@ void Dbtc::sendContinueTimeOutControl(Signal* signal, Uint32 TapiConPtr)
   sendSignal(cownref, GSN_CONTINUEB, signal, 2, JBB);
 }//Dbtc::sendContinueTimeOutControl()
 
-/* ------------------------------------------------------------------------- 
- * SEND REAL-TIME BREAK DURING INITIALISATION OF VARIABLES DURING 
- * SYSTEM RESTART.
- * ------------------------------------------------------------------------- */
-void Dbtc::sendInitialiseRecords(Signal* signal, UintR Tnext) 
-{
-  signal->theData[0] = TcContinueB::ZINITIALISE_RECORDS;
-  signal->theData[1] = Tnext;
-  signal->theData[2] = 0;
-  sendSignal(DBTC_REF, GSN_CONTINUEB, signal, 3, JBB);
-}//Dbtc::sendInitialiseRecords()
-
 void Dbtc::sendKeyinfo(Signal* signal, BlockReference TBRef, Uint32 len) 
 {
   signal->theData[0] = tcConnectptr.i;
@@ -10861,7 +10879,7 @@ Dbtc::execDUMP_STATE_ORD(Signal* signal)
 
 void Dbtc::execSET_VAR_REQ(Signal* signal)
 {
-
+#if 0
   SetVarReq* const setVarReq = (SetVarReq*)&signal->theData[0];
   ConfigParamId var = setVarReq->variable();
   int val = setVarReq->value();
@@ -10886,7 +10904,7 @@ void Dbtc::execSET_VAR_REQ(Signal* signal)
   default:
     sendSignal(CMVMI_REF, GSN_SET_VAR_REF, signal, 1, JBB);
   } // switch
-
+#endif
 }
 
 void Dbtc::execABORT_ALL_REQ(Signal* signal)
@@ -10933,7 +10951,6 @@ void Dbtc::execABORT_ALL_REQ(Signal* signal)
   c_abortRec.oldTimeOutValue = ctimeOutValue;
   
   ctimeOutValue = 0;
-  
   const Uint32 sleepTime = (2 * 10 * ctimeOutCheckDelay + 199) / 200;
   
   checkAbortAllTimeout(signal, (sleepTime == 0 ? 1 : sleepTime));

@@ -52,6 +52,8 @@ TransSS::~TransSS()
 void
 TransSS::init(const char * connectString) 
 {
+  abort();
+#ifdef NOT_FUNCTIONAL
   m_signalExecThread = NdbThread_Create(signalExecThread_C,
 					(void **)this,
 					32768,
@@ -139,6 +141,7 @@ TransSS::init(const char * connectString)
   m_repSender->setNodeId(extRepNodeId);
   m_repSender->setOwnRef(m_ownRef);
   m_repSender->setTransporterFacade(m_transporterFacade);
+#endif
 }
 
 /*****************************************************************************

@@ -2110,7 +2110,7 @@ private:
   void execCHECK_LCP_STOP(Signal* signal);
   void execSEND_PACKED(Signal* signal);
   void execTUP_ATTRINFO(Signal* signal);
-  void execSIZEALT_REP(Signal* signal);
+  void execREAD_CONFIG_REQ(Signal* signal);
   void execLQHFRAGREQ(Signal* signal);
   void execLQHADDATTREQ(Signal* signal);
   void execTUP_ADD_ATTCONF(Signal* signal);
@@ -2329,7 +2329,6 @@ private:
   void initialiseLogPage(Signal* signal);
   void initialiseLogPart(Signal* signal);
   void initialisePageRef(Signal* signal);
-  void sendInitialiseRecords(Signal* signal, Uint32 data);
   void initialiseScanrec(Signal* signal);
   void initialiseTabrec(Signal* signal);
   void initialiseTcrec(Signal* signal);
@@ -2463,7 +2462,6 @@ private:
   void closeCopyRequestLab(Signal* signal);
   void closeScanRequestLab(Signal* signal);
   void scanTcConnectLab(Signal* signal, Uint32 startTcCon, Uint32 fragId);
-  void returnInitialiseRecordsLab(Signal* signal);
   void initGcpRecLab(Signal* signal);
   void prepareContinueAfterBlockedLab(Signal* signal);
   void commitContinueAfterBlockedLab(Signal* signal);
@@ -2480,7 +2478,7 @@ private:
   void accFragRefLab(Signal* signal);
   void rwConcludedLab(Signal* signal);
   void sendsttorryLab(Signal* signal);
-  void initialiseRecordsLab(Signal* signal, Uint32 data);
+  void initialiseRecordsLab(Signal* signal, Uint32 data, Uint32, Uint32);
   void startphase2Lab(Signal* signal, Uint32 config);
   void startphase3Lab(Signal* signal);
   void startphase4Lab(Signal* signal);

@@ -32,6 +32,7 @@
 #include <Suma.hpp>
 #include <Grep.hpp>
 #include <Dbtux.hpp>
+#include <NdbEnv.h>
 
 enum SIMBLOCKLIST_DUMMY { A_VALUE = 0 };
 
@@ -68,10 +69,20 @@ SimBlockList::load(const Configuration & conf){
     theList[i] = 0;
   Dbdict* dbdict = 0;
   Dbdih* dbdih = 0;
-  
+
+  SimulatedBlock * fs = 0;
+  {
+    char buf[100];
+    if(NdbEnv_GetEnv("NDB_NOFS", buf, 100) == 0){
+      fs = new (A_VALUE) Ndbfs(conf);
+    } else { 
+      fs = new (A_VALUE) VoidFs(conf);
+    }
+  }
+
   theList[0]  = new (A_VALUE) Dbacc(conf);
   theList[1]  = new (A_VALUE) Cmvmi(conf);
-  theList[2]  = new (A_VALUE) Ndbfs(conf);
+  theList[2]  = fs;
   theList[3]  = dbdict = new (A_VALUE) Dbdict(conf);
   theList[4]  = dbdih = new (A_VALUE) Dbdih(conf);
   theList[5]  = new (A_VALUE) Dblqh(conf);

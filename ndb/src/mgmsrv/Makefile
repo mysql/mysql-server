@@ -1,10 +1,10 @@
 include .defs.mk
 
-TYPE := ndbapi 
+TYPE := ndbapi mgmapiclient
 
 BIN_TARGET := mgmtsrvr
 BIN_TARGET_LIBS := 
-BIN_TARGET_ARCHIVES := mgmapi NDB_API mgmsrvcommon
+BIN_TARGET_ARCHIVES := NDB_API mgmsrvcommon mgmapi general
 
 ifneq ($(USE_EDITLINE), N)
 BIN_TARGET_ARCHIVES += editline
@@ -31,6 +31,7 @@ SOURCES += CommandInterpreter.cpp
 endif
 
 CCFLAGS_LOC += -I$(call fixpath,$(NDB_TOP)/src/ndbapi) \
+               -I$(call fixpath,$(NDB_TOP)/src/mgmapi) \
                -I$(call fixpath,$(NDB_TOP)/include/mgmapi) \
                -I$(call fixpath,$(NDB_TOP)/src/common/mgmcommon) 
 

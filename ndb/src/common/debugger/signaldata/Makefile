@@ -25,6 +25,7 @@ SOURCES = TcKeyReq.cpp TcKeyConf.cpp TcKeyRef.cpp \
           CopyGCI.cpp SystemError.cpp StartRec.cpp NFCompleteRep.cpp \
           FailRep.cpp DisconnectRep.cpp SignalDroppedRep.cpp \
           SumaImpl.cpp NdbSttor.cpp CreateFragmentation.cpp \
+	  CntrStart.cpp ReadNodesConf.cpp \
 	  UtilLock.cpp TuxMaint.cpp TupAccess.cpp AccLock.cpp \
           LqhTrans.cpp
 

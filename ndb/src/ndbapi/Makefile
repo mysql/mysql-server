@@ -15,12 +15,15 @@ LIB_TARGET_ARCHIVES := $(ARCHIVE_TARGET) \
                        transporter       \
                        general           \
                        signaldataprint   \
-                       mgmsrvcommon      \
+                       mgmapi mgmsrvcommon      \
                        portlib           \
                        logger            \
                        trace
 
 DIRS := signal-sender
+
+CFLAGS_TransporterFacade.cpp := -I$(call fixpath,$(NDB_TOP)/src/mgmapi)
+CFLAGS_ClusterMgr.cpp := -I$(call fixpath,$(NDB_TOP)/src/mgmapi)
 
 # Source files of non-templated classes (.cpp files)
 SOURCES = \
