@@ -63,11 +63,13 @@ innobase_start_or_create_for_mysql(void);
 				/* out: DB_SUCCESS or error code */
 /********************************************************************
 Shuts down the Innobase database. */
-
 int
 innobase_shutdown_for_mysql(void);
 /*=============================*/
 				/* out: DB_SUCCESS or error code */
+#ifdef __NETWARE__
+void set_panic_flag_for_netware(void);
+#endif
 
 extern  ulint   srv_sizeof_trx_t_in_ha_innodb_cc;
 

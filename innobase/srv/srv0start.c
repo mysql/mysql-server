@@ -1079,6 +1079,7 @@ NetWare. */
 	for (i = 0; i < srv_n_file_io_threads; i++) {
 		n[i] = i;
 
+
 		os_thread_create(io_handler_thread, n + i, thread_ids + i);
     	}
 
@@ -1440,7 +1441,6 @@ NetWare. */
 	}
 
 	fflush(stderr);
-
 	return((int) DB_SUCCESS);
 }
 
@@ -1453,7 +1453,9 @@ innobase_shutdown_for_mysql(void)
 				/* out: DB_SUCCESS or error code */
 {
 	ulint   i;
-
+#ifdef __NETWARE__
+	extern ibool panic_shutdown;
+#endif
         if (!srv_was_started) {
 	  	if (srv_is_being_started) {
 	    		ut_print_timestamp(stderr);
@@ -1471,8 +1473,11 @@ innobase_shutdown_for_mysql(void)
 	The step 1 is the real InnoDB shutdown. The remaining steps
 	just free data structures after the shutdown. */
 
+#ifdef __NETWARE__
+	if(!panic_shutdown)
+#endif 
 	logs_empty_and_mark_files_at_shutdown();
-	
+
 	if (srv_conc_n_threads != 0) {
 		fprintf(stderr,
 		"InnoDB: Warning: query counter shows %ld queries still\n"
@@ -1540,12 +1545,11 @@ innobase_shutdown_for_mysql(void)
 			mem_free(srv_monitor_file_name);
 		}
 	}
-
+	
 	mutex_free(&srv_monitor_file_mutex);
 
 	/* 3. Free all InnoDB's own mutexes and the os_fast_mutexes inside
 	them */
-
 	sync_close();
 
 	/* 4. Free the os_conc_mutex and all os_events and os_mutexes */
@@ -1556,7 +1560,7 @@ innobase_shutdown_for_mysql(void)
 	/* 5. Free all allocated memory and the os_fast_mutex created in
 	ut0mem.c */
 
-        ut_free_all_mem();
+	ut_free_all_mem();
 
 	if (os_thread_count != 0
 	    || os_event_count != 0
@@ -1583,3 +1587,11 @@ innobase_shutdown_for_mysql(void)
 
 	return((int) DB_SUCCESS);
 }
+
+#ifdef __NETWARE__
+void set_panic_flag_for_netware()
+{
+	extern ibool panic_shutdown;
+	panic_shutdown = TRUE;
+}
+#endif
