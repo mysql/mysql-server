@@ -103,6 +103,24 @@ NdbOperation::writeTuple()
  * int readTuple();
  *****************************************************************************/
 int
+NdbOperation::readTuple(NdbOperation::LockMode lm)
+{ 
+  switch(lm) {
+  case LM_Read:
+    return readTuple();
+    break;
+  case LM_Exclusive:
+    return readTupleExclusive();
+    break;
+  case LM_CommittedRead:
+    return readTuple();
+    break;
+  };
+}
+/******************************************************************************
+ * int readTuple();
+ *****************************************************************************/
+int
 NdbOperation::readTuple()
 { 
   NdbConnection* tNdbCon = theNdbCon;
