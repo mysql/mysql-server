@@ -997,6 +997,8 @@ public:
   The following class is used to optimize comparing of date and bigint columns
   We need to save the original item, to be able to set the field to the
   original value in 'opt_range'.
+  An instance of Item_int_with_ref may refer to a signed or an unsigned
+  integer.
 */
 
 class Item_int_with_ref :public Item_int
@@ -1010,6 +1012,11 @@ public:
   int save_in_field(Field *field, bool no_conversions)
   {
     return ref->save_in_field(field, no_conversions);
+  }
+  Item *new_item()
+  {
+    return (ref->unsigned_flag)? new Item_uint(ref->name, ref->max_length) :
+                                 new Item_int(ref->name, ref->max_length);
   }
 };
 
