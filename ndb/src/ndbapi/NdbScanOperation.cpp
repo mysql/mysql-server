@@ -1561,7 +1561,7 @@ NdbIndexScanOperation::reset_bounds(){
     theTupKeyLen = 0;
     theTotalNrOfKeyWordInSignal = 0;
     m_transConnection
-      ->remove_list((NdbOperation*)m_transConnection->m_firstExecutedScanOp,
+      ->remove_list((NdbOperation*&)m_transConnection->m_firstExecutedScanOp,
 		    this);
     m_transConnection->define_scan_op(this);
     return 0;
