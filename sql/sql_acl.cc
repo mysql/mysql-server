@@ -26,7 +26,6 @@
 */
 
 #include "mysql_priv.h"
-#include "sql_acl.h"
 #include "hash_filo.h"
 #ifdef HAVE_REPLICATION
 #include "sql_repl.h" //for tables_ok()

@@ -251,7 +251,7 @@ show table status;
 delete from t1 where a=3;
 delete from t2 where b=3;
 delete from t3 where a=3;
---replace_column 6 # 7 # 8 # 9 #
+--replace_column 6 # 7 # 8 # 9 # 10 #
 show table status;
 delete from t1;
 delete from t2;
@@ -266,7 +266,7 @@ show table status;
 delete from t1 where a=5;
 delete from t2 where b=5;
 delete from t3 where a=5;
---replace_column 6 # 7 # 8 # 9 #
+--replace_column 6 # 7 # 8 # 9 # 10 #
 show table status;
 
 drop table t1, t2, t3;

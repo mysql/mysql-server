@@ -192,14 +192,15 @@ RestoreMetaData::readGCPEntry() {
   return true;
 }
 
-TableS::TableS(NdbTableImpl* tableImpl)
+TableS::TableS(Uint32 version, NdbTableImpl* tableImpl)
   : m_dictTable(tableImpl)
 {
   m_dictTable = tableImpl;
   m_noOfNullable = m_nullBitmaskSize = 0;
   m_auto_val_id= ~(Uint32)0;
   m_max_auto_val= 0;
-
+  backupVersion = version;
+  
   for (int i = 0; i < tableImpl->getNoOfColumns(); i++)
     createAttr(tableImpl->getColumn(i));
 }
@@ -226,11 +227,10 @@ RestoreMetaData::parseTableDescriptor(const Uint32 * data, Uint32 len)
 
   debug << "parseTableInfo " << tableImpl->getName() << " done" << endl;
 
-  TableS * table = new TableS(tableImpl);
+  TableS * table = new TableS(m_fileHeader.NdbVersion, tableImpl);
   if(table == NULL) {
     return false;
   }
-  table->setBackupVersion(m_fileHeader.NdbVersion);
 
   debug << "Parsed table id " << table->getTableId() << endl;
   debug << "Parsed table #attr " << table->getNoOfAttributes() << endl;
@@ -260,16 +260,16 @@ TupleS & TupleS::operator=(const TupleS& tuple)
     memcpy(allAttrData, tuple.allAttrData, getNoOfAttributes()*sizeof(AttributeData));
   
   return *this;
-};
+}
 int TupleS::getNoOfAttributes() const {
   if (m_currentTable == 0)
     return 0;
   return m_currentTable->getNoOfAttributes();
-};
+}
 
 TableS * TupleS::getTable() const {
   return m_currentTable;
-};
+}
 
 const AttributeDesc * TupleS::getDesc(int i) const {
   return m_currentTable->allAttributesDesc[i];
@@ -277,7 +277,7 @@ const AttributeDesc * TupleS::getDesc(int i) const {
 
 AttributeData * TupleS::getData(int i) const{
   return &(allAttrData[i]);
-};
+}
 
 bool
 TupleS::prepareRecord(TableS & tab){
@@ -699,12 +699,12 @@ void TableS::createAttr(NdbDictionary::Column *column)
   if (d->m_column->getAutoIncrement())
     m_auto_val_id= d->attrId;
 
-  if(d->m_column->getPrimaryKey() /* && not variable */)
+  if(d->m_column->getPrimaryKey() && backupVersion <= MAKE_VERSION(4,1,7))
   {
     m_fixedKeys.push_back(d);
     return;
   }
-
+  
   if(!d->m_column->getNullable())
   {
     m_fixedAttribs.push_back(d);

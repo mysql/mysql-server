@@ -91,41 +91,38 @@ extern EventLogger g_EventLogger;
 extern int global_mgmt_server_check;
 static char *opt_connect_str= 0;
 
+enum ndb_mgmd_options {
+  NDB_STD_OPTS_OPTIONS,
+  OPT_INTERACTIVE,
+  OPT_NO_NODEID_CHECKS,
+  OPT_NO_DAEMON
+};
+NDB_STD_OPTS_VARS;
+
 static struct my_option my_long_options[] =
 {
-#ifndef DBUG_OFF
-  { "debug", '#', "Output debug log. Often this is 'd:t:o,filename'.",
-    0, 0, 0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0 },
-#endif
-  { "usage", '?', "Display this help and exit.",
-    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0 },
-  { "help", '?', "Display this help and exit.",
-    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0 },
-  { "version", 'V', "Output version information and exit.", 0, 0, 0,
-    GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0 },
-  { "connect-string", 1023,
-    "Set connect string for connecting to ndb_mgmd. "
-    "<constr>=\"host=<hostname:port>[;nodeid=<id>]\". "
-    "Overides specifying entries in NDB_CONNECTSTRING and config file",
-    (gptr*) &opt_connect_str, (gptr*) &opt_connect_str, 0,
-    GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
+  NDB_STD_OPTS("ndb_mgmd"),
   { "config-file", 'f', "Specify cluster configuration file",
     (gptr*) &glob.config_filename, (gptr*) &glob.config_filename, 0,
     GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
   { "daemon", 'd', "Run ndb_mgmd in daemon mode (default)",
     (gptr*) &glob.daemon, (gptr*) &glob.daemon, 0,
     GET_BOOL, NO_ARG, 1, 0, 0, 0, 0, 0 },
-  { "interactive", 256, "Run interactive. Not supported but provided for testing purposes",
+  { "interactive", OPT_INTERACTIVE,
+    "Run interactive. Not supported but provided for testing purposes",
     (gptr*) &glob.interactive, (gptr*) &glob.interactive, 0,
     GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
-  { "no-nodeid-checks", 257, "Do not provide any node id checks", 
+  { "no-nodeid-checks", OPT_NO_NODEID_CHECKS,
+    "Do not provide any node id checks", 
     (gptr*) &g_no_nodeid_checks, (gptr*) &g_no_nodeid_checks, 0,
     GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
-  { "nodaemon", 258, "Don't run as daemon, but don't read from stdin",
+  { "nodaemon", OPT_NO_DAEMON,
+    "Don't run as daemon, but don't read from stdin",
     (gptr*) &glob.non_interactive, (gptr*) &glob.non_interactive, 0,
     GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
   { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
+
 static void short_usage_sub(void)
 {
   printf("Usage: %s [OPTIONS]\n", my_progname);
@@ -152,6 +149,13 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
   case 'V':
     print_version();
     exit(0);
+  case OPT_NDB_SHM:
+#ifndef NDB_SHM_TRANSPORTER
+    printf("Warning: binary not compiled with shared memory support,\n"
+	   "use configure option --with-ndb-shm to enable support.\n"
+	   "Tcp connections will now be used instead\n");
+    opt_ndb_shm= 0;
+#endif
   case '?':
     usage();
     exit(0);
@@ -200,7 +204,7 @@ int main(int argc, char** argv)
   if (glob.mgmObject->init())
     goto error_end;
 
-  chdir(NdbConfig_get_path(0));
+  my_setwd(NdbConfig_get_path(0), MYF(0));
 
   glob.localNodeId= glob.mgmObject->getOwnNodeId();
   if (glob.localNodeId == 0) {
@@ -261,7 +265,9 @@ int main(int argc, char** argv)
     }
   }
 
+#ifndef NDB_WIN32
   signal(SIGPIPE, SIG_IGN);
+#endif
   {
     BaseString error_string;
     if(!glob.mgmObject->start(error_string)){

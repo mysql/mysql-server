@@ -367,3 +367,10 @@ create table t1 as select @arg00 as c1, @arg01 as c2, @arg02 as c3;
 show create table t1;
 drop table t1;
 
+
+#
+# Bug #6993: myisam_data_pointer_size
+#
+
+SET GLOBAL MYISAM_DATA_POINTER_SIZE= 8;
+SHOW VARIABLES LIKE 'MYISAM_DATA_POINTER_SIZE';

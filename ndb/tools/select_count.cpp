@@ -32,7 +32,11 @@ select_count(Ndb* pNdb, const NdbDictionary::Table* pTab,
 	     int* count_rows,
 	     UtilTransactions::ScanLock lock);
 
-static const char* opt_connect_str= 0;
+enum ndb_select_count_options {
+  NDB_STD_OPTS_OPTIONS
+};
+NDB_STD_OPTS_VARS;
+
 static const char* _dbname = "TEST_DB";
 static int _parallelism = 240;
 static int _lock = 0;

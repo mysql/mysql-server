@@ -21,7 +21,6 @@
 */
 
 #include "mysql_priv.h"
-#include "sql_acl.h"
 #include "sql_select.h"
 #include "sp_head.h"
 #include "sql_trigger.h"
@@ -225,7 +224,7 @@ int mysql_update(THD *thd,
   table_list->grant.want_privilege= table->grant.want_privilege=
     (SELECT_ACL & ~table->grant.privilege);
 #endif
-  if (setup_fields(thd, 0, table_list, values, 0, 0, 0))
+  if (setup_fields(thd, 0, table_list, values, 1, 0, 0))
   {
     free_underlaid_joins(thd, select_lex);
     DBUG_RETURN(1);				/* purecov: inspected */
@@ -740,6 +739,19 @@ bool mysql_multi_update_prepare(THD *thd)
     }
     if (!using_lock_tables)
       tl->table->reginfo.lock_type= tl->lock_type;
+
+    /* Check access privileges for table */
+    {
+      TABLE_LIST *save= tl->next;
+      bool res;
+      tl->next= 0;
+      res= (check_access(thd, tl->updating ? UPDATE_ACL : SELECT_ACL,
+                         tl->db, &tl->grant.privilege, 0, 0) ||
+            (grant_option && check_grant(thd, wants, tl, 0, 0, 0)));
+      tl->next= save;
+      if (res)
+        DBUG_RETURN(TRUE);
+    }
   }
 
   /* check single table update for view compound from several tables */
