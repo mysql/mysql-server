@@ -243,7 +243,7 @@ Installing a MySQL Source Distribution
 
 Perl Installation Comments
 
-* Perl installation::           Installing Perl on Unix
+* Perl installation::           Installing Perl on UNIX
 * ActiveState Perl::            Installing ActiveState Perl on Windows
 * Windows Perl::                Installing the @strong{MySQL} Perl distribution on Windows
 * Perl support problems::       Problems using the Perl @code{DBI}/@code{DBD} interface
@@ -297,7 +297,7 @@ Windows Notes
 * Windows symbolic links::      Splitting data across different disks under Win32
 * Windows compiling::           Compiling MySQL clients on Windows.
 * Windows and BDB tables.::     
-* Windows vs Unix::             @strong{MySQL}-Windows compared to Unix @strong{MySQL}
+* Windows vs UNIX::             @strong{MySQL}-Windows compared to UNIX @strong{MySQL}
 
 Post-installation Setup and Testing
 
@@ -1961,7 +1961,7 @@ Publisher Sybex 510 523 8233
 Alameda, CA USA
 @end example
 
-An SQL tutorial is available on the net at
+A SQL tutorial is available on the net at
 http://www.geocities.com/SiliconValley/Vista/2207/sql1.html.
 
 @c A nice german 404 error. (jcole)
@@ -5934,7 +5934,7 @@ operating system.  (Note that you will have to do this each time you run
 The @file{sql_yacc.cc} file is generated from @file{sql_yacc.yy}.  Normally
 the build process doesn't need to create @file{sql_yacc.cc}, because
 @strong{MySQL} comes with an already-generated copy.  However, if you do need
-to re-create it, you might encounter this error:
+to recreate it, you might encounter this error:
 
 @example
 "sql_yacc.yy", line xxx fatal: default action causes potential...
@@ -8571,9 +8571,9 @@ connect to the grant tables as the @strong{MySQL} @code{root} user and issue
 SQL statements to modify the grant tables directly.
 
 @item
-It is possible to re-create the grant tables completely after they have
+It is possible to recreate the grant tables completely after they have
 already been created.  You might want to do this if you've already installed
-the tables but then want to re-create them after editing
+the tables but then want to recreate them after editing
 @code{mysql_install_db}.
 @end itemize
 
@@ -8717,7 +8717,7 @@ The purpose of the @code{mysql_install_db} script is to generate new
 It will also not do anything if you already have MySQL privilege
 tables installed!
 
-If you want to re-create your privilege tables, you should take down
+If you want to recreate your privilege tables, you should take down
 the mysqld server, if its running, and then do something like:
 
 @example
@@ -10373,7 +10373,7 @@ unless you do so in a very specific order.
 
 @item
 It's very easy to do ``allowed'' circular definitions that make the
-tables impossible to re-create each table with a single create statement,
+tables impossible to recreate each table with a single create statement,
 even if the definition works and is usable.
 
 @item
@@ -12023,7 +12023,7 @@ above, you can modify @code{mysql_install_db} before you run it.
 
 @cindex grant tables, recreating
 @cindex recreating, grant tables
-To re-create the grant tables completely, remove all the @file{.frm},
+To recreate the grant tables completely, remove all the @file{.frm},
 @file{.MYI}, and @file{.MYD} files in the directory containing the
 @code{mysql} database.  (This is the directory named @file{mysql} under
 the database directory, which is listed when you run @code{mysqld
@@ -18223,7 +18223,7 @@ If @code{QUICK} is given then @strong{MySQL} will try to do a
 
 If you use @code{EXTENDED} then @strong{MySQL} will create the index row
 by row instead of creating one index at a time with sorting;  This may be
-better than sorting on fixed length keys if you have long @code{char()}
+better than sorting on fixed-length keys if you have long @code{char()}
 keys that compress very good.
 
 @findex DELETE
@@ -21233,7 +21233,7 @@ CREATE [UNIQUE|FULLTEXT] INDEX index_name ON tbl_name (col_name[(length)],... )
 @end example
 
 The @code{CREATE INDEX} statement doesn't do anything in @strong{MySQL} prior
-to version 3.22.  In 3.22 or later, @code{CREATE INDEX} is mapped to an
+to Version 3.22.  In Version 3.22 or later, @code{CREATE INDEX} is mapped to an
 @code{ALTER TABLE} statement to create indexes.
 @xref{ALTER TABLE, , @code{ALTER TABLE}}.
 
@@ -21285,14 +21285,14 @@ DROP INDEX index_name ON tbl_name
 
 @code{DROP INDEX} drops the index named @code{index_name} from the table
 @code{tbl_name}.  @code{DROP INDEX} doesn't do anything in @strong{MySQL}
-prior to version 3.22.  In 3.22 or later, @code{DROP INDEX} is mapped to an
+prior to Version 3.22.  In Version 3.22 or later, @code{DROP INDEX} is mapped to an
 @code{ALTER TABLE} statement to drop the index.
 @xref{ALTER TABLE, , @code{ALTER TABLE}}.
 
 @findex Comment syntax
 @cindex comments, adding
 @node Comments, CREATE FUNCTION, DROP INDEX, Reference
-@section Comment syntax
+@section Comment Syntax
 
 The @strong{MySQL} server supports the @code{# to end of line}, @code{--
 to end of line} and @code{/* in-line or multiple-line */} comment
@@ -21361,7 +21361,7 @@ function that works like native (built in) @strong{MySQL} functions such as
 @code{AGGREGATE} function works exactly like a native @strong{MySQL}
 @code{GROUP} function like @code{SUM} or @code{COUNT()}.
 
-@code{CREATE FUNCTION} saves the function's name, type and shared library
+@code{CREATE FUNCTION} saves the function's name, type, and shared library
 name in the @code{mysql.func} system table.  You must have the
 @strong{insert} and @strong{delete} privileges for the @code{mysql} database
 to create and drop functions.
@@ -21380,7 +21380,7 @@ compiled @code{mysqld} dynamically (not statically).
 @cindex keywords
 @cindex reserved words, exceptions
 @node Reserved words,  , CREATE FUNCTION, Reference
-@section Is MySQL picky about reserved words?
+@section Is MySQL Picky About Reserved Words?
 
 A common problem stems from trying to create a table with column names that
 use the names of datatypes or functions built into @strong{MySQL}, such as
@@ -21499,13 +21499,13 @@ used them.
 @cindex MyISAM table type
 @cindex types, of tables
 @node Table types, Tutorial, Reference, Top
-@chapter MySQL table types
+@chapter MySQL Table Types
 
 As of @strong{MySQL} Version 3.23.6, you can choose between three basic
 table formats. When you create a new table, you can tell @strong{MySQL}
 which table type it should use for the table.  @strong{MySQL} will
 always create a @code{.frm} file to hold the table and column
-definitions.  Depending on the table type the index and data will be
+definitions.  Depending on the table type, the index and data will be
 stored in other files.
 
 The default table type in @strong{MySQL} is @code{MyISAM}. If you are
@@ -21515,16 +21515,16 @@ trying to use a table type that is not incompiled or activated,
 You can convert tables between different types with the @code{ALTER
 TABLE} statement. @xref{ALTER TABLE, , @code{ALTER TABLE}}.
 
-Note that @strong{MySQL} supports two different kind of
-tables. Transactions safe tables (@code{BDB}) and not transaction safe
-tables (@code{ISAM}, @code{MERGE}, @code{MyISAM} and @code{HEAP}).
+Note that @strong{MySQL} supports two different kinds of
+tables. Transaction-safe tables (@code{BDB}) and not transaction safe
+tables (@code{ISAM}, @code{MERGE}, @code{MyISAM}, and @code{HEAP}).
 
-Advantages of transaction safe tables (TST)
+Advantages of transaction safe tables (TST):
 
 @itemize @bullet
 @item
-Safer; Even if @strong{MySQL} crashes or you get hardware problems, you
-can get your data back;  Either by automatic recovery or from a backup
+Safer. Even if @strong{MySQL} crashes or you get hardware problems, you
+can get your data back, either by automatic recovery or from a backup
 + the transaction log.
 @item
 You can combine many statements and accept these all in one go with
@@ -21534,7 +21534,7 @@ You can execute @code{ROLLBACK} to ignore your changes (if you are not
 running in auto commit mode).
 @item
 If an update fails, all your changes will be restored. (With NTST tables all
-changes that has taken place are permanent)
+changes that have taken place are permanent)
 @end itemize
 
 Advantages of not transaction safe tables (NTST):
@@ -21560,13 +21560,13 @@ of both worlds.
 @end menu
 
 @node MyISAM, MERGE, Table types, Table types
-@section MyISAM tables
+@section MyISAM Tables
 
 @code{MyISAM} is the default table type in @strong{MySQL} Version 3.23. It's
 based on the @code{ISAM} code and has a lot of useful extensions.
 
-The index is stored in a file with the @code{.MYI} (MYIndex) extension
-and the data is stored in file with the @code{.MYD} (MYData) extension.
+The index is stored in a file with the @code{.MYI} (MYIndex) extension,
+and the data is stored in a file with the @code{.MYD} (MYData) extension.
 You can check/repair @code{MyISAM} tables with the @code{myisamchk}
 utility. @xref{Crash recovery}.
 
@@ -21604,7 +21604,7 @@ Internal handling of one @code{AUTO_INCREMENT} column. @code{MyISAM}
 will automatically update this on @code{INSERT/UPDATE}. The
 @code{AUTO_INCREMENT} value can be reset with @code{myisamchk}. This
 will make @code{AUTO_INCREMENT} columns faster (at least 10 %) and old
-numbers will not be reused as with the old ISAM. Note that when a
+numbers will not be reused as with the old ISAM. Note that when an
 @code{AUTO_INCREMENT} is defined on the end of a multi-part-key the old
 behavior is still present.
 @item
@@ -21643,7 +21643,7 @@ deleted blocks and by extending blocks if the next block is deleted.
 @end itemize
 
 @code{MyISAM} also supports the following things, which @strong{MySQL}
-will be able to use in the near future.
+will be able to use in the near future:
 
 @itemize @bullet
 @item
@@ -21656,7 +21656,7 @@ Tables with @code{VARCHAR} may have fixed or dynamic record length.
 All key segments have their own language definition. This will enable
 @strong{MySQL} to have different language definitions per column.
 @item
-A hashed computed index can be used for @code{UNIQUE}; This will allow
+A hashed computed index can be used for @code{UNIQUE}. This will allow
 you to have @code{UNIQUE} on any combination of columns in a table. (You
 can't search on a @code{UNIQUE} computed index, however.)
 @end itemize
@@ -21664,7 +21664,7 @@ can't search on a @code{UNIQUE} computed index, however.)
 Note that index files are usually much smaller with @code{MyISAM} than with
 @code{ISAM}. This means that @code{MyISAM} will normally use less
 system resources than @code{ISAM}, but will need more CPU when inserting
-data into compressed index.
+data into a compressed index.
 
 The following options to @code{mysqld} can be used to change the behavior of
 @code{MyISAM} tables:
@@ -21727,10 +21727,10 @@ backup media.
 
 @cindex key space, MyISAM
 @node Key space, MyISAM table formats, MyISAM, MyISAM
-@subsection Space needed for keys
+@subsection Space Needed for Keys
 
 @strong{MySQL} can support different index types, but the normal type is
-ISAM or MyISAM.  These use a B-tree index and you can roughly calculate
+ISAM or MyISAM.  These use a B-tree index, and you can roughly calculate
 the size for the index file as @code{(key_length+4)/0.67}, summed over
 all keys.  (This is for the worst case when all keys are inserted in
 sorted order and we don't have any compressed keys.)
@@ -21745,13 +21745,13 @@ with an identical prefix.
 
 In @code{MyISAM} tables, you can also prefix compress numbers by specifying
 @code{PACK_KEYS=1} when you create the table.  This helps when you have
-many integer keys which have an identical prefix when the numbers are stored
+many integer keys that have an identical prefix when the numbers are stored
 high-byte first.
 
 @node MyISAM table formats,  , Key space, MyISAM
-@subsection MyISAM table formats
+@subsection MyISAM Table Formats
 
-@strong{MyISAM} supports 3 different table types. 2 of them are chosen
+@strong{MyISAM} supports 3 different table types. Two of them are chosen
 automatically depending on the type of columns you are using. The third,
 compressed tables, can only be created with the @code{myisampack} tool.
 
@@ -21762,28 +21762,28 @@ compressed tables, can only be created with the @code{myisampack} tool.
 @end menu
 
 @node Static format, Dynamic format, MyISAM table formats, MyISAM table formats
-@subsubsection Static (Fixed-length) table characteristics
+@subsubsection Static (Fixed-length) Table Characteristics
 
 This is the default format. It's used when the table contains no
-@code{VARCHAR}, @code{BLOB} or @code{TEXT} columns.
+@code{VARCHAR}, @code{BLOB}, or @code{TEXT} columns.
 
 This format is the simplest and most secure format. It is also the
 fastest of the on-disk formats. The speed comes from the easy way data
 can be found on disk. When looking up something with an index and static
-format it is very simple, just multiply the row number by the row length.
+format it is very simple. Just multiply the row number by the row length.
 
-Also when scanning a table it is very easy to read a constant number of
+Also, when scanning a table it is very easy to read a constant number of
 records with each disk read.
 
-The security comes from if your computer crashes when writing to a
-fixed-size MyISAM file, @code{myisamchk} can easily figure out where each
+The security is evidenced if your computer crashes when writing to a
+fixed-size MyISAM file, in which case @code{myisamchk} can easily figure out where each
 row starts and ends. So it can usually reclaim all records except the
 partially written one. Note that in @strong{MySQL} all indexes can always be
-reconstructed.
+reconstructed:
 
 @itemize @bullet
 @item
-All @code{CHAR}, @code{NUMERIC} and @code{DECIMAL} columns are space-padded
+All @code{CHAR}, @code{NUMERIC}, and @code{DECIMAL} columns are space-padded
 to the column width.
 @item
 Very quick.
@@ -21803,9 +21803,9 @@ Usually requires more disk space than dynamic tables.
 @cindex dynamic table characteristics
 @cindex tables, dynamic
 @node Dynamic format, Compressed format, Static format, MyISAM table formats
-@subsubsection Dynamic table characteristics
+@subsubsection Dynamic Table Characteristics
 
-This format is used if the table contains any @code{VARCHAR}, @code{BLOB}
+This format is used if the table contains any @code{VARCHAR}, @code{BLOB},
 or @code{TEXT} columns or if the table was created with
 @code{ROW_FORMAT=dynamic}.
 
@@ -21817,15 +21817,15 @@ You can use @code{OPTIMIZE table} or @code{myisamchk} to defragment a
 table. If you have static data that you access/change a lot in the same
 table as some @code{VARCHAR} or @code{BLOB} columns, it might be a good
 idea to move the dynamic columns to other tables just to avoid
-fragmentation.
+fragmentation:
 
 @itemize @bullet
 @item
 All string columns are dynamic (except those with a length less than 4).
 @item
 Each record is preceded by a bitmap indicating which columns are empty
-(@code{''}) for string columns, or zero for numeric columns (this isn't
-the same as columns containing @code{NULL} values).  If a string column
+(@code{''}) for string columns, or zero for numeric columns. (This isn't
+the same as columns containing @code{NULL} values.) If a string column
 has a length of zero after removal of trailing spaces, or a numeric
 column has a value of zero, it is marked in the bit map and not saved to
 disk.  Non-empty strings are saved as a length byte plus the string
@@ -21834,7 +21834,7 @@ contents.
 Usually takes much less disk space than fixed-length tables.
 @item
 Each record uses only as much space as is required. If a record becomes
-larger, it is split into as many pieces as required.  This results in record
+larger, it is split into as many pieces as are required.  This results in record
 fragmentation.
 @item
 If you update a row with information that extends the row length, the
@@ -21865,17 +21865,17 @@ with @code{myisamchk -ed}. All links may be removed with @code{myisamchk -r}.
 
 @cindex tables, compressed format
 @node Compressed format,  , Dynamic format, MyISAM table formats
-@subsubsection Compressed table characteristics
+@subsubsection Compressed Table Characteristics
 
 This is a read-only type that is generated with the optional
-@code{myisampack} tool (@code{pack_isam} for @code{ISAM} tables).
+@code{myisampack} tool (@code{pack_isam} for @code{ISAM} tables):
 
 @itemize @bullet
 @item
 All MySQL distributions, even those that existed before @strong{MySQL}
 went GPL, can read tables that were compressed with @code{myisampack}.
 @item
-Compressed tables take very little disk space. This minimizes disk usage which
+Compressed tables take very little disk space. This minimizes disk usage, which
 is very nice when using slow disks (like CD-ROMs).
 @item
 Each record is compressed separately (very little access overhead).  The
@@ -21903,7 +21903,7 @@ converted to @code{ENUM}.
 A column may use a combination of the above compressions.
 @end itemize
 @item
-Can handle fixed or dynamic length records, but not @code{BLOB} or @code{TEXT}
+Can handle fixed- or dynamic-length records, but not @code{BLOB} or @code{TEXT}
 columns.
 @item
 Can be uncompressed with @code{myisamchk}.
@@ -21912,15 +21912,15 @@ Can be uncompressed with @code{myisamchk}.
 @cindex tables, merging
 @cindex MERGE tables, defined
 @node MERGE, ISAM, MyISAM, Table types
-@section MERGE tables
+@section MERGE Tables
 
-@code{MERGE} tables are new in @strong{MySQL} Version 3.23.25; The code is still
+@code{MERGE} tables are new in @strong{MySQL} Version 3.23.25. The code is still
 in alpha, but should stabilize soon!  The one thing that is currently
-missing is a way from the SQL prompt to say which tables are part of the
+missing is a way for the SQL prompt to say which tables are part of the
 @code{MERGE} table.
 
 A @code{MERGE} table is a collection of identical @code{MyISAM} tables
-that can be used as one.  You can only @code{SELECT}, @code{DELETE} and
+that can be used as one.  You can only @code{SELECT}, @code{DELETE}, and
 @code{UPDATE} from the collection of tables.  If you @code{DROP} the
 @code{MERGE} table, you are only dropping the @code{MERGE}
 specification.
@@ -21934,36 +21934,36 @@ definition file and a @code{.MRG} table list file.  The @code{.MRG} just
 contains a list of the index files (@code{.MYI} files) that should
 be used as one.
 
-For the moment you need to have @code{SELECT}, @code{UPDATE} and
+For the moment you need to have @code{SELECT}, @code{UPDATE}, and
 @code{DELETE} privileges on the tables you map to a @code{MERGE} table.
 
 @code{MERGE} tables can help you solve the following problems:
 
 @itemize @bullet
 @item
-Easily manage a set of log tables; For example you can put data from
+Easily manage a set of log tables. For example, you can put data from
 different months into separate files, compress some of them with
-@code{myisampack} and then create a @code{MERGE} to use these as one.
+@code{myisampack}, and then create a @code{MERGE} to use these as one.
 @item
-Give you more speed;  You can split a big read-only table based on some
+Give you more speed. You can split a big read-only table based on some
 criteria and then put the different table part on different disks.
 A @code{MERGE} table on this could be much faster than using
-the big table. (You can of course also use a RAID to get the same
-kind of benefits).
+the big table. (You can, of course, also use a RAID to get the same
+kind of benefits.)
 @item
-Do more efficient searches: If you know exactly what you are looking
+Do more efficient searches. If you know exactly what you are looking
 after, you can search in just one of the split tables for some queries
 and use @strong{MERGE} table for others.  You can even have many
-different @code{MERGE} tables active, which possible overlapping files.
+different @code{MERGE} tables active, with possible overlapping files.
 @item
-More efficient repairs; It's easier to repair the individual files that
+More efficient repairs. It's easier to repair the individual files that
 are mapped to a @code{MERGE} file than trying to repair a real big file.
 @item
-Instant mapping of many files as one;  A @code{MERGE} table uses the
-index of the individual tables;  It doesn't need an index of its one.
+Instant mapping of many files as one. A @code{MERGE} table uses the
+index of the individual tables. It doesn't need an index of its one.
 This makes @code{MERGE} table collections VERY fast to make or remap.
 @item
-If you have a set of tables which you join to a big tables on demand or
+If you have a set of tables that you join to a big table on demand or
 batch, you should instead create a @code{MERGE} table on them on demand.
 This is much faster and will save a lot of disk space.
 @item
@@ -21979,21 +21979,21 @@ in which of the tables we should insert the row.
 @item
 You can only use identical @code{MyISAM} tables for a @code{MERGE} table.
 @item
-@code{MERGE} tables uses more file descriptors: If you are using a
+@code{MERGE} tables uses more file descriptors. If you are using a
 @strong{MERGE} that maps over 10 tables and 10 users are using this, you
 are using 10*10 + 10 file descriptors.  (10 data files for 10 users
-and 10 shared index files).
+and 10 shared index files.)
 @item
-Key reads are slower;  When you do a read on a key, the @code{MERGE}
+Key reads are slower. When you do a read on a key, the @code{MERGE}
 handler will need to issue a read on all underlying tables to check
-which on most closely matches the given key.  If you then do a 'read-next'
+which one most closely matches the given key.  If you then do a 'read-next'
 then the merge table handler will need to search the read buffers
-to find the next key;  Only when one key buffer is used up, the handler
+to find the next key. Only when one key buffer is used up, the handler
 will need to read the next key block. This makes @code{MERGE} keys much slower
 on @code{eq_ref} searches, but not much slower on @code{ref} searches.
 @xref{EXPLAIN}.
 @item
-You can't yet easily map the @code{MERGE} table from withing @strong{MySQL}.
+You can't yet easily map the @code{MERGE} table from within @strong{MySQL}.
 @end itemize
 
 The following example shows you how to use @code{MERGE} tables:
@@ -22006,7 +22006,7 @@ INSERT INTO t2 (message) VALUES ("Testing"),("table"),("t2");
 CREATE TABLE total (a INT NOT NULL, message CHAR(20), KEY(a)) TYPE=MERGE UNION=(t1,t2);
 @end example
 
-Note that we didn't create an @code{UNIQUE} or @code{PRIMARY KEY} in the
+Note that we didn't create a @code{UNIQUE} or @code{PRIMARY KEY} in the
 @code{total} table as the key isn't going to be unique in the @code{total}
 table.
 
@@ -22036,56 +22036,56 @@ mysql> select * from total;
 
 To remap a @code{MERGE} table you must either @code{DROP} it and
 recreate it, use @code{ALTER TABLE} with a new @code{UNION}
-specification or change the @code{.MRG} file and issue a @code{FLUSH
+specification, or change the @code{.MRG} file and issue a @code{FLUSH
 TABLE} on the @code{MERGE} table and all underlying tables to force the
 handler to read the new definition file.
 
 @cindex tables, ISAM
 @node ISAM, HEAP, MERGE, Table types
-@section ISAM tables
+@section ISAM Tables
 
 You can also use the deprecated ISAM table type. This will disappear
 rather soon because @code{MyISAM} is a better implementation of the same
 thing. ISAM uses a @code{B-tree} index. The index is stored in a file
-with the @code{.ISM} extension and the data is stored in file with the
+with the @code{.ISM} extension, and the data is stored in a file with the
 @code{.ISD} extension.  You can check/repair ISAM tables with the
 @code{isamchk} utility. @xref{Crash recovery}.
 
 @code{ISAM} has the following features/properties:
 
 @itemize @bullet
-@item Compressed and fixed length keys
+@item Compressed and fixed-length keys
 @item Fixed and dynamic record length
-@item 16 keys with 16 key parts / key
+@item 16 keys with 16 key parts/key
 @item Max key length 256 (default)
 @item Data is stored in machine format; this is fast, but is machine/OS dependent.
 @end itemize
 
-Most of the things for @code{MyISAM} tables are also true for @code{ISAM}
+Most of the things true for @code{MyISAM} tables are also true for @code{ISAM}
 tables. @xref{MyISAM}. The major differences compared to @code{MyISAM}
 tables are:
 
 @itemize @bullet
 @item ISAM tables are not binary portable across OS/Platforms.
 @item Can't handle tables > 4G.
-@item Only support prefix compression on strings
+@item Only support prefix compression on strings.
 @item Smaller key limits.
-@item Dynamic tables gets more fragmented.
+@item Dynamic tables get more fragmented.
 @item Tables are compressed with @code{pack_isam} rather than with @code{myisampack}.
 @end itemize
 
 @cindex tables, @code{HEAP}
 @node HEAP, BDB, ISAM, Table types
-@section HEAP tables
+@section HEAP Tables
 
 @code{HEAP} tables use a hashed index and are stored in memory.  This
 makes them very fast, but if @strong{MySQL} crashes you will lose all
 data stored in them.  @code{HEAP} is very useful for temporary tables!
 
-The @strong{MySQL} internal HEAP tables uses 100% dynamic hashing
+The @strong{MySQL} internal HEAP tables use 100% dynamic hashing
 without overflow areas. There is no extra space needed for free lists.
 @code{HEAP} tables also don't have problems with delete + inserts, which
-normally is common with hashed tables..
+normally is common with hashed tables:
 
 @example
 mysql> CREATE TABLE test TYPE=HEAP SELECT ip,SUM(downloads) as down
@@ -22120,12 +22120,12 @@ hashed tables).
 @code{HEAP} tables are shared between all clients (just like any other
 table).
 @item
-You can't search for the next entry in order (that is to use the index
-to do a @code{ORDER BY}).
+You can't search for the next entry in order (that is, to use the index
+to do an @code{ORDER BY}).
 @item
 Data for @code{HEAP} tables are allocated in small blocks. The tables
 are 100% dynamic (on inserting). No overflow areas and no extra key
-space is needed.  Deleted rows are put in a linked list and are
+space are needed.  Deleted rows are put in a linked list and are
 reused when you insert new data into the table.
 @item
 You need enough extra memory for all HEAP tables that you want to use at
@@ -22134,27 +22134,27 @@ the same time.
 To free memory, you should execute @code{DELETE FROM heap_table},
 @code{TRUNCATE heap_table} or @code{DROP TABLE heap_table}.
 @item
-@strong{MySQL} cannot find out how approximately many rows there
+@strong{MySQL} cannot find out approximately how many rows there
 are between two values (this is used by the range optimizer to decide which
 index to use).  This may affect some queries if you change a @code{MyISAM}
 table to a @code{HEAP} table.
 @item
-To ensure that you accidentally don't do anything stupid, you can't create
+To ensure that you accidentally don't do anything foolish, you can't create
 @code{HEAP} tables bigger than @code{max_heap_table_size}.
 @end itemize
 
-Memory needed for one row in a @code{HEAP} table is:
+The memory needed for one row in a @code{HEAP} table is:
 
 @example
 SUM_OVER_ALL_KEYS(max_length_of_key + sizeof(char*) * 2)
 + ALIGN(length_of_row+1, sizeof(char*))
 @end example
 
-@code{sizeof(char*)} is 4 on 32 bit machines and 8 on 64 bit machines.
+@code{sizeof(char*)} is 4 on 32-bit machines and 8 on 64-bit machines.
 
 @cindex tables, @code{BDB}
 @node BDB,  , HEAP, Table types
-@section BDB or Berkeley_db tables
+@section BDB or Berkeley_db Tables
 
 @menu
 * BDB overview::                
@@ -22169,11 +22169,11 @@ SUM_OVER_ALL_KEYS(max_length_of_key + sizeof(char*) * 2)
 @subsection Overview over BDB tables
 
 Berkeley DB (@uref{http://www.sleepycat.com}) has provided
-@strong{MySQL} with a transaction safe table handler. This will survive
+@strong{MySQL} with a transaction-safe table handler. This will survive
 crashes and also provides @code{COMMIT} and @code{ROLLBACK} on
 transactions. In order to build MySQL Version 3.23.x (BDB support first
 appeared in Version 3.23.15) with support for @code{BDB} tables, you
-will need Berkeley DB 3.1.14 or newer which can be downloaded from
+will need Berkeley DB Version 3.1.14 or newer which can be downloaded from
 @uref{http://www.mysql.com/downloads/mysql-3.23.html}; or also from
 Sleepycat's download page at
 @uref{http://www.sleepycat.com/download.html}.
@@ -22181,8 +22181,8 @@ Sleepycat's download page at
 @node BDB install, BDB start, BDB overview, BDB
 @subsection Installing BDB
 
-To install Berkeley DB first uncompress the @code{BDB} distribution
-and follow the instructions in the README provided in the distiribution
+To install Berkeley DB, first uncompress the @code{BDB} distribution
+and follow the instructions in the README file provided in the distribution
 directory. Basically what you need to do is:
 
 @example
@@ -22198,13 +22198,13 @@ more/updated information.
 After this you need to configure your @strong{MySQL} with
 @code{--with-berkeley-db=DIR}. The directory is the one where you installed
 @code{BDB} binaries with @code{make install}. (Usually it is
-/usr/local/BerkeleyDB.3.1/) You can give additional options to
+/usr/local/BerkeleyDB.3.1/.) You can give additional options to
 @strong{MySQL} configure, @code{--with-berkeley-db-includes=DIR} and
 @code{--with-berkeley-db-libs=DIR}, if the @code{BDB} includes and/or libs
-directory is not under the first directory, by default they are.
+directory is not under the first directory (by default they are).
 Then complete the @strong{MySQL} installation as normal.
 
-Even if Berkeley DB is in itself very tested and reliably, the
+Even if Berkeley DB is in itself very tested and reliable, the
 @strong{MySQL} interface is still very alpha, but we are actively
 improving and optimizing it to get it this stable real soon.
 
@@ -22221,35 +22221,35 @@ BDB tables:
 @multitable @columnfractions .30 .70
 @item @strong{Option} @tab @strong{Meaning}
 @item @code{--bdb-home=directory} @tab  Base directory for BDB tables. This should be the same directory you use for --datadir.
-@item @code{--bdb-lock-detect=#} @tab  Berkeley lock detect. One of (DEFAULT, OLDEST, RANDOM or YOUNGEST)
-@item @code{--bdb-logdir=directory} @tab Berkeley DB log file directory
-@item @code{--bdb-nosync} @tab Don't synchronously flush logs
-@item @code{--bdb-recover} @tab Start Berkeley DB in recover mode
-@item @code{--bdb-tmpdir=directory} @tab Berkeley DB tempfile name
+@item @code{--bdb-lock-detect=#} @tab  Berkeley lock detect. One of (DEFAULT, OLDEST, RANDOM, or YOUNGEST).
+@item @code{--bdb-logdir=directory} @tab Berkeley DB log file directory.
+@item @code{--bdb-nosync} @tab Don't synchronously flush logs.
+@item @code{--bdb-recover} @tab Start Berkeley DB in recover mode.
+@item @code{--bdb-tmpdir=directory} @tab Berkeley DB tempfile name.
 @item @code{--skip-bdb} @tab Don't use berkeley db.
 @end multitable
 
 If you use @code{--skip-bdb}, @strong{MySQL} will not initialize the
-Berkeley DB library and this will save a lot of memory.  You can of course
-not use @code{BDB} tables if you are using this option.
+Berkeley DB library and this will save a lot of memory. Of course,
+you cannot use @code{BDB} tables if you are using this option.
 
 Normally you should start mysqld with @code{--bdb-recover} if you intend
-to use BDB tables.  This may however give you problems when you try to
+to use BDB tables.  This may, however, give you problems when you try to
 start mysqld if the BDB log files are corrupted. @xref{Starting server}.
 
 @node BDB characteristic, BDB TODO, BDB start, BDB
-@subsection Some characteristic of @code{BDB} tables
+@subsection Some characteristic of @code{BDB} tables:
 
 @itemize @bullet
 @item
 @strong{MySQL} requires a @code{PRIMARY KEY} in each BDB table to be
-able to refer to previously read rows; If you don't create on,
+able to refer to previously read rows. If you don't create on,
 @strong{MySQL} will create an maintain a hidden @code{PRIMARY KEY} for
 you.  The hidden key has a length of 5 bytes and is incremented for each
 insert attempt.
 @item
-If all columns you access in a @code{BDB} tables is part of the same index or
-part of the primary key then @strong{MySQL} can execute the query
+If all columns you access in a @code{BDB} table are part of the same index or
+part of the primary key, then @strong{MySQL} can execute the query
 without having to access the actual row.  In a @code{MyISAM} table the
 above holds only if the columns are part of the same index.
 @item
@@ -22260,20 +22260,20 @@ stored as the key data + the @code{PRIMARY KEY}, its important to keep the
 @item
 @code{LOCK TABLES} works on @code{BDB} tables as with other tables.  If
 you don't use @code{LOCK TABLE}, @strong{MYSQL} will issue an internal
-multiple write lock on the table to ensure that the table will be
-properly locked if one another thread issues a table lock.
+multiple-write lock on the table to ensure that the table will be
+properly locked if another thread issues a table lock.
 @item
 @code{ALTER TABLE} doesn't yet work on @code{BDB} tables.
 @item
-Internal locking in @code{BDB} tables are done on page level.
+Internal locking in @code{BDB} tables is done on page level.
 @item
 @code{SELECT COUNT(*) FROM table_name} is slow as @code{BDB} tables doesn't
 maintain a count of the number of rows in the table.
 @item
 Scanning is slower than with @code{MyISAM} tables as one has data in BDB
-tables is stored in B-trees and not in a separate data file.
+tables stored in B-trees and not in a separate data file.
 @item
-One must in the application always be prepared to handle the case that
+The application must always be prepared to handle cases where
 any change of a @code{BDB} table may make an automatic rollback and any
 read may fail with a deadlock error.
 @item
@@ -22285,13 +22285,13 @@ space in @code{BDB} tables compared to MyISAM tables with don't use
 One must do a @code{FLUSH LOGS} from time to time to sync to get checkpoints
 for the @code{BDB} tables.
 @item
-As transaction logs take more place than ordinary logs it's more important
-to rotate and remove old logs when using @code{BDB} tables than using other table
+As transaction logs take up more space than ordinary logs, it's more important
+to rotate and remove old logs when using @code{BDB} tables than when using other table
 types.
 @end itemize
 
 @node BDB TODO, BDB errors, BDB characteristic, BDB
-@subsection Some things we need to fix for BDB in the near future
+@subsection Some things we need to fix for BDB in the near future:
 
 @itemize @bullet
 @item
@@ -22302,7 +22302,7 @@ Optimize performance.
 @end itemize
 
 @node BDB errors,  , BDB TODO, BDB
-@subsection Errors you may get when using BDB tables
+@subsection Errors You May Get When Using BDB Tables
 
 If you are running in not @code{auto_commit} mode and delete a table you
 are using you may get the following error messages in the @strong{MySQL}
@@ -22338,7 +22338,7 @@ This chapter provides a tutorial introduction to @strong{MySQL} by showing
 how to use the @code{mysql} client program to create and use a simple
 database.  @code{mysql} (sometimes referred to as the ``terminal monitor'' or
 just ``monitor'') is an interactive program that allows you to connect to a
-@strong{MySQL} server, run queries and view the results.  @code{mysql} may
+@strong{MySQL} server, run queries, and view the results.  @code{mysql} may
 also be used in batch mode: you place your queries in a file beforehand, then
 tell @code{mysql} to execute the contents of the file.  Both ways of using
 @code{mysql} are covered here.
@@ -22350,7 +22350,7 @@ the @code{--help} option:
 shell> mysql --help
 @end example
 
-This chapter assumes that @code{mysql} is installed on your machine, and that
+This chapter assumes that @code{mysql} is installed on your machine and that
 a @strong{MySQL} server is available to which you can connect.  If this is
 not true, contact your @strong{MySQL} administrator.  (If @emph{you} are the
 administrator, you will need to consult other sections of this manual.)
@@ -22369,13 +22369,13 @@ information on the topics covered here.
 @cindex server, connecting
 @cindex server, disconnecting
 @node Connecting-disconnecting, Entering queries, Tutorial, Tutorial
-@section Connecting to and disconnecting from the server
+@section Connecting to and Disconnecting from the Server
 
 To connect to the server, you'll usually need to provide a @strong{MySQL}
 user name when you invoke @code{mysql} and, most likely, a password.  If the
 server runs on a machine other than the one where you log in, you'll also
 need to specify a hostname.  Contact your administrator to find out what
-connection parameters you should use to connect (that is, what host, user name
+connection parameters you should use to connect (that is, what host, user name,
 and password to use).  Once you know the proper parameters, you should be
 able to connect like this:
 
@@ -22404,7 +22404,7 @@ mysql>
 
 The prompt tells you that @code{mysql} is ready for you to enter commands.
 
-Some @strong{MySQL} installations allow users to connect as the ``anonymous''
+Some @strong{MySQL} installations allow users to connect as the anonymous
 (unnamed) user to the server running on the local host.  If this is the case
 on your machine, you should be able to connect to that server by invoking
 @code{mysql} without any options:
@@ -22421,7 +22421,7 @@ mysql> QUIT
 Bye
 @end example
 
-You can also disconnect by typing Control-D.
+You can also disconnect by pressing Control-D.
 
 Most examples in the following sections assume you are connected to the
 server.  They indicate this by the @code{mysql>} prompt.
@@ -22430,13 +22430,13 @@ server.  They indicate this by the @code{mysql>} prompt.
 @cindex queries, entering
 @cindex entering, queries
 @node Entering queries, Examples, Connecting-disconnecting, Tutorial
-@section Entering queries
+@section Entering Queries
 
 Make sure you are connected to the server, as discussed in the previous
 section.  Doing so will not in itself select any database to work with, but
 that's okay.  At this point, it's more important to find out a little about
 how to issue queries than to jump right in creating tables, loading data
-into them and retrieving data from them.  This section describes the basic
+into them, and retrieving data from them.  This section describes the basic
 principles of entering commands, using several queries you can try out to
 familiarize yourself with how @code{mysql} works.
 
@@ -22477,7 +22477,7 @@ a table column (as in the example just shown), @code{mysql} labels the column
 using the expression itself.
 
 @item
-@code{mysql} shows how many rows were returned, and how long the query took
+@code{mysql} shows how many rows were returned and how long the query took
 to execute, which gives you a rough idea of server performance.  These values
 are imprecise because they represent wall clock time (not CPU or machine
 time), and because they are affected by factors such as server load and
@@ -22573,15 +22573,15 @@ they mean about the state that @code{mysql} is in:
 @cindex prompts, meanings
 @multitable @columnfractions .10 .9
 @item @strong{Prompt} @tab @strong{Meaning}
-@item @code{mysql>} @tab Ready for new command
-@item @code{@ @ @ @ ->} @tab Waiting for next line of multiple-line command
+@item @code{mysql>} @tab Ready for new command.
+@item @code{@ @ @ @ ->} @tab Waiting for next line of multiple-line command.
 @item @code{@ @ @ @ '>} @tab Waiting for next line, collecting a string that begins
-with a single quote (@samp{'})
+with a single quote (@samp{'}).
 @item @code{@ @ @ @ ">} @tab Waiting for next line, collecting a string that begins
-with a double quote (@samp{"})
+with a double quote (@samp{"}).
 @end multitable
 
-Multiple-line statements commonly occur ``by accident'' when you intend to
+Multiple-line statements commonly occur by accident when you intend to
 issue a command on a single line, but forget the terminating semicolon.  In
 this case, @code{mysql} waits for more input:
 
@@ -22623,8 +22623,8 @@ mysql> SELECT * FROM my_table WHERE name = "Smith AND age < 30;
 @end example
 
 If you enter this @code{SELECT} statement, then hit RETURN and wait for the
-result, nothing will happen.  Instead of wondering, ``why does this
-query take so long?,'' notice the clue provided by the @code{">} prompt.  It
+result, nothing will happen.  Instead of wondering why this
+query takes so long, notice the clue provided by the @code{">} prompt.  It
 tells you that @code{mysql} expects to see the rest of an unterminated
 string.  (Do you see the error in the statement?  The string @code{"Smith} is
 missing the second quote.)
@@ -22654,7 +22654,7 @@ cancel the current command.
 @cindex queries, examples
 @cindex examples, queries
 @node Examples, Searching on two keys, Entering queries, Tutorial
-@section Examples of common queries
+@section Examples of Common Queries
 
 Here are examples of how to solve some common problems with
 @strong{MySQL}.
@@ -22714,7 +22714,7 @@ SELECT * FROM shop
 @end menu
 
 @node example-Maximum-column, example-Maximum-row, Examples, Examples
-@subsection The maximum value for a column
+@subsection The Maximum Value for a Column
 
 ``What's the highest item number?''
 
@@ -22729,7 +22729,7 @@ SELECT MAX(article) AS article FROM shop
 @end example
 
 @node example-Maximum-row, example-Maximum-column-group, example-Maximum-column, Examples
-@subsection The row holding the maximum of a certain column
+@subsection The Row Holding the Maximum of a Certain Column
 
 ``Find number, dealer, and price of the most expensive article.''
 
@@ -22766,11 +22766,11 @@ ORDER BY price DESC
 LIMIT 1
 @end example
 
-@strong{Note}:  If there are several most expensive articles (for example, each 19.95)
+@strong{NOTE}:  If there are several most expensive articles (for example, each 19.95)
 the @code{LIMIT} solution shows only one of them!
 
 @node example-Maximum-column-group, example-Maximum-column-group-row, example-Maximum-row, Examples
-@subsection Maximum of column per group
+@subsection Maximum of Column per Group
 
 ``What's the highest price per article?''
 
@@ -22790,7 +22790,7 @@ GROUP BY article
 @end example
 
 @node example-Maximum-column-group-row, example-user-variables, example-Maximum-column-group, Examples
-@subsection The rows holding the group-wise maximum of a certain field
+@subsection The Rows Holding the Group-wise Maximum of a Certain Field
 
 ``For each article, find the dealer(s) with the most expensive price.''
 
@@ -22810,7 +22810,7 @@ In @strong{MySQL} it's best do it in several steps:
 @item
 Get the list of (article,maxprice).
 @item
-For each article get the corresponding rows which have the stored maximum
+For each article get the corresponding rows that have the stored maximum
 price.
 @end enumerate
 
@@ -22857,7 +22857,7 @@ GROUP BY article;
 +---------+--------+-------+
 @end example
 
-The last example can of course be made a bit more efficient by doing the
+The last example can, of course, be made a bit more efficient by doing the
 splitting of the concatenated column in the client.
 
 @node example-user-variables, example-Foreign keys, example-Maximum-column-group-row, Examples
@@ -22867,7 +22867,7 @@ You can use @strong{MySQL} user variables to remember results without
 having to store them in a temporary variables in the client.
 @xref{Variables}.
 
-For example to find the articles with the highest and lowest price you
+For example, to find the articles with the highest and lowest price you
 can do:
 
 @example
@@ -22885,14 +22885,14 @@ select * from shop where price=@@min_price or price=@@max_price;
 @cindex foreign keys
 @cindex keys, foreign
 @node example-Foreign keys,  , example-user-variables, Examples
-@subsection Using foreign keys
+@subsection Using Foreign Keys
 
 You don't need foreign keys to join 2 tables.
 
 The only thing @strong{MySQL} doesn't do is @code{CHECK} to make sure that
 the keys you use really exist in the table(s) you're referencing and it
 doesn't automatically delete rows from table with a foreign key
-definition. If you use your keys like normal, it'll work just fine!
+definition. If you use your keys like normal, it'll work just fine:
 
 
 @example
@@ -22968,7 +22968,7 @@ SELECT s.* FROM persons p, shirts s
 @cindex searching, two keys
 @cindex keys, searching on two
 @node Searching on two keys, Database use, Examples, Tutorial
-@section Searching on two keys
+@section Searching on Two Keys
 
 @strong{MySQL} doesn't yet optimize when you search on two different
 keys combined with @code{OR} (Searching on one key with different @code{OR}
@@ -22980,11 +22980,11 @@ OR  field2_index = '1'
 @end example
 
 The reason is that we haven't yet had time to come up with an efficient
-way to handle this in the general case. (The @code{AND} handling is
-in comparison now completely general and works very well).
+way to handle this in the general case. (The @code{AND} handling is, 
+in comparison, now completely general and works very well).
 
 For the moment you can solve this very efficently by using a
-@code{TEMPORARY} table; This type of optimization is also very good if
+@code{TEMPORARY} table. This type of optimization is also very good if
 you are using very complicated queries where the SQL server does the
 optimizations in the wrong order.
 
@@ -23003,7 +23003,7 @@ The above way to solve this query is in effect an @code{UNION} of two queries.
 @cindex databases, using
 @cindex creating, databases
 @node Database use, Getting information, Searching on two keys, Tutorial
-@section Creating and using a database
+@section Creating and Using a Database
 
 @menu
 * Creating database::           Creating a database
@@ -23015,24 +23015,23 @@ The above way to solve this query is in effect an @code{UNION} of two queries.
 
 Now that you know how to enter commands, it's time to access a database.
 
-Suppose you have several pets in your home (your ``menagerie'') and you'd
+Suppose you have several pets in your home (your menagerie) and you'd
 like to keep track of various types of information about them.  You can do so
 by creating tables to hold your data and loading them with the desired
 information.  Then you can answer different sorts of questions about your
-animals by retrieving data from the tables.  This section shows how to do
-all that:
+animals by retrieving data from the tables.  This section shows you how to:
 
 @itemize @bullet
 @item
-How to create a database
+Create a database
 @item
-How to create a table
+Create a table
 @item
-How to load data into the table
+Load data into the table
 @item
-How to retrieve data from the table in various ways
+Retrieve data from the table in various ways
 @item
-How to use multiple tables
+Use multiple tables
 @end itemize
 
 The menagerie database will be simple (deliberately), but it is not difficult
@@ -23089,7 +23088,7 @@ you.
 @cindex selecting, databases
 @cindex databases, selecting
 @node Creating database, Creating tables, Database use, Database use
-@subsection Creating and selecting a database
+@subsection Creating and Selecting a Database
 
 If the administrator creates your database for you when setting up your
 permissions, you can begin using it.  Otherwise, you need to create it
@@ -23099,14 +23098,14 @@ yourself:
 mysql> CREATE DATABASE menagerie;
 @end example
 
-Under Unix, database names are case sensitive (unlike SQL keywords), so you
+Under UNIX, database names are case sensitive (unlike SQL keywords), so you
 must always refer to your database as @code{menagerie}, not as
-@code{Menagerie}, @code{MENAGERIE} or some other variant.  This is also true
+@code{Menagerie}, @code{MENAGERIE}, or some other variant.  This is also true
 for table names.  (Under Windows, this restriction does not apply, although
 you must refer to databases and tables using the same lettercase throughout a
 given query.)
 
-Creating a database does not select it for use, you must do that explicitly.
+Creating a database does not select it for use; you must do that explicitly.
 To make @code{menagerie} the current database, use this command:
 
 @example
@@ -23136,7 +23135,7 @@ to snooping by other users logged in on your machine.
 @cindex tables, creating
 @cindex creating, tables
 @node Creating tables, Loading tables, Creating database, Database use
-@subsection Creating a table
+@subsection Creating a Table
 
 Creating the database is the easy part, but at this point it's empty, as
 @code{SHOW TABLES} will tell you:
@@ -23147,7 +23146,7 @@ Empty set (0.00 sec)
 @end example
 
 The harder part is deciding what the structure of your database should be:
-what tables you will need, and what columns will be in each of them.
+what tables you will need and what columns will be in each of them.
 
 You'll want a table that contains a record for each of your pets.  This can
 be called the @code{pet} table, and it should contain, as a bare minimum,
@@ -23181,7 +23180,7 @@ how old a pet was when it died.
 
 You can probably think of other types of information that would be useful in
 the @code{pet} table, but the ones identified so far are sufficient for now:
-name, owner, species, sex, birth and death.
+name, owner, species, sex, birth, and death.
 
 Use a @code{CREATE TABLE} statement to specify the layout of your table:
 
@@ -23190,7 +23189,7 @@ mysql> CREATE TABLE pet (name VARCHAR(20), owner VARCHAR(20),
     -> species VARCHAR(20), sex CHAR(1), birth DATE, death DATE);
 @end example
 
-@code{VARCHAR} is a good choice for the @code{name}, @code{owner} and
+@code{VARCHAR} is a good choice for the @code{name}, @code{owner}, and
 @code{species} columns because the column values will vary in length.  The
 lengths of those columns need not all be the same, and need not be
 @code{20}.  You can pick any length from @code{1} to @code{255}, whatever
@@ -23241,7 +23240,7 @@ the columns in your table or what types they are.
 @cindex tables, loading data
 @cindex data, loading into tables
 @node Loading tables, Retrieving data, Creating tables, Database use
-@subsection Loading data into a table
+@subsection Loading Data into a Table
 
 After creating your table, you need to populate it.  The @code{LOAD DATA} and
 @code{INSERT} statements are useful for this.
@@ -23269,7 +23268,7 @@ contents of the file into the table with a single statement.
 You could create a text file @file{pet.txt} containing one record per line,
 with values separated by tabs, and given in the order in which the columns
 were listed in the @code{CREATE TABLE} statement.  For missing values (such
-as unknown sexes, or death dates for animals that are still living), you can
+as unknown sexes or death dates for animals that are still living), you can
 use @code{NULL} values.  To represent these in your text file, use
 @code{\N}.  For example, the record for Whistler the bird would look like
 this (where the whitespace between values is a single tab character):
@@ -23315,7 +23314,7 @@ than a single @code{LOAD DATA} statement.
 @cindex retrieving, data from tables
 @cindex unloading, tables
 @node Retrieving data, Multiple tables, Loading tables, Database use
-@subsection Retrieving information from a table
+@subsection Retrieving Information from a Table
 
 @menu
 * Selecting all::               Selecting all data
@@ -23344,7 +23343,7 @@ clause is optional.  If it's present, @code{conditions_to_satisfy} specifies
 conditions that rows must satisfy to qualify for retrieval.
 
 @node Selecting all, Selecting rows, Retrieving data, Retrieving data
-@subsubsection Selecting all data
+@subsubsection Selecting All Data
 
 The simplest form of @code{SELECT} retrieves everything from a table:
 
@@ -23404,7 +23403,7 @@ answer.
 @cindex rows, selecting
 @cindex tables, selecting rows
 @node Selecting rows, Selecting columns, Selecting all, Retrieving data
-@subsubsection Selecting particular rows
+@subsubsection Selecting Particular Rows
 
 You can select only particular rows from your table.  For example, if you want
 to verify the change that you made to Bowser's birth date, select Bowser's
@@ -23421,7 +23420,7 @@ mysql> SELECT * FROM pet WHERE name = "Bowser";
 
 The output confirms that the year is correctly recorded now as 1989, not 1998.
 
-String comparisons are normally case-insensitive, so you can specify the
+String comparisons are normally case insensitive, so you can specify the
 name as @code{"bowser"}, @code{"BOWSER"}, etc.  The query result will be
 the same.
 
@@ -23481,7 +23480,7 @@ mysql> SELECT * FROM pet WHERE (species = "cat" AND sex = "m")
 @cindex columns, selecting
 @cindex tables, selecting columns
 @node Selecting columns, Sorting rows, Selecting rows, Retrieving data
-@subsubsection Selecting particular columns
+@subsubsection Selecting Particular Columns
 
 
 If you don't want to see entire rows from your table, just name the columns
@@ -23566,7 +23565,7 @@ mysql> SELECT name, species, birth FROM pet
 @cindex sorting, data
 @cindex tables, sorting rows
 @node Sorting rows, Date calculations, Selecting columns, Retrieving data
-@subsubsection Sorting rows
+@subsubsection Sorting Rows
 
 You may have noticed in the preceding examples that the result rows are
 displayed in no particular order.  However, it's often easier to examine
@@ -23642,7 +23641,7 @@ ascending order.
 @cindex extracting, dates
 @cindex age, calculating
 @node Date calculations, Working with NULL, Sorting rows, Retrieving data
-@subsubsection Date calculations
+@subsubsection Date Calculations
 
 @strong{MySQL} provides several functions that you can use to perform
 calculations on dates, for example, to calculate ages or extract
@@ -23740,9 +23739,9 @@ because @code{NULL} is a special value.  This is explained later.
 @xref{Working with NULL,  , Working with @code{NULL}}.
 
 What if you want to know which animals have birthdays next month?  For this
-type of calculation, year and day are irrelevant, you simply want to extract
+type of calculation, year and day are irrelevant; you simply want to extract
 the month part of the @code{birth} column.  @strong{MySQL} provides several
-date-part extraction functions, such as @code{YEAR()}, @code{MONTH()} and
+date-part extraction functions, such as @code{YEAR()}, @code{MONTH()}, and
 @code{DAYOFMONTH()}.  @code{MONTH()} is the appropriate function here.  To
 see how it works, run a simple query that displays the value of both
 @code{birth} and @code{MONTH(birth)}:
@@ -23796,7 +23795,7 @@ mysql> SELECT name, birth FROM pet
 
 A different way to accomplish the same task is to add @code{1} to get the
 next month after the current one (after using the modulo function (@code{MOD})
-to ``wrap around'' the month value to @code{0} if it is currently
+to wrap around the month value to @code{0} if it is currently
 @code{12}):
 
 @example
@@ -23804,20 +23803,20 @@ mysql> SELECT name, birth FROM pet
     -> WHERE MONTH(birth) = MOD(MONTH(NOW()), 12) + 1;
 @end example
 
-Note that @code{MONTH} return a number between 1 and 12. And
+Note that @code{MONTH} returns a number between 1 and 12. And
 @code{MOD(something,12)} returns a number between 0 and 11. So the
-addition has to be after the @code{MOD()} oterwise we would go from
+addition has to be after the @code{MOD()} otherwise we would go from
 November (11) to January (1).
 
 @findex NULL
 @cindex NULL value
 @node Working with NULL, Pattern matching, Date calculations, Retrieving data
-@subsubsection Working with @code{NULL} values
+@subsubsection Working with @code{NULL} Values
 
 The @code{NULL} value can be surprising until you get used to it.
-Conceptually, @code{NULL} means ``missing value'' or ``unknown value'' and it
+Conceptually, @code{NULL} means missing value or unknown value and it
 is treated somewhat differently than other values.  To test for @code{NULL},
-you cannot use the arithmetic comparison operators such as @code{=}, @code{<}
+you cannot use the arithmetic comparison operators such as @code{=}, @code{<},
 or @code{!=}.  To demonstrate this for yourself, try the following query:
 
 @example
@@ -23851,14 +23850,14 @@ was necessary to determine which animals are no longer alive using
 @cindex matching, patterns
 @cindex expressions, extended
 @node Pattern matching, Counting rows, Working with NULL, Retrieving data
-@subsubsection Pattern matching
+@subsubsection Pattern Matching
 
 @strong{MySQL} provides standard SQL pattern matching as well as a form of
 pattern matching based on extended regular expressions similar to those used
-by Unix utilities such as @code{vi}, @code{grep} and @code{sed}.
+by UNIX utilities such as @code{vi}, @code{grep}, and @code{sed}.
 
 SQL pattern matching allows you to use @samp{_} to match any single
-character, and @samp{%} to match an arbitrary number of characters (including
+character and @samp{%} to match an arbitrary number of characters (including
 zero characters).  In @strong{MySQL}, SQL patterns are case insensitive by
 default.  Some examples are shown below.  Note that you do not use @code{=}
 or @code{!=} when you use SQL patterns; use the @code{LIKE} or @code{NOT
@@ -23927,7 +23926,7 @@ Some characteristics of extended regular expressions are:
 
 @item
 A character class @samp{[...]} matches any character within the brackets.
-For example, @samp{[abc]} matches @samp{a}, @samp{b} or @samp{c}.  To name a
+For example, @samp{[abc]} matches @samp{a}, @samp{b}, or @samp{c}.  To name a
 range of characters, use a dash.  @samp{[a-z]} matches any lowercase letter,
 whereas @samp{[0-9]} matches any digit.
 
@@ -23944,8 +23943,8 @@ lowercase or uppercase @samp{a} and @samp{[a-zA-Z]} matches any letter in
 either case.
 
 @item
-The pattern matches if it occurs anywhere in the value being tested
-(SQL patterns match only if they match the entire value).
+The pattern matches if it occurs anywhere in the value being tested.
+(SQL patterns match only if they match the entire value.)
 
 @item
 To anchor a pattern so that it must match the beginning or end of the value
@@ -23954,7 +23953,7 @@ pattern.
 @end itemize
 
 To demonstrate how extended regular expressions work, the @code{LIKE} queries
-shown above are rewritten below to use @code{REGEXP}:
+shown above are rewritten below to use @code{REGEXP}.
 
 To find names beginning with @samp{b}, use @samp{^} to match the beginning of
 the name and @samp{[bB]} to match either lowercase or uppercase @samp{b}:
@@ -24032,7 +24031,7 @@ mysql> SELECT * FROM pet WHERE name REGEXP "^.@{5@}$";
 @cindex tables, counting rows
 @cindex counting, table rows
 @node Counting rows,  , Pattern matching, Retrieving data
-@subsubsection Counting rows
+@subsubsection Counting Rows
 
 Databases are often used to answer the question, ``How often does a certain
 type of data occur in a table?''  For example, you might want to know how
@@ -24040,7 +24039,7 @@ many pets you have, or how many pets each owner has, or you might want to
 perform various kinds of censuses on your animals.
 
 Counting the total number of animals you have is the same question as ``How
-many rows are in the @code{pet} table?,'' because there is one record per pet.
+many rows are in the @code{pet} table?'' because there is one record per pet.
 The @code{COUNT()} function counts the number of non-@code{NULL} results, so
 the query to count your animals looks like this:
 
@@ -24109,7 +24108,7 @@ mysql> SELECT sex, COUNT(*) FROM pet GROUP BY sex;
 +------+----------+
 @end example
 
-(In this output, @code{NULL} indicates ``sex unknown.'')
+(In this output, @code{NULL} indicates sex unknown.)
 
 Number of animals per combination of species and sex:
 
@@ -24168,27 +24167,26 @@ mysql> SELECT species, sex, COUNT(*) FROM pet
 
 @cindex tables, multiple
 @node Multiple tables,  , Retrieving data, Database use
-@subsection Using more than one table
+@subsection Using More Than one Table
 
 The @code{pet} table keeps track of which pets you have.  If you want to
 record other information about them, such as events in their lives like
 visits to the vet or when litters are born, you need another table.  What
-should this table look like?
+should this table look like? It needs:
 
 @itemize @bullet
 @item
-It needs to contain the pet name so you know which animal each event pertains
+To contain the pet name so you know which animal each event pertains
 to.
 
 @item
-It needs a date so you know when the event occurred.
+A date so you know when the event occurred.
 
 @item
-It needs a field to describe the event.
+A field to describe the event.
 
 @item
-If you want to be able to categorize events, it would be useful to have an
-event type field.
+An event type field, if you want to be able to categorize events.
 @end itemize
 
 Given these considerations, the @code{CREATE TABLE} statement for the
@@ -24228,7 +24226,7 @@ table, you should be able to perform retrievals on the records in the
 
 Suppose you want to find out the ages of each pet when they had their
 litters.  The @code{event} table indicates when this occurred, but to
-calculate age of the mother, you need her birth date.  Because that is
+calculate the age of the mother, you need her birth date.  Because that is
 stored in the @code{pet} table, you need both tables for the query:
 
 @example
@@ -24283,7 +24281,7 @@ mysql> SELECT p1.name, p1.sex, p2.name, p2.sex, p1.species
 +--------+------+--------+------+---------+
 @end example
 
-In this query, we specify aliases for the table name in order to be able
+In this query, we specify aliases for the table name in order 
 to refer to the columns and keep straight which instance of the table
 each column reference is associated with.
 
@@ -24291,7 +24289,7 @@ each column reference is associated with.
 @cindex tables, information about
 @findex DESCRIBE
 @node Getting information, Batch mode, Database use, Tutorial
-@section Getting information about databases and tables
+@section Getting Information About Databases and Tables
 
 
 What if you forget the name of a database or table, or what the structure of
@@ -24347,7 +24345,7 @@ mysql> DESCRIBE pet;
 @code{Field} indicates the column name, @code{Type} is the data type for
 the column, @code{Null} indicates whether or not the column can contain
 @code{NULL} values, @code{Key} indicates whether or not the column is
-indexed and @code{Default} specifies the column's default value.
+indexed, and @code{Default} specifies the column's default value.
 
 If you have indexes on a table,
 @code{SHOW INDEX FROM tbl_name} produces information about them.
@@ -24358,7 +24356,7 @@ If you have indexes on a table,
 @cindex script files
 @cindex files, script
 @node Batch mode, Twin, Getting information, Tutorial
-@section Using @code{mysql} in batch mode
+@section Using @code{mysql} in Batch Mode
 
 In the previous sections, you used @code{mysql} interactively to enter
 queries and view the results.  You can also run @code{mysql} in batch
@@ -24456,7 +24454,7 @@ If you want to get the interactive output format in batch mode, use
 @cindex Twin Studies, queries
 @cindex queries, Twin Studeis project
 @node Twin,  , Batch mode, Tutorial
-@section Queries from twin project
+@section Queries from Twin Project
 
 At Analytikerna and Lentus, we have been doing the systems and field work
 for a big research project. This project is a collaboration between the
@@ -24479,7 +24477,7 @@ More information about Twin studies can be found at:
 @url{http://www.imm.ki.se/TWIN/TWINUKW.HTM}
 @end example
 
-The latter part of the project is administered with a web interface
+The latter part of the project is administered with a Web interface
 written using Perl and @strong{MySQL}.
 
 Each night all data from the interviews are moved into a @strong{MySQL}
@@ -24491,7 +24489,7 @@ database.
 @end menu
 
 @node Twin pool, Twin event, Twin, Twin
-@subsection Find all non-distributed twins
+@subsection Find all Non-distributed Twins
 
 The following query is used to determine who goes into the second part of the
 project:
@@ -24595,7 +24593,7 @@ is used to check whether a twin's partner died before the age of 65. If so,
 the row is not returned.
 
 All of the above exist in all tables with twin-related information. We
-have a key on both @code{id,tvab} (all tables) and @code{id,ptvab}
+have a key on both @code{id,tvab} (all tables), and @code{id,ptvab}
 (@code{person_data}) to make queries faster.
 
 On our production machine (A 200MHz UltraSPARC), this query returns
@@ -24614,7 +24612,7 @@ The current number of records in the tables used above:
 @end multitable
 
 @node Twin event,  , Twin pool, Twin
-@subsection Show a table on twin pair status
+@subsection Show a Table on Twin Pair Status
 
 Each interview ends with a status code called @code{event}. The query
 shown below is used to display a table over all twin pairs combined by
@@ -24659,7 +24657,7 @@ group by
 @cindex files, error messages
 @cindex language support
 @node Languages, Table size, Server, Server
-@section What languages are supported by MySQL?
+@section What Languages Are Supported by MySQL?
 
 @code{mysqld} can issue error messages in the following languages:
 Czech, Danish, Dutch, English (the default), Estonian, French, German, Greek,
@@ -24705,7 +24703,7 @@ your changes with the new @file{errmsg.txt} file.
 @cindex data, character sets
 @cindex sorting, character sets
 @node Character sets, Adding character set, Languages, Languages
-@subsection The character set used for data and sorting
+@subsection The Character Set Used for Data and Sorting
 
 By default, @strong{MySQL} uses the ISO-8859-1 (Latin1) character
 set. This is the character set used in the USA and western Europe.
@@ -24731,12 +24729,12 @@ old @code{mysql_escape_string()} function, except that it takes the MYSQL
 connection handle as the first parameter.
 
 If the client is compiled with different paths than where the server is
-installed and the user that configured @strong{MySQL} didn't included all
-character sets in the @strong{MySQL} binary one must specify for
+installed and the user who configured @strong{MySQL} didn't included all
+character sets in the @strong{MySQL} binary, one must specify for
 the client where it can find the additional character sets it will need
 if the server runs with a different character set than the client.
 
-On can specify this by putting in a @strong{MySQL} option file:
+One can specify this by putting in a @strong{MySQL} option file:
 
 @example
 [client]
@@ -24755,12 +24753,12 @@ default-character-set=character-set-name
 
 but normally this is never needed.
 
-To add another character set to @strong{MySQL}, use the following procedure:
+To add another character set to @strong{MySQL}, use the following procedure.
 
 @cindex character sets, adding
 @cindex adding, character sets
 @node Adding character set, String collating, Character sets, Languages
-@subsection Adding a new character set
+@subsection Adding a New Character Set
 
 @enumerate
 @item
@@ -24769,7 +24767,7 @@ Choose a name for the character set, denoted @code{MYSET} below.
 @item
 Decide if the set is simple or complex.  If the character set
 does not need to use special string collating routines for
-sorting, and does not need mulit-byte character support, it is
+sorting and does not need mulit-byte character support, it is
 simple.  If it needs either of those features, it is complex.
 
 @item
@@ -24783,7 +24781,7 @@ Add the character set name to the @code{CHARSETS_AVAILABLE} and
 @code{COMPILED_CHARSETS} lists in @code{configure.in}.
 
 @item
-Reconfigure, recompile and test.
+Reconfigure, recompile, and test.
 
 @item
 If the character set is complex, create the file
@@ -24797,7 +24795,7 @@ denoted @code{MYNUMBER} below.
 @item
 Look at one of the existing @file{ctype-*.c} files to see what needs to be
 defined. Note that the arrays in your file must have names like
-@code{ctype_MYSET}, @code{to_lower_MYSET} and so on.
+@code{ctype_MYSET}, @code{to_lower_MYSET}, and so on.
 
 Near the top of the file, place a special comment like this:
 
@@ -24837,7 +24835,7 @@ comparison and sorting purposes.  For many character sets, this is the same as
 the discussion of string collating below.
 
 @code{ctype[]} is an array of bit values, with one element for one character.
-(Note that @code{to_lower[]}, @code{to_upper[]} and @code{sort_order[]}
+(Note that @code{to_lower[]}, @code{to_upper[]}, and @code{sort_order[]}
 are indexed by character value, but @code{ctype[]} is indexed by character
 value + 1.  This is an old legacy to be able to handle EOF.)
 You can find the following bitmask definitions in @file{m_ctype.h}:
@@ -24870,20 +24868,20 @@ Add the character set name to the @code{CHARSETS_AVAILABLE} and
 @code{COMPILED_CHARSETS} lists in @code{configure.in}.
 
 @item
-Reconfigure, recompile and test.
+Reconfigure, recompile, and test.
 @end enumerate
 
 @cindex collating, strings
 @cindex string collating
 @node String collating, Multi-byte characters, Adding character set, Languages
-@subsection String collating support
+@subsection String Collating Support
 
 If the sorting rules for your language are too complex to be handled
 with the simple @code{sort_order[]} table, you need to use the string
 collating functions.
 
 Right now the best documentation on this is the character sets that are
-already implemented.  Look at the big5, czech, gbk, sjis and tis160
+already implemented.  Look at the big5, czech, gbk, sjis, and tis160
 character sets for examples.
 
 You must specify the @code{strxfrm_multiply_MYSET=N} value in the
@@ -24894,7 +24892,7 @@ must be a positive integer).
 @cindex characters, multi-byte
 @cindex multi-byte characters
 @node Multi-byte characters,  , String collating, Languages
-@subsection Multi-byte character support
+@subsection Multi-byte Character Support
 
 If your character set includes multi-byte characters, you need to use
 the multi-byte character functions.
@@ -24913,13 +24911,13 @@ the size in bytes of the largest character in the set.
 @cindex limits, file size
 @cindex files, size limits
 @node Table size,  , Languages, Server
-@section How big MySQL tables can be
+@section How Big MySQL Tables Can Be
 
 @strong{MySQL} Version 3.22 has a 4G limit on table size. With the new
 @code{MyISAM} in @strong{MySQL} Version 3.23 the maximum table size is
 pushed up to 8 million terabytes (2 ^ 63 bytes).
 
-Note however that operating systems have their own file size
+Note, however, that operating systems have their own file size
 limits. Here are some examples:
 
 @multitable @columnfractions .5 .5
@@ -24981,8 +24979,8 @@ tables}.
 @node Replication Intro, Replication Implementation, Replication, Replication
 @section Introduction
 
-One way replication can be used both to increase robustness and
-speed. For robustness you have two systems and switch to the backup if
+One way replication can be used is to increase both robustness and
+speed. For robustness you can have two systems and can switch to the backup if
 you have problems with the master. The extra speed is achieved by
 sending a part of the non-updating queries to the replica server. Of
 course this only works if non-updating queries dominate, but that is the
@@ -24993,8 +24991,8 @@ internally. One server acts as the master, while the other acts as the
 slave. Note that one server could play the roles of master in one pair
 and slave in the other. The master server keeps a binary log of updates
 and an index file to binary logs to keep track of log rotation.  The
-slave upon connecting informs the master where it left off sinse the
-last successfully propogated update, catches up on the updates, and then
+slave upon connecting informs the master where it left off since the
+last successfully propagated update, catches up on the updates, and then
 blocks and waits for the master to notify it of the new updates.
 
 Note that if you are replicating a database, all updates to this
@@ -25008,7 +25006,7 @@ On older servers one can use the update log to do simple replication.
 @section Replication Implementation Overview
 
 @strong{MySQL} internal replication uses the master-slave approach. One
-server is designated as the master, while the other ( or others) as
+server is designated as the master, while the other (or others) as
 slave(s). The master keeps a binary log of updates. @xref{Binary log}.
 The slave connects to the master, catches up on the missed updates, and
 then starts receiving updates immediately as they come to the master. If
@@ -25016,7 +25014,7 @@ the connection is lost, the slave will reconnect. If the master goes
 down, the slave will keep trying to connect every
 @code{master-connect-retry} seconds until the master comes back up and
 the connection can be established. The slave keeps track of where it
-left off in the replication process, so it can use the info in the case
+left off in the replication process, so it can use the information in case
 it goes down and gets restarted later.
 
 @node Replication HOWTO, Replication Features, Replication Implementation, Replication
@@ -25028,7 +25026,7 @@ system:
 @itemize @bullet
 @item
 Upgrade both slave and master to Version 3.23.15 or higher. We recommend that
-you always use the latest 3.23 version on both the slave and the
+you always use the latest release of Version 3.23 on both the slave and the
 master. While Version 3.23 is in beta, the versions may be not backwards
 compatible. In addition, the newer version will fix some bugs and add
 new features. Please, do not report bugs until you have verified that
@@ -25043,15 +25041,15 @@ possibly be involved in the update queries before taking the next step.
 Starting in Version 3.23.21, there is a command that allows you to
 take a snapshot of a table on the master and copy it to the slave, called
 @code{LOAD TABLE FROM MASTER}. Until Version 3.23.23, though, it has a serious
-bug, and we recommend that you should not use it until you have upgraded .
+bug, and we recommend that you do not use it until you have upgraded.
 
 @item
 In @code{my.cnf} on the master add @code{log-bin} and restart it. Make
 sure there are no important updates to the master between the time you
-have taken the snapshot and the time master is restarted with
-@code{log-bin} option
+have taken the snapshot and the time the master is restarted with
+@code{log-bin} option.
 @item
-Load the snapshot of the master to all the slaves
+Load the snapshot of the master to all the slaves.
 @item
 Add the following to @code{my.cnf} on the slave(s):
 
@@ -25061,7 +25059,7 @@ master-user=<replication user name>
 master-password=<replication user password>
 @end example
 
-replacting the values in <> with what is relevant to your system.
+replacing the values in <> with what is relevant to your system.
 
 Starting in Version 3.23.26, you must also have on both master and
 slave
@@ -25071,9 +25069,9 @@ server-id=<some unique number between 1 and 2^32-1>
 @end example
 
 @code{server-id} must be different for each server participating in
-replication
+replication.
 
-@item Restart the slave(s)
+@item Restart the slave(s).
 
 @end itemize
 
@@ -25091,13 +25089,13 @@ Below is an explanation of what is supported and what is not:
 @itemize @bullet
 @item
 Replication will be done correctly with @code{AUTO_INCREMENT},
-@code{LAST_INSERT_ID}, and @code{TIMESTAMP} values
+@code{LAST_INSERT_ID}, and @code{TIMESTAMP} values.
 @item
 @code{LOAD DATA INFILE} will be handled properly as long as the file
 still resides on the master server at the time of update
-propogation. @code{LOAD LOCAL DATA INFILE} will be skipped.
+propagation. @code{LOAD LOCAL DATA INFILE} will be skipped.
 @item
-Update queries that use user variables are not replication-safe (yet)
+Update queries that use user variables are not replication-safe (yet).
 @item
 Temporary tables will not work if the  table with the same name
  is used in more than one thread - we plan on fixing this soon. For
@@ -25113,11 +25111,10 @@ on different servers. Note that the log format has changed in Version 3.23.26
 so that pre-3.23.26 slaves will not be able to read it.
 @item
 If the query on the slave gets an error, the slave thread will
-terminate, and a message will appear in @code{.err} file. You should
+terminate, and a message will appear in the @code{.err} file. You should
 then connect to the slave manually, fix the cause of the error
-(eg. non-existent table), and then run @code{SLAVE START} sql command (
-available starting in Version 3.23.16, in Version, 3.23.15 you will have
-to restart the server).
+(for example, non-existent table), and then run @code{SLAVE START} sql command (available starting in Version 3.23.16). In Version 3.23.15, you will have
+to restart the server.
 @item
 If connection to the master is lost, the slave will retry immediately,
 and then in case of failure every @code{master-connect-retry} (default
@@ -25136,8 +25133,8 @@ specify this with @code{master-port} parameter in @code{my.cnf} .
 In Version 3.23.15, all of the tables and databases will be
 replicated. Starting in Version 3.23.16, you can restrict replication to
 a set of databases with @code{replicate-do-db} directives in
-@code{my.cnf} or just excluse a set of databases with
-@code{replicate-ignore-db}. Note that up until Version 3.23.23 there was a bug
+@code{my.cnf} or just exclude a set of databases with
+@code{replicate-ignore-db}. Note that up until Version 3.23.23, there was a bug
 that did not properly deal with @code{LOAD DATA INFILE} if you did it in
 a database that was excluded from replication.
 @item
@@ -25146,7 +25143,7 @@ replication (binary) logging on the master, and @code{SET SQL_LOG_BIN =
 1} will turn in back on - you must have the process privilege to do
 this.
 @item
-Starting in Version 3.23.19 you can clean up stale replication leftovers when
+Starting in Version 3.23.19, you can clean up stale replication leftovers when
 something goes wrong and you want a clean start with @code{FLUSH MASTER}
 and @code{FLUSH SLAVE} commands. In Version 3.23.26 we have renamed them to
 @code{RESET MASTER} and @code{RESET SLAVE} respectively to clarify
@@ -25154,7 +25151,7 @@ what they do. The old @code{FLUSH} variants still work, though for
 compatibility.
 
 @item
-Starting in Version 3.23.21 you can use @code{LOAD TABLE FROM MASTER} for
+Starting in Version 3.23.21, you can use @code{LOAD TABLE FROM MASTER} for
 network backup and to set up replication initially.
 @item
 Starting in Version 3.23.23, you can change masters with @code{CHANGE MASTER
@@ -25190,19 +25187,19 @@ The following table has the options you can use for the @strong{MASTER}:
 @item @code{log-bin=filename} @tab
 Write to a binary update log to the specified location. Note that if you
 give it a parameter with an extension
-(eg. @code{log-bin=/mysql/logs/replication.log} ) versions up to 3.23.24
+(for example, @code{log-bin=/mysql/logs/replication.log} ) versions up to 3.23.24
 will not work right during replication if you do @code{FLUSH LOGS} . The
-problem is fixed in 3.23.25. If you are using this kind of log name,
+problem is fixed in Version 3.23.25. If you are using this kind of log name,
 @code{FLUSH LOGS} will be ignored on binlog. To clear the log, run
 @code{FLUSH MASTER}, and do not forget to run @code{FLUSH SLAVE} on all
-slaves. In 3.23.26 and later versions you should use @code{RESET MASTER}
+slaves. In Version 3.23.26 and in later versions you should use @code{RESET MASTER}
 and @code{RESET SLAVE}
 
 @item @code{log-bin-index=filename} @tab
-Because the user could issue @code{FLUSH LOGS} command, we need to
+Because the user could issue the @code{FLUSH LOGS} command, we need to
 know which log is currently active and which ones have been rotated out
-and it what sequence. This info is stored in the binary log index file.
-The default is `hostname`.index . You can use this option if you want to
+and in what sequence. This information is stored in the binary log index file.
+The default is `hostname`.index. You can use this option if you want to
 be a rebel.  (Example: @code{log-bin-index=db.index})
 
 @item @code{sql-bin-update-same} @tab
@@ -25237,7 +25234,7 @@ is not set, user @code{test} is assumed.  (Example:
 
 @item @code{master-password=password} @tab
 The password the slave thread will authenticate with when connecting to
-the master. If not set, an empty password is assumed (Example:
+the master. If not set, an empty password is assumed. (Example:
 @code{master-password=tiger})
 
 @item @code{master-port=portnumber} @tab
@@ -25290,7 +25287,7 @@ can start it later with @code{SLAVE START}.
 @cindex commands, replication
 @cindex replication, commands
 @node Replication SQL, Replication FAQ, Replication Options, Replication
-@section SQL commands related to replication
+@section SQL Commands Related to Replication
 
 Replication can be controlled through the SQL interface. Below is the
 summary of commands:
@@ -25306,11 +25303,11 @@ summary of commands:
 
 @item @code{SET SQL_LOG_BIN=0}
  @tab Disables update logging if the user has process privilege.
- Ignored otherwise (Master)
+ Ignored otherwise. (Master)
 
 @item @code{SET SQL_LOG_BIN=1}
- @tab Re-enable update logging if the user has process privilege.
- Ignored otherwise (Master)
+ @tab Re-enables update logging if the user has process privilege.
+ Ignored otherwise. (Master)
 
 @item @code{RESET MASTER}
  @tab Deletes all binary logs listed in the index file, resetting the binlog
@@ -25345,7 +25342,7 @@ CHANGE MASTER TO
 You only need to specify the values that need to be changed. The values that
 you omit will stay the same with the exception of when you change the host or
 the port. In that case, the slave will assume that since you are connecting to
-a different host or a different port, the master is different, therefore, the
+a different host or a different port, the master is different. Therefore, the
 old values of log and position are not applicable anymore, and will
 automatically be reset to an empty string and 0, respectively (the start
 values). Note that if you restart the slave, it will remember its last master.
@@ -25354,10 +25351,10 @@ restarting, and the slave will read its master from @code{my.cnf} or the
 command line. (Slave)
 
 @item @code{SHOW MASTER STATUS}
- @tab Provides status info on the binlog of the master. (Master)
+ @tab Provides status information on the binlog of the master. (Master)
 
 @item @code{SHOW SLAVE STATUS}
- @tab Provides status info on essential parameters of the slave thread. (Slave)
+ @tab Provides status information on essential parameters of the slave thread. (Slave)
 @item @code{SHOW MASTER LOGS}
  @tab Only available starting in Version 3.23.28. Lists the binary logs on the master. You should use this command
 prior to @code{PURGE MASTER LOGS TO} to find out how far you should go.
@@ -25383,7 +25380,7 @@ need to stop them.
 You must first check all the slaves with @code{SHOW SLAVE STATUS} to
 see which log they are on, then do a listing of the logs on the 
 master with @code{SHOW MASTER LOGS}, find the earliest log among all
-the slaves ( if all the slaves are up to date, this will be the 
+the slaves (if all the slaves are up to date, this will be the 
 last log on the list), backup all the logs you are about to delete 
 (optional) and purge up to the target log.
 
@@ -25397,25 +25394,25 @@ last log on the list), backup all the logs you are about to delete
 the master after I have restarted the slave?
 
 @strong{A}: @code{Binlog_Dump} is a continuous process that is handled by the
-server the following way:
+server in the following way:
 
-@itemize
+@itemize @bullet
 @item
-catch up on the updates
+Catch up on the updates.
 @item
-once there are no more updates left, go into @code{pthread_cond_wait()},
-from which we can be woken up either by an update or a kill
+Once there are no more updates left, go into @code{pthread_cond_wait()},
+from which we can be awakened either by an update or a kill.
 @item
-on wake up, check the reason, if we are not supposed to die, continue
-the @code{Binlog_dump} loop
+On wake up, check the reason. If we are not supposed to die, continue
+the @code{Binlog_dump} loop.
 @item
-if there is some fatal error, such as detecting a dead client,
-terminate the loop
+If there is some fatal error, such as detecting a dead client,
+terminate the loop.
 @end itemize
 
 So if the slave thread stops on the slave, the corresponding
 @code{Binlog_Dump} thread on the master will not notice it until after
-at least one update to the master ( or a kill), which is needed to wake
+at least one update to the master (or a kill), which is needed to wake
 it up from @code{pthread_cond_wait()}.  In the meantime, the slave
 could have opened another connection, which resulted in another
 @code{Binlog_Dump} thread.
@@ -25460,14 +25457,14 @@ replication?
 
 @strong{A}: @strong{MySQL} replication currently does not support any
 locking protocol between master and slave to guarantee the atomicity of
-a distributed ( cross-server) update. In in other words, it is possible
+a distributed (cross-server) update. In in other words, it is possible
 for client A to make an update to  co-master 1, and in the meantime,
-before it propogates to co-master 2, client B could make an update to
+before it propagates to co-master 2, client B could make an update to
 co-master 2 that will make the update of client A work differently than
 it did on co-master 1. Thus when the update of client A will make it
 to co-master 2, it will produce  tables that will be different than
 what you have on co-master 1, even after all the updates from co-master
-2 have also propogated. So you should not co-chain two servers in a
+2 have also propagated. So you should not co-chain two servers in a
 two-way replication relationship, unless you are sure that you updates
 can safely happen in any order, or unless you take care of mis-ordered
 updates somehow in the client code.
@@ -25524,10 +25521,10 @@ the error conditions.
 
 You should then convert your client code to use the wrapper library.
 It may be a painful and scary process at first, but it will pay off in
-the long run. All application that follow the above pattern will be
+the long run. All applications that follow the above pattern will be
 able to take advantage of one-master/many slaves solution.  The
 code will be a lot easier to maintain, and adding troubleshooting
-options will be trivial - you will just need to modify one or two
+options will be trivial. You will just need to modify one or two
 functions, for example, to log how long each query took, or which
 query, among your many thousands, gave you an error. If you have written a lot of code already,
 you may want to automate the conversion task by using Monty's
@@ -25545,7 +25542,7 @@ for reads, connecting for writes, doing a read, and doing a write.
 @strong{Q}: When and how much can @code{MySQL} replication improve the performance
 of my system?
 
-@strong{A}: @strong{MySQL} replication is most benefitial for a system
+@strong{A}: @strong{MySQL} replication is most beneficial for a system
 with frequent reads and not so frequent writes. In theory, by using a
 one master/many slaves setup you can scale by adding more slaves until
 you either run out of network bandwidth, or your update
@@ -25556,23 +25553,23 @@ In order to determine how many slaves you can get before the added
 benefits begin to level out, and how much you can improve performance
 of your site, you need to know your query patterns, and empirically
  (by benchmarking) determine the relationship between the throughput
-on reads ( reads per second, or @code{max_reads}) and on writes
+on reads (reads per second, or @code{max_reads}) and on writes
 @code{max_writes}) on a typical master and a typical slave. The
 example below will show you a rather simplified calculation of what you
 can get with replication for our imagined system.
 
-Let's say our system load consist of 10% writes and 90% reads, and we
+Let's say our system load consists of 10% writes and 90% reads, and we
 have determined that @code{max_reads} = 1200 - 2 * @code{max_writes},
 or in other words, our system can do 1200 reads per second with no
 writes, our average write is twice as slow as average read,
 and the relationship is
 linear. Let us suppose that our master and slave are of the same
 capacity, and we have N slaves and 1 master. Then we have for each
-server ( master or slave):
+server (master or slave):
 
-@code{reads = 1200 - 2 * writes} ( from bencmarks)
+@code{reads = 1200 - 2 * writes} (from bencmarks)
 
-@code{reads = 9* writes / (N + 1) } ( reads split, but writes go
+@code{reads = 9* writes / (N + 1) } (reads split, but writes go
 to all servers)
 
 @code{9*writes/(N+1) + 2 * writes = 1200}
@@ -25580,29 +25577,29 @@ to all servers)
 @code{writes = 1200/(2 + 9/(N+1)}
 
 So if N = 0, which means we have no replication, our system can handle
-1200/11, about 109 writes per second ( which means we will have 9 times
-as many reads to to the nature of our application)
+1200/11, about 109 writes per second (which means we will have 9 times
+as many reads to the nature of our application).
 
-If N = 1, we can get up to 184 writes per second
+If N = 1, we can get up to 184 writes per second.
 
-If N = 8, we get up to 400
+If N = 8, we get up to 400.
 
-If N = 17, 480 writes
+If N = 17, 480 writes.
 
-Eventually as N approaches infinity ( and our budget negative infinity),
+Eventually as N approaches infinity (and our budget negative infinity),
 we can get very close to 600 writes per second, increasing system
 throughput about 5.5 times. However, with only 8 servers, we increased
 it almost 4 times already.
 
-Note that our computations assumed infitine network bandwidth, and
+Note that our computations assumed infinite network bandwidth, and
 neglected several other factors that could turn out to be signficant on
 your system. In many cases, you may not be able to make a computation
 similar to the one above that will accurately predict what will happen
 on your system if you add N replication slaves. However, answering the
-following questions should help you decided whether and how much if at
-all the replication will improve the performance of your system:
+following questions should help you decided whether and how much, if at
+all, the replication will improve the performance of your system:
 
-@itemize
+@itemize @bullet
 @item
 What is the read/write ratio on your system?
 @item
@@ -25620,35 +25617,35 @@ that will monitor the
 master to see if it is up, and instruct your applications and
 the slaves of the master change in case of failure. Some suggestions:
 
-@itemize
+@itemize @bullet
 @item
-To tell a slave to change the master use @code{CHANGE MASTER TO} command
+To tell a slave to change the master use the @code{CHANGE MASTER TO} command.
 @item
 A good way to keep your applications informed where the master is is by
 having a dynamic DNS entry for the master. With @strong{bind} you can
-use @code{nsupdate} to dynamically update your DNS
+use @code{nsupdate} to dynamically update your DNS.
 @item
-You should run your slaves with @code{log-bin} option and without
+You should run your slaves with the @code{log-bin} option and without
 @code{log-slave-updates}. This way the slave will be ready to become a
 master as soon as you issue @code{STOP SLAVE}; @code{RESET MASTER}, and
 @code{CHANGE MASTER TO} on the other slaves. It will also help you catch
 spurious updates that may happen because of misconfiguration of the
-slave ( ideally, you want to configure access rights so that no client
+slave (ideally, you want to configure access rights so that no client
 can update the slave, except for the slave thread) combined with the
-bugs in your client programs ( they should never update the slave
+bugs in your client programs (they should never update the slave
 directly).
 
 @end itemize
 
 We are currently working on intergrating an automatic master election
 system into @strong{MySQL}, but until it is ready, you will have to
-create your own monitoring tools .
+create your own monitoring tools.
 
 
 @cindex performance, maximizing
 @cindex optimization
 @node Performance, MySQL Benchmarks, Replication, Top
-@chapter Getting maximum performance from MySQL
+@chapter Getting Maximum Performance from MySQL
 
 Optimization is a complicated task because it ultimately requires
 understanding of the whole system. While it may be possible to do some
@@ -25658,7 +25655,7 @@ know about it.
 
 So this chapter will try to explain and give some examples of different
 ways to optimize @strong{MySQL}. But remember that there are always some
-(increasingly harder) ways to make the system even faster left to do.
+(increasingly harder) additional ways to make the system even faster.
 
 @menu
 * Optimize Basics::             Optimization overview
@@ -25675,7 +25672,7 @@ ways to optimize @strong{MySQL}. But remember that there are always some
 @end menu
 
 @node Optimize Basics, System, Performance, Performance
-@section Optimization overview
+@section Optimization Overview
 
 The most important part for getting a system fast is of course the basic
 design. You also need to know what kinds of things your system will be
@@ -25683,33 +25680,33 @@ doing, and what your bottlenecks are.
 
 The most common bottlenecks are:
 @itemize @bullet
-@item Disk seeks
+@item Disk seeks.
 It takes time for the disk to find a piece of data. With modern disks in
-1999 the mean time for this is usually lower than 10ms, so we can in
+1999, the mean time for this is usually lower than 10ms, so we can in
 theory do about 1000 seeks a second. This time improves slowly with new
 disks and is very hard to optimize for a single table. The way to
 optimize this is to spread the data on more than one disk.
-@item Disk reading/writing
+@item Disk reading/writing.
 When the disk is at the correct position we need to read the data. With
-modern disks in 1999 one disk delivers something like 10-20Mb/s. This
+modern disks in 1999, one disk delivers something like 10-20Mb/s. This
 is easier to optimize than seeks because you can read in parallel from
 multiple disks.
-@item CPU cycles
-When we have got the data into main memory (or if it already were
-there) we need to process it to get to our result. When we have small
-tables compared to the memory this is the most common limiting
-factor. But then with small tables speed is usually not the problem.
-@item Memory bandwidth
+@item CPU cycles.
+When we have the data in main memory (or if it already were
+there) we need to process it to get to our result. Having small
+tables compared to the memory is the most common limiting
+factor. But then, with small tables speed is usually not the problem.
+@item Memory bandwidth.
 When the CPU needs more data than can fit in the CPU cache the main
 memory bandwidth becomes a bottleneck. This is an uncommon bottleneck
-for most systems but one should be aware of it.
+for most systems, but one should be aware of it.
 @end itemize
 
 @cindex compiling, optimizing
 @cindex system optimization
 @cindex startup parameters, tuning
 @node System, Data size, Optimize Basics, Performance
-@section System/Compile time and startup parameter tuning
+@section System/Compile Time and Startup Parameter Tuning
 
 We start with the system level things since some of these decisions have
 to be made very early. In other cases a fast look at this part may
@@ -25720,13 +25717,13 @@ at this level.
 The default OS to use is really important!  To get the most use of
 multiple CPU machines one should use Solaris (because the threads works
 really nice) or Linux (because the 2.2 kernel has really good SMP
-support). Also on 32bit machines Linux has a 2G file size limit by
-default. Hopefully this will be fixed soon when new filesystems is
+support). Also on 32-bit machines Linux has a 2G file size limit by
+default. Hopefully this will be fixed soon when new filesystems are
 released (XFS/Reiserfs).  If you have a desperate need for files bigger
-tan 2G on Linux-intel 32 bit, you should get the LFS patch for the ext2
+than 2G on Linux-intel 32 bit, you should get the LFS patch for the ext2
 file system.
 
-Because we have not run @strong{MySQL} in production on that many platforms we
+Because we have not run @strong{MySQL} in production on that many platforms, we
 advice you to test your intended platform before choosing it, if possible.
 
 @cindex locking
@@ -25753,7 +25750,7 @@ multiple @strong{MySQL} @emph{servers} (not clients) on the same data, or run
 @code{myisamchk} on the table without first flushing and locking the
 @code{mysqld} server tables first.
 
-You can still use @code{LOCK TABLES} / @code{UNLOCK TABLES} even if you
+You can still use @code{LOCK TABLES}/@code{UNLOCK TABLES} even if you
 are using @code{--skip-locking}
 @end itemize
 
@@ -25819,7 +25816,7 @@ slower.  Note that you still can use a dynamic linked @strong{MySQL}
 library. It is only the server that is critical for performance.
 
 @item
-If you connect using TCP/IP rather than Unix sockets, the result is 7.5%
+If you connect using TCP/IP rather than UNIX sockets, the result is 7.5%
 slower on the same computer. (If you are connection to @code{localhost},
 @strong{MySQL} will by default use sockets).
 
@@ -25881,7 +25878,7 @@ you have to choose to optimize for random or sequential access.
 @item
 For reliability you may want to use RAID 0+1 (striping + mirroring), but
 in this case you will need 2*N drives to hold N drives of data. This is
-probably the best option if you have the money for it!  You may however
+probably the best option if you have the money for it!  You may, however,
 also have to invest in some volume management software to handle it
 efficiently.
 @item
@@ -26049,7 +26046,7 @@ You can also see some statistics from a running server by issuing the command
 @code{SHOW STATUS}. @xref{SHOW STATUS}.
 
 @strong{MySQL} uses algorithms that are very scalable, so you can usually
-run with very little memory. If you however give @strong{MySQL} more
+run with very little memory. If you, however, give @strong{MySQL} more
 memory you will normally also get better performance.
 
 When tuning a @strong{MySQL} server, the two most important variables to use
@@ -26396,7 +26393,7 @@ Starting from @strong{MySQL Version 3.23.7} one can use the
 temporary give all @code{SELECT} statements, that waits for a table, a
 higher priority after a specific number of inserts on a table.
 
-Table locking is however not very good under the following senario:
+Table locking is, however, not very good under the following senario:
 
 @itemize @bullet
 @item
@@ -26762,7 +26759,7 @@ As the above index would require about 500,000 * 7 * 3/2 = 5.2M,
 you will probably have much of the index in memory and you will probably
 only need 1-2 calls to read data from the OS to find the row.
 
-For writes you will however need 4 seek requests (as above) to find
+For writes you will, however, need 4 seek requests (as above) to find
 where to place the new index and normally 2 seeks to update the index
 and write the row.
 
@@ -26804,8 +26801,8 @@ INDEX FROM table_name} and examining the @code{Cardinality} column.
 To sort an index and data according to an index, use @code{myisamchk
 --sort-index --sort-records=1} (if you want to sort on index 1). If you
 have a unique index from which you want to read all records in order
-according to that index, this is a good way to make that faster.  Note
-however that this sorting isn't written optimally and will take a long
+according to that index, this is a good way to make that faster.  Note,
+however, that this sorting isn't written optimally and will take a long
 time for a large table!
 @end itemize
 
@@ -27103,7 +27100,7 @@ faster when the table has many indexes. Use the following procedure:
 
 @enumerate
 @item
-Optionally create the table with @code{CREATE TABLE}. For example using
+Optionally create the table with @code{CREATE TABLE}. For example, using
 @code{mysql} or Perl-DBI.
 
 @item
@@ -27292,7 +27289,7 @@ afraid of duplicating things or creating summary tables if you need these
 to gain more speed.
 @item
 Stored procedures or UDF (user defined functions) may be a good way to
-get more performance.  In this case you should however always have a way
+get more performance.  In this case you should, however, always have a way
 to do this some other (slower) way if you use some database that doesn't
 support this.
 @item
@@ -27351,7 +27348,7 @@ If you need REALLY high speed you should take a look at the low level
 interfaces for data storage that the different SQL servers support!  For
 example by accessing the @strong{MySQL} @code{MyISAM} directly you could
 get a speed increase of 2-5 times compared to using the SQL interface.
-To be able to do this the data must however be on the same server as
+To be able to do this the data must, however, be on the same server as
 the application and usually it should only be accessed by one process
 (because external file locking is really slow).  One could eliminate the
 above problems by introducing low-level @code{MyISAM} commands in the
@@ -27617,7 +27614,7 @@ given SQL implementation performs well or poorly at.
 Note that this benchmark is single threaded so it measures the minimum
 time for the operations.
 
-For example (run on the same NT 4.0 machine):
+For example, (run on the same NT 4.0 machine):
 
 @multitable @columnfractions .6 .2 .2
 @strong{Reading 2000000 rows by index} @tab @strong{Seconds} @tab @strong{Seconds}
@@ -27815,7 +27812,7 @@ shell> replace a b b a -- file1 file2 ...
 @section safe_mysqld, the wrapper around mysqld
 
 @code{safe_mysqld} is the recommended way to start a @code{mysqld}
-daemon on Unix.  @code{safe_mysqld} adds some safety features such as
+daemon on UNIX.  @code{safe_mysqld} adds some safety features such as
 restarting the server when an error occurs and logging runtime
 information to a log file.
 
@@ -28103,8 +28100,8 @@ The effect of the above is:
 @itemize @bullet
 @item
 You are not allowed to do an @code{UPDATE} or @code{DELETE} statements
-if you don't have a key constraint in the @code{WHERE} part. One can
-however force an @code{UPDATE/DELETE} by using @code{LIMIT}:
+if you don't have a key constraint in the @code{WHERE} part. One can,
+however, force an @code{UPDATE/DELETE} by using @code{LIMIT}:
 @example
 UPDATE table_name SET not_key_column=# WHERE not_key_column=# LIMIT 1;
 @end example
@@ -28300,7 +28297,7 @@ no @samp{=your_pass} part,
 @code{mysqldump} you will be prompted for a password.
 @item -P port_num, --port=port_num
 The TCP/IP port number to use for connecting to a host.  (This is used for
-connections to hosts other than @code{localhost}, for which Unix sockets are
+connections to hosts other than @code{localhost}, for which UNIX sockets are
 used.)
 @item  -q, --quick
 Don't buffer query, dump directly to stdout;  Uses @code{mysql_use_result()}
@@ -28318,7 +28315,7 @@ machine as the @code{mysqld} daemon.  The format of the @code{.txt} file
 is made according to the @code{--fields-xxx} and @code{--lines--xxx} options.
 @item -u user_name, --user=user_name
 The @strong{MySQL} user name to use when connecting to the server. The
-default value is your Unix login name.
+default value is your UNIX login name.
 @item -O var=option, --set-variable var=option
 Set the value of a variable.  The possible variables are listed below.
 @item -v, --verbose
@@ -28459,7 +28456,7 @@ no @samp{=your_pass} part,
 
 @item -P port_num, --port=port_num
 The TCP/IP port number to use for connecting to a host.  (This is used for
-connections to hosts other than @code{localhost}, for which Unix sockets are
+connections to hosts other than @code{localhost}, for which UNIX sockets are
 used.)
 
 @item -r, --replace
@@ -28480,7 +28477,7 @@ default host).
 
 @item -u user_name, --user=user_name
 The @strong{MySQL} user name to use when connecting to the server. The
-default value is your Unix login name.
+default value is your UNIX login name.
 
 @item -v, --verbose
 Verbose mode.  Print out more information what the program does.
@@ -29141,7 +29138,7 @@ Restart @code{myisamchk} with @code{-r} (repair) on the table, if
 Print informational statistics about the table that is checked.
 @item -m or --medium-check
 Faster than extended-check, but only finds 99.99% of all errors.
-Should however be good enough for most cases.
+Should, however, be good enough for most cases.
 @item -U or --update-state
 Store in the @file{.MYI} file when the table was checked and if the
 table was crashed.  This should be used to get full benefit of the
@@ -29828,7 +29825,7 @@ can usually detect and fix most things that go wrong.
 
 The repair process involves up to four stages, described below. Before you
 begin, you should @code{cd} to the database directory and check the
-permissions of the table files. Make sure they are readable by the Unix user
+permissions of the table files. Make sure they are readable by the UNIX user
 that @code{mysqld} runs as (and to you, because you need to access the files
 you are checking).  If it turns out you need to modify files, they must also
 be writable by you.
@@ -30637,19 +30634,19 @@ program.
 @strong{MyODBC} is a 32-bit ODBC (2.50) level 0 (with level 1 and level
 2 features) driver for connecting an ODBC-aware application to
 @strong{MySQL}.  @strong{MyODBC} works on Windows95, Windows98, NT and
-on most Unix platforms.
+on most UNIX platforms.
 
 Normally you only need to install @strong{MyODBC} on Windows machines.
-You only need @strong{MyODBC} for Unix if you have a program like
-ColdFusion that is running on the Unix machine and uses ODBC to connect
+You only need @strong{MyODBC} for UNIX if you have a program like
+ColdFusion that is running on the UNIX machine and uses ODBC to connect
 to the databases.
 
 @strong{MyODBC} is in public domain and you can find the newest version
 at @uref{http://www.mysql.com/downloads/api-myodbc.html}.
 
-If you want to install @strong{MyODBC} on a Unix box, you will also need
+If you want to install @strong{MyODBC} on a UNIX box, you will also need
 an @strong{ODBC} manager.  @strong{MyODBC} is known to work with
-most of the Unix ODBC managers.  You can find a list at these in the
+most of the UNIX ODBC managers.  You can find a list at these in the
 @strong{ODBC}-related links section on the @strong{MySQL} useful links page.
 @xref{Useful Links}.
 
@@ -30670,12 +30667,12 @@ install @strong{MyODBC} and reboot to normal mode.
 
 @itemize @bullet
 @item
-To make a connection to an Unix box from a Windows box, with an ODBC
+To make a connection to an UNIX box from a Windows box, with an ODBC
 application (one that doesn't support @strong{MySQL} natively), you must
 first install @strong{MyODBC} on the Windows machine.
 @item
 The user and Windows machine must have the access privileges to the
-@strong{MySQL} server the Unix machine.  This is set up with the @code{GRANT}
+@strong{MySQL} server the UNIX machine.  This is set up with the @code{GRANT}
 command. @xref{GRANT,,@code{GRANT}}.
 @item
 You must create an ODBC DSN entry as follows:
@@ -30861,7 +30858,7 @@ problems if you have values > 127 in the column!
 @item ADO
 When you are coding with the ADO API and @strong{MyODBC} you need to put
 attention in some default properties that aren't supported by the
-@strong{MySQL} server.  For example using the @code{CursorLocation
+@strong{MySQL} server.  For example, using the @code{CursorLocation
 Property} as @code{adUseServer} will return for the @code{RecordCount
 Property} a result of -1. To have the right value, you need to set this
 property to @code{adUseClient}, like is showing in the VB code below:
@@ -30893,7 +30890,7 @@ When you start a query you can use the property @code{Active} or use the
 method @code{Open}.  Note that @code{Active} will start by automatically issue
 a @code{SELECT * FROM ...} query that may not be a good thing if your tables
 are big!
-@item ColdFusion (On Unix)
+@item ColdFusion (On UNIX)
 The following information is taken from the ColdFusion documentation:
 
 Use the following information to configure ColdFusion Server for Linux
@@ -31033,7 +31030,7 @@ fReg:= TRegistry.Create;
 @cindex C++Builder
 @item C++Builder
 Tested with BDE 3.0. The only known problem is that when the table
-schema changes, query fields are not updated. BDE however does not seem
+schema changes, query fields are not updated. BDE, however, does not seem
 to recognize primary keys, only the index PRIMARY, though this has not
 been a problem.
 @cindex Visual Basic
@@ -31097,7 +31094,7 @@ If you find out something is wrong, please only send the relevant rows
 (max 40 rows) to the @email{myodbc@@lists.mysql.com}.  Please never
 send the whole MyODBC or ODBC log file!
 
-If you are unable to find out what's wrong, the last option is to to
+If you are unable to find out what's wrong, the last option is to
 make an archive (tar or zip) that contains a MyODBC log file, the ODBC
 log file and a README file that explains the problem.  You can send this
 to @uref{ftp://support.mysql.com/pub/mysql/secret}.  Only we at MySQL AB
@@ -31188,7 +31185,7 @@ If you have one of the following symptoms, then it is probably a hardware
 @item
 The keyboard doesn't work.  This can normally be checked by pressing
 Caps Lock;  If the Caps Lock light doesn't change you have to replace
-your keyboard.  (Before doing this, you should however try to reboot
+your keyboard.  (Before doing this, you should, however, try to reboot
 your computer and check all cables to the keyboard.)
 @item
 The mouse pointer doesn't move.
@@ -31477,7 +31474,7 @@ than usual.  Because @strong{MySQL} works for many people, it may be that the
 crash results from something that exists only on your computer (for example,
 an error that is related to your particular system libraries).
 @item
-If you have a problem with table with dynamic length rows and you are
+If you have a problem with table with dynamic-length rows and you are
 not using @code{BLOB/TEXT} columns (but only @code{VARCHAR} columns) you
 can try to change all @code{VARCHAR} to @code{CHAR} with @code{ALTER
 TABLE}.  This will force @strong{MySQL} to use fixed-size rows.  Fixed
@@ -31485,7 +31482,7 @@ size rows take a little extra space, but are much more tolerant to
 corruption!
 
 The current dynamic row code has been in use at MySQL AB for at least 3
-years without any problems, but by nature dynamic length rows are more
+years without any problems, but by nature dynamic-length rows are more
 prone to errors, so it may be a good idea to try the above to see if it helps!
 @end itemize
 
@@ -31616,11 +31613,11 @@ return a big result row!
 @node Can not connect to server, Blocked host, Gone away, Common errors
 @subsection @code{Can't connect to [local] MySQL server} error
 
-A @strong{MySQL} client on Unix can connect to the @code{mysqld} server in two
-different ways: Unix sockets, which connect through a file in the file
+A @strong{MySQL} client on UNIX can connect to the @code{mysqld} server in two
+different ways: UNIX sockets, which connect through a file in the file
 system (default @file{/tmp/mysqld.sock}), or TCP/IP, which connects
-through a port number.  Unix sockets are faster than TCP/IP but can only
-be used when connecting to a server on the same computer.  Unix sockets
+through a port number.  UNIX sockets are faster than TCP/IP but can only
+be used when connecting to a server on the same computer.  UNIX sockets
 are used if you don't specify a hostname or if you specify the special
 hostname @code{localhost}.
 
@@ -31668,13 +31665,13 @@ error might occur:
 If you are running on a system that doesn't have native threads, @code{mysqld}
 uses the MIT-pthreads package.
 @xref{Which OS}.
-However, MIT-pthreads doesn't support Unix sockets, so on such a system you
+However, MIT-pthreads doesn't support UNIX sockets, so on such a system you
 must always specify the hostname explicitly when connecting to the server.
 Try using this command to check the connection to the server:
 @example
 shell> mysqladmin -h `hostname` version
 @end example
-@item Someone has removed the Unix socket that @code{mysqld} uses (default
+@item Someone has removed the UNIX socket that @code{mysqld} uses (default
 @file{/tmp/mysqld.sock}).  You might have a @code{cron} job that removes the
 @strong{MySQL} socket (for example, a job that removes old files from the @file{/tmp}
 directory).  You can always run @code{mysqladmin version} and
@@ -31701,7 +31698,7 @@ shell> mysqladmin --socket=/path/to/socket version
 @end example
 @item
 You are using Linux and one thread has died (core dumped).  In this case
-you must kill the other @code{mysqld} threads (for example with the
+you must kill the other @code{mysqld} threads (for example, with the
 @code{mysql_zap} script before you can start a new @strong{MySQL}
 server.  @xref{Crashing}.
 @end itemize
@@ -31881,7 +31878,7 @@ Can't create/write to file '\\sqla3fe_0.ism'.
 
 this means that @strong{MySQL} can't create a temporary file for the
 result set in the given temporary directory (the above error is a
-typical error message on windows, the unix error message is similar) .
+typical error message on windows, the UNIX error message is similar) .
 The fix is to start mysqld with @code{--tmpdir=path} or to add to your option
 file:
 
@@ -32065,7 +32062,7 @@ the original table.
 
 If you have problems with the fact that anyone can delete the
 @strong{MySQL} communication socket @file{/tmp/mysql.sock}, you can,
-on most versions of Unix, protect your @file{/tmp} file system by setting
+on most versions of UNIX, protect your @file{/tmp} file system by setting
 the @code{sticky} bit on it.  Log in as @code{root} and do the following:
 
 @example
@@ -32092,7 +32089,7 @@ If the last permission bit is @code{t}, the bit is set.
 @section How to run MySQL as a normal user
 
 The @strong{MySQL} server @code{mysqld} can be started and run by any user.
-In order to change @code{mysqld} to run as Unix user @code{user_name}, you must
+In order to change @code{mysqld} to run as UNIX user @code{user_name}, you must
 do the following:
 
 @enumerate
@@ -32102,7 +32099,7 @@ Stop the server if it's running (use @code{mysqladmin shutdown}).
 @item
 Change the database directories and files so that @code{user_name} has
 privileges to read and write files in them (you may need to do this as
-the Unix @code{root} user):
+the UNIX @code{root} user):
 
 @example
 shell> chown -R user_name /path/to/mysql/datadir
@@ -32115,9 +32112,9 @@ you.
 
 @item
 Start the server as user @code{user_name}, or, if you are using
-@strong{MySQL} Version 3.22 or later, start @code{mysqld} as the Unix @code{root}
+@strong{MySQL} Version 3.22 or later, start @code{mysqld} as the UNIX @code{root}
 user and use the @code{--user=user_name} option.  @code{mysqld} will switch
-to run as Unix user @code{user_name} before accepting any connections.
+to run as UNIX user @code{user_name} before accepting any connections.
 
 @item
 If you are using the @code{mysql.server} script to start @code{mysqld} when
@@ -32128,26 +32125,26 @@ necessary.)
 @end enumerate
 
 At this point, your @code{mysqld} process should be running fine and dandy as
-the Unix user @code{user_name}. One thing hasn't changed, though: the
+the UNIX user @code{user_name}. One thing hasn't changed, though: the
 contents of the permissions tables. By default (right after running the
 permissions table install script @code{mysql_install_db}), the @strong{MySQL}
 user @code{root} is the only user with permission to access the @code{mysql}
 database or to create or drop databases.  Unless you have changed those
 permissions, they still hold. This shouldn't stop you from accessing
 @strong{MySQL} as the @strong{MySQL} @code{root} user when you're logged in
-as a Unix user other than @code{root}; just specify the @code{-u root} option
+as a UNIX user other than @code{root}; just specify the @code{-u root} option
 to the client program.
 
 Note that accessing @strong{MySQL} as @code{root}, by supplying @code{-u
 root} on the command line, has @emph{nothing} to do with @strong{MySQL} running
-as the Unix @code{root} user, or, indeed, as other Unix user. The access
+as the UNIX @code{root} user, or, indeed, as other UNIX user. The access
 permissions and user names of @strong{MySQL} are completely separate from
-Unix user names. The only connection with Unix user names is that if you
+UNIX user names. The only connection with UNIX user names is that if you
 don't provide a @code{-u} option when you invoke a client program, the client
-will try to connect using your Unix login name as your @strong{MySQL} user
+will try to connect using your UNIX login name as your @strong{MySQL} user
 name.
 
-If your Unix box itself isn't secured, you should probably at least put a
+If your UNIX box itself isn't secured, you should probably at least put a
 password on the @strong{MySQL} @code{root} users in the access tables.
 Otherwise, any user with an account on that machine can run @code{mysql -u
 root db_name} and do whatever he likes.
@@ -32171,7 +32168,7 @@ file which is normally in the @strong{MySQL} database directory:
 kill `cat /mysql-data-directory/hostname.pid`
 @end example
 
-You must be either the Unix @code{root} user or the same user the server
+You must be either the UNIX @code{root} user or the same user the server
 runs as to do this.
 
 @item
@@ -32356,7 +32353,7 @@ the server.
 If you have a problem with @code{SELECT NOW()} returning values in GMT and
 not your local time, you have to set the @code{TZ} environment variable to
 your current timezone.  This should be done for the environment in which
-the server runs, for example in @code{safe_mysqld} or @code{mysql.server}.
+the server runs, for example, in @code{safe_mysqld} or @code{mysql.server}.
 @xref{Environment variables}.
 
 @cindex case sensitivity, in searches
@@ -32482,7 +32479,7 @@ SELECT id AS "Customer identity" FROM table_name;
 
 Note that you ANSI SQL doesn't allow you to refer to an alias in a
 @code{WHERE} clause.  This is because when the @code{WHERE} code is
-executed the column value may not yet be determined. For example the
+executed the column value may not yet be determined. For example, the
 following query is @strong{illegal}:
 
 @example
@@ -32789,7 +32786,7 @@ that may be regarded as a number, in the directory used by the update log!
 If you use the @code{--log} or @code{-l} options, @code{mysqld} writes a
 general log with a filename of @file{hostname.log}, and restarts and
 refreshes do not cause a new log file to be generated (although it is closed
-and reopened). In this case you can copy it (on Unix) by doing:
+and reopened). In this case you can copy it (on UNIX) by doing:
 
 @example
 mv hostname.log hostname-old.log
@@ -32993,7 +32990,7 @@ $dbh = DBI->connect($dsn, $user, $password);
 @tindex Environment variable, MYSQL_UNIX_PORT
 @tindex Environment variable, MYSQL_TCP_PORT
 Set the @code{MYSQL_UNIX_PORT} and @code{MYSQL_TCP_PORT} environment variables
-to point to the Unix socket and TCP/IP port before you start your clients.
+to point to the UNIX socket and TCP/IP port before you start your clients.
 If you normally use a specific socket or port, you should place commands
 to set these environment variables in your @file{.login} file.
 @xref{Environment variables}. @xref{Programs}.
@@ -35060,12 +35057,12 @@ example below.
 @item
 The value of @code{host} may be either a hostname or an IP address.  If
 @code{host} is @code{NULL} or the string @code{"localhost"}, a connection to
-the local host is assumed. If the OS supports sockets (Unix) or named pipes
+the local host is assumed. If the OS supports sockets (UNIX) or named pipes
 (Windows), they are used instead of TCP/IP to connect to the server.
 
 @item
 The @code{user} parameter contains the user's @strong{MySQL} login ID.  If
-@code{user} is @code{NULL}, the current user is assumed.  Under Unix, this is
+@code{user} is @code{NULL}, the current user is assumed.  Under UNIX, this is
 the current login name.  Under Windows ODBC, the current user name must be
 specified explicitly.
 @xref{ODBC administrator}.
@@ -35137,7 +35134,7 @@ Failed to create an IP socket.
 Out of memory.
 
 @item CR_SOCKET_CREATE_ERROR
-Failed to create a Unix socket.
+Failed to create a UNIX socket.
 
 @item CR_UNKNOWN_HOST
 Failed to find the IP address for the hostname.
@@ -35475,7 +35472,7 @@ allocates a @code{MYSQL_RES} structure, and places the result into this
 structure.
 
 @code{mysql_store_results()} returns a null pointer if the query didn't return
-a result sets (If the query was for example an @code{INSERT} statement).
+a result sets (If the query was, for example, an @code{INSERT} statement).
 
 @code{mysql_store_results()} returns also null pointer if reading of the
 result set failed. You can check if you got an error by checking if
@@ -35749,8 +35746,8 @@ the socket handling should be thread safe.
 
 In the older binaries we distribute on our web site, the client
 libraries are not normally compiled with the thread safe option (the
-windows binaries are however by default compiled to be thread safe).
-Newer binary distributions should however have both a normal and a
+windows binaries are, however, by default compiled to be thread safe).
+Newer binary distributions should, however, have both a normal and a
 threadsafe client library.
 
 To get a really thread-safe client where you can interrupt the client
@@ -35962,7 +35959,7 @@ Use compressed communication between the client and server (@strong{MySQL}
 3.22.3 or later).
 
 @item mysql_socket=/path/to/socket
-Specify the pathname of the Unix socket that is used to connect
+Specify the pathname of the UNIX socket that is used to connect
 to the server (@strong{MySQL} Version 3.21.15 or later).
 @end table
 
@@ -37089,7 +37086,7 @@ carefully tuned up this way). For very small tables, word distribution
 does not reflect adequately their semantical value, and this model
 may sometimes produce bizarre results.
 
-For example search for the word "search" will produce no results in the
+For example, search for the word "search" will produce no results in the
 above example. Word "search" is present in more than half of rows, and
 as, such, is effectively treated as stopword (that is, with semantical value
 zero). It is, really, the desired behaviour - natural language query
@@ -38830,7 +38827,7 @@ Fixed a bug in @code{SHOW CREATE} when using @code{AUTO_INCREMENT} columns.
 @item
 Changed BDB tables to use new compare function in Berkeley DB 3.2.3.
 @item
-You can now use Unix sockets with @code{mit-pthreads}.
+You can now use UNIX sockets with @code{mit-pthreads}.
 @item
 Added the latin5 (turkish) character set.
 @item
@@ -39702,7 +39699,7 @@ Fixed problem with @code{MAX(indexed_column)} and HEAP tables.
 @item
 Fixed problem with @code{BLOB NULL} keys and @code{LIKE} "prefix%".
 @item
-Fixed problem with @code{MyISAM} and fixed length rows < 5 bytes.
+Fixed problem with @code{MyISAM} and fixed-length rows < 5 bytes.
 @item
 Fixed problem that could cause @strong{MySQL} to touch freed memory when
 doing very complicated @code{GROUP BY} queries.
@@ -40593,7 +40590,7 @@ server inserts rows into a table.
 @code{LEFT JOIN USING (col1,col2)} didn't work if one used it with tables
 from 2 different databases.
 @item
-@code{LOAD DATA LOCAL INFILE} didn't work in the Unix version because of
+@code{LOAD DATA LOCAL INFILE} didn't work in the UNIX version because of
 a missing file.
 @item
 Fixed problems with @code{VARCHAR}/@code{BLOB} on very short rows (< 4 bytes);
@@ -40745,7 +40742,7 @@ New function @code{MAKE_SET()}.
 @item
 @code{mysql_install_db} no longer starts the @strong{MySQL} server!  You
 should start @code{mysqld} with @code{safe_mysqld} after installing it!  The
-@strong{MySQL} RPM will however start the server as before.
+@strong{MySQL} RPM will, however, start the server as before.
 @item
 Added @code{--bootstrap} option to @code{mysqld} and recoded
 @code{mysql_install_db} to use it.  This will make it easier to install
@@ -41094,7 +41091,7 @@ Fixed table locks for Windows.
 Allow @samp{$} in identifiers.
 @item
 Changed name of user-specific configuration file from @file{my.cnf} to
-@file{.my.cnf} (Unix only).
+@file{.my.cnf} (UNIX only).
 @item
 Added @code{DATE_ADD()} and @code{DATE_SUB()} functions.
 @end itemize
@@ -41229,7 +41226,7 @@ give a user read access to some tables and write access to others simply by
 keeping them in different databases!
 @item
 Added @code{--user} option to @code{mysqld}, to allow it to run
-as another Unix user (if it is started as the Unix @code{root} user).
+as another UNIX user (if it is started as the UNIX @code{root} user).
 @item
 Added caching of users and access rights (for faster access rights checking)
 @item
@@ -41482,7 +41479,7 @@ Fixed bug in @code{WEEK("XXXX-xx-01")}.
 @appendixsubsec Changes in release 3.21.28
 @itemize @bullet
 @item
-Fixed socket permission (clients couldn't connect to Unix socket on Linux).
+Fixed socket permission (clients couldn't connect to UNIX socket on Linux).
 @item
 Fixed bug in record caches; for some queries, you could get
 @code{Error from table handler: #} on some operating systems.
@@ -43133,9 +43130,9 @@ the column.
 If you try to store a string, that doesn't start with a number, into a
 numerical column @strong{MySQL} will store 0 into it.
 @item
-If you try to to store @code{NULL} into a column that doesn't take
+If you try to store @code{NULL} into a column that doesn't take
 @code{NULL} values, @strong{MySQL} will store 0 or @code{''} (empty
-string) in it instead. (This behavour can however be changed with the
+string) in it instead. (This behavour can, however, be changed with the
 -DDONT_USE_DEFAULT_FIELDS compile option).
 @item
 @strong{MySQL} allows you to store some wrong date values into
@@ -43227,7 +43224,7 @@ month to make after which we want to stabilize it and start working on
 New table definition file format (@code{.frm} files) This will enable us
 to not run out of bits when adding more table options.  One will still
 be able to use the old .frm file format with 4.0;  All new created tables
-will however use the new format.
+will, however, use the new format.
 
 The new file format will enable us to add new column types, more options
 for keys and @code{FOREIGN KEYS}.
@@ -43608,7 +43605,7 @@ we use Sun PThreads (the native thread support in 2.4 and earlier
 versions are not good enough) and on Linux we use LinuxThreads by Xavier
 Leroy, @email{Xavier.Leroy@@inria.fr}.
 
-The hard part of porting to a new Unix variant without good native
+The hard part of porting to a new UNIX variant without good native
 thread support is probably to port MIT-pthreads. See
 @file{mit-pthreads/README} and
 @uref{http://www.humanfactor.com/pthreads/, Programming POSIX Threads}.
@@ -44067,7 +44064,7 @@ one started to access it. Other names for this are time travel, copy
 on write or copy on demand.
 
 Copy on demand is in many case much better than page or row level
-locking; The worst case does however use much more memory than
+locking; The worst case does, however, use much more memory than
 when using normal locks.
 
 Instead of using row level locks one can use application level locks.
@@ -44436,7 +44433,7 @@ mysql> select "weeknights" REGEXP "^(wee|week)(knights|nights)$"; -> 1
 
 Unireg is our tty interface builder, but it uses a low level connection
 to our ISAM (which is used by @strong{MySQL}) and because of this it is
-very quick. It has existed since 1979 (on Unix in C since ~1986).
+very quick. It has existed since 1979 (on UNIX in C since ~1986).
 
 Unireg has the following components:
 
@@ -44481,7 +44478,7 @@ serve web pages through @strong{MySQL} (and in some extreme cases the Unireg
 report generator).
 
 Unireg takes about 3M of disk space and works on at least the following
-platforms: SunOS 4.x, Solaris, Linux, HP-UX, ICL Unix, DNIX, SCO and
+platforms: SunOS 4.x, Solaris, Linux, HP-UX, ICL UNIX, DNIX, SCO and
 MS-DOS.
 
 Unireg is currently only available in Swedish and Finnish.
