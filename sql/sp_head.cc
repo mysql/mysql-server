@@ -207,7 +207,7 @@ sp_head::operator delete(void *ptr, size_t size)
 
 sp_head::sp_head()
   : Sql_alloc(), m_has_return(FALSE), m_simple_case(FALSE),
-    m_multi_results(FALSE), m_free_list(NULL)
+    m_multi_results(FALSE), m_free_list(NULL), m_returns_cs(NULL)
 {
   DBUG_ENTER("sp_head::sp_head");
 
@@ -228,6 +228,7 @@ sp_head::init(LEX *lex)
     m_body.str= m_defstr.str= 0;
   m_qname.length= m_db.length= m_name.length= m_params.length=
     m_retstr.length= m_body.length= m_defstr.length= 0;
+  m_returns_cs= NULL;
   DBUG_VOID_RETURN;
 }
 
@@ -266,7 +267,10 @@ sp_head::init_strings(THD *thd, LEX *lex, sp_name *name)
   if (m_returns_begin && m_returns_end)
   {
     /* QQ KLUDGE: We can't seem to cut out just the type in the parser
-       (without the RETURNS), so we'll have to do it here. :-( */
+       (without the RETURNS), so we'll have to do it here. :-(
+       Furthermore, if there's a character type as well, it's not include
+       (beyond the m_returns_end pointer), in which case we need
+       m_returns_cs. */
     char *p= (char *)m_returns_begin+strspn((char *)m_returns_begin,"\t\n\r ");
     p+= strcspn(p, "\t\n\r ");
     p+= strspn(p, "\t\n\r ");
@@ -278,9 +282,22 @@ sp_head::init_strings(THD *thd, LEX *lex, sp_name *name)
 	   (*p == '\t' || *p == '\n' || *p == '\r' || *p == ' '))
       p-= 1;
     m_returns_end= (uchar *)p+1;
-    m_retstr.length=  m_returns_end - m_returns_begin;
-    m_retstr.str= strmake_root(root,
-			       (char *)m_returns_begin, m_retstr.length);
+    if (m_returns_cs)
+    {
+      String s((char *)m_returns_begin, m_returns_end - m_returns_begin,
+	       system_charset_info);
+
+      s.append(' ');
+      s.append(m_returns_cs->csname);
+      m_retstr.length= s.length();
+      m_retstr.str= strmake_root(root, s.ptr(), m_retstr.length);
+    }
+    else
+    {
+      m_retstr.length= m_returns_end - m_returns_begin;
+      m_retstr.str= strmake_root(root,
+				 (char *)m_returns_begin, m_retstr.length);
+    }
   }
   m_body.length= lex->end_of_query - m_body_begin;
   m_body.str= strmake_root(root, (char *)m_body_begin, m_body.length);
@@ -297,6 +314,24 @@ sp_head::create(THD *thd)
 
   DBUG_PRINT("info", ("type: %d name: %s params: %s body: %s",
 		      m_type, m_name.str, m_params.str, m_body.str));
+#ifndef DBUG_OFF
+  String s;
+  sp_instr *i;
+  uint ip= 0;
+  while ((i = get_instr(ip)))
+  {
+    char buf[8];
+
+    sprintf(buf, "%4u: ", ip);
+    s.append(buf);
+    i->print(&s);
+    s.append('\n');
+    ip+= 1;
+  }
+  s.append('\0');
+  DBUG_PRINT("info", ("Code %s\n%s", m_qname.str, s.ptr()));
+#endif
+
   if (m_type == TYPE_ENUM_FUNCTION)
     ret= sp_create_function(thd, this);
   else
@@ -622,9 +657,9 @@ sp_head::reset_lex(THD *thd)
 
   (void)m_lex.push_front(oldlex);
   thd->lex= sublex= new st_lex;
-  sublex->yylineno= oldlex->yylineno;
   /* Reset most stuff. The length arguments doesn't matter here. */
   lex_start(thd, oldlex->buf, oldlex->end_of_query - oldlex->ptr);
+  sublex->yylineno= oldlex->yylineno;
   /* We must reset ptr and end_of_query again */
   sublex->ptr= oldlex->ptr;
   sublex->end_of_query= oldlex->end_of_query;
@@ -871,6 +906,15 @@ sp_instr_stmt::execute(THD *thd, uint *nextp)
   DBUG_RETURN(res);
 }
 
+void
+sp_instr_stmt::print(String *str)
+{
+  str->reserve(12);
+  str->append("stmt ");
+  str->qs_append((uint)m_lex->sql_command);
+}
+
+
 int
 sp_instr_stmt::exec_stmt(THD *thd, LEX *lex)
 {
@@ -988,6 +1032,16 @@ sp_instr_set::execute(THD *thd, uint *nextp)
   DBUG_RETURN(0);
 }
 
+void
+sp_instr_set::print(String *str)
+{
+  str->reserve(12);
+  str->append("set ");
+  str->qs_append(m_offset);
+  str->append(' ');
+  m_value->print(str);
+}
+
 //
 // sp_instr_jump
 //
@@ -999,6 +1053,14 @@ sp_instr_jump::execute(THD *thd, uint *nextp)
 
   *nextp= m_dest;
   DBUG_RETURN(0);
+}
+
+void
+sp_instr_jump::print(String *str)
+{
+  str->reserve(12);
+  str->append("jump ");
+  str->qs_append(m_dest);
 }
 
 //
@@ -1018,6 +1080,16 @@ sp_instr_jump_if::execute(THD *thd, uint *nextp)
   DBUG_RETURN(0);
 }
 
+void
+sp_instr_jump_if::print(String *str)
+{
+  str->reserve(12);
+  str->append("jump_if ");
+  str->qs_append(m_dest);
+  str->append(' ');
+  m_expr->print(str);
+}
+
 //
 // sp_instr_jump_if_not
 //
@@ -1035,6 +1107,16 @@ sp_instr_jump_if_not::execute(THD *thd, uint *nextp)
   DBUG_RETURN(0);
 }
 
+void
+sp_instr_jump_if_not::print(String *str)
+{
+  str->reserve(16);
+  str->append("jump_if_not ");
+  str->qs_append(m_dest);
+  str->append(' ');
+  m_expr->print(str);
+}
+
 //
 // sp_instr_freturn
 //
@@ -1045,6 +1127,16 @@ sp_instr_freturn::execute(THD *thd, uint *nextp)
   thd->spcont->set_result(sp_eval_func_item(thd, m_value, m_type));
   *nextp= UINT_MAX;
   DBUG_RETURN(0);
+}
+
+void
+sp_instr_freturn::print(String *str)
+{
+  str->reserve(12);
+  str->append("freturn ");
+  str->qs_append((uint)m_type);
+  str->append(' ');
+  m_value->print(str);
 }
 
 //
@@ -1064,6 +1156,20 @@ sp_instr_hpush_jump::execute(THD *thd, uint *nextp)
   DBUG_RETURN(0);
 }
 
+void
+sp_instr_hpush_jump::print(String *str)
+{
+  str->reserve(32);
+  str->append("hpush_jump ");
+  str->qs_append(m_dest);
+  str->append(" t=");
+  str->qs_append(m_type);
+  str->append(" f=");
+  str->qs_append(m_frame);
+  str->append(" h=");
+  str->qs_append(m_handler);
+}
+
 //
 // sp_instr_hpop
 //
@@ -1076,6 +1182,14 @@ sp_instr_hpop::execute(THD *thd, uint *nextp)
   DBUG_RETURN(0);
 }
 
+void
+sp_instr_hpop::print(String *str)
+{
+  str->reserve(12);
+  str->append("hpop ");
+  str->qs_append(m_count);
+}
+
 //
 // sp_instr_hreturn
 //
@@ -1086,6 +1200,14 @@ sp_instr_hreturn::execute(THD *thd, uint *nextp)
   thd->spcont->restore_variables(m_frame);
   *nextp= thd->spcont->pop_hstack();
   DBUG_RETURN(0);
+}
+
+void
+sp_instr_hreturn::print(String *str)
+{
+  str->reserve(12);
+  str->append("hreturn ");
+  str->qs_append(m_frame);
 }
 
 //
@@ -1106,6 +1228,12 @@ sp_instr_cpush::~sp_instr_cpush()
     delete m_lex;
 }
 
+void
+sp_instr_cpush::print(String *str)
+{
+  str->append("cpush");
+}
+
 //
 // sp_instr_cpop
 //
@@ -1116,6 +1244,14 @@ sp_instr_cpop::execute(THD *thd, uint *nextp)
   thd->spcont->pop_cursors(m_count);
   *nextp= m_ip+1;
   DBUG_RETURN(0);
+}
+
+void
+sp_instr_cpop::print(String *str)
+{
+  str->reserve(12);
+  str->append("cpop ");
+  str->qs_append(m_count);
 }
 
 //
@@ -1145,6 +1281,14 @@ sp_instr_copen::execute(THD *thd, uint *nextp)
   DBUG_RETURN(res);
 }
 
+void
+sp_instr_copen::print(String *str)
+{
+  str->reserve(12);
+  str->append("copen ");
+  str->qs_append(m_cursor);
+}
+
 //
 // sp_instr_cclose
 //
@@ -1163,6 +1307,14 @@ sp_instr_cclose::execute(THD *thd, uint *nextp)
   DBUG_RETURN(res);
 }
 
+void
+sp_instr_cclose::print(String *str)
+{
+  str->reserve(12);
+  str->append("cclose ");
+  str->qs_append(m_cursor);
+}
+
 //
 // sp_instr_cfetch
 //
@@ -1179,6 +1331,44 @@ sp_instr_cfetch::execute(THD *thd, uint *nextp)
     res= c->fetch(thd, &m_varlist);
   *nextp= m_ip+1;
   DBUG_RETURN(res);
+}
+
+void
+sp_instr_cfetch::print(String *str)
+{
+  List_iterator_fast<struct sp_pvar> li(m_varlist);
+  sp_pvar_t *pv;
+
+  str->reserve(12);
+  str->append("cfetch ");
+  str->qs_append(m_cursor);
+  while ((pv= li++))
+  {
+    str->reserve(8);
+    str->append(' ');
+    str->qs_append(pv->offset);
+  }
+}
+
+//
+// sp_instr_error
+//
+int
+sp_instr_error::execute(THD *thd, uint *nextp)
+{
+  DBUG_ENTER("sp_instr_error::execute");
+
+  my_error(m_errcode, MYF(0));
+  *nextp= m_ip+1;
+  DBUG_RETURN(-1);
+}
+
+void
+sp_instr_error::print(String *str)
+{
+  str->reserve(12);
+  str->append("error ");
+  str->qs_append(m_errcode);
 }
 
 /* ------------------------------------------------------------------ */

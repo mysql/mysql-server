@@ -371,6 +371,7 @@ public:
   bool check_updateable(char *db, char *table);
   void print(String *str);
   
+  void set_limit(st_select_lex *values, st_select_lex *sl);
 
   friend void mysql_init_query(THD *thd, bool lexonly);
   friend int subselect_union_engine::exec();
