@@ -731,7 +731,7 @@ history_save(History *h, const char *fname)
 		len = strlen(ev.str) * 4 + 1;
 		if (len >= max_size) {
 			char *nptr;
-			max_size = (len + 1023) & 1023;
+			max_size = (len + 1023) & ~1023;
 			nptr = h_realloc(ptr, max_size);
 			if (nptr == NULL) {
 				i = -1;
