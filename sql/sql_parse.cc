@@ -27,7 +27,6 @@
 
 #include "sp_head.h"
 #include "sp.h"
-#include "sp_cache.h"
 
 #ifdef HAVE_OPENSSL
 /*
@@ -3046,7 +3045,6 @@ unsent_create_error:
       goto error; /* purecov: inspected */
     thd->slow_command=TRUE;
     res = mysql_check_table(thd, first_table, &lex->check_opt);
-    sp_cache_invalidate();
     break;
   }
   case SQLCOM_ANALYZE:
