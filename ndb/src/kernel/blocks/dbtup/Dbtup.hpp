@@ -35,14 +35,6 @@
 #define ZMIN_PAGE_LIMIT_TUPKEYREQ 5
 #define ZTUP_VERSION_BITS 15
 
-typedef bool (Dbtup::* ReadFunction)(Uint32*,
-                                     AttributeHeader*,
-                                     Uint32,
-                                     Uint32);
-typedef bool (Dbtup::* UpdateFunction)(Uint32*,
-                                       Uint32,
-                                       Uint32);
-
 #ifdef DBTUP_C
 //------------------------------------------------------------------
 // Jam Handling:
@@ -351,6 +343,14 @@ typedef bool (Dbtup::* UpdateFunction)(Uint32*,
 
 class Dbtup: public SimulatedBlock {
 public:
+
+  typedef bool (Dbtup::* ReadFunction)(Uint32*,
+                                       AttributeHeader*,
+                                       Uint32,
+                                       Uint32);
+  typedef bool (Dbtup::* UpdateFunction)(Uint32*,
+                                         Uint32,
+                                         Uint32);
 // State values
 enum State {
   NOT_INITIALIZED = 0,
