@@ -455,19 +455,6 @@ char *net_store_data(char *to,longlong from)
   Function called by my_net_init() to set some check variables
 */
 
-extern "C" {
-void my_net_local_init(NET *net)
-{
-  net->max_packet=   (uint) global_system_variables.net_buffer_length;
-  net->read_timeout= (uint) global_system_variables.net_read_timeout;
-  net->write_timeout=(uint) global_system_variables.net_write_timeout;
-  net->retry_count=  (uint) global_system_variables.net_retry_count;
-  net->max_packet_size= max(global_system_variables.net_buffer_length,
-			    global_system_variables.max_allowed_packet);
-}
-}
-
-
 /*****************************************************************************
   Default Protocol functions
 *****************************************************************************/
@@ -504,6 +491,7 @@ void Protocol::init(THD *thd_arg)
     1	Error  (Note that in this case the error is not sent to the client)
 */
 
+#ifndef EMBEDDED_LIBRARY
 bool Protocol::send_fields(List<Item> *list, uint flag)
 {
   List_iterator_fast<Item> it(*list);
@@ -586,11 +574,12 @@ err:
   DBUG_RETURN(1);				/* purecov: inspected */
 }
 
+#endif
 
 bool Protocol::write()
 {
   DBUG_ENTER("Protocol::write");
-  DBUG_RETURN(my_net_write(&thd->net, packet->ptr(), packet->length()));
+  DBUG_RETURN(SEND_ROW(thd, n_fields, packet->ptr(), packet->length()));
 }
 
 
@@ -828,6 +817,7 @@ bool Protocol_simple::store_time(TIME *tm)
 bool Protocol_prep::prepare_for_send(List<Item> *item_list)
 {
   field_count=item_list->elements;
+  set_nfields(item_list->elements);
   bit_fields= (field_count+3)/8;
   if (packet->alloc(bit_fields))
     return 1;

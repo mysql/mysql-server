@@ -420,6 +420,82 @@ bool send_fields(THD *thd, List<Item> &list, uint flag)
   return 1;					/* purecov: inspected */
 }
 
+bool Protocol::send_fields(List<Item> *list, uint flag)
+{
+  List_iterator_fast<Item> it(*list);
+  Item                     *item;
+  MEM_ROOT                 *alloc;
+  MYSQL_FIELD              *field, *client_field;
+  MYSQL                    *mysql= thd->mysql;
+  
+  set_nfields(list->elements);
+
+  if (!(mysql->result=(MYSQL_RES*) my_malloc(sizeof(MYSQL_RES)+
+				      sizeof(ulong) * (n_fields + 1),
+				      MYF(MY_WME | MY_ZEROFILL))))
+    goto err;
+  mysql->result->lengths= (ulong *)(mysql->result + 1);
+
+  mysql->field_count=n_fields;
+  alloc= &mysql->field_alloc;
+  field= (MYSQL_FIELD *)alloc_root(alloc, sizeof(MYSQL_FIELD) * n_fields);
+  if (!field)
+    goto err;
+
+  client_field= field;
+  while ((item= it++))
+  {
+    Send_field server_field;
+    item->make_field(&server_field);
+
+    client_field->table=  strdup_root(alloc, server_field.table_name);
+    client_field->name=   strdup_root(alloc,server_field.col_name);
+    client_field->length= server_field.length;
+    client_field->type=   server_field.type;
+    client_field->flags= server_field.flags;
+    client_field->decimals= server_field.decimals;
+
+    if (INTERNAL_NUM_FIELD(client_field))
+      client_field->flags|= NUM_FLAG;
+
+    if (flag & 2)
+    {
+      char buff[80];
+      String tmp(buff, sizeof(buff), default_charset_info), *res;
+
+      if (!(res=item->val_str(&tmp)))
+	client_field->def= strdup_root(alloc, "");
+      else
+	client_field->def= strdup_root(alloc, tmp.ptr());
+    }
+    else
+      client_field->def=0;
+    client_field->max_length= 0;
+    ++client_field;
+  }
+  mysql->result->fields = field;
+
+  if (!(mysql->result->data= (MYSQL_DATA*) my_malloc(sizeof(MYSQL_DATA),
+				       MYF(MY_WME | MY_ZEROFILL))))
+    goto err;
+
+  init_alloc_root(&mysql->result->data->alloc,8192,0);	/* Assume rowlength < 8192 */
+  mysql->result->data->alloc.min_malloc=sizeof(MYSQL_ROWS);
+  mysql->result->data->rows=0;
+  mysql->result->data->fields=n_fields;
+  mysql->result->field_count=n_fields;
+  mysql->result->data->prev_ptr= &mysql->result->data->data;
+
+  mysql->result->field_alloc=	mysql->field_alloc;
+  mysql->result->current_field=0;
+  mysql->result->current_row=0;
+
+  return 0;
+ err:
+  send_error(thd, ER_OUT_OF_RESOURCES);	/* purecov: inspected */
+  return 1;					/* purecov: inspected */
+}
+
 /* Get the length of next field. Change parameter to point at fieldstart */
 static ulong
 net_field_length(uchar **packet)
@@ -542,7 +618,7 @@ send_eof(THD *thd, bool no_flush)
 }
 
 
-int embedded_send_row(THD *thd, int n_fields, char *data, int data_len)
+int embedded_send_row(THD *thd, int n_fields, const char *data, int data_len)
 {
   MYSQL                    *mysql= thd->mysql;
   MYSQL_DATA               *result= mysql->result->data;

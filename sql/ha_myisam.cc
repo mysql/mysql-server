@@ -76,6 +76,7 @@ static void mi_check_print_msg(MI_CHECK *param,	const char* msg_type,
   }
   length=(uint) (strxmov(name, param->db_name,".",param->table_name,NullS) -
 		 name);
+  protocol->set_nfields(4);
   protocol->prepare_for_resend();
   protocol->store(name, length);
   protocol->store(param->op_name);
