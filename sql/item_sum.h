@@ -591,7 +591,7 @@ class Item_sum_udf_float :public Item_sum_num
   ~Item_sum_udf_float() {}
   enum Sumfunctype sum_func () const { return UDF_SUM_FUNC; }
   double val() { return 0.0; }
-  bool clear() {}
+  void clear() {}
   bool add() { return 0; }  
   void update_field(int offset) {}
 };
