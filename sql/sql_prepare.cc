@@ -440,10 +440,9 @@ static bool mysql_test_upd_fields(PREP_STMT *stmt, TABLE_LIST *table_list,
 				  COND *conds)
 {
   THD *thd= stmt->thd;
-  TABLE *table;
   DBUG_ENTER("mysql_test_upd_fields");
 
-  if (!(table = open_ltable(thd,table_list,table_list->lock_type)))
+  if (open_and_lock_tables(thd, table_list))
     DBUG_RETURN(1);
 
   if (setup_tables(table_list) || setup_fields(thd,table_list,fields,1,0,0) || 
@@ -477,13 +476,12 @@ static bool mysql_test_select_fields(PREP_STMT *stmt, TABLE_LIST *tables,
 				     COND *conds, ORDER *order, ORDER *group,
 				     Item *having)
 {
-  TABLE *table;
   bool hidden_group_fields;
   THD *thd= stmt->thd;
   List<Item>  all_fields(fields);
   DBUG_ENTER("mysql_test_select_fields");
 
-  if (!(table = open_ltable(thd,tables,TL_READ)))
+  if (open_and_lock_tables(thd, tables))
     DBUG_RETURN(1);
   
   thd->used_tables=0;	// Updated by setup_fields
@@ -512,7 +510,7 @@ static bool mysql_test_select_fields(PREP_STMT *stmt, TABLE_LIST *tables,
      sending any info on where clause.
   */
   if (send_prep_stmt(stmt, fields.elements) ||
-      thd->protocol_prep.send_fields(&fields,0) ||
+      thd->protocol_simple.send_fields(&fields,0) ||
       send_item_params(stmt))
     DBUG_RETURN(1);
   DBUG_RETURN(0);  
@@ -626,14 +624,17 @@ static bool parse_prepare_query(PREP_STMT *stmt,
 /*
   Initialize parameter items in statement
 */
-static bool init_param_items(THD *thd, PREP_STMT *stmt)
+
+static bool init_param_items( PREP_STMT *stmt)
 {
+  List<Item> &params= stmt->thd->lex.param_list;
   Item_param **to;
+  
   if (!(stmt->param= to= (Item_param **)
         my_malloc(sizeof(Item_param *)*(stmt->param_count+1), 
                   MYF(MY_WME))))
     return 1;
-  List_iterator<Item> param_iterator(thd->lex.param_list);
+  List_iterator<Item> param_iterator(params);
   while ((*(to++) = (Item_param *)param_iterator++));
   return 0;
 }
@@ -659,29 +660,32 @@ bool mysql_stmt_prepare(THD *thd, char *packet, uint packet_length)
   DBUG_ENTER("mysql_stmt_prepare");
 
   bzero((char*) &stmt, sizeof(stmt));
-  stmt.thd= thd;
+  
   stmt.stmt_id= ++thd->current_stmt_id;
   init_sql_alloc(&stmt.mem_root, 8192, 8192);
+  
+  stmt.thd= thd;
+  stmt.thd->mem_root= stmt.mem_root;
 
-  thd->mem_root= stmt.mem_root;
-  if (alloc_query(thd, packet, packet_length))
+  if (alloc_query(stmt.thd, packet, packet_length))
     goto err;
+
   if (parse_prepare_query(&stmt, thd->query, thd->query_length))
     goto err;
 
   if (!(specialflag & SPECIAL_NO_PRIOR))
     my_pthread_setprio(pthread_self(),WAIT_PRIOR);
   
-  if (init_param_items(thd, &stmt))
+  if (init_param_items(&stmt))
     goto err;
   
-  stmt.mem_root= thd->mem_root;  
+  stmt.mem_root= stmt.thd->mem_root;  
   tree_insert(&thd->prepared_statements, (void *)&stmt, 0, (void *)0);
   thd->mem_root= thd_root; // restore main mem_root
   DBUG_RETURN(0);
 
 err:
-  stmt.mem_root= thd->mem_root;
+  stmt.mem_root= stmt.thd->mem_root;  
   free_prep_stmt(&stmt, free_free, (void*) 0);
   thd->mem_root = thd_root;	// restore main mem_root
   DBUG_RETURN(1);
@@ -727,9 +731,9 @@ void mysql_stmt_execute(THD *thd, char *packet)
     mysql_delete(), mysql_update() and mysql_select() to not to 
     have re-check on setup_* and other things ..
   */  
-  thd->protocol= &thd->protocol_prep;		// Switch to binary protocol
+  stmt->thd->protocol= &thd->protocol_prep;		// Switch to binary protocol
   mysql_execute_command(stmt->thd);
-  thd->protocol= &thd->protocol_simple;		// Use normal protocol
+  stmt->thd->protocol= &thd->protocol_simple;		// Use normal protocol
 
   if (!(specialflag & SPECIAL_NO_PRIOR))
     my_pthread_setprio(pthread_self(), WAIT_PRIOR);
