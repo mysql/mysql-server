@@ -16,6 +16,7 @@ Created 9/8/1995 Heikki Tuuri
 #endif
 
 #include "srv0srv.h"
+#include "os0sync.h"
 
 /*******************************************************************
 Compares two thread ids for equality. */
