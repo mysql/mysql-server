@@ -124,7 +124,7 @@ inline table_map Item_subselect::used_tables() const
 
 Item_singleval_subselect::Item_singleval_subselect(THD *thd,
 						   st_select_lex *select_lex):
-  Item_subselect()
+  Item_subselect(), value(0)
 {
   DBUG_ENTER("Item_singleval_subselect::Item_singleval_subselect");
   init(thd, select_lex, new select_singleval_subselect(this));
@@ -133,10 +133,43 @@ Item_singleval_subselect::Item_singleval_subselect(THD *thd,
   DBUG_VOID_RETURN;
 }
 
+void Item_singleval_subselect::reset()
+{
+  null_value= 1;
+  if (value)
+    value->null_value= 1;
+}
+
+void Item_singleval_subselect::store(Item *item)
+{
+  value->store(item);
+}
+
+enum Item_result Item_singleval_subselect::result_type() const
+{
+  return engine->type();
+}
+
 void Item_singleval_subselect::fix_length_and_dec()
 {
   engine->fix_length_and_dec();
-  res_type= engine->type();
+  switch (engine->type())
+  {
+  case INT_RESULT:
+    value= new Item_cache_int();
+    break;
+  case REAL_RESULT:
+    value= new Item_cache_real();
+    break;
+  case STRING_RESULT:
+    value= new Item_cache_str();
+    break;
+  default:
+    // should never be in real life
+    DBUG_ASSERT(0);
+    return;
+  }
+  value->set_len_n_dec(max_length, decimals);
 }
 
 Item::Type Item_subselect::type() const 
@@ -146,32 +179,44 @@ Item::Type Item_subselect::type() const
 
 double Item_singleval_subselect::val () 
 {
-  if (engine->exec())
+  if (!engine->exec() && !value->null_value)
+  {
+    null_value= 0;
+    return value->val();
+  }
+  else
   {
     reset();
     return 0;
   }
-  return real_value;
 }
 
 longlong Item_singleval_subselect::val_int () 
 {
-  if (engine->exec())
+  if (!engine->exec() && !value->null_value)
+  {
+    null_value= 0;
+    return value->val_int();
+  }
+  else
   {
     reset();
     return 0;
   }
-  return int_value;
 }
 
 String *Item_singleval_subselect::val_str (String *str) 
 {
-  if (engine->exec() || null_value)
+  if (!engine->exec() && !value->null_value)
+  {
+    null_value= 0;
+    return value->val_str(str);
+  }
+  else
   {
     reset();
     return 0;
   }
-  return &string_value;
 }
 
 Item_exists_subselect::Item_exists_subselect(THD *thd,

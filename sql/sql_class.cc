@@ -932,31 +932,7 @@ bool select_singleval_subselect::send_data(List<Item> &items)
   }
   List_iterator_fast<Item> li(items);
   Item *val_item= li++;                   // Only one (single value subselect)
-  /*
-    Following val() call have to be first, because function AVG() & STD()
-    calculate value on it & determinate "is it NULL?".
-  */
-  it->real_value= val_item->val_result();
-  if ((it->null_value= val_item->null_value))
-  {
-    it->reset();
-  } 
-  else 
-  {
-    it->max_length= val_item->max_length;
-    it->decimals= val_item->decimals;
-    it->set_charset(val_item->charset());
-    it->int_value= val_item->val_int_result();
-    String *s= val_item->str_result(&it->string_value);
-    if (s != &it->string_value)
-    {
-      it->string_value.set(*s, 0, s->length());
-    }
-    // TODO: remove when correct charset handling appeared for Item
-    it->str_value.set(*s, 0, s->length()); // store charset
-
-    it->res_type= val_item->result_type();
-  }
+  it->store(val_item);
   it->assigned(1);
   DBUG_RETURN(0);
 }
