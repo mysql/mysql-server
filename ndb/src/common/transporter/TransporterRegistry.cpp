@@ -1267,17 +1267,17 @@ TransporterRegistry::stop_clients()
 void
 TransporterRegistry::add_transporter_interface(NodeId remoteNodeId,
 					       const char *interf, 
-					       int port)
+					       int s_port)
 {
   DBUG_ENTER("TransporterRegistry::add_transporter_interface");
-  DBUG_PRINT("enter",("interface=%s, port= %d", interf, port));
+  DBUG_PRINT("enter",("interface=%s, s_port= %d", interf, s_port));
   if (interf && strlen(interf) == 0)
     interf= 0;
 
   for (unsigned i= 0; i < m_transporter_interface.size(); i++)
   {
     Transporter_interface &tmp= m_transporter_interface[i];
-    if (port != tmp.m_service_port || tmp.m_service_port==0)
+    if (s_port != tmp.m_s_service_port || tmp.m_s_service_port==0)
       continue;
     if (interf != 0 && tmp.m_interface != 0 &&
 	strcmp(interf, tmp.m_interface) == 0)
@@ -1291,7 +1291,7 @@ TransporterRegistry::add_transporter_interface(NodeId remoteNodeId,
   }
   Transporter_interface t;
   t.m_remote_nodeId= remoteNodeId;
-  t.m_service_port= port;
+  t.m_s_service_port= s_port;
   t.m_interface= interf;
   m_transporter_interface.push_back(t);
   DBUG_PRINT("exit",("interface and port added"));
@@ -1311,9 +1311,9 @@ TransporterRegistry::start_service(SocketServer& socket_server)
   {
     Transporter_interface &t= m_transporter_interface[i];
 
-    unsigned short port= t.m_service_port;
-    if(t.m_service_port<0)
-      port= -t.m_service_port; // is a dynamic port
+    unsigned short port= (unsigned short)t.m_s_service_port;
+    if(t.m_s_service_port<0)
+      port= -t.m_s_service_port; // is a dynamic port
     TransporterService *transporter_service =
       new TransporterService(new SocketAuthSimple("ndbd", "ndbd passwd"));
     if(!socket_server.setup(transporter_service,
@@ -1321,7 +1321,7 @@ TransporterRegistry::start_service(SocketServer& socket_server)
     {
       DBUG_PRINT("info", ("Trying new port"));
       port= 0;
-      if(t.m_service_port>0
+      if(t.m_s_service_port>0
 	 || !socket_server.setup(transporter_service,
 				 &port, t.m_interface))
       {
@@ -1332,13 +1332,13 @@ TransporterRegistry::start_service(SocketServer& socket_server)
 	ndbout_c("Unable to setup transporter service port: %s:%d!\n"
 		 "Please check if the port is already used,\n"
 		 "(perhaps the node is already running)",
-		 t.m_interface ? t.m_interface : "*", t.m_service_port);
+		 t.m_interface ? t.m_interface : "*", t.m_s_service_port);
 	delete transporter_service;
 	return false;
       }
     }
-    t.m_service_port= (t.m_service_port<=0)?-port:port; // -`ve if dynamic
-    DBUG_PRINT("info", ("t.m_service_port = %d",t.m_service_port));
+    t.m_s_service_port= (t.m_s_service_port<=0)?-port:port; // -`ve if dynamic
+    DBUG_PRINT("info", ("t.m_s_service_port = %d",t.m_s_service_port));
     transporter_service->setTransporterRegistry(this);
   }
   return true;

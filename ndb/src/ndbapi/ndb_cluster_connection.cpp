@@ -500,7 +500,7 @@ int Ndb_cluster_connection::connect(int no_retries, int retry_delay_in_seconds,
 					   CFG_CONNECTION_SERVER_PORT,
 					   m_impl.m_transporter_facade->get_registry()
 					     ->m_transporter_interface[i]
-					     .m_service_port,
+					     .m_s_service_port,
 					   &mgm_reply);
 
     ndb_mgm_destroy_configuration(props);
