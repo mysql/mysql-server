@@ -256,4 +256,6 @@ Table	Op	Msg_type	Msg_text
 test.t1	assign_to_keycache	status	OK
 test.t2	assign_to_keycache	status	OK
 drop table t1,t2,t3;
-set global keycache1.key_buffer_size=0;
+set global keycache2.key_buffer_size=0;
+set global keycache3.key_buffer_size=100;
+set global keycache3.key_buffer_size=0;
