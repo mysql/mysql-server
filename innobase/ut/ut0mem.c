@@ -221,27 +221,3 @@ ut_str_catenate(
 
 	return(str);
 }
-
-/**************************************************************************
-Checks if a null-terminated string contains a certain character. */
-
-ibool
-ut_str_contains(
-/*============*/
-	char*	str,	/* in: null-terminated string */
-	char	c)	/* in: character */
-{
-	ulint	len;
-	ulint	i;
-
-	len = ut_strlen(str);
-
-	for (i = 0; i < len; i++) {
-		if (str[i] == c) {
-
-			return(TRUE);
-		}
-	}
-
-	return(FALSE);
-}
