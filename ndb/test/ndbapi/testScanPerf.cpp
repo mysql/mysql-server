@@ -38,10 +38,10 @@ struct Parameter {
 #define P_ROWS    7
 #define P_LOOPS   8
 #define P_CREATE  9
-#define P_LOAD   10
 #define P_RESET  11
+#define P_MULTI  12
 
-#define P_MAX 12
+#define P_MAX 13
 
 static 
 Parameter 
@@ -57,7 +57,8 @@ g_paramters[] = {
   { "iterations",  3, 1, ~0 },
   { "create_drop", 1, 0, 1 },
   { "data",        1, 0, 1 },
-  { "q-reset bounds", 0, 1, 0 }
+  { "q-reset bounds", 0, 1, 0 },
+  { "multi read range", 1000, 1, ~0 }
 };
 
 static Ndb* g_ndb = 0;
@@ -67,10 +68,7 @@ static char g_tablename[256];
 static char g_indexname[256];
 
 int create_table();
-int load_table();
 int run_scan();
-int clear_table();
-int drop_table();
 
 int
 main(int argc, const char** argv){
@@ -117,13 +115,7 @@ main(int argc, const char** argv){
     BaseString::snprintf(g_indexname, sizeof(g_indexname), "IDX_%s", T);
     if(create_table())
       goto error;
-    if(load_table())
-      goto error;
     if(run_scan())
-      goto error;
-    if(clear_table())
-      goto error;
-    if(drop_table())
       goto error;
   }
 
@@ -139,6 +131,7 @@ create_table(){
   NdbDictionary::Dictionary* dict = g_ndb->getDictionary();
   assert(dict);
   if(g_paramters[P_CREATE].value){
+    g_ndb->getDictionary()->dropTable(g_tablename);
     const NdbDictionary::Table * pTab = NDBT_Tables::getTable(g_tablename);
     assert(pTab);
     NdbDictionary::Table copy = * pTab;
@@ -167,46 +160,18 @@ create_table(){
   g_index = dict->getIndex(g_indexname, g_tablename);
   assert(g_table);
   assert(g_index);
-  return 0;
-}
 
-int
-drop_table(){
-  if(!g_paramters[P_CREATE].value)
-    return 0;
-  if(g_ndb->getDictionary()->dropTable(g_table->getName()) != 0){
-    g_err << "Failed to drop table: " << g_table->getName() << endl;
-    return -1;
+  if(g_paramters[P_CREATE].value)
+  {
+    int rows = g_paramters[P_ROWS].value;
+    HugoTransactions hugoTrans(* g_table);
+    if (hugoTrans.loadTable(g_ndb, rows)){
+      g_err.println("Failed to load %s with %d rows", 
+		    g_table->getName(), rows);
+      return -1;
+    }
   }
-  g_table = 0;
-  return 0;
-}
-
-int
-load_table(){
-  if(!g_paramters[P_LOAD].value)
-    return 0;
   
-  int rows = g_paramters[P_ROWS].value;
-  HugoTransactions hugoTrans(* g_table);
-  if (hugoTrans.loadTable(g_ndb, rows)){
-    g_err.println("Failed to load %s with %d rows", g_table->getName(), rows);
-    return -1;
-  }
-  return 0;
-}
-
-int
-clear_table(){
-  if(!g_paramters[P_LOAD].value)
-    return 0;
-  int rows = g_paramters[P_ROWS].value;
-  
-  UtilTransactions utilTrans(* g_table);
-  if (utilTrans.clearTable(g_ndb,  rows) != 0){
-    g_err.println("Failed to clear table %s", g_table->getName());
-    return -1;
-  }
   return 0;
 }
 
@@ -222,11 +187,12 @@ run_scan(){
   int sum_time= 0;
 
   int sample_rows = 0;
+  int tot_rows = 0;
   NDB_TICKS sample_start = NdbTick_CurrentMillisecond();
 
   Uint32 tot = g_paramters[P_ROWS].value;
 
-  if(g_paramters[P_BOUND].value == 2 || g_paramters[P_FILT].value == 2)
+  if(g_paramters[P_BOUND].value >= 2 || g_paramters[P_FILT].value == 2)
     iter *= g_paramters[P_ROWS].value;
 
   NdbScanOperation * pOp = 0;
@@ -293,11 +259,24 @@ run_scan(){
 #else
 	pIOp->setBound((Uint32)0, NdbIndexScanOperation::BoundEQ, &row);
 #endif
+	if(g_paramters[P_RESET].value == 2)
+	  goto execute;
+	break;
+      }
+      case 3: { // read multi
+	int multi = g_paramters[P_MULTI].value;
+	int tot = g_paramters[P_ROWS].value;
+	for(; multi > 0 && i < iter; --multi, i++)
+	{
+	  int row = rand() % tot;
+	  pIOp->setBound((Uint32)0, NdbIndexScanOperation::BoundEQ, &row);
+	  pIOp->set_new_bound();
+	}
+	if(g_paramters[P_RESET].value == 2)
+	  goto execute;
 	break;
       }
       }
-      if(g_paramters[P_RESET].value == 1)
-	goto execute;
     }
     assert(pOp);
     assert(rs);
@@ -330,9 +309,15 @@ run_scan(){
     }
     assert(check == 0);
 
+    if(g_paramters[P_RESET].value == 1)
+      g_paramters[P_RESET].value = 2;
+    
     for(int i = 0; i<g_table->getNoOfColumns(); i++){
       pOp->getValue(i);
     }
+
+    if(g_paramters[P_RESET].value == 1)
+      g_paramters[P_RESET].value = 2;
 execute:
     int rows = 0;
     check = pTrans->execute(NoCommit);
@@ -364,6 +349,7 @@ execute:
     int time_passed= (int)(stop - start1);
     sample_rows += rows;
     sum_time+= time_passed;
+    tot_rows+= rows;
     
     if(sample_rows >= tot)
     {
@@ -375,8 +361,8 @@ execute:
       sample_start = stop;
     }
   }
-
-  g_err.println("Avg time: %d ms = %u rows/sec", sum_time/iter,
-                (1000*tot*iter)/sum_time);
+  
+  g_err.println("Avg time: %d ms = %u rows/sec", sum_time/tot_rows,
+                (1000*tot_rows)/sum_time);
   return 0;
 }
