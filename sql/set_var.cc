@@ -219,6 +219,11 @@ sys_var_thd_ulong	sys_tmp_table_size("tmp_table_size",
 					   &SV::tmp_table_size);
 sys_var_thd_ulong	sys_net_wait_timeout("wait_timeout",
 					     &SV::net_wait_timeout);
+					     
+#ifdef HAVE_INNOBASE_DB
+sys_var_long_ptr        sys_innodb_max_dirty_pages_pct("innodb_max_dirty_pages_pct",
+                                                        &srv_max_buf_pool_modified_pct);
+#endif 					     
 
 
 /*
@@ -378,6 +383,9 @@ sys_var *sys_variables[]=
   &sys_timestamp,
   &sys_tmp_table_size,
   &sys_tx_isolation,
+#ifdef HAVE_INNOBASE_DB
+  &sys_innodb_max_dirty_pages_pct,
+#endif    
   &sys_unique_checks
 };
 
@@ -446,6 +454,7 @@ struct show_var_st init_vars[]= {
   {"innodb_log_files_in_group", (char*) &innobase_log_files_in_group,	SHOW_LONG},
   {"innodb_log_group_home_dir", (char*) &innobase_log_group_home_dir, SHOW_CHAR_PTR},
   {"innodb_mirrored_log_groups", (char*) &innobase_mirrored_log_groups, SHOW_LONG},
+  {sys_innodb_max_dirty_pages_pct.name, (char*) &sys_innodb_max_dirty_pages_pct, SHOW_SYS},
 #endif
   {sys_interactive_timeout.name,(char*) &sys_interactive_timeout,   SHOW_SYS},
   {sys_join_buffer_size.name,   (char*) &sys_join_buffer_size,	    SHOW_SYS},
