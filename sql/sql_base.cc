@@ -242,6 +242,7 @@ static void free_cache_entry(TABLE *table)
   DBUG_VOID_RETURN;
 }
 
+/* Free resources allocated by filesort() and read_record() */
 
 void free_io_cache(TABLE *table)
 {
