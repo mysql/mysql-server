@@ -4,6 +4,8 @@
 # Check and select innodb lock type
 #
 
+set global innodb_table_locks=1;
+
 select @@innodb_table_locks;
 
 #
@@ -12,7 +14,10 @@ select @@innodb_table_locks;
 
 connect (con1,localhost,root,,);
 connect (con2,localhost,root,,);
+
+--disable_warnings
 drop table if exists t1;
+--enable_warnings
 
 #
 # Testing of explicit table locks with enforced table locks
