@@ -5627,7 +5627,7 @@ revoke_command:
 	grant_privileges ON opt_table FROM user_list
 	{}
 	|
-	ALL PRIVILEGES ',' GRANT OPTION FROM user_list
+	ALL opt_privileges ',' GRANT OPTION FROM user_list
 	{
 	  Lex->sql_command = SQLCOM_REVOKE_ALL;
 	}
@@ -5653,9 +5653,13 @@ grant:
 
 grant_privileges:
 	grant_privilege_list {}
-	| ALL PRIVILEGES	{ Lex->grant = GLOBAL_ACLS;}
-	| ALL			{ Lex->grant = GLOBAL_ACLS;}
+	| ALL opt_privileges	{ Lex->grant = GLOBAL_ACLS;}
         ;
+
+opt_privileges:
+	/* empty */
+	| PRIVILEGES
+	;
 
 grant_privilege_list:
 	grant_privilege
