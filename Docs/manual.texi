@@ -3058,21 +3058,21 @@ from the local @strong{MySQL} list.
 The following @strong{MySQL} mailing lists exist:
 
 @table @code
-@item @email{announce-subscribe@@lists.mysql.com, announce}
+@item @email{announce-subscribe@@lists.mysql.com} announce
 This is for announcement of new versions of @strong{MySQL} and related
 programs.  This is a low volume list all @strong{MySQL} users should
 subscribe to.
 
-@item @email{mysql-subscribe@@lists.mysql.com, mysql}
+@item @email{mysql-subscribe@@lists.mysql.com} mysql
 The main list for general @strong{MySQL} discussion.  Please note that some
 topics are better discussed on the more-specialized lists.  If you post to the
 wrong list, you may not get an answer!
 
-@item @email{mysql-digest-subscribe@@lists.mysql.com, mysql-digest}
+@item @email{mysql-digest-subscribe@@lists.mysql.com} mysql-digest
 The @code{mysql} list in digest form.  That means you get all individual
 messages, sent as one large mail message once a day.
 
-@item @email{bugs-subscribe@@lists.mysql.com, bugs}
+@item @email{bugs-subscribe@@lists.mysql.com} bugs
 On this list you should only post a full, repeatable bug report using
 the @code{mysqlbug} script (if you are running on Windows, you should
 include a description of the operating system and the @strong{MySQL} version).
@@ -3083,55 +3083,45 @@ bugs posted on this list will be corrected or documented in the next
 @strong{MySQL} release!  If there are only small code changes involved, we
 will also post a patch that fixes the problem.
 
-@item @email{bugs-digest-subscribe@@lists.mysql.com, bugs-digest}
+@item @email{bugs-digest-subscribe@@lists.mysql.com} bugs-digest
 The @code{bugs} list in digest form.
 
-@item @email{developer-subscribe@@lists.mysql.com, developer}
-This list has been depreciated in favor of the
-@email{internals-subscribe@@lists.mysql.com, internals} list (below).
-
-@item @email{developer-digest-subscribe@@lists.mysql.com, developer-digest}
-This list has been deprecated in favor of the
-@email{internals-digest-subscribe@@lists.mysql.com, internals-digest} 
-list (below).
-
-@item @email{internals-subscribe@@lists.mysql.com, internals}
+@item @email{internals-subscribe@@lists.mysql.com} internals
 A list for people who work on the @strong{MySQL} code.  On this list one
 can also discuss @strong{MySQL} development and post patches.
 
-@item @email{internals-digest-subscribe@@lists.mysql.com, internals-digest}
-A digest version of the @email{internals-subscribe@@lists.mysql.com, internals}
-list.
+@item @email{internals-digest-subscribe@@lists.mysql.com} internals-digest
+A digest version of the @code{internals} list.
 
-@item @email{java-subscribe@@lists.mysql.com, java}
+@item @email{java-subscribe@@lists.mysql.com} java
 Discussion about @strong{MySQL} and Java.  Mostly about the JDBC drivers.
 
-@item @email{java-digest-subscribe@@lists.mysql.com, java-digest}
+@item @email{java-digest-subscribe@@lists.mysql.com} java-digest
 A digest version of the @code{java} list.
 
-@item @email{win32-subscribe@@lists.mysql.com, win32}
+@item @email{win32-subscribe@@lists.mysql.com} win32
 All things concerning @strong{MySQL} on Microsoft operating systems such as
 Win95, Win98, NT, and Win2000.
 
-@item @email{win32-digest-subscribe@@lists.mysql.com, win32-digest}
+@item @email{win32-digest-subscribe@@lists.mysql.com} win32-digest
 A digest version of the @code{win32} list.
 
-@item @email{myodbc-subscribe@@lists.mysql.com, myodbc}
+@item @email{myodbc-subscribe@@lists.mysql.com} myodbc
 All things about connecting to @strong{MySQL} with ODBC.
 
-@item @email{myodbc-digest-subscribe@@lists.mysql.com, myodbc-digest}
+@item @email{myodbc-digest-subscribe@@lists.mysql.com} myodbc-digest
 A digest version of the @code{myodbc} list.
 
-@item @email{plusplus-subscribe@@lists.mysql.com, plusplus}
+@item @email{plusplus-subscribe@@lists.mysql.com} plusplus
 All things concerning programming with the C++ API to @strong{MySQL}.
 
-@item @email{plusplus-digest-subscribe@@lists.mysql.com, plusplus-digest}
+@item @email{plusplus-digest-subscribe@@lists.mysql.com} plusplus-digest
 A digest version of the @code{plusplus} list.
 
-@item @email{msql-mysql-modules-subscribe@@lists.mysql.com, msql-mysql-modules}
-A list about the Perl support in @strong{MySQL}.
+@item @email{msql-mysql-modules-subscribe@@lists.mysql.com}
+A list about the Perl support in @strong{MySQL}. msql-mysql-modules
 
-@item @email{msql-mysql-modules-digest-subscribe@@lists.mysql.com, msql-mysql-modules-digest}
+@item @email{msql-mysql-modules-digest-subscribe@@lists.mysql.com} msql-mysql-modules-digest
 A digest version of the @code{msql-mysql-modules} list.
 @end table
 
@@ -3147,16 +3137,16 @@ English.  Note that these are not operated by @strong{MySQL AB}, so we can't
 guarantee the quality on these.
 
 @table @code
-@item @email{mysql-france-subscribe@@yahoogroups.com, A French mailing list}
-@item @email{list@@tinc.net, A Korean mailing list}
+@item @email{mysql-france-subscribe@@yahoogroups.com} A French mailing list
+@item @email{list@@tinc.net} A Korean mailing list
 Email @code{subscribe mysql your@@email.address} to this list.
-@item @email{mysql-de-request@@lists.4t2.com, A German mailing list}
+@item @email{mysql-de-request@@lists.4t2.com} A German mailing list
 Email @code{subscribe mysql-de your@@email.address} to this list.
 You can find information about this mailing list at
 @uref{http://www.4t2.com/mysql}.
-@item @email{mysql-br-request@@listas.linkway.com.br, A Portugese mailing list}
+@item @email{mysql-br-request@@listas.linkway.com.br} A Portugese mailing list
 Email @code{subscribe mysql-br your@@email.address} to this list.
-@item @email{mysql-alta@@elistas.net, A Spanish mailing list}
+@item @email{mysql-alta@@elistas.net} A Spanish mailing list
 Email @code{subscribe mysql your@@email.address} to this list.
 @end table
 
@@ -4514,11 +4504,11 @@ Please report bad or out-of-date mirrors to @email{webmaster@@mysql.com}.
 @uref{http://ftp.esat.net/mirrors/download.sourceforge.net/pub/mirrors/mysql/, WWW}
 @uref{ftp://ftp.esat.net/mirrors/download.sourceforge.net/pub/mirrors/mysql/, FTP}
 
-@c @item
+@item
 @c Added 20010524
 @c EMAIL: arvids@parks.lv (Arvids)
-@c @image{Flags/latvia} Latvia [linux.lv] @
-@c @uref{ftp://ftp.linux.lv/pub/software/mysql/, FTP}
+@image{Flags/latvia} Latvia [linux.lv] @
+@uref{ftp://ftp.linux.lv/pub/software/mysql/, FTP}
 
 @item
 @c Added 20001125
@@ -50040,7 +50030,7 @@ of @code{analyze} is run on all sub tables.
 @end itemize
 
 @node TODO future, TODO sometime, TODO MySQL 4.0, TODO
-@appendixsec Things that must done in the real near future
+@appendixsec Things that must be done in the real near future
 
 @itemize @bullet
 @item
