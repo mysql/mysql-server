@@ -1457,3 +1457,10 @@ dbid	name
 -1	Valid
 -1	Valid 2
 drop table t1,t2,t3,t4;
+CREATE TABLE t1 (id int(11) default NULL) TYPE=MyISAM CHARSET=latin1;
+INSERT INTO t1 VALUES (1),(5);
+CREATE TABLE t2 (id int(11) default NULL) TYPE=MyISAM CHARSET=latin1;
+INSERT INTO t2 VALUES (2),(6);
+select * from t1 where (1,2,6) in (select * from t2);
+ERROR 21000: Operand should contain 3 column(s)
+DROP TABLE t1,t2;
