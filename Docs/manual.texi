@@ -46491,6 +46491,8 @@ Our TODO section contains what we plan to have in 4.0. @xref{TODO MySQL 4.0}.
 
 @itemize @bullet
 @item
+Fixed core dump bug in @code{UPDATE ... ORDER BY }.
+@item
 Changed @code{INSERT INTO .. SELECT} to by default stop on errors.
 @item
 Ignore @code{DATA DIRECTORY} and @code{INDEX DIRECTORY} directives on windows.

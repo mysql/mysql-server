@@ -2305,10 +2305,6 @@ values:
 
 update:
 	UPDATE_SYM opt_low_priority opt_ignore table_name
-        SET update_list 
-        where_clause 
-        opt_order_clause
-        delete_limit_clause
 	{ 
 	  LEX *lex=Lex;
           lex->sql_command = SQLCOM_UPDATE;
@@ -2316,6 +2312,10 @@ update:
           lex->select->order_list.first=0;
           lex->select->order_list.next= (byte**) &lex->select->order_list.first;
         }
+        SET update_list 
+        where_clause 
+        opt_order_clause
+        delete_limit_clause
 
 update_list:
 	update_list ',' simple_ident equal expr
