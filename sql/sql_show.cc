@@ -1136,7 +1136,7 @@ static const char *require_quotes(const char *name, uint name_length)
   for ( ; name < end ; name++)
   {
     uchar chr= (uchar) *name;
-    length= my_mbcharlen(system_charset_info, chr);
+    length= my_mbcharlen(system_charset_info, (uchar) chr);
     if (length == 1 && !system_charset_info->ident_map[chr])
       return name;
   }
@@ -1165,7 +1165,7 @@ append_identifier(THD *thd, String *packet, const char *name, uint length)
   for (name_end= name+length ; name < name_end ; name+= length)
   {
     char chr= *name;
-    length= my_mbcharlen(system_charset_info, chr);
+    length= my_mbcharlen(system_charset_info, (uchar) chr);
     if (length == 1 && chr == quote_char)
       packet->append(&quote_char, 1, system_charset_info);
     packet->append(name, length, packet->charset());
