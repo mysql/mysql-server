@@ -182,7 +182,7 @@ typedef struct st_copy_info {
   ha_rows copied;
   ha_rows error;
   enum enum_duplicates handle_duplicates;
-  int escape_char;
+  int escape_char, errorno;
 } COPY_INFO;
 
 
@@ -666,6 +666,7 @@ class select_union :public select_result {
   TABLE *table;
   COPY_INFO info;
   uint save_time_stamp;
+  TMP_TABLE_PARAM *tmp_table_param;
 
   select_union(TABLE *table_par);
   ~select_union();
