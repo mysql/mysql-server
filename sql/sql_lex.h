@@ -461,6 +461,7 @@ typedef struct st_lex
   uint slave_thd_opt;
   CHARSET_INFO *charset;
   char *help_arg;
+  bool tmp_table_used;
 } LEX;
 
 
