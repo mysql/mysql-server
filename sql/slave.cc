@@ -1164,15 +1164,15 @@ int fetch_master_table(THD *thd, const char *db_name, const char *table_name,
 
   if (!called_connected)
   { 
-    if (!(mysql = mc_mysql_init(NULL)))
+    if (!(mysql = mysql_init(NULL)))
     {
       send_error(thd);			// EOM
       DBUG_RETURN(1);
     }
     if (connect_to_master(thd, mysql, mi))
     {
-      net_printf(thd, ER_CONNECT_TO_MASTER, mc_mysql_error(mysql));
-      mc_mysql_close(mysql);
+      net_printf(thd, ER_CONNECT_TO_MASTER, mysql_error(mysql));
+      mysql_close(mysql);
       DBUG_RETURN(1);
     }
     if (thd->killed)
@@ -1193,7 +1193,7 @@ int fetch_master_table(THD *thd, const char *db_name, const char *table_name,
  err:
   thd->net.no_send_ok = 0; // Clear up garbage after create_table_from_dump
   if (!called_connected)
-    mc_mysql_close(mysql);
+    mysql_close(mysql);
   if (errmsg && thd->net.vio)
     send_error(thd, error, errmsg);
   DBUG_RETURN(test(error));			// Return 1 on error
@@ -1560,12 +1560,12 @@ int register_slave_on_master(MYSQL* mysql)
   /* The master will fill in master_id */
   int4store(pos, 0);			pos+= 4;
 
-  if (mc_simple_command(mysql, COM_REGISTER_SLAVE, (char*) buf,
+  if (simple_command(mysql, COM_REGISTER_SLAVE, (char*) buf,
 			(uint) (pos- buf), 0))
   {
     sql_print_error("Error on COM_REGISTER_SLAVE: %d '%s'",
-		    mc_mysql_errno(mysql),
-		    mc_mysql_error(mysql));
+		    mysql_errno(mysql),
+		    mysql_error(mysql));
     return 1;
   }
   return 0;
@@ -1959,18 +1959,18 @@ static int request_dump(MYSQL* mysql, MASTER_INFO* mi,
   int4store(buf + 6, server_id);
   len = (uint) strlen(logname);
   memcpy(buf + 10, logname,len);
-  if (mc_simple_command(mysql, COM_BINLOG_DUMP, buf, len + 10, 1))
+  if (simple_command(mysql, COM_BINLOG_DUMP, buf, len + 10, 1))
   {
     /*
       Something went wrong, so we will just reconnect and retry later
       in the future, we should do a better error analysis, but for
       now we just fill up the error log :-)
     */
-    if (mc_mysql_errno(mysql) == ER_NET_READ_INTERRUPTED)
+    if (mysql_errno(mysql) == ER_NET_READ_INTERRUPTED)
       *suppress_warnings= 1;			// Suppress reconnect warning
     else
       sql_print_error("Error on COM_BINLOG_DUMP: %d  %s, will retry in %d secs",
-		      mc_mysql_errno(mysql), mc_mysql_error(mysql),
+		      mysql_errno(mysql), mysql_error(mysql),
 		      master_connect_retry);
     DBUG_RETURN(1);
   }
@@ -1997,7 +1997,7 @@ static int request_table_dump(MYSQL* mysql, const char* db, const char* table)
   *p++ = table_len;
   memcpy(p, table, table_len);
   
-  if (mc_simple_command(mysql, COM_TABLE_DUMP, buf, p - buf + table_len, 1))
+  if (simple_command(mysql, COM_TABLE_DUMP, buf, p - buf + table_len, 1))
   {
     sql_print_error("request_table_dump: Error sending the table dump \
 command");
@@ -2041,10 +2041,10 @@ static ulong read_event(MYSQL* mysql, MASTER_INFO *mi, bool* suppress_warnings)
     return packet_error;      
 #endif
   
-  len = mc_net_safe_read(mysql);
+  len = net_safe_read(mysql);
   if (len == packet_error || (long) len < 1)
   {
-    if (mc_mysql_errno(mysql) == ER_NET_READ_INTERRUPTED)
+    if (mysql_errno(mysql) == ER_NET_READ_INTERRUPTED)
     {
       /*
 	We are trying a normal reconnect after a read timeout;
@@ -2056,7 +2056,7 @@ static ulong read_event(MYSQL* mysql, MASTER_INFO *mi, bool* suppress_warnings)
     else
       sql_print_error("Error reading packet from server: %s (\
 server_errno=%d)",
-		      mc_mysql_error(mysql), mc_mysql_errno(mysql));
+		      mysql_error(mysql), mysql_errno(mysql));
     return packet_error;
   }
 
@@ -2064,7 +2064,7 @@ server_errno=%d)",
   {
      sql_print_error("Slave: received 0 length packet from server, apparent\
  master shutdown: %s",
-		     mc_mysql_error(mysql));
+		     mysql_error(mysql));
      return packet_error;
   }
   
@@ -2214,7 +2214,7 @@ slave_begin:
 			    mi->master_log_name,
 			    llstr(mi->master_log_pos,llbuff)));
   
-  if (!(mi->mysql = mysql = mc_mysql_init(NULL)))
+  if (!(mi->mysql = mysql = mysql_init(NULL)))
   {
     sql_print_error("Slave I/O thread: error in mc_mysql_init()");
     goto err;
@@ -2269,7 +2269,7 @@ dump");
       }
 	  
       thd->proc_info = "Waiiting to reconnect after a failed dump request";
-      mc_end_server(mysql);
+      end_server(mysql);
       /*
 	First time retry immediately, assuming that we can recover
 	right away - if first time fails, sleep between re-tries
@@ -2319,7 +2319,7 @@ after reconnect");
 	  	  
       if (event_len == packet_error)
       {
-	uint mysql_error_number= mc_mysql_errno(mysql);
+	uint mysql_error_number= mysql_errno(mysql);
 	if (mysql_error_number == ER_NET_PACKET_TOO_LARGE)
 	{
 	  sql_print_error("\
@@ -2332,11 +2332,11 @@ max_allowed_packet",
 	if (mysql_error_number == ER_MASTER_FATAL_ERROR_READING_BINLOG)
 	{
 	  sql_print_error(ER(mysql_error_number), mysql_error_number,
-			  mc_mysql_error(mysql));
+			  mysql_error(mysql));
 	  goto err;
 	}
 	thd->proc_info = "Waiting to reconnect after a failed read";
-	mc_end_server(mysql);
+	end_server(mysql);
 	if (retry_count++)
 	{
 	  if (retry_count > master_retry_count)
@@ -2406,7 +2406,7 @@ err:
   VOID(pthread_mutex_unlock(&LOCK_thread_count));
   if (mysql)
   {
-    mc_mysql_close(mysql);
+    mysql_close(mysql);
     mi->mysql=0;
   }
   thd->proc_info = "Waiting for slave mutex on exit";
@@ -2951,22 +2951,22 @@ static int connect_to_master(THD* thd, MYSQL* mysql, MASTER_INFO* mi,
     client_flag=CLIENT_COMPRESS;		/* We will use compression */
 
   while (!(slave_was_killed = io_slave_killed(thd,mi)) &&
-	 (reconnect ? mc_mysql_reconnect(mysql) != 0:
-	  !mc_mysql_connect(mysql, mi->host, mi->user, mi->password, 0,
-			    mi->port, 0, client_flag,
-			    thd->variables.net_read_timeout)))
+	 (reconnect ? mysql_reconnect(mysql) != 0:
+	  !mysql_real_connect(mysql, mi->host, mi->user, mi->password, 0,
+			      mi->port, 0, client_flag,
+			      thd->variables.net_read_timeout)))
   {
     /* Don't repeat last error */
-    if (mc_mysql_errno(mysql) != last_errno)
+    if ((int)mysql_errno(mysql) != last_errno)
     {
-      last_errno=mc_mysql_errno(mysql);
+      last_errno=mysql_errno(mysql);
       suppress_warnings= 0;
       sql_print_error("Slave I/O thread: error %s to master \
 '%s@%s:%d': \
 Error: '%s'  errno: %d  retry-time: %d  retries: %d",
 		      (reconnect ? "reconnecting" : "connecting"),
 		      mi->user,mi->host,mi->port,
-		      mc_mysql_error(mysql), last_errno,
+		      mysql_error(mysql), last_errno,
 		      mi->connect_retry,
 		      master_retry_count);
     }
