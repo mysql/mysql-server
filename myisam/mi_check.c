@@ -1182,7 +1182,8 @@ int mi_repair(MI_CHECK *param, register MI_INFO *info,
      That is the next line for... (serg)
   */
 
-  share->state.key_map= ((ulonglong)1L << share->base.keys)-1;
+  share->state.key_map= (((ulonglong) 1L << share->base.keys)-1 &
+			 param->keys_in_use);
 
   info->state->key_file_length=share->base.keystart;
 
