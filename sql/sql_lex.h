@@ -388,6 +388,8 @@ typedef struct st_lex
   SELECT_LEX select_lex;                        /* first SELECT_LEX */
   /* current SELECT_LEX in parsing */
   SELECT_LEX_NODE *current_select;
+  /* list of all SELECT_LEX */
+  SELECT_LEX *all_selects_list;
   uchar *ptr,*tok_start,*tok_end,*end_of_query;
   char *length,*dec,*change,*name;
   char *backup_dir;				/* For RESTORE/BACKUP */
