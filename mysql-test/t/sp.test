@@ -944,7 +944,7 @@ select fun(2.3, 3, 5)|
 insert into t2 values (append("xxx", "yyy"), mul(4,3), e())|
 insert into t2 values (append("a", "b"), mul(2,mul(3,4)), fun(1.7, 4, 6))|
 
-# These don't work yet.
+# Disable PS because double's give a bit different values
 --disable_ps_protocol
 select * from t2 where s = append("a", "b")|
 select * from t2 where i = mul(4,3) or i = mul(mul(3,4),2)|
