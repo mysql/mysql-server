@@ -1516,9 +1516,12 @@ void Append_block_log_event::print(FILE* file, bool short_form,
 #ifndef MYSQL_CLIENT
 void Append_block_log_event::pack_info(String* packet)
 {
-  char buf1[256];
-  sprintf(buf1, ";file_id=%u;block_len=%u", file_id, block_len);
-  net_store_data(packet, buf1);
+  char buf[256];
+  uint length;
+  length= (uint) my_sprintf(buf,
+			    (buf, ";file_id=%u;block_len=%u", file_id,
+			     block_len));
+  net_store_data(packet, buf, length);
 }
 
 
@@ -1560,9 +1563,10 @@ void Delete_file_log_event::print(FILE* file, bool short_form,
 #ifndef MYSQL_CLIENT
 void Delete_file_log_event::pack_info(String* packet)
 {
-  char buf1[64];
-  sprintf(buf1, ";file_id=%u", (uint) file_id);
-  net_store_data(packet, buf1);
+  char buf[64];
+  uint length;
+  length= (uint) my_sprintf(buf, (buf, ";file_id=%u", (uint) file_id));
+  net_store_data(packet, buf, length);
 }
 #endif  
 
@@ -1607,8 +1611,9 @@ void Execute_load_log_event::print(FILE* file, bool short_form,
 void Execute_load_log_event::pack_info(String* packet)
 {
   char buf[64];
-  sprintf(buf, ";file_id=%u", (uint) file_id);
-  net_store_data(packet, buf);
+  uint length;
+  length= (uint) my_sprintf(buf, (buf, ";file_id=%u", (uint) file_id));
+  net_store_data(packet, buf, length);
 }
 #endif
 

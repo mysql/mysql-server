@@ -41,7 +41,7 @@ static  void rtree_PrintWKB(uchar *wkb, uint n_dims);
 static char blob_key[MAX_REC_LENGTH];
 
 
-int main(int argc,char *argv[])
+int main(int argc  __attribute__((unused)),char *argv[])
 {
   MY_INIT(argv[0]);
   exit(run_test("sp_test"));
@@ -320,7 +320,10 @@ static int read_with_pos (MI_INFO * file,int silent)
 }
 
 
-static void bprint_record(char * record, my_off_t offs,const char * tail)
+#ifdef NOT_USED
+static void bprint_record(char * record,
+			  my_off_t offs __attribute__((unused)),
+			  const char * tail)
 {
   int i;
   char * pos;
@@ -333,6 +336,8 @@ static void bprint_record(char * record, my_off_t offs,const char * tail)
   }
   printf("%s",tail);
 }
+#endif
+
 
 static void print_record(char * record, my_off_t offs,const char * tail)
 {
@@ -356,6 +361,7 @@ static void print_record(char * record, my_off_t offs,const char * tail)
 
 
 
+#ifndef NOT_USED
 static void create_point(char *record,uint rownr)
 {
    uint tmp;
@@ -380,6 +386,7 @@ static void create_point(char *record,uint rownr)
    ptr=blob_key;
    memcpy_fixed(pos,&ptr,sizeof(char*));
 }
+#endif
 
 
 static void create_linestring(char *record,uint rownr)

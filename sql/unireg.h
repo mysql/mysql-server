@@ -63,6 +63,8 @@
 
 #define MAX_SORT_MEMORY (2048*1024-MALLOC_OVERHEAD)
 #define MIN_SORT_MEMORY (32*1024-MALLOC_OVERHEAD)
+#define DEFAULT_ERROR_COUNT	64
+#define DEFAULT_PREP_STMT_COUNT	64
 #define EXTRA_RECORDS	10			/* Extra records in sort */
 #define SCROLL_EXTRA	5			/* Extra scroll-rows. */
 #define FIELD_NAME_USED ((uint) 32768)		/* Bit set if fieldname used */

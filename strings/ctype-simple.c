@@ -1,4 +1,4 @@
-/* Copyright (C) 2000 MySQL AB
+/* Copyright (C) 2002 MySQL AB
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -23,22 +23,24 @@ int my_strnxfrm_simple(CHARSET_INFO * cs,
                        char *dest, uint len,
                        const char *src, uint srclen)
 {
+  uchar *map= cs->sort_order;
   DBUG_ASSERT(len >= srclen);
   
   for ( ; len > 0 ; len-- )
-    *dest++= (char) cs->sort_order[(uchar) *src++];
+    *dest++= (char) map[(uchar) *src++];
   return srclen;
 }
 
-int my_strnncoll_simple(CHARSET_INFO * cs,const char *s, uint slen, 
-				const char *t, uint tlen)
+int my_strnncoll_simple(CHARSET_INFO * cs, const char *s, uint slen, 
+			const char *t, uint tlen)
 {
   int len = ( slen > tlen ) ? tlen : slen;
+  uchar *map= cs->sort_order;
   while (len--)
   {
-    if (cs->sort_order[(uchar) *s++] != cs->sort_order[(uchar) *t++])
-      return ((int) cs->sort_order[(uchar) s[-1]] -
-              (int) cs->sort_order[(uchar) t[-1]]);
+    if (map[(uchar) *s++] != map[(uchar) *t++])
+      return ((int) map[(uchar) s[-1]] -
+              (int) map[(uchar) t[-1]]);
   }
   return (int) (slen-tlen);
 }

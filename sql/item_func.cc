@@ -22,14 +22,13 @@
 #endif
 
 #include "mysql_priv.h"
+#include "slave.h" // for wait_for_master_pos
 #include <m_ctype.h>
 #include <hash.h>
 #include <time.h>
 #include <ft_global.h>
 #include <zlib.h>
-#include "slave.h" // for wait_for_master_pos
-#include "gstream.h"
-
+#include <assert.h>
 
 /* return TRUE if item is a constant */
 
@@ -231,9 +230,11 @@ Field *Item_func::tmp_table_field(TABLE *t_arg)
     break;
   case STRING_RESULT:
     if (max_length > 255)
-      res= new Field_blob(max_length, maybe_null, name, t_arg, binary);
+      res= new Field_blob(max_length, maybe_null, name, t_arg, binary,
+			  str_value.charset());
     else
-      res= new Field_string(max_length, maybe_null, name, t_arg, binary);
+      res= new Field_string(max_length, maybe_null, name, t_arg, binary,
+			    str_value.charset());
     break;
   }
   return res;
@@ -2390,18 +2391,19 @@ longlong Item_func_bit_xor::val_int()
 
 Item *get_system_var(enum_var_type var_type, LEX_STRING name)
 {
-  if (!my_strcasecmp(name.str,"VERSION"))
-    return new Item_string("@@VERSION",server_version,
-			   (uint) strlen(server_version));
+  if (!my_strcasecmp(system_charset_info, name.str, "VERSION"))
+    return new Item_string("@@VERSION", server_version,
+			   (uint) strlen(server_version),
+			   system_charset_info);
 
   THD *thd=current_thd;
   Item *item;
   sys_var *var;
   char buff[MAX_SYS_VAR_LENGTH+3];
 
-  if (!(var= find_sys_var(name.str)))
+  if (!(var= find_sys_var(name.str, name.length)))
   {
-    net_printf(&thd->net, ER_UNKNOWN_SYSTEM_VARIABLE, name.str);
+    net_printf(thd, ER_UNKNOWN_SYSTEM_VARIABLE, name.str);
     return 0;
   }
   if (!(item=var->item(thd, var_type)))
@@ -2411,6 +2413,23 @@ Item *get_system_var(enum_var_type var_type, LEX_STRING name)
   buff[1]='@';
   memcpy(buff+2, var->name, var->name_length+1);
   item->set_name(buff,var->name_length+2);	// Will allocate name
+  return item;
+}
+
+
+Item *get_system_var(enum_var_type var_type, const char *var_name, uint length,
+		     const char *item_name)
+{
+  THD *thd=current_thd;
+  Item *item;
+  sys_var *var;
+
+  var= find_sys_var(var_name, length);
+  DBUG_ASSERT(var != 0);
+  if (!(item=var->item(thd, var_type)))
+    return 0;					// Impossible
+  thd->safe_to_cache_query=0;
+  item->set_name(item_name);		// Will use original name
   return item;
 }
 

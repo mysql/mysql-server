@@ -44,10 +44,10 @@ Item::Item()
   current_thd->free_list=this;
 }
 
-void Item::set_name(char *str,uint length)
+void Item::set_name(const char *str,uint length)
 {
   if (!length)
-    name=str;					// Used by AS
+    name= (char*) str;				// Used by AS
   else
   {
     while (length && !my_isgraph(system_charset_info,*str))
@@ -303,21 +303,13 @@ void Item_param::set_int(longlong i)
   item_type = INT_ITEM;
 }
 
-void Item_param::set_double(double i)
+void Item_param::set_double(double value)
 {  
-  double value = (double)i;
   real_value=value;
   item_result_type = REAL_RESULT;
   item_type = REAL_ITEM;
 }
 
-void Item_param::set_double(float i)
-{  
-  float value = (float)i;
-  real_value=(double)value;
-  item_result_type = REAL_RESULT;
-  item_type = REAL_ITEM;
-}
 
 void Item_param::set_value(const char *str, uint length)
 {  
@@ -325,6 +317,7 @@ void Item_param::set_value(const char *str, uint length)
   item_result_type = STRING_RESULT;
   item_type = STRING_ITEM;
 }
+
 
 void Item_param::set_longdata(const char *str, ulong length)
 {
@@ -334,16 +327,11 @@ void Item_param::set_longdata(const char *str, ulong length)
   str_value.append(str,length);    
 }
 
-void Item_param::set_long_end() 
-{ 
-  long_data_supplied = true; 
-  item_result_type = STRING_RESULT;
-};
 
-int  Item_param::save_in_field(Field *field)
+int Item_param::save_in_field(Field *field)
 {
   if (null_value)
-    return set_field_to_null(field);   
+    return (int) set_field_to_null(field);   
     
   field->set_notnull();
   if (item_result_type == INT_RESULT)
@@ -357,24 +345,21 @@ int  Item_param::save_in_field(Field *field)
     return (field->store(nr)) ? -1 : 0; 
   }
   String *result;
-  CHARSET_INFO *cs=default_charset_info;//fix this
+  CHARSET_INFO *cs=default_charset_info;	//fix this
   result=val_str(&str_value);
   return (field->store(result->ptr(),result->length(),cs)) ? -1 : 0;
 }
+
 
 void Item_param::make_field(Send_field *tmp_field)
 {
   init_make_field(tmp_field,FIELD_TYPE_STRING);
 }
 
+
 double Item_param::val() 
 {
-  /* Cross check whether we need need this conversions ? or direct 
-     return(real_value) is enough ?
-  */
-
-  switch(item_result_type) {
-  
+  switch (item_result_type) {
   case STRING_RESULT:
     return (double)atof(str_value.ptr()); 
   case INT_RESULT:
@@ -384,16 +369,12 @@ double Item_param::val()
   }
 } 
 
+
 longlong Item_param::val_int() 
 { 
-  /* Cross check whether we need need this conversions ? or direct 
-     return(int_value) is enough ?
-  */
-  
- switch(item_result_type) {
-
+ switch (item_result_type) {
   case STRING_RESULT:
-    return (longlong)strtoll(str_value.ptr(),(char**) 0,10);
+    return strtoll(str_value.ptr(),(char**) 0,10);
   case REAL_RESULT:
     return (longlong) (real_value+(real_value > 0 ? 0.5 : -0.5));
   default:
@@ -401,14 +382,10 @@ longlong Item_param::val_int()
   }
 }
 
+
 String *Item_param::val_str(String* str) 
 { 
-  /* Cross check whether we need need this conversions ? or direct 
-     return(&str_value) is enough ?
-  */
-  
-  switch(item_result_type) {
-  
+  switch (item_result_type) {
   case INT_RESULT:
     str->set(int_value);
     return str;
@@ -420,6 +397,7 @@ String *Item_param::val_str(String* str)
   }
 }
 /* End of Item_param related */
+
 
 void Item_copy_string::copy()
 {
@@ -438,7 +416,7 @@ String *Item_copy_string::val_str(String *str)
 }
 
 /*
-** Functions to convert item to field (for send_fields)
+  Functions to convert item to field (for send_fields)
 */
 
 /* ARGSUSED */
@@ -614,7 +592,7 @@ void Item_field::save_org_in_field(Field *to)
   }
 }
 
-int  Item_field::save_in_field(Field *to)
+int Item_field::save_in_field(Field *to)
 {
   if (result_field->is_null())
   {
@@ -631,13 +609,13 @@ int  Item_field::save_in_field(Field *to)
 }
 
 
-int  Item_null::save_in_field(Field *field)
+int Item_null::save_in_field(Field *field)
 {
   return set_field_to_null(field);
 }
 
 
-int  Item::save_in_field(Field *field)
+int Item::save_in_field(Field *field)
 {
   int error;
   if (result_type() == STRING_RESULT ||
@@ -674,7 +652,7 @@ int  Item::save_in_field(Field *field)
   return (error) ? -1 : 0;
 }
 
-int  Item_string::save_in_field(Field *field)
+int Item_string::save_in_field(Field *field)
 {
   String *result;
   CHARSET_INFO *cs=field->binary()?default_charset_info:((Field_str*)field)->charset();
@@ -685,7 +663,7 @@ int  Item_string::save_in_field(Field *field)
   return (field->store(result->ptr(),result->length(),cs)) ? -1 : 0;
 }
 
-int  Item_int::save_in_field(Field *field)
+int Item_int::save_in_field(Field *field)
 {
   longlong nr=val_int();
   if (null_value)
@@ -694,7 +672,7 @@ int  Item_int::save_in_field(Field *field)
   return (field->store(nr)) ? -1 : 0;
 }
 
-int  Item_real::save_in_field(Field *field)
+int Item_real::save_in_field(Field *field)
 {
   double nr=val();
   if (null_value)
@@ -716,7 +694,8 @@ inline uint char_val(char X)
 		 X-'a'+10);
 }
 
-Item_varbinary::Item_varbinary(const char *str, uint str_length, CHARSET_INFO *cs)
+Item_varbinary::Item_varbinary(const char *str, uint str_length,
+			       CHARSET_INFO *cs)
 {
   name=(char*) str-2;				// Lex makes this start with 0x
   max_length=(str_length+1)/2;
@@ -748,7 +727,7 @@ longlong Item_varbinary::val_int()
 }
 
 
-int  Item_varbinary::save_in_field(Field *field)
+int Item_varbinary::save_in_field(Field *field)
 {
   int error;
   CHARSET_INFO *cs=field->binary()?default_charset_info:((Field_str*)field)->charset();

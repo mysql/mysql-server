@@ -138,7 +138,7 @@ MYSQL_MANAGER*  STDCALL mysql_manager_connect(MYSQL_MANAGER* con,
   }
   sock_addr.sin_port = (ushort) htons((ushort) port);
   if (my_connect(sock,(struct sockaddr *) &sock_addr, sizeof(sock_addr),
-		 0) <0)
+		 0))
   {
     con->last_errno=errno;
     sprintf(con->last_error ,"Could not connect to %-.64s", host);

@@ -493,7 +493,7 @@ int openfrm(const char *name, const char *alias, uint db_stat, uint prgflag,
 	  if (field->key_length() == key_part->length &&
 	      field->type() != FIELD_TYPE_BLOB)
 	  {
-	    if ((index_flags & HA_HAVE_KEY_READ_ONLY) &&
+	    if ((index_flags & HA_KEY_READ_ONLY) &&
 		(field->key_type() != HA_KEYTYPE_TEXT ||
 		 (!(ha_option & HA_KEY_READ_WRONG_STR) &&
 		  !(keyinfo->flags & HA_FULLTEXT))))
@@ -1141,7 +1141,7 @@ bool check_db_name(const char *name)
       return 1;
     name++;
   }
-  return (uint) (name - start) > NAME_LEN;
+  return (uint) (name - start) > NAME_LEN || name == start;
 }
 
 

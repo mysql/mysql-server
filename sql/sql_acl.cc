@@ -997,7 +997,7 @@ bool check_change_password(THD *thd, const char *host, const char *user)
 {
   if (!initialized)
   {
-    send_error(&thd->net, ER_PASSWORD_NOT_ALLOWED); /* purecov: inspected */
+    send_error(thd, ER_PASSWORD_NOT_ALLOWED); /* purecov: inspected */
     return(1); /* purecov: inspected */
   }
   if (!thd->slave_thread &&
@@ -1009,7 +1009,7 @@ bool check_change_password(THD *thd, const char *host, const char *user)
   }
   if (!thd->slave_thread && !thd->user[0])
   {
-    send_error(&thd->net, ER_PASSWORD_ANONYMOUS_USER);
+    send_error(thd, ER_PASSWORD_ANONYMOUS_USER);
     return(1);
   }
   return(0);
@@ -1036,7 +1036,7 @@ bool change_password(THD *thd, const char *host, const char *user,
   ACL_USER *acl_user;
   if (!(acl_user= find_acl_user(host,user)))
   {
-    send_error(&thd->net, ER_PASSWORD_NO_MATCH);
+    send_error(thd, ER_PASSWORD_NO_MATCH);
     VOID(pthread_mutex_unlock(&acl_cache->lock));
     DBUG_RETURN(1);
   }
@@ -1046,7 +1046,7 @@ bool change_password(THD *thd, const char *host, const char *user,
 			new_password))
   {
     VOID(pthread_mutex_unlock(&acl_cache->lock)); /* purecov: deadcode */
-    send_error(&thd->net,0); /* purecov: deadcode */
+    send_error(thd,0); /* purecov: deadcode */
     DBUG_RETURN(1); /* purecov: deadcode */
   }
   get_salt_from_password(acl_user->salt,new_password);
@@ -1960,7 +1960,7 @@ int mysql_table_grant (THD *thd, TABLE_LIST *table_list,
 
   if (!initialized)
   {
-    send_error(&(thd->net), ER_UNKNOWN_COM_ERROR); /* purecov: inspected */
+    send_error(thd, ER_UNKNOWN_COM_ERROR);	/* purecov: inspected */
     return 1;					/* purecov: inspected */
   }
   if (rights & ~TABLE_ACLS)
@@ -2026,7 +2026,7 @@ int mysql_table_grant (THD *thd, TABLE_LIST *table_list,
   if (!revoke_grant)
     create_new_users= test_if_create_new_users(thd);
   int result=0;
-  pthread_mutex_lock(&LOCK_grant);
+  rw_wrlock(&LOCK_grant);
   MEM_ROOT *old_root=my_pthread_getspecific_ptr(MEM_ROOT*,THR_MALLOC);
   my_pthread_setspecific_ptr(THR_MALLOC,&memex);
 
@@ -2135,9 +2135,9 @@ int mysql_table_grant (THD *thd, TABLE_LIST *table_list,
   }
   grant_option=TRUE;
   my_pthread_setspecific_ptr(THR_MALLOC,old_root);
-  pthread_mutex_unlock(&LOCK_grant);
+  rw_unlock(&LOCK_grant);
   if (!result)
-    send_ok(&thd->net);
+    send_ok(thd);
   /* Tables are automatically closed */
   DBUG_RETURN(result);
 }
@@ -2155,8 +2155,8 @@ int mysql_grant (THD *thd, const char *db, List <LEX_USER> &list,
 
   if (!initialized)
   {
-    send_error(&(thd->net), ER_UNKNOWN_COM_ERROR); /* purecov: tested */
-    return 1; /* purecov: tested */
+    send_error(thd, ER_UNKNOWN_COM_ERROR);	/* purecov: tested */
+    return 1;					/* purecov: tested */
   }
 
   if (lower_case_table_names && db)
@@ -2185,7 +2185,7 @@ int mysql_grant (THD *thd, const char *db, List <LEX_USER> &list,
     create_new_users= test_if_create_new_users(thd);
 
   // go through users in user_list
-  pthread_mutex_lock(&LOCK_grant);
+  rw_wrlock(&LOCK_grant);
   VOID(pthread_mutex_lock(&acl_cache->lock));
   grant_version++;
 
@@ -2218,11 +2218,11 @@ int mysql_grant (THD *thd, const char *db, List <LEX_USER> &list,
     }
   }
   VOID(pthread_mutex_unlock(&acl_cache->lock));
-  pthread_mutex_unlock(&LOCK_grant);
+  rw_unlock(&LOCK_grant);
   close_thread_tables(thd);
 
   if (!result)
-    send_ok(&thd->net);
+    send_ok(thd);
   DBUG_RETURN(result);
 }
 
@@ -2341,7 +2341,7 @@ void grant_reload(void)
 
   // Locked tables are checked by acl_init and doesn't have to be checked here
 
-  pthread_mutex_lock(&LOCK_grant);
+  rw_wrlock(&LOCK_grant);
   grant_version++;
   old_hash_tables=hash_tables;
   old_grant_option = grant_option;
@@ -2359,7 +2359,7 @@ void grant_reload(void)
     hash_free(&old_hash_tables);
     free_root(&old_mem,MYF(0));
   }
-  pthread_mutex_unlock(&LOCK_grant);
+  rw_unlock(&LOCK_grant);
   DBUG_VOID_RETURN;
 }
 
@@ -2379,7 +2379,7 @@ bool check_grant(THD *thd, ulong want_access, TABLE_LIST *tables,
   if (!want_access)
     return 0;					// ok
 
-  pthread_mutex_lock(&LOCK_grant);
+  rw_rdlock(&LOCK_grant);
   for (table=tables; table ;table=table->next)
   {
     if (!(~table->grant.privilege & want_access))
@@ -2413,11 +2413,11 @@ bool check_grant(THD *thd, ulong want_access, TABLE_LIST *tables,
       goto err;					// impossible
     }
   }
-  pthread_mutex_unlock(&LOCK_grant);
+  rw_unlock(&LOCK_grant);
   return 0;
 
  err:
-  pthread_mutex_unlock(&LOCK_grant);
+  rw_unlock(&LOCK_grant);
   if (!no_errors)				// Not a silent skip of table
   {
     const char *command="";
@@ -2439,7 +2439,7 @@ bool check_grant(THD *thd, ulong want_access, TABLE_LIST *tables,
       command = "index";
     else if (want_access & GRANT_ACL)
       command = "grant";
-    net_printf(&thd->net,ER_TABLEACCESS_DENIED_ERROR,
+    net_printf(thd,ER_TABLEACCESS_DENIED_ERROR,
 	       command,
 	       thd->priv_user,
 	       thd->host_or_ip,
@@ -2459,7 +2459,7 @@ bool check_grant_column (THD *thd,TABLE *table, const char *name,
   if (!want_access)
     return 0;					// Already checked
 
-  pthread_mutex_lock(&LOCK_grant);
+  rw_rdlock(&LOCK_grant);
 
   // reload table if someone has modified any grants
 
@@ -2477,20 +2477,20 @@ bool check_grant_column (THD *thd,TABLE *table, const char *name,
   grant_column=column_hash_search(grant_table, name, length);
   if (grant_column && !(~grant_column->rights & want_access))
   {
-    pthread_mutex_unlock(&LOCK_grant);
+    rw_unlock(&LOCK_grant);
     return 0;
   }
 #ifdef NOT_USED
   if (show_tables && (grant_column || table->grant.privilege & COL_ACLS))
   {
-    pthread_mutex_unlock(&LOCK_grant);		/* purecov: deadcode */
+    rw_unlock(&LOCK_grant);			/* purecov: deadcode */
     return 0;					/* purecov: deadcode */
   }
 #endif
 
   /* We must use my_printf_error() here! */
  err:
-  pthread_mutex_unlock(&LOCK_grant);
+  rw_unlock(&LOCK_grant);
   if (!show_tables)
   {
     char command[128];
@@ -2518,7 +2518,7 @@ bool check_grant_all_columns(THD *thd, ulong want_access, TABLE *table)
   if (!want_access)
     return 0;					// Already checked
 
-  pthread_mutex_lock(&LOCK_grant);
+  rw_rdlock(&LOCK_grant);
 
   // reload table if someone has modified any grants
 
@@ -2541,12 +2541,12 @@ bool check_grant_all_columns(THD *thd, ulong want_access, TABLE *table)
     if (!grant_column || (~grant_column->rights & want_access))
       goto err;
   }
-  pthread_mutex_unlock(&LOCK_grant);
+  rw_unlock(&LOCK_grant);
   return 0;
 
   /* We must use my_printf_error() here! */
  err:
-  pthread_mutex_unlock(&LOCK_grant);
+  rw_unlock(&LOCK_grant);
 
   const char *command="";
   if (want_access & SELECT_ACL)
@@ -2578,7 +2578,7 @@ bool check_grant_db(THD *thd,const char *db)
   bool error=1;
 
   len  = (uint) (strmov(strmov(helping,thd->priv_user)+1,db)-helping)+ 1;
-  pthread_mutex_lock(&LOCK_grant);
+  rw_rdlock(&LOCK_grant);
 
   for (uint idx=0 ; idx < hash_tables.records ; idx++)
   {
@@ -2594,7 +2594,7 @@ bool check_grant_db(THD *thd,const char *db)
       break;
     }
   }
-  pthread_mutex_unlock(&LOCK_grant);
+  rw_unlock(&LOCK_grant);
   return error;
 }
 
@@ -2608,14 +2608,14 @@ ulong get_table_grant(THD *thd, TABLE_LIST *table)
   const char *db = table->db ? table->db : thd->db;
   GRANT_TABLE *grant_table;
 
-  pthread_mutex_lock(&LOCK_grant);
+  rw_rdlock(&LOCK_grant);
   grant_table = table_hash_search(thd->host,thd->ip,db,user,
 				       table->real_name,0);
   table->grant.grant_table=grant_table; // Remember for column test
   table->grant.version=grant_version;
   if (grant_table)
     table->grant.privilege|= grant_table->privs;
-  pthread_mutex_unlock(&LOCK_grant);
+  rw_unlock(&LOCK_grant);
   return table->grant.privilege;
 }
 
@@ -2626,7 +2626,7 @@ ulong get_column_grant(THD *thd, TABLE_LIST *table, Field *field)
   GRANT_COLUMN *grant_column;
   ulong priv;
 
-  pthread_mutex_lock(&LOCK_grant);
+  rw_rdlock(&LOCK_grant);
   // reload table if someone has modified any grants
   if (table->grant.version != grant_version)
   {
@@ -2648,7 +2648,7 @@ ulong get_column_grant(THD *thd, TABLE_LIST *table, Field *field)
     else
       priv=table->grant.privilege | grant_column->rights;
   }
-  pthread_mutex_unlock(&LOCK_grant);
+  rw_unlock(&LOCK_grant);
   return priv;
 }
 
@@ -2683,7 +2683,7 @@ int mysql_show_grants(THD *thd,LEX_USER *lex_user)
   LINT_INIT(acl_user);
   if (!initialized)
   {
-    send_error(&(thd->net), ER_UNKNOWN_COM_ERROR);
+    send_error(thd, ER_UNKNOWN_COM_ERROR);
     DBUG_RETURN(-1);
   }
   if (!lex_user->host.str)
@@ -2990,7 +2990,7 @@ int mysql_show_grants(THD *thd,LEX_USER *lex_user)
   }
  end:
   VOID(pthread_mutex_unlock(&acl_cache->lock));
-  send_eof(&thd->net);
+  send_eof(thd);
   DBUG_RETURN(error);
 }
 

@@ -40,7 +40,7 @@
 #include <signal.h>
 #include <violite.h>
 
-const char *VER= "12.12";
+const char *VER= "12.13";
 
 /* Don't try to make a nice table if the data is too big */
 #define MAX_COLUMN_LENGTH	     1024
@@ -1362,9 +1362,9 @@ com_clear(String *buffer,char *line __attribute__((unused)))
 static int
 com_go(String *buffer,char *line __attribute__((unused)))
 {
-  char		buff[160],time_buff[32];
+  char		buff[200], time_buff[32], *pos;
   MYSQL_RES	*result;
-  ulong		timer;
+  ulong		timer, warnings;
   uint		error=0;
 
   if (!status.batch)
@@ -1447,7 +1447,7 @@ com_go(String *buffer,char *line __attribute__((unused)))
   {
     if (!mysql_num_rows(result) && ! quick)
     {
-      sprintf(buff,"Empty set%s",time_buff);
+      strmov(buff, "Empty set");
     }
     else
     {
@@ -1462,20 +1462,30 @@ com_go(String *buffer,char *line __attribute__((unused)))
 	print_tab_data(result);
       else
 	print_table_data(result);
-      sprintf(buff,"%ld %s in set%s",
+      sprintf(buff,"%ld %s in set",
 	      (long) mysql_num_rows(result),
-	      (long) mysql_num_rows(result) == 1 ? "row" : "rows",
-	      time_buff);
+	      (long) mysql_num_rows(result) == 1 ? "row" : "rows");
       end_pager();
     }
   }
   else if (mysql_affected_rows(&mysql) == ~(ulonglong) 0)
-    sprintf(buff,"Query OK%s",time_buff);
+    strmov(buff,"Query OK");
   else
-    sprintf(buff,"Query OK, %ld %s affected%s",
+    sprintf(buff,"Query OK, %ld %s affected",
 	    (long) mysql_affected_rows(&mysql),
-	    (long) mysql_affected_rows(&mysql) == 1 ? "row" : "rows",
-	    time_buff);
+	    (long) mysql_affected_rows(&mysql) == 1 ? "row" : "rows");
+
+  pos=strend(buff);
+  if ((warnings= mysql_warning_count(&mysql)))
+  {
+    *pos++= ',';
+    *pos++= ' ';
+    pos=int2str(warnings, pos, 10);
+    pos=strmov(pos, " warning");
+    if (warnings != 1)
+      *pos++= 's';
+  }
+  strmov(pos, time_buff);
   put_info(buff,INFO_RESULT);
   if (mysql_info(&mysql))
     put_info(mysql_info(&mysql),INFO_RESULT);

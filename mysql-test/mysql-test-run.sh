@@ -171,7 +171,7 @@ USER_TEST=
 
 EXTRA_MASTER_OPT=""
 EXTRA_MYSQL_TEST_OPT=""
-USE_RUNNING_SERVER=1
+USE_RUNNING_SERVER=""
 DO_GCOV=""
 DO_GDB=""
 MANUAL_GDB=""
@@ -199,6 +199,7 @@ while test $# -gt 0; do
     --slave-binary=*)
       SLAVE_MYSQLD=`$ECHO "$1" | $SED -e "s;--slave-binary=;;"` ;;
     --local)   USE_RUNNING_SERVER="" ;;
+    --extern)   USE_RUNNING_SERVER="1" ;;
     --tmpdir=*) MYSQL_TMP_DIR=`$ECHO "$1" | $SED -e "s;--tmpdir=;;"` ;;
     --local-master)
       MASTER_MYPORT=3306;

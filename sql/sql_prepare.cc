@@ -25,7 +25,7 @@ Prepare:
     store its information list lex->param_list
   - Without executing the query, return back to client the total 
     number of parameters along with result-set metadata information
-    (if any )
+    (if any)
      
 Prepare-execute:
 
@@ -38,46 +38,132 @@ Prepare-execute:
     to client
 
 Long data handling:
-
   - Server gets the long data in pieces with command type 'COM_LONG_DATA'.
   - The packet recieved will have the format as:
-    [type_spec_exists][type][length][data]
+    [COM_LONG_DATA:1][parameter_number:2][type:2][data]
   - Checks if the type is specified by client, and if yes reads the type, 
     and stores the data in that format.
-  - If length == MYSQL_END_OF_DATA, then server sets up the data read ended.
+  - It's up to the client to check for read data ended. The server doesn't
+    care.
+
 ***********************************************************************/
 
 #include "mysql_priv.h"
 #include "sql_acl.h"
 #include <assert.h> // for DEBUG_ASSERT()
-#include <ctype.h>  // for isspace()
+#include <m_ctype.h>  // for isspace()
 
-/**************************************************************************/
 extern int yyparse(void);
 static ulong get_param_length(uchar **packet);
 static uint get_buffer_type(uchar **packet);
 static bool param_is_null(uchar **packet);
 static bool setup_param_fields(THD *thd,List<Item> &params);
-static uchar* setup_param_field(Item_param *item_param, uchar *pos, uint buffer_type);
+static uchar* setup_param_field(Item_param *item_param, uchar *pos,
+				uint buffer_type);
 static void setup_longdata_field(Item_param *item_param, uchar *pos);
 static bool setup_longdata(THD *thd,List<Item> &params);
-static void send_prepare_results(THD *thd);
-static void mysql_parse_prepare_query(THD *thd,char *packet,uint length);
-static bool mysql_send_insert_fields(THD *thd,TABLE_LIST *table_list, 
+static bool send_prepare_results(PREP_STMT *stmt);
+static bool parse_prepare_query(PREP_STMT *stmt, char *packet, uint length);
+static bool mysql_send_insert_fields(PREP_STMT *stmt, TABLE_LIST *table_list, 
 				     List<Item> &fields,
-				     List<List_item> &values_list,thr_lock_type lock_type);
-static bool mysql_test_insert_fields(THD *thd,TABLE_LIST *table_list, 
+				     List<List_item> &values_list,
+				     thr_lock_type lock_type);
+static bool mysql_test_insert_fields(PREP_STMT *stmt, TABLE_LIST *table_list, 
 				     List<Item> &fields,
-				     List<List_item> &values_list,thr_lock_type lock_type);
-static bool mysql_test_upd_fields(THD *thd,TABLE_LIST *table_list,
+				     List<List_item> &values_list,
+				     thr_lock_type lock_type);
+static bool mysql_test_upd_fields(PREP_STMT *stmt, TABLE_LIST *table_list,
 				  List<Item> &fields, List<Item> &values,
 				  COND *conds,thr_lock_type lock_type);
-static bool mysql_test_select_fields(THD *thd, TABLE_LIST *tables,
-			      List<Item> &fields, List<Item> &values,
-			      COND *conds, ORDER *order, ORDER *group,
-			      Item *having,thr_lock_type lock_type);
-extern const char *any_db;	
-/**************************************************************************/
+static bool mysql_test_select_fields(PREP_STMT *stmt, TABLE_LIST *tables,
+				     List<Item> &fields, List<Item> &values,
+				     COND *conds, ORDER *order, ORDER *group,
+				     Item *having,thr_lock_type lock_type);
+
+
+/*
+  Find prepared statement in thd
+
+  SYNOPSIS
+    find_prepared_statement()
+    thd		Thread handler
+    stmt_id	Statement id server specified to the client on prepare
+
+  RETURN VALUES
+    0		error.  In this case the error is sent with my_error()
+    ptr 	Pointer to statement
+*/
+
+static PREP_STMT *find_prepared_statement(THD *thd, ulong stmt_id,
+					  const char *when)
+{
+  PREP_STMT *stmt;
+  DBUG_ENTER("find_prepared_statement");
+  DBUG_PRINT("enter",("stmt_id: %d", stmt_id));
+
+  if (thd->last_prepared_stmt && thd->last_prepared_stmt->stmt_id == stmt_id)
+    DBUG_RETURN(thd->last_prepared_stmt);
+  if ((stmt= (PREP_STMT*) tree_search(&thd->prepared_statements, &stmt_id,
+				      (void*) 0)))
+    DBUG_RETURN (thd->last_prepared_stmt= stmt);
+  my_error(ER_UNKNOWN_STMT_HANDLER, MYF(0), stmt_id, when);
+  DBUG_RETURN(0);
+}
+
+/*
+  Compare two prepared statements;  Used to find a prepared statement
+*/
+
+int compare_prep_stmt(PREP_STMT *a, PREP_STMT *b, void *not_used)
+{
+  return (a->stmt_id < b->stmt_id) ? -1 : (a->stmt_id == b->stmt_id) ? 0 : 1;
+}
+
+
+/*
+  Free prepared statement.
+
+  SYNOPSIS
+    standard tree_element_free function.
+
+  DESCRIPTION
+    We don't have to free the stmt itself as this was stored in the tree
+    and will be freed when the node is deleted
+*/
+
+void free_prep_stmt(PREP_STMT *stmt, TREE_FREE mode, void *not_used)
+{
+  free_root(&stmt->mem_root, MYF(0));
+  free_items(stmt->free_list);
+}
+
+/*
+  Send prepared stmt info to client after prepare
+*/
+
+bool send_prep_stmt(PREP_STMT *stmt, uint columns)
+{
+  char buff[8];
+  int4store(buff, stmt->stmt_id);
+  int2store(buff+4, columns);
+  int2store(buff+6, stmt->param_count);
+  return my_net_write(&stmt->thd->net, buff, sizeof(buff));
+}
+
+/*
+  Send information about all item parameters
+
+  TODO: Not yet ready
+*/
+
+bool send_item_params(PREP_STMT *stmt)
+{
+  char buff[1];
+  buff[0]=0;
+  return my_net_write(&stmt->thd->net, buff, sizeof(buff));
+}
+
+
 
 /*
   Read the buffer type, this happens only first time        
@@ -90,8 +176,13 @@ static uint get_buffer_type(uchar **packet)
   return (uint) uint2korr(pos);
 }
 
+
 /*
   Check for NULL param data
+
+  RETURN VALUES
+    0	Value was not NULL
+    1	Value was NULL
 */
 
 static bool param_is_null(uchar **packet)
@@ -144,8 +235,7 @@ static uchar* setup_param_field(Item_param *item_param,
     item_param->set_null();
     return(pos);
   }
-  switch (buffer_type)
-  {    
+  switch (buffer_type) {    
   case FIELD_TYPE_TINY:
     item_param->set_int((longlong)(*pos));
     pos += 1;
@@ -169,7 +259,7 @@ static uchar* setup_param_field(Item_param *item_param,
   case FIELD_TYPE_FLOAT:
     float data;
     float4get(data,pos);
-    item_param->set_double(data);
+    item_param->set_double((double) data);
     pos += 4;
     break;
   case FIELD_TYPE_DOUBLE:
@@ -193,20 +283,19 @@ static uchar* setup_param_field(Item_param *item_param,
   from client ..                                             
 */
 
-static bool setup_param_fields(THD *thd, List<Item> &params)
+static bool setup_param_fields(THD *thd, PREP_STMT *stmt)
 {  
-  reg2 Item_param *item_param;
-  List_iterator<Item> it(params);  
-  NET *net = &thd->net;
   DBUG_ENTER("setup_param_fields");  
-
+#ifdef READY_TO_BE_USED
+  Item_param *item_param;
   ulong param_count=0;
-  uchar *pos=(uchar*)net->read_pos+1;// skip command type
-  
-  if(*pos++) // No types supplied, read only param data
+  uchar *pos=(uchar*) thd->net.read_pos+1;// skip command type
+
+ 
+  if (*pos++) // No types supplied, read only param data
   {
     while ((item_param=(Item_param *)it++) && 
-	   (param_count++ < thd->param_count))
+	   (param_count++ < stmt->param_count))
     {
       if (item_param->long_data_supplied)
         continue;
@@ -224,67 +313,14 @@ static bool setup_param_fields(THD *thd, List<Item> &params)
         continue;
 
       if (!(pos=setup_param_field(item_param,pos,
-				  item_param->buffer_type=(enum_field_types)get_buffer_type(&pos))))
+				  item_param->buffer_type=
+				  (enum_field_types) get_buffer_type(&pos))))
         DBUG_RETURN(1);
     }
   }
+#endif
   DBUG_RETURN(0);
 }
-
-/*
-  Buffer the long data and update the flags                                                                
-*/
-
-static void setup_longdata_field(Item_param *item_param, uchar *pos)
-{
-  ulong len;
-
-  if (!*pos++)
-    item_param->buffer_type=(enum_field_types)get_buffer_type(&pos);
- 
-  if (*pos == MYSQL_LONG_DATA_END)
-    item_param->set_long_end();
-
-  else
-  {    
-    len = get_param_length(&pos);    
-    item_param->set_longdata((const char *)pos, len);
-  }
-}
-
-/*
-  Store the long data from client in pieces                                                              
-*/
-
-static bool setup_longdata(THD *thd, List<Item> &params)
-{  
-  NET *net=&thd->net;  
-  List_iterator<Item> it(params);  
-  DBUG_ENTER("setup_longdata");  
-
-  uchar *pos=(uchar*)net->read_pos+1;// skip command type at first position
-  ulong param_number = get_param_length(&pos);
-  Item_param *item_param = thd->current_param;
-  
-  if (thd->current_param_number != param_number)
-  {
-    thd->current_param_number = param_number;
-    while (param_number--) /* TODO: 
-                            Change this loop by either having operator '+' 
-                            overloaded to point to desired 'item' or 
-                            add another memeber in list as 'goto' with 
-                            location count as parameter number, but what 
-                            is the best way to traverse ? 
-			   */
-    {
-      it++;
-    }
-    thd->current_param = item_param = (Item_param *)it++;  
-  }
-  setup_longdata_field(item_param,pos);  
-  DBUG_RETURN(0);
-}
-
 
 
 /*
@@ -337,16 +373,15 @@ static int check_prepare_fields(THD *thd,TABLE *table, List<Item> &fields,
   Validate the following information for INSERT statement:                         
     - field existance           
     - fields count                          
-           
-  If there is no column list spec exists, then update the field_list 
-  with all columns from the table, and send fields info back to client                        
 */
 
-static bool mysql_test_insert_fields(THD *thd, TABLE_LIST *table_list,
+static bool mysql_test_insert_fields(PREP_STMT *stmt,
+				     TABLE_LIST *table_list,
 				     List<Item> &fields, 
 				     List<List_item> &values_list,
 				     thr_lock_type lock_type)                                       
 {
+  THD *thd= stmt->thd;
   TABLE *table;
   List_iterator_fast<List_item> its(values_list);
   List_item *values;
@@ -358,7 +393,7 @@ static bool mysql_test_insert_fields(THD *thd, TABLE_LIST *table_list,
   if ((values= its++))
   {
     uint value_count;
-    ulong counter=0;
+    ulong counter= 0;
     
     if (check_insert_fields(thd,table,fields,*values,1))
       DBUG_RETURN(1);
@@ -366,35 +401,20 @@ static bool mysql_test_insert_fields(THD *thd, TABLE_LIST *table_list,
     value_count= values->elements;
     its.rewind();
    
-    while ((values = its++))
+    while ((values= its++))
     {
       counter++;
       if (values->elements != value_count)
       {
         my_printf_error(ER_WRONG_VALUE_COUNT_ON_ROW,
 			ER(ER_WRONG_VALUE_COUNT_ON_ROW),
-			MYF(0),counter);
+			MYF(0), counter);
         DBUG_RETURN(1);
       }
     }
-    if (fields.elements == 0)
-    {
-      /* No field listing, so setup all fields  */
-      List<Item> all_fields;
-      Field **ptr,*field;
-      for (ptr=table->field; (field= *ptr) ; ptr++)
-      {
-        all_fields.push_back(new Item_field(table->table_cache_key,
-                                            table->real_name,
-                                            field->field_name));
-      }
-      if ((setup_fields(thd,table_list,all_fields,1,0,0) || 
-	   send_fields(thd,all_fields,1)))
-	DBUG_RETURN(1);
-    }
-    else if (send_fields(thd,fields,1))
-      DBUG_RETURN(1);
   }
+  if (send_prep_stmt(stmt, 0) || send_item_params(stmt))
+    DBUG_RETURN(1);
   DBUG_RETURN(0);
 }
 
@@ -403,15 +423,16 @@ static bool mysql_test_insert_fields(THD *thd, TABLE_LIST *table_list,
   Validate the following information                         
     UPDATE - set and where clause    DELETE - where clause                                             
                                                              
-  And send update-set cluase column list fields info 
-  back to client. For DELETE, just validate where cluase 
+  And send update-set clause column list fields info 
+  back to client. For DELETE, just validate where clause 
   and return no fields information back to client.
 */
 
-static bool mysql_test_upd_fields(THD *thd, TABLE_LIST *table_list,
+static bool mysql_test_upd_fields(PREP_STMT *stmt, TABLE_LIST *table_list,
 				  List<Item> &fields, List<Item> &values,
 				  COND *conds, thr_lock_type lock_type)
 {
+  THD *thd= stmt->thd;
   TABLE *table;
   DBUG_ENTER("mysql_test_upd_fields");
 
@@ -426,9 +447,8 @@ static bool mysql_test_upd_fields(THD *thd, TABLE_LIST *table_list,
      Currently return only column list info only, and we are not
      sending any info on where clause.
   */
-  if (fields.elements && send_fields(thd,fields,1))
+  if (send_prep_stmt(stmt, 0) || send_item_params(stmt))
     DBUG_RETURN(1);
-
   DBUG_RETURN(0);
 }
 
@@ -437,7 +457,7 @@ static bool mysql_test_upd_fields(THD *thd, TABLE_LIST *table_list,
 
     SELECT - column list 
            - where clause
-           - orderr clause
+           - order clause
            - having clause
            - group by clause
            - if no column spec i.e. '*', then setup all fields
@@ -445,13 +465,14 @@ static bool mysql_test_upd_fields(THD *thd, TABLE_LIST *table_list,
   And send column list fields info back to client. 
 */
 
-static bool mysql_test_select_fields(THD *thd, TABLE_LIST *tables,
+static bool mysql_test_select_fields(PREP_STMT *stmt, TABLE_LIST *tables,
 				     List<Item> &fields, List<Item> &values,
 				     COND *conds, ORDER *order, ORDER *group,
 				     Item *having, thr_lock_type lock_type)
 {
   TABLE *table;
   bool hidden_group_fields;
+  THD *thd= stmt->thd;
   List<Item>  all_fields(fields);
   DBUG_ENTER("mysql_test_select_fields");
 
@@ -482,13 +503,15 @@ static bool mysql_test_select_fields(THD *thd, TABLE_LIST *tables,
      Currently return only column list info only, and we are not
      sending any info on where clause.
   */
-  if (fields.elements && send_fields(thd,fields,1))
+  if (send_prep_stmt(stmt, fields.elements) ||
+      send_fields(thd,fields,0) || send_item_params(stmt))
     DBUG_RETURN(1);
   DBUG_RETURN(0);  
 }
 
+
 /*
-  Check the access privileges         
+  Check the access privileges
 */
 
 static bool check_prepare_access(THD *thd, TABLE_LIST *tables,
@@ -505,42 +528,47 @@ static bool check_prepare_access(THD *thd, TABLE_LIST *tables,
   Send the prepare query results back to client              
 */
                      
-static void send_prepare_results(THD *thd)     
+static bool send_prepare_results(PREP_STMT *stmt)     
 {   
-  DBUG_ENTER("send_prepare_results");
+  THD *thd= stmt->thd;
+  LEX *lex= &thd->lex;
   enum enum_sql_command sql_command = thd->lex.sql_command;
-
-  DBUG_PRINT("enter",("command :%d, param_count :%ld",
-                      sql_command,thd->param_count));
+  DBUG_ENTER("send_prepare_results");
+  DBUG_PRINT("enter",("command: %d, param_count: %ld",
+                      sql_command, lex->param_count));
   
-  LEX *lex=&thd->lex;
+  /* Setup prepared stmt */
+  stmt->param_count= lex->param_count;
+  stmt->free_list= thd->free_list;		// Save items used in stmt
+  thd->free_list= 0;
+
   SELECT_LEX *select_lex = lex->select;
   TABLE_LIST *tables=(TABLE_LIST*) select_lex->table_list.first;
   
-  switch(sql_command) {
+  switch (sql_command) {
 
   case SQLCOM_INSERT:
-    if (mysql_test_insert_fields(thd,tables, lex->field_list,
+    if (mysql_test_insert_fields(stmt, tables, lex->field_list,
 				 lex->many_values, lex->lock_option))
       goto abort;    
     break;
 
   case SQLCOM_UPDATE:
-    if (mysql_test_upd_fields(thd,tables, select_lex->item_list,
+    if (mysql_test_upd_fields(stmt, tables, select_lex->item_list,
 			      lex->value_list, select_lex->where,
 			      lex->lock_option))
       goto abort;
     break;
 
   case SQLCOM_DELETE:
-    if (mysql_test_upd_fields(thd,tables, select_lex->item_list,
+    if (mysql_test_upd_fields(stmt, tables, select_lex->item_list,
 			      lex->value_list, select_lex->where,
 			      lex->lock_option))
       goto abort;
     break;
 
   case SQLCOM_SELECT:
-    if (mysql_test_select_fields(thd,tables, select_lex->item_list,
+    if (mysql_test_select_fields(stmt, tables, select_lex->item_list,
 				 lex->value_list, select_lex->where,
 				 (ORDER*) select_lex->order_list.first,
 				 (ORDER*) select_lex->group_list.first,
@@ -556,41 +584,36 @@ static void send_prepare_results(THD *thd)
       */
     }
   }
-  send_ok(&thd->net,thd->param_count,0);
-  DBUG_VOID_RETURN;
+  DBUG_RETURN(0);
 
 abort:
-  send_error(&thd->net,thd->killed ? ER_SERVER_SHUTDOWN : 0);
-  DBUG_VOID_RETURN;
+  send_error(thd,thd->killed ? ER_SERVER_SHUTDOWN : 0);
+  DBUG_RETURN(1);
 }
 
 /*
   Parse the prepare query                                    
 */
 
-static void mysql_parse_prepare_query(THD *thd, char *packet, uint length)
+static bool parse_prepare_query(PREP_STMT *stmt,
+				char *packet, uint length)
 {
-  DBUG_ENTER("mysql_parse_prepare_query");
+  bool error= 1;
+  THD *thd= stmt->thd;
+  DBUG_ENTER("parse_prepare_query");
 
   mysql_log.write(thd,COM_PREPARE,"%s",packet);       
   mysql_init_query(thd);   
   thd->prepare_command=true; 
+  thd->safe_to_cache_query= 0;
 
-  if (query_cache.send_result_to_client(thd, packet, length) <= 0)
-  {   
-    LEX *lex=lex_start(thd, (uchar*)packet, length);
-     
-    if (!yyparse() && !thd->fatal_error) 
-    {
-      send_prepare_results(thd);
-      query_cache_end_of_result(&thd->net);
-    }
-    else
-      query_cache_abort(&thd->net);   
-    lex_end(lex);
-  } 
-  DBUG_VOID_RETURN;
+  LEX *lex=lex_start(thd, (uchar*) packet, length);
+  if (!yyparse() && !thd->fatal_error) 
+    error= send_prepare_results(stmt);
+  lex_end(lex);
+  DBUG_RETURN(error);
 }
+
 
 /*
   Parse the query and send the total number of parameters 
@@ -606,52 +629,36 @@ static void mysql_parse_prepare_query(THD *thd, char *packet, uint length)
   items.                                                     
 */
 
-void mysql_com_prepare(THD *thd, char *packet, uint packet_length)
+bool mysql_stmt_prepare(THD *thd, char *packet, uint packet_length)
 {
   MEM_ROOT thd_root = thd->mem_root;
-  DBUG_ENTER("mysql_com_prepare");
-  
-  packet_length--; 
-    
-  while (isspace(packet[0]) && packet_length > 0)
-  {
-    packet++;
-    packet_length--;
-  }
-  char *pos=packet+packet_length;   
-  while (packet_length > 0 && (pos[-1] == ';' || isspace(pos[-1])))
-  {
-    pos--;
-    packet_length--;
-  }
-  /*
-    Have the prepare items to have a connection level scope or 
-    till next prepare statement by doing all allocations using 
-    connection level memory allocator 'con_root' from THD.
-  */
-  free_root(&thd->con_root,MYF(0));  
-  init_sql_alloc(&thd->con_root,8192,8192); 
-  thd->mem_root = thd->con_root;
-  
-  if (!(thd->query= (char*) thd->memdup_w_gap((gptr) (packet),
-                                              packet_length,
-                                              thd->db_length+2)))
-    DBUG_VOID_RETURN;
-  thd->query[packet_length]=0;    
-  thd->packet.shrink(net_buffer_length);
-  thd->query_length = packet_length;  
+  PREP_STMT stmt;
+  bool error;
+  DBUG_ENTER("mysql_stmt_prepare");
 
-  if (!(specialflag & SPECIAL_NO_PRIOR))
-    my_pthread_setprio(pthread_self(),QUERY_PRIOR);
- 
-  mysql_parse_prepare_query(thd,thd->query,packet_length);
+  bzero((char*) &stmt, sizeof(stmt));
+  stmt.thd= thd;
+  stmt.stmt_id= ++thd->current_stmt_id;
+  init_sql_alloc(&stmt.mem_root, 8192, 8192);
+
+  thd->mem_root= stmt.mem_root;
+  if (alloc_query(thd, packet, packet_length))
+    goto err;
+  if (parse_prepare_query(&stmt, thd->query, thd->query_length))
+    goto err;
 
   if (!(specialflag & SPECIAL_NO_PRIOR))
     my_pthread_setprio(pthread_self(),WAIT_PRIOR);   
        
-  thd->mem_root = thd_root; // restore main mem_root
-  DBUG_PRINT("exit",("prepare query ready"));
-  DBUG_VOID_RETURN;
+  stmt.mem_root= thd->mem_root;
+  thd->mem_root= thd_root; // restore main mem_root
+  DBUG_RETURN(0);
+
+err:
+  stmt.mem_root= thd->mem_root;
+  free_prep_stmt(&stmt, free_free, (void*) 0);
+  thd->mem_root = thd_root;	// restore main mem_root
+  DBUG_RETURN(1);
 }
 
 
@@ -663,47 +670,166 @@ void mysql_com_prepare(THD *thd, char *packet, uint packet_length)
   execute the query                                            
 */
 
-void mysql_com_execute(THD *thd)
+void mysql_stmt_execute(THD *thd, char *packet)
 {
-  MEM_ROOT thd_root=thd->mem_root;
-  DBUG_ENTER("mysql_com_execute");
-  DBUG_PRINT("enter", ("parameters : %ld", thd->param_count));
+  ulong stmt_id=     uint4korr(packet);
+  PREP_STMT	*stmt;
+  DBUG_ENTER("mysql_stmt_execute");
 
-  thd->mem_root = thd->con_root;
-  if (thd->param_count && setup_param_fields(thd, thd->lex.param_list))
+  if (!(stmt=find_prepared_statement(thd, stmt_id, "execute")))
+  {
+    send_error(thd);
     DBUG_VOID_RETURN;
-               
+  }
+
+  /* Check if we got an error when sending long data */
+  if (stmt->error_in_prepare)
+  {
+    send_error(thd);
+    DBUG_VOID_RETURN;
+  }
+
+  if (stmt->param_count && setup_param_fields(thd, stmt))
+    DBUG_VOID_RETURN;
+
+  MEM_ROOT thd_root= thd->mem_root;
+  thd->mem_root = thd->con_root;
   if (!(specialflag & SPECIAL_NO_PRIOR))
     my_pthread_setprio(pthread_self(),QUERY_PRIOR);  
  
-  /* TODO:
+  /*
+    TODO:
     Also, have checks on basic executions such as mysql_insert(), 
     mysql_delete(), mysql_update() and mysql_select() to not to 
     have re-check on setup_* and other things ..
   */  
-  mysql_execute_command();      
+  mysql_execute_command(thd);
 
   if (!(specialflag & SPECIAL_NO_PRIOR))
-    my_pthread_setprio(pthread_self(),WAIT_PRIOR);
+    my_pthread_setprio(pthread_self(), WAIT_PRIOR);
   
-  thd->mem_root = (MEM_ROOT )thd_root;
-  DBUG_PRINT("exit",("prepare-execute done!"));
+  thd->mem_root= thd_root;
   DBUG_VOID_RETURN;
 }
+
+
+/*
+  Reset a prepared statement
+  
+  SYNOPSIS
+    mysql_stmt_reset()
+    thd		Thread handle
+    packet	Packet with stmt handle
+
+  DESCRIPTION
+    This function is useful when one gets an error after calling
+    mysql_stmt_getlongdata() and one wants to reset the handle
+    so that one can call execute again.
+*/
+
+void mysql_stmt_reset(THD *thd, char *packet)
+{
+  ulong stmt_id= uint4korr(packet);
+  PREP_STMT *stmt;
+  DBUG_ENTER("mysql_stmt_reset");
+
+  if (!(stmt=find_prepared_statement(thd, stmt_id, "close")))
+  {
+    send_error(thd);
+    DBUG_VOID_RETURN;
+  }
+
+  stmt->error_in_prepare=0;
+  Item_param *item= stmt->param, *end= item + stmt->param_count;
+
+  /* Free long data if used */
+  if (stmt->long_data_used)
+  {
+    stmt->long_data_used= 0;
+    for (; item < end ; item++)
+      item->reset();
+  }
+  DBUG_VOID_RETURN;
+}
+
+
+/*
+  Delete a prepared statement from memory
+*/
+
+void mysql_stmt_close(THD *thd, char *packet)
+{
+  ulong stmt_id= uint4korr(packet);
+  PREP_STMT *stmt;
+  DBUG_ENTER("mysql_stmt_close");
+
+  if (!(stmt=find_prepared_statement(thd, stmt_id, "close")))
+  {
+    send_error(thd);
+    DBUG_VOID_RETURN;
+  }
+  /* Will call free_prep_stmt() */
+  tree_delete(&thd->prepared_statements, (void*) stmt, NULL);
+  thd->last_prepared_stmt=0;
+  DBUG_VOID_RETURN;
+}
+
 
 /*
   Long data in pieces from client                            
+
+  SYNOPSIS
+    mysql_stmt_get_longdata()
+    thd			Thread handle
+    pos			String to append
+    packet_length	Length of string
+
+  DESCRIPTION
+    Get a part of a long data.
+    To make the protocol efficient, we are not sending any return packages
+    here.
+    If something goes wrong, then we will send the error on 'execute'
+
+    We assume that the client takes care of checking that all parts are sent
+    to the server. (No checking that we get a 'end of column' in the server)
 */
 
-void mysql_com_longdata(THD *thd)
+void mysql_stmt_get_longdata(THD *thd, char *pos, ulong packet_length)
 {
-  DBUG_ENTER("mysql_com_execute");
+  PREP_STMT *stmt;
+  DBUG_ENTER("mysql_stmt_get_longdata");
 
-  if(thd->param_count && setup_longdata(thd,thd->lex.param_list))
-    DBUG_VOID_RETURN;    
-  
-  send_ok(&thd->net,0,0);// ok status to client 
-  DBUG_PRINT("exit",("longdata-buffering done!"));
+  /* The following should never happen */
+  if (packet_length < 9)
+  {
+    my_error(ER_WRONG_ARGUMENTS, MYF(0), "get_longdata");
+    DBUG_VOID_RETURN;
+  }
+
+  pos++;				// skip command type at first position
+  ulong stmt_id=     uint4korr(pos);
+  uint param_number= uint2korr(pos+4);
+  uint param_type=   uint2korr(pos+6);
+  pos+=8;				// Point to data
+
+  if (!(stmt=find_prepared_statement(thd, stmt_id, "get_longdata")))
+  {
+    /*
+      There is a chance that the client will never see this as
+      it doesn't expect an answer from this call...
+    */
+    send_error(thd);
+    DBUG_VOID_RETURN;
+  }
+
+  if (param_number >= stmt->param_count)
+  {
+    stmt->error_in_prepare=1;
+    stmt->last_errno=ER_WRONG_ARGUMENTS;
+    sprintf(stmt->last_error, ER(ER_WRONG_ARGUMENTS), "get_longdata");
+    DBUG_VOID_RETURN;
+  }
+  stmt->param[param_number].set_longdata(pos, packet_length-9);
+  stmt->long_data_used= 1;
   DBUG_VOID_RETURN;
 }
-

@@ -127,7 +127,7 @@ int mysql_update(THD *thd,
     {
       DBUG_RETURN(-1);				// Error in where
     }
-    send_ok(&thd->net);				// No matching records
+    send_ok(thd);				// No matching records
     DBUG_RETURN(0);
   }
   /* If running in safe sql mode, don't allow updates without keys */
@@ -138,7 +138,7 @@ int mysql_update(THD *thd,
     {
       delete select;
       table->time_stamp=save_time_stamp;
-      send_error(&thd->net,ER_UPDATE_WITHOUT_KEY_IN_SAFE_MODE);
+      send_error(thd,ER_UPDATE_WITHOUT_KEY_IN_SAFE_MODE);
       DBUG_RETURN(1);
     }
   }
@@ -329,13 +329,13 @@ int mysql_update(THD *thd,
 
   delete select;
   if (error >= 0)
-    send_error(&thd->net,thd->killed ? ER_SERVER_SHUTDOWN : 0); /* purecov: inspected */
+    send_error(thd,thd->killed ? ER_SERVER_SHUTDOWN : 0); /* purecov: inspected */
   else
   {
     char buff[80];
     sprintf(buff,ER(ER_UPDATE_INFO), (long) found, (long) updated,
 	    (long) thd->cuted_fields);
-    send_ok(&thd->net,
+    send_ok(thd,
 	    (thd->client_capabilities & CLIENT_FOUND_ROWS) ? found : updated,
 	    thd->insert_id_used ? thd->insert_id() : 0L,buff);
     DBUG_PRINT("info",("%d records updated",updated));
@@ -439,7 +439,7 @@ multi_update::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
     }
     if (!table_ref)
     {
-      net_printf(&thd->net, ER_NOT_SUPPORTED_YET, "JOIN SYNTAX WITH MULTI-TABLE UPDATES");
+      net_printf(thd, ER_NOT_SUPPORTED_YET, "JOIN SYNTAX WITH MULTI-TABLE UPDATES");
       DBUG_RETURN(1);
     }
     else
@@ -447,7 +447,7 @@ multi_update::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
   }
   if (!num_updated)
   {
-    net_printf(&thd->net, ER_NOT_SUPPORTED_YET, "SET CLAUSE MUST CONTAIN TABLE.FIELD REFERENCE");
+    net_printf(thd, ER_NOT_SUPPORTED_YET, "SET CLAUSE MUST CONTAIN TABLE.FIELD REFERENCE");
     DBUG_RETURN(1);
   }
 
@@ -662,7 +662,7 @@ bool multi_update::send_data(List<Item> &values)
 void multi_update::send_error(uint errcode,const char *err)
 {
   /* First send error what ever it is ... */
-  ::send_error(&thd->net,errcode,err);
+  ::send_error(thd,errcode,err);
 
   /* reset used flags */
   //  update_tables->table->no_keyread=0;
@@ -821,7 +821,7 @@ bool multi_update::send_eof()
     {
       query_cache_invalidate3(thd, update_tables, 1);
     }
-    ::send_ok(&thd->net,
+    ::send_ok(thd,
 	      (thd->client_capabilities & CLIENT_FOUND_ROWS) ? found : updated,
 	      thd->insert_id_used ? thd->insert_id() : 0L,buff);
   }

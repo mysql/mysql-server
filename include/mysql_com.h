@@ -34,15 +34,15 @@
 #define MYSQL_SERVICENAME "MySql"
 #endif /* __WIN__ */
 
-enum enum_server_command {COM_SLEEP,COM_QUIT,COM_INIT_DB,COM_QUERY,
-			  COM_FIELD_LIST,COM_CREATE_DB,COM_DROP_DB,COM_REFRESH,
-			  COM_SHUTDOWN,COM_STATISTICS,
-			  COM_PROCESS_INFO,COM_CONNECT,COM_PROCESS_KILL,
-			  COM_DEBUG,COM_PING,COM_TIME,COM_DELAYED_INSERT,
-			  COM_CHANGE_USER, COM_BINLOG_DUMP,
-                          COM_TABLE_DUMP, COM_CONNECT_OUT,
-			  COM_REGISTER_SLAVE,
-			  COM_PREPARE,COM_EXECUTE,COM_LONG_DATA };
+enum enum_server_command
+{
+  COM_SLEEP, COM_QUIT, COM_INIT_DB, COM_QUERY, COM_FIELD_LIST,
+  COM_CREATE_DB, COM_DROP_DB, COM_REFRESH, COM_SHUTDOWN, COM_STATISTICS,
+  COM_PROCESS_INFO, COM_CONNECT, COM_PROCESS_KILL, COM_DEBUG, COM_PING,
+  COM_TIME, COM_DELAYED_INSERT, COM_CHANGE_USER, COM_BINLOG_DUMP,
+  COM_TABLE_DUMP, COM_CONNECT_OUT, COM_REGISTER_SLAVE,
+  COM_PREPARE, COM_EXECUTE, COM_LONG_DATA, COM_CLOSE_STMT
+};
 
 #define NOT_NULL_FLAG	1		/* Field can't be NULL */
 #define PRI_KEY_FLAG	2		/* Field is part of a primary key */
@@ -98,8 +98,9 @@ enum enum_server_command {COM_SLEEP,COM_QUIT,COM_INIT_DB,COM_QUERY,
 #define CLIENT_TRANSACTIONS	8192	/* Client knows about transactions */
 #define CLIENT_PROTOCOL_41       16384   /* New 4.1 protocol  */
 
-#define SERVER_STATUS_IN_TRANS  1	/* Transaction has started */
-#define SERVER_STATUS_AUTOCOMMIT 2	/* Server in auto_commit mode */
+#define SERVER_STATUS_IN_TRANS     1	/* Transaction has started */
+#define SERVER_STATUS_AUTOCOMMIT   2	/* Server in auto_commit mode */
+#define SERVER_STATUS_MORE_RESULTS 4	/* More results on server */
 
 #define MYSQL_ERRMSG_SIZE	200
 #define NET_READ_TIMEOUT	30		/* Timeout on read */
@@ -203,21 +204,26 @@ enum enum_field_types { MYSQL_TYPE_DECIMAL, MYSQL_TYPE_TINY,
 extern "C" {
 #endif
 
-int	my_net_init(NET *net, Vio* vio);
+my_bool	my_net_init(NET *net, Vio* vio);
 void	my_net_local_init(NET *net);
 void	net_end(NET *net);
 void	net_clear(NET *net);
-int	net_flush(NET *net);
-int	my_net_write(NET *net,const char *packet,unsigned long len);
-int	net_write_command(NET *net,unsigned char command,const char *packet,
-			  unsigned long len);
+my_bool net_realloc(NET *net, unsigned long length);
+my_bool	net_flush(NET *net);
+my_bool	my_net_write(NET *net,const char *packet,unsigned long len);
+my_bool	net_write_command(NET *net,unsigned char command,
+			  const char *header, unsigned long head_len,
+			  const char *packet, unsigned long len);
 int	net_real_write(NET *net,const char *packet,unsigned long len);
 unsigned long my_net_read(NET *net);
 
-/* The following function is not meant for normal usage */
+/*
+  The following function is not meant for normal usage
+  Currently it's used internally by manager.c
+*/
 struct sockaddr;
-int my_connect(my_socket s, const struct sockaddr *name, unsigned int namelen,
-	       unsigned int timeout);
+my_bool my_connect(my_socket s, const struct sockaddr *name,
+		   unsigned int namelen, unsigned int timeout);
 
 struct rand_struct {
   unsigned long seed1,seed2,max_value;
@@ -291,6 +297,6 @@ void my_thread_end(void);
 #endif
 
 #define NULL_LENGTH ((unsigned long) ~0) /* For net_store_length */
-#define MYSQL_LONG_DATA_END 0xFF /* For indication of long data ending */
+#define	MYSQL_LONG_DATA_HEADER	8
 
 #endif

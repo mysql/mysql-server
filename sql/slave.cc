@@ -56,7 +56,6 @@ static int events_till_disconnect = -1;
 
 typedef enum { SLAVE_THD_IO, SLAVE_THD_SQL} SLAVE_THD_TYPE;
 
-void skip_load_data_infile(NET* net);
 static int process_io_rotate(MASTER_INFO* mi, Rotate_log_event* rev);
 static int process_io_create_file(MASTER_INFO* mi, Create_file_log_event* cev);
 static bool wait_for_relay_log_space(RELAY_LOG_INFO* rli);
@@ -723,13 +722,22 @@ void slave_print_error(RELAY_LOG_INFO* rli, int err_code, const char* msg, ...)
   rli->last_slave_errno = err_code;
 }
 
+/*
+  This is used to tell a 3.23 master to break send_file()
+*/
 
-void skip_load_data_infile(NET* net)
+void skip_load_data_infile(NET *net)
 {
-  (void)my_net_write(net, "\xfb/dev/null", 10);
-  (void)net_flush(net);
-  (void)my_net_read(net);			// discard response
-  send_ok(net);					// the master expects it
+  (void)net_request_file(net, "/dev/null");
+  (void)my_net_read(net);				// discard response
+  (void)net_write_command(net, 0, "", 0, "", 0);	// Send ok
+}
+
+
+bool net_request_file(NET* net, const char* fname)
+{
+  DBUG_ENTER("net_request_file");
+  DBUG_RETURN(net_write_command(net, 251, fname, strlen(fname), "", 0));
 }
 
 
@@ -875,13 +883,13 @@ static int create_table_from_dump(THD* thd, NET* net, const char* db,
   
   if (packet_len == packet_error)
   {
-    send_error(&thd->net, ER_MASTER_NET_READ);
+    send_error(thd, ER_MASTER_NET_READ);
     return 1;
   }
   if (net->read_pos[0] == 255) // error from master
   {
     net->read_pos[packet_len] = 0;
-    net_printf(&thd->net, ER_MASTER, net->read_pos + 3);
+    net_printf(thd, ER_MASTER, net->read_pos + 3);
     return 1;
   }
   thd->command = COM_TABLE_DUMP;
@@ -889,7 +897,7 @@ static int create_table_from_dump(THD* thd, NET* net, const char* db,
   if (!thd->query)
   {
     sql_print_error("create_table_from_dump: out of memory");
-    net_printf(&thd->net, ER_GET_ERRNO, "Out of memory");
+    net_printf(thd, ER_GET_ERRNO, "Out of memory");
     return 1;
   }
   memcpy(thd->query, net->read_pos, packet_len);
@@ -919,7 +927,7 @@ static int create_table_from_dump(THD* thd, NET* net, const char* db,
   thd->proc_info = "Opening master dump table";
   if (!open_ltable(thd, &tables, TL_WRITE))
   {
-    send_error(&thd->net,0,0);			// Send error from open_ltable
+    send_error(thd,0,0);			// Send error from open_ltable
     sql_print_error("create_table_from_dump: could not open created table");
     goto err;
   }
@@ -928,7 +936,7 @@ static int create_table_from_dump(THD* thd, NET* net, const char* db,
   thd->proc_info = "Reading master dump table data";
   if (file->net_read_dump(net))
   {
-    net_printf(&thd->net, ER_MASTER_NET_READ);
+    net_printf(thd, ER_MASTER_NET_READ);
     sql_print_error("create_table_from_dump::failed in\
  handler::net_read_dump()");
     goto err;
@@ -947,7 +955,7 @@ static int create_table_from_dump(THD* thd, NET* net, const char* db,
   error=file->repair(thd,&check_opt) != 0;
   thd->net.vio = save_vio;
   if (error)
-    net_printf(&thd->net, ER_INDEX_REBUILD,tables.table->real_name);
+    net_printf(thd, ER_INDEX_REBUILD,tables.table->real_name);
 
 err:
   close_thread_tables(thd);
@@ -969,12 +977,12 @@ int fetch_master_table(THD *thd, const char *db_name, const char *table_name,
   { 
     if (!(mysql = mc_mysql_init(NULL)))
     {
-      send_error(&thd->net);			// EOM
+      send_error(thd);			// EOM
       DBUG_RETURN(1);
     }
     if (connect_to_master(thd, mysql, mi))
     {
-      net_printf(&thd->net, ER_CONNECT_TO_MASTER, mc_mysql_error(mysql));
+      net_printf(thd, ER_CONNECT_TO_MASTER, mc_mysql_error(mysql));
       mc_mysql_close(mysql);
       DBUG_RETURN(1);
     }
@@ -998,7 +1006,7 @@ int fetch_master_table(THD *thd, const char *db_name, const char *table_name,
   if (!called_connected)
     mc_mysql_close(mysql);
   if (errmsg && thd->net.vio)
-    send_error(&thd->net, error, errmsg);
+    send_error(thd, error, errmsg);
   DBUG_RETURN(test(error));			// Return 1 on error
 }
 
@@ -1440,7 +1448,7 @@ int show_master_info(THD* thd, MASTER_INFO* mi)
     if (my_net_write(&thd->net, (char*)thd->packet.ptr(), packet->length()))
       DBUG_RETURN(-1);
   }
-  send_eof(&thd->net);
+  send_eof(thd);
   DBUG_RETURN(0);
 }
 
@@ -2222,8 +2230,8 @@ static int process_io_create_file(MASTER_INFO* mi, Create_file_log_event* cev)
   int error = 1;
   ulong num_bytes;
   bool cev_not_written;
-  THD* thd;
-  NET* net = &mi->mysql->net;
+  THD *thd = mi->io_thd;
+  NET *net = &mi->mysql->net;
   DBUG_ENTER("process_io_create_file");
 
   if (unlikely(!cev->is_valid()))
@@ -2237,7 +2245,6 @@ static int process_io_create_file(MASTER_INFO* mi, Create_file_log_event* cev)
     DBUG_RETURN(0);
   }
   DBUG_ASSERT(cev->inited_from_old);
-  thd = mi->io_thd;
   thd->file_id = cev->file_id = mi->file_id++;
   thd->server_id = cev->server_id;
   cev_not_written = 1;
@@ -2266,7 +2273,7 @@ static int process_io_create_file(MASTER_INFO* mi, Create_file_log_event* cev)
       }
       if (unlikely(!num_bytes)) /* eof */
       {
-	send_ok(net); /* 3.23 master wants it */
+	net_write_command(net, 0, "", 0, "", 0);/* 3.23 master wants it */
 	Execute_load_log_event xev(thd);
 	xev.log_pos = mi->master_log_pos;
 	if (unlikely(mi->rli.relay_log.append(&xev)))

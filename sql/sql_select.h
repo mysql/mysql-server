@@ -149,7 +149,8 @@ class TMP_TABLE_PARAM {
   }
 };
 
-class JOIN :public Sql_alloc{
+class JOIN :public Sql_alloc
+{
  public:
   JOIN_TAB *join_tab,**best_ref,**map2table;
   TABLE    **table,**all_tables,*sort_by_table;
@@ -222,6 +223,7 @@ class JOIN :public Sql_alloc{
 		  !test(select_options & OPTION_FOUND_ROWS)),
     all_fields(fields),
     fields_list(fields),
+    error(0),
     select(0),
     exec_tmp_table(0),
     test_function_query(0),

@@ -212,12 +212,12 @@ static void free_rows(MYSQL_DATA *cur)
 }
 
 
-int
+my_bool
 simple_command(MYSQL *mysql,enum enum_server_command command, const char *arg,
 	       ulong length, my_bool skipp_check)
 {
   NET *net= &mysql->net;
-  int result= -1;
+  my_bool result= 1;
 
   /* Check that we are calling the client functions in right order */
   if (mysql->status != MYSQL_STATUS_READY)
@@ -239,7 +239,7 @@ simple_command(MYSQL *mysql,enum enum_server_command command, const char *arg,
   result = lib_dispatch_command(command, net, arg,length);
   if (!skipp_check)
     result= ((mysql->packet_length=net_safe_read(mysql)) == packet_error ?
-	     -1 : 0);
+	     1 : 0);
  end:
   return result;
 }
@@ -1124,7 +1124,7 @@ mysql_send_query(MYSQL* mysql, const char* query, ulong length)
 }
 
 
-int STDCALL
+my_bool STDCALL
 mysql_read_query_result(MYSQL *mysql)
 {
   uchar *pos;
@@ -1134,7 +1134,7 @@ mysql_read_query_result(MYSQL *mysql)
   DBUG_ENTER("mysql_read_query_result");
 
   if ((length=net_safe_read(mysql)) == packet_error)
-    DBUG_RETURN(-1);
+    DBUG_RETURN(1);
   free_old_query(mysql);			/* Free old result */
 get_info:
   pos=(uchar*) mysql->net.read_pos;
@@ -1154,7 +1154,7 @@ get_info:
   {
     int error=send_file_to_server(mysql,(char*) pos);
     if ((length=net_safe_read(mysql)) == packet_error || error)
-      DBUG_RETURN(-1);
+      DBUG_RETURN(1);
     goto get_info;				/* Get info packet */
   }
   if (!(mysql->server_status & SERVER_STATUS_AUTOCOMMIT))
@@ -1162,19 +1162,19 @@ get_info:
 
   mysql->extra_info= net_field_length_ll(&pos); /* Maybe number of rec */
   if (!(fields=read_rows(mysql,(MYSQL_FIELD*) 0,5)))
-    DBUG_RETURN(-1);
+    DBUG_RETURN(1);
   if (!(mysql->fields=unpack_fields(fields,&mysql->field_alloc,
 				    (uint) field_count,0,
 				    (my_bool) test(mysql->server_capabilities &
 						   CLIENT_LONG_FLAG))))
-    DBUG_RETURN(-1);
+    DBUG_RETURN(1);
   mysql->status=MYSQL_STATUS_GET_RESULT;
   mysql->field_count=field_count;
   DBUG_RETURN(0);
 }
 
 /****************************************************************************
-* A modified version of connect().  connect2() allows you to specify
+* A modified version of connect().  my_connect() allows you to specify
 * a timeout value, in seconds, that we should wait until we
 * derermine we can't connect to a particular host.  If timeout is 0,
 * my_connect() will behave exactly like connect().
@@ -1182,11 +1182,11 @@ get_info:
 * Base version coded by Steve Bernacki, Jr. <steve@navinet.net>
 *****************************************************************************/
 
-int my_connect(my_socket s, const struct sockaddr *name, uint namelen,
-		    uint timeout)
+my_bool my_connect(my_socket s, const struct sockaddr *name, uint namelen,
+		   uint timeout)
 {
 #if defined(__WIN__) || defined(OS2)
-  return connect(s, (struct sockaddr*) name, namelen);
+  return connect(s, (struct sockaddr*) name, namelen) != 0;
 #else
   int flags, res, s_err;
   SOCKOPT_OPTLEN_TYPE s_err_size = sizeof(uint);
@@ -1199,7 +1199,7 @@ int my_connect(my_socket s, const struct sockaddr *name, uint namelen,
    */
 
   if (timeout == 0)
-    return connect(s, (struct sockaddr*) name, namelen);
+    return connect(s, (struct sockaddr*) name, namelen) != 0;
 
   flags = fcntl(s, F_GETFL, 0);		  /* Set socket to not block */
 #ifdef O_NONBLOCK
@@ -1212,7 +1212,7 @@ int my_connect(my_socket s, const struct sockaddr *name, uint namelen,
   if ((res != 0) && (s_err != EINPROGRESS))
   {
     errno = s_err;			/* Restore it */
-    return(-1);
+    return(1);
   }
   if (res == 0)				/* Connected quickly! */
     return(0);
@@ -1252,7 +1252,7 @@ int my_connect(my_socket s, const struct sockaddr *name, uint namelen,
     now_time=time(NULL);
     timeout-= (uint) (now_time - start_time);
     if (errno != EINTR || (int) timeout <= 0)
-      return -1;
+      return 1;
   }
 
   /* select() returned something more interesting than zero, let's
@@ -1262,12 +1262,12 @@ int my_connect(my_socket s, const struct sockaddr *name, uint namelen,
 
   s_err=0;
   if (getsockopt(s, SOL_SOCKET, SO_ERROR, (char*) &s_err, &s_err_size) != 0)
-    return(-1);
+    return(1);
 
   if (s_err)
   {						/* getsockopt could succeed */
     errno = s_err;
-    return(-1);					/* but return an error... */
+    return(1);					/* but return an error... */
   }
   return(0);					/* It's all good! */
 #endif

@@ -1064,7 +1064,7 @@ bool st_select_lex_unit::create_total_list_n_last_return(THD *thd, st_lex *lex,
     // check usage of ORDER BY in union
     if (sl->order_list.first && sl->next_select() && !sl->braces)
     {
-      net_printf(&thd->net,ER_WRONG_USAGE,"UNION","ORDER BY");
+      net_printf(thd,ER_WRONG_USAGE,"UNION","ORDER BY");
       return 1;
     }
     for (SELECT_LEX_UNIT *inner=  sl->first_inner_unit();
@@ -1092,7 +1092,7 @@ bool st_select_lex_unit::create_total_list_n_last_return(THD *thd, st_lex *lex,
 	  if (!(cursor= (TABLE_LIST *) thd->memdup((char*) aux,
 						   sizeof(*aux))))
 	  {
-	    send_error(&thd->net,0);
+	    send_error(thd,0);
 	    return 1;
 	  }
 	  *new_table_list= cursor;

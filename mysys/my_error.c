@@ -120,7 +120,7 @@ int my_error(int nr,myf MyFlags, ...)
       ...	variable list
 */
 
-int my_printf_error (uint error, const char *format, myf MyFlags, ...)
+int my_printf_error(uint error, const char *format, myf MyFlags, ...)
 {
   va_list args;
   char ebuff[ERRMSGSIZE+20];

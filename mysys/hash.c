@@ -35,11 +35,12 @@ static uint calc_hashnr(CHARSET_INFO *cs,const byte *key,uint length);
 static uint calc_hashnr_caseup(CHARSET_INFO *cs, const byte *key,uint length);
 static int hashcmp(HASH *hash,HASH_LINK *pos,const byte *key,uint length);
 
+
 my_bool
 _hash_init(HASH *hash,CHARSET_INFO *charset,
-		  uint size,uint key_offset,uint key_length,
-		  hash_get_key get_key,
-		  void (*free_element)(void*),uint flags CALLER_INFO_PROTO)
+	   uint size,uint key_offset,uint key_length,
+	   hash_get_key get_key,
+	   void (*free_element)(void*),uint flags CALLER_INFO_PROTO)
 {
   DBUG_ENTER("hash_init");
   DBUG_PRINT("enter",("hash: %lx  size: %d",hash,size));

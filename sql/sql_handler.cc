@@ -62,7 +62,7 @@ int mysql_ha_open(THD *thd, TABLE_LIST *tables)
     return -1;
   }
 
-  send_ok(&thd->net);
+  send_ok(thd);
   return 0;
 }
 
@@ -83,7 +83,7 @@ int mysql_ha_close(THD *thd, TABLE_LIST *tables, bool dont_send_ok)
     return -1;
   }
   if (!dont_send_ok)
-    send_ok(&thd->net);
+    send_ok(thd);
   return 0;
 }
 
@@ -185,7 +185,7 @@ int mysql_ha_read(THD *thd, TABLE_LIST *tables,
       }
       if (!(key= (byte*) sql_calloc(ALIGN_SIZE(key_len))))
       {
-	send_error(&thd->net,ER_OUTOFMEMORY);
+	send_error(thd,ER_OUTOFMEMORY);
 	goto err;
       }
       key_copy(key, table, keyno, key_len);
@@ -195,7 +195,7 @@ int mysql_ha_read(THD *thd, TABLE_LIST *tables,
       break;
     }
     default:
-      send_error(&thd->net,ER_ILLEGAL_HA);
+      send_error(thd,ER_ILLEGAL_HA);
       goto err;
     }
 
@@ -240,7 +240,7 @@ int mysql_ha_read(THD *thd, TABLE_LIST *tables,
   }
 ok:
   mysql_unlock_tables(thd,lock);
-  send_eof(&thd->net);
+  send_eof(thd);
   return 0;
 err:
   mysql_unlock_tables(thd,lock);

@@ -1,5 +1,4 @@
-/* Copyright (C) 2000 MySQL AB & Ramil Kalimullin & MySQL Finland AB 
-   & TCX DataKonsult AB
+/* Copyright (C) 2000 MySQL AB & Ramil Kalimullin
    
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -30,8 +29,9 @@ static int sp_get_geometry_mbr(uchar *(*wkb), uchar *end, uint n_dims,
                               double *mbr, int top);
 static int sp_mbr_from_wkb(uchar (*wkb), uint size, uint n_dims, double *mbr);
 
+
 uint sp_make_key(register MI_INFO *info, uint keynr, uchar *key,
-              const byte *record, my_off_t filepos)
+		 const byte *record, my_off_t filepos)
 {
   HA_KEYSEG *keyseg;
   MI_KEYDEF *keyinfo = &info->s->keyinfo[keynr];
@@ -91,10 +91,12 @@ static int sp_mbr_from_wkb(uchar *wkb, uint size, uint n_dims, double *mbr)
 }
 
 /*
-Add one point stored in wkb to mbr
+  Add one point stored in wkb to mbr
 */
+
 static int sp_add_point_to_mbr(uchar *(*wkb), uchar *end, uint n_dims, 
-                                uchar byte_order, double *mbr)
+			       uchar byte_order __attribute__((unused)),
+			       double *mbr)
 {
   double ord;
   double *mbr_end = mbr + n_dims * 2;
@@ -115,11 +117,13 @@ static int sp_add_point_to_mbr(uchar *(*wkb), uchar *end, uint n_dims,
   return 0;
 }
 
+
 static int sp_get_point_mbr(uchar *(*wkb), uchar *end, uint n_dims, 
                            uchar byte_order, double *mbr)
 {
   return sp_add_point_to_mbr(wkb, end, n_dims, byte_order, mbr);
 }
+
 
 static int sp_get_linestring_mbr(uchar *(*wkb), uchar *end, uint n_dims, 
                                   uchar byte_order, double *mbr)
@@ -136,6 +140,7 @@ static int sp_get_linestring_mbr(uchar *(*wkb), uchar *end, uint n_dims,
   }
   return 0;
 }
+
 
 static int sp_get_polygon_mbr(uchar *(*wkb), uchar *end, uint n_dims, 
                                uchar byte_order, double *mbr)

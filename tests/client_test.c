@@ -268,7 +268,7 @@ void my_print_result_metadata(MYSQL_RES *result)
   for(i=0; i< field_count; i++)
   {
     field = mysql_fetch_field(result);
-    fprintf(stdout, " %-*s |",field->max_length, field->name);
+    fprintf(stdout, " %-*s |",(int) field->max_length, field->name);
   }
   fputc('\n', stdout);
   my_print_dashes(result);
@@ -296,11 +296,11 @@ int my_process_result_set(MYSQL *mysql, MYSQL_RES *result)
     {
       field = mysql_fetch_field(result);
       if(row[i] == NULL)
-        fprintf(stdout, " %-*s |", field->max_length, "NULL");
+        fprintf(stdout, " %-*s |", (int) field->max_length, "NULL");
       else if (IS_NUM(field->type))
-        fprintf(stdout, " %*s |", field->max_length, row[i]);
+        fprintf(stdout, " %*s |", (int) field->max_length, row[i]);
       else
-        fprintf(stdout, " %-*s |", field->max_length, row[i]);
+        fprintf(stdout, " %-*s |", (int) field->max_length, row[i]);
     }
     fputc('\t',stdout);
     fputc('\n',stdout);
@@ -548,13 +548,15 @@ void test_tran_innodb(MYSQL *mysql)
   mysql_autocommit(mysql,true);    
 }
 
+
 /********************************************************
-* to test simple prepares of all DML statements         *
+ To test simple prepares of all DML statements
 *********************************************************/
+
 void test_prepare_simple(MYSQL *mysql)
 {
   MYSQL_STMT *stmt;
-  int        rc,param_count,length;
+  int        rc,param_count;
   const char *query;
 
   myheader("test_prepare_simple"); 
@@ -570,8 +572,7 @@ void test_prepare_simple(MYSQL *mysql)
 
   /* alter table */
   query = "ALTER TABLE test_prepare_simple ADD new char(20)";
-  length = strlen(query);
-  stmt = mysql_prepare(mysql, query);
+  stmt = mysql_prepare(mysql, query, strlen(query));
   myxquery(mysql,stmt);   
 
   param_count = mysql_param_count(stmt);
@@ -581,8 +582,7 @@ void test_prepare_simple(MYSQL *mysql)
 
   /* insert */
   query = "INSERT INTO test_prepare_simple VALUES(?,?)";
-  length = strlen(query);
-  stmt = mysql_prepare(mysql, query);
+  stmt = mysql_prepare(mysql, query, strlen(query));
   myxquery(mysql,stmt);   
 
   param_count = mysql_param_count(stmt);
@@ -592,8 +592,7 @@ void test_prepare_simple(MYSQL *mysql)
 
   /* update */
   query = "UPDATE test_prepare_simple SET id=? WHERE id=? AND name= ?";
-  length = strlen(query);
-  stmt = mysql_prepare(mysql, query);
+  stmt = mysql_prepare(mysql, query, strlen(query));
   myxquery(mysql,stmt);   
 
   param_count = mysql_param_count(stmt);
@@ -603,8 +602,7 @@ void test_prepare_simple(MYSQL *mysql)
 
   /* delete */
   query = "DELETE FROM test_prepare_simple WHERE id=10";
-  length = strlen(query);
-  stmt = mysql_prepare(mysql, query);
+  stmt = mysql_prepare(mysql, query, strlen(query));
   myxquery(mysql,stmt);   
 
   param_count = mysql_param_count(stmt);
@@ -617,8 +615,7 @@ void test_prepare_simple(MYSQL *mysql)
 
   /* delete */
   query = "DELETE FROM test_prepare_simple WHERE id=?";
-  length = strlen(query);
-  stmt = mysql_prepare(mysql, query);
+  stmt = mysql_prepare(mysql, query, strlen(query));
   myxquery(mysql,stmt);   
 
   param_count = mysql_param_count(stmt);
@@ -631,8 +628,7 @@ void test_prepare_simple(MYSQL *mysql)
 
   /* select */
   query = "SELECT * FROM test_prepare_simple WHERE id=? AND name= ?";
-  length = strlen(query);
-  stmt = mysql_prepare(mysql, query);
+  stmt = mysql_prepare(mysql, query, strlen(query));
   myxquery(mysql,stmt);   
 
   param_count = mysql_param_count(stmt);
@@ -653,7 +649,7 @@ void test_prepare_simple(MYSQL *mysql)
 void test_prepare_field_result(MYSQL *mysql)
 {
   MYSQL_STMT *stmt;
-  int        rc,param_count,length;
+  int        rc,param_count;
   const char *query;
 
   myheader("test_prepare_field_result"); 
@@ -670,8 +666,7 @@ void test_prepare_field_result(MYSQL *mysql)
 
   /* insert */
   query = "SELECT id,name FROM test_prepare_field_result WHERE id=?";
-  length = strlen(query);
-  stmt = mysql_prepare(mysql, query);
+  stmt = mysql_prepare(mysql, query, strlen(query));
   myxquery(mysql,stmt);   
 
   param_count = mysql_param_count(stmt);
@@ -691,7 +686,7 @@ void test_prepare_field_result(MYSQL *mysql)
 void test_prepare_syntax(MYSQL *mysql)
 {
   MYSQL_STMT *stmt;
-  int        rc,length;
+  int        rc;
   const char *query;
 
   myheader("test_prepare_syntax"); 
@@ -706,13 +701,11 @@ void test_prepare_syntax(MYSQL *mysql)
   myquery(mysql,rc); 
 
   query = "INSERT INTO test_prepare_syntax VALUES(?";
-  length = strlen(query);
-  stmt = mysql_prepare(mysql, query);
+  stmt = mysql_prepare(mysql, query, strlen(query));
   myxquery_r(mysql,stmt);    
 
   query = "SELECT id,name FROM test_prepare_syntax WHERE id=? AND WHERE";
-  length = strlen(query);
-  stmt = mysql_prepare(mysql, query);
+  stmt = mysql_prepare(mysql, query, strlen(query));
   myxquery_r(mysql,stmt);   
 
   /* now fetch the results ..*/
@@ -759,7 +752,7 @@ void test_prepare(MYSQL *mysql)
 
   /* insert by prepare */
   strcpy(query,"INSERT INTO my_prepare VALUES(?,?,?,?,?,?,?)");
-  stmt = mysql_prepare(mysql, query);
+  stmt = mysql_prepare(mysql, query, strlen(query));
   myxquery(mysql,stmt);   
 
   param_count = mysql_param_count(stmt);
@@ -861,7 +854,7 @@ void test_double_compare(MYSQL *mysql)
   myquery(mysql,rc);  
 
   strcpy(query, "UPDATE test_double_compare SET col1=100 WHERE col1 = ? AND col2 = ? AND COL3 = ?");
-  stmt = mysql_prepare(mysql,query);
+  stmt = mysql_prepare(mysql,query, strlen(query));
   myxquery(mysql,stmt);   
 
   param_count = mysql_param_count(stmt);
@@ -937,13 +930,11 @@ void test_null(MYSQL *mysql)
 
   /* insert by prepare, wrong column name */
   query = "INSERT INTO test_null(col3,col2) VALUES(?,?)";
-  nData = strlen(query);
-  stmt = mysql_prepare(mysql, query);
+  stmt = mysql_prepare(mysql, query, strlen(query));
   myxquery_r(mysql,stmt);   
 
   query = "INSERT INTO test_null(col1,col2) VALUES(?,?)";
-  nData = strlen(query);
-  stmt = mysql_prepare(mysql, query);
+  stmt = mysql_prepare(mysql, query, strlen(query));
   myxquery(mysql,stmt);   
 
   param_count = mysql_param_count(stmt);
@@ -998,8 +989,7 @@ void test_select_simple(MYSQL *mysql)
 
   /* insert by prepare */
   strcpy((char *)query, "SHOW TABLES FROM mysql");
-  length = strlen(query);
-  stmt = mysql_prepare(mysql, query);
+  stmt = mysql_prepare(mysql, query, strlen(query));
   myxquery(mysql,stmt);   
 
   length = mysql_param_count(stmt);
@@ -1079,8 +1069,7 @@ void test_select(MYSQL *mysql)
   myquery(mysql,rc);
 
   query = "SELECT * FROM test_select WHERE id=? AND name=?";
-  nData = strlen(query);  
-  stmt = mysql_prepare(mysql, query);
+  stmt = mysql_prepare(mysql, query, strlen(query));
   myxquery(mysql,stmt);   
 
   param_count = mysql_param_count(stmt);
@@ -1159,8 +1148,7 @@ void test_simple_update(MYSQL *mysql)
 
   /* insert by prepare */
   query = "UPDATE test_update SET col2=? WHERE col1=?";
-  nData = strlen(query);
-  stmt = mysql_prepare(mysql, query);
+  stmt = mysql_prepare(mysql, query, strlen(query));
   myxquery(mysql,stmt);   
 
   param_count = mysql_param_count(stmt);
@@ -1208,7 +1196,6 @@ void test_long_data(MYSQL *mysql)
   int        rc,param_count;
   const char *query;
   char       *data=NullS;
-  int        length;
   MYSQL_RES  *result;
   MYSQL_BIND bind[2];  
   
@@ -1233,8 +1220,7 @@ void test_long_data(MYSQL *mysql)
   myquery(mysql,rc);
 
   query = "INSERT INTO test_long_data(col2) VALUES(?)";
-  length=strlen(query);
-  stmt = mysql_prepare(mysql, query);
+  stmt = mysql_prepare(mysql, query, strlen(query));
   myxquery(mysql,stmt);     
 
   param_count = mysql_param_count(stmt);
@@ -1261,7 +1247,7 @@ void test_long_data(MYSQL *mysql)
   data = (char *)"Micheal";
 
   /* supply data in pieces */
-  rc = mysql_send_long_data(stmt,0,data,7);
+  rc = mysql_send_long_data(stmt,0,data,7,1);
   mystmt(stmt, rc);
 
   /* try to execute mysql_execute() now, it should return 
@@ -1275,11 +1261,11 @@ void test_long_data(MYSQL *mysql)
 
   /* supply data in pieces */
   data = (char *)" 'monty' widenius";
-  rc = mysql_send_long_data(stmt,0,data,17);
+  rc = mysql_send_long_data(stmt,0,data,17,0);
   mystmt(stmt, rc);
 
   /* Indiate end of data supply */
-  rc = mysql_send_long_data(stmt,0,0,MYSQL_LONG_DATA_END);
+  rc = mysql_send_long_data(stmt,0,0,0,1);
   mystmt(stmt, rc);
 
   /* execute */
@@ -1311,7 +1297,7 @@ void test_long_data_str(MYSQL *mysql)
   int        rc,param_count;
   const char *query;
   char       data[255];
-  int        length;
+  long       length;
   MYSQL_RES  *result;
   MYSQL_BIND bind[2];  
   
@@ -1335,8 +1321,7 @@ void test_long_data_str(MYSQL *mysql)
   myquery(mysql,rc);
 
   query = "INSERT INTO test_long_data_str VALUES(?,?)";
-  length=strlen(query);
-  stmt = mysql_prepare(mysql, query);
+  stmt = mysql_prepare(mysql, query, strlen(query));
   myxquery(mysql,stmt);     
 
   param_count = mysql_param_count(stmt);
@@ -1365,7 +1350,7 @@ void test_long_data_str(MYSQL *mysql)
     int i;
     for(i=0; i < 4; i++)
     {
-      rc = mysql_send_long_data(stmt,1,(char *)data,5);
+      rc = mysql_send_long_data(stmt,1,(char *)data,5,0);
       mystmt(stmt, rc);
     }
 
@@ -1378,7 +1363,7 @@ void test_long_data_str(MYSQL *mysql)
   }
 
   /* Indiate end of data supply */
-  rc = mysql_send_long_data(stmt,1,0,MYSQL_LONG_DATA_END);
+  rc = mysql_send_long_data(stmt,1,0,0,1);
   mystmt(stmt, rc);
 
   /* execute */
@@ -1437,8 +1422,7 @@ void test_long_data_str1(MYSQL *mysql)
   myquery(mysql,rc);
 
   query = "INSERT INTO test_long_data_str VALUES(?,?)";
-  length=strlen(query);
-  stmt = mysql_prepare(mysql, query);
+  stmt = mysql_prepare(mysql, query, strlen(query));
   myxquery(mysql,stmt);     
 
   param_count = mysql_param_count(stmt);
@@ -1467,10 +1451,10 @@ void test_long_data_str1(MYSQL *mysql)
     int i;
     for(i=0; i < 2; i++)
     {
-      rc = mysql_send_long_data(stmt,0,data,length);
+      rc = mysql_send_long_data(stmt,0,data,length,0);
       mystmt(stmt, rc);
 
-      rc = mysql_send_long_data(stmt,1,data,2);
+      rc = mysql_send_long_data(stmt,1,data,2,0);
       mystmt(stmt, rc);
     }
     /* try to execute mysql_execute() now, it should return 
@@ -1482,14 +1466,14 @@ void test_long_data_str1(MYSQL *mysql)
   }
 
   /* Indiate end of data supply */
-  rc = mysql_send_long_data(stmt,1,0,MYSQL_LONG_DATA_END);
+  rc = mysql_send_long_data(stmt,1,0,0,1);
   mystmt(stmt, rc);
   
   rc = mysql_execute(stmt);
   fprintf(stdout,"mysql_execute() returned %d\n",rc);
   assert(rc == MYSQL_NEED_DATA);
 
-  rc = mysql_send_long_data(stmt,0,0,MYSQL_LONG_DATA_END);
+  rc = mysql_send_long_data(stmt,0,0,0,1);
   mystmt(stmt, rc);
   
   /* execute */
@@ -1548,8 +1532,7 @@ void test_long_data_bin(MYSQL *mysql)
   myquery(mysql,rc);
 
   query = "INSERT INTO test_long_data_bin VALUES(?,?)";
-  length=strlen(query);
-  stmt = mysql_prepare(mysql, query);
+  stmt = mysql_prepare(mysql, query, strlen(query));
   myxquery(mysql,stmt);     
 
   param_count = mysql_param_count(stmt);
@@ -1577,7 +1560,7 @@ void test_long_data_bin(MYSQL *mysql)
     int i;
     for(i=0; i < 100; i++)
     {
-      rc = mysql_send_long_data(stmt,1,(char *)data,4);
+      rc = mysql_send_long_data(stmt,1,(char *)data,4,0);
       mystmt(stmt, rc);
     }
 
@@ -1590,7 +1573,7 @@ void test_long_data_bin(MYSQL *mysql)
   }
 
   /* Indiate end of data supply */
-  rc = mysql_send_long_data(stmt,1,0,MYSQL_LONG_DATA_END);
+  rc = mysql_send_long_data(stmt,1,0,0,1);
   mystmt(stmt, rc);
 
   /* execute */
@@ -1659,8 +1642,7 @@ void test_simple_delete(MYSQL *mysql)
 
   /* insert by prepare */
   query = "DELETE FROM test_simple_delete WHERE col1=? AND col2=? AND col3=100";
-  nData = strlen(query);
-  stmt = mysql_prepare(mysql, query);
+  stmt = mysql_prepare(mysql, query, strlen(query));
   myxquery(mysql,stmt);   
 
   param_count = mysql_param_count(stmt);
@@ -1737,8 +1719,7 @@ void test_update(MYSQL *mysql)
   myquery(mysql,rc);
 
   query = "INSERT INTO test_update(col2,col3) VALUES(?,?)";
-  nData = strlen(query);  
-  stmt = mysql_prepare(mysql, query);
+  stmt = mysql_prepare(mysql, query, strlen(query));
   myxquery(mysql,stmt);   
 
   param_count = mysql_param_count(stmt);
@@ -1764,8 +1745,7 @@ void test_update(MYSQL *mysql)
 
   /* insert by prepare */
   query = "UPDATE test_update SET col2=? WHERE col3=?";
-  nData = strlen(query);
-  stmt = mysql_prepare(mysql, query);
+  stmt = mysql_prepare(mysql, query, strlen(query));
   myxquery(mysql,stmt);   
 
   param_count = mysql_param_count(stmt);
@@ -1812,7 +1792,7 @@ void test_update(MYSQL *mysql)
 void test_init_prepare(MYSQL *mysql)
 {
   MYSQL_STMT *stmt;
-  int        length, param_count, rc;
+  int        param_count, rc;
   const char *query;
   MYSQL_RES  *result;
 
@@ -1830,8 +1810,7 @@ void test_init_prepare(MYSQL *mysql)
  
   /* insert by prepare */
   query = "INSERT INTO my_prepare VALUES(10,'venu')";
-  length = strlen(query);
-  stmt = mysql_prepare(mysql, query);
+  stmt = mysql_prepare(mysql, query, strlen(query));
   myxquery(mysql,stmt);   
 
   param_count = mysql_param_count(stmt);
@@ -1904,8 +1883,7 @@ void test_bind_result(MYSQL *mysql)
   bind[1].buffer=szData;		/* string data */
   
   strcpy((char *)query , "SELECT * FROM test_bind_result");
-  nData = strlen(query);
-  stmt = mysql_prepare(mysql, query);
+  stmt = mysql_prepare(mysql, query, strlen(query));
   myxquery(mysql,stmt);   
   
   rc = mysql_bind_result(stmt,bind);
@@ -2000,7 +1978,7 @@ void test_prepare_ext(MYSQL *mysql)
 
   /* insert by prepare - all integers */
   query = (char *)"INSERT INTO test_prepare_ext(c1,c2,c3,c4,c5,c6) VALUES(?,?,?,?,?,?)";
-  stmt = mysql_prepare(mysql,query);
+  stmt = mysql_prepare(mysql,query, strlen(query));
   myquery(mysql,rc);  
 
   param_count = mysql_param_count(stmt);
@@ -2189,7 +2167,7 @@ void test_insert(MYSQL *mysql)
   /* insert by prepare */
   bzero(bind, sizeof(bind));
   strcpy(query,"INSERT INTO test_prep_insert VALUES(?,?)");
-  stmt = mysql_prepare(mysql, query);
+  stmt = mysql_prepare(mysql, query, strlen(query));
   myxquery(mysql,stmt);   
 
   param_count = mysql_param_count(stmt);
@@ -2260,7 +2238,7 @@ void test_prepare_resultset(MYSQL *mysql)
 
   /* insert by prepare */
   strcpy(query,"INSERT INTO test_prepare_resultset(id,name) VALUES(?,?)");
-  stmt = mysql_prepare(mysql, query);
+  stmt = mysql_prepare(mysql, query, strlen(query));
   myxquery(mysql,stmt);   
 
   param_count = mysql_param_count(stmt);

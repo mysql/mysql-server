@@ -17,26 +17,33 @@
 /*
   Code for handling red-black (balanced) binary trees.
   key in tree is allocated accrding to following:
-  1) If free_element function is given to init_tree or size < 0 then tree
-     will not allocate keys and only a pointer to each key is saved in tree.
-     key_sizes must be 0 to init and search.
+
+  1) If size < 0 then tree will not allocate keys and only a pointer to
+     each key is saved in tree.
+     compare and search functions uses and returns key-pointer
+
+  2) If size == 0 then there are two options:
+       - key_size != 0 to tree_insert: The key will be stored in the tree.
+       - key_size == 0 to tree_insert:  A pointer to the key is stored.
      compare and search functions uses and returns key-pointer.
-  2) if key_size is given to init_tree then each node will continue the
+
+  3) if key_size is given to init_tree then each node will continue the
      key and calls to insert_key may increase length of key.
      if key_size > sizeof(pointer) and key_size is a multiple of 8 (double
      allign) then key will be put on a 8 alligned adress. Else
      the key will be on adress (element+1). This is transparent for user
      compare and search functions uses a pointer to given key-argument.
-  3) If init_tree - keysize is 0 then key_size must be given to tree_insert
-     and tree_insert will alloc space for key.
-     compare and search functions uses a pointer to given key-argument.
+
+  - If you use a free function for tree-elements and you are freeing
+    the element itself, you should use key_size = 0 to init_tree and
+    tree_search
 
   The actual key in TREE_ELEMENT is saved as a pointer or after the
   TREE_ELEMENT struct.
   If one uses only pointers in tree one can use tree_set_pointer() to
   change address of data.
-  Copyright Monty Program KB.
-  By monty.
+
+  Implemented by monty.
 */
 
 #include "mysys_priv.h"

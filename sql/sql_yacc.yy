@@ -26,6 +26,7 @@
 #include "slave.h"
 #include "sql_acl.h"
 #include "lex_symbol.h"
+#include "item_create.h"
 #include <myisam.h>
 #include <myisammrg.h>
 
@@ -356,9 +357,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %token	COMPRESSED_SYM
 
 %token  ERRORS
-%token  SQL_ERROR_COUNT
 %token  WARNINGS
-%token  SQL_WARNING_COUNT
 
 %token	BIGINT
 %token	BLOB_SYM
@@ -642,7 +641,7 @@ query:
 	   if (!thd->bootstrap &&
 	      (!(thd->lex.select_lex.options & OPTION_FOUND_COMMENT)))
 	   {
-	     send_error(&current_thd->net,ER_EMPTY_QUERY);
+	     send_error(current_thd,ER_EMPTY_QUERY);
 	     YYABORT;
  	   }
 	   else
@@ -1128,7 +1127,7 @@ charset:
 	{ 
 	  if (!(Lex->charset=get_charset_by_name($1.str,MYF(0))))
 	  {
-	    net_printf(&current_thd->net,ER_UNKNOWN_CHARACTER_SET,$1.str);
+	    net_printf(current_thd,ER_UNKNOWN_CHARACTER_SET,$1.str);
 	    YYABORT;
 	  }
 	};
@@ -1690,7 +1689,7 @@ expr_expr:
 	  { 
 	    if (!(Lex->charset=get_charset_by_name($3.str,MYF(0))))
 	    {
-	      net_printf(&current_thd->net,ER_UNKNOWN_CHARACTER_SET,$3.str);
+	      net_printf(current_thd,ER_UNKNOWN_CHARACTER_SET,$3.str);
 	      YYABORT;
 	    }
 	    $$= new Item_func_set_collation($1,Lex->charset);
@@ -1921,9 +1920,8 @@ simple_expr:
 	  { $$= new Item_func_interval($3,* $5); }
 	| LAST_INSERT_ID '(' ')'
 	  {
-	    $$= new Item_int((char*) "last_insert_id()",
-			     current_thd->insert_id(),21);
-	    current_thd->safe_to_cache_query=0;
+    	    $$= get_system_var(OPT_SESSION, "last_insert_id", 14,
+			      "last_insert_id()");
 	  }
 	| LAST_INSERT_ID '(' expr ')'
 	  {
@@ -2409,7 +2407,7 @@ olap_opt:
 	    LEX *lex=Lex;
 	    lex->olap = true;
 	    lex->select->olap= CUBE_TYPE;
-	    net_printf(&lex->thd->net, ER_NOT_SUPPORTED_YET, "CUBE");
+	    net_printf(lex->thd, ER_NOT_SUPPORTED_YET, "CUBE");
 	    YYABORT;	/* To be deleted in 4.1 */
 	  }
 	| WITH ROLLUP_SYM
@@ -2417,7 +2415,7 @@ olap_opt:
 	    LEX *lex=Lex;
 	    lex->olap = true;
 	    lex->select->olap= ROLLUP_TYPE;
-	    net_printf(&lex->thd->net, ER_NOT_SUPPORTED_YET, "ROLLUP");
+	    net_printf(lex->thd, ER_NOT_SUPPORTED_YET, "ROLLUP");
 	    YYABORT;	/* To be deleted in 4.1 */
 	  }
 	;
@@ -2436,12 +2434,12 @@ order_clause:
 	  LEX *lex=Lex;
 	  if (lex->sql_command == SQLCOM_MULTI_UPDATE)
 	  {
-	    net_printf(&lex->thd->net, ER_WRONG_USAGE, "UPDATE", "ORDER BY");
+	    net_printf(lex->thd, ER_WRONG_USAGE, "UPDATE", "ORDER BY");
 	    YYABORT;
 	  }	
 	  if (lex->select->olap != UNSPECIFIED_OLAP_TYPE)
 	  {
-	    net_printf(&lex->thd->net, ER_WRONG_USAGE,
+	    net_printf(lex->thd, ER_WRONG_USAGE,
 		       "CUBE/ROLLUP",
 		       "ORDER BY");
 	    YYABORT;
@@ -2467,7 +2465,7 @@ limit_clause:
 	    LEX *lex=Lex;
 	    if (lex->select->olap != UNSPECIFIED_OLAP_TYPE)
 	    {
-	      net_printf(&lex->thd->net, ER_WRONG_USAGE, "CUBE/ROLLUP",
+	      net_printf(lex->thd, ER_WRONG_USAGE, "CUBE/ROLLUP",
 		        "LIMIT");
 	      YYABORT;
 	    }
@@ -2480,7 +2478,7 @@ limit_clause:
 	    LEX *lex=Lex;
 	    if (lex->select->olap != UNSPECIFIED_OLAP_TYPE)
 	    {
-	      net_printf(&lex->thd->net, ER_WRONG_USAGE, "CUBE/ROLLUP",
+	      net_printf(lex->thd, ER_WRONG_USAGE, "CUBE/ROLLUP",
 		        "LIMIT");
 	      YYABORT;
 	    }	      
@@ -2495,7 +2493,7 @@ delete_limit_clause:
 	  LEX *lex=Lex;
 	  if (lex->sql_command == SQLCOM_MULTI_UPDATE)
 	  {
-	    net_printf(&lex->thd->net, ER_WRONG_USAGE, "DELETE", "LIMIT");
+	    net_printf(lex->thd, ER_WRONG_USAGE, "DELETE", "LIMIT");
 	    YYABORT;
 	  }
 	  lex->select->select_limit= HA_POS_ERROR;
@@ -2935,9 +2933,9 @@ show_param:
 	    lex->sql_command= SQLCOM_SHOW_PRIVILEGES;
 	  }
         | COUNT_SYM '(' '*' ')' WARNINGS 
-          { Lex->sql_command = SQLCOM_SHOW_WARNS_COUNT;}
+          { (void) create_select_for_variable("warning_count"); }
         | COUNT_SYM '(' '*' ')' ERRORS 
-          { Lex->sql_command = SQLCOM_SHOW_ERRORS_COUNT;}
+	  { (void) create_select_for_variable("error_count"); }
         | WARNINGS {Select->offset_limit=0L;} limit_clause
           { Lex->sql_command = SQLCOM_SHOW_WARNS;}
         | ERRORS {Select->offset_limit=0L;} limit_clause
@@ -3103,7 +3101,7 @@ kill:
 	  LEX *lex=Lex;
 	  if ($2->fix_fields(lex->thd, 0, &$2))
 	  { 
-	    send_error(&lex->thd->net, ER_SET_CONSTANTS_ONLY);
+	    send_error(lex->thd, ER_SET_CONSTANTS_ONLY);
 	    YYABORT;
 	  }
           lex->sql_command=SQLCOM_KILL;
@@ -3218,10 +3216,11 @@ text_string:
 param_marker:
         '?' 
         {
-          if(current_thd->prepare_command)
+	  LEX *lex=Lex;
+          if (current_thd->prepare_command)
           {     
-            Lex->param_list.push_back($$=new Item_param());      
-            current_thd->param_count++;
+            lex->param_list.push_back($$=new Item_param());      
+            lex->param_count++;
           }
           else 
           {
@@ -3602,8 +3601,8 @@ text_or_password:
 set_expr_or_default:
 	expr      { $$=$1; }
 	| DEFAULT { $$=0; }
-	| ON	  { $$=new Item_string("ON",2); }
-	| ALL	  { $$=new Item_string("ALL",3); }
+	| ON	  { $$=new Item_string("ON",  2, system_charset_info); }
+	| ALL	  { $$=new Item_string("ALL", 3, system_charset_info); }
 	;
 
 
@@ -3769,7 +3768,7 @@ require_list_element: SUBJECT_SYM TEXT_STRING
 	  LEX *lex=Lex;
 	  if (lex->x509_subject)
 	  {
-	    net_printf(&lex->thd->net,ER_DUP_ARGUMENT, "SUBJECT");
+	    net_printf(lex->thd,ER_DUP_ARGUMENT, "SUBJECT");
 	    YYABORT;
 	  }
 	  lex->x509_subject=$2.str;
@@ -3779,7 +3778,7 @@ require_list_element: SUBJECT_SYM TEXT_STRING
 	  LEX *lex=Lex;
 	  if (lex->x509_issuer)
 	  {
-	    net_printf(&lex->thd->net,ER_DUP_ARGUMENT, "ISSUER");
+	    net_printf(lex->thd,ER_DUP_ARGUMENT, "ISSUER");
 	    YYABORT;
 	  }
 	  lex->x509_issuer=$2.str;
@@ -3789,7 +3788,7 @@ require_list_element: SUBJECT_SYM TEXT_STRING
 	  LEX *lex=Lex;
 	  if (lex->ssl_cipher)
 	  {
-	    net_printf(&lex->thd->net,ER_DUP_ARGUMENT, "CIPHER");
+	    net_printf(lex->thd,ER_DUP_ARGUMENT, "CIPHER");
 	    YYABORT;
 	  }
 	  lex->ssl_cipher=$2.str;
@@ -3805,7 +3804,7 @@ opt_table:
 	      lex->grant = DB_ACLS & ~GRANT_ACL;
 	    else if (lex->columns.elements)
 	    {
-	      send_error(&lex->thd->net,ER_ILLEGAL_GRANT_FOR_TABLE);
+	      send_error(lex->thd,ER_ILLEGAL_GRANT_FOR_TABLE);
 	      YYABORT;
 	    }
 	  }
@@ -3817,7 +3816,7 @@ opt_table:
 	      lex->grant = DB_ACLS & ~GRANT_ACL;
 	    else if (lex->columns.elements)
 	    {
-	      send_error(&lex->thd->net,ER_ILLEGAL_GRANT_FOR_TABLE);
+	      send_error(lex->thd,ER_ILLEGAL_GRANT_FOR_TABLE);
 	      YYABORT;
 	    }
 	  }
@@ -3829,7 +3828,7 @@ opt_table:
 	      lex->grant= GLOBAL_ACLS & ~GRANT_ACL;
 	    else if (lex->columns.elements)
 	    {
-	      send_error(&lex->thd->net,ER_ILLEGAL_GRANT_FOR_TABLE);
+	      send_error(lex->thd,ER_ILLEGAL_GRANT_FOR_TABLE);
 	      YYABORT;
 	    }
 	  }
@@ -3977,15 +3976,15 @@ union_list:
 	  if (lex->exchange)
 	  {
 	    /* Only the last SELECT can have  INTO...... */
-	    net_printf(&lex->thd->net, ER_WRONG_USAGE, "UNION", "INTO");
+	    net_printf(lex->thd, ER_WRONG_USAGE, "UNION", "INTO");
 	    YYABORT;
 	  } 
 	  if (lex->select->linkage == GLOBAL_OPTIONS_TYPE)
 	  {
-	    send_error(&lex->thd->net, ER_SYNTAX_ERROR);
+	    send_error(lex->thd, ER_SYNTAX_ERROR);
 	    YYABORT;
 	  }
-	  if (mysql_new_select(lex))
+	  if (mysql_new_select(lex, 0))
 	    YYABORT;
 	  lex->select->linkage=UNION_TYPE;
 	}
@@ -4003,7 +4002,7 @@ optional_order_or_limit:
 	    LEX *lex=Lex;
 	    if (!lex->select->braces)
 	    {
-	      send_error(&lex->thd->net, ER_SYNTAX_ERROR);
+	      send_error(lex->thd, ER_SYNTAX_ERROR);
 	      YYABORT;
 	    }
 	    lex->select->master_unit()->global_parameters= 
@@ -4013,7 +4012,7 @@ optional_order_or_limit:
 	      SELECT_LEX fields always check linkage type.
 	    */
 	    lex->select= (SELECT_LEX*)lex->select->master_unit();
-	    lex->select->select_limit=lex->thd->default_select_limit;
+	    lex->select->select_limit=lex->thd->variables.select_limit;
 	  }
 	opt_order_clause limit_clause
 	;
