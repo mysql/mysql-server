@@ -1114,8 +1114,8 @@ bool check_change_password(THD *thd, const char *host, const char *user)
 {
   if (!initialized)
   {
-    send_error(thd, ER_PASSWORD_NOT_ALLOWED); /* purecov: inspected */
-    return(1); /* purecov: inspected */
+    send_error(thd, ER_SKIP_GRANT_TABLES); /* purecov: inspected */
+    return(1);                             /* purecov: inspected */
   }
   if (!thd->slave_thread &&
       (strcmp(thd->user,user) ||
@@ -1590,8 +1590,14 @@ static int replace_db_table(TABLE *table, const char *db,
   char what= (revoke_grant) ? 'N' : 'Y';
   DBUG_ENTER("replace_db_table");
 
+  if (!initialized)
+  {
+    my_error(ER_SKIP_GRANT_TABLES, MYF(0));
+    DBUG_RETURN(-1);
+  }
+
   /* Check if there is such a user in user table in memory? */
-  if (!initialized || !find_acl_user(combo.host.str,combo.user.str))
+  if (!find_acl_user(combo.host.str,combo.user.str))
   {
     my_error(ER_PASSWORD_NO_MATCH,MYF(0));
     DBUG_RETURN(-1);
@@ -2167,7 +2173,7 @@ int mysql_table_grant(THD *thd, TABLE_LIST *table_list,
 
   if (!initialized)
   {
-    send_error(thd, ER_UNKNOWN_COM_ERROR);	/* purecov: inspected */
+    send_error(thd, ER_SKIP_GRANT_TABLES);	/* purecov: inspected */
     DBUG_RETURN(1);				/* purecov: inspected */
   }
   if (rights & ~TABLE_ACLS)
@@ -2377,8 +2383,8 @@ int mysql_grant(THD *thd, const char *db, List <LEX_USER> &list,
   DBUG_ENTER("mysql_grant");
   if (!initialized)
   {
-    my_error(ER_UNKNOWN_COM_ERROR, MYF(0));	/* purecov: tested */
-    return -1;					/* purecov: tested */
+    my_error(ER_SKIP_GRANT_TABLES, MYF(0));	/* purecov: tested */
+    DBUG_RETURN(-1);				/* purecov: tested */
   }
 
   if (lower_case_table_names && db)
@@ -2982,8 +2988,8 @@ int mysql_show_grants(THD *thd,LEX_USER *lex_user)
   LINT_INIT(acl_user);
   if (!initialized)
   {
-    send_error(thd, ER_UNKNOWN_COM_ERROR);
-    DBUG_RETURN(-1);
+    send_error(thd, ER_SKIP_GRANT_TABLES);
+    DBUG_RETURN(1);
   }
   if (lex_user->host.length > HOSTNAME_LENGTH ||
       lex_user->user.length > USERNAME_LENGTH)
@@ -3335,7 +3341,7 @@ int open_grant_tables(THD *thd, TABLE_LIST *tables)
 
   if (!initialized)
   {
-    send_error(thd, ER_OUT_OF_RESOURCES, ER(ER_OUT_OF_RESOURCES));
+    send_error(thd, ER_SKIP_GRANT_TABLES);
     DBUG_RETURN(-1);
   }
 
@@ -3416,7 +3422,7 @@ int mysql_drop_user(THD *thd, List <LEX_USER> &list)
   DBUG_ENTER("mysql_drop_user");
 
   if ((result= open_grant_tables(thd, tables)))
-    DBUG_RETURN(result == 1 ? 0 : -1);
+    DBUG_RETURN(result == 1 ? 0 : 1);
 
   rw_wrlock(&LOCK_grant);
   VOID(pthread_mutex_lock(&acl_cache->lock));
@@ -3529,7 +3535,7 @@ int mysql_revoke_all(THD *thd,  List <LEX_USER> &list)
   DBUG_ENTER("mysql_revoke_all");
 
   if ((result= open_grant_tables(thd, tables)))
-    DBUG_RETURN(result == 1 ? 0 : -1);
+    DBUG_RETURN(result == 1 ? 0 : 1);
 
   rw_wrlock(&LOCK_grant);
   VOID(pthread_mutex_lock(&acl_cache->lock));

@@ -462,7 +462,7 @@ static char *remove_end_comment(char *ptr)
 	quote= 0;
     }
     /* We are not inside a comment */
-    if (!quote && (*ptr == '#' || *ptr == ';'))
+    if (!quote && *ptr == '#')
     {
       *ptr= 0;
       return ptr;

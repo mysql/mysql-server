@@ -254,7 +254,7 @@ CREATE TABLE `t1` (
 `M` tinyint(1) default '0',
 ) TYPE=MyISAM DEFAULT CHARSET=latin1;
 Warnings:
-Warning	1286	'TYPE=database_engine' is deprecated. Use 'ENGINE=database_engine' instead.
+Warning	1286	'TYPE=storage_engine' is deprecated. Use 'ENGINE=storage_engine' instead.
 INSERT INTO `t1` (N, M) VALUES (1, 0),(1, 0),(1, 0),(2, 0),(2, 0),(3, 0);
 UPDATE `t1` AS P1 INNER JOIN (SELECT N FROM `t1` GROUP BY N HAVING Count(M) > 1) AS P2 ON P1.N = P2.N SET P1.M = 2;
 select * from t1;
