@@ -35,6 +35,7 @@ typedef struct st_archive_share {
   File meta_file;           /* Meta file we use */
   gzFile archive_write;     /* Archive file we are working with */
   bool dirty;               /* Flag for if a flush should occur */
+  bool crashed;             /* Meta file is crashed */
   ulonglong rows_recorded;  /* Number of rows in tables */
 } ARCHIVE_SHARE;
 
@@ -91,13 +92,14 @@ public:
   int write_meta_file(File meta_file, ulonglong rows, bool dirty);
   ARCHIVE_SHARE *get_share(const char *table_name, TABLE *table);
   int free_share(ARCHIVE_SHARE *share);
-  int rebuild_meta_file(char *table_name, File meta_file);
+  bool auto_repair() const { return 1; } // For the moment we just do this
   int read_data_header(gzFile file_to_read);
   int write_data_header(gzFile file_to_write);
   void position(const byte *record);
   void info(uint);
   int create(const char *name, TABLE *form, HA_CREATE_INFO *create_info);
   int optimize(THD* thd, HA_CHECK_OPT* check_opt);
+  int repair(THD* thd, HA_CHECK_OPT* check_opt);
   void start_bulk_insert(ha_rows rows);
   int end_bulk_insert();
   THR_LOCK_DATA **store_lock(THD *thd, THR_LOCK_DATA **to,
