@@ -51,20 +51,20 @@
 
    The procedure for using transactions is as follows:
    -# Start transaction (instantiate an NdbTransaction object)
-   -# Add and define operations associated with the transaction using the
-      NdbOperation, NdbScanOperation, NdbIndexOperation, and NdbIndexScanOperation classes.
-   -# Execute transaction
+   -# Add and define operations associated with the transaction using instances of one or more of the
+      NdbOperation, NdbScanOperation, NdbIndexOperation, and NdbIndexScanOperation classes
+   -# Execute transaction (call NdbTransaction::execute())
 
-   The execution can be of two different types, 
+   The operation can be of two different types, 
    <var>Commit</var> or <var>NoCommit</var>.
-   If the execution is of type <var>NoCommit</var>, 
-   then the application program executes part of a transaction,
+   If the operation is of type <var>NoCommit</var>, 
+   then the application program executes the operation part of a transaction,
    but without actually committing the transaction.
-   After executing a <var>NoCommit</var> transaction, the program can continue 
+   After executing a <var>NoCommit</var> operation, the program can continue 
    to add and define more operations to the transaction
    for later execution.
 
-   If the execute is of type <var>Commit</var>, then the transaction is
+   If the operation is of type <var>Commit</var>, then the transaction is
    immediately committed. The transaction <em>must</em> be closed after it has been 
    commited (event if commit fails), and no further addition or definition of 
    operations for this transaction is allowed.
@@ -78,15 +78,16 @@
        (typically created using Ndb::startTransaction()).
        At this point, the transaction is only being defined,
        and is not yet sent to the NDB kernel.
-    -# Define operations and add them to the transaction, using 
-       NdbTransaction::getNdbOperation(),
-       NdbTransaction::getNdbScanOperation(),
-       NdbTransaction::getNdbIndexOperation(), or
-       NdbTransaction::getNdbIndexScanOperation(),
-       and methods of the respective NdbOperation class.
+    -# Define operations and add them to the transaction, using one or more of
+       - NdbTransaction::getNdbOperation()
+       - NdbTransaction::getNdbScanOperation()
+       - NdbTransaction::getNdbIndexOperation()
+       - NdbTransaction::getNdbIndexScanOperation()
+       along with the appropriate methods of the respective NdbOperation class 
+       (or one possiblt one or more of its subclasses).
        Note that the transaction has still not yet been sent to the NDB kernel.
     -# Execute the transaction, using the NdbTransaction::execute() method.
-    -# Close the transaction (using Ndb::closeTransaction()).
+    -# Close the transaction (call Ndb::closeTransaction()).
   
    For an example of this process, see the program listing in 
    @ref ndbapi_simple.cpp.
@@ -467,51 +468,53 @@
 /**
    @page secAdapt  Adaptive Send Algorithm
 
-   At the time of "sending" the transaction 
+   At the time of "sending" a transaction 
    (using NdbTransaction::execute()), the transactions 
    are in reality <em>not</em> immediately transfered to the NDB Kernel.  
    Instead, the "sent" transactions are only kept in a 
    special send list (buffer) in the Ndb object to which they belong.
    The adaptive send algorithm decides when transactions should
-   be transfered to the NDB kernel.
+   actually be transferred to the NDB kernel.
   
-   The NDB API is designed as a multi-threaded interface and
-   it is desirable to transfer database operations from more than 
+   The NDB API is designed as a multi-threaded interface and so
+   it is often desirable to transfer database operations from more than 
    one thread at a time. 
-   The NDB API keeps track of which Ndb objects are active in transfering
+   The NDB API keeps track of which Ndb objects are active in transferring
    information to the NDB kernel and the expected amount of threads to 
    interact with the NDB kernel.
-   Note that an Ndb object should be used in at most one thread. 
-   Two different threads should <em>not</em> use the same Ndb object.
+   Note that a given instance of Ndb should be used in at most one thread; 
+   different threads should <em>not</em> use the same Ndb object.
   
-   There are four reasons leading to transfering of database 
-   operations:
+   There are four conditions leading to the transfer of database 
+   operations from Ndb object buffers to the NDB kernel:
    -# The NDB Transporter (TCP/IP, OSE, SCI or shared memory)
       decides that a buffer is full and sends it off. 
-      The buffer size is implementation dependent and
-      might change between NDB Cluster releases.
-      On TCP/IP the buffer size is usually around 64 kByte and 
+      The buffer size is implementation-dependent and
+      may change between MySQL Cluster releases.
+      On TCP/IP the buffer size is usually around 64 KB;
       on OSE/Delta it is usually less than 2000 bytes. 
-      In each Ndb object there is one buffer per DB node, 
-      so this criteria of a full buffer is only 
-      local to the connection to one DB node.
-   -# Statistical information on the transfered information
-      may force sending of buffers to all DB nodes.
-   -# Every 10 ms a special send-thread checks whether 
-      any send activity has occurred.  If not, then the thread will 
-      force sending to all nodes. 
+      Since each Ndb object provides a single buffer per storage node, 
+      the notion of a "full" buffer is local to this storage node.
+   -# The accumulation of statistical data on transferred information
+      may force sending of buffers to all storage nodes.
+   -# Every 10 ms, a special transmission thread checks whether or not
+      any send activity has occurred. If not, then the thread will 
+      force transmission to all nodes. 
       This means that 20 ms is the maximum time database operations 
-      are waiting before being sent off. The 10 millisecond limit 
+      are kept waiting before being sent off. The 10-millisecond limit 
       is likely to become a configuration parameter in
-      later releases of NDB Cluster.
-      However, to support faster than 10 ms checks, 
-      there has to be support from the operating system.
-   -# When methods that are affected by the adaptive send alorithm,
-      e.g. NdbTransaction::execute(), there is a force parameter 
-      that overrides it forces the send to all nodes.
+      future releases of MySQL Cluster; however, for checks that
+      are more frequent than each 10 ms, 
+      additional support from the operating system is required.
+   -# For methods that are affected by the adaptive send alorithm
+      (such as NdbTransaction::execute()), there is a <var>force</var> 
+      parameter 
+      that overrides its default behaviour in this regard and forces 
+      immediate transmission to all nodes. See the inidvidual NDB API class 
+      listings for more information.
 
-   @note The reasons mentioned above are examples.  These might 
-         change in later releases of NDB Cluster.
+   @note The conditions listed above are subject to change in future releases 
+   of MySQL Cluster.
 */
 
 #ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
@@ -537,64 +540,69 @@
 #endif
 
 /**
-   @page secConcepts  NDB Cluster Concepts
+   @page secConcepts  MySQL Cluster Concepts
 
    The <em>NDB Kernel</em> is the collection of storage nodes
-   belonging to an NDB Cluster.
+   belonging to a MySQL Cluster.
    The application programmer can for most purposes view the
-   set of all DB nodes as one entity.
-   Each DB node has three main components:
-   - TC : The transaction coordinator
-   - ACC : The index storage
-   - TUP : The data storage
+   set of all storage nodes as a single entity.
+   Each storage node is made up of three main components:
+   - TC : The transaction co-ordinator
+   - ACC : Index storage component
+   - TUP : Data storage component
 
-   When the application program executes a transaction,
-   it connects to one TC on one DB node.  
-   Usually, the programmer does not need to specify which TC to use, 
-   but some cases when performance is important,
-   transactions can be hinted to use a certain TC.  
-   (If the node with the TC is down, then another TC will 
+   When an application program executes a transaction,
+   it connects to one transaction co-ordinator on one storage node.  
+   Usually, the programmer does not need to specify which TC should be used, 
+   but in some cases when performance is important, the programmer can
+   provide "hints" to use a certain TC.  
+   (If the node with the desired transaction co-ordinator is down, then another TC will 
    automatically take over the work.)
 
-   Every DB node has an ACC and a TUP which stores 
-   the index and the data part of the database.
+   Every storage node has an ACC and a TUP which store 
+   the indexes and data portions of the database table fragment.
    Even though one TC is responsible for the transaction,
-   several ACCs and TUPs on other DB nodes might be involved in the 
+   several ACCs and TUPs on other storage nodes might be involved in the 
    execution of the transaction.
 
 
-   @section secNdbKernelConnection   Selecting Transaction Coordinator 
+   @section secNdbKernelConnection   Selecting a Transaction Co-ordinator 
 
-   The default method is to select the transaction coordinator (TC) as being
-   the "closest" DB node.  There is a heuristics for closeness based on
-   the type of transporter connection. In order of closest first, we have
-   SCI, SHM, TCP/IP (localhost), and TCP/IP (remote host). If there are several
-   connections available with the same "closeness", they will each be 
+   The default method is to select the transaction co-ordinator (TC) determined to be
+   the "closest" storage node, using a heuristic for proximity based on
+   the type of transporter connection. In order of closest to most distant, these are
+   - SCI 
+   - SHM
+   - TCP/IP (localhost)
+   - TCP/IP (remote host)
+   If there are several connections available with the same proximity, they will each be 
    selected in a round robin fashion for every transaction. Optionally
-   one may set the methos for  TC selection round robin over all available
-   connections, where each new set of transactions
-   is placed on the next DB node.
+   one may set the method for TC selection to round-robin mode, where each new set of 
+   transactions is placed on the next DB node. The pool of connections from which this
+   selection is made consists of all available connections.
    
-   The application programmer can however hint the NDB API which 
-   transaction coordinator to use
-   by providing a <em>partition key</em> (usually the primary key).
-   By using the primary key as partition key, 
+   As noted previously, the application programmer can provide hints to the NDB API as to 
+   which transaction co-ordinator it should use. This is done by
+   providing a <em>partition key</em> (usually the primary key).
+   By using the primary key as the partition key, 
    the transaction will be placed on the node where the primary replica
    of that record resides.
-   Note that this is only a hint, the system can be 
-   reconfigured and then the NDB API will choose a transaction
-   coordinator without using the hint.
-   For more information, see NdbDictionary::Column::getPartitionKey(),
-   Ndb::startTransaction().  The application programmer can specify
+   Note that this is only a hint; the system can be 
+   reconfigured at any time, in which case the NDB API will choose a transaction
+   co-ordinator without using the hint.
+   For more information, see NdbDictionary::Column::getPartitionKey() and
+   Ndb::startTransaction(). The application programmer can specify
    the partition key from SQL by using the construct, 
-   "CREATE TABLE ... ENGINE=NDB PARTITION BY KEY (<attribute list>)".
+   <code>CREATE TABLE ... ENGINE=NDB PARTITION BY KEY (<var>attribute-list</var>);</code>.
 
 
-   @section secRecordStruct          Record Structure 
-   NDB Cluster is a relational database with tables of records.
-   Table rows represent tuples of relational data stored as records.
-   When created, the attribute schema of the table is specified,
-   and thus each record of the table has the same schema.
+   @section secRecordStruct          NDB Record Structure 
+   The NDB Cluster engine used by MySQL Cluster is a relational database engine
+   storing records in tables just as with any other RDBMS.
+   Table rows represent records as tuples of relational data.
+   When a new table is created, its attribute schema is specified for the table as a whole,
+   and thus each record of the table has the same structure. Again, this is typical
+   of relational databases, and NDB is no different in this regard.
    
 
    @subsection secKeys               Primary Keys
@@ -603,14 +611,14 @@
    
    @section secTrans                 Transactions
 
-   Transactions are committed to main memory, 
-   and are committed to disk after a global checkpoint, GCP.
+   Transactions are committed first to main memory, 
+   and then to disk after a global checkpoint (GCP) is issued.
    Since all data is (in most NDB Cluster configurations) 
    synchronously replicated and stored on multiple NDB nodes,
    the system can still handle processor failures without loss 
    of data.
    However, in the case of a system failure (e.g. the whole system goes down), 
-   then all (committed or not) transactions after the latest GCP are lost.
+   then all (committed or not) transactions occurring since the latest GCP are lost.
 
 
    @subsection secConcur                Concurrency Control
@@ -619,39 +627,38 @@
    cannot be attained within a specified time, 
    then a timeout error occurs.
 
-   Concurrent transactions (parallel application programs, thread-based 
-   applications)
-   sometimes deadlock when they try to access the same information.
-   Applications need to be programmed so that timeout errors
-   occurring due to deadlocks are handled.  This generally
-   means that the transaction encountering timeout
-   should be rolled back and restarted.
+   Concurrent transactions as requested by parallel application programs and 
+   thread-based applications can sometimes deadlock when they try to access 
+   the same information simultaneously.
+   Thus, applications need to be written in a manner so that timeout errors
+   occurring due to such deadlocks are handled gracefully. This generally
+   means that the transaction encountering a timeout should be rolled back 
+   and restarted.
 
 
-   @section secHint                 Hints and performance
+   @section secHint                 Hints and Performance
 
-   Placing the transaction coordinator close
+   Placing the transaction co-ordinator in close proximity
    to the actual data used in the transaction can in many cases
    improve performance significantly. This is particularly true for
-   systems using TCP/IP. A system using Solaris and a 500 MHz processor
-   has a cost model for TCP/IP communication which is:
+   systems using TCP/IP. For example, a Solaris system using a single 500 MHz processor
+   has a cost model for TCP/IP communication which can be represented by the formula
 
-     30 microseconds + (100 nanoseconds * no of Bytes)
+     <code>[30 microseconds] + ([100 nanoseconds] * [<var>number of bytes</var>])</code>
 
    This means that if we can ensure that we use "popular" links we increase
    buffering and thus drastically reduce the communication cost.
-   Systems using SCI has a different cost model which is:
+   The same system using SCI has a different cost model:
 
-     5 microseconds + (10 nanoseconds *  no of Bytes)
+     <code>[5 microseconds] + ([10 nanoseconds] * [<var>number of bytes</var>])</code>
 
-   Thus SCI systems are much less dependent on selection of 
-   transaction coordinators. 
-   Typically TCP/IP systems spend 30-60% of the time during communication,
-   whereas SCI systems typically spend 5-10% of the time during
-   communication. 
-   Thus SCI means that less care from the NDB API programmer is
-   needed and great scalability can be achieved even for applications using
-   data from many parts of the database.
+   Thus, the efficiency of an SCI system is much less dependent on selection of 
+   transaction co-ordinators. 
+   Typically, TCP/IP systems spend 30-60% of their working time on communication,
+   whereas for SCI systems this figure is closer to 5-10%. 
+   Thus, employing SCI for data transport means that less care from the NDB API 
+   programmer is required and greater scalability can be achieved, even for 
+   applications using data from many different parts of the database.
 
    A simple example is an application that uses many simple updates where
    a transaction needs to update one record. 
@@ -927,11 +934,11 @@
    i.e. get/setValue("kalle[3]");
 
    @subsection secArrays             Array Attributes
-   A table attribute in NDB Cluster can be of <em>array type</em>.
-   This means that the attribute consists of an array of 
-   <em>elements</em>.  The <em>attribute size</em> is the size
-   of one element of the array (expressed in bits) and the 
-   <em>array size</em> is the number of elements of the array.
+   A table attribute in NDB Cluster can be of type <var>Array</var>,
+   meaning that the attribute consists of an ordered sequence of 
+   elements. In such cases, <var>attribute size</var> is the size
+   (expressed in bits) of any one element making up the array; the 
+   <var>array size</var> is the number of elements in the array.
 
 */
 
@@ -1050,16 +1057,16 @@ public:
   /**
    * The Ndb object represents a connection to a database.
    *
-   * @note the init() method must be called before it may be used
+   * @note The init() method must be called before the Ndb object may actually be used.
    *
-   * @param ndb_cluster_connection is a connection to a cluster containing
+   * @param ndb_cluster_connection is a connection to the cluster containing
    *        the database to be used
-   * @param aCatalogName is the name of the catalog you want to use.
-   * @note The catalog name provides a name space for the tables and
+   * @param aCatalogName is the name of the catalog to be used.
+   * @note The catalog name provides a namespace for the tables and
    *       indexes created in any connection from the Ndb object.
    * @param aSchemaName is the name of the schema you 
    *        want to use.
-   * @note The schema name provides an additional name space 
+   * @note The schema name provides an additional namespace 
    *       for the tables and indexes created in a given catalog.
    */
   Ndb(Ndb_cluster_connection *ndb_cluster_connection,
@@ -1339,10 +1346,9 @@ public:
   int  sendPollNdb(int aMillisecondNumber = WAITFOR_RESPONSE_TIMEOUT,
 		   int minNoOfEventsToWakeup = 1,
 		   int forceSend = 0);
+  /** @} *********************************************************************/
 #endif
   
-  /** @} *********************************************************************/
-
   /** 
    * @name Error Handling
    * @{

@@ -13,8 +13,8 @@
 #---------------------------------------------------------------------------
 # General configuration options
 #---------------------------------------------------------------------------
-DETAILS_AT_TOP         = yes
-HIDE_FRIEND_COMPOUNDS  = yes
+DETAILS_AT_TOP         = YES
+HIDE_FRIEND_COMPOUNDS  = YES
 
 # The PROJECT_NAME tag is a single word (or a sequence of words surrounded 
 # by quotes) that should identify the project.

@@ -631,7 +631,7 @@ public:
      * Assignment operator, deep copy
      * @param  table  Table to be copied
      */
-    Table& operator=(const Table&);
+    Table& operator=(const Table& table);
 
     /**
      * Name of table
@@ -946,12 +946,12 @@ public:
 #endif
     };
 
-    /*
+    /**
      *  Constructor
      *  @param  name  Name of event
      */
     Event(const char *name);
-    /*
+    /**
      *  Constructor
      *  @param  name  Name of event
      *  @param  table Reference retrieved from NdbDictionary
@@ -994,9 +994,12 @@ public:
      */
     void addTableEvent(const TableEvent te);
     /**
-     * Get/set durability of the event
+     * Set durability of the event
      */
-    void setDurability(EventDurability ed);
+    void setDurability(EventDurability);
+    /**
+     * Get durability of the event
+     */
     EventDurability getDurability() const;
 #ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
     void addColumn(const Column &c);
@@ -1116,6 +1119,13 @@ public:
 
     /**
      * Fetch list of all objects, optionally restricted to given type.
+     *
+     * @param list   List of objects returned in the dictionary
+     * @param type   Restrict returned list to only contain objects of
+     *               this type
+     *
+     * @return       -1 if error.
+     *
      */
     int listObjects(List & list, Object::Type type = Object::TypeUndefined);
     int listObjects(List & list,
@@ -1168,10 +1178,10 @@ public:
     
     /**
      * Create event given defined Event instance
-     * @param Event to create
+     * @param event Event to create
      * @return 0 if successful otherwise -1.
      */
-    int createEvent(const Event &);
+    int createEvent(const Event &event);
 
     /**
      * Drop event with given name
@@ -1199,17 +1209,17 @@ public:
 
     /**
      * Create defined table given defined Table instance
-     * @param Table Table to create
+     * @param table Table to create
      * @return 0 if successful otherwise -1.
      */
-    int createTable(const Table &);
+    int createTable(const Table &table);
 
     /**
      * Drop table given retrieved Table instance
-     * @param Table Table to drop
+     * @param table Table to drop
      * @return 0 if successful otherwise -1.
      */
-    int dropTable(Table &);
+    int dropTable(Table & table);
 
     /**
      * Drop table given table name
@@ -1220,12 +1230,12 @@ public:
     
     /**
      * Alter defined table given defined Table instance
-     * @param Table Table to alter
+     * @param table Table to alter
      * @return  -2 (incompatible version) <br>
      *          -1 general error          <br>
      *           0 success                 
      */
-    int alterTable(const Table &);
+    int alterTable(const Table &table);
 
 #ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
     /**
@@ -1257,10 +1267,10 @@ public:
     
     /**
      * Create index given defined Index instance
-     * @param Index to create
+     * @param index Index to create
      * @return 0 if successful otherwise -1.
      */
-    int createIndex(const Index &);
+    int createIndex(const Index &index);
 
     /**
      * Drop index with given name

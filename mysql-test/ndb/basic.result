@@ -26,17 +26,17 @@ CONNECT [<connectstring>]              Connect to management server (reconnect i
 QUIT                                   Quit management client
 
 <severity> = ALERT | CRITICAL | ERROR | WARNING | INFO | DEBUG
-<category> = STARTUP | SHUTDOWN | STATISTICS | CHECKPOINT | NODERESTART | CONNECTION | INFO | ERROR | GREP | DEBUG | BACKUP
+<category> = STARTUP | SHUTDOWN | STATISTICS | CHECKPOINT | NODERESTART | CONNECTION | INFO | ERROR | CONGESTION | DEBUG | BACKUP
 <level>    = 0 - 15
 <id>       = ALL | Any database node id
 
 Connected to Management Server at: localhost:1186
-Node 1: started (Version 4.1.9)
-Node 2: started (Version 4.1.9)
+Node 1: started (Version 5.0.3)
+Node 2: started (Version 5.0.3)
 
-Node 1: started (Version 4.1.9)
+Node 1: started (Version 5.0.3)
 
-Node 2: started (Version 4.1.9)
+Node 2: started (Version 5.0.3)
 
 Executing CLUSTERLOG on node 1 OK!
 Executing CLUSTERLOG on node 2 OK!
