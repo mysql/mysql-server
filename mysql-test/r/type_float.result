@@ -83,7 +83,7 @@ show create table t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `col` double default NULL
-) TYPE=MyISAM
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop table t1,t2;
 create table t1 (a float);
 insert into t1 values (1);

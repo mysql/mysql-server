@@ -1675,7 +1675,7 @@ int Load_log_event::exec_event(NET* net, struct st_relay_log_info* rli,
   thd->db= (char*) rewrite_db(db);
   DBUG_ASSERT(thd->query == 0);
   thd->query= 0;				// Should not be needed
-  thd->querty_length= 0;                        // Should not be needed
+  thd->query_length= 0;                         // Should not be needed
   thd->query_error= 0;
   clear_all_errors(thd, rli);
   if (!use_rli_only_for_errors)
