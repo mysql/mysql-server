@@ -23,14 +23,4 @@
 
 #include "ndb_global.h"
 
-#ifdef __SIZE_TYPE__
-typedef __SIZE_TYPE__ UintPtr;
-#else
-#if SIZEOF_CHARP == 4
-typedef Uint32 UintPtr;
-#else
-typedef Uint64 UintPtr;
-#endif
-#endif
-
 #endif
