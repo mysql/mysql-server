@@ -1578,3 +1578,50 @@ select * from t1;
 a	b
 1	0.123
 drop table t1;
+CREATE TABLE tab_01 (
+id int(11) NOT NULL auto_increment,
+ts timestamp NOT NULL,
+id_cns tinyint(3) unsigned NOT NULL default '0',
+id_desc_nota int(11) NOT NULL default '1',
+id_publ_uff int(11) NOT NULL default '0',
+tipo enum('','UNO','DUE') NOT NULL default '',
+f_aggiunte set('TRE','TRETRE','QUATTRO','CINQUE','SEI','SETTE') NOT NULL
+default '',
+anno_dep smallint(4) unsigned zerofill NOT NULL default '0000',
+data_dep smallint(4) unsigned zerofill NOT NULL default '0000',
+particolare mediumint(8) unsigned NOT NULL default '0',
+generale mediumint(8) unsigned NOT NULL default '0',
+bis tinyint(3) unsigned NOT NULL default '0',
+PRIMARY KEY(id),
+UNIQUE KEY idx_cns_gen_anno (anno_dep,id_cns,generale,particolare),
+UNIQUE KEY idx_cns_par_anno (id_cns,anno_dep,tipo,particolare,bis)
+) ENGINE=MyISAM DEFAULT CHARSET=latin1 PACK_KEYS=1;
+INSERT INTO tab_01 (id, ts, id_cns, id_desc_nota, id_publ_uff, tipo, f_aggiunte,
+anno_dep, data_dep, particolare, generale, bis) VALUES
+(NULL, NULL,  16, 29, 622, 'UNO', '', 1987, 1218, 2048, 9681, 0),
+(NULL, NULL,  50, 23, 1717, 'UNO', '', 1987, 1126, 1536, 13987, 0),
+(NULL, NULL,  16, 123, 123, 'UNO', '', 1987, 1221, 2432, 14594, 0),
+(NULL, NULL,  16, 124, 124, 'UNO', '', 1987, 1201, 1792, 13422, 0),
+(NULL, NULL,  16, 125, 125, 'UNO', '', 1987, 0723, 1025, 10240, 0),
+(NULL, NULL,  16, 126, 126, 'UNO', '', 1987, 1204, 1026, 7089, 0);
+CREATE TABLE tab_02 (
+id tinyint(3) unsigned NOT NULL auto_increment,
+descr varchar(40) NOT NULL default '',
+f_servizi set('UNO','DUE') NOT NULL default '',
+data_uno_min int(8) unsigned NOT NULL default '0',
+data_due_min int(8) unsigned NOT NULL default '0',
+max_anno_dep smallint(6) unsigned NOT NULL default '0',
+data_agg int(8) unsigned NOT NULL default '0',
+PRIMARY KEY  (id)
+);
+INSERT INTO tab_02 (id, descr, f_servizi, data_uno_min, data_due_min,
+max_anno_dep, data_agg) VALUES 
+(16, 'C_UNO', 'UNO,DUE', 19000000, 30000000, 1987, 0),
+(50, 'C_TRE', 'UNO', 19000000, 30000000, 1990, 0);
+SELECT cns.max_anno_dep = (SELECT s.anno_dep FROM tab_01 AS s WHERE
+s.id_cns = cns.id ORDER BY s.anno_dep DESC LIMIT 1) AS PIPPO FROM
+tab_02 AS cns;
+PIPPO
+1
+NULL
+DROP TABLE tab_01, tab_02;
