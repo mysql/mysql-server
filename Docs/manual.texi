@@ -6915,6 +6915,7 @@ Please report bad or out-of-date mirrors to @email{webmaster@@mysql.com}.
 @c EMAIL: mizi@alkar.net (Alexander Ryumshin)
 @image{Flags/ukraine} Ukraine [ISP Alkar Teleport/Dnepropetrovsk] @
 @uref{http://mysql.dp.ua/, WWW}
+@uref{ftp://ftp.tlk-l.net/pub/mirrors/mysql.com/, FTP}
 
 @item
 @c EMAIL: bole@bolex.bolex.co.yu (Bosko Radivojevic)
