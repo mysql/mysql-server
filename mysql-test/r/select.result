@@ -1210,7 +1210,7 @@ fld1	fld1
 companynr	companyname
 table	type	possible_keys	key	key_len	ref	rows	Extra
 t2	ALL	NULL	NULL	NULL	NULL	1199	
-t4	eq_ref	PRIMARY	PRIMARY	1	t2.companynr	1	where used; Not exists
+t4	eq_ref	PRIMARY	PRIMARY	1	test.t2.companynr	1	where used; Not exists
 table	type	possible_keys	key	key_len	ref	rows	Extra
 t4	ALL	NULL	NULL	NULL	NULL	12	
 t2	ALL	NULL	NULL	NULL	NULL	1199	where used; Not exists

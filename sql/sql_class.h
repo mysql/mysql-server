@@ -239,7 +239,7 @@ public:
   struct  rand_struct rand;
   char	  *query,*thread_stack;
   char	  *host,*user,*priv_user,*db,*ip;
-  const   char *proc_info;
+  const   char *proc_info, *host_or_ip;
   uint	  client_capabilities,sql_mode,max_packet_length;
   uint	  master_access,db_access;
   TABLE   *open_tables,*temporary_tables, *handler_tables;

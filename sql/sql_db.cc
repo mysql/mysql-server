@@ -348,11 +348,11 @@ bool mysql_change_db(THD *thd,const char *name)
   {
     net_printf(&thd->net,ER_DBACCESS_DENIED_ERROR,
 	       thd->priv_user,
-	       thd->host ? thd->host : thd->ip ? thd->ip : "unknown",
+	       thd->host_or_ip,
 	       dbname);
     mysql_log.write(thd,COM_INIT_DB,ER(ER_DBACCESS_DENIED_ERROR),
 		    thd->priv_user,
-		    thd->host ? thd->host : thd->ip ? thd->ip : "unknown",
+		    thd->host_or_ip,
 		    dbname);
     my_free(dbname,MYF(0));
     DBUG_RETURN(1);
