@@ -2197,7 +2197,7 @@ select_option:
 	      YYABORT;
 	    Select->options|= OPTION_FOUND_ROWS;
 	  }
-	| SQL_NO_CACHE_SYM { Lex->uncacheable(); }
+	| SQL_NO_CACHE_SYM { Lex->safe_to_cache_query=0; }
 	| SQL_CACHE_SYM
 	  {
 	    Lex->select_lex.options|= OPTION_TO_QUERY_CACHE;
@@ -2466,12 +2466,12 @@ simple_expr:
 	| '@' ident_or_text SET_VAR expr
 	  {
 	    $$= new Item_func_set_user_var($2,$4);
-	    Lex->uncacheable();
+	    Lex->uncacheable(UNCACHEABLE_RAND);
 	  }
 	| '@' ident_or_text
 	  {
 	    $$= new Item_func_get_user_var($2);
-	    Lex->uncacheable();
+	    Lex->uncacheable(UNCACHEABLE_RAND);
 	  }
 	| '@' '@' opt_var_ident_type ident_or_text opt_component
 	  {
@@ -2587,7 +2587,7 @@ simple_expr:
 	| ENCRYPT '(' expr ')'
 	  {
 	    $$= new Item_func_encrypt($3);
-	    Lex->uncacheable();
+	    Lex->uncacheable(UNCACHEABLE_RAND);
 	  }
 	| ENCRYPT '(' expr ',' expr ')'   { $$= new Item_func_encrypt($3,$5); }
 	| DECODE_SYM '(' expr ',' TEXT_STRING_literal ')'
@@ -2755,9 +2755,9 @@ simple_expr:
 	| POSITION_SYM '(' no_in_expr IN_SYM expr ')'
 	  { $$ = new Item_func_locate($5,$3); }
 	| RAND '(' expr ')'
-	  { $$= new Item_func_rand($3); Lex->uncacheable();}
+	  { $$= new Item_func_rand($3); Lex->uncacheable(UNCACHEABLE_RAND);}
 	| RAND '(' ')'
-	  { $$= new Item_func_rand(); Lex->uncacheable();}
+	  { $$= new Item_func_rand(); Lex->uncacheable(UNCACHEABLE_RAND);}
 	| REPLACE '(' expr ',' expr ',' expr ')'
 	  { $$= new Item_func_replace($3,$5,$7); }
 	| RIGHT '(' expr ',' expr ')'
@@ -2884,7 +2884,7 @@ simple_expr:
 	| BENCHMARK_SYM '(' ULONG_NUM ',' expr ')'
 	  {
 	    $$=new Item_func_benchmark($3,$5);
-	    Lex->uncacheable();
+	    Lex->uncacheable(UNCACHEABLE_UNCACHEABLE);
 	  }
 	| EXTRACT_SYM '(' interval FROM expr ')'
 	{ $$=new Item_extract( $3, $5); };
@@ -3464,7 +3464,7 @@ procedure_clause:
 	    lex->proc_list.next= (byte**) &lex->proc_list.first;
 	    if (add_proc_to_list(lex->thd, new Item_field(NULL,NULL,$2.str)))
 	      YYABORT;
-	    Lex->uncacheable();
+	    Lex->uncacheable(UNCACHEABLE_UNCACHEABLE);
 	  }
 	  '(' procedure_list ')';
 
@@ -3518,7 +3518,7 @@ into:
 	  LEX *lex=Lex;
 	  if (!lex->describe)
 	  {
-	    lex->uncacheable();
+	    lex->uncacheable(UNCACHEABLE_UNCACHEABLE);
 	    if (!(lex->exchange= new sql_exchange($3.str,0)))
 	      YYABORT;
 	    if (!(lex->result= new select_export(lex->exchange)))
@@ -3531,7 +3531,7 @@ into:
 	  LEX *lex=Lex;
 	  if (!lex->describe)
 	  {
-	    lex->uncacheable();
+	    lex->uncacheable(UNCACHEABLE_UNCACHEABLE);
 	    if (!(lex->exchange= new sql_exchange($3.str,1)))
 	      YYABORT;
 	    if (!(lex->result= new select_dump(lex->exchange)))
@@ -3540,7 +3540,7 @@ into:
 	}
         | INTO select_var_list_init
 	{
-	  Lex->uncacheable();
+	  Lex->uncacheable(UNCACHEABLE_UNCACHEABLE);
 	}
         ;
 

@@ -84,6 +84,7 @@ enum enum_sql_command {
 #define DESCRIBE_NORMAL		1
 #define DESCRIBE_EXTENDED	2
 
+
 typedef List<Item> List_item;
 
 typedef struct st_lex_master_info
@@ -226,9 +227,14 @@ public:
   };
 
   ulong options;
+  /*
+    result of this query can't be cached, bit field, can be :
+      UNCACHEABLE_DEPENDENT
+      UNCACHEABLE_RAND
+      UNCACHEABLE_UNCACHEABLE
+  */
+  uint8 uncacheable;
   enum sub_select_type linkage;
-  bool dependent;	/* dependent from outer select subselect */
-  bool uncacheable;     /* result of this query can't be cached */
   bool no_table_names_allowed; /* used for global order by */
   bool no_error; /* suppress error message (convert it to warnings) */
 
@@ -565,7 +571,7 @@ typedef struct st_lex
   bool derived_tables;
   bool safe_to_cache_query;
   st_lex() {}
-  inline void uncacheable()
+  inline void uncacheable(uint8 cause)
   {
     safe_to_cache_query= 0;
 
@@ -580,7 +586,8 @@ typedef struct st_lex
 	 un != &unit;
 	 sl= sl->outer_select(), un= sl->master_unit())
     {
-      sl->uncacheable = un->uncacheable= 1;
+      sl->uncacheable|= cause;
+      un->uncacheable|= cause;
     }
   }
 } LEX;

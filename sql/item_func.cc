@@ -2947,7 +2947,7 @@ Item *get_system_var(THD *thd, enum_var_type var_type, LEX_STRING name,
   }
   if (!(item=var->item(thd, var_type, component_name)))
     return 0;					// Impossible
-  thd->lex.uncacheable();
+  thd->lex.uncacheable(UNCACHEABLE_UNCACHEABLE);
   buff[0]='@';
   buff[1]='@';
   pos=buff+2;
@@ -2987,7 +2987,7 @@ Item *get_system_var(THD *thd, enum_var_type var_type, const char *var_name,
   DBUG_ASSERT(var != 0);
   if (!(item=var->item(thd, var_type, &null_lex_string)))
     return 0;						// Impossible
-  thd->lex.uncacheable();
+  thd->lex.uncacheable(UNCACHEABLE_UNCACHEABLE);
   item->set_name(item_name, 0, system_charset_info);	// Will use original name
   return item;
 }

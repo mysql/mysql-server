@@ -965,7 +965,8 @@ void st_select_lex_node::init_query()
 {
   options= 0;
   linkage= UNSPECIFIED_TYPE;
-  no_error= no_table_names_allowed= uncacheable= dependent= 0;
+  no_error= no_table_names_allowed= 0;
+  uncacheable= 0;
 }
 
 void st_select_lex_node::init_select()
@@ -1215,12 +1216,12 @@ void st_select_lex::mark_as_dependent(SELECT_LEX *last)
   for (SELECT_LEX *s= this;
        s && s != last;
        s= s->outer_select())
-    if ( !s->dependent )
+    if (!(s->uncacheable & UNCACHEABLE_DEPENDENT))
     {
       // Select is dependent of outer select
-      s->dependent= s->uncacheable= 1;
+      s->uncacheable|= UNCACHEABLE_DEPENDENT;
       SELECT_LEX_UNIT *munit= s->master_unit();
-      munit->dependent= munit->uncacheable= 1;
+      munit->uncacheable|= UNCACHEABLE_DEPENDENT;
       //Tables will be reopened many times
       for (TABLE_LIST *tbl= s->get_table_list();
 	   tbl;

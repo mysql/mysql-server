@@ -9041,10 +9041,12 @@ int mysql_explain_union(THD *thd, SELECT_LEX_UNIT *unit, select_result *result)
 			       ((sl == first)?
 				((sl->linkage == DERIVED_TABLE_TYPE) ?
 				 "DERIVED":
-				((sl->dependent)?"DEPENDENT SUBQUERY":
+				((sl->uncacheable & UNCACHEABLE_DEPENDENT)?
+				 "DEPENDENT SUBQUERY":
 				 (sl->uncacheable?"UNCACHEABLE SUBQUERY":
 				   "SUBQUERY"))):
-				((sl->dependent)?"DEPENDENT UNION":
+				((sl->uncacheable & UNCACHEABLE_DEPENDENT)?
+				 "DEPENDENT UNION":
 				 sl->uncacheable?"UNCACHEABLE UNION":
 				  "UNION"))),
 			      result);
