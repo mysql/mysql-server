@@ -812,7 +812,7 @@ limits. Here are some examples:
 @item Linux-Intel 32 bit        @tab 2G, 4G or more, depends on Linux version
 @item Linux-Alpha               @tab 8T (?)
 @item Solaris 2.5.1             @tab 2G (possible 4G with patch)
-@item Solaris 2.6               @tab 4G
+@item Solaris 2.6               @tab 4G (can be changed with flag)
 @item Solaris 2.7 Intel         @tab 4G
 @item Solaris 2.7 UltraSPARC    @tab 512G
 @end multitable
