@@ -261,7 +261,7 @@ ha_rows ha_heap::records_in_range(int inx,
   if (start_key_len != end_key_len ||
       start_key_len != pos->key_length ||
       start_search_flag != HA_READ_KEY_EXACT ||
-      end_search_flag != HA_READ_KEY_EXACT)
+      end_search_flag != HA_READ_AFTER_KEY)
     return HA_POS_ERROR;			// Can't only use exact keys
   return 10;					// Good guess
 }

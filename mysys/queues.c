@@ -25,7 +25,7 @@
 #include <queues.h>
 
 
-	/* The actuall code for handling queues */
+/* Init queue */
 
 int init_queue(QUEUE *queue, uint max_elements, uint offset_to_key,
 	       pbool max_at_top, int (*compare) (void *, byte *, byte *),
@@ -43,6 +43,12 @@ int init_queue(QUEUE *queue, uint max_elements, uint offset_to_key,
   queue->max_at_top= max_at_top ? (-1 ^ 1) : 0;
   DBUG_RETURN(0);
 }
+
+/*
+  Reinitialize queue for new usage;  Note that you can't currently resize
+  the number of elements!  If you need this, fix it :)
+*/
+
 
 int reinit_queue(QUEUE *queue, uint max_elements, uint offset_to_key,
                pbool max_at_top, int (*compare) (void *, byte *, byte *),
@@ -78,6 +84,7 @@ void delete_queue(QUEUE *queue)
 void queue_insert(register QUEUE *queue, byte *element)
 {
   reg2 uint idx,next;
+  int cmp;
 
 #ifndef DBUG_OFF
   if (queue->elements < queue->max_elements)
@@ -86,10 +93,12 @@ void queue_insert(register QUEUE *queue, byte *element)
     queue->root[0]=element;
     idx= ++queue->elements;
 
-    while ((queue->compare(queue->first_cmp_arg,
-			   element+queue->offset_to_key,
-			   queue->root[(next=idx >> 1)]+queue->offset_to_key)
-	    ^ queue->max_at_top) < 0)
+    /* max_at_top swaps the comparison if we want to order by desc */
+    while ((cmp=queue->compare(queue->first_cmp_arg,
+			       element+queue->offset_to_key,
+			       queue->root[(next=idx >> 1)] +
+			       queue->offset_to_key)) &&
+	   (cmp ^ queue->max_at_top) < 0)
     {
       queue->root[idx]=queue->root[next];
       idx=next;

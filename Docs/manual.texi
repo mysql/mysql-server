@@ -195,8 +195,8 @@ Installing a MySQL binary distribution
 
 System-specific issues
 
-* Binary notes-Linux::          Linux notes
-* Binary notes-HP-UX::          HP-UX notes
+* Binary notes-Linux::          Linux notes for binary distribution
+* Binary notes-HP-UX::          HP-UX notes for binary distribution
 
 Installing a MySQL source distribution
 
@@ -259,6 +259,7 @@ Windows notes
 * Windows and SSH::             Connecting to a remote @strong{MySQL} from Windows with SSH
 * Windows symbolic links::      Splitting data across different disks under Win32
 * Windows compiling::           Compiling MySQL clients on Windows.
+* Windows and BDB tables.::     
 * Windows vs Unix::             @strong{MySQL}-Windows compared to Unix @strong{MySQL}
 
 Post-installation setup and testing
@@ -4568,8 +4569,8 @@ files.
 @subsection System-specific issues
 
 @menu
-* Binary notes-Linux::          Linux notes
-* Binary notes-HP-UX::          HP-UX notes
+* Binary notes-Linux::          Linux notes for binary distribution
+* Binary notes-HP-UX::          HP-UX notes for binary distribution
 @end menu
 
 The following sections indicate some of the issues that have been observed
@@ -4577,7 +4578,7 @@ on particular systems when installing @strong{MySQL} from a binary
 distribution.
 
 @node Binary notes-Linux, Binary notes-HP-UX, Binary install system issues, Binary install system issues
-@subsubsection Linux notes
+@subsubsection Linux notes for binary distribution
 
 @strong{MySQL} needs at least Linux 2.0.
 
@@ -4653,7 +4654,7 @@ and clients on the same machine.  We hope that the @code{Linux 2.4}
 kernel will fix this problem in the future.
 
 @node Binary notes-HP-UX,  , Binary notes-Linux, Binary install system issues
-@subsubsection HP-UX notes
+@subsubsection HP-UX notes for binary distribution
 
 Some of the binary distributions of @strong{MySQL} for HP-UX is
 distributed as an HP depot file and as a tar file.  To use the depot
@@ -5752,8 +5753,6 @@ shell> CC=gcc CFLAGS="-O6" \
 
 If you have the Sun Workshop 4.2 compiler, you can run @code{configure} like
 this:
-
-CC=cc CFLAGS="-xstrconst -Xa -xO4 -native -mt" CXX=CC CXXFLAGS="-xO4 -native -noex -mt" ./configure --prefix=/usr/local/mysql
 
 @example
 shell> CC=cc CFLAGS="-Xa -fast -xO4 -native -xstrconst -mt" \
@@ -7203,6 +7202,7 @@ is also described in the @file{README} file that comes with the
 * Windows and SSH::             Connecting to a remote @strong{MySQL} from Windows with SSH
 * Windows symbolic links::      Splitting data across different disks under Win32
 * Windows compiling::           Compiling MySQL clients on Windows.
+* Windows and BDB tables.::     
 * Windows vs Unix::             @strong{MySQL}-Windows compared to Unix @strong{MySQL}
 @end menu
 
@@ -7511,7 +7511,7 @@ should create the file @file{C:\mysql\data\foo.sym} that should contains the
 text @code{D:\data\foo}.  After this, all tables created in the database
 @code{foo} will be created in @file{D:\data\foo}.
 
-@node Windows compiling, Windows vs Unix, Windows symbolic links, Windows
+@node Windows compiling, Windows and BDB tables., Windows symbolic links, Windows
 @subsection Compiling MySQL clients on Windows.
 
 In your source files, you should include @file{windows.h} before you include
@@ -7531,7 +7531,17 @@ with the static @file{mysqlclient.lib} library.
 Note that as the mysqlclient libraries are compiled as threaded libraries,
 you should also compile your code to be multi-threaded!
 
-@node Windows vs Unix,  , Windows compiling, Windows
+@node Windows and BDB tables., Windows vs Unix, Windows compiling, Windows
+@subsection Windows and BDB tables.
+
+We are working on removing the requirement that one must have a primary
+key in a BDB table; As soon as this is fixed we will throughly test the
+BDB interface by running the @strong{MySQL} benchmark + our internal
+test suite on it.  When the above is done we will start release binary
+distributions (for windows and Unix) of @strong{MySQL} that will include
+support for BDB tables.
+
+@node Windows vs Unix,  , Windows and BDB tables., Windows
 @subsection MySQL-Windows compared to Unix MySQL
 
 @strong{MySQL}-Windows has by now proven itself to be very stable. This version
@@ -13646,7 +13656,7 @@ column, you cannot index the entire thing.
 In @strong{MySQL} 3.23.23 or later, you can also create special
 @strong{FULLTEXT} indexes. They are used for full-text search. Only the
 @code{MyISAM} table type supports @code{FULLTEXT} indexes. They can be created
-only from @code{VARCHAR}, @code{BLOB}, and @code{TEXT} columns.
+only from @code{VARCHAR} and @code{TEXT} columns.
 Indexing always happens over the entire column, partial indexing is not
 supported. See @ref{MySQL full-text search} for details of operation.
 
@@ -16445,6 +16455,7 @@ or	PASSWORD = "string"
 or	DELAY_KEY_WRITE = @{0 | 1@}
 or      ROW_FORMAT= @{ default | dynamic | static | compressed @}
 or	RAID_TYPE= @{1 | STRIPED | RAID0 @} RAID_CHUNKS=#  RAID_CHUNKSIZE=#;
+or	UNION = (table_name,[table_name...])
 
 select_statement:
 	[IGNORE | REPLACE] SELECT ...  (Some legal select statement)
@@ -16633,7 +16644,7 @@ When you use @code{ORDER BY} or @code{GROUP BY} with a @code{TEXT} or
 In @strong{MySQL} 3.23.23 or later, you can also create special
 @strong{FULLTEXT} indexes. They are used for full-text search. Only the
 @code{MyISAM} table type supports @code{FULLTEXT} indexes. They can be created
-only from @code{VARCHAR}, @code{BLOB}, and @code{TEXT} columns.
+only from @code{VARCHAR} and @code{TEXT} columns.
 Indexing always happens over the entire column, partial indexing is not
 supported. See @ref{MySQL full-text search} for details of operation.
 
@@ -16742,8 +16753,14 @@ If you specify @code{RAID_TYPE=STRIPED} for a @code{MyISAM} table,
 to the data file, the @code{RAID} handler will map the first
 @code{RAID_CHUNKSIZE} *1024 bytes to the first file, the next
 @code{RAID_CHUNKSIZE} *1024 bytes to the next file and so on.
-@end itemize
 
+@code{UNION} is used when you want to use a collection of identical
+tables as one. This only works with MERGE tables. @xref{MERGE}.
+
+For the moment you need to have @code{SELECT}, @code{UPDATE} and
+@code{DELETE} privileges on the tables you map to a @code{MERGE} table.
+All mapped tables must be in the same database as the @code{MERGE} table.
+@end itemize
 
 @node Silent column changes,  , CREATE TABLE, CREATE TABLE
 @subsection Silent column specification changes
@@ -20053,7 +20070,7 @@ table type.
 For more information about how @strong{MySQL} uses indexes, see
 @ref{MySQL indexes, , @strong{MySQL} indexes}.
 
-@code{FULLTEXT} indexes can index only @code{VARCHAR}, @code{BLOB}, and
+@code{FULLTEXT} indexes can index only @code{VARCHAR} and
 @code{TEXT} columns, and only in @code{MyISAM} tables. @code{FULLTEXT} indexes
 are available in @strong{MySQL} 3.23.23 and later. 
 @ref{MySQL full-text search}.
@@ -20633,9 +20650,10 @@ missing is a way from the SQL prompt to say which tables are part of the
 @code{MERGE} table.
 
 A @code{MERGE} table is a collection of identical @code{MyISAM} tables
-that can be used as one.  You can only @code{SELECT} from the collection
-of tables. If you @code{DROP} the @code{MERGE} table, you are only
-dropping the @code{MERGE} specification.
+that can be used as one.  You can only @code{SELECT}, @code{DELETE} and
+@code{UPDATE} from the collection of tables.  If you @code{DROP} the
+@code{MERGE} table, you are only dropping the @code{MERGE}
+specification.
 
 With identical tables we mean that all tables are created with identical
 column information.  Some of the tables can be compressed with
@@ -20646,7 +20664,10 @@ definition file and a @code{.MRG} table list file.  The @code{.MRG} just
 contains a list of the index files (@code{.MYI} files) that should
 be used as one.
 
-@code{MERGE} tables helps you solve the following problems:
+For the moment you need to have @code{SELECT}, @code{UPDATE} and
+@code{DELETE} privileges on the tables you map to a @code{MERGE} table.
+
+@code{MERGE} tables can help you solve the following problems:
 
 @itemize @bullet
 @item
@@ -20671,13 +20692,22 @@ are mapped to a @code{MERGE} file than trying to repair a real big file.
 Instant mapping of many files as one;  A @code{MERGE} table uses the
 index of the individual tables;  It doesn't need an index of its one.
 This makes @code{MERGE} table collections VERY fast to make or remap.
+@item
+If you have a set of tables which you join to a big tables on demand or
+batch, you should instead create a @code{MERGE} table on them on demand.
+This is much faster and will save a lot of disk space.
+@item
+Go around the file size limit for the operating system.
 @end itemize
 
 The disadvantages with @code{MERGE} tables are:
 
 @itemize @bullet
 @item
-@code{MERGE} tables are read-only.
+You can't use @code{INSERT} on @code{MERGE} tables, as @strong{MySQL} can't know
+in which of the tables we should insert the row.
+@item
+You can only use identical @code{MyISAM} tables for a @code{MERGE} table.
 @item
 @code{MERGE} tables uses more file descriptors: If you are using a
 @strong{MERGE} that maps over 10 tables and 10 users are using this, you
@@ -20703,18 +20733,15 @@ CREATE TABLE t1 (a INT AUTO_INCREMENT PRIMARY KEY, message CHAR(20));
 CREATE TABLE t2 (a INT AUTO_INCREMENT PRIMARY KEY, message CHAR(20));
 INSERT INTO t1 (message) VALUES ("Testing"),("table"),("t1");
 INSERT INTO t2 (message) VALUES ("Testing"),("table"),("t2");
-CREATE TABLE total (a INT NOT NULL, message CHAR(20), KEY(a)) TYPE=MERGE;
+CREATE TABLE total (a INT NOT NULL, message CHAR(20), KEY(a)) TYPE=MERGE UNION=(t1,t2);
 @end example
 
 Note that we didn't create an @code{UNIQUE} or @code{PRIMARY KEY} in the
 @code{total} table as the key isn't going to be unique in the @code{total}
 table.
 
-(We plan to in the future add the information in the @code{MERGE} handler
-that unique keys are not necessarily unique in the @code{MERGE} table.)
-
-Now you have to use tool (editor, unix command...) to insert the file
-names into the 'total' table:
+Note that you can also manipulate the @code{.MRG} file directly from
+the outside of the @code{MySQL} server:
 
 @example
 shell> cd /mysql-data-directory/current-database
@@ -20737,13 +20764,11 @@ mysql> select * from total;
 +---+---------+
 @end example
 
-To remap a @code{MERGE} table you must either @code{DROP} it and recreate it
-or change the @code{.MRG} file and issue a @code{FLUSH TABLE} on the
-@code{MERGE} table to force the handler to read the new definition file.
-
-You can also put full paths to the index files in the @code{.MRG} file;  If
-you don't do this, the @code{MERGE} handler assumes that the index files
-are in the same directory as the @code{.MRG} file.
+To remap a @code{MERGE} table you must either @code{DROP} it and
+recreate it, use @code{ALTER TABLE} with a new @code{UNION}
+specification or change the @code{.MRG} file and issue a @code{FLUSH
+TABLE} on the @code{MERGE} table and all underlying tables to force the
+handler to read the new definition file.
 
 @node ISAM, HEAP, MERGE, Table types
 @section ISAM tables
@@ -28799,6 +28824,48 @@ string to a time. This would be great if the source was a text file, but
 is plain stupid when the source is an ODBC connection that reports
 exact types for each column.
 @end itemize
+@item Word
+
+To retrieve data from @strong{MySQL}to Word/Excel documents, you need to
+use the @code{MyODBC} driver and the Add-in Microsoft Query help.
+
+For example, create a db with a table with 2 columns text.
+
+@itemize @bullet
+@item
+Insert rows using the mysql client command line tool.
+@item
+Create a DSN file using the MyODBC driver e.g. my for the db above.
+@item 
+Open the Word application.
+@item
+Create a blank new documentation.
+@item
+Using the tool bar called Database, press the button insert database.
+@item
+Press the button Get Data.
+@item
+At the right hand of the screen Get Data, press the button Ms Query.
+@item
+In the Ms Query create a New Data Source using the DSN file my.
+@item
+Select the new query.
+@item
+Select the columns that you want.
+@item
+Make a filter if you want.
+@item
+Make a Sort if you want.
+@item
+Select Return Data to Microsoft Word.
+@item
+Click Finish.
+@item
+Click Insert data and select the records.
+@item
+Click OK and you see the rows in your Word document.
+@end itemize 
+
 @item odbcadmin
 Test program for ODBC.
 @item Delphi
@@ -34709,9 +34776,9 @@ DELAYED} threads.
 Since version 3.23.23, @strong{MySQL} has support for full-text indexing
 and searching. Full-text index in @strong{MySQL} is an
 index of type @code{FULLTEXT}. @code{FULLTEXT} indexes can be created from
-@code{VARCHAR}, @code{TEXT}, and @code{BLOB} columns at
-@code{CREATE TABLE} time or added later with @code{ALTER TABLE} or
-@code{CREATE INDEX}. Full-text search is performed with the @code{MATCH}
+@code{VARCHAR} and @code{TEXT} columns at @code{CREATE TABLE} time or added 
+later with @code{ALTER TABLE} or @code{CREATE INDEX}. Full-text search is 
+performed with the @code{MATCH}
 function.
 
 @example
@@ -36223,6 +36290,11 @@ though, so 3.23 is not released as a stable version yet.
 @node News-3.23.25, News-3.23.24, News-3.23.x, News-3.23.x
 @appendixsubsec Changes in release 3.23.25
 @itemize @bullet
+@item
+@code{HEAP} tables didn't use keys properly. (Bug from 3.23.23)
+@item
+Added better support for @code{MERGE} tables (keys, mapping, creation,
+documentation...). @xref{MERGE}.
 @item
 Fixed bug in mysqldump from 3.23 which caused that some @code{CHAR} columns
 wheren't quoted.
@@ -40304,6 +40376,8 @@ Fixed @code{DISTINCT} with calculated columns.
 
 @itemize @bullet
 @item
+For the moment @code{MATCH} only works with @code{SELECT} statements.
+@item
 You cannot build in another directory when using
 MIT-pthreads. Because this requires changes to MIT-pthreads, we are not
 likely to fix this.
@@ -40391,6 +40465,9 @@ the error value 'empty string', with numeric value 0.
 @item
 If you execute a @code{PROCEDURE} on a query with returns an empty set then
 in some cases the @code{PROCEDURE} will not transform the columns.
+@item
+Creation of a table of type @code{MERGE} doesn't check if the underlaying
+tables are of compatible types.
 @end itemize
 
 The following is known bugs in earlier versions of @strong{MySQL}:
@@ -40463,6 +40540,8 @@ Optimize, test and document transactions safe tables
 Allow users to change startup options.
 @item
 Subqueries. @code{select id from t where grp in (select grp from g where u > 100)}
+@item
+Add range checking to @code{MERGE} tables.
 @item
 Port of @strong{MySQL} to BeOS.
 @item

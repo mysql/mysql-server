@@ -23,8 +23,7 @@
 	   a NULL-pointer last
 	   */
 
-int myrg_create(name,table_names)
-const char *name,**table_names;
+int myrg_create(const char *name, const char **table_names, my_bool fix_names)
 {
   int save_errno;
   uint errpos;
@@ -38,15 +37,19 @@ const char *name,**table_names;
     goto err;
   errpos=1;
   if (table_names)
+  {
     for ( ; *table_names ; table_names++)
     {
       strmov(buff,*table_names);
-      fn_same(buff,name,4);
+      if (fix_names)
+	fn_same(buff,name,4);
       *(end=strend(buff))='\n';
-      if (my_write(file,*table_names,(uint) (end-buff+1),
+      end[1]=0;
+      if (my_write(file,buff,(uint) (end-buff+1),
 		   MYF(MY_WME | MY_NABP)))
 	goto err;
     }
+  }
   if (my_close(file,MYF(0)))
     goto err;
   DBUG_RETURN(0);

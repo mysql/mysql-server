@@ -17,7 +17,7 @@
 
 /* Return error-text for system error messages and nisam messages */
 
-#define PERROR_VERSION "2.2"
+#define PERROR_VERSION "2.3"
 
 #include <global.h>
 #include <my_sys.h>
@@ -59,9 +59,11 @@ static HA_ERRORS ha_errlist[]=
   { 136,"No more room in index file" },
   { 137,"No more records (read after end of file)" },
   { 138,"Unsupported extension used for table" },
-  { 139,"Too big row (>= 24 M)"},
+  { 139,"Too big row (>= 16 M)"},
   { 140,"Wrong create options"},
-  { 141,"Dupplicate unique on write or update"},
+  { 141,"Duplicate unique on write or update"},
+  { 142,"Unknown character set used"},
+  { 143,"Conflicting table definition between MERGE and mapped table"},
   { 0,NullS },
 };
 

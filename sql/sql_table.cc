@@ -176,7 +176,7 @@ int mysql_create_table(THD *thd,const char *db, const char *table_name,
   DBUG_ENTER("mysql_create_table");
 
   /*
-  ** Check for dupplicate fields and check type of table to create
+  ** Check for duplicate fields and check type of table to create
   */
 
   if (!fields.elements)
@@ -302,7 +302,7 @@ int mysql_create_table(THD *thd,const char *db, const char *table_name,
   bool primary_key=0,unique_key=0;
   Key *key;
   uint tmp;
-  tmp=max(file->max_keys(), MAX_KEY);
+  tmp=min(file->max_keys(), MAX_KEY);
 
   if (key_count > tmp)
   {

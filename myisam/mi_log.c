@@ -69,7 +69,8 @@ int mi_log(int activate_log)
 	/* Logging of records and commands on logfile */
 	/* All logs starts with command(1) dfile(2) process(4) result(2) */
 
-void _myisam_log(enum myisam_log_commands command, MI_INFO *info, const byte *buffert, uint length)
+void _myisam_log(enum myisam_log_commands command, MI_INFO *info,
+		 const byte *buffert, uint length)
 {
   char buff[11];
   int error,old_errno;
