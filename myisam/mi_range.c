@@ -213,7 +213,8 @@ err:
 
 	/* Get keynummer of current key and max number of keys in nod */
 
-static uint _mi_keynr(MI_INFO *info, register MI_KEYDEF *keyinfo, uchar *page, uchar *keypos, uint *ret_max_key)
+static uint _mi_keynr(MI_INFO *info, register MI_KEYDEF *keyinfo, uchar *page,
+                      uchar *keypos, uint *ret_max_key)
 {
   uint nod_flag,keynr,max_key;
   uchar t_buff[MI_MAX_KEY_BUFF],*end;
@@ -222,7 +223,7 @@ static uint _mi_keynr(MI_INFO *info, register MI_KEYDEF *keyinfo, uchar *page, u
   nod_flag=mi_test_if_nod(page);
   page+=2+nod_flag;
 
-  if (!(keyinfo->flag & (HA_VAR_LENGTH_KEY| HA_BINARY_PACK_KEY)))
+  if (!(keyinfo->flag & (HA_VAR_LENGTH_KEY | HA_BINARY_PACK_KEY)))
   {
     *ret_max_key= (uint) (end-page)/(keyinfo->keylength+nod_flag);
     return (uint) (keypos-page)/(keyinfo->keylength+nod_flag);
@@ -233,11 +234,7 @@ static uint _mi_keynr(MI_INFO *info, register MI_KEYDEF *keyinfo, uchar *page, u
   while (page < end)
   {
     if (!(*keyinfo->get_key)(keyinfo,nod_flag,&page,t_buff))
-    {
-      if (my_errno == HA_ERR_CRASHED)
-        mi_print_error(info, HA_ERR_CRASHED);
       return 0;					/* Error */
-    }
     max_key++;
     if (page == keypos)
       keynr=max_key;

@@ -1,4 +1,4 @@
-/* Copyright (C) 2000 MySQL AB & MySQL Finland AB & TCX DataKonsult AB
+/* Copyright (C) 2003 MySQL AB
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -14,16 +14,31 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-/* Delete last read record */
+#include "NdbDaemon.h"
 
-#include "mrg_def.h"
+#define NdbDaemon_ErrorSize 500
+long NdbDaemon_DaemonPid;
+int NdbDaemon_ErrorCode;
+char NdbDaemon_ErrorText[NdbDaemon_ErrorSize];
 
-int mrg_delete(MRG_INFO *info,const byte *record)
+int
+NdbDaemon_Make(const char* lockfile, const char* logfile, unsigned flags)
 {
-  if (!info->current_table)
-  {
-    my_errno=HA_ERR_NO_ACTIVE_RECORD;
-    return(-1);
-  }
-  return nisam_delete(info->current_table->table,record);
+  // XXX do something
+  return 0;
 }
+
+#ifdef NDB_DAEMON_TEST
+
+int
+main()
+{
+  if (NdbDaemon_Make("test.pid", "test.log", 0) == -1) {
+    fprintf(stderr, "NdbDaemon_Make: %s\n", NdbDaemon_ErrorText);
+    return 1;
+  }
+  sleep(10);
+  return 0;
+}
+
+#endif
