@@ -10642,6 +10642,53 @@ static void test_bug6059()
 }
 
 
+static void test_bug6046()
+{
+  MYSQL_STMT *stmt;
+  const char *stmt_text;
+  int rc;
+  short b= 1;
+  MYSQL_BIND bind[1];
+
+  myheader("test_bug6046");
+
+  stmt_text= "DROP TABLE IF EXISTS t1";
+  rc= mysql_real_query(mysql, stmt_text, strlen(stmt_text));
+  myquery(rc);
+  stmt_text= "CREATE TABLE a1 (a int, b int)";
+  rc= mysql_real_query(mysql, stmt_text, strlen(stmt_text));
+  myquery(rc);
+  stmt_text= "INSERT INTO a1 VALUES (1,1),(2,2),(3,1),(4,2)";
+  rc= mysql_real_query(mysql, stmt_text, strlen(stmt_text));
+  myquery(rc);
+
+  stmt= mysql_stmt_init(mysql);
+
+  stmt_text= "SELECT a1.a FROM a1 NATURAL JOIN a1 as X1 "
+             "WHERE a1.b > ? ORDER BY a1.a";
+
+  rc= mysql_stmt_prepare(stmt, stmt_text, strlen(stmt_text));
+  check_execute(stmt, rc);
+
+  b= 1;
+  bzero(bind, sizeof(bind));
+  bind[0].buffer= &b;
+  bind[0].buffer_type= MYSQL_TYPE_SHORT;
+
+  mysql_stmt_bind_param(stmt, bind);
+
+  rc= mysql_stmt_execute(stmt);
+  check_execute(stmt, rc);
+  mysql_stmt_store_result(stmt);
+
+  rc= mysql_stmt_execute(stmt);
+  check_execute(stmt, rc);
+
+  mysql_stmt_close(stmt);
+}
+
+
+
 
 /*
   Read and parse arguments and MySQL options from my.cnf
@@ -10956,6 +11003,7 @@ int main(int argc, char **argv)
     test_bug6049();         /* check support for negative TIME values */
     test_bug6058();         /* check support for 0000-00-00 dates */
     test_bug6059();         /* correct metadata for SELECT ... INTO OUTFILE */
+    test_bug6046();         /* NATURAL JOIN transformation works in PS */
     /*
       XXX: PLEASE RUN THIS PROGRAM UNDER VALGRIND AND VERIFY THAT YOUR TEST
       DOESN'T CONTAIN WARNINGS/ERRORS BEFORE YOU PUSH.
