@@ -2,6 +2,7 @@
 # mysql-test-run - originally written by Matt Wagner <matt@mysql.com>
 # modified by Sasha Pachev <sasha@mysql.com>
 # Sligtly updated by Monty
+# Cleaned up again by Matt
 
 #++
 # Access Definitions
@@ -9,6 +10,7 @@
 DB=test
 DBUSER=test
 DBPASSWD=
+VERBOSE=""
 
 # Are we on source or binary distribution?
 
@@ -24,15 +26,12 @@ else
  if [ -f ./mysql-test-run ] && [ -d ../sql ] ; then
  SOURCE_DIST=1
  else
-  echo "If you are using binary distribution, run me from install root as"
-  echo "scripts/mysql-test-run. On source distribution run me from source root"
-  echo "as mysql-test/mysql-test-run or from mysql-test as ./mysql-test-run"
+  $ECHO "If you are using binary distribution, run from install root as"
+  $ECHO "scripts/mysql-test-run. On source distribution run from source root"
+  $ECHO "as mysql-test/mysql-test-run or from mysql-test as ./mysql-test-run"
   exit 1
  fi
- 
 fi
-  
-
 
 #++
 # Misc. Definitions
@@ -111,8 +110,8 @@ XARGS=`which xargs | head -1`
 
 [ -z "$COLUMNS" ] && COLUMNS=80
 E=`$EXPR $COLUMNS - 8`
-#DASH72=`expr substr '________________________________________________________________________' 1 $E`
-DASH72=`$ECHO '________________________________________________________________________'|$CUT -c 1-$E`
+#DASH72=`expr substr '------------------------------------------------------------------------' 1 $E`
+DASH72=`$ECHO '------------------------------------------------------------------------'|$CUT -c 1-$E`
 
 # on source dist, we pick up freshly build executables
 # on binary, use what is installed
@@ -131,8 +130,7 @@ fi
 
 SLAVE_MYSQLD=$MYSQLD #this will be changed later if we are doing gcov
 
-
-MYSQL_TEST="$MYSQL_TEST --no-defaults --socket=$MASTER_MYSOCK --database=$DB --user=$DBUSER --password=$DBPASSWD --silent"
+MYSQL_TEST="$MYSQL_TEST --no-defaults --socket=$MASTER_MYSOCK --database=$DB --user=$DBUSER --password=$DBPASSWD --silent -v"
 GDB_MASTER_INIT=/tmp/gdbinit.master
 GDB_SLAVE_INIT=/tmp/gdbinit.slave
 
@@ -142,19 +140,19 @@ while test $# -gt 0; do
     --record ) RECORD=1 ;;
     --gcov )
       if [ x$BINARY_DIST = x1 ] ; then
-	echo "Cannot do coverage test without the source - please use source dist"
+	$ECHO "Cannot do coverage test without the source - please use source dist"
 	exit 1
       fi
       DO_GCOV=1
       ;;
     --gdb )
       if [ x$BINARY_DIST = x1 ] ; then
-	echo "Note: you will get more meaningful output on a source distribution compiled with debugging option when running tests with -gdb option"
+	$ECHO "Note: you will get more meaningful output on a source distribution compiled with debugging option when running tests with -gdb option"
       fi
       DO_GDB=1
       ;;
     -- )  shift; break ;;
-    --* ) echo "Unrecognized option: $1"; exit 1 ;;
+    --* ) $ECHO "Unrecognized option: $1"; exit 1 ;;
     * ) break ;;
   esac
   shift
@@ -166,19 +164,22 @@ done
 
 prompt_user ()
 {
- echo $1
+ $ECHO $1
  read unused
 }
 
 
 error () {
-
     $ECHO  "Error:  $1"
     exit 1
 }
 
+error_is () {
+    $ECHO `$CAT $TIMEFILE` | $SED -e 's/.* At line \(.*\)\: \(.*\)Command .*$/   \>\> Error at line \1: \2<\</'
+}
+
 prefix_to_8() {
- echo "        $1" | $SED -e 's:.*\(........\)$:\1:'
+ $ECHO "        $1" | $SED -e 's:.*\(........\)$:\1:'
 }
 
 pass_inc () {
@@ -187,6 +188,10 @@ pass_inc () {
 
 fail_inc () {
     TOT_FAIL=`$EXPR $TOT_FAIL + 1`
+}
+
+skip_inc () {
+    TOT_SKIP=`$EXPR $TOT_SKIP + 1`
 }
 
 total_inc () {
@@ -203,22 +208,22 @@ report_stats () {
 	whole=`$PRINTF %.2s $raw`         
 	xwhole=`$EXPR $whole \* 100`      
 	deci=`$EXPR $raw - $xwhole`       
-	$ECHO  "Failed ${TOT_FAIL}/${TOT_TEST} tests ${whole}.${deci}% successful."
+	$ECHO  "Failed ${TOT_FAIL}/${TOT_TEST} tests, ${whole}.${deci}% successful."
     fi
 }
 
 mysql_install_db () {
-    echo "Removing stale files from previous run"
+    $ECHO "Removing Stale Files"
     $RM -rf $MASTER_MYDDIR $SLAVE_MYDDIR $SLAVE_MYLOG $MASTER_MYLOG \
      $SLAVE_MYERR $MASTER_MYERR
     [ -d $MYRUN_DIR ] || mkdir -p $MYRUN_DIR
-    echo "installing master databases"
+    $ECHO "Installing Master Databases"
     $INSTALL_DB
     if [ $? != 0 ]; then
 	error "Could not install master test DBs"
 	exit 1
     fi
-    echo "Installing slave databases"
+    $ECHO "Installing Slave Databases"
     $INSTALL_DB -slave
     if [ $? != 0 ]; then
 	error "Could not install slave test DBs"
@@ -264,7 +269,7 @@ start_master()
 	    --language=english $EXTRA_MASTER_OPT"
     if [ x$DO_GDB = x1 ]
     then
-      echo "set args $master_args" > $GDB_MASTER_INIT
+      $ECHO "set args $master_args" > $GDB_MASTER_INIT
       xterm -title "Master" -e gdb -x $GDB_MASTER_INIT $MYSQLD &
       prompt_user "Hit enter to continue after you've started the master"
     else	    
@@ -299,7 +304,7 @@ start_slave()
             --language=english $EXTRA_SLAVE_OPT"
     if [ x$DO_GDB = x1 ]
     then
-      echo "set args $slave_args" > $GDB_SLAVE_INIT
+      $ECHO "set args $slave_args" > $GDB_SLAVE_INIT
       xterm -title "Slave" -e gdb -x $GDB_SLAVE_INIT $SLAVE_MYSQLD &
       prompt_user "Hit enter to continue after you've started the slave"
     else
@@ -309,6 +314,7 @@ start_slave()
 }
 
 mysql_start () {
+    $ECHO "Starting MySQL daemon"
     start_master
     start_slave
     cd $MYSQL_TEST_DIR
@@ -321,15 +327,15 @@ stop_slave ()
   then
     $MYSQLADMIN --no-defaults --socket=$SLAVE_MYSOCK -u root shutdown
     if [ $? != 0 ] ; then # try harder!
-     echo "slave not cooperating with mysqladmin, will try manual kill"
+     $ECHO "slave not cooperating with mysqladmin, will try manual kill"
      kill `cat $SLAVE_MYPID`
      sleep 2
      if [ -f $SLAVE_MYPID ] ; then
-       echo "slave refused to die, resorting to SIGKILL murder"
+       $ECHO "slave refused to die, resorting to SIGKILL murder"
        kill -9 `cat $SLAVE_MYPID`
        $RM -f $SLAVE_MYPID
      else
-      echo "slave responded to SIGTERM " 
+      $ECHO "slave responded to SIGTERM " 
      fi
     fi
     SLAVE_RUNNING=0
@@ -342,15 +348,15 @@ stop_master ()
   then
     $MYSQLADMIN --no-defaults --socket=$MASTER_MYSOCK -u root shutdown
     if [ $? != 0 ] ; then # try harder!
-     echo "master not cooperating with mysqladmin, will try manual kill"
+     $ECHO "master not cooperating with mysqladmin, will try manual kill"
      kill `cat $MASTER_MYPID`
      sleep 2
      if [ -f $MASTER_MYPID ] ; then
-       echo "master refused to die, resorting to SIGKILL murder"
+       $ECHO "master refused to die, resorting to SIGKILL murder"
        kill -9 `cat $MASTER_MYPID`
        $RM -f $MASTER_MYPID
      else
-      echo "master responded to SIGTERM " 
+      $ECHO "master responded to SIGTERM " 
      fi
     fi
     MASTER_RUNNING=0
@@ -359,6 +365,9 @@ stop_master ()
 
 mysql_stop ()
 {
+ $ECHO  "Ending Tests"
+ $ECHO  "Shutting-down MySQL daemon"
+ $ECHO
  stop_master
  stop_slave
  return 1
@@ -443,7 +452,7 @@ run_testcase ()
      < $tf 2> $TIMEFILE`
     res=$?
 
-    if [ $res != 1 ]; then
+    if [ $res == 0 ]; then
 	mytime=`$CAT $TIMEFILE | $TR '\n' '-'`
 
 	USERT=`$ECHO $mytime | $CUT -d - -f 2 | $CUT -d ' ' -f 2`
@@ -460,33 +469,38 @@ run_testcase ()
 
 	timestr="$USERT $SYST $REALT"
 	pname=`$ECHO "$tname                 "|$CUT -c 1-16`
-	$SETCOLOR_NORMAL && $ECHO -n "$pname          $timestr"
+	$ECHO -n "$pname          $timestr"
 
 
+
+    if [ $res == 0 ]; then
+      total_inc
+      pass_inc
+      $ECHO "$RES_SPACE [ pass ]"
+    else
+      if [ $res == 1 ]; then
 	total_inc
-
-    if [ $res != 0 ]; then
         fail_inc
-	echo "$RES_SPACE [ fail ]"
-        $ECHO "failed output"
-	$CAT $TIMEFILE
-	$ECHO
+	$ECHO "$RES_SPACE [ fail ]"
+        $ECHO
+	error_is
 	$ECHO
 	if [ x$FORCE != x1 ] ; then
-	 echo "Aborting, if you want to continue, re-run with --force"
+	 $ECHO "Aborting. To continue, re-run with '--force'."
+	 $ECHO
 	 mysql_stop
 	 exit 1
 	fi
 	 
-	echo "Restarting mysqld"
 	mysql_restart
-	echo "Resuming Tests"
-    else
-      pass_inc
-      echo "$RES_SPACE [ pass ]"
+	$ECHO "Resuming Tests"
+	$ECHO
+      else
+        pass_inc
+	$ECHO "$RES_SPACE [ skipped ]"
+      fi
     fi
   fi  
- 
 }
 
 
@@ -494,21 +508,20 @@ run_testcase ()
 
 [ "$DO_GCOV" ] && gcov_prepare 
 
-echo "Installing  test databases"
+$ECHO "Installing Test Databases"
 mysql_install_db
 
 #do not automagically start deamons if we are in gdb or running only one test
 #case
 if [ -z "$DO_GDB" ] && [ -z "$1" ]
 then
- $ECHO  "Starting mysqld for Testing" 
  mysql_start
 fi
 
-$ECHO  "Loading Standard Test Database"
+$ECHO  "Loading Standard Test Databases"
 mysql_loadstd
 
-$ECHO  "Starting Tests for MySQL daemon"
+$ECHO  "Starting Tests"
 
 $ECHO
 $ECHO " TEST                         USER   SYSTEM  ELAPSED        RESULT"
@@ -517,7 +530,7 @@ $ECHO $DASH72
 if [ -z "$1" ] ;
 then
  if [ x$RECORD = x1 ]; then
-  echo "Will not run in record mode without a specific test case"
+  $ECHO "Will not run in record mode without a specific test case."
  else
   for tf in $TESTDIR/*.$TESTSUFFIX
   do
@@ -525,27 +538,25 @@ then
   done
  fi
 else
- tf=$TESTDIR/$1.$TESTSUFFIX
+ tname=`$BASENAME $1 .test`
+ tf=$TESTDIR/$tname.$TESTSUFFIX
  if [ -f $tf ] ; then
   run_testcase $tf
  else
-   echo "Test case $tf does not exist"
+   $ECHO "Test case $tf does not exist."
  fi
 fi
 
 $ECHO $DASH72
 $ECHO
-$ECHO  "Ending Tests for MySQL daemon"
-$RM $TIMEFILE
+
+$RM -f $TIMEFILE
 
 if [ -z "$DO_GDB" ] ;
 then
-    $ECHO  "Shutdown mysqld"
     mysql_stop
 fi
 
-
-$ECHO
 report_stats
 $ECHO
 

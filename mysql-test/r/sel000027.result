@@ -1,2 +1,0 @@
-"Det här är svenska" REGEXP "h[[:alpha:]]+r"	"aba" REGEXP "^(a|b)*$"	
-1	1	

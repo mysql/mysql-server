@@ -393,7 +393,7 @@ static int examine_log(my_string file_name, char **table_names)
 	char *pos,*to;
 
 	/* Fix if old DOS files to new format */
-	for (pos=file_info.name; pos=strchr(pos,'\\') ; pos++)
+	for (pos=file_info.name; (pos=strchr(pos,'\\')) ; pos++)
 	  *pos= '/';
 
 	pos=file_info.name;

@@ -1,0 +1,14 @@
+#
+# This test should fail as MyISAM doesn't have rollback
+#
+
+drop table if exists t1;
+
+create table t1 (n int not null primary key) type=myisam;
+begin work;
+insert into t1 values (4);
+insert into t1 values (5);
+# Should give an error
+!$1196 rollback;
+select * from t1;
+drop table t1;

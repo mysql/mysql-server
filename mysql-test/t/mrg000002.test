@@ -1,2 +1,0 @@
-use test;
-@r/mrg000002.result select * from m;

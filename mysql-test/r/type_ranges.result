@@ -1,0 +1,159 @@
+Field	Type	Null	Key	Default	Extra	Privileges
+auto	int(5) unsigned		PRI	NULL	auto_increment	select,insert,update,references
+string	varchar(10)	YES		hello		select,insert,update,references
+tiny	tinyint(4)		MUL	0		select,insert,update,references
+short	smallint(6)		MUL	1		select,insert,update,references
+medium	mediumint(8)		MUL	0		select,insert,update,references
+long_int	int(11)			0		select,insert,update,references
+longlong	bigint(13)		MUL	0		select,insert,update,references
+real_float	float(13,1)		MUL	0.0		select,insert,update,references
+real_double	double(16,4)	YES		NULL		select,insert,update,references
+utiny	tinyint(3) unsigned		MUL	0		select,insert,update,references
+ushort	smallint(5) unsigned zerofill		MUL	00000		select,insert,update,references
+umedium	mediumint(8) unsigned		MUL	0		select,insert,update,references
+ulong	int(11) unsigned		MUL	0		select,insert,update,references
+ulonglong	bigint(13) unsigned		MUL	0		select,insert,update,references
+time_stamp	timestamp(14)	YES		NULL		select,insert,update,references
+date_field	date	YES		NULL		select,insert,update,references
+time_field	time	YES		NULL		select,insert,update,references
+date_time	datetime	YES		NULL		select,insert,update,references
+blob_col	blob	YES		NULL		select,insert,update,references
+tinyblob_col	tinyblob	YES		NULL		select,insert,update,references
+mediumblob_col	mediumblob					select,insert,update,references
+longblob_col	longblob					select,insert,update,references
+options	enum('one','two','tree')		MUL	one		select,insert,update,references
+flags	set('one','two','tree')					select,insert,update,references
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Comment
+t1	0	PRIMARY	1	auto	A	0	NULL	NULL	
+t1	1	utiny	1	utiny	A	NULL	NULL	NULL	
+t1	1	tiny	1	tiny	A	NULL	NULL	NULL	
+t1	1	short	1	short	A	NULL	NULL	NULL	
+t1	1	any_name	1	medium	A	NULL	NULL	NULL	
+t1	1	longlong	1	longlong	A	NULL	NULL	NULL	
+t1	1	real_float	1	real_float	A	NULL	NULL	NULL	
+t1	1	ushort	1	ushort	A	NULL	NULL	NULL	
+t1	1	umedium	1	umedium	A	NULL	NULL	NULL	
+t1	1	ulong	1	ulong	A	NULL	NULL	NULL	
+t1	1	ulonglong	1	ulonglong	A	NULL	NULL	NULL	
+t1	1	ulonglong	2	ulong	A	NULL	NULL	NULL	
+t1	1	options	1	options	A	NULL	NULL	NULL	
+t1	1	options	2	flags	A	NULL	NULL	NULL	
+auto	string	tiny	short	medium	long_int	longlong	real_float	real_double	utiny	ushort	umedium	ulong	ulonglong	mod(floor(time_stamp/1000000),1000000)-mod(curdate(),1000000)	date_field	time_field	date_time	blob_col	tinyblob_col	mediumblob_col	longblob_col
+10	1	1	1	1	1	1	1.0	1.0000	1	00001	1	1	1	0	0000-00-00	00:00:00	0000-00-00 00:00:00	1	1	1	1
+11	2	2	2	2	2	2	2.0	2.0000	2	00002	2	2	2	0	NULL	NULL	NULL	NULL	NULL	2	2
+12	0.33	3	3	3	3	3	3.0	3.0000	3	00003	3	3	3	0	1997-03-03	10:10:10	1997-03-03 10:10:10				3
+13	-1	-1	-1	-1	-1	-1	-1.0	-1.0000	0	00000	0	0	18446744073709551615	0	1997-08-07	08:07:06	1997-04-03 09:08:07	-1	-1	-1	-1
+14	-429496729	-128	-32768	-8388608	-2147483648	-4294967295	-4294967296.0	-4294967295.0000	0	00000	0	0	18446744069414584321	0	0000-00-00	00:00:00	0000-00-00 00:00:00	-4294967295	-4294967295	-4294967295	-4294967295
+15	4294967295	127	32767	8388607	2147483647	4294967295	4294967296.0	4294967295.0000	255	65535	16777215	4294967295	4294967295	0	0000-00-00	00:00:00	0000-00-00 00:00:00	4294967295	4294967295	4294967295	4294967295
+16	hello	1	1	0	0	0	0.0	NULL	0	00000	0	0	0	0	NULL	NULL	NULL	NULL	NULL		
+auto	new_field	new_blob_col	date_field
+10	new	1	0000-00-00
+11	new	NULL	NULL
+12	new		1997-03-03
+13	new	-1	1997-08-07
+14	new	-4294967295	0000-00-00
+15	new	4294967295	0000-00-00
+16	new	NULL	NULL
+auto	string	mediumblob_col	new_field
+1	2	2	ne
+2	0.33		ne
+3	-1	-1	ne
+4	-429496729	-4294967295	ne
+5	4294967295	4294967295	ne
+6	hello		ne
+flags
+
+one,two,tree
+one
+one,two
+flags
+one,two,tree
+one,two,tree
+one,two
+one,two
+flags
+options	flags
+one	one
+options	flags
+one	one
+Field	Type	Null	Key	Default	Extra	Privileges
+auto	int(5) unsigned		MUL	NULL	auto_increment	select,insert,update,references
+string	varchar(10)	YES		new defaul		select,insert,update,references
+tiny	tinyint(4)		MUL	0		select,insert,update,references
+short	smallint(6)		MUL	0		select,insert,update,references
+medium	mediumint(8)		MUL	0		select,insert,update,references
+long_int	int(11)			0		select,insert,update,references
+longlong	bigint(13)		MUL	0		select,insert,update,references
+real_float	float(13,1)		MUL	0.0		select,insert,update,references
+real_double	double(16,4)	YES		NULL		select,insert,update,references
+utiny	tinyint(3) unsigned			0		select,insert,update,references
+ushort	smallint(5) unsigned zerofill			00000		select,insert,update,references
+umedium	mediumint(8) unsigned		MUL	0		select,insert,update,references
+ulong	int(11) unsigned		MUL	0		select,insert,update,references
+ulonglong	bigint(13) unsigned		MUL	0		select,insert,update,references
+time_stamp	timestamp(14)	YES		NULL		select,insert,update,references
+date_field	varchar(10)	YES		NULL		select,insert,update,references
+time_field	time	YES		NULL		select,insert,update,references
+date_time	datetime	YES		NULL		select,insert,update,references
+new_blob_col	varchar(20)	YES		NULL		select,insert,update,references
+tinyblob_col	tinyblob	YES		NULL		select,insert,update,references
+mediumblob_col	mediumblob					select,insert,update,references
+options	enum('one','two','tree')		MUL	one		select,insert,update,references
+flags	set('one','two','tree')					select,insert,update,references
+new_field	varchar(10)			new		select,insert,update,references
+Field	Type	Null	Key	Default	Extra	Privileges
+auto	int(5) unsigned			0		select,insert,update,references
+string	varchar(10)	YES		new defaul		select,insert,update,references
+tiny	tinyint(4)			0		select,insert,update,references
+short	smallint(6)			0		select,insert,update,references
+medium	mediumint(8)			0		select,insert,update,references
+long_int	int(11)			0		select,insert,update,references
+longlong	bigint(13)			0		select,insert,update,references
+real_float	float(13,1)			0.0		select,insert,update,references
+real_double	double(16,4)	YES		NULL		select,insert,update,references
+utiny	tinyint(3) unsigned			0		select,insert,update,references
+ushort	smallint(5) unsigned zerofill			00000		select,insert,update,references
+umedium	mediumint(8) unsigned			0		select,insert,update,references
+ulong	int(11) unsigned			0		select,insert,update,references
+ulonglong	bigint(13) unsigned			0		select,insert,update,references
+time_stamp	timestamp(14)	YES		NULL		select,insert,update,references
+date_field	varchar(10)	YES		NULL		select,insert,update,references
+time_field	time	YES		NULL		select,insert,update,references
+date_time	datetime	YES		NULL		select,insert,update,references
+new_blob_col	varchar(20)	YES		NULL		select,insert,update,references
+tinyblob_col	tinyblob	YES		NULL		select,insert,update,references
+mediumblob_col	mediumblob					select,insert,update,references
+options	enum('one','two','tree')			one		select,insert,update,references
+flags	set('one','two','tree')					select,insert,update,references
+new_field	varchar(10)			new		select,insert,update,references
+auto	auto
+16	16
+auto	auto
+16	16
+Field	Type	Null	Key	Default	Extra	Privileges
+auto	bigint(17)		PRI	0		select,insert,update,references
+t1	bigint(1)			0		select,insert,update,references
+t2	char(1)					select,insert,update,references
+t3	mediumtext					select,insert,update,references
+t4	mediumblob					select,insert,update,references
+auto	t1	t2	t3	t4
+11	1	a	aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa	bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
+12	1	a	aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa	bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
+13	1	a	aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa	bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
+14	1	a	aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa	bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
+15	1	a	aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa	bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
+16	1	a	aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa	bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
+17	1	a	aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa	bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
+Field	Type	Null	Key	Default	Extra	Privileges
+c1	int(11)	YES		NULL		select,insert,update,references
+c2	int(11)	YES		NULL		select,insert,update,references
+const	bigint(1)			0		select,insert,update,references
+id_A	id_B
+1	1
+2	NULL
+id_A	id_B
+1	1
+2	NULL
+id_A	id_B
+1	1
+2	NULL

@@ -1,0 +1,11 @@
+#
+# Bug when using comparions of strings and integers.
+#
+
+CREATE TABLE t1 (id CHAR(12) not null, PRIMARY KEY (id));
+insert into t1 values ('000000000001'),('000000000002');
+explain select * from t1 where id=000000000001;
+select * from t1 where id=000000000001;
+delete from t1 where id=000000000002;
+select * from t1;
+drop table t1;
