@@ -100,11 +100,16 @@ int runScanReadUntilStopped(NDBT_Context* ctx, NDBT_Step* step){
 int runPkReadUntilStopped(NDBT_Context* ctx, NDBT_Step* step){
   int result = NDBT_OK;
   int records = ctx->getNumRecords();
+  NdbOperation::LockMode lm = 
+    (NdbOperation::LockMode)ctx->getProperty("ReadLockMode", 
+					     (Uint32)NdbOperation::LM_Read);
   int i = 0;
   HugoTransactions hugoTrans(*ctx->getTab());
   while (ctx->isTestStopped() == false) {
     g_info << i << ": ";
-    if (hugoTrans.pkReadRecords(GETNDB(step), records, 128) != 0){
+    int rows = (rand()%records)+1;
+    int batch = (rand()%rows)+1;
+    if (hugoTrans.pkReadRecords(GETNDB(step), rows, batch, lm) != 0){
       return NDBT_FAILED;
     }
     i++;
@@ -119,12 +124,68 @@ int runPkUpdateUntilStopped(NDBT_Context* ctx, NDBT_Step* step){
   HugoTransactions hugoTrans(*ctx->getTab());
   while (ctx->isTestStopped() == false) {
     g_info << i << ": ";
-    if (hugoTrans.pkUpdateRecords(GETNDB(step), records) != 0){
+    int rows = (rand()%records)+1;
+    int batch = (rand()%rows)+1;
+    if (hugoTrans.pkUpdateRecords(GETNDB(step), rows, batch) != 0){
       return NDBT_FAILED;
     }
     i++;
   }
   return result;
+}
+
+int runPkReadPkUpdateUntilStopped(NDBT_Context* ctx, NDBT_Step* step){
+  int result = NDBT_OK;
+  int records = ctx->getNumRecords();
+  Ndb* pNdb = GETNDB(step);
+  int i = 0;
+  HugoOperations hugoOps(*ctx->getTab());
+  while (ctx->isTestStopped() == false) {
+    g_info << i++ << ": ";
+    int rows = (rand()%records)+1;
+    int batch = (rand()%rows)+1;
+    int row = (records - rows) ? rand() % (records - rows) : 0;
+    
+    int j,k;
+    for(j = 0; j<rows; j += batch)
+    {
+      k = batch;
+      if(j+k > rows)
+	k = rows - j;
+      
+      if(hugoOps.startTransaction(pNdb) != 0)
+	goto err;
+      
+      if(hugoOps.pkReadRecord(pNdb, row+j, k, NdbOperation::LM_Exclusive) != 0)
+	goto err;
+
+      if(hugoOps.execute_NoCommit(pNdb) != 0)
+	goto err;
+
+      if(hugoOps.pkUpdateRecord(pNdb, row+j, k, rand()) != 0)
+	goto err;
+
+      if(hugoOps.execute_Commit(pNdb) != 0)
+	goto err;
+
+      if(hugoOps.closeTransaction(pNdb) != 0)
+	return NDBT_FAILED;
+    }
+    
+    continue;
+err:
+    NdbConnection* pCon = hugoOps.getTransaction();
+    if(pCon == 0)
+      continue;
+    NdbError error = pCon->getNdbError();
+    hugoOps.closeTransaction(pNdb);
+    if (error.status == NdbError::TemporaryError){
+      NdbSleep_MilliSleep(50);
+      continue;
+    }
+    return NDBT_FAILED;    
+  }
+  return NDBT_OK;
 }
 
 int runScanUpdateUntilStopped(NDBT_Context* ctx, NDBT_Step* step){
@@ -178,7 +239,7 @@ int runRestarter(NDBT_Context* ctx, NDBT_Step* step){
     int id = lastId % restarter.getNumDbNodes();
     int nodeId = restarter.getDbNodeId(id);
     ndbout << "Restart node " << nodeId << endl; 
-    if(restarter.restartOneDbNode(nodeId) != 0){
+    if(restarter.restartOneDbNode(nodeId, false, false, true) != 0){
       g_err << "Failed to restartNextDbNode" << endl;
       result = NDBT_FAILED;
       break;
@@ -246,6 +307,27 @@ TESTCASE("NoLoad",
 TESTCASE("PkRead", 
 	 "Test that one node at a time can be stopped and then restarted "\
 	 "perform pk read while restarting. Do this loop number of times"){ 
+  TC_PROPERTY("ReadLockMode", NdbOperation::LM_Read);
+  INITIALIZER(runCheckAllNodesStarted);
+  INITIALIZER(runLoadTable);
+  STEP(runRestarter);
+  STEP(runPkReadUntilStopped);
+  FINALIZER(runClearTable);
+}
+TESTCASE("PkReadCommitted", 
+	 "Test that one node at a time can be stopped and then restarted "\
+	 "perform pk read while restarting. Do this loop number of times"){ 
+  TC_PROPERTY("ReadLockMode", NdbOperation::LM_CommittedRead);
+  INITIALIZER(runCheckAllNodesStarted);
+  INITIALIZER(runLoadTable);
+  STEP(runRestarter);
+  STEP(runPkReadUntilStopped);
+  FINALIZER(runClearTable);
+}
+TESTCASE("MixedPkRead", 
+	 "Test that one node at a time can be stopped and then restarted "\
+	 "perform pk read while restarting. Do this loop number of times"){ 
+  TC_PROPERTY("ReadLockMode", -1);
   INITIALIZER(runCheckAllNodesStarted);
   INITIALIZER(runLoadTable);
   STEP(runRestarter);
@@ -255,14 +337,31 @@ TESTCASE("PkRead",
 TESTCASE("PkReadPkUpdate", 
 	 "Test that one node at a time can be stopped and then restarted "\
 	 "perform pk read and pk update while restarting. Do this loop number of times"){ 
+  TC_PROPERTY("ReadLockMode", NdbOperation::LM_Read);
   INITIALIZER(runCheckAllNodesStarted);
   INITIALIZER(runLoadTable);
   STEP(runRestarter);
   STEP(runPkReadUntilStopped);
-  STEP(runPkReadUntilStopped);
-  STEP(runPkReadUntilStopped);
+  STEP(runPkUpdateUntilStopped);
+  STEP(runPkReadPkUpdateUntilStopped);
   STEP(runPkReadUntilStopped);
   STEP(runPkUpdateUntilStopped);
+  STEP(runPkReadPkUpdateUntilStopped);
+  FINALIZER(runClearTable);
+}
+TESTCASE("MixedPkReadPkUpdate", 
+	 "Test that one node at a time can be stopped and then restarted "\
+	 "perform pk read and pk update while restarting. Do this loop number of times"){ 
+  TC_PROPERTY("ReadLockMode", -1);
+  INITIALIZER(runCheckAllNodesStarted);
+  INITIALIZER(runLoadTable);
+  STEP(runRestarter);
+  STEP(runPkReadUntilStopped);
+  STEP(runPkUpdateUntilStopped);
+  STEP(runPkReadPkUpdateUntilStopped);
+  STEP(runPkReadUntilStopped);
+  STEP(runPkUpdateUntilStopped);
+  STEP(runPkReadPkUpdateUntilStopped);
   FINALIZER(runClearTable);
 }
 TESTCASE("ReadUpdateScan", 
@@ -273,6 +372,21 @@ TESTCASE("ReadUpdateScan",
   STEP(runRestarter);
   STEP(runPkReadUntilStopped);
   STEP(runPkUpdateUntilStopped);
+  STEP(runPkReadPkUpdateUntilStopped);
+  STEP(runScanReadUntilStopped);
+  STEP(runScanUpdateUntilStopped);
+  FINALIZER(runClearTable);
+}
+TESTCASE("MixedReadUpdateScan", 
+	 "Test that one node at a time can be stopped and then restarted "\
+	 "perform pk read, pk update and scan reads while restarting. Do this loop number of times"){ 
+  TC_PROPERTY("ReadLockMode", -1);
+  INITIALIZER(runCheckAllNodesStarted);
+  INITIALIZER(runLoadTable);
+  STEP(runRestarter);
+  STEP(runPkReadUntilStopped);
+  STEP(runPkUpdateUntilStopped);
+  STEP(runPkReadPkUpdateUntilStopped);
   STEP(runScanReadUntilStopped);
   STEP(runScanUpdateUntilStopped);
   FINALIZER(runClearTable);

@@ -160,8 +160,8 @@ int runPkDirtyRead(NDBT_Context* ctx, NDBT_Step* step){
   HugoTransactions hugoTrans(*ctx->getTab());
   while (i<loops) {
     g_info << i << ": ";
-    if (hugoTrans.pkReadRecords(GETNDB(step), records, 
-				batchSize, dirty) != NDBT_OK){
+    if (hugoTrans.pkReadRecords(GETNDB(step), records, batchSize, 
+				NdbOperation::LM_CommittedRead) != NDBT_OK){
       g_info << endl;
       return NDBT_FAILED;
     }
@@ -736,7 +736,7 @@ int runCheckRollbackUpdate(NDBT_Context* ctx, NDBT_Step* step){
     
     // Read value and save it for later
     CHECK(hugoOps.startTransaction(pNdb) == 0);  
-    CHECK(hugoOps.pkReadRecord(pNdb, 1, false, numRecords) == 0);
+    CHECK(hugoOps.pkReadRecord(pNdb, 1, numRecords) == 0);
     CHECK(hugoOps.execute_Commit(pNdb) == 0);
     CHECK(hugoOps.verifyUpdatesValue(0) == NDBT_OK); // Update value 0
     CHECK(hugoOps.closeTransaction(pNdb) == 0);
@@ -747,7 +747,7 @@ int runCheckRollbackUpdate(NDBT_Context* ctx, NDBT_Step* step){
     CHECK(hugoOps.execute_NoCommit(pNdb) == 0);
   
     // Check record is updated
-    CHECK(hugoOps.pkReadRecord(pNdb, 1, true, numRecords) == 0);
+    CHECK(hugoOps.pkReadRecord(pNdb, 1, numRecords, NdbOperation::LM_Exclusive) == 0);
     CHECK(hugoOps.execute_NoCommit(pNdb) == 0);
     CHECK(hugoOps.verifyUpdatesValue(5) == NDBT_OK); // Updates value 5
     CHECK(hugoOps.execute_Rollback(pNdb) == 0);
@@ -756,7 +756,7 @@ int runCheckRollbackUpdate(NDBT_Context* ctx, NDBT_Step* step){
 
     // Check record is back to original value
     CHECK(hugoOps.startTransaction(pNdb) == 0);  
-    CHECK(hugoOps.pkReadRecord(pNdb, 1, true, numRecords) == 0);
+    CHECK(hugoOps.pkReadRecord(pNdb, 1, numRecords, NdbOperation::LM_Exclusive) == 0);
     CHECK(hugoOps.execute_Commit(pNdb) == 0);
     CHECK(hugoOps.verifyUpdatesValue(0) == NDBT_OK); // Updates value 0
 
@@ -775,7 +775,7 @@ int runCheckRollbackDeleteMultiple(NDBT_Context* ctx, NDBT_Step* step){
   do{
     // Read value and save it for later
     CHECK(hugoOps.startTransaction(pNdb) == 0);  
-    CHECK(hugoOps.pkReadRecord(pNdb, 5, false, 10) == 0);
+    CHECK(hugoOps.pkReadRecord(pNdb, 5, 10) == 0);
     CHECK(hugoOps.execute_Commit(pNdb) == 0);
     CHECK(hugoOps.verifyUpdatesValue(0) == NDBT_OK);
     CHECK(hugoOps.closeTransaction(pNdb) == 0);
@@ -785,7 +785,7 @@ int runCheckRollbackDeleteMultiple(NDBT_Context* ctx, NDBT_Step* step){
     for(Uint32 i = 0; i<1; i++){
       // Read  record 5 - 10
       CHECK(hugoOps.startTransaction(pNdb) == 0);  
-      CHECK(hugoOps.pkReadRecord(pNdb, 5, true, 10) == 0);
+      CHECK(hugoOps.pkReadRecord(pNdb, 5, 10, NdbOperation::LM_Exclusive) == 0);
       CHECK(hugoOps.execute_NoCommit(pNdb) == 0);
       
       for(j = 0; j<10; j++){
@@ -794,7 +794,7 @@ int runCheckRollbackDeleteMultiple(NDBT_Context* ctx, NDBT_Step* step){
 	CHECK(hugoOps.pkUpdateRecord(pNdb, 5, 10, updatesValue) == 0);
 	CHECK(hugoOps.execute_NoCommit(pNdb) == 0);
 
-	CHECK(hugoOps.pkReadRecord(pNdb, 5, true, 10) == 0);
+	CHECK(hugoOps.pkReadRecord(pNdb, 5, 10, NdbOperation::LM_Exclusive) == 0);
 	CHECK(hugoOps.execute_NoCommit(pNdb) == 0);
 	CHECK(hugoOps.verifyUpdatesValue(updatesValue) == 0);
       }      
@@ -806,7 +806,7 @@ int runCheckRollbackDeleteMultiple(NDBT_Context* ctx, NDBT_Step* step){
 
 #if 0
 	// Check records are deleted
-	CHECK(hugoOps.pkReadRecord(pNdb, 5, true, 10) == 0);
+	CHECK(hugoOps.pkReadRecord(pNdb, 5, 10, NdbOperation::LM_Exclusive) == 0);
 	CHECK(hugoOps.execute_NoCommit(pNdb) == 626);
 #endif
 
@@ -814,7 +814,7 @@ int runCheckRollbackDeleteMultiple(NDBT_Context* ctx, NDBT_Step* step){
 	CHECK(hugoOps.pkInsertRecord(pNdb, 5, 10, updatesValue) == 0);
 	CHECK(hugoOps.execute_NoCommit(pNdb) == 0);
 	
-	CHECK(hugoOps.pkReadRecord(pNdb, 5, true, 10) == 0);
+	CHECK(hugoOps.pkReadRecord(pNdb, 5, 10, NdbOperation::LM_Exclusive) == 0);
 	CHECK(hugoOps.execute_NoCommit(pNdb) == 0);
 	CHECK(hugoOps.verifyUpdatesValue(updatesValue) == 0);
       }
@@ -823,7 +823,7 @@ int runCheckRollbackDeleteMultiple(NDBT_Context* ctx, NDBT_Step* step){
       CHECK(hugoOps.execute_NoCommit(pNdb) == 0);
 
       // Check records are deleted
-      CHECK(hugoOps.pkReadRecord(pNdb, 5, true, 10) == 0);
+      CHECK(hugoOps.pkReadRecord(pNdb, 5, 10, NdbOperation::LM_Exclusive) == 0);
       CHECK(hugoOps.execute_NoCommit(pNdb) == 626);
       CHECK(hugoOps.execute_Rollback(pNdb) == 0);
       
@@ -833,7 +833,7 @@ int runCheckRollbackDeleteMultiple(NDBT_Context* ctx, NDBT_Step* step){
     // Check records are not deleted
     // after rollback
     CHECK(hugoOps.startTransaction(pNdb) == 0);  
-    CHECK(hugoOps.pkReadRecord(pNdb, 5, true, 10) == 0);
+    CHECK(hugoOps.pkReadRecord(pNdb, 5, 10, NdbOperation::LM_Exclusive) == 0);
     CHECK(hugoOps.execute_Commit(pNdb) == 0);
     CHECK(hugoOps.verifyUpdatesValue(0) == NDBT_OK);
     
@@ -889,7 +889,7 @@ int runCheckCommitDelete(NDBT_Context* ctx, NDBT_Step* step){
   do{
     // Read  10 records
     CHECK(hugoOps.startTransaction(pNdb) == 0);  
-    CHECK(hugoOps.pkReadRecord(pNdb, 5, true, 10) == 0);
+    CHECK(hugoOps.pkReadRecord(pNdb, 5, 10, NdbOperation::LM_Exclusive) == 0);
     CHECK(hugoOps.execute_NoCommit(pNdb) == 0);
   
     // Update 10 records
@@ -905,7 +905,7 @@ int runCheckCommitDelete(NDBT_Context* ctx, NDBT_Step* step){
 
     // Check record's are deleted
     CHECK(hugoOps.startTransaction(pNdb) == 0);  
-    CHECK(hugoOps.pkReadRecord(pNdb, 5, true, 10) == 0);
+    CHECK(hugoOps.pkReadRecord(pNdb, 5, 10, NdbOperation::LM_Exclusive) == 0);
     CHECK(hugoOps.execute_Commit(pNdb) == 626);
 
   }while(false);
@@ -930,7 +930,7 @@ int runRollbackNothing(NDBT_Context* ctx, NDBT_Step* step){
 
     // Check records are not deleted
     CHECK(hugoOps.startTransaction(pNdb) == 0);  
-    CHECK(hugoOps.pkReadRecord(pNdb, 5, true, 10) == 0);
+    CHECK(hugoOps.pkReadRecord(pNdb, 5, 10, NdbOperation::LM_Exclusive) == 0);
     CHECK(hugoOps.execute_Commit(pNdb) == 0);
     CHECK(hugoOps.closeTransaction(pNdb) == 0);  
 
